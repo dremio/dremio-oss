@@ -15,19 +15,6 @@
  */
 package com.dremio.datastore;
 
-import java.io.IOException;
-import java.nio.file.Path;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Set;
-import java.util.function.Supplier;
-
-import javax.inject.Provider;
-
-import org.apache.arrow.memory.BufferAllocator;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.config.DremioConfig;
 import com.dremio.datastore.CoreStoreProvider.CoreStoreBuilder;
@@ -53,11 +40,20 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.nio.file.Path;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Supplier;
+import javax.inject.Provider;
+import org.apache.arrow.memory.BufferAllocator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * Datastore provider for master node.
- */
-@KVStoreProviderType(type="LocalDB")
+/** Datastore provider for master node. */
+@KVStoreProviderType(type = "LocalDB")
 public class LocalKVStoreProvider implements KVStoreProvider, Iterable<StoreWithId<?, ?>> {
   private static final Logger logger = LoggerFactory.getLogger(LocalKVStoreProvider.class);
   public static final String CONFIG_HOSTNAME = "hostName";
@@ -79,59 +75,97 @@ public class LocalKVStoreProvider implements KVStoreProvider, Iterable<StoreWith
   private StoreBuildingFactory storeBuildingFactory;
 
   private ImmutableMap<Class<? extends StoreCreationFunction<?, ?, ?>>, KVStore<?, ?>> stores;
-  private Supplier<ImmutableMap<Class<? extends StoreCreationFunction<?, ?, ?>>, KVStore<?, ?>>> storesProvider;
+  private Supplier<ImmutableMap<Class<? extends StoreCreationFunction<?, ?, ?>>, KVStore<?, ?>>>
+      storesProvider;
 
   @VisibleForTesting
-  public LocalKVStoreProvider(ScanResult scan, String baseDirectory, boolean inMemory, boolean timed) {
+  public LocalKVStoreProvider(
+      ScanResult scan, String baseDirectory, boolean inMemory, boolean timed) {
     this(scan, null, null, null, baseDirectory, inMemory, timed, false);
   }
 
-  public LocalKVStoreProvider(ScanResult scan, String baseDirectory, boolean inMemory, boolean timed,
-    boolean noDBOpenRetry, boolean noDBLogMessages, boolean readOnly) {
-    this(scan, null, null, null, baseDirectory, inMemory, timed, noDBOpenRetry, noDBLogMessages, readOnly);
+  public LocalKVStoreProvider(
+      ScanResult scan,
+      String baseDirectory,
+      boolean inMemory,
+      boolean timed,
+      boolean noDBOpenRetry,
+      boolean noDBLogMessages,
+      boolean readOnly) {
+    this(
+        scan,
+        null,
+        null,
+        null,
+        baseDirectory,
+        inMemory,
+        timed,
+        noDBOpenRetry,
+        noDBLogMessages,
+        readOnly);
   }
 
   public LocalKVStoreProvider(
-    ScanResult scan,
-    Provider<FabricService> fabricService,
-    BufferAllocator allocator,
-    String hostName,
-    String baseDirectory,
-    boolean inMemory,
-    boolean timed,
-    boolean readOnly) {
-    this(scan, fabricService, allocator, hostName, baseDirectory, inMemory, timed, false, false, readOnly);
+      ScanResult scan,
+      Provider<FabricService> fabricService,
+      BufferAllocator allocator,
+      String hostName,
+      String baseDirectory,
+      boolean inMemory,
+      boolean timed,
+      boolean readOnly) {
+    this(
+        scan,
+        fabricService,
+        allocator,
+        hostName,
+        baseDirectory,
+        inMemory,
+        timed,
+        false,
+        false,
+        readOnly);
   }
 
   public LocalKVStoreProvider(
-    ScanResult scan,
-    Provider<FabricService> fabricService,
-    BufferAllocator allocator,
-    String hostName,
-    String baseDirectory,
-    boolean inMemory,
-    boolean timed,
-    boolean noDBOpenRetry,
-    boolean noDBLogMessages,
-    boolean readOnly) {
-    this(() -> scan.getImplementations(StoreCreationFunction.class),
-      fabricService, allocator, hostName, baseDirectory, inMemory, timed, noDBOpenRetry, noDBLogMessages, readOnly);
+      ScanResult scan,
+      Provider<FabricService> fabricService,
+      BufferAllocator allocator,
+      String hostName,
+      String baseDirectory,
+      boolean inMemory,
+      boolean timed,
+      boolean noDBOpenRetry,
+      boolean noDBLogMessages,
+      boolean readOnly) {
+    this(
+        () -> scan.getImplementations(StoreCreationFunction.class),
+        fabricService,
+        allocator,
+        hostName,
+        baseDirectory,
+        inMemory,
+        timed,
+        noDBOpenRetry,
+        noDBLogMessages,
+        readOnly);
   }
 
   public LocalKVStoreProvider(
-    StoreCreatorSupplier storeCreatorSupplier,
-    Provider<FabricService> fabricService,
-    BufferAllocator allocator,
-    String hostName,
-    String baseDirectory,
-    boolean inMemory,
-    boolean timed,
-    boolean noDBOpenRetry,
-    boolean noDBLogMessages,
-    boolean readOnly) {
+      StoreCreatorSupplier storeCreatorSupplier,
+      Provider<FabricService> fabricService,
+      BufferAllocator allocator,
+      String hostName,
+      String baseDirectory,
+      boolean inMemory,
+      boolean timed,
+      boolean noDBOpenRetry,
+      boolean noDBLogMessages,
+      boolean readOnly) {
 
-    coreStoreProvider = new CoreStoreProviderImpl(baseDirectory, inMemory, timed, noDBOpenRetry, false,
-      noDBLogMessages, readOnly);
+    coreStoreProvider =
+        new CoreStoreProviderImpl(
+            baseDirectory, inMemory, timed, noDBOpenRetry, false, noDBLogMessages, readOnly);
     this.fabricService = fabricService;
     this.allocator = allocator;
     this.hostName = hostName;
@@ -142,40 +176,54 @@ public class LocalKVStoreProvider implements KVStoreProvider, Iterable<StoreWith
     this.storesProvider = getStoreProvider();
   }
 
-  protected Supplier<ImmutableMap<Class<? extends StoreCreationFunction<?, ?, ?>>, KVStore<?, ?>>> getStoreProvider(){
+  protected Supplier<ImmutableMap<Class<? extends StoreCreationFunction<?, ?, ?>>, KVStore<?, ?>>>
+      getStoreProvider() {
     return () -> StoreLoader.buildStores(storeCreatorSupplier.get(), storeBuildingFactory);
   }
 
   public LocalKVStoreProvider(
-    ScanResult scan,
-    Provider<FabricService> fabricService,
-    Provider<NodeEndpoint> endpoint,        // unused
-    BufferAllocator allocator,
-    Map<String, Object> config
-  ) {
-    this(scan,
-      fabricService,
-      allocator,
-      String.valueOf(Preconditions.checkNotNull(config.get(CONFIG_HOSTNAME), String.format(ERR_FMT, CONFIG_HOSTNAME))),
-      String.valueOf(Preconditions.checkNotNull(config.get(CONFIG_BASEDIRECTORY), String.format(ERR_FMT,
-        CONFIG_BASEDIRECTORY))),
-      Boolean.valueOf(Preconditions.checkNotNull(config.get(DremioConfig.DEBUG_USE_MEMORY_STRORAGE_BOOL),
-        String.format("Missing %s in dremio.conf", DremioConfig.DEBUG_USE_MEMORY_STRORAGE_BOOL)).toString()),
-      Boolean.valueOf(Preconditions.checkNotNull(config.get(CONFIG_TIMED), String.format(ERR_FMT, CONFIG_TIMED)).toString()),
-      false, false, false
-    );
+      ScanResult scan,
+      Provider<FabricService> fabricService,
+      Provider<NodeEndpoint> endpoint, // unused
+      BufferAllocator allocator,
+      Map<String, Object> config) {
+    this(
+        scan,
+        fabricService,
+        allocator,
+        String.valueOf(
+            Preconditions.checkNotNull(
+                config.get(CONFIG_HOSTNAME), String.format(ERR_FMT, CONFIG_HOSTNAME))),
+        String.valueOf(
+            Preconditions.checkNotNull(
+                config.get(CONFIG_BASEDIRECTORY), String.format(ERR_FMT, CONFIG_BASEDIRECTORY))),
+        Boolean.valueOf(
+            Preconditions.checkNotNull(
+                    config.get(DremioConfig.DEBUG_USE_MEMORY_STRORAGE_BOOL),
+                    String.format(
+                        "Missing %s in dremio.conf", DremioConfig.DEBUG_USE_MEMORY_STRORAGE_BOOL))
+                .toString()),
+        Boolean.valueOf(
+            Preconditions.checkNotNull(
+                    config.get(CONFIG_TIMED), String.format(ERR_FMT, CONFIG_TIMED))
+                .toString()),
+        false,
+        false,
+        false);
 
-    this.remoteRpcTimeout = (Long)config.get(DremioConfig.REMOTE_DATASTORE_RPC_TIMEOUT_SECS);
+    this.remoteRpcTimeout = (Long) config.get(DremioConfig.REMOTE_DATASTORE_RPC_TIMEOUT_SECS);
   }
 
   @VisibleForTesting
-  public void setStoresProvider(Supplier<ImmutableMap<Class<? extends StoreCreationFunction<?, ?, ?>>, KVStore<?, ?>>> storesProvider) {
+  public void setStoresProvider(
+      Supplier<ImmutableMap<Class<? extends StoreCreationFunction<?, ?, ?>>, KVStore<?, ?>>>
+          storesProvider) {
     this.storesProvider = storesProvider;
   }
 
   @Override
   @VisibleForTesting
-  public <K, V> StoreBuilder<K, V> newStore(){
+  public <K, V> StoreBuilder<K, V> newStore() {
     return new LocalStoreBuilder<>(coreStoreProvider.<K, V>newStore());
   }
 
@@ -186,16 +234,24 @@ public class LocalKVStoreProvider implements KVStoreProvider, Iterable<StoreWith
 
   @Override
   public Set<KVStore<?, ?>> stores() {
-    return new ImmutableSet.Builder<KVStore<?,?>>().addAll(stores.values().iterator()).build();
+    return new ImmutableSet.Builder<KVStore<?, ?>>().addAll(stores.values().iterator()).build();
   }
 
   @SuppressWarnings("unchecked")
   @Override
-  public <K, V, T extends KVStore<K, V>> T getStore(Class<? extends StoreCreationFunction<K, V, T>> creator) {
-    return (T) Preconditions.checkNotNull(stores.get(creator), "Unknown store creator %s", creator.getName());
+  public <K, V, T extends KVStore<K, V>> T getStore(
+      Class<? extends StoreCreationFunction<K, V, T>> creator) {
+    return (T)
+        Preconditions.checkNotNull(
+            stores.get(creator), "Unknown store creator %s", creator.getName());
   }
 
-  public <K, V, T> AuxiliaryIndex<K, V, T> getAuxiliaryIndex(String name, String kvStoreName, Class<? extends DocumentConverter<K, T>> converter) throws InstantiationException, IllegalAccessException {
+  public <K, V, T> AuxiliaryIndex<K, V, T> getAuxiliaryIndex(
+      String name, String kvStoreName, Class<? extends DocumentConverter<K, T>> converter)
+      throws InstantiationException,
+          IllegalAccessException,
+          InvocationTargetException,
+          NoSuchMethodException {
     CoreKVStore<K, V> store = (CoreKVStore<K, V>) coreStoreProvider.getStore(kvStoreName);
     return new AuxiliaryIndexImpl<>(name, store, coreStoreProvider.getIndex(name), converter);
   }
@@ -212,15 +268,22 @@ public class LocalKVStoreProvider implements KVStoreProvider, Iterable<StoreWith
     coreStoreProvider.recoverIfPreviouslyCrashed();
 
     if (fabricService != null) {
-      final DefaultDataStoreRpcHandler rpcHandler = new LocalDataStoreRpcHandler(hostName, coreStoreProvider);
-      final NodeEndpoint thisNode = NodeEndpoint.newBuilder()
-        .setAddress(hostName)
-        .setFabricPort(fabricService.get().getPort())
-        .build();
+      final DefaultDataStoreRpcHandler rpcHandler =
+          new LocalDataStoreRpcHandler(hostName, coreStoreProvider);
+      final NodeEndpoint thisNode =
+          NodeEndpoint.newBuilder()
+              .setAddress(hostName)
+              .setFabricPort(fabricService.get().getPort())
+              .build();
       try {
         // DatastoreRpcService registers itself with fabric
         //noinspection ResultOfObjectAllocationIgnored
-        new DatastoreRpcService(DirectProvider.wrap(thisNode), fabricService.get(), allocator, rpcHandler, remoteRpcTimeout);
+        new DatastoreRpcService(
+            DirectProvider.wrap(thisNode),
+            fabricService.get(),
+            allocator,
+            rpcHandler,
+            remoteRpcTimeout);
       } catch (RpcException e) {
         throw new DatastoreException("Failed to start rpc service", e);
       }
@@ -274,7 +337,7 @@ public class LocalKVStoreProvider implements KVStoreProvider, Iterable<StoreWith
   /**
    * Get a {@link LegacyKVStoreProvider} view of this provider
    *
-   * Note that the provider has to be started first
+   * <p>Note that the provider has to be started first
    *
    * @return
    */

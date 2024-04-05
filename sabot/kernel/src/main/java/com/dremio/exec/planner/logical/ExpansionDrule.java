@@ -16,21 +16,20 @@
 
 package com.dremio.exec.planner.logical;
 
+import com.dremio.exec.planner.acceleration.ExpansionNode;
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.rel.RelNode;
 
-import com.dremio.exec.planner.acceleration.ExpansionNode;
-
-/**
- * Remove the ExpansionNode when converting to logical/drel land.
- */
+/** Remove the ExpansionNode when converting to logical/drel land. */
 public class ExpansionDrule extends RelOptRule {
   public static final RelOptRule INSTANCE = new ExpansionDrule();
 
   private ExpansionDrule() {
-    super(RelOptHelper.some(ExpansionNode.class, Convention.NONE, RelOptHelper.any(RelNode.class)), "ExpansionRemovalRule");
+    super(
+        RelOptHelper.some(ExpansionNode.class, Convention.NONE, RelOptHelper.any(RelNode.class)),
+        "ExpansionRemovalRule");
   }
 
   @Override

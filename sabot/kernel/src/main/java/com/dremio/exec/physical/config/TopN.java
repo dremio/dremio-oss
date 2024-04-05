@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.physical.config;
 
-import java.util.List;
-
 import com.dremio.common.logical.data.Order.Ordering;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
@@ -25,6 +23,7 @@ import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import java.util.List;
 
 @JsonTypeName("top-n")
 public class TopN extends AbstractSort {
@@ -37,8 +36,7 @@ public class TopN extends AbstractSort {
       @JsonProperty("child") PhysicalOperator child,
       @JsonProperty("limit") int limit,
       @JsonProperty("orderings") List<Ordering> orderings,
-      @JsonProperty("reverse") boolean reverse
-      ) {
+      @JsonProperty("reverse") boolean reverse) {
     super(props, child, orderings, reverse);
     this.limit = limit;
   }
@@ -58,7 +56,8 @@ public class TopN extends AbstractSort {
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value) throws E{
+  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value)
+      throws E {
     return physicalVisitor.visitSort(this, value);
   }
 
@@ -71,5 +70,4 @@ public class TopN extends AbstractSort {
   public int getOperatorType() {
     return CoreOperatorType.TOP_N_SORT_VALUE;
   }
-
 }

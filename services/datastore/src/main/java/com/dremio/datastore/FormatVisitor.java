@@ -18,26 +18,19 @@ package com.dremio.datastore;
 import com.dremio.datastore.format.Format;
 
 /**
- * Translate formats into rets.
- * There are 6 supported formats
- *  - String
- *  - UUID
- *  - Byte
- *  - Protobuf
- *  - Protostuff
- *  - CompoundPair
- *  - CompoundTriple
- *  - Wrapped (a format that converts a type into one of the above formats.
+ * Translate formats into rets. There are 6 supported formats - String - UUID - Byte - Protobuf -
+ * Protostuff - CompoundPair - CompoundTriple - Wrapped (a format that converts a type into one of
+ * the above formats.
  *
  * @param <RET> The return type.
  */
 public interface FormatVisitor<RET> {
 
-  RET visitStringFormat()  throws DatastoreFatalException;
+  RET visitStringFormat() throws DatastoreFatalException;
 
-  RET visitUUIDFormat()  throws DatastoreFatalException;
+  RET visitUUIDFormat() throws DatastoreFatalException;
 
-  RET visitByteFormat()  throws DatastoreFatalException;
+  RET visitByteFormat() throws DatastoreFatalException;
 
   /**
    * Visits a compound format with a KeyPair.
@@ -50,10 +43,7 @@ public interface FormatVisitor<RET> {
    * @param key2Format the format subtype of the second key.
    */
   <K1, K2> RET visitCompoundPairFormat(
-    String key1Name,
-    Format<K1> key1Format,
-    String key2Name,
-    Format<K2> key2Format);
+      String key1Name, Format<K1> key1Format, String key2Name, Format<K2> key2Format);
 
   /**
    * Visits a compound format with a KeyTriple.
@@ -69,12 +59,13 @@ public interface FormatVisitor<RET> {
    * @param key3Format the format subtype of the third key.
    */
   <K1, K2, K3> RET visitCompoundTripleFormat(
-    String key1Name,
-    Format<K1> key1Format,
-    String key2Name,
-    Format<K2> key2Format,
-    String key3Name,
-    Format<K3> key3Format) throws DatastoreFatalException;
+      String key1Name,
+      Format<K1> key1Format,
+      String key2Name,
+      Format<K2> key2Format,
+      String key3Name,
+      Format<K3> key3Format)
+      throws DatastoreFatalException;
 
   /**
    * Visits a wrapped format
@@ -87,10 +78,13 @@ public interface FormatVisitor<RET> {
    * @return
    * @throws DatastoreFatalException
    */
-  <OUTER, INNER> RET visitWrappedFormat(Class<OUTER> clazz, Converter<OUTER, INNER> converter, Format<INNER> inner)
-    throws DatastoreFatalException;
+  <OUTER, INNER> RET visitWrappedFormat(
+      Class<OUTER> clazz, Converter<OUTER, INNER> converter, Format<INNER> inner)
+      throws DatastoreFatalException;
 
-  <P extends com.google.protobuf.Message> RET visitProtobufFormat(Class<P> clazz) throws DatastoreFatalException;
+  <P extends com.google.protobuf.Message> RET visitProtobufFormat(Class<P> clazz)
+      throws DatastoreFatalException;
 
-  <P extends io.protostuff.Message<P>> RET visitProtostuffFormat(Class<P> clazz) throws DatastoreFatalException;
+  <P extends io.protostuff.Message<P>> RET visitProtostuffFormat(Class<P> clazz)
+      throws DatastoreFatalException;
 }

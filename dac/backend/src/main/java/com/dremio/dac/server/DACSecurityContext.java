@@ -15,27 +15,23 @@
  */
 package com.dremio.dac.server;
 
-import java.security.Principal;
-
-import javax.ws.rs.container.ContainerRequestContext;
-import javax.ws.rs.core.SecurityContext;
-
 import com.dremio.dac.model.usergroup.UserName;
 import com.dremio.dac.model.usergroup.UserResourcePath;
 import com.dremio.dac.model.usergroup.UserUI;
 import com.dremio.service.users.SystemUser;
 import com.dremio.service.users.User;
+import java.security.Principal;
+import javax.ws.rs.container.ContainerRequestContext;
+import javax.ws.rs.core.SecurityContext;
 
-/**
- * Dac security context.
- */
+/** Dac security context. */
 public class DACSecurityContext implements SecurityContext {
 
   private final UserUI user;
   private final ContainerRequestContext requestContext;
 
-  public DACSecurityContext(final UserName userName, final User user,
-      ContainerRequestContext requestContext) {
+  public DACSecurityContext(
+      final UserName userName, final User user, ContainerRequestContext requestContext) {
     this.user = new UserUI(new UserResourcePath(userName), userName, user);
     this.requestContext = requestContext;
   }
@@ -61,6 +57,7 @@ public class DACSecurityContext implements SecurityContext {
   }
 
   public static SecurityContext system() {
-    return new DACSecurityContext(new UserName(SystemUser.SYSTEM_USERNAME), SystemUser.SYSTEM_USER, null);
+    return new DACSecurityContext(
+        new UserName(SystemUser.SYSTEM_USERNAME), SystemUser.SYSTEM_USER, null);
   }
 }

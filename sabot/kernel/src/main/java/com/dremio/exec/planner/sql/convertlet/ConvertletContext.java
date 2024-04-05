@@ -16,7 +16,6 @@
 package com.dremio.exec.planner.sql.convertlet;
 
 import java.util.function.Supplier;
-
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCorrelVariable;
 import org.apache.calcite.tools.RelBuilder;
@@ -27,9 +26,7 @@ public final class ConvertletContext {
   private final RexBuilder rexBuilder;
 
   public ConvertletContext(
-    Supplier<RexCorrelVariable> rexCorrelVariable,
-    RelBuilder relBuilder,
-    RexBuilder rexBuilder) {
+      Supplier<RexCorrelVariable> rexCorrelVariable, RelBuilder relBuilder, RexBuilder rexBuilder) {
     this.rexCorrelVariable = rexCorrelVariable;
     this.relBuilder = relBuilder;
     this.rexBuilder = rexBuilder;

@@ -16,35 +16,32 @@
 
 package com.dremio.exec.store.ischema.writers;
 
-import java.util.Iterator;
-import java.util.Set;
-
 import com.dremio.exec.store.ischema.metadata.InformationSchemaMetadata;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.dremio.service.catalog.Table;
+import java.util.Iterator;
+import java.util.Set;
 
-/**
- * Writes "INFORMATION_SCHEMA"."TABLES" table.
- */
+/** Writes "INFORMATION_SCHEMA"."TABLES" table. */
 public class TablesTableWriter extends TableWriter<Table> {
 
   private final String catalogNameOverride;
 
   public TablesTableWriter(
-    Iterator<Table> messageIterator,
-    Set<String> selectedFields,
-    String catalogNameOverride
-  ) {
+      Iterator<Table> messageIterator, Set<String> selectedFields, String catalogNameOverride) {
     super(messageIterator, selectedFields);
     this.catalogNameOverride = catalogNameOverride;
   }
 
   @Override
   public void init(OutputMutator outputMutator) {
-    addStringWriter(InformationSchemaMetadata.TABLE_CATALOG, outputMutator,
-      catalogNameOverride != null ? ignored -> catalogNameOverride : Table::getCatalogName);
+    addStringWriter(
+        InformationSchemaMetadata.TABLE_CATALOG,
+        outputMutator,
+        catalogNameOverride != null ? ignored -> catalogNameOverride : Table::getCatalogName);
     addStringWriter(InformationSchemaMetadata.TABLE_SCHEMA, outputMutator, Table::getSchemaName);
     addStringWriter(InformationSchemaMetadata.TABLE_NAME, outputMutator, Table::getTableName);
-    addStringWriter(InformationSchemaMetadata.TABLE_TYPE, outputMutator, table -> table.getTableType().name());
+    addStringWriter(
+        InformationSchemaMetadata.TABLE_TYPE, outputMutator, table -> table.getTableType().name());
   }
 }

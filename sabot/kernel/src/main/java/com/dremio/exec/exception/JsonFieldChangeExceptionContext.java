@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.exception;
 
-import java.util.List;
-
 import com.dremio.common.exceptions.JsonAdditionalExceptionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
@@ -24,6 +22,7 @@ import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
+import java.util.List;
 
 /**
  * Contextual information needed to transfer schema change information in a {@link UserException} of
@@ -36,9 +35,10 @@ public class JsonFieldChangeExceptionContext extends JsonAdditionalExceptionCont
   private final String fieldName;
   private final CompleteType fieldSchema;
 
-  public JsonFieldChangeExceptionContext(@JsonProperty("originTablePath") List<String> originTablePath,
-                                         @JsonProperty("fieldName") String fieldName,
-                                         @JsonProperty("fieldSchema") CompleteType fieldSchema) {
+  public JsonFieldChangeExceptionContext(
+      @JsonProperty("originTablePath") List<String> originTablePath,
+      @JsonProperty("fieldName") String fieldName,
+      @JsonProperty("fieldSchema") CompleteType fieldSchema) {
     this.originTablePath = originTablePath;
     this.fieldName = fieldName;
     this.fieldSchema = fieldSchema;
@@ -77,13 +77,16 @@ public class JsonFieldChangeExceptionContext extends JsonAdditionalExceptionCont
   }
 
   /**
-   * Deserialize the rawAdditionalContext from a UserException into a new AdditionalExceptionContext.
+   * Deserialize the rawAdditionalContext from a UserException into a new
+   * AdditionalExceptionContext.
    *
    * @param ex A UserException containing serialized AdditionalExceptionContext data.
    * @return A new AdditionalExceptionContext of the serialized type.
    */
   public static JsonFieldChangeExceptionContext fromUserException(UserException ex) {
-    Preconditions.checkState(ex.getErrorType() == ErrorType.JSON_FIELD_CHANGE, "exception type mismatch");
-    return JsonAdditionalExceptionContext.fromUserException(JsonFieldChangeExceptionContext.class, ex);
+    Preconditions.checkState(
+        ex.getErrorType() == ErrorType.JSON_FIELD_CHANGE, "exception type mismatch");
+    return JsonAdditionalExceptionContext.fromUserException(
+        JsonFieldChangeExceptionContext.class, ex);
   }
 }

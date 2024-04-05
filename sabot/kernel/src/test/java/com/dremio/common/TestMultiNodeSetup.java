@@ -18,13 +18,11 @@ package com.dremio.common;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import java.util.EnumSet;
-
-import org.junit.BeforeClass;
-import org.junit.Test;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.service.coordinator.ClusterCoordinator;
+import java.util.EnumSet;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
 public class TestMultiNodeSetup extends BaseTestQuery {
 
@@ -40,16 +38,16 @@ public class TestMultiNodeSetup extends BaseTestQuery {
     assertEquals(NUM_NODES, nodes.length);
 
     // first node has all roles
-    assertEquals(EnumSet.allOf(ClusterCoordinator.Role.class).size(),
+    assertEquals(
+        EnumSet.allOf(ClusterCoordinator.Role.class).size(),
         nodes[0].getContext().getRoles().size());
-    assertTrue(nodes[0].getContext().getRoles()
-        .containsAll(EnumSet.allOf(ClusterCoordinator.Role.class)));
+    assertTrue(
+        nodes[0].getContext().getRoles().containsAll(EnumSet.allOf(ClusterCoordinator.Role.class)));
 
     // all others are only executors
     for (int i = 1; i < nodes.length; i++) {
       assertEquals(1, nodes[i].getContext().getRoles().size());
-      assertTrue(nodes[0].getContext().getRoles()
-          .contains(ClusterCoordinator.Role.EXECUTOR));
+      assertTrue(nodes[0].getContext().getRoles().contains(ClusterCoordinator.Role.EXECUTOR));
     }
   }
 }

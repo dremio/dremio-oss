@@ -16,7 +16,8 @@
 package com.dremio.datastore;
 
 /**
- * Handler to replay updates made to the {@link CoreKVStore}. Typically, the implementations are idempotent.
+ * Handler to replay updates made to the {@link CoreKVStore}. Typically, the implementations are
+ * idempotent.
  */
 public interface ReplayHandler {
 
@@ -24,8 +25,8 @@ public interface ReplayHandler {
    * Put entry with serialized key and serialized value to the table.
    *
    * @param tableName table name
-   * @param key       serialized key
-   * @param value     serialized value
+   * @param key serialized key
+   * @param value serialized value
    */
   void put(String tableName, byte[] key, byte[] value);
 
@@ -33,20 +34,17 @@ public interface ReplayHandler {
    * Delete entry with serialized key in the table.
    *
    * @param tableName table name
-   * @param key       serialized key
+   * @param key serialized key
    */
   void delete(String tableName, byte[] key);
 
-  /**
-   * Sink implementation.
-   */
-  ReplayHandler NO_OP = new ReplayHandler() {
-    @Override
-    public void put(String tableName, byte[] key, byte[] value) {
-    }
+  /** Sink implementation. */
+  ReplayHandler NO_OP =
+      new ReplayHandler() {
+        @Override
+        public void put(String tableName, byte[] key, byte[] value) {}
 
-    @Override
-    public void delete(String tableName, byte[] key) {
-    }
-  };
+        @Override
+        public void delete(String tableName, byte[] key) {}
+      };
 }

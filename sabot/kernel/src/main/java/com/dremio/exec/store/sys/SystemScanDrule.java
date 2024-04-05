@@ -15,28 +15,33 @@
  */
 package com.dremio.exec.store.sys;
 
-import org.apache.calcite.plan.RelOptRuleCall;
-
 import com.dremio.exec.calcite.logical.ScanCrel;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.store.common.SourceLogicalConverter;
+import org.apache.calcite.plan.RelOptRuleCall;
 
 public class SystemScanDrule extends SourceLogicalConverter {
 
   public SystemScanDrule(SourceType type) {
     super(type);
-
   }
+
   @Override
   public Rel convertScan(ScanCrel scan) {
-    return new SystemScanDrel(scan.getCluster(), scan.getTraitSet().plus(Rel.LOGICAL), scan.getTable(),
-                              scan.getPluginId(), scan.getTableMetadata(), scan.getProjectedColumns(),
-                              scan.getObservedRowcountAdjustment(), scan.getHints());
+    return new SystemScanDrel(
+        scan.getCluster(),
+        scan.getTraitSet().plus(Rel.LOGICAL),
+        scan.getTable(),
+        scan.getPluginId(),
+        scan.getTableMetadata(),
+        scan.getProjectedColumns(),
+        scan.getObservedRowcountAdjustment(),
+        scan.getHints());
   }
+
   @Override
   public boolean matches(RelOptRuleCall call) {
     return super.matches(call);
   }
-
 }

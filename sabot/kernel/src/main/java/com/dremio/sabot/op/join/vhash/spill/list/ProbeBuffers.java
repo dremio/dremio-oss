@@ -15,50 +15,44 @@
  */
 package com.dremio.sabot.op.join.vhash.spill.list;
 
+import com.dremio.common.AutoCloseables;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 
-import com.dremio.common.AutoCloseables;
-
-
 /**
- * A structure that holds the input and output arguments for a vectorized probe
- * operation. Used to simplify passing these structures around in a clear way.
+ * A structure that holds the input and output arguments for a vectorized probe operation. Used to
+ * simplify passing these structures around in a clear way.
  */
 public class ProbeBuffers implements AutoCloseable {
 
   private final BufferAllocator allocator;
 
-  /**
-   * A list of 4B offsets that describe which value each ordinal matches.
-   */
+  /** A list of 4B offsets that describe which value each ordinal matches. */
   private ArrowBuf inTableMatchOrdinals4B;
 
   /**
-   * An output list of 2B offsets that describe which items should be projected
-   * from the probe side of the join.
+   * An output list of 2B offsets that describe which items should be projected from the probe side
+   * of the join.
    */
   private final ArrowBuf outProbeProjectOffsets2B;
 
   /**
-   * An output list of 6B offsets that describe which items should be projected
-   * from the build side of the join. -1 means nothing should be projected.
+   * An output list of 6B offsets that describe which items should be projected from the build side
+   * of the join. -1 means nothing should be projected.
    */
   private final ArrowBuf outBuildProjectOffsets6B;
 
   /**
-   * An output list of 4B offsets that describe the table ordinals for the keys
-   * that should be projected from the build side of the join. Used only for
-   * right join and full joins.
+   * An output list of 4B offsets that describe the table ordinals for the keys that should be
+   * projected from the build side of the join. Used only for right join and full joins.
    */
   private final ArrowBuf outBuildProjectKeyOrdinals4B;
 
   /**
-   * An output list of keys that should be null-ed out of the build side. To avoid
-   * keeping two copies of keys in memory, at the end of the join operation we
-   * copy all keys from the probe side to the build side. We then overwrite the
-   * validity bits for all position where we should have skipped projection so
-   * that the keys on the build side show up as nulls for outer join matches.
+   * An output list of keys that should be null-ed out of the build side. To avoid keeping two
+   * copies of keys in memory, at the end of the join operation we copy all keys from the probe side
+   * to the build side. We then overwrite the validity bits for all position where we should have
+   * skipped projection so that the keys on the build side show up as nulls for outer join matches.
    */
   private final ArrowBuf outInvalidBuildKeyOffsets2B;
 
@@ -73,10 +67,11 @@ public class ProbeBuffers implements AutoCloseable {
 
   /**
    * Make sure the input buffer allows up to the requested number of records.
+   *
    * @param records
    */
   public void ensureInputCapacity(int records) {
-    if (inTableMatchOrdinals4B.capacity() < records * 4){
+    if (inTableMatchOrdinals4B.capacity() < records * 4) {
       inTableMatchOrdinals4B.close();
       inTableMatchOrdinals4B = allocator.buffer(records * 4);
     }
@@ -105,13 +100,16 @@ public class ProbeBuffers implements AutoCloseable {
   @Override
   public void close() {
     try {
-      AutoCloseables.close(inTableMatchOrdinals4B, outProbeProjectOffsets2B, outBuildProjectOffsets6B,
-        outInvalidBuildKeyOffsets2B, outBuildProjectKeyOrdinals4B);
+      AutoCloseables.close(
+          inTableMatchOrdinals4B,
+          outProbeProjectOffsets2B,
+          outBuildProjectOffsets6B,
+          outInvalidBuildKeyOffsets2B,
+          outBuildProjectKeyOrdinals4B);
     } catch (RuntimeException ex) {
       throw ex;
     } catch (Exception ex) {
       throw new RuntimeException(ex);
     }
   }
-
 }

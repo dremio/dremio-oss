@@ -22,7 +22,7 @@ import {
 } from "@app/actions/resources/scripts";
 import { replaceScript } from "dremio-ui-common/sonar/scripts/endpoints/replaceScript.js";
 import { store } from "@app/store/store";
-import { getImmutableJobList, getQueryStatuses } from "@app/selectors/jobs";
+import { getQueryStatuses } from "@app/selectors/jobs";
 import { getLoggingContext } from "dremio-ui-common/contexts/LoggingContext.js";
 import { doJobFetch } from "./performTransform";
 import { setQueryStatuses } from "@app/actions/explore/view";
@@ -33,12 +33,15 @@ import { isEqual } from "lodash";
 import { NotFoundError } from "dremio-ui-common/errors/NotFoundError";
 import { EXPLORE_PAGE_LOCATION_CHANGED } from "@app/actions/explore/dataset/data";
 import { getImmutableTable } from "@app/selectors/explore";
+import { getJobSummaries } from "@app/selectors/exploreJobs";
+import { JobState } from "@app/utils/jobsUtils";
+import { deleteQuerySelectionsFromStorage } from "@app/sagas/utils/querySelections";
 
 const logger = getLoggingContext().createLogger("sagas/scriptUpdates");
 
 const syncUpdatedScript = async (action: any) => {
   const originalScriptContents = ScriptsResource.getResource().value?.find(
-    (script) => script.id === action.scriptId
+    (script) => script.id === action.scriptId,
   );
   if (
     !originalScriptContents ||
@@ -46,19 +49,28 @@ const syncUpdatedScript = async (action: any) => {
   ) {
     return;
   }
+
+  const newScriptContext = action.script.context;
   if (
     originalScriptContents &&
     originalScriptContents.content === action.script.content &&
-    isEqual(originalScriptContents.context, action.script.context)
+    isEqual(
+      originalScriptContents.context,
+      newScriptContext.toJS?.() ?? newScriptContext,
+    )
   ) {
     return;
   }
 
-  logger.info("Syncing script changes");
+  logger.debug("Syncing script changes");
   store.dispatch({ type: "SCRIPT_SYNC_STARTED", id: action.scriptId });
   try {
-    const result = await replaceScript(action.scriptId, action.script);
+    const result = await replaceScript(action.scriptId, {
+      ...action.script,
+      jobIds: [], // shouldn't keep track of old jobs if the script content changes
+    });
     ScriptsResource.fetch();
+    deleteQuerySelectionsFromStorage(action.scriptId);
     store.dispatch({ type: "SCRIPT_SYNC_COMPLETED", id: action.scriptId });
     return result;
   } catch (e) {
@@ -92,12 +104,11 @@ function* pollIncompleteJobs(action: any): any {
   }
 
   const storeState = store.getState();
-  const jobsList = getImmutableJobList(storeState);
+  const jobSummaries = getJobSummaries(storeState);
+
   const statuses = curQueryStatuses.filter((status: any) => {
     const tableData = getImmutableTable(storeState, status.version);
-    const currentJob = jobsList.find(
-      (job: any) => status.jobId && job.get("id") === status.jobId
-    );
+    const jobSummary = jobSummaries[status.jobId];
     const hasRows = status.version && !!tableData?.get("rows");
     if (!hasRows) {
       logger.debug("hasRows: ", { status, hasRows, tableData });
@@ -105,7 +116,9 @@ function* pollIncompleteJobs(action: any): any {
     // May later remove manually cancelled jobs, note: switching tabs sets cancelled=true right now (performTransform)
     return (
       !!status.jobId &&
-      (!currentJob || !currentJob.get("isComplete") || !hasRows)
+      (!jobSummary?.isComplete ||
+        // not having rows will cause the flow to retrigger - shouldn't happen for failed jobs
+        (!hasRows && jobSummary.state !== JobState.FAILED))
     );
   });
 
@@ -124,7 +137,7 @@ function* pollIncompleteJobs(action: any): any {
   });
   logger.debug(
     "Switched tabs, clearing unsubmitted queryStatuses: ",
-    updateAction
+    updateAction,
   );
   yield put(updateAction);
 
@@ -143,7 +156,7 @@ function* pollIncompleteJobs(action: any): any {
         sessionId: action.script.sessionId || "",
         index,
       });
-    })
+    }),
   );
 }
 

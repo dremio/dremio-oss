@@ -16,22 +16,23 @@
 
 package com.dremio.exec.resolver;
 
-import java.util.LinkedList;
-import java.util.List;
-
 import com.dremio.common.VM;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.FunctionCall;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.exec.expr.fn.AbstractFunctionHolder;
 import com.google.common.collect.Lists;
+import java.util.LinkedList;
+import java.util.List;
 
 public class DefaultFunctionResolver implements FunctionResolver {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DefaultFunctionResolver.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(DefaultFunctionResolver.class);
 
   @Override
-  public AbstractFunctionHolder getBestMatch(List<AbstractFunctionHolder> methods, FunctionCall call) {
+  public AbstractFunctionHolder getBestMatch(
+      List<AbstractFunctionHolder> methods, FunctionCall call) {
 
     int bestcost = Integer.MAX_VALUE;
     int currcost = Integer.MAX_VALUE;
@@ -45,8 +46,9 @@ public class DefaultFunctionResolver implements FunctionResolver {
       }
       currcost = TypeCastRules.getCost(argumentTypes, h);
 
-      // if cost is lower than 0, func implementation is not matched, either w/ or w/o implicit casts
-      if (currcost  < 0 ) {
+      // if cost is lower than 0, func implementation is not matched, either w/ or w/o implicit
+      // casts
+      if (currcost < 0) {
         continue;
       }
 
@@ -61,8 +63,8 @@ public class DefaultFunctionResolver implements FunctionResolver {
     }
 
     if (bestcost < 0) {
-      //did not find a matched func implementation, either w/ or w/o implicit casts
-      //TODO: raise exception here?
+      // did not find a matched func implementation, either w/ or w/o implicit casts
+      // TODO: raise exception here?
       return null;
     }
 
@@ -79,12 +81,12 @@ public class DefaultFunctionResolver implements FunctionResolver {
 
       // printing the possible matches
       logger.warn("Printing all the possible functions that could have matched: ");
-      for (AbstractFunctionHolder holder: bestMatchAlternatives) {
+      for (AbstractFunctionHolder holder : bestMatchAlternatives) {
         logger.warn(holder.toString());
       }
 
       // TODO Figure out if this is needed
-//        throw new AssertionError("Multiple functions with best cost found");
+      //        throw new AssertionError("Multiple functions with best cost found");
     }
 
     // Break the tie using the return type:
@@ -106,5 +108,4 @@ public class DefaultFunctionResolver implements FunctionResolver {
 
     return bestmatch;
   }
-
 }

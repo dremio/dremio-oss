@@ -15,16 +15,7 @@
  */
 package com.dremio.exec.store.parquet2;
 
-
 import static com.dremio.common.exceptions.FieldSizeLimitExceptionHelper.createListChildrenLimitException;
-
-import java.util.Collection;
-import java.util.List;
-
-import org.apache.arrow.vector.complex.writer.BaseWriter.MapWriter;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.parquet.schema.GroupType;
-import org.apache.parquet.schema.Type;
 
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.ExecConstants;
@@ -34,10 +25,14 @@ import com.dremio.exec.store.parquet2.WriterProvider.MapWriterProvider;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.google.common.base.Functions;
+import java.util.Collection;
+import java.util.List;
+import org.apache.arrow.vector.complex.writer.BaseWriter.MapWriter;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.parquet.schema.GroupType;
+import org.apache.parquet.schema.Type;
 
-/**
- * Second level of MAP conversion. Converts entry of a MAP
- */
+/** Second level of MAP conversion. Converts entry of a MAP */
 public class MapEntryConverter extends ParquetGroupConverter {
   private final MapWriter mapWriter;
   private final long maxChildrenAllowed;
@@ -46,33 +41,37 @@ public class MapEntryConverter extends ParquetGroupConverter {
   private int childCount;
 
   public MapEntryConverter(
-    ParquetColumnResolver columnResolver,
-    String fieldName,
-    OutputMutator mutator,
-    MapWriter mapWriter,
-    GroupType schema,
-    Collection<SchemaPath> columns,
-    OptionManager options,
-    List<Field> arrowSchema,
-    SchemaDerivationHelper schemaHelper) {
+      ParquetColumnResolver columnResolver,
+      String fieldName,
+      OutputMutator mutator,
+      MapWriter mapWriter,
+      GroupType schema,
+      Collection<SchemaPath> columns,
+      OptionManager options,
+      List<Field> arrowSchema,
+      SchemaDerivationHelper schemaHelper) {
     super(
-      columnResolver,
-      mutator,
-      schema,
-      columns,
-      options,
-      arrowSchema,
-      Functions.identity(),
-      schemaHelper);
-    maxChildrenAllowed = schemaHelper.isLimitListItems() ?
-      options.getOption(ExecConstants.PARQUET_LIST_ITEMS_THRESHOLD) : Integer.MAX_VALUE;
+        columnResolver,
+        mutator,
+        schema,
+        columns,
+        options,
+        arrowSchema,
+        Functions.identity(),
+        schemaHelper);
+    maxChildrenAllowed =
+        schemaHelper.isLimitListItems()
+            ? options.getOption(ExecConstants.PARQUET_LIST_ITEMS_THRESHOLD)
+            : Integer.MAX_VALUE;
     childCount = 0;
     this.mapWriter = mapWriter;
     this.fieldName = fieldName;
     Type keyType = schema.getFields().get(0);
     Type valueType = schema.getFields().get(1);
-    addChildConverter(fieldName, mutator, arrowSchema, columns.iterator(), keyType, Functions.identity());
-    addChildConverter(fieldName, mutator, arrowSchema, columns.iterator(), valueType, Functions.identity());
+    addChildConverter(
+        fieldName, mutator, arrowSchema, columns.iterator(), keyType, Functions.identity());
+    addChildConverter(
+        fieldName, mutator, arrowSchema, columns.iterator(), valueType, Functions.identity());
   }
 
   @Override

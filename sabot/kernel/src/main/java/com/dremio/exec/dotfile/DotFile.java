@@ -15,13 +15,12 @@
  */
 package com.dremio.exec.dotfile;
 
-import java.io.IOException;
-import java.io.InputStream;
-
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
 import com.google.common.base.Preconditions;
+import java.io.IOException;
+import java.io.InputStream;
 
 public class DotFile {
 
@@ -29,22 +28,22 @@ public class DotFile {
   private DotFileType type;
   private FileSystem fs;
 
-  public static DotFile create(FileSystem fs, FileAttributes attributes){
-    for(DotFileType d : DotFileType.values()){
-      if(!attributes.isDirectory() && d.matches(attributes)){
+  public static DotFile create(FileSystem fs, FileAttributes attributes) {
+    for (DotFileType d : DotFileType.values()) {
+      if (!attributes.isDirectory() && d.matches(attributes)) {
         return new DotFile(fs, attributes, d);
       }
     }
     return null;
   }
 
-  private DotFile(FileSystem fs, FileAttributes attributes, DotFileType type){
+  private DotFile(FileSystem fs, FileAttributes attributes, DotFileType type) {
     this.fs = fs;
     this.attributes = attributes;
     this.type = type;
   }
 
-  public DotFileType getType(){
+  public DotFileType getType() {
     return type;
   }
 
@@ -57,6 +56,7 @@ public class DotFile {
 
   /**
    * Return base file name without the parent directory and extensions.
+   *
    * @return Base file name.
    */
   public String getBaseName() {
@@ -66,7 +66,7 @@ public class DotFile {
 
   public View getView(LogicalPlanPersistence lpPersistence) throws IOException {
     Preconditions.checkArgument(type == DotFileType.VIEW);
-    try(InputStream is = fs.open(attributes.getPath())){
+    try (InputStream is = fs.open(attributes.getPath())) {
       return lpPersistence.getMapper().readValue(is, View.class);
     }
   }

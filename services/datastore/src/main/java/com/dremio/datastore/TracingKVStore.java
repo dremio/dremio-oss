@@ -15,10 +15,6 @@
  */
 package com.dremio.datastore;
 
-import java.util.List;
-import java.util.Map;
-import java.util.function.Supplier;
-
 import com.dremio.common.tracing.TracingUtils;
 import com.dremio.datastore.api.Document;
 import com.dremio.datastore.api.FindByCondition;
@@ -26,8 +22,10 @@ import com.dremio.datastore.api.FindByRange;
 import com.dremio.datastore.api.IncrementCounter;
 import com.dremio.datastore.api.IndexedStore;
 import com.dremio.datastore.api.KVStore;
-
 import io.opentracing.Tracer;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Supplier;
 
 /**
  * Traces calls to an underlying KV store.
@@ -47,25 +45,28 @@ class TracingKVStore<K, V> implements KVStore<K, V> {
   private final String creatorName;
   private final String tableName;
 
-  TracingKVStore(String creatorName, Tracer tracer, KVStore<K,V> delegate) {
+  TracingKVStore(String creatorName, Tracer tracer, KVStore<K, V> delegate) {
     this.tracer = tracer;
     this.creatorName = creatorName;
     this.delegate = delegate;
     this.tableName = delegate.getName();
   }
 
-  public static <K, V> TracingKVStore<K, V> of(String name, Tracer tracer, KVStore<K,V> delegate) {
+  public static <K, V> TracingKVStore<K, V> of(String name, Tracer tracer, KVStore<K, V> delegate) {
     return new TracingKVStore<>(name, tracer, delegate);
   }
 
   protected <R> R trace(String methodName, Supplier<R> method) {
-    return TracingUtils.trace(method,
-      tracer,
-      OPERATION_NAME,
-      METHOD_TAG, methodName,
-      TABLE_TAG, tableName,
-      CREATOR_TAG, creatorName
-    );
+    return TracingUtils.trace(
+        method,
+        tracer,
+        OPERATION_NAME,
+        METHOD_TAG,
+        methodName,
+        TABLE_TAG,
+        tableName,
+        CREATOR_TAG,
+        creatorName);
   }
 
   @Override
@@ -99,15 +100,15 @@ class TracingKVStore<K, V> implements KVStore<K, V> {
   }
 
   @Override
-  public void bulkIncrement(Map<K, List<IncrementCounter>> keysToIncrement, IncrementOption option) {
+  public void bulkIncrement(
+      Map<K, List<IncrementCounter>> keysToIncrement, IncrementOption option) {
     trace("bulkIncrement", () -> delegate.bulkIncrement(keysToIncrement, option));
   }
 
   @Override
-  public void bulkDelete(List<K> keysToDelete) {
-    trace("bulkDelete", () -> delegate.bulkDelete(keysToDelete));
+  public void bulkDelete(List<K> keysToDelete, DeleteOption... deleteOptions) {
+    trace("bulkDelete", () -> delegate.bulkDelete(keysToDelete, deleteOptions));
   }
-
 
   @Override
   public void delete(K key, DeleteOption... options) {
@@ -120,10 +121,12 @@ class TracingKVStore<K, V> implements KVStore<K, V> {
   }
 
   protected void trace(String methodName, Runnable method) {
-    trace(methodName, () -> {
-      method.run();
-      return null;
-    });
+    trace(
+        methodName,
+        () -> {
+          method.run();
+          return null;
+        });
   }
 
   @Override
@@ -131,26 +134,28 @@ class TracingKVStore<K, V> implements KVStore<K, V> {
     return delegate.getName();
   }
 
-
   /**
    * Traces calls to an underlying indexed store.
+   *
    * @param <K> key type K.
    * @param <V> value type V.
    */
-  public static class TracingIndexedStore<K,V> extends TracingKVStore<K,V> implements IndexedStore<K,V> {
-    private final IndexedStore<K,V> indexedStore;
+  public static class TracingIndexedStore<K, V> extends TracingKVStore<K, V>
+      implements IndexedStore<K, V> {
+    private final IndexedStore<K, V> indexedStore;
 
-    TracingIndexedStore(String name, Tracer tracer, IndexedStore<K,V> delegate) {
+    TracingIndexedStore(String name, Tracer tracer, IndexedStore<K, V> delegate) {
       super(name, tracer, delegate);
       this.indexedStore = delegate;
     }
 
-    public static <K, V> TracingIndexedStore<K, V> of(String name, Tracer tracer, IndexedStore<K,V> delegate) {
+    public static <K, V> TracingIndexedStore<K, V> of(
+        String name, Tracer tracer, IndexedStore<K, V> delegate) {
       return new TracingIndexedStore<>(name, tracer, delegate);
     }
 
     @Override
-    public Iterable<Document<K, V>> find(FindByCondition find, FindOption ... options) {
+    public Iterable<Document<K, V>> find(FindByCondition find, FindOption... options) {
       return trace("findByCondition", () -> indexedStore.find(find, options));
     }
 

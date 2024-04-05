@@ -15,32 +15,32 @@
  */
 package com.dremio.service.coordinator;
 
-import java.net.URI;
-import java.net.URISyntaxException;
-
-import javax.inject.Provider;
-
 import com.dremio.config.DremioConfig;
 import com.dremio.service.coordinator.proto.DataCredentials;
+import java.net.URI;
+import java.net.URISyntaxException;
+import javax.inject.Provider;
 
 /**
- * merges info from file based config & store based config
- * if attribute present in store, use that. else, fallback to file.
+ * merges info from file based config & store based config if attribute present in store, use that.
+ * else, fallback to file.
  */
 public class ProjectConfigImpl implements ProjectConfig {
-  private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(ProjectConfigImpl.class);
+  private static final org.slf4j.Logger LOGGER =
+      org.slf4j.LoggerFactory.getLogger(ProjectConfigImpl.class);
 
-  private static final String ACCELERATION_PLUGIN_SUB_PATH = "/accelerator";
-  private static final String UPLOADS_PLUGIN_SUB_PATH = "/uploads";
-  private static final String SCRATCH_PLUGIN_SUB_PATH = "/scratch";
-  private static final String METADATA_PLUGIN_SUB_PATH = "/metadata";
-  private static final String GANDIVA_PERSISTENT_CACHE_PLUGIN_SUB_PATH = "/gandiva";
-  private static final String SYSTEM_ICEBERG_TABLES_PLUGIN_SUB_PATH = "/system_iceberg_tables";
+  public static final String ACCELERATION_PLUGIN_SUB_PATH = "/accelerator";
+  public static final String UPLOADS_PLUGIN_SUB_PATH = "/uploads";
+  public static final String SCRATCH_PLUGIN_SUB_PATH = "/scratch";
+  public static final String METADATA_PLUGIN_SUB_PATH = "/metadata";
+  public static final String GANDIVA_PERSISTENT_CACHE_PLUGIN_SUB_PATH = "/gandiva";
+  public static final String SYSTEM_ICEBERG_TABLES_PLUGIN_SUB_PATH = "/system_iceberg_tables";
 
   private final Provider<DremioConfig> fileProvider;
   private final Provider<ProjectConfigStore> storeProvider;
 
-  public ProjectConfigImpl(Provider<DremioConfig> fileProvider, Provider<ProjectConfigStore> storeProvider) {
+  public ProjectConfigImpl(
+      Provider<DremioConfig> fileProvider, Provider<ProjectConfigStore> storeProvider) {
     this.fileProvider = fileProvider;
     this.storeProvider = storeProvider;
   }
@@ -67,12 +67,14 @@ public class ProjectConfigImpl implements ProjectConfig {
 
   @Override
   public DistPathConfig getGandivaPersistentCacheConfig() {
-    return getDistPathConfig(DremioConfig.GANDIVA_CACHE_PATH_STRING, GANDIVA_PERSISTENT_CACHE_PLUGIN_SUB_PATH);
+    return getDistPathConfig(
+        DremioConfig.GANDIVA_CACHE_PATH_STRING, GANDIVA_PERSISTENT_CACHE_PLUGIN_SUB_PATH);
   }
 
   @Override
   public DistPathConfig getSystemIcebergTablesConfig() {
-    return getDistPathConfig(DremioConfig.SYSTEM_ICEBERG_TABLES_PATH_STRING, SYSTEM_ICEBERG_TABLES_PLUGIN_SUB_PATH);
+    return getDistPathConfig(
+        DremioConfig.SYSTEM_ICEBERG_TABLES_PATH_STRING, SYSTEM_ICEBERG_TABLES_PLUGIN_SUB_PATH);
   }
 
   private DistPathConfig getDistPathConfig(String pathString, String subPath) {
@@ -84,20 +86,34 @@ public class ProjectConfigImpl implements ProjectConfig {
     } else {
       try {
         path = new URI(store.get().getDistStoreConfig().getPath() + subPath);
-        LOGGER.info("Got dist path for {} from store {}. Uri {}", pathString, store.get().getDistStoreConfig().getPath(), path);
+        LOGGER.info(
+            "Got dist path for {} from store {}. Uri {}",
+            pathString,
+            store.get().getDistStoreConfig().getPath(),
+            path);
       } catch (URISyntaxException e) {
         path = fileProvider.get().getURI(pathString);
-        LOGGER.error("Invalid dist path for {} in store {}. Uri {}", pathString, store.get().getDistStoreConfig().getPath(), path);
+        LOGGER.error(
+            "Invalid dist path for {} in store {}. Uri {}",
+            pathString,
+            store.get().getDistStoreConfig().getPath(),
+            path);
       }
       if (store.get().getDataCredentials().hasKeys()) {
         dataCredentials =
-          DataCredentials.newBuilder().setKeys(store.get().getDataCredentials().getKeys()).build();
+            DataCredentials.newBuilder()
+                .setKeys(store.get().getDataCredentials().getKeys())
+                .build();
       } else if (store.get().getDataCredentials().hasDataRole()) {
         dataCredentials =
-          DataCredentials.newBuilder().setDataRole(store.get().getDataCredentials().getDataRole()).build();
+            DataCredentials.newBuilder()
+                .setDataRole(store.get().getDataCredentials().getDataRole())
+                .build();
       } else if (store.get().getDataCredentials().hasClientAccess()) {
         dataCredentials =
-          DataCredentials.newBuilder().setClientAccess(store.get().getDataCredentials().getClientAccess()).build();
+            DataCredentials.newBuilder()
+                .setClientAccess(store.get().getDataCredentials().getClientAccess())
+                .build();
       }
     }
     return new DistPathConfig(path, dataCredentials);

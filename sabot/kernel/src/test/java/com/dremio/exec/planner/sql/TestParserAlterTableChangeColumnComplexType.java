@@ -15,13 +15,12 @@
  */
 package com.dremio.exec.planner.sql;
 
+import com.dremio.exec.planner.physical.PlannerSettings;
 import org.apache.calcite.avatica.util.Quoting;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.sql.parser.SqlParser;
 import org.junit.Test;
-
-import com.dremio.exec.planner.physical.PlannerSettings;
 
 public class TestParserAlterTableChangeColumnComplexType {
   @Test
@@ -86,7 +85,8 @@ public class TestParserAlterTableChangeColumnComplexType {
 
   @Test
   public void alterTableChangeStructOfStruct() throws SqlParseException {
-    parse("ALTER TABLE a.b.c CHANGE COLUMN point point STRUCT<x: BIGINT, y : STRUCT<x :int, y: int>>");
+    parse(
+        "ALTER TABLE a.b.c CHANGE COLUMN point point STRUCT<x: BIGINT, y : STRUCT<x :int, y: int>>");
   }
 
   @Test
@@ -135,7 +135,11 @@ public class TestParserAlterTableChangeColumnComplexType {
   }
 
   private SqlNode parse(String toParse) throws SqlParseException {
-    ParserConfig config = new ParserConfig(Quoting.DOUBLE_QUOTE, 255, PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
+    ParserConfig config =
+        new ParserConfig(
+            Quoting.DOUBLE_QUOTE,
+            255,
+            PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
     SqlParser parser = SqlParser.create(toParse, config);
     return parser.parseStmt();
   }

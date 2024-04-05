@@ -30,24 +30,6 @@ import static com.dremio.plugins.elastic.ElasticsearchType.NESTED;
 import static com.dremio.plugins.elastic.ElasticsearchType.TEXT;
 import static org.junit.Assert.assertEquals;
 
-import java.io.IOException;
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.chrono.IsoChronology;
-import java.time.format.DateTimeFormatter;
-import java.util.Random;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-
-import org.junit.After;
-import org.junit.Before;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.PlanTestBase;
 import com.dremio.QueryTestUtil;
 import com.dremio.TestBuilder;
@@ -65,6 +47,22 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.collect.ImmutableMap;
+import java.io.IOException;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.chrono.IsoChronology;
+import java.time.format.DateTimeFormatter;
+import java.util.Random;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.junit.After;
+import org.junit.Before;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ElasticBaseTestQuery extends PlanTestBase {
   private static final Logger logger = LoggerFactory.getLogger(ElasticBaseTestQuery.class);
@@ -79,24 +77,25 @@ public class ElasticBaseTestQuery extends PlanTestBase {
   protected boolean enable7vFeatures;
   protected boolean enable68vFeatures;
 
-  protected final String [] uidJsonES7 = new String[] {
-    "[{\n" +
-      "  \"from\" : 0,\n" +
-      "  \"size\" : 4000,\n" +
-      "  \"query\" : {\n" +
-      "          \"match_all\" : {\n" +
-      "            \"boost\" : 1.0\n" +
-      "          }\n" +
-      "  },\n" +
-      "  \"_source\" : {\n" +
-      "    \"includes\" : [\n" +
-      "      \"_id\",\n" +
-      "      \"_type\"\n" +
-      "    ],\n" +
-      "    \"excludes\" : [ ]\n" +
-      "  }\n" +
-      "}]"
-  };
+  protected final String[] uidJsonES7 =
+      new String[] {
+        "[{\n"
+            + "  \"from\" : 0,\n"
+            + "  \"size\" : 4000,\n"
+            + "  \"query\" : {\n"
+            + "          \"match_all\" : {\n"
+            + "            \"boost\" : 1.0\n"
+            + "          }\n"
+            + "  },\n"
+            + "  \"_source\" : {\n"
+            + "    \"includes\" : [\n"
+            + "      \"_id\",\n"
+            + "      \"_type\"\n"
+            + "    ],\n"
+            + "    \"excludes\" : [ ]\n"
+            + "  }\n"
+            + "}]"
+      };
 
   @Retention(RetentionPolicy.RUNTIME)
   @Target({ElementType.TYPE})
@@ -104,7 +103,8 @@ public class ElasticBaseTestQuery extends PlanTestBase {
 
     /**
      * enable ssl proxy and publishes that port instead
-     * <p/>
+     *
+     * <p>
      */
     boolean enabled() default true;
   }
@@ -126,7 +126,8 @@ public class ElasticBaseTestQuery extends PlanTestBase {
 
     /**
      * enable scripts
-     * <p/>
+     *
+     * <p>
      */
     boolean enabled() default true;
   }
@@ -137,7 +138,8 @@ public class ElasticBaseTestQuery extends PlanTestBase {
 
     /**
      * Sets the number of elasticsearch nodes to create
-     * <p/>
+     *
+     * <p>
      */
     boolean enabled() default false;
   }
@@ -166,11 +168,12 @@ public class ElasticBaseTestQuery extends PlanTestBase {
     table = tableName();
     alias = aliasName();
 
-//    test("alter system set \"exec.enable_union_type\" = true");
+    //    test("alter system set \"exec.enable_union_type\" = true");
   }
 
   public ElasticConnection getConnection() {
-    ElasticsearchStoragePlugin plugin = getSabotContext().getCatalogService().getSource("elasticsearch");
+    ElasticsearchStoragePlugin plugin =
+        getSabotContext().getCatalogService().getSource("elasticsearch");
     return plugin.getRandomConnection();
   }
 
@@ -179,7 +182,8 @@ public class ElasticBaseTestQuery extends PlanTestBase {
     setupElasticHelper(false);
   }
 
-  public void setupElasticHelper(boolean forceDoublePrecision) throws IOException, InterruptedException {
+  public void setupElasticHelper(boolean forceDoublePrecision)
+      throws IOException, InterruptedException {
     ScriptsEnabled scriptEnabledAnnotation = this.getClass().getAnnotation(ScriptsEnabled.class);
     boolean scriptsEnabled = true;
     if (scriptEnabledAnnotation != null) {
@@ -210,27 +214,41 @@ public class ElasticBaseTestQuery extends PlanTestBase {
     }
 
     AllowPushdownNormalizedOrAnalyzedFields pushdownAnalyzed =
-      this.getClass().getAnnotation(AllowPushdownNormalizedOrAnalyzedFields.class);
+        this.getClass().getAnnotation(AllowPushdownNormalizedOrAnalyzedFields.class);
     boolean allowPushdownNormalizedOrAnalyzedFields = false;
     if (pushdownAnalyzed != null) {
       allowPushdownNormalizedOrAnalyzedFields = pushdownAnalyzed.enabled();
     }
 
-    PushdownWithKeyword pushdownKeyword =
-      this.getClass().getAnnotation(PushdownWithKeyword.class);
+    PushdownWithKeyword pushdownKeyword = this.getClass().getAnnotation(PushdownWithKeyword.class);
     boolean pushdownWithKeyword = false;
     if (pushdownKeyword != null) {
       pushdownWithKeyword = pushdownKeyword.enabled();
     }
 
-    getSabotContext().getOptionManager().setOption(OptionValue.createLong(OptionValue.OptionType.SYSTEM, ExecConstants.ELASTIC_ACTION_RETRIES, 3));
-    elastic = new ElasticsearchCluster(scrollSize, new Random(), scriptsEnabled, showIDColumn, publishHost, sslEnabled, getSabotContext().getOptionManager().getOption(ELASTIC_ACTION_RETRIES_VALIDATOR), forceDoublePrecision);
+    getSabotContext()
+        .getOptionManager()
+        .setOption(
+            OptionValue.createLong(
+                OptionValue.OptionType.SYSTEM, ExecConstants.ELASTIC_ACTION_RETRIES, 3));
+    elastic =
+        new ElasticsearchCluster(
+            scrollSize,
+            new Random(),
+            scriptsEnabled,
+            showIDColumn,
+            publishHost,
+            sslEnabled,
+            getSabotContext().getOptionManager().getOption(ELASTIC_ACTION_RETRIES_VALIDATOR),
+            forceDoublePrecision);
     SourceConfig sc = new SourceConfig();
     sc.setName("elasticsearch");
-    sc.setConnectionConf(elastic.config(allowPushdownNormalizedOrAnalyzedFields, pushdownWithKeyword));
+    sc.setConnectionConf(
+        elastic.config(allowPushdownNormalizedOrAnalyzedFields, pushdownWithKeyword));
     sc.setMetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY);
     createSourceWithRetry(sc);
-    ElasticVersionBehaviorProvider elasticVersionBehaviorProvider = new ElasticVersionBehaviorProvider(elastic.getMinVersionInCluster());
+    ElasticVersionBehaviorProvider elasticVersionBehaviorProvider =
+        new ElasticVersionBehaviorProvider(elastic.getMinVersionInCluster());
     enable7vFeatures = elasticVersionBehaviorProvider.isEnable7vFeatures();
     enable68vFeatures = elasticVersionBehaviorProvider.isEs68Version();
   }
@@ -254,7 +272,8 @@ public class ElasticBaseTestQuery extends PlanTestBase {
   }
 
   // Retrying loaddata 3 times in case of scenarios like NotFoundException.
-  public void loadWithRetry(String schema, String table, ColumnData[] data) throws InterruptedException {
+  public void loadWithRetry(String schema, String table, ColumnData[] data)
+      throws InterruptedException {
     int retries = 3;
     while (retries >= 0) {
       try {
@@ -269,16 +288,18 @@ public class ElasticBaseTestQuery extends PlanTestBase {
     }
   }
 
-  public ElasticsearchCluster.SearchResults searchResultsWithExpectedCount(int expectedCount) throws Exception {
+  public ElasticsearchCluster.SearchResults searchResultsWithExpectedCount(int expectedCount)
+      throws Exception {
     ElasticsearchCluster.SearchResults contents = elastic.search(schema, table);
-      // If record count is not as expected due to data from earlier test is not cleared then remove and load schema data again.
-      if (contents.count != expectedCount && contents.count % expectedCount == 0) {
-        removeSource();
-        setupElastic();
-        elastic.dataFromFile(schema, table, ElasticsearchConstants.NESTED_TYPE_DATA);
-        contents = elastic.search(schema, table);
-      }
-      return contents;
+    // If record count is not as expected due to data from earlier test is not cleared then remove
+    // and load schema data again.
+    if (contents.count != expectedCount && contents.count % expectedCount == 0) {
+      removeSource();
+      setupElastic();
+      elastic.dataFromFile(schema, table, ElasticsearchConstants.NESTED_TYPE_DATA);
+      contents = elastic.search(schema, table);
+    }
+    return contents;
   }
 
   // Retrying setupElastic 3 times (with delay of 5 seconds) in case of issue with cluster health.
@@ -298,225 +319,195 @@ public class ElasticBaseTestQuery extends PlanTestBase {
   }
 
   public static ColumnData[] getNullBusinessData() {
-    final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.of("UTC")).withChronology(IsoChronology.INSTANCE);
-    final ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
-      new ElasticsearchCluster.ColumnData("business_id", TEXT, new Object[][]{
-        {null},
-        {"abcde"},
-        {"7890"},
-        {"12345"},
-        {"xyz"}
-      }),
-      new ElasticsearchCluster.ColumnData("full_address", TEXT, new Object[][]{
-        {"12345 A Street, Cambridge, MA"},
-        {null},
-        {"987 B Street, San Diego, CA"},
-        {"12345 A Street, Cambridge, MA"},
-        {"12345 C Avenue, San Francisco, CA"}
-      }),
-      new ElasticsearchCluster.ColumnData("city", KEYWORD,
-        new Object[][]{
-          {"Cambridge"},
-          {"San Francisco"},
-          {null},
-          {"Cambridge"},
-          {"San Francisco"}
-        }),
-      new ElasticsearchCluster.ColumnData("city_analyzed", TEXT,
-        new Object[][]{
-          {"Cambridge"},
-          {"San Francisco"},
-          {null},
-          {"Cambridge"},
-          {"San Francisco"}
-        }),
-      new ElasticsearchCluster.ColumnData("state", KEYWORD,
-        new Object[][]{
-          {"MA"},
-          {"CA"},
-          {"CA"},
-          {null},
-          {"CA"}
-        }),
-      new ElasticsearchCluster.ColumnData("state_analyzed", TEXT, new Object[][]{
-        {"MA"},
-        {"CA"},
-        {"CA"},
-        {null},
-        {"CA"}
-      }),
-      new ElasticsearchCluster.ColumnData("review_count", INTEGER, new Object[][]{
-        {11},
-        {22},
-        {33},
-        {11},
-        {null}
-      }),
-      new ElasticsearchCluster.ColumnData("stars", FLOAT, new Object[][]{
-        {null},
-        {3.5f},
-        {5.0f},
-        {4.5f},
-        {1}
-      }),
-      new ElasticsearchCluster.ColumnData("location_field", GEO_POINT, new Object[][]{
-        {ImmutableMap.of("lat", 11, "lon", 11), ImmutableMap.of("lat", -11, "lon", -11)},
-        {ImmutableMap.of("lat", 22, "lon", 22), ImmutableMap.of("lat", -22, "lon", -22)},
-        {null},
-        {ImmutableMap.of("lat", 44, "lon", 44), ImmutableMap.of("lat", -44, "lon", -44)},
-        {ImmutableMap.of("lat", 55, "lon", 55), ImmutableMap.of("lat", -55, "lon", -55)}
-      }),
-      new ElasticsearchCluster.ColumnData("name", TEXT, new Object[][]{
-        {"Store in Cambridge"},
-        {"Store in San Francisco"},
-        {"Store in San Diego"},
-        {null},
-        {"New store in San Francisco"},
-
-      }),
-      new ElasticsearchCluster.ColumnData("open", BOOLEAN, new Object[][] {
-        {true},
-        {true},
-        {false},
-        {true},
-        {null}
-      }),
-      //withZoneRetainFields(DateTimeZone.getDefault())
-      new ElasticsearchCluster.ColumnData("datefield", DATE, new Object[][] {
-        {LocalDateTime.parse("2014-02-10 10:50:42", formatter)},
-        {null},
-        {LocalDateTime.parse("2014-02-12 10:50:42", formatter)},
-        {LocalDateTime.parse("2014-02-11 10:50:42", formatter)},
-        {LocalDateTime.parse("2014-02-10 10:50:42", formatter)}
-      })
-    };
+    final DateTimeFormatter formatter =
+        DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+            .withZone(ZoneId.of("UTC"))
+            .withChronology(IsoChronology.INSTANCE);
+    final ElasticsearchCluster.ColumnData[] data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "business_id",
+              TEXT,
+              new Object[][] {{null}, {"abcde"}, {"7890"}, {"12345"}, {"xyz"}}),
+          new ElasticsearchCluster.ColumnData(
+              "full_address",
+              TEXT,
+              new Object[][] {
+                {"12345 A Street, Cambridge, MA"},
+                {null},
+                {"987 B Street, San Diego, CA"},
+                {"12345 A Street, Cambridge, MA"},
+                {"12345 C Avenue, San Francisco, CA"}
+              }),
+          new ElasticsearchCluster.ColumnData(
+              "city",
+              KEYWORD,
+              new Object[][] {
+                {"Cambridge"}, {"San Francisco"}, {null}, {"Cambridge"}, {"San Francisco"}
+              }),
+          new ElasticsearchCluster.ColumnData(
+              "city_analyzed",
+              TEXT,
+              new Object[][] {
+                {"Cambridge"}, {"San Francisco"}, {null}, {"Cambridge"}, {"San Francisco"}
+              }),
+          new ElasticsearchCluster.ColumnData(
+              "state", KEYWORD, new Object[][] {{"MA"}, {"CA"}, {"CA"}, {null}, {"CA"}}),
+          new ElasticsearchCluster.ColumnData(
+              "state_analyzed", TEXT, new Object[][] {{"MA"}, {"CA"}, {"CA"}, {null}, {"CA"}}),
+          new ElasticsearchCluster.ColumnData(
+              "review_count", INTEGER, new Object[][] {{11}, {22}, {33}, {11}, {null}}),
+          new ElasticsearchCluster.ColumnData(
+              "stars", FLOAT, new Object[][] {{null}, {3.5f}, {5.0f}, {4.5f}, {1}}),
+          new ElasticsearchCluster.ColumnData(
+              "location_field",
+              GEO_POINT,
+              new Object[][] {
+                {ImmutableMap.of("lat", 11, "lon", 11), ImmutableMap.of("lat", -11, "lon", -11)},
+                {ImmutableMap.of("lat", 22, "lon", 22), ImmutableMap.of("lat", -22, "lon", -22)},
+                {null},
+                {ImmutableMap.of("lat", 44, "lon", 44), ImmutableMap.of("lat", -44, "lon", -44)},
+                {ImmutableMap.of("lat", 55, "lon", 55), ImmutableMap.of("lat", -55, "lon", -55)}
+              }),
+          new ElasticsearchCluster.ColumnData(
+              "name",
+              TEXT,
+              new Object[][] {
+                {"Store in Cambridge"},
+                {"Store in San Francisco"},
+                {"Store in San Diego"},
+                {null},
+                {"New store in San Francisco"},
+              }),
+          new ElasticsearchCluster.ColumnData(
+              "open", BOOLEAN, new Object[][] {{true}, {true}, {false}, {true}, {null}}),
+          // withZoneRetainFields(DateTimeZone.getDefault())
+          new ElasticsearchCluster.ColumnData(
+              "datefield",
+              DATE,
+              new Object[][] {
+                {LocalDateTime.parse("2014-02-10 10:50:42", formatter)},
+                {null},
+                {LocalDateTime.parse("2014-02-12 10:50:42", formatter)},
+                {LocalDateTime.parse("2014-02-11 10:50:42", formatter)},
+                {LocalDateTime.parse("2014-02-10 10:50:42", formatter)}
+              })
+        };
     return data;
   }
 
   public static ColumnData[] getBusinessData() {
-    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.of("UTC")).withChronology(IsoChronology.INSTANCE);
-    ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
-        new ElasticsearchCluster.ColumnData("business_id", TEXT, new Object[][]{
-            {"12345"},
-            {"abcde"},
-            {"7890"},
-            {"12345"},
-            {"xyz"}
-        }),
-        new ElasticsearchCluster.ColumnData("full_address", TEXT, new Object[][]{
-            {"12345 A Street, Cambridge, MA"},
-            {"987 B Street, San Francisco, CA"},
-            {"987 B Street, San Diego, CA"},
-            {"12345 A Street, Cambridge, MA"},
-            {"12345 C Avenue, San Francisco, CA"}
-        }),
-        new ElasticsearchCluster.ColumnData("city", KEYWORD,
-            new Object[][]{
-                {"Cambridge"},
-                {"San Francisco"},
-                {"San Diego"},
-                {"Cambridge"},
-                {"San Francisco"}
-            }),
-        new ElasticsearchCluster.ColumnData("city_analyzed", TEXT,
-            new Object[][]{
-                {"Cambridge"},
-                {"San Francisco"},
-                {"San Diego"},
-                {"Cambridge"},
-                {"San Francisco"}
-            }),
-        new ElasticsearchCluster.ColumnData("state", KEYWORD,
-            new Object[][]{
-                {"MA"},
-                {"CA"},
-                {"CA"},
-                {"MA"},
-                {"CA"}
-            }),
-        new ElasticsearchCluster.ColumnData("state_analyzed", TEXT, new Object[][]{
-            {"MA"},
-            {"CA"},
-            {"CA"},
-            {"MA"},
-            {"CA"}
-        }),
-        new ElasticsearchCluster.ColumnData("review_count", INTEGER, new Object[][]{
-            {11},
-            {22},
-            {33},
-            {11},
-            {1}
-        }),
-        new ElasticsearchCluster.ColumnData("stars", FLOAT, new Object[][]{
-            {4.5f},
-            {3.5f},
-            {5.0f},
-            {4.5f},
-            {1}
-        }),
-        new ElasticsearchCluster.ColumnData("location_field", GEO_POINT, new Object[][]{
-            {ImmutableMap.of("lat", 11, "lon", 11), ImmutableMap.of("lat", -11, "lon", -11)},
-            {ImmutableMap.of("lat", 22, "lon", 22), ImmutableMap.of("lat", -22, "lon", -22)},
-            {ImmutableMap.of("lat", 33, "lon", 33), ImmutableMap.of("lat", -33, "lon", -33)},
-            {ImmutableMap.of("lat", 44, "lon", 44), ImmutableMap.of("lat", -44, "lon", -44)},
-            {ImmutableMap.of("lat", 55, "lon", 55), ImmutableMap.of("lat", -55, "lon", -55)}
-        }),
-        new ElasticsearchCluster.ColumnData("test_map", NESTED, new Object[][]{
-            {ImmutableMap.of("lat", 11, "lon", 11)},
-            {ImmutableMap.of("lat", 22, "lon", 22)},
-            {ImmutableMap.of("lat", 33, "lon", 33)},
-            {ImmutableMap.of("lat", 44, "lon", 44)},
-            {ImmutableMap.of("lat", 55, "lon", 55)}
-        }),
-        new ElasticsearchCluster.ColumnData("name", TEXT, new Object[][]{
-            {"Store in Cambridge"},
-            {"Store in San Francisco"},
-            {"Store in San Diego"},
-            {"Same store in Cambridge"},
-            {"New store in San Francisco"},
-
-        }),
-        new ElasticsearchCluster.ColumnData("open", BOOLEAN, new Object[][] {
-            {true},
-            {true},
-            {false},
-            {true},
-            {false}
-        }),
-        new ElasticsearchCluster.ColumnData("datefield2", DATE, new Object[][] {
-            {LocalDateTime.parse("2015-02-10 10:50:42", formatter)},
-            {LocalDateTime.parse("2015-02-11 10:50:42", formatter)},
-            {LocalDateTime.parse("2015-02-12 10:50:42", formatter)},
-            {LocalDateTime.parse("2015-02-11 10:50:42", formatter)},
-            {LocalDateTime.parse("2015-02-10 10:50:42", formatter)}
-            }),
-        new ElasticsearchCluster.ColumnData("datefield", DATE, new Object[][] {
-            {LocalDateTime.parse("2014-02-10 10:50:42", formatter)},
-            {LocalDateTime.parse("2014-02-11 10:50:42", formatter)},
-            {LocalDateTime.parse("2014-02-12 10:50:42", formatter)},
-            {LocalDateTime.parse("2014-02-11 10:50:42", formatter)},
-            {LocalDateTime.parse("2014-02-10 10:50:42", formatter)}
-        })
-    };
+    DateTimeFormatter formatter =
+        DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+            .withZone(ZoneId.of("UTC"))
+            .withChronology(IsoChronology.INSTANCE);
+    ElasticsearchCluster.ColumnData[] data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "business_id",
+              TEXT,
+              new Object[][] {{"12345"}, {"abcde"}, {"7890"}, {"12345"}, {"xyz"}}),
+          new ElasticsearchCluster.ColumnData(
+              "full_address",
+              TEXT,
+              new Object[][] {
+                {"12345 A Street, Cambridge, MA"},
+                {"987 B Street, San Francisco, CA"},
+                {"987 B Street, San Diego, CA"},
+                {"12345 A Street, Cambridge, MA"},
+                {"12345 C Avenue, San Francisco, CA"}
+              }),
+          new ElasticsearchCluster.ColumnData(
+              "city",
+              KEYWORD,
+              new Object[][] {
+                {"Cambridge"}, {"San Francisco"}, {"San Diego"}, {"Cambridge"}, {"San Francisco"}
+              }),
+          new ElasticsearchCluster.ColumnData(
+              "city_analyzed",
+              TEXT,
+              new Object[][] {
+                {"Cambridge"}, {"San Francisco"}, {"San Diego"}, {"Cambridge"}, {"San Francisco"}
+              }),
+          new ElasticsearchCluster.ColumnData(
+              "state", KEYWORD, new Object[][] {{"MA"}, {"CA"}, {"CA"}, {"MA"}, {"CA"}}),
+          new ElasticsearchCluster.ColumnData(
+              "state_analyzed", TEXT, new Object[][] {{"MA"}, {"CA"}, {"CA"}, {"MA"}, {"CA"}}),
+          new ElasticsearchCluster.ColumnData(
+              "review_count", INTEGER, new Object[][] {{11}, {22}, {33}, {11}, {1}}),
+          new ElasticsearchCluster.ColumnData(
+              "stars", FLOAT, new Object[][] {{4.5f}, {3.5f}, {5.0f}, {4.5f}, {1}}),
+          new ElasticsearchCluster.ColumnData(
+              "location_field",
+              GEO_POINT,
+              new Object[][] {
+                {ImmutableMap.of("lat", 11, "lon", 11), ImmutableMap.of("lat", -11, "lon", -11)},
+                {ImmutableMap.of("lat", 22, "lon", 22), ImmutableMap.of("lat", -22, "lon", -22)},
+                {ImmutableMap.of("lat", 33, "lon", 33), ImmutableMap.of("lat", -33, "lon", -33)},
+                {ImmutableMap.of("lat", 44, "lon", 44), ImmutableMap.of("lat", -44, "lon", -44)},
+                {ImmutableMap.of("lat", 55, "lon", 55), ImmutableMap.of("lat", -55, "lon", -55)}
+              }),
+          new ElasticsearchCluster.ColumnData(
+              "test_map",
+              NESTED,
+              new Object[][] {
+                {ImmutableMap.of("lat", 11, "lon", 11)},
+                {ImmutableMap.of("lat", 22, "lon", 22)},
+                {ImmutableMap.of("lat", 33, "lon", 33)},
+                {ImmutableMap.of("lat", 44, "lon", 44)},
+                {ImmutableMap.of("lat", 55, "lon", 55)}
+              }),
+          new ElasticsearchCluster.ColumnData(
+              "name",
+              TEXT,
+              new Object[][] {
+                {"Store in Cambridge"},
+                {"Store in San Francisco"},
+                {"Store in San Diego"},
+                {"Same store in Cambridge"},
+                {"New store in San Francisco"},
+              }),
+          new ElasticsearchCluster.ColumnData(
+              "open", BOOLEAN, new Object[][] {{true}, {true}, {false}, {true}, {false}}),
+          new ElasticsearchCluster.ColumnData(
+              "datefield2",
+              DATE,
+              new Object[][] {
+                {LocalDateTime.parse("2015-02-10 10:50:42", formatter)},
+                {LocalDateTime.parse("2015-02-11 10:50:42", formatter)},
+                {LocalDateTime.parse("2015-02-12 10:50:42", formatter)},
+                {LocalDateTime.parse("2015-02-11 10:50:42", formatter)},
+                {LocalDateTime.parse("2015-02-10 10:50:42", formatter)}
+              }),
+          new ElasticsearchCluster.ColumnData(
+              "datefield",
+              DATE,
+              new Object[][] {
+                {LocalDateTime.parse("2014-02-10 10:50:42", formatter)},
+                {LocalDateTime.parse("2014-02-11 10:50:42", formatter)},
+                {LocalDateTime.parse("2014-02-12 10:50:42", formatter)},
+                {LocalDateTime.parse("2014-02-11 10:50:42", formatter)},
+                {LocalDateTime.parse("2014-02-10 10:50:42", formatter)}
+              })
+        };
     return data;
   }
 
   /**
    * Search for Json blobs (used for representing elastic pushdown queries) in the query plan.
    *
-   * If multiple json values are given they must be provided in the order the appear in the plan.
+   * <p>If multiple json values are given they must be provided in the order the appear in the plan.
    *
-   * This method can only be used for checking elastic plans as it looks for the string "pushdown: ="
-   * to find the JSON in the plan.
+   * <p>This method can only be used for checking elastic plans as it looks for the string
+   * "pushdown: =" to find the JSON in the plan.
    *
-   * The unused third parameter gives this method the same signature as the similar
+   * <p>The unused third parameter gives this method the same signature as the similar
    * testPlanMatchingPatterns() method that was used for these kinds of tests before this elastic
-   * specific variant was introduced. Probably not the best reason, but it was included to
-   * reduce the clutter from the patch that switched the tests to use this method.
+   * specific variant was introduced. Probably not the best reason, but it was included to reduce
+   * the clutter from the patch that switched the tests to use this method.
    */
   public void verifyJsonInPlan(String query, String[] jsonExpectedInPlan) throws Exception {
-    if(!ElasticsearchCluster.USE_EXTERNAL_ES5) {
+    if (!ElasticsearchCluster.USE_EXTERNAL_ES5) {
       query = QueryTestUtil.normalizeQuery(query);
       verifyJsonInPlanHelper(query, jsonExpectedInPlan, true);
       verifyJsonInPlanHelper(query, jsonExpectedInPlan, false);
@@ -524,26 +515,31 @@ public class ElasticBaseTestQuery extends PlanTestBase {
   }
 
   /**
-   * Shim to run some plan validation against older test definitions before we disabled edge project pushdown.
+   * Shim to run some plan validation against older test definitions before we disabled edge project
+   * pushdown.
    *
-   * Much of our coverage on groovy script pushdowns was in project lists. Rather than re-write all the tests
-   * this shim allows easily running a check for full pushdown plans, or conditionally checking that the
-   * plan does not a project list if one should not be present.
+   * <p>Much of our coverage on groovy script pushdowns was in project lists. Rather than re-write
+   * all the tests this shim allows easily running a check for full pushdown plans, or conditionally
+   * checking that the plan does not a project list if one should not be present.
    *
    * @param query - SQL query to check the plan for
-   * @param jsonExpectedInPlan JSON pushdowns that should be found in plan, if edgeProjectEnabled flag is set
-   *                           then these complete fragments are not checked for existence in the plan in all cases.
-   *                           If the expected plan contains the word "includes" which provides a list of columns to
-   *                           project in an elastic query, this method will only ensure that the pushdown given
-   *                           in the explain plan lacks an "include" list of columns
-   * @param edgeProjectEnabled set to true if the plan fragments should be matched exactly, generally for validating
-   *                           groovy scripts in legacy tests
+   * @param jsonExpectedInPlan JSON pushdowns that should be found in plan, if edgeProjectEnabled
+   *     flag is set then these complete fragments are not checked for existence in the plan in all
+   *     cases. If the expected plan contains the word "includes" which provides a list of columns
+   *     to project in an elastic query, this method will only ensure that the pushdown given in the
+   *     explain plan lacks an "include" list of columns
+   * @param edgeProjectEnabled set to true if the plan fragments should be matched exactly,
+   *     generally for validating groovy scripts in legacy tests
    * @throws Exception
    */
-  public void verifyJsonInPlanHelper(String query, String[] jsonExpectedInPlan, boolean edgeProjectEnabled) throws Exception {
+  public void verifyJsonInPlanHelper(
+      String query, String[] jsonExpectedInPlan, boolean edgeProjectEnabled) throws Exception {
     try {
       if (edgeProjectEnabled) {
-        test("ALTER SYSTEM SET " + ExecConstants.ELASTIC_RULES_EDGE_PROJECT.getOptionName() + " = true");
+        test(
+            "ALTER SYSTEM SET "
+                + ExecConstants.ELASTIC_RULES_EDGE_PROJECT.getOptionName()
+                + " = true");
       }
       String plan = getPlanInString("EXPLAIN PLAN for " + query, OPTIQ_FORMAT);
       // find the beginning of the elastic query being pushed down
@@ -567,24 +563,31 @@ public class ElasticBaseTestQuery extends PlanTestBase {
         indexInPlan = pushdownEndIndexInPlan;
         String expectedJson = jsonExpectedInPlan[expectedJsonBlobIndex];
         if (!edgeProjectEnabled) {
-          // check the expected plan for a projection list, this should be a signal that it is an older test
+          // check the expected plan for a projection list, this should be a signal that it is an
+          // older test
           // because we are now avoiding having elastic do final projections
-          // if there is one, try to do the explain plan and check for an empty project list, or no project list
+          // if there is one, try to do the explain plan and check for an empty project list, or no
+          // project list
           // at all
           if (expectedJson.contains("includes")) {
             String toFind = "\"includes\"\\s*:\\s*\\[\\s*\\]";
             if (!jsonPushdown.matches(toFind) && jsonPushdown.contains("\"includes\"")) {
-              throw new RuntimeException("Found a projection list in pushdown, " +
-                "when edge projects should be disabled, plan was:\n" + jsonPushdown);
+              throw new RuntimeException(
+                  "Found a projection list in pushdown, "
+                      + "when edge projects should be disabled, plan was:\n"
+                      + jsonPushdown);
             }
           } else if (expectedJson.contains("\"script_fields\"")) {
             if (jsonPushdown.contains("\"script_fields\"")) {
-              throw new RuntimeException("Found a projection list with scripts in pushdown, " +
-                "when edge projects should be disabled, plan was:\n" + jsonPushdown);
+              throw new RuntimeException(
+                  "Found a projection list with scripts in pushdown, "
+                      + "when edge projects should be disabled, plan was:\n"
+                      + jsonPushdown);
             }
           }
         } else {
-          // the line that starts the json pushdown has an '=', many of the tests include it, just strip it off for the comparison
+          // the line that starts the json pushdown has an '=', many of the tests include it, just
+          // strip it off for the comparison
           if (expectedJson.charAt(0) == '=') {
             expectedJson = expectedJson.substring(1);
           }
@@ -592,18 +595,23 @@ public class ElasticBaseTestQuery extends PlanTestBase {
         }
       }
       if (expectedJsonBlobIndex != jsonExpectedInPlan.length) {
-        throw new RuntimeException("Error finding elastic pushdown query JSON in plan text\n" +
-          "Could not find this pushdown in the plan:\n" + jsonExpectedInPlan[expectedJsonBlobIndex] +
-          "\n\nActual plan:\n" + plan);
+        throw new RuntimeException(
+            "Error finding elastic pushdown query JSON in plan text\n"
+                + "Could not find this pushdown in the plan:\n"
+                + jsonExpectedInPlan[expectedJsonBlobIndex]
+                + "\n\nActual plan:\n"
+                + plan);
       }
     } finally {
-      test("ALTER SYSTEM SET " + ExecConstants.ELASTIC_RULES_EDGE_PROJECT.getOptionName() + " = false");
+      test(
+          "ALTER SYSTEM SET "
+              + ExecConstants.ELASTIC_RULES_EDGE_PROJECT.getOptionName()
+              + " = false");
     }
   }
 
-
   public static void compareJson(String expected, String actual) throws IOException {
-    if(ElasticsearchCluster.USE_EXTERNAL_ES5){
+    if (ElasticsearchCluster.USE_EXTERNAL_ES5) {
       // ignore json comparison for now
       return;
     }
@@ -613,14 +621,21 @@ public class ElasticBaseTestQuery extends PlanTestBase {
     JsonNode actualRootNode = m.readTree(actual);
     if (!expectedRootNode.equals(actualRootNode)) {
       ObjectWriter writer = m.writerWithDefaultPrettyPrinter();
-      String message = String.format("Comparison between JSON values failed.\nExpected:\n%s\nActual:\n%s", expected, actual);
+      String message =
+          String.format(
+              "Comparison between JSON values failed.\nExpected:\n%s\nActual:\n%s",
+              expected, actual);
       // assertEquals gives a better diff
-      assertEquals(message, writer.writeValueAsString(expectedRootNode), writer.writeValueAsString(actualRootNode));
+      assertEquals(
+          message,
+          writer.writeValueAsString(expectedRootNode),
+          writer.writeValueAsString(actualRootNode));
       throw new RuntimeException(message);
     }
   }
 
-  // To get field to select in query based upon ES version. If version is 7 , " _type || '#' || _id " will be used in place of _uid.
+  // To get field to select in query based upon ES version. If version is 7 , " _type || '#' || _id
+  // " will be used in place of _uid.
   public String getField() {
     if (elastic.getMinVersionInCluster().getMajor() == 7) {
       return "_type  || '#'  || _id";
@@ -628,7 +643,8 @@ public class ElasticBaseTestQuery extends PlanTestBase {
     return "_uid";
   }
 
-  // To get field with alias (_uid) to select in query based upon ES version. If version is 7 , " _type || '#' || _id " will be used in place of _uid.
+  // To get field with alias (_uid) to select in query based upon ES version. If version is 7 , "
+  // _type || '#' || _id " will be used in place of _uid.
   public String getFieldWithAlias() {
     if (elastic.getMinVersionInCluster().getMajor() == 7) {
       return " _type || '#' || _id as _uid ";
@@ -637,20 +653,24 @@ public class ElasticBaseTestQuery extends PlanTestBase {
   }
 
   protected String getActualFormat(String format) {
-    if(format.startsWith("8")) {
+    if (format.startsWith("8")) {
       return format.substring(1);
     }
     return format;
   }
 
   private static int findJsonEndBoundary(String plan, int indexInPlan) throws IOException {
-    // read the json pushdown query with jackson to find it's total length, wasn't sure how to do this with just regex
+    // read the json pushdown query with jackson to find it's total length, wasn't sure how to do
+    // this with just regex
     // as it will span across a variable number of lines
-    try(JsonParser jsonParser = objectMapper.getFactory().createParser(plan.substring(indexInPlan))) {
+    try (JsonParser jsonParser =
+        objectMapper.getFactory().createParser(plan.substring(indexInPlan))) {
       JsonToken token = jsonParser.nextToken();
       if (token != JsonToken.START_ARRAY) {
-        throw new RuntimeException("Error finding elastic pushdown query JSON in plan text, " +
-          "did not find start array as expected, instead found " + token);
+        throw new RuntimeException(
+            "Error finding elastic pushdown query JSON in plan text, "
+                + "did not find start array as expected, instead found "
+                + token);
       }
       int startEndCounter = 1;
       while (startEndCounter != 0) {

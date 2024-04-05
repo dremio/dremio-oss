@@ -15,13 +15,6 @@
  */
 package com.dremio.dac.model.common;
 
-import java.net.URI;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-
-import javax.ws.rs.core.UriBuilder;
-
 import com.dremio.common.utils.PathUtils;
 import com.dremio.dac.model.folder.FolderName;
 import com.dremio.dac.model.folder.FolderPath;
@@ -29,10 +22,13 @@ import com.dremio.service.namespace.NamespaceKey;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.collect.Lists;
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import javax.ws.rs.core.UriBuilder;
 
-/**
- * Return list of path components to form namespace key
- */
+/** Return list of path components to form namespace key */
 public abstract class NamespacePath {
   private final RootEntity root;
   private final List<FolderName> folderPath;
@@ -54,10 +50,12 @@ public abstract class NamespacePath {
     final List<String> pathComponents = new ArrayList<>(path);
     int length = pathComponents.size();
     if (length < getMinimumComponents()) {
-      throw new IllegalArgumentException("path too short: " + PathUtils.getPathJoiner().join(pathComponents));
+      throw new IllegalArgumentException(
+          "path too short: " + PathUtils.getPathJoiner().join(pathComponents));
     }
     if (getMaximumComponents() != -1 && length > getMaximumComponents()) {
-      throw new IllegalArgumentException("path too long: " + PathUtils.getPathJoiner().join(pathComponents));
+      throw new IllegalArgumentException(
+          "path too long: " + PathUtils.getPathJoiner().join(pathComponents));
     }
 
     this.root = getRoot(pathComponents.remove(0));
@@ -124,7 +122,6 @@ public abstract class NamespacePath {
   public String toString() {
     return toPathString();
   }
-
 
   public RootEntity getRoot() {
     return root;
@@ -218,8 +215,8 @@ public abstract class NamespacePath {
   }
 
   /**
-   * Generates special url for querying datasets.
-   * This should be temporary (famous last words) until dataset urls are made consistent.
+   * Generates special url for querying datasets. This should be temporary (famous last words) until
+   * dataset urls are made consistent.
    */
   public String getQueryUrlPath() {
     List<String> pathList = toPathList();
@@ -232,8 +229,9 @@ public abstract class NamespacePath {
 
   public String getPreviewDataUrlPath() {
     List<String> pathList = toPathList();
-    URI uri = UriBuilder.fromUri("/dataset/{fullPath}/preview")
-      .build(PathUtils.constructFullPath(pathList));
+    URI uri =
+        UriBuilder.fromUri("/dataset/{fullPath}/preview")
+            .build(PathUtils.constructFullPath(pathList));
     return uri.toString();
   }
 

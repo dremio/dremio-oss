@@ -20,12 +20,12 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.convert.ConverterRule;
 
 /**
- * Rule that converts any Dremio relational expression to enumerable format by adding a {@link ScreenRelBase}.
+ * Rule that converts any Dremio relational expression to enumerable format by adding a {@link
+ * ScreenRelBase}.
  */
 public class EnumerableRule extends ConverterRule {
 
   public static EnumerableRule INSTANCE = new EnumerableRule();
-
 
   private EnumerableRule() {
     super(RelNode.class, Rel.LOGICAL, EnumerableConvention.INSTANCE, "EnumerableRule.");

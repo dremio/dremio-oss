@@ -1,4 +1,4 @@
-<?xml version="1.0"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!--
 
     Copyright (C) 2017-2019 Dremio Corporation
@@ -16,23 +16,19 @@
     limitations under the License.
 
 -->
-<project
-  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
-  xmlns="http://maven.apache.org/POM/4.0.0"
-  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
     <groupId>com.dremio.plugins</groupId>
     <artifactId>dremio-plugin-parent</artifactId>
-    <version>24.3.2-202401241821100032-d2d8a497</version>
+    <version>25.0.0-202404051521110861-ed9515a8</version>
   </parent>
 
   <artifactId>dremio-gcs-plugin</artifactId>
   <name>Plugins - Google Storage Plugin</name>
 
-  <properties>
-  </properties>
+  <properties/>
 
   <dependencies>
     <dependency>
@@ -41,23 +37,23 @@
       <version>hadoop3-${gcs-connector-version}</version>
       <classifier>shaded</classifier>
       <exclusions>
-          <exclusion>
-            <groupId>com.google.flogger</groupId>
-            <artifactId>flogger-log4j-backend</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>commons-logging</groupId>
-            <artifactId>commons-logging</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>com.google.code.gson</groupId>
-            <artifactId>gson</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>io.grpc</groupId>
-            <artifactId>*</artifactId>
-          </exclusion>
-        </exclusions>
+        <exclusion>
+          <groupId>com.google.flogger</groupId>
+          <artifactId>flogger-log4j-backend</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>commons-logging</groupId>
+          <artifactId>commons-logging</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>com.google.code.gson</groupId>
+          <artifactId>gson</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>io.grpc</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>com.google.cloud</groupId>
@@ -99,8 +95,7 @@
   </dependencies>
 
   <build>
-    <plugins>
-    </plugins>
+    <plugins/>
   </build>
 
 </project>

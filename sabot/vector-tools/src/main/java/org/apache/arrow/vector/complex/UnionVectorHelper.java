@@ -15,12 +15,6 @@
  */
 package org.apache.arrow.vector.complex;
 
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.vector.FieldVector;
-import org.apache.arrow.vector.ValueVectorHelper;
-import org.apache.arrow.vector.types.pojo.Field;
-
 import com.dremio.common.types.TypeProtos;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.types.Types;
@@ -29,6 +23,10 @@ import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.NamePart;
 import com.dremio.exec.proto.UserBitShared.SerializedField;
 import com.dremio.exec.proto.UserBitShared.SerializedField.Builder;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.ValueVectorHelper;
+import org.apache.arrow.vector.types.pojo.Field;
 
 public class UnionVectorHelper implements ValueVectorHelper {
   private UnionVector unionVector;
@@ -47,20 +45,22 @@ public class UnionVectorHelper implements ValueVectorHelper {
     int typesLength = metadata.getChild(0).getBufferLength();
     int mapLength = metadata.getChild(1).getBufferLength();
     loadTypeBuffer(metadata.getChild(0), buffer);
-    TypeHelper.load(unionVector.internalStruct, metadata.getChild(1), buffer.slice(typesLength, mapLength));
+    TypeHelper.load(
+        unionVector.internalStruct, metadata.getChild(1), buffer.slice(typesLength, mapLength));
   }
 
   private void loadTypeBuffer(SerializedField metadata, ArrowBuf buffer) {
     final int valueCount = metadata.getValueCount();
     final int actualLength = metadata.getBufferLength();
     final int expectedLength = valueCount * 1;
-    assert expectedLength == actualLength:
-      String.format("Expected to load %d bytes in type buffer but actually loaded %d bytes", expectedLength,
-        actualLength);
+    assert expectedLength == actualLength
+        : String.format(
+            "Expected to load %d bytes in type buffer but actually loaded %d bytes",
+            expectedLength, actualLength);
 
     unionVector.typeBuffer = buffer.slice(0, actualLength);
     unionVector.typeBuffer.writerIndex(actualLength);
-    unionVector.typeBuffer .getReferenceManager().retain(1);
+    unionVector.typeBuffer.getReferenceManager().retain(1);
   }
 
   @Override
@@ -74,7 +74,8 @@ public class UnionVectorHelper implements ValueVectorHelper {
 
   @Override
   public SerializedField getMetadata() {
-    SerializedField.Builder b = SerializedField.newBuilder()
+    SerializedField.Builder b =
+        SerializedField.newBuilder()
             .setNamePart(NamePart.newBuilder().setName(unionVector.getField().getName()))
             .setMajorType(Types.optional(MinorType.UNION))
             .setBufferLength(unionVector.getBufferSize())
@@ -86,11 +87,12 @@ public class UnionVectorHelper implements ValueVectorHelper {
   }
 
   private SerializedField buildTypeField() {
-    SerializedField.Builder typeBuilder = SerializedField.newBuilder()
-      .setNamePart(UserBitShared.NamePart.newBuilder().setName("types").build())
-      .setValueCount(unionVector.valueCount)
-      .setBufferLength(unionVector.valueCount)
-      .setMajorType(com.dremio.common.types.Types.required(TypeProtos.MinorType.UINT1));
+    SerializedField.Builder typeBuilder =
+        SerializedField.newBuilder()
+            .setNamePart(UserBitShared.NamePart.newBuilder().setName("types").build())
+            .setValueCount(unionVector.valueCount)
+            .setBufferLength(unionVector.valueCount)
+            .setMajorType(com.dremio.common.types.Types.required(TypeProtos.MinorType.UINT1));
 
     return typeBuilder.build();
   }
@@ -100,7 +102,8 @@ public class UnionVectorHelper implements ValueVectorHelper {
   }
 
   @Override
-  public void loadFromValidityAndDataBuffers(SerializedField metadata, ArrowBuf dataBuffer, ArrowBuf validityBuffer) {
+  public void loadFromValidityAndDataBuffers(
+      SerializedField metadata, ArrowBuf dataBuffer, ArrowBuf validityBuffer) {
     throw new UnsupportedOperationException();
   }
 

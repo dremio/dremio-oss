@@ -15,22 +15,16 @@
  */
 package com.dremio.exec.physical.config;
 
-import java.io.IOException;
-
-import javax.annotation.Nullable;
-
-import org.apache.iceberg.expressions.Expression;
-import org.immutables.value.Value;
-
 import com.dremio.exec.store.iceberg.IcebergSerDe;
 import com.dremio.exec.util.LongRange;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import java.io.IOException;
+import javax.annotation.Nullable;
+import org.apache.iceberg.expressions.Expression;
+import org.immutables.value.Value;
 
-/**
- * Filter conditions for the manifest scan
- */
-
+/** Filter conditions for the manifest scan */
 @JsonDeserialize(builder = ImmutableManifestScanFilters.Builder.class)
 @Value.Immutable
 public abstract class ManifestScanFilters implements MetadataFilters {
@@ -43,7 +37,8 @@ public abstract class ManifestScanFilters implements MetadataFilters {
   @Nullable
   public abstract LongRange getSkipDataFileSizeRange();
 
-  // Filter to identify if manifest is operating on an old partition spec id. Ignored if null or zero.
+  // Filter to identify if manifest is operating on an old partition spec id. Ignored if null or
+  // zero.
   @Value.Default
   public Integer getMinPartitionSpecId() {
     return 0;
@@ -58,7 +53,8 @@ public abstract class ManifestScanFilters implements MetadataFilters {
   }
 
   public boolean doesSkipDataFileSizeRangeExist() {
-    return getSkipDataFileSizeRange() != null && !getSkipDataFileSizeRange().equals(new LongRange(0, 0));
+    return getSkipDataFileSizeRange() != null
+        && !getSkipDataFileSizeRange().equals(new LongRange(0, 0));
   }
 
   public boolean doesMinPartitionSpecIdExist() {
@@ -70,7 +66,7 @@ public abstract class ManifestScanFilters implements MetadataFilters {
     try {
       return IcebergSerDe.deserializeFromByteArray(getIcebergAnyColExpression());
     } catch (IOException | ClassNotFoundException e) {
-      throw new RuntimeException("Failed to deserialize ManifestFile Filter AnyColExpression" , e);
+      throw new RuntimeException("Failed to deserialize ManifestFile Filter AnyColExpression", e);
     }
   }
 }

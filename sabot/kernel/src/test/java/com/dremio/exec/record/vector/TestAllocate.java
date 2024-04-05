@@ -18,14 +18,13 @@ package com.dremio.exec.record.vector;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import com.dremio.exec.ExecTest;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.junit.Test;
-
-import com.dremio.exec.ExecTest;
 
 public class TestAllocate extends ExecTest {
 
@@ -38,7 +37,7 @@ public class TestAllocate extends ExecTest {
       }
     } catch (Exception e) {
       assertTrue(e instanceof OutOfMemoryException);
-      assertTrue(((OutOfMemoryException)e).getOutcomeDetails().isPresent());
+      assertTrue(((OutOfMemoryException) e).getOutcomeDetails().isPresent());
     }
   }
 
@@ -58,7 +57,7 @@ public class TestAllocate extends ExecTest {
       }
     } catch (Exception e) {
       assertTrue(e instanceof OutOfMemoryException);
-      assertTrue(((OutOfMemoryException)e).getOutcomeDetails().isPresent());
+      assertTrue(((OutOfMemoryException) e).getOutcomeDetails().isPresent());
       assertTrue(allocatePassed);
     }
   }
@@ -72,7 +71,7 @@ public class TestAllocate extends ExecTest {
       }
     } catch (Exception e) {
       assertTrue(e instanceof OutOfMemoryException);
-      assertTrue(((OutOfMemoryException)e).getOutcomeDetails().isPresent());
+      assertTrue(((OutOfMemoryException) e).getOutcomeDetails().isPresent());
     }
   }
 
@@ -92,7 +91,7 @@ public class TestAllocate extends ExecTest {
       }
     } catch (Exception e) {
       assertTrue(e instanceof OutOfMemoryException);
-      assertTrue(((OutOfMemoryException)e).getOutcomeDetails().isPresent());
+      assertTrue(((OutOfMemoryException) e).getOutcomeDetails().isPresent());
       assertTrue(allocatePassed);
     }
   }

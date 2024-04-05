@@ -21,18 +21,15 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 
-/**
- * POP for table function
- */
+/** POP for table function */
 @JsonTypeName("table-function")
 public class TableFunctionPOP extends AbstractTableFunctionPOP {
 
   @JsonCreator
   public TableFunctionPOP(
-    @JsonProperty("props") OpProps props,
-    @JsonProperty("child") PhysicalOperator child,
-    @JsonProperty("function") TableFunctionConfig config
-  ) {
+      @JsonProperty("props") OpProps props,
+      @JsonProperty("child") PhysicalOperator child,
+      @JsonProperty("function") TableFunctionConfig config) {
     super(props, child, config);
   }
 
@@ -40,5 +37,4 @@ public class TableFunctionPOP extends AbstractTableFunctionPOP {
   protected PhysicalOperator getNewWithChild(PhysicalOperator child) {
     return new TableFunctionPOP(this.props, child, function);
   }
-
 }

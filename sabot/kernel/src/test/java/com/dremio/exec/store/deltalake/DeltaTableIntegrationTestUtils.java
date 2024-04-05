@@ -16,13 +16,6 @@
 
 package com.dremio.exec.store.deltalake;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-
-import org.apache.hadoop.conf.Configuration;
-
 import io.delta.standalone.DeltaLog;
 import io.delta.standalone.DeltaScan;
 import io.delta.standalone.Operation;
@@ -34,6 +27,11 @@ import io.delta.standalone.actions.CommitInfo;
 import io.delta.standalone.data.CloseableIterator;
 import io.delta.standalone.expressions.IsNotNull;
 import io.delta.standalone.types.StructType;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import org.apache.hadoop.conf.Configuration;
 
 public class DeltaTableIntegrationTestUtils {
 
@@ -48,15 +46,14 @@ public class DeltaTableIntegrationTestUtils {
   }
 
   // Read functionalities
-  /**
-  * Returns the snapshot
-  * */
+  /** Returns the snapshot */
   public Snapshot getSnapshot() {
     return log.snapshot();
   }
 
   /**
    * Returns the snapshot for version
+   *
    * @param version version for the snapshot
    */
   public Snapshot getSnapshotForVersionAsOf(long version) {
@@ -65,15 +62,14 @@ public class DeltaTableIntegrationTestUtils {
 
   /**
    * Returns the snapshot for a timestamp
+   *
    * @param timestamp timestamp for the snapshot
    */
   public Snapshot getSnapshotForTimestampAsOf(long timestamp) {
     return log.getSnapshotForTimestampAsOf(timestamp);
   }
 
-  /**
-   * Returns the current version
-   * */
+  /** Returns the current version */
   public long getVersion() {
     return log.update().getVersion();
   }
@@ -81,7 +77,7 @@ public class DeltaTableIntegrationTestUtils {
   // Write functionalities
   public void doAddFilesCommit() throws IOException {
 
-  OptimisticTransaction txn = log.startTransaction();
+    OptimisticTransaction txn = log.startTransaction();
     StructType currentSchema = log.update().getMetadata().getSchema();
     String firstColumnName = currentSchema.getFieldNames()[0];
     DeltaScan scan = txn.markFilesAsRead(new IsNotNull(currentSchema.column(firstColumnName)));

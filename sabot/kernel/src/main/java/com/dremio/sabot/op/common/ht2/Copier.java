@@ -21,7 +21,7 @@ public final class Copier {
 
   private Copier() {}
 
-  public static void copy(long src, long dst, int len){
+  public static void copy(long src, long dst, int len) {
     handCopy2(src, dst, len);
   }
 
@@ -53,7 +53,6 @@ public final class Copier {
     }
   }
 
-
   public static final void handCopy2(final long src, final long dst, int len) {
     int n = len;
     long lPos = src;
@@ -65,39 +64,37 @@ public final class Copier {
       rPos += 8;
       n -= 8;
     }
-    switch(n){
-    case 7:
-      PlatformDependent.putInt(rPos, PlatformDependent.getInt(lPos));
-      PlatformDependent.putByte(rPos + 4, PlatformDependent.getByte(lPos + 4));
-      PlatformDependent.putByte(rPos + 5, PlatformDependent.getByte(lPos + 5));
-      PlatformDependent.putByte(rPos + 6, PlatformDependent.getByte(lPos + 6));
-      break;
-    case 6:
-      PlatformDependent.putInt(rPos, PlatformDependent.getInt(lPos));
-      PlatformDependent.putByte(rPos + 4, PlatformDependent.getByte(lPos + 4));
-      PlatformDependent.putByte(rPos + 5, PlatformDependent.getByte(lPos + 5));
-      break;
-    case 5:
-      PlatformDependent.putInt(rPos, PlatformDependent.getInt(lPos));
-      PlatformDependent.putByte(rPos + 4, PlatformDependent.getByte(lPos + 4));
-      break;
-    case 4:
-      PlatformDependent.putInt(rPos, PlatformDependent.getInt(lPos));
-      break;
-    case 3:
-      PlatformDependent.putByte(rPos, PlatformDependent.getByte(lPos));
-      PlatformDependent.putByte(rPos + 1, PlatformDependent.getByte(lPos + 1));
-      PlatformDependent.putByte(rPos + 2, PlatformDependent.getByte(lPos + 2));
-      break;
-    case 2:
-      PlatformDependent.putByte(rPos, PlatformDependent.getByte(lPos));
-      PlatformDependent.putByte(rPos + 1, PlatformDependent.getByte(lPos + 1));
-      break;
-    case 1:
-      PlatformDependent.putByte(rPos, PlatformDependent.getByte(lPos));
-      break;
-
+    switch (n) {
+      case 7:
+        PlatformDependent.putInt(rPos, PlatformDependent.getInt(lPos));
+        PlatformDependent.putByte(rPos + 4, PlatformDependent.getByte(lPos + 4));
+        PlatformDependent.putByte(rPos + 5, PlatformDependent.getByte(lPos + 5));
+        PlatformDependent.putByte(rPos + 6, PlatformDependent.getByte(lPos + 6));
+        break;
+      case 6:
+        PlatformDependent.putInt(rPos, PlatformDependent.getInt(lPos));
+        PlatformDependent.putByte(rPos + 4, PlatformDependent.getByte(lPos + 4));
+        PlatformDependent.putByte(rPos + 5, PlatformDependent.getByte(lPos + 5));
+        break;
+      case 5:
+        PlatformDependent.putInt(rPos, PlatformDependent.getInt(lPos));
+        PlatformDependent.putByte(rPos + 4, PlatformDependent.getByte(lPos + 4));
+        break;
+      case 4:
+        PlatformDependent.putInt(rPos, PlatformDependent.getInt(lPos));
+        break;
+      case 3:
+        PlatformDependent.putByte(rPos, PlatformDependent.getByte(lPos));
+        PlatformDependent.putByte(rPos + 1, PlatformDependent.getByte(lPos + 1));
+        PlatformDependent.putByte(rPos + 2, PlatformDependent.getByte(lPos + 2));
+        break;
+      case 2:
+        PlatformDependent.putByte(rPos, PlatformDependent.getByte(lPos));
+        PlatformDependent.putByte(rPos + 1, PlatformDependent.getByte(lPos + 1));
+        break;
+      case 1:
+        PlatformDependent.putByte(rPos, PlatformDependent.getByte(lPos));
+        break;
     }
   }
-
 }

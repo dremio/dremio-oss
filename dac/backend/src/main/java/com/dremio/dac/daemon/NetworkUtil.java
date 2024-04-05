@@ -22,12 +22,10 @@ import java.net.UnknownHostException;
 import java.util.Collections;
 import java.util.Enumeration;
 
-/**
- * Utility class for helping determining local resolution.
- */
+/** Utility class for helping determining local resolution. */
 public final class NetworkUtil {
 
-  private NetworkUtil(){}
+  private NetworkUtil() {}
 
   public static boolean addressResolvesToThisNode(String masterNode) throws UnknownHostException {
     return addressResolvesToThisNode(InetAddress.getByName(masterNode));
@@ -54,7 +52,10 @@ public final class NetworkUtil {
       }
     } catch (SocketException e) {
       throw new RuntimeException(
-          "Failure retrieving all network interfaces from the node.  Check that " + masterNode + " is a valid address and the system can correctly resolve it.", e);
+          "Failure retrieving all network interfaces from the node.  Check that "
+              + masterNode
+              + " is a valid address and the system can correctly resolve it.",
+          e);
     }
     return false;
   }

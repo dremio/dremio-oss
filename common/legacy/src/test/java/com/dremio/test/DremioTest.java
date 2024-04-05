@@ -15,13 +15,20 @@
  */
 package com.dremio.test;
 
+import com.dremio.common.config.SabotConfig;
+import com.dremio.common.scanner.ClassPathScanner;
+import com.dremio.common.scanner.persistence.ScanResult;
+import com.dremio.common.util.DremioStringUtils;
+import com.dremio.common.util.TestTools;
+import com.dremio.config.DremioConfig;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.lang.management.BufferPoolMXBean;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
-
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -33,41 +40,32 @@ import org.junit.rules.TestWatcher;
 import org.junit.runner.Description;
 import org.slf4j.Logger;
 
-import com.dremio.common.config.SabotConfig;
-import com.dremio.common.scanner.ClassPathScanner;
-import com.dremio.common.scanner.persistence.ScanResult;
-import com.dremio.common.util.DremioStringUtils;
-import com.dremio.common.util.TestTools;
-import com.dremio.config.DremioConfig;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 public class DremioTest {
 
   protected static final ObjectMapper objectMapper;
+
   static {
     System.setProperty("line.separator", "\n");
     objectMapper = new ObjectMapper();
   }
 
-  /**
-   * The default Sabot config.
-   *
-   */
-  private static final Properties TEST_CONFIGURATIONS = new Properties() {
-    {
-      put("dremio.exec.http.enabled", "false");
-      put("dremio.test.parquet.schema.fallback.disabled", "true");
-    }
-  };
+  /** The default Sabot config. */
+  private static final Properties TEST_CONFIGURATIONS =
+      new Properties() {
+        {
+          put("dremio.exec.http.enabled", "false");
+          put("dremio.test.parquet.schema.fallback.disabled", "true");
+        }
+      };
+
   public static final SabotConfig DEFAULT_SABOT_CONFIG = SabotConfig.create(TEST_CONFIGURATIONS);
 
-  public static final DremioConfig DEFAULT_DREMIO_CONFIG = DremioConfig.create(null, DremioTest.DEFAULT_SABOT_CONFIG);
+  public static final DremioConfig DEFAULT_DREMIO_CONFIG =
+      DremioConfig.create(null, DremioTest.DEFAULT_SABOT_CONFIG);
 
-  /**
-   * The scan result for the current classpath
-   */
-  public static final ScanResult CLASSPATH_SCAN_RESULT = ClassPathScanner.fromPrescan(DEFAULT_SABOT_CONFIG);
+  /** The scan result for the current classpath */
+  public static final ScanResult CLASSPATH_SCAN_RESULT =
+      ClassPathScanner.fromPrescan(DEFAULT_SABOT_CONFIG);
 
   static final SystemManager manager = new SystemManager();
 
@@ -80,17 +78,13 @@ public class DremioTest {
   @ClassRule
   public static final TestRule CLASS_TIMEOUT = TestTools.getTimeoutRule(1000, TimeUnit.SECONDS);
 
-  @Rule
-  public final TestRule timeoutRule = TestTools.getTimeoutRule(50, TimeUnit.SECONDS);
+  @Rule public final TestRule timeoutRule = TestTools.getTimeoutRule(50, TimeUnit.SECONDS);
 
-  @Rule
-  public final TestLogReporter logOutcome = LOG_OUTCOME;
+  @Rule public final TestLogReporter logOutcome = LOG_OUTCOME;
 
-  @Rule
-  public final TestRule repeatRule = TestTools.getRepeatRule(false);
+  @Rule public final TestRule repeatRule = TestTools.getRepeatRule(false);
 
-  @Rule
-  public TestName testName = new TestName();
+  @Rule public TestName testName = new TestName();
 
   @Before
   public void printID() throws Exception {
@@ -103,8 +97,9 @@ public class DremioTest {
   }
 
   @AfterClass
-  public static void finiDremioTest() throws InterruptedException{
-    testReporter.info(String.format("Test Class done (%s): %s.", memWatcher.getMemString(true), className));
+  public static void finiDremioTest() throws InterruptedException {
+    testReporter.info(
+        String.format("Test Class done (%s): %s.", memWatcher.getMemString(true), className));
     LOG_OUTCOME.sleepIfFailure();
   }
 
@@ -130,13 +125,16 @@ public class DremioTest {
       long endDirect = manager.getMemDirect();
       long endHeap = manager.getMemHeap();
       long endNonHeap = manager.getMemNonHeap();
-      return String.format("d: %s(%s), h: %s(%s), nh: %s(%s)", //
-          DremioStringUtils.readable(endDirect - startDirect), DremioStringUtils.readable(endDirect), //
-          DremioStringUtils.readable(endHeap - startHeap), DremioStringUtils.readable(endHeap), //
-          DremioStringUtils.readable(endNonHeap - startNonHeap), DremioStringUtils.readable(endNonHeap) //
-       );
+      return String.format(
+          "d: %s(%s), h: %s(%s), nh: %s(%s)", //
+          DremioStringUtils.readable(endDirect - startDirect),
+          DremioStringUtils.readable(endDirect), //
+          DremioStringUtils.readable(endHeap - startHeap),
+          DremioStringUtils.readable(endHeap), //
+          DremioStringUtils.readable(endNonHeap - startNonHeap),
+          DremioStringUtils.readable(endNonHeap) //
+          );
     }
-
   }
 
   private static final class TestLogReporter extends TestWatcher {
@@ -153,17 +151,22 @@ public class DremioTest {
 
     @Override
     protected void failed(Throwable e, Description description) {
-      testReporter.error(String.format("Test Failed (%s): %s", memWatcher.getMemString(), description.getDisplayName()), e);
+      testReporter.error(
+          String.format(
+              "Test Failed (%s): %s", memWatcher.getMemString(), description.getDisplayName()),
+          e);
       failureCount++;
     }
 
     @Override
     public void succeeded(Description description) {
-      testReporter.info(String.format("Test Succeeded (%s): %s", memWatcher.getMemString(), description.getDisplayName()));
+      testReporter.info(
+          String.format(
+              "Test Succeeded (%s): %s", memWatcher.getMemString(), description.getDisplayName()));
     }
 
     public void sleepIfFailure() throws InterruptedException {
-      if(failureCount > 0){
+      if (failureCount > 0) {
         Thread.sleep(2000);
         failureCount = 0;
       } else {
@@ -171,7 +174,6 @@ public class DremioTest {
         Thread.sleep(250);
       }
     }
-
   }
 
   public static String escapeJsonString(String original) {
@@ -191,14 +193,13 @@ public class DremioTest {
     private final BufferPoolMXBean directBean;
     private final MemoryMXBean memoryBean;
 
-    public SystemManager(){
+    public SystemManager() {
       memoryBean = ManagementFactory.getMemoryMXBean();
       BufferPoolMXBean localBean = null;
       List<BufferPoolMXBean> pools = ManagementFactory.getPlatformMXBeans(BufferPoolMXBean.class);
-      for(BufferPoolMXBean b : pools){
-        if(b.getName().equals("direct")){
+      for (BufferPoolMXBean b : pools) {
+        if (b.getName().equals("direct")) {
           localBean = b;
-
         }
       }
       directBean = localBean;
@@ -215,7 +216,5 @@ public class DremioTest {
     public long getMemNonHeap() {
       return memoryBean.getNonHeapMemoryUsage().getUsed();
     }
-
   }
-
 }

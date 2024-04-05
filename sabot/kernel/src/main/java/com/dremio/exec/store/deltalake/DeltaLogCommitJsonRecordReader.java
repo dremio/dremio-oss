@@ -16,25 +16,15 @@
 package com.dremio.exec.store.deltalake;
 
 import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_FIELD_ADD;
+import static com.dremio.exec.store.deltalake.DeltaConstants.DREMIO_COLUMN_MAPPING_ORIGINAL_NAME;
 import static com.dremio.exec.store.deltalake.DeltaConstants.PARTITION_NAME_SUFFIX;
 import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_PARTITION_VALUES;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-
-import org.apache.arrow.memory.OutOfMemoryException;
-import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.types.pojo.Field;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.CastExpressionWithOverflow;
 import com.dremio.common.expression.FieldReference;
-import com.dremio.common.expression.FunctionCall;
 import com.dremio.common.expression.FunctionCallFactory;
-import com.dremio.common.expression.IfExpression;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.logical.data.NamedExpression;
@@ -46,10 +36,16 @@ import com.dremio.exec.store.RuntimeFilter;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.project.SimpleProjector;
 import com.dremio.sabot.op.scan.OutputMutator;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import org.apache.arrow.memory.OutOfMemoryException;
+import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.types.pojo.Field;
 
 /**
- * Wrapper to coerce partition values in partitionValues field
- * Casts partition values from string type and transfers to corresponding top-level column in output mutator
+ * Wrapper to coerce partition values in partitionValues field Casts partition values from string
+ * type and transfers to corresponding top-level column in output mutator
  */
 public class DeltaLogCommitJsonRecordReader implements RecordReader {
 
@@ -59,7 +55,8 @@ public class DeltaLogCommitJsonRecordReader implements RecordReader {
 
   private final List<Field> partitionCols;
 
-  public DeltaLogCommitJsonRecordReader(OperatorContext context, RecordReader delegate, List<Field> partitionCols) {
+  public DeltaLogCommitJsonRecordReader(
+      OperatorContext context, RecordReader delegate, List<Field> partitionCols) {
     this.context = context;
     this.delegate = delegate;
     this.partitionCols = partitionCols;
@@ -89,36 +86,36 @@ public class DeltaLogCommitJsonRecordReader implements RecordReader {
 
     for (Field field : partitionCols) {
       final SchemaPath inputRef = // add.partitionValues.[columnName]
-        SchemaPath.getCompoundPath(DELTA_FIELD_ADD, SCHEMA_PARTITION_VALUES, field.getName());
+          SchemaPath.getCompoundPath(DELTA_FIELD_ADD, SCHEMA_PARTITION_VALUES, field.getName());
 
-      final FieldReference outputRef = FieldReference.getWithQuotedRef(field.getName() + PARTITION_NAME_SUFFIX); // top level partition column field
+      String originalName =
+          field.getMetadata().getOrDefault(DREMIO_COLUMN_MAPPING_ORIGINAL_NAME, field.getName());
+      final FieldReference outputRef =
+          FieldReference.getWithQuotedRef(
+              originalName + PARTITION_NAME_SUFFIX); // top level partition column field
 
-      TypeProtos.MajorType targetType =  MajorTypeHelper.getMajorTypeForField(field);
+      TypeProtos.MajorType targetType = MajorTypeHelper.getMajorTypeForField(field);
 
       LogicalExpression cast;
-      if (targetType.getMinorType().equals(TypeProtos.MinorType.VARCHAR) || targetType.getMinorType().equals(TypeProtos.MinorType.VARBINARY)) {
+      if (targetType.getMinorType().equals(TypeProtos.MinorType.VARCHAR)
+          || targetType.getMinorType().equals(TypeProtos.MinorType.VARBINARY)) {
         cast = inputRef;
       } else if (targetType.getMinorType().equals(TypeProtos.MinorType.DECIMAL)) {
         cast = new CastExpressionWithOverflow(inputRef, targetType);
       } else {
         cast = FunctionCallFactory.createCast(targetType, inputRef);
       }
-      IfExpression.IfCondition parsedPartitionValueIsNotNull = new IfExpression.IfCondition(
-              new FunctionCall("isnotnull", Collections.singletonList(inputRef)), inputRef);
 
-      IfExpression ifEx = IfExpression.newBuilder()
-              .setIfCondition(parsedPartitionValueIsNotNull)
-              .setElse(cast)
-              .build();
-
-      exprs.add(new NamedExpression(ifEx, outputRef));
+      exprs.add(new NamedExpression(cast, outputRef));
     }
     return exprs;
   }
 
-  private void createAndSetupProjector(VectorContainer inputVectors, VectorContainer outputVectors) {
-    projector = new SimpleProjector(context, inputVectors, this.exprsToReadPartitionValues(),
-      outputVectors);
+  private void createAndSetupProjector(
+      VectorContainer inputVectors, VectorContainer outputVectors) {
+    projector =
+        new SimpleProjector(
+            context, inputVectors, this.exprsToReadPartitionValues(), outputVectors);
     projector.setup();
   }
 

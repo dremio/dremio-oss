@@ -30,10 +30,9 @@ import com.dremio.datastore.indexed.IndexKey;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.PartitionChunk;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.PartitionValue;
 
-/**
- * Index dataset splits.
- */
-public class PartitionChunkConverter implements DocumentConverter<PartitionChunkId, PartitionChunk> {
+/** Index dataset splits. */
+public class PartitionChunkConverter
+    implements DocumentConverter<PartitionChunkId, PartitionChunk> {
   private Integer version = 0;
 
   @Override
@@ -55,50 +54,57 @@ public class PartitionChunkConverter implements DocumentConverter<PartitionChunk
     writer.write(SPLIT_VERSION, key.getSplitVersion());
     writer.write(SPLIT_ROWS, split.getRowCount());
     writer.write(SPLIT_SIZE, split.getSize());
-    if(split.getPartitionValuesList() != null){
+    if (split.getPartitionValuesList() != null) {
       for (PartitionValue pv : split.getPartitionValuesList()) {
         if (pv.hasLongValue()) {
-          final String columnKey =  buildColumnKey(FieldType.LONG, pv.getColumn());
-          final IndexKey indexKey = IndexKey.newBuilder(columnKey, columnKey, Long.class)
-            .setSortedValueType(FieldType.LONG).build();
+          final String columnKey = buildColumnKey(FieldType.LONG, pv.getColumn());
+          final IndexKey indexKey =
+              IndexKey.newBuilder(columnKey, columnKey, Long.class)
+                  .setSortedValueType(FieldType.LONG)
+                  .build();
           writer.write(indexKey, pv.getLongValue());
         } else if (pv.hasIntValue()) {
-          final String columnKey =  buildColumnKey(FieldType.INTEGER, pv.getColumn());
-          final IndexKey indexKey = IndexKey.newBuilder(columnKey, columnKey, Integer.class)
-            .setSortedValueType(FieldType.INTEGER)
-            .build();
+          final String columnKey = buildColumnKey(FieldType.INTEGER, pv.getColumn());
+          final IndexKey indexKey =
+              IndexKey.newBuilder(columnKey, columnKey, Integer.class)
+                  .setSortedValueType(FieldType.INTEGER)
+                  .build();
           writer.write(indexKey, pv.getIntValue());
         } else if (pv.hasBinaryValue()) {
-          final String columnKey =  buildColumnKey(FieldType.STRING, pv.getColumn());
-          final IndexKey indexKey = IndexKey.newBuilder(columnKey, columnKey, String.class)
-            .setSortedValueType(FieldType.STRING)
-            .build();
+          final String columnKey = buildColumnKey(FieldType.STRING, pv.getColumn());
+          final IndexKey indexKey =
+              IndexKey.newBuilder(columnKey, columnKey, String.class)
+                  .setSortedValueType(FieldType.STRING)
+                  .build();
           byte[] bytes = pv.getBinaryValue().toByteArray();
-          if(bytes.length < LARGE_VALUE_CUTOFF){
+          if (bytes.length < LARGE_VALUE_CUTOFF) {
             // don't index large values as they need to be accurate and the store will cut them off
             writer.write(indexKey, bytes);
           }
         } else if (pv.hasStringValue()) {
-          final String columnKey =  buildColumnKey(FieldType.STRING, pv.getColumn());
-          final IndexKey indexKey = IndexKey.newBuilder(columnKey, columnKey, String.class)
-            .setSortedValueType(FieldType.STRING)
-            .build();
+          final String columnKey = buildColumnKey(FieldType.STRING, pv.getColumn());
+          final IndexKey indexKey =
+              IndexKey.newBuilder(columnKey, columnKey, String.class)
+                  .setSortedValueType(FieldType.STRING)
+                  .build();
           String str = pv.getStringValue();
-          if(str.length() < LARGE_VALUE_CUTOFF){
+          if (str.length() < LARGE_VALUE_CUTOFF) {
             // don't index large values as they need to be accurate and the store will cut them off
             writer.write(indexKey, str);
           }
         } else if (pv.hasDoubleValue()) {
-          final String columnKey =  buildColumnKey(FieldType.DOUBLE, pv.getColumn());
-          final IndexKey indexKey = IndexKey.newBuilder(columnKey, columnKey, Double.class)
-            .setSortedValueType(FieldType.DOUBLE)
-            .build();
+          final String columnKey = buildColumnKey(FieldType.DOUBLE, pv.getColumn());
+          final IndexKey indexKey =
+              IndexKey.newBuilder(columnKey, columnKey, Double.class)
+                  .setSortedValueType(FieldType.DOUBLE)
+                  .build();
           writer.write(indexKey, pv.getDoubleValue());
         } else if (pv.hasFloatValue()) {
-          final String columnKey =  buildColumnKey(FieldType.DOUBLE, pv.getColumn());
-          final IndexKey indexKey = IndexKey.newBuilder(columnKey, columnKey, Double.class)
-            .setSortedValueType(FieldType.DOUBLE)
-            .build();
+          final String columnKey = buildColumnKey(FieldType.DOUBLE, pv.getColumn());
+          final IndexKey indexKey =
+              IndexKey.newBuilder(columnKey, columnKey, Double.class)
+                  .setSortedValueType(FieldType.DOUBLE)
+                  .build();
           writer.write(indexKey, (double) pv.getFloatValue());
         }
       }

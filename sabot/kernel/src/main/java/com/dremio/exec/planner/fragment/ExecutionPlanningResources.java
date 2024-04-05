@@ -18,15 +18,16 @@ package com.dremio.exec.planner.fragment;
 import com.dremio.resource.GroupResourceInformation;
 import com.dremio.service.execselector.ExecutorSelectionHandle;
 
-/**
- * Resources needed for execution planning. Closed when the query completes
- */
+/** Resources needed for execution planning. Closed when the query completes */
 public class ExecutionPlanningResources implements AutoCloseable {
   private final PlanningSet planningSet;
   private final ExecutorSelectionHandle executorSelectionHandle;
   private final GroupResourceInformation groupResourceInformation;
 
-  public ExecutionPlanningResources(PlanningSet planningSet, ExecutorSelectionHandle executorSelectionHandle, GroupResourceInformation groupResourceInformation) {
+  public ExecutionPlanningResources(
+      PlanningSet planningSet,
+      ExecutorSelectionHandle executorSelectionHandle,
+      GroupResourceInformation groupResourceInformation) {
     this.planningSet = planningSet;
     this.executorSelectionHandle = executorSelectionHandle;
     this.groupResourceInformation = groupResourceInformation;

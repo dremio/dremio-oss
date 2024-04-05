@@ -18,14 +18,13 @@ package com.dremio.dac.daemon;
 import static com.dremio.dac.model.system.ServerStatus.MASTER_DOWN;
 import static com.dremio.dac.model.system.ServerStatus.OK;
 
-import javax.inject.Provider;
-
 import com.dremio.dac.model.system.ServerStatus;
 import com.dremio.dac.service.exec.MasterStatusListener;
+import javax.inject.Provider;
 
 /**
- * Monitor health of dremio daemon.
- * TODO: monitor errors and timeouts, after certain timeouts or fatal errors mark service unhealthy
+ * Monitor health of dremio daemon. TODO: monitor errors and timeouts, after certain timeouts or
+ * fatal errors mark service unhealthy
  */
 public class ServerHealthMonitor {
   private final Provider<MasterStatusListener> masterStatusListener;

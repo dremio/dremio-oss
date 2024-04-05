@@ -17,9 +17,6 @@ package com.dremio.dac.model.job;
 
 import static com.dremio.dac.obfuscate.ObfuscationUtils.obfuscate;
 
-import java.util.Collections;
-import java.util.List;
-
 import com.dremio.dac.explore.DatasetTool;
 import com.dremio.dac.obfuscate.ObfuscationUtils;
 import com.dremio.dac.util.JSONUtil;
@@ -38,28 +35,31 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
+import java.util.Collections;
+import java.util.List;
 
-/**
- * List of jobs provided to jobs page.
- */
+/** List of jobs provided to jobs page. */
 public class JobsUI {
   private final ImmutableList<JobListItem> jobs;
   private final String next;
 
   // do not provide types for these so ui hides overlay.
-  private static final ParentDatasetInfo METADATA = new ParentDatasetInfo().setDatasetPathList(Collections.singletonList("Catalog"));
-  private static final ParentDatasetInfo UNKNOWN = new ParentDatasetInfo().setDatasetPathList(Collections.singletonList("Unavailable"));
+  private static final ParentDatasetInfo METADATA =
+      new ParentDatasetInfo().setDatasetPathList(Collections.singletonList("Catalog"));
+  private static final ParentDatasetInfo UNKNOWN =
+      new ParentDatasetInfo().setDatasetPathList(Collections.singletonList("Unavailable"));
 
-  private static DatasetType getType(NamespaceService service, List<String> namespacePath){
-    try{
-      List<NameSpaceContainer> containers = service.getEntities(Collections.singletonList(new NamespaceKey(namespacePath)));
-      if(containers != null && !containers.isEmpty()){
+  private static DatasetType getType(NamespaceService service, List<String> namespacePath) {
+    try {
+      List<NameSpaceContainer> containers =
+          service.getEntities(Collections.singletonList(new NamespaceKey(namespacePath)));
+      if (containers != null && !containers.isEmpty()) {
         NameSpaceContainer container = containers.get(0);
-        if(container.getType() == Type.DATASET){
+        if (container.getType() == Type.DATASET) {
           return container.getDataset().getType();
         }
       }
-    }catch(Exception ex){
+    } catch (Exception ex) {
 
     }
 
@@ -67,73 +67,75 @@ public class JobsUI {
   }
 
   public static List<String> asTruePathOrNull(List<String> datasetPathList) {
-    if(isTruePath(datasetPathList)){
+    if (isTruePath(datasetPathList)) {
       return datasetPathList;
     }
     return null;
   }
 
   public static boolean isTruePath(List<String> datasetPathList) {
-    if(
-        datasetPathList != null
+    if (datasetPathList != null
         && !datasetPathList.equals(DatasetTool.TMP_DATASET_PATH.toPathList())
         && !datasetPathList.isEmpty()
-        && !datasetPathList.get(0).equals("UNKNOWN")){
+        && !datasetPathList.get(0).equals("UNKNOWN")) {
       return true;
     }
 
     return false;
   }
 
-  public static ParentDatasetInfo getDatasetToDisplay(JobSummary jobSummary, NamespaceService service) {
+  public static ParentDatasetInfo getDatasetToDisplay(
+      JobSummary jobSummary, NamespaceService service) {
     if (jobSummary.getRequestType() == RequestType.INVALID_REQUEST_TYPE) {
       return UNKNOWN;
     }
 
-    switch(jobSummary.getRequestType()){
-    case GET_CATALOGS:
-    case GET_COLUMNS:
-    case GET_SCHEMAS:
-    case GET_TABLES:
-      return METADATA;
-    default:
+    switch (jobSummary.getRequestType()) {
+      case GET_CATALOGS:
+      case GET_COLUMNS:
+      case GET_SCHEMAS:
+      case GET_TABLES:
+        return METADATA;
+      default:
     }
 
     final List<String> datasetPathList = jobSummary.getDatasetPathList();
-    if(isTruePath(datasetPathList)) {
+    if (isTruePath(datasetPathList)) {
       // return a parent path.
-      return new ParentDatasetInfo().setDatasetPathList(datasetPathList).setType(getType(service, datasetPathList));
+      return new ParentDatasetInfo()
+          .setDatasetPathList(datasetPathList)
+          .setType(getType(service, datasetPathList));
     }
     // return one of the parents.
     if (jobSummary.hasParent()) {
       final JobProtobuf.ParentDatasetInfo parentDatasetInfo = jobSummary.getParent();
       return new ParentDatasetInfo()
-        .setDatasetPathList(ObfuscationUtils.obfuscate(parentDatasetInfo.getDatasetPathList(), ObfuscationUtils::obfuscate))
-        .setType(JobsProtoUtil.toStuff(parentDatasetInfo.getType()));
+          .setDatasetPathList(
+              ObfuscationUtils.obfuscate(
+                  parentDatasetInfo.getDatasetPathList(), ObfuscationUtils::obfuscate))
+          .setType(JobsProtoUtil.toStuff(parentDatasetInfo.getType()));
     }
     return UNKNOWN;
   }
 
-  public JobsUI(
-    final NamespaceService service,
-    final List<JobSummary> jobs,
-    final String next) {
-    this.jobs = FluentIterable.from(jobs)
-      .transform(new Function<JobSummary, JobListItem>() {
-        @Override
-        public JobListItem apply(JobSummary input) {
-          input = obfuscate(input);
-          final ParentDatasetInfo displayInfo = getDatasetToDisplay(input, service);
-          return new JobListItem(input, displayInfo);
-        }
-      }).toList();
+  public JobsUI(final NamespaceService service, final List<JobSummary> jobs, final String next) {
+    this.jobs =
+        FluentIterable.from(jobs)
+            .transform(
+                new Function<JobSummary, JobListItem>() {
+                  @Override
+                  public JobListItem apply(JobSummary input) {
+                    input = obfuscate(input);
+                    final ParentDatasetInfo displayInfo = getDatasetToDisplay(input, service);
+                    return new JobListItem(input, displayInfo);
+                  }
+                })
+            .toList();
     this.next = next;
   }
 
   @JsonCreator
-  public JobsUI(
-      @JsonProperty("jobs") List<JobListItem> jobs,
-      @JsonProperty("next") String next) {
+  public JobsUI(@JsonProperty("jobs") List<JobListItem> jobs, @JsonProperty("next") String next) {
     this.jobs = ImmutableList.copyOf(jobs);
     this.next = next;
   }

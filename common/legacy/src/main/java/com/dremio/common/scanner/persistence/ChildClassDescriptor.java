@@ -18,9 +18,7 @@ package com.dremio.common.scanner.persistence;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-/**
- * a class that implements a specific type
- */
+/** a class that implements a specific type */
 public final class ChildClassDescriptor {
 
   private final String name;
@@ -28,8 +26,7 @@ public final class ChildClassDescriptor {
 
   @JsonCreator
   public ChildClassDescriptor(
-      @JsonProperty("name") String name,
-      @JsonProperty("abstract") boolean isAbstract) {
+      @JsonProperty("name") String name, @JsonProperty("abstract") boolean isAbstract) {
     this.name = name;
     this.isAbstract = isAbstract;
   }
@@ -52,5 +49,4 @@ public final class ChildClassDescriptor {
   public String toString() {
     return "ChildClassDescriptor [name=" + name + ", isAbstract=" + isAbstract + "]";
   }
-
 }

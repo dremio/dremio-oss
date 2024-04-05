@@ -17,15 +17,12 @@ package com.dremio.connector.metadata;
 
 import com.dremio.connector.ConnectorException;
 
-/**
- * Entity not found exception.
- */
+/** Entity not found exception. */
 public class EntityNotFoundException extends ConnectorException {
 
   private static final long serialVersionUID = -981644178365656594L;
 
-  public EntityNotFoundException() {
-  }
+  public EntityNotFoundException() {}
 
   public EntityNotFoundException(String message) {
     super(message);

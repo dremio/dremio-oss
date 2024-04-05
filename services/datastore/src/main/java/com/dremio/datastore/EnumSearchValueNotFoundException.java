@@ -15,10 +15,8 @@
  */
 package com.dremio.datastore;
 
-/**
- * Enum search value not found exception
- */
-public class EnumSearchValueNotFoundException extends RuntimeException{
+/** Enum search value not found exception */
+public class EnumSearchValueNotFoundException extends RuntimeException {
 
   public EnumSearchValueNotFoundException(String name) {
     super("No enum value found corresponding to name " + name);
@@ -27,5 +25,4 @@ public class EnumSearchValueNotFoundException extends RuntimeException{
   public EnumSearchValueNotFoundException() {
     super("No enum found");
   }
-
 }

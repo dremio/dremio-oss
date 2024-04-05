@@ -19,18 +19,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.when;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.UUID;
-
-import org.junit.Rule;
-import org.junit.Test;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
-import org.mockito.quality.Strictness;
-
 import com.dremio.catalog.model.VersionContext;
 import com.dremio.context.RequestContext;
 import com.dremio.context.UserContext;
@@ -39,22 +27,27 @@ import com.dremio.service.users.User;
 import com.dremio.service.users.UserNotFoundException;
 import com.dremio.service.users.UserService;
 import com.dremio.service.users.proto.UID;
+import java.util.Collections;
+import java.util.List;
+import java.util.UUID;
+import org.junit.Rule;
+import org.junit.Test;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
+import org.mockito.quality.Strictness;
 
 public class TestUsernameAwareNessieClientImpl {
-  @Rule
-  public MockitoRule rule = MockitoJUnit.rule().strictness(Strictness.STRICT_STUBS);
+  @Rule public MockitoRule rule = MockitoJUnit.rule().strictness(Strictness.STRICT_STUBS);
 
-  @Mock
-  private NessieClient nessieClient;
+  @Mock private NessieClient nessieClient;
 
-  @Mock
-  private UserService userService;
+  @Mock private UserService userService;
 
-  @Mock
-  private User user;
+  @Mock private User user;
 
-  @InjectMocks
-  private UsernameAwareNessieClientImpl usernameAwareNessieClient;
+  @InjectMocks private UsernameAwareNessieClientImpl usernameAwareNessieClient;
 
   private static final String USER_NAME = "testUser";
 
@@ -66,14 +59,18 @@ public class TestUsernameAwareNessieClientImpl {
 
     when(userService.getUser(new UID(userId))).thenReturn(user);
     when(user.getUserName()).thenReturn(USER_NAME);
-    doAnswer((unused) -> {
-      assertThat(RequestContext.current().get(UsernameContext.CTX_KEY).getUserName()).isEqualTo(USER_NAME);
-      return null;
-    }).when(nessieClient).createNamespace(namespaceList, versionContext);
+    doAnswer(
+            (unused) -> {
+              assertThat(RequestContext.current().get(UsernameContext.CTX_KEY).getUserName())
+                  .isEqualTo(USER_NAME);
+              return null;
+            })
+        .when(nessieClient)
+        .createNamespace(namespaceList, versionContext);
 
     RequestContext.current()
-      .with(UserContext.CTX_KEY, new UserContext(userId))
-      .run(() -> usernameAwareNessieClient.createNamespace(namespaceList, versionContext));
+        .with(UserContext.CTX_KEY, new UserContext(userId))
+        .run(() -> usernameAwareNessieClient.createNamespace(namespaceList, versionContext));
   }
 
   @Test
@@ -82,14 +79,18 @@ public class TestUsernameAwareNessieClientImpl {
 
     when(userService.getUser(new UID(userId))).thenReturn(user);
     when(user.getUserName()).thenReturn(USER_NAME);
-    doAnswer((unused) -> {
-      assertThat(RequestContext.current().get(UsernameContext.CTX_KEY).getUserName()).isEqualTo(USER_NAME);
-      return null;
-    }).when(nessieClient).getDefaultBranch();
+    doAnswer(
+            (unused) -> {
+              assertThat(RequestContext.current().get(UsernameContext.CTX_KEY).getUserName())
+                  .isEqualTo(USER_NAME);
+              return null;
+            })
+        .when(nessieClient)
+        .getDefaultBranch();
 
     RequestContext.current()
-      .with(UserContext.CTX_KEY, new UserContext(userId))
-      .call(usernameAwareNessieClient::getDefaultBranch);
+        .with(UserContext.CTX_KEY, new UserContext(userId))
+        .call(usernameAwareNessieClient::getDefaultBranch);
   }
 
   @Test
@@ -100,14 +101,18 @@ public class TestUsernameAwareNessieClientImpl {
 
     when(userService.getUser(new UID(userId))).thenReturn(user);
     when(user.getUserName()).thenReturn(USER_NAME);
-    doAnswer((unused) -> {
-      assertThat(RequestContext.current().get(UsernameContext.CTX_KEY).getUserName()).isEqualTo(USER_NAME);
-      return null;
-    }).when(nessieClient).deleteNamespace(namespaceList, versionContext);
+    doAnswer(
+            (unused) -> {
+              assertThat(RequestContext.current().get(UsernameContext.CTX_KEY).getUserName())
+                  .isEqualTo(USER_NAME);
+              return null;
+            })
+        .when(nessieClient)
+        .deleteNamespace(namespaceList, versionContext);
 
     RequestContext.current()
-      .with(UserContext.CTX_KEY, new UserContext(userId))
-      .run(() -> usernameAwareNessieClient.deleteNamespace(namespaceList, versionContext));
+        .with(UserContext.CTX_KEY, new UserContext(userId))
+        .run(() -> usernameAwareNessieClient.deleteNamespace(namespaceList, versionContext));
   }
 
   @Test
@@ -117,13 +122,16 @@ public class TestUsernameAwareNessieClientImpl {
     String userId = UUID.randomUUID().toString();
 
     when(userService.getUser(new UID(userId))).thenThrow(UserNotFoundException.class);
-    doAnswer((unused) -> {
-      assertThat(RequestContext.current().get(UsernameContext.CTX_KEY)).isNull();
-      return null;
-    }).when(nessieClient).createNamespace(namespaceList, versionContext);
+    doAnswer(
+            (unused) -> {
+              assertThat(RequestContext.current().get(UsernameContext.CTX_KEY)).isNull();
+              return null;
+            })
+        .when(nessieClient)
+        .createNamespace(namespaceList, versionContext);
 
     RequestContext.current()
-      .with(UserContext.CTX_KEY, new UserContext(userId))
-      .run(() -> usernameAwareNessieClient.createNamespace(namespaceList, versionContext));
+        .with(UserContext.CTX_KEY, new UserContext(userId))
+        .run(() -> usernameAwareNessieClient.createNamespace(namespaceList, versionContext));
   }
 }

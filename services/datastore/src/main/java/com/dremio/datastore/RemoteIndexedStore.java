@@ -17,28 +17,26 @@ package com.dremio.datastore;
 
 import static java.lang.String.format;
 
-import java.io.IOException;
-import java.util.List;
-
 import com.dremio.datastore.SearchTypes.SearchQuery;
 import com.dremio.datastore.api.Document;
 import com.dremio.datastore.api.FindByCondition;
 import com.dremio.datastore.api.IndexedStore;
 import com.google.common.collect.Iterables;
+import java.io.IOException;
+import java.util.List;
 
-/**
- * Remote indexed store.
- */
+/** Remote indexed store. */
 public class RemoteIndexedStore<K, V> extends RemoteKVStore<K, V> implements IndexedStore<K, V> {
   private final Integer version;
 
-  public RemoteIndexedStore(DatastoreRpcClient client, String storeId, StoreBuilderHelper<K, V> helper) {
+  public RemoteIndexedStore(
+      DatastoreRpcClient client, String storeId, StoreBuilderHelper<K, V> helper) {
     super(client, storeId, helper);
     this.version = helper.getVersion();
   }
 
   @Override
-  public Iterable<Document<K, V>> find(FindByCondition find, FindOption ... options) {
+  public Iterable<Document<K, V>> find(FindByCondition find, FindOption... options) {
     try {
       return Iterables.transform(getClient().find(getStoreId(), find), this::convertDocument);
     } catch (IOException e) {

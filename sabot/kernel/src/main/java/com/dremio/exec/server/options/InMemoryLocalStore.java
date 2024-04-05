@@ -15,14 +15,13 @@
  */
 package com.dremio.exec.server.options;
 
+import com.dremio.datastore.KVAdmin;
+import com.dremio.datastore.api.LegacyKVStore;
+import com.google.common.collect.Maps;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Collectors;
-
-import com.dremio.datastore.KVAdmin;
-import com.dremio.datastore.api.LegacyKVStore;
-import com.google.common.collect.Maps;
 
 class InMemoryLocalStore<V> implements LegacyKVStore<String, V> {
   private final ConcurrentMap<String, V> store = Maps.newConcurrentMap();
@@ -34,9 +33,7 @@ class InMemoryLocalStore<V> implements LegacyKVStore<String, V> {
 
   @Override
   public List<V> get(List<String> keys) {
-    return keys.stream()
-      .map(store::get)
-      .collect(Collectors.toList());
+    return keys.stream().map(store::get).collect(Collectors.toList());
   }
 
   @Override

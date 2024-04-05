@@ -17,10 +17,6 @@ package com.dremio.dac.explore.model;
 
 import static com.dremio.common.utils.PathUtils.encodeURIComponent;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 import com.dremio.dac.proto.model.collaboration.CollaborationTag;
 import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
@@ -33,11 +29,14 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.Lists;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
-/**
- * Dataset search result model encapsulating physical and virtual datasets.
- */
-@JsonIgnoreProperties(value={"apiLinks", "links"}, allowGetters=true)
+/** Dataset search result model encapsulating physical and virtual datasets. */
+@JsonIgnoreProperties(
+    value = {"apiLinks", "links"},
+    allowGetters = true)
 public class DatasetSearchUI {
   private final String id;
   private final List<String> fullPath;
@@ -54,8 +53,7 @@ public class DatasetSearchUI {
   // Dataset tags
   private List<String> tags;
 
-  @JsonIgnore
-  private final DatasetVersion datasetVersion;
+  @JsonIgnore private final DatasetVersion datasetVersion;
 
   public DatasetSearchUI(DatasetConfig datasetConfig, CollaborationTag collaborationTag) {
     this.fullPath = datasetConfig.getFullPathList();
@@ -70,7 +68,7 @@ public class DatasetSearchUI {
       this.displayFullPath = fullPath;
       this.context = virtualDataset.getContextList();
       this.fields = Lists.newArrayList();
-      for (ViewFieldType field: virtualDataset.getSqlFieldsList()) {
+      for (ViewFieldType field : virtualDataset.getSqlFieldsList()) {
         fields.add(new DatasetFieldSearchUI(field.getName(), field.getType()));
       }
       this.datasetVersion = virtualDataset.getVersion();
@@ -83,18 +81,20 @@ public class DatasetSearchUI {
     }
   }
 
-  public static DatasetSearchUI newInstance(DatasetConfig datasetConfig, CollaborationTag collaborationTag) {
+  public static DatasetSearchUI newInstance(
+      DatasetConfig datasetConfig, CollaborationTag collaborationTag) {
     return new DatasetSearchUI(datasetConfig, collaborationTag);
   }
 
   @JsonCreator
-  public DatasetSearchUI(@JsonProperty("id") String id,
-                         @JsonProperty("fullPath") List<String> fullPath,
-                         @JsonProperty("displayFullPath") List<String> displayFullPath,
-                         @JsonProperty("context") List<String> context,
-                         @JsonProperty("parents") List<ParentDataset> parents,
-                         @JsonProperty("fields") List<DatasetFieldSearchUI> fields,
-                         @JsonProperty("datasetType") DatasetType datasetType) {
+  public DatasetSearchUI(
+      @JsonProperty("id") String id,
+      @JsonProperty("fullPath") List<String> fullPath,
+      @JsonProperty("displayFullPath") List<String> displayFullPath,
+      @JsonProperty("context") List<String> context,
+      @JsonProperty("parents") List<ParentDataset> parents,
+      @JsonProperty("fields") List<DatasetFieldSearchUI> fields,
+      @JsonProperty("datasetType") DatasetType datasetType) {
     this.id = id;
     this.fullPath = fullPath;
     this.displayFullPath = displayFullPath;
@@ -137,15 +137,14 @@ public class DatasetSearchUI {
     return tags;
   }
 
-  /**
-   * Matched field of a dataset during search.
-   */
+  /** Matched field of a dataset during search. */
   public static class DatasetFieldSearchUI {
     private final String name;
     private final String type;
 
     @JsonCreator
-    public DatasetFieldSearchUI(@JsonProperty("name") String name, @JsonProperty("type") String type) {
+    public DatasetFieldSearchUI(
+        @JsonProperty("name") String name, @JsonProperty("type") String type) {
       this.name = name;
       this.type = type;
     }
@@ -166,10 +165,14 @@ public class DatasetSearchUI {
 
     // TODO: Do we need to send browser link for run/new untitled?
     if (datasetType == DatasetType.VIRTUAL_DATASET) {
-      links.put("edit", datasetPath.getQueryUrlPath() + "?mode=edit&version="
-        + (datasetVersion == null ? datasetVersion : encodeURIComponent(datasetVersion.toString())));
+      links.put(
+          "edit",
+          datasetPath.getQueryUrlPath()
+              + "?mode=edit&version="
+              + (datasetVersion == null
+                  ? datasetVersion
+                  : encodeURIComponent(datasetVersion.toString())));
     }
     return links;
   }
-
 }

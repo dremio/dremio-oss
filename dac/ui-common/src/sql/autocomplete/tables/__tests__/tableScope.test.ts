@@ -46,7 +46,7 @@ function testGetQueryPlan(queryWithCaret: string): Promise<QueryPlan> {
     identifierInfo,
     commonTokenStream,
     columnFetcher,
-    []
+    [],
   );
   return queryVisitor.getTablesInScope();
 }
@@ -248,7 +248,7 @@ describe("tableScope", () => {
 
     it("SELECT ^ FROM (SELECT * FROM tbl) al", async () => {
       const queryPlan = testGetQueryPlan(
-        "SELECT ^ FROM (SELECT * FROM tbl) al"
+        "SELECT ^ FROM (SELECT * FROM tbl) al",
       );
       const expected: Table[] = [
         { derived: true, columns: getExpectedColumns("tbl"), alias: "al" },
@@ -258,7 +258,7 @@ describe("tableScope", () => {
 
     it("SELECT ^ FROM (SELECT * FROM tbl) al (colAl1, colAl2)", async () => {
       const queryPlan = testGetQueryPlan(
-        "SELECT ^ FROM (SELECT * FROM tbl) al (colAl1, colAl2)"
+        "SELECT ^ FROM (SELECT * FROM tbl) al (colAl1, colAl2)",
       );
       const expected: Table[] = [
         {
@@ -284,7 +284,7 @@ describe("tableScope", () => {
 
     it("SELECT * FROM tbl1, tbl2 JOIN tbl3 ON ^", async () => {
       const queryPlan = testGetQueryPlan(
-        "SELECT * FROM tbl1, tbl2 JOIN tbl3 ON ^"
+        "SELECT * FROM tbl1, tbl2 JOIN tbl3 ON ^",
       );
       const expected: Table[] = [
         {
@@ -305,7 +305,7 @@ describe("tableScope", () => {
 
     it("SELECT * FROM tbl1, tbl2 CROSS JOIN tbl3 WHERE ^", async () => {
       const queryPlan = testGetQueryPlan(
-        "SELECT * FROM tbl1, tbl2 CROSS JOIN tbl3 WHERE ^"
+        "SELECT * FROM tbl1, tbl2 CROSS JOIN tbl3 WHERE ^",
       );
       const expected: Table[] = [
         {
@@ -332,7 +332,7 @@ describe("tableScope", () => {
 
     it("SELECT * FROM tbl1 JOIN (SELECT ^ FROM tbl2)", async () => {
       const queryPlan = testGetQueryPlan(
-        "SELECT * FROM tbl1 JOIN (SELECT ^ FROM tbl2)"
+        "SELECT * FROM tbl1 JOIN (SELECT ^ FROM tbl2)",
       );
       const expected: Table[] = [
         {
@@ -347,7 +347,7 @@ describe("tableScope", () => {
 
     it("SELECT * FROM tbl1 JOIN (tbl2 JOIN tbl3 USING ^)", async () => {
       const queryPlan = testGetQueryPlan(
-        "SELECT * FROM tbl1 JOIN (tbl2 JOIN tbl3 USING ^)"
+        "SELECT * FROM tbl1 JOIN (tbl2 JOIN tbl3 USING ^)",
       );
       const expected: Table[] = [
         {
@@ -368,7 +368,7 @@ describe("tableScope", () => {
 
     it("SELECT * FROM tbl1 UNION SELECT * FROM tbl2 WHERE ^", async () => {
       const queryPlan = testGetQueryPlan(
-        "SELECT * FROM tbl1 UNION SELECT * FROM tbl2 WHERE ^"
+        "SELECT * FROM tbl1 UNION SELECT * FROM tbl2 WHERE ^",
       );
       const expected: Table[] = [
         {
@@ -383,7 +383,7 @@ describe("tableScope", () => {
 
     it("SELECT * FROM tbl1 JOIN (SELECT * FROM tbl2 UNION SELECT * FROM tbl3 WHERE ^)", async () => {
       const queryPlan = testGetQueryPlan(
-        "SELECT * FROM tbl1 JOIN (SELECT * FROM tbl2 UNION SELECT * FROM tbl3 WHERE ^)"
+        "SELECT * FROM tbl1 JOIN (SELECT * FROM tbl2 UNION SELECT * FROM tbl3 WHERE ^)",
       );
       const expected: Table[] = [
         {
@@ -398,7 +398,7 @@ describe("tableScope", () => {
 
     it("SELECT * FROM tbl1 JOIN (SELECT * FROM tbl2 UNION (tbl3 JOIN tbl4 ON ^))", async () => {
       const queryPlan = testGetQueryPlan(
-        "SELECT * FROM tbl1 JOIN (SELECT * FROM tbl2 UNION (tbl3 JOIN tbl4 ON ^))"
+        "SELECT * FROM tbl1 JOIN (SELECT * FROM tbl2 UNION (tbl3 JOIN tbl4 ON ^))",
       );
       const expected: Table[] = [
         {
@@ -419,7 +419,7 @@ describe("tableScope", () => {
 
     it("SELECT ^ FROM (SELECT tblA.* FROM (SELECT 1 as colA) tblA CROSS JOIN (SELECT 2 as colB) tblB)", async () => {
       const queryPlan = testGetQueryPlan(
-        "SELECT ^ FROM (SELECT tblA.* FROM (SELECT 1 as colA) tblA CROSS JOIN (SELECT 2 as colB) tblB)"
+        "SELECT ^ FROM (SELECT tblA.* FROM (SELECT 1 as colA) tblA CROSS JOIN (SELECT 2 as colB) tblB)",
       );
       const expected: Table[] = [
         {
@@ -432,7 +432,7 @@ describe("tableScope", () => {
 
     it("SELECT ^ FROM (SELECT * FROM (SELECT 1 as colA) tblA CROSS JOIN (SELECT 2 as colB) tblB)", async () => {
       const queryPlan = testGetQueryPlan(
-        "SELECT ^ FROM (SELECT * FROM (SELECT 1 as colA) tblA CROSS JOIN (SELECT 2 as colB) tblB)"
+        "SELECT ^ FROM (SELECT * FROM (SELECT 1 as colA) tblA CROSS JOIN (SELECT 2 as colB) tblB)",
       );
       const expected: Table[] = [
         {
@@ -448,7 +448,7 @@ describe("tableScope", () => {
 
     it("SELECT ^ FROM (SELECT tblA.colA FROM (SELECT 1 as colA) tblA CROSS JOIN (SELECT 2 as colB) tblB)", async () => {
       const queryPlan = testGetQueryPlan(
-        "SELECT ^ FROM (SELECT tblA.colA FROM (SELECT 1 as colA) tblA CROSS JOIN (SELECT 2 as colB) tblB)"
+        "SELECT ^ FROM (SELECT tblA.colA FROM (SELECT 1 as colA) tblA CROSS JOIN (SELECT 2 as colB) tblB)",
       );
       const expected: Table[] = [
         {
@@ -461,7 +461,7 @@ describe("tableScope", () => {
 
     it("SELECT ^ FROM (SELECT tblA.colA, tblB.colC FROM (SELECT 1 as colA) tblA CROSS JOIN (SELECT 2 as colB, 3 as colC) tblB)", async () => {
       const queryPlan = testGetQueryPlan(
-        "SELECT ^ FROM (SELECT tblA.colA, tblB.colC FROM (SELECT 1 as colA) tblA CROSS JOIN (SELECT 2 as colB, 3 as colC) tblB)"
+        "SELECT ^ FROM (SELECT tblA.colA, tblB.colC FROM (SELECT 1 as colA) tblA CROSS JOIN (SELECT 2 as colB, 3 as colC) tblB)",
       );
       const expected: Table[] = [
         {
@@ -477,7 +477,7 @@ describe("tableScope", () => {
 
     it("SELECT ^ FROM (SELECT tblA.colA, tblB.colC FROM (SELECT 1 as colA) tblA CROSS JOIN (SELECT 2 as colB, 3 as colC) tblB)", async () => {
       const queryPlan = testGetQueryPlan(
-        "SELECT ^ FROM (SELECT tblA.colA, tblB.colC FROM (SELECT 1 as colA) tblA CROSS JOIN (SELECT 2 as colB, 3 as colC) tblB)"
+        "SELECT ^ FROM (SELECT tblA.colA, tblB.colC FROM (SELECT 1 as colA) tblA CROSS JOIN (SELECT 2 as colB, 3 as colC) tblB)",
       );
       const expected: Table[] = [
         {
@@ -496,7 +496,7 @@ describe("tableScope", () => {
       // Note: If you run in SQL runner SELECT * FROM (...) it shows colA and colA0 but colA0 will have value 1 and
       // isn't actually materialized (SELECT colA0 FROM .. fails) so we don't want to show it as suggestion
       const queryPlan = testGetQueryPlan(
-        "SELECT ^ FROM (SELECT 1 as colA, 2 as colA)"
+        "SELECT ^ FROM (SELECT 1 as colA, 2 as colA)",
       );
       const expected: Table[] = [
         {
@@ -510,7 +510,7 @@ describe("tableScope", () => {
     it("SELECT ^ FROM (SELECT 1 as colA, * FROM (SELECT 2 as colA))", async () => {
       // This verifies the behavior of non-unique name columns getting uniqueified if projected from a star expansion
       const queryPlan = testGetQueryPlan(
-        "SELECT ^ FROM (SELECT 1 as colA, * FROM (SELECT 2 as colA))"
+        "SELECT ^ FROM (SELECT 1 as colA, * FROM (SELECT 2 as colA))",
       );
       const expected: Table[] = [
         {
@@ -528,7 +528,7 @@ describe("tableScope", () => {
       // This verifies the behavior of non-unique name columns getting dropped if not projected from a star expansion
       // Note the order of the select items differs from the previous test case
       const queryPlan = testGetQueryPlan(
-        "SELECT ^ FROM (SELECT *, 1 as colA FROM (SELECT 2 as colA))"
+        "SELECT ^ FROM (SELECT *, 1 as colA FROM (SELECT 2 as colA))",
       );
       const expected: Table[] = [
         {
@@ -543,7 +543,7 @@ describe("tableScope", () => {
       // This verifies the behavior of non-unique name columns getting uniqueified if projected from a star expansion
       // with multiple star expansions
       const queryPlan = testGetQueryPlan(
-        "SELECT ^ FROM (SELECT *, * FROM (SELECT 1 as colA))"
+        "SELECT ^ FROM (SELECT *, * FROM (SELECT 1 as colA))",
       );
       const expected: Table[] = [
         {
@@ -559,7 +559,7 @@ describe("tableScope", () => {
 
     it("SELECT * FROM tblA AS aliased WHERE aliased.^", async () => {
       const queryPlan = testGetQueryPlan(
-        "SELECT * FROM tblA AS aliased WHERE aliased.^"
+        "SELECT * FROM tblA AS aliased WHERE aliased.^",
       );
       const expected: Table[] = [
         {
@@ -575,7 +575,7 @@ describe("tableScope", () => {
 
     it("SELECT * FROM tblA AS aliased (colAliased1, colAliased2) WHERE aliased.^", async () => {
       const queryPlan = testGetQueryPlan(
-        "SELECT * FROM tblA AS aliased (colAliased1, colAliased2) WHERE aliased.^"
+        "SELECT * FROM tblA AS aliased (colAliased1, colAliased2) WHERE aliased.^",
       );
       const expected: Table[] = [
         {
@@ -605,7 +605,7 @@ describe("tableScope", () => {
 
     it("UPDATE tbl1 SET col1 = 1 FROM tbl2 WHERE ^", async () => {
       const queryPlan = testGetQueryPlan(
-        "UPDATE tbl1 SET col1 = 1 FROM tbl2 WHERE ^"
+        "UPDATE tbl1 SET col1 = 1 FROM tbl2 WHERE ^",
       );
       const expected: Table[] = [
         {
@@ -710,7 +710,7 @@ describe("tableScope", () => {
 
     it("UPDATE tbl1 SET col = 1 FROM tbl2 WHERE ^", async () => {
       const queryPlan = testGetQueryPlan(
-        "UPDATE tbl1 SET col = 1 FROM tbl2 WHERE ^"
+        "UPDATE tbl1 SET col = 1 FROM tbl2 WHERE ^",
       );
       const expected: Table[] = [
         {
@@ -763,7 +763,7 @@ describe("tableScope", () => {
 
     it("REFRESH DATASET tbl FOR PARTITIONS (^)", async () => {
       const queryPlan = testGetQueryPlan(
-        "REFRESH DATASET tbl FOR PARTITIONS (^)"
+        "REFRESH DATASET tbl FOR PARTITIONS (^)",
       );
       const expected: Table[] = [
         {
@@ -869,7 +869,7 @@ describe("tableScope", () => {
 
     it("DESCRIBE STATEMENT SELECT ^ FROM tbl", async () => {
       const queryPlan = testGetQueryPlan(
-        "DESCRIBE STATEMENT SELECT ^ FROM tbl"
+        "DESCRIBE STATEMENT SELECT ^ FROM tbl",
       );
       const expected: Table[] = [
         {
@@ -890,7 +890,7 @@ describe("tableScope", () => {
 
     it("WITH tmp AS (SELECT 1) SELECT ^ FROM tmp", async () => {
       const queryPlan = testGetQueryPlan(
-        "WITH tmp AS (SELECT 1) SELECT ^ FROM tmp"
+        "WITH tmp AS (SELECT 1) SELECT ^ FROM tmp",
       );
       const expected: Table[] = [
         {
@@ -904,7 +904,7 @@ describe("tableScope", () => {
 
     it("WITH tmp(colA) AS (SELECT 1) SELECT ^ FROM tmp", async () => {
       const queryPlan = testGetQueryPlan(
-        "WITH tmp(colA) AS (SELECT 1) SELECT ^ FROM tmp"
+        "WITH tmp(colA) AS (SELECT 1) SELECT ^ FROM tmp",
       );
       const expected: Table[] = [
         {
@@ -919,7 +919,7 @@ describe("tableScope", () => {
 
     it("WITH tmp AS (SELECT 1 as colA) SELECT ^ FROM tmp", async () => {
       const queryPlan = testGetQueryPlan(
-        "WITH tmp AS (SELECT 1 as colA) SELECT ^ FROM tmp"
+        "WITH tmp AS (SELECT 1 as colA) SELECT ^ FROM tmp",
       );
       const expected: Table[] = [
         {
@@ -933,7 +933,7 @@ describe("tableScope", () => {
 
     it("WITH tmp AS (SELECT 1) SELECT * FROM (SELECT ^ FROM tmp)", async () => {
       const queryPlan = testGetQueryPlan(
-        "WITH tmp AS (SELECT 1) SELECT * FROM (SELECT ^ FROM tmp)"
+        "WITH tmp AS (SELECT 1) SELECT * FROM (SELECT ^ FROM tmp)",
       );
       const expected: Table[] = [
         {
@@ -947,7 +947,7 @@ describe("tableScope", () => {
 
     it("WITH tmp AS (SELECT 1) SELECT ^ FROM space1.tmp", async () => {
       const queryPlan = testGetQueryPlan(
-        "WITH tmp AS (SELECT 1) SELECT ^ FROM space1.tmp"
+        "WITH tmp AS (SELECT 1) SELECT ^ FROM space1.tmp",
       );
       // Doesn't use the with table since it mismatches
       const expected: Table[] = [
@@ -963,7 +963,7 @@ describe("tableScope", () => {
 
     it("WITH tmp AS (SELECT 1) SELECT ^ FROM (SELECT * FROM tbl) tmp", async () => {
       const queryPlan = testGetQueryPlan(
-        "WITH tmp AS (SELECT 1) SELECT ^ FROM (SELECT * FROM tbl) tmp"
+        "WITH tmp AS (SELECT 1) SELECT ^ FROM (SELECT * FROM tbl) tmp",
       );
       // Doesn't use the with table since there is a closer matching derived table
       const expected: Table[] = [
@@ -978,7 +978,7 @@ describe("tableScope", () => {
 
     it("SELECT ^ FROM (WITH tmp AS (SELECT 1) SELECT * FROM tbl) tmp", async () => {
       const queryPlan = testGetQueryPlan(
-        "SELECT ^ FROM (WITH tmp AS (SELECT 1) SELECT * FROM tbl) tmp"
+        "SELECT ^ FROM (WITH tmp AS (SELECT 1) SELECT * FROM tbl) tmp",
       );
       const expected: Table[] = [
         {

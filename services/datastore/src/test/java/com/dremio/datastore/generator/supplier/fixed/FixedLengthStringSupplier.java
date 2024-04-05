@@ -15,9 +15,7 @@
  */
 package com.dremio.datastore.generator.supplier.fixed;
 
-/**
- * Supplier that generates fixed-length Strings.
- */
+/** Supplier that generates fixed-length Strings. */
 public class FixedLengthStringSupplier extends FixedLengthSupplier<String> {
   public FixedLengthStringSupplier(String prefix) {
     super(prefix);

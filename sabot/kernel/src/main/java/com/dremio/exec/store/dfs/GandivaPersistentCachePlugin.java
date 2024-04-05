@@ -15,17 +15,19 @@
  */
 package com.dremio.exec.store.dfs;
 
-import javax.inject.Provider;
-
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.server.SabotContext;
+import javax.inject.Provider;
 
-/**
- * FileSystemPlugin for persistent gandiva cache
- */
-public class GandivaPersistentCachePlugin extends MayBeDistFileSystemPlugin<GandivaPersistentCachePluginConfig> {
+/** FileSystemPlugin for persistent gandiva cache */
+public class GandivaPersistentCachePlugin
+    extends MayBeDistFileSystemPlugin<GandivaPersistentCachePluginConfig> {
 
-  public GandivaPersistentCachePlugin(GandivaPersistentCachePluginConfig config, SabotContext context, String name, Provider<StoragePluginId> idProvider) {
+  public GandivaPersistentCachePlugin(
+      GandivaPersistentCachePluginConfig config,
+      SabotContext context,
+      String name,
+      Provider<StoragePluginId> idProvider) {
     super(config, context, name, idProvider);
   }
 }

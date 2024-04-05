@@ -15,17 +15,17 @@
  */
 package com.dremio.exec.compile.sig;
 
-import java.lang.reflect.Method;
-import java.util.Arrays;
-import java.util.Iterator;
-
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterators;
 import com.thoughtworks.paranamer.AnnotationParanamer;
 import com.thoughtworks.paranamer.Paranamer;
+import java.lang.reflect.Method;
+import java.util.Arrays;
+import java.util.Iterator;
 
 public class CodeGeneratorMethod implements Iterable<CodeGeneratorArgument> {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CodeGeneratorMethod.class);
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(CodeGeneratorMethod.class);
 
   private final String methodName;
   private final Class<?> returnType;
@@ -45,18 +45,24 @@ public class CodeGeneratorMethod implements Iterable<CodeGeneratorArgument> {
     this.underlyingMethod = m;
     this.methodName = m.getName();
     this.returnType = m.getReturnType();
-//    Paranamer para = new BytecodeReadingParanamer();
+    //    Paranamer para = new BytecodeReadingParanamer();
     Paranamer para = new AnnotationParanamer();
     String[] parameterNames = para.lookupParameterNames(m, true);
     if (parameterNames == null) {
-      throw new RuntimeException(String.format("Unable to read the parameter names for method %s.  This is likely due to the class files not including the appropriate debugging information.  Look up java -g for more information.", m));
+      throw new RuntimeException(
+          String.format(
+              "Unable to read the parameter names for method %s.  This is likely due to the class files not including the appropriate debugging information.  Look up java -g for more information.",
+              m));
     }
     Class<?>[] types = m.getParameterTypes();
     if (parameterNames.length != types.length) {
-      throw new RuntimeException(String.format("Unexpected number of parameter names %s.  Expected %s on method %s.", Arrays.toString(parameterNames), Arrays.toString(types), m.toGenericString()));
+      throw new RuntimeException(
+          String.format(
+              "Unexpected number of parameter names %s.  Expected %s on method %s.",
+              Arrays.toString(parameterNames), Arrays.toString(types), m.toGenericString()));
     }
     arguments = new CodeGeneratorArgument[parameterNames.length];
-    for (int i = 0 ; i < parameterNames.length; i++) {
+    for (int i = 0; i < parameterNames.length; i++) {
       arguments[i] = new CodeGeneratorArgument(parameterNames[i], types[i]);
     }
     exs = m.getExceptionTypes();
@@ -65,6 +71,7 @@ public class CodeGeneratorMethod implements Iterable<CodeGeneratorArgument> {
   public String getMethodName() {
     return methodName;
   }
+
   public Class<?> getReturnType() {
     return returnType;
   }
@@ -82,5 +89,4 @@ public class CodeGeneratorMethod implements Iterable<CodeGeneratorArgument> {
   public String toString() {
     return "CodeGeneratorMethod [" + underlyingMethod.toGenericString() + "]";
   }
-
 }

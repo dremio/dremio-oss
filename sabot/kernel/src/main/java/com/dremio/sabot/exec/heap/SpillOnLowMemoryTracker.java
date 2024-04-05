@@ -23,11 +23,10 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.LongConsumer;
 import java.util.stream.Collectors;
 
-/**
- * Tracker that monitors and signals a range of participants based on their field overhead.
- */
+/** Tracker that monitors and signals a range of participants based on their field overhead. */
 final class SpillOnLowMemoryTracker {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SpillOnLowMemoryTracker.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(SpillOnLowMemoryTracker.class);
   private final Map<String, Participant> participantMap;
   private final AtomicLong totalOverhead;
 
@@ -37,8 +36,9 @@ final class SpillOnLowMemoryTracker {
   }
 
   public HeapLowMemParticipant addParticipant(String participantId, int participantOverhead) {
-    return participantMap.compute(participantId, (k,v) -> (v == null) ?
-      new Participant(participantOverhead, totalOverhead::addAndGet) : v);
+    return participantMap.compute(
+        participantId,
+        (k, v) -> (v == null) ? new Participant(participantOverhead, totalOverhead::addAndGet) : v);
   }
 
   public void removeParticipant(String participantId) {
@@ -54,20 +54,25 @@ final class SpillOnLowMemoryTracker {
     }
     int numVictims = 0;
     if (totalOverhead.get() >= memoryState.getTotalOverheadFactor(sizeFactor)) {
-      List<Participant> participants = participantMap.values().stream()
-        .filter(Participant::isNotVictim)
-        .filter((p) -> p.getOverhead() >= memoryState.getIndividualOverhead())
-        .sorted(Comparator.comparingLong(Participant::getOverhead).reversed())
-        .limit(maxVictims).collect(Collectors.toList());
-      logger.debug("Found {} victims with overhead greater than {}", participants.size(),
-        memoryState.getIndividualOverhead());
+      List<Participant> participants =
+          participantMap.values().stream()
+              .filter(Participant::isNotVictim)
+              .filter((p) -> p.getOverhead() >= memoryState.getIndividualOverhead())
+              .sorted(Comparator.comparingLong(Participant::getOverhead).reversed())
+              .limit(maxVictims)
+              .collect(Collectors.toList());
+      logger.debug(
+          "Found {} victims with overhead greater than {}",
+          participants.size(),
+          memoryState.getIndividualOverhead());
       for (Participant p : participants) {
         p.setAsVictim();
         numVictims++;
       }
     }
     if (logger.isDebugEnabled()) {
-      logger.debug("Chosen {} victims. Total overhead of Tracker: {}", numVictims, totalOverhead.get());
+      logger.debug(
+          "Chosen {} victims. Total overhead of Tracker: {}", numVictims, totalOverhead.get());
     }
     return numVictims;
   }
@@ -82,22 +87,24 @@ final class SpillOnLowMemoryTracker {
 
   /**
    * Low memory participant, such as an operator or even a partition within the operator.
-   * <p>
-   * Since all operators operates within minor fragments, each participant is typically written only by a single
-   * thread and eventual read consistency is assumed for readers. Eventual consistency is guaranteed even on
-   * weakly consistent processors due to the periodic syncing of batch counts.
-   * </p>
+   *
+   * <p>Since all operators operates within minor fragments, each participant is typically written
+   * only by a single thread and eventual read consistency is assumed for readers. Eventual
+   * consistency is guaranteed even on weakly consistent processors due to the periodic syncing of
+   * batch counts.
    */
   private static final class Participant implements HeapLowMemParticipant {
     private static final int NUM_BATCHES_PER_SYNC_SHIFT = 4;
     private final int perBatchOverhead;
     private final LongConsumer batchesSyncConsumer;
-    // use int to prevent word tearing as read is unprotected. Assumption is that we will never reach MAX_INT
+    // use int to prevent word tearing as read is unprotected. Assumption is that we will never
+    // reach MAX_INT
     // batches before running out of memory
     private int batches;
     private int syncedBatches;
     private int currentSync;
-    // no need to make this volatile as eventual consistency is guaranteed due to periodic syncing while
+    // no need to make this volatile as eventual consistency is guaranteed due to periodic syncing
+    // while
     // adding batches.
     private boolean victim;
 

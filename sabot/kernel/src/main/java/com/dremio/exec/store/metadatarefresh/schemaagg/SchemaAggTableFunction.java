@@ -15,17 +15,6 @@
  */
 package com.dremio.exec.store.metadatarefresh.schemaagg;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-
-import org.apache.arrow.vector.VarBinaryVector;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.util.TransferPair;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.types.SupportsTypeCoercionsAndUpPromotions;
 import com.dremio.exec.catalog.CatalogOptions;
@@ -38,19 +27,27 @@ import com.dremio.exec.store.dfs.AbstractTableFunction;
 import com.dremio.exec.store.metadatarefresh.MetadataRefreshExecConstants;
 import com.dremio.exec.util.VectorUtil;
 import com.dremio.sabot.exec.context.OperatorContext;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+import org.apache.arrow.vector.VarBinaryVector;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.util.TransferPair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * Table function which given a list of BatchSchema's will merge them into one final
- * batch schema applying up promotions for fields if needed.
+ * Table function which given a list of BatchSchema's will merge them into one final batch schema
+ * applying up promotions for fields if needed.
  *
- * Input Vector:
- *  1) A VarBinaryVector with filed name #{@link MetadataRefreshExecConstants.SchemaAgg.INPUT_SCHEMA}
- *     which should have serialized batch schema's
+ * <p>Input Vector: 1) A VarBinaryVector with filed name #{@link
+ * MetadataRefreshExecConstants.SchemaAgg.INPUT_SCHEMA} which should have serialized batch schema's
  *
- * Output Vector -
- *  1) A varbinaryVector of size 1 with the merged schema
+ * <p>Output Vector - 1) A varbinaryVector of size 1 with the merged schema
  */
-public class SchemaAggTableFunction extends AbstractTableFunction implements SupportsTypeCoercionsAndUpPromotions {
+public class SchemaAggTableFunction extends AbstractTableFunction
+    implements SupportsTypeCoercionsAndUpPromotions {
   private static final Logger logger = LoggerFactory.getLogger(SchemaAggTableFunction.class);
 
   private VarBinaryVector outputFileSchemaVector;
@@ -67,28 +64,44 @@ public class SchemaAggTableFunction extends AbstractTableFunction implements Sup
   @Override
   public VectorAccessible setup(VectorAccessible accessible) throws Exception {
     this.incoming = accessible;
-    this.inputFileSchemaVector = (VarBinaryVector) VectorUtil.getVectorFromSchemaPath(incoming, MetadataRefreshExecConstants.FooterRead.OUTPUT_SCHEMA.FILE_SCHEMA);
+    this.inputFileSchemaVector =
+        (VarBinaryVector)
+            VectorUtil.getVectorFromSchemaPath(
+                incoming, MetadataRefreshExecConstants.FooterRead.OUTPUT_SCHEMA.FILE_SCHEMA);
 
     this.outgoing = context.createOutputVectorContainer(incoming.getSchema());
     List<Field> fieldList = incoming.getSchema().getFields();
 
-    Optional<Field> schemaField = fieldList.stream()
-      .filter(field -> field.getName().equals(MetadataRefreshExecConstants.SchemaAgg.INPUT_SCHEMA.SCHEMA))
-      .findFirst();
+    Optional<Field> schemaField =
+        fieldList.stream()
+            .filter(
+                field ->
+                    field
+                        .getName()
+                        .equals(MetadataRefreshExecConstants.SchemaAgg.INPUT_SCHEMA.SCHEMA))
+            .findFirst();
 
-    if(!schemaField.isPresent()) {
-      throw new IllegalStateException(String.format("%s having schema not found in the input list of fields provided", MetadataRefreshExecConstants.FooterRead.OUTPUT_SCHEMA.FILE_SCHEMA));
+    if (!schemaField.isPresent()) {
+      throw new IllegalStateException(
+          String.format(
+              "%s having schema not found in the input list of fields provided",
+              MetadataRefreshExecConstants.FooterRead.OUTPUT_SCHEMA.FILE_SCHEMA));
     }
 
-    incoming.forEach(vw -> {
-      String fieldName = vw.getField().getName();
-      if (!fieldName.equals(MetadataRefreshExecConstants.SchemaAgg.INPUT_SCHEMA.SCHEMA)){
-        transferPairs.add(
-          vw.getValueVector().makeTransferPair(VectorUtil.getVectorFromSchemaPath(outgoing, fieldName)));
-      }
-    });
+    incoming.forEach(
+        vw -> {
+          String fieldName = vw.getField().getName();
+          if (!fieldName.equals(MetadataRefreshExecConstants.SchemaAgg.INPUT_SCHEMA.SCHEMA)) {
+            transferPairs.add(
+                vw.getValueVector()
+                    .makeTransferPair(VectorUtil.getVectorFromSchemaPath(outgoing, fieldName)));
+          }
+        });
 
-    this.outputFileSchemaVector = (VarBinaryVector) VectorUtil.getVectorFromSchemaPath(outgoing, MetadataRefreshExecConstants.FooterRead.OUTPUT_SCHEMA.FILE_SCHEMA);
+    this.outputFileSchemaVector =
+        (VarBinaryVector)
+            VectorUtil.getVectorFromSchemaPath(
+                outgoing, MetadataRefreshExecConstants.FooterRead.OUTPUT_SCHEMA.FILE_SCHEMA);
     return outgoing;
   }
 
@@ -101,26 +114,33 @@ public class SchemaAggTableFunction extends AbstractTableFunction implements Sup
 
   @Override
   public int processRow(int startOutIndex, int maxRecords) throws Exception {
-    if(this.processedRow) {
+    if (this.processedRow) {
       return 0;
     }
 
     logger.debug("Processing schema {}", currentSchema.toJSONString());
-    //Will just try and reconcile the schema
+    // Will just try and reconcile the schema
     try {
       this.reconciledSchema = reconciledSchema.mergeWithUpPromotion(currentSchema, this);
     } catch (NoSupportedUpPromotionOrCoercionException e) {
       throw UserException.unsupportedError(e).message(e.getMessage()).build(logger);
     }
-    logger.debug("Merged schema after processing row {} is {}", startOutIndex, reconciledSchema.toJSONString());
-    if (reconciledSchema.getTotalFieldCount() > context.getOptions().getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX)) {
-      throw new ColumnCountTooLargeException((int) context.getOptions().getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX));
+    logger.debug(
+        "Merged schema after processing row {} is {}",
+        startOutIndex,
+        reconciledSchema.toJSONString());
+    if (reconciledSchema.getTotalFieldCount()
+        > context.getOptions().getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX)) {
+      throw new ColumnCountTooLargeException(
+          (int) context.getOptions().getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX));
     }
 
     this.processedRow = true;
-    //Output table function
-    if(startOutIndex == inputFileSchemaVector.getValueCount() - 1 || maxRecords == 1) {
-      logger.debug("Writing final reconciledSchema to the output. ReconciledSchema = {}", reconciledSchema.toJSONString());
+    // Output table function
+    if (startOutIndex == inputFileSchemaVector.getValueCount() - 1 || maxRecords == 1) {
+      logger.debug(
+          "Writing final reconciledSchema to the output. ReconciledSchema = {}",
+          reconciledSchema.toJSONString());
       this.outputFileSchemaVector.setSafe(0, this.reconciledSchema.serialize());
       this.outputFileSchemaVector.setValueCount(1);
       transferPairs.forEach(TransferPair::transfer);
@@ -129,14 +149,15 @@ public class SchemaAggTableFunction extends AbstractTableFunction implements Sup
   }
 
   @Override
-  public void closeRow() throws Exception {
-
-  }
+  public void closeRow() throws Exception {}
 
   private BatchSchema getBatchSchemaFrom(int index) {
     byte[] bytes = inputFileSchemaVector.get(index);
-    if(bytes == null) {
-      throw new IllegalStateException(String.format("Schema not found at index %s of %s vector", index, inputFileSchemaVector.getField().getName()));
+    if (bytes == null) {
+      throw new IllegalStateException(
+          String.format(
+              "Schema not found at index %s of %s vector",
+              index, inputFileSchemaVector.getField().getName()));
     }
     return BatchSchema.deserialize(bytes);
   }

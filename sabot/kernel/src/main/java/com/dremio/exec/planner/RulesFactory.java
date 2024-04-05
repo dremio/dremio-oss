@@ -15,15 +15,11 @@
  */
 package com.dremio.exec.planner;
 
+import com.dremio.options.OptionManager;
 import java.util.Collection;
-
 import org.apache.calcite.plan.RelOptRule;
 
-import com.dremio.options.OptionManager;
-
-/**
- * Generic system for injecting rules into query planning.
- */
+/** Generic system for injecting rules into query planning. */
 public interface RulesFactory {
   Collection<RelOptRule> getRules(PlannerPhase phase, OptionManager options);
 }

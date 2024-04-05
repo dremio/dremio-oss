@@ -18,6 +18,7 @@ package com.dremio.sabot.op.join.nlje;
 public interface InputRangeIterator extends AutoCloseable {
 
   int next();
+
   boolean hasNext();
 
   @Override
@@ -25,23 +26,25 @@ public interface InputRangeIterator extends AutoCloseable {
 
   /**
    * Reset the range given a new set of probe records.
+   *
    * @param probeRecords Number of probe records.
    */
   void startNextProbe(int probeRecords);
 
-  InputRangeIterator EMPTY = new InputRangeIterator() {
+  InputRangeIterator EMPTY =
+      new InputRangeIterator() {
 
-    @Override
-    public int next() {
-      throw new IllegalStateException("nothing is available");
-    }
+        @Override
+        public int next() {
+          throw new IllegalStateException("nothing is available");
+        }
 
-    @Override
-    public boolean hasNext() {
-      return false;
-    }
+        @Override
+        public boolean hasNext() {
+          return false;
+        }
 
-    @Override
-    public void startNextProbe(int probeRecords) {
-    }};
+        @Override
+        public void startNextProbe(int probeRecords) {}
+      };
 }

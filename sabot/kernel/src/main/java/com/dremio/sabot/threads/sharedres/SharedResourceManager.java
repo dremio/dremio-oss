@@ -15,29 +15,28 @@
  */
 package com.dremio.sabot.threads.sharedres;
 
+import com.dremio.sabot.threads.AvailabilityCallback;
+import com.google.common.base.Preconditions;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import com.dremio.sabot.threads.AvailabilityCallback;
-import com.google.common.base.Preconditions;
-
 /**
- * Manages whether or not resources are available to do work. Provides a nonblocking way to
- * register a collection of shared resources and determine whether the resources are available.
- * Resources are organized in groups, the manager is only blocked if all groups are.
+ * Manages whether or not resources are available to do work. Provides a nonblocking way to register
+ * a collection of shared resources and determine whether the resources are available. Resources are
+ * organized in groups, the manager is only blocked if all groups are.
  */
 public class SharedResourceManager {
 
   private final Object nextCallbackLock = new Object();
 
-  // this map is not expected to be modified once the builder is done constructing the resource manager
+  // this map is not expected to be modified once the builder is done constructing the resource
+  // manager
   private final Map<String, SharedResourceGroup> groups = new HashMap<>();
   private final AtomicInteger availableGroups = new AtomicInteger();
   private volatile AvailabilityCallback nextCallback;
 
-  private SharedResourceManager() {
-  }
+  private SharedResourceManager() {}
 
   private SharedResourceGroup createGroup(String name) {
     SharedResourceGroup group = new SharedResourceGroup(this, name);
@@ -58,16 +57,15 @@ public class SharedResourceManager {
   }
 
   /**
-   * Set the callback the next time this shared resource manager becomes
-   * available. Note that this will be called immediately (in thread) if the
-   * manager is currently unblocked.
+   * Set the callback the next time this shared resource manager becomes available. Note that this
+   * will be called immediately (in thread) if the manager is currently unblocked.
    *
-   * @param callback
-   *          The callback to inform.
+   * @param callback The callback to inform.
    */
   public void setNextCallback(AvailabilityCallback callback) {
-    synchronized(nextCallbackLock){
-      Preconditions.checkArgument(nextCallback == null, "Can't add a callback when one is already pending.");
+    synchronized (nextCallbackLock) {
+      Preconditions.checkArgument(
+          nextCallback == null, "Can't add a callback when one is already pending.");
       nextCallback = callback;
       if (availableGroups.get() > 0) {
         executeNextCallback();
@@ -76,7 +74,7 @@ public class SharedResourceManager {
   }
 
   private void executeNextCallback() {
-    synchronized(nextCallbackLock) {
+    synchronized (nextCallbackLock) {
       // ensure blockedResources == 0 as another thread might have marked a resource as blocked
       if (nextCallback != null && availableGroups.get() > 0) {
         nextCallback.nowAvailable();
@@ -95,29 +93,30 @@ public class SharedResourceManager {
     }
   }
 
-  public boolean isAvailable(){
+  public boolean isAvailable() {
     return availableGroups.get() > 0;
   }
 
   @Override
-  public String toString(){
+  public String toString() {
     StringBuilder sb = new StringBuilder();
     int unavailable = 0;
     int available = 0;
     for (SharedResourceGroup g : groups.values()) {
       if (g.isAvailable()) {
         available++;
-      }else{
+      } else {
         sb.append(g.toString());
-        if(unavailable != 0){
+        if (unavailable != 0) {
           sb.append(", ");
         }
         unavailable++;
       }
-
     }
 
-    return String.format("Available: %s, Unavailable: %d/%d. [%s]", unavailable == 0, unavailable, unavailable + available, sb.toString());
+    return String.format(
+        "Available: %s, Unavailable: %d/%d. [%s]",
+        unavailable == 0, unavailable, unavailable + available, sb.toString());
   }
 
   public static Builder newBuilder() {

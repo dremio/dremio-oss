@@ -15,19 +15,16 @@
  */
 package com.dremio.datastore.format;
 
-import java.util.Arrays;
-import java.util.UUID;
-
 import com.dremio.datastore.Converter;
 import com.dremio.datastore.DatastoreFatalException;
 import com.dremio.datastore.FormatVisitor;
 import com.dremio.datastore.format.compound.KeyPair;
 import com.dremio.datastore.format.compound.KeyTriple;
 import com.google.protobuf.Message;
+import java.util.Arrays;
+import java.util.UUID;
 
-/**
- * A simple FormatVisitor implementation to use for testing Format in the visitor.
- */
+/** A simple FormatVisitor implementation to use for testing Format in the visitor. */
 public class FormatVisitorTestImpl implements FormatVisitor<FormatVisitorTestImpl.Value<?>> {
   public static final FormatVisitorTestImpl INSTANCE = new FormatVisitorTestImpl();
 
@@ -47,47 +44,52 @@ public class FormatVisitorTestImpl implements FormatVisitor<FormatVisitorTestImp
   }
 
   @Override
-  public <K1, K2> Value<KeyPair<Value<K1>, Value<K2>>> visitCompoundPairFormat(String key1Name, Format<K1> key1Format, String key2Name, Format<K2> key2Format) {
+  public <K1, K2> Value<KeyPair<Value<K1>, Value<K2>>> visitCompoundPairFormat(
+      String key1Name, Format<K1> key1Format, String key2Name, Format<K2> key2Format) {
     return Value.<K1, K2>ofKeyPair(
-      key1Name,
-      (Value<K1>)key1Format.apply(this),
-      key2Name,
-      (Value<K2>)key2Format.apply(this)
-    );
+        key1Name, (Value<K1>) key1Format.apply(this), key2Name, (Value<K2>) key2Format.apply(this));
   }
 
   @Override
-  public <K1, K2, K3> Value<KeyTriple<Value<K1>, Value<K2>, Value<K3>>> visitCompoundTripleFormat(String key1Name, Format<K1> key1Format, String key2Name, Format<K2> key2Format, String key3Name, Format<K3> key3Format) throws DatastoreFatalException {
+  public <K1, K2, K3> Value<KeyTriple<Value<K1>, Value<K2>, Value<K3>>> visitCompoundTripleFormat(
+      String key1Name,
+      Format<K1> key1Format,
+      String key2Name,
+      Format<K2> key2Format,
+      String key3Name,
+      Format<K3> key3Format)
+      throws DatastoreFatalException {
     return Value.<K1, K2, K3>ofKeyTriple(
-      key1Name,
-      (Value<K1>)key1Format.apply(this),
-      key2Name,
-      (Value<K2>)key2Format.apply(this),
-      key3Name,
-      (Value<K3>)key3Format.apply(this)
-    );
+        key1Name,
+        (Value<K1>) key1Format.apply(this),
+        key2Name,
+        (Value<K2>) key2Format.apply(this),
+        key3Name,
+        (Value<K3>) key3Format.apply(this));
   }
 
   @Override
-  public <OUTER, INNER> Value<OUTER> visitWrappedFormat(Class<OUTER> clazz, Converter<OUTER, INNER> converter, Format<INNER> inner) throws DatastoreFatalException {
-    return Value.ofWrapped(
-      clazz,
-      converter,
-      (Value<INNER>)inner.apply(this));
+  public <OUTER, INNER> Value<OUTER> visitWrappedFormat(
+      Class<OUTER> clazz, Converter<OUTER, INNER> converter, Format<INNER> inner)
+      throws DatastoreFatalException {
+    return Value.ofWrapped(clazz, converter, (Value<INNER>) inner.apply(this));
   }
 
   @Override
-  public <P extends Message> Value<P> visitProtobufFormat(Class<P> clazz) throws DatastoreFatalException {
+  public <P extends Message> Value<P> visitProtobufFormat(Class<P> clazz)
+      throws DatastoreFatalException {
     return Value.ofProtobuf(clazz);
   }
 
   @Override
-  public <P extends io.protostuff.Message<P>> Value<P> visitProtostuffFormat(Class<P> clazz) throws DatastoreFatalException {
+  public <P extends io.protostuff.Message<P>> Value<P> visitProtostuffFormat(Class<P> clazz)
+      throws DatastoreFatalException {
     return Value.ofProtostuff(clazz);
   }
 
   /**
    * Test Visitable that captures state of each Visitor call.
+   *
    * @param <T> The type passed to the visitor.
    */
   public static class Value<T> {
@@ -119,11 +121,19 @@ public class FormatVisitorTestImpl implements FormatVisitor<FormatVisitorTestImp
 
     @Override
     public String toString() {
-      return "{ class = " + whatClassAmI.getName() + ", " +
-        (whatAmI != null ? (whatAmI instanceof byte[] ? Arrays.toString((byte[]) whatAmI) : whatAmI.toString()) : "no value") +
-        ", key1name = " + key1Name +
-        ", key2name = " + key2Name +
-        ", key3name = " + key3Name + " } ";
+      return "{ class = "
+          + whatClassAmI.getName()
+          + ", "
+          + (whatAmI != null
+              ? (whatAmI instanceof byte[] ? Arrays.toString((byte[]) whatAmI) : whatAmI.toString())
+              : "no value")
+          + ", key1name = "
+          + key1Name
+          + ", key2name = "
+          + key2Name
+          + ", key3name = "
+          + key3Name
+          + " } ";
     }
 
     public static Value<String> ofString() {
@@ -135,20 +145,26 @@ public class FormatVisitorTestImpl implements FormatVisitor<FormatVisitorTestImp
     }
 
     public static Value<byte[]> ofBytes() {
-      return new Value<>(new byte[]{0, 1, 2, 3, 4, 5, 0});
+      return new Value<>(new byte[] {0, 1, 2, 3, 4, 5, 0});
     }
 
     public static <K1, K2> Value<KeyPair<Value<K1>, Value<K2>>> ofKeyPair(
-      String key1Name, Value<K1> key1, String key2Name, Value<K2> key2) {
+        String key1Name, Value<K1> key1, String key2Name, Value<K2> key2) {
       return new Value<>(new KeyPair<>(key1, key2), key1Name, key2Name);
     }
 
     public static <K1, K2, K3> Value<KeyTriple<Value<K1>, Value<K2>, Value<K3>>> ofKeyTriple(
-      String key1Name, Value<K1> key1, String key2Name, Value<K2> key2, String key3Name, Value<K3> key3) {
+        String key1Name,
+        Value<K1> key1,
+        String key2Name,
+        Value<K2> key2,
+        String key3Name,
+        Value<K3> key3) {
       return new Value<>(new KeyTriple<>(key1, key2, key3), key1Name, key2Name, key3Name);
     }
 
-    public static <OUTER, INNER> Value<OUTER> ofWrapped(Class<OUTER> outerClazz, Converter<OUTER,INNER> converter, Value<INNER> innerValue) {
+    public static <OUTER, INNER> Value<OUTER> ofWrapped(
+        Class<OUTER> outerClazz, Converter<OUTER, INNER> converter, Value<INNER> innerValue) {
       return new Value<>((OUTER) new WrappedValue<>(outerClazz, converter, innerValue));
     }
 
@@ -162,10 +178,11 @@ public class FormatVisitorTestImpl implements FormatVisitor<FormatVisitorTestImp
 
     private static class WrappedValue<INNER, OUTER> extends Value<OUTER> {
       private final Class<OUTER> outerClazz;
-      private final Converter<OUTER,INNER> converter;
+      private final Converter<OUTER, INNER> converter;
       private final Value<INNER> innerValue;
 
-      public WrappedValue(Class<OUTER> outerClazz, Converter<OUTER, INNER> converter, Value<INNER> innerValue) {
+      public WrappedValue(
+          Class<OUTER> outerClazz, Converter<OUTER, INNER> converter, Value<INNER> innerValue) {
         super(outerClazz);
         this.outerClazz = outerClazz;
         this.converter = converter;
@@ -174,9 +191,15 @@ public class FormatVisitorTestImpl implements FormatVisitor<FormatVisitorTestImp
 
       @Override
       public String toString() {
-        return "{ outerClass = " + outerClazz.getName() + ", " +
-          " innerClass = " + innerValue.toString() + ", " +
-          " converterClass = " + converter.getClass().getName() + "} ";
+        return "{ outerClass = "
+            + outerClazz.getName()
+            + ", "
+            + " innerClass = "
+            + innerValue.toString()
+            + ", "
+            + " converterClass = "
+            + converter.getClass().getName()
+            + "} ";
       }
     }
   }

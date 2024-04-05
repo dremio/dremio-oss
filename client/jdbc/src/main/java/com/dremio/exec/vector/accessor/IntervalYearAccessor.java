@@ -15,13 +15,12 @@
  */
 package com.dremio.exec.vector.accessor;
 
-import org.apache.arrow.vector.IntervalYearVector;
-
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.types.Types;
 import com.dremio.common.util.DremioGetObject;
 import com.dremio.common.util.DremioStringUtils;
+import org.apache.arrow.vector.IntervalYearVector;
 
 public class IntervalYearAccessor extends AbstractSqlAccessor {
 
@@ -63,5 +62,4 @@ public class IntervalYearAccessor extends AbstractSqlAccessor {
     }
     return String.valueOf(ac.getAsStringBuilder(index));
   }
-
 }

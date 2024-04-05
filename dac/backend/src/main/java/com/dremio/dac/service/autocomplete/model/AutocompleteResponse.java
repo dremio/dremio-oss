@@ -15,15 +15,12 @@
  */
 package com.dremio.dac.service.autocomplete.model;
 
-import java.util.List;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.List;
 
-/**
- * Autocomplete API Response
- */
+/** Autocomplete API Response */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public final class AutocompleteResponse {
   private final String suggestionsType;
@@ -33,10 +30,10 @@ public final class AutocompleteResponse {
 
   @JsonCreator
   public AutocompleteResponse(
-    @JsonProperty("type") String suggestionsType,
-    @JsonProperty("count") Integer count,
-    @JsonProperty("maxCount") Integer maxCount,
-    @JsonProperty("suggestions") List<SuggestionEntity> suggestions) {
+      @JsonProperty("type") String suggestionsType,
+      @JsonProperty("count") Integer count,
+      @JsonProperty("maxCount") Integer maxCount,
+      @JsonProperty("suggestions") List<SuggestionEntity> suggestions) {
     this.suggestionsType = suggestionsType;
     this.count = count;
     this.maxCount = maxCount;

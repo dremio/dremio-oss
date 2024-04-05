@@ -157,9 +157,10 @@ class ApiUtils {
   };
 
   prepareHeaders = () => {
+    const token = localStorageUtils.getAuthToken();
     return {
       "Content-Type": "application/json",
-      Authorization: localStorageUtils.getAuthToken(),
+      ...(token && { Authorization: token }),
     };
   };
 

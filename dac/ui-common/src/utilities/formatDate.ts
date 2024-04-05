@@ -90,7 +90,7 @@ export const formatDateTimestampShort = getFormatter(dateTimestampShort);
  * Example: 01/01/2022, 08:00:00
  */
 export const formatDateTimestampShortNoTZ = getFormatter(
-  dateTimestampShortNoTZ
+  dateTimestampShortNoTZ,
 );
 
 /**

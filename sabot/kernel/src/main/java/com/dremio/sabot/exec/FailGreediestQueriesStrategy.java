@@ -15,26 +15,30 @@
  */
 package com.dremio.sabot.exec;
 
+import com.dremio.common.utils.protos.QueryIdHelper;
+import com.dremio.exec.proto.UserBitShared.QueryId;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.dremio.common.utils.protos.QueryIdHelper;
-import com.dremio.exec.proto.UserBitShared.QueryId;
-
 public class FailGreediestQueriesStrategy extends AbstractHeapClawBackStrategy {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FailGreediestQueriesStrategy.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(FailGreediestQueriesStrategy.class);
 
   // If we are running short of memory, kill queries consuming upto this percentage of the total.
   private long cancel_percentage;
 
   private boolean memoryArbiterCancel;
 
-  public FailGreediestQueriesStrategy(FragmentExecutors fragmentExecutors, QueriesClerk queriesClerk) {
+  public FailGreediestQueriesStrategy(
+      FragmentExecutors fragmentExecutors, QueriesClerk queriesClerk) {
     this(fragmentExecutors, queriesClerk, 25, false);
   }
 
-  public FailGreediestQueriesStrategy(FragmentExecutors fragmentExecutors, QueriesClerk queriesClerk,
-                                      long cancel_percentage, boolean memoryArbiterCancel) {
+  public FailGreediestQueriesStrategy(
+      FragmentExecutors fragmentExecutors,
+      QueriesClerk queriesClerk,
+      long cancel_percentage,
+      boolean memoryArbiterCancel) {
     super(fragmentExecutors, queriesClerk);
     this.cancel_percentage = cancel_percentage;
     this.memoryArbiterCancel = memoryArbiterCancel;
@@ -42,7 +46,7 @@ public class FailGreediestQueriesStrategy extends AbstractHeapClawBackStrategy {
 
   // find the greediest queries, and fail them.
   @Override
-  public void clawBack() {
+  public void clawBack(String statusToDisplay) {
     // get all active queries.
     List<ActiveQuery> activeQueries = getSortedActiveQueries();
     if (activeQueries.size() == 0) {
@@ -53,16 +57,23 @@ public class FailGreediestQueriesStrategy extends AbstractHeapClawBackStrategy {
 
     // find the total memory used (we assume that the heap usage is proportional to the direct
     // memory).
-    Long totalUsed = activeQueries
-      .stream()
-      .mapToLong(x -> x.directMemoryUsed)
-      .reduce(0, Long::sum);
+    Long totalUsed = activeQueries.stream().mapToLong(x -> x.directMemoryUsed).reduce(0, Long::sum);
 
     // Collect queries amount to cancel_percentage% of the total usage (atleast 1 query).
     List<QueryId> queriesToCancel = new ArrayList<>();
     long pendingCancelAmount = (totalUsed * cancel_percentage) / 100;
     for (ActiveQuery activeQuery : activeQueries) {
-      logger.info("Failing query " + QueryIdHelper.getQueryId(activeQuery.queryId) + " to avoid heap outage");
+      if (this.memoryArbiterCancel) {
+        logger.info(
+            "Asked to fail query "
+                + QueryIdHelper.getQueryId(activeQuery.queryId)
+                + " by MemoryArbiter");
+      } else {
+        logger.info(
+            "Failing query "
+                + QueryIdHelper.getQueryId(activeQuery.queryId)
+                + " to avoid heap outage");
+      }
 
       queriesToCancel.add(activeQuery.queryId);
       pendingCancelAmount -= activeQuery.directMemoryUsed;
@@ -72,12 +83,18 @@ public class FailGreediestQueriesStrategy extends AbstractHeapClawBackStrategy {
     }
 
     if (this.memoryArbiterCancel) {
-      failQueries(queriesToCancel, new OutOfDirectMemoryException("MemoryArbiter detected no memory available"),
-        "Query canceled by MemoryArbiter");
+      failQueries(
+          queriesToCancel,
+          new OutOfDirectMemoryException("MemoryArbiter detected no memory available"),
+          "Query canceled by MemoryArbiter",
+          statusToDisplay);
     } else {
       // fail the collected queries.
-      failQueries(queriesToCancel, new OutOfHeapMemoryException("heap monitor detected that the heap is almost full"),
-        FAIL_CONTEXT);
+      failQueries(
+          queriesToCancel,
+          new OutOfHeapMemoryException("heap monitor detected that the heap is almost full"),
+          FAIL_CONTEXT,
+          "");
     }
   }
 }

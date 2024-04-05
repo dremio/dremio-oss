@@ -17,29 +17,12 @@ package com.dremio.dac.server;
 
 import static org.junit.Assert.assertTrue;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
-
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Ignore;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExternalResource;
-import org.junit.rules.TemporaryFolder;
-
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.dac.daemon.DACDaemonModule;
 import com.dremio.service.SingletonRegistry;
 import com.dremio.telemetry.api.Telemetry;
 import com.dremio.telemetry.impl.config.tracing.sampler.SpanAttributeBasedSampler;
 import com.dremio.telemetry.utils.TracerFacade;
-
 import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator;
 import io.opentelemetry.context.propagation.ContextPropagators;
@@ -50,38 +33,59 @@ import io.opentelemetry.sdk.trace.data.SpanData;
 import io.opentelemetry.sdk.trace.export.SimpleSpanProcessor;
 import io.opentracing.Tracer;
 import io.opentracing.mock.MockTracer;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
+import org.junit.AfterClass;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Ignore;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.ExternalResource;
+import org.junit.rules.TemporaryFolder;
 
-/**
- * Test tracing for Jersey requests.
- */
+/** Test tracing for Jersey requests. */
 public class TestServerTracing extends BaseTestServer {
   private MockTracer currentTracer;
   private static List<SingletonRegistry> singletonRegistries = new ArrayList<>();
   private static Tracer originalTracer;
 
-  @Rule
-  public OpenTelemetrySetup openTelemetrySetup = OpenTelemetrySetup.create();
+  @Rule public OpenTelemetrySetup openTelemetrySetup = OpenTelemetrySetup.create();
 
   @BeforeClass
   public static void init() throws Exception {
-    initializeCluster(new DACDaemonModule() {
-      @Override
-      public void bootstrap(final Runnable shutdownHook, final SingletonRegistry bootstrapRegistry, ScanResult scanResult, DACConfig dacConfig, boolean isMaster) {
-        super.bootstrap(shutdownHook, bootstrapRegistry, scanResult, dacConfig, isMaster);
-        /* When running multiple tests in the same process, we need to create a new instance
-           of MockTracer for every run because BaseTestServer closes in between tests, which
-           in turn closes the MockTracer.
-         */
-        singletonRegistries.add(bootstrapRegistry);
-        originalTracer = ((TracerFacade) bootstrapRegistry.lookup(Tracer.class)).getTracer();
-      }
-    }, (TemporaryFolder) null, null, true);
+    initializeCluster(
+        new DACDaemonModule() {
+          @Override
+          public void bootstrap(
+              final Runnable shutdownHook,
+              final SingletonRegistry bootstrapRegistry,
+              ScanResult scanResult,
+              DACConfig dacConfig,
+              boolean isMaster) {
+            super.bootstrap(shutdownHook, bootstrapRegistry, scanResult, dacConfig, isMaster);
+            /* When running multiple tests in the same process, we need to create a new instance
+              of MockTracer for every run because BaseTestServer closes in between tests, which
+              in turn closes the MockTracer.
+            */
+            singletonRegistries.add(bootstrapRegistry);
+            originalTracer = ((TracerFacade) bootstrapRegistry.lookup(Tracer.class)).getTracer();
+          }
+        },
+        (TemporaryFolder) null,
+        null,
+        true);
   }
 
   @Before
   public void setup() {
     currentTracer = new MockTracer();
-    singletonRegistries.forEach(r -> ((TracerFacade) r.lookup(Tracer.class)).setTracer(currentTracer));
+    singletonRegistries.forEach(
+        r -> ((TracerFacade) r.lookup(Tracer.class)).setTracer(currentTracer));
   }
 
   @AfterClass
@@ -92,61 +96,81 @@ public class TestServerTracing extends BaseTestServer {
 
   @Test
   public void testTracingHeaderDisabled() {
-    expectSuccess(getBuilder(getAPIv2().path("server_status")).header("x-tracing-enabled", Boolean.FALSE).buildGet());
+    expectSuccess(
+        getBuilder(getAPIv2().path("server_status"))
+            .header("x-tracing-enabled", Boolean.FALSE)
+            .buildGet());
     assertFinishedSpans(0);
   }
 
   @Test
   @Ignore
   public void testTracingHeaderEnabled() {
-    expectSuccess(getBuilder(getAPIv2().path("server_status")).header("x-tracing-enabled", Boolean.TRUE).buildGet());
+    expectSuccess(
+        getBuilder(getAPIv2().path("server_status"))
+            .header("x-tracing-enabled", Boolean.TRUE)
+            .buildGet());
     assertFinishedSpans(1);
   }
 
   @Test
   public void testTracingHeaderMangled() {
-    expectSuccess(getBuilder(getAPIv2().path("server_status")).header("x-tracing-enabled", "not-a-valid-value").buildGet());
+    expectSuccess(
+        getBuilder(getAPIv2().path("server_status"))
+            .header("x-tracing-enabled", "not-a-valid-value")
+            .buildGet());
     assertFinishedSpans(0);
   }
 
   @Test
   public void testTracingNonExistentEndpointWithTracingHeader() {
-    expect(FamilyExpectation.CLIENT_ERROR, getBuilder(getAPIv2().path("does-not-exist")).header("x-tracing-enabled", Boolean.TRUE).buildGet());
+    expect(
+        FamilyExpectation.CLIENT_ERROR,
+        getBuilder(getAPIv2().path("does-not-exist"))
+            .header("x-tracing-enabled", Boolean.TRUE)
+            .buildGet());
     assertFinishedSpans(0);
   }
 
   /*
-   Jetty filters may not be executed before the client side fully receives a response,
-   this causes the span to not be complete. We use assertWaitForCondition to wait for
-   the expected finished spans.
-   */
+  Jetty filters may not be executed before the client side fully receives a response,
+  this causes the span to not be complete. We use assertWaitForCondition to wait for
+  the expected finished spans.
+  */
   private void assertFinishedSpans(long finishedSpanCount) {
     System.out.println(openTelemetrySetup.getSpans().size());
-    assertWaitForCondition(String.format("Expected %d finished spans.", finishedSpanCount), () -> (openTelemetrySetup.getSpans().size() == finishedSpanCount), 90, TimeUnit.SECONDS);
+    assertWaitForCondition(
+        String.format("Expected %d finished spans.", finishedSpanCount),
+        () -> (openTelemetrySetup.getSpans().size() == finishedSpanCount),
+        90,
+        TimeUnit.SECONDS);
   }
 
   /*
-   assertWaitForCondition checks if the checkCondition has been met every 200ms.
-   If the checkCondition is not met by the timeout period, assertWaitForCondition fails.
-   */
-  private static void assertWaitForCondition(String message, Supplier<Boolean> checkCondition, long timeout, TimeUnit unit) {
+  assertWaitForCondition checks if the checkCondition has been met every 200ms.
+  If the checkCondition is not met by the timeout period, assertWaitForCondition fails.
+  */
+  private static void assertWaitForCondition(
+      String message, Supplier<Boolean> checkCondition, long timeout, TimeUnit unit) {
     CountDownLatch countDownLatch = new CountDownLatch(1);
-    Thread thread = new Thread(() -> {
-      while(true) {
-        if(checkCondition.get()) {
-          countDownLatch.countDown();
-          return;
-        }
+    Thread thread =
+        new Thread(
+            () -> {
+              while (true) {
+                if (checkCondition.get()) {
+                  countDownLatch.countDown();
+                  return;
+                }
 
-        // We continually check the state of the checkCondition every 200ms.
-        try {
-          Thread.sleep(200);
-        } catch (InterruptedException ex) {
-          // Return immediately if this thread is interrupted.
-          return;
-        }
-      }
-    });
+                // We continually check the state of the checkCondition every 200ms.
+                try {
+                  Thread.sleep(200);
+                } catch (InterruptedException ex) {
+                  // Return immediately if this thread is interrupted.
+                  return;
+                }
+              }
+            });
     thread.start();
 
     try {
@@ -168,16 +192,19 @@ public class TestServerTracing extends BaseTestServer {
       InMemorySpanExporter spanExporter = InMemorySpanExporter.create();
 
       SdkTracerProvider tracerProvider =
-        SdkTracerProvider.builder()
-          .addSpanProcessor(SimpleSpanProcessor.create(spanExporter))
-          .setSampler(SpanAttributeBasedSampler.builder().setAttributeKey(Telemetry.FORCE_SAMPLING_ATTRIBUTE).build())
-          .build();
+          SdkTracerProvider.builder()
+              .addSpanProcessor(SimpleSpanProcessor.create(spanExporter))
+              .setSampler(
+                  SpanAttributeBasedSampler.builder()
+                      .setAttributeKey(Telemetry.FORCE_SAMPLING_ATTRIBUTE)
+                      .build())
+              .build();
 
       OpenTelemetrySdk openTelemetry =
-        OpenTelemetrySdk.builder()
-          .setPropagators(ContextPropagators.create(W3CTraceContextPropagator.getInstance()))
-          .setTracerProvider(tracerProvider)
-          .build();
+          OpenTelemetrySdk.builder()
+              .setPropagators(ContextPropagators.create(W3CTraceContextPropagator.getInstance()))
+              .setTracerProvider(tracerProvider)
+              .build();
 
       return new OpenTelemetrySetup(openTelemetry, spanExporter);
     }

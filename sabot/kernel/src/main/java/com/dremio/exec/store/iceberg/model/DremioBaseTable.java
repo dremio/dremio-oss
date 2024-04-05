@@ -15,15 +15,13 @@
  */
 package com.dremio.exec.store.iceberg.model;
 
+import com.dremio.exec.store.iceberg.nessie.IcebergCommitOriginAwareTableOperations;
 import javax.annotation.Nullable;
-
 import org.apache.iceberg.BaseTable;
 import org.apache.iceberg.ExpireSnapshots;
 import org.apache.iceberg.RewriteFiles;
 import org.apache.iceberg.RewriteManifests;
 import org.apache.iceberg.TableOperations;
-
-import com.dremio.exec.store.iceberg.nessie.IcebergCommitOriginAwareTableOperations;
 
 public class DremioBaseTable extends BaseTable {
 
@@ -50,7 +48,8 @@ public class DremioBaseTable extends BaseTable {
     return super.expireSnapshots();
   }
 
-  private void tryNarrowCommitOrigin(@Nullable IcebergCommitOrigin oldOrigin, IcebergCommitOrigin newOrigin) {
+  private void tryNarrowCommitOrigin(
+      @Nullable IcebergCommitOrigin oldOrigin, IcebergCommitOrigin newOrigin) {
     TableOperations ops = operations();
     if (ops instanceof IcebergCommitOriginAwareTableOperations) {
       ((IcebergCommitOriginAwareTableOperations) ops).tryNarrowCommitOrigin(oldOrigin, newOrigin);

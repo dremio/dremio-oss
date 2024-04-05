@@ -16,24 +16,27 @@
 package com.dremio.exec.testing;
 
 /**
- * This class is used internally for tracking injected countdown latches. These latches are specified via
- * {@link com.dremio.exec.ExecConstants#NODE_CONTROL_INJECTIONS} session option.
+ * This class is used internally for tracking injected countdown latches. These latches are
+ * specified via {@link com.dremio.exec.ExecConstants#NODE_CONTROL_INJECTIONS} session option.
  *
- * This injection is useful in the case where a thread spawns multiple threads. The parent thread initializes the latch
- * with the expected number of countdown and awaits. The child threads count down on the same latch (same site class
- * and same descriptor), and once there are enough, the parent thread continues.
+ * <p>This injection is useful in the case where a thread spawns multiple threads. The parent thread
+ * initializes the latch with the expected number of countdown and awaits. The child threads count
+ * down on the same latch (same site class and same descriptor), and once there are enough, the
+ * parent thread continues.
  */
 public interface CountDownLatchInjection {
 
   /**
    * Initializes the underlying latch
-   * @param count the number of times {@link #countDown} must be invoke before threads can pass through {@link #await}
+   *
+   * @param count the number of times {@link #countDown} must be invoke before threads can pass
+   *     through {@link #await}
    */
   void initialize(final int count);
 
   /**
-   * Causes the current thread to wait until the latch has counted down to zero, unless the thread is
-   * {@link Thread#interrupt interrupted}.
+   * Causes the current thread to wait until the latch has counted down to zero, unless the thread
+   * is {@link Thread#interrupt interrupted}.
    */
   void await() throws InterruptedException;
 
@@ -42,13 +45,9 @@ public interface CountDownLatchInjection {
    */
   void awaitUninterruptibly();
 
-  /**
-   * Decrements the count of the latch, releasing all waiting threads if the count reaches zero.
-   */
+  /** Decrements the count of the latch, releasing all waiting threads if the count reaches zero. */
   void countDown();
 
-  /**
-   * Close the latch.
-   */
+  /** Close the latch. */
   void close();
 }

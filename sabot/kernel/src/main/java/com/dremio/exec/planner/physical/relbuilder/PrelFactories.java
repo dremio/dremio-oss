@@ -15,9 +15,11 @@
  */
 package com.dremio.exec.planner.physical.relbuilder;
 
+import com.dremio.exec.planner.physical.FilterPrel;
+import com.dremio.exec.planner.physical.ProjectPrel;
+import com.google.common.base.Preconditions;
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelCollations;
 import org.apache.calcite.rel.core.RelFactories;
@@ -25,23 +27,20 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexUtil;
 
-import com.dremio.exec.planner.physical.FilterPrel;
-import com.dremio.exec.planner.physical.ProjectPrel;
-import com.google.common.base.Preconditions;
-
 public interface PrelFactories {
-  RelFactories.FilterFactory FILTER = (child, condition, correlVariables) -> {
-    Preconditions.checkArgument(correlVariables.isEmpty());
-    return FilterPrel.create(child.getCluster(), child.getTraitSet(), child, condition);
-  };
+  RelFactories.FilterFactory FILTER =
+      (child, condition, correlVariables) -> {
+        Preconditions.checkArgument(correlVariables.isEmpty());
+        return FilterPrel.create(child.getCluster(), child.getTraitSet(), child, condition);
+      };
 
-  RelFactories.ProjectFactory PROJECT = (input, hints, childExprs, fieldNames) -> {
-    //TODO fix this
-    final RelTraitSet traits = input.getTraitSet().replace(RelCollations.EMPTY);
-    final List<RexNode> noExtend = new ArrayList<>(childExprs);
-    final RelDataType type =
-        RexUtil.createStructType(input.getCluster().getTypeFactory(), noExtend);
-    return ProjectPrel.create(input.getCluster(), traits, input, noExtend, type);
-  };
-
+  RelFactories.ProjectFactory PROJECT =
+      (input, hints, childExprs, fieldNames) -> {
+        // TODO fix this
+        final RelTraitSet traits = input.getTraitSet().replace(RelCollations.EMPTY);
+        final List<RexNode> noExtend = new ArrayList<>(childExprs);
+        final RelDataType type =
+            RexUtil.createStructType(input.getCluster().getTypeFactory(), noExtend);
+        return ProjectPrel.create(input.getCluster(), traits, input, noExtend, type);
+      };
 }

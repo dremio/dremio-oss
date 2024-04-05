@@ -15,25 +15,25 @@
  */
 package com.dremio.services.nessie.proxy;
 
+import com.fasterxml.jackson.annotation.JsonView;
 import javax.enterprise.context.RequestScoped;
 import javax.inject.Inject;
-
+import javax.ws.rs.Path;
 import org.projectnessie.api.v1.http.HttpConfigApi;
 import org.projectnessie.client.api.NessieApiV1;
 import org.projectnessie.model.NessieConfiguration;
 import org.projectnessie.model.ser.Views;
 
-import com.fasterxml.jackson.annotation.JsonView;
-
 /** Nessie config-API REST endpoint that forwards via gRPC. */
 @RequestScoped
+@Path("api/v1/config")
 public class ProxyConfigResource implements HttpConfigApi {
 
   @SuppressWarnings("checkstyle:visibilityModifier")
-  @Inject NessieApiV1 api;
+  @Inject
+  NessieApiV1 api;
 
-  public ProxyConfigResource() {
-  }
+  public ProxyConfigResource() {}
 
   @Override
   @JsonView(Views.V1.class)

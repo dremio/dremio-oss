@@ -20,6 +20,17 @@ import static com.dremio.io.file.PathFilters.NO_HIDDEN_FILES;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import com.dremio.common.perf.StatsCollectionEligibilityRegistrar;
+import com.dremio.exec.proto.UserBitShared;
+import com.dremio.exec.proto.UserBitShared.OperatorProfile;
+import com.dremio.io.file.FileAttributes;
+import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.FileSystemUtils;
+import com.dremio.io.file.Path;
+import com.dremio.sabot.exec.context.OpProfileDef;
+import com.dremio.sabot.exec.context.OperatorStats;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -36,7 +47,6 @@ import java.util.Set;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
@@ -47,23 +57,14 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import com.dremio.common.perf.StatsCollectionEligibilityRegistrar;
-import com.dremio.exec.proto.UserBitShared;
-import com.dremio.exec.proto.UserBitShared.OperatorProfile;
-import com.dremio.io.file.FileAttributes;
-import com.dremio.io.file.FileSystem;
-import com.dremio.io.file.FileSystemUtils;
-import com.dremio.io.file.Path;
-import com.dremio.sabot.exec.context.OpProfileDef;
-import com.dremio.sabot.exec.context.OperatorStats;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
-
 public class TestHadoopFileSystemWrapper {
 
   private static Stream<Arguments> testToFsPermission() {
     return IntStream.range(0, 01000)
-        .mapToObj(i -> Arguments.of (FsPermission.createImmutable((short) i), toPosixFilePermissions((short) i) ));
+        .mapToObj(
+            i ->
+                Arguments.of(
+                    FsPermission.createImmutable((short) i), toPosixFilePermissions((short) i)));
   }
 
   private static Set<PosixFilePermission> toPosixFilePermissions(short mode) {
@@ -99,7 +100,7 @@ public class TestHadoopFileSystemWrapper {
     return result;
   }
 
-  @ParameterizedTest(name =  "[{index}] mode: {0}")
+  @ParameterizedTest(name = "[{index}] mode: {0}")
   @MethodSource
   public void testToFsPermission(FsPermission expected, Set<PosixFilePermission> test) {
     assertThat(HadoopFileSystem.toFsPermission(test)).isEqualTo(expected);
@@ -107,7 +108,7 @@ public class TestHadoopFileSystemWrapper {
 
   private static Stream<Arguments> testToFsAction() {
     return IntStream.range(0, 0010)
-        .mapToObj(i -> Arguments.of( toFsAction((short) i), toAccessModes((short) i) ));
+        .mapToObj(i -> Arguments.of(toFsAction((short) i), toAccessModes((short) i)));
   }
 
   private static FsAction toFsAction(short mode) {
@@ -140,7 +141,7 @@ public class TestHadoopFileSystemWrapper {
     return result;
   }
 
-  @ParameterizedTest(name =  "[{index}] mode: {0}")
+  @ParameterizedTest(name = "[{index}] mode: {0}")
   @MethodSource
   public void testToFsAction(FsAction expected, Set<AccessMode> test) {
     assertThat(HadoopFileSystem.toFsAction(test)).isEqualTo(expected);
@@ -148,8 +149,7 @@ public class TestHadoopFileSystemWrapper {
 
   private static String tempFilePath;
 
-  @TempDir
-  static File tempFolder;
+  @TempDir static File tempFolder;
 
   @BeforeAll
   public static void createTempFile() throws Exception {
@@ -159,8 +159,8 @@ public class TestHadoopFileSystemWrapper {
 
     // Write some data
     PrintWriter printWriter = new PrintWriter(tempFile);
-    for (int i=1; i<=200000; i++) {
-      printWriter.println (String.format("%d, key_%d", i, i));
+    for (int i = 1; i <= 200000; i++) {
+      printWriter.println(String.format("%d, key_%d", i, i));
     }
     printWriter.close();
 
@@ -173,7 +173,11 @@ public class TestHadoopFileSystemWrapper {
     FileSystem dfs = null;
     InputStream is = null;
     Configuration conf = new Configuration();
-    OpProfileDef profileDef = new OpProfileDef(0 /*operatorId*/, UserBitShared.CoreOperatorType.PARQUET_ROW_GROUP_SCAN_VALUE /*operatorType*/, 0 /*inputCount*/);
+    OpProfileDef profileDef =
+        new OpProfileDef(
+            0 /*operatorId*/,
+            UserBitShared.CoreOperatorType.PARQUET_ROW_GROUP_SCAN_VALUE /*operatorType*/,
+            0 /*inputCount*/);
     OperatorStats stats = new OperatorStats(profileDef, null /*allocator*/, 0);
 
     // start wait time method in OperatorStats expects the OperatorStats state to be in "processing"
@@ -200,7 +204,9 @@ public class TestHadoopFileSystemWrapper {
     }
 
     OperatorProfile operatorProfile = stats.getProfile(true);
-    assertThat(operatorProfile.getWaitNanos()).as("Expected wait time is non-zero, but got zero wait time").isGreaterThan(0);
+    assertThat(operatorProfile.getWaitNanos())
+        .as("Expected wait time is non-zero, but got zero wait time")
+        .isGreaterThan(0);
     OperatorStats.IOStats ioStats = stats.getReadIOStats();
     long minIOReadTime = ioStats.minIOTime.longValue();
     long maxIOReadTime = ioStats.maxIOTime.longValue();
@@ -210,31 +216,40 @@ public class TestHadoopFileSystemWrapper {
     OperatorStats.IOStats ioMetadataStats = stats.getMetadataReadIOStats();
     long minMetadataIOReadTime = ioMetadataStats.minIOTime.longValue();
     long maxMetadataIOReadTime = ioMetadataStats.maxIOTime.longValue();
-    long avgMetadataIOReadTime = ioMetadataStats.totalIOTime.longValue() / ioMetadataStats.numIO.get();
+    long avgMetadataIOReadTime =
+        ioMetadataStats.totalIOTime.longValue() / ioMetadataStats.numIO.get();
     long numMetadataIORead = ioMetadataStats.totalIOTime.get();
 
     assertThat(minIOReadTime).isGreaterThan(0);
     assertThat(maxIOReadTime).isGreaterThan(0);
     assertThat(avgIOReadTime).isGreaterThan(0);
     assertThat(numIORead).isGreaterThan(0);
-    assertThat(avgIOReadTime).isGreaterThanOrEqualTo(minIOReadTime).isLessThanOrEqualTo(maxIOReadTime);
+    assertThat(avgIOReadTime)
+        .isGreaterThanOrEqualTo(minIOReadTime)
+        .isLessThanOrEqualTo(maxIOReadTime);
 
     assertThat(ioStats.slowIOInfoList.size()).isGreaterThan(0);
     UserBitShared.SlowIOInfo slowIOInfo = ioStats.slowIOInfoList.get(0);
     assertThat(slowIOInfo.getFilePath()).isEqualTo(tempFilePath);
-    assertThat(slowIOInfo.getIoTime()).isGreaterThanOrEqualTo(minIOReadTime).isLessThanOrEqualTo(maxIOReadTime);
+    assertThat(slowIOInfo.getIoTime())
+        .isGreaterThanOrEqualTo(minIOReadTime)
+        .isLessThanOrEqualTo(maxIOReadTime);
     assertThat(slowIOInfo.getIoSize()).isGreaterThan(0);
 
     assertThat(minMetadataIOReadTime).isGreaterThan(0);
     assertThat(maxMetadataIOReadTime).isGreaterThan(0);
     assertThat(avgMetadataIOReadTime).isGreaterThan(0);
     assertThat(numMetadataIORead).isGreaterThan(0);
-    assertThat(avgMetadataIOReadTime).isGreaterThanOrEqualTo(minMetadataIOReadTime).isLessThanOrEqualTo(maxMetadataIOReadTime);
+    assertThat(avgMetadataIOReadTime)
+        .isGreaterThanOrEqualTo(minMetadataIOReadTime)
+        .isLessThanOrEqualTo(maxMetadataIOReadTime);
 
     assertThat(ioMetadataStats.slowIOInfoList.size()).isGreaterThan(0);
     UserBitShared.SlowIOInfo slowMetadataIOInfo = ioMetadataStats.slowIOInfoList.get(0);
     assertThat(slowMetadataIOInfo.getFilePath()).isEqualTo(tempFilePath);
-    assertThat(slowMetadataIOInfo.getIoTime()).isGreaterThanOrEqualTo(minMetadataIOReadTime).isLessThanOrEqualTo(maxMetadataIOReadTime);
+    assertThat(slowMetadataIOInfo.getIoTime())
+        .isGreaterThanOrEqualTo(minMetadataIOReadTime)
+        .isLessThanOrEqualTo(maxMetadataIOReadTime);
   }
 
   @Test
@@ -242,7 +257,11 @@ public class TestHadoopFileSystemWrapper {
     FileSystem dfs = null;
     OutputStream os = null;
     Configuration conf = new Configuration();
-    OpProfileDef profileDef = new OpProfileDef(0 /*operatorId*/, UserBitShared.CoreOperatorType.PARQUET_WRITER_VALUE /*operatorType*/, 0 /*inputCount*/);
+    OpProfileDef profileDef =
+        new OpProfileDef(
+            0 /*operatorId*/,
+            UserBitShared.CoreOperatorType.PARQUET_WRITER_VALUE /*operatorType*/,
+            0 /*inputCount*/);
     OperatorStats stats = new OperatorStats(profileDef, null /*allocator*/, 0);
 
     // start wait time method in OperatorStats expects the OperatorStats state to be in "processing"
@@ -269,7 +288,9 @@ public class TestHadoopFileSystemWrapper {
     }
 
     OperatorProfile operatorProfile = stats.getProfile(true);
-    assertThat(operatorProfile.getWaitNanos()).as("Expected wait time is non-zero, but got zero wait time").isGreaterThan(0);
+    assertThat(operatorProfile.getWaitNanos())
+        .as("Expected wait time is non-zero, but got zero wait time")
+        .isGreaterThan(0);
     OperatorStats.IOStats ioStats = stats.getWriteIOStats();
     long minIOWriteTime = ioStats.minIOTime.longValue();
     long maxIOWriteTime = ioStats.maxIOTime.longValue();
@@ -279,13 +300,17 @@ public class TestHadoopFileSystemWrapper {
     assertThat(minIOWriteTime).isGreaterThan(0);
     assertThat(maxIOWriteTime).isGreaterThan(0);
     assertThat(avgIOWriteTime).isGreaterThan(0);
-    assertThat(avgIOWriteTime).isGreaterThanOrEqualTo(minIOWriteTime).isLessThanOrEqualTo(maxIOWriteTime);
+    assertThat(avgIOWriteTime)
+        .isGreaterThanOrEqualTo(minIOWriteTime)
+        .isLessThanOrEqualTo(maxIOWriteTime);
     assertThat(numIOWrite).isGreaterThan(0);
 
     assertThat(ioStats.slowIOInfoList.size()).isGreaterThan(0);
     UserBitShared.SlowIOInfo slowIOInfo = ioStats.slowIOInfoList.get(0);
     assertThat(slowIOInfo.getIoSize()).isGreaterThan(0);
-    assertThat(slowIOInfo.getIoTime()).isGreaterThanOrEqualTo(minIOWriteTime).isLessThanOrEqualTo(maxIOWriteTime);
+    assertThat(slowIOInfo.getIoTime())
+        .isGreaterThanOrEqualTo(minIOWriteTime)
+        .isLessThanOrEqualTo(maxIOWriteTime);
     assertThat(slowIOInfo.getFilePath()).contains("dremioFSWriteTest.txt");
   }
 
@@ -294,7 +319,8 @@ public class TestHadoopFileSystemWrapper {
     FileSystem dfs = null;
     InputStream is = null;
     Configuration conf = new Configuration();
-    OpProfileDef profileDef = new OpProfileDef(0 /*operatorId*/, 0 /*operatorType*/, 0 /*inputCount*/);
+    OpProfileDef profileDef =
+        new OpProfileDef(0 /*operatorId*/, 0 /*operatorType*/, 0 /*inputCount*/);
     OperatorStats stats = new OperatorStats(profileDef, null /*allocator*/);
 
     // start wait time method in OperatorStats expects the OperatorStats state to be in "processing"
@@ -305,7 +331,10 @@ public class TestHadoopFileSystemWrapper {
       dfs = HadoopFileSystem.get(fs, stats, true);
       Path path = Path.of(tempFilePath);
       org.apache.hadoop.fs.Path hadoopPath = new org.apache.hadoop.fs.Path(path.toURI());
-      is = ((HadoopFileSystem) dfs).newFSDataInputStreamWrapper(Path.of(tempFilePath), fs.open(hadoopPath) , stats, false);
+      is =
+          ((HadoopFileSystem) dfs)
+              .newFSDataInputStreamWrapper(
+                  Path.of(tempFilePath), fs.open(hadoopPath), stats, false);
 
       byte[] buf = new byte[8000];
       while (is.read(buf, 0, buf.length) != -1) {
@@ -323,7 +352,9 @@ public class TestHadoopFileSystemWrapper {
       }
     }
 
-    assertThat(stats.getProfile().getWaitNanos()).as("Expected wait time is zero, but got non-zero wait time").isEqualTo(0);
+    assertThat(stats.getProfile().getWaitNanos())
+        .as("Expected wait time is zero, but got non-zero wait time")
+        .isEqualTo(0);
   }
 
   @Test
@@ -334,7 +365,8 @@ public class TestHadoopFileSystemWrapper {
       final Path folderPath = Path.of(tempFolder.toString()).resolve("hidden_files_folders_test");
       createFolderWithContent(dfs, folderPath, 10, 20, 30);
 
-      try(DirectoryStream<FileAttributes> iterable = FileSystemUtils.listRecursive(dfs, folderPath, NO_HIDDEN_FILES)) {
+      try (DirectoryStream<FileAttributes> iterable =
+          FileSystemUtils.listRecursive(dfs, folderPath, NO_HIDDEN_FILES)) {
         assertEquals(10L, Iterables.size(iterable), "Should return 10 visible files");
       }
 
@@ -355,11 +387,12 @@ public class TestHadoopFileSystemWrapper {
       createFolderWithContent(dfs, folderPath.resolve("_hidden"), 10, 0, 0);
       createFolderWithContent(dfs, folderPath.resolve(".hidden"), 10, 0, 0);
 
-
-      try(DirectoryStream<FileAttributes> directoryStream =  FileSystemUtils.listRecursive(dfs, folderPath, NO_HIDDEN_FILES)) {
-        assertEquals(13L,
+      try (DirectoryStream<FileAttributes> directoryStream =
+          FileSystemUtils.listRecursive(dfs, folderPath, NO_HIDDEN_FILES)) {
+        assertEquals(
+            13L,
             getStream(directoryStream.iterator()).filter(f -> !f.isDirectory()).count(),
-          "Should return 13 visible files");
+            "Should return 13 visible files");
       }
       dfs.delete(folderPath, true);
     }
@@ -374,8 +407,8 @@ public class TestHadoopFileSystemWrapper {
       final Path foo = folderPath.resolve("foo.txt");
       dfs.create(foo);
 
-
-      try(DirectoryStream<FileAttributes> directoryStream = FileSystemUtils.listRecursive(dfs, foo, ALL_FILES)) {
+      try (DirectoryStream<FileAttributes> directoryStream =
+          FileSystemUtils.listRecursive(dfs, foo, ALL_FILES)) {
         List<FileAttributes> files = Lists.newArrayList(directoryStream);
         assertThat(files).hasSize(1);
         final FileAttributes attributes = files.get(0);
@@ -384,15 +417,21 @@ public class TestHadoopFileSystemWrapper {
     }
   }
 
-  private void createFolderWithContent(FileSystem fs, Path parent, int visibleFilesCount,
-    int hiddenGroup1Count, int hiddenGroup2Count) throws IOException {
+  private void createFolderWithContent(
+      FileSystem fs,
+      Path parent,
+      int visibleFilesCount,
+      int hiddenGroup1Count,
+      int hiddenGroup2Count)
+      throws IOException {
     fs.mkdirs(parent);
     createFiles(fs, parent, "", visibleFilesCount);
     createFiles(fs, parent, ".", hiddenGroup1Count);
     createFiles(fs, parent, "_", hiddenGroup2Count);
   }
 
-  private void createFiles(FileSystem fs, Path parentFolder, String filePrefix, int count) throws IOException {
+  private void createFiles(FileSystem fs, Path parentFolder, String filePrefix, int count)
+      throws IOException {
     for (int i = 0; i < count; i++) {
       fs.create(parentFolder.resolve(String.format("%ssome_file_%s.txt", filePrefix, i)));
     }

@@ -15,17 +15,6 @@
  */
 package com.dremio.exec.planner.physical;
 
-import java.io.IOException;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Optional;
-
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.RelWriter;
-import org.apache.calcite.rel.SingleRel;
-
 import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.PhysicalOperator;
@@ -39,12 +28,25 @@ import com.dremio.options.Options;
 import com.dremio.options.TypeValidators.LongValidator;
 import com.dremio.options.TypeValidators.PositiveLongValidator;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import java.io.IOException;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Optional;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.RelWriter;
+import org.apache.calcite.rel.SingleRel;
 
 @Options
 public class WriterCommitterPrel extends SingleRel implements Prel {
 
-  public static final LongValidator RESERVE = new PositiveLongValidator("planner.op.writercommiter.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
-  public static final LongValidator LIMIT = new PositiveLongValidator("planner.op.writercommiter.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
+  public static final LongValidator RESERVE =
+      new PositiveLongValidator(
+          "planner.op.writercommiter.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
+  public static final LongValidator LIMIT =
+      new PositiveLongValidator(
+          "planner.op.writercommiter.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
 
   private final String tempLocation;
   private final String finalLocation;
@@ -68,8 +70,7 @@ public class WriterCommitterPrel extends SingleRel implements Prel {
       Optional<DatasetConfig> datasetConfig,
       boolean partialRefresh,
       boolean readSignatureEnabled,
-      StoragePluginId sourceTablePluginId
-  ) {
+      StoragePluginId sourceTablePluginId) {
     super(cluster, traits, child);
     this.tempLocation = tempLocation;
     this.finalLocation = finalLocation;
@@ -93,28 +94,58 @@ public class WriterCommitterPrel extends SingleRel implements Prel {
       CreateTableEntry createTableEntry,
       Optional<DatasetConfig> datasetConfig,
       boolean partialRefresh,
-      boolean readSignatureEnabled
-  ) {
-    this(cluster, traits, child, plugin, tempLocation, finalLocation, userName, createTableEntry,
-        datasetConfig, partialRefresh, readSignatureEnabled, null);
+      boolean readSignatureEnabled) {
+    this(
+        cluster,
+        traits,
+        child,
+        plugin,
+        tempLocation,
+        finalLocation,
+        userName,
+        createTableEntry,
+        datasetConfig,
+        partialRefresh,
+        readSignatureEnabled,
+        null);
   }
 
   @Override
   public WriterCommitterPrel copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new WriterCommitterPrel(getCluster(), traitSet, sole(inputs), plugin, tempLocation, finalLocation, userName,
-        createTableEntry, datasetConfig, isPartialRefresh, readSignatureEnabled, sourceTablePluginId);
+    return new WriterCommitterPrel(
+        getCluster(),
+        traitSet,
+        sole(inputs),
+        plugin,
+        tempLocation,
+        finalLocation,
+        userName,
+        createTableEntry,
+        datasetConfig,
+        isPartialRefresh,
+        readSignatureEnabled,
+        sourceTablePluginId);
   }
 
   @Override
   public RelWriter explainTerms(RelWriter pw) {
-    TableFormatWriterOptions tableFormatOptions = createTableEntry.getOptions().getTableFormatOptions();
+    TableFormatWriterOptions tableFormatOptions =
+        createTableEntry.getOptions().getTableFormatOptions();
     return super.explainTerms(pw)
-      .itemIf("temp", tempLocation, tempLocation != null)
-      .item("final", finalLocation)
-      .itemIf("iceberg_operation", tableFormatOptions.getOperation().name(), tableFormatOptions != null &&
-        !tableFormatOptions.getOperation().equals(TableFormatWriterOptions.TableFormatOperation.NONE))
-      .itemIf("min_input_files", tableFormatOptions.getMinInputFilesBeforeOptimize(),
-        tableFormatOptions != null && tableFormatOptions.getMinInputFilesBeforeOptimize() != null);
+        .itemIf("temp", tempLocation, tempLocation != null)
+        .item("final", finalLocation)
+        .itemIf(
+            "iceberg_operation",
+            tableFormatOptions.getOperation().name(),
+            tableFormatOptions != null
+                && !tableFormatOptions
+                    .getOperation()
+                    .equals(TableFormatWriterOptions.TableFormatOperation.NONE))
+        .itemIf(
+            "min_input_files",
+            tableFormatOptions.getMinInputFilesBeforeOptimize(),
+            tableFormatOptions != null
+                && tableFormatOptions.getMinInputFilesBeforeOptimize() != null);
   }
 
   @Override
@@ -141,7 +172,8 @@ public class WriterCommitterPrel extends SingleRel implements Prel {
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(PrelVisitor<T, X, E> logicalVisitor, X value) throws E {
+  public <T, X, E extends Throwable> T accept(PrelVisitor<T, X, E> logicalVisitor, X value)
+      throws E {
     return logicalVisitor.visitWriterCommitter(this, value);
   }
 
@@ -196,7 +228,8 @@ public class WriterCommitterPrel extends SingleRel implements Prel {
     return plugin;
   }
 
-  protected PhysicalOperator getChildPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
+  protected PhysicalOperator getChildPhysicalOperator(PhysicalPlanCreator creator)
+      throws IOException {
     Prel child = (Prel) this.getInput();
     return child.getPhysicalOperator(creator);
   }

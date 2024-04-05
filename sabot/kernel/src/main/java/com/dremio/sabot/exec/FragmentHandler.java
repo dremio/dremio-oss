@@ -15,15 +15,6 @@
  */
 package com.dremio.sabot.exec;
 
-import java.util.Optional;
-import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicStampedReference;
-
-import org.joda.time.format.DateTimeFormatter;
-import org.joda.time.format.ISODateTimeFormat;
-
 import com.dremio.common.util.MayExpire;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
@@ -33,16 +24,25 @@ import com.dremio.sabot.exec.fragment.OutOfBandMessage;
 import com.dremio.sabot.exec.rpc.IncomingDataBatch;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import java.util.Optional;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicStampedReference;
+import org.joda.time.format.DateTimeFormatter;
+import org.joda.time.format.ISODateTimeFormat;
 
 /**
- * A FragmentHandler ensures proper handling of cancellation/early termination messages even when their corresponding
- * FragmentExecutor didn't start yet. Implementation must handle concurrent accesses from both the FragmentExecutor and
- * the fabric thread reporting the messages.<br>
- * If the corresponding fragment doesn't start after the eviction delay, handler will be marked as expired and removed
- * from the cache. Also once a fragment is done and after the eviction delay the handler will also be marked as expired.
+ * A FragmentHandler ensures proper handling of cancellation/early termination messages even when
+ * their corresponding FragmentExecutor didn't start yet. Implementation must handle concurrent
+ * accesses from both the FragmentExecutor and the fabric thread reporting the messages.<br>
+ * If the corresponding fragment doesn't start after the eviction delay, handler will be marked as
+ * expired and removed from the cache. Also once a fragment is done and after the eviction delay the
+ * handler will also be marked as expired.
  */
 public class FragmentHandler implements EventProvider, MayExpire {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FragmentHandler.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(FragmentHandler.class);
 
   private class FragmentEvent {
     final FragmentHandle handle;
@@ -59,16 +59,16 @@ public class FragmentHandler implements EventProvider, MayExpire {
 
   private volatile boolean fragmentStarted;
 
-  //holds a reference to the executor object
+  // holds a reference to the executor object
   private AtomicStampedReference<FragmentExecutor> execReference;
 
-  //stamp state at the beginning, i.e. when FragmentHandler is created & executor is null
+  // stamp state at the beginning, i.e. when FragmentHandler is created & executor is null
   private static final int defaultExecStamp = 0;
 
-  //stamp value once the proper executor is set inside 'setExecutor'
+  // stamp value once the proper executor is set inside 'setExecutor'
   private static final int validExecStamp = 1;
 
-  //stamp value once the executor is set back to null as part of 'invalidate'
+  // stamp value once the executor is set back to null as part of 'invalidate'
   private static final int invalidExecStamp = 2;
 
   private final AtomicBoolean canceled = new AtomicBoolean();
@@ -95,12 +95,16 @@ public class FragmentHandler implements EventProvider, MayExpire {
 
   public void cancel() {
     // If an executor exists, we must ensure that it is informed.
-    // Setting cancellation before the executor check ensures that either that any executor that comes in after
-    // the cancelled flag is set will consume the flag so we don't have to worry about informing its cancellation
-    if (canceled.compareAndSet(false,true)) {
+    // Setting cancellation before the executor check ensures that either that any executor that
+    // comes in after
+    // the cancelled flag is set will consume the flag so we don't have to worry about informing its
+    // cancellation
+    if (canceled.compareAndSet(false, true)) {
       cancellationTime = System.currentTimeMillis();
-      logger.info("set cancel for fragment {}", QueryIdHelper.getFragmentId(handle));
-      final FragmentExecutor executor = execReference.getReference(); // this is important, another thread could set this.executor to null
+      logger.info("set cancel for fragment {}", QueryIdHelper.getQueryIdentifier(handle));
+      final FragmentExecutor executor =
+          execReference
+              .getReference(); // this is important, another thread could set this.executor to null
       if (executor != null) {
         executor.getListener().cancel();
       }
@@ -116,9 +120,14 @@ public class FragmentHandler implements EventProvider, MayExpire {
     cancel();
   }
 
-  private String formatError(String identifier, int sendingMajorFragmentId, int sendingMinorFragmentId) {
-    return String.format("Received %s for %s from %d:%d before fragment executor started",
-      identifier, QueryIdHelper.getQueryIdentifier(handle), sendingMajorFragmentId, sendingMinorFragmentId);
+  private String formatError(
+      String identifier, int sendingMajorFragmentId, int sendingMinorFragmentId) {
+    return String.format(
+        "Received %s for %s from %d:%d before fragment executor started",
+        identifier,
+        QueryIdHelper.getQueryIdentifier(handle),
+        sendingMajorFragmentId,
+        sendingMinorFragmentId);
   }
 
   public void handle(OutOfBandMessage message) {
@@ -130,8 +139,12 @@ public class FragmentHandler implements EventProvider, MayExpire {
   }
 
   public void handle(FragmentStreamComplete completion) {
-    Preconditions.checkState(fragmentStarted, formatError("stream completion",
-      completion.getSendingMajorFragmentId(), completion.getSendingMinorFragmentId()));
+    Preconditions.checkState(
+        fragmentStarted,
+        formatError(
+            "stream completion",
+            completion.getSendingMajorFragmentId(),
+            completion.getSendingMinorFragmentId()));
 
     // A missing executor means it already terminated. We can simply drop this message.
     final FragmentExecutor executor = execReference.getReference();
@@ -141,8 +154,12 @@ public class FragmentHandler implements EventProvider, MayExpire {
   }
 
   public void handle(IncomingDataBatch batch) {
-    Preconditions.checkState(fragmentStarted, formatError("data batch",
-      batch.getHeader().getSendingMajorFragmentId(), batch.getHeader().getSendingMinorFragmentId()));
+    Preconditions.checkState(
+        fragmentStarted,
+        formatError(
+            "data batch",
+            batch.getHeader().getSendingMajorFragmentId(),
+            batch.getHeader().getSendingMinorFragmentId()));
 
     // A missing executor means it already terminated. We can simply drop this message.
     final FragmentExecutor executor = execReference.getReference();
@@ -187,7 +204,9 @@ public class FragmentHandler implements EventProvider, MayExpire {
     return execReference.getReference();
   }
 
-  public boolean isRunning() { return execReference.getReference() != null; }
+  public boolean isRunning() {
+    return execReference.getReference() != null;
+  }
 
   boolean hasStarted() {
     return fragmentStarted;
@@ -197,19 +216,20 @@ public class FragmentHandler implements EventProvider, MayExpire {
     if (!fragmentStarted) {
       final DateTimeFormatter formatter = ISODateTimeFormat.dateTime();
       if (canceled.get()) {
-        logger.warn("Received cancel request at {} for fragment {} that was never started",
-          formatter.print(cancellationTime),
-          QueryIdHelper.getQueryIdentifier(handle));
+        logger.warn(
+            "Received cancel request at {} for fragment {} that was never started",
+            formatter.print(cancellationTime),
+            QueryIdHelper.getQueryIdentifier(handle));
       }
 
       FragmentEvent event;
       while ((event = finishedReceivers.poll()) != null) {
-        logger.warn("Received early fragment termination at {} for path {} {} -> {} for a fragment that was never started",
-          formatter.print(event.time),
-          QueryIdHelper.getQueryId(handle.getQueryId()),
-          QueryIdHelper.getFragmentId(event.handle),
-          QueryIdHelper.getFragmentId(handle)
-        );
+        logger.warn(
+            "Received early fragment termination at {} for path {} {} -> {} for a fragment that was never started",
+            formatter.print(event.time),
+            QueryIdHelper.getQueryId(handle.getQueryId()),
+            QueryIdHelper.getFragmentId(event.handle),
+            QueryIdHelper.getFragmentId(handle));
       }
     }
   }
@@ -227,5 +247,4 @@ public class FragmentHandler implements EventProvider, MayExpire {
   void testExpireNow() {
     expirationTime = System.currentTimeMillis() - 1;
   }
-
 }

@@ -19,17 +19,15 @@ import com.dremio.service.accelerator.proto.MaterializationDetails;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-/**
- * UI wrapper for {@link MaterializationDetails}
- */
+/** UI wrapper for {@link MaterializationDetails} */
 public class MaterializationDetailsUI {
   private final String id;
   private final Long refreshChainStartTime;
 
   @JsonCreator
   MaterializationDetailsUI(
-    @JsonProperty("id") String id,
-    @JsonProperty("refreshChainStartTime") Long refreshChainStartTime) {
+      @JsonProperty("id") String id,
+      @JsonProperty("refreshChainStartTime") Long refreshChainStartTime) {
     this.id = id;
     this.refreshChainStartTime = refreshChainStartTime;
   }

@@ -15,33 +15,30 @@
  */
 package com.dremio.jdbc.client;
 
+import com.dremio.exec.rpc.proxy.ProxyConfig;
+import com.dremio.jdbc.SabotNodeRule;
+import com.dremio.jdbc.test.JdbcAssert;
+import io.netty.handler.proxy.DremioSocks5ProxyServer;
 import java.net.InetSocketAddress;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Properties;
-
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;
 
-import com.dremio.exec.rpc.proxy.ProxyConfig;
-import com.dremio.jdbc.SabotNodeRule;
-import com.dremio.jdbc.test.JdbcAssert;
-
-import io.netty.handler.proxy.DremioSocks5ProxyServer;
-
 public class TestProxyIntercept {
 
-  @ClassRule
-  public static final SabotNodeRule sabotNode = new SabotNodeRule();
+  @ClassRule public static final SabotNodeRule sabotNode = new SabotNodeRule();
   private static final String SOCKS_PROXY_USERNAME = "testUser";
   private static final String SOCKS_PROXY_PASSWORD = "testPassword";
 
   @Test
   public void testProxyNoAuth() throws Exception {
-    final InetSocketAddress destinationAddress = new InetSocketAddress("localhost", sabotNode.getPort());
+    final InetSocketAddress destinationAddress =
+        new InetSocketAddress("localhost", sabotNode.getPort());
 
-    try(DremioSocks5ProxyServer proxyNoAuth = new DremioSocks5ProxyServer(destinationAddress)) {
+    try (DremioSocks5ProxyServer proxyNoAuth = new DremioSocks5ProxyServer(destinationAddress)) {
 
       final String socksProxyHost = proxyNoAuth.address().getHostName();
       final String socksProxyPort = String.valueOf(proxyNoAuth.address().getPort());
@@ -58,9 +55,12 @@ public class TestProxyIntercept {
 
   @Test
   public void testProxyAuth() throws Exception {
-    final InetSocketAddress destinationAddress = new InetSocketAddress("localhost", sabotNode.getPort());
+    final InetSocketAddress destinationAddress =
+        new InetSocketAddress("localhost", sabotNode.getPort());
 
-    try(DremioSocks5ProxyServer proxyWithAuth = new DremioSocks5ProxyServer(destinationAddress, SOCKS_PROXY_USERNAME, SOCKS_PROXY_PASSWORD)){
+    try (DremioSocks5ProxyServer proxyWithAuth =
+        new DremioSocks5ProxyServer(
+            destinationAddress, SOCKS_PROXY_USERNAME, SOCKS_PROXY_PASSWORD)) {
       final String socksProxyAuthHost = proxyWithAuth.address().getHostName();
       final String socksProxyAuthPort = String.valueOf(proxyWithAuth.address().getPort());
 
@@ -79,8 +79,11 @@ public class TestProxyIntercept {
 
   @Test
   public void testProxyWrongPassword() {
-    final InetSocketAddress destinationAddress = new InetSocketAddress("localhost", sabotNode.getPort());
-    try (DremioSocks5ProxyServer proxyWithAuth = new DremioSocks5ProxyServer(destinationAddress, SOCKS_PROXY_USERNAME, SOCKS_PROXY_PASSWORD)) {
+    final InetSocketAddress destinationAddress =
+        new InetSocketAddress("localhost", sabotNode.getPort());
+    try (DremioSocks5ProxyServer proxyWithAuth =
+        new DremioSocks5ProxyServer(
+            destinationAddress, SOCKS_PROXY_USERNAME, SOCKS_PROXY_PASSWORD)) {
       final String socksProxyAuthHost = proxyWithAuth.address().getHostName();
       final String socksProxyAuthPort = String.valueOf(proxyWithAuth.address().getPort());
 
@@ -90,9 +93,12 @@ public class TestProxyIntercept {
       properties.put(ProxyConfig.SOCKS_PROXY_USERNAME, SOCKS_PROXY_USERNAME);
       properties.put(ProxyConfig.SOCKS_PROXY_PASSWORD, "gnarly");
 
-      Exception exception = Assert.assertThrows(SQLException.class, () -> {
-        DriverManager.getConnection(sabotNode.getJDBCConnectionString(), properties);
-      });
+      Exception exception =
+          Assert.assertThrows(
+              SQLException.class,
+              () -> {
+                DriverManager.getConnection(sabotNode.getJDBCConnectionString(), properties);
+              });
 
       String expectedMessage = "ProxyConnectException";
       String actualMessage = exception.getMessage();

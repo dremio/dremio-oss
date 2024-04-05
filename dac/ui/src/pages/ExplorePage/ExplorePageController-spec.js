@@ -107,7 +107,7 @@ describe("ExplorePageController", () => {
   describe("rendering", () => {
     it("should render with minimal props", () => {
       const wrapper = shallow(
-        <ExplorePageControllerComponent {...minimalProps} />
+        <ExplorePageControllerComponent {...minimalProps} />,
       );
       expect(wrapper).to.have.length(1);
     });
@@ -223,7 +223,7 @@ describe("ExplorePageController", () => {
         instance.shouldComponentUpdate({
           ...commonProps,
           dataset: commonProps.dataset.set("foo", "bar"),
-        })
+        }),
       ).to.be.true;
     });
 
@@ -232,12 +232,12 @@ describe("ExplorePageController", () => {
         instance.shouldComponentUpdate({
           ...commonProps,
           pageType: "differentPageType",
-        })
+        }),
       ).to.be.true;
     });
   });
 
-  it("addHasChangesHook is called on mount", () => {
+  it("addHasChangesHook is called on mount", async () => {
     const props = {
       ...commonProps,
       addHasChangesHook: sinon.stub(),
@@ -246,8 +246,9 @@ describe("ExplorePageController", () => {
     const instance = shallow(<ExplorePageControllerComponent {...props} />, {
       disableLifecycleMethods: false,
     }).instance();
+    await instance.componentDidMount();
     expect(props.addHasChangesHook).to.be.calledWith(
-      instance.shouldShowUnsavedChangesPopup
+      instance.shouldShowUnsavedChangesPopup,
     );
     expect(props.initRefs).to.be.called;
   });
@@ -269,15 +270,15 @@ describe("ExplorePageController", () => {
         instance._areLocationsSameDataset(
           history,
           { pathname: "/space/foo/a.b.c/foo" },
-          { pathname: "/space/foo/a.b.c/details" }
-        )
+          { pathname: "/space/foo/a.b.c/details" },
+        ),
       ).to.be.true;
       expect(
         instance._areLocationsSameDataset(
           history,
           { pathname: "/space/foo/a.b.c/details" },
-          { pathname: "/space/foo/different" }
-        )
+          { pathname: "/space/foo/different" },
+        ),
       ).to.be.false;
     });
 
@@ -286,15 +287,15 @@ describe("ExplorePageController", () => {
         instance._areLocationsSameDataset(
           history,
           { pathname: "/space/foo/a.b.c" },
-          { pathname: "/space/tmp/UNTITLED" }
-        )
+          { pathname: "/space/tmp/UNTITLED" },
+        ),
       ).to.be.true;
       expect(
         instance._areLocationsSameDataset(
           history,
           { pathname: "/space/foo/a.b.c" },
-          { pathname: "/space/foo/UNTITLED" }
-        )
+          { pathname: "/space/foo/UNTITLED" },
+        ),
       ).to.be.false;
     });
 
@@ -303,15 +304,15 @@ describe("ExplorePageController", () => {
         instance._areLocationsSameDataset(
           history.set("items", Immutable.fromJS(["456", "123"])),
           { pathname: "/space/tmp/UNTITLED" },
-          { pathname: "/space/foo/a.b.c", query: { version: "123" } }
-        )
+          { pathname: "/space/foo/a.b.c", query: { version: "123" } },
+        ),
       ).to.be.true;
       expect(
         instance._areLocationsSameDataset(
           history.set("items", Immutable.fromJS(["456", "123"])),
           { pathname: "/space/foo/a.b.c" },
-          { pathname: "/space/foo/UNTITLED" }
-        )
+          { pathname: "/space/foo/UNTITLED" },
+        ),
       ).to.be.false;
     });
   });

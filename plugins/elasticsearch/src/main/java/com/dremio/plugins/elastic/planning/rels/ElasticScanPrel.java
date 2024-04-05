@@ -15,18 +15,6 @@
  */
 package com.dremio.plugins.elastic.planning.rels;
 
-import java.io.IOException;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.RelWriter;
-import org.apache.calcite.rel.core.TableScan;
-import org.apache.calcite.rel.metadata.RelMetadataQuery;
-
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.planner.fragment.DistributionAffinity;
 import com.dremio.exec.planner.physical.CustomPrel;
@@ -38,6 +26,16 @@ import com.dremio.exec.planner.physical.visitor.PrelVisitor;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators;
+import java.io.IOException;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.RelWriter;
+import org.apache.calcite.rel.core.TableScan;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
 /*
  * Represents a finalized Elastic scan after a query has been generated. At this point, no further pushdowns
@@ -47,8 +45,12 @@ import com.dremio.options.TypeValidators;
  */
 @Options
 public class ElasticScanPrel extends TableScan implements LeafPrel, CustomPrel {
-  public static final TypeValidators.LongValidator RESERVE = new TypeValidators.PositiveLongValidator("planner.op.scan.elastic.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
-  public static final TypeValidators.LongValidator LIMIT = new TypeValidators.PositiveLongValidator("planner.op.scan.elastic.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
+  public static final TypeValidators.LongValidator RESERVE =
+      new TypeValidators.PositiveLongValidator(
+          "planner.op.scan.elastic.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
+  public static final TypeValidators.LongValidator LIMIT =
+      new TypeValidators.PositiveLongValidator(
+          "planner.op.scan.elastic.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
 
   private final ElasticsearchPrel input;
   private final ScanBuilder scanBuilder;
@@ -88,7 +90,10 @@ public class ElasticScanPrel extends TableScan implements LeafPrel, CustomPrel {
 
   @Override
   public RelWriter explainTerms(RelWriter pw) {
-    return super.explainTerms(pw).item("resource", scanBuilder.getResource()).item("columns", scanBuilder.getColumns()).item("pushdown\n ", scanBuilder.getQuery());
+    return super.explainTerms(pw)
+        .item("resource", scanBuilder.getResource())
+        .item("columns", scanBuilder.getColumns())
+        .item("pushdown\n ", scanBuilder.getQuery());
   }
 
   @Override
@@ -97,12 +102,13 @@ public class ElasticScanPrel extends TableScan implements LeafPrel, CustomPrel {
 
     final BatchSchema schema = input.getSchema(creator.getFunctionLookupContext());
     return scanBuilder.toGroupScan(
-        creator.props(this, null/*todo: need to send user?*/, schema, RESERVE, LIMIT),
+        creator.props(this, null /*todo: need to send user?*/, schema, RESERVE, LIMIT),
         mq.getRowCount(input).longValue());
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(PrelVisitor<T, X, E> logicalVisitor, X value) throws E {
+  public <T, X, E extends Throwable> T accept(PrelVisitor<T, X, E> logicalVisitor, X value)
+      throws E {
     return logicalVisitor.visitLeaf(this, value);
   }
 
@@ -151,7 +157,7 @@ public class ElasticScanPrel extends TableScan implements LeafPrel, CustomPrel {
     }
   }
 
-  private final class ScanPrelFinder extends BasePrelVisitor<LeafPrel,Void,RuntimeException> {
+  private final class ScanPrelFinder extends BasePrelVisitor<LeafPrel, Void, RuntimeException> {
     @Override
     public LeafPrel visitPrel(Prel prel, Void v) {
       LeafPrel leafPrel;

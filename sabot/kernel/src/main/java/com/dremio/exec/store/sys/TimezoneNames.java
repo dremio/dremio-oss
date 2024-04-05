@@ -15,57 +15,63 @@
  */
 package com.dremio.exec.store.sys;
 
+import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Iterators;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.zone.ZoneRules;
 import java.util.Iterator;
 
-import com.google.common.base.Function;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Iterators;
-
-/**
- * Class to serve sys.timezone_names table
- */
+/** Class to serve sys.timezone_names table */
 public class TimezoneNames {
 
   public static Iterator<Object> getIterator() {
-    return Iterators.transform(ZoneId.getAvailableZoneIds().stream().sorted().iterator(), zoneIdToTimezone);
+    return Iterators.transform(
+        ZoneId.getAvailableZoneIds().stream().sorted().iterator(), zoneIdToTimezone);
   }
 
-  private static final Function<String, TimezoneRegion> zoneIdToTimezone = (zone) -> {
-    Preconditions.checkNotNull(zone);
+  private static final Function<String, TimezoneRegion> zoneIdToTimezone =
+      (zone) -> {
+        Preconditions.checkNotNull(zone);
 
-    Instant now = Instant.now();
-    ZoneRules zoneRules = ZoneId.of(zone).getRules();
-    ZoneOffset standardOffset = zoneRules.getStandardOffset(now);
-    ZoneOffset dsOffset = ZoneOffset.ofTotalSeconds((int) zoneRules.getDaylightSavings(now)
-      .plusSeconds(standardOffset.getTotalSeconds())
-      .getSeconds());
+        Instant now = Instant.now();
+        ZoneRules zoneRules = ZoneId.of(zone).getRules();
+        ZoneOffset standardOffset = zoneRules.getStandardOffset(now);
+        ZoneOffset dsOffset =
+            ZoneOffset.ofTotalSeconds(
+                (int)
+                    zoneRules
+                        .getDaylightSavings(now)
+                        .plusSeconds(standardOffset.getTotalSeconds())
+                        .getSeconds());
 
-    String standardOffsetId = standardOffset.getId();
-    if ("Z".equals(standardOffsetId)) {
-      standardOffsetId = "+00:00";
-    }
+        String standardOffsetId = standardOffset.getId();
+        if ("Z".equals(standardOffsetId)) {
+          standardOffsetId = "+00:00";
+        }
 
-    String dsOffsetId = dsOffset.getId();
-    if ("Z".equals(dsOffsetId)) {
-      dsOffsetId = "+00:00";
-    }
-    return new TimezoneRegion(zone, standardOffsetId, dsOffsetId, zoneRules.isDaylightSavings(now));
-  };
+        String dsOffsetId = dsOffset.getId();
+        if ("Z".equals(dsOffsetId)) {
+          dsOffsetId = "+00:00";
+        }
+        return new TimezoneRegion(
+            zone, standardOffsetId, dsOffsetId, zoneRules.isDaylightSavings(now));
+      };
 
-  /**
-   * This is the schema for sys.timezone_names
-   */
+  /** This is the schema for sys.timezone_names */
   public static class TimezoneRegion {
     public String timezone_name;
     public String tz_offset;
     public String offset_daylight_savings;
     public boolean is_daylight_savings;
 
-    public TimezoneRegion(String timezone_name, String tz_offset, String offset_daylight_savings, boolean is_daylight_savings) {
+    public TimezoneRegion(
+        String timezone_name,
+        String tz_offset,
+        String offset_daylight_savings,
+        boolean is_daylight_savings) {
       this.timezone_name = timezone_name;
       this.tz_offset = tz_offset;
       this.offset_daylight_savings = offset_daylight_savings;

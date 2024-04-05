@@ -15,12 +15,6 @@
  */
 package com.dremio.plugins.awsglue.store;
 
-import java.util.List;
-
-import javax.inject.Provider;
-import javax.validation.constraints.Max;
-import javax.validation.constraints.Min;
-
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.AWSAuthenticationType;
 import com.dremio.exec.catalog.conf.AWSRegionSelection;
@@ -31,14 +25,16 @@ import com.dremio.exec.catalog.conf.DoNotDisplay;
 import com.dremio.exec.catalog.conf.NotMetadataImpacting;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.catalog.conf.Secret;
+import com.dremio.exec.catalog.conf.SecretRef;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.server.SabotContext;
-
 import io.protostuff.Tag;
+import java.util.List;
+import javax.inject.Provider;
+import javax.validation.constraints.Max;
+import javax.validation.constraints.Min;
 
-/**
- * Connection Configuration for AWSGLUE.
- */
+/** Connection Configuration for AWSGLUE. */
 @SourceType(value = "AWSGLUE", label = "AWS Glue Data Catalog", uiConfig = "awsglue-layout.json")
 public class AWSGluePluginConfig extends ConnectionConf<AWSGluePluginConfig, AWSGlueStoragePlugin> {
 
@@ -53,7 +49,7 @@ public class AWSGluePluginConfig extends ConnectionConf<AWSGluePluginConfig, AWS
   @Tag(3)
   @Secret
   @DisplayMetadata(label = "AWS Access Secret")
-  public String accessSecret = "";
+  public SecretRef accessSecret = SecretRef.empty();
 
   @Tag(4)
   @NotMetadataImpacting
@@ -80,7 +76,9 @@ public class AWSGluePluginConfig extends ConnectionConf<AWSGluePluginConfig, AWS
   @Tag(9)
   @NotMetadataImpacting
   @Min(value = 1, message = "Max percent of total available cache space must be between 1 and 100")
-  @Max(value = 100, message = "Max percent of total available cache space must be between 1 and 100")
+  @Max(
+      value = 100,
+      message = "Max percent of total available cache space must be between 1 and 100")
   @DisplayMetadata(label = "Max percent of total available cache space to use when possible")
   public int maxCacheSpacePct = 100;
 
@@ -103,7 +101,8 @@ public class AWSGluePluginConfig extends ConnectionConf<AWSGluePluginConfig, AWS
   }
 
   @Override
-  public AWSGlueStoragePlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
+  public AWSGlueStoragePlugin newPlugin(
+      SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
     return new AWSGlueStoragePlugin(this, context, name, pluginIdProvider);
   }
 }

@@ -16,11 +16,13 @@
 
 package com.dremio.exec.planner.cost;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.planner.physical.PrelUtil;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-
 import org.apache.calcite.plan.AbstractRelOptPlanner;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.hep.HepRelVertex;
@@ -28,10 +30,6 @@ import org.apache.calcite.plan.volcano.RelSubset;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.metadata.NullSentinel;
 import org.apache.calcite.rel.metadata.RelMetadataCache;
-
-import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.planner.physical.PrelUtil;
 
 public class DremioRelMetadataCache implements RelMetadataCache {
   public static final String MAX_METADATA_CALL_ERROR_MESSAGE =
@@ -94,17 +92,20 @@ public class DremioRelMetadataCache implements RelMetadataCache {
     long pcc = putCallCount.incrementAndGet();
     lock.writeLock().lock();
     try {
-      if (value != NullSentinel.ACTIVE || relNode instanceof RelSubset || relNode instanceof HepRelVertex) {
+      if (value != NullSentinel.ACTIVE
+          || relNode instanceof RelSubset
+          || relNode instanceof HepRelVertex) {
         Map<Object, Object> row = map.get(relNode);
         if (row == null) {
-          //Only check when we see a new RelNode to make sure the overhead is minimized.
+          // Only check when we see a new RelNode to make sure the overhead is minimized.
           if (planner instanceof AbstractRelOptPlanner) {
             PlannerSettings settings = PrelUtil.getPlannerSettings(planner);
             if (settings != null) {
               long maxCallCount = settings.maxMetadataCallCount();
               if (pcc > maxCallCount) {
                 throw UserException.planError()
-                  .message(MAX_METADATA_CALL_ERROR_MESSAGE).buildSilently();
+                    .message(MAX_METADATA_CALL_ERROR_MESSAGE)
+                    .buildSilently();
               }
               ((AbstractRelOptPlanner) planner).checkCancel();
             }

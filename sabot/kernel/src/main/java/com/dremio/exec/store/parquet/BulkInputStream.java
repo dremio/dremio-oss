@@ -15,26 +15,24 @@
  */
 package com.dremio.exec.store.parquet;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import java.io.Closeable;
 import java.io.EOFException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-
 import org.apache.parquet.io.SeekableInputStream;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
-
-/**
- * An custom input stream with minimal methods and designed for bulk reads.
- */
+/** An custom input stream with minimal methods and designed for bulk reads. */
 public interface BulkInputStream extends Closeable {
 
-  void seek(long offset)  throws IOException;
+  void seek(long offset) throws IOException;
+
   void readFully(ByteBuf buf, int length) throws IOException;
+
   long getPos() throws IOException;
 
-  default void readFully(byte[] dst, int dstOffset, int dstLen)  throws IOException {
+  default void readFully(byte[] dst, int dstOffset, int dstLen) throws IOException {
     final ByteBuf buf1 = Unpooled.buffer(dstLen);
     try {
       readFully(buf1, dstLen);
@@ -123,7 +121,7 @@ public interface BulkInputStream extends Closeable {
   }
 
   default SeekableInputStream asSeekableInputStream() {
-    if(this instanceof SeekableBulkInputStream) {
+    if (this instanceof SeekableBulkInputStream) {
       return (SeekableInputStream) this;
     }
     return new SeekableInputStream() {
@@ -175,6 +173,7 @@ public interface BulkInputStream extends Closeable {
       }
 
       private final ByteBuf singleByte = Unpooled.buffer(1);
+
       @Override
       public int read() throws IOException {
         try {

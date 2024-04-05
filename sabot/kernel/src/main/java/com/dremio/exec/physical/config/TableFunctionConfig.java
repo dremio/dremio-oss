@@ -21,9 +21,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 
-/**
- * Table function config
- */
+/** Table function config */
 @JsonTypeName("table-function-config")
 public class TableFunctionConfig {
   public enum FunctionType {
@@ -55,6 +53,7 @@ public class TableFunctionConfig {
     ICEBERG_INCREMENTAL_REFRESH_JOIN_KEY,
     DELTALAKE_HISTORY_SCAN
   }
+
   private final FunctionType type;
   private final TableFunctionContext functionContext;
   private final boolean fillBatch;
@@ -62,10 +61,9 @@ public class TableFunctionConfig {
   private long maxWidth = -1;
 
   public TableFunctionConfig(
-    @JsonProperty("type") FunctionType type,
-    @JsonProperty("fillBatch") boolean fillBatch,
-    @JsonProperty("functioncontext") TableFunctionContext functionContext
-  ) {
+      @JsonProperty("type") FunctionType type,
+      @JsonProperty("fillBatch") boolean fillBatch,
+      @JsonProperty("functioncontext") TableFunctionContext functionContext) {
     this.type = type;
     this.functionContext = functionContext;
     this.fillBatch = fillBatch;
@@ -90,8 +88,7 @@ public class TableFunctionConfig {
 
   @JsonIgnore
   public BatchSchema getOutputSchema() {
-    return functionContext.getFullSchema().maskAndReorder(
-      functionContext.getColumns());
+    return functionContext.getFullSchema().maskAndReorder(functionContext.getColumns());
   }
 
   @JsonIgnore

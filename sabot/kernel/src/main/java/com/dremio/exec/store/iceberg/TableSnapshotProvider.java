@@ -16,12 +16,8 @@
 package com.dremio.exec.store.iceberg;
 
 import java.util.function.Function;
-
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 
-/**
- * Given a table, provide a snapshot.
- */
-public interface TableSnapshotProvider extends Function<Table, Snapshot> {
-}
+/** Given a table, provide a snapshot. */
+public interface TableSnapshotProvider extends Function<Table, Snapshot> {}

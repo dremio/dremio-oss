@@ -15,6 +15,8 @@
  */
 package com.microsoft.azure.datalake.store;
 
+import com.google.common.base.Preconditions;
+import io.netty.handler.codec.http.HttpHeaderNames;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URISyntaxException;
@@ -22,20 +24,15 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
 import org.apache.http.client.utils.URIBuilder;
 import org.asynchttpclient.Request;
 import org.asynchttpclient.RequestBuilder;
 import org.asynchttpclient.uri.Uri;
 import org.slf4j.Logger;
 
-import com.google.common.base.Preconditions;
-
-import io.netty.handler.codec.http.HttpHeaderNames;
-
 /**
- * Wrapper around an {@link ADLStoreClient} client. Provides public methods
- * to invoke package-private methods of the underlying {@link ADLStoreClient} client.
+ * Wrapper around an {@link ADLStoreClient} client. Provides public methods to invoke
+ * package-private methods of the underlying {@link ADLStoreClient} client.
  */
 public class ADLSClient {
 
@@ -50,34 +47,36 @@ public class ADLSClient {
   }
 
   /**
-   * Calls the underlying client's {@code getExceptionFromResponse}
-   * to create an {@link ADLException} from a {@link OperationResponse}
+   * Calls the underlying client's {@code getExceptionFromResponse} to create an {@link
+   * ADLException} from a {@link OperationResponse}
+   *
    * @param resp
    * @param path
    * @return
    * @throws Exception
    */
-  public IOException getExceptionFromResponse(OperationResponse resp, String path) throws Exception {
+  public IOException getExceptionFromResponse(OperationResponse resp, String path)
+      throws Exception {
     throw client.getExceptionFromResponse(resp, String.format("Error reading file %s", path));
   }
 
   /**
    * Gets the access token associated with the underlying {@link ADLStoreClient} client.
+   *
    * @throws IOException
    */
   public String getAccessToken() throws IOException {
     return client.getAccessToken();
   }
 
-  /**
-   * Gets the ADLS account name associated with the underlying client
-   */
+  /** Gets the ADLS account name associated with the underlying client */
   public String getAccountName() {
     return client.getAccountName();
   }
 
   /**
    * Public method to access the package private {@link Operation.OPEN} enum
+   *
    * @return
    */
   public static Operation getOpenOperation() {
@@ -86,6 +85,7 @@ public class ADLSClient {
 
   /**
    * Sets the {@link ADLStoreOptions} options for the underlying client.
+   *
    * @param option
    * @throws IOException
    */
@@ -94,8 +94,9 @@ public class ADLSClient {
   }
 
   /**
-   * Gets the metadata/information about the given file by calling
-   * the underlying client's {@code getDirectory} method.
+   * Gets the metadata/information about the given file by calling the underlying client's {@code
+   * getDirectory} method.
+   *
    * @throws IOException
    */
   public DirectoryEntry getDirectoryEntry(String testFile) throws IOException {
@@ -103,17 +104,16 @@ public class ADLSClient {
   }
 
   /**
-   * Calls the {@code getReadStream} method on the underlying client
-   * and returns an {@link ADLFileInputStream} to read the file
+   * Calls the {@code getReadStream} method on the underlying client and returns an {@link
+   * ADLFileInputStream} to read the file
+   *
    * @throws IOException
    */
   public InputStream getReadStream(String testFile) throws IOException {
     return client.getReadStream(testFile);
   }
 
-  /**
-   * Helper class for creating a {@link Request} object.
-   */
+  /** Helper class for creating a {@link Request} object. */
   public static class AdlsRequestBuilder {
 
     // API version from ADLS SDK's HttpTransport class.
@@ -137,7 +137,6 @@ public class ADLSClient {
       addHeader(HttpHeaderNames.HOST.toString(), client.getAccountName());
       addHeader("Authorization", authToken);
       addHeader("User-Agent", client.getUserAgent());
-
     }
 
     public AdlsRequestBuilder addQueryParam(String key, String value) {
@@ -180,20 +179,18 @@ public class ADLSClient {
       }
       pathBuilder.append(filePath);
 
-      final URIBuilder uriBuilder = new URIBuilder()
-        .setScheme(client.getHttpPrefix())
-        .setHost(client.getAccountName())
-        .setPath(pathBuilder.toString())
-        .setCustomQuery(params.serialize());
+      final URIBuilder uriBuilder =
+          new URIBuilder()
+              .setScheme(client.getHttpPrefix())
+              .setHost(client.getAccountName())
+              .setPath(pathBuilder.toString())
+              .setCustomQuery(params.serialize());
 
       try {
         final String jdkUri = uriBuilder.build().toASCIIString();
         logger.debug("ADLS request built: {}", jdkUri);
 
-        return new RequestBuilder()
-          .setUri(Uri.create(jdkUri))
-          .setHeaders(headers)
-          .build();
+        return new RequestBuilder().setUri(Uri.create(jdkUri)).setHeaders(headers).build();
       } catch (URISyntaxException e) {
         throw new IllegalArgumentException(e);
       }

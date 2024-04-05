@@ -16,9 +16,7 @@
 
 package com.dremio.service.reindexer.store;
 
-/**
- * Exceptions specific to ReindexVersionStore
- */
+/** Exceptions specific to ReindexVersionStore */
 public class ReindexVersionStoreException extends Exception {
   private static final long serialVersionUID = 1L;
 

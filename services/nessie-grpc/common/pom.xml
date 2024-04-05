@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.services</groupId>
     <artifactId>dremio-services-nessie-grpc</artifactId>
-    <version>24.3.2-202401241821100032-d2d8a497</version>
+    <version>25.0.0-202404051521110861-ed9515a8</version>
   </parent>
 
   <artifactId>dremio-services-nessie-grpc-common</artifactId>
@@ -80,11 +80,11 @@
         <executions>
           <execution>
             <id>generate-protobuf</id>
-            <phase>generate-sources</phase>
             <goals>
               <goal>compile</goal>
               <goal>compile-custom</goal>
             </goals>
+            <phase>generate-sources</phase>
             <configuration>
               <pluginId>grpc-java</pluginId>
               <pluginArtifact>io.grpc:protoc-gen-grpc-java:${grpc.version}:exe:${os.detected.classifier}</pluginArtifact>

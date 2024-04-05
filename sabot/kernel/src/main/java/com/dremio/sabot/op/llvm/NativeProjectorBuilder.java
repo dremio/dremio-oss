@@ -15,23 +15,19 @@
  */
 package com.dremio.sabot.op.llvm;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import org.apache.arrow.gandiva.exceptions.GandivaException;
-import org.apache.arrow.vector.FieldVector;
-import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.types.pojo.Schema;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.sabot.exec.context.FunctionContext;
 import com.dremio.sabot.exec.context.OperatorStats;
+import java.util.ArrayList;
+import java.util.List;
+import org.apache.arrow.gandiva.exceptions.GandivaException;
+import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.types.pojo.Schema;
 
-/**
- * Used to construct a native projector for a set of expressions.
- */
+/** Used to construct a native projector for a set of expressions. */
 public class NativeProjectorBuilder {
 
   private final NativeProjectEvaluator NO_OP = new NoOpNativeProjectEvaluator();
@@ -44,7 +40,11 @@ public class NativeProjectorBuilder {
   private final boolean targetHostCPU;
   private final double exprComplexityThreshold;
 
-  public NativeProjectorBuilder(VectorAccessible incoming, FunctionContext functionContext, Boolean targetHostCPU, double exprComplexityThreshold) {
+  public NativeProjectorBuilder(
+      VectorAccessible incoming,
+      FunctionContext functionContext,
+      Boolean targetHostCPU,
+      double exprComplexityThreshold) {
     this.incoming = incoming;
     this.functionContext = functionContext;
     this.targetHostCPU = targetHostCPU;
@@ -53,24 +53,42 @@ public class NativeProjectorBuilder {
 
   /**
    * Add the provided expression to the native evaluator.
+   *
    * @param expr The expression to be written into the output vector.
    * @param outputVector the vector to write to.
    * @param optimize should optimize the llvm build
    */
-  public void add(LogicalExpression expr, ValueVector outputVector, boolean optimize) throws GandivaException {
+  public void add(LogicalExpression expr, ValueVector outputVector, boolean optimize)
+      throws GandivaException {
     ExprPairing pairing = new ExprPairing(expr, (FieldVector) outputVector, optimize);
     exprs.add(pairing);
   }
 
-  public NativeProjectEvaluator build(Schema incomingSchema, OperatorStats stats, GandivaSecondaryCacheWithStats secondaryCache) throws GandivaException {
-    if(exprs.isEmpty()) {
+  public NativeProjectEvaluator build(
+      Schema incomingSchema, OperatorStats stats, GandivaSecondaryCacheWithStats secondaryCache)
+      throws GandivaException {
+    if (exprs.isEmpty()) {
       return NO_OP;
     }
 
-    final NativeProjector projectorWithOpt = new NativeProjector(incoming, incomingSchema, functionContext, true, targetHostCPU,
-      secondaryCache, exprComplexityThreshold);
-    final NativeProjector projectorWithNoOpt = new NativeProjector(incoming, incomingSchema, functionContext, false, targetHostCPU,
-      secondaryCache, exprComplexityThreshold);
+    final NativeProjector projectorWithOpt =
+        new NativeProjector(
+            incoming,
+            incomingSchema,
+            functionContext,
+            true,
+            targetHostCPU,
+            secondaryCache,
+            exprComplexityThreshold);
+    final NativeProjector projectorWithNoOpt =
+        new NativeProjector(
+            incoming,
+            incomingSchema,
+            functionContext,
+            false,
+            targetHostCPU,
+            secondaryCache,
+            exprComplexityThreshold);
     for (ExprPairing e : exprs) {
       if (e.optimize) {
         projectorWithOpt.add(e.expr, e.outputVector);
@@ -102,15 +120,15 @@ public class NativeProjectorBuilder {
       }
 
       @Override
-      public void evaluate(int recordCount) throws Exception{
+      public void evaluate(int recordCount) throws Exception {
         if (!allocationVectorsForOpt.isEmpty()) {
           projectorWithOpt.execute(recordCount, allocationVectorsForOpt);
         }
         if (!allocationVectorsForNoOpt.isEmpty()) {
           projectorWithNoOpt.execute(recordCount, allocationVectorsForNoOpt);
         }
-      }};
-
+      }
+    };
   }
 
   private static class ExprPairing {
@@ -124,18 +142,14 @@ public class NativeProjectorBuilder {
       this.outputVector = outputVector;
       this.optimize = optimize;
     }
-
   }
 
   private static class NoOpNativeProjectEvaluator extends NativeProjectEvaluator {
 
     @Override
-    public void evaluate(int recordCount) {
-    }
+    public void evaluate(int recordCount) {}
 
     @Override
-    public void close() {
-    }
-
+    public void close() {}
   }
 }

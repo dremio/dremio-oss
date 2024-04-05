@@ -15,6 +15,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { connect } from "react-redux";
 import { intl } from "@app/utils/intl";
 import { cloneDeep, debounce } from "lodash";
 import Immutable from "immutable";
@@ -52,6 +53,7 @@ type JobsFilterProps = {
   query: JobsQueryParams | undefined;
   manageColumns: any[];
   setManageColumns: React.Dispatch<any>;
+  user: any;
 } & WithRouterProps;
 
 const JobsFilters = withRouter(
@@ -61,6 +63,7 @@ const JobsFilters = withRouter(
     location,
     manageColumns,
     setManageColumns,
+    user,
   }: JobsFilterProps) => {
     const defaultStartTime = new Date(2015, 0).getTime();
     const startTime = query?.filters?.st?.[0] || defaultStartTime; // start from 2015
@@ -70,6 +73,8 @@ const JobsFilters = withRouter(
     const [queues] = useResourceSnapshot(QueuesResource);
     const [usersSearch, setUsersSearch] = useState("");
     const dragToRef = useRef(-1);
+    const isAdmin = user?.admin;
+    const canViewAllJobs = user?.permissions?.canViewAllJobs;
 
     // Update filters by pushing to URL
     const updateQuery = useCallback(
@@ -80,15 +85,17 @@ const JobsFilters = withRouter(
           query: formatQueryState(query),
         });
       },
-      [location, router]
+      [location, router],
     );
 
     useEffect(() => {
-      UsersForJobsResource.fetch({
-        filter: usersSearch,
-      });
+      if (isAdmin || canViewAllJobs) {
+        UsersForJobsResource.fetch({
+          filter: usersSearch,
+        });
+      }
       additionalJobsControls?.().fetchQueue?.() && QueuesResource.fetch();
-    }, [usersSearch]);
+    }, [usersSearch, isAdmin, canViewAllJobs]);
 
     const debounceUpdateQuery = debounce((text) => {
       if (query) {
@@ -110,7 +117,7 @@ const JobsFilters = withRouter(
 
     const handleUpdateStartTime = (
       type: string,
-      rangeObj: Immutable.List<any>
+      rangeObj: Immutable.List<any>,
     ) => {
       const range = rangeObj && rangeObj.toJS && rangeObj.toJS();
       const fromDate = range && range[0];
@@ -200,10 +207,10 @@ const JobsFilters = withRouter(
         filterKey === GenericFilters.usr
           ? users || []
           : filterKey === GenericFilters.jst
-          ? itemsForStateFilter
-          : filterKey === GenericFilters.qt
-          ? itemsForQueryTypeFilter
-          : queues || [];
+            ? itemsForStateFilter
+            : filterKey === GenericFilters.qt
+              ? itemsForQueryTypeFilter
+              : queues || [];
       return (
         <FilterSelectMenu
           iconStyle={styles.arrow}
@@ -252,15 +259,16 @@ const JobsFilters = withRouter(
           />
           {renderFilterMenu(GenericFilters.jst)}
           {renderFilterMenu(GenericFilters.qt)}
-          {renderFilterMenu(GenericFilters.usr)}
-          {additionalJobsControls?.().renderFilterMenu?.() &&
+          {(isAdmin || canViewAllJobs) && renderFilterMenu(GenericFilters.usr)}
+          {queues?.length > 0 &&
+            additionalJobsControls?.().renderFilterMenu?.() &&
             renderFilterMenu(GenericFilters.qn)}
         </div>
         <FilterSelectMenu
           selectedToTop={false}
           noSearch
           selectedValues={Immutable.fromJS(
-            transformToSelectedItems(manageColumns)
+            transformToSelectedItems(manageColumns),
           )}
           onItemSelect={handleSelectColumn}
           onItemUnselect={handleSelectColumn}
@@ -282,8 +290,12 @@ const JobsFilters = withRouter(
         />
       </div>
     );
-  }
+  },
 );
+
+const mapStateToProps = (state: any) => {
+  return { user: state.account ? state.account.get("user").toJS() : {} };
+};
 
 const styles = {
   arrow: {
@@ -297,4 +309,4 @@ const styles = {
   },
 };
 
-export default JobsFilters;
+export default connect(mapStateToProps)(JobsFilters);

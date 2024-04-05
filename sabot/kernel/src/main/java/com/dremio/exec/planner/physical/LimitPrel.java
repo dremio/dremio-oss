@@ -15,17 +15,6 @@
  */
 package com.dremio.exec.planner.physical;
 
-import java.io.IOException;
-import java.util.Iterator;
-
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelCollation;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.core.Sort;
-import org.apache.calcite.rex.RexLiteral;
-import org.apache.calcite.rex.RexNode;
-
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.config.Limit;
 import com.dremio.exec.planner.common.LimitRelBase;
@@ -34,24 +23,46 @@ import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators.LongValidator;
 import com.dremio.options.TypeValidators.PositiveLongValidator;
+import java.io.IOException;
+import java.util.Iterator;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelCollation;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.core.Sort;
+import org.apache.calcite.rex.RexLiteral;
+import org.apache.calcite.rex.RexNode;
 
 @Options
 public class LimitPrel extends LimitRelBase implements Prel {
 
-  public static final LongValidator RESERVE = new PositiveLongValidator("planner.op.limit.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
-  public static final LongValidator LIMIT = new PositiveLongValidator("planner.op.limit.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
+  public static final LongValidator RESERVE =
+      new PositiveLongValidator("planner.op.limit.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
+  public static final LongValidator LIMIT =
+      new PositiveLongValidator("planner.op.limit.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
 
-
-  public LimitPrel(RelOptCluster cluster, RelTraitSet traitSet, RelNode child, RexNode offset, RexNode fetch) {
+  public LimitPrel(
+      RelOptCluster cluster, RelTraitSet traitSet, RelNode child, RexNode offset, RexNode fetch) {
     super(cluster, traitSet, child, offset, fetch);
   }
 
-  public LimitPrel(RelOptCluster cluster, RelTraitSet traitSet, RelNode child, RexNode offset, RexNode fetch, boolean pushDown) {
+  public LimitPrel(
+      RelOptCluster cluster,
+      RelTraitSet traitSet,
+      RelNode child,
+      RexNode offset,
+      RexNode fetch,
+      boolean pushDown) {
     super(cluster, traitSet, child, offset, fetch, pushDown);
   }
 
   @Override
-  public Sort copy(RelTraitSet traitSet, RelNode newInput, RelCollation newCollation, RexNode offset, RexNode fetch) {
+  public Sort copy(
+      RelTraitSet traitSet,
+      RelNode newInput,
+      RelCollation newCollation,
+      RexNode offset,
+      RexNode fetch) {
     return new LimitPrel(getCluster(), traitSet, newInput, offset, fetch, isPushDown());
   }
 
@@ -68,22 +79,22 @@ public class LimitPrel extends LimitRelBase implements Prel {
         creator.props(this, null, childPOP.getProps().getSchema(), RESERVE, LIMIT),
         childPOP,
         first,
-        last
-        );
+        last);
   }
 
-  private int getFirst(){
+  private int getFirst() {
     // First offset to include into results (inclusive). Null implies it is starting from offset 0
     return offset != null ? Math.max(0, RexLiteral.intValue(offset)) : 0;
   }
 
-  private Integer getLast(){
-    // Last offset to stop including into results (exclusive), translating fetch row counts into an offset.
+  private Integer getLast() {
+    // Last offset to stop including into results (exclusive), translating fetch row counts into an
+    // offset.
     // Null value implies including entire remaining result set from first offset
     return fetch != null ? Math.max(0, RexLiteral.intValue(fetch)) + getFirst() : null;
   }
 
-  public boolean isTrivial(){
+  public boolean isTrivial() {
     Integer last = getLast();
     return last != null && last <= PrelUtil.getPlannerSettings(getCluster()).getSliceTarget();
   }
@@ -94,7 +105,8 @@ public class LimitPrel extends LimitRelBase implements Prel {
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(PrelVisitor<T, X, E> logicalVisitor, X value) throws E {
+  public <T, X, E extends Throwable> T accept(PrelVisitor<T, X, E> logicalVisitor, X value)
+      throws E {
     return logicalVisitor.visitLimit(this, value);
   }
 
@@ -112,5 +124,4 @@ public class LimitPrel extends LimitRelBase implements Prel {
   public boolean needsFinalColumnReordering() {
     return true;
   }
-
 }

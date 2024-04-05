@@ -46,6 +46,10 @@ const getReflectionStatusInfo = (reflection: any) => {
     if (!reflection.isEnabled) {
       iconId = "job-state/cancel";
       text = t("Sonar.Reflection.StatusDisabled");
+    } else if (status.combinedStatus === "CANNOT_ACCELERATE_INITIALIZING") {
+      text = t(
+        "Sonar.Reflection.AccelerationStatus.CANNOT_ACCELERATE_INITIALIZING.Hint",
+      );
     } else if (status.configStatus === "INVALID") {
       iconId = "job-state/failed";
       text = t("Sonar.Reflection.StatusInvalidConfiguration", {
@@ -66,12 +70,21 @@ const getReflectionStatusInfo = (reflection: any) => {
       text = t("Sonar.Reflection.StatusExpired", {
         status: statusMessage,
       });
-    } else if (status.refreshStatus === "RUNNING") {
+    } else if (
+      status.refreshStatus === "RUNNING" ||
+      status.refreshStatus === "PENDING"
+    ) {
       if (status.availabilityStatus === "AVAILABLE") {
         iconId = "job-state/completed";
-        text = t("Sonar.Reflection.StatusRefreshing", {
-          status: statusMessage,
-        });
+        if (status.refreshStatus === "PENDING") {
+          text = t(`Sonar.Reflection.StatusPending`, {
+            status: statusMessage,
+          });
+        } else {
+          text = t(`Sonar.Reflection.StatusRefreshing`, {
+            status: statusMessage,
+          });
+        }
       } else {
         icon = <Spinner />;
         text = t("Sonar.Reflection.StatusBuilding", {
@@ -122,7 +135,7 @@ const getReflectionStatusInfo = (reflection: any) => {
 export const ReflectionStatus = (props: { reflection: any }) => {
   const { icon, path, text } = getReflectionStatusInfo(props.reflection);
   return (
-    <Tooltip content={text} portal>
+    <Tooltip content={text} portal style={{ maxWidth: 300 }}>
       {icon ? icon : <img src={path} alt="" />}
     </Tooltip>
   );

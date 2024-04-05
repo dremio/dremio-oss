@@ -15,9 +15,17 @@
  */
 package com.dremio.sabot;
 
+import com.dremio.common.AutoCloseables;
+import com.dremio.common.util.TestTools;
+import com.dremio.exec.expr.ClassProducer;
+import com.dremio.exec.record.VectorContainer;
+import com.dremio.exec.record.selection.SelectionVector4;
+import com.dremio.sabot.exec.context.BufferManagerImpl;
+import com.dremio.sabot.op.copier.Copier;
+import com.dremio.sabot.op.copier.CopierOperator;
+import com.dremio.sabot.op.sort.external.Sv4HyperContainer;
 import java.util.Collection;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.arrow.memory.AllocationListener;
 import org.apache.arrow.memory.AllocationReservation;
 import org.apache.arrow.memory.ArrowBuf;
@@ -30,16 +38,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestRule;
 
-import com.dremio.common.AutoCloseables;
-import com.dremio.common.util.TestTools;
-import com.dremio.exec.expr.ClassProducer;
-import com.dremio.exec.record.VectorContainer;
-import com.dremio.exec.record.selection.SelectionVector4;
-import com.dremio.sabot.exec.context.BufferManagerImpl;
-import com.dremio.sabot.op.copier.Copier;
-import com.dremio.sabot.op.copier.CopierOperator;
-import com.dremio.sabot.op.sort.external.Sv4HyperContainer;
-
 public class TestCopiers extends BaseTestOperator {
   static final int targetBatchSize = 1023;
 
@@ -51,8 +49,7 @@ public class TestCopiers extends BaseTestOperator {
   SelectionVector4 sv4;
   private final int recordCount = 100_000;
 
-  @Rule
-  public final TestRule timeoutRule = TestTools.getTimeoutRule(400, TimeUnit.SECONDS);
+  @Rule public final TestRule timeoutRule = TestTools.getTimeoutRule(400, TimeUnit.SECONDS);
 
   @Before
   public void prepare() {
@@ -62,13 +59,13 @@ public class TestCopiers extends BaseTestOperator {
     dataGenerator = new ComplexDataGenerator(recordCount, inputAlloc);
 
     inputHyper = new Sv4HyperContainer(inputAlloc, dataGenerator.getSchema());
-    sv4 = new SelectionVector4(inputAlloc.buffer(recordCount*4), recordCount, targetBatchSize);
+    sv4 = new SelectionVector4(inputAlloc.buffer(recordCount * 4), recordCount, targetBatchSize);
 
     int record = 0;
-    for(int i = 0; i < 10; i++) {
+    for (int i = 0; i < 10; i++) {
       int numRecords = dataGenerator.next(targetBatchSize);
       inputHyper.addBatch(dataGenerator.getOutput());
-      for(int j = 0; j < numRecords; j++) {
+      for (int j = 0; j < numRecords; j++) {
         sv4.set(record++, i, j);
       }
     }
@@ -96,11 +93,11 @@ public class TestCopiers extends BaseTestOperator {
   }
 
   private void testHelper(int allocatorSize, int targetBatchSize) throws Exception {
-    try (
-        AllocatorWrapper outputAlloc = new AllocatorWrapper(getTestAllocator().newChildAllocator("output", 0, allocatorSize));
-        final VectorContainer outgoing = VectorContainer.create(outputAlloc, dataGenerator.getSchema());
-        Copier copier = CopierOperator.getGenerated4Copier(producer, inputHyper, outgoing);
-    ) {
+    try (AllocatorWrapper outputAlloc =
+            new AllocatorWrapper(getTestAllocator().newChildAllocator("output", 0, allocatorSize));
+        final VectorContainer outgoing =
+            VectorContainer.create(outputAlloc, dataGenerator.getSchema());
+        Copier copier = CopierOperator.getGenerated4Copier(producer, inputHyper, outgoing); ) {
       int toCopy = targetBatchSize;
       while (toCopy > 0) {
         int copied = copier.copyRecords(0, toCopy);
@@ -151,7 +148,8 @@ public class TestCopiers extends BaseTestOperator {
     }
 
     @Override
-    public BufferAllocator newChildAllocator(String s, AllocationListener listener, long l, long l1) {
+    public BufferAllocator newChildAllocator(
+        String s, AllocationListener listener, long l, long l1) {
       return actual.newChildAllocator(s, listener, l, l1);
     }
 
@@ -226,7 +224,9 @@ public class TestCopiers extends BaseTestOperator {
     }
 
     @Override
-    public void assertOpen() { actual.assertOpen(); }
+    public void assertOpen() {
+      actual.assertOpen();
+    }
 
     @Override
     public AllocationListener getListener() {

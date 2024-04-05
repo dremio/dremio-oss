@@ -22,6 +22,7 @@ import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
  * Supports list<bigint> type of array schema
+ *
  * <p>We also support to add a [ NULL | NOT NULL ] suffix for every field type
  */
 public final class SqlArrayTypeSpec extends SqlTypeNameSpec {

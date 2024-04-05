@@ -17,26 +17,6 @@ package com.dremio.exec.store.iceberg;
 
 import static com.dremio.exec.store.iceberg.IcebergUtils.getPartitionColumns;
 
-import java.io.IOException;
-import java.math.BigDecimal;
-import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
-import org.apache.iceberg.DataFile;
-import org.apache.iceberg.FileScanTask;
-import org.apache.iceberg.PartitionField;
-import org.apache.iceberg.Schema;
-import org.apache.iceberg.StructLike;
-import org.apache.iceberg.Table;
-import org.apache.iceberg.transforms.Transforms;
-import org.apache.iceberg.types.Type;
-import org.apache.iceberg.types.Types;
-import org.joda.time.DateTimeConstants;
-
 import com.carrotsearch.hppc.cursors.ObjectLongCursor;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.connector.metadata.BytesOutput;
@@ -66,13 +46,32 @@ import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf.ParquetDatasetX
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.net.HostAndPort;
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import org.apache.iceberg.DataFile;
+import org.apache.iceberg.FileScanTask;
+import org.apache.iceberg.PartitionField;
+import org.apache.iceberg.Schema;
+import org.apache.iceberg.StructLike;
+import org.apache.iceberg.Table;
+import org.apache.iceberg.transforms.Transforms;
+import org.apache.iceberg.types.Type;
+import org.apache.iceberg.types.Types;
+import org.joda.time.DateTimeConstants;
 
 /**
- * Wrapper around iceberg table to build all the metadata details.
- * The current implementation assumes all the datafiles are of parquet type.
+ * Wrapper around iceberg table to build all the metadata details. The current implementation
+ * assumes all the datafiles are of parquet type.
  */
 public class IcebergTableWrapper {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(IcebergTableWrapper.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(IcebergTableWrapper.class);
 
   private SabotContext context;
   private FileSystem fs;
@@ -88,7 +87,8 @@ public class IcebergTableWrapper {
   private long recordCount;
   private final IcebergModel icebergModel;
 
-  public IcebergTableWrapper(SabotContext context, FileSystem fs, IcebergModel icebergModel, String rootDir) {
+  public IcebergTableWrapper(
+      SabotContext context, FileSystem fs, IcebergModel icebergModel, String rootDir) {
     this.fs = fs;
     this.rootDir = rootDir;
     this.icebergModel = icebergModel;
@@ -104,10 +104,14 @@ public class IcebergTableWrapper {
         // This should be the first step. Else, we can miss updates if there is a race with
         // insert.
         buildReadSignature();
-        table = icebergModel.getIcebergTable(
-                  icebergModel.getTableIdentifier(rootDir));
+        table = icebergModel.getIcebergTable(icebergModel.getTableIdentifier(rootDir));
         schema = table.schema();
-        SchemaConverter schemaConverter = SchemaConverter.getBuilder().setMapTypeEnabled(context.getOptionManager().getOption(ExecConstants.ENABLE_MAP_DATA_TYPE)).setTableName(table.name()).build();
+        SchemaConverter schemaConverter =
+            SchemaConverter.getBuilder()
+                .setMapTypeEnabled(
+                    context.getOptionManager().getOption(ExecConstants.ENABLE_MAP_DATA_TYPE))
+                .setTableName(table.name())
+                .build();
         batchSchema = schemaConverter.fromIceberg(table.schema());
         buildPartitionColumns();
         buildPartitionsAndSplits();
@@ -142,7 +146,9 @@ public class IcebergTableWrapper {
       }
 
       @Override
-      public BytesOutput provideSignature() { return readSignature; }
+      public BytesOutput provideSignature() {
+        return readSignature;
+      }
     };
   }
 
@@ -155,7 +161,8 @@ public class IcebergTableWrapper {
   // TODO: this should be optimised to handle deltas.
   private void buildPartitionsAndSplits() throws IOException {
     PartitionConverter partitionConverter = new PartitionConverter(schema);
-    SplitConverter splitConverter = new SplitConverter(context, fs, schema, datasetColumnValueCounts);
+    SplitConverter splitConverter =
+        new SplitConverter(context, fs, schema, datasetColumnValueCounts);
 
     // map of distinct partition values.
 
@@ -177,22 +184,19 @@ public class IcebergTableWrapper {
     ParquetDatasetXAttr.Builder builder = ParquetDatasetXAttr.newBuilder();
     builder.setSelectionRoot(rootDir);
     for (Map.Entry<String, Long> entry : datasetColumnValueCounts.entrySet()) {
-      builder.addColumnValueCountsBuilder()
-        .setColumn(entry.getKey())
-        .setCount(entry.getValue());
+      builder.addColumnValueCountsBuilder().setColumn(entry.getKey()).setCount(entry.getValue());
     }
 
     icebergDatasetBuilder.setParquetDatasetXAttr(builder.build());
     Map<String, Integer> schemaNameIDMap = IcebergUtils.getIcebergColumnNameToIDMap(this.schema);
-    schemaNameIDMap.forEach((k, v) -> icebergDatasetBuilder.addColumnIds(
-      IcebergSchemaField.newBuilder().setSchemaPath(k).setId(v).build()
-    ));
+    schemaNameIDMap.forEach(
+        (k, v) ->
+            icebergDatasetBuilder.addColumnIds(
+                IcebergSchemaField.newBuilder().setSchemaPath(k).setId(v).build()));
     datasetXAttr = icebergDatasetBuilder.build();
   }
 
-  /**
-   * Converter from iceberg partition values to dremio partition values.
-   */
+  /** Converter from iceberg partition values to dremio partition values. */
   static class PartitionConverter {
     private final Schema schema;
 
@@ -207,18 +211,29 @@ public class IcebergTableWrapper {
       List<PartitionValue> partitionValues = new ArrayList<>();
       for (int i = 0; i < partitionFields.size(); ++i) {
 
-        Types.NestedField partitionColumnFromSchema = schema.findField(partitionFields.get(i).sourceId());
+        Types.NestedField partitionColumnFromSchema =
+            schema.findField(partitionFields.get(i).sourceId());
 
-        if (!partitionFields.get(i).transform().equals(Transforms.identity(partitionColumnFromSchema.type()))) {
-          throw UserException.unsupportedError().message("Column values and partition values are not same for [%s] column",
-              partitionColumnFromSchema.name()).buildSilently();
+        if (!partitionFields
+            .get(i)
+            .transform()
+            .equals(Transforms.identity(partitionColumnFromSchema.type()))) {
+          throw UserException.unsupportedError()
+              .message(
+                  "Column values and partition values are not same for [%s] column",
+                  partitionColumnFromSchema.name())
+              .buildSilently();
         }
 
-        Type resultType = partitionFields.get(i).transform().getResultType(partitionColumnFromSchema.type());
+        Type resultType =
+            partitionFields.get(i).transform().getResultType(partitionColumnFromSchema.type());
 
-        logger.debug("file {} partitionColumn {} type {} value {}",
-          task.file().path(), partitionColumnFromSchema.name(), resultType,
-          filePartition.get(i, task.spec().javaClasses()[i]));
+        logger.debug(
+            "file {} partitionColumn {} type {} value {}",
+            task.file().path(),
+            partitionColumnFromSchema.name(),
+            resultType,
+            filePartition.get(i, task.spec().javaClasses()[i]));
 
         PartitionValue partitionValue = null;
         switch (resultType.typeId()) {
@@ -245,16 +260,16 @@ public class IcebergTableWrapper {
             }
 
           case DATE:
-          {
-            Integer ival = filePartition.get(i, Integer.class);
-            if (ival == null) {
-              partitionValue = PartitionValue.of(partitionColumnFromSchema.name());
-            } else {
-              long dateInMillis = (long)ival * DateTimeConstants.MILLIS_PER_DAY;
-              partitionValue = PartitionValue.of(partitionColumnFromSchema.name(), dateInMillis);
+            {
+              Integer ival = filePartition.get(i, Integer.class);
+              if (ival == null) {
+                partitionValue = PartitionValue.of(partitionColumnFromSchema.name());
+              } else {
+                long dateInMillis = (long) ival * DateTimeConstants.MILLIS_PER_DAY;
+                partitionValue = PartitionValue.of(partitionColumnFromSchema.name(), dateInMillis);
+              }
+              break;
             }
-            break;
-          }
 
           case TIME:
           case TIMESTAMP:
@@ -311,33 +326,36 @@ public class IcebergTableWrapper {
               if (cval == null) {
                 partitionValue = PartitionValue.of(partitionColumnFromSchema.name());
               } else {
-                partitionValue = PartitionValue.of(partitionColumnFromSchema.name(), cval.toString());
+                partitionValue =
+                    PartitionValue.of(partitionColumnFromSchema.name(), cval.toString());
               }
               break;
             }
 
           case DECIMAL:
-          {
-            BigDecimal dval = filePartition.get(i, BigDecimal.class);
-            if (dval == null) {
-              partitionValue = PartitionValue.of(partitionColumnFromSchema.name());
-            } else {
-              partitionValue = PartitionValue.of(partitionColumnFromSchema.name(),
-                ByteBuffer.wrap(dval.unscaledValue().toByteArray()));
+            {
+              BigDecimal dval = filePartition.get(i, BigDecimal.class);
+              if (dval == null) {
+                partitionValue = PartitionValue.of(partitionColumnFromSchema.name());
+              } else {
+                partitionValue =
+                    PartitionValue.of(
+                        partitionColumnFromSchema.name(),
+                        ByteBuffer.wrap(dval.unscaledValue().toByteArray()));
+              }
+              break;
             }
-            break;
-          }
 
           case BINARY:
-          {
-            ByteBuffer bval = filePartition.get(i, ByteBuffer.class);
-            if (bval == null) {
-              partitionValue = PartitionValue.of(partitionColumnFromSchema.name());
-            } else {
-              partitionValue = PartitionValue.of(partitionColumnFromSchema.name(), bval);
+            {
+              ByteBuffer bval = filePartition.get(i, ByteBuffer.class);
+              if (bval == null) {
+                partitionValue = PartitionValue.of(partitionColumnFromSchema.name());
+              } else {
+                partitionValue = PartitionValue.of(partitionColumnFromSchema.name(), bval);
+              }
+              break;
             }
-            break;
-          }
 
           default:
             throw new UnsupportedOperationException(resultType + " is not supported");
@@ -348,9 +366,7 @@ public class IcebergTableWrapper {
     }
   }
 
-  /**
-   * Convert an iceberg split into a DatasetSplit.
-   */
+  /** Convert an iceberg split into a DatasetSplit. */
   private static class SplitConverter {
     private final Schema schema;
     private final FileSystem fs;
@@ -358,15 +374,19 @@ public class IcebergTableWrapper {
     private final Set<HostAndPort> activeHostMap = Sets.newHashSet();
     private final Set<HostAndPort> activeHostPortMap = Sets.newHashSet();
 
-    SplitConverter(SabotContext context, FileSystem fs, Schema schema,
-      Map<String, Long> datasetColumnValueCounts) {
+    SplitConverter(
+        SabotContext context,
+        FileSystem fs,
+        Schema schema,
+        Map<String, Long> datasetColumnValueCounts) {
       this.schema = schema;
       this.fs = fs;
       this.datasetColumnValueCounts = datasetColumnValueCounts;
 
       for (NodeEndpoint endpoint : context.getExecutors()) {
         activeHostMap.add(HostAndPort.fromHost(endpoint.getAddress()));
-        activeHostPortMap.add(HostAndPort.fromParts(endpoint.getAddress(), endpoint.getFabricPort()));
+        activeHostPortMap.add(
+            HostAndPort.fromParts(endpoint.getAddress(), endpoint.getFabricPort()));
       }
     }
 
@@ -386,7 +406,7 @@ public class IcebergTableWrapper {
         for (Map.Entry<Integer, Long> entry : dataFile.valueCounts().entrySet()) {
           String columnName = schema.findColumnName(entry.getKey());
           Types.NestedField field = schema.findField(entry.getKey());
-          if (field == null || columnName  == null) {
+          if (field == null || columnName == null) {
             // we are not updating counts for list elements.
             continue;
           }
@@ -426,13 +446,15 @@ public class IcebergTableWrapper {
               .build();
 
       // build the host affinity details for the split.
-      Iterable<FileBlockLocation> blockLocations = fs.getFileBlockLocations(fileAttributes, task.start(), task.length());
-      Map<HostAndPort, Float> affinities = HostAffinityComputer.computeAffinitiesForSplit(
-        task.start(), task.length(), blockLocations, fs.preserveBlockLocationsOrder());
+      Iterable<FileBlockLocation> blockLocations =
+          fs.getFileBlockLocations(fileAttributes, task.start(), task.length());
+      Map<HostAndPort, Float> affinities =
+          HostAffinityComputer.computeAffinitiesForSplit(
+              task.start(), task.length(), blockLocations, fs.preserveBlockLocationsOrder());
       List<DatasetSplitAffinity> splitAffinities = new ArrayList<>();
       for (ObjectLongCursor<HostAndPort> item :
-        ParquetGroupScanUtils.buildEndpointByteMap(activeHostMap,
-          activeHostPortMap, affinities, task.length())) {
+          ParquetGroupScanUtils.buildEndpointByteMap(
+              activeHostMap, activeHostPortMap, affinities, task.length())) {
         splitAffinities.add(DatasetSplitAffinity.of(item.key.toString(), item.value));
       }
 
@@ -449,17 +471,13 @@ public class IcebergTableWrapper {
     }
 
     final FileAttributes attributes = fs.getFileAttributes(metaDir);
-    final FileSystemCachedEntity cachedEntity = FileSystemCachedEntity
-      .newBuilder()
-      .setPath(metaDir.toString())
-      .setLastModificationTime(attributes.lastModifiedTime().toMillis())
-      .setLength(attributes.size())
-      .build();
+    final FileSystemCachedEntity cachedEntity =
+        FileSystemCachedEntity.newBuilder()
+            .setPath(metaDir.toString())
+            .setLastModificationTime(attributes.lastModifiedTime().toMillis())
+            .setLength(attributes.size())
+            .build();
 
-    readSignature = FileUpdateKey
-      .newBuilder()
-      .addCachedEntities(cachedEntity)
-      .build()::writeTo;
+    readSignature = FileUpdateKey.newBuilder().addCachedEntities(cachedEntity).build()::writeTo;
   }
-
 }

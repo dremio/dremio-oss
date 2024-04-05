@@ -18,18 +18,13 @@ package com.dremio.service.conduit.server;
 
 import io.grpc.Server;
 
-/**
- * Utilities related to conduit server.
- */
+/** Utilities related to conduit server. */
 public final class ConduitServerTestUtils {
 
-  /**
-   * Expose {@link ConduitServer#getServer} method.
-   */
+  /** Expose {@link ConduitServer#getServer} method. */
   public static Server getServer(ConduitServer conduitServer) {
     return conduitServer.getServer();
   }
 
-  private ConduitServerTestUtils() {
-  }
+  private ConduitServerTestUtils() {}
 }

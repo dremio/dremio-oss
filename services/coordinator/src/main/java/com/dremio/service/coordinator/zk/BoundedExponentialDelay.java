@@ -15,19 +15,17 @@
  */
 package com.dremio.service.coordinator.zk;
 
+import com.google.common.base.Preconditions;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.curator.RetryPolicy;
 import org.apache.curator.RetrySleeper;
 import org.apache.curator.retry.BoundedExponentialBackoffRetry;
 
-import com.google.common.base.Preconditions;
-
 /**
  * Custom implementation of {@link BoundedExponentialBackoffRetry} with unlimited retries.<br>
- *
- * Retry policy that retries indefinitely with an increasing (up to a maximum bound) sleep time between retries<br>
+ * Retry policy that retries indefinitely with an increasing (up to a maximum bound) sleep time
+ * between retries<br>
  * assuming base sleep time is 1s:<br>
  * first retry sleeps 1s,<br>
  * 2nd retry sleeps "up to" 2s,<br>
@@ -40,7 +38,8 @@ public class BoundedExponentialDelay implements RetryPolicy {
   private final int maxSleepMs;
   private final long maxRetry;
 
-  public BoundedExponentialDelay(int baseSleepTimeMs, int maxSleepMs, boolean unlimited, long maxRetry) {
+  public BoundedExponentialDelay(
+      int baseSleepTimeMs, int maxSleepMs, boolean unlimited, long maxRetry) {
     Preconditions.checkArgument(baseSleepTimeMs > 0, "baseSleepTimeMs must be positive");
     Preconditions.checkArgument(maxSleepMs > baseSleepTimeMs, "maxSleepMs > baseSleepTimeMs");
     Preconditions.checkArgument(unlimited || maxRetry > 0, "maxRetry must be positive");
@@ -57,7 +56,7 @@ public class BoundedExponentialDelay implements RetryPolicy {
 
     try {
       sleeper.sleepFor(getSleepTimeMs(retryCount), TimeUnit.MILLISECONDS);
-    } catch ( InterruptedException e ) {
+    } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       return false;
     }

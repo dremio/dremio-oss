@@ -18,7 +18,7 @@ package com.dremio.datastore;
 /**
  * converts from T1 to T2 and back
  *
- * It is expected that revert(convert(v)).equals(v) if convert(v) does not throw an exception
+ * <p>It is expected that revert(convert(v)).equals(v) if convert(v) does not throw an exception
  *
  * @param <T1>
  * @param <T2>
@@ -39,6 +39,7 @@ public abstract class Converter<T1, T2> {
 
   /**
    * composes 2 converters
+   *
    * @param before
    * @return this o before
    */
@@ -48,6 +49,7 @@ public abstract class Converter<T1, T2> {
 
   /**
    * composes 2 converters
+   *
    * @param after
    * @return after o this
    */

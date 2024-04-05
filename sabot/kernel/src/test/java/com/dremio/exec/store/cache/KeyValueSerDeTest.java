@@ -20,18 +20,14 @@ import static org.junit.Assert.assertNotNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.dremio.io.file.FileBlockLocation;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-
 import org.junit.Test;
 
-import com.dremio.io.file.FileBlockLocation;
-import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
-
-/**
- * Tests for {@link KeyValueSerDe} class
- */
+/** Tests for {@link KeyValueSerDe} class */
 public class KeyValueSerDeTest {
   @Test
   public void testSerDeOfKey() {
@@ -56,7 +52,8 @@ public class KeyValueSerDeTest {
     byte[] serializedValue = KeyValueSerDe.serializeValue(blockLocations);
     assertNotNull(serializedValue);
 
-    PartitionProtobuf.BlockLocationsList deserializedValue = KeyValueSerDe.deserializeValue(serializedValue);
+    PartitionProtobuf.BlockLocationsList deserializedValue =
+        KeyValueSerDe.deserializeValue(serializedValue);
     assertEquals(1, deserializedValue.getBlockLocationsCount());
     assertEquals(1L, deserializedValue.getBlockLocations(0).getOffset());
     assertEquals(128L, deserializedValue.getBlockLocations(0).getSize());

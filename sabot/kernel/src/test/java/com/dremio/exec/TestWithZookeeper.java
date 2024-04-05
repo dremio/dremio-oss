@@ -15,13 +15,11 @@
  */
 package com.dremio.exec;
 
+import com.dremio.common.config.SabotConfig;
 import java.util.Properties;
-
 import org.apache.curator.test.TestingServer;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-
-import com.dremio.common.config.SabotConfig;
 
 public class TestWithZookeeper extends ExecTest {
 
@@ -55,5 +53,4 @@ public class TestWithZookeeper extends ExecTest {
     }
     return config;
   }
-
 }

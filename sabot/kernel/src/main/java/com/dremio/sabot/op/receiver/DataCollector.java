@@ -19,10 +19,15 @@ interface DataCollector extends AutoCloseable {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DataCollector.class);
 
   void streamCompleted(int minorFragmentId);
+
   void batchArrived(int minorFragmentId, RawFragmentBatch batch);
+
   int getOppositeMajorFragmentId();
+
   RawBatchBuffer[] getBuffers();
+
   int getTotalIncomingFragments();
+
   @Override
   void close() throws Exception;
 }

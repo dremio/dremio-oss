@@ -17,13 +17,6 @@ package com.dremio.exec.catalog;
 
 import static org.junit.Assert.assertTrue;
 
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.RootAllocatorFactory;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Ignore;
-import org.junit.Test;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.PlanTestBase;
 import com.dremio.dac.service.flight.FlightCloseableBindableService;
@@ -33,6 +26,12 @@ import com.dremio.service.sysflight.SysFlightProducer;
 import com.dremio.service.sysflight.SystemTableManagerImpl;
 import com.dremio.test.DremioTest;
 import com.google.inject.AbstractModule;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.RootAllocatorFactory;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
+import org.junit.Ignore;
+import org.junit.Test;
 
 public class TestSysTableFilterPushDown extends PlanTestBase {
   @ClassRule
@@ -42,18 +41,28 @@ public class TestSysTableFilterPushDown extends PlanTestBase {
   public static final void setupDefaultTestCluster() throws Exception {
     // register the SysFlight service on conduit
     // and inject it in SabotNode.
-    SABOT_NODE_RULE.register(new AbstractModule() {
-      @Override
-      protected void configure() {
-        final ConduitServiceRegistry conduitServiceRegistry = new ConduitServiceRegistryImpl();
-        BufferAllocator rootAllocator = RootAllocatorFactory.newRoot(DremioTest.DEFAULT_SABOT_CONFIG);
-        BufferAllocator testAllocator = rootAllocator.newChildAllocator("test-sysflight-Plugin", 0, Long.MAX_VALUE);
-        FlightCloseableBindableService flightService = new FlightCloseableBindableService(testAllocator,
-          new SysFlightProducer(() -> new SystemTableManagerImpl(testAllocator, SYS_FLIGHT_RESOURCE::getTablesProvider)), null, null);
-        conduitServiceRegistry.registerService(flightService);
-        bind(ConduitServiceRegistry.class).toInstance(conduitServiceRegistry);
-      }
-    });
+    SABOT_NODE_RULE.register(
+        new AbstractModule() {
+          @Override
+          protected void configure() {
+            final ConduitServiceRegistry conduitServiceRegistry = new ConduitServiceRegistryImpl();
+            BufferAllocator rootAllocator =
+                RootAllocatorFactory.newRoot(DremioTest.DEFAULT_SABOT_CONFIG);
+            BufferAllocator testAllocator =
+                rootAllocator.newChildAllocator("test-sysflight-Plugin", 0, Long.MAX_VALUE);
+            FlightCloseableBindableService flightService =
+                new FlightCloseableBindableService(
+                    testAllocator,
+                    new SysFlightProducer(
+                        () ->
+                            new SystemTableManagerImpl(
+                                testAllocator, SYS_FLIGHT_RESOURCE::getTablesProvider)),
+                    null,
+                    null);
+            conduitServiceRegistry.registerService(flightService);
+            bind(ConduitServiceRegistry.class).toInstance(conduitServiceRegistry);
+          }
+        });
     BaseTestQuery.setupDefaultTestCluster();
     TestSysFlightResource.addSysFlightPlugin(nodes[0]);
   }
@@ -69,7 +78,8 @@ public class TestSysTableFilterPushDown extends PlanTestBase {
   @Test
   public void testFilterPushdown_NonEqual() throws Exception {
     final String query = "SELECT * FROM sys.jobs WHERE user_name <> 'da'";
-    final String scan = "query=[type: NOT not {   clause {     type: TERM     term {       field: \"user_name\"       value: \"da\"     }   } } ]";
+    final String scan =
+        "query=[type: NOT not {   clause {     type: TERM     term {       field: \"user_name\"       value: \"da\"     }   } } ]";
 
     testHelper(query, scan);
   }
@@ -85,17 +95,18 @@ public class TestSysTableFilterPushDown extends PlanTestBase {
   @Test
   public void testFilterPushdown_LikeWithEscape() throws Exception {
     final String query = "SELECT * FROM sys.jobs WHERE user_name LIKE '%\\\\SCH%' ESCAPE '\\'";
-    final String scan = "query=[like {   field: \"user_name\"   pattern: \"%\\\\\\\\SCH%\"   escape: \"\\\\\" } ])";
+    final String scan =
+        "query=[like {   field: \"user_name\"   pattern: \"%\\\\\\\\SCH%\"   escape: \"\\\\\" } ])";
 
     testHelper(query, scan);
   }
 
   @Test
   public void testFilterPushdown_And() throws Exception {
-    final String query = "SELECT * FROM sys.jobs WHERE " +
-      "user_name = 'hz' AND " +
-      "rows_scanned = '0'";
-    final String scan = "query=[and {   clauses {     equals {       field: \"user_name\"       stringValue: \"hz\"     }   }   clauses {     equals {       field: \"rows_scanned\"       stringValue: \"0\"     }   } } ]";
+    final String query =
+        "SELECT * FROM sys.jobs WHERE " + "user_name = 'hz' AND " + "rows_scanned = '0'";
+    final String scan =
+        "query=[and {   clauses {     equals {       field: \"user_name\"       stringValue: \"hz\"     }   }   clauses {     equals {       field: \"rows_scanned\"       stringValue: \"0\"     }   } } ]";
 
     testHelper(query, scan);
   }
@@ -103,40 +114,47 @@ public class TestSysTableFilterPushDown extends PlanTestBase {
   @Ignore("NOT not currently supported")
   @Test
   public void testFilterPushdown_Or() throws Exception {
-    final String query = "SELECT * FROM sys.jobs WHERE " +
-      "user_name = 'sys' OR " +
-      "job_id <> 'version' OR " +
-      "rows_scanned like '%sdfgjk%'";
-    final String scan = "query=[type: BOOLEAN boolean {   op: OR   clauses {     type: TERM     term {       field: \"user_name\"       value: \"sys\"     }   }   clauses {     type: NOT     not {       clause {         type: TERM         term {           field: \"job_id\"           value: \"version\"         }       }     }   }   clauses {     type: WILDCARD     wildcard {       field: \"rows_scanned\"       value: \"*sdfgjk*\"     }   } } ]";
+    final String query =
+        "SELECT * FROM sys.jobs WHERE "
+            + "user_name = 'sys' OR "
+            + "job_id <> 'version' OR "
+            + "rows_scanned like '%sdfgjk%'";
+    final String scan =
+        "query=[type: BOOLEAN boolean {   op: OR   clauses {     type: TERM     term {       field: \"user_name\"       value: \"sys\"     }   }   clauses {     type: NOT     not {       clause {         type: TERM         term {           field: \"job_id\"           value: \"version\"         }       }     }   }   clauses {     type: WILDCARD     wildcard {       field: \"rows_scanned\"       value: \"*sdfgjk*\"     }   } } ]";
 
     testHelper(query, scan);
   }
 
   @Test
   public void testFilterPushdown_Having() throws Exception {
-    final String query = "SELECT user_name,job_id FROM sys.jobs WHERE (user_name = 'hz') group by user_name,job_id"+
-      " HAVING job_id LIKE 'ref%'"+
-      " ORDER BY 1, 2 ASC";
-    final String scan = "query=[and {   clauses {     equals {       field: \"user_name\"       stringValue: \"hz\"     }   }   clauses {     like {       field: \"job_id\"       pattern: \"ref%\"     }   } } ]";
+    final String query =
+        "SELECT user_name,job_id FROM sys.jobs WHERE (user_name = 'hz') group by user_name,job_id"
+            + " HAVING job_id LIKE 'ref%'"
+            + " ORDER BY 1, 2 ASC";
+    final String scan =
+        "query=[and {   clauses {     equals {       field: \"user_name\"       stringValue: \"hz\"     }   }   clauses {     like {       field: \"job_id\"       pattern: \"ref%\"     }   } } ]";
     testHelper(query, scan);
   }
 
-
   @Test
   public void testFilterPushdown_OrEqLike() throws Exception {
-    final String query ="SELECT DISTINCT user_name,job_id FROM sys.jobs WHERE  "+
-      "user_name = 'hz'  "+
-      "OR user_name LIKE 'sys.%'ORDER BY 1, 2 ASC";
-    final String scan = "query=[or {   clauses {     equals {       field: \"user_name\"       stringValue: \"hz\"     }   }   clauses {     like {       field: \"user_name\"       pattern: \"sys.%\"     }   } } ]";
+    final String query =
+        "SELECT DISTINCT user_name,job_id FROM sys.jobs WHERE  "
+            + "user_name = 'hz'  "
+            + "OR user_name LIKE 'sys.%'ORDER BY 1, 2 ASC";
+    final String scan =
+        "query=[or {   clauses {     equals {       field: \"user_name\"       stringValue: \"hz\"     }   }   clauses {     like {       field: \"user_name\"       pattern: \"sys.%\"     }   } } ]";
     testHelper(query, scan);
   }
 
   @Test
   public void testFilterPushdown_OrIn() throws Exception {
-    final String query ="SELECT DISTINCT user_name, job_id FROM sys.jobs WHERE "+
-      "user_name IN ('hz','da') order by 1 ASC";
+    final String query =
+        "SELECT DISTINCT user_name, job_id FROM sys.jobs WHERE "
+            + "user_name IN ('hz','da') order by 1 ASC";
 
-    final String scan = "query=[or {   clauses {     equals {       field: \"user_name\"       stringValue: \"hz\"     }   }   clauses {     equals {       field: \"user_name\"       stringValue: \"da\"     }   } } ]";
+    final String scan =
+        "query=[or {   clauses {     equals {       field: \"user_name\"       stringValue: \"hz\"     }   }   clauses {     equals {       field: \"user_name\"       stringValue: \"da\"     }   } } ]";
     testHelper(query, scan);
   }
 
@@ -151,7 +169,8 @@ public class TestSysTableFilterPushDown extends PlanTestBase {
   @Test
   public void testFilterPushDownWithProject_NotEqual() throws Exception {
     final String query = "SELECT job_id from sys.jobs WHERE user_name <> 'hz'";
-    final String scan = "query=[type: NOT not {   clause {     type: TERM     term {       field: \"user_name\"       value: \"TABLES\"     }   } } ]";
+    final String scan =
+        "query=[type: NOT not {   clause {     type: TERM     term {       field: \"user_name\"       value: \"TABLES\"     }   } } ]";
     testHelper(query, scan);
   }
 
@@ -178,20 +197,25 @@ public class TestSysTableFilterPushDown extends PlanTestBase {
 
   @Test
   public void testJobsRecentTableFilterPushDown_GreaterThan() throws Exception {
-    final String query = "SELECT job_id from sys.jobs_recent WHERE submitted_epoch_millis > 1696436831074";
-    final String scan = "query=[greater_than {   field: \"submitted_epoch_millis\"   value: 1696436831074 } ]";
+    final String query =
+        "SELECT job_id from sys.jobs_recent WHERE submitted_epoch_millis > 1696436831074";
+    final String scan =
+        "query=[greater_than {   field: \"submitted_epoch_millis\"   value: 1696436831074 } ]";
     testHelper(query, scan);
   }
-
 
   private void testHelper(final String query, String filterInScan) throws Exception {
     final String plan = getPlanInString("EXPLAIN PLAN FOR " + query, OPTIQ_FORMAT);
 
     // check if the plan contains fall back
-    assertTrue(String.format("Expected plan to contain filter and did not.\n %s", plan), plan.contains("Filter("));
+    assertTrue(
+        String.format("Expected plan to contain filter and did not.\n %s", plan),
+        plan.contains("Filter("));
 
     // Check for filter pushed into scan.
-    assertTrue(String.format("Expected plan to contain %s, however it did not.\n %s", filterInScan, plan), plan.contains(filterInScan));
+    assertTrue(
+        String.format("Expected plan to contain %s, however it did not.\n %s", filterInScan, plan),
+        plan.contains(filterInScan));
 
     // run the query
     test(query);

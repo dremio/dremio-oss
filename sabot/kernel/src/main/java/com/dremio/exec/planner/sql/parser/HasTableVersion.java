@@ -16,10 +16,9 @@
 
 package com.dremio.exec.planner.sql.parser;
 
-/**
- * Interface for SqlOperators which support versioned table macros.
- */
+/** Interface for SqlOperators which support versioned table macros. */
 public interface HasTableVersion {
-  TableVersionSpec getTableVersionSpec();
-  void setTableVersionSpec(TableVersionSpec tableVersionSpec);
+  SqlTableVersionSpec getSqlTableVersionSpec();
+
+  void setSqlTableVersionSpec(SqlTableVersionSpec tableVersionSpec);
 }

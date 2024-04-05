@@ -18,6 +18,19 @@ package com.dremio.plugins.dataplane.exec;
 import static com.dremio.exec.store.IcebergExpiryMetric.COMMIT_SCAN_TIME;
 import static org.projectnessie.gc.contents.LiveContentSet.Status.IDENTIFY_SUCCESS;
 
+import com.dremio.common.exceptions.ExecutionSetupException;
+import com.dremio.exec.store.IcebergExpiryMetric;
+import com.dremio.exec.store.RecordReader;
+import com.dremio.exec.store.iceberg.NessieCommitsSubScan;
+import com.dremio.exec.store.iceberg.SnapshotEntry;
+import com.dremio.exec.store.iceberg.SnapshotsScanOptions;
+import com.dremio.exec.store.iceberg.SupportsIcebergMutablePlugin;
+import com.dremio.plugins.dataplane.store.DataplanePlugin;
+import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
+import com.dremio.sabot.op.scan.OutputMutator;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Stopwatch;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -30,7 +43,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
-
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.ValueVector;
 import org.projectnessie.client.api.NessieApiV2;
@@ -45,20 +57,6 @@ import org.projectnessie.gc.identify.CutoffPolicy;
 import org.projectnessie.gc.identify.IdentifyLiveContents;
 import org.projectnessie.gc.repository.RepositoryConnector;
 
-import com.dremio.common.exceptions.ExecutionSetupException;
-import com.dremio.exec.store.IcebergExpiryMetric;
-import com.dremio.exec.store.RecordReader;
-import com.dremio.exec.store.iceberg.NessieCommitsSubScan;
-import com.dremio.exec.store.iceberg.SnapshotEntry;
-import com.dremio.exec.store.iceberg.SnapshotsScanOptions;
-import com.dremio.exec.store.iceberg.SupportsIcebergMutablePlugin;
-import com.dremio.plugins.dataplane.store.DataplanePlugin;
-import com.dremio.sabot.exec.context.OperatorContext;
-import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
-import com.dremio.sabot.op.scan.OutputMutator;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Stopwatch;
-
 public abstract class AbstractNessieCommitRecordsReader implements RecordReader {
 
   private final NessieCommitsSubScan config;
@@ -72,9 +70,10 @@ public abstract class AbstractNessieCommitRecordsReader implements RecordReader 
   private Iterator<String> liveContentSetIterator;
   private Iterator<ContentReference> contentRefsIterator = Collections.emptyIterator();
 
-  public AbstractNessieCommitRecordsReader(FragmentExecutionContext fragmentExecutionContext,
-                                   OperatorContext context,
-                                   NessieCommitsSubScan config) {
+  public AbstractNessieCommitRecordsReader(
+      FragmentExecutionContext fragmentExecutionContext,
+      OperatorContext context,
+      NessieCommitsSubScan config) {
     this.fragmentExecutionContext = fragmentExecutionContext;
     this.context = context;
     this.config = config;
@@ -83,40 +82,52 @@ public abstract class AbstractNessieCommitRecordsReader implements RecordReader 
   @Override
   public void setup(OutputMutator output) throws ExecutionSetupException {
     plugin = fragmentExecutionContext.getStoragePlugin(config.getPluginId());
-    Preconditions.checkState(plugin instanceof DataplanePlugin, "Unsupported plugin type: " + plugin.getClass().getName());
+    Preconditions.checkState(
+        plugin instanceof DataplanePlugin,
+        "Unsupported plugin type: " + plugin.getClass().getName());
     NessieApiV2 nessieApi = ((DataplanePlugin) plugin).getNessieApi();
 
     SnapshotsScanOptions snapshotsScanOptions = config.getSnapshotsScanOptions();
     persistenceSpi = new InMemoryPersistenceSpi();
-    RepositoryConnector repositoryConnector = new QueryContextAwareNessieRepositoryConnector(
-      context.getFragmentHandle().getQueryId(), nessieApi);
+    RepositoryConnector repositoryConnector =
+        new QueryContextAwareNessieRepositoryConnector(
+            context.getFragmentHandle().getQueryId(), nessieApi);
 
     Stopwatch liveContentScanWatch = Stopwatch.createStarted();
 
-    liveContentId = IdentifyLiveContents.builder()
-      .repositoryConnector(repositoryConnector)
-      .liveContentSetsRepository(
-        LiveContentSetsRepository.builder().persistenceSpi(persistenceSpi).build())
-      .cutOffPolicySupplier(
-        reference -> CutoffPolicy.atTimestamp(Instant.ofEpochMilli(snapshotsScanOptions.getOlderThanInMillis())))
-      .contentTypeFilter(IcebergContentTypeFilter.INSTANCE)
-      .contentToContentReference(IcebergContentToContentReference.INSTANCE)
-      .build()
-      .identifyLiveContents();
+    liveContentId =
+        IdentifyLiveContents.builder()
+            .repositoryConnector(repositoryConnector)
+            .liveContentSetsRepository(
+                LiveContentSetsRepository.builder().persistenceSpi(persistenceSpi).build())
+            .cutOffPolicySupplier(
+                reference ->
+                    CutoffPolicy.atTimestamp(
+                        Instant.ofEpochMilli(snapshotsScanOptions.getOlderThanInMillis())))
+            .contentTypeFilter(IcebergContentTypeFilter.INSTANCE)
+            .contentToContentReference(IcebergContentToContentReference.INSTANCE)
+            .build()
+            .identifyLiveContents();
 
     try {
       liveContentSet = persistenceSpi.getLiveContentSet(liveContentId);
-      Preconditions.checkState(liveContentSet.status().equals(IDENTIFY_SUCCESS), "Error while identifying live contents.");
+      Preconditions.checkState(
+          liveContentSet.status().equals(IDENTIFY_SUCCESS),
+          "Error while identifying live contents.");
 
-      context.getStats().addLongStat(IcebergExpiryMetric.NUM_TABLES, liveContentSet.fetchDistinctContentIdCount());
+      context
+          .getStats()
+          .addLongStat(
+              IcebergExpiryMetric.NUM_TABLES, liveContentSet.fetchDistinctContentIdCount());
       try (Stream<String> stream = liveContentSet.fetchContentIds()) {
         liveContentSetIterator = stream.iterator();
       }
     } catch (LiveContentSetNotFoundException e) {
       throw new RuntimeException(e);
     } finally {
-      context.getStats().addLongStat(COMMIT_SCAN_TIME,
-          liveContentScanWatch.elapsed(TimeUnit.MILLISECONDS));
+      context
+          .getStats()
+          .addLongStat(COMMIT_SCAN_TIME, liveContentScanWatch.elapsed(TimeUnit.MILLISECONDS));
     }
   }
 
@@ -131,10 +142,12 @@ public abstract class AbstractNessieCommitRecordsReader implements RecordReader 
   public int next() {
     int idx = 0;
 
-    while ((liveContentSetIterator.hasNext() || contentRefsIterator.hasNext()) && idx < context.getTargetBatchSize()) {
+    while ((liveContentSetIterator.hasNext() || contentRefsIterator.hasNext())
+        && idx < context.getTargetBatchSize()) {
       if (!contentRefsIterator.hasNext()) {
         String contentSet = liveContentSetIterator.next();
-        contentRefsIterator = persistenceSpi.fetchContentReferences(liveContentId, contentSet).iterator();
+        contentRefsIterator =
+            persistenceSpi.fetchContentReferences(liveContentId, contentSet).iterator();
       }
       idx = publishRecords(idx);
     }
@@ -154,7 +167,8 @@ public abstract class AbstractNessieCommitRecordsReader implements RecordReader 
     return idx.intValue();
   }
 
-  protected abstract CompletableFuture<Optional<SnapshotEntry>> getEntries(AtomicInteger idx, ContentReference next);
+  protected abstract CompletableFuture<Optional<SnapshotEntry>> getEntries(
+      AtomicInteger idx, ContentReference next);
 
   protected abstract void populateOutputVectors(AtomicInteger idx, SnapshotEntry entry);
 

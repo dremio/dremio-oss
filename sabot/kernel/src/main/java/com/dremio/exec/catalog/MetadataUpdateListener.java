@@ -25,6 +25,7 @@ interface MetadataUpdateListener {
 
   /**
    * Notification that metadata has been updated.
+   *
    * @param key The key of the dataset that has been updated.
    */
   void metadataUpdated(NamespaceKey key);

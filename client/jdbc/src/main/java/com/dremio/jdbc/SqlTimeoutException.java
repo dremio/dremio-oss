@@ -17,13 +17,8 @@ package com.dremio.jdbc;
 
 import java.sql.SQLException;
 
-/**
- * Indicates that an operation timed out. This is not an error; you can
- * retry the operation.
- */
-public class SqlTimeoutException
-    extends SQLException
-{
+/** Indicates that an operation timed out. This is not an error; you can retry the operation. */
+public class SqlTimeoutException extends SQLException {
   private static final long serialVersionUID = -1;
 
   public SqlTimeoutException() {

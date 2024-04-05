@@ -29,14 +29,13 @@ public class SelectionVectorRemover extends AbstractSingle {
 
   @JsonCreator
   public SelectionVectorRemover(
-      @JsonProperty("props") OpProps props,
-      @JsonProperty("child") PhysicalOperator child
-      ) {
+      @JsonProperty("props") OpProps props, @JsonProperty("child") PhysicalOperator child) {
     super(props, child);
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value) throws E{
+  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value)
+      throws E {
     return physicalVisitor.visitOp(this, value);
   }
 

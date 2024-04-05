@@ -15,11 +15,10 @@
  */
 package com.dremio.exec.store;
 
-import java.util.List;
-
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.collect.ImmutableList;
+import java.util.List;
 
 public class PartitionExplorerImpl implements PartitionExplorer {
 
@@ -31,18 +30,16 @@ public class PartitionExplorerImpl implements PartitionExplorer {
 
   @Override
   public Iterable<String> getSubPartitions(
-      NamespaceKey table,
-      List<String> partitionColumns,
-      List<String> partitionValues
-      ) throws PartitionNotFoundException {
+      NamespaceKey table, List<String> partitionColumns, List<String> partitionValues)
+      throws PartitionNotFoundException {
     return catalog.getSubPartitions(table, partitionColumns, partitionValues);
   }
 
   @Override
-  public Iterable<String> getSubPartitions(String schema, String table, List<String> partitionColumns, List<String> partitionValues)
+  public Iterable<String> getSubPartitions(
+      String schema, String table, List<String> partitionColumns, List<String> partitionValues)
       throws PartitionNotFoundException {
-    return catalog.getSubPartitions(new NamespaceKey(ImmutableList.of(schema, table)), partitionColumns, partitionValues);
+    return catalog.getSubPartitions(
+        new NamespaceKey(ImmutableList.of(schema, table)), partitionColumns, partitionValues);
   }
-
-
 }

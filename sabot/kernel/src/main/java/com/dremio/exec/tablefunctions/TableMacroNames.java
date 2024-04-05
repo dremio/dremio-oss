@@ -15,19 +15,16 @@
  */
 package com.dremio.exec.tablefunctions;
 
+import com.google.common.collect.ImmutableList;
 import java.util.List;
 
-import com.google.common.collect.ImmutableList;
-
-/**
- * Utility class for table macro names.
- */
+/** Utility class for table macro names. */
 public final class TableMacroNames {
 
   public static final String NAMESPACE = "__system_table_macros";
 
-  public static final List<String> TIME_TRAVEL = ImmutableList.of(NAMESPACE, TimeTravelTableMacro.NAME);
+  public static final List<String> TIME_TRAVEL =
+      ImmutableList.of(NAMESPACE, TimeTravelTableMacro.NAME);
 
-  private TableMacroNames() {
-  }
+  private TableMacroNames() {}
 }

@@ -15,8 +15,8 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.google.common.collect.ImmutableList;
 import java.util.List;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -27,29 +27,34 @@ import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.google.common.collect.ImmutableList;
-
 /**
  * ANALYZE TABLE <name> [ for_clause ] statistics_clause
  *
- * for_clause: FOR  [ ALL COLUMNS | COLUMNS ( <list_of_columns> ) ]
+ * <p>for_clause: FOR [ ALL COLUMNS | COLUMNS ( <list_of_columns> ) ]
  *
- * statistics_clause: COMPUTE STATISTICS | DELETE STATISTICS
+ * <p>statistics_clause: COMPUTE STATISTICS | DELETE STATISTICS
  */
 public class SqlAnalyzeTableStatistics extends SqlCall {
 
-  public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("ANALYZE_TABLE_STATISTICS", SqlKind.OTHER) {
-    @Override
-    public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      return new SqlAnalyzeTableStatistics(pos, (SqlIdentifier) operands[0], (SqlLiteral) operands[1], (SqlNodeList) operands[2]);
-    }
-  };
+  public static final SqlSpecialOperator OPERATOR =
+      new SqlSpecialOperator("ANALYZE_TABLE_STATISTICS", SqlKind.OTHER) {
+        @Override
+        public SqlCall createCall(
+            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+          return new SqlAnalyzeTableStatistics(
+              pos,
+              (SqlIdentifier) operands[0],
+              (SqlLiteral) operands[1],
+              (SqlNodeList) operands[2]);
+        }
+      };
 
   private final SqlIdentifier table;
   private final SqlNodeList columns;
   private final SqlLiteral isAnalyze;
 
-  public SqlAnalyzeTableStatistics(SqlParserPos pos, SqlIdentifier table, SqlLiteral isAnalyze, SqlNodeList columns) {
+  public SqlAnalyzeTableStatistics(
+      SqlParserPos pos, SqlIdentifier table, SqlLiteral isAnalyze, SqlNodeList columns) {
     super(pos);
     this.table = table;
     this.isAnalyze = isAnalyze;

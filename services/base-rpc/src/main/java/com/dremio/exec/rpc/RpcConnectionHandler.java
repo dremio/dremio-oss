@@ -17,9 +17,13 @@ package com.dremio.exec.rpc;
 
 public interface RpcConnectionHandler<T extends RemoteConnection> {
 
-  public static enum FailureType{CONNECTION, HANDSHAKE_COMMUNICATION, HANDSHAKE_VALIDATION}
+  public static enum FailureType {
+    CONNECTION,
+    HANDSHAKE_COMMUNICATION,
+    HANDSHAKE_VALIDATION
+  }
 
   public void connectionSucceeded(T connection);
-  public void connectionFailed(FailureType type, Throwable t);
 
+  public void connectionFailed(FailureType type, Throwable t);
 }

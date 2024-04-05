@@ -15,11 +15,6 @@
  */
 package com.dremio.plugins.adl.store;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import javax.inject.Provider;
-
 import com.dremio.connector.metadata.DatasetMetadata;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.Property;
@@ -27,11 +22,13 @@ import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.dfs.DirectorySupportLackingFileSystemPlugin;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.microsoft.azure.datalake.store.ADLStoreOptions;
+import java.util.ArrayList;
+import java.util.List;
+import javax.inject.Provider;
 
-/**
- * Storage plugin for Microsoft Azure Data Lake
- */
-public class AzureDataLakeStoragePlugin extends DirectorySupportLackingFileSystemPlugin<AzureDataLakeConf> {
+/** Storage plugin for Microsoft Azure Data Lake */
+public class AzureDataLakeStoragePlugin
+    extends DirectorySupportLackingFileSystemPlugin<AzureDataLakeConf> {
 
   static {
     final String useDirectMemoryKey = System.getProperty(ADLStoreOptions.USE_OFF_HEAP_MEMORY_KEY);
@@ -40,9 +37,14 @@ public class AzureDataLakeStoragePlugin extends DirectorySupportLackingFileSyste
     }
   }
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AzureDataLakeStoragePlugin.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(AzureDataLakeStoragePlugin.class);
 
-  public AzureDataLakeStoragePlugin(AzureDataLakeConf config, SabotContext context, String name, Provider<StoragePluginId> idProvider) {
+  public AzureDataLakeStoragePlugin(
+      AzureDataLakeConf config,
+      SabotContext context,
+      String name,
+      Provider<StoragePluginId> idProvider) {
     super(config, context, name, idProvider);
   }
 
@@ -61,10 +63,12 @@ public class AzureDataLakeStoragePlugin extends DirectorySupportLackingFileSyste
 
     switch (config.mode) {
       case CLIENT_KEY:
-        properties.add(new Property("dfs.adls.oauth2.access.token.provider.type", "ClientCredential"));
+        properties.add(
+            new Property("dfs.adls.oauth2.access.token.provider.type", "ClientCredential"));
 
         if (config.clientKeyPassword != null) {
-          properties.add(new Property("dfs.adls.oauth2.credential", config.clientKeyPassword));
+          properties.add(
+              new Property("dfs.adls.oauth2.credential", config.clientKeyPassword.get()));
         }
 
         if (config.clientKeyRefreshUrl != null) {
@@ -75,7 +79,8 @@ public class AzureDataLakeStoragePlugin extends DirectorySupportLackingFileSyste
       case REFRESH_TOKEN:
         properties.add(new Property("dfs.adls.oauth2.access.token.provider.type", "RefreshToken"));
         if (config.refreshTokenSecret != null) {
-          properties.add(new Property("dfs.adls.oauth2.refresh.token", config.refreshTokenSecret));
+          properties.add(
+              new Property("dfs.adls.oauth2.refresh.token", config.refreshTokenSecret.get()));
         }
 
         break;
@@ -83,7 +88,8 @@ public class AzureDataLakeStoragePlugin extends DirectorySupportLackingFileSyste
         throw new IllegalStateException("Unknown auth mode: " + config.mode);
     }
 
-    // Properties are added in order so make sure that any hand provided properties override settings done via specific config
+    // Properties are added in order so make sure that any hand provided properties override
+    // settings done via specific config
     List<Property> parentProperties = super.getProperties();
     if (parentProperties != null) {
       properties.addAll(parentProperties);

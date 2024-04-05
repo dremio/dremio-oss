@@ -39,7 +39,7 @@ export const Card = forwardRef<HTMLDivElement, CardProps>((props, ref) => {
         "dremio-card",
         disabled && "disabled",
         hovered && "hovered",
-        className
+        className,
       )}
     >
       <header className="dremio-card__header">

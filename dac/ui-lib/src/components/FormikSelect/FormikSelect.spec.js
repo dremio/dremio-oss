@@ -45,7 +45,7 @@ describe("Formik Select", () => {
       expect.objectContaining({
         ...defaultProps.field,
         options: defaultProps.options,
-      })
+      }),
     );
   });
 });

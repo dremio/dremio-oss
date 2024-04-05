@@ -15,40 +15,39 @@
  */
 package com.dremio.exec.planner.acceleration.substitution;
 
-import java.util.List;
-import java.util.Optional;
-
-import org.apache.calcite.rel.RelNode;
-
 import com.dremio.exec.planner.acceleration.DremioMaterialization;
 import com.dremio.exec.planner.logical.ViewTable;
+import java.util.List;
+import java.util.Optional;
+import org.apache.calcite.rel.RelNode;
 
 /**
- * Provides a list of {@link DremioMaterialization} for {@link SubstitutionProvider}
- * Since this provider is used in context of a query, we only want to provide materializations
- * that are actually applicable to that query.  Therefore, SubstitutionProvider is expected
- * to first call buildConsideredMaterializations with the user query before calling getConsideredMaterializations.
+ * Provides a list of {@link DremioMaterialization} for {@link SubstitutionProvider} Since this
+ * provider is used in context of a query, we only want to provide materializations that are
+ * actually applicable to that query. Therefore, SubstitutionProvider is expected to first call
+ * buildConsideredMaterializations with the user query before calling getConsideredMaterializations.
  */
 public interface MaterializationProvider {
 
   /**
    * Builds list of materializations that overlap with the userQueryNode.
+   *
    * @param userQueryNode
    * @return
    */
   List<DremioMaterialization> buildConsideredMaterializations(RelNode userQueryNode);
 
-  /**
-   * Returns list of previously built materializations
-   *
-   */
+  /** Returns list of previously built materializations */
   List<DremioMaterialization> getConsideredMaterializations();
 
   /**
-   * Returns the default raw materialization that provider considers for substitution
-   * for the VDS with the given path
+   * Returns the default raw materialization that provider considers for substitution for the VDS
+   * with the given path
+   *
    * @return The default reflection for the VDS
    */
   Optional<DremioMaterialization> getDefaultRawMaterialization(ViewTable table);
 
+  /** Returns true when materialization cache is ready */
+  boolean isMaterializationCacheInitialized();
 }

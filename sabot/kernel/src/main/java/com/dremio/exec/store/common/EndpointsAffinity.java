@@ -15,13 +15,10 @@
  */
 package com.dremio.exec.store.common;
 
+import com.google.common.net.HostAndPort;
 import java.util.Objects;
 
-import com.google.common.net.HostAndPort;
-
-/**
- * A container for executor identity and {@link MinorFragmentsByExecutor}
- */
+/** A container for executor identity and {@link MinorFragmentsByExecutor} */
 public class EndpointsAffinity {
   private final float affinity;
   private final HostAndPort hostAndPort;
@@ -36,7 +33,8 @@ public class EndpointsAffinity {
     return minorFragmentsByExecutor;
   }
 
-  public EndpointsAffinity setMinorFragmentsByExecutor(MinorFragmentsByExecutor minorFragmentsByExecutor) {
+  public EndpointsAffinity setMinorFragmentsByExecutor(
+      MinorFragmentsByExecutor minorFragmentsByExecutor) {
     this.minorFragmentsByExecutor = minorFragmentsByExecutor;
     return this;
   }
@@ -62,7 +60,9 @@ public class EndpointsAffinity {
       return false;
     }
     EndpointsAffinity that = (EndpointsAffinity) o;
-    return Float.compare(that.affinity, affinity) == 0 && minorFragmentsByExecutor.equals(that.minorFragmentsByExecutor) && hostAndPort.equals(that.hostAndPort);
+    return Float.compare(that.affinity, affinity) == 0
+        && minorFragmentsByExecutor.equals(that.minorFragmentsByExecutor)
+        && hostAndPort.equals(that.hostAndPort);
   }
 
   @Override

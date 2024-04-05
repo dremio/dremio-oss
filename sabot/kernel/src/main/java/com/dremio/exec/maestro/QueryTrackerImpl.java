@@ -41,21 +41,23 @@ import com.dremio.service.executor.ExecutorServiceClientFactory;
 import com.dremio.service.jobtelemetry.JobTelemetryClient;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 
 public class QueryTrackerImpl implements QueryTracker {
   @VisibleForTesting
   public static final String INJECTOR_EXECUTION_PLANNING_ERROR = "executionPlanningError";
+
   @VisibleForTesting
   public static final String INJECTOR_EXECUTION_PLANNING_PAUSE = "executionPlanningPause";
+
   @VisibleForTesting
   public static final String INJECTOR_NODE_COMPLETION_ERROR = "nodeCompletionError";
-  @VisibleForTesting
-  public static final String INJECTOR_STARTING_PAUSE = "startingPause";
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(QueryTrackerImpl.class);
+
+  @VisibleForTesting public static final String INJECTOR_STARTING_PAUSE = "startingPause";
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(QueryTrackerImpl.class);
   private static final ControlsInjector injector =
-    ControlsInjectorFactory.getInjector(QueryTrackerImpl.class);
+      ControlsInjectorFactory.getInjector(QueryTrackerImpl.class);
   private final QueryId queryId;
   private final QueryContext context;
   private final PhysicalPlanReader reader;
@@ -73,19 +75,19 @@ public class QueryTrackerImpl implements QueryTracker {
   private volatile ExecutionPlanningResources executionPlanningResources;
 
   QueryTrackerImpl(
-    QueryId queryId,
-    QueryContext context,
-    PhysicalPlan physicalPlan,
-    PhysicalPlanReader reader,
-    ResourceAllocator queryResourceManager,
-    ExecutorSetService executorSetService,
-    ExecutorSelectionService executorSelectionService,
-    ExecutorServiceClientFactory executorServiceClientFactory,
-    JobTelemetryClient jobTelemetryClient,
-    MaestroObserver observer,
-    CompletionListener listener,
-    Runnable queryCloser,
-    CloseableSchedulerThreadPool closeableSchedulerThreadPool) {
+      QueryId queryId,
+      QueryContext context,
+      PhysicalPlan physicalPlan,
+      PhysicalPlanReader reader,
+      ResourceAllocator queryResourceManager,
+      ExecutorSetService executorSetService,
+      ExecutorSelectionService executorSelectionService,
+      ExecutorServiceClientFactory executorServiceClientFactory,
+      JobTelemetryClient jobTelemetryClient,
+      MaestroObserver observer,
+      CompletionListener listener,
+      Runnable queryCloser,
+      CloseableSchedulerThreadPool closeableSchedulerThreadPool) {
 
     this.queryId = queryId;
     this.context = context;
@@ -97,13 +99,19 @@ public class QueryTrackerImpl implements QueryTracker {
     this.jobTelemetryClient = jobTelemetryClient;
     this.observer = observer;
 
-    this.fragmentTracker = new FragmentTracker(queryId, listener,
-      queryCloser, executorServiceClientFactory, executorSetService, closeableSchedulerThreadPool);
+    this.fragmentTracker =
+        new FragmentTracker(
+            queryId,
+            listener,
+            queryCloser,
+            executorServiceClientFactory,
+            executorSetService,
+            closeableSchedulerThreadPool);
   }
 
   @WithSpan("allocate-resources")
   @Override
-  public void allocateResources() throws ExecutionSetupException, ResourceAllocationException  {
+  public void allocateResources() throws ExecutionSetupException, ResourceAllocationException {
     resourceTracker = new ResourceTracker(context, queryResourceManager);
     resourceTracker.allocate(physicalPlan, observer);
   }
@@ -117,20 +125,32 @@ public class QueryTrackerImpl implements QueryTracker {
 
   @Override
   public void planExecution() throws ExecutionSetupException {
-    executionPlanningResources = ExecutionPlanCreator.getParallelizationInfo(context, observer,
-      physicalPlan, executorSelectionService, resourceTracker.getResourceSchedulingDecisionInfo());
+    executionPlanningResources =
+        ExecutionPlanCreator.getParallelizationInfo(
+            context,
+            observer,
+            physicalPlan,
+            executorSelectionService,
+            resourceTracker.getResourceSchedulingDecisionInfo());
 
-    injector.injectChecked(context.getExecutionControls(),
-      INJECTOR_EXECUTION_PLANNING_ERROR, ExecutionSetupException.class);
-    injector.injectPause(context.getExecutionControls(),
-      INJECTOR_EXECUTION_PLANNING_PAUSE, logger);
+    injector.injectChecked(
+        context.getExecutionControls(),
+        INJECTOR_EXECUTION_PLANNING_ERROR,
+        ExecutionSetupException.class);
+    injector.injectPause(context.getExecutionControls(), INJECTOR_EXECUTION_PLANNING_PAUSE, logger);
 
-    executionPlan = ExecutionPlanCreator.getExecutionPlan(context, reader, observer, physicalPlan,
-      resourceTracker.getResources(),
-      executionPlanningResources.getPlanningSet(), executorSelectionService,
-      resourceTracker.getResourceSchedulingDecisionInfo(),
-      executionPlanningResources.getGroupResourceInformation());
-    observer.planCompleted(executionPlan);
+    executionPlan =
+        ExecutionPlanCreator.getExecutionPlan(
+            context,
+            reader,
+            observer,
+            physicalPlan,
+            resourceTracker.getResources(),
+            executionPlanningResources.getPlanningSet(),
+            executorSelectionService,
+            resourceTracker.getResourceSchedulingDecisionInfo(),
+            executionPlanningResources.getGroupResourceInformation());
+    observer.planCompleted(executionPlan, null);
     physicalPlan = null; // no longer needed
   }
 
@@ -140,21 +160,25 @@ public class QueryTrackerImpl implements QueryTracker {
     Preconditions.checkNotNull(executionPlan, "execution plan required");
 
     // Populate fragments before sending the query fragments.
-    fragmentTracker.populate(executionPlan.getFragments(), resourceTracker.getResourceSchedulingDecisionInfo());
+    fragmentTracker.populate(
+        executionPlan.getFragments(), resourceTracker.getResourceSchedulingDecisionInfo());
 
-    AbstractMaestroObserver fragmentActivateObserver  = new AbstractMaestroObserver() {
-      @Override
-      public void activateFragmentFailed(Exception ex) {
-        fragmentTracker.sendOrActivateFragmentsFailed(ex);
-      }
-    };
+    AbstractMaestroObserver fragmentActivateObserver =
+        new AbstractMaestroObserver() {
+          @Override
+          public void activateFragmentFailed(Exception ex) {
+            fragmentTracker.sendOrActivateFragmentsFailed(ex);
+          }
+        };
 
-    injector.injectPause(context.getExecutionControls(),
-      INJECTOR_STARTING_PAUSE, logger);
+    injector.injectPause(context.getExecutionControls(), INJECTOR_STARTING_PAUSE, logger);
     try {
-      FragmentStarter starter = new FragmentStarter(executorServiceClientFactory,
-        resourceTracker.getResourceSchedulingDecisionInfo(),
-        context.getExecutionControls(),context.getOptions());
+      FragmentStarter starter =
+          new FragmentStarter(
+              executorServiceClientFactory,
+              resourceTracker.getResourceSchedulingDecisionInfo(),
+              context.getExecutionControls(),
+              context.getOptions());
       starter.start(executionPlan, MaestroObservers.of(observer, fragmentActivateObserver));
       executionPlan = null; // no longer needed
 
@@ -167,8 +191,8 @@ public class QueryTrackerImpl implements QueryTracker {
 
   @Override
   public void nodeCompleted(NodeQueryCompletion completion) throws RpcException {
-    injector.injectChecked(context.getExecutionControls(),
-      INJECTOR_NODE_COMPLETION_ERROR, RpcException.class);
+    injector.injectChecked(
+        context.getExecutionControls(), INJECTOR_NODE_COMPLETION_ERROR, RpcException.class);
 
     fragmentTracker.nodeCompleted(completion);
   }
@@ -195,8 +219,7 @@ public class QueryTrackerImpl implements QueryTracker {
 
   @Override
   public void close() throws Exception {
-    AutoCloseables.close(resourceTracker, fragmentTracker, progressTracker,
-      executionPlanningResources);
+    AutoCloseables.close(
+        resourceTracker, fragmentTracker, progressTracker, executionPlanningResources);
   }
-
 }

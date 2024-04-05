@@ -40,7 +40,6 @@ public class VarHelpers {
     } else {
       return -1;
     }
-
   }
 
   public static final int compare(VarCharHolder left, VarCharHolder right) {
@@ -60,7 +59,6 @@ public class VarHelpers {
     } else {
       return -1;
     }
-
   }
 
   public static final int compare(NullableVarBinaryHolder left, NullableVarBinaryHolder right) {
@@ -89,7 +87,6 @@ public class VarHelpers {
     } else {
       return -1;
     }
-
   }
 
   public static final int compare(NullableVarBinaryHolder left, NullableVarCharHolder right) {
@@ -118,7 +115,6 @@ public class VarHelpers {
     } else {
       return -1;
     }
-
   }
 
   public static final int compare(NullableVarCharHolder left, NullableVarCharHolder right) {
@@ -147,7 +143,6 @@ public class VarHelpers {
     } else {
       return -1;
     }
-
   }
 
   public static final int compare(VarBinaryHolder left, VarBinaryHolder right) {
@@ -167,7 +162,5 @@ public class VarHelpers {
     } else {
       return -1;
     }
-
   }
-
 }

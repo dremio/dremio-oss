@@ -134,7 +134,7 @@ export class DatasetMenu extends Component {
       confirmText: t("Common.Actions.Delete"),
       confirm: () => this.props.removeFile(entity),
       title: t("File.Delete"),
-      confirmButtonStyle: "danger",
+      confirmButtonStyle: "primary-danger",
     });
     closeMenu();
   };

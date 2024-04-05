@@ -15,8 +15,5 @@
  */
 package com.dremio.exec.physical.config;
 
-/**
- * The interface to handle the metadata level filters.
- */
-public interface MetadataFilters {
-}
+/** The interface to handle the metadata level filters. */
+public interface MetadataFilters {}

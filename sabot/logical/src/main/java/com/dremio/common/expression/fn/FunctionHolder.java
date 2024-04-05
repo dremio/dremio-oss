@@ -16,6 +16,4 @@
 package com.dremio.common.expression.fn;
 
 /** This should be removed once common and exec/java-exec modules are merged (DRILL-507). */
-public interface FunctionHolder {
-
-}
+public interface FunctionHolder {}

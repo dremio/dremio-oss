@@ -16,14 +16,16 @@
 package com.dremio.exec.physical.base;
 
 /**
- * An interface which supports storing a record stream. In contrast to the logical layer, in the physical/execution
- * layers, a Store node is actually an outputting node (rather than a root node) that provides returns one or more
- * records regarding the completion of the query.
+ * An interface which supports storing a record stream. In contrast to the logical layer, in the
+ * physical/execution layers, a Store node is actually an outputting node (rather than a root node)
+ * that provides returns one or more records regarding the completion of the query.
  */
 public interface Store extends PhysicalOperator {
 
   /**
-   * Get the child of this store operator as this will be needed for parallelization materialization purposes.
+   * Get the child of this store operator as this will be needed for parallelization materialization
+   * purposes.
+   *
    * @return
    */
   public abstract PhysicalOperator getChild();

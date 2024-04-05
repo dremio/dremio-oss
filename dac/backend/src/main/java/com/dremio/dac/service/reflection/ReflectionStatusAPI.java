@@ -26,10 +26,10 @@ import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
 /**
- * Reflection Status API based off ReflectionStatusUI except that this class
- * adheres to Dremio REST API guidelines
+ * Reflection Status API based off ReflectionStatusUI except that this class adheres to Dremio REST
+ * API guidelines
  */
-@JsonAutoDetect(fieldVisibility=JsonAutoDetect.Visibility.ANY)
+@JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY)
 public class ReflectionStatusAPI {
 
   private CONFIG_STATUS configStatus;
@@ -39,17 +39,19 @@ public class ReflectionStatusAPI {
   private REFRESH_METHOD refreshMethod;
 
   private int failureCount;
+  private String lastFailureMessage;
 
   @JsonISODateTime
   @JsonInclude(JsonInclude.Include.ALWAYS)
   private Long lastDataFetchAt;
+
   @JsonISODateTime
   @JsonInclude(JsonInclude.Include.ALWAYS)
   private Long expiresAt;
+
   private long lastRefreshDurationMillis;
 
-  public ReflectionStatusAPI() {
-  }
+  public ReflectionStatusAPI() {}
 
   public ReflectionStatusAPI(ReflectionStatus status) {
     this.configStatus = status.getConfigStatus();
@@ -57,19 +59,31 @@ public class ReflectionStatusAPI {
     this.availabilityStatus = status.getAvailabilityStatus();
     this.combinedStatus = status.getCombinedStatus();
     this.failureCount = status.getNumFailures();
+    this.lastFailureMessage =
+        status.getLastFailure() != null ? status.getLastFailure().getMessage() : null;
     this.lastDataFetchAt = status.getLastDataFetch() != -1 ? status.getLastDataFetch() : null;
     this.expiresAt = status.getExpiresAt() != -1 ? status.getExpiresAt() : null;
     this.lastRefreshDurationMillis = status.getLastRefreshDuration();
     this.refreshMethod = status.getRefreshMethod();
   }
 
-  public ReflectionStatusAPI(CONFIG_STATUS config, REFRESH_STATUS refresh, AVAILABILITY_STATUS availability, REFRESH_METHOD refreshMethod,
-                             COMBINED_STATUS combinedStatus, int failureCount, long lastDataFetch, long expiresAt, long lastRefreshDuration) {
+  public ReflectionStatusAPI(
+      CONFIG_STATUS config,
+      REFRESH_STATUS refresh,
+      AVAILABILITY_STATUS availability,
+      REFRESH_METHOD refreshMethod,
+      COMBINED_STATUS combinedStatus,
+      int failureCount,
+      String lastFailureMessage,
+      long lastDataFetch,
+      long expiresAt,
+      long lastRefreshDuration) {
     this.configStatus = config;
     this.refreshStatus = refresh;
     this.availabilityStatus = availability;
     this.combinedStatus = combinedStatus;
     this.failureCount = failureCount;
+    this.lastFailureMessage = lastFailureMessage;
     this.lastDataFetchAt = lastDataFetch != -1 ? lastDataFetch : null;
     this.expiresAt = expiresAt != -1 ? expiresAt : null;
     this.lastRefreshDurationMillis = lastRefreshDuration;
@@ -98,6 +112,10 @@ public class ReflectionStatusAPI {
 
   public int getFailureCount() {
     return failureCount;
+  }
+
+  public String getLastFailureMessage() {
+    return lastFailureMessage;
   }
 
   public long getLastRefreshDurationMillis() {

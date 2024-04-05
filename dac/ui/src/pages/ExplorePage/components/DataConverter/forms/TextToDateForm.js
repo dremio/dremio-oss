@@ -126,7 +126,7 @@ export class TextToDateForm extends Component {
                   <Radio
                     {...fields.actionForNonMatchingValue}
                     label={formatMessage({
-                      id: "Replace.ValuesWithNull",
+                      id: "Replace.Values.WithNull",
                     })}
                     radioValue="REPLACE_WITH_NULL"
                     className={radioStacked}

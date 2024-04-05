@@ -15,12 +15,11 @@
  */
 package com.dremio.service.functions.model;
 
-import java.io.IOException;
-
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
+import java.io.IOException;
 
 public class FunctionSignatureDeserializer extends StdDeserializer<FunctionSignature> {
   public FunctionSignatureDeserializer() {
@@ -32,7 +31,8 @@ public class FunctionSignatureDeserializer extends StdDeserializer<FunctionSigna
   }
 
   @Override
-  public FunctionSignature deserialize(JsonParser jp, DeserializationContext ctxt) throws IOException {
+  public FunctionSignature deserialize(JsonParser jp, DeserializationContext ctxt)
+      throws IOException {
     JsonNode node = jp.getCodec().readTree(jp);
     String text = node.asText();
     return FunctionSignature.parse(text);

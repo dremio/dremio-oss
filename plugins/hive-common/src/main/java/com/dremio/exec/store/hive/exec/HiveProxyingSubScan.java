@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.store.hive.exec;
 
-import java.util.List;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.PhysicalOperator;
@@ -31,11 +29,9 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import java.util.List;
 
-/**
- * Class which wraps a Hive SubScan in a separate ClassLoader and exposes
- * it to Dremio.
- */
+/** Class which wraps a Hive SubScan in a separate ClassLoader and exposes it to Dremio. */
 @JsonTypeName("hive-proxying-sub-scan")
 @JsonDeserialize(using = HiveProxyingSubScanDeserializer.class)
 public class HiveProxyingSubScan extends SubScanWithProjection {
@@ -44,10 +40,10 @@ public class HiveProxyingSubScan extends SubScanWithProjection {
 
   @JsonCreator
   public HiveProxyingSubScan(
-    @JsonProperty("pluginId") StoragePluginId pluginId,
-    @JsonProperty("wrappedHiveScan") HiveProxiedSubScan scan) {
+      @JsonProperty("pluginId") StoragePluginId pluginId,
+      @JsonProperty("wrappedHiveScan") HiveProxiedSubScan scan) {
     super(scan.getProps(), scan.getFullSchema(), scan.getTableSchemaPath(), scan.getColumns());
-    this.pluginId  = pluginId;
+    this.pluginId = pluginId;
     proxiedSubScan = scan;
   }
 
@@ -108,7 +104,8 @@ public class HiveProxyingSubScan extends SubScanWithProjection {
   }
 
   @Override
-  public PhysicalOperator getNewWithChildren(List<PhysicalOperator> children) throws ExecutionSetupException {
+  public PhysicalOperator getNewWithChildren(List<PhysicalOperator> children)
+      throws ExecutionSetupException {
     assert children == null || children.isEmpty();
     HiveProxiedSubScan proxiedSubScan = this.proxiedSubScan.clone();
     return new HiveProxyingSubScan(pluginId, proxiedSubScan);

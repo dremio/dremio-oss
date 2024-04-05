@@ -15,21 +15,22 @@
  */
 package com.dremio.exec.opt;
 
-import org.junit.Test;
-
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.logical.LogicalPlan;
 import com.dremio.exec.ExecTest;
 import com.dremio.exec.planner.PhysicalPlanReaderTestFactory;
+import org.junit.Test;
 
 public class BasicOptimizerTest extends ExecTest {
 
-    @Test
-    public void parseSimplePlan() throws Exception{
-        LogicalPlanPersistence lpp = PhysicalPlanReaderTestFactory.defaultLogicalPlanPersistence(DEFAULT_SABOT_CONFIG, CLASSPATH_SCAN_RESULT);
-        LogicalPlan plan = LogicalPlan.parse(lpp, readResourceAsString("/scan_screen_logical.json"));
-        String unparse = plan.unparse(lpp);
-//        System.out.println(unparse);
-        //System.out.println( new BasicOptimizer(SabotConfig.create()).convert(plan).unparse(c.getMapper().writer()));
-    }
+  @Test
+  public void parseSimplePlan() throws Exception {
+    LogicalPlanPersistence lpp =
+        PhysicalPlanReaderTestFactory.defaultLogicalPlanPersistence(CLASSPATH_SCAN_RESULT);
+    LogicalPlan plan = LogicalPlan.parse(lpp, readResourceAsString("/scan_screen_logical.json"));
+    String unparse = plan.unparse(lpp);
+    //        System.out.println(unparse);
+    // System.out.println( new
+    // BasicOptimizer(SabotConfig.create()).convert(plan).unparse(c.getMapper().writer()));
+  }
 }

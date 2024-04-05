@@ -15,22 +15,21 @@
  */
 package com.dremio.exec.catalog.udf;
 
+import com.dremio.exec.catalog.CatalogIdentity;
+import com.dremio.exec.planner.sql.CalciteArrowHelper;
+import com.dremio.exec.store.sys.udf.UserDefinedFunction;
 import java.util.List;
-
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.schema.FunctionParameter;
 import org.apache.calcite.schema.ScalarFunction;
 
-import com.dremio.exec.catalog.CatalogIdentity;
-import com.dremio.exec.planner.sql.CalciteArrowHelper;
-import com.dremio.exec.store.sys.udf.UserDefinedFunction;
-
 public class DremioScalarUserDefinedFunction implements DremioUserDefinedFunction, ScalarFunction {
   private final CatalogIdentity owner;
   private final UserDefinedFunction userDefinedFunction;
 
-  public DremioScalarUserDefinedFunction(CatalogIdentity owner, UserDefinedFunction userDefinedFunction) {
+  public DremioScalarUserDefinedFunction(
+      CatalogIdentity owner, UserDefinedFunction userDefinedFunction) {
     this.owner = owner;
     this.userDefinedFunction = userDefinedFunction;
   }
@@ -40,7 +39,8 @@ public class DremioScalarUserDefinedFunction implements DremioUserDefinedFunctio
     return userDefinedFunction.getFunctionSql();
   }
 
-  @Override public List<FunctionParameter> getParameters() {
+  @Override
+  public List<FunctionParameter> getParameters() {
     return FunctionParameterImpl.createParameters(userDefinedFunction.getFunctionArgsList());
   }
 
@@ -49,13 +49,14 @@ public class DremioScalarUserDefinedFunction implements DremioUserDefinedFunctio
     return owner;
   }
 
-  @Override public RelDataType getReturnType(RelDataTypeFactory relDataTypeFactory) {
-    return CalciteArrowHelper.wrap(userDefinedFunction.getReturnType()).toCalciteType(relDataTypeFactory, true);
+  @Override
+  public RelDataType getReturnType(RelDataTypeFactory relDataTypeFactory) {
+    return CalciteArrowHelper.wrap(userDefinedFunction.getReturnType())
+        .toCalciteType(relDataTypeFactory, true);
   }
 
   @Override
-  public String getName(){
+  public String getName() {
     return userDefinedFunction.getName();
   }
-
 }

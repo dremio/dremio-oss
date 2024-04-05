@@ -15,26 +15,26 @@
  */
 package com.dremio.exec.expr;
 
-import java.util.Arrays;
-import java.util.Set;
-import java.util.stream.Collectors;
-
-import org.apache.arrow.gandiva.exceptions.GandivaException;
-
 import com.dremio.common.expression.SupportedEngines;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.expr.fn.GandivaRegistryWrapper;
 import com.dremio.options.OptionManager;
+import java.util.Arrays;
+import java.util.Set;
+import java.util.stream.Collectors;
+import org.apache.arrow.gandiva.exceptions.GandivaException;
 
 public class ExpressionEvaluationOptions {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ExpressionEvaluationOptions.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ExpressionEvaluationOptions.class);
   private static boolean javaOnly = false;
 
   static {
     try {
       GandivaRegistryWrapper.getInstance();
     } catch (GandivaException gandivaException) {
-      logger.error("Could not initialize gandiva registry; Using Java code generation.", gandivaException);
+      logger.error(
+          "Could not initialize gandiva registry; Using Java code generation.", gandivaException);
       javaOnly = true;
     }
   }
@@ -46,7 +46,11 @@ public class ExpressionEvaluationOptions {
   public ExpressionEvaluationOptions(OptionManager options) {
     this.options = options;
     String disabledFunctions = options.getOption(ExecConstants.DISABLED_GANDIVA_FUNCTIONS);
-    this.disabledGandivaFunctions = Arrays.stream(disabledFunctions.split(";")).map(String::toLowerCase).map(String::trim).collect(Collectors.toSet());
+    this.disabledGandivaFunctions =
+        Arrays.stream(disabledFunctions.split(";"))
+            .map(String::toLowerCase)
+            .map(String::trim)
+            .collect(Collectors.toSet());
   }
 
   public void setCodeGenOption(String codeGenOption) {
@@ -62,9 +66,13 @@ public class ExpressionEvaluationOptions {
     return codeGenOption;
   }
 
-  public double getWorkThresholdForSplit() { return options.getOption(ExecConstants.WORK_THRESHOLD_FOR_SPLIT); }
+  public double getWorkThresholdForSplit() {
+    return options.getOption(ExecConstants.WORK_THRESHOLD_FOR_SPLIT);
+  }
 
-  public boolean isSplitEnabled() { return options.getOption(ExecConstants.SPLIT_ENABLED); }
+  public boolean isSplitEnabled() {
+    return options.getOption(ExecConstants.SPLIT_ENABLED);
+  }
 
   public ExpressionEvaluationOptions flipPreferredCodeGen() {
     ExpressionEvaluationOptions clone = new ExpressionEvaluationOptions(options);

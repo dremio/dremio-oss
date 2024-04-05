@@ -18,10 +18,25 @@ package com.dremio.exec.expr.fn.impl;
 public class MaskFirstNTransformer extends MaskTransformer {
   int charCount = 4;
 
-  public void init(long charCount, String maskedUpperChar, String maskedLowerChar, String maskedDigitChar,
-                   String maskedOtherChar, int maskedNumber, int maskedDayValue, int maskedMonthValue, int maskedYearValue) {
-    super.init(maskedUpperChar, maskedLowerChar, maskedDigitChar,
-      maskedOtherChar, maskedNumber, maskedDayValue, maskedMonthValue, maskedYearValue);
+  public void init(
+      long charCount,
+      String maskedUpperChar,
+      String maskedLowerChar,
+      String maskedDigitChar,
+      String maskedOtherChar,
+      int maskedNumber,
+      int maskedDayValue,
+      int maskedMonthValue,
+      int maskedYearValue) {
+    super.init(
+        maskedUpperChar,
+        maskedLowerChar,
+        maskedDigitChar,
+        maskedOtherChar,
+        maskedNumber,
+        maskedDayValue,
+        maskedMonthValue,
+        maskedYearValue);
     this.charCount = (int) charCount;
 
     if (charCount < 0) {
@@ -31,14 +46,14 @@ public class MaskFirstNTransformer extends MaskTransformer {
 
   @Override
   public String transform(final CharSequence value) {
-    final StringBuilder ret    = new StringBuilder(value.length());
-    final int           endIdx = value.length() < charCount ? value.length() : charCount;
+    final StringBuilder ret = new StringBuilder(value.length());
+    final int endIdx = value.length() < charCount ? value.length() : charCount;
 
-    for(int i = 0; i < endIdx; i++) {
+    for (int i = 0; i < endIdx; i++) {
       ret.appendCodePoint(transformChar(value.charAt(i)));
     }
 
-    for(int i = endIdx; i < value.length(); i++) {
+    for (int i = endIdx; i < value.length(); i++) {
       ret.appendCodePoint(value.charAt(i));
     }
 
@@ -49,13 +64,13 @@ public class MaskFirstNTransformer extends MaskTransformer {
   public Integer transform(final Integer value) {
     int val = value;
 
-    if(value < 0) {
+    if (value < 0) {
       val *= -1;
     }
 
     // count number of digits in the value
     int digitCount = 0;
-    for(int v = val; v != 0; v /= 10) {
+    for (int v = val; v != 0; v /= 10) {
       digitCount++;
     }
 
@@ -64,8 +79,8 @@ public class MaskFirstNTransformer extends MaskTransformer {
 
     int ret = 0;
     int pos = 1;
-    for(int i = 0; val != 0; i++) {
-      if(i >= retainCount) { // mask this digit
+    for (int i = 0; val != 0; i++) {
+      if (i >= retainCount) { // mask this digit
         ret += maskedNumber * pos;
       } else { // retain this digit
         ret += (val % 10) * pos;
@@ -75,7 +90,7 @@ public class MaskFirstNTransformer extends MaskTransformer {
       pos *= 10;
     }
 
-    if(value < 0) {
+    if (value < 0) {
       ret *= -1;
     }
 
@@ -86,13 +101,13 @@ public class MaskFirstNTransformer extends MaskTransformer {
   public Long transform(final Long value) {
     long val = value;
 
-    if(value < 0) {
+    if (value < 0) {
       val *= -1;
     }
 
     // count number of digits in the value
     int digitCount = 0;
-    for(long v = val; v != 0; v /= 10) {
+    for (long v = val; v != 0; v /= 10) {
       digitCount++;
     }
 
@@ -101,8 +116,8 @@ public class MaskFirstNTransformer extends MaskTransformer {
 
     long ret = 0;
     long pos = 1;
-    for(int i = 0; val != 0; i++) {
-      if(i >= retainCount) { // mask this digit
+    for (int i = 0; val != 0; i++) {
+      if (i >= retainCount) { // mask this digit
         ret += maskedNumber * pos;
       } else { // retain this digit
         ret += (val % 10) * pos;
@@ -112,7 +127,7 @@ public class MaskFirstNTransformer extends MaskTransformer {
       pos *= 10;
     }
 
-    if(value < 0) {
+    if (value < 0) {
       ret *= -1;
     }
 

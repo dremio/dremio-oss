@@ -19,18 +19,16 @@ import javax.ws.rs.core.Configuration;
 import javax.ws.rs.core.Feature;
 import javax.ws.rs.core.FeatureContext;
 
-/**
- * JAX-WS Feature for DAC error messages
- */
+/** JAX-WS Feature for DAC error messages */
 public class DACExceptionMapperFeature implements Feature {
 
-  public DACExceptionMapperFeature() {
-  }
+  public DACExceptionMapperFeature() {}
 
   @Override
   public boolean configure(FeatureContext context) {
     Configuration configuration = context.getConfiguration();
-    Boolean property = PropertyHelper.getProperty(configuration, RestServerV2.ERROR_STACKTRACE_ENABLE);
+    Boolean property =
+        PropertyHelper.getProperty(configuration, RestServerV2.ERROR_STACKTRACE_ENABLE);
 
     // Default is false
     boolean includeStackTraces = property != null && property;

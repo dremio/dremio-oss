@@ -15,15 +15,17 @@
  */
 package com.dremio.dac.server;
 
+import com.dremio.service.SingletonRegistry;
+import com.dremio.services.credentials.CredentialsService;
+import com.dremio.telemetry.api.tracing.http.ServerTracingFilter;
+import com.google.common.annotations.VisibleForTesting;
 import java.net.InetAddress;
 import java.net.URISyntaxException;
 import java.security.KeyStore;
 import java.util.EnumSet;
 import java.util.function.Consumer;
-
 import javax.inject.Provider;
 import javax.servlet.DispatcherType;
-
 import org.apache.commons.lang3.tuple.Pair;
 import org.eclipse.jetty.server.HttpConfiguration;
 import org.eclipse.jetty.server.HttpConnectionFactory;
@@ -37,17 +39,11 @@ import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.util.resource.Resource;
 
-import com.dremio.service.SingletonRegistry;
-import com.dremio.services.credentials.CredentialsService;
-import com.dremio.telemetry.api.tracing.http.ServerTracingFilter;
-import com.google.common.annotations.VisibleForTesting;
-
-/**
- * Provides Dremio web server
- */
+/** Provides Dremio web server */
 public class DremioServer {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DremioServer.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(DremioServer.class);
 
   private final Server embeddedJetty;
   private Provider<CredentialsService> credentialsServiceProvider;
@@ -68,12 +64,12 @@ public class DremioServer {
   }
 
   public void startDremioServer(
-    SingletonRegistry registry,
-    DACConfig config,
-    Provider<CredentialsService> credentialsServiceProvider,
-    String uiType,
-    Consumer<ServletContextHandler> servletRegistrer
-  ) throws Exception {
+      SingletonRegistry registry,
+      DACConfig config,
+      Provider<CredentialsService> credentialsServiceProvider,
+      String uiType,
+      Consumer<ServletContextHandler> servletRegistrer)
+      throws Exception {
     this.credentialsServiceProvider = credentialsServiceProvider;
     try {
       if (!embeddedJetty.isRunning()) {
@@ -84,16 +80,15 @@ public class DremioServer {
       if (config.verboseAccessLog) {
         accessLogFilter = new AccessLogFilter();
         servletContextHandler.addFilter(
-          new FilterHolder(accessLogFilter),
-          "/*",
-          EnumSet.of(DispatcherType.REQUEST));
+            new FilterHolder(accessLogFilter), "/*", EnumSet.of(DispatcherType.REQUEST));
       }
 
       if (config.serveUI) {
         final String basePath = "rest/dremio_static/";
         final String markerPath = String.format("META-INF/%s.properties", uiType);
 
-        final ServletHolder fallbackServletHolder = new ServletHolder("fallback-servlet", registry.lookup(DremioServlet.class));
+        final ServletHolder fallbackServletHolder =
+            new ServletHolder("fallback-servlet", registry.lookup(DremioServlet.class));
         addStaticPath(fallbackServletHolder, basePath, markerPath);
         servletContextHandler.addServlet(fallbackServletHolder, "/*");
       }
@@ -118,15 +113,20 @@ public class DremioServer {
   protected void createConnector(DACConfig config) throws Exception {
     if (config.webSSLEnabled()) {
       Pair<ServerConnector, KeyStore> connectorTrustStorePair =
-        new HttpsConnectorGenerator().createHttpsConnector(embeddedJetty, config.getConfig(),
-          credentialsServiceProvider,
-          config.thisNode, InetAddress.getLocalHost().getCanonicalHostName());
+          new HttpsConnectorGenerator()
+              .createHttpsConnector(
+                  embeddedJetty,
+                  config.getConfig(),
+                  credentialsServiceProvider,
+                  config.thisNode,
+                  InetAddress.getLocalHost().getCanonicalHostName());
       serverConnector = connectorTrustStorePair.getLeft();
       trustStore = connectorTrustStorePair.getRight();
     } else {
       final HttpConfiguration configuration = new HttpConfiguration();
       configuration.setSendServerVersion(false);
-      serverConnector = new ServerConnector(embeddedJetty, new HttpConnectionFactory(configuration));
+      serverConnector =
+          new ServerConnector(embeddedJetty, new HttpConnectionFactory(configuration));
     }
     if (!config.autoPort) {
       serverConnector.setPort(config.getHttpPort());
@@ -162,9 +162,12 @@ public class DremioServer {
     embeddedJetty.setErrorHandler(errorHandler);
   }
 
-  protected void addStaticPath(ServletHolder holder, String basePath, String relativeMarkerPathToResource) throws URISyntaxException {
+  protected void addStaticPath(
+      ServletHolder holder, String basePath, String relativeMarkerPathToResource)
+      throws URISyntaxException {
     String path = Resource.newClassPathResource(relativeMarkerPathToResource).getURL().toString();
-    final String fullBasePath = path.substring(0, path.length() - relativeMarkerPathToResource.length()) + basePath;
+    final String fullBasePath =
+        path.substring(0, path.length() - relativeMarkerPathToResource.length()) + basePath;
     holder.setInitParameter("dirAllowed", "false");
     holder.setInitParameter("pathInfoOnly", "true");
     holder.setInitParameter("resourceBase", fullBasePath);

@@ -18,31 +18,26 @@ package com.dremio.jdbc;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
+import com.dremio.exec.ExecConstants;
+import com.dremio.test.DremioTest;
+import com.google.common.io.Resources;
 import java.io.IOException;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Properties;
-
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import com.dremio.exec.ExecConstants;
-import com.dremio.test.DremioTest;
-import com.google.common.io.Resources;
-
-/**
- * (Some) unit and integration tests for com.dremio.jdbc.Driver.
- */
+/** (Some) unit and integration tests for com.dremio.jdbc.Driver. */
 public class DriverTest extends DremioTest {
 
   // TODO: Move Jetty status server disabling to DremioTest.
-  private static final String STATUS_SERVER_PROPERTY_NAME =
-    ExecConstants.HTTP_ENABLE;
+  private static final String STATUS_SERVER_PROPERTY_NAME = ExecConstants.HTTP_ENABLE;
 
   private static final String origJettyPropValue =
-    System.getProperty(STATUS_SERVER_PROPERTY_NAME, "true");
+      System.getProperty(STATUS_SERVER_PROPERTY_NAME, "true");
 
   // Disable Jetty status server so unit tests run (outside Maven setup).
   // (TODO:  Move this to base test class and/or have Jetty try other ports.)
@@ -64,40 +59,34 @@ public class DriverTest extends DremioTest {
   // Tests for connect() (defined by JDBC/java.sql.Driver):
 
   @Test
-  public void test_connect_declinesEmptyUrl()
-    throws SQLException {
+  public void test_connect_declinesEmptyUrl() throws SQLException {
     assertThat(uut.connect("", null)).isNull();
   }
 
   @Test
-  public void test_connect_declinesNonUrl()
-    throws SQLException {
+  public void test_connect_declinesNonUrl() throws SQLException {
     assertThat(uut.connect("whatever", null)).isNull();
   }
 
   @Test
-  public void test_connect_declinesNonJdbcUrl()
-    throws SQLException {
+  public void test_connect_declinesNonJdbcUrl() throws SQLException {
     assertThat(uut.connect("file:///something", null)).isNull();
   }
 
   @Test
-  public void test_connect_declinesNonDremioJdbcUrl()
-    throws SQLException {
+  public void test_connect_declinesNonDremioJdbcUrl() throws SQLException {
     assertThat(uut.connect("jdbc:somedb:whatever", null)).isNull();
   }
 
   @Test
-  public void test_connect_declinesNotQuiteDremioUrl()
-    throws SQLException {
+  public void test_connect_declinesNotQuiteDremioUrl() throws SQLException {
     assertThat(uut.connect("jdbc:dremio", null)).isNull();
   }
 
   // TODO  Determine whether this "jdbc:dremio:" should be valid or error.
   @Ignore("Just hangs, trying to connect to non-existent local zookeeper.")
   @Test
-  public void test_connect_acceptsMinimalDremioJdbcUrl()
-    throws SQLException {
+  public void test_connect_acceptsMinimalDremioJdbcUrl() throws SQLException {
     assertThat(uut.connect("jdbc:dremio:", null)).isNull();
     fail("Not implemented yet");
   }
@@ -106,8 +95,7 @@ public class DriverTest extends DremioTest {
   // required?  What other properties are allowed?  What is disallowed?)
   @Ignore("Just hangs, trying to connect to non-existent local zookeeper.")
   @Test
-  public void test_connect_DECIDEWHICHBogusDremioJdbcUrl()
-    throws SQLException {
+  public void test_connect_DECIDEWHICHBogusDremioJdbcUrl() throws SQLException {
     assertThat(uut.connect("jdbc:dremio:x=y;z;;a=b=c=d;what=ever", null)).isNull();
     fail("Not implemented yet");
   }
@@ -118,46 +106,38 @@ public class DriverTest extends DremioTest {
   // Tests for acceptsURL(String) (defined by JDBC/java.sql.Driver):
 
   @Test
-  public void test_acceptsURL_acceptsDremioUrlMinimal()
-    throws SQLException {
+  public void test_acceptsURL_acceptsDremioUrlMinimal() throws SQLException {
     assertThat(uut.acceptsURL("jdbc:dremio:")).isTrue();
   }
 
   @Test
-  public void test_acceptsURL_acceptsDremioPlusJunk()
-    throws SQLException {
+  public void test_acceptsURL_acceptsDremioPlusJunk() throws SQLException {
     assertThat(uut.acceptsURL("jdbc:dremio:should it check this?")).isTrue();
   }
 
   @Test
-  public void test_acceptsURL_rejectsNonDremioJdbcUrl()
-    throws SQLException {
+  public void test_acceptsURL_rejectsNonDremioJdbcUrl() throws SQLException {
     assertThat(uut.acceptsURL("jdbc:notdremio:whatever")).isFalse();
   }
 
   @Test
-  public void test_acceptsURL_rejectsNonDremioJdbc2()
-    throws SQLException {
+  public void test_acceptsURL_rejectsNonDremioJdbc2() throws SQLException {
     assertThat(uut.acceptsURL("jdbc:optiq:")).isFalse();
   }
 
   @Test
-  public void test_acceptsURL_rejectsNonJdbcUrl()
-    throws SQLException {
+  public void test_acceptsURL_rejectsNonJdbcUrl() throws SQLException {
     assertThat(uut.acceptsURL("dremio:")).isFalse();
   }
-
 
   // Tests for getPropertyInfo(String, Properties) (defined by
   // JDBC/java.sql.Driver):
   // TODO:  Determine what properties (if any) should be returned.
   @Ignore("Deferred pending need.")
   @Test
-  public void test_getPropertyInfo()
-    throws SQLException {
+  public void test_getPropertyInfo() throws SQLException {
     fail("Not implemented yet");
   }
-
 
   // Tests for getMajorVersion() (defined by JDBC/java.sql.Driver):
   @Test
@@ -165,9 +145,9 @@ public class DriverTest extends DremioTest {
     Properties properties = new Properties();
     properties.load(Resources.getResource("dremio-jdbc.properties").openStream());
 
-    assertThat(uut.getMajorVersion()).isEqualTo(Integer.parseInt(properties.getProperty("driver.version.major")));
+    assertThat(uut.getMajorVersion())
+        .isEqualTo(Integer.parseInt(properties.getProperty("driver.version.major")));
   }
-
 
   // Tests for getMinorVersion() (defined by JDBC/java.sql.Driver):
   @Test
@@ -175,9 +155,9 @@ public class DriverTest extends DremioTest {
     Properties properties = new Properties();
     properties.load(Resources.getResource("dremio-jdbc.properties").openStream());
 
-    assertThat(uut.getMinorVersion()).isEqualTo(Integer.parseInt(properties.getProperty("driver.version.minor")));
+    assertThat(uut.getMinorVersion())
+        .isEqualTo(Integer.parseInt(properties.getProperty("driver.version.minor")));
   }
-
 
   // Tests for jdbcCompliant() (defined by JDBC/java.sql.Driver):
   // TODO  Determine what we choose to return.  If it doesn't match what
@@ -199,19 +179,16 @@ public class DriverTest extends DremioTest {
     fail("Not implemented yet");
   }
 
-
   // Tests for XXX (defined by JDBC/java.sql.Driver):
   // Defined by JDBC/java.sql.Driver: "[driver] should create and instance of
   // itself and register it with the DriverManager.
   @Test
-  public void test_Driver_registersWithManager()
-    throws SQLException {
+  public void test_Driver_registersWithManager() throws SQLException {
     assertThat(DriverManager.getDriver("jdbc:dremio:whatever")).isInstanceOf(Driver.class);
   }
 
   ////////////////////////////////////////
   // Tests of methods defined by net.hydromatic.avatica.UnregisteredDriver.
-
 
   @Ignore("Deferred pending need.")
   @Test
@@ -305,7 +282,6 @@ public class DriverTest extends DremioTest {
 
   ////////////////////////////////////////
 
-
   @Ignore("Deferred pending need.")
   @Test
   public void test_hashCode() {
@@ -323,5 +299,4 @@ public class DriverTest extends DremioTest {
   public void test_toString() {
     fail("Not implemented yet");
   }
-
 }

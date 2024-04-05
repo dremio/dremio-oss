@@ -19,20 +19,6 @@ import static com.dremio.TestBuilder.mapOf;
 import static java.lang.String.format;
 import static org.junit.Assert.assertEquals;
 
-import java.io.IOException;
-import java.text.ParseException;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Optional;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TestRule;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.CloseableByteBuf;
 import com.dremio.common.DeferredException;
@@ -69,26 +55,41 @@ import com.dremio.telemetry.utils.TracerFacade;
 import com.google.common.base.StandardSystemProperty;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
+import java.io.IOException;
+import java.text.ParseException;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TestRule;
 
 public class ITTestLimit extends ElasticBaseTestQuery {
   private final GrpcChannelBuilderFactory grpcChannelBuilderFactory =
-    new SingleTenantGrpcChannelBuilderFactory(TracerFacade.INSTANCE,
-      DirectProvider.wrap(RequestContext.current()
-        .with(TenantContext.CTX_KEY, TenantContext.DEFAULT_SERVICE_CONTEXT)
-        .with(UserContext.CTX_KEY, new UserContext("dremio"))),
-      () -> Maps.newHashMap());
+      new SingleTenantGrpcChannelBuilderFactory(
+          TracerFacade.INSTANCE,
+          DirectProvider.wrap(
+              RequestContext.current()
+                  .with(TenantContext.CTX_KEY, TenantContext.DEFAULT_SERVICE_CONTEXT)
+                  .with(UserContext.CTX_KEY, new UserContext("dremio"))),
+          () -> Maps.newHashMap());
 
   private JobTelemetryClient jobTelemetryClient;
 
-  @Rule
-  public final TestRule timeoutRule = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
+  @Rule public final TestRule timeoutRule = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
 
   @Before
   public void loadTable() throws IOException, ParseException, InterruptedException {
     ColumnData[] data = getBusinessData();
     loadWithRetry(schema, table, data);
 
-    jobTelemetryClient = new JobTelemetryClient(grpcChannelBuilderFactory, DirectProvider.wrap(getSabotContext().getEndpoint()));
+    jobTelemetryClient =
+        new JobTelemetryClient(
+            grpcChannelBuilderFactory, DirectProvider.wrap(getSabotContext().getEndpoint()));
     jobTelemetryClient.start();
   }
 
@@ -97,52 +98,64 @@ public class ITTestLimit extends ElasticBaseTestQuery {
     AutoCloseables.close(jobTelemetryClient);
   }
 
-  private static final String AGG_LIMIT = "="
-      + "[{\n" +
-      "  \"size\" : 0,\n" +
-      "  \"query\" : {\n" +
-      "    \"match_all\" : { }\n" +
-      "  },\n" +
-      "  \"aggregations\" : {\n" +
-      "    \"city\" : {\n" +
-      "      \"terms\" : {\n" +
-      "        \"field\" : \"city\",\n" +
-      "        \"missing\" : \"NULL_STRING_TAG\",\n" +
-      "        \"size\" : 2147483647\n" +
-      "      }\n" +
-      "    }\n" +
-      "  }\n" +
-      "}])";
+  private static final String AGG_LIMIT =
+      "="
+          + "[{\n"
+          + "  \"size\" : 0,\n"
+          + "  \"query\" : {\n"
+          + "    \"match_all\" : { }\n"
+          + "  },\n"
+          + "  \"aggregations\" : {\n"
+          + "    \"city\" : {\n"
+          + "      \"terms\" : {\n"
+          + "        \"field\" : \"city\",\n"
+          + "        \"missing\" : \"NULL_STRING_TAG\",\n"
+          + "        \"size\" : 2147483647\n"
+          + "      }\n"
+          + "    }\n"
+          + "  }\n"
+          + "}])";
 
   @Test
   public final void runTestFilterLimit1() throws Exception {
-    String sqlQueryLimit1 = "select state, city_analyzed, review_count from elasticsearch." + schema + "." + table + " where stars >= 4 limit 1";
-    verifyJsonInPlanHelper(sqlQueryLimit1, new String[] {
-        "[{\n" +
-        "  \"from\" : 0,\n" +
-        "  \"size\" : 1,\n" +
-        "  \"query\" : {\n" +
-        "    \"range\" : {\n" +
-        "      \"stars\" : {\n" +
-        "        \"from\" : 4,\n" +
-        "        \"to\" : null,\n" +
-        "        \"include_lower\" : true,\n" +
-        "        \"include_upper\" : true,\n" +
-        "        \"boost\" : 1.0\n" +
-        "      }\n" +
-        "    }\n" +
-        "  },\n" +
-        "  \"_source\" : {\n" +
-        "    \"includes\" : [\n" +
-        "      \"city_analyzed\",\n" +
-        "      \"review_count\",\n" +
-        "      \"stars\",\n" +
-        "      \"state\"\n" +
-        "    ],\n" +
-        "    \"excludes\" : [ ]\n" +
-        "  }\n" +
-        "}]" }, true);
-    testBuilder().sqlQuery(sqlQueryLimit1).unOrdered()
+    String sqlQueryLimit1 =
+        "select state, city_analyzed, review_count from elasticsearch."
+            + schema
+            + "."
+            + table
+            + " where stars >= 4 limit 1";
+    verifyJsonInPlanHelper(
+        sqlQueryLimit1,
+        new String[] {
+          "[{\n"
+              + "  \"from\" : 0,\n"
+              + "  \"size\" : 1,\n"
+              + "  \"query\" : {\n"
+              + "    \"range\" : {\n"
+              + "      \"stars\" : {\n"
+              + "        \"from\" : 4,\n"
+              + "        \"to\" : null,\n"
+              + "        \"include_lower\" : true,\n"
+              + "        \"include_upper\" : true,\n"
+              + "        \"boost\" : 1.0\n"
+              + "      }\n"
+              + "    }\n"
+              + "  },\n"
+              + "  \"_source\" : {\n"
+              + "    \"includes\" : [\n"
+              + "      \"city_analyzed\",\n"
+              + "      \"review_count\",\n"
+              + "      \"stars\",\n"
+              + "      \"state\"\n"
+              + "    ],\n"
+              + "    \"excludes\" : [ ]\n"
+              + "  }\n"
+              + "}]"
+        },
+        true);
+    testBuilder()
+        .sqlQuery(sqlQueryLimit1)
+        .unOrdered()
         .baselineColumns("state", "city_analyzed", "review_count")
         .baselineValues("MA", "Cambridge", 11)
         .go();
@@ -150,34 +163,44 @@ public class ITTestLimit extends ElasticBaseTestQuery {
 
   @Test
   public final void runTestFilterLimit100() throws Exception {
-    String sqlQueryLimit100 = "select state, city_analyzed, review_count from elasticsearch." + schema + "." + table + " where stars >= 4 limit 100";
-    verifyJsonInPlanHelper(sqlQueryLimit100, new String[] {
-        "[{\n" +
-        "  \"from\" : 0,\n" +
-        "  \"size\" : 100,\n" +
-        "  \"query\" : {\n" +
-        "    \"range\" : {\n" +
-        "      \"stars\" : {\n" +
-        "        \"from\" : 4,\n" +
-        "        \"to\" : null,\n" +
-        "        \"include_lower\" : true,\n" +
-        "        \"include_upper\" : true,\n" +
-        "        \"boost\" : 1.0\n" +
-        "      }\n" +
-        "    }\n" +
-        "  },\n" +
-        "  \"_source\" : {\n" +
-        "    \"includes\" : [\n" +
-        "      \"city_analyzed\",\n" +
-        "      \"review_count\",\n" +
-        "      \"stars\",\n" +
-        "      \"state\"\n" +
-        "    ],\n" +
-        "    \"excludes\" : [ ]\n" +
-        "  }\n" +
-        "}]" },
-      true);
-    testBuilder().sqlQuery(sqlQueryLimit100).unOrdered()
+    String sqlQueryLimit100 =
+        "select state, city_analyzed, review_count from elasticsearch."
+            + schema
+            + "."
+            + table
+            + " where stars >= 4 limit 100";
+    verifyJsonInPlanHelper(
+        sqlQueryLimit100,
+        new String[] {
+          "[{\n"
+              + "  \"from\" : 0,\n"
+              + "  \"size\" : 100,\n"
+              + "  \"query\" : {\n"
+              + "    \"range\" : {\n"
+              + "      \"stars\" : {\n"
+              + "        \"from\" : 4,\n"
+              + "        \"to\" : null,\n"
+              + "        \"include_lower\" : true,\n"
+              + "        \"include_upper\" : true,\n"
+              + "        \"boost\" : 1.0\n"
+              + "      }\n"
+              + "    }\n"
+              + "  },\n"
+              + "  \"_source\" : {\n"
+              + "    \"includes\" : [\n"
+              + "      \"city_analyzed\",\n"
+              + "      \"review_count\",\n"
+              + "      \"stars\",\n"
+              + "      \"state\"\n"
+              + "    ],\n"
+              + "    \"excludes\" : [ ]\n"
+              + "  }\n"
+              + "}]"
+        },
+        true);
+    testBuilder()
+        .sqlQuery(sqlQueryLimit100)
+        .unOrdered()
         .baselineColumns("state", "city_analyzed", "review_count")
         .baselineValues("MA", "Cambridge", 11)
         .baselineValues("CA", "San Diego", 33)
@@ -187,33 +210,41 @@ public class ITTestLimit extends ElasticBaseTestQuery {
 
   @Test
   public final void runTestFilterFetchOffset() throws Exception {
-    String sqlQueryfetch = "select state, city_analyzed, review_count from elasticsearch." + schema + "." + table + " where stars >= 4 offset 1 fetch next 1 row only";
-    verifyJsonInPlanHelper(sqlQueryfetch, new String[] {
-        "[{\n" +
-        "  \"from\" : 0,\n" +
-        "  \"size\" : 2,\n" +
-        "  \"query\" : {\n" +
-        "    \"range\" : {\n" +
-        "      \"stars\" : {\n" +
-        "        \"from\" : 4,\n" +
-        "        \"to\" : null,\n" +
-        "        \"include_lower\" : true,\n" +
-        "        \"include_upper\" : true,\n" +
-        "        \"boost\" : 1.0\n" +
-        "      }\n" +
-        "    }\n" +
-        "  },\n" +
-        "  \"_source\" : {\n" +
-        "    \"includes\" : [\n" +
-        "      \"city_analyzed\",\n" +
-        "      \"review_count\",\n" +
-        "      \"stars\",\n" +
-        "      \"state\"\n" +
-        "    ],\n" +
-        "    \"excludes\" : [ ]\n" +
-        "  }\n" +
-        "}]" },
-      true);
+    String sqlQueryfetch =
+        "select state, city_analyzed, review_count from elasticsearch."
+            + schema
+            + "."
+            + table
+            + " where stars >= 4 offset 1 fetch next 1 row only";
+    verifyJsonInPlanHelper(
+        sqlQueryfetch,
+        new String[] {
+          "[{\n"
+              + "  \"from\" : 0,\n"
+              + "  \"size\" : 2,\n"
+              + "  \"query\" : {\n"
+              + "    \"range\" : {\n"
+              + "      \"stars\" : {\n"
+              + "        \"from\" : 4,\n"
+              + "        \"to\" : null,\n"
+              + "        \"include_lower\" : true,\n"
+              + "        \"include_upper\" : true,\n"
+              + "        \"boost\" : 1.0\n"
+              + "      }\n"
+              + "    }\n"
+              + "  },\n"
+              + "  \"_source\" : {\n"
+              + "    \"includes\" : [\n"
+              + "      \"city_analyzed\",\n"
+              + "      \"review_count\",\n"
+              + "      \"stars\",\n"
+              + "      \"state\"\n"
+              + "    ],\n"
+              + "    \"excludes\" : [ ]\n"
+              + "  }\n"
+              + "}]"
+        },
+        true);
     testBuilder()
         .sqlQuery(sqlQueryfetch)
         .unOrdered()
@@ -225,24 +256,33 @@ public class ITTestLimit extends ElasticBaseTestQuery {
   @Test
   public final void runTestWithComplexArrayFetchOffset() throws Exception {
     // We cannot push down complex fields
-    String sqlQuery = "select t.location_field[1] as location_1 from elasticsearch." + schema + "." + table + " t offset 2 fetch next 1 row only";
-    verifyJsonInPlanHelper(sqlQuery, new String[] { ""
-        + "[{\n" +
-        "  \"from\" : 0,\n" +
-        "  \"size\" : 3,\n" +
-        "  \"query\" : {\n" +
-        "    \"match_all\" : {\n" +
-        "      \"boost\" : 1.0\n" +
-        "    }\n" +
-        "  },\n" +
-        "  \"_source\" : {\n" +
-        "    \"includes\" : [\n" +
-        "      \"location_field\"\n" +
-        "    ],\n" +
-        "    \"excludes\" : [ ]\n" +
-        "  }\n" +
-        "}]" },
-      true);
+    String sqlQuery =
+        "select t.location_field[1] as location_1 from elasticsearch."
+            + schema
+            + "."
+            + table
+            + " t offset 2 fetch next 1 row only";
+    verifyJsonInPlanHelper(
+        sqlQuery,
+        new String[] {
+          ""
+              + "[{\n"
+              + "  \"from\" : 0,\n"
+              + "  \"size\" : 3,\n"
+              + "  \"query\" : {\n"
+              + "    \"match_all\" : {\n"
+              + "      \"boost\" : 1.0\n"
+              + "    }\n"
+              + "  },\n"
+              + "  \"_source\" : {\n"
+              + "    \"includes\" : [\n"
+              + "      \"location_field\"\n"
+              + "    ],\n"
+              + "    \"excludes\" : [ ]\n"
+              + "  }\n"
+              + "}]"
+        },
+        true);
     testBuilder()
         .sqlQuery(sqlQuery)
         .unOrdered()
@@ -254,23 +294,32 @@ public class ITTestLimit extends ElasticBaseTestQuery {
   @Test
   public final void runTestWithComplexArrayLimit2() throws Exception {
     // We cannot push down complex fields
-    String sqlQuery = "select t.location_field[1] as location_1 from elasticsearch." + schema + "." + table + " t limit 2";
-    verifyJsonInPlanHelper(sqlQuery, new String[] {
-        "[{\n" +
-        "  \"from\" : 0,\n" +
-        "  \"size\" : 2,\n" +
-        "  \"query\" : {\n" +
-        "    \"match_all\" : {\n" +
-        "      \"boost\" : 1.0\n" +
-        "    }\n" +
-        "  },\n" +
-        "  \"_source\" : {\n" +
-        "    \"includes\" : [\n" +
-        "      \"location_field\"\n" +
-        "    ],\n" +
-        "    \"excludes\" : [ ]\n" +
-        "  }\n" +
-        "}]" }, true);
+    String sqlQuery =
+        "select t.location_field[1] as location_1 from elasticsearch."
+            + schema
+            + "."
+            + table
+            + " t limit 2";
+    verifyJsonInPlanHelper(
+        sqlQuery,
+        new String[] {
+          "[{\n"
+              + "  \"from\" : 0,\n"
+              + "  \"size\" : 2,\n"
+              + "  \"query\" : {\n"
+              + "    \"match_all\" : {\n"
+              + "      \"boost\" : 1.0\n"
+              + "    }\n"
+              + "  },\n"
+              + "  \"_source\" : {\n"
+              + "    \"includes\" : [\n"
+              + "      \"location_field\"\n"
+              + "    ],\n"
+              + "    \"excludes\" : [ ]\n"
+              + "  }\n"
+              + "}]"
+        },
+        true);
     testBuilder()
         .sqlQuery(sqlQuery)
         .unOrdered()
@@ -280,27 +329,35 @@ public class ITTestLimit extends ElasticBaseTestQuery {
         .go();
   }
 
-
   @Test
   public final void runTestWithComplexArrayLimit100() throws Exception {
     // We cannot push down complex fields
-    String sqlQuery = "select t.location_field[1] as location_1 from elasticsearch." + schema + "." + table + " t limit 100";
-    verifyJsonInPlanHelper(sqlQuery, new String[] {
-        "[{\n" +
-        "  \"from\" : 0,\n" +
-        "  \"size\" : 100,\n" +
-        "  \"query\" : {\n" +
-        "    \"match_all\" : {\n" +
-        "      \"boost\" : 1.0\n" +
-        "    }\n" +
-        "  },\n" +
-        "  \"_source\" : {\n" +
-        "    \"includes\" : [\n" +
-        "      \"location_field\"\n" +
-        "    ],\n" +
-        "    \"excludes\" : [ ]\n" +
-        "  }\n" +
-        "}]" }, true);
+    String sqlQuery =
+        "select t.location_field[1] as location_1 from elasticsearch."
+            + schema
+            + "."
+            + table
+            + " t limit 100";
+    verifyJsonInPlanHelper(
+        sqlQuery,
+        new String[] {
+          "[{\n"
+              + "  \"from\" : 0,\n"
+              + "  \"size\" : 100,\n"
+              + "  \"query\" : {\n"
+              + "    \"match_all\" : {\n"
+              + "      \"boost\" : 1.0\n"
+              + "    }\n"
+              + "  },\n"
+              + "  \"_source\" : {\n"
+              + "    \"includes\" : [\n"
+              + "      \"location_field\"\n"
+              + "    ],\n"
+              + "    \"excludes\" : [ ]\n"
+              + "  }\n"
+              + "}]"
+        },
+        true);
     testBuilder()
         .sqlQuery(sqlQuery)
         .unOrdered()
@@ -315,24 +372,36 @@ public class ITTestLimit extends ElasticBaseTestQuery {
 
   @Test
   public final void runTestWithLimitBelowAggregation2() throws Exception {
-    String sqlQueryLimit2 = "select city from (select city from elasticsearch." + schema + "." + table + " limit 2) t group by city";
-    verifyJsonInPlanHelper(sqlQueryLimit2, new String[] {""
-        + "[{\n" +
-        "  \"from\" : 0,\n" +
-        "  \"size\" : 2,\n" +
-        "  \"query\" : {\n" +
-        "    \"match_all\" : {\n" +
-        "      \"boost\" : 1.0\n" +
-        "    }\n" +
-        "  },\n" +
-        "  \"_source\" : {\n" +
-        "    \"includes\" : [\n" +
-        "      \"city\"\n" +
-        "    ],\n" +
-        "    \"excludes\" : [ ]\n" +
-        "  }\n" +
-        "}]"}, true);
-    testBuilder().sqlQuery(sqlQueryLimit2).unOrdered()
+    String sqlQueryLimit2 =
+        "select city from (select city from elasticsearch."
+            + schema
+            + "."
+            + table
+            + " limit 2) t group by city";
+    verifyJsonInPlanHelper(
+        sqlQueryLimit2,
+        new String[] {
+          ""
+              + "[{\n"
+              + "  \"from\" : 0,\n"
+              + "  \"size\" : 2,\n"
+              + "  \"query\" : {\n"
+              + "    \"match_all\" : {\n"
+              + "      \"boost\" : 1.0\n"
+              + "    }\n"
+              + "  },\n"
+              + "  \"_source\" : {\n"
+              + "    \"includes\" : [\n"
+              + "      \"city\"\n"
+              + "    ],\n"
+              + "    \"excludes\" : [ ]\n"
+              + "  }\n"
+              + "}]"
+        },
+        true);
+    testBuilder()
+        .sqlQuery(sqlQueryLimit2)
+        .unOrdered()
         .baselineColumns("city")
         .baselineValues("Cambridge")
         .baselineValues("San Francisco")
@@ -341,24 +410,35 @@ public class ITTestLimit extends ElasticBaseTestQuery {
 
   @Test
   public final void runTestWithLimitBelowAggregation100() throws Exception {
-    String sqlQueryLimit100 = "select city from (select city from elasticsearch." + schema + "." + table + " limit 100) t group by city";
-    verifyJsonInPlanHelper(sqlQueryLimit100, new String[] {
-        "[{\n" +
-        "  \"from\" : 0,\n" +
-        "  \"size\" : 100,\n" +
-        "  \"query\" : {\n" +
-        "    \"match_all\" : {\n" +
-        "      \"boost\" : 1.0\n" +
-        "    }\n" +
-        "  },\n" +
-        "  \"_source\" : {\n" +
-        "    \"includes\" : [\n" +
-        "      \"city\"\n" +
-        "    ],\n" +
-        "    \"excludes\" : [ ]\n" +
-        "  }\n" +
-        "}]"}, true);
-    testBuilder().sqlQuery(sqlQueryLimit100).unOrdered()
+    String sqlQueryLimit100 =
+        "select city from (select city from elasticsearch."
+            + schema
+            + "."
+            + table
+            + " limit 100) t group by city";
+    verifyJsonInPlanHelper(
+        sqlQueryLimit100,
+        new String[] {
+          "[{\n"
+              + "  \"from\" : 0,\n"
+              + "  \"size\" : 100,\n"
+              + "  \"query\" : {\n"
+              + "    \"match_all\" : {\n"
+              + "      \"boost\" : 1.0\n"
+              + "    }\n"
+              + "  },\n"
+              + "  \"_source\" : {\n"
+              + "    \"includes\" : [\n"
+              + "      \"city\"\n"
+              + "    ],\n"
+              + "    \"excludes\" : [ ]\n"
+              + "  }\n"
+              + "}]"
+        },
+        true);
+    testBuilder()
+        .sqlQuery(sqlQueryLimit100)
+        .unOrdered()
         .baselineColumns("city")
         .baselineValues("Cambridge")
         .baselineValues("San Francisco")
@@ -371,25 +451,39 @@ public class ITTestLimit extends ElasticBaseTestQuery {
     try {
       test("set planner.leaf_limit_enable = true");
       // We cannot push down complex fields
-      String sqlQuery = "select t.location_field[1] as location_1 from elasticsearch." + schema + "." + table + " t offset 2 fetch next 1 row only";
-      testPlanMatchingPatterns(sqlQuery, new String[] { "Limit\\(offset=\\[2\\], fetch=\\[1\\]\\)", "Limit\\(offset=\\[0:BIGINT\\], fetch=\\[3:BIGINT\\]\\)"}, null);
-      verifyJsonInPlanHelper(sqlQuery, new String[]{
-          "[{\n" +
-          "  \"from\" : 0,\n" +
-          "  \"size\" : 3,\n" +
-          "  \"query\" : {\n" +
-          "    \"match_all\" : {\n" +
-          "      \"boost\" : 1.0\n" +
-          "    }\n" +
-          "  },\n" +
-          "  \"_source\" : {\n" +
-          "    \"includes\" : [\n" +
-          "      \"location_field\"\n" +
-          "    ],\n" +
-          "    \"excludes\" : [ ]\n" +
-          "  }\n" +
-          "}]"},
-        true);
+      String sqlQuery =
+          "select t.location_field[1] as location_1 from elasticsearch."
+              + schema
+              + "."
+              + table
+              + " t offset 2 fetch next 1 row only";
+      testPlanMatchingPatterns(
+          sqlQuery,
+          new String[] {
+            "Limit\\(offset=\\[2\\], fetch=\\[1\\]\\)",
+            "Limit\\(offset=\\[0:BIGINT\\], fetch=\\[3:BIGINT\\]\\)"
+          },
+          null);
+      verifyJsonInPlanHelper(
+          sqlQuery,
+          new String[] {
+            "[{\n"
+                + "  \"from\" : 0,\n"
+                + "  \"size\" : 3,\n"
+                + "  \"query\" : {\n"
+                + "    \"match_all\" : {\n"
+                + "      \"boost\" : 1.0\n"
+                + "    }\n"
+                + "  },\n"
+                + "  \"_source\" : {\n"
+                + "    \"includes\" : [\n"
+                + "      \"location_field\"\n"
+                + "    ],\n"
+                + "    \"excludes\" : [ ]\n"
+                + "  }\n"
+                + "}]"
+          },
+          true);
       testBuilder()
           .sqlQuery(sqlQuery)
           .unOrdered()
@@ -401,38 +495,48 @@ public class ITTestLimit extends ElasticBaseTestQuery {
     }
   }
 
-
   @Test
   public final void runTestLeafLimitFilterLimit1() throws Exception {
     try {
       test("set planner.leaf_limit_enable = true");
-      String sqlQueryLimit1 = "select state, city_analyzed, review_count from elasticsearch." + schema + "." + table + " where stars >= 4 limit 1";
-      verifyJsonInPlanHelper(sqlQueryLimit1, new String[]{
-          "[{\n" +
-          "  \"from\" : 0,\n" +
-          "  \"size\" : 1,\n" +
-          "  \"query\" : {\n" +
-          "    \"range\" : {\n" +
-          "      \"stars\" : {\n" +
-          "        \"from\" : 4,\n" +
-          "        \"to\" : null,\n" +
-          "        \"include_lower\" : true,\n" +
-          "        \"include_upper\" : true,\n" +
-          "        \"boost\" : 1.0\n" +
-          "      }\n" +
-          "    }\n" +
-          "  },\n" +
-          "  \"_source\" : {\n" +
-          "    \"includes\" : [\n" +
-          "      \"city_analyzed\",\n" +
-          "      \"review_count\",\n" +
-          "      \"stars\",\n" +
-          "      \"state\"\n" +
-          "    ],\n" +
-          "    \"excludes\" : [ ]\n" +
-          "  }\n" +
-          "}]"}, true);
-      testBuilder().sqlQuery(sqlQueryLimit1).unOrdered()
+      String sqlQueryLimit1 =
+          "select state, city_analyzed, review_count from elasticsearch."
+              + schema
+              + "."
+              + table
+              + " where stars >= 4 limit 1";
+      verifyJsonInPlanHelper(
+          sqlQueryLimit1,
+          new String[] {
+            "[{\n"
+                + "  \"from\" : 0,\n"
+                + "  \"size\" : 1,\n"
+                + "  \"query\" : {\n"
+                + "    \"range\" : {\n"
+                + "      \"stars\" : {\n"
+                + "        \"from\" : 4,\n"
+                + "        \"to\" : null,\n"
+                + "        \"include_lower\" : true,\n"
+                + "        \"include_upper\" : true,\n"
+                + "        \"boost\" : 1.0\n"
+                + "      }\n"
+                + "    }\n"
+                + "  },\n"
+                + "  \"_source\" : {\n"
+                + "    \"includes\" : [\n"
+                + "      \"city_analyzed\",\n"
+                + "      \"review_count\",\n"
+                + "      \"stars\",\n"
+                + "      \"state\"\n"
+                + "    ],\n"
+                + "    \"excludes\" : [ ]\n"
+                + "  }\n"
+                + "}]"
+          },
+          true);
+      testBuilder()
+          .sqlQuery(sqlQueryLimit1)
+          .unOrdered()
           .baselineColumns("state", "city_analyzed", "review_count")
           .baselineValues("MA", "Cambridge", 11)
           .go();
@@ -445,34 +549,48 @@ public class ITTestLimit extends ElasticBaseTestQuery {
   public final void runTestLeafLimitFilterLimit100000() throws Exception {
     try {
       test("set planner.leaf_limit_enable = true");
-      String sqlQueryLimit100 = "select state, city_analyzed, review_count from elasticsearch." + schema + "." + table + " where stars >= 4 limit 100000";
-      testPlanMatchingPatterns(sqlQueryLimit100, new String[] { "Limit\\(offset=\\[0:BIGINT\\], fetch=\\[1000:BIGINT\\]\\)"}, null);
-      verifyJsonInPlanHelper(sqlQueryLimit100, new String[]{
-          "[{\n" +
-          "  \"from\" : 0,\n" +
-          "  \"size\" : 1000,\n" +
-          "  \"query\" : {\n" +
-          "    \"range\" : {\n" +
-          "      \"stars\" : {\n" +
-          "        \"from\" : 4,\n" +
-          "        \"to\" : null,\n" +
-          "        \"include_lower\" : true,\n" +
-          "        \"include_upper\" : true,\n" +
-          "        \"boost\" : 1.0\n" +
-          "      }\n" +
-          "    }\n" +
-          "  },\n" +
-          "  \"_source\" : {\n" +
-          "    \"includes\" : [\n" +
-          "      \"city_analyzed\",\n" +
-          "      \"review_count\",\n" +
-          "      \"stars\",\n" +
-          "      \"state\"\n" +
-          "    ],\n" +
-          "    \"excludes\" : [ ]\n" +
-          "  }\n" +
-          "}]"}, true);
-      testBuilder().sqlQuery(sqlQueryLimit100).unOrdered()
+      String sqlQueryLimit100 =
+          "select state, city_analyzed, review_count from elasticsearch."
+              + schema
+              + "."
+              + table
+              + " where stars >= 4 limit 100000";
+      testPlanMatchingPatterns(
+          sqlQueryLimit100,
+          new String[] {"Limit\\(offset=\\[0:BIGINT\\], fetch=\\[1000:BIGINT\\]\\)"},
+          null);
+      verifyJsonInPlanHelper(
+          sqlQueryLimit100,
+          new String[] {
+            "[{\n"
+                + "  \"from\" : 0,\n"
+                + "  \"size\" : 1000,\n"
+                + "  \"query\" : {\n"
+                + "    \"range\" : {\n"
+                + "      \"stars\" : {\n"
+                + "        \"from\" : 4,\n"
+                + "        \"to\" : null,\n"
+                + "        \"include_lower\" : true,\n"
+                + "        \"include_upper\" : true,\n"
+                + "        \"boost\" : 1.0\n"
+                + "      }\n"
+                + "    }\n"
+                + "  },\n"
+                + "  \"_source\" : {\n"
+                + "    \"includes\" : [\n"
+                + "      \"city_analyzed\",\n"
+                + "      \"review_count\",\n"
+                + "      \"stars\",\n"
+                + "      \"state\"\n"
+                + "    ],\n"
+                + "    \"excludes\" : [ ]\n"
+                + "  }\n"
+                + "}]"
+          },
+          true);
+      testBuilder()
+          .sqlQuery(sqlQueryLimit100)
+          .unOrdered()
           .baselineColumns("state", "city_analyzed", "review_count")
           .baselineValues("MA", "Cambridge", 11)
           .baselineValues("CA", "San Diego", 33)
@@ -486,37 +604,46 @@ public class ITTestLimit extends ElasticBaseTestQuery {
   @Test
   public void testLimitOne() throws Exception {
     String query = String.format("select * from elasticsearch.%s.%s limit 1", schema, table);
-    LocalExecutionConfig config = LocalExecutionConfig.newBuilder()
-      .setEnableLeafLimits(false)
-      .setFailIfNonEmptySent(false)
-      .setUsername(StandardSystemProperty.USER_NAME.value())
-      .setSqlContext(Collections.<String>emptyList())
-      .setInternalSingleThreaded(false)
-      .setQueryResultsStorePath(format("%s.\"%s\"", TEMP_SCHEMA, "elasticLimitOne"))
-      .setAllowPartitionPruning(true)
-      .setExposeInternalSources(false)
-      .setSubstitutionSettings(SubstitutionSettings.of())
-      .build();
+    LocalExecutionConfig config =
+        LocalExecutionConfig.newBuilder()
+            .setEnableLeafLimits(false)
+            .setFailIfNonEmptySent(false)
+            .setUsername(StandardSystemProperty.USER_NAME.value())
+            .setSqlContext(Collections.<String>emptyList())
+            .setInternalSingleThreaded(false)
+            .setQueryResultsStorePath(format("%s.\"%s\"", TEMP_SCHEMA, "elasticLimitOne"))
+            .setAllowPartitionPruning(true)
+            .setExposeInternalSources(false)
+            .setSubstitutionSettings(SubstitutionSettings.of())
+            .build();
 
-    RunQuery queryCmd = RunQuery
-      .newBuilder()
-      .setType(UserBitShared.QueryType.SQL)
-      .setSource(SubmissionSource.LOCAL)
-      .setPlan(query)
-      .build();
+    RunQuery queryCmd =
+        RunQuery.newBuilder()
+            .setType(UserBitShared.QueryType.SQL)
+            .setSource(SubmissionSource.LOCAL)
+            .setPlan(query)
+            .build();
 
     ProfileGrabber grabber = new ProfileGrabber();
-    getLocalQueryExecutor().submitLocalQuery(ExternalIdHelper.generateExternalId(), grabber, queryCmd, false, config, false, null);
+    getLocalQueryExecutor()
+        .submitLocalQuery(
+            ExternalIdHelper.generateExternalId(), grabber, queryCmd, false, config, false, null);
     QueryProfile profile = grabber.getProfile();
 
-    profile = jobTelemetryClient.getBlockingStub().getQueryProfile(GetQueryProfileRequest.newBuilder()
-      .setQueryId(profile.getId())
-      .build()).getProfile();
+    profile =
+        jobTelemetryClient
+            .getBlockingStub()
+            .getQueryProfile(
+                GetQueryProfileRequest.newBuilder().setQueryId(profile.getId()).build())
+            .getProfile();
 
-    Optional<OperatorProfile> scanProfile = profile.getFragmentProfile(0)
-      .getMinorFragmentProfile(0).getOperatorProfileList().stream()
-      .filter(operatorProfile -> operatorProfile.getOperatorType() == CoreOperatorType.ELASTICSEARCH_SUB_SCAN_VALUE)
-      .findFirst();
+    Optional<OperatorProfile> scanProfile =
+        profile.getFragmentProfile(0).getMinorFragmentProfile(0).getOperatorProfileList().stream()
+            .filter(
+                operatorProfile ->
+                    operatorProfile.getOperatorType()
+                        == CoreOperatorType.ELASTICSEARCH_SUB_SCAN_VALUE)
+            .findFirst();
     assertEquals(1L, scanProfile.get().getInputProfile(0).getRecords());
   }
 
@@ -529,12 +656,13 @@ public class ITTestLimit extends ElasticBaseTestQuery {
     public AttemptObserver newAttempt(AttemptId attemptId, AttemptReason reason) {
       return new AbstractAttemptObserver() {
         @Override
-        public void execDataArrived(RpcOutcomeListener<Ack> outcomeListener, QueryWritableBatch result) {
+        public void execDataArrived(
+            RpcOutcomeListener<Ack> outcomeListener, QueryWritableBatch result) {
           try {
             AutoCloseables.close(
-              Arrays.stream(result.getBuffers())
-                .map(CloseableByteBuf::new)
-                .collect(ImmutableList.toImmutableList()));
+                Arrays.stream(result.getBuffers())
+                    .map(CloseableByteBuf::new)
+                    .collect(ImmutableList.toImmutableList()));
           } catch (Exception e) {
             exception.addException(e);
           }

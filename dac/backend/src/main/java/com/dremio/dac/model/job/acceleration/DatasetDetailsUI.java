@@ -15,16 +15,13 @@
  */
 package com.dremio.dac.model.job.acceleration;
 
-import java.util.List;
-
 import com.dremio.service.accelerator.proto.DatasetDetails;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.List;
 
-/**
- * UI wrapper for {@link DatasetDetails}
- */
+/** UI wrapper for {@link DatasetDetails} */
 public class DatasetDetailsUI {
   private final String id;
   private final List<String> path;
@@ -32,9 +29,9 @@ public class DatasetDetailsUI {
 
   @JsonCreator
   DatasetDetailsUI(
-    @JsonProperty("id") String id,
-    @JsonProperty("path") List<String> path,
-    @JsonProperty("type") DatasetType type) {
+      @JsonProperty("id") String id,
+      @JsonProperty("path") List<String> path,
+      @JsonProperty("type") DatasetType type) {
     this.id = id;
     this.path = path;
     this.type = type;

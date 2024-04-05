@@ -18,9 +18,7 @@ package com.dremio.datastore.indexed.doughnut;
 import java.io.Serializable;
 import java.util.Objects;
 
-/**
- * Doughnut for indexed store tests.
- */
+/** Doughnut for indexed store tests. */
 public class Doughnut implements Serializable {
   private final String name;
   private final String flavor;
@@ -68,7 +66,17 @@ public class Doughnut implements Serializable {
 
   @Override
   public String toString() {
-    return "Doughnut [name=" + name + ", flavor=" + flavor + ", price=" + price + ", thickness=" + thickness + ", diameter=" + diameter + "]";
+    return "Doughnut [name="
+        + name
+        + ", flavor="
+        + flavor
+        + ", price="
+        + price
+        + ", thickness="
+        + thickness
+        + ", diameter="
+        + diameter
+        + "]";
   }
 
   @Override

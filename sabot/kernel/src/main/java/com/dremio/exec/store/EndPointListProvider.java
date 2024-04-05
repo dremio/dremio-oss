@@ -15,13 +15,10 @@
  */
 package com.dremio.exec.store;
 
+import com.dremio.exec.physical.config.MinorFragmentEndpoint;
 import java.util.List;
 
-import com.dremio.exec.physical.config.MinorFragmentEndpoint;
-
-/**
- * end point list provider interface
- */
+/** end point list provider interface */
 public interface EndPointListProvider {
-    List<MinorFragmentEndpoint> getDestinations();
+  List<MinorFragmentEndpoint> getDestinations();
 }

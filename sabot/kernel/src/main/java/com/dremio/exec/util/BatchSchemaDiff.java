@@ -17,12 +17,9 @@ package com.dremio.exec.util;
 
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.arrow.vector.types.pojo.Field;
 
-/**
- * POJO for storing batch schema differences.
- */
+/** POJO for storing batch schema differences. */
 public class BatchSchemaDiff {
 
   private final List<Field> addedFields;

@@ -15,42 +15,33 @@
  */
 package com.dremio.exec.expr.fn.impl;
 
-import javax.inject.Inject;
-
-import org.apache.arrow.vector.complex.reader.FieldReader;
-import org.apache.arrow.vector.holders.NullableBitHolder;
-import org.apache.arrow.vector.holders.VarCharHolder;
-
 import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
 import com.dremio.exec.expr.fn.FunctionErrorContext;
+import javax.inject.Inject;
+import org.apache.arrow.vector.complex.reader.FieldReader;
+import org.apache.arrow.vector.holders.NullableBitHolder;
+import org.apache.arrow.vector.holders.VarCharHolder;
 
 public class ContainsFunctions {
 
   @FunctionTemplate(name = "contains", scope = FunctionTemplate.FunctionScope.SIMPLE)
   public static class Contains implements SimpleFunction {
 
-    @Param
-    FieldReader field;
-    @Param
-    VarCharHolder query;
-    @Output
-    NullableBitHolder out;
-    @Inject
-    FunctionErrorContext errCtx;
+    @Param FieldReader field;
+    @Param VarCharHolder query;
+    @Output NullableBitHolder out;
+    @Inject FunctionErrorContext errCtx;
 
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
     public void eval() {
       if (true) {
-        throw errCtx.error()
-          .message("Contains function is not supported in this context")
-          .build();
+        throw errCtx.error().message("Contains function is not supported in this context").build();
       }
     }
   }

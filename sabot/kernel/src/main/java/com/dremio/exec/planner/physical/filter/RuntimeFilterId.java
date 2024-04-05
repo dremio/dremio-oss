@@ -16,11 +16,9 @@
 
 package com.dremio.exec.planner.physical.filter;
 
-import java.util.Objects;
-
-import org.apache.calcite.rel.RelNode;
-
 import com.dremio.exec.planner.common.MoreRelOptUtil;
+import java.util.Objects;
+import org.apache.calcite.rel.RelNode;
 
 public class RuntimeFilterId {
   private final long value;
@@ -41,7 +39,7 @@ public class RuntimeFilterId {
 
   @Override
   public String toString() {
-    //This is used in rel digests
+    // This is used in rel digests
     return Long.toHexString(value);
   }
 
@@ -64,5 +62,4 @@ public class RuntimeFilterId {
   public static RuntimeFilterId createRuntimeFilterId(RelNode relNode, boolean isBroadcastJoin) {
     return new RuntimeFilterId(MoreRelOptUtil.longHashCode(relNode), isBroadcastJoin);
   }
-
 }

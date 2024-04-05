@@ -17,12 +17,6 @@ package com.dremio.sabot.op.fromjson;
 
 import static com.dremio.exec.proto.UserBitShared.CoreOperatorType.CONVERT_FROM_JSON_VALUE;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import org.apache.arrow.vector.types.pojo.Field;
-
 import com.dremio.common.expression.CompleteType;
 import com.dremio.exec.physical.base.AbstractSingle;
 import com.dremio.exec.physical.base.OpProps;
@@ -34,6 +28,10 @@ import com.dremio.exec.record.SchemaBuilder;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import org.apache.arrow.vector.types.pojo.Field;
 
 @JsonTypeName("convert-from-json")
 public class ConvertFromJsonPOP extends AbstractSingle {
@@ -50,7 +48,8 @@ public class ConvertFromJsonPOP extends AbstractSingle {
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value) throws E {
+  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value)
+      throws E {
     return physicalVisitor.visitConvertFromJson(this, value);
   }
 
@@ -69,7 +68,8 @@ public class ConvertFromJsonPOP extends AbstractSingle {
   }
 
   public static enum OriginType {
-    LITERAL, RAW
+    LITERAL,
+    RAW
   }
 
   public static class ConversionColumn {
@@ -114,7 +114,7 @@ public class ConvertFromJsonPOP extends AbstractSingle {
       return type;
     }
 
-    public Field asField(String name){
+    public Field asField(String name) {
       return type.toField(name);
     }
 
@@ -122,19 +122,18 @@ public class ConvertFromJsonPOP extends AbstractSingle {
     public String toString() {
       return String.format("originField='%s', inputField='%s'", originField, inputField);
     }
-
   }
 
-  public BatchSchema getSchema(BatchSchema schema){
+  public BatchSchema getSchema(BatchSchema schema) {
     final Map<String, ConversionColumn> cMap = new HashMap<>();
-    for(ConversionColumn c : columns){
+    for (ConversionColumn c : columns) {
       cMap.put(c.getInputField().toLowerCase(), c);
     }
 
     final SchemaBuilder builder = BatchSchema.newBuilder();
-    for(Field f : schema){
+    for (Field f : schema) {
       ConversionColumn conversion = cMap.get(f.getName().toLowerCase());
-      if(conversion != null){
+      if (conversion != null) {
         builder.addField(conversion.asField(f.getName()));
       } else {
         builder.addField(f);
@@ -144,5 +143,4 @@ public class ConvertFromJsonPOP extends AbstractSingle {
     builder.setSelectionVectorMode(SelectionVectorMode.NONE);
     return builder.build();
   }
-
 }

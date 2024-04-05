@@ -58,7 +58,7 @@ export const processUiConfig = (uiConfig) => {
   let elements = uiConfig.elements;
   if (!ENABLE_USE_LEGACY_DIALECT_OPTION) {
     elements = elements.filter(
-      (el) => el.propertyName !== USE_LEGACY_DIALECT_PROPERTY_NAME
+      (el) => el.propertyName !== USE_LEGACY_DIALECT_PROPERTY_NAME,
     );
   }
   elements = getJSONElementOverrides(uiConfig.elements, uiConfig.sourceType);
@@ -85,6 +85,7 @@ export class EditSourceView extends PureComponent {
     updateFormDirtyState: PropTypes.func,
     showConfirmationDialog: PropTypes.func,
     dispatchPassDataBetweenTabs: PropTypes.func,
+    isSchedulerEnabled: PropTypes.bool,
   };
 
   constructor() {
@@ -122,7 +123,7 @@ export class EditSourceView extends PureComponent {
             reflectionsEnabled: isVersionedSource(typeCode)
               ? await isVersionedReflectionsEnabled()
               : true,
-          }
+          },
         );
 
         const isFileSystemSource = combinedConfig.metadataRefresh;
@@ -147,13 +148,17 @@ export class EditSourceView extends PureComponent {
       },
       () => {
         this.setState({ didLoadFail: true });
-      }
+      },
     );
   }
 
   reallySubmitEdit = (form, sourceType) => {
+    if (!this.props.isSchedulerEnabled) {
+      delete form.accelerationActivePolicyType;
+      delete form.accelerationRefreshSchedule;
+    }
     return ApiUtils.attachFormSubmitHandlers(
-      getFinalSubmit(form, sourceType, this.props)
+      getFinalSubmit(form, sourceType, this.props),
     ).then(() => {
       this.context.router.replace(window.location.pathname);
       return null;
@@ -167,7 +172,7 @@ export class EditSourceView extends PureComponent {
         method: "POST",
         body: JSON.stringify(sourceModel),
       },
-      2
+      2,
     )
       .then((response) => response.json())
       .catch((response) => {
@@ -203,7 +208,7 @@ export class EditSourceView extends PureComponent {
               this.props.showConfirmationDialog({
                 title: laDeprecated("Warning"),
                 text: laDeprecated(
-                  "You made a metadata impacting change.  This change will cause Dremio to clear permissions, formats and reflections on all datasets in this source."
+                  "You made a metadata impacting change.  This change will cause Dremio to clear permissions, formats and reflections on all datasets in this source.",
                 ),
                 confirmText: laDeprecated("Confirm"),
                 dataQa: "metadata-impacting",
@@ -222,7 +227,7 @@ export class EditSourceView extends PureComponent {
             return null;
           })
           .catch(reject);
-      })
+      }),
     );
   };
 
@@ -263,7 +268,6 @@ export class EditSourceView extends PureComponent {
     const {
       hideCancel,
       hasError,
-      showSpinnerAndText,
       confirmButtonStyle,
       confirmText,
       canSubmit,
@@ -274,7 +278,7 @@ export class EditSourceView extends PureComponent {
     const initValues = mergeWith(
       source && source.size > 1 ? source.toJS() : {},
       initialFormValues,
-      arrayAsPrimitiveMerger
+      arrayAsPrimitiveMerger,
     );
 
     let vs = viewState;
@@ -313,12 +317,11 @@ export class EditSourceView extends PureComponent {
             updateFormDirtyState={updateFormDirtyState}
             fields={FormUtils.getFieldsFromConfig(this.state.selectedFormType)}
             validate={FormUtils.getValidationsFromConfig(
-              this.state.selectedFormType
+              this.state.selectedFormType,
             )}
             initialValues={initValues}
             permissions={source.get("permissions")}
             EntityType="source"
-            showSpinnerAndText={showSpinnerAndText}
             confirmButtonStyle={confirmButtonStyle}
           />
         )}

@@ -38,7 +38,7 @@ describe("containerFetcher", () => {
       };
       const containerFetcher = new ColumnFetcher(mockAutocompleteApi);
       expect(
-        await containerFetcher.getColumns(["space1", "table1"], [])
+        await containerFetcher.getColumns(["space1", "table1"], []),
       ).toEqual(columns);
     });
 
@@ -60,7 +60,7 @@ describe("containerFetcher", () => {
       };
       const containerFetcher = new ColumnFetcher(mockAutocompleteApi);
       expect(
-        await containerFetcher.getColumns(["space1", "table1"], [])
+        await containerFetcher.getColumns(["space1", "table1"], []),
       ).toEqual(columns);
       // Change API to return no data to ensure it's not called again
       mockAutocompleteApi.getColumns = () =>
@@ -68,7 +68,7 @@ describe("containerFetcher", () => {
           columns: [],
         });
       expect(
-        await containerFetcher.getColumns(["SPACE1", "TABLE1"], [])
+        await containerFetcher.getColumns(["SPACE1", "TABLE1"], []),
       ).toEqual(columns);
     });
 
@@ -90,7 +90,7 @@ describe("containerFetcher", () => {
       };
       const containerFetcher = new ColumnFetcher(mockAutocompleteApi);
       expect(await containerFetcher.getColumns(["table1"], ["space1"])).toEqual(
-        columns
+        columns,
       );
       // Change API to return no data to ensure it's called again
       mockAutocompleteApi.getColumns = () =>
@@ -98,7 +98,7 @@ describe("containerFetcher", () => {
           columns: [],
         });
       expect(await containerFetcher.getColumns(["table1"], ["space2"])).toEqual(
-        []
+        [],
       );
     });
   });

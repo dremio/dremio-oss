@@ -15,18 +15,18 @@
  */
 package com.dremio.service.sqlrunner;
 
-import javax.inject.Inject;
-import javax.inject.Provider;
-
 import com.dremio.service.users.events.UserDeletionEvent;
 import com.dremio.service.users.events.UserServiceEvent;
 import com.dremio.service.users.events.UserServiceEventSubscriber;
+import javax.inject.Inject;
+import javax.inject.Provider;
 
 public class SQLRunnerSessionUserDeletionSubscriber implements UserServiceEventSubscriber {
   private final Provider<SQLRunnerSessionService> sqlRunnerSessionService;
 
   @Inject
-  public SQLRunnerSessionUserDeletionSubscriber(final Provider<SQLRunnerSessionService> sqlRunnerSessionService) {
+  public SQLRunnerSessionUserDeletionSubscriber(
+      final Provider<SQLRunnerSessionService> sqlRunnerSessionService) {
     this.sqlRunnerSessionService = sqlRunnerSessionService;
   }
 

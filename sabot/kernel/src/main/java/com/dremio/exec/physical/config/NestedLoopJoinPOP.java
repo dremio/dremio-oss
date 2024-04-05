@@ -16,11 +16,6 @@
 
 package com.dremio.exec.physical.config;
 
-import java.util.Iterator;
-import java.util.List;
-
-import org.apache.calcite.rel.core.JoinRelType;
-
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.exec.physical.base.AbstractBase;
 import com.dremio.exec.physical.base.OpProps;
@@ -32,6 +27,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterators;
+import java.util.Iterator;
+import java.util.List;
+import org.apache.calcite.rel.core.JoinRelType;
 
 @JsonTypeName("nested-loop-join")
 public class NestedLoopJoinPOP extends AbstractBase {
@@ -63,14 +61,16 @@ public class NestedLoopJoinPOP extends AbstractBase {
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value) throws E {
+  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value)
+      throws E {
     return physicalVisitor.visitNestedLoopJoin(this, value);
   }
 
   @Override
   public PhysicalOperator getNewWithChildren(List<PhysicalOperator> children) {
     Preconditions.checkArgument(children.size() == 2);
-    return new NestedLoopJoinPOP(props, children.get(0), children.get(1), joinType, condition, vectorized, vectorOp);
+    return new NestedLoopJoinPOP(
+        props, children.get(0), children.get(1), joinType, condition, vectorized, vectorOp);
   }
 
   @Override

@@ -20,11 +20,12 @@ import org.junit.Test;
 /**
  * Runs test cases on the local filesystem-based Hadoop source.
  *
- * Note: Contains all tests in MergeTests.
+ * <p>Note: Contains all tests in MergeTests.
  */
 public class ITMerge extends ITDmlQueryBase {
 
-  // Defining SOURCE such that you can easily copy and paste the same test across other test variations
+  // Defining SOURCE such that you can easily copy and paste the same test across other test
+  // variations
   private static final String SOURCE = TEMP_SCHEMA_HADOOP;
 
   @Test
@@ -165,6 +166,11 @@ public class ITMerge extends ITDmlQueryBase {
   @Test
   public void testMergeWithSubQuerySourceAndInsert() throws Exception {
     MergeTests.testMergeWithSubQuerySourceAndInsert(allocator, SOURCE);
+  }
+
+  @Test
+  public void testMergeWithSelectiveInsertColumns() throws Exception {
+    MergeTests.testMergeWithSelectiveInsertColumns(allocator, SOURCE);
   }
 
   @Test

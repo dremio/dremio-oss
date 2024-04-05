@@ -17,11 +17,18 @@ package com.dremio.exec.planner.sql.parser;
 
 import static com.dremio.exec.planner.OptimizeOutputSchema.getRelDataType;
 
+import com.dremio.exec.calcite.logical.TableOptimizeCrel;
+import com.dremio.exec.planner.sql.handlers.query.OptimizeHandler;
+import com.dremio.exec.planner.sql.handlers.query.OptimizeOptions;
+import com.dremio.exec.planner.sql.handlers.query.SqlToPlanHandler;
+import com.dremio.exec.planner.sql.handlers.query.SupportsSelection;
+import com.dremio.exec.planner.sql.handlers.query.SupportsSqlToRelConversion;
+import com.dremio.service.namespace.NamespaceKey;
+import com.google.common.collect.ImmutableList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
@@ -46,51 +53,42 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.sql.validate.SqlValidatorScope;
 
-import com.dremio.exec.calcite.logical.TableOptimizeCrel;
-import com.dremio.exec.planner.sql.handlers.query.OptimizeHandler;
-import com.dremio.exec.planner.sql.handlers.query.OptimizeOptions;
-import com.dremio.exec.planner.sql.handlers.query.SqlToPlanHandler;
-import com.dremio.exec.planner.sql.handlers.query.SupportsSelection;
-import com.dremio.exec.planner.sql.handlers.query.SupportsSqlToRelConversion;
-import com.dremio.service.namespace.NamespaceKey;
-import com.google.common.collect.ImmutableList;
+/** SQL node tree for the internal <code>OPTIMIZE TABLE table_identifier</code> command. */
+public class SqlOptimize extends SqlCall
+    implements SqlToPlanHandler.Creator, SupportsSelection, SupportsSqlToRelConversion {
 
-/**
- * SQL node tree for the internal <code>OPTIMIZE TABLE table_identifier</code> command.
- */
-public class SqlOptimize extends SqlCall implements SqlToPlanHandler.Creator, SupportsSelection, SupportsSqlToRelConversion {
+  public static final SqlSpecialOperator OPERATOR =
+      new SqlSpecialOperator("OPTIMIZE", SqlKind.OTHER) {
 
-  public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("OPTIMIZE", SqlKind.OTHER) {
+        @Override
+        public SqlCall createCall(
+            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+          return new SqlOptimize(
+              pos,
+              (SqlIdentifier) operands[0],
+              (SqlLiteral) operands[1],
+              (SqlLiteral) operands[2],
+              ((SqlLiteral) operands[3]).symbolValue(CompactionType.class),
+              (SqlNode) operands[4],
+              (SqlNodeList) operands[5],
+              (SqlNodeList) operands[6]);
+        }
 
-    @Override
-    public SqlCall createCall(SqlLiteral functionQualifier,
-                              SqlParserPos pos, SqlNode... operands) {
-      return new SqlOptimize(pos,
-        (SqlIdentifier) operands[0],
-        (SqlLiteral) operands[1],
-        (SqlLiteral) operands[2],
-        ((SqlLiteral) operands[3]).symbolValue(CompactionType.class),
-        (SqlNode) operands[4],
-        (SqlNodeList) operands[5],
-        (SqlNodeList) operands[6]);
-    }
+        @Override
+        public RelDataType deriveType(
+            SqlValidator validator, SqlValidatorScope scope, SqlCall call) {
+          final RelDataTypeFactory typeFactory = validator.getTypeFactory();
+          final SqlOptimize sqlOptimize = (SqlOptimize) call;
+          final boolean onlyOptimizeManifests =
+              sqlOptimize.getRewriteManifests().booleanValue()
+                  && !sqlOptimize.getRewriteDataFiles().booleanValue();
+          return getRelDataType(typeFactory, onlyOptimizeManifests);
+        }
+      };
 
-    @Override
-    public RelDataType deriveType(SqlValidator validator, SqlValidatorScope scope, SqlCall call) {
-      final RelDataTypeFactory typeFactory = validator.getTypeFactory();
-      final SqlOptimize sqlOptimize = (SqlOptimize) call;
-      final boolean onlyOptimizeManifests = sqlOptimize.getRewriteManifests().booleanValue() &&
-        !sqlOptimize.getRewriteDataFiles().booleanValue();
-      return getRelDataType(typeFactory, onlyOptimizeManifests);
-    }
-  };
-
-  private static final List<String> OPTION_KEYS = ImmutableList.of(
-    "target_file_size_mb",
-    "max_file_size_mb",
-    "min_file_size_mb",
-    "min_input_files"
-  );
+  private static final List<String> OPTION_KEYS =
+      ImmutableList.of(
+          "target_file_size_mb", "max_file_size_mb", "min_file_size_mb", "min_input_files");
 
   private SqlIdentifier table;
   private SqlLiteral rewriteManifests;
@@ -111,17 +109,16 @@ public class SqlOptimize extends SqlCall implements SqlToPlanHandler.Creator, Su
     return sourceSelect;
   }
 
-  /**
-   * Creates a SqlOptimize.
-   */
-  public SqlOptimize(SqlParserPos pos,
-                     SqlIdentifier table,
-                     SqlLiteral rewriteManifests,
-                     SqlLiteral rewriteDataFiles,
-                     CompactionType compactionType,
-                     SqlNode condition,
-                     SqlNodeList optionsList,
-                     SqlNodeList optionsValueList) {
+  /** Creates a SqlOptimize. */
+  public SqlOptimize(
+      SqlParserPos pos,
+      SqlIdentifier table,
+      SqlLiteral rewriteManifests,
+      SqlLiteral rewriteDataFiles,
+      CompactionType compactionType,
+      SqlNode condition,
+      SqlNodeList optionsList,
+      SqlNodeList optionsValueList) {
     super(pos);
     this.table = table;
     this.rewriteManifests = rewriteManifests;
@@ -215,8 +212,17 @@ public class SqlOptimize extends SqlCall implements SqlToPlanHandler.Creator, Su
 
   @Override
   public List<SqlNode> getOperandList() {
-    SqlLiteral compactionTypeSqlLiteral = SqlLiteral.createSymbol(compactionType, SqlParserPos.ZERO);
-    return Collections.unmodifiableList(Arrays.asList(getTable(), rewriteManifests, rewriteDataFiles, compactionTypeSqlLiteral, condition, optionsList, optionsValueList));
+    SqlLiteral compactionTypeSqlLiteral =
+        SqlLiteral.createSymbol(compactionType, SqlParserPos.ZERO);
+    return Collections.unmodifiableList(
+        Arrays.asList(
+            getTable(),
+            rewriteManifests,
+            rewriteDataFiles,
+            compactionTypeSqlLiteral,
+            condition,
+            optionsList,
+            optionsValueList));
   }
 
   @Override
@@ -303,13 +309,24 @@ public class SqlOptimize extends SqlCall implements SqlToPlanHandler.Creator, Su
             break;
           default:
             try {
-              throw new SqlParseException(String.format("Unsupported option '%s' for OPTIMIZE TABLE.", optionName), pos, null, null, null);
+              throw new SqlParseException(
+                  String.format("Unsupported option '%s' for OPTIMIZE TABLE.", optionName),
+                  pos,
+                  null,
+                  null,
+                  null);
             } catch (SqlParseException e) {
               throw new RuntimeException(e);
             }
         }
       } catch (CalciteException e) {
-        throw new RuntimeException(new SqlParseException(String.format("Value of option '%s' must be an integer.", optionName), pos, null, null, null));
+        throw new RuntimeException(
+            new SqlParseException(
+                String.format("Value of option '%s' must be an integer.", optionName),
+                pos,
+                null,
+                null,
+                null));
       }
       idx++;
     }
@@ -320,12 +337,19 @@ public class SqlOptimize extends SqlCall implements SqlToPlanHandler.Creator, Su
     validator.validate(this.sourceSelect);
   }
 
-
   @Override
-  public RelNode convertToRel(RelOptCluster cluster, Prepare.CatalogReader catalogReader, RelNode input,
-                              RelOptTable.ToRelContext relContext) {
+  public RelNode convertToRel(
+      RelOptCluster cluster,
+      Prepare.CatalogReader catalogReader,
+      RelNode input,
+      RelOptTable.ToRelContext relContext) {
     Prepare.PreparingTable nsTable = catalogReader.getTable(getPath().getPathComponents());
-    return new TableOptimizeCrel(cluster, cluster.traitSetOf(Convention.NONE), input, nsTable,
-        null, OptimizeOptions.createInstance(this));
+    return new TableOptimizeCrel(
+        cluster,
+        cluster.traitSetOf(Convention.NONE),
+        input,
+        nsTable,
+        null,
+        OptimizeOptions.createInstance(this));
   }
 }

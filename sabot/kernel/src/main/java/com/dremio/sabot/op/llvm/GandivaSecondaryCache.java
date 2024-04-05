@@ -17,13 +17,6 @@ package com.dremio.sabot.op.llvm;
 
 import static org.apache.commons.codec.digest.DigestUtils.sha256Hex;
 
-import java.io.IOException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-
-import org.apache.arrow.gandiva.evaluator.JavaSecondaryCacheInterface;
-
 import com.dremio.common.concurrent.NamedThreadFactory;
 import com.dremio.common.util.DremioVersionInfo;
 import com.dremio.io.FSInputStream;
@@ -31,14 +24,17 @@ import com.dremio.io.FSOutputStream;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.google.common.base.Stopwatch;
-
 import io.netty.util.internal.PlatformDependent;
+import java.io.IOException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import org.apache.arrow.gandiva.evaluator.JavaSecondaryCacheInterface;
 
-/**
- * Implementation of the secondary cache for gandiva.
- */
+/** Implementation of the secondary cache for gandiva. */
 public class GandivaSecondaryCache implements JavaSecondaryCacheInterface {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(GandivaSecondaryCache.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(GandivaSecondaryCache.class);
 
   private static GandivaSecondaryCache secondaryCacheInstance;
 
@@ -106,8 +102,8 @@ public class GandivaSecondaryCache implements JavaSecondaryCacheInterface {
   /**
    * Set the secondary cache with the buffer containing the object code.
    *
-   * @param addrKey   memory address of the key buffer.
-   * @param sizeKey   size of the key buffer.
+   * @param addrKey memory address of the key buffer.
+   * @param sizeKey size of the key buffer.
    * @param addrValue memory address of the value buffer.
    * @param sizeValue size of the value buffer.
    */
@@ -156,7 +152,8 @@ public class GandivaSecondaryCache implements JavaSecondaryCacheInterface {
         stream.write(byteValue);
         writeTime.stop();
         stream.close();
-        logger.debug("Background service took {} to write to FS.", writeTime.elapsed(TimeUnit.MILLISECONDS));
+        logger.debug(
+            "Background service took {} to write to FS.", writeTime.elapsed(TimeUnit.MILLISECONDS));
       } catch (IOException e) {
         logger.warn("Background service failed to write to FS.", e);
       }

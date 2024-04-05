@@ -15,11 +15,10 @@
  */
 package com.dremio.exec.store.excel;
 
+import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
-
-import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 
 public class TestXlsExcelFormatPlugin extends TestExcelFormatPluginBase {
 
@@ -43,7 +42,10 @@ public class TestXlsExcelFormatPlugin extends TestExcelFormatPluginBase {
   @Test
   public void testEmptyXls() throws Exception {
     final String filePath = getExcelDir() + "empty.xls";
-    final String query = String.format("SELECT * FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => true, xls => true))", filePath);
+    final String query =
+        String.format(
+            "SELECT * FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => true, xls => true))",
+            filePath);
 
     testAndExpectUserException(query, ErrorType.DATA_READ, "Selected table has no columns.");
   }
@@ -51,7 +53,10 @@ public class TestXlsExcelFormatPlugin extends TestExcelFormatPluginBase {
   @Test
   public void testEmpty2Xls() throws Exception {
     final String filePath = getExcelDir() + "empty2.xls";
-    final String query = String.format("SELECT * FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => true, xls => true))", filePath);
+    final String query =
+        String.format(
+            "SELECT * FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => true, xls => true))",
+            filePath);
 
     testAndExpectUserException(query, ErrorType.DATA_READ, "Selected table has no columns.");
   }
@@ -59,48 +64,51 @@ public class TestXlsExcelFormatPlugin extends TestExcelFormatPluginBase {
   @Test
   public void testOldXlsFile() throws Exception {
     final String filePath = getExcelDir() + "old.xls";
-    final String query = String.format("select * from TABLE(dfs.\"%s\" (type => 'excel', extractHeader => false, hasMergedCells => false, xls => true ))", filePath);
+    final String query =
+        String.format(
+            "select * from TABLE(dfs.\"%s\" (type => 'excel', extractHeader => false, hasMergedCells => false, xls => true ))",
+            filePath);
 
     testAndExpectUserException(query, ErrorType.DATA_READ, "Excel 5.0/7.0 (BIFF5) format");
   }
 
   @Test
   public void testProjectAll1() throws Exception {
-    getHelper().test(testBuilder(), "sheet 1", true,  true);
+    getHelper().test(testBuilder(), "sheet 1", true, true);
   }
 
   @Test
   public void testProjectAll2() throws Exception {
-    getHelper().test(testBuilder(), "sheet 1", true,  false);
+    getHelper().test(testBuilder(), "sheet 1", true, false);
   }
 
   @Test
   public void testProjectPushdown1() throws Exception {
-    getHelper().testProjectPushdown1(testBuilder(), "sheet 1", true,  true);
+    getHelper().testProjectPushdown1(testBuilder(), "sheet 1", true, true);
   }
 
   @Test
   public void testProjectPushdown2() throws Exception {
-    getHelper().testProjectPushdown1(testBuilder(), "sheet 1", true,  false);
+    getHelper().testProjectPushdown1(testBuilder(), "sheet 1", true, false);
   }
 
   @Test
   public void testProjectPushdown3() throws Exception {
-    getHelper().testProjectPushdown2(testBuilder(), "sheet 1", true,  true);
+    getHelper().testProjectPushdown2(testBuilder(), "sheet 1", true, true);
   }
 
   @Test
   public void testProjectPushdown4() throws Exception {
-    getHelper().testProjectPushdown2(testBuilder(), "sheet 1", true,  false);
+    getHelper().testProjectPushdown2(testBuilder(), "sheet 1", true, false);
   }
 
   @Test
   public void testProjectPushdown5() throws Exception {
-    getHelper().testProjectPushdown3(testBuilder(), "sheet 1", true,  true);
+    getHelper().testProjectPushdown3(testBuilder(), "sheet 1", true, true);
   }
 
   @Test
   public void testProjectPushdown6() throws Exception {
-    getHelper().testProjectPushdown3(testBuilder(), "sheet 1", true,  false);
+    getHelper().testProjectPushdown3(testBuilder(), "sheet 1", true, false);
   }
 }

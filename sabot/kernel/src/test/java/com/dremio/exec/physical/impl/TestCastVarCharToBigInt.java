@@ -15,19 +15,18 @@
  */
 package com.dremio.exec.physical.impl;
 
-import org.junit.Test;
-
 import com.dremio.sabot.BaseTestFunction;
-
+import org.junit.Test;
 
 public class TestCastVarCharToBigInt extends BaseTestFunction {
 
   @Test
-  public void toBigInt(){
-    testFunctions(new Object[][]{
-      {"cast(c0 as bigint)", "2006", 2006L},
-      {"cast(c0 as bigint)", "2007", 2007L},
-      {"cast(c0 as bigint)", "2008", 2008L}
-    });
+  public void toBigInt() {
+    testFunctions(
+        new Object[][] {
+          {"cast(c0 as bigint)", "2006", 2006L},
+          {"cast(c0 as bigint)", "2007", 2007L},
+          {"cast(c0 as bigint)", "2008", 2008L}
+        });
   }
 }

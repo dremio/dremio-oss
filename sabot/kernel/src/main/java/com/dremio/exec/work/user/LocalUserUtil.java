@@ -15,12 +15,6 @@
  */
 package com.dremio.exec.work.user;
 
-import java.nio.ByteBuffer;
-import java.util.Arrays;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.CloseableByteBuf;
 import com.dremio.common.utils.protos.QueryWritableBatch;
@@ -31,51 +25,54 @@ import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
-
 import io.netty.buffer.ByteBuf;
+import java.nio.ByteBuffer;
+import java.util.Arrays;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.BufferAllocator;
 
 public class LocalUserUtil {
 
-  public static QueryDataBatch acquireData(BufferAllocator allocator, RpcOutcomeListener<Ack> listener, QueryWritableBatch result){
+  public static QueryDataBatch acquireData(
+      BufferAllocator allocator, RpcOutcomeListener<Ack> listener, QueryWritableBatch result) {
     ArrowBuf out = null;
     final ByteBuf[] buffers = result.getBuffers();
 
     final CloseableListener closeableListener = new CloseableListener(listener);
-    try(
-        // need to make sure that the listener is informed after we release the buffers from the incoming QueryWritableBatch.
+    try (
+        // need to make sure that the listener is informed after we release the buffers from the
+        // incoming QueryWritableBatch.
         final CloseableListener autoClosed = closeableListener;
-        final CloseableBuffers closeable = new CloseableBuffers(buffers);
-        ){
+        final CloseableBuffers closeable = new CloseableBuffers(buffers); ) {
 
       // consolidate data in a single buffer since that is what we need
       // downstream right now. (we can fix this since we know the slices are
       // right through some kind of composite buffer for record batch loader.
-      if(buffers != null && buffers.length > 0){
+      if (buffers != null && buffers.length > 0) {
         int length = 0;
-        for(int i =0; i < buffers.length; i++){
+        for (int i = 0; i < buffers.length; i++) {
           length += buffers[i].readableBytes();
         }
         out = allocator.buffer(length);
-        for(int i =0; i < buffers.length; i++){
+        for (int i = 0; i < buffers.length; i++) {
           ByteBuffer src = buffers[i].nioBuffer();
           int srcLength = src.remaining();
           out.setBytes(out.writerIndex(), src);
           out.writerIndex(srcLength + out.writerIndex());
         }
-      }else{
+      } else {
         out = allocator.buffer(0);
       }
 
-      try(ArrowBuf ensureClosed = out) {
+      try (ArrowBuf ensureClosed = out) {
         final QueryDataBatch batch = new QueryDataBatch(result.getHeader(), out);
         return batch;
       }
 
-    } catch(Exception ex) {
+    } catch (Exception ex) {
       closeableListener.setFailure(new RpcException(ex));
       throw Throwables.propagate(ex);
     }
-
   }
 
   private static class CloseableListener implements AutoCloseable {
@@ -83,23 +80,22 @@ public class LocalUserUtil {
     private final RpcOutcomeListener<Ack> listener;
     private RpcException ex;
 
-    private void setFailure(RpcException ex){
+    private void setFailure(RpcException ex) {
       this.ex = ex;
     }
 
-    public CloseableListener(RpcOutcomeListener<Ack> listener){
+    public CloseableListener(RpcOutcomeListener<Ack> listener) {
       this.listener = listener;
     }
 
     @Override
     public void close() {
-      if(ex == null){
+      if (ex == null) {
         listener.success(Acks.OK, null);
-      } else{
+      } else {
         listener.failed(ex);
       }
     }
-
   }
 
   private static class CloseableBuffers implements AutoCloseable {
@@ -113,11 +109,12 @@ public class LocalUserUtil {
 
     @Override
     public void close() {
-      try{
-        AutoCloseables.close(Arrays.stream(buffers)
-          .map(CloseableByteBuf::new)
-          .collect(ImmutableList.toImmutableList()));
-      } catch(Exception ex){
+      try {
+        AutoCloseables.close(
+            Arrays.stream(buffers)
+                .map(CloseableByteBuf::new)
+                .collect(ImmutableList.toImmutableList()));
+      } catch (Exception ex) {
         throw new RuntimeException(ex);
       }
     }

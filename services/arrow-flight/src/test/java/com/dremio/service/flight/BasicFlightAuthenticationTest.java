@@ -19,50 +19,49 @@ import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.util.Date;
-
-import javax.inject.Provider;
-
-import org.apache.arrow.flight.FlightStatusCode;
-import org.apache.commons.lang3.time.DateUtils;
-import org.junit.Before;
-
 import com.dremio.service.tokens.TokenDetails;
 import com.dremio.service.tokens.TokenManager;
 import com.dremio.service.users.ImmutableAuthResult;
 import com.dremio.service.users.UserLoginException;
 import com.dremio.service.users.UserService;
+import java.util.Date;
+import javax.inject.Provider;
+import org.apache.arrow.flight.FlightStatusCode;
+import org.apache.commons.lang3.time.DateUtils;
+import org.junit.Before;
 
-/**
- * Base class for all Flight Authentication unit tests.
- */
+/** Base class for all Flight Authentication unit tests. */
 public abstract class BasicFlightAuthenticationTest {
   protected static final String USERNAME = "MY_USER";
   protected static final String PASSWORD = "MY_PASS";
   protected static final String TOKEN = "VALID_TOKEN";
   protected static final long MAX_NUMBER_OF_SESSIONS = 2L;
-  protected static final TokenDetails TOKEN_DETAILS = TokenDetails.of(
-    TOKEN, USERNAME, System.currentTimeMillis() + 1000);
+  protected static final TokenDetails TOKEN_DETAILS =
+      TokenDetails.of(TOKEN, USERNAME, System.currentTimeMillis() + 1000);
 
   private final Provider<UserService> mockUserServiceProvider = mock(Provider.class);
   private final Provider<TokenManager> mockTokenManagerProvider = mock(Provider.class);
   private final TokenManager mockTokenManager = mock(TokenManager.class);
   private final UserService mockUserService = mock(UserService.class);
-  private final DremioFlightSessionsManager mockDremioFlightSessionsManager = mock(DremioFlightSessionsManager.class);
+  private final DremioFlightSessionsManager mockDremioFlightSessionsManager =
+      mock(DremioFlightSessionsManager.class);
 
   protected static void testFailed() throws Exception {
-    throw new Exception("Test failed. Expected FlightRuntimeException with status code: "
-      + FlightStatusCode.UNAUTHENTICATED + ", but none was thrown.");
+    throw new Exception(
+        "Test failed. Expected FlightRuntimeException with status code: "
+            + FlightStatusCode.UNAUTHENTICATED
+            + ", but none was thrown.");
   }
 
   @Before
   public void setup() throws UserLoginException {
     when(mockUserServiceProvider.get()).thenReturn(mockUserService);
     when(mockUserService.authenticate(eq(USERNAME), eq(PASSWORD)))
-      .thenReturn(new ImmutableAuthResult.Builder()
-        .setUserName(USERNAME)
-        .setExpiresAt(DateUtils.addHours(new Date(), 1))
-        .build());
+        .thenReturn(
+            new ImmutableAuthResult.Builder()
+                .setUserName(USERNAME)
+                .setExpiresAt(DateUtils.addHours(new Date(), 1))
+                .build());
 
     when(mockTokenManagerProvider.get()).thenReturn((mockTokenManager));
     when(mockTokenManager.createToken(eq(USERNAME), eq(null))).thenReturn(TOKEN_DETAILS);

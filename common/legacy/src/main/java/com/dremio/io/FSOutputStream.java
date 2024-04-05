@@ -18,16 +18,14 @@ package com.dremio.io;
 import java.io.IOException;
 import java.io.OutputStream;
 
-/**
- * Advanced {@code OutputStream} used by {@code FileSystemWrapper}
- */
+/** Advanced {@code OutputStream} used by {@code FileSystemWrapper} */
 public abstract class FSOutputStream extends OutputStream {
 
-  public FSOutputStream() {
-  }
+  public FSOutputStream() {}
 
   /**
    * Gets the stream position
+   *
    * @return the stream position
    * @throws IOException
    */

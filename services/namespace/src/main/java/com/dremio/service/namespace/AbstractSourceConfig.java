@@ -16,11 +16,11 @@
 package com.dremio.service.namespace;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-
 import io.protostuff.ByteString;
 
 /**
- * A base implementation of SourceConfig that accepts AbstractConnectionConf and sets type and bytes.
+ * A base implementation of SourceConfig that accepts AbstractConnectionConf and sets type and
+ * bytes.
  */
 public abstract class AbstractSourceConfig<T extends AbstractSourceConfig<T>> {
 
@@ -33,6 +33,7 @@ public abstract class AbstractSourceConfig<T extends AbstractSourceConfig<T>> {
 
   /**
    * Better to use setConnectionConf()
+   *
    * @param type
    * @return
    */
@@ -41,20 +42,26 @@ public abstract class AbstractSourceConfig<T extends AbstractSourceConfig<T>> {
 
   /**
    * Better to use setConnectionConf()
+   *
    * @param type
    * @return
    */
   @Deprecated
   public abstract T setConfig(ByteString bytes);
+
   public abstract ByteString getConfig();
+
   public abstract String getType();
+
   public abstract String getName();
+
   public abstract String getTag();
+
   public abstract Object getLegacySourceTypeEnum();
 
-  public <X extends AbstractConnectionConf> X getConnectionConf(AbstractConnectionReader reader){
+  public <X extends AbstractConnectionConf> X getConnectionConf(AbstractConnectionReader reader) {
     String type = getType();
-    if(type == null) {
+    if (type == null) {
       type = getLegacySourceTypeEnum().toString();
     }
 
@@ -65,5 +72,4 @@ public abstract class AbstractSourceConfig<T extends AbstractSourceConfig<T>> {
   public NamespaceKey getKey() {
     return new NamespaceKey(getName());
   }
-
 }

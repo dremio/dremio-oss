@@ -15,7 +15,6 @@
  */
 package com.dremio;
 
-
 import org.junit.Test;
 
 public class TestAggregationQueries extends PlanTestBase {
@@ -23,30 +22,70 @@ public class TestAggregationQueries extends PlanTestBase {
   @Test // DRILL-4521
   public void ensureVarianceIsAggregateReduced() throws Exception {
     String query01 = "select variance(salary) from cp.\"employee.json\"";
-    testPlanSubstrPatterns(query01,
-            new String[] {"EXPR$0=[/(-($0, /(*($1, $1), $2)), CASE(=($2, 1), null:BIGINT, -($2, 1)))]"},
-            new String[] {"EXPR$0=[VARIANCE($0)]"});
-    testBuilder().sqlQuery(query01).approximateEquality().unOrdered().baselineColumns("EXPR$0").baselineValues(2.8856749581279494E7).go();
+    testPlanSubstrPatterns(
+        query01,
+        new String[] {"EXPR$0=[/(-($0, /(*($1, $1), $2)), CASE(=($2, 1), null:BIGINT, -($2, 1)))]"},
+        new String[] {"EXPR$0=[VARIANCE($0)]"});
+    testBuilder()
+        .sqlQuery(query01)
+        .approximateEquality()
+        .unOrdered()
+        .baselineColumns("EXPR$0")
+        .baselineValues(2.8856749581279494E7)
+        .go();
 
     String query02 = "select var_samp(salary) from cp.\"employee.json\"";
-    testBuilder().sqlQuery(query02).approximateEquality().unOrdered().baselineColumns("EXPR$0").baselineValues(2.8856749581279494E7).go();
+    testBuilder()
+        .sqlQuery(query02)
+        .approximateEquality()
+        .unOrdered()
+        .baselineColumns("EXPR$0")
+        .baselineValues(2.8856749581279494E7)
+        .go();
 
     String query03 = "select var_pop(salary) from cp.\"employee.json\"";
-    testBuilder().sqlQuery(query03).approximateEquality().unOrdered().baselineColumns("EXPR$0").baselineValues(2.8831765382507823E7).go();
+    testBuilder()
+        .sqlQuery(query03)
+        .approximateEquality()
+        .unOrdered()
+        .baselineColumns("EXPR$0")
+        .baselineValues(2.8831765382507823E7)
+        .go();
   }
 
   @Test // DRILL-4521
   public void ensureStddevIsAggregateReduced() throws Exception {
     String query01 = "select stddev(salary) from cp.\"employee.json\"";
-    testPlanSubstrPatterns(query01,
-            new String[] {"EXPR$0=[POWER(/(-($0, /(*($1, $1), $2)), CASE(=($2, 1), null:BIGINT, -($2, 1))), 0.5:DECIMAL(2, 1))]"},
-            new String[] {"EXPR$0=[STDDEV($0)]"});
-    testBuilder().sqlQuery(query01).approximateEquality().unOrdered().baselineColumns("EXPR$0").baselineValues(5371.84787398894).go();
+    testPlanSubstrPatterns(
+        query01,
+        new String[] {
+          "EXPR$0=[POWER(/(-($0, /(*($1, $1), $2)), CASE(=($2, 1), null:BIGINT, -($2, 1))), 0.5:DECIMAL(2, 1))]"
+        },
+        new String[] {"EXPR$0=[STDDEV($0)]"});
+    testBuilder()
+        .sqlQuery(query01)
+        .approximateEquality()
+        .unOrdered()
+        .baselineColumns("EXPR$0")
+        .baselineValues(5371.84787398894)
+        .go();
 
     String query02 = "select stddev_samp(salary) from cp.\"employee.json\"";
-    testBuilder().sqlQuery(query02).approximateEquality().unOrdered().baselineColumns("EXPR$0").baselineValues(5371.84787398894).go();
+    testBuilder()
+        .sqlQuery(query02)
+        .approximateEquality()
+        .unOrdered()
+        .baselineColumns("EXPR$0")
+        .baselineValues(5371.84787398894)
+        .go();
 
     String query03 = "select stddev_pop(salary) from cp.\"employee.json\"";
-    testBuilder().sqlQuery(query03).approximateEquality().unOrdered().baselineColumns("EXPR$0").baselineValues(5369.521895151171).go();
+    testBuilder()
+        .sqlQuery(query03)
+        .approximateEquality()
+        .unOrdered()
+        .baselineColumns("EXPR$0")
+        .baselineValues(5369.521895151171)
+        .go();
   }
 }

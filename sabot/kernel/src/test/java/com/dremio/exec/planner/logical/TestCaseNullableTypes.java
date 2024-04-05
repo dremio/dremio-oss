@@ -15,16 +15,12 @@
  */
 package com.dremio.exec.planner.logical;
 
+import com.dremio.BaseTestQuery;
+import com.dremio.exec.expr.fn.impl.DateFunctionsUtils;
 import org.joda.time.LocalDateTime;
 import org.junit.Test;
 
-import com.dremio.BaseTestQuery;
-import com.dremio.exec.expr.fn.impl.DateFunctionsUtils;
-
-/**
- * DRILL-4906
- * Tests for handling nullable types in CASE function
- */
+/** DRILL-4906 Tests for handling nullable types in CASE function */
 public class TestCaseNullableTypes extends BaseTestQuery {
 
   @Test
@@ -40,7 +36,8 @@ public class TestCaseNullableTypes extends BaseTestQuery {
   @Test
   public void testCaseNullableTypesVarchar() throws Exception {
     testBuilder()
-        .sqlQuery("select (res1 = 'qwe') res2 from (select (case when (false) then null else 'qwe' end) res1 from (values(1)))")
+        .sqlQuery(
+            "select (res1 = 'qwe') res2 from (select (case when (false) then null else 'qwe' end) res1 from (values(1)))")
         .unOrdered()
         .baselineColumns("res2")
         .baselineValues(true)
@@ -50,7 +47,10 @@ public class TestCaseNullableTypes extends BaseTestQuery {
   @Test
   public void testCaseNullableTypesBigint() throws Exception {
     testBuilder()
-        .sqlQuery("select (case when (false) then null else " + Long.MAX_VALUE + " end) res1 from (values(1))")
+        .sqlQuery(
+            "select (case when (false) then null else "
+                + Long.MAX_VALUE
+                + " end) res1 from (values(1))")
         .unOrdered()
         .baselineColumns("res1")
         .baselineValues(Long.MAX_VALUE)
@@ -60,7 +60,8 @@ public class TestCaseNullableTypes extends BaseTestQuery {
   @Test
   public void testCaseNullableTypesFloat() throws Exception {
     testBuilder()
-        .sqlQuery("select (case when (false) then null else cast(0.1 as float) end) res1 from (values(1))")
+        .sqlQuery(
+            "select (case when (false) then null else cast(0.1 as float) end) res1 from (values(1))")
         .unOrdered()
         .baselineColumns("res1")
         .baselineValues(0.1F)
@@ -70,7 +71,8 @@ public class TestCaseNullableTypes extends BaseTestQuery {
   @Test
   public void testCaseNullableTypesDouble() throws Exception {
     testBuilder()
-        .sqlQuery("select (case when (false) then null else cast(0.1 as double) end) res1 from (values(1))")
+        .sqlQuery(
+            "select (case when (false) then null else cast(0.1 as double) end) res1 from (values(1))")
         .unOrdered()
         .baselineColumns("res1")
         .baselineValues(0.1)
@@ -90,7 +92,8 @@ public class TestCaseNullableTypes extends BaseTestQuery {
   @Test
   public void testCaseNullableTypesDate() throws Exception {
     testBuilder()
-        .sqlQuery("select (res1 = 22/09/2016) res2 from (select (case when (false) then null else 22/09/2016 end) res1 from (values(1)))")
+        .sqlQuery(
+            "select (res1 = 22/09/2016) res2 from (select (case when (false) then null else 22/09/2016 end) res1 from (values(1)))")
         .unOrdered()
         .baselineColumns("res2")
         .baselineValues(true)
@@ -100,19 +103,20 @@ public class TestCaseNullableTypes extends BaseTestQuery {
   @Test
   public void testCaseNullableTypesTimestamp() throws Exception {
     testBuilder()
-        .sqlQuery("select (res1 = current_timestamp) res2 from (select (case when (false) then null else current_timestamp end) res1 from (values(1)))")
+        .sqlQuery(
+            "select (res1 = current_timestamp) res2 from (select (case when (false) then null else current_timestamp end) res1 from (values(1)))")
         .unOrdered()
         .baselineColumns("res2")
         .baselineValues(true)
         .go();
   }
 
-
   @Test
   public void caseNullableTimestampEquality() throws Exception {
     testBuilder()
-        .sqlQuery("SELECT (res1 = CAST('2016-11-17 14:43:23' AS TIMESTAMP)) res2" +
-            " FROM (SELECT (CASE WHEN (false) THEN null ELSE CAST('2016-11-17 14:43:23' AS TIMESTAMP) END) res1 FROM (values(1)))")
+        .sqlQuery(
+            "SELECT (res1 = CAST('2016-11-17 14:43:23' AS TIMESTAMP)) res2"
+                + " FROM (SELECT (CASE WHEN (false) THEN null ELSE CAST('2016-11-17 14:43:23' AS TIMESTAMP) END) res1 FROM (values(1)))")
         .unOrdered()
         .baselineColumns("res2")
         .baselineValues(true)
@@ -122,33 +126,37 @@ public class TestCaseNullableTypes extends BaseTestQuery {
   @Test
   public void testNestedCaseNullableTypes() throws Exception {
     testBuilder()
-      .sqlQuery("select (case when (false) then null else (case when (false) then null else cast(0.1 as float) end) end) res1 from (values(1))")
-      .unOrdered()
-      .baselineColumns("res1")
-      .baselineValues(0.1f)
-      .go();
+        .sqlQuery(
+            "select (case when (false) then null else (case when (false) then null else cast(0.1 as float) end) end) res1 from (values(1))")
+        .unOrdered()
+        .baselineColumns("res1")
+        .baselineValues(0.1f)
+        .go();
   }
 
   @Test
   public void testMultipleCasesNullableTypes() throws Exception {
     testBuilder()
-      .sqlQuery("select (case when (false) then null else 1 end) res1, (case when (false) then null else cast(0.1 as float) end) res2 from (values(1))")
-      .unOrdered()
-      .baselineColumns("res1", "res2")
-      .baselineValues(1, 0.1f)
-      .go();
+        .sqlQuery(
+            "select (case when (false) then null else 1 end) res1, (case when (false) then null else cast(0.1 as float) end) res2 from (values(1))")
+        .unOrdered()
+        .baselineColumns("res1", "res2")
+        .baselineValues(1, 0.1f)
+        .go();
   }
 
-  @Test //DRILL-5048
+  @Test // DRILL-5048
   public void testCaseNullableTimestamp() throws Exception {
-    LocalDateTime date = DateFunctionsUtils.getISOFormatterForFormatString("YYYY-MM-DD HH24:MI:SS")
-      .parseLocalDateTime("2016-11-17 14:43:23");
+    LocalDateTime date =
+        DateFunctionsUtils.getISOFormatterForFormatString("YYYY-MM-DD HH24:MI:SS")
+            .parseLocalDateTime("2016-11-17 14:43:23");
 
     testBuilder()
-      .sqlQuery("SELECT (CASE WHEN (false) THEN null ELSE CAST('2016-11-17 14:43:23' AS TIMESTAMP) END) res FROM (values(1)) foo")
-      .unOrdered()
-      .baselineColumns("res")
-      .baselineValues(date)
-      .go();
+        .sqlQuery(
+            "SELECT (CASE WHEN (false) THEN null ELSE CAST('2016-11-17 14:43:23' AS TIMESTAMP) END) res FROM (values(1)) foo")
+        .unOrdered()
+        .baselineColumns("res")
+        .baselineValues(date)
+        .go();
   }
 }

@@ -15,10 +15,15 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.ExecConstants;
+import com.dremio.exec.ops.QueryContext;
+import com.dremio.exec.planner.sql.handlers.direct.SimpleDirectHandler;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -29,34 +34,27 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.ExecConstants;
-import com.dremio.exec.ops.QueryContext;
-import com.dremio.exec.planner.sql.handlers.direct.SimpleDirectHandler;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
+/** ALTER { TABLE | VIEW } <table_name> DROP ROW ACCESS POLICY <function_name> */
+public class SqlAlterTableDropRowAccessPolicy extends SqlAlterTable
+    implements SimpleDirectHandler.Creator {
 
-/**
- * ALTER { TABLE | VIEW } <table_name>
- *    DROP ROW ACCESS POLICY <function_name>
- */
-public class SqlAlterTableDropRowAccessPolicy extends SqlAlterTable implements SimpleDirectHandler.Creator {
-
-  public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("UNSET_ROW_POLICY", SqlKind.OTHER) {
-    @Override
-    public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 2, "SqlAlterTableDropRowAccessPolicy.createCall() has to get 2 operand!");
-      return new SqlAlterTableDropRowAccessPolicy(
-        pos,
-        (SqlIdentifier) operands[0],
-        (SqlPolicy) operands[1]
-      );
-    }
-  };
+  public static final SqlSpecialOperator OPERATOR =
+      new SqlSpecialOperator("UNSET_ROW_POLICY", SqlKind.OTHER) {
+        @Override
+        public SqlCall createCall(
+            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+          Preconditions.checkArgument(
+              operands.length == 2,
+              "SqlAlterTableDropRowAccessPolicy.createCall() has to get 2 operand!");
+          return new SqlAlterTableDropRowAccessPolicy(
+              pos, (SqlIdentifier) operands[0], (SqlPolicy) operands[1]);
+        }
+      };
 
   private SqlPolicy policy;
 
-  public SqlAlterTableDropRowAccessPolicy(SqlParserPos pos, SqlIdentifier tblName, SqlPolicy policy) {
+  public SqlAlterTableDropRowAccessPolicy(
+      SqlParserPos pos, SqlIdentifier tblName, SqlPolicy policy) {
     super(pos, tblName);
     this.policy = policy;
   }
@@ -72,8 +70,7 @@ public class SqlAlterTableDropRowAccessPolicy extends SqlAlterTable implements S
 
   @Override
   public List<SqlNode> getOperandList() {
-    return ImmutableList.of(
-      tblName, policy);
+    return ImmutableList.of(tblName, policy);
   }
 
   @Override
@@ -93,12 +90,19 @@ public class SqlAlterTableDropRowAccessPolicy extends SqlAlterTable implements S
     }
 
     try {
-      final Class<?> cl = Class.forName("com.dremio.exec.planner.sql.handlers.EnterpriseAlterTableDropRowAccessPolicy");
+      final Class<?> cl =
+          Class.forName(
+              "com.dremio.exec.planner.sql.handlers.EnterpriseAlterTableDropRowAccessPolicy");
       final Constructor<?> ctor = cl.getConstructor(QueryContext.class);
       return (SimpleDirectHandler) ctor.newInstance(context);
-    } catch (InstantiationException | IllegalAccessException | ClassNotFoundException | NoSuchMethodException | InvocationTargetException e) {
-      final UserException.Builder exceptionBuilder = UserException.unsupportedError()
-        .message("This command is not supported in this edition of Dremio.");
+    } catch (InstantiationException
+        | IllegalAccessException
+        | ClassNotFoundException
+        | NoSuchMethodException
+        | InvocationTargetException e) {
+      final UserException.Builder exceptionBuilder =
+          UserException.unsupportedError()
+              .message("This command is not supported in this edition of Dremio.");
       throw exceptionBuilder.buildSilently();
     }
   }

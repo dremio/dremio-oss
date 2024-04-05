@@ -15,9 +15,13 @@
  */
 package com.dremio.exec.store.iceberg;
 
+import com.dremio.exec.physical.config.IncrementalRefreshJoinKeyTableFunctionContext;
+import com.dremio.exec.physical.config.TableFunctionConfig;
+import com.dremio.exec.planner.physical.TableFunctionPrel;
+import com.dremio.exec.planner.physical.filter.RuntimeFilteredRel;
+import com.dremio.exec.store.TableMetadata;
 import java.util.List;
 import java.util.function.Function;
-
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitSet;
@@ -27,45 +31,69 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.iceberg.PartitionSpec;
 
-import com.dremio.exec.physical.config.IncrementalRefreshJoinKeyTableFunctionContext;
-import com.dremio.exec.physical.config.TableFunctionConfig;
-import com.dremio.exec.planner.physical.TableFunctionPrel;
-import com.dremio.exec.planner.physical.filter.RuntimeFilteredRel;
-import com.dremio.exec.store.TableMetadata;
-
 public final class IcebergIncrementalRefreshJoinKeyPrel extends TableFunctionPrel {
-  public IcebergIncrementalRefreshJoinKeyPrel(final RelOptCluster cluster,
-                                              final RelTraitSet traits,
-                                              final RelOptTable table,
-                                              final RelNode child,
-                                              final TableMetadata tableMetadata,
-                                              final TableFunctionConfig functionConfig,
-                                              final RelDataType rowType,
-                                              final Function<RelMetadataQuery, Double> estimateRowCountFn,
-                                              final Long survivingRecords,
-                                              final List<RuntimeFilteredRel.Info> runtimeFilteredRels,
-                                              final String user) {
-    super(cluster, traits, table, child, tableMetadata, functionConfig, rowType,
-      estimateRowCountFn, survivingRecords, runtimeFilteredRels, user);
+  public IcebergIncrementalRefreshJoinKeyPrel(
+      final RelOptCluster cluster,
+      final RelTraitSet traits,
+      final RelOptTable table,
+      final RelNode child,
+      final TableMetadata tableMetadata,
+      final TableFunctionConfig functionConfig,
+      final RelDataType rowType,
+      final Function<RelMetadataQuery, Double> estimateRowCountFn,
+      final Long survivingRecords,
+      final List<RuntimeFilteredRel.Info> runtimeFilteredRels,
+      final String user) {
+    super(
+        cluster,
+        traits,
+        table,
+        child,
+        tableMetadata,
+        functionConfig,
+        rowType,
+        estimateRowCountFn,
+        survivingRecords,
+        runtimeFilteredRels,
+        user);
   }
 
   @Override
   public RelNode copy(final RelTraitSet traitSet, final List<RelNode> inputs) {
-    return new IcebergIncrementalRefreshJoinKeyPrel(getCluster(), getTraitSet(), getTable(), sole(inputs), getTableMetadata(),
-        getTableFunctionConfig(), getRowType(), getEstimateRowCountFn(), getSurvivingRecords(),getRuntimeFilters(), user);
+    return new IcebergIncrementalRefreshJoinKeyPrel(
+        getCluster(),
+        getTraitSet(),
+        getTable(),
+        sole(inputs),
+        getTableMetadata(),
+        getTableFunctionConfig(),
+        getRowType(),
+        getEstimateRowCountFn(),
+        getSurvivingRecords(),
+        getRuntimeFilters(),
+        user);
   }
 
   @Override
   public RelWriter explainTableFunction(final RelWriter pw) {
-    final IncrementalRefreshJoinKeyTableFunctionContext functionContext = (IncrementalRefreshJoinKeyTableFunctionContext) getTableFunctionConfig().getFunctionContext();
-    final String icebergSchema = ((IncrementalRefreshJoinKeyTableFunctionContext) getTableFunctionConfig().getFunctionContext()).getIcebergSchema();
-    final PartitionSpec partitionSpec = IcebergSerDe.deserializePartitionSpec(IcebergSerDe.deserializedJsonAsSchema(icebergSchema), functionContext.getPartitionSpec().toByteArray());
+    final IncrementalRefreshJoinKeyTableFunctionContext functionContext =
+        (IncrementalRefreshJoinKeyTableFunctionContext)
+            getTableFunctionConfig().getFunctionContext();
+    final String icebergSchema =
+        ((IncrementalRefreshJoinKeyTableFunctionContext)
+                getTableFunctionConfig().getFunctionContext())
+            .getIcebergSchema();
+    final PartitionSpec partitionSpec =
+        IcebergSerDe.deserializePartitionSpec(
+            IcebergSerDe.deserializedJsonAsSchema(icebergSchema),
+            functionContext.getPartitionSpec().toByteArray());
     pw.item("join key", IncrementalReflectionByPartitionUtils.toDisplayString(partitionSpec));
     return pw;
   }
 
   @Override
-  protected double defaultEstimateRowCount(final TableFunctionConfig functionConfig, final RelMetadataQuery mq) {
+  protected double defaultEstimateRowCount(
+      final TableFunctionConfig functionConfig, final RelMetadataQuery mq) {
     return (double) getSurvivingRecords();
   }
 }

@@ -15,25 +15,24 @@
  */
 package com.dremio.exec.planner.logical;
 
+import com.google.common.base.Predicate;
+import com.google.common.collect.Iterables;
 import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.core.AggregateCall;
 
-import com.google.common.base.Predicate;
-import com.google.common.collect.Iterables;
-
-/**
- * Helper methods to find if a call or a aggregate rel are projectables
- */
+/** Helper methods to find if a call or a aggregate rel are projectables */
 public final class ProjectableSqlAggFunctions {
-  public static final Predicate<AggregateCall> IS_PROJECTABLE_AGGREGATE_CALL = new Predicate<AggregateCall>() {
-    @Override
-    public boolean apply(AggregateCall call) {
-      return call.getAggregation() instanceof ProjectableSqlAggFunction;
-    }
-  };
+  public static final Predicate<AggregateCall> IS_PROJECTABLE_AGGREGATE_CALL =
+      new Predicate<AggregateCall>() {
+        @Override
+        public boolean apply(AggregateCall call) {
+          return call.getAggregation() instanceof ProjectableSqlAggFunction;
+        }
+      };
 
   /**
    * Check if the aggregate call is projectable
+   *
    * @param call the aggregate call
    * @return {@code true} if projectable, {@code false} otherwise
    * @throws NullPointerException if call is {@code null}
@@ -44,6 +43,7 @@ public final class ProjectableSqlAggFunctions {
 
   /**
    * Check if the aggregate rel is projectable
+   *
    * @param aggregate the aggregate rel
    * @return {@code true} if projectable, {@code false} otherwise
    * @throws NullPointerException if aggregate is {@code null}
@@ -51,5 +51,4 @@ public final class ProjectableSqlAggFunctions {
   public static final boolean isProjectableAggregate(Aggregate aggregate) {
     return Iterables.any(aggregate.getAggCallList(), IS_PROJECTABLE_AGGREGATE_CALL);
   }
-
 }

@@ -17,13 +17,6 @@ package com.dremio.datastore;
 
 import static com.dremio.datastore.LocalKVStoreProvider.CONFIG_HOSTNAME;
 
-import java.util.Map;
-import java.util.Set;
-
-import javax.inject.Provider;
-
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.config.DremioConfig;
 import com.dremio.datastore.api.AbstractStoreBuilder;
@@ -42,13 +35,16 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import java.util.Map;
+import java.util.Set;
+import javax.inject.Provider;
+import org.apache.arrow.memory.BufferAllocator;
 
-/**
- * Remote KVStore Provider.
- */
-@KVStoreProviderType(type="RemoteDB")
+/** Remote KVStore Provider. */
+@KVStoreProviderType(type = "RemoteDB")
 public class RemoteKVStoreProvider implements KVStoreProvider {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(RemoteKVStoreProvider.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(RemoteKVStoreProvider.class);
   public static final String HOSTNAME = "thisHostName";
 
   private DatastoreRpcClient rpcClient;
@@ -61,7 +57,12 @@ public class RemoteKVStoreProvider implements KVStoreProvider {
   private String masterHostName;
   private long remoteRpcTimeout;
 
-  public RemoteKVStoreProvider(ScanResult scan, Provider<NodeEndpoint> masterNode, Provider<FabricService> fabricService, BufferAllocator allocator, String hostName) {
+  public RemoteKVStoreProvider(
+      ScanResult scan,
+      Provider<NodeEndpoint> masterNode,
+      Provider<FabricService> fabricService,
+      BufferAllocator allocator,
+      String hostName) {
     this.masterNode = masterNode;
     this.fabricService = fabricService;
     this.allocator = allocator;
@@ -70,40 +71,43 @@ public class RemoteKVStoreProvider implements KVStoreProvider {
   }
 
   public RemoteKVStoreProvider(
-    ScanResult scan,
-    Provider<FabricService> fabricService,
-    Provider<NodeEndpoint> masterNode,
-    BufferAllocator allocator,
-    Map<String, Object> config
-  ) {
-    this(scan,
-         masterNode,
-         fabricService,
-         allocator,
-         String.valueOf(Preconditions.checkNotNull(
-           config.get(HOSTNAME), String.format("Missing services.datastore.config.%s in dremio.conf", HOSTNAME))
-         )
-    );
+      ScanResult scan,
+      Provider<FabricService> fabricService,
+      Provider<NodeEndpoint> masterNode,
+      BufferAllocator allocator,
+      Map<String, Object> config) {
+    this(
+        scan,
+        masterNode,
+        fabricService,
+        allocator,
+        String.valueOf(
+            Preconditions.checkNotNull(
+                config.get(HOSTNAME),
+                String.format("Missing services.datastore.config.%s in dremio.conf", HOSTNAME))));
     // in case of test configuration in masterless mode specify master directly
     // either masterNode should be specified or masterHostName
     masterHostName = String.valueOf(config.get(CONFIG_HOSTNAME));
-    this.remoteRpcTimeout = (Long)config.get(DremioConfig.REMOTE_DATASTORE_RPC_TIMEOUT_SECS);
+    this.remoteRpcTimeout = (Long) config.get(DremioConfig.REMOTE_DATASTORE_RPC_TIMEOUT_SECS);
   }
 
   @Override
   public Set<KVStore<?, ?>> stores() {
-    return new ImmutableSet.Builder<KVStore<?,?>>().addAll(stores.values().iterator()).build();
+    return new ImmutableSet.Builder<KVStore<?, ?>>().addAll(stores.values().iterator()).build();
   }
 
   @SuppressWarnings("unchecked")
   @Override
-  public <K, V, T extends KVStore<K, V>> T getStore(Class<? extends StoreCreationFunction<K, V, T>> creator) {
-    return (T) Preconditions.checkNotNull(stores.get(creator), "Unknown store creator %s", creator.getName());
+  public <K, V, T extends KVStore<K, V>> T getStore(
+      Class<? extends StoreCreationFunction<K, V, T>> creator) {
+    return (T)
+        Preconditions.checkNotNull(
+            stores.get(creator), "Unknown store creator %s", creator.getName());
   }
 
   @Override
   @VisibleForTesting
-  public <K, V> StoreBuilder<K, V> newStore(){
+  public <K, V> StoreBuilder<K, V> newStore() {
     return new RemoteStoreBuilder<>();
   }
 
@@ -114,28 +118,34 @@ public class RemoteKVStoreProvider implements KVStoreProvider {
     try {
       final Provider<NodeEndpoint> masterHost;
       if (masterHostName != null && !masterHostName.equals(hostName)) {
-        masterHost = DirectProvider.wrap(NodeEndpoint.newBuilder()
-          .setAddress(masterHostName)
-          .setFabricPort(fabricService.get().getPort())
-          .build());
+        masterHost =
+            DirectProvider.wrap(
+                NodeEndpoint.newBuilder()
+                    .setAddress(masterHostName)
+                    .setFabricPort(fabricService.get().getPort())
+                    .build());
       } else {
         masterHost = masterNode;
       }
 
-      DatastoreRpcService rpcService = new DatastoreRpcService(masterHost, fabricService.get(), allocator, rpcHandler,
-        remoteRpcTimeout);
+      DatastoreRpcService rpcService =
+          new DatastoreRpcService(
+              masterHost, fabricService.get(), allocator, rpcHandler, remoteRpcTimeout);
       rpcClient = new DatastoreRpcClient(rpcService);
     } catch (RpcException e) {
       throw new DatastoreFatalException("Failed to start rpc service", e);
     }
 
-    stores = StoreLoader.buildStores(scan, new StoreBuildingFactory() {
+    stores =
+        StoreLoader.buildStores(
+            scan,
+            new StoreBuildingFactory() {
 
-      @Override
-      public <K, V> StoreBuilder<K, V> newStore() {
-        return RemoteKVStoreProvider.this.newStore();
-      }
-    });
+              @Override
+              public <K, V> StoreBuilder<K, V> newStore() {
+                return RemoteKVStoreProvider.this.newStore();
+              }
+            });
 
     logger.info("RemoteKVStoreProvider is up");
   }
@@ -147,20 +157,26 @@ public class RemoteKVStoreProvider implements KVStoreProvider {
 
   /**
    * Store builder for remote kvstore provider.
+   *
    * @param <K>
    * @param <V>
    */
   public class RemoteStoreBuilder<K, V> extends AbstractStoreBuilder<K, V> {
     @Override
     public KVStore<K, V> doBuild() {
-      return new RemoteKVStore<>(rpcClient, rpcClient.getStoreId(getStoreBuilderHelper().getName()), getStoreBuilderHelper());
+      return new RemoteKVStore<>(
+          rpcClient,
+          rpcClient.getStoreId(getStoreBuilderHelper().getName()),
+          getStoreBuilderHelper());
     }
 
     @Override
     public IndexedStore<K, V> doBuildIndexed(DocumentConverter<K, V> documentConverter) {
       getStoreBuilderHelper().documentConverter(documentConverter);
-      return new RemoteIndexedStore<>(rpcClient, rpcClient.getStoreId(getStoreBuilderHelper().getName()), getStoreBuilderHelper());
+      return new RemoteIndexedStore<>(
+          rpcClient,
+          rpcClient.getStoreId(getStoreBuilderHelper().getName()),
+          getStoreBuilderHelper());
     }
   }
-
 }

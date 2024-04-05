@@ -22,7 +22,7 @@ import { IconButton } from "dremio-ui-lib/components";
 import DropdownMenu from "@app/components/Menus/DropdownMenu";
 import { ENTITY_TYPES } from "@app/constants/Constants";
 import { intl } from "@app/utils/intl";
-import HeaderButtonsMixin from "dyn-load/pages/HomePage/components/HeaderButtonsMixin";
+import HeaderButtonsMixin from "@inject/pages/HomePage/components/HeaderButtonsMixin";
 import { RestrictedArea } from "@app/components/Auth/RestrictedArea";
 import localStorageUtils from "utils/storageUtils/localStorageUtils";
 import HeaderButtonAddActions from "./HeaderButtonAddActions.tsx";
@@ -49,14 +49,16 @@ export class HeaderButtons extends Component {
     entity: Immutable.Map(),
   };
 
-  getButtonsForEntityType(entityType) {
-    switch (entityType) {
-      case ENTITY_TYPES.space:
-        return this.getSpaceSettingsButtons();
-      case ENTITY_TYPES.source:
-        return this.getSourceSettingsButtons().concat(this.getSourceButtons());
-      default:
-        return [];
+  getButtonsForEntityType(rootEntityType, entityType) {
+    const { isVersionedSource } = this.props;
+    if (isVersionedSource && entityType === ENTITY_TYPES.folder) {
+      return this.getVersionedFolderSettingsButton();
+    } else if (rootEntityType === ENTITY_TYPES.space) {
+      return this.getSpaceSettingsButtons();
+    } else if (rootEntityType === ENTITY_TYPES.source) {
+      return this.getSourceSettingsButtons().concat(this.getSourceButtons());
+    } else {
+      return [];
     }
   }
 
@@ -170,7 +172,10 @@ export class HeaderButtons extends Component {
   render() {
     const { rootEntityType, entity } = this.props;
 
-    const buttonsForCurrentPage = this.getButtonsForEntityType(rootEntityType);
+    const buttonsForCurrentPage = this.getButtonsForEntityType(
+      rootEntityType,
+      entity.get("entityType"),
+    );
 
     const shouldShowAddButton = this.shouldShowAddButton(
       rootEntityType,

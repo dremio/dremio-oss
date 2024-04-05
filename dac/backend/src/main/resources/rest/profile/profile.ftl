@@ -21,139 +21,19 @@
 <script src="/static/js/d3.v3.js"></script>
 <script src="/static/js/dagre-d3.min.js"></script>
 <script src="/static/js/graph.js"></script>
-<script>
-    var globalconfig = {
-        "queryid" : "${model.getQueryId()}",
-        "operators" : ${model.getOperatorsJSON()?no_esc},
-        "planText": "${model.getPlanText()}",
-        "fragmentProfileSize": ${model.getFragmentProfilesSize()},
-        "fragmentProfiles":  ${model.getFragmentsJSON()?no_esc},
-        "operatorProfiles":   ${model.getOperatorProfilesJSON()?no_esc}
-    };
-
-    function toggleFragment(id) {
-      // check if we have to build anything
-      const container = document.getElementById(id);
-      const fragment = container.querySelector(".fragment-table");
-
-      if (fragment.hasChildNodes()) {
-        // fragment has data so no need to do anything
-        return;
-      }
-
-      const data = globalconfig.fragmentProfiles[id];
-
-      renderTable(fragment, data.info.fields, data.info.data);
-    }
-
-    function toggleFragmentMetrics(id) {
-      // check if we have to build anything
-      const container = document.getElementById(id);
-      const metrics = container.querySelector(".metrics-table");
-
-      if (metrics.hasChildNodes()) {
-        // has data so no need to do anything
-        return;
-      }
-
-      const data = globalconfig.fragmentProfiles[id].metrics;
-
-      renderTable(metrics, data.fields, data.data);
-    }
-
-    function toggleOperator(id) {
-      // check if we have to build anything
-      const container = document.getElementById(id);
-      const operator = container.querySelector(".operator-table");
-
-      if (operator.hasChildNodes()) {
-        // operator has data so no need to do anything
-        return;
-      }
-
-      const data = globalconfig.operatorProfiles[id];
-
-      renderTable(operator, data.info.fields, data.info.data);
-    }
-
-    function toggleOperatorMetrics(id) {
-      // check if we have to build anything
-      const container = document.getElementById(id);
-      const metrics = container.querySelector(".metrics-table");
-
-      if (metrics.hasChildNodes()) {
-        // has data so no need to do anything
-        return;
-      }
-
-      const data = globalconfig.operatorProfiles[id].metrics;
-
-      renderTable(metrics, data.fields, data.data);
-    }
-
-    function toggleOperatorDetails(id) {
-      // check if we have to build anything
-      const container = document.getElementById(id);
-      const details = container.querySelector(".details-table");
-
-      if (details.hasChildNodes()) {
-        // has data so no need to do anything
-        return;
-      }
-
-      const data = globalconfig.operatorProfiles[id].details;
-      renderTable(details, data.fields, data.data);
-    }
-
-    function toggleHostMetrics(id) {
-      // check if we have to build anything
-      const container = document.getElementById(id);
-      const metrics = container.querySelector(".hostMetrics-table");
-
-      if (metrics.hasChildNodes()) {
-        // has data so no need to do anything
-        return;
-      }
-
-      const data = globalconfig.operatorProfiles[id].hostMetrics;
-      renderTable(metrics, data.fields, data.data);
-    }
-
-    function renderTable(container, fields, data) {
-      // build the fragment table
-      const table = document.createElement("table");
-      table.className = 'table text-right';
-
-      // headers
-      const thead = document.createElement('thead');
-      const tr = document.createElement('tr');
-      fields.forEach((field) => {
-        const th = document.createElement('th');
-        th.innerText = field;
-        tr.appendChild(th);
-      });
-      thead.appendChild(tr);
-      table.appendChild(thead);
-
-      // body
-      const tbody = document.createElement('tbody');
-      data.forEach((cells) => {
-        const tr = document.createElement('tr');
-        cells.forEach((cell) => {
-          const td = document.createElement('td');
-          td.innerText = cell;
-          tr.appendChild(td);
-        });
-        tbody.appendChild(tr);
-      });
-      table.appendChild(tbody);
-
-      container.appendChild(table);
-    }
-</script>
 </#macro>
 
 <#macro page_body>
+<div id="globalconfig" style="position:absolute;display:none;">
+{
+  "queryid" : "${model.getQueryId()}",
+  "operators" : ${model.getOperatorsJSON()?no_esc},
+  "planText": "${model.getPlanText()}",
+  "fragmentProfileSize": ${model.getFragmentProfilesSize()},
+  "fragmentProfiles":  ${model.getFragmentsJSON()?no_esc},
+  "operatorProfiles":   ${model.getOperatorProfilesJSON()?no_esc}
+}
+</div>
   <h3>Query and Planning</h3>
   <ul id="query-tabs" class="nav nav-tabs" role="tablist">
     <li><a href="#query-query" role="tab" data-toggle="tab">Query</a></li>
@@ -192,9 +72,23 @@
         <dd>${model.getMatchedReflectionsCount()}</dd>
         <dt>Chosen Reflections:</dt>
         <dd>${model.getChosenReflectionsCount()}</dd>
+        <#if model.getEarliestReflectionRefresh()?? >
+          <dt>Earliest Reflection Refresh:</dt>
+          <dd>${model.getEarliestReflectionRefresh()?number_to_datetime?iso_local}</dd>
+        </#if>
         <#if model.getPlanCacheUsed() != 0 >
           <dt>Cached plan was used</dt>
+          <dd> </dd>
         </#if>
+      </dl>
+      <h3>Time in UTC</h3>
+      <dl class="dl-horizontal info-list">
+        <dt>Start time:</dt>
+        <dd>${model.getStartTimeInUTC()}</dd>
+        <dt>End time:</dt>
+        <dd>${model.getEndTimeInUTC()}</dd>
+        <dt>Cancel Start time:</dt>
+        <dd>${model.getCancelStartTimeInUTC()}</dd>
       </dl>
 
       <h3>State Durations</h3>
@@ -676,24 +570,7 @@
             </div>
             <div id="phases-overview" class="panel-collapse collapse">
               <div class="panel-body">
-                <table>
-                  <#list model.profile.planPhasesList as planPhase>
-                    <#if planPhase.timeBreakdownPerRuleMap?size gt 0>
-                      <tr>
-                        <td colspan="2">
-                          <b>${planPhase.getPhaseName()}</b>
-                        </td>
-                      </tr>
-                    </#if>
-                    <#list planPhase.timeBreakdownPerRuleMap?keys as k>
-                      <tr>
-                      <td style="padding-right: 40px">${k}</td>
-                      <td>${planPhase.timeBreakdownPerRuleMap[k]} ms</td>
-                      </tr>
-                    </#list>
-                    <tr />
-                  </#list>
-                </table>
+                ${model.getRulesBreakdownTable()?no_esc}
               </div>
             </div>
           </div>
@@ -727,7 +604,7 @@
     </div>
     </#if>
   </div>
-
+  <script src="/static/js/profile/profile.js"></script>
 </#macro>
 
 <@page_html/>

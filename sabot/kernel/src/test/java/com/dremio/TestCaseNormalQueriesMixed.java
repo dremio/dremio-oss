@@ -15,25 +15,31 @@
  */
 package com.dremio;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.physical.PlannerSettings;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 
 public class TestCaseNormalQueriesMixed extends TestAbstractCaseNormalQueries {
 
   @BeforeClass
   public static void setup() throws Exception {
-    testNoResult("ALTER SESSION SET \"%s\" = 4", PlannerSettings.CASE_EXPRESSIONS_THRESHOLD.getOptionName());
-    testNoResult("ALTER SESSION SET \"%s\" = true", ExecConstants.ENABLE_VERBOSE_ERRORS.getOptionName());
-    testNoResult("ALTER SESSION SET \"%s\" = 500", ExecConstants.CODE_GEN_CONSTANT_ARRAY_THRESHOLD.getOptionName());
+    testNoResult(
+        "ALTER SESSION SET \"%s\" = 4", PlannerSettings.CASE_EXPRESSIONS_THRESHOLD.getOptionName());
+    testNoResult(
+        "ALTER SESSION SET \"%s\" = true", ExecConstants.ENABLE_VERBOSE_ERRORS.getOptionName());
+    testNoResult(
+        "ALTER SESSION SET \"%s\" = 500",
+        ExecConstants.CODE_GEN_CONSTANT_ARRAY_THRESHOLD.getOptionName());
   }
 
   @AfterClass
   public static void tearDown() throws Exception {
-    testNoResult("ALTER SESSION RESET \"%s\"", PlannerSettings.CASE_EXPRESSIONS_THRESHOLD.getOptionName());
+    testNoResult(
+        "ALTER SESSION RESET \"%s\"", PlannerSettings.CASE_EXPRESSIONS_THRESHOLD.getOptionName());
     testNoResult("ALTER SESSION RESET \"%s\"", ExecConstants.ENABLE_VERBOSE_ERRORS.getOptionName());
-    testNoResult("ALTER SESSION RESET \"%s\"", ExecConstants.CODE_GEN_CONSTANT_ARRAY_THRESHOLD.getOptionName());
+    testNoResult(
+        "ALTER SESSION RESET \"%s\"",
+        ExecConstants.CODE_GEN_CONSTANT_ARRAY_THRESHOLD.getOptionName());
   }
 }

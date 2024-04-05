@@ -15,15 +15,15 @@
  */
 package com.dremio.exec.store;
 
-import java.util.stream.Stream;
-
 import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.connector.metadata.GetDatasetOption;
 import com.dremio.connector.metadata.GetMetadataOption;
 import com.dremio.connector.metadata.ListPartitionChunkOption;
 import com.dremio.connector.metadata.MetadataOption;
+import java.util.stream.Stream;
 
-public class VersionedDatasetAccessOptions implements GetDatasetOption, GetMetadataOption, ListPartitionChunkOption {
+public class VersionedDatasetAccessOptions
+    implements GetDatasetOption, GetMetadataOption, ListPartitionChunkOption {
   private final ResolvedVersionContext versionContext;
 
   private VersionedDatasetAccessOptions(Builder builder) {
@@ -37,8 +37,7 @@ public class VersionedDatasetAccessOptions implements GetDatasetOption, GetMetad
   public static class Builder {
     private ResolvedVersionContext versionContext;
 
-    public Builder() {
-    }
+    public Builder() {}
 
     public Builder setVersionContext(ResolvedVersionContext versionContext) {
       this.versionContext = versionContext;
@@ -50,7 +49,12 @@ public class VersionedDatasetAccessOptions implements GetDatasetOption, GetMetad
     }
   }
 
-  public static VersionedDatasetAccessOptions getVersionedDatasetAccessOptions(MetadataOption... options) {
-    return (VersionedDatasetAccessOptions) Stream.of(options).filter(o -> o instanceof VersionedDatasetAccessOptions).findFirst().orElse(null);
+  public static VersionedDatasetAccessOptions getVersionedDatasetAccessOptions(
+      MetadataOption... options) {
+    return (VersionedDatasetAccessOptions)
+        Stream.of(options)
+            .filter(o -> o instanceof VersionedDatasetAccessOptions)
+            .findFirst()
+            .orElse(null);
   }
 }

@@ -13,8 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- package com.dremio.exec.planner.sql;
+package com.dremio.exec.planner.sql;
 
+import com.dremio.common.types.TypeProtos.MajorType;
+import com.dremio.common.types.TypeProtos.MinorType;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.sql.SqlCall;
@@ -32,16 +34,19 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.sql.validate.SqlValidatorScope;
 
-import com.dremio.common.types.TypeProtos.MajorType;
-import com.dremio.common.types.TypeProtos.MinorType;
-
 public class VarArgSqlOperator extends SqlFunction {
   private static final MajorType NONE = MajorType.getDefaultInstance();
   private final MajorType returnType;
   private final boolean isDeterministic;
 
   public VarArgSqlOperator(String name, MajorType returnType, boolean isDeterministic) {
-    super(new SqlIdentifier(name, SqlParserPos.ZERO), DynamicReturnType.INSTANCE, null, new Checker(), null, SqlFunctionCategory.USER_DEFINED_FUNCTION);
+    super(
+        new SqlIdentifier(name, SqlParserPos.ZERO),
+        DynamicReturnType.INSTANCE,
+        null,
+        new Checker(),
+        null,
+        SqlFunctionCategory.USER_DEFINED_FUNCTION);
     this.returnType = returnType;
     this.isDeterministic = isDeterministic;
   }

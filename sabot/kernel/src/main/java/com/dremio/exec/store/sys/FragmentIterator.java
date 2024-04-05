@@ -15,15 +15,12 @@
  */
 package com.dremio.exec.store.sys;
 
-import java.util.Iterator;
-
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.work.WorkStats.FragmentInfo;
 import com.dremio.sabot.exec.context.OperatorContext;
+import java.util.Iterator;
 
-/**
- * Iterator which returns {@link FragmentInfo} for every fragment running in this node.
- */
+/** Iterator which returns {@link FragmentInfo} for every fragment running in this node. */
 public class FragmentIterator implements Iterator<Object> {
   private final Iterator<FragmentInfo> iter;
 
@@ -45,6 +42,4 @@ public class FragmentIterator implements Iterator<Object> {
   public void remove() {
     throw new UnsupportedOperationException();
   }
-
-
 }

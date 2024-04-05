@@ -18,14 +18,11 @@ package com.dremio;
 import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.List;
-
 import org.apache.arrow.vector.util.JsonStringArrayList;
 import org.apache.arrow.vector.util.JsonStringHashMap;
 import org.apache.arrow.vector.util.Text;
 
-/**
- * Utilities useful to construct Arrow data structures
- */
+/** Utilities useful to construct Arrow data structures */
 public class ArrowDsUtil {
   public static JsonStringArrayList<Integer> intList(Integer... ints) {
     JsonStringArrayList<Integer> list = new JsonStringArrayList<>(ints.length);
@@ -107,8 +104,8 @@ public class ArrowDsUtil {
     return structrow;
   }
 
-
-  public static JsonStringHashMap<String, Object> doubleStruct(String fieldName, Double... doubles) {
+  public static JsonStringHashMap<String, Object> doubleStruct(
+      String fieldName, Double... doubles) {
     JsonStringHashMap<String, Object> structrow = new JsonStringHashMap<>();
     for (Double aDouble : doubles) {
       structrow.put(fieldName, aDouble);
@@ -133,37 +130,44 @@ public class ArrowDsUtil {
     return structrow;
   }
 
-  public static JsonStringArrayList<JsonStringArrayList<Long>> wrapListInList(JsonStringArrayList<Long> underlying) {
+  public static JsonStringArrayList<JsonStringArrayList<Long>> wrapListInList(
+      JsonStringArrayList<Long> underlying) {
     JsonStringArrayList<JsonStringArrayList<Long>> list = new JsonStringArrayList<>();
     list.add(underlying);
     return list;
   }
 
-  public static JsonStringArrayList<JsonStringArrayList<Double>> wrapDoubleListInList(JsonStringArrayList<Double> underlying) {
+  public static JsonStringArrayList<JsonStringArrayList<Double>> wrapDoubleListInList(
+      JsonStringArrayList<Double> underlying) {
     JsonStringArrayList<JsonStringArrayList<Double>> list = new JsonStringArrayList<>();
     list.add(underlying);
     return list;
   }
 
-  public static JsonStringArrayList<JsonStringArrayList<Text>> wrapTextListInList(JsonStringArrayList<Text> underlying) {
+  public static JsonStringArrayList<JsonStringArrayList<Text>> wrapTextListInList(
+      JsonStringArrayList<Text> underlying) {
     JsonStringArrayList<JsonStringArrayList<Text>> list = new JsonStringArrayList<>();
     list.add(underlying);
     return list;
   }
 
-  public static JsonStringHashMap<String, JsonStringHashMap<String, Object>> wrapStructInStruct(String fieldName, JsonStringHashMap<String, Object> struct) {
-    JsonStringHashMap<String, JsonStringHashMap<String, Object>> structrow = new JsonStringHashMap<>();
+  public static JsonStringHashMap<String, JsonStringHashMap<String, Object>> wrapStructInStruct(
+      String fieldName, JsonStringHashMap<String, Object> struct) {
+    JsonStringHashMap<String, JsonStringHashMap<String, Object>> structrow =
+        new JsonStringHashMap<>();
     structrow.put(fieldName, struct);
     return structrow;
   }
 
-  public static JsonStringArrayList<JsonStringHashMap<String, Object>> wrapStructInList(JsonStringHashMap<String, Object>... structs) {
+  public static JsonStringArrayList<JsonStringHashMap<String, Object>> wrapStructInList(
+      JsonStringHashMap<String, Object>... structs) {
     JsonStringArrayList<JsonStringHashMap<String, Object>> list = new JsonStringArrayList<>();
     list.addAll(Arrays.asList(structs));
     return list;
   }
 
-  public static JsonStringHashMap<String, JsonStringArrayList<?>> wrapListInStruct(String fieldName, JsonStringArrayList<?> underlying) {
+  public static JsonStringHashMap<String, JsonStringArrayList<?>> wrapListInStruct(
+      String fieldName, JsonStringArrayList<?> underlying) {
     JsonStringHashMap<String, JsonStringArrayList<?>> structrow = new JsonStringHashMap<>();
     structrow.put(fieldName, underlying);
     return structrow;

@@ -32,9 +32,7 @@ import com.dremio.datastore.RemoteDataStoreProtobuf.PutResponse;
 import com.dremio.datastore.RemoteDataStoreProtobuf.SearchRequest;
 import com.dremio.datastore.RemoteDataStoreProtobuf.SearchResponse;
 
-/**
- * Request handler for incoming datastore rpc.
- */
+/** Request handler for incoming datastore rpc. */
 public class DefaultDataStoreRpcHandler {
 
   private final String hostName;
@@ -44,34 +42,42 @@ public class DefaultDataStoreRpcHandler {
   }
 
   public GetResponse get(GetRequest request) {
-    throw new UnsupportedOperationException("Remote datastore operations are not supported on this host " + hostName);
+    throw new UnsupportedOperationException(
+        "Remote datastore operations are not supported on this host " + hostName);
   }
 
   public GetCountsResponse getCounts(GetCountsRequest request) {
-    throw new UnsupportedOperationException("Remote datastore operations are not supported on this host " + hostName);
+    throw new UnsupportedOperationException(
+        "Remote datastore operations are not supported on this host " + hostName);
   }
 
   public FindResponse find(FindRequest request) {
-    throw new UnsupportedOperationException("Remote datastore operations are not supported on this host " + hostName);
+    throw new UnsupportedOperationException(
+        "Remote datastore operations are not supported on this host " + hostName);
   }
 
   public ContainsResponse contains(ContainsRequest request) {
-    throw new UnsupportedOperationException("Remote datastore operations are not supported on this host " + hostName);
+    throw new UnsupportedOperationException(
+        "Remote datastore operations are not supported on this host " + hostName);
   }
 
   public SearchResponse search(SearchRequest request) {
-    throw new UnsupportedOperationException("Remote datastore operations are not supported on this host " + hostName);
+    throw new UnsupportedOperationException(
+        "Remote datastore operations are not supported on this host " + hostName);
   }
 
   public PutResponse put(PutRequest request) {
-    throw new UnsupportedOperationException("Remote datastore operations are not supported on this host " + hostName);
+    throw new UnsupportedOperationException(
+        "Remote datastore operations are not supported on this host " + hostName);
   }
 
   public DeleteResponse delete(DeleteRequest request) {
-    throw new UnsupportedOperationException("Remote datastore operations are not supported on this host " + hostName);
+    throw new UnsupportedOperationException(
+        "Remote datastore operations are not supported on this host " + hostName);
   }
 
   public GetStoreResponse getStore(GetStoreRequest request) {
-    throw new UnsupportedOperationException("Remote datastore operations are not supported on this host " + hostName);
+    throw new UnsupportedOperationException(
+        "Remote datastore operations are not supported on this host " + hostName);
   }
 }

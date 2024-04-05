@@ -15,16 +15,15 @@
  */
 package com.dremio.plugins.elastic;
 
-import org.apache.commons.lang3.StringUtils;
-
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
+import org.apache.commons.lang3.StringUtils;
 
 /**
- * Copied from hadoop-aws to avoid dependency of it, which includes aws-java-sdk 1.7.4
- * that is not compatible with elasticsearch plugin for Amazon Elasticsearch Service.
+ * Copied from hadoop-aws to avoid dependency of it, which includes aws-java-sdk 1.7.4 that is not
+ * compatible with elasticsearch plugin for Amazon Elasticsearch Service.
  */
 public class BasicAWSCredentialsProvider implements AWSCredentialsProvider {
   private final String accessKey;
@@ -40,8 +39,7 @@ public class BasicAWSCredentialsProvider implements AWSCredentialsProvider {
     if (!StringUtils.isEmpty(accessKey) && !StringUtils.isEmpty(secretKey)) {
       return new BasicAWSCredentials(accessKey, secretKey);
     }
-    throw new AmazonClientException(
-      "Access key or secret key is null");
+    throw new AmazonClientException("Access key or secret key is null");
   }
 
   @Override
@@ -51,5 +49,4 @@ public class BasicAWSCredentialsProvider implements AWSCredentialsProvider {
   public String toString() {
     return getClass().getSimpleName();
   }
-
 }

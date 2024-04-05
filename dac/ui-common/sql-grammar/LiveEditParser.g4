@@ -39,6 +39,8 @@ options { tokenVocab=LiveEditLexer; }
 /*
  Rule overrides
  If adding any new ones, make sure to add a test case in LiveEditParser.test.ts
+ Do not add any rule overrides that make the grammar more restricted than the JavaCC/DremioParser grammar; otherwise,
+ valid queries may show as having errors.
  */
 
 // Overriden to allow suggestions in e.g. "SELECT FROM ^" and "FROM ^" by treating select clause as optional
@@ -59,14 +61,6 @@ selectItem :
     trailingSelectItemDot (invalidAs simpleIdentifier)?
     | (AS? simpleIdentifier)?
   )  ;
-
-// This is overriden to support suggestions after a trailing DOT e.g. select tbl.^ from tbl
-// Otherwise, with rule expression2b : prefixRowOperator* expression3 (DOT identifier)*
-// the . is not parsed as part of the compoundIdentifier in expression3 which makes determining
-// the column suggestions challenging.
-// This rule override should be removed once https://github.com/mike-lischke/antlr4-c3/issues/40#issuecomment-1732124123
-// is done.
-expression2b : prefixRowOperator* expression3  ;
 
 /*
  Custom rules

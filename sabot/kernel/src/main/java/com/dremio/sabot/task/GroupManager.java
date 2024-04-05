@@ -15,16 +15,13 @@
  */
 package com.dremio.sabot.task;
 
-/**
- * Allows the creation of additional Task groups
- */
+/** Allows the creation of additional Task groups */
 public interface GroupManager<T extends Task> {
 
   /**
    * add a new group to the scheduler
    *
    * @param weight group's priority
-   *
    * @return corresponding scheduling group
    */
   SchedulingGroup<T> newGroup(long weight);

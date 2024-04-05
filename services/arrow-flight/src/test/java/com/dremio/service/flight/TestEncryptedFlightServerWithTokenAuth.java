@@ -15,21 +15,18 @@
  */
 package com.dremio.service.flight;
 
+import com.dremio.service.flight.impl.FlightWorkManager;
 import org.junit.BeforeClass;
 
-import com.dremio.service.flight.impl.FlightWorkManager;
-
-/**
- * Test encrypted Flight Server with bearer token authentication.
- */
+/** Test encrypted Flight Server with bearer token authentication. */
 public class TestEncryptedFlightServerWithTokenAuth extends AbstractTestEncryptedFlightServer {
   @BeforeClass
   public static void setup() throws Exception {
     setupBaseFlightQueryTest(
-      true,
-      true,
-      "encrypted.flight.reserved.port",
-      FlightWorkManager.RunQueryResponseHandlerFactory.DEFAULT);
+        true,
+        true,
+        "encrypted.flight.reserved.port",
+        FlightWorkManager.RunQueryResponseHandlerFactory.DEFAULT);
   }
 
   @Override

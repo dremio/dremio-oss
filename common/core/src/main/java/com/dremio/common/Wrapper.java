@@ -16,22 +16,23 @@
 package com.dremio.common;
 
 /**
- * The Wrapper pattern allows for more control in complex class inheritance hierarchies or provide access to extensions
- * beyond the current interface. In basic use cases, it can be considered equivalent to `instanceof` and raw casts. For
- * complex hierarchies, implementing classes can choose to perform additional logic when unwrapping ("casting"). For
- * example, to return an intermediate base class.
+ * The Wrapper pattern allows for more control in complex class inheritance hierarchies or provide
+ * access to extensions beyond the current interface. In basic use cases, it can be considered
+ * equivalent to `instanceof` and raw casts. For complex hierarchies, implementing classes can
+ * choose to perform additional logic when unwrapping ("casting"). For example, to return an
+ * intermediate base class.
  *
- * Classes that implement one method must implement the other. Unwrap is expected to succeed if isWrapperFor returns
- * true (and vice versa).
+ * <p>Classes that implement one method must implement the other. Unwrap is expected to succeed if
+ * isWrapperFor returns true (and vice versa).
  */
 public interface Wrapper {
   /**
    * Returns an object that implements the requested type.
-   * <p>
-   * By default, this object is casted to the given type.
-   * <p>
-   * Any class that implements `unwrap` must also implement `isWrapperFor`. Unwrap is expected to succeed if
-   * isWrapperFor returns true (and vice versa).
+   *
+   * <p>By default, this object is casted to the given type.
+   *
+   * <p>Any class that implements `unwrap` must also implement `isWrapperFor`. Unwrap is expected to
+   * succeed if isWrapperFor returns true (and vice versa).
    *
    * @param <T> The type of this implementing class
    * @param clazz The requested type to unwrap this class into
@@ -44,16 +45,17 @@ public interface Wrapper {
     }
 
     throw new IllegalArgumentException(
-      String.format("This object (type '%s') cannot be unwrapped into '%s'", getClass(), clazz));
+        String.format("This object (type '%s') cannot be unwrapped into '%s'", getClass(), clazz));
   }
 
   /**
-   * Checks whether this class can be unwrapped into the requested type. This is intended to be a lightweight operation.
-   * <p>
-   * By default, checks whether the object is an instance of the requested type.
-   * <p>
-   * Any class that implements `isWrapperFor` must also implement `unwrap`. Unwrap is expected to succeed if
-   * isWrapperFor returns true (and vice versa).
+   * Checks whether this class can be unwrapped into the requested type. This is intended to be a
+   * lightweight operation.
+   *
+   * <p>By default, checks whether the object is an instance of the requested type.
+   *
+   * <p>Any class that implements `isWrapperFor` must also implement `unwrap`. Unwrap is expected to
+   * succeed if isWrapperFor returns true (and vice versa).
    *
    * @param clazz The requested type to unwrap this class into
    * @return true if this class can be unwrapped into the requested type, false otherwise

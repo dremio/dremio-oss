@@ -70,6 +70,8 @@ $directions: "left", "right", "top", "bottom";
   }
 }
 
+$lines: 2, 3, 4;
+
 .text {
   font-size: $font !important;
   &-small {
@@ -90,6 +92,15 @@ $directions: "left", "right", "top", "bottom";
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
+  }
+
+  @each $line in $lines {
+    &-ellipsis-#{$line} {
+      display: -webkit-box;
+      -webkit-line-clamp: $line;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
   }
 }
 

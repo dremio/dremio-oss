@@ -15,11 +15,6 @@
  */
 package com.dremio.datastore.adapter;
 
-import java.util.AbstractMap;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.datastore.DatastoreException;
 import com.dremio.datastore.KVAdmin;
@@ -34,6 +29,10 @@ import com.dremio.datastore.api.options.VersionOption;
 import com.google.common.base.Function;
 import com.google.common.base.Strings;
 import com.google.common.collect.Iterables;
+import java.util.AbstractMap;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Bridges legacy LegacyKVStore interface to the new KVStore interface.
@@ -43,7 +42,8 @@ import com.google.common.collect.Iterables;
  */
 public class LegacyKVStoreAdapter<K, V> implements LegacyKVStore<K, V> {
 
-  private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(LegacyKVStoreAdapter.class);
+  private static final org.slf4j.Logger LOGGER =
+      org.slf4j.LoggerFactory.getLogger(LegacyKVStoreAdapter.class);
   private KVStore<K, V> underlyingStore;
   private VersionExtractor<V> versionExtractor;
 
@@ -111,11 +111,12 @@ public class LegacyKVStoreAdapter<K, V> implements LegacyKVStore<K, V> {
   @SuppressWarnings("unchecked")
   public Iterable<Map.Entry<K, V>> find(LegacyFindByRange<K> find) {
     FindByRange<K> findByRange =
-      new ImmutableFindByRange.Builder()
-        .setEnd(find.getEnd())
-        .setStart(find.getStart())
-        .setIsEndInclusive(find.isEndInclusive())
-        .setIsStartInclusive(find.isStartInclusive()).build();
+        new ImmutableFindByRange.Builder()
+            .setEnd(find.getEnd())
+            .setStart(find.getStart())
+            .setIsEndInclusive(find.isEndInclusive())
+            .setIsStartInclusive(find.isStartInclusive())
+            .build();
     return convertToMapEntry(underlyingStore.find(findByRange));
   }
 
@@ -130,7 +131,8 @@ public class LegacyKVStoreAdapter<K, V> implements LegacyKVStore<K, V> {
     if (Strings.isNullOrEmpty(previousVersion)) {
       delete(key);
     } else {
-      VersionOption versionOption = new ImmutableVersionOption.Builder().setTag(previousVersion).build();
+      VersionOption versionOption =
+          new ImmutableVersionOption.Builder().setTag(previousVersion).build();
       underlyingStore.delete(key, versionOption);
     }
   }
@@ -146,9 +148,12 @@ public class LegacyKVStoreAdapter<K, V> implements LegacyKVStore<K, V> {
   }
 
   /**
-   * Helper method to check whether the document is {@code null}, returns null if it is, otherwise it returns the value.
+   * Helper method to check whether the document is {@code null}, returns null if it is, otherwise
+   * it returns the value.
+   *
    * @param document the document to check for null and to obtain value from if not null.
-   * @return null if {@param document} is {@code null}, otherwise, returns the value of the document.
+   * @return null if {@param document} is {@code null}, otherwise, returns the value of the
+   *     document.
    */
   protected V toValue(Document<K, V> document) {
     if (document == null) {
@@ -162,15 +167,20 @@ public class LegacyKVStoreAdapter<K, V> implements LegacyKVStore<K, V> {
 
   /**
    * Helper method to convert an Iterable of Document to an Iterable of Map.Entry
+   *
    * @param documents an Iterable of Documents to convert
    * @return an Iterable of Map.Entry converted from Documents
    */
   protected Iterable<Map.Entry<K, V>> convertToMapEntry(Iterable<Document<K, V>> documents) {
-    return Iterables.transform(documents, new Function<Document<K, V>, Map.Entry<K, V>>() {
-      @Override
-      public Map.Entry<K, V> apply(Document<K, V> document) {
-        return (document == null)? null : new AbstractMap.SimpleEntry<>(document.getKey(), toValue(document));
-      }
-    });
+    return Iterables.transform(
+        documents,
+        new Function<Document<K, V>, Map.Entry<K, V>>() {
+          @Override
+          public Map.Entry<K, V> apply(Document<K, V> document) {
+            return (document == null)
+                ? null
+                : new AbstractMap.SimpleEntry<>(document.getKey(), toValue(document));
+          }
+        });
   }
 }

@@ -61,13 +61,13 @@ const NON_WS_SEPARATED_TOKENS = [LiveEditParser.DOT, LiveEditParser.LPAREN];
  */
 export function computeCursorInfo(
   parseTree: ParseTree,
-  caretQueryPosition: CursorQueryPosition
+  caretQueryPosition: CursorQueryPosition,
 ): CursorInfo | undefined {
   const priorTerminals: TerminalNode[] = [];
   const cursorPosition = findCursorPositionFromTree(
     parseTree,
     caretQueryPosition,
-    priorTerminals
+    priorTerminals,
   );
   return cursorPosition ? { ...cursorPosition, priorTerminals } : undefined;
 }
@@ -75,7 +75,7 @@ export function computeCursorInfo(
 function findCursorPositionFromTree(
   parseTree: ParseTree,
   caretQueryPosition: CursorQueryPosition,
-  priorTerminals: TerminalNode[]
+  priorTerminals: TerminalNode[],
 ): CursorPosition | undefined {
   for (let i = 0; i < parseTree.childCount; i++) {
     const child = parseTree.getChild(i);
@@ -89,13 +89,13 @@ function findCursorPositionFromTree(
       }
       cursorPosition = findCursorPositionFromTerminal(
         child,
-        caretQueryPosition
+        caretQueryPosition,
       );
     } else {
       cursorPosition = findCursorPositionFromTree(
         child,
         caretQueryPosition,
-        priorTerminals
+        priorTerminals,
       );
     }
     // If we have found the correct terminal, stop, otherwise keep looking
@@ -111,7 +111,7 @@ function findCursorPositionFromTree(
 
 function findCursorPositionFromTerminal(
   terminal: TerminalNode,
-  caretQueryPosition: CursorQueryPosition
+  caretQueryPosition: CursorQueryPosition,
 ): CursorPosition | undefined {
   const startPos: number = terminal.symbol.charPositionInLine;
   const endPos: number = startPos + terminal.text.length;
@@ -148,7 +148,7 @@ function findCursorPositionFromTerminal(
 export function getPriorTerminal(
   cursorInfo: CursorInfo,
   /** defaults to 0 (terminal directly prior) */
-  offset?: number
+  offset?: number,
 ): TerminalNode | undefined {
   return cursorInfo.priorTerminals[
     cursorInfo.priorTerminals.length - (1 + (offset ?? 0))
@@ -156,7 +156,7 @@ export function getPriorTerminal(
 }
 
 export function getCursorTerminal(
-  cursorInfo: CursorInfo
+  cursorInfo: CursorInfo,
 ): TerminalNode | undefined {
   return cursorInfo.kind == "at" ? cursorInfo.terminal : undefined;
 }

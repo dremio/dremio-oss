@@ -18,43 +18,6 @@ package com.dremio.plugins.elastic;
 import static com.dremio.plugins.elastic.ElasticsearchRequestClientFilter.REGION_NAME;
 import static java.lang.String.format;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.ListIterator;
-import java.util.Map.Entry;
-import java.util.Set;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ThreadLocalRandom;
-import java.util.function.Function;
-import java.util.logging.Level;
-
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
-import javax.ws.rs.client.Invocation;
-import javax.ws.rs.client.InvocationCallback;
-import javax.ws.rs.client.ResponseProcessingException;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.GenericType;
-import javax.ws.rs.core.Response;
-
-import org.glassfish.jersey.client.ClientConfig;
-import org.glassfish.jersey.client.ClientProperties;
-import org.glassfish.jersey.client.JerseyInvocation;
-import org.glassfish.jersey.client.authentication.HttpAuthenticationFeature;
-import org.glassfish.jersey.client.filter.EncodingFilter;
-import org.glassfish.jersey.internal.InternalProperties;
-import org.glassfish.jersey.internal.util.PropertiesHelper;
-import org.glassfish.jersey.logging.LoggingFeature;
-import org.glassfish.jersey.message.DeflateEncoder;
-import org.glassfish.jersey.message.GZipEncoder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.dremio.common.DeferredException;
 import com.dremio.common.exceptions.UserException;
@@ -82,10 +45,44 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.ListIterator;
+import java.util.Map.Entry;
+import java.util.Set;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.Function;
+import java.util.logging.Level;
+import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.client.Client;
+import javax.ws.rs.client.ClientBuilder;
+import javax.ws.rs.client.Invocation;
+import javax.ws.rs.client.InvocationCallback;
+import javax.ws.rs.client.ResponseProcessingException;
+import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.GenericType;
+import javax.ws.rs.core.Response;
+import org.glassfish.jersey.client.ClientConfig;
+import org.glassfish.jersey.client.ClientProperties;
+import org.glassfish.jersey.client.JerseyInvocation;
+import org.glassfish.jersey.client.authentication.HttpAuthenticationFeature;
+import org.glassfish.jersey.client.filter.EncodingFilter;
+import org.glassfish.jersey.internal.InternalProperties;
+import org.glassfish.jersey.internal.util.PropertiesHelper;
+import org.glassfish.jersey.logging.LoggingFeature;
+import org.glassfish.jersey.message.DeflateEncoder;
+import org.glassfish.jersey.message.GZipEncoder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * Dremio's connection pool to Elasticsearch. Note that this will actually maintain a
- * connection to all nodes in an elastic cluster.
+ * Dremio's connection pool to Elasticsearch. Note that this will actually maintain a connection to
+ * all nodes in an elastic cluster.
  */
 public class ElasticConnectionPool implements AutoCloseable {
 
@@ -111,59 +108,57 @@ public class ElasticConnectionPool implements AutoCloseable {
   private final long actionRetries;
 
   /**
-   * Rather than maintain an exact matrix of what is supported in each version,
-   * we simply try to make use of all features available above a cutoff version
-   * and disable them for connections to any version below.
+   * Rather than maintain an exact matrix of what is supported in each version, we simply try to
+   * make use of all features available above a cutoff version and disable them for connections to
+   * any version below.
    *
-   * Flag to indicate if the current cluster has a high enough version to enable
-   * new features. See comment above for strategy on partitioning the features
-   * into 2 groups. This is set after a an actual connection is made to the
-   * cluster
+   * <p>Flag to indicate if the current cluster has a high enough version to enable new features.
+   * See comment above for strategy on partitioning the features into 2 groups. This is set after a
+   * an actual connection is made to the cluster
    *
-   * <p>
-   * The cutoff is currently configured to 2.1.2.
+   * <p>The cutoff is currently configured to 2.1.2.
    */
   private boolean enableNewFeatures;
 
   /**
-   * Flag to indicate if the current cluster has a high enough version for 5x features.  For example, boolean group by is supported for 5x cluster.
+   * Flag to indicate if the current cluster has a high enough version for 5x features. For example,
+   * boolean group by is supported for 5x cluster.
    */
   private boolean enable5vFeatures;
 
   /**
-   * Flag to indicate if contains is supported.
-   * A typo between v5.0.0 and v5.2.x causes query failure with contains
+   * Flag to indicate if contains is supported. A typo between v5.0.0 and v5.2.x causes query
+   * failure with contains
    */
   private boolean enableContains;
 
-  /**
-   * The lowest version found in the cluster.
-   */
+  /** The lowest version found in the cluster. */
   private Version minVersionInCluster;
 
   /**
-   * Flag to indicate if the current cluster has a high enough version for 7x features.  For example, boolean group by is supported for 7x cluster.
+   * Flag to indicate if the current cluster has a high enough version for 7x features. For example,
+   * boolean group by is supported for 7x cluster.
    */
   private boolean enable7vFeatures;
 
   private int elasticVersion;
 
   public ElasticConnectionPool(
-    List<Host> hosts,
-    TLSValidationMode tlsMode,
-    ElasticsearchAuthentication elasticsearchAuthentication,
-    int readTimeoutMillis,
-    boolean useWhitelist){
+      List<Host> hosts,
+      TLSValidationMode tlsMode,
+      ElasticsearchAuthentication elasticsearchAuthentication,
+      int readTimeoutMillis,
+      boolean useWhitelist) {
     this(hosts, tlsMode, elasticsearchAuthentication, readTimeoutMillis, useWhitelist, 0);
   }
 
   public ElasticConnectionPool(
-    List<Host> hosts,
-    TLSValidationMode tlsMode,
-    ElasticsearchAuthentication elasticsearchAuthentication,
-    int readTimeoutMillis,
-    boolean useWhitelist,
-    long actionRetries){
+      List<Host> hosts,
+      TLSValidationMode tlsMode,
+      ElasticsearchAuthentication elasticsearchAuthentication,
+      int readTimeoutMillis,
+      boolean useWhitelist,
+      long actionRetries) {
     this.sslMode = tlsMode;
     this.protocol = tlsMode != TLSValidationMode.OFF ? "https" : "http";
     this.hosts = ImmutableList.copyOf(hosts);
@@ -176,15 +171,17 @@ public class ElasticConnectionPool implements AutoCloseable {
   public void connect() throws IOException {
     final ClientConfig configuration = new ClientConfig();
     configuration.property(ClientProperties.READ_TIMEOUT, readTimeoutMillis);
-    final AWSCredentialsProvider awsCredentialsProvider = elasticsearchAuthentication.getAwsCredentialsProvider();
+    final AWSCredentialsProvider awsCredentialsProvider =
+        elasticsearchAuthentication.getAwsCredentialsProvider();
     if (awsCredentialsProvider != null) {
       configuration.property(REGION_NAME, elasticsearchAuthentication.getRegionName());
       configuration.register(ElasticsearchRequestClientFilter.class);
-      configuration.register(new InjectableAWSCredentialsProvider(awsCredentialsProvider), InjectableAWSCredentialsProvider.class);
+      configuration.register(
+          new InjectableAWSCredentialsProvider(awsCredentialsProvider),
+          InjectableAWSCredentialsProvider.class);
     }
 
-    final ClientBuilder builder = ClientBuilder.newBuilder()
-      .withConfig(configuration);
+    final ClientBuilder builder = ClientBuilder.newBuilder().withConfig(configuration);
 
     switch (sslMode) {
       case UNSECURE:
@@ -209,11 +206,14 @@ public class ElasticConnectionPool implements AutoCloseable {
 
     if (REQUEST_LOGGER.isDebugEnabled()) {
       java.util.logging.Logger julLogger = java.util.logging.Logger.getLogger(REQUEST_LOGGER_NAME);
-      client.register(new LoggingFeature(
-        julLogger,
-        Level.FINE,
-        REQUEST_LOGGER.isTraceEnabled() ? LoggingFeature.Verbosity.PAYLOAD_TEXT : LoggingFeature.Verbosity.HEADERS_ONLY,
-        65536));
+      client.register(
+          new LoggingFeature(
+              julLogger,
+              Level.FINE,
+              REQUEST_LOGGER.isTraceEnabled()
+                  ? LoggingFeature.Verbosity.PAYLOAD_TEXT
+                  : LoggingFeature.Verbosity.HEADERS_ONLY,
+              65536));
     }
 
     final JacksonJaxbJsonProvider provider = new JacksonJaxbJsonProvider();
@@ -221,12 +221,14 @@ public class ElasticConnectionPool implements AutoCloseable {
 
     // Disable other JSON providers.
     client.property(
-      PropertiesHelper.getPropertyNameForRuntime(InternalProperties.JSON_FEATURE, client.getConfiguration().getRuntimeType()),
-      JacksonJaxbJsonProvider.class.getSimpleName());
+        PropertiesHelper.getPropertyNameForRuntime(
+            InternalProperties.JSON_FEATURE, client.getConfiguration().getRuntimeType()),
+        JacksonJaxbJsonProvider.class.getSimpleName());
 
     client.register(provider);
 
-    HttpAuthenticationFeature httpAuthenticationFeature = elasticsearchAuthentication.getHttpAuthenticationFeature();
+    HttpAuthenticationFeature httpAuthenticationFeature =
+        elasticsearchAuthentication.getHttpAuthenticationFeature();
     if (httpAuthenticationFeature != null) {
       client.register(httpAuthenticationFeature);
     }
@@ -234,17 +236,15 @@ public class ElasticConnectionPool implements AutoCloseable {
     updateClients();
   }
 
-  private void updateClients(){
+  private void updateClients() {
     final ImmutableMap.Builder<String, WebTarget> builder = ImmutableMap.builder();
 
     @SuppressWarnings("resource")
     final DeferredException ex = new DeferredException();
-    for(Host host1 : hosts){
+    for (Host host1 : hosts) {
       try {
         final List<HostAndAddress> hosts = getHostList(host1);
         final Set<String> hostSet = new HashSet<>();
-
-
 
         // for each host, create a separate jest client factory.
         for (HostAndAddress host : hosts) {
@@ -259,9 +259,10 @@ public class ElasticConnectionPool implements AutoCloseable {
 
         this.clients = builder.build();
 
-        if(ex.hasException()){
+        if (ex.hasException()) {
           StringBuilder sb = new StringBuilder();
-          sb.append("One or more failures trying to get host list from a defined seed host. Update was ultimately succesful connecting to ");
+          sb.append(
+              "One or more failures trying to get host list from a defined seed host. Update was ultimately succesful connecting to ");
           sb.append(host1.toCompound());
           sb.append(":\n\n");
           sb.append(getAvailableHosts());
@@ -275,22 +276,25 @@ public class ElasticConnectionPool implements AutoCloseable {
           logger.info(sb.toString());
         }
         return;
-      }catch (Exception e){
-        ex.addException(new RuntimeException(String.format("Failure getting server list from seed host %s", host1.toCompound()), e));
+      } catch (Exception e) {
+        ex.addException(
+            new RuntimeException(
+                String.format("Failure getting server list from seed host %s", host1.toCompound()),
+                e));
       }
     }
 
     throw new RuntimeException("Unable to get host lists from any host seed.", ex.getAndClear());
   }
 
-  private String getAvailableHosts(){
+  private String getAvailableHosts() {
 
-    if(clients == null){
+    if (clients == null) {
       return "";
     }
 
     StringBuilder sb = new StringBuilder();
-    for(Entry<String, WebTarget> e : clients.entrySet()){
+    for (Entry<String, WebTarget> e : clients.entrySet()) {
       sb.append('\t');
       sb.append(e.getKey());
       sb.append(" => ");
@@ -300,15 +304,15 @@ public class ElasticConnectionPool implements AutoCloseable {
     return sb.toString();
   }
 
-  public ElasticConnection getRandomConnection(){
+  public ElasticConnection getRandomConnection() {
     final List<WebTarget> webTargets = clients.values().asList();
     final int index = ThreadLocalRandom.current().nextInt(webTargets.size());
     return new ElasticConnection(webTargets.get(index));
   }
 
   public ElasticConnection getConnection(List<String> hosts) {
-    //if whitelist then only keep the hosts in the list
-    if(useWhitelist) {
+    // if whitelist then only keep the hosts in the list
+    if (useWhitelist) {
       List<String> whitelistedHosts = new ArrayList<>();
       for (String host : hosts) {
         if (clients.containsKey(host)) {
@@ -316,7 +320,7 @@ public class ElasticConnectionPool implements AutoCloseable {
         }
       }
 
-      if(whitelistedHosts.size() == 0) {
+      if (whitelistedHosts.size() == 0) {
         return getRandomConnection();
       }
 
@@ -326,38 +330,46 @@ public class ElasticConnectionPool implements AutoCloseable {
     final int index = ThreadLocalRandom.current().nextInt(hosts.size());
     final String host = hosts.get(index);
     WebTarget target = clients.get(host);
-    if(target == null){
+    if (target == null) {
       missingHost(host);
       target = clients.get(host);
-      if(target == null){
+      if (target == null) {
         throw UserException.connectionError()
-          .message("Unable to find defined host [%s] in cluster. Available hosts:\n%s", host, getAvailableHosts())
-          .build(logger);
+            .message(
+                "Unable to find defined host [%s] in cluster. Available hosts:\n%s",
+                host, getAvailableHosts())
+            .build(logger);
       }
     }
-    return new ElasticConnection(Preconditions.checkNotNull(clients.get(host), String.format("The host specified [%s] was not among the list of connected nodes.", host)));
+    return new ElasticConnection(
+        Preconditions.checkNotNull(
+            clients.get(host),
+            String.format(
+                "The host specified [%s] was not among the list of connected nodes.", host)));
   }
 
-  private synchronized void missingHost(String host){
+  private synchronized void missingHost(String host) {
     // double checked to avoid duplicate updates.
-    if(clients.containsKey(host)){
+    if (clients.containsKey(host)) {
       return;
     }
 
-    logger.info("Shard was located on {}, an Elastic host that is not yet known to Dremio. Updating known hosts.", host);
+    logger.info(
+        "Shard was located on {}, an Elastic host that is not yet known to Dremio. Updating known hosts.",
+        host);
     updateClients();
   }
 
-  public SourceCapabilities getCapabilities(){
+  public SourceCapabilities getCapabilities() {
     return new SourceCapabilities(
-      new BooleanCapabilityValue(ElasticsearchStoragePlugin.ENABLE_V7_FEATURES, enable7vFeatures),
-      new BooleanCapabilityValue(ElasticsearchStoragePlugin.ENABLE_V5_FEATURES, enable5vFeatures),
-      new BooleanCapabilityValue(ElasticsearchStoragePlugin.SUPPORTS_NEW_FEATURES, enableNewFeatures),
-      new BooleanCapabilityValue(SourceCapabilities.SUPPORTS_CONTAINS, enableContains)
-    );
+        new BooleanCapabilityValue(ElasticsearchStoragePlugin.ENABLE_V7_FEATURES, enable7vFeatures),
+        new BooleanCapabilityValue(ElasticsearchStoragePlugin.ENABLE_V5_FEATURES, enable5vFeatures),
+        new BooleanCapabilityValue(
+            ElasticsearchStoragePlugin.SUPPORTS_NEW_FEATURES, enableNewFeatures),
+        new BooleanCapabilityValue(SourceCapabilities.SUPPORTS_CONTAINS, enableContains));
   }
 
-  public Version getMinVersionInCluster(){
+  public Version getMinVersionInCluster() {
     return minVersionInCluster;
   }
 
@@ -371,8 +383,8 @@ public class ElasticConnectionPool implements AutoCloseable {
   private List<HostAndAddress> getHostList(Host initialHost) throws IOException {
     final List<HostAndAddress> hosts = new ArrayList<>();
 
-    //check if this is a valid host if whitelist is enabled
-    if(useWhitelist) {
+    // check if this is a valid host if whitelist is enabled
+    if (useWhitelist) {
       for (Host givenHost : this.hosts) {
         hosts.add(new HostAndAddress(givenHost.hostname, givenHost.toCompound()));
       }
@@ -381,8 +393,12 @@ public class ElasticConnectionPool implements AutoCloseable {
     final Result nodesResult;
 
     NodesInfo nodesInfo = new NodesInfo();
-    nodesResult = new ElasticConnection(client.target(protocol + "://" + initialHost)).executeAndHandleResponseCode(nodesInfo, true,
-      "Cannot gather Elasticsearch nodes information. Please make sure that the user has [cluster:monitor/nodes/info] privilege.");
+    nodesResult =
+        new ElasticConnection(client.target(protocol + "://" + initialHost))
+            .executeAndHandleResponseCode(
+                nodesInfo,
+                true,
+                "Cannot gather Elasticsearch nodes information. Please make sure that the user has [cluster:monitor/nodes/info] privilege.");
 
     minVersionInCluster = null;
     JsonObject nodes = nodesResult.getAsJsonObject().getAsJsonObject("nodes");
@@ -400,10 +416,15 @@ public class ElasticConnectionPool implements AutoCloseable {
       if (minVersionInCluster == null || minVersionInCluster.compareTo(hostVersion) > 0) {
         minVersionInCluster = hostVersion;
       }
-      nodeVersionInformation.add(new Message(MessageLevel.INFO, entry.getKey() + ", " + host + ", Elasticsearch version: " + hostVersion));
+      nodeVersionInformation.add(
+          new Message(
+              MessageLevel.INFO,
+              entry.getKey() + ", " + host + ", Elasticsearch version: " + hostVersion));
     }
     if (minVersionInCluster == null) {
-      throw UserException.connectionError().message("Unable to get Elasticsearch node version information.").build(logger);
+      throw UserException.connectionError()
+          .message("Unable to get Elasticsearch node version information.")
+          .build(logger);
     }
 
     if (!useWhitelist) {
@@ -411,16 +432,19 @@ public class ElasticConnectionPool implements AutoCloseable {
         final JsonObject nodeObject = entry.getValue().getAsJsonObject();
         final String host = nodeObject.get("host").getAsString();
 
-        // From 5.0.0v onwards, elasticsearch nodes api has changed and returns a slightly different response.
+        // From 5.0.0v onwards, elasticsearch nodes api has changed and returns a slightly different
+        // response.
         // https://github.com/elastic/elasticsearch/pull/19218
         // So instead of using http_address, use publish_address always.
         final JsonObject httpObject = nodeObject.get("http").getAsJsonObject();
         final String httpOriginal = httpObject.get("publish_address").getAsString();
 
-        // DX-4266  Depending on the settings, http_address can return the following, and we should handle them properly
+        // DX-4266  Depending on the settings, http_address can return the following, and we should
+        // handle them properly
         // <ip>:<port>
         // <hostname>/<ip>:<port>
-        // This should not apply to publish_address, which we are now using above, but as a precaution, keeping the below code
+        // This should not apply to publish_address, which we are now using above, but as a
+        // precaution, keeping the below code
         final String[] httpOriginalAddresses = httpOriginal.split("/");
         String http = null;
         if (httpOriginalAddresses != null && httpOriginalAddresses.length >= 1) {
@@ -432,28 +456,35 @@ public class ElasticConnectionPool implements AutoCloseable {
           }
         }
         if (http == null) {
-          throw new RuntimeException("Could not parse the _nodes information from Elasticserach cluster, found invalid http_address " + httpOriginal);
+          throw new RuntimeException(
+              "Could not parse the _nodes information from Elasticserach cluster, found invalid http_address "
+                  + httpOriginal);
         }
 
         hosts.add(new HostAndAddress(host, http));
-
       }
     }
 
     // Assert minimum version for Elasticsearch
     if (minVersionInCluster.compareTo(ElasticsearchConstants.MIN_ELASTICSEARCH_VERSION) < 0) {
       throw new RuntimeException(
-        format("Dremio only supports Elasticsearch versions above %s. Found a node with version %s",
-          ElasticsearchConstants.MIN_ELASTICSEARCH_VERSION, minVersionInCluster));
+          format(
+              "Dremio only supports Elasticsearch versions above %s. Found a node with version %s",
+              ElasticsearchConstants.MIN_ELASTICSEARCH_VERSION, minVersionInCluster));
     }
 
-    enableNewFeatures = minVersionInCluster.compareTo(ElasticsearchConstants.MIN_VERSION_TO_ENABLE_NEW_FEATURES) >= 0;
+    enableNewFeatures =
+        minVersionInCluster.compareTo(ElasticsearchConstants.MIN_VERSION_TO_ENABLE_NEW_FEATURES)
+            >= 0;
 
-    enable5vFeatures = minVersionInCluster.compareTo(ElasticsearchConstants.ELASTICSEARCH_VERSION_5X) >= 0;
+    enable5vFeatures =
+        minVersionInCluster.compareTo(ElasticsearchConstants.ELASTICSEARCH_VERSION_5X) >= 0;
 
-    enableContains = minVersionInCluster.compareTo(ElasticsearchConstants.ELASTICSEARCH_VERSION_5_3_X) >= 0;
+    enableContains =
+        minVersionInCluster.compareTo(ElasticsearchConstants.ELASTICSEARCH_VERSION_5_3_X) >= 0;
 
-    enable7vFeatures = minVersionInCluster.compareTo(ElasticsearchConstants.ELASTICSEARCH_VERSION_7_0_X) >= 0;
+    enable7vFeatures =
+        minVersionInCluster.compareTo(ElasticsearchConstants.ELASTICSEARCH_VERSION_7_0_X) >= 0;
 
     elasticVersion = minVersionInCluster.getMajor();
 
@@ -501,7 +532,6 @@ public class ElasticConnectionPool implements AutoCloseable {
       this.message = message;
       this.values = values;
     }
-
   }
 
   private static final class ContextListenerImpl implements ContextListener {
@@ -516,46 +546,50 @@ public class ElasticConnectionPool implements AutoCloseable {
     }
 
     @Override
-    public ContextListener addContext(String context, String message, Object...args) {
+    public ContextListener addContext(String context, String message, Object... args) {
       contexts.add(new ContextInfo(context, message, args));
       return this;
     }
 
-    UserException.Builder addContext(UserException.Builder builder){
-      if(target != null){
+    UserException.Builder addContext(UserException.Builder builder) {
+      if (target != null) {
         builder.addContext("Request: " + target.getUri());
       }
 
-      for(ContextInfo i : contexts){
+      for (ContextInfo i : contexts) {
         builder.addContext(i.name, String.format(i.message, i.values));
       }
 
       return builder;
     }
-
   }
 
-  private static UserException.Builder addResponseInfo(UserException.Builder builder, Response response) {
+  private static UserException.Builder addResponseInfo(
+      UserException.Builder builder, Response response) {
     try {
       builder.addContext("Response Status", response.getStatusInfo().getStatusCode());
       builder.addContext("Response Reason", response.getStatusInfo().getReasonPhrase());
-      String string = CharStreams.toString(new InputStreamReader((InputStream) response.getEntity()));
+      String string =
+          CharStreams.toString(new InputStreamReader((InputStream) response.getEntity()));
       builder.addContext("Response Body", string);
-    } catch(Exception ex){
+    } catch (Exception ex) {
       logger.warn("Failure while decoding exception", ex);
     }
     return builder;
   }
 
-  private static UserException handleException(Throwable e, ElasticAction2<?> action, ContextListenerImpl listener) {
+  private static UserException handleException(
+      Throwable e, ElasticAction2<?> action, ContextListenerImpl listener) {
     if (e instanceof ResponseProcessingException) {
-      final UserException.Builder builder = UserException.dataReadError(e)
-        .message("Failure consuming response from Elastic cluster during %s.", action.getAction());
+      final UserException.Builder builder =
+          UserException.dataReadError(e)
+              .message(
+                  "Failure consuming response from Elastic cluster during %s.", action.getAction());
 
       listener.addContext(builder);
 
       final Response response = ((ResponseProcessingException) e).getResponse();
-      if(response != null) {
+      if (response != null) {
         addResponseInfo(builder, response);
       }
       return builder.build(logger);
@@ -565,21 +599,30 @@ public class ElasticConnectionPool implements AutoCloseable {
       final UserException.Builder builder;
       final Response response = ((WebApplicationException) e).getResponse();
       if (response == null) {
-        builder = UserException.dataReadError(e)
-          .message("Failure executing Elastic request %s.", action.getAction());
+        builder =
+            UserException.dataReadError(e)
+                .message("Failure executing Elastic request %s.", action.getAction());
 
         listener.addContext(builder);
       } else {
         switch (Response.Status.fromStatusCode(response.getStatus())) {
-          case NOT_FOUND: { // index not found
-            builder = UserException.invalidMetadataError(e)
-// TODO-Formatting of messages (all similar instances) to be handled as part of ticket DX-33402:Formatting error messages in exception handling flow
-              .message("Failure executing Elastic request %s: HTTP 404 Not Found.", action.getAction());
-            break;
-          }
+          case NOT_FOUND:
+            { // index not found
+              builder =
+                  UserException.invalidMetadataError(e)
+                      // TODO-Formatting of messages (all similar instances) to be handled as part
+                      // of ticket DX-33402:Formatting error messages in exception handling flow
+                      .message(
+                          "Failure executing Elastic request %s: HTTP 404 Not Found.",
+                          action.getAction());
+              break;
+            }
           default:
-            builder = UserException.dataReadError(e)
-              .message("Failure executing Elastic request %s: HTTP %d.", action.getAction(), response.getStatus());
+            builder =
+                UserException.dataReadError(e)
+                    .message(
+                        "Failure executing Elastic request %s: HTTP %d.",
+                        action.getAction(), response.getStatus());
             break;
         }
 
@@ -590,9 +633,11 @@ public class ElasticConnectionPool implements AutoCloseable {
       return builder.build(logger);
     }
 
-    return listener.addContext(UserException.dataReadError(e)
-      .message("Failure executing Elastic request %s.", action.getAction()))
-      .build(logger);
+    return listener
+        .addContext(
+            UserException.dataReadError(e)
+                .message("Failure executing Elastic request %s.", action.getAction()))
+        .build(logger);
   }
 
   private static class CheckedAsyncCallback<T> implements InvocationCallback<T> {
@@ -600,7 +645,8 @@ public class ElasticConnectionPool implements AutoCloseable {
     private final SettableFuture<T> future;
     private final Function<Throwable, Throwable> exceptionHandler;
 
-    public CheckedAsyncCallback(SettableFuture<T> future, Function<Throwable, Throwable> exceptionHandler) {
+    public CheckedAsyncCallback(
+        SettableFuture<T> future, Function<Throwable, Throwable> exceptionHandler) {
       super();
       this.future = future;
       this.exceptionHandler = exceptionHandler;
@@ -615,7 +661,6 @@ public class ElasticConnectionPool implements AutoCloseable {
     public void failed(Throwable throwable) {
       future.setException(exceptionHandler.apply(throwable));
     }
-
   }
 
   public class ElasticConnection {
@@ -627,18 +672,23 @@ public class ElasticConnectionPool implements AutoCloseable {
       this.target = target;
     }
 
-    public <T> ListenableFuture<T> executeAsync(final ElasticAction2<T> action){
+    public <T> ListenableFuture<T> executeAsync(final ElasticAction2<T> action) {
       final ContextListenerImpl listener = new ContextListenerImpl();
-      // need to cast to jersey since the core javax.ws.rs Invocation doesn't support a typed submission.
-      final JerseyInvocation invocation = (JerseyInvocation) action.buildRequest(target, listener, elasticVersion);
+      // need to cast to jersey since the core javax.ws.rs Invocation doesn't support a typed
+      // submission.
+      final JerseyInvocation invocation =
+          (JerseyInvocation) action.buildRequest(target, listener, elasticVersion);
       final SettableFuture<T> future = SettableFuture.create();
-      invocation.submit(new GenericType<>(action.getResponseClass()),
-        new CheckedAsyncCallback<>(future,  e -> {
-          if (e instanceof ExecutionException) {
-            e = e.getCause();
-          }
-          return handleException(e, action, listener);
-        }));
+      invocation.submit(
+          new GenericType<>(action.getResponseClass()),
+          new CheckedAsyncCallback<>(
+              future,
+              e -> {
+                if (e instanceof ExecutionException) {
+                  e = e.getCause();
+                }
+                return handleException(e, action, listener);
+              }));
 
       return future;
     }
@@ -656,15 +706,16 @@ public class ElasticConnectionPool implements AutoCloseable {
           logger.warn("Invocation: " + invocation.toString());
         }
       }
-      throw new RuntimeException(String.format("Failed to execute action after %d retries.", actionRetries));
+      throw new RuntimeException(
+          String.format("Failed to execute action after %d retries.", actionRetries));
     }
 
-    public <T> T execute(ElasticAction2<T> action, int version){
+    public <T> T execute(ElasticAction2<T> action, int version) {
       final ContextListenerImpl listener = new ContextListenerImpl();
       final Invocation invocation = action.buildRequest(target, listener, version);
       try {
         return executeWithRetries(invocation, action.getResponseClass());
-      } catch (Exception e){
+      } catch (Exception e) {
         throw handleException(e, action, listener);
       }
     }
@@ -681,10 +732,15 @@ public class ElasticConnectionPool implements AutoCloseable {
           logger.warn("Failed to get result for #{} try.", i + 1, e);
         }
       }
-      throw new RuntimeException(String.format("Failed to get result after %d retries.", actionRetries));
+      throw new RuntimeException(
+          String.format("Failed to get result after %d retries.", actionRetries));
     }
 
-    public Result executeAndHandleResponseCode(ElasticAction action, boolean handleResponseCode, String unauthorizedMsg, String... context) {
+    public Result executeAndHandleResponseCode(
+        ElasticAction action,
+        boolean handleResponseCode,
+        String unauthorizedMsg,
+        String... context) {
 
       Result result = null;
       final List<String> contextWithAlias = Lists.newArrayList(context);
@@ -695,12 +751,19 @@ public class ElasticConnectionPool implements AutoCloseable {
       try {
         result = getResultWithRetries(action);
       } catch (Exception e) {
-        addContextAndThrow(UserException.connectionError(e).message("Encountered a problem while executing %s. %s", action, unauthorizedMsg), contextWithAlias);
+        addContextAndThrow(
+            UserException.connectionError(e)
+                .message("Encountered a problem while executing %s. %s", action, unauthorizedMsg),
+            contextWithAlias);
       }
 
       if (result == null) {
-        addContextAndThrow(UserException.connectionError().message("Something went wrong. "
-          + "Please make sure the source is available. %s", unauthorizedMsg), contextWithAlias);
+        addContextAndThrow(
+            UserException.connectionError()
+                .message(
+                    "Something went wrong. " + "Please make sure the source is available. %s",
+                    unauthorizedMsg),
+            contextWithAlias);
       }
 
       if (!handleResponseCode) {
@@ -714,20 +777,27 @@ public class ElasticConnectionPool implements AutoCloseable {
 
         final int responseCode = result.getResponseCode();
         if (responseCode == 401) {
-          addContextAndThrow(UserException.permissionError().message("Unauthorized to connect to Elasticsearch cluster. "
-            + "Please make sure that the username and the password provided are correct."), contextWithAlias);
+          addContextAndThrow(
+              UserException.permissionError()
+                  .message(
+                      "Unauthorized to connect to Elasticsearch cluster. "
+                          + "Please make sure that the username and the password provided are correct."),
+              contextWithAlias);
         }
         if (responseCode == 403) {
-          addContextAndThrow(UserException.permissionError().message(unauthorizedMsg), contextWithAlias);
+          addContextAndThrow(
+              UserException.permissionError().message(unauthorizedMsg), contextWithAlias);
         }
         contextWithAlias.add("error message");
         contextWithAlias.add(result.getErrorMessage());
         addContextAndThrow(
-          UserException.connectionError()
-            .message("Something went wrong, error code " + responseCode + ".  Please provide the correct host and credentials.")
-            .addContext("responseCode", responseCode),
-          contextWithAlias
-        );
+            UserException.connectionError()
+                .message(
+                    "Something went wrong, error code "
+                        + responseCode
+                        + ".  Please provide the correct host and credentials.")
+                .addContext("responseCode", responseCode),
+            contextWithAlias);
 
         // will not reach here
         return result;
@@ -735,11 +805,11 @@ public class ElasticConnectionPool implements AutoCloseable {
     }
 
     @Deprecated
-    public WebTarget getTarget(){
+    public WebTarget getTarget() {
       return target;
     }
 
-    public Version getESVersionInCluster(){
+    public Version getESVersionInCluster() {
       return ElasticConnectionPool.this.getMinVersionInCluster();
     }
 
@@ -749,8 +819,8 @@ public class ElasticConnectionPool implements AutoCloseable {
   }
 
   @Override
-  public void close(){
-    if(client != null){
+  public void close() {
+    if (client != null) {
       client.close();
     }
   }

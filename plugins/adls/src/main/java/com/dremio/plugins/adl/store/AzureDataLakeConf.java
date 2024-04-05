@@ -15,24 +15,15 @@
  */
 package com.dremio.plugins.adl.store;
 
-import java.net.URI;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-
-import javax.inject.Provider;
-import javax.validation.constraints.Max;
-import javax.validation.constraints.Min;
-
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.adl.AdlConfKeys;
-
+import com.dremio.common.SuppressForbidden;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.DefaultCtasFormatSelection;
 import com.dremio.exec.catalog.conf.DisplayMetadata;
 import com.dremio.exec.catalog.conf.NotMetadataImpacting;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.catalog.conf.Secret;
+import com.dremio.exec.catalog.conf.SecretRef;
+import com.dremio.exec.catalog.conf.SecretRefUnsafe;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.dfs.CacheProperties;
@@ -42,18 +33,22 @@ import com.dremio.io.file.Path;
 import com.dremio.options.OptionManager;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.base.Preconditions;
-
 import io.protostuff.Tag;
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import javax.inject.Provider;
+import javax.validation.constraints.Max;
+import javax.validation.constraints.Min;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.adl.AdlConfKeys;
 
-/**
- * Azure Data Lake (ADL)
- * https://hadoop.apache.org/docs/current/hadoop-azure-datalake/index.html
- */
+/** Azure Data Lake (ADL) https://hadoop.apache.org/docs/current/hadoop-azure-datalake/index.html */
 @SourceType(value = "ADL", label = "Azure Data Lake Storage Gen1", uiConfig = "adl-layout.json")
-public class AzureDataLakeConf extends FileSystemConf<AzureDataLakeConf, AzureDataLakeStoragePlugin> {
-  /**
-   * Type ADL Auth
-   */
+public class AzureDataLakeConf
+    extends FileSystemConf<AzureDataLakeConf, AzureDataLakeStoragePlugin> {
+  /** Type ADL Auth */
   public enum ADLAuth {
 
     // fs.adl.oauth2.access.token.provider.type = RefreshToken
@@ -82,7 +77,7 @@ public class AzureDataLakeConf extends FileSystemConf<AzureDataLakeConf, AzureDa
   @Tag(4)
   @Secret
   @JsonIgnore
-  public String refreshTokenSecret;
+  public SecretRef refreshTokenSecret;
 
   // dfs.adl.oauth2.refresh.url
   @Tag(5)
@@ -93,7 +88,7 @@ public class AzureDataLakeConf extends FileSystemConf<AzureDataLakeConf, AzureDa
   @Tag(6)
   @Secret
   @DisplayMetadata(label = "Access key value")
-  public String clientKeyPassword;
+  public SecretRef clientKeyPassword;
 
   @Tag(7)
   public List<Property> propertyList;
@@ -121,10 +116,11 @@ public class AzureDataLakeConf extends FileSystemConf<AzureDataLakeConf, AzureDa
   @Tag(12)
   @NotMetadataImpacting
   @Min(value = 1, message = "Max percent of total available cache space must be between 1 and 100")
-  @Max(value = 100, message = "Max percent of total available cache space must be between 1 and 100")
+  @Max(
+      value = 100,
+      message = "Max percent of total available cache space must be between 1 and 100")
   @DisplayMetadata(label = "Max percent of total available cache space to use when possible")
   public int maxCacheSpacePct = 100;
-
 
   @Tag(13)
   @NotMetadataImpacting
@@ -137,7 +133,8 @@ public class AzureDataLakeConf extends FileSystemConf<AzureDataLakeConf, AzureDa
   public boolean isPartitionInferenceEnabled = false;
 
   @Override
-  public AzureDataLakeStoragePlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
+  public AzureDataLakeStoragePlugin newPlugin(
+      SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
     Preconditions.checkNotNull(accountName, "Account name must be set.");
     Preconditions.checkNotNull(clientId, "Client ID must be set.");
     Preconditions.checkNotNull(mode, "Authentication mode must be set.");
@@ -166,7 +163,10 @@ public class AzureDataLakeConf extends FileSystemConf<AzureDataLakeConf, AzureDa
 
   @Override
   public String getConnection() {
-    return CloudFileSystemScheme.ADL_FILE_SYSTEM_SCHEME.getScheme() + "://" + accountName + ".azuredatalakestore.net/";
+    return CloudFileSystemScheme.ADL_FILE_SYSTEM_SCHEME.getScheme()
+        + "://"
+        + accountName
+        + ".azuredatalakestore.net/";
   }
 
   @Override
@@ -178,6 +178,7 @@ public class AzureDataLakeConf extends FileSystemConf<AzureDataLakeConf, AzureDa
    * Constructs an incomplete AzureDataLakeConf from Hadoop configuration that can be used to
    * initialize an AsyncHttpClientManager.
    */
+  @SuppressForbidden // This method needs to create a new ConnectionConf out of a Hadoop Conf
   public static AzureDataLakeConf fromConfiguration(URI storeUri, Configuration conf) {
     final AzureDataLakeConf outputConf = new AzureDataLakeConf();
     outputConf.accountName = storeUri.getHost();
@@ -202,11 +203,12 @@ public class AzureDataLakeConf extends FileSystemConf<AzureDataLakeConf, AzureDa
 
         case AdlConfKeys.AZURE_AD_CLIENT_SECRET_KEY:
         case "dfs.adls.oauth2.credential":
-          outputConf.clientKeyPassword = prop.getValue();
+          outputConf.clientKeyPassword = new SecretRefUnsafe(prop.getValue());
           break;
 
         case AdlConfKeys.AZURE_AD_TOKEN_PROVIDER_TYPE_KEY:
-          outputConf.mode = "RefreshToken".equals(prop.getValue()) ? ADLAuth.REFRESH_TOKEN : ADLAuth.CLIENT_KEY;
+          outputConf.mode =
+              "RefreshToken".equals(prop.getValue()) ? ADLAuth.REFRESH_TOKEN : ADLAuth.CLIENT_KEY;
           break;
 
         case AdlConfKeys.AZURE_AD_REFRESH_URL_KEY:
@@ -216,7 +218,7 @@ public class AzureDataLakeConf extends FileSystemConf<AzureDataLakeConf, AzureDa
 
         case AdlConfKeys.AZURE_AD_REFRESH_TOKEN_KEY:
         case "dfs.adls.oauth2.refresh.token":
-          outputConf.refreshTokenSecret = prop.getValue();
+          outputConf.refreshTokenSecret = new SecretRefUnsafe(prop.getValue());
           break;
 
         default:

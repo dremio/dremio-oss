@@ -18,9 +18,7 @@ package com.dremio.service.namespace;
 import com.dremio.datastore.ProtobufSerializer;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.MultiSplit;
 
-/**
- * A serializer for multisplits.
- */
+/** A serializer for multisplits. */
 public class MultiSplitSerializer extends ProtobufSerializer<MultiSplit> {
 
   public MultiSplitSerializer() {

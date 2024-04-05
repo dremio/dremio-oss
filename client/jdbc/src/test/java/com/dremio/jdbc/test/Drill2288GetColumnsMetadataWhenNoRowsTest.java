@@ -13,30 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- package com.dremio.jdbc.test;
+package com.dremio.jdbc.test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.dremio.jdbc.JdbcWithServerTestBase;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.Statement;
-
 import org.junit.Ignore;
 import org.junit.Test;
 
-import com.dremio.jdbc.JdbcWithServerTestBase;
-
-
 /**
- * Tests from DRILL-2288, in which schema information wasn't propagated when a
- * scan yielded an empty (zero-row) result set.
+ * Tests from DRILL-2288, in which schema information wasn't propagated when a scan yielded an empty
+ * (zero-row) result set.
  */
 public class Drill2288GetColumnsMetadataWhenNoRowsTest extends JdbcWithServerTestBase {
-    /**
-   * Tests that an empty JSON file (having zero records) no longer triggers
-   * breakage in schema propagation.  (Case failed before; columns a, b and c
-   * didn't show up.)
+  /**
+   * Tests that an empty JSON file (having zero records) no longer triggers breakage in schema
+   * propagation. (Case failed before; columns a, b and c didn't show up.)
    */
   @Test
   @Ignore
@@ -63,17 +59,16 @@ public class Drill2288GetColumnsMetadataWhenNoRowsTest extends JdbcWithServerTes
   }
 
   /**
-   * Tests that an INFORMATION_SCHEMA.TABLES query that has zero rows because of
-   * a (simple-enough) filter expression using column TABLE_SCHEMA (which
-   * supports pushdown) still has all columns.  (Case failed before; had zero
-   * columns.)
+   * Tests that an INFORMATION_SCHEMA.TABLES query that has zero rows because of a (simple-enough)
+   * filter expression using column TABLE_SCHEMA (which supports pushdown) still has all columns.
+   * (Case failed before; had zero columns.)
    */
   @Test
   public void testInfoSchemaTablesZeroRowsBy_TABLE_SCHEMA_works() throws Exception {
     Statement stmt = getConnection().createStatement();
     ResultSet results =
-      stmt.executeQuery("SELECT * FROM INFORMATION_SCHEMA.\"TABLES\""
-        + " WHERE TABLE_SCHEMA = ''");
+        stmt.executeQuery(
+            "SELECT * FROM INFORMATION_SCHEMA.\"TABLES\"" + " WHERE TABLE_SCHEMA = ''");
 
     // Result set should still have columns even though there are no rows:
     ResultSetMetaData metadata = results.getMetaData();
@@ -86,8 +81,8 @@ public class Drill2288GetColumnsMetadataWhenNoRowsTest extends JdbcWithServerTes
   public void testInfoSchemaTablesZeroRowsBy_TABLE_CATALOG_works() throws Exception {
     Statement stmt = getConnection().createStatement();
     ResultSet results =
-      stmt.executeQuery("SELECT * FROM INFORMATION_SCHEMA.\"TABLES\""
-        + " WHERE TABLE_CATALOG = ''");
+        stmt.executeQuery(
+            "SELECT * FROM INFORMATION_SCHEMA.\"TABLES\"" + " WHERE TABLE_CATALOG = ''");
 
     // Result set should still have columns even though there are no rows:
     ResultSetMetaData metadata = results.getMetaData();
@@ -100,8 +95,7 @@ public class Drill2288GetColumnsMetadataWhenNoRowsTest extends JdbcWithServerTes
   public void testInfoSchemaTablesZeroRowsBy_TABLE_NAME_works() throws Exception {
     Statement stmt = getConnection().createStatement();
     ResultSet results =
-      stmt.executeQuery(
-        "SELECT * FROM INFORMATION_SCHEMA.\"TABLES\" WHERE TABLE_NAME = ''");
+        stmt.executeQuery("SELECT * FROM INFORMATION_SCHEMA.\"TABLES\" WHERE TABLE_NAME = ''");
 
     // Result set should still have columns even though there are no rows:
     ResultSetMetaData metadata = results.getMetaData();
@@ -113,9 +107,7 @@ public class Drill2288GetColumnsMetadataWhenNoRowsTest extends JdbcWithServerTes
   @Test
   public void testInfoSchemaTablesZeroRowsByLimitWorks() throws Exception {
     Statement stmt = getConnection().createStatement();
-    ResultSet results =
-      stmt.executeQuery(
-        "SELECT * FROM INFORMATION_SCHEMA.\"TABLES\" LIMIT 0");
+    ResultSet results = stmt.executeQuery("SELECT * FROM INFORMATION_SCHEMA.\"TABLES\" LIMIT 0");
 
     // Result set should still have columns even though there are no rows:
     ResultSetMetaData metadata = results.getMetaData();
@@ -128,8 +120,7 @@ public class Drill2288GetColumnsMetadataWhenNoRowsTest extends JdbcWithServerTes
   public void testInfoSchemaTablesZeroRowsByWhereFalseWorks() throws Exception {
     Statement stmt = getConnection().createStatement();
     ResultSet results =
-      stmt.executeQuery(
-        "SELECT * FROM INFORMATION_SCHEMA.\"TABLES\" WHERE FALSE");
+        stmt.executeQuery("SELECT * FROM INFORMATION_SCHEMA.\"TABLES\" WHERE FALSE");
 
     // Result set should still have columns even though there are no rows:
     ResultSetMetaData metadata = results.getMetaData();
@@ -142,8 +133,8 @@ public class Drill2288GetColumnsMetadataWhenNoRowsTest extends JdbcWithServerTes
   public void testGetTablesZeroRowsByTableSchemaOrNameWorks() throws Exception {
     DatabaseMetaData dbMetadata = getConnection().getMetaData();
 
-    ResultSet results = dbMetadata.getTables("NoSuchCatalog", "NoSuchSchema",
-      "NoSuchTable", new String[0]);
+    ResultSet results =
+        dbMetadata.getTables("NoSuchCatalog", "NoSuchSchema", "NoSuchTable", new String[0]);
 
     // Result set should still have columns even though there are no rows:
     ResultSetMetaData metadata = results.getMetaData();

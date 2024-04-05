@@ -15,26 +15,23 @@
  */
 package com.dremio.exec.planner.serialization.kryo;
 
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.sql.SqlOperatorTable;
-
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.exec.ops.DremioCatalogReader;
 import com.dremio.exec.planner.serialization.LogicalPlanDeserializer;
 import com.dremio.exec.planner.serialization.LogicalPlanSerializer;
 import com.dremio.exec.planner.serialization.RelSerializerFactory;
 import com.dremio.exec.store.CatalogService;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.sql.SqlOperatorTable;
 
-/**
- * RelSerializerFactory that uses Kryo.
- */
+/** RelSerializerFactory that uses Kryo. */
 public class KryoRelSerializerFactory extends RelSerializerFactory {
 
-  public KryoRelSerializerFactory(ScanResult scanResult) {
-  }
+  public KryoRelSerializerFactory(ScanResult scanResult) {}
 
   @Override
-  public LogicalPlanSerializer getSerializer(RelOptCluster cluster, SqlOperatorTable sqlOperatorTable) {
+  public LogicalPlanSerializer getSerializer(
+      RelOptCluster cluster, SqlOperatorTable sqlOperatorTable) {
     return KryoLogicalPlanSerializers.forSerialization(cluster);
   }
 
@@ -49,10 +46,7 @@ public class KryoRelSerializerFactory extends RelSerializerFactory {
 
   @Override
   public LogicalPlanDeserializer getDeserializer(
-    RelOptCluster cluster,
-    DremioCatalogReader catalog,
-    SqlOperatorTable sqlOperatorTable) {
+      RelOptCluster cluster, DremioCatalogReader catalog, SqlOperatorTable sqlOperatorTable) {
     return KryoLogicalPlanSerializers.forDeserialization(cluster, catalog);
   }
-
 }

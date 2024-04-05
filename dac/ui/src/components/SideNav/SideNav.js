@@ -46,8 +46,6 @@ import { TopAction } from "./components/TopAction";
 import clsx from "clsx";
 import * as PATHS from "../../exports/paths";
 import CatalogsMenu from "./CatalogsMenu";
-import { useFeatureFlag } from "@app/exports/providers/useFeatureFlag";
-import { ARCTIC_CATALOG } from "@inject/featureFlags/flags/ARCTIC_CATALOG";
 import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
 import * as commonPaths from "dremio-ui-common/paths/common.js";
 import * as jobPaths from "dremio-ui-common/paths/jobs.js";
@@ -81,7 +79,6 @@ const SideNav = (props) => {
   const organizationLanding =
     typeof getSessionContext().getOrganizationId === "function";
 
-  useFeatureFlag(ARCTIC_CATALOG);
   //urlability
   const loc = rmProjectBase(location.pathname) || "/";
   const projectId =
@@ -258,5 +255,5 @@ const mapDispatchToProps = {
 
 export default compose(
   withRouter,
-  connect(mapStateToProps, mapDispatchToProps)
+  connect(mapStateToProps, mapDispatchToProps),
 )(ProjectActivationHOC(SideNav));

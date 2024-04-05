@@ -26,7 +26,8 @@ import {
   modifyCurrentSql,
   setQueryContext,
   setUpdateSqlFromHistory,
-} from "actions/explore/view";
+  resetQueryState,
+} from "@app/actions/explore/view";
 
 import { constructFullPath } from "utils/pathUtils";
 import { replace } from "react-router-redux";
@@ -50,7 +51,7 @@ import {
   EXTRA_SQL_TRACKING_EVENT,
 } from "@inject/utils/sql-editor-extra";
 import { selectTab } from "dremio-ui-common/sonar/SqlRunnerSession/resources/SqlRunnerSessionResource.js";
-import { isScriptUrl } from "@app/utils/explorePageTypeUtils";
+import { isScriptUrl, isTabbableUrl } from "@app/utils/explorePageTypeUtils";
 
 const toolbarHeight = 42;
 
@@ -91,6 +92,7 @@ export class SqlEditorController extends PureComponent {
     setCurrentSql: PropTypes.func,
     setQueryContext: PropTypes.func,
     setUpdateSqlFromHistory: PropTypes.func,
+    resetQueryState: PropTypes.func,
     replaceUrlAction: PropTypes.func,
     showUnsavedChangesConfirmDialog: PropTypes.func,
     hasExtraSQLPanelContent: PropTypes.bool,
@@ -244,7 +246,7 @@ export class SqlEditorController extends PureComponent {
         exploreViewState.get("isInProgress") ||
         (exploreViewState.get("isFailed") &&
           !dataset.get("datasetVersion") &&
-          !dataset.get("isNewQuery"))
+          !dataset.get("isNewQuery")),
     );
   }
 
@@ -338,7 +340,7 @@ export class SqlEditorController extends PureComponent {
       isMultiQueryRunning,
       previousMultiSql,
       querySelections,
-      queryStatuses
+      queryStatuses,
     );
   }
 
@@ -348,7 +350,7 @@ export class SqlEditorController extends PureComponent {
       isMultiQueryRunning,
       previousMultiSql,
       querySelections,
-      queryStatuses
+      queryStatuses,
     ) => {
       const isNotEdited = !!previousMultiSql && currentSql === previousMultiSql;
 
@@ -384,7 +386,10 @@ export class SqlEditorController extends PureComponent {
             }
 
             sqlErrors.push(
-              extractSqlErrorFromResponse(errorResponse, querySelections[index])
+              extractSqlErrorFromResponse(
+                errorResponse,
+                querySelections[index],
+              ),
             );
           }
         });
@@ -393,7 +398,7 @@ export class SqlEditorController extends PureComponent {
       } else {
         return this.NO_SQL_ERRORS; // Use a static array to prevent downstream re-rending from new prop reference
       }
-    }
+    },
   );
 
   getScriptValue = memoOne(async () => {
@@ -405,6 +410,10 @@ export class SqlEditorController extends PureComponent {
       setActiveScript,
       setCurrentSql,
       setQueryContext,
+      dataset,
+      location,
+      resetQueryState,
+      isMultiTabEnabled,
     } = this.props;
 
     let script = {};
@@ -426,11 +435,21 @@ export class SqlEditorController extends PureComponent {
         addNotification(
           intl.formatMessage({ id: "Script.Invalid" }, { scriptId }),
           "error",
-          10
+          10,
         );
       } else {
         // Open the script in the sql tab bar
         selectTab(script.id);
+      }
+    } else {
+      // Need to set for view/table page
+      // openResults check prevents the explore page from resetting when opening job results
+      if (!isTabbableUrl(location) && location.query?.openResults !== "true") {
+        if (Object.keys(activeScript).length && isMultiTabEnabled) {
+          resetQueryState();
+          setQueryContext({ context: dataset.get("context") });
+        }
+        setCurrentSql({ sql: dataset.get("sql") });
       }
     }
   });
@@ -533,13 +552,14 @@ export default compose(
       setCurrentSql,
       modifyCurrentSql,
       setQueryContext,
+      resetQueryState,
       setUpdateSqlFromHistory,
       replaceUrlAction: replace,
       showUnsavedChangesConfirmDialog,
     },
     null,
-    { forwardRef: true }
-  )
+    { forwardRef: true },
+  ),
 )(SqlEditorController);
 
 const styles = {

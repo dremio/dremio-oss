@@ -15,18 +15,14 @@
  */
 package com.dremio.exec.store.hive;
 
+import com.dremio.exec.server.SabotContext;
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.mockito.Mockito;
 
-import com.dremio.exec.server.SabotContext;
-
-/**
- * Helper class for using HiveStoragePlugin that can be start()ed in tests.
- */
+/** Helper class for using HiveStoragePlugin that can be start()ed in tests. */
 public class MockHiveStoragePlugin extends Hive3StoragePlugin {
   private final List<HiveClient> createdClients = new ArrayList<>();
 
@@ -35,8 +31,7 @@ public class MockHiveStoragePlugin extends Hive3StoragePlugin {
   }
 
   public void verifyClosed() {
-    createdClients.stream()
-      .forEach(client -> Mockito.verify(client).close());
+    createdClients.stream().forEach(client -> Mockito.verify(client).close());
   }
 
   public int getClientCount() {
@@ -51,7 +46,8 @@ public class MockHiveStoragePlugin extends Hive3StoragePlugin {
   }
 
   @Override
-  protected HiveClient createConnectedClientWithAuthz(String userName, UserGroupInformation ugiForRpc) {
+  protected HiveClient createConnectedClientWithAuthz(
+      String userName, UserGroupInformation ugiForRpc) {
     return createConnectedClient();
   }
 }

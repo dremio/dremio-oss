@@ -15,8 +15,6 @@
  */
 package com.dremio.sabot.op.windowframe;
 
-import org.apache.arrow.vector.types.pojo.Field;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.ErrorCollector;
 import com.dremio.common.expression.FunctionCall;
@@ -38,6 +36,7 @@ import com.dremio.exec.expr.ValueVectorReadExpression;
 import com.dremio.exec.expr.ValueVectorWriteExpression;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.config.WindowPOP;
+import com.dremio.exec.physical.config.WindowPOP.BoundType;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.TypedFieldId;
 import com.dremio.exec.record.VectorContainer;
@@ -47,9 +46,11 @@ import com.sun.codemodel.JExpr;
 import com.sun.codemodel.JExpression;
 import com.sun.codemodel.JInvocation;
 import com.sun.codemodel.JVar;
+import org.apache.arrow.vector.types.pojo.Field;
 
 public abstract class WindowFunction {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(WindowFunction.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(WindowFunction.class);
 
   public enum Type {
     ROW_NUMBER,
@@ -74,8 +75,8 @@ public abstract class WindowFunction {
   public static WindowFunction fromExpression(final NamedExpression expr) {
     if (!(expr.getExpr() instanceof FunctionCall)) {
       throw UserException.functionError()
-              .message("Unsupported window function '%s'", expr.getExpr())
-              .build(logger);
+          .message("Unsupported window function '%s'", expr.getExpr())
+          .build(logger);
     }
 
     final FunctionCall call = (FunctionCall) expr.getExpr();
@@ -111,8 +112,8 @@ public abstract class WindowFunction {
 
   /**
    * @param pop window group definition
-   * @return true if this window function requires all batches of current partition to be available before processing
-   * the first batch
+   * @return true if this window function requires all batches of current partition to be available
+   *     before processing the first batch
    */
   public boolean requiresFullPartition(final WindowPOP pop) {
     return true;
@@ -123,16 +124,24 @@ public abstract class WindowFunction {
    * @param pop window group definition
    * @param frameEndReached we found the last row of the first batch's frame
    * @param partitionEndReached all batches of current partition are available
-   *
    * @return true if this window function can process the first batch immediately
    */
-  public boolean canDoWork(final int numBatchesAvailable, final WindowPOP pop, final boolean frameEndReached,
-                           final boolean partitionEndReached) {
+  public boolean canDoWork(
+      final int numBatchesAvailable,
+      final WindowPOP pop,
+      final boolean frameEndReached,
+      final boolean partitionEndReached) {
     return partitionEndReached;
   }
 
-  abstract boolean materialize(final NamedExpression ne, final VectorContainer batch, ClassProducer producer);
-  public abstract Field materialize(final NamedExpression ne, final BatchSchema schema, ErrorCollector collector, FunctionLookupContext context);
+  abstract boolean materialize(
+      final NamedExpression ne, final VectorContainer batch, ClassProducer producer);
+
+  public abstract Field materialize(
+      final NamedExpression ne,
+      final BatchSchema schema,
+      ErrorCollector collector,
+      FunctionLookupContext context);
 
   static class WindowAggregate extends WindowFunction {
 
@@ -143,7 +152,8 @@ public abstract class WindowFunction {
     }
 
     @Override
-    boolean materialize(final NamedExpression ne, final VectorContainer batch, final ClassProducer producer) {
+    boolean materialize(
+        final NamedExpression ne, final VectorContainer batch, final ClassProducer producer) {
       final LogicalExpression aggregate = producer.materialize(ne.getExpr(), batch);
       if (aggregate == null) {
         return false;
@@ -159,8 +169,13 @@ public abstract class WindowFunction {
     }
 
     @Override
-    public Field materialize(final NamedExpression ne, final BatchSchema schema, ErrorCollector collector, FunctionLookupContext context) {
-      final LogicalExpression aggregate = ExpressionTreeMaterializer.materialize(ne.getExpr(), schema, collector, context);
+    public Field materialize(
+        final NamedExpression ne,
+        final BatchSchema schema,
+        ErrorCollector collector,
+        FunctionLookupContext context) {
+      final LogicalExpression aggregate =
+          ExpressionTreeMaterializer.materialize(ne.getExpr(), schema, collector, context);
       if (aggregate == null) {
         return null;
       }
@@ -171,9 +186,12 @@ public abstract class WindowFunction {
     @SuppressWarnings("checkstyle:LocalFinalVariableName")
     @Override
     void generateCode(ClassGenerator<WindowFramer> cg) {
-      final GeneratorMapping EVAL_INSIDE = GeneratorMapping.create("setupEvaluatePeer", "evaluatePeer", null, null);
-      final GeneratorMapping EVAL_OUTSIDE = GeneratorMapping.create("setupPartition", "outputRow", "resetValues", "cleanup");
-      final MappingSet mappingSet = new MappingSet("index", "outIndex", EVAL_INSIDE, EVAL_OUTSIDE, EVAL_INSIDE);
+      final GeneratorMapping EVAL_INSIDE =
+          GeneratorMapping.create("setupEvaluatePeer", "evaluatePeer", null, null);
+      final GeneratorMapping EVAL_OUTSIDE =
+          GeneratorMapping.create("setupPartition", "outputRow", "resetValues", "cleanup");
+      final MappingSet mappingSet =
+          new MappingSet("index", "outIndex", EVAL_INSIDE, EVAL_OUTSIDE, EVAL_INSIDE);
 
       cg.setMappingSet(mappingSet);
       cg.addExpr(writeAggregationToOutput);
@@ -181,11 +199,17 @@ public abstract class WindowFunction {
 
     @Override
     public boolean requiresFullPartition(final WindowPOP pop) {
-      return pop.getOrderings().isEmpty() || pop.getEnd().isUnbounded();
+      return pop.getOrderings().isEmpty()
+          || pop.getUpperBound().isUnbounded()
+          || (pop.isFrameUnitsRows() && pop.getUpperBound().getType().equals(BoundType.FOLLOWING));
     }
 
     @Override
-    public boolean canDoWork(int numBatchesAvailable, WindowPOP pop, boolean frameEndReached, boolean partitionEndReached) {
+    public boolean canDoWork(
+        int numBatchesAvailable,
+        WindowPOP pop,
+        boolean frameEndReached,
+        boolean partitionEndReached) {
       return partitionEndReached || (!requiresFullPartition(pop) && frameEndReached);
     }
 
@@ -216,40 +240,57 @@ public abstract class WindowFunction {
 
     @Override
     void generateCode(ClassGenerator<WindowFramer> cg) {
-      final GeneratorMapping mapping = GeneratorMapping.create("setupPartition", "outputRow", "resetValues", "cleanup");
+      final GeneratorMapping mapping =
+          GeneratorMapping.create("setupPartition", "outputRow", "resetValues", "cleanup");
       final MappingSet mappingSet = new MappingSet(null, "outIndex", mapping, mapping);
 
       cg.setMappingSet(mappingSet);
-      final JVar vv = cg.declareVectorValueSetupAndMember(cg.getMappingSet().getOutgoing(), fieldId);
+      final JVar vv =
+          cg.declareVectorValueSetupAndMember(cg.getMappingSet().getOutgoing(), fieldId);
       final JExpression outIndex = cg.getMappingSet().getValueWriteIndex();
-      JInvocation setMethod = vv.invoke("setSafe").arg(outIndex).arg(JExpr.direct("partition." + getName()));
+      JInvocation setMethod =
+          vv.invoke("setSafe").arg(outIndex).arg(JExpr.direct("partition." + getName()));
 
       cg.getEvalBlock().add(setMethod);
     }
 
     @Override
-    boolean materialize(final NamedExpression ne, final VectorContainer batch, ClassProducer producer)
+    boolean materialize(
+        final NamedExpression ne, final VectorContainer batch, ClassProducer producer)
         throws SchemaChangeException {
-      final Field outputField = MajorTypeHelper.getFieldForNameAndMajorType(ne.getRef().getAsNamePart().getName(), getMajorType());
+      final Field outputField =
+          MajorTypeHelper.getFieldForNameAndMajorType(
+              ne.getRef().getAsNamePart().getName(), getMajorType());
       batch.addOrGet(outputField).allocateNew();
       fieldId = batch.getValueVectorId(ne.getRef());
       return true;
     }
 
     @Override
-    public Field materialize(final NamedExpression ne, final BatchSchema schema, ErrorCollector collector, FunctionLookupContext context) {
-      return MajorTypeHelper.getFieldForNameAndMajorType(ne.getRef().getAsNamePart().getName(), getMajorType());
+    public Field materialize(
+        final NamedExpression ne,
+        final BatchSchema schema,
+        ErrorCollector collector,
+        FunctionLookupContext context) {
+      return MajorTypeHelper.getFieldForNameAndMajorType(
+          ne.getRef().getAsNamePart().getName(), getMajorType());
     }
 
     @Override
     public boolean requiresFullPartition(final WindowPOP pop) {
-      // CUME_DIST, PERCENT_RANK and NTILE require the length of current partition before processing it's first batch
+      // CUME_DIST, PERCENT_RANK and NTILE require the length of current partition before processing
+      // it's first batch
       return type == Type.CUME_DIST || type == Type.PERCENT_RANK || type == Type.NTILE;
     }
 
     @Override
-    public boolean canDoWork(int numBatchesAvailable, final WindowPOP pop, boolean frameEndReached, boolean partitionEndReached) {
-      assert numBatchesAvailable > 0 : "canDoWork() should not be called when numBatchesAvailable == 0";
+    public boolean canDoWork(
+        int numBatchesAvailable,
+        final WindowPOP pop,
+        boolean frameEndReached,
+        boolean partitionEndReached) {
+      assert numBatchesAvailable > 0
+          : "canDoWork() should not be called when numBatchesAvailable == 0";
       if (type == Type.ROW_NUMBER) {
         // row_number doesn't need to wait for anything
         return true;
@@ -286,11 +327,14 @@ public abstract class WindowFunction {
         }
       }
 
-      throw UserException.functionError().message("NTILE only accepts positive integer argument").build(logger);
+      throw UserException.functionError()
+          .message("NTILE only accepts positive integer argument")
+          .build(logger);
     }
 
     @Override
-    boolean materialize(final NamedExpression ne, final VectorContainer batch, final ClassProducer producer)
+    boolean materialize(
+        final NamedExpression ne, final VectorContainer batch, final ClassProducer producer)
         throws SchemaChangeException {
       if (!super.materialize(ne, batch, producer)) {
         return false;
@@ -304,17 +348,18 @@ public abstract class WindowFunction {
 
     @Override
     void generateCode(ClassGenerator<WindowFramer> cg) {
-      final GeneratorMapping mapping = GeneratorMapping.create("setupPartition", "outputRow", "resetValues", "cleanup");
+      final GeneratorMapping mapping =
+          GeneratorMapping.create("setupPartition", "outputRow", "resetValues", "cleanup");
       final MappingSet mappingSet = new MappingSet(null, "outIndex", mapping, mapping);
 
       cg.setMappingSet(mappingSet);
-      final JVar vv = cg.declareVectorValueSetupAndMember(cg.getMappingSet().getOutgoing(), fieldId);
+      final JVar vv =
+          cg.declareVectorValueSetupAndMember(cg.getMappingSet().getOutgoing(), fieldId);
       final JExpression outIndex = cg.getMappingSet().getValueWriteIndex();
-      JInvocation setMethod = vv.invoke("setSafe").arg(outIndex)
-        .arg(JExpr.direct("partition.ntile(" + numTiles + ")"));
+      JInvocation setMethod =
+          vv.invoke("setSafe").arg(outIndex).arg(JExpr.direct("partition.ntile(" + numTiles + ")"));
       cg.getEvalBlock().add(setMethod);
     }
-
   }
 
   static class Lead extends WindowFunction {
@@ -326,7 +371,7 @@ public abstract class WindowFunction {
     }
 
     private int offsetExpression(FunctionCall call) {
-      if((call.args.size() < 2)) {
+      if ((call.args.size() < 2)) {
         return 1;
       }
       LogicalExpression offsetExpr = call.args.get(1);
@@ -336,38 +381,49 @@ public abstract class WindowFunction {
     @Override
     void generateCode(ClassGenerator<WindowFramer> cg) {
       {
-        final GeneratorMapping mapping = GeneratorMapping.create("setupCopyNext", "copyNext", null,
-            null);
+        final GeneratorMapping mapping =
+            GeneratorMapping.create("setupCopyNext", "copyNext", null, null);
         final MappingSet eval = new MappingSet("inIndex", "outIndex", mapping, mapping);
 
         cg.setMappingSet(eval);
         final JExpression currentIndex = JExpr.direct("partition.getCurrentRowInPartition()");
         final JExpression partitionLength = JExpr.direct("partition.getLength()");
         final JExpression partitionStart = JExpr.direct("partition.getFirstRowInPartition()");
-         /*
-        Next row position must be in the current batch. (currentIndex - partitionStart) is the index of the row in the current batch.
-        (partitionLength - offset) - 1 is the last row position of the partition that should be copied.
-       */
-        JConditional ifCondition = cg.getEvalBlock()._if(partitionLength.minus(JExpr.lit(offset)).gt(currentIndex.minus(partitionStart)));
-        ifCondition._then().block().directStatement("inIndex = partition.getCurrentRowInPartition() + " + offset + ";");
+        /*
+         Next row position must be in the current batch. (currentIndex - partitionStart) is the index of the row in the current batch.
+         (partitionLength - offset) - 1 is the last row position of the partition that should be copied.
+        */
+        JConditional ifCondition =
+            cg.getEvalBlock()
+                ._if(
+                    partitionLength
+                        .minus(JExpr.lit(offset))
+                        .gt(currentIndex.minus(partitionStart)));
+        ifCondition
+            ._then()
+            .block()
+            .directStatement("inIndex = partition.getCurrentRowInPartition() + " + offset + ";");
         cg.nestEvalBlock(ifCondition._then());
         cg.addExpr(writeInputToLead, BlockCreateMode.MERGE);
         cg.unNestEvalBlock();
       }
 
       {
-        final GeneratorMapping mapping = GeneratorMapping.create("setupCopyFromFirst", "copyFromFirst", null,
-            null);
-        final MappingSet copyFromFirstMapping = new MappingSet("inIndex", "outIndex", mapping, mapping);
+        final GeneratorMapping mapping =
+            GeneratorMapping.create("setupCopyFromFirst", "copyFromFirst", null, null);
+        final MappingSet copyFromFirstMapping =
+            new MappingSet("inIndex", "outIndex", mapping, mapping);
 
         cg.setMappingSet(copyFromFirstMapping);
-        cg.getEvalBlock().directStatement("outIndex = partition.getCurrentRowInPartition() - " + offset + ";");
+        cg.getEvalBlock()
+            .directStatement("outIndex = partition.getCurrentRowInPartition() - " + offset + ";");
         cg.addExpr(writeInputToLead);
       }
     }
 
     @Override
-    boolean materialize(final NamedExpression ne, final VectorContainer batch, final ClassProducer producer)
+    boolean materialize(
+        final NamedExpression ne, final VectorContainer batch, final ClassProducer producer)
         throws SchemaChangeException {
       final FunctionCall call = (FunctionCall) ne.getExpr();
       final LogicalExpression input = producer.materialize(call.args.get(0), batch);
@@ -379,15 +435,20 @@ public abstract class WindowFunction {
       // add corresponding ValueVector to container
       final Field output = input.getCompleteType().toField(ne.getRef());
       batch.addOrGet(output).allocateNew();
-      final TypedFieldId outputId =  batch.getValueVectorId(ne.getRef());
+      final TypedFieldId outputId = batch.getValueVectorId(ne.getRef());
       writeInputToLead = new ValueVectorWriteExpression(outputId, input, true);
       return true;
     }
 
     @Override
-    public Field materialize(final NamedExpression ne, final BatchSchema schema, ErrorCollector collector, FunctionLookupContext context) {
+    public Field materialize(
+        final NamedExpression ne,
+        final BatchSchema schema,
+        ErrorCollector collector,
+        FunctionLookupContext context) {
       final FunctionCall call = (FunctionCall) ne.getExpr();
-      final LogicalExpression input = ExpressionTreeMaterializer.materialize(call.args.get(0), schema, collector, context);
+      final LogicalExpression input =
+          ExpressionTreeMaterializer.materialize(call.args.get(0), schema, collector, context);
       if (input == null) {
         return null;
       }
@@ -402,7 +463,11 @@ public abstract class WindowFunction {
     }
 
     @Override
-    public boolean canDoWork(int numBatchesAvailable, final WindowPOP pop, boolean frameEndReached, boolean partitionEndReached) {
+    public boolean canDoWork(
+        int numBatchesAvailable,
+        final WindowPOP pop,
+        boolean frameEndReached,
+        boolean partitionEndReached) {
       return partitionEndReached || numBatchesAvailable > 1;
     }
 
@@ -417,13 +482,12 @@ public abstract class WindowFunction {
     private LogicalExpression writeInputToLag;
     private int offset;
 
-
     Lag() {
       super(Type.LAG);
     }
 
     private int offsetExpression(FunctionCall call) {
-      if((call.args.size() < 2)) {
+      if ((call.args.size() < 2)) {
         return 1;
       }
       LogicalExpression offsetExpr = call.args.get(1);
@@ -431,7 +495,8 @@ public abstract class WindowFunction {
     }
 
     @Override
-    boolean materialize(final NamedExpression ne, final VectorContainer batch, final ClassProducer producer) {
+    boolean materialize(
+        final NamedExpression ne, final VectorContainer batch, final ClassProducer producer) {
       final FunctionCall call = (FunctionCall) ne.getExpr();
       final LogicalExpression input = producer.materialize(call.args.get(0), batch);
       if (input == null) {
@@ -444,15 +509,21 @@ public abstract class WindowFunction {
       final TypedFieldId outputId = batch.getValueVectorId(ne.getRef());
 
       writeInputToLag = new ValueVectorWriteExpression(outputId, input, true);
-      writeLagToLag = new ValueVectorWriteExpression(outputId, new ValueVectorReadExpression(outputId), true);
+      writeLagToLag =
+          new ValueVectorWriteExpression(outputId, new ValueVectorReadExpression(outputId), true);
       offset = offsetExpression(call);
       return true;
     }
 
     @Override
-    public Field materialize(final NamedExpression ne, final BatchSchema schema, ErrorCollector collector, FunctionLookupContext context) {
+    public Field materialize(
+        final NamedExpression ne,
+        final BatchSchema schema,
+        ErrorCollector collector,
+        FunctionLookupContext context) {
       final FunctionCall call = (FunctionCall) ne.getExpr();
-      final LogicalExpression input = ExpressionTreeMaterializer.materialize(call.args.get(0), schema, collector, context);
+      final LogicalExpression input =
+          ExpressionTreeMaterializer.materialize(call.args.get(0), schema, collector, context);
       if (input == null) {
         return null;
       }
@@ -464,7 +535,8 @@ public abstract class WindowFunction {
     void generateCode(ClassGenerator<WindowFramer> cg) {
       {
         // generating lag copyFromInternal
-        final GeneratorMapping mapping = GeneratorMapping.create("setupCopyFromInternal", "copyFromInternal", null, null);
+        final GeneratorMapping mapping =
+            GeneratorMapping.create("setupCopyFromInternal", "copyFromInternal", null, null);
         final MappingSet mappingSet = new MappingSet("inIndex", "outIndex", mapping, mapping);
 
         cg.setMappingSet(mappingSet);
@@ -473,14 +545,16 @@ public abstract class WindowFunction {
 
       {
         // generating lag copyPrev
-        final GeneratorMapping mapping = GeneratorMapping.create("setupCopyPrev", "copyPrev", null, null);
+        final GeneratorMapping mapping =
+            GeneratorMapping.create("setupCopyPrev", "copyPrev", null, null);
         final MappingSet eval = new MappingSet("inIndex", "outIndex", mapping, mapping);
 
         cg.setMappingSet(eval);
         final JExpression currentIndex = JExpr.direct("partition.getCurrentRowInPartition()");
         final JExpression partitionStart = JExpr.direct("partition.getFirstRowInPartition()");
-        //previous row position (currentIndex - offset) must be in the current partition
-        JConditional ifCondition  = cg.getEvalBlock()._if(currentIndex.minus(JExpr.lit(offset)).gte(partitionStart));
+        // previous row position (currentIndex - offset) must be in the current partition
+        JConditional ifCondition =
+            cg.getEvalBlock()._if(currentIndex.minus(JExpr.lit(offset)).gte(partitionStart));
         JBlock jbThen = ifCondition._then().block();
         jbThen.directStatement("inIndex = partition.getCurrentRowInPartition() - " + offset + ";");
         cg.nestEvalBlock(ifCondition._then());
@@ -489,11 +563,12 @@ public abstract class WindowFunction {
       }
 
       {
-        final GeneratorMapping mapping = GeneratorMapping.create("setupCopyToFirst", "copyToFirst", null,
-            null);
+        final GeneratorMapping mapping =
+            GeneratorMapping.create("setupCopyToFirst", "copyToFirst", null, null);
         final MappingSet copyFirstMapping = new MappingSet("inIndex", "outIndex", mapping, mapping);
         cg.setMappingSet(copyFirstMapping);
-        cg.getEvalBlock().directStatement("inIndex = partition.getCurrentRowInPartition() - " + offset + ";");
+        cg.getEvalBlock()
+            .directStatement("inIndex = partition.getCurrentRowInPartition() - " + offset + ";");
 
         cg.addExpr(writeInputToLag);
       }
@@ -505,8 +580,13 @@ public abstract class WindowFunction {
     }
 
     @Override
-    public boolean canDoWork(int numBatchesAvailable, final WindowPOP pop, boolean frameEndReached, boolean partitionEndReached) {
-      assert numBatchesAvailable > 0 : "canDoWork() should not be called when numBatchesAvailable == 0";
+    public boolean canDoWork(
+        int numBatchesAvailable,
+        final WindowPOP pop,
+        boolean frameEndReached,
+        boolean partitionEndReached) {
+      assert numBatchesAvailable > 0
+          : "canDoWork() should not be called when numBatchesAvailable == 0";
       return true;
     }
 
@@ -525,7 +605,8 @@ public abstract class WindowFunction {
     }
 
     @Override
-    boolean materialize(final NamedExpression ne, final VectorContainer batch, final ClassProducer producer)  {
+    boolean materialize(
+        final NamedExpression ne, final VectorContainer batch, final ClassProducer producer) {
       final FunctionCall call = (FunctionCall) ne.getExpr();
       final LogicalExpression input = producer.materialize(call.args.get(0), batch);
       if (input == null) {
@@ -542,9 +623,14 @@ public abstract class WindowFunction {
     }
 
     @Override
-    public Field materialize(final NamedExpression ne, final BatchSchema schema, ErrorCollector collector, FunctionLookupContext context) {
+    public Field materialize(
+        final NamedExpression ne,
+        final BatchSchema schema,
+        ErrorCollector collector,
+        FunctionLookupContext context) {
       final FunctionCall call = (FunctionCall) ne.getExpr();
-      final LogicalExpression input = ExpressionTreeMaterializer.materialize(call.args.get(0), schema, collector, context);
+      final LogicalExpression input =
+          ExpressionTreeMaterializer.materialize(call.args.get(0), schema, collector, context);
       if (input == null) {
         return null;
       }
@@ -562,7 +648,8 @@ public abstract class WindowFunction {
       // this will generate the the following, pseudo, code:
       //   write current.source_last_value[frameLastRow] to container.last_value[row]
 
-      final GeneratorMapping mapping = GeneratorMapping.create("setupReadLastValue", "writeLastValue", "resetValues", "cleanup");
+      final GeneratorMapping mapping =
+          GeneratorMapping.create("setupReadLastValue", "writeLastValue", "resetValues", "cleanup");
       final MappingSet mappingSet = new MappingSet("index", "outIndex", mapping, mapping);
 
       cg.setMappingSet(mappingSet);
@@ -571,11 +658,17 @@ public abstract class WindowFunction {
 
     @Override
     public boolean requiresFullPartition(final WindowPOP pop) {
-      return pop.getOrderings().isEmpty() || pop.getEnd().isUnbounded();
+      return pop.getOrderings().isEmpty()
+          || pop.getUpperBound().isUnbounded()
+          || (pop.isFrameUnitsRows() && pop.getUpperBound().getType().equals(BoundType.FOLLOWING));
     }
 
     @Override
-    public boolean canDoWork(int numBatchesAvailable, WindowPOP pop, boolean frameEndReached, boolean partitionEndReached) {
+    public boolean canDoWork(
+        int numBatchesAvailable,
+        WindowPOP pop,
+        boolean frameEndReached,
+        boolean partitionEndReached) {
       return partitionEndReached || (!requiresFullPartition(pop) && frameEndReached);
     }
 
@@ -596,7 +689,8 @@ public abstract class WindowFunction {
     }
 
     @Override
-    boolean materialize(final NamedExpression ne, final VectorContainer batch, final ClassProducer producer) {
+    boolean materialize(
+        final NamedExpression ne, final VectorContainer batch, final ClassProducer producer) {
       final FunctionCall call = (FunctionCall) ne.getExpr();
       final LogicalExpression input = producer.materialize(call.args.get(0), batch);
       if (input == null) {
@@ -608,16 +702,22 @@ public abstract class WindowFunction {
       final TypedFieldId outputId = batch.getValueVectorId(ne.getRef());
 
       // write incoming.first_value[inIndex] to outgoing.first_value[outIndex]
-      writeFirstValueToFirstValue = new ValueVectorWriteExpression(outputId, new ValueVectorReadExpression(outputId), true);
+      writeFirstValueToFirstValue =
+          new ValueVectorWriteExpression(outputId, new ValueVectorReadExpression(outputId), true);
       // write incoming.source[inIndex] to outgoing.first_value[outIndex]
       writeInputToFirstValue = new ValueVectorWriteExpression(outputId, input, true);
       return true;
     }
 
     @Override
-    public Field materialize(final NamedExpression ne, final BatchSchema schema, ErrorCollector collector, FunctionLookupContext context) {
+    public Field materialize(
+        final NamedExpression ne,
+        final BatchSchema schema,
+        ErrorCollector collector,
+        FunctionLookupContext context) {
       final FunctionCall call = (FunctionCall) ne.getExpr();
-      final LogicalExpression input = ExpressionTreeMaterializer.materialize(call.args.get(0), schema, collector, context);
+      final LogicalExpression input =
+          ExpressionTreeMaterializer.materialize(call.args.get(0), schema, collector, context);
       if (input == null) {
         return null;
       }
@@ -636,11 +736,14 @@ public abstract class WindowFunction {
         // this will generate the the following, pseudo, code:
         //   write current.source[currentRow] to internal.first_value[0]
         //
-        // so it basically copies the first value of current partition into the first row of internal.first_value
-        // this is especially useful when handling multiple batches for the same partition where we need to keep
+        // so it basically copies the first value of current partition into the first row of
+        // internal.first_value
+        // this is especially useful when handling multiple batches for the same partition where we
+        // need to keep
         // the first value of the partition somewhere after we release the first batch
-        final GeneratorMapping mapping = GeneratorMapping.create("setupSaveFirstValue", "saveFirstValue", null, null);
-        final MappingSet mappingSet = new MappingSet("index", "0", mapping, mapping);
+        final GeneratorMapping mapping =
+            GeneratorMapping.create("setupSaveFirstValue", "saveFirstValue", null, null);
+        final MappingSet mappingSet = new MappingSet("index", "outIndex", mapping, mapping);
 
         cg.setMappingSet(mappingSet);
         cg.addExpr(writeInputToFirstValue);
@@ -655,9 +758,12 @@ public abstract class WindowFunction {
         // this will generate the the following, pseudo, code:
         //   write internal.first_value[0] to container.first_value[outIndex]
         //
-        // so it basically copies the value stored in internal.first_value's first row into all rows of container.first_value
-        final GeneratorMapping mapping = GeneratorMapping.create("setupWriteFirstValue", "outputRow", "resetValues", "cleanup");
-        final MappingSet mappingSet = new MappingSet("0", "outIndex", mapping, mapping);
+        // so it basically copies the value stored in internal.first_value's first row into all rows
+        // of container.first_value
+        final GeneratorMapping mapping =
+            GeneratorMapping.create(
+                "setupWriteFirstValue", "writeFirstValue", "resetValues", "cleanup");
+        final MappingSet mappingSet = new MappingSet("index", "outIndex", mapping, mapping);
         cg.setMappingSet(mappingSet);
         cg.addExpr(writeFirstValueToFirstValue);
       }
@@ -665,13 +771,19 @@ public abstract class WindowFunction {
 
     @Override
     public boolean requiresFullPartition(final WindowPOP pop) {
-      return false;
+      return pop.getUpperBound().isUnbounded()
+          || (pop.isFrameUnitsRows() && pop.getUpperBound().getType().equals(BoundType.FOLLOWING));
     }
 
     @Override
-    public boolean canDoWork(int numBatchesAvailable, WindowPOP pop, boolean frameEndReached, boolean partitionEndReached) {
-      assert numBatchesAvailable > 0 : "canDoWork() should not be called when numBatchesAvailable == 0";
-      return true;
+    public boolean canDoWork(
+        int numBatchesAvailable,
+        WindowPOP pop,
+        boolean frameEndReached,
+        boolean partitionEndReached) {
+      assert numBatchesAvailable > 0
+          : "canDoWork() should not be called when numBatchesAvailable == 0";
+      return partitionEndReached || (!requiresFullPartition(pop) && frameEndReached);
     }
 
     @Override

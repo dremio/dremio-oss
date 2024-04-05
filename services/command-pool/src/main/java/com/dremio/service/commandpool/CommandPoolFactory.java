@@ -17,20 +17,20 @@ package com.dremio.service.commandpool;
 
 import com.dremio.common.VM;
 import com.dremio.config.DremioConfig;
-
 import io.opentracing.Tracer;
 
-/**
- * {@link CommandPool} factory.
- */
+/** {@link CommandPool} factory. */
 public class CommandPoolFactory {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CommandPoolFactory.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(CommandPoolFactory.class);
 
   public static final CommandPoolFactory INSTANCE = new CommandPoolFactory();
 
   private static final String COMMAND_POOL_ENABLED = "services.coordinator.command-pool.enabled";
-  private static final String RELEASABLE_COMMAND_POOL_ENABLED = "services.coordinator.command-pool.releasable";
+  private static final String RELEASABLE_COMMAND_POOL_ENABLED =
+      "services.coordinator.command-pool.releasable";
   private static final String POOL_SIZE = "services.coordinator.command-pool.size";
+
   /**
    * @return new {@link CommandPool} instance
    */
@@ -55,7 +55,10 @@ public class CommandPoolFactory {
 
   private int getPoolSize(final DremioConfig config) {
     int poolSize = config.getInt(POOL_SIZE);
-    poolSize = poolSize > 0 ? poolSize : VM.availableProcessors() - 1; // make sure we don't use all cores by default
+    poolSize =
+        poolSize > 0
+            ? poolSize
+            : VM.availableProcessors() - 1; // make sure we don't use all cores by default
     return Math.max(1, poolSize); // in the unlikely case where the cpu has a single core
   }
 }

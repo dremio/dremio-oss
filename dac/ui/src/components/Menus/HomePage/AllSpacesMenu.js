@@ -93,7 +93,7 @@ export class AllSpacesMenu extends PureComponent {
           router.push(commonPaths.projectBase.link({ projectId }));
         }
       },
-      confirmButtonStyle: "danger",
+      confirmButtonStyle: "primary-danger",
     });
     closeMenu();
   };

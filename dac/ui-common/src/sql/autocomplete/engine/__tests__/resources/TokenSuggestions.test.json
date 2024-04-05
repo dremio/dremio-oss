@@ -2,8 +2,8 @@
   "^": {
     "keywords": [
       "SHOW",
-      "DESC",
       "DESCRIBE",
+      "DESC",
       "USE",
       [
         "COPY",
@@ -49,6 +49,10 @@
         "TABLE"
       ],
       "VACUUM",
+      [
+        "TRIGGER",
+        "PIPE"
+      ],
       "SET",
       "RESET",
       "WITH",
@@ -79,8 +83,8 @@
   "^SELECT": {
     "keywords": [
       "SHOW",
-      "DESC",
       "DESCRIBE",
+      "DESC",
       "USE",
       [
         "COPY",
@@ -126,6 +130,10 @@
         "TABLE"
       ],
       "VACUUM",
+      [
+        "TRIGGER",
+        "PIPE"
+      ],
       "SET",
       "RESET",
       "WITH",
@@ -224,6 +232,12 @@
       "UNPIVOT",
       "PIVOT",
       "MATCH_RECOGNIZE",
+      [
+        "FOR",
+        "SYSTEM_TIME",
+        "AS",
+        "OF"
+      ],
       "EXTEND",
       "AT",
       "NATURAL",
@@ -449,6 +463,7 @@
       "FETCH",
       "SESSION",
       "SYSTEM",
+      "PIPE",
       "TAG",
       "BRANCH",
       "USER",
@@ -477,6 +492,10 @@
       "VIEW",
       "ALTER",
       "SELECT",
+      [
+        "READ",
+        "METADATA"
+      ],
       "MODIFY",
       [
         "MANAGE",
@@ -516,6 +535,10 @@
       "VIEW",
       "ALTER",
       "SELECT",
+      [
+        "READ",
+        "METADATA"
+      ],
       "MODIFY",
       [
         "MANAGE",
@@ -660,10 +683,7 @@
       ],
       "DISABLE",
       "ENABLE",
-      [
-        "REFRESH",
-        "METADATA"
-      ],
+      "REFRESH",
       [
         "FORGET",
         "METADATA"
@@ -704,6 +724,7 @@
       "OFFSET",
       "FETCH",
       "IS",
+      "FORMAT",
       "AND",
       "OR",
       [

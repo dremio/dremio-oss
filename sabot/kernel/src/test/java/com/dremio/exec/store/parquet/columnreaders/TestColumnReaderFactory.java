@@ -15,29 +15,13 @@
  */
 package com.dremio.exec.store.parquet.columnreaders;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
+import com.dremio.BaseTestQuery;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import com.dremio.BaseTestQuery;
-import com.dremio.exec.planner.physical.PlannerSettings;
-
 public class TestColumnReaderFactory extends BaseTestQuery {
-  // enable decimal data type
-  @BeforeClass
-  public static void enableDecimalDataType() throws Exception {
-    test(String.format("alter system set \"%s\" = true", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
-  }
 
-  @AfterClass
-  public static void disableDecimalDataType() throws Exception {
-    test(String.format("alter system set \"%s\" = false", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
-  }
-
-  /**
-   * check if Time and TimeStamp are read correctly with dictionary encoding.
-   */
+  /** check if Time and TimeStamp are read correctly with dictionary encoding. */
   @Test
   public void testTimeAndTimeStampWithDictionary() throws Exception {
     // the file 'time_dictionary.parquet' uses a PLAIN_DICTIONARY encoding and contains 4 columns:
@@ -50,9 +34,7 @@ public class TestColumnReaderFactory extends BaseTestQuery {
     testNoResult("SELECT * FROM cp.\"parquet/time_dictionary.parquet\"");
   }
 
-  /**
-   * check if Time and TimeStamp are read correctly with plain encoding.
-   */
+  /** check if Time and TimeStamp are read correctly with plain encoding. */
   @Test
   public void testTimeAndTimeStampWithNoDictionary() throws Exception {
     // the file 'time_dictionary.parquet' uses a PLAIN encoding and contains 4 columns:
@@ -65,13 +47,12 @@ public class TestColumnReaderFactory extends BaseTestQuery {
     testNoResult("SELECT * FROM cp.\"parquet/time_nodictionary.parquet\"");
   }
 
-  /**
-   * check if Decimal9 and Decimal18 are read correctly with dictionary encoding.
-   */
+  /** check if Decimal9 and Decimal18 are read correctly with dictionary encoding. */
   @Test
   @Ignore
   public void testDecimal9AndDecimal18WithDictionary() throws Exception {
-    // the file 'decimal_dictionary.parquet' uses a PLAIN_DICTIONARY encoding and contains 4 columns:
+    // the file 'decimal_dictionary.parquet' uses a PLAIN_DICTIONARY encoding and contains 4
+    // columns:
     // d9_opt: INT32/DECIMAL9/OPTIONAL
     // d9_req: INT32/DECIMAL9/REQUIRED
     // d18_opt: INT64/DECIMAL18/OPTIONAL
@@ -81,9 +62,7 @@ public class TestColumnReaderFactory extends BaseTestQuery {
     testNoResult("SELECT * FROM cp.\"parquet/decimal_dictionary.parquet\"");
   }
 
-  /**
-   * check if Decimal9 and Decimal18 are read correctly with plain encoding.
-   */
+  /** check if Decimal9 and Decimal18 are read correctly with plain encoding. */
   @Test
   @Ignore
   public void testDecimal9AndDecimal18WithNoDictionary() throws Exception {
@@ -97,18 +76,17 @@ public class TestColumnReaderFactory extends BaseTestQuery {
     testNoResult("SELECT * FROM cp.\"parquet/decimal_nodictionary.parquet\"");
   }
 
-  /**
-   * check if BigInt is read correctly with dictionary encoding.
-   */
+  /** check if BigInt is read correctly with dictionary encoding. */
   @Test
   public void testBigIntWithDictionary() throws Exception {
     String query = "select sum(ts) as total from cp.\"parquet/bigIntDictionary.parquet\"";
 
     testBuilder()
-    .sqlQuery(query)
-    .ordered()
-    .baselineColumns("total")
-    .baselineValues(190928593476806865L)
-    .build().run();
+        .sqlQuery(query)
+        .ordered()
+        .baselineColumns("total")
+        .baselineValues(190928593476806865L)
+        .build()
+        .run();
   }
 }

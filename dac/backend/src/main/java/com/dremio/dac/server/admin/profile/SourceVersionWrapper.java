@@ -18,13 +18,15 @@ package com.dremio.dac.server.admin.profile;
 import com.dremio.exec.proto.UserBitShared;
 
 public class SourceVersionWrapper {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SourceVersionWrapper.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(SourceVersionWrapper.class);
 
   private String source;
   private String versionContext;
-  private UserBitShared.SourceVersionSetting.Usage  usage;
+  private UserBitShared.SourceVersionSetting.Usage usage;
 
-  public SourceVersionWrapper(String source, String versionContext, UserBitShared.SourceVersionSetting.Usage usage) {
+  public SourceVersionWrapper(
+      String source, String versionContext, UserBitShared.SourceVersionSetting.Usage usage) {
     this.source = source;
     this.versionContext = versionContext;
     this.usage = usage;
@@ -33,6 +35,7 @@ public class SourceVersionWrapper {
   UserBitShared.SourceVersionSetting.Usage getUsage() {
     return usage;
   }
+
   public static final String[] SOURCE_VERSION_COLUMNS = {"Source Name", "Version Context"};
 
   public void addSummary(TableBuilder tb) {

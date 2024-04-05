@@ -18,15 +18,6 @@ package com.dremio.dac.service.search;
 import static com.dremio.dac.service.search.SearchServiceImpl.MAX_SEARCH_RESULTS;
 import static org.junit.Assert.assertEquals;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
-
 import com.dremio.dac.model.sources.SourceUI;
 import com.dremio.dac.model.sources.UIMetadataPolicy;
 import com.dremio.dac.server.BaseTestServer;
@@ -45,10 +36,15 @@ import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
 import com.dremio.service.users.SystemUser;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
-/**
- * Test Search Service
- */
+/** Test Search Service */
 public class TestSearchService extends BaseTestServer {
 
   @BeforeClass
@@ -88,7 +84,8 @@ public class TestSearchService extends BaseTestServer {
     // first result should be vds1, since its an exact name match
     assertEquals(results.get(0).getNamespaceContainer().getDataset().getName(), "vds1");
     // make sure tags come back correctly
-    assertEquals(results.get(0).getCollaborationTag().getTagsList(), Arrays.asList("nar", "narwhal"));
+    assertEquals(
+        results.get(0).getCollaborationTag().getTagsList(), Arrays.asList("nar", "narwhal"));
 
     // "vds11" should return 2 results
     results = searchService.search("vds11", null);
@@ -141,7 +138,7 @@ public class TestSearchService extends BaseTestServer {
     SearchService searchService = getSearchService();
 
     for (int i = 0; i < 100; i++) {
-      createVDS("lots"+i, null, null);
+      createVDS("lots" + i, null, null);
     }
 
     doWakeup();
@@ -174,6 +171,7 @@ public class TestSearchService extends BaseTestServer {
 
   /**
    * Reproduction for DX-22065
+   *
    * @throws Exception
    */
   @Test
@@ -188,12 +186,17 @@ public class TestSearchService extends BaseTestServer {
     final NASConf nas = new NASConf();
     nas.path = getPopulator().getPath().toFile().getPath();
     source.setConfig(nas);
-    source.setMetadataPolicy(UIMetadataPolicy.of(CatalogService.DEFAULT_METADATA_POLICY_WITH_AUTO_PROMOTE));
-    final SourceConfig sourceConfig = sourceService.registerSourceWithRuntime(source.asSourceConfig(), SystemUser.SYSTEM_USERNAME);
+    source.setMetadataPolicy(
+        UIMetadataPolicy.of(CatalogService.DEFAULT_METADATA_POLICY_WITH_AUTO_PROMOTE));
+    final SourceConfig sourceConfig =
+        sourceService.registerSourceWithRuntime(
+            source.asSourceConfig(), SystemUser.SYSTEM_USERNAME);
 
     // make a query
-    final SqlQuery query = new SqlQuery("select * from LocalFSSearch.\"dac-sample1.json\"", DEFAULT_USERNAME);
-    submitJobAndWaitUntilCompletion(JobRequest.newBuilder().setSqlQuery(query).build(), JobStatusListener.NO_OP);
+    final SqlQuery query =
+        new SqlQuery("select * from LocalFSSearch.\"dac-sample1.json\"", DEFAULT_USERNAME);
+    submitJobAndWaitUntilCompletion(
+        JobRequest.newBuilder().setSqlQuery(query).build(), JobStatusListener.NO_OP);
 
     doWakeup();
 

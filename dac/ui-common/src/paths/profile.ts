@@ -25,5 +25,5 @@ export const jsonVisualProfile = profileBase.extend(
     return `json-visual-profile${
       params.profileJsonFileURL ? `?${params.profileJsonFileURL}` : ""
     }`;
-  }
+  },
 );

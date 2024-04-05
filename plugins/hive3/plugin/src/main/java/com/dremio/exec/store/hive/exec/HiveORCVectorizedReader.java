@@ -15,6 +15,20 @@
  */
 package com.dremio.exec.store.hive.exec;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.ExecConstants;
+import com.dremio.exec.store.ScanFilter;
+import com.dremio.exec.store.SplitAndPartitionInfo;
+import com.dremio.exec.store.hive.HiveConfFactory;
+import com.dremio.exec.store.hive.HiveSettings;
+import com.dremio.exec.store.hive.HiveUtilities;
+import com.dremio.exec.store.hive.exec.HiveORCCopiers.ORCCopier;
+import com.dremio.exec.store.hive.exec.apache.HadoopFileSystemWrapper;
+import com.dremio.hive.proto.HiveReaderProto.HiveTableXattr;
+import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.sabot.op.scan.ScanOperator;
+import com.dremio.sabot.op.scan.ScanOperator.Metric;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -25,7 +39,6 @@ import java.util.ListIterator;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-
 import org.apache.arrow.vector.ValueVector;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.hadoop.fs.FileSystem;
@@ -64,73 +77,78 @@ import org.apache.orc.OrcConf;
 import org.apache.orc.OrcProto;
 import org.apache.orc.impl.DataReaderProperties;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.common.expression.SchemaPath;
-import com.dremio.exec.ExecConstants;
-import com.dremio.exec.store.ScanFilter;
-import com.dremio.exec.store.SplitAndPartitionInfo;
-import com.dremio.exec.store.hive.HiveConfFactory;
-import com.dremio.exec.store.hive.HiveSettings;
-import com.dremio.exec.store.hive.HiveUtilities;
-import com.dremio.exec.store.hive.exec.HiveORCCopiers.ORCCopier;
-import com.dremio.exec.store.hive.exec.apache.HadoopFileSystemWrapper;
-import com.dremio.hive.proto.HiveReaderProto.HiveTableXattr;
-import com.dremio.sabot.exec.context.OperatorContext;
-import com.dremio.sabot.op.scan.ScanOperator;
-import com.dremio.sabot.op.scan.ScanOperator.Metric;
-
 /**
- * Use vectorized reader provided by the Hive to read ORC files. We copy one column completely at a time,
- * instead of one row at time.
+ * Use vectorized reader provided by the Hive to read ORC files. We copy one column completely at a
+ * time, instead of one row at time.
  */
 public class HiveORCVectorizedReader extends HiveAbstractReader {
 
-  /**
-   * For transactional orc files, the row data is stored in the struct vector at position 5
-   */
+  /** For transactional orc files, the row data is stored in the struct vector at position 5 */
   static final int TRANS_ROW_COLUMN_INDEX = 5;
+
   private org.apache.hadoop.hive.ql.io.orc.RecordReader hiveOrcReader;
   private ORCCopier[] copiers;
   private DremioORCRecordUtils.DefaultDataReader dataReader;
   private Map<ColumnVector, String> vectorToNameMap = new HashMap<>();
 
   /**
-   * Hive vectorized ORC reader reads into this batch. It is a heap based structure and reused until the reader exhaust
-   * records. Most of the heap structures remain constant size on heap, but the variable width structures may get
-   * reallocated if there is not enough space.
+   * Hive vectorized ORC reader reads into this batch. It is a heap based structure and reused until
+   * the reader exhaust records. Most of the heap structures remain constant size on heap, but the
+   * variable width structures may get reallocated if there is not enough space.
    */
   private VectorizedRowBatch hiveBatch;
+
   // non-zero value indicates partially read batch in previous iteration.
   private int offset;
 
   @Override
   protected void logDebugMessages() {
     super.logDebugMessages();
-    if(dataReader != null) {
+    if (dataReader != null) {
       logger.debug(dataReader.getClass().getClassLoader().toString());
       dataReader.logMessage();
     }
-    if(hiveOrcReader != null) {
+    if (hiveOrcReader != null) {
       logger.debug(hiveOrcReader.getClass().getClassLoader().toString());
     }
   }
 
-  public HiveORCVectorizedReader(final HiveTableXattr tableAttr, final SplitAndPartitionInfo split,
-                                 final List<SchemaPath> projectedColumns, final OperatorContext context, final JobConf jobConf,
-                                 final AbstractSerDe tableSerDe, final StructObjectInspector tableOI, final AbstractSerDe partitionSerDe,
-                                 final StructObjectInspector partitionOI, final ScanFilter filter, final Collection<List<String>> referencedTables,
-                                 final UserGroupInformation readerUgi) {
-    super(tableAttr, split, projectedColumns, context, jobConf, tableSerDe, tableOI, partitionSerDe, partitionOI, filter,
-      referencedTables, readerUgi);
+  public HiveORCVectorizedReader(
+      final HiveTableXattr tableAttr,
+      final SplitAndPartitionInfo split,
+      final List<SchemaPath> projectedColumns,
+      final OperatorContext context,
+      final JobConf jobConf,
+      final AbstractSerDe tableSerDe,
+      final StructObjectInspector tableOI,
+      final AbstractSerDe partitionSerDe,
+      final StructObjectInspector partitionOI,
+      final ScanFilter filter,
+      final Collection<List<String>> referencedTables,
+      final UserGroupInformation readerUgi) {
+    super(
+        tableAttr,
+        split,
+        projectedColumns,
+        context,
+        jobConf,
+        tableSerDe,
+        tableOI,
+        partitionSerDe,
+        partitionOI,
+        filter,
+        referencedTables,
+        readerUgi);
   }
 
-  private int[] getOrdinalIdsOfSelectedColumns(List< OrcProto.Type > types, List<Integer> selectedColumns, boolean isOriginal) {
+  private int[] getOrdinalIdsOfSelectedColumns(
+      List<OrcProto.Type> types, List<Integer> selectedColumns, boolean isOriginal) {
     int rootColumn = isOriginal ? 0 : TRANS_ROW_COLUMN_INDEX + 1;
     int[] ids = new int[types.size()];
     OrcProto.Type root = types.get(rootColumn);
 
     // iterating over only direct children
-    for(int i = 0; i < root.getSubtypesCount(); ++i) {
+    for (int i = 0; i < root.getSubtypesCount(); ++i) {
       if (selectedColumns.contains(i)) {
         // find the position of this column in the types list
         ids[i] = root.getSubtypes(i);
@@ -149,11 +167,11 @@ public class HiveORCVectorizedReader extends HiveAbstractReader {
     PreOrder tree traversal
     position.index will contain preorder tree traversal index starting at root=0
   */
-  private static boolean searchAllFields(final ObjectInspector rootOI,
-                                         final String name,
-                                         final int[] childCounts,
-                                         SearchResult position
-  ) {
+  private static boolean searchAllFields(
+      final ObjectInspector rootOI,
+      final String name,
+      final int[] childCounts,
+      SearchResult position) {
     Category category = rootOI.getCategory();
     if (category == Category.STRUCT) {
       position.index++; // first child is immediately next to parent
@@ -207,7 +225,7 @@ public class HiveORCVectorizedReader extends HiveAbstractReader {
         if (position.index >= include.length) {
           return;
         }
-        lOI = ((ListObjectInspector)lOI).getListElementObjectInspector();
+        lOI = ((ListObjectInspector) lOI).getListElementObjectInspector();
         position.oI = lOI;
 
         // include child
@@ -264,7 +282,12 @@ public class HiveORCVectorizedReader extends HiveAbstractReader {
   // Example: if table schema is  <col1: int, col2:struct<f1:int, f2:string>, col3: string>
   // then childCounts will be [6, 1, 3, 1, 1, 1]
   // calling this method for co2.f2 will set include[2] for struct and include[4] for field f2
-  private void getIncludedColumnsFromTableSchema(ObjectInspector rootOI, int rootColumn, SchemaPath selectedField, int[] childCounts, boolean[] include) {
+  private void getIncludedColumnsFromTableSchema(
+      ObjectInspector rootOI,
+      int rootColumn,
+      SchemaPath selectedField,
+      int[] childCounts,
+      boolean[] include) {
     SearchResult searchResult = new SearchResult();
     searchResult.index = rootColumn;
     searchResult.oI = null;
@@ -297,19 +320,20 @@ public class HiveORCVectorizedReader extends HiveAbstractReader {
     }
   }
 
-  private void getIncludedColumnsFromTableSchema(ObjectInspector oi, int rootColumn, int[] childCounts, boolean[] include) {
+  private void getIncludedColumnsFromTableSchema(
+      ObjectInspector oi, int rootColumn, int[] childCounts, boolean[] include) {
     if (rootColumn < include.length) {
       include[rootColumn] = true;
     }
     Collection<SchemaPath> selectedColumns = getColumns();
-    for (SchemaPath selectedField: selectedColumns) {
+    for (SchemaPath selectedField : selectedColumns) {
       getIncludedColumnsFromTableSchema(oi, rootColumn, selectedField, childCounts, include);
     }
   }
 
   /*
-    For each root, populate total number of nodes in the tree starting from it
-   */
+   For each root, populate total number of nodes in the tree starting from it
+  */
   private int getChildCountsFromTableSchema(ObjectInspector rootOI, int position, int[] counts) {
     if (position >= counts.length) {
       return 0;
@@ -321,65 +345,74 @@ public class HiveORCVectorizedReader extends HiveAbstractReader {
         return counts[position];
       case LIST:
         // total count is children count and 1 extra for itself
-        counts[position] = getChildCountsFromTableSchema(((ListObjectInspector)rootOI).getListElementObjectInspector(),
-          position + 1, counts) + 1;
+        counts[position] =
+            getChildCountsFromTableSchema(
+                    ((ListObjectInspector) rootOI).getListElementObjectInspector(),
+                    position + 1,
+                    counts)
+                + 1;
         return counts[position];
-      case STRUCT: {
-        // total count is children count and 1 extra for itself
-        int totalCount = 1;
-        int childPosition = position + 1;
-        StructObjectInspector sOi = (StructObjectInspector) rootOI;
-        for (StructField sf : sOi.getAllStructFieldRefs()) {
-          int childCount = getChildCountsFromTableSchema(sf.getFieldObjectInspector(),
-            childPosition, counts);
+      case STRUCT:
+        {
+          // total count is children count and 1 extra for itself
+          int totalCount = 1;
+          int childPosition = position + 1;
+          StructObjectInspector sOi = (StructObjectInspector) rootOI;
+          for (StructField sf : sOi.getAllStructFieldRefs()) {
+            int childCount =
+                getChildCountsFromTableSchema(sf.getFieldObjectInspector(), childPosition, counts);
+            childPosition += childCount;
+            totalCount += childCount;
+          }
+          counts[position] = totalCount;
+          return counts[position];
+        }
+      case MAP:
+        {
+          // total count is children count and 1 extra for itself
+          int totalCount = 1;
+          int childPosition = position + 1;
+          ObjectInspector kOi = ((MapObjectInspector) rootOI).getMapKeyObjectInspector();
+          int childCount = getChildCountsFromTableSchema(kOi, childPosition, counts);
           childPosition += childCount;
           totalCount += childCount;
-        }
-        counts[position] = totalCount;
-        return counts[position];
-      }
-      case MAP: {
-        // total count is children count and 1 extra for itself
-        int totalCount = 1;
-        int childPosition = position + 1;
-        ObjectInspector kOi = ((MapObjectInspector) rootOI).getMapKeyObjectInspector();
-        int childCount = getChildCountsFromTableSchema(kOi, childPosition, counts);
-        childPosition += childCount;
-        totalCount += childCount;
-        ObjectInspector vOi = ((MapObjectInspector) rootOI).getMapValueObjectInspector();
-        childCount = getChildCountsFromTableSchema(vOi, childPosition, counts);
-        totalCount += childCount;
-        counts[position] = totalCount;
-        return counts[position];
-      }
-      case UNION: {
-        // total count is children count and 1 extra for itself
-        int totalCount = 1;
-        int childPosition = position + 1;
-        for (ObjectInspector fOi : ((UnionObjectInspector) rootOI).getObjectInspectors()) {
-          int childCount = getChildCountsFromTableSchema(fOi, childPosition, counts);
-          childPosition += childCount;
+          ObjectInspector vOi = ((MapObjectInspector) rootOI).getMapValueObjectInspector();
+          childCount = getChildCountsFromTableSchema(vOi, childPosition, counts);
           totalCount += childCount;
+          counts[position] = totalCount;
+          return counts[position];
         }
-        counts[position] = totalCount;
-        return counts[position];
-      }
+      case UNION:
+        {
+          // total count is children count and 1 extra for itself
+          int totalCount = 1;
+          int childPosition = position + 1;
+          for (ObjectInspector fOi : ((UnionObjectInspector) rootOI).getObjectInspectors()) {
+            int childCount = getChildCountsFromTableSchema(fOi, childPosition, counts);
+            childPosition += childCount;
+            totalCount += childCount;
+          }
+          counts[position] = totalCount;
+          return counts[position];
+        }
       default:
         throw UserException.unsupportedError()
-          .message("Vectorized ORC reader is not supported for datatype: %s", category)
-          .build(logger);
+            .message("Vectorized ORC reader is not supported for datatype: %s", category)
+            .build(logger);
     }
   }
 
   @Override
-  protected void internalInit(InputSplit inputSplit, JobConf jobConf, ValueVector[] vectors) throws IOException {
-    final OrcSplit fSplit = (OrcSplit)inputSplit;
+  protected void internalInit(InputSplit inputSplit, JobConf jobConf, ValueVector[] vectors)
+      throws IOException {
+    final OrcSplit fSplit = (OrcSplit) inputSplit;
     final Path path = fSplit.getPath();
 
     final OrcFile.ReaderOptions opts = OrcFile.readerOptions(jobConf);
 
     // TODO: DX-16001 make enabling async configurable.
-    final FileSystem fs = new HadoopFileSystemWrapper(jobConf, path.getFileSystem(jobConf), this.context.getStats());
+    final FileSystem fs =
+        new HadoopFileSystemWrapper(jobConf, path.getFileSystem(jobConf), this.context.getStats());
     opts.filesystem(fs);
     final Reader hiveReader = OrcFile.createReader(path, opts);
 
@@ -388,57 +421,94 @@ public class HiveORCVectorizedReader extends HiveAbstractReader {
     final Reader.Options options = new Reader.Options();
     long offset = fSplit.getStart();
     long length = fSplit.getLength();
-    options.schema(fSplit.isOriginal() ? hiveReader.getSchema() : hiveReader.getSchema().getChildren().get(TRANS_ROW_COLUMN_INDEX));
+    options.schema(
+        fSplit.isOriginal()
+            ? hiveReader.getSchema()
+            : hiveReader.getSchema().getChildren().get(TRANS_ROW_COLUMN_INDEX));
     options.range(offset, length);
     boolean[] include = new boolean[types.size()];
     int[] childCounts = new int[types.size()];
 
-    getChildCountsFromTableSchema(finalOI, fSplit.isOriginal() ? 0 : TRANS_ROW_COLUMN_INDEX + 1, childCounts);
-    getIncludedColumnsFromTableSchema(finalOI, fSplit.isOriginal() ? 0 : TRANS_ROW_COLUMN_INDEX + 1, childCounts, include);
-    include[0] = true; // always include root. reader always includes, but setting it explicitly here.
+    getChildCountsFromTableSchema(
+        finalOI, fSplit.isOriginal() ? 0 : TRANS_ROW_COLUMN_INDEX + 1, childCounts);
+    getIncludedColumnsFromTableSchema(
+        finalOI, fSplit.isOriginal() ? 0 : TRANS_ROW_COLUMN_INDEX + 1, childCounts, include);
+    include[0] =
+        true; // always include root. reader always includes, but setting it explicitly here.
 
     final Boolean zeroCopy = OrcConf.USE_ZEROCOPY.getBoolean(jobConf);
-    final boolean useDirectMemory = new HiveSettings(context.getOptions(), HiveConfFactory.isHive2SourceType(jobConf)).useDirectMemoryForOrcReaders();
-    options.include(fSplit.isOriginal() ? include : Arrays.copyOfRange(include, TRANS_ROW_COLUMN_INDEX + 1, include.length));
-    dataReader = DremioORCRecordUtils.createDefaultDataReader(context.getAllocator(), DataReaderProperties.builder()
-      .withBufferSize(hiveReader.getCompressionSize())
-      .withCompression(hiveReader.getCompressionKind())
-      .withFileSystem(fs)
-      .withPath(path)
-      .withTypeCount(types.size())
-      .withZeroCopy(zeroCopy)
-      .build(), useDirectMemory, context.getOptions().getOption(ExecConstants.SCAN_COMPUTE_LOCALITY));
+    final boolean useDirectMemory =
+        new HiveSettings(context.getOptions(), HiveConfFactory.isHive2SourceType(jobConf))
+            .useDirectMemoryForOrcReaders();
+    options.include(
+        fSplit.isOriginal()
+            ? include
+            : Arrays.copyOfRange(include, TRANS_ROW_COLUMN_INDEX + 1, include.length));
+    dataReader =
+        DremioORCRecordUtils.createDefaultDataReader(
+            context.getAllocator(),
+            DataReaderProperties.builder()
+                .withBufferSize(hiveReader.getCompressionSize())
+                .withCompression(hiveReader.getCompressionKind())
+                .withFileSystem(fs)
+                .withPath(path)
+                .withTypeCount(types.size())
+                .withZeroCopy(zeroCopy)
+                .build(),
+            useDirectMemory,
+            context.getOptions().getOption(ExecConstants.SCAN_COMPUTE_LOCALITY));
     options.dataReader(dataReader);
 
-    String[] selectedColNames = getColumns().stream().map(x -> x.getAsUnescapedPath().toLowerCase()).toArray(String[]::new);
+    String[] selectedColNames =
+        getColumns().stream().map(x -> x.getAsUnescapedPath().toLowerCase()).toArray(String[]::new);
 
     // there is an extra level of nesting in the transactional tables
     if (!fSplit.isOriginal()) {
-      selectedColNames = ArrayUtils.addAll(new String[]{"row"}, selectedColNames);
+      selectedColNames = ArrayUtils.addAll(new String[] {"row"}, selectedColNames);
     }
 
     if (filter != null) {
       final HiveProxyingOrcScanFilter orcScanFilter = (HiveProxyingOrcScanFilter) filter;
-      final SearchArgument sarg = HiveUtilities.decodeSearchArgumentFromBase64(orcScanFilter.getProxiedOrcScanFilter().getKryoBase64EncodedFilter());
-      options.searchArgument(sarg, OrcInputFormat.getSargColumnNames(selectedColNames, types, options.getInclude(), fSplit.isOriginal()));
+      final SearchArgument sarg =
+          HiveUtilities.decodeSearchArgumentFromBase64(
+              orcScanFilter.getProxiedOrcScanFilter().getKryoBase64EncodedFilter());
+      options.searchArgument(
+          sarg,
+          OrcInputFormat.getSargColumnNames(
+              selectedColNames, types, options.getInclude(), fSplit.isOriginal()));
     }
 
     hiveOrcReader = hiveReader.rowsOptions(options);
     StructObjectInspector orcFileRootOI = (StructObjectInspector) hiveReader.getObjectInspector();
     if (!fSplit.isOriginal()) {
-      orcFileRootOI = (StructObjectInspector)orcFileRootOI.getAllStructFieldRefs().get(TRANS_ROW_COLUMN_INDEX).getFieldObjectInspector();
+      orcFileRootOI =
+          (StructObjectInspector)
+              orcFileRootOI
+                  .getAllStructFieldRefs()
+                  .get(TRANS_ROW_COLUMN_INDEX)
+                  .getFieldObjectInspector();
     }
     hiveBatch = createVectorizedRowBatch(orcFileRootOI, fSplit.isOriginal());
 
     final List<Integer> projectedColOrdinals = ColumnProjectionUtils.getReadColumnIDs(jobConf);
-    final int[] ordinalIdsFromOrcFile = getOrdinalIdsOfSelectedColumns(types, projectedColOrdinals, fSplit.isOriginal());
-    HiveORCCopiers.HiveColumnVectorData columnVectorData = new HiveORCCopiers.HiveColumnVectorData(include, childCounts);
+    final int[] ordinalIdsFromOrcFile =
+        getOrdinalIdsOfSelectedColumns(types, projectedColOrdinals, fSplit.isOriginal());
+    HiveORCCopiers.HiveColumnVectorData columnVectorData =
+        new HiveORCCopiers.HiveColumnVectorData(include, childCounts);
 
-    copiers = HiveORCCopiers.createCopiers(columnVectorData,
-                                              projectedColOrdinals, ordinalIdsFromOrcFile,
-                                              vectors, hiveBatch, fSplit.isOriginal(), this.operatorContextOptions, vectorToNameMap);
+    copiers =
+        HiveORCCopiers.createCopiers(
+            columnVectorData,
+            projectedColOrdinals,
+            ordinalIdsFromOrcFile,
+            vectors,
+            hiveBatch,
+            fSplit.isOriginal(),
+            this.operatorContextOptions,
+            vectorToNameMap);
 
-    // Store the number of vectorized columns for stats/to find whether vectorized ORC reader is used or not
+    // Store the number of vectorized columns for stats/to find whether vectorized ORC reader is
+    // used or not
     context.getStats().setLongStat(Metric.NUM_VECTORIZED_COLUMNS, vectors.length);
   }
 
@@ -481,83 +551,86 @@ public class HiveORCVectorizedReader extends HiveAbstractReader {
       copier.copy(inputIdx, count, outputIdx);
     }
   }
+
   private boolean isSupportedType(Category category) {
-    return (category == Category.PRIMITIVE ||
-      category == Category.LIST ||
-      category == Category.STRUCT ||
-      category == Category.MAP ||
-      category == Category.UNION);
+    return (category == Category.PRIMITIVE
+        || category == Category.LIST
+        || category == Category.STRUCT
+        || category == Category.MAP
+        || category == Category.UNION);
   }
 
   private List<ColumnVector> getVectors(StructObjectInspector rowOI) {
-    return rowOI.getAllStructFieldRefs()
-      .stream()
-      .map((Function<StructField, ColumnVector>) structField -> {
-        Category category = structField.getFieldObjectInspector().getCategory();
-        if (!isSupportedType(category)) {
-          throw UserException.unsupportedError()
-            .message("Vectorized ORC reader is not supported for datatype: %s", category)
-            .build(logger);
-        }
-        return getColumnVector(structField.getFieldName(), structField.getFieldObjectInspector());
-      })
-      .collect(Collectors.toList());
-
+    return rowOI.getAllStructFieldRefs().stream()
+        .map(
+            (Function<StructField, ColumnVector>)
+                structField -> {
+                  Category category = structField.getFieldObjectInspector().getCategory();
+                  if (!isSupportedType(category)) {
+                    throw UserException.unsupportedError()
+                        .message(
+                            "Vectorized ORC reader is not supported for datatype: %s", category)
+                        .build(logger);
+                  }
+                  return getColumnVector(
+                      structField.getFieldName(), structField.getFieldObjectInspector());
+                })
+        .collect(Collectors.toList());
   }
 
   private ColumnVector getColumnVector(String fieldName, ObjectInspector oi) {
     Category category = oi.getCategory();
     ColumnVector vector;
     switch (category) {
-
       case PRIMITIVE:
-        vector = getPrimitiveColumnVector((PrimitiveObjectInspector)oi);
+        vector = getPrimitiveColumnVector((PrimitiveObjectInspector) oi);
         vectorToNameMap.put(vector, fieldName);
         return vector;
       case LIST:
-        vector = getListColumnVector((ListObjectInspector)oi);
+        vector = getListColumnVector((ListObjectInspector) oi);
         vectorToNameMap.put(vector, fieldName);
         return vector;
       case STRUCT:
-        vector =  getStructColumnVector((StructObjectInspector)oi);
+        vector = getStructColumnVector((StructObjectInspector) oi);
         vectorToNameMap.put(vector, fieldName);
         return vector;
       case MAP:
-        vector = getMapColumnVector((MapObjectInspector)oi);
+        vector = getMapColumnVector((MapObjectInspector) oi);
         vectorToNameMap.put(vector, fieldName);
         return vector;
       case UNION:
-        vector =  getUnionColumnVector((UnionObjectInspector)oi);
+        vector = getUnionColumnVector((UnionObjectInspector) oi);
         vectorToNameMap.put(vector, fieldName);
         return vector;
       default:
         throw UserException.unsupportedError()
-          .message("Vectorized ORC reader is not supported for datatype: %s", category)
-          .build(logger);
+            .message("Vectorized ORC reader is not supported for datatype: %s", category)
+            .build(logger);
     }
   }
 
   private ColumnVector getUnionColumnVector(UnionObjectInspector uoi) {
     ArrayList<ColumnVector> vectors = new ArrayList<>();
     List<? extends ObjectInspector> members = uoi.getObjectInspectors();
-    for (ObjectInspector unionField: members) {
-      vectors.add(getColumnVector("$data$",unionField));
+    for (ObjectInspector unionField : members) {
+      vectors.add(getColumnVector("$data$", unionField));
     }
     ColumnVector[] columnVectors = vectors.toArray(new ColumnVector[0]);
     return new UnionColumnVector(VectorizedRowBatch.DEFAULT_SIZE, columnVectors);
   }
-
 
   private ColumnVector getMapColumnVector(MapObjectInspector moi) {
     ColumnVector keys = getColumnVector("key", moi.getMapKeyObjectInspector());
     ColumnVector values = getColumnVector("value", moi.getMapValueObjectInspector());
     return new MapColumnVector(VectorizedRowBatch.DEFAULT_SIZE, keys, values);
   }
+
   private ColumnVector getStructColumnVector(StructObjectInspector soi) {
     ArrayList<ColumnVector> vectors = new ArrayList<>();
     List<? extends StructField> members = soi.getAllStructFieldRefs();
-    for (StructField structField: members) {
-      vectors.add(getColumnVector(structField.getFieldName(), structField.getFieldObjectInspector()));
+    for (StructField structField : members) {
+      vectors.add(
+          getColumnVector(structField.getFieldName(), structField.getFieldObjectInspector()));
     }
     ColumnVector[] columnVectors = vectors.toArray(new ColumnVector[0]);
     return new StructColumnVector(VectorizedRowBatch.DEFAULT_SIZE, columnVectors);
@@ -569,7 +642,7 @@ public class HiveORCVectorizedReader extends HiveAbstractReader {
   }
 
   private ColumnVector getPrimitiveColumnVector(PrimitiveObjectInspector poi) {
-      switch (poi.getPrimitiveCategory()) {
+    switch (poi.getPrimitiveCategory()) {
       case BOOLEAN:
       case BYTE:
       case SHORT:
@@ -589,31 +662,33 @@ public class HiveORCVectorizedReader extends HiveAbstractReader {
         return new BytesColumnVector(VectorizedRowBatch.DEFAULT_SIZE);
       case DECIMAL:
         DecimalTypeInfo tInfo = (DecimalTypeInfo) poi.getTypeInfo();
-        return new DecimalColumnVector(VectorizedRowBatch.DEFAULT_SIZE,
-          tInfo.precision(), tInfo.scale()
-        );
+        return new DecimalColumnVector(
+            VectorizedRowBatch.DEFAULT_SIZE, tInfo.precision(), tInfo.scale());
       default:
         throw UserException.unsupportedError()
-          .message("Vectorized ORC reader is not supported for datatype: %s", poi.getPrimitiveCategory())
-          .build(logger);
-      }
+            .message(
+                "Vectorized ORC reader is not supported for datatype: %s",
+                poi.getPrimitiveCategory())
+            .build(logger);
+    }
   }
 
   /**
-   * Helper method that creates {@link VectorizedRowBatch}. For each selected column an input vector is created in the
-   * batch. For unselected columns the vector entry is going to be null. The order of input vectors in batch should
-   * match the order the columns in ORC file.
+   * Helper method that creates {@link VectorizedRowBatch}. For each selected column an input vector
+   * is created in the batch. For unselected columns the vector entry is going to be null. The order
+   * of input vectors in batch should match the order the columns in ORC file.
    *
    * @param rowOI Used to find the ordinal of the selected column.
    * @return
    */
-  private VectorizedRowBatch createVectorizedRowBatch(StructObjectInspector rowOI, boolean isOriginal) {
+  private VectorizedRowBatch createVectorizedRowBatch(
+      StructObjectInspector rowOI, boolean isOriginal) {
     final List<? extends StructField> fieldRefs = rowOI.getAllStructFieldRefs();
     final List<ColumnVector> vectors = getVectors(rowOI);
 
     final VectorizedRowBatch result = new VectorizedRowBatch(fieldRefs.size());
 
-    ColumnVector[] vectorArray =  vectors.toArray(new ColumnVector[0]);
+    ColumnVector[] vectorArray = vectors.toArray(new ColumnVector[0]);
 
     if (!isOriginal) {
       vectorArray = createTransactionalVectors(vectorArray);
@@ -657,5 +732,4 @@ public class HiveORCVectorizedReader extends HiveAbstractReader {
 
     super.close();
   }
-
 }

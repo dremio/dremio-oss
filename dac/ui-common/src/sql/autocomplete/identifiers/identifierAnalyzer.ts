@@ -46,7 +46,7 @@ export type AnalyzedIdentifier =
 
 export function analyzeIdentifier(
   identifierCandidate: IdentifierCandidate,
-  cursorInfo: CursorInfo
+  cursorInfo: CursorInfo,
 ): AnalyzedIdentifier | undefined {
   const priorTerminals = excludeTrailingIdentifiers(cursorInfo.priorTerminals);
   if (isGenericContainer(priorTerminals, identifierCandidate)) {

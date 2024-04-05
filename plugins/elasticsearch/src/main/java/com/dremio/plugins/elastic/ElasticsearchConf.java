@@ -15,23 +15,18 @@
  */
 package com.dremio.plugins.elastic;
 
-import java.util.List;
-
 import com.dremio.exec.catalog.conf.EncryptionValidationMode;
 import com.dremio.exec.catalog.conf.Host;
+import java.util.List;
 
-/**
- * Elasticsearch configuration for both regular Elasticsearch and Amazon Elasticsearch Service.
- */
+/** Elasticsearch configuration for both regular Elasticsearch and Amazon Elasticsearch Service. */
 public class ElasticsearchConf {
 
   /**
-   * Authentication type to access elasticsearch.
-   * NONE to access as anonymous.
-   * ES_ACCOUNT uses elasticsearch account.
-   * ACCESS_KEY uses AWS access key and secret as credentials.
-   * EC2_METADATA uses EC2 metedata to get credentials.
-   * AWS_PROFILE uses AWS ProfileCredentialsProvider to get credentials.
+   * Authentication type to access elasticsearch. NONE to access as anonymous. ES_ACCOUNT uses
+   * elasticsearch account. ACCESS_KEY uses AWS access key and secret as credentials. EC2_METADATA
+   * uses EC2 metedata to get credentials. AWS_PROFILE uses AWS ProfileCredentialsProvider to get
+   * credentials.
    */
   public enum AuthenticationType {
     NONE,
@@ -104,7 +99,8 @@ public class ElasticsearchConf {
     this.usePainless = usePainless;
     this.useWhitelist = useWhitelist;
     this.scrollSize = scrollSize;
-    this.allowPushdownOnNormalizedOrAnalyzedFields = allowPushdownOnNormalizedOrAnalyzedFields || pushdownWithKeyword;
+    this.allowPushdownOnNormalizedOrAnalyzedFields =
+        allowPushdownOnNormalizedOrAnalyzedFields || pushdownWithKeyword;
     this.pushdownWithKeyword = pushdownWithKeyword;
     this.warnOnRowCountMismatch = warnOnRowCountMismatch;
     this.encryptionValidationMode = encryptionValidationMode;
@@ -199,11 +195,14 @@ public class ElasticsearchConf {
     return forceDoublePrecision;
   }
 
-  public static ElasticsearchConf createElasticsearchConf(BaseElasticStoragePluginConfig elasticStoragePluginConfig) {
+  public static ElasticsearchConf createElasticsearchConf(
+      BaseElasticStoragePluginConfig elasticStoragePluginConfig) {
     if (elasticStoragePluginConfig instanceof ElasticStoragePluginConfig) {
-      return ElasticStoragePluginConfig.createElasticsearchConf((ElasticStoragePluginConfig)elasticStoragePluginConfig);
+      return ElasticStoragePluginConfig.createElasticsearchConf(
+          (ElasticStoragePluginConfig) elasticStoragePluginConfig);
     } else if (elasticStoragePluginConfig instanceof AmazonElasticStoragePluginConfig) {
-      return AmazonElasticStoragePluginConfig.createElasticsearchConf((AmazonElasticStoragePluginConfig)elasticStoragePluginConfig);
+      return AmazonElasticStoragePluginConfig.createElasticsearchConf(
+          (AmazonElasticStoragePluginConfig) elasticStoragePluginConfig);
     } else {
       throw new IllegalArgumentException("invalid elasticsearch storage plugin config");
     }

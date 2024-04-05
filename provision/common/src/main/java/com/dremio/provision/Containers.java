@@ -15,24 +15,26 @@
  */
 package com.dremio.provision;
 
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import java.util.List;
-
 import org.immutables.value.Value.Immutable;
 
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-
-/**
- * Runtime info for a cluster
- */
+/** Runtime info for a cluster */
 @JsonDeserialize(builder = ImmutableContainers.Builder.class)
 @Immutable
 public interface Containers {
   List<Container> getRunningList();
+
   int getDecommissioningCount();
+
   int getProvisioningCount();
+
   int getPendingCount();
+
   List<Container> getDisconnectedList();
+
   List<Container> getPendingList();
+
   List<Container> getDecommissioningList();
 
   public static ImmutableContainers.Builder builder() {

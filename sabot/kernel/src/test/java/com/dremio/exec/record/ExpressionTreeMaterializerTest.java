@@ -19,9 +19,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import org.junit.Test;
-import org.mockito.Mockito;
-
 import com.dremio.common.expression.ErrorCollector;
 import com.dremio.common.expression.ErrorCollectorImpl;
 import com.dremio.common.expression.LogicalExpression;
@@ -30,10 +27,13 @@ import com.dremio.exec.ExecTest;
 import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.exec.expr.ExpressionTreeMaterializer;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
+import org.junit.Test;
+import org.mockito.Mockito;
 
 public class ExpressionTreeMaterializerTest extends ExecTest {
 
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ExpressionTreeMaterializerTest.class);
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ExpressionTreeMaterializerTest.class);
 
   final BatchSchema schema = Mockito.mock(BatchSchema.class);
 
@@ -42,10 +42,11 @@ public class ExpressionTreeMaterializerTest extends ExecTest {
   @Test
   public void testMaterializingConstantTree() throws SchemaChangeException {
     ErrorCollector ec = new ErrorCollectorImpl();
-    LogicalExpression expr = ExpressionTreeMaterializer.materialize(new ValueExpressions.LongExpression(1L), schema, ec, registry);
+    LogicalExpression expr =
+        ExpressionTreeMaterializer.materialize(
+            new ValueExpressions.LongExpression(1L), schema, ec, registry);
     assertTrue(expr instanceof ValueExpressions.LongExpression);
     assertEquals(1L, ValueExpressions.LongExpression.class.cast(expr).getLong());
     assertFalse(ec.hasErrors());
   }
-
 }

@@ -15,27 +15,27 @@
  */
 package com.dremio.exec.store.metadatarefresh.dirlisting;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import org.apache.commons.lang3.StringUtils;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.store.iceberg.IcebergPartitionData;
 import com.dremio.io.file.Path;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import java.util.ArrayList;
+import java.util.List;
+import org.apache.commons.lang3.StringUtils;
 
 /**
- * Class responsible for inferring partition columns by parsing file paths. Partition column names are derived from the
- * names of the directories, instead of implicit names like dir0, dir1 and so on.
-*/
+ * Class responsible for inferring partition columns by parsing file paths. Partition column names
+ * are derived from the names of the directories, instead of implicit names like dir0, dir1 and so
+ * on.
+ */
 public class InferredPartitionParser extends PartitionParser {
-  private List<String> currentNames =  new ArrayList<>(), currentValues = new ArrayList<>();
+  private List<String> currentNames = new ArrayList<>(), currentValues = new ArrayList<>();
 
   private List<String> partitionNames;
 
-  public static List<String> acceptedNullPartition = ImmutableList.of("__HIVE_DEFAULT_PARTITION__", "null");
+  public static List<String> acceptedNullPartition =
+      ImmutableList.of("__HIVE_DEFAULT_PARTITION__", "null");
 
   private boolean partitionNamesInitialized;
   private Path workingPath;
@@ -48,11 +48,16 @@ public class InferredPartitionParser extends PartitionParser {
   @Override
   public IcebergPartitionData parsePartitionToPath(Path path) {
     workingPath = path;
-    String[] dirs = Path.withoutSchemeAndAuthority(this.rootPath).relativize(Path.withoutSchemeAndAuthority(path)).toString().split(Path.SEPARATOR);
+    String[] dirs =
+        Path.withoutSchemeAndAuthority(this.rootPath)
+            .relativize(Path.withoutSchemeAndAuthority(path))
+            .toString()
+            .split(Path.SEPARATOR);
 
     validateFormatForAllDirs(dirs);
     parsePath(dirs);
-    IcebergPartitionData icebergPartitionData = buildIcebergPartitionData(dirs, currentNames, currentValues);
+    IcebergPartitionData icebergPartitionData =
+        buildIcebergPartitionData(dirs, currentNames, currentValues);
 
     currentValues.clear();
     currentNames.clear();
@@ -60,26 +65,26 @@ public class InferredPartitionParser extends PartitionParser {
   }
 
   private void parsePath(String[] dirs) {
-    for(int i = 0; i < dirs.length - 1; i++) {
+    for (int i = 0; i < dirs.length - 1; i++) {
       String[] partitions = dirs[i].split("=");
 
       String name = null;
       String value = null;
 
-      if(partitions.length < 1 || partitions.length > 2) {
+      if (partitions.length < 1 || partitions.length > 2) {
         throw UserException.parseError()
-          .message(String.format("Invalid partition structure was specified."))
-          .buildSilently();
+            .message(String.format("Invalid partition structure was specified."))
+            .buildSilently();
       }
 
-      if(partitions.length == 1) {
+      if (partitions.length == 1) {
         name = partitions[0];
         value = null;
       } else if (partitions.length == 2) {
         name = partitions[0];
         value = partitions[1];
 
-        if(acceptedNullPartition.contains(value)) {
+        if (acceptedNullPartition.contains(value)) {
           value = null;
         }
       }
@@ -93,10 +98,14 @@ public class InferredPartitionParser extends PartitionParser {
   // Validates that partition structure remains same throughout.
   // All the missing subdirectories should be created explicitly by user.
   void validatePartitionStructure() {
-    if(partitionNamesInitialized) {
-      Preconditions.checkState(partitionNames.equals(currentNames), String.format("Invalid partition structure was specified. " +
-        "Earlier inferred partition names were %s. Parsing current path" +
-        " resulted in partition names %s. Path %s. Please correct directory structure if possible.", partitionNames, currentNames, workingPath));
+    if (partitionNamesInitialized) {
+      Preconditions.checkState(
+          partitionNames.equals(currentNames),
+          String.format(
+              "Invalid partition structure was specified. "
+                  + "Earlier inferred partition names were %s. Parsing current path"
+                  + " resulted in partition names %s. Path %s. Please correct directory structure if possible.",
+              partitionNames, currentNames, workingPath));
     } else {
       partitionNames = new ArrayList<>(currentNames);
       partitionNamesInitialized = true;
@@ -106,8 +115,12 @@ public class InferredPartitionParser extends PartitionParser {
   // Validates that all directory names are in required format, i.e., name=value.
   // Directory structures like '/id=1/data=2/tempDir/parquetFile' are not allowed.
   void validateFormatForAllDirs(String[] dirs) {
-    for(int i = 0; i < dirs.length - 1; i++) {
-      Preconditions.checkState(StringUtils.countMatches(dirs[i], "=") == 1, String.format("All the directories should have = in the partition structure. Path %s", workingPath));
+    for (int i = 0; i < dirs.length - 1; i++) {
+      Preconditions.checkState(
+          StringUtils.countMatches(dirs[i], "=") == 1,
+          String.format(
+              "All the directories should have = in the partition structure. Path %s",
+              workingPath));
     }
   }
 }

@@ -15,13 +15,20 @@
  */
 package com.dremio.exec.planner.logical;
 
+import com.dremio.exec.calcite.logical.FlattenCrel;
+import com.dremio.exec.planner.sql.SqlFlattenOperator;
+import com.google.common.base.MoreObjects;
+import com.google.common.base.Objects;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ListMultimap;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.rel.RelNode;
@@ -46,21 +53,11 @@ import org.apache.calcite.rex.RexTableInputRef;
 import org.apache.calcite.rex.RexVisitor;
 import org.apache.calcite.tools.RelBuilder;
 
-import com.dremio.exec.calcite.logical.FlattenCrel;
-import com.dremio.exec.planner.sql.SqlFlattenOperator;
-import com.google.common.base.MoreObjects;
-import com.google.common.base.Objects;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ListMultimap;
-
 /**
- * A rule that canonicalizes flatten expressions by their flatten index. It then
- * creates a tree of LogicalProjects and FlattenCrels, ensuring that all
- * SqlFlattenOperator expressions are removed. The output is guaranteed to not
- * have any flattens embedded in projects and is also guaranteed to only have a
- * single flatten operation for each distinct SqlFlattenOperator index.
+ * A rule that canonicalizes flatten expressions by their flatten index. It then creates a tree of
+ * LogicalProjects and FlattenCrels, ensuring that all SqlFlattenOperator expressions are removed.
+ * The output is guaranteed to not have any flattens embedded in projects and is also guaranteed to
+ * only have a single flatten operation for each distinct SqlFlattenOperator index.
  */
 public class RewriteProjectToFlattenRule extends RelOptRule {
 
@@ -74,9 +71,7 @@ public class RewriteProjectToFlattenRule extends RelOptRule {
     return FlattenVisitors.hasFlatten(project);
   }
 
-  /**
-   * Our goal here is do
-   */
+  /** Our goal here is do */
   @Override
   public void onMatch(RelOptRuleCall call) {
     final Project project = call.rel(0);
@@ -87,13 +82,13 @@ public class RewriteProjectToFlattenRule extends RelOptRule {
     final int highestLevel = expressionBuilder.maxLevel;
 
     RelNode input = project.getInput();
-    for(int level = 0; level <= highestLevel; level++){
+    for (int level = 0; level <= highestLevel; level++) {
 
       List<ProjectSlotHolder> projHolders = expressionBuilder.projectLevels.get(level);
 
       List<String> fieldNames = new ArrayList<>();
       List<RexNode> projectExpressions = new ArrayList<>();
-      for(int i = 0; i < projHolders.size(); i++) {
+      for (int i = 0; i < projHolders.size(); i++) {
         ProjectSlotHolder e = projHolders.get(i);
         // write the final slot location of this data.
         e.outputReference.index = i;
@@ -108,28 +103,27 @@ public class RewriteProjectToFlattenRule extends RelOptRule {
 
       List<FlattenExpression> flattenHolders = expressionBuilder.flattenLevels.get(level);
 
-      if(flattenHolders != null && flattenHolders.size() > 0){
+      if (flattenHolders != null && flattenHolders.size() > 0) {
 
         List<RexInputRef> flattenExpressions = new ArrayList<>();
-        for(FlattenExpression e : flattenHolders) {
-          flattenExpressions.add((RexInputRef) e.inputReference.accept(new RemoveMutableRexInputRef()));
+        for (FlattenExpression e : flattenHolders) {
+          flattenExpressions.add(
+              (RexInputRef) e.inputReference.accept(new RemoveMutableRexInputRef()));
         }
 
-        input = new FlattenCrel(
-            project.getCluster(),
-            project.getTraitSet(),
-            input,
-            flattenExpressions,
-            null,
-            0);
+        input =
+            new FlattenCrel(
+                project.getCluster(), project.getTraitSet(), input, flattenExpressions, null, 0);
       }
     }
 
     // add top level project.
     RelBuilder relBuilder = relBuilderFactory.create(project.getCluster(), null);
     relBuilder.push(input);
-    List<RexNode> finalizedExpressions = expressionBuilder.topProjectExpressions.stream()
-      .map(input1 -> input1.accept(new RemoveMutableRexInputRef())).collect(Collectors.toList());
+    List<RexNode> finalizedExpressions =
+        expressionBuilder.topProjectExpressions.stream()
+            .map(input1 -> input1.accept(new RemoveMutableRexInputRef()))
+            .collect(Collectors.toList());
 
     relBuilder.project(finalizedExpressions, project.getRowType().getFieldNames());
     input = relBuilder.build();
@@ -149,10 +143,11 @@ public class RewriteProjectToFlattenRule extends RelOptRule {
 
     @Override
     public String toString() {
-      return MoreObjects.toStringHelper(this).add("expression", expression).add("outputReference", outputReference)
+      return MoreObjects.toStringHelper(this)
+          .add("expression", expression)
+          .add("outputReference", outputReference)
           .toString();
     }
-
   }
 
   private static class FlattenExpression {
@@ -167,17 +162,18 @@ public class RewriteProjectToFlattenRule extends RelOptRule {
 
     @Override
     public String toString() {
-      return MoreObjects.toStringHelper(this).add("level", level).add("inputReference", inputReference).toString();
+      return MoreObjects.toStringHelper(this)
+          .add("level", level)
+          .add("inputReference", inputReference)
+          .toString();
     }
-
   }
 
   /**
-   * A specialized RexInputRef that allows us to change the pointer after
-   * initial construction. Allows us to build an expression tree once and later
-   * decide what input it points to. It is only used to mutate once we are
-   * constructing the tree, thus the reason it is a private class. Before we
-   * return a RexNode tree, we replace mutable refs with the immutable variant.
+   * A specialized RexInputRef that allows us to change the pointer after initial construction.
+   * Allows us to build an expression tree once and later decide what input it points to. It is only
+   * used to mutate once we are constructing the tree, thus the reason it is a private class. Before
+   * we return a RexNode tree, we replace mutable refs with the immutable variant.
    */
   private static class MutableRexInputRef extends RexInputRef {
 
@@ -188,14 +184,15 @@ public class RewriteProjectToFlattenRule extends RelOptRule {
     }
 
     @Override
-    public int getIndex(){
+    public int getIndex() {
       Preconditions.checkNotNull(index, "Mutable index must be set before retrieval.");
       return index;
     }
 
     @Override
     public boolean equals(final Object other) {
-      // since mutable rexinput refs are based on references, not indices (since they may not be defined), we need to only support identity equality.
+      // since mutable rexinput refs are based on references, not indices (since they may not be
+      // defined), we need to only support identity equality.
       return other == this;
     }
 
@@ -206,45 +203,40 @@ public class RewriteProjectToFlattenRule extends RelOptRule {
 
     @Override
     public String toString() {
-      return MoreObjects.toStringHelper(this).add("index", index).add("hc", System.identityHashCode(this)).toString();
+      return MoreObjects.toStringHelper(this)
+          .add("index", index)
+          .add("hc", System.identityHashCode(this))
+          .toString();
     }
-
-
-
   }
 
   /**
-   * A pointer to a integer with a special names. Used to have a second return
-   * value from the RelShuttle.
+   * A pointer to a integer with a special names. Used to have a second return value from the
+   * RelShuttle.
    */
   private static final class LevelHolder {
     private int index = 0;
 
-    LevelHolder(){
-    }
+    LevelHolder() {}
 
     @Override
     public String toString() {
       return MoreObjects.toStringHelper(this).add("index", index).toString();
     }
-
   }
 
   private class RemoveMutableRexInputRef extends RexShuttle {
 
     @Override
     public RexNode visitInputRef(RexInputRef inputRef) {
-      if(inputRef instanceof MutableRexInputRef){
+      if (inputRef instanceof MutableRexInputRef) {
         return new RexInputRef(inputRef.getIndex(), inputRef.getType());
       }
       return super.visitInputRef(inputRef);
     }
-
   }
 
-  /**
-   * Replaces input refs with MutableRexInptuRefs so that we can propagate references down tree.
-   */
+  /** Replaces input refs with MutableRexInptuRefs so that we can propagate references down tree. */
   private class InputRefReplacerAnalyzer extends RexShuttle {
 
     private List<ProjectSlotHolder> holders = new ArrayList<>();
@@ -261,32 +253,33 @@ public class RewriteProjectToFlattenRule extends RelOptRule {
     public RexNode visitInputRef(RexInputRef inputRef) {
 
       // see if we have a reference to our child.
-      if(inputRef instanceof MutableRexInputRef && refs.contains(inputRef)) {
+      if (inputRef instanceof MutableRexInputRef && refs.contains(inputRef)) {
         return inputRef;
       }
 
-      if(!(inputRef instanceof MutableRexInputRef)) {
+      if (!(inputRef instanceof MutableRexInputRef)) {
         MutableRexInputRef previousPointer = refMap.get(inputRef.getIndex());
-        if(previousPointer != null){
+        if (previousPointer != null) {
           return previousPointer;
         }
       }
 
       // create a new holder to add to the child of this.
-      RelDataType type = inputRef.getType().getComponentType() == null ? inputRef.getType() : inputRef.getType().getComponentType();
+      RelDataType type =
+          inputRef.getType().getComponentType() == null
+              ? inputRef.getType()
+              : inputRef.getType().getComponentType();
       final MutableRexInputRef inputPointer = new MutableRexInputRef(type);
       holders.add(new ProjectSlotHolder(inputRef, inputPointer));
 
-      if( !(inputRef instanceof MutableRexInputRef) ){
+      if (!(inputRef instanceof MutableRexInputRef)) {
         refMap.put(inputRef.getIndex(), inputPointer);
       }
       return inputPointer;
     }
   }
 
-  /**
-   * Breaks flattens and other expressions into levels.
-   */
+  /** Breaks flattens and other expressions into levels. */
   private class ExpressionAnalyzer extends RexBiShuttle<LevelHolder> {
 
     private Map<Integer, FlattenExpression> flattenOutputs = new HashMap<>();
@@ -300,13 +293,16 @@ public class RewriteProjectToFlattenRule extends RelOptRule {
       final LevelHolder highestLevelHolder = new LevelHolder();
       final ExpressionAnalyzer analyzer = this;
 
-      final List<RexNode> finalExpressions = project.getProjects().stream().map(input -> {
-        LevelHolder level = new LevelHolder();
-        RexNode output = input.accept(analyzer, level);
-        highestLevelHolder.index = Math.max(level.index, highestLevelHolder.index);
-        return output;
-      }).collect(Collectors.toList());
-
+      final List<RexNode> finalExpressions =
+          project.getProjects().stream()
+              .map(
+                  input -> {
+                    LevelHolder level = new LevelHolder();
+                    RexNode output = input.accept(analyzer, level);
+                    highestLevelHolder.index = Math.max(level.index, highestLevelHolder.index);
+                    return output;
+                  })
+              .collect(Collectors.toList());
 
       // the maxLevel is one less than reported because we report the level we need to start.
       this.maxLevel = highestLevelHolder.index - 1;
@@ -319,10 +315,13 @@ public class RewriteProjectToFlattenRule extends RelOptRule {
         List<ProjectSlotHolder> children = new ArrayList<>();
         children.addAll(projectLevels.get(child));
 
-        FindNonDependent dep = new FindNonDependent(children.stream().map(input -> input.outputReference).collect(Collectors.toSet()));
-        InputRefReplacerAnalyzer downProp = new InputRefReplacerAnalyzer(children, project.getCluster().getRexBuilder());
-        for(RexNode e : finalExpressions) {
-          if(e.accept(dep)){
+        FindNonDependent dep =
+            new FindNonDependent(
+                children.stream().map(input -> input.outputReference).collect(Collectors.toSet()));
+        InputRefReplacerAnalyzer downProp =
+            new InputRefReplacerAnalyzer(children, project.getCluster().getRexBuilder());
+        for (RexNode e : finalExpressions) {
+          if (e.accept(dep)) {
             // this doesn't need the top flatten, push it down.
             final MutableRexInputRef inputPointer = new MutableRexInputRef(e.getType());
             ProjectSlotHolder slot = new ProjectSlotHolder(e, inputPointer);
@@ -334,7 +333,7 @@ public class RewriteProjectToFlattenRule extends RelOptRule {
         }
 
         // add missing expressions for top level project.
-        for(ProjectSlotHolder holder : downProp.holders){
+        for (ProjectSlotHolder holder : downProp.holders) {
           children.add(holder);
         }
 
@@ -343,18 +342,21 @@ public class RewriteProjectToFlattenRule extends RelOptRule {
       }
 
       // now propagate the rest of expression trees down.
-      for(int i = maxLevel; i > 0; i--){
+      for (int i = maxLevel; i > 0; i--) {
         int child = i - 1;
 
         List<ProjectSlotHolder> holders = projectLevels.get(i);
         List<ProjectSlotHolder> updatedHolders = new ArrayList<>();
         List<ProjectSlotHolder> children = new ArrayList<>();
         children.addAll(projectLevels.get(child));
-        FindNonDependent dep = new FindNonDependent(children.stream().map(input -> input.outputReference).collect(Collectors.toSet()));
+        FindNonDependent dep =
+            new FindNonDependent(
+                children.stream().map(input -> input.outputReference).collect(Collectors.toSet()));
 
-        InputRefReplacerAnalyzer downProp = new InputRefReplacerAnalyzer(children, project.getCluster().getRexBuilder());
-        for(ProjectSlotHolder e : holders){
-          if(e.expression.accept(dep)){
+        InputRefReplacerAnalyzer downProp =
+            new InputRefReplacerAnalyzer(children, project.getCluster().getRexBuilder());
+        for (ProjectSlotHolder e : holders) {
+          if (e.expression.accept(dep)) {
             // this doesn't need the top flatten, push it down.
             final MutableRexInputRef inputPointer = new MutableRexInputRef(e.expression.getType());
             updatedHolders.add(new ProjectSlotHolder(inputPointer, e.outputReference));
@@ -367,14 +369,13 @@ public class RewriteProjectToFlattenRule extends RelOptRule {
         }
 
         // add missing expressions;
-        for(ProjectSlotHolder holder : downProp.holders){
+        for (ProjectSlotHolder holder : downProp.holders) {
           children.add(holder);
         }
 
         projectLevels.replaceValues(i, updatedHolders);
         projectLevels.replaceValues(child, children);
       }
-
     }
 
     @Override
@@ -401,25 +402,27 @@ public class RewriteProjectToFlattenRule extends RelOptRule {
         return super.visitCall(function, outgoingLevel);
       }
 
-
       final int index = ((SqlFlattenOperator) function.getOperator()).getIndex();
 
       FlattenExpression flattenOutput = flattenOutputs.get(index);
 
-      if(flattenOutput != null){
+      if (flattenOutput != null) {
         outgoingLevel.index = flattenOutput.level + 1;
         return flattenOutput.inputReference;
 
       } else {
-        Preconditions.checkArgument(function.getOperands().size() == 1, "Flatten only supports a single operand.");
+        Preconditions.checkArgument(
+            function.getOperands().size() == 1, "Flatten only supports a single operand.");
 
         LevelHolder inputLevel = new LevelHolder();
         RexNode newRexInput = function.getOperands().get(0).accept(this, inputLevel);
 
-        RelDataType type = newRexInput.getType().getComponentType() == null ? newRexInput.getType() : newRexInput.getType().getComponentType();
+        RelDataType type =
+            newRexInput.getType().getComponentType() == null
+                ? newRexInput.getType()
+                : newRexInput.getType().getComponentType();
         final MutableRexInputRef inputPointer = new MutableRexInputRef(type);
         projectLevels.put(inputLevel.index, new ProjectSlotHolder(newRexInput, inputPointer));
-
 
         final FlattenExpression flatten = new FlattenExpression(inputLevel.index, inputPointer);
         flattenOutputs.put(index, flatten);
@@ -429,9 +432,7 @@ public class RewriteProjectToFlattenRule extends RelOptRule {
         outgoingLevel.index = inputLevel.index + 1;
         return inputPointer;
       }
-
     }
-
   }
 
   private static class FindNonDependent implements RexVisitor<Boolean> {
@@ -473,9 +474,9 @@ public class RewriteProjectToFlattenRule extends RelOptRule {
       return list(call.getOperands());
     }
 
-    private boolean list(Iterable<RexNode> nodes){
+    private boolean list(Iterable<RexNode> nodes) {
       boolean out = true;
-      for(RexNode n : nodes){
+      for (RexNode n : nodes) {
         out = out && n.accept(this);
       }
       return out;
@@ -510,7 +511,5 @@ public class RewriteProjectToFlattenRule extends RelOptRule {
     public Boolean visitSubQuery(RexSubQuery subQuery) {
       return true;
     }
-
   }
-
 }

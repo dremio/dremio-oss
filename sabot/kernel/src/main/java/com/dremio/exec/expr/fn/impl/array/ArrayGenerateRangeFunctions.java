@@ -15,12 +15,6 @@
  */
 package com.dremio.exec.expr.fn.impl.array;
 
-import java.util.List;
-
-import org.apache.arrow.vector.complex.writer.BaseWriter;
-import org.apache.arrow.vector.holders.NullableIntHolder;
-import org.apache.arrow.vector.types.pojo.ArrowType;
-
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.exec.expr.SimpleFunction;
@@ -29,9 +23,17 @@ import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
 import com.dremio.exec.expr.fn.OutputDerivation;
 import com.google.common.base.Preconditions;
+import java.util.List;
+import org.apache.arrow.vector.complex.writer.BaseWriter;
+import org.apache.arrow.vector.holders.NullableIntHolder;
+import org.apache.arrow.vector.types.pojo.ArrowType;
 
 public class ArrayGenerateRangeFunctions {
-  @FunctionTemplate(names = "array_generate_range",  scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.INTERNAL, derivation = ComplexTypeElement.class)
+  @FunctionTemplate(
+      names = "array_generate_range",
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.INTERNAL,
+      derivation = ComplexTypeElement.class)
   public static class ArrayGenerateRange implements SimpleFunction {
 
     @Param private NullableIntHolder start;
@@ -39,8 +41,7 @@ public class ArrayGenerateRangeFunctions {
     @Output private BaseWriter.ComplexWriter out;
 
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
     public void eval() {
@@ -50,25 +51,25 @@ public class ArrayGenerateRangeFunctions {
       if (start.value > stop.value) {
         return;
       }
-      com.dremio.exec.expr.fn.impl.array.ArrayHelper.generateIntList(out, start.value, stop.value, 1);
+      com.dremio.exec.expr.fn.impl.array.ArrayHelper.generateIntList(
+          out, start.value, stop.value, 1);
     }
   }
 
-  @FunctionTemplate(names = "array_generate_range", scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.INTERNAL, derivation = ComplexTypeElement.class)
+  @FunctionTemplate(
+      names = "array_generate_range",
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.INTERNAL,
+      derivation = ComplexTypeElement.class)
   public static class ArrayGenerateRangeWithStep implements SimpleFunction {
 
-    @Param
-    private NullableIntHolder start;
-    @Param
-    private NullableIntHolder stop;
-    @Param
-    private NullableIntHolder step;
-    @Output
-    private BaseWriter.ComplexWriter out;
+    @Param private NullableIntHolder start;
+    @Param private NullableIntHolder stop;
+    @Param private NullableIntHolder step;
+    @Output private BaseWriter.ComplexWriter out;
 
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
     public void eval() {
@@ -79,9 +80,11 @@ public class ArrayGenerateRangeFunctions {
         throw new UnsupportedOperationException("Step should be a positive or negative number.");
       }
 
-      com.dremio.exec.expr.fn.impl.array.ArrayHelper.generateIntList(out, start.value, stop.value, step.value);
+      com.dremio.exec.expr.fn.impl.array.ArrayHelper.generateIntList(
+          out, start.value, stop.value, step.value);
     }
   }
+
   public static class ComplexTypeElement implements OutputDerivation {
     @Override
     public CompleteType getOutputType(CompleteType baseReturn, List<LogicalExpression> args) {
@@ -91,8 +94,8 @@ public class ArrayGenerateRangeFunctions {
       }
       CompleteType type = args.get(0).getCompleteType();
       return new CompleteType(
-        ArrowType.List.INSTANCE, type.toField(org.apache.arrow.vector.complex.ListVector.DATA_VECTOR_NAME)
-      );
+          ArrowType.List.INSTANCE,
+          type.toField(org.apache.arrow.vector.complex.ListVector.DATA_VECTOR_NAME));
     }
   }
 }

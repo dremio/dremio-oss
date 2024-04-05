@@ -23,9 +23,7 @@ import org.apache.lucene.index.IndexableField;
 import org.apache.lucene.util.BytesRef;
 import org.junit.Test;
 
-/**
- * Tests for SimpleDocumentWriter.
- */
+/** Tests for SimpleDocumentWriter. */
 public class TestSimpleDocumentWriter extends AbstractTestDocumentWriter<SimpleDocumentWriter> {
   @Override
   protected SimpleDocumentWriter createDocumentWriter() {
@@ -34,7 +32,8 @@ public class TestSimpleDocumentWriter extends AbstractTestDocumentWriter<SimpleD
   }
 
   @Override
-  protected void verifySingleIndexValue(SimpleDocumentWriter writer, IndexKey index, Object expectedValue) {
+  protected void verifySingleIndexValue(
+      SimpleDocumentWriter writer, IndexKey index, Object expectedValue) {
     final Object value;
     final IndexableField field = writer.getDoc().getField(index.getIndexFieldName());
     value = getValueFromField(expectedValue, field);
@@ -42,7 +41,8 @@ public class TestSimpleDocumentWriter extends AbstractTestDocumentWriter<SimpleD
   }
 
   @Override
-  protected void verifyMultiIndexValue(SimpleDocumentWriter writer, IndexKey index, Object... expectedValues) {
+  protected void verifyMultiIndexValue(
+      SimpleDocumentWriter writer, IndexKey index, Object... expectedValues) {
     for (int i = 0; i < expectedValues.length; i++) {
       final IndexableField field = writer.getDoc().getFields(index.getIndexFieldName())[i];
       final Object value = getValueFromField(expectedValues[i], field);
@@ -54,37 +54,39 @@ public class TestSimpleDocumentWriter extends AbstractTestDocumentWriter<SimpleD
   public void testLongASCIIString() {
     final IndexKey indexKey = newIndexKey(String.class, false);
     StringBuilder sb = new StringBuilder();
-    for(int i=0;i<3500;i++) {
+    for (int i = 0; i < 3500; i++) {
       sb.append("0123456789");
     }
     SimpleDocumentWriter writer = createDocumentWriter();
     writer.write(indexKey, sb.toString());
 
-    verifySingleIndexValue(writer, indexKey,  sb.substring(0, SimpleDocumentWriter.MAX_STRING_LENGTH));
+    verifySingleIndexValue(
+        writer, indexKey, sb.substring(0, SimpleDocumentWriter.MAX_STRING_LENGTH));
   }
 
   /**
-   * Prepare a large sql, such that truncation happens at middle of two-byte char,
-   * resulting in incorrect last char.
-   * Test writing and reading from SimpleDocumentWriter does have no issues.
+   * Prepare a large sql, such that truncation happens at middle of two-byte char, resulting in
+   * incorrect last char. Test writing and reading from SimpleDocumentWriter does have no issues.
    */
   @Test
   public void testLongStringWithNonAscii() {
     final IndexKey indexKey = newIndexKey(String.class, false);
     StringBuilder sb = new StringBuilder();
-    for (int i=0;i<27000/26;i++) {
+    for (int i = 0; i < 27000 / 26; i++) {
       sb.append("abcdefghijklmnopqrstuvwxyz");
     }
     sb.append("123");
-    for(int i=0;i<400;i++) {
+    for (int i = 0; i < 400; i++) {
       sb.append("\u00E4\u00FC\u00F6\u00E4\u00FC\u00F6\u00E4\u00FC\u00F6\u00E4");
     }
     SimpleDocumentWriter writer = createDocumentWriter();
     writer.write(indexKey, sb.toString());
 
     final byte[] strBytes = sb.toString().getBytes(UTF_8);
-    final BytesRef truncatedValue = new BytesRef(strBytes, 0, Math.min(strBytes.length, SimpleDocumentWriter.MAX_STRING_LENGTH));
-    verifySingleIndexValue(writer, indexKey,  truncatedValue.utf8ToString());
+    final BytesRef truncatedValue =
+        new BytesRef(
+            strBytes, 0, Math.min(strBytes.length, SimpleDocumentWriter.MAX_STRING_LENGTH));
+    verifySingleIndexValue(writer, indexKey, truncatedValue.utf8ToString());
   }
 
   @Override

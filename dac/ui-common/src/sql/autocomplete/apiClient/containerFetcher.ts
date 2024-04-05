@@ -44,7 +44,7 @@ class CacheValue {
   insert(
     prefix: string,
     containers: CatalogContainer[],
-    isExhaustive: boolean
+    isExhaustive: boolean,
   ): void {
     const lcPrefix = prefix.toLocaleLowerCase();
     let current: CacheValueNode = this.root;
@@ -65,7 +65,7 @@ class CacheValue {
     for (const char of lcPrefix) {
       if (current.value && current.value.isExhaustive) {
         return current.value.containers.filter((container) =>
-          container.name.toLocaleLowerCase().startsWith(lcPrefix)
+          container.name.toLocaleLowerCase().startsWith(lcPrefix),
         );
       }
       if (!current.children[char]) {
@@ -82,7 +82,7 @@ export type IContainerFetcher = {
     tablePath: string[],
     prefix: string,
     queryContext: string[],
-    type?: Set<ContainerType>
+    type?: Set<ContainerType>,
   ): Promise<CatalogContainer[]>;
 };
 
@@ -99,16 +99,16 @@ export class ContainerFetcher implements IContainerFetcher {
     tablePath: string[],
     prefix: string,
     queryContext: string[],
-    type?: Set<ContainerType>
+    type?: Set<ContainerType>,
   ): Promise<CatalogContainer[]> {
     const cacheKey: CacheKey = {
       tablePath: tablePath.map((pathPart: string) =>
-        pathPart.toLocaleLowerCase()
+        pathPart.toLocaleLowerCase(),
       ),
       queryContext,
     };
     const cacheEntry = this.containerCache.find((cacheEntry) =>
-      isEqual(cacheEntry[0], cacheKey)
+      isEqual(cacheEntry[0], cacheKey),
     );
     const cachedContainers = cacheEntry && cacheEntry[1].get(prefix);
     if (cachedContainers) {
@@ -127,7 +127,7 @@ export class ContainerFetcher implements IContainerFetcher {
 
   private filterByType(
     type: Set<ContainerType> | undefined,
-    containers: CatalogContainer[]
+    containers: CatalogContainer[],
   ): CatalogContainer[] {
     return containers.filter((container) => !type || type.has(container.type));
   }

@@ -15,13 +15,12 @@
  */
 package com.dremio.common.types;
 
+import com.dremio.common.expression.CompleteType;
 import java.util.Optional;
 
-import com.dremio.common.expression.CompleteType;
-
 /**
- * Contains the additional list of the supported coercions between a Mongo source {@link CompleteType} and the destination
- * table {@link CompleteType}.
+ * Contains the additional list of the supported coercions between a Mongo source {@link
+ * CompleteType} and the destination table {@link CompleteType}.
  */
 public class TypeCoercionRulesComplexAndIncompatibleToVarchar extends TypeCoercionRules {
   @Override
@@ -30,10 +29,10 @@ public class TypeCoercionRulesComplexAndIncompatibleToVarchar extends TypeCoerci
     if (result.isPresent()) {
       return result;
     } else if (!fileType.getType().equals(tableType.getType())) {
-      // At this point in code we have exhausted all up promotion and coercion rules and result is still empty
+      // At this point in code we have exhausted all up promotion and coercion rules and result is
+      // still empty
       return Optional.of(CompleteType.VARCHAR);
     }
     return Optional.empty();
   }
-
 }

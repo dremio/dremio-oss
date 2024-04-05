@@ -15,9 +15,6 @@
  */
 package com.dremio.exec.expr.fn.impl;
 
-import org.apache.arrow.vector.holders.IntHolder;
-import org.apache.arrow.vector.holders.TimeMilliHolder;
-
 import com.dremio.common.expression.ExpressionStringBuilder;
 import com.dremio.common.expression.ValueExpressions.TimeExpression;
 import com.dremio.exec.expr.SimpleFunction;
@@ -25,26 +22,29 @@ import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
+import org.apache.arrow.vector.holders.IntHolder;
+import org.apache.arrow.vector.holders.TimeMilliHolder;
 
 /**
- * Casting an int to TIME. SQL standard doesn't allow this, but we need this because we store the time constant as int
- * and during fragment construction in {@link ExpressionStringBuilder#visitTimeConstant(TimeExpression, StringBuilder)}
+ * Casting an int to TIME. SQL standard doesn't allow this, but we need this because we store the
+ * time constant as int and during fragment construction in {@link
+ * ExpressionStringBuilder#visitTimeConstant(TimeExpression, StringBuilder)}
  */
 @SuppressWarnings("unused")
-@FunctionTemplate(names = {"castTIME"}, scope = FunctionTemplate.FunctionScope.SIMPLE, nulls= NullHandling.NULL_IF_NULL)
+@FunctionTemplate(
+    names = {"castTIME"},
+    scope = FunctionTemplate.FunctionScope.SIMPLE,
+    nulls = NullHandling.NULL_IF_NULL)
 public class CastIntTime implements SimpleFunction {
 
-    @Param
-    IntHolder in;
-    @Output
-    TimeMilliHolder out;
+  @Param IntHolder in;
+  @Output TimeMilliHolder out;
 
-    @Override
-    public void setup() {
-    }
+  @Override
+  public void setup() {}
 
-    @Override
-    public void eval() {
-        out.value = in.value;
-    }
+  @Override
+  public void eval() {
+    out.value = in.value;
+  }
 }

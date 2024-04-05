@@ -16,19 +16,16 @@
 
 package com.dremio.datastore.indexed;
 
-import java.util.List;
-
-import org.immutables.value.Value;
-
 import com.dremio.datastore.RemoteDataStoreProtobuf;
 import com.dremio.datastore.RemoteDataStoreProtobuf.PutOptionInfo;
 import com.dremio.datastore.RemoteDataStoreProtobuf.PutOptionType;
 import com.dremio.datastore.api.KVStore;
+import java.util.List;
+import org.immutables.value.Value;
 
 /**
- * A shim to transport explicit IndexField values originating from
- * {@link RemoteDataStoreProtobuf} "put" requests into
- * {@link KVStore#put(Object, Object, KVStore.PutOption...)} implementations.
+ * A shim to transport explicit IndexField values originating from {@link RemoteDataStoreProtobuf}
+ * "put" requests into {@link KVStore#put(Object, Object, KVStore.PutOption...)} implementations.
  */
 @Value.Immutable
 public interface IndexPutOption extends KVStore.PutOption {
@@ -39,8 +36,8 @@ public interface IndexPutOption extends KVStore.PutOption {
   @Override
   default PutOptionInfo getPutOptionInfo() {
     return PutOptionInfo.newBuilder()
-      .setType(PutOptionType.REMOTE_INDEX)
-      .addAllIndexFields(getIndexedFields())
-      .build();
+        .setType(PutOptionType.REMOTE_INDEX)
+        .addAllIndexFields(getIndexedFields())
+        .build();
   }
 }

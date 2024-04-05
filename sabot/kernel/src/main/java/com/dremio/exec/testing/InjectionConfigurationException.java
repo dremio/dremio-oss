@@ -15,9 +15,7 @@
  */
 package com.dremio.exec.testing;
 
-/**
- * An Exception thrown when injection configuration is incorrect.
- */
+/** An Exception thrown when injection configuration is incorrect. */
 public class InjectionConfigurationException extends Exception {
   public InjectionConfigurationException(String message, Throwable throwable) {
     super(message, throwable);

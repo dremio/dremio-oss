@@ -15,22 +15,19 @@
  */
 package com.dremio.sabot.op.join.vhash;
 
+import com.google.common.base.Preconditions;
+import io.netty.util.internal.PlatformDependent;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 
-import com.google.common.base.Preconditions;
-
-import io.netty.util.internal.PlatformDependent;
-
-/**
- * Implemented to support direct memory for BitSet, which is used for key match bit set.
- */
+/** Implemented to support direct memory for BitSet, which is used for key match bit set. */
 public class MatchBitSet implements AutoCloseable {
 
   private static final int LONG_TO_BITS_SHIFT = 6;
   private static final int LONG_TO_BYTE_SHIFT = 3;
   private static final int BIT_OFFSET_MASK = (1 << LONG_TO_BITS_SHIFT) - 1;
-  private static final int WORD_MASK = (Integer.MAX_VALUE >>> LONG_TO_BITS_SHIFT) << LONG_TO_BITS_SHIFT;
+  private static final int WORD_MASK =
+      (Integer.MAX_VALUE >>> LONG_TO_BITS_SHIFT) << LONG_TO_BITS_SHIFT;
   private static final int BYTES_PER_WORD = 8;
 
   // A buffer allocated by allocator to store the bits
@@ -42,8 +39,9 @@ public class MatchBitSet implements AutoCloseable {
 
   /**
    * Creates MatchBitSet, allocates the buffer and initialized values to 0
-   * @param numBits       the number of bits
-   * @param allocator     the allocator used to allocate direct memory
+   *
+   * @param numBits the number of bits
+   * @param allocator the allocator used to allocate direct memory
    */
   public MatchBitSet(final int numBits, final BufferAllocator allocator) {
     Preconditions.checkArgument(numBits >= 0, "bits count in constructor of BitSet is invalid");
@@ -60,8 +58,9 @@ public class MatchBitSet implements AutoCloseable {
 
   /**
    * Calculates the number of words that is needed to store the bits.
-   * @param numBits   the number of bits
-   * @return          the number of words
+   *
+   * @param numBits the number of bits
+   * @return the number of words
    */
   private static int bitsToWords(final int numBits) {
     int numLong = numBits >>> LONG_TO_BITS_SHIFT;
@@ -73,7 +72,8 @@ public class MatchBitSet implements AutoCloseable {
 
   /**
    * Set the bit specified by index.
-   * @param index   the index of the bit
+   *
+   * @param index the index of the bit
    */
   public void set(final int index) {
     final int wordOffset = (index & WORD_MASK) >>> LONG_TO_BYTE_SHIFT;
@@ -85,9 +85,9 @@ public class MatchBitSet implements AutoCloseable {
 
   /**
    * Get the bit specified by index.
-   * @param index   the index of the bit
-   * @return        true if the bit is set
-   *                false if the bit is not set
+   *
+   * @param index the index of the bit
+   * @return true if the bit is set false if the bit is not set
    */
   public boolean get(final int index) {
     final int wordOffset = (index & WORD_MASK) >>> LONG_TO_BYTE_SHIFT;
@@ -96,11 +96,11 @@ public class MatchBitSet implements AutoCloseable {
   }
 
   /**
-   * Get the index of the bit that is not set.
-   * The index is the specified starting index or after it.
-   * @param index     the starting index of bits
-   * @return          the index of the bit that is not set
-   *                  >= numBits if all left bits are set
+   * Get the index of the bit that is not set. The index is the specified starting index or after
+   * it.
+   *
+   * @param index the starting index of bits
+   * @return the index of the bit that is not set >= numBits if all left bits are set
    */
   public int nextUnSetBit(final int index) {
     final int wordOffset = (index & WORD_MASK) >>> LONG_TO_BYTE_SHIFT;
@@ -116,7 +116,7 @@ public class MatchBitSet implements AutoCloseable {
     for (wordAddr += BYTES_PER_WORD; wordAddr < maxAddr; wordAddr += BYTES_PER_WORD) {
       word = ~PlatformDependent.getLong(wordAddr);
       if (word != 0) {
-        return (int)(wordAddr - bufferAddr) * 8 + Long.numberOfTrailingZeros(word);
+        return (int) (wordAddr - bufferAddr) * 8 + Long.numberOfTrailingZeros(word);
       }
     }
 
@@ -125,7 +125,8 @@ public class MatchBitSet implements AutoCloseable {
 
   /**
    * Get the count of bits that are set.
-   * @return    the count of bits that are set
+   *
+   * @return the count of bits that are set
    */
   public int cardinality() {
     int sum = 0;

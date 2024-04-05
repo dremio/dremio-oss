@@ -25,13 +25,19 @@ import com.google.protobuf.MessageLite;
  * @param <CONNECTION_TYPE> The connection type to have.
  * @param <OUTBOUND_HANDSHAKE> The handshake to send to the remote server.
  */
-abstract class AbstractClient<T extends EnumLite, CONNECTION_TYPE extends RemoteConnection, OUTBOUND_HANDSHAKE extends MessageLite> extends RpcBus<T, CONNECTION_TYPE> {
+abstract class AbstractClient<
+        T extends EnumLite,
+        CONNECTION_TYPE extends RemoteConnection,
+        OUTBOUND_HANDSHAKE extends MessageLite>
+    extends RpcBus<T, CONNECTION_TYPE> {
 
-  protected abstract void connectAsClient(RpcConnectionHandler<CONNECTION_TYPE> connectionHandler, OUTBOUND_HANDSHAKE handshakeValue, String host, int port);
+  protected abstract void connectAsClient(
+      RpcConnectionHandler<CONNECTION_TYPE> connectionHandler,
+      OUTBOUND_HANDSHAKE handshakeValue,
+      String host,
+      int port);
 
   public AbstractClient(RpcConfig rpcConfig) {
     super(rpcConfig);
   }
-
-
 }

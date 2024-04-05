@@ -15,23 +15,23 @@
  */
 package com.dremio.telemetry.api.metrics;
 
+import com.codahale.metrics.MetricRegistry;
+import com.dremio.common.DeferredException;
+import com.dremio.telemetry.api.config.MetricsConfigurator;
+import com.google.common.annotations.VisibleForTesting;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
-import com.codahale.metrics.MetricRegistry;
-import com.dremio.common.DeferredException;
-import com.dremio.telemetry.api.config.MetricsConfigurator;
-import com.google.common.annotations.VisibleForTesting;
-
 /**
- * Manages which Reporters are configured for the Metrics system. Primarily used with ClasspathScanning to determine at
- * runtime which reporters are available and register them. Will refresh based on provided options to update current
- * configured items as required.
+ * Manages which Reporters are configured for the Metrics system. Primarily used with
+ * ClasspathScanning to determine at runtime which reporters are available and register them. Will
+ * refresh based on provided options to update current configured items as required.
  */
 class ReporterManager {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ReporterManager.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ReporterManager.class);
 
   private volatile Set<MetricsConfigurator> configurators = Collections.emptySet();
   private final MetricRegistry registry;
@@ -45,7 +45,7 @@ class ReporterManager {
       final Set<MetricsConfigurator> current = new HashSet<>(configurators);
       final Set<MetricsConfigurator> toStart = new HashSet<>();
       final Set<MetricsConfigurator> totalSet = new HashSet<>();
-      for(MetricsConfigurator c : newConfs) {
+      for (MetricsConfigurator c : newConfs) {
         if (current.remove(c)) {
           totalSet.add(c);
         } else {
@@ -54,7 +54,7 @@ class ReporterManager {
         }
       }
 
-      for(MetricsConfigurator c : toStart) {
+      for (MetricsConfigurator c : toStart) {
         try {
           c.start(registry);
         } catch (Exception ex) {
@@ -68,16 +68,20 @@ class ReporterManager {
       @SuppressWarnings("resource")
       final DeferredException deferred = new DeferredException();
 
-      for(MetricsConfigurator c : current) {
+      for (MetricsConfigurator c : current) {
         deferred.suppressingClose(c);
       }
 
-      if(deferred.getException() != null) {
-        logger.warn("Failure while closing one or more metric configurations.", deferred.getException());
+      if (deferred.getException() != null) {
+        logger.warn(
+            "Failure while closing one or more metric configurations.", deferred.getException());
       }
 
-      if(toStart.size() > 0 || current.size() > 0) {
-        logger.info("Found {} new metric configurations. Found {} no longer valid metric configurations and closed.", toStart.size(), current.size());
+      if (toStart.size() > 0 || current.size() > 0) {
+        logger.info(
+            "Found {} new metric configurations. Found {} no longer valid metric configurations and closed.",
+            toStart.size(),
+            current.size());
       }
 
       configurators = totalSet;
@@ -85,7 +89,6 @@ class ReporterManager {
       logger.error("Metrics reporter refresh failed.", ex);
     }
   }
-
 
   @VisibleForTesting
   Collection<MetricsConfigurator> getParentConfigurators() {

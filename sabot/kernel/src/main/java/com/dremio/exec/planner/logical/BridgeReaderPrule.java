@@ -15,12 +15,11 @@
  */
 package com.dremio.exec.planner.logical;
 
-import org.apache.calcite.plan.RelOptRule;
-import org.apache.calcite.plan.RelOptRuleCall;
-
 import com.dremio.exec.planner.physical.BridgeReaderPrel;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.Prule;
+import org.apache.calcite.plan.RelOptRule;
+import org.apache.calcite.plan.RelOptRuleCall;
 
 public class BridgeReaderPrule extends Prule {
   public static final RelOptRule INSTANCE = new BridgeReaderPrule();
@@ -33,14 +32,13 @@ public class BridgeReaderPrule extends Prule {
   public void onMatch(RelOptRuleCall call) {
     final BridgeReaderRel bridgeReader = call.rel(0);
 
-    BridgeReaderPrel prel = new BridgeReaderPrel(
-      bridgeReader.getCluster(),
-      call.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL),
-      bridgeReader.getRowType(),
-      bridgeReader.estimateRowCount(bridgeReader.getCluster().getMetadataQuery()),
-      bridgeReader.getBridgeSetId()
-    );
+    BridgeReaderPrel prel =
+        new BridgeReaderPrel(
+            bridgeReader.getCluster(),
+            call.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL),
+            bridgeReader.getRowType(),
+            bridgeReader.estimateRowCount(bridgeReader.getCluster().getMetadataQuery()),
+            bridgeReader.getBridgeSetId());
     call.transformTo(prel);
   }
-
 }

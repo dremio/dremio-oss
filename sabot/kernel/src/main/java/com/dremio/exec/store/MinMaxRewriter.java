@@ -16,7 +16,6 @@
 package com.dremio.exec.store;
 
 import java.util.List;
-
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
@@ -25,10 +24,7 @@ import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexShuttle;
 
-/**
- * MinMaxRewriter
- * Update columns in range to reference actual min and max columns from input
- */
+/** MinMaxRewriter Update columns in range to reference actual min and max columns from input */
 public class MinMaxRewriter extends RexShuttle {
   private final RexBuilder builder;
   private final List<String> fieldNames;
@@ -63,16 +59,21 @@ public class MinMaxRewriter extends RexShuttle {
           other = arg1;
           inputFirst = false;
         }
-        final String newFieldName = fieldNames.get(inputRef.getIndex()) + getSuffix(inputFirst, isLessThan);
+        final String newFieldName =
+            fieldNames.get(inputRef.getIndex()) + getSuffix(inputFirst, isLessThan);
         int newFieldInd = input.getRowType().getFieldNames().indexOf(newFieldName);
         if (newFieldInd == -1) {
-          throw new IllegalArgumentException(String.format("Could not find column, %s, from input, %s.", newFieldName, input.getRowType()));
+          throw new IllegalArgumentException(
+              String.format(
+                  "Could not find column, %s, from input, %s.", newFieldName, input.getRowType()));
         }
         final RexInputRef newInput = builder.makeInputRef(input, newFieldInd);
-        return inputFirst ? builder.makeCall(call.getOperator(), newInput, other) : builder.makeCall(call.getOperator(), other, newInput);
+        return inputFirst
+            ? builder.makeCall(call.getOperator(), newInput, other)
+            : builder.makeCall(call.getOperator(), other, newInput);
       case AND:
       case OR:
-        final List<RexNode> andOrOperands = visitList(call.operands, new boolean[]{false});
+        final List<RexNode> andOrOperands = visitList(call.operands, new boolean[] {false});
         return builder.makeCall(call.getOperator(), andOrOperands);
       default:
         return call;

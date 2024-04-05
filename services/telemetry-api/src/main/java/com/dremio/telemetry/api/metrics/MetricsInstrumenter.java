@@ -15,20 +15,16 @@
  */
 package com.dremio.telemetry.api.metrics;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.util.concurrent.Callable;
-
 import javax.annotation.CheckReturnValue;
 
-import com.google.common.annotations.VisibleForTesting;
-
 /**
- * A Metrics Logger/Instrumenter.
- * It's a helper class to allow logging basic counters and timers
- * using a simple API based on runnables and callables.
- * Operation instrumented by this class follow the following convention:
- * - [serviceName].[operationName].count for the number of times this operation has been called.
- * - [serviceName].[operationName].error for the number of errors.
- * - [serviceName].[operationName].time for the time it took to complete the operation.
+ * A Metrics Logger/Instrumenter. It's a helper class to allow logging basic counters and timers
+ * using a simple API based on runnables and callables. Operation instrumented by this class follow
+ * the following convention: - [serviceName].[operationName].count for the number of times this
+ * operation has been called. - [serviceName].[operationName].error for the number of errors. -
+ * [serviceName].[operationName].time for the time it took to complete the operation.
  */
 public final class MetricsInstrumenter {
   static final String ERROR_METRIC_SUFFIX = "error";
@@ -39,7 +35,9 @@ public final class MetricsInstrumenter {
   private final MetricsProvider provider;
 
   /**
-   * Constructs a metrics instrumenter which service name is defined from the name of the passed in class.
+   * Constructs a metrics instrumenter which service name is defined from the name of the passed in
+   * class.
+   *
    * @param serviceClass The class for which the service name is derived from.
    * @param <T> The class.
    */
@@ -50,6 +48,7 @@ public final class MetricsInstrumenter {
   /**
    * Constructs a metrics instrumenter which service name is passed in as parameter and which
    * counters and timers are created from the passed in provider.
+   *
    * @param serviceName The name of the service for this instrumenter.
    * @param provider The metrics provider used to create counters and timers used.
    */
@@ -61,6 +60,7 @@ public final class MetricsInstrumenter {
 
   /**
    * Runs the provided runnable, logging count, errors and time.
+   *
    * @param operationName The name of the operation.
    * @param runnable The runnable to run.
    */
@@ -69,10 +69,11 @@ public final class MetricsInstrumenter {
   }
 
   /**
-   * Calls the provided Callable, logging count, errors and time.
-   * Note: This method will wrap checked exceptions in a RuntimeException, since the callable
-   * is being called as part of logging the metric. If you want to get the actual checked exception
-   * you can use the instrument method that doesn't wrap checked exceptions.
+   * Calls the provided Callable, logging count, errors and time. Note: This method will wrap
+   * checked exceptions in a RuntimeException, since the callable is being called as part of logging
+   * the metric. If you want to get the actual checked exception you can use the instrument method
+   * that doesn't wrap checked exceptions.
+   *
    * @param operationName The name of the operation.
    * @param callable The callable to call.
    * @param <T> The return type of the callable.
@@ -89,8 +90,9 @@ public final class MetricsInstrumenter {
   }
 
   /**
-   * Instruments the provided runnable returning another runnable
-   * that when run logs count, errors and time.
+   * Instruments the provided runnable returning another runnable that when run logs count, errors
+   * and time.
+   *
    * @param operationName The name of the operation.
    * @param runnable The runnable to instrument.
    * @return An instrumented runnable.
@@ -98,8 +100,10 @@ public final class MetricsInstrumenter {
   @CheckReturnValue
   public Runnable instrument(String operationName, Runnable runnable) {
     return () -> {
-      Counter counter = provider.counter(Metrics.join(serviceName, operationName, COUNT_METRIC_SUFFIX));
-      Counter errorCounter = provider.counter(Metrics.join(serviceName, operationName, ERROR_METRIC_SUFFIX));
+      Counter counter =
+          provider.counter(Metrics.join(serviceName, operationName, COUNT_METRIC_SUFFIX));
+      Counter errorCounter =
+          provider.counter(Metrics.join(serviceName, operationName, ERROR_METRIC_SUFFIX));
       Timer timer = provider.timer(Metrics.join(serviceName, operationName, TIME_METRIC_SUFFIX));
       try (Timer.TimerContext timerContext = timer.start()) {
         runnable.run();
@@ -113,8 +117,9 @@ public final class MetricsInstrumenter {
   }
 
   /**
-   * Instruments the provided callable returning another callable
-   * that when calls logs count, errors and time.
+   * Instruments the provided callable returning another callable that when calls logs count, errors
+   * and time.
+   *
    * @param operationName The name of the operation.
    * @param callable The callable to instrument.
    * @param <T> The return type of the callable.
@@ -123,10 +128,12 @@ public final class MetricsInstrumenter {
   @CheckReturnValue
   public <T> Callable<T> instrument(String operationName, Callable<T> callable) {
     return () -> {
-      Counter counter = provider.counter(Metrics.join(serviceName, operationName, COUNT_METRIC_SUFFIX));
-      Counter errorCounter = provider.counter(Metrics.join(serviceName, operationName, ERROR_METRIC_SUFFIX));
+      Counter counter =
+          provider.counter(Metrics.join(serviceName, operationName, COUNT_METRIC_SUFFIX));
+      Counter errorCounter =
+          provider.counter(Metrics.join(serviceName, operationName, ERROR_METRIC_SUFFIX));
       Timer timer = provider.timer(Metrics.join(serviceName, operationName, TIME_METRIC_SUFFIX));
-      try(Timer.TimerContext timerContext = timer.start()) {
+      try (Timer.TimerContext timerContext = timer.start()) {
         return callable.call();
       } catch (Throwable throwable) {
         errorCounter.increment();

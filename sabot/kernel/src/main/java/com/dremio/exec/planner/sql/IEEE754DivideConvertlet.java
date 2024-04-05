@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.planner.sql;
 
+import com.google.common.collect.ImmutableList;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rex.RexBuilder;
@@ -24,38 +25,39 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql2rel.SqlRexContext;
 import org.apache.calcite.sql2rel.SqlRexConvertlet;
 
-import com.google.common.collect.ImmutableList;
-
 public class IEEE754DivideConvertlet implements SqlRexConvertlet {
   public static final SqlRexConvertlet INSTANCE = new IEEE754DivideConvertlet();
 
   @Override
-  public RexNode convertCall(SqlRexContext sqlRexContext,
-      SqlCall sqlCall) {
+  public RexNode convertCall(SqlRexContext sqlRexContext, SqlCall sqlCall) {
     assert sqlCall.getOperandList().size() == 2;
     RexBuilder rexBuilder = sqlRexContext.getRexBuilder();
     RelDataTypeFactory typeFactory = rexBuilder.getTypeFactory();
     RexNode numerator = sqlRexContext.convertExpression(sqlCall.getOperandList().get(0));
     RexNode denominator = sqlRexContext.convertExpression(sqlCall.getOperandList().get(1));
     RelDataType type =
-      typeFactory.leastRestrictive(ImmutableList.of(numerator.getType(), denominator.getType()));
+        typeFactory.leastRestrictive(ImmutableList.of(numerator.getType(), denominator.getType()));
 
     switch (type.getSqlTypeName()) {
       case FLOAT:
-      case DOUBLE: {
-        RexNode zero = rexBuilder.makeZeroLiteral(type);
-        RexNode infinity = rexBuilder.makeCast(type, rexBuilder.makeLiteral("Infinity"));
-        RexNode negativeInfinity =
-          rexBuilder.makeCast(type, rexBuilder.makeLiteral("-Infinity"));
-        RexNode nan = rexBuilder.makeCast(type, rexBuilder.makeLiteral("NaN"));
-        return rexBuilder.makeCall(SqlStdOperatorTable.CASE,
-          rexBuilder.makeCall(SqlStdOperatorTable.EQUALS, denominator, zero),
-            rexBuilder.makeCall(SqlStdOperatorTable.CASE,
-              rexBuilder.makeCall(SqlStdOperatorTable.GREATER_THAN, numerator, zero), infinity,
-              rexBuilder.makeCall(SqlStdOperatorTable.LESS_THAN, numerator, zero), negativeInfinity,
-              nan),
-          rexBuilder.makeCall(SqlStdOperatorTable.DIVIDE, numerator, denominator));
-      }
+      case DOUBLE:
+        {
+          RexNode zero = rexBuilder.makeZeroLiteral(type);
+          RexNode infinity = rexBuilder.makeCast(type, rexBuilder.makeLiteral("Infinity"));
+          RexNode negativeInfinity = rexBuilder.makeCast(type, rexBuilder.makeLiteral("-Infinity"));
+          RexNode nan = rexBuilder.makeCast(type, rexBuilder.makeLiteral("NaN"));
+          return rexBuilder.makeCall(
+              SqlStdOperatorTable.CASE,
+              rexBuilder.makeCall(SqlStdOperatorTable.EQUALS, denominator, zero),
+              rexBuilder.makeCall(
+                  SqlStdOperatorTable.CASE,
+                  rexBuilder.makeCall(SqlStdOperatorTable.GREATER_THAN, numerator, zero),
+                  infinity,
+                  rexBuilder.makeCall(SqlStdOperatorTable.LESS_THAN, numerator, zero),
+                  negativeInfinity,
+                  nan),
+              rexBuilder.makeCall(SqlStdOperatorTable.DIVIDE, numerator, denominator));
+        }
       default:
         return rexBuilder.makeCall(SqlStdOperatorTable.DIVIDE, numerator, denominator);
     }

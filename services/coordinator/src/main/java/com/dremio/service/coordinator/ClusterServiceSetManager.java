@@ -17,9 +17,7 @@ package com.dremio.service.coordinator;
 
 import com.dremio.service.Service;
 
-/**
- * Interface to cluster service set manager.
- */
+/** Interface to cluster service set manager. */
 public interface ClusterServiceSetManager extends Service {
   /**
    * Get a provider which returns the up-to-date list of endpoints for a given role.
@@ -32,6 +30,7 @@ public interface ClusterServiceSetManager extends Service {
 
   /**
    * Get or create a {@link ServiceSet} for the given service name
+   *
    * @param serviceName
    * @return
    */
@@ -39,13 +38,15 @@ public interface ClusterServiceSetManager extends Service {
 
   /**
    * Delete a {@link ServiceSet} for the given service name
+   *
    * @param serviceName
    */
   void deleteServiceSet(String serviceName);
 
   /**
-   * Get the set of service names registered in the ClusterCoordinator ServiceSet.
-   * NOTE: There is no guarantee of return object consistency depending on how Dremio is tracking the registered serivces.
+   * Get the set of service names registered in the ClusterCoordinator ServiceSet. NOTE: There is no
+   * guarantee of return object consistency depending on how Dremio is tracking the registered
+   * serivces.
    *
    * @return An Iterable of service names.
    */

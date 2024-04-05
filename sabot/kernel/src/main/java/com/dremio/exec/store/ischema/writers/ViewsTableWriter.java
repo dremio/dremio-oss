@@ -16,25 +16,19 @@
 
 package com.dremio.exec.store.ischema.writers;
 
-import java.util.Iterator;
-import java.util.Set;
-
 import com.dremio.exec.store.ischema.metadata.InformationSchemaMetadata;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.dremio.service.catalog.View;
+import java.util.Iterator;
+import java.util.Set;
 
-/**
- * Writes "INFORMATION_SCHEMA"."VIEWS" table.
- */
+/** Writes "INFORMATION_SCHEMA"."VIEWS" table. */
 public class ViewsTableWriter extends TableWriter<View> {
 
   private final String catalogNameOverride;
 
   public ViewsTableWriter(
-    Iterator<View> messageIterator,
-    Set<String> selectedFields,
-    String catalogNameOverride
-  ) {
+      Iterator<View> messageIterator, Set<String> selectedFields, String catalogNameOverride) {
     super(messageIterator, selectedFields);
 
     this.catalogNameOverride = catalogNameOverride;
@@ -42,10 +36,13 @@ public class ViewsTableWriter extends TableWriter<View> {
 
   @Override
   public void init(OutputMutator outputMutator) {
-    addStringWriter(InformationSchemaMetadata.TABLE_CATALOG, outputMutator,
-      catalogNameOverride != null ? ignored -> catalogNameOverride : View::getCatalogName);
+    addStringWriter(
+        InformationSchemaMetadata.TABLE_CATALOG,
+        outputMutator,
+        catalogNameOverride != null ? ignored -> catalogNameOverride : View::getCatalogName);
     addStringWriter(InformationSchemaMetadata.TABLE_SCHEMA, outputMutator, View::getSchemaName);
     addStringWriter(InformationSchemaMetadata.TABLE_NAME, outputMutator, View::getTableName);
-    addStringWriter(InformationSchemaMetadata.VIEW_DEFINITION, outputMutator, View::getViewDefinition);
+    addStringWriter(
+        InformationSchemaMetadata.VIEW_DEFINITION, outputMutator, View::getViewDefinition);
   }
 }

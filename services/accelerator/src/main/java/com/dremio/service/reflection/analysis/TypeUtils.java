@@ -15,19 +15,14 @@
  */
 package com.dremio.service.reflection.analysis;
 
+import com.dremio.service.reflection.analysis.ReflectionAnalyzer.RField;
 import java.util.Optional;
-
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.sql.type.SqlTypeFamily;
 
-import com.dremio.service.reflection.analysis.ReflectionAnalyzer.RField;
-
-/**
- * Utility methods used to inspect sql types.
- */
+/** Utility methods used to inspect sql types. */
 public final class TypeUtils {
-  private TypeUtils() {
-  }
+  private TypeUtils() {}
 
   public static boolean isText(final RField field) {
     final Optional<SqlTypeFamily> familyOpt = getSqlTypeFamily(field);

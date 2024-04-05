@@ -17,12 +17,6 @@ package com.dremio.sabot.op.sender.partition.vectorized;
 
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
-import java.util.List;
-
-import org.apache.arrow.vector.FieldVector;
-import org.apache.arrow.vector.VariableWidthVector;
-import org.apache.arrow.vector.util.TransferPair;
-
 import com.dremio.common.expression.CompleteType;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.common.ht2.Reallocators;
@@ -30,13 +24,16 @@ import com.dremio.sabot.op.sender.partition.PartitionSenderOperator.Metric;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableList;
-
 import io.netty.util.internal.PlatformDependent;
+import java.util.List;
+import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.VariableWidthVector;
+import org.apache.arrow.vector.util.TransferPair;
 
 /**
  * Vectorized field buffer copier that handles copying a single field to multiple destinations.<br>
- * Has reference to all destinations' field vectors (2 per destination that point to batches A and B)
- * So from the copier perspective, all batches are different destinations
+ * Has reference to all destinations' field vectors (2 per destination that point to batches A and
+ * B) So from the copier perspective, all batches are different destinations
  */
 public abstract class MultiDestCopier {
 
@@ -59,12 +56,12 @@ public abstract class MultiDestCopier {
     int i;
     switch (bufferOrdinal) {
       case 0:
-        for(i = 0; i < targets.length; i++){
+        for (i = 0; i < targets.length; i++) {
           dstAddrs[i] = targets[i].getValidityBufferAddress();
         }
         break;
       case 1:
-        for(i = 0; i < targets.length; i++){
+        for (i = 0; i < targets.length; i++) {
           if (targets[i] instanceof VariableWidthVector) {
             dstAddrs[i] = targets[i].getOffsetBufferAddress();
           } else {
@@ -73,7 +70,7 @@ public abstract class MultiDestCopier {
         }
         break;
       case 2:
-        for(i = 0; i < targets.length; i++){
+        for (i = 0; i < targets.length; i++) {
           dstAddrs[i] = targets[i].getDataBufferAddress();
         }
         break;
@@ -87,11 +84,12 @@ public abstract class MultiDestCopier {
   }
 
   /**
-   * copy a given number of rows from the incoming buffer to the destinations defined in the offset buffer
+   * copy a given number of rows from the incoming buffer to the destinations defined in the offset
+   * buffer
    *
-   * @param compoundAddr  compound(batchIdx, rowIdx) buffer
-   * @param srcStart      row number, in source, copy should start
-   * @param count         num rows to copy
+   * @param compoundAddr compound(batchIdx, rowIdx) buffer
+   * @param srcStart row number, in source, copy should start
+   * @param count num rows to copy
    */
   public abstract void copy(long compoundAddr, int srcStart, int count);
 
@@ -123,7 +121,6 @@ public abstract class MultiDestCopier {
     private final Stopwatch copyWatch;
 
     /**
-     *
      * @param source field to be copied from the incoming buffer
      * @param targets all target destinations we will be copying to
      */
@@ -143,12 +140,13 @@ public abstract class MultiDestCopier {
       long srcAddr = source.getDataBufferAddress() + srcStart * SIZE;
 
       final long max = compoundAddr + count * OFFSET_SIZE;
-      for (; compoundAddr < max; compoundAddr +=OFFSET_SIZE, srcAddr += SIZE) {
+      for (; compoundAddr < max; compoundAddr += OFFSET_SIZE, srcAddr += SIZE) {
         final int compoundIdx = PlatformDependent.getInt(compoundAddr);
         final int batchIdx = compoundIdx >>> 16;
         final int rowIdx = compoundIdx & 65535;
 
-        PlatformDependent.putInt(dstAddrs[batchIdx] + rowIdx * SIZE, PlatformDependent.getInt(srcAddr));
+        PlatformDependent.putInt(
+            dstAddrs[batchIdx] + rowIdx * SIZE, PlatformDependent.getInt(srcAddr));
       }
 
       copyWatch.stop();
@@ -163,7 +161,6 @@ public abstract class MultiDestCopier {
     private final Stopwatch copyWatch;
 
     /**
-     *
      * @param source field to be copied from the incoming buffer
      * @param targets all target destinations we will be copying to
      */
@@ -182,12 +179,13 @@ public abstract class MultiDestCopier {
       long srcAddr = source.getDataBufferAddress() + srcStart * SIZE;
 
       final long max = compoundAddr + count * OFFSET_SIZE;
-      for (; compoundAddr < max; compoundAddr +=OFFSET_SIZE, srcAddr += SIZE) {
+      for (; compoundAddr < max; compoundAddr += OFFSET_SIZE, srcAddr += SIZE) {
         final int compoundIdx = PlatformDependent.getInt(compoundAddr);
         final int batchIdx = compoundIdx >>> 16;
         final int rowIdx = compoundIdx & 65535;
 
-        PlatformDependent.putLong(dstAddrs[batchIdx] + rowIdx * SIZE, PlatformDependent.getLong(srcAddr));
+        PlatformDependent.putLong(
+            dstAddrs[batchIdx] + rowIdx * SIZE, PlatformDependent.getLong(srcAddr));
       }
 
       copyWatch.stop();
@@ -220,7 +218,7 @@ public abstract class MultiDestCopier {
       long srcAddr = source.getDataBufferAddress() + srcStart * SIZE;
 
       final long max = compoundAddr + count * OFFSET_SIZE;
-      for (; compoundAddr < max; compoundAddr +=OFFSET_SIZE, srcAddr += SIZE) {
+      for (; compoundAddr < max; compoundAddr += OFFSET_SIZE, srcAddr += SIZE) {
         final int compoundIdx = PlatformDependent.getInt(compoundAddr);
         final int batchIdx = compoundIdx >>> 16;
         final int rowIdx = compoundIdx & 65535;
@@ -276,7 +274,7 @@ public abstract class MultiDestCopier {
       srcOffsetAddr += 4; // srcOffsetAddr always points to the next offset
 
       final long max = compoundAddr + count * OFFSET_SIZE;
-      for (; compoundAddr < max; compoundAddr +=OFFSET_SIZE) {
+      for (; compoundAddr < max; compoundAddr += OFFSET_SIZE) {
         // compute the length of the value we are about to copy from src
         final int nextSrcOffset = PlatformDependent.getInt(srcOffsetAddr);
         final int len = nextSrcOffset - srcOffset;
@@ -293,7 +291,7 @@ public abstract class MultiDestCopier {
 
         // ensure target buffer is big enough
         final Reallocators.Reallocator realloc = reallocs[batchIdx];
-        if(dstDataAddr + len > realloc.max()){
+        if (dstDataAddr + len > realloc.max()) {
           final long newDataAddr = realloc.ensure(dstOffset + len);
           dstDataAddr = newDataAddr + dstOffset;
           dstAddrs[batchIdx] = newDataAddr;
@@ -320,7 +318,12 @@ public abstract class MultiDestCopier {
 
     private final Stopwatch copyWatch;
 
-    BitCopier(FieldVector source, int fieldId, FieldVector[] targets, int bufferOrdinal, Stopwatch copyWatch) {
+    BitCopier(
+        FieldVector source,
+        int fieldId,
+        FieldVector[] targets,
+        int bufferOrdinal,
+        Stopwatch copyWatch) {
       super(targets, fieldId, bufferOrdinal);
       this.source = source;
       this.bufferOrdinal = bufferOrdinal;
@@ -347,7 +350,7 @@ public abstract class MultiDestCopier {
       }
 
       final long max = compoundAddr + count * OFFSET_SIZE;
-      for(; compoundAddr < max; compoundAddr +=OFFSET_SIZE, srcStart++){
+      for (; compoundAddr < max; compoundAddr += OFFSET_SIZE, srcStart++) {
         final int compoundIdx = PlatformDependent.getInt(compoundAddr);
         final int batchIdx = compoundIdx >>> 16;
         final int rowIdx = compoundIdx & 65535;
@@ -360,7 +363,6 @@ public abstract class MultiDestCopier {
 
       copyWatch.stop();
     }
-
   }
 
   static class GenericCopier extends MultiDestCopier {
@@ -385,7 +387,7 @@ public abstract class MultiDestCopier {
       copyWatch.start();
 
       final long max = compoundAddr + count * OFFSET_SIZE;
-      for(int from = srcStart; compoundAddr < max; compoundAddr +=OFFSET_SIZE, from++) {
+      for (int from = srcStart; compoundAddr < max; compoundAddr += OFFSET_SIZE, from++) {
         final int compoundIdx = PlatformDependent.getInt(compoundAddr);
         final int batchIdx = compoundIdx >>> 16;
         final int rowIdx = compoundIdx & 65535;
@@ -406,22 +408,29 @@ public abstract class MultiDestCopier {
     return true;
   }
 
-  private static void addValueCopier(final FieldVector source, final int fieldId, final FieldVector[] targets,
-                                     ImmutableList.Builder<MultiDestCopier> copiers, CopyWatches copyWatches) {
-    Preconditions.checkArgument(sameClass(source, targets), "Input and output vectors must be same type.");
+  private static void addValueCopier(
+      final FieldVector source,
+      final int fieldId,
+      final FieldVector[] targets,
+      ImmutableList.Builder<MultiDestCopier> copiers,
+      CopyWatches copyWatches) {
+    Preconditions.checkArgument(
+        sameClass(source, targets), "Input and output vectors must be same type.");
     switch (CompleteType.fromField(source.getField()).toMinorType()) {
-
       case TIMESTAMP:
       case FLOAT8:
       case BIGINT:
       case INTERVALDAY:
       case DATE:
         copiers.add(new EightByteCopier(source, fieldId, targets, copyWatches.getFixed()));
-        copiers.add(new BitCopier(source, fieldId, targets, NULL_BUFFER_ORDINAL, copyWatches.getBinary()));
+        copiers.add(
+            new BitCopier(source, fieldId, targets, NULL_BUFFER_ORDINAL, copyWatches.getBinary()));
         break;
       case BIT:
-        copiers.add(new BitCopier(source, fieldId, targets, VALUE_BUFFER_ORDINAL, copyWatches.getBinary()));
-        copiers.add(new BitCopier(source, fieldId, targets, NULL_BUFFER_ORDINAL, copyWatches.getBinary()));
+        copiers.add(
+            new BitCopier(source, fieldId, targets, VALUE_BUFFER_ORDINAL, copyWatches.getBinary()));
+        copiers.add(
+            new BitCopier(source, fieldId, targets, NULL_BUFFER_ORDINAL, copyWatches.getBinary()));
         break;
 
       case TIME:
@@ -429,18 +438,21 @@ public abstract class MultiDestCopier {
       case INT:
       case INTERVALYEAR:
         copiers.add(new FourByteCopier(source, fieldId, targets, copyWatches.getFixed()));
-        copiers.add(new BitCopier(source, fieldId, targets, NULL_BUFFER_ORDINAL, copyWatches.getBinary()));
+        copiers.add(
+            new BitCopier(source, fieldId, targets, NULL_BUFFER_ORDINAL, copyWatches.getBinary()));
         break;
 
       case VARBINARY:
       case VARCHAR:
         copiers.add(new VariableCopier(source, fieldId, targets, copyWatches.getVariable()));
-        copiers.add(new BitCopier(source, fieldId, targets, NULL_BUFFER_ORDINAL, copyWatches.getBinary()));
+        copiers.add(
+            new BitCopier(source, fieldId, targets, NULL_BUFFER_ORDINAL, copyWatches.getBinary()));
         break;
 
       case DECIMAL:
         copiers.add(new SixteenByteCopier(source, fieldId, targets, copyWatches.getFixed()));
-        copiers.add(new BitCopier(source, fieldId, targets, NULL_BUFFER_ORDINAL, copyWatches.getBinary()));
+        copiers.add(
+            new BitCopier(source, fieldId, targets, NULL_BUFFER_ORDINAL, copyWatches.getBinary()));
         break;
 
       case MAP:
@@ -455,8 +467,8 @@ public abstract class MultiDestCopier {
     }
   }
 
-  static ImmutableList<MultiDestCopier> getCopiers(final List<FieldVector> inputs, OutgoingBatch[] batches,
-                                                          CopyWatches copyWatches) {
+  static ImmutableList<MultiDestCopier> getCopiers(
+      final List<FieldVector> inputs, OutgoingBatch[] batches, CopyWatches copyWatches) {
     ImmutableList.Builder<MultiDestCopier> copiers = ImmutableList.builder();
     final int numFields = inputs.size();
     final int numBatches = batches.length;
@@ -466,7 +478,8 @@ public abstract class MultiDestCopier {
     final FieldVector[][] outputs = new FieldVector[numFields][numBatches];
     for (int b = 0; b < numBatches; b++) {
       final List<FieldVector> fieldVectors = batches[b].getFieldVectors();
-      Preconditions.checkArgument(numFields == fieldVectors.size(), "Input and output lists must be same size.");
+      Preconditions.checkArgument(
+          numFields == fieldVectors.size(), "Input and output lists must be same size.");
       for (int f = 0; f < numFields; f++) {
         outputs[f][b] = fieldVectors.get(f);
       }
@@ -509,5 +522,4 @@ public abstract class MultiDestCopier {
       return genericCopy;
     }
   }
-
 }

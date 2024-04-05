@@ -18,8 +18,8 @@ package com.dremio.plugins.elastic;
 import com.dremio.plugins.elastic.ElasticBaseTestQuery.ScriptsEnabled;
 
 /**
- * Test for elasticsearch contains with scripts disabled.  Runs all the tests in parent class with scripts disabled.
+ * Test for elasticsearch contains with scripts disabled. Runs all the tests in parent class with
+ * scripts disabled.
  */
 @ScriptsEnabled(enabled = false)
-public class ITTestElasticsearchContainsWithScriptsDisabled extends ITTestElasticsearchContains {
-}
+public class ITTestElasticsearchContainsWithScriptsDisabled extends ITTestElasticsearchContains {}

@@ -15,21 +15,19 @@
  */
 package com.dremio.plugins.elastic;
 
-import javax.validation.constraints.Max;
-import javax.validation.constraints.Min;
-
 import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.catalog.conf.DisplayMetadata;
 import com.dremio.exec.catalog.conf.EncryptionValidationMode;
 import com.dremio.exec.catalog.conf.NotMetadataImpacting;
 import com.dremio.exec.store.StoragePlugin;
-
 import io.protostuff.Tag;
+import javax.validation.constraints.Max;
+import javax.validation.constraints.Min;
 
-/**
- * Base configuration for the Elasticseach storage plugin.
- */
-public abstract class BaseElasticStoragePluginConfig<T extends ConnectionConf<T, P>, P extends StoragePlugin> extends ConnectionConf<T, P> {
+/** Base configuration for the Elasticseach storage plugin. */
+public abstract class BaseElasticStoragePluginConfig<
+        T extends ConnectionConf<T, P>, P extends StoragePlugin>
+    extends ConnectionConf<T, P> {
 
   //  optional reserved for upgrade of regular Elasticsearch
   //  optional reserved for upgrade of regular Elasticsearch
@@ -85,29 +83,34 @@ public abstract class BaseElasticStoragePluginConfig<T extends ConnectionConf<T,
   public int scrollSize = 4000;
 
   @Tag(14)
-  @DisplayMetadata(label = "Use index/doc fields when pushing down aggregates and filters on analyzed and normalized fields (may produce unexpected results)")
+  @DisplayMetadata(
+      label =
+          "Use index/doc fields when pushing down aggregates and filters on analyzed and normalized fields (may produce unexpected results)")
   public boolean allowPushdownOnNormalizedOrAnalyzedFields = false;
 
   @Tag(20)
-  @DisplayMetadata(label = "Perform keyword searches when pushing down fields mapped as text and keyword")
+  @DisplayMetadata(
+      label = "Perform keyword searches when pushing down fields mapped as text and keyword")
   public boolean pushdownWithKeyword = false;
 
   @Tag(15)
   @NotMetadataImpacting
-  @DisplayMetadata(label = "If the number of records returned from Elasticsearch is less than the expected number, warn instead of failing the query")
+  @DisplayMetadata(
+      label =
+          "If the number of records returned from Elasticsearch is less than the expected number, warn instead of failing the query")
   public boolean warnOnRowCountMismatch = false;
 
   @Tag(16)
   @NotMetadataImpacting
   @DisplayMetadata(label = "Validation Mode") // Should be under Encryption section
-  public EncryptionValidationMode encryptionValidationMode = EncryptionValidationMode.CERTIFICATE_AND_HOSTNAME_VALIDATION;
+  public EncryptionValidationMode encryptionValidationMode =
+      EncryptionValidationMode.CERTIFICATE_AND_HOSTNAME_VALIDATION;
 
   @Tag(19)
   @DisplayMetadata(label = "Force Double Precision")
   public boolean forceDoublePrecision = false;
 
-  public BaseElasticStoragePluginConfig() {
-  }
+  public BaseElasticStoragePluginConfig() {}
 
   public BaseElasticStoragePluginConfig(
       boolean scriptsEnabled,

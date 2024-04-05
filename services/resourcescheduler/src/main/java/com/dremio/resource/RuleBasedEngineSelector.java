@@ -18,22 +18,18 @@ package com.dremio.resource;
 
 import com.dremio.resource.common.ResourceSchedulingContext;
 
-/**
- * select and return engine after evaluating rules against the current query context
- */
+/** select and return engine after evaluating rules against the current query context */
 public interface RuleBasedEngineSelector {
 
   public String resolveAndUpdateEngine(ResourceSchedulingContext queryContext);
 
-  /**
-   * NO_OP implementation
-   */
-  public static final RuleBasedEngineSelector NO_OP = new RuleBasedEngineSelector() {
+  /** NO_OP implementation */
+  public static final RuleBasedEngineSelector NO_OP =
+      new RuleBasedEngineSelector() {
 
-    @Override
-    public String resolveAndUpdateEngine(ResourceSchedulingContext queryContext) {
-      return null;
-    }
-  };
-
+        @Override
+        public String resolveAndUpdateEngine(ResourceSchedulingContext queryContext) {
+          return null;
+        }
+      };
 }

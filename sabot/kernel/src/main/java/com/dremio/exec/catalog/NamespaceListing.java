@@ -15,10 +15,6 @@
  */
 package com.dremio.exec.catalog;
 
-import java.util.Iterator;
-import java.util.NoSuchElementException;
-import java.util.Optional;
-
 import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.DatasetHandleListing;
@@ -32,10 +28,14 @@ import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
+import java.util.Iterator;
+import java.util.NoSuchElementException;
+import java.util.Optional;
 
 /**
- * Adapts listing of keys in namespace to {@link DatasetHandleListing}. This provides the listing interface by
- * performing a list of point lookups on {@link SourceMetadata} for the known datasets in the source.
+ * Adapts listing of keys in namespace to {@link DatasetHandleListing}. This provides the listing
+ * interface by performing a list of point lookups on {@link SourceMetadata} for the known datasets
+ * in the source.
  */
 public class NamespaceListing implements DatasetHandleListing {
 
@@ -48,8 +48,7 @@ public class NamespaceListing implements DatasetHandleListing {
       NamespaceService namespaceService,
       NamespaceKey sourceKey,
       SourceMetadata sourceMetadata,
-      DatasetRetrievalOptions options
-  ) {
+      DatasetRetrievalOptions options) {
     this.namespaceService = namespaceService;
     this.sourceKey = sourceKey;
     this.sourceMetadata = sourceMetadata;
@@ -74,7 +73,8 @@ public class NamespaceListing implements DatasetHandleListing {
   }
 
   /**
-   * Iterator that lazily transforms {@link NamespaceKey namespace keys} into {@link DatasetHandle dataset handles}.
+   * Iterator that lazily transforms {@link NamespaceKey namespace keys} into {@link DatasetHandle
+   * dataset handles}.
    */
   private class TransformingIterator implements Iterator<DatasetHandle> {
 
@@ -132,7 +132,9 @@ public class NamespaceListing implements DatasetHandleListing {
 
         final Optional<DatasetHandle> handle;
         try {
-          handle = sourceMetadata.getDatasetHandle(entityPath, options.asGetDatasetOptions(currentConfig));
+          handle =
+              sourceMetadata.getDatasetHandle(
+                  entityPath, options.asGetDatasetOptions(currentConfig));
         } catch (DatasetMetadataTooLargeException e) {
           throw new DatasetMetadataTooLargeException(nextKey.getSchemaPath(), e);
         } catch (ConnectorException e) {

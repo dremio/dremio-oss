@@ -15,16 +15,14 @@
  */
 package com.dremio.exec.catalog;
 
+import com.dremio.catalog.model.CatalogEntityKey;
 import java.util.List;
-
 import org.apache.commons.lang3.tuple.Pair;
 
-import com.dremio.service.namespace.NamespaceKey;
-
 /**
- * Metadata verify result returned by
- * {@link EntityExplorer#verifyTableMetadata(NamespaceKey, TableMetadataVerifyRequest)}
- * for metadata verify request of {@link TableMetadataVerifyAppendOnlyRequest}
+ * Metadata verify result returned by {@link EntityExplorer#verifyTableMetadata(CatalogEntityKey,
+ * TableMetadataVerifyRequest)} for metadata verify request of {@link
+ * TableMetadataVerifyAppendOnlyRequest}
  */
 public interface TableMetadataVerifyAppendOnlyResult extends TableMetadataVerifyResult {
   enum ResultCode {

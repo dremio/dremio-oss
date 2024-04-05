@@ -15,8 +15,9 @@
  */
 package com.dremio.exec.planner.physical.rule;
 
+import com.dremio.exec.planner.physical.NestedLoopJoinPrel;
+import com.dremio.exec.planner.physical.ProjectPrel;
 import java.util.List;
-
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptUtil;
@@ -29,22 +30,22 @@ import org.apache.calcite.util.Permutation;
 import org.apache.calcite.util.trace.CalciteTrace;
 import org.slf4j.Logger;
 
-import com.dremio.exec.planner.physical.NestedLoopJoinPrel;
-import com.dremio.exec.planner.physical.ProjectPrel;
-
-/**
- * Merge projects
- */
+/** Merge projects */
 public class MergeProjectsPRule extends RelRule<MergeProjectsPRule.Config> {
   /**
    * This rule is to remove additional project generated after computing projected columns in join.
    */
-  public static final RelOptRule PROJECT_PROJECT_JOIN = Config.DEFAULT
-    .withOperandSupplier(os1 ->
-      os1.operand(ProjectPrel.class).oneInput(os2 ->
-        os2.operand(ProjectPrel.class).oneInput(os3 ->
-          os3.operand(NestedLoopJoinPrel.class).anyInputs())))
-    .toRule();
+  public static final RelOptRule PROJECT_PROJECT_JOIN =
+      Config.DEFAULT
+          .withOperandSupplier(
+              os1 ->
+                  os1.operand(ProjectPrel.class)
+                      .oneInput(
+                          os2 ->
+                              os2.operand(ProjectPrel.class)
+                                  .oneInput(
+                                      os3 -> os3.operand(NestedLoopJoinPrel.class).anyInputs())))
+          .toRule();
 
   protected static final Logger tracer = CalciteTrace.getPlannerTracer();
 
@@ -65,31 +66,44 @@ public class MergeProjectsPRule extends RelRule<MergeProjectsPRule.Config> {
       relBuilder.push(bottomProject.getInput());
       List<RexNode> exprs = relBuilder.fields(product);
 
-      call.transformTo(ProjectPrel.create(
-        topProject.getCluster(), topProject.getTraitSet(), bottomProject.getInput(), exprs, topProject.getRowType()));
+      call.transformTo(
+          ProjectPrel.create(
+              topProject.getCluster(),
+              topProject.getTraitSet(),
+              bottomProject.getInput(),
+              exprs,
+              topProject.getRowType()));
     }
 
     final List<RexNode> newProjects =
-      RelOptUtil.pushPastProject(topProject.getProjects(), bottomProject);
+        RelOptUtil.pushPastProject(topProject.getProjects(), bottomProject);
     final RelNode input = bottomProject.getInput();
     if (RexUtil.isIdentity(newProjects, input.getRowType())) {
       call.transformTo(input);
     }
 
-    call.transformTo(ProjectPrel.create(topProject.getCluster(), topProject.getTraitSet(), bottomProject.getInput(), newProjects, topProject.getRowType()));
+    call.transformTo(
+        ProjectPrel.create(
+            topProject.getCluster(),
+            topProject.getTraitSet(),
+            bottomProject.getInput(),
+            newProjects,
+            topProject.getRowType()));
   }
-
 
   /** Rule configuration. */
   public interface Config extends RelRule.Config {
-    Config DEFAULT = EMPTY
-      .withDescription("MergeProjectsPRule")
-      .withOperandSupplier(os1 ->
-        os1.operand(ProjectPrel.class).oneInput(os2 ->
-          os2.operand(ProjectPrel.class).anyInputs()))
-      .as(Config.class);
+    Config DEFAULT =
+        EMPTY
+            .withDescription("MergeProjectsPRule")
+            .withOperandSupplier(
+                os1 ->
+                    os1.operand(ProjectPrel.class)
+                        .oneInput(os2 -> os2.operand(ProjectPrel.class).anyInputs()))
+            .as(Config.class);
 
-    @Override default MergeProjectsPRule toRule() {
+    @Override
+    default MergeProjectsPRule toRule() {
       return new MergeProjectsPRule(this);
     }
   }

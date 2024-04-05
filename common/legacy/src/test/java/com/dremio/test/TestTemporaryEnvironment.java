@@ -18,7 +18,6 @@ package com.dremio.test;
 import static org.junit.Assert.assertEquals;
 
 import java.util.Random;
-
 import org.junit.Test;
 
 public class TestTemporaryEnvironment {
@@ -30,10 +29,11 @@ public class TestTemporaryEnvironment {
     final int stringLength = 10;
     final Random random = new Random();
 
-    return random.ints(leftLimit, rightLimit + 1)
-      .limit(stringLength)
-      .collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append)
-      .toString();
+    return random
+        .ints(leftLimit, rightLimit + 1)
+        .limit(stringLength)
+        .collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append)
+        .toString();
   }
 
   @Test

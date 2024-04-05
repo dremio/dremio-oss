@@ -15,16 +15,11 @@
  */
 package com.dremio.exec.planner.sql;
 
+import com.google.common.collect.ImmutableSet;
 import java.util.Collection;
-
 import org.apache.calcite.sql.type.SqlTypeName;
 
-import com.google.common.collect.ImmutableSet;
-
-/**
- * Represents an operand in a calcite SqlFunction.
- * This gets used for SqlOperatorFactory.
- */
+/** Represents an operand in a calcite SqlFunction. This gets used for SqlOperatorFactory. */
 public final class SqlOperand {
   public final String name;
   public final ImmutableSet<SqlTypeName> typeRange;
@@ -73,14 +68,17 @@ public final class SqlOperand {
       throw new UnsupportedOperationException("SqlOperand types must match up.");
     }
 
-    if ((sqlOperand1.name != null) && (sqlOperand2.name != null) && (sqlOperand1.name != sqlOperand2.name)) {
+    if ((sqlOperand1.name != null)
+        && (sqlOperand2.name != null)
+        && (sqlOperand1.name != sqlOperand2.name)) {
       throw new UnsupportedOperationException("SqlOperand names must match up.");
     }
 
-    ImmutableSet<SqlTypeName> unionTypeRange = new ImmutableSet.Builder<SqlTypeName>()
-      .addAll(sqlOperand1.typeRange)
-      .addAll(sqlOperand2.typeRange)
-      .build();
+    ImmutableSet<SqlTypeName> unionTypeRange =
+        new ImmutableSet.Builder<SqlTypeName>()
+            .addAll(sqlOperand1.typeRange)
+            .addAll(sqlOperand2.typeRange)
+            .build();
 
     return new SqlOperand(sqlOperand1.name, unionTypeRange, sqlOperand1.type);
   }

@@ -25,12 +25,24 @@ import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.dremio.common.expression.CompleteType;
+import com.dremio.common.util.TestTools;
+import com.dremio.exec.ExecTest;
+import com.dremio.exec.record.VectorAccessible;
+import com.dremio.exec.record.VectorContainer;
+import com.dremio.exec.record.VectorWrapper;
+import com.dremio.exec.record.WritableBatch;
+import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.server.SabotNode;
+import com.dremio.service.coordinator.ClusterCoordinator;
+import com.dremio.service.coordinator.local.LocalClusterCoordinator;
+import com.google.common.collect.Lists;
+import com.google.common.io.Files;
 import java.io.EOFException;
 import java.io.File;
 import java.io.InputStream;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.AllocationHelper;
 import org.apache.arrow.vector.Float8Vector;
@@ -52,34 +64,22 @@ import org.junit.rules.TestRule;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
-import com.dremio.common.expression.CompleteType;
-import com.dremio.common.util.TestTools;
-import com.dremio.exec.ExecTest;
-import com.dremio.exec.record.VectorAccessible;
-import com.dremio.exec.record.VectorContainer;
-import com.dremio.exec.record.VectorWrapper;
-import com.dremio.exec.record.WritableBatch;
-import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.server.SabotNode;
-import com.dremio.service.coordinator.ClusterCoordinator;
-import com.dremio.service.coordinator.local.LocalClusterCoordinator;
-import com.google.common.collect.Lists;
-import com.google.common.io.Files;
-
 public class TestVectorAccessibleSerializable extends ExecTest {
-  @Rule public final TestRule timeoutRule = TestTools.getTimeoutRule(90, TimeUnit.SECONDS); // 90secs
+  @Rule
+  public final TestRule timeoutRule = TestTools.getTimeoutRule(90, TimeUnit.SECONDS); // 90secs
 
   @Test
   public void test() throws Exception {
     final List<ValueVector> vectorList = Lists.newArrayList();
-    try (final ClusterCoordinator clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
-        final SabotNode bit = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, true)) {
+    try (final ClusterCoordinator clusterCoordinator =
+            LocalClusterCoordinator.newRunningCoordinator();
+        final SabotNode bit =
+            new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, true)) {
       bit.run();
       final SabotContext context = bit.getContext();
 
       try (final IntVector intVector = new IntVector("int", allocator);
-           final VarBinaryVector binVector =
-              new VarBinaryVector("binary", allocator)) {
+          final VarBinaryVector binVector = new VarBinaryVector("binary", allocator)) {
         AllocationHelper.allocate(intVector, 4, 4);
         AllocationHelper.allocate(binVector, 4, 5);
         vectorList.add(intVector);
@@ -99,7 +99,8 @@ public class TestVectorAccessibleSerializable extends ExecTest {
         VectorContainer container = new VectorContainer();
         container.addCollection(vectorList);
         container.setRecordCount(4);
-        WritableBatch batch = WritableBatch.getBatchNoHVWrap(container.getRecordCount(), container, false);
+        WritableBatch batch =
+            WritableBatch.getBatchNoHVWrap(container.getRecordCount(), container, false);
         VectorAccessibleSerializable wrap = new VectorAccessibleSerializable(batch, allocator);
 
         Configuration conf = new Configuration();
@@ -153,21 +154,25 @@ public class TestVectorAccessibleSerializable extends ExecTest {
 
   private void testCompressSerDeHelper(int records) throws Exception {
     final List<ValueVector> vectorList = Lists.newArrayList();
-    try (final ClusterCoordinator clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
-         final SabotNode bit = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, true)) {
+    try (final ClusterCoordinator clusterCoordinator =
+            LocalClusterCoordinator.newRunningCoordinator();
+        final SabotNode bit =
+            new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, true)) {
       bit.run();
       final SabotContext context = bit.getContext();
 
-      final FieldType mapType = CompleteType.struct(
-          CompleteType.VARCHAR.toField("varchar"),
-          CompleteType.INT.toField("int"),
-          CompleteType.BIT.asList().toField("bits")
-      ).toField("map").getFieldType();
+      final FieldType mapType =
+          CompleteType.struct(
+                  CompleteType.VARCHAR.toField("varchar"),
+                  CompleteType.INT.toField("int"),
+                  CompleteType.BIT.asList().toField("bits"))
+              .toField("map")
+              .getFieldType();
 
       try (final IntVector intVector = new IntVector("int", allocator);
-           final Float8Vector float8Vector = new Float8Vector("float8", allocator);
-           final StructVector mapVector = new StructVector("map", allocator, mapType, null);
-           final ArrowBuf tempBuf = allocator.buffer(2048)) {
+          final Float8Vector float8Vector = new Float8Vector("float8", allocator);
+          final StructVector mapVector = new StructVector("map", allocator, mapType, null);
+          final ArrowBuf tempBuf = allocator.buffer(2048)) {
         AllocationHelper.allocateNew(intVector, records);
         AllocationHelper.allocateNew(float8Vector, records);
         AllocationHelper.allocateNew(mapVector, records);
@@ -190,8 +195,8 @@ public class TestVectorAccessibleSerializable extends ExecTest {
           ListWriter listWriter = mapWriter.list("bits");
           listWriter.startList();
           listWriter.setPosition(i);
-          final Boolean[] bits = new Boolean[] { true, false};
-          for(int j = 0; j < bits.length; j++) {
+          final Boolean[] bits = new Boolean[] {true, false};
+          for (int j = 0; j < bits.length; j++) {
             listWriter.bit().writeBit(bits[j] ? 1 : 0);
           }
           listWriter.endList();
@@ -207,32 +212,36 @@ public class TestVectorAccessibleSerializable extends ExecTest {
           assertEquals(intBaseValue + i, intVector.get(i));
           assertEquals(doubleBaseValue + i, float8Vector.get(i), 0);
           assertEquals(
-              mapOf(
-                  "varchar", "varchar" + i,
-                  "int", i,
-                  "bits", listOf(true, false)
-              ), mapVector.getObject(i)
-          );
+              mapOf("varchar", "varchar" + i, "int", i, "bits", listOf(true, false)),
+              mapVector.getObject(i));
         }
 
         SerDe(vectorList, true, records, context, 100, 100.375);
-
       }
     }
   }
 
-  private void SerDe(List<ValueVector> vectorList, boolean compression, int records, SabotContext context,
-                     int intBaseValue, double doubleBaseValue) throws Exception {
+  private void SerDe(
+      List<ValueVector> vectorList,
+      boolean compression,
+      int records,
+      SabotContext context,
+      int intBaseValue,
+      double doubleBaseValue)
+      throws Exception {
     VectorContainer container = new VectorContainer();
     container.addCollection(vectorList);
     container.setRecordCount(records);
-    WritableBatch batch = WritableBatch.getBatchNoHVWrap(container.getRecordCount(), container, false);
-    VectorAccessibleSerializable wrap = new VectorAccessibleSerializable(batch, null, allocator, compression);
+    WritableBatch batch =
+        WritableBatch.getBatchNoHVWrap(container.getRecordCount(), container, false);
+    VectorAccessibleSerializable wrap =
+        new VectorAccessibleSerializable(batch, null, allocator, compression);
 
     Configuration conf = new Configuration();
     conf.set(FileSystem.FS_DEFAULT_NAME_KEY, "file:///");
 
-    final VectorAccessibleSerializable newWrap = new VectorAccessibleSerializable(allocator, true, allocator);
+    final VectorAccessibleSerializable newWrap =
+        new VectorAccessibleSerializable(allocator, true, allocator);
     try (final FileSystem fs = FileSystem.get(conf)) {
       final File tempDir = Files.createTempDir();
       tempDir.deleteOnExit();
@@ -255,16 +264,10 @@ public class TestVectorAccessibleSerializable extends ExecTest {
           final Object o = vv.getObject(i);
           if (o instanceof Integer) {
             assertEquals(intBaseValue + i, ((Integer) o).intValue());
-          } else if (o instanceof  Double) {
+          } else if (o instanceof Double) {
             assertEquals(doubleBaseValue + i, ((Double) o).doubleValue(), 0);
           } else {
-            assertEquals(
-                mapOf(
-                    "varchar", "varchar" + i,
-                    "int", i,
-                    "bits", listOf(true, false)
-                ),
-                o);
+            assertEquals(mapOf("varchar", "varchar" + i, "int", i, "bits", listOf(true, false)), o);
           }
         }
       }
@@ -282,47 +285,51 @@ public class TestVectorAccessibleSerializable extends ExecTest {
 
     try (final ArrowBuf buffer = allocator.buffer(256)) {
       final InputStream inputStream = mock(InputStream.class);
-      when(inputStream.read(any(byte[].class), anyInt(), anyInt())).thenAnswer(new Answer() {
-        @Override
-        public Integer answer(InvocationOnMock invocation) throws Throwable {
-          byte[] byteBuf = invocation.getArgument(0, byte[].class);
-          int start = invocation.getArgument(1, Integer.class);
-          int length = invocation.getArgument(2, Integer.class);
-          for(int i = start; i < Math.min(length, byteBuf.length); i++) {
-            byteBuf[i] = (byte)i;
-          }
-          return Math.min(length, byteBuf.length);
-        }
-      });
+      when(inputStream.read(any(byte[].class), anyInt(), anyInt()))
+          .thenAnswer(
+              new Answer() {
+                @Override
+                public Integer answer(InvocationOnMock invocation) throws Throwable {
+                  byte[] byteBuf = invocation.getArgument(0, byte[].class);
+                  int start = invocation.getArgument(1, Integer.class);
+                  int length = invocation.getArgument(2, Integer.class);
+                  for (int i = start; i < Math.min(length, byteBuf.length); i++) {
+                    byteBuf[i] = (byte) i;
+                  }
+                  return Math.min(length, byteBuf.length);
+                }
+              });
       readIntoArrowBuf(inputStream, buffer, 256);
       assertEquals(256, buffer.writerIndex());
-      for(int i=0; i<256; i++) {
-        assertEquals((byte)i, buffer.getByte(i));
+      for (int i = 0; i < 256; i++) {
+        assertEquals((byte) i, buffer.getByte(i));
       }
     }
 
     try (final ArrowBuf buffer = allocator.buffer(256)) {
       final InputStream inputStream = mock(InputStream.class);
-      when(inputStream.read(any(byte[].class), anyInt(), anyInt())).thenAnswer(new Answer() {
-        @Override
-        public Integer answer(InvocationOnMock invocation) throws Throwable {
-          byte[] byteBuf = invocation.getArgument(0, byte[].class);
-          int start = invocation.getArgument(1, Integer.class);
-          int length = invocation.getArgument(2, Integer.class);
-          int i=start;
-          int toFill = Math.min(byteBuf.length, 20);
-          toFill = Math.min(toFill, length);
-          while(i<toFill) {
-            byteBuf[i] = (byte)i;
-            i++;
-          }
-          return i;
-        }
-      });
+      when(inputStream.read(any(byte[].class), anyInt(), anyInt()))
+          .thenAnswer(
+              new Answer() {
+                @Override
+                public Integer answer(InvocationOnMock invocation) throws Throwable {
+                  byte[] byteBuf = invocation.getArgument(0, byte[].class);
+                  int start = invocation.getArgument(1, Integer.class);
+                  int length = invocation.getArgument(2, Integer.class);
+                  int i = start;
+                  int toFill = Math.min(byteBuf.length, 20);
+                  toFill = Math.min(toFill, length);
+                  while (i < toFill) {
+                    byteBuf[i] = (byte) i;
+                    i++;
+                  }
+                  return i;
+                }
+              });
       readIntoArrowBuf(inputStream, buffer, 256);
       assertEquals(256, buffer.writerIndex());
-      for(int i=0; i<256; i++) {
-        assertEquals((byte)(i%20), buffer.getByte(i));
+      for (int i = 0; i < 256; i++) {
+        assertEquals((byte) (i % 20), buffer.getByte(i));
       }
     }
 

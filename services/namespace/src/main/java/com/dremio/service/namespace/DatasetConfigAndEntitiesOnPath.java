@@ -15,10 +15,9 @@
  */
 package com.dremio.service.namespace;
 
-import java.util.List;
-
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
+import java.util.List;
 
 /*
  * A class of a DatasetConfig of a dateset and Entities on the dataset path.
@@ -30,7 +29,8 @@ public class DatasetConfigAndEntitiesOnPath {
   private final DatasetConfig datasetConfig;
   private final List<NameSpaceContainer> entitiesOnPath;
 
-  public DatasetConfigAndEntitiesOnPath(DatasetConfig datasetConfig, List<NameSpaceContainer> entitiesOnPath) {
+  public DatasetConfigAndEntitiesOnPath(
+      DatasetConfig datasetConfig, List<NameSpaceContainer> entitiesOnPath) {
     this.datasetConfig = datasetConfig;
     this.entitiesOnPath = entitiesOnPath;
   }
@@ -43,7 +43,8 @@ public class DatasetConfigAndEntitiesOnPath {
     return entitiesOnPath;
   }
 
-  public static DatasetConfigAndEntitiesOnPath of(DatasetConfig datasetConfig, List<NameSpaceContainer> entitiesOnPath) {
+  public static DatasetConfigAndEntitiesOnPath of(
+      DatasetConfig datasetConfig, List<NameSpaceContainer> entitiesOnPath) {
     return new DatasetConfigAndEntitiesOnPath(datasetConfig, entitiesOnPath);
   }
 }

@@ -15,19 +15,17 @@
  */
 package com.dremio.sabot.op.join.vhash.spill.io;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import org.apache.arrow.memory.ArrowBuf;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.util.RoundUtil;
+import java.util.ArrayList;
+import java.util.List;
+import org.apache.arrow.memory.ArrowBuf;
 
 /**
- * A chunk (set of records) from spill : either build-side or probe-side. Each chunk contains :
- * - pivoted data : fixed (mandatory) and variable (optional)
- * - container for unpivoted data i.e carry-along columns (optional)
+ * A chunk (set of records) from spill : either build-side or probe-side. Each chunk contains : -
+ * pivoted data : fixed (mandatory) and variable (optional) - container for unpivoted data i.e
+ * carry-along columns (optional)
  */
 public class SpillChunk implements AutoCloseable {
   // number of records in the chunk
@@ -48,7 +46,12 @@ public class SpillChunk implements AutoCloseable {
 
   private boolean closed;
 
-  public SpillChunk(int numRecords, ArrowBuf fixed, ArrowBuf variable, VectorContainer container, List<AutoCloseable> toRelease) {
+  public SpillChunk(
+      int numRecords,
+      ArrowBuf fixed,
+      ArrowBuf variable,
+      VectorContainer container,
+      List<AutoCloseable> toRelease) {
     this.numRecords = numRecords;
     this.fixed = fixed;
     this.variable = variable;
@@ -77,7 +80,8 @@ public class SpillChunk implements AutoCloseable {
   }
 
   public int getPivotedSizeRounded() {
-    return RoundUtil.round8up((int) fixed.capacity()) + RoundUtil.round8up((int) variable.capacity());
+    return RoundUtil.round8up((int) fixed.capacity())
+        + RoundUtil.round8up((int) variable.capacity());
   }
 
   public int getUnpivotedSizeRounded() {

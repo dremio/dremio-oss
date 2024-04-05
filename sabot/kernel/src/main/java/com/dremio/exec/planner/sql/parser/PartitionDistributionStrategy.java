@@ -15,33 +15,28 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
-/**
- * Distribution strategy for data within a partition.
- */
+/** Distribution strategy for data within a partition. */
 public enum PartitionDistributionStrategy {
 
-  /**
-   * Policy is not set. System makes a choice.
-   */
+  /** Policy is not set. System makes a choice. */
   UNSPECIFIED,
 
   /**
    * Consolidate data within a partition on one node (which maybe in multiple files, but few files).
-   * <p>
-   * This will very likely result in large data shuffle across nodes to consolidate data for each partition. Execution
-   * will very likely be slower.
+   *
+   * <p>This will very likely result in large data shuffle across nodes to consolidate data for each
+   * partition. Execution will very likely be slower.
    */
   HASH,
 
-  /**
-   * TODO: ...
-   */
+  /** TODO: ... */
   ROUND_ROBIN,
 
   /**
    * Stripe data within a partition across nodes. Each file still contains data within a partition.
-   * <p>
-   * There is no data transfer to consolidate each partition. Execution will very likely be faster.
+   *
+   * <p>There is no data transfer to consolidate each partition. Execution will very likely be
+   * faster.
    */
   STRIPED;
 
@@ -50,7 +45,7 @@ public enum PartitionDistributionStrategy {
       return PartitionDistributionStrategy.valueOf(optionName);
     } catch (Exception e) {
       // The optionName may be the lower case string (e.g. java)
-      for(PartitionDistributionStrategy option : PartitionDistributionStrategy.values()) {
+      for (PartitionDistributionStrategy option : PartitionDistributionStrategy.values()) {
         if (optionName.equalsIgnoreCase(option.toString())) {
           return option;
         }

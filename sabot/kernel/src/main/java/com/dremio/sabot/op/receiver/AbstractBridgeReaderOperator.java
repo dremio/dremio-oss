@@ -15,9 +15,6 @@
  */
 package com.dremio.sabot.op.receiver;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.physical.config.BridgeFileWriterSender;
 import com.dremio.exec.proto.ExecProtos;
@@ -29,6 +26,8 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.spi.BatchStreamProvider;
 import com.dremio.sabot.op.spi.ProducerOperator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 abstract class AbstractBridgeReaderOperator implements ProducerOperator {
   private static final Logger logger = LoggerFactory.getLogger(AbstractBridgeReaderOperator.class);
@@ -43,15 +42,16 @@ abstract class AbstractBridgeReaderOperator implements ProducerOperator {
   private State state = State.NEEDS_SETUP;
 
   public AbstractBridgeReaderOperator(
-    BatchStreamProvider streams,
-    OperatorContext context,
-    BatchSchema batchSchema,
-    String bridgeSetId) {
+      BatchStreamProvider streams,
+      OperatorContext context,
+      BatchSchema batchSchema,
+      String bridgeSetId) {
     this.context = context;
 
     ExecProtos.FragmentHandle handle = context.getFragmentHandle();
-    this.uniqueId = BridgeFileWriterSender.computeUniqueId(
-      handle.getQueryId(), bridgeSetId, handle.getMinorFragmentId());
+    this.uniqueId =
+        BridgeFileWriterSender.computeUniqueId(
+            handle.getQueryId(), bridgeSetId, handle.getMinorFragmentId());
     this.stats = context.getStats();
     this.outgoing = context.createOutputVectorContainer(batchSchema);
     this.batchLoader = new ArrowRecordBatchLoader(outgoing);
@@ -61,13 +61,16 @@ abstract class AbstractBridgeReaderOperator implements ProducerOperator {
   }
 
   @Override
-  public <OUT, IN, EXCEP extends Throwable> OUT accept(OperatorVisitor<OUT, IN, EXCEP> visitor, IN value) throws EXCEP {
+  public <OUT, IN, EXCEP extends Throwable> OUT accept(
+      OperatorVisitor<OUT, IN, EXCEP> visitor, IN value) throws EXCEP {
     return visitor.visitProducer(this, value);
   }
 
   @Override
   public State getState() {
-    return state == State.BLOCKED && !batchStreamProvider.isPotentiallyBlocked() ? State.CAN_PRODUCE : state;
+    return state == State.BLOCKED && !batchStreamProvider.isPotentiallyBlocked()
+        ? State.CAN_PRODUCE
+        : state;
   }
 
   @Override
@@ -94,7 +97,7 @@ abstract class AbstractBridgeReaderOperator implements ProducerOperator {
           logger.debug("switching to DONE state since the stream is done");
         } else {
           state = State.BLOCKED;
-          //logger.debug("switching to BLOCKED state since the stream returned null");
+          // logger.debug("switching to BLOCKED state since the stream returned null");
         }
         return 0;
       }
@@ -103,7 +106,7 @@ abstract class AbstractBridgeReaderOperator implements ProducerOperator {
       updateMetrics(batch.getByteCount());
 
       final int count = batchLoader.getRecordCount();
-      //logger.debug("read batch {} records", count);
+      // logger.debug("read batch {} records", count);
 
       stats.batchReceived(0, count, size);
       return outgoing.setAllCount(count);

@@ -15,10 +15,6 @@
  */
 package com.dremio.exec.compile;
 
-import java.io.IOException;
-
-import org.codehaus.commons.compiler.CompileException;
-
 import com.dremio.common.util.DremioStringUtils;
 import com.dremio.common.util.FileUtils;
 import com.dremio.exec.ExecConstants;
@@ -26,10 +22,13 @@ import com.dremio.exec.exception.ClassTransformationException;
 import com.dremio.options.OptionManager;
 import com.dremio.options.Options;
 import com.google.common.base.Preconditions;
+import java.io.IOException;
+import org.codehaus.commons.compiler.CompileException;
 
 @Options
 public class ClassTransformer {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ClassTransformer.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ClassTransformer.class);
 
   private final OptionManager optionManager;
 
@@ -43,8 +42,10 @@ public class ClassTransformer {
     public final ClassNames generated;
 
     public ClassSet(ClassSet parent, String precompiled, String generated) {
-      Preconditions.checkArgument(!generated.startsWith(precompiled),
-          String.format("The new name of a class cannot start with the old name of a class, otherwise class renaming will cause problems. Precompiled class name %s. Generated class name %s",
+      Preconditions.checkArgument(
+          !generated.startsWith(precompiled),
+          String.format(
+              "The new name of a class cannot start with the old name of a class, otherwise class renaming will cause problems. Precompiled class name %s. Generated class name %s",
               precompiled, generated));
       this.parent = parent;
       this.precompiled = new ClassNames(precompiled);
@@ -56,7 +57,8 @@ public class ClassTransformer {
     }
 
     public ClassSet getChild(String precompiled) {
-      return new ClassSet(this, precompiled, precompiled.replace(this.precompiled.dot, this.generated.dot));
+      return new ClassSet(
+          this, precompiled, precompiled.replace(this.precompiled.dot, this.generated.dot));
     }
 
     @Override
@@ -168,20 +170,25 @@ public class ClassTransformer {
       final QueryClassLoader classLoader,
       final TemplateClassDefinition<?> templateDefinition,
       final String entireClass,
-      final String materializedClassName) throws ClassTransformationException {
-    return getExtendedImplementationClass(classLoader, templateDefinition, entireClass, materializedClassName);
+      final String materializedClassName)
+      throws ClassTransformationException {
+    return getExtendedImplementationClass(
+        classLoader, templateDefinition, entireClass, materializedClassName);
   }
 
   private Class<?> getExtendedImplementationClass(
       final QueryClassLoader classLoader,
       final TemplateClassDefinition<?> templateDefinition,
       final String entireClass,
-      final String materializedClassName) throws ClassTransformationException {
+      final String materializedClassName)
+      throws ClassTransformationException {
 
     try {
       final long t1 = System.nanoTime();
-      final ClassSet set = new ClassSet(null, templateDefinition.getTemplateClassName(), materializedClassName);
-      final ClassBytes[] implementationClasses = classLoader.getClassByteCode(set.generated, entireClass);
+      final ClassSet set =
+          new ClassSet(null, templateDefinition.getTemplateClassName(), materializedClassName);
+      final ClassBytes[] implementationClasses =
+          classLoader.getClassByteCode(set.generated, entireClass);
 
       long totalBytecodeSize = 0;
       for (ClassBytes clazz : implementationClasses) {
@@ -192,18 +199,23 @@ public class ClassTransformer {
       Class<?> c = classLoader.findClass(set.generated.dot);
       if (templateDefinition.getExternalInterface().isAssignableFrom(c)) {
         if (logger.isDebugEnabled()) {
-          logger.debug("Done compiling (bytecode size={}, time:{} millis).", DremioStringUtils.readable(totalBytecodeSize), (System.nanoTime() - t1) / 1000000);
+          logger.debug(
+              "Done compiling (bytecode size={}, time:{} millis).",
+              DremioStringUtils.readable(totalBytecodeSize),
+              (System.nanoTime() - t1) / 1000000);
         }
         return c;
       }
 
-      throw new ClassTransformationException("The requested class did not implement the expected interface.");
+      throw new ClassTransformationException(
+          "The requested class did not implement the expected interface.");
     } catch (CompileException | IOException | ClassNotFoundException e) {
       if (optionManager.getOption(ExecConstants.JAVA_CODE_DUMP)) {
-        logger.info(String.format("Failure generating transformation classes for value: \n %s", entireClass));
+        logger.info(
+            String.format(
+                "Failure generating transformation classes for value: \n %s", entireClass));
       }
       throw new ClassTransformationException("Failure generating transformation classes.", e);
     }
   }
-
 }

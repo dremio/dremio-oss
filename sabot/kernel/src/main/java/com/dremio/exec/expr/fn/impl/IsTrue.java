@@ -16,25 +16,27 @@
 
 package com.dremio.exec.expr.fn.impl;
 
-import org.apache.arrow.vector.holders.NullableBigIntHolder;
-import org.apache.arrow.vector.holders.NullableBitHolder;
-import org.apache.arrow.vector.holders.NullableIntHolder;
-
 import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
+import org.apache.arrow.vector.holders.NullableBigIntHolder;
+import org.apache.arrow.vector.holders.NullableBitHolder;
+import org.apache.arrow.vector.holders.NullableIntHolder;
 
 public class IsTrue {
 
-  @FunctionTemplate(names = {"istrue", "is true"}, scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.INTERNAL)
+  @FunctionTemplate(
+      names = {"istrue", "is true"},
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.INTERNAL)
   public static class Optional implements SimpleFunction {
 
     @Param NullableBitHolder in;
     @Output NullableBitHolder out;
 
     @Override
-    public void setup() { }
+    public void setup() {}
 
     @Override
     public void eval() {
@@ -47,14 +49,17 @@ public class IsTrue {
     }
   }
 
-  @FunctionTemplate(names = {"istrue", "is true"}, scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.INTERNAL)
+  @FunctionTemplate(
+      names = {"istrue", "is true"},
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.INTERNAL)
   public static class OptionalInt implements SimpleFunction {
 
     @Param NullableIntHolder in;
     @Output NullableBitHolder out;
 
     @Override
-    public void setup() { }
+    public void setup() {}
 
     @Override
     public void eval() {
@@ -67,14 +72,17 @@ public class IsTrue {
     }
   }
 
-  @FunctionTemplate(names = {"istrue", "is true"}, scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.INTERNAL)
+  @FunctionTemplate(
+      names = {"istrue", "is true"},
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.INTERNAL)
   public static class OptionalLong implements SimpleFunction {
 
     @Param NullableBigIntHolder in;
     @Output NullableBitHolder out;
 
     @Override
-    public void setup() { }
+    public void setup() {}
 
     @Override
     public void eval() {
@@ -86,5 +94,4 @@ public class IsTrue {
       }
     }
   }
-
 }

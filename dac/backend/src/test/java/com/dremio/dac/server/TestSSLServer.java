@@ -21,16 +21,20 @@ import static java.nio.file.attribute.PosixFilePermission.OWNER_WRITE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import com.dremio.common.AutoCloseables;
+import com.dremio.config.DremioConfig;
+import com.dremio.dac.daemon.DACDaemon;
+import com.dremio.exec.rpc.ssl.SSLConfigurator;
+import com.dremio.services.fabric.FabricServiceImpl;
+import com.dremio.test.DremioTest;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.EnumSet;
-
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
-
 import org.glassfish.jersey.media.multipart.MultiPartFeature;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -38,19 +42,9 @@ import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import com.dremio.common.AutoCloseables;
-import com.dremio.config.DremioConfig;
-import com.dremio.dac.daemon.DACDaemon;
-import com.dremio.exec.rpc.ssl.SSLConfigurator;
-import com.dremio.services.fabric.FabricServiceImpl;
-import com.dremio.test.DremioTest;
-
-/**
- * Test starting the DAC server with SSL/HTTPS enabled.
- */
+/** Test starting the DAC server with SSL/HTTPS enabled. */
 public class TestSSLServer extends BaseClientUtils {
-  @ClassRule
-  public static final TemporaryFolder tempFolder = new TemporaryFolder();
+  @ClassRule public static final TemporaryFolder tempFolder = new TemporaryFolder();
 
   private static DACDaemon currentDremioDaemon;
   private static Client client;
@@ -60,47 +54,54 @@ public class TestSSLServer extends BaseClientUtils {
   public static void setup() throws Exception {
     final String hostname = FabricServiceImpl.getAddress(false);
     final String localWritePathString = tempFolder.getRoot().getAbsolutePath();
-    currentDremioDaemon = DACDaemon.newDremioDaemon(
-        DACConfig
-            .newDebugConfig(DremioTest.DEFAULT_SABOT_CONFIG)
-            .autoPort(true)
-            .allowTestApis(true)
-            .serveUI(false)
-            .webSSLEnabled(true)
-            .inMemoryStorage(true)
-            .addDefaultUser(true)
-            .writePath(localWritePathString)
-            .with(DremioConfig.FLIGHT_SERVICE_ENABLED_BOOLEAN, false)
-            .clusterMode(DACDaemon.ClusterMode.LOCAL),
-            DremioTest.CLASSPATH_SCAN_RESULT
-    );
+    currentDremioDaemon =
+        DACDaemon.newDremioDaemon(
+            DACConfig.newDebugConfig(DremioTest.DEFAULT_SABOT_CONFIG)
+                .autoPort(true)
+                .allowTestApis(true)
+                .serveUI(false)
+                .webSSLEnabled(true)
+                .inMemoryStorage(true)
+                .addDefaultUser(true)
+                .writePath(localWritePathString)
+                .with(DremioConfig.FLIGHT_SERVICE_ENABLED_BOOLEAN, false)
+                .clusterMode(DACDaemon.ClusterMode.LOCAL),
+            DremioTest.CLASSPATH_SCAN_RESULT);
 
     currentDremioDaemon.init();
     initClient(hostname);
 
     final Path keyStoreDirectory = Paths.get(localWritePathString, "security");
     assertTrue(Files.exists(keyStoreDirectory));
-    assertEquals(Files.getPosixFilePermissions(keyStoreDirectory), EnumSet.of(OWNER_EXECUTE, OWNER_WRITE, OWNER_READ));
+    assertEquals(
+        Files.getPosixFilePermissions(keyStoreDirectory),
+        EnumSet.of(OWNER_EXECUTE, OWNER_WRITE, OWNER_READ));
 
-    final Path keyStorePath = Paths.get(localWritePathString, "security", SSLConfigurator.KEY_STORE_FILE);
+    final Path keyStorePath =
+        Paths.get(localWritePathString, "security", SSLConfigurator.KEY_STORE_FILE);
     assertTrue(Files.exists(keyStorePath));
     assertEquals(Files.getPosixFilePermissions(keyStorePath), EnumSet.of(OWNER_WRITE, OWNER_READ));
 
     final Path trustStorePath = Paths.get(localWritePathString, SSLConfigurator.TRUST_STORE_FILE);
     assertTrue(Files.exists(trustStorePath));
-    assertEquals(Files.getPosixFilePermissions(trustStorePath),
+    assertEquals(
+        Files.getPosixFilePermissions(trustStorePath),
         SSLConfigurator.TRUST_STORE_FILE_PERMISSIONS);
   }
 
   protected static void initClient(final String hostname) {
-    client = ClientBuilder.newBuilder()
-        .trustStore(currentDremioDaemon.getWebServer().getTrustStore())
-        .register(MultiPartFeature.class)
-        .build();
+    client =
+        ClientBuilder.newBuilder()
+            .trustStore(currentDremioDaemon.getWebServer().getTrustStore())
+            .register(MultiPartFeature.class)
+            .build();
 
-    apiV2 = client
-        .target(String.format("https://%s:%d", hostname, currentDremioDaemon.getWebServer().getPort()))
-        .path("apiv2");
+    apiV2 =
+        client
+            .target(
+                String.format(
+                    "https://%s:%d", hostname, currentDremioDaemon.getWebServer().getPort()))
+            .path("apiv2");
   }
 
   @Test
@@ -110,7 +111,8 @@ public class TestSSLServer extends BaseClientUtils {
 
   @Test
   public void ensureServerIsAwareSSLIsEnabled() throws Exception {
-    expectSuccess(apiV2.path("test").path("isSecure").request(MediaType.APPLICATION_JSON_TYPE).buildGet());
+    expectSuccess(
+        apiV2.path("test").path("isSecure").request(MediaType.APPLICATION_JSON_TYPE).buildGet());
   }
 
   @AfterClass
@@ -121,7 +123,6 @@ public class TestSSLServer extends BaseClientUtils {
             client.close();
           }
         },
-        currentDremioDaemon
-    );
+        currentDremioDaemon);
   }
 }

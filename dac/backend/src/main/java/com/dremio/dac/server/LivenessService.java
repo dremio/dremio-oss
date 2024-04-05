@@ -17,39 +17,38 @@ package com.dremio.dac.server;
 
 import static com.dremio.telemetry.api.metrics.Metrics.MetricServletFactory.createMetricsServlet;
 
+import com.dremio.common.liveness.LiveHealthMonitor;
+import com.dremio.config.DremioConfig;
+import com.dremio.service.Service;
+import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.servlet.ServletHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.util.thread.QueuedThreadPool;
 
-import com.dremio.common.liveness.LiveHealthMonitor;
-import com.dremio.config.DremioConfig;
-import com.dremio.service.Service;
-import com.google.common.base.Preconditions;
-
 /**
- * Responds to HTTP requests on a special 'liveness' port bound to the loopback interface
- * In the future, can be expanded to check on the health of the internal workings of the system
+ * Responds to HTTP requests on a special 'liveness' port bound to the loopback interface In the
+ * future, can be expanded to check on the health of the internal workings of the system
  */
 public class LivenessService implements Service {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(LivenessService.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(LivenessService.class);
 
   private static final int ACCEPT_QUEUE_BACKLOG = 1;
   private static final int NUM_ACCEPTORS = 1;
   private static final int NUM_SELECTORS = 1;
   private static final int NUM_REQUEST_THREADS = 1;
   private static final int NUM_USER_THREADS = 1;
-  private static final int MAX_THREADS = NUM_ACCEPTORS + NUM_SELECTORS + NUM_REQUEST_THREADS + NUM_USER_THREADS;
+  private static final int MAX_THREADS =
+      NUM_ACCEPTORS + NUM_SELECTORS + NUM_REQUEST_THREADS + NUM_USER_THREADS;
 
   private final DremioConfig config;
   private final boolean livenessEnabled;
@@ -67,6 +66,7 @@ public class LivenessService implements Service {
 
   /**
    * adds a health monitor check to the list of checks
+   *
    * @param healthMonitor
    */
   public void addHealthMonitor(LiveHealthMonitor healthMonitor) {
@@ -80,7 +80,8 @@ public class LivenessService implements Service {
       logger.info("Liveness service disabled");
       return;
     }
-    final ServerConnector serverConnector = new ServerConnector(embeddedLivenessJetty, NUM_ACCEPTORS, NUM_SELECTORS);
+    final ServerConnector serverConnector =
+        new ServerConnector(embeddedLivenessJetty, NUM_ACCEPTORS, NUM_SELECTORS);
     serverConnector.setPort(config.getInt(DremioConfig.LIVENESS_PORT));
     serverConnector.setHost(config.getString(DremioConfig.LIVENESS_HOST));
     serverConnector.setAcceptQueueSize(ACCEPT_QUEUE_BACKLOG);
@@ -117,17 +118,13 @@ public class LivenessService implements Service {
     return livenessPort;
   }
 
-  /**
-   * Servlet used to respond to liveness requests. Simply returns a 'yes, I'm alive'
-   */
-  public class LivenessServlet extends HttpServlet
-  {
+  /** Servlet used to respond to liveness requests. Simply returns a 'yes, I'm alive' */
+  public class LivenessServlet extends HttpServlet {
     @Override
-    protected void doGet(HttpServletRequest request,
-                         HttpServletResponse response ) throws ServletException, IOException
-    {
+    protected void doGet(HttpServletRequest request, HttpServletResponse response)
+        throws ServletException, IOException {
       pollCount++;
-      for(LiveHealthMonitor hm: healthMonitors) {
+      for (LiveHealthMonitor hm : healthMonitors) {
         if (!hm.isHealthy()) {
           // return error code 500
           response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);

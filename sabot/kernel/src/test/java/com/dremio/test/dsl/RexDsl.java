@@ -15,10 +15,13 @@
  */
 package com.dremio.test.dsl;
 
+import static com.dremio.test.scaffolding.ScaffoldingRel.BIG_INT_NULL_TYPE;
 import static com.dremio.test.scaffolding.ScaffoldingRel.BIG_INT_TYPE;
 import static com.dremio.test.scaffolding.ScaffoldingRel.BOOLEAN_NULL_TYPE;
 import static com.dremio.test.scaffolding.ScaffoldingRel.BOOLEAN_TYPE;
+import static com.dremio.test.scaffolding.ScaffoldingRel.CHAR_NULL_TYPE;
 import static com.dremio.test.scaffolding.ScaffoldingRel.DATE_TYPE;
+import static com.dremio.test.scaffolding.ScaffoldingRel.FLOAT_NULL_TYPE;
 import static com.dremio.test.scaffolding.ScaffoldingRel.FLOAT_TYPE;
 import static com.dremio.test.scaffolding.ScaffoldingRel.INT_ARRAY_COLUMN_TYPE;
 import static com.dremio.test.scaffolding.ScaffoldingRel.INT_NULL_TYPE;
@@ -30,8 +33,8 @@ import static com.dremio.test.scaffolding.ScaffoldingRel.VARCHAR_NULL_TYPE;
 import static com.dremio.test.scaffolding.ScaffoldingRel.VARCHAR_TYPE;
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.IS_NOT_DISTINCT_FROM;
 
+import java.math.BigDecimal;
 import java.util.List;
-
 import org.apache.calcite.avatica.util.ByteString;
 import org.apache.calcite.rel.core.CorrelationId;
 import org.apache.calcite.rel.type.RelDataType;
@@ -42,15 +45,13 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.util.DateString;
 import org.apache.calcite.util.TimestampString;
 
-/**
- * Convince functions for build in line {@link RexNode}.
- */
+/** Convince functions for build in line {@link RexNode}. */
 public class RexDsl {
-  public static RexNode and(RexNode...exprs) {
+  public static RexNode and(RexNode... exprs) {
     return REX_BUILDER.makeCall(SqlStdOperatorTable.AND, exprs);
   }
 
-  public static RexNode or(RexNode...exprs) {
+  public static RexNode or(RexNode... exprs) {
     return REX_BUILDER.makeCall(SqlStdOperatorTable.OR, exprs);
   }
 
@@ -62,71 +63,56 @@ public class RexDsl {
     return REX_BUILDER.makeCall(SqlStdOperatorTable.NOT, expr);
   }
 
-  /**
-   * Equals(=).
-   */
+  /** Equals(=). */
   public static RexNode eq(RexNode expr1, RexNode expr2) {
     return REX_BUILDER.makeCall(SqlStdOperatorTable.EQUALS, expr1, expr2);
   }
 
-  /**
-   * Not Equals(!=).
-   */
+  /** Not Equals(!=). */
   public static RexNode notEq(RexNode expr1, RexNode expr2) {
     return REX_BUILDER.makeCall(SqlStdOperatorTable.NOT_EQUALS, expr1, expr2);
   }
 
-  /**
-   * Less than or equals to(<=).
-   */
+  /** Less than or equals to(<=). */
   public static RexNode lte(RexNode expr1, RexNode expr2) {
     return REX_BUILDER.makeCall(SqlStdOperatorTable.LESS_THAN_OR_EQUAL, expr1, expr2);
   }
 
-  /**
-   * Less than(<).
-   **/
+  /** Less than(<). */
   public static RexNode lt(RexNode expr1, RexNode expr2) {
     return REX_BUILDER.makeCall(SqlStdOperatorTable.LESS_THAN, expr1, expr2);
   }
 
-  /**
-   * Greater than(>).
-   */
+  /** Greater than(>). */
   public static RexNode gt(RexNode expr1, RexNode expr2) {
     return REX_BUILDER.makeCall(SqlStdOperatorTable.GREATER_THAN, expr1, expr2);
   }
 
-  /**
-   * Greater than or Equal to(>=).
-   */
+  /** Greater than or Equal to(>=). */
   public static RexNode gte(RexNode expr1, RexNode expr2) {
     return REX_BUILDER.makeCall(SqlStdOperatorTable.GREATER_THAN_OR_EQUAL, expr1, expr2);
   }
 
-  /**
-   * Modules(expr1 % expr2).
-   */
+  /** Modules(expr1 % expr2). */
   public static RexNode mod(RexNode expr1, RexNode expr2) {
-    return REX_BUILDER.makeCall(SqlStdOperatorTable.MOD,expr1, expr2);
+    return REX_BUILDER.makeCall(SqlStdOperatorTable.MOD, expr1, expr2);
   }
 
-  /**
-   * isNull(expr).
-   */
-  public static RexNode isNull(RexNode expr){
+  public static RexNode mulDiv(RexNode e, BigDecimal a, BigDecimal b) {
+    return REX_BUILDER.multiplyDivide(e, a, b);
+  }
+
+  /** isNull(expr). */
+  public static RexNode isNull(RexNode expr) {
     return REX_BUILDER.makeCall(SqlStdOperatorTable.IS_NULL, expr);
   }
 
-
-  /**
-   * isNotNull(expr)
-   */
-  public static RexNode isNotNull(RexNode expr){
+  /** isNotNull(expr) */
+  public static RexNode isNotNull(RexNode expr) {
     return REX_BUILDER.makeCall(SqlStdOperatorTable.IS_NOT_NULL, expr);
   }
 
-  public static RexNode plus(RexNode expr1, RexNode expr2){
+  public static RexNode plus(RexNode expr1, RexNode expr2) {
     return REX_BUILDER.makeCall(SqlStdOperatorTable.PLUS, expr1, expr2);
   }
 
@@ -182,12 +168,12 @@ public class RexDsl {
     return REX_BUILDER.makeLiteral(value);
   }
 
-  public static RexInputRef intArrayInput(int i){
-    return REX_BUILDER.makeInputRef(INT_ARRAY_COLUMN_TYPE,i);
+  public static RexInputRef intArrayInput(int i) {
+    return REX_BUILDER.makeInputRef(INT_ARRAY_COLUMN_TYPE, i);
   }
 
-  public static RexInputRef varcharArrayInput(int i){
-    return REX_BUILDER.makeInputRef(VARCHAR_ARRAY_COLUMN_TYPE,i);
+  public static RexInputRef varcharArrayInput(int i) {
+    return REX_BUILDER.makeInputRef(VARCHAR_ARRAY_COLUMN_TYPE, i);
   }
 
   public static RexInputRef intNullInput(int i) {
@@ -196,6 +182,18 @@ public class RexDsl {
 
   public static RexInputRef intInput(int i) {
     return REX_BUILDER.makeInputRef(INT_TYPE, i);
+  }
+
+  public static RexInputRef floatNullInput(int i) {
+    return REX_BUILDER.makeInputRef(FLOAT_NULL_TYPE, i);
+  }
+
+  public static RexInputRef floatInput(int i) {
+    return REX_BUILDER.makeInputRef(FLOAT_TYPE, i);
+  }
+
+  public static RexInputRef bigIntNullInput(int i) {
+    return REX_BUILDER.makeInputRef(BIG_INT_NULL_TYPE, i);
   }
 
   public static RexInputRef bigIntInput(int i) {
@@ -222,6 +220,10 @@ public class RexDsl {
     return REX_BUILDER.makeInputRef(VARCHAR_NULL_TYPE, i);
   }
 
+  public static RexInputRef charNullInput(int i) {
+    return REX_BUILDER.makeInputRef(CHAR_NULL_TYPE, i);
+  }
+
   public static RexInputRef boolInput(int i) {
     return REX_BUILDER.makeInputRef(BOOLEAN_TYPE, i);
   }
@@ -234,11 +236,11 @@ public class RexDsl {
     return REX_BUILDER.makeCast(type, exp);
   }
 
-  public static RexNode nullBool(){
+  public static RexNode nullBool() {
     return REX_BUILDER.makeNullLiteral(BOOLEAN_NULL_TYPE);
   }
 
-  public static RexNode nullInt(){
+  public static RexNode nullInt() {
     return REX_BUILDER.makeNullLiteral(INT_NULL_TYPE);
   }
 

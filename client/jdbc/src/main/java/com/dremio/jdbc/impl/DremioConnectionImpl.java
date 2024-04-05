@@ -15,6 +15,15 @@
  */
 package com.dremio.jdbc.impl;
 
+import com.dremio.exec.client.DremioClient;
+import com.dremio.exec.rpc.RpcException;
+import com.dremio.jdbc.AlreadyClosedSqlException;
+import com.dremio.jdbc.DremioConnection;
+import com.dremio.jdbc.DremioConnectionConfig;
+import com.dremio.jdbc.InvalidParameterSqlException;
+import com.dremio.jdbc.JdbcApiSqlException;
+import com.google.common.base.Strings;
+import com.google.common.base.Throwables;
 import java.sql.Array;
 import java.sql.Blob;
 import java.sql.CallableStatement;
@@ -37,7 +46,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.TimeZone;
 import java.util.concurrent.Executor;
-
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.calcite.avatica.AvaticaConnection;
 import org.apache.calcite.avatica.AvaticaFactory;
@@ -48,24 +56,11 @@ import org.apache.calcite.avatica.NoSuchStatementException;
 import org.apache.calcite.avatica.UnregisteredDriver;
 import org.slf4j.Logger;
 
-import com.dremio.exec.client.DremioClient;
-import com.dremio.exec.rpc.RpcException;
-import com.dremio.jdbc.AlreadyClosedSqlException;
-import com.dremio.jdbc.DremioConnection;
-import com.dremio.jdbc.DremioConnectionConfig;
-import com.dremio.jdbc.InvalidParameterSqlException;
-import com.dremio.jdbc.JdbcApiSqlException;
-import com.google.common.base.Strings;
-import com.google.common.base.Throwables;
-
-/**
- * Dremio's implementation of {@link Connection}.
- */
+/** Dremio's implementation of {@link Connection}. */
 // (Was abstract to avoid errors _here_ if newer versions of JDBC added
 // interface methods, but now newer versions would probably use Java 8's default
 // methods for compatibility.)
-class DremioConnectionImpl extends AvaticaConnection
-                          implements DremioConnection {
+class DremioConnectionImpl extends AvaticaConnection implements DremioConnection {
   @SuppressWarnings("Slf4jIllegalPassedClass") // intentionally using logger from another class
   private static final org.slf4j.Logger logger =
       org.slf4j.LoggerFactory.getLogger(DremioConnection.class);
@@ -76,20 +71,21 @@ class DremioConnectionImpl extends AvaticaConnection
   private final DremioClient client;
   private final TimeZone timeZone;
 
-  protected DremioConnectionImpl(DriverImpl driver, AvaticaFactory factory,
-                                String url, Properties info) throws SQLException {
+  protected DremioConnectionImpl(
+      DriverImpl driver, AvaticaFactory factory, String url, Properties info) throws SQLException {
     super(driver, factory, url, info);
 
     // Initialize transaction-related settings per Dremio behavior.
-    super.setTransactionIsolation( TRANSACTION_NONE );
-    super.setAutoCommit( true );
+    super.setTransactionIsolation(TRANSACTION_NONE);
+    super.setAutoCommit(true);
 
     this.config = new DremioConnectionConfig(info);
     this.timeZone = getTimeZone(this.config.timeZone());
 
     try {
       if (config.isLocal()) {
-        throw new UnsupportedOperationException("Dremio JDBC driver doesn't not support local mode operation");
+        throw new UnsupportedOperationException(
+            "Dremio JDBC driver doesn't not support local mode operation");
       }
 
       this.client = new DremioClient(driver.getSabotConfig(), config.isDirect());
@@ -117,11 +113,12 @@ class DremioConnectionImpl extends AvaticaConnection
   }
 
   @Override
-  protected ExecuteResult prepareAndExecuteInternal(AvaticaStatement statement, String sql, long maxRowCount)
+  protected ExecuteResult prepareAndExecuteInternal(
+      AvaticaStatement statement, String sql, long maxRowCount)
       throws SQLException, NoSuchStatementException {
     try {
       return super.prepareAndExecuteInternal(statement, sql, maxRowCount);
-    } catch(RuntimeException e) {
+    } catch (RuntimeException e) {
       Throwables.propagateIfInstanceOf(e.getCause(), SQLException.class);
       throw e;
     }
@@ -130,11 +127,11 @@ class DremioConnectionImpl extends AvaticaConnection
   /**
    * Throws AlreadyClosedSqlException <i>iff</i> this Connection is closed.
    *
-   * @throws  AlreadyClosedSqlException  if Connection is closed
+   * @throws AlreadyClosedSqlException if Connection is closed
    */
   private void throwIfClosed() throws AlreadyClosedSqlException, SQLException {
-    if ( isClosed() ) {
-      throw new AlreadyClosedSqlException( "Connection is already closed." );
+    if (isClosed()) {
+      throw new AlreadyClosedSqlException("Connection is already closed.");
     }
   }
 
@@ -149,12 +146,12 @@ class DremioConnectionImpl extends AvaticaConnection
   }
 
   @Override
-  public void setAutoCommit( boolean autoCommit ) throws SQLException {
+  public void setAutoCommit(boolean autoCommit) throws SQLException {
     throwIfClosed();
-    if ( ! autoCommit ) {
+    if (!autoCommit) {
       throw new SQLFeatureNotSupportedException(
           "Can't turn off auto-committing; transactions are not supported.  "
-          + "(Dremio is not transactional.)" );
+              + "(Dremio is not transactional.)");
     }
     assert getAutoCommit() : "getAutoCommit() = " + getAutoCommit();
   }
@@ -162,64 +159,67 @@ class DremioConnectionImpl extends AvaticaConnection
   @Override
   public void commit() throws SQLException {
     throwIfClosed();
-    if ( getAutoCommit() ) {
-      throw new JdbcApiSqlException( "Can't call commit() in auto-commit mode." );
+    if (getAutoCommit()) {
+      throw new JdbcApiSqlException("Can't call commit() in auto-commit mode.");
     } else {
       // (Currently not reachable.)
       throw new SQLFeatureNotSupportedException(
-          "Connection.commit() is not supported.  (Dremio is not transactional.)" );
+          "Connection.commit() is not supported.  (Dremio is not transactional.)");
     }
   }
 
   @Override
   public void rollback() throws SQLException {
     throwIfClosed();
-    if ( getAutoCommit()  ) {
-      throw new JdbcApiSqlException( "Can't call rollback() in auto-commit mode." );
+    if (getAutoCommit()) {
+      throw new JdbcApiSqlException("Can't call rollback() in auto-commit mode.");
     } else {
       // (Currently not reachable.)
       throw new SQLFeatureNotSupportedException(
-          "Connection.rollback() is not supported.  (Dremio is not transactional.)" );
+          "Connection.rollback() is not supported.  (Dremio is not transactional.)");
     }
   }
-
 
   @Override
   public Savepoint setSavepoint() throws SQLException {
     throwIfClosed();
     throw new SQLFeatureNotSupportedException(
-        "Savepoints are not supported.  (Dremio is not transactional.)" );
+        "Savepoints are not supported.  (Dremio is not transactional.)");
   }
 
   @Override
   public Savepoint setSavepoint(String name) throws SQLException {
     throwIfClosed();
     throw new SQLFeatureNotSupportedException(
-        "Savepoints are not supported.  (Dremio is not transactional.)" );
+        "Savepoints are not supported.  (Dremio is not transactional.)");
   }
 
   @Override
-    public void rollback(Savepoint savepoint) throws SQLException {
+  public void rollback(Savepoint savepoint) throws SQLException {
     throwIfClosed();
     throw new SQLFeatureNotSupportedException(
-        "Savepoints are not supported.  (Dremio is not transactional.)" );
+        "Savepoints are not supported.  (Dremio is not transactional.)");
   }
 
   @Override
   public void releaseSavepoint(Savepoint savepoint) throws SQLException {
     throwIfClosed();
     throw new SQLFeatureNotSupportedException(
-        "Savepoints are not supported.  (Dremio is not transactional.)" );
+        "Savepoints are not supported.  (Dremio is not transactional.)");
   }
 
-
-  private String isolationValueToString( final int level ) {
-    switch ( level ) {
-      case TRANSACTION_NONE:             return "TRANSACTION_NONE";
-      case TRANSACTION_READ_UNCOMMITTED: return "TRANSACTION_READ_UNCOMMITTED";
-      case TRANSACTION_READ_COMMITTED:   return "TRANSACTION_READ_COMMITTED";
-      case TRANSACTION_REPEATABLE_READ:  return "TRANSACTION_REPEATABLE_READ";
-      case TRANSACTION_SERIALIZABLE:     return "TRANSACTION_SERIALIZABLE";
+  private String isolationValueToString(final int level) {
+    switch (level) {
+      case TRANSACTION_NONE:
+        return "TRANSACTION_NONE";
+      case TRANSACTION_READ_UNCOMMITTED:
+        return "TRANSACTION_READ_UNCOMMITTED";
+      case TRANSACTION_READ_COMMITTED:
+        return "TRANSACTION_READ_COMMITTED";
+      case TRANSACTION_REPEATABLE_READ:
+        return "TRANSACTION_REPEATABLE_READ";
+      case TRANSACTION_SERIALIZABLE:
+        return "TRANSACTION_SERIALIZABLE";
       default:
         return "<Unknown transaction isolation level value " + level + ">";
     }
@@ -228,7 +228,7 @@ class DremioConnectionImpl extends AvaticaConnection
   @Override
   public void setTransactionIsolation(int level) throws SQLException {
     throwIfClosed();
-    switch ( level ) {
+    switch (level) {
       case TRANSACTION_NONE:
         // No-op.  (Is already set in constructor, and we disallow changing it.)
         break;
@@ -236,71 +236,67 @@ class DremioConnectionImpl extends AvaticaConnection
       case TRANSACTION_READ_COMMITTED:
       case TRANSACTION_REPEATABLE_READ:
       case TRANSACTION_SERIALIZABLE:
-          throw new SQLFeatureNotSupportedException(
-              "Can't change transaction isolation level to Connection."
-              + isolationValueToString( level ) + " (from Connection."
-              + isolationValueToString( getTransactionIsolation() ) + ")."
-              + "  (Dremio is not transactional.)" );
+        throw new SQLFeatureNotSupportedException(
+            "Can't change transaction isolation level to Connection."
+                + isolationValueToString(level)
+                + " (from Connection."
+                + isolationValueToString(getTransactionIsolation())
+                + ")."
+                + "  (Dremio is not transactional.)");
       default:
         // Invalid value (or new one unknown to code).
-        throw new JdbcApiSqlException(
-            "Invalid transaction isolation level value " + level );
-        //break;
+        throw new JdbcApiSqlException("Invalid transaction isolation level value " + level);
+        // break;
     }
   }
 
   @Override
-  public void setNetworkTimeout( Executor executor, int milliseconds )
+  public void setNetworkTimeout(Executor executor, int milliseconds)
       throws AlreadyClosedSqlException,
-             JdbcApiSqlException,
-             SQLFeatureNotSupportedException,
-             SQLException {
+          JdbcApiSqlException,
+          SQLFeatureNotSupportedException,
+          SQLException {
     throwIfClosed();
-    if ( null == executor ) {
+    if (null == executor) {
       throw new InvalidParameterSqlException(
-          "Invalid (null) \"executor\" parameter to setNetworkTimeout(...)" );
-    } else if ( milliseconds < 0 ) {
+          "Invalid (null) \"executor\" parameter to setNetworkTimeout(...)");
+    } else if (milliseconds < 0) {
       throw new InvalidParameterSqlException(
           "Invalid (negative) \"milliseconds\" parameter to"
-          + " setNetworkTimeout(...) (" + milliseconds + ")" );
+              + " setNetworkTimeout(...) ("
+              + milliseconds
+              + ")");
     } else {
-      if ( 0 != milliseconds ) {
-        throw new SQLFeatureNotSupportedException(
-            "Setting network timeout is not supported." );
+      if (0 != milliseconds) {
+        throw new SQLFeatureNotSupportedException("Setting network timeout is not supported.");
       }
     }
   }
 
   @Override
-  public int getNetworkTimeout() throws AlreadyClosedSqlException, SQLException
-  {
+  public int getNetworkTimeout() throws AlreadyClosedSqlException, SQLException {
     throwIfClosed();
-    return 0;  // (No timeout.)
+    return 0; // (No timeout.)
   }
 
-
   @Override
-  public DremioStatementImpl createStatement(int resultSetType,
-                                            int resultSetConcurrency,
-                                            int resultSetHoldability) throws SQLException {
+  public DremioStatementImpl createStatement(
+      int resultSetType, int resultSetConcurrency, int resultSetHoldability) throws SQLException {
     throwIfClosed();
     DremioStatementImpl statement =
-        (DremioStatementImpl) super.createStatement(resultSetType,
-                                                   resultSetConcurrency,
-                                                   resultSetHoldability);
+        (DremioStatementImpl)
+            super.createStatement(resultSetType, resultSetConcurrency, resultSetHoldability);
     return statement;
   }
 
   @Override
-  public PreparedStatement prepareStatement(String sql, int resultSetType,
-                                            int resultSetConcurrency,
-                                            int resultSetHoldability) throws SQLException {
+  public PreparedStatement prepareStatement(
+      String sql, int resultSetType, int resultSetConcurrency, int resultSetHoldability)
+      throws SQLException {
     throwIfClosed();
     DremioPreparedStatementImpl statement =
-        (DremioPreparedStatementImpl) super.prepareStatement(sql,
-                                                            resultSetType,
-                                                            resultSetConcurrency,
-                                                            resultSetHoldability);
+        (DremioPreparedStatementImpl)
+            super.prepareStatement(sql, resultSetType, resultSetConcurrency, resultSetHoldability);
     return statement;
   }
 
@@ -308,7 +304,6 @@ class DremioConnectionImpl extends AvaticaConnection
   public TimeZone getTimeZone() {
     return timeZone;
   }
-
 
   // Note:  Using dynamic proxies would reduce the quantity (450?) of method
   // overrides by eliminating those that exist solely to check whether the
@@ -352,7 +347,6 @@ class DremioConnectionImpl extends AvaticaConnection
     }
   }
 
-
   @Override
   public boolean getAutoCommit() throws SQLException {
     throwIfClosed();
@@ -390,7 +384,8 @@ class DremioConnectionImpl extends AvaticaConnection
     throwIfClosed();
     String catalog = super.getCatalog();
     if (null == catalog) {
-      // There is no catalog set in the local properties initially, so lazily load it from Dremio. Note that Dremio
+      // There is no catalog set in the local properties initially, so lazily load it from Dremio.
+      // Note that Dremio
       // currently only ever has a single catalog.
       try (final ResultSet rs = getMetaData().getCatalogs()) {
         if (rs.next()) {
@@ -422,22 +417,22 @@ class DremioConnectionImpl extends AvaticaConnection
   }
 
   @Override
-  public Statement createStatement(int resultSetType,
-                                   int resultSetConcurrency) throws SQLException {
+  public Statement createStatement(int resultSetType, int resultSetConcurrency)
+      throws SQLException {
     throwIfClosed();
     return super.createStatement(resultSetType, resultSetConcurrency);
   }
 
   @Override
-  public PreparedStatement prepareStatement(String sql, int resultSetType,
-                                            int resultSetConcurrency) throws SQLException {
+  public PreparedStatement prepareStatement(String sql, int resultSetType, int resultSetConcurrency)
+      throws SQLException {
     throwIfClosed();
     return super.prepareStatement(sql, resultSetType, resultSetConcurrency);
   }
 
   @Override
-  public CallableStatement prepareCall(String sql, int resultSetType,
-                                       int resultSetConcurrency) throws SQLException {
+  public CallableStatement prepareCall(String sql, int resultSetType, int resultSetConcurrency)
+      throws SQLException {
     throwIfClosed();
     try {
       return super.prepareCall(sql, resultSetType, resultSetConcurrency);
@@ -447,7 +442,7 @@ class DremioConnectionImpl extends AvaticaConnection
   }
 
   @Override
-  public Map<String,Class<?>> getTypeMap() throws SQLException {
+  public Map<String, Class<?>> getTypeMap() throws SQLException {
     throwIfClosed();
     try {
       return super.getTypeMap();
@@ -457,7 +452,7 @@ class DremioConnectionImpl extends AvaticaConnection
   }
 
   @Override
-  public void setTypeMap(Map<String,Class<?>> map) throws SQLException {
+  public void setTypeMap(Map<String, Class<?>> map) throws SQLException {
     throwIfClosed();
     try {
       super.setTypeMap(map);
@@ -479,21 +474,19 @@ class DremioConnectionImpl extends AvaticaConnection
   }
 
   @Override
-  public CallableStatement prepareCall(String sql, int resultSetType,
-                                       int resultSetConcurrency,
-                                       int resultSetHoldability) throws SQLException {
+  public CallableStatement prepareCall(
+      String sql, int resultSetType, int resultSetConcurrency, int resultSetHoldability)
+      throws SQLException {
     throwIfClosed();
     try {
-      return super.prepareCall(sql, resultSetType, resultSetConcurrency,
-                               resultSetHoldability);
+      return super.prepareCall(sql, resultSetType, resultSetConcurrency, resultSetHoldability);
     } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
 
   @Override
-  public PreparedStatement prepareStatement(String sql,
-                                            int autoGeneratedKeys) throws SQLException {
+  public PreparedStatement prepareStatement(String sql, int autoGeneratedKeys) throws SQLException {
     throwIfClosed();
     try {
       return super.prepareStatement(sql, autoGeneratedKeys);
@@ -503,8 +496,7 @@ class DremioConnectionImpl extends AvaticaConnection
   }
 
   @Override
-  public PreparedStatement prepareStatement(String sql,
-                                            int[] columnIndexes) throws SQLException {
+  public PreparedStatement prepareStatement(String sql, int[] columnIndexes) throws SQLException {
     throwIfClosed();
     try {
       return super.prepareStatement(sql, columnIndexes);
@@ -514,8 +506,7 @@ class DremioConnectionImpl extends AvaticaConnection
   }
 
   @Override
-  public PreparedStatement prepareStatement(String sql,
-                                            String[] columnNames) throws SQLException {
+  public PreparedStatement prepareStatement(String sql, String[] columnNames) throws SQLException {
     throwIfClosed();
     try {
       return super.prepareStatement(sql, columnNames);
@@ -577,7 +568,7 @@ class DremioConnectionImpl extends AvaticaConnection
       throw new SQLClientInfoException(e.getMessage(), null, e);
     }
     try {
-      super.setClientInfo(name,  value);
+      super.setClientInfo(name, value);
     } catch (UnsupportedOperationException e) {
       SQLFeatureNotSupportedException intended =
           new SQLFeatureNotSupportedException(e.getMessage(), e);
@@ -691,14 +682,15 @@ class DremioConnectionImpl extends AvaticaConnection
     return factory;
   }
 
-  private static void closeOrWarn(final AutoCloseable autoCloseable, final String message, final Logger logger) {
+  private static void closeOrWarn(
+      final AutoCloseable autoCloseable, final String message, final Logger logger) {
     if (autoCloseable == null) {
       return;
     }
 
     try {
       autoCloseable.close();
-    } catch(Exception e) {
+    } catch (Exception e) {
       logger.warn(message, e);
     }
   }

@@ -15,6 +15,16 @@
  */
 package com.dremio.ssl;
 
+import com.dremio.common.VM;
+import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableList;
+import io.netty.buffer.ByteBufAllocator;
+import io.netty.handler.ssl.ClientAuth;
+import io.netty.handler.ssl.OpenSsl;
+import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslContextBuilder;
+import io.netty.handler.ssl.SslProvider;
+import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -24,7 +34,6 @@ import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
 import java.util.Collections;
-
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SNIHostName;
 import javax.net.ssl.SSLEngine;
@@ -32,23 +41,10 @@ import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.TrustManagerFactory;
 
-import com.dremio.common.VM;
-import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableList;
-
-import io.netty.buffer.ByteBufAllocator;
-import io.netty.handler.ssl.ClientAuth;
-import io.netty.handler.ssl.OpenSsl;
-import io.netty.handler.ssl.SslContext;
-import io.netty.handler.ssl.SslContextBuilder;
-import io.netty.handler.ssl.SslProvider;
-import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
-
-/**
- * Default implementation.
- */
+/** Default implementation. */
 public class SSLEngineFactoryImpl implements SSLEngineFactory {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SSLEngineFactoryImpl.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(SSLEngineFactoryImpl.class);
 
   private static final String SSL_PROVIDER_PROPERTY = "dremio.ssl.provider";
   private static final String DEFAULT_SSL_PROVIDER;
@@ -62,9 +58,11 @@ public class SSLEngineFactoryImpl implements SSLEngineFactory {
   private static final Iterable<String> SSL_CIPHERS;
 
   static {
-    DEFAULT_SSL_PROVIDER = OpenSsl.isAvailable() ? SslProvider.OPENSSL.name() : SslProvider.JDK.name();
+    DEFAULT_SSL_PROVIDER =
+        OpenSsl.isAvailable() ? SslProvider.OPENSSL.name() : SslProvider.JDK.name();
 
-    SSL_PROVIDER = SslProvider.valueOf(System.getProperty(SSL_PROVIDER_PROPERTY, DEFAULT_SSL_PROVIDER));
+    SSL_PROVIDER =
+        SslProvider.valueOf(System.getProperty(SSL_PROVIDER_PROPERTY, DEFAULT_SSL_PROVIDER));
 
     SSL_PROTOCOLS = System.getProperty(SSL_PROTOCOLS_PROPERTY, DEFAULT_SSL_PROTOCOLS).split(",");
 
@@ -107,12 +105,14 @@ public class SSLEngineFactoryImpl implements SSLEngineFactory {
       throw new IllegalArgumentException("Key store has no entries");
     }
 
-    final KeyManagerFactory factory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+    final KeyManagerFactory factory =
+        KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
     factory.init(keyStore, sslConfig.getKeyPassword().toCharArray());
     return factory;
   }
 
-  private TrustManagerFactory newTrustManagerFactory() throws GeneralSecurityException, IOException {
+  private TrustManagerFactory newTrustManagerFactory()
+      throws GeneralSecurityException, IOException {
     if (sslConfig.disablePeerVerification()) {
       return InsecureTrustManagerFactory.INSTANCE;
     }
@@ -122,8 +122,10 @@ public class SSLEngineFactoryImpl implements SSLEngineFactory {
       builder.addDefaultTrustStore();
     } else {
       final KeyStore mainTrustStore = KeyStore.getInstance(sslConfig.getTrustStoreType());
-      try (InputStream stream = !Strings.isNullOrEmpty(sslConfig.getTrustStorePath()) ?
-           new FileInputStream(sslConfig.getTrustStorePath()) : null) {
+      try (InputStream stream =
+          !Strings.isNullOrEmpty(sslConfig.getTrustStorePath())
+              ? new FileInputStream(sslConfig.getTrustStorePath())
+              : null) {
         mainTrustStore.load(stream, sslConfig.getTrustStorePassword().toCharArray());
       }
       builder.addTrustStore(mainTrustStore);
@@ -140,29 +142,31 @@ public class SSLEngineFactoryImpl implements SSLEngineFactory {
     return builder.build();
   }
 
-  private static void tryAddTrustStoreType(CompositeTrustManagerFactory.Builder builder, String trustStoreType) {
+  private static void tryAddTrustStoreType(
+      CompositeTrustManagerFactory.Builder builder, String trustStoreType) {
     try {
       final KeyStore trustStore = KeyStore.getInstance(trustStoreType);
       trustStore.load(null, null);
       builder.addTrustStore(trustStore);
     } catch (KeyStoreException | IOException | NoSuchAlgorithmException | CertificateException e) {
-      logger.warn("Unable to add trust store of type {}. Ignoring certificates.", trustStoreType, e);
+      logger.warn(
+          "Unable to add trust store of type {}. Ignoring certificates.", trustStoreType, e);
     }
   }
 
   @Override
   public SslContextBuilder newServerContextBuilder() {
     return SslContextBuilder.forServer(keyManagerFactory)
-      .trustManager(trustManagerFactory)
-      .clientAuth(sslConfig.disablePeerVerification() ? ClientAuth.OPTIONAL : ClientAuth.REQUIRE)
-      .sslProvider(SSL_PROVIDER)
-      .protocols(SSL_PROTOCOLS)
-      .ciphers(SSL_CIPHERS);
+        .trustManager(trustManagerFactory)
+        .clientAuth(sslConfig.disablePeerVerification() ? ClientAuth.OPTIONAL : ClientAuth.REQUIRE)
+        .sslProvider(SSL_PROVIDER)
+        .protocols(SSL_PROTOCOLS)
+        .ciphers(SSL_CIPHERS);
   }
 
   @Override
   public SSLEngine newServerEngine(ByteBufAllocator allocator, String peerHost, int peerPort)
-    throws SSLException {
+      throws SSLException {
     final SslContext sslContext = newServerContextBuilder().build();
 
     final SSLEngine engine = sslContext.newEngine(allocator, peerHost, peerPort);
@@ -179,16 +183,16 @@ public class SSLEngineFactoryImpl implements SSLEngineFactory {
   @Override
   public SslContextBuilder newClientContextBuilder() {
     return SslContextBuilder.forClient()
-      .keyManager(keyManagerFactory)
-      .trustManager(trustManagerFactory)
-      .sslProvider(SSL_PROVIDER)
-      .protocols(SSL_PROTOCOLS)
-      .ciphers(SSL_CIPHERS);
+        .keyManager(keyManagerFactory)
+        .trustManager(trustManagerFactory)
+        .sslProvider(SSL_PROVIDER)
+        .protocols(SSL_PROTOCOLS)
+        .ciphers(SSL_CIPHERS);
   }
 
   @Override
   public SSLEngine newClientEngine(ByteBufAllocator allocator, String peerHost, int peerPort)
-    throws SSLException {
+      throws SSLException {
     final SslContext sslContext = newClientContextBuilder().build();
 
     final SSLEngine engine = sslContext.newEngine(allocator, peerHost, peerPort);

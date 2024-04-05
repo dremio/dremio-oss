@@ -15,18 +15,6 @@
  */
 package com.dremio.exec.store.mfunctions;
 
-import java.util.UUID;
-
-import org.apache.calcite.config.CalciteConnectionConfig;
-import org.apache.calcite.plan.Convention;
-import org.apache.calcite.plan.RelOptTable;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.schema.Schema;
-import org.apache.calcite.schema.Statistic;
-import org.apache.calcite.schema.Statistics;
-import org.apache.calcite.sql.SqlCall;
-import org.apache.calcite.sql.SqlNode;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.calcite.logical.ScanCrel;
 import com.dremio.exec.catalog.MFunctionMetadata;
@@ -47,18 +35,27 @@ import com.dremio.service.namespace.file.proto.FileType;
 import com.dremio.service.namespace.proto.EntityId;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import java.util.UUID;
+import org.apache.calcite.config.CalciteConnectionConfig;
+import org.apache.calcite.plan.Convention;
+import org.apache.calcite.plan.RelOptTable;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.schema.Schema;
+import org.apache.calcite.schema.Statistic;
+import org.apache.calcite.schema.Statistics;
+import org.apache.calcite.sql.SqlCall;
+import org.apache.calcite.sql.SqlNode;
 
-/**
- * Metadata provider for table functions as table_files
- */
+/** Metadata provider for table functions as table_files */
 public final class DeltaLakeMFunctionTranslatableTableImpl extends MFunctionTranslatableTable {
 
   private final DatasetConfig underlyingTableConfig;
   private final StoragePlugin storagePlugin;
 
-  public DeltaLakeMFunctionTranslatableTableImpl(MFunctionCatalogMetadata catalogMetadata,
-                                                 MFunctionMetadata mFunctionMetadata,
-                                                 boolean complexTypeSupport) {
+  public DeltaLakeMFunctionTranslatableTableImpl(
+      MFunctionCatalogMetadata catalogMetadata,
+      MFunctionMetadata mFunctionMetadata,
+      boolean complexTypeSupport) {
     super(catalogMetadata, mFunctionMetadata.getSchemaConfig().getUserName(), complexTypeSupport);
     Preconditions.checkArgument(mFunctionMetadata.getCurrentConfig() != null);
     this.underlyingTableConfig = mFunctionMetadata.getCurrentConfig();
@@ -81,7 +78,8 @@ public final class DeltaLakeMFunctionTranslatableTableImpl extends MFunctionTran
   }
 
   @Override
-  public boolean rolledUpColumnValidInsideAgg(String column, SqlCall call, SqlNode parent, CalciteConnectionConfig config) {
+  public boolean rolledUpColumnValidInsideAgg(
+      String column, SqlCall call, SqlNode parent, CalciteConnectionConfig config) {
     return false;
   }
 
@@ -90,19 +88,21 @@ public final class DeltaLakeMFunctionTranslatableTableImpl extends MFunctionTran
     DatasetConfig config = createDatasetConfigUsingUnderlyingConfig();
     long rowCountEstimate = getRowCountEstimate();
     return new ScanCrel(
-      context.getCluster(),
-      context.getCluster().traitSetOf(Convention.NONE),
-      catalogMetadata.getStoragePluginId(),
-      DeltaLakeHistoryScanTableMetadata.create(catalogMetadata, config, user, rowCountEstimate),
-      null,
-      1.0d, ImmutableList.of(), false, false);
+        context.getCluster(),
+        context.getCluster().traitSetOf(Convention.NONE),
+        catalogMetadata.getStoragePluginId(),
+        DeltaLakeHistoryScanTableMetadata.create(catalogMetadata, config, user, rowCountEstimate),
+        null,
+        1.0d,
+        ImmutableList.of(),
+        false,
+        false);
   }
 
   private DatasetConfig createDatasetConfigUsingUnderlyingConfig() {
     final DatasetConfig shallowConfig = new DatasetConfig();
 
-    shallowConfig.setId(new EntityId()
-      .setId(UUID.randomUUID().toString()));
+    shallowConfig.setId(new EntityId().setId(UUID.randomUUID().toString()));
     shallowConfig.setCreatedAt(System.currentTimeMillis());
     shallowConfig.setName(underlyingTableConfig.getName());
     shallowConfig.setFullPathList(underlyingTableConfig.getFullPathList());
@@ -112,8 +112,10 @@ public final class DeltaLakeMFunctionTranslatableTableImpl extends MFunctionTran
 
     final ReadDefinition readDefinition = new ReadDefinition();
     readDefinition.setScanStats(underlyingTableConfig.getReadDefinition().getManifestScanStats());
-    readDefinition.setManifestScanStats(underlyingTableConfig.getReadDefinition().getManifestScanStats());
-    readDefinition.setExtendedProperty(underlyingTableConfig.getReadDefinition().getExtendedProperty());
+    readDefinition.setManifestScanStats(
+        underlyingTableConfig.getReadDefinition().getManifestScanStats());
+    readDefinition.setExtendedProperty(
+        underlyingTableConfig.getReadDefinition().getExtendedProperty());
     shallowConfig.setReadDefinition(readDefinition);
 
     shallowConfig.setPhysicalDataset(underlyingTableConfig.getPhysicalDataset());
@@ -126,10 +128,12 @@ public final class DeltaLakeMFunctionTranslatableTableImpl extends MFunctionTran
 
   private long getRowCountEstimate() {
     if (storagePlugin instanceof SupportsIcebergRootPointer) {
-      String tableLocation = underlyingTableConfig.getPhysicalDataset().getFormatSettings().getLocation();
-      try (FileSystem fs = ((SupportsIcebergRootPointer) storagePlugin).createFS(tableLocation, user, null)) {
+      String tableLocation =
+          underlyingTableConfig.getPhysicalDataset().getFormatSettings().getLocation();
+      try (FileSystem fs =
+          ((SupportsIcebergRootPointer) storagePlugin).createFS(tableLocation, user, null)) {
         Path metadataDirPath = Path.of(tableLocation).resolve(DeltaConstants.DELTA_LOG_DIR);
-        DeltaVersionResolver resolver = new DeltaVersionResolver(null, fs, metadataDirPath);
+        DeltaVersionResolver resolver = new DeltaVersionResolver(fs, metadataDirPath);
         DeltaVersion version = resolver.getLastCheckpoint();
         return version.getVersion() > 0 ? version.getVersion() : DremioCost.LARGE_FILE_COUNT;
       } catch (Exception e) {

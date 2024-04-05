@@ -31,95 +31,84 @@ package io.airlift.tpch;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
+import com.google.common.base.MoreObjects;
+import com.google.common.collect.ImmutableList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import com.google.common.base.MoreObjects;
-import com.google.common.collect.ImmutableList;
+public class Distribution {
+  private final String name;
+  private final List<String> values;
+  private final int[] weights;
+  private final String[] distribution;
+  private final int maxWeight;
 
-public class Distribution
-{
-    private final String name;
-    private final List<String> values;
-    private final int[] weights;
-    private final String[] distribution;
-    private final int maxWeight;
+  public Distribution(String name, Map<String, Integer> distribution) {
+    this.name = checkNotNull(name, "name is null");
+    checkNotNull(distribution, "distribution is null");
 
-    public Distribution(String name, Map<String, Integer> distribution)
-    {
-        this.name = checkNotNull(name, "name is null");
-        checkNotNull(distribution, "distribution is null");
+    ImmutableList.Builder<String> values = ImmutableList.builder();
+    this.weights = new int[distribution.size()];
 
-        ImmutableList.Builder<String> values = ImmutableList.builder();
-        this.weights = new int[distribution.size()];
+    int runningWeight = 0;
+    int index = 0;
+    boolean isValidDistribution = true;
+    for (Entry<String, Integer> entry : distribution.entrySet()) {
+      values.add(entry.getKey());
 
-        int runningWeight = 0;
-        int index = 0;
-        boolean isValidDistribution = true;
-        for (Entry<String, Integer> entry : distribution.entrySet()) {
-            values.add(entry.getKey());
+      runningWeight += entry.getValue();
+      weights[index] = runningWeight;
 
-            runningWeight += entry.getValue();
-            weights[index] = runningWeight;
+      isValidDistribution = isValidDistribution && entry.getValue() > 0;
 
-            isValidDistribution = isValidDistribution && entry.getValue() > 0;
+      index++;
+    }
+    this.values = values.build();
 
-            index++;
+    // "nations" is hack and not a valid distribution so we need to skip it
+    if (isValidDistribution) {
+      this.maxWeight = weights[weights.length - 1];
+      this.distribution = new String[maxWeight];
+
+      index = 0;
+      for (String value : this.values) {
+        int count = distribution.get(value);
+        for (int i = 0; i < count; i++) {
+          this.distribution[index++] = value;
         }
-        this.values = values.build();
-
-        // "nations" is hack and not a valid distribution so we need to skip it
-        if (isValidDistribution) {
-            this.maxWeight = weights[weights.length - 1];
-            this.distribution = new String[maxWeight];
-
-            index = 0;
-            for (String value : this.values) {
-                int count = distribution.get(value);
-                for (int i = 0; i < count; i++) {
-                    this.distribution[index++] = value;
-                }
-            }
-        } else {
-            this.maxWeight = -1;
-            this.distribution = null;
-        }
+      }
+    } else {
+      this.maxWeight = -1;
+      this.distribution = null;
     }
+  }
 
-    public String getValue(int index)
-    {
-        return values.get(index);
-    }
+  public String getValue(int index) {
+    return values.get(index);
+  }
 
-    public List<String> getValues()
-    {
-        return values;
-    }
+  public List<String> getValues() {
+    return values;
+  }
 
-    public int getWeight(int index)
-    {
-        return weights[index];
-    }
+  public int getWeight(int index) {
+    return weights[index];
+  }
 
-    public int size()
-    {
-        return values.size();
-    }
+  public int size() {
+    return values.size();
+  }
 
-    public String randomValue(RandomInt randomInt)
-    {
-        checkState(distribution != null, "%s does not have a distribution", name);
+  public String randomValue(RandomInt randomInt) {
+    checkState(distribution != null, "%s does not have a distribution", name);
 
-        int randomValue = randomInt.nextInt(0, maxWeight - 1);
-        return distribution[randomValue];
-    }
+    int randomValue = randomInt.nextInt(0, maxWeight - 1);
+    return distribution[randomValue];
+  }
 
-    @Override
-    public String toString()
-    {
-        return MoreObjects.toStringHelper(this)
-                .add("name", name)
-                .toString();
-    }
+  @Override
+  public String toString() {
+    return MoreObjects.toStringHelper(this).add("name", name).toString();
+  }
 }

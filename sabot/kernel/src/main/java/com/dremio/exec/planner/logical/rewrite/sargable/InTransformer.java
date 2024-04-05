@@ -19,7 +19,6 @@ import java.util.Comparator;
 import java.util.GregorianCalendar;
 import java.util.LinkedList;
 import java.util.List;
-
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
@@ -29,6 +28,8 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlKind;
 
 /**
+ *
+ *
  * <pre>
  * DATE_TRUNC('month', ts) IN ('2023-02-01','2023-03-01','2023-04-01','2023-05-01')
  * =>
@@ -46,8 +47,7 @@ public class InTransformer implements Transformer {
   private final RexBuilder rexBuilder;
   private final RexCall lhsCall;
 
-  InTransformer(RelOptCluster relOptCluster,
-                StandardForm standardForm) {
+  InTransformer(RelOptCluster relOptCluster, StandardForm standardForm) {
     this.rexBuilder = relOptCluster.getRexBuilder();
     this.lhsCall = standardForm.getLhsCall();
   }
@@ -58,9 +58,7 @@ public class InTransformer implements Transformer {
     Boolean isIn = checkDateIntervals(intervals);
     if (isIn != null && intervals.size() > 0) {
       LinkedList<DateInterval> merged = new LinkedList<>();
-      intervals.sort(
-        Comparator.comparing(a -> a.begin)
-      );
+      intervals.sort(Comparator.comparing(a -> a.begin));
       for (DateInterval interval : intervals) {
         if (merged.isEmpty() || merged.getLast().end < interval.begin) {
           merged.add(interval);
@@ -80,11 +78,10 @@ public class InTransformer implements Transformer {
           List<RexNode> nodes = new LinkedList<>();
           for (DateInterval interval : merged) {
             nodes.add(
-              SARGableRexUtils.and(
-                SARGableRexUtils.gte(column, interval.beginLiteral, rexBuilder),
-                SARGableRexUtils.lt(column, interval.endLiteral, rexBuilder),
-                rexBuilder)
-            );
+                SARGableRexUtils.and(
+                    SARGableRexUtils.gte(column, interval.beginLiteral, rexBuilder),
+                    SARGableRexUtils.lt(column, interval.endLiteral, rexBuilder),
+                    rexBuilder));
           }
           if (nodes.size() == 1) {
             return nodes.get(0);
@@ -97,11 +94,10 @@ public class InTransformer implements Transformer {
             DateInterval interval = merged.get(i);
             DateInterval intervalNext = merged.get(i + 1);
             nodes.add(
-              SARGableRexUtils.and(
-                SARGableRexUtils.gte(column, interval.endLiteral, rexBuilder),
-                SARGableRexUtils.lt(column, intervalNext.beginLiteral, rexBuilder),
-                rexBuilder)
-            );
+                SARGableRexUtils.and(
+                    SARGableRexUtils.gte(column, interval.endLiteral, rexBuilder),
+                    SARGableRexUtils.lt(column, intervalNext.beginLiteral, rexBuilder),
+                    rexBuilder));
           }
           nodes.add(SARGableRexUtils.gte(column, merged.getLast().endLiteral, rexBuilder));
           if (nodes.size() == 1) {
@@ -133,8 +129,8 @@ public class InTransformer implements Transformer {
   }
 
   /**
-   * Check the list of DateIntervals to merge, if any of the intervals contains a non-RexLiteral begin or end,
-   * just return null
+   * Check the list of DateIntervals to merge, if any of the intervals contains a non-RexLiteral
+   * begin or end, just return null
    *
    * @return True - IN(...); False - NOT IN(...)
    */

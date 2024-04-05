@@ -18,25 +18,6 @@ package com.dremio.dac.api;
 import static com.dremio.service.namespace.DatasetIndexKeys.DATASET_SOURCES;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
-
-import javax.annotation.security.RolesAllowed;
-import javax.inject.Inject;
-import javax.inject.Provider;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.DefaultValue;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.dac.annotations.APIResource;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.service.reflection.ReflectionServiceHelper;
@@ -63,10 +44,24 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.util.Timestamps;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import javax.annotation.security.RolesAllowed;
+import javax.inject.Inject;
+import javax.inject.Provider;
+import javax.ws.rs.Consumes;
+import javax.ws.rs.DefaultValue;
+import javax.ws.rs.GET;
+import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * Resource for information about sources.
- */
+/** Resource for information about sources. */
 @APIResource
 @Secured
 @Path("/cluster/stats")
@@ -89,8 +84,7 @@ public class ClusterStatsResource {
       NamespaceService namespaceService,
       JobsService jobsService,
       ReflectionServiceHelper reflectionServiceHelper,
-      EditionProvider editionProvider
-  ) {
+      EditionProvider editionProvider) {
     this.context = context;
     this.sourceService = sourceService;
     this.namespaceService = namespaceService;
@@ -101,7 +95,8 @@ public class ClusterStatsResource {
 
   @GET
   @RolesAllowed({"admin", "user"})
-  public ClusterStats getStats(@DefaultValue("false") @QueryParam("showCompactStats") final boolean showCompactStats) {
+  public ClusterStats getStats(
+      @DefaultValue("false") @QueryParam("showCompactStats") final boolean showCompactStats) {
     return createStats(showCompactStats);
   }
 
@@ -119,8 +114,7 @@ public class ClusterStatsResource {
       result.setCoordinators(processEndPoints(sabotContext.getCoordinators()));
     }
 
-    final Stats resource = getSources(this.sourceService.getSources(), sabotContext);
-
+    final Stats resource = getSources(this.sourceService.getSources());
 
     // source stats
     final List<SourceStats> sources = resource.getAllSources();
@@ -129,7 +123,9 @@ public class ClusterStatsResource {
     final List<SearchTypes.SearchQuery> vdsQueries = resource.getVdsQueries();
 
     try {
-      List<Integer> counts = namespaceService.getCounts(vdsQueries.toArray(new SearchTypes.SearchQuery[vdsQueries.size()]));
+      List<Integer> counts =
+          namespaceService.getCounts(
+              vdsQueries.toArray(new SearchTypes.SearchQuery[vdsQueries.size()]));
       for (int i = 0; i < counts.size(); i++) {
         sources.get(i).setVdsCount(counts.get(i));
       }
@@ -141,21 +137,26 @@ public class ClusterStatsResource {
 
     final long end = System.currentTimeMillis();
     final long start = end - TimeUnit.DAYS.toMillis(7);
-    final JobStatsRequest request = JobStatsRequest.newBuilder()
-      .setStartDate(Timestamps.fromMillis(start))
-      .setEndDate(Timestamps.fromMillis(end))
-      .addJobStatsType(JobStats.Type.UI)
-      .addJobStatsType(JobStats.Type.EXTERNAL)
-      .addJobStatsType(JobStats.Type.ACCELERATION)
-      .addJobStatsType(JobStats.Type.DOWNLOAD)
-      .addJobStatsType(JobStats.Type.INTERNAL)
-      .build();
+    final JobStatsRequest request =
+        JobStatsRequest.newBuilder()
+            .setStartDate(Timestamps.fromMillis(start))
+            .setEndDate(Timestamps.fromMillis(end))
+            .addJobStatsType(JobStats.Type.UI)
+            .addJobStatsType(JobStats.Type.EXTERNAL)
+            .addJobStatsType(JobStats.Type.ACCELERATION)
+            .addJobStatsType(JobStats.Type.DOWNLOAD)
+            .addJobStatsType(JobStats.Type.INTERNAL)
+            .build();
     // job stats
     final JobStats jobStats = jobsService.getJobStats(request);
-    final List<JobTypeStats> jobTypeStats = jobStats.getCountsList().stream()
-        .map(jobCountWithType -> new JobTypeStats(JobsServiceUtil.toType(jobCountWithType.getType()),
-            jobCountWithType.getCount()))
-        .collect(Collectors.toList());
+    final List<JobTypeStats> jobTypeStats =
+        jobStats.getCountsList().stream()
+            .map(
+                jobCountWithType ->
+                    new JobTypeStats(
+                        JobsServiceUtil.toType(jobCountWithType.getType()),
+                        jobCountWithType.getCount()))
+            .collect(Collectors.toList());
     result.setJobStats(jobTypeStats);
 
     // acceleration stats
@@ -178,7 +179,8 @@ public class ClusterStatsResource {
       AVAILABILITY_STATUS availability = status.getAvailability();
       if (availability == AVAILABILITY_STATUS.AVAILABLE) {
         activeReflections++;
-      } else if (availability == AVAILABILITY_STATUS.INCOMPLETE || status.getRefresh() == REFRESH_STATUS.GIVEN_UP) {
+      } else if (availability == AVAILABILITY_STATUS.INCOMPLETE
+          || status.getRefresh() == REFRESH_STATUS.GIVEN_UP) {
         errorReflections++;
       }
 
@@ -187,32 +189,36 @@ public class ClusterStatsResource {
       }
     }
 
-    ReflectionStats reflectionStats = new ReflectionStats(activeReflections, errorReflections, totalReflectionSizeBytes, latestReflectionsSizeBytes, incrementalReflectionCount);
+    ReflectionStats reflectionStats =
+        new ReflectionStats(
+            activeReflections,
+            errorReflections,
+            totalReflectionSizeBytes,
+            latestReflectionsSizeBytes,
+            incrementalReflectionCount);
     result.setReflectionStats(reflectionStats);
 
     result.setEdition(editionProvider.getEdition());
-
 
     return result;
   }
 
   @VisibleForTesting
-  public static Stats getSources(List<SourceConfig> allSources, SabotContext context){
+  public static Stats getSources(List<SourceConfig> allSources) {
 
-    final Stats resource  = new Stats();
+    final Stats resource = new Stats();
 
     for (SourceConfig sourceConfig : allSources) {
       int pdsCount = -1;
 
       String type = sourceConfig.getType();
 
-      if(type == null && sourceConfig.getLegacySourceTypeEnum() != null) {
+      if (type == null && sourceConfig.getLegacySourceTypeEnum() != null) {
         type = sourceConfig.getLegacySourceTypeEnum().name();
       }
 
-      if("S3".equals(type) && sourceConfig.getName().startsWith("Samples")) {
+      if ("S3".equals(type) && sourceConfig.getName().startsWith("Samples")) {
         type = "SamplesS3";
-
       }
 
       SourceStats source = new SourceStats(sourceConfig.getId(), type, pdsCount);
@@ -223,39 +229,36 @@ public class ClusterStatsResource {
     return resource;
   }
 
-  /**
-   * Internal Stats
-   */
-  static class Stats{
+  /** Internal Stats */
+  static class Stats {
     private List<SourceStats> sources;
     private List<SearchTypes.SearchQuery> vdsQueries;
 
-    public Stats(){
+    public Stats() {
       sources = new ArrayList<>();
       vdsQueries = new ArrayList<>();
     }
 
-    public void addSource(SourceStats source){
+    public void addSource(SourceStats source) {
       sources.add(source);
     }
 
-    public void addVdsQuery(SearchTypes.SearchQuery query){
+    public void addVdsQuery(SearchTypes.SearchQuery query) {
       vdsQueries.add(query);
     }
 
-    public List<SourceStats> getAllSources(){
+    public List<SourceStats> getAllSources() {
       return sources;
     }
 
-    public List<SearchTypes.SearchQuery> getVdsQueries(){
+    public List<SearchTypes.SearchQuery> getVdsQueries() {
       return vdsQueries;
     }
-
   }
-
 
   /**
    * returns average memory,cores of node type in the cluster
+   *
    * @param endpoints
    * @return
    */
@@ -268,12 +271,10 @@ public class ClusterStatsResource {
       cores += endpoint.getAvailableCores();
     }
 
-    return new NodeStats(count, count == 0 ? 0 : (mem/count), count == 0 ? 0 : (cores/count));
+    return new NodeStats(count, count == 0 ? 0 : (mem / count), count == 0 ? 0 : (cores / count));
   }
 
-  /**
-   * Source Stats
-   */
+  /** Source Stats */
   public static class SourceStats {
     private final EntityId id;
     private final String type;
@@ -282,10 +283,10 @@ public class ClusterStatsResource {
 
     @JsonCreator
     public SourceStats(
-      @JsonProperty("id") EntityId id,
-      @JsonProperty("type") String type,
-      @JsonProperty("pdsCount") int pdsCount,
-      @JsonProperty("vdsCount") int vdsCount) {
+        @JsonProperty("id") EntityId id,
+        @JsonProperty("type") String type,
+        @JsonProperty("pdsCount") int pdsCount,
+        @JsonProperty("vdsCount") int vdsCount) {
       this.id = id;
       this.type = type;
       this.pdsCount = pdsCount;
@@ -320,9 +321,7 @@ public class ClusterStatsResource {
     }
   }
 
-  /**
-   * Reflection Stats
-   */
+  /** Reflection Stats */
   public static class ReflectionStats {
     private final int activeReflections;
     private final int errorReflections;
@@ -332,11 +331,11 @@ public class ClusterStatsResource {
 
     @JsonCreator
     public ReflectionStats(
-      @JsonProperty("activeReflections") int activeReflections,
-      @JsonProperty("errorReflections") int errorReflections,
-      @JsonProperty("totalReflectionSizeBytes") long totalReflectionSizeBytes,
-      @JsonProperty("latestReflectionsSizeBytes") long latestReflectionsSizeBytes,
-      @JsonProperty("incrementalReflectionCount") int incrementalReflectionCount) {
+        @JsonProperty("activeReflections") int activeReflections,
+        @JsonProperty("errorReflections") int errorReflections,
+        @JsonProperty("totalReflectionSizeBytes") long totalReflectionSizeBytes,
+        @JsonProperty("latestReflectionsSizeBytes") long latestReflectionsSizeBytes,
+        @JsonProperty("incrementalReflectionCount") int incrementalReflectionCount) {
       this.activeReflections = activeReflections;
       this.errorReflections = errorReflections;
       this.totalReflectionSizeBytes = totalReflectionSizeBytes;
@@ -365,9 +364,7 @@ public class ClusterStatsResource {
     }
   }
 
-  /**
-   * Cluster Stats
-   */
+  /** Cluster Stats */
   public static class ClusterStats {
     private List<EndpointStats> coordinators;
     private List<EndpointStats> executors;
@@ -377,19 +374,17 @@ public class ClusterStatsResource {
     private ReflectionStats reflectionStats;
     private String edition;
 
-    public ClusterStats() {
-    }
+    public ClusterStats() {}
 
     @JsonCreator
     public ClusterStats(
-      @JsonProperty("coordinators") List<EndpointStats> coordinators,
-      @JsonProperty("executors") List<EndpointStats> executors,
-      @JsonProperty("nodes") ClusterNodes nodes,
-      @JsonProperty("sources") List<SourceStats> sources,
-      @JsonProperty("jobStats") List<JobTypeStats> jobStats,
-      @JsonProperty("reflectionStats") ReflectionStats reflectionStats,
-      @JsonProperty("edition") String edition
-    ) {
+        @JsonProperty("coordinators") List<EndpointStats> coordinators,
+        @JsonProperty("executors") List<EndpointStats> executors,
+        @JsonProperty("nodes") ClusterNodes nodes,
+        @JsonProperty("sources") List<SourceStats> sources,
+        @JsonProperty("jobStats") List<JobTypeStats> jobStats,
+        @JsonProperty("reflectionStats") ReflectionStats reflectionStats,
+        @JsonProperty("edition") String edition) {
       this.coordinators = coordinators;
       this.executors = executors;
       this.nodes = nodes;
@@ -456,20 +451,24 @@ public class ClusterStatsResource {
     }
   }
 
-  private List<EndpointStats> processEndPoints(Collection<CoordinationProtos.NodeEndpoint> endpoints) {
-    final List<EndpointStats> result =  endpoints.stream()
-      .map(endpoint -> {
-        return new EndpointStats(endpoint.getAddress(), endpoint.getAvailableCores(), endpoint.getMaxDirectMemory(),
-          endpoint.getStartTime());
-      })
-      .collect(Collectors.toList());
+  private List<EndpointStats> processEndPoints(
+      Collection<CoordinationProtos.NodeEndpoint> endpoints) {
+    final List<EndpointStats> result =
+        endpoints.stream()
+            .map(
+                endpoint -> {
+                  return new EndpointStats(
+                      endpoint.getAddress(),
+                      endpoint.getAvailableCores(),
+                      endpoint.getMaxDirectMemory(),
+                      endpoint.getStartTime());
+                })
+            .collect(Collectors.toList());
 
     return result;
   }
 
-  /**
-   * Endpoint Stats
-   */
+  /** Endpoint Stats */
   public static final class EndpointStats {
     private final String address;
     private final int availableCores;
@@ -478,11 +477,10 @@ public class ClusterStatsResource {
 
     @JsonCreator
     public EndpointStats(
-      @JsonProperty("address") String address,
-      @JsonProperty("availableCores") int availableCores,
-      @JsonProperty("maxDirectMemoryBytes") long maxDirectMemoryBytes,
-      @JsonISODateTime
-      @JsonProperty("startedAt") long startedAt) {
+        @JsonProperty("address") String address,
+        @JsonProperty("availableCores") int availableCores,
+        @JsonProperty("maxDirectMemoryBytes") long maxDirectMemoryBytes,
+        @JsonISODateTime @JsonProperty("startedAt") long startedAt) {
       this.address = address;
       this.availableCores = availableCores;
       this.maxDirectMemoryBytes = maxDirectMemoryBytes;
@@ -507,29 +505,31 @@ public class ClusterStatsResource {
 
     @Override
     public String toString() {
-      return "EndPoint{" +
-        "address='" + address + '\'' +
-        ", availableCores=" + availableCores +
-        ", maxDirectMemoryBytes=" + maxDirectMemoryBytes +
-        ", startedAt=" + startedAt +
-        '}';
+      return "EndPoint{"
+          + "address='"
+          + address
+          + '\''
+          + ", availableCores="
+          + availableCores
+          + ", maxDirectMemoryBytes="
+          + maxDirectMemoryBytes
+          + ", startedAt="
+          + startedAt
+          + '}';
     }
   }
 
-  /**
-   * container of co-ordinator & executor stats
-   */
+  /** container of co-ordinator & executor stats */
   public static class ClusterNodes {
     private NodeStats coordinator;
     private NodeStats executor;
 
-    public ClusterNodes() {
-    }
+    public ClusterNodes() {}
 
     @JsonCreator
     public ClusterNodes(
-      @JsonProperty("coordinator") NodeStats coordinator,
-      @JsonProperty("executor") NodeStats executor) {
+        @JsonProperty("coordinator") NodeStats coordinator,
+        @JsonProperty("executor") NodeStats executor) {
       this.coordinator = coordinator;
       this.executor = executor;
     }
@@ -551,9 +551,7 @@ public class ClusterStatsResource {
     }
   }
 
-  /**
-   * container of resources for a node (coordinator , executor)
-   */
+  /** container of resources for a node (coordinator , executor) */
   public static class NodeStats {
     private int count;
     private long mem;
@@ -561,9 +559,9 @@ public class ClusterStatsResource {
 
     @JsonCreator
     public NodeStats(
-      @JsonProperty("count") int count,
-      @JsonProperty("mem") long mem,
-      @JsonProperty("cpu") int cpu) {
+        @JsonProperty("count") int count,
+        @JsonProperty("mem") long mem,
+        @JsonProperty("cpu") int cpu) {
       this.count = count;
       this.mem = mem;
       this.cpu = cpu;
@@ -580,5 +578,5 @@ public class ClusterStatsResource {
     public int getCpu() {
       return cpu;
     }
-  } //nodestats
+  } // nodestats
 }

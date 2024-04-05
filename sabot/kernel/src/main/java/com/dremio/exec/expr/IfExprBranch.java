@@ -15,13 +15,10 @@
  */
 package com.dremio.exec.expr;
 
+import com.google.common.collect.Lists;
 import java.util.List;
 
-import com.google.common.collect.Lists;
-
-/**
- * This class represents a branch in an if-expression
- */
+/** This class represents a branch in an if-expression */
 class IfExprBranch {
   public static final List<IfExprBranch> EMPTY_LIST = Lists.newArrayList();
 

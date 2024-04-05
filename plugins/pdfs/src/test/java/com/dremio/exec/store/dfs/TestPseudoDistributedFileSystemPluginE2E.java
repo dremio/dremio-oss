@@ -15,17 +15,6 @@
  */
 package com.dremio.exec.store.dfs;
 
-import java.util.Map;
-
-import javax.inject.Provider;
-
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Ignore;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.common.logical.FormatPluginConfig;
 import com.dremio.exec.catalog.CatalogServiceImpl;
@@ -37,40 +26,54 @@ import com.dremio.services.fabric.api.FabricService;
 import com.dremio.test.DremioTest;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Injector;
+import java.util.Map;
+import javax.inject.Provider;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
+import org.junit.Ignore;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
-/**
- * An end-to-end test for PDFS
- */
+/** An end-to-end test for PDFS */
 @Ignore("DX-5178")
 public class TestPseudoDistributedFileSystemPluginE2E extends BaseTestQuery {
 
-  @ClassRule
-  public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+  @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
   private static PDFSService service;
 
   @BeforeClass
   public static final void setupDefaultTestCluster() throws Exception {
     BaseTestQuery.setupDefaultTestCluster();
-    Map<String, FormatPluginConfig> formats = ImmutableMap.of("parquet", (FormatPluginConfig) new ParquetFormatConfig());
-    WorkspaceConfig workspace = new WorkspaceConfig(TEMPORARY_FOLDER.newFolder().getAbsolutePath(), true, "parquet");
+    Map<String, FormatPluginConfig> formats =
+        ImmutableMap.of("parquet", (FormatPluginConfig) new ParquetFormatConfig());
+    WorkspaceConfig workspace =
+        new WorkspaceConfig(TEMPORARY_FOLDER.newFolder().getAbsolutePath(), true, "parquet");
     String path = TEMPORARY_FOLDER.newFolder().getAbsolutePath();
 
     final Injector injector = getInjector();
     final Provider<SabotContext> sabotContext = injector.getProvider(SabotContext.class);
 
-    service = new PDFSService(injector.getProvider(FabricService.class), () -> sabotContext.get().getEndpoint(), () -> sabotContext.get().getExecutors(),
-      DremioTest.DEFAULT_SABOT_CONFIG, getSabotContext().getAllocator());
+    service =
+        new PDFSService(
+            injector.getProvider(FabricService.class),
+            () -> sabotContext.get().getEndpoint(),
+            () -> sabotContext.get().getExecutors(),
+            DremioTest.DEFAULT_SABOT_CONFIG,
+            getSabotContext().getAllocator());
     service.start();
 
     SourceConfig c = new SourceConfig();
-    PDFSConf conf = new PDFSConf() ;
+    PDFSConf conf = new PDFSConf();
     conf.path = path;
     c.setType(conf.getType());
     c.setName("pdfs");
     c.setMetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY);
     c.setConfig(conf.toBytesString());
-    ((CatalogServiceImpl) getSabotContext().getCatalogService()).getSystemUserCatalog().createSource(c);
+    ((CatalogServiceImpl) getSabotContext().getCatalogService())
+        .getSystemUserCatalog()
+        .createSource(c);
   }
 
   @AfterClass
@@ -84,11 +87,11 @@ public class TestPseudoDistributedFileSystemPluginE2E extends BaseTestQuery {
     testNoResult("CREATE TABLE pdfs.test_table AS SELECT * FROM cp.\"employees.json\"");
 
     testBuilder()
-      .sqlQuery("SELECT * FROM pdfs.test_table")
-      .ordered()
-      .jsonBaselineFile("employees.json")
-      .build()
-      .run();
+        .sqlQuery("SELECT * FROM pdfs.test_table")
+        .ordered()
+        .jsonBaselineFile("employees.json")
+        .build()
+        .run();
 
     testNoResult("DROP TABLE pdfs.test_table");
   }

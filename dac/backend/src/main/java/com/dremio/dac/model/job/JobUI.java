@@ -19,10 +19,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 import static java.lang.String.format;
 
-import java.util.List;
-import java.util.Objects;
-import java.util.stream.Collectors;
-
 import com.dremio.common.utils.PathUtils;
 import com.dremio.dac.proto.model.job.JobAttemptUI;
 import com.dremio.dac.proto.model.job.JobInfoUI;
@@ -40,11 +36,14 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
+import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 /**
  * Job represents details of a currently running or completed query on a dataset.
  *
- * This class is a wrapper around {@code Job} targeted for UI consumption
+ * <p>This class is a wrapper around {@code Job} targeted for UI consumption
  */
 public class JobUI {
   private final JobId jobId;
@@ -56,15 +55,17 @@ public class JobUI {
     this.jobId = jobId;
     this.sessionId = sessionId;
 
-    JobDetailsRequest jobDetailsRequest = JobDetailsRequest.newBuilder()
-      .setJobId(JobsProtoUtil.toBuf(jobId))
-      .setUserName(userName)
-      .build();
+    JobDetailsRequest jobDetailsRequest =
+        JobDetailsRequest.newBuilder()
+            .setJobId(JobsProtoUtil.toBuf(jobId))
+            .setUserName(userName)
+            .build();
     try {
       JobDetails jobDetails = jobsService.getJobDetails(jobDetailsRequest);
-      this.attempts = jobDetails.getAttemptsList().stream()
-        .map(input -> toUI(JobsProtoUtil.toStuff(input)))
-        .collect(Collectors.toList());
+      this.attempts =
+          jobDetails.getAttemptsList().stream()
+              .map(input -> toUI(JobsProtoUtil.toStuff(input)))
+              .collect(Collectors.toList());
     } catch (JobNotFoundException e) {
       throw new IllegalArgumentException("Invalid JobId");
     }
@@ -72,9 +73,10 @@ public class JobUI {
   }
 
   @JsonCreator
-  public JobUI(@JsonProperty("jobId") JobId jobId,
-               @JsonProperty("sessionId") SessionId sessionId,
-               @JsonProperty("jobAttempt") JobAttemptUI jobConfig) {
+  public JobUI(
+      @JsonProperty("jobId") JobId jobId,
+      @JsonProperty("sessionId") SessionId sessionId,
+      @JsonProperty("jobAttempt") JobAttemptUI jobConfig) {
     this.jobId = jobId;
     this.sessionId = sessionId;
     this.attempts = ImmutableList.of(checkNotNull(jobConfig, "jobAttempt is null"));
@@ -90,24 +92,26 @@ public class JobUI {
   }
 
   public JobAttemptUI getJobAttempt() {
-    checkState(attempts.size() >=1, "There should be at least one attempt in JobUI");
+    checkState(attempts.size() >= 1, "There should be at least one attempt in JobUI");
     int lastAttempt = attempts.size() - 1;
     return attempts.get(lastAttempt);
   }
-
 
   @Override
   public String toString() {
     final JobAttemptUI jobAttempt = getJobAttempt();
     final String sessionIdStr = sessionId == null ? null : sessionId.getId();
-    return format("{JobId: %s, SessionId: %s, SQL: %s, Dataset: %s, DatasetVersion: %s}",
-            getJobId(), sessionIdStr, jobAttempt.getInfo().getSql(),
-            PathUtils.constructFullPath(jobAttempt.getInfo().getDatasetPathList()),
-            jobAttempt.getInfo().getDatasetVersion()); //todo
+    return format(
+        "{JobId: %s, SessionId: %s, SQL: %s, Dataset: %s, DatasetVersion: %s}",
+        getJobId(),
+        sessionIdStr,
+        jobAttempt.getInfo().getSql(),
+        PathUtils.constructFullPath(jobAttempt.getInfo().getDatasetPathList()),
+        jobAttempt.getInfo().getDatasetVersion()); // todo
   }
 
   @JsonIgnore
-  public JobData getData(){
+  public JobData getData() {
     checkState(data != null, "not available from deserialized Job");
     return data;
   }
@@ -130,38 +134,39 @@ public class JobUI {
 
   private static JobInfoUI convertJobInfo(JobInfo info) {
     return new JobInfoUI()
-      .setJobId(info.getJobId())
-      .setSql(info.getSql())
-      .setRequestType(info.getRequestType())
-      .setClient(info.getClient())
-      .setUser(info.getUser())
-      .setStartTime(info.getStartTime())
-      .setFinishTime(info.getFinishTime())
-      .setDatasetPathList(info.getDatasetPathList())
-      .setDatasetVersion(info.getDatasetVersion())
-      .setSpace(info.getSpace())
-      .setParentsList(info.getParentsList())
-      .setQueryType(info.getQueryType())
-      .setAppId(info.getAppId())
-      .setFailureInfo(info.getFailureInfo())
-      .setDetailedFailureInfo(info.getDetailedFailureInfo())
-      .setFieldOriginsList(info.getFieldOriginsList())
-      .setResultMetadataList(info.getResultMetadataList())
-      .setAcceleration(info.getAcceleration())
-      .setGrandParentsList(info.getGrandParentsList())
-      .setDownloadInfo(info.getDownloadInfo())
-      .setDescription(JobsServiceUtil.getJobDescription(info.getRequestType(), info.getSql(), info.getDescription()))
-      .setMaterializationFor(info.getMaterializationFor())
-      .setOriginalCost(info.getOriginalCost())
-      .setPartitionsList(info.getPartitionsList())
-      .setScanPathsList(info.getScanPathsList())
-      .setJoinAnalysis(info.getJoinAnalysis())
-      .setContextList(info.getContextList())
-      .setResourceSchedulingInfo(info.getResourceSchedulingInfo())
-      .setOutputTableList(info.getOutputTableList())
-      .setCancellationInfo(info.getCancellationInfo())
-      .setSpillJobDetails(info.getSpillJobDetails());
-
+        .setJobId(info.getJobId())
+        .setSql(info.getSql())
+        .setRequestType(info.getRequestType())
+        .setClient(info.getClient())
+        .setUser(info.getUser())
+        .setStartTime(info.getStartTime())
+        .setFinishTime(info.getFinishTime())
+        .setDatasetPathList(info.getDatasetPathList())
+        .setDatasetVersion(info.getDatasetVersion())
+        .setSpace(info.getSpace())
+        .setParentsList(info.getParentsList())
+        .setQueryType(info.getQueryType())
+        .setAppId(info.getAppId())
+        .setFailureInfo(info.getFailureInfo())
+        .setDetailedFailureInfo(info.getDetailedFailureInfo())
+        .setFieldOriginsList(info.getFieldOriginsList())
+        .setResultMetadataList(info.getResultMetadataList())
+        .setAcceleration(info.getAcceleration())
+        .setGrandParentsList(info.getGrandParentsList())
+        .setDownloadInfo(info.getDownloadInfo())
+        .setDescription(
+            JobsServiceUtil.getJobDescription(
+                info.getRequestType(), info.getSql(), info.getDescription()))
+        .setMaterializationFor(info.getMaterializationFor())
+        .setOriginalCost(info.getOriginalCost())
+        .setPartitionsList(info.getPartitionsList())
+        .setScanPathsList(info.getScanPathsList())
+        .setJoinAnalysis(info.getJoinAnalysis())
+        .setContextList(info.getContextList())
+        .setResourceSchedulingInfo(info.getResourceSchedulingInfo())
+        .setOutputTableList(info.getOutputTableList())
+        .setCancellationInfo(info.getCancellationInfo())
+        .setSpillJobDetails(info.getSpillJobDetails());
   }
 
   private static JobAttemptUI toUI(JobAttempt attempt) {
@@ -169,12 +174,12 @@ public class JobUI {
       return null;
     }
     return new JobAttemptUI()
-      .setState(attempt.getState())
-      .setInfo(convertJobInfo(attempt.getInfo()))
-      .setStats(attempt.getStats())
-      .setDetails(attempt.getDetails())
-      .setReason(attempt.getReason())
-      .setAttemptId(attempt.getAttemptId())
-      .setEndpoint(attempt.getEndpoint());
+        .setState(attempt.getState())
+        .setInfo(convertJobInfo(attempt.getInfo()))
+        .setStats(attempt.getStats())
+        .setDetails(attempt.getDetails())
+        .setReason(attempt.getReason())
+        .setAttemptId(attempt.getAttemptId())
+        .setEndpoint(attempt.getEndpoint());
   }
 }

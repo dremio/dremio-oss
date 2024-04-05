@@ -18,5 +18,4 @@ package com.dremio.common.expression.visitors;
 import com.dremio.common.graph.GraphVisitor;
 import com.dremio.common.logical.data.LogicalOperator;
 
-public interface OpVisitor extends GraphVisitor<LogicalOperator> {
-}
+public interface OpVisitor extends GraphVisitor<LogicalOperator> {}

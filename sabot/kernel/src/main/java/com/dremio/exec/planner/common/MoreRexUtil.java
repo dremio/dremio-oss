@@ -16,15 +16,12 @@
 package com.dremio.exec.planner.common;
 
 import java.util.function.Function;
-
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexShuttle;
 import org.apache.calcite.sql.SqlOperator;
 
-/**
- * Utility class on RexNodes
- */
+/** Utility class on RexNodes */
 public final class MoreRexUtil {
   private MoreRexUtil() {}
 

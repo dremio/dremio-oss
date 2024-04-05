@@ -15,12 +15,6 @@
  */
 package com.dremio.telemetry.impl.config.metrics;
 
-import java.util.Objects;
-import java.util.Optional;
-import java.util.concurrent.TimeUnit;
-
-import org.slf4j.LoggerFactory;
-
 import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Slf4jReporter;
@@ -29,11 +23,12 @@ import com.dremio.telemetry.api.config.ReporterConfigurator;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+import org.slf4j.LoggerFactory;
 
-
-/**
- * Configurator for SLF4j Logging
- */
+/** Configurator for SLF4j Logging */
 @JsonTypeName("slf4j")
 public class Slf4jConfigurator extends ReporterConfigurator {
 
@@ -58,11 +53,12 @@ public class Slf4jConfigurator extends ReporterConfigurator {
 
   @Override
   public void configureAndStart(String name, MetricRegistry registry, MetricFilter filter) {
-    reporter = Slf4jReporter.forRegistry(registry)
-        .outputTo(LoggerFactory.getLogger(loggerName))
-        .convertRatesTo(rateUnit)
-        .convertDurationsTo(TimeUnit.MILLISECONDS)
-        .build();
+    reporter =
+        Slf4jReporter.forRegistry(registry)
+            .outputTo(LoggerFactory.getLogger(loggerName))
+            .convertRatesTo(rateUnit)
+            .convertDurationsTo(TimeUnit.MILLISECONDS)
+            .build();
     reporter.start(intervalMS, TimeUnit.MILLISECONDS);
   }
 
@@ -73,10 +69,10 @@ public class Slf4jConfigurator extends ReporterConfigurator {
 
   @Override
   public boolean equals(Object other) {
-    if(other == null) {
+    if (other == null) {
       return false;
     }
-    if(!other.getClass().equals(this.getClass())) {
+    if (!other.getClass().equals(this.getClass())) {
       return false;
     }
     Slf4jConfigurator o = (Slf4jConfigurator) other;
@@ -88,15 +84,12 @@ public class Slf4jConfigurator extends ReporterConfigurator {
 
   @Override
   public void close() {
-    if(reporter != null) {
+    if (reporter != null) {
       reporter.close();
     }
   }
 
-  /**
-   * Module that may be added to a jackson object mapper
-   * so it can parse SLF4J config.
-   */
+  /** Module that may be added to a jackson object mapper so it can parse SLF4J config. */
   public static class Module extends ConfigModule {
     @Override
     public void setupModule(SetupContext context) {

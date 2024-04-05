@@ -15,20 +15,32 @@
  */
 package com.dremio.exec.planner.sql.handlers;
 
+import com.dremio.exec.planner.sql.NonCacheableFunctionDetector;
+import com.dremio.service.namespace.NamespaceKey;
+import java.util.List;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
 
 /**
- * A ConvertedRelNode is the result of converting a SqlNode into a RelNode with {@link org.apache.calcite.plan.Convention#NONE}.
+ * A ConvertedRelNode is the result of converting a SqlNode into a RelNode with {@link
+ * org.apache.calcite.plan.Convention#NONE}.
  */
 public class ConvertedRelNode {
 
   private final RelNode relNode;
   private final RelDataType validatedRowType;
+  private final NonCacheableFunctionDetector.Result nonCacheableFunctionResult;
+  private final List<NamespaceKey> viewIdentifiers;
 
-  public ConvertedRelNode(RelNode relNode, RelDataType validatedRowType) {
+  private ConvertedRelNode(
+      RelNode relNode,
+      RelDataType validatedRowType,
+      NonCacheableFunctionDetector.Result nonCacheableFunctionResult,
+      List<NamespaceKey> viewIdentifiers) {
     this.relNode = relNode;
     this.validatedRowType = validatedRowType;
+    this.nonCacheableFunctionResult = nonCacheableFunctionResult;
+    this.viewIdentifiers = viewIdentifiers;
   }
 
   public RelNode getConvertedNode() {
@@ -37,5 +49,46 @@ public class ConvertedRelNode {
 
   public RelDataType getValidatedRowType() {
     return this.validatedRowType;
+  }
+
+  public NonCacheableFunctionDetector.Result getNonCacheableFunctionResult() {
+    return nonCacheableFunctionResult;
+  }
+
+  public List<NamespaceKey> getViewIdentifiers() {
+    return viewIdentifiers;
+  }
+
+  public static final class Builder {
+    private RelNode relNode;
+    private RelDataType validatedRowType;
+    private NonCacheableFunctionDetector.Result nonCacheableFunctionResult;
+    private List<NamespaceKey> viewIdentifiers;
+
+    public Builder withRelNode(RelNode relNode) {
+      this.relNode = relNode;
+      return this;
+    }
+
+    public Builder withValidatedRowType(RelDataType validatedRowType) {
+      this.validatedRowType = validatedRowType;
+      return this;
+    }
+
+    public Builder withNonCacheableFunctionResult(
+        NonCacheableFunctionDetector.Result nonCacheableFunctionResult) {
+      this.nonCacheableFunctionResult = nonCacheableFunctionResult;
+      return this;
+    }
+
+    public Builder withViewIdentifiers(List<NamespaceKey> viewIdentifiers) {
+      this.viewIdentifiers = viewIdentifiers;
+      return this;
+    }
+
+    public ConvertedRelNode build() {
+      return new ConvertedRelNode(
+          relNode, validatedRowType, nonCacheableFunctionResult, viewIdentifiers);
+    }
   }
 }

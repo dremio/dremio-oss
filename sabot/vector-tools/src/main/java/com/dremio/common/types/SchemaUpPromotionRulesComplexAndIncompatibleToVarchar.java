@@ -15,9 +15,8 @@
  */
 package com.dremio.common.types;
 
-import java.util.Optional;
-
 import com.dremio.common.expression.CompleteType;
+import java.util.Optional;
 
 /**
  * Contains additional list of the supported up-promotions for a Mongo source {@link CompleteType}

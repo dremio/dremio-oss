@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <!--
 
     Copyright (C) 2017-2019 Dremio Corporation
@@ -15,20 +16,30 @@
     limitations under the License.
 
 -->
-<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
     <groupId>com.dremio.services</groupId>
     <artifactId>dremio-services-parent</artifactId>
-    <version>24.3.2-202401241821100032-d2d8a497</version>
+    <version>25.0.0-202404051521110861-ed9515a8</version>
   </parent>
 
   <groupId>com.dremio.services</groupId>
   <artifactId>dremio-services-nessie-proxy</artifactId>
   <packaging>jar</packaging>
   <name>Services - Nessie - Proxy</name>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <!-- keep weld on a version that uses javax.enterprise instead of jakarta.enterprise -->
+        <groupId>org.jboss.weld.se</groupId>
+        <artifactId>weld-se-core</artifactId>
+        <version>3.1.8.Final</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
 
   <dependencies>
     <dependency>
@@ -52,26 +63,25 @@
     </dependency>
     <dependency>
       <groupId>org.projectnessie.nessie</groupId>
-      <artifactId>nessie-rest-services</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.projectnessie.nessie</groupId>
-      <artifactId>nessie-services</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.projectnessie.nessie</groupId>
       <artifactId>nessie-client</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.mockito</groupId>
-      <artifactId>mockito-junit-jupiter</artifactId>
-      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>javax.enterprise</groupId>
       <artifactId>cdi-api</artifactId>
       <version>2.0</version>
-      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <!-- needed by jakarta.enterprise Extensions in OSS Nessie i.e. AuthorizerExtension -->
+      <groupId>jakarta.enterprise</groupId>
+      <artifactId>jakarta.enterprise.cdi-api</artifactId>
+      <version>4.0.1</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-nessie-restjavax</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.projectnessie.nessie</groupId>
@@ -79,6 +89,15 @@
       <scope>test</scope>
     </dependency>
     <dependency>
+      <groupId>org.projectnessie.nessie</groupId>
+      <artifactId>nessie-jaxrs</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <!--
+      this dependency is only to pull in its transitive JerseyTest/Weld dependencies
+      but we are using our own NessieProxyJaxRsExtension with javax annotations
+      -->
       <groupId>org.projectnessie.nessie</groupId>
       <artifactId>nessie-jaxrs-testextension</artifactId>
       <scope>test</scope>
@@ -107,9 +126,8 @@
           <skip>${skipTests}</skip>
           <!-- Preferred way, specify the GAV of the Nessie Quarkus server runnable (uber-jar) -->
           <appArtifactId>org.projectnessie.nessie:nessie-quarkus:jar:runner:${nessie.version}</appArtifactId>
-          <!-- The system properties passed to the Nessie server -->
+          <javaVersion>17</javaVersion>
           <systemProperties>
-            <!-- The IN_MEMORY store type implies the "new" storage model (full pagination support). -->
             <nessie.version.store.type>IN_MEMORY</nessie.version.store.type>
             <nessie.version.store.persist.cache-capacity-mb>1</nessie.version.store.persist.cache-capacity-mb>
           </systemProperties>
@@ -130,14 +148,18 @@
           <execution>
             <!-- Start the Nessie Server before the integration tests start -->
             <id>start</id>
+            <goals>
+              <goal>start</goal>
+            </goals>
             <phase>pre-integration-test</phase>
-            <goals><goal>start</goal></goals>
           </execution>
           <execution>
             <!-- Stop the Nessie Server after the integration tests finished -->
             <id>stop</id>
+            <goals>
+              <goal>stop</goal>
+            </goals>
             <phase>post-integration-test</phase>
-            <goals><goal>stop</goal></goals>
           </execution>
         </executions>
       </plugin>

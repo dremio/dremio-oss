@@ -14,11 +14,7 @@
  * limitations under the License.
  */
 
-
 package com.dremio.exec.expr.fn.impl;
-
-import org.apache.arrow.vector.holders.BigIntHolder;
-import org.apache.arrow.vector.holders.IntHolder;
 
 import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
@@ -26,29 +22,29 @@ import com.dremio.exec.expr.annotations.FunctionTemplate.FunctionScope;
 import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
+import org.apache.arrow.vector.holders.BigIntHolder;
+import org.apache.arrow.vector.holders.IntHolder;
 
 public class ModFunctions {
 
   /**
-   * Mod Functions should take in two inputs, input1 and input2.  The return type should be that of input2.
-   * Also, mod(float, float) does not make sense, so inputs are restricted to int/bigint/smallint/tinyint/etc.
+   * Mod Functions should take in two inputs, input1 and input2. The return type should be that of
+   * input2. Also, mod(float, float) does not make sense, so inputs are restricted to
+   * int/bigint/smallint/tinyint/etc.
    */
-
   @FunctionTemplate(name = "mod", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class ModInt implements SimpleFunction {
 
-    @Param
-    BigIntHolder input1;
+    @Param BigIntHolder input1;
     @Param IntHolder input2;
     @Output IntHolder out;
 
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
     public void eval() {
-      out.value = (int) (input2.value == 0 ? input1.value : (input1.value  %  input2.value));
+      out.value = (int) (input2.value == 0 ? input1.value : (input1.value % input2.value));
     }
   }
 
@@ -60,13 +56,11 @@ public class ModFunctions {
     @Output BigIntHolder out;
 
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
     public void eval() {
-      out.value = (long) (input2.value == 0 ? input1.value : (input1.value  %  input2.value));
+      out.value = (long) (input2.value == 0 ? input1.value : (input1.value % input2.value));
     }
   }
-
 }

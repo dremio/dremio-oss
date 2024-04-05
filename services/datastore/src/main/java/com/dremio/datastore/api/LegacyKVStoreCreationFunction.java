@@ -20,38 +20,42 @@ import com.dremio.datastore.api.LegacyKVStoreProvider.LegacyStoreBuilder;
 import com.dremio.service.Pointer;
 
 /**
- * Function used to build a LegacyKVStore. Class is used as a key to later access the singleton LegacyKVStore.
+ * Function used to build a LegacyKVStore. Class is used as a key to later access the singleton
+ * LegacyKVStore.
  *
  * @param <K> the key type
  * @param <V> the value type
  */
 @Deprecated
-public interface LegacyKVStoreCreationFunction<K, V> extends LegacyStoreCreationFunction<K, V, LegacyKVStore<K, V>, KVStore<K, V>> {
+public interface LegacyKVStoreCreationFunction<K, V>
+    extends LegacyStoreCreationFunction<K, V, LegacyKVStore<K, V>, KVStore<K, V>> {
   @Override
   default KVStore<K, V> build(StoreBuildingFactory factory) {
-    final Pointer<KVStore<K, V>> pointer =  new Pointer<>();
+    final Pointer<KVStore<K, V>> pointer = new Pointer<>();
 
-    build(new LegacyStoreBuildingFactory() {
-      @Override
-      public <T, U> LegacyStoreBuilder<T, U> newStore() {
-
-        return new LegacyStoreBuilderAdapter<T, U>(factory::newStore) {
+    build(
+        new LegacyStoreBuildingFactory() {
           @Override
-          public LegacyKVStore<T, U> build() {
-            if (pointer.value != null) {
-              throw new IllegalStateException("newStore can only be used once");
-            }
-            pointer.value = (KVStore<K, V>) this.doBuild();
-            return null;
-          }
+          public <T, U> LegacyStoreBuilder<T, U> newStore() {
 
-          @Override
-          public LegacyIndexedStore<T, U> buildIndexed(DocumentConverter<T, U> documentConverter) {
-            throw new UnsupportedOperationException();
+            return new LegacyStoreBuilderAdapter<T, U>(factory::newStore) {
+              @Override
+              public LegacyKVStore<T, U> build() {
+                if (pointer.value != null) {
+                  throw new IllegalStateException("newStore can only be used once");
+                }
+                pointer.value = (KVStore<K, V>) this.doBuild();
+                return null;
+              }
+
+              @Override
+              public LegacyIndexedStore<T, U> buildIndexed(
+                  DocumentConverter<T, U> documentConverter) {
+                throw new UnsupportedOperationException();
+              }
+            };
           }
-        };
-      }
-    });
+        });
 
     if (pointer.value == null) {
       throw new IllegalStateException("newStore needs to be used once.");

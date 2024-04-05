@@ -17,18 +17,15 @@ package com.dremio.dac.model.common;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonProperty;
-
-/**
- * to return validation errors to the client
- */
+/** to return validation errors to the client */
 public class ValidationErrorMessages {
 
   private final Map<String, List<String>> fieldErrorMessages;
@@ -73,5 +70,4 @@ public class ValidationErrorMessages {
   public boolean isEmpty() {
     return fieldErrorMessages.isEmpty() && globalErrorMessages.isEmpty();
   }
-
 }

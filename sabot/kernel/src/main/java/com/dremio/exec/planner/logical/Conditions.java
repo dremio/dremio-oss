@@ -17,10 +17,9 @@ package com.dremio.exec.planner.logical;
 
 import static com.dremio.exec.planner.sql.handlers.RexFieldAccessUtils.STRUCTURED_WRAPPER;
 
+import com.google.common.collect.ImmutableSet;
 import java.util.Set;
-
 import javax.annotation.Nullable;
-
 import org.apache.calcite.rel.rules.PushProjector;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexInputRef;
@@ -29,31 +28,32 @@ import org.apache.calcite.runtime.PredicateImpl;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 
-import com.google.common.collect.ImmutableSet;
-
 public final class Conditions {
 
   /**
-   * When pushing project past join or filter, should preserve CASE statements.  This is because, if we push down
-   * and split up the project with case statement, it could lead to invalid plan.  For example,
+   * When pushing project past join or filter, should preserve CASE statements. This is because, if
+   * we push down and split up the project with case statement, it could lead to invalid plan. For
+   * example,
    *
-   * Project:  case(predicate(X), ITEM(X, 0), Y)
-   * Join/Filter
+   * <p>Project: case(predicate(X), ITEM(X, 0), Y) Join/Filter
    *
-   * Then if we do not preserve CASE but only preserve ITEM, we get the following:
-   * Project: case(predicate($1), $2, $3)
-   * Join/Filter
-   * Project: X, ITEM(X, 0), Y
+   * <p>Then if we do not preserve CASE but only preserve ITEM, we get the following: Project:
+   * case(predicate($1), $2, $3) Join/Filter Project: X, ITEM(X, 0), Y
    *
-   * The above plan is wrong, since we do not want ITEM(X, 0) to be evaluated unless predicate(X) is true.
-   * For instance, predicate(X) could be IS_LIST(X) and if X is not a list, we shouldn't do ITEM(X,0).
+   * <p>The above plan is wrong, since we do not want ITEM(X, 0) to be evaluated unless predicate(X)
+   * is true. For instance, predicate(X) could be IS_LIST(X) and if X is not a list, we shouldn't do
+   * ITEM(X,0).
    */
-  public static final PushProjector.ExprCondition PRESERVE_ITEM_CASE = new PushProjectorExprCondition();
+  public static final PushProjector.ExprCondition PRESERVE_ITEM_CASE =
+      new PushProjectorExprCondition();
 
-  public static final PushProjector.ExprCondition PRESERVE_CASE_NESTED_FIELDS = new PushProjectorExprConditionForNestedFields();
+  public static final PushProjector.ExprCondition PRESERVE_CASE_NESTED_FIELDS =
+      new PushProjectorExprConditionForNestedFields();
 
   public static final PushProjector.ExprCondition PUSH_REX_INPUT_REF = new PushRexInputRef();
-  private static class PushRexInputRef extends PredicateImpl<RexNode> implements PushProjector.ExprCondition {
+
+  private static class PushRexInputRef extends PredicateImpl<RexNode>
+      implements PushProjector.ExprCondition {
     @Override
     public boolean test(@Nullable RexNode rexNode) {
       return rexNode instanceof RexInputRef;
@@ -61,50 +61,50 @@ public final class Conditions {
   }
 
   private static class PushProjectorExprCondition extends PredicateImpl<RexNode>
-    implements PushProjector.ExprCondition {
+      implements PushProjector.ExprCondition {
     @Override
     public boolean test(RexNode expr) {
       if (expr instanceof RexCall) {
-        RexCall call = (RexCall)expr;
+        RexCall call = (RexCall) expr;
         return ("item".equals(call.getOperator().getName().toLowerCase())
             || "case".equals(call.getOperator().getName().toLowerCase())
-            || STRUCTURED_WRAPPER.getName().equalsIgnoreCase(call.getOperator().getName())
-        );
+            || STRUCTURED_WRAPPER.getName().equalsIgnoreCase(call.getOperator().getName()));
       }
       return false;
     }
-  };
+  }
+  ;
 
   private static class PushProjectorExprConditionForNestedFields extends PredicateImpl<RexNode>
-    implements PushProjector.ExprCondition {
+      implements PushProjector.ExprCondition {
     @Override
     public boolean test(RexNode expr) {
       if (expr instanceof RexCall) {
-        RexCall call = (RexCall)expr;
-        return
-          "case".equals(call.getOperator().getName().toLowerCase())
-          || STRUCTURED_WRAPPER.getName().equalsIgnoreCase(call.getOperator().getName())
-          || "dot".equals(call.getOperator().getName().toLowerCase())
-          || "item".equals(call.getOperator().getName().toLowerCase());
+        RexCall call = (RexCall) expr;
+        return "case".equals(call.getOperator().getName().toLowerCase())
+            || STRUCTURED_WRAPPER.getName().equalsIgnoreCase(call.getOperator().getName())
+            || "dot".equals(call.getOperator().getName().toLowerCase())
+            || "item".equals(call.getOperator().getName().toLowerCase());
       }
       return false;
     }
-  };
+  }
+  ;
 
   /**
    * Avoid decomposing any expression where we might change the short circuit behavior, similar to
    * the preserve case above, just covers and & or as additional potential short circuit operators.
    */
-  public static final PushProjector.ExprCondition SHORT_CIRCUIT_AND_ITEM = new OperatorExprCondition(
-      ImmutableSet.<SqlOperator>of(
-        SqlStdOperatorTable.CASE,
-        SqlStdOperatorTable.ITEM,
-        SqlStdOperatorTable.AND,
-        SqlStdOperatorTable.OR
-        ));
+  public static final PushProjector.ExprCondition SHORT_CIRCUIT_AND_ITEM =
+      new OperatorExprCondition(
+          ImmutableSet.<SqlOperator>of(
+              SqlStdOperatorTable.CASE,
+              SqlStdOperatorTable.ITEM,
+              SqlStdOperatorTable.AND,
+              SqlStdOperatorTable.OR));
 
   private static class OperatorExprCondition extends PredicateImpl<RexNode>
-    implements PushProjector.ExprCondition {
+      implements PushProjector.ExprCondition {
     private final Set<SqlOperator> operatorSet;
 
     OperatorExprCondition(Iterable<? extends SqlOperator> operatorSet) {
@@ -113,8 +113,7 @@ public final class Conditions {
 
     @Override
     public boolean test(RexNode expr) {
-      return expr instanceof RexCall
-          && operatorSet.contains(((RexCall) expr).getOperator());
+      return expr instanceof RexCall && operatorSet.contains(((RexCall) expr).getOperator());
     }
   }
 }

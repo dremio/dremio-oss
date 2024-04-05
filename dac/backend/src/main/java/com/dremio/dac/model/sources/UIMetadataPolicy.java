@@ -25,12 +25,11 @@ import com.dremio.service.namespace.source.proto.UpdateMode;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-/**
- * Class that exposes metadata refresh policy information to REST APIs.
- */
+/** Class that exposes metadata refresh policy information to REST APIs. */
 public class UIMetadataPolicy {
 
-  public static final UIMetadataPolicy DEFAULT_UIMETADATA_POLICY = UIMetadataPolicy.of(CatalogService.DEFAULT_METADATA_POLICY);
+  public static final UIMetadataPolicy DEFAULT_UIMETADATA_POLICY =
+      UIMetadataPolicy.of(CatalogService.DEFAULT_METADATA_POLICY);
 
   private final UIUpdateMode updateMode;
   private final long namesRefreshMillis;
@@ -41,36 +40,35 @@ public class UIMetadataPolicy {
   private final boolean deleteUnavailableDatasets;
   private final boolean autoPromoteDatasets;
 
-  /**
-   * Enumeration describing the types of updates available.
-   */
+  /** Enumeration describing the types of updates available. */
   enum UIUpdateMode {
     PREFETCH,
     PREFETCH_QUERIED,
     INLINE;
 
-    public static UIUpdateMode of(UpdateMode mode){
-      switch(mode){
-      case PREFETCH:
-        return PREFETCH;
-      case INLINE: // Note: DX-16127: INLINE is obsolete, and should not be produced by the backend code
-      case PREFETCH_QUERIED:
-      case UNKNOWN:
-      default:
-        return PREFETCH_QUERIED;
+    public static UIUpdateMode of(UpdateMode mode) {
+      switch (mode) {
+        case PREFETCH:
+          return PREFETCH;
+        case INLINE: // Note: DX-16127: INLINE is obsolete, and should not be produced by the
+          // backend code
+        case PREFETCH_QUERIED:
+        case UNKNOWN:
+        default:
+          return PREFETCH_QUERIED;
       }
     }
 
-    public UpdateMode asUpdateMode(){
-      switch(this){
-      case INLINE:
-        // Note: DX-16127: INLINE is obsolete, and is replaced with PREFETCH_QUERIED
-        return UpdateMode.PREFETCH_QUERIED;
-      case PREFETCH:
-        return UpdateMode.PREFETCH;
-      case PREFETCH_QUERIED:
-      default:
-        return UpdateMode.PREFETCH_QUERIED;
+    public UpdateMode asUpdateMode() {
+      switch (this) {
+        case INLINE:
+          // Note: DX-16127: INLINE is obsolete, and is replaced with PREFETCH_QUERIED
+          return UpdateMode.PREFETCH_QUERIED;
+        case PREFETCH:
+          return UpdateMode.PREFETCH;
+        case PREFETCH_QUERIED:
+        default:
+          return UpdateMode.PREFETCH_QUERIED;
       }
     }
   }
@@ -93,7 +91,7 @@ public class UIMetadataPolicy {
     }
 
     if (authTTLMillis == 0) {
-     this.authTTLMillis = DEFAULT_AUTHTTLS_MILLIS;
+      this.authTTLMillis = DEFAULT_AUTHTTLS_MILLIS;
     } else {
       this.authTTLMillis = authTTLMillis;
     }
@@ -110,7 +108,8 @@ public class UIMetadataPolicy {
       this.datasetDefinitionExpireAfterMillis = datasetDefinitionExpireAfterMillis;
     }
 
-    this.deleteUnavailableDatasets = !Boolean.FALSE.equals(deleteUnavailableDatasets); // true, unless 'false'
+    this.deleteUnavailableDatasets =
+        !Boolean.FALSE.equals(deleteUnavailableDatasets); // true, unless 'false'
     this.autoPromoteDatasets = Boolean.TRUE.equals(autoPromoteDatasets); // false, unless 'true'
   }
 
@@ -138,12 +137,16 @@ public class UIMetadataPolicy {
     return datasetDefinitionExpireAfterMillis;
   }
 
-  public boolean getDeleteUnavailableDatasets() { return deleteUnavailableDatasets; }
+  public boolean getDeleteUnavailableDatasets() {
+    return deleteUnavailableDatasets;
+  }
 
-  public boolean getAutoPromoteDatasets() { return autoPromoteDatasets; }
+  public boolean getAutoPromoteDatasets() {
+    return autoPromoteDatasets;
+  }
 
-  public static UIMetadataPolicy of(MetadataPolicy policy){
-    if(policy == null){
+  public static UIMetadataPolicy of(MetadataPolicy policy) {
+    if (policy == null) {
       return DEFAULT_UIMETADATA_POLICY;
     }
     return new UIMetadataPolicy(
@@ -153,8 +156,7 @@ public class UIMetadataPolicy {
         policy.getDatasetDefinitionRefreshAfterMs(),
         policy.getDatasetDefinitionExpireAfterMs(),
         policy.getDeleteUnavailableDatasets(),
-        policy.getAutoPromoteDatasets()
-    );
+        policy.getAutoPromoteDatasets());
   }
 
   public MetadataPolicy asMetadataPolicy() {

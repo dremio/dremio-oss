@@ -15,8 +15,6 @@
  */
 package com.dremio.service.jobs;
 
-import javax.inject.Provider;
-
 import com.dremio.service.job.CancelJobRequest;
 import com.dremio.service.job.CancelReflectionJobRequest;
 import com.dremio.service.job.DeleteJobCountsRequest;
@@ -27,11 +25,12 @@ import com.dremio.service.job.SubmitJobRequest;
 import com.dremio.service.job.proto.JobProtobuf;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.Empty;
-
 import io.grpc.stub.StreamObserver;
+import javax.inject.Provider;
 
 /**
- * Adapts {@link LocalJobsService} to {@link com.dremio.service.job.JobsServiceGrpc.JobsServiceImplBase}.
+ * Adapts {@link LocalJobsService} to {@link
+ * com.dremio.service.job.JobsServiceGrpc.JobsServiceImplBase}.
  */
 @VisibleForTesting
 public class JobsServiceAdapter extends JobsServiceGrpc.JobsServiceImplBase {
@@ -46,7 +45,8 @@ public class JobsServiceAdapter extends JobsServiceGrpc.JobsServiceImplBase {
   }
 
   @Override
-  public void subscribeToJobEvents(JobProtobuf.JobId request, StreamObserver<JobEvent> responseObserver) {
+  public void subscribeToJobEvents(
+      JobProtobuf.JobId request, StreamObserver<JobEvent> responseObserver) {
     getJobsService().registerListener(JobsProtoUtil.toStuff(request), responseObserver);
   }
 
@@ -69,13 +69,14 @@ public class JobsServiceAdapter extends JobsServiceGrpc.JobsServiceImplBase {
   }
 
   @Override
-  public void subscribeToReflectionJobEvents(ReflectionJobEventsRequest request,
-                                             StreamObserver<JobEvent> responseObserver) {
+  public void subscribeToReflectionJobEvents(
+      ReflectionJobEventsRequest request, StreamObserver<JobEvent> responseObserver) {
     getJobsService().registerReflectionJobListener(request, responseObserver);
   }
 
   @Override
-  public void cancelReflectionJob(CancelReflectionJobRequest request, StreamObserver<Empty> responseObserver) {
+  public void cancelReflectionJob(
+      CancelReflectionJobRequest request, StreamObserver<Empty> responseObserver) {
     try {
       getJobsService().cancelReflectionJob(request);
     } catch (Exception e) {
@@ -86,7 +87,8 @@ public class JobsServiceAdapter extends JobsServiceGrpc.JobsServiceImplBase {
   }
 
   @Override
-  public void deleteJobCounts(DeleteJobCountsRequest request, StreamObserver<Empty> responseObserver) {
+  public void deleteJobCounts(
+      DeleteJobCountsRequest request, StreamObserver<Empty> responseObserver) {
     try {
       getJobsService().deleteJobCounts(request);
     } catch (Exception e) {

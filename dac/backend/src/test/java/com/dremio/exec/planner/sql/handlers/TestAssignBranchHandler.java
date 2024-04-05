@@ -27,17 +27,10 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.util.Arrays;
-import java.util.List;
-
-import org.apache.calcite.sql.SqlIdentifier;
-import org.apache.calcite.sql.parser.SqlParserPos;
-import org.junit.Before;
-import org.junit.Test;
-
 import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.VersionedPlugin;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.sql.handlers.direct.SimpleCommandResult;
 import com.dremio.exec.planner.sql.parser.ReferenceType;
@@ -51,17 +44,20 @@ import com.dremio.plugins.dataplane.store.DataplanePlugin;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.test.DremioTest;
+import java.util.Arrays;
+import java.util.List;
+import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.parser.SqlParserPos;
+import org.junit.Before;
+import org.junit.Test;
 
-/**
- * Tests for ALTER BRANCH ASSIGN.
- */
+/** Tests for ALTER BRANCH ASSIGN. */
 public class TestAssignBranchHandler extends DremioTest {
 
   private static final String DEFAULT_SOURCE_NAME = "localnessie";
   private static final String TARGET_BRANCH = "branch";
   private static final String DEFAULT_REFERENCE = "reference";
-  private static final VersionContext DEFAULT_VERSION =
-    VersionContext.ofBranch(TARGET_BRANCH);
+  private static final VersionContext DEFAULT_VERSION = VersionContext.ofBranch(TARGET_BRANCH);
 
   private OptionManager optionManager;
   private Catalog catalog;
@@ -84,49 +80,51 @@ public class TestAssignBranchHandler extends DremioTest {
     when(context.getCatalog()).thenReturn(catalog);
     when(context.getOptions()).thenReturn(optionManager);
     when(context.getSession()).thenReturn(userSession);
-    when(userSession.getDefaultSchemaPath()).thenReturn(new NamespaceKey(Arrays.asList(DEFAULT_SOURCE_NAME, "unusedFolder")));
+    when(userSession.getDefaultSchemaPath())
+        .thenReturn(new NamespaceKey(Arrays.asList(DEFAULT_SOURCE_NAME, "unusedFolder")));
     when(userSession.getSessionVersionForSource(DEFAULT_SOURCE_NAME)).thenReturn(DEFAULT_VERSION);
     when(optionManager.getOption(ENABLE_USE_VERSION_SYNTAX)).thenReturn(true);
     when(catalog.getSource(anyString())).thenReturn(dataplanePlugin);
+    when(dataplanePlugin.isWrapperFor(VersionedPlugin.class)).thenReturn(true);
+    when(dataplanePlugin.unwrap(VersionedPlugin.class)).thenReturn(dataplanePlugin);
 
     handler = new AssignBranchHandler(context);
 
     assignBranch =
-      new SqlAssignBranch(
-        SqlParserPos.ZERO,
-        new SqlIdentifier(TARGET_BRANCH, SqlParserPos.ZERO),
-        ReferenceType.BRANCH,
-        new SqlIdentifier(DEFAULT_REFERENCE, SqlParserPos.ZERO),
-        null,
-        new SqlIdentifier(DEFAULT_SOURCE_NAME, SqlParserPos.ZERO));
+        new SqlAssignBranch(
+            SqlParserPos.ZERO,
+            new SqlIdentifier(TARGET_BRANCH, SqlParserPos.ZERO),
+            ReferenceType.BRANCH,
+            new SqlIdentifier(DEFAULT_REFERENCE, SqlParserPos.ZERO),
+            null,
+            new SqlIdentifier(DEFAULT_SOURCE_NAME, SqlParserPos.ZERO));
 
     assignBranchWithDefaultSource =
-      new SqlAssignBranch(
-        SqlParserPos.ZERO,
-        new SqlIdentifier(TARGET_BRANCH, SqlParserPos.ZERO),
-        ReferenceType.BRANCH,
-        new SqlIdentifier(DEFAULT_REFERENCE, SqlParserPos.ZERO),
-        null,
-        null);
+        new SqlAssignBranch(
+            SqlParserPos.ZERO,
+            new SqlIdentifier(TARGET_BRANCH, SqlParserPos.ZERO),
+            ReferenceType.BRANCH,
+            new SqlIdentifier(DEFAULT_REFERENCE, SqlParserPos.ZERO),
+            null,
+            null);
 
     assignBranchWithTag =
-      new SqlAssignBranch(
-        SqlParserPos.ZERO,
-        new SqlIdentifier(TARGET_BRANCH, SqlParserPos.ZERO),
-        ReferenceType.TAG,
-        new SqlIdentifier(DEFAULT_REFERENCE, SqlParserPos.ZERO),
-        null,
-        null);
+        new SqlAssignBranch(
+            SqlParserPos.ZERO,
+            new SqlIdentifier(TARGET_BRANCH, SqlParserPos.ZERO),
+            ReferenceType.TAG,
+            new SqlIdentifier(DEFAULT_REFERENCE, SqlParserPos.ZERO),
+            null,
+            null);
 
     assignBranchToItself =
-      new SqlAssignBranch(
-        SqlParserPos.ZERO,
-        new SqlIdentifier(TARGET_BRANCH, SqlParserPos.ZERO),
-        ReferenceType.BRANCH,
-        new SqlIdentifier(TARGET_BRANCH, SqlParserPos.ZERO),
-        null,
-        new SqlIdentifier(DEFAULT_SOURCE_NAME, SqlParserPos.ZERO));
-
+        new SqlAssignBranch(
+            SqlParserPos.ZERO,
+            new SqlIdentifier(TARGET_BRANCH, SqlParserPos.ZERO),
+            ReferenceType.BRANCH,
+            new SqlIdentifier(TARGET_BRANCH, SqlParserPos.ZERO),
+            null,
+            new SqlIdentifier(DEFAULT_SOURCE_NAME, SqlParserPos.ZERO));
   }
 
   @Test
@@ -140,9 +138,9 @@ public class TestAssignBranchHandler extends DremioTest {
     assertFalse(result.isEmpty());
     assertTrue(result.get(0).ok);
     assertThat(result.get(0).summary)
-      .contains("Assigned")
-      .contains(TARGET_BRANCH)
-      .contains(DEFAULT_SOURCE_NAME);
+        .contains("Assigned")
+        .contains(TARGET_BRANCH)
+        .contains(DEFAULT_SOURCE_NAME);
   }
 
   @Test
@@ -152,9 +150,9 @@ public class TestAssignBranchHandler extends DremioTest {
 
     // Assert
     assertThatThrownBy(() -> handler.toResult("", assignBranch))
-      .isInstanceOf(UserException.class)
-      .hasMessageContaining("ALTER BRANCH")
-      .hasMessageContaining("not supported");
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining("ALTER BRANCH")
+        .hasMessageContaining("not supported");
   }
 
   @Test
@@ -164,23 +162,22 @@ public class TestAssignBranchHandler extends DremioTest {
 
     // Assert
     assertThatThrownBy(() -> handler.toResult("", assignBranch))
-      .isInstanceOf(UserException.class)
-      .hasMessageContaining("does not support")
-      .hasMessageContaining(DEFAULT_SOURCE_NAME);
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining("does not support")
+        .hasMessageContaining(DEFAULT_SOURCE_NAME);
   }
 
   @Test
   public void assignBranchThrowWrongSource() {
-    when(optionManager.getOption(ENABLE_USE_VERSION_SYNTAX))
-      .thenReturn(true);
-    when(catalog.getSource(DEFAULT_SOURCE_NAME))
-      .thenReturn(mock(StoragePlugin.class));
+    when(optionManager.getOption(ENABLE_USE_VERSION_SYNTAX)).thenReturn(true);
+    when(catalog.getSource(DEFAULT_SOURCE_NAME)).thenReturn(mock(StoragePlugin.class));
 
     assertThatThrownBy(() -> handler.toResult("", assignBranch))
-      .isInstanceOf(UserException.class)
-      .hasMessageContaining("does not support")
-      .hasMessageContaining(DEFAULT_SOURCE_NAME);
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining("does not support")
+        .hasMessageContaining(DEFAULT_SOURCE_NAME);
   }
+
   @Test
   public void assignBranchThrowNotFound()
       throws ReferenceConflictException, ReferenceNotFoundException {
@@ -192,10 +189,10 @@ public class TestAssignBranchHandler extends DremioTest {
 
     // Act+Assert
     assertThatThrownBy(() -> handler.toResult("", assignBranch))
-      .isInstanceOf(UserException.class)
-      .hasMessageContaining("not found")
-      .hasMessageContaining(DEFAULT_VERSION.toString())
-      .hasMessageContaining(DEFAULT_SOURCE_NAME);
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining("not found")
+        .hasMessageContaining(DEFAULT_VERSION.toString())
+        .hasMessageContaining(DEFAULT_SOURCE_NAME);
   }
 
   @Test
@@ -208,14 +205,15 @@ public class TestAssignBranchHandler extends DremioTest {
 
     // Act + Assert
     assertThatThrownBy(() -> handler.toResult("", assignBranch))
-      .isInstanceOf(UserException.class)
-      .hasMessageContaining("hash change")
-      .hasMessageContaining(DEFAULT_VERSION.toString())
-      .hasMessageContaining(DEFAULT_SOURCE_NAME);
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining("hash change")
+        .hasMessageContaining(DEFAULT_VERSION.toString())
+        .hasMessageContaining(DEFAULT_SOURCE_NAME);
   }
 
   @Test
-  public void assignBranchWithDefaultSource() throws ReferenceNotFoundException, ReferenceConflictException, ForemanSetupException {
+  public void assignBranchWithDefaultSource()
+      throws ReferenceNotFoundException, ReferenceConflictException, ForemanSetupException {
     // Arrange
     doNothing().when(dataplanePlugin).assignBranch(anyString(), any());
 
@@ -226,13 +224,14 @@ public class TestAssignBranchHandler extends DremioTest {
     assertThat(result).isNotEmpty();
     assertThat(result.get(0).ok).isTrue();
     assertThat(result.get(0).summary)
-      .contains("Assigned")
-      .contains(DEFAULT_REFERENCE)
-      .contains(DEFAULT_SOURCE_NAME);
-
+        .contains("Assigned")
+        .contains(DEFAULT_REFERENCE)
+        .contains(DEFAULT_SOURCE_NAME);
   }
+
   @Test
-  public void assignBranchWithTag() throws ReferenceNotFoundException, ReferenceConflictException, ForemanSetupException {
+  public void assignBranchWithTag()
+      throws ReferenceNotFoundException, ReferenceConflictException, ForemanSetupException {
     // Arrange
     doNothing().when(dataplanePlugin).assignBranch(anyString(), any());
 
@@ -243,15 +242,15 @@ public class TestAssignBranchHandler extends DremioTest {
     assertThat(result).isNotEmpty();
     assertThat(result.get(0).ok).isTrue();
     assertThat(result.get(0).summary)
-      .contains("Assigned")
-      .contains("tag")
-      .contains(DEFAULT_REFERENCE)
-      .contains(DEFAULT_SOURCE_NAME);
-
+        .contains("Assigned")
+        .contains("tag")
+        .contains(DEFAULT_REFERENCE)
+        .contains(DEFAULT_SOURCE_NAME);
   }
 
   @Test
-  public void assignBranchToItself () throws ReferenceNotFoundException, ReferenceConflictException, ForemanSetupException {
+  public void assignBranchToItself()
+      throws ReferenceNotFoundException, ReferenceConflictException, ForemanSetupException {
     // Arrange
     doNothing().when(dataplanePlugin).assignBranch(anyString(), any());
 
@@ -262,10 +261,9 @@ public class TestAssignBranchHandler extends DremioTest {
     assertThat(result).isNotEmpty();
     assertThat(result.get(0).ok).isTrue();
     assertThat(result.get(0).summary)
-      .contains("Assigned")
-      .contains("branch")
-      .contains(TARGET_BRANCH)
-      .contains(DEFAULT_SOURCE_NAME);
+        .contains("Assigned")
+        .contains("branch")
+        .contains(TARGET_BRANCH)
+        .contains(DEFAULT_SOURCE_NAME);
   }
-
 }

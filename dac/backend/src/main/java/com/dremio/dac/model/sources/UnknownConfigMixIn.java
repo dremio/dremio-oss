@@ -20,10 +20,8 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 /**
  * Mixin to allow Jackson serialization of {@code com.dremio.dac.proto.model.source.UnknownConfig}
  *
- * Since UnknownConfig is an empty bean, Jackson needs the type to be annotated
- * to allow for its serialization
+ * <p>Since UnknownConfig is an empty bean, Jackson needs the type to be annotated to allow for its
+ * serialization
  */
 @JsonSerialize
-public interface UnknownConfigMixIn {
-
-}
+public interface UnknownConfigMixIn {}

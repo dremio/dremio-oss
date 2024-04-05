@@ -15,13 +15,10 @@
  */
 package com.dremio.service.jobs;
 
+import com.dremio.service.job.proto.JobId;
 import java.util.Objects;
 
-import com.dremio.service.job.proto.JobId;
-
-/**
- * Request for getJob.
- */
+/** Request for getJob. */
 public final class GetJobRequest {
 
   private final JobId jobId;
@@ -29,7 +26,8 @@ public final class GetJobRequest {
   private final boolean fromStore;
   private final boolean profileInfoRequired;
 
-  private GetJobRequest(JobId jobId, String userName, boolean fromStore, boolean profileInfoRequired) {
+  private GetJobRequest(
+      JobId jobId, String userName, boolean fromStore, boolean profileInfoRequired) {
     this.jobId = jobId;
     this.userName = userName;
     this.fromStore = fromStore;
@@ -52,17 +50,14 @@ public final class GetJobRequest {
     return profileInfoRequired;
   }
 
-  /**
-   * getJob Request builder.
-   */
+  /** getJob Request builder. */
   public static final class Builder {
     private JobId jobId;
     private String userName = null;
     private boolean fromStore = false;
     private boolean profileInfoRequired = false;
 
-    private Builder() {
-    }
+    private Builder() {}
 
     public Builder setJobId(JobId jobId) {
       this.jobId = jobId;
@@ -89,11 +84,11 @@ public final class GetJobRequest {
     }
   }
 
- /**
-  * Create a new getJobs request builder.
-  *
-  * @return new builder
-  */
+  /**
+   * Create a new getJobs request builder.
+   *
+   * @return new builder
+   */
   public static Builder newBuilder() {
     return new Builder();
   }
@@ -106,11 +101,11 @@ public final class GetJobRequest {
     if (!(obj instanceof GetJobRequest)) {
       return false;
     }
-    GetJobRequest request = (GetJobRequest)obj;
+    GetJobRequest request = (GetJobRequest) obj;
     return Objects.equals(this.getJobId(), request.getJobId())
-      && Objects.equals(this.getUserName(), request.getUserName())
-      && Objects.equals(this.isFromStore(), request.isFromStore())
-      && Objects.equals(this.isProfileInfoRequired(), request.isProfileInfoRequired());
+        && Objects.equals(this.getUserName(), request.getUserName())
+        && Objects.equals(this.isFromStore(), request.isFromStore())
+        && Objects.equals(this.isProfileInfoRequired(), request.isProfileInfoRequired());
   }
 
   @Override

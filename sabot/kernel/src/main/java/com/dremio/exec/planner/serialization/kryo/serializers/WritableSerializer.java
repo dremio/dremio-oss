@@ -15,20 +15,16 @@
  */
 package com.dremio.exec.planner.serialization.kryo.serializers;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
-
-import org.apache.hadoop.io.Writable;
-
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import org.apache.hadoop.io.Writable;
 
-/**
- * A kryo serializer for hadoop's {@link Writable}
- */
+/** A kryo serializer for hadoop's {@link Writable} */
 public class WritableSerializer<T extends Writable> extends Serializer<T> {
 
   @Override

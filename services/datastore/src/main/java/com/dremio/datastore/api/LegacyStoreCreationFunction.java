@@ -16,7 +16,8 @@
 package com.dremio.datastore.api;
 
 /**
- * Function used to build a LegacyKVStore. Class is used as a key to later access the singleton LegacyKVStore.
+ * Function used to build a LegacyKVStore. Class is used as a key to later access the singleton
+ * LegacyKVStore.
  *
  * @param <K> the key type
  * @param <V> the value type
@@ -24,10 +25,13 @@ package com.dremio.datastore.api;
  * @param <T> The KVStore class produced
  */
 @Deprecated
-public interface LegacyStoreCreationFunction<K, V, T extends LegacyKVStore<K, V>, U extends KVStore<K, V>> extends StoreCreationFunction<K, V, U> {
+public interface LegacyStoreCreationFunction<
+        K, V, T extends LegacyKVStore<K, V>, U extends KVStore<K, V>>
+    extends StoreCreationFunction<K, V, U> {
 
   /**
    * How to build this LegacyKVStore.
+   *
    * @param factory LegacyStoreBuildingFactory to indicate how to build this store.
    * @return LegacyKVStore of type T.
    */

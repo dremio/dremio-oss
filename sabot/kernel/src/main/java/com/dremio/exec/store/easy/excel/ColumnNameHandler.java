@@ -15,15 +15,13 @@
  */
 package com.dremio.exec.store.easy.excel;
 
+import com.google.common.collect.Maps;
 import java.util.Map;
-
 import org.apache.poi.hssf.util.CellReference;
 
-import com.google.common.collect.Maps;
-
 /**
- * Keeps track of all column names in an Excel sheet. Replaces missing columns using
- * {@link CellReference#convertNumToColString(int)} and automatically resolves duplicated column names
+ * Keeps track of all column names in an Excel sheet. Replaces missing columns using {@link
+ * CellReference#convertNumToColString(int)} and automatically resolves duplicated column names
  */
 public class ColumnNameHandler {
 
@@ -35,9 +33,9 @@ public class ColumnNameHandler {
 
   /**
    * Retrieves the column name associated with a given column index.<br>
-   * If no column name is associated, generates a new column name using
-   * {@link CellReference#convertNumToColString(int)} and caches that name
-
+   * If no column name is associated, generates a new column name using {@link
+   * CellReference#convertNumToColString(int)} and caches that name
+   *
    * @param colIndex 0-based column index
    * @return column name
    */
@@ -51,9 +49,10 @@ public class ColumnNameHandler {
   }
 
   /**
-   * associates a column name with a given column index. If the column name is already taken
-   * takes care of resolving this by adding incrementing digits to the name. The "new" name
-   * will be checked again for duplication before it's saved.
+   * associates a column name with a given column index. If the column name is already taken takes
+   * care of resolving this by adding incrementing digits to the name. The "new" name will be
+   * checked again for duplication before it's saved.
+   *
    * @param colIndex 0-based column index
    * @param columnName column name
    * @return final, non duplicated, column name saved for colIndex
@@ -75,5 +74,4 @@ public class ColumnNameHandler {
     columnName += count; // alter the column name to remove duplication
     return setColumnName(colIndex, columnName); // check if the altered named isn't also duplicated
   }
-
 }

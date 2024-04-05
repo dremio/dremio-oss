@@ -17,6 +17,9 @@ package com.dremio.jdbc;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.dremio.config.DremioConfig;
+import com.dremio.jdbc.test.JdbcAssert;
+import com.dremio.test.TemporarySystemProperties;
 import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.Date;
@@ -27,28 +30,20 @@ import java.sql.Statement;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.sql.Types;
-
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import com.dremio.config.DremioConfig;
-import com.dremio.jdbc.test.JdbcAssert;
-import com.dremio.test.TemporarySystemProperties;
-
-
 /**
  * Test class for Dremio's java.sql.ResultSetMetaData implementation.
- * <p>
- *   Based on JDBC 4.1 (Java 7).
- * </p>
+ *
+ * <p>Based on JDBC 4.1 (Java 7).
  */
 public class ResultSetMetaDataTest extends JdbcWithServerTestBase {
   private static final String VIEW_SCHEMA = "dfs_test";
-  private static final String VIEW_NAME =
-      ResultSetMetaDataTest.class.getSimpleName() + "_View";
+  private static final String VIEW_NAME = ResultSetMetaDataTest.class.getSimpleName() + "_View";
 
   /** The one shared JDBC connection to Dremio. */
   private static Connection connection;
@@ -110,8 +105,7 @@ public class ResultSetMetaDataTest extends JdbcWithServerTestBase {
   private static int ordReqINTERVAL_3S;
   private static int ordReqINTERVAL_3S1;
 
-  @ClassRule
-  public static TemporarySystemProperties properties = new TemporarySystemProperties();
+  @ClassRule public static TemporarySystemProperties properties = new TemporarySystemProperties();
 
   @BeforeClass
   public static void setUpConnectionAndMetadataToCheck() throws Exception {
@@ -121,116 +115,118 @@ public class ResultSetMetaDataTest extends JdbcWithServerTestBase {
     // (Note: Can't use JdbcTest's connect(...) because JdbcTest closes
     // Connection--and other JDBC objects--on test method failure, but this test
     // class uses some objects across methods.)
-    connection = new Driver().connect( sabotNode.getJDBCConnectionString(),
-                                       JdbcAssert.getDefaultProperties() );
+    connection =
+        new Driver()
+            .connect(sabotNode.getJDBCConnectionString(), JdbcAssert.getDefaultProperties());
     final Statement stmt = connection.createStatement();
 
     ResultSet util;
 
     // Create temporary test-columns view:
-    util = stmt.executeQuery( "USE \"" + VIEW_SCHEMA + "\"" );
+    util = stmt.executeQuery("USE \"" + VIEW_SCHEMA + "\"");
     assertThat(util.next()).isTrue();
-    assertThat(util.getBoolean(1)).as("Error setting schema for test: " + util.getString(2))
-      .isTrue();
+    assertThat(util.getBoolean(1))
+        .as("Error setting schema for test: " + util.getString(2))
+        .isTrue();
 
     columnCount = 0;
     final StringBuilder buf = new StringBuilder();
 
-    buf.append( "CREATE OR REPLACE VIEW \"" + VIEW_NAME + "\" AS SELECT " );
+    buf.append("CREATE OR REPLACE VIEW \"" + VIEW_NAME + "\" AS SELECT ");
 
-    buf.append( "\n CAST( NULL    AS BOOLEAN      ) AS mdrOptBOOLEAN, " );
+    buf.append("\n CAST( NULL    AS BOOLEAN      ) AS mdrOptBOOLEAN, ");
     ordOptBOOLEAN = ++columnCount;
-    buf.append( "\n TRUE                            AS mdrReqBOOLEAN, " );
+    buf.append("\n TRUE                            AS mdrReqBOOLEAN, ");
     ordReqBOOLEAN = ++columnCount;
 
-    //buf.append( "\n CAST(   15    AS SMALLINT     ) AS mdrOptSMALLINT, " );
-    //ordOptSMALLINT = ++columnCount;
-    buf.append( "\n CAST(    2    AS INTEGER      ) AS mdrOptINTEGER, " );
+    // buf.append( "\n CAST(   15    AS SMALLINT     ) AS mdrOptSMALLINT, " );
+    // ordOptSMALLINT = ++columnCount;
+    buf.append("\n CAST(    2    AS INTEGER      ) AS mdrOptINTEGER, ");
     ordReqINTEGER = ++columnCount;
-    buf.append( "\n CAST( 15      AS BIGINT       ) AS mdrReqBIGINT, " );
+    buf.append("\n CAST( 15      AS BIGINT       ) AS mdrReqBIGINT, ");
     ordReqBIGINT = ++columnCount;
 
-
     // TODO(DRILL-2683): unignore when REAL is implemented:
-    //buf.append( "\n CAST(  3.1    AS REAL         ) AS mdrReqREAL, " );
-    //ordReqREAL = ++columnCount;
-    buf.append( "\n CAST(  3.2    AS FLOAT        ) AS mdrReqFLOAT, " );
+    // buf.append( "\n CAST(  3.1    AS REAL         ) AS mdrReqREAL, " );
+    // ordReqREAL = ++columnCount;
+    buf.append("\n CAST(  3.2    AS FLOAT        ) AS mdrReqFLOAT, ");
     ordReqFLOAT = ++columnCount;
-    buf.append( "\n CAST(  3.3    AS DOUBLE       ) AS mdrReqDOUBLE, " );
+    buf.append("\n CAST(  3.3    AS DOUBLE       ) AS mdrReqDOUBLE, ");
     ordReqDOUBLE = ++columnCount;
 
-    buf.append( "\n CAST(  4.4    AS DECIMAL(5,3) ) AS mdrReqDECIMAL_5_3, " );
+    buf.append("\n CAST(  4.4    AS DECIMAL(5,3) ) AS mdrReqDECIMAL_5_3, ");
     ordReqDECIMAL_5_3 = ++columnCount;
 
-    buf.append( "\n CAST( 'Hi'    AS VARCHAR(10)  ) AS mdrReqVARCHAR_10, " );
+    buf.append("\n CAST( 'Hi'    AS VARCHAR(10)  ) AS mdrReqVARCHAR_10, ");
     ordReqVARCHAR_10 = ++columnCount;
-    buf.append( "\n CAST( NULL    AS VARCHAR      ) AS mdrOptVARCHAR, " );
+    buf.append("\n CAST( NULL    AS VARCHAR      ) AS mdrOptVARCHAR, ");
     ordOptVARCHAR = ++columnCount;
-    buf.append( "\n CAST( '55'    AS CHAR(5)      ) AS mdrReqCHAR_5, " );
+    buf.append("\n CAST( '55'    AS CHAR(5)      ) AS mdrReqCHAR_5, ");
     ordReqCHAR_5 = ++columnCount;
 
     // TODO(DRILL-3368): unignore when VARBINARY is implemented enough:
-    //buf.append( "\n CAST( NULL    AS VARBINARY(16)      ) AS mdrOptVARBINARY_16," );
-    //ordOptVARBINARY_16 = ++columnCount;
+    // buf.append( "\n CAST( NULL    AS VARBINARY(16)      ) AS mdrOptVARBINARY_16," );
+    // ordOptVARBINARY_16 = ++columnCount;
     // TODO(DRILL-3368): unignore when BINARY is implemented enough:
-    //buf.append( "\n CAST( NULL    AS BINARY(1048576)    ) AS mdrOptBINARY_1048576, " );
-    //ordOptBINARY_1048576 = ++columnCount;
+    // buf.append( "\n CAST( NULL    AS BINARY(1048576)    ) AS mdrOptBINARY_1048576, " );
+    // ordOptBINARY_1048576 = ++columnCount;
 
-    buf.append( "\n       DATE '2015-01-01'            AS mdrReqDATE, " );
+    buf.append("\n       DATE '2015-01-01'            AS mdrReqDATE, ");
     ordReqDATE = ++columnCount;
-    buf.append( "\n CAST( TIME '23:59:59.123' AS TIME(2) ) AS mdrReqTIME_2, " );
+    buf.append("\n CAST( TIME '23:59:59.123' AS TIME(2) ) AS mdrReqTIME_2, ");
     ordReqTIME_2 = ++columnCount;
-    buf.append( "\n CAST( NULL                AS TIME(7) ) AS mdrOptTIME_7, " );
+    buf.append("\n CAST( NULL                AS TIME(7) ) AS mdrOptTIME_7, ");
     ordOptTIME_7 = ++columnCount;
-    buf.append( "\n CAST( TIMESTAMP '2015-01-01 23:59:59.12345'"
-                +                  " AS TIMESTAMP(4) ) AS mdrReqTIMESTAMP_4, " );
+    buf.append(
+        "\n CAST( TIMESTAMP '2015-01-01 23:59:59.12345'"
+            + " AS TIMESTAMP(4) ) AS mdrReqTIMESTAMP_4, ");
     ordReqTIMESTAMP_4 = ++columnCount;
 
-    buf.append( "\n INTERVAL '1'     YEAR              AS mdrReqINTERVAL_Y, " );
+    buf.append("\n INTERVAL '1'     YEAR              AS mdrReqINTERVAL_Y, ");
     ordReqINTERVAL_Y = ++columnCount;
-    buf.append( "\n INTERVAL '1-2'   YEAR(3) TO MONTH  AS mdrReqINTERVAL_3Y_Mo, " );
+    buf.append("\n INTERVAL '1-2'   YEAR(3) TO MONTH  AS mdrReqINTERVAL_3Y_Mo, ");
     ordReqINTERVAL_3Y_Mo = ++columnCount;
-    buf.append( "\n INTERVAL '1-2'   YEAR(10) TO MONTH AS mdrReqINTERVAL_10Y_Mo, " );
+    buf.append("\n INTERVAL '1-2'   YEAR(10) TO MONTH AS mdrReqINTERVAL_10Y_Mo, ");
     ordReqINTERVAL_10Y_Mo = ++columnCount;
-    buf.append( "\n INTERVAL '-2'    MONTH             AS mdrReqINTERVAL_Mo, " );
+    buf.append("\n INTERVAL '-2'    MONTH             AS mdrReqINTERVAL_Mo, ");
     ordReqINTERVAL_Mo = ++columnCount;
-    buf.append( "\n INTERVAL '3'     DAY               AS mdrReqINTERVAL_D, " );
+    buf.append("\n INTERVAL '3'     DAY               AS mdrReqINTERVAL_D, ");
     ordReqINTERVAL_D = ++columnCount;
-    buf.append( "\n INTERVAL '3 4'   DAY(4) TO HOUR    AS mdrReqINTERVAL_4D_H, " );
+    buf.append("\n INTERVAL '3 4'   DAY(4) TO HOUR    AS mdrReqINTERVAL_4D_H, ");
     ordReqINTERVAL_4D_H = ++columnCount;
-    buf.append( "\n INTERVAL '3 4:5' DAY(3) TO MINUTE  AS mdrReqINTERVAL_3D_Mi, " );
+    buf.append("\n INTERVAL '3 4:5' DAY(3) TO MINUTE  AS mdrReqINTERVAL_3D_Mi, ");
     ordReqINTERVAL_3D_Mi = ++columnCount;
-    buf.append( "\n INTERVAL '3 4:5:6' DAY(2) TO SECOND(5) AS mdrReqINTERVAL_2D_S5, " );
+    buf.append("\n INTERVAL '3 4:5:6' DAY(2) TO SECOND(5) AS mdrReqINTERVAL_2D_S5, ");
     ordReqINTERVAL_2D_S5 = ++columnCount;
-    buf.append( "\n INTERVAL '4'     HOUR              AS mdrReqINTERVAL_H, " );
+    buf.append("\n INTERVAL '4'     HOUR              AS mdrReqINTERVAL_H, ");
     ordReqINTERVAL_H = ++columnCount;
-    buf.append( "\n INTERVAL '4:5'   HOUR(1) TO MINUTE AS mdrReqINTERVAL_1H_Mi, " );
+    buf.append("\n INTERVAL '4:5'   HOUR(1) TO MINUTE AS mdrReqINTERVAL_1H_Mi, ");
     ordReqINTERVAL_1H_Mi = ++columnCount;
-    buf.append( "\n INTERVAL '4:5:6' HOUR(3) TO SECOND(1) AS mdrReqINTERVAL_3H_S1, " );
+    buf.append("\n INTERVAL '4:5:6' HOUR(3) TO SECOND(1) AS mdrReqINTERVAL_3H_S1, ");
     ordReqINTERVAL_3H_S1 = ++columnCount;
-    buf.append( "\n INTERVAL '5'     MINUTE            AS mdrReqINTERVAL_Mi, " );
+    buf.append("\n INTERVAL '5'     MINUTE            AS mdrReqINTERVAL_Mi, ");
     ordReqINTERVAL_Mi = ++columnCount;
-    buf.append( "\n INTERVAL '5:6'   MINUTE(5) TO SECOND AS mdrReqINTERVAL_5Mi_S, " );
+    buf.append("\n INTERVAL '5:6'   MINUTE(5) TO SECOND AS mdrReqINTERVAL_5Mi_S, ");
     ordReqINTERVAL_5Mi_S = ++columnCount;
-    buf.append( "\n INTERVAL '6'     SECOND          AS mdrReqINTERVAL_S, " );
+    buf.append("\n INTERVAL '6'     SECOND          AS mdrReqINTERVAL_S, ");
     ordReqINTERVAL_S = ++columnCount;
-    buf.append( "\n INTERVAL '6'     SECOND(3)       AS mdrReqINTERVAL_3S, " );
+    buf.append("\n INTERVAL '6'     SECOND(3)       AS mdrReqINTERVAL_3S, ");
     ordReqINTERVAL_3S = ++columnCount;
-    buf.append( "\n INTERVAL '6'     SECOND(3, 1)    AS mdrReqINTERVAL_3S1, " );
+    buf.append("\n INTERVAL '6'     SECOND(3, 1)    AS mdrReqINTERVAL_3S1, ");
     ordReqINTERVAL_3S1 = ++columnCount;
 
-    buf.append( "\n ''" );
+    buf.append("\n ''");
     ++columnCount;
-    buf.append( "\nFROM INFORMATION_SCHEMA.COLUMNS LIMIT 1 " );
+    buf.append("\nFROM INFORMATION_SCHEMA.COLUMNS LIMIT 1 ");
 
     final String query = buf.toString();
-    util = stmt.executeQuery( query );
+    util = stmt.executeQuery(query);
     assertThat(util.next()).isTrue();
-    assertThat(util.getBoolean(1)).as(
-      "Error creating temporary test-columns view " + VIEW_NAME + ": "
-        + util.getString(2)).isTrue();
+    assertThat(util.getBoolean(1))
+        .as("Error creating temporary test-columns view " + VIEW_NAME + ": " + util.getString(2))
+        .isTrue();
 
-    viewRow = stmt.executeQuery( "SELECT * FROM " + VIEW_NAME + " LIMIT 1 " );
+    viewRow = stmt.executeQuery("SELECT * FROM " + VIEW_NAME + " LIMIT 1 ");
     viewRow.next();
 
     rowMetadata = viewRow.getMetaData();
@@ -238,15 +234,13 @@ public class ResultSetMetaDataTest extends JdbcWithServerTestBase {
 
   @AfterClass
   public static void tearDownConnection() throws SQLException {
-    final ResultSet util =
-        connection.createStatement().executeQuery( "DROP VIEW " + VIEW_NAME + "" );
+    final ResultSet util = connection.createStatement().executeQuery("DROP VIEW " + VIEW_NAME + "");
     assertThat(util.next()).isTrue();
-    assertThat(util.getBoolean(1)).as(
-      "Error dropping temporary test-columns view " + VIEW_NAME + ": "
-        + util.getString(2)).isTrue();
+    assertThat(util.getBoolean(1))
+        .as("Error dropping temporary test-columns view " + VIEW_NAME + ": " + util.getString(2))
+        .isTrue();
     connection.close();
   }
-
 
   //////////////////////////////////////////////////////////////////////
   // Tests:
@@ -414,7 +408,7 @@ public class ResultSetMetaDataTest extends JdbcWithServerTestBase {
   @Test
   public void test_getSchemaName_forViewGetsName() throws SQLException {
     assertThat(rowMetadata.getSchemaName(ordOptBOOLEAN))
-      .satisfiesAnyOf(s -> assertThat(s).isEqualTo(VIEW_NAME), s -> assertThat(s).isEmpty());
+        .satisfiesAnyOf(s -> assertThat(s).isEqualTo(VIEW_NAME), s -> assertThat(s).isEmpty());
   }
 
   ////////////////////////////////////////////////////////////
@@ -509,7 +503,7 @@ public class ResultSetMetaDataTest extends JdbcWithServerTestBase {
   @Test
   public void test_getTableName_forViewGetsName() throws SQLException {
     assertThat(rowMetadata.getTableName(ordOptBOOLEAN))
-      .satisfiesAnyOf(s -> assertThat(s).isEqualTo(VIEW_NAME), s -> assertThat(s).isEmpty());
+        .satisfiesAnyOf(s -> assertThat(s).isEqualTo(VIEW_NAME), s -> assertThat(s).isEmpty());
   }
 
   ////////////////////////////////////////////////////////////
@@ -524,7 +518,7 @@ public class ResultSetMetaDataTest extends JdbcWithServerTestBase {
   @Test
   public void test_getCatalogName_getsCatalogName() throws SQLException {
     assertThat(rowMetadata.getCatalogName(ordOptBOOLEAN))
-      .satisfiesAnyOf(s -> assertThat(s).isEqualTo("DREMIO"), s -> assertThat(s).isEmpty());
+        .satisfiesAnyOf(s -> assertThat(s).isEqualTo("DREMIO"), s -> assertThat(s).isEmpty());
   }
 
   ////////////////////////////////////////////////////////////
@@ -731,8 +725,8 @@ public class ResultSetMetaDataTest extends JdbcWithServerTestBase {
 
   @Test
   public void test_getColumnTypeName_forINTERVAL_D() throws SQLException {
-    assertThat(rowMetadata.getColumnTypeName(ordReqINTERVAL_4D_H)).isEqualTo(
-      "INTERVAL DAY TO SECOND");
+    assertThat(rowMetadata.getColumnTypeName(ordReqINTERVAL_4D_H))
+        .isEqualTo("INTERVAL DAY TO SECOND");
   }
 
   // TODO(DRILL-3253):  Do more types when we have all-types test storage plugin.
@@ -790,9 +784,10 @@ public class ResultSetMetaDataTest extends JdbcWithServerTestBase {
   @Test
   public void test_getColumnClassName_forBOOLEAN_matches() throws SQLException {
     assertThat(
-      rowMetadata.getColumnClassName(ordReqBOOLEAN)
-      // (equalTo because Boolean is final)
-    ).isEqualTo(viewRow.getObject(ordReqBOOLEAN).getClass().getName());
+            rowMetadata.getColumnClassName(ordReqBOOLEAN)
+            // (equalTo because Boolean is final)
+            )
+        .isEqualTo(viewRow.getObject(ordReqBOOLEAN).getClass().getName());
   }
 
   // SMALLINT:
@@ -807,8 +802,9 @@ public class ResultSetMetaDataTest extends JdbcWithServerTestBase {
   @Test
   public void test_getColumnClassName_forSMALLINT_matches() throws SQLException {
     assertThat(
-      rowMetadata.getColumnClassName(ordReqSMALLINT)      // (equalTo because Short is final)
-    ).isEqualTo(viewRow.getObject(ordReqSMALLINT).getClass().getName());
+            rowMetadata.getColumnClassName(ordReqSMALLINT) // (equalTo because Short is final)
+            )
+        .isEqualTo(viewRow.getObject(ordReqSMALLINT).getClass().getName());
   }
 
   // INTEGER:
@@ -821,8 +817,9 @@ public class ResultSetMetaDataTest extends JdbcWithServerTestBase {
   @Test
   public void test_getColumnClassName_forINTEGER_matches() throws SQLException {
     assertThat(
-      rowMetadata.getColumnClassName(ordReqINTEGER)      // (equalTo because Integer is final)
-    ).isEqualTo(viewRow.getObject(ordReqINTEGER).getClass().getName());
+            rowMetadata.getColumnClassName(ordReqINTEGER) // (equalTo because Integer is final)
+            )
+        .isEqualTo(viewRow.getObject(ordReqINTEGER).getClass().getName());
   }
 
   // BIGINT:
@@ -835,8 +832,9 @@ public class ResultSetMetaDataTest extends JdbcWithServerTestBase {
   @Test
   public void test_getColumnClassName_forBIGINT_matches() throws SQLException {
     assertThat(
-      rowMetadata.getColumnClassName(ordReqBIGINT)      // (equalTo because Long is final)
-    ).isEqualTo(viewRow.getObject(ordReqBIGINT).getClass().getName());
+            rowMetadata.getColumnClassName(ordReqBIGINT) // (equalTo because Long is final)
+            )
+        .isEqualTo(viewRow.getObject(ordReqBIGINT).getClass().getName());
   }
 
   // REAL:
@@ -851,8 +849,9 @@ public class ResultSetMetaDataTest extends JdbcWithServerTestBase {
   @Test
   public void test_getColumnClassName_forREAL_matches() throws SQLException {
     assertThat(
-      rowMetadata.getColumnClassName(ordReqREAL)      // (equalTo because Float is final)
-    ).isEqualTo(viewRow.getObject(ordReqREAL).getClass().getName());
+            rowMetadata.getColumnClassName(ordReqREAL) // (equalTo because Float is final)
+            )
+        .isEqualTo(viewRow.getObject(ordReqREAL).getClass().getName());
   }
 
   // FLOAT:
@@ -860,15 +859,17 @@ public class ResultSetMetaDataTest extends JdbcWithServerTestBase {
   @Test
   public void test_getColumnClassName_forFLOAT_isFloat() throws SQLException {
     assertThat(rowMetadata.getColumnClassName(ordReqFLOAT))
-      .satisfiesAnyOf(x -> assertThat(x).isEqualTo(Float.class.getName()),
-        x -> assertThat(x).isEqualTo(Double.class.getName()));
+        .satisfiesAnyOf(
+            x -> assertThat(x).isEqualTo(Float.class.getName()),
+            x -> assertThat(x).isEqualTo(Double.class.getName()));
   }
 
   @Test
   public void test_getColumnClassName_forFLOAT_matches() throws SQLException {
     assertThat(
-      rowMetadata.getColumnClassName(ordReqFLOAT)      // (equalTo because Float is final)
-    ).isEqualTo(viewRow.getObject(ordReqFLOAT).getClass().getName());
+            rowMetadata.getColumnClassName(ordReqFLOAT) // (equalTo because Float is final)
+            )
+        .isEqualTo(viewRow.getObject(ordReqFLOAT).getClass().getName());
   }
 
   // DOUBLE:
@@ -881,8 +882,9 @@ public class ResultSetMetaDataTest extends JdbcWithServerTestBase {
   @Test
   public void test_getColumnClassName_forDOUBLE_matches() throws SQLException {
     assertThat(
-      rowMetadata.getColumnClassName(ordReqDOUBLE)      // (equalTo because Double is final)
-    ).isEqualTo(viewRow.getObject(ordReqDOUBLE).getClass().getName());
+            rowMetadata.getColumnClassName(ordReqDOUBLE) // (equalTo because Double is final)
+            )
+        .isEqualTo(viewRow.getObject(ordReqDOUBLE).getClass().getName());
   }
 
   // DECIMAL_5_3:
@@ -890,15 +892,14 @@ public class ResultSetMetaDataTest extends JdbcWithServerTestBase {
   @Ignore("TODO(DRILL-3367): unignore when DECIMAL is no longer DOUBLE")
   @Test
   public void test_getColumnClassName_forDECIMAL_5_3_isBigDecimal() throws SQLException {
-    assertThat(rowMetadata.getColumnClassName(ordReqDECIMAL_5_3)).isEqualTo(
-      BigDecimal.class.getName());
+    assertThat(rowMetadata.getColumnClassName(ordReqDECIMAL_5_3))
+        .isEqualTo(BigDecimal.class.getName());
   }
 
   @Test
   public void test_getColumnClassName_forDECIMAL_5_3_matches()
-    throws SQLException, ClassNotFoundException {
-    final Class<?> requiredClass =
-      Class.forName(rowMetadata.getColumnClassName(ordReqDECIMAL_5_3));
+      throws SQLException, ClassNotFoundException {
+    final Class<?> requiredClass = Class.forName(rowMetadata.getColumnClassName(ordReqDECIMAL_5_3));
     final Class<?> actualClass = viewRow.getObject(ordReqDECIMAL_5_3).getClass();
     assertThat(requiredClass).isAssignableFrom(actualClass);
   }
@@ -912,9 +913,8 @@ public class ResultSetMetaDataTest extends JdbcWithServerTestBase {
 
   @Test
   public void test_getColumnClassName_forVARCHAR_10_matches()
-    throws SQLException, ClassNotFoundException {
-    final Class<?> requiredClass =
-      Class.forName(rowMetadata.getColumnClassName(ordReqVARCHAR_10));
+      throws SQLException, ClassNotFoundException {
+    final Class<?> requiredClass = Class.forName(rowMetadata.getColumnClassName(ordReqVARCHAR_10));
     final Class<?> actualClass = viewRow.getObject(ordReqVARCHAR_10).getClass();
     assertThat(requiredClass).isAssignableFrom(actualClass);
   }
@@ -935,9 +935,8 @@ public class ResultSetMetaDataTest extends JdbcWithServerTestBase {
 
   @Test
   public void test_getColumnClassName_forDATE_matches()
-    throws SQLException, ClassNotFoundException {
-    final Class<?> requiredClass =
-      Class.forName(rowMetadata.getColumnClassName(ordReqDATE));
+      throws SQLException, ClassNotFoundException {
+    final Class<?> requiredClass = Class.forName(rowMetadata.getColumnClassName(ordReqDATE));
     final Class<?> actualClass = viewRow.getObject(ordReqDATE).getClass();
     assertThat(requiredClass).isAssignableFrom(actualClass);
   }
@@ -951,9 +950,8 @@ public class ResultSetMetaDataTest extends JdbcWithServerTestBase {
 
   @Test
   public void test_getColumnClassName_forTIME_2_matches()
-    throws SQLException, ClassNotFoundException {
-    final Class<?> requiredClass =
-      Class.forName(rowMetadata.getColumnClassName(ordReqTIME_2));
+      throws SQLException, ClassNotFoundException {
+    final Class<?> requiredClass = Class.forName(rowMetadata.getColumnClassName(ordReqTIME_2));
     final Class<?> actualClass = viewRow.getObject(ordReqTIME_2).getClass();
     assertThat(requiredClass).isAssignableFrom(actualClass);
   }
@@ -964,17 +962,15 @@ public class ResultSetMetaDataTest extends JdbcWithServerTestBase {
 
   @Test
   public void test_getColumnClassName_forTIMESTAMP_4_isDate() throws SQLException {
-    assertThat(rowMetadata.getColumnClassName(ordReqTIMESTAMP_4)).isEqualTo(
-      Timestamp.class.getName());
+    assertThat(rowMetadata.getColumnClassName(ordReqTIMESTAMP_4))
+        .isEqualTo(Timestamp.class.getName());
   }
 
   @Test
   public void test_getColumnClassName_forTIMESTAMP_4_matches()
-    throws SQLException, ClassNotFoundException {
-    final Class<?> requiredClass =
-      Class.forName(rowMetadata.getColumnClassName(ordReqTIMESTAMP_4));
-    final Class<?> actualClass =
-      viewRow.getObject(ordReqTIMESTAMP_4).getClass();
+      throws SQLException, ClassNotFoundException {
+    final Class<?> requiredClass = Class.forName(rowMetadata.getColumnClassName(ordReqTIMESTAMP_4));
+    final Class<?> actualClass = viewRow.getObject(ordReqTIMESTAMP_4).getClass();
     assertThat(requiredClass).isAssignableFrom(actualClass);
   }
 
@@ -988,21 +984,19 @@ public class ResultSetMetaDataTest extends JdbcWithServerTestBase {
 
   @Test
   public void test_getColumnClassName_forINTERVAL_10Y_Mo_isJodaPeriod() throws SQLException {
-    assertThat(rowMetadata.getColumnClassName(ordReqINTERVAL_10Y_Mo)).isEqualTo(
-      String.class.getName());
+    assertThat(rowMetadata.getColumnClassName(ordReqINTERVAL_10Y_Mo))
+        .isEqualTo(String.class.getName());
   }
 
   @Test
   public void test_getColumnClassName_forINTERVAL_10Y_Mo_matches()
-    throws SQLException, ClassNotFoundException {
+      throws SQLException, ClassNotFoundException {
     final Class<?> requiredClass =
-      Class.forName(rowMetadata.getColumnClassName(ordReqINTERVAL_10Y_Mo));
-    final Class<?> actualClass =
-      viewRow.getObject(ordReqINTERVAL_10Y_Mo).getClass();
+        Class.forName(rowMetadata.getColumnClassName(ordReqINTERVAL_10Y_Mo));
+    final Class<?> actualClass = viewRow.getObject(ordReqINTERVAL_10Y_Mo).getClass();
     assertThat(requiredClass).isAssignableFrom(actualClass);
   }
 
   // TODO(DRILL-3253):  Do more types when we have all-types test storage plugin.
-
 
 } // class DatabaseMetaGetColumnsDataTest

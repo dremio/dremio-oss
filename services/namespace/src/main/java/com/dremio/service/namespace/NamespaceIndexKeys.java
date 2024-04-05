@@ -18,36 +18,43 @@ package com.dremio.service.namespace;
 import com.dremio.datastore.SearchTypes.SearchFieldSorting;
 import com.dremio.datastore.indexed.IndexKey;
 
-/**
- * Index keys for the namespace service.
- */
+/** Index keys for the namespace service. */
 public interface NamespaceIndexKeys {
-  IndexKey ENTITY_ID = IndexKey.newBuilder("entid", "ENTITY_ID", String.class)
-    .setSortedValueType(SearchFieldSorting.FieldType.STRING)
-    .build();
-  IndexKey SOURCE_ID = IndexKey.newBuilder("id", "SOURCE_ID", String.class)
-    .setSortedValueType(SearchFieldSorting.FieldType.STRING)
-    .build();
-  IndexKey SPACE_ID = IndexKey.newBuilder("id", "SPACE_ID", String.class)
-    .setSortedValueType(SearchFieldSorting.FieldType.STRING)
-    .build();
-  IndexKey UDF_ID = IndexKey.newBuilder("id", "UDF_ID", String.class)
-    .setSortedValueType(SearchFieldSorting.FieldType.STRING)
-    .build();
-  IndexKey HOME_ID = IndexKey.newBuilder("id", "HOME_ID", String.class)
-    .setSortedValueType(SearchFieldSorting.FieldType.STRING)
-    .build();
-  IndexKey FOLDER_ID = IndexKey.newBuilder("id", "FOLDER_ID", String.class)
-    .setSortedValueType(SearchFieldSorting.FieldType.STRING)
-    .build();
-  IndexKey ENTITY_TYPE = IndexKey.newBuilder("enttyp", "ENTITY_TYPE", Integer.class)
-    .setSortedValueType(SearchFieldSorting.FieldType.INTEGER)
-    .build();
+  IndexKey ENTITY_ID =
+      IndexKey.newBuilder("entid", "ENTITY_ID", String.class)
+          .setSortedValueType(SearchFieldSorting.FieldType.STRING)
+          .build();
+  IndexKey SOURCE_ID =
+      IndexKey.newBuilder("id", "SOURCE_ID", String.class)
+          .setSortedValueType(SearchFieldSorting.FieldType.STRING)
+          .build();
+  IndexKey SPACE_ID =
+      IndexKey.newBuilder("id", "SPACE_ID", String.class)
+          .setSortedValueType(SearchFieldSorting.FieldType.STRING)
+          .build();
+  IndexKey UDF_ID =
+      IndexKey.newBuilder("id", "UDF_ID", String.class)
+          .setSortedValueType(SearchFieldSorting.FieldType.STRING)
+          .build();
+  IndexKey HOME_ID =
+      IndexKey.newBuilder("id", "HOME_ID", String.class)
+          .setSortedValueType(SearchFieldSorting.FieldType.STRING)
+          .build();
+  IndexKey FOLDER_ID =
+      IndexKey.newBuilder("id", "FOLDER_ID", String.class)
+          .setSortedValueType(SearchFieldSorting.FieldType.STRING)
+          .build();
+  IndexKey ENTITY_TYPE =
+      IndexKey.newBuilder("enttyp", "ENTITY_TYPE", Integer.class)
+          .setSortedValueType(SearchFieldSorting.FieldType.INTEGER)
+          .build();
   // lower case path without escaping.
-  IndexKey UNQUOTED_LC_PATH = IndexKey.newBuilder("ulpth", "SEARCH_PATH_LC", String.class)
-    .setSortedValueType(SearchFieldSorting.FieldType.STRING)
-    .build();
-  IndexKey LAST_MODIFIED = IndexKey.newBuilder("lastmodified", "LAST_MODIFIED", Long.class)
-    .setSortedValueType(SearchFieldSorting.FieldType.LONG)
-    .build();
+  IndexKey UNQUOTED_LC_PATH =
+      IndexKey.newBuilder("ulpth", "SEARCH_PATH_LC", String.class)
+          .setSortedValueType(SearchFieldSorting.FieldType.STRING)
+          .build();
+  IndexKey LAST_MODIFIED =
+      IndexKey.newBuilder("lastmodified", "LAST_MODIFIED", Long.class)
+          .setSortedValueType(SearchFieldSorting.FieldType.LONG)
+          .build();
 }

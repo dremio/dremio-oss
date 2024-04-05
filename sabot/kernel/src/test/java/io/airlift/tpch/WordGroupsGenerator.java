@@ -15,16 +15,13 @@
  */
 package io.airlift.tpch;
 
+import com.dremio.test.AllocatorRule;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.complex.impl.UnionListWriter;
 
-import com.dremio.test.AllocatorRule;
-
-/**
- * Creates a ListVector with varchar base data and generates records for it.
- */
+/** Creates a ListVector with varchar base data and generates records for it. */
 public class WordGroupsGenerator extends TpchGenerator {
 
   private static final int WORD_AVERAGE_LENGTH = 7;
@@ -37,16 +34,20 @@ public class WordGroupsGenerator extends TpchGenerator {
 
   private final ListVector wordGroups;
 
-  public WordGroupsGenerator(final BufferAllocator allocator, final GenerationDefinition def, final int partitionIndex, final GenerationDefinition.TpchTable table, final String...includedColumns) {
+  public WordGroupsGenerator(
+      final BufferAllocator allocator,
+      final GenerationDefinition def,
+      final int partitionIndex,
+      final GenerationDefinition.TpchTable table,
+      final String... includedColumns) {
 
     super(table, allocator, def, partitionIndex, includedColumns);
     this.allocator = allocator;
 
-    //creates the list vector
+    // creates the list vector
     this.wordGroups = variableSizedList("word_groups");
 
     finalizeSetup();
-
   }
 
   @Override
@@ -54,7 +55,7 @@ public class WordGroupsGenerator extends TpchGenerator {
 
     final UnionListWriter listWriter = new UnionListWriter(wordGroups);
 
-    try(final ArrowBuf tempBuf =  allocator.buffer(1024)){
+    try (final ArrowBuf tempBuf = allocator.buffer(1024)) {
 
       listWriter.setPosition(outputIndex);
 
@@ -67,7 +68,5 @@ public class WordGroupsGenerator extends TpchGenerator {
       }
       listWriter.endList();
     }
-
   }
-
 }

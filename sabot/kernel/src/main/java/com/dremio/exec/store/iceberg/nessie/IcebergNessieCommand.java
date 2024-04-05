@@ -15,24 +15,26 @@
  */
 package com.dremio.exec.store.iceberg.nessie;
 
-import org.apache.hadoop.conf.Configuration;
-
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.store.iceberg.model.IcebergBaseCommand;
 import com.dremio.exec.store.iceberg.model.IcebergTableIdentifier;
+import org.apache.hadoop.conf.Configuration;
 
-/**
- * Iceberg Nessie catalog
- */
+/** Iceberg Nessie catalog */
 class IcebergNessieCommand extends IcebergBaseCommand {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(IcebergNessieCommand.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(IcebergNessieCommand.class);
   private final IcebergNessieTableOperations nessieTableOperations;
 
-  public IcebergNessieCommand(IcebergTableIdentifier tableIdentifier,
-                              Configuration configuration,
-                              IcebergNessieTableOperations tableOperations,
-                              UserBitShared.QueryId queryId) {
-    super(configuration, ((IcebergNessieTableIdentifier) tableIdentifier).getTableFolder(), tableOperations,
+  public IcebergNessieCommand(
+      IcebergTableIdentifier tableIdentifier,
+      Configuration configuration,
+      IcebergNessieTableOperations tableOperations,
+      UserBitShared.QueryId queryId) {
+    super(
+        configuration,
+        ((IcebergNessieTableIdentifier) tableIdentifier).getTableFolder(),
+        tableOperations,
         queryId);
     this.nessieTableOperations = tableOperations;
   }
@@ -60,11 +62,8 @@ class IcebergNessieCommand extends IcebergBaseCommand {
     }
   }
 
-
   @Override
-  public void deleteTableRootPointer(){
+  public void deleteTableRootPointer() {
     nessieTableOperations.deleteKey();
   }
-
-
 }

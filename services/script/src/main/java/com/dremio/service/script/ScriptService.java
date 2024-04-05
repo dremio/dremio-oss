@@ -16,15 +16,12 @@
 
 package com.dremio.service.script;
 
-import java.util.List;
-
 import com.dremio.service.Service;
 import com.dremio.service.script.proto.ScriptProto.Script;
 import com.dremio.service.script.proto.ScriptProto.ScriptRequest;
+import java.util.List;
 
-/**
- * Service to interact with Script
- */
+/** Service to interact with Script */
 public interface ScriptService extends Service {
   /**
    * get list of scripts based on various parameters provided
@@ -37,12 +34,8 @@ public interface ScriptService extends Service {
    * @param createdBy
    * @return
    */
-  List<Script> getScripts(int offset,
-                          int limit,
-                          String search,
-                          String orderBy,
-                          String filter,
-                          String createdBy);
+  List<Script> getScripts(
+      int offset, int limit, String search, String orderBy, String filter, String createdBy);
 
   /**
    * create script
@@ -52,7 +45,8 @@ public interface ScriptService extends Service {
    * @throws DuplicateScriptNameException
    * @throws MaxScriptsLimitReachedException
    */
-  Script createScript(ScriptRequest scriptRequest) throws DuplicateScriptNameException, MaxScriptsLimitReachedException;
+  Script createScript(ScriptRequest scriptRequest)
+      throws DuplicateScriptNameException, MaxScriptsLimitReachedException;
 
   /**
    * update script
@@ -65,7 +59,7 @@ public interface ScriptService extends Service {
    * @throws ScriptNotAccessible
    */
   Script updateScript(String scriptId, ScriptRequest scriptRequest)
-    throws ScriptNotFoundException, DuplicateScriptNameException, ScriptNotAccessible;
+      throws ScriptNotFoundException, DuplicateScriptNameException, ScriptNotAccessible;
 
   /**
    * update script context and version references from job session
@@ -77,7 +71,7 @@ public interface ScriptService extends Service {
    * @throws ScriptNotAccessible
    */
   Script updateScriptContext(String scriptId, String sessionId)
-    throws ScriptNotFoundException, ScriptNotAccessible;
+      throws ScriptNotFoundException, ScriptNotAccessible;
 
   /**
    * get script by id

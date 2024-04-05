@@ -23,9 +23,7 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.spi.BatchStreamProvider;
 import com.dremio.sabot.op.spi.ProducerOperator;
 
-/**
- * Impl for sender operator that reads from a file, instead of a socket.
- */
+/** Impl for sender operator that reads from a file, instead of a socket. */
 public class BridgeFileReaderReceiverOperator extends AbstractBridgeReaderOperator {
   public enum Metric implements MetricDef {
     BYTES_RECEIVED;
@@ -37,11 +35,10 @@ public class BridgeFileReaderReceiverOperator extends AbstractBridgeReaderOperat
   }
 
   public BridgeFileReaderReceiverOperator(
-    BatchStreamProvider streams,
-    OperatorContext context,
-    BatchSchema batchSchema,
-    String bridgeSetId)
-  {
+      BatchStreamProvider streams,
+      OperatorContext context,
+      BatchSchema batchSchema,
+      String bridgeSetId) {
     super(streams, context, batchSchema, bridgeSetId);
   }
 
@@ -52,10 +49,12 @@ public class BridgeFileReaderReceiverOperator extends AbstractBridgeReaderOperat
 
   public static class Creator implements ReceiverCreator<BridgeFileReaderReceiver> {
     @Override
-    public ProducerOperator create(BatchStreamProvider streams, OperatorContext context, BridgeFileReaderReceiver config)
-      throws ExecutionSetupException {
+    public ProducerOperator create(
+        BatchStreamProvider streams, OperatorContext context, BridgeFileReaderReceiver config)
+        throws ExecutionSetupException {
 
-      return new BridgeFileReaderReceiverOperator(streams, context, config.getSchema(), config.getBridgeSetId());
+      return new BridgeFileReaderReceiverOperator(
+          streams, context, config.getSchema(), config.getBridgeSetId());
     }
   }
 }

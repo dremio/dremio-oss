@@ -15,9 +15,6 @@
  */
 package com.dremio.exec.store.easy;
 
-import java.io.IOException;
-import java.util.List;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.physical.base.OpProps;
@@ -28,13 +25,19 @@ import com.dremio.exec.store.parquet.RecordReaderIterator;
 import com.dremio.exec.store.parquet.ScanTableFunction;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
+import java.io.IOException;
+import java.util.List;
 
 public class EasyScanTableFunction extends ScanTableFunction {
 
   protected EasySplitReaderCreatorIterator splitReaderCreatorIterator;
   private RecordReaderIterator recordReaderIterator;
 
-  public EasyScanTableFunction(FragmentExecutionContext fec, OperatorContext context, OpProps props, TableFunctionConfig functionConfig) {
+  public EasyScanTableFunction(
+      FragmentExecutionContext fec,
+      OperatorContext context,
+      OpProps props,
+      TableFunctionConfig functionConfig) {
     super(fec, context, props, functionConfig);
   }
 
@@ -66,7 +69,8 @@ public class EasyScanTableFunction extends ScanTableFunction {
   }
 
   protected void setSplitReaderCreatorIterator() throws IOException, ExecutionSetupException {
-    splitReaderCreatorIterator = new EasySplitReaderCreatorIterator(fec, context, props, functionConfig, false);
+    splitReaderCreatorIterator =
+        new EasySplitReaderCreatorIterator(fec, context, props, functionConfig, false);
   }
 
   @Override

@@ -15,10 +15,14 @@
  */
 package com.dremio.exec.store.iceberg.model;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.store.dfs.ColumnOperations;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.ManifestFile;
@@ -26,14 +30,13 @@ import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
+import org.apache.iceberg.exceptions.CommitFailedException;
+import org.apache.iceberg.exceptions.CommitStateUnknownException;
+import org.apache.iceberg.exceptions.ValidationException;
 
-import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.store.dfs.ColumnOperations;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-public class AlterTableCommitter implements IcebergOpCommitter  {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AlterTableCommitter.class);
+public class AlterTableCommitter implements IcebergOpCommitter {
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(AlterTableCommitter.class);
 
   private IcebergCommand command;
   private ColumnOperations.AlterOperationType operationType;
@@ -46,7 +49,13 @@ public class AlterTableCommitter implements IcebergOpCommitter  {
   private Table table;
   private Schema icebergSchema;
 
-  public AlterTableCommitter(IcebergCommand icebergCommand, ColumnOperations.AlterOperationType alterOperationType, String columnName, List<Field> columnTypes, BatchSchema droppedColumns, BatchSchema updatedColumns) {
+  public AlterTableCommitter(
+      IcebergCommand icebergCommand,
+      ColumnOperations.AlterOperationType alterOperationType,
+      String columnName,
+      List<Field> columnTypes,
+      BatchSchema droppedColumns,
+      BatchSchema updatedColumns) {
     this.command = icebergCommand;
     this.operationType = alterOperationType;
     this.columnName = columnName;
@@ -58,32 +67,41 @@ public class AlterTableCommitter implements IcebergOpCommitter  {
 
   @Override
   public Snapshot commit() {
-    switch (operationType) {
-      case DROP:
-        command.dropColumnInternalTable(columnName);
-        break;
-      case ADD:
-        command.addColumnsInternalTable(columnTypes);
-        break;
-      case CHANGE:
-        command.changeColumnForInternalTable(columnName, columnTypes.get(0));
-        break;
+    try {
+      switch (operationType) {
+        case DROP:
+          command.dropColumnInternalTable(columnName);
+          break;
+        case ADD:
+          command.addColumnsInternalTable(columnTypes);
+          break;
+        case CHANGE:
+          command.changeColumnForInternalTable(columnName, columnTypes.get(0));
+          break;
+      }
+      command.updatePropertiesInTransaction(getPropertiesMap());
+      table = command.endAlterTableTransaction();
+      rootPointer = command.getRootPointer();
+      specMap = command.getPartitionSpecMap();
+      icebergSchema = table.schema();
+      return table.currentSnapshot();
+    } catch (ValidationException | CommitFailedException | CommitStateUnknownException e) {
+      logger.error(CONCURRENT_OPERATION_ERROR, e);
+      throw UserException.concurrentModificationError(e)
+          .message(CONCURRENT_OPERATION_ERROR)
+          .buildSilently();
     }
-    command.updateProperties(getPropertiesMap(), true);
-    table = command.endAlterTableTransaction();
-    rootPointer = command.getRootPointer();
-    specMap = command.getPartitionSpecMap();
-    icebergSchema = table.schema();
-    return table.currentSnapshot();
   }
 
   @Override
-  public void consumeDeleteDataFile(DataFile icebergDeleteDatafile) throws UnsupportedOperationException {
+  public void consumeDeleteDataFile(DataFile icebergDeleteDatafile)
+      throws UnsupportedOperationException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void consumeDeleteDataFilePath(String icebergDeleteDatafilePath)throws UnsupportedOperationException {
+  public void consumeDeleteDataFilePath(String icebergDeleteDatafilePath)
+      throws UnsupportedOperationException {
     throw new UnsupportedOperationException();
   }
 
@@ -130,7 +148,9 @@ public class AlterTableCommitter implements IcebergOpCommitter  {
       updateColumnJson = mapper.writeValueAsString(updatedColumns);
       droppedColumnJson = mapper.writeValueAsString(droppedColumns);
     } catch (JsonProcessingException e) {
-      String error = "Unexpected error occurred while serializing dropped and updatedColumn in json string. " + e.getMessage();
+      String error =
+          "Unexpected error occurred while serializing dropped and updatedColumn in json string. "
+              + e.getMessage();
       logger.error(error);
       throw new RuntimeException(error);
     }

@@ -15,33 +15,31 @@
  */
 package com.dremio.datastore.format;
 
-import java.util.function.Function;
-
 import com.dremio.datastore.Converter;
 import com.dremio.datastore.DatastoreFatalException;
 import com.dremio.datastore.FormatVisitor;
 import com.dremio.datastore.format.compound.KeyPair;
 import com.dremio.datastore.format.compound.KeyTriple;
 import com.google.protobuf.Message;
+import java.util.function.Function;
 
 /**
- * !DO NOT CREATE NEW IMPLEMENTATIONS OF THIS INTERFACE!
- * CONSIDER IT SEALED.
+ * !DO NOT CREATE NEW IMPLEMENTATIONS OF THIS INTERFACE! CONSIDER IT SEALED.
  *
- * Used by storeCreationFunctions to indicate which supported format the kv store implementation should use
- * when serializing the class.
+ * <p>Used by storeCreationFunctions to indicate which supported format the kv store implementation
+ * should use when serializing the class.
+ *
  * @param <T> - The type of the key or value.
  */
 public interface Format<T> {
 
-  /**
-   * Get the class the format is the representation of.
-   */
+  /** Get the class the format is the representation of. */
   Class<T> getRepresentedClass();
 
   /**
-   * FormatVisitors decide the return type.
-   * Format is responsible for differentiating the type for the visitor.
+   * FormatVisitors decide the return type. Format is responsible for differentiating the type for
+   * the visitor.
+   *
    * @param visitor - Converts formats into RETs.
    * @return a serializer.
    * @throws DatastoreFatalException - when reflection fails to find the necessary resources.
@@ -50,6 +48,7 @@ public interface Format<T> {
 
   /**
    * Create a Protobuf format from a Protobuf subclass.
+   *
    * @param t the protobuf subclass.
    * @param <T> the protobuf subtype.
    * @return ProtobufFormat
@@ -60,6 +59,7 @@ public interface Format<T> {
 
   /**
    * Create a Protostuff format from a protostuff subclass.
+   *
    * @param t the protostuff subclass
    * @param <T> the protobuf subtype.
    * @return ProtostuffFormat
@@ -79,7 +79,8 @@ public interface Format<T> {
    * @param key2Format the format subtype of the second key.
    * @return CompoundFormat instance.
    */
-  static <K1, K2> Format<KeyPair<K1, K2>> ofCompoundFormat(String key1Name, Format<K1> key1Format, String key2Name, Format<K2> key2Format) {
+  static <K1, K2> Format<KeyPair<K1, K2>> ofCompoundFormat(
+      String key1Name, Format<K1> key1Format, String key2Name, Format<K2> key2Format) {
     return new CompoundPairFormat<>(key1Name, key1Format, key2Name, key2Format);
   }
 
@@ -97,26 +98,37 @@ public interface Format<T> {
    * @param key3Format the format subtype of the third key.
    * @return CompoundFormat instance.
    */
-  static <K1, K2, K3> Format<KeyTriple<K1, K2, K3>> ofCompoundFormat(String key1Name, Format<K1> key1Format, String key2Name, Format<K2> key2Format, String key3Name, Format<K3> key3Format) {
-    return new CompoundTripleFormat<>(key1Name, key1Format, key2Name, key2Format, key3Name, key3Format);
+  static <K1, K2, K3> Format<KeyTriple<K1, K2, K3>> ofCompoundFormat(
+      String key1Name,
+      Format<K1> key1Format,
+      String key2Name,
+      Format<K2> key2Format,
+      String key3Name,
+      Format<K3> key3Format) {
+    return new CompoundTripleFormat<>(
+        key1Name, key1Format, key2Name, key2Format, key3Name, key3Format);
   }
 
   /**
    * Creates a wrapped format that is actually a nestedFormat underneath.
+   *
    * @param converter - Converts the wrapped type to the nested type.
    * @param nestedFormat - The format of the nested type.
    * @param <IN> - The input type.
    * @param <NESTED> - The nested type that the input type is converted into.
    * @return a Format for a converted type.
    */
-  static <IN, NESTED> Format<IN> wrapped(Class<IN> in, Converter<IN, NESTED> converter, Format<NESTED> nestedFormat) {
+  static <IN, NESTED> Format<IN> wrapped(
+      Class<IN> in, Converter<IN, NESTED> converter, Format<NESTED> nestedFormat) {
     return new WrappedFormat<>(in, nestedFormat, converter);
   }
 
   /**
-   * Sometimes it would be verbose to specify a full converter because the functions to convert are already at hand.
+   * Sometimes it would be verbose to specify a full converter because the functions to convert are
+   * already at hand.
    *
-   * @param in The Class representation of IN. IN must be a type that does a deep comparison with equals().
+   * @param in The Class representation of IN. IN must be a type that does a deep comparison with
+   *     equals().
    * @param to converts IN to NESTED
    * @param from converts NESTED to IN
    * @param nestedFormat format of the nested type
@@ -124,24 +136,30 @@ public interface Format<T> {
    * @param <NESTED> nested type.
    * @return wrapped format.
    */
-  static <IN, NESTED> Format<IN> wrapped(Class<IN> in, Function<IN, NESTED> to, Function<NESTED, IN> from, Format<NESTED> nestedFormat) {
-    final Converter<IN, NESTED> c = new Converter<IN, NESTED>() {
-      @Override
-      public NESTED convert(IN v) {
-        return to.apply(v);
-      }
+  static <IN, NESTED> Format<IN> wrapped(
+      Class<IN> in,
+      Function<IN, NESTED> to,
+      Function<NESTED, IN> from,
+      Format<NESTED> nestedFormat) {
+    final Converter<IN, NESTED> c =
+        new Converter<IN, NESTED>() {
+          @Override
+          public NESTED convert(IN v) {
+            return to.apply(v);
+          }
 
-      @Override
-      public IN revert(NESTED v) {
-        return from.apply(v);
-      }
-    };
+          @Override
+          public IN revert(NESTED v) {
+            return from.apply(v);
+          }
+        };
 
     return new WrappedFormat<>(in, nestedFormat, c);
   }
 
   /**
    * gets an instance of StringFormat
+   *
    * @return StringFormat instance.
    */
   static StringFormat ofString() {
@@ -150,6 +168,7 @@ public interface Format<T> {
 
   /**
    * gets an instance of UUIDFormat
+   *
    * @return UUIDFormat instance.
    */
   static UUIDFormat ofUUID() {
@@ -158,15 +177,14 @@ public interface Format<T> {
 
   /**
    * gets an instance of BytesFormat
+   *
    * @return BytesFormat instance.
    */
   static BytesFormat ofBytes() {
     return BytesFormat.getInstance();
   }
 
-  /**
-   * These are the types of formats that can be saved.
-   */
+  /** These are the types of formats that can be saved. */
   enum Types {
     BYTES,
     UUID,

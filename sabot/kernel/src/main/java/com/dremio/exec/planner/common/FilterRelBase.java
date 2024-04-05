@@ -15,8 +15,15 @@
  */
 package com.dremio.exec.planner.common;
 
+import com.dremio.common.expression.LogicalExpression;
+import com.dremio.exec.planner.common.MoreRelOptUtil.ContainsRexVisitor;
+import com.dremio.exec.planner.cost.DremioCost;
+import com.dremio.exec.planner.cost.DremioCost.Factory;
+import com.dremio.exec.planner.logical.ParseContext;
+import com.dremio.exec.planner.logical.RexToExpr;
+import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.planner.physical.PrelUtil;
 import java.util.List;
-
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
@@ -30,18 +37,7 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexUtil;
 
-import com.dremio.common.expression.LogicalExpression;
-import com.dremio.exec.planner.common.MoreRelOptUtil.ContainsRexVisitor;
-import com.dremio.exec.planner.cost.DremioCost;
-import com.dremio.exec.planner.cost.DremioCost.Factory;
-import com.dremio.exec.planner.logical.ParseContext;
-import com.dremio.exec.planner.logical.RexToExpr;
-import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.planner.physical.PrelUtil;
-
-/**
- * Base class for logical and physical Filters implemented in Dremio
- */
+/** Base class for logical and physical Filters implemented in Dremio */
 public abstract class FilterRelBase extends Filter {
   private final int numConjuncts;
   private final List<RexNode> conjunctions;
@@ -53,7 +49,12 @@ public abstract class FilterRelBase extends Filter {
   private final double filterMinSelectivityEstimateFactor;
   private final double filterMaxSelectivityEstimateFactor;
 
-  protected FilterRelBase(Convention convention, RelOptCluster cluster, RelTraitSet traits, RelNode child, RexNode condition) {
+  protected FilterRelBase(
+      Convention convention,
+      RelOptCluster cluster,
+      RelTraitSet traits,
+      RelNode child,
+      RexNode condition) {
     super(cluster, traits, child, condition);
     assert getConvention() == convention;
 
@@ -63,7 +64,7 @@ public abstract class FilterRelBase extends Filter {
     numConjuncts = conjunctions.size();
     // assert numConjuncts >= 1;
 
-    this.hasContains = ContainsRexVisitor.hasContainsCheckOrigin(this, this.getCondition(),-1);
+    this.hasContains = ContainsRexVisitor.hasContainsCheckOrigin(this, this.getCondition(), -1);
 
     this.hasFlatten = getCondition().accept(new MoreRelOptUtil.FlattenRexVisitor());
 
@@ -86,35 +87,37 @@ public abstract class FilterRelBase extends Filter {
       return planner.getCostFactory().makeInfiniteCost();
     }
 
-    if(PrelUtil.getSettings(getCluster()).useDefaultCosting()) {
+    if (PrelUtil.getSettings(getCluster()).useDefaultCosting()) {
       return super.computeSelfCost(planner, relMetadataQuery).multiplyBy(.1);
     }
 
     RelNode child = this.getInput();
     double inputRows = relMetadataQuery.getRowCount(child);
     double cpuCost = estimateCpuCost(relMetadataQuery);
-    Factory costFactory = (Factory)planner.getCostFactory();
+    Factory costFactory = (Factory) planner.getCostFactory();
     return costFactory.makeCost(inputRows, cpuCost, 0, 0);
   }
 
-  protected LogicalExpression getFilterExpression(ParseContext context){
-    return RexToExpr.toExpr(context, getInput().getRowType(), getCluster().getRexBuilder(), getCondition());
+  protected LogicalExpression getFilterExpression(ParseContext context) {
+    return RexToExpr.toExpr(
+        context, getInput().getRowType(), getCluster().getRexBuilder(), getCondition());
   }
 
   /* Given the condition (C1 and C2 and C3 and ... C_n), here is how to estimate cpu cost of FILTER :
-  *  Let's say child's rowcount is n. We assume short circuit evaluation will be applied to the boolean expression evaluation.
-  *  #_of_comparison = n + n * Selectivity(C1) + n * Selectivity(C1 and C2) + ... + n * Selectivity(C1 and C2 ... and C_n)
-  *  cpu_cost = #_of_comparison * DremioCost_COMPARE_CPU_COST;
-  */
+   *  Let's say child's rowcount is n. We assume short circuit evaluation will be applied to the boolean expression evaluation.
+   *  #_of_comparison = n + n * Selectivity(C1) + n * Selectivity(C1 and C2) + ... + n * Selectivity(C1 and C2 ... and C_n)
+   *  cpu_cost = #_of_comparison * DremioCost_COMPARE_CPU_COST;
+   */
   private double estimateCpuCost(RelMetadataQuery relMetadataQuery) {
     RelNode child = this.getInput();
     final double rows = relMetadataQuery.getRowCount(child);
     double compNum = rows;
-    double rowCompNum = child.getRowType().getFieldCount() * rows ;
+    double rowCompNum = child.getRowType().getFieldCount() * rows;
 
-
-    for (int i = 0; i< numConjuncts; i++) {
-      RexNode conjFilter = RexUtil.composeConjunction(this.getCluster().getRexBuilder(), conjunctions.subList(0, i + 1), false);
+    for (int i = 0; i < numConjuncts; i++) {
+      RexNode conjFilter =
+          RexUtil.composeConjunction(
+              this.getCluster().getRexBuilder(), conjunctions.subList(0, i + 1), false);
       compNum += RelMdUtil.estimateFilteredRows(child, conjFilter, relMetadataQuery);
     }
 

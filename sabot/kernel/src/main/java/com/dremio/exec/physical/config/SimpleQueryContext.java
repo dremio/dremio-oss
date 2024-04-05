@@ -21,8 +21,7 @@ public final class SimpleQueryContext implements ExtendedProperty {
   private String queryId;
   private String tableNamespace;
 
-  public SimpleQueryContext() {
-  }
+  public SimpleQueryContext() {}
 
   public SimpleQueryContext(String userName, String queryId, String tableNamespace) {
     this.userName = userName;
@@ -41,5 +40,4 @@ public final class SimpleQueryContext implements ExtendedProperty {
   public String getTableNamespace() {
     return tableNamespace;
   }
-
 }

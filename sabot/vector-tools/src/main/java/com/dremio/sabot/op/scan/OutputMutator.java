@@ -15,37 +15,34 @@
  */
 package com.dremio.sabot.op.scan;
 
+import com.dremio.exec.exception.SchemaChangeException;
+import com.dremio.exec.record.VectorContainer;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.util.CallBack;
 
-import com.dremio.exec.exception.SchemaChangeException;
-import com.dremio.exec.record.VectorContainer;
-
 /**
  * Interface that allows a record reader to modify the current schema.
  *
- * The output mutator interface abstracts ValueVector creation and maintenance away from any particular RecordReader.
- * This means, among other things, that a new RecordReader that shares the same column definitions in a different order
- * does not generate a Schema change event for downstream consumers.
+ * <p>The output mutator interface abstracts ValueVector creation and maintenance away from any
+ * particular RecordReader. This means, among other things, that a new RecordReader that shares the
+ * same column definitions in a different order does not generate a Schema change event for
+ * downstream consumers.
  */
 public interface OutputMutator {
 
   /**
    * Add a ValueVector for new (or existing) field.
    *
-   * @param field
-   *          The specification of the newly desired vector.
-   * @param clazz
-   *          The expected ValueVector class. Also allows strongly typed use of this interface.
-   *
+   * @param field The specification of the newly desired vector.
+   * @param clazz The expected ValueVector class. Also allows strongly typed use of this interface.
    * @return The existing or new ValueVector associated with the provided field.
-   *
-   * @throws SchemaChangeException
-   *           If the addition of this field is incompatible with this OutputMutator's capabilities.
+   * @throws SchemaChangeException If the addition of this field is incompatible with this
+   *     OutputMutator's capabilities.
    */
-  public <T extends ValueVector> T addField(Field field, Class<T> clazz) throws SchemaChangeException;
+  public <T extends ValueVector> T addField(Field field, Class<T> clazz)
+      throws SchemaChangeException;
 
   default void removeField(Field field) {
     throw new UnsupportedOperationException();
@@ -59,24 +56,24 @@ public interface OutputMutator {
 
   /**
    * Allows a scanner to request a set of managed block of memory.
-   * @return A ArrowBuf that will be released at the end of the current query (and can be resized as desired during use).
+   *
+   * @return A ArrowBuf that will be released at the end of the current query (and can be resized as
+   *     desired during use).
    */
   public ArrowBuf getManagedBuffer();
 
   /**
-   *
    * @return the CallBack object for this mutator
    */
   public CallBack getCallBack();
 
   /**
    * @return true if the schema of the underlying batch changed since the initial schema was built
-   * Method also resets the schema change flag.
+   *     Method also resets the schema change flag.
    */
   boolean getAndResetSchemaChanged();
 
   /**
-   *
    * @return true if the schema of the underlying batch changed since the initial schema was built
    */
   boolean getSchemaChanged();

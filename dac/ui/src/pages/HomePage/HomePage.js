@@ -22,10 +22,7 @@ import { getHomeSourceUrl, getSortedSources } from "@app/selectors/home";
 import ApiUtils from "@app/utils/apiUtils/apiUtils";
 import { sourceTypesIncludeS3 } from "@app/utils/sourceUtils";
 import { loadSourceListData } from "@app/actions/resources/sources";
-
-import { isNotSoftware } from "dyn-load/utils/versionUtils";
 import { getViewState } from "@app/selectors/resources";
-import { fetchFeatureFlag } from "@inject/actions/featureFlag";
 import { page } from "@app/uiTheme/radium/general";
 
 import ProjectActivationHOC from "@inject/containers/ProjectActivationHOC";
@@ -48,7 +45,6 @@ import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
 import { compose } from "redux";
 import { withRouter } from "react-router";
 import { withCatalogARSFlag } from "@inject/utils/arsUtils";
-import { ARCTIC_ENTITY_PRIVILEGES } from "@inject/featureFlags/flags/ARCTIC_ENTITY_PRIVILEGES";
 
 const PROJECT_CONTEXT = "projectContext";
 
@@ -60,7 +56,6 @@ class HomePage extends Component {
     routeParams: PropTypes.object,
     location: PropTypes.object.isRequired,
     loadSourceListData: PropTypes.func,
-    fetchFeatureFlag: PropTypes.func,
     children: PropTypes.node,
     style: PropTypes.object,
     isProjectInactive: PropTypes.bool,
@@ -95,7 +90,6 @@ class HomePage extends Component {
   }
 
   componentDidMount() {
-    isNotSoftware() && this.props.fetchFeatureFlag(ARCTIC_ENTITY_PRIVILEGES);
     this.setStateWithSourceTypesFromServer();
     this.doRedirect();
   }
@@ -128,10 +122,10 @@ class HomePage extends Component {
       () => {
         console.error(
           laDeprecated(
-            'Failed to load source types. Can not check if S3 is supported. Will not show "Add Sample Source".'
-          )
+            'Failed to load source types. Can not check if S3 is supported. Will not show "Add Sample Source".',
+          ),
         );
-      }
+      },
     );
   }
 
@@ -163,7 +157,7 @@ class HomePage extends Component {
           {!isProjectInactive && (
             <div className={"homePageBody"}>
               <HomePageTop />
-              {isNotSoftware() && <NavCrumbs />}
+              {showNavCrumbs && <NavCrumbs />}
               <div
                 className={
                   "homePageLeftTreeDiv" +
@@ -176,7 +170,7 @@ class HomePage extends Component {
                   sourcesViewState={this.props.sourcesViewState}
                   sources={this.props.sources}
                   sourceTypesIncludeS3={sourceTypesIncludeS3(
-                    this.state.sourceTypes
+                    this.state.sourceTypes,
                   )}
                   routeParams={this.props.routeParams}
                   className="col-lg-2 col-md-3"
@@ -189,7 +183,7 @@ class HomePage extends Component {
                       section: intl.formatMessage({
                         id: "SectionLabel.catalog",
                       }),
-                    }
+                    },
                   )}
                 >
                   {this.props.children}
@@ -226,7 +220,6 @@ export default compose(
   withCatalogARSFlag,
   connect(mapStateToProps, {
     loadSourceListData,
-    fetchFeatureFlag,
   }),
-  ProjectActivationHOC
+  ProjectActivationHOC,
 )(HomePage);

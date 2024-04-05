@@ -15,8 +15,12 @@
  */
 package com.dremio.exec.planner.cost;
 
+import com.dremio.exec.planner.common.LimitRelBase;
+import com.dremio.exec.planner.physical.HashToMergeExchangePrel;
+import com.dremio.exec.planner.physical.StreamAggPrel;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import java.util.List;
-
 import org.apache.calcite.plan.volcano.RelSubset;
 import org.apache.calcite.rel.RelCollation;
 import org.apache.calcite.rel.RelCollationTraitDef;
@@ -29,24 +33,14 @@ import org.apache.calcite.rel.metadata.RelMetadataProvider;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.util.BuiltInMethod;
 
-import com.dremio.exec.planner.common.LimitRelBase;
-import com.dremio.exec.planner.physical.HashToMergeExchangePrel;
-import com.dremio.exec.planner.physical.StreamAggPrel;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
-
-/**
- * a metadata handler for collations.
- */
+/** a metadata handler for collations. */
 public class RelMdCollation implements MetadataHandler<BuiltInMetadata.Collation> {
-  private static final RelMdCollation INSTANCE =
-      new RelMdCollation();
+  private static final RelMdCollation INSTANCE = new RelMdCollation();
 
   private static ImmutableList<RelCollation> EMPTY = ImmutableList.of(RelCollations.EMPTY);
 
   public static final RelMetadataProvider SOURCE =
-      ReflectiveRelMetadataProvider.reflectiveSource(
-          BuiltInMethod.COLLATIONS.method, INSTANCE);
+      ReflectiveRelMetadataProvider.reflectiveSource(BuiltInMethod.COLLATIONS.method, INSTANCE);
 
   @Override
   public MetadataDef<BuiltInMetadata.Collation> getDef() {
@@ -56,19 +50,15 @@ public class RelMdCollation implements MetadataHandler<BuiltInMetadata.Collation
   // Replace Calcite implementation to normalize empty collation
   public ImmutableList<RelCollation> collations(RelSubset rel, RelMetadataQuery mq) {
     List<RelCollation> collations =
-        Preconditions.checkNotNull(
-            rel.getTraitSet().getTraits(RelCollationTraitDef.INSTANCE));
+        Preconditions.checkNotNull(rel.getTraitSet().getTraits(RelCollationTraitDef.INSTANCE));
     // Single rels always return an empty list but Relsubset defaults to a list with one empty
     // element. Normalizing the output to prevent mismatches
     return EMPTY.equals(collations) ? ImmutableList.of() : ImmutableList.copyOf(collations);
   }
 
-
   public ImmutableList<RelCollation> collations(StreamAggPrel rel, RelMetadataQuery mq) {
     RelCollation collation = StreamAggPrel.collation(rel.getGroupSet());
-    return RelCollations.EMPTY.equals(collation)
-        ? ImmutableList.of()
-        : ImmutableList.of(collation);
+    return RelCollations.EMPTY.equals(collation) ? ImmutableList.of() : ImmutableList.of(collation);
   }
 
   public ImmutableList<RelCollation> collations(LimitRelBase rel, RelMetadataQuery mq) {
@@ -77,7 +67,6 @@ public class RelMdCollation implements MetadataHandler<BuiltInMetadata.Collation
 
   public ImmutableList<RelCollation> collations(HashToMergeExchangePrel rel, RelMetadataQuery mq) {
     RelCollation collation = rel.getCollation();
-    return RelCollations.EMPTY.equals(collation)
-        ? ImmutableList.of()
-        : ImmutableList.of(collation);  }
+    return RelCollations.EMPTY.equals(collation) ? ImmutableList.of() : ImmutableList.of(collation);
+  }
 }

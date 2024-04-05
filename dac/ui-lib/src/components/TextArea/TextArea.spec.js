@@ -57,7 +57,7 @@ describe("TextArea", () => {
         value: minimalProps.value,
         disabled: false, //Default
         className: "", // no-resize is false by default
-      })
+      }),
     );
     expect(wrapper.find(CopyToClipboard).exists()).toBe(false);
   });
@@ -74,7 +74,7 @@ describe("TextArea", () => {
         disabled: true,
         className: "--noResize",
         maxRows: 4,
-      })
+      }),
     );
     expect(wrapper.find(CopyToClipboard).exists()).toBe(true);
   });
@@ -82,13 +82,13 @@ describe("TextArea", () => {
   it("adds the classes passed as props to respective elements", () => {
     const wrapper = getShallowWrapper();
     expect(wrapper.find("div.textAreaRoot").props().className).toEqual(
-      expect.stringContaining("sample-root-class")
+      expect.stringContaining("sample-root-class"),
     );
     expect(wrapper.find(Label).props().className).toEqual(
-      expect.stringContaining("sample-label-class")
+      expect.stringContaining("sample-label-class"),
     );
     expect(
-      wrapper.find("div.textAreaRoot__container").props().className
+      wrapper.find("div.textAreaRoot__container").props().className,
     ).toEqual(expect.stringContaining("sample-container-class"));
   });
 });

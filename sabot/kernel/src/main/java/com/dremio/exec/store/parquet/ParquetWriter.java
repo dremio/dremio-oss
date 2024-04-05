@@ -43,8 +43,7 @@ public class ParquetWriter extends FileSystemWriter {
       @JsonProperty("location") String location,
       @JsonProperty("options") WriterOptions options,
       @JsonProperty("pluginId") StoragePluginId pluginId,
-      @JacksonInject StoragePluginResolver storagePluginResolver
-  ) {
+      @JacksonInject StoragePluginResolver storagePluginResolver) {
     super(props, child, options);
     this.plugin = storagePluginResolver.getSource(pluginId);
     this.location = location;
@@ -77,8 +76,12 @@ public class ParquetWriter extends FileSystemWriter {
 
   @Override
   public int getOperatorType() {
-    Long combinedSmallFileTargetFileSize = options.getCombineSmallFileOptions() == null ? null : options.getCombineSmallFileOptions().getTargetFileSize();
-    // small-file-combining phase is set as different type of writer so that the rows during this phase will not
+    Long combinedSmallFileTargetFileSize =
+        options.getCombineSmallFileOptions() == null
+            ? null
+            : options.getCombineSmallFileOptions().getTargetFileSize();
+    // small-file-combining phase is set as different type of writer so that the rows during this
+    // phase will not
     // be double counted
     if (combinedSmallFileTargetFileSize != null) {
       return CoreOperatorType.SMALL_FILE_COMBINATION_WRITER_VALUE;

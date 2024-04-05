@@ -19,8 +19,8 @@ import java.sql.SQLException;
 
 @SuppressWarnings("serial")
 /**
- * Wrapper class for {@code SQLException} when Avatica
- * doesn't allow for the exception to be thrown directly.
+ * Wrapper class for {@code SQLException} when Avatica doesn't allow for the exception to be thrown
+ * directly.
  */
 class SQLExecutionError extends Error {
   public SQLExecutionError(String message, SQLException cause) {
@@ -32,5 +32,4 @@ class SQLExecutionError extends Error {
   public synchronized SQLException getCause() {
     return (SQLException) super.getCause();
   }
-
 }

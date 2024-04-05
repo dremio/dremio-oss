@@ -17,10 +17,13 @@ package com.dremio.exec.store.iceberg.model;
 
 import static com.dremio.exec.store.dfs.PrimaryKeyOperations.DREMIO_PRIMARY_KEY;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.record.BatchSchema;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.ManifestFile;
@@ -28,17 +31,14 @@ import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
+import org.apache.iceberg.exceptions.CommitFailedException;
+import org.apache.iceberg.exceptions.CommitStateUnknownException;
+import org.apache.iceberg.exceptions.ValidationException;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.record.BatchSchema;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-/**
- * Iceberg Op committer for primary key command
- */
+/** Iceberg Op committer for primary key command */
 public class PrimaryKeyUpdateCommitter implements IcebergOpCommitter {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PrimaryKeyUpdateCommitter.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(PrimaryKeyUpdateCommitter.class);
 
   private final IcebergCommand command;
   private final List<Field> columns;
@@ -56,32 +56,45 @@ public class PrimaryKeyUpdateCommitter implements IcebergOpCommitter {
 
   @Override
   public Snapshot commit() {
-    command.updateProperties(getPropertiesMap(columns), true);
-    icebergTable = command.endTransaction();
-    rootPointer = command.getRootPointer();
-    specMap = command.getPartitionSpecMap();
-    icebergSchema = icebergTable.schema();
-    return icebergTable.currentSnapshot();
+    try {
+      command.updatePropertiesInTransaction(getPropertiesMap(columns));
+      icebergTable = command.endTransaction();
+      rootPointer = command.getRootPointer();
+      specMap = command.getPartitionSpecMap();
+      icebergSchema = icebergTable.schema();
+      return icebergTable.currentSnapshot();
+    } catch (ValidationException | CommitFailedException | CommitStateUnknownException e) {
+      logger.error(CONCURRENT_OPERATION_ERROR, e);
+      throw UserException.concurrentModificationError(e)
+          .message(CONCURRENT_OPERATION_ERROR)
+          .buildSilently();
+    }
   }
 
   @Override
-  public void consumeDeleteDataFile(DataFile icebergDeleteDatafile) throws UnsupportedOperationException {
-    throw new UnsupportedOperationException("consumeDeleteDataFile is not supported for PrimaryKeyUpdateCommitter");
+  public void consumeDeleteDataFile(DataFile icebergDeleteDatafile)
+      throws UnsupportedOperationException {
+    throw new UnsupportedOperationException(
+        "consumeDeleteDataFile is not supported for PrimaryKeyUpdateCommitter");
   }
 
   @Override
-  public void consumeDeleteDataFilePath(String icebergDeleteDatafilePath) throws UnsupportedOperationException {
-    throw new UnsupportedOperationException("consumeDeleteDataFilePath is not supported for PrimaryKeyUpdateCommitter");
+  public void consumeDeleteDataFilePath(String icebergDeleteDatafilePath)
+      throws UnsupportedOperationException {
+    throw new UnsupportedOperationException(
+        "consumeDeleteDataFilePath is not supported for PrimaryKeyUpdateCommitter");
   }
 
   @Override
   public void consumeManifestFile(ManifestFile manifestFile) {
-    throw new UnsupportedOperationException("consumeManifestFile is not supported for PrimaryKeyUpdateCommitter");
+    throw new UnsupportedOperationException(
+        "consumeManifestFile is not supported for PrimaryKeyUpdateCommitter");
   }
 
   @Override
   public void updateSchema(BatchSchema newSchema) {
-    throw new UnsupportedOperationException("updateSchema is not supported for PrimaryKeyUpdateCommitter");
+    throw new UnsupportedOperationException(
+        "updateSchema is not supported for PrimaryKeyUpdateCommitter");
   }
 
   @Override

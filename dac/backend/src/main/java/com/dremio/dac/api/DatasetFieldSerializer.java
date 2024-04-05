@@ -15,26 +15,25 @@
  */
 package com.dremio.dac.api;
 
-import java.io.IOException;
-import java.util.List;
-
-import org.apache.arrow.vector.types.pojo.Field;
-
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializerProvider;
+import java.io.IOException;
+import java.util.List;
+import org.apache.arrow.vector.types.pojo.Field;
 
-/**
- * Serializes a list of arrow field definitions into JSON
- */
+/** Serializes a list of arrow field definitions into JSON */
 public class DatasetFieldSerializer extends JsonSerializer<List<Field>> {
   @Override
-  public void serialize(List<Field> fields, JsonGenerator jsonGenerator, SerializerProvider serializerProvider) throws IOException, JsonProcessingException {
+  public void serialize(
+      List<Field> fields, JsonGenerator jsonGenerator, SerializerProvider serializerProvider)
+      throws IOException, JsonProcessingException {
     jsonGenerator.writeStartArray();
 
-    for (Field field: fields) {
-      APIFieldDescriber.FieldDescriber describer = new APIFieldDescriber.FieldDescriber(jsonGenerator, field, false);
+    for (Field field : fields) {
+      APIFieldDescriber.FieldDescriber describer =
+          new APIFieldDescriber.FieldDescriber(jsonGenerator, field, false);
       field.getType().accept(describer);
     }
 

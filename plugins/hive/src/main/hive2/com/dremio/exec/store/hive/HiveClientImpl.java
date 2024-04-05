@@ -17,13 +17,18 @@ package com.dremio.exec.store.hive;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.common.util.Closeable;
+import com.dremio.hive.thrift.TException;
+import com.google.common.base.Joiner;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Throwables;
 import java.io.IOException;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.security.PrivilegedExceptionAction;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.conf.HiveConf.ConfVars;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
@@ -48,16 +53,10 @@ import org.apache.hadoop.hive.ql.security.authorization.plugin.HivePrivilegeObje
 import org.apache.hadoop.hive.shims.Utils;
 import org.apache.hadoop.security.UserGroupInformation;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.common.util.Closeable;
-import com.dremio.hive.thrift.TException;
-import com.google.common.base.Joiner;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
-
 /**
- * Wrapper around HiveMetaStoreClient to provide additional capabilities such as caching, reconnecting with user
- * credentials and higher level APIs to get the metadata in form that Dremio needs directly.
+ * Wrapper around HiveMetaStoreClient to provide additional capabilities such as caching,
+ * reconnecting with user credentials and higher level APIs to get the metadata in form that Dremio
+ * needs directly.
  */
 class HiveClientImpl implements HiveClient {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HiveClientImpl.class);
@@ -67,30 +66,36 @@ class HiveClientImpl implements HiveClient {
   IMetaStoreClient client;
 
   /**
-   * Create a HiveMetaStoreClient for cases where:
-   *   1. Impersonation is enabled and
-   *   2. either storage (in remote HiveMetaStore server) or SQL standard based authorization (in Hive storage plugin)
-   *      is enabled
-   * @param processUserMetaStoreClient MetaStoreClient of process user. Useful for generating the delegation tokens when
-   *                                   SASL (KERBEROS or custom SASL implementations) is enabled.
+   * Create a HiveMetaStoreClient for cases where: 1. Impersonation is enabled and 2. either storage
+   * (in remote HiveMetaStore server) or SQL standard based authorization (in Hive storage plugin)
+   * is enabled
+   *
+   * @param processUserMetaStoreClient MetaStoreClient of process user. Useful for generating the
+   *     delegation tokens when SASL (KERBEROS or custom SASL implementations) is enabled.
    * @param hiveConf Conf including authorization configuration
    * @param userName User who is trying to access the Hive metadata
    * @param ugiForRpc The user context for executing RPCs.
    * @return A connected and authorized HiveClient.
    * @throws MetaException
    */
-  static HiveClient createConnectedClientWithAuthz(final HiveClient processUserMetaStoreClient,
-      final HiveConf hiveConf, final String userName, final UserGroupInformation ugiForRpc) throws MetaException {
+  static HiveClient createConnectedClientWithAuthz(
+      final HiveClient processUserMetaStoreClient,
+      final HiveConf hiveConf,
+      final String userName,
+      final UserGroupInformation ugiForRpc)
+      throws MetaException {
 
-    try(Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
+    try (Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
       HiveConf hiveConfForClient = hiveConf;
       boolean needDelegationToken = false;
       final boolean impersonationEnabled = hiveConf.getBoolVar(ConfVars.HIVE_SERVER2_ENABLE_DOAS);
       String connectionUserName = HiveImpersonationUtil.resolveUserName(userName);
 
       if (impersonationEnabled && hiveConf.getBoolVar(ConfVars.METASTORE_USE_THRIFT_SASL)) {
-        // When SASL is enabled for proxy user create a delegation token. Currently HiveMetaStoreClient can create
-        // client transport for proxy users only when the authentication mechanims is DIGEST (through use of
+        // When SASL is enabled for proxy user create a delegation token. Currently
+        // HiveMetaStoreClient can create
+        // client transport for proxy users only when the authentication mechanims is DIGEST
+        // (through use of
         // delegation tokens).
         hiveConfForClient = new HiveConf(hiveConf);
         getAndSetDelegationToken(hiveConfForClient, ugiForRpc, processUserMetaStoreClient);
@@ -102,8 +107,13 @@ class HiveClientImpl implements HiveClient {
         connectionUserName = ugiForRpc.getUserName();
       }
 
-      final HiveClientImpl client = new HiveClientWithAuthz(hiveConfForClient, ugiForRpc,
-        connectionUserName, processUserMetaStoreClient, needDelegationToken);
+      final HiveClientImpl client =
+          new HiveClientWithAuthz(
+              hiveConfForClient,
+              ugiForRpc,
+              connectionUserName,
+              processUserMetaStoreClient,
+              needDelegationToken);
       client.connect();
       return client;
     } catch (RuntimeException e) {
@@ -114,10 +124,12 @@ class HiveClientImpl implements HiveClient {
   }
 
   /**
-   * Helper method that gets the delegation token using <i>processHiveClient</i> for given <i>proxyUserName</i>
-   * and sets it in proxy user UserGroupInformation and proxy user HiveConf.
+   * Helper method that gets the delegation token using <i>processHiveClient</i> for given
+   * <i>proxyUserName</i> and sets it in proxy user UserGroupInformation and proxy user HiveConf.
    */
-  static void getAndSetDelegationToken(final HiveConf proxyUserHiveConf, final UserGroupInformation proxyUGI,
+  static void getAndSetDelegationToken(
+      final HiveConf proxyUserHiveConf,
+      final UserGroupInformation proxyUGI,
       final HiveClient processHiveClient) {
     checkNotNull(processHiveClient, "process user Hive client required");
     checkNotNull(proxyUserHiveConf, "Proxy user HiveConf required");
@@ -126,25 +138,26 @@ class HiveClientImpl implements HiveClient {
     try {
       final String delegationToken = processHiveClient.getDelegationToken(proxyUGI.getUserName());
       Utils.setTokenStr(proxyUGI, delegationToken, "DremioDelegationTokenForHiveMetaStoreServer");
-      proxyUserHiveConf.set("hive.metastore.token.signature", "DremioDelegationTokenForHiveMetaStoreServer");
+      proxyUserHiveConf.set(
+          "hive.metastore.token.signature", "DremioDelegationTokenForHiveMetaStoreServer");
     } catch (Exception e) {
       final String processUsername = HiveImpersonationUtil.getProcessUserUGI().getShortUserName();
       throw UserException.permissionError(e)
-          .message("Failed to generate Hive metastore delegation token for user %s. " +
-              "Check Hadoop services (including metastore) have correct proxy user impersonation settings (%s, %s) " +
-                  "and services are restarted after applying those settings.",
+          .message(
+              "Failed to generate Hive metastore delegation token for user %s. "
+                  + "Check Hadoop services (including metastore) have correct proxy user impersonation settings (%s, %s) "
+                  + "and services are restarted after applying those settings.",
               proxyUGI.getUserName(),
               String.format("hadoop.proxyuser.%s.hosts", processUsername),
-              String.format("hadoop.proxyuser.%s.groups", processUsername)
-          )
+              String.format("hadoop.proxyuser.%s.groups", processUsername))
           .addContext("Proxy user", proxyUGI.getUserName())
           .build(logger);
     }
   }
 
   /**
-   * Create a DrillMetaStoreClient that can be shared across multiple users. This is created when impersonation is
-   * disabled.
+   * Create a DrillMetaStoreClient that can be shared across multiple users. This is created when
+   * impersonation is disabled.
    *
    * @param hiveConf
    * @return
@@ -161,34 +174,47 @@ class HiveClientImpl implements HiveClient {
   }
 
   void connect() throws MetaException {
-    Preconditions.checkState(this.client == null,
-        "Already connected. If need to reconnect use reconnect() method.");
+    Preconditions.checkState(
+        this.client == null, "Already connected. If need to reconnect use reconnect() method.");
     reloginExpiringKeytabUser();
 
     try {
       doAsCommand(
-        (PrivilegedExceptionAction<Void>) () -> {
-          try(Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
-            // skip registering Hive functions as this could be expensive, especially on Glue, and we don't have any
-            // need for them
-            client = Hive.getWithFastCheck(hiveConf, false).getMSC();
-          }
-          return null;
-        },
+          (PrivilegedExceptionAction<Void>)
+              () -> {
+                try (Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
+                  // skip registering Hive functions as this could be expensive, especially on Glue,
+                  // and we don't have any
+                  // need for them
+                  client = Hive.getWithFastCheck(hiveConf, false).getMSC();
+                }
+                return null;
+              },
           HiveImpersonationUtil.getProcessUserUGI(),
-          "Failed to connect to Hive Metastore"
-      );
+          "Failed to connect to Hive Metastore");
     } catch (UndeclaredThrowableException e) {
-      // If an exception is thrown from doAsCommand() above (internally in UserGroupInformation#doAs), it will get
-      // wrapped as an UndeclaredThrowableException. We want to identify and rethrow MetaExceptions that have occurred.
+      // If an exception is thrown from doAsCommand() above (internally in
+      // UserGroupInformation#doAs), it will get
+      // wrapped as an UndeclaredThrowableException. We want to identify and rethrow MetaExceptions
+      // that have occurred.
       Throwables.propagateIfInstanceOf(e.getUndeclaredThrowable(), MetaException.class);
       throw e;
     }
   }
 
   @Override
-  public List<String> getDatabases(boolean ignoreAuthzErrors) throws TException{
+  public List<String> getDatabases(boolean ignoreAuthzErrors) throws TException {
     return doCommand((RetryableClientCommand<List<String>>) client -> client.getAllDatabases());
+  }
+
+  @Override
+  public void checkState(boolean ignoreAuthzErrors) throws TException {
+    doCommand(
+        (RetryableClientCommand<Void>)
+            client -> {
+              client.checkState();
+              return null;
+            });
   }
 
   @Override
@@ -206,7 +232,9 @@ class HiveClientImpl implements HiveClient {
   @Override
   public String getDatabaseLocationUri(final String dbName) {
     try {
-      return doCommand(client -> Optional.of(client.getDatabase(dbName)).map(db -> db.getLocationUri()).orElse(null));
+      return doCommand(
+          client ->
+              Optional.of(client.getDatabase(dbName)).map(db -> db.getLocationUri()).orElse(null));
     } catch (NoSuchObjectException e) {
       return null;
     } catch (TException e) {
@@ -216,7 +244,8 @@ class HiveClientImpl implements HiveClient {
   }
 
   @Override
-  public List<String> getTableNames(final String dbName, boolean ignoreAuthzErrors) throws TException{
+  public List<String> getTableNames(final String dbName, boolean ignoreAuthzErrors)
+      throws TException {
     return doCommand((RetryableClientCommand<List<String>>) client -> client.getAllTables(dbName));
   }
 
@@ -230,30 +259,34 @@ class HiveClientImpl implements HiveClient {
     }
   }
 
-  private Table getTableWithoutTableTypeChecking(final String dbName, final String tableName, boolean ignoreAuthzErrors) throws TException{
-    return doCommand((RetryableClientCommand<Table>) client -> {
-      try{
-        return client.getTable(dbName, tableName);
-      }catch(NoSuchObjectException e){
-        return null;
-      }
-    });
+  private Table getTableWithoutTableTypeChecking(
+      final String dbName, final String tableName, boolean ignoreAuthzErrors) throws TException {
+    return doCommand(
+        (RetryableClientCommand<Table>)
+            client -> {
+              try {
+                return client.getTable(dbName, tableName);
+              } catch (NoSuchObjectException e) {
+                return null;
+              }
+            });
   }
 
   @Override
-  public Table getTable(final String dbName, final String tableName, boolean ignoreAuthzErrors) throws TException{
+  public Table getTable(final String dbName, final String tableName, boolean ignoreAuthzErrors)
+      throws TException {
 
     Table table = getTableWithoutTableTypeChecking(dbName, tableName, ignoreAuthzErrors);
 
-    if(table == null){
+    if (table == null) {
       return null;
     }
 
     String tableType = table.getTableType();
     if (tableType == null) {
       throw UserException.sourceInBadState()
-        .message("Table %s.%s is missing table type", dbName, tableName)
-        .buildSilently();
+          .message("Table %s.%s is missing table type", dbName, tableName)
+          .buildSilently();
     }
     TableType type = TableType.valueOf(tableType);
     switch (type) {
@@ -262,127 +295,163 @@ class HiveClientImpl implements HiveClient {
         return table;
 
       case VIRTUAL_VIEW:
-        throw UserException.unsupportedError().message("Hive views are not supported").buildSilently();
+        throw UserException.unsupportedError()
+            .message("Hive views are not supported")
+            .buildSilently();
       case INDEX_TABLE:
       default:
         return null;
     }
   }
 
-
   @Override
-  public void dropTable(final String dbName, final String tableName, boolean ignoreAuthzErrors) throws TException {
-    doCommand((RetryableClientCommand<Table>) client -> {
-      try {
-        client.dropTable(dbName, tableName, true, false, false);
-      } catch (NoSuchObjectException | UnknownTableException e) {
-        logger.warn("Database '{}', table '{}', dropTable failed since the table doesn't exist", dbName, tableName);
-        throw e;
-      }
-      return null;
-    });
+  public void dropTable(final String dbName, final String tableName, boolean ignoreAuthzErrors)
+      throws TException {
+    doCommand(
+        (RetryableClientCommand<Table>)
+            client -> {
+              try {
+                client.dropTable(dbName, tableName, true, false, false);
+              } catch (NoSuchObjectException | UnknownTableException e) {
+                logger.warn(
+                    "Database '{}', table '{}', dropTable failed since the table doesn't exist",
+                    dbName,
+                    tableName);
+                throw e;
+              }
+              return null;
+            });
   }
 
   @Override
-  public List<Partition> getPartitionsByName(final String dbName, final String tableName, final List<String> partitionNames) throws TException {
-    return doCommand(client -> {
-      logger.trace("Database '{}', table '{}', Begin retrieval of partitions by name using batch size '{}'", dbName, tableName, partitionNames.size());
+  public List<Partition> getPartitionsByName(
+      final String dbName, final String tableName, final List<String> partitionNames)
+      throws TException {
+    return doCommand(
+        client -> {
+          logger.trace(
+              "Database '{}', table '{}', Begin retrieval of partitions by name using batch size '{}'",
+              dbName,
+              tableName,
+              partitionNames.size());
 
-      try {
-        final List<Partition> partitions = client.getPartitionsByNames(dbName, tableName, partitionNames);
+          try {
+            final List<Partition> partitions =
+                client.getPartitionsByNames(dbName, tableName, partitionNames);
 
-        if (null == partitions) {
-          throw UserException
-            .connectionError()
-            .message("Database '%s', table '%s', No partitions for table.", dbName, tableName)
-            .build(logger);
-        }
+            if (null == partitions) {
+              throw UserException.connectionError()
+                  .message("Database '%s', table '%s', No partitions for table.", dbName, tableName)
+                  .build(logger);
+            }
 
-        logger.debug("Database '{}', table '{}', Retrieved partition count: '{}'", dbName, tableName, partitions.size());
+            logger.debug(
+                "Database '{}', table '{}', Retrieved partition count: '{}'",
+                dbName,
+                tableName,
+                partitions.size());
 
-        return partitions;
-      } catch (TException e) {
-        logger
-          .error(
-            "Database '{}', table '{}', Failure reading partitions by names: '{}'",
-            dbName, tableName, Joiner.on(",").join(partitionNames), e);
-        throw e;
-      }
-    });
+            return partitions;
+          } catch (TException e) {
+            logger.error(
+                "Database '{}', table '{}', Failure reading partitions by names: '{}'",
+                dbName,
+                tableName,
+                Joiner.on(",").join(partitionNames),
+                e);
+            throw e;
+          }
+        });
   }
 
   @Override
-  public List<String> getPartitionNames(final String dbName, final String tableName) throws TException {
-    return doCommand(client -> {
-      try {
-        final List<String> allPartitionNames = client.listPartitionNames(dbName, tableName, (short) -1);
+  public List<String> getPartitionNames(final String dbName, final String tableName)
+      throws TException {
+    return doCommand(
+        client -> {
+          try {
+            final List<String> allPartitionNames =
+                client.listPartitionNames(dbName, tableName, (short) -1);
 
-        if (null == allPartitionNames) {
-          logger.debug("Database '{}', table '{}', No partition names for table.", dbName, tableName);
-          return Collections.emptyList();
-        }
+            if (null == allPartitionNames) {
+              logger.debug(
+                  "Database '{}', table '{}', No partition names for table.", dbName, tableName);
+              return Collections.emptyList();
+            }
 
-        return allPartitionNames;
-      } catch (TException e) {
-        logger
-          .error(
-            "Database '{}', table '{}', Failure reading partition names.",
-            dbName, tableName, e);
-        throw e;
-      }
-    });
+            return allPartitionNames;
+          } catch (TException e) {
+            logger.error(
+                "Database '{}', table '{}', Failure reading partition names.",
+                dbName,
+                tableName,
+                e);
+            throw e;
+          }
+        });
   }
 
   @Override
   public String getDelegationToken(final String proxyUser) throws TException {
-    return doCommand((RetryableClientCommand<String>)
-      client -> client.getDelegationToken(proxyUser, HiveImpersonationUtil.getProcessUserName()));
+    return doCommand(
+        (RetryableClientCommand<String>)
+            client ->
+                client.getDelegationToken(proxyUser, HiveImpersonationUtil.getProcessUserName()));
   }
 
   @Override
   public List<HivePrivilegeObject> getRowFilterAndColumnMasking(
-    List<HivePrivilegeObject> inputHiveObjects) throws SemanticException {
+      List<HivePrivilegeObject> inputHiveObjects) throws SemanticException {
     return Collections.emptyList();
   }
 
   @Override
-  public void createTable(Table tbl) throws AlreadyExistsException, InvalidObjectException, MetaException, NoSuchObjectException, TException {
-    doCommand((RetryableClientCommand<Void>) client -> {
-      client.createTable(tbl);
-      return null;
-    });
+  public void createTable(Table tbl)
+      throws AlreadyExistsException,
+          InvalidObjectException,
+          MetaException,
+          NoSuchObjectException,
+          TException {
+    doCommand(
+        (RetryableClientCommand<Void>)
+            client -> {
+              client.createTable(tbl);
+              return null;
+            });
   }
 
   @Override
-  public LockResponse lock(LockRequest request) throws NoSuchTxnException, TxnAbortedException, TException {
-    return doCommand((RetryableClientCommand<LockResponse>)
-      client -> client.lock(request));
+  public LockResponse lock(LockRequest request)
+      throws NoSuchTxnException, TxnAbortedException, TException {
+    return doCommand((RetryableClientCommand<LockResponse>) client -> client.lock(request));
   }
 
   @Override
   public void unlock(long lockid) throws NoSuchLockException, TxnOpenException, TException {
-    doCommand((RetryableClientCommand<Void>) client -> {
-      client.unlock(lockid);
-      return null;
-    });
+    doCommand(
+        (RetryableClientCommand<Void>)
+            client -> {
+              client.unlock(lockid);
+              return null;
+            });
   }
 
   @Override
-  public LockResponse checkLock(long lockid) throws NoSuchTxnException, TxnAbortedException, NoSuchLockException, TException {
-    return doCommand((RetryableClientCommand<LockResponse>)
-      client -> client.checkLock(lockid));
+  public LockResponse checkLock(long lockid)
+      throws NoSuchTxnException, TxnAbortedException, NoSuchLockException, TException {
+    return doCommand((RetryableClientCommand<LockResponse>) client -> client.checkLock(lockid));
   }
 
   private interface RetryableClientCommand<T> {
     T run(IMetaStoreClient client) throws TException;
   }
 
-  private synchronized <T> T doCommand(RetryableClientCommand<T> cmd) throws TException{
+  private synchronized <T> T doCommand(RetryableClientCommand<T> cmd) throws TException {
     T value;
 
     try {
       // Hive client can not be used for multiple requests at the same time.
-      try(Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
+      try (Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
         value = cmd.run(client);
       }
     } catch (NoSuchObjectException e) {
@@ -392,11 +461,13 @@ class HiveClientImpl implements HiveClient {
       try {
         client.close();
       } catch (Exception ex) {
-        logger.warn("Failure while attempting to close existing hive metastore connection. May leak connection.", ex);
+        logger.warn(
+            "Failure while attempting to close existing hive metastore connection. May leak connection.",
+            ex);
       }
       reconnect();
 
-      try(Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
+      try (Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
         value = cmd.run(client);
       }
     }
@@ -404,22 +475,22 @@ class HiveClientImpl implements HiveClient {
     return value;
   }
 
-  void reconnect() throws MetaException{
+  void reconnect() throws MetaException {
     reloginExpiringKeytabUser();
     doAsCommand(
-      (PrivilegedExceptionAction<Void>) () -> {
-        try(Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
-          client.reconnect();
-        }
-        return null;
-      },
+        (PrivilegedExceptionAction<Void>)
+            () -> {
+              try (Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
+                client.reconnect();
+              }
+              return null;
+            },
         HiveImpersonationUtil.getProcessUserUGI(),
-        "Failed to reconnect to Hive metastore"
-    );
+        "Failed to reconnect to Hive metastore");
   }
 
   private void reloginExpiringKeytabUser() throws MetaException {
-    if(UserGroupInformation.isSecurityEnabled()) {
+    if (UserGroupInformation.isSecurityEnabled()) {
       // renew the TGT if required
       try {
         UserGroupInformation ugi = UserGroupInformation.getLoginUser();
@@ -436,19 +507,22 @@ class HiveClientImpl implements HiveClient {
 
   @Override
   public void close() {
-    try(Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
+    try (Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
       client.close();
     }
   }
 
-  <T> T doAsCommand(final PrivilegedExceptionAction<T> cmd, UserGroupInformation ugi, String errMsg) {
+  <T> T doAsCommand(
+      final PrivilegedExceptionAction<T> cmd, UserGroupInformation ugi, String errMsg) {
     checkNotNull(ugi, "UserGroupInformation object required");
     try {
-      return ugi.doAs((PrivilegedExceptionAction<T>) () -> {
-        try(Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
-          return cmd.run();
-        }
-      });
+      return ugi.doAs(
+          (PrivilegedExceptionAction<T>)
+              () -> {
+                try (Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
+                  return cmd.run();
+                }
+              });
     } catch (final InterruptedException | IOException e) {
       throw new RuntimeException(String.format("%s, doAs User: %s", errMsg, ugi.getUserName()), e);
     }
@@ -460,7 +534,8 @@ class HiveClientImpl implements HiveClient {
   }
 
   @Override
-  public void checkDmlPrivileges(String dbName, String tableName, List<HivePrivObjectActionType> actionTypes) {
+  public void checkDmlPrivileges(
+      String dbName, String tableName, List<HivePrivObjectActionType> actionTypes) {
     // do nothing - HiveClientWithAuthz overrides this to check based on user
   }
 

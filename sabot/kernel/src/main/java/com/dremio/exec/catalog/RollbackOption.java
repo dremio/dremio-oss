@@ -18,11 +18,11 @@ package com.dremio.exec.catalog;
 public class RollbackOption {
   public enum Type {
     SNAPSHOT, // Roll table back to previous SNAPSHOT
-    TIME      // Roll table back to previous timestamp
+    TIME // Roll table back to previous timestamp
   }
 
   private final Type type;
-  private final Long value;          // Snapshot id or timestamp in Millis
+  private final Long value; // Snapshot id or timestamp in Millis
   private final String literalValue; // The literal snapshot id or timestamp value.
 
   public RollbackOption(Type type, Long value, String literalValue) {

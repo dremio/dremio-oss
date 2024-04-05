@@ -37,7 +37,7 @@ const folderRuleAnalyzers: CompositeRuleAnalyzers = {
 
 export function isFolder(
   priorTerminals: TerminalNode[],
-  identifierCandidate: IdentifierCandidate
+  identifierCandidate: IdentifierCandidate,
 ): boolean {
   if (priorTerminals.length == 0) {
     return false;
@@ -50,6 +50,6 @@ export function isFolder(
     identifierCandidate,
     folderRuleAnalyzers,
     priorTerminal,
-    fallbackRule
+    fallbackRule,
   );
 }

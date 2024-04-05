@@ -22,14 +22,15 @@ import org.apache.calcite.sql2rel.SqlRexConvertletTable;
 public class ChainedSqlRexConvertletTable implements SqlRexConvertletTable {
   private final SqlRexConvertletTable[] sqlRexConvertletTables;
 
-  public ChainedSqlRexConvertletTable(SqlRexConvertletTable...sqlRexConvertletTables) {
+  public ChainedSqlRexConvertletTable(SqlRexConvertletTable... sqlRexConvertletTables) {
     this.sqlRexConvertletTables = sqlRexConvertletTables;
   }
 
-  @Override public SqlRexConvertlet get(SqlCall sqlCall) {
-    for (SqlRexConvertletTable ct: sqlRexConvertletTables) {
+  @Override
+  public SqlRexConvertlet get(SqlCall sqlCall) {
+    for (SqlRexConvertletTable ct : sqlRexConvertletTables) {
       SqlRexConvertlet src = ct.get(sqlCall);
-      if(null != src) {
+      if (null != src) {
         return src;
       }
     }

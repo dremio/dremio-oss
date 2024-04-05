@@ -18,21 +18,18 @@ package com.dremio.exec.store.iceberg;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import com.dremio.exec.hadoop.HadoopFileSystem;
+import com.dremio.exec.store.dfs.FileSelection;
+import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.Path;
 import java.io.File;
-
 import org.apache.hadoop.conf.Configuration;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import com.dremio.exec.hadoop.HadoopFileSystem;
-import com.dremio.exec.store.dfs.FileSelection;
-import com.dremio.io.file.FileSystem;
-import com.dremio.io.file.Path;
-
 public class TestIcebergFormatMatcher {
-  @ClassRule
-  public static final TemporaryFolder tempDir = new TemporaryFolder();
+  @ClassRule public static final TemporaryFolder tempDir = new TemporaryFolder();
 
   @Test
   public void match() throws Exception {

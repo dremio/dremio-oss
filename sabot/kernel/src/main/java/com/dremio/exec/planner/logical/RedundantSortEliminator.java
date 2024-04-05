@@ -15,44 +15,36 @@
  */
 package com.dremio.exec.planner.logical;
 
+import com.dremio.exec.planner.StatelessRelShuttleImpl;
+import com.google.common.collect.ImmutableList;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.logical.LogicalAggregate;
 import org.apache.calcite.rel.logical.LogicalJoin;
 import org.apache.calcite.rel.logical.LogicalSort;
 import org.apache.calcite.rel.type.RelDataTypeField;
 
-import com.dremio.exec.planner.StatelessRelShuttleImpl;
-import com.google.common.collect.ImmutableList;
-
 /**
- * When a user writes a query that has NO-OP sort operations,
- * then we can remove them to increase performance.
+ * When a user writes a query that has NO-OP sort operations, then we can remove them to increase
+ * performance.
  *
- * For example a user can write a query:
+ * <p>For example a user can write a query:
  *
- * SELECT * FROM (
- *  SELECT ENAME, SAL
- *  FROM EMP
- *  ORDER BY ENAME)
- * ORDER BY SAL
+ * <p>SELECT * FROM ( SELECT ENAME, SAL FROM EMP ORDER BY ENAME) ORDER BY SAL
  *
- * Which will have the following plan:
+ * <p>Which will have the following plan:
  *
- * LogicalSort(sort0=[$1], dir0=[ASC])
- *   LogicalProject(ENAME=[$0], SAL=[$1])
- *     LogicalSort(sort0=[$0], dir0=[ASC])
- *       LogicalProject(ENAME=[$1], SAL=[$5])
- *         LogicalTableScan(table=[[EMP]])
+ * <p>LogicalSort(sort0=[$1], dir0=[ASC]) LogicalProject(ENAME=[$0], SAL=[$1])
+ * LogicalSort(sort0=[$0], dir0=[ASC]) LogicalProject(ENAME=[$1], SAL=[$5])
+ * LogicalTableScan(table=[[EMP]])
  *
- * Notice that the above plan has a SORT on ENAME followed by a SORT on SAL.
- * It is redundant to sort on ENAME and then to just sort on SAL at the end.
- * An optimization is to just remove the sort on ENAME.
+ * <p>Notice that the above plan has a SORT on ENAME followed by a SORT on SAL. It is redundant to
+ * sort on ENAME and then to just sort on SAL at the end. An optimization is to just remove the sort
+ * on ENAME.
  *
- * The general rule is to remove sorts that have parent operations that make them redundant (negate them).
- * There are a few exceptions like if the SORT operation has an OFFSET or a FETCH,
+ * <p>The general rule is to remove sorts that have parent operations that make them redundant
+ * (negate them). There are a few exceptions like if the SORT operation has an OFFSET or a FETCH,
  * since those operations change the result set and rely on the ordering of the input.
  */
-
 public final class RedundantSortEliminator {
   private RedundantSortEliminator() {}
 
@@ -61,8 +53,10 @@ public final class RedundantSortEliminator {
   }
 
   private static final class RedundantSortEliminatorRelShuttle extends StatelessRelShuttleImpl {
-    private static final RedundantSortEliminatorRelShuttle HAS_NEGATING_PARENT_TRUE = new RedundantSortEliminatorRelShuttle(true);
-    private static final RedundantSortEliminatorRelShuttle HAS_NEGATING_PARENT_FALSE = new RedundantSortEliminatorRelShuttle(false);
+    private static final RedundantSortEliminatorRelShuttle HAS_NEGATING_PARENT_TRUE =
+        new RedundantSortEliminatorRelShuttle(true);
+    private static final RedundantSortEliminatorRelShuttle HAS_NEGATING_PARENT_FALSE =
+        new RedundantSortEliminatorRelShuttle(false);
     public static final RedundantSortEliminatorRelShuttle INSTANCE = HAS_NEGATING_PARENT_FALSE;
 
     private final boolean hasNegatingParent;
@@ -75,7 +69,8 @@ public final class RedundantSortEliminator {
     public RelNode visit(LogicalSort sort) {
       boolean isPureSortOperations = (sort.fetch == null) && (sort.offset == null);
       if (isPureSortOperations && hasNegatingParent) {
-        // Note that even if are under an aggregate or join, but there is a fetch / offset inbetween,
+        // Note that even if are under an aggregate or join, but there is a fetch / offset
+        // inbetween,
         // then we no longer have a redundant parent.
         return sort.getInput().accept(this);
       }
@@ -84,18 +79,15 @@ public final class RedundantSortEliminator {
       // The quirk is that we are matching the LIMIT operation in this sort logic,
       // but we don't want to treat it like a sort (since there is no sorting going on).
       boolean isNotRealSortOperation = !sort.collation.getFieldCollations().isEmpty();
-      RedundantSortEliminatorRelShuttle shuttle = isNotRealSortOperation ? HAS_NEGATING_PARENT_TRUE : HAS_NEGATING_PARENT_FALSE;
+      RedundantSortEliminatorRelShuttle shuttle =
+          isNotRealSortOperation ? HAS_NEGATING_PARENT_TRUE : HAS_NEGATING_PARENT_FALSE;
       RelNode prunedInput = sort.getInput().accept(shuttle);
       boolean inputWasPruned = prunedInput != sort.getInput();
       if (!inputWasPruned) {
         return sort;
       }
 
-      return LogicalSort.create(
-        prunedInput,
-        sort.collation,
-        sort.offset,
-        sort.fetch);
+      return LogicalSort.create(prunedInput, sort.collation, sort.offset, sort.fetch);
     }
 
     @Override
@@ -108,11 +100,11 @@ public final class RedundantSortEliminator {
       }
 
       return LogicalAggregate.create(
-        prunedInput,
-        logicalAggregate.getHints(),
-        logicalAggregate.getGroupSet(),
-        logicalAggregate.getGroupSets(),
-        logicalAggregate.getAggCallList());
+          prunedInput,
+          logicalAggregate.getHints(),
+          logicalAggregate.getGroupSet(),
+          logicalAggregate.getGroupSets(),
+          logicalAggregate.getAggCallList());
     }
 
     @Override
@@ -128,14 +120,14 @@ public final class RedundantSortEliminator {
       }
 
       return LogicalJoin.create(
-        leftPrunedInput,
-        rightPrunedInput,
-        logicalJoin.getHints(),
-        logicalJoin.getCondition(),
-        logicalJoin.getVariablesSet(),
-        logicalJoin.getJoinType(),
-        logicalJoin.isSemiJoinDone(),
-        (ImmutableList<RelDataTypeField>) logicalJoin.getSystemFieldList());
+          leftPrunedInput,
+          rightPrunedInput,
+          logicalJoin.getHints(),
+          logicalJoin.getCondition(),
+          logicalJoin.getVariablesSet(),
+          logicalJoin.getJoinType(),
+          logicalJoin.isSemiJoinDone(),
+          (ImmutableList<RelDataTypeField>) logicalJoin.getSystemFieldList());
     }
   }
 }

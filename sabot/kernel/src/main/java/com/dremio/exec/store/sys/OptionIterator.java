@@ -15,10 +15,6 @@
  */
 package com.dremio.exec.store.sys;
 
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.options.SabotConfigIterable;
 import com.dremio.options.OptionManager;
@@ -28,35 +24,39 @@ import com.dremio.options.OptionValue.OptionType;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
 
 public class OptionIterator implements Iterator<Object> {
 
   enum Mode {
-    BOOT, SYS_SESS, BOTH
+    BOOT,
+    SYS_SESS,
+    BOTH
   };
 
   private final OptionManager fragmentOptions;
   private final Iterator<OptionValue> mergedOptions;
 
-  public OptionIterator(final SabotContext dbContext, OperatorContext context, Mode mode){
+  public OptionIterator(final SabotContext dbContext, OperatorContext context, Mode mode) {
     final SabotConfigIterable configOptions = new SabotConfigIterable(context.getConfig());
     fragmentOptions = context.getOptions();
     final Iterator<OptionValue> optionList;
-    switch(mode){
-    case BOOT:
-      optionList = configOptions.iterator();
-      break;
-    case SYS_SESS:
-      optionList = fragmentOptions.iterator();
-      break;
-    default:
-      optionList = Iterators.concat(configOptions.iterator(), fragmentOptions.iterator());
+    switch (mode) {
+      case BOOT:
+        optionList = configOptions.iterator();
+        break;
+      case SYS_SESS:
+        optionList = fragmentOptions.iterator();
+        break;
+      default:
+        optionList = Iterators.concat(configOptions.iterator(), fragmentOptions.iterator());
     }
 
     List<OptionValue> values = Lists.newArrayList(optionList);
     Collections.sort(values);
     mergedOptions = values.iterator();
-
   }
 
   @Override
@@ -71,24 +71,32 @@ public class OptionIterator implements Iterator<Object> {
     if (value.getType() == OptionType.BOOT) {
       status = Status.BOOT;
     } else {
-      final OptionValue def = fragmentOptions.getOptionValidatorListing().getValidator(value.getName()).getDefault();
+      final OptionValue def =
+          fragmentOptions.getOptionValidatorListing().getValidator(value.getName()).getDefault();
       if (value.equalsIgnoreType(def)) {
         status = Status.DEFAULT;
-        } else {
+      } else {
         status = Status.CHANGED;
-        }
       }
-    return new OptionValueWrapper(value.getName(), value.getKind(), value.getType(), value.getNumVal(), value.getStringVal(),
-        value.getBoolVal(), value.getFloatVal(), status);
+    }
+    return new OptionValueWrapper(
+        value.getName(),
+        value.getKind(),
+        value.getType(),
+        value.getNumVal(),
+        value.getStringVal(),
+        value.getBoolVal(),
+        value.getFloatVal(),
+        status);
   }
 
   public static enum Status {
-    BOOT, DEFAULT, CHANGED
+    BOOT,
+    DEFAULT,
+    CHANGED
   }
 
-  /**
-   * Wrapper class for OptionValue to add Status
-   */
+  /** Wrapper class for OptionValue to add Status */
   public static class OptionValueWrapper {
 
     public final String name;
@@ -100,8 +108,14 @@ public class OptionIterator implements Iterator<Object> {
     public final Boolean bool_val;
     public final Double float_val;
 
-    public OptionValueWrapper(final String name, final Kind kind, final OptionType type, final Long num_val,
-        final String string_val, final Boolean bool_val, final Double float_val,
+    public OptionValueWrapper(
+        final String name,
+        final Kind kind,
+        final OptionType type,
+        final Long num_val,
+        final String string_val,
+        final Boolean bool_val,
+        final Double float_val,
         final Status status) {
       this.name = name;
       this.kind = kind;

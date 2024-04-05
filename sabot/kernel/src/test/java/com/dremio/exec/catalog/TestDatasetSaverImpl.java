@@ -15,9 +15,19 @@
  */
 package com.dremio.exec.catalog;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.connector.metadata.DatasetHandle;
+import com.dremio.connector.metadata.EntityPath;
+import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.DatasetRetrievalOptions;
+import com.dremio.exec.store.dfs.MetadataStoragePlugin;
+import com.dremio.exec.store.metadatarefresh.SupportsUnlimitedSplits;
+import com.dremio.options.OptionManager;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import java.util.ArrayList;
 import java.util.List;
-
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Ignore;
@@ -27,35 +37,15 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnitRunner;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.connector.metadata.DatasetHandle;
-import com.dremio.connector.metadata.EntityPath;
-import com.dremio.exec.ExecConstants;
-import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.store.DatasetRetrievalOptions;
-import com.dremio.exec.store.dfs.MetadataStoragePlugin;
-import com.dremio.exec.store.metadatarefresh.SupportsUnlimitedSplits;
-import com.dremio.options.OptionManager;
-import com.dremio.service.namespace.dataset.proto.DatasetConfig;
-
-import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
-
 @Ignore("DX-50441")
 @RunWith(MockitoJUnitRunner.class)
 public class TestDatasetSaverImpl {
 
-  @Mock
-  private OptionManager optionManager;
-  @Mock
-  private DatasetHandle datasetHandle;
-  @Mock
-  private SupportsUnlimitedSplits supportsUnlimitedSplits;
-  @Mock
-  private SabotContext sabotContext;
-  @Mock
-  private MetadataStoragePlugin metadataStoragePlugin;
+  @Mock private OptionManager optionManager;
+  @Mock private DatasetHandle datasetHandle;
+  @Mock private SupportsUnlimitedSplits supportsUnlimitedSplits;
+  @Mock private SabotContext sabotContext;
+  @Mock private MetadataStoragePlugin metadataStoragePlugin;
   private DatasetConfig datasetConfig = new DatasetConfig();
 
   DatasetSaverImpl datasetSaver;
@@ -66,27 +56,35 @@ public class TestDatasetSaverImpl {
     List<String> entityPaths = new ArrayList<>();
     entityPaths.add("items");
     Mockito.when(datasetHandle.getDatasetPath()).thenReturn(new EntityPath(entityPaths));
-    Mockito.when(optionManager.getOption(ExecConstants.ENABLE_ICEBERG)).thenReturn(true);
-    Mockito.when(optionManager.getOption(PlannerSettings.UNLIMITED_SPLITS_SUPPORT)).thenReturn(true);
-    Mockito.when(metadataStoragePlugin.allowUnlimitedSplits(Mockito.any(), Mockito.any(), Mockito.any())).thenReturn(true);
+    Mockito.when(
+            metadataStoragePlugin.allowUnlimitedSplits(Mockito.any(), Mockito.any(), Mockito.any()))
+        .thenReturn(true);
   }
 
   @Test
   public void testSaveWhenThereIsException() throws Exception {
 
     // Given
-    Status status = Status.fromThrowable(UserException.concurrentModificationError()
-      .message(UserException.REFRESH_METADATA_FAILED_CONCURRENT_UPDATE_MSG)
-      .buildSilently());
+    Status status =
+        Status.fromThrowable(
+            UserException.concurrentModificationError()
+                .message(UserException.REFRESH_METADATA_FAILED_CONCURRENT_UPDATE_MSG)
+                .buildSilently());
     Mockito.doThrow(new StatusRuntimeException(status))
-      .when(metadataStoragePlugin).runRefreshQuery(Mockito.any(), Mockito.any());
+        .when(metadataStoragePlugin)
+        .runRefreshQuery(Mockito.any(), Mockito.any());
 
     try {
       // When
-      datasetSaver.save(datasetConfig, datasetHandle, metadataStoragePlugin,
-        false, DatasetRetrievalOptions.DEFAULT);
+      datasetSaver.save(
+          datasetConfig,
+          datasetHandle,
+          metadataStoragePlugin,
+          false,
+          DatasetRetrievalOptions.DEFAULT);
     } catch (UserException userException) {
-      Assert.assertEquals(UserException.REFRESH_METADATA_FAILED_CONCURRENT_UPDATE_MSG, userException.getMessage());
+      Assert.assertEquals(
+          UserException.REFRESH_METADATA_FAILED_CONCURRENT_UPDATE_MSG, userException.getMessage());
       return;
     }
     Assert.fail("Should throw exception");

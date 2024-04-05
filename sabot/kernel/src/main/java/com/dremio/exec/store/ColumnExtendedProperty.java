@@ -16,9 +16,8 @@
 
 package com.dremio.exec.store;
 
-import java.util.Objects;
-
 import com.dremio.connector.metadata.AttributeValue;
+import java.util.Objects;
 
 public class ColumnExtendedProperty {
   private final String key;

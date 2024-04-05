@@ -18,9 +18,7 @@ package com.dremio.dac.model.job;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-/**
- * ResourceSchedulingUI
- */
+/** ResourceSchedulingUI */
 public class ResourceSchedulingUI {
 
   private final String queueId;
@@ -32,12 +30,12 @@ public class ResourceSchedulingUI {
 
   @JsonCreator
   public ResourceSchedulingUI(
-    @JsonProperty("queueId") String queueId,
-    @JsonProperty("queueName")String queueName,
-    @JsonProperty("ruleId")String ruleId,
-    @JsonProperty("ruleName")String ruleName,
-    @JsonProperty("ruleContent")String ruleContent,
-    @JsonProperty("engineName")String engineName) {
+      @JsonProperty("queueId") String queueId,
+      @JsonProperty("queueName") String queueName,
+      @JsonProperty("ruleId") String ruleId,
+      @JsonProperty("ruleName") String ruleName,
+      @JsonProperty("ruleContent") String ruleContent,
+      @JsonProperty("engineName") String engineName) {
     this.queueId = queueId;
     this.queueName = queueName;
     this.ruleId = ruleId;

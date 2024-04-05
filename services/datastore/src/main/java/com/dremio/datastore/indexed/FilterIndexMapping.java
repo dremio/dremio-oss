@@ -18,21 +18,18 @@ package com.dremio.datastore.indexed;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
-
-/**
- * Provide mapping of to field short names to index keys.
- */
+/** Provide mapping of to field short names to index keys. */
 public class FilterIndexMapping {
 
   private final ImmutableMap<String, IndexKey> shortToKey;
   private final ImmutableList<String> containsKeys;
 
-  public FilterIndexMapping(IndexKey...fields) {
+  public FilterIndexMapping(IndexKey... fields) {
     ImmutableMap.Builder<String, IndexKey> shortToKeyB = ImmutableMap.builder();
     ImmutableList.Builder<String> containsKeysB = ImmutableList.builder();
-    for(IndexKey f : fields){
+    for (IndexKey f : fields) {
       shortToKeyB.put(f.getShortName(), f);
-      if(f.isIncludeInSearchAllFields()){
+      if (f.isIncludeInSearchAllFields()) {
         containsKeysB.add(f.getIndexFieldName());
       }
     }
@@ -40,12 +37,11 @@ public class FilterIndexMapping {
     this.containsKeys = containsKeysB.build();
   }
 
-  public IndexKey getKey(final String shortName){
+  public IndexKey getKey(final String shortName) {
     return shortToKey.get(shortName);
   }
 
-  public ImmutableList<String> getSearchAllIndexKeys(){
+  public ImmutableList<String> getSearchAllIndexKeys() {
     return containsKeys;
   }
-
 }

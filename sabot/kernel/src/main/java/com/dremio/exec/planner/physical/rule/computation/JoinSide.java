@@ -15,10 +15,7 @@
  */
 package com.dremio.exec.planner.physical.rule.computation;
 
-/**
- * Categorizes whether a bit set contains bits left and right of a
- * line.
- */
+/** Categorizes whether a bit set contains bits left and right of a line. */
 enum JoinSide {
   LEFT {
     @Override
@@ -57,5 +54,5 @@ enum JoinSide {
     }
   };
 
-  public abstract JoinSide merge(JoinSide joinSide) ;
+  public abstract JoinSide merge(JoinSide joinSide);
 }

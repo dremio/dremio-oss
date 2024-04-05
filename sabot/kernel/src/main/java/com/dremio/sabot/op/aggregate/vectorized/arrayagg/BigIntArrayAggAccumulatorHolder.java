@@ -19,11 +19,11 @@ package com.dremio.sabot.op.aggregate.vectorized.arrayagg;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BigIntVector;
 
-/**
- * Holder of accumulated items for ARRAY_AGG BIGINT accumulator
- */
-public final class BigIntArrayAggAccumulatorHolder extends BaseArrayAggAccumulatorHolder<Long, BigIntVector> {
+/** Holder of accumulated items for ARRAY_AGG BIGINT accumulator */
+public final class BigIntArrayAggAccumulatorHolder
+    extends BaseArrayAggAccumulatorHolder<Long, BigIntVector> {
   private final BigIntVector vector;
+
   public BigIntArrayAggAccumulatorHolder(int maxValuesPerBatch, BufferAllocator allocator) {
     super(maxValuesPerBatch, allocator);
     vector = new BigIntVector("array_agg BigIntAccumulatorHolder", allocator);
@@ -32,9 +32,9 @@ public final class BigIntArrayAggAccumulatorHolder extends BaseArrayAggAccumulat
 
   @Override
   public long getSizeInBytes() {
-    return vector.getDataBuffer().getActualMemoryConsumed() +
-      vector.getValidityBuffer().getActualMemoryConsumed() +
-      super.getSizeInBytes();
+    return vector.getDataBuffer().getActualMemoryConsumed()
+        + vector.getValidityBuffer().getActualMemoryConsumed()
+        + super.getSizeInBytes();
   }
 
   @Override

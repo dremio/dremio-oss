@@ -22,14 +22,6 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.util.ArrayList;
-import java.util.Collections;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.RootAllocator;
-import org.junit.Test;
-
 import com.dremio.common.DeferredException;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
@@ -55,97 +47,119 @@ import com.dremio.sabot.threads.sharedres.SharedResourceManager;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.spill.SpillService;
 import com.google.common.collect.Lists;
+import java.util.ArrayList;
+import java.util.Collections;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.RootAllocator;
+import org.junit.Test;
 
-/**
- * Tests for {@link FragmentExecutor}
- */
+/** Tests for {@link FragmentExecutor} */
 public class TestFragmentExecutor {
-    private BufferAllocator allocator = new RootAllocator();
+  private BufferAllocator allocator = new RootAllocator();
 
-    @Test
-    public void testWorkOnOOBAfterSetup() throws Exception {
-        try(ArrowBuf messageBuf = allocator.buffer(10L)) {
-            FragmentExecutor exec = spy(getTestFragmentExecutor());
-            doNothing().when(exec).setupExecution();
-            ArrowBuf[] bufs = new ArrowBuf[]{messageBuf};
-            ArrayList<Integer> bufferLengths = new ArrayList<>();
-            ExecProtos.RuntimeFilter filter = ExecProtos.RuntimeFilter.newBuilder().setProbeScanOperatorId(101).setProbeScanMajorFragmentId(1)
-                    .setPartitionColumnFilter(ExecProtos.CompositeColumnFilter.newBuilder().setSizeBytes(64).addAllColumns(Lists.newArrayList("col1")).build())
-                    .build();
-            bufferLengths.add((int)filter.getPartitionColumnFilter().getSizeBytes());
-            OutOfBandMessage oobm = new OutOfBandMessage(UserBitShared.QueryId.newBuilder().build(), 1, Collections.EMPTY_LIST, 101, 1, 1,
-                    101, new OutOfBandMessage.Payload(filter), bufs, bufferLengths,false);
+  @Test
+  public void testWorkOnOOBAfterSetup() throws Exception {
+    try (ArrowBuf messageBuf = allocator.buffer(10L)) {
+      FragmentExecutor exec = spy(getTestFragmentExecutor());
+      doNothing().when(exec).setupExecution();
+      ArrowBuf[] bufs = new ArrowBuf[] {messageBuf};
+      ArrayList<Integer> bufferLengths = new ArrayList<>();
+      ExecProtos.RuntimeFilter filter =
+          ExecProtos.RuntimeFilter.newBuilder()
+              .setProbeScanOperatorId(101)
+              .setProbeScanMajorFragmentId(1)
+              .setPartitionColumnFilter(
+                  ExecProtos.CompositeColumnFilter.newBuilder()
+                      .setSizeBytes(64)
+                      .addAllColumns(Lists.newArrayList("col1"))
+                      .build())
+              .build();
+      bufferLengths.add((int) filter.getPartitionColumnFilter().getSizeBytes());
+      OutOfBandMessage oobm =
+          new OutOfBandMessage(
+              UserBitShared.QueryId.newBuilder().build(),
+              1,
+              Collections.EMPTY_LIST,
+              101,
+              1,
+              1,
+              101,
+              new OutOfBandMessage.Payload(filter),
+              bufs,
+              bufferLengths,
+              false);
 
-            FragmentExecutor.FragmentExecutorListener listener = exec.getListener();
-            listener.handle(oobm);
-            Pipeline pipeline = mock(Pipeline.class);
-            listener.overridePipeline(pipeline);
-            AsyncTask asyncTask = exec.asAsyncTask();
-            asyncTask.run();
-            verify(exec).setupExecution();
-            exec.transitionToRunning();
-            exec.overrideIsSetup(true);
-            listener.overrideIsSetup(true);
-            asyncTask.run();
-            verify(pipeline).workOnOOB(any(OutOfBandMessage.class));
-        }
+      FragmentExecutor.FragmentExecutorListener listener = exec.getListener();
+      listener.handle(oobm);
+      Pipeline pipeline = mock(Pipeline.class);
+      listener.overridePipeline(pipeline);
+      AsyncTask asyncTask = exec.asAsyncTask();
+      asyncTask.run();
+      verify(exec).setupExecution();
+      exec.transitionToRunning();
+      exec.overrideIsSetup(true);
+      listener.overrideIsSetup(true);
+      asyncTask.run();
+      verify(pipeline).workOnOOB(any(OutOfBandMessage.class));
     }
+  }
 
-    private FragmentExecutor getTestFragmentExecutor() {
-        FragmentStatusReporter statusReporter = mock(FragmentStatusReporter.class);
-        SabotConfig config = SabotConfig.create();
-        ExecutionControls executionControls = mock(ExecutionControls.class);
-        CoordExecRPC.PlanFragmentMajor major = CoordExecRPC.PlanFragmentMajor.newBuilder().build();
-        CoordExecRPC.PlanFragmentMinor minor = CoordExecRPC.PlanFragmentMinor.newBuilder().build();
-        PlanFragmentFull fragment = new PlanFragmentFull(major, minor);
-        ClusterCoordinator clusterCoordinator = mock(ClusterCoordinator.class);
-        EndpointsIndex endpointsIndex = mock(EndpointsIndex.class);
-        CachedFragmentReader reader = mock(CachedFragmentReader.class);
-        PlanFragmentsIndex planFragmentsIndex = mock(PlanFragmentsIndex.class);
-        when(planFragmentsIndex.getEndpointsIndex()).thenReturn(endpointsIndex);
-        when(reader.getPlanFragmentsIndex()).thenReturn(planFragmentsIndex);
-        SharedResourceManager sharedResources = SharedResourceManager.newBuilder().addGroup("pipeline").addGroup("work-queue").build();
-        OperatorCreatorRegistry opCreator = mock(OperatorCreatorRegistry.class);
-        ContextInformation contextInfo = mock(ContextInformation.class);
-        OperatorContextCreator contextCreator = mock(OperatorContextCreator.class);
-        FunctionLookupContext functionLookupContext = mock(FunctionLookupContext.class);
-        FunctionLookupContext decimalFunctionLookupContext = mock(FunctionLookupContext.class);
-        TunnelProvider tunnelProvider = mock(TunnelProvider.class);
-        FlushableSendingAccountor flushable = mock(FlushableSendingAccountor.class);
-        OptionManager fragmentOptions = mock(OptionManager.class);
-        FragmentStats stats = mock(FragmentStats.class);
-        final FragmentTicket ticket = mock(FragmentTicket.class);
-        final CatalogService sources = mock(CatalogService.class);
-        DeferredException exception = mock(DeferredException.class);
-        EventProvider eventProvider = mock(EventProvider.class);
-        SpillService spillService = mock(SpillService.class);
+  private FragmentExecutor getTestFragmentExecutor() {
+    FragmentStatusReporter statusReporter = mock(FragmentStatusReporter.class);
+    SabotConfig config = SabotConfig.create();
+    ExecutionControls executionControls = mock(ExecutionControls.class);
+    CoordExecRPC.PlanFragmentMajor major = CoordExecRPC.PlanFragmentMajor.newBuilder().build();
+    CoordExecRPC.PlanFragmentMinor minor = CoordExecRPC.PlanFragmentMinor.newBuilder().build();
+    PlanFragmentFull fragment = new PlanFragmentFull(major, minor);
+    ClusterCoordinator clusterCoordinator = mock(ClusterCoordinator.class);
+    EndpointsIndex endpointsIndex = mock(EndpointsIndex.class);
+    CachedFragmentReader reader = mock(CachedFragmentReader.class);
+    PlanFragmentsIndex planFragmentsIndex = mock(PlanFragmentsIndex.class);
+    when(planFragmentsIndex.getEndpointsIndex()).thenReturn(endpointsIndex);
+    when(reader.getPlanFragmentsIndex()).thenReturn(planFragmentsIndex);
+    SharedResourceManager sharedResources =
+        SharedResourceManager.newBuilder().addGroup("pipeline").addGroup("work-queue").build();
+    OperatorCreatorRegistry opCreator = mock(OperatorCreatorRegistry.class);
+    ContextInformation contextInfo = mock(ContextInformation.class);
+    OperatorContextCreator contextCreator = mock(OperatorContextCreator.class);
+    FunctionLookupContext functionLookupContext = mock(FunctionLookupContext.class);
+    FunctionLookupContext decimalFunctionLookupContext = mock(FunctionLookupContext.class);
+    TunnelProvider tunnelProvider = mock(TunnelProvider.class);
+    FlushableSendingAccountor flushable = mock(FlushableSendingAccountor.class);
+    OptionManager fragmentOptions = mock(OptionManager.class);
+    FragmentStats stats = mock(FragmentStats.class);
+    final FragmentTicket ticket = mock(FragmentTicket.class);
+    final CatalogService sources = mock(CatalogService.class);
+    DeferredException exception = mock(DeferredException.class);
+    EventProvider eventProvider = mock(EventProvider.class);
+    SpillService spillService = mock(SpillService.class);
 
-        return new FragmentExecutor(
-                statusReporter,
-                config,
-                executionControls,
-                fragment,
-                1,
-                null,
-                clusterCoordinator,
-                reader,
-                sharedResources,
-                opCreator,
-                allocator,
-                contextInfo,
-                contextCreator,
-                functionLookupContext,
-                decimalFunctionLookupContext,
-                null,
-                tunnelProvider,
-                flushable,
-                fragmentOptions,
-                stats,
-                ticket,
-                sources,
-                exception,
-                eventProvider,
-                spillService
-                );
-    }
+    return new FragmentExecutor(
+        statusReporter,
+        config,
+        executionControls,
+        fragment,
+        1,
+        null,
+        clusterCoordinator,
+        reader,
+        sharedResources,
+        opCreator,
+        allocator,
+        contextInfo,
+        contextCreator,
+        functionLookupContext,
+        decimalFunctionLookupContext,
+        null,
+        tunnelProvider,
+        flushable,
+        fragmentOptions,
+        stats,
+        ticket,
+        sources,
+        exception,
+        eventProvider,
+        spillService);
+  }
 }

@@ -23,15 +23,6 @@ import static com.dremio.exec.store.SystemSchemas.METADATA_FILE_PATH;
 import static com.dremio.exec.store.SystemSchemas.METADATA_PATH_SCAN_SCHEMA;
 import static com.dremio.exec.store.iceberg.SnapshotsScanOptions.Mode.ALL_SNAPSHOTS;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.stream.Collectors;
-
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.iceberg.TableProperties;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.VacuumOptions;
@@ -50,27 +41,48 @@ import com.dremio.exec.store.iceberg.SnapshotsScanOptions;
 import com.dremio.exec.store.iceberg.SnapshotsScanOptions.Mode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.iceberg.TableProperties;
 
-/**
- * Expand plans for VACUUM CATALOG REMOVE ORPHANS flow.
- */
+/** Expand plans for VACUUM CATALOG REMOVE ORPHANS flow. */
 public class VacuumCatalogRemoveOrphansPlanGenerator extends VacuumTableRemoveOrphansPlanGenerator {
   private final VacuumOptions vacuumCatalogOptions;
 
-  public VacuumCatalogRemoveOrphansPlanGenerator(RelOptCluster cluster, RelTraitSet traitSet, VacuumOptions vacuumOptions,
-                                                 StoragePluginId storagePluginId, IcebergCostEstimates icebergCostEstimates,
-                                                 String user) {
-    super(cluster, traitSet, Collections.emptyList(), icebergCostEstimates, vacuumOptions, storagePluginId,
-      storagePluginId, user, null);
+  public VacuumCatalogRemoveOrphansPlanGenerator(
+      RelOptCluster cluster,
+      RelTraitSet traitSet,
+      VacuumOptions vacuumOptions,
+      StoragePluginId storagePluginId,
+      IcebergCostEstimates icebergCostEstimates,
+      String user) {
+    super(
+        cluster,
+        traitSet,
+        Collections.emptyList(),
+        icebergCostEstimates,
+        vacuumOptions,
+        storagePluginId,
+        storagePluginId,
+        user,
+        null);
     this.vacuumCatalogOptions = vacuumOptions;
   }
 
   @Override
   protected Prel createMetadataPathScanPlan() {
-    SnapshotsScanOptions snapshotsScanOptions = new SnapshotsScanOptions(ALL_SNAPSHOTS,
-        vacuumCatalogOptions.getOlderThanInMillis(), vacuumCatalogOptions.getRetainLast());
+    SnapshotsScanOptions snapshotsScanOptions =
+        new SnapshotsScanOptions(
+            ALL_SNAPSHOTS,
+            vacuumCatalogOptions.getOlderThanInMillis(),
+            vacuumCatalogOptions.getRetainLast());
 
-    return new NessieCommitsScanPrel(cluster,
+    return new NessieCommitsScanPrel(
+        cluster,
         traitSet,
         METADATA_PATH_SCAN_SCHEMA,
         snapshotsScanOptions,
@@ -82,36 +94,57 @@ public class VacuumCatalogRemoveOrphansPlanGenerator extends VacuumTableRemoveOr
 
   @Override
   protected Prel getPartitionStatsScanPrel(Prel snapshotsScanPlan) {
-    DistributionTrait distributionTrait = getHashDistributionTraitForFields(snapshotsScanPlan.getRowType(), ImmutableList.of(METADATA_FILE_PATH, FILE_PATH));
-    RelTraitSet traitSet = cluster.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL)
-      .plus(distributionTrait);
-    HashToRandomExchangePrel hashToRandomExchangePrel = new HashToRandomExchangePrel(cluster, traitSet,
-      snapshotsScanPlan, distributionTrait.getFields());
+    DistributionTrait distributionTrait =
+        getHashDistributionTraitForFields(
+            snapshotsScanPlan.getRowType(), ImmutableList.of(METADATA_FILE_PATH, FILE_PATH));
+    RelTraitSet traitSet =
+        cluster.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL).plus(distributionTrait);
+    HashToRandomExchangePrel hashToRandomExchangePrel =
+        new HashToRandomExchangePrel(
+            cluster, traitSet, snapshotsScanPlan, distributionTrait.getFields());
     return super.getPartitionStatsScanPrel(hashToRandomExchangePrel);
   }
 
   @Override
   protected Prel getManifestScanPrel(Prel input) {
     RelTraitSet roundRobinTraitSet = input.getTraitSet().plus(DistributionTrait.ROUND_ROBIN);
-    Prel manifestSplitsExchange = new RoundRobinExchangePrel(input.getCluster(), roundRobinTraitSet, input);
+    Prel manifestSplitsExchange =
+        new RoundRobinExchangePrel(input.getCluster(), roundRobinTraitSet, input);
 
     BatchSchema manifestFileReaderSchema = MANIFEST_SCAN_SCHEMA;
-    List<SchemaPath> manifestFileReaderColumns = manifestFileReaderSchema.getFields().stream().map(f -> SchemaPath.getSimplePath(f.getName())).collect(Collectors.toList());
+    List<SchemaPath> manifestFileReaderColumns =
+        manifestFileReaderSchema.getFields().stream()
+            .map(f -> SchemaPath.getSimplePath(f.getName()))
+            .collect(Collectors.toList());
 
-    RelDataType rowType = ScanRelBase.getRowTypeFromProjectedColumns(manifestFileReaderColumns, manifestFileReaderSchema, cluster);
+    RelDataType rowType =
+        ScanRelBase.getRowTypeFromProjectedColumns(
+            manifestFileReaderColumns, manifestFileReaderSchema, cluster);
 
-    return new IcebergManifestScanPrel(manifestSplitsExchange.getCluster(),
-      manifestSplitsExchange.getTraitSet().plus(DistributionTrait.ANY), manifestSplitsExchange,
-      storagePluginId, internalStoragePlugin, manifestFileReaderColumns, manifestFileReaderSchema,
-      rowType, input.getEstimatedSize() + icebergCostEstimates.getDataFileEstimatedCount(), user, false);
+    return new IcebergManifestScanPrel(
+        manifestSplitsExchange.getCluster(),
+        manifestSplitsExchange.getTraitSet().plus(DistributionTrait.ANY),
+        manifestSplitsExchange,
+        storagePluginId,
+        internalStoragePlugin,
+        manifestFileReaderColumns,
+        manifestFileReaderSchema,
+        rowType,
+        input.getEstimatedSize() + icebergCostEstimates.getDataFileEstimatedCount(),
+        user,
+        false);
   }
 
   @Override
   protected Prel createLiveSnapshotsProducerPlan() {
-    SnapshotsScanOptions snapshotsScanOptions = new SnapshotsScanOptions(Mode.LIVE_SNAPSHOTS,
-        vacuumCatalogOptions.getOlderThanInMillis(), vacuumCatalogOptions.getRetainLast());
+    SnapshotsScanOptions snapshotsScanOptions =
+        new SnapshotsScanOptions(
+            Mode.LIVE_SNAPSHOTS,
+            vacuumCatalogOptions.getOlderThanInMillis(),
+            vacuumCatalogOptions.getRetainLast());
     BatchSchema schema = ICEBERG_SNAPSHOTS_SCAN_SCHEMA.merge(CARRY_FORWARD_FILE_PATH_TYPE_SCHEMA);
-    return new NessieCommitsScanPrel(cluster,
+    return new NessieCommitsScanPrel(
+        cluster,
         traitSet,
         schema,
         snapshotsScanOptions,
@@ -130,17 +163,28 @@ public class VacuumCatalogRemoveOrphansPlanGenerator extends VacuumTableRemoveOr
   @Override
   protected Prel locationProviderPrel() {
     Prel metadataJsonProducerPrel = createMetadataPathScanPlan();
-    //Use parallelism with LocationFinder operator.
-    //In the case of Vacuum catalog, it can have much metadata from different branches and tables.
-    DistributionTrait distributionTrait = getHashDistributionTraitForFields(metadataJsonProducerPrel.getRowType(), ImmutableList.of(METADATA_FILE_PATH));
-    RelTraitSet traitSet = cluster.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL)
-      .plus(distributionTrait);
-    HashToRandomExchangePrel hashToRandomExchangePrel = new HashToRandomExchangePrel(cluster, traitSet,
-      metadataJsonProducerPrel, distributionTrait.getFields());
-    Prel locationFinder = new IcebergLocationFinderPrel(storagePluginId, cluster, traitSet, hashToRandomExchangePrel,
-      getRowType(SystemSchemas.TABLE_LOCATION_SCHEMA, cluster.getTypeFactory()),
-      mq -> mq.getRowCount(metadataJsonProducerPrel), metadataJsonProducerPrel.getEstimatedSize(),
-      user, ImmutableMap.of(TableProperties.GC_ENABLED, Boolean.FALSE.toString()), continueOnError());
+    // Use parallelism with LocationFinder operator.
+    // In the case of Vacuum catalog, it can have much metadata from different branches and tables.
+    DistributionTrait distributionTrait =
+        getHashDistributionTraitForFields(
+            metadataJsonProducerPrel.getRowType(), ImmutableList.of(METADATA_FILE_PATH));
+    RelTraitSet traitSet =
+        cluster.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL).plus(distributionTrait);
+    HashToRandomExchangePrel hashToRandomExchangePrel =
+        new HashToRandomExchangePrel(
+            cluster, traitSet, metadataJsonProducerPrel, distributionTrait.getFields());
+    Prel locationFinder =
+        new IcebergLocationFinderPrel(
+            storagePluginId,
+            cluster,
+            traitSet,
+            hashToRandomExchangePrel,
+            getRowType(SystemSchemas.TABLE_LOCATION_SCHEMA, cluster.getTypeFactory()),
+            mq -> mq.getRowCount(metadataJsonProducerPrel),
+            metadataJsonProducerPrel.getEstimatedSize(),
+            user,
+            ImmutableMap.of(TableProperties.GC_ENABLED, Boolean.FALSE.toString()),
+            continueOnError());
     Prel dedupLocation = reduceDuplicateFilePaths(locationFinder);
     return projectPath(dedupLocation);
   }

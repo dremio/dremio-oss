@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.hadoop;
 
+import com.dremio.io.file.FileAttributes;
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.file.DirectoryIteratorException;
@@ -22,14 +23,12 @@ import java.nio.file.DirectoryStream;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicBoolean;
-
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.RemoteIterator;
 
-import com.dremio.io.file.FileAttributes;
-
 /**
  * Wrapper around Hadoop {@code org.apache.hadoop.fs.RemoteIterator}
+ *
  * @param <T>
  */
 class DirectoryStreamWrapper implements DirectoryStream<FileAttributes> {
@@ -96,6 +95,4 @@ class DirectoryStreamWrapper implements DirectoryStream<FileAttributes> {
       }
     };
   }
-
-
 }

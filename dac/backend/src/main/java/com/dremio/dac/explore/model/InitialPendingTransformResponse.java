@@ -15,17 +15,14 @@
  */
 package com.dremio.dac.explore.model;
 
-import java.util.List;
-
 import com.dremio.dac.model.job.JobDataFragment;
 import com.dremio.dac.resource.JobResource;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
+import java.util.List;
 
-/**
- * The result of a transform preview
- */
+/** The result of a transform preview */
 public class InitialPendingTransformResponse {
 
   private final String sql;
@@ -46,16 +43,27 @@ public class InitialPendingTransformResponse {
     this.sql = sql;
     this.data = data;
     this.paginationUrl = paginationUrl;
-    this.highlightedColumns = highlightedColumns != null ? ImmutableList.copyOf(highlightedColumns) : null;
+    this.highlightedColumns =
+        highlightedColumns != null ? ImmutableList.copyOf(highlightedColumns) : null;
     this.deletedColumns = deletedColumns != null ? ImmutableList.copyOf(deletedColumns) : null;
     this.rowDeletionMarkerColumns =
         rowDeletionMarkerColumns != null ? ImmutableList.copyOf(rowDeletionMarkerColumns) : null;
   }
 
-  public static InitialPendingTransformResponse of(String sql, JobDataFragment data,
-      List<String> highlightedColumns, List<String> deletedColumns, List<String> rowDeletionMarkerColumns) {
+  public static InitialPendingTransformResponse of(
+      String sql,
+      JobDataFragment data,
+      List<String> highlightedColumns,
+      List<String> deletedColumns,
+      List<String> rowDeletionMarkerColumns) {
 
-    return new InitialPendingTransformResponse(sql, data, JobResource.getPaginationURL(data.getJobId()), highlightedColumns, deletedColumns, rowDeletionMarkerColumns);
+    return new InitialPendingTransformResponse(
+        sql,
+        data,
+        JobResource.getPaginationURL(data.getJobId()),
+        highlightedColumns,
+        deletedColumns,
+        rowDeletionMarkerColumns);
   }
 
   public String getSql() {

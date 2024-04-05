@@ -51,7 +51,7 @@ export const SectionMessage = forwardRef<HTMLDivElement, Props>(
         className={clsx(
           "dremio-section-message",
           `dremio-section-message--${appearance}`,
-          className
+          className,
         )}
       >
         <div className="dremio-section-message__icon">
@@ -66,5 +66,5 @@ export const SectionMessage = forwardRef<HTMLDivElement, Props>(
         </div>
       </section>
     );
-  }
+  },
 );

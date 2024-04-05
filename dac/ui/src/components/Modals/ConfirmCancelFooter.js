@@ -17,12 +17,10 @@ import { Component } from "react";
 import clsx from "clsx";
 
 import PropTypes from "prop-types";
-
-import SimpleButton from "components/Buttons/SimpleButton";
+import { Button } from "dremio-ui-lib/components";
 
 import { modalFooter } from "uiTheme/radium/modal";
 import { ConfirmCancelFooterWithMixin } from "@inject/components/Modals/ConfirmCancelFooterMixin.js";
-import * as classes from "@app/uiTheme/radium/replacingRadiumPseudoClasses.module.less";
 
 export class ConfirmCancelFooter extends Component {
   static defaultProps = {
@@ -49,7 +47,6 @@ export class ConfirmCancelFooter extends Component {
     style: PropTypes.object,
     confirmButtonStyle: PropTypes.string,
     leftAlign: PropTypes.bool,
-    showSpinnerAndText: PropTypes.bool,
   };
 
   onCancel = (e) => {
@@ -79,7 +76,6 @@ export class ConfirmCancelFooter extends Component {
       hideCancel,
       footerChildren,
       leftAlign,
-      showSpinnerAndText,
     } = this.props;
     const conditionalRenderingButtonStyling =
       this.checkToRenderSaveAndCancelButtons();
@@ -103,39 +99,30 @@ export class ConfirmCancelFooter extends Component {
           {footerChildren}
         </div>
         {cancel && !hideCancel && (
-          <SimpleButton
+          <Button
             data-qa="cancel"
             type="button"
-            buttonStyle="secondary"
-            className={clsx("margin-right", {
-              [classes["secondaryButtonPsuedoClasses"]]: canCancel,
-            })}
+            variant="secondary"
+            className="mr-1"
             disabled={!canCancel}
-            // style={conditionalRenderingButtonStyling}  // Uncomment this line in the case you want conditional rendering of 'cancel' button based on canAlter permissions
-            style={styles.button}
             onClick={this.onCancel}
           >
             {this.checkCancelText(cancelText)}
-          </SimpleButton>
+          </Button>
         )}
-        <SimpleButton
+        <Button
           data-qa="confirm"
           type={submitForm ? "submit" : undefined}
-          buttonStyle={confirmButtonStyle}
-          className={clsx({
-            [classes[`${confirmButtonStyle}ButtonPsuedoClasses`]]: canSubmit,
-          })}
-          submitting={submitting}
+          variant={confirmButtonStyle}
+          pending={submitting}
           disabled={!canSubmit}
           style={{
             ...(conditionalRenderingButtonStyling ?? {}),
-            ...styles.button,
           }}
           onClick={this.onConfirm}
-          showSpinnerAndText={showSpinnerAndText}
         >
           {confirmText}
-        </SimpleButton>
+        </Button>
       </div>
     );
   }
@@ -150,9 +137,6 @@ const styles = {
   nonModalFooter: {
     marginTop: 20,
     marginRight: 11,
-  },
-  button: {
-    fontSize: 14,
   },
 };
 export default ConfirmCancelFooterWithMixin(ConfirmCancelFooter);

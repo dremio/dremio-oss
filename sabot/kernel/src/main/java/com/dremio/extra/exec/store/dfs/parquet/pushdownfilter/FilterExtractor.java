@@ -18,7 +18,6 @@ package com.dremio.extra.exec.store.dfs.parquet.pushdownfilter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Predicate;
-
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
@@ -41,41 +40,42 @@ public class FilterExtractor {
     if (rexNode instanceof RexCall) {
       RexCall rexCall = (RexCall) rexNode;
       switch (rexCall.getOperator().getKind()) {
-        case AND: {
-          boolean changed = false;
-          List<RexNode> nodeList = new ArrayList<>();
-          for (RexNode sub : rexCall.getOperands()) {
-            RexNode subRewritten = extract(sub);
-            changed |= subRewritten != sub;
-            if (!subRewritten.isAlwaysTrue()) {
-              nodeList.add(subRewritten);
+        case AND:
+          {
+            boolean changed = false;
+            List<RexNode> nodeList = new ArrayList<>();
+            for (RexNode sub : rexCall.getOperands()) {
+              RexNode subRewritten = extract(sub);
+              changed |= subRewritten != sub;
+              if (!subRewritten.isAlwaysTrue()) {
+                nodeList.add(subRewritten);
+              }
             }
-          }
-          if (changed) {
-            return RexUtil.composeConjunction(rexBuilder, nodeList, false);
-          } else {
-            return rexCall;
-          }
-
-        }
-        case OR: {
-          boolean changed = false;
-          List<RexNode> nodeList = new ArrayList<>();
-          for (RexNode sub : rexCall.getOperands()) {
-            RexNode subRewritten = extract(sub);
-            changed |= subRewritten != sub;
-            if (subRewritten.isAlwaysTrue()) {
-              return rexBuilder.makeLiteral(true);
+            if (changed) {
+              return RexUtil.composeConjunction(rexBuilder, nodeList, false);
             } else {
-              nodeList.add(subRewritten);
+              return rexCall;
             }
           }
-          if (changed) {
-            return RexUtil.composeDisjunction(rexBuilder, nodeList, false);
-          } else {
-            return rexCall;
+        case OR:
+          {
+            boolean changed = false;
+            List<RexNode> nodeList = new ArrayList<>();
+            for (RexNode sub : rexCall.getOperands()) {
+              RexNode subRewritten = extract(sub);
+              changed |= subRewritten != sub;
+              if (subRewritten.isAlwaysTrue()) {
+                return rexBuilder.makeLiteral(true);
+              } else {
+                nodeList.add(subRewritten);
+              }
+            }
+            if (changed) {
+              return RexUtil.composeDisjunction(rexBuilder, nodeList, false);
+            } else {
+              return rexCall;
+            }
           }
-        }
       }
     }
 
@@ -87,11 +87,8 @@ public class FilterExtractor {
   }
 
   public static RexNode extractFilter(
-      RexBuilder rexBuilder,
-      RexNode filter,
-      Predicate<RexNode> filterPredicate) {
+      RexBuilder rexBuilder, RexNode filter, Predicate<RexNode> filterPredicate) {
     FilterExtractor filterExtractor = new FilterExtractor(rexBuilder, filterPredicate);
     return filterExtractor.extract(filter);
   }
-
 }

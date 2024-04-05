@@ -15,15 +15,12 @@
  */
 package com.dremio.exec.store.parquet;
 
-import java.util.List;
-
 import com.dremio.exec.store.iceberg.deletes.EqualityDeleteFilter;
 import com.dremio.exec.store.iceberg.deletes.PositionalDeleteFilter;
 import com.google.common.collect.ImmutableList;
+import java.util.List;
 
-/**
- * Encapsulates the various types of filters that can be applied to a Parquet file.
- */
+/** Encapsulates the various types of filters that can be applied to a Parquet file. */
 public class ParquetFilters implements AutoCloseable {
   private final List<ParquetFilterCondition> pushdownFilters;
   private final PositionalDeleteFilter positionalDeleteFilter;
@@ -39,7 +36,9 @@ public class ParquetFilters implements AutoCloseable {
     this(pushdownFilters, null, null);
   }
 
-  public ParquetFilters(List<ParquetFilterCondition> pushdownFilters, PositionalDeleteFilter positionalDeleteFilter,
+  public ParquetFilters(
+      List<ParquetFilterCondition> pushdownFilters,
+      PositionalDeleteFilter positionalDeleteFilter,
       EqualityDeleteFilter equalityDeleteFilter) {
     this.pushdownFilters = pushdownFilters == null ? ImmutableList.of() : pushdownFilters;
     this.positionalDeleteFilter = positionalDeleteFilter;
@@ -70,8 +69,8 @@ public class ParquetFilters implements AutoCloseable {
     return equalityDeleteFilter;
   }
 
-  public ParquetFilters withRowLevelDeleteFilters(PositionalDeleteFilter positionalDeleteFilter,
-      EqualityDeleteFilter equalityDeleteFilter) {
+  public ParquetFilters withRowLevelDeleteFilters(
+      PositionalDeleteFilter positionalDeleteFilter, EqualityDeleteFilter equalityDeleteFilter) {
     return new ParquetFilters(this.pushdownFilters, positionalDeleteFilter, equalityDeleteFilter);
   }
 

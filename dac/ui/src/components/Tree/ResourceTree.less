@@ -93,10 +93,12 @@
     }
 
     &__iconBlock {
-      display: flex;
       align-items: center;
       margin-right: 5px;
       gap: 4px;
+      display: none;
+      max-height: 24px;
+      padding-left: 4px;
     }
 
     &__add {
@@ -165,6 +167,15 @@
       }
     }
 
+    .resourceTreeNode__add,
+    .resourceTreeNode--unstarred {
+      color: var(--color--neutral--600);
+
+      &:hover {
+        color: var(--dremio--color--link);
+      }
+    }
+
     &:hover {
       .resourceTreeNode__add {
         opacity: 1;
@@ -174,6 +185,10 @@
       }
       .resourceTreeNode--limitReached {
         opacity: 1;
+      }
+
+      .resourceTreeNode__iconBlock {
+        display: flex;
       }
     }
   }

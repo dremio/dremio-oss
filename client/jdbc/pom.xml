@@ -1,4 +1,4 @@
-<?xml version="1.0"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!--
 
     Copyright (C) 2017-2019 Dremio Corporation
@@ -21,7 +21,7 @@
   <parent>
     <groupId>com.dremio.client</groupId>
     <artifactId>dremio-client-parent</artifactId>
-    <version>24.3.2-202401241821100032-d2d8a497</version>
+    <version>25.0.0-202404051521110861-ed9515a8</version>
   </parent>
   <artifactId>dremio-client-jdbc</artifactId>
   <name>Client - JDBC Driver</name>
@@ -36,12 +36,12 @@
       <artifactId>dremio-common</artifactId>
       <exclusions>
         <exclusion>
-          <artifactId>guice</artifactId>
           <groupId>com.google.inject</groupId>
+          <artifactId>guice</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>auth</artifactId>
           <groupId>software.amazon.awssdk</groupId>
+          <artifactId>auth</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
@@ -49,7 +49,7 @@
       <groupId>com.dremio.client</groupId>
       <artifactId>dremio-client-base</artifactId>
       <version>${project.version}</version>
-    </dependency>    
+    </dependency>
     <dependency>
       <groupId>com.dremio</groupId>
       <artifactId>dremio-common</artifactId>
@@ -79,8 +79,8 @@
     <dependency>
       <groupId>org.apache.calcite</groupId>
       <artifactId>calcite-linq4j</artifactId>
-      <scope>test</scope>
       <version>${calcite.version}</version>
+      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
@@ -93,7 +93,7 @@
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-databind</artifactId>
-    </dependency>    
+    </dependency>
     <dependency>
       <groupId>net.hydromatic</groupId>
       <artifactId>foodmart-queries</artifactId>
@@ -120,8 +120,8 @@
   <build>
     <resources>
       <resource>
-         <directory>${project.basedir}/src/main/resources</directory>
-         <filtering>true</filtering>
+        <filtering>true</filtering>
+        <directory>${project.basedir}/src/main/resources</directory>
       </resource>
     </resources>
 
@@ -181,8 +181,8 @@
           <scope>test</scope>
           <exclusions>
             <exclusion>
-              <artifactId>commons-logging</artifactId>
               <groupId>commons-logging</groupId>
+              <artifactId>commons-logging</artifactId>
             </exclusion>
             <exclusion>
               <groupId>org.mortbay.jetty</groupId>

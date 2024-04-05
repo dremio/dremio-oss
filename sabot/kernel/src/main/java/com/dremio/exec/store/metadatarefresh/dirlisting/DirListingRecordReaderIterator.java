@@ -16,10 +16,6 @@
 
 package com.dremio.exec.store.metadatarefresh.dirlisting;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.store.RecordReader;
@@ -33,6 +29,9 @@ import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
 import com.dremio.service.namespace.dirlist.proto.DirListInputSplitProto;
 import com.google.protobuf.InvalidProtocolBufferException;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 public class DirListingRecordReaderIterator implements RecordReaderIterator {
 
@@ -45,7 +44,11 @@ public class DirListingRecordReaderIterator implements RecordReaderIterator {
   private FileSystem fs;
   int current = 0;
 
-  public DirListingRecordReaderIterator(OperatorContext context, FragmentExecutionContext fragmentExecContext, DirListingSubScan config) throws ExecutionSetupException {
+  public DirListingRecordReaderIterator(
+      OperatorContext context,
+      FragmentExecutionContext fragmentExecContext,
+      DirListingSubScan config)
+      throws ExecutionSetupException {
     this.context = context;
     this.config = config;
     splits = config.getSplits();
@@ -65,13 +68,10 @@ public class DirListingRecordReaderIterator implements RecordReaderIterator {
   }
 
   @Override
-  public void produceFromBuffered(boolean toProduce) {
-  }
+  public void produceFromBuffered(boolean toProduce) {}
 
   @Override
-  public void close() throws Exception {
-
-  }
+  public void close() throws Exception {}
 
   @Override
   public boolean hasNext() {
@@ -81,23 +81,42 @@ public class DirListingRecordReaderIterator implements RecordReaderIterator {
   @Override
   public RecordReader next() {
     DirListInputSplitProto.DirListInputSplit dirListInputSplit = dirListInputSplits.get(current);
-    List<PartitionProtobuf.PartitionValue> partitionValueList = splits.get(current).getPartitionInfo().getValuesList();
+    List<PartitionProtobuf.PartitionValue> partitionValueList =
+        splits.get(current).getPartitionInfo().getValuesList();
     current++;
 
     if (fs == null) {
       try {
-        fs = plugin.createFSWithoutHDFSCache(dirListInputSplit.getRootPath(), config.getProps().getUserName(), context);
+        fs =
+            plugin.createFSWithoutHDFSCache(
+                dirListInputSplit.getRootPath(), config.getProps().getUserName(), context);
       } catch (IOException e) {
         throw UserException.ioExceptionError(e).buildSilently();
       }
     }
-    return plugin.createDirListRecordReader(context, fs, dirListInputSplit, config.isAllowRecursiveListing(), config.getTableSchema(), partitionValueList);
+    DirListingRecordReader reader =
+        plugin.createDirListRecordReader(
+            context,
+            fs,
+            dirListInputSplit,
+            config.isAllowRecursiveListing(),
+            config.getTableSchema(),
+            partitionValueList);
+    if (config.isIncrementalBatchSize()) {
+      reader.initIncrementalBatchSize();
+    }
+    return reader;
   }
 
-  private static void populateDirListInputSplit(List<DirListInputSplitProto.DirListInputSplit> dirListInputSplits, List<SplitAndPartitionInfo> splits) throws ExecutionSetupException {
+  private static void populateDirListInputSplit(
+      List<DirListInputSplitProto.DirListInputSplit> dirListInputSplits,
+      List<SplitAndPartitionInfo> splits)
+      throws ExecutionSetupException {
     for (SplitAndPartitionInfo split : splits) {
       try {
-        DirListInputSplitProto.DirListInputSplit dirListInputSplit = DirListInputSplitProto.DirListInputSplit.parseFrom(split.getDatasetSplitInfo().getExtendedProperty().toByteArray());
+        DirListInputSplitProto.DirListInputSplit dirListInputSplit =
+            DirListInputSplitProto.DirListInputSplit.parseFrom(
+                split.getDatasetSplitInfo().getExtendedProperty().toByteArray());
         dirListInputSplits.add(dirListInputSplit);
       } catch (InvalidProtocolBufferException e) {
         throw new ExecutionSetupException(e);

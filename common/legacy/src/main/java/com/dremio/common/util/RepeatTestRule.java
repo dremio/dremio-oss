@@ -19,23 +19,21 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 
 /**
- * A {@link TestRule} to repeat a test for a specified number of times. If "count" <= 0, the test is not run.
- * For example,
- * <pre>
- * {@code
+ * A {@link TestRule} to repeat a test for a specified number of times. If "count" <= 0, the test is
+ * not run. For example,
+ *
+ * <pre>{@code
  * @Test
  * @Repeat(count = 20) // repeats the test 20 times
  * public void unitTest() {
  *   // code
  * }
- * }
- * </pre>
+ * }</pre>
  */
 public class RepeatTestRule implements TestRule {
 

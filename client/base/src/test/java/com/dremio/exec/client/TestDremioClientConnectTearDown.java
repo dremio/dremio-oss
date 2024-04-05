@@ -19,12 +19,10 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import java.util.Properties;
-
-import org.junit.Test;
-
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.rpc.RpcException;
+import java.util.Properties;
+import org.junit.Test;
 
 /**
  * Tests DremioClient connection resource cleanup upon encountering exceptions in connect() method.
@@ -52,7 +50,7 @@ public class TestDremioClientConnectTearDown {
 
     @Override
     public void connect(NodeEndpoint endpoint) throws RpcException {
-      switch(exceptionType) {
+      switch (exceptionType) {
         case RUNTIME_EXCEPTION:
           throw new RuntimeException("Test RuntimeException thrown in connect(NodeEndpoint)");
         case GENERIC_RPC_EXCEPTION:
@@ -75,20 +73,20 @@ public class TestDremioClientConnectTearDown {
     try {
       client.connect();
       fail();
-    } catch(RpcException e) {
+    } catch (RpcException e) {
       assertTrue(client.isCleanUpResourcesCalled);
     }
   }
 
   @Test
   public void testRuntimeExResourceCleanUp() throws RpcException {
-     MockDremioClient client = new MockDremioClient(TestExceptionType.RUNTIME_EXCEPTION);
+    MockDremioClient client = new MockDremioClient(TestExceptionType.RUNTIME_EXCEPTION);
     assertFalse(client.isCleanUpResourcesCalled);
-     try {
-       client.connect();
-       fail();
-     } catch (RuntimeException e) {
-       assertTrue(client.isCleanUpResourcesCalled);
-     }
+    try {
+      client.connect();
+      fail();
+    } catch (RuntimeException e) {
+      assertTrue(client.isCleanUpResourcesCalled);
+    }
   }
 }

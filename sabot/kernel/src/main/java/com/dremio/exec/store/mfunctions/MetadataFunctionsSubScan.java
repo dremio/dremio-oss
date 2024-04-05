@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.store.mfunctions;
 
-import java.util.List;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.AbstractSubScan;
@@ -28,11 +26,13 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.ImmutableList;
+import java.util.List;
 
 @JsonTypeName("metadata-functions-sub-scan")
 public final class MetadataFunctionsSubScan extends AbstractSubScan {
 
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MetadataFunctionsSubScan.class);
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(MetadataFunctionsSubScan.class);
 
   private final StoragePluginId pluginId;
   private final BatchSchema schema;
@@ -42,13 +42,13 @@ public final class MetadataFunctionsSubScan extends AbstractSubScan {
 
   @JsonCreator
   public MetadataFunctionsSubScan(
-    @JsonProperty("props") OpProps props,
-    @JsonProperty("fullSchema") BatchSchema schema,
-    @JsonProperty("mFunction") MetadataFunctionsMacro.MacroName mFunction,
-    @JsonProperty("tableSchemaPath") List<String> tablePath,
-    @JsonProperty("pluginId") StoragePluginId pluginId,
-    @JsonProperty("columns") List<SchemaPath> columns,
-    @JsonProperty("metadataLocation") String metadataLocation) {
+      @JsonProperty("props") OpProps props,
+      @JsonProperty("fullSchema") BatchSchema schema,
+      @JsonProperty("mFunction") MetadataFunctionsMacro.MacroName mFunction,
+      @JsonProperty("tableSchemaPath") List<String> tablePath,
+      @JsonProperty("pluginId") StoragePluginId pluginId,
+      @JsonProperty("columns") List<SchemaPath> columns,
+      @JsonProperty("metadataLocation") String metadataLocation) {
     super(props, schema, tablePath == null ? null : ImmutableList.of(tablePath));
     this.metadataLocation = metadataLocation;
     this.schema = schema;

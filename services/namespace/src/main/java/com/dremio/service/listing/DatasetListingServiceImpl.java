@@ -15,17 +15,16 @@
  */
 package com.dremio.service.listing;
 
-import java.util.List;
-
-import javax.inject.Provider;
-
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.source.proto.SourceConfig;
+import java.util.List;
+import javax.inject.Provider;
 
 /**
- * Implementation of {@link DatasetListingService} that interacts with {@link NamespaceService} running on this node.
+ * Implementation of {@link DatasetListingService} that interacts with {@link NamespaceService}
+ * running on this node.
  */
 public class DatasetListingServiceImpl implements DatasetListingService {
 
@@ -47,15 +46,11 @@ public class DatasetListingServiceImpl implements DatasetListingService {
 
   @Override
   public List<SourceConfig> getSources(String username) {
-    return factoryProvider.get()
-      .get(username)
-      .getSources();
+    return factoryProvider.get().get(username).getSources();
   }
 
   @Override
   public SourceConfig getSource(String username, String sourcename) throws NamespaceException {
-    return factoryProvider.get()
-      .get(username)
-      .getSource(new NamespaceKey(sourcename));
+    return factoryProvider.get().get(username).getSource(new NamespaceKey(sourcename));
   }
 }

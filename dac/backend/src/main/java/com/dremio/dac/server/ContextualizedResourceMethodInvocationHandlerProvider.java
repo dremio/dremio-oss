@@ -15,35 +15,32 @@
  */
 package com.dremio.dac.server;
 
+import com.dremio.context.RequestContext;
+import com.dremio.context.UserContext;
 import java.lang.reflect.InvocationHandler;
 import java.util.HashMap;
 import java.util.Map;
-
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.core.Context;
-
 import org.glassfish.jersey.server.model.Invocable;
 import org.glassfish.jersey.server.spi.internal.ResourceMethodInvocationHandlerProvider;
 
-import com.dremio.context.RequestContext;
-import com.dremio.context.UserContext;
-
 /**
- * The ContextualizedResourceMethodInvocationHandlerProvider extracts the UserContext from attributes
- * within the HttpServletRequest which is set by the DACAuthFilter.
+ * The ContextualizedResourceMethodInvocationHandlerProvider extracts the UserContext from
+ * attributes within the HttpServletRequest which is set by the DACAuthFilter.
  */
-public class ContextualizedResourceMethodInvocationHandlerProvider implements ResourceMethodInvocationHandlerProvider {
+public class ContextualizedResourceMethodInvocationHandlerProvider
+    implements ResourceMethodInvocationHandlerProvider {
   public static final String USER_CONTEXT_ATTRIBUTE =
-    ContextualizedResourceMethodInvocationHandlerProvider.class.getCanonicalName() + ".UserContext";
+      ContextualizedResourceMethodInvocationHandlerProvider.class.getCanonicalName()
+          + ".UserContext";
 
-  @Context
-  private HttpServletRequest httpServletRequest;
+  @Context private HttpServletRequest httpServletRequest;
 
   @Override
   public InvocationHandler create(Invocable invocable) {
-    return (proxy, method, args) -> RequestContext.current()
-      .with(getRequestContext())
-      .call(() -> method.invoke(proxy, args));
+    return (proxy, method, args) ->
+        RequestContext.current().with(getRequestContext()).call(() -> method.invoke(proxy, args));
   }
 
   private Map<RequestContext.Key<?>, Object> getRequestContext() {

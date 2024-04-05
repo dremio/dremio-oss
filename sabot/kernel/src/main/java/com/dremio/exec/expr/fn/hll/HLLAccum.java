@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.expr.fn.hll;
 
+import com.dremio.sabot.exec.context.SlicedBufferManager;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferManager;
 import org.apache.arrow.vector.holders.ObjectHolder;
@@ -22,11 +23,7 @@ import org.apache.datasketches.hll.HllSketch;
 import org.apache.datasketches.hll.TgtHllType;
 import org.apache.datasketches.memory.WritableMemory;
 
-import com.dremio.sabot.exec.context.SlicedBufferManager;
-
-/**
- * Holding class for HLL Accumulation object. Implement this abstraction to keep UDFs simple.
- */
+/** Holding class for HLL Accumulation object. Implement this abstraction to keep UDFs simple. */
 @SuppressWarnings("deprecation")
 public final class HLLAccum {
 
@@ -73,11 +70,11 @@ public final class HLLAccum {
 
   @SuppressWarnings("deprecation")
   public static ObjectHolder create(ObjectHolder holder, BufferManager manager) {
-    if(holder == null) {
+    if (holder == null) {
       holder = new ObjectHolder();
     }
 
-    if(holder.obj == null) {
+    if (holder.obj == null) {
       holder.obj = new HLLAccum(manager, StatisticsAggrFunctions.HLL_ACCURACY);
     }
     return holder;
@@ -90,9 +87,7 @@ public final class HLLAccum {
     return (long) HllSketch.heapify(bytes).getEstimate();
   }
 
-
   public void reset() {
     sketch.reset();
   }
-
 }

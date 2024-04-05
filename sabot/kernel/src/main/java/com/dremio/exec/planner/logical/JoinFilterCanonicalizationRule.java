@@ -15,9 +15,11 @@
  */
 package com.dremio.exec.planner.logical;
 
-import java.util.ArrayList;
+import com.dremio.exec.planner.sql.ConsistentTypeUtil;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
+import java.util.Arrays;
 import java.util.List;
-
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
@@ -38,17 +40,15 @@ import org.apache.calcite.sql.type.SqlOperandTypeChecker.Consistency;
 import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.tools.RelBuilderFactory;
 
-import com.dremio.exec.planner.sql.ConsistentTypeUtil;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
-
 /**
- * Rule that canonicalize a {@code LogicalJoin} filter condition by converting EQUALS/NULL combination into
- * IS NOT DISTINCT FROM.
+ * Rule that canonicalize a {@code LogicalJoin} filter condition by converting EQUALS/NULL
+ * combination into IS NOT DISTINCT FROM.
  */
 public class JoinFilterCanonicalizationRule extends RelOptRule {
-  public static final RelOptRule INSTANCE = new JoinFilterCanonicalizationRule(
-      RelOptHelper.any(LogicalJoin.class, Convention.NONE), DremioRelFactories.CALCITE_LOGICAL_BUILDER);
+  public static final RelOptRule INSTANCE =
+      new JoinFilterCanonicalizationRule(
+          RelOptHelper.any(LogicalJoin.class, Convention.NONE),
+          DremioRelFactories.CALCITE_LOGICAL_BUILDER);
 
   private final RelBuilderFactory factory;
 
@@ -63,8 +63,9 @@ public class JoinFilterCanonicalizationRule extends RelOptRule {
     final RelNode left = join.getLeft();
     final RelNode right = join.getRight();
     RelBuilder builder = factory.create(join.getCluster(), null);
-    RelNode newJoin = canonicalizeJoinCondition(builder, join.getJoinType(), join.getCondition(), left, right);
-    if(newJoin != null) {
+    RelNode newJoin =
+        canonicalizeJoinCondition(builder, join.getJoinType(), join.getCondition(), left, right);
+    if (newJoin != null) {
       call.transformTo(newJoin);
     }
   }
@@ -89,38 +90,32 @@ public class JoinFilterCanonicalizationRule extends RelOptRule {
     final List<Integer> rightKeys = Lists.newArrayList();
     final List<Boolean> filterNulls = Lists.newArrayList();
 
-    final RexNode remaining = RelOptUtil.splitJoinCondition(left, right, joinCondition, leftKeys, rightKeys, filterNulls);
+    final RexNode remaining =
+        RelOptUtil.splitJoinCondition(left, right, joinCondition, leftKeys, rightKeys, filterNulls);
 
     // Create a normalized join condition
-    final RexNode newPartialJoinCondition = buildJoinCondition(builder.getRexBuilder(), left.getRowType(), right.getRowType(), leftKeys, rightKeys, filterNulls);
+    final RexNode newPartialJoinCondition =
+        buildJoinCondition(
+            builder.getRexBuilder(),
+            left.getRowType(),
+            right.getRowType(),
+            leftKeys,
+            rightKeys,
+            filterNulls);
     // Add the remaining filter condition
-    final RexNode newJoinCondition = RelOptUtil.andJoinFilters(builder.getRexBuilder(), newPartialJoinCondition, remaining);
-
-    //removing nested conjunctions as they are redundant.
-    final RexNode simplifiedNewJoinCondition = simplifyNestedConjunctions(newJoinCondition,builder.getRexBuilder());
+    final RexNode newJoinCondition =
+        RexUtil.composeConjunction(
+            builder.getRexBuilder(), Arrays.asList(newPartialJoinCondition, remaining));
 
     // terminate if the same condition as previously
-    if (RexUtil.eq(joinCondition, simplifiedNewJoinCondition)) {
+    if (RexUtil.eq(joinCondition, newJoinCondition)) {
       return null;
     }
 
     builder.pushAll(ImmutableList.of(left, right));
-    builder.join(joinType, simplifiedNewJoinCondition);
+    builder.join(joinType, newJoinCondition);
 
     return builder.build();
-  }
-
-  /***
-   * Removes nested conjunctions from condition.
-   *
-   * @param condition
-   * @param builder
-   * @return a simplified condition without nested conjunctions
-   */
-  private RexNode simplifyNestedConjunctions(RexNode condition, RexBuilder builder){
-    List<RexNode> operandList = new ArrayList<>();
-    RelOptUtil.decomposeConjunction(condition,operandList);
-    return RexUtil.composeConjunction(builder,operandList,false);
   }
 
   /**
@@ -134,7 +129,13 @@ public class JoinFilterCanonicalizationRule extends RelOptRule {
    * @param builder
    * @return a conjunction of equi-join conditions
    */
-  static RexNode buildJoinCondition(RexBuilder builder, RelDataType leftRowType, RelDataType rightRowType, List<Integer> leftKeys, List<Integer> rightKeys, List<Boolean> filterNulls) {
+  static RexNode buildJoinCondition(
+      RexBuilder builder,
+      RelDataType leftRowType,
+      RelDataType rightRowType,
+      List<Integer> leftKeys,
+      List<Integer> rightKeys,
+      List<Boolean> filterNulls) {
     final List<RexNode> equijoinList = Lists.newArrayList();
     final int numLeftFields = leftRowType.getFieldCount();
     final List<RelDataTypeField> leftTypes = leftRowType.getFieldList();
@@ -144,23 +145,32 @@ public class JoinFilterCanonicalizationRule extends RelOptRule {
       int leftKeyOrdinal = leftKeys.get(i);
       int rightKeyOrdinal = rightKeys.get(i);
 
-      SqlBinaryOperator operator = filterNulls.get(i) ? SqlStdOperatorTable.EQUALS : SqlStdOperatorTable.IS_NOT_DISTINCT_FROM;
-      RexNode leftInput = builder.makeInputRef(leftTypes.get(leftKeyOrdinal).getType(), leftKeyOrdinal);
-      RexNode rightInput = builder.makeInputRef(rightTypes.get(rightKeyOrdinal).getType(), rightKeyOrdinal + numLeftFields);
+      SqlBinaryOperator operator =
+          filterNulls.get(i)
+              ? SqlStdOperatorTable.EQUALS
+              : SqlStdOperatorTable.IS_NOT_DISTINCT_FROM;
+      RexNode leftInput =
+          builder.makeInputRef(leftTypes.get(leftKeyOrdinal).getType(), leftKeyOrdinal);
+      RexNode rightInput =
+          builder.makeInputRef(
+              rightTypes.get(rightKeyOrdinal).getType(), rightKeyOrdinal + numLeftFields);
 
       List<RelDataType> types = ImmutableList.of(leftInput.getType(), rightInput.getType());
-      RelDataType consistentType;
       if (ConsistentTypeUtil.allExactNumeric(types) && ConsistentTypeUtil.anyDecimal(types)) {
-        consistentType = ConsistentTypeUtil.consistentDecimalType(builder.getTypeFactory(), types);
+        equijoinList.add(builder.makeCall(operator, leftInput, rightInput));
       } else {
-        consistentType = ConsistentTypeUtil.consistentType(builder.getTypeFactory(), Consistency.LEAST_RESTRICTIVE, types);
-      }
-      if (consistentType != null) {
-        equijoinList.add(builder.makeCall(operator, builder.ensureType(consistentType, leftInput, true),
-          builder.ensureType(consistentType, rightInput, true)));
-      } else {
-        equijoinList.add(builder.makeCall(operator, leftInput,
-          rightInput));
+        RelDataType consistentType =
+            ConsistentTypeUtil.consistentType(
+                builder.getTypeFactory(), Consistency.LEAST_RESTRICTIVE, types);
+        if (consistentType != null) {
+          equijoinList.add(
+              builder.makeCall(
+                  operator,
+                  builder.ensureType(consistentType, leftInput, true),
+                  builder.ensureType(consistentType, rightInput, true)));
+        } else {
+          equijoinList.add(builder.makeCall(operator, leftInput, rightInput));
+        }
       }
     }
 

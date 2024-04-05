@@ -15,9 +15,8 @@
  */
 package com.dremio.datastore;
 
-import org.immutables.value.Value;
-
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import org.immutables.value.Value;
 
 @Value.Immutable
 @JsonDeserialize(builder = ImmutableCheckpointInfo.Builder.class)
@@ -26,5 +25,4 @@ public interface CheckpointInfo {
   String getCheckpointPath();
 
   String getBackupDestinationDir();
-
 }

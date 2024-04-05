@@ -16,7 +16,7 @@
 /**
  * Cluster coordination system based on Apache Zookeeper and Curator.
  *
- * Zookeeper is a cluster coordination service used by Dremio to maintain cluster
- * membership information and some basic information about the cluster's state.
+ * <p>Zookeeper is a cluster coordination service used by Dremio to maintain cluster membership
+ * information and some basic information about the cluster's state.
  */
 package com.dremio.service.coordinator;

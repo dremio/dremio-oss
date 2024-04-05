@@ -15,18 +15,17 @@
  */
 package com.dremio.exec.store.easy.excel.xls;
 
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
-
 import org.apache.arrow.memory.ArrowBuf;
-
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
 
 /**
  * Off-heap buffered InputStream that keeps all read buffers in memory until the stream is closed.
- * <br><br>
+ * <br>
+ * <br>
  * This is not a thread-safe implementation.
  */
 public class XlsInputStream extends InputStream {
@@ -35,7 +34,7 @@ public class XlsInputStream extends InputStream {
     ArrowBuf allocate(int size);
   }
 
-  private static final int DEFAULT_BUFFER_SIZE = 4096*8;
+  private static final int DEFAULT_BUFFER_SIZE = 4096 * 8;
 
   private final BufferManager bufferManager;
   private final InputStream in;
@@ -71,7 +70,7 @@ public class XlsInputStream extends InputStream {
       try {
         int totalBytesRead = 0, readBytes = 0;
         while (totalBytesRead < size) {
-          readBytes = buf.setBytes(totalBytesRead , in, size - totalBytesRead);
+          readBytes = buf.setBytes(totalBytesRead, in, size - totalBytesRead);
           if (readBytes <= 0) {
             break;
           }
@@ -96,7 +95,7 @@ public class XlsInputStream extends InputStream {
 
     int res = current.getByte((int) (pos % size)) & 0xff;
 
-    pos++; //move read index
+    pos++; // move read index
     if ((pos % size) == 0) {
       current = fetchCurrentBlock();
     }
@@ -123,7 +122,7 @@ public class XlsInputStream extends InputStream {
 
   @Override
   public int available() {
-    return (int)(total - pos);
+    return (int) (total - pos);
   }
 
   @Override

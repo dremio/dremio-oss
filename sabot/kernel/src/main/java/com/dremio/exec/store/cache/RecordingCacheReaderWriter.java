@@ -18,19 +18,15 @@ package com.dremio.exec.store.cache;
 import static com.dremio.sabot.op.scan.ScanOperator.Metric.BLOCK_AFFINITY_CACHE_HITS;
 import static com.dremio.sabot.op.scan.ScanOperator.Metric.BLOCK_AFFINITY_CACHE_MISSES;
 
-import java.io.IOException;
-import java.util.Collections;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.io.file.FileBlockLocation;
 import com.dremio.io.file.FileSystem;
 import com.dremio.sabot.exec.context.OperatorStats;
+import java.io.IOException;
+import java.util.Collections;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * A reader-writer for cache which also tracks metrics
- */
+/** A reader-writer for cache which also tracks metrics */
 class RecordingCacheReaderWriter implements AutoCloseable {
   private static final Logger LOGGER = LoggerFactory.getLogger(RecordingCacheReaderWriter.class);
 
@@ -42,7 +38,8 @@ class RecordingCacheReaderWriter implements AutoCloseable {
   private long cacheMisses;
   private boolean closed;
 
-  RecordingCacheReaderWriter(FileSystem fileSystem, RocksDbBroker rocksDbBroker, OperatorStats operatorStats) {
+  RecordingCacheReaderWriter(
+      FileSystem fileSystem, RocksDbBroker rocksDbBroker, OperatorStats operatorStats) {
     this.fileSystem = fileSystem;
     this.operatorStats = operatorStats;
     this.rocksDbBroker = rocksDbBroker;
@@ -79,7 +76,8 @@ class RecordingCacheReaderWriter implements AutoCloseable {
   private Iterable<FileBlockLocation> getBlockLocations(String filePath, long fileSize) {
     Iterable<FileBlockLocation> blockLocations;
     try {
-      blockLocations = fileSystem.getFileBlockLocations(com.dremio.io.file.Path.of(filePath), 0, fileSize);
+      blockLocations =
+          fileSystem.getFileBlockLocations(com.dremio.io.file.Path.of(filePath), 0, fileSize);
     } catch (IOException e) {
       LOGGER.debug("getFileBlockLocations resulted in exception", e);
       return Collections.emptyList();

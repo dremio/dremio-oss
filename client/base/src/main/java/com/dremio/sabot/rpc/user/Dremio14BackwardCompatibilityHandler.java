@@ -19,49 +19,68 @@ import static com.dremio.common.types.TypeProtos.DataMode.OPTIONAL;
 import static com.dremio.common.types.TypeProtos.MinorType.LIST;
 import static com.dremio.common.types.TypeProtos.MinorType.MAP;
 
+import com.dremio.common.types.TypeProtos;
+import com.dremio.exec.proto.UserBitShared;
+import io.netty.buffer.ByteBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.common.types.TypeProtos;
-import com.dremio.exec.proto.UserBitShared;
-
-import io.netty.buffer.ByteBuf;
-
 /**
- * If Dremio client on the session is using record batch format older than 23.0,
- * we use this encoder to patch the map vectors sent by Dremio server to the client.
+ * If Dremio client on the session is using record batch format older than 23.0, we use this encoder
+ * to patch the map vectors sent by Dremio server to the client.
  */
 class Dremio14BackwardCompatibilityHandler extends BaseBackwardsCompatibilityHandler {
-  private static final Logger logger = LoggerFactory.getLogger(Dremio14BackwardCompatibilityHandler.class);
+  private static final Logger logger =
+      LoggerFactory.getLogger(Dremio14BackwardCompatibilityHandler.class);
 
   public Dremio14BackwardCompatibilityHandler(BufferAllocator bcAllocator) {
     super(bcAllocator);
   }
 
   @Override
-  public void patch(UserBitShared.SerializedField.Builder field, ByteBuf[] buffers, int bufferStart, int buffersLength, String parentName, String indent) {
+  public void patch(
+      UserBitShared.SerializedField.Builder field,
+      ByteBuf[] buffers,
+      int bufferStart,
+      int buffersLength,
+      String parentName,
+      String indent) {
     TypeProtos.DataMode mode = field.getMajorType().getMode();
     TypeProtos.MinorType minor = field.getMajorType().getMinorType();
     String name = field.getNamePart().getName();
     boolean changed = false;
     if (logger.isDebugEnabled()) {
-      logger.debug("{} BEFORE PATCH: buffers {} for field {}.{}: {} {} expecting {}", indent,
-        sizesString(buffers, bufferStart, buffersLength), parentName, name, mode, minor, field.getBufferLength());
+      logger.debug(
+          "{} BEFORE PATCH: buffers {} for field {}.{}: {} {} expecting {}",
+          indent,
+          sizesString(buffers, bufferStart, buffersLength),
+          parentName,
+          name,
+          mode,
+          minor,
+          field.getBufferLength());
     }
-    if (field.getValueCount()!=0 && mode==OPTIONAL) {
-      while (buffers[bufferStart].readableBytes()==0) {
+    if (field.getValueCount() != 0 && mode == OPTIONAL) {
+      while (buffers[bufferStart].readableBytes() == 0) {
         ++bufferStart;
         --buffersLength;
       }
     }
-    if (mode==OPTIONAL && minor==MAP) {
+    if (mode == OPTIONAL && minor == MAP) {
       field.getMajorTypeBuilder().setMinorType(LIST);
       changed = true;
     }
     if (logger.isDebugEnabled() && changed) {
-      logger.debug("{} AFTER PATCH: buffers {} for field {}.{}: {} {} expecting {}", indent,
-        sizesString(buffers, bufferStart, buffersLength), parentName, name, mode, minor, field.getBufferLength());
+      logger.debug(
+          "{} AFTER PATCH: buffers {} for field {}.{}: {} {} expecting {}",
+          indent,
+          sizesString(buffers, bufferStart, buffersLength),
+          parentName,
+          name,
+          mode,
+          minor,
+          field.getBufferLength());
     }
   }
 }

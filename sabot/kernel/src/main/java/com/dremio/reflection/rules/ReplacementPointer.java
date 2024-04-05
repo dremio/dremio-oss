@@ -15,8 +15,8 @@
  */
 package com.dremio.reflection.rules;
 
+import com.dremio.exec.planner.common.ContainerRel;
 import java.util.List;
-
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelTraitSet;
@@ -24,19 +24,15 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.SingleRel;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
-import com.dremio.exec.planner.common.ContainerRel;
-
 /**
- * A pointer in a RelNode tree that indicates that the replacement can be swapped in that point in the tree
+ * A pointer in a RelNode tree that indicates that the replacement can be swapped in that point in
+ * the tree
  */
 public class ReplacementPointer extends SingleRel implements ContainerRel {
-  /**
-   * the alternative tree that can be substituted in
-   */
+  /** the alternative tree that can be substituted in */
   private final RelNode replacement;
-  /**
-   * the portion of the original tree that is replaced by replacement
-   */
+
+  /** the portion of the original tree that is replaced by replacement */
   private final RelNode equivalent;
 
   public ReplacementPointer(RelNode replacement, RelNode equiv) {

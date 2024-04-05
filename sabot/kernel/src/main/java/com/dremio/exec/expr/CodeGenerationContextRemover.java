@@ -15,9 +15,6 @@
  */
 package com.dremio.exec.expr;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import com.dremio.common.expression.BooleanOperator;
 import com.dremio.common.expression.CaseExpression;
 import com.dremio.common.expression.FunctionHolderExpression;
@@ -25,23 +22,26 @@ import com.dremio.common.expression.IfExpression;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.visitors.AbstractExprVisitor;
 import com.google.common.collect.Lists;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Used to remove all of the code generation context nodes. By now the decision has been made on the
  * execution engine(Java/Gandiva) and this can be safely removed.
  *
- * Basically iterates over all the nodes and returns the child node held by the context nodes.
+ * <p>Basically iterates over all the nodes and returns the child node held by the context nodes.
  */
-public class CodeGenerationContextRemover extends AbstractExprVisitor<LogicalExpression, Void, RuntimeException> {
+public class CodeGenerationContextRemover
+    extends AbstractExprVisitor<LogicalExpression, Void, RuntimeException> {
 
-   public static LogicalExpression removeCodeGenContext(LogicalExpression expr) {
-     CodeGenerationContextRemover contextRemover = new CodeGenerationContextRemover();
-     return expr.accept(contextRemover, null);
-   }
+  public static LogicalExpression removeCodeGenContext(LogicalExpression expr) {
+    CodeGenerationContextRemover contextRemover = new CodeGenerationContextRemover();
+    return expr.accept(contextRemover, null);
+  }
 
-   @Override
-   public LogicalExpression visitFunctionHolderExpression(FunctionHolderExpression expr, Void
-     value) {
+  @Override
+  public LogicalExpression visitFunctionHolderExpression(
+      FunctionHolderExpression expr, Void value) {
     List<LogicalExpression> newArgs = Lists.newArrayList();
     for (LogicalExpression arg : expr.args) {
       newArgs.add(arg.accept(this, value));
@@ -65,26 +65,30 @@ public class CodeGenerationContextRemover extends AbstractExprVisitor<LogicalExp
     LogicalExpression conditionExpression = condition.condition.accept(this, value);
     LogicalExpression thenExpression = condition.expression.accept(this, value);
     LogicalExpression elseExpression = ifExpression.elseExpression.accept(this, value);
-    IfExpression.IfCondition newCondition = new IfExpression.IfCondition(conditionExpression,
-      thenExpression);
+    IfExpression.IfCondition newCondition =
+        new IfExpression.IfCondition(conditionExpression, thenExpression);
     return IfExpression.newBuilder().setIfCondition(newCondition).setElse(elseExpression).build();
   }
 
   @Override
-  public LogicalExpression visitCaseExpression(CaseExpression caseExpression, Void value) throws RuntimeException {
+  public LogicalExpression visitCaseExpression(CaseExpression caseExpression, Void value)
+      throws RuntimeException {
     List<CaseExpression.CaseConditionNode> caseConditions = new ArrayList<>();
     for (CaseExpression.CaseConditionNode conditionNode : caseExpression.caseConditions) {
-      caseConditions.add(new CaseExpression.CaseConditionNode(
-        conditionNode.whenExpr.accept(this, value),
-        conditionNode.thenExpr.accept(this, value)));
+      caseConditions.add(
+          new CaseExpression.CaseConditionNode(
+              conditionNode.whenExpr.accept(this, value),
+              conditionNode.thenExpr.accept(this, value)));
     }
     LogicalExpression elseExpr = caseExpression.elseExpr.accept(this, value);
-    return CaseExpression.newBuilder().setCaseConditions(caseConditions).setElseExpr(elseExpr).build();
+    return CaseExpression.newBuilder()
+        .setCaseConditions(caseConditions)
+        .setElseExpr(elseExpr)
+        .build();
   }
 
   @Override
   public LogicalExpression visitUnknown(LogicalExpression expression, Void value) {
     return expression;
   }
-
 }

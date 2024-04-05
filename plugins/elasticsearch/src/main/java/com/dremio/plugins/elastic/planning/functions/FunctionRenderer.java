@@ -20,7 +20,8 @@ import org.apache.calcite.rex.RexVisitor;
 public class FunctionRenderer {
 
   public static enum RenderMode {
-    GROOVY, PAINLESS
+    GROOVY,
+    PAINLESS
   }
 
   private final boolean supportsV5Features;
@@ -45,15 +46,15 @@ public class FunctionRenderer {
     return mode;
   }
 
-  public boolean isUsingPainless(){
+  public boolean isUsingPainless() {
     return mode == RenderMode.PAINLESS;
   }
 
-  public boolean isSupportsV5Features(){
+  public boolean isSupportsV5Features() {
     return supportsV5Features;
   }
 
-  public boolean isScriptsEnabled(){
+  public boolean isScriptsEnabled() {
     return scriptsEnabled;
   }
 

@@ -15,15 +15,14 @@
  */
 package com.dremio.telemetry.api.config;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Collections;
 import java.util.List;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
-
 /**
- * Root level config for metrics-config.yaml.
- * Specify auto-reload settings and metrics settings in one spot.
+ * Root level config for metrics-config.yaml. Specify auto-reload settings and metrics settings in
+ * one spot.
  */
 public class TelemetryConfigurator implements AutoCloseable {
 
@@ -33,10 +32,9 @@ public class TelemetryConfigurator implements AutoCloseable {
 
   @JsonCreator
   public TelemetryConfigurator(
-    @JsonProperty("auto-reload") RefreshConfiguration refreshConfig,
-    @JsonProperty("metrics") List<MetricsConfigurator> metricsConfigs,
-    @JsonProperty("tracing") TracerConfigurator traceConfig
-  ) {
+      @JsonProperty("auto-reload") RefreshConfiguration refreshConfig,
+      @JsonProperty("metrics") List<MetricsConfigurator> metricsConfigs,
+      @JsonProperty("tracing") TracerConfigurator traceConfig) {
     super();
     this.refreshConfig = refreshConfig;
     this.metricsConfigs = metricsConfigs;

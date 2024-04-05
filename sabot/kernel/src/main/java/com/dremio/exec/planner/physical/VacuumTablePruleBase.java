@@ -15,9 +15,6 @@
  */
 package com.dremio.exec.planner.physical;
 
-import org.apache.calcite.plan.RelOptRuleOperand;
-import org.apache.iceberg.Table;
-
 import com.dremio.exec.catalog.DremioPrepareTable;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.ops.OptimizerRulesContext;
@@ -29,22 +26,25 @@ import com.dremio.exec.planner.logical.VacuumTableRel;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.google.common.collect.ImmutableList;
+import org.apache.calcite.plan.RelOptRuleOperand;
+import org.apache.iceberg.Table;
 
-/**
- * A base physical plan generator for VACUUM
- */
+/** A base physical plan generator for VACUUM */
 public abstract class VacuumTablePruleBase extends Prule {
 
   private final OptimizerRulesContext context;
 
-  public VacuumTablePruleBase(RelOptRuleOperand operand, String description, OptimizerRulesContext context) {
+  public VacuumTablePruleBase(
+      RelOptRuleOperand operand, String description, OptimizerRulesContext context) {
     super(operand, description);
     this.context = context;
   }
 
   public Prel getPhysicalPlan(VacuumTableRel vacuumTableRel) {
-    TableMetadata tableMetadata = ((DremioPrepareTable) vacuumTableRel.getTable()).getTable().getDataset();
-    StoragePluginId internalStoragePlugin = TableFunctionUtil.getInternalTablePluginId(tableMetadata);
+    TableMetadata tableMetadata =
+        ((DremioPrepareTable) vacuumTableRel.getTable()).getTable().getDataset();
+    StoragePluginId internalStoragePlugin =
+        TableFunctionUtil.getInternalTablePluginId(tableMetadata);
     StoragePluginId storagePluginId = tableMetadata.getStoragePluginId();
 
     Table icebergTable = IcebergUtils.getIcebergTable(vacuumTableRel.getCreateTableEntry());
@@ -52,27 +52,29 @@ public abstract class VacuumTablePruleBase extends Prule {
 
     VacuumPlanGenerator planBuilder;
     if (vacuumTableRel.getVacuumOptions().isRemoveOrphans()) {
-      planBuilder = new VacuumTableRemoveOrphansPlanGenerator(
-        vacuumTableRel.getCluster(),
-        vacuumTableRel.getTraitSet().plus(Prel.PHYSICAL),
-        ImmutableList.copyOf(tableMetadata.getSplits()),
-        icebergCostEstimates,
-        vacuumTableRel.getVacuumOptions(),
-        internalStoragePlugin,
-        storagePluginId,
-        tableMetadata.getUser(),
-        icebergTable.location());
+      planBuilder =
+          new VacuumTableRemoveOrphansPlanGenerator(
+              vacuumTableRel.getCluster(),
+              vacuumTableRel.getTraitSet().plus(Prel.PHYSICAL),
+              ImmutableList.copyOf(tableMetadata.getSplits()),
+              icebergCostEstimates,
+              vacuumTableRel.getVacuumOptions(),
+              internalStoragePlugin,
+              storagePluginId,
+              tableMetadata.getUser(),
+              icebergTable.location());
     } else {
-      planBuilder = new VacuumTableExpireSnapshotsPlanGenerator(
-        vacuumTableRel.getCluster(),
-        vacuumTableRel.getTraitSet().plus(Prel.PHYSICAL),
-        ImmutableList.copyOf(tableMetadata.getSplits()),
-        icebergCostEstimates,
-        vacuumTableRel.getVacuumOptions(),
-        internalStoragePlugin,
-        storagePluginId,
-        tableMetadata.getUser(),
-        icebergTable.location());
+      planBuilder =
+          new VacuumTableExpireSnapshotsPlanGenerator(
+              vacuumTableRel.getCluster(),
+              vacuumTableRel.getTraitSet().plus(Prel.PHYSICAL),
+              ImmutableList.copyOf(tableMetadata.getSplits()),
+              icebergCostEstimates,
+              vacuumTableRel.getVacuumOptions(),
+              internalStoragePlugin,
+              storagePluginId,
+              tableMetadata.getUser(),
+              icebergTable.location());
     }
 
     return planBuilder.buildPlan();

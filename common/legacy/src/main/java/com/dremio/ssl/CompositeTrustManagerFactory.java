@@ -15,28 +15,26 @@
  */
 package com.dremio.ssl;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableList;
+import io.netty.handler.ssl.util.SimpleTrustManagerFactory;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.Optional;
-
 import javax.net.ssl.ManagerFactoryParameters;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.X509ExtendedTrustManager;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableList;
-
-import io.netty.handler.ssl.util.SimpleTrustManagerFactory;
-
 /**
- * A factory for creating a TrustManager that checks if certificates
- * validate against multiple sources.
+ * A factory for creating a TrustManager that checks if certificates validate against multiple
+ * sources.
  */
 public final class CompositeTrustManagerFactory extends SimpleTrustManagerFactory {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CompositeTrustManagerFactory.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(CompositeTrustManagerFactory.class);
 
   private final CompositeTrustManager trustManager;
 
@@ -45,12 +43,10 @@ public final class CompositeTrustManagerFactory extends SimpleTrustManagerFactor
   }
 
   @Override
-  protected void engineInit(KeyStore keyStore) throws Exception {
-  }
+  protected void engineInit(KeyStore keyStore) throws Exception {}
 
   @Override
-  protected void engineInit(ManagerFactoryParameters managerFactoryParameters) throws Exception {
-  }
+  protected void engineInit(ManagerFactoryParameters managerFactoryParameters) throws Exception {}
 
   @Override
   protected TrustManager[] engineGetTrustManagers() {
@@ -62,21 +58,19 @@ public final class CompositeTrustManagerFactory extends SimpleTrustManagerFactor
   }
 
   public static final class Builder {
-    private final ImmutableList.Builder<X509ExtendedTrustManager> trustManagersBuilder = ImmutableList.builder();
+    private final ImmutableList.Builder<X509ExtendedTrustManager> trustManagersBuilder =
+        ImmutableList.builder();
 
-    private Builder() {
-    }
+    private Builder() {}
 
-    /**
-     * Add the default JVM trust store to the CompositeTrustManagerFactory.
-     */
+    /** Add the default JVM trust store to the CompositeTrustManagerFactory. */
     public Builder addDefaultTrustStore() {
       return addTrustStore((KeyStore) null);
     }
 
     /**
-     * Add a trust store to the CompositeTrustManagerFactory.
-     * The load() function must have already been called if it is required.
+     * Add a trust store to the CompositeTrustManagerFactory. The load() function must have already
+     * been called if it is required.
      */
     public Builder addTrustStore(KeyStore keyStore) {
       try {
@@ -98,14 +92,15 @@ public final class CompositeTrustManagerFactory extends SimpleTrustManagerFactor
     }
 
     private static Optional<X509ExtendedTrustManager> toX509TrustManager(KeyStore keyStore)
-      throws KeyStoreException {
+        throws KeyStoreException {
       try {
-        final TrustManagerFactory factory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+        final TrustManagerFactory factory =
+            TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
         factory.init(keyStore);
         return Arrays.stream(factory.getTrustManagers())
-          .filter(tm -> tm instanceof X509ExtendedTrustManager)
-          .map(tm -> (X509ExtendedTrustManager) tm)
-          .findFirst();
+            .filter(tm -> tm instanceof X509ExtendedTrustManager)
+            .map(tm -> (X509ExtendedTrustManager) tm)
+            .findFirst();
       } catch (NoSuchAlgorithmException ex) {
         // This can't happen as we are using the TrustManagerFactory's default algorithm.
         return Optional.empty();

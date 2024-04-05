@@ -15,19 +15,14 @@
  */
 package com.dremio.datastore.format;
 
+import com.dremio.datastore.format.compound.KeyPair;
+import com.dremio.datastore.format.compound.KeyTriple;
 import java.util.Arrays;
 import java.util.Objects;
 
-import com.dremio.datastore.format.compound.KeyPair;
-import com.dremio.datastore.format.compound.KeyTriple;
-
-/**
- * Tests for expected classes returned from {@link Format#getRepresentedClass()}
- */
+/** Tests for expected classes returned from {@link Format#getRepresentedClass()} */
 public class WrappedCompoundFormats {
-  /**
-   * Wraps a KeyPair object.
-   */
+  /** Wraps a KeyPair object. */
   public static class KeyPairStringContainer {
     private final KeyPair<String, String> containedObject;
 
@@ -35,7 +30,7 @@ public class WrappedCompoundFormats {
       this.containedObject = containedObject;
     }
 
-    public KeyPair<String,String> getContainedObject() {
+    public KeyPair<String, String> getContainedObject() {
       return containedObject;
     }
 
@@ -50,9 +45,7 @@ public class WrappedCompoundFormats {
     }
   }
 
-  /**
-   * Wraps a KeyTriple object.
-   */
+  /** Wraps a KeyTriple object. */
   public static class KeyTripleStringContainer {
     private final KeyTriple<String, String, String> containedObject;
 
@@ -60,7 +53,7 @@ public class WrappedCompoundFormats {
       this.containedObject = containedObject;
     }
 
-    public KeyTriple<String,String, String> getContainedObject() {
+    public KeyTriple<String, String, String> getContainedObject() {
       return containedObject;
     }
 
@@ -75,9 +68,7 @@ public class WrappedCompoundFormats {
     }
   }
 
-  /**
-   * Wraps a KeyPair object.
-   */
+  /** Wraps a KeyPair object. */
   public static class KeyPairBytesContainer {
     private final KeyPair<byte[], byte[]> containedObject;
 
@@ -85,7 +76,7 @@ public class WrappedCompoundFormats {
       this.containedObject = containedObject;
     }
 
-    public KeyPair<byte[],byte[]> getContainedObject() {
+    public KeyPair<byte[], byte[]> getContainedObject() {
       return containedObject;
     }
 
@@ -100,9 +91,7 @@ public class WrappedCompoundFormats {
     }
   }
 
-  /**
-   * Wraps a KeyTriple object.
-   */
+  /** Wraps a KeyTriple object. */
   public static class KeyTripleBytesContainer {
     private final KeyTriple<byte[], byte[], byte[]> containedObject;
 
@@ -110,7 +99,7 @@ public class WrappedCompoundFormats {
       this.containedObject = containedObject;
     }
 
-    public KeyTriple<byte[],byte[], byte[]> getContainedObject() {
+    public KeyTriple<byte[], byte[], byte[]> getContainedObject() {
       return containedObject;
     }
 

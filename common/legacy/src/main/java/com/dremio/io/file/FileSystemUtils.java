@@ -15,6 +15,12 @@
  */
 package com.dremio.io.file;
 
+import com.dremio.io.CompressionCodec;
+import com.dremio.io.CompressionCodecFactory;
+import com.dremio.io.FSInputStream;
+import com.google.common.collect.Iterators;
+import com.google.common.io.ByteStreams;
+import com.google.common.io.Closeables;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -26,15 +32,9 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Predicate;
 
-import com.dremio.io.CompressionCodec;
-import com.dremio.io.CompressionCodecFactory;
-import com.dremio.io.FSInputStream;
-import com.google.common.collect.Iterators;
-import com.google.common.io.ByteStreams;
-import com.google.common.io.Closeables;
-
 public final class FileSystemUtils {
-  private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(FileSystemUtils.class);
+  private static final org.slf4j.Logger LOGGER =
+      org.slf4j.LoggerFactory.getLogger(FileSystemUtils.class);
   private static final Queue<DeleteEntry> TO_DELETE_ON_EXIT = new ConcurrentLinkedQueue<>();
 
   private static class DeleteEntry {
@@ -48,28 +48,30 @@ public final class FileSystemUtils {
   }
 
   static {
-    Runtime.getRuntime().addShutdownHook(new Thread("files-delete-on-exit") {
-      @Override
-      public void run() {
-        for (DeleteEntry entry = TO_DELETE_ON_EXIT.poll(); entry != null; entry = TO_DELETE_ON_EXIT.poll()) {
-          try {
-            entry.fs.delete(entry.path, true);
-          } catch (IOException | IllegalStateException e) {
-            LOGGER.warn("Could not delete path {}", entry.path, e);
-          }
-        }
-      }
-    });
+    Runtime.getRuntime()
+        .addShutdownHook(
+            new Thread("files-delete-on-exit") {
+              @Override
+              public void run() {
+                for (DeleteEntry entry = TO_DELETE_ON_EXIT.poll();
+                    entry != null;
+                    entry = TO_DELETE_ON_EXIT.poll()) {
+                  try {
+                    entry.fs.delete(entry.path, true);
+                  } catch (IOException | IllegalStateException e) {
+                    LOGGER.warn("Could not delete path {}", entry.path, e);
+                  }
+                }
+              }
+            });
   }
 
-  private FileSystemUtils() {
-  }
+  private FileSystemUtils() {}
 
   /**
-   * Adds a hook to delete the file designated by {@code path} during JVM
-   * shutdown.
+   * Adds a hook to delete the file designated by {@code path} during JVM shutdown.
    *
-   * The operation is not guaranteed to complete successfully
+   * <p>The operation is not guaranteed to complete successfully
    *
    * @param fs
    * @param path
@@ -83,19 +85,20 @@ public final class FileSystemUtils {
 
   /**
    * Cancels the remove of a file on JVM shutdown
+   *
    * @param key the key returned by {@code deleteOnExit} to cancel
    */
   public static void cancelDeleteOnExit(Object key) {
     TO_DELETE_ON_EXIT.remove(key);
   }
 
-  /** create a file with the provided permission
-   * The permission of the file is set to be the provided permission as in
-   * setPermission, not permission&~umask
+  /**
+   * create a file with the provided permission The permission of the file is set to be the provided
+   * permission as in setPermission, not permission&~umask
    *
-   * It is implemented using two RPCs. It is understood that it is inefficient,
-   * but the implementation is thread-safe. The other option is to change the
-   * value of umask in configuration to be 0, but it is not thread-safe.
+   * <p>It is implemented using two RPCs. It is understood that it is inefficient, but the
+   * implementation is thread-safe. The other option is to change the value of umask in
+   * configuration to be 0, but it is not thread-safe.
    *
    * @param fs file system handle
    * @param file the name of the file to be created
@@ -103,8 +106,8 @@ public final class FileSystemUtils {
    * @return an output stream
    * @throws IOException
    */
-  public static OutputStream create(FileSystem fs,
-      Path file, Set<PosixFilePermission> permissions) throws IOException {
+  public static OutputStream create(FileSystem fs, Path file, Set<PosixFilePermission> permissions)
+      throws IOException {
     // create the file with default permission
     OutputStream out = fs.create(file);
     try {
@@ -120,15 +123,18 @@ public final class FileSystemUtils {
   /**
    * Opens a compressed files and creates a input stream to read uncompressed data.
    *
-   * If the compression codec factory does not find any suitable coded, the file is opened directly.
+   * <p>If the compression codec factory does not find any suitable coded, the file is opened
+   * directly.
    *
    * @param factory the compression codec factory
    * @param fs the filesystem to use
    * @param path the file to open
-   * @return a input stream. If file is compressed, returns an instance of {@code com.dremio.io.CompressedFSInputStream}
+   * @return a input stream. If file is compressed, returns an instance of {@code
+   *     com.dremio.io.CompressedFSInputStream}
    * @throws IOException
    */
-  public static FSInputStream openPossiblyCompressedStream(CompressionCodecFactory factory, FileSystem fs, Path path) throws IOException {
+  public static FSInputStream openPossiblyCompressedStream(
+      CompressionCodecFactory factory, FileSystem fs, Path path) throws IOException {
     final CompressionCodec codec = factory.getCodec(path);
     if (codec != null) {
       return codec.newInputStream(fs.open(path));
@@ -141,29 +147,26 @@ public final class FileSystemUtils {
    * Lists recursively all files present under the given path {@code path}
    *
    * @param fs the filesystem
-   * @param path
-   *          the path to use as the root of the search
-   * @param pathFilter
-   *          the filter to apply on entries. If a directory entry is filtered
-   *          out, all the children of the directory will not be present in the
-   *          returned stream.
+   * @param path the path to use as the root of the search
+   * @param pathFilter the filter to apply on entries. If a directory entry is filtered out, all the
+   *     children of the directory will not be present in the returned stream.
    * @return a stream of file attributes
-   * @throws IOException
-   *           if an error occurs while listing directory content
+   * @throws IOException if an error occurs while listing directory content
    */
-  public static DirectoryStream<FileAttributes> listRecursive(FileSystem fs, Path path,
-      Predicate<Path> pathFilter) throws IOException {
+  public static DirectoryStream<FileAttributes> listRecursive(
+      FileSystem fs, Path path, Predicate<Path> pathFilter) throws IOException {
     final DirectoryStream<FileAttributes> stream = fs.list(path, pathFilter);
     return new RecursiveDirectoryStream(fs, stream, pathFilter);
   }
 
-  public static DirectoryStream<FileAttributes> globRecursive(FileSystem wrapper, Path pattern, Predicate<Path> filter) throws IOException {
+  public static DirectoryStream<FileAttributes> globRecursive(
+      FileSystem wrapper, Path pattern, Predicate<Path> filter) throws IOException {
     final DirectoryStream<FileAttributes> globStream = wrapper.glob(pattern, filter);
     return new RecursiveDirectoryStream(wrapper, globStream, filter);
   }
 
   public static DirectoryStream<FileAttributes> listFilterDirectoryRecursive(
-    FileSystem fs, Path path, int maxFilesLimit, Predicate<Path> pathFilter) throws IOException {
+      FileSystem fs, Path path, int maxFilesLimit, Predicate<Path> pathFilter) throws IOException {
     final DirectoryStream<FileAttributes> baseIterator = listRecursive(fs, path, pathFilter);
     if (maxFilesLimit <= 0) {
       return baseIterator;
@@ -178,26 +181,34 @@ public final class FileSystemUtils {
   }
 
   /** Copy files between FileSystems. */
-  public static boolean copy(FileSystem srcFS, Path src,
-                             FileSystem dstFS, Path dst,
-                             boolean deleteSource) throws IOException {
+  public static boolean copy(
+      FileSystem srcFS, Path src, FileSystem dstFS, Path dst, boolean deleteSource)
+      throws IOException {
     return copy(srcFS, src, dstFS, dst, deleteSource, true);
   }
 
   /** Copy files between FileSystems. */
-  public static boolean copy(FileSystem srcFS, Path src,
-                             FileSystem dstFS, Path dst,
-                             boolean deleteSource,
-                             boolean overwrite) throws IOException {
+  public static boolean copy(
+      FileSystem srcFS,
+      Path src,
+      FileSystem dstFS,
+      Path dst,
+      boolean deleteSource,
+      boolean overwrite)
+      throws IOException {
     FileAttributes fileAttributes = srcFS.getFileAttributes(src);
     return copy(srcFS, fileAttributes, dstFS, dst, deleteSource, overwrite);
   }
 
   /** Copy files between FileSystems. */
-  public static boolean copy(FileSystem srcFS, FileAttributes srcAttributes,
-                             FileSystem dstFS, Path dst,
-                             boolean deleteSource,
-                             boolean overwrite) throws IOException {
+  public static boolean copy(
+      FileSystem srcFS,
+      FileAttributes srcAttributes,
+      FileSystem dstFS,
+      Path dst,
+      boolean deleteSource,
+      boolean overwrite)
+      throws IOException {
     Path src = srcAttributes.getPath();
     dst = checkDest(src.getName(), dstFS, dst, overwrite);
     if (srcAttributes.isDirectory()) {
@@ -207,9 +218,13 @@ public final class FileSystemUtils {
       }
       try (DirectoryStream<FileAttributes> contents = srcFS.list(src)) {
         for (FileAttributes content : contents) {
-          copy(srcFS, content, dstFS,
+          copy(
+              srcFS,
+              content,
+              dstFS,
               dst.resolve(content.getPath().getName()),
-              deleteSource, overwrite);
+              deleteSource,
+              overwrite);
         }
       }
     } else {
@@ -223,11 +238,10 @@ public final class FileSystemUtils {
     } else {
       return true;
     }
-
   }
 
-  private static Path checkDest(String srcName, FileSystem dstFS, Path dst,
-      boolean overwrite) throws IOException {
+  private static Path checkDest(String srcName, FileSystem dstFS, Path dst, boolean overwrite)
+      throws IOException {
     if (dstFS.exists(dst)) {
       FileAttributes sdst = dstFS.getFileAttributes(dst);
       if (sdst.isDirectory()) {
@@ -246,11 +260,8 @@ public final class FileSystemUtils {
   // If the destination is a subdirectory of the source, then
   // generate exception
   //
-  private static void checkDependencies(FileSystem srcFS,
-                                        Path src,
-                                        FileSystem dstFS,
-                                        Path dst)
-                                        throws IOException {
+  private static void checkDependencies(FileSystem srcFS, Path src, FileSystem dstFS, Path dst)
+      throws IOException {
     if (srcFS == dstFS) {
       String srcq = srcFS.makeQualified(src).toString() + Path.SEPARATOR;
       String dstq = dstFS.makeQualified(dst).toString() + Path.SEPARATOR;
@@ -258,11 +269,9 @@ public final class FileSystemUtils {
         if (srcq.length() == dstq.length()) {
           throw new IOException("Cannot copy " + src + " to itself.");
         } else {
-          throw new IOException("Cannot copy " + src + " to its subdirectory " +
-                                dst);
+          throw new IOException("Cannot copy " + src + " to its subdirectory " + dst);
         }
       }
     }
   }
-
 }

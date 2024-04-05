@@ -15,22 +15,27 @@
  */
 package com.dremio.sabot.op.receiver;
 
-import java.util.concurrent.LinkedBlockingDeque;
-
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.threads.sharedres.SharedResource;
 import com.google.common.collect.Queues;
+import java.util.concurrent.LinkedBlockingDeque;
+import org.apache.arrow.memory.BufferAllocator;
 
 public class UnlimitedRawBatchBuffer extends BaseRawBatchBuffer<RawFragmentBatch> {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(UnlimitedRawBatchBuffer.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(UnlimitedRawBatchBuffer.class);
 
   private final int fragmentCount;
   private final int softlimit;
 
-  public UnlimitedRawBatchBuffer(SharedResource resource, OptionManager options, FragmentHandle handle, BufferAllocator allocator, int fragmentCount, int oppositeId) {
+  public UnlimitedRawBatchBuffer(
+      SharedResource resource,
+      OptionManager options,
+      FragmentHandle handle,
+      BufferAllocator allocator,
+      int fragmentCount,
+      int oppositeId) {
     super(resource, options, handle, allocator, fragmentCount);
     this.fragmentCount = fragmentCount;
     this.softlimit = bufferSizePerSocket * fragmentCount;
@@ -39,7 +44,8 @@ public class UnlimitedRawBatchBuffer extends BaseRawBatchBuffer<RawFragmentBatch
   }
 
   private class UnlimitedBufferQueue implements BufferQueue<RawFragmentBatch> {
-    private final LinkedBlockingDeque<RawFragmentBatch> buffer = Queues.newLinkedBlockingDeque();;
+    private final LinkedBlockingDeque<RawFragmentBatch> buffer = Queues.newLinkedBlockingDeque();
+    ;
 
     @Override
     public RawFragmentBatch poll() {
@@ -86,6 +92,5 @@ public class UnlimitedRawBatchBuffer extends BaseRawBatchBuffer<RawFragmentBatch
   }
 
   @Override
-  protected void upkeep(RawFragmentBatch batch) {
-  }
+  protected void upkeep(RawFragmentBatch batch) {}
 }

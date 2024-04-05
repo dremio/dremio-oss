@@ -17,17 +17,6 @@ package com.dremio.exec.store.metadatarefresh.committer;
 
 import static com.dremio.exec.store.iceberg.IcebergSerDe.serializedSchemaAsJson;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-
-import org.apache.arrow.vector.types.pojo.ArrowType;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.iceberg.PartitionSpec;
-import org.apache.iceberg.Schema;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
 import com.dremio.exec.planner.cost.ScanCostFactor;
@@ -48,12 +37,18 @@ import com.dremio.service.namespace.file.proto.FileType;
 import com.google.common.base.Preconditions;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.UnsafeByteOperations;
-
 import io.grpc.Status;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.Schema;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * Helper class to create required fields to update metadata in dataset catalog
- */
+/** Helper class to create required fields to update metadata in dataset catalog */
 public final class DatasetCatalogRequestBuilder {
 
   private static final Logger logger = LoggerFactory.getLogger(DatasetCatalogRequestBuilder.class);
@@ -64,26 +59,38 @@ public final class DatasetCatalogRequestBuilder {
 
   /**
    * Helper for full metadata refresh
+   *
    * @param datasetPath
    * @param tableLocation
    * @param batchSchema
    * @param partitionColumns
    * @return
    */
-  public static DatasetCatalogRequestBuilder forFullMetadataRefresh(List<String> datasetPath, String tableLocation,
-                                                                    BatchSchema batchSchema, List<String> partitionColumns,
-                                                                    DatasetConfig datasetConfig) {
-    if (!DatasetType.PHYSICAL_DATASET.equals(datasetConfig.getType())) { // non-filesystem datasets don't need implicit columns
-      batchSchema = BatchSchema.newBuilder().addFields(batchSchema.getFields())
-              .addField(Field.nullable(IncrementalUpdateUtils.UPDATE_COLUMN, new ArrowType.Int(64, true))).build();
+  public static DatasetCatalogRequestBuilder forFullMetadataRefresh(
+      List<String> datasetPath,
+      String tableLocation,
+      BatchSchema batchSchema,
+      List<String> partitionColumns,
+      DatasetConfig datasetConfig) {
+    if (!DatasetType.PHYSICAL_DATASET.equals(
+        datasetConfig.getType())) { // non-filesystem datasets don't need implicit columns
+      batchSchema =
+          BatchSchema.newBuilder()
+              .addFields(batchSchema.getFields())
+              .addField(
+                  Field.nullable(IncrementalUpdateUtils.UPDATE_COLUMN, new ArrowType.Int(64, true)))
+              .build();
       partitionColumns = new ArrayList<>(partitionColumns);
       partitionColumns.add(IncrementalUpdateUtils.UPDATE_COLUMN);
     }
-    return new DatasetCatalogRequestBuilder(datasetPath, tableLocation, batchSchema, partitionColumns, datasetConfig);
+    return new DatasetCatalogRequestBuilder(
+        datasetPath, tableLocation, batchSchema, partitionColumns, datasetConfig);
   }
 
   /**
-   * Gets existing dataset metadata using the passed client, updates tags, stats from previous metadata
+   * Gets existing dataset metadata using the passed client, updates tags, stats from previous
+   * metadata
+   *
    * @param datasetPath
    * @param tableLocation
    * @param batchSchema
@@ -91,41 +98,55 @@ public final class DatasetCatalogRequestBuilder {
    * @param client
    * @return
    */
-  public static DatasetCatalogRequestBuilder forIncrementalMetadataRefresh(List<String> datasetPath, String tableLocation,
-                                                                           BatchSchema batchSchema, List<String> partitionColumns,
-                                                                           DatasetCatalogGrpcClient client, DatasetConfig datasetConfig) {
-    return new DatasetCatalogRequestBuilder(datasetPath, tableLocation, batchSchema, partitionColumns, client, datasetConfig);
+  public static DatasetCatalogRequestBuilder forIncrementalMetadataRefresh(
+      List<String> datasetPath,
+      String tableLocation,
+      BatchSchema batchSchema,
+      List<String> partitionColumns,
+      DatasetCatalogGrpcClient client,
+      DatasetConfig datasetConfig) {
+    return new DatasetCatalogRequestBuilder(
+        datasetPath, tableLocation, batchSchema, partitionColumns, client, datasetConfig);
   }
 
-  private DatasetCatalogRequestBuilder(List<String> datasetPath,
-                                       String tableLocation,
-                                       BatchSchema batchSchema,
-                                       List<String> partitionColumns,
-                                       DatasetConfig datasetConfig) {
-    request = AddOrUpdateDatasetRequest.newBuilder()
-      .addAllDatasetPath(datasetPath);
+  private DatasetCatalogRequestBuilder(
+      List<String> datasetPath,
+      String tableLocation,
+      BatchSchema batchSchema,
+      List<String> partitionColumns,
+      DatasetConfig datasetConfig) {
+    request = AddOrUpdateDatasetRequest.newBuilder().addAllDatasetPath(datasetPath);
 
     request.setOperationType(OperationType.CREATE);
 
-    request.getDatasetConfigBuilder()
-      .setDatasetType(DatasetCommonProtobuf.DatasetType.forNumber(datasetConfig.getType().getNumber()))
-      .setBatchSchema(ByteString.copyFrom(batchSchema.serialize()));
+    request
+        .getDatasetConfigBuilder()
+        .setDatasetType(
+            DatasetCommonProtobuf.DatasetType.forNumber(datasetConfig.getType().getNumber()))
+        .setBatchSchema(ByteString.copyFrom(batchSchema.serialize()));
 
     FileConfig fileConfig = datasetConfig.getPhysicalDataset().getFormatSettings();
-    if( fileConfig != null) {
-      final FileProtobuf.FileType fileType = FileProtobuf.FileType.valueOf(fileConfig.getType().name());
-      request.getDatasetConfigBuilder().getFileFormatBuilder()
-        .setType(fileType)
-        .setCtime(0L)
-        .setExtendedConfig(ByteString.EMPTY)
-        .setLocation(tableLocation);
+    if (fileConfig != null) {
+      final FileProtobuf.FileType fileType =
+          FileProtobuf.FileType.valueOf(fileConfig.getType().name());
+      request
+          .getDatasetConfigBuilder()
+          .getFileFormatBuilder()
+          .setType(fileType)
+          .setCtime(0L)
+          .setExtendedConfig(ByteString.EMPTY)
+          .setLocation(tableLocation);
     }
 
     request.getDatasetConfigBuilder().setIcebergMetadataEnabled(true);
 
-    if (datasetConfig.getReadDefinition().getExtendedProperty()!=null) {
-      request.getDatasetConfigBuilder().getReadDefinitionBuilder()
-              .setExtendedProperty(UnsafeByteOperations.unsafeWrap(datasetConfig.getReadDefinition().getExtendedProperty().toByteArray()));
+    if (datasetConfig.getReadDefinition().getExtendedProperty() != null) {
+      request
+          .getDatasetConfigBuilder()
+          .getReadDefinitionBuilder()
+          .setExtendedProperty(
+              UnsafeByteOperations.unsafeWrap(
+                  datasetConfig.getReadDefinition().getExtendedProperty().toByteArray()));
     }
     if (datasetConfig.getTag() != null) {
       request.setOperationType(OperationType.UPDATE);
@@ -135,25 +156,38 @@ public final class DatasetCatalogRequestBuilder {
       }
     }
 
-    request.getDatasetConfigBuilder().getReadDefinitionBuilder()
-      .setLastRefreshDate(System.currentTimeMillis()) // TODO: this should be start time of query execution
-      .addAllPartitionColumns(partitionColumns)
-      .setSplitVersion(1L);
+    request
+        .getDatasetConfigBuilder()
+        .getReadDefinitionBuilder()
+        .setLastRefreshDate(
+            System.currentTimeMillis()) // TODO: this should be start time of query execution
+        .addAllPartitionColumns(partitionColumns)
+        .setSplitVersion(1L);
 
-    scanStatsBuilder = request.getDatasetConfigBuilder().getReadDefinitionBuilder()
-      .getScanStatsBuilder()
-      .setType(DatasetCommonProtobuf.ScanStatsType.EXACT_ROW_COUNT)
-      .setScanFactor(ScanCostFactor.PARQUET.getFactor());
+    scanStatsBuilder =
+        request
+            .getDatasetConfigBuilder()
+            .getReadDefinitionBuilder()
+            .getScanStatsBuilder()
+            .setType(DatasetCommonProtobuf.ScanStatsType.EXACT_ROW_COUNT)
+            .setScanFactor(ScanCostFactor.PARQUET.getFactor());
 
-    manifestStatsBuilder = request.getDatasetConfigBuilder().getReadDefinitionBuilder()
-      .getManifestScanStatsBuilder()
-      .setType(DatasetCommonProtobuf.ScanStatsType.EXACT_ROW_COUNT)
-      .setScanFactor(ScanCostFactor.EASY.getFactor());
+    manifestStatsBuilder =
+        request
+            .getDatasetConfigBuilder()
+            .getReadDefinitionBuilder()
+            .getManifestScanStatsBuilder()
+            .setType(DatasetCommonProtobuf.ScanStatsType.EXACT_ROW_COUNT)
+            .setScanFactor(ScanCostFactor.EASY.getFactor());
   }
 
-  private DatasetCatalogRequestBuilder(List<String> datasetPath, String tableLocation,
-                                       BatchSchema batchSchema, List<String> partitionColumns,
-                                       DatasetCatalogGrpcClient client, DatasetConfig datasetConfig) {
+  private DatasetCatalogRequestBuilder(
+      List<String> datasetPath,
+      String tableLocation,
+      BatchSchema batchSchema,
+      List<String> partitionColumns,
+      DatasetCatalogGrpcClient client,
+      DatasetConfig datasetConfig) {
     this(datasetPath, tableLocation, batchSchema, partitionColumns, datasetConfig);
 
     request.setOperationType(OperationType.UPDATE);
@@ -162,7 +196,10 @@ public final class DatasetCatalogRequestBuilder {
 
     request.getDatasetConfigBuilder().setTag(existingMetadata.getTag());
     if (datasetConfig.getPhysicalDataset().getFormatSettings() != null) {
-      request.getDatasetConfigBuilder().getFileFormatBuilder().setTag(existingMetadata.getFileFormat().getTag());
+      request
+          .getDatasetConfigBuilder()
+          .getFileFormatBuilder()
+          .setTag(existingMetadata.getFileFormat().getTag());
     }
   }
 
@@ -173,23 +210,27 @@ public final class DatasetCatalogRequestBuilder {
    * @param datasetPath
    * @return
    */
-  public UpdatableDatasetConfigFields getPreviousMetadata(DatasetCatalogGrpcClient client, List<String> datasetPath) {
+  public UpdatableDatasetConfigFields getPreviousMetadata(
+      DatasetCatalogGrpcClient client, List<String> datasetPath) {
     try {
       logger.debug("Getting dataset config of table {} from DatasetCatalogService", datasetPath);
-      return client.getCatalogServiceApi()
-        .getDataset(GetDatasetRequest.newBuilder().addAllDatasetPath(datasetPath).build());
+      return client
+          .getCatalogServiceApi()
+          .getDataset(GetDatasetRequest.newBuilder().addAllDatasetPath(datasetPath).build());
     } catch (Exception e) {
       Status s = Status.fromThrowable(e);
 
       if (s.getCode() == Status.Code.NOT_FOUND) {
-        logger.error("Incremental refresh failed, previous metadata of table {} missing in Dataset Catalog store", datasetPath);
-        throw UserException.concurrentModificationError()
-          .message("Previous metadata missing")
-          .buildSilently();
+        logger.error(
+            "Incremental refresh failed, previous metadata of table {} missing in Dataset Catalog store",
+            datasetPath);
+        throw UserException.concurrentModificationError(e)
+            .message("Previous metadata missing")
+            .buildSilently();
       } else {
         throw UserException.ioExceptionError(e)
-          .message("Error while getting dataset config")
-          .buildSilently();
+            .message("Error while getting dataset config")
+            .buildSilently();
       }
     }
   }
@@ -204,41 +245,52 @@ public final class DatasetCatalogRequestBuilder {
 
   public AddOrUpdateDatasetRequest build() {
     final String path = request.getDatasetConfig().getFileFormat().getLocation();
-    final EasyProtobuf.EasyDatasetSplitXAttr splitExtended = EasyProtobuf.EasyDatasetSplitXAttr.newBuilder()
+    final EasyProtobuf.EasyDatasetSplitXAttr splitExtended =
+        EasyProtobuf.EasyDatasetSplitXAttr.newBuilder()
             .setPath(path)
             .setStart(0)
             .setLength(0)
-            .setUpdateKey(com.dremio.exec.store.file.proto.FileProtobuf.FileSystemCachedEntity.newBuilder()
+            .setUpdateKey(
+                com.dremio.exec.store.file.proto.FileProtobuf.FileSystemCachedEntity.newBuilder()
                     .setPath(path)
                     .setLastModificationTime(0))
             .build();
-    final PartitionProtobuf.DatasetSplit datasetSplit = PartitionProtobuf.DatasetSplit.newBuilder()
+    final PartitionProtobuf.DatasetSplit datasetSplit =
+        PartitionProtobuf.DatasetSplit.newBuilder()
             .setRecordCount(scanStatsBuilder.getRecordCount())
-            .setSplitExtendedProperty(splitExtended.toByteString()).build();
-    final PartitionProtobuf.PartitionChunk root = PartitionProtobuf.PartitionChunk.newBuilder()
-            .setDatasetSplit(datasetSplit).build();
+            .setSplitExtendedProperty(splitExtended.toByteString())
+            .build();
+    final PartitionProtobuf.PartitionChunk root =
+        PartitionProtobuf.PartitionChunk.newBuilder().setDatasetSplit(datasetSplit).build();
     request.getDatasetConfigBuilder().setPartitionChunk(root);
     return request.build();
   }
 
   public void overrideSchema(BatchSchema batchSchema) {
-    request.getDatasetConfigBuilder()
-            .setBatchSchema(ByteString.copyFrom(batchSchema.serialize()));
+    request.getDatasetConfigBuilder().setBatchSchema(ByteString.copyFrom(batchSchema.serialize()));
   }
 
-  public void setIcebergMetadata(String rootPointer, String tableUuid, long snapshotId,
-                                 Map<Integer, PartitionSpec> partitionSpecMap, Schema schema, String partitionStatsFile,
-                                 Long partitionsStatsFileLength, FileType fileType) {
+  public void setIcebergMetadata(
+      String rootPointer,
+      String tableUuid,
+      long snapshotId,
+      Map<Integer, PartitionSpec> partitionSpecMap,
+      Schema schema,
+      String partitionStatsFile,
+      Long partitionsStatsFileLength,
+      FileType fileType) {
     Preconditions.checkState(request != null, "Unexpected state");
-    Preconditions.checkState(request.getDatasetConfigBuilder().getIcebergMetadataEnabled(), "Unexpected state");
+    Preconditions.checkState(
+        request.getDatasetConfigBuilder().getIcebergMetadataEnabled(), "Unexpected state");
     byte[] specs = IcebergSerDe.serializePartitionSpecAsJsonMap(partitionSpecMap);
-    DatasetCommonProtobuf.IcebergMetadata.Builder metadataBuilder = DatasetCommonProtobuf.IcebergMetadata.newBuilder()
+    DatasetCommonProtobuf.IcebergMetadata.Builder metadataBuilder =
+        DatasetCommonProtobuf.IcebergMetadata.newBuilder()
             .setMetadataFileLocation(rootPointer)
             .setTableUuid(tableUuid)
             .setSnapshotId(snapshotId)
             .setPartitionSpecsJsonMap(ByteString.copyFrom(specs))
             .setJsonSchema(serializedSchemaAsJson(schema));
-    if(fileType != null){
+    if (fileType != null) {
       metadataBuilder.setFileType(FileProtobuf.FileType.valueOf(fileType.toString()));
     }
     if (partitionStatsFile != null) {
@@ -251,7 +303,6 @@ public final class DatasetCatalogRequestBuilder {
   }
 
   public void setReadSignature(ByteString newReadSignature) {
-    request.getDatasetConfigBuilder().getReadDefinitionBuilder()
-      .setReadSignature(newReadSignature);
+    request.getDatasetConfigBuilder().getReadDefinitionBuilder().setReadSignature(newReadSignature);
   }
 }

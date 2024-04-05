@@ -15,10 +15,6 @@
  */
 package com.dremio.service.coordinator.zk;
 
-import java.io.IOException;
-
-import javax.inject.Provider;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.service.coordinator.ClusterCoordinator;
@@ -28,18 +24,22 @@ import com.dremio.service.coordinator.ElectionRegistrationHandle;
 import com.dremio.service.coordinator.LinearizableHierarchicalStore;
 import com.dremio.service.coordinator.ServiceSet;
 import com.google.common.annotations.VisibleForTesting;
+import java.io.IOException;
+import javax.inject.Provider;
 
-/**
- * Manages cluster coordination utilizing zookeeper.
- */
+/** Manages cluster coordination utilizing zookeeper. */
 public class ZKClusterCoordinator extends ClusterCoordinator {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ZKClusterCoordinator.class);
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ZKClusterCoordinator.class);
 
   private static enum Service {
-    COORDINATOR(Role.COORDINATOR, "coordinator"), EXECUTOR(Role.EXECUTOR, "executor"), MASTER(Role.MASTER, "master");
+    COORDINATOR(Role.COORDINATOR, "coordinator"),
+    EXECUTOR(Role.EXECUTOR, "executor"),
+    MASTER(Role.MASTER, "master");
 
     private final ClusterCoordinator.Role role;
     private final String name;
+
     private Service(ClusterCoordinator.Role role, String serviceName) {
       this.role = role;
       this.name = serviceName;
@@ -50,7 +50,7 @@ public class ZKClusterCoordinator extends ClusterCoordinator {
 
   private volatile boolean closed = false;
 
-  public ZKClusterCoordinator(SabotConfig config) throws IOException{
+  public ZKClusterCoordinator(SabotConfig config) throws IOException {
     this(config, (String) null);
   }
 
@@ -59,10 +59,12 @@ public class ZKClusterCoordinator extends ClusterCoordinator {
   }
 
   public ZKClusterCoordinator(SabotConfig config, Provider<Integer> localPort) throws IOException {
-    this.zkClusterServiceSetManager = new ZKClusterServiceSetManager(new ZKSabotConfig(config), localPort);
+    this.zkClusterServiceSetManager =
+        new ZKClusterServiceSetManager(new ZKSabotConfig(config), localPort);
   }
 
-  public ZKClusterCoordinator(ZKClusterConfig zkClusterConfig, Provider<Integer> localPort) throws IOException {
+  public ZKClusterCoordinator(ZKClusterConfig zkClusterConfig, Provider<Integer> localPort)
+      throws IOException {
     this.zkClusterServiceSetManager = new ZKClusterServiceSetManager(zkClusterConfig, localPort);
   }
 
@@ -86,7 +88,7 @@ public class ZKClusterCoordinator extends ClusterCoordinator {
 
     if (!closed) {
       Thread.sleep(5);
-      for(Service service: Service.values()) {
+      for (Service service : Service.values()) {
         zkClusterServiceSetManager.getOrCreateServiceSet(service.role.name(), service.name);
       }
       logger.info("ZKClusterCoordination is up");
@@ -128,7 +130,6 @@ public class ZKClusterCoordinator extends ClusterCoordinator {
   public LinearizableHierarchicalStore getHierarchicalStore() {
     return zkClusterServiceSetManager.getZkClient().getHierarchicalStore();
   }
-
 
   @Override
   public void close() throws Exception {

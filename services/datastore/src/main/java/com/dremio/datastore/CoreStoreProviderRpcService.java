@@ -17,9 +17,7 @@ package com.dremio.datastore;
 
 import com.dremio.service.Service;
 
-/**
- * Datastore provider rpc interface.
- */
+/** Datastore provider rpc interface. */
 public interface CoreStoreProviderRpcService extends CoreStoreProvider, Service {
 
   /**
@@ -31,9 +29,9 @@ public interface CoreStoreProviderRpcService extends CoreStoreProvider, Service 
 
   /**
    * Create new store for a given config or return existing store.
+   *
    * @param name Table Name
    * @return store id
    */
   String getStoreID(String name);
-
 }

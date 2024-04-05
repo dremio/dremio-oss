@@ -18,17 +18,17 @@ package com.dremio.services.nessie.grpc.client.impl;
 import static com.dremio.services.nessie.grpc.GrpcExceptionMapper.handle;
 import static com.dremio.services.nessie.grpc.ProtoUtil.refFromProtoResponse;
 
+import com.dremio.services.nessie.grpc.api.DeleteReferenceRequest;
+import com.dremio.services.nessie.grpc.api.ReferenceResponse;
+import com.dremio.services.nessie.grpc.api.ReferenceType;
+import com.dremio.services.nessie.grpc.api.TreeServiceGrpc.TreeServiceBlockingStub;
 import org.projectnessie.client.builder.BaseChangeReferenceBuilder;
 import org.projectnessie.error.NessieConflictException;
 import org.projectnessie.error.NessieNotFoundException;
 import org.projectnessie.model.Reference;
 
-import com.dremio.services.nessie.grpc.api.DeleteReferenceRequest;
-import com.dremio.services.nessie.grpc.api.ReferenceResponse;
-import com.dremio.services.nessie.grpc.api.ReferenceType;
-import com.dremio.services.nessie.grpc.api.TreeServiceGrpc.TreeServiceBlockingStub;
-
-abstract class BaseGrpcDeleteReference<T extends Reference, R> extends BaseChangeReferenceBuilder<R> {
+abstract class BaseGrpcDeleteReference<T extends Reference, R>
+    extends BaseChangeReferenceBuilder<R> {
 
   private final TreeServiceBlockingStub stub;
 
@@ -38,23 +38,22 @@ abstract class BaseGrpcDeleteReference<T extends Reference, R> extends BaseChang
 
   public T getAndDelete() throws NessieConflictException, NessieNotFoundException {
     return handle(
-      () ->
-      {
-        DeleteReferenceRequest.Builder request = DeleteReferenceRequest.newBuilder()
-          .setNamedRef(refName);
+        () -> {
+          DeleteReferenceRequest.Builder request =
+              DeleteReferenceRequest.newBuilder().setNamedRef(refName);
 
-        if (expectedHash != null) {
-          request.setHash(expectedHash);
-        }
+          if (expectedHash != null) {
+            request.setHash(expectedHash);
+          }
 
-        if(type != null) {
-          request.setReferenceType(ReferenceType.valueOf(type.name()));
-        }
+          if (type != null) {
+            request.setReferenceType(ReferenceType.valueOf(type.name()));
+          }
 
-        ReferenceResponse response = stub.deleteReference(request.build());
-        //noinspection unchecked
-        return (T) refFromProtoResponse(response);
-      });
+          ReferenceResponse response = stub.deleteReference(request.build());
+          //noinspection unchecked
+          return (T) refFromProtoResponse(response);
+        });
   }
 
   public void delete() throws NessieConflictException, NessieNotFoundException {

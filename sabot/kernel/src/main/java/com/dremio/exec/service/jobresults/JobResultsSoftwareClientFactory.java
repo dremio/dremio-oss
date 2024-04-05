@@ -15,16 +15,13 @@
  */
 package com.dremio.exec.service.jobresults;
 
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.sabot.exec.ExecToCoordTunnelCreator;
 import com.dremio.service.jobresults.client.JobResultsClient;
 import com.dremio.service.jobresults.client.JobResultsClientFactory;
+import org.apache.arrow.memory.BufferAllocator;
 
-/**
- * JobResultsClientFactory implementation for Software.
- */
+/** JobResultsClientFactory implementation for Software. */
 public class JobResultsSoftwareClientFactory implements JobResultsClientFactory {
   private final ExecToCoordTunnelCreator tunnelCreator;
 
@@ -33,18 +30,17 @@ public class JobResultsSoftwareClientFactory implements JobResultsClientFactory 
   }
 
   @Override
-  public JobResultsClient getJobResultsClient(CoordinationProtos.NodeEndpoint endpoint, BufferAllocator allocator,
-                                              String fragmentId, String queryId) {
+  public JobResultsClient getJobResultsClient(
+      CoordinationProtos.NodeEndpoint endpoint,
+      BufferAllocator allocator,
+      String fragmentId,
+      String queryId) {
     return new JobResultsSoftwareClient(tunnelCreator.getTunnel(endpoint));
   }
 
   @Override
-  public void start() throws Exception {
-
-  }
+  public void start() throws Exception {}
 
   @Override
-  public void close() throws Exception {
-
-  }
+  public void close() throws Exception {}
 }

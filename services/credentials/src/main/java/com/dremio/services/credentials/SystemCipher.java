@@ -15,14 +15,13 @@
  */
 package com.dremio.services.credentials;
 
+import com.dremio.config.DremioConfig;
 import javax.inject.Inject;
 
-import com.dremio.config.DremioConfig;
-
 /**
- * The default, primary cipher for all out-of-the-box secrets across Dremio (i.e. in-line
- * source secret encryption, first-class managed secrets, etc.) These secrets live on and
- * can only be accessed directly via the master coordinator.
+ * The default, primary cipher for all out-of-the-box secrets across Dremio (i.e. in-line source
+ * secret encryption, first-class managed secrets, etc.) These secrets live on and can only be
+ * accessed directly via the master coordinator.
  */
 public class SystemCipher extends AbstractCipher {
 
@@ -30,7 +29,6 @@ public class SystemCipher extends AbstractCipher {
   private final CredentialsService credentialsService;
 
   private static final String KEYSTORE_FILENAME = "system.p12";
-
 
   @Inject
   public SystemCipher(DremioConfig config, CredentialsService credentialsService) {
@@ -54,8 +52,7 @@ public class SystemCipher extends AbstractCipher {
   }
 
   @Override
-  protected String getSchema() {
-    //TODO: When implemented: SystemSecretCredentialsProvider.SECRET_PROVIDER_SCHEME;
-    return "system";
+  protected String getScheme() {
+    return SystemSecretCredentialsProvider.SECRET_PROVIDER_SCHEME;
   }
 }

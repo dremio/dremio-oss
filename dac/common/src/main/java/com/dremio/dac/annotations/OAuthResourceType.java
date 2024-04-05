@@ -21,11 +21,7 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 
-/**
- * Annotation for OAuth2.0 REST API resources
- * base path: /oauth
- */
+/** Annotation for OAuth2.0 REST API resources base path: /oauth */
 @Retention(RUNTIME)
 @Target(TYPE)
-public @interface OAuthResourceType {
-}
+public @interface OAuthResourceType {}

@@ -17,20 +17,15 @@ package com.dremio.ssl;
 
 import static org.junit.Assert.assertEquals;
 
+import io.netty.buffer.ByteBufAllocator;
 import java.util.Optional;
-
 import javax.net.ssl.SNIHostName;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLParameters;
-
 import org.junit.Test;
 
-import io.netty.buffer.ByteBufAllocator;
-
-/**
- * Test SSLEngineFactory
- */
+/** Test SSLEngineFactory */
 public class TestSSLEngineFactory {
 
   @Test

@@ -18,20 +18,18 @@ package com.dremio.service.jobs;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.when;
 
-import javax.inject.Provider;
-
-import org.mockito.Mockito;
-
 import com.dremio.exec.enginemanagement.proto.EngineManagementProtos;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.beans.NodeEndpoint;
 import com.dremio.exec.store.easy.arrow.ArrowFileMetadata;
 import com.dremio.exec.store.easy.arrow.ArrowFileReader;
 import com.dremio.sabot.exec.context.OperatorContext;
+import javax.inject.Provider;
+import org.mockito.Mockito;
 
 /**
- * Unit tests for {@link ArrowFileReader} with ScreenNodeEndpoint in ArrowFileMetaData.
- * Tests defined in base-class are also tested.
+ * Unit tests for {@link ArrowFileReader} with ScreenNodeEndpoint in ArrowFileMetaData. Tests
+ * defined in base-class are also tested.
  */
 public class TestArrowFileReaderScreenNodeEndpoint extends TestArrowFileReader {
   private static final String engineIdString = "testEngineId";
@@ -41,8 +39,13 @@ public class TestArrowFileReaderScreenNodeEndpoint extends TestArrowFileReader {
   public OperatorContext getOperatorContext() {
     OperatorContext operatorContext = Mockito.mock(OperatorContext.class);
 
-    EngineManagementProtos.EngineId engineId = EngineManagementProtos.EngineId.newBuilder().setId(engineIdString).build();
-    CoordinationProtos.NodeEndpoint nodeEndpoint = CoordinationProtos.NodeEndpoint.newBuilder().setAddress(hostname).setEngineId(engineId).build();
+    EngineManagementProtos.EngineId engineId =
+        EngineManagementProtos.EngineId.newBuilder().setId(engineIdString).build();
+    CoordinationProtos.NodeEndpoint nodeEndpoint =
+        CoordinationProtos.NodeEndpoint.newBuilder()
+            .setAddress(hostname)
+            .setEngineId(engineId)
+            .build();
     Provider<CoordinationProtos.NodeEndpoint> nodeEndpointProvider = () -> nodeEndpoint;
     when(operatorContext.getNodeEndpointProvider()).thenReturn(nodeEndpointProvider);
     return operatorContext;

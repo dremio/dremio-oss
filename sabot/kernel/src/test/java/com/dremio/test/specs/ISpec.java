@@ -16,9 +16,8 @@
 package com.dremio.test.specs;
 
 /**
- * Marker interface for specs.  This should be a corresponding *SpecBuilder to each subclass.
+ * Marker interface for specs. This should be a corresponding *SpecBuilder to each subclass.
  *
- * Subclasses should have a zero arg constructor and require no further configuration to be used.
+ * <p>Subclasses should have a zero arg constructor and require no further configuration to be used.
  */
-public interface ISpec<VALUE> {
-}
+public interface ISpec<VALUE> {}

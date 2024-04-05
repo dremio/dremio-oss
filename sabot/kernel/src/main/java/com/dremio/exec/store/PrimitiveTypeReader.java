@@ -15,13 +15,6 @@
  */
 package com.dremio.exec.store;
 
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
-
-import org.apache.arrow.vector.BaseVariableWidthVector;
-import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.types.pojo.Field;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.map.CaseInsensitiveMap;
 import com.dremio.exec.expr.ExpressionEvaluationOptions;
@@ -34,20 +27,31 @@ import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.scan.ScanOperator;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Throwables;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+import org.apache.arrow.vector.BaseVariableWidthVector;
+import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.types.pojo.Field;
 
 /**
- * Coercion reader that handles only primitive type columns.
- * Internally separates input columns into varchar columns and non varchar columns.
+ * Coercion reader that handles only primitive type columns. Internally separates input columns into
+ * varchar columns and non varchar columns.
  */
 public class PrimitiveTypeReader implements AutoCloseable {
   private final OperatorContext context;
   private final Stopwatch javaCodeGenWatch;
   private final Stopwatch gandivaCodeGenWatch;
-  private final Map<String, VarcharTruncationReader> fixedLenVarCharMap = CaseInsensitiveMap.newHashMap();
+  private final Map<String, VarcharTruncationReader> fixedLenVarCharMap =
+      CaseInsensitiveMap.newHashMap();
   private final NonVarcharCoercionReader nonVarcharCoercionReader;
 
-  public PrimitiveTypeReader(SampleMutator mutator, OperatorContext context, TypeCoercion typeCoercion,
-                             Stopwatch javaCodeGenWatch, Stopwatch gandivaCodeGenWatch, BatchSchema originalSchema) {
+  public PrimitiveTypeReader(
+      SampleMutator mutator,
+      OperatorContext context,
+      TypeCoercion typeCoercion,
+      Stopwatch javaCodeGenWatch,
+      Stopwatch gandivaCodeGenWatch,
+      BatchSchema originalSchema) {
     this.context = context;
     this.javaCodeGenWatch = javaCodeGenWatch;
     this.gandivaCodeGenWatch = gandivaCodeGenWatch;
@@ -63,31 +67,46 @@ public class PrimitiveTypeReader implements AutoCloseable {
     }
 
     BatchSchema nonVarcharSchema = schemaBuilder.build();
-    nonVarcharCoercionReader = new NonVarcharCoercionReader(mutator, context,
-      nonVarcharSchema, typeCoercion, javaCodeGenWatch, gandivaCodeGenWatch);
+    nonVarcharCoercionReader =
+        new NonVarcharCoercionReader(
+            mutator,
+            context,
+            nonVarcharSchema,
+            typeCoercion,
+            javaCodeGenWatch,
+            gandivaCodeGenWatch);
   }
 
-
-  public void setupProjector(VectorContainer incoming, ExpressionEvaluationOptions projectorOptions,
-                             VectorContainer projectorOutput) {
+  public void setupProjector(
+      VectorContainer incoming,
+      ExpressionEvaluationOptions projectorOptions,
+      VectorContainer projectorOutput) {
     if (!fixedLenVarCharMap.isEmpty()) {
-      context.getStats().addLongStat(ScanOperator.Metric.NUM_HIVE_PARQUET_TRUNCATE_VARCHAR, fixedLenVarCharMap.size());
+      context
+          .getStats()
+          .addLongStat(
+              ScanOperator.Metric.NUM_HIVE_PARQUET_TRUNCATE_VARCHAR, fixedLenVarCharMap.size());
     }
     nonVarcharCoercionReader.setupProjector(projectorOutput, projectorOptions);
     // Setting up the projector for columns that need varchar truncation
     for (Map.Entry<String, VarcharTruncationReader> entry : fixedLenVarCharMap.entrySet()) {
-      entry.getValue().setupProjector(this.context,
-        javaCodeGenWatch,
-        gandivaCodeGenWatch,
-        incoming,
-        projectorOptions,
-        projectorOutput
-      );
+      entry
+          .getValue()
+          .setupProjector(
+              this.context,
+              javaCodeGenWatch,
+              gandivaCodeGenWatch,
+              incoming,
+              projectorOptions,
+              projectorOutput);
     }
 
     OperatorStats stats = this.context.getStats();
-    stats.addLongStat(ScanOperator.Metric.JAVA_BUILD_TIME_NS, javaCodeGenWatch.elapsed(TimeUnit.NANOSECONDS));
-    stats.addLongStat(ScanOperator.Metric.GANDIVA_BUILD_TIME_NS, gandivaCodeGenWatch.elapsed(TimeUnit.NANOSECONDS));
+    stats.addLongStat(
+        ScanOperator.Metric.JAVA_BUILD_TIME_NS, javaCodeGenWatch.elapsed(TimeUnit.NANOSECONDS));
+    stats.addLongStat(
+        ScanOperator.Metric.GANDIVA_BUILD_TIME_NS,
+        gandivaCodeGenWatch.elapsed(TimeUnit.NANOSECONDS));
     gandivaCodeGenWatch.reset();
     javaCodeGenWatch.reset();
   }
@@ -99,9 +118,14 @@ public class PrimitiveTypeReader implements AutoCloseable {
         if (!fixedLenVarCharMap.isEmpty()) {
           for (VectorWrapper<? extends ValueVector> wrapper : incoming) {
             if (fixedLenVarCharMap.containsKey(wrapper.getField().getName())) {
-              VarcharTruncationReader varcharTruncationReader = fixedLenVarCharMap.get(wrapper.getField().getName());
-              varcharTruncationReader.runProjector((BaseVariableWidthVector) wrapper.getValueVector(), recordCount,
-                this.context, javaCodeGenWatch, gandivaCodeGenWatch);
+              VarcharTruncationReader varcharTruncationReader =
+                  fixedLenVarCharMap.get(wrapper.getField().getName());
+              varcharTruncationReader.runProjector(
+                  (BaseVariableWidthVector) wrapper.getValueVector(),
+                  recordCount,
+                  this.context,
+                  javaCodeGenWatch,
+                  gandivaCodeGenWatch);
             }
           }
         }
@@ -111,8 +135,11 @@ public class PrimitiveTypeReader implements AutoCloseable {
     }
 
     OperatorStats stats = this.context.getStats();
-    stats.addLongStat(ScanOperator.Metric.JAVA_EXECUTE_TIME_NS, javaCodeGenWatch.elapsed(TimeUnit.NANOSECONDS));
-    stats.addLongStat(ScanOperator.Metric.GANDIVA_EXECUTE_TIME_NS, gandivaCodeGenWatch.elapsed(TimeUnit.NANOSECONDS));
+    stats.addLongStat(
+        ScanOperator.Metric.JAVA_EXECUTE_TIME_NS, javaCodeGenWatch.elapsed(TimeUnit.NANOSECONDS));
+    stats.addLongStat(
+        ScanOperator.Metric.GANDIVA_EXECUTE_TIME_NS,
+        gandivaCodeGenWatch.elapsed(TimeUnit.NANOSECONDS));
     javaCodeGenWatch.reset();
     gandivaCodeGenWatch.reset();
   }

@@ -15,19 +15,6 @@
  */
 package com.dremio.exec.store.easy.arrow;
 
-import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.OutOfMemoryException;
-import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.types.pojo.Schema;
-import org.apache.commons.io.IOUtils;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.cache.VectorAccessibleFlatBufSerializable;
 import com.dremio.exec.expr.TypeHelper;
@@ -38,15 +25,24 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.google.common.base.Preconditions;
-
 import io.netty.util.internal.PlatformDependent;
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.OutOfMemoryException;
+import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.commons.io.IOUtils;
 
-/**
- * {@link RecordReader} implementation for Arrow format files using flatbuffer serialization
- */
+/** {@link RecordReader} implementation for Arrow format files using flatbuffer serialization */
 public class ArrowFlatBufRecordReader implements RecordReader {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ArrowFlatBufRecordReader.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ArrowFlatBufRecordReader.class);
   private static final String MAGIC_STRING = "DREMARROWFLATBUF";
   private static final int MAGIC_STRING_LENGTH = MAGIC_STRING.getBytes().length;
   private static final int FOOTER_OFFSET_SIZE = Long.BYTES;
@@ -63,10 +59,14 @@ public class ArrowFlatBufRecordReader implements RecordReader {
 
   private List<ValueVector> vectors = new ArrayList<>();
 
-  public ArrowFlatBufRecordReader(final OperatorContext context, final FSInputStream inputStream, final long size) {
+  private VectorAccessibleFlatBufSerializable serializable;
+
+  public ArrowFlatBufRecordReader(
+      final OperatorContext context, final FSInputStream inputStream, final long size) {
     this.context = context;
     this.inputStream = inputStream;
     this.size = size;
+    this.serializable = new VectorAccessibleFlatBufSerializable();
   }
 
   @Override
@@ -76,15 +76,16 @@ public class ArrowFlatBufRecordReader implements RecordReader {
 
       if (size < 2 * MAGIC_STRING_LENGTH + FOOTER_OFFSET_SIZE) {
         throw UserException.dataReadError()
-          .message("File is too small to be an Arrow format file")
-          .build(logger);
+            .message("File is too small to be an Arrow format file")
+            .build(logger);
       }
 
       final long tailSizeGuess = MAGIC_STRING_LENGTH + FOOTER_OFFSET_SIZE;
       final int tailSize = (int) Math.min(size, tailSizeGuess);
       final byte[] tailBytes = new byte[tailSize];
 
-      try (OperatorStats.WaitRecorder waitRecorder = OperatorStats.getWaitRecorder(context.getStats())) {
+      try (OperatorStats.WaitRecorder waitRecorder =
+          OperatorStats.getWaitRecorder(context.getStats())) {
         inputStream.setPosition(size - tailSize);
         IOUtils.readFully(inputStream, tailBytes);
       }
@@ -94,35 +95,42 @@ public class ArrowFlatBufRecordReader implements RecordReader {
       // Make sure magic word matches
       if (!Arrays.equals(magic, MAGIC_STRING.getBytes())) {
         throw UserException.dataReadError()
-          .message("Invalid magic word. File is not an Arrow format file")
-          .build(logger);
+            .message("Invalid magic word. File is not an Arrow format file")
+            .build(logger);
       }
 
       // read footer offset
-      final byte[] footerOffsetBytes = Arrays.copyOfRange(tailBytes,
-        tailSize - MAGIC_STRING_LENGTH - FOOTER_OFFSET_SIZE,
-        tailSize - MAGIC_STRING_LENGTH);
+      final byte[] footerOffsetBytes =
+          Arrays.copyOfRange(
+              tailBytes,
+              tailSize - MAGIC_STRING_LENGTH - FOOTER_OFFSET_SIZE,
+              tailSize - MAGIC_STRING_LENGTH);
       final long footerOffset = PlatformDependent.getLong(footerOffsetBytes, 0);
       // Make sure the footer offset is valid
-      if (footerOffset < MAGIC_STRING_LENGTH || footerOffset >= (size - (MAGIC_STRING_LENGTH + FOOTER_OFFSET_SIZE))) {
+      if (footerOffset < MAGIC_STRING_LENGTH
+          || footerOffset >= (size - (MAGIC_STRING_LENGTH + FOOTER_OFFSET_SIZE))) {
         throw UserException.dataReadError()
-          .message("Invalid footer offset")
-          .addContext("invalid footer offset", String.valueOf(footerOffset))
-          .build(logger);
+            .message("Invalid footer offset")
+            .addContext("invalid footer offset", String.valueOf(footerOffset))
+            .build(logger);
       }
 
       // read footer
-      int footerSize = (int)(size - MAGIC_STRING_LENGTH - FOOTER_OFFSET_SIZE - footerOffset);
+      int footerSize = (int) (size - MAGIC_STRING_LENGTH - FOOTER_OFFSET_SIZE - footerOffset);
       byte[] footer;
-      if (footerSize >  tailSize - MAGIC_STRING_LENGTH - FOOTER_OFFSET_SIZE) {
-        footer  = new byte[footerSize];
-        try (OperatorStats.WaitRecorder waitRecorder = OperatorStats.getWaitRecorder(context.getStats())) {
+      if (footerSize > tailSize - MAGIC_STRING_LENGTH - FOOTER_OFFSET_SIZE) {
+        footer = new byte[footerSize];
+        try (OperatorStats.WaitRecorder waitRecorder =
+            OperatorStats.getWaitRecorder(context.getStats())) {
           inputStream.setPosition(footerOffset);
           IOUtils.readFully(inputStream, footer);
         }
       } else {
-        footer = Arrays.copyOfRange(tailBytes, tailSize - footerSize - MAGIC_STRING_LENGTH - FOOTER_OFFSET_SIZE,
-          tailSize - MAGIC_STRING_LENGTH - FOOTER_OFFSET_SIZE);
+        footer =
+            Arrays.copyOfRange(
+                tailBytes,
+                tailSize - footerSize - MAGIC_STRING_LENGTH - FOOTER_OFFSET_SIZE,
+                tailSize - MAGIC_STRING_LENGTH - FOOTER_OFFSET_SIZE);
       }
 
       // read schema
@@ -130,12 +138,16 @@ public class ArrowFlatBufRecordReader implements RecordReader {
       int schemaLen = PlatformDependent.getInt(footer, index);
       index += Integer.BYTES;
 
-      org.apache.arrow.flatbuf.Schema schemafb = org.apache.arrow.flatbuf.Schema.getRootAsSchema(ByteBuffer.wrap(footer, index, schemaLen));
+      org.apache.arrow.flatbuf.Schema schemafb =
+          org.apache.arrow.flatbuf.Schema.getRootAsSchema(
+              ByteBuffer.wrap(footer, index, schemaLen));
       Schema schema = Schema.convertSchema(schemafb);
 
       // create vectors
       for (Field field : schema.getFields()) {
-        vectors.add(output.addField(field, (Class<? extends ValueVector>) TypeHelper.getValueVectorClass(field)));
+        vectors.add(
+            output.addField(
+                field, (Class<? extends ValueVector>) TypeHelper.getValueVectorClass(field)));
       }
       index += schemaLen;
 
@@ -157,8 +169,8 @@ public class ArrowFlatBufRecordReader implements RecordReader {
       nextBatchIndex = 0;
     } catch (Exception e) {
       throw UserException.dataReadError(e)
-        .message("Failed to read the Arrow formatted file.")
-        .build(logger);
+          .message("Failed to read the Arrow formatted file.")
+          .build(logger);
     }
   }
 
@@ -181,7 +193,8 @@ public class ArrowFlatBufRecordReader implements RecordReader {
       container.addCollection(vectors);
       container.buildSchema();
 
-      VectorAccessibleFlatBufSerializable serializable = new VectorAccessibleFlatBufSerializable(container, allocator, context.getStats());
+      serializable.clear();
+      serializable.setup(container, allocator, context.getStats());
       serializable.readFromStream(inputStream);
 
       nextBatchIndex++;
@@ -189,9 +202,9 @@ public class ArrowFlatBufRecordReader implements RecordReader {
       return container.getRecordCount();
     } catch (final Exception e) {
       throw UserException.dataReadError(e)
-        .message("Failed to read data from Arrow format file.")
-        .addContext("currentBatchIndex", nextBatchIndex)
-        .build(logger);
+          .message("Failed to read data from Arrow format file.")
+          .addContext("currentBatchIndex", nextBatchIndex)
+          .build(logger);
     }
   }
 
@@ -204,6 +217,7 @@ public class ArrowFlatBufRecordReader implements RecordReader {
 
   /**
    * Return size of the record batch
+   *
    * @param batchIndex: Index of the record batch
    * @return size of the record batch
    */
@@ -213,6 +227,7 @@ public class ArrowFlatBufRecordReader implements RecordReader {
 
   /**
    * Return total number of batches present in the file
+   *
    * @return batch count
    */
   public int getBatchCount() {
@@ -220,8 +235,9 @@ public class ArrowFlatBufRecordReader implements RecordReader {
   }
 
   /**
-   * Returns index of next batch to read. This is helpful in implementing
-   * delta reader that can skip record batches
+   * Returns index of next batch to read. This is helpful in implementing delta reader that can skip
+   * record batches
+   *
    * @return
    */
   public int getNextBatchIndex() {
@@ -229,9 +245,9 @@ public class ArrowFlatBufRecordReader implements RecordReader {
   }
 
   /**
-   * This method sets the next batch index.
-   * Calling next() after setting next batch index results in reading the batch
-   * This is useful in implementing delta reader that can skip record batches
+   * This method sets the next batch index. Calling next() after setting next batch index results in
+   * reading the batch This is useful in implementing delta reader that can skip record batches
+   *
    * @param batchIndex
    */
   public void setNextBatchIndex(int batchIndex) {

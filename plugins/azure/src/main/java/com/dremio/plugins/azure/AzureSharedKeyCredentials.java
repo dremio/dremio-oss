@@ -17,6 +17,16 @@ package com.dremio.plugins.azure;
 
 import static com.dremio.plugins.azure.AzureStorageFileSystem.ACCOUNT;
 
+import com.azure.storage.common.StorageSharedKeyCredential;
+import com.dremio.common.exceptions.UserException;
+import com.dremio.services.credentials.CredentialsException;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
+import com.google.common.base.Suppliers;
+import com.google.common.base.Throwables;
+import com.microsoft.azure.storage.StorageCredentials;
+import com.microsoft.azure.storage.StorageCredentialsAccountAndKey;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
@@ -28,55 +38,41 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-
 import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.azurebfs.services.SharedKeyCredentials;
 import org.asynchttpclient.Request;
 
-import com.azure.storage.common.StorageSharedKeyCredential;
-import com.dremio.common.exceptions.UserException;
-import com.dremio.services.credentials.CredentialsException;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
-import com.google.common.base.Suppliers;
-import com.google.common.base.Throwables;
-import com.microsoft.azure.storage.StorageCredentials;
-import com.microsoft.azure.storage.StorageCredentialsAccountAndKey;
-
 /**
- * Represents the shared key credentials used to access an Azure Storage
- * account. Instead of using raw account key, looks up key using credentials service.
+ * Represents the shared key credentials used to access an Azure Storage account. Instead of using
+ * raw account key, looks up key using credentials service.
  */
 public class AzureSharedKeyCredentials implements AzureStorageCredentials, Configurable {
 
-  //TODO: Make configurable (need new configuration option in conf)
+  // TODO: Make configurable (need new configuration option in conf)
   @VisibleForTesting
   static final long SECRET_TTL = TimeUnit.MILLISECONDS.convert(5, TimeUnit.MINUTES);
+
   private static final LookupResult INVALID_SECRET = new LookupResult();
   private Supplier<String> accountKeySupplier;
   private String accountName;
   private volatile Configuration conf;
   private volatile LookupResult secret;
 
-
   /**
-   * Constructor for {@link org.apache.hadoop.util.ReflectionUtils#newInstance}. Used
-   * by hadoop-azure to provide a custom request signer.
+   * Constructor for {@link org.apache.hadoop.util.ReflectionUtils#newInstance}. Used by
+   * hadoop-azure to provide a custom request signer.
    */
   public AzureSharedKeyCredentials() {
     this.secret = INVALID_SECRET; // set as placeholder
   }
 
   @VisibleForTesting
-  AzureSharedKeyCredentials(
-    final String accountName,
-    Supplier<String> accountKeySupplier
-  ) {
+  AzureSharedKeyCredentials(final String accountName, Supplier<String> accountKeySupplier) {
     Preconditions.checkArgument(!Strings.isNullOrEmpty(accountName), "Invalid account name");
     this.accountName = accountName;
-    this.accountKeySupplier = Preconditions.checkNotNull(accountKeySupplier, "Invalid account key supplier");
+    this.accountKeySupplier =
+        Preconditions.checkNotNull(accountKeySupplier, "Invalid account key supplier");
     this.conf = null;
     this.secret = INVALID_SECRET;
   }
@@ -97,19 +93,22 @@ public class AzureSharedKeyCredentials implements AzureStorageCredentials, Confi
 
   @Override
   public String getAuthzHeaderValue(final Request req) {
-    final StorageSharedKeyCredential storageSharedKeyCredential = getSecret().getStorageSharedKeyCredential();
+    final StorageSharedKeyCredential storageSharedKeyCredential =
+        getSecret().getStorageSharedKeyCredential();
     try {
       final URL url = new URL(req.getUrl());
       final Map<String, String> headersMap = new HashMap<>();
       req.getHeaders().forEach(header -> headersMap.put(header.getKey(), header.getValue()));
-      return storageSharedKeyCredential.generateAuthorizationHeader(url, req.getMethod(), headersMap);
+      return storageSharedKeyCredential.generateAuthorizationHeader(
+          url, req.getMethod(), headersMap);
     } catch (MalformedURLException e) {
       throw new IllegalStateException("The request URL is invalid ", e);
     }
   }
 
   @Override
-  public void signRequest(final HttpURLConnection connection, final long contentLength) throws UnsupportedEncodingException {
+  public void signRequest(final HttpURLConnection connection, final long contentLength)
+      throws UnsupportedEncodingException {
     getSecret().getSharedKeyCredentials().signRequest(connection, contentLength);
   }
 
@@ -125,9 +124,7 @@ public class AzureSharedKeyCredentials implements AzureStorageCredentials, Confi
     }
   }
 
-  /**
-   * Get Secret, updating if necessary
-   */
+  /** Get Secret, updating if necessary */
   @VisibleForTesting
   protected LookupResult getSecret() {
     checkAndUpdateToken();
@@ -157,10 +154,9 @@ public class AzureSharedKeyCredentials implements AzureStorageCredentials, Confi
     return getSecret().getStorageCredentials();
   }
 
-
   /**
-   * Get the shared access key from configuration. Unpacks exceptions
-   * such that cause of CredentialsException is surfaced.
+   * Get the shared access key from configuration. Unpacks exceptions such that cause of
+   * CredentialsException is surfaced.
    */
   static String getSharedAccessKey(Configuration conf) {
     try {
@@ -170,15 +166,18 @@ public class AzureSharedKeyCredentials implements AzureStorageCredentials, Confi
       // Throw UserException to surface problems with credentials config to the user
       for (Throwable throwable : Throwables.getCausalChain(e)) {
         if (throwable instanceof CredentialsException) {
-          final String message = throwable.getCause() == null ? throwable.getMessage() : throwable.getCause().getMessage();
+          final String message =
+              throwable.getCause() == null
+                  ? throwable.getMessage()
+                  : throwable.getCause().getMessage();
           throw UserException.permissionError(throwable)
-            .message("Failed to resolve credentials: " + message)
-            .buildSilently();
+              .message("Failed to resolve credentials: " + message)
+              .buildSilently();
         }
       }
       throw UserException.permissionError(e)
-        .message("Failed to resolve credentials.")
-        .buildSilently();
+          .message("Failed to resolve credentials.")
+          .buildSilently();
     }
   }
 
@@ -188,9 +187,12 @@ public class AzureSharedKeyCredentials implements AzureStorageCredentials, Confi
     private final String secret;
     private final Date createdOn;
 
-    private final Supplier<SharedKeyCredentials> sharedKeyCredentials = Suppliers.memoize(() -> new SharedKeyCredentials(getAccountName(), getSecret()));
-    private final Supplier<StorageCredentials> storageCredentials = Suppliers.memoize(() -> new StorageCredentialsAccountAndKey(getAccountName(), getSecret()));
-    private final Supplier<StorageSharedKeyCredential> storageSharedKeyCredential = Suppliers.memoize(() -> new StorageSharedKeyCredential(getAccountName(), getSecret()));
+    private final Supplier<SharedKeyCredentials> sharedKeyCredentials =
+        Suppliers.memoize(() -> new SharedKeyCredentials(getAccountName(), getSecret()));
+    private final Supplier<StorageCredentials> storageCredentials =
+        Suppliers.memoize(() -> new StorageCredentialsAccountAndKey(getAccountName(), getSecret()));
+    private final Supplier<StorageSharedKeyCredential> storageSharedKeyCredential =
+        Suppliers.memoize(() -> new StorageSharedKeyCredential(getAccountName(), getSecret()));
 
     public LookupResult(String accountName, String secret) {
       this.accountName = accountName;

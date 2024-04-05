@@ -15,13 +15,13 @@
  */
 package com.dremio.exec.compile;
 
+import com.dremio.exec.compile.sig.SignatureHolder;
 import java.util.concurrent.atomic.AtomicLong;
 
-import com.dremio.exec.compile.sig.SignatureHolder;
+public class TemplateClassDefinition<T> {
 
-public class TemplateClassDefinition<T>{
-
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TemplateClassDefinition.class);
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(TemplateClassDefinition.class);
 
   private final Class<T> iface;
   private final Class<?> template;
@@ -33,16 +33,18 @@ public class TemplateClassDefinition<T>{
     this.iface = iface;
     this.template = template;
     SignatureHolder holder = null;
-    try{
+    try {
       holder = SignatureHolder.getHolder(template);
-    }catch(Exception ex){
-      logger.error("Failure while trying to build signature holder for signature. {}", template.getName(), ex);
+    } catch (Exception ex) {
+      logger.error(
+          "Failure while trying to build signature holder for signature. {}",
+          template.getName(),
+          ex);
     }
     this.signature = holder;
-
   }
 
-  public long getNextClassNumber(){
+  public long getNextClassNumber() {
     return classNumber.getAndIncrement();
   }
 
@@ -50,12 +52,11 @@ public class TemplateClassDefinition<T>{
     return iface;
   }
 
-
   public String getTemplateClassName() {
     return template.getName();
   }
 
-  public SignatureHolder getSignature(){
+  public SignatureHolder getSignature() {
     return signature;
   }
 

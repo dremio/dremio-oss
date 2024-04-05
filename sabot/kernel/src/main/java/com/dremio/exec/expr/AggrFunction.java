@@ -15,17 +15,14 @@
  */
 package com.dremio.exec.expr;
 
-/**
- * Aggregate function interface.
- *
- */
+/** Aggregate function interface. */
 public interface AggrFunction extends Function {
-  /**
-   * Initialization for the beginning of the aggregation.
-   *
-   */
+  /** Initialization for the beginning of the aggregation. */
   public void setup();
+
   public void add();
+
   public void output();
+
   public void reset();
 }

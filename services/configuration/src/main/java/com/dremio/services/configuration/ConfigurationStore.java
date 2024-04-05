@@ -24,9 +24,7 @@ import com.dremio.datastore.format.Format;
 import com.dremio.services.configuration.proto.ConfigurationEntry;
 import com.google.common.base.Preconditions;
 
-/**
- * General store to store k/v pairs.
- */
+/** General store to store k/v pairs. */
 public class ConfigurationStore {
   private static final String CONFIG_STORE = "configuration";
   private final LegacyKVStore<String, ConfigurationEntry> store;
@@ -48,25 +46,24 @@ public class ConfigurationStore {
     store.delete(key);
   }
 
-  /**
-   * Support storage creator.
-   */
-  public static final class ConfigurationStoreCreator implements LegacyKVStoreCreationFunction<String, ConfigurationEntry> {
+  /** Support storage creator. */
+  public static final class ConfigurationStoreCreator
+      implements LegacyKVStoreCreationFunction<String, ConfigurationEntry> {
     @Override
     public LegacyKVStore<String, ConfigurationEntry> build(LegacyStoreBuildingFactory factory) {
-      return factory.<String, ConfigurationEntry>newStore()
-        .name(CONFIG_STORE)
-        .keyFormat(Format.ofString())
-        .valueFormat(Format.ofProtostuff(ConfigurationEntry.class))
-        .versionExtractor(ConfigurationEntryVersionExtractor.class)
-        .build();
+      return factory
+          .<String, ConfigurationEntry>newStore()
+          .name(CONFIG_STORE)
+          .keyFormat(Format.ofString())
+          .valueFormat(Format.ofProtostuff(ConfigurationEntry.class))
+          .versionExtractor(ConfigurationEntryVersionExtractor.class)
+          .build();
     }
   }
 
-  /**
-   * Version extractor
-   */
-  public static final class ConfigurationEntryVersionExtractor implements VersionExtractor<ConfigurationEntry> {
+  /** Version extractor */
+  public static final class ConfigurationEntryVersionExtractor
+      implements VersionExtractor<ConfigurationEntry> {
     @Override
     public String getTag(ConfigurationEntry value) {
       return value.getTag();

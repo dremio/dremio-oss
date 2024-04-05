@@ -15,8 +15,11 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.dremio.exec.planner.sql.handlers.query.SqlToPlanHandler;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
 import java.util.List;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -27,25 +30,24 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.dremio.exec.planner.sql.handlers.query.SqlToPlanHandler;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableList;
-
 public class SqlCompactMaterialization extends SqlCall implements SqlToPlanHandler.Creator {
 
-  public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("COMPACT_MATERIALIZATION", SqlKind.OTHER) {
-    @Override
-    public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 2, "SqlCompactRefresh.createCall() has to get 2 operands!");
-      return new SqlCompactMaterialization(pos, operands[0], operands[1]);
-    }
-  };
+  public static final SqlSpecialOperator OPERATOR =
+      new SqlSpecialOperator("COMPACT_MATERIALIZATION", SqlKind.OTHER) {
+        @Override
+        public SqlCall createCall(
+            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+          Preconditions.checkArgument(
+              operands.length == 2, "SqlCompactRefresh.createCall() has to get 2 operands!");
+          return new SqlCompactMaterialization(pos, operands[0], operands[1]);
+        }
+      };
 
   private SqlIdentifier materializationPath;
   private SqlLiteral newMaterializationId;
 
-  public SqlCompactMaterialization(SqlParserPos pos, SqlNode materializationPath, SqlNode newMaterializationPath) {
+  public SqlCompactMaterialization(
+      SqlParserPos pos, SqlNode materializationPath, SqlNode newMaterializationPath) {
     super(pos);
     this.materializationPath = (SqlIdentifier) materializationPath;
     this.newMaterializationId = (SqlLiteral) newMaterializationPath;
@@ -81,7 +83,10 @@ public class SqlCompactMaterialization extends SqlCall implements SqlToPlanHandl
   @Override
   public SqlToPlanHandler toPlanHandler() {
     try {
-      return (SqlToPlanHandler) Class.forName("com.dremio.service.reflection.compact.CompactRefreshHandler").newInstance();
+      return (SqlToPlanHandler)
+          Class.forName("com.dremio.service.reflection.compact.CompactRefreshHandler")
+              .getDeclaredConstructor()
+              .newInstance();
     } catch (ReflectiveOperationException e) {
       throw Throwables.propagate(e);
     }

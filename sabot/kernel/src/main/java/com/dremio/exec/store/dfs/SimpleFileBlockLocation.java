@@ -15,10 +15,9 @@
  */
 package com.dremio.exec.store.dfs;
 
-import java.util.List;
-
 import com.dremio.io.file.FileBlockLocation;
 import com.google.common.collect.ImmutableList;
+import java.util.List;
 
 public final class SimpleFileBlockLocation implements FileBlockLocation {
   private final long offset;
@@ -48,6 +47,12 @@ public final class SimpleFileBlockLocation implements FileBlockLocation {
 
   @Override
   public String toString() {
-    return "SimpleFileBlockLocation [offset=" + offset + ", size=" + size + ", hosts=" + hosts + "]";
+    return "SimpleFileBlockLocation [offset="
+        + offset
+        + ", size="
+        + size
+        + ", hosts="
+        + hosts
+        + "]";
   }
 }

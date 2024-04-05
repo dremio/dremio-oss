@@ -15,15 +15,6 @@
  */
 package com.dremio.exec.store.dfs;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
-import java.util.regex.Pattern;
-
-import org.apache.commons.io.IOUtils;
-
 import com.dremio.io.CompressionCodec;
 import com.dremio.io.CompressionCodecFactory;
 import com.dremio.io.FSInputStream;
@@ -33,9 +24,17 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
+import java.util.regex.Pattern;
+import org.apache.commons.io.IOUtils;
 
 public class BasicFormatMatcher extends FormatMatcher {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BasicFormatMatcher.class);
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(BasicFormatMatcher.class);
 
   protected final FormatPlugin plugin;
   protected final boolean compressible;
@@ -43,7 +42,8 @@ public class BasicFormatMatcher extends FormatMatcher {
   private final List<Pattern> patterns;
   private final MagicStringMatcher matcher;
 
-  public BasicFormatMatcher(FormatPlugin plugin, List<Pattern> patterns, List<MagicString> magicStrings) {
+  public BasicFormatMatcher(
+      FormatPlugin plugin, List<Pattern> patterns, List<MagicString> magicStrings) {
     super();
     this.patterns = ImmutableList.copyOf(patterns);
     this.matcher = new MagicStringMatcher(magicStrings);
@@ -63,9 +63,11 @@ public class BasicFormatMatcher extends FormatMatcher {
   }
 
   @Override
-  public boolean matches(FileSystem fs, FileSelection selection, CompressionCodecFactory codecFactory) throws IOException {
+  public boolean matches(
+      FileSystem fs, FileSelection selection, CompressionCodecFactory codecFactory)
+      throws IOException {
     Optional<FileAttributes> firstFileO = selection.getFirstFileIteratively(fs);
-    if(!firstFileO.isPresent()) {
+    if (!firstFileO.isPresent()) {
       return false;
     }
     return matches(fs, firstFileO.get(), codecFactory);
@@ -75,8 +77,10 @@ public class BasicFormatMatcher extends FormatMatcher {
    * Function returns true if the file extension matches the pattern
    */
   @Override
-  public boolean matches(FileSystem fs, FileAttributes attributes, CompressionCodecFactory codecFactory) throws IOException {
-  CompressionCodec codec = null;
+  public boolean matches(
+      FileSystem fs, FileAttributes attributes, CompressionCodecFactory codecFactory)
+      throws IOException {
+    CompressionCodec codec = null;
     if (compressible) {
       codec = codecFactory.getCodec(attributes.getPath());
     }
@@ -91,7 +95,7 @@ public class BasicFormatMatcher extends FormatMatcher {
       if (p.matcher(fileName).matches()) {
         return true;
       }
-      if (fileNameHacked != null  &&  p.matcher(fileNameHacked).matches()) {
+      if (fileNameHacked != null && p.matcher(fileNameHacked).matches()) {
         return true;
       }
     }
@@ -108,19 +112,18 @@ public class BasicFormatMatcher extends FormatMatcher {
     return plugin;
   }
 
-
   private class MagicStringMatcher {
 
     private List<RangeMagics> ranges;
 
     public MagicStringMatcher(List<MagicString> magicStrings) {
       ranges = Lists.newArrayList();
-      for(MagicString ms : magicStrings) {
+      for (MagicString ms : magicStrings) {
         ranges.add(new RangeMagics(ms));
       }
     }
 
-    public boolean matches(FileSystem fs, FileAttributes attributes) throws IOException{
+    public boolean matches(FileSystem fs, FileAttributes attributes) throws IOException {
       if (ranges.isEmpty() || attributes.isDirectory()) {
         return false;
       }
@@ -129,15 +132,16 @@ public class BasicFormatMatcher extends FormatMatcher {
       while (current.isSymbolicLink()) {
         current = fs.getFileAttributes(attributes.getSymbolicLink());
       }
-      // if hard entry is not a file nor can it be a symlink then it is not readable simply deny matching.
+      // if hard entry is not a file nor can it be a symlink then it is not readable simply deny
+      // matching.
       if (!current.isRegularFile()) {
         return false;
       }
 
-      final Range<Long> fileRange = Range.closedOpen( 0L, attributes.size());
+      final Range<Long> fileRange = Range.closedOpen(0L, attributes.size());
 
       try (FSInputStream is = fs.open(attributes.getPath())) {
-        for(RangeMagics rMagic : ranges) {
+        for (RangeMagics rMagic : ranges) {
           Range<Long> r = rMagic.range;
           if (!fileRange.encloses(r)) {
             continue;
@@ -156,15 +160,14 @@ public class BasicFormatMatcher extends FormatMatcher {
       return false;
     }
 
-    private class RangeMagics{
+    private class RangeMagics {
       Range<Long> range;
       byte[][] magics;
 
       public RangeMagics(MagicString ms) {
-        this.range = Range.closedOpen( ms.getOffset(), (long) ms.getBytes().length);
-        this.magics = new byte[][]{ms.getBytes()};
+        this.range = Range.closedOpen(ms.getOffset(), (long) ms.getBytes().length);
+        this.magics = new byte[][] {ms.getBytes()};
       }
     }
   }
-
 }

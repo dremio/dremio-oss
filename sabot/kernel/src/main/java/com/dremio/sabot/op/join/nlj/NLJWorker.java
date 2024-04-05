@@ -15,18 +15,16 @@
  */
 package com.dremio.sabot.op.join.nlj;
 
-import java.util.LinkedList;
-
 import com.dremio.exec.compile.TemplateClassDefinition;
 import com.dremio.exec.record.ExpandableHyperContainer;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.sabot.exec.context.FunctionContext;
+import java.util.LinkedList;
 
-/**
- * Interface for the nested loop join operator.
- */
+/** Interface for the nested loop join operator. */
 public interface NLJWorker {
-  public static TemplateClassDefinition<NLJWorker> TEMPLATE_DEFINITION = new TemplateClassDefinition<>(NLJWorker.class, NLJWorkerTemplate.class);
+  public static TemplateClassDefinition<NLJWorker> TEMPLATE_DEFINITION =
+      new TemplateClassDefinition<>(NLJWorker.class, NLJWorkerTemplate.class);
 
   void setupNestedLoopJoin(
       FunctionContext context,
@@ -36,18 +34,14 @@ public interface NLJWorker {
       VectorAccessible outgoing);
 
   /**
-   * Starting at the provided index, attempt to output records using all right
-   * batches and the current left batch up to the target total output.
+   * Starting at the provided index, attempt to output records using all right batches and the
+   * current left batch up to the target total output.
    *
-   * @param outputIndex
-   *          The outgoing batch index to start with.
-   * @param targetTotalOutput
-   *          The target amount of records to output.
-   * @return The update output index. A positive value if all remaining matches
-   *         from the current left batch were matched. A negative version if we
-   *         ran out of space while outputting. Zero if we started with a zero
-   *         output index and output no records.
+   * @param outputIndex The outgoing batch index to start with.
+   * @param targetTotalOutput The target amount of records to output.
+   * @return The update output index. A positive value if all remaining matches from the current
+   *     left batch were matched. A negative version if we ran out of space while outputting. Zero
+   *     if we started with a zero output index and output no records.
    */
   int emitRecords(int outputIndex, int targetTotalOutput);
-
 }

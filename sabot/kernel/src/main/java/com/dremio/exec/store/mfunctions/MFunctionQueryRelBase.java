@@ -15,8 +15,8 @@
  */
 package com.dremio.exec.store.mfunctions;
 
+import com.dremio.exec.store.MFunctionCatalogMetadata;
 import java.util.List;
-
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptPlanner;
@@ -26,13 +26,10 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 
-import com.dremio.exec.store.MFunctionCatalogMetadata;
-
 /**
- * Rel base for Metadata Functions RelNodes
- * Eg: select * from table(table_history('call_center'))
- * table_history,table_snapshot,table_manifesTs are metadata functions.
- * Any new table format should extend this to support these metadata functions
+ * Rel base for Metadata Functions RelNodes Eg: select * from table(table_history('call_center'))
+ * table_history,table_snapshot,table_manifesTs are metadata functions. Any new table format should
+ * extend this to support these metadata functions
  */
 abstract class MFunctionQueryRelBase extends AbstractRelNode {
 
@@ -41,8 +38,13 @@ abstract class MFunctionQueryRelBase extends AbstractRelNode {
   final String user;
   final String metadataLocation;
 
-  MFunctionQueryRelBase(RelOptCluster cluster, RelTraitSet traitSet,
-                        RelDataType rowType, MFunctionCatalogMetadata tableMetadata, String user, String metadataLocation) {
+  MFunctionQueryRelBase(
+      RelOptCluster cluster,
+      RelTraitSet traitSet,
+      RelDataType rowType,
+      MFunctionCatalogMetadata tableMetadata,
+      String user,
+      String metadataLocation) {
     super(cluster, traitSet);
     this.tableMetadata = tableMetadata;
     this.user = user;
@@ -59,9 +61,9 @@ abstract class MFunctionQueryRelBase extends AbstractRelNode {
   }
 
   /**
-   * Subclasses must override copy to avoid problems where duplicate scan operators are
-   * created due to the same (reference-equality) Prel being used multiple times in the plan.
-   * The copy implementation in AbstractRelNode just returns a reference to "this".
+   * Subclasses must override copy to avoid problems where duplicate scan operators are created due
+   * to the same (reference-equality) Prel being used multiple times in the plan. The copy
+   * implementation in AbstractRelNode just returns a reference to "this".
    */
   @Override
   public abstract RelNode copy(RelTraitSet traitSet, List<RelNode> inputs);
@@ -71,9 +73,7 @@ abstract class MFunctionQueryRelBase extends AbstractRelNode {
     return planner.getCostFactory().makeTinyCost();
   }
 
-  /**
-   * Check if plugin provides this details.
-   */
+  /** Check if plugin provides this details. */
   @Override
   public double estimateRowCount(RelMetadataQuery mq) {
     return 1000;
@@ -83,6 +83,4 @@ abstract class MFunctionQueryRelBase extends AbstractRelNode {
   protected RelDataType deriveRowType() {
     return rowType;
   }
-
-
 }

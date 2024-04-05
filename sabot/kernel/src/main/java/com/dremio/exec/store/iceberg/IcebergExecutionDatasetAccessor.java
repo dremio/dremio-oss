@@ -15,12 +15,6 @@
  */
 package com.dremio.exec.store.iceberg;
 
-import java.io.IOException;
-import java.util.function.Supplier;
-
-import org.apache.hadoop.conf.Configuration;
-import org.apache.iceberg.Table;
-
 import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.BytesOutput;
 import com.dremio.connector.metadata.DatasetMetadata;
@@ -34,10 +28,12 @@ import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.google.common.base.Throwables;
+import java.io.IOException;
+import java.util.function.Supplier;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.iceberg.Table;
 
-/**
- * Dataset handle for Iceberg format that supports Iceberg execution model
- */
+/** Dataset handle for Iceberg format that supports Iceberg execution model */
 public class IcebergExecutionDatasetAccessor extends BaseIcebergExecutionDatasetAccessor {
 
   private final Supplier<Table> tableSupplier;
@@ -52,9 +48,14 @@ public class IcebergExecutionDatasetAccessor extends BaseIcebergExecutionDataset
       FileSystem fs,
       TableSnapshotProvider tableSnapshotProvider,
       MutablePlugin plugin,
-      TableSchemaProvider tableSchemaProvider
-  ) {
-    super(datasetPath, tableSupplier, configuration, tableSnapshotProvider, plugin, tableSchemaProvider,
+      TableSchemaProvider tableSchemaProvider) {
+    super(
+        datasetPath,
+        tableSupplier,
+        configuration,
+        tableSnapshotProvider,
+        plugin,
+        tableSchemaProvider,
         formatPlugin.getContext().getOptionManager());
     this.tableSupplier = tableSupplier;
     this.fs = fs;
@@ -68,8 +69,8 @@ public class IcebergExecutionDatasetAccessor extends BaseIcebergExecutionDataset
   @Override
   protected FileConfig getFileConfig() {
     return PhysicalDatasetUtils.toFileFormat(formatPlugin)
-      .asFileConfig()
-      .setLocation(getTableLocation());
+        .asFileConfig()
+        .setLocation(getTableLocation());
   }
 
   @Override
@@ -89,21 +90,18 @@ public class IcebergExecutionDatasetAccessor extends BaseIcebergExecutionDataset
       }
 
       final FileAttributes attributes = fs.getFileAttributes(metaDir);
-      final FileProtobuf.FileSystemCachedEntity cachedEntity = FileProtobuf.FileSystemCachedEntity
-        .newBuilder()
-        .setPath(metaDir.toString())
-        .setLastModificationTime(attributes.lastModifiedTime().toMillis())
-        .setLength(attributes.size())
-        .build();
+      final FileProtobuf.FileSystemCachedEntity cachedEntity =
+          FileProtobuf.FileSystemCachedEntity.newBuilder()
+              .setPath(metaDir.toString())
+              .setLastModificationTime(attributes.lastModifiedTime().toMillis())
+              .setLength(attributes.size())
+              .build();
 
-      return FileProtobuf.FileUpdateKey
-        .newBuilder()
-        .addCachedEntities(cachedEntity)
-        .build()::writeTo;
+      return FileProtobuf.FileUpdateKey.newBuilder().addCachedEntities(cachedEntity).build()
+          ::writeTo;
     } catch (IOException ioe) {
       Throwables.propagateIfPossible(ioe, ConnectorException.class);
       throw new ConnectorException(ioe);
     }
   }
-
 }

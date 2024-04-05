@@ -13,7 +13,5 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/**
- * Logical type definitions.
- */
+/** Logical type definitions. */
 package com.dremio.common.expression.types;

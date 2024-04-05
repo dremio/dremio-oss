@@ -20,7 +20,8 @@ import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEventTopic;
 
 public class DatasetDeletionCatalogStatusEvent implements CatalogStatusEvent {
   private static final String TOPIC_NAME = "DATASET_DELETION";
-  private static final CatalogStatusEventTopic eventsTopic = new CatalogStatusEventTopic(TOPIC_NAME);
+  private static final CatalogStatusEventTopic eventsTopic =
+      new CatalogStatusEventTopic(TOPIC_NAME);
   private final String datasetPath;
 
   public DatasetDeletionCatalogStatusEvent(String datasetPath) {
@@ -30,6 +31,7 @@ public class DatasetDeletionCatalogStatusEvent implements CatalogStatusEvent {
   public static CatalogStatusEventTopic getEventTopic() {
     return eventsTopic;
   }
+
   @Override
   public CatalogStatusEventTopic getTopic() {
     return eventsTopic;

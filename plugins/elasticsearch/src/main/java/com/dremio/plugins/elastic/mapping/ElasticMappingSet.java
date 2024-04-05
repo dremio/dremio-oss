@@ -15,19 +15,6 @@
  */
 package com.dremio.plugins.elastic.mapping;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.stream.Collectors;
-
-import org.apache.arrow.vector.types.pojo.Field;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.Describer;
 import com.dremio.common.types.TypeCoercionRules;
@@ -54,36 +41,45 @@ import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * Describes the response to a _mapping query in Elastic.
- */
+/** Describes the response to a _mapping query in Elastic. */
 public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticIndex> {
 
   private static final Logger logger = LoggerFactory.getLogger(ElasticMappingSet.class);
 
-  public static final ObjectMapper MAPPER = new ObjectMapper()
-      .registerModule(new GuavaModule())
-      .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
-      .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-      .configure(SerializationFeature.INDENT_OUTPUT, true)
-      .setInjectableValues(CurentNameInjectable.INSTANCE);
+  public static final ObjectMapper MAPPER =
+      new ObjectMapper()
+          .registerModule(new GuavaModule())
+          .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
+          .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+          .configure(SerializationFeature.INDENT_OUTPUT, true)
+          .setInjectableValues(CurentNameInjectable.INSTANCE);
 
-  private static final CompleteType GEO_POINT_TYPE = CompleteType.struct(
-      CompleteType.DOUBLE.toField(ElasticsearchConstants.GEO_POINT_LAT),
-      CompleteType.DOUBLE.toField(ElasticsearchConstants.GEO_POINT_LON)
-      );
-
+  private static final CompleteType GEO_POINT_TYPE =
+      CompleteType.struct(
+          CompleteType.DOUBLE.toField(ElasticsearchConstants.GEO_POINT_LAT),
+          CompleteType.DOUBLE.toField(ElasticsearchConstants.GEO_POINT_LON));
 
   //
   private static final Field DOUBLE = CompleteType.DOUBLE.toField("float8");
   private static final Field DOUBLE_LIST = CompleteType.DOUBLE.asList().toField("list");
 
-  private static Field UNION_LIST(Field...fields){
+  private static Field UNION_LIST(Field... fields) {
     return CompleteType.union(fields).asList().toField("list");
   }
 
-  private static Field COORDS(Field...fields){
+  private static Field COORDS(Field... fields) {
     return CompleteType.union(fields).toField(ElasticsearchConstants.GEO_SHAPE_COORDINATES);
   }
 
@@ -91,32 +87,25 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
       COORDS(
           DOUBLE,
           UNION_LIST(
-              DOUBLE,
-              UNION_LIST(
-                  DOUBLE,
-                  UNION_LIST(
-                      DOUBLE,
-                      UNION_LIST(
-                            DOUBLE,
-                            DOUBLE_LIST)))));
-
+              DOUBLE, UNION_LIST(DOUBLE, UNION_LIST(DOUBLE, UNION_LIST(DOUBLE, DOUBLE_LIST)))));
 
   public static void main(String[] args) {
     System.out.println(Describer.describe(COORDINATES));
   }
 
-  private static final CompleteType GEO_SHAPE_TYPE = CompleteType.struct(
-      CompleteType.VARCHAR.toField(ElasticsearchConstants.GEO_SHAPE_TYPE),
-      COORDINATES,
-      CompleteType.VARCHAR.toField(ElasticsearchConstants.GEO_SHAPE_RADIUS),
-      CompleteType.VARCHAR.toField(ElasticsearchConstants.GEO_SHAPE_ORIENTATION),
+  private static final CompleteType GEO_SHAPE_TYPE =
       CompleteType.struct(
           CompleteType.VARCHAR.toField(ElasticsearchConstants.GEO_SHAPE_TYPE),
           COORDINATES,
           CompleteType.VARCHAR.toField(ElasticsearchConstants.GEO_SHAPE_RADIUS),
-          CompleteType.VARCHAR.toField(ElasticsearchConstants.GEO_SHAPE_ORIENTATION)
-          ).asList().toField(ElasticsearchConstants.GEO_SHAPE_GEOMETRIES)
-      );
+          CompleteType.VARCHAR.toField(ElasticsearchConstants.GEO_SHAPE_ORIENTATION),
+          CompleteType.struct(
+                  CompleteType.VARCHAR.toField(ElasticsearchConstants.GEO_SHAPE_TYPE),
+                  COORDINATES,
+                  CompleteType.VARCHAR.toField(ElasticsearchConstants.GEO_SHAPE_RADIUS),
+                  CompleteType.VARCHAR.toField(ElasticsearchConstants.GEO_SHAPE_ORIENTATION))
+              .asList()
+              .toField(ElasticsearchConstants.GEO_SHAPE_GEOMETRIES));
 
   private final ImmutableList<ElasticIndex> indexes;
 
@@ -129,24 +118,23 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
     this.indexes = ImmutableList.copyOf(indexes);
   }
 
-  public ElasticMappingSet filterToType(String typeName){
+  public ElasticMappingSet filterToType(String typeName) {
     List<ElasticIndex> newIndexes = new ArrayList<>();
-    for(ElasticIndex i : this.indexes){
+    for (ElasticIndex i : this.indexes) {
       ElasticIndex newIndex = i.filterToType(typeName);
-      if(newIndex != null){
+      if (newIndex != null) {
         newIndexes.add(newIndex);
       }
     }
 
     return new ElasticMappingSet(newIndexes);
-
   }
 
-  public int size(){
+  public int size() {
     return indexes.size();
   }
 
-  public boolean isEmpty(){
+  public boolean isEmpty() {
     return indexes.isEmpty();
   }
 
@@ -160,16 +148,18 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
   }
 
   /**
-   * Combine all index mappings into a single merged mapping. Note that this is only possible if the mappings are compatible.
+   * Combine all index mappings into a single merged mapping. Note that this is only possible if the
+   * mappings are compatible.
+   *
    * @return A new merged mapping.
    */
   @JsonIgnore
-  public ElasticMapping getMergedMapping(){
+  public ElasticMapping getMergedMapping() {
     ElasticMapping mapping = null;
     String index_name = "";
-    for(ElasticIndex index : indexes){
-      for(ElasticMapping m : index.mappings){
-        if(mapping == null){
+    for (ElasticIndex index : indexes) {
+      for (ElasticMapping m : index.mappings) {
+        if (mapping == null) {
           mapping = m;
           index_name = index.name;
         } else {
@@ -199,7 +189,7 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
     return MoreObjects.toStringHelper(this).add("indexes", indexes).toString();
   }
 
-  private static Type maxTemporal(Type t1, Type t2){
+  private static Type maxTemporal(Type t1, Type t2) {
     switch (t1) {
       case DATE:
         return t2.equals(Type.DATE) ? Type.DATE : Type.TIMESTAMP;
@@ -225,14 +215,14 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
     private final ImmutableList<ElasticField> fields;
 
     private ElasticField(
-      String name,
-      Type type,
-      Indexing indexing,
-      boolean normalized,
-      List<String> formats,
-      boolean docValues,
-      List<ElasticField> children,
-      List<ElasticField> fields) {
+        String name,
+        Type type,
+        Indexing indexing,
+        boolean normalized,
+        List<String> formats,
+        boolean docValues,
+        List<ElasticField> children,
+        List<ElasticField> fields) {
       this.name = name;
       this.type = type;
       this.indexing = indexing;
@@ -244,38 +234,41 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
     }
 
     public ElasticField(
-      @JacksonInject(CurentNameInjectable.CURRENT_NAME) String name,
-      @JsonProperty("type") Type type,
-      @JsonProperty("index") Indexing indexing,
-      @JsonProperty("normalizer") String normalizer,
-      @JsonProperty("format") String format,
-      @JsonProperty("doc_values") Boolean docValues,
-      @JsonProperty("properties") Map<String,ElasticField> children,
-      @JsonProperty("fields") Map<String,ElasticField> fields){
+        @JacksonInject(CurentNameInjectable.CURRENT_NAME) String name,
+        @JsonProperty("type") Type type,
+        @JsonProperty("index") Indexing indexing,
+        @JsonProperty("normalizer") String normalizer,
+        @JsonProperty("format") String format,
+        @JsonProperty("doc_values") Boolean docValues,
+        @JsonProperty("properties") Map<String, ElasticField> children,
+        @JsonProperty("fields") Map<String, ElasticField> fields) {
       this.name = Preconditions.checkNotNull(name, "Field didn't have name.");
       this.formats = DateFormats.getFormatList(format);
 
-      // the type system for elastic somewhat incomplete. In cases of the single "date" type can be mapped to TIME, DATE or TIMESTAMP. We need to check this here.
-      if(type == Type.DATE){
-        DateFormats.FormatterAndTypeJavaTime[] types = DateFormats.FormatterAndTypeJavaTime.getFormatterAndType(formats);
+      // the type system for elastic somewhat incomplete. In cases of the single "date" type can be
+      // mapped to TIME, DATE or TIMESTAMP. We need to check this here.
+      if (type == Type.DATE) {
+        DateFormats.FormatterAndTypeJavaTime[] types =
+            DateFormats.FormatterAndTypeJavaTime.getFormatterAndType(formats);
         Preconditions.checkArgument(types.length > 0);
         Type newType = types[0].type();
 
-        for(int i = 1; i < types.length; i++){
+        for (int i = 1; i < types.length; i++) {
           newType = maxTemporal(newType, types[i].type());
         }
 
         type = newType;
       }
 
-      if(type == Type.HALF_FLOAT){
+      if (type == Type.HALF_FLOAT) {
         type = Type.FLOAT;
       }
 
       // fields are not analyzed unless they are text excplicitly set to analyzed.
-      if(indexing == null){
-        this.indexing = type == Type.TEXT || type == Type.STRING ? Indexing.ANALYZED : Indexing.NOT_ANALYZED;
-      }else {
+      if (indexing == null) {
+        this.indexing =
+            type == Type.TEXT || type == Type.STRING ? Indexing.ANALYZED : Indexing.NOT_ANALYZED;
+      } else {
         if (type == Type.TEXT && indexing == Indexing.NOT_ANALYZED) {
           // TEXT is analyzed as long as it is indexed
           this.indexing = Indexing.ANALYZED;
@@ -290,9 +283,9 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
 
       // doc values are available for all fields except analyzed ones or where explicitly disabled.
       // https://www.elastic.co/guide/en/elasticsearch/reference/current/doc-values.html
-      if(docValues == null){
+      if (docValues == null) {
         this.docValues = type != Type.TEXT && this.indexing != Indexing.ANALYZED;
-      }else{
+      } else {
         this.docValues = docValues;
       }
       this.children = asList(children);
@@ -308,13 +301,20 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
       this.type = Type.UNKNOWN;
     }
 
-    public ElasticField merge(ElasticMapping mapping, ElasticField field, String curr_mapping, String other_mapping, String curr_index, String other_index){
-      if (equals(field)){
+    public ElasticField merge(
+        ElasticMapping mapping,
+        ElasticField field,
+        String curr_mapping,
+        String other_mapping,
+        String curr_index,
+        String other_index) {
+      if (equals(field)) {
         return this;
       }
 
       if (!Objects.equal(name, field.name)) {
-        logDataReadErrorHelper(field, curr_mapping, other_mapping, curr_index, other_index, "names", name, field.name);
+        logDataReadErrorHelper(
+            field, curr_mapping, other_mapping, curr_index, other_index, "names", name, field.name);
         this.type = Type.UNKNOWN;
         field.type = Type.UNKNOWN;
         return null;
@@ -324,9 +324,18 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
       if (type != field.type) {
         // We can handle a non-strict match with numeric types by up-mapping to a common type.
         if (type.completeType.isNumeric() && field.type.completeType.isNumeric()) {
-          Optional<CompleteType> coercedType = new TypeCoercionRules().getResultantType(type.completeType, field.type.completeType);
+          Optional<CompleteType> coercedType =
+              new TypeCoercionRules().getResultantType(type.completeType, field.type.completeType);
           if (!coercedType.isPresent()) {
-            logDataReadErrorHelper(field, curr_mapping, other_mapping, curr_index, other_index, "types", type.toString(), field.type.toString());
+            logDataReadErrorHelper(
+                field,
+                curr_mapping,
+                other_mapping,
+                curr_index,
+                other_index,
+                "types",
+                type.toString(),
+                field.type.toString());
             this.type = Type.UNKNOWN;
             field.type = Type.UNKNOWN;
             return null;
@@ -341,21 +350,45 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
       }
 
       if (indexing != field.indexing) {
-        logDataReadErrorHelper(field, curr_mapping, other_mapping, curr_index, other_index, "indexing schemes", indexing.toString(), field.indexing.toString());
+        logDataReadErrorHelper(
+            field,
+            curr_mapping,
+            other_mapping,
+            curr_index,
+            other_index,
+            "indexing schemes",
+            indexing.toString(),
+            field.indexing.toString());
         this.type = Type.UNKNOWN;
         field.type = Type.UNKNOWN;
         return null;
       }
 
       if (!dateFormatEquals(formats, field.formats)) {
-        logDataReadErrorHelper(field, curr_mapping, other_mapping, curr_index, other_index, "date format schemes", formats.toString(), field.formats.toString());
+        logDataReadErrorHelper(
+            field,
+            curr_mapping,
+            other_mapping,
+            curr_index,
+            other_index,
+            "date format schemes",
+            formats.toString(),
+            field.formats.toString());
         this.type = Type.UNKNOWN;
         field.type = Type.UNKNOWN;
         return null;
       }
 
       if (docValues != field.docValues) {
-        logDataReadErrorHelper(field, curr_mapping, other_mapping, curr_index, other_index, "doc values storage settings", String.valueOf(docValues), String.valueOf(field.docValues));
+        logDataReadErrorHelper(
+            field,
+            curr_mapping,
+            other_mapping,
+            curr_index,
+            other_index,
+            "doc values storage settings",
+            String.valueOf(docValues),
+            String.valueOf(field.docValues));
         this.type = Type.UNKNOWN;
         field.type = Type.UNKNOWN;
         return null;
@@ -365,7 +398,22 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
       boolean normalized = this.normalized || field.normalized;
 
       // we just have different fields. Let's merge them.
-      return new ElasticField(name, mergedType, indexing, normalized, formats, docValues, mergeFields(mapping, children, field.children, curr_mapping, other_mapping, curr_index, other_index), fields);
+      return new ElasticField(
+          name,
+          mergedType,
+          indexing,
+          normalized,
+          formats,
+          docValues,
+          mergeFields(
+              mapping,
+              children,
+              field.children,
+              curr_mapping,
+              other_mapping,
+              curr_index,
+              other_index),
+          fields);
     }
 
     private boolean dateFormatEquals(List<String> formatListA, List<String> formatListB) {
@@ -391,24 +439,55 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
       return Objects.equal(a, b);
     }
 
-    public void logDataReadErrorHelper(ElasticField field, String curr_mapping, String other_mapping, String curr_index, String other_index, String diff, String first, String second) {
-      logger.warn(String.format("Unable to merge two different definitions for Field: (%s) with Type: (%s) from (%s.%s) with Field: (%s) with Type: (%s) from (%s.%s) as they are different %s. The %s are %s and %s.", name, type, curr_index, curr_mapping, field.name, field.type, other_index, other_mapping, diff, diff, first, second));
+    public void logDataReadErrorHelper(
+        ElasticField field,
+        String curr_mapping,
+        String other_mapping,
+        String curr_index,
+        String other_index,
+        String diff,
+        String first,
+        String second) {
+      logger.warn(
+          String.format(
+              "Unable to merge two different definitions for Field: (%s) with Type: (%s) from (%s.%s) with Field: (%s) with Type: (%s) from (%s.%s) as they are different %s. The %s are %s and %s.",
+              name,
+              type,
+              curr_index,
+              curr_mapping,
+              field.name,
+              field.type,
+              other_index,
+              other_mapping,
+              diff,
+              diff,
+              first,
+              second));
     }
 
-    public static List<ElasticField> mergeFields(ElasticMapping mapping, List<ElasticField> fieldsA, List<ElasticField> fieldsB, String mappingA, String mappingB, String indexA, String indexB){
+    public static List<ElasticField> mergeFields(
+        ElasticMapping mapping,
+        List<ElasticField> fieldsA,
+        List<ElasticField> fieldsB,
+        String mappingA,
+        String mappingB,
+        String indexA,
+        String indexB) {
       // There is field variation if the number of fieldA is different from that of fieldB.
       if (fieldsA.size() != fieldsB.size()) {
         mapping.setVariationDetected(true);
       }
       Map<String, ElasticField> fields = new LinkedHashMap<>();
-      for(ElasticField f : fieldsA){
+      for (ElasticField f : fieldsA) {
         fields.put(f.getName(), f);
       }
       // add new fields, add replacements to intermediate map.
       Map<String, ElasticField> replacements = new HashMap<>();
-      for(ElasticField f : fieldsB){
-        if(fields.containsKey(f.getName())){
-          replacements.put(f.getName(), fields.get(f.getName()).merge(mapping, f, mappingA, mappingB, indexA, indexB));
+      for (ElasticField f : fieldsB) {
+        if (fields.containsKey(f.getName())) {
+          replacements.put(
+              f.getName(),
+              fields.get(f.getName()).merge(mapping, f, mappingA, mappingB, indexA, indexB));
         } else {
           // There is field variation if the field in fieldB is not found in fieldA.
           mapping.setVariationDetected(true);
@@ -416,12 +495,13 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
         }
       }
 
-      // return all values, substituting replacements where they exist (but keeping the initial field ordering).
+      // return all values, substituting replacements where they exist (but keeping the initial
+      // field ordering).
 
       List<ElasticField> output = new ArrayList<>();
-      for(Map.Entry<String, ElasticField> e : fields.entrySet()){
+      for (Map.Entry<String, ElasticField> e : fields.entrySet()) {
         ElasticField replacement = replacements.get(e.getKey());
-        if(replacement != null){
+        if (replacement != null) {
           output.add(replacement);
         } else {
           output.add(e.getValue());
@@ -430,21 +510,23 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
       return output;
     }
 
-    public Field toArrowField(){
-      if(type.completeType != null){
+    public Field toArrowField() {
+      if (type.completeType != null) {
         return type.completeType.toField(name);
       }
 
-      switch(type) {
-      case NESTED:
-      case OBJECT:
-        return CompleteType.struct(children.stream().map(ElasticField::toArrowField).collect(Collectors.toList())).toField(name);
-      default:
-        throw new UnsupportedOperationException("Unable to handle field " + this);
+      switch (type) {
+        case NESTED:
+        case OBJECT:
+          return CompleteType.struct(
+                  children.stream().map(ElasticField::toArrowField).collect(Collectors.toList()))
+              .toField(name);
+        default:
+          throw new UnsupportedOperationException("Unable to handle field " + this);
       }
     }
 
-    public boolean hasDocValues(){
+    public boolean hasDocValues() {
       return docValues;
     }
 
@@ -487,22 +569,29 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
         return false;
       }
       ElasticField castOther = (ElasticField) other;
-      return Objects.equal(name, castOther.name) && Objects.equal(type, castOther.type)
+      return Objects.equal(name, castOther.name)
+          && Objects.equal(type, castOther.type)
           && Objects.equal(indexing, castOther.indexing)
-          && Objects.equal(formats, castOther.formats) && Objects.equal(children, castOther.children);
+          && Objects.equal(formats, castOther.formats)
+          && Objects.equal(children, castOther.children);
     }
 
     @Override
     public int hashCode() {
-      return Objects.hashCode(name, type.ordinal(), indexing.ordinal(), formats, ImmutableSet.copyOf(children));
+      return Objects.hashCode(
+          name, type.ordinal(), indexing.ordinal(), formats, ImmutableSet.copyOf(children));
     }
 
     @Override
     public String toString() {
-      return MoreObjects.toStringHelper(this).add("name", name).add("type", type).add("indexing", indexing)
-          .add("formats", formats).add("children", children).toString();
+      return MoreObjects.toStringHelper(this)
+          .add("name", name)
+          .add("type", type)
+          .add("indexing", indexing)
+          .add("formats", formats)
+          .add("children", children)
+          .toString();
     }
-
   }
 
   public static class ElasticIndex {
@@ -521,9 +610,7 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
       this.mappings = asList(mappings);
     }
 
-    public ElasticIndex(
-        String name,
-        ElasticMapping mapping) {
+    public ElasticIndex(String name, ElasticMapping mapping) {
       this.name = name;
       this.aliases = ImmutableList.of();
       this.mappings = ImmutableList.of(mapping);
@@ -533,35 +620,42 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
       return name;
     }
 
-    public ElasticIndex filterToType(String name){
+    public ElasticIndex filterToType(String name) {
       List<ElasticMapping> filtered = new ArrayList<>();
-      for(ElasticMapping m : mappings){
-        for(String namePiece : name.split(",")){
-          if(m.getName().equals(namePiece)){
+      for (ElasticMapping m : mappings) {
+        for (String namePiece : name.split(",")) {
+          if (m.getName().equals(namePiece)) {
             filtered.add(m);
           }
         }
       }
-      if(filtered.isEmpty()){
+      if (filtered.isEmpty()) {
         return null;
       }
-      return new ElasticIndex(name, ImmutableList.<String>of(), FluentIterable.from(filtered).uniqueIndex(new Function<ElasticMapping, String>(){
+      return new ElasticIndex(
+          name,
+          ImmutableList.<String>of(),
+          FluentIterable.from(filtered)
+              .uniqueIndex(
+                  new Function<ElasticMapping, String>() {
 
-        @Override
-        public String apply(ElasticMapping input) {
-          return input.getName();
-        }}));
+                    @Override
+                    public String apply(ElasticMapping input) {
+                      return input.getName();
+                    }
+                  }));
     }
 
     public ImmutableList<ElasticMapping> getMappings() {
       return mappings;
     }
 
-    public ElasticMapping getMergedMapping(){
-      return new ElasticMappingSet(ImmutableMap.<String, ElasticIndex>of(this.name, this)).getMergedMapping();
+    public ElasticMapping getMergedMapping() {
+      return new ElasticMappingSet(ImmutableMap.<String, ElasticIndex>of(this.name, this))
+          .getMergedMapping();
     }
 
-    public List<String> getAliases(){
+    public List<String> getAliases() {
       return aliases;
     }
 
@@ -571,7 +665,8 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
         return false;
       }
       ElasticIndex castOther = (ElasticIndex) other;
-      return Objects.equal(name, castOther.name) && Objects.equal(mappings, castOther.mappings)
+      return Objects.equal(name, castOther.name)
+          && Objects.equal(mappings, castOther.mappings)
           && Objects.equal(aliases, castOther.aliases);
     }
 
@@ -582,11 +677,12 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
 
     @Override
     public String toString() {
-      return MoreObjects.toStringHelper(this).add("name", name).add("mappings", mappings).add("aliases", aliases)
+      return MoreObjects.toStringHelper(this)
+          .add("name", name)
+          .add("mappings", mappings)
+          .add("aliases", aliases)
           .toString();
     }
-
-
   }
 
   public static class ElasticMapping implements Iterable<ElasticField> {
@@ -596,7 +692,8 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
     private final boolean composite;
     private boolean variationDetected;
 
-    private ElasticMapping(String name, List<ElasticField> fields, boolean merged, boolean variationDetected){
+    private ElasticMapping(
+        String name, List<ElasticField> fields, boolean merged, boolean variationDetected) {
       this.name = name;
       this.fields = ImmutableList.copyOf(fields);
       this.composite = merged;
@@ -630,9 +727,11 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
       return fields;
     }
 
-    public ElasticMapping merge(ElasticMapping mapping, String curr_index, String other_index){
+    public ElasticMapping merge(ElasticMapping mapping, String curr_index, String other_index) {
       String newName = name.equals(mapping.name) ? name : name + "," + mapping.name;
-      List<ElasticField> newFields = ElasticField.mergeFields(mapping, fields, mapping.fields, name, mapping.name, curr_index, other_index);
+      List<ElasticField> newFields =
+          ElasticField.mergeFields(
+              mapping, fields, mapping.fields, name, mapping.name, curr_index, other_index);
       return new ElasticMapping(newName, newFields, true, mapping.variationDetected);
     }
 
@@ -662,33 +761,36 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
 
     /**
      * Whether this mapping is a composite of multiple original mappings.
+     *
      * @return True if this was built of more than one mapping.
      */
-    public boolean isComposite(){
+    public boolean isComposite() {
       return composite;
     }
   }
 
   public static enum Indexing {
-    @JsonProperty("true") NOT_ANALYZED(true, "not_analyzed", "true"),
-    @JsonProperty("true") ANALYZED(true, "analyzed"),
-    @JsonProperty("false") NOT_INDEXED(false, "no", "not_indexed", "false");
+    @JsonProperty("true")
+    NOT_ANALYZED(true, "not_analyzed", "true"),
+    @JsonProperty("true")
+    ANALYZED(true, "analyzed"),
+    @JsonProperty("false")
+    NOT_INDEXED(false, "no", "not_indexed", "false");
 
     public final boolean supportsAggregation;
     private final List<String> names;
 
-    Indexing(boolean supportsAggregation, String... names){
+    Indexing(boolean supportsAggregation, String... names) {
       this.supportsAggregation = supportsAggregation;
       this.names = ImmutableList.copyOf(names);
     }
 
     private static final ImmutableMap<String, Indexing> TYPES;
 
-
     static {
       ImmutableMap.Builder<String, Indexing> builder = ImmutableMap.builder();
-      for(Indexing i : Indexing.values()){
-        for(String name : i.names){
+      for (Indexing i : Indexing.values()) {
+        for (String name : i.names) {
           builder.put(name, i);
         }
       }
@@ -698,16 +800,16 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
     @JsonCreator
     public static Indexing getIndexingValue(String value) throws JsonMappingException {
       Indexing indexing = TYPES.get(value);
-      if(indexing != null){
+      if (indexing != null) {
         return indexing;
       }
 
-      throw new JsonMappingException(String.format("Unable to map Indexing property '%s' to known properties.", value));
+      throw new JsonMappingException(
+          String.format("Unable to map Indexing property '%s' to known properties.", value));
     }
-
   }
 
-  @JsonDeserialize(using=ElasticTypeDeserializer.class)
+  @JsonDeserialize(using = ElasticTypeDeserializer.class)
   public static enum Type {
     BYTE(CompleteType.INT),
     SHORT(CompleteType.INT),
@@ -737,7 +839,7 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
 
     public final CompleteType completeType;
 
-    Type(CompleteType completeType){
+    Type(CompleteType completeType) {
       this.completeType = completeType;
     }
 
@@ -780,52 +882,52 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
     }
 
     @Override
-    public Object findInjectableValue(Object valueId, DeserializationContext ctxt, BeanProperty forProperty,
-        Object beanInstance) throws JsonMappingException {
+    public Object findInjectableValue(
+        Object valueId, DeserializationContext ctxt, BeanProperty forProperty, Object beanInstance)
+        throws JsonMappingException {
       if (CURRENT_NAME.equals(valueId)) {
         return ctxt.getParser().getParsingContext().getCurrentName();
       }
       return delegate.findInjectableValue(valueId, ctxt, forProperty, beanInstance);
     }
-
   }
 
-  private static <T> ImmutableList<T> asList(Map<String, T> map){
-    if(map == null){
+  private static <T> ImmutableList<T> asList(Map<String, T> map) {
+    if (map == null) {
       return ImmutableList.of();
     } else {
       return ImmutableList.copyOf(map.values());
     }
   }
 
-  private static <T> ImmutableList<T> asList(List<T> list){
-    if(list == null){
+  private static <T> ImmutableList<T> asList(List<T> list) {
+    if (list == null) {
       return ImmutableList.of();
     } else {
       return ImmutableList.copyOf(list);
     }
   }
 
-
   public static class ClusterMetadata {
     private final String clusterName;
     private final MetadataBlock metadata;
 
     @JsonCreator
-    public ClusterMetadata(@JsonProperty("cluster_name") String clusterName, @JsonProperty("metadata") MetadataBlock metadata) {
+    public ClusterMetadata(
+        @JsonProperty("cluster_name") String clusterName,
+        @JsonProperty("metadata") MetadataBlock metadata) {
       super();
       this.clusterName = clusterName;
       this.metadata = metadata;
     }
 
-    public String getClusterName(){
+    public String getClusterName() {
       return clusterName;
     }
 
-    public List<ElasticIndex> getIndices(){
+    public List<ElasticIndex> getIndices() {
       return metadata.mappingSet.getIndexes();
     }
-
   }
 
   public static class MetadataBlock {
@@ -836,6 +938,5 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
       super();
       this.mappingSet = mappingSet;
     }
-
   }
 }

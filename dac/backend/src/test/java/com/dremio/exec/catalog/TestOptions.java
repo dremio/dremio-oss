@@ -19,12 +19,6 @@ import static com.dremio.exec.ExecConstants.ENABLE_VERBOSE_ERRORS_KEY;
 import static com.dremio.exec.ExecConstants.SLICE_TARGET;
 import static com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType.VALIDATION;
 
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.RootAllocatorFactory;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Test;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.dac.service.flight.FlightCloseableBindableService;
 import com.dremio.exec.ExecConstants;
@@ -35,9 +29,13 @@ import com.dremio.service.sysflight.SystemTableManagerImpl;
 import com.dremio.test.DremioTest;
 import com.dremio.test.UserExceptionAssert;
 import com.google.inject.AbstractModule;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.RootAllocatorFactory;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
+import org.junit.Test;
 
-
-public class TestOptions extends BaseTestQuery{
+public class TestOptions extends BaseTestQuery {
 
   @ClassRule
   public static final TestSysFlightResource SYS_FLIGHT_RESOURCE = new TestSysFlightResource();
@@ -46,50 +44,60 @@ public class TestOptions extends BaseTestQuery{
   public static final void setupDefaultTestCluster() throws Exception {
     // register the SysFlight service on conduit
     // and inject it in SabotNode.
-    SABOT_NODE_RULE.register(new AbstractModule() {
-      @Override
-      protected void configure() {
-        final ConduitServiceRegistry conduitServiceRegistry = new ConduitServiceRegistryImpl();
-        BufferAllocator rootAllocator = RootAllocatorFactory.newRoot(DremioTest.DEFAULT_SABOT_CONFIG);
-        BufferAllocator testAllocator = rootAllocator.newChildAllocator("test-sysflight-Plugin", 0, Long.MAX_VALUE);
-        FlightCloseableBindableService flightService = new FlightCloseableBindableService(testAllocator,
-          new SysFlightProducer(() -> new SystemTableManagerImpl(testAllocator, SYS_FLIGHT_RESOURCE::getTablesProvider)), null, null);
-        conduitServiceRegistry.registerService(flightService);
-        bind(ConduitServiceRegistry.class).toInstance(conduitServiceRegistry);
-      }
-    });
+    SABOT_NODE_RULE.register(
+        new AbstractModule() {
+          @Override
+          protected void configure() {
+            final ConduitServiceRegistry conduitServiceRegistry = new ConduitServiceRegistryImpl();
+            BufferAllocator rootAllocator =
+                RootAllocatorFactory.newRoot(DremioTest.DEFAULT_SABOT_CONFIG);
+            BufferAllocator testAllocator =
+                rootAllocator.newChildAllocator("test-sysflight-Plugin", 0, Long.MAX_VALUE);
+            FlightCloseableBindableService flightService =
+                new FlightCloseableBindableService(
+                    testAllocator,
+                    new SysFlightProducer(
+                        () ->
+                            new SystemTableManagerImpl(
+                                testAllocator, SYS_FLIGHT_RESOURCE::getTablesProvider)),
+                    null,
+                    null);
+            conduitServiceRegistry.registerService(flightService);
+            bind(ConduitServiceRegistry.class).toInstance(conduitServiceRegistry);
+          }
+        });
     BaseTestQuery.setupDefaultTestCluster();
     TestSysFlightResource.addSysFlightPlugin(nodes[0]);
   }
 
   @Test
-  public void testNodes() throws Exception{
+  public void testNodes() throws Exception {
     test("select * from sys.nodes;");
   }
 
   @Test
-  public void testOptions() throws Exception{
+  public void testOptions() throws Exception {
     test(
-        "select * from sys.options;" +
-        "ALTER SYSTEM set \"planner.disable_exchanges\" = true;" +
-        "select * from sys.options;" +
-        "ALTER SESSION set \"planner.disable_exchanges\" = true;" +
         "select * from sys.options;"
-    );
+            + "ALTER SYSTEM set \"planner.disable_exchanges\" = true;"
+            + "select * from sys.options;"
+            + "ALTER SESSION set \"planner.disable_exchanges\" = true;"
+            + "select * from sys.options;");
   }
 
   @Test
   public void checkValidationException() {
-    UserExceptionAssert.assertThatThrownBy(() -> test("ALTER session SET %s = '%s';", SLICE_TARGET, "fail"))
-      .hasErrorType(VALIDATION);
+    UserExceptionAssert.assertThatThrownBy(
+            () -> test("ALTER session SET %s = '%s';", SLICE_TARGET, "fail"))
+        .hasErrorType(VALIDATION);
   }
 
   @Test // DRILL-3122
   public void checkChangedColumn() throws Exception {
-    test("ALTER session SET \"%s\" = %d;", SLICE_TARGET,
-      ExecConstants.SLICE_TARGET_DEFAULT);
+    test("ALTER session SET \"%s\" = %d;", SLICE_TARGET, ExecConstants.SLICE_TARGET_DEFAULT);
     testBuilder()
-        .sqlQuery("SELECT status FROM sys.options WHERE name = '%s' AND type = 'SESSION'", SLICE_TARGET)
+        .sqlQuery(
+            "SELECT status FROM sys.options WHERE name = '%s' AND type = 'SESSION'", SLICE_TARGET)
         .unOrdered()
         .baselineColumns("status")
         .baselineValues("DEFAULT")
@@ -101,67 +109,76 @@ public class TestOptions extends BaseTestQuery{
   public void setAndResetSessionOption() throws Exception {
     // check unchanged
     testBuilder()
-      .sqlQuery("SELECT status FROM sys.options WHERE name = '%s' AND type = 'SESSION'", SLICE_TARGET)
-      .unOrdered()
-      .expectsEmptyResultSet()
-      .build()
-      .run();
+        .sqlQuery(
+            "SELECT status FROM sys.options WHERE name = '%s' AND type = 'SESSION'", SLICE_TARGET)
+        .unOrdered()
+        .expectsEmptyResultSet()
+        .build()
+        .run();
 
     // change option
     test("SET \"%s\" = %d;", SLICE_TARGET, 10);
     // check changed
     test("SELECT status, type, name FROM sys.options WHERE type = 'SESSION';");
     testBuilder()
-      .sqlQuery("SELECT num_val FROM sys.options WHERE name = '%s' AND type = 'SESSION'", SLICE_TARGET)
-      .unOrdered()
-      .baselineColumns("num_val")
-      .baselineValues((long) 10)
-      .build()
-      .run();
+        .sqlQuery(
+            "SELECT num_val FROM sys.options WHERE name = '%s' AND type = 'SESSION'", SLICE_TARGET)
+        .unOrdered()
+        .baselineColumns("num_val")
+        .baselineValues((long) 10)
+        .build()
+        .run();
 
     // reset option
     test("RESET \"%s\";", SLICE_TARGET);
     // check reverted
     testBuilder()
-      .sqlQuery("SELECT status FROM sys.options WHERE name = '%s' AND type = 'SESSION'", SLICE_TARGET)
-      .unOrdered()
-      .expectsEmptyResultSet()
-      .build()
-      .run();
+        .sqlQuery(
+            "SELECT status FROM sys.options WHERE name = '%s' AND type = 'SESSION'", SLICE_TARGET)
+        .unOrdered()
+        .expectsEmptyResultSet()
+        .build()
+        .run();
   }
 
   @Test
   public void setAndResetSystemOption() throws Exception {
     // check unchanged
     testBuilder()
-      .sqlQuery("SELECT status FROM sys.options WHERE name = '%s' AND type = 'SYSTEM'", ENABLE_VERBOSE_ERRORS_KEY)
-      .unOrdered()
-      .baselineColumns("status")
-      .baselineValues("DEFAULT")
-      .build()
-      .run();
+        .sqlQuery(
+            "SELECT status FROM sys.options WHERE name = '%s' AND type = 'SYSTEM'",
+            ENABLE_VERBOSE_ERRORS_KEY)
+        .unOrdered()
+        .baselineColumns("status")
+        .baselineValues("DEFAULT")
+        .build()
+        .run();
 
     // change option
     test("ALTER system SET \"%s\" = %b;", ENABLE_VERBOSE_ERRORS_KEY, true);
     // check changed
     testBuilder()
-      .sqlQuery("SELECT bool_val FROM sys.options WHERE name = '%s' AND type = 'SYSTEM'", ENABLE_VERBOSE_ERRORS_KEY)
-      .unOrdered()
-      .baselineColumns("bool_val")
-      .baselineValues(true)
-      .build()
-      .run();
+        .sqlQuery(
+            "SELECT bool_val FROM sys.options WHERE name = '%s' AND type = 'SYSTEM'",
+            ENABLE_VERBOSE_ERRORS_KEY)
+        .unOrdered()
+        .baselineColumns("bool_val")
+        .baselineValues(true)
+        .build()
+        .run();
 
     // reset option
     test("ALTER system RESET \"%s\";", ENABLE_VERBOSE_ERRORS_KEY);
     // check reverted
     testBuilder()
-      .sqlQuery("SELECT status FROM sys.options WHERE name = '%s' AND type = 'SYSTEM'", ENABLE_VERBOSE_ERRORS_KEY)
-      .unOrdered()
-      .baselineColumns("status")
-      .baselineValues("DEFAULT")
-      .build()
-      .run();
+        .sqlQuery(
+            "SELECT status FROM sys.options WHERE name = '%s' AND type = 'SYSTEM'",
+            ENABLE_VERBOSE_ERRORS_KEY)
+        .unOrdered()
+        .baselineColumns("status")
+        .baselineValues("DEFAULT")
+        .build()
+        .run();
   }
 
   @Test
@@ -170,22 +187,24 @@ public class TestOptions extends BaseTestQuery{
     test("SET \"%s\" = %b;", ENABLE_VERBOSE_ERRORS_KEY, true);
     // check changed
     testBuilder()
-      .sqlQuery("SELECT bool_val FROM sys.options WHERE type = 'SESSION' AND name = '%s'", ENABLE_VERBOSE_ERRORS_KEY)
-      .unOrdered()
-      .baselineColumns("bool_val")
-      .baselineValues(true)
-      .build()
-      .run();
+        .sqlQuery(
+            "SELECT bool_val FROM sys.options WHERE type = 'SESSION' AND name = '%s'",
+            ENABLE_VERBOSE_ERRORS_KEY)
+        .unOrdered()
+        .baselineColumns("bool_val")
+        .baselineValues(true)
+        .build()
+        .run();
 
     // reset all options
     test("RESET ALL;");
     // check no session options changed
     testBuilder()
-      .sqlQuery("SELECT status FROM sys.options WHERE status <> 'DEFAULT' AND type = 'SESSION'")
-      .unOrdered()
-      .expectsEmptyResultSet()
-      .build()
-      .run();
+        .sqlQuery("SELECT status FROM sys.options WHERE status <> 'DEFAULT' AND type = 'SESSION'")
+        .unOrdered()
+        .expectsEmptyResultSet()
+        .build()
+        .run();
   }
 
   @Test
@@ -195,38 +214,46 @@ public class TestOptions extends BaseTestQuery{
     test("ALTER SYSTEM SET \"%s\" = %b;", ENABLE_VERBOSE_ERRORS_KEY, true);
     // check changed
     testBuilder()
-      .sqlQuery("SELECT bool_val FROM sys.options WHERE type = 'SESSION' AND name = '%s'", ENABLE_VERBOSE_ERRORS_KEY)
-      .unOrdered()
-      .baselineColumns("bool_val")
-      .baselineValues(true)
-      .build()
-      .run();
+        .sqlQuery(
+            "SELECT bool_val FROM sys.options WHERE type = 'SESSION' AND name = '%s'",
+            ENABLE_VERBOSE_ERRORS_KEY)
+        .unOrdered()
+        .baselineColumns("bool_val")
+        .baselineValues(true)
+        .build()
+        .run();
     // check changed
     testBuilder()
-      .sqlQuery("SELECT bool_val FROM sys.options WHERE type = 'SYSTEM' AND name = '%s'", ENABLE_VERBOSE_ERRORS_KEY)
-      .unOrdered()
-      .baselineColumns("bool_val")
-      .baselineValues(true)
-      .build()
-      .run();
+        .sqlQuery(
+            "SELECT bool_val FROM sys.options WHERE type = 'SYSTEM' AND name = '%s'",
+            ENABLE_VERBOSE_ERRORS_KEY)
+        .unOrdered()
+        .baselineColumns("bool_val")
+        .baselineValues(true)
+        .build()
+        .run();
 
     // reset session option
     test("RESET \"%s\";", ENABLE_VERBOSE_ERRORS_KEY);
     // check reverted
     testBuilder()
-      .sqlQuery("SELECT status FROM sys.options WHERE name = '%s' AND type = 'SESSION'", ENABLE_VERBOSE_ERRORS_KEY)
-      .unOrdered()
-      .expectsEmptyResultSet()
-      .build()
-      .run();
+        .sqlQuery(
+            "SELECT status FROM sys.options WHERE name = '%s' AND type = 'SESSION'",
+            ENABLE_VERBOSE_ERRORS_KEY)
+        .unOrdered()
+        .expectsEmptyResultSet()
+        .build()
+        .run();
     // check unchanged
     testBuilder()
-      .sqlQuery("SELECT bool_val FROM sys.options WHERE type = 'SYSTEM' AND name = '%s'", ENABLE_VERBOSE_ERRORS_KEY)
-      .unOrdered()
-      .baselineColumns("bool_val")
-      .baselineValues(true)
-      .build()
-      .run();
+        .sqlQuery(
+            "SELECT bool_val FROM sys.options WHERE type = 'SYSTEM' AND name = '%s'",
+            ENABLE_VERBOSE_ERRORS_KEY)
+        .unOrdered()
+        .baselineColumns("bool_val")
+        .baselineValues(true)
+        .build()
+        .run();
     // reset system option
     test("ALTER SYSTEM RESET \"%s\";", ENABLE_VERBOSE_ERRORS_KEY);
   }
@@ -238,38 +265,44 @@ public class TestOptions extends BaseTestQuery{
     test("ALTER SYSTEM SET \"%s\" = %b;", ENABLE_VERBOSE_ERRORS_KEY, true);
     // check changed
     testBuilder()
-      .sqlQuery("SELECT bool_val FROM sys.options WHERE type = 'SESSION' AND name = '%s'", ENABLE_VERBOSE_ERRORS_KEY)
-      .unOrdered()
-      .baselineColumns("bool_val")
-      .baselineValues(true)
-      .build()
-      .run();
+        .sqlQuery(
+            "SELECT bool_val FROM sys.options WHERE type = 'SESSION' AND name = '%s'",
+            ENABLE_VERBOSE_ERRORS_KEY)
+        .unOrdered()
+        .baselineColumns("bool_val")
+        .baselineValues(true)
+        .build()
+        .run();
     // check changed
     testBuilder()
-      .sqlQuery("SELECT bool_val FROM sys.options WHERE type = 'SYSTEM' AND name = '%s'", ENABLE_VERBOSE_ERRORS_KEY)
-      .unOrdered()
-      .baselineColumns("bool_val")
-      .baselineValues(true)
-      .build()
-      .run();
+        .sqlQuery(
+            "SELECT bool_val FROM sys.options WHERE type = 'SYSTEM' AND name = '%s'",
+            ENABLE_VERBOSE_ERRORS_KEY)
+        .unOrdered()
+        .baselineColumns("bool_val")
+        .baselineValues(true)
+        .build()
+        .run();
 
     // reset all session options
     test("ALTER SESSION RESET ALL;");
     // check no session options changed
     testBuilder()
-      .sqlQuery("SELECT status FROM sys.options WHERE status <> 'DEFAULT' AND type = 'SESSION'")
-      .unOrdered()
-      .expectsEmptyResultSet()
-      .build()
-      .run();
+        .sqlQuery("SELECT status FROM sys.options WHERE status <> 'DEFAULT' AND type = 'SESSION'")
+        .unOrdered()
+        .expectsEmptyResultSet()
+        .build()
+        .run();
     // check changed
     testBuilder()
-      .sqlQuery("SELECT bool_val FROM sys.options WHERE type = 'SYSTEM' AND name = '%s'", ENABLE_VERBOSE_ERRORS_KEY)
-      .unOrdered()
-      .baselineColumns("bool_val")
-      .baselineValues(true)
-      .build()
-      .run();
+        .sqlQuery(
+            "SELECT bool_val FROM sys.options WHERE type = 'SYSTEM' AND name = '%s'",
+            ENABLE_VERBOSE_ERRORS_KEY)
+        .unOrdered()
+        .baselineColumns("bool_val")
+        .baselineValues(true)
+        .build()
+        .run();
   }
 
   @Test
@@ -279,45 +312,54 @@ public class TestOptions extends BaseTestQuery{
     test("ALTER SYSTEM SET \"%s\" = %b;", ENABLE_VERBOSE_ERRORS_KEY, true);
     // check changed
     testBuilder()
-      .sqlQuery("SELECT bool_val FROM sys.options WHERE type = 'SESSION' AND name = '%s'", ENABLE_VERBOSE_ERRORS_KEY)
-      .unOrdered()
-      .baselineColumns("bool_val")
-      .baselineValues(true)
-      .build()
-      .run();
+        .sqlQuery(
+            "SELECT bool_val FROM sys.options WHERE type = 'SESSION' AND name = '%s'",
+            ENABLE_VERBOSE_ERRORS_KEY)
+        .unOrdered()
+        .baselineColumns("bool_val")
+        .baselineValues(true)
+        .build()
+        .run();
     // check changed
     testBuilder()
-      .sqlQuery("SELECT bool_val FROM sys.options WHERE type = 'SYSTEM' AND name = '%s'", ENABLE_VERBOSE_ERRORS_KEY)
-      .unOrdered()
-      .baselineColumns("bool_val")
-      .baselineValues(true)
-      .build()
-      .run();
+        .sqlQuery(
+            "SELECT bool_val FROM sys.options WHERE type = 'SYSTEM' AND name = '%s'",
+            ENABLE_VERBOSE_ERRORS_KEY)
+        .unOrdered()
+        .baselineColumns("bool_val")
+        .baselineValues(true)
+        .build()
+        .run();
 
     // reset option
     test("ALTER system RESET \"%s\";", ENABLE_VERBOSE_ERRORS_KEY);
     // check reverted
     testBuilder()
-      .sqlQuery("SELECT status FROM sys.options WHERE name = '%s' AND type = 'SYSTEM'", ENABLE_VERBOSE_ERRORS_KEY)
-      .unOrdered()
-      .baselineColumns("status")
-      .baselineValues("DEFAULT")
-      .build()
-      .run();
+        .sqlQuery(
+            "SELECT status FROM sys.options WHERE name = '%s' AND type = 'SYSTEM'",
+            ENABLE_VERBOSE_ERRORS_KEY)
+        .unOrdered()
+        .baselineColumns("status")
+        .baselineValues("DEFAULT")
+        .build()
+        .run();
     // check changed
     testBuilder()
-      .sqlQuery("SELECT bool_val FROM sys.options WHERE type = 'SESSION' AND name = '%s'", ENABLE_VERBOSE_ERRORS_KEY)
-      .unOrdered()
-      .baselineColumns("bool_val")
-      .baselineValues(true)
-      .build()
-      .run();
+        .sqlQuery(
+            "SELECT bool_val FROM sys.options WHERE type = 'SESSION' AND name = '%s'",
+            ENABLE_VERBOSE_ERRORS_KEY)
+        .unOrdered()
+        .baselineColumns("bool_val")
+        .baselineValues(true)
+        .build()
+        .run();
   }
 
   @Test
   public void unsupportedLiteralValidation() {
-    UserExceptionAssert.assertThatThrownBy(() -> test("ALTER session SET \"%s\" = DATE '1995-01-01';", ENABLE_VERBOSE_ERRORS_KEY))
-      .hasErrorType(VALIDATION)
-      .hasMessageContaining("Dremio doesn't support assigning literals of type");
+    UserExceptionAssert.assertThatThrownBy(
+            () -> test("ALTER session SET \"%s\" = DATE '1995-01-01';", ENABLE_VERBOSE_ERRORS_KEY))
+        .hasErrorType(VALIDATION)
+        .hasMessageContaining("Dremio doesn't support assigning literals of type");
   }
 }

@@ -15,27 +15,26 @@
  */
 package com.dremio.exec.expr.fn.impl;
 
-import org.apache.arrow.vector.holders.BigIntHolder;
-import org.apache.arrow.vector.holders.TimeStampMilliHolder;
-
 import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
+import org.apache.arrow.vector.holders.BigIntHolder;
+import org.apache.arrow.vector.holders.TimeStampMilliHolder;
 
 @SuppressWarnings("unused")
-@FunctionTemplate(name = "castBIGINT", scope = FunctionTemplate.FunctionScope.SIMPLE, nulls=NullHandling.NULL_IF_NULL)
+@FunctionTemplate(
+    name = "castBIGINT",
+    scope = FunctionTemplate.FunctionScope.SIMPLE,
+    nulls = NullHandling.NULL_IF_NULL)
 public class CastTimestampToBigInt implements SimpleFunction {
 
-  @Param
-  TimeStampMilliHolder in;
-  @Output
-  BigIntHolder out;
+  @Param TimeStampMilliHolder in;
+  @Output BigIntHolder out;
 
   @Override
-  public void setup() {
-  }
+  public void setup() {}
 
   @Override
   public void eval() {

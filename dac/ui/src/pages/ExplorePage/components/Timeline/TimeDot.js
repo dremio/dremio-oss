@@ -26,7 +26,7 @@ import { setUpdateSqlFromHistory } from "@app/actions/explore/view";
 import { Tooltip } from "@app/components/Tooltip";
 import { HISTORY_ITEM_COLOR } from "uiTheme/radium/colors";
 import { TIME_DOT_DIAMETER } from "uiTheme/radium/sizes";
-import { Button, IconButton } from "dremio-ui-lib";
+import { Button, IconButton } from "dremio-ui-lib/components";
 import EllipsedText from "components/EllipsedText";
 
 import "./TimeDot.less";
@@ -121,7 +121,7 @@ export class TimeDot extends Component {
     let basePath = `${location.pathname}?${mode ? "mode=edit&" : ""}`;
     basePath = basePath + (scriptId ? `&scriptId=${scriptId}&` : "");
     const historyPath = `${basePath}tipVersion=${tipVersion}&version=${historyItem.get(
-      "datasetVersion"
+      "datasetVersion",
     )}`;
 
     return historyPath;
@@ -141,21 +141,16 @@ export class TimeDot extends Component {
         />
 
         <div className="timeDot__buttons">
-          <Button
-            color="primary"
-            title={formatMessage({ id: "Explore.History.Load" })}
-            onClick={() => this.loadHistory()}
-            disableMargin
-          >
+          <Button variant="primary" onClick={() => this.loadHistory()}>
             {formatMessage({ id: "Explore.History.Load" })}
           </Button>
           <IconButton
-            tooltip={"Explore.History.LoadInNewTab"}
             as={LinkWithRef}
             to={this.getHistoryPath()}
             target="_blank"
             onClick={() => this.handleMouseLeave()}
             className="btn btn__primary --outlined"
+            aria-label={formatMessage({ id: "Explore.History.LoadInNewTab" })}
           >
             {formatMessage({ id: "Explore.History.LoadInNewTab" })}
           </IconButton>
@@ -220,7 +215,7 @@ const mapStateToProps = (state) => {
 };
 
 export default withRouter(
-  connect(mapStateToProps, { setUpdateSqlFromHistory })(injectIntl(TimeDot))
+  connect(mapStateToProps, { setUpdateSqlFromHistory })(injectIntl(TimeDot)),
 );
 
 const styles = {

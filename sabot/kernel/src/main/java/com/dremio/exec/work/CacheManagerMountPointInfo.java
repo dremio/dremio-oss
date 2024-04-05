@@ -15,9 +15,7 @@
  */
 package com.dremio.exec.work;
 
-/**
- * This is the schema for sys."cache_manager_mount_points"
- */
+/** This is the schema for sys."cache_manager_mount_points" */
 public class CacheManagerMountPointInfo {
 
   public final String hostname;
@@ -36,11 +34,22 @@ public class CacheManagerMountPointInfo {
   public final long latest_eviction_timestamp;
   public final long latest_evicted_bytes;
 
-
-  public CacheManagerMountPointInfo(String hostname, String mountPointPath, long mountPointId, long subDirCount, long approxFileCount,
-                                    long maxSpace, long usedSpace, long avgReadTimeNanos, long avgWriteTimeNanos,
-                                    String currentState, String currentSpaceState, long totalSpace, long currentFreeSpace,
-                                    long latest_eviction_timestamp, long latest_evicted_bytes) {
+  public CacheManagerMountPointInfo(
+      String hostname,
+      String mountPointPath,
+      long mountPointId,
+      long subDirCount,
+      long approxFileCount,
+      long maxSpace,
+      long usedSpace,
+      long avgReadTimeNanos,
+      long avgWriteTimeNanos,
+      String currentState,
+      String currentSpaceState,
+      long totalSpace,
+      long currentFreeSpace,
+      long latest_eviction_timestamp,
+      long latest_evicted_bytes) {
     this.hostname = hostname;
     this.mount_point_path = mountPointPath;
     this.mount_point_id = mountPointId;

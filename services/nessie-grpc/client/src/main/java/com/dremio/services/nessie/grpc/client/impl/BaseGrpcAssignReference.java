@@ -18,6 +18,11 @@ package com.dremio.services.nessie.grpc.client.impl;
 import static com.dremio.services.nessie.grpc.GrpcExceptionMapper.handle;
 import static com.dremio.services.nessie.grpc.ProtoUtil.refFromProtoResponse;
 
+import com.dremio.services.nessie.grpc.ProtoUtil;
+import com.dremio.services.nessie.grpc.api.AssignReferenceRequest;
+import com.dremio.services.nessie.grpc.api.ReferenceResponse;
+import com.dremio.services.nessie.grpc.api.ReferenceType;
+import com.dremio.services.nessie.grpc.api.TreeServiceGrpc.TreeServiceBlockingStub;
 import org.projectnessie.client.builder.BaseAssignReferenceBuilder;
 import org.projectnessie.error.NessieConflictException;
 import org.projectnessie.error.NessieNotFoundException;
@@ -26,13 +31,8 @@ import org.projectnessie.model.Detached;
 import org.projectnessie.model.Reference;
 import org.projectnessie.model.Tag;
 
-import com.dremio.services.nessie.grpc.ProtoUtil;
-import com.dremio.services.nessie.grpc.api.AssignReferenceRequest;
-import com.dremio.services.nessie.grpc.api.ReferenceResponse;
-import com.dremio.services.nessie.grpc.api.ReferenceType;
-import com.dremio.services.nessie.grpc.api.TreeServiceGrpc.TreeServiceBlockingStub;
-
-abstract class BaseGrpcAssignReference<T extends Reference, R> extends BaseAssignReferenceBuilder<R> {
+abstract class BaseGrpcAssignReference<T extends Reference, R>
+    extends BaseAssignReferenceBuilder<R> {
 
   private final TreeServiceBlockingStub stub;
 
@@ -42,30 +42,30 @@ abstract class BaseGrpcAssignReference<T extends Reference, R> extends BaseAssig
 
   public T assignAndGet() throws NessieNotFoundException, NessieConflictException {
     return handle(
-      () -> {
-        AssignReferenceRequest.Builder builder = AssignReferenceRequest.newBuilder()
-            .setNamedRef(refName);
+        () -> {
+          AssignReferenceRequest.Builder builder =
+              AssignReferenceRequest.newBuilder().setNamedRef(refName);
 
-        if (expectedHash != null) {
-          builder.setOldHash(expectedHash);
-        }
+          if (expectedHash != null) {
+            builder.setOldHash(expectedHash);
+          }
 
-        if (type != null) {
-          builder.setReferenceType(ReferenceType.valueOf(type.name()));
-        }
+          if (type != null) {
+            builder.setReferenceType(ReferenceType.valueOf(type.name()));
+          }
 
-        if (assignTo instanceof Branch) {
-          builder.setBranch(ProtoUtil.toProto((Branch) assignTo));
-        } else if (assignTo instanceof Tag) {
-          builder.setTag(ProtoUtil.toProto((Tag) assignTo));
-        } else if (assignTo instanceof Detached) {
-          builder.setDetached(ProtoUtil.toProto((Detached) assignTo));
-        }
+          if (assignTo instanceof Branch) {
+            builder.setBranch(ProtoUtil.toProto((Branch) assignTo));
+          } else if (assignTo instanceof Tag) {
+            builder.setTag(ProtoUtil.toProto((Tag) assignTo));
+          } else if (assignTo instanceof Detached) {
+            builder.setDetached(ProtoUtil.toProto((Detached) assignTo));
+          }
 
-        ReferenceResponse response = stub.assignReference(builder.build());
-        //noinspection unchecked
-        return (T) refFromProtoResponse(response);
-      });
+          ReferenceResponse response = stub.assignReference(builder.build());
+          //noinspection unchecked
+          return (T) refFromProtoResponse(response);
+        });
   }
 
   public void assign() throws NessieNotFoundException, NessieConflictException {

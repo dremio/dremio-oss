@@ -19,31 +19,22 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
+import com.dremio.config.DremioConfig;
+import com.dremio.test.DremioTest;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.NoSuchElementException;
-
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
-
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import com.dremio.config.DremioConfig;
-import com.dremio.test.DremioTest;
-
-/**
- * Tests for:
- * 1) basic encryption and decryption.
- * 2) dual KEK and DEK encryption and decryption.
- */
-
+/** Tests for: 1) basic encryption and decryption. 2) dual KEK and DEK encryption and decryption. */
 public abstract class TestAbstractCipher extends DremioTest {
 
-  @Rule
-  public TemporaryFolder tempFolder = new TemporaryFolder();
+  @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
 
   protected abstract AbstractCipher getCipher(DremioConfig config);
 
@@ -52,7 +43,9 @@ public abstract class TestAbstractCipher extends DremioTest {
 
     String pText = "Use AES-GCM for encryption and decryption!";
 
-    DremioConfig config = DEFAULT_DREMIO_CONFIG.withValue(DremioConfig.LOCAL_WRITE_PATH_STRING, tempFolder.newFolder().toString());
+    DremioConfig config =
+        DEFAULT_DREMIO_CONFIG.withValue(
+            DremioConfig.LOCAL_WRITE_PATH_STRING, tempFolder.newFolder().toString());
     AbstractCipher cipher = getCipher(config);
     // get AES 256 bits (32 bytes) key
     SecretKey secretKey = AbstractCipher.newAESKey();
@@ -68,7 +61,9 @@ public abstract class TestAbstractCipher extends DremioTest {
 
     String plainText = "Use AES-GCM, and cipher and decipher the plainText!";
 
-    DremioConfig config = DEFAULT_DREMIO_CONFIG.withValue(DremioConfig.LOCAL_WRITE_PATH_STRING, tempFolder.newFolder().toString());
+    DremioConfig config =
+        DEFAULT_DREMIO_CONFIG.withValue(
+            DremioConfig.LOCAL_WRITE_PATH_STRING, tempFolder.newFolder().toString());
     AbstractCipher cipher = getCipher(config);
     // create DEK and IV to encrypt plainText
     SecretKey dek = AbstractCipher.newAESKey();
@@ -101,13 +96,16 @@ public abstract class TestAbstractCipher extends DremioTest {
 
     String pText = "Use AES-GCM for encryption and decryption!";
 
-    DremioConfig config = DEFAULT_DREMIO_CONFIG.withValue(DremioConfig.LOCAL_WRITE_PATH_STRING, tempFolder.newFolder().toString());
+    DremioConfig config =
+        DEFAULT_DREMIO_CONFIG.withValue(
+            DremioConfig.LOCAL_WRITE_PATH_STRING, tempFolder.newFolder().toString());
     AbstractCipher cipher = getCipher(config);
     // get AES 256 bits (32 bytes) key
     SecretKey secretKey = AbstractCipher.newAESKey();
 
     byte[] encryptedText = cipher.doEncrypt(pText.getBytes(StandardCharsets.UTF_8), secretKey);
-    String decryptedText = cipher.doDecrypt(Arrays.copyOfRange(encryptedText, 0, encryptedText.length-2), secretKey);
+    String decryptedText =
+        cipher.doDecrypt(Arrays.copyOfRange(encryptedText, 0, encryptedText.length - 2), secretKey);
   }
 
   @Test(expected = CredentialsException.class)
@@ -115,7 +113,9 @@ public abstract class TestAbstractCipher extends DremioTest {
 
     String pText = "Use AES-GCM for encryption and decryption!";
 
-    DremioConfig config = DEFAULT_DREMIO_CONFIG.withValue(DremioConfig.LOCAL_WRITE_PATH_STRING, tempFolder.newFolder().toString());
+    DremioConfig config =
+        DEFAULT_DREMIO_CONFIG.withValue(
+            DremioConfig.LOCAL_WRITE_PATH_STRING, tempFolder.newFolder().toString());
     AbstractCipher cipher = getCipher(config);
     // get AES 256 bits (32 bytes) key
     SecretKey secretKey = AbstractCipher.newAESKey();
@@ -129,7 +129,9 @@ public abstract class TestAbstractCipher extends DremioTest {
 
     String pText = "Use AES-GCM for encryption and decryption!";
 
-    DremioConfig config = DEFAULT_DREMIO_CONFIG.withValue(DremioConfig.LOCAL_WRITE_PATH_STRING, tempFolder.newFolder().toString());
+    DremioConfig config =
+        DEFAULT_DREMIO_CONFIG.withValue(
+            DremioConfig.LOCAL_WRITE_PATH_STRING, tempFolder.newFolder().toString());
     AbstractCipher cipher = getCipher(config);
     SecretKey key = cipher.lookupKeystore("master", true);
     assertNotNull(key);
@@ -137,7 +139,6 @@ public abstract class TestAbstractCipher extends DremioTest {
     assertNotNull(key);
 
     assertThatThrownBy(() -> cipher.lookupKeystore("invalidAlias", false))
-      .isInstanceOf(NoSuchElementException.class);
+        .isInstanceOf(NoSuchElementException.class);
   }
-
 }

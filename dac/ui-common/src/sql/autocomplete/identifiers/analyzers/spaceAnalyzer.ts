@@ -22,14 +22,14 @@ import type { IdentifierCandidate } from "../../types/IdentifierCandidate";
 
 export function isSpace(
   priorTerminals: TerminalNode[],
-  identifierCandidate: IdentifierCandidate
+  identifierCandidate: IdentifierCandidate,
 ): boolean {
   if (priorTerminals.length == 0) {
     return false;
   }
   return isTokenOfType(
     priorTerminals[priorTerminals.length - 1].symbol,
-    Parser.SPACE
+    Parser.SPACE,
   )
     ? identifierCandidate.ruleIndex == Parser.RULE_simpleIdentifier
     : false;

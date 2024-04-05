@@ -15,12 +15,6 @@
  */
 package com.dremio.service.accelerator;
 
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Objects;
-
-import javax.annotation.Nullable;
-
 import com.dremio.datastore.indexed.IndexKey;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
@@ -28,10 +22,12 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Objects;
+import javax.annotation.Nullable;
 
-/**
- * A builder used to generate RSQL filter string for testing
- */
+/** A builder used to generate RSQL filter string for testing */
 public class FilterStringBuilder {
   private static final String ALL = "*";
   private static final Operator EQ = new Operator("==");
@@ -39,7 +35,7 @@ public class FilterStringBuilder {
 
   private final Multimap<OperatorBinding, String> filters = HashMultimap.create();
 
-  public FilterStringBuilder addFilter(final IndexKey key, final String ...values) {
+  public FilterStringBuilder addFilter(final IndexKey key, final String... values) {
     return addFilter(key.getShortName(), EQ, values);
   }
 
@@ -47,35 +43,37 @@ public class FilterStringBuilder {
     return addFilter(ALL, CONTAINS, value);
   }
 
-  private FilterStringBuilder addFilter(final String key, final Operator operator, final String ...values) {
+  private FilterStringBuilder addFilter(
+      final String key, final Operator operator, final String... values) {
     filters.putAll(OperatorBinding.of(key, operator), Arrays.asList(values));
     return this;
   }
 
   public String asRSQL() {
-    return Joiner.on(";").join(
-        FluentIterable
-          .from(filters.asMap().keySet())
-          .transform(new Function<OperatorBinding, String>() {
-            @Nullable
-            @Override
-            public String apply(@Nullable final OperatorBinding binding) {
-              final Collection<String> values = filters.get(binding);
-              return Joiner.on(",").join(
-                  FluentIterable
-                    .from(values)
-                    .transform(new Function<String, String>() {
+    return Joiner.on(";")
+        .join(
+            FluentIterable.from(filters.asMap().keySet())
+                .transform(
+                    new Function<OperatorBinding, String>() {
                       @Nullable
                       @Override
-                      public String apply(@Nullable final String value) {
-                        return String.format("%s%s", binding, value);
+                      public String apply(@Nullable final OperatorBinding binding) {
+                        final Collection<String> values = filters.get(binding);
+                        return Joiner.on(",")
+                            .join(
+                                FluentIterable.from(values)
+                                    .transform(
+                                        new Function<String, String>() {
+                                          @Nullable
+                                          @Override
+                                          public String apply(@Nullable final String value) {
+                                            return String.format("%s%s", binding, value);
+                                          }
+                                        }));
                       }
-                    })
-              );
-            }
-          })
-    );
+                    }));
   }
+
   private static final class OperatorBinding {
     private final String name;
     private final Operator operator;
@@ -94,8 +92,7 @@ public class FilterStringBuilder {
         return false;
       }
       final OperatorBinding that = (OperatorBinding) o;
-      return Objects.equals(operator, that.operator) &&
-          Objects.equals(name, that.name);
+      return Objects.equals(operator, that.operator) && Objects.equals(name, that.name);
     }
 
     @Override

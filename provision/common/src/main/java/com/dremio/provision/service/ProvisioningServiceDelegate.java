@@ -23,19 +23,21 @@ import com.dremio.provision.PreviewEngineState;
 import com.dremio.service.Service;
 
 /**
- * Interface to provide implementations for different Provisioning services
- * to support general APIs to handle Dremio deployment
+ * Interface to provide implementations for different Provisioning services to support general APIs
+ * to handle Dremio deployment
  */
 public interface ProvisioningServiceDelegate extends Service {
 
   /**
    * Get clusterType API
+   *
    * @return {@link ClusterType}
    */
   ClusterType getType();
 
   /**
    * Start created cluster API
+   *
    * @param cluster
    * @return {@link Cluster}
    * @throws Exception
@@ -44,6 +46,7 @@ public interface ProvisioningServiceDelegate extends Service {
 
   /**
    * Resize cluster API
+   *
    * @param cluster
    * @return {@link Cluster}
    * @throws Exception
@@ -52,6 +55,7 @@ public interface ProvisioningServiceDelegate extends Service {
 
   /**
    * Stop cluster API
+   *
    * @param cluster
    * @throws Exception
    */
@@ -59,6 +63,7 @@ public interface ProvisioningServiceDelegate extends Service {
 
   /**
    * Get all the info about the cluster API
+   *
    * @param cluster
    * @return {@link Cluster}
    * @throws Exception
@@ -66,19 +71,14 @@ public interface ProvisioningServiceDelegate extends Service {
   ClusterEnriched getClusterInfo(Cluster cluster) throws ProvisioningHandlingException;
 
   @Override
-  default void close() throws Exception {
-  }
+  default void close() throws Exception {}
 
   @Override
-  default void start() throws Exception {
-  }
+  default void start() throws Exception {}
 
-  default void syncCluster(Cluster cluster) {
-  }
+  default void syncCluster(Cluster cluster) {}
 
-
-  default void restartPreviewEngine() {
-  }
+  default void restartPreviewEngine() {}
 
   default PreviewEngineState getPreviewEngineState() {
     return PreviewEngineState.UNKNOWN;
@@ -86,6 +86,7 @@ public interface ProvisioningServiceDelegate extends Service {
 
   /**
    * Health check of the cluster state
+   *
    * @param cluster
    */
   default void checkClusterState(Cluster cluster) {}

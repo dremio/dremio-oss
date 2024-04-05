@@ -15,8 +15,6 @@
  */
 package com.dremio.sabot.exec.rpc;
 
-import java.util.Optional;
-
 import com.dremio.exec.proto.ExecRPC.FinishedReceiver;
 import com.dremio.exec.proto.ExecRPC.FragmentStreamComplete;
 import com.dremio.exec.proto.ExecRPC.RpcType;
@@ -28,13 +26,11 @@ import com.dremio.sabot.exec.fragment.OutOfBandMessage;
 import com.dremio.services.fabric.ProxyConnection;
 import com.dremio.services.fabric.api.FabricCommandRunner;
 import com.google.common.base.Preconditions;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.NettyArrowBuf;
+import java.util.Optional;
 
-/**
- * An implementation of the ExecTunnel that uses the fabric protocol for communication.
- */
+/** An implementation of the ExecTunnel that uses the fabric protocol for communication. */
 public class FabricExecTunnel implements ExecTunnel {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FabricExecTunnel.class);
 
@@ -45,12 +41,14 @@ public class FabricExecTunnel implements ExecTunnel {
   }
 
   @Override
-  public void sendStreamComplete(RpcOutcomeListener<Ack> outcomeListener, FragmentStreamComplete streamComplete) {
+  public void sendStreamComplete(
+      RpcOutcomeListener<Ack> outcomeListener, FragmentStreamComplete streamComplete) {
     manager.runCommand(new SendStreamCompleteListen(outcomeListener, streamComplete));
   }
 
   @Override
-  public void sendRecordBatch(RpcOutcomeListener<Ack> outcomeListener, FragmentWritableBatch batch) {
+  public void sendRecordBatch(
+      RpcOutcomeListener<Ack> outcomeListener, FragmentWritableBatch batch) {
     manager.runCommand(new SendBatchAsyncListen(outcomeListener, batch));
   }
 
@@ -60,7 +58,8 @@ public class FabricExecTunnel implements ExecTunnel {
   }
 
   @Override
-  public void informReceiverFinished(RpcOutcomeListener<Ack> outcomeListener, FinishedReceiver finishedReceiver){
+  public void informReceiverFinished(
+      RpcOutcomeListener<Ack> outcomeListener, FinishedReceiver finishedReceiver) {
     Preconditions.checkNotNull(finishedReceiver.getReceiver(), "must set receiver's handle");
     ExecTunnel.checkFragmentHandle(finishedReceiver.getReceiver());
     Preconditions.checkNotNull(finishedReceiver.getSender(), "must set sender's handle");
@@ -73,7 +72,8 @@ public class FabricExecTunnel implements ExecTunnel {
   private class SendStreamCompleteListen extends ListeningCommand<Ack, ProxyConnection> {
     final FragmentStreamComplete completion;
 
-    public SendStreamCompleteListen(RpcOutcomeListener<Ack> listener, FragmentStreamComplete completion) {
+    public SendStreamCompleteListen(
+        RpcOutcomeListener<Ack> listener, FragmentStreamComplete completion) {
       super(listener);
       this.completion = completion;
     }
@@ -82,7 +82,6 @@ public class FabricExecTunnel implements ExecTunnel {
     public void doRpcCall(RpcOutcomeListener<Ack> outcomeListener, ProxyConnection connection) {
       connection.send(outcomeListener, RpcType.REQ_STREAM_COMPLETE, completion, Ack.class);
     }
-
   }
 
   private class SendBatchAsyncListen extends ListeningCommand<Ack, ProxyConnection> {
@@ -95,7 +94,12 @@ public class FabricExecTunnel implements ExecTunnel {
 
     @Override
     public void doRpcCall(RpcOutcomeListener<Ack> outcomeListener, ProxyConnection connection) {
-      connection.send(outcomeListener, RpcType.REQ_RECORD_BATCH, batch.getHeader(), Ack.class, batch.getBuffers());
+      connection.send(
+          outcomeListener,
+          RpcType.REQ_RECORD_BATCH,
+          batch.getHeader(),
+          Ack.class,
+          batch.getBuffers());
     }
 
     @Override
@@ -105,7 +109,7 @@ public class FabricExecTunnel implements ExecTunnel {
 
     @Override
     public void connectionFailed(FailureType type, Throwable t) {
-      for(ByteBuf buffer : batch.getBuffers()) {
+      for (ByteBuf buffer : batch.getBuffers()) {
         buffer.release();
       }
       super.connectionFailed(type, t);
@@ -124,10 +128,11 @@ public class FabricExecTunnel implements ExecTunnel {
     public void doRpcCall(RpcOutcomeListener<Ack> outcomeListener, ProxyConnection connection) {
       final int buffCount = Optional.ofNullable(message).map(m -> m.getBuffers().length).orElse(0);
       final ByteBuf[] buffers = new ByteBuf[buffCount];
-      for (int i=0; i < buffCount; i++) {
+      for (int i = 0; i < buffCount; i++) {
         buffers[i] = NettyArrowBuf.unwrapBuffer(message.getBuffers()[i]);
       }
-      connection.send(outcomeListener, RpcType.REQ_OOB_MESSAGE, message.toProtoMessage(), Ack.class, buffers);
+      connection.send(
+          outcomeListener, RpcType.REQ_OOB_MESSAGE, message.toProtoMessage(), Ack.class, buffers);
     }
 
     @Override

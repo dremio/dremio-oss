@@ -19,32 +19,41 @@ import static com.dremio.services.nessie.grpc.GrpcExceptionMapper.handleNessieNo
 import static com.dremio.services.nessie.grpc.ProtoUtil.fromProto;
 import static com.dremio.services.nessie.grpc.ProtoUtil.toProtoEntriesRequest;
 
+import com.dremio.services.nessie.grpc.api.EntriesRequest;
+import com.dremio.services.nessie.grpc.api.TreeServiceGrpc.TreeServiceBlockingStub;
 import org.projectnessie.client.builder.BaseGetEntriesBuilder;
 import org.projectnessie.error.NessieNotFoundException;
 import org.projectnessie.model.EntriesResponse;
-
-import com.dremio.services.nessie.grpc.api.EntriesRequest;
-import com.dremio.services.nessie.grpc.api.TreeServiceGrpc.TreeServiceBlockingStub;
 
 final class GrpcGetEntries extends BaseGetEntriesBuilder<EntriesRequest> {
 
   private final TreeServiceBlockingStub stub;
 
   public GrpcGetEntries(TreeServiceBlockingStub stub) {
-    super((request, pageToken) -> {
-      EntriesRequest.Builder builder = request.toBuilder().clearPageToken();
-      if (pageToken != null) {
-        builder.setPageToken(pageToken);
-      }
-      return builder.build();
-    });
+    super(
+        (request, pageToken) -> {
+          EntriesRequest.Builder builder = request.toBuilder().clearPageToken();
+          if (pageToken != null) {
+            builder.setPageToken(pageToken);
+          }
+          return builder.build();
+        });
     this.stub = stub;
   }
 
   @Override
   protected EntriesRequest params() {
-    return toProtoEntriesRequest(refName, hashOnRef, maxRecords, filter, namespaceDepth, withContent, minKey, maxKey,
-      prefixKey, keys);
+    return toProtoEntriesRequest(
+        refName,
+        hashOnRef,
+        maxRecords,
+        filter,
+        namespaceDepth,
+        withContent,
+        minKey,
+        maxKey,
+        prefixKey,
+        keys);
   }
 
   @Override

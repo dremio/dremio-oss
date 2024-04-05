@@ -15,6 +15,19 @@
  */
 package com.dremio.exec.planner.physical;
 
+import com.carrotsearch.hppc.IntIntHashMap;
+import com.dremio.common.expression.FieldReference;
+import com.dremio.common.expression.PathSegment;
+import com.dremio.common.expression.PathSegment.ArraySegment;
+import com.dremio.common.expression.PathSegment.NameSegment;
+import com.dremio.common.expression.SchemaPath;
+import com.dremio.common.logical.data.Order.Ordering;
+import com.dremio.exec.planner.physical.visitor.BasePrelVisitor;
+import com.dremio.exec.planner.physical.visitor.ExcessiveExchangeIdentifier;
+import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -25,7 +38,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
-
 import org.apache.calcite.linq4j.Ord;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptPlanner;
@@ -47,21 +59,6 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexShuttle;
 import org.apache.calcite.rex.RexVisitorImpl;
 
-import com.carrotsearch.hppc.IntIntHashMap;
-import com.dremio.common.expression.FieldReference;
-import com.dremio.common.expression.PathSegment;
-import com.dremio.common.expression.PathSegment.ArraySegment;
-import com.dremio.common.expression.PathSegment.NameSegment;
-import com.dremio.common.expression.SchemaPath;
-import com.dremio.common.logical.data.Order.Ordering;
-import com.dremio.exec.planner.physical.visitor.BasePrelVisitor;
-import com.dremio.exec.planner.physical.visitor.ExcessiveExchangeIdentifier;
-import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
-
-import io.opentelemetry.instrumentation.annotations.WithSpan;
-
 public class PrelUtil {
 
   public static List<Ordering> getOrdering(RelCollation collation, RelDataType rowType) {
@@ -69,14 +66,13 @@ public class PrelUtil {
 
     final List<String> childFields = rowType.getFieldNames();
 
-    for (RelFieldCollation fc: collation.getFieldCollations() ) {
+    for (RelFieldCollation fc : collation.getFieldCollations()) {
       FieldReference fr = new FieldReference(childFields.get(fc.getFieldIndex()));
       orderExpr.add(new Ordering(fc.getDirection(), fr, fc.nullDirection));
     }
 
     return orderExpr;
   }
-
 
   public static Iterator<Prel> iter(RelNode... nodes) {
     return (Iterator<Prel>) (Object) Arrays.asList(nodes).iterator();
@@ -99,18 +95,21 @@ public class PrelUtil {
   }
 
   /**
-   * Add RR exchanges to all the inputs of a UnionAll. If any of the input
-   * qualifies for RR, we will add RR to all the inputs.
+   * Add RR exchanges to all the inputs of a UnionAll. If any of the input qualifies for RR, we will
+   * add RR to all the inputs.
    *
    * @param plannerSettings PlannerSettings for getting options
-   * @param inputs          UnionAll inputs
+   * @param inputs UnionAll inputs
    * @return List of inputs after adding RR exchanges, if qualified
    */
   @WithSpan("convert-unionAll-inputs")
-  public static List<RelNode> convertUnionAllInputs(PlannerSettings plannerSettings, Prel... inputs) {
+  public static List<RelNode> convertUnionAllInputs(
+      PlannerSettings plannerSettings, Prel... inputs) {
     List<RelNode> inputList = new ArrayList<>();
-    boolean unionAllRR = plannerSettings.getOptions().getOption(PlannerSettings.ENABLE_UNIONALL_ROUND_ROBIN);
-    boolean canAddRoundRobinExchange = unionAllRR && canAddRoundRobinExchange(plannerSettings, inputs);
+    boolean unionAllRR =
+        plannerSettings.getOptions().getOption(PlannerSettings.ENABLE_UNIONALL_ROUND_ROBIN);
+    boolean canAddRoundRobinExchange =
+        unionAllRR && canAddRoundRobinExchange(plannerSettings, inputs);
     for (Prel input : inputs) {
       if (canAddRoundRobinExchange) {
         inputList.add(new RoundRobinExchangePrel(input.getCluster(), input.getTraitSet(), input));
@@ -122,14 +121,15 @@ public class PrelUtil {
   }
 
   /**
-   * Check if RR can be added to all the inputs.
-   * For trivial singleton plan we don't need to add a RR.
+   * Check if RR can be added to all the inputs. For trivial singleton plan we don't need to add a
+   * RR.
    */
   public static boolean canAddRoundRobinExchange(PlannerSettings plannerSettings, Prel... inputs) {
     for (RelNode relNode : inputs) {
       RelNode prelCopy = relNode.copy(relNode.getTraitSet(), relNode.getInputs());
       Prel rr = new RoundRobinExchangePrel(prelCopy.getCluster(), prelCopy.getTraitSet(), prelCopy);
-      Prel tryToRemoveRR = ExcessiveExchangeIdentifier.removeExcessiveEchanges(rr, plannerSettings.getSliceTarget());
+      Prel tryToRemoveRR =
+          ExcessiveExchangeIdentifier.removeExcessiveEchanges(rr, plannerSettings.getSliceTarget());
       if (tryToRemoveRR instanceof RoundRobinExchangePrel) {
         // If we can add RR to any input, we add it to all the inputs.
         return true;
@@ -178,12 +178,12 @@ public class PrelUtil {
     }
 
     if (v.hasNonLiteralIndex) {
-      // This logic is not very robust and doesn't know how to handle non literal indexes in item call.
+      // This logic is not very robust and doesn't know how to handle non literal indexes in item
+      // call.
       return null;
     }
 
     return v.getInfo();
-
   }
 
   public static class DesiredField {
@@ -239,7 +239,6 @@ public class PrelUtil {
       }
       return true;
     }
-
   }
 
   public static class ProjectPushInfo {
@@ -250,7 +249,10 @@ public class PrelUtil {
     private final List<String> fieldNames;
     private final List<RelDataType> types;
 
-    public ProjectPushInfo(List<SchemaPath> columns, ImmutableList<DesiredField> desiredFields, ImmutableList<RexNode> inputRefs) {
+    public ProjectPushInfo(
+        List<SchemaPath> columns,
+        ImmutableList<DesiredField> desiredFields,
+        ImmutableList<RexNode> inputRefs) {
       super();
       this.columns = columns;
       this.desiredFields = desiredFields;
@@ -260,7 +262,7 @@ public class PrelUtil {
       this.types = Lists.newArrayListWithCapacity(desiredFields.size());
       IntIntHashMap oldToNewIds = new IntIntHashMap();
 
-      int i =0;
+      int i = 0;
       for (DesiredField f : desiredFields) {
         fieldNames.add(f.name);
         types.add(f.field.getType());
@@ -327,7 +329,7 @@ public class PrelUtil {
     private final List<String> fieldNames;
     private final List<RelDataTypeField> fields;
     private final Set<DesiredField> desiredFields;
-    private final Map<String,Integer> fieldNameMap = new HashMap<>();
+    private final Map<String, Integer> fieldNameMap = new HashMap<>();
     private boolean hasNonLiteralIndex = false;
 
     public RefFieldsVisitor(RelDataType rowType) {
@@ -335,21 +337,28 @@ public class PrelUtil {
       this.fieldNames = rowType.getFieldNames();
       this.fields = rowType.getFieldList();
       Ord.zip(fieldNames).forEach(o -> fieldNameMap.put(o.e.toLowerCase(), o.i));
-      Comparator<SchemaPath> schemaPathComparator = Comparator.comparingInt((SchemaPath path) -> fieldNameMap.get(path.getRootSegment().getPath().toLowerCase())).thenComparing(path -> path);
+      Comparator<SchemaPath> schemaPathComparator =
+          Comparator.comparingInt(
+                  (SchemaPath path) ->
+                      fieldNameMap.get(path.getRootSegment().getPath().toLowerCase()))
+              .thenComparing(path -> path);
       this.columns = new TreeSet<>(schemaPathComparator);
-      Comparator<DesiredField> desiredFieldComparator = Comparator.comparingInt(field -> fieldNameMap.get(field.name.toLowerCase()));
+      Comparator<DesiredField> desiredFieldComparator =
+          Comparator.comparingInt(field -> fieldNameMap.get(field.name.toLowerCase()));
       this.desiredFields = new TreeSet<>(desiredFieldComparator);
     }
 
-
     public void addColumn(PathSegment segment) {
       if (segment != null && segment instanceof NameSegment) {
-        columns.add(new SchemaPath((NameSegment)segment));
+        columns.add(new SchemaPath((NameSegment) segment));
       }
     }
 
     public ProjectPushInfo getInfo() {
-      return new ProjectPushInfo(ImmutableList.copyOf(columns), ImmutableList.copyOf(desiredFields), ImmutableList.copyOf(inputRefs));
+      return new ProjectPushInfo(
+          ImmutableList.copyOf(columns),
+          ImmutableList.copyOf(desiredFields),
+          ImmutableList.copyOf(inputRefs));
     }
 
     @Override
@@ -401,15 +410,15 @@ public class PrelUtil {
 
     private PathSegment convertLiteral(RexLiteral literal) {
       switch (literal.getType().getSqlTypeName().getFamily()) {
-      case CHARACTER:
-        return new NameSegment(RexLiteral.stringValue(literal));
-      case NUMERIC:
-        return new ArraySegment(RexLiteral.intValue(literal));
-      default:
-        throw new UnsupportedOperationException("Unknown literal type: " + literal.getType().getSqlTypeName().getFamily());
+        case CHARACTER:
+          return new NameSegment(RexLiteral.stringValue(literal));
+        case NUMERIC:
+          return new ArraySegment(RexLiteral.intValue(literal));
+        default:
+          throw new UnsupportedOperationException(
+              "Unknown literal type: " + literal.getType().getSqlTypeName().getFamily());
       }
     }
-
   }
 
   public static RelTraitSet fixTraits(RelOptRuleCall call, RelTraitSet set) {
@@ -433,13 +442,14 @@ public class PrelUtil {
       this.oldIndex = oldIndex;
       this.newIndex = newIndex;
     }
+
     public int getOldIndex() {
       return oldIndex;
     }
+
     public int getNewIndex() {
       return newIndex;
     }
-
   }
 
   public static class InputRewriter extends RexShuttle {
@@ -460,7 +470,6 @@ public class PrelUtil {
     public RexNode visitLocalRef(RexLocalRef localRef) {
       return new RexInputRef(map.get(localRef.getIndex()), localRef.getType());
     }
-
   }
 
   // If Prel contains certain call of given name.
@@ -469,23 +478,25 @@ public class PrelUtil {
   }
 
   // Simple visitor to determine if Prel contains certain call of given name.
-  private static final class ContainsCallVisitor extends BasePrelVisitor<Boolean, Void, RuntimeException> {
+  private static final class ContainsCallVisitor
+      extends BasePrelVisitor<Boolean, Void, RuntimeException> {
     private boolean found = false;
     private final String callName;
 
-    private ContainsCallVisitor (String callName) {
+    private ContainsCallVisitor(String callName) {
       this.callName = callName;
     }
 
-    private RexShuttle finder = new RexShuttle() {
-      @Override
-      public RexNode visitCall(RexCall call) {
-        if (call.getOperator().getName().equalsIgnoreCase(callName)) {
-          found = true;
-        }
-        return super.visitCall(call);
-      }
-    };
+    private RexShuttle finder =
+        new RexShuttle() {
+          @Override
+          public RexNode visitCall(RexCall call) {
+            if (call.getOperator().getName().equalsIgnoreCase(callName)) {
+              found = true;
+            }
+            return super.visitCall(call);
+          }
+        };
 
     @Override
     public Boolean visitPrel(Prel prel, Void notUsed) throws RuntimeException {
@@ -493,8 +504,8 @@ public class PrelUtil {
       if (found) {
         return true;
       }
-      for(Prel child : prel){
-        if(child.accept(this, null)) {
+      for (Prel child : prel) {
+        if (child.accept(this, null)) {
           return true;
         }
       }

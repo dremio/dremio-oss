@@ -35,6 +35,8 @@ import { getCurrentFormatUrl } from "@app/selectors/home";
 import { loadFileFormat } from "@app/actions/modals/addFileModal";
 import { getVersionContextFromId } from "dremio-ui-common/utilities/datasetReference.js";
 import AccelerationUpdatesForm from "./AccelerationUpdatesForm";
+import { REFLECTION_SCHEDULER_POLICY } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
+import { getSupportFlags } from "@app/selectors/supportFlags";
 
 const VIEW_ID = "AccelerationUpdatesController";
 const updateViewStateWrapper = (viewState) =>
@@ -62,6 +64,7 @@ export class AccelerationUpdatesController extends Component {
     updateFormDirtyState: PropTypes.func,
     accelerationSettings: PropTypes.instanceOf(Immutable.Map),
     updateViewState: PropTypes.func.isRequired, // (viewState) => void
+    isSchedulerEnabled: PropTypes.bool,
   };
 
   state = {
@@ -113,7 +116,7 @@ export class AccelerationUpdatesController extends Component {
         this.props.loadDatasetAccelerationSettings(
           entity.get("fullPathList"),
           VIEW_ID,
-          versionContext
+          versionContext,
         );
       },
       (error) => {
@@ -126,7 +129,7 @@ export class AccelerationUpdatesController extends Component {
             updateVS({
               isFailed: true,
               error: { message: json.errorMessage },
-            })
+            }),
           )
           .catch((jsonError) =>
             updateVS({
@@ -137,9 +140,9 @@ export class AccelerationUpdatesController extends Component {
                   err: jsonError.statusText,
                 }),
               },
-            })
+            }),
           );
-      }
+      },
     );
   }
 
@@ -154,14 +157,18 @@ export class AccelerationUpdatesController extends Component {
   }
 
   submit = (form) => {
+    if (!this.props.isSchedulerEnabled) {
+      delete form.accelerationActivePolicyType;
+      delete form.accelerationRefreshSchedule;
+    }
     const fullPathList = this.props.entity.get("fullPathList");
     const versionContext = getVersionContextFromId(this.props.entity.get("id"));
     return ApiUtils.attachFormSubmitHandlers(
       this.props.updateDatasetAccelerationSettings(
         fullPathList,
         form,
-        versionContext
-      )
+        versionContext,
+      ),
     ).then(() => {
       this.props.clearDataSetAccelerationSettings(fullPathList);
       this.props.onDone(null, true);
@@ -217,7 +224,7 @@ function mapStateToProps(state, ownProps) {
   if (["folder"].indexOf(entityType) !== -1) {
     const getFullPathForFileFormat = createSelector(
       (fullPathImmutable) => fullPathImmutable,
-      (path) => (path ? path.toJS() : null)
+      (path) => (path ? path.toJS() : null),
     );
     formatUrl = fullPathList
       ? getCurrentFormatUrl(getFullPathForFileFormat(fullPathList), true)
@@ -232,8 +239,9 @@ function mapStateToProps(state, ownProps) {
     accelerationSettings: getEntity(
       state,
       fullPath,
-      "datasetAccelerationSettings"
+      "datasetAccelerationSettings",
     ),
+    isSchedulerEnabled: getSupportFlags?.(state)?.[REFLECTION_SCHEDULER_POLICY],
   };
 }
 

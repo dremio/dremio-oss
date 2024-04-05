@@ -34,13 +34,10 @@ import SettingsBtn from "components/Buttons/SettingsBtn";
 import { ENTITY_TYPES } from "@app/constants/Constants";
 import localStorageUtils from "@app/utils/storageUtils/localStorageUtils";
 import { IconButton } from "dremio-ui-lib";
-import { TagsAlert } from "@app/pages/HomePage/components/TagsAlert";
 
 import { NESSIE, ARCTIC } from "@app/constants/sourceTypes";
 import { NEW_DATASET_NAVIGATION } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
-import { tableStyles } from "../tableStyles";
-import BrowseTable from "./BrowseTable";
-import { HeaderButtons } from "./HeaderButtons";
+import { HeaderButtons } from "@inject/pages/HomePage/components/HeaderButtons";
 import MainInfoItemNameAndTag from "./MainInfoItemNameAndTag";
 import SourceBranchPicker from "./SourceBranchPicker/SourceBranchPicker";
 import { getSortedSources } from "@app/selectors/home";
@@ -53,8 +50,18 @@ import { fetchSupportFlagsDispatch } from "@inject/actions/supportFlags";
 import { addProjectBase as wrapBackendLink } from "dremio-ui-common/utilities/projectBase.js";
 import { compose } from "redux";
 import { withCatalogARSFlag } from "@inject/utils/arsUtils";
-import { Wiki } from "@app/pages/ExplorePage/components/Wiki/Wiki";
-import { isEntityWikiEditAllowed } from "dyn-load/utils/entity-utils";
+import CatalogListingView from "./CatalogListingView/CatalogListingView";
+import EllipsedText from "@app/components/EllipsedText";
+import {
+  catalogListingColumns,
+  CATALOG_LISTING_COLUMNS,
+} from "dremio-ui-common/sonar/components/CatalogListingTable/catalogListingColumns.js";
+import { getCatalogData } from "@app/utils/catalog-listing-utils";
+import { intl } from "@app/utils/intl";
+import CatalogDetailsPanel from "./CatalogDetailsPanel/CatalogDetailsPanel";
+import Message from "@app/components/Message";
+
+import { panelIcon } from "./BrowseTable.less";
 
 const folderPath = "/folder/";
 
@@ -64,6 +71,13 @@ const shortcutBtnTypes = {
   settings: "settings",
   query: "query",
 };
+
+const CATALOG_SORTING_MAP = {
+  [CATALOG_LISTING_COLUMNS.name]: "name",
+  [CATALOG_LISTING_COLUMNS.jobs]: "jobCount",
+};
+
+const loadingSkeletonRows = Array(10).fill(null);
 
 const getEntityId = (props) => {
   return props && props.entity ? props.entity.get("id") : null;
@@ -103,6 +117,8 @@ export class MainInfoView extends Component {
   state = {
     isDetailsPanelShown: localStorageUtils.getWikiVisibleState(),
     datasetDetails: null,
+    sort: null,
+    filter: "",
   };
 
   componentDidMount() {
@@ -112,6 +128,10 @@ export class MainInfoView extends Component {
 
   componentDidUpdate(prevProps) {
     this.fetchWiki(prevProps);
+
+    if (getEntityId(prevProps) !== getEntityId(this.props)) {
+      this.setState({ filter: "", sort: null });
+    }
   }
 
   fetchWiki(prevProps) {
@@ -154,7 +174,7 @@ export class MainInfoView extends Component {
   }
 
   getFolderActionButtons(folder) {
-    const { isVersionedSource } = this.props;
+    const { isVersionedSource, sourceType, nessieState = {} } = this.props;
     const isFileSystemFolder = !!folder.get("fileSystemFolder");
     const isQueryAble = folder.get("queryable");
     const permissions = folder.get("permissions")
@@ -202,7 +222,12 @@ export class MainInfoView extends Component {
       return [
         this.getDetailsPanelBtn(folder),
         this.getSettingsBtnByType(
-          <FolderMenu folder={folder} isVersionedSource={isVersionedSource} />,
+          <FolderMenu
+            folder={folder}
+            isVersionedSource={isVersionedSource}
+            sourceType={sourceType}
+            nessieState={nessieState}
+          />,
           folder,
         ),
       ];
@@ -325,74 +350,31 @@ export class MainInfoView extends Component {
     );
   }
 
-  getRow(item) {
-    const [name, jobs, action] = this.getTableColumns();
+  getRow(item, i) {
+    if (!item)
+      return {
+        id: `${i}`,
+      };
+
     const jobsCount =
       item.get("jobCount") || item.getIn(["extendedConfig", "jobCount"]) || 0;
     return {
+      id: item.get("id"),
       data: {
-        [name.key]: {
-          node: () => (
-            <MainInfoItemNameAndTag
-              item={item}
-              openDetailsPanel={this.openDetailsPanel}
-            />
-          ),
-          value: item.get("name"),
-        },
-        [jobs.key]: {
-          node: () => (
-            <Link to={wrapBackendLink(item.getIn(["links", "jobs"]))}>
-              {jobsCount}
-            </Link>
-          ),
-          value: jobsCount,
-        },
-        [action.key]: {
-          node: () => this.getActionCell(item),
-        },
+        name: (
+          <MainInfoItemNameAndTag
+            item={item}
+            openDetailsPanel={this.openDetailsPanel}
+          />
+        ),
+        jobs: (
+          <Link to={wrapBackendLink(item.getIn(["links", "jobs"]))}>
+            {jobsCount}
+          </Link>
+        ),
+        actions: this.getActionCell(item),
       },
     };
-  }
-
-  getTableColumns() {
-    const {
-      intl: { formatMessage },
-      entity,
-    } = this.props;
-
-    const showJobsColumn = entity && this.isNeitherNessieOrArctic();
-
-    return [
-      {
-        key: "name",
-        label: formatMessage({ id: "Common.Name" }),
-        infoContent: <TagsAlert />,
-        flexGrow: 1,
-      },
-      {
-        key: "jobs",
-        label: formatMessage({ id: "Job.Jobs" }),
-        style: showJobsColumn ? tableStyles.digitColumn : { display: "none" },
-        columnAlignment: "alignRight",
-        headerStyle: {
-          justifyContent: "flex-end",
-          display: showJobsColumn ? "flex" : "none",
-        },
-        isFixedWidth: true,
-        width: 66,
-      },
-      {
-        key: "action",
-        label: " ",
-        style: tableStyles.actionColumn,
-        isFixedWidth: true,
-        width: 140,
-        className: "row-buttons",
-        headerClassName: "row-buttons",
-        disableSort: true,
-      },
-    ];
   }
 
   getTableData() {
@@ -404,7 +386,7 @@ export class MainInfoView extends Component {
         // For example, we clearing folders, when we navigating to another folder, but sources could have a reference by id on these folder. As folder would not be found, here we would have undefined
         //skip such cases
         if (!dataset) return;
-        rows = rows.push(this.getRow(dataset));
+        rows = rows.push(dataset);
       };
       contents.get("datasets").forEach(appendRow);
       contents.get("folders").forEach(appendRow);
@@ -489,14 +471,7 @@ export class MainInfoView extends Component {
   renderExternalLink = () => {
     if (this.isNeitherNessieOrArctic()) return null;
     else {
-      return (
-        <Link
-          to={this.constructVersionSourceLink()}
-          style={{ textDecoration: "none" }}
-        >
-          <ProjectHistoryButton />
-        </Link>
-      );
+      return <ProjectHistoryButton to={this.constructVersionSourceLink()} />;
     }
   };
 
@@ -504,6 +479,25 @@ export class MainInfoView extends Component {
     const { source } = this.props;
     if (this.isNeitherNessieOrArctic()) return null;
     return <SourceBranchPicker source={source.toJS()} />;
+  };
+
+  renderDatasetDetailsIcon = () => {
+    const { isDetailsPanelShown } = this.state;
+    if (!this.shouldShowDetailsPanelIcon() || isDetailsPanelShown) return null;
+
+    return (
+      <IconButton
+        tooltip={intl.formatMessage({
+          id: "Wiki.OpenDetails",
+        })}
+        onClick={this.toggleDetailsPanel}
+        tooltipPortal
+        tooltipPlacement="top"
+        className={panelIcon}
+      >
+        <dremio-icon name="interface/meta" />
+      </IconButton>
+    );
   };
 
   openDetailsPanel = async (dataset) => {
@@ -543,6 +537,10 @@ export class MainInfoView extends Component {
     window.open(wrapBackendLink(pathname), "_blank");
   };
 
+  onColumnsSorted = (sortedColumns) => {
+    this.setState({ sort: sortedColumns });
+  };
+
   render() {
     const {
       canUploadFile,
@@ -558,66 +556,95 @@ export class MainInfoView extends Component {
         ? entity
         : null;
     const { pathname } = this.context.location;
+    const tableData = this.getTableData();
+    const sortedData =
+      viewState.get("isInProgress") && tableData.size === 0
+        ? Immutable.fromJS(loadingSkeletonRows)
+        : getCatalogData(
+            tableData,
+            this.state.sort,
+            CATALOG_SORTING_MAP,
+            this.state.filter,
+          );
+    const columns = catalogListingColumns({
+      isViewAll: false,
+      isVersioned: !this.isNeitherNessieOrArctic(),
+    });
+    const error = viewState.getIn(["error", "message", "errorMessage"]);
 
     const buttons = entity && (
-      <HeaderButtons
-        entity={entity}
-        rootEntityType={rootEntityType}
-        rightTreeVisible={this.props.rightTreeVisible}
-        toggleVisibility={this.toggleRightTree}
-        canUploadFile={canUploadFile}
-        isVersionedSource={isVersionedSource}
-      />
+      <>
+        <HeaderButtons
+          entity={entity}
+          rootEntityType={rootEntityType}
+          rightTreeVisible={this.props.rightTreeVisible}
+          toggleVisibility={this.toggleRightTree}
+          canUploadFile={canUploadFile}
+          isVersionedSource={isVersionedSource}
+        />
+        {this.renderDatasetDetailsIcon()}
+      </>
     );
 
     return (
       <>
-        <BrowseTable
-          item={entity}
-          panelItem={panelItem}
+        <DocumentTitle
           title={
-            entity && (
-              <BreadCrumbs
-                fullPath={entity.get("fullPathList")}
-                pathname={pathname}
-                showCopyButton
-                includeQuotes
-                extraContent={this.renderTitleExtraContent()}
-              />
-            )
+            (entity && formatFullPath(entity.get("fullPathList")).join(".")) ||
+            ""
           }
-          buttons={buttons}
-          key={pathname} /* trick to clear out the searchbox on navigation */
-          columns={this.getTableColumns()}
-          rightSidebar={
-            panelItem ? (
-              <Wiki
-                entityId={panelItem?.get("entityId") || panelItem?.get("id")}
-                isEditAllowed={isEntityWikiEditAllowed(panelItem)}
-                className="bottomContent"
-                dataset={panelItem}
-                handlePanelDetails={this.handleUpdatePanelDetails}
-                isPanel
-              />
-            ) : null
-          }
-          rightSidebarExpanded={isDetailsPanelShown}
-          rightSidebarIcon={this.shouldShowDetailsPanelIcon()}
-          toggleSidebar={this.toggleDetailsPanel}
-          tableData={this.getTableData()}
-          viewState={viewState}
-          renderExternalLink={this.renderExternalLink}
-          disableZebraStripes
-          rowHeight={40}
-        >
-          <DocumentTitle
+        />
+        {error ? (
+          <Message isDismissable={false} messageType="error" message={error} />
+        ) : (
+          <CatalogListingView
+            key={pathname}
+            getRow={(i) => {
+              const item = sortedData.get(i);
+              return this.getRow(item, i);
+            }}
+            columns={columns}
+            rowCount={sortedData.size}
+            onColumnsSorted={this.onColumnsSorted}
             title={
-              (entity &&
-                formatFullPath(entity.get("fullPathList")).join(".")) ||
-              ""
+              <h3
+                style={{
+                  minWidth: !this.renderTitleExtraContent() ? 80 : 150,
+                  height: 32,
+                }}
+              >
+                <EllipsedText>
+                  {entity && (
+                    <BreadCrumbs
+                      fullPath={entity.get("fullPathList")}
+                      pathname={pathname}
+                      showCopyButton
+                      includeQuotes
+                      extraContent={this.renderTitleExtraContent()}
+                    />
+                  )}
+                </EllipsedText>
+              </h3>
             }
+            rightHeaderButtons={buttons}
+            leftHeaderButtons={this.renderExternalLink()}
+            onFilter={(filter) => this.setState({ filter: filter })}
+            showButtonDivider={
+              buttons != null || (!isDetailsPanelShown && panelItem)
+            }
+            leftHeaderStyles={{
+              minWidth: !this.renderTitleExtraContent() ? 80 : 150,
+            }}
           />
-        </BrowseTable>
+        )}
+
+        {panelItem && isDetailsPanelShown && (
+          <CatalogDetailsPanel
+            panelItem={panelItem}
+            handleDatasetDetailsCollapse={this.toggleDetailsPanel}
+            handlePanelDetails={this.handleUpdatePanelDetails}
+          />
+        )}
       </>
     );
   }
@@ -637,6 +664,7 @@ function mapStateToProps(state, props) {
   );
 
   let isVersionedSource = false;
+  let sourceType;
   const entityType = props.entity?.get("entityType");
   const sources = getSortedSources(state);
   if (
@@ -649,17 +677,18 @@ function mapStateToProps(state, props) {
       entityJS.fullPathList[0],
       sources,
     )?.toJS();
-
+    sourceType = parentSource?.type;
     isVersionedSource = checkIsVersionedSource(parentSource?.type);
   } else if (entityType === ENTITY_TYPES.source) {
+    sourceType = props.entity.get("type");
     isVersionedSource = checkIsVersionedSource(props.entity.get("type"));
   }
-
   const nessieState = selectState(state.nessie, props.source?.get("name"));
 
   return {
     rootEntityType,
     isVersionedSource,
+    sourceType,
     canUploadFile: state.privileges?.project?.canUploadFile,
     nessieState,
   };

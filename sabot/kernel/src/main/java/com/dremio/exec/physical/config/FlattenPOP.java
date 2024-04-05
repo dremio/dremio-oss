@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.physical.config;
 
-import java.util.Iterator;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.physical.base.AbstractSingle;
 import com.dremio.exec.physical.base.OpProps;
@@ -28,11 +26,13 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.Iterators;
+import java.util.Iterator;
 
 @Options
 @JsonTypeName("flatten")
 public class FlattenPOP extends AbstractSingle {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FlattenPOP.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(FlattenPOP.class);
 
   private final SchemaPath column;
 
@@ -40,8 +40,7 @@ public class FlattenPOP extends AbstractSingle {
   public FlattenPOP(
       @JsonProperty("props") OpProps props,
       @JsonProperty("child") PhysicalOperator child,
-      @JsonProperty("column") SchemaPath column
-      ) {
+      @JsonProperty("column") SchemaPath column) {
     super(props, child);
     this.column = column;
   }
@@ -56,7 +55,8 @@ public class FlattenPOP extends AbstractSingle {
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value) throws E {
+  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value)
+      throws E {
     return physicalVisitor.visitFlatten(this, value);
   }
 
@@ -69,5 +69,4 @@ public class FlattenPOP extends AbstractSingle {
   public int getOperatorType() {
     return CoreOperatorType.FLATTEN_VALUE;
   }
-
 }

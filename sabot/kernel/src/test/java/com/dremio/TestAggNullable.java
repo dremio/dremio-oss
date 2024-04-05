@@ -17,11 +17,10 @@ package com.dremio;
 
 import static org.junit.Assert.assertEquals;
 
+import com.dremio.common.util.TestTools;
 import org.junit.Test;
 
-import com.dremio.common.util.TestTools;
-
-public class TestAggNullable extends BaseTestQuery{
+public class TestAggNullable extends BaseTestQuery {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestAggNullable.class);
 
   static final String WORKING_PATH = TestTools.getWorkingPath();
@@ -29,51 +28,78 @@ public class TestAggNullable extends BaseTestQuery{
 
   private static void enableAggr(boolean ha, boolean sa) throws Exception {
 
-    test(String.format("alter session set \"planner.enable_hashagg\" = %s", ha ? "true":"false"));
-    test(String.format("alter session set \"planner.enable_streamagg\" = %s", sa ? "true":"false"));
+    test(String.format("alter session set \"planner.enable_hashagg\" = %s", ha ? "true" : "false"));
+    test(
+        String.format(
+            "alter session set \"planner.enable_streamagg\" = %s", sa ? "true" : "false"));
     test("alter session set \"planner.slice_target\" = 1");
   }
 
-  @Test  // HashAgg on nullable columns
+  @Test // HashAgg on nullable columns
   public void testHashAggNullableColumns() throws Exception {
-    String query1 = String.format("select t2.b2 from dfs.\"%s/jsoninput/nullable2.json\" t2 " +
-                    " group by t2.b2", TEST_RES_PATH);
-    String query2 = String.format("select t2.a2, t2.b2 from dfs.\"%s/jsoninput/nullable2.json\" t2 " +
-        " group by t2.a2, t2.b2", TEST_RES_PATH);
+    String query1 =
+        String.format(
+            "select t2.b2 from dfs.\"%s/jsoninput/nullable2.json\" t2 " + " group by t2.b2",
+            TEST_RES_PATH);
+    String query2 =
+        String.format(
+            "select t2.a2, t2.b2 from dfs.\"%s/jsoninput/nullable2.json\" t2 "
+                + " group by t2.a2, t2.b2",
+            TEST_RES_PATH);
 
     int actualRecordCount;
     int expectedRecordCount = 2;
 
     enableAggr(true, false);
     actualRecordCount = testSql(query1);
-    assertEquals(String.format("Received unexpected number of rows in output: expected=%d, received=%s",
-        expectedRecordCount, actualRecordCount), expectedRecordCount, actualRecordCount);
+    assertEquals(
+        String.format(
+            "Received unexpected number of rows in output: expected=%d, received=%s",
+            expectedRecordCount, actualRecordCount),
+        expectedRecordCount,
+        actualRecordCount);
 
     expectedRecordCount = 4;
     actualRecordCount = testSql(query2);
-    assertEquals(String.format("Received unexpected number of rows in output: expected=%d, received=%s",
-        expectedRecordCount, actualRecordCount), expectedRecordCount, actualRecordCount);
+    assertEquals(
+        String.format(
+            "Received unexpected number of rows in output: expected=%d, received=%s",
+            expectedRecordCount, actualRecordCount),
+        expectedRecordCount,
+        actualRecordCount);
   }
 
-  @Test  // StreamingAgg on nullable columns
+  @Test // StreamingAgg on nullable columns
   public void testStreamAggNullableColumns() throws Exception {
-    String query1 = String.format("select t2.b2 from dfs.\"%s/jsoninput/nullable2.json\" t2 " +
-                    " group by t2.b2", TEST_RES_PATH);
-    String query2 = String.format("select t2.a2, t2.b2 from dfs_root.\"%s/jsoninput/nullable2.json\" t2 " +
-        " group by t2.a2, t2.b2", TEST_RES_PATH);
+    String query1 =
+        String.format(
+            "select t2.b2 from dfs.\"%s/jsoninput/nullable2.json\" t2 " + " group by t2.b2",
+            TEST_RES_PATH);
+    String query2 =
+        String.format(
+            "select t2.a2, t2.b2 from dfs_root.\"%s/jsoninput/nullable2.json\" t2 "
+                + " group by t2.a2, t2.b2",
+            TEST_RES_PATH);
 
     int actualRecordCount;
     int expectedRecordCount = 2;
 
     enableAggr(false, true);
     actualRecordCount = testSql(query1);
-    assertEquals(String.format("Received unexpected number of rows in output: expected=%d, received=%s",
-        expectedRecordCount, actualRecordCount), expectedRecordCount, actualRecordCount);
+    assertEquals(
+        String.format(
+            "Received unexpected number of rows in output: expected=%d, received=%s",
+            expectedRecordCount, actualRecordCount),
+        expectedRecordCount,
+        actualRecordCount);
 
     expectedRecordCount = 4;
     actualRecordCount = testSql(query2);
-    assertEquals(String.format("Received unexpected number of rows in output: expected=%d, received=%s",
-        expectedRecordCount, actualRecordCount), expectedRecordCount, actualRecordCount);
+    assertEquals(
+        String.format(
+            "Received unexpected number of rows in output: expected=%d, received=%s",
+            expectedRecordCount, actualRecordCount),
+        expectedRecordCount,
+        actualRecordCount);
   }
-
 }

@@ -18,172 +18,191 @@ package com.dremio.io;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.mockito.Mockito.mock;
 
+import io.netty.buffer.ByteBuf;
 import java.io.FileNotFoundException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-
 import org.junit.Test;
-
-import io.netty.buffer.ByteBuf;
 
 public class AsyncByteReaderTest {
   @Test
   public void testVersionedReadFully_exceptionInReadFully() {
-    AsyncByteReader byteReader = new ReusableAsyncByteReader() {
-      @Override
-      public CompletableFuture<Void> readFully(long offset, ByteBuf dst, int dstOffset, int len) {
-        CompletableFuture<Void> completableFuture = CompletableFuture.runAsync(sleep());
-        completableFuture.completeExceptionally(new RuntimeException("Something went wrong"));
-        return completableFuture;
-      }
+    AsyncByteReader byteReader =
+        new ReusableAsyncByteReader() {
+          @Override
+          public CompletableFuture<Void> readFully(
+              long offset, ByteBuf dst, int dstOffset, int len) {
+            CompletableFuture<Void> completableFuture = CompletableFuture.runAsync(sleep());
+            completableFuture.completeExceptionally(new RuntimeException("Something went wrong"));
+            return completableFuture;
+          }
 
-      @Override
-      public CompletableFuture<Void> checkVersion(String version) {
-        return CompletableFuture.completedFuture(null);
-      }
-    };
+          @Override
+          public CompletableFuture<Void> checkVersion(String version) {
+            return CompletableFuture.completedFuture(null);
+          }
+        };
 
     assertThatExceptionOfType(CompletionException.class)
-      .isThrownBy(() -> byteReader.versionedReadFully("1", 0, mock(ByteBuf.class), 100, 100).join())
-      .havingCause()
-      .isInstanceOf(RuntimeException.class)
-      .withMessage("Something went wrong");
+        .isThrownBy(
+            () -> byteReader.versionedReadFully("1", 0, mock(ByteBuf.class), 100, 100).join())
+        .havingCause()
+        .isInstanceOf(RuntimeException.class)
+        .withMessage("Something went wrong");
   }
 
   @Test
   public void testVersionedReadFully_exceptionInCheckVersion() {
-    AsyncByteReader byteReader = new ReusableAsyncByteReader() {
-      @Override
-      public CompletableFuture<Void> readFully(long offset, ByteBuf dst, int dstOffset, int len) {
-        return CompletableFuture.completedFuture(null);
-      }
+    AsyncByteReader byteReader =
+        new ReusableAsyncByteReader() {
+          @Override
+          public CompletableFuture<Void> readFully(
+              long offset, ByteBuf dst, int dstOffset, int len) {
+            return CompletableFuture.completedFuture(null);
+          }
 
-      @Override
-      public CompletableFuture<Void> checkVersion(String version) {
-        CompletableFuture<Void> completableFuture = CompletableFuture.runAsync(sleep());
-        completableFuture.completeExceptionally(new FileNotFoundException("Not found"));
-        return completableFuture;
-      }
-    };
+          @Override
+          public CompletableFuture<Void> checkVersion(String version) {
+            CompletableFuture<Void> completableFuture = CompletableFuture.runAsync(sleep());
+            completableFuture.completeExceptionally(new FileNotFoundException("Not found"));
+            return completableFuture;
+          }
+        };
 
     assertThatExceptionOfType(CompletionException.class)
-      .isThrownBy(() -> byteReader.versionedReadFully("1", 0, mock(ByteBuf.class), 100, 100).join())
-      .havingCause()
-      .isInstanceOf(FileNotFoundException.class)
-      .withMessage("Not found");
+        .isThrownBy(
+            () -> byteReader.versionedReadFully("1", 0, mock(ByteBuf.class), 100, 100).join())
+        .havingCause()
+        .isInstanceOf(FileNotFoundException.class)
+        .withMessage("Not found");
   }
 
   @Test
   public void testVersionedReadFully_multipleExceptions_oneFNFE() {
-    AsyncByteReader byteReader = new ReusableAsyncByteReader() {
-      @Override
-      public CompletableFuture<Void> readFully(long offset, ByteBuf dst, int dstOffset, int len) {
-        CompletableFuture<Void> completableFuture = CompletableFuture.runAsync(sleep());
-        completableFuture.completeExceptionally(new RuntimeException("Something went wrong"));
-        return completableFuture;
-      }
+    AsyncByteReader byteReader =
+        new ReusableAsyncByteReader() {
+          @Override
+          public CompletableFuture<Void> readFully(
+              long offset, ByteBuf dst, int dstOffset, int len) {
+            CompletableFuture<Void> completableFuture = CompletableFuture.runAsync(sleep());
+            completableFuture.completeExceptionally(new RuntimeException("Something went wrong"));
+            return completableFuture;
+          }
 
-      @Override
-      public CompletableFuture<Void> checkVersion(String version) {
-        CompletableFuture<Void> completableFuture = CompletableFuture.runAsync(sleep());
-        completableFuture.completeExceptionally(new FileNotFoundException("Not found"));
-        return completableFuture;
-      }
-    };
+          @Override
+          public CompletableFuture<Void> checkVersion(String version) {
+            CompletableFuture<Void> completableFuture = CompletableFuture.runAsync(sleep());
+            completableFuture.completeExceptionally(new FileNotFoundException("Not found"));
+            return completableFuture;
+          }
+        };
 
     assertThatExceptionOfType(CompletionException.class)
-      .isThrownBy(() -> byteReader.versionedReadFully("1", 0, mock(ByteBuf.class), 100, 100).join())
-      .havingCause()
-      .isInstanceOf(FileNotFoundException.class)
-      .withMessage("Not found");
+        .isThrownBy(
+            () -> byteReader.versionedReadFully("1", 0, mock(ByteBuf.class), 100, 100).join())
+        .havingCause()
+        .isInstanceOf(FileNotFoundException.class)
+        .withMessage("Not found");
   }
 
   @Test
   public void testVersionedReadFully_multipleExceptions_bothFNFE() {
-    AsyncByteReader byteReader = new ReusableAsyncByteReader() {
-      @Override
-      public CompletableFuture<Void> readFully(long offset, ByteBuf dst, int dstOffset, int len) {
-        CompletableFuture<Void> completableFuture = CompletableFuture.runAsync(sleep());
-        completableFuture.completeExceptionally(new FileNotFoundException("Not found"));
-        return completableFuture;
-      }
+    AsyncByteReader byteReader =
+        new ReusableAsyncByteReader() {
+          @Override
+          public CompletableFuture<Void> readFully(
+              long offset, ByteBuf dst, int dstOffset, int len) {
+            CompletableFuture<Void> completableFuture = CompletableFuture.runAsync(sleep());
+            completableFuture.completeExceptionally(new FileNotFoundException("Not found"));
+            return completableFuture;
+          }
 
-      @Override
-      public CompletableFuture<Void> checkVersion(String version) {
-        CompletableFuture<Void> completableFuture = CompletableFuture.runAsync(sleep());
-        completableFuture.completeExceptionally(new FileNotFoundException("Not found either"));
-        return completableFuture;
-      }
-    };
+          @Override
+          public CompletableFuture<Void> checkVersion(String version) {
+            CompletableFuture<Void> completableFuture = CompletableFuture.runAsync(sleep());
+            completableFuture.completeExceptionally(new FileNotFoundException("Not found either"));
+            return completableFuture;
+          }
+        };
 
     assertThatExceptionOfType(CompletionException.class)
-      .isThrownBy(() -> byteReader.versionedReadFully("1", 0, mock(ByteBuf.class), 100, 100).join())
-      .havingCause()
-      .isInstanceOf(FileNotFoundException.class);
+        .isThrownBy(
+            () -> byteReader.versionedReadFully("1", 0, mock(ByteBuf.class), 100, 100).join())
+        .havingCause()
+        .isInstanceOf(FileNotFoundException.class);
   }
 
   @Test
   public void testVersionedReadFully_multipleSameExceptions_noneFNFE() {
-    AsyncByteReader byteReader = new ReusableAsyncByteReader() {
-      @Override
-      public CompletableFuture<Void> readFully(long offset, ByteBuf dst, int dstOffset, int len) {
-        CompletableFuture<Void> completableFuture = CompletableFuture.runAsync(sleep());
-        completableFuture.completeExceptionally(new RuntimeException("Something went wrong"));
-        return completableFuture;
-      }
+    AsyncByteReader byteReader =
+        new ReusableAsyncByteReader() {
+          @Override
+          public CompletableFuture<Void> readFully(
+              long offset, ByteBuf dst, int dstOffset, int len) {
+            CompletableFuture<Void> completableFuture = CompletableFuture.runAsync(sleep());
+            completableFuture.completeExceptionally(new RuntimeException("Something went wrong"));
+            return completableFuture;
+          }
 
-      @Override
-      public CompletableFuture<Void> checkVersion(String version) {
-        CompletableFuture<Void> completableFuture = CompletableFuture.runAsync(sleep());
-        completableFuture.completeExceptionally(new RuntimeException("Something went wrong"));
-        return completableFuture;
-      }
-    };
+          @Override
+          public CompletableFuture<Void> checkVersion(String version) {
+            CompletableFuture<Void> completableFuture = CompletableFuture.runAsync(sleep());
+            completableFuture.completeExceptionally(new RuntimeException("Something went wrong"));
+            return completableFuture;
+          }
+        };
 
     assertThatExceptionOfType(CompletionException.class)
-      .isThrownBy(() -> byteReader.versionedReadFully("1", 0, mock(ByteBuf.class), 100, 100).join())
-      .havingCause()
-      .isInstanceOf(RuntimeException.class)
-      .withMessage("Something went wrong");
+        .isThrownBy(
+            () -> byteReader.versionedReadFully("1", 0, mock(ByteBuf.class), 100, 100).join())
+        .havingCause()
+        .isInstanceOf(RuntimeException.class)
+        .withMessage("Something went wrong");
   }
 
   @Test
   public void testVersionedReadFully_multipleDifferentExceptions_nonFNFE() {
-    AsyncByteReader byteReader = new ReusableAsyncByteReader() {
-      @Override
-      public CompletableFuture<Void> readFully(long offset, ByteBuf dst, int dstOffset, int len) {
-        CompletableFuture<Void> completableFuture = CompletableFuture.runAsync(sleep());
-        completableFuture.completeExceptionally(new RuntimeException("Something went wrong"));
-        return completableFuture;
-      }
+    AsyncByteReader byteReader =
+        new ReusableAsyncByteReader() {
+          @Override
+          public CompletableFuture<Void> readFully(
+              long offset, ByteBuf dst, int dstOffset, int len) {
+            CompletableFuture<Void> completableFuture = CompletableFuture.runAsync(sleep());
+            completableFuture.completeExceptionally(new RuntimeException("Something went wrong"));
+            return completableFuture;
+          }
 
-      @Override
-      public CompletableFuture<Void> checkVersion(String version) {
-        CompletableFuture<Void> completableFuture = CompletableFuture.runAsync(sleep());
-        completableFuture.completeExceptionally(new IllegalArgumentException("Something went wrong here too"));
-        return completableFuture;
-      }
-    };
+          @Override
+          public CompletableFuture<Void> checkVersion(String version) {
+            CompletableFuture<Void> completableFuture = CompletableFuture.runAsync(sleep());
+            completableFuture.completeExceptionally(
+                new IllegalArgumentException("Something went wrong here too"));
+            return completableFuture;
+          }
+        };
 
     assertThatExceptionOfType(CompletionException.class)
-      .isThrownBy(() -> byteReader.versionedReadFully("1", 0, mock(ByteBuf.class), 100, 100).join())
-      .havingCause()
-      .isInstanceOf(Exception.class);
+        .isThrownBy(
+            () -> byteReader.versionedReadFully("1", 0, mock(ByteBuf.class), 100, 100).join())
+        .havingCause()
+        .isInstanceOf(Exception.class);
   }
 
   @Test
   public void testVersionedReadFully_noExceptions() {
-    AsyncByteReader byteReader = new ReusableAsyncByteReader() {
-      @Override
-      public CompletableFuture<Void> readFully(long offset, ByteBuf dst, int dstOffset, int len) {
-        return CompletableFuture.completedFuture(null);
-      }
+    AsyncByteReader byteReader =
+        new ReusableAsyncByteReader() {
+          @Override
+          public CompletableFuture<Void> readFully(
+              long offset, ByteBuf dst, int dstOffset, int len) {
+            return CompletableFuture.completedFuture(null);
+          }
 
-      @Override
-      public CompletableFuture<Void> checkVersion(String version) {
-        return CompletableFuture.completedFuture(null);
-      }
-    };
+          @Override
+          public CompletableFuture<Void> checkVersion(String version) {
+            return CompletableFuture.completedFuture(null);
+          }
+        };
 
     byteReader.versionedReadFully("1", 0, mock(ByteBuf.class), 100, 100).join();
   }

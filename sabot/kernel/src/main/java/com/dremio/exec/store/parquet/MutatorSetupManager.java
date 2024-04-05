@@ -15,19 +15,6 @@
  */
 package com.dremio.exec.store.parquet;
 
-import java.io.IOException;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.types.pojo.Schema;
-import org.apache.parquet.schema.Type;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.arrow.DremioArrowSchema;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.SchemaPath;
@@ -38,10 +25,19 @@ import com.dremio.exec.ExecConstants;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.scan.OutputMutator;
+import java.io.IOException;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.parquet.schema.Type;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * A manager to set up {@link OutputMutator}.
- */
+/** A manager to set up {@link OutputMutator}. */
 public class MutatorSetupManager implements SupportsTypeCoercionsAndUpPromotions {
   private static final Logger logger = LoggerFactory.getLogger(MutatorSetupManager.class);
 
@@ -53,8 +49,14 @@ public class MutatorSetupManager implements SupportsTypeCoercionsAndUpPromotions
   private final String filePath;
   private final List<String> tableSchemaPath;
 
-  public MutatorSetupManager(OperatorContext context, BatchSchema tableSchema, MutableParquetMetadata footer, String filePath, List<String> tableScheamaPath,
-                             SchemaDerivationHelper schemaHelper, ParquetColumnResolver columnResolver) {
+  public MutatorSetupManager(
+      OperatorContext context,
+      BatchSchema tableSchema,
+      MutableParquetMetadata footer,
+      String filePath,
+      List<String> tableScheamaPath,
+      SchemaDerivationHelper schemaHelper,
+      ParquetColumnResolver columnResolver) {
     this.context = context;
     this.tableSchema = tableSchema;
     this.footer = footer;
@@ -64,7 +66,12 @@ public class MutatorSetupManager implements SupportsTypeCoercionsAndUpPromotions
     this.columnResolver = columnResolver;
   }
 
-  public void setupMutator(OutputMutator outputMutator, Collection<SchemaPath> resolvedColumns, List<Field> droppedColumns, List<Field> updatedColumns, boolean isSchemaLearningDisabledByUser) {
+  public void setupMutator(
+      OutputMutator outputMutator,
+      Collection<SchemaPath> resolvedColumns,
+      List<Field> droppedColumns,
+      List<Field> updatedColumns,
+      boolean isSchemaLearningDisabledByUser) {
     Map<String, Type> parquetTypeMap = new HashMap<>();
     for (Type field : footer.getFileMetaData().getSchema().getFields()) {
       parquetTypeMap.putIfAbsent(field.getName().toLowerCase(), field);
@@ -110,23 +117,35 @@ public class MutatorSetupManager implements SupportsTypeCoercionsAndUpPromotions
             }
             schemaFromParquetField = schemaFromParquetField.removeNullFields();
             if (!schemaFromParquetField.getFields().isEmpty()) {
-              outputMutator.addField(fieldFromParquet.get(), CompleteType.fromField(fieldFromParquet.get()).getValueVectorClass());
+              outputMutator.addField(
+                  fieldFromParquet.get(),
+                  CompleteType.fromField(fieldFromParquet.get()).getValueVectorClass());
             }
           }
         } else {
-          outputMutator.addField(fieldFromParquet.get(), CompleteType.fromField(fieldFromParquet.get()).getValueVectorClass());
+          outputMutator.addField(
+              fieldFromParquet.get(),
+              CompleteType.fromField(fieldFromParquet.get()).getValueVectorClass());
         }
         continue;
       }
 
       BatchSchema schemaFromBatchField = BatchSchema.of(fieldFromBatchSchema.get());
 
-      BatchSchema finalSchema = getFinalSchema(schemaFromBatchField, schemaFromParquetField, droppedColumns, updatedColumns, isSchemaLearningDisabledByUser);
+      BatchSchema finalSchema =
+          getFinalSchema(
+              schemaFromBatchField,
+              schemaFromParquetField,
+              droppedColumns,
+              updatedColumns,
+              isSchemaLearningDisabledByUser);
       if (!finalSchema.equalsTypesWithoutPositions(schemaFromBatchField)) {
-        // schema of field after merge is not same as original schema, remove old schema and add new one
+        // schema of field after merge is not same as original schema, remove old schema and add new
+        // one
         outputMutator.removeField(fieldFromBatchSchema.get());
         Field mergedField = finalSchema.findField(schemaName);
-        outputMutator.addField(mergedField, CompleteType.fromField(mergedField).getValueVectorClass());
+        outputMutator.addField(
+            mergedField, CompleteType.fromField(mergedField).getValueVectorClass());
         if (outputMutator.getCallBack() != null) {
           // set schema change flag
           outputMutator.getCallBack().doWork();
@@ -135,9 +154,23 @@ public class MutatorSetupManager implements SupportsTypeCoercionsAndUpPromotions
     }
   }
 
-  private BatchSchema getFinalSchema(BatchSchema schemaFromBatchField, BatchSchema schemaFromParquetField, List<Field> droppedColumns, List<Field> updatedColumns, boolean isSchemaLearningDisabledByUser) {
-    boolean isUserDefinedSchemaEnabled = context.getOptions().getOption(ExecConstants.ENABLE_INTERNAL_SCHEMA);
-    return schemaFromBatchField.applyUserDefinedSchemaAfterSchemaLearning(schemaFromParquetField, droppedColumns, updatedColumns, isSchemaLearningDisabledByUser, isUserDefinedSchemaEnabled, filePath, tableSchemaPath, this);
+  private BatchSchema getFinalSchema(
+      BatchSchema schemaFromBatchField,
+      BatchSchema schemaFromParquetField,
+      List<Field> droppedColumns,
+      List<Field> updatedColumns,
+      boolean isSchemaLearningDisabledByUser) {
+    boolean isUserDefinedSchemaEnabled =
+        context.getOptions().getOption(ExecConstants.ENABLE_INTERNAL_SCHEMA);
+    return schemaFromBatchField.applyUserDefinedSchemaAfterSchemaLearning(
+        schemaFromParquetField,
+        droppedColumns,
+        updatedColumns,
+        isSchemaLearningDisabledByUser,
+        isUserDefinedSchemaEnabled,
+        filePath,
+        tableSchemaPath,
+        this);
   }
 
   @Override

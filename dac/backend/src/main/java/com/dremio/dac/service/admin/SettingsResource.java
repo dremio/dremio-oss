@@ -15,29 +15,6 @@
  */
 package com.dremio.dac.service.admin;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-import javax.annotation.security.RolesAllowed;
-import javax.inject.Inject;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.DELETE;
-import javax.ws.rs.GET;
-import javax.ws.rs.POST;
-import javax.ws.rs.PUT;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.Status;
-
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.resource.PowerBIResource;
@@ -54,10 +31,29 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import javax.annotation.security.RolesAllowed;
+import javax.inject.Inject;
+import javax.ws.rs.Consumes;
+import javax.ws.rs.DELETE;
+import javax.ws.rs.GET;
+import javax.ws.rs.POST;
+import javax.ws.rs.PUT;
+import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
+import javax.ws.rs.Produces;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.Status;
 
-/**
- * Resource for changing system settings
- */
+/** Resource for changing system settings */
 @RestResource
 @Path("/settings")
 @Secured
@@ -67,35 +63,42 @@ import com.google.common.collect.ImmutableSet;
 @Options
 public class SettingsResource {
   private static final Set<String> CLIENT_TOOL_OPTIONS =
-    ImmutableSet.of(TableauResource.CLIENT_TOOLS_TABLEAU.getOptionName(),
-      PowerBIResource.CLIENT_TOOLS_POWERBI.getOptionName());
+      ImmutableSet.of(
+          TableauResource.CLIENT_TOOLS_TABLEAU.getOptionName(),
+          PowerBIResource.CLIENT_TOOLS_POWERBI.getOptionName());
 
   private final ProjectOptionManager projectOptionManager;
 
-  private static final Map<String, SettingValidator> VALIDATORS = ImmutableMap.of(
-    "support.email.addr", (id, setting) -> {
-      //this pattern is for validating multiple emails separated by commas.
-      Pattern pattern = Pattern.compile("^([\\w+-.%]+@[\\w-.]+\\.[A-Za-z]{2,4})(\\s*,\\s*[\\w+-.%]+@[\\w-.]+\\.[A-Za-z]{2,4})*$");
-      Matcher matcher = pattern.matcher(setting.getValue().toString().trim());
-      if(!matcher.find()) {
-        throw new IllegalArgumentException("Emails must be in correct format separated by comma.");
-      }
-    }
-  );
+  private static final Map<String, SettingValidator> VALIDATORS =
+      ImmutableMap.of(
+          "support.email.addr",
+          (id, setting) -> {
+            // this pattern is for validating multiple emails separated by commas.
+            Pattern pattern =
+                Pattern.compile(
+                    "^([\\w+-.%]+@[\\w-.]+\\.[A-Za-z]{2,4})(\\s*,\\s*[\\w+-.%]+@[\\w-.]+\\.[A-Za-z]{2,4})*$");
+            Matcher matcher = pattern.matcher(setting.getValue().toString().trim());
+            if (!matcher.find()) {
+              throw new IllegalArgumentException(
+                  "Emails must be in correct format separated by comma.");
+            }
+          });
 
   @Inject
   public SettingsResource(ProjectOptionManager projectOptionManager) {
     this.projectOptionManager = projectOptionManager;
-    initializeClientTooloptions(ImmutableSet.of(TableauResource.CLIENT_TOOLS_TABLEAU,
-      PowerBIResource.CLIENT_TOOLS_POWERBI), projectOptionManager);
+    initializeClientTooloptions(
+        ImmutableSet.of(TableauResource.CLIENT_TOOLS_TABLEAU, PowerBIResource.CLIENT_TOOLS_POWERBI),
+        projectOptionManager);
   }
 
   @VisibleForTesting
-  public static SettingValidator getSettingValidator(String id) { return VALIDATORS.get(id); }
+  public static SettingValidator getSettingValidator(String id) {
+    return VALIDATORS.get(id);
+  }
 
   @POST
-  public Response list
-    (/* Body */ SettingsRequest request) {
+  public Response list(/* Body */ SettingsRequest request) {
     Preconditions.checkNotNull(request, "request could not be null");
 
     Set<String> requiredSettings = request.getRequiredSettings();
@@ -106,8 +109,9 @@ public class SettingsResource {
     List<Setting> settings = new ArrayList<>();
     if (requiredSettings.size() != 0 || request.getIncludeSetSettings()) {
       for (OptionValue optionValue : projectOptionManager) {
-        if (requiredSettings.contains(optionValue.getName()) ||
-          (request.getIncludeSetSettings() && projectOptionManager.isSet(optionValue.getName()))) {
+        if (requiredSettings.contains(optionValue.getName())
+            || (request.getIncludeSetSettings()
+                && projectOptionManager.isSet(optionValue.getName()))) {
           settings.add(toSetting(optionValue));
         }
       }
@@ -115,16 +119,15 @@ public class SettingsResource {
     return Response.ok(new SettingsWrapperObject(settings)).build();
   }
 
-  /**
-   * A request for list of settings
-   */
+  /** A request for list of settings */
   public static class SettingsRequest {
     private final Set<String> requiredSettings;
     private final boolean includeSetSettings;
 
     @JsonCreator
-    public SettingsRequest(@JsonProperty("requiredSettings") Set<String> requiredSettings,
-                           @JsonProperty("includeSetSettings") boolean includeSetSettings) {
+    public SettingsRequest(
+        @JsonProperty("requiredSettings") Set<String> requiredSettings,
+        @JsonProperty("includeSetSettings") boolean includeSetSettings) {
       this.requiredSettings = requiredSettings;
       this.includeSetSettings = includeSetSettings;
     }
@@ -138,9 +141,7 @@ public class SettingsResource {
     }
   }
 
-  /**
-   * Exists until ui has better lists of entity handling.
-   */
+  /** Exists until ui has better lists of entity handling. */
   public static class SettingsWrapperObject {
     private final List<Setting> settings;
 
@@ -153,13 +154,12 @@ public class SettingsResource {
     public List<Setting> getSettings() {
       return settings;
     }
-
   }
 
   @GET
   @Path("{id}")
   public Response getSetting(@PathParam("id") String id) {
-    if(!projectOptionManager.isValid(id)){
+    if (!projectOptionManager.isValid(id)) {
       return Response.status(Status.NOT_FOUND).build();
     }
     return Response.ok(toSetting(projectOptionManager.getOption(id))).build();
@@ -167,18 +167,18 @@ public class SettingsResource {
 
   @PUT
   @Path("{id}")
-  public Response setSetting(
-      Setting updatedSetting,
-      @PathParam("id") String id) {
-    if(!projectOptionManager.isValid(id)){
+  public Response setSetting(Setting updatedSetting, @PathParam("id") String id) {
+    if (!projectOptionManager.isValid(id)) {
       return Response.status(Status.NOT_FOUND).build();
     }
 
-    if(VALIDATORS.get(id) != null) {
+    if (VALIDATORS.get(id) != null) {
       try {
         VALIDATORS.get(id).validateSetting(id, updatedSetting);
       } catch (Exception e) {
-        return Response.status(Status.BAD_REQUEST).entity(new GenericErrorMessage(e.getMessage(), null, null)).build();
+        return Response.status(Status.BAD_REQUEST)
+            .entity(new GenericErrorMessage(e.getMessage(), null, null))
+            .build();
       }
     }
 
@@ -190,7 +190,7 @@ public class SettingsResource {
   @DELETE
   @Path("{id}")
   public Response resetSetting(@PathParam("id") String id) {
-    if(!projectOptionManager.isValid(id)){
+    if (!projectOptionManager.isValid(id)) {
       return Response.status(Status.NOT_FOUND).build();
     }
 
@@ -205,44 +205,49 @@ public class SettingsResource {
     return Response.ok().build();
   }
 
-  private OptionValue toOptionValue(Setting setting){
+  private OptionValue toOptionValue(Setting setting) {
     if (setting instanceof Setting.BooleanSetting) {
-      return OptionValue.createBoolean(OptionType.SYSTEM, setting.getId(), ((Setting.BooleanSetting)setting).getValue());
-    } else if(setting instanceof Setting.FloatSetting) {
-      return OptionValue.createDouble(OptionType.SYSTEM, setting.getId(), ((Setting.FloatSetting)setting).getValue());
-    } else if(setting instanceof Setting.IntegerSetting) {
-      return OptionValue.createLong(OptionType.SYSTEM, setting.getId(), ((Setting.IntegerSetting)setting).getValue());
-    } else if(setting instanceof Setting.TextSetting) {
-      return OptionValue.createString(OptionType.SYSTEM, setting.getId(), ((Setting.TextSetting)setting).getValue());
+      return OptionValue.createBoolean(
+          OptionType.SYSTEM, setting.getId(), ((Setting.BooleanSetting) setting).getValue());
+    } else if (setting instanceof Setting.FloatSetting) {
+      return OptionValue.createDouble(
+          OptionType.SYSTEM, setting.getId(), ((Setting.FloatSetting) setting).getValue());
+    } else if (setting instanceof Setting.IntegerSetting) {
+      return OptionValue.createLong(
+          OptionType.SYSTEM, setting.getId(), ((Setting.IntegerSetting) setting).getValue());
+    } else if (setting instanceof Setting.TextSetting) {
+      return OptionValue.createString(
+          OptionType.SYSTEM, setting.getId(), ((Setting.TextSetting) setting).getValue());
     } else {
-      throw new IllegalStateException("Unable to handle setting " + setting );
+      throw new IllegalStateException("Unable to handle setting " + setting);
     }
   }
 
   @SuppressWarnings("rawtypes")
-  private Setting toSetting(OptionValue option){
+  private Setting toSetting(OptionValue option) {
 
-    switch(option.getKind()){
-    case BOOLEAN:
-      return new Setting.BooleanSetting(option.getName(), option.getBoolVal());
-    case DOUBLE:
-      return new Setting.FloatSetting(option.getName(), option.getFloatVal());
-    case LONG:
-      return new Setting.IntegerSetting(option.getName(), option.getNumVal());
-    case STRING:
-      return new Setting.TextSetting(option.getName(), option.getStringVal());
-    default:
-      throw new IllegalStateException("Unable to handle kind " + option.getKind());
+    switch (option.getKind()) {
+      case BOOLEAN:
+        return new Setting.BooleanSetting(option.getName(), option.getBoolVal());
+      case DOUBLE:
+        return new Setting.FloatSetting(option.getName(), option.getFloatVal());
+      case LONG:
+        return new Setting.IntegerSetting(option.getName(), option.getNumVal());
+      case STRING:
+        return new Setting.TextSetting(option.getName(), option.getStringVal());
+      default:
+        throw new IllegalStateException("Unable to handle kind " + option.getKind());
     }
   }
 
-  private static void initializeClientTooloptions(Collection<TypeValidators.TypeValidator> options,
-                                                  ProjectOptionManager optionManager) {
-    options.forEach(option -> {
-      if (!optionManager.isSet(option.getOptionName())) {
-        optionManager.setOption(option.getDefault());
-      }
-    });
+  private static void initializeClientTooloptions(
+      Collection<TypeValidators.TypeValidator> options, ProjectOptionManager optionManager) {
+    options.forEach(
+        option -> {
+          if (!optionManager.isSet(option.getOptionName())) {
+            optionManager.setOption(option.getDefault());
+          }
+        });
   }
 
   @VisibleForTesting

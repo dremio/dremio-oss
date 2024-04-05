@@ -27,19 +27,15 @@ import static org.mockito.Mockito.spy;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
 
-/**
- * Test for {@link RocksDbBroker}
- */
+/** Test for {@link RocksDbBroker} */
 public class RocksDbBrokerTest {
-  @ClassRule
-  public static final TemporaryFolder tempDir = new TemporaryFolder();
+  @ClassRule public static final TemporaryFolder tempDir = new TemporaryFolder();
 
   private static final byte[] KEY = "hello".getBytes();
   private static final byte[] VALUE = "world".getBytes();
@@ -52,8 +48,8 @@ public class RocksDbBrokerTest {
     assertNotNull(db);
 
     assertThatThrownBy(() -> new RocksDbBroker(dbPath))
-      .isInstanceOf(RocksDBException.class)
-      .hasMessageContaining("No locks available");
+        .isInstanceOf(RocksDBException.class)
+        .hasMessageContaining("No locks available");
   }
 
   @Test
@@ -71,16 +67,17 @@ public class RocksDbBrokerTest {
   @Test
   public void testColumnFamilyValidation_missingExpectedColumnFamilies() {
     assertThatThrownBy(() -> RocksDbBroker.validateColumnFamilies(Collections.emptyList()))
-      .isInstanceOf(RocksDBException.class)
-      .hasMessageContaining("Did not load the expected number of column families");
+        .isInstanceOf(RocksDBException.class)
+        .hasMessageContaining("Did not load the expected number of column families");
   }
 
   @Test
   public void testColumnFamilyValidation_wrongColumnFamily() {
-    List<byte[]> columnFamilyHandles = Arrays.asList(RocksDB.DEFAULT_COLUMN_FAMILY, "blah-cf".getBytes());
+    List<byte[]> columnFamilyHandles =
+        Arrays.asList(RocksDB.DEFAULT_COLUMN_FAMILY, "blah-cf".getBytes());
     assertThatThrownBy(() -> RocksDbBroker.validateColumnFamilies(columnFamilyHandles))
-      .isInstanceOf(RocksDBException.class)
-      .hasMessageContaining("Unexpected column family");
+        .isInstanceOf(RocksDBException.class)
+        .hasMessageContaining("Unexpected column family");
   }
 
   @Test
@@ -111,7 +108,9 @@ public class RocksDbBrokerTest {
     assertEquals(RocksDbBroker.RocksDBState.OK, broker.getReadState());
 
     RocksDB db = spy(broker.getDb());
-    doThrow(new RocksDBException("Couldn't get the value for key")).when(db).get(broker.getColumnFamily(), KEY);
+    doThrow(new RocksDBException("Couldn't get the value for key"))
+        .when(db)
+        .get(broker.getColumnFamily(), KEY);
     broker.setDb(db);
 
     broker.get(KEY);
@@ -128,7 +127,9 @@ public class RocksDbBrokerTest {
     assertEquals(RocksDbBroker.RocksDBState.OK, broker.getWriteState());
 
     RocksDB db = spy(broker.getDb());
-    doThrow(new RocksDBException("Couldn't add the key-value mapping")).when(db).put(broker.getColumnFamily(), KEY, VALUE);
+    doThrow(new RocksDBException("Couldn't add the key-value mapping"))
+        .when(db)
+        .put(broker.getColumnFamily(), KEY, VALUE);
     broker.setDb(db);
 
     broker.put(KEY, VALUE);

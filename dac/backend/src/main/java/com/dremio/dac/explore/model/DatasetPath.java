@@ -15,12 +15,6 @@
  */
 package com.dremio.dac.explore.model;
 
-import java.util.Collections;
-import java.util.List;
-
-import org.apache.calcite.schema.SchemaPlus;
-import org.apache.calcite.schema.Table;
-
 import com.dremio.common.utils.PathUtils;
 import com.dremio.dac.model.common.LeafEntity;
 import com.dremio.dac.model.common.NamespacePath;
@@ -31,11 +25,12 @@ import com.dremio.dac.model.spaces.SpaceName;
 import com.dremio.dac.model.spaces.TempSpace;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.google.common.collect.ImmutableList;
+import java.util.Collections;
+import java.util.List;
+import org.apache.calcite.schema.SchemaPlus;
+import org.apache.calcite.schema.Table;
 
-/**
- * The full path to a dataset
- *
- */
+/** The full path to a dataset */
 public class DatasetPath extends NamespacePath {
 
   public static final DatasetPath NONE = new DatasetPath("__none");
@@ -47,7 +42,8 @@ public class DatasetPath extends NamespacePath {
   public static DatasetPath fromURLPath(RootEntity root, String path) {
     List<String> components = PathUtils.toPathComponents(path);
 
-    return new DatasetPath(ImmutableList.<String> builder().add(root.getName()).addAll(components).build());
+    return new DatasetPath(
+        ImmutableList.<String>builder().add(root.getName()).addAll(components).build());
   }
 
   public DatasetPath(RootEntity root, DatasetName dataset) {
@@ -84,31 +80,40 @@ public class DatasetPath extends NamespacePath {
     return new SpaceName(name);
   }
 
-  public Table getTable(SchemaPlus rootSchema){
+  public Table getTable(SchemaPlus rootSchema) {
     List<FolderName> components = this.getFolderPath();
     SchemaPlus schema = rootSchema.getSubSchema(this.getRoot().getName());
-    if(schema == null){
-      throw new IllegalStateException(String.format("Failure finding schema path %s in position 0 of path %s", getRoot().getName(), toPathString()));
+    if (schema == null) {
+      throw new IllegalStateException(
+          String.format(
+              "Failure finding schema path %s in position 0 of path %s",
+              getRoot().getName(), toPathString()));
     }
 
     int i = 1;
-    for(FolderName folder : components){
+    for (FolderName folder : components) {
       schema = schema.getSubSchema(folder.getName());
-      if(schema == null){
-        throw new IllegalStateException(String.format("Failure finding schema path %s in position %d of path %s", folder.getName(), i, toPathString()));
+      if (schema == null) {
+        throw new IllegalStateException(
+            String.format(
+                "Failure finding schema path %s in position %d of path %s",
+                folder.getName(), i, toPathString()));
       }
       i++;
     }
     Table table = schema.getTable(getLeaf().getName());
-    if(table == null){
-      throw new IllegalStateException(String.format("Failure finding table in path %s. The schema exists but no table in that schema matches %s", toPathString(), getLeaf().getName()));
+    if (table == null) {
+      throw new IllegalStateException(
+          String.format(
+              "Failure finding table in path %s. The schema exists but no table in that schema matches %s",
+              toPathString(), getLeaf().getName()));
     }
 
     return table;
   }
 
   public DatasetName getDataset() {
-    return (DatasetName)getLeaf();
+    return (DatasetName) getLeaf();
   }
 
   public String getVersion() {
@@ -148,7 +153,7 @@ public class DatasetPath extends NamespacePath {
     if (!(obj instanceof DatasetPath)) {
       return false;
     }
-    return toPathList().equals(((DatasetPath)obj).toPathList());
+    return toPathList().equals(((DatasetPath) obj).toPathList());
   }
 
   public String toUnescapedString() {

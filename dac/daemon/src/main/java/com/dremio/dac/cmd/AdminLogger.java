@@ -15,20 +15,17 @@
  */
 package com.dremio.dac.cmd;
 
-/**
- * Utility class that encapsulates admin logging.
- */
-
+/** Utility class that encapsulates admin logging. */
 public final class AdminLogger {
 
   public static final org.slf4j.Logger INSTANCE = org.slf4j.LoggerFactory.getLogger("admin");
 
-  private AdminLogger(){}
+  private AdminLogger() {}
 
   /**
-   * This method logs admin tools messages to the user.
-   * Formats the provided message by replacing the {} placeholders
-   * with respective arguments
+   * This method logs admin tools messages to the user. Formats the provided message by replacing
+   * the {} placeholders with respective arguments
+   *
    * @param msg String message with placeholders for args
    * @param args Var args that are embedded in the msg for logging
    */
@@ -38,7 +35,7 @@ public final class AdminLogger {
 
   /**
    * @param msg String message
-   * @param t   Throwable to log
+   * @param t Throwable to log
    */
   public static void log(String msg, Throwable t) {
     INSTANCE.info(msg, t);

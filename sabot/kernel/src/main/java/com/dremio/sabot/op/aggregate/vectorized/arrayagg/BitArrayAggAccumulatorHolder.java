@@ -19,8 +19,10 @@ package com.dremio.sabot.op.aggregate.vectorized.arrayagg;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BitVector;
 
-public final class BitArrayAggAccumulatorHolder extends BaseArrayAggAccumulatorHolder<Integer, BitVector> {
+public final class BitArrayAggAccumulatorHolder
+    extends BaseArrayAggAccumulatorHolder<Integer, BitVector> {
   private final BitVector vector;
+
   public BitArrayAggAccumulatorHolder(int maxValuesPerBatch, BufferAllocator allocator) {
     super(maxValuesPerBatch, allocator);
     vector = new BitVector("array_agg BitArrayAggAccumulatorHolder", allocator);
@@ -29,9 +31,9 @@ public final class BitArrayAggAccumulatorHolder extends BaseArrayAggAccumulatorH
 
   @Override
   public long getSizeInBytes() {
-    return vector.getDataBuffer().getActualMemoryConsumed() +
-      vector.getValidityBuffer().getActualMemoryConsumed() +
-      super.getSizeInBytes();
+    return vector.getDataBuffer().getActualMemoryConsumed()
+        + vector.getValidityBuffer().getActualMemoryConsumed()
+        + super.getSizeInBytes();
   }
 
   @Override

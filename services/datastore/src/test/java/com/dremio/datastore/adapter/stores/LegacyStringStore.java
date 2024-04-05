@@ -15,25 +15,23 @@
  */
 package com.dremio.datastore.adapter.stores;
 
-import java.util.Arrays;
-import java.util.List;
-
 import com.dremio.datastore.adapter.TestLegacyStoreCreationFunction;
 import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.datastore.api.LegacyStoreBuildingFactory;
 import com.dremio.datastore.format.Format;
+import java.util.Arrays;
+import java.util.List;
 
-/**
- * StoreCreationFunction implementation to provide configurations for this test store.
- */
+/** StoreCreationFunction implementation to provide configurations for this test store. */
 public class LegacyStringStore implements TestLegacyStoreCreationFunction<String, String> {
   @Override
   public LegacyKVStore<String, String> build(LegacyStoreBuildingFactory factory) {
-    return factory.<String, String>newStore()
-      .name("legacy-string-store")
-      .keyFormat(getKeyFormat())
-      .valueFormat(Format.ofString())
-      .build();
+    return factory
+        .<String, String>newStore()
+        .name("legacy-string-store")
+        .keyFormat(getKeyFormat())
+        .valueFormat(Format.ofString())
+        .build();
   }
 
   @Override

@@ -19,7 +19,7 @@ import com.dremio.connector.metadata.MetadataOption;
 import com.dremio.connector.metadata.extensions.SupportsAlteringDatasetMetadata;
 
 /**
- * Marker interface for an option that is passed to {@link SupportsAlteringDatasetMetadata#alterMetadata}.
+ * Marker interface for an option that is passed to {@link
+ * SupportsAlteringDatasetMetadata#alterMetadata}.
  */
-public interface AlterMetadataOption extends MetadataOption {
-}
+public interface AlterMetadataOption extends MetadataOption {}

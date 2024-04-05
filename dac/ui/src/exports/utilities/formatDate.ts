@@ -16,8 +16,8 @@
 
 const getFormatter =
   (options: Intl.DateTimeFormatOptions) =>
-  (date: Date): string =>
-    new window.Intl.DateTimeFormat("default", options).format(date);
+    (date: Date): string =>
+      new window.Intl.DateTimeFormat("default", options).format(date);
 
 export const fixedDateShort: Intl.DateTimeFormatOptions = {
   year: "numeric",
@@ -86,3 +86,29 @@ export const formatFixedDateTimeShort = getFormatter(fixedDateTimeShort);
  * Example: Jan 1, 2022, 8:00 AM
  */
 export const formatFixedDateTimeLong = getFormatter(fixedDateTimeLong);
+
+/**
+ * Used to show just the hours portion of a timestamp
+ * Example: 2 PM
+ */
+export const formatHours = getFormatter({
+  hour: "numeric",
+});
+
+/**
+ * Used to show just the hours:minutes portion of a timestamp in a 12h cycle
+ * Example: 2:00 PM
+ */
+export const formatHours12 = getFormatter({
+  hour: "numeric",
+  minute: "2-digit",
+});
+
+/**
+ * Used to show just the day of the month portion of a timestamp
+ * Example: 24
+ */
+export const formatDays = getFormatter({
+  month: "short",
+  day: "numeric",
+});

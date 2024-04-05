@@ -15,19 +15,13 @@
  */
 package com.dremio.exec.rpc;
 
-/**
- * A class containing RpcException status constants.
- */
+/** A class containing RpcException status constants. */
 public final class RpcExceptionStatus {
   private RpcExceptionStatus() {}
 
-  /**
-   * Status code for when authentication fails.
-   */
+  /** Status code for when authentication fails. */
   public static final String AUTH_FAILED = "AUTH_FAILED";
 
-  /**
-   * Status code for when attempting to use a connection that is no longer valid.
-   */
+  /** Status code for when attempting to use a connection that is no longer valid. */
   public static final String CONNECTION_INVALID = "CONNECTION_INVALID";
 }

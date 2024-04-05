@@ -20,11 +20,13 @@ import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.space.proto.FolderConfig;
 
-/**
- * Namespace operations for Folders.
- */
+/** Namespace operations for Folders. */
 public interface FolderNamespaceService {
-  void addOrUpdateFolder(NamespaceKey folderPath, FolderConfig folderConfig, NamespaceAttribute... attributes) throws NamespaceException;
+  void addOrUpdateFolder(
+      NamespaceKey folderPath, FolderConfig folderConfig, NamespaceAttribute... attributes)
+      throws NamespaceException;
+
   FolderConfig getFolder(NamespaceKey folderPath) throws NamespaceException;
+
   void deleteFolder(NamespaceKey folderPath, String version) throws NamespaceException;
 }

@@ -15,17 +15,13 @@
  */
 package com.dremio.dac.server.tokens;
 
+import com.dremio.common.collections.Tuple;
 import java.text.ParseException;
-
 import javax.ws.rs.NotAuthorizedException;
 import javax.ws.rs.container.ContainerRequestContext;
 import javax.ws.rs.core.HttpHeaders;
 
-import com.dremio.common.collections.Tuple;
-
-/**
- * Utility methods for tokens.
- */
+/** Utility methods for tokens. */
 public final class TokenUtils {
 
   public static final String AUTH_HEADER_PREFIX = "_dremio";
@@ -43,12 +39,15 @@ public final class TokenUtils {
     if (input == null) {
       return null;
     }
-    return input.startsWith(AUTH_HEADER_PREFIX)? input.substring(AUTH_HEADER_PREFIX.length()).trim() : input.trim();
+    return input.startsWith(AUTH_HEADER_PREFIX)
+        ? input.substring(AUTH_HEADER_PREFIX.length()).trim()
+        : input.trim();
   }
 
   /**
-   * Get auth token from request context. Only the first value is considered,
-   * other values are simply ignored.
+   * Get auth token from request context. Only the first value is considered, other values are
+   * simply ignored.
+   *
    * @param context request-specific information
    * @return token string. Return null if authorization header is not present.
    */
@@ -63,15 +62,14 @@ public final class TokenUtils {
       return Tuple.of(TokenType.BEARER, splitToken[1]);
     }
 
-    return Tuple.of(TokenType.CUSTOM,
-      authHeader.startsWith(AUTH_HEADER_PREFIX) ?
-        authHeader.substring(AUTH_HEADER_PREFIX.length()).trim() :
-        authHeader.trim());
+    return Tuple.of(
+        TokenType.CUSTOM,
+        authHeader.startsWith(AUTH_HEADER_PREFIX)
+            ? authHeader.substring(AUTH_HEADER_PREFIX.length()).trim()
+            : authHeader.trim());
   }
 
-  /**
-   * Token type.
-   */
+  /** Token type. */
   public enum TokenType {
     CUSTOM,
     BEARER
@@ -79,14 +77,15 @@ public final class TokenUtils {
 
   /**
    * Get bearer token from authHeader.
+   *
    * @param authHeader authorization header value
    * @return token string
    * @throws NotAuthorizedException if token does not exist
-   * @throws ParseException if authHeader is not null and not a bearer token, caller
-   * will catch this exception and fall back to non-DCS token validation.
+   * @throws ParseException if authHeader is not null and not a bearer token, caller will catch this
+   *     exception and fall back to non-DCS token validation.
    */
   public static String getBearerTokenFromAuthHeader(final String authHeader)
-    throws NotAuthorizedException, ParseException {
+      throws NotAuthorizedException, ParseException {
     if (authHeader == null) {
       throw new NotAuthorizedException("Unauthorized.");
     }
@@ -97,19 +96,14 @@ public final class TokenUtils {
     throw new ParseException("Invalid bearer token.", 0);
   }
 
-  private TokenUtils() {
-  }
+  private TokenUtils() {}
 
-  /**
-   * Return token from property. If not present, return null.
-   */
+  /** Return token from property. If not present, return null. */
   public static String getTemporaryToken(ContainerRequestContext context) {
     return getToken((String) context.getProperty(TOKEN_QUERY_CONTEXT_KEY));
   }
 
-  /**
-   * Set the request context property with the temporary token.
-   */
+  /** Set the request context property with the temporary token. */
   public static void setTemporaryToken(ContainerRequestContext context, String temporaryToken) {
     context.setProperty(TokenUtils.TOKEN_QUERY_CONTEXT_KEY, temporaryToken);
   }

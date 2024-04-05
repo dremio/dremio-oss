@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.physical.config;
 
-import java.util.List;
-
 import com.dremio.exec.physical.base.AbstractReceiver;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.OpWithMinorSpecificAttrs;
@@ -32,20 +30,21 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
+import java.util.List;
 
 @JsonTypeName("unordered-receiver")
 public class UnorderedReceiver extends AbstractReceiver implements OpWithMinorSpecificAttrs {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(UnorderedReceiver.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(UnorderedReceiver.class);
   private static final String SENDERS_ATTRIBUTE_KEY = "unordered-receiver-senders";
   private List<MinorFragmentIndexEndpoint> senders;
 
   public UnorderedReceiver(
-    OpProps props,
-    BatchSchema schema,
-    int senderMajorFragmentId,
-    List<MinorFragmentIndexEndpoint> senders,
-    boolean spooling)
-  {
+      OpProps props,
+      BatchSchema schema,
+      int senderMajorFragmentId,
+      List<MinorFragmentIndexEndpoint> senders,
+      boolean spooling) {
     super(props, schema, senderMajorFragmentId, spooling);
     this.senders = senders;
   }
@@ -55,8 +54,7 @@ public class UnorderedReceiver extends AbstractReceiver implements OpWithMinorSp
       @JsonProperty("props") OpProps props,
       @JsonProperty("schema") BatchSchema schema,
       @JsonProperty("senderMajorFragmentId") int senderMajorFragmentId,
-      @JsonProperty("spooling") boolean spooling
-      ) {
+      @JsonProperty("spooling") boolean spooling) {
     this(props, schema, senderMajorFragmentId, null, spooling);
   }
 
@@ -66,14 +64,16 @@ public class UnorderedReceiver extends AbstractReceiver implements OpWithMinorSp
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value) throws E {
+  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value)
+      throws E {
     return physicalVisitor.visitUnorderedReceiver(this, value);
   }
 
   @Override
   public final PhysicalOperator getNewWithChildren(List<PhysicalOperator> children) {
     Preconditions.checkArgument(children.isEmpty());
-    return new UnorderedReceiver(props, getSchema(), getSenderMajorFragmentId(), senders, isSpooling());
+    return new UnorderedReceiver(
+        props, getSchema(), getSenderMajorFragmentId(), senders, isSpooling());
   }
 
   @Override

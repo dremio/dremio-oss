@@ -15,19 +15,18 @@
  */
 package com.dremio.exec.store.deltalake;
 
-import java.util.List;
-import java.util.Objects;
-
 import com.dremio.common.logical.FormatPluginConfig;
 import com.dremio.exec.store.parquet.ParquetFormatConfig;
 import com.dremio.service.namespace.file.proto.FileType;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.ImmutableList;
+import java.util.List;
+import java.util.Objects;
 
 @JsonTypeName("delta")
 public class DeltaLakeFormatConfig implements FormatPluginConfig {
-  //format of the data files. Default is parquet.
+  // format of the data files. Default is parquet.
   private FileType dataFormatType = FileType.PARQUET;
   private static final List<String> DEFAULT_EXTS = ImmutableList.of("json", "parquet");
   private FormatPluginConfig dataFormatConfig = new ParquetFormatConfig();
@@ -69,7 +68,6 @@ public class DeltaLakeFormatConfig implements FormatPluginConfig {
 
   @Override
   public String toString() {
-    return "DeltaLakeFormatConfig [" +
-      dataFormatType.toString() + "]";
+    return "DeltaLakeFormatConfig [" + dataFormatType.toString() + "]";
   }
 }

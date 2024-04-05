@@ -15,14 +15,12 @@
  */
 package com.dremio.service.reflection;
 
-/**
- * Reflection Status computed from the reflection goal, entry, and existing materializations
- */
+import com.dremio.service.reflection.proto.Failure;
+
+/** Reflection Status computed from the reflection goal, entry, and existing materializations */
 public class ReflectionStatus {
 
-  /**
-   * Overall status that describes the general state of the reflection
-   */
+  /** Overall status that describes the general state of the reflection */
   public enum COMBINED_STATUS {
     NONE,
     CAN_ACCELERATE,
@@ -34,44 +32,43 @@ public class ReflectionStatus {
     INVALID,
     INCOMPLETE,
     CANNOT_ACCELERATE_SCHEDULED,
-    CANNOT_ACCELERATE_MANUAL
+    CANNOT_ACCELERATE_MANUAL,
+    CANNOT_ACCELERATE_INITIALIZING
   }
 
-  /**
-   * Reflection config (definition) validity status
-   *
-   */
+  /** Reflection config (definition) validity status */
   public enum CONFIG_STATUS {
     OK,
     INVALID
   }
 
   /**
-   * Reflection refresh status.  This status tells the user what the reflection manager is going to do next
-   * with the reflection.  It is not whether the reflection has a "never refresh" policy because even these reflections
-   * will pass through SCHEDULED status when they are newly created.
+   * Reflection refresh status. This status tells the user what the reflection manager is going to
+   * do next with the reflection. It is not whether the reflection has a "never refresh" policy
+   * because even these reflections will pass through SCHEDULED status when they are newly created.
    */
   public enum REFRESH_STATUS {
-    MANUAL,     // reflection is setup to refresh manually
-    SCHEDULED,  // next reflection refresh will occur according to the refresh policy
-    RUNNING,    // reflection refresh currently running
-    GIVEN_UP    // reflection is in failed state, no more refresh
+    MANUAL, // reflection is setup to refresh manually
+    SCHEDULED, // next reflection refresh will occur according to the refresh policy
+    RUNNING, // reflection refresh currently running
+    GIVEN_UP, // reflection is in failed state, no more refresh
+    PENDING // reflection is due for refresh, however the refresh is pending because it has
+    // direct/indirect dependencies still refreshing
   }
 
-  /**
-   * Reflection availability status
-   */
+  /** Reflection availability status */
   public enum AVAILABILITY_STATUS {
-    NONE,       // reflection has no materialization at all
-    INCOMPLETE, // reflection has no valid materialization, and latest materialization has missing pdfs data nodes
-    EXPIRED,    // reflection has no valid materialization, and latest materialization expired
-    AVAILABLE   // reflection has a valid materialization
+    NONE, // reflection has no materialization at all
+    INCOMPLETE, // reflection has no valid materialization, and latest materialization has missing
+    // pdfs data nodes
+    EXPIRED, // reflection has no valid materialization, and latest materialization expired
+    AVAILABLE // reflection has a valid materialization
   }
 
   public enum REFRESH_METHOD {
-    NONE,         // new reflection - we don't know method until it is planned
-    FULL,         // after planning, it's always a full refresh
-    INCREMENTAL   // after planning, we can use incremental refreshes
+    NONE, // new reflection - we don't know method until it is planned
+    FULL, // after planning, it's always a full refresh
+    INCREMENTAL // after planning, we can use incremental refreshes
   }
 
   private final CONFIG_STATUS configStatus;
@@ -80,21 +77,34 @@ public class ReflectionStatus {
   private final COMBINED_STATUS combinedStatus;
   private final REFRESH_METHOD refreshMethod;
   private final int numFailures;
+  private final Failure lastFailure;
   private final long lastDataFetch;
   private final long expiresAt;
   private final long lastRefreshDuration;
 
-
-
-  public ReflectionStatus(boolean reflectionEnabled, CONFIG_STATUS configStatus, REFRESH_STATUS refreshStatus,
-      AVAILABILITY_STATUS availabilityStatus, int numFailures, long lastDataFetch, long expiresAt,
-      REFRESH_METHOD refreshMethod, long lastRefreshDuration) {
+  public ReflectionStatus(
+      boolean isInitialized,
+      boolean reflectionEnabled,
+      CONFIG_STATUS configStatus,
+      REFRESH_STATUS refreshStatus,
+      AVAILABILITY_STATUS availabilityStatus,
+      int numFailures,
+      Failure lastFailure,
+      long lastDataFetch,
+      long expiresAt,
+      REFRESH_METHOD refreshMethod,
+      long lastRefreshDuration) {
     this.configStatus = configStatus;
     this.refreshStatus = refreshStatus;
     this.availabilityStatus = availabilityStatus;
     this.refreshMethod = refreshMethod;
-    this.combinedStatus = computeCombinedStatus(reflectionEnabled, configStatus, refreshStatus, availabilityStatus, numFailures > 0);
+    this.combinedStatus =
+        isInitialized
+            ? computeCombinedStatus(
+                reflectionEnabled, configStatus, refreshStatus, availabilityStatus, numFailures > 0)
+            : COMBINED_STATUS.CANNOT_ACCELERATE_INITIALIZING;
     this.numFailures = numFailures;
+    this.lastFailure = lastFailure;
     this.lastDataFetch = lastDataFetch;
     this.expiresAt = expiresAt;
     this.lastRefreshDuration = lastRefreshDuration;
@@ -124,6 +134,10 @@ public class ReflectionStatus {
     return numFailures;
   }
 
+  public Failure getLastFailure() {
+    return lastFailure;
+  }
+
   public long getLastDataFetch() {
     return lastDataFetch;
   }
@@ -132,8 +146,9 @@ public class ReflectionStatus {
     return expiresAt;
   }
 
-  public long getLastRefreshDuration() { return lastRefreshDuration; }
-
+  public long getLastRefreshDuration() {
+    return lastRefreshDuration;
+  }
 
   /**
    * COMBINED_STATUS is only shown in sys.reflections and not directly in the UI.
@@ -145,8 +160,12 @@ public class ReflectionStatus {
    * @param hasFailures
    * @return
    */
-  private static COMBINED_STATUS computeCombinedStatus(boolean reflectionEnabled, final CONFIG_STATUS configStatus,
-      REFRESH_STATUS refreshStatus, AVAILABILITY_STATUS availabilityStatus, boolean hasFailures) {
+  private static COMBINED_STATUS computeCombinedStatus(
+      boolean reflectionEnabled,
+      final CONFIG_STATUS configStatus,
+      REFRESH_STATUS refreshStatus,
+      AVAILABILITY_STATUS availabilityStatus,
+      boolean hasFailures) {
     if (!reflectionEnabled) {
       return COMBINED_STATUS.DISABLED;
     }
@@ -161,7 +180,7 @@ public class ReflectionStatus {
       return COMBINED_STATUS.INCOMPLETE;
     } else if (availabilityStatus == AVAILABILITY_STATUS.EXPIRED) {
       return COMBINED_STATUS.EXPIRED;
-    } else if (refreshStatus == REFRESH_STATUS.RUNNING) {
+    } else if (refreshStatus == REFRESH_STATUS.PENDING || refreshStatus == REFRESH_STATUS.RUNNING) {
       if (availabilityStatus == AVAILABILITY_STATUS.AVAILABLE) {
         return COMBINED_STATUS.CAN_ACCELERATE;
       } else {

@@ -19,20 +19,18 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 
+import com.dremio.exec.vector.accessor.sql.TimePrintMillis;
 import java.time.LocalTime;
 import java.util.Calendar;
 import java.util.TimeZone;
-
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.TimeMilliVector;
 import org.junit.Before;
 import org.junit.Test;
 
-import com.dremio.exec.vector.accessor.sql.TimePrintMillis;
-
 public class TestTimeMilliAccessor {
 
-  private static final int NON_NULL_VALUE_MS = 58447234;  // 16:14:07.234
+  private static final int NON_NULL_VALUE_MS = 58447234; // 16:14:07.234
   private static final LocalTime NON_NULL_VALUE = LocalTime.of(16, 14, 07, 234000000);
   private static final Calendar PST_CALENDAR = Calendar.getInstance(TimeZone.getTimeZone("PST"));
   private static final Calendar UTC_CALENDAR = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
@@ -63,19 +61,20 @@ public class TestTimeMilliAccessor {
     assertEquals(new TimePrintMillis(NON_NULL_VALUE), accessor.getObject(0));
   }
 
-  @Test(expected=NullPointerException.class)
+  @Test(expected = NullPointerException.class)
   public void testNullCalendar() throws InvalidAccessException {
     accessor.getTime(0, null);
   }
 
-  @Test(expected=NullPointerException.class)
+  @Test(expected = NullPointerException.class)
   public void testCreationWithNullTimeZone() {
     new TimeMilliAccessor(valueVector, null);
   }
 
   @Test
   public void testGetTime() throws Exception {
-    assertEquals(new TimePrintMillis(NON_NULL_VALUE.plusHours(8)), accessor.getTime(0, PST_CALENDAR));
+    assertEquals(
+        new TimePrintMillis(NON_NULL_VALUE.plusHours(8)), accessor.getTime(0, PST_CALENDAR));
     assertEquals(new TimePrintMillis(NON_NULL_VALUE), accessor.getTime(0, UTC_CALENDAR));
   }
 }

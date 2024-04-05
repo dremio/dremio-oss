@@ -15,24 +15,35 @@
  */
 package com.dremio.sabot.op.sort.topn;
 
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.exec.compile.TemplateClassDefinition;
 import com.dremio.exec.record.RecordBatchData;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.selection.SelectionVector4;
 import com.dremio.sabot.exec.context.FunctionContext;
 import com.dremio.sabot.op.sort.external.Sv4HyperContainer;
+import org.apache.arrow.memory.BufferAllocator;
 
 public interface PriorityQueue extends AutoCloseable {
   void add(RecordBatchData batch);
-  void init(Sv4HyperContainer hyperBatch, int limit, FunctionContext context, BufferAllocator allocator, boolean hasSv2, int maxSize);
+
+  void init(
+      Sv4HyperContainer hyperBatch,
+      int limit,
+      FunctionContext context,
+      BufferAllocator allocator,
+      boolean hasSv2,
+      int maxSize);
+
   void generate();
+
   Sv4HyperContainer getHyperBatch();
+
   SelectionVector4 getHeapSv4();
+
   SelectionVector4 getFinalSv4();
+
   void resetQueue(final VectorContainer newQueue, final SelectionVector4 oldHeap);
 
-  static TemplateClassDefinition<PriorityQueue> TEMPLATE_DEFINITION = new TemplateClassDefinition<PriorityQueue>(PriorityQueue.class, PriorityQueueTemplate.class);
-
+  static TemplateClassDefinition<PriorityQueue> TEMPLATE_DEFINITION =
+      new TemplateClassDefinition<PriorityQueue>(PriorityQueue.class, PriorityQueueTemplate.class);
 }

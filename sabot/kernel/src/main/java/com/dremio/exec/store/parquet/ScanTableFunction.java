@@ -18,18 +18,6 @@ package com.dremio.exec.store.parquet;
 import static com.dremio.exec.util.VectorUtil.getVectorFromSchemaPath;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.ObjectInput;
-import java.io.ObjectInputStream;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-
-import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.VarBinaryVector;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
@@ -54,12 +42,21 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.ObjectInput;
+import java.io.ObjectInputStream;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.VarBinaryVector;
 
-/**
- * Parquet scan table function
- */
+/** Parquet scan table function */
 public abstract class ScanTableFunction extends AbstractTableFunction {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ScanTableFunction.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ScanTableFunction.class);
 
   protected final Map<String, ValueVector> fieldVectorMap = Maps.newHashMap();
   protected RecordReader currentRecordReader;
@@ -83,15 +80,19 @@ public abstract class ScanTableFunction extends AbstractTableFunction {
   // remianing buffered splits if present.
   private boolean produceFromBufferedSplits = false;
 
-  public ScanTableFunction(FragmentExecutionContext fec,
-                           OperatorContext context,
-                           OpProps props,
-                           TableFunctionConfig functionConfig) {
+  public ScanTableFunction(
+      FragmentExecutionContext fec,
+      OperatorContext context,
+      OpProps props,
+      TableFunctionConfig functionConfig) {
     super(context, functionConfig);
     this.fec = fec;
     this.props = props;
     this.schema = functionConfig.getFunctionContext().getFullSchema();
-    this.selectedColumns = functionConfig.getFunctionContext().getColumns() == null ? null : ImmutableList.copyOf(functionConfig.getFunctionContext().getColumns());
+    this.selectedColumns =
+        functionConfig.getFunctionContext().getColumns() == null
+            ? null
+            : ImmutableList.copyOf(functionConfig.getFunctionContext().getColumns());
     this.maxRecordCount = 0;
     this.currentReaderRecordCount = 0;
     this.colIdMap = functionConfig.getFunctionContext().getColIdMap();
@@ -102,11 +103,14 @@ public abstract class ScanTableFunction extends AbstractTableFunction {
     this.incoming = accessible;
     this.outgoing = context.createOutputVectorContainer();
     this.mutator = new ScanOperator.ScanMutator(outgoing, fieldVectorMap, context, callBack);
-    schema.maskAndReorder(functionConfig.getFunctionContext().getColumns()).materializeVectors(selectedColumns, mutator);
+    schema
+        .maskAndReorder(functionConfig.getFunctionContext().getColumns())
+        .materializeVectors(selectedColumns, mutator);
     outgoing.buildSchema(BatchSchema.SelectionVectorMode.NONE);
     callBack.getSchemaChangedAndReset();
 
-    inputSplits = (VarBinaryVector) getVectorFromSchemaPath(incoming, RecordReader.SPLIT_INFORMATION);
+    inputSplits =
+        (VarBinaryVector) getVectorFromSchemaPath(incoming, RecordReader.SPLIT_INFORMATION);
     if (DatasetHelper.isIcebergFile(functionConfig.getFunctionContext().getFormatSettings())) {
       inputColIds = (VarBinaryVector) getVectorFromSchemaPath(incoming, RecordReader.COL_IDS);
       isColIdMapSet = false;
@@ -118,10 +122,15 @@ public abstract class ScanTableFunction extends AbstractTableFunction {
   private byte[] getExtendedProperties() {
     Preconditions.checkNotNull(colIdMap, "colIdMap should not be null");
 
-    IcebergProtobuf.IcebergDatasetXAttr.Builder builder = IcebergProtobuf.IcebergDatasetXAttr.newBuilder();
-    colIdMap.entrySet().stream().forEach(entry -> builder.addColumnIds(IcebergProtobuf.IcebergSchemaField.newBuilder()
-      .setSchemaPath(entry.getKey())
-      .setId(entry.getValue())));
+    IcebergProtobuf.IcebergDatasetXAttr.Builder builder =
+        IcebergProtobuf.IcebergDatasetXAttr.newBuilder();
+    colIdMap.entrySet().stream()
+        .forEach(
+            entry ->
+                builder.addColumnIds(
+                    IcebergProtobuf.IcebergSchemaField.newBuilder()
+                        .setSchemaPath(entry.getKey())
+                        .setId(entry.getValue())));
 
     return builder.build().toByteArray();
   }
@@ -156,22 +165,22 @@ public abstract class ScanTableFunction extends AbstractTableFunction {
 
     // getReaders
     List<SplitAndPartitionInfo> splits = new ArrayList<>();
-    for(int record=0; record<batchSize; ++record) {
+    for (int record = 0; record < batchSize; ++record) {
       try (ByteArrayInputStream bis = new ByteArrayInputStream(inputSplits.get(record));
-           ObjectInput in = new ObjectInputStream(bis)) {
+          ObjectInput in = new ObjectInputStream(bis)) {
         splits.add((SplitAndPartitionInfo) in.readObject());
       } catch (Exception e) {
-        throw UserException
-                .dataReadError(e)
-                .message("Failed to read input split information.")
-                .build(logger);
+        throw UserException.dataReadError(e)
+            .message("Failed to read input split information.")
+            .build(logger);
       }
     }
 
     try {
       addSplits(splits);
     } catch (Exception e) {
-      ScanOperator.handleExceptionDuringScan(e, functionConfig.getFunctionContext().getReferencedTables(), logger);
+      ScanOperator.handleExceptionDuringScan(
+          e, functionConfig.getFunctionContext().getReferencedTables(), logger);
     }
     setupNextReader();
   }
@@ -187,7 +196,8 @@ public abstract class ScanTableFunction extends AbstractTableFunction {
       this.runtimeFilters.forEach(currentRecordReader::addRuntimeFilter);
       checkNotNull(currentRecordReader).setup(mutator);
     } catch (Exception e) {
-      ScanOperator.handleExceptionDuringScan(e, functionConfig.getFunctionContext().getReferencedTables(), logger);
+      ScanOperator.handleExceptionDuringScan(
+          e, functionConfig.getFunctionContext().getReferencedTables(), logger);
     } finally {
       stats.stopSetup();
     }
@@ -212,6 +222,10 @@ public abstract class ScanTableFunction extends AbstractTableFunction {
       maxRecordCount = Math.max(maxRecordCount, currentReaderRecordCount);
       currentReaderRecordCount = 0;
       if (!getRecordReaderIterator().hasNext()) {
+        return 0;
+      }
+      if (fec.isCancelled()) {
+        logger.info("Query fragment is cancelled");
         return 0;
       }
       setupNextReader();
@@ -254,29 +268,52 @@ public abstract class ScanTableFunction extends AbstractTableFunction {
     return getRecordReaderIterator().hasNext();
   }
 
-  protected void setIcebergColumnIds(byte[] extendedProperty) { }
+  protected void setIcebergColumnIds(byte[] extendedProperty) {}
 
   @Override
   public void workOnOOB(OutOfBandMessage message) {
-    final String senderInfo = String.format("Frag %d, OpId %d", message.getSendingMajorFragmentId(), message.getSendingOperatorId());
+    final String senderInfo =
+        String.format(
+            "Frag %d, OpId %d",
+            message.getSendingMajorFragmentId(), message.getSendingOperatorId());
     if (message.getBuffers() == null || message.getBuffers().length == 0) {
       logger.warn("Empty runtime filter received from {}", senderInfo);
       return;
     }
 
-    try (AutoCloseables.RollbackCloseable rollbackCloseable = new AutoCloseables.RollbackCloseable()) {
+    try (AutoCloseables.RollbackCloseable rollbackCloseable =
+        new AutoCloseables.RollbackCloseable()) {
       // Operator ID int is transformed as follows - (fragmentId << 16) + opId;
-      logger.info("Filter received from {} minor fragment {} into op {}", senderInfo, message.getSendingMinorFragmentId(),
-              props.getOperatorId());
+      logger.info(
+          "Filter received from {} minor fragment {} into op {}",
+          senderInfo,
+          message.getSendingMinorFragmentId(),
+          props.getOperatorId());
       // scan operator handles the OOB message that it gets from the join operator
-      final ExecProtos.RuntimeFilter protoFilter = message.getPayload(ExecProtos.RuntimeFilter.parser());
-      String sourceJoinId = String.format("%02d-%02d", message.getSendingMajorFragmentId(), message.getSendingOperatorId() & 0xFF);
-      final RuntimeFilter filter = RuntimeFilter.getInstance(protoFilter, message.getOriginalBuffers(), senderInfo,
-        sourceJoinId, context.getFragmentHandle(), context.getStats(), context.getBufferManager(), context.getOptions());
+      final ExecProtos.RuntimeFilter protoFilter =
+          message.getPayload(ExecProtos.RuntimeFilter.parser());
+      String sourceJoinId =
+          String.format(
+              "%02d-%02d",
+              message.getSendingMajorFragmentId(), message.getSendingOperatorId() & 0xFF);
+      final RuntimeFilter filter =
+          RuntimeFilter.getInstance(
+              protoFilter,
+              message.getOriginalBuffers(),
+              senderInfo,
+              sourceJoinId,
+              context.getFragmentHandle(),
+              context.getStats(),
+              context.getBufferManager(),
+              context.getOptions());
       rollbackCloseable.add(filter);
 
-      boolean isAlreadyPresent = this.runtimeFilters.stream()
-              .anyMatch(r -> r.getSenderInfo().equals(filter.getSenderInfo()) && r.isOnSameColumns(filter));
+      boolean isAlreadyPresent =
+          this.runtimeFilters.stream()
+              .anyMatch(
+                  r ->
+                      r.getSenderInfo().equals(filter.getSenderInfo())
+                          && r.isOnSameColumns(filter));
       if (isAlreadyPresent) {
         logger.debug("Skipping enforcement because filter is already present {}", filter);
       } else {
@@ -289,8 +326,12 @@ public abstract class ScanTableFunction extends AbstractTableFunction {
         rollbackCloseable.commit();
       }
     } catch (Exception e) {
-      logger.warn("Error while merging runtime filter piece from " + message.getSendingMajorFragmentId() + ":"
-              + message.getSendingMinorFragmentId(), e);
+      logger.warn(
+          "Error while merging runtime filter piece from "
+              + message.getSendingMajorFragmentId()
+              + ":"
+              + message.getSendingMinorFragmentId(),
+          e);
     }
   }
 
@@ -310,6 +351,8 @@ public abstract class ScanTableFunction extends AbstractTableFunction {
     this.context.getStats().setReadIOStats();
     this.context.getStats().setScanRuntimeFilterDetailsInProfile();
     this.context.getStats().setParquetDecodingDetailsInfosInProfile();
-    this.context.getStats().setLongStat(ScanOperator.Metric.MAX_RECORD_READ_PER_READER, maxRecordCount);
+    this.context
+        .getStats()
+        .setLongStat(ScanOperator.Metric.MAX_RECORD_READ_PER_READER, maxRecordCount);
   }
 }

@@ -15,16 +15,12 @@
  */
 package com.dremio.fmpp.mojo;
 
-import java.util.List;
-
-import org.apache.maven.project.MavenProject;
-
 import fmpp.Engine;
 import fmpp.tdd.DataLoader;
+import java.util.List;
+import org.apache.maven.project.MavenProject;
 
-/**
- * A data loader for Maven
- */
+/** A data loader for Maven */
 public class MavenDataLoader implements DataLoader {
   public static final class MavenData {
     private final MavenProject project;
@@ -38,7 +34,7 @@ public class MavenDataLoader implements DataLoader {
     }
   }
 
-  public static final String  MAVEN_DATA_ATTRIBUTE = "maven.data";
+  public static final String MAVEN_DATA_ATTRIBUTE = "maven.data";
 
   @Override
   public Object load(Engine e, List args) throws Exception {
@@ -49,5 +45,4 @@ public class MavenDataLoader implements DataLoader {
     MavenData data = (MavenData) e.getAttribute(MAVEN_DATA_ATTRIBUTE);
     return data;
   }
-
 }

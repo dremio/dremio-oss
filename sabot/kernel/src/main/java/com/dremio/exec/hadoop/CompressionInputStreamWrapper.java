@@ -15,18 +15,13 @@
  */
 package com.dremio.exec.hadoop;
 
+import com.dremio.io.CompressedFSInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-
 import javax.annotation.concurrent.NotThreadSafe;
-
 import org.apache.hadoop.io.compress.CompressionInputStream;
 
-import com.dremio.io.CompressedFSInputStream;
-
-/**
- * Wrapper around {@code CompressionInputStream}
- */
+/** Wrapper around {@code CompressionInputStream} */
 @NotThreadSafe
 public class CompressionInputStreamWrapper extends CompressedFSInputStream {
   private final CompressionInputStream underlyingIs;

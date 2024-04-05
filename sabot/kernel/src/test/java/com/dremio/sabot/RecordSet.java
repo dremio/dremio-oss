@@ -15,7 +15,12 @@
  */
 package com.dremio.sabot;
 
-
+import com.dremio.common.AutoCloseables;
+import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.record.VectorAccessible;
+import com.dremio.exec.record.VectorContainer;
+import com.dremio.sabot.exec.context.BufferManagerImpl;
+import com.google.common.base.Preconditions;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -27,7 +32,6 @@ import java.time.ZoneOffset;
 import java.time.temporal.ChronoField;
 import java.util.Arrays;
 import java.util.List;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.BufferManager;
@@ -50,30 +54,26 @@ import org.apache.arrow.vector.complex.writer.VarCharWriter;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 
-import com.dremio.common.AutoCloseables;
-import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.record.VectorAccessible;
-import com.dremio.exec.record.VectorContainer;
-import com.dremio.sabot.exec.context.BufferManagerImpl;
-import com.google.common.base.Preconditions;
-
 /**
- * RecordSet is used to provide input & output data for testing operators via {@link BaseTestOperator}.  It provides
- * a similar interface to {@link Fixtures.Table}.  RecordSets are different from Fixtures.Table in that schema is
- * explicitly provided, not inferred.  RecordSets also have better support for complex types including arbitrarily
- * nested lists & structs.
- * <p>
- * RecordSets can be created using the following static methods:
+ * RecordSet is used to provide input & output data for testing operators via {@link
+ * BaseTestOperator}. It provides a similar interface to {@link Fixtures.Table}. RecordSets are
+ * different from Fixtures.Table in that schema is explicitly provided, not inferred. RecordSets
+ * also have better support for complex types including arbitrarily nested lists & structs.
+ *
+ * <p>RecordSets can be created using the following static methods:
+ *
  * <ul>
- *   <li>rs(...): create a RecordSet</li>
- *   <li>rb(...): create a record batch for a RecordSet</li>
- *   <li>r(...): create a record for a RecordSet</li>
- *   <li>st(...): create a struct value tuple</li>
- *   <li>li(...): create a list value</li>
+ *   <li>rs(...): create a RecordSet
+ *   <li>rb(...): create a record batch for a RecordSet
+ *   <li>r(...): create a record for a RecordSet
+ *   <li>st(...): create a struct value tuple
+ *   <li>li(...): create a list value
  * </ul>
+ *
+ * <p>For example:
+ *
  * <p>
- * For example:
- * <p>
+ *
  * <pre><code>
  *   RecordSet input = rs(INPUT_SCHEMA,
  *       rb(
@@ -95,54 +95,46 @@ public class RecordSet implements Generator.Creator {
     this.batches = batches;
   }
 
-  /**
-   * Factory method for creating an empty RecordSet from a schema.
-   */
+  /** Factory method for creating an empty RecordSet from a schema. */
   public static RecordSet rs(BatchSchema schema) {
     return new RecordSet(schema, new Batch());
   }
 
-  /**
-   * Factory method for creating a RecordSet from a schema and one or more record batches.
-   */
+  /** Factory method for creating a RecordSet from a schema and one or more record batches. */
   public static RecordSet rs(BatchSchema schema, Batch... batches) {
     return new RecordSet(schema, batches);
   }
 
   /**
-   * Factory method for creating a RecordSet from a schema and one or more records.  All records will be added to
-   * a single record batch.
+   * Factory method for creating a RecordSet from a schema and one or more records. All records will
+   * be added to a single record batch.
    */
   public static RecordSet rs(BatchSchema schema, Record... records) {
     return rs(schema, rb(records));
   }
 
-  /**
-   * Factory method for creating a record batch.
-   */
+  /** Factory method for creating a record batch. */
   public static Batch rb(Record... records) {
     return new Batch(records);
   }
 
   /**
-   * Factory method for creating a single record.  Values in the record must be ordered the same as the
-   * defined field order in the schema assigned to the RecordSet.
+   * Factory method for creating a single record. Values in the record must be ordered the same as
+   * the defined field order in the schema assigned to the RecordSet.
    */
   public static Record r(Object... values) {
     return new Record(values);
   }
 
   /**
-   * Factory method for creating a tuple value that can be assigned to a struct field.  Values in the tuple
-   * must be ordered the same as the defined field order for the struct.
+   * Factory method for creating a tuple value that can be assigned to a struct field. Values in the
+   * tuple must be ordered the same as the defined field order for the struct.
    */
   public static Tuple st(Object... values) {
     return new Tuple(values);
   }
 
-  /**
-   * Factory method for creating a list value that can be assigned to a list field.
-   */
+  /** Factory method for creating a list value that can be assigned to a list field. */
   public static List<Object> li(Object... values) {
     return Arrays.asList(values);
   }
@@ -168,22 +160,7 @@ public class RecordSet implements Generator.Creator {
     return Arrays.stream(batches).map(b -> b.records.length).reduce(0, Integer::sum);
   }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-  /**
-   * Represents a batch of records.
-   */
+  /** Represents a batch of records. */
   public static class Batch {
 
     final Record[] records;
@@ -199,15 +176,13 @@ public class RecordSet implements Generator.Creator {
     }
   }
 
-  /**
-   * A tuple representation used for both Records and struct field values.
-   */
+  /** A tuple representation used for both Records and struct field values. */
   public static class Tuple {
 
     final Object[] values;
 
     public Tuple(Object... values) {
-      this.values = values == null ? new Object[] { null } : values;
+      this.values = values == null ? new Object[] {null} : values;
     }
 
     public Object[] getValues() {
@@ -215,9 +190,7 @@ public class RecordSet implements Generator.Creator {
     }
   }
 
-  /**
-   * Simple representation of a single record in a RecordSet.
-   */
+  /** Simple representation of a single record in a RecordSet. */
   public static class Record extends Tuple {
 
     public Record(Object... values) {
@@ -225,15 +198,18 @@ public class RecordSet implements Generator.Creator {
     }
 
     public void validateRecordLength(int length) {
-      Preconditions.checkArgument(values.length == length,
-          "Record columns do not match schema - expected %s columns: %s", length,
+      Preconditions.checkArgument(
+          values.length == length,
+          "Record columns do not match schema - expected %s columns: %s",
+          length,
           RecordBatchValidatorDefaultImpl.expectedToString(this));
     }
   }
 
   /**
-   * Generator implementation for RecordSet which will convert a RecordSet into one or more Arrow record batches.
-   * This is used with BaseTestOperator to provide a RecordSet as input to an operator under test.
+   * Generator implementation for RecordSet which will convert a RecordSet into one or more Arrow
+   * record batches. This is used with BaseTestOperator to provide a RecordSet as input to an
+   * operator under test.
    */
   private class RecordSetGenerator implements Generator {
 
@@ -277,7 +253,7 @@ public class RecordSet implements Generator.Creator {
           }
         }
 
-      container.setAllCount(records.length);
+        container.setAllCount(records.length);
         return records.length;
       }
 
@@ -348,7 +324,8 @@ public class RecordSet implements Generator.Creator {
       if (value == null) {
         writer.writeNull();
       } else {
-        Preconditions.checkArgument(value instanceof Boolean, "Expected boolean value for BIT field %s", name);
+        Preconditions.checkArgument(
+            value instanceof Boolean, "Expected boolean value for BIT field %s", name);
         writer.writeBit((Boolean) value ? 1 : 0);
       }
     }
@@ -357,7 +334,8 @@ public class RecordSet implements Generator.Creator {
       if (value == null) {
         writer.writeNull();
       } else {
-        Preconditions.checkArgument(value instanceof Integer, "Expected integer value for INT field %s", name);
+        Preconditions.checkArgument(
+            value instanceof Integer, "Expected integer value for INT field %s", name);
         writer.writeInt((Integer) value);
       }
     }
@@ -366,7 +344,8 @@ public class RecordSet implements Generator.Creator {
       if (value == null) {
         writer.writeNull();
       } else {
-        Preconditions.checkArgument(value instanceof Long, "Expected long value for BIGINT field %s", name);
+        Preconditions.checkArgument(
+            value instanceof Long, "Expected long value for BIGINT field %s", name);
         writer.writeBigInt((Long) value);
       }
     }
@@ -375,7 +354,8 @@ public class RecordSet implements Generator.Creator {
       if (value == null) {
         writer.writeNull();
       } else {
-        Preconditions.checkArgument(value instanceof Float, "Expected float value for FLOAT4 field %s", name);
+        Preconditions.checkArgument(
+            value instanceof Float, "Expected float value for FLOAT4 field %s", name);
         writer.writeFloat4((Float) value);
       }
     }
@@ -384,7 +364,8 @@ public class RecordSet implements Generator.Creator {
       if (value == null) {
         writer.writeNull();
       } else {
-        Preconditions.checkArgument(value instanceof Double, "Expected double value for FLOAT8 field %s", name);
+        Preconditions.checkArgument(
+            value instanceof Double, "Expected double value for FLOAT8 field %s", name);
         writer.writeFloat8((Double) value);
       }
     }
@@ -393,9 +374,12 @@ public class RecordSet implements Generator.Creator {
       if (value == null) {
         writer.writeNull();
       } else {
-        Preconditions.checkArgument(value instanceof LocalDateTime,
-            "Expected LocalDateTime value for TIMESTAMPMILLI field %s", name);
-        writer.writeTimeStampMilli(((LocalDateTime) value).toInstant(ZoneOffset.UTC).toEpochMilli());
+        Preconditions.checkArgument(
+            value instanceof LocalDateTime,
+            "Expected LocalDateTime value for TIMESTAMPMILLI field %s",
+            name);
+        writer.writeTimeStampMilli(
+            ((LocalDateTime) value).toInstant(ZoneOffset.UTC).toEpochMilli());
       }
     }
 
@@ -403,9 +387,10 @@ public class RecordSet implements Generator.Creator {
       if (value == null) {
         writer.writeNull();
       } else {
-        Preconditions.checkArgument(value instanceof LocalDate,
-            "Expected LocalDate value for DATEMILLI field %s", name);
-        writer.writeDateMilli(((LocalDate) value).atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli());
+        Preconditions.checkArgument(
+            value instanceof LocalDate, "Expected LocalDate value for DATEMILLI field %s", name);
+        writer.writeDateMilli(
+            ((LocalDate) value).atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli());
       }
     }
 
@@ -413,8 +398,8 @@ public class RecordSet implements Generator.Creator {
       if (value == null) {
         writer.writeNull();
       } else {
-        Preconditions.checkArgument(value instanceof LocalTime,
-            "Expected LocalTime value for TIMEMILLI field %s", name);
+        Preconditions.checkArgument(
+            value instanceof LocalTime, "Expected LocalTime value for TIMEMILLI field %s", name);
         writer.writeTimeMilli(((LocalTime) value).get(ChronoField.MILLI_OF_DAY));
       }
     }
@@ -423,10 +408,10 @@ public class RecordSet implements Generator.Creator {
       if (value == null) {
         writer.writeNull();
       } else {
-        Preconditions.checkArgument(value instanceof String,
-            "Expected String value for VARCHAR field %s", name);
+        Preconditions.checkArgument(
+            value instanceof String, "Expected String value for VARCHAR field %s", name);
         byte[] bytes = ((String) value).getBytes(StandardCharsets.UTF_8);
-        buf =  buf.reallocIfNeeded(bytes.length);
+        buf = buf.reallocIfNeeded(bytes.length);
         buf.setBytes(0, bytes);
         writer.writeVarChar(0, bytes.length, buf);
       }
@@ -436,8 +421,8 @@ public class RecordSet implements Generator.Creator {
       if (value == null) {
         writer.writeNull();
       } else {
-        Preconditions.checkArgument(value instanceof byte[],
-            "Expected byte[] value for VARBINARY field %s", name);
+        Preconditions.checkArgument(
+            value instanceof byte[], "Expected byte[] value for VARBINARY field %s", name);
         byte[] bytes = (byte[]) value;
         buf = buf.reallocIfNeeded(bytes.length);
         buf.setBytes(0, bytes);
@@ -449,11 +434,12 @@ public class RecordSet implements Generator.Creator {
       if (value == null) {
         writer.writeNull();
       } else {
-        Preconditions.checkArgument(value instanceof Duration,
-            "Expected Duration value for INTERVALDAY field %s", name);
+        Preconditions.checkArgument(
+            value instanceof Duration, "Expected Duration value for INTERVALDAY field %s", name);
         Duration duration = (Duration) value;
         int days = (int) duration.toDays();
-        int millis = (int) ((duration.getSeconds() % 86400) * 1000) + (duration.getNano() / 1000000);
+        int millis =
+            (int) ((duration.getSeconds() % 86400) * 1000) + (duration.getNano() / 1000000);
         writer.writeIntervalDay(days, millis);
       }
     }
@@ -462,13 +448,17 @@ public class RecordSet implements Generator.Creator {
       if (value == null) {
         writer.writeNull();
       } else {
-        Preconditions.checkArgument(value instanceof Period,
-            "Expected Period value for INTERVALYEAR field %s", name);
+        Preconditions.checkArgument(
+            value instanceof Period, "Expected Period value for INTERVALYEAR field %s", name);
         Period period = (Period) value;
-        Preconditions.checkArgument(period.getDays() == 0,
-            "Period values with days are not supported for INTERVALYEAR field %s", name);
-        Preconditions.checkArgument(period.getMonths() < 12,
-            "Period values should be normalized for INTERVALYEAR field %s", name);
+        Preconditions.checkArgument(
+            period.getDays() == 0,
+            "Period values with days are not supported for INTERVALYEAR field %s",
+            name);
+        Preconditions.checkArgument(
+            period.getMonths() < 12,
+            "Period values should be normalized for INTERVALYEAR field %s",
+            name);
         writer.writeIntervalYear((period.getYears() * 12) + period.getMonths());
       }
     }
@@ -477,8 +467,8 @@ public class RecordSet implements Generator.Creator {
       if (value == null) {
         writer.writeNull();
       } else {
-        Preconditions.checkArgument(value instanceof BigDecimal,
-            "Expected BigDecimal value for DECIMAL field %s", name);
+        Preconditions.checkArgument(
+            value instanceof BigDecimal, "Expected BigDecimal value for DECIMAL field %s", name);
         writer.writeDecimal((BigDecimal) value);
       }
     }
@@ -487,8 +477,8 @@ public class RecordSet implements Generator.Creator {
       if (values == null) {
         listWriter.writeNull();
       } else {
-        Preconditions.checkArgument(values instanceof List,
-            "Expect List value for LIST field %s", field.getName());
+        Preconditions.checkArgument(
+            values instanceof List, "Expect List value for LIST field %s", field.getName());
         List<?> list = (List<?>) values;
         listWriter.startList();
 
@@ -599,12 +589,17 @@ public class RecordSet implements Generator.Creator {
       if (values == null) {
         structWriter.writeNull();
       } else {
-        Preconditions.checkArgument(values instanceof Tuple || values instanceof Object[],
-            "Expect Object[] value for STRUCT field %s", field.getName());
+        Preconditions.checkArgument(
+            values instanceof Tuple || values instanceof Object[],
+            "Expect Object[] value for STRUCT field %s",
+            field.getName());
         Object[] arr = values instanceof Tuple ? ((Tuple) values).values : (Object[]) values;
         List<Field> children = field.getChildren();
-        Preconditions.checkArgument(arr.length == children.size(),
-            "Expect array of size %s for STRUCT field %s", field.getChildren().size(), field.getName());
+        Preconditions.checkArgument(
+            arr.length == children.size(),
+            "Expect array of size %s for STRUCT field %s",
+            field.getChildren().size(),
+            field.getName());
         structWriter.start();
 
         for (int i = 0; i < children.size(); i++) {

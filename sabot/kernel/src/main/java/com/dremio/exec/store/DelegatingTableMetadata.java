@@ -15,9 +15,6 @@
  */
 package com.dremio.exec.store;
 
-import java.util.Iterator;
-import java.util.List;
-
 import com.dremio.datastore.SearchTypes;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.record.BatchSchema;
@@ -29,10 +26,12 @@ import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.ReadDefinition;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.google.common.base.Predicate;
+import java.util.Iterator;
+import java.util.List;
 
 /**
- * A delegating TableMetadata class that allows for overriding of specific methods whilst
- * being able to ignore the actual implementing class.
+ * A delegating TableMetadata class that allows for overriding of specific methods whilst being able
+ * to ignore the actual implementing class.
  */
 public class DelegatingTableMetadata implements TableMetadata {
 

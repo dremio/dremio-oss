@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.maestro;
 
-import java.util.concurrent.ExecutionException;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.physical.PhysicalPlan;
@@ -35,15 +33,14 @@ import com.dremio.resource.exception.ResourceAllocationException;
 import com.dremio.resource.exception.ResourceUnavailableException;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
+import java.util.concurrent.ExecutionException;
 
-/**
- * Tracks cluster/queue resources held by the query during execution.
- */
+/** Tracks cluster/queue resources held by the query during execution. */
 public class ResourceTracker implements AutoCloseable {
   private static final org.slf4j.Logger logger =
-    org.slf4j.LoggerFactory.getLogger(ResourceTracker.class);
+      org.slf4j.LoggerFactory.getLogger(ResourceTracker.class);
   private static final ControlsInjector injector =
-    ControlsInjectorFactory.getInjector(ResourceTracker.class);
+      ControlsInjectorFactory.getInjector(ResourceTracker.class);
 
   private final ResourceAllocator resourceAllocator;
   private final QueryContext context;
@@ -54,16 +51,15 @@ public class ResourceTracker implements AutoCloseable {
   public static final String INJECTOR_RESOURCE_ALLOCATE_ERROR = "resourceAllocateError";
 
   @VisibleForTesting
-  public static final String INJECTOR_RESOURCE_ALLOCATE_UNAVAILABLE_ERROR = "resourceAllocateUnavailableError";
+  public static final String INJECTOR_RESOURCE_ALLOCATE_UNAVAILABLE_ERROR =
+      "resourceAllocateUnavailableError";
 
   @VisibleForTesting
   public static final String INJECTOR_RESOURCE_ALLOCATE_PAUSE = "resourceAllocatePause";
 
-  @VisibleForTesting
-  public static final String INJECTOR_ENGINE_START_PAUSE = "engine-start-pause";
+  @VisibleForTesting public static final String INJECTOR_ENGINE_START_PAUSE = "engine-start-pause";
 
-  @VisibleForTesting
-  public static final String INJECTOR_QUEUED_PAUSE = "queued-pause";
+  @VisibleForTesting public static final String INJECTOR_QUEUED_PAUSE = "queued-pause";
 
   ResourceTracker(QueryContext context, ResourceAllocator resourceAllocator) {
     this.resourceAllocator = resourceAllocator;
@@ -73,64 +69,75 @@ public class ResourceTracker implements AutoCloseable {
 
   /**
    * Interrupts the allocation, esp if it is in any of the wait states.
-   * <p>
-   * Typically called when the cancel thread knows from the execution stage that we are somewhere in the
-   * allocator.
-   * </p>
+   *
+   * <p>Typically called when the cancel thread knows from the execution stage that we are somewhere
+   * in the allocator.
    */
   void interruptAllocation() {
     resourceAllocator.cancel(context);
   }
 
-  void allocate(
-    PhysicalPlan physicalPlan,
-    MaestroObserver observer) throws ExecutionSetupException, ResourceAllocationException {
+  void allocate(PhysicalPlan physicalPlan, MaestroObserver observer)
+      throws ExecutionSetupException, ResourceAllocationException {
 
     final double planCost = physicalPlan.getCost();
     ResourceSchedulingProperties resourceSchedulingProperties = new ResourceSchedulingProperties();
     resourceSchedulingProperties.setQueryCost(planCost);
     resourceSchedulingProperties.setRoutingQueue(context.getSession().getRoutingQueue());
     resourceSchedulingProperties.setRoutingTag(context.getSession().getRoutingTag());
-    resourceSchedulingProperties.setQueryType(Utilities.getHumanReadableWorkloadType(context.getWorkloadType()));
+    resourceSchedulingProperties.setQueryType(
+        Utilities.getHumanReadableWorkloadType(context.getWorkloadType()));
     resourceSchedulingProperties.setRoutingEngine(context.getSession().getRoutingEngine());
     resourceSchedulingProperties.setQueryLabel(context.getSession().getQueryLabel());
 
-    injector.injectChecked(context.getExecutionControls(), INJECTOR_RESOURCE_ALLOCATE_ERROR,
-      IllegalStateException.class);
-    injector.injectChecked(context.getExecutionControls(), INJECTOR_RESOURCE_ALLOCATE_UNAVAILABLE_ERROR,
-      ResourceUnavailableException.class);
+    injector.injectChecked(
+        context.getExecutionControls(),
+        INJECTOR_RESOURCE_ALLOCATE_ERROR,
+        IllegalStateException.class);
+    injector.injectChecked(
+        context.getExecutionControls(),
+        INJECTOR_RESOURCE_ALLOCATE_UNAVAILABLE_ERROR,
+        ResourceUnavailableException.class);
     injector.injectPause(context.getExecutionControls(), INJECTOR_RESOURCE_ALLOCATE_PAUSE, logger);
 
-    ResourceSchedulingObserver resourceSchedulingObserver = new ResourceSchedulingObserver() {
-      @Override
-      public void beginEngineStart() {
-        observer.beginState(AttemptObserver.toEvent(AttemptEvent.State.ENGINE_START));
-        injector.injectPause(context.getExecutionControls(), INJECTOR_ENGINE_START_PAUSE, logger);
-      }
+    ResourceSchedulingObserver resourceSchedulingObserver =
+        new ResourceSchedulingObserver() {
+          @Override
+          public void beginEngineStart() {
+            observer.beginState(AttemptObserver.toEvent(AttemptEvent.State.ENGINE_START));
+            injector.injectPause(
+                context.getExecutionControls(), INJECTOR_ENGINE_START_PAUSE, logger);
+          }
 
-      @Override
-      public void beginQueueWait() {
-        observer.beginState(AttemptObserver.toEvent(AttemptEvent.State.QUEUED));
-        injector.injectPause(context.getExecutionControls(), INJECTOR_QUEUED_PAUSE, logger);
-      }
-    };
+          @Override
+          public void beginQueueWait() {
+            observer.beginState(AttemptObserver.toEvent(AttemptEvent.State.QUEUED));
+            injector.injectPause(context.getExecutionControls(), INJECTOR_QUEUED_PAUSE, logger);
+          }
+        };
     long startTimeMs = System.currentTimeMillis();
-    ResourceSchedulingResult resourceSchedulingResult = resourceAllocator.allocate(context, resourceSchedulingProperties,
-      resourceSchedulingObserver,
-      (x) -> {
-      resourceSchedulingDecisionInfo = x;
-      resourceSchedulingDecisionInfo.setResourceSchedulingProperties(resourceSchedulingProperties);
-      resourceSchedulingDecisionInfo.setSchedulingStartTimeMs(startTimeMs);
-      observer.resourcesScheduled(resourceSchedulingDecisionInfo);
-    });
-    // should not put timeout, as we may be waiting for leases if query has to wait because queries concurrency limit
+    ResourceSchedulingResult resourceSchedulingResult =
+        resourceAllocator.allocate(
+            context,
+            resourceSchedulingProperties,
+            resourceSchedulingObserver,
+            (x) -> {
+              resourceSchedulingDecisionInfo = x;
+              resourceSchedulingDecisionInfo.setResourceSchedulingProperties(
+                  resourceSchedulingProperties);
+              resourceSchedulingDecisionInfo.setSchedulingStartTimeMs(startTimeMs);
+              observer.resourcesScheduled(resourceSchedulingDecisionInfo);
+            });
+    // should not put timeout, as we may be waiting for leases if query has to wait because queries
+    // concurrency limit
     try {
       resourceSet = resourceSchedulingResult.getResourceSetFuture().get();
       resourceSchedulingDecisionInfo.setSchedulingEndTimeMs(System.currentTimeMillis());
       observer.resourcesScheduled(resourceSchedulingDecisionInfo);
 
-    } catch (ExecutionException|InterruptedException e) {
-      // if the execution exception was caused by a ResourceAllocationException, throw the cause instead
+    } catch (ExecutionException | InterruptedException e) {
+      // if the execution exception was caused by a ResourceAllocationException, throw the cause
+      // instead
       Throwables.propagateIfPossible(e.getCause(), ResourceAllocationException.class);
       // otherwise, wrap into an ExecutionSetupException
       throw new ExecutionSetupException("Unable to acquire slot for query.", e.getCause());

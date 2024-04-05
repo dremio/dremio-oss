@@ -20,10 +20,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-/**
- * Used to tag those source properties which are internal and should not be displayed in UI.
- */
+/** Used to tag those source properties which are internal and should not be displayed in UI. */
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.FIELD})
-public @interface DoNotDisplay {
-}
+public @interface DoNotDisplay {}

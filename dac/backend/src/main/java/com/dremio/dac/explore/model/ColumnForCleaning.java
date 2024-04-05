@@ -18,16 +18,13 @@ package com.dremio.dac.explore.model;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-/**
- * param to the Clean JobData card
- */
+/** param to the Clean JobData card */
 public class ColumnForCleaning {
 
   private final String colName;
 
   @JsonCreator
-  public ColumnForCleaning(
-      @JsonProperty("colName") String colName) {
+  public ColumnForCleaning(@JsonProperty("colName") String colName) {
     super();
     this.colName = colName;
   }

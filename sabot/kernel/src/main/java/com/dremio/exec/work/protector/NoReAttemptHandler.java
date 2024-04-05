@@ -18,9 +18,7 @@ package com.dremio.exec.work.protector;
 import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.proto.model.attempts.AttemptReason;
 
-/**
- * Re-attempt handler that doesn't support re-attempts
- */
+/** Re-attempt handler that doesn't support re-attempts */
 class NoReAttemptHandler implements ReAttemptHandler {
 
   @Override
@@ -33,7 +31,8 @@ class NoReAttemptHandler implements ReAttemptHandler {
 
   @Override
   public AttemptReason isRecoverable(final ReAttemptContext context) {
-    logger.info("{}: cannot re-attempt the query, re-attempts are disabled", context.getAttemptId());
+    logger.info(
+        "{}: cannot re-attempt the query, re-attempts are disabled", context.getAttemptId());
     return AttemptReason.NONE;
   }
 

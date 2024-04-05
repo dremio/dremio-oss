@@ -15,15 +15,12 @@
  */
 package com.dremio.dac.explore.model;
 
-import java.util.List;
-
 import com.dremio.dac.explore.model.extract.Selection;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.List;
 
-/**
- * Replace values preview request
- */
+/** Replace values preview request */
 public class ReplaceValuesPreviewReq {
 
   private final Selection selection;
@@ -40,12 +37,15 @@ public class ReplaceValuesPreviewReq {
     this.replacedValues = replacedValues;
     this.replaceNull = replaceNull;
   }
+
   public Selection getSelection() {
     return selection;
   }
+
   public List<String> getReplacedValues() {
     return replacedValues;
   }
+
   public boolean isReplaceNull() {
     return replaceNull;
   }

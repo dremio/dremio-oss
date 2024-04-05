@@ -15,22 +15,19 @@
  */
 package com.dremio.exec.planner.fragment;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
-
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.planner.fragment.MinorAttrsMap.Key;
 import com.dremio.exec.proto.CoordExecRPC.MinorAttr;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.NormalizedPartitionInfo;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
-/**
- * Index for attributes that are shared across all fragments in the plan.
- */
+/** Index for attributes that are shared across all fragments in the plan. */
 public class SharedAttrsIndex {
   MinorAttrsMap attrMap;
   Map<Key, NormalizedPartitionInfo> partitionInfoMap;
@@ -42,28 +39,25 @@ public class SharedAttrsIndex {
 
   public static SharedAttrsIndex create(List<MinorAttr> attrList) {
     return new SharedAttrsIndex(attrList);
-
   }
 
   public ByteString getAttrValue(OpProps props, String key) {
     return attrMap.getAttrValue(props, key);
   }
 
-  /**
-   * Retrieve and deserialize the partition entry.
-   */
+  /** Retrieve and deserialize the partition entry. */
   public NormalizedPartitionInfo getSplitPartitionEntry(OpProps props, String name) {
     // Cache de-serialized entry to optimise future requests and reduce heap usage.
     Key key = new Key(props.getOperatorId(), name);
     return partitionInfoMap.computeIfAbsent(
-      key,
-      k -> {
-        try {
-          return NormalizedPartitionInfo.parseFrom(attrMap.getAttrValue(key));
-        } catch (InvalidProtocolBufferException e) {
-          throw new RuntimeException("failed to parse partition entry", e);
-        }
-      });
+        key,
+        k -> {
+          try {
+            return NormalizedPartitionInfo.parseFrom(attrMap.getAttrValue(key));
+          } catch (InvalidProtocolBufferException e) {
+            throw new RuntimeException("failed to parse partition entry", e);
+          }
+        });
   }
 
   public static class Builder {
@@ -84,17 +78,15 @@ public class SharedAttrsIndex {
     }
 
     public List<MinorAttr> getAllAttrs() {
-      return attrMap
-        .entrySet()
-        .stream()
-        .map(e -> MinorAttr
-          .newBuilder()
-          .setOperatorId(e.getKey().getOperatorId())
-          .setName(e.getKey().getName())
-          .setValue(e.getValue())
-          .build()
-        )
-        .collect(Collectors.toList());
+      return attrMap.entrySet().stream()
+          .map(
+              e ->
+                  MinorAttr.newBuilder()
+                      .setOperatorId(e.getKey().getOperatorId())
+                      .setName(e.getKey().getName())
+                      .setValue(e.getValue())
+                      .build())
+          .collect(Collectors.toList());
     }
   }
 }

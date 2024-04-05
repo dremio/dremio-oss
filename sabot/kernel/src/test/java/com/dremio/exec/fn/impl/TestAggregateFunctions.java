@@ -15,13 +15,6 @@
  */
 package com.dremio.exec.fn.impl;
 
-import java.math.BigDecimal;
-import java.util.List;
-
-import org.apache.commons.lang3.tuple.Pair;
-import org.junit.Ignore;
-import org.junit.Test;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.PlanTestBase;
 import com.dremio.common.expression.SchemaPath;
@@ -30,10 +23,15 @@ import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.types.Types;
 import com.dremio.common.util.TestTools;
 import com.google.common.collect.Lists;
+import java.math.BigDecimal;
+import java.util.List;
+import org.apache.commons.lang3.tuple.Pair;
+import org.junit.Ignore;
+import org.junit.Test;
 
 public class TestAggregateFunctions extends BaseTestQuery {
 
-  private static final String TEST_RES_PATH =   TestTools.getWorkingPath() + "/src/test/resources";
+  private static final String TEST_RES_PATH = TestTools.getWorkingPath() + "/src/test/resources";
 
   /*
    * Test checks the count of a nullable column within a map
@@ -43,11 +41,13 @@ public class TestAggregateFunctions extends BaseTestQuery {
   @Test
   public void testCountOnNullableColumn() throws Exception {
     testBuilder()
-        .sqlQuery("select count(t.x.y)  as cnt1, count(\"integer\") as cnt2 from cp.\"/jsoninput/input2.json\" t")
+        .sqlQuery(
+            "select count(t.x.y)  as cnt1, count(\"integer\") as cnt2 from cp.\"/jsoninput/input2.json\" t")
         .ordered()
         .baselineColumns("cnt1", "cnt2")
         .baselineValues(3L, 4L)
-        .build().run();
+        .build()
+        .run();
   }
 
   @Test
@@ -75,20 +75,20 @@ public class TestAggregateFunctions extends BaseTestQuery {
   @Ignore
   @Test // DRILL-2092: count distinct, non distinct aggregate with group-by
   public void testDrill2092() throws Exception {
-    String query = "select a1, b1, count(distinct c1) as dist1, \n"
-        + "sum(c1) as sum1, count(c1) as cnt1, count(*) as cnt \n"
-        + "from cp.\"agg/bugs/drill2092/input.json\" \n"
-        + "group by a1, b1 order by a1, b1";
+    String query =
+        "select a1, b1, count(distinct c1) as dist1, \n"
+            + "sum(c1) as sum1, count(c1) as cnt1, count(*) as cnt \n"
+            + "from cp.\"agg/bugs/drill2092/input.json\" \n"
+            + "group by a1, b1 order by a1, b1";
 
     String baselineQuery =
         "select case when columns[0]='null' then cast(null as bigint) else cast(columns[0] as bigint) end as a1, \n"
-        + "case when columns[1]='null' then cast(null as bigint) else cast(columns[1] as bigint) end as b1, \n"
-        + "case when columns[2]='null' then cast(null as bigint) else cast(columns[2] as bigint) end as dist1, \n"
-        + "case when columns[3]='null' then cast(null as bigint) else cast(columns[3] as bigint) end as sum1, \n"
-        + "case when columns[4]='null' then cast(null as bigint) else cast(columns[4] as bigint) end as cnt1, \n"
-        + "case when columns[5]='null' then cast(null as bigint) else cast(columns[5] as bigint) end as cnt \n"
-        + "from cp.\"agg/bugs/drill2092/result.tsv\"";
-
+            + "case when columns[1]='null' then cast(null as bigint) else cast(columns[1] as bigint) end as b1, \n"
+            + "case when columns[2]='null' then cast(null as bigint) else cast(columns[2] as bigint) end as dist1, \n"
+            + "case when columns[3]='null' then cast(null as bigint) else cast(columns[3] as bigint) end as sum1, \n"
+            + "case when columns[4]='null' then cast(null as bigint) else cast(columns[4] as bigint) end as cnt1, \n"
+            + "case when columns[5]='null' then cast(null as bigint) else cast(columns[5] as bigint) end as cnt \n"
+            + "from cp.\"agg/bugs/drill2092/result.tsv\"";
 
     // NOTE: this type of query gets rewritten by Calcite into an inner join of subqueries, so
     // we need to test with both hash join and merge join
@@ -98,76 +98,85 @@ public class TestAggregateFunctions extends BaseTestQuery {
         .ordered()
         .optionSettingQueriesForTestQuery("alter system set \"planner.enable_hashjoin\" = true")
         .sqlBaselineQuery(baselineQuery)
-        .build().run();
+        .build()
+        .run();
 
     testBuilder()
-    .sqlQuery(query)
-    .ordered()
-    .optionSettingQueriesForTestQuery("alter system set \"planner.enable_hashjoin\" = false")
-    .sqlBaselineQuery(baselineQuery)
-    .build().run();
-
+        .sqlQuery(query)
+        .ordered()
+        .optionSettingQueriesForTestQuery("alter system set \"planner.enable_hashjoin\" = false")
+        .sqlBaselineQuery(baselineQuery)
+        .build()
+        .run();
   }
 
   @Test // DRILL-2170: Subquery has group-by, order-by on aggregate function and limit
   public void testDrill2170() throws Exception {
     String query =
         "select count(*) as cnt from "
-        + "cp.\"tpch/orders.parquet\" o inner join\n"
-        + "(select l_orderkey, sum(l_quantity), sum(l_extendedprice) \n"
-        + "from cp.\"tpch/lineitem.parquet\" \n"
-        + "group by l_orderkey order by 3 limit 100) sq \n"
-        + "on sq.l_orderkey = o.o_orderkey";
+            + "cp.\"tpch/orders.parquet\" o inner join\n"
+            + "(select l_orderkey, sum(l_quantity), sum(l_extendedprice) \n"
+            + "from cp.\"tpch/lineitem.parquet\" \n"
+            + "group by l_orderkey order by 3 limit 100) sq \n"
+            + "on sq.l_orderkey = o.o_orderkey";
 
     testBuilder()
-    .sqlQuery(query)
-    .ordered()
-    .optionSettingQueriesForTestQuery("alter system set \"planner.slice_target\" = 1000")
-    .baselineColumns("cnt")
-    .baselineValues(100L)
-    .build().run();
+        .sqlQuery(query)
+        .ordered()
+        .optionSettingQueriesForTestQuery("alter system set \"planner.slice_target\" = 1000")
+        .baselineColumns("cnt")
+        .baselineValues(100L)
+        .build()
+        .run();
   }
 
   @Test // DRILL-2168
   public void testGBExprWithFunction() throws Exception {
     testBuilder()
         .ordered()
-        .sqlQuery("select concat(n_name, cast(n_nationkey as varchar(10))) as name, count(*) as cnt " +
-            "from cp.\"tpch/nation.parquet\" " +
-            "group by concat(n_name, cast(n_nationkey as varchar(10))) " +
-            "having concat(n_name, cast(n_nationkey as varchar(10))) > 'UNITED'" +
-            "order by concat(n_name, cast(n_nationkey as varchar(10)))")
+        .sqlQuery(
+            "select concat(n_name, cast(n_nationkey as varchar(10))) as name, count(*) as cnt "
+                + "from cp.\"tpch/nation.parquet\" "
+                + "group by concat(n_name, cast(n_nationkey as varchar(10))) "
+                + "having concat(n_name, cast(n_nationkey as varchar(10))) > 'UNITED'"
+                + "order by concat(n_name, cast(n_nationkey as varchar(10)))")
         .baselineColumns("name", "cnt")
         .baselineValues("UNITED KINGDOM23", 1L)
         .baselineValues("UNITED STATES24", 1L)
         .baselineValues("VIETNAM21", 1L)
-        .build().run();
+        .build()
+        .run();
   }
 
-  @Test //DRILL-2242
+  @Test // DRILL-2242
   public void testDRILLNestedGBWithSubsetKeys() throws Exception {
-    String sql = " select count(*) as cnt from (select l_partkey from\n" +
-        "   (select l_partkey, l_suppkey from cp.\"tpch/lineitem.parquet\"\n" +
-        "      group by l_partkey, l_suppkey) \n" +
-        "   group by l_partkey )";
+    String sql =
+        " select count(*) as cnt from (select l_partkey from\n"
+            + "   (select l_partkey, l_suppkey from cp.\"tpch/lineitem.parquet\"\n"
+            + "      group by l_partkey, l_suppkey) \n"
+            + "   group by l_partkey )";
 
-    test("alter session set \"planner.slice_target\" = 1; alter session set \"planner.enable_multiphase_agg\" = false ;");
-
-    testBuilder()
-        .ordered()
-        .sqlQuery(sql)
-        .baselineColumns("cnt")
-        .baselineValues(2000L)
-        .build().run();
-
-    test("alter session set \"planner.slice_target\" = 1; alter session set \"planner.enable_multiphase_agg\" = true ;");
+    test(
+        "alter session set \"planner.slice_target\" = 1; alter session set \"planner.enable_multiphase_agg\" = false ;");
 
     testBuilder()
         .ordered()
         .sqlQuery(sql)
         .baselineColumns("cnt")
         .baselineValues(2000L)
-        .build().run();
+        .build()
+        .run();
+
+    test(
+        "alter session set \"planner.slice_target\" = 1; alter session set \"planner.enable_multiphase_agg\" = true ;");
+
+    testBuilder()
+        .ordered()
+        .sqlQuery(sql)
+        .baselineColumns("cnt")
+        .baselineValues(2000L)
+        .build()
+        .run();
 
     test("alter session set \"planner.slice_target\" = 100000");
   }
@@ -175,12 +184,7 @@ public class TestAggregateFunctions extends BaseTestQuery {
   @Test
   public void testAvgWithNullableScalarFunction() throws Exception {
     String query = " select avg(length(b1)) as col from cp.\"jsoninput/nullable1.json\"";
-    testBuilder()
-        .sqlQuery(query)
-        .unOrdered()
-        .baselineColumns("col")
-        .baselineValues(3.0d)
-        .go();
+    testBuilder().sqlQuery(query).unOrdered().baselineColumns("col").baselineValues(3.0d).go();
   }
 
   @Test
@@ -223,9 +227,10 @@ public class TestAggregateFunctions extends BaseTestQuery {
   @Test
   // test aggregates when input is empty and data type is optional
   public void countEmptyNullableInput() throws Exception {
-    String query = "select " +
-        "count(employee_id) col1, avg(employee_id) col2, sum(employee_id) col3 " +
-        "from cp.\"employee.json\" where 1 = 0";
+    String query =
+        "select "
+            + "count(employee_id) col1, avg(employee_id) col2, sum(employee_id) col3 "
+            + "from cp.\"employee.json\" where 1 = 0";
 
     testBuilder()
         .sqlQuery(query)
@@ -238,11 +243,10 @@ public class TestAggregateFunctions extends BaseTestQuery {
   @Test
   @Ignore("DRILL-4473")
   public void sumEmptyNonexistentNullableInput() throws Exception {
-    final String query = "select "
-        +
-        "sum(int_col) col1, sum(bigint_col) col2, sum(float4_col) col3, sum(float8_col) col4, sum(interval_year_col) col5 "
-        +
-        "from cp.\"employee.json\" where 1 = 0";
+    final String query =
+        "select "
+            + "sum(int_col) col1, sum(bigint_col) col2, sum(float4_col) col3, sum(float8_col) col4, sum(interval_year_col) col5 "
+            + "from cp.\"employee.json\" where 1 = 0";
 
     testBuilder()
         .sqlQuery(query)
@@ -256,11 +260,10 @@ public class TestAggregateFunctions extends BaseTestQuery {
   @Ignore("DRILL-4473")
   public void avgEmptyNonexistentNullableInput() throws Exception {
     // test avg function
-    final String query = "select "
-        +
-        "avg(int_col) col1, avg(bigint_col) col2, avg(float4_col) col3, avg(float8_col) col4, avg(interval_year_col) col5 "
-        +
-        "from cp.\"employee.json\" where 1 = 0";
+    final String query =
+        "select "
+            + "avg(int_col) col1, avg(bigint_col) col2, avg(float4_col) col3, avg(float8_col) col4, avg(interval_year_col) col5 "
+            + "from cp.\"employee.json\" where 1 = 0";
 
     testBuilder()
         .sqlQuery(query)
@@ -273,16 +276,18 @@ public class TestAggregateFunctions extends BaseTestQuery {
   @Test
   public void minEmptyNonnullableInput() throws Exception {
     // test min function on required type
-    String query = "select " +
-        "min(bool_col) col1, min(int_col) col2, min(bigint_col) col3, min(float4_col) col4, min(float8_col) col5, " +
-        "min(date_col) col6, min(time_col) col7, min(timestamp_col) col8, min(interval_year_col) col9, " +
-        "min(varchar_col) col10 " +
-        "from cp.\"parquet/alltypes_required.parquet\" where 1 = 0";
+    String query =
+        "select "
+            + "min(bool_col) col1, min(int_col) col2, min(bigint_col) col3, min(float4_col) col4, min(float8_col) col5, "
+            + "min(date_col) col6, min(time_col) col7, min(timestamp_col) col8, min(interval_year_col) col9, "
+            + "min(varchar_col) col10 "
+            + "from cp.\"parquet/alltypes_required.parquet\" where 1 = 0";
 
     testBuilder()
         .sqlQuery(query)
         .unOrdered()
-        .baselineColumns("col1", "col2", "col3", "col4", "col5", "col6", "col7", "col8", "col9", "col10")
+        .baselineColumns(
+            "col1", "col2", "col3", "col4", "col5", "col6", "col7", "col8", "col9", "col10")
         .baselineValues(null, null, null, null, null, null, null, null, null, null)
         .go();
   }
@@ -291,9 +296,10 @@ public class TestAggregateFunctions extends BaseTestQuery {
   public void maxEmptyNonnullableInputTime() throws Exception {
 
     // test max function
-    final String query = "select " +
-        "max(time_col) col6" +
-        " from cp.\"parquet/alltypes_required.parquet\" where 1 = 0";
+    final String query =
+        "select "
+            + "max(time_col) col6"
+            + " from cp.\"parquet/alltypes_required.parquet\" where 1 = 0";
 
     testBuilder()
         .sqlQuery(query)
@@ -307,9 +313,10 @@ public class TestAggregateFunctions extends BaseTestQuery {
   public void maxEmptyNonnullableInputDate() throws Exception {
 
     // test max function
-    final String query = "select " +
-        "max(date_col) col5" +
-        " from cp.\"parquet/alltypes_required.parquet\" where 1 = 0";
+    final String query =
+        "select "
+            + "max(date_col) col5"
+            + " from cp.\"parquet/alltypes_required.parquet\" where 1 = 0";
 
     testBuilder()
         .sqlQuery(query)
@@ -319,15 +326,15 @@ public class TestAggregateFunctions extends BaseTestQuery {
         .go();
   }
 
-
   @Test
   public void maxEmptyNonnullableInputNoTime() throws Exception {
 
     // test max function
-    final String query = "select " +
-        "max(int_col) col1, max(bigint_col) col2, max(float4_col) col3, max(float8_col) col4, " +
-        "max(varchar_col) col9 " +
-        "from cp.\"parquet/alltypes_required.parquet\" where 1 = 0";
+    final String query =
+        "select "
+            + "max(int_col) col1, max(bigint_col) col2, max(float4_col) col3, max(float8_col) col4, "
+            + "max(varchar_col) col9 "
+            + "from cp.\"parquet/alltypes_required.parquet\" where 1 = 0";
 
     testBuilder()
         .sqlQuery(query)
@@ -341,11 +348,12 @@ public class TestAggregateFunctions extends BaseTestQuery {
   public void maxEmptyNonnullableInput() throws Exception {
 
     // test max function
-    final String query = "select " +
-        "max(int_col) col1, max(bigint_col) col2, max(float4_col) col3, max(float8_col) col4, " +
-        "max(date_col) col5, max(time_col) col6, max(timestamp_col) col7, max(interval_year_col) col8, " +
-        "max(varchar_col) col9 " +
-        "from cp.\"parquet/alltypes_required.parquet\" where 1 = 0";
+    final String query =
+        "select "
+            + "max(int_col) col1, max(bigint_col) col2, max(float4_col) col3, max(float8_col) col4, "
+            + "max(date_col) col5, max(time_col) col6, max(timestamp_col) col7, max(interval_year_col) col8, "
+            + "max(varchar_col) col9 "
+            + "from cp.\"parquet/alltypes_required.parquet\" where 1 = 0";
 
     testBuilder()
         .sqlQuery(query)
@@ -354,7 +362,6 @@ public class TestAggregateFunctions extends BaseTestQuery {
         .baselineValues(null, null, null, null, null, null, null, null, null)
         .go();
   }
-
 
   /*
    * Streaming agg on top of a filter produces wrong results if the first two batches are filtered out.
@@ -387,12 +394,12 @@ public class TestAggregateFunctions extends BaseTestQuery {
         .go();
   }
 
-  @Test //DRILL-2748
+  @Test // DRILL-2748
   public void testPushFilterPastAgg() throws Exception {
     final String query =
-        " select cnt " +
-        " from (select n_regionkey, count(*) cnt from cp.\"tpch/nation.parquet\" group by n_regionkey) " +
-        " where n_regionkey = 2 ";
+        " select cnt "
+            + " from (select n_regionkey, count(*) cnt from cp.\"tpch/nation.parquet\" group by n_regionkey) "
+            + " where n_regionkey = 2 ";
 
     // Validate the plan
     final String[] expectedPlan = {"(?s)Filter.*(StreamAgg|HashAgg).*group=\\Q[{}]\\E.*Filter"};
@@ -404,12 +411,13 @@ public class TestAggregateFunctions extends BaseTestQuery {
         .unOrdered()
         .baselineColumns("cnt")
         .baselineValues(5L)
-        .build().run();
+        .build()
+        .run();
 
     // having clause
     final String query2 =
-        " select count(*) cnt from cp.\"tpch/nation.parquet\" group by n_regionkey " +
-        " having n_regionkey = 2 ";
+        " select count(*) cnt from cp.\"tpch/nation.parquet\" group by n_regionkey "
+            + " having n_regionkey = 2 ";
     PlanTestBase.testPlanMatchingPatterns(query2, expectedPlan, excludedPatterns);
 
     testBuilder()
@@ -417,15 +425,16 @@ public class TestAggregateFunctions extends BaseTestQuery {
         .unOrdered()
         .baselineColumns("cnt")
         .baselineValues(5L)
-        .build().run();
+        .build()
+        .run();
   }
 
   @Test
   public void testPushFilterInExprPastAgg() throws Exception {
     final String query =
-        " select cnt " +
-            " from (select n_regionkey, count(*) cnt from cp.\"tpch/nation.parquet\" group by n_regionkey) " +
-            " where n_regionkey + 100 - 100 = 2 ";
+        " select cnt "
+            + " from (select n_regionkey, count(*) cnt from cp.\"tpch/nation.parquet\" group by n_regionkey) "
+            + " where n_regionkey + 100 - 100 = 2 ";
 
     // Validate the plan
     final String[] expectedPlan = {"(?s)(StreamAgg|HashAgg).*Filter"};
@@ -437,16 +446,17 @@ public class TestAggregateFunctions extends BaseTestQuery {
         .unOrdered()
         .baselineColumns("cnt")
         .baselineValues(5L)
-        .build().run();
+        .build()
+        .run();
   }
 
   @Test
   public void testNegPushFilterInExprPastAgg() throws Exception {
     // negative case: should not push filter, since it involves the aggregate result
     final String query =
-        " select cnt " +
-            " from (select n_regionkey, count(*) cnt from cp.\"tpch/nation.parquet\" group by n_regionkey) " +
-            " where cnt + 100 - 100 = 5 ";
+        " select cnt "
+            + " from (select n_regionkey, count(*) cnt from cp.\"tpch/nation.parquet\" group by n_regionkey) "
+            + " where cnt + 100 - 100 = 5 ";
 
     // Validate the plan
     final String[] expectedPlan = {"(?s)Filter(?!StreamAgg|!HashAgg)"};
@@ -455,41 +465,47 @@ public class TestAggregateFunctions extends BaseTestQuery {
 
     // negative case: should not push filter, since it is expression of group key + agg result.
     final String query2 =
-        " select cnt " +
-            " from (select n_regionkey, count(*) cnt from cp.\"tpch/nation.parquet\" group by n_regionkey) " +
-            " where cnt + n_regionkey = 5 ";
+        " select cnt "
+            + " from (select n_regionkey, count(*) cnt from cp.\"tpch/nation.parquet\" group by n_regionkey) "
+            + " where cnt + n_regionkey = 5 ";
     PlanTestBase.testPlanMatchingPatterns(query2, expectedPlan, excludedPatterns);
-
   }
 
   @Test // DRILL-3781
   // GROUP BY System functions in schema table.
   public void testGroupBySystemFuncSchemaTable() throws Exception {
-    final String query = "select count(*) as cnt from INFORMATION_SCHEMA.CATALOGS group by CURRENT_DATE";
+    final String query =
+        "select count(*) as cnt from INFORMATION_SCHEMA.CATALOGS group by CURRENT_DATE";
     final String[] expectedPlan = {"(?s)(StreamAgg|HashAgg)"};
     final String[] excludedPatterns = {};
 
     PlanTestBase.testPlanMatchingPatterns(query, expectedPlan, excludedPatterns);
   }
 
-  @Test //DRILL-3781
+  @Test // DRILL-3781
   // GROUP BY System functions in csv, parquet, json table.
   public void testGroupBySystemFuncFileSystemTable() throws Exception {
-    final String query = String.format("select count(*) as cnt from dfs.\"%s/nation/nation.tbl\" group by CURRENT_DATE", TEST_RES_PATH);
+    final String query =
+        String.format(
+            "select count(*) as cnt from dfs.\"%s/nation/nation.tbl\" group by CURRENT_DATE",
+            TEST_RES_PATH);
     testBuilder()
         .sqlQuery(query)
         .unOrdered()
         .baselineColumns("cnt")
         .baselineValues(25L)
-        .build().run();
+        .build()
+        .run();
 
-    final String query2 = "select count(*) as cnt from cp.\"tpch/nation.parquet\" group by CURRENT_DATE";
+    final String query2 =
+        "select count(*) as cnt from cp.\"tpch/nation.parquet\" group by CURRENT_DATE";
     testBuilder()
         .sqlQuery(query2)
         .unOrdered()
         .baselineColumns("cnt")
         .baselineValues(25L)
-        .build().run();
+        .build()
+        .run();
 
     final String query3 = "select count(*) as cnt from cp.\"employee.json\" group by CURRENT_DATE";
     testBuilder()
@@ -497,7 +513,8 @@ public class TestAggregateFunctions extends BaseTestQuery {
         .unOrdered()
         .baselineColumns("cnt")
         .baselineValues(1155L)
-        .build().run();
+        .build()
+        .run();
   }
 
   @Test
@@ -512,11 +529,7 @@ public class TestAggregateFunctions extends BaseTestQuery {
     MajorType majorType = Types.required(MinorType.BIGINT);
     expectedSchema.add(Pair.of(SchemaPath.getSimplePath("col"), majorType));
 
-    testBuilder()
-        .sqlQuery(query)
-        .schemaBaseLine(expectedSchema)
-        .build()
-        .run();
+    testBuilder().sqlQuery(query).schemaBaseLine(expectedSchema).build().run();
 
     testBuilder()
         .sqlQuery(query)
@@ -526,7 +539,6 @@ public class TestAggregateFunctions extends BaseTestQuery {
         .build()
         .run();
   }
-
 
   @Test // DRILL-4531
   public void testPushFilterDown() throws Exception {
@@ -555,9 +567,10 @@ public class TestAggregateFunctions extends BaseTestQuery {
             + "          lineitem.provider";
 
     // Validate the plan
-    final String[] expectedPlan = {"(?s)(Join).*inner"}; // With filter pushdown, left join will be converted into inner join
+    final String[] expectedPlan = {
+      "(?s)(Join).*inner"
+    }; // With filter pushdown, left join will be converted into inner join
     final String[] excludedPatterns = {"(?s)(Join).*(left)"};
     PlanTestBase.testPlanMatchingPatterns(sql, expectedPlan, excludedPatterns);
   }
-
 }

@@ -27,9 +27,7 @@ import com.dremio.exec.store.StoragePlugin;
 import com.dremio.options.OptionResolver;
 import com.dremio.service.namespace.NamespaceNotFoundException;
 
-/**
- * Base class for show handlers, create folder handler.
- */
+/** Base class for show handlers, create folder handler. */
 public abstract class BaseVersionHandler<T> implements SqlDirectHandler<T> {
   private final Catalog catalog;
   private OptionResolver optionResolver;
@@ -38,6 +36,7 @@ public abstract class BaseVersionHandler<T> implements SqlDirectHandler<T> {
   protected BaseVersionHandler(Catalog catalog) {
     this.catalog = requireNonNull(catalog);
   }
+
   protected BaseVersionHandler(Catalog catalog, OptionResolver optionResolver) {
     this(catalog);
     this.optionResolver = requireNonNull(optionResolver);
@@ -59,25 +58,23 @@ public abstract class BaseVersionHandler<T> implements SqlDirectHandler<T> {
         throw e;
       }
 
-      if(e.getCause() instanceof NamespaceNotFoundException){
+      if (e.getCause() instanceof NamespaceNotFoundException) {
         throw UserException.validationError(e)
-          .message("Source %s does not exist.", sourceName)
-          .buildSilently();
+            .message("Source %s does not exist.", sourceName)
+            .buildSilently();
       } else {
         // Source was not found (probably wrong type, like home)
         throw UserException.unsupportedError(e)
-          .message("Source %s does not support versioning.", sourceName)
-          .buildSilently();
+            .message("Source %s does not support versioning.", sourceName)
+            .buildSilently();
       }
     }
-    if (!(storagePlugin instanceof VersionedPlugin)) {
+    if (storagePlugin == null || !(storagePlugin.isWrapperFor(VersionedPlugin.class))) {
       throw UserException.unsupportedError()
           .message("Source %s does not support versioning.", sourceName)
           .buildSilently();
     }
 
-    return (VersionedPlugin) storagePlugin;
+    return storagePlugin.unwrap(VersionedPlugin.class);
   }
-
-
 }

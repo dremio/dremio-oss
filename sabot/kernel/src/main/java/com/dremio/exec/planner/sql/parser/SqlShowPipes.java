@@ -15,9 +15,9 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.google.common.base.Preconditions;
 import java.util.Collections;
 import java.util.List;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlLiteral;
@@ -26,20 +26,18 @@ import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.google.common.base.Preconditions;
-
-/**
- * SqlNode representing SHOW PIPES sql command
- */
+/** SqlNode representing SHOW PIPES sql command */
 public class SqlShowPipes extends SqlCall {
 
-  public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("SHOW PIPES", SqlKind.OTHER) {
-    @Override
-    public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 1);
-      return new SqlShowPipes(pos);
-    }
-  };
+  public static final SqlSpecialOperator OPERATOR =
+      new SqlSpecialOperator("SHOW PIPES", SqlKind.OTHER) {
+        @Override
+        public SqlCall createCall(
+            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+          Preconditions.checkArgument(operands.length == 1);
+          return new SqlShowPipes(pos);
+        }
+      };
 
   public SqlShowPipes(SqlParserPos pos) {
     super(pos);

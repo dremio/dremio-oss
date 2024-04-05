@@ -15,11 +15,6 @@
  */
 package com.dremio.exec.planner;
 
-import java.util.HashMap;
-import java.util.IntSummaryStatistics;
-import java.util.Map;
-import java.util.Map.Entry;
-
 import com.dremio.exec.proto.CoordExecRPC.InitializeFragments;
 import com.dremio.exec.proto.CoordExecRPC.MinorAttr;
 import com.dremio.exec.proto.CoordExecRPC.PlanFragmentMajor;
@@ -29,6 +24,10 @@ import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.UserBitShared.FragmentRpcSizeByAttr;
 import com.dremio.exec.proto.UserBitShared.FragmentRpcSizeByMajor;
 import com.dremio.exec.proto.UserBitShared.FragmentRpcSizeStats;
+import java.util.HashMap;
+import java.util.IntSummaryStatistics;
+import java.util.Map;
+import java.util.Map.Entry;
 
 public class PlanFragmentStats {
   private IntSummaryStatistics combinedSize;
@@ -48,8 +47,8 @@ public class PlanFragmentStats {
   }
 
   void addFragmentSize(boolean isMajorSpecific, int majorId, int size) {
-    Map<Integer, IntSummaryStatistics> map = isMajorSpecific ?
-      sizeByMajorSpecific : sizeByMinorSpecific;
+    Map<Integer, IntSummaryStatistics> map =
+        isMajorSpecific ? sizeByMajorSpecific : sizeByMinorSpecific;
 
     IntSummaryStatistics phaseStats = map.get(majorId);
     if (phaseStats == null) {
@@ -101,26 +100,26 @@ public class PlanFragmentStats {
   public FragmentRpcSizeStats getSummary() {
     FragmentRpcSizeStats.Builder stats = FragmentRpcSizeStats.newBuilder();
 
-    stats.setSizePerNode((int)combinedSize.getAverage());
+    stats.setSizePerNode((int) combinedSize.getAverage());
 
     for (Entry<Integer, IntSummaryStatistics> entry : sizeByMajorSpecific.entrySet()) {
       IntSummaryStatistics majorStats = entry.getValue();
       IntSummaryStatistics minorStats = sizeByMinorSpecific.get(entry.getKey());
 
-      stats.addFragments(FragmentRpcSizeByMajor
-        .newBuilder()
-        .setMajorId(entry.getKey())
-        .setMajorPortionSize((int)majorStats.getAverage())
-        .setMinorPortionSize((int)minorStats.getAverage())
-        .build());
+      stats.addFragments(
+          FragmentRpcSizeByMajor.newBuilder()
+              .setMajorId(entry.getKey())
+              .setMajorPortionSize((int) majorStats.getAverage())
+              .setMinorPortionSize((int) minorStats.getAverage())
+              .build());
     }
 
     for (Entry<String, Integer> entry : sizeByMinorAttr.entrySet()) {
-      stats.addMinorSpecificAttrs(FragmentRpcSizeByAttr
-        .newBuilder()
-        .setName(entry.getKey())
-        .setSize(entry.getValue())
-        .build());
+      stats.addMinorSpecificAttrs(
+          FragmentRpcSizeByAttr.newBuilder()
+              .setName(entry.getKey())
+              .setSize(entry.getValue())
+              .build());
     }
     for (Entry<String, Integer> entry : sizeBySharedAttr.entrySet()) {
       stats.addSharedAttrs(

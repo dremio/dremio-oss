@@ -15,17 +15,14 @@
  */
 package com.dremio.dac.explore;
 
-import java.util.concurrent.CountDownLatch;
-
 import com.dremio.service.jobs.JobStatusListener;
 import com.dremio.service.jobs.metadata.proto.QueryMetadata;
 import com.google.common.base.Throwables;
+import java.util.concurrent.CountDownLatch;
 
 class MetadataCollectingJobStatusListener implements JobStatusListener {
 
-  /**
-   * Need to wait for {@link #metadataCollected(QueryMetadata)}
-   */
+  /** Need to wait for {@link #metadataCollected(QueryMetadata)} */
   private final CountDownLatch planningCompleteLatch = new CountDownLatch(1);
 
   private volatile Exception error;

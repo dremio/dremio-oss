@@ -15,16 +15,14 @@
  */
 package com.dremio.sabot.op.flatten;
 
-import java.util.List;
-
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.complex.RepeatedValueVector;
-import org.apache.arrow.vector.util.TransferPair;
-
 import com.dremio.exec.compile.TemplateClassDefinition;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.sabot.exec.context.FunctionContext;
 import com.dremio.sabot.op.project.Projector.ComplexWriterCreator;
+import java.util.List;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.complex.RepeatedValueVector;
+import org.apache.arrow.vector.util.TransferPair;
 
 public interface Flattener {
   public void setup(
@@ -35,25 +33,28 @@ public interface Flattener {
       List<TransferPair> transfers,
       ComplexWriterCreator writerCreator,
       long outputMemoryLimit,
-      long outputBatchSize
-      );
+      long outputBatchSize);
 
   public interface Monitor {
     /**
-     * Get the required buffer size for the specified number of records.
-     * {@see ValueVector#getBufferSizeFor(int)} for the meaning of this.
+     * Get the required buffer size for the specified number of records. {@see
+     * ValueVector#getBufferSizeFor(int)} for the meaning of this.
      *
      * @param recordCount the number of records processed so far
      * @return the buffer size the vectors report as being in use
      */
     public int getBufferSizeFor(int recordCount);
-  };
+  }
+  ;
 
   public int flattenRecords(int recordCount, int firstOutputIndex, Monitor monitor);
 
   public void setFlattenField(RepeatedValueVector repeatedColumn);
+
   public RepeatedValueVector getFlattenField();
+
   public void resetGroupIndex();
 
-  public static final TemplateClassDefinition<Flattener> TEMPLATE_DEFINITION = new TemplateClassDefinition<Flattener>(Flattener.class, FlattenTemplate.class);
+  public static final TemplateClassDefinition<Flattener> TEMPLATE_DEFINITION =
+      new TemplateClassDefinition<Flattener>(Flattener.class, FlattenTemplate.class);
 }

@@ -44,10 +44,7 @@ import {
   setQueryStatuses,
   setPreviousAndCurrentSql,
 } from "@app/actions/explore/view";
-import {
-  fetchFilteredJobsList,
-  JOB_PAGE_NEW_VIEW_ID,
-} from "@app/actions/joblist/jobList";
+import { removeExploreJob } from "@app/actions/explore/exploreJobs";
 import { extractSelections } from "@app/utils/statements/statementParser";
 import CalculatedFieldContent from "./DetailsWizard/CalculatedFieldContent";
 import TransformContent from "./DetailsWizard/TransformContent";
@@ -86,7 +83,7 @@ export class DetailsWizard extends PureComponent {
     setQuerySelections: PropTypes.func,
     setQueryStatuses: PropTypes.func,
     setPreviousAndCurrentSql: PropTypes.func,
-    fetchFilteredJobsList: PropTypes.func,
+    removeExploreJob: PropTypes.func,
   };
 
   static contextTypes = {
@@ -154,7 +151,7 @@ export class DetailsWizard extends PureComponent {
       values,
       detailType,
       this.getViewId(),
-      submitType
+      submitType,
     );
   };
 
@@ -165,7 +162,7 @@ export class DetailsWizard extends PureComponent {
       setPreviousAndCurrentSql: newPreviousAndCurrentSql,
       setQuerySelections: newQuerySelections,
       setQueryStatuses: newQueryStatuses,
-      fetchFilteredJobsList,
+      removeExploreJob,
     } = this.props;
 
     const [sqlStatement, jobId, , version] = apiUtils.getFromResponse(response);
@@ -182,8 +179,8 @@ export class DetailsWizard extends PureComponent {
           jobId,
           cancelled: false,
         };
+        removeExploreJob(queryStatuses[i].jobId);
         newQueryStatuses({ statuses: mostRecentStatuses });
-        fetchFilteredJobsList(jobId, JOB_PAGE_NEW_VIEW_ID, i);
       } else {
         modifiedQuery += queryStatuses[i].sqlStatement + ";\n";
       }
@@ -208,7 +205,7 @@ export class DetailsWizard extends PureComponent {
         dataset,
         exploreUtils.getMappedDataForTransform(values, detailType),
         this.getViewId(),
-        tableData
+        tableData,
       )
       .then((response) => {
         if (!response.error) {
@@ -254,7 +251,7 @@ export class DetailsWizard extends PureComponent {
           },
           () => {
             resolve();
-          }
+          },
         );
       });
     }
@@ -395,11 +392,7 @@ export class DetailsWizard extends PureComponent {
         );
       case "transform":
         return (
-          <TransformContent
-            dataset={this.props.dataset}
-            location={location}
-            {...defaultProps}
-          />
+          <TransformContent dataset={this.props.dataset} {...defaultProps} />
         );
       default:
         return;
@@ -430,7 +423,7 @@ function mapStateToProps(state, props) {
     tableData: getImmutableTable(
       state,
       props.dataset.get("datasetVersion"),
-      location
+      location,
     ),
     sqlSize: explorePageState.ui.get("sqlSize"),
     recommendedJoins:
@@ -457,5 +450,5 @@ export default connect(mapStateToProps, {
   setQuerySelections,
   setQueryStatuses,
   setPreviousAndCurrentSql,
-  fetchFilteredJobsList,
+  removeExploreJob,
 })(DetailsWizard);

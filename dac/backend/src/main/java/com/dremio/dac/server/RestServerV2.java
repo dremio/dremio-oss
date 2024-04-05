@@ -15,16 +15,6 @@
  */
 package com.dremio.dac.server;
 
-import org.glassfish.jersey.CommonProperties;
-import org.glassfish.jersey.internal.util.PropertiesHelper;
-import org.glassfish.jersey.media.multipart.MultiPartFeature;
-import org.glassfish.jersey.server.ResourceConfig;
-import org.glassfish.jersey.server.ServerProperties;
-import org.glassfish.jersey.server.mvc.freemarker.FreemarkerMvcFeature;
-import org.projectnessie.services.restjavax.ContentKeyParamConverterProvider;
-import org.projectnessie.services.restjavax.NamespaceParamConverterProvider;
-import org.projectnessie.services.restjavax.ReferenceTypeParamConverterProvider;
-
 import com.dremio.common.perf.Timer;
 import com.dremio.common.perf.Timer.TimedBlock;
 import com.dremio.common.scanner.persistence.ScanResult;
@@ -32,13 +22,19 @@ import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.explore.bi.PowerBIMessageBodyGenerator;
 import com.dremio.dac.explore.bi.QlikAppMessageBodyGenerator;
 import com.dremio.dac.explore.bi.TableauMessageBodyGenerator;
-
+import com.dremio.services.nessie.restjavax.converters.ContentKeyParamConverterProvider;
+import com.dremio.services.nessie.restjavax.converters.NamespaceParamConverterProvider;
+import com.dremio.services.nessie.restjavax.converters.ReferenceTypeParamConverterProvider;
 import freemarker.core.HTMLOutputFormat;
 import freemarker.template.Configuration;
+import org.glassfish.jersey.CommonProperties;
+import org.glassfish.jersey.internal.util.PropertiesHelper;
+import org.glassfish.jersey.media.multipart.MultiPartFeature;
+import org.glassfish.jersey.server.ResourceConfig;
+import org.glassfish.jersey.server.ServerProperties;
+import org.glassfish.jersey.server.mvc.freemarker.FreemarkerMvcFeature;
 
-/**
- * Dremio Rest Server.
- */
+/** Dremio Rest Server. */
 public class RestServerV2 extends ResourceConfig {
   public static final String FIRST_TIME_API_ENABLE = "dac.rest.config.first-time.enable";
   public static final String TEST_API_ENABLE = "dac.rest.config.test-resources.enable";
@@ -96,8 +92,9 @@ public class RestServerV2 extends ResourceConfig {
     // PROPERTIES //
     property(ServerProperties.RESPONSE_SET_STATUS_OVER_SEND_ERROR, "true");
 
-    final String disableMoxy = PropertiesHelper.getPropertyNameForRuntime(CommonProperties.MOXY_JSON_FEATURE_DISABLE,
-        getConfiguration().getRuntimeType());
+    final String disableMoxy =
+        PropertiesHelper.getPropertyNameForRuntime(
+            CommonProperties.MOXY_JSON_FEATURE_DISABLE, getConfiguration().getRuntimeType());
     property(disableMoxy, true);
   }
 

@@ -21,22 +21,6 @@ import static com.dremio.exec.proto.UserBitShared.DatasetType.VDS;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import java.io.File;
-import java.io.PrintWriter;
-import java.util.Arrays;
-import java.util.Collections;
-
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.core.GenericType;
-
-import org.apache.arrow.vector.types.Types.MinorType;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.types.pojo.FieldType;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.exec.record.BatchSchema;
@@ -54,53 +38,70 @@ import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.dremio.service.namespace.file.proto.FileType;
 import com.google.common.collect.ImmutableList;
+import java.io.File;
+import java.io.PrintWriter;
+import java.util.Arrays;
+import java.util.Collections;
+import javax.ws.rs.client.Entity;
+import javax.ws.rs.core.GenericType;
+import org.apache.arrow.vector.types.Types.MinorType;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
-/**
- * Testing if we properly record the pds/vds schema/sql in the QueryProfile
- */
+/** Testing if we properly record the pds/vds schema/sql in the QueryProfile */
 public class TestDatasetProfiles extends BaseTestServer {
 
-  @ClassRule
-  public static final TemporaryFolder temp = new TemporaryFolder();
+  @ClassRule public static final TemporaryFolder temp = new TemporaryFolder();
 
   private static String simplePdsPath;
   private static String complexPdsPath;
 
-  private static final BatchSchema simpleSchema = BatchSchema.newBuilder()
-    .addField(bigInt(UPDATE_COLUMN))
-    .addField(varchar("key"))
-    .addField(bigInt("value"))
-    .build();
-  private static final BatchSchema complexSchema = BatchSchema.newBuilder()
-    .addField(bigInt(UPDATE_COLUMN))
-    .addField(bigInt("custID"))
-    .addField(varchar("cName"))
-    .addField(list("cItems", map("$data$", varchar("iName"), dbl("weight_in_pounds"))))
-    .addField(map("cProperties", bigInt("a"), dbl("b")))
-    .build();
+  private static final BatchSchema simpleSchema =
+      BatchSchema.newBuilder()
+          .addField(bigInt(UPDATE_COLUMN))
+          .addField(varchar("key"))
+          .addField(bigInt("value"))
+          .build();
+  private static final BatchSchema complexSchema =
+      BatchSchema.newBuilder()
+          .addField(bigInt(UPDATE_COLUMN))
+          .addField(bigInt("custID"))
+          .addField(varchar("cName"))
+          .addField(list("cItems", map("$data$", varchar("iName"), dbl("weight_in_pounds"))))
+          .addField(map("cProperties", bigInt("a"), dbl("b")))
+          .build();
 
   @BeforeClass
   public static void setup() throws Exception {
     simplePdsPath = addJsonTable("simple_schema.json", "{ \"key\" : \"A\", \"value\" : 0 }");
-    complexPdsPath = addJsonTable("complex_schema.json", "{" +
-      "\"custID\": 100," +
-      "\"cName\": \"customer\"," +
-      "\"cItems\": [{ \"iName\": \"laptop\", \"weight_in_pounds\": 2.5 }]," +
-      "\"cProperties\": {\"a\": 1000,\"b\": 0.25}" +
-      "}");
+    complexPdsPath =
+        addJsonTable(
+            "complex_schema.json",
+            "{"
+                + "\"custID\": 100,"
+                + "\"cName\": \"customer\","
+                + "\"cItems\": [{ \"iName\": \"laptop\", \"weight_in_pounds\": 2.5 }],"
+                + "\"cProperties\": {\"a\": 1000,\"b\": 0.25}"
+                + "}");
   }
 
   @Test
   public void simplePdsSchema() throws Exception {
     // generate some data
-    final QueryProfile profile = getQueryProfile(String.format("SELECT * FROM dfs.\"%s\"", simplePdsPath));
+    final QueryProfile profile =
+        getQueryProfile(String.format("SELECT * FROM dfs.\"%s\"", simplePdsPath));
     assertEquals(1, profile.getDatasetProfileCount());
     assertTrue(containsPds(profile, simpleSchema));
   }
 
   @Test
   public void complexPdsSchema() throws Exception {
-    final QueryProfile profile = getQueryProfile(String.format("SELECT * FROM dfs.\"%s\"", complexPdsPath));
+    final QueryProfile profile =
+        getQueryProfile(String.format("SELECT * FROM dfs.\"%s\"", complexPdsPath));
     assertEquals(1, profile.getDatasetProfileCount());
     assertTrue(containsPds(profile, complexSchema));
   }
@@ -112,14 +113,19 @@ public class TestDatasetProfiles extends BaseTestServer {
     try {
       getNamespaceService().getSpace(new NamespaceKey(spaceName));
     } catch (NamespaceNotFoundException e) {
-      expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(new com.dremio.dac.api.Space(null, spaceName, null, null, null))), new GenericType<com.dremio.dac.api.Space>() {});
+      expectSuccess(
+          getBuilder(getPublicAPI(3).path("/catalog/"))
+              .buildPost(
+                  Entity.json(new com.dremio.dac.api.Space(null, spaceName, null, null, null))),
+          new GenericType<com.dremio.dac.api.Space>() {});
     }
 
     final DatasetPath vdsPath = new DatasetPath(spaceName + "." + vdsName);
     final String vdsSql = String.format("SELECT * FROM dfs.\"%s\"", complexPdsPath);
     createDatasetFromSQLAndSave(vdsPath, vdsSql, Collections.emptyList());
 
-    final QueryProfile profile = getQueryProfile(String.format("SELECT * FROM %s.%s", spaceName, vdsName));
+    final QueryProfile profile =
+        getQueryProfile(String.format("SELECT * FROM %s.%s", spaceName, vdsName));
     assertEquals(2, profile.getDatasetProfileCount());
     assertTrue(containsPds(profile, complexSchema));
     assertTrue(containsVds(profile, vdsSql));
@@ -132,14 +138,22 @@ public class TestDatasetProfiles extends BaseTestServer {
     try {
       getNamespaceService().getSpace(new NamespaceKey(spaceName));
     } catch (NamespaceNotFoundException e) {
-      expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(new com.dremio.dac.api.Space(null, spaceName, null, null, null))), new GenericType<com.dremio.dac.api.Space>() {});
+      expectSuccess(
+          getBuilder(getPublicAPI(3).path("/catalog/"))
+              .buildPost(
+                  Entity.json(new com.dremio.dac.api.Space(null, spaceName, null, null, null))),
+          new GenericType<com.dremio.dac.api.Space>() {});
     }
 
     final DatasetPath vdsPath = new DatasetPath(spaceName + "." + vdsName);
-    final String vdsSql = String.format("SELECT * FROM dfs.\"%s\" t1 LEFT JOIN dfs.\"%s\" t2 ON t1.\"value\" = t2.custID", simplePdsPath, complexPdsPath);
+    final String vdsSql =
+        String.format(
+            "SELECT * FROM dfs.\"%s\" t1 LEFT JOIN dfs.\"%s\" t2 ON t1.\"value\" = t2.custID",
+            simplePdsPath, complexPdsPath);
     createDatasetFromSQLAndSave(vdsPath, vdsSql, Collections.emptyList());
 
-    final QueryProfile profile = getQueryProfile(String.format("SELECT * FROM %s.%s", spaceName, vdsName));
+    final QueryProfile profile =
+        getQueryProfile(String.format("SELECT * FROM %s.%s", spaceName, vdsName));
     assertEquals(3, profile.getDatasetProfileCount());
     assertTrue(containsPds(profile, simpleSchema));
     assertTrue(containsPds(profile, complexSchema));
@@ -147,12 +161,16 @@ public class TestDatasetProfiles extends BaseTestServer {
   }
 
   private boolean containsPds(QueryProfile profile, BatchSchema schema) {
-    return profile.getDatasetProfileList().stream().anyMatch(dp ->
-      dp.getType() == PDS && schema.equals(BatchSchema.deserialize(dp.getBatchSchema().toByteArray())));
+    return profile.getDatasetProfileList().stream()
+        .anyMatch(
+            dp ->
+                dp.getType() == PDS
+                    && schema.equals(BatchSchema.deserialize(dp.getBatchSchema().toByteArray())));
   }
 
   private boolean containsVds(QueryProfile profile, String vdsSql) {
-    return profile.getDatasetProfileList().stream().anyMatch(dp -> dp.getType() == VDS && dp.getSql().equals(vdsSql));
+    return profile.getDatasetProfileList().stream()
+        .anyMatch(dp -> dp.getType() == VDS && dp.getSql().equals(vdsSql));
   }
 
   private static Field bigInt(String name) {
@@ -167,13 +185,16 @@ public class TestDatasetProfiles extends BaseTestServer {
     return new Field(name, new FieldType(true, MinorType.FLOAT8.getType(), null), null);
   }
 
-  private static Field map(String name, Field...children) {
-    return new Field(name, new FieldType(true, MinorType.STRUCT.getType(), null), Arrays.asList(children));
+  private static Field map(String name, Field... children) {
+    return new Field(
+        name, new FieldType(true, MinorType.STRUCT.getType(), null), Arrays.asList(children));
   }
 
   private static Field list(String name, Field inner) {
-    return new Field(name, new FieldType(true, MinorType.LIST.getType(), null),
-      Collections.singletonList(inner));
+    return new Field(
+        name,
+        new FieldType(true, MinorType.LIST.getType(), null),
+        Collections.singletonList(inner));
   }
 
   private static JobsService getJobsService() {
@@ -185,35 +206,36 @@ public class TestDatasetProfiles extends BaseTestServer {
   }
 
   private static QueryProfile getQueryProfile(final String query) throws Exception {
-    final JobRequest request = JobRequest.newBuilder()
-      .setSqlQuery(new SqlQuery(query, DEFAULT_USERNAME))
-      .setQueryType(QueryType.UI_INTERNAL_RUN)
-      .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
-      .setDatasetVersion(DatasetVersion.NONE)
-      .build();
+    final JobRequest request =
+        JobRequest.newBuilder()
+            .setSqlQuery(new SqlQuery(query, DEFAULT_USERNAME))
+            .setQueryType(QueryType.UI_INTERNAL_RUN)
+            .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+            .setDatasetVersion(DatasetVersion.NONE)
+            .build();
     return JobsServiceTestUtils.getQueryProfile(l(JobsService.class), request);
   }
 
   private static String addJsonTable(String tableName, String... jsonData) throws Exception {
     final File file = temp.newFile(tableName);
     final String dataFile = file.getAbsolutePath();
-    //TODO write each record in a separate file, so we can cause a union type for example
+    // TODO write each record in a separate file, so we can cause a union type for example
     try (PrintWriter writer = new PrintWriter(file)) {
       for (String record : jsonData) {
         writer.println(record);
       }
     }
     final DatasetPath path = new DatasetPath(ImmutableList.of("dfs", dataFile));
-    final DatasetConfig dataset = new DatasetConfig()
-      .setType(DatasetType.PHYSICAL_DATASET_SOURCE_FILE)
-      .setFullPathList(path.toPathList())
-      .setName(path.getLeaf().getName())
-      .setCreatedAt(System.currentTimeMillis())
-      .setTag(null)
-      .setOwner(DEFAULT_USERNAME)
-      .setPhysicalDataset(new PhysicalDataset()
-        .setFormatSettings(new FileConfig().setType(FileType.JSON))
-      );
+    final DatasetConfig dataset =
+        new DatasetConfig()
+            .setType(DatasetType.PHYSICAL_DATASET_SOURCE_FILE)
+            .setFullPathList(path.toPathList())
+            .setName(path.getLeaf().getName())
+            .setCreatedAt(System.currentTimeMillis())
+            .setTag(null)
+            .setOwner(DEFAULT_USERNAME)
+            .setPhysicalDataset(
+                new PhysicalDataset().setFormatSettings(new FileConfig().setType(FileType.JSON)));
     final NamespaceService nsService = getNamespaceService();
     nsService.addOrUpdateDataset(path.toNamespaceKey(), dataset);
     return dataFile;

@@ -20,29 +20,26 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.util.concurrent.atomic.AtomicBoolean;
-
-import org.junit.Test;
-
 import com.dremio.sabot.exec.rpc.FileStreamManager;
 import com.dremio.sabot.threads.sharedres.SharedResource;
 import com.dremio.sabot.threads.sharedres.SharedResourceManager;
 import com.dremio.sabot.threads.sharedres.SharedResourceType;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.concurrent.atomic.AtomicBoolean;
+import org.junit.Test;
 
 public class TestFileCursorManager {
   private final FileStreamManager streamManager = mock(FileStreamManager.class);
-  private final SharedResourceManager resourceManager = SharedResourceManager.newBuilder()
-    .addGroup("test")
-    .build();
+  private final SharedResourceManager resourceManager =
+      SharedResourceManager.newBuilder().addGroup("test").build();
 
   @Test
   public void testWriter() throws Exception {
     FileCursorManager mgr = new FileCursorManagerImpl("test");
-    try (FileCursorManager.Observer observer = mgr.registerWriter(streamManager,
-      createSharedResource("testWriter"), () -> {})) {
+    try (FileCursorManager.Observer observer =
+        mgr.registerWriter(streamManager, createSharedResource("testWriter"), () -> {})) {
 
       mgr.notifyAllRegistrationsDone();
       observer.updateCursor(0, 10);
@@ -59,20 +56,21 @@ public class TestFileCursorManager {
   @Test(expected = IllegalStateException.class)
   public void testWriterDupRegister() throws Exception {
     FileCursorManager mgr = new FileCursorManagerImpl("test");
-    try (FileCursorManager.Observer observer = mgr.registerWriter(streamManager,
-      createSharedResource("testWriterDupRegister"), () -> {})) {
+    try (FileCursorManager.Observer observer =
+        mgr.registerWriter(
+            streamManager, createSharedResource("testWriterDupRegister"), () -> {})) {
 
-      FileCursorManager.Observer observer2 = mgr.registerWriter(streamManager,
-        createSharedResource("testWriterDupRegister2"), () -> {
-        });
+      FileCursorManager.Observer observer2 =
+          mgr.registerWriter(
+              streamManager, createSharedResource("testWriterDupRegister2"), () -> {});
     }
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void testWriterBadCursor() throws Exception {
     FileCursorManager mgr = new FileCursorManagerImpl("test");
-    try (FileCursorManager.Observer observer = mgr.registerWriter(streamManager,
-      createSharedResource("testWriterBadCursor"), () -> {})) {
+    try (FileCursorManager.Observer observer =
+        mgr.registerWriter(streamManager, createSharedResource("testWriterBadCursor"), () -> {})) {
 
       observer.updateCursor(0, 10);
       // cursor cannot reduce in value.
@@ -83,8 +81,11 @@ public class TestFileCursorManager {
   @Test
   public void testReader() throws Exception {
     FileCursorManager mgr = new FileCursorManagerImpl("test");
-    try (FileCursorManager.Observer reader = mgr.registerReader(createSharedResource("testReader:reader"));
-         FileCursorManager.Observer writer = mgr.registerWriter(streamManager, createSharedResource("testReader:writer"), () -> {})) {
+    try (FileCursorManager.Observer reader =
+            mgr.registerReader(createSharedResource("testReader:reader"));
+        FileCursorManager.Observer writer =
+            mgr.registerWriter(
+                streamManager, createSharedResource("testReader:writer"), () -> {})) {
 
       mgr.notifyAllRegistrationsDone();
       writer.updateCursor(0, 10);
@@ -106,8 +107,8 @@ public class TestFileCursorManager {
   public void testReaderBadCursor() throws Exception {
     FileCursorManager mgr = new FileCursorManagerImpl("test");
     try (FileCursorManager.Observer reader = mgr.registerReader(createSharedResource("reader"));
-         FileCursorManager.Observer writer = mgr.registerWriter(streamManager, createSharedResource("writer"), () -> {
-         })) {
+        FileCursorManager.Observer writer =
+            mgr.registerWriter(streamManager, createSharedResource("writer"), () -> {})) {
 
       mgr.notifyAllRegistrationsDone();
       writer.updateCursor(0, 10);
@@ -122,8 +123,8 @@ public class TestFileCursorManager {
   public void testReaderBadCursor2() throws Exception {
     FileCursorManager mgr = new FileCursorManagerImpl("test");
     try (FileCursorManager.Observer reader = mgr.registerReader(createSharedResource("reader"));
-         FileCursorManager.Observer writer = mgr.registerWriter(streamManager, createSharedResource("writer"), () -> {
-         })) {
+        FileCursorManager.Observer writer =
+            mgr.registerWriter(streamManager, createSharedResource("writer"), () -> {})) {
 
       mgr.notifyAllRegistrationsDone();
       writer.updateCursor(0, 10);
@@ -142,7 +143,8 @@ public class TestFileCursorManager {
     SharedResource readResource = createSharedResource("reader");
 
     try (FileCursorManager.Observer reader = mgr.registerReader(readResource);
-         FileCursorManager.Observer writer = mgr.registerWriter(streamManager, writeResource, () -> {})) {
+        FileCursorManager.Observer writer =
+            mgr.registerWriter(streamManager, writeResource, () -> {})) {
 
       mgr.notifyAllRegistrationsDone();
       // initially, reader is blocked.
@@ -189,8 +191,9 @@ public class TestFileCursorManager {
     SharedResource readResource2 = createSharedResource("reader2");
 
     try (FileCursorManager.Observer reader1 = mgr.registerReader(readResource1);
-         FileCursorManager.Observer reader2 = mgr.registerReader(readResource2);
-         FileCursorManager.Observer writer = mgr.registerWriter(streamManager, writeResource, () -> {})) {
+        FileCursorManager.Observer reader2 = mgr.registerReader(readResource2);
+        FileCursorManager.Observer writer =
+            mgr.registerWriter(streamManager, writeResource, () -> {})) {
 
       mgr.notifyAllRegistrationsDone();
       // initially, readers are blocked.
@@ -238,9 +241,13 @@ public class TestFileCursorManager {
     SharedResource readResource2 = createSharedResource("reader2");
     AtomicBoolean allReadersDone = new AtomicBoolean(false);
 
-    try (FileCursorManager.Observer writer = mgr.registerWriter(streamManager, writeResource, () -> {
-      allReadersDone.set(true);
-    })) {
+    try (FileCursorManager.Observer writer =
+        mgr.registerWriter(
+            streamManager,
+            writeResource,
+            () -> {
+              allReadersDone.set(true);
+            })) {
       try (FileCursorManager.Observer reader1 = mgr.registerReader(readResource1)) {
         try (FileCursorManager.Observer reader2 = mgr.registerReader(readResource2)) {
           mgr.notifyAllRegistrationsDone();
@@ -263,38 +270,39 @@ public class TestFileCursorManager {
   @Test
   public void testStreamManagerDeleteAll() throws Exception {
     AtomicBoolean deleteAllDone = new AtomicBoolean(false);
-    final FileStreamManager streamManagerImpl = new FileStreamManager() {
-      @Override
-      public String getId() {
-        return null;
-      }
+    final FileStreamManager streamManagerImpl =
+        new FileStreamManager() {
+          @Override
+          public String getId() {
+            return null;
+          }
 
-      @Override
-      public OutputStream createOutputStream(int fileSeq) throws IOException {
-        return null;
-      }
+          @Override
+          public OutputStream createOutputStream(int fileSeq) throws IOException {
+            return null;
+          }
 
-      @Override
-      public InputStream getInputStream(int fileSeq) throws IOException {
-        return null;
-      }
+          @Override
+          public InputStream getInputStream(int fileSeq) throws IOException {
+            return null;
+          }
 
-      @Override
-      public void delete(int fileSeq) throws IOException {
-      }
+          @Override
+          public void delete(int fileSeq) throws IOException {}
 
-      @Override
-      public void deleteAll() throws IOException {
-        deleteAllDone.set(true);
-      }
-    };
+          @Override
+          public void deleteAll() throws IOException {
+            deleteAllDone.set(true);
+          }
+        };
 
     FileCursorManager mgr = new FileCursorManagerImpl("test");
     SharedResource writeResource = createSharedResource("writer");
     SharedResource readResource1 = createSharedResource("reader1");
     SharedResource readResource2 = createSharedResource("reader2");
 
-    try (FileCursorManager.Observer writer = mgr.registerWriter(streamManagerImpl, writeResource, () -> {})) {
+    try (FileCursorManager.Observer writer =
+        mgr.registerWriter(streamManagerImpl, writeResource, () -> {})) {
       try (FileCursorManager.Observer reader1 = mgr.registerReader(readResource1)) {
         try (FileCursorManager.Observer reader2 = mgr.registerReader(readResource2)) {
           mgr.notifyAllRegistrationsDone();
@@ -317,5 +325,4 @@ public class TestFileCursorManager {
   SharedResource createSharedResource(String name) {
     return resourceManager.getGroup("test").createResource(name, SharedResourceType.TEST);
   }
-
 }

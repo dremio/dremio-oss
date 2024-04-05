@@ -15,14 +15,6 @@
  */
 package com.dremio.sabot.op.sort.external;
 
-import java.io.IOException;
-import java.util.List;
-
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.OutOfMemoryException;
-import org.apache.arrow.vector.SimpleIntVector;
-import org.apache.arrow.vector.types.pojo.Schema;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.exception.ClassTransformationException;
 import com.dremio.exec.exception.SchemaChangeException;
@@ -35,6 +27,12 @@ import com.dremio.exec.record.RecordBatchData;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.selection.SelectionVector4;
 import com.google.common.collect.Lists;
+import java.io.IOException;
+import java.util.List;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.OutOfMemoryException;
+import org.apache.arrow.vector.SimpleIntVector;
+import org.apache.arrow.vector.types.pojo.Schema;
 
 /**
  * Insert each batch into a QuickSorter as it arrives, they will be totally sorted only at the end.
@@ -48,7 +46,11 @@ public class QuickSorter implements Sorter {
   private QuickSorterInterface quickSorter;
   private SimpleIntVector quickSorterBuffer;
 
-  public QuickSorter(ExternalSort sortConfig, ClassProducer classProducer, Schema schema, BufferAllocator allocator) {
+  public QuickSorter(
+      ExternalSort sortConfig,
+      ClassProducer classProducer,
+      Schema schema,
+      BufferAllocator allocator) {
     this.sortConfig = sortConfig;
     this.classProducer = classProducer;
     this.schema = schema;
@@ -71,20 +73,25 @@ public class QuickSorter implements Sorter {
   }
 
   @Override
-  public void setup(VectorAccessible batch) throws ClassTransformationException, SchemaChangeException, IOException {
+  public void setup(VectorAccessible batch)
+      throws ClassTransformationException, SchemaChangeException, IOException {
     // Compile sorting classes.
-    CodeGenerator<QuickSorterInterface> cg = classProducer.createGenerator(QuickSorterInterface.TEMPLATE_DEFINITION);
+    CodeGenerator<QuickSorterInterface> cg =
+        classProducer.createGenerator(QuickSorterInterface.TEMPLATE_DEFINITION);
     ClassGenerator<QuickSorterInterface> g = cg.getRoot();
     final Sv4HyperContainer container = new Sv4HyperContainer(allocator, schema);
-    ExternalSortOperator.generateComparisons(g, container, sortConfig.getOrderings(), classProducer);
+    ExternalSortOperator.generateComparisons(
+        g, container, sortConfig.getOrderings(), classProducer);
     this.quickSorter = cg.getImplementationClass();
     quickSorter.init(classProducer.getFunctionContext(), container);
     quickSorter.setDataBuffer(quickSorterBuffer);
   }
 
   @Override
-  public void addBatch(RecordBatchData data, BufferAllocator copyTargetAllocator) throws SchemaChangeException {
-    // No need to sort individual batches here, will sort all at end, just insert the values into the
+  public void addBatch(RecordBatchData data, BufferAllocator copyTargetAllocator)
+      throws SchemaChangeException {
+    // No need to sort individual batches here, will sort all at end, just insert the values into
+    // the
     // quick sorter implementation here.
     quickSorter.add(data);
   }

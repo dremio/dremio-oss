@@ -15,16 +15,6 @@
  */
 package com.dremio.exec.store;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
-
-import org.apache.arrow.memory.OutOfMemoryException;
-import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.util.TransferPair;
-
 import com.carrotsearch.hppc.IntHashSet;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
@@ -55,6 +45,14 @@ import com.dremio.sabot.op.scan.ScanOperator;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+import org.apache.arrow.memory.OutOfMemoryException;
+import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.util.TransferPair;
 
 public class CoercionReader extends AbstractRecordReader {
   private static final boolean DEBUG_PRINT = false;
@@ -74,7 +72,11 @@ public class CoercionReader extends AbstractRecordReader {
   protected Stopwatch javaCodeGenWatch = Stopwatch.createUnstarted();
   protected Stopwatch gandivaCodeGenWatch = Stopwatch.createUnstarted();
 
-  public CoercionReader(OperatorContext context, List<SchemaPath> columns, RecordReader inner, BatchSchema targetSchema) {
+  public CoercionReader(
+      OperatorContext context,
+      List<SchemaPath> columns,
+      RecordReader inner,
+      BatchSchema targetSchema) {
     super(context, columns);
     this.mutator = new SampleMutator(context.getAllocator());
     this.incoming = mutator.getContainer();
@@ -83,7 +85,11 @@ public class CoercionReader extends AbstractRecordReader {
     this.targetSchema = targetSchema;
     this.exprs = new ArrayList<>(targetSchema.getFieldCount());
     this.projectorOptions = new ExpressionEvaluationOptions(context.getOptions());
-    this.projectorOptions.setCodeGenOption(context.getOptions().getOption(ExecConstants.QUERY_EXEC_OPTION.getOptionName()).getStringVal());
+    this.projectorOptions.setCodeGenOption(
+        context
+            .getOptions()
+            .getOption(ExecConstants.QUERY_EXEC_OPTION.getOptionName())
+            .getStringVal());
   }
 
   protected void createCoercions() {
@@ -91,17 +97,20 @@ public class CoercionReader extends AbstractRecordReader {
       final FieldReference inputRef = FieldReference.getWithQuotedRef(field.getName());
       final CompleteType targetType = CompleteType.fromField(field);
       if (targetType.isUnion() || targetType.isComplex()) {
-        // we are assuming that map and list fields won't need coercion but inner reader may rely on sampling
-        // a handful of rows to figure out the schema and if the list/map is empty in those rows, the schema will be
+        // we are assuming that map and list fields won't need coercion but inner reader may rely on
+        // sampling
+        // a handful of rows to figure out the schema and if the list/map is empty in those rows,
+        // the schema will be
         // incomplete
         exprs.add(new NamedExpression(inputRef, inputRef));
-        // one way to fix this issue is to add the target field in the incoming container and rely on
+        // one way to fix this issue is to add the target field in the incoming container and rely
+        // on
         // schema learning to handle any changes we hit when reading from the underlying reader
         mutator.addField(field, TypeHelper.getValueVectorClass(field));
       } else {
         addExpression(field, inputRef);
       }
-      //TODO check that the expression type is a subset of the targetSchema type
+      // TODO check that the expression type is a subset of the targetSchema type
     }
   }
 
@@ -138,6 +147,7 @@ public class CoercionReader extends AbstractRecordReader {
 
   /**
    * set up projector to write output to given container
+   *
    * @param projectorOutput
    */
   protected void setupProjector(VectorContainer projectorOutput) {
@@ -149,24 +159,38 @@ public class CoercionReader extends AbstractRecordReader {
       return;
     }
 
-    final ClassGenerator<Projector> cg = context.getClassProducer().createGenerator(Projector.TEMPLATE_DEFINITION).getRoot();
+    final ClassGenerator<Projector> cg =
+        context.getClassProducer().createGenerator(Projector.TEMPLATE_DEFINITION).getRoot();
     final IntHashSet transferFieldIds = new IntHashSet();
     final List<TransferPair> transfers = Lists.newArrayList();
 
     try {
-      splitter = ProjectOperator.createSplitterWithExpressions(incoming, exprs, transfers, cg,
-          transferFieldIds, context, projectorOptions, projectorOutput, targetSchema);
+      splitter =
+          ProjectOperator.createSplitterWithExpressions(
+              incoming,
+              exprs,
+              transfers,
+              cg,
+              transferFieldIds,
+              context,
+              projectorOptions,
+              projectorOutput,
+              targetSchema);
       splitter.setupProjector(projectorOutput, javaCodeGenWatch, gandivaCodeGenWatch);
     } catch (Exception e) {
       throw Throwables.propagate(e);
     }
     javaCodeGenWatch.start();
     this.projector = cg.getCodeGenerator().getImplementationClass();
-    this.projector.setup(context.getFunctionContext(), incoming, projectorOutput, transfers, name -> null);
+    this.projector.setup(
+        context.getFunctionContext(), incoming, projectorOutput, transfers, name -> null);
     javaCodeGenWatch.stop();
     OperatorStats stats = context.getStats();
-    stats.addLongStat(ScanOperator.Metric.JAVA_BUILD_TIME_NS, javaCodeGenWatch.elapsed(TimeUnit.NANOSECONDS));
-    stats.addLongStat(ScanOperator.Metric.GANDIVA_BUILD_TIME_NS, gandivaCodeGenWatch.elapsed(TimeUnit.NANOSECONDS));
+    stats.addLongStat(
+        ScanOperator.Metric.JAVA_BUILD_TIME_NS, javaCodeGenWatch.elapsed(TimeUnit.NANOSECONDS));
+    stats.addLongStat(
+        ScanOperator.Metric.GANDIVA_BUILD_TIME_NS,
+        gandivaCodeGenWatch.elapsed(TimeUnit.NANOSECONDS));
     gandivaCodeGenWatch.reset();
     javaCodeGenWatch.reset();
 
@@ -221,8 +245,11 @@ public class CoercionReader extends AbstractRecordReader {
       }
     }
     OperatorStats stats = context.getStats();
-    stats.addLongStat(ScanOperator.Metric.JAVA_EXECUTE_TIME_NS, javaCodeGenWatch.elapsed(TimeUnit.NANOSECONDS));
-    stats.addLongStat(ScanOperator.Metric.GANDIVA_EXECUTE_TIME_NS, gandivaCodeGenWatch.elapsed(TimeUnit.NANOSECONDS));
+    stats.addLongStat(
+        ScanOperator.Metric.JAVA_EXECUTE_TIME_NS, javaCodeGenWatch.elapsed(TimeUnit.NANOSECONDS));
+    stats.addLongStat(
+        ScanOperator.Metric.GANDIVA_EXECUTE_TIME_NS,
+        gandivaCodeGenWatch.elapsed(TimeUnit.NANOSECONDS));
     javaCodeGenWatch.reset();
     gandivaCodeGenWatch.reset();
   }
@@ -234,7 +261,14 @@ public class CoercionReader extends AbstractRecordReader {
 
   protected void debugPrint(VectorContainer projectorOut) {
     FragmentHandle h = context.getFragmentHandle();
-    String op = String.format("CoercionReader:%d:%d:%d, %s --> %s", h.getMajorFragmentId(), h.getMinorFragmentId(), context.getStats().getOperatorId(), incoming.getSchema(), projectorOut.getSchema());
+    String op =
+        String.format(
+            "CoercionReader:%d:%d:%d, %s --> %s",
+            h.getMajorFragmentId(),
+            h.getMinorFragmentId(),
+            context.getStats().getOperatorId(),
+            incoming.getSchema(),
+            projectorOut.getSchema());
     System.out.println(op);
     mutator.getContainer().setAllCount(2);
     BatchPrinter.printBatch(mutator.getContainer(), true, false);

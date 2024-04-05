@@ -18,12 +18,15 @@ package com.dremio.services.fabric.simple;
 import com.google.protobuf.MessageLite;
 
 /**
- * An abstract implementation of receiver handler that manage the default response and request fields.
+ * An abstract implementation of receiver handler that manage the default response and request
+ * fields.
  *
  * @param <REQUEST>
  * @param <RESPONSE>
  */
-public abstract class AbstractReceiveHandler<REQUEST extends MessageLite, RESPONSE extends MessageLite> implements ReceiveHandler<REQUEST, RESPONSE> {
+public abstract class AbstractReceiveHandler<
+        REQUEST extends MessageLite, RESPONSE extends MessageLite>
+    implements ReceiveHandler<REQUEST, RESPONSE> {
 
   private final REQUEST defaultRequest;
   private final RESPONSE defaultResponse;
@@ -42,5 +45,4 @@ public abstract class AbstractReceiveHandler<REQUEST extends MessageLite, RESPON
   public REQUEST getDefaultRequest() {
     return defaultRequest;
   }
-
 }

@@ -17,21 +17,6 @@ package com.dremio.dac.server;
 
 import static java.lang.annotation.ElementType.FIELD;
 
-import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-import javax.validation.ConstraintViolation;
-import javax.validation.Validation;
-import javax.validation.Validator;
-
-import org.hibernate.validator.HibernateValidator;
-import org.hibernate.validator.HibernateValidatorConfiguration;
-import org.hibernate.validator.cfg.ConstraintMapping;
-import org.hibernate.validator.cfg.defs.NotBlankDef;
-import org.hibernate.validator.cfg.defs.NotEmptyDef;
-import org.hibernate.validator.cfg.defs.NotNullDef;
-
 import com.dremio.dac.model.common.ValidationErrorMessages;
 import com.dremio.dac.proto.model.dataset.Dimension;
 import com.dremio.dac.proto.model.dataset.FieldConvertTextToDate;
@@ -48,84 +33,125 @@ import com.dremio.dac.proto.model.dataset.TransformSorts;
 import com.dremio.dac.proto.model.dataset.TransformSplitByDataType;
 import com.dremio.dac.proto.model.dataset.TransformUpdateSQL;
 import com.dremio.dac.service.errors.ClientErrorException;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import javax.validation.ConstraintViolation;
+import javax.validation.Validation;
+import javax.validation.Validator;
+import org.hibernate.validator.HibernateValidator;
+import org.hibernate.validator.HibernateValidatorConfiguration;
+import org.hibernate.validator.cfg.ConstraintMapping;
+import org.hibernate.validator.cfg.defs.NotBlankDef;
+import org.hibernate.validator.cfg.defs.NotEmptyDef;
+import org.hibernate.validator.cfg.defs.NotNullDef;
 
-/**
- * general bean validation
- */
+/** general bean validation */
 public class InputValidation {
 
   private final Validator validator;
 
   public InputValidation() {
 
-    HibernateValidatorConfiguration config = Validation.byProvider(HibernateValidator.class).configure();
-    this.validator = config
-        .addMapping(configureTransforms(config.createConstraintMapping()))
-        .buildValidatorFactory()
-        .getValidator();
+    HibernateValidatorConfiguration config =
+        Validation.byProvider(HibernateValidator.class).configure();
+    this.validator =
+        config
+            .addMapping(configureTransforms(config.createConstraintMapping()))
+            .buildValidatorFactory()
+            .getValidator();
   }
 
-
   private ConstraintMapping configureTransforms(ConstraintMapping constraints) {
-    constraints.type(TransformSort.class)
-    .property("sortedColumnName", FIELD).constraint(new NotBlankDef());
+    constraints
+        .type(TransformSort.class)
+        .property("sortedColumnName", FIELD)
+        .constraint(new NotBlankDef());
     //  order
 
-    constraints.type(TransformSorts.class)
-    .property("columns", FIELD).constraint(new NotEmptyDef());
+    constraints.type(TransformSorts.class).property("columns", FIELD).constraint(new NotEmptyDef());
 
-    constraints.type(TransformDrop.class)
-    .property("droppedColumnName", FIELD).constraint(new NotBlankDef());
+    constraints
+        .type(TransformDrop.class)
+        .property("droppedColumnName", FIELD)
+        .constraint(new NotBlankDef());
 
-    constraints.type(TransformRename.class)
-    .property("oldColumnName", FIELD).constraint(new NotBlankDef())
-    .property("newColumnName", FIELD).constraint(new NotBlankDef());
+    constraints
+        .type(TransformRename.class)
+        .property("oldColumnName", FIELD)
+        .constraint(new NotBlankDef())
+        .property("newColumnName", FIELD)
+        .constraint(new NotBlankDef());
 
-    constraints.type(TransformAddCalculatedField.class)
-    .property("newColumnName", FIELD).constraint(new NotBlankDef())
-    .property("expression", FIELD).constraint(new NotBlankDef());
+    constraints
+        .type(TransformAddCalculatedField.class)
+        .property("newColumnName", FIELD)
+        .constraint(new NotBlankDef())
+        .property("expression", FIELD)
+        .constraint(new NotBlankDef());
 
-    constraints.type(TransformUpdateSQL.class)
-    .property("sql", FIELD).constraint(new NotBlankDef());
+    constraints.type(TransformUpdateSQL.class).property("sql", FIELD).constraint(new NotBlankDef());
 
-    constraints.type(TransformField.class)
-    .property("sourceColumnName", FIELD).constraint(new NotBlankDef())
-    .property("fieldTransformation", FIELD).constraint(new NotNullDef());
+    constraints
+        .type(TransformField.class)
+        .property("sourceColumnName", FIELD)
+        .constraint(new NotBlankDef())
+        .property("fieldTransformation", FIELD)
+        .constraint(new NotNullDef());
     //    newColumnName
     //    dropSourceColumn
 
-    constraints.type(FieldConvertTextToDate.class)
-    .property("format", FIELD).constraint(new NotBlankDef());
+    constraints
+        .type(FieldConvertTextToDate.class)
+        .property("format", FIELD)
+        .constraint(new NotBlankDef());
     // optional but one of the date/time types:
     // .property("desiredType", FIELD).constraint(new ());
 
-    constraints.type(TransformConvertToSingleType.class)
-    .property("sourceColumnName", FIELD).constraint(new NotBlankDef())
-    .property("newColumnName", FIELD).constraint(new NotBlankDef())
-    .property("dropSourceColumn", FIELD).constraint(new NotNullDef())
-    .property("desiredType", FIELD).constraint(new NotNullDef())
-    .property("castWhenPossible", FIELD).constraint(new NotNullDef())
-    .property("actionForNonMatchingValue", FIELD).constraint(new NotNullDef());
+    constraints
+        .type(TransformConvertToSingleType.class)
+        .property("sourceColumnName", FIELD)
+        .constraint(new NotBlankDef())
+        .property("newColumnName", FIELD)
+        .constraint(new NotBlankDef())
+        .property("dropSourceColumn", FIELD)
+        .constraint(new NotNullDef())
+        .property("desiredType", FIELD)
+        .constraint(new NotNullDef())
+        .property("castWhenPossible", FIELD)
+        .constraint(new NotNullDef())
+        .property("actionForNonMatchingValue", FIELD)
+        .constraint(new NotNullDef());
     //      defaultValue // optional
 
-    constraints.type(TransformSplitByDataType.class)
-    .property("sourceColumnName", FIELD).constraint(new NotBlankDef())
-    .property("newColumnNamePrefix", FIELD).constraint(new NotBlankDef())
-    .property("dropSourceColumn", FIELD).constraint(new NotNullDef())
-    .property("selectedTypes", FIELD).constraint(new NotEmptyDef());
+    constraints
+        .type(TransformSplitByDataType.class)
+        .property("sourceColumnName", FIELD)
+        .constraint(new NotBlankDef())
+        .property("newColumnNamePrefix", FIELD)
+        .constraint(new NotBlankDef())
+        .property("dropSourceColumn", FIELD)
+        .constraint(new NotNullDef())
+        .property("selectedTypes", FIELD)
+        .constraint(new NotEmptyDef());
 
-    constraints.type(TransformFilter.class)
-    .property("sourceColumnName", FIELD).constraint(new NotBlankDef())
-    .property("filter", FIELD).constraint(new NotNullDef());
+    constraints
+        .type(TransformFilter.class)
+        .property("sourceColumnName", FIELD)
+        .constraint(new NotBlankDef())
+        .property("filter", FIELD)
+        .constraint(new NotNullDef());
     //      keepNull
     //        exclude
 
-    constraints.type(Dimension.class)
-    .property("column", FIELD).constraint(new NotBlankDef());
+    constraints.type(Dimension.class).property("column", FIELD).constraint(new NotBlankDef());
 
-    constraints.type(Measure.class)
-    .property("column", FIELD).constraint(new NotBlankDef())
-    .property("type", FIELD).constraint(new NotNullDef());
+    constraints
+        .type(Measure.class)
+        .property("column", FIELD)
+        .constraint(new NotBlankDef())
+        .property("type", FIELD)
+        .constraint(new NotNullDef());
 
     constraints.type(TransformGroupBy.class).constraint(new TransformGroupByConstraintDef());
 
@@ -133,7 +159,7 @@ public class InputValidation {
   }
 
   public boolean isValidExtension(String extension) {
-    //pattern of length >= 1 for any alphanumeric character
+    // pattern of length >= 1 for any alphanumeric character
     final Pattern pattern = Pattern.compile("[a-zA-Z0-9]+");
     final Matcher matcher = pattern.matcher(extension);
     return matcher.matches();
@@ -141,6 +167,7 @@ public class InputValidation {
 
   /**
    * validate the input
+   *
    * @param o the object to validate
    */
   public void validate(Object o) throws ClientErrorException {

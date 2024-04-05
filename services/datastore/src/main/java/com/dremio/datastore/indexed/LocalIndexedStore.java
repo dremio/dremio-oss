@@ -15,8 +15,6 @@
  */
 package com.dremio.datastore.indexed;
 
-import java.util.List;
-
 import com.dremio.datastore.CoreIndexedStore;
 import com.dremio.datastore.LocalKVStore;
 import com.dremio.datastore.SearchTypes.SearchQuery;
@@ -24,10 +22,9 @@ import com.dremio.datastore.api.Document;
 import com.dremio.datastore.api.FindByCondition;
 import com.dremio.datastore.api.IndexedStore;
 import com.google.common.collect.Iterables;
+import java.util.List;
 
-/**
- * Index store implementation (runs on master node).
- */
+/** Index store implementation (runs on master node). */
 public class LocalIndexedStore<K, V> extends LocalKVStore<K, V> implements IndexedStore<K, V> {
 
   private final CoreIndexedStore<K, V> coreIndexedStore;
@@ -36,6 +33,7 @@ public class LocalIndexedStore<K, V> extends LocalKVStore<K, V> implements Index
     super(coreIndexedStore);
     this.coreIndexedStore = coreIndexedStore;
   }
+
   @Override
   public Iterable<Document<K, V>> find(FindByCondition find, FindOption... options) {
     return Iterables.transform(coreIndexedStore.find(find, options), this::fromDocument);

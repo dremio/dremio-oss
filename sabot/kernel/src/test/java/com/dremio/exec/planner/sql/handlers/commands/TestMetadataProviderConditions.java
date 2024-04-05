@@ -19,29 +19,26 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
+import com.dremio.exec.proto.UserProtos.LikeFilter;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.function.Predicate;
-
 import org.junit.Test;
 
-import com.dremio.exec.proto.UserProtos.LikeFilter;
-
-/**
- * Tests {@code MetadataProviderConditions}
- */
+/** Tests {@code MetadataProviderConditions} */
 public class TestMetadataProviderConditions {
 
   @Test
   public void testTableTypesEmptyList() {
-    assertSame(MetadataProviderConditions.ALWAYS_TRUE,
-      MetadataProviderConditions.getTableTypePredicate(Collections.emptyList()));
+    assertSame(
+        MetadataProviderConditions.ALWAYS_TRUE,
+        MetadataProviderConditions.getTableTypePredicate(Collections.emptyList()));
   }
 
   @Test
   public void testTableTypes() {
     Predicate<String> filter =
-      MetadataProviderConditions.getTableTypePredicate(Arrays.asList("foo", "bar"));
+        MetadataProviderConditions.getTableTypePredicate(Arrays.asList("foo", "bar"));
 
     assertTrue(filter.test("foo"));
     assertTrue(filter.test("bar"));
@@ -53,17 +50,21 @@ public class TestMetadataProviderConditions {
 
   @Test
   public void testLikeFilterAlwaysTrue() {
-    assertSame(MetadataProviderConditions.ALWAYS_TRUE,
-      MetadataProviderConditions.getCatalogNamePredicate(null));
-    assertSame(MetadataProviderConditions.ALWAYS_TRUE,
-      MetadataProviderConditions.getCatalogNamePredicate(newLikeFilter(null, "\\")));
-    assertSame(MetadataProviderConditions.ALWAYS_TRUE,
-      MetadataProviderConditions.getCatalogNamePredicate(newLikeFilter("%", "\\")));
+    assertSame(
+        MetadataProviderConditions.ALWAYS_TRUE,
+        MetadataProviderConditions.getCatalogNamePredicate(null));
+    assertSame(
+        MetadataProviderConditions.ALWAYS_TRUE,
+        MetadataProviderConditions.getCatalogNamePredicate(newLikeFilter(null, "\\")));
+    assertSame(
+        MetadataProviderConditions.ALWAYS_TRUE,
+        MetadataProviderConditions.getCatalogNamePredicate(newLikeFilter("%", "\\")));
   }
 
   @Test
   public void testLikeFilter() {
-    Predicate<String> filter = MetadataProviderConditions.getCatalogNamePredicate(newLikeFilter("abc", "\\"));
+    Predicate<String> filter =
+        MetadataProviderConditions.getCatalogNamePredicate(newLikeFilter("abc", "\\"));
     assertTrue(filter.test("abc"));
     assertFalse(filter.test("abcd"));
     assertTrue(filter.test("ABC"));
@@ -71,7 +72,8 @@ public class TestMetadataProviderConditions {
 
   @Test
   public void testLikeFilterMixedCase() {
-    Predicate<String> filter = MetadataProviderConditions.getCatalogNamePredicate(newLikeFilter("AbC", "\\"));
+    Predicate<String> filter =
+        MetadataProviderConditions.getCatalogNamePredicate(newLikeFilter("AbC", "\\"));
     assertTrue(filter.test("abc"));
     assertFalse(filter.test("abcd"));
     assertFalse(filter.test("aabc"));
@@ -81,10 +83,16 @@ public class TestMetadataProviderConditions {
   @Test
   public void testCreateFilterAlwaysTrue() {
     assertFalse(MetadataProviderConditions.createConjunctiveQuery(null, null).isPresent());
-    assertFalse(MetadataProviderConditions.createConjunctiveQuery(null, newLikeFilter("%", null)).isPresent());
-    assertFalse(MetadataProviderConditions.createConjunctiveQuery(newLikeFilter("%", null), null).isPresent());
-    assertFalse(MetadataProviderConditions.createConjunctiveQuery(newLikeFilter("%", null), newLikeFilter("%", null))
-      .isPresent());
+    assertFalse(
+        MetadataProviderConditions.createConjunctiveQuery(null, newLikeFilter("%", null))
+            .isPresent());
+    assertFalse(
+        MetadataProviderConditions.createConjunctiveQuery(newLikeFilter("%", null), null)
+            .isPresent());
+    assertFalse(
+        MetadataProviderConditions.createConjunctiveQuery(
+                newLikeFilter("%", null), newLikeFilter("%", null))
+            .isPresent());
   }
 
   private static LikeFilter newLikeFilter(String pattern, String escape) {

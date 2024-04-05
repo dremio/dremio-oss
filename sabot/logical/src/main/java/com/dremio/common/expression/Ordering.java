@@ -15,10 +15,9 @@
  */
 package com.dremio.common.expression;
 
-import java.util.Iterator;
-
 import com.dremio.common.expression.visitors.ExprVisitor;
 import com.google.common.collect.Iterators;
+import java.util.Iterator;
 
 public class Ordering extends LogicalExpressionBase implements Iterable<LogicalExpression> {
   private final LogicalExpression field;
@@ -44,7 +43,7 @@ public class Ordering extends LogicalExpressionBase implements Iterable<LogicalE
   }
 
   @Override
-  public <T, V, E extends Exception> T accept(ExprVisitor<T, V, E> visitor, V value) throws E{
+  public <T, V, E extends Exception> T accept(ExprVisitor<T, V, E> visitor, V value) throws E {
     return visitor.visitOrdering(this, value);
   }
 
@@ -61,11 +60,17 @@ public class Ordering extends LogicalExpressionBase implements Iterable<LogicalE
   @Override
   public CompleteType getCompleteType() {
     throw new UnsupportedOperationException(
-      "No return type as FunctionCall is not a materialized expression");
+        "No return type as FunctionCall is not a materialized expression");
   }
 
   @Override
   public String toString() {
-    return "OrderExpression [field=" + field + ", direction=" + direction + ", nullDirection=" + nullDirection + "]";
+    return "OrderExpression [field="
+        + field
+        + ", direction="
+        + direction
+        + ", nullDirection="
+        + nullDirection
+        + "]";
   }
 }

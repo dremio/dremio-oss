@@ -25,19 +25,6 @@ import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
-import java.nio.charset.StandardCharsets;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.BiConsumer;
-
-import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.VarBinaryVector;
-import org.apache.iceberg.DataFile;
-import org.apache.iceberg.DremioManifestReaderUtils.ManifestEntryWrapper;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.ExecConstants;
@@ -52,6 +39,17 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorContextImpl;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf;
 import com.google.common.collect.ImmutableList;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiConsumer;
+import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.VarBinaryVector;
+import org.apache.iceberg.DataFile;
+import org.apache.iceberg.DremioManifestReaderUtils.ManifestEntryWrapper;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
 public class TestSplitGeneratingDatafileProcessor extends BaseTestQuery {
   private final int startIndex = 0;
@@ -66,11 +64,15 @@ public class TestSplitGeneratingDatafileProcessor extends BaseTestQuery {
   @Before
   public void initialiseSplitGenDatafileProcessor() throws Exception {
     OperatorContext operatorContext = getOperatorContext();
-    blockSize = operatorContext.getOptions().getOption(ExecConstants.PARQUET_SPLIT_SIZE).getNumVal();
-    TableFunctionContext tableFunctionContext = getTableFunctionContext(DataProcessorType.SPLIT_GEN);
+    blockSize =
+        operatorContext.getOptions().getOption(ExecConstants.PARQUET_SPLIT_SIZE).getNumVal();
+    TableFunctionContext tableFunctionContext =
+        getTableFunctionContext(DataProcessorType.SPLIT_GEN);
     FileSystemPlugin plugin = BaseTestQuery.getMockedFileSystemPlugin();
-    when(plugin.createSplitCreator(operatorContext,null, false)).thenReturn(new ParquetSplitCreator(operatorContext, true));
-    dataFileProcessor = new SplitGeneratingDatafileProcessor(operatorContext, plugin, null, tableFunctionContext);
+    when(plugin.createSplitCreator(operatorContext, null, false))
+        .thenReturn(new ParquetSplitCreator(operatorContext, true));
+    dataFileProcessor =
+        new SplitGeneratingDatafileProcessor(operatorContext, plugin, null, tableFunctionContext);
     dataFileProcessor = spy(dataFileProcessor);
     incoming = buildIncomingVector();
     outgoing = getOperatorContext().createOutputVectorContainer();
@@ -90,15 +92,18 @@ public class TestSplitGeneratingDatafileProcessor extends BaseTestQuery {
     DataFile df1 = getDatafile("/path/to/data-1.parquet", blockSize - 1024);
     ManifestEntryWrapper<DataFile> me1 = new ManifestEntryWrapper<>(df1, 0);
     int splitGenerated, totalSplitGenerated = 0;
-    splitGenerated = dataFileProcessor.processManifestEntry(me1, startIndex + totalSplitGenerated, maxOutputCount - totalSplitGenerated);
+    splitGenerated =
+        dataFileProcessor.processManifestEntry(
+            me1, startIndex + totalSplitGenerated, maxOutputCount - totalSplitGenerated);
     totalSplitGenerated += splitGenerated;
     assertEquals(splitGenerated, 1);
     assertEquals(totalSplitGenerated, 1);
     dataFileProcessor.closeManifestEntry();
 
     SplitAndPartitionInfo splitAndPartitionInfo = extractSplit(splitVector, 0);
-    ParquetProtobuf.ParquetBlockBasedSplitXAttr xAttr = ParquetProtobuf.ParquetBlockBasedSplitXAttr
-      .parseFrom(splitAndPartitionInfo.getDatasetSplitInfo().getExtendedProperty());
+    ParquetProtobuf.ParquetBlockBasedSplitXAttr xAttr =
+        ParquetProtobuf.ParquetBlockBasedSplitXAttr.parseFrom(
+            splitAndPartitionInfo.getDatasetSplitInfo().getExtendedProperty());
     assertEquals(blockSize - 1024, xAttr.getFileLength());
   }
 
@@ -107,38 +112,49 @@ public class TestSplitGeneratingDatafileProcessor extends BaseTestQuery {
     DataFile df1 = getDatafile("/path/to/data-1.parquet", blockSize * 2 + 1024);
     ManifestEntryWrapper<DataFile> me1 = new ManifestEntryWrapper<>(df1, 0);
     int splitGenerated, totalSplitGenerated = 0;
-    splitGenerated = dataFileProcessor.processManifestEntry(me1, startIndex + totalSplitGenerated, maxOutputCount - totalSplitGenerated);
+    splitGenerated =
+        dataFileProcessor.processManifestEntry(
+            me1, startIndex + totalSplitGenerated, maxOutputCount - totalSplitGenerated);
     totalSplitGenerated += splitGenerated;
     assertEquals(splitGenerated, 3);
 
-    splitGenerated = dataFileProcessor.processManifestEntry(me1, startIndex + totalSplitGenerated, maxOutputCount - totalSplitGenerated);
+    splitGenerated =
+        dataFileProcessor.processManifestEntry(
+            me1, startIndex + totalSplitGenerated, maxOutputCount - totalSplitGenerated);
     totalSplitGenerated += splitGenerated;
     assertEquals(splitGenerated, 0);
     dataFileProcessor.closeManifestEntry();
 
     DataFile df2 = getDatafile("/path/to/data-2.parquet", blockSize * 1 + 1024);
     ManifestEntryWrapper<DataFile> me2 = new ManifestEntryWrapper<>(df2, 0);
-    splitGenerated = dataFileProcessor.processManifestEntry(me2, startIndex + totalSplitGenerated, maxOutputCount - totalSplitGenerated);
+    splitGenerated =
+        dataFileProcessor.processManifestEntry(
+            me2, startIndex + totalSplitGenerated, maxOutputCount - totalSplitGenerated);
     totalSplitGenerated += splitGenerated;
     assertEquals(splitGenerated, 2);
 
-    splitGenerated = dataFileProcessor.processManifestEntry(me2, startIndex + totalSplitGenerated, maxOutputCount - totalSplitGenerated);
+    splitGenerated =
+        dataFileProcessor.processManifestEntry(
+            me2, startIndex + totalSplitGenerated, maxOutputCount - totalSplitGenerated);
     totalSplitGenerated += splitGenerated;
     assertEquals(splitGenerated, 0);
     dataFileProcessor.closeManifestEntry();
 
     DataFile df3 = getDatafile("/path/to/data-3.parquet", blockSize * 1 + 1024);
     ManifestEntryWrapper<DataFile> me3 = new ManifestEntryWrapper<>(df3, 0);
-    splitGenerated = dataFileProcessor.processManifestEntry(me3, startIndex + totalSplitGenerated, maxOutputCount - totalSplitGenerated);
+    splitGenerated =
+        dataFileProcessor.processManifestEntry(
+            me3, startIndex + totalSplitGenerated, maxOutputCount - totalSplitGenerated);
     totalSplitGenerated += splitGenerated;
     assertEquals(splitGenerated, 0);
     dataFileProcessor.closeManifestEntry();
 
-    //Test whether split no. 3 at index 2 is from data-1.parquet and its size is 1024
+    // Test whether split no. 3 at index 2 is from data-1.parquet and its size is 1024
     // because sizeOf(Data-1.parquet)/blocksize = 1024
     SplitAndPartitionInfo splitAndPartitionInfo = extractSplit(splitVector, 2);
-    ParquetProtobuf.ParquetBlockBasedSplitXAttr xAttr = ParquetProtobuf.ParquetBlockBasedSplitXAttr
-      .parseFrom(splitAndPartitionInfo.getDatasetSplitInfo().getExtendedProperty());
+    ParquetProtobuf.ParquetBlockBasedSplitXAttr xAttr =
+        ParquetProtobuf.ParquetBlockBasedSplitXAttr.parseFrom(
+            splitAndPartitionInfo.getDatasetSplitInfo().getExtendedProperty());
     assertEquals("/path/to/data-1.parquet", xAttr.getPath());
     assertEquals(1024, xAttr.getLength());
     assertEquals(totalSplitGenerated, 5);
@@ -146,7 +162,13 @@ public class TestSplitGeneratingDatafileProcessor extends BaseTestQuery {
 
   private OperatorContext getOperatorContext() {
     SabotContext sabotContext = getSabotContext();
-    return new OperatorContextImpl(sabotContext.getConfig(), sabotContext.getDremioConfig(), getAllocator(), sabotContext.getOptionManager(), 10, sabotContext.getExpressionSplitCache());
+    return new OperatorContextImpl(
+        sabotContext.getConfig(),
+        sabotContext.getDremioConfig(),
+        getAllocator(),
+        sabotContext.getOptionManager(),
+        10,
+        sabotContext.getExpressionSplitCache());
   }
 
   private VectorContainer buildIncomingVector() {
@@ -157,13 +179,14 @@ public class TestSplitGeneratingDatafileProcessor extends BaseTestQuery {
     incoming.addCollection(incomingVectors);
     incomingVectors.stream().forEach(ValueVector::allocateNew);
     AtomicInteger counter = new AtomicInteger(0);
-    BiConsumer<String, String> incomingRow = (ManifestFile, DummyColIDByte) -> {
-      int idx = counter.getAndIncrement();
-      manifestVector.set(idx, ManifestFile.getBytes(StandardCharsets.UTF_8));
-      if (DummyColIDByte != null) {
-        colIdVector.set(idx, DummyColIDByte.getBytes(StandardCharsets.UTF_8));
-      }
-    };
+    BiConsumer<String, String> incomingRow =
+        (ManifestFile, DummyColIDByte) -> {
+          int idx = counter.getAndIncrement();
+          manifestVector.set(idx, ManifestFile.getBytes(StandardCharsets.UTF_8));
+          if (DummyColIDByte != null) {
+            colIdVector.set(idx, DummyColIDByte.getBytes(StandardCharsets.UTF_8));
+          }
+        };
     incomingRow.accept("mfile1.avro", "coldID");
     incomingRow.accept("mfile2.avro", null);
     incomingRow.accept("mfile3.avro", null);

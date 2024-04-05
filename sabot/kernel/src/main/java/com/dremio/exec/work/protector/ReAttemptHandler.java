@@ -20,8 +20,8 @@ import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.proto.model.attempts.AttemptReason;
 
 /**
- * Encapsulates the re-attempt logic: when re-attempts are possible, and how various re-attempt reasons should be
- * handled.
+ * Encapsulates the re-attempt logic: when re-attempts are possible, and how various re-attempt
+ * reasons should be handled.
  */
 public interface ReAttemptHandler {
 
@@ -32,13 +32,13 @@ public interface ReAttemptHandler {
    */
   boolean hasOOM();
 
-  /**
-   * allows the handler to reset its internal state if needed
-   */
+  /** allows the handler to reset its internal state if needed */
   void newAttempt();
 
   /**
-   * Called by Foreman before re-attempting a query to check if it's possible to recover from a particular failure
+   * Called by Foreman before re-attempting a query to check if it's possible to recover from a
+   * particular failure
+   *
    * @param context reattempt context
    * @return attempt reason, NONE if re-attempt not possible
    */
@@ -47,6 +47,7 @@ public interface ReAttemptHandler {
   /**
    * Called whenever a data batch is about to be sent to the client.<br>
    * Can be used to check if schema changes are allowed and if future schema changes are recoverable
+   *
    * @param result data batch about to be sent to the client
    * @return data batch, patched if necessary, that should be sent to the client
    * @throws UserException if schema change is not supported

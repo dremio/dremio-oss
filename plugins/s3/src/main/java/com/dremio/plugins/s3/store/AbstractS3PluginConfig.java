@@ -17,34 +17,30 @@ package com.dremio.plugins.s3.store;
 
 import static com.dremio.plugins.s3.store.S3StoragePlugin.ACCESS_KEY_PROVIDER;
 
-import java.util.List;
-
-import javax.validation.constraints.Max;
-import javax.validation.constraints.Min;
-
-import org.apache.hadoop.fs.s3a.Constants;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.conf.DefaultCtasFormatSelection;
 import com.dremio.exec.catalog.conf.DisplayMetadata;
 import com.dremio.exec.catalog.conf.NotMetadataImpacting;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.catalog.conf.Secret;
+import com.dremio.exec.catalog.conf.SecretRef;
 import com.dremio.exec.store.dfs.CacheProperties;
 import com.dremio.exec.store.dfs.FileSystemConf;
 import com.dremio.exec.store.dfs.SchemaMutability;
 import com.dremio.io.file.Path;
 import com.dremio.options.OptionManager;
 import com.fasterxml.jackson.annotation.JsonIgnore;
-
 import io.protostuff.Tag;
+import java.util.List;
+import javax.validation.constraints.Max;
+import javax.validation.constraints.Min;
+import org.apache.hadoop.fs.s3a.Constants;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * Connection Configuration for S3.
- */
-public abstract class AbstractS3PluginConfig extends FileSystemConf<AbstractS3PluginConfig, S3StoragePlugin> {
+/** Connection Configuration for S3. */
+public abstract class AbstractS3PluginConfig
+    extends FileSystemConf<AbstractS3PluginConfig, S3StoragePlugin> {
   @Tag(1)
   @DisplayMetadata(label = "AWS Access Key")
   public String accessKey = "";
@@ -52,7 +48,7 @@ public abstract class AbstractS3PluginConfig extends FileSystemConf<AbstractS3Pl
   @Tag(2)
   @Secret
   @DisplayMetadata(label = "AWS Access Secret")
-  public String accessSecret = "";
+  public SecretRef accessSecret = SecretRef.empty();
 
   @Tag(3)
   @NotMetadataImpacting
@@ -94,7 +90,9 @@ public abstract class AbstractS3PluginConfig extends FileSystemConf<AbstractS3Pl
   @Tag(12)
   @NotMetadataImpacting
   @Min(value = 1, message = "Max percent of total available cache space must be between 1 and 100")
-  @Max(value = 100, message = "Max percent of total available cache space must be between 1 and 100")
+  @Max(
+      value = 100,
+      message = "Max percent of total available cache space must be between 1 and 100")
   @DisplayMetadata(label = "Max percent of total available cache space to use when possible")
   public int maxCacheSpacePct = 100;
 
@@ -185,17 +183,19 @@ public abstract class AbstractS3PluginConfig extends FileSystemConf<AbstractS3Pl
     };
   }
 
-  protected static String getAccessKeyProvider(List<Property> finalProperties,
-                                               String accessKey,
-                                               String accessSecret) {
+  protected static String getAccessKeyProvider(
+      List<Property> finalProperties, String accessKey, SecretRef accessSecret) {
     Logger logger = LoggerFactory.getLogger(AbstractS3PluginConfig.class);
-    if (("".equals(accessKey)) || ("".equals(accessSecret))) {
+    if (("".equals(accessKey)) || (SecretRef.isNullOrEmpty(accessSecret))) {
       throw UserException.validationError()
-              .message("Failure creating S3 connection. You must provide AWS Access Key and AWS Access Secret.")
-              .build(logger);
+          .message(
+              "Failure creating S3 connection. You must provide AWS Access Key and AWS Access Secret.")
+          .build(logger);
     }
     finalProperties.add(new Property(Constants.ACCESS_KEY, accessKey));
-    finalProperties.add(new Property(Constants.SECRET_KEY, accessSecret));
+    // TODO (DX-87446): Instead of resolving here, pass raw secret and define a custom
+    // AWSCredentialsProvider
+    finalProperties.add(new Property(Constants.SECRET_KEY, accessSecret.get()));
     return ACCESS_KEY_PROVIDER;
   }
 }

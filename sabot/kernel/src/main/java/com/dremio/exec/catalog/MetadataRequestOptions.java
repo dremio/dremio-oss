@@ -15,20 +15,16 @@
  */
 package com.dremio.exec.catalog;
 
-import java.util.Map;
-
-import org.immutables.value.Value;
-
 import com.dremio.ValidatingGnarlyStyle;
 import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.map.CaseInsensitiveMap;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.service.namespace.NamespaceKey;
+import java.util.Map;
+import org.immutables.value.Value;
 
-/**
- * Metadata request options.
- */
+/** Metadata request options. */
 @Value.Immutable
 @ValidatingGnarlyStyle
 public abstract class MetadataRequestOptions {
@@ -41,12 +37,15 @@ public abstract class MetadataRequestOptions {
   }
 
   @Value.Default
-  public  CaseInsensitiveMap<VersionContext> getSourceVersionMapping() { return CaseInsensitiveMap.newHashMap(); } ;
+  public CaseInsensitiveMap<VersionContext> getSourceVersionMapping() {
+    return CaseInsensitiveMap.newHashMap();
+  }
+  ;
 
   /**
    * Consider the metadata valid only if it is newer than the given time.
-   * <p>
-   * By default, there is no lower bound.
+   *
+   * <p>By default, there is no lower bound.
    */
   @Value.Default
   public long newerThan() {
@@ -54,17 +53,15 @@ public abstract class MetadataRequestOptions {
   }
 
   /**
-   * If metadata validity should be checked.
-   * If set to false,
-   * -Completeness of the datasetConfig is still checked (see ManagedStoragePlugin#isComplete)
-   * -Validity - i.e freshness of metadata -schema, splits , partition info based on metadata policy is *not* checked.
-   * -newerThan() has no effect if this is set to false
-   * Change default to false when only if the following cases are desired :
-   *   - Cached version of a table or view from Dremio KV store that are complete
-   *   - Inline refresh will occur if DatasetConfig is incomplete
-   *   - Table from an External catalog - Nessie will be returned since metadata is always up to date
-   * <p>
-   * By default, the validity is checked.
+   * If metadata validity should be checked. If set to false, -Completeness of the datasetConfig is
+   * still checked (see ManagedStoragePlugin#isComplete) -Validity - i.e freshness of metadata
+   * -schema, splits , partition info based on metadata policy is *not* checked. -newerThan() has no
+   * effect if this is set to false Change default to false when only if the following cases are
+   * desired : - Cached version of a table or view from Dremio KV store that are complete - Inline
+   * refresh will occur if DatasetConfig is incomplete - Table from an External catalog - Nessie
+   * will be returned since metadata is always up to date
+   *
+   * <p>By default, the validity is checked.
    */
   @Value.Default
   public boolean checkValidity() {
@@ -72,13 +69,13 @@ public abstract class MetadataRequestOptions {
   }
 
   /**
-   * If this flag is set to true,
-   * - A null entry or shallow entry will not cause a promotion/inline refresh to occur
-   * Change default to true only if the following behavior is desired :
-   *   - Get only cached version of a table from Dremio KV store
-   *   - Get table from an External catalog - Nessie (These will be returned since they don't go through promotion)
-   * Note : By default, a null or shallow entry in Namepsace is considered "incomplete" and promotion will be
-   * attempted. Tables in Nessie are considered always valid and uptodate and promotion/refresh does not apply to them
+   * If this flag is set to true, - A null entry or shallow entry will not cause a promotion/inline
+   * refresh to occur Change default to true only if the following behavior is desired : - Get only
+   * cached version of a table from Dremio KV store - Get table from an External catalog - Nessie
+   * (These will be returned since they don't go through promotion) Note : By default, a null or
+   * shallow entry in Namepsace is considered "incomplete" and promotion will be attempted. Tables
+   * in Nessie are considered always valid and uptodate and promotion/refresh does not apply to them
+   *
    * <p>
    */
   @Value.Default
@@ -87,10 +84,10 @@ public abstract class MetadataRequestOptions {
   }
 
   /**
-   * If set to true and any versioned dataset is resolved using the default source version, then a validation
-   * exception is thrown.  This flag can be used to validate that the plan associated to a reflection refresh job
-   * or a view definition contains only table references that resolve using the AT SQL syntax or a source version
-   * mapping explicitly set by the caller.
+   * If set to true and any versioned dataset is resolved using the default source version, then a
+   * validation exception is thrown. This flag can be used to validate that the plan associated to a
+   * reflection refresh job or a view definition contains only table references that resolve using
+   * the AT SQL syntax or a source version mapping explicitly set by the caller.
    *
    * @return
    */
@@ -100,7 +97,8 @@ public abstract class MetadataRequestOptions {
   }
 
   /**
-   * If set to true, request Catalog to use caching namespace to reduce duplicated calls to KV store.
+   * If set to true, request Catalog to use caching namespace to reduce duplicated calls to KV
+   * store.
    *
    * @return
    */
@@ -110,7 +108,9 @@ public abstract class MetadataRequestOptions {
   }
 
   /**
-   * If set to true, request Catalog to use internal metadata table of Unlimited Splits dataset for retrieving TableMetadata.
+   * If set to true, request Catalog to use internal metadata table of Unlimited Splits dataset for
+   * retrieving TableMetadata.
+   *
    * @return
    */
   @Value.Default
@@ -118,35 +118,40 @@ public abstract class MetadataRequestOptions {
     return false;
   }
 
-  MetadataRequestOptions cloneWith(CatalogIdentity subject, NamespaceKey newDefaultSchema, boolean checkValidity) {
-    final SchemaConfig newSchemaConfig = SchemaConfig.newBuilder(subject)
-        .defaultSchema(newDefaultSchema)
-        .exposeInternalSources(getSchemaConfig().exposeInternalSources())
-        .setIgnoreAuthErrors(getSchemaConfig().getIgnoreAuthErrors())
-        .optionManager(getSchemaConfig().getOptions())
-        .setViewExpansionContext(getSchemaConfig().getViewExpansionContext())
-        .setDatasetValidityChecker(getSchemaConfig().getDatasetValidityChecker())
-        .build();
+  MetadataRequestOptions cloneWith(
+      CatalogIdentity subject, NamespaceKey newDefaultSchema, boolean checkValidity) {
+    final SchemaConfig newSchemaConfig =
+        SchemaConfig.newBuilder(subject)
+            .defaultSchema(newDefaultSchema)
+            .exposeInternalSources(getSchemaConfig().exposeInternalSources())
+            .setIgnoreAuthErrors(getSchemaConfig().getIgnoreAuthErrors())
+            .optionManager(getSchemaConfig().getOptions())
+            .setViewExpansionContext(getSchemaConfig().getViewExpansionContext())
+            .setDatasetValidityChecker(getSchemaConfig().getDatasetValidityChecker())
+            .build();
 
-    return new ImmutableMetadataRequestOptions.Builder().from(this)
+    return new ImmutableMetadataRequestOptions.Builder()
+        .from(this)
         .setSchemaConfig(newSchemaConfig)
         .setCheckValidity(checkValidity)
         .build();
   }
 
   MetadataRequestOptions cloneWith(Map<String, VersionContext> sourceVersionMapping) {
-    return new ImmutableMetadataRequestOptions.Builder().from(this)
-      .setSourceVersionMapping(CaseInsensitiveMap.newImmutableMap(sourceVersionMapping))
-      .build();
+    return new ImmutableMetadataRequestOptions.Builder()
+        .from(this)
+        .setSourceVersionMapping(CaseInsensitiveMap.newImmutableMap(sourceVersionMapping))
+        .build();
   }
 
   MetadataRequestOptions cloneWith(String sourceName, VersionContext versionContext) {
     Map<String, VersionContext> sourceVersionMapping = CaseInsensitiveMap.newHashMap();
     sourceVersionMapping.putAll(this.getSourceVersionMapping());
-    sourceVersionMapping.put(sourceName,versionContext);
-    return new ImmutableMetadataRequestOptions.Builder().from(this)
-      .setSourceVersionMapping(CaseInsensitiveMap.newImmutableMap(sourceVersionMapping))
-      .build();
+    sourceVersionMapping.put(sourceName, versionContext);
+    return new ImmutableMetadataRequestOptions.Builder()
+        .from(this)
+        .setSourceVersionMapping(CaseInsensitiveMap.newImmutableMap(sourceVersionMapping))
+        .build();
   }
 
   /**
@@ -165,9 +170,7 @@ public abstract class MetadataRequestOptions {
    * @return metadata request options
    */
   public static MetadataRequestOptions of(SchemaConfig schemaConfig) {
-    return newBuilder()
-      .setSchemaConfig(schemaConfig)
-      .build();
+    return newBuilder().setSchemaConfig(schemaConfig).build();
   }
 
   /**
@@ -177,11 +180,12 @@ public abstract class MetadataRequestOptions {
    * @param sourceVersionMapping source version map
    * @return metadata request options
    */
-  public static MetadataRequestOptions of(SchemaConfig schemaConfig, Map<String, VersionContext> sourceVersionMapping) {
+  public static MetadataRequestOptions of(
+      SchemaConfig schemaConfig, Map<String, VersionContext> sourceVersionMapping) {
     return newBuilder()
-      .setSchemaConfig(schemaConfig)
-      .setSourceVersionMapping(CaseInsensitiveMap.newImmutableMap(sourceVersionMapping))
-      .build();
+        .setSchemaConfig(schemaConfig)
+        .setSourceVersionMapping(CaseInsensitiveMap.newImmutableMap(sourceVersionMapping))
+        .build();
   }
 
   public VersionContext getVersionForSource(String sourceName, NamespaceKey key) {
@@ -189,8 +193,11 @@ public abstract class MetadataRequestOptions {
     if (versionContext == null) {
       if (this.errorOnUnspecifiedSourceVersion()) {
         throw UserException.validationError()
-          .message(String.format("Version context for table %s must be specified using AT SQL syntax", key.toString()))
-          .build();
+            .message(
+                String.format(
+                    "Version context for table %s must be specified using AT SQL syntax",
+                    key.toString()))
+            .build();
       }
       versionContext = VersionContext.NOT_SPECIFIED;
     }

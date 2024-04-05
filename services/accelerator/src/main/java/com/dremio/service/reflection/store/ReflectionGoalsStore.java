@@ -27,11 +27,6 @@ import static com.dremio.service.reflection.store.ReflectionIndexKeys.REFLECTION
 import static com.dremio.service.reflection.store.ReflectionIndexKeys.REFLECTION_NAME;
 import static com.google.common.base.Predicates.notNull;
 
-import java.util.Map;
-
-import javax.annotation.Nullable;
-import javax.inject.Provider;
-
 import com.dremio.datastore.KVUtil;
 import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.VersionExtractor;
@@ -52,31 +47,34 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.FluentIterable;
+import java.util.Map;
+import javax.annotation.Nullable;
+import javax.inject.Provider;
 
-/**
- * stores the reflection goals
- */
+/** stores the reflection goals */
 public class ReflectionGoalsStore {
   public static final String TABLE_NAME = "reflection_goals";
 
   private static final Function<Map.Entry<ReflectionId, ReflectionGoal>, ReflectionGoal> GET_VALUE =
-    new Function<Map.Entry<ReflectionId, ReflectionGoal>, ReflectionGoal>() {
-      @Override
-      public ReflectionGoal apply(@Nullable Map.Entry<ReflectionId, ReflectionGoal> entry) {
-        return entry == null ? null : entry.getValue();
-      }
-    };
+      new Function<Map.Entry<ReflectionId, ReflectionGoal>, ReflectionGoal>() {
+        @Override
+        public ReflectionGoal apply(@Nullable Map.Entry<ReflectionId, ReflectionGoal> entry) {
+          return entry == null ? null : entry.getValue();
+        }
+      };
 
   private final Supplier<LegacyIndexedStore<ReflectionId, ReflectionGoal>> store;
 
   public ReflectionGoalsStore(final Provider<LegacyKVStoreProvider> provider) {
     Preconditions.checkNotNull(provider, "kvstore provider cannot be null");
-    this.store = Suppliers.memoize(new Supplier<LegacyIndexedStore<ReflectionId, ReflectionGoal>>() {
-      @Override
-      public LegacyIndexedStore<ReflectionId, ReflectionGoal> get() {
-        return provider.get().getStore(StoreCreator.class);
-      }
-    });
+    this.store =
+        Suppliers.memoize(
+            new Supplier<LegacyIndexedStore<ReflectionId, ReflectionGoal>>() {
+              @Override
+              public LegacyIndexedStore<ReflectionId, ReflectionGoal> get() {
+                return provider.get().getStore(StoreCreator.class);
+              }
+            });
   }
 
   public void save(ReflectionGoal goal) {
@@ -96,55 +94,67 @@ public class ReflectionGoalsStore {
   }
 
   public Iterable<ReflectionGoal> getAllNotDeleted() {
-    final LegacyFindByCondition condition = new LegacyFindByCondition().setCondition(
-      or(
-        newTermQuery(REFLECTION_GOAL_STATE, ReflectionGoalState.ENABLED.name()),
-        newTermQuery(REFLECTION_GOAL_STATE, ReflectionGoalState.DISABLED.name())
-      )).addSortings(ReflectionIndexKeys.DEFAULT_SORT);
-    return FluentIterable.from(store.get().find(condition))
-      .transform(GET_VALUE)
-      .filter(notNull());
+    final LegacyFindByCondition condition =
+        new LegacyFindByCondition()
+            .setCondition(
+                or(
+                    newTermQuery(REFLECTION_GOAL_STATE, ReflectionGoalState.ENABLED.name()),
+                    newTermQuery(REFLECTION_GOAL_STATE, ReflectionGoalState.DISABLED.name())))
+            .addSortings(ReflectionIndexKeys.DEFAULT_SORT);
+    return FluentIterable.from(store.get().find(condition)).transform(GET_VALUE).filter(notNull());
   }
 
   public Iterable<ReflectionGoal> getModifiedOrCreatedSince(final long time) {
-    final LegacyFindByCondition condition = new LegacyFindByCondition()
-      .setCondition(or(
-        newRangeLong(REFLECTION_GOAL_MODIFIED_AT.getIndexFieldName(), time, Long.MAX_VALUE, true, false),
-        newRangeLong(CREATED_AT.getIndexFieldName(), time, Long.MAX_VALUE, true, false)
-      ));
-    return FluentIterable.from(store.get().find(condition))
-      .transform(GET_VALUE)
-      .filter(notNull());
+    final LegacyFindByCondition condition =
+        new LegacyFindByCondition()
+            .setCondition(
+                or(
+                    newRangeLong(
+                        REFLECTION_GOAL_MODIFIED_AT.getIndexFieldName(),
+                        time,
+                        Long.MAX_VALUE,
+                        true,
+                        false),
+                    newRangeLong(
+                        CREATED_AT.getIndexFieldName(), time, Long.MAX_VALUE, true, false)));
+    return FluentIterable.from(store.get().find(condition)).transform(GET_VALUE).filter(notNull());
   }
 
   public Iterable<ReflectionGoal> getDeletedBefore(final long time) {
-    final LegacyFindByCondition condition = new LegacyFindByCondition().setCondition(
-      and(
-        newTermQuery(REFLECTION_GOAL_STATE, ReflectionGoalState.DELETED.name()),
-        newRangeLong(REFLECTION_GOAL_MODIFIED_AT.getIndexFieldName(), Long.MIN_VALUE, time, false, true)));
-    return FluentIterable.from(store.get().find(condition))
-      .transform(GET_VALUE)
-      .filter(notNull());
+    final LegacyFindByCondition condition =
+        new LegacyFindByCondition()
+            .setCondition(
+                and(
+                    newTermQuery(REFLECTION_GOAL_STATE, ReflectionGoalState.DELETED.name()),
+                    newRangeLong(
+                        REFLECTION_GOAL_MODIFIED_AT.getIndexFieldName(),
+                        Long.MIN_VALUE,
+                        time,
+                        false,
+                        true)));
+    return FluentIterable.from(store.get().find(condition)).transform(GET_VALUE).filter(notNull());
   }
 
   public Iterable<ReflectionGoal> getByDatasetId(final String datasetId) {
-    final LegacyFindByCondition condition = new LegacyFindByCondition().setCondition(
-      and(
-        or(
-          newTermQuery(REFLECTION_GOAL_STATE, ReflectionGoalState.ENABLED.name()),
-          newTermQuery(REFLECTION_GOAL_STATE, ReflectionGoalState.DISABLED.name())
-        ),
-        newTermQuery(DATASET_ID.getIndexFieldName(), datasetId)));
-    return FluentIterable.from(store.get().find(condition))
-      .transform(GET_VALUE)
-      .filter(notNull());
+    final LegacyFindByCondition condition =
+        new LegacyFindByCondition()
+            .setCondition(
+                and(
+                    or(
+                        newTermQuery(REFLECTION_GOAL_STATE, ReflectionGoalState.ENABLED.name()),
+                        newTermQuery(REFLECTION_GOAL_STATE, ReflectionGoalState.DISABLED.name())),
+                    newTermQuery(DATASET_ID.getIndexFieldName(), datasetId)));
+    return FluentIterable.from(store.get().find(condition)).transform(GET_VALUE).filter(notNull());
   }
 
   public int getEnabledByDatasetId(final String datasetId) {
-    return store.get().getCounts(SearchQueryUtils.and(
-      newTermQuery(REFLECTION_GOAL_STATE, ReflectionGoalState.ENABLED.name()),
-      newTermQuery(DATASET_ID.getIndexFieldName(), datasetId)
-    )).get(0);
+    return store
+        .get()
+        .getCounts(
+            SearchQueryUtils.and(
+                newTermQuery(REFLECTION_GOAL_STATE, ReflectionGoalState.ENABLED.name()),
+                newTermQuery(DATASET_ID.getIndexFieldName(), datasetId)))
+        .get(0);
   }
 
   public ReflectionGoal get(ReflectionId id) {
@@ -179,8 +189,8 @@ public class ReflectionGoalsStore {
     }
   }
 
-
-  private static final class StoreConverter implements DocumentConverter<ReflectionId, ReflectionGoal> {
+  private static final class StoreConverter
+      implements DocumentConverter<ReflectionId, ReflectionGoal> {
     private Integer version = 0;
 
     @Override
@@ -199,20 +209,20 @@ public class ReflectionGoalsStore {
     }
   }
 
-  /**
-   * Reflection user store creator
-   */
-  public static class StoreCreator implements LegacyIndexedStoreCreationFunction<ReflectionId, ReflectionGoal> {
+  /** Reflection user store creator */
+  public static class StoreCreator
+      implements LegacyIndexedStoreCreationFunction<ReflectionId, ReflectionGoal> {
 
     @Override
-    public LegacyIndexedStore<ReflectionId, ReflectionGoal> build(LegacyStoreBuildingFactory factory) {
-      return factory.<ReflectionId, ReflectionGoal>newStore()
-        .name(TABLE_NAME)
-        .keyFormat(Format.ofProtostuff(ReflectionId.class))
-        .valueFormat(Format.ofProtostuff(ReflectionGoal.class))
-        .versionExtractor(ReflectionGoalVersionExtractor.class)
-        .buildIndexed(new StoreConverter());
+    public LegacyIndexedStore<ReflectionId, ReflectionGoal> build(
+        LegacyStoreBuildingFactory factory) {
+      return factory
+          .<ReflectionId, ReflectionGoal>newStore()
+          .name(TABLE_NAME)
+          .keyFormat(Format.ofProtostuff(ReflectionId.class))
+          .valueFormat(Format.ofProtostuff(ReflectionGoal.class))
+          .versionExtractor(ReflectionGoalVersionExtractor.class)
+          .buildIndexed(new StoreConverter());
     }
   }
-
 }

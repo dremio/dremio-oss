@@ -15,21 +15,18 @@
  */
 package com.dremio.dac.cmd.upgrade;
 
-import java.util.Collections;
-import java.util.stream.StreamSupport;
-
 import com.dremio.common.Version;
 import com.dremio.datastore.CoreIndexedStore;
 import com.dremio.datastore.CoreStoreProviderImpl;
 import com.dremio.datastore.LocalKVStoreProvider;
 import com.google.common.base.Preconditions;
+import java.util.Collections;
+import java.util.stream.StreamSupport;
 
-/**
- * Re-indexes all stores that are indexed stores.
- */
+/** Re-indexes all stores that are indexed stores. */
 public class ReIndexAllStores extends UpgradeTask implements LegacyUpgradeTask {
 
-  //DO NOT MODIFY
+  // DO NOT MODIFY
   static final String taskUUID = "5522c3bc-195f-41ba-8bfd-a33f91b1219a";
 
   public ReIndexAllStores() {
@@ -49,7 +46,8 @@ public class ReIndexAllStores extends UpgradeTask implements LegacyUpgradeTask {
   @Override
   public void upgrade(UpgradeContext context) throws Exception {
     Preconditions.checkArgument(context.getLegacyKVStoreProvider() instanceof LocalKVStoreProvider);
-    final LocalKVStoreProvider localStore = LocalKVStoreProvider.class.cast(context.getLegacyKVStoreProvider());
+    final LocalKVStoreProvider localStore =
+        LocalKVStoreProvider.class.cast(context.getLegacyKVStoreProvider());
 
     StreamSupport.stream(localStore.spliterator(), false)
         .filter(storeWithId -> storeWithId.getStore() instanceof CoreIndexedStore)

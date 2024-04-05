@@ -18,13 +18,6 @@ package com.dremio.dac.server;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import java.util.Collections;
-import java.util.UUID;
-
-import org.junit.Assume;
-import org.junit.BeforeClass;
-import org.junit.Test;
-
 import com.dremio.dac.explore.model.DownloadFormat;
 import com.dremio.dac.explore.model.InitialPreviewResponse;
 import com.dremio.dac.model.job.ResultOrder;
@@ -34,13 +27,17 @@ import com.dremio.service.job.SearchJobsRequest;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.users.SimpleUser;
 import com.dremio.service.users.UserService;
+import java.util.Collections;
+import java.util.UUID;
+import org.junit.Assume;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
-/**
- * Download job results tests.
- */
+/** Download job results tests. */
 public class TestJobResultsDownload extends BaseTestServer {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestJobResultsDownload.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(TestJobResultsDownload.class);
 
   @BeforeClass
   public static void setup() throws Exception {
@@ -52,11 +49,11 @@ public class TestJobResultsDownload extends BaseTestServer {
 
   private static SimpleUser newUser(String username) {
     return SimpleUser.newBuilder()
-      .setUserName(username)
-      .setEmail("test2222@dremio.test")
-      .setFirstName("test")
-      .setLastName("test")
-      .build();
+        .setUserName(username)
+        .setEmail("test2222@dremio.test")
+        .setFirstName("test")
+        .setLastName("test")
+        .build();
   }
 
   @Test
@@ -65,37 +62,44 @@ public class TestJobResultsDownload extends BaseTestServer {
     final String password = "password1345";
 
     l(UserService.class).createUser(newUser(user1name), password);
-    login(user1name,  password);
+    login(user1name, password);
 
-    final InitialPreviewResponse response = createDatasetFromSQL("select * from (values(1, 2))", Collections.emptyList());
+    final InitialPreviewResponse response =
+        createDatasetFromSQL("select * from (values(1, 2))", Collections.emptyList());
     final String jobId = response.getJobId().getId();
     logger.debug("Job is submitted. Job is: {}", jobId);
     final JobsService jobsService = l(JobsService.class);
 
-    //download json for a submitted job
-    expectSuccess(getBuilder(getAPIv2()
-      .path("job")
-      .path(jobId)
-      .path("download")
-      .queryParam("downloadFormat", DownloadFormat.JSON))
-      .buildGet());
+    // download json for a submitted job
+    expectSuccess(
+        getBuilder(
+                getAPIv2()
+                    .path("job")
+                    .path(jobId)
+                    .path("download")
+                    .queryParam("downloadFormat", DownloadFormat.JSON))
+            .buildGet());
 
     // search for last submitted job by the user.
-    Iterable<JobSummary> jobs = jobsService.searchJobs(SearchJobsRequest.newBuilder()
-      .setUserName(user1name)
-      .setLimit(1)
-      .setSortColumn("st") // start time
-      .setSortOrder(ResultOrder.DESCENDING.toSortOrder())
-      .build());
+    Iterable<JobSummary> jobs =
+        jobsService.searchJobs(
+            SearchJobsRequest.newBuilder()
+                .setUserName(user1name)
+                .setLimit(1)
+                .setSortColumn("st") // start time
+                .setSortOrder(ResultOrder.DESCENDING.toSortOrder())
+                .build());
 
     // there must be a job. Take the first one
     final JobSummary jobSummary = jobs.iterator().next();
 
-    assertEquals("Last submitted job by a user should be a UI export job", QueryType.UI_EXPORT,
-      jobSummary.getQueryType());
+    assertEquals(
+        "Last submitted job by a user should be a UI export job",
+        QueryType.UI_EXPORT,
+        jobSummary.getQueryType());
     logger.debug("Last job query is: {}", jobSummary.getSql());
-    assertTrue("query must contains a query of form sys.job_results.\"{job id}\"", jobSummary.getSql()
-      .contains(String.format("sys.job_results.\"%s\"", jobId)));
+    assertTrue(
+        "query must contains a query of form sys.job_results.\"{job id}\"",
+        jobSummary.getSql().contains(String.format("sys.job_results.\"%s\"", jobId)));
   }
-
 }

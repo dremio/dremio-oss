@@ -15,13 +15,6 @@
  */
 package com.dremio.datastore;
 
-import java.util.Map;
-import java.util.Set;
-
-import javax.inject.Provider;
-
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.datastore.api.DocumentConverter;
 import com.dremio.datastore.api.IndexedStore;
@@ -37,52 +30,60 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import java.util.Map;
+import java.util.Set;
+import javax.inject.Provider;
+import org.apache.arrow.memory.BufferAllocator;
 
-/**
- * Noop KVStoreProvider for Executor nodes.
- */
+/** Noop KVStoreProvider for Executor nodes. */
 public class NoopKVStoreProvider implements KVStoreProvider {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(NoopKVStoreProvider.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(NoopKVStoreProvider.class);
 
   private final ScanResult scan;
   private ImmutableMap<Class<? extends StoreCreationFunction<?, ?, ?>>, KVStore<?, ?>> stores;
 
   public NoopKVStoreProvider(
-    ScanResult scan,
-    Provider<FabricService> fabricService,
-    Provider<NodeEndpoint> masterNode,
-    BufferAllocator allocator,
-    Map<String, Object> config
-  ) {
+      ScanResult scan,
+      Provider<FabricService> fabricService,
+      Provider<NodeEndpoint> masterNode,
+      BufferAllocator allocator,
+      Map<String, Object> config) {
     this.scan = scan;
   }
 
   @Override
   public Set<KVStore<?, ?>> stores() {
-    return new ImmutableSet.Builder<KVStore<?,?>>().addAll(stores.values().iterator()).build();
+    return new ImmutableSet.Builder<KVStore<?, ?>>().addAll(stores.values().iterator()).build();
   }
 
   @SuppressWarnings("unchecked")
   @Override
-  public <K, V, T extends KVStore<K, V>> T getStore(Class<? extends StoreCreationFunction<K, V, T>> creator) {
-    return (T) Preconditions.checkNotNull(stores.get(creator), "Unknown store creator %s", creator.getName());
+  public <K, V, T extends KVStore<K, V>> T getStore(
+      Class<? extends StoreCreationFunction<K, V, T>> creator) {
+    return (T)
+        Preconditions.checkNotNull(
+            stores.get(creator), "Unknown store creator %s", creator.getName());
   }
 
   @Override
   @VisibleForTesting
-  public <K, V> StoreBuilder<K, V> newStore(){
+  public <K, V> StoreBuilder<K, V> newStore() {
     return new ExecutorStoreBuilder<>();
   }
 
   @Override
   public void start() throws Exception {
     logger.info("Starting NoopKVStoreProvider");
-    stores = StoreLoader.buildStores(scan, new StoreBuildingFactory() {
-      @Override
-      public <K, V> StoreBuilder<K, V> newStore() {
-        return NoopKVStoreProvider.this.newStore();
-      }
-    });
+    stores =
+        StoreLoader.buildStores(
+            scan,
+            new StoreBuildingFactory() {
+              @Override
+              public <K, V> StoreBuilder<K, V> newStore() {
+                return NoopKVStoreProvider.this.newStore();
+              }
+            });
 
     logger.info("NoopKVStoreProvider is up");
   }
@@ -94,6 +95,7 @@ public class NoopKVStoreProvider implements KVStoreProvider {
 
   /**
    * Store builder for noop kvstore provider.
+   *
    * @param <K>
    * @param <V>
    */
@@ -128,5 +130,4 @@ public class NoopKVStoreProvider implements KVStoreProvider {
       return new NoopIndexedStore<>();
     }
   }
-
 }

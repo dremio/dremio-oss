@@ -15,21 +15,16 @@
  */
 package com.dremio.exec.hadoop;
 
-import java.io.IOException;
-import java.util.Objects;
-
-import org.apache.hadoop.conf.Configuration;
-
 import com.dremio.io.CompressedFSInputStream;
 import com.dremio.io.CompressionCodec;
 import com.dremio.io.CompressionCodecFactory;
 import com.dremio.io.FSInputStream;
 import com.dremio.io.file.Path;
+import java.io.IOException;
+import java.util.Objects;
+import org.apache.hadoop.conf.Configuration;
 
-/**
- * Hadoop implementation of {@code CompressionCodecFactory}
- *
- */
+/** Hadoop implementation of {@code CompressionCodecFactory} */
 public class HadoopCompressionCodecFactory implements CompressionCodecFactory {
   private static final class CompressionCodecWrapper implements CompressionCodec {
     private final org.apache.hadoop.io.compress.CompressionCodec delegate;
@@ -44,10 +39,9 @@ public class HadoopCompressionCodecFactory implements CompressionCodecFactory {
     }
   }
 
-  /**
-   * Default factory instance
-   */
-  public static final CompressionCodecFactory DEFAULT = new HadoopCompressionCodecFactory(new Configuration());
+  /** Default factory instance */
+  public static final CompressionCodecFactory DEFAULT =
+      new HadoopCompressionCodecFactory(new Configuration());
 
   private final org.apache.hadoop.io.compress.CompressionCodecFactory factory;
 
@@ -66,5 +60,4 @@ public class HadoopCompressionCodecFactory implements CompressionCodecFactory {
 
     return new CompressionCodecWrapper(codec);
   }
-
 }

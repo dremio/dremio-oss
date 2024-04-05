@@ -19,16 +19,6 @@ import static com.dremio.dac.proto.model.dataset.ExtractRuleType.pattern;
 import static com.dremio.dac.proto.model.dataset.ExtractRuleType.position;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Objects;
-import java.util.Set;
-
-import org.apache.calcite.sql.type.SqlTypeName;
-import org.apache.commons.collections4.CollectionUtils;
-
 import com.dremio.common.util.MajorTypeHelper;
 import com.dremio.dac.explore.DataTypeUtil;
 import com.dremio.dac.explore.QueryExecutor;
@@ -58,6 +48,7 @@ import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceService;
+import com.dremio.service.namespace.dataset.DatasetMetadata;
 import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
@@ -67,24 +58,35 @@ import com.dremio.service.namespace.file.proto.FileConfig;
 import com.dremio.service.namespace.physicaldataset.proto.PhysicalDatasetConfig;
 import com.dremio.service.namespace.proto.EntityId;
 import com.google.common.collect.Lists;
-
 import io.protostuff.ByteString;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
+import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.commons.collections4.CollectionUtils;
 
-/**
- * To deal with protostuff
- */
+/** To deal with protostuff */
 public class DatasetsUtil {
   private static final List<String> TEMPORARY_DATASET_PATH = Arrays.asList("tmp", "UNTITLED");
 
   /**
-   * Helper method which gets the completed preview data job for given query on given dataset path and version.
+   * Helper method which gets the completed preview data job for given query on given dataset path
+   * and version.
    */
-  public static JobData getDatasetPreviewJob(QueryExecutor executor, SqlQuery query, DatasetPath datasetPath, DatasetVersion version) {
-    // In most cases we should already have a preview job that ran on the given dataset version. If not it will trigger a job.
+  public static JobData getDatasetPreviewJob(
+      QueryExecutor executor, SqlQuery query, DatasetPath datasetPath, DatasetVersion version) {
+    // In most cases we should already have a preview job that ran on the given dataset version. If
+    // not it will trigger a job.
     CompletionListener completionListener = new CompletionListener();
-    JobData jobData = executor.runQueryWithListener(query, QueryType.UI_PREVIEW, datasetPath, version, completionListener);
+    JobData jobData =
+        executor.runQueryWithListener(
+            query, QueryType.UI_PREVIEW, datasetPath, version, completionListener);
 
-    // Wait for the job to complete (will return immediately if the job already exists, otherwise a blocking call until
+    // Wait for the job to complete (will return immediately if the job already exists, otherwise a
+    // blocking call until
     // the job completes).
     completionListener.awaitUnchecked();
 
@@ -101,18 +103,17 @@ public class DatasetsUtil {
     T visit(ExtractRulePattern extractRulePattern) throws Exception;
 
     T visit(ExtractRulePosition position) throws Exception;
-
   }
 
   public static <T> T accept(ExtractRule extractRule, ExtractRuleVisitor<T> visitor) {
     try {
       switch (extractRule.getType()) {
-      case pattern:
-        return visitor.visit(extractRule.getPattern());
-      case position:
-        return visitor.visit(extractRule.getPosition());
-      default:
-        throw new UnsupportedOperationException("unknown type " + extractRule.getType());
+        case pattern:
+          return visitor.visit(extractRule.getPattern());
+        case position:
+          return visitor.visit(extractRule.getPosition());
+        default:
+          throw new UnsupportedOperationException("unknown type " + extractRule.getType());
       }
     } catch (RuntimeException e) {
       throw e;
@@ -144,6 +145,7 @@ public class DatasetsUtil {
     vvds.setNamed(virtualDatasetUI.getIsNamed());
     vvds.setDerivation(virtualDatasetUI.getDerivation());
     vvds.setReferencesList(virtualDatasetUI.getReferencesList());
+    vvds.setDatasetVersionOrigin(virtualDatasetUI.getDatasetVersionOrigin());
 
     datasetConfig.setName(virtualDatasetUI.getName());
     datasetConfig.setOwner(virtualDatasetUI.getOwner());
@@ -219,7 +221,8 @@ public class DatasetsUtil {
 
   public static PhysicalDatasetConfig toPhysicalDatasetConfig(DatasetConfig datasetConfig) {
     checkNotNull(datasetConfig.getPhysicalDataset());
-    final com.dremio.service.namespace.dataset.proto.PhysicalDataset physicalDataset = datasetConfig.getPhysicalDataset();
+    final com.dremio.service.namespace.dataset.proto.PhysicalDataset physicalDataset =
+        datasetConfig.getPhysicalDataset();
     final PhysicalDatasetConfig physicalDatasetConfig = new PhysicalDatasetConfig();
     physicalDatasetConfig.setFormatSettings(physicalDataset.getFormatSettings());
     physicalDatasetConfig.setFullPathList(datasetConfig.getFullPathList());
@@ -230,7 +233,8 @@ public class DatasetsUtil {
     return physicalDatasetConfig;
   }
 
-  public static DatasetConfig toDatasetConfig(PhysicalDatasetConfig physicalDatasetConfig, String owner) {
+  public static DatasetConfig toDatasetConfig(
+      PhysicalDatasetConfig physicalDatasetConfig, String owner) {
     final DatasetConfig datasetConfig = new DatasetConfig();
 
     if (physicalDatasetConfig.getId() != null) {
@@ -241,12 +245,14 @@ public class DatasetsUtil {
     datasetConfig.setName(physicalDatasetConfig.getName());
     datasetConfig.setType(physicalDatasetConfig.getType());
     datasetConfig.setTag(physicalDatasetConfig.getTag());
-    datasetConfig.setPhysicalDataset(new com.dremio.service.namespace.dataset.proto.PhysicalDataset().setFormatSettings(
-      physicalDatasetConfig.getFormatSettings()));
+    datasetConfig.setPhysicalDataset(
+        new com.dremio.service.namespace.dataset.proto.PhysicalDataset()
+            .setFormatSettings(physicalDatasetConfig.getFormatSettings()));
     return datasetConfig;
   }
 
-  public static DatasetConfig toDatasetConfig(FileConfig fileConfig, DatasetType datasetType, String owner, EntityId id) {
+  public static DatasetConfig toDatasetConfig(
+      FileConfig fileConfig, DatasetType datasetType, String owner, EntityId id) {
     final DatasetConfig datasetConfig = new DatasetConfig();
     Objects.requireNonNull(id, "EntityId must be defined.");
     Objects.requireNonNull(id.getId(), "EntityId must be defined.");
@@ -259,7 +265,9 @@ public class DatasetsUtil {
     datasetConfig.setCreatedAt(fileConfig.getCtime());
     datasetConfig.setId(id);
 
-    datasetConfig.setPhysicalDataset(new com.dremio.service.namespace.dataset.proto.PhysicalDataset().setFormatSettings(fileConfig));
+    datasetConfig.setPhysicalDataset(
+        new com.dremio.service.namespace.dataset.proto.PhysicalDataset()
+            .setFormatSettings(fileConfig));
     return datasetConfig;
   }
 
@@ -275,18 +283,20 @@ public class DatasetsUtil {
     return fileConfig;
   }
 
-  public static VirtualDatasetUI getHeadVersion(DatasetPath datasetPath, NamespaceService namespaceService,
-      DatasetVersionMutator datasetService) throws NamespaceException, DatasetVersionNotFoundException {
+  public static VirtualDatasetUI getHeadVersion(
+      DatasetPath datasetPath,
+      NamespaceService namespaceService,
+      DatasetVersionMutator datasetService)
+      throws NamespaceException, DatasetVersionNotFoundException {
     DatasetConfig dsConfig = namespaceService.getDataset(datasetPath.toNamespaceKey());
     return datasetService.getVersion(datasetPath, dsConfig.getVirtualDataset().getVersion());
   }
 
   public static boolean isCreatedFromParent(Transform lastTransform) {
-    return lastTransform != null &&
-      lastTransform.getType() == TransformType.createFromParent &&
-      lastTransform.getTransformCreateFromParent().getCreateFrom().getType() == FromType.Table;
+    return lastTransform != null
+        && lastTransform.getType() == TransformType.createFromParent
+        && lastTransform.getTransformCreateFromParent().getCreateFrom().getType() == FromType.Table;
   }
-
 
   public static List<Field> getFieldsFromDatasetConfig(DatasetConfig datasetConfig) {
     List<Field> fields = Lists.newArrayList();
@@ -320,20 +330,23 @@ public class DatasetsUtil {
         for (int i = 0; i < batchSchema.getFieldCount(); i++) {
           final org.apache.arrow.vector.types.pojo.Field field = batchSchema.getColumn(i);
           if (!NamespaceTable.SYSTEM_COLUMNS.contains(field.getName())) {
-            DataType dataType = DataTypeUtil.getDataType(MajorTypeHelper.getMajorTypeForField(field));
+            DataType dataType =
+                DataTypeUtil.getDataType(MajorTypeHelper.getMajorTypeForField(field));
             fields.add(new Field(field.getName(), dataType));
           }
         }
         break;
 
       default:
-        throw new UnsupportedOperationException(String.format("The dataset type %s is not supported", datasetType));
+        throw new UnsupportedOperationException(
+            String.format("The dataset type %s is not supported", datasetType));
     }
 
     return fields;
   }
 
-  public static List<org.apache.arrow.vector.types.pojo.Field> getArrowFieldsFromDatasetConfig(DatasetConfig datasetConfig) {
+  public static List<org.apache.arrow.vector.types.pojo.Field> getArrowFieldsFromDatasetConfig(
+      DatasetConfig datasetConfig) {
     List<org.apache.arrow.vector.types.pojo.Field> fields = Lists.newArrayList();
     final ByteString schemaBytes = DatasetHelper.getSchemaBytes(datasetConfig);
     if (schemaBytes == null) {
@@ -352,15 +365,27 @@ public class DatasetsUtil {
   }
 
   public static Set<String> getPartitionedColumns(DatasetConfig datasetConfig) {
-    return datasetConfig.getReadDefinition() != null ?
-      toSet(datasetConfig.getReadDefinition().getPartitionColumnsList()) :
-      Collections.emptySet();
+    return datasetConfig.getReadDefinition() != null
+        ? toSet(datasetConfig.getReadDefinition().getPartitionColumnsList())
+        : Collections.emptySet();
+  }
+
+  public static Set<String> getPartitionedColumns(DatasetMetadata datasetMetadata) {
+    return datasetMetadata.getReadDefinition() != null
+        ? toSet(datasetMetadata.getReadDefinition().getPartitionColumnsList())
+        : Collections.emptySet();
   }
 
   public static Set<String> getSortedColumns(DatasetConfig datasetConfig) {
-    return datasetConfig.getReadDefinition() != null ?
-      toSet(datasetConfig.getReadDefinition().getSortColumnsList()) :
-      Collections.emptySet();
+    return datasetConfig.getReadDefinition() != null
+        ? toSet(datasetConfig.getReadDefinition().getSortColumnsList())
+        : Collections.emptySet();
+  }
+
+  public static Set<String> getSortedColumns(DatasetMetadata datasetMetadata) {
+    return datasetMetadata.getReadDefinition() != null
+        ? toSet(datasetMetadata.getReadDefinition().getSortColumnsList())
+        : Collections.emptySet();
   }
 
   private static Set<String> toSet(List<String> list) {
@@ -368,30 +393,37 @@ public class DatasetsUtil {
   }
 
   public static String printVersionViewInfo(VirtualDatasetUI vdsUI) {
-    return "VirtualDatasetUI (versioned view related info) {" +
-      "name=" + vdsUI.getName() +
-      ", fullpath=" + vdsUI.getFullPathList() +
-      ", context=" + vdsUI.getContextList() +
-      ", version=" + vdsUI.getVersion() +
-      ", id=" + vdsUI.getId() +
-      ", sql=" + vdsUI.getSql() +
-      ", sqlFieldList=" + vdsUI.getSqlFieldsList() +
-      ", createdAt=" + vdsUI.getCreatedAt() +
-      ", owner=" + vdsUI.getOwner() +
-      ", versionContext=" + vdsUI.getReferencesList() +
-      '}';
+    return "VirtualDatasetUI (versioned view related info) {"
+        + "name="
+        + vdsUI.getName()
+        + ", fullpath="
+        + vdsUI.getFullPathList()
+        + ", context="
+        + vdsUI.getContextList()
+        + ", version="
+        + vdsUI.getVersion()
+        + ", id="
+        + vdsUI.getId()
+        + ", sql="
+        + vdsUI.getSql()
+        + ", sqlFieldList="
+        + vdsUI.getSqlFieldsList()
+        + ", createdAt="
+        + vdsUI.getCreatedAt()
+        + ", owner="
+        + vdsUI.getOwner()
+        + ", versionContext="
+        + vdsUI.getReferencesList()
+        + '}';
   }
 
   /**
    * Indicates if the {@link DatasetConfig} is has a temporary dataset path.
    *
-   * @param path  The {@code path} that will be verified.
-   *
-   * @return {@code true} if, and only if, the full path of the config is
-   *         'tmp.UNTITLED'.
+   * @param path The {@code path} that will be verified.
+   * @return {@code true} if, and only if, the full path of the config is 'tmp.UNTITLED'.
    */
   public static boolean isTemporaryPath(final List<String> path) {
     return path != null && !path.isEmpty() && TEMPORARY_DATASET_PATH.equals(path);
   }
-
 }

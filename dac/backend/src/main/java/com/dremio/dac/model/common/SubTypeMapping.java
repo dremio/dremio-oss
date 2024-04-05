@@ -21,11 +21,7 @@ import static java.util.Collections.unmodifiableList;
 
 import java.util.List;
 
-/**
- * Lists the enums for protostuff based inheritance.
- * generate the class name for a given enum
- *
- */
+/** Lists the enums for protostuff based inheritance. generate the class name for a given enum */
 class SubTypeMapping {
 
   private final List<Enum<?>> enumContants;

@@ -17,9 +17,7 @@ package com.dremio.service.coordinator;
 
 import java.util.concurrent.TimeUnit;
 
-/**
- * A distributed semaphore interface
- */
+/** A distributed semaphore interface */
 public interface DistributedSemaphore {
   /**
    * Try to acquire the semaphore
@@ -44,6 +42,7 @@ public interface DistributedSemaphore {
 
   /**
    * Determine the number of currently outstanding permits.
+   *
    * @return number of permits
    */
   boolean hasOutstandingPermits();
@@ -51,25 +50,20 @@ public interface DistributedSemaphore {
   /**
    * Register a listener that is updated every time this semaphore changes.
    *
-   * This is a weak registration. If the requester no longer exists, the semaphore won't a reference to the listener.
+   * <p>This is a weak registration. If the requester no longer exists, the semaphore won't a
+   * reference to the listener.
    *
-   * return true if successfully registered listener
+   * <p>return true if successfully registered listener
    */
   boolean registerUpdateListener(UpdateListener listener);
 
-  /**
-   * Listener for when a semaphore has changed state.
-   */
+  /** Listener for when a semaphore has changed state. */
   interface UpdateListener {
 
-    /**
-     * Informed when the semaphore has changed (increased or decreased).
-     */
+    /** Informed when the semaphore has changed (increased or decreased). */
     void updated();
   }
 
-  /**
-   * The semaphore lease
-   */
+  /** The semaphore lease */
   interface DistributedLease extends AutoCloseable {}
 }

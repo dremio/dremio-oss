@@ -15,9 +15,6 @@
  */
 package com.dremio.exec.store.iceberg;
 
-import java.util.List;
-import java.util.Objects;
-
 import com.dremio.common.logical.FormatPluginConfig;
 import com.dremio.exec.store.parquet.ParquetFormatConfig;
 import com.dremio.service.namespace.file.proto.FileType;
@@ -25,8 +22,11 @@ import com.dremio.service.namespace.file.proto.IcebergMetaStoreType;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.ImmutableList;
+import java.util.List;
+import java.util.Objects;
 
-@JsonTypeName("iceberg") @JsonInclude(JsonInclude.Include.NON_DEFAULT)
+@JsonTypeName("iceberg")
+@JsonInclude(JsonInclude.Include.NON_DEFAULT)
 public class IcebergFormatConfig implements FormatPluginConfig {
   public String outputExtension = "avro";
   private static final List<String> DEFAULT_EXTS = ImmutableList.of("avro");
@@ -79,16 +79,19 @@ public class IcebergFormatConfig implements FormatPluginConfig {
     final IcebergFormatConfig other = (IcebergFormatConfig) obj;
 
     return Objects.equals(metaStoreType, other.metaStoreType)
-      && Objects.equals(dataFormatType, other.dataFormatType)
-      && dataFormatConfig.equals(other.dataFormatConfig);
+        && Objects.equals(dataFormatType, other.dataFormatType)
+        && dataFormatConfig.equals(other.dataFormatConfig);
   }
 
   @Override
   public String toString() {
-    return "IcebergFormatConfig [" +
-      " metaStoreType " + metaStoreType +
-      "(" + dataFormatConfig.toString() + ")" +
-      "]";
+    return "IcebergFormatConfig ["
+        + " metaStoreType "
+        + metaStoreType
+        + "("
+        + dataFormatConfig.toString()
+        + ")"
+        + "]";
   }
 
   @JsonInclude(JsonInclude.Include.NON_DEFAULT)

@@ -18,8 +18,8 @@ package com.dremio.services.credentials;
 import com.dremio.config.DremioConfig;
 
 /**
- * Local Cipher for {@link com.dremio.dac.cmd.Encrypt} command secrets. These secrets are
- * manually encrypted and strictly limited (locally) to the node they were encrypted on.
+ * Local Cipher for {@link com.dremio.dac.cmd.Encrypt} command secrets. These secrets are manually
+ * encrypted and strictly limited (locally) to the node they were encrypted on.
  */
 public class LocalCipher extends AbstractCipher {
   private final DremioConfig config;
@@ -48,7 +48,7 @@ public class LocalCipher extends AbstractCipher {
   }
 
   @Override
-  protected String getSchema() {
+  protected String getScheme() {
     return LocalSecretCredentialsProvider.SECRET_PROVIDER_SCHEME;
   }
 }

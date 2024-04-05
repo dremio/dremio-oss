@@ -18,35 +18,33 @@ package com.dremio.plugins.util;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import com.dremio.common.AutoCloseables;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.IntStream;
-
 import org.junit.Test;
 
-import com.dremio.common.AutoCloseables;
-
-/**
- * Tests for {@link CloseableResource}
- */
+/** Tests for {@link CloseableResource} */
 public class CloseableResourceTest {
 
-    @Test
-    public void testSingleRef() {
-        final AtomicBoolean closedFlag = new AtomicBoolean(false);
-        final CloseableResource<Object> res = new CloseableResource<>(new Object(), o -> closedFlag.set(true));
-        AutoCloseables.close(RuntimeException.class, res);
-        assertTrue(closedFlag.get());
-    }
+  @Test
+  public void testSingleRef() {
+    final AtomicBoolean closedFlag = new AtomicBoolean(false);
+    final CloseableResource<Object> res =
+        new CloseableResource<>(new Object(), o -> closedFlag.set(true));
+    AutoCloseables.close(RuntimeException.class, res);
+    assertTrue(closedFlag.get());
+  }
 
-    @Test
-    public void testMultiRef() {
-        final AtomicBoolean closedFlag = new AtomicBoolean(false);
-        final CloseableResource<Object> res = new CloseableResource<>(new Object(), o -> closedFlag.set(true));
-        IntStream.range(0, 10).forEach(i -> res.incrementRef());
-        IntStream.range(0, 10).forEach(i -> AutoCloseables.close(RuntimeException.class, res));
-        assertFalse(closedFlag.get());
+  @Test
+  public void testMultiRef() {
+    final AtomicBoolean closedFlag = new AtomicBoolean(false);
+    final CloseableResource<Object> res =
+        new CloseableResource<>(new Object(), o -> closedFlag.set(true));
+    IntStream.range(0, 10).forEach(i -> res.incrementRef());
+    IntStream.range(0, 10).forEach(i -> AutoCloseables.close(RuntimeException.class, res));
+    assertFalse(closedFlag.get());
 
-        AutoCloseables.close(RuntimeException.class, res);
-        assertTrue(closedFlag.get());
-    }
+    AutoCloseables.close(RuntimeException.class, res);
+    assertTrue(closedFlag.get());
+  }
 }

@@ -18,17 +18,6 @@ package com.dremio.service.jobs;
 import static com.dremio.exec.record.RecordBatchHolder.newRecordBatchHolder;
 import static java.lang.Integer.min;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-
-import org.apache.arrow.flight.FlightClient;
-import org.apache.arrow.flight.FlightRuntimeException;
-import org.apache.arrow.flight.FlightStream;
-import org.apache.arrow.flight.Ticket;
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.VectorSchemaRoot;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.proto.FlightProtos.CoordinatorFlightTicket;
 import com.dremio.exec.proto.FlightProtos.JobsFlightTicket;
@@ -40,28 +29,36 @@ import com.dremio.service.job.JobEvent;
 import com.dremio.service.job.proto.JobId;
 import com.google.common.base.Throwables;
 import com.google.common.util.concurrent.SettableFuture;
-
 import io.grpc.stub.StreamObserver;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import org.apache.arrow.flight.FlightClient;
+import org.apache.arrow.flight.FlightRuntimeException;
+import org.apache.arrow.flight.FlightStream;
+import org.apache.arrow.flight.Ticket;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.VectorSchemaRoot;
 
-/**
- * Utility class for getting job data
- */
+/** Utility class for getting job data */
 public final class JobDataClientUtils {
 
-  private JobDataClientUtils() {
-  }
+  private JobDataClientUtils() {}
 
   /**
-   * Streams JobData from server over gRPC and creates list of RecordBatchHolder to populate JobDataFragment
+   * Streams JobData from server over gRPC and creates list of RecordBatchHolder to populate
+   * JobDataFragment
+   *
    * @param stream flight stream for a particular job
    * @param allocator allocator for vectors
    * @param limit max number of results to fetch
    * @return
    */
-  public static List<RecordBatchHolder> getData(FlightStream stream, BufferAllocator allocator, int limit) {
+  public static List<RecordBatchHolder> getData(
+      FlightStream stream, BufferAllocator allocator, int limit) {
     final List<RecordBatchHolder> batches = new ArrayList<>();
     try (final VectorContainer container = new VectorContainer(allocator);
-         final VectorSchemaRoot root = stream.getRoot()) {
+        final VectorSchemaRoot root = stream.getRoot()) {
 
       int remaining = limit;
 
@@ -73,11 +70,8 @@ public final class JobDataClientUtils {
         // than the limit even when there are extra batches are in the stream.
         int batchEnd = min(currentBatchCount, remaining);
 
-        final RecordBatchHolder batchHolder = newRecordBatchHolder(
-          new RecordBatchData(container, allocator),
-          0,
-          batchEnd
-        );
+        final RecordBatchHolder batchHolder =
+            newRecordBatchHolder(new RecordBatchData(container, allocator), 0, batchEnd);
         batches.add(batchHolder);
         remaining -= batchHolder.size();
 
@@ -99,6 +93,7 @@ public final class JobDataClientUtils {
 
   /**
    * Factory for returning JobData over gRPC
+   *
    * @param jobsService reference to job service
    * @param bufferAllocator allocator for vectors
    * @param jobId jobid for corresponding jobresults
@@ -106,15 +101,29 @@ public final class JobDataClientUtils {
    * @param limit max number of results to fetch
    * @return JobDataFragment
    */
-  public static JobDataFragment getJobData(JobsService jobsService, BufferAllocator bufferAllocator, JobId jobId, int offset, int limit) {
+  public static JobDataFragment getJobData(
+      JobsService jobsService,
+      BufferAllocator bufferAllocator,
+      JobId jobId,
+      int offset,
+      int limit) {
     final FlightClient flightClient = jobsService.getJobsClient().getFlightClient();
-    final CoordinatorFlightTicket cticket = CoordinatorFlightTicket.newBuilder()
-      .setJobsFlightTicket(JobsFlightTicket.newBuilder().setJobId(jobId.getId()).setOffset(offset).setLimit(limit).build())
-      .build();
+    final CoordinatorFlightTicket cticket =
+        CoordinatorFlightTicket.newBuilder()
+            .setJobsFlightTicket(
+                JobsFlightTicket.newBuilder()
+                    .setJobId(jobId.getId())
+                    .setOffset(offset)
+                    .setLimit(limit)
+                    .build())
+            .build();
     final Ticket ticket = new Ticket(cticket.toByteArray());
     try (FlightStream flightStream = flightClient.getStream(ticket)) {
-      return new JobDataFragmentImpl(new RecordBatches(JobDataClientUtils.getData(
-        flightStream, bufferAllocator, limit)), offset, jobId, null);
+      return new JobDataFragmentImpl(
+          new RecordBatches(JobDataClientUtils.getData(flightStream, bufferAllocator, limit)),
+          offset,
+          jobId,
+          null);
     } catch (FlightRuntimeException fre) {
       Optional<UserException> ue = FlightRpcUtils.fromFlightRuntimeException(fre);
       throw ue.isPresent() ? ue.get() : fre;
@@ -125,32 +134,33 @@ public final class JobDataClientUtils {
   }
 
   /**
-   * Wait for BatchSchema (Query Metadata) to be retrievable via JobDetails. Use this
-   * method sparingly, prefer reusing the listener from Job submission instead.
+   * Wait for BatchSchema (Query Metadata) to be retrievable via JobDetails. Use this method
+   * sparingly, prefer reusing the listener from Job submission instead.
    */
   public static void waitForBatchSchema(JobsService jobsService, final JobId jobId) {
     final SettableFuture<Void> settableFuture = SettableFuture.create();
 
-    jobsService.getJobsClient()
-      .getAsyncStub()
-      .subscribeToJobEvents(JobsProtoUtil.toBuf(jobId), new StreamObserver<JobEvent>() {
-        @Override
-        public void onNext(JobEvent value) {
-          if (value.hasQueryMetadata() || value.hasFinalJobSummary()) {
-            settableFuture.set(null);
-          }
-        }
+    jobsService
+        .getJobsClient()
+        .getAsyncStub()
+        .subscribeToJobEvents(
+            JobsProtoUtil.toBuf(jobId),
+            new StreamObserver<JobEvent>() {
+              @Override
+              public void onNext(JobEvent value) {
+                if (value.hasQueryMetadata() || value.hasFinalJobSummary()) {
+                  settableFuture.set(null);
+                }
+              }
 
-        @Override
-        public void onError(Throwable t) {
-          settableFuture.setException(t);
-        }
+              @Override
+              public void onError(Throwable t) {
+                settableFuture.setException(t);
+              }
 
-        @Override
-        public void onCompleted() {
-
-        }
-      });
+              @Override
+              public void onCompleted() {}
+            });
 
     try {
       settableFuture.get();
@@ -161,32 +171,34 @@ public final class JobDataClientUtils {
   }
 
   /**
-   * Wait for the final Job state. This corresponds to Job#isCompleted, which means the
-   * Job may be successful, cancelled, or failed. Use this method sparingly, prefer
-   * reusing the listener from Job submission instead.
+   * Wait for the final Job state. This corresponds to Job#isCompleted, which means the Job may be
+   * successful, cancelled, or failed. Use this method sparingly, prefer reusing the listener from
+   * Job submission instead.
    */
   public static void waitForFinalState(JobsService jobsService, final JobId jobId) {
     final SettableFuture<Void> settableFuture = SettableFuture.create();
 
-    jobsService.getJobsClient()
+    jobsService
+        .getJobsClient()
         .getAsyncStub()
-        .subscribeToJobEvents(JobsProtoUtil.toBuf(jobId), new StreamObserver<JobEvent>() {
-          @Override
-          public void onNext(JobEvent value) {
-            if (value.getEventCase() == JobEvent.EventCase.FINAL_JOB_SUMMARY) {
-              settableFuture.set(null);
-            }
-          }
+        .subscribeToJobEvents(
+            JobsProtoUtil.toBuf(jobId),
+            new StreamObserver<JobEvent>() {
+              @Override
+              public void onNext(JobEvent value) {
+                if (value.getEventCase() == JobEvent.EventCase.FINAL_JOB_SUMMARY) {
+                  settableFuture.set(null);
+                }
+              }
 
-          @Override
-          public void onError(Throwable t) {
-            settableFuture.setException(t);
-          }
+              @Override
+              public void onError(Throwable t) {
+                settableFuture.setException(t);
+              }
 
-          @Override
-          public void onCompleted() {
-          }
-        });
+              @Override
+              public void onCompleted() {}
+            });
 
     try {
       settableFuture.get();

@@ -58,7 +58,7 @@ import { log } from "@app/utils/logger";
 import apiUtils from "utils/apiUtils/apiUtils";
 import { constructFullPath } from "utils/pathUtils";
 
-import { setRefs } from "@app/actions/nessie/nessie";
+import { setReference, setRefs } from "@app/actions/nessie/nessie";
 import {
   transformThenNavigate,
   TransformCanceledError,
@@ -68,6 +68,7 @@ import {
 import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
 import { getSupportFlag } from "@app/exports/endpoints/SupportFlags/getSupportFlag";
 import { SQLRUNNER_TABS_UI } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
+import { getVersionContextFromId } from "dremio-ui-common/utilities/datasetReference.js";
 
 export default function* watchLoadDataset() {
   yield takeEvery(PERFORM_LOAD_DATASET, handlePerformLoadDataset);
@@ -98,8 +99,25 @@ export function* handlePerformLoadDataset({ meta }) {
       response
     );
     const datasetUI = apiUtils.getEntityFromResponse("datasetUI", response);
-    if (datasetUI && datasetUI.get("references")) {
-      yield put(setRefs(datasetUI.get("references").toJS()));
+    if (datasetUI) {
+      if (datasetUI.get("references")) {
+        yield put(setRefs(datasetUI.get("references").toJS()));
+      }
+      const versionContext = getVersionContextFromId(datasetUI.get("entityId"));
+      if (versionContext) {
+        const [sourceName] = dataset.get("fullPath");
+        yield put(
+          setReference(
+            {
+              reference: {
+                name: versionContext.value,
+                type: versionContext.type,
+              },
+            },
+            sourceName
+          )
+        );
+      }
     }
 
     yield call(focusSqlEditorSaga); // DX-9819 focus sql editor when metadata is loaded

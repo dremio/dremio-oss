@@ -15,9 +15,10 @@
  */
 package com.dremio.dac.model.job;
 
-/**
- * Describe the possible type of job failure
- */
+/** Describe the possible type of job failure */
 public enum JobFailureType {
-  UNKNOWN, PARSE, VALIDATION, EXECUTION;
+  UNKNOWN,
+  PARSE,
+  VALIDATION,
+  EXECUTION;
 }

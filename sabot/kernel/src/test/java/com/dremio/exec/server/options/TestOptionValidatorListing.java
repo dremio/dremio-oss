@@ -24,15 +24,13 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
-import java.util.Collection;
-
-import org.junit.BeforeClass;
-import org.junit.Test;
-
 import com.dremio.options.OptionValidator;
 import com.dremio.options.OptionValidatorListing;
 import com.dremio.test.DremioTest;
 import com.dremio.test.UserExceptionAssert;
+import java.util.Collection;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
 public class TestOptionValidatorListing extends DremioTest {
   private static OptionValidatorListing optionValidatorListing;
@@ -52,8 +50,8 @@ public class TestOptionValidatorListing extends DremioTest {
   public void testGetValidatorInvalid() {
     String invalid_name = "invalid_name";
     UserExceptionAssert.assertThatThrownBy(() -> optionValidatorListing.getValidator(invalid_name))
-      .hasErrorType(VALIDATION)
-      .hasMessageContaining(String.format("The option '%s' does not exist.", invalid_name));
+        .hasErrorType(VALIDATION)
+        .hasMessageContaining(String.format("The option '%s' does not exist.", invalid_name));
   }
 
   @Test

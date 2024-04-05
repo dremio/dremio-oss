@@ -15,13 +15,11 @@
  */
 package com.dremio.exec.vector.accessor;
 
-import java.math.BigDecimal;
-
-import org.apache.arrow.vector.DecimalVector;
-
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.types.Types;
+import java.math.BigDecimal;
+import org.apache.arrow.vector.DecimalVector;
 
 public class DecimalAccessor extends AbstractSqlAccessor {
 
@@ -63,5 +61,4 @@ public class DecimalAccessor extends AbstractSqlAccessor {
     }
     return ac.getObject(index);
   }
-
 }

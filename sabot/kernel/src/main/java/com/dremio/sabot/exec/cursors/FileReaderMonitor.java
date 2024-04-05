@@ -15,15 +15,12 @@
  */
 package com.dremio.sabot.exec.cursors;
 
+import com.dremio.sabot.threads.sharedres.SharedResource;
+import com.google.common.base.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.sabot.threads.sharedres.SharedResource;
-import com.google.common.base.Preconditions;
-
-/**
- * Monitor to block reader if it has caught up with the writer.
- */
+/** Monitor to block reader if it has caught up with the writer. */
 class FileReaderMonitor {
   private static final Logger logger = LoggerFactory.getLogger(FileReaderMonitor.class);
   private final SharedResource resource;
@@ -43,7 +40,8 @@ class FileReaderMonitor {
       writeCursor = updatedCursor;
       if (!resource.isAvailable() && writeCursor > readCursor) {
         // writer has moved ahead, unblock the reader resource.
-        //logger.debug("unblock resource {} writeCursor {} readCursor {}", resource.getName(), writeCursor, readCursor);
+        // logger.debug("unblock resource {} writeCursor {} readCursor {}", resource.getName(),
+        // writeCursor, readCursor);
         resource.markAvailable();
       }
     }
@@ -58,14 +56,23 @@ class FileReaderMonitor {
 
   void updateReadCursor(long updatedCursor) {
     synchronized (resource) {
-      Preconditions.checkArgument(updatedCursor >= readCursor,
-        "cursor should not decrease, updatedCursor " + updatedCursor + " readCursor " + readCursor);
-      Preconditions.checkArgument(updatedCursor <= writeCursor,
-        "read cursor should be <= writeCursor, updatedCursor " + updatedCursor + " writeCursor " + writeCursor);
+      Preconditions.checkArgument(
+          updatedCursor >= readCursor,
+          "cursor should not decrease, updatedCursor "
+              + updatedCursor
+              + " readCursor "
+              + readCursor);
+      Preconditions.checkArgument(
+          updatedCursor <= writeCursor,
+          "read cursor should be <= writeCursor, updatedCursor "
+              + updatedCursor
+              + " writeCursor "
+              + writeCursor);
       readCursor = updatedCursor;
       if (readCursor == writeCursor && !writerFinished) {
         // reader has caught up to the writer, block the reader resource.
-        //logger.debug("block resource {} writeCursor {} readCursor {}", resource.getName(), writeCursor, readCursor);
+        // logger.debug("block resource {} writeCursor {} readCursor {}", resource.getName(),
+        // writeCursor, readCursor);
         resource.markBlocked();
       }
     }

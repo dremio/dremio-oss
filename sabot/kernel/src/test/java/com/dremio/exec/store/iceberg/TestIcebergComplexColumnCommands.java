@@ -15,35 +15,17 @@
  */
 package com.dremio.exec.store.iceberg;
 
+import com.dremio.BaseTestQuery;
+import com.dremio.exec.proto.UserBitShared;
+import com.dremio.test.UserExceptionAssert;
 import java.io.File;
-
 import org.apache.commons.io.FileUtils;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.types.Types;
-import org.junit.After;
-import org.junit.Before;
 import org.junit.Test;
-
-import com.dremio.BaseTestQuery;
-import com.dremio.exec.ExecConstants;
-import com.dremio.exec.proto.UserBitShared;
-import com.dremio.test.UserExceptionAssert;
 
 @SuppressWarnings("UseCorrectAssertInTests")
 public class TestIcebergComplexColumnCommands extends BaseTestQuery {
-
-  @Before
-  public void setUp() {
-    setSystemOption(ExecConstants.ENABLE_ICEBERG, "true");
-    setSystemOption(ExecConstants.CTAS_CAN_USE_ICEBERG, "true");
-  }
-
-  @After
-  public void cleanUp() {
-    setSystemOption(ExecConstants.ENABLE_ICEBERG,
-      ExecConstants.ENABLE_ICEBERG.getDefault().getBoolVal().toString());
-    setSystemOption(ExecConstants.CTAS_CAN_USE_ICEBERG, ExecConstants.CTAS_CAN_USE_ICEBERG.getDefault().getBoolVal().toString());
-  }
 
   @Test
   public void testCreateComplexList() throws Exception {
@@ -51,14 +33,14 @@ public class TestIcebergComplexColumnCommands extends BaseTestQuery {
     File file = new File(getDfsTestTmpSchemaLocation(), newTblName);
     try {
       String query =
-        String.format("create table %s.%s (col1  ARRAY(INT))",
-          TEMP_SCHEMA, newTblName);
+          String.format("create table %s.%s (col1  ARRAY(INT))", TEMP_SCHEMA, newTblName);
       test(query);
       Table table = getIcebergTable(file);
       assert table.schema().columns().size() == 1;
       assert table.schema().columns().get(0).name().equalsIgnoreCase("col1");
       assert table.schema().columns().get(0).type().isListType();
-      assert table.schema().columns().get(0).type().asListType().elementType() == Types.IntegerType.get();
+      assert table.schema().columns().get(0).type().asListType().elementType()
+          == Types.IntegerType.get();
     } finally {
       FileUtils.deleteQuietly(file);
     }
@@ -70,16 +52,20 @@ public class TestIcebergComplexColumnCommands extends BaseTestQuery {
     File file = new File(getDfsTestTmpSchemaLocation(), newTblName);
     try {
       String query =
-        String.format("create table %s.%s (col1  ARRAY(DECIMAL(3,8)))",
-          TEMP_SCHEMA, newTblName);
+          String.format("create table %s.%s (col1  ARRAY(DECIMAL(3,8)))", TEMP_SCHEMA, newTblName);
       test(query);
       Table table = getIcebergTable(file);
       assert table.schema().columns().size() == 1;
       assert table.schema().columns().get(0).name().equalsIgnoreCase("col1");
       assert table.schema().columns().get(0).type().isListType();
-      assert table.schema().columns().get(0).type().asListType().elementType() instanceof Types.DecimalType;
-      assert ((Types.DecimalType) table.schema().columns().get(0).type().asListType().elementType()).scale() == 8;
-      assert ((Types.DecimalType) table.schema().columns().get(0).type().asListType().elementType()).precision() == 3;
+      assert table.schema().columns().get(0).type().asListType().elementType()
+          instanceof Types.DecimalType;
+      assert ((Types.DecimalType) table.schema().columns().get(0).type().asListType().elementType())
+              .scale()
+          == 8;
+      assert ((Types.DecimalType) table.schema().columns().get(0).type().asListType().elementType())
+              .precision()
+          == 3;
     } finally {
       FileUtils.deleteQuietly(file);
     }
@@ -91,18 +77,33 @@ public class TestIcebergComplexColumnCommands extends BaseTestQuery {
     File file = new File(getDfsTestTmpSchemaLocation(), newTblName);
     try {
       String query =
-        String.format("create table %s.%s (col1 ROW(x  DECIMAL(3,8)))",
-          TEMP_SCHEMA, newTblName);
+          String.format("create table %s.%s (col1 ROW(x  DECIMAL(3,8)))", TEMP_SCHEMA, newTblName);
       test(query);
       Table table = getIcebergTable(file);
       assert table.schema().columns().size() == 1;
       assert table.schema().columns().get(0).name().equalsIgnoreCase("col1");
       assert table.schema().columns().get(0).type().isStructType();
       assert table.schema().columns().get(0).type().asStructType().fields().size() == 1;
-      assert table.schema().columns().get(0).type().asStructType().fields().get(0).name().equalsIgnoreCase("x");
-      assert table.schema().columns().get(0).type().asStructType().fields().get(0).type() instanceof Types.DecimalType;
-      assert ((Types.DecimalType) table.schema().columns().get(0).type().asStructType().fields().get(0).type()).scale() == 8;
-      assert ((Types.DecimalType) table.schema().columns().get(0).type().asStructType().fields().get(0).type()).precision() == 3;
+      assert table
+          .schema()
+          .columns()
+          .get(0)
+          .type()
+          .asStructType()
+          .fields()
+          .get(0)
+          .name()
+          .equalsIgnoreCase("x");
+      assert table.schema().columns().get(0).type().asStructType().fields().get(0).type()
+          instanceof Types.DecimalType;
+      assert ((Types.DecimalType)
+                  table.schema().columns().get(0).type().asStructType().fields().get(0).type())
+              .scale()
+          == 8;
+      assert ((Types.DecimalType)
+                  table.schema().columns().get(0).type().asStructType().fields().get(0).type())
+              .precision()
+          == 3;
     } finally {
       FileUtils.deleteQuietly(file);
     }
@@ -113,17 +114,25 @@ public class TestIcebergComplexColumnCommands extends BaseTestQuery {
     final String newTblName = "createTableSimpleStruct";
     File file = new File(getDfsTestTmpSchemaLocation(), newTblName);
     try {
-      String query =
-        String.format("create table %s.%s (col1 ROW(x INT))",
-          TEMP_SCHEMA, newTblName);
+      String query = String.format("create table %s.%s (col1 ROW(x INT))", TEMP_SCHEMA, newTblName);
       test(query);
       Table table = getIcebergTable(file);
       assert table.schema().columns().size() == 1;
       assert table.schema().columns().get(0).name().equalsIgnoreCase("col1");
       assert table.schema().columns().get(0).type().isStructType();
       assert table.schema().columns().get(0).type().asStructType().fields().size() == 1;
-      assert table.schema().columns().get(0).type().asStructType().fields().get(0).name().equalsIgnoreCase("x");
-      assert table.schema().columns().get(0).type().asStructType().fields().get(0).type() == Types.IntegerType.get();
+      assert table
+          .schema()
+          .columns()
+          .get(0)
+          .type()
+          .asStructType()
+          .fields()
+          .get(0)
+          .name()
+          .equalsIgnoreCase("x");
+      assert table.schema().columns().get(0).type().asStructType().fields().get(0).type()
+          == Types.IntegerType.get();
     } finally {
       FileUtils.deleteQuietly(file);
     }
@@ -135,17 +144,48 @@ public class TestIcebergComplexColumnCommands extends BaseTestQuery {
     File file = new File(getDfsTestTmpSchemaLocation(), newTblName);
     try {
       String query =
-        String.format("create table %s.%s (col1  ARRAY( ARRAY(DECIMAL(40,8))))",
-          TEMP_SCHEMA, newTblName);
+          String.format(
+              "create table %s.%s (col1  ARRAY( ARRAY(DECIMAL(40,8))))", TEMP_SCHEMA, newTblName);
       test(query);
       Table table = getIcebergTable(file);
       assert table.schema().columns().size() == 1;
       assert table.schema().columns().get(0).name().equalsIgnoreCase("col1");
       assert table.schema().columns().get(0).type().isListType();
       assert table.schema().columns().get(0).type().asListType().elementType().isListType();
-      assert table.schema().columns().get(0).type().asListType().elementType().asListType().elementType() instanceof Types.DecimalType;
-      assert ((Types.DecimalType) table.schema().columns().get(0).type().asListType().elementType().asListType().elementType()).scale() == 8;
-      assert ((Types.DecimalType) table.schema().columns().get(0).type().asListType().elementType().asListType().elementType()).precision() == 38;
+      assert table
+              .schema()
+              .columns()
+              .get(0)
+              .type()
+              .asListType()
+              .elementType()
+              .asListType()
+              .elementType()
+          instanceof Types.DecimalType;
+      assert ((Types.DecimalType)
+                  table
+                      .schema()
+                      .columns()
+                      .get(0)
+                      .type()
+                      .asListType()
+                      .elementType()
+                      .asListType()
+                      .elementType())
+              .scale()
+          == 8;
+      assert ((Types.DecimalType)
+                  table
+                      .schema()
+                      .columns()
+                      .get(0)
+                      .type()
+                      .asListType()
+                      .elementType()
+                      .asListType()
+                      .elementType())
+              .precision()
+          == 38;
     } finally {
       FileUtils.deleteQuietly(file);
     }
@@ -157,18 +197,65 @@ public class TestIcebergComplexColumnCommands extends BaseTestQuery {
     File file = new File(getDfsTestTmpSchemaLocation(), newTblName);
     try {
       String query =
-        String.format("create table %s.%s (col1  ARRAY( ARRAY( ARRAY(DECIMAL(40,8)))))",
-          TEMP_SCHEMA, newTblName);
+          String.format(
+              "create table %s.%s (col1  ARRAY( ARRAY( ARRAY(DECIMAL(40,8)))))",
+              TEMP_SCHEMA, newTblName);
       test(query);
       Table table = getIcebergTable(file);
       assert table.schema().columns().size() == 1;
       assert table.schema().columns().get(0).name().equalsIgnoreCase("col1");
       assert table.schema().columns().get(0).type().isListType();
       assert table.schema().columns().get(0).type().asListType().elementType().isListType();
-      assert table.schema().columns().get(0).type().asListType().elementType().asListType().elementType().isListType();
-      assert table.schema().columns().get(0).type().asListType().elementType().asListType().elementType().asListType().elementType() instanceof Types.DecimalType;
-      assert ((Types.DecimalType) table.schema().columns().get(0).type().asListType().elementType().asListType().elementType().asListType().elementType()).scale() == 8;
-      assert ((Types.DecimalType) table.schema().columns().get(0).type().asListType().elementType().asListType().elementType().asListType().elementType()).precision() == 38;
+      assert table
+          .schema()
+          .columns()
+          .get(0)
+          .type()
+          .asListType()
+          .elementType()
+          .asListType()
+          .elementType()
+          .isListType();
+      assert table
+              .schema()
+              .columns()
+              .get(0)
+              .type()
+              .asListType()
+              .elementType()
+              .asListType()
+              .elementType()
+              .asListType()
+              .elementType()
+          instanceof Types.DecimalType;
+      assert ((Types.DecimalType)
+                  table
+                      .schema()
+                      .columns()
+                      .get(0)
+                      .type()
+                      .asListType()
+                      .elementType()
+                      .asListType()
+                      .elementType()
+                      .asListType()
+                      .elementType())
+              .scale()
+          == 8;
+      assert ((Types.DecimalType)
+                  table
+                      .schema()
+                      .columns()
+                      .get(0)
+                      .type()
+                      .asListType()
+                      .elementType()
+                      .asListType()
+                      .elementType()
+                      .asListType()
+                      .elementType())
+              .precision()
+          == 38;
     } finally {
       FileUtils.deleteQuietly(file);
     }
@@ -180,19 +267,77 @@ public class TestIcebergComplexColumnCommands extends BaseTestQuery {
     File file = new File(getDfsTestTmpSchemaLocation(), newTblName);
     try {
       String query =
-        String.format("create table %s.%s (col1  ARRAY(ROW( x   DECIMAL(40,8))))",
-          TEMP_SCHEMA, newTblName);
+          String.format(
+              "create table %s.%s (col1  ARRAY(ROW( x   DECIMAL(40,8))))", TEMP_SCHEMA, newTblName);
       test(query);
       Table table = getIcebergTable(file);
       assert table.schema().columns().size() == 1;
       assert table.schema().columns().get(0).name().equalsIgnoreCase("col1");
       assert table.schema().columns().get(0).type().isListType();
       assert table.schema().columns().get(0).type().asListType().elementType().isStructType();
-      assert table.schema().columns().get(0).type().asListType().elementType().asStructType().fields().size() == 1;
-      assert table.schema().columns().get(0).type().asListType().elementType().asStructType().fields().get(0).name().equalsIgnoreCase("x");
-      assert table.schema().columns().get(0).type().asListType().elementType().asStructType().fields().get(0).type() instanceof Types.DecimalType;
-      assert ((Types.DecimalType) table.schema().columns().get(0).type().asListType().elementType().asStructType().fields().get(0).type()).scale() == 8;
-      assert ((Types.DecimalType) table.schema().columns().get(0).type().asListType().elementType().asStructType().fields().get(0).type()).precision() == 38;
+      assert table
+              .schema()
+              .columns()
+              .get(0)
+              .type()
+              .asListType()
+              .elementType()
+              .asStructType()
+              .fields()
+              .size()
+          == 1;
+      assert table
+          .schema()
+          .columns()
+          .get(0)
+          .type()
+          .asListType()
+          .elementType()
+          .asStructType()
+          .fields()
+          .get(0)
+          .name()
+          .equalsIgnoreCase("x");
+      assert table
+              .schema()
+              .columns()
+              .get(0)
+              .type()
+              .asListType()
+              .elementType()
+              .asStructType()
+              .fields()
+              .get(0)
+              .type()
+          instanceof Types.DecimalType;
+      assert ((Types.DecimalType)
+                  table
+                      .schema()
+                      .columns()
+                      .get(0)
+                      .type()
+                      .asListType()
+                      .elementType()
+                      .asStructType()
+                      .fields()
+                      .get(0)
+                      .type())
+              .scale()
+          == 8;
+      assert ((Types.DecimalType)
+                  table
+                      .schema()
+                      .columns()
+                      .get(0)
+                      .type()
+                      .asListType()
+                      .elementType()
+                      .asStructType()
+                      .fields()
+                      .get(0)
+                      .type())
+              .precision()
+          == 38;
     } finally {
       FileUtils.deleteQuietly(file);
     }
@@ -204,18 +349,73 @@ public class TestIcebergComplexColumnCommands extends BaseTestQuery {
     File file = new File(getDfsTestTmpSchemaLocation(), newTblName);
     try {
       String query =
-        String.format("create table %s.%s (col1 ROW(x    ARRAY(DECIMAL(40,8))))",
-          TEMP_SCHEMA, newTblName);
+          String.format(
+              "create table %s.%s (col1 ROW(x    ARRAY(DECIMAL(40,8))))", TEMP_SCHEMA, newTblName);
       test(query);
       Table table = getIcebergTable(file);
       assert table.schema().columns().size() == 1;
       assert table.schema().columns().get(0).name().equalsIgnoreCase("col1");
       assert table.schema().columns().get(0).type().isStructType();
-      assert table.schema().columns().get(0).type().asStructType().fields().get(0).name().equalsIgnoreCase("x");
-      assert table.schema().columns().get(0).type().asStructType().fields().get(0).type().isListType();
-      assert table.schema().columns().get(0).type().asStructType().fields().get(0).type().asListType().elementType() instanceof Types.DecimalType;
-      assert ((Types.DecimalType) table.schema().columns().get(0).type().asStructType().fields().get(0).type().asListType().elementType()).scale() == 8;
-      assert ((Types.DecimalType) table.schema().columns().get(0).type().asStructType().fields().get(0).type().asListType().elementType()).precision() == 38;
+      assert table
+          .schema()
+          .columns()
+          .get(0)
+          .type()
+          .asStructType()
+          .fields()
+          .get(0)
+          .name()
+          .equalsIgnoreCase("x");
+      assert table
+          .schema()
+          .columns()
+          .get(0)
+          .type()
+          .asStructType()
+          .fields()
+          .get(0)
+          .type()
+          .isListType();
+      assert table
+              .schema()
+              .columns()
+              .get(0)
+              .type()
+              .asStructType()
+              .fields()
+              .get(0)
+              .type()
+              .asListType()
+              .elementType()
+          instanceof Types.DecimalType;
+      assert ((Types.DecimalType)
+                  table
+                      .schema()
+                      .columns()
+                      .get(0)
+                      .type()
+                      .asStructType()
+                      .fields()
+                      .get(0)
+                      .type()
+                      .asListType()
+                      .elementType())
+              .scale()
+          == 8;
+      assert ((Types.DecimalType)
+                  table
+                      .schema()
+                      .columns()
+                      .get(0)
+                      .type()
+                      .asStructType()
+                      .fields()
+                      .get(0)
+                      .type()
+                      .asListType()
+                      .elementType())
+              .precision()
+          == 38;
     } finally {
       FileUtils.deleteQuietly(file);
     }
@@ -227,17 +427,69 @@ public class TestIcebergComplexColumnCommands extends BaseTestQuery {
     File file = new File(getDfsTestTmpSchemaLocation(), newTblName);
     try {
       String query =
-        String.format("create table %s.%s (col1 ROW(x  ROW( x  DECIMAL(40,8))))",
-          TEMP_SCHEMA, newTblName);
+          String.format(
+              "create table %s.%s (col1 ROW(x  ROW( x  DECIMAL(40,8))))", TEMP_SCHEMA, newTblName);
       test(query);
       Table table = getIcebergTable(file);
       assert table.schema().columns().size() == 1;
       assert table.schema().columns().get(0).name().equalsIgnoreCase("col1");
       assert table.schema().columns().get(0).type().isStructType();
-      assert table.schema().columns().get(0).type().asStructType().fields().get(0).type().isStructType();
-      assert table.schema().columns().get(0).type().asStructType().fields().get(0).type().asStructType().fields().get(0).type() instanceof Types.DecimalType;
-      assert ((Types.DecimalType) table.schema().columns().get(0).type().asStructType().fields().get(0).type().asStructType().fields().get(0).type()).scale() == 8;
-      assert ((Types.DecimalType) table.schema().columns().get(0).type().asStructType().fields().get(0).type().asStructType().fields().get(0).type()).precision() == 38;
+      assert table
+          .schema()
+          .columns()
+          .get(0)
+          .type()
+          .asStructType()
+          .fields()
+          .get(0)
+          .type()
+          .isStructType();
+      assert table
+              .schema()
+              .columns()
+              .get(0)
+              .type()
+              .asStructType()
+              .fields()
+              .get(0)
+              .type()
+              .asStructType()
+              .fields()
+              .get(0)
+              .type()
+          instanceof Types.DecimalType;
+      assert ((Types.DecimalType)
+                  table
+                      .schema()
+                      .columns()
+                      .get(0)
+                      .type()
+                      .asStructType()
+                      .fields()
+                      .get(0)
+                      .type()
+                      .asStructType()
+                      .fields()
+                      .get(0)
+                      .type())
+              .scale()
+          == 8;
+      assert ((Types.DecimalType)
+                  table
+                      .schema()
+                      .columns()
+                      .get(0)
+                      .type()
+                      .asStructType()
+                      .fields()
+                      .get(0)
+                      .type()
+                      .asStructType()
+                      .fields()
+                      .get(0)
+                      .type())
+              .precision()
+          == 38;
     } finally {
       FileUtils.deleteQuietly(file);
     }
@@ -248,19 +500,19 @@ public class TestIcebergComplexColumnCommands extends BaseTestQuery {
     final String newTblName = "addTableSimpleList";
     File file = new File(getDfsTestTmpSchemaLocation(), newTblName);
     try {
-      String query =
-        String.format("create table %s.%s (col1 int)",
-          TEMP_SCHEMA, newTblName);
+      String query = String.format("create table %s.%s (col1 int)", TEMP_SCHEMA, newTblName);
       test(query);
-      query = String.format("alter table %s.%s add columns (col2  ARRAY(int))",
-        TEMP_SCHEMA, newTblName);
+      query =
+          String.format(
+              "alter table %s.%s add columns (col2  ARRAY(int))", TEMP_SCHEMA, newTblName);
       test(query);
       Table table = getIcebergTable(file);
       assert table.schema().columns().size() == 2;
       assert table.schema().columns().get(0).name().equalsIgnoreCase("col1");
       assert table.schema().columns().get(1).name().equalsIgnoreCase("col2");
       assert table.schema().columns().get(1).type().isListType();
-      assert table.schema().columns().get(1).type().asListType().elementType() == Types.IntegerType.get();
+      assert table.schema().columns().get(1).type().asListType().elementType()
+          == Types.IntegerType.get();
     } finally {
       FileUtils.deleteQuietly(file);
     }
@@ -271,12 +523,11 @@ public class TestIcebergComplexColumnCommands extends BaseTestQuery {
     final String newTblName = "addTableSimpleStruct";
     File file = new File(getDfsTestTmpSchemaLocation(), newTblName);
     try {
-      String query =
-        String.format("create table %s.%s (col1 int)",
-          TEMP_SCHEMA, newTblName);
+      String query = String.format("create table %s.%s (col1 int)", TEMP_SCHEMA, newTblName);
       test(query);
-      query = String.format("alter table %s.%s add columns (col2 ROW(x  int))",
-        TEMP_SCHEMA, newTblName);
+      query =
+          String.format(
+              "alter table %s.%s add columns (col2 ROW(x  int))", TEMP_SCHEMA, newTblName);
       test(query);
       Table table = getIcebergTable(file);
       assert table.schema().columns().size() == 2;
@@ -284,8 +535,18 @@ public class TestIcebergComplexColumnCommands extends BaseTestQuery {
       assert table.schema().columns().get(1).name().equalsIgnoreCase("col2");
       assert table.schema().columns().get(1).type().isStructType();
       assert table.schema().columns().get(1).type().asStructType().fields().size() == 1;
-      assert table.schema().columns().get(1).type().asStructType().fields().get(0).name().equalsIgnoreCase("x");
-      assert table.schema().columns().get(1).type().asStructType().fields().get(0).type() == Types.IntegerType.get();
+      assert table
+          .schema()
+          .columns()
+          .get(1)
+          .type()
+          .asStructType()
+          .fields()
+          .get(0)
+          .name()
+          .equalsIgnoreCase("x");
+      assert table.schema().columns().get(1).type().asStructType().fields().get(0).type()
+          == Types.IntegerType.get();
     } finally {
       FileUtils.deleteQuietly(file);
     }
@@ -296,12 +557,12 @@ public class TestIcebergComplexColumnCommands extends BaseTestQuery {
     final String newTblName = "createTableSimpleStructOfList";
     try {
       String query =
-        String.format("create table %s.%s (element ROW(x ARRAY(DECIMAL(40,8))))",
-          TEMP_SCHEMA, newTblName);
-      //element is a keyword and cannot be used as column name. Without this restriction we cannot parse LIST datatype.
-      UserExceptionAssert
-        .assertThatThrownBy(() -> test(query))
-        .hasErrorType(UserBitShared.DremioPBError.ErrorType.PARSE);
+          String.format(
+              "create table %s.%s (element ROW(x ARRAY(DECIMAL(40,8))))", TEMP_SCHEMA, newTblName);
+      // element is a keyword and cannot be used as column name. Without this restriction we cannot
+      // parse LIST datatype.
+      UserExceptionAssert.assertThatThrownBy(() -> test(query))
+          .hasErrorType(UserBitShared.DremioPBError.ErrorType.PARSE);
     } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTblName));
     }
@@ -312,13 +573,14 @@ public class TestIcebergComplexColumnCommands extends BaseTestQuery {
     final String newTblName = "unSupportedChangeTableSimpleStruct";
     File file = new File(getDfsTestTmpSchemaLocation(), newTblName);
     try {
-      String query =
-        String.format("create table %s.%s (col1 ROW(x int))",
-          TEMP_SCHEMA, newTblName);
+      String query = String.format("create table %s.%s (col1 ROW(x int))", TEMP_SCHEMA, newTblName);
       test(query);
-      query = String.format("alter table %s.%s change column col1 col1 ROW(x  varchar)",
-        TEMP_SCHEMA, newTblName);
-      errorMsgTestHelper(query, "VALIDATION ERROR: Cannot change data type of column [col1.x] from INTEGER to VARCHAR");
+      query =
+          String.format(
+              "alter table %s.%s change column col1 col1 ROW(x  varchar)", TEMP_SCHEMA, newTblName);
+      errorMsgTestHelper(
+          query,
+          "VALIDATION ERROR: Cannot change data type of column [col1.x] from INTEGER to VARCHAR");
     } finally {
       FileUtils.deleteQuietly(file);
     }
@@ -329,13 +591,15 @@ public class TestIcebergComplexColumnCommands extends BaseTestQuery {
     final String newTblName = "unSupportedChangePrimitiveTableSimpleStruct";
     File file = new File(getDfsTestTmpSchemaLocation(), newTblName);
     try {
-      String query =
-        String.format("create table %s.%s (col1 ROW(x int))",
-          TEMP_SCHEMA, newTblName);
+      String query = String.format("create table %s.%s (col1 ROW(x int))", TEMP_SCHEMA, newTblName);
       test(query);
-      query = String.format("alter table %s.%s change column col1 col1 ROW(x  ROW(z int))",
-        TEMP_SCHEMA, newTblName);
-      errorMsgTestHelper(query, "UNSUPPORTED_OPERATION ERROR: Cannot convert a primitive field [col1.x] to a complex type");
+      query =
+          String.format(
+              "alter table %s.%s change column col1 col1 ROW(x  ROW(z int))",
+              TEMP_SCHEMA, newTblName);
+      errorMsgTestHelper(
+          query,
+          "UNSUPPORTED_OPERATION ERROR: Cannot convert a primitive field [col1.x] to a complex type");
     } finally {
       FileUtils.deleteQuietly(file);
     }
@@ -346,13 +610,14 @@ public class TestIcebergComplexColumnCommands extends BaseTestQuery {
     final String newTblName = "unSupportedChangePrimitiveTableSimpleStructRoot";
     File file = new File(getDfsTestTmpSchemaLocation(), newTblName);
     try {
-      String query =
-        String.format("create table %s.%s (col1 int)",
-          TEMP_SCHEMA, newTblName);
+      String query = String.format("create table %s.%s (col1 int)", TEMP_SCHEMA, newTblName);
       test(query);
-      query = String.format("alter table %s.%s change column col1 col1 ROW(x int)",
-        TEMP_SCHEMA, newTblName);
-      errorMsgTestHelper(query, "UNSUPPORTED_OPERATION ERROR: Cannot convert a primitive field [col1] to a complex type");
+      query =
+          String.format(
+              "alter table %s.%s change column col1 col1 ROW(x int)", TEMP_SCHEMA, newTblName);
+      errorMsgTestHelper(
+          query,
+          "UNSUPPORTED_OPERATION ERROR: Cannot convert a primitive field [col1] to a complex type");
     } finally {
       FileUtils.deleteQuietly(file);
     }
@@ -364,12 +629,15 @@ public class TestIcebergComplexColumnCommands extends BaseTestQuery {
     File file = new File(getDfsTestTmpSchemaLocation(), newTblName);
     try {
       String query =
-        String.format("create table %s.%s (col1  ARRAY(int))",
-          TEMP_SCHEMA, newTblName);
+          String.format("create table %s.%s (col1  ARRAY(int))", TEMP_SCHEMA, newTblName);
       test(query);
-      query = String.format("alter table %s.%s change column col1 col1  ARRAY( ARRAY(int))",
-        TEMP_SCHEMA, newTblName);
-      errorMsgTestHelper(query, "UNSUPPORTED_OPERATION ERROR: Cannot convert a primitive field [col1.element] to a complex type");
+      query =
+          String.format(
+              "alter table %s.%s change column col1 col1  ARRAY( ARRAY(int))",
+              TEMP_SCHEMA, newTblName);
+      errorMsgTestHelper(
+          query,
+          "UNSUPPORTED_OPERATION ERROR: Cannot convert a primitive field [col1.element] to a complex type");
     } finally {
       FileUtils.deleteQuietly(file);
     }
@@ -380,13 +648,14 @@ public class TestIcebergComplexColumnCommands extends BaseTestQuery {
     final String newTblName = "unSupportedChangePrimitiveTableSimpleListRoot";
     File file = new File(getDfsTestTmpSchemaLocation(), newTblName);
     try {
-      String query =
-        String.format("create table %s.%s (col1 int)",
-          TEMP_SCHEMA, newTblName);
+      String query = String.format("create table %s.%s (col1 int)", TEMP_SCHEMA, newTblName);
       test(query);
-      query = String.format("alter table %s.%s change column col1 col1  ARRAY(int)",
-        TEMP_SCHEMA, newTblName);
-      errorMsgTestHelper(query, "UNSUPPORTED_OPERATION ERROR: Cannot convert a primitive field [col1] to a complex type");
+      query =
+          String.format(
+              "alter table %s.%s change column col1 col1  ARRAY(int)", TEMP_SCHEMA, newTblName);
+      errorMsgTestHelper(
+          query,
+          "UNSUPPORTED_OPERATION ERROR: Cannot convert a primitive field [col1] to a complex type");
     } finally {
       FileUtils.deleteQuietly(file);
     }
@@ -397,13 +666,13 @@ public class TestIcebergComplexColumnCommands extends BaseTestQuery {
     final String newTblName = "unSupportedChangeChangeComplexStructToPrimitiveRoot";
     File file = new File(getDfsTestTmpSchemaLocation(), newTblName);
     try {
-      String query =
-        String.format("create table %s.%s (col1 ROW(x int))",
-          TEMP_SCHEMA, newTblName);
+      String query = String.format("create table %s.%s (col1 ROW(x int))", TEMP_SCHEMA, newTblName);
       test(query);
-      query = String.format("alter table %s.%s change column col1 col1  int",
-        TEMP_SCHEMA, newTblName);
-      errorMsgTestHelper(query, "UNSUPPORTED_OPERATION ERROR: Cannot convert a complex field [col1] to a primitive type");
+      query =
+          String.format("alter table %s.%s change column col1 col1  int", TEMP_SCHEMA, newTblName);
+      errorMsgTestHelper(
+          query,
+          "UNSUPPORTED_OPERATION ERROR: Cannot convert a complex field [col1] to a primitive type");
     } finally {
       FileUtils.deleteQuietly(file);
     }
@@ -415,12 +684,14 @@ public class TestIcebergComplexColumnCommands extends BaseTestQuery {
     File file = new File(getDfsTestTmpSchemaLocation(), newTblName);
     try {
       String query =
-        String.format("create table %s.%s (col1 ROW(y ROW(x int)))",
-          TEMP_SCHEMA, newTblName);
+          String.format("create table %s.%s (col1 ROW(y ROW(x int)))", TEMP_SCHEMA, newTblName);
       test(query);
-      query = String.format("alter table %s.%s change column col1 col1  ROW(y int)",
-        TEMP_SCHEMA, newTblName);
-      errorMsgTestHelper(query, "UNSUPPORTED_OPERATION ERROR: Cannot convert a complex field [col1.y] to a primitive type");
+      query =
+          String.format(
+              "alter table %s.%s change column col1 col1  ROW(y int)", TEMP_SCHEMA, newTblName);
+      errorMsgTestHelper(
+          query,
+          "UNSUPPORTED_OPERATION ERROR: Cannot convert a complex field [col1.y] to a primitive type");
     } finally {
       FileUtils.deleteQuietly(file);
     }
@@ -431,13 +702,14 @@ public class TestIcebergComplexColumnCommands extends BaseTestQuery {
     final String newTblName = "unSupportedChangeComplexListToPrimitiveRoot";
     File file = new File(getDfsTestTmpSchemaLocation(), newTblName);
     try {
-      String query =
-        String.format("create table %s.%s (col1 int)",
-          TEMP_SCHEMA, newTblName);
+      String query = String.format("create table %s.%s (col1 int)", TEMP_SCHEMA, newTblName);
       test(query);
-      query = String.format("alter table %s.%s change column col1 col1  ARRAY(int)",
-        TEMP_SCHEMA, newTblName);
-      errorMsgTestHelper(query, "UNSUPPORTED_OPERATION ERROR: Cannot convert a primitive field [col1] to a complex type");
+      query =
+          String.format(
+              "alter table %s.%s change column col1 col1  ARRAY(int)", TEMP_SCHEMA, newTblName);
+      errorMsgTestHelper(
+          query,
+          "UNSUPPORTED_OPERATION ERROR: Cannot convert a primitive field [col1] to a complex type");
     } finally {
       FileUtils.deleteQuietly(file);
     }
@@ -449,12 +721,15 @@ public class TestIcebergComplexColumnCommands extends BaseTestQuery {
     File file = new File(getDfsTestTmpSchemaLocation(), newTblName);
     try {
       String query =
-        String.format("create table %s.%s (col1  ARRAY(int))",
-          TEMP_SCHEMA, newTblName);
+          String.format("create table %s.%s (col1  ARRAY(int))", TEMP_SCHEMA, newTblName);
       test(query);
-      query = String.format("alter table %s.%s change column col1 col1  ARRAY( ARRAY(int))",
-        TEMP_SCHEMA, newTblName);
-      errorMsgTestHelper(query, "UNSUPPORTED_OPERATION ERROR: Cannot convert a primitive field [col1.element] to a complex type");
+      query =
+          String.format(
+              "alter table %s.%s change column col1 col1  ARRAY( ARRAY(int))",
+              TEMP_SCHEMA, newTblName);
+      errorMsgTestHelper(
+          query,
+          "UNSUPPORTED_OPERATION ERROR: Cannot convert a primitive field [col1.element] to a complex type");
     } finally {
       FileUtils.deleteQuietly(file);
     }
@@ -466,12 +741,14 @@ public class TestIcebergComplexColumnCommands extends BaseTestQuery {
     File file = new File(getDfsTestTmpSchemaLocation(), newTblName);
     try {
       String query =
-        String.format("create table %s.%s (col1  ARRAY(int))",
-          TEMP_SCHEMA, newTblName);
+          String.format("create table %s.%s (col1  ARRAY(int))", TEMP_SCHEMA, newTblName);
       test(query);
-      query = String.format("alter table %s.%s change column col1 col1 ROW(y int)",
-        TEMP_SCHEMA, newTblName);
-      errorMsgTestHelper(query, "UNSUPPORTED_OPERATION ERROR: Cannot convert complex field [col1] from [list<int>] to [Struct]");
+      query =
+          String.format(
+              "alter table %s.%s change column col1 col1 ROW(y int)", TEMP_SCHEMA, newTblName);
+      errorMsgTestHelper(
+          query,
+          "UNSUPPORTED_OPERATION ERROR: Cannot convert complex field [col1] from [list<int>] to [Struct]");
     } finally {
       FileUtils.deleteQuietly(file);
     }
@@ -483,12 +760,15 @@ public class TestIcebergComplexColumnCommands extends BaseTestQuery {
     File file = new File(getDfsTestTmpSchemaLocation(), newTblName);
     try {
       String query =
-        String.format("create table %s.%s (col1  ARRAY( ARRAY(int)))",
-          TEMP_SCHEMA, newTblName);
+          String.format("create table %s.%s (col1  ARRAY( ARRAY(int)))", TEMP_SCHEMA, newTblName);
       test(query);
-      query = String.format("alter table %s.%s change column col1 col1  ARRAY(ROW(y int))",
-        TEMP_SCHEMA, newTblName);
-      errorMsgTestHelper(query, "UNSUPPORTED_OPERATION ERROR: Cannot convert complex field [col1.element] from [list<int>] to [Struct]");
+      query =
+          String.format(
+              "alter table %s.%s change column col1 col1  ARRAY(ROW(y int))",
+              TEMP_SCHEMA, newTblName);
+      errorMsgTestHelper(
+          query,
+          "UNSUPPORTED_OPERATION ERROR: Cannot convert complex field [col1.element] from [list<int>] to [Struct]");
     } finally {
       FileUtils.deleteQuietly(file);
     }
@@ -499,20 +779,29 @@ public class TestIcebergComplexColumnCommands extends BaseTestQuery {
     final String newTblName = "changeTableSimpleStruct";
     File file = new File(getDfsTestTmpSchemaLocation(), newTblName);
     try {
-      String query =
-        String.format("create table %s.%s (col1 ROW(x int))",
-          TEMP_SCHEMA, newTblName);
+      String query = String.format("create table %s.%s (col1 ROW(x int))", TEMP_SCHEMA, newTblName);
       test(query);
-      query = String.format("alter table %s.%s alter column col1 col1 ROW(x  bigint)",
-        TEMP_SCHEMA, newTblName);
+      query =
+          String.format(
+              "alter table %s.%s alter column col1 col1 ROW(x  bigint)", TEMP_SCHEMA, newTblName);
       test(query);
       Table table = getIcebergTable(file);
       assert table.schema().columns().size() == 1;
       assert table.schema().columns().get(0).name().equalsIgnoreCase("col1");
       assert table.schema().columns().get(0).type().isStructType();
       assert table.schema().columns().get(0).type().asStructType().fields().size() == 1;
-      assert table.schema().columns().get(0).type().asStructType().fields().get(0).name().equalsIgnoreCase("x");
-      assert table.schema().columns().get(0).type().asStructType().fields().get(0).type() == Types.LongType.get();
+      assert table
+          .schema()
+          .columns()
+          .get(0)
+          .type()
+          .asStructType()
+          .fields()
+          .get(0)
+          .name()
+          .equalsIgnoreCase("x");
+      assert table.schema().columns().get(0).type().asStructType().fields().get(0).type()
+          == Types.LongType.get();
     } finally {
       FileUtils.deleteQuietly(file);
     }
@@ -524,17 +813,18 @@ public class TestIcebergComplexColumnCommands extends BaseTestQuery {
     File file = new File(getDfsTestTmpSchemaLocation(), newTblName);
     try {
       String query =
-        String.format("create table %s.%s (col1  ARRAY(int))",
-          TEMP_SCHEMA, newTblName);
+          String.format("create table %s.%s (col1  ARRAY(int))", TEMP_SCHEMA, newTblName);
       test(query);
-      query = String.format("alter table %s.%s alter column col1 col1  ARRAY(bigint)",
-        TEMP_SCHEMA, newTblName);
+      query =
+          String.format(
+              "alter table %s.%s alter column col1 col1  ARRAY(bigint)", TEMP_SCHEMA, newTblName);
       test(query);
       Table table = getIcebergTable(file);
       assert table.schema().columns().size() == 1;
       assert table.schema().columns().get(0).name().equalsIgnoreCase("col1");
       assert table.schema().columns().get(0).type().isListType();
-      assert table.schema().columns().get(0).type().asListType().elementType() == Types.LongType.get();
+      assert table.schema().columns().get(0).type().asListType().elementType()
+          == Types.LongType.get();
     } finally {
       FileUtils.deleteQuietly(file);
     }
@@ -546,28 +836,88 @@ public class TestIcebergComplexColumnCommands extends BaseTestQuery {
     File file = new File(getDfsTestTmpSchemaLocation(), newTblName);
     try {
       String query =
-        String.format("create table %s.%s (col1 ROW(x  int, y  bigint, z  varchar))",
-          TEMP_SCHEMA, newTblName);
+          String.format(
+              "create table %s.%s (col1 ROW(x  int, y  bigint, z  varchar))",
+              TEMP_SCHEMA, newTblName);
       test(query);
-      query = String.format("alter table %s.%s modify column col1 col2 ROW(x  bigint,y  bigint, c  varchar, d  DECIMAL(40,3), e    ARRAY(int))",
-        TEMP_SCHEMA, newTblName);
+      query =
+          String.format(
+              "alter table %s.%s modify column col1 col2 ROW(x  bigint,y  bigint, c  varchar, d  DECIMAL(40,3), e    ARRAY(int))",
+              TEMP_SCHEMA, newTblName);
       test(query);
       Table table = getIcebergTable(file);
       assert table.schema().columns().size() == 1;
       assert table.schema().columns().get(0).name().equalsIgnoreCase("col2");
       assert table.schema().columns().get(0).type().isStructType();
       assert table.schema().columns().get(0).type().asStructType().fields().size() == 5;
-      assert table.schema().columns().get(0).type().asStructType().fields().get(0).name().equalsIgnoreCase("x");
-      assert table.schema().columns().get(0).type().asStructType().fields().get(0).type() == Types.LongType.get();
-      assert table.schema().columns().get(0).type().asStructType().fields().get(1).name().equalsIgnoreCase("y");
-      assert table.schema().columns().get(0).type().asStructType().fields().get(1).type() == Types.LongType.get();
-      assert table.schema().columns().get(0).type().asStructType().fields().get(2).name().equalsIgnoreCase("c");
-      assert table.schema().columns().get(0).type().asStructType().fields().get(2).type() == Types.StringType.get();
-      assert table.schema().columns().get(0).type().asStructType().fields().get(3).type() instanceof Types.DecimalType;
-      assert ((Types.DecimalType) table.schema().columns().get(0).type().asStructType().fields().get(3).type()).scale() == 3;
-      assert ((Types.DecimalType) table.schema().columns().get(0).type().asStructType().fields().get(3).type()).precision() == 38;
-      assert table.schema().columns().get(0).type().asStructType().fields().get(4).name().equalsIgnoreCase("e");
-      assert table.schema().columns().get(0).type().asStructType().fields().get(4).type().asListType().elementType() == Types.IntegerType.get();
+      assert table
+          .schema()
+          .columns()
+          .get(0)
+          .type()
+          .asStructType()
+          .fields()
+          .get(0)
+          .name()
+          .equalsIgnoreCase("x");
+      assert table.schema().columns().get(0).type().asStructType().fields().get(0).type()
+          == Types.LongType.get();
+      assert table
+          .schema()
+          .columns()
+          .get(0)
+          .type()
+          .asStructType()
+          .fields()
+          .get(1)
+          .name()
+          .equalsIgnoreCase("y");
+      assert table.schema().columns().get(0).type().asStructType().fields().get(1).type()
+          == Types.LongType.get();
+      assert table
+          .schema()
+          .columns()
+          .get(0)
+          .type()
+          .asStructType()
+          .fields()
+          .get(2)
+          .name()
+          .equalsIgnoreCase("c");
+      assert table.schema().columns().get(0).type().asStructType().fields().get(2).type()
+          == Types.StringType.get();
+      assert table.schema().columns().get(0).type().asStructType().fields().get(3).type()
+          instanceof Types.DecimalType;
+      assert ((Types.DecimalType)
+                  table.schema().columns().get(0).type().asStructType().fields().get(3).type())
+              .scale()
+          == 3;
+      assert ((Types.DecimalType)
+                  table.schema().columns().get(0).type().asStructType().fields().get(3).type())
+              .precision()
+          == 38;
+      assert table
+          .schema()
+          .columns()
+          .get(0)
+          .type()
+          .asStructType()
+          .fields()
+          .get(4)
+          .name()
+          .equalsIgnoreCase("e");
+      assert table
+              .schema()
+              .columns()
+              .get(0)
+              .type()
+              .asStructType()
+              .fields()
+              .get(4)
+              .type()
+              .asListType()
+              .elementType()
+          == Types.IntegerType.get();
     } finally {
       FileUtils.deleteQuietly(file);
     }
@@ -579,30 +929,202 @@ public class TestIcebergComplexColumnCommands extends BaseTestQuery {
     File file = new File(getDfsTestTmpSchemaLocation(), newTblName);
     try {
       String query =
-        String.format("create table %s.%s (col1 ROW(x  int, y  ROW( x  ROW(z int)), z  varchar))",
-          TEMP_SCHEMA, newTblName);
+          String.format(
+              "create table %s.%s (col1 ROW(x  int, y  ROW( x  ROW(z int)), z  varchar))",
+              TEMP_SCHEMA, newTblName);
       test(query);
-      query = String.format("alter table %s.%s modify column col1 col1 ROW(x  int, y  ROW( x  ROW(z bigint, x   ARRAY(INT))), z  varchar)",
-        TEMP_SCHEMA, newTblName);
+      query =
+          String.format(
+              "alter table %s.%s modify column col1 col1 ROW(x  int, y  ROW( x  ROW(z bigint, x   ARRAY(INT))), z  varchar)",
+              TEMP_SCHEMA, newTblName);
       test(query);
       Table table = getIcebergTable(file);
       assert table.schema().columns().size() == 1;
       assert table.schema().columns().get(0).name().equalsIgnoreCase("col1");
       assert table.schema().columns().get(0).type().isStructType();
       assert table.schema().columns().get(0).type().asStructType().fields().size() == 3;
-      assert table.schema().columns().get(0).type().asStructType().fields().get(0).name().equalsIgnoreCase("x");
-      assert table.schema().columns().get(0).type().asStructType().fields().get(0).type() == Types.IntegerType.get();
-      assert table.schema().columns().get(0).type().asStructType().fields().get(1).name().equalsIgnoreCase("y");
-      assert table.schema().columns().get(0).type().asStructType().fields().get(1).type().isStructType();
-      assert table.schema().columns().get(0).type().asStructType().fields().get(1).type().asStructType().fields().size() == 1;
-      assert table.schema().columns().get(0).type().asStructType().fields().get(1).type().asStructType().fields().get(0).name().equalsIgnoreCase("x");
-      assert table.schema().columns().get(0).type().asStructType().fields().get(1).type().asStructType().fields().get(0).type().isStructType();
-      assert table.schema().columns().get(0).type().asStructType().fields().get(1).type().asStructType().fields().get(0).type().asStructType().fields().size() == 2;
-      assert table.schema().columns().get(0).type().asStructType().fields().get(1).type().asStructType().fields().get(0).type().asStructType().fields().get(0).name().equalsIgnoreCase("z");
-      assert table.schema().columns().get(0).type().asStructType().fields().get(1).type().asStructType().fields().get(0).type().asStructType().fields().get(0).type() == Types.LongType.get();
-      assert table.schema().columns().get(0).type().asStructType().fields().get(1).type().asStructType().fields().get(0).type().asStructType().fields().get(1).name().equalsIgnoreCase("x");
-      assert table.schema().columns().get(0).type().asStructType().fields().get(1).type().asStructType().fields().get(0).type().asStructType().fields().get(1).type().isListType();
-      assert table.schema().columns().get(0).type().asStructType().fields().get(1).type().asStructType().fields().get(0).type().asStructType().fields().get(1).type().asListType().elementType() == Types.IntegerType.get();
+      assert table
+          .schema()
+          .columns()
+          .get(0)
+          .type()
+          .asStructType()
+          .fields()
+          .get(0)
+          .name()
+          .equalsIgnoreCase("x");
+      assert table.schema().columns().get(0).type().asStructType().fields().get(0).type()
+          == Types.IntegerType.get();
+      assert table
+          .schema()
+          .columns()
+          .get(0)
+          .type()
+          .asStructType()
+          .fields()
+          .get(1)
+          .name()
+          .equalsIgnoreCase("y");
+      assert table
+          .schema()
+          .columns()
+          .get(0)
+          .type()
+          .asStructType()
+          .fields()
+          .get(1)
+          .type()
+          .isStructType();
+      assert table
+              .schema()
+              .columns()
+              .get(0)
+              .type()
+              .asStructType()
+              .fields()
+              .get(1)
+              .type()
+              .asStructType()
+              .fields()
+              .size()
+          == 1;
+      assert table
+          .schema()
+          .columns()
+          .get(0)
+          .type()
+          .asStructType()
+          .fields()
+          .get(1)
+          .type()
+          .asStructType()
+          .fields()
+          .get(0)
+          .name()
+          .equalsIgnoreCase("x");
+      assert table
+          .schema()
+          .columns()
+          .get(0)
+          .type()
+          .asStructType()
+          .fields()
+          .get(1)
+          .type()
+          .asStructType()
+          .fields()
+          .get(0)
+          .type()
+          .isStructType();
+      assert table
+              .schema()
+              .columns()
+              .get(0)
+              .type()
+              .asStructType()
+              .fields()
+              .get(1)
+              .type()
+              .asStructType()
+              .fields()
+              .get(0)
+              .type()
+              .asStructType()
+              .fields()
+              .size()
+          == 2;
+      assert table
+          .schema()
+          .columns()
+          .get(0)
+          .type()
+          .asStructType()
+          .fields()
+          .get(1)
+          .type()
+          .asStructType()
+          .fields()
+          .get(0)
+          .type()
+          .asStructType()
+          .fields()
+          .get(0)
+          .name()
+          .equalsIgnoreCase("z");
+      assert table
+              .schema()
+              .columns()
+              .get(0)
+              .type()
+              .asStructType()
+              .fields()
+              .get(1)
+              .type()
+              .asStructType()
+              .fields()
+              .get(0)
+              .type()
+              .asStructType()
+              .fields()
+              .get(0)
+              .type()
+          == Types.LongType.get();
+      assert table
+          .schema()
+          .columns()
+          .get(0)
+          .type()
+          .asStructType()
+          .fields()
+          .get(1)
+          .type()
+          .asStructType()
+          .fields()
+          .get(0)
+          .type()
+          .asStructType()
+          .fields()
+          .get(1)
+          .name()
+          .equalsIgnoreCase("x");
+      assert table
+          .schema()
+          .columns()
+          .get(0)
+          .type()
+          .asStructType()
+          .fields()
+          .get(1)
+          .type()
+          .asStructType()
+          .fields()
+          .get(0)
+          .type()
+          .asStructType()
+          .fields()
+          .get(1)
+          .type()
+          .isListType();
+      assert table
+              .schema()
+              .columns()
+              .get(0)
+              .type()
+              .asStructType()
+              .fields()
+              .get(1)
+              .type()
+              .asStructType()
+              .fields()
+              .get(0)
+              .type()
+              .asStructType()
+              .fields()
+              .get(1)
+              .type()
+              .asListType()
+              .elementType()
+          == Types.IntegerType.get();
     } finally {
       FileUtils.deleteQuietly(file);
     }
@@ -614,23 +1136,57 @@ public class TestIcebergComplexColumnCommands extends BaseTestQuery {
     File file = new File(getDfsTestTmpSchemaLocation(), newTblName);
     try {
       String query =
-        String.format("create table %s.%s (col1 ROW(a int,b int,c int))",
-          TEMP_SCHEMA, newTblName);
+          String.format(
+              "create table %s.%s (col1 ROW(a int,b int,c int))", TEMP_SCHEMA, newTblName);
       test(query);
-      query = String.format("alter table %s.%s change column col1 col1 ROW(b bigint,c  ARRAY(int))",
-        TEMP_SCHEMA, newTblName);
-      errorMsgTestHelper(query, "UNSUPPORTED_OPERATION ERROR: Cannot convert a primitive field [col1.c] to a complex type");
+      query =
+          String.format(
+              "alter table %s.%s change column col1 col1 ROW(b bigint,c  ARRAY(int))",
+              TEMP_SCHEMA, newTblName);
+      errorMsgTestHelper(
+          query,
+          "UNSUPPORTED_OPERATION ERROR: Cannot convert a primitive field [col1.c] to a complex type");
       Table table = getIcebergTable(file);
       assert table.schema().columns().size() == 1;
       assert table.schema().columns().get(0).name().equalsIgnoreCase("col1");
       assert table.schema().columns().get(0).type().isStructType();
       assert table.schema().columns().get(0).type().asStructType().fields().size() == 3;
-      assert table.schema().columns().get(0).type().asStructType().fields().get(0).name().equalsIgnoreCase("a");
-      assert table.schema().columns().get(0).type().asStructType().fields().get(0).type() == Types.IntegerType.get();
-      assert table.schema().columns().get(0).type().asStructType().fields().get(1).name().equalsIgnoreCase("b");
-      assert table.schema().columns().get(0).type().asStructType().fields().get(1).type() == Types.IntegerType.get();
-      assert table.schema().columns().get(0).type().asStructType().fields().get(2).name().equalsIgnoreCase("c");
-      assert table.schema().columns().get(0).type().asStructType().fields().get(2).type() == Types.IntegerType.get();
+      assert table
+          .schema()
+          .columns()
+          .get(0)
+          .type()
+          .asStructType()
+          .fields()
+          .get(0)
+          .name()
+          .equalsIgnoreCase("a");
+      assert table.schema().columns().get(0).type().asStructType().fields().get(0).type()
+          == Types.IntegerType.get();
+      assert table
+          .schema()
+          .columns()
+          .get(0)
+          .type()
+          .asStructType()
+          .fields()
+          .get(1)
+          .name()
+          .equalsIgnoreCase("b");
+      assert table.schema().columns().get(0).type().asStructType().fields().get(1).type()
+          == Types.IntegerType.get();
+      assert table
+          .schema()
+          .columns()
+          .get(0)
+          .type()
+          .asStructType()
+          .fields()
+          .get(2)
+          .name()
+          .equalsIgnoreCase("c");
+      assert table.schema().columns().get(0).type().asStructType().fields().get(2).type()
+          == Types.IntegerType.get();
     } finally {
       FileUtils.deleteQuietly(file);
     }
@@ -642,19 +1198,30 @@ public class TestIcebergComplexColumnCommands extends BaseTestQuery {
     File file = new File(getDfsTestTmpSchemaLocation(), newTblName);
     try {
       String query =
-        String.format("create table %s.%s (col1 ROW(x  int))",
-          TEMP_SCHEMA, newTblName);
+          String.format("create table %s.%s (col1 ROW(x  int))", TEMP_SCHEMA, newTblName);
       test(query);
-      query = String.format("alter table %s.%s modify column col1 col1 ROW(x  bigint, X double)",
-        TEMP_SCHEMA, newTblName);
+      query =
+          String.format(
+              "alter table %s.%s modify column col1 col1 ROW(x  bigint, X double)",
+              TEMP_SCHEMA, newTblName);
       errorMsgTestHelper(query, "PARSE ERROR: Column [X] specified multiple times.");
       Table table = getIcebergTable(file);
       assert table.schema().columns().size() == 1;
       assert table.schema().columns().get(0).name().equalsIgnoreCase("col1");
       assert table.schema().columns().get(0).type().isStructType();
       assert table.schema().columns().get(0).type().asStructType().fields().size() == 1;
-      assert table.schema().columns().get(0).type().asStructType().fields().get(0).name().equalsIgnoreCase("x");
-      assert table.schema().columns().get(0).type().asStructType().fields().get(0).type() == Types.IntegerType.get();
+      assert table
+          .schema()
+          .columns()
+          .get(0)
+          .type()
+          .asStructType()
+          .fields()
+          .get(0)
+          .name()
+          .equalsIgnoreCase("x");
+      assert table.schema().columns().get(0).type().asStructType().fields().get(0).type()
+          == Types.IntegerType.get();
     } finally {
       FileUtils.deleteQuietly(file);
     }
@@ -666,11 +1233,12 @@ public class TestIcebergComplexColumnCommands extends BaseTestQuery {
     File file = new File(getDfsTestTmpSchemaLocation(), newTblName);
     try {
       String query =
-        String.format("create table %s.%s (col1  ARRAY(ROW(x  int)))",
-          TEMP_SCHEMA, newTblName);
+          String.format("create table %s.%s (col1  ARRAY(ROW(x  int)))", TEMP_SCHEMA, newTblName);
       test(query);
-      query = String.format("alter table %s.%s modify column col1 col1  ARRAY(ROW(y  bigint, Y double))",
-        TEMP_SCHEMA, newTblName);
+      query =
+          String.format(
+              "alter table %s.%s modify column col1 col1  ARRAY(ROW(y  bigint, Y double))",
+              TEMP_SCHEMA, newTblName);
       errorMsgTestHelper(query, "PARSE ERROR: Column [Y] specified multiple times.");
     } finally {
       FileUtils.deleteQuietly(file);
@@ -683,11 +1251,13 @@ public class TestIcebergComplexColumnCommands extends BaseTestQuery {
     File file = new File(getDfsTestTmpSchemaLocation(), newTblName);
     try {
       String query =
-        String.format("create table %s.%s (col1  ARRAY( ARRAY(ROW(x  int))))",
-          TEMP_SCHEMA, newTblName);
+          String.format(
+              "create table %s.%s (col1  ARRAY( ARRAY(ROW(x  int))))", TEMP_SCHEMA, newTblName);
       test(query);
-      query = String.format("alter table %s.%s modify column col1 col1  ARRAY( ARRAY(ROW(y  bigint, Y double)))",
-        TEMP_SCHEMA, newTblName);
+      query =
+          String.format(
+              "alter table %s.%s modify column col1 col1  ARRAY( ARRAY(ROW(y  bigint, Y double)))",
+              TEMP_SCHEMA, newTblName);
       errorMsgTestHelper(query, "PARSE ERROR: Column [Y] specified multiple times.");
     } finally {
       FileUtils.deleteQuietly(file);
@@ -700,11 +1270,13 @@ public class TestIcebergComplexColumnCommands extends BaseTestQuery {
     File file = new File(getDfsTestTmpSchemaLocation(), newTblName);
     try {
       String query =
-        String.format("create table %s.%s (col1 ROW(x   ARRAY(ROW(x  int))))",
-          TEMP_SCHEMA, newTblName);
+          String.format(
+              "create table %s.%s (col1 ROW(x   ARRAY(ROW(x  int))))", TEMP_SCHEMA, newTblName);
       test(query);
-      query = String.format("alter table %s.%s modify column col1 col1 ROW(x   ARRAY(ROW(x  int, y  bigint, Y double)))",
-        TEMP_SCHEMA, newTblName);
+      query =
+          String.format(
+              "alter table %s.%s modify column col1 col1 ROW(x   ARRAY(ROW(x  int, y  bigint, Y double)))",
+              TEMP_SCHEMA, newTblName);
       errorMsgTestHelper(query, "PARSE ERROR: Column [Y] specified multiple times.");
     } finally {
       FileUtils.deleteQuietly(file);
@@ -717,11 +1289,12 @@ public class TestIcebergComplexColumnCommands extends BaseTestQuery {
     File file = new File(getDfsTestTmpSchemaLocation(), newTblName);
     try {
       String query =
-        String.format("create table %s.%s (col1 ROW(x ROW(x  int)))",
-          TEMP_SCHEMA, newTblName);
+          String.format("create table %s.%s (col1 ROW(x ROW(x  int)))", TEMP_SCHEMA, newTblName);
       test(query);
-      query = String.format("alter table %s.%s modify column col1 col1 ROW(x  ROW(x  int, y  bigint, Y double))",
-        TEMP_SCHEMA, newTblName);
+      query =
+          String.format(
+              "alter table %s.%s modify column col1 col1 ROW(x  ROW(x  int, y  bigint, Y double))",
+              TEMP_SCHEMA, newTblName);
       errorMsgTestHelper(query, "PARSE ERROR: Column [Y] specified multiple times.");
     } finally {
       FileUtils.deleteQuietly(file);

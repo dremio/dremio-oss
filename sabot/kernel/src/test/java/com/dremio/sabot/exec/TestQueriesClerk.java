@@ -21,65 +21,67 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.Set;
-
-import org.junit.Test;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.exec.proto.UserBitShared;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Set;
+import org.junit.Test;
 
-/**
- * Unit test of QueriesClerk
- */
+/** Unit test of QueriesClerk */
 public class TestQueriesClerk extends TestQueriesClerkBase {
 
   /**
-   * Tests the functionality of a queries clerk:
-   * - allocators are created hierarchically;
-   * - parent allocator is closed when all the child allocators are closed
+   * Tests the functionality of a queries clerk: - allocators are created hierarchically; - parent
+   * allocator is closed when all the child allocators are closed
    */
   @Test
-  public void testQueriesClerk() throws Exception{
-    WorkloadTicketDepot ticketDepot = new WorkloadTicketDepot(mockedRootAlloc, mock(SabotConfig.class), DUMMY_GROUP_MANAGER);
+  public void testQueriesClerk() throws Exception {
+    WorkloadTicketDepot ticketDepot =
+        new WorkloadTicketDepot(mockedRootAlloc, mock(SabotConfig.class), DUMMY_GROUP_MANAGER);
     QueriesClerk clerk = makeClerk(ticketDepot);
     assertLivePhasesCount(clerk, 0);
     int baseNumAllocators = getNumAllocators();
 
-    UserBitShared.QueryId queryId = UserBitShared.QueryId.newBuilder().setPart1(12).setPart2(23).build();
+    UserBitShared.QueryId queryId =
+        UserBitShared.QueryId.newBuilder().setPart1(12).setPart2(23).build();
     QueryTicketGetter qtg1 = new QueryTicketGetter();
-    clerk.buildAndStartQuery(getDummyPlan(queryId,1,0), getDummySchedulingInfo(), qtg1);
+    clerk.buildAndStartQuery(getDummyPlan(queryId, 1, 0), getDummySchedulingInfo(), qtg1);
     QueryTicket queryTicket = qtg1.getObtainedTicket();
     assertNotNull(queryTicket);
-    assertLivePhasesCount(clerk, 0);  // no phase- or fragment- items created yet
-    assertEquals(baseNumAllocators + 1, getNumAllocators());  // new query-level allocator
+    assertLivePhasesCount(clerk, 0); // no phase- or fragment- items created yet
+    assertEquals(baseNumAllocators + 1, getNumAllocators()); // new query-level allocator
 
-    FragmentTicket ticket10 = clerk
-      .newFragmentTicket(queryTicket, getDummyPlan(queryId,1,0), getDummySchedulingInfo());
-    assertLivePhasesCount(clerk, 1);  // 1 for the phase-level allocator for major fragment 1
-    assertEquals(baseNumAllocators + 2, getNumAllocators());  // new query- and phase-level allocators
-    FragmentTicket ticket11 = clerk
-      .newFragmentTicket(queryTicket, getDummyPlan(queryId,1,1), getDummySchedulingInfo());
-    assertLivePhasesCount(clerk, 1);  // stays 1, as the ticket is for the same major fragment
+    FragmentTicket ticket10 =
+        clerk.newFragmentTicket(queryTicket, getDummyPlan(queryId, 1, 0), getDummySchedulingInfo());
+    assertLivePhasesCount(clerk, 1); // 1 for the phase-level allocator for major fragment 1
+    assertEquals(
+        baseNumAllocators + 2, getNumAllocators()); // new query- and phase-level allocators
+    FragmentTicket ticket11 =
+        clerk.newFragmentTicket(queryTicket, getDummyPlan(queryId, 1, 1), getDummySchedulingInfo());
+    assertLivePhasesCount(clerk, 1); // stays 1, as the ticket is for the same major fragment
     assertEquals(baseNumAllocators + 2, getNumAllocators());
-    FragmentTicket ticket20 = clerk
-      .newFragmentTicket(queryTicket, getDummyPlan(queryId,2,0), getDummySchedulingInfo());
-    assertLivePhasesCount(clerk, 2);  // new phase-level allocator, for major fragment 2
-    assertEquals(baseNumAllocators + 3, getNumAllocators());  // new phase-level allocator
+    FragmentTicket ticket20 =
+        clerk.newFragmentTicket(queryTicket, getDummyPlan(queryId, 2, 0), getDummySchedulingInfo());
+    assertLivePhasesCount(clerk, 2); // new phase-level allocator, for major fragment 2
+    assertEquals(baseNumAllocators + 3, getNumAllocators()); // new phase-level allocator
 
     qtg1.close();
-    assertEquals(baseNumAllocators + 3, getNumAllocators());  // fragment tickets still open, no change in allocators
+    assertEquals(
+        baseNumAllocators + 3,
+        getNumAllocators()); // fragment tickets still open, no change in allocators
 
     ticket10.close();
-    assertLivePhasesCount(clerk, 2);  // stays two: each of the major fragments now has 1 child each
+    assertLivePhasesCount(clerk, 2); // stays two: each of the major fragments now has 1 child each
     assertEquals(baseNumAllocators + 3, getNumAllocators());
     ticket20.close();
-    assertLivePhasesCount(clerk, 1);  // only major fragment 1 remains
-    assertEquals(baseNumAllocators + 2, getNumAllocators());  // query-level allocator and phase-1 allocator
+    assertLivePhasesCount(clerk, 1); // only major fragment 1 remains
+    assertEquals(
+        baseNumAllocators + 2, getNumAllocators()); // query-level allocator and phase-1 allocator
     ticket11.close();
-    // Last ticket in the query was closed. Both the query-level allocator and the phase-level allocator for phase 1 are now closed
+    // Last ticket in the query was closed. Both the query-level allocator and the phase-level
+    // allocator for phase 1 are now closed
     assertLivePhasesCount(clerk, 0);
     assertEquals(baseNumAllocators, getNumAllocators());
 
@@ -88,12 +90,14 @@ public class TestQueriesClerk extends TestQueriesClerkBase {
 
   @Test
   public void testGetFragmentTickets() throws Exception {
-    WorkloadTicketDepot ticketDepot = new WorkloadTicketDepot(mockedRootAlloc, mock(SabotConfig.class), DUMMY_GROUP_MANAGER);
+    WorkloadTicketDepot ticketDepot =
+        new WorkloadTicketDepot(mockedRootAlloc, mock(SabotConfig.class), DUMMY_GROUP_MANAGER);
     QueriesClerk clerk = makeClerk(ticketDepot);
 
-    UserBitShared.QueryId queryId = UserBitShared.QueryId.newBuilder().setPart1(12).setPart2(23).build();
+    UserBitShared.QueryId queryId =
+        UserBitShared.QueryId.newBuilder().setPart1(12).setPart2(23).build();
     QueryTicketGetter qtg1 = new QueryTicketGetter();
-    clerk.buildAndStartQuery(getDummyPlan(queryId,1,0), getDummySchedulingInfo(), qtg1);
+    clerk.buildAndStartQuery(getDummyPlan(queryId, 1, 0), getDummySchedulingInfo(), qtg1);
     QueryTicket queryTicket = qtg1.getObtainedTicket();
     assertNotNull(queryTicket);
 
@@ -102,8 +106,9 @@ public class TestQueriesClerk extends TestQueriesClerkBase {
     int numMinors = 5;
     for (int i = 0; i < numMajors; ++i) {
       for (int j = 0; j < numMinors; ++j) {
-        FragmentTicket fragmentTicket = clerk
-          .newFragmentTicket(queryTicket, getDummyPlan(queryId, i, j), getDummySchedulingInfo());
+        FragmentTicket fragmentTicket =
+            clerk.newFragmentTicket(
+                queryTicket, getDummyPlan(queryId, i, j), getDummySchedulingInfo());
         expected.add(fragmentTicket);
       }
     }

@@ -16,9 +16,7 @@
 
 package com.dremio.service.userpreferences;
 
-/**
- * Exception when an entity is already in preference list
- */
+/** Exception when an entity is already in preference list */
 public class EntityAlreadyInPreferenceException extends Exception {
   public EntityAlreadyInPreferenceException(String entityId, String type) {
     super(String.format("entityId : %s already exists in %s list.", entityId, type));

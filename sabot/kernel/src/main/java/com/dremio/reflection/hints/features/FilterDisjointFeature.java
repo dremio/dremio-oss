@@ -16,22 +16,18 @@
 package com.dremio.reflection.hints.features;
 
 import java.util.Objects;
-
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexUtil;
 
-
-/**
- * user filter is A OR B
- * materialization filter A
- */
+/** user filter is A OR B materialization filter A */
 public class FilterDisjointFeature implements HintFeature {
   private final RexNode userFilter;
   private final RexNode materializationFilter;
   private final RelDataType datasetRowType;
 
-  public FilterDisjointFeature(RexNode userFilter, RexNode materializationFilter, RelDataType datasetRowType) {
+  public FilterDisjointFeature(
+      RexNode userFilter, RexNode materializationFilter, RelDataType datasetRowType) {
     this.userFilter = userFilter;
     this.materializationFilter = materializationFilter;
     this.datasetRowType = datasetRowType;
@@ -57,8 +53,8 @@ public class FilterDisjointFeature implements HintFeature {
       return false;
     }
     FilterDisjointFeature that = (FilterDisjointFeature) o;
-    return RexUtil.eq(userFilter, that.userFilter) &&
-        RexUtil.eq(materializationFilter, that.materializationFilter);
+    return RexUtil.eq(userFilter, that.userFilter)
+        && RexUtil.eq(materializationFilter, that.materializationFilter);
   }
 
   @Override
@@ -68,9 +64,11 @@ public class FilterDisjointFeature implements HintFeature {
 
   @Override
   public String toString() {
-    return "FilterDisjointFeature{" +
-        "userFilter=" + userFilter +
-        ", materializationFilter=" + materializationFilter +
-        '}';
+    return "FilterDisjointFeature{"
+        + "userFilter="
+        + userFilter
+        + ", materializationFilter="
+        + materializationFilter
+        + '}';
   }
 }

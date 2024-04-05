@@ -20,9 +20,7 @@ import com.dremio.sabot.exec.ExecToCoordTunnelCreator;
 import com.dremio.service.jobtelemetry.client.JobTelemetryExecutorClient;
 import com.dremio.service.jobtelemetry.client.JobTelemetryExecutorClientFactory;
 
-/**
- * Software version of the job telemetry client factory.
- */
+/** Software version of the job telemetry client factory. */
 public class JobTelemetrySoftwareClientFactory implements JobTelemetryExecutorClientFactory {
   private final ExecToCoordTunnelCreator tunnelCreator;
 
@@ -36,10 +34,8 @@ public class JobTelemetrySoftwareClientFactory implements JobTelemetryExecutorCl
   }
 
   @Override
-  public void start() throws Exception {
-  }
+  public void start() throws Exception {}
 
   @Override
-  public void close() throws Exception {
-  }
+  public void close() throws Exception {}
 }

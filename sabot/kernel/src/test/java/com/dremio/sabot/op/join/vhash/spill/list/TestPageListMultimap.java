@@ -19,16 +19,6 @@ import static com.dremio.sabot.op.join.vhash.spill.list.PageListMultimap.getCarr
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
-import java.util.stream.Collectors;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.ExecTest;
 import com.dremio.sabot.op.join.vhash.spill.list.PageListMultimap.CarryAlongId;
@@ -36,6 +26,14 @@ import com.dremio.sabot.op.join.vhash.spill.list.PageListMultimap.KeyAndCarryAlo
 import com.dremio.sabot.op.join.vhash.spill.pool.PagePool;
 import com.google.common.collect.LinkedListMultimap;
 import com.google.common.collect.Lists;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+import java.util.stream.Collectors;
+import org.apache.arrow.memory.ArrowBuf;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
 public class TestPageListMultimap extends ExecTest {
 
@@ -44,7 +42,7 @@ public class TestPageListMultimap extends ExecTest {
 
   @Before
   public void before() {
-    this.pool  = new PagePool(allocator, 16384, 0);
+    this.pool = new PagePool(allocator, 16384, 0);
     this.list = new PageListMultimap(pool);
   }
 
@@ -66,14 +64,14 @@ public class TestPageListMultimap extends ExecTest {
 
     List<CarryAlongId> pos0 = find(0);
     assertEquals(3, pos0.size());
-    assertEquals(new CarryAlongId(1,1), pos0.get(2));
-    assertEquals(new CarryAlongId(1,3), pos0.get(1));
-    assertEquals(new CarryAlongId(1,5), pos0.get(0));
+    assertEquals(new CarryAlongId(1, 1), pos0.get(2));
+    assertEquals(new CarryAlongId(1, 3), pos0.get(1));
+    assertEquals(new CarryAlongId(1, 5), pos0.get(0));
 
     List<CarryAlongId> pos1 = find(1);
     assertEquals(2, pos1.size());
-    assertEquals(new CarryAlongId(1,2), pos1.get(1));
-    assertEquals(new CarryAlongId(1,4), pos1.get(0));
+    assertEquals(new CarryAlongId(1, 2), pos1.get(1));
+    assertEquals(new CarryAlongId(1, 4), pos1.get(0));
 
     // the full list should be returned in insert order.
     List<KeyAndCarryAlongId> fullList = findAll(list);
@@ -101,14 +99,14 @@ public class TestPageListMultimap extends ExecTest {
 
     List<CarryAlongId> pos0 = find(0);
     assertEquals(3, pos0.size());
-    assertEquals(new CarryAlongId(1,1), pos0.get(2));
-    assertEquals(new CarryAlongId(1,4), pos0.get(1));
-    assertEquals(new CarryAlongId(1,6), pos0.get(0));
+    assertEquals(new CarryAlongId(1, 1), pos0.get(2));
+    assertEquals(new CarryAlongId(1, 4), pos0.get(1));
+    assertEquals(new CarryAlongId(1, 6), pos0.get(0));
 
     List<CarryAlongId> pos1 = find(1);
     assertEquals(2, pos1.size());
-    assertEquals(new CarryAlongId(1,2), pos1.get(1));
-    assertEquals(new CarryAlongId(1,5), pos1.get(0));
+    assertEquals(new CarryAlongId(1, 2), pos1.get(1));
+    assertEquals(new CarryAlongId(1, 5), pos1.get(0));
 
     // the full list should be returned in insert order.
     List<KeyAndCarryAlongId> fullList = findAll(list);
@@ -149,7 +147,7 @@ public class TestPageListMultimap extends ExecTest {
       ArrowBuf keysBuffer = allocator.buffer(recordsInBatch * 4);
       toRelease.add(keysBuffer);
       int maxKey = 0;
-      for (int recordIndex = 0; recordIndex < recordsInBatch; recordIndex++){
+      for (int recordIndex = 0; recordIndex < recordsInBatch; recordIndex++) {
         int key = r.nextInt(totalKeys);
         maxKey = Math.max(maxKey, key);
         keysBuffer.setInt(recordIndex * 4, key);
@@ -171,7 +169,7 @@ public class TestPageListMultimap extends ExecTest {
     AutoCloseables.close(toRelease);
 
     // now verify results.
-    for(Integer i : objMap.keySet()) {
+    for (Integer i : objMap.keySet()) {
       List<CarryAlongId> objList = Lists.reverse(objMap.get(i));
       List<CarryAlongId> pageList = find(i);
       assertEquals(objList, pageList);
@@ -182,7 +180,8 @@ public class TestPageListMultimap extends ExecTest {
     List<KeyAndCarryAlongId> fullList = new ArrayList<>();
     ArrayOfEntriesView arrayView = listMultimap.findAll();
     for (int i = arrayView.getFirstValidIndex(); i < arrayView.size(); ++i) {
-      KeyAndCarryAlongId carryAlongId = new KeyAndCarryAlongId(arrayView.getKey(i), arrayView.getCarryAlongId(i));
+      KeyAndCarryAlongId carryAlongId =
+          new KeyAndCarryAlongId(arrayView.getKey(i), arrayView.getCarryAlongId(i));
       fullList.add(carryAlongId);
     }
     return fullList;
@@ -198,29 +197,28 @@ public class TestPageListMultimap extends ExecTest {
 
     List<CarryAlongId> pos0 = find(0);
     assertEquals(2, pos0.size());
-    assertEquals(new CarryAlongId(1,65534), pos0.get(1));
-    assertEquals(new CarryAlongId(1,65535), pos0.get(0));
+    assertEquals(new CarryAlongId(1, 65534), pos0.get(1));
+    assertEquals(new CarryAlongId(1, 65535), pos0.get(0));
 
     List<CarryAlongId> pos1 = find(1);
     assertEquals(2, pos1.size());
-    assertEquals(new CarryAlongId(Integer.MAX_VALUE,65534), pos1.get(1));
-    assertEquals(new CarryAlongId(Integer.MAX_VALUE,65535), pos1.get(0));
+    assertEquals(new CarryAlongId(Integer.MAX_VALUE, 65534), pos1.get(1));
+    assertEquals(new CarryAlongId(Integer.MAX_VALUE, 65535), pos1.get(0));
   }
 
   @Test
   public void largeBatchNeg() {
     assertThatThrownBy(() -> list.insert(0, getCarryAlongId(1, 65536)))
-      .isInstanceOf(IllegalArgumentException.class);
+        .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test
   public void minusKeyNeg() {
     assertThatThrownBy(() -> list.insert(-1, getCarryAlongId(1, 0)))
-      .isInstanceOf(IllegalArgumentException.class);
+        .isInstanceOf(IllegalArgumentException.class);
   }
 
   private List<CarryAlongId> find(int key) {
     return list.find(key).mapToObj(CarryAlongId::new).collect(Collectors.toList());
   }
-
 }

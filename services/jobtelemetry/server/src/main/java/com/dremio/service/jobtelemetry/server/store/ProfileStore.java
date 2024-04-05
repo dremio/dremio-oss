@@ -15,18 +15,15 @@
  */
 package com.dremio.service.jobtelemetry.server.store;
 
-import java.util.Optional;
-import java.util.stream.Stream;
-
 import com.dremio.exec.proto.CoordExecRPC.ExecutorQueryProfile;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.service.Service;
+import java.util.Optional;
+import java.util.stream.Stream;
 
-/**
- * Store used to store and retrieve profile details
- */
+/** Store used to store and retrieve profile details */
 public interface ProfileStore extends Service {
 
   /**
@@ -76,17 +73,17 @@ public interface ProfileStore extends Service {
   Optional<QueryProfile> getFullProfile(UserBitShared.QueryId queryId);
 
   /**
-  /**
-   * Put executor profile for a given query.
+   * /** Put executor profile for a given query.
    *
    * @param queryId queryId
    * @param endpoint executor endpoint
    * @param executorQueryProfile profile
    */
-  void putExecutorProfile(UserBitShared.QueryId queryId,
-                          CoordinationProtos.NodeEndpoint endpoint,
-                          ExecutorQueryProfile executorQueryProfile,
-                          boolean isFinal);
+  void putExecutorProfile(
+      UserBitShared.QueryId queryId,
+      CoordinationProtos.NodeEndpoint endpoint,
+      ExecutorQueryProfile executorQueryProfile,
+      boolean isFinal);
 
   /**
    * Get all executor profiles for a given query.

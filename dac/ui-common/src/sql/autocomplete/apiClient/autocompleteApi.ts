@@ -72,19 +72,19 @@ export type AutocompleteApi = {
   getContainers(
     path: string[],
     prefix: string,
-    queryContext: string[]
+    queryContext: string[],
   ): Promise<GetContainersResult>;
 
   getColumns(
     tablePaths: string[][],
-    queryContext: string[]
+    queryContext: string[],
   ): Promise<GetColumnsResult>;
 
   getReferences(
     prefix: string,
     sourceName: string,
     queryContext: string[],
-    type?: Set<TableVersionType>
+    type?: Set<TableVersionType>,
   ): Promise<GetReferencesResult>;
 };
 
@@ -98,7 +98,7 @@ export class AutocompleteApiClient implements AutocompleteApi {
   async getContainers(
     path: string[],
     prefix: string,
-    queryContext: string[]
+    queryContext: string[],
   ): Promise<GetContainersResult> {
     const payload: GetSuggestionsParams = {
       type: "container",
@@ -125,7 +125,7 @@ export class AutocompleteApiClient implements AutocompleteApi {
 
   async getColumns(
     tablePaths: string[][],
-    queryContext: string[]
+    queryContext: string[],
   ): Promise<GetColumnsResult> {
     const payload: GetSuggestionsParams = {
       type: "column",
@@ -149,7 +149,7 @@ export class AutocompleteApiClient implements AutocompleteApi {
   async getReferences(
     prefix: string,
     sourceName: string,
-    queryContext: string[]
+    queryContext: string[],
   ): Promise<GetReferencesResult> {
     const payload: GetSuggestionsParams = {
       type: "reference",

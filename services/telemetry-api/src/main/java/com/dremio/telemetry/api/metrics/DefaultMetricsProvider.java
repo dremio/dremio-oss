@@ -18,8 +18,8 @@ package com.dremio.telemetry.api.metrics;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * The default metrics provider.
- * Simply uses the current metrics system to create counters and timers.
+ * The default metrics provider. Simply uses the current metrics system to create counters and
+ * timers.
  */
 class DefaultMetricsProvider implements MetricsProvider {
   private final ConcurrentHashMap<String, Counter> counters = new ConcurrentHashMap<>();
@@ -27,11 +27,13 @@ class DefaultMetricsProvider implements MetricsProvider {
 
   @Override
   public Counter counter(String metricName) {
-    return counters.computeIfAbsent(metricName, (name) -> Metrics.newCounter(name, Metrics.ResetType.NEVER));
+    return counters.computeIfAbsent(
+        metricName, (name) -> Metrics.newCounter(name, Metrics.ResetType.NEVER));
   }
 
   @Override
   public Timer timer(String metricName) {
-    return timers.computeIfAbsent(metricName, (name) -> Metrics.newTimer(name, Metrics.ResetType.NEVER));
+    return timers.computeIfAbsent(
+        metricName, (name) -> Metrics.newTimer(name, Metrics.ResetType.NEVER));
   }
 }

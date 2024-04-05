@@ -17,18 +17,6 @@ package com.dremio.service.orphanagecleaner;
 
 import static com.dremio.service.orphanage.proto.OrphanEntry.OrphanType.ICEBERG_METADATA;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingDeque;
-import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.concurrent.CloseableSchedulerThreadPool;
 import com.dremio.datastore.api.Document;
 import com.dremio.exec.ExecConstants;
@@ -38,6 +26,16 @@ import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.orphanage.Orphanage;
 import com.dremio.service.orphanage.OrphanageEntryHandler;
 import com.dremio.service.orphanage.proto.OrphanEntry;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Orphanage Manager processes orphan entries and submits job to respective orphanage entry handler.
@@ -50,21 +48,27 @@ public class OrphanageManager implements AutoCloseable {
   private static final int MAX_ALLOWED_BLOCKING_QUEUE_SIZE = 1000;
 
   private final Orphanage orphanage;
-  private final Map<OrphanEntry.OrphanType, OrphanageEntryHandler> orphanTypeToHandlerMap = new HashMap<>();
+  private final Map<OrphanEntry.OrphanType, OrphanageEntryHandler> orphanTypeToHandlerMap =
+      new HashMap<>();
   private final ThreadPoolExecutor executorService;
   private final BlockingQueue<Runnable> blockingQueue;
   private final OptionManager optionManager;
   private int orphanageThreads;
 
-  public OrphanageManager(Orphanage orphanage, NamespaceService namespaceService, SabotContext sabotContext,
-                          OptionManager optionManager) {
+  public OrphanageManager(
+      Orphanage orphanage,
+      NamespaceService namespaceService,
+      SabotContext sabotContext,
+      OptionManager optionManager) {
     this.orphanage = orphanage;
     this.optionManager = optionManager;
-    orphanTypeToHandlerMap.put(ICEBERG_METADATA, new IcebergMetadataHandler(namespaceService, sabotContext));
+    orphanTypeToHandlerMap.put(
+        ICEBERG_METADATA, new IcebergMetadataHandler(namespaceService, sabotContext));
     this.blockingQueue = new LinkedBlockingDeque<>(MAX_ALLOWED_BLOCKING_QUEUE_SIZE);
-    this.orphanageThreads = (int)getOrphanProcessingThreadCount();
-    this.executorService = new ThreadPoolExecutor(this.orphanageThreads, this.orphanageThreads,
-                                        0L, TimeUnit.MILLISECONDS, blockingQueue);
+    this.orphanageThreads = (int) getOrphanProcessingThreadCount();
+    this.executorService =
+        new ThreadPoolExecutor(
+            this.orphanageThreads, this.orphanageThreads, 0L, TimeUnit.MILLISECONDS, blockingQueue);
   }
 
   private long getOrphanProcessingThreadCount() {
@@ -72,7 +76,7 @@ public class OrphanageManager implements AutoCloseable {
   }
 
   private void resizeThreadPoolIfNeeded() {
-    int orphanageThreadCountValue = (int)getOrphanProcessingThreadCount();
+    int orphanageThreadCountValue = (int) getOrphanProcessingThreadCount();
     if (this.orphanageThreads == orphanageThreadCountValue) {
       return;
     }
@@ -84,36 +88,43 @@ public class OrphanageManager implements AutoCloseable {
   public void processOrphans(List<Document<OrphanEntry.OrphanId, OrphanEntry.Orphan>> orphans) {
     resizeThreadPoolIfNeeded();
     for (Document<OrphanEntry.OrphanId, OrphanEntry.Orphan> orphanEntry : orphans) {
-      Runnable cleanerTask = () -> {
-        long curTime = System.currentTimeMillis();
-        OrphanEntry.Orphan orphan = orphanEntry.getValue();
-        if (orphan.getScheduledAt() <= curTime) {
-          if (orphanTypeToHandlerMap.containsKey(orphan.getOrphanType())) {
-            OrphanageEntryHandler handler = orphanTypeToHandlerMap.get(orphan.getOrphanType());
-            OrphanEntry.OrphanId orphanId = orphanEntry.getKey();
-            boolean isSuccess = handler.process(orphanId, orphan);
-            if (isSuccess) {
-              orphanage.deleteOrphan(orphanId);
-            } else {
-              if (orphanEntry.getValue().getRetriesCount() < ORPHAN_ENTRY_MAX_RETRY_COUNT) {
-                OrphanEntry.Orphan updatedOrphan = OrphanEntry.Orphan.newBuilder(orphanEntry.getValue())
-                  .setRetriesCount(orphanEntry.getValue().getRetriesCount() + 1)
-                  .build();
-                orphanage.addOrUpdateOrphan(orphanId, updatedOrphan);
+      Runnable cleanerTask =
+          () -> {
+            long curTime = System.currentTimeMillis();
+            OrphanEntry.Orphan orphan = orphanEntry.getValue();
+            if (orphan.getScheduledAt() <= curTime) {
+              if (orphanTypeToHandlerMap.containsKey(orphan.getOrphanType())) {
+                OrphanageEntryHandler handler = orphanTypeToHandlerMap.get(orphan.getOrphanType());
+                OrphanEntry.OrphanId orphanId = orphanEntry.getKey();
+                boolean isSuccess = handler.process(orphanId, orphan);
+                if (isSuccess) {
+                  orphanage.deleteOrphan(orphanId);
+                } else {
+                  if (orphanEntry.getValue().getRetriesCount() < ORPHAN_ENTRY_MAX_RETRY_COUNT) {
+                    OrphanEntry.Orphan updatedOrphan =
+                        OrphanEntry.Orphan.newBuilder(orphanEntry.getValue())
+                            .setRetriesCount(orphanEntry.getValue().getRetriesCount() + 1)
+                            .build();
+                    orphanage.addOrUpdateOrphan(orphanId, updatedOrphan);
+                  } else {
+                    logger.debug(
+                        "Deleting orphan {} from the orphanage store as all retries have exhausted.",
+                        orphanId);
+                    orphanage.deleteOrphan(orphanId);
+                  }
+                }
               } else {
-                logger.debug("Deleting orphan {} from the orphanage store as all retries have exhausted.", orphanId);
-                orphanage.deleteOrphan(orphanId);
+                logger.warn(
+                    "Orphan Type {} not registered with the Orphan Manager, ignoring it.",
+                    orphan.getOrphanType());
               }
             }
-          } else {
-            logger.warn("Orphan Type {} not registered with the Orphan Manager, ignoring it.", orphan.getOrphanType());
-          }
-        }
-      };
+          };
       try {
         executorService.execute(cleanerTask);
       } catch (RejectedExecutionException ex) {
-        logger.debug("The task to clean orphan {} in not accepted for execution", orphanEntry.getKey(), ex);
+        logger.debug(
+            "The task to clean orphan {} in not accepted for execution", orphanEntry.getKey(), ex);
       }
     }
   }

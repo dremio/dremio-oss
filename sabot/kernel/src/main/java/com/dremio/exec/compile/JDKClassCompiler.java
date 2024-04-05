@@ -17,6 +17,11 @@ package com.dremio.exec.compile;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import com.dremio.exec.compile.ClassTransformer.ClassNames;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import java.io.File;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
@@ -26,21 +31,13 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.Collections;
 import java.util.List;
-
 import javax.lang.model.SourceVersion;
 import javax.tools.DiagnosticListener;
 import javax.tools.JavaCompiler;
 import javax.tools.JavaCompiler.CompilationTask;
 import javax.tools.JavaFileObject;
 import javax.tools.ToolProvider;
-
 import org.codehaus.commons.compiler.CompileException;
-
-import com.dremio.exec.compile.ClassTransformer.ClassNames;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Joiner;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 
 class JDKClassCompiler extends AbstractClassCompiler {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(JDKClassCompiler.class);
@@ -56,12 +53,12 @@ class JDKClassCompiler extends AbstractClassCompiler {
     return newInstance(Thread.currentThread().getContextClassLoader());
   }
 
-
   @VisibleForTesting
   static JDKClassCompiler newInstance(ClassLoader classLoader) {
     JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
     if (compiler == null) {
-      logger.warn("JDK Java compiler not available - probably you're running Dremio with a JRE and not a JDK");
+      logger.warn(
+          "JDK Java compiler not available - probably you're running Dremio with a JRE and not a JDK");
       return null;
     }
     return new JDKClassCompiler(compiler, classLoader);
@@ -70,7 +67,8 @@ class JDKClassCompiler extends AbstractClassCompiler {
   private JDKClassCompiler(JavaCompiler compiler, ClassLoader classLoader) {
     this.compiler = compiler;
     this.listener = new DremioDiagnosticListener();
-    this.fileManager = new DremioJavaFileManager(compiler.getStandardFileManager(listener, null, UTF_8));
+    this.fileManager =
+        new DremioJavaFileManager(compiler.getStandardFileManager(listener, null, UTF_8));
     boolean aboveJava8 = false;
     try {
       aboveJava8 = compiler.getSourceVersions().contains(SourceVersion.valueOf("RELEASE_9"));
@@ -90,7 +88,8 @@ class JDKClassCompiler extends AbstractClassCompiler {
     // fail with some rather weird "(org.codehaus.commons.compiler.CompileException) File '',
     // Line -1, Column -1: error: java.nio.file.AccessDeniedException: /extensions.idx
     // (compiler.err.proc.messager)" exception.
-    // The only code that tries to read 'extensions.idx' is `org.pf4j.processor.LegacyExtensionStorage`
+    // The only code that tries to read 'extensions.idx' is
+    // `org.pf4j.processor.LegacyExtensionStorage`
     // during annotations processing. The stack trace of the failed regression tests contain the
     // stack trace:
     //    com.dremio.exec.compile.DremioDiagnosticListener.report():41
@@ -115,12 +114,16 @@ class JDKClassCompiler extends AbstractClassCompiler {
     // Unfortunately, Java compiler (jdk7) only handles relative paths, whereas
     // URLClassLoader supports both relative and absolute paths. Of course, surefire plugin uses
     // absolute paths, which causes the compiler not to found any of the classes :(
-    // As surefire also sets "java.class.path" with the expanded version of the classpath (which seems
-    // a reasonable thing to do since this is a well-known system property), we can let the java compiler
+    // As surefire also sets "java.class.path" with the expanded version of the classpath (which
+    // seems
+    // a reasonable thing to do since this is a well-known system property), we can let the java
+    // compiler
     // use its default behaviour if we detect the use of the plugin.
     String surefireRealClassPath = System.getProperty("surefire.real.class.path");
     if (surefireRealClassPath != null && classLoader == ClassLoader.getSystemClassLoader()) {
-      logger.debug("Surefire detected. Compiler will automatically use the following classpath: {}", System.getProperty("java.class.path"));
+      logger.debug(
+          "Surefire detected. Compiler will automatically use the following classpath: {}",
+          System.getProperty("java.class.path"));
     } else if (classLoader instanceof URLClassLoader) {
       List<String> files = getClassPath((URLClassLoader) classLoader);
       if (!files.isEmpty()) {
@@ -134,8 +137,8 @@ class JDKClassCompiler extends AbstractClassCompiler {
       // standard system properties with the classpath being set.
       logger.warn(
           "Provided classLoader for compilation is not a URLClassLoader (was: {}). "
-            + "Using the class path from ManagementFactory.getRuntimeMXBean().getClassPath(). "
-            + "You might have compilation issues.",
+              + "Using the class path from ManagementFactory.getRuntimeMXBean().getClassPath(). "
+              + "You might have compilation issues.",
           classLoader.getClass().getName());
     }
 
@@ -146,7 +149,7 @@ class JDKClassCompiler extends AbstractClassCompiler {
     ImmutableList.Builder<String> files = ImmutableList.builder();
 
     URL[] urls = classLoader.getURLs();
-    for(URL url: urls) {
+    for (URL url : urls) {
       URI uri;
       try {
         uri = url.toURI();
@@ -160,27 +163,34 @@ class JDKClassCompiler extends AbstractClassCompiler {
         continue;
       }
 
-     files.add(new File(uri).getAbsolutePath());
+      files.add(new File(uri).getAbsolutePath());
     }
 
     return files.build();
   }
 
   @Override
-  protected ClassBytes[] getByteCode(final ClassNames className, final String sourceCode, boolean debug)
+  protected ClassBytes[] getByteCode(
+      final ClassNames className, final String sourceCode, boolean debug)
       throws CompileException, IOException, ClassNotFoundException {
     try {
       // Create one Java source file in memory, which will be compiled later.
       DremioJavaFileObject compilationUnit = new DremioJavaFileObject(className.dot, sourceCode);
 
-      Iterable<String> compilerOptions = Iterables.concat(
-          ImmutableList.of(debug ? "-g:source,lines,vars" : "-g:none"),
-          defaultCompilerOptions
-      );
-      CompilationTask task = compiler.getTask(null, fileManager, listener, compilerOptions, null, Collections.singleton(compilationUnit));
+      Iterable<String> compilerOptions =
+          Iterables.concat(
+              ImmutableList.of(debug ? "-g:source,lines,vars" : "-g:none"), defaultCompilerOptions);
+      CompilationTask task =
+          compiler.getTask(
+              null,
+              fileManager,
+              listener,
+              compilerOptions,
+              null,
+              Collections.singleton(compilationUnit));
 
       // Run the compiler.
-      if(!task.call()) {
+      if (!task.call()) {
         throw new CompileException("Compilation failed", null);
       } else if (!compilationUnit.isCompiled()) {
         throw new ClassNotFoundException(className + ": Class file not created by compilation.");
@@ -204,6 +214,7 @@ class JDKClassCompiler extends AbstractClassCompiler {
   }
 
   @Override
-  protected org.slf4j.Logger getLogger() { return logger; }
-
+  protected org.slf4j.Logger getLogger() {
+    return logger;
+  }
 }

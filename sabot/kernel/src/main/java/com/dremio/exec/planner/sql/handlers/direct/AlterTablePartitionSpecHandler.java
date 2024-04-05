@@ -15,11 +15,6 @@
  */
 package com.dremio.exec.planner.sql.handlers.direct;
 
-import java.util.Collections;
-import java.util.List;
-
-import org.apache.calcite.sql.SqlNode;
-
 import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
@@ -38,63 +33,80 @@ import com.dremio.exec.planner.sql.parser.SqlAlterTablePartitionColumns;
 import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.base.Preconditions;
+import java.util.Collections;
+import java.util.List;
+import org.apache.calcite.sql.SqlNode;
 
 public class AlterTablePartitionSpecHandler extends SimpleDirectHandler {
-    private final Catalog catalog;
-    private final SqlHandlerConfig config;
+  private final Catalog catalog;
+  private final SqlHandlerConfig config;
 
-    public AlterTablePartitionSpecHandler(Catalog catalog, SqlHandlerConfig config) {
-        this.catalog = catalog;
-        this.config = config;
+  public AlterTablePartitionSpecHandler(Catalog catalog, SqlHandlerConfig config) {
+    this.catalog = catalog;
+    this.config = config;
+  }
+
+  @Override
+  public List<SimpleCommandResult> toResult(String sql, SqlNode sqlNode) throws Exception {
+    SqlAlterTablePartitionColumns sqlPartitionSpecChanges =
+        SqlNodeUtil.unwrap(sqlNode, SqlAlterTablePartitionColumns.class);
+    QueryContext context = Preconditions.checkNotNull(config.getContext());
+    OptionManager optionManager = Preconditions.checkNotNull(context.getOptions());
+    SqlValidatorImpl.checkForFeatureSpecificSyntax(sqlNode, optionManager);
+    VersionContext statementSourceVersion =
+        sqlPartitionSpecChanges
+            .getSqlTableVersionSpec()
+            .getTableVersionSpec()
+            .getTableVersionContext()
+            .asVersionContext();
+
+    NamespaceKey path =
+        CatalogUtil.getResolvePathForTableManagement(catalog, sqlPartitionSpecChanges.getTable());
+
+    DremioTable table = catalog.getTableNoResolve(path);
+    SimpleCommandResult result =
+        SqlHandlerUtil.validateSupportForDDLOperations(catalog, config, path, table);
+
+    if (!result.ok) {
+      return Collections.singletonList(result);
     }
 
-    @Override
-    public List<SimpleCommandResult> toResult(String sql, SqlNode sqlNode) throws Exception {
-        SqlAlterTablePartitionColumns sqlPartitionSpecChanges = SqlNodeUtil.unwrap(sqlNode, SqlAlterTablePartitionColumns.class);
-        QueryContext context = Preconditions.checkNotNull(config.getContext());
-        OptionManager optionManager = Preconditions.checkNotNull(context.getOptions());
-        SqlValidatorImpl.checkForFeatureSpecificSyntax(sqlNode, optionManager);
-        VersionContext statementSourceVersion = sqlPartitionSpecChanges.getSqlTableVersionSpec().getTableVersionSpec().getTableVersionContext().asVersionContext();
-
-        NamespaceKey path = CatalogUtil.getResolvePathForTableManagement(catalog, sqlPartitionSpecChanges.getTable());
-
-        DremioTable table = catalog.getTableNoResolve(path);
-        SimpleCommandResult result = SqlHandlerUtil.validateSupportForDDLOperations(catalog, config, path, table);
-
-        if (!result.ok) {
-            return Collections.singletonList(result);
-        }
-
-        boolean isInternalIcebergTableOrJsonTableOrMongoTable = CatalogUtil.isFSInternalIcebergTableOrJsonTableOrMongo(catalog, path, table.getDatasetConfig());
-        if (isInternalIcebergTableOrJsonTableOrMongoTable) {
-            throw UserException.unsupportedError()
-                    .message("Using \'ALTER TABLE\' command to change partition specification is supported only for ICEBERG table format type")
-                    .buildSilently();
-        }
-
-        PartitionTransform partitionTransform = sqlPartitionSpecChanges.getPartitionTransform();
-        SqlAlterTablePartitionColumns.Mode mode = sqlPartitionSpecChanges.getMode();
-        PartitionSpecAlterOption partitionSpecAlterOption = new PartitionSpecAlterOption(partitionTransform, mode);
-        final String sourceName = path.getRoot();
-        final VersionContext sessionVersion = config.getContext().getSession().getSessionVersionForSource(sourceName);
-        VersionContext sourceVersion = statementSourceVersion.orElse(sessionVersion);
-        ResolvedVersionContext resolvedVersionContext = CatalogUtil.resolveVersionContext(catalog, sourceName, sourceVersion);
-        CatalogUtil.validateResolvedVersionIsBranch(resolvedVersionContext);
-        TableMutationOptions tableMutationOptions = TableMutationOptions.newBuilder()
-                .setResolvedVersionContext(resolvedVersionContext)
-                .build();
-        catalog.alterTable(path, table.getDatasetConfig(), partitionSpecAlterOption, tableMutationOptions);
-
-        DataAdditionCmdHandler.refreshDataset(catalog, path, false);
-        String message = null;
-        switch (mode) {
-            case ADD:
-                message = String.format("Partition field [%s] added", partitionTransform.toString());
-                break;
-            case DROP:
-                message = String.format("Partition field [%s] dropped", partitionTransform.toString());
-                break;
-        }
-        return Collections.singletonList(SimpleCommandResult.successful(message));
+    boolean isInternalIcebergTableOrJsonTableOrMongoTable =
+        CatalogUtil.isFSInternalIcebergTableOrJsonTableOrMongo(
+            catalog, path, table.getDatasetConfig());
+    if (isInternalIcebergTableOrJsonTableOrMongoTable) {
+      throw UserException.unsupportedError()
+          .message(
+              "Using \'ALTER TABLE\' command to change partition specification is supported only for ICEBERG table format type")
+          .buildSilently();
     }
+
+    PartitionTransform partitionTransform = sqlPartitionSpecChanges.getPartitionTransform();
+    SqlAlterTablePartitionColumns.Mode mode = sqlPartitionSpecChanges.getMode();
+    PartitionSpecAlterOption partitionSpecAlterOption =
+        new PartitionSpecAlterOption(partitionTransform, mode);
+    final String sourceName = path.getRoot();
+    final VersionContext sessionVersion =
+        config.getContext().getSession().getSessionVersionForSource(sourceName);
+    VersionContext sourceVersion = statementSourceVersion.orElse(sessionVersion);
+    ResolvedVersionContext resolvedVersionContext =
+        CatalogUtil.resolveVersionContext(catalog, sourceName, sourceVersion);
+    CatalogUtil.validateResolvedVersionIsBranch(resolvedVersionContext);
+    TableMutationOptions tableMutationOptions =
+        TableMutationOptions.newBuilder().setResolvedVersionContext(resolvedVersionContext).build();
+    catalog.alterTable(
+        path, table.getDatasetConfig(), partitionSpecAlterOption, tableMutationOptions);
+
+    DataAdditionCmdHandler.refreshDataset(catalog, path, false);
+    String message = null;
+    switch (mode) {
+      case ADD:
+        message = String.format("Partition field [%s] added", partitionTransform.toString());
+        break;
+      case DROP:
+        message = String.format("Partition field [%s] dropped", partitionTransform.toString());
+        break;
+    }
+    return Collections.singletonList(SimpleCommandResult.successful(message));
+  }
 }

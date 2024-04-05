@@ -15,16 +15,15 @@
  */
 package com.dremio.service.functions.snippets;
 
-import java.util.Optional;
-
 import com.google.common.collect.ImmutableList;
+import java.util.Optional;
 
 /**
  * A choice in the VSCode Snippet:
  *
- * https://code.visualstudio.com/docs/editor/userdefinedsnippets#_choice
+ * <p>https://code.visualstudio.com/docs/editor/userdefinedsnippets#_choice
  *
- * choice      ::= '${' int '|' text (',' text)* '|}'
+ * <p>choice ::= '${' int '|' text (',' text)* '|}'
  */
 public final class Choice extends SnippetElement {
   private final int index;

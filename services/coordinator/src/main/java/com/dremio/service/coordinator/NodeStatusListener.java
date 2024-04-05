@@ -15,25 +15,24 @@
  */
 package com.dremio.service.coordinator;
 
+import com.dremio.exec.proto.CoordinationProtos;
 import java.util.Set;
 
-import com.dremio.exec.proto.CoordinationProtos;
-
-/**
- * Interface to define the listener to take actions when the set of active nodes is changed.
- */
+/** Interface to define the listener to take actions when the set of active nodes is changed. */
 public interface NodeStatusListener {
 
   /**
    * The action to taken when a set of nodes are unregistered from the cluster.
-   * @param  unregisteredNodes the set of newly unregistered nodes.
+   *
+   * @param unregisteredNodes the set of newly unregistered nodes.
    */
   void nodesUnregistered(Set<CoordinationProtos.NodeEndpoint> unregisteredNodes);
 
   /**
    * The action to taken when a set of new nodes are registered to the cluster.
-   * @param  registeredNodes the set of newly registered nodes. Note: the complete set of currently registered nodes could be different.
+   *
+   * @param registeredNodes the set of newly registered nodes. Note: the complete set of currently
+   *     registered nodes could be different.
    */
   void nodesRegistered(Set<CoordinationProtos.NodeEndpoint> registeredNodes);
-
 }

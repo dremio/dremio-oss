@@ -15,10 +15,13 @@
  */
 package com.dremio.exec.planner.physical.rule;
 
+import com.dremio.exec.planner.common.MoreRelOptUtil.RexNodeCountVisitor;
+import com.dremio.exec.planner.physical.FilterPrel;
+import com.dremio.exec.planner.physical.NestedLoopJoinPrel;
+import com.dremio.exec.planner.physical.PrelUtil;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
-
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptUtil;
@@ -29,11 +32,6 @@ import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexUtil;
-
-import com.dremio.exec.planner.common.MoreRelOptUtil.RexNodeCountVisitor;
-import com.dremio.exec.planner.physical.FilterPrel;
-import com.dremio.exec.planner.physical.NestedLoopJoinPrel;
-import com.dremio.exec.planner.physical.PrelUtil;
 
 /**
  * An enhanced version of FilterJoinRule
@@ -50,14 +48,18 @@ public class FilterNestedLoopJoinPRule extends RelRule<FilterNestedLoopJoinPRule
   @Override
   public boolean matches(RelOptRuleCall call) {
     NestedLoopJoinPrel join = call.rel(1);
-    return join.getJoinType() == JoinRelType.INNER &&
-        PrelUtil.getPlannerSettings(call.getPlanner()).getOptions().getOption(NestedLoopJoinPrel.VECTORIZED);
+    return join.getJoinType() == JoinRelType.INNER
+        && PrelUtil.getPlannerSettings(call.getPlanner())
+            .getOptions()
+            .getOption(NestedLoopJoinPrel.VECTORIZED);
   }
 
-  private static RexNode trimCondition(long max, RexNode condition, RexBuilder rexBuilder, List<RexNode> residue){
+  private static RexNode trimCondition(
+      long max, RexNode condition, RexBuilder rexBuilder, List<RexNode> residue) {
     List<RexNode> newConditionsList = new ArrayList<>(); // these conditions will be pushed down
     int currentNodeCnt = 0;
-    LinkedList<RexNode> conjunctions = new LinkedList<>(); // list to hold the remaining conditions after finding geo conditions
+    LinkedList<RexNode> conjunctions =
+        new LinkedList<>(); // list to hold the remaining conditions after finding geo conditions
     // first find any GEO conditions, and make sure they are included in the pushdown
     for (RexNode node : RelOptUtil.conjunctions(condition)) {
       if (node instanceof RexCall) {
@@ -70,7 +72,8 @@ public class FilterNestedLoopJoinPRule extends RelRule<FilterNestedLoopJoinPRule
       }
       conjunctions.add(node);
     }
-    // now iterate through remaining conditions until we reach the max node count and add them to pushdown
+    // now iterate through remaining conditions until we reach the max node count and add them to
+    // pushdown
     while (!conjunctions.isEmpty()) {
       RexNode node = conjunctions.pop();
       int cnt = RexNodeCountVisitor.count(node);
@@ -92,23 +95,40 @@ public class FilterNestedLoopJoinPRule extends RelRule<FilterNestedLoopJoinPRule
     NestedLoopJoinPrel join = call.rel(1);
     long maxNodes = PrelUtil.getPlannerSettings(call.getPlanner()).getMaxNLJConditionNodesPerPlan();
     List<RexNode> residue = new ArrayList<>();
-    RexNode condition = trimCondition(maxNodes, filter.getCondition(), filter.getCluster().getRexBuilder(), residue);
-    RelNode result = NestedLoopJoinPrel.create(join.getCluster(), join.getTraitSet(), join.getLeft(), join.getRight(), join.getJoinType(), RelOptUtil.andJoinFilters(join.getCluster().getRexBuilder(), join.getCondition(), condition));
+    RexNode condition =
+        trimCondition(
+            maxNodes, filter.getCondition(), filter.getCluster().getRexBuilder(), residue);
+    RelNode result =
+        NestedLoopJoinPrel.create(
+            join.getCluster(),
+            join.getTraitSet(),
+            join.getLeft(),
+            join.getRight(),
+            join.getJoinType(),
+            RelOptUtil.andJoinFilters(
+                join.getCluster().getRexBuilder(), join.getCondition(), condition));
     if (!residue.isEmpty()) {
-      result = filter.copy(filter.getTraitSet(), result, RexUtil.composeConjunction(filter.getCluster().getRexBuilder(), residue, false));
+      result =
+          filter.copy(
+              filter.getTraitSet(),
+              result,
+              RexUtil.composeConjunction(filter.getCluster().getRexBuilder(), residue, false));
     }
     call.transformTo(result);
   }
 
   public interface Config extends RelRule.Config {
-    Config DEFAULT = EMPTY
-      .withDescription("FilterProjectTransposePRule")
-      .withOperandSupplier(os1 ->
-        os1.operand(FilterPrel.class).oneInput(os2 ->
-          os2.operand(NestedLoopJoinPrel.class).anyInputs()))
-      .as(Config.class);
+    Config DEFAULT =
+        EMPTY
+            .withDescription("FilterProjectTransposePRule")
+            .withOperandSupplier(
+                os1 ->
+                    os1.operand(FilterPrel.class)
+                        .oneInput(os2 -> os2.operand(NestedLoopJoinPrel.class).anyInputs()))
+            .as(Config.class);
 
-    @Override default FilterNestedLoopJoinPRule toRule() {
+    @Override
+    default FilterNestedLoopJoinPRule toRule() {
       return new FilterNestedLoopJoinPRule(this);
     }
   }

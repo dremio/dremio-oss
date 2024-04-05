@@ -15,13 +15,6 @@
  */
 package com.dremio.service.jobs;
 
-import java.util.Set;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-
-import javax.inject.Provider;
-
 import com.dremio.common.util.Retryer;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.UserBitShared;
@@ -38,66 +31,79 @@ import com.dremio.service.job.NodeStatusResponse;
 import com.dremio.service.job.QueryProfileRequest;
 import com.dremio.service.job.proto.JobProtobuf;
 import com.google.common.collect.ImmutableSet;
-
+import io.grpc.Deadline;
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
+import java.util.Set;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import javax.inject.Provider;
 
-
-/**
- * forwards the request to target jobserver
- */
+/** forwards the request to target jobserver */
 public class RemoteJobServiceForwarder {
   private static final int MAX_RETRIES = 3;
   private static final Set<Status.Code> retriableGrpcStatuses =
-    ImmutableSet.of(Status.UNAVAILABLE.getCode(), Status.DEADLINE_EXCEEDED.getCode());
+      ImmutableSet.of(Status.UNAVAILABLE.getCode(), Status.DEADLINE_EXCEEDED.getCode());
   private final Provider<ConduitProvider> conduitProvider;
   private final Retryer retryer;
 
   public RemoteJobServiceForwarder(final Provider<ConduitProvider> conduitProvider) {
     this.conduitProvider = conduitProvider;
-    this.retryer = Retryer.newBuilder()
-      .retryOnExceptionFunc(this::isRetriableException)
-      .setMaxRetries(MAX_RETRIES)
-      .build();
+    this.retryer =
+        Retryer.newBuilder()
+            .retryOnExceptionFunc(this::isRetriableException)
+            .setMaxRetries(MAX_RETRIES)
+            .build();
   }
 
-  public void subscribeToJobEvents(CoordinationProtos.NodeEndpoint target,
-                                   JobProtobuf.JobId request,
-                                   StreamObserver<JobEvent> responseObserver) throws ExecutionException {
+  public void subscribeToJobEvents(
+      CoordinationProtos.NodeEndpoint target,
+      JobProtobuf.JobId request,
+      StreamObserver<JobEvent> responseObserver)
+      throws ExecutionException {
     final ManagedChannel channel = conduitProvider.get().getOrCreateChannel(target);
     final JobsServiceGrpc.JobsServiceStub asyncStub = JobsServiceGrpc.newStub(channel);
-    asyncStub.subscribeToJobEvents(request, new RemoteResponseObserverWrapper<JobEvent>(responseObserver));
+    asyncStub.subscribeToJobEvents(
+        request, new RemoteResponseObserverWrapper<JobEvent>(responseObserver));
   }
 
-  public JobDetails getJobDetails(CoordinationProtos.NodeEndpoint target, JobDetailsRequest request) throws ExecutionException {
+  public JobDetails getJobDetails(CoordinationProtos.NodeEndpoint target, JobDetailsRequest request)
+      throws ExecutionException {
     final ManagedChannel channel = conduitProvider.get().getOrCreateChannel(target);
-    final ChronicleGrpc.ChronicleBlockingStub stub = ChronicleGrpc.newBlockingStub(channel);
-    return stub.getJobDetails(request);
+    final ChronicleGrpc.ChronicleBlockingStub stub =
+        ChronicleGrpc.newBlockingStub(channel).withWaitForReady();
+    return stub.withDeadline(Deadline.after(5, TimeUnit.SECONDS)).getJobDetails(request);
   }
 
-  public JobSummary getJobSummary(CoordinationProtos.NodeEndpoint target, JobSummaryRequest request) throws ExecutionException {
+  public JobSummary getJobSummary(CoordinationProtos.NodeEndpoint target, JobSummaryRequest request)
+      throws ExecutionException {
     final ManagedChannel channel = conduitProvider.get().getOrCreateChannel(target);
     final ChronicleGrpc.ChronicleBlockingStub stub = ChronicleGrpc.newBlockingStub(channel);
     return stub.getJobSummary(request);
   }
 
-  public UserBitShared.QueryProfile getProfile(CoordinationProtos.NodeEndpoint target, QueryProfileRequest queryProfileRequest) {
+  public UserBitShared.QueryProfile getProfile(
+      CoordinationProtos.NodeEndpoint target, QueryProfileRequest queryProfileRequest) {
     final ManagedChannel channel = conduitProvider.get().getOrCreateChannel(target);
-    final ChronicleGrpc.ChronicleBlockingStub stub = ChronicleGrpc.newBlockingStub(channel);
-    return stub.getProfile(queryProfileRequest);
+    final ChronicleGrpc.ChronicleBlockingStub stub =
+        ChronicleGrpc.newBlockingStub(channel).withWaitForReady();
+    return stub.withDeadline(Deadline.after(5, TimeUnit.SECONDS)).getProfile(queryProfileRequest);
   }
 
-  public NodeStatusResponse getNodeStatus(CoordinationProtos.NodeEndpoint target, NodeStatusRequest request) {
+  public NodeStatusResponse getNodeStatus(
+      CoordinationProtos.NodeEndpoint target, NodeStatusRequest request) {
     final ManagedChannel channel = conduitProvider.get().getOrCreateChannel(target);
-    final ChronicleGrpc.ChronicleBlockingStub stub = ChronicleGrpc.newBlockingStub(channel);
+    final ChronicleGrpc.ChronicleBlockingStub stub =
+        ChronicleGrpc.newBlockingStub(channel).withWaitForReady();
     return retryer.call(() -> stub.withDeadlineAfter(10, TimeUnit.SECONDS).getNodeStatus(request));
   }
 
   /**
-   * Relays back the response from remote server back to the caller
-   * observer.
+   * Relays back the response from remote server back to the caller observer.
+   *
    * @param <T>
    */
   private class RemoteResponseObserverWrapper<T> implements StreamObserver<T> {
@@ -125,13 +131,14 @@ public class RemoteJobServiceForwarder {
 
   private boolean isRetriableException(Throwable e) {
     if (e instanceof StatusRuntimeException) {
-      if (retriableGrpcStatuses.contains(((StatusRuntimeException)e).getStatus().getCode())) {
+      if (retriableGrpcStatuses.contains(((StatusRuntimeException) e).getStatus().getCode())) {
         return true;
       }
     }
     if (e instanceof CompletionException || e instanceof ExecutionException) {
       if (e.getCause() instanceof StatusRuntimeException) {
-        return retriableGrpcStatuses.contains(((StatusRuntimeException) e.getCause()).getStatus().getCode());
+        return retriableGrpcStatuses.contains(
+            ((StatusRuntimeException) e.getCause()).getStatus().getCode());
       }
     }
     return false;

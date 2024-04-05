@@ -17,17 +17,14 @@ package com.dremio.exec.planner.sql.convertlet;
 
 import static com.dremio.exec.planner.sql.DremioSqlOperatorTable.CONVERT_TO;
 
+import com.dremio.exec.planner.sql.ConvertToOperators;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.util.NlsString;
 
-import com.dremio.exec.planner.sql.ConvertToOperators;
-
-/**
- * Rewrites CONVERT_TO(x, TYPE) to CONVERT_TOTYPE(x)
- */
+/** Rewrites CONVERT_TO(x, TYPE) to CONVERT_TOTYPE(x) */
 public final class ConvertToConvertlet implements FunctionConvertlet {
   public static final FunctionConvertlet INSTANCE = new ConvertToConvertlet();
 

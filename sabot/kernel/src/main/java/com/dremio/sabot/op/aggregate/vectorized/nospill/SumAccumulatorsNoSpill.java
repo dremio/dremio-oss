@@ -15,20 +15,18 @@
  */
 package com.dremio.sabot.op.aggregate.vectorized.nospill;
 
-import java.math.BigDecimal;
-
-import org.apache.arrow.vector.DecimalVector;
-import org.apache.arrow.vector.FieldVector;
-
 import com.dremio.exec.util.DecimalUtils;
 import com.dremio.sabot.op.aggregate.vectorized.DecimalAccumulatorUtils;
 import com.dremio.sabot.op.common.ht2.LBlockHashTableNoSpill;
-
 import io.netty.util.internal.PlatformDependent;
+import java.math.BigDecimal;
+import org.apache.arrow.vector.DecimalVector;
+import org.apache.arrow.vector.FieldVector;
 
 public class SumAccumulatorsNoSpill {
 
-  private SumAccumulatorsNoSpill(){};
+  private SumAccumulatorsNoSpill() {}
+  ;
 
   public static class IntSumAccumulatorNoSpill extends BaseSingleAccumulatorNoSpill {
 
@@ -47,12 +45,18 @@ public class SumAccumulatorsNoSpill {
     public void accumulate(final long memoryAddr, final int count) {
       final long maxAddr = memoryAddr + count * 4;
       final long incomingBit = getInput().getValidityBufferAddress();
-      final long incomingValue =  getInput().getDataBufferAddress();
+      final long incomingValue = getInput().getDataBufferAddress();
 
       int incomingIndex = 0;
-      for(long ordinalAddr = memoryAddr; ordinalAddr < maxAddr; ordinalAddr += 4, incomingIndex++){
-        final int bitVal = (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3))) >>> (incomingIndex & 7)) & 1;
-        final int newVal = PlatformDependent.getInt(incomingValue + (incomingIndex * WIDTH)) * bitVal;
+      for (long ordinalAddr = memoryAddr;
+          ordinalAddr < maxAddr;
+          ordinalAddr += 4, incomingIndex++) {
+        final int bitVal =
+            (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3)))
+                    >>> (incomingIndex & 7))
+                & 1;
+        final int newVal =
+            PlatformDependent.getInt(incomingValue + (incomingIndex * WIDTH)) * bitVal;
         final int tableIndex = PlatformDependent.getInt(ordinalAddr);
         int chunkIndex = tableIndex >>> LBlockHashTableNoSpill.BITS_IN_CHUNK;
         int chunkOffset = tableIndex & LBlockHashTableNoSpill.CHUNK_OFFSET_MASK;
@@ -60,7 +64,8 @@ public class SumAccumulatorsNoSpill {
         final long bitUpdateAddr = getBitAddress(chunkIndex) + ((chunkOffset >>> 5) * 4);
         final int bitUpdateVal = bitVal << (chunkOffset & 31);
         PlatformDependent.putLong(sumAddr, PlatformDependent.getLong(sumAddr) + newVal);
-        PlatformDependent.putInt(bitUpdateAddr, PlatformDependent.getInt(bitUpdateAddr) | bitUpdateVal);
+        PlatformDependent.putInt(
+            bitUpdateAddr, PlatformDependent.getInt(bitUpdateAddr) | bitUpdateVal);
       }
     }
   }
@@ -82,20 +87,31 @@ public class SumAccumulatorsNoSpill {
     public void accumulate(final long memoryAddr, final int count) {
       final long maxAddr = memoryAddr + count * 4;
       final long incomingBit = getInput().getValidityBufferAddress();
-      final long incomingValue =  getInput().getDataBufferAddress();
+      final long incomingValue = getInput().getDataBufferAddress();
 
       int incomingIndex = 0;
-      for(long ordinalAddr = memoryAddr; ordinalAddr < maxAddr; ordinalAddr += 4, incomingIndex++){
-        final int bitVal = (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3))) >>> (incomingIndex & 7)) & 1;
-        final float newVal = Float.intBitsToFloat(PlatformDependent.getInt(incomingValue + (incomingIndex * WIDTH)) * bitVal);
+      for (long ordinalAddr = memoryAddr;
+          ordinalAddr < maxAddr;
+          ordinalAddr += 4, incomingIndex++) {
+        final int bitVal =
+            (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3)))
+                    >>> (incomingIndex & 7))
+                & 1;
+        final float newVal =
+            Float.intBitsToFloat(
+                PlatformDependent.getInt(incomingValue + (incomingIndex * WIDTH)) * bitVal);
         final int tableIndex = PlatformDependent.getInt(ordinalAddr);
         int chunkIndex = tableIndex >>> LBlockHashTableNoSpill.BITS_IN_CHUNK;
         int chunkOffset = tableIndex & LBlockHashTableNoSpill.CHUNK_OFFSET_MASK;
         final long sumAddr = getValueAddress(chunkIndex) + (chunkOffset * 8);
         final long bitUpdateAddr = getBitAddress(chunkIndex) + ((chunkOffset >>> 5) * 4);
         final int bitUpdateVal = bitVal << (chunkOffset & 31);
-        PlatformDependent.putLong(sumAddr, Double.doubleToLongBits(Double.longBitsToDouble(PlatformDependent.getLong(sumAddr)) + newVal));
-        PlatformDependent.putInt(bitUpdateAddr, PlatformDependent.getInt(bitUpdateAddr) | bitUpdateVal);
+        PlatformDependent.putLong(
+            sumAddr,
+            Double.doubleToLongBits(
+                Double.longBitsToDouble(PlatformDependent.getLong(sumAddr)) + newVal));
+        PlatformDependent.putInt(
+            bitUpdateAddr, PlatformDependent.getInt(bitUpdateAddr) | bitUpdateVal);
       }
     }
   }
@@ -117,12 +133,18 @@ public class SumAccumulatorsNoSpill {
     public void accumulate(final long memoryAddr, final int count) {
       final long maxAddr = memoryAddr + count * 4;
       final long incomingBit = getInput().getValidityBufferAddress();
-      final long incomingValue =  getInput().getDataBufferAddress();
+      final long incomingValue = getInput().getDataBufferAddress();
 
       int incomingIndex = 0;
-      for(long ordinalAddr = memoryAddr; ordinalAddr < maxAddr; ordinalAddr += 4, incomingIndex++){
-        final int bitVal = (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3))) >>> (incomingIndex & 7)) & 1;
-        final long newVal = PlatformDependent.getLong(incomingValue + (incomingIndex * WIDTH)) * bitVal;
+      for (long ordinalAddr = memoryAddr;
+          ordinalAddr < maxAddr;
+          ordinalAddr += 4, incomingIndex++) {
+        final int bitVal =
+            (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3)))
+                    >>> (incomingIndex & 7))
+                & 1;
+        final long newVal =
+            PlatformDependent.getLong(incomingValue + (incomingIndex * WIDTH)) * bitVal;
         final int tableIndex = PlatformDependent.getInt(ordinalAddr);
         int chunkIndex = tableIndex >>> LBlockHashTableNoSpill.BITS_IN_CHUNK;
         int chunkOffset = tableIndex & LBlockHashTableNoSpill.CHUNK_OFFSET_MASK;
@@ -130,11 +152,11 @@ public class SumAccumulatorsNoSpill {
         final long bitUpdateAddr = getBitAddress(chunkIndex) + ((chunkOffset >>> 5) * 4);
         final int bitUpdateVal = bitVal << (chunkOffset & 31);
         PlatformDependent.putLong(sumAddr, PlatformDependent.getLong(sumAddr) + newVal);
-        PlatformDependent.putInt(bitUpdateAddr, PlatformDependent.getInt(bitUpdateAddr) | bitUpdateVal);
+        PlatformDependent.putInt(
+            bitUpdateAddr, PlatformDependent.getInt(bitUpdateAddr) | bitUpdateVal);
       }
     }
   }
-
 
   public static class DoubleSumAccumulatorNoSpill extends BaseSingleAccumulatorNoSpill {
 
@@ -153,27 +175,38 @@ public class SumAccumulatorsNoSpill {
     public void accumulate(final long memoryAddr, final int count) {
       final long maxAddr = memoryAddr + count * 4;
       final long incomingBit = getInput().getValidityBufferAddress();
-      final long incomingValue =  getInput().getDataBufferAddress();
+      final long incomingValue = getInput().getDataBufferAddress();
 
       int incomingIndex = 0;
-      for(long ordinalAddr = memoryAddr; ordinalAddr < maxAddr; ordinalAddr += 4, incomingIndex++){
-        final int bitVal = (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3))) >>> (incomingIndex & 7)) & 1;
-        final double newVal = Double.longBitsToDouble(PlatformDependent.getLong(incomingValue + (incomingIndex * WIDTH)) * bitVal);
+      for (long ordinalAddr = memoryAddr;
+          ordinalAddr < maxAddr;
+          ordinalAddr += 4, incomingIndex++) {
+        final int bitVal =
+            (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3)))
+                    >>> (incomingIndex & 7))
+                & 1;
+        final double newVal =
+            Double.longBitsToDouble(
+                PlatformDependent.getLong(incomingValue + (incomingIndex * WIDTH)) * bitVal);
         final int tableIndex = PlatformDependent.getInt(ordinalAddr);
         int chunkIndex = tableIndex >>> LBlockHashTableNoSpill.BITS_IN_CHUNK;
         int chunkOffset = tableIndex & LBlockHashTableNoSpill.CHUNK_OFFSET_MASK;
         final long sumAddr = getValueAddress(chunkIndex) + (chunkOffset * 8);
         final long bitUpdateAddr = getBitAddress(chunkIndex) + ((chunkOffset >>> 5) * 4);
         final int bitUpdateVal = bitVal << (chunkOffset & 31);
-        PlatformDependent.putLong(sumAddr, Double.doubleToLongBits(Double.longBitsToDouble(PlatformDependent.getLong(sumAddr)) + newVal));
-        PlatformDependent.putInt(bitUpdateAddr, PlatformDependent.getInt(bitUpdateAddr) | bitUpdateVal);
+        PlatformDependent.putLong(
+            sumAddr,
+            Double.doubleToLongBits(
+                Double.longBitsToDouble(PlatformDependent.getLong(sumAddr)) + newVal));
+        PlatformDependent.putInt(
+            bitUpdateAddr, PlatformDependent.getInt(bitUpdateAddr) | bitUpdateVal);
       }
     }
   }
 
   public static class DecimalSumAccumulatorNoSpill extends BaseSingleAccumulatorNoSpill {
-    private static final int WIDTH_ORDINAL = 4;     // int ordinal #s
-    private static final int WIDTH_INPUT = 16;      // decimal inputs
+    private static final int WIDTH_ORDINAL = 4; // int ordinal #s
+    private static final int WIDTH_INPUT = 16; // decimal inputs
     private static final int WIDTH_ACCUMULATOR = 8; // double accumulators
     byte[] valBuf = new byte[WIDTH_INPUT];
 
@@ -192,27 +225,39 @@ public class SumAccumulatorsNoSpill {
       FieldVector inputVector = getInput();
       final long incomingBit = inputVector.getValidityBufferAddress();
       final long incomingValue = inputVector.getDataBufferAddress();
-      final int scale = ((DecimalVector)inputVector).getScale();
+      final int scale = ((DecimalVector) inputVector).getScale();
 
       int incomingIndex = 0;
-      for (long ordinalAddr = memoryAddr; ordinalAddr < maxAddr; ordinalAddr += WIDTH_ORDINAL, incomingIndex++) {
-        final int bitVal = (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3))) >>> (incomingIndex & 7)) & 1;
-        java.math.BigDecimal newVal = DecimalAccumulatorUtils.getBigDecimal(incomingValue + (incomingIndex * WIDTH_INPUT), valBuf, scale);
+      for (long ordinalAddr = memoryAddr;
+          ordinalAddr < maxAddr;
+          ordinalAddr += WIDTH_ORDINAL, incomingIndex++) {
+        final int bitVal =
+            (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3)))
+                    >>> (incomingIndex & 7))
+                & 1;
+        java.math.BigDecimal newVal =
+            DecimalAccumulatorUtils.getBigDecimal(
+                incomingValue + (incomingIndex * WIDTH_INPUT), valBuf, scale);
         final int tableIndex = PlatformDependent.getInt(ordinalAddr);
         int chunkIndex = tableIndex >>> LBlockHashTableNoSpill.BITS_IN_CHUNK;
         int chunkOffset = tableIndex & LBlockHashTableNoSpill.CHUNK_OFFSET_MASK;
         final long sumAddr = getValueAddress(chunkIndex) + (chunkOffset * WIDTH_ACCUMULATOR);
         final long bitUpdateAddr = getBitAddress(chunkIndex) + ((chunkOffset >>> 5) * 4);
         final int bitUpdateVal = bitVal << (chunkOffset & 31);
-        PlatformDependent.putLong(sumAddr, Double.doubleToLongBits(Double.longBitsToDouble(PlatformDependent.getLong(sumAddr)) + newVal.doubleValue() * bitVal));
-        PlatformDependent.putInt(bitUpdateAddr, PlatformDependent.getInt(bitUpdateAddr) | bitUpdateVal);
+        PlatformDependent.putLong(
+            sumAddr,
+            Double.doubleToLongBits(
+                Double.longBitsToDouble(PlatformDependent.getLong(sumAddr))
+                    + newVal.doubleValue() * bitVal));
+        PlatformDependent.putInt(
+            bitUpdateAddr, PlatformDependent.getInt(bitUpdateAddr) | bitUpdateVal);
       }
     }
   }
 
   public static class DecimalSumAccumulatorNoSpillV2 extends BaseSingleAccumulatorNoSpill {
-    private static final int WIDTH_ORDINAL = 4;     // int ordinal #s
-    private static final int WIDTH_INPUT = 16;      // decimal inputs
+    private static final int WIDTH_ORDINAL = 4; // int ordinal #s
+    private static final int WIDTH_INPUT = 16; // decimal inputs
     private static final int WIDTH_ACCUMULATOR = 16; // double accumulators
     byte[] valBuf = new byte[WIDTH_INPUT];
 
@@ -231,17 +276,23 @@ public class SumAccumulatorsNoSpill {
       FieldVector inputVector = getInput();
       final long incomingBit = inputVector.getValidityBufferAddress();
       final long incomingValue = inputVector.getDataBufferAddress();
-      final int scale = ((DecimalVector)inputVector).getScale();
+      final int scale = ((DecimalVector) inputVector).getScale();
 
       int incomingIndex = 0;
-      for (long ordinalAddr = memoryAddr; ordinalAddr < maxAddr; ordinalAddr += WIDTH_ORDINAL, incomingIndex++) {
-        final int bitVal = (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3))) >>> (incomingIndex & 7)) & 1;
+      for (long ordinalAddr = memoryAddr;
+          ordinalAddr < maxAddr;
+          ordinalAddr += WIDTH_ORDINAL, incomingIndex++) {
+        final int bitVal =
+            (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3)))
+                    >>> (incomingIndex & 7))
+                & 1;
         // without if we would need to do a multiply which is slow.
         if (bitVal == 0) {
           continue;
         }
-        java.math.BigDecimal newVal = DecimalAccumulatorUtils.getBigDecimal(incomingValue
-          + (incomingIndex * WIDTH_INPUT), valBuf, scale);
+        java.math.BigDecimal newVal =
+            DecimalAccumulatorUtils.getBigDecimal(
+                incomingValue + (incomingIndex * WIDTH_INPUT), valBuf, scale);
         final int tableIndex = PlatformDependent.getInt(ordinalAddr);
         int chunkIndex = tableIndex >>> LBlockHashTableNoSpill.BITS_IN_CHUNK;
         int chunkOffset = tableIndex & LBlockHashTableNoSpill.CHUNK_OFFSET_MASK;
@@ -250,9 +301,10 @@ public class SumAccumulatorsNoSpill {
         final int bitUpdateVal = bitVal << (chunkOffset & 31);
         BigDecimal curVal = DecimalUtils.getBigDecimalFromLEBytes(sumAddr, valBuf, scale);
         BigDecimal runningVal = curVal.add(newVal, DecimalUtils.MATH);
-        byte [] valueInArrowBytes = DecimalUtils.convertBigDecimalToArrowByteArray(runningVal);
+        byte[] valueInArrowBytes = DecimalUtils.convertBigDecimalToArrowByteArray(runningVal);
         PlatformDependent.copyMemory(valueInArrowBytes, 0, sumAddr, WIDTH_INPUT);
-        PlatformDependent.putInt(bitUpdateAddr, PlatformDependent.getInt(bitUpdateAddr) | bitUpdateVal);
+        PlatformDependent.putInt(
+            bitUpdateAddr, PlatformDependent.getInt(bitUpdateAddr) | bitUpdateVal);
       }
     }
   }

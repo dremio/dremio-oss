@@ -17,13 +17,6 @@ package com.dremio.exec;
 
 import static org.mockito.Mockito.when;
 
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.RootAllocatorFactory;
-import org.apache.calcite.sql.SqlOperatorTable;
-import org.junit.After;
-import org.junit.Before;
-import org.mockito.Mockito;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.JULBridge;
 import com.dremio.common.config.LogicalPlanPersistence;
@@ -58,9 +51,14 @@ import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.telemetry.api.metrics.Metrics;
 import com.dremio.test.DremioTest;
 import com.google.common.collect.ImmutableList;
-
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.RootAllocatorFactory;
+import org.apache.calcite.sql.SqlOperatorTable;
+import org.junit.After;
+import org.junit.Before;
+import org.mockito.Mockito;
 
 public class ExecTest extends DremioTest {
 
@@ -71,14 +69,13 @@ public class ExecTest extends DremioTest {
   private static volatile FunctionImplementationRegistry FUNCTION_REGISTRY_DECIMAL;
   private static final OptionManager OPTION_MANAGER = Mockito.mock(OptionManager.class);
 
-  protected static FunctionImplementationRegistry FUNCTIONS( ){
-    // initialize once so avoid having to regenerate functions repetitvely in tests. So so lazily so tests that don't need, don't do.
-    if(FUNCTION_REGISTRY == null){
-      FUNCTION_REGISTRY = FunctionImplementationRegistry.create(
-        DEFAULT_SABOT_CONFIG,
-        CLASSPATH_SCAN_RESULT,
-        OPTION_MANAGER,
-        false);
+  protected static FunctionImplementationRegistry FUNCTIONS() {
+    // initialize once so avoid having to regenerate functions repetitvely in tests. So so lazily so
+    // tests that don't need, don't do.
+    if (FUNCTION_REGISTRY == null) {
+      FUNCTION_REGISTRY =
+          FunctionImplementationRegistry.create(
+              DEFAULT_SABOT_CONFIG, CLASSPATH_SCAN_RESULT, OPTION_MANAGER, false);
     }
     return FUNCTION_REGISTRY;
   }
@@ -87,13 +84,11 @@ public class ExecTest extends DremioTest {
     return PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal();
   }
 
-  protected static FunctionImplementationRegistry DECIMAL_FUNCTIONS( ){
+  protected static FunctionImplementationRegistry DECIMAL_FUNCTIONS() {
     if (FUNCTION_REGISTRY_DECIMAL == null) {
-      FUNCTION_REGISTRY_DECIMAL = FunctionImplementationRegistry.create(
-        DEFAULT_SABOT_CONFIG,
-        CLASSPATH_SCAN_RESULT,
-        OPTION_MANAGER,
-        true);
+      FUNCTION_REGISTRY_DECIMAL =
+          FunctionImplementationRegistry.create(
+              DEFAULT_SABOT_CONFIG, CLASSPATH_SCAN_RESULT, OPTION_MANAGER, true);
     }
     return FUNCTION_REGISTRY_DECIMAL;
   }
@@ -105,11 +100,12 @@ public class ExecTest extends DremioTest {
   @Before
   public void initAllocators() {
     rootAllocator = RootAllocatorFactory.newRoot(DEFAULT_SABOT_CONFIG);
-    allocator = rootAllocator.newChildAllocator(testName.getMethodName(), 0, rootAllocator.getLimit());
+    allocator =
+        rootAllocator.newChildAllocator(testName.getMethodName(), 0, rootAllocator.getLimit());
   }
 
   @After
-  public void clear(){
+  public void clear() {
     // TODO:  (Re DRILL-1735) Check whether still needed now that
     // BootstrapContext.close() resets the metrics.
     Metrics.resetMetrics();
@@ -122,21 +118,29 @@ public class ExecTest extends DremioTest {
   }
 
   protected QueryContext mockQueryContext(SabotContext dbContext) throws Exception {
-    final SessionOptionManager sessionOptionManager = new SessionOptionManagerImpl(dbContext.getOptionValidatorListing());
+    final SessionOptionManager sessionOptionManager =
+        new SessionOptionManagerImpl(dbContext.getOptionValidatorListing());
 
-    final UserSession userSession = UserSession.Builder.newBuilder()
-      .withSessionOptionManager(sessionOptionManager, dbContext.getOptionManager())
-      .build();
+    final UserSession userSession =
+        UserSession.Builder.newBuilder()
+            .withSessionOptionManager(sessionOptionManager, dbContext.getOptionManager())
+            .build();
 
-    final OptionValidatorListing optionValidatorListing = new OptionValidatorListingImpl(DremioTest.CLASSPATH_SCAN_RESULT);
-    final OptionManager queryOptions = OptionManagerWrapper.Builder.newBuilder()
-      .withOptionManager(new DefaultOptionManager(optionValidatorListing))
-      .withOptionManager(userSession.getOptions())
-      .withOptionManager(new QueryOptionManager(userSession.getOptions().getOptionValidatorListing()))
-      .build();
-    final ExecutionControls executionControls = new ExecutionControls(queryOptions, NodeEndpoint.getDefaultInstance());
-    FunctionImplementationRegistry functions = queryOptions.getOption(PlannerSettings
-      .ENABLE_DECIMAL_V2) ? DECIMAL_FUNCTIONS() : FUNCTIONS();
+    final OptionValidatorListing optionValidatorListing =
+        new OptionValidatorListingImpl(DremioTest.CLASSPATH_SCAN_RESULT);
+    final OptionManager queryOptions =
+        OptionManagerWrapper.Builder.newBuilder()
+            .withOptionManager(new DefaultOptionManager(optionValidatorListing))
+            .withOptionManager(userSession.getOptions())
+            .withOptionManager(
+                new QueryOptionManager(userSession.getOptions().getOptionValidatorListing()))
+            .build();
+    final ExecutionControls executionControls =
+        new ExecutionControls(queryOptions, NodeEndpoint.getDefaultInstance());
+    FunctionImplementationRegistry functions =
+        queryOptions.getOption(PlannerSettings.ENABLE_DECIMAL_V2)
+            ? DECIMAL_FUNCTIONS()
+            : FUNCTIONS();
     final SqlOperatorTable table = DremioCompositeSqlOperatorTable.create(functions);
     final LogicalPlanPersistence lp = dbContext.getLpPersistence();
     final CatalogService registry = dbContext.getCatalogService();
@@ -146,36 +150,47 @@ public class ExecTest extends DremioTest {
     when(context.getLpPersistence()).thenReturn(lp);
     when(context.getCatalogService()).thenReturn(registry);
     when(context.getFunctionRegistry()).thenReturn(functions);
-    when(context.getSession()).thenReturn(UserSession.Builder.newBuilder()
-      .withSessionOptionManager(sessionOptionManager, dbContext.getOptionManager())
-      .setSupportComplexTypes(true).build());
+    when(context.getSession())
+        .thenReturn(
+            UserSession.Builder.newBuilder()
+                .withSessionOptionManager(sessionOptionManager, dbContext.getOptionManager())
+                .setSupportComplexTypes(true)
+                .build());
     when(context.getCurrentEndpoint()).thenReturn(NodeEndpoint.getDefaultInstance());
-    when(context.getActiveEndpoints()).thenReturn(ImmutableList.of(NodeEndpoint.getDefaultInstance()));
-    when(context.getPlannerSettings()).thenReturn(new PlannerSettings(dbContext.getConfig(), queryOptions,
-      () -> dbContext.getClusterResourceInformation()));
+    when(context.getActiveEndpoints())
+        .thenReturn(ImmutableList.of(NodeEndpoint.getDefaultInstance()));
+    when(context.getPlannerSettings())
+        .thenReturn(
+            new PlannerSettings(
+                dbContext.getConfig(),
+                queryOptions,
+                () -> dbContext.getClusterResourceInformation()));
     when(context.getOptions()).thenReturn(queryOptions);
     when(context.getConfig()).thenReturn(DEFAULT_SABOT_CONFIG);
     when(context.getOperatorTable()).thenReturn(table);
     when(context.getAllocator()).thenReturn(allocator);
     when(context.getExecutionControls()).thenReturn(executionControls);
-    when(context.getMaterializationProvider()).thenReturn(Mockito.mock(MaterializationDescriptorProvider.class));
+    when(context.getMaterializationProvider())
+        .thenReturn(Mockito.mock(MaterializationDescriptorProvider.class));
     when(context.getStatisticsService()).thenReturn(Mockito.mock(StatisticsService.class));
-    when(context.getStatisticsAdministrationFactory()).thenReturn(Mockito.mock(StatisticsAdministrationService.Factory.class));
+    when(context.getStatisticsAdministrationFactory())
+        .thenReturn(Mockito.mock(StatisticsAdministrationService.Factory.class));
     when(context.getRelMetadataQuerySupplier()).thenReturn(DremioRelMetadataQuery.QUERY_SUPPLIER);
     return context;
   }
 
-  public static UserClientConnection mockUserClientConnection(QueryContext context){
-    final UserSession session = context != null ? context.getSession() : Mockito.mock(UserSession.class);
-    return new UserClientConnection(){
+  public static UserClientConnection mockUserClientConnection(QueryContext context) {
+    final UserSession session =
+        context != null ? context.getSession() : Mockito.mock(UserSession.class);
+    return new UserClientConnection() {
 
       @Override
-      public void addTerminationListener(GenericFutureListener<? extends Future<? super Void>> listener) {
-      }
+      public void addTerminationListener(
+          GenericFutureListener<? extends Future<? super Void>> listener) {}
 
       @Override
-      public void removeTerminationListener(GenericFutureListener<? extends Future<? super Void>> listener) {
-      }
+      public void removeTerminationListener(
+          GenericFutureListener<? extends Future<? super Void>> listener) {}
 
       @Override
       public UserSession getSession() {
@@ -189,15 +204,13 @@ public class ExecTest extends DremioTest {
 
       @Override
       public void sendData(RpcOutcomeListener<Ack> listener, QueryWritableBatch result) {
-        try{
+        try {
           AutoCloseables.close((AutoCloseable[]) result.getBuffers());
           listener.success(Acks.OK, null);
-        }catch(Exception ex){
+        } catch (Exception ex) {
           listener.failed(new RpcException(ex));
         }
       }
-
     };
   }
-
 }

@@ -15,9 +15,12 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
+import com.dremio.service.namespace.NamespaceKey;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import java.util.List;
 import java.util.stream.Collectors;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -29,16 +32,9 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
-import com.dremio.service.namespace.NamespaceKey;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
-
 /**
- * CREATE [ OR REPLACE] COLUMN POLICY <policy_name>
- * AS ( <field_name> <data_type> [, ... ] )
- * RETURN <data_type>
- * <policy_sql_expression>
+ * CREATE [ OR REPLACE] COLUMN POLICY <policy_name> AS ( <field_name> <data_type> [, ... ] ) RETURN
+ * <data_type> <policy_sql_expression>
  */
 public class SqlCreateFunction extends SqlCall {
   private final SqlIdentifier name;
@@ -48,21 +44,23 @@ public class SqlCreateFunction extends SqlCall {
   private boolean shouldReplace;
   private boolean ifNotExists;
 
-  public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("CREATE_FUNCTION", SqlKind.OTHER) {
-    @Override
-    public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 6, "SqlCreateFunction.createCall() has to get 6 operands!");
-      return new SqlCreateFunction(
-        pos,
-        (SqlLiteral) operands[0],
-        (SqlIdentifier) operands[1],
-        (SqlNodeList) operands[2],
-        operands[3],
-        (SqlLiteral) operands[4],
-        (SqlFunctionReturnType) operands[5]
-      );
-    }
-  };
+  public static final SqlSpecialOperator OPERATOR =
+      new SqlSpecialOperator("CREATE_FUNCTION", SqlKind.OTHER) {
+        @Override
+        public SqlCall createCall(
+            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+          Preconditions.checkArgument(
+              operands.length == 6, "SqlCreateFunction.createCall() has to get 6 operands!");
+          return new SqlCreateFunction(
+              pos,
+              (SqlLiteral) operands[0],
+              (SqlIdentifier) operands[1],
+              (SqlNodeList) operands[2],
+              operands[3],
+              (SqlLiteral) operands[4],
+              (SqlFunctionReturnType) operands[5]);
+        }
+      };
 
   public SqlCreateFunction(
       SqlParserPos pos,
@@ -89,7 +87,7 @@ public class SqlCreateFunction extends SqlCall {
     return new NamespaceKey(name.names);
   }
 
-  public String getFullName(){
+  public String getFullName() {
     if (name.isSimple()) {
       return name.getSimple();
     }
@@ -128,12 +126,12 @@ public class SqlCreateFunction extends SqlCall {
   @Override
   public List<SqlNode> getOperandList() {
     return Lists.newArrayList(
-      SqlLiteral.createBoolean(shouldReplace, SqlParserPos.ZERO),
-      name,
-      fieldList,
-      expression,
-      SqlLiteral.createBoolean(ifNotExists, SqlParserPos.ZERO),
-      returnType);
+        SqlLiteral.createBoolean(shouldReplace, SqlParserPos.ZERO),
+        name,
+        fieldList,
+        expression,
+        SqlLiteral.createBoolean(ifNotExists, SqlParserPos.ZERO),
+        returnType);
   }
 
   @Override

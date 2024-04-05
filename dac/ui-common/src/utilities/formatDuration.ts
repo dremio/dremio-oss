@@ -13,6 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+//@ts-ignore
+import prettyMilliseconds from "pretty-ms";
 
 const UNITS = [
   // { label: "d", divider: 86400000 },
@@ -52,6 +54,8 @@ export const formatDuration = (remainder: number, unitIndex = 0): string => {
   return `${formattedString}:${nextString}`;
 };
 
+export const formatDuration2 = prettyMilliseconds;
+
 const LABELLED_UNITS = [
   { label: "h", divider: 3600000 },
   { label: "m", divider: 60000 },
@@ -60,7 +64,7 @@ const LABELLED_UNITS = [
 
 export const formatDurationMetric = (
   remainder: number,
-  unitIndex = 0
+  unitIndex = 0,
 ): string => {
   const result = ~~(remainder / LABELLED_UNITS[unitIndex].divider);
 
@@ -93,7 +97,7 @@ export const formatDurationMetric = (
 
 export const formatDurationUnderSecond = (
   remainder: number,
-  unitIndex = 0
+  unitIndex = 0,
 ): string => {
   if (remainder < UNITS[2].divider) {
     return "<1s";

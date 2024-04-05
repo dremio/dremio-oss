@@ -15,9 +15,11 @@
  */
 package com.dremio.exec.planner.logical;
 
+import com.dremio.exec.planner.RoutingShuttle;
+import com.dremio.exec.planner.sql.SqlFlattenOperator;
+import com.dremio.service.Pointer;
 import java.util.HashSet;
 import java.util.Set;
-
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rex.RexCall;
@@ -33,19 +35,15 @@ import org.apache.calcite.rex.RexRangeRef;
 import org.apache.calcite.rex.RexSubQuery;
 import org.apache.calcite.rex.RexVisitorImpl;
 
-import com.dremio.exec.planner.RoutingShuttle;
-import com.dremio.exec.planner.sql.SqlFlattenOperator;
-import com.dremio.service.Pointer;
-
 public class FlattenVisitors {
 
-  public static boolean hasFlatten(RexNode node){
+  public static boolean hasFlatten(RexNode node) {
     return node.accept(new FlattenFinder());
   }
 
-  public static boolean hasFlatten(Project project){
-    for(RexNode n : project.getProjects()){
-      if(n.accept(new FlattenFinder())){
+  public static boolean hasFlatten(Project project) {
+    for (RexNode n : project.getProjects()) {
+      if (n.accept(new FlattenFinder())) {
         return true;
       }
     }
@@ -54,7 +52,7 @@ public class FlattenVisitors {
 
   public static int count(Iterable<RexNode> rexs) {
     FlattenCounter fc = new FlattenCounter();
-    for(RexNode r : rexs){
+    for (RexNode r : rexs) {
       r.accept(fc);
     }
     return fc.getCount();
@@ -112,7 +110,7 @@ public class FlattenVisitors {
 
     @Override
     public Boolean visitSubQuery(RexSubQuery subQuery) {
-      for (RexNode sub: subQuery.getOperands()) {
+      for (RexNode sub : subQuery.getOperands()) {
         if (sub.accept(this)) {
           return true;
         }
@@ -135,12 +133,12 @@ public class FlattenVisitors {
     }
   }
 
-
   public static class FlattenCounter extends RexVisitorImpl<Void> {
     private final Set<Integer> flattens = new HashSet<>();
 
     /**
      * Count the total number of flattens in Project node
+     *
      * @param project
      * @return the total number of flattens in the project
      */
@@ -152,21 +150,23 @@ public class FlattenVisitors {
 
     /**
      * Count the total number of flatten operators in a tree
+     *
      * @param relNode the root of the tree
      * @return the number of flattens
      */
     public static int countFlattensInPlan(RelNode relNode) {
       final Pointer<Integer> totalCount = new Pointer<>(0);
-      relNode.accept(new RoutingShuttle() {
-        @Override
-        public RelNode visit(RelNode relNode) {
-          RelNode rel = super.visit(relNode);
-          if (relNode instanceof Project) {
-            totalCount.value += FlattenCounter.count((Project) relNode);
-          }
-          return rel;
-        }
-      });
+      relNode.accept(
+          new RoutingShuttle() {
+            @Override
+            public RelNode visit(RelNode relNode) {
+              RelNode rel = super.visit(relNode);
+              if (relNode instanceof Project) {
+                totalCount.value += FlattenCounter.count((Project) relNode);
+              }
+              return rel;
+            }
+          });
       return totalCount.value;
     }
 
@@ -174,13 +174,13 @@ public class FlattenVisitors {
       super(true);
     }
 
-    public void add(Project project){
-      for(RexNode e : project.getProjects()){
+    public void add(Project project) {
+      for (RexNode e : project.getProjects()) {
         e.accept(this);
       }
     }
 
-    public int getCount(){
+    public int getCount() {
       return flattens.size();
     }
 
@@ -217,7 +217,7 @@ public class FlattenVisitors {
     @Override
     public Void visitCall(RexCall call) {
       if (call.getOperator() instanceof SqlFlattenOperator) {
-        flattens.add(((SqlFlattenOperator)call.getOperator()).getIndex());
+        flattens.add(((SqlFlattenOperator) call.getOperator()).getIndex());
       }
 
       for (RexNode op : call.getOperands()) {
@@ -241,5 +241,4 @@ public class FlattenVisitors {
       return null;
     }
   }
-
 }

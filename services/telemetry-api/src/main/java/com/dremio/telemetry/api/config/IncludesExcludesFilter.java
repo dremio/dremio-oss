@@ -15,18 +15,17 @@
  */
 package com.dremio.telemetry.api.config;
 
+import com.codahale.metrics.Metric;
+import com.codahale.metrics.MetricFilter;
 import java.util.List;
 import java.util.Objects;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
 
-import com.codahale.metrics.Metric;
-import com.codahale.metrics.MetricFilter;
-
 /**
- * A metric filter that will only include values that match the provided includes (if any) then excludes any paths
- * identified by excludes.
+ * A metric filter that will only include values that match the provided includes (if any) then
+ * excludes any paths identified by excludes.
  */
 class IncludesExcludesFilter implements MetricFilter {
 
@@ -65,14 +64,19 @@ class IncludesExcludesFilter implements MetricFilter {
   }
 
   private static List<Pattern> asPatterns(List<String> values, String type) {
-    return values.stream().filter(v -> v != null && !v.isEmpty()).map(v -> {
-      try {
-        return Pattern.compile(v);
-      } catch (PatternSyntaxException e) {
-        throw new IllegalArgumentException(
-            String.format("Failure while trying to parse %s pattern of value %s.", type, v), e);
-      }
-    }).collect(Collectors.toList());
+    return values.stream()
+        .filter(v -> v != null && !v.isEmpty())
+        .map(
+            v -> {
+              try {
+                return Pattern.compile(v);
+              } catch (PatternSyntaxException e) {
+                throw new IllegalArgumentException(
+                    String.format("Failure while trying to parse %s pattern of value %s.", type, v),
+                    e);
+              }
+            })
+        .collect(Collectors.toList());
   }
 
   @Override

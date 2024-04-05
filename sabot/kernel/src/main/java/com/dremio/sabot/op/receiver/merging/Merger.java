@@ -25,12 +25,11 @@ import com.dremio.sabot.exec.context.FunctionContext;
 
 public interface Merger {
 
-  public abstract void doSetup(FunctionContext context,
-                               VectorAccessible incoming,
-                               VectorAccessible outgoing) throws SchemaChangeException;
+  public abstract void doSetup(
+      FunctionContext context, VectorAccessible incoming, VectorAccessible outgoing)
+      throws SchemaChangeException;
 
-  public abstract int doEval(int leftIndex,
-                                int rightIndex);
+  public abstract int doEval(int leftIndex, int rightIndex);
 
   public abstract void doCopy(int inIndex, int outIndex);
 
@@ -38,13 +37,16 @@ public interface Merger {
       new TemplateClassDefinition<>(Merger.class, MergerTemplate.class);
 
   public final MappingSet compareMapping =
-    new MappingSet("leftIndex", "rightIndex",
-      GM("doSetup", "doCompare", null, null),
-      GM("doSetup", "doCompare", null, null));
+      new MappingSet(
+          "leftIndex",
+          "rightIndex",
+          GM("doSetup", "doCompare", null, null),
+          GM("doSetup", "doCompare", null, null));
 
   public final MappingSet copyMapping =
-    new MappingSet("inIndex", "outIndex",
-      GM("doSetup", "doCopy", null, null),
-      GM("doSetup", "doCopy", null, null));
-
+      new MappingSet(
+          "inIndex",
+          "outIndex",
+          GM("doSetup", "doCopy", null, null),
+          GM("doSetup", "doCopy", null, null));
 }

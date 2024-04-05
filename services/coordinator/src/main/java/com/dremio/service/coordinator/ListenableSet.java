@@ -15,24 +15,20 @@
  */
 package com.dremio.service.coordinator;
 
+import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import java.util.Collection;
 
-import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
-
-/**
- *  Set with status listener.
- */
+/** Set with status listener. */
 public interface ListenableSet {
 
   /**
    * Get a collection of available Sabot endpoints
    *
-   * The collection captures the available endpoints at a given time,
-   * which might be sligtly out of date depending on the refresh policy
-   * of the provider.
+   * <p>The collection captures the available endpoints at a given time, which might be sligtly out
+   * of date depending on the refresh policy of the provider.
    *
-   * Clients should account for this, and not make any assumption regarding
-   * the liveness of an endpoint based on the returned value.
+   * <p>Clients should account for this, and not make any assumption regarding the liveness of an
+   * endpoint based on the returned value.
    *
    * @return A collection of available endpoints.
    */
@@ -41,7 +37,8 @@ public interface ListenableSet {
   /**
    * Register a NodeStatusListener.
    *
-   * Note : the listeners are not guaranteed to be called in the order in which they call this method.
+   * <p>Note : the listeners are not guaranteed to be called in the order in which they call this
+   * method.
    *
    * @param listener
    * @throws NullPointerException if listener is {@code null}
@@ -50,6 +47,7 @@ public interface ListenableSet {
 
   /**
    * Unregister a NodeStatusListener.
+   *
    * @param listener
    * @throws NullPointerException if listener is {@code null}
    */

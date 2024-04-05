@@ -80,7 +80,7 @@ export class ErrorDetectionEngine {
       offendingSymbol,
       error.e,
       error.line,
-      error.charPositionInLine
+      error.charPositionInLine,
     );
     if (
       this.isEofError(error.offendingSymbol) &&
@@ -115,7 +115,7 @@ export class ErrorDetectionEngine {
     offendingSymbol: CommonToken | undefined,
     e: RecognitionException | undefined,
     line: number,
-    column: number
+    column: number,
   ): SQLError["range"] {
     const isEofError = this.isEofError(offendingSymbol);
     const offendingTokens = offendingSymbol
@@ -126,8 +126,8 @@ export class ErrorDetectionEngine {
     const startColumn: number = isEofError
       ? column // Error should be on last character of the last real parsed token
       : startBadToken
-      ? startBadToken.charPositionInLine + 1
-      : column + 1;
+        ? startBadToken.charPositionInLine + 1
+        : column + 1;
     const endTokenTextLines: string[] | undefined =
       offendingSymbol?.text?.split("\n");
     let endLineNumber: number;
@@ -188,7 +188,7 @@ export class ErrorDetectionEngine {
       const expectingStrParts: string[] = [...types];
       if (!otherTokens.isNil) {
         expectingStrParts.push(
-          otherTokens.toStringVocabulary(LiveEditParser.VOCABULARY)
+          otherTokens.toStringVocabulary(LiveEditParser.VOCABULARY),
         );
       }
       const expectingTokens = toReadableString(expectingStrParts, "or");
@@ -198,10 +198,10 @@ export class ErrorDetectionEngine {
       const unexpectedTokensStr = this.isEofError(offendingSymbol)
         ? ErrorDetectionEngine.EOF_ERROR
         : offendingTokens.length > 1
-        ? ErrorDetectionEngine.UNEXPECTED_TOKENS_MSG(
-            offendingTokens.map((token) => token.text!)
-          )
-        : ErrorDetectionEngine.UNEXPECTED_TOKEN_MSG(offendingTokens[0].text!);
+          ? ErrorDetectionEngine.UNEXPECTED_TOKENS_MSG(
+              offendingTokens.map((token) => token.text!),
+            )
+          : ErrorDetectionEngine.UNEXPECTED_TOKEN_MSG(offendingTokens[0].text!);
       return unexpectedTokensStr.concat(expectingTokenStr);
     } else {
       return ErrorDetectionEngine.GENERIC_MSG;
@@ -210,7 +210,7 @@ export class ErrorDetectionEngine {
 
   private getExpectedTokens(
     e: InputMismatchException | NoViableAltException,
-    offendingSymbol: CommonToken | undefined
+    offendingSymbol: CommonToken | undefined,
   ): {
     types: Set<ExpectedTokenType>;
     otherTokens: IntervalSet;
@@ -242,14 +242,14 @@ export class ErrorDetectionEngine {
     this.removeBlocklistedExpectedTokens(
       otherTokens,
       offendingSymbol,
-      this.getInputStream(e)
+      this.getInputStream(e),
     );
     return { types, otherTokens };
   }
 
   private getOffendingTokens(
     e: RecognitionException | undefined,
-    offendingSymbol: Token
+    offendingSymbol: Token,
   ): Token[] {
     if (e instanceof NoViableAltException) {
       return this.getNoViableAltTokens(e);
@@ -260,7 +260,7 @@ export class ErrorDetectionEngine {
 
   private isRulePossible(
     getRuleTokens: () => IntervalSet,
-    tokens: IntervalSet
+    tokens: IntervalSet,
   ): {
     possible: boolean;
     removeFromSet: (tokens: IntervalSet) => IntervalSet;
@@ -275,7 +275,7 @@ export class ErrorDetectionEngine {
   private removeBlocklistedExpectedTokens(
     expectedTokens: IntervalSet,
     offendingSymbol: CommonToken | undefined,
-    inputStream: BufferedTokenStream | undefined
+    inputStream: BufferedTokenStream | undefined,
   ): void {
     const offendingSymbolIdx = offendingSymbol?.tokenIndex;
     // Account for fact that LiveEditParser grammar allows SELECT FROM ... queries (with missing select list) to parse
@@ -303,8 +303,8 @@ export class ErrorDetectionEngine {
     for (const tokenType of tokenTypes) {
       const tokenName = LiveEditParser.VOCABULARY.getSymbolicName(tokenType);
       if (
-        ErrorDetectionEngine.EXPECTED_TOKENS_NAME_FILTER.some((nameFilter) =>
-          tokenName?.match(nameFilter)
+        ErrorDetectionEngine.EXPECTED_TOKENS_NAME_FILTER.some(
+          (nameFilter) => tokenName?.match(nameFilter),
         )
       ) {
         expectedTokens.remove(tokenType);
@@ -317,7 +317,7 @@ export class ErrorDetectionEngine {
   }
 
   private getInputStream(
-    e: RecognitionException
+    e: RecognitionException,
   ): BufferedTokenStream | undefined {
     return e.inputStream instanceof BufferedTokenStream
       ? e.inputStream

@@ -15,10 +15,7 @@
  */
 package com.dremio.sabot.exec.context;
 
-
-/**
- * Exposes an interface that allows message flushing.
- */
+/** Exposes an interface that allows message flushing. */
 public interface Flushable {
 
   /**
@@ -27,5 +24,4 @@ public interface Flushable {
    * @return true if all messages are flushed, false if messages are still waiting to be flushed.
    */
   boolean flushMessages();
-
 }

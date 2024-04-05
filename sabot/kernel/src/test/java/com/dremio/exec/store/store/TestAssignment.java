@@ -15,16 +15,6 @@
  */
 package com.dremio.exec.store.store;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
-import java.util.concurrent.ThreadLocalRandom;
-
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.Test;
-
 import com.dremio.exec.physical.EndpointAffinity;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.store.schedule.AssignmentCreator;
@@ -34,6 +24,14 @@ import com.google.common.collect.Iterators;
 import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
+import org.junit.Assert;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
 public class TestAssignment {
 
@@ -63,7 +61,8 @@ public class TestAssignment {
       incomingEndpoints.add(incomingEndpointsIterator.next());
     }
 
-    ListMultimap<Integer, CompleteWork> mappings = AssignmentCreator.getMappings(incomingEndpoints, chunks);
+    ListMultimap<Integer, CompleteWork> mappings =
+        AssignmentCreator.getMappings(incomingEndpoints, chunks);
     System.out.println(mappings.keySet().size());
     for (int i = 0; i < width; i++) {
       Assert.assertTrue("no mapping for entry " + i, mappings.containsKey(i));

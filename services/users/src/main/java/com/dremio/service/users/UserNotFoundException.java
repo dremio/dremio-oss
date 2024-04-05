@@ -17,9 +17,7 @@ package com.dremio.service.users;
 
 import com.dremio.service.users.proto.UID;
 
-/**
- * Thrown when a user not found.
- */
+/** Thrown when a user not found. */
 public class UserNotFoundException extends Exception {
   private static final long serialVersionUID = 1L;
 

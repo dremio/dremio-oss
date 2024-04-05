@@ -22,10 +22,10 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-/**
- * Initial run response when running run after previous transform.
- */
-@JsonIgnoreProperties(value={"approximate"}, allowGetters=true)
+/** Initial run response when running run after previous transform. */
+@JsonIgnoreProperties(
+    value = {"approximate"},
+    allowGetters = true)
 public class InitialRunResponse {
 
   private final DatasetUI dataset;
@@ -49,12 +49,15 @@ public class InitialRunResponse {
     this.history = history;
   }
 
-  public static InitialRunResponse of(DatasetUI dataset, JobId jobId, SessionId sessionId, History history) {
-    return new InitialRunResponse(dataset, JobResource.getPaginationURL(jobId), jobId, sessionId, history);
+  public static InitialRunResponse of(
+      DatasetUI dataset, JobId jobId, SessionId sessionId, History history) {
+    return new InitialRunResponse(
+        dataset, JobResource.getPaginationURL(jobId), jobId, sessionId, history);
   }
 
   /**
    * Minimal Dataset information.
+   *
    * @return
    */
   public DatasetUI getDataset() {

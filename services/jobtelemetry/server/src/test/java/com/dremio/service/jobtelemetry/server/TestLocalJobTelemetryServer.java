@@ -18,12 +18,6 @@ package com.dremio.service.jobtelemetry.server;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 
-import java.util.concurrent.Executors;
-
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.concurrent.ContextMigratingExecutorService;
 import com.dremio.exec.proto.CoordinationProtos;
@@ -42,17 +36,18 @@ import com.dremio.service.jobtelemetry.PutPlanningProfileRequest;
 import com.dremio.service.jobtelemetry.PutTailProfileRequest;
 import com.dremio.telemetry.utils.GrpcTracerFacade;
 import com.dremio.telemetry.utils.TracerFacade;
+import java.util.concurrent.Executors;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
-/**
- * Tests LocalJobTelemetryServer.
- */
+/** Tests LocalJobTelemetryServer. */
 public class TestLocalJobTelemetryServer {
   private final GrpcChannelBuilderFactory grpcChannelBuilderFactory =
-    new SimpleGrpcChannelBuilderFactory(TracerFacade.INSTANCE);
+      new SimpleGrpcChannelBuilderFactory(TracerFacade.INSTANCE);
   private final GrpcServerBuilderFactory grpcServerBuilderFactory =
-    new SimpleGrpcServerBuilderFactory(TracerFacade.INSTANCE);
-  private final GrpcTracerFacade tracer =
-    new GrpcTracerFacade(TracerFacade.INSTANCE);
+      new SimpleGrpcServerBuilderFactory(TracerFacade.INSTANCE);
+  private final GrpcTracerFacade tracer = new GrpcTracerFacade(TracerFacade.INSTANCE);
 
   private LocalJobTelemetryServer server;
   private JobTelemetryClient client;
@@ -60,14 +55,15 @@ public class TestLocalJobTelemetryServer {
   @Before
   public void setUp() throws Exception {
     final CoordinationProtos.NodeEndpoint node =
-      CoordinationProtos.NodeEndpoint.newBuilder()
-      .setFabricPort(30)
-      .build();
+        CoordinationProtos.NodeEndpoint.newBuilder().setFabricPort(30).build();
 
-    server = new LocalJobTelemetryServer(grpcServerBuilderFactory,
-      DirectProvider.wrap(TempLegacyKVStoreProviderCreator.create()),
-      DirectProvider.wrap(node),
-      tracer, new ContextMigratingExecutorService(Executors.newCachedThreadPool()));
+    server =
+        new LocalJobTelemetryServer(
+            grpcServerBuilderFactory,
+            DirectProvider.wrap(TempLegacyKVStoreProviderCreator.create()),
+            DirectProvider.wrap(node),
+            tracer,
+            new ContextMigratingExecutorService(Executors.newCachedThreadPool()));
     server.start();
 
     client = new JobTelemetryClient(grpcChannelBuilderFactory, DirectProvider.wrap(node));
@@ -81,75 +77,72 @@ public class TestLocalJobTelemetryServer {
 
   @Test
   public void testFullProfile() throws Exception {
-    UserBitShared.QueryId queryId = UserBitShared.QueryId.newBuilder()
-      .setPart1(10000)
-      .setPart2(10001)
-      .build();
+    UserBitShared.QueryId queryId =
+        UserBitShared.QueryId.newBuilder().setPart1(10000).setPart2(10001).build();
 
     final UserBitShared.QueryProfile planningProfile =
-      UserBitShared.QueryProfile.newBuilder()
-        .setPlan("PLAN_VALUE")
-        .setQuery("Select * from plan")
-        .setState(UserBitShared.QueryResult.QueryState.ENQUEUED)
-        .addStateList(AttemptEvent.newBuilder()
-          .setState(State.QUEUED).setStartTime(20L).build())
-        .build();
-    client.getBlockingStub().putQueryPlanningProfile(
-      PutPlanningProfileRequest.newBuilder()
-        .setQueryId(queryId)
-        .setProfile(planningProfile)
-        .build()
-    );
+        UserBitShared.QueryProfile.newBuilder()
+            .setPlan("PLAN_VALUE")
+            .setQuery("Select * from plan")
+            .setState(UserBitShared.QueryResult.QueryState.ENQUEUED)
+            .addStateList(
+                AttemptEvent.newBuilder().setState(State.QUEUED).setStartTime(20L).build())
+            .build();
+    client
+        .getBlockingStub()
+        .putQueryPlanningProfile(
+            PutPlanningProfileRequest.newBuilder()
+                .setQueryId(queryId)
+                .setProfile(planningProfile)
+                .build());
 
     final UserBitShared.QueryProfile tailProfile =
-      UserBitShared.QueryProfile.newBuilder()
-        .setPlan("PLAN_VALUE")
-        .setQuery("Select * from plan")
-        .setErrorNode("ERROR_NODE")
-        .setState(UserBitShared.QueryResult.QueryState.CANCELED)
-        .addStateList(AttemptEvent.newBuilder()
-          .setState(State.CANCELED).setStartTime(20L).build())
-        .build();
-    client.getBlockingStub().putQueryTailProfile(
-      PutTailProfileRequest.newBuilder()
-        .setQueryId(queryId)
-        .setProfile(tailProfile)
-        .build()
-    );
+        UserBitShared.QueryProfile.newBuilder()
+            .setPlan("PLAN_VALUE")
+            .setQuery("Select * from plan")
+            .setErrorNode("ERROR_NODE")
+            .setState(UserBitShared.QueryResult.QueryState.CANCELED)
+            .addStateList(
+                AttemptEvent.newBuilder().setState(State.CANCELED).setStartTime(20L).build())
+            .build();
+    client
+        .getBlockingStub()
+        .putQueryTailProfile(
+            PutTailProfileRequest.newBuilder().setQueryId(queryId).setProfile(tailProfile).build());
 
     final UserBitShared.QueryProfile expectedMergedProfile =
-      UserBitShared.QueryProfile.newBuilder()
-        .setPlan("PLAN_VALUE")
-        .setQuery("Select * from plan")
-        .setErrorNode("ERROR_NODE")
-        .setState(UserBitShared.QueryResult.QueryState.CANCELED)
-        .addStateList(AttemptEvent.newBuilder()
-          .setState(State.CANCELED).setStartTime(20L).build())
-        .setTotalFragments(0)
-        .setFinishedFragments(0)
-        .build();
+        UserBitShared.QueryProfile.newBuilder()
+            .setPlan("PLAN_VALUE")
+            .setQuery("Select * from plan")
+            .setErrorNode("ERROR_NODE")
+            .setState(UserBitShared.QueryResult.QueryState.CANCELED)
+            .addStateList(
+                AttemptEvent.newBuilder().setState(State.CANCELED).setStartTime(20L).build())
+            .setTotalFragments(0)
+            .setFinishedFragments(0)
+            .build();
 
-    assertEquals(expectedMergedProfile,
-      client.getBlockingStub().getQueryProfile(
-        GetQueryProfileRequest.newBuilder()
-          .setQueryId(queryId)
-          .build()
-      ).getProfile());
+    assertEquals(
+        expectedMergedProfile,
+        client
+            .getBlockingStub()
+            .getQueryProfile(GetQueryProfileRequest.newBuilder().setQueryId(queryId).build())
+            .getProfile());
 
     // delete profile.
-    client.getBlockingStub().deleteProfile(
-      DeleteProfileRequest.newBuilder()
-        .setQueryId(queryId)
-        .build()
-    );
+    client
+        .getBlockingStub()
+        .deleteProfile(DeleteProfileRequest.newBuilder().setQueryId(queryId).build());
 
     // verify it's gone.
-    assertThatThrownBy(() ->
-      client.getBlockingStub().getQueryProfile(
-        GetQueryProfileRequest.newBuilder()
-          .setQueryId(queryId)
-          .build()
-      )).isInstanceOf(io.grpc.StatusRuntimeException.class)
-      .hasMessageContaining("Unable to get query profile. Profile not found for the given queryId.");
+    assertThatThrownBy(
+            () ->
+                client
+                    .getBlockingStub()
+                    .getQueryProfile(
+                        GetQueryProfileRequest.newBuilder().setQueryId(queryId).build()))
+        .isInstanceOf(io.grpc.StatusRuntimeException.class)
+        .hasMessageContaining(
+            "Unable to get query profile. Profile not found for the given queryId.");
   }
 }

@@ -20,17 +20,14 @@ import static com.dremio.exec.rpc.user.security.testing.UserServiceTestImpl.TEST
 import static com.dremio.exec.rpc.user.security.testing.UserServiceTestImpl.TEST_USER_2;
 import static com.dremio.exec.rpc.user.security.testing.UserServiceTestImpl.TEST_USER_2_PASSWORD;
 
-import java.util.Properties;
-
-import org.junit.Test;
-
 import com.dremio.PlanTestBase;
 import com.dremio.QueryTestUtil;
 import com.dremio.TestResult;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.client.DremioClient;
 import com.dremio.sabot.rpc.user.UserSession;
-
+import java.util.Properties;
+import org.junit.Test;
 
 public class TestContextFunctions extends PlanTestBase {
 
@@ -39,7 +36,8 @@ public class TestContextFunctions extends PlanTestBase {
     final String user = "anonymous";
     updateClient(user);
     testBuilder()
-        .sqlQuery("select user, session_user, system_user, query_user() as query_user from cp.\"employee.json\" limit 1")
+        .sqlQuery(
+            "select user, session_user, system_user, query_user() as query_user from cp.\"employee.json\" limit 1")
         .unOrdered()
         .baselineColumns("user", "session_user", "system_user", "query_user")
         .baselineValues(user, user, user, user)
@@ -50,7 +48,8 @@ public class TestContextFunctions extends PlanTestBase {
   public void userUDFForNamedConnection() throws Exception {
     updateClient(TEST_USER_1, TEST_USER_1_PASSWORD);
     testBuilder()
-        .sqlQuery("select user, session_user, system_user, query_user() as query_user from cp.\"employee.json\" limit 1")
+        .sqlQuery(
+            "select user, session_user, system_user, query_user() as query_user from cp.\"employee.json\" limit 1")
         .unOrdered()
         .baselineColumns("user", "session_user", "system_user", "query_user")
         .baselineValues(TEST_USER_1, TEST_USER_1, TEST_USER_1, TEST_USER_1)
@@ -60,8 +59,10 @@ public class TestContextFunctions extends PlanTestBase {
   @Test
   public void userUDFInFilterCondition() throws Exception {
     updateClient(TEST_USER_2, TEST_USER_2_PASSWORD);
-    final String query = String.format(
-        "select employee_id from cp.\"employee.json\" where '%s' = user order by employee_id limit 1", TEST_USER_2);
+    final String query =
+        String.format(
+            "select employee_id from cp.\"employee.json\" where '%s' = user order by employee_id limit 1",
+            TEST_USER_2);
     testBuilder()
         .sqlQuery(query)
         .unOrdered()
@@ -75,11 +76,14 @@ public class TestContextFunctions extends PlanTestBase {
     final String caSalesUser = TEST_USER_1;
     final String waSalesUser = TEST_USER_2;
 
-    final String query = String.format("SELECT sales_city " +
-            "FROM cp.\"region.json\" t WHERE " +
-                "(query_user() = '%s' and t.sales_state_province = 'CA') OR " +
-                "(query_user() = '%s' and t.sales_state_province = 'WA')" +
-            "ORDER BY sales_city LIMIT 2", caSalesUser, waSalesUser);
+    final String query =
+        String.format(
+            "SELECT sales_city "
+                + "FROM cp.\"region.json\" t WHERE "
+                + "(query_user() = '%s' and t.sales_state_province = 'CA') OR "
+                + "(query_user() = '%s' and t.sales_state_province = 'WA')"
+                + "ORDER BY sales_city LIMIT 2",
+            caSalesUser, waSalesUser);
 
     updateClient(caSalesUser, TEST_USER_1_PASSWORD);
     testPhysicalPlan(query, "Filter(condition=[=($1, 'CA')])");
@@ -126,8 +130,8 @@ public class TestContextFunctions extends PlanTestBase {
   }
 
   /**
-   * We want to return the old client to the class state when we are done
-   * running tests with a different client.
+   * We want to return the old client to the class state when we are done running tests with a
+   * different client.
    *
    * @param newClient
    * @return default client
@@ -139,14 +143,13 @@ public class TestContextFunctions extends PlanTestBase {
   }
 
   /**
-   * We need a client with no prior queries performed.
-   * However, this means we are foregoing defaults like maximum
-   * execution width.
+   * We need a client with no prior queries performed. However, this means we are foregoing defaults
+   * like maximum execution width.
    *
    * @return a client with no prior queries run.
    * @throws Exception
    */
-  private static DremioClient createCleanClientHelper() throws Exception{
+  private static DremioClient createCleanClientHelper() throws Exception {
     final Properties props = new Properties();
     props.setProperty(UserSession.USER, TEST_USER_1);
     props.setProperty(UserSession.PASSWORD, TEST_USER_1_PASSWORD);
@@ -154,8 +157,7 @@ public class TestContextFunctions extends PlanTestBase {
   }
 
   /**
-   * We need to put back the original client so the defaults
-   * are the same from test to test.
+   * We need to put back the original client so the defaults are the same from test to test.
    *
    * @param cleanClient - client we used for the test
    * @param oldClient - client we swapped out
@@ -185,19 +187,20 @@ public class TestContextFunctions extends PlanTestBase {
     DremioClient cleanClient = createCleanClientHelper();
     DremioClient oldClient = swapClient(cleanClient);
 
-    final TestResult res = testBuilder()
-      .sqlQuery("select last_query_id from cp.\"employee.json\" limit 1")
-      .unOrdered()
-      .baselineColumns("last_query_id")
-      .baselineValues(null)
-      .go();
+    final TestResult res =
+        testBuilder()
+            .sqlQuery("select last_query_id from cp.\"employee.json\" limit 1")
+            .unOrdered()
+            .baselineColumns("last_query_id")
+            .baselineValues(null)
+            .go();
 
     testBuilder()
-      .sqlQuery("select last_query_id from cp.\"employee.json\" limit 1")
-      .unOrdered()
-      .baselineColumns("last_query_id")
-      .baselineValues(QueryIdHelper.getQueryId(res.getQueryId()))
-      .go();
+        .sqlQuery("select last_query_id from cp.\"employee.json\" limit 1")
+        .unOrdered()
+        .baselineColumns("last_query_id")
+        .baselineValues(QueryIdHelper.getQueryId(res.getQueryId()))
+        .go();
 
     teardownCleanClientTest(cleanClient, oldClient);
   }

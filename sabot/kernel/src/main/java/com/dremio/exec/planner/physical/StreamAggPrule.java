@@ -15,10 +15,13 @@
  */
 package com.dremio.exec.planner.physical;
 
+import com.dremio.exec.planner.logical.AggregateRel;
+import com.dremio.exec.planner.logical.RelOptHelper;
+import com.dremio.exec.planner.physical.AggregatePrel.OperatorPhase;
+import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
-
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelTraitSet;
@@ -30,11 +33,6 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.util.Pair;
 import org.apache.calcite.util.trace.CalciteTrace;
 import org.slf4j.Logger;
-
-import com.dremio.exec.planner.logical.AggregateRel;
-import com.dremio.exec.planner.logical.RelOptHelper;
-import com.dremio.exec.planner.physical.AggregatePrel.OperatorPhase;
-import com.google.common.collect.ImmutableList;
 
 public class StreamAggPrule extends AggPruleBase {
   public static final RelOptRule INSTANCE = new StreamAggPrule();
@@ -53,15 +51,20 @@ public class StreamAggPrule extends AggPruleBase {
   public void onMatch(RelOptRuleCall call) {
     final AggregateRel aggregate = (AggregateRel) call.rel(0);
 
-    if (aggregate.getGroupCount() > 0 && !PrelUtil.getPlannerSettings(call.getPlanner()).getOptions().getOption(PlannerSettings.STREAM_AGG_WITH_GROUPS)) {
+    if (aggregate.getGroupCount() > 0
+        && !PrelUtil.getPlannerSettings(call.getPlanner())
+            .getOptions()
+            .getOption(PlannerSettings.STREAM_AGG_WITH_GROUPS)) {
       if (PrelUtil.getPlannerSettings(call.getPlanner()).isHashAggEnabled()) {
-        // if hash agg is enabled and stream agg with groups is disabled and this has >0 group count, don't match.
+        // if hash agg is enabled and stream agg with groups is disabled and this has >0 group
+        // count, don't match.
         return;
       }
     }
 
     // too many group by keys in streaming agg will result in compilation error
-    if (aggregate.getGroupCount() > PrelUtil.getPlannerSettings(call.getPlanner()).streamAggMaxGroupKey()) {
+    if (aggregate.getGroupCount()
+        > PrelUtil.getPlannerSettings(call.getPlanner()).streamAggMaxGroupKey()) {
       return;
     }
 
@@ -86,28 +89,31 @@ public class StreamAggPrule extends AggPruleBase {
     try {
       if (aggregate.getGroupSet().isEmpty()) {
         DistributionTrait singleDist = DistributionTrait.SINGLETON;
-        final RelTraitSet singleDistTrait = call.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL).plus(singleDist);
+        final RelTraitSet singleDistTrait =
+            call.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL).plus(singleDist);
 
         if (create2PhasePlan(call, aggregate)) {
-          outputTraits = call.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL) ;
+          outputTraits = call.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL);
 
           RelNode convertedInput = convert(input, outputTraits);
-          new SubsetTransformer<AggregateRel, InvalidRelException>(call){
+          new SubsetTransformer<AggregateRel, InvalidRelException>(call) {
 
             @Override
-            public RelNode convertChild(final AggregateRel join, final RelNode rel) throws InvalidRelException {
+            public RelNode convertChild(final AggregateRel join, final RelNode rel)
+                throws InvalidRelException {
               DistributionTrait toDist = rel.getTraitSet().getTrait(DistributionTraitDef.INSTANCE);
               RelTraitSet traits = newTraitSet(Prel.PHYSICAL, toDist);
               RelNode newInput = convert(rel, traits);
 
-              StreamAggPrel phase1Agg = StreamAggPrel.create(
-                  aggregate.getCluster(),
-                  traits,
-                  newInput,
-                  aggregate.getGroupSet(),
-                  aggregate.getGroupSets(),
-                  aggregate.getAggCallList(),
-                  OperatorPhase.PHASE_1of2);
+              StreamAggPrel phase1Agg =
+                  StreamAggPrel.create(
+                      aggregate.getCluster(),
+                      traits,
+                      newInput,
+                      aggregate.getGroupSet(),
+                      aggregate.getGroupSets(),
+                      aggregate.getAggCallList(),
+                      OperatorPhase.PHASE_1of2);
 
               UnionExchangePrel exch =
                   new UnionExchangePrel(phase1Agg.getCluster(), singleDistTrait, phase1Agg);
@@ -118,7 +124,9 @@ public class StreamAggPrule extends AggPruleBase {
                   exch,
                   phase1Agg.getPhase2GroupSet(),
                   null,
-                  phase1Agg.getPhase2AggCalls().stream().map(Pair::getKey).collect(Collectors.toList()),
+                  phase1Agg.getPhase2AggCalls().stream()
+                      .map(Pair::getKey)
+                      .collect(Collectors.toList()),
                   OperatorPhase.PHASE_2of2);
             }
           }.go(aggregate, convertedInput);
@@ -129,49 +137,69 @@ public class StreamAggPrule extends AggPruleBase {
       } else {
         // hash distribute on all grouping keys
         final DistributionTrait inputDistOnAllKeys =
-            new DistributionTrait(DistributionTrait.DistributionType.HASH_DISTRIBUTED,
-                                       ImmutableList.copyOf(getInputDistributionField(aggregate, true)));
+            new DistributionTrait(
+                DistributionTrait.DistributionType.HASH_DISTRIBUTED,
+                ImmutableList.copyOf(getInputDistributionField(aggregate, true)));
         final DistributionTrait distOnAllKeys =
-            new DistributionTrait(DistributionTrait.DistributionType.HASH_DISTRIBUTED,
-                                       ImmutableList.copyOf(getDistributionField(aggregate, true)));
+            new DistributionTrait(
+                DistributionTrait.DistributionType.HASH_DISTRIBUTED,
+                ImmutableList.copyOf(getDistributionField(aggregate, true)));
 
-        inputTraits = call.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL).plus(inputCollation).plus(inputDistOnAllKeys);
-        outputTraits = call.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL).plus(outputCollation).plus(distOnAllKeys);
+        inputTraits =
+            call.getPlanner()
+                .emptyTraitSet()
+                .plus(Prel.PHYSICAL)
+                .plus(inputCollation)
+                .plus(inputDistOnAllKeys);
+        outputTraits =
+            call.getPlanner()
+                .emptyTraitSet()
+                .plus(Prel.PHYSICAL)
+                .plus(outputCollation)
+                .plus(distOnAllKeys);
         createTransformRequest(call, aggregate, input, inputTraits, outputTraits);
 
-        // Temporarily commenting out the single distkey plan since a few tpch queries (e.g 01.sql) get stuck
-        // in VolcanoPlanner.canonize() method. Note that the corresponding single distkey plan for HashAggr works
-        // ok.  One possibility is that here we have dist on single key but collation on all keys, so that
+        // Temporarily commenting out the single distkey plan since a few tpch queries (e.g 01.sql)
+        // get stuck
+        // in VolcanoPlanner.canonize() method. Note that the corresponding single distkey plan for
+        // HashAggr works
+        // ok.  One possibility is that here we have dist on single key but collation on all keys,
+        // so that
         // might be causing some problem.
         /// TODO: re-enable this plan after resolving the issue.
         // createTransformRequest(call, aggregate, input, traits);
 
         if (create2PhasePlan(call, aggregate)) {
-          inputTraits = call.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL) ;
+          inputTraits = call.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL);
           RelNode convertedInput = convert(input, inputTraits);
 
-          new SubsetTransformer<AggregateRel, InvalidRelException>(call){
+          new SubsetTransformer<AggregateRel, InvalidRelException>(call) {
 
             @Override
-            public RelNode convertChild(final AggregateRel aggregate, final RelNode rel) throws InvalidRelException {
+            public RelNode convertChild(final AggregateRel aggregate, final RelNode rel)
+                throws InvalidRelException {
               DistributionTrait toDist = rel.getTraitSet().getTrait(DistributionTraitDef.INSTANCE);
               RelTraitSet traits = newTraitSet(Prel.PHYSICAL, getInputCollation(aggregate), toDist);
               RelNode newInput = convert(rel, traits);
 
-              StreamAggPrel phase1Agg = StreamAggPrel.create(
-                  aggregate.getCluster(),
-                  newTraitSet(Prel.PHYSICAL, getOutputCollation(aggregate), distOnAllKeys),
-                  newInput,
-                  aggregate.getGroupSet(),
-                  aggregate.getGroupSets(),
-                  aggregate.getAggCallList(),
-                  OperatorPhase.PHASE_1of2);
+              StreamAggPrel phase1Agg =
+                  StreamAggPrel.create(
+                      aggregate.getCluster(),
+                      newTraitSet(Prel.PHYSICAL, getOutputCollation(aggregate), distOnAllKeys),
+                      newInput,
+                      aggregate.getGroupSet(),
+                      aggregate.getGroupSets(),
+                      aggregate.getAggCallList(),
+                      OperatorPhase.PHASE_1of2);
 
               int numEndPoints = PrelUtil.getSettings(phase1Agg.getCluster()).numEndPoints();
 
               HashToMergeExchangePrel exch =
-                  new HashToMergeExchangePrel(phase1Agg.getCluster(), phase1Agg.getTraitSet().plus(Prel.PHYSICAL).plus(distOnAllKeys),
-                      phase1Agg, ImmutableList.copyOf(getDistributionField(aggregate, true)),
+                  new HashToMergeExchangePrel(
+                      phase1Agg.getCluster(),
+                      phase1Agg.getTraitSet().plus(Prel.PHYSICAL).plus(distOnAllKeys),
+                      phase1Agg,
+                      ImmutableList.copyOf(getDistributionField(aggregate, true)),
                       getOutputCollation(aggregate),
                       numEndPoints);
 
@@ -181,16 +209,26 @@ public class StreamAggPrule extends AggPruleBase {
                   exch,
                   phase1Agg.getPhase2GroupSet(),
                   null,
-                  phase1Agg.getPhase2AggCalls().stream().map(Pair::getKey).collect(Collectors.toList()),
+                  phase1Agg.getPhase2AggCalls().stream()
+                      .map(Pair::getKey)
+                      .collect(Collectors.toList()),
                   OperatorPhase.PHASE_2of2);
             }
           }.go(aggregate, convertedInput);
-        } else if (isSingleton(call)){
+        } else if (isSingleton(call)) {
           DistributionTrait singleDist = DistributionTrait.SINGLETON;
-          final RelTraitSet inputSingleDistTrait = call.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL)
-              .plus(singleDist).plus(inputCollation);
-          final RelTraitSet singleDistTrait = call.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL)
-                  .plus(singleDist).plus(outputCollation);
+          final RelTraitSet inputSingleDistTrait =
+              call.getPlanner()
+                  .emptyTraitSet()
+                  .plus(Prel.PHYSICAL)
+                  .plus(singleDist)
+                  .plus(inputCollation);
+          final RelTraitSet singleDistTrait =
+              call.getPlanner()
+                  .emptyTraitSet()
+                  .plus(Prel.PHYSICAL)
+                  .plus(singleDist)
+                  .plus(outputCollation);
           createTransformRequest(call, aggregate, input, inputSingleDistTrait, singleDistTrait);
         }
       }
@@ -199,25 +237,30 @@ public class StreamAggPrule extends AggPruleBase {
     }
   }
 
-  private void createTransformRequest(RelOptRuleCall call, AggregateRel aggregate,
-                                      RelNode input, RelTraitSet inputTraits, RelTraitSet outputTraits) throws InvalidRelException {
+  private void createTransformRequest(
+      RelOptRuleCall call,
+      AggregateRel aggregate,
+      RelNode input,
+      RelTraitSet inputTraits,
+      RelTraitSet outputTraits)
+      throws InvalidRelException {
 
     final RelNode convertedInput = convert(input, inputTraits);
 
-    StreamAggPrel newAgg = StreamAggPrel.create(
-        aggregate.getCluster(),
-        outputTraits,
-        convertedInput,
-        aggregate.getGroupSet(),
-        aggregate.getGroupSets(),
-        aggregate.getAggCallList(),
-        OperatorPhase.PHASE_1of1);
+    StreamAggPrel newAgg =
+        StreamAggPrel.create(
+            aggregate.getCluster(),
+            outputTraits,
+            convertedInput,
+            aggregate.getGroupSet(),
+            aggregate.getGroupSets(),
+            aggregate.getAggCallList(),
+            OperatorPhase.PHASE_1of1);
 
     call.transformTo(newAgg);
   }
 
-
-  private RelCollation getOutputCollation(AggregateRel rel){
+  private RelCollation getOutputCollation(AggregateRel rel) {
 
     List<RelFieldCollation> fields = new ArrayList<>();
     for (int group = 0; group < rel.getGroupSet().cardinality(); group++) {
@@ -226,7 +269,7 @@ public class StreamAggPrule extends AggPruleBase {
     return RelCollations.of(fields);
   }
 
-  private RelCollation getInputCollation(AggregateRel rel){
+  private RelCollation getInputCollation(AggregateRel rel) {
 
     List<RelFieldCollation> fields = new ArrayList<>();
     for (int group : rel.getGroupSet()) {

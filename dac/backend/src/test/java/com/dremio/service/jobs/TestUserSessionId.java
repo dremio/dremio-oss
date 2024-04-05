@@ -22,10 +22,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.server.JobsServiceTestUtils;
@@ -33,10 +29,11 @@ import com.dremio.exec.proto.UserBitShared;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.job.proto.JobSubmission;
 import com.google.common.collect.ImmutableList;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
-/**
- * Testing e2e user sessions and session ids.
- */
+/** Testing e2e user sessions and session ids. */
 public class TestUserSessionId extends BaseTestServer {
 
   @BeforeClass
@@ -54,15 +51,15 @@ public class TestUserSessionId extends BaseTestServer {
   @Test
   public void testSimpleSession() {
     final String sql = "SELECT 1";
-    final String sessionId1 = getJobSubmissionAfterJobCompletion(
-      getRequestFromSql(sql))
-      .getSessionId().getId();
+    final String sessionId1 =
+        getJobSubmissionAfterJobCompletion(getRequestFromSql(sql)).getSessionId().getId();
     assertNotNull("Session id cannot be null", sessionId1);
 
     // If we create the request with the same session id, it will run in the same session
-    final String sessionId2 = getJobSubmissionAfterJobCompletion(
-      getRequestFromSqlAndSessionId(sql, sessionId1))
-      .getSessionId().getId();
+    final String sessionId2 =
+        getJobSubmissionAfterJobCompletion(getRequestFromSqlAndSessionId(sql, sessionId1))
+            .getSessionId()
+            .getId();
     assertNotNull("Session id cannot be null", sessionId2);
     assertEquals(sessionId1, sessionId2);
   }
@@ -89,18 +86,20 @@ public class TestUserSessionId extends BaseTestServer {
       final JobRequest jobRequest = getRequestFromSqlAndSessionId(sql, sessionId);
       final LogicalPlanCaptureListener planCaptureListener = new LogicalPlanCaptureListener();
       JobsServiceTestUtils.submitJobAndWaitUntilCompletion(
-        l(LocalJobsService.class), jobRequest, planCaptureListener);
+          l(LocalJobsService.class), jobRequest, planCaptureListener);
       fail("Session id must be invalid");
     } catch (UserException e) {
       assertEquals(UserBitShared.DremioPBError.ErrorType.SYSTEM, e.getErrorType());
-      assertTrue(e.getMessage().contains(String.format("Session id %s expired/not found.", sessionId)));
+      assertTrue(
+          e.getMessage().contains(String.format("Session id %s expired/not found.", sessionId)));
     }
   }
 
   @Test
   public void testMultiSqlInSingleSession() {
     // Create a new session by running a query
-    final String sampleQuery = "SELECT \"employee_id\", \"full_name\" FROM cp.\"employees_with_null.json\"";
+    final String sampleQuery =
+        "SELECT \"employee_id\", \"full_name\" FROM cp.\"employees_with_null.json\"";
     final String alterQuery = "ALTER SESSION SET planner.leaf_limit_enable = %s";
     JobRequest jobRequest = getRequestFromSql(String.format(alterQuery, "false"));
 
@@ -121,22 +120,21 @@ public class TestUserSessionId extends BaseTestServer {
   }
 
   private static JobRequest getRequestFromSql(String sql) {
-    return JobRequest.newBuilder()
-      .setSqlQuery(new SqlQuery(sql, DEFAULT_USERNAME))
-      .build();
+    return JobRequest.newBuilder().setSqlQuery(new SqlQuery(sql, DEFAULT_USERNAME)).build();
   }
 
   private static JobRequest getRequestFromSqlAndSessionId(String sql, String sessionId) {
     return JobRequest.newBuilder()
-      .setSqlQuery(new SqlQuery(sql, ImmutableList.of(), DEFAULT_USERNAME,
-        null, sessionId))
-      .build();
+        .setSqlQuery(new SqlQuery(sql, ImmutableList.of(), DEFAULT_USERNAME, null, sessionId))
+        .build();
   }
 
   private static Pair runQuery(JobRequest jobRequest) {
-    final JoinPlanningMultiJoinPlanCaptureListener planCaptureListener = new JoinPlanningMultiJoinPlanCaptureListener();
-    final JobSubmission jobSubmission = JobsServiceTestUtils.getJobSubmissionAfterJobCompletion(
-      l(LocalJobsService.class), jobRequest, planCaptureListener);
+    final JoinPlanningMultiJoinPlanCaptureListener planCaptureListener =
+        new JoinPlanningMultiJoinPlanCaptureListener();
+    final JobSubmission jobSubmission =
+        JobsServiceTestUtils.getJobSubmissionAfterJobCompletion(
+            l(LocalJobsService.class), jobRequest, planCaptureListener);
     return Pair.of(jobSubmission, planCaptureListener.getPlan());
   }
 

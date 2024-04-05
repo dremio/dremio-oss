@@ -21,41 +21,45 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.fail;
 
-import java.util.ConcurrentModificationException;
-
 import com.dremio.datastore.api.Document;
 import com.dremio.datastore.api.KVStore;
 import com.dremio.datastore.api.options.VersionOption;
 import com.dremio.datastore.generator.DataGenerator;
 import com.google.common.base.Strings;
+import java.util.ConcurrentModificationException;
 
 /**
- * Static OCCKVStore tests so they may be used with an OCC only environment, as well as an indexed OCC environment.
+ * Static OCCKVStore tests so they may be used with an OCC only environment, as well as an indexed
+ * OCC environment.
  */
 public final class OCCKVStoreTests {
-  private static final String TAG_ASSERT_FAILURE_MSG = "All documents should have a non-null, non-empty tag";
+  private static final String TAG_ASSERT_FAILURE_MSG =
+      "All documents should have a non-null, non-empty tag";
 
-  //@Test(expected = NullPointerException.class)
+  // @Test(expected = NullPointerException.class)
   public static <K, V> void testShouldNotPutNulls(KVStore<K, V> kvStore, DataGenerator<K, V> gen) {
     final K key = gen.newKey();
     kvStore.put(key, null);
   }
 
-  public static <K, V> void testPutWithoutCreateOptionIsValid(KVStore<K, V> kvStore, DataGenerator<K, V> gen) {
+  public static <K, V> void testPutWithoutCreateOptionIsValid(
+      KVStore<K, V> kvStore, DataGenerator<K, V> gen) {
     final K key = gen.newKey();
     final V value = gen.newVal();
     final Document<K, V> doc = kvStore.put(key, value);
     assertDocumentEquals(gen, key, value, doc);
   }
 
-  public static <K, V> void testPutWithCreateOption(KVStore<K, V> kvStore, DataGenerator<K, V> gen) {
+  public static <K, V> void testPutWithCreateOption(
+      KVStore<K, V> kvStore, DataGenerator<K, V> gen) {
     final K key = gen.newKey();
     final V value = gen.newVal();
     final Document<K, V> doc = kvStore.put(key, value, KVStore.PutOption.CREATE);
     assertDocumentEquals(gen, key, value, doc);
   }
 
-  public static <K, V> void testPutWithCreateOptionFailsToOverwrite(KVStore<K, V> kvStore, DataGenerator<K, V> gen) {
+  public static <K, V> void testPutWithCreateOptionFailsToOverwrite(
+      KVStore<K, V> kvStore, DataGenerator<K, V> gen) {
     final K key = gen.newKey();
     final V value = gen.newVal();
     final Document<K, V> doc = kvStore.put(key, value);
@@ -71,18 +75,20 @@ public final class OCCKVStoreTests {
     }
   }
 
-  public static <K, V> void testModificationWithoutOptionsAlwaysOverwrites(KVStore<K, V> kvStore, DataGenerator<K, V> gen) {
+  public static <K, V> void testModificationWithoutOptionsAlwaysOverwrites(
+      KVStore<K, V> kvStore, DataGenerator<K, V> gen) {
     final K key = gen.newKey();
     final V value = gen.newVal();
     final Document<K, V> doc = kvStore.put(key, value);
     assertDocumentEquals(gen, key, value, doc);
 
     final V updateValue = gen.newVal();
-    final Document<K, V> updatedDoc = kvStore.put(key,updateValue);
+    final Document<K, V> updatedDoc = kvStore.put(key, updateValue);
     assertDocumentUpdated(gen, key, updateValue, doc.getTag(), updatedDoc);
   }
 
-  public static <K, V> void testPutAfterDeleteWithoutOptions(KVStore<K, V> kvStore, DataGenerator<K, V> gen) {
+  public static <K, V> void testPutAfterDeleteWithoutOptions(
+      KVStore<K, V> kvStore, DataGenerator<K, V> gen) {
     final K key = gen.newKey();
     final V value = gen.newVal();
     final Document<K, V> doc = kvStore.put(key, value);
@@ -93,11 +99,12 @@ public final class OCCKVStoreTests {
     assertNull(nullDoc);
 
     final V updateValue = gen.newVal();
-    final Document<K, V> updatedDoc = kvStore.put(key,updateValue);
+    final Document<K, V> updatedDoc = kvStore.put(key, updateValue);
     assertDocumentEquals(gen, key, updateValue, updatedDoc);
   }
 
-  public static <K, V> void testPutAlwaysUsingOptionsShouldUpdate(KVStore<K, V> kvStore, DataGenerator<K, V> gen) {
+  public static <K, V> void testPutAlwaysUsingOptionsShouldUpdate(
+      KVStore<K, V> kvStore, DataGenerator<K, V> gen) {
     final K key = gen.newKey();
     final V value = gen.newVal();
     final Document<K, V> doc = kvStore.put(key, value, KVStore.PutOption.CREATE);
@@ -107,11 +114,13 @@ public final class OCCKVStoreTests {
     assertDocumentUpdated(gen, key, updateValue, doc.getTag(), updatedDoc);
 
     final V updateValue2 = gen.newVal();
-    final Document<K, V> updatedDoc2 = kvStore.put(key, updateValue2, VersionOption.from(updatedDoc));
+    final Document<K, V> updatedDoc2 =
+        kvStore.put(key, updateValue2, VersionOption.from(updatedDoc));
     assertDocumentUpdated(gen, key, updateValue2, updatedDoc.getTag(), updatedDoc2);
   }
 
-  public static <K, V> void testPutLateOptionAdoptionShouldStillUpdate(KVStore<K, V> kvStore, DataGenerator<K, V> gen) {
+  public static <K, V> void testPutLateOptionAdoptionShouldStillUpdate(
+      KVStore<K, V> kvStore, DataGenerator<K, V> gen) {
     final K key = gen.newKey();
     final V value = gen.newVal();
     final Document<K, V> doc = kvStore.put(key, value);
@@ -122,11 +131,13 @@ public final class OCCKVStoreTests {
     assertDocumentUpdated(gen, key, updateValue, doc.getTag(), updatedDoc);
 
     final V updateValue2 = gen.newVal();
-    final Document<K, V> updatedDoc2 = kvStore.put(key, updateValue2, VersionOption.from(updatedDoc));
+    final Document<K, V> updatedDoc2 =
+        kvStore.put(key, updateValue2, VersionOption.from(updatedDoc));
     assertDocumentUpdated(gen, key, updateValue2, updatedDoc.getTag(), updatedDoc2);
   }
 
-  public static <K, V> void testPutLateOptionAdoptionShouldStillProtectFromCM(KVStore<K, V> kvStore, DataGenerator<K, V> gen) {
+  public static <K, V> void testPutLateOptionAdoptionShouldStillProtectFromCM(
+      KVStore<K, V> kvStore, DataGenerator<K, V> gen) {
     final K key = gen.newKey();
     final V value = gen.newVal();
     final Document<K, V> doc = kvStore.put(key, value);
@@ -136,7 +147,7 @@ public final class OCCKVStoreTests {
     final Document<K, V> updatedDoc = kvStore.put(key, updateValue, VersionOption.from(doc));
     assertDocumentUpdated(gen, key, updateValue, doc.getTag(), updatedDoc);
 
-    try{
+    try {
       final V updateValue2 = gen.newVal();
       kvStore.put(key, updateValue2, VersionOption.from(doc));
       fail("Should not be able to update with an outdated tag.");
@@ -146,7 +157,8 @@ public final class OCCKVStoreTests {
     }
   }
 
-  public static <K, V> void testCreateWithManyOptionsFails(KVStore<K, V> kvStore, DataGenerator<K, V> gen) {
+  public static <K, V> void testCreateWithManyOptionsFails(
+      KVStore<K, V> kvStore, DataGenerator<K, V> gen) {
     final K key = gen.newKey();
     final V value = gen.newVal();
     final Document<K, V> doc = kvStore.put(key, value);
@@ -162,10 +174,11 @@ public final class OCCKVStoreTests {
     }
   }
 
-  public static <K, V> void testPutWithMultipleVersionsFails(KVStore<K, V> kvStore, DataGenerator<K, V> gen) {
+  public static <K, V> void testPutWithMultipleVersionsFails(
+      KVStore<K, V> kvStore, DataGenerator<K, V> gen) {
     final K key = gen.newKey();
     final V value = gen.newVal();
-    final Document<K ,V> doc = kvStore.put(key, value, KVStore.PutOption.CREATE);
+    final Document<K, V> doc = kvStore.put(key, value, KVStore.PutOption.CREATE);
     assertDocumentEquals(gen, key, value, doc);
 
     final V updateValue = gen.newVal();
@@ -182,14 +195,16 @@ public final class OCCKVStoreTests {
     }
   }
 
-  public static <K, V> void testPutWithOutdatedVersionFails(KVStore<K, V> kvStore, DataGenerator<K, V> gen) {
+  public static <K, V> void testPutWithOutdatedVersionFails(
+      KVStore<K, V> kvStore, DataGenerator<K, V> gen) {
     final K key = gen.newKey();
     final V value = gen.newVal();
     final Document<K, V> originalDoc = kvStore.put(key, value, KVStore.PutOption.CREATE);
     assertDocumentEquals(gen, key, value, originalDoc);
 
     final V updateValue = gen.newVal();
-    final Document<K, V> lastGoodDoc = kvStore.put(key, updateValue, VersionOption.from(originalDoc));
+    final Document<K, V> lastGoodDoc =
+        kvStore.put(key, updateValue, VersionOption.from(originalDoc));
     assertDocumentUpdated(gen, key, updateValue, originalDoc.getTag(), lastGoodDoc);
 
     try {
@@ -202,7 +217,8 @@ public final class OCCKVStoreTests {
     }
   }
 
-  public static <K, V> void testDeleteWithoutTagAlwaysDeletes(KVStore<K, V> kvStore, DataGenerator<K, V> gen) {
+  public static <K, V> void testDeleteWithoutTagAlwaysDeletes(
+      KVStore<K, V> kvStore, DataGenerator<K, V> gen) {
     final K key = gen.newKey();
     final V value = gen.newVal();
     final Document<K, V> doc = kvStore.put(key, value);
@@ -212,7 +228,8 @@ public final class OCCKVStoreTests {
     assertFalse(kvStore.contains(key));
   }
 
-  public static <K, V> void testDeleteWithOutdatedVersionFails(KVStore<K, V> kvStore, DataGenerator<K, V> gen) {
+  public static <K, V> void testDeleteWithOutdatedVersionFails(
+      KVStore<K, V> kvStore, DataGenerator<K, V> gen) {
     final K key = gen.newKey();
     final V value = gen.newVal();
     final Document<K, V> doc = kvStore.put(key, value, KVStore.PutOption.CREATE);
@@ -231,7 +248,8 @@ public final class OCCKVStoreTests {
     }
   }
 
-  public static <K, V> void testDeleteWithLateOptionShouldStillProtectFromCM(KVStore<K, V> kvStore, DataGenerator<K, V> gen) {
+  public static <K, V> void testDeleteWithLateOptionShouldStillProtectFromCM(
+      KVStore<K, V> kvStore, DataGenerator<K, V> gen) {
     final K key = gen.newKey();
     final V value = gen.newVal();
     final Document<K, V> doc = kvStore.put(key, value);
@@ -250,7 +268,8 @@ public final class OCCKVStoreTests {
     }
   }
 
-  public static <K, V> void testDeleteWithLatestVersionShouldDelete(KVStore<K, V> kvStore, DataGenerator<K, V> gen) {
+  public static <K, V> void testDeleteWithLatestVersionShouldDelete(
+      KVStore<K, V> kvStore, DataGenerator<K, V> gen) {
     final K key = gen.newKey();
     final V value = gen.newVal();
     final Document<K, V> doc = kvStore.put(key, value, KVStore.PutOption.CREATE);
@@ -264,7 +283,8 @@ public final class OCCKVStoreTests {
     assertFalse(kvStore.contains(key));
   }
 
-  public static <K, V> void testDeleteWithLateVersionAdoptionShouldDelete(KVStore<K, V> kvStore, DataGenerator<K, V> gen) {
+  public static <K, V> void testDeleteWithLateVersionAdoptionShouldDelete(
+      KVStore<K, V> kvStore, DataGenerator<K, V> gen) {
     final K key = gen.newKey();
     final V value = gen.newVal();
     final Document<K, V> doc = kvStore.put(key, value);
@@ -274,7 +294,8 @@ public final class OCCKVStoreTests {
     assertFalse(kvStore.contains(key));
   }
 
-  public static <K, V> void testDeleteWithManyVersionsFails(KVStore<K, V> kvStore, DataGenerator<K, V> gen) {
+  public static <K, V> void testDeleteWithManyVersionsFails(
+      KVStore<K, V> kvStore, DataGenerator<K, V> gen) {
     final K key = gen.newKey();
     final V value = gen.newVal();
     final Document<K, V> doc = kvStore.put(key, value, KVStore.PutOption.CREATE);
@@ -299,36 +320,43 @@ public final class OCCKVStoreTests {
    * @param expected expected document.
    * @param result result document.
    */
-  private static <K, V> void assertDocumentEquals(DataGenerator<K, V> gen, Document<K, V> expected, Document<K, V> result) {
+  private static <K, V> void assertDocumentEquals(
+      DataGenerator<K, V> gen, Document<K, V> expected, Document<K, V> result) {
     gen.assertKeyEquals(expected.getKey(), result.getKey());
     gen.assertValueEquals(expected.getValue(), result.getValue());
     assertEquals(expected.getTag(), result.getTag());
   }
 
   /**
-   * Helper method to check that expected key and expected value matches ket and value in the result document.
-   * It also ensures that the tag in the document is not {@code null} or empty.
+   * Helper method to check that expected key and expected value matches ket and value in the result
+   * document. It also ensures that the tag in the document is not {@code null} or empty.
    *
    * @param expectedKey the expected key.
    * @param expectedValue the expected value.
    * @param result the result document.
    */
-  private static <K, V> void assertDocumentEquals(DataGenerator<K, V> gen, K expectedKey, V expectedValue, Document<K, V> result) {
+  private static <K, V> void assertDocumentEquals(
+      DataGenerator<K, V> gen, K expectedKey, V expectedValue, Document<K, V> result) {
     gen.assertKeyEquals(expectedKey, result.getKey());
     gen.assertValueEquals(expectedValue, result.getValue());
     assertFalse(TAG_ASSERT_FAILURE_MSG, Strings.isNullOrEmpty(result.getTag()));
   }
 
   /**
-   * Helper method to check that result document contains the expected key and expected value. And that
-   * the tag in the result document differs from the provided previous tag.
+   * Helper method to check that result document contains the expected key and expected value. And
+   * that the tag in the result document differs from the provided previous tag.
    *
    * @param expectedKey the expected key.
    * @param expectedValue the expected value.
    * @param prevTag the previous tag.
    * @param result the result document.
    */
-  private static <K, V> void assertDocumentUpdated(DataGenerator<K, V> gen, K expectedKey, V expectedValue, String prevTag, Document<K, V> result) {
+  private static <K, V> void assertDocumentUpdated(
+      DataGenerator<K, V> gen,
+      K expectedKey,
+      V expectedValue,
+      String prevTag,
+      Document<K, V> result) {
     gen.assertKeyEquals(expectedKey, result.getKey());
     gen.assertValueEquals(expectedValue, result.getValue());
     assertFalse(TAG_ASSERT_FAILURE_MSG, Strings.isNullOrEmpty(result.getTag()));

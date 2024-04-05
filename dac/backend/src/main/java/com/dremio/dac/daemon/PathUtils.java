@@ -22,17 +22,15 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 
-/**
- * Utilities for working with paths.
- */
+/** Utilities for working with paths. */
 public final class PathUtils {
 
-  private PathUtils(){}
+  private PathUtils() {}
 
   /**
    * Check if the provided path is a directory and is readable/writable/executable
    *
-   * If the path doesn't exist, attempt to create a directory
+   * <p>If the path doesn't exist, attempt to create a directory
    *
    * @param path the path to check
    * @throws IOException if the directory cannot be created or is not accessible

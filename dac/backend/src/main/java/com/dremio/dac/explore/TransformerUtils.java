@@ -15,26 +15,26 @@
  */
 package com.dremio.dac.explore;
 
+import com.dremio.dac.proto.model.dataset.SourceVersionReference;
+import com.dremio.dac.proto.model.dataset.VersionContext;
+import com.dremio.service.jobs.JobsVersionContext;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.dremio.dac.proto.model.dataset.SourceVersionReference;
-import com.dremio.dac.proto.model.dataset.VersionContext;
-import com.dremio.service.jobs.JobsVersionContext;
-
-/**
- * Utility class containing methods for Transform purposes
- */
+/** Utility class containing methods for Transform purposes */
 public class TransformerUtils {
 
   /**
-   * Accepts the reference list for transform api call and returns the corresponding map of source to version context
+   * Accepts the reference list for transform api call and returns the corresponding map of source
+   * to version context
    *
-   * @param referencesList list of references where each reference corresponds to source name and version context
+   * @param referencesList list of references where each reference corresponds to source name and
+   *     version context
    * @return
    */
-  public static Map<String, JobsVersionContext> createSourceVersionMapping(List<SourceVersionReference> referencesList) {
+  public static Map<String, JobsVersionContext> createSourceVersionMapping(
+      List<SourceVersionReference> referencesList) {
     Map<String, JobsVersionContext> sourceVersionMapping = new HashMap<>();
 
     if (referencesList != null) {
@@ -53,9 +53,11 @@ public class TransformerUtils {
             jobsVersionContextType = JobsVersionContext.VersionContextType.TAG;
             break;
           default:
-            throw new IllegalArgumentException("Unrecognized versionContextType: " + versionContext.getType());
+            throw new IllegalArgumentException(
+                "Unrecognized versionContextType: " + versionContext.getType());
         }
-        JobsVersionContext jobsVersionContext = new JobsVersionContext(jobsVersionContextType, versionContext.getValue());
+        JobsVersionContext jobsVersionContext =
+            new JobsVersionContext(jobsVersionContextType, versionContext.getValue());
         sourceVersionMapping.put(sourceName, jobsVersionContext);
       }
     }

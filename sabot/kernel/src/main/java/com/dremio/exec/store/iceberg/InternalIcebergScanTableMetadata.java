@@ -28,8 +28,8 @@ import com.dremio.service.namespace.file.proto.FileConfig;
 import com.google.common.base.Preconditions;
 
 /**
- * Internal IcebergScan table metadata, which extends TableMetadataImpl.
- * Contains table metadata information of Internal Iceberg table created from source table by Dremio.
+ * Internal IcebergScan table metadata, which extends TableMetadataImpl. Contains table metadata
+ * information of Internal Iceberg table created from source table by Dremio.
  */
 public class InternalIcebergScanTableMetadata extends TableMetadataImpl {
 
@@ -38,21 +38,33 @@ public class InternalIcebergScanTableMetadata extends TableMetadataImpl {
   private final FormatPlugin formatPlugin;
   private final String tableName;
 
-  public InternalIcebergScanTableMetadata(TableMetadata tableMetadata, FileSystemPlugin<?> icebergTableStoragePlugin, String tableName) {
-    super(tableMetadata.getStoragePluginId(), tableMetadata.getDatasetConfig(), tableMetadata.getUser(), (SplitsPointer) tableMetadata.getSplitsKey(), tableMetadata.getPrimaryKey());
+  public InternalIcebergScanTableMetadata(
+      TableMetadata tableMetadata,
+      FileSystemPlugin<?> icebergTableStoragePlugin,
+      String tableName) {
+    super(
+        tableMetadata.getStoragePluginId(),
+        tableMetadata.getDatasetConfig(),
+        tableMetadata.getUser(),
+        (SplitsPointer) tableMetadata.getSplitsKey(),
+        tableMetadata.getPrimaryKey());
     Preconditions.checkNotNull(icebergTableStoragePlugin);
     Preconditions.checkNotNull(tableName, "tableName is required");
     this.icebergTableStoragePlugin = icebergTableStoragePlugin;
     this.schema = tableMetadata.getSchema();
     this.tableName = tableName;
     formatPlugin = icebergTableStoragePlugin.getFormatPlugin(new IcebergFormatConfig());
-    Preconditions.checkNotNull(formatPlugin, "Unable to load format plugin for provided format config.");
+    Preconditions.checkNotNull(
+        formatPlugin, "Unable to load format plugin for provided format config.");
   }
 
   @Override
   public FileConfig getFormatSettings() {
-    Path icebergTablePath = Path.of(icebergTableStoragePlugin.getConfig().getPath().toString()).resolve(tableName);
-    return PhysicalDatasetUtils.toFileFormat(formatPlugin).asFileConfig().setLocation(Path.withoutSchemeAndAuthority(icebergTablePath).toString());
+    Path icebergTablePath =
+        Path.of(icebergTableStoragePlugin.getConfig().getPath().toString()).resolve(tableName);
+    return PhysicalDatasetUtils.toFileFormat(formatPlugin)
+        .asFileConfig()
+        .setLocation(Path.withoutSchemeAndAuthority(icebergTablePath).toString());
   }
 
   @Override

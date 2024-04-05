@@ -37,7 +37,6 @@ const initialState = Immutable.fromJS({
   isSupport: false,
   jobExecutionDetails: [],
   jobExecutionOperatorDetails: {},
-  uniqueSavingJob: undefined,
 });
 
 function checkJobExists(state, jobId) {
@@ -50,7 +49,7 @@ export default function jobs(state = initialState, action) {
   if (tabId && !(window.location.search || "").includes(tabId)) {
     logger.debug(
       "tabId has changed, skipping action in parent reducer",
-      action
+      action,
     );
     return state; //Handled in tabJobsReducer;
   }
@@ -77,7 +76,7 @@ export default function jobs(state = initialState, action) {
             datasetPathList: oldJob.get("datasetPathList"),
             datasetType: oldJob.get("datasetType"),
             ...action.payload,
-          })
+          }),
         );
       }
       return state;
@@ -95,7 +94,7 @@ export default function jobs(state = initialState, action) {
         if (!oldJob) return state;
         return state.setIn(
           ["jobList", index],
-          Immutable.fromJS(action.payload)
+          Immutable.fromJS(action.payload),
         );
       } else if (jobsListInState.size === 0) {
         return state.set("jobList", Immutable.fromJS([action.payload]));
@@ -118,7 +117,7 @@ export default function jobs(state = initialState, action) {
           "jobs",
           state
             .get("jobs")
-            .concat(Immutable.fromJS(jobsMapper.mapJobs(action.payload)))
+            .concat(Immutable.fromJS(jobsMapper.mapJobs(action.payload))),
         )
         .set("next", action.payload.next);
     case ActionTypes.LOAD_NEXT_JOBS_FAILURE:
@@ -135,12 +134,12 @@ export default function jobs(state = initialState, action) {
         state,
         ["jobs"],
         action.payload,
-        jobsMapper.mapJobs
+        jobsMapper.mapJobs,
       )
         .set("filters", new Immutable.Map())
         .set(
           "orderedColumn",
-          new Immutable.Map({ columnName: null, order: "desc" })
+          new Immutable.Map({ columnName: null, order: "desc" }),
         );
     }
 
@@ -149,7 +148,7 @@ export default function jobs(state = initialState, action) {
         state,
         ["jobs"],
         action.payload,
-        jobsMapper.mapJobs
+        jobsMapper.mapJobs,
       ).set("orderedColumn", action.meta.config);
 
     case ActionTypes.FILTER_JOBS_SUCCESS:
@@ -158,7 +157,7 @@ export default function jobs(state = initialState, action) {
         state,
         ["jobs"],
         action.payload,
-        jobsMapper.mapJobs
+        jobsMapper.mapJobs,
       ).set("next", action.payload.next);
 
     case ActionTypes.JOBS_DATASET_DATA_SUCCESS:
@@ -166,13 +165,13 @@ export default function jobs(state = initialState, action) {
         state,
         ["datasetsList"],
         action.payload,
-        jobsMapper.mapDatasetsJobs
+        jobsMapper.mapDatasetsJobs,
       );
 
     case ActionTypes.ITEMS_FOR_FILTER_JOBS_SUCCESS:
       return state.setIn(
         ["dataForFilter", action.meta.tag],
-        action.payload.items
+        action.payload.items,
       );
 
     case ActionTypes.SET_CLUSTER_TYPE:
@@ -192,20 +191,15 @@ export default function jobs(state = initialState, action) {
             "jobList",
             curJobList.set(
               replaceIndex,
-              Immutable.fromJS(jobsMapper.mapJobs(action.payload)[0])
-            )
-          );
-        } else if (action.meta?.isSaveJob) {
-          return state.set(
-            "uniqueSavingJob",
-            Immutable.fromJS(jobsMapper.mapJobs(action.payload)[0])
+              Immutable.fromJS(jobsMapper.mapJobs(action.payload)[0]),
+            ),
           );
         } else {
           return state.set(
             "jobList",
             curJobList.concat(
-              Immutable.fromJS(jobsMapper.mapJobs(action.payload))
-            )
+              Immutable.fromJS(jobsMapper.mapJobs(action.payload)),
+            ),
           );
         }
       } else {
@@ -213,13 +207,13 @@ export default function jobs(state = initialState, action) {
           state,
           ["jobList"],
           action.payload,
-          jobsMapper.mapJobs
+          jobsMapper.mapJobs,
         )
           .set("next", action.payload.next)
           .set("filters", new Immutable.Map())
           .set(
             "orderedColumn",
-            new Immutable.Map({ columnName: null, order: "desc" })
+            new Immutable.Map({ columnName: null, order: "desc" }),
           );
       }
 
@@ -232,7 +226,7 @@ export default function jobs(state = initialState, action) {
     case JobListActionTypes.ITEMS_FOR_FILTER_JOBS_LIST_SUCCESS:
       return state.setIn(
         ["dataForFilter", action.meta.tag],
-        action.payload.items
+        action.payload.items,
       );
 
     case JobListActionTypes.LOAD_NEXT_JOBS_LIST_REQUEST:
@@ -244,7 +238,7 @@ export default function jobs(state = initialState, action) {
           "jobList",
           state
             .get("jobList")
-            .concat(Immutable.fromJS(jobsMapper.mapJobs(action.payload)))
+            .concat(Immutable.fromJS(jobsMapper.mapJobs(action.payload))),
         )
         .set("next", action.payload.next);
     case JobListActionTypes.LOAD_NEXT_JOBS_LIST_FAILURE:
@@ -255,7 +249,7 @@ export default function jobs(state = initialState, action) {
     case JobListActionTypes.FETCH_JOB_EXECUTION_OPERATOR_DETAILS_BY_ID_SUCCESS:
       return state.set(
         "jobExecutionOperatorDetails",
-        Immutable.fromJS(action.payload)
+        Immutable.fromJS(action.payload),
       );
     case JobListActionTypes.CLEAR_JOB_PROFILE_DATA:
       return state

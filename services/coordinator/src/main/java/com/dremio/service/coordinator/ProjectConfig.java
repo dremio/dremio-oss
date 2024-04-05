@@ -15,60 +15,59 @@
  */
 package com.dremio.service.coordinator;
 
-
+import com.dremio.service.coordinator.proto.DataCredentials;
 import java.net.URI;
 
-import com.dremio.service.coordinator.proto.DataCredentials;
-
-/**
- * Interface to define project config
- */
+/** Interface to define project config */
 public interface ProjectConfig {
   /**
    * Get accelerator config
+   *
    * @return config
    */
   DistPathConfig getAcceleratorConfig();
 
   /**
    * Get scratch config
+   *
    * @return config
    */
   DistPathConfig getScratchConfig();
 
   /**
    * Get uploads config
+   *
    * @return config
    */
   DistPathConfig getUploadsConfig();
 
   /**
    * Get metadata config
+   *
    * @return config
    */
   DistPathConfig getMetadataConfig();
 
   /**
    * Get gandiva cache config
+   *
    * @return config
    */
   DistPathConfig getGandivaPersistentCacheConfig();
 
   /**
    * Get copyintoerrors config
+   *
    * @return config
    */
   DistPathConfig getSystemIcebergTablesConfig();
 
   /**
-   *
    * @return
    */
   String getOrgId();
 
-  /**
-   * Defines dist path config.
-   */
+  /** Defines dist path config. */
   public static class DistPathConfig {
     private final URI uri;
     private final DataCredentials dataCredentials;

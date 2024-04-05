@@ -20,22 +20,6 @@ import static java.util.Arrays.asList;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.util.List;
-
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelOptTable;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.plan.volcano.VolcanoPlanner;
-import org.apache.calcite.rel.core.JoinRelType;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeFactory;
-import org.apache.calcite.rex.RexBuilder;
-import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.sql.type.SqlTypeName;
-import org.junit.Before;
-import org.junit.Test;
-import org.mockito.Mockito;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.planner.physical.HashJoinPrel;
@@ -58,10 +42,22 @@ import com.dremio.test.specs.OptionResolverSpec;
 import com.dremio.test.specs.OptionResolverSpecBuilder;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
+import java.util.List;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptTable;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.plan.volcano.VolcanoPlanner;
+import org.apache.calcite.rel.core.JoinRelType;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.calcite.rex.RexBuilder;
+import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.sql.type.SqlTypeName;
+import org.junit.Before;
+import org.junit.Test;
+import org.mockito.Mockito;
 
-/**
- * Unit test for SplitCountChecker
- */
+/** Unit test for SplitCountChecker */
 public class TestSplitCountChecker {
   private static final RelTraitSet traits = RelTraitSet.createEmpty().plus(Prel.PHYSICAL);
   private static final RelDataTypeFactory typeFactory = JavaTypeFactoryImpl.INSTANCE;
@@ -77,15 +73,17 @@ public class TestSplitCountChecker {
     when(info.getExecutorNodeCount()).thenReturn(1);
 
     final PlannerSettings plannerSettings =
-      new PlannerSettings(DremioTest.DEFAULT_SABOT_CONFIG, optionResolver, () -> info);
+        new PlannerSettings(DremioTest.DEFAULT_SABOT_CONFIG, optionResolver, () -> info);
     cluster = RelOptCluster.create(new VolcanoPlanner(plannerSettings), rexBuilder);
   }
 
-  private void verifySplits(Prel root, int querySplitLimit, int datasetSplitLimit, boolean expectedResult) {
+  private void verifySplits(
+      Prel root, int querySplitLimit, int datasetSplitLimit, boolean expectedResult) {
     if (!expectedResult) {
-      UserExceptionAssert.assertThatThrownBy(() -> SplitCountChecker.checkNumSplits(root, querySplitLimit, datasetSplitLimit))
-        .hasErrorType(UNSUPPORTED_OPERATION)
-        .hasMessageContaining("Number of splits");
+      UserExceptionAssert.assertThatThrownBy(
+              () -> SplitCountChecker.checkNumSplits(root, querySplitLimit, datasetSplitLimit))
+          .hasErrorType(UNSUPPORTED_OPERATION)
+          .hasMessageContaining("Number of splits");
     } else {
       SplitCountChecker.checkNumSplits(root, querySplitLimit, datasetSplitLimit);
     }
@@ -94,30 +92,21 @@ public class TestSplitCountChecker {
   // Single scan, large limit. Expect success
   @Test
   public void simpleScan() throws Exception {
-    Prel input =
-      newScreen(
-        newScan(rowType(), 500, 5)
-      );
+    Prel input = newScreen(newScan(rowType(), 500, 5));
     verifySplits(input, 100, 100, true);
   }
 
   // Single scan, small dataset limit. Expect failure
   @Test
   public void singleScanDatasetLimit() throws Exception {
-    Prel input =
-      newScreen(
-        newScan(rowType(), 500, 5)
-      );
+    Prel input = newScreen(newScan(rowType(), 500, 5));
     verifySplits(input, 100, 3, false);
   }
 
   // Single scan, small query limit. Expect failure
   @Test
   public void singleScanQueryLimit() throws Exception {
-    Prel input =
-      newScreen(
-        newScan(rowType(), 500, 5)
-      );
+    Prel input = newScreen(newScan(rowType(), 500, 5));
     verifySplits(input, 3, 100, false);
   }
 
@@ -125,13 +114,11 @@ public class TestSplitCountChecker {
   @Test
   public void twoTablesLargeLimit() throws Exception {
     Prel input =
-      newScreen(
-        newJoin(
-          newScan(rowType(), 500, 5),
-          newScan(rowType(), 700, 10),
-          rexBuilder.makeLiteral(true)
-        )
-      );
+        newScreen(
+            newJoin(
+                newScan(rowType(), 500, 5),
+                newScan(rowType(), 700, 10),
+                rexBuilder.makeLiteral(true)));
     verifySplits(input, 100, 100, true);
   }
 
@@ -140,13 +127,11 @@ public class TestSplitCountChecker {
   @Test
   public void twoTablesSmallLimit() throws Exception {
     Prel input =
-      newScreen(
-        newJoin(
-          newScan(rowType(), 500, 10),
-          newScan(rowType(), 700, 10),
-          rexBuilder.makeLiteral(true)
-        )
-      );
+        newScreen(
+            newJoin(
+                newScan(rowType(), 500, 10),
+                newScan(rowType(), 700, 10),
+                rexBuilder.makeLiteral(true)));
     verifySplits(input, 25, 15, true);
   }
 
@@ -154,13 +139,11 @@ public class TestSplitCountChecker {
   @Test
   public void twoTablesQueryLimit() throws Exception {
     Prel input =
-      newScreen(
-        newJoin(
-          newScan(rowType(), 500, 10),
-          newScan(rowType(), 700, 10),
-          rexBuilder.makeLiteral(true)
-        )
-      );
+        newScreen(
+            newJoin(
+                newScan(rowType(), 500, 10),
+                newScan(rowType(), 700, 10),
+                rexBuilder.makeLiteral(true)));
     verifySplits(input, 15, 15, false);
   }
 
@@ -168,13 +151,11 @@ public class TestSplitCountChecker {
   @Test
   public void twoTablesDatasetLimit() throws Exception {
     Prel input =
-      newScreen(
-        newJoin(
-          newScan(rowType(), 500, 3),
-          newScan(rowType(), 700, 10),
-          rexBuilder.makeLiteral(true)
-        )
-      );
+        newScreen(
+            newJoin(
+                newScan(rowType(), 500, 3),
+                newScan(rowType(), 700, 10),
+                rexBuilder.makeLiteral(true)));
     verifySplits(input, 20, 5, false);
   }
 
@@ -183,7 +164,8 @@ public class TestSplitCountChecker {
   }
 
   private Prel newJoin(Prel left, Prel right, RexNode joinExpr) {
-    return HashJoinPrel.create(cluster, traits, left, right, joinExpr, null, JoinRelType.INNER);
+    return HashJoinPrel.create(
+        cluster, traits, left, right, joinExpr, null, JoinRelType.INNER, false);
   }
 
   private Prel newScan(RelDataType rowType, double rowCount, int splitCount) throws Exception {
@@ -192,20 +174,36 @@ public class TestSplitCountChecker {
     when(metadata.getSchema()).thenReturn(SystemTable.VERSION.getRecordSchema());
     when(metadata.getSplitRatio()).thenReturn(0.75);
     when(metadata.getSplitCount()).thenReturn(splitCount);
-    StoragePluginId pluginId = new StoragePluginId(new SourceConfig().setConfig(new SystemPluginConf().toBytesString()), new SystemPluginConf(), SourceCapabilities.NONE);
+    StoragePluginId pluginId =
+        new StoragePluginId(
+            new SourceConfig().setConfig(new SystemPluginConf().toBytesString()),
+            new SystemPluginConf(),
+            SourceCapabilities.NONE);
     when(metadata.getStoragePluginId()).thenReturn(pluginId);
-    List<SchemaPath> columns = FluentIterable.from(SystemTable.VERSION.getRecordSchema()).transform(input -> SchemaPath.getSimplePath(input.getName())).toList();
+    List<SchemaPath> columns =
+        FluentIterable.from(SystemTable.VERSION.getRecordSchema())
+            .transform(input -> SchemaPath.getSimplePath(input.getName()))
+            .toList();
     final RelOptTable relOptTable = Mockito.mock(RelOptTable.class);
     when(relOptTable.getRowCount()).thenReturn(rowCount);
     when(relOptTable.getQualifiedName()).thenReturn(ImmutableList.of("sys", "version"));
-    return new SystemScanPrel(cluster, traits, relOptTable, metadata, columns, 1.0d, ImmutableList.of(), rowType,
-                              ImmutableList.of());
+    return new SystemScanPrel(
+        cluster,
+        traits,
+        relOptTable,
+        metadata,
+        columns,
+        1.0d,
+        ImmutableList.of(),
+        rowType,
+        ImmutableList.of());
   }
 
   private RelDataType rowType() {
     return typeFactory.createStructType(
-      asList(typeFactory.createSqlType(SqlTypeName.INTEGER), typeFactory.createSqlType(SqlTypeName.DOUBLE)),
-      asList("intCol", "doubleCol")
-    );
+        asList(
+            typeFactory.createSqlType(SqlTypeName.INTEGER),
+            typeFactory.createSqlType(SqlTypeName.DOUBLE)),
+        asList("intCol", "doubleCol"));
   }
 }

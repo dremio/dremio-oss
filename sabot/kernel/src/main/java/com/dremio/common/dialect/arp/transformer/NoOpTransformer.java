@@ -16,7 +16,6 @@
 package com.dremio.common.dialect.arp.transformer;
 
 import java.util.Set;
-
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.sql.SqlOperator;
 
@@ -24,12 +23,9 @@ public class NoOpTransformer extends CallTransformer {
 
   public static final NoOpTransformer INSTANCE = new NoOpTransformer();
 
-  private NoOpTransformer() {
+  private NoOpTransformer() {}
 
-  }
-  /**
-   * The set of SqlOperators that match this CallTransformer.
-   */
+  /** The set of SqlOperators that match this CallTransformer. */
   @Override
   public Set<SqlOperator> getCompatibleOperators() {
     throw new UnsupportedOperationException("NoOpTransformer matches every operator");

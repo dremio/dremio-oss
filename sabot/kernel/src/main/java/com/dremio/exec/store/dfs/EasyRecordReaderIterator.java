@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.store.dfs;
 
-import java.util.List;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.RuntimeFilter;
@@ -24,10 +22,9 @@ import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.parquet.RecordReaderIterator;
 import com.dremio.exec.store.parquet.SplitReaderCreatorIterator;
 import com.google.common.base.Preconditions;
+import java.util.List;
 
-/**
- * A split, separates initialization of the input reader from actually constructing the reader.
- */
+/** A split, separates initialization of the input reader from actually constructing the reader. */
 public class EasyRecordReaderIterator implements RecordReaderIterator {
 
   private final SplitReaderCreatorIterator creators;
@@ -53,7 +50,7 @@ public class EasyRecordReaderIterator implements RecordReaderIterator {
       return current.createRecordReader(null);
     } catch (Exception ex) {
       if (current != null) {
-          AutoCloseables.close(RuntimeException.class, current);
+        AutoCloseables.close(RuntimeException.class, current);
       }
       throw ex;
     }

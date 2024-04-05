@@ -15,9 +15,6 @@
  */
 package com.dremio.exec.physical.config;
 
-import java.util.Collections;
-import java.util.List;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.physical.base.AbstractReceiver;
 import com.dremio.exec.physical.base.OpProps;
@@ -28,21 +25,20 @@ import com.dremio.exec.record.BatchSchema;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import java.util.Collections;
+import java.util.List;
 
-/**
- * POP for a receiver that reads from local files instead of a socket.
- */
+/** POP for a receiver that reads from local files instead of a socket. */
 @JsonTypeName("bridge-file-reader-receiver")
 public class BridgeFileReaderReceiver extends AbstractReceiver {
   private final String bridgeSetId;
 
   @JsonCreator
   public BridgeFileReaderReceiver(
-    @JsonProperty("props") OpProps props,
-    @JsonProperty("schema") BatchSchema schema,
-    @JsonProperty("senderMajorFragmentId") int senderMajorFragmentId,
-    @JsonProperty("bridgeSetId") String bridgeSetId
-  ) {
+      @JsonProperty("props") OpProps props,
+      @JsonProperty("schema") BatchSchema schema,
+      @JsonProperty("senderMajorFragmentId") int senderMajorFragmentId,
+      @JsonProperty("bridgeSetId") String bridgeSetId) {
     super(props, schema, senderMajorFragmentId, false);
     this.bridgeSetId = bridgeSetId;
   }
@@ -59,8 +55,10 @@ public class BridgeFileReaderReceiver extends AbstractReceiver {
   }
 
   @Override
-  public PhysicalOperator getNewWithChildren(List<PhysicalOperator> children) throws ExecutionSetupException {
-    return new BridgeFileReaderReceiver(props, getSchema(), getSenderMajorFragmentId(), bridgeSetId);
+  public PhysicalOperator getNewWithChildren(List<PhysicalOperator> children)
+      throws ExecutionSetupException {
+    return new BridgeFileReaderReceiver(
+        props, getSchema(), getSenderMajorFragmentId(), bridgeSetId);
   }
 
   public String getBridgeSetId() {

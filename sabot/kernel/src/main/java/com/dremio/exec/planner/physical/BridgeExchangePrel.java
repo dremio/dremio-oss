@@ -16,9 +16,15 @@
 
 package com.dremio.exec.planner.physical;
 
+import com.dremio.exec.physical.base.OpProps;
+import com.dremio.exec.physical.base.PhysicalOperator;
+import com.dremio.exec.physical.config.BridgeExchange;
+import com.dremio.exec.planner.cost.DremioCost;
+import com.dremio.exec.record.BatchSchema;
+import com.dremio.options.Options;
+import com.dremio.options.TypeValidators;
 import java.io.IOException;
 import java.util.List;
-
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptPlanner;
@@ -27,41 +33,42 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
-import com.dremio.exec.physical.base.OpProps;
-import com.dremio.exec.physical.base.PhysicalOperator;
-import com.dremio.exec.physical.config.BridgeExchange;
-import com.dremio.exec.planner.cost.DremioCost;
-import com.dremio.exec.record.BatchSchema;
-import com.dremio.options.Options;
-import com.dremio.options.TypeValidators;
-
 @Options
 public class BridgeExchangePrel extends ExchangePrel {
-  public static final TypeValidators.LongValidator RECEIVER_RESERVE = new TypeValidators.PositiveLongValidator("planner.op.receiver.bridge.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
-  public static final TypeValidators.LongValidator RECEIVER_LIMIT = new TypeValidators.PositiveLongValidator("planner.op.receiver.bridge.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
-  public static final TypeValidators.LongValidator SENDER_RESERVE = new TypeValidators.PositiveLongValidator("planner.op.sender.bridge.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
-  public static final TypeValidators.LongValidator SENDER_LIMIT = new TypeValidators.PositiveLongValidator("planner.op.sender.bridge.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
+  public static final TypeValidators.LongValidator RECEIVER_RESERVE =
+      new TypeValidators.PositiveLongValidator(
+          "planner.op.receiver.bridge.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
+  public static final TypeValidators.LongValidator RECEIVER_LIMIT =
+      new TypeValidators.PositiveLongValidator(
+          "planner.op.receiver.bridge.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
+  public static final TypeValidators.LongValidator SENDER_RESERVE =
+      new TypeValidators.PositiveLongValidator(
+          "planner.op.sender.bridge.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
+  public static final TypeValidators.LongValidator SENDER_LIMIT =
+      new TypeValidators.PositiveLongValidator(
+          "planner.op.sender.bridge.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
   private final String bridgeSetId;
 
-  public BridgeExchangePrel(RelOptCluster cluster, RelTraitSet traits, RelNode child, String bridgeSetId) {
+  public BridgeExchangePrel(
+      RelOptCluster cluster, RelTraitSet traits, RelNode child, String bridgeSetId) {
     super(cluster, traits, child);
     this.bridgeSetId = bridgeSetId;
   }
-  /**
-   *
-   */
+
+  /** */
   @Override
   public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
     RelNode child = this.getInput();
     final double rowCount = mq.getRowCount(this);
-    final DremioCost.Factory costFactory = (DremioCost.Factory)planner.getCostFactory();
+    final DremioCost.Factory costFactory = (DremioCost.Factory) planner.getCostFactory();
 
-    double adjustmentFactor = PrelUtil.getPlannerSettings(getCluster()).getCseCostAdjustmentFactor();
+    double adjustmentFactor =
+        PrelUtil.getPlannerSettings(getCluster()).getCseCostAdjustmentFactor();
     if (adjustmentFactor == Double.MAX_VALUE) {
       return costFactory.makeHugeCost();
     }
 
-    final int  rowWidth = child.getRowType().getFieldCount() * DremioCost.AVG_FIELD_WIDTH;
+    final int rowWidth = child.getRowType().getFieldCount() * DremioCost.AVG_FIELD_WIDTH;
     final double cpuCost = DremioCost.PROJECT_SIMPLE_CPU_COST * rowCount * rowWidth;
     final double ioCost = DremioCost.BYTE_DISK_WRITE_COST * rowCount * rowWidth;
 
@@ -75,18 +82,34 @@ public class BridgeExchangePrel extends ExchangePrel {
     PhysicalOperator childPOP = child.getPhysicalOperator(creator);
 
     final OpProps props = creator.props(this, null, childPOP.getProps().getSchema());
-    final int senderOperatorId = OpProps.buildOperatorId(childPOP.getProps().getMajorFragmentId(), 0);
-    final OpProps senderProps = creator.props(senderOperatorId, this, null, props.getSchema(), SENDER_RESERVE, SENDER_LIMIT, props.getCost() * 0.01);
-    final OpProps receiverProps = creator.props(this, null, props.getSchema(), RECEIVER_RESERVE, RECEIVER_LIMIT, props.getCost() * 0.01);
+    final int senderOperatorId =
+        OpProps.buildOperatorId(childPOP.getProps().getMajorFragmentId(), 0);
+    final OpProps senderProps =
+        creator.props(
+            senderOperatorId,
+            this,
+            null,
+            props.getSchema(),
+            SENDER_RESERVE,
+            SENDER_LIMIT,
+            props.getCost() * 0.01);
+    final OpProps receiverProps =
+        creator.props(
+            this,
+            null,
+            props.getSchema(),
+            RECEIVER_RESERVE,
+            RECEIVER_LIMIT,
+            props.getCost() * 0.01);
 
     return new BridgeExchange(
-      props,
-      senderProps,
-      receiverProps,
-      props.getSchema(),
-      childPOP,
-      creator.getOptionManager(),
-      getBridgeSetId());
+        props,
+        senderProps,
+        receiverProps,
+        props.getSchema(),
+        childPOP,
+        creator.getOptionManager(),
+        getBridgeSetId());
   }
 
   @Override
@@ -105,8 +128,6 @@ public class BridgeExchangePrel extends ExchangePrel {
 
   @Override
   public RelWriter explainTerms(RelWriter pw) {
-    return super.explainTerms(pw)
-      .item("bridgeSetId", bridgeSetId);
+    return super.explainTerms(pw).item("bridgeSetId", bridgeSetId);
   }
-
 }

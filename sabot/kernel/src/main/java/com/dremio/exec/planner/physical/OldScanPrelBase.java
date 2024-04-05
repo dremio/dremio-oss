@@ -18,8 +18,7 @@ package com.dremio.exec.planner.physical;
 import com.dremio.exec.physical.base.GroupScan;
 
 @Deprecated
-public interface OldScanPrelBase extends Prel, HasDistributionAffinity{
+public interface OldScanPrelBase extends Prel, HasDistributionAffinity {
 
   public GroupScan getGroupScan();
-
 }

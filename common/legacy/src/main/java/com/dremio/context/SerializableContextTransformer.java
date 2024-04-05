@@ -15,33 +15,32 @@
  */
 package com.dremio.context;
 
+import com.google.common.collect.ImmutableMap;
+import io.grpc.Metadata;
 import java.util.Map;
 
-import com.google.common.collect.ImmutableMap;
-
-import io.grpc.Metadata;
-
-/**
- * Transformer for deserializing context objects from gRPC headers.
- */
+/** Transformer for deserializing context objects from gRPC headers. */
 public interface SerializableContextTransformer {
-  /**
-   * Helper for converting a set of gRPC headers into a map which this transformer can consume.
-   */
+  /** Helper for converting a set of gRPC headers into a map which this transformer can consume. */
   static Map<String, String> convert(final Metadata headers) {
     final ImmutableMap.Builder<String, String> builder = ImmutableMap.builder();
-    headers.keys().forEach((key) -> {
-      final String value = headers.get(Metadata.Key.of(key, Metadata.ASCII_STRING_MARSHALLER));
-      if (value != null) {
-        builder.put(key, value);
-      }
-    });
+    headers
+        .keys()
+        .forEach(
+            (key) -> {
+              final String value =
+                  headers.get(Metadata.Key.of(key, Metadata.ASCII_STRING_MARSHALLER));
+              if (value != null) {
+                builder.put(key, value);
+              }
+            });
     return builder.build();
   }
 
   /**
-   * Constructs a context object from the provided map.
-   * If the headers are not present, the builder should be returned without modification.
+   * Constructs a context object from the provided map. If the headers are not present, the builder
+   * should be returned without modification.
+   *
    * @param builder A RequestContext object to extend off of.
    */
   RequestContext deserialize(final Map<String, String> headers, RequestContext builder);

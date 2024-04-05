@@ -15,16 +15,13 @@
  */
 package com.dremio.dac.explore.model;
 
-import java.util.List;
-import java.util.Map;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.annotations.VisibleForTesting;
+import java.util.List;
+import java.util.Map;
 
-/**
- * To create a new dataset from sql
- */
+/** To create a new dataset from sql */
 public class CreateFromSQL {
 
   private final String sql;
@@ -37,16 +34,17 @@ public class CreateFromSQL {
   }
 
   @VisibleForTesting
-  public CreateFromSQL(String sql, List<String> context, Map<String, VersionContextReq> references) {
+  public CreateFromSQL(
+      String sql, List<String> context, Map<String, VersionContextReq> references) {
     this(sql, context, references, null);
   }
 
   @JsonCreator
   public CreateFromSQL(
-    @JsonProperty("sql") String sql,
-    @JsonProperty("context") List<String> context,
-    @JsonProperty("references") Map<String, VersionContextReq> references,
-    @JsonProperty("engineName") String engineName) {
+      @JsonProperty("sql") String sql,
+      @JsonProperty("context") List<String> context,
+      @JsonProperty("references") Map<String, VersionContextReq> references,
+      @JsonProperty("engineName") String engineName) {
     this.sql = sql;
     this.context = context;
     this.references = references;

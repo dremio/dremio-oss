@@ -15,25 +15,31 @@
  */
 package com.dremio.sabot.op.sort.external;
 
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.SimpleIntVector;
-
 import com.dremio.exec.compile.TemplateClassDefinition;
 import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.exec.record.ExpandableHyperContainer;
 import com.dremio.exec.record.RecordBatchData;
 import com.dremio.exec.record.selection.SelectionVector4;
 import com.dremio.sabot.exec.context.FunctionContext;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.SimpleIntVector;
 
 public interface QuickSorterInterface extends AutoCloseable {
   static TemplateClassDefinition<QuickSorterInterface> TEMPLATE_DEFINITION =
-    new TemplateClassDefinition<QuickSorterInterface>(QuickSorterInterface.class, QuickSorterTemplate.class);
+      new TemplateClassDefinition<QuickSorterInterface>(
+          QuickSorterInterface.class, QuickSorterTemplate.class);
 
-  void init(FunctionContext context, ExpandableHyperContainer hyperContainer) throws SchemaChangeException;
+  void init(FunctionContext context, ExpandableHyperContainer hyperContainer)
+      throws SchemaChangeException;
+
   void add(final RecordBatchData batch) throws SchemaChangeException;
+
   SelectionVector4 getFinalSort(BufferAllocator allocator, int targetBatchSize);
+
   ExpandableHyperContainer getHyperBatch();
+
   void setDataBuffer(SimpleIntVector intVectorBuffer);
+
   @Override
   void close() throws Exception;
 }

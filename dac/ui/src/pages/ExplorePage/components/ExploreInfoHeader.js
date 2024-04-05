@@ -37,7 +37,6 @@ import { PageTypes, pageTypesProp } from "@app/pages/ExplorePage/pageTypes";
 import exploreUtils from "@app/utils/explore/exploreUtils";
 
 import BreadCrumbs, { formatFullPath } from "components/BreadCrumbs";
-import FontIcon from "components/Icon/FontIcon";
 import { DatasetItemLabel } from "components/Dataset/DatasetItemLabel"; // {} for testing purposes since store is not needed here
 import { checkTypeToShowOverlay } from "utils/datasetUtils";
 import { IconButton } from "dremio-ui-lib/components";
@@ -89,7 +88,7 @@ export class ExploreInfoHeader extends PureComponent {
     const isSqlEditorTab = exploreUtils.isSqlEditorTab(location);
     const isDatasetPage = exploreUtils.isExploreDatasetPage(location);
     const defaultName = formatMessage(
-      `NewQuery.${isSqlEditorTab ? "UntitledScript" : "NewQuery"}`
+      `NewQuery.${isSqlEditorTab ? "UntitledScript" : "NewQuery"}`,
     );
     const unsavedVDS = !dataset.getIn(["apiLinks", "namespaceEntity"]);
     const hasDatasetName = modelUtils.isNamedDataset(dataset);
@@ -172,17 +171,17 @@ export class ExploreInfoHeader extends PureComponent {
     const nameForDisplay = ExploreInfoHeader.getNameForDisplay(
       dataset,
       activeScript,
-      location
+      location,
     );
     const isEditedDataset = this.isEditedDataset();
     const isUnsavedScript = exploreUtils.isEditedScript(
       activeScript,
-      currentSql
+      currentSql,
     );
     const isSqlEditorTab = exploreUtils.isSqlEditorTab(location);
     const fullPath = ExploreInfoHeader.getFullPathListForDisplay(
       dataset,
-      location
+      location,
     );
     const edited = intl.formatMessage({
       id: isSqlEditorTab ? "NewQuery.Unsaved" : "Dataset.Edited",
@@ -290,12 +289,12 @@ export class ExploreInfoHeader extends PureComponent {
     const nameForDisplay = ExploreInfoHeader.getNameForDisplay(
       dataset,
       activeScript,
-      location
+      location,
     );
 
     const isUnsavedScript = exploreUtils.isEditedScript(
       activeScript,
-      currentSql
+      currentSql,
     );
 
     const edited = intl.formatMessage({ id: "NewQuery.Unsaved" });
@@ -397,7 +396,7 @@ export class ExploreInfoHeader extends PureComponent {
               onClick={() => this.openDatasetSettings()}
               data-qa="dataset-settings"
             >
-              <dremio-icon name="interface/settings" />
+              <dremio-icon name="interface/settings" alt="" />
             </IconButton>
           </div>
         )}

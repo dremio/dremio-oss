@@ -16,15 +16,15 @@
 
 package com.dremio.services.fabric;
 
-/**
- * Exception to be thrown if the protocol is not yet registered.
- */
+/** Exception to be thrown if the protocol is not yet registered. */
 public class ProtocolNotRegisteredException extends Exception {
   private static final String EXCEPTIONMESSAGE = "Protocol not registered with Fabric";
-  public ProtocolNotRegisteredException() {super(EXCEPTIONMESSAGE);}
+
+  public ProtocolNotRegisteredException() {
+    super(EXCEPTIONMESSAGE);
+  }
 
   public String getExceptionMessage() {
     return EXCEPTIONMESSAGE;
   }
-
 }

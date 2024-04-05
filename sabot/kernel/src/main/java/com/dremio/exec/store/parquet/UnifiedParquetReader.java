@@ -15,6 +15,43 @@
  */
 package com.dremio.exec.store.parquet;
 
+import com.dremio.common.AutoCloseables;
+import com.dremio.common.arrow.DremioArrowSchema;
+import com.dremio.common.config.SabotConfig;
+import com.dremio.common.exceptions.ExecutionSetupException;
+import com.dremio.common.expression.FunctionCallFactory;
+import com.dremio.common.expression.LogicalExpression;
+import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.ExecConstants;
+import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.record.selection.SelectionVector2;
+import com.dremio.exec.store.AbstractRecordReader;
+import com.dremio.exec.store.CompositeColumnFilter;
+import com.dremio.exec.store.RecordReader;
+import com.dremio.exec.store.RuntimeFilter;
+import com.dremio.exec.store.dfs.implicit.AdditionalColumnsRecordReader;
+import com.dremio.exec.store.dfs.implicit.ConstantColumnPopulators;
+import com.dremio.exec.store.iceberg.deletes.PositionalDeleteFilter;
+import com.dremio.exec.store.parquet2.LogicalListL1Converter;
+import com.dremio.exec.store.parquet2.ParquetRowiseReader;
+import com.dremio.exec.util.BitSetHelper;
+import com.dremio.exec.util.ColumnUtils;
+import com.dremio.exec.util.ValueListFilter;
+import com.dremio.io.file.FileBlockLocation;
+import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.Path;
+import com.dremio.parquet.reader.ParquetDirectByteBufferAllocator;
+import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf.ParquetDatasetSplitScanXAttr;
+import com.dremio.sabot.op.copier.CopierFactory;
+import com.dremio.sabot.op.copier.FieldBufferCopier;
+import com.dremio.sabot.op.scan.OutputMutator;
+import com.dremio.sabot.op.scan.ScanOperator.Metric;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Predicate;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Range;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.util.ArrayList;
@@ -27,7 +64,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.BitVectorHelper;
@@ -50,49 +86,10 @@ import org.apache.parquet.schema.OriginalType;
 import org.apache.parquet.schema.PrimitiveType;
 import org.apache.parquet.schema.Type;
 
-import com.dremio.common.AutoCloseables;
-import com.dremio.common.arrow.DremioArrowSchema;
-import com.dremio.common.config.SabotConfig;
-import com.dremio.common.exceptions.ExecutionSetupException;
-import com.dremio.common.expression.FunctionCallFactory;
-import com.dremio.common.expression.LogicalExpression;
-import com.dremio.common.expression.SchemaPath;
-import com.dremio.exec.ExecConstants;
-import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
-import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.record.selection.SelectionVector2;
-import com.dremio.exec.store.AbstractRecordReader;
-import com.dremio.exec.store.CompositeColumnFilter;
-import com.dremio.exec.store.RecordReader;
-import com.dremio.exec.store.RuntimeFilter;
-import com.dremio.exec.store.dfs.implicit.AdditionalColumnsRecordReader;
-import com.dremio.exec.store.dfs.implicit.ConstantColumnPopulators;
-import com.dremio.exec.store.iceberg.deletes.PositionalDeleteFilter;
-import com.dremio.exec.store.parquet.columnreaders.DeprecatedParquetVectorizedReader;
-import com.dremio.exec.store.parquet2.LogicalListL1Converter;
-import com.dremio.exec.store.parquet2.ParquetRowiseReader;
-import com.dremio.exec.util.BitSetHelper;
-import com.dremio.exec.util.ColumnUtils;
-import com.dremio.exec.util.ValueListFilter;
-import com.dremio.io.file.FileBlockLocation;
-import com.dremio.io.file.FileSystem;
-import com.dremio.io.file.Path;
-import com.dremio.parquet.reader.ParquetDirectByteBufferAllocator;
-import com.dremio.sabot.exec.context.OperatorContext;
-import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf.ParquetDatasetSplitScanXAttr;
-import com.dremio.sabot.op.copier.CopierFactory;
-import com.dremio.sabot.op.copier.FieldBufferCopier;
-import com.dremio.sabot.op.scan.OutputMutator;
-import com.dremio.sabot.op.scan.ScanOperator.Metric;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Predicate;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Range;
-
 public class UnifiedParquetReader implements RecordReader {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(UnifiedParquetReader.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(UnifiedParquetReader.class);
   private final OperatorContext context;
   private final MutableParquetMetadata footer;
   private final ParquetDatasetSplitScanXAttr readEntry;
@@ -104,10 +101,8 @@ public class UnifiedParquetReader implements RecordReader {
   private ParquetScanProjectedColumns projectedColumns;
   private ParquetColumnResolver columnResolver;
   private final FileSystem fs;
-  private final GlobalDictionaries dictionaries;
   private final CompressionCodecFactory codecFactory;
   private final ParquetReaderFactory readerFactory;
-  private final Map<String, GlobalDictionaryFieldInfo> globalDictionaryFieldInfoMap;
   private final ParquetFilters filters;
   private final ParquetFilterCreator filterCreator;
   private final ParquetDictionaryConvertor dictionaryConvertor;
@@ -128,29 +123,26 @@ public class UnifiedParquetReader implements RecordReader {
   private ArrowBuf sv2;
 
   public UnifiedParquetReader(
-    OperatorContext context,
-    ParquetReaderFactory readerFactory,
-    BatchSchema tableSchema,
-    ParquetScanProjectedColumns projectedColumns,
-    Map<String, GlobalDictionaryFieldInfo> globalDictionaryFieldInfoMap,
-    ParquetFilters filters,
-    ParquetFilterCreator filterCreator,
-    ParquetDictionaryConvertor dictionaryConvertor,
-    ParquetDatasetSplitScanXAttr readEntry,
-    FileSystem fs,
-    MutableParquetMetadata footer,
-    GlobalDictionaries dictionaries,
-    SchemaDerivationHelper schemaHelper,
-    boolean vectorize,
-    boolean enableDetailedTracing,
-    boolean supportsColocatedReads,
-    InputStreamProvider inputStreamProvider,
-    List<RuntimeFilter> runtimeFilters,
-    boolean isConvertedIcebergDataset) {
+      OperatorContext context,
+      ParquetReaderFactory readerFactory,
+      BatchSchema tableSchema,
+      ParquetScanProjectedColumns projectedColumns,
+      ParquetFilters filters,
+      ParquetFilterCreator filterCreator,
+      ParquetDictionaryConvertor dictionaryConvertor,
+      ParquetDatasetSplitScanXAttr readEntry,
+      FileSystem fs,
+      MutableParquetMetadata footer,
+      SchemaDerivationHelper schemaHelper,
+      boolean vectorize,
+      boolean enableDetailedTracing,
+      boolean supportsColocatedReads,
+      InputStreamProvider inputStreamProvider,
+      List<RuntimeFilter> runtimeFilters,
+      boolean isConvertedIcebergDataset) {
     super();
     this.context = context;
     this.readerFactory = readerFactory;
-    this.globalDictionaryFieldInfoMap = globalDictionaryFieldInfoMap;
     this.filters = filters;
     this.filterCreator = filterCreator;
     this.dictionaryConvertor = dictionaryConvertor;
@@ -161,88 +153,99 @@ public class UnifiedParquetReader implements RecordReader {
     this.tableSchema = tableSchema;
     this.projectedColumns = projectedColumns;
     this.columnResolver = null;
-    this.dictionaries = dictionaries;
-    this.codecFactory = CodecFactory.createDirectCodecFactory(new Configuration(), new ParquetDirectByteBufferAllocator(context.getAllocator()), 0);
+    this.codecFactory =
+        CodecFactory.createDirectCodecFactory(
+            new Configuration(), new ParquetDirectByteBufferAllocator(context.getAllocator()), 0);
     this.enableDetailedTracing = enableDetailedTracing;
     this.inputStreamProvider = inputStreamProvider;
     this.schemaHelper = schemaHelper;
     this.supportsColocatedReads = supportsColocatedReads;
     this.ignoreSchemaLearning = false;
-    this.runtimeFilters = runtimeFilters == null ? new ArrayList<>() :
-      runtimeFilters.stream()
-        .map(RuntimeFilter::getInstanceWithNewNonPartitionColFiltersList)
-        .collect(Collectors.toList());
+    this.runtimeFilters =
+        runtimeFilters == null
+            ? new ArrayList<>()
+            : runtimeFilters.stream()
+                .map(RuntimeFilter::getInstanceWithNewNonPartitionColFiltersList)
+                .collect(Collectors.toList());
     this.maxValidityBufSize = BitVectorHelper.getValidityBufferSize(context.getTargetBatchSize());
     this.isConvertedIcebergDataset = isConvertedIcebergDataset;
-    this.useCopiersToRemoveInvalidRows = context.getOptions().getOption(ExecConstants.USE_COPIER_IN_PARQUET_READER) && context.getTargetBatchSize() <= Short.MAX_VALUE;
+    this.useCopiersToRemoveInvalidRows =
+        context.getOptions().getOption(ExecConstants.USE_COPIER_IN_PARQUET_READER)
+            && context.getTargetBatchSize() <= Short.MAX_VALUE;
   }
 
   public UnifiedParquetReader(
-    OperatorContext context,
-    ParquetReaderFactory readerFactory,
-    BatchSchema tableSchema,
-    ParquetScanProjectedColumns projectedColumns,
-    Map<String, GlobalDictionaryFieldInfo> globalDictionaryFieldInfoMap,
-    ParquetFilters filters,
-    ParquetFilterCreator filterCreator,
-    ParquetDictionaryConvertor dictionaryConvertor,
-    ParquetDatasetSplitScanXAttr readEntry,
-    FileSystem fs,
-    MutableParquetMetadata footer,
-    GlobalDictionaries dictionaries,
-    SchemaDerivationHelper schemaHelper,
-    boolean vectorize,
-    boolean enableDetailedTracing,
-    boolean supportsColocatedReads,
-    InputStreamProvider inputStreamProvider,
-    List<RuntimeFilter> runtimeFilters) {
-    this(context,
-      readerFactory,
-      tableSchema,
-      projectedColumns,
-      globalDictionaryFieldInfoMap,
-      filters,
-      filterCreator,
-      dictionaryConvertor,
-      readEntry,
-      fs,
-      footer,
-      dictionaries,
-      schemaHelper,
-      vectorize,
-      enableDetailedTracing,
-      supportsColocatedReads,
-      inputStreamProvider,
-      runtimeFilters,
-      true);
+      OperatorContext context,
+      ParquetReaderFactory readerFactory,
+      BatchSchema tableSchema,
+      ParquetScanProjectedColumns projectedColumns,
+      ParquetFilters filters,
+      ParquetFilterCreator filterCreator,
+      ParquetDictionaryConvertor dictionaryConvertor,
+      ParquetDatasetSplitScanXAttr readEntry,
+      FileSystem fs,
+      MutableParquetMetadata footer,
+      SchemaDerivationHelper schemaHelper,
+      boolean vectorize,
+      boolean enableDetailedTracing,
+      boolean supportsColocatedReads,
+      InputStreamProvider inputStreamProvider,
+      List<RuntimeFilter> runtimeFilters) {
+    this(
+        context,
+        readerFactory,
+        tableSchema,
+        projectedColumns,
+        filters,
+        filterCreator,
+        dictionaryConvertor,
+        readEntry,
+        fs,
+        footer,
+        schemaHelper,
+        vectorize,
+        enableDetailedTracing,
+        supportsColocatedReads,
+        inputStreamProvider,
+        runtimeFilters,
+        true);
   }
 
   @Override
   public void setup(OutputMutator output) throws ExecutionSetupException {
     this.outputMutator = output;
 
-    if (supportsColocatedReads && context.getOptions().getOption(ExecConstants.SCAN_COMPUTE_LOCALITY)) {
+    if (supportsColocatedReads
+        && context.getOptions().getOption(ExecConstants.SCAN_COMPUTE_LOCALITY)) {
       computeLocality(footer);
     }
 
-    this.columnResolver = this.projectedColumns.getColumnResolver(
-      footer.getFileMetaData().getSchema());
+    this.columnResolver =
+        this.projectedColumns.getColumnResolver(footer.getFileMetaData().getSchema());
     splitColumns(footer, vectorizableReaderColumns, nonVectorizableReaderColumns);
 
-    Set<String> filterColumns = runtimeFilters.stream()
-      .flatMap(rf -> rf.getNonPartitionColumnFilters().stream())
-      .flatMap(ccf -> ccf.getColumnsList().stream())
-      .map(String::toLowerCase).collect(Collectors.toSet());
+    Set<String> filterColumns =
+        runtimeFilters.stream()
+            .flatMap(rf -> rf.getNonPartitionColumnFilters().stream())
+            .flatMap(ccf -> ccf.getColumnsList().stream())
+            .map(String::toLowerCase)
+            .collect(Collectors.toSet());
     if (filters.hasPushdownFilters()) {
-      filterColumns.addAll(filters.getPushdownFilters().stream().map(pfc -> pfc.getPath().toDotString().toLowerCase()).collect(Collectors.toSet()));
+      filterColumns.addAll(
+          filters.getPushdownFilters().stream()
+              .map(pfc -> pfc.getPath().toDotString().toLowerCase())
+              .collect(Collectors.toSet()));
     }
 
-    // If we have multiple filters, filtering beyond the 1st is done via the validityBuf, with invalid rows
-    // removed in a second pass.  The copiers are initialized after we process any delegate readers so that any
+    // If we have multiple filters, filtering beyond the 1st is done via the validityBuf, with
+    // invalid rows
+    // removed in a second pass.  The copiers are initialized after we process any delegate readers
+    // so that any
     // columns they add are included in the copies - e.g. path/rownum columns for DML.
-    boolean requiresInvalidRowRemoval = filterColumns.size() > 1 ||
-      (filterColumns.size() == 1 && filters.hasPositionalDeleteFilter()) ||
-      filters.hasEqualityDeleteFilter();
+    boolean requiresInvalidRowRemoval =
+        filterColumns.size() > 1
+            || (filterColumns.size() == 1 && filters.hasPositionalDeleteFilter())
+            || filters.hasEqualityDeleteFilter();
     if (requiresInvalidRowRemoval) {
       this.validityBuf = context.getAllocator().buffer(maxValidityBufSize);
     }
@@ -250,18 +253,26 @@ public class UnifiedParquetReader implements RecordReader {
     final ExecutionPath execPath = getExecutionPath();
     delegates = execPath.getReaders(this);
 
-    Preconditions.checkArgument(!delegates.isEmpty(), "There should be at least one delegated RecordReader");
+    Preconditions.checkArgument(
+        !delegates.isEmpty(), "There should be at least one delegated RecordReader");
     for (RecordReader delegateReader : delegates) {
       delegateReader.setup(output);
     }
 
-    // init copiers only if filters are on multiple columns or a single filter along with positional deletes
+    // init copiers only if filters are on multiple columns or a single filter along with positional
+    // deletes
     if (requiresInvalidRowRemoval && useCopiersToRemoveInvalidRows) {
       List<FieldVector> outputFieldVectors = new ArrayList<>();
-      outputMutator.getVectors().forEach(valueVector -> outputFieldVectors.add((FieldVector) valueVector));
-      copiers = CopierFactory.getInstance(context.getConfig(), context.getOptions())
-        .getTwoByteCopiers(outputFieldVectors, outputFieldVectors, false);
-      sv2 = context.getAllocator().buffer(context.getTargetBatchSize() * SelectionVector2.RECORD_SIZE);
+      outputMutator
+          .getVectors()
+          .forEach(valueVector -> outputFieldVectors.add((FieldVector) valueVector));
+      copiers =
+          CopierFactory.getInstance(context.getConfig(), context.getOptions())
+              .getTwoByteCopiers(outputFieldVectors, outputFieldVectors, false);
+      sv2 =
+          context
+              .getAllocator()
+              .buffer(context.getTargetBatchSize() * SelectionVector2.RECORD_SIZE);
     }
 
     // init the equality delete filter if one is present
@@ -271,11 +282,12 @@ public class UnifiedParquetReader implements RecordReader {
 
     setMetricValue(Metric.PARQUET_EXEC_PATH, Long.valueOf(execPath.ordinal()));
     setMetricValue(Metric.NUM_VECTORIZED_COLUMNS, Long.valueOf(vectorizableReaderColumns.size()));
-    setMetricValue(Metric.NUM_NON_VECTORIZED_COLUMNS, Long.valueOf(nonVectorizableReaderColumns.size()));
+    setMetricValue(
+        Metric.NUM_NON_VECTORIZED_COLUMNS, Long.valueOf(nonVectorizableReaderColumns.size()));
     setMetricValue(Metric.FILTER_EXISTS, filters.getPushdownFilters().size() > 0 ? 1L : 0L);
 
-
-    boolean enableColumnTrim = context.getOptions().getOption(ExecConstants.TRIM_COLUMNS_FROM_ROW_GROUP);
+    boolean enableColumnTrim =
+        context.getOptions().getOption(ExecConstants.TRIM_COLUMNS_FROM_ROW_GROUP);
     if (output.getSchemaChanged() || !enableColumnTrim) {
       return;
     }
@@ -295,22 +307,30 @@ public class UnifiedParquetReader implements RecordReader {
   private void computeLocality(MutableParquetMetadata footer) throws ExecutionSetupException {
     try {
       BlockMetaData block = footer.getBlocks().get(readEntry.getRowGroupIndex());
-      Preconditions.checkArgument(block != null,
-        "Parquet file '%s' footer does not have information about row group %s",
-        this.readEntry.getPath(), readEntry.getRowGroupIndex());
+      Preconditions.checkArgument(
+          block != null,
+          "Parquet file '%s' footer does not have information about row group %s",
+          this.readEntry.getPath(),
+          readEntry.getRowGroupIndex());
 
-      Iterable<FileBlockLocation> blockLocations = fs.getFileBlockLocations(Path.of(readEntry.getPath()), block.getStartingPos(), block.getCompressedSize());
+      Iterable<FileBlockLocation> blockLocations =
+          fs.getFileBlockLocations(
+              Path.of(readEntry.getPath()), block.getStartingPos(), block.getCompressedSize());
 
       String localHost = InetAddress.getLocalHost().getCanonicalHostName();
 
       List<Range<Long>> intersectingRanges = new ArrayList<>();
 
-      Range<Long> rowGroupRange = Range.openClosed(block.getStartingPos(), block.getStartingPos() + block.getCompressedSize());
+      Range<Long> rowGroupRange =
+          Range.openClosed(
+              block.getStartingPos(), block.getStartingPos() + block.getCompressedSize());
 
       for (FileBlockLocation loc : blockLocations) {
         for (String host : loc.getHosts()) {
           if (host.equals(localHost)) {
-            intersectingRanges.add(Range.closedOpen(loc.getOffset(), loc.getOffset() + loc.getSize()).intersection(rowGroupRange));
+            intersectingRanges.add(
+                Range.closedOpen(loc.getOffset(), loc.getOffset() + loc.getSize())
+                    .intersection(rowGroupRange));
           }
         }
       }
@@ -349,19 +369,25 @@ public class UnifiedParquetReader implements RecordReader {
     }
 
     if (filterCreator.filterMayChange()) {
-      filters.getPushdownFilters().stream().filter(c -> c.getFilter().exact()).forEach(c -> c.setFilterModifiedForPushdown(true));
+      filters.getPushdownFilters().stream()
+          .filter(c -> c.getFilter().exact())
+          .forEach(c -> c.setFilterModifiedForPushdown(true));
       return delegate;
     }
 
-    final List<LogicalExpression> logicalExpressions = filters.getPushdownFilters().stream()
-      .filter(f -> f.getFilter().exact())
-      .map(c -> c.getExpr()).collect(Collectors.toList());
+    final List<LogicalExpression> logicalExpressions =
+        filters.getPushdownFilters().stream()
+            .filter(f -> f.getFilter().exact())
+            .map(c -> c.getExpr())
+            .collect(Collectors.toList());
     if (logicalExpressions.isEmpty()) {
       return delegate;
     }
 
-    final LogicalExpression filterExpr = logicalExpressions.size() == 1 ? logicalExpressions.get(0)
-      : FunctionCallFactory.createBooleanOperator("and", logicalExpressions);
+    final LogicalExpression filterExpr =
+        logicalExpressions.size() == 1
+            ? logicalExpressions.get(0)
+            : FunctionCallFactory.createBooleanOperator("and", logicalExpressions);
     return new CopyingFilteringReader(delegate, context, filterExpr);
   }
 
@@ -386,19 +412,25 @@ public class UnifiedParquetReader implements RecordReader {
     int totalRecords = -1; // including invalid records
 
     // read till a non-empty batch is found
-    while (totalRecords == -1 || (totalRecords > 0 && totalRecords == BitVectorHelper.getNullCount(validityBuf, totalRecords))) {
+    while (totalRecords == -1
+        || (totalRecords > 0
+            && totalRecords == BitVectorHelper.getNullCount(validityBuf, totalRecords))) {
       validityBuf.setOne(0, maxValidityBufSize);
       totalRecords = readEnsuringReadersReturnSameNumberOfRecords();
     }
 
-    // if there is an equality delete filter, call it to filter out records that match its delete conditions
+    // if there is an equality delete filter, call it to filter out records that match its delete
+    // conditions
     if (totalRecords > 0 && filters.hasEqualityDeleteFilter()) {
       filters.getEqualityDeleteFilter().filter(totalRecords);
     }
 
     // remove invalid rows if present
     if (totalRecords > 0 && BitVectorHelper.getNullCount(validityBuf, totalRecords) != 0) {
-      totalRecords = useCopiersToRemoveInvalidRows ? removeInvalidRowsWithCopiers(totalRecords) : removeInvalidRows(totalRecords);
+      totalRecords =
+          useCopiersToRemoveInvalidRows
+              ? removeInvalidRowsWithCopiers(totalRecords)
+              : removeInvalidRows(totalRecords);
     }
 
     return totalRecords;
@@ -417,8 +449,11 @@ public class UnifiedParquetReader implements RecordReader {
         count = n;
       } else {
         if (count != n) {
-          throw new IllegalStateException(String.format("Inconsistent row count. Reader %s returned %d while " +
-            "previous reader returned %d", recordReader.toString(), n, count));
+          throw new IllegalStateException(
+              String.format(
+                  "Inconsistent row count. Reader %s returned %d while "
+                      + "previous reader returned %d",
+                  recordReader.toString(), n, count));
         }
       }
     }
@@ -434,7 +469,8 @@ public class UnifiedParquetReader implements RecordReader {
     int copyTo = 0;
     for (int i = 0; i < records; i++) {
       if (BitVectorHelper.get(validityBuf, i) == 1) {
-        Preconditions.checkArgument(copyTo <= i, "Copying from lower index to higher index will lead to data corruption");
+        Preconditions.checkArgument(
+            copyTo <= i, "Copying from lower index to higher index will lead to data corruption");
         if (i != copyTo) {
           for (ValueVector vv : outputMutator.getVectors()) {
             vv.copyFrom(i, copyTo, vv); // copies validity and value
@@ -462,7 +498,8 @@ public class UnifiedParquetReader implements RecordReader {
     int firstInvalidIndex = -1;
     int sv2Count = 0;
 
-    // Find the first invalid index, and store valid indices after firstInvalidIndex till the end of the byte containing the firstInvalidIndex
+    // Find the first invalid index, and store valid indices after firstInvalidIndex till the end of
+    // the byte containing the firstInvalidIndex
     int i = 0;
     while (i < records) {
       byte validityByte = validityBuf.getByte(i >>> 3);
@@ -563,15 +600,20 @@ public class UnifiedParquetReader implements RecordReader {
     }
   }
 
-  private void splitColumns(final MutableParquetMetadata footer,
-                            List<SchemaPath> vectorizableReaderColumns,
-                            List<SchemaPath> nonVectorizableReaderColumns) {
-    boolean isArrowSchemaPresent = DremioArrowSchema.isArrowSchemaPresent(footer.getFileMetaData().getKeyValueMetaData());
+  private void splitColumns(
+      final MutableParquetMetadata footer,
+      List<SchemaPath> vectorizableReaderColumns,
+      List<SchemaPath> nonVectorizableReaderColumns) {
+    boolean isArrowSchemaPresent =
+        DremioArrowSchema.isArrowSchemaPresent(footer.getFileMetaData().getKeyValueMetaData());
     final BlockMetaData block = footer.getBlocks().get(readEntry.getRowGroupIndex());
-    Preconditions.checkArgument(block != null,
-      "Parquet file '%s' footer does not have information about row group %s",
-      this.readEntry.getPath(), readEntry.getRowGroupIndex());
-    final Map<String, ColumnChunkMetaData> fieldsWithEncodingsSupportedByVectorizedReader = new HashMap<>();
+    Preconditions.checkArgument(
+        block != null,
+        "Parquet file '%s' footer does not have information about row group %s",
+        this.readEntry.getPath(),
+        readEntry.getRowGroupIndex());
+    final Map<String, ColumnChunkMetaData> fieldsWithEncodingsSupportedByVectorizedReader =
+        new HashMap<>();
     final List<Type> nonVectorizableTypes = new ArrayList<>();
     final List<Type> vectorizableTypes = new ArrayList<>();
     Set<String> fieldsWithPartialOrNoEncodingsSupportedByVectorizedReader = new HashSet<>();
@@ -597,7 +639,8 @@ public class UnifiedParquetReader implements RecordReader {
         for (SchemaPath projectedPath : this.columnResolver.getBatchSchemaProjectedColumns()) {
           String name = projectedPath.getRootSegment().getNameSegment().getPath();
           String parquetColumnName = this.columnResolver.getParquetColumnName(name);
-          if (parquetColumnName != null && parquetField.getName().equalsIgnoreCase(parquetColumnName)) {
+          if (parquetColumnName != null
+              && parquetField.getName().equalsIgnoreCase(parquetColumnName)) {
             ignoreThisField = false;
             break;
           }
@@ -606,15 +649,17 @@ public class UnifiedParquetReader implements RecordReader {
           continue;
         }
       }
-      if (fieldsWithEncodingsSupportedByVectorizedReader.containsKey(parquetField.getName()) &&
-        isParquetFieldVectorizable(fieldsWithEncodingsSupportedByVectorizedReader, parquetField, isArrowSchemaPresent)) {
+      if (fieldsWithEncodingsSupportedByVectorizedReader.containsKey(parquetField.getName())
+          && isParquetFieldVectorizable(
+              fieldsWithEncodingsSupportedByVectorizedReader, parquetField, isArrowSchemaPresent)) {
         vectorizableTypes.add(parquetField);
       } else {
         nonVectorizableTypes.add(parquetField);
       }
     }
 
-    AdditionalColumnResolver additionalColumnResolver = new AdditionalColumnResolver(tableSchema, columnResolver);
+    AdditionalColumnResolver additionalColumnResolver =
+        new AdditionalColumnResolver(tableSchema, columnResolver);
     paths:
     for (SchemaPath path : additionalColumnResolver.resolveColumns(block.getColumns())) {
       String name = path.getRootSegment().getNameSegment().getPath();
@@ -635,10 +680,13 @@ public class UnifiedParquetReader implements RecordReader {
     }
   }
 
-  private boolean isParquetFieldVectorizable(Map<String, ColumnChunkMetaData> fields, Type parquetField, boolean isArrowSchemaPresent) {
-    return ((parquetField.isPrimitive() && isNotInt96(parquetField) &&
-      checkIfDecimalIsVectorizable(parquetField, fields.get(parquetField.getName()))) ||
-      (context.getOptions().getOption(ExecConstants.ENABLE_PARQUET_VECTORIZED_COMPLEX_READERS) && isComplexFieldVectorizable(parquetField, isArrowSchemaPresent)));
+  private boolean isParquetFieldVectorizable(
+      Map<String, ColumnChunkMetaData> fields, Type parquetField, boolean isArrowSchemaPresent) {
+    return ((parquetField.isPrimitive()
+            && isNotInt96(parquetField)
+            && checkIfDecimalIsVectorizable(parquetField, fields.get(parquetField.getName())))
+        || (context.getOptions().getOption(ExecConstants.ENABLE_PARQUET_VECTORIZED_COMPLEX_READERS)
+            && isComplexFieldVectorizable(parquetField, isArrowSchemaPresent)));
   }
 
   private boolean unionHasComplexChild(UnionVector unionVector) {
@@ -659,8 +707,11 @@ public class UnifiedParquetReader implements RecordReader {
     }
   }
 
-  private boolean isTypeVectorizable(ValueVector vector, boolean isArrowSchemaPresent,
-                                     Type parquetField, boolean isParentTypeMap) {
+  private boolean isTypeVectorizable(
+      ValueVector vector,
+      boolean isArrowSchemaPresent,
+      Type parquetField,
+      boolean isParentTypeMap) {
     if (vector == null || !vector.getField().getType().isComplex()) {
       // vector doesn't exist or it is of a primitive type
       return true;
@@ -674,13 +725,18 @@ public class UnifiedParquetReader implements RecordReader {
           // there is no parquet field corresponding to table field. ignore the field.
           continue;
         }
-        if (!isTypeVectorizable(fieldVector, isArrowSchemaPresent, parquetChildField, isParentTypeMap)) {
+        if (!isTypeVectorizable(
+            fieldVector, isArrowSchemaPresent, parquetChildField, isParentTypeMap)) {
           return false;
         }
       }
       return true;
     } else if (vector instanceof MapVector) {
-      return isTypeVectorizable(((MapVector) vector).getDataVector(), isArrowSchemaPresent, parquetField.asGroupType().getType(0), false);
+      return isTypeVectorizable(
+          ((MapVector) vector).getDataVector(),
+          isArrowSchemaPresent,
+          parquetField.asGroupType().getType(0),
+          false);
     } else if (vector instanceof ListVector) {
       if (parquetField.getOriginalType() != OriginalType.LIST && !isParentTypeMap) {
         // if we get a listvector for non list parquet element, use rowise reader
@@ -696,7 +752,8 @@ public class UnifiedParquetReader implements RecordReader {
         parquetChildField = parquetField.asGroupType().getType(0).asGroupType().getType(0);
       }
       // if vector is list, then its child element must be vectorizable
-      return isTypeVectorizable(((ListVector) vector).getDataVector(), isArrowSchemaPresent, parquetChildField, false);
+      return isTypeVectorizable(
+          ((ListVector) vector).getDataVector(), isArrowSchemaPresent, parquetChildField, false);
     } else if (vector instanceof UnionVector) {
       return !isArrowSchemaPresent && !unionHasComplexChild((UnionVector) vector);
     } else {
@@ -706,12 +763,14 @@ public class UnifiedParquetReader implements RecordReader {
 
   private boolean isComplexFieldVectorizable(Type parquetField, boolean isArrowSchemaPresent) {
     String columnName = this.columnResolver.getBatchSchemaColumnName(parquetField.getName());
-    return isTypeVectorizable(outputMutator.getVector(columnName), isArrowSchemaPresent, parquetField, false);
+    return isTypeVectorizable(
+        outputMutator.getVector(columnName), isArrowSchemaPresent, parquetField, false);
   }
 
   private boolean isNotInt96(Type parquetField) {
-    return parquetField.asPrimitiveType().getPrimitiveTypeName() != PrimitiveType.PrimitiveTypeName.INT96 ||
-      schemaHelper.readInt96AsTimeStamp();
+    return parquetField.asPrimitiveType().getPrimitiveTypeName()
+            != PrimitiveType.PrimitiveTypeName.INT96
+        || schemaHelper.readInt96AsTimeStamp();
   }
 
   private boolean checkIfDecimalIsVectorizable(Type parquetField, ColumnChunkMetaData metadata) {
@@ -728,10 +787,9 @@ public class UnifiedParquetReader implements RecordReader {
       return null;
     }
 
-    return this.columnResolver.getProjectedParquetColumns()
-      .stream()
-      .map((s) -> s.getRootSegment().getNameSegment().getPath().toLowerCase())
-      .collect(Collectors.toSet());
+    return this.columnResolver.getProjectedParquetColumns().stream()
+        .map((s) -> s.getRootSegment().getNameSegment().getPath().toLowerCase())
+        .collect(Collectors.toSet());
   }
 
   private boolean determineFilterConditions(List<SchemaPath> nonVectorizableColumns) {
@@ -746,7 +804,8 @@ public class UnifiedParquetReader implements RecordReader {
       return false;
     }
 
-    final Predicate<SchemaPath> isFiltered = schema -> filters.getPushdownFilters().stream().anyMatch(f -> f.getPath().equals(schema));
+    final Predicate<SchemaPath> isFiltered =
+        schema -> filters.getPushdownFilters().stream().anyMatch(f -> f.getPath().equals(schema));
     return nonVectorizableColumns.stream().noneMatch(isFiltered);
   }
 
@@ -755,36 +814,10 @@ public class UnifiedParquetReader implements RecordReader {
   }
 
   /**
-   * Simple enum to handle different code paths
-   * with RowWise, DeprecatedVectorized and HybridVectorized filters
+   * Simple enum to handle different code paths with RowWise, DeprecatedVectorized and
+   * HybridVectorized filters
    */
   private enum ExecutionPath {
-    DEPRECATED_VECTORIZED {
-      @Override
-      public List<RecordReader> getReaders(UnifiedParquetReader unifiedReader) throws ExecutionSetupException {
-        Preconditions.checkArgument(
-          !unifiedReader.tableSchema.findFieldIgnoreCase(ColumnUtils.FILE_PATH_COLUMN_NAME).isPresent(),
-          "Deprecated vectorized reader does not support reading the file name column");
-        Preconditions.checkArgument(
-          !unifiedReader.tableSchema.findFieldIgnoreCase(ColumnUtils.ROW_INDEX_COLUMN_NAME).isPresent(),
-          "Deprecated vectorized reader does not support reading the row index column");
-
-        List<RecordReader> returnList = new ArrayList<>();
-        returnList.add(unifiedReader.addFilterIfNecessary(
-          new DeprecatedParquetVectorizedReader(
-            unifiedReader.context,
-            unifiedReader.readEntry.getPath(), unifiedReader.readEntry.getRowGroupIndex(), unifiedReader.fs,
-            unifiedReader.codecFactory,
-            unifiedReader.getFooter(),
-            unifiedReader.projectedColumns,
-            unifiedReader.schemaHelper,
-            unifiedReader.globalDictionaryFieldInfoMap,
-            unifiedReader.dictionaries
-          )
-        ));
-        return returnList;
-      }
-    },
     ROWWISE {
       @Override
       public List<RecordReader> getReaders(UnifiedParquetReader unifiedReader) {
@@ -794,28 +827,29 @@ public class UnifiedParquetReader implements RecordReader {
         SimpleIntVector deltas = null;
         if (unifiedReader.filters.hasPositionalDeleteFilter()) {
           deltas = new SimpleIntVector("deltas", unifiedReader.context.getAllocator());
-          returnList.add(new RowwisePositionalDeleteFilteringReader(
-            unifiedReader.context,
-            deltas,
-            unifiedReader.footer.getAccumulatedRowCount(rowGroupIndex),
-            unifiedReader.footer.getEndRowPos(rowGroupIndex),
-            unifiedReader.filters.getPositionalDeleteFilter()));
+          returnList.add(
+              new RowwisePositionalDeleteFilteringReader(
+                  unifiedReader.context,
+                  deltas,
+                  unifiedReader.footer.getAccumulatedRowCount(rowGroupIndex),
+                  unifiedReader.footer.getEndRowPos(rowGroupIndex),
+                  unifiedReader.filters.getPositionalDeleteFilter()));
         }
 
-        RecordReader reader = new ParquetRowiseReader(
-          unifiedReader.context,
-          unifiedReader.getFooter(),
-          rowGroupIndex,
-          unifiedReader.readEntry.getPath(),
-          unifiedReader.projectedColumns,
-          unifiedReader.fs,
-          unifiedReader.schemaHelper,
-          deltas,
-          unifiedReader.inputStreamProvider,
-          unifiedReader.codecFactory,
-          false,
-          unifiedReader.tableSchema
-        );
+        RecordReader reader =
+            new ParquetRowiseReader(
+                unifiedReader.context,
+                unifiedReader.getFooter(),
+                rowGroupIndex,
+                unifiedReader.readEntry.getPath(),
+                unifiedReader.projectedColumns,
+                unifiedReader.fs,
+                unifiedReader.schemaHelper,
+                deltas,
+                unifiedReader.inputStreamProvider,
+                unifiedReader.codecFactory,
+                false,
+                unifiedReader.tableSchema);
 
         returnList.add(unifiedReader.addFilterIfNecessary(getWrappedReader(reader, unifiedReader)));
         return returnList;
@@ -824,62 +858,69 @@ public class UnifiedParquetReader implements RecordReader {
     VECTORIZED {
       @Override
       public List<RecordReader> getReaders(UnifiedParquetReader unifiedReader) {
-        boolean isVectorizableFilterOn = unifiedReader.isConditionSet(unifiedReader.nonVectorizableReaderColumns);
+        boolean isVectorizableFilterOn =
+            unifiedReader.isConditionSet(unifiedReader.nonVectorizableReaderColumns);
         final SimpleIntVector deltas;
-        if (isVectorizableFilterOn || unifiedReader.isVectorizableNonPartitionColFilterPresent() ||
-          unifiedReader.filters.hasPositionalDeleteFilter()) {
+        if (isVectorizableFilterOn
+            || unifiedReader.isVectorizableNonPartitionColFilterPresent()
+            || unifiedReader.filters.hasPositionalDeleteFilter()) {
           deltas = new SimpleIntVector("deltas", unifiedReader.context.getAllocator());
         } else {
           deltas = null;
         }
 
         List<RecordReader> returnList = new ArrayList<>();
-        if (!unifiedReader.vectorizableReaderColumns.isEmpty() ||
-          unifiedReader.nonVectorizableReaderColumns.isEmpty() ||
-          unifiedReader.filters.hasPositionalDeleteFilter()) {
-          RecordReader reader = unifiedReader.readerFactory.newReader(
-            unifiedReader.context,
-            unifiedReader.projectedColumns.cloneForSchemaPaths(
-              unifiedReader.columnResolver.getBatchSchemaColumns(unifiedReader.vectorizableReaderColumns), unifiedReader.isConvertedIcebergDataset),
-            unifiedReader.readEntry.getPath(),
-            unifiedReader.codecFactory,
-            unifiedReader.filters,
-            unifiedReader.filterCreator,
-            unifiedReader.dictionaryConvertor,
-            unifiedReader.enableDetailedTracing,
-            unifiedReader.getFooter(),
-            unifiedReader.readEntry.getRowGroupIndex(),
-            deltas,
-            unifiedReader.schemaHelper,
-            unifiedReader.inputStreamProvider,
-            unifiedReader.runtimeFilters,
-            unifiedReader.validityBuf,
-            unifiedReader.tableSchema,
-            unifiedReader.ignoreSchemaLearning);
+        if (!unifiedReader.vectorizableReaderColumns.isEmpty()
+            || unifiedReader.nonVectorizableReaderColumns.isEmpty()
+            || unifiedReader.filters.hasPositionalDeleteFilter()) {
+          RecordReader reader =
+              unifiedReader.readerFactory.newReader(
+                  unifiedReader.context,
+                  unifiedReader.projectedColumns.cloneForSchemaPaths(
+                      unifiedReader.columnResolver.getBatchSchemaColumns(
+                          unifiedReader.vectorizableReaderColumns),
+                      unifiedReader.isConvertedIcebergDataset),
+                  unifiedReader.readEntry.getPath(),
+                  unifiedReader.codecFactory,
+                  unifiedReader.filters,
+                  unifiedReader.filterCreator,
+                  unifiedReader.dictionaryConvertor,
+                  unifiedReader.enableDetailedTracing,
+                  unifiedReader.getFooter(),
+                  unifiedReader.readEntry.getRowGroupIndex(),
+                  deltas,
+                  unifiedReader.schemaHelper,
+                  unifiedReader.inputStreamProvider,
+                  unifiedReader.runtimeFilters,
+                  unifiedReader.validityBuf,
+                  unifiedReader.tableSchema,
+                  unifiedReader.ignoreSchemaLearning);
 
           returnList.add(getWrappedReader(reader, unifiedReader));
         }
         if (!unifiedReader.nonVectorizableReaderColumns.isEmpty()) {
-          RecordReader reader = new ParquetRowiseReader(
-            unifiedReader.context,
-            unifiedReader.getFooter(),
-            unifiedReader.readEntry.getRowGroupIndex(),
-            unifiedReader.readEntry.getPath(),
-            unifiedReader.projectedColumns.cloneForSchemaPaths(
-              unifiedReader.columnResolver.getBatchSchemaColumns(unifiedReader.nonVectorizableReaderColumns),
-              unifiedReader.isConvertedIcebergDataset
-            ),
-            unifiedReader.fs,
-            unifiedReader.schemaHelper,
-            deltas,
-            unifiedReader.inputStreamProvider,
-            unifiedReader.codecFactory,
-            unifiedReader.vectorizableReaderColumns.isEmpty() ? unifiedReader.tableSchema : null
-          );
+          RecordReader reader =
+              new ParquetRowiseReader(
+                  unifiedReader.context,
+                  unifiedReader.getFooter(),
+                  unifiedReader.readEntry.getRowGroupIndex(),
+                  unifiedReader.readEntry.getPath(),
+                  unifiedReader.projectedColumns.cloneForSchemaPaths(
+                      unifiedReader.columnResolver.getBatchSchemaColumns(
+                          unifiedReader.nonVectorizableReaderColumns),
+                      unifiedReader.isConvertedIcebergDataset),
+                  unifiedReader.fs,
+                  unifiedReader.schemaHelper,
+                  deltas,
+                  unifiedReader.inputStreamProvider,
+                  unifiedReader.codecFactory,
+                  unifiedReader.vectorizableReaderColumns.isEmpty()
+                      ? unifiedReader.tableSchema
+                      : null);
           returnList.add(
-            unifiedReader.vectorizableReaderColumns.isEmpty()
-              ? getWrappedReader(reader, unifiedReader)
-              : reader);
+              unifiedReader.vectorizableReaderColumns.isEmpty()
+                  ? getWrappedReader(reader, unifiedReader)
+                  : reader);
         }
         return returnList;
       }
@@ -887,95 +928,110 @@ public class UnifiedParquetReader implements RecordReader {
     SKIP_ALL {
       @Override
       public List<RecordReader> getReaders(final UnifiedParquetReader unifiedReader) {
-        final RecordReader reader = new AbstractRecordReader(unifiedReader.context, Collections.emptyList()) {
-          @Override
-          public void setup(OutputMutator output) {
-          }
+        final RecordReader reader =
+            new AbstractRecordReader(unifiedReader.context, Collections.emptyList()) {
+              @Override
+              public void setup(OutputMutator output) {}
 
-          @Override
-          public int next() {
-            return 0;
-          }
+              @Override
+              public int next() {
+                return 0;
+              }
 
-          @Override
-          public void close() {
-          }
-        };
+              @Override
+              public void close() {}
+            };
         return Collections.singletonList(reader);
       }
     },
     INCLUDE_ALL {
       @Override
-      public List<RecordReader> getReaders(final UnifiedParquetReader unifiedReader) throws ExecutionSetupException {
+      public List<RecordReader> getReaders(final UnifiedParquetReader unifiedReader)
+          throws ExecutionSetupException {
         final MutableParquetMetadata footer = unifiedReader.getFooter();
         final List<BlockMetaData> blocks = footer.getBlocks();
         final int rowGroupIdx = unifiedReader.readEntry.getRowGroupIndex();
         if (blocks.size() <= rowGroupIdx) {
           throw new IllegalArgumentException(
-            String.format("Invalid rowgroup index in read entry. Given '%d', Max '%d'", rowGroupIdx, blocks.size())
-          );
+              String.format(
+                  "Invalid rowgroup index in read entry. Given '%d', Max '%d'",
+                  rowGroupIdx, blocks.size()));
         }
 
         BlockMetaData block = blocks.get(rowGroupIdx);
-        Preconditions.checkArgument(block != null,
-          "Parquet file '%s' footer does not have information about row group %s",
-          unifiedReader.readEntry.getPath(), unifiedReader.readEntry.getRowGroupIndex());
+        Preconditions.checkArgument(
+            block != null,
+            "Parquet file '%s' footer does not have information about row group %s",
+            unifiedReader.readEntry.getPath(),
+            unifiedReader.readEntry.getRowGroupIndex());
         final long rowCount = block.getRowCount();
         final long accumulatedRowCount = footer.getAccumulatedRowCount(rowGroupIdx);
         logger.debug("Row group {}, accumulated row count {}", rowGroupIdx, accumulatedRowCount);
         final BatchSchema tableSchema = unifiedReader.tableSchema;
-        final RecordReader reader = new AbstractRecordReader(unifiedReader.context, Collections.<SchemaPath>emptyList()) {
-          private long remainingRowCount = rowCount;
-          private BigIntAutoIncrementer rowIndexGenerator = tableSchema.findFieldIgnoreCase(ColumnUtils.ROW_INDEX_COLUMN_NAME).isPresent()
-            ? new BigIntAutoIncrementer(ColumnUtils.ROW_INDEX_COLUMN_NAME, context.getTargetBatchSize(), null)
-            : null;
+        final RecordReader reader =
+            new AbstractRecordReader(unifiedReader.context, Collections.<SchemaPath>emptyList()) {
+              private long remainingRowCount = rowCount;
+              private BigIntAutoIncrementer rowIndexGenerator =
+                  tableSchema.findFieldIgnoreCase(ColumnUtils.ROW_INDEX_COLUMN_NAME).isPresent()
+                      ? new BigIntAutoIncrementer(
+                          ColumnUtils.ROW_INDEX_COLUMN_NAME, context.getTargetBatchSize(), null)
+                      : null;
 
-          @Override
-          public void setup(OutputMutator output) throws ExecutionSetupException {
-            if (rowIndexGenerator != null) {
-              rowIndexGenerator.setRowIndexBase(accumulatedRowCount);
-              rowIndexGenerator.setup(output);
-            }
-          }
+              @Override
+              public void setup(OutputMutator output) throws ExecutionSetupException {
+                if (rowIndexGenerator != null) {
+                  rowIndexGenerator.setRowIndexBase(accumulatedRowCount);
+                  rowIndexGenerator.setup(output);
+                }
+              }
 
-          @Override
-          public int next() {
-            if (numRowsPerBatch > remainingRowCount) {
-              int toReturn = (int) remainingRowCount;
-              remainingRowCount = 0;
-              populateRowIndex(toReturn);
-              return toReturn;
-            }
+              @Override
+              public int next() {
+                if (numRowsPerBatch > remainingRowCount) {
+                  int toReturn = (int) remainingRowCount;
+                  remainingRowCount = 0;
+                  populateRowIndex(toReturn);
+                  return toReturn;
+                }
 
-            remainingRowCount -= numRowsPerBatch;
-            populateRowIndex(numRowsPerBatch);
-            return numRowsPerBatch;
-          }
+                remainingRowCount -= numRowsPerBatch;
+                populateRowIndex(numRowsPerBatch);
+                return numRowsPerBatch;
+              }
 
-          private void populateRowIndex(int count) {
-            if (rowIndexGenerator != null) {
-              rowIndexGenerator.populate(count);
-            }
-          }
+              private void populateRowIndex(int count) {
+                if (rowIndexGenerator != null) {
+                  rowIndexGenerator.populate(count);
+                }
+              }
 
-          @Override
-          public void close() throws Exception {
-
-          }
-        };
+              @Override
+              public void close() throws Exception {}
+            };
         return Collections.singletonList(getWrappedReader(reader, unifiedReader));
       }
     };
 
-    private static RecordReader getWrappedReader(RecordReader reader, UnifiedParquetReader unifiedReader) {
-      Preconditions.checkNotNull(unifiedReader.readEntry.getOriginalPath(), "the original split file path cannot be null. ");
+    private static RecordReader getWrappedReader(
+        RecordReader reader, UnifiedParquetReader unifiedReader) {
+      Preconditions.checkNotNull(
+          unifiedReader.readEntry.getOriginalPath(),
+          "the original split file path cannot be null. ");
 
       // Add "fileName" system column, if the "tableSchema" explicitly requires this column.
-      return unifiedReader.tableSchema.findFieldIgnoreCase(ColumnUtils.FILE_PATH_COLUMN_NAME).isPresent()
-        ? new AdditionalColumnsRecordReader(unifiedReader.context, reader,
-        Arrays.asList(new ConstantColumnPopulators.VarCharNameValuePair(ColumnUtils.FILE_PATH_COLUMN_NAME,
-          unifiedReader.readEntry.getOriginalPath())), unifiedReader.context.getAllocator())
-        : reader;
+      return unifiedReader
+              .tableSchema
+              .findFieldIgnoreCase(ColumnUtils.FILE_PATH_COLUMN_NAME)
+              .isPresent()
+          ? new AdditionalColumnsRecordReader(
+              unifiedReader.context,
+              reader,
+              Arrays.asList(
+                  new ConstantColumnPopulators.VarCharNameValuePair(
+                      ColumnUtils.FILE_PATH_COLUMN_NAME,
+                      unifiedReader.readEntry.getOriginalPath())),
+              unifiedReader.context.getAllocator())
+          : reader;
     }
 
     /**
@@ -985,27 +1041,26 @@ public class UnifiedParquetReader implements RecordReader {
      * @return list of RecordReaders
      * @throws ExecutionSetupException
      */
-    public abstract List<RecordReader> getReaders(UnifiedParquetReader unifiedReader) throws ExecutionSetupException;
+    public abstract List<RecordReader> getReaders(UnifiedParquetReader unifiedReader)
+        throws ExecutionSetupException;
   }
 
   private boolean isVectorizableNonPartitionColFilterPresent() {
     return this.runtimeFilters.stream()
-      .flatMap(f -> f.getNonPartitionColumnFilters().stream())
-      .flatMap(f -> f.getColumnsList().stream())
-      .map(SchemaPath::getSimplePath)
-      .anyMatch(vectorizableReaderColumns::contains);
+        .flatMap(f -> f.getNonPartitionColumnFilters().stream())
+        .flatMap(f -> f.getColumnsList().stream())
+        .map(SchemaPath::getSimplePath)
+        .anyMatch(vectorizableReaderColumns::contains);
   }
 
   private ExecutionPath getExecutionPath() {
-    if ((globalDictionaryFieldInfoMap != null && !globalDictionaryFieldInfoMap.isEmpty())) {
-      return ExecutionPath.DEPRECATED_VECTORIZED;
-    }
     if (!vectorize || !determineFilterConditions(nonVectorizableReaderColumns)) {
       return ExecutionPath.ROWWISE;
     }
 
-    if (vectorizableReaderColumns.isEmpty() && nonVectorizableReaderColumns.isEmpty() &&
-      !filters.hasPositionalDeleteFilter()) {
+    if (vectorizableReaderColumns.isEmpty()
+        && nonVectorizableReaderColumns.isEmpty()
+        && !filters.hasPositionalDeleteFilter()) {
       return filterCanContainNull() ? ExecutionPath.INCLUDE_ALL : ExecutionPath.SKIP_ALL;
     }
 
@@ -1014,30 +1069,32 @@ public class UnifiedParquetReader implements RecordReader {
 
   private boolean filterCanContainNull() {
     return !filters.hasPushdownFilters()
-      && runtimeFilters
-      .stream()
-      .flatMap(r -> r.getNonPartitionColumnFilters().stream())
-      .map(CompositeColumnFilter::getValueList)
-      .filter(Objects::nonNull)
-      .allMatch(ValueListFilter::isContainsNull);
+        && runtimeFilters.stream()
+            .flatMap(r -> r.getNonPartitionColumnFilters().stream())
+            .map(CompositeColumnFilter::getValueList)
+            .filter(Objects::nonNull)
+            .allMatch(ValueListFilter::isContainsNull);
   }
 
   public static ParquetReaderFactory getReaderFactory(SabotConfig config) {
-    return config.getInstance("dremio.plugins.parquet.factory", ParquetReaderFactory.class, ParquetReaderFactory.NONE);
+    return config.getInstance(
+        "dremio.plugins.parquet.factory", ParquetReaderFactory.class, ParquetReaderFactory.NONE);
   }
 
   @Override
   public void addRuntimeFilter(RuntimeFilter runtimeFilter) {
     if (runtimeFilter != null && !runtimeFilters.contains(runtimeFilter)) {
-      RuntimeFilter filterWithNewNonPartColFilterList = RuntimeFilter.getInstanceWithNewNonPartitionColFiltersList(runtimeFilter);
+      RuntimeFilter filterWithNewNonPartColFilterList =
+          RuntimeFilter.getInstanceWithNewNonPartitionColFiltersList(runtimeFilter);
       this.runtimeFilters.add(filterWithNewNonPartColFilterList);
       this.delegates.forEach(d -> d.addRuntimeFilter(filterWithNewNonPartColFilterList));
     }
   }
 
   /**
-   * A simple RecordReader which applies positional deletes from a PositionalDeleteFilter to a delta vector.  This
-   * is intended to be used as a reader executed prior to ParquetRowwiseReader in the ROWWISE execution path.
+   * A simple RecordReader which applies positional deletes from a PositionalDeleteFilter to a delta
+   * vector. This is intended to be used as a reader executed prior to ParquetRowwiseReader in the
+   * ROWWISE execution path.
    */
   private static class RowwisePositionalDeleteFilteringReader extends AbstractParquetReader {
 
@@ -1045,8 +1102,12 @@ public class UnifiedParquetReader implements RecordReader {
     private final long endRowPos;
     private final PositionalDeleteFilter positionalDeleteFilter;
 
-    public RowwisePositionalDeleteFilteringReader(OperatorContext context, SimpleIntVector deltas, long startRowPos,
-                                                  long endRowPos, PositionalDeleteFilter positionalDeleteFilter) {
+    public RowwisePositionalDeleteFilteringReader(
+        OperatorContext context,
+        SimpleIntVector deltas,
+        long startRowPos,
+        long endRowPos,
+        PositionalDeleteFilter positionalDeleteFilter) {
       super(context, Collections.emptyList(), deltas);
       this.startRowPos = startRowPos;
       this.endRowPos = endRowPos;

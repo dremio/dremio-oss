@@ -15,13 +15,6 @@
  */
 package com.dremio.sabot.op.filter;
 
-import java.util.EnumSet;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-
-import org.apache.arrow.memory.OutOfMemoryException;
-import org.apache.arrow.vector.util.TransferPair;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.FieldReference;
@@ -43,7 +36,11 @@ import com.dremio.sabot.op.llvm.GandivaSecondaryCacheWithStats;
 import com.dremio.sabot.op.spi.SingleInputOperator;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Lists;
-
+import java.util.EnumSet;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+import org.apache.arrow.memory.OutOfMemoryException;
+import org.apache.arrow.vector.util.TransferPair;
 
 public class FilterOperator implements SingleInputOperator {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FilterOperator.class);
@@ -66,7 +63,11 @@ public class FilterOperator implements SingleInputOperator {
     this.config = pop;
     this.context = context;
     this.filterOptions = new ExpressionEvaluationOptions(context.getOptions());
-    this.filterOptions.setCodeGenOption(context.getOptions().getOption(ExecConstants.QUERY_EXEC_OPTION.getOptionName()).getStringVal());
+    this.filterOptions.setCodeGenOption(
+        context
+            .getOptions()
+            .getOption(ExecConstants.QUERY_EXEC_OPTION.getOptionName())
+            .getStringVal());
     this.output = context.createOutputVectorContainerWithSV();
   }
 
@@ -84,7 +85,8 @@ public class FilterOperator implements SingleInputOperator {
       case FOUR_BYTE:
         throw new UnsupportedOperationException("Filter operator does not support SV4");
       default:
-        throw new UnsupportedOperationException("Unsupported selection vector mode: " + input.getSchema().getSelectionVectorMode());
+        throw new UnsupportedOperationException(
+            "Unsupported selection vector mode: " + input.getSchema().getSelectionVectorMode());
     }
     output.buildSchema(SelectionVectorMode.TWO_BYTE);
     state = State.CAN_CONSUME;
@@ -126,7 +128,8 @@ public class FilterOperator implements SingleInputOperator {
   }
 
   @Override
-  public <OUT, IN, EXCEP extends Throwable> OUT accept(OperatorVisitor<OUT, IN, EXCEP> visitor, IN value) throws EXCEP {
+  public <OUT, IN, EXCEP extends Throwable> OUT accept(
+      OperatorVisitor<OUT, IN, EXCEP> visitor, IN value) throws EXCEP {
     return visitor.visitSingleInput(this, value);
   }
 
@@ -134,8 +137,13 @@ public class FilterOperator implements SingleInputOperator {
   public void close() throws Exception {
     AutoCloseables.close(output, splitter);
     addDisplayStatsWithZeroValue(context, EnumSet.allOf(Metric.class));
-    context.getStats().addLongStat(Metric.JAVA_EXECUTE_TIME, javaCodeGenWatch.elapsed(TimeUnit.MILLISECONDS));
-    context.getStats().addLongStat(Metric.GANDIVA_EXECUTE_TIME, gandivaCodeGenWatch.elapsed(TimeUnit.MILLISECONDS));
+    context
+        .getStats()
+        .addLongStat(Metric.JAVA_EXECUTE_TIME, javaCodeGenWatch.elapsed(TimeUnit.MILLISECONDS));
+    context
+        .getStats()
+        .addLongStat(
+            Metric.GANDIVA_EXECUTE_TIME, gandivaCodeGenWatch.elapsed(TimeUnit.MILLISECONDS));
     javaCodeGenWatch.reset();
     gandivaCodeGenWatch.reset();
   }
@@ -149,16 +157,15 @@ public class FilterOperator implements SingleInputOperator {
     stats.addLongStat(Metric.GANDIVA_EXPRESSIONS, splitter.getNumExprsInGandiva());
     stats.addLongStat(Metric.MIXED_SPLITS, splitter.getNumSplitsInBoth());
     stats.addLongStat(Metric.JAVA_BUILD_TIME, javaCodeGenWatch.elapsed(TimeUnit.MILLISECONDS));
-    stats.addLongStat(Metric.GANDIVA_BUILD_TIME, gandivaCodeGenWatch.elapsed(TimeUnit.MILLISECONDS));
+    stats.addLongStat(
+        Metric.GANDIVA_BUILD_TIME, gandivaCodeGenWatch.elapsed(TimeUnit.MILLISECONDS));
     if (secondaryCache != null) {
       stats.addLongStat(Metric.PERSISTENT_CACHE_READ_TIME, secondaryCache.getReadTime());
-      stats.addLongStat(Metric.BUILT_FROM_GANDIVA_CACHE, secondaryCache.getBuiltFromCache().ordinal());
+      stats.addLongStat(
+          Metric.BUILT_FROM_GANDIVA_CACHE, secondaryCache.getBuiltFromCache().ordinal());
     }
-    stats.setProfileDetails(OperatorProfileDetails
-      .newBuilder()
-      .addAllSplitInfos(splitter.getSplitInfos())
-      .build()
-    );
+    stats.setProfileDetails(
+        OperatorProfileDetails.newBuilder().addAllSplitInfos(splitter.getSplitInfos()).build());
 
     javaCodeGenWatch.reset();
     gandivaCodeGenWatch.reset();
@@ -174,30 +181,39 @@ public class FilterOperator implements SingleInputOperator {
   }
 
   private void setupSplitter(VectorAccessible accessible) throws Exception {
-    final LogicalExpression materializedExp = context.getClassProducer().materializeAndAllowComplex(config.getExpr(), input, true);
+    final LogicalExpression materializedExp =
+        context.getClassProducer().materializeAndAllowComplex(config.getExpr(), input, true);
     if (context.getOptions().getOption(ExecConstants.ENABLE_GANDIVA_PERSISTENT_CACHE)) {
       // enable the secondary cache
       secondaryCache = GandivaSecondaryCacheWithStats.createCache();
     }
-    splitter = new ExpressionSplitter(context, accessible, filterOptions,
-      context.getClassProducer().getFunctionLookupContext().isDecimalV2Enabled());
-    splitter.setupFilter(output, new NamedExpression(materializedExp, new FieldReference("_filter_")), javaCodeGenWatch, gandivaCodeGenWatch, secondaryCache);
+    splitter =
+        new ExpressionSplitter(
+            context,
+            accessible,
+            filterOptions,
+            context.getClassProducer().getFunctionLookupContext().isDecimalV2Enabled());
+    splitter.setupFilter(
+        output,
+        new NamedExpression(materializedExp, new FieldReference("_filter_")),
+        javaCodeGenWatch,
+        gandivaCodeGenWatch,
+        secondaryCache);
   }
 
-  private void doTransfers(){
-    for(TransferPair t : tx){
+  private void doTransfers() {
+    for (TransferPair t : tx) {
       t.transfer();
     }
   }
 
-  public static class FilterBatchCreator implements SingleInputOperator.Creator<Filter>{
+  public static class FilterBatchCreator implements SingleInputOperator.Creator<Filter> {
 
     @Override
-    public SingleInputOperator create(OperatorContext context, Filter operator) throws ExecutionSetupException {
+    public SingleInputOperator create(OperatorContext context, Filter operator)
+        throws ExecutionSetupException {
       return new FilterOperator(operator, context);
     }
-
-
   }
 
   @FunctionalInterface

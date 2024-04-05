@@ -15,13 +15,12 @@
  */
 package com.dremio.common.expression;
 
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-
 import com.dremio.common.expression.fn.FunctionHolder;
 import com.dremio.common.expression.visitors.ExprVisitor;
 import com.google.common.collect.ImmutableList;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
 
 public abstract class FunctionHolderExpression extends LogicalExpressionBase {
   public final List<LogicalExpression> args;
@@ -56,6 +55,7 @@ public abstract class FunctionHolderExpression extends LogicalExpressionBase {
 
   /**
    * A function can have multiple names, it returns the function name used in the query
+   *
    * @return
    */
   public String getName() {
@@ -64,6 +64,7 @@ public abstract class FunctionHolderExpression extends LogicalExpressionBase {
 
   /**
    * constant input expected for i'th argument?
+   *
    * @param i
    * @return
    */
@@ -74,9 +75,7 @@ public abstract class FunctionHolderExpression extends LogicalExpressionBase {
    */
   public abstract boolean isAggregating();
 
-  /**
-   * is the function output non-deterministic?
-   */
+  /** is the function output non-deterministic? */
   public abstract boolean isRandom();
 
   /**
@@ -89,9 +88,14 @@ public abstract class FunctionHolderExpression extends LogicalExpressionBase {
 
   @Override
   public String toString() {
-    return "FunctionHolderExpression [args=" + args + ", name=" + getName() + ", returnType=" + getCompleteType() + ", isRandom=" + isRandom() + "]";
+    return "FunctionHolderExpression [args="
+        + args
+        + ", name="
+        + getName()
+        + ", returnType="
+        + getCompleteType()
+        + ", isRandom="
+        + isRandom()
+        + "]";
   }
-
-
-
 }

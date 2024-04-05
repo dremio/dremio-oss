@@ -17,9 +17,7 @@ package com.dremio.service.jobs;
 
 import com.dremio.service.job.proto.JobId;
 
-/**
- * Base exception class for job service issues
- */
+/** Base exception class for job service issues */
 public class JobException extends Exception {
   private static final long serialVersionUID = 213278512078139003L;
 
@@ -43,11 +41,9 @@ public class JobException extends Exception {
   public JobException(JobId jobId, Throwable cause) {
     super(cause);
     this.jobId = jobId;
-
   }
 
   public JobId getJobId() {
     return jobId;
   }
-
 }

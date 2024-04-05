@@ -1,4 +1,3 @@
-
 /*
  * Copyright (C) 2017-2019 Dremio Corporation
  *
@@ -16,14 +15,6 @@
  */
 package com.dremio.dac.support;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
-
 import com.dremio.dac.proto.model.source.UpgradeStatus;
 import com.dremio.dac.proto.model.source.UpgradeTaskId;
 import com.dremio.dac.proto.model.source.UpgradeTaskRun;
@@ -37,13 +28,19 @@ import com.dremio.datastore.format.Format;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
-/**
- * KVStore to store Upgrade Tasks
- */
+/** KVStore to store Upgrade Tasks */
 public class UpgradeStore {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(UpgradeStore.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(UpgradeStore.class);
 
   private static final String TABLE_NAME = "upgrade";
 
@@ -54,9 +51,8 @@ public class UpgradeStore {
     store = storeProvider.getStore(UpgradeTaskStoreCreator.class);
   }
 
-  public UpgradeTaskStore createUpgradeTaskStoreEntry(String upgradeTaskID,
-                                                      String upgradeTaskName,
-                                                      UpgradeTaskRun upgradeTaskRun) {
+  public UpgradeTaskStore createUpgradeTaskStoreEntry(
+      String upgradeTaskID, String upgradeTaskName, UpgradeTaskRun upgradeTaskRun) {
     UpgradeTaskId upgradeTaskId = new UpgradeTaskId();
     upgradeTaskId.setId(upgradeTaskID);
     UpgradeTaskStore upgradeTaskStore = new UpgradeTaskStore();
@@ -74,8 +70,11 @@ public class UpgradeStore {
     return store.get(upgradeTaskId);
   }
 
-  public UpgradeTaskStore addUpgradeRun(String upgradeTaskID, String upgradeTaskName, UpgradeTaskRun upgradeTaskRun) {
-    Preconditions.checkNotNull(upgradeTaskRun, "UpgradeTaskRun information should be present for task: " + upgradeTaskName);
+  public UpgradeTaskStore addUpgradeRun(
+      String upgradeTaskID, String upgradeTaskName, UpgradeTaskRun upgradeTaskRun) {
+    Preconditions.checkNotNull(
+        upgradeTaskRun,
+        "UpgradeTaskRun information should be present for task: " + upgradeTaskName);
     UpgradeTaskId upgradeTaskId = new UpgradeTaskId();
     upgradeTaskId.setId(upgradeTaskID);
     UpgradeTaskStore upgradeTaskStore = store.get(upgradeTaskId);
@@ -84,15 +83,19 @@ public class UpgradeStore {
     }
     // make sure startTime and endTime is set if upgradeStatus is a terminal state
     if (isTerminalState(upgradeTaskRun.getStatus())) {
-      Preconditions.checkState((upgradeTaskRun.getStartTime() != null),
-        String.format("Upgrade Run startTime has to be present for task '%s' in state '%s'",
-          upgradeTaskName, upgradeTaskRun.getStatus()));
-      Preconditions.checkState((upgradeTaskRun.getEndTime() != null),
-        String.format("Upgrade Run endTime has to be present for task '%s' in state '%s'",
-          upgradeTaskName, upgradeTaskRun.getStatus()));
+      Preconditions.checkState(
+          (upgradeTaskRun.getStartTime() != null),
+          String.format(
+              "Upgrade Run startTime has to be present for task '%s' in state '%s'",
+              upgradeTaskName, upgradeTaskRun.getStatus()));
+      Preconditions.checkState(
+          (upgradeTaskRun.getEndTime() != null),
+          String.format(
+              "Upgrade Run endTime has to be present for task '%s' in state '%s'",
+              upgradeTaskName, upgradeTaskRun.getStatus()));
     }
     List<UpgradeTaskRun> runs = upgradeTaskStore.getRunsList();
-    if (runs == null)  {
+    if (runs == null) {
       System.out.println("WARN: No Runs found for task: " + upgradeTaskName + " . Adding one.");
       runs = new ArrayList<>(1);
     }
@@ -102,8 +105,8 @@ public class UpgradeStore {
     return getByTaskId(upgradeTaskID);
   }
 
-  public UpgradeTaskStore updateLastUpgradeRun(String upgradeTaskID, String upgradeTaskName, UpgradeTaskRun
-    upgradeTaskRun) {
+  public UpgradeTaskStore updateLastUpgradeRun(
+      String upgradeTaskID, String upgradeTaskName, UpgradeTaskRun upgradeTaskRun) {
     UpgradeTaskId upgradeTaskId = new UpgradeTaskId();
     upgradeTaskId.setId(upgradeTaskID);
     UpgradeTaskStore upgradeTaskStore = store.get(upgradeTaskId);
@@ -121,9 +124,10 @@ public class UpgradeStore {
 
       // should not upgrade run in terminal state
       Preconditions.checkState(
-        !isTerminalState(lastRun.getStatus()),
-        String.format("Can not upgrade task: '%s' as it is in state: '%s' which is not terminal state",
-          upgradeTaskName, lastRun.getStatus()));
+          !isTerminalState(lastRun.getStatus()),
+          String.format(
+              "Can not upgrade task: '%s' as it is in state: '%s' which is not terminal state",
+              upgradeTaskName, lastRun.getStatus()));
 
       runs.set(runs.size() - 1, upgradeTaskRun);
     }
@@ -142,9 +146,9 @@ public class UpgradeStore {
     if (runs == null || runs.isEmpty()) {
       return false;
     }
-    UpgradeTaskRun lastRun = runs.get(runs.size()-1);
+    UpgradeTaskRun lastRun = runs.get(runs.size() - 1);
     if (UpgradeStatus.COMPLETED.equals(lastRun.getStatus())
-      || UpgradeStatus.OUTDATED.equals(lastRun.getStatus())) {
+        || UpgradeStatus.OUTDATED.equals(lastRun.getStatus())) {
       return true;
     }
     return false;
@@ -152,6 +156,7 @@ public class UpgradeStore {
 
   /**
    * ONLY for testing - we should not be deleting those entries
+   *
    * @param upgradeTaskID
    */
   @VisibleForTesting
@@ -163,7 +168,8 @@ public class UpgradeStore {
 
   public List<UpgradeTaskStore> getAllUpgradeTasks() {
     return StreamSupport.stream(store.find().spliterator(), false)
-      .map(Map.Entry::getValue).collect(Collectors.toList());
+        .map(Map.Entry::getValue)
+        .collect(Collectors.toList());
   }
 
   @Override
@@ -222,26 +228,24 @@ public class UpgradeStore {
     }
   }
 
-  /**
-   * UpgradeTaskStoreCreator
-   */
+  /** UpgradeTaskStoreCreator */
   public static class UpgradeTaskStoreCreator
       implements LegacyKVStoreCreationFunction<UpgradeTaskId, UpgradeTaskStore> {
 
     @Override
-    public LegacyKVStore<UpgradeTaskId, UpgradeTaskStore> build(LegacyStoreBuildingFactory factory) {
-      return factory.<UpgradeTaskId, UpgradeTaskStore>newStore()
-        .name(TABLE_NAME)
-        .keyFormat(Format.ofProtostuff(UpgradeTaskId.class))
-        .valueFormat(Format.ofProtostuff(UpgradeTaskStore.class))
-        .versionExtractor(UpgradeTaskVersion.class)
-        .build();
+    public LegacyKVStore<UpgradeTaskId, UpgradeTaskStore> build(
+        LegacyStoreBuildingFactory factory) {
+      return factory
+          .<UpgradeTaskId, UpgradeTaskStore>newStore()
+          .name(TABLE_NAME)
+          .keyFormat(Format.ofProtostuff(UpgradeTaskId.class))
+          .valueFormat(Format.ofProtostuff(UpgradeTaskStore.class))
+          .versionExtractor(UpgradeTaskVersion.class)
+          .build();
     }
   }
 
-  /**
-   * UpgradeTaskVersion
-   */
+  /** UpgradeTaskVersion */
   private static final class UpgradeTaskVersion implements VersionExtractor<UpgradeTaskStore> {
     @Override
     public String getTag(UpgradeTaskStore value) {

@@ -15,8 +15,5 @@
  */
 package com.dremio.exec.physical.base;
 
-/**
- * Marker interface describe the root of a query plan.  Currently, this is constrained to Screen.
- */
-public interface Root extends FragmentRoot{
-}
+/** Marker interface describe the root of a query plan. Currently, this is constrained to Screen. */
+public interface Root extends FragmentRoot {}

@@ -16,18 +16,19 @@
 
 package com.dremio.exec.store.parquet;
 
+import com.dremio.common.expression.CompleteType;
 import java.util.Map;
 import java.util.Optional;
 
-import com.dremio.common.expression.CompleteType;
-
 /**
- * In case there are external schema definitions associated with Parquet, they should be supplied via this class's impl.
+ * In case there are external schema definitions associated with Parquet, they should be supplied
+ * via this class's impl.
  */
 public interface ManagedSchema {
 
   /**
    * Returns the field and type definition for a given field.
+   *
    * @param fieldName
    * @return
    */
@@ -35,12 +36,14 @@ public interface ManagedSchema {
 
   /**
    * Returns all the fields in the schema
+   *
    * @return
    */
   Map<String, ManagedSchemaField> getAllFields();
 
   /**
    * Returns true if field exists, is of char types and has a fixed length
+   *
    * @param fieldName
    * @return
    */
@@ -50,8 +53,9 @@ public interface ManagedSchema {
       return true;
     }
 
-    if (!field.get().isTextField() ||
-      field.get().getLength() <= 0 || field.get().getLength() >= CompleteType.DEFAULT_VARCHAR_PRECISION) {
+    if (!field.get().isTextField()
+        || field.get().getLength() <= 0
+        || field.get().getLength() >= CompleteType.DEFAULT_VARCHAR_PRECISION) {
       return true;
     }
 
@@ -59,7 +63,6 @@ public interface ManagedSchema {
   }
 
   /**
-   *
    * @return true if varchar truncation is enabled
    */
   default boolean isVarcharTruncationEnabled() {

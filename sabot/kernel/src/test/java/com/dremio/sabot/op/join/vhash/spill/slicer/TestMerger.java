@@ -15,11 +15,14 @@
  */
 package com.dremio.sabot.op.join.vhash.spill.slicer;
 
+import com.dremio.sabot.op.join.vhash.spill.pool.Page;
+import com.dremio.sabot.op.join.vhash.spill.pool.PagePool;
+import com.dremio.test.AllocatorRule;
+import com.dremio.test.DremioTest;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.FieldVector;
@@ -40,18 +43,10 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
-import com.dremio.sabot.op.join.vhash.spill.pool.Page;
-import com.dremio.sabot.op.join.vhash.spill.pool.PagePool;
-import com.dremio.test.AllocatorRule;
-import com.dremio.test.DremioTest;
-
-/**
- * Test {@link Merger} implementations of different vector types.
- */
+/** Test {@link Merger} implementations of different vector types. */
 public class TestMerger extends DremioTest {
   private BufferAllocator testAllocator;
-  @Rule
-  public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
+  @Rule public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
 
   @Before
   public void setupBeforeTest() {
@@ -79,8 +74,8 @@ public class TestMerger extends DremioTest {
     final Random rn = new Random();
 
     for (int j = 0; j < count; j++) {
-      //random int between 5 and 20
-      entry.add(rn.nextInt(15)+5);
+      // random int between 5 and 20
+      entry.add(rn.nextInt(15) + 5);
     }
 
     return entry;
@@ -99,10 +94,10 @@ public class TestMerger extends DremioTest {
   private String generateSingleWord() {
     final Random rn = new Random();
     // words of length 5 through 20
-    final char[] word = new char[rn.nextInt(15)+5];
+    final char[] word = new char[rn.nextInt(15) + 5];
 
     for (int k = 0; k < word.length; k++) {
-      word[k] = (char)('a' + rn.nextInt(26));
+      word[k] = (char) ('a' + rn.nextInt(26));
     }
 
     return new String(word);
@@ -110,11 +105,13 @@ public class TestMerger extends DremioTest {
 
   /**
    * Returns an instance of ListVector with values filled from given lists of integers
+   *
    * @param numList
    * @return
    */
   private ListVector getFilledListVector(final List<List<Integer>> numList) {
-    final ListVector vector = new ListVector("list", testAllocator, FieldType.nullable(new ArrowType.List()), null);
+    final ListVector vector =
+        new ListVector("list", testAllocator, FieldType.nullable(new ArrowType.List()), null);
     final UnionListWriter listWriter = new UnionListWriter(vector);
 
     int i = 0;
@@ -135,11 +132,17 @@ public class TestMerger extends DremioTest {
 
   /**
    * Returns an instance of FixedSizeListVector with values filled from given lists of integers
+   *
    * @param numList
    * @return
    */
   private FixedSizeListVector getFilledFixedListVector(final List<List<Integer>> numList) {
-    final FixedSizeListVector vector = new FixedSizeListVector("fixed_list", testAllocator, FieldType.nullable(new ArrowType.FixedSizeList(numList.get(0).size())), null);
+    final FixedSizeListVector vector =
+        new FixedSizeListVector(
+            "fixed_list",
+            testAllocator,
+            FieldType.nullable(new ArrowType.FixedSizeList(numList.get(0).size())),
+            null);
     final UnionFixedSizeListWriter listWriter = new UnionFixedSizeListWriter(vector);
 
     int i = 0;
@@ -159,14 +162,15 @@ public class TestMerger extends DremioTest {
     return vector;
   }
 
-
   /**
-   * Given list vector is merged from vectors which used lists as inputs.
-   *  This function verifies whether all input values are successfully merged into the vector.
+   * Given list vector is merged from vectors which used lists as inputs. This function verifies
+   * whether all input values are successfully merged into the vector.
+   *
    * @param listVector
    * @param inputList
    */
-  private void verifyListContentsWithInputMatrix(final FixedSizeListVector listVector, final List<List<List<Integer>>> inputList) {
+  private void verifyListContentsWithInputMatrix(
+      final FixedSizeListVector listVector, final List<List<List<Integer>>> inputList) {
     int listPosition = 0;
 
     for (final List<List<Integer>> input : inputList) {
@@ -186,7 +190,8 @@ public class TestMerger extends DremioTest {
     }
   }
 
-  private void verifyListContentsWithInputMatrix(final ListVector listVector, final List<List<List<Integer>>> inputList) {
+  private void verifyListContentsWithInputMatrix(
+      final ListVector listVector, final List<List<List<Integer>>> inputList) {
     int listPosition = 0;
 
     for (final List<List<Integer>> input : inputList) {
@@ -208,34 +213,35 @@ public class TestMerger extends DremioTest {
 
   /**
    * Test by merging two ListVector's into a single one
+   *
    * @throws Exception
    */
   @Test
   public void testListMerger() throws Exception {
     try (final PagePool pages = new PagePool(testAllocator, 64_000, 0);
-         final Page page = pages.newPage()) {
+        final Page page = pages.newPage()) {
       final List<List<List<Integer>>> inputLists = new ArrayList<>();
 
       final Random rn = new Random();
-      int rowCount = rn.nextInt(15)+5;
-      int colCount = rn.nextInt(15)+5;
+      int rowCount = rn.nextInt(15) + 5;
+      int colCount = rn.nextInt(15) + 5;
 
-      //fill vector1
+      // fill vector1
       final List<List<Integer>> inputMatrix = getRandomIntMatrix(rowCount, colCount);
       final ListVector vector = getFilledListVector(inputMatrix);
 
       inputLists.add(inputMatrix);
 
-      //fill vector2
-      rowCount = rn.nextInt(15)+5;
-      colCount = rn.nextInt(15)+5;
+      // fill vector2
+      rowCount = rn.nextInt(15) + 5;
+      colCount = rn.nextInt(15) + 5;
       final List<List<Integer>> inputMatrix2 = getRandomIntMatrix(rowCount, colCount);
       final ListVector vector2 = getFilledListVector(inputMatrix2);
 
       inputLists.add(inputMatrix2);
 
       final Merger merger = Merger.get(vector, 0, testAllocator);
-      final List<FieldVector> output = new ArrayList<>(); //output vector will be contained in this
+      final List<FieldVector> output = new ArrayList<>(); // output vector will be contained in this
 
       final List<ListVector> list = new ArrayList<>();
       list.add(vector);
@@ -243,12 +249,12 @@ public class TestMerger extends DremioTest {
 
       final VectorContainerList vectorContainerList = new VectorContainerList(list, 0);
 
-      //merge two vectors
+      // merge two vectors
       merger.merge(vectorContainerList, page, output);
 
       final ListVector outputVector = (ListVector) output.get(0);
 
-      //test if the vector is successfully merged
+      // test if the vector is successfully merged
       verifyListContentsWithInputMatrix(outputVector, inputLists);
 
       outputVector.close();
@@ -260,14 +266,14 @@ public class TestMerger extends DremioTest {
   @Test
   public void testUnionMerger() throws Exception {
     try (final PagePool pages = new PagePool(testAllocator, 64_000, 0);
-         final Page page = pages.newPage()) {
+        final Page page = pages.newPage()) {
 
       final List<List<Integer>> intInputs = new ArrayList<>();
       final List<List<String>> stringInputs = new ArrayList<>();
 
-      //create vector1
+      // create vector1
       final Random random = new Random();
-      int count = random.nextInt(15)+5;
+      int count = random.nextInt(15) + 5;
 
       final List<Integer> intList = getRandomIntList(count);
       intInputs.add(intList);
@@ -277,8 +283,8 @@ public class TestMerger extends DremioTest {
 
       final UnionVector vector1 = getFilledUnionVector(intList, stringList);
 
-      //create vector2
-      count = random.nextInt(15)+5;
+      // create vector2
+      count = random.nextInt(15) + 5;
 
       final List<Integer> intList2 = getRandomIntList(count);
       intInputs.add(intList2);
@@ -288,13 +294,13 @@ public class TestMerger extends DremioTest {
 
       final UnionVector vector2 = getFilledUnionVector(intList2, stringList2);
 
-      //create a VectorContainerList as input to merger
+      // create a VectorContainerList as input to merger
       final List<UnionVector> list = new ArrayList<>();
       list.add(vector1);
       list.add(vector2);
       final VectorContainerList containerList = new VectorContainerList(list, 0);
 
-      //merger will add final merged vector in this list
+      // merger will add final merged vector in this list
       final List<FieldVector> output = new ArrayList<>();
 
       final Merger merger = Merger.get(vector1, 0, testAllocator);
@@ -303,7 +309,7 @@ public class TestMerger extends DremioTest {
 
       final UnionVector mergedVector = (UnionVector) output.get(0);
 
-      //verify if the  vectors have been merged correctly.
+      // verify if the  vectors have been merged correctly.
       verifyUnionVectorWithInputs(mergedVector, intInputs, stringInputs);
 
       vector1.close();
@@ -312,14 +318,21 @@ public class TestMerger extends DremioTest {
     }
   }
 
-  private UnionVector getFilledUnionVector(final List<Integer> intList, final List<String> stringList) {
-    final UnionVector vector = new UnionVector("colUnion", testAllocator, FieldType.nullable(new ArrowType.Union(UnionMode.Sparse, new int[]{0, 1})), null);
+  private UnionVector getFilledUnionVector(
+      final List<Integer> intList, final List<String> stringList) {
+    final UnionVector vector =
+        new UnionVector(
+            "colUnion",
+            testAllocator,
+            FieldType.nullable(new ArrowType.Union(UnionMode.Sparse, new int[] {0, 1})),
+            null);
 
-    try (final ArrowBuf tempBuf =  testAllocator.buffer(1024)) {
+    try (final ArrowBuf tempBuf = testAllocator.buffer(1024)) {
       final UnionWriter unionWriter = new UnionWriter(vector);
       unionWriter.allocate();
 
-      //both lists are of same size. Records in the vector will be int at even indices and string at odd indices.
+      // both lists are of same size. Records in the vector will be int at even indices and string
+      // at odd indices.
       final int totalCount = intList.size() * 2;
 
       int intIndex = 0;
@@ -336,15 +349,17 @@ public class TestMerger extends DremioTest {
           unionWriter.writeVarChar(0, varCharVal.length, tempBuf);
           stringIndex++;
         }
-
       }
       vector.setValueCount(totalCount);
     }
     return vector;
   }
 
-  private void verifyUnionVectorWithInputs(final UnionVector vector, final List<List<Integer>> intInputs, final List<List<String>> stringInputs) {
-    //check ints present at even locations
+  private void verifyUnionVectorWithInputs(
+      final UnionVector vector,
+      final List<List<Integer>> intInputs,
+      final List<List<String>> stringInputs) {
+    // check ints present at even locations
     int globalIndex = 0;
     for (final List<Integer> intList : intInputs) {
       for (final int nextNum : intList) {
@@ -353,7 +368,7 @@ public class TestMerger extends DremioTest {
       }
     }
 
-    //check strings present at odd locations
+    // check strings present at odd locations
     globalIndex = 1;
     for (final List<String> stringList : stringInputs) {
       for (final String nextString : stringList) {
@@ -365,22 +380,23 @@ public class TestMerger extends DremioTest {
 
   /**
    * Test by merging two StructVector's into a single one
+   *
    * @throws Exception
    */
   @Test
   public void testStructMerger() throws Exception {
     try (final PagePool pages = new PagePool(testAllocator, 64_000, 0);
-         final Page page = pages.newPage()) {
+        final Page page = pages.newPage()) {
       /**
-       * Struct vector to be tested will have one varchar field and one int field.
-       * Following lists will hold those inputs.
+       * Struct vector to be tested will have one varchar field and one int field. Following lists
+       * will hold those inputs.
        */
       final List<List<Integer>> intInputs = new ArrayList<>();
       final List<List<String>> stringInputs = new ArrayList<>();
 
-      //create vector1
+      // create vector1
       final Random rn = new Random();
-      int count = rn.nextInt(15)+5;
+      int count = rn.nextInt(15) + 5;
 
       final List<Integer> intList = getRandomIntList(count);
       intInputs.add(intList);
@@ -390,8 +406,8 @@ public class TestMerger extends DremioTest {
 
       final StructVector vector1 = getFilledStructVector(intList, stringList);
 
-      //create vector2
-      count = rn.nextInt(15)+5;
+      // create vector2
+      count = rn.nextInt(15) + 5;
 
       final List<Integer> intList2 = getRandomIntList(count);
       intInputs.add(intList2);
@@ -401,7 +417,7 @@ public class TestMerger extends DremioTest {
       final StructVector vector2 = getFilledStructVector(intList2, stringList2);
 
       final Merger merger = Merger.get(vector1, 0, testAllocator);
-      final List<FieldVector> output = new ArrayList<>(); //output vector will be contained in this
+      final List<FieldVector> output = new ArrayList<>(); // output vector will be contained in this
 
       final List<StructVector> list = new ArrayList<>();
       list.add(vector1);
@@ -409,12 +425,12 @@ public class TestMerger extends DremioTest {
 
       final VectorContainerList vectorContainerList = new VectorContainerList(list, 0);
 
-      //merge two vectors
+      // merge two vectors
       merger.merge(vectorContainerList, page, output);
 
       final StructVector outputVector = (StructVector) output.get(0);
 
-      //test if the vector is successfully merged
+      // test if the vector is successfully merged
       verifyStructVectorWithInputs(outputVector, intInputs, stringInputs);
 
       outputVector.close();
@@ -423,18 +439,20 @@ public class TestMerger extends DremioTest {
     }
   }
 
-  private StructVector getFilledStructVector(final List<Integer> intList, final List<String> stringList) {
-    final StructVector vector = new StructVector("struct", testAllocator, FieldType.nullable(new ArrowType.Struct()), null);
+  private StructVector getFilledStructVector(
+      final List<Integer> intList, final List<String> stringList) {
+    final StructVector vector =
+        new StructVector("struct", testAllocator, FieldType.nullable(new ArrowType.Struct()), null);
     final NullableStructWriter structWriter = new NullableStructWriter(vector);
 
-    try (final ArrowBuf tempBuf =  testAllocator.buffer(1024)) {
+    try (final ArrowBuf tempBuf = testAllocator.buffer(1024)) {
       for (int i = 0; i < intList.size(); i++) {
         structWriter.setPosition(i);
 
         structWriter.start();
-        final byte[]  varCharVal = stringList.get(i).getBytes();
+        final byte[] varCharVal = stringList.get(i).getBytes();
         tempBuf.setBytes(0, varCharVal);
-        structWriter.varChar("varchar").writeVarChar(0, varCharVal.length,tempBuf);
+        structWriter.varChar("varchar").writeVarChar(0, varCharVal.length, tempBuf);
         structWriter.integer("int").writeInt(intList.get(i));
         structWriter.end();
       }
@@ -443,7 +461,10 @@ public class TestMerger extends DremioTest {
     return vector;
   }
 
-  private void verifyStructVectorWithInputs(final StructVector structVector, final List<List<Integer>> intInputs, final List<List<String>> strInputs) {
+  private void verifyStructVectorWithInputs(
+      final StructVector structVector,
+      final List<List<Integer>> intInputs,
+      final List<List<String>> strInputs) {
 
     List<Integer> intList;
     List<String> stringList;
@@ -454,7 +475,8 @@ public class TestMerger extends DremioTest {
       stringList = strInputs.get(i);
 
       for (int j = 0; j < intList.size(); j++) {
-        final Map<String, Object> struct = (Map<String, Object>) structVector.getObject(listPosition);
+        final Map<String, Object> struct =
+            (Map<String, Object>) structVector.getObject(listPosition);
 
         Assert.assertEquals(struct.get("varchar").toString(), stringList.get(j));
         Assert.assertEquals(struct.get("int"), intList.get(j));
@@ -466,36 +488,37 @@ public class TestMerger extends DremioTest {
 
   /**
    * Test by merging two FixedSizeListVector's into a single one
+   *
    * @throws Exception
    */
   @Test
   public void testFixedListMerger() throws Exception {
 
     try (final PagePool pages = new PagePool(testAllocator, 64_000, 0);
-         final Page page = pages.newPage()) {
+        final Page page = pages.newPage()) {
       final List<List<List<Integer>>> inputLists = new ArrayList<>();
 
       final Random rn = new Random();
-      int rowCount = rn.nextInt(15)+5;
+      int rowCount = rn.nextInt(15) + 5;
 
-      //column count stays the same for both vectors as this is fixed size list vector
-      final int colCount = rn.nextInt(15)+5;
+      // column count stays the same for both vectors as this is fixed size list vector
+      final int colCount = rn.nextInt(15) + 5;
 
-      //fill vector1
+      // fill vector1
       final List<List<Integer>> inputMatrix = getRandomIntMatrix(rowCount, colCount);
       final FixedSizeListVector vector = getFilledFixedListVector(inputMatrix);
 
       inputLists.add(inputMatrix);
 
-      //fill vector2
-      rowCount = rn.nextInt(15)+5;
+      // fill vector2
+      rowCount = rn.nextInt(15) + 5;
       final List<List<Integer>> inputMatrix2 = getRandomIntMatrix(rowCount, colCount);
       final FixedSizeListVector vector2 = getFilledFixedListVector(inputMatrix2);
 
       inputLists.add(inputMatrix2);
 
       final Merger merger = Merger.get(vector, 0, testAllocator);
-      final List<FieldVector> output = new ArrayList<>(); //output vector will be contained in this
+      final List<FieldVector> output = new ArrayList<>(); // output vector will be contained in this
 
       final List<FixedSizeListVector> list = new ArrayList<>();
       list.add(vector);
@@ -503,12 +526,12 @@ public class TestMerger extends DremioTest {
 
       final VectorContainerList vectorContainerList = new VectorContainerList(list, 0);
 
-      //merge two vectors
+      // merge two vectors
       merger.merge(vectorContainerList, page, output);
 
       final FixedSizeListVector outputVector = (FixedSizeListVector) output.get(0);
 
-      //test if the vector is successfully merged
+      // test if the vector is successfully merged
       verifyListContentsWithInputMatrix(outputVector, inputLists);
 
       outputVector.close();

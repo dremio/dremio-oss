@@ -15,18 +15,20 @@
  */
 package com.dremio.exec.planner.sql.handlers.query;
 
-import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.sql.SqlOperator;
-
+import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.planner.sql.handlers.direct.SqlNodeUtil;
+import com.dremio.exec.planner.sql.parser.DmlUtils;
 import com.dremio.exec.planner.sql.parser.SqlGrant.Privilege;
 import com.dremio.exec.planner.sql.parser.SqlMergeIntoTable;
 import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.dataset.proto.TableProperties;
+import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlOperator;
+import org.apache.iceberg.RowLevelOperationMode;
 
-/**
- * Handles the MERGE DML.
- */
+/** Handles the MERGE DML. */
 public class MergeHandler extends DmlHandler {
 
   @Override
@@ -40,15 +42,24 @@ public class MergeHandler extends DmlHandler {
   }
 
   @Override
-  protected void validatePrivileges(Catalog catalog, NamespaceKey path, SqlNode sqlNode) throws Exception {
+  protected void validatePrivileges(Catalog catalog, CatalogEntityKey key, SqlNode sqlNode)
+      throws Exception {
     // Validate sub queries privileges
     SqlMergeIntoTable mergeTable = SqlNodeUtil.unwrap(sqlNode, SqlMergeIntoTable.class);
+    NamespaceKey namespaceKey = key.toNamespaceKey();
     if (mergeTable.getInsertCall() != null) {
-      catalog.validatePrivilege(path, Privilege.INSERT);
+      catalog.validatePrivilege(namespaceKey, Privilege.INSERT);
     }
     if (mergeTable.getUpdateCall() != null) {
-      catalog.validatePrivilege(path, Privilege.UPDATE);
+      catalog.validatePrivilege(namespaceKey, Privilege.UPDATE);
     }
-    catalog.validatePrivilege(path, Privilege.SELECT);
+    catalog.validatePrivilege(namespaceKey, Privilege.SELECT);
+  }
+
+  @Override
+  protected RowLevelOperationMode getRowLevelOperationMode(DremioTable table) {
+    TableProperties mergeDmlWriteMode =
+        DmlUtils.getDmlWriteProp(table, org.apache.iceberg.TableProperties.MERGE_MODE);
+    return DmlUtils.getDmlWriteMode(mergeDmlWriteMode);
   }
 }

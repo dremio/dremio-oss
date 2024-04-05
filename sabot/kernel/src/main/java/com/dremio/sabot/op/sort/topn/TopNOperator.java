@@ -15,13 +15,6 @@
  */
 package com.dremio.sabot.op.sort.topn;
 
-import java.io.IOException;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-
-import org.apache.arrow.vector.ValueVector;
-import org.apache.calcite.rel.RelFieldCollation.Direction;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
@@ -55,9 +48,15 @@ import com.dremio.sabot.op.spi.SingleInputOperator;
 import com.google.common.base.Stopwatch;
 import com.sun.codemodel.JConditional;
 import com.sun.codemodel.JExpr;
+import java.io.IOException;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+import org.apache.arrow.vector.ValueVector;
+import org.apache.calcite.rel.RelFieldCollation.Direction;
 
 public class TopNOperator implements SingleInputOperator, ShrinkableOperator {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TopNOperator.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(TopNOperator.class);
 
   private final int batchPurgeThreshold;
   private final TopN config;
@@ -101,7 +100,9 @@ public class TopNOperator implements SingleInputOperator, ShrinkableOperator {
     outgoing.buildSchema(SelectionVectorMode.NONE);
 
     priorityQueue = createNewPriorityQueue(context.getClassProducer(), config.getOrderings());
-    copier = CopierOperator.getGenerated4Copier(context.getClassProducer(), priorityQueue.getHyperBatch(), outgoing);
+    copier =
+        CopierOperator.getGenerated4Copier(
+            context.getClassProducer(), priorityQueue.getHyperBatch(), outgoing);
     state = State.CAN_CONSUME;
     return outgoing;
   }
@@ -119,7 +120,6 @@ public class TopNOperator implements SingleInputOperator, ShrinkableOperator {
       countSincePurge = 0;
       batchCount = 0;
     }
-
   }
 
   @Override
@@ -142,11 +142,11 @@ public class TopNOperator implements SingleInputOperator, ShrinkableOperator {
   public int outputData() throws Exception {
     state.is(State.CAN_PRODUCE);
 
-    if(batchesOutput > 0){
+    if (batchesOutput > 0) {
       // only increment sv4 after first return
       final boolean hasMore = finalOrder.next();
 
-      if(!hasMore || finalOrder.getCount() == 0){
+      if (!hasMore) {
         state = State.DONE;
         return 0;
       }
@@ -154,8 +154,10 @@ public class TopNOperator implements SingleInputOperator, ShrinkableOperator {
 
     final int targetCount = finalOrder.getCount();
     final int copied = copier.copyRecords(0, targetCount);
-    if(copied != targetCount){
-      throw UserException.memoryError().message("Ran out of memory while trying to output records.").build(logger);
+    if (copied != targetCount) {
+      throw UserException.memoryError()
+          .message("Ran out of memory while trying to output records.")
+          .build(logger);
     }
 
     batchesOutput++;
@@ -183,7 +185,9 @@ public class TopNOperator implements SingleInputOperator, ShrinkableOperator {
         final int count = selectionVector4.getCount();
         final int copiedRecords = copier.copyRecords(0, count);
         if (copiedRecords != count) {
-          throw UserException.memoryError().message("Ran out of memory while trying to sort records.").build(logger);
+          throw UserException.memoryError()
+              .message("Ran out of memory while trying to sort records.")
+              .build(logger);
         }
         for (VectorWrapper<?> v : target) {
           v.getValueVector().setValueCount(count);
@@ -206,18 +210,35 @@ public class TopNOperator implements SingleInputOperator, ShrinkableOperator {
     logger.debug("Took {} us to purge", watch.elapsed(TimeUnit.MICROSECONDS));
   }
 
-  private PriorityQueue createNewPriorityQueue(ClassProducer producer, List<Ordering> orderings) throws ClassTransformationException, IOException, SchemaChangeException {
+  private PriorityQueue createNewPriorityQueue(ClassProducer producer, List<Ordering> orderings)
+      throws ClassTransformationException, IOException, SchemaChangeException {
 
-    final MappingSet leftMapping = new MappingSet("leftIndex", null, ClassGenerator.DEFAULT_SCALAR_MAP, ClassGenerator.DEFAULT_SCALAR_MAP);
-    final MappingSet mainMapping = new MappingSet( (String) null, null, ClassGenerator.DEFAULT_SCALAR_MAP, ClassGenerator.DEFAULT_SCALAR_MAP);
-    final MappingSet rightMapping = new MappingSet("rightIndex", null, ClassGenerator.DEFAULT_SCALAR_MAP, ClassGenerator.DEFAULT_SCALAR_MAP);
+    final MappingSet leftMapping =
+        new MappingSet(
+            "leftIndex",
+            null,
+            ClassGenerator.DEFAULT_SCALAR_MAP,
+            ClassGenerator.DEFAULT_SCALAR_MAP);
+    final MappingSet mainMapping =
+        new MappingSet(
+            (String) null,
+            null,
+            ClassGenerator.DEFAULT_SCALAR_MAP,
+            ClassGenerator.DEFAULT_SCALAR_MAP);
+    final MappingSet rightMapping =
+        new MappingSet(
+            "rightIndex",
+            null,
+            ClassGenerator.DEFAULT_SCALAR_MAP,
+            ClassGenerator.DEFAULT_SCALAR_MAP);
 
-    final CodeGenerator<PriorityQueue> cg = producer.createGenerator(PriorityQueue.TEMPLATE_DEFINITION);
+    final CodeGenerator<PriorityQueue> cg =
+        producer.createGenerator(PriorityQueue.TEMPLATE_DEFINITION);
     final ClassGenerator<PriorityQueue> g = cg.getRoot();
     g.setMappingSet(mainMapping);
 
-
-    final Sv4HyperContainer hyperBatch = new Sv4HyperContainer(context.getAllocator(), incoming.getSchema());
+    final Sv4HyperContainer hyperBatch =
+        new Sv4HyperContainer(context.getAllocator(), incoming.getSchema());
     for (Ordering od : orderings) {
       // first, we rewrite the evaluation stack for each side of the comparison.
       final LogicalExpression expr = producer.materialize(od.getExpr(), hyperBatch);
@@ -229,8 +250,7 @@ public class TopNOperator implements SingleInputOperator, ShrinkableOperator {
 
       // next we wrap the two comparison sides and add the expression block for the comparison.
       LogicalExpression fh =
-        FunctionGenerationHelper.getOrderingComparator(od.nullsSortHigh(), left, right,
-                                                       producer);
+          FunctionGenerationHelper.getOrderingComparator(od.nullsSortHigh(), left, right, producer);
       HoldingContainer out = g.addExpr(fh, ClassGenerator.BlockCreateMode.MERGE);
       JConditional jc = g.getEvalBlock()._if(out.getValue().ne(JExpr.lit(0)));
 
@@ -246,9 +266,14 @@ public class TopNOperator implements SingleInputOperator, ShrinkableOperator {
     g.getEvalBlock()._return(JExpr.lit(0));
 
     PriorityQueue q = cg.getImplementationClass();
-    q.init(hyperBatch, config.getLimit(), context.getFunctionContext(), context.getAllocator(), incoming.getSchema().getSelectionVectorMode() == BatchSchema.SelectionVectorMode.TWO_BYTE, context.getTargetBatchSize());
+    q.init(
+        hyperBatch,
+        config.getLimit(),
+        context.getFunctionContext(),
+        context.getAllocator(),
+        incoming.getSchema().getSelectionVectorMode() == BatchSchema.SelectionVectorMode.TWO_BYTE,
+        context.getTargetBatchSize());
     return q;
-
   }
 
   @Override
@@ -264,7 +289,9 @@ public class TopNOperator implements SingleInputOperator, ShrinkableOperator {
     long shrinkableMemory = 0;
 
     if (countSincePurge > config.getLimit()) {
-      shrinkableMemory = (context.getAllocator().getAllocatedMemory()/countSincePurge)*(countSincePurge - config.getLimit());
+      shrinkableMemory =
+          (context.getAllocator().getAllocatedMemory() / countSincePurge)
+              * (countSincePurge - config.getLimit());
     }
 
     return shrinkableMemory;
@@ -284,7 +311,8 @@ public class TopNOperator implements SingleInputOperator, ShrinkableOperator {
   }
 
   @Override
-  public <OUT, IN, EXCEP extends Throwable> OUT accept(OperatorVisitor<OUT, IN, EXCEP> visitor, IN value) throws EXCEP {
+  public <OUT, IN, EXCEP extends Throwable> OUT accept(
+      OperatorVisitor<OUT, IN, EXCEP> visitor, IN value) throws EXCEP {
     return visitor.visitSingleInput(this, value);
   }
 
@@ -293,12 +321,12 @@ public class TopNOperator implements SingleInputOperator, ShrinkableOperator {
     AutoCloseables.close(outgoing, finalOrder, priorityQueue, copier);
   }
 
-  public static class TopNCreator implements SingleInputOperator.Creator<TopN>{
+  public static class TopNCreator implements SingleInputOperator.Creator<TopN> {
 
     @Override
-    public SingleInputOperator create(OperatorContext context, TopN operator) throws ExecutionSetupException {
+    public SingleInputOperator create(OperatorContext context, TopN operator)
+        throws ExecutionSetupException {
       return new TopNOperator(context, operator);
     }
-
   }
 }

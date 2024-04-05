@@ -20,9 +20,7 @@ import static java.lang.String.format;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-/**
- * JobFilterItem represents an item of job filter.
- */
+/** JobFilterItem represents an item of job filter. */
 public class JobFilterItem {
   private final String id;
 
@@ -46,5 +44,4 @@ public class JobFilterItem {
   public String toString() {
     return format("{Id: %s, Label: %s}", id, label);
   }
-
 }

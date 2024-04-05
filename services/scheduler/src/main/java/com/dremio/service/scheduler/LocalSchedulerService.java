@@ -17,6 +17,14 @@ package com.dremio.service.scheduler;
 
 import static com.dremio.service.coordinator.ClusterCoordinator.Role.MASTER;
 
+import com.dremio.common.AutoCloseables;
+import com.dremio.common.concurrent.CloseableSchedulerThreadPool;
+import com.dremio.exec.proto.CoordinationProtos;
+import com.dremio.service.coordinator.ClusterElectionManager;
+import com.dremio.service.coordinator.ClusterServiceSetManager;
+import com.dremio.service.coordinator.TaskLeaderChangeListener;
+import com.dremio.service.coordinator.TaskLeaderElection;
+import com.google.common.annotations.VisibleForTesting;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Collection;
@@ -30,24 +38,12 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
-
 import javax.inject.Provider;
 
-import com.dremio.common.AutoCloseables;
-import com.dremio.common.concurrent.CloseableSchedulerThreadPool;
-import com.dremio.exec.proto.CoordinationProtos;
-import com.dremio.service.coordinator.ClusterElectionManager;
-import com.dremio.service.coordinator.ClusterServiceSetManager;
-import com.dremio.service.coordinator.TaskLeaderChangeListener;
-import com.dremio.service.coordinator.TaskLeaderElection;
-import com.google.common.annotations.VisibleForTesting;
-
-/**
- * Simple implementation of {@link SchedulerService}
- *
- */
+/** Simple implementation of {@link SchedulerService} */
 public class LocalSchedulerService implements SchedulerService {
-  private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(LocalSchedulerService.class);
+  private static final org.slf4j.Logger LOGGER =
+      org.slf4j.LoggerFactory.getLogger(LocalSchedulerService.class);
   private static final String THREAD_NAME_PREFIX = "scheduler-";
 
   private final CloseableSchedulerThreadPool executorService;
@@ -56,53 +52,66 @@ public class LocalSchedulerService implements SchedulerService {
   private final Provider<CoordinationProtos.NodeEndpoint> currentEndPoint;
   private final boolean assumeTaskLeadership;
 
-  private final ConcurrentMap<String, TaskLeaderElection> taskLeaderElectionServiceMap = new ConcurrentHashMap<>();
+  private final ConcurrentMap<String, TaskLeaderElection> taskLeaderElectionServiceMap =
+      new ConcurrentHashMap<>();
 
   /**
    * Creates a new scheduler service.
-   *<p>
-   * The underlying executor uses a {@link ThreadPoolExecutor}, with a given pool size.
-   *</p>
    *
-   * @param corePoolSize -- the <b>maximum</b> number of threads used by the underlying {@link ThreadPoolExecutor}
+   * <p>The underlying executor uses a {@link ThreadPoolExecutor}, with a given pool size.
+   *
+   * @param corePoolSize -- the <b>maximum</b> number of threads used by the underlying {@link
+   *     ThreadPoolExecutor}
    */
   public LocalSchedulerService(int corePoolSize) {
-    this(new CloseableSchedulerThreadPool(THREAD_NAME_PREFIX, corePoolSize),
-      null, null, null, false);
+    this(
+        new CloseableSchedulerThreadPool(THREAD_NAME_PREFIX, corePoolSize),
+        null,
+        null,
+        null,
+        false);
   }
 
   public LocalSchedulerService(int corePoolSize, String threadNamePrefix) {
-    this(new CloseableSchedulerThreadPool(threadNamePrefix, corePoolSize),
-      null, null, null, false);
+    this(new CloseableSchedulerThreadPool(threadNamePrefix, corePoolSize), null, null, null, false);
   }
 
-  public LocalSchedulerService(int corePoolSize,
-                               String threadNamePrefix,
-                               Provider<ClusterServiceSetManager> clusterServiceSetManagerProvider,
-                               Provider<ClusterElectionManager> clusterElectionManagerProvider,
-                               Provider<CoordinationProtos.NodeEndpoint> currentNode,
-                               boolean assumeTaskLeadership) {
-    this(new CloseableSchedulerThreadPool(threadNamePrefix, corePoolSize),
-      clusterServiceSetManagerProvider, clusterElectionManagerProvider, currentNode,
-      assumeTaskLeadership);
+  public LocalSchedulerService(
+      int corePoolSize,
+      String threadNamePrefix,
+      Provider<ClusterServiceSetManager> clusterServiceSetManagerProvider,
+      Provider<ClusterElectionManager> clusterElectionManagerProvider,
+      Provider<CoordinationProtos.NodeEndpoint> currentNode,
+      boolean assumeTaskLeadership) {
+    this(
+        new CloseableSchedulerThreadPool(threadNamePrefix, corePoolSize),
+        clusterServiceSetManagerProvider,
+        clusterElectionManagerProvider,
+        currentNode,
+        assumeTaskLeadership);
   }
 
-  public LocalSchedulerService(int corePoolSize,
-                               Provider<ClusterServiceSetManager> clusterServiceSetManagerProvider,
-                               Provider<ClusterElectionManager> clusterElectionManagerProvider,
-                               Provider<CoordinationProtos.NodeEndpoint> currentNode,
-                               boolean assumeTaskLeadership) {
-    this(new CloseableSchedulerThreadPool(THREAD_NAME_PREFIX, corePoolSize),
-      clusterServiceSetManagerProvider, clusterElectionManagerProvider, currentNode,
-      assumeTaskLeadership);
+  public LocalSchedulerService(
+      int corePoolSize,
+      Provider<ClusterServiceSetManager> clusterServiceSetManagerProvider,
+      Provider<ClusterElectionManager> clusterElectionManagerProvider,
+      Provider<CoordinationProtos.NodeEndpoint> currentNode,
+      boolean assumeTaskLeadership) {
+    this(
+        new CloseableSchedulerThreadPool(THREAD_NAME_PREFIX, corePoolSize),
+        clusterServiceSetManagerProvider,
+        clusterElectionManagerProvider,
+        currentNode,
+        assumeTaskLeadership);
   }
 
   @VisibleForTesting
-  LocalSchedulerService(CloseableSchedulerThreadPool executorService,
-                        Provider<ClusterServiceSetManager> clusterServiceSetManagerProvider,
-                        Provider<ClusterElectionManager> clusterElectionManagerProvider,
-                        Provider<CoordinationProtos.NodeEndpoint> currentNode,
-                        boolean assumeTaskLeadership) {
+  LocalSchedulerService(
+      CloseableSchedulerThreadPool executorService,
+      Provider<ClusterServiceSetManager> clusterServiceSetManagerProvider,
+      Provider<ClusterElectionManager> clusterElectionManagerProvider,
+      Provider<CoordinationProtos.NodeEndpoint> currentNode,
+      boolean assumeTaskLeadership) {
     this.executorService = executorService;
     this.clusterServiceSetManagerProvider = clusterServiceSetManagerProvider;
     this.clusterElectionManagerProvider = clusterElectionManagerProvider;
@@ -118,7 +127,8 @@ public class LocalSchedulerService implements SchedulerService {
   @Override
   public void close() throws Exception {
     LOGGER.info("Stopping SchedulerService");
-    AutoCloseables.close(AutoCloseables.iter(executorService), taskLeaderElectionServiceMap.values());
+    AutoCloseables.close(
+        AutoCloseables.iter(executorService), taskLeaderElectionServiceMap.values());
     taskLeaderElectionServiceMap.clear();
     LOGGER.info("Stopped SchedulerService");
   }
@@ -156,62 +166,74 @@ public class LocalSchedulerService implements SchedulerService {
       this.taskState = false;
 
       this.currentTask = new AtomicReference<>(null);
-      this.taskLeaderChangeListener = new TaskLeaderChangeListener() {
-        @Override
-        public void onLeadershipGained() {
-          synchronized (CancellableTask.this) {
-            LOGGER.info("onLeadershipGained Event: leadership gained for task {}", CancellableTask.this);
-            if (isDone() && schedule.isToRunExactlyOnce()) {
-              LOGGER.info("onLeadershipGained Event: Task {} was already completed", CancellableTask.this);
-              return;
-            }
-            // start doing work
-            // if task was cancelled before due to remote scheduling
-            // reinstate it
-            // it may run earlier then it's scheduled time
-            // due to changed of leadership
+      this.taskLeaderChangeListener =
+          new TaskLeaderChangeListener() {
+            @Override
+            public void onLeadershipGained() {
+              synchronized (CancellableTask.this) {
+                LOGGER.info(
+                    "onLeadershipGained Event: leadership gained for task {}",
+                    CancellableTask.this);
+                if (isDone() && schedule.isToRunExactlyOnce()) {
+                  LOGGER.info(
+                      "onLeadershipGained Event: Task {} was already completed",
+                      CancellableTask.this);
+                  return;
+                }
+                // start doing work
+                // if task was cancelled before due to remote scheduling
+                // reinstate it
+                // it may run earlier then it's scheduled time
+                // due to changed of leadership
 
-            scheduleNext();
-          }
-        }
-
-        @Override
-        public void onLeadershipLost() {
-          synchronized (CancellableTask.this) {
-            LOGGER.info("onLeadershipLost Event: leadership lost for task {}", CancellableTask.this);
-            if (isDone() && schedule.isToRunExactlyOnce()) {
-              LOGGER.info("onLeadershipLost Event: Task {} was already completed", CancellableTask.this);
+                scheduleNext();
+              }
             }
-            // cancel task
-            basicCancel(false);
-            schedule.getCleanupListener().cleanup();
-            // unset cancel - since we will need to come back to it
-            cancelled.set(false);
-          }
-        }
 
-        @Override
-        public void onLeadershipRelinquished() {
-          synchronized (CancellableTask.this) {
-            LOGGER.info("onLeadershipRelinquished Event: relinquish leadership for task {}", CancellableTask.this);
-            if (currentTask.get() == null ||
-              currentTask.get().isCancelled() ||
-              currentTask.get().isDone()) {
-              LOGGER.info("onLeadershipRelinquished Event: Task {} is not currently running. Relinquishing leadership", CancellableTask.this);
-              schedule.getCleanupListener().cleanup();
-              return;
+            @Override
+            public void onLeadershipLost() {
+              synchronized (CancellableTask.this) {
+                LOGGER.info(
+                    "onLeadershipLost Event: leadership lost for task {}", CancellableTask.this);
+                if (isDone() && schedule.isToRunExactlyOnce()) {
+                  LOGGER.info(
+                      "onLeadershipLost Event: Task {} was already completed",
+                      CancellableTask.this);
+                }
+                // cancel task
+                basicCancel(false);
+                schedule.getCleanupListener().cleanup();
+                // unset cancel - since we will need to come back to it
+                cancelled.set(false);
+              }
             }
-            // if the task is in flight
-            // we can't wait before relinquishing
-            // as task could be scheduled to run next time in many hours
-            // so cancelling w/o interrupt
-            basicCancel(false);
-            schedule.getCleanupListener().cleanup();
-            // unset cancel - since we will need to come back to it
-            cancelled.set(false);
-          }
-        }
-      };
+
+            @Override
+            public void onLeadershipRelinquished() {
+              synchronized (CancellableTask.this) {
+                LOGGER.info(
+                    "onLeadershipRelinquished Event: relinquish leadership for task {}",
+                    CancellableTask.this);
+                if (currentTask.get() == null
+                    || currentTask.get().isCancelled()
+                    || currentTask.get().isDone()) {
+                  LOGGER.info(
+                      "onLeadershipRelinquished Event: Task {} is not currently running. Relinquishing leadership",
+                      CancellableTask.this);
+                  schedule.getCleanupListener().cleanup();
+                  return;
+                }
+                // if the task is in flight
+                // we can't wait before relinquishing
+                // as task could be scheduled to run next time in many hours
+                // so cancelling w/o interrupt
+                basicCancel(false);
+                schedule.getCleanupListener().cleanup();
+                // unset cancel - since we will need to come back to it
+                cancelled.set(false);
+              }
+            }
+          };
     }
 
     @Override
@@ -228,17 +250,26 @@ public class LocalSchedulerService implements SchedulerService {
         // if cancelled (or) lost leadership in between runs
         // if we don't validate leadership, we will not honor
         // that we lost leadership
-        boolean lostLeadership = taskName != null && taskLeaderElectionServiceMap.get(taskName) != null && !taskLeaderElectionServiceMap.get(taskName).isTaskLeader();
+        boolean lostLeadership =
+            taskName != null
+                && taskLeaderElectionServiceMap.get(taskName) != null
+                && !taskLeaderElectionServiceMap.get(taskName).isTaskLeader();
         if (cancelled.get() || lostLeadership) {
-          LOGGER.info("Skipping execution of the task {} as {}", this, (cancelled.get() ? "the task was cancelled" : "the node lost leadership"));
+          LOGGER.info(
+              "Skipping execution of the task {} as {}",
+              this,
+              (cancelled.get() ? "the task was cancelled" : "the node lost leadership"));
           return;
         }
 
-        // we are adding a boolean here in order to avoid to re-run the task in the scenario gain-lost-gain leadership,
+        // we are adding a boolean here in order to avoid to re-run the task in the scenario
+        // gain-lost-gain leadership,
         // and when executor pool has more than one thread:
         // - Node A gains leadership and long task start running on it
-        // - Node A loses leadership, task continues running on A as a running task will not be cancelled
-        // - Node A gains leadership and the leadership change callback tries to reschedule the task even when the long-running task is still running on it
+        // - Node A loses leadership, task continues running on A as a running task will not be
+        // cancelled
+        // - Node A gains leadership and the leadership change callback tries to reschedule the task
+        // even when the long-running task is still running on it
         // This boolean can be checked to not reschedule the task if it is already running
 
         // note: this flag will have no effect in the following scenario:
@@ -268,7 +299,9 @@ public class LocalSchedulerService implements SchedulerService {
       }
 
       if (isTaskRunning.get()) {
-        LOGGER.info("Task {} is being rescheduled while one is already executing. Ignoring the request", this);
+        LOGGER.info(
+            "Task {} is being rescheduled while one is already executing. Ignoring the request",
+            this);
         return;
       }
 
@@ -279,7 +312,10 @@ public class LocalSchedulerService implements SchedulerService {
       // if the task was scheduled but never ran because leadership was lost in between
       // reschedule it back
       if (instant == null && lastRun.equals(Instant.MIN)) {
-        LOGGER.info("Task {} was cancelled before it could run even once, possibly due to a leadership change. Rescheduling it (with instant value {})", this, scheduleStartInstant);
+        LOGGER.info(
+            "Task {} was cancelled before it could run even once, possibly due to a leadership change. Rescheduling it (with instant value {})",
+            this,
+            scheduleStartInstant);
         instant = scheduleStartInstant;
       }
       // if instant == null - it is the end of the scheduling
@@ -296,10 +332,9 @@ public class LocalSchedulerService implements SchedulerService {
     }
 
     /**
-     * Do not go through executor when instant is null - it will throw NPE that we will never consume
-     * earlier we were just lucky to not deal with the exception
-     * Remove listener for the task that is actually finished
-     * used for tasks scheduled to run once
+     * Do not go through executor when instant is null - it will throw NPE that we will never
+     * consume earlier we were just lucky to not deal with the exception Remove listener for the
+     * task that is actually finished used for tasks scheduled to run once
      */
     private ScheduledFuture<?> handleInstantNull() {
       LOGGER.debug("Handling Instant null");
@@ -341,7 +376,7 @@ public class LocalSchedulerService implements SchedulerService {
         }
 
         @Override
-        public Object get(long timeout, TimeUnit unit)  {
+        public Object get(long timeout, TimeUnit unit) {
           return null;
         }
 
@@ -352,10 +387,9 @@ public class LocalSchedulerService implements SchedulerService {
       };
     }
 
-
     private Instant nextInstant() {
       Instant result = null;
-      while(instants.hasNext()) {
+      while (instants.hasNext()) {
         result = instants.next();
         if (!result.isBefore(lastRun)) {
           break;
@@ -371,7 +405,8 @@ public class LocalSchedulerService implements SchedulerService {
         try {
           taskLeaderElectionServiceMap.get(taskName).close();
         } catch (Exception e) {
-          LOGGER.error("Exception while trying to close task leader election for task {}", taskName, e);
+          LOGGER.error(
+              "Exception while trying to close task leader election for task {}", taskName, e);
         }
         taskLeaderElectionServiceMap.remove(taskName);
       }
@@ -385,7 +420,8 @@ public class LocalSchedulerService implements SchedulerService {
 
     @Override
     public boolean isDone() {
-      // Note: This is actually a bug in the current local scheduler service to wrongly denote that a task
+      // Note: This is actually a bug in the current local scheduler service to wrongly denote that
+      // a task
       // is done, while it may still be running (or scheduled to run) on another node. Since this
       // implementation is going to be decommissioned soon, this bug is not being fixed.
       return taskState;
@@ -446,13 +482,16 @@ public class LocalSchedulerService implements SchedulerService {
   @Override
   public Optional<CoordinationProtos.NodeEndpoint> getCurrentTaskOwner(String taskName) {
     if (assumeTaskLeadership) {
-      return Optional
-        .ofNullable(clusterServiceSetManagerProvider.get().getOrCreateServiceSet(taskName).getAvailableEndpoints())
-        .flatMap(nodeEndpoints -> nodeEndpoints.stream().findFirst());
+      return Optional.ofNullable(
+              clusterServiceSetManagerProvider
+                  .get()
+                  .getOrCreateServiceSet(taskName)
+                  .getAvailableEndpoints())
+          .flatMap(nodeEndpoints -> nodeEndpoints.stream().findFirst());
     } else {
-      return Optional
-        .ofNullable(clusterServiceSetManagerProvider.get().getServiceSet(MASTER).getAvailableEndpoints())
-        .flatMap(nodeEndpoints -> nodeEndpoints.stream().findFirst());
+      return Optional.ofNullable(
+              clusterServiceSetManagerProvider.get().getServiceSet(MASTER).getAvailableEndpoints())
+          .flatMap(nodeEndpoints -> nodeEndpoints.stream().findFirst());
     }
   }
 
@@ -464,25 +503,28 @@ public class LocalSchedulerService implements SchedulerService {
   }
 
   private TaskLeaderElection getTaskLeaderElection(final Schedule schedule) {
-    final TaskLeaderElection taskLeader = taskLeaderElectionServiceMap.computeIfAbsent(schedule.getTaskName(),
-      s -> {
-        final String taskName = schedule.getTaskName();
-        final Long scheduledLeadershipRelease = schedule.getScheduledOwnershipReleaseInMillis();
-        final TaskLeaderElection taskLeaderElection = new TaskLeaderElection(
-          taskName,
-          clusterServiceSetManagerProvider,
-          clusterElectionManagerProvider,
-          scheduledLeadershipRelease,
-          currentEndPoint,
-          executorService
-        );
-        try {
-          taskLeaderElection.start();
-        } catch (Exception e) {
-          throw new RuntimeException(e);
-        }
-        return taskLeaderElection;
-      });
+    final TaskLeaderElection taskLeader =
+        taskLeaderElectionServiceMap.computeIfAbsent(
+            schedule.getTaskName(),
+            s -> {
+              final String taskName = schedule.getTaskName();
+              final Long scheduledLeadershipRelease =
+                  schedule.getScheduledOwnershipReleaseInMillis();
+              final TaskLeaderElection taskLeaderElection =
+                  new TaskLeaderElection(
+                      taskName,
+                      clusterServiceSetManagerProvider,
+                      clusterElectionManagerProvider,
+                      scheduledLeadershipRelease,
+                      currentEndPoint,
+                      executorService);
+              try {
+                taskLeaderElection.start();
+              } catch (Exception e) {
+                throw new RuntimeException(e);
+              }
+              return taskLeaderElection;
+            });
     // in case if ownership release time changed compare to last schedule
     taskLeader.updateLeaseExpirationTime(schedule.getScheduledOwnershipReleaseInMillis());
     return taskLeader;

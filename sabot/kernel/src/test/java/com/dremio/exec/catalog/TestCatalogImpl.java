@@ -15,15 +15,12 @@
  */
 package com.dremio.exec.catalog;
 
-import static com.dremio.common.expression.CompleteType.VARBINARY;
-import static com.dremio.exec.catalog.CatalogOptions.VERSIONED_SOURCE_UDF_ENABLED;
 import static com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType.VALIDATION;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyBoolean;
 import static org.mockito.Mockito.anyString;
@@ -32,21 +29,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockConstructionWithAnswer;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
-
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.atomic.AtomicBoolean;
-
-import org.junit.Before;
-import org.junit.Test;
-import org.mockito.MockedConstruction;
-import org.mockito.MockedStatic;
 
 import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.catalog.model.ResolvedVersionContext;
@@ -68,7 +51,6 @@ import com.dremio.exec.store.ReferenceNotFoundException;
 import com.dremio.exec.store.ReferenceTypeConflictException;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePlugin;
-import com.dremio.exec.store.sys.udf.UserDefinedFunction;
 import com.dremio.options.OptionManager;
 import com.dremio.service.listing.DatasetListingService;
 import com.dremio.service.namespace.NamespaceException;
@@ -81,6 +63,16 @@ import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.orphanage.Orphanage;
 import com.dremio.test.UserExceptionAssert;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
+import org.junit.Before;
+import org.junit.Test;
+import org.mockito.MockedConstruction;
+import org.mockito.MockedStatic;
 
 public class TestCatalogImpl {
 
@@ -97,41 +89,41 @@ public class TestCatalogImpl {
   private final NamespaceService userNamespaceService = mock(NamespaceService.class);
   private final IdentityResolver identityProvider = mock(IdentityResolver.class);
   private final NamespaceIdentity namespaceIdentity = mock(NamespaceIdentity.class);
-  private final VersionContextResolverImpl versionContextResolver = mock(VersionContextResolverImpl.class);
+  private final VersionContextResolverImpl versionContextResolver =
+      mock(VersionContextResolverImpl.class);
   private final CatalogStatusEvents catalogStatusEvents = mock(CatalogStatusEvents.class);
   private final String userName = "gnarly";
 
   @Before
   public void setup() throws Exception {
-    when(options.getSchemaConfig())
-      .thenReturn(schemaConfig);
-    when(schemaConfig.getUserName())
-      .thenReturn(userName);
+    when(options.getSchemaConfig()).thenReturn(schemaConfig);
+    when(schemaConfig.getUserName()).thenReturn(userName);
 
-    AuthorizationContext authorizationContext = new AuthorizationContext(new CatalogUser(userName), false);
+    AuthorizationContext authorizationContext =
+        new AuthorizationContext(new CatalogUser(userName), false);
     when(schemaConfig.getAuthContext()).thenReturn(authorizationContext);
 
     when(identityProvider.toNamespaceIdentity(authorizationContext.getSubject()))
-      .thenReturn(namespaceIdentity);
+        .thenReturn(namespaceIdentity);
 
-    when(namespaceFactory.get(namespaceIdentity))
-      .thenReturn(userNamespaceService);
+    when(namespaceFactory.get(namespaceIdentity)).thenReturn(userNamespaceService);
   }
 
   private CatalogImpl newCatalogImpl(VersionContextResolverImpl versionContextResolver) {
-    return new CatalogImpl(options,
-      pluginRetriever,
-      sourceModifier,
-      optionManager,
-      systemNamespaceService,
-      namespaceFactory,
-      orphanage,
-      datasetListingService,
-      viewCreatorFactory,
-      identityProvider,
-      versionContextResolver,
-      catalogStatusEvents,
-      new VersionedDatasetAdapterFactory());
+    return new CatalogImpl(
+        options,
+        pluginRetriever,
+        sourceModifier,
+        optionManager,
+        systemNamespaceService,
+        namespaceFactory,
+        orphanage,
+        datasetListingService,
+        viewCreatorFactory,
+        identityProvider,
+        versionContextResolver,
+        catalogStatusEvents,
+        new VersionedDatasetAdapterFactory());
   }
 
   @Test
@@ -142,13 +134,14 @@ public class TestCatalogImpl {
     CatalogImpl catalog = newCatalogImpl(null);
 
     doThrow(new NamespaceNotFoundException(key, "not found"))
-      .when(systemNamespaceService).getDataset(key);
-    when(pluginRetriever.getPlugin(key.getRoot(), true))
-      .thenReturn(null);
+        .when(systemNamespaceService)
+        .getDataset(key);
+    when(pluginRetriever.getPlugin(key.getRoot(), true)).thenReturn(null);
 
-    UserExceptionAssert.assertThatThrownBy(() -> catalog.alterDataset(CatalogEntityKey.fromNamespaceKey(key), attributes))
-      .hasErrorType(VALIDATION)
-      .hasMessageContaining("Unknown source");
+    UserExceptionAssert.assertThatThrownBy(
+            () -> catalog.alterDataset(CatalogEntityKey.fromNamespaceKey(key), attributes))
+        .hasErrorType(VALIDATION)
+        .hasMessageContaining("Unknown source");
   }
 
   @Test
@@ -159,19 +152,20 @@ public class TestCatalogImpl {
     Map<String, AttributeValue> attributes = new HashMap<>();
 
     doThrow(new NamespaceNotFoundException(key, "not found"))
-      .when(systemNamespaceService).getDataset(key);
-    when(pluginRetriever.getPlugin(anyString(), anyBoolean()))
-      .thenReturn(plugin);
-    when(plugin.getDefaultRetrievalOptions())
-      .thenReturn(datasetRetrievalOptions);
+        .when(systemNamespaceService)
+        .getDataset(key);
+    when(pluginRetriever.getPlugin(anyString(), anyBoolean())).thenReturn(plugin);
+    when(plugin.getDefaultRetrievalOptions()).thenReturn(datasetRetrievalOptions);
     doThrow(new ConnectorException())
-      .when(plugin).getDatasetHandle(key, null, datasetRetrievalOptions);
+        .when(plugin)
+        .getDatasetHandle(key, null, datasetRetrievalOptions);
 
     CatalogImpl catalog = newCatalogImpl(null);
 
-    UserExceptionAssert.assertThatThrownBy(() -> catalog.alterDataset(CatalogEntityKey.fromNamespaceKey(key), attributes))
-      .hasErrorType(VALIDATION)
-      .hasMessageContaining("Failure while retrieving dataset");
+    UserExceptionAssert.assertThatThrownBy(
+            () -> catalog.alterDataset(CatalogEntityKey.fromNamespaceKey(key), attributes))
+        .hasErrorType(VALIDATION)
+        .hasMessageContaining("Failure while retrieving dataset");
     verify(plugin).getDatasetHandle(any(), any(), any());
   }
 
@@ -187,26 +181,25 @@ public class TestCatalogImpl {
     NamespaceKey namespaceKey = mock(NamespaceKey.class);
 
     doThrow(new NamespaceNotFoundException(key, "not found"))
-      .when(systemNamespaceService).getDataset(key);
-    when(pluginRetriever.getPlugin(anyString(), anyBoolean()))
-      .thenReturn(plugin);
-    when(plugin.getDefaultRetrievalOptions())
-      .thenReturn(datasetRetrievalOptions);
-    when(plugin.getDatasetHandle(key, null, datasetRetrievalOptions))
-      .thenReturn(handle);
-    when(datasetHandle.getDatasetPath())
-      .thenReturn(entityPath);
+        .when(systemNamespaceService)
+        .getDataset(key);
+    when(pluginRetriever.getPlugin(anyString(), anyBoolean())).thenReturn(plugin);
+    when(plugin.getDefaultRetrievalOptions()).thenReturn(datasetRetrievalOptions);
+    when(plugin.getDatasetHandle(key, null, datasetRetrievalOptions)).thenReturn(handle);
+    when(datasetHandle.getDatasetPath()).thenReturn(entityPath);
     doThrow(new NamespaceNotFoundException(namespaceKey, "not found"))
-      .when(systemNamespaceService).getDataset(namespaceKey);
+        .when(systemNamespaceService)
+        .getDataset(namespaceKey);
 
     CatalogImpl catalog = newCatalogImpl(null);
 
     try (MockedStatic<MetadataObjectsUtils> mocked = mockStatic(MetadataObjectsUtils.class)) {
       mocked.when(() -> MetadataObjectsUtils.toNamespaceKey(entityPath)).thenReturn(namespaceKey);
 
-      UserExceptionAssert.assertThatThrownBy(() -> catalog.alterDataset(CatalogEntityKey.fromNamespaceKey(key), attributes))
-        .hasErrorType(VALIDATION)
-        .hasMessageContaining("Unable to find requested dataset");
+      UserExceptionAssert.assertThatThrownBy(
+              () -> catalog.alterDataset(CatalogEntityKey.fromNamespaceKey(key), attributes))
+          .hasErrorType(VALIDATION)
+          .hasMessageContaining("Unable to find requested dataset");
     }
     verify(plugin).getDatasetHandle(key, null, datasetRetrievalOptions);
     verify(systemNamespaceService).getDataset(namespaceKey);
@@ -225,19 +218,14 @@ public class TestCatalogImpl {
     DatasetConfig datasetConfig = new DatasetConfig();
 
     doThrow(new NamespaceNotFoundException(key, "not found"))
-      .when(systemNamespaceService).getDataset(key);
-    when(pluginRetriever.getPlugin(anyString(), anyBoolean()))
-      .thenReturn(plugin);
-    when(plugin.getDefaultRetrievalOptions())
-      .thenReturn(datasetRetrievalOptions);
-    when(plugin.getDatasetHandle(key, null, datasetRetrievalOptions))
-      .thenReturn(handle);
-    when(datasetHandle.getDatasetPath())
-      .thenReturn(entityPath);
-    when(systemNamespaceService.getDataset(namespaceKey))
-      .thenReturn(datasetConfig);
-    when(plugin.alterDataset(key, datasetConfig, attributes))
-      .thenReturn(true);
+        .when(systemNamespaceService)
+        .getDataset(key);
+    when(pluginRetriever.getPlugin(anyString(), anyBoolean())).thenReturn(plugin);
+    when(plugin.getDefaultRetrievalOptions()).thenReturn(datasetRetrievalOptions);
+    when(plugin.getDatasetHandle(key, null, datasetRetrievalOptions)).thenReturn(handle);
+    when(datasetHandle.getDatasetPath()).thenReturn(entityPath);
+    when(systemNamespaceService.getDataset(namespaceKey)).thenReturn(datasetConfig);
+    when(plugin.alterDataset(key, datasetConfig, attributes)).thenReturn(true);
 
     CatalogImpl catalog = newCatalogImpl(null);
 
@@ -279,19 +267,20 @@ public class TestCatalogImpl {
     NamespaceKey key = new NamespaceKey("test");
 
     final AtomicBoolean isFirstGetTableCall = new AtomicBoolean(true);
-    try (MockedConstruction<DatasetManager> ignored = mockConstructionWithAnswer(
-      DatasetManager.class,
-      invocation -> {
-        // generate answers for method invocations on the constructed object
-        if ("getTable".equals(invocation.getMethod().getName())) {
-          if (isFirstGetTableCall.getAndSet(false)) {
-            return tableToBeUpdated;
-          }
-          return updatedTable;
-        }
-        // this should never get called
-        return invocation.callRealMethod();
-      })) {
+    try (MockedConstruction<DatasetManager> ignored =
+        mockConstructionWithAnswer(
+            DatasetManager.class,
+            invocation -> {
+              // generate answers for method invocations on the constructed object
+              if ("getTable".equals(invocation.getMethod().getName())) {
+                if (isFirstGetTableCall.getAndSet(false)) {
+                  return tableToBeUpdated;
+                }
+                return updatedTable;
+              }
+              // this should never get called
+              return invocation.callRealMethod();
+            })) {
       CatalogImpl catalog = newCatalogImpl(versionContextResolver);
 
       DremioTable actual = catalog.getTable(key);
@@ -336,6 +325,8 @@ public class TestCatalogImpl {
     when(pluginRetriever.getPlugin(anyString(), anyBoolean())).thenReturn(managedStoragePlugin);
     when(managedStoragePlugin.getName()).thenReturn(namespaceKey);
     when(managedStoragePlugin.getPlugin()).thenReturn(fakeVersionedPlugin);
+    when(fakeVersionedPlugin.isWrapperFor(VersionedPlugin.class)).thenReturn(true);
+    when(fakeVersionedPlugin.unwrap(VersionedPlugin.class)).thenReturn(fakeVersionedPlugin);
     when(fakeVersionedPlugin.getType(any(), any()))
         .thenReturn(VersionedPlugin.EntityType.ICEBERG_TABLE);
 
@@ -354,10 +345,13 @@ public class TestCatalogImpl {
   public void testGetTableSnapshotWrongVersionContext() {
     final ManagedStoragePlugin managedStoragePlugin = mock(ManagedStoragePlugin.class);
     final FakeVersionedPlugin fakeVersionedPlugin = mock(FakeVersionedPlugin.class);
-    final TimeTravelOption.TimeTravelRequest timeTravelRequest = TimeTravelOption.newTimestampRequest(10L);
-    //final VersionedDatasetAccessOptions versionDatasetAccessOptions = mock(VersionedDatasetAccessOptions.class);
+    final TimeTravelOption.TimeTravelRequest timeTravelRequest =
+        TimeTravelOption.newTimestampRequest(10L);
+    // final VersionedDatasetAccessOptions versionDatasetAccessOptions =
+    // mock(VersionedDatasetAccessOptions.class);
     DatasetRetrievalOptions datasetRetrievalOptions = mock(DatasetRetrievalOptions.class);
-    when(datasetRetrievalOptions.toBuilder()).thenReturn(DatasetRetrievalOptions.DEFAULT.toBuilder());
+    when(datasetRetrievalOptions.toBuilder())
+        .thenReturn(DatasetRetrievalOptions.DEFAULT.toBuilder());
     final String sourceName = "source";
     final String tableName = "table";
     final List<String> tableKey = Arrays.asList(sourceName, tableName);
@@ -368,30 +362,39 @@ public class TestCatalogImpl {
 
     when(managedStoragePlugin.getPlugin()).thenReturn(fakeVersionedPlugin);
     when(fakeVersionedPlugin.getType(anyList(), any(ResolvedVersionContext.class)))
-      .thenReturn(VersionedPlugin.EntityType.ICEBERG_TABLE);
+        .thenReturn(VersionedPlugin.EntityType.ICEBERG_TABLE);
 
     final TableVersionContext tableVersionContext = TableVersionContext.NOT_SPECIFIED;
     try (MockedStatic<CatalogUtil> mockedCatalogUtil = mockStatic(CatalogUtil.class)) {
-      mockedCatalogUtil.when(() -> CatalogUtil.getTimeTravelRequest(namespaceKey, tableVersionContext)).thenReturn(timeTravelRequest);
+      mockedCatalogUtil
+          .when(() -> CatalogUtil.getIcebergTimeTravelRequest(namespaceKey, tableVersionContext))
+          .thenReturn(timeTravelRequest);
     }
     final CatalogImpl catalog = newCatalogImpl(versionContextResolver);
-    when(managedStoragePlugin.getDefaultRetrievalOptions())
-      .thenReturn(datasetRetrievalOptions);
-    when(catalog.resolveVersionContext(sourceName, tableVersionContext.asVersionContext())).thenThrow(new ReferenceNotFoundException());
-    UserExceptionAssert.assertThatThrownBy(() -> catalog.getTableSnapshotForQuery(namespaceKey, tableVersionContext))
-      .hasErrorType(VALIDATION)
-      .hasMessageContaining("Table " + "'" + namespaceKey + "'" + " not found");
+    when(managedStoragePlugin.getDefaultRetrievalOptions()).thenReturn(datasetRetrievalOptions);
+    when(catalog.resolveVersionContext(sourceName, tableVersionContext.asVersionContext()))
+        .thenThrow(new ReferenceNotFoundException());
+    UserExceptionAssert.assertThatThrownBy(
+            () ->
+                catalog.getTableSnapshotForQuery(
+                    CatalogEntityKey.namespaceKeyToCatalogEntityKey(
+                        namespaceKey, tableVersionContext)))
+        .hasErrorType(VALIDATION)
+        .hasMessageContaining("Table " + "'" + namespaceKey + "'" + " not found");
   }
 
   @Test
   public void testGetTableSnapshotWrongVersionType() {
     final ManagedStoragePlugin managedStoragePlugin = mock(ManagedStoragePlugin.class);
     final FakeVersionedPlugin fakeVersionedPlugin = mock(FakeVersionedPlugin.class);
-    final VersionContextResolverImpl versionContextResolver = mock(VersionContextResolverImpl.class);
+    final VersionContextResolverImpl versionContextResolver =
+        mock(VersionContextResolverImpl.class);
     final VersionContext wrongVersionContext = VersionContext.ofBranch("foo");
-    final TimeTravelOption.TimeTravelRequest timeTravelRequest = TimeTravelOption.newTimestampRequest(10L);
+    final TimeTravelOption.TimeTravelRequest timeTravelRequest =
+        TimeTravelOption.newTimestampRequest(10L);
     DatasetRetrievalOptions datasetRetrievalOptions = mock(DatasetRetrievalOptions.class);
-    when(datasetRetrievalOptions.toBuilder()).thenReturn(DatasetRetrievalOptions.DEFAULT.toBuilder());
+    when(datasetRetrievalOptions.toBuilder())
+        .thenReturn(DatasetRetrievalOptions.DEFAULT.toBuilder());
     final String sourceName = "source";
     final String tableName = "table";
     final List<String> tableKey = Arrays.asList(sourceName, tableName);
@@ -402,16 +405,32 @@ public class TestCatalogImpl {
 
     when(managedStoragePlugin.getPlugin()).thenReturn(fakeVersionedPlugin);
     when(fakeVersionedPlugin.getType(anyList(), any(ResolvedVersionContext.class)))
-      .thenReturn(VersionedPlugin.EntityType.ICEBERG_TABLE);
+        .thenReturn(VersionedPlugin.EntityType.ICEBERG_TABLE);
 
-    when(versionContextResolver.resolveVersionContext(sourceName, wrongVersionContext)).thenThrow(new ReferenceTypeConflictException("Requested " + wrongVersionContext +" in source "+ sourceName +" is not the requested type", null));
+    when(versionContextResolver.resolveVersionContext(sourceName, wrongVersionContext))
+        .thenThrow(
+            new ReferenceTypeConflictException(
+                "Requested "
+                    + wrongVersionContext
+                    + " in source "
+                    + sourceName
+                    + " is not the requested type",
+                null));
     final TableVersionContext tableVersionContext = TableVersionContext.of(wrongVersionContext);
     try (MockedStatic<CatalogUtil> mockedCatalogUtil = mockStatic(CatalogUtil.class)) {
-      mockedCatalogUtil.when(() -> CatalogUtil.getTimeTravelRequest(namespaceKey, tableVersionContext)).thenReturn(timeTravelRequest);
+      mockedCatalogUtil
+          .when(() -> CatalogUtil.getIcebergTimeTravelRequest(namespaceKey, tableVersionContext))
+          .thenReturn(timeTravelRequest);
     }
     final CatalogImpl catalog = newCatalogImpl(versionContextResolver);
-    assertThatThrownBy(() -> catalog.resolveVersionContext(sourceName, tableVersionContext.asVersionContext()))
-      .hasMessageContaining("Requested " + tableVersionContext.asVersionContext() +" in source "+ sourceName +" is not the requested type");
+    assertThatThrownBy(
+            () -> catalog.resolveVersionContext(sourceName, tableVersionContext.asVersionContext()))
+        .hasMessageContaining(
+            "Requested "
+                + tableVersionContext.asVersionContext()
+                + " in source "
+                + sourceName
+                + " is not the requested type");
   }
 
   @Test
@@ -428,7 +447,8 @@ public class TestCatalogImpl {
     when(managedStoragePlugin.getPlugin()).thenReturn(fakeVersionedPlugin);
     when(fakeVersionedPlugin.getType(any(), any()))
         .thenReturn(VersionedPlugin.EntityType.ICEBERG_VIEW);
-
+    when(fakeVersionedPlugin.isWrapperFor(VersionedPlugin.class)).thenReturn(true);
+    when(fakeVersionedPlugin.unwrap(VersionedPlugin.class)).thenReturn(fakeVersionedPlugin);
     final TableVersionContext versionContext = TableVersionContext.NOT_SPECIFIED;
     final CatalogEntityKey key =
         CatalogEntityKey.newBuilder()
@@ -441,51 +461,6 @@ public class TestCatalogImpl {
   }
 
   @Test
-  public void testCreateFunction_nonVersionedSource() throws IOException, NamespaceException {
-    NamespaceKey namespaceKey = new NamespaceKey("nonVersioned");
-    when(sourceModifier.getSource(eq(namespaceKey.getRoot()))).thenReturn(mock(StoragePlugin.class));
-
-    UserDefinedFunction userDefinedFunction = mock(UserDefinedFunction.class);
-    when(userDefinedFunction.getReturnType()).thenReturn(VARBINARY);
-
-    newCatalogImpl(versionContextResolver).createFunction(namespaceKey, userDefinedFunction);
-
-    verify(userNamespaceService).addOrUpdateFunction(eq(namespaceKey), any());
-  }
-
-  @Test
-  public void testCreateFunction_versionedSourceNotEnabled() {
-    when(optionManager.getOption(VERSIONED_SOURCE_UDF_ENABLED)).thenReturn(false);
-
-    NamespaceKey namespaceKey = new NamespaceKey("versioned");
-    when(sourceModifier.getSource(eq(namespaceKey.getRoot()))).thenReturn(mock(FakeVersionedPlugin.class));
-
-    UserDefinedFunction userDefinedFunction = mock(UserDefinedFunction.class);
-    when(userDefinedFunction.getReturnType()).thenReturn(VARBINARY);
-
-    assertThatThrownBy(() ->
-      newCatalogImpl(versionContextResolver).createFunction(namespaceKey, userDefinedFunction))
-      .isInstanceOf(UserException.class)
-      .hasMessageContaining("You cannot store a user-defined function in source 'versioned'.");
-    verifyNoInteractions(userNamespaceService);
-  }
-
-  @Test
-  public void testCreateFunction_versionedSourceEnabled() throws IOException, NamespaceException {
-    when(optionManager.getOption(VERSIONED_SOURCE_UDF_ENABLED)).thenReturn(true);
-
-    NamespaceKey namespaceKey = new NamespaceKey("versioned");
-    when(sourceModifier.getSource(eq(namespaceKey.getRoot()))).thenReturn(mock(FakeVersionedPlugin.class));
-
-    UserDefinedFunction userDefinedFunction = mock(UserDefinedFunction.class);
-    when(userDefinedFunction.getReturnType()).thenReturn(VARBINARY);
-
-    newCatalogImpl(versionContextResolver).createFunction(namespaceKey, userDefinedFunction);
-
-    verify(userNamespaceService).addOrUpdateFunction(eq(namespaceKey), any());
-  }
-
-  @Test
   public void testForgetTable_View() throws NamespaceException {
     NamespaceKey key = new NamespaceKey("space1.view1");
     DatasetConfig datasetConfig = new DatasetConfig();
@@ -493,13 +468,11 @@ public class TestCatalogImpl {
     datasetConfig.setType(DatasetType.VIRTUAL_DATASET);
     datasetConfig.setFullPathList(key.getPathComponents());
 
-    when(systemNamespaceService.getDataset(key))
-      .thenReturn(datasetConfig);
+    when(systemNamespaceService.getDataset(key)).thenReturn(datasetConfig);
 
-    assertThatThrownBy(() ->
-      newCatalogImpl(versionContextResolver).forgetTable(key))
-      .isInstanceOf(UserException.class)
-      .hasMessageContaining("does not exist or is not a table");
+    assertThatThrownBy(() -> newCatalogImpl(versionContextResolver).forgetTable(key))
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining("does not exist or is not a table");
   }
 
   @Test
@@ -512,13 +485,13 @@ public class TestCatalogImpl {
     DatasetRetrievalOptions datasetRetrievalOptions = mock(DatasetRetrievalOptions.class);
 
     when(pluginRetriever.getPlugin("space1", true)).thenThrow(UserException.class);
-    when(userNamespaceService.getDataset(key))
-      .thenReturn(datasetConfig);
+    when(userNamespaceService.getDataset(key)).thenReturn(datasetConfig);
 
-    assertThatThrownBy(() ->
-      newCatalogImpl(versionContextResolver).refreshDataset(key, datasetRetrievalOptions))
-      .isInstanceOf(UserException.class)
-      .hasMessageContaining("Only tables can be refreshed");
+    assertThatThrownBy(
+            () ->
+                newCatalogImpl(versionContextResolver).refreshDataset(key, datasetRetrievalOptions))
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining("Only tables can be refreshed");
   }
 
   private interface FakeVersionedPlugin extends VersionedPlugin, StoragePlugin {}

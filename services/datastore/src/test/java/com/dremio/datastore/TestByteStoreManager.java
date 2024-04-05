@@ -22,6 +22,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import com.google.common.collect.Lists;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.util.AbstractMap;
@@ -31,7 +32,6 @@ import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.DisableOnDebug;
@@ -43,25 +43,18 @@ import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
 import org.rocksdb.Status;
 
-import com.google.common.collect.Lists;
-
-/**
- * Tests for {@code ByteStoreManager}
- */
+/** Tests for {@code ByteStoreManager} */
 public class TestByteStoreManager {
 
-  @Rule
-  public final TestRule timeout = new DisableOnDebug(Timeout.seconds(60));
+  @Rule public final TestRule timeout = new DisableOnDebug(Timeout.seconds(60));
 
-  @Rule
-  public final TemporaryFolder temporaryFolder = new TemporaryFolder();
+  @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
   /**
    * Test that BSM can open already created databases.
    *
-   * A bug in BSM was causing the default column family to be open twice,
-   * but recent versions of RocksDB have been less lenient with this and
-   * threw assertion errors during close.
+   * <p>A bug in BSM was causing the default column family to be open twice, but recent versions of
+   * RocksDB have been less lenient with this and threw assertion errors during close.
    *
    * @throws Exception
    */
@@ -70,12 +63,12 @@ public class TestByteStoreManager {
     String dbPath = temporaryFolder.newFolder().getAbsolutePath();
 
     // Empty directory
-    try(ByteStoreManager bsm = new ByteStoreManager(dbPath, false)) {
+    try (ByteStoreManager bsm = new ByteStoreManager(dbPath, false)) {
       bsm.start();
     }
 
     // Re opening just created database
-    try(ByteStoreManager bsm = new ByteStoreManager(dbPath, false)) {
+    try (ByteStoreManager bsm = new ByteStoreManager(dbPath, false)) {
       bsm.start();
     }
   }
@@ -103,24 +96,24 @@ public class TestByteStoreManager {
         } finally {
           started.countDown();
         }
-      } catch(Exception e) {
+      } catch (Exception e) {
         e.printStackTrace();
         fail(e.getMessage());
       }
     }
   }
-  /**
-   * Test that {@code ByteStoreManager#start()} waits until RocksDB lock
-   * is released
-   */
+
+  /** Test that {@code ByteStoreManager#start()} waits until RocksDB lock is released */
   @Test
   public void testConcurrentOpenSleep() throws Exception {
     String dbPath = temporaryFolder.newFolder().getAbsolutePath();
 
-    try(ByteStoreManager bsm = new ByteStoreManager(dbPath, false)) {
+    try (ByteStoreManager bsm = new ByteStoreManager(dbPath, false)) {
       TestThread tt = new TestThread(bsm);
 
-      try(RocksDB db = RocksDB.open(new File(dbPath, ByteStoreManager.CATALOG_STORE_NAME).getAbsolutePath());
+      try (RocksDB db =
+              RocksDB.open(
+                  new File(dbPath, ByteStoreManager.CATALOG_STORE_NAME).getAbsolutePath());
           ColumnFamilyHandle handle = db.getDefaultColumnFamily()) {
         tt.start();
 
@@ -158,8 +151,7 @@ public class TestByteStoreManager {
       // We reuse a whitelist blob value to ensure that we get the blobbing behavior
       final String storeName = ByteStoreManager.BLOB_WHITELIST_STORE;
       ByteStore bs = bsm.getStore(storeName);
-      final long txn = bsm.getMetadataManager()
-          .getLatestTransactionNumber();
+      final long txn = bsm.getMetadataManager().getLatestTransactionNumber();
 
       final byte[] one = getBytes("one");
       final byte[] two = getBytes("two");
@@ -178,21 +170,23 @@ public class TestByteStoreManager {
 
       final List<ReplayType> updates = Lists.newArrayList();
       final List<Map.Entry<byte[], byte[]>> entries = Lists.newArrayList();
-      bsm.replaySince(txn, new ReplayHandler() {
-        @Override
-        public void put(String tableName, byte[] key, byte[] value) {
-          assertEquals(tableName, storeName);
-          updates.add(ReplayType.ADD);
-          entries.add(new AbstractMap.SimpleEntry<>(key, value));
-        }
+      bsm.replaySince(
+          txn,
+          new ReplayHandler() {
+            @Override
+            public void put(String tableName, byte[] key, byte[] value) {
+              assertEquals(tableName, storeName);
+              updates.add(ReplayType.ADD);
+              entries.add(new AbstractMap.SimpleEntry<>(key, value));
+            }
 
-        @Override
-        public void delete(String tableName, byte[] key) {
-          assertEquals(tableName, storeName);
-          updates.add(ReplayType.DELETE);
-          entries.add(new AbstractMap.SimpleEntry<>(key, null));
-        }
-      });
+            @Override
+            public void delete(String tableName, byte[] key) {
+              assertEquals(tableName, storeName);
+              updates.add(ReplayType.DELETE);
+              entries.add(new AbstractMap.SimpleEntry<>(key, null));
+            }
+          });
 
       assertEquals(updates.size(), 6);
       assertEquals(entries.size(), 6);
@@ -240,28 +234,29 @@ public class TestByteStoreManager {
       bs.put(one, getBytes("2"));
       bs.put(two, getBytes("3")); // this will be replayed as well!
 
-      final long txn = bsm.getMetadataManager()
-          .getLatestTransactionNumber();
+      final long txn = bsm.getMetadataManager().getLatestTransactionNumber();
       bs.put(two, getBytes("3"));
       bs.delete(one);
 
       final List<ReplayType> updates = Lists.newArrayList();
       final List<Map.Entry<byte[], byte[]>> entries = Lists.newArrayList();
-      bsm.replaySince(txn, new ReplayHandler() {
-        @Override
-        public void put(String tableName, byte[] key, byte[] value) {
-          assertEquals(tableName, storeName);
-          updates.add(ReplayType.ADD);
-          entries.add(new AbstractMap.SimpleEntry<>(key, value));
-        }
+      bsm.replaySince(
+          txn,
+          new ReplayHandler() {
+            @Override
+            public void put(String tableName, byte[] key, byte[] value) {
+              assertEquals(tableName, storeName);
+              updates.add(ReplayType.ADD);
+              entries.add(new AbstractMap.SimpleEntry<>(key, value));
+            }
 
-        @Override
-        public void delete(String tableName, byte[] key) {
-          assertEquals(tableName, storeName);
-          updates.add(ReplayType.DELETE);
-          entries.add(new AbstractMap.SimpleEntry<>(key, null));
-        }
-      });
+            @Override
+            public void delete(String tableName, byte[] key) {
+              assertEquals(tableName, storeName);
+              updates.add(ReplayType.DELETE);
+              entries.add(new AbstractMap.SimpleEntry<>(key, null));
+            }
+          });
 
       assertEquals(updates.size(), 3);
       assertEquals(entries.size(), 3);
@@ -291,7 +286,9 @@ public class TestByteStoreManager {
 
       fail("ByteStoreManager shouldn't have been able to open a locked instance");
     } catch (RocksDBException e) {
-      assertTrue("RocksDBException isn't IOError type", Status.Code.IOError.equals(e.getStatus().getCode()));
+      assertTrue(
+          "RocksDBException isn't IOError type",
+          Status.Code.IOError.equals(e.getStatus().getCode()));
       assertTrue("Incorrect error message", e.getStatus().getState().contains("lock hold by"));
     }
   }

@@ -18,28 +18,37 @@ package com.dremio.sabot.op.aggregate.vectorized;
 import static com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggOperator.HTORDINAL_OFFSET;
 import static com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggOperator.PARTITIONINDEX_HTORDINAL_WIDTH;
 
+import io.netty.util.internal.PlatformDependent;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.FieldVector;
-
-import io.netty.util.internal.PlatformDependent;
 
 public class CountOneAccumulator extends BaseSingleAccumulator {
   private static final int ACCUMULATOR_WIDTH = 8;
 
-  public CountOneAccumulator(FieldVector input, FieldVector output,
-                             FieldVector transferVector, int maxValuesPerBatch,
-                             BufferAllocator computationVectorAllocator) {
-    super(input, output, transferVector, AccumulatorBuilder.AccumulatorType.COUNT1, maxValuesPerBatch,
-          computationVectorAllocator);
+  public CountOneAccumulator(
+      FieldVector input,
+      FieldVector output,
+      FieldVector transferVector,
+      int maxValuesPerBatch,
+      BufferAllocator computationVectorAllocator) {
+    super(
+        input,
+        output,
+        transferVector,
+        AccumulatorBuilder.AccumulatorType.COUNT1,
+        maxValuesPerBatch,
+        computationVectorAllocator);
   }
 
   @Override
-  public void accumulate(final long memoryAddr, final int count,
-                         final int bitsInChunk, final int chunkOffsetMask){
+  public void accumulate(
+      final long memoryAddr, final int count, final int bitsInChunk, final int chunkOffsetMask) {
     final long maxAddr = memoryAddr + count * PARTITIONINDEX_HTORDINAL_WIDTH;
     final long[] valueAddresses = this.valueAddresses;
     final int maxValuesPerBatch = super.maxValuesPerBatch;
-    for (long partitionAndOrdinalAddr = memoryAddr; partitionAndOrdinalAddr < maxAddr; partitionAndOrdinalAddr += PARTITIONINDEX_HTORDINAL_WIDTH) {
+    for (long partitionAndOrdinalAddr = memoryAddr;
+        partitionAndOrdinalAddr < maxAddr;
+        partitionAndOrdinalAddr += PARTITIONINDEX_HTORDINAL_WIDTH) {
       /* get the hash table ordinal */
       final int tableIndex = PlatformDependent.getInt(partitionAndOrdinalAddr + HTORDINAL_OFFSET);
       /* get the target addresses of accumulation vector */

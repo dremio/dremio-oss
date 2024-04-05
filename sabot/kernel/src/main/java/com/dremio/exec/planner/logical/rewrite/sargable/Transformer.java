@@ -18,13 +18,16 @@ package com.dremio.exec.planner.logical.rewrite.sargable;
 import org.apache.calcite.rex.RexNode;
 
 /**
- * A transformer interface that transforms a logical filter to a Search Argument able (SARGable) expression.
+ * A transformer interface that transforms a logical filter to a Search Argument able (SARGable)
+ * expression.
  */
 public interface Transformer {
 
   RexNode transform();
 
   enum Args {
-    ARG1, ARG2, ARG3
+    ARG1,
+    ARG2,
+    ARG3
   }
 }

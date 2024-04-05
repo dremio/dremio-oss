@@ -15,15 +15,12 @@
  */
 package com.dremio.connector.metadata;
 
+import com.dremio.connector.Utilities;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import com.dremio.connector.Utilities;
-
-/**
- * Entity path. Represents the fully qualified path to the entity.
- */
+/** Entity path. Represents the fully qualified path to the entity. */
 public class EntityPath {
 
   private final List<String> components;

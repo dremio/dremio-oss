@@ -20,16 +20,37 @@ signatures:
  -
   returnType: "NUMERIC"
   parameters:
-   -
-    kind: "REGULAR"
-    type: "NUMERIC"
-    name: "numeric_expression"
-    description: "The set of records to calculate variance for."
+   - description: "The set of records to calculate variance for."
+     kind: "REGULAR"
+     type: "NUMERIC"
+     name: "numeric_expression"
+   - description: "An optional expression that groups rows into partitions. You can\
+      \ specify a single expression or a comma-separated list of expressions. For\
+      \ example, `PARTITION BY column1, column3, \u2026`."
+     kind: OPTIONAL
+     name: partition_expression
+     type: CHARACTERS
+   - description: "An expression that specifies the order of the rows within each partition.\
+      \ You can specify a single expression or a comma-separated list of expressions.\
+      \ For example, `PARTITION BY column1, column3, \u2026` ORDER BY column3;"
+     kind: OPTIONAL
+     name: order_expression
+     type: CHARACTERS
+   - description: "Can be cumulative ('PARTITION BY column1 ORDER BY column2 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW')\
+      \ or sliding ('PARTITION BY column1 ORDER BY column2 ROWS BETWEEN ? PRECEDING AND ? FOLLOWING') window frame.\
+      \ In order to use window frames effectively, it's essential to have the data within the window arranged in a specific way.\
+      \ Consequently, including the ORDER BY clause inside the OVER clause becomes necessary for proper window frame syntax."
+     kind: OPTIONAL
+     name: window_frame
+     type: CHARACTERS
   description: "Returns the sample variance of the records."
   sampleCodes:
-   -
-    call: "SELECT VAR_SAMP(passenger_count) FROM Samples.\"samples.dremio.com\".\"NYC-taxi-trips\""
-    result: "1.868747683518558"
+   - call: "SELECT VAR_SAMP(passenger_count) FROM Samples.\"samples.dremio.com\".\"NYC-taxi-trips\""
+     result: "1.868747683518558"
+   - call: "SELECT city, state, pop, \nVAR_SAMP(pop) OVER (PARTITION BY state ORDER\
+       \ BY city ROWS BETWEEN 1 PRECEDING  AND 2 FOLLOWING)\nFROM Samples.\"samples.dremio.com\".\"zips.json\"\n"
+     result: "city, state, pop, EXPR$3\n-- 98791, AK, 5345, 4.1940229333333336E7\n-- AKHIOK, AK, 13309,\
+       \ 3.7242330666666664E7\n-- AKIACHAK, AK, 481, 4.1343588E7\n-- ... \n"
 dremioVersion: "1.0+"
 functionCategories:
  - "AGGREGATE"

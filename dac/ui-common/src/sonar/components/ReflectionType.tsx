@@ -23,7 +23,7 @@ type ReflectionTypeProps = {
 };
 
 const getConfigForReflectionType = (
-  type: ReflectionSummary.ReflectionTypeEnum
+  type: ReflectionSummary.ReflectionTypeEnum,
 ) => {
   const icon = (() => {
     switch (type) {

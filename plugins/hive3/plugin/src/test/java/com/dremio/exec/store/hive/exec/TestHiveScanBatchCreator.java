@@ -21,11 +21,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import org.apache.hadoop.security.UserGroupInformation;
-import org.junit.Test;
-
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.store.hive.Hive3StoragePlugin;
+import org.apache.hadoop.security.UserGroupInformation;
+import org.junit.Test;
 
 public class TestHiveScanBatchCreator {
   @Test

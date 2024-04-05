@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.physical.config;
 
-import java.util.List;
-
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.Receiver;
@@ -24,22 +22,21 @@ import com.dremio.exec.planner.fragment.EndpointsIndex;
 import com.dremio.exec.proto.CoordExecRPC.MinorFragmentIndexEndpoint;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.options.OptionManager;
+import java.util.List;
 
-/**
- * UnorderedMuxExchange is a version of MuxExchange where the incoming batches are not sorted.
- */
+/** UnorderedMuxExchange is a version of MuxExchange where the incoming batches are not sorted. */
 public class UnorderedMuxExchange extends AbstractMuxExchange {
 
   private final OptionManager optionManager;
 
   public UnorderedMuxExchange(
-    OpProps props,
-    OpProps senderProps,
-    OpProps receiverProps,
-    BatchSchema schema,
-    PhysicalOperator child,
-    OptionManager optionManager,
-    int fragmentsPerEndpoint) {
+      OpProps props,
+      OpProps senderProps,
+      OpProps receiverProps,
+      BatchSchema schema,
+      PhysicalOperator child,
+      OptionManager optionManager,
+      int fragmentsPerEndpoint) {
     super(props, senderProps, receiverProps, schema, child, optionManager, fragmentsPerEndpoint);
     this.optionManager = optionManager;
   }
@@ -54,7 +51,7 @@ public class UnorderedMuxExchange extends AbstractMuxExchange {
 
   @Override
   protected PhysicalOperator getNewWithChild(PhysicalOperator child) {
-    return new UnorderedMuxExchange(props, senderProps, receiverProps,
-      schema, child, optionManager, fragmentsPerEndpoint);
+    return new UnorderedMuxExchange(
+        props, senderProps, receiverProps, schema, child, optionManager, fragmentsPerEndpoint);
   }
 }

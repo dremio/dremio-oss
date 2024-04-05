@@ -15,17 +15,16 @@
  */
 package com.dremio.ssl;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Strings;
 import java.security.KeyStore;
 import java.util.Optional;
 import java.util.Properties;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Strings;
-
 /**
  * SSL configuration.
  *
- * Use the static factory methods, {@link #newBuilderForClient()}, {@link #newBuilderForServer()}
+ * <p>Use the static factory methods, {@link #newBuilderForClient()}, {@link #newBuilderForServer()}
  * or {@link #of}, to create instances.
  */
 public final class SSLConfig {
@@ -40,8 +39,7 @@ public final class SSLConfig {
   public static final String USE_SYSTEM_TRUST_STORE = "useSystemTrustStore";
 
   // if set to this value, default behavior is employed
-  @VisibleForTesting
-  public static final String UNSPECIFIED = "";
+  @VisibleForTesting public static final String UNSPECIFIED = "";
 
   private final String keyStoreType;
   private final String keyStorePath;
@@ -93,8 +91,7 @@ public final class SSLConfig {
   }
 
   public boolean useDefaultTrustStore() {
-    return Strings.isNullOrEmpty(trustStoreType) &&
-      Strings.isNullOrEmpty(trustStorePath);
+    return Strings.isNullOrEmpty(trustStoreType) && Strings.isNullOrEmpty(trustStorePath);
   }
 
   public String getTrustStoreType() {
@@ -144,8 +141,7 @@ public final class SSLConfig {
 
     private boolean useSystemTrustStore = false;
 
-    private Builder() {
-    }
+    private Builder() {}
 
     /**
      * Set key store type. Defaults to {@link KeyStore#getDefaultType}.
@@ -247,8 +243,7 @@ public final class SSLConfig {
     }
 
     /**
-     * Use the system trust store if trustStoreType is not specified.
-     * Only permitted for clients.
+     * Use the system trust store if trustStoreType is not specified. Only permitted for clients.
      * Defaults to {@code false for servers, true for clients}.
      *
      * @param enable whether to enable
@@ -299,27 +294,30 @@ public final class SSLConfig {
     }
 
     final Properties canonicalProperties = new Properties();
-    properties.stringPropertyNames()
+    properties
+        .stringPropertyNames()
         .forEach(s -> canonicalProperties.setProperty(s.toLowerCase(), properties.getProperty(s)));
 
     final Optional<Boolean> enabledOption = getBooleanProperty(canonicalProperties, ENABLE_SSL);
-    return enabledOption.filter(Boolean::booleanValue)
-        .map(ignored -> {
-          final SSLConfig.Builder builder = SSLConfig.newBuilderForClient();
-          getStringProperty(canonicalProperties, TRUST_STORE_TYPE)
-              .ifPresent(builder::setTrustStoreType);
-          getStringProperty(canonicalProperties, TRUST_STORE_PATH)
-              .ifPresent(builder::setTrustStorePath);
-          getStringProperty(canonicalProperties, TRUST_STORE_PASSWORD)
-              .ifPresent(builder::setTrustStorePassword);
-          getBooleanProperty(canonicalProperties, DISABLE_CERT_VERIFICATION)
-              .ifPresent(builder::setDisablePeerVerification);
-          getBooleanProperty(canonicalProperties, DISABLE_HOST_VERIFICATION)
-              .ifPresent(builder::setDisableHostVerification);
-          getBooleanProperty(canonicalProperties, USE_SYSTEM_TRUST_STORE)
-              .ifPresent(builder::useSystemTrustStore);
-          return builder.build();
-        });
+    return enabledOption
+        .filter(Boolean::booleanValue)
+        .map(
+            ignored -> {
+              final SSLConfig.Builder builder = SSLConfig.newBuilderForClient();
+              getStringProperty(canonicalProperties, TRUST_STORE_TYPE)
+                  .ifPresent(builder::setTrustStoreType);
+              getStringProperty(canonicalProperties, TRUST_STORE_PATH)
+                  .ifPresent(builder::setTrustStorePath);
+              getStringProperty(canonicalProperties, TRUST_STORE_PASSWORD)
+                  .ifPresent(builder::setTrustStorePassword);
+              getBooleanProperty(canonicalProperties, DISABLE_CERT_VERIFICATION)
+                  .ifPresent(builder::setDisablePeerVerification);
+              getBooleanProperty(canonicalProperties, DISABLE_HOST_VERIFICATION)
+                  .ifPresent(builder::setDisableHostVerification);
+              getBooleanProperty(canonicalProperties, USE_SYSTEM_TRUST_STORE)
+                  .ifPresent(builder::useSystemTrustStore);
+              return builder.build();
+            });
   }
 
   private static Optional<Boolean> getBooleanProperty(Properties canonicalProperties, String key) {

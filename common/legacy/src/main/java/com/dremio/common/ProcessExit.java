@@ -17,18 +17,15 @@ package com.dremio.common;
 
 import java.io.PrintStream;
 
-
-/**
- * Helper for catastrophic failures
- */
+/** Helper for catastrophic failures */
 public final class ProcessExit {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger("root");
 
-  private ProcessExit() {
-  }
+  private ProcessExit() {}
 
   /**
    * Exit the VM as we hit a catastrophic failure.
+   *
    * @param message a descriptive message
    * @param code an error code to exit the JVM with.
    */
@@ -41,7 +38,8 @@ public final class ProcessExit {
     try {
       exit(t, "There was insufficient heap memory to continue operating.", heapExitCode);
     } finally {
-      // We tried to exit with a nice error message, but that failed, likely when we tried to create a String for the
+      // We tried to exit with a nice error message, but that failed, likely when we tried to create
+      // a String for the
       // error message. Can't let this thread simply exit
       Runtime.getRuntime().halt(heapExitCode);
     }
@@ -49,19 +47,19 @@ public final class ProcessExit {
 
   /**
    * Exit the VM as we hit a catastrophic failure.
-   * @param t
-   *          The Throwable that occurred
-   * @param message
-   *          A descriptive message
-   * @param code
-   *          An error code to exit the JVM with.
+   *
+   * @param t The Throwable that occurred
+   * @param message A descriptive message
+   * @param code An error code to exit the JVM with.
    */
   public static void exit(Throwable t, String message, int code) {
     try {
       logger.error("Dremio is exiting. {}", message, t);
 
-      final PrintStream out = ("true".equals(System.getProperty("dremio.catastrophic_to_standard_out", "true"))) ? System.out
-        : System.err;
+      final PrintStream out =
+          ("true".equals(System.getProperty("dremio.catastrophic_to_standard_out", "true")))
+              ? System.out
+              : System.err;
       out.println("Dremio is exiting. " + message);
       if (t != null) {
         t.printStackTrace(out);
@@ -73,7 +71,8 @@ public final class ProcessExit {
         // Exception ignored
       }
     } finally {
-      // We tried to exit with a nice error message, but that failed for some reason. Can't let this thread simply exit
+      // We tried to exit with a nice error message, but that failed for some reason. Can't let this
+      // thread simply exit
       Runtime.getRuntime().halt(code);
     }
   }

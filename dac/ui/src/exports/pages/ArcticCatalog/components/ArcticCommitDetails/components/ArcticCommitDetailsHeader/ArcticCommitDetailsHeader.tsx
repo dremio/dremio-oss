@@ -17,8 +17,7 @@
 import { useState } from "react";
 import { useIntl, FormattedMessage } from "react-intl";
 import NewBranchDialog from "@app/pages/NessieHomePage/components/NewBranchDialog/NewBranchDialog";
-// @ts-ignore
-import { Button, IconButton } from "dremio-ui-lib";
+import { Button, IconButton } from "dremio-ui-lib/components";
 import { ArcticCatalogTabsType } from "@app/exports/pages/ArcticCatalog/ArcticCatalog";
 import { Reference } from "@app/types/nessie";
 import CopyButton from "@app/components/Buttons/CopyButton";
@@ -62,31 +61,32 @@ function ArcticCommitDetailsHeader({
           <span>
             <CopyButton
               text={commitId}
-              title={formatMessage({ id: "ArcticCatalog.Commits.CommitID.Copy" })}
+              title={formatMessage({
+                id: "ArcticCatalog.Commits.CommitID.Copy",
+              })}
             />
           </span>
         </span>
         <span className={classes["commit-details-header__right"]}>
           <Button
-            color="secondary"
+            variant="secondary"
             onClick={() => handleTabNavigation("data")}
-            disableMargin
             className={classes["commit-details-header__right--button"]}
           >
-            <dremio-icon name="interface/goto-dataset" />
+            <dremio-icon name="interface/goto-dataset" alt="" />
             <FormattedMessage id="ArcticCatalog.Commits.GoToData" />
           </Button>
           <CatalogPrivilegeSwitch
             privilege={["branch", "canCreate"]}
             renderEnabled={() => (
               <IconButton
-                tooltip="RepoView.CreateBranch"
+                tooltip={formatMessage({ id: "RepoView.CreateBranch" })}
                 disabled={reference === null}
                 onClick={() => {
                   setDialogState(true);
                 }}
               >
-                <dremio-icon name="vcs/create-branch" />
+                <dremio-icon name="vcs/create-branch" alt="" />
               </IconButton>
             )}
           />

@@ -35,17 +35,8 @@ import org.projectnessie.jaxrs.tests.BaseTestNessieRest;
 public class ITProxyRestOverRest extends BaseTestNessieRest {
 
   @RegisterExtension
-  private static NessieProxyJaxRsExtension proxy = new NessieProxyJaxRsExtension(RestClientProducer.class);
-
-  @Override
-  protected boolean isNewModel() {
-    return true; // nessie-runner-maven-plugin (in pom.xml) uses the IN_MEMORY store type
-  }
-
-  @Override
-  protected boolean fullPagingSupport() {
-    return true;
-  }
+  private static NessieProxyJaxRsExtension proxy =
+      new NessieProxyJaxRsExtension(RestClientProducer.class);
 
   @SuppressWarnings("JUnitMalformedDeclaration")
   @BeforeEach
@@ -60,9 +51,7 @@ public class ITProxyRestOverRest extends BaseTestNessieRest {
     assertThat(api().getConfig().getActualApiVersion()).isEqualTo(2);
   }
 
-  /**
-   * Workaround to obtain proper test display names in surefire reports.
-   */
+  /** Workaround to obtain proper test display names in surefire reports. */
   @Nested
   @NessieApiVersions(versions = NessieApiVersion.V2)
   public class RelativeReferences extends AbstractRelativeReferences {

@@ -15,27 +15,27 @@
  */
 package com.dremio.exec.expr.fn.impl.conv;
 
-import javax.inject.Inject;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.vector.holders.BitHolder;
-import org.apache.arrow.vector.holders.VarBinaryHolder;
-
 import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.FunctionTemplate.FunctionScope;
 import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
+import javax.inject.Inject;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.vector.holders.BitHolder;
+import org.apache.arrow.vector.holders.VarBinaryHolder;
 
-@FunctionTemplate(name = "convert_toBOOLEAN_BYTE", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+@FunctionTemplate(
+    name = "convert_toBOOLEAN_BYTE",
+    scope = FunctionScope.SIMPLE,
+    nulls = NullHandling.NULL_IF_NULL)
 @SuppressWarnings("unused") // found through classpath search
 public class BooleanByteConvertTo implements SimpleFunction {
 
   @Param BitHolder in;
   @Output VarBinaryHolder out;
   @Inject ArrowBuf buffer;
-
 
   @Override
   public void setup() {
@@ -45,7 +45,7 @@ public class BooleanByteConvertTo implements SimpleFunction {
   @Override
   public void eval() {
     buffer.clear();
-    buffer.writeByte(in.value==0 ? 0 : 1);
+    buffer.writeByte(in.value == 0 ? 0 : 1);
     out.buffer = buffer;
     out.start = 0;
     out.end = 1;

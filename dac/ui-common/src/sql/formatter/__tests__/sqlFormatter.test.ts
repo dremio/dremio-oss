@@ -17,6 +17,20 @@
 import { RuleName } from "../abstractSqlGenerator";
 import { formatQuery } from "../sqlFormatter";
 
+// If there are test cases that cause parsing errors, jest will fail with an unhelpful error in the following format:
+//   ● Test suite failed to run
+//
+//    TypeError: Converting circular structure to JSON
+//        --> starting at object with constructor 'Object'
+//        |     property 'source' -> object with constructor 'DremioLexer'
+//        --- property '_tokenFactorySourcePair' closes the circle
+//        at stringify (<anonymous>)
+//
+// You can see the true error using the runInBand flag, e.g.:
+// node node_modules/jest/bin/jest.js --runInBand
+//
+// See https://github.com/jestjs/jest/issues/10577
+
 describe("sqlFormatter", () => {
   type TestCase = [input: string, expectedIfDifferent?: string];
   const parserRuleTests: { [K in RuleName]: TestCase[] | null } = {
@@ -336,6 +350,13 @@ GRANT   SELECT,
 ON VDS  view1
 TO ROLE role1`,
       ],
+      [
+        `
+GRANT     CREATE VIEW,
+          CREATE FOLDER
+ON FOLDER folder1 AT BRANCH dev
+TO USER   user1`,
+      ],
     ],
     sqlGrantPrivilege: null, // covered by other cases
     parseGranteeType: null, // covered by other cases
@@ -616,7 +637,14 @@ UNPIVOT INCLUDE NULLS (StandardCost
                       ) AS UnpivotTable`,
       ],
     ],
-    matchRecognizeOpt: [
+    snapshot: [
+      [
+        `
+SELECT *
+FROM   tbl FOR SYSTEM_TIME AS OF TIMESTAMP '2022-07-01 01:30:00.000'`,
+      ],
+    ],
+    matchRecognize: [
       [
         `
 SELECT          *
@@ -695,7 +723,7 @@ LIMIT  5 OFFSET 2 ROWS FETCH FIRST 1 ROW ONLY`,
     sqlCopyInto: [
       [
         `
-COPY INTO myspace.tbl
+COPY INTO myspace.tbl AT BRANCH dev
 FROM      'abc'
 FILES     ('file1',
            'file2'
@@ -731,7 +759,6 @@ SELECT *
 FROM   table (specific func(arg0, arg1))`,
       ],
     ],
-    extendedBuiltinFunctionCall: null, // covered by other cases
     builtinFunctionCall: [
       [
         `
@@ -872,6 +899,21 @@ ORDER BY tbl.col ASC NULLS FIRST`,
     periodOperator: null, // covered by other cases
     collateClause: null, // covered by other cases
     unsignedNumericLiteralOrParam: null, // covered by other cases
+    rowExpressionExtension: [
+      [
+        `
+SELECT ROW (
+         col1,
+         col2
+       ) . col1
+FROM   tbl`,
+      ],
+      [
+        `
+SELECT myFunc(arg1, arg2) . col1
+FROM   tbl`,
+      ],
+    ], // it's not pretty, but low priority
     atomicRowExpression: null, // covered by other cases
     caseExpression: [
       [
@@ -912,6 +954,8 @@ FROM   tbl`,
     matchRecognizeCallWithModifier: null, // covered by other cases
     matchRecognizeNavigationLogical: null, // covered by other cases
     matchRecognizeNavigationPhysical: null, // covered by other cases
+    nullTreatment: null, // covered by other cases
+    withinGroup: null, // covered by other cases
     standardFloorCeilOptions: null, // covered by other cases
     nonReservedJdbcFunctionName: null, // covered by other cases
     functionName: null, // covered by other cases
@@ -996,10 +1040,27 @@ SHOW CREATE TABLE abc123.def456 AT BRANCH branch1`,
 SHOW TBLPROPERTIES space1.tbl1`,
       ],
     ],
+    sqlAlterPipe: [
+      [
+        `
+ALTER PIPE             pipe1
+DEDUPE_LOOKBACK_PERIOD 5 AS
+COPY INTO              myspace.tbl
+FROM                   'abc'
+FILES                  ('file1',
+                        'file2'
+                       ) (
+                         DATE_FORMAT 'mmddyyyy',
+                         NULL_IF (
+                           'abc',
+                           'abc'))`,
+      ],
+    ],
     sqlCreatePipe: [
       [
         `
 CREATE PIPE                  pipe1
+DEDUPE_LOOKBACK_PERIOD       5
 NOTIFICATION_PROVIDER        provider1
 NOTIFICATION_QUEUE_REFERENCE ref1 AS
 COPY INTO                    myspace.tbl
@@ -1019,16 +1080,28 @@ FILES                        ('file1',
 DESCRIBE PIPE pipe1`,
       ],
     ],
+    sqlDropPipe: [
+      [
+        `
+DROP PIPE pipe1`,
+      ],
+    ],
     sqlShowPipes: [
       [
         `
 SHOW PIPES`,
       ],
     ],
-
+    sqlTriggerPipe: [
+      [
+        `
+TRIGGER PIPE pipe1
+FOR BATCH    batch1`,
+      ],
+    ],
     parseReferenceType: null, // covered by other cases
     aTVersionSpec: null, // covered by other cases
-    aTBranchVersionOrReferenceSpec: null, // covered by other cases
+    writeableAtVersionSpec: null, // covered by other cases
     parenthesizedKeyValueOptionCommaList: null, // covered by other cases
     keyValueOption: null, // covered by other cases
     commaSepatatedSqlHints: null, // covered by other cases
@@ -1038,7 +1111,6 @@ SHOW PIPES`,
     jsonInputClause: null, // covered by other cases
     jsonReturningClause: null, // covered by other cases
     jsonOutputClause: null, // covered by other cases
-    jsonValueExpression: null, // covered by other cases
     jsonPathSpec: null, // covered by other cases
     jsonApiCommonSyntax: null, // covered by other cases
     jsonExistsErrorBehavior: null, // covered by other cases
@@ -1089,6 +1161,13 @@ FROM   tbl;`,
 SELECT json_array('abc', 'def' NULL ON NULL);`,
       ],
     ],
+    jsonArrayAggOrderByClause: [
+      [
+        `
+SELECT json_arrayagg(col1 ORDER BY col1 ABSENT ON NULL)
+FROM   tbl;`,
+      ],
+    ],
     jsonArrayAggFunctionCall: [
       [
         `
@@ -1100,8 +1179,8 @@ FROM   tbl;`,
 
   test.each(
     (Object.keys(parserRuleTests) as RuleName[]).filter(
-      (ruleName) => !!parserRuleTests[ruleName]
-    )
+      (ruleName) => !!parserRuleTests[ruleName],
+    ),
   )("formatQuery should correctly format rule %s", (ruleName: RuleName) => {
     const testCases: TestCase[] = parserRuleTests[ruleName]!;
     for (const testCase of testCases) {
@@ -1110,7 +1189,7 @@ FROM   tbl;`,
       const actual = formatQuery(input);
       if (expected != actual) {
         console.error(
-          "Formatted query does not match expected. Actual:\n" + actual
+          "Formatted query does not match expected. Actual:\n" + actual,
         );
       }
       expect(formatQuery(input)).toEqual(expected);

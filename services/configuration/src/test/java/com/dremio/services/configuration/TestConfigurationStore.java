@@ -15,24 +15,20 @@
  */
 package com.dremio.services.configuration;
 
-import org.junit.Assert;
-import org.junit.Test;
-
 import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.services.configuration.proto.ConfigurationEntry;
 import com.dremio.test.DremioTest;
-
 import io.protostuff.ByteString;
+import org.junit.Assert;
+import org.junit.Test;
 
-/**
- * Tests for ConfigurationStore
- */
+/** Tests for ConfigurationStore */
 public class TestConfigurationStore {
   @Test
   public void testStore() throws Exception {
-    try(final LegacyKVStoreProvider kvstore =
-      LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT)) {
+    try (final LegacyKVStoreProvider kvstore =
+        LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT)) {
       kvstore.start();
       ConfigurationStore store = new ConfigurationStore(kvstore);
 

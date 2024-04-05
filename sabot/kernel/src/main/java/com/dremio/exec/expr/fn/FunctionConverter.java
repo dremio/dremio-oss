@@ -15,18 +15,6 @@
  */
 package com.dremio.exec.expr.fn;
 
-import java.lang.annotation.Annotation;
-import java.lang.reflect.Field;
-import java.util.Arrays;
-import java.util.List;
-
-import javax.inject.Inject;
-
-import org.apache.arrow.vector.complex.reader.FieldReader;
-import org.apache.arrow.vector.complex.writer.BaseWriter.ComplexWriter;
-import org.apache.arrow.vector.holders.ValueHolder;
-import org.apache.arrow.vector.util.BasicTypeHelper;
-
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.scanner.persistence.AnnotatedClassDescriptor;
 import com.dremio.common.scanner.persistence.FieldDescriptor;
@@ -42,10 +30,17 @@ import com.dremio.exec.expr.fn.BaseFunctionHolder.WorkspaceReference;
 import com.dremio.sabot.exec.context.FunctionContext;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
+import java.lang.annotation.Annotation;
+import java.lang.reflect.Field;
+import java.util.Arrays;
+import java.util.List;
+import javax.inject.Inject;
+import org.apache.arrow.vector.complex.reader.FieldReader;
+import org.apache.arrow.vector.complex.writer.BaseWriter.ComplexWriter;
+import org.apache.arrow.vector.holders.ValueHolder;
+import org.apache.arrow.vector.util.BasicTypeHelper;
 
-/**
- * Converts FunctionCalls to Java Expressions.
- */
+/** Converts FunctionCalls to Java Expressions. */
 public class FunctionConverter {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FunctionConverter.class);
 
@@ -55,8 +50,6 @@ public class FunctionConverter {
       return failure("Class does not declare FunctionTemplate annotation.", func);
     }
 
-
-
     String name = template.name();
     List<String> names = Arrays.asList(template.names());
     if (name.isEmpty() && names.isEmpty()) {
@@ -65,10 +58,10 @@ public class FunctionConverter {
     }
     if (!name.isEmpty() && !names.isEmpty()) {
       // both are set
-      return failure("Must use only one of the following annotations 'name' or 'names'. Both were used.", func);
+      return failure(
+          "Must use only one of the following annotations 'name' or 'names'. Both were used.",
+          func);
     }
-
-
 
     // start by getting field information.
     List<ValueReference> params = Lists.newArrayList();
@@ -90,9 +83,15 @@ public class FunctionConverter {
         }
       }
       if (annotationCount == 0) {
-        return failure("The field must be either a @Param, @Output, @Inject or @Workspace field.", func, field);
-      } else if(annotationCount > 1) {
-        return failure("The field must be only one of @Param, @Output, @Inject or @Workspace. It currently has more than one of these annotations.", func, field);
+        return failure(
+            "The field must be either a @Param, @Output, @Inject or @Workspace field.",
+            func,
+            field);
+      } else if (annotationCount > 1) {
+        return failure(
+            "The field must be only one of @Param, @Output, @Inject or @Workspace. It currently has more than one of these annotations.",
+            func,
+            field);
       }
 
       // TODO(Julien): verify there are a few of those and we can load them
@@ -108,8 +107,11 @@ public class FunctionConverter {
         // Special processing for @Output ComplexWriter
         if (output != null && ComplexWriter.class.isAssignableFrom(fieldClass)) {
           if (outputField != null) {
-            return failure("You've declared more than one @Output field.  You must declare one and only @Output field per Function class.", func, field);
-          }else{
+            return failure(
+                "You've declared more than one @Output field.  You must declare one and only @Output field per Function class.",
+                func,
+                field);
+          } else {
             outputField = ValueReference.createComplexWriterRef(field.getName());
           }
           continue;
@@ -117,7 +119,12 @@ public class FunctionConverter {
 
         // check that param and output are value holders.
         if (!ValueHolder.class.isAssignableFrom(fieldClass)) {
-          return failure(String.format("The field doesn't holds value of type %s which does not implement the ValueHolder interface.  All fields of type @Param or @Output must extend this interface..", fieldClass), func, field);
+          return failure(
+              String.format(
+                  "The field doesn't holds value of type %s which does not implement the ValueHolder interface.  All fields of type @Param or @Output must extend this interface..",
+                  fieldClass),
+              func,
+              field);
         }
 
         // get the type field from the value holder.
@@ -125,9 +132,14 @@ public class FunctionConverter {
         final MajorType oldType;
         try {
           type = CompleteType.fromHolderClass((Class<? extends ValueHolder>) fieldClass);
-          oldType = BasicTypeHelper.getValueHolderMajorType((Class<? extends ValueHolder>) fieldClass);
+          oldType =
+              BasicTypeHelper.getValueHolderMajorType((Class<? extends ValueHolder>) fieldClass);
         } catch (Exception e) {
-          return failure("Failure while trying to access the ValueHolder's TYPE static variable.  All ValueHolders must contain a static TYPE variable that defines their MajorType.", e, func, field);
+          return failure(
+              "Failure while trying to access the ValueHolder's TYPE static variable.  All ValueHolders must contain a static TYPE variable that defines their MajorType.",
+              e,
+              func,
+              field);
         }
 
         ValueReference p = new ValueReference(type, oldType, field.getName());
@@ -136,7 +148,10 @@ public class FunctionConverter {
           params.add(p);
         } else {
           if (outputField != null) {
-            return failure("You've declared more than one @Output field.  You must declare one and only @Output field per Function class.", func, field);
+            return failure(
+                "You've declared more than one @Output field.  You must declare one and only @Output field per Function class.",
+                func,
+                field);
           } else {
             outputField = p;
           }
@@ -148,66 +163,81 @@ public class FunctionConverter {
         if (isInject && FunctionContext.INJECTABLE_GETTER_METHODS.get(fieldClass) == null) {
           return failure(
               String.format(
-                  "A %s cannot be injected into a %s,"
-                  + " available injectable classes are: %s.",
-                  fieldClass, Function.class.getSimpleName(),
-                  Joiner.on(",").join(FunctionContext.INJECTABLE_GETTER_METHODS.keySet())
-              ), func, field);
+                  "A %s cannot be injected into a %s," + " available injectable classes are: %s.",
+                  fieldClass,
+                  Function.class.getSimpleName(),
+                  Joiner.on(",").join(FunctionContext.INJECTABLE_GETTER_METHODS.keySet())),
+              func,
+              field);
         }
-        WorkspaceReference wsReference = new WorkspaceReference(fieldClass, field.getName(), isInject);
+        WorkspaceReference wsReference =
+            new WorkspaceReference(fieldClass, field.getName(), isInject);
 
-        if (!isInject && template.scope() == FunctionScope.POINT_AGGREGATE && !ValueHolder.class.isAssignableFrom(fieldClass) ) {
-          return failure(String.format("Aggregate function '%s' workspace variable '%s' is of type '%s'. Please change it to Holder type.", func.getClassName(), field.getName(), fieldClass), func, field);
+        if (!isInject
+            && template.scope() == FunctionScope.POINT_AGGREGATE
+            && !ValueHolder.class.isAssignableFrom(fieldClass)) {
+          return failure(
+              String.format(
+                  "Aggregate function '%s' workspace variable '%s' is of type '%s'. Please change it to Holder type.",
+                  func.getClassName(), field.getName(), fieldClass),
+              func,
+              field);
         }
 
-        //If the workspace var is of Holder type, get its type and assign to WorkspaceReference.
+        // If the workspace var is of Holder type, get its type and assign to WorkspaceReference.
         if (ValueHolder.class.isAssignableFrom(fieldClass)) {
-          wsReference.setCompleteType(CompleteType.fromHolderClass((Class<? extends ValueHolder>) fieldClass));
+          wsReference.setCompleteType(
+              CompleteType.fromHolderClass((Class<? extends ValueHolder>) fieldClass));
         }
         workspaceFields.add(wsReference);
       }
     }
 
     if (outputField == null) {
-      return failure("This function declares zero output fields.  A function must declare one output field.", func);
+      return failure(
+          "This function declares zero output fields.  A function must declare one output field.",
+          func);
     }
 
     FunctionInitializer initializer = new FunctionInitializer(func.getClassName());
-    try{
+    try {
 
       final ValueReference[] ps = params.toArray(new ValueReference[params.size()]);
-      final WorkspaceReference[] works = workspaceFields.toArray(new WorkspaceReference[workspaceFields.size()]);
-      final String[] registeredNames = ((template.name().isEmpty()) ? template.names() : new String[] {template.name()} );
+      final WorkspaceReference[] works =
+          workspaceFields.toArray(new WorkspaceReference[workspaceFields.size()]);
+      final String[] registeredNames =
+          ((template.name().isEmpty()) ? template.names() : new String[] {template.name()});
       OutputDerivation derivation;
-      try{
-      derivation = template.derivation().getConstructor().newInstance();
-      }catch(RuntimeException ex){
+      try {
+        derivation = template.derivation().getConstructor().newInstance();
+      } catch (RuntimeException ex) {
         throw ex;
       }
-      FunctionAttributes functionAttributes = new FunctionAttributes(
-          template.scope(),
-          template.nulls(),
-          template.isBinaryCommutative(),
-          template.isDeterministic(),
-          template.isDynamic(),
-          template.syntax(),
-          registeredNames,
-          ps,
-          outputField,
-          works,
-          template.costCategory(),
-          derivation);
+      FunctionAttributes functionAttributes =
+          new FunctionAttributes(
+              template.scope(),
+              template.nulls(),
+              template.isBinaryCommutative(),
+              template.isDeterministic(),
+              template.isDynamic(),
+              template.syntax(),
+              registeredNames,
+              ps,
+              outputField,
+              works,
+              template.costCategory(),
+              derivation);
       switch (template.scope()) {
-      case POINT_AGGREGATE:
-        return new AggrFunctionHolder(functionAttributes, initializer);
-      case SIMPLE:
-        if (outputField.isComplexWriter()) {
-          return new ComplexWriterFunctionHolder(functionAttributes, initializer);
-        } else {
-          return new SimpleFunctionHolder(functionAttributes, initializer);
-        }
-      default:
-        return failure("Unsupported Function Type.", func);
+        case POINT_AGGREGATE:
+          return new AggrFunctionHolder(functionAttributes, initializer);
+        case SIMPLE:
+          if (outputField.isComplexWriter()) {
+            return new ComplexWriterFunctionHolder(functionAttributes, initializer);
+          } else {
+            return new SimpleFunctionHolder(functionAttributes, initializer);
+          }
+        default:
+          return failure("Unsupported Function Type.", func);
       }
     } catch (Exception | NoSuchFieldError | AbstractMethodError ex) {
       return failure("Failure while creating function holder.", ex, func);
@@ -215,17 +245,23 @@ public class FunctionConverter {
   }
 
   @SuppressWarnings("unchecked")
-  private <T> T getStaticFieldValue(String fieldName, Class<?> valueType, Class<T> c) throws NoSuchFieldException, SecurityException, IllegalArgumentException, IllegalAccessException{
-      Field f = valueType.getDeclaredField(fieldName);
-      Object val = f.get(null);
-      return (T) val;
+  private <T> T getStaticFieldValue(String fieldName, Class<?> valueType, Class<T> c)
+      throws NoSuchFieldException,
+          SecurityException,
+          IllegalArgumentException,
+          IllegalAccessException {
+    Field f = valueType.getDeclaredField(fieldName);
+    Object val = f.get(null);
+    return (T) val;
   }
 
-  private static BaseFunctionHolder failure(String message, Throwable t, AnnotatedClassDescriptor func, FieldDescriptor field) {
+  private static BaseFunctionHolder failure(
+      String message, Throwable t, AnnotatedClassDescriptor func, FieldDescriptor field) {
     return fieldFailure(message, t, func.getClassName(), field.getName());
   }
 
-  private static BaseFunctionHolder failure(String message, AnnotatedClassDescriptor func, FieldDescriptor field) {
+  private static BaseFunctionHolder failure(
+      String message, AnnotatedClassDescriptor func, FieldDescriptor field) {
     return fieldFailure(message, null, func.getClassName(), field.getName());
   }
 
@@ -237,12 +273,20 @@ public class FunctionConverter {
     return classFailure(message, t, func.getClassName());
   }
 
-  private static BaseFunctionHolder classFailure(String message, Throwable t, String funcClassName) {
-    return failure(String.format("Failure loading function class [%s]. Message: %s", funcClassName, message), t);
+  private static BaseFunctionHolder classFailure(
+      String message, Throwable t, String funcClassName) {
+    return failure(
+        String.format("Failure loading function class [%s]. Message: %s", funcClassName, message),
+        t);
   }
 
-  private static BaseFunctionHolder fieldFailure(String message, Throwable t, String funcClassName, String fieldName) {
-    return failure(String.format("Failure loading function class %s, field %s. Message: %s", funcClassName, fieldName, message), t);
+  private static BaseFunctionHolder fieldFailure(
+      String message, Throwable t, String funcClassName, String fieldName) {
+    return failure(
+        String.format(
+            "Failure loading function class %s, field %s. Message: %s",
+            funcClassName, fieldName, message),
+        t);
   }
 
   private static BaseFunctionHolder failure(String message, Throwable t) {
@@ -252,5 +296,4 @@ public class FunctionConverter {
     logger.warn(message, t);
     return null;
   }
-
 }

@@ -46,32 +46,59 @@ import com.dremio.common.expression.ValueExpressions.TimeStampExpression;
 
 public interface ExprVisitor<T, VAL, EXCEP extends Exception> {
   T visitFunctionCall(FunctionCall call, VAL value) throws EXCEP;
+
   T visitFunctionHolderExpression(FunctionHolderExpression holder, VAL value) throws EXCEP;
+
   T visitIfExpression(IfExpression ifExpr, VAL value) throws EXCEP;
+
   T visitCaseExpression(CaseExpression caseExpression, VAL value) throws EXCEP;
+
   T visitBooleanOperator(BooleanOperator call, VAL value) throws EXCEP;
+
   T visitSchemaPath(SchemaPath path, VAL value) throws EXCEP;
+
   T visitIntConstant(IntExpression intExpr, VAL value) throws EXCEP;
+
   T visitFloatConstant(FloatExpression fExpr, VAL value) throws EXCEP;
+
   T visitLongConstant(LongExpression intExpr, VAL value) throws EXCEP;
+
   T visitDateConstant(DateExpression intExpr, VAL value) throws EXCEP;
+
   T visitTimeConstant(TimeExpression intExpr, VAL value) throws EXCEP;
+
   T visitTimeStampConstant(TimeStampExpression intExpr, VAL value) throws EXCEP;
+
   T visitIntervalYearConstant(IntervalYearExpression intExpr, VAL value) throws EXCEP;
+
   T visitIntervalDayConstant(IntervalDayExpression intExpr, VAL value) throws EXCEP;
+
   T visitDecimalConstant(DecimalExpression decExpr, VAL value) throws EXCEP;
+
   T visitDoubleConstant(DoubleExpression dExpr, VAL value) throws EXCEP;
+
   T visitBooleanConstant(BooleanExpression e, VAL value) throws EXCEP;
+
   T visitQuotedStringConstant(QuotedString e, VAL value) throws EXCEP;
+
   T visitNullConstant(TypedNullConstant e, VAL value) throws EXCEP;
+
   T visitNullExpression(NullExpression e, VAL value) throws EXCEP;
+
   T visitUnknown(LogicalExpression e, VAL value) throws EXCEP;
+
   T visitCastExpression(CastExpression e, VAL value) throws EXCEP;
+
   T visitConvertExpression(ConvertExpression e, VAL value) throws EXCEP;
+
   T visitInputReference(InputReference e, VAL value) throws EXCEP;
+
   T visitOrdering(Ordering e, VAL value) throws EXCEP;
+
   T visitListAggExpression(ListAggExpression e, VAL value) throws EXCEP;
+
   T visitArrayLiteralExpression(ArrayLiteralExpression e, VAL value) throws EXCEP;
+
   default T visitInExpression(InExpression e, VAL value) throws EXCEP {
     return visitUnknown(e, value);
   }

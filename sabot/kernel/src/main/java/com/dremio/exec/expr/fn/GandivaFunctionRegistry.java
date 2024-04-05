@@ -17,6 +17,14 @@ package com.dremio.exec.expr.fn;
 
 import static com.dremio.exec.ExecConstants.DISABLED_GANDIVA_FUNCTIONS;
 
+import com.dremio.common.expression.CompleteType;
+import com.dremio.common.map.CaseInsensitiveMap;
+import com.dremio.exec.planner.sql.Checker;
+import com.dremio.exec.planner.sql.SqlFunctionImpl;
+import com.dremio.exec.planner.sql.TypeInferenceUtils;
+import com.dremio.options.OptionChangeListener;
+import com.dremio.options.OptionManager;
+import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -25,7 +33,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
-
 import org.apache.arrow.gandiva.evaluator.FunctionSignature;
 import org.apache.arrow.gandiva.exceptions.GandivaException;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -35,20 +42,12 @@ import org.apache.calcite.sql.SqlOperator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.common.expression.CompleteType;
-import com.dremio.common.map.CaseInsensitiveMap;
-import com.dremio.exec.planner.sql.Checker;
-import com.dremio.exec.planner.sql.SqlFunctionImpl;
-import com.dremio.exec.planner.sql.TypeInferenceUtils;
-import com.dremio.options.OptionChangeListener;
-import com.dremio.options.OptionManager;
-import com.google.common.collect.Lists;
-
 public class GandivaFunctionRegistry implements PrimaryFunctionRegistry, OptionChangeListener {
 
   static final Logger logger = LoggerFactory.getLogger(GandivaFunctionRegistry.class);
 
-  private final Map<String, List<AbstractFunctionHolder>> supportedFunctions = CaseInsensitiveMap.newHashMap();
+  private final Map<String, List<AbstractFunctionHolder>> supportedFunctions =
+      CaseInsensitiveMap.newHashMap();
   private final AtomicReference<Set<String>> disabledFunctionsRef;
   private final OptionManager optionManager;
 
@@ -58,26 +57,28 @@ public class GandivaFunctionRegistry implements PrimaryFunctionRegistry, OptionC
     this.listenerAdded = (optionManager == null);
     this.optionManager = optionManager;
     try {
-      Set<FunctionSignature> supportedFunctions = isDecimalV2Enabled ? GandivaRegistryWrapper
-        .getInstance().getSupportedFunctionsIncludingDecimal() : GandivaRegistryWrapper
-        .getInstance().getSupportedFunctionsExcludingDecimal();
+      Set<FunctionSignature> supportedFunctions =
+          isDecimalV2Enabled
+              ? GandivaRegistryWrapper.getInstance().getSupportedFunctionsIncludingDecimal()
+              : GandivaRegistryWrapper.getInstance().getSupportedFunctionsExcludingDecimal();
       for (FunctionSignature signature : supportedFunctions) {
-        List<AbstractFunctionHolder> signaturesForName = this.supportedFunctions.getOrDefault(
-          signature.getName(), Lists.newArrayList());
+        List<AbstractFunctionHolder> signaturesForName =
+            this.supportedFunctions.getOrDefault(signature.getName(), Lists.newArrayList());
 
-        //Build the return type.
+        // Build the return type.
         final String dataFieldName = "$data$";
         CompleteType retType = null;
         if (!(signature.getReturnListType() instanceof ArrowType.Null)) {
           List<Field> children = new ArrayList<Field>();
-          children.add(new Field(dataFieldName, new FieldType(true, signature.getReturnListType(),
-            null), null));
+          children.add(
+              new Field(
+                  dataFieldName, new FieldType(true, signature.getReturnListType(), null), null));
           retType = new CompleteType(signature.getReturnType(), children);
         } else {
           retType = new CompleteType(signature.getReturnType());
         }
 
-        //Build the argument types.
+        // Build the argument types.
         CompleteType[] args = new CompleteType[signature.getParamTypes().size()];
 
         List<List<ArrowType>> paramTypes = signature.getParamTypes();
@@ -87,12 +88,12 @@ public class GandivaFunctionRegistry implements PrimaryFunctionRegistry, OptionC
             args[argIndex++] = new CompleteType(param.get(0));
           } else if (param.size() == 2 && param.get(0) instanceof ArrowType.List) {
             List<Field> children = new ArrayList<Field>();
-            children.add(new Field(dataFieldName, new FieldType(true, param.get(1),
-              null), null));
+            children.add(new Field(dataFieldName, new FieldType(true, param.get(1), null), null));
             args[argIndex++] = new CompleteType(param.get(0), children);
           }
         }
-        AbstractFunctionHolder holder = new GandivaFunctionHolder(args, retType, signature.getName());
+        AbstractFunctionHolder holder =
+            new GandivaFunctionHolder(args, retType, signature.getName());
         signaturesForName.add(holder);
         this.supportedFunctions.put(signature.getName(), signaturesForName);
       }
@@ -108,7 +109,9 @@ public class GandivaFunctionRegistry implements PrimaryFunctionRegistry, OptionC
       return Collections.emptySet();
     }
     final String cleaned = str.trim().toLowerCase();
-    return cleaned.isEmpty() ? Collections.emptySet() : Arrays.stream(cleaned.split(";")).collect(Collectors.toSet());
+    return cleaned.isEmpty()
+        ? Collections.emptySet()
+        : Arrays.stream(cleaned.split(";")).collect(Collectors.toSet());
   }
 
   @Override
@@ -134,11 +137,12 @@ public class GandivaFunctionRegistry implements PrimaryFunctionRegistry, OptionC
         }
       }
 
-      SqlOperator operator = SqlFunctionImpl.create(
-        name,
-        TypeInferenceUtils.getSqlReturnTypeInference(supportedFunctions.get(name)),
-        Checker.between(min, max),
-        SqlFunctionImpl.Source.GANDIVA);
+      SqlOperator operator =
+          SqlFunctionImpl.create(
+              name,
+              TypeInferenceUtils.getSqlReturnTypeInference(supportedFunctions.get(name)),
+              Checker.between(min, max),
+              SqlFunctionImpl.Source.GANDIVA);
       operators.add(operator);
     }
 
@@ -152,22 +156,27 @@ public class GandivaFunctionRegistry implements PrimaryFunctionRegistry, OptionC
     }
     final String lcName = name.toLowerCase();
     final Set<String> disabledFunctions = disabledFunctionsRef.get();
-    return disabledFunctions.contains(lcName) ? Collections.emptyList() :
-      supportedFunctions.getOrDefault(lcName, Collections.emptyList());
+    return disabledFunctions.contains(lcName)
+        ? Collections.emptyList()
+        : supportedFunctions.getOrDefault(lcName, Collections.emptyList());
   }
 
   @Override
   public synchronized void onChange() {
-    if (optionManager == null ||
-      disabledFunctionsRef.get().equals(toLowerCaseSet(optionManager.getOption(DISABLED_GANDIVA_FUNCTIONS)))) {
+    if (optionManager == null
+        || disabledFunctionsRef
+            .get()
+            .equals(toLowerCaseSet(optionManager.getOption(DISABLED_GANDIVA_FUNCTIONS)))) {
       return;
     }
     // no need to compare if there is a change as option changes
-    this.disabledFunctionsRef.set(toLowerCaseSet(optionManager.getOption(DISABLED_GANDIVA_FUNCTIONS)));
+    this.disabledFunctionsRef.set(
+        toLowerCaseSet(optionManager.getOption(DISABLED_GANDIVA_FUNCTIONS)));
   }
 
   private void addListener() {
-    this.disabledFunctionsRef.set(toLowerCaseSet(optionManager.getOption(DISABLED_GANDIVA_FUNCTIONS)));
+    this.disabledFunctionsRef.set(
+        toLowerCaseSet(optionManager.getOption(DISABLED_GANDIVA_FUNCTIONS)));
     optionManager.addOptionChangeListener(this);
     listenerAdded = true;
   }

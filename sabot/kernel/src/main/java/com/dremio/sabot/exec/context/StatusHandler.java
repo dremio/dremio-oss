@@ -19,15 +19,15 @@ import com.dremio.common.DeferredException;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.rpc.RpcOutcomeListener;
-
 import io.netty.buffer.ByteBuf;
 
 /**
- * Listener that keeps track of the status of batches sent, and updates the SendingAccountor when status is received
- * for each batch
+ * Listener that keeps track of the status of batches sent, and updates the SendingAccountor when
+ * status is received for each batch
  */
 public class StatusHandler implements RpcOutcomeListener<Ack> {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(StatusHandler.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(StatusHandler.class);
   private final DeferredException exception;
 
   public StatusHandler(DeferredException exception) {

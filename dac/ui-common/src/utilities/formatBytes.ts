@@ -27,7 +27,7 @@ const UNITS = [
 
 const PRECISION = 2;
 
-type SizeString = `${string} ${typeof UNITS[number]["label"]}`;
+type SizeString = `${string} ${(typeof UNITS)[number]["label"]}`;
 
 export const formatBytes = (bytes: number): SizeString => {
   for (let i = 1; i <= UNITS.length - 1; i++) {

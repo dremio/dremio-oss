@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.expr;
 
-import java.util.Set;
-
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.SupportedEngines;
 import com.dremio.common.logical.data.NamedExpression;
@@ -25,6 +23,7 @@ import com.dremio.exec.record.TypedFieldId;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.llvm.ExpressionWorkEstimator;
 import com.google.common.collect.Sets;
+import java.util.Set;
 
 public class CachableExpressionSplit {
 
@@ -53,25 +52,40 @@ public class CachableExpressionSplit {
   // ValueVectorReadExpression representing the output of this split
   private final TypedFieldId typedFieldIdCachedVersion;
 
-  public CachableExpressionSplit(NamedExpression namedExpression, boolean isOriginalExpression, OperatorContext operatorContext,
-                                 SupportedEngines.Engine executionEngine, SplitDependencyTracker helper, int numExtraIfExprs, TypedFieldId fieldId) {
-    LogicalExpression expression = CodeGenerationContextRemover.removeCodeGenContext(namedExpression.getExpr());
+  public CachableExpressionSplit(
+      NamedExpression namedExpression,
+      boolean isOriginalExpression,
+      OperatorContext operatorContext,
+      SupportedEngines.Engine executionEngine,
+      SplitDependencyTracker helper,
+      int numExtraIfExprs,
+      TypedFieldId fieldId) {
+    LogicalExpression expression =
+        CodeGenerationContextRemover.removeCodeGenContext(namedExpression.getExpr());
     this.cachedSplitNamedExpression = new NamedExpression(expression, namedExpression.getRef());
     this.executionEngine = executionEngine;
     this.isOriginalExpression = isOriginalExpression;
     this.dependsOnSplitsInCachedVersion.addAll(helper.getNamesOfDependencies());
     this.numExtraIfExprs = numExtraIfExprs;
-    this.optimize = operatorContext.getOptions().getOption(ExecConstants.GANDIVA_OPTIMIZE)
-      && (executionEngine.equals(SupportedEngines.Engine.GANDIVA) && expression.accept(new ExpressionWorkEstimator(), null) < operatorContext.getOptions()
-      .getOption(ExecConstants.EXPR_COMPLEXITY_NO_OPTIMIZE_THRESHOLD));
+    this.optimize =
+        operatorContext.getOptions().getOption(ExecConstants.GANDIVA_OPTIMIZE)
+            && (executionEngine.equals(SupportedEngines.Engine.GANDIVA)
+                && expression.accept(new ExpressionWorkEstimator(), null)
+                    < operatorContext
+                        .getOptions()
+                        .getOption(ExecConstants.EXPR_COMPLEXITY_NO_OPTIMIZE_THRESHOLD));
     this.typedFieldIdCachedVersion = fieldId;
   }
 
   public CachableExpressionSplit(CachableExpressionSplit cachableExpressionSplit) {
-    this.cachedSplitNamedExpression = new NamedExpression(cachableExpressionSplit.getCachedSplitNamedExpression().getExpr(), cachableExpressionSplit.getCachedSplitNamedExpression().getRef());
+    this.cachedSplitNamedExpression =
+        new NamedExpression(
+            cachableExpressionSplit.getCachedSplitNamedExpression().getExpr(),
+            cachableExpressionSplit.getCachedSplitNamedExpression().getRef());
     this.executionEngine = cachableExpressionSplit.getExecutionEngine();
     this.isOriginalExpression = cachableExpressionSplit.isOriginalExpression();
-    this.dependsOnSplitsInCachedVersion.addAll(cachableExpressionSplit.getDependsOnSplitsInCachedVersion());
+    this.dependsOnSplitsInCachedVersion.addAll(
+        cachableExpressionSplit.getDependsOnSplitsInCachedVersion());
     this.optimize = cachableExpressionSplit.getOptimize();
     this.numExtraIfExprs = cachableExpressionSplit.getOverheadDueToExtraIfs();
     this.typedFieldIdCachedVersion = cachableExpressionSplit.getTypedFieldIdCachedVersion();
@@ -79,7 +93,10 @@ public class CachableExpressionSplit {
   }
 
   public CachableExpressionSplit(ExpressionSplit expressionSplit) {
-    this.cachedSplitNamedExpression = new NamedExpression(expressionSplit.getNamedExpression().getExpr(), expressionSplit.getNamedExpression().getRef());
+    this.cachedSplitNamedExpression =
+        new NamedExpression(
+            expressionSplit.getNamedExpression().getExpr(),
+            expressionSplit.getNamedExpression().getRef());
     this.executionEngine = expressionSplit.getExecutionEngine();
     this.isOriginalExpression = expressionSplit.isOriginalExpression();
     this.dependsOnSplitsInCachedVersion.addAll(expressionSplit.getDependsOnSplits());
@@ -125,5 +142,4 @@ public class CachableExpressionSplit {
   public TypedFieldId getTypedFieldIdCachedVersion() {
     return typedFieldIdCachedVersion;
   }
-
 }

@@ -370,6 +370,7 @@ message QueryProfile {
   optional int32 num_joins_in_user_query = 41;
   optional int32 num_joins_in_final_prel = 42;
   optional ContextInfo context_info = 43;
+  optional int64 cancel_start_time = 44;
 }
 
 message SourceVersionSetting {
@@ -532,7 +533,16 @@ message PlanPhaseProfile {
   optional string plan = 3;
   optional string planner_dump = 4;
   optional FragmentRpcSizeStats size_stats = 5;
-  map<string, int64> time_breakdown_per_rule = 6;
+  map<string, int64> time_breakdown_per_rule = 6 [deprecated = true];
+  repeated PlannerPhaseRulesStats rules_breakdown_stats = 7;
+}
+
+message PlannerPhaseRulesStats {
+  optional string rule = 1;
+  optional int64 total_time_ms = 2;
+  optional int32 matched_count = 3;
+  optional int32 transformed_count = 4;
+  optional int64 relnodes_count = 5;
 }
 
 message MajorFragmentProfile {
@@ -587,6 +597,8 @@ message MinorFragmentProfile {
   optional int64 num_slices = 1014;
   optional int64 num_long_slices = 1015;
   optional int64 num_short_slices = 1016;
+  optional int64 recent_slice_start_time = 1017;
+  optional int64 cancel_start_time = 1018;
 }
 
 // Information about expression splits (in project/filter)
@@ -659,6 +671,8 @@ message OperatorProfile {
   optional int64 outputBytes = 13;
   optional int64 addedFiles = 14; // DML
   optional int64 removedFiles = 15; // DML
+  optional int32 operatorState = 16;
+  optional int64 lastScheduleTime = 17;
 }
 
 message StreamProfile {

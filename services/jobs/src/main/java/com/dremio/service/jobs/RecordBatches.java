@@ -15,16 +15,13 @@
  */
 package com.dremio.service.jobs;
 
-import java.util.List;
-
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.RecordBatchHolder;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import java.util.List;
 
-/**
- * Set of {@link RecordBatchHolder}s.
- */
+/** Set of {@link RecordBatchHolder}s. */
 public final class RecordBatches {
   private final List<RecordBatchHolder> batches;
   private final BatchSchema schema;
@@ -36,12 +33,12 @@ public final class RecordBatches {
 
     int size = 0;
     if (batches != null) {
-      for(RecordBatchHolder batch : batches) {
+      for (RecordBatchHolder batch : batches) {
         size += batch.size();
       }
     }
     this.size = size;
-    this.schema = batches.get(0).getData().getContainer().getSchema();
+    this.schema = batches.get(0).getData().getSchema();
   }
 
   /**
@@ -53,6 +50,7 @@ public final class RecordBatches {
 
   /**
    * Get the schema of the records in batches.
+   *
    * @return
    */
   public BatchSchema getSchema() {
@@ -61,6 +59,7 @@ public final class RecordBatches {
 
   /**
    * Return the total number of records represented in all batches.
+   *
    * @return
    */
   public int getSize() {

@@ -15,20 +15,6 @@
  */
 package com.dremio.plugins.elastic.planning.rels;
 
-
-import java.io.IOException;
-import java.util.Iterator;
-
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelOptCost;
-import org.apache.calcite.plan.RelOptPlanner;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.metadata.RelMetadataQuery;
-import org.apache.calcite.rex.RexNode;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.PhysicalOperator;
@@ -39,6 +25,17 @@ import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.exec.planner.physical.visitor.PrelVisitor;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
+import java.io.IOException;
+import java.util.Iterator;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptCost;
+import org.apache.calcite.plan.RelOptPlanner;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.apache.calcite.rex.RexNode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ElasticsearchFilter extends FilterRelBase implements ElasticsearchPrel {
 
@@ -46,7 +43,12 @@ public class ElasticsearchFilter extends FilterRelBase implements ElasticsearchP
 
   private StoragePluginId pluginId;
 
-  public ElasticsearchFilter(RelOptCluster cluster, RelTraitSet traits, RelNode child, RexNode condition, StoragePluginId pluginId) {
+  public ElasticsearchFilter(
+      RelOptCluster cluster,
+      RelTraitSet traits,
+      RelNode child,
+      RexNode condition,
+      StoragePluginId pluginId) {
     super(Prel.PHYSICAL, cluster, traits, child, condition);
     this.pluginId = pluginId;
   }
@@ -72,7 +74,8 @@ public class ElasticsearchFilter extends FilterRelBase implements ElasticsearchP
   }
 
   @Override
-  public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator physicalPlanCreator) throws IOException {
+  public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator physicalPlanCreator)
+      throws IOException {
     throw new UnsupportedOperationException();
   }
 

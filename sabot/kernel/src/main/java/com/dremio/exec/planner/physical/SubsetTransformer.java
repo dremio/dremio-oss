@@ -40,18 +40,18 @@ public abstract class SubsetTransformer<T extends RelNode, E extends Exception> 
       set = set.plus(t);
     }
     return set;
-
   }
 
   boolean go(T n, RelNode candidateSet) throws E {
-    if ( !(candidateSet instanceof RelSubset) ) {
+    if (!(candidateSet instanceof RelSubset)) {
       return false;
     }
 
     boolean transform = false;
-    for (RelNode rel : ((RelSubset)candidateSet).getRelList()) {
+    for (RelNode rel : ((RelSubset) candidateSet).getRelList()) {
       if (isPhysical(rel)) {
-        RelNode newRel = RelOptRule.convert(candidateSet, rel.getTraitSet().plus(Prel.PHYSICAL).simplify());
+        RelNode newRel =
+            RelOptRule.convert(candidateSet, rel.getTraitSet().plus(Prel.PHYSICAL).simplify());
         RelNode out = convertChild(n, newRel);
         if (out != null) {
           call.transformTo(out);
@@ -60,11 +60,10 @@ public abstract class SubsetTransformer<T extends RelNode, E extends Exception> 
       }
     }
 
-
     return transform;
   }
 
-  private boolean isPhysical(RelNode n){
+  private boolean isPhysical(RelNode n) {
     return n.getTraitSet().getTrait(ConventionTraitDef.INSTANCE).equals(Prel.PHYSICAL);
   }
 }

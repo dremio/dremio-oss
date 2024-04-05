@@ -15,9 +15,7 @@
  */
 package com.dremio.exec.expr.fn;
 
-/**
- *
- */
+/** */
 public class FunctionErrorContextBuilder {
 
   public static Builder builder() {
@@ -25,10 +23,8 @@ public class FunctionErrorContextBuilder {
   }
 
   public static class Builder {
-    /**
-     * Exposed only through {@link #builder}
-     */
-    Builder() { }
+    /** Exposed only through {@link #builder} */
+    Builder() {}
 
     public FunctionErrorContext build() {
       return new FunctionErrorContextImpl();

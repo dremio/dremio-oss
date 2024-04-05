@@ -114,6 +114,8 @@ export function getIconByEntityType(type, isVersioned) {
       return "File";
     case "FOLDER":
       return "Folder";
+    case "SOURCE_ROOT":
+      return "Database";
     case "OTHERS":
       return "OtherDataSets";
     default:

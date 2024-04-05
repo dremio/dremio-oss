@@ -15,14 +15,12 @@
  */
 package com.dremio.exec.planner.sql.convertlet;
 
+import com.google.common.collect.ImmutableList;
 import java.util.function.BiFunction;
-
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.CorrelationId;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexSubQuery;
-
-import com.google.common.collect.ImmutableList;
 
 public final class AfterTransform {
   private final RelNode transformed;
@@ -40,7 +38,7 @@ public final class AfterTransform {
    * @return The aggregated value.
    */
   public RexSubQuery aggregate(
-    BiFunction<RelNode, CorrelationId, RexSubQuery> subqueryCreateFunction) {
+      BiFunction<RelNode, CorrelationId, RexSubQuery> subqueryCreateFunction) {
     RexSubQuery rexSubQuery = subqueryCreateFunction.apply(transformed, correlationId);
     return rexSubQuery;
   }
@@ -54,6 +52,8 @@ public final class AfterTransform {
   }
 
   public RexSubQuery in(RexNode needle) {
-    return aggregate((relNode, correlationId1) -> RexSubQuery.in(relNode, ImmutableList.of(needle), correlationId1));
+    return aggregate(
+        (relNode, correlationId1) ->
+            RexSubQuery.in(relNode, ImmutableList.of(needle), correlationId1));
   }
 }

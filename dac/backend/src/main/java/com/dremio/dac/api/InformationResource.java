@@ -17,21 +17,18 @@ package com.dremio.dac.api;
 
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
+import com.dremio.dac.annotations.APIResource;
+import com.dremio.dac.annotations.Secured;
+import com.dremio.dac.model.info.VersionInfo;
+import com.dremio.dac.util.InformationUtil;
+import com.dremio.provision.service.ProvisioningServiceImpl;
 import javax.annotation.security.RolesAllowed;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 
-import com.dremio.dac.annotations.APIResource;
-import com.dremio.dac.annotations.Secured;
-import com.dremio.dac.model.info.VersionInfo;
-import com.dremio.dac.util.InformationUtil;
-import com.dremio.provision.service.ProvisioningServiceImpl;
-
-/**
- * Information API resource.
- */
+/** Information API resource. */
 @APIResource
 @Secured
 @RolesAllowed({"user", "admin"})

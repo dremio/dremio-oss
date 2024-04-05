@@ -17,12 +17,6 @@ package com.dremio.exec.store.easy.arrow;
 
 import static com.dremio.exec.store.easy.arrow.ArrowFormatPlugin.MAGIC_STRING;
 
-import java.io.DataOutputStream;
-import java.io.IOException;
-import java.util.List;
-
-import org.apache.arrow.vector.ValueVector;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.cache.VectorAccessibleSerializable;
 import com.dremio.exec.expr.TypeHelper;
@@ -42,13 +36,16 @@ import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.util.List;
+import org.apache.arrow.vector.ValueVector;
 
-/**
- * {@link RecordWriter} implementation for Arrow format files.
- */
+/** {@link RecordWriter} implementation for Arrow format files. */
 public class ArrowRecordWriter implements RecordWriter {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ArrowRecordWriter.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ArrowRecordWriter.class);
 
   private final EasyWriter writerConfig;
   private final OperatorContext context;
@@ -71,8 +68,9 @@ public class ArrowRecordWriter implements RecordWriter {
   private long recordCount;
   private String relativePath;
 
-  public ArrowRecordWriter(OperatorContext context, final EasyWriter writerConfig,
-                           ArrowFormatPluginConfig formatConfig) throws IOException {
+  public ArrowRecordWriter(
+      OperatorContext context, final EasyWriter writerConfig, ArrowFormatPluginConfig formatConfig)
+      throws IOException {
     final FragmentHandle handle = context.getFragmentHandle();
 
     this.writerConfig = writerConfig;
@@ -84,7 +82,11 @@ public class ArrowRecordWriter implements RecordWriter {
     this.extension = formatConfig.outputExtension;
   }
 
-  public ArrowRecordWriter(OperatorContext context, String fileLocation, ArrowFormatPluginConfig formatConfig, FileSystem fs) {
+  public ArrowRecordWriter(
+      OperatorContext context,
+      String fileLocation,
+      ArrowFormatPluginConfig formatConfig,
+      FileSystem fs) {
     this.context = context;
     this.listOfFilesCreated = Lists.newArrayList();
     this.footerBuilder = ArrowFileFooter.newBuilder();
@@ -95,16 +97,28 @@ public class ArrowRecordWriter implements RecordWriter {
   }
 
   @Override
-  public void setup(VectorAccessible incoming, OutputEntryListener outputEntryListener, WriteStatsListener writeStatsListener) throws IOException {
-    Preconditions.checkArgument(incoming.getSchema().getSelectionVectorMode() == SelectionVectorMode.NONE, "SelectionVector remover is not supported.");
+  public void setup(
+      VectorAccessible incoming,
+      OutputEntryListener outputEntryListener,
+      WriteStatsListener writeStatsListener)
+      throws IOException {
+    Preconditions.checkArgument(
+        incoming.getSchema().getSelectionVectorMode() == SelectionVectorMode.NONE,
+        "SelectionVector remover is not supported.");
     this.incoming = incoming;
     this.outputEntryListener = outputEntryListener;
     this.writeStatsListener = writeStatsListener;
-    if(this.fs == null) {
-      this.fs = writerConfig.getFormatPlugin().getFsPlugin().createFS(writerConfig.getProps().getUserName(), context);
+    if (this.fs == null) {
+      this.fs =
+          writerConfig
+              .getFormatPlugin()
+              .getFsPlugin()
+              .createFS(writerConfig.getProps().getUserName(), context);
     }
-    if(this.currentFile == null) {
-      this.currentFile = fs.canonicalizePath(location.resolve(String.format("%s_%d.%s", prefix, nextFileIndex, extension)));
+    if (this.currentFile == null) {
+      this.currentFile =
+          fs.canonicalizePath(
+              location.resolve(String.format("%s_%d.%s", prefix, nextFileIndex, extension)));
     }
     this.relativePath = currentFile.getName();
     this.currentFileOutputStream = new DataOutputStream(fs.create(currentFile));
@@ -113,8 +127,9 @@ public class ArrowRecordWriter implements RecordWriter {
     // write magic word bytes
     currentFileOutputStream.write(MAGIC_STRING.getBytes());
 
-    for(final VectorWrapper<? extends ValueVector> vw : incoming) {
-      Preconditions.checkArgument(!vw.isHyper(), "Writing hyper vectors to arrow format is not supported.");
+    for (final VectorWrapper<? extends ValueVector> vw : incoming) {
+      Preconditions.checkArgument(
+          !vw.isHyper(), "Writing hyper vectors to arrow format is not supported.");
       footerBuilder.addField(TypeHelper.getMetadata(vw.getValueVector()));
     }
 
@@ -124,28 +139,33 @@ public class ArrowRecordWriter implements RecordWriter {
 
   @Override
   public void startPartition(WritePartition partition) {
-    if(!partition.isSinglePartition()){
-      throw UserException.dataWriteError().message("Arrow writer doesn't support data partitioning.").build(logger);
+    if (!partition.isSinglePartition()) {
+      throw UserException.dataWriteError()
+          .message("Arrow writer doesn't support data partitioning.")
+          .build(logger);
     }
   }
 
   @Override
   public int writeBatch(int offset, int length) throws IOException {
-    if(offset != 0 || length != incoming.getRecordCount()){
-      throw UserException.dataWriteError().message("You cannot partition data written in Arrow format.").build(logger);
+    if (offset != 0 || length != incoming.getRecordCount()) {
+      throw UserException.dataWriteError()
+          .message("You cannot partition data written in Arrow format.")
+          .build(logger);
     }
     final int recordCount = incoming.getRecordCount();
     final long startOffset = currentFileOutputStream.size();
 
-    final WritableBatch writableBatch = WritableBatch.getBatchNoHVWrap(recordCount, incoming, false /* isSv2 */);
-    final VectorAccessibleSerializable serializer = new VectorAccessibleSerializable(writableBatch, null/*allocator*/);
+    final WritableBatch writableBatch =
+        WritableBatch.getBatchNoHVWrap(recordCount, incoming, false /* isSv2 */);
+    final VectorAccessibleSerializable serializer =
+        new VectorAccessibleSerializable(writableBatch, null /*allocator*/);
 
     serializer.writeToStream(currentFileOutputStream);
     final long endOffset = currentFileOutputStream.size();
 
     final ArrowRecordBatchSummary summary =
-        ArrowRecordBatchSummary
-            .newBuilder()
+        ArrowRecordBatchSummary.newBuilder()
             .setOffset(startOffset)
             .setRecordCount(recordCount)
             .build();
@@ -161,7 +181,7 @@ public class ArrowRecordWriter implements RecordWriter {
   @Override
   public void abort() throws IOException {
     closeCurrentFile();
-    for(final Path file : listOfFilesCreated) {
+    for (final Path file : listOfFilesCreated) {
       fs.delete(file, true);
     }
   }
@@ -191,15 +211,27 @@ public class ArrowRecordWriter implements RecordWriter {
               .setFooter(footer)
               .setRecordCount(recordCount)
               .setPath(relativePath)
-              .setArrowMetadataVersion(org.apache.arrow.vector.types.MetadataVersion.DEFAULT.toFlatbufID());
+              .setArrowMetadataVersion(
+                  org.apache.arrow.vector.types.MetadataVersion.DEFAULT.toFlatbufID());
 
-      if(context.getNodeEndpointProvider() != null) {
+      if (context.getNodeEndpointProvider() != null) {
         builder.setScreenNodeEndpoint(context.getNodeEndpointProvider().get());
       }
 
       ArrowFileMetadata lastFileMetadata = builder.build();
 
-      outputEntryListener.recordsWritten(recordCount, fileSize, currentFile.toString(), lastFileMetadata.toByteArray(), null, null, null, null, null, null, 0L);
+      outputEntryListener.recordsWritten(
+          recordCount,
+          fileSize,
+          currentFile.toString(),
+          lastFileMetadata.toByteArray(),
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          0L);
     }
   }
 
@@ -209,12 +241,12 @@ public class ArrowRecordWriter implements RecordWriter {
   }
 
   @Override
-  public FileSystem getFs(){
+  public FileSystem getFs() {
     return fs;
   }
 
   @Override
-  public Path getLocation(){
+  public Path getLocation() {
     return location;
   }
 }

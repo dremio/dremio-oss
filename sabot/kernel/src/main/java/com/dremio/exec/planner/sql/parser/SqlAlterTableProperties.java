@@ -15,9 +15,10 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import java.util.List;
 import java.util.stream.Collectors;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -29,12 +30,7 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
-
-/**
- * Parse tree node for a ALTER TABLE ... SET|UNSET TBLPROPERTIES statement.
- */
+/** Parse tree node for a ALTER TABLE ... SET|UNSET TBLPROPERTIES statement. */
 public class SqlAlterTableProperties extends SqlAlterTable {
 
   public enum Mode {
@@ -43,28 +39,34 @@ public class SqlAlterTableProperties extends SqlAlterTable {
   }
 
   public static final SqlSpecialOperator ALTER_TABLE_PROPERTIES_OPERATOR =
-          new SqlSpecialOperator("ALTER_TABLE_PROPERTIES_OPERATOR", SqlKind.ALTER_TABLE) {
+      new SqlSpecialOperator("ALTER_TABLE_PROPERTIES_OPERATOR", SqlKind.ALTER_TABLE) {
 
-            @Override
-            public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-              Preconditions.checkArgument(operands.length == 4, "SqlAlterTableProperties.createCall() " +
-                      "has to get 4 operands!");
+        @Override
+        public SqlCall createCall(
+            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+          Preconditions.checkArgument(
+              operands.length == 4,
+              "SqlAlterTableProperties.createCall() " + "has to get 4 operands!");
 
-              return new SqlAlterTableProperties(
-                      pos,
-                      (SqlIdentifier) operands[0],
-                      (SqlLiteral) operands[1],
-                      (SqlNodeList) operands[2],
-                      (SqlNodeList) operands[3]);
-            }
-          };
+          return new SqlAlterTableProperties(
+              pos,
+              (SqlIdentifier) operands[0],
+              (SqlLiteral) operands[1],
+              (SqlNodeList) operands[2],
+              (SqlNodeList) operands[3]);
+        }
+      };
 
   private final SqlLiteral mode;
   private final SqlNodeList tablePropertyNameList;
   private final SqlNodeList tablePropertyValueList;
 
-  public SqlAlterTableProperties(SqlParserPos pos, SqlIdentifier tableName, SqlLiteral mode,
-                                 SqlNodeList tablePropertyNameList, SqlNodeList tablePropertyValueList) {
+  public SqlAlterTableProperties(
+      SqlParserPos pos,
+      SqlIdentifier tableName,
+      SqlLiteral mode,
+      SqlNodeList tablePropertyNameList,
+      SqlNodeList tablePropertyValueList) {
     super(pos, tableName);
     this.mode = Preconditions.checkNotNull(mode);
     this.tablePropertyNameList = tablePropertyNameList;
@@ -76,7 +78,7 @@ public class SqlAlterTableProperties extends SqlAlterTable {
     super.unparse(writer, leftPrec, rightPrec);
     writer.keyword(mode.toValue());
     writer.keyword("TBLPROPERTIES");
-    if(tablePropertyNameList != null) {
+    if (tablePropertyNameList != null) {
       writer.keyword("(");
       for (int i = 0; i < tablePropertyNameList.size(); i++) {
         if (i > 0) {
@@ -107,10 +109,14 @@ public class SqlAlterTableProperties extends SqlAlterTable {
   }
 
   public List<String> getTablePropertyNameList() {
-    return tablePropertyNameList.getList().stream().map(x -> ((SqlLiteral)x).toValue()).collect(Collectors.toList());
+    return tablePropertyNameList.getList().stream()
+        .map(x -> ((SqlLiteral) x).toValue())
+        .collect(Collectors.toList());
   }
 
   public List<String> getTablePropertyValueList() {
-    return tablePropertyValueList.getList().stream().map(x -> ((SqlLiteral)x).toValue()).collect(Collectors.toList());
+    return tablePropertyValueList.getList().stream()
+        .map(x -> ((SqlLiteral) x).toValue())
+        .collect(Collectors.toList());
   }
 }

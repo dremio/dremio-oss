@@ -15,8 +15,10 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.dremio.catalog.model.dataset.TableVersionContext;
+import com.dremio.catalog.model.dataset.TableVersionType;
+import com.google.common.collect.Lists;
 import java.util.List;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -27,23 +29,28 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.dremio.catalog.model.dataset.TableVersionContext;
-import com.dremio.catalog.model.dataset.TableVersionType;
-import com.google.common.collect.Lists;
-
 /**
- * Implementation of SqlCall which  serves as a conduit for passing the parsed
- * version specification, kept in a {@link TableVersionSpec} instance.
+ * Implementation of SqlCall which serves as a conduit for passing the parsed version specification,
+ * kept in a {@link TableVersionSpec} instance.
  */
 public class SqlTableVersionSpec extends SqlCall {
-  public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("AT_VERSION", SqlKind.OTHER);
-  public static final SqlTableVersionSpec NOT_SPECIFIED = new SqlTableVersionSpec(SqlParserPos.ZERO, TableVersionType.NOT_SPECIFIED, SqlLiteral.createCharString("MAIN", SqlParserPos.ZERO));
+  public static final SqlSpecialOperator OPERATOR =
+      new SqlSpecialOperator("AT_VERSION", SqlKind.OTHER);
+  public static final SqlTableVersionSpec NOT_SPECIFIED =
+      new SqlTableVersionSpec(
+          SqlParserPos.ZERO,
+          TableVersionType.NOT_SPECIFIED,
+          SqlLiteral.createCharString("MAIN", SqlParserPos.ZERO),
+          null);
   private final TableVersionSpec tableVersionSpec;
 
-  public SqlTableVersionSpec(SqlParserPos pos, TableVersionType tableVersionType,
-                             SqlNode versionSpecifier ) {
-    super( pos);
-    this.tableVersionSpec = new TableVersionSpec(tableVersionType, versionSpecifier, null);
+  public SqlTableVersionSpec(
+      SqlParserPos pos,
+      TableVersionType tableVersionType,
+      SqlNode versionSpecifier,
+      SqlNode timestamp) {
+    super(pos);
+    this.tableVersionSpec = new TableVersionSpec(tableVersionType, versionSpecifier, timestamp);
   }
 
   public TableVersionSpec getTableVersionSpec() {
@@ -54,7 +61,6 @@ public class SqlTableVersionSpec extends SqlCall {
     return tableVersionSpec.getResolvedTableVersionContext();
   }
 
-
   @Override
   public SqlOperator getOperator() {
     return OPERATOR;
@@ -63,7 +69,9 @@ public class SqlTableVersionSpec extends SqlCall {
   @Override
   public List<SqlNode> getOperandList() {
     List<SqlNode> operandList = Lists.newArrayList();
-    operandList.add(new SqlIdentifier(getTableVersionSpec().getTableVersionType().toSqlRepresentation(), SqlParserPos.ZERO));
+    operandList.add(
+        new SqlIdentifier(
+            getTableVersionSpec().getTableVersionType().toSqlRepresentation(), SqlParserPos.ZERO));
     operandList.add(getTableVersionSpec().getVersionSpecifier());
     operandList.add(getTableVersionSpec().getTimestamp());
     return operandList;
@@ -80,4 +88,7 @@ public class SqlTableVersionSpec extends SqlCall {
     return tableVersionSpec.toString();
   }
 
+  public SqlParserPos getPos() {
+    return pos;
+  }
 }

@@ -15,17 +15,14 @@
  */
 package com.dremio.services.credentials;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.inject.Inject;
 import java.net.URI;
 import java.util.Map;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.inject.Inject;
-
-/**
- * Env Credential Provider.
- */
-@RemoteRestricted
-public class EnvCredentialsProvider extends AbstractSimpleCredentialsProvider implements CredentialsProvider {
+/** Env Credential Provider. */
+public class EnvCredentialsProvider extends AbstractSimpleCredentialsProvider
+    implements CredentialsProvider {
   private final Map<String, String> env;
 
   @Inject
@@ -47,5 +44,4 @@ public class EnvCredentialsProvider extends AbstractSimpleCredentialsProvider im
     }
     return env.get(key);
   }
-
 }

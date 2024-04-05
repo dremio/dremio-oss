@@ -15,10 +15,6 @@
  */
 package com.dremio.datastore;
 
-import java.nio.ByteBuffer;
-import java.util.List;
-import java.util.Map;
-
 import com.google.common.collect.Iterables;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Descriptors.Descriptor;
@@ -29,22 +25,24 @@ import com.google.protobuf.Message;
 import com.google.protobuf.Parser;
 import com.google.protobuf.UnknownFieldSet;
 import com.google.protobuf.UnknownFieldSet.Field;
-
+import java.nio.ByteBuffer;
+import java.util.List;
+import java.util.Map;
 
 /**
- * a Serializer implementation for protobuf generated classes
- * which were originally generated with protostuff
+ * a Serializer implementation for protobuf generated classes which were originally generated with
+ * protostuff
  *
- * Protostuff binary format (as described in {@code io.protostuff.ProtostuffOutput} uses groups
- * for embedded field messages, whereas Protobuf binary format uses length delimited encoding
- * (and group support is deprecated).
+ * <p>Protostuff binary format (as described in {@code io.protostuff.ProtostuffOutput} uses groups
+ * for embedded field messages, whereas Protobuf binary format uses length delimited encoding (and
+ * group support is deprecated).
  *
- * This class allows to deserialize either Protobuf or Protostuff binary format by
- * checking for unknown group fields in the deserialized object and rewriting
- * the message by reparsing the unknown fields as regular fields if required.
+ * <p>This class allows to deserialize either Protobuf or Protostuff binary format by checking for
+ * unknown group fields in the deserialized object and rewriting the message by reparsing the
+ * unknown fields as regular fields if required.
  *
- * Note: This class can be removed after no data generated using Protostuff is present
- * in the KV store
+ * <p>Note: This class can be removed after no data generated using Protostuff is present in the KV
+ * store
  *
  * @param <T> a protostuff generated class
  * @deprecated Use {@code ProtobufSerializer} for any new code.
@@ -93,11 +91,12 @@ public class LegacyProtobufSerializer<T extends Message> extends ProtobufSeriali
   }
 
   public static <M extends Message> M parseFrom(Parser<M> parser, ByteBuffer bytes)
-    throws InvalidProtocolBufferException {
+      throws InvalidProtocolBufferException {
     return rewriteProtostuff(parser.parseFrom(bytes));
   }
 
-  private static <M extends Message> M rewriteProtostuff(M message) throws InvalidProtocolBufferException {
+  private static <M extends Message> M rewriteProtostuff(M message)
+      throws InvalidProtocolBufferException {
     if (message == null) {
       return null;
     }
@@ -105,10 +104,11 @@ public class LegacyProtobufSerializer<T extends Message> extends ProtobufSeriali
     final Descriptor descriptor = message.getDescriptorForType();
 
     // Check if the message schema has any embedded message field at all, and if yes, confirm that
-    // all those fields are set. If this is the case, assumes the message was encoded using Protobuf.
+    // all those fields are set. If this is the case, assumes the message was encoded using
+    // Protobuf.
     // (Protostuff would have used groups which would then be stored in unknown fields)
     boolean hasEmbeddedMessageField = false;
-    for (FieldDescriptor field: descriptor.getFields()) {
+    for (FieldDescriptor field : descriptor.getFields()) {
       if (field.getJavaType() == JavaType.MESSAGE) {
         if (hasField(message, field)) {
           // Early exit: the embedded message field has some value set
@@ -118,7 +118,8 @@ public class LegacyProtobufSerializer<T extends Message> extends ProtobufSeriali
       }
     }
     if (!hasEmbeddedMessageField) {
-      // Early exit: the message has no embedded message field, or at least one of the embedded message
+      // Early exit: the message has no embedded message field, or at least one of the embedded
+      // message
       // field has a value set
       return message;
     }
@@ -129,8 +130,10 @@ public class LegacyProtobufSerializer<T extends Message> extends ProtobufSeriali
     // present, and that one of those fields would have a regular field counterpart.
     final UnknownFieldSet unknownFields = message.getUnknownFields();
     if (unknownFields.asMap().entrySet().stream()
-        .noneMatch(entry -> entry.getValue().getGroupList() != null
-          && descriptor.findFieldByNumber(entry.getKey()) != null)) {
+        .noneMatch(
+            entry ->
+                entry.getValue().getGroupList() != null
+                    && descriptor.findFieldByNumber(entry.getKey()) != null)) {
       return message;
     }
 
@@ -139,7 +142,7 @@ public class LegacyProtobufSerializer<T extends Message> extends ProtobufSeriali
     // later to the object.
     final UnknownFieldSet.Builder unknownFieldSetBuilder = UnknownFieldSet.newBuilder();
     final Message.Builder builder = message.toBuilder();
-    for(Map.Entry<Integer, Field> entry: unknownFields.asMap().entrySet()) {
+    for (Map.Entry<Integer, Field> entry : unknownFields.asMap().entrySet()) {
       int fieldId = entry.getKey();
       final Field field = entry.getValue();
       final List<UnknownFieldSet> groupList = field.getGroupList();
@@ -159,14 +162,15 @@ public class LegacyProtobufSerializer<T extends Message> extends ProtobufSeriali
       // Reparse unknown field as the actual field.
       if (fieldDescriptor.isRepeated()) {
         // Need to parse/fix all values
-        for(UnknownFieldSet group: groupList) {
+        for (UnknownFieldSet group : groupList) {
           final Message.Builder fieldBuilder = builder.newBuilderForField(fieldDescriptor);
           builder.addRepeatedField(fieldDescriptor, convertUnknownSet(fieldBuilder, group));
         }
       } else {
         // Parse only the last value
         final Message.Builder fieldBuilder = builder.newBuilderForField(fieldDescriptor);
-        builder.setField(fieldDescriptor, convertUnknownSet(fieldBuilder, Iterables.getLast(groupList)));
+        builder.setField(
+            fieldDescriptor, convertUnknownSet(fieldBuilder, Iterables.getLast(groupList)));
       }
     }
 
@@ -177,12 +181,10 @@ public class LegacyProtobufSerializer<T extends Message> extends ProtobufSeriali
   /**
    * Checks if field is set in message.
    *
-   * For repeated fields, check if at least one element is present
+   * <p>For repeated fields, check if at least one element is present
    */
   private static <M extends Message> boolean hasField(M message, FieldDescriptor field) {
-    return field.isRepeated()
-        ? message.getRepeatedFieldCount(field) > 0
-        : message.hasField(field);
+    return field.isRepeated() ? message.getRepeatedFieldCount(field) > 0 : message.hasField(field);
   }
 
   private static Message convertUnknownSet(final Message.Builder builder, UnknownFieldSet group)

@@ -21,16 +21,6 @@ import static com.dremio.sabot.op.join.vhash.HashJoinExtraMatcher.BATCH_INDEX_SI
 import static com.dremio.sabot.op.join.vhash.HashJoinExtraMatcher.BATCH_OFFSET_SIZE;
 import static com.dremio.sabot.op.join.vhash.HashJoinExtraMatcher.SHIFT_SIZE;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.FieldVector;
-import org.apache.calcite.rel.core.JoinRelType;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.exec.record.ExpandableHyperContainer;
@@ -46,8 +36,15 @@ import com.dremio.sabot.op.copier.CopierFactory;
 import com.dremio.sabot.op.copier.FieldBufferCopier;
 import com.dremio.sabot.op.join.hash.BuildInfo;
 import com.google.common.base.Stopwatch;
-
 import io.netty.util.internal.PlatformDependent;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.FieldVector;
+import org.apache.calcite.rel.core.JoinRelType;
 
 public class VectorizedProbe implements AutoCloseable, ExtraConditionStats {
 
@@ -58,7 +55,8 @@ public class VectorizedProbe implements AutoCloseable, ExtraConditionStats {
   private BufferAllocator allocator;
   private ArrowBuf[] links;
   private ArrowBuf[] starts;
-  // Array of bitvectors. Keeps track of keys on the build side that matched any key on the probe side
+  // Array of bitvectors. Keeps track of keys on the build side that matched any key on the probe
+  // side
   private MatchBitSet[] keyFullyMatches;
   private HashJoinExtraMatcher extraMatcher;
 
@@ -126,38 +124,37 @@ public class VectorizedProbe implements AutoCloseable, ExtraConditionStats {
   private long unmatchedProbeCount = 0;
   private long maxHashTableIndex = 0;
 
-  public VectorizedProbe() {
-  }
+  public VectorizedProbe() {}
 
   public void setup(
-    OperatorContext context,
-    final ExpandableHyperContainer buildBatch,
-    final VectorAccessible probeBatch,
-    // Contains all vectors in probe side output
-    final List<FieldVector> probeOutputs,
-    /* Contains only carry over vectors in build side output for VECTORIZED_GENERIC
-     * Contains all field vectors in build side output for VECTORIZED_BIGINT
-     */
-    final List<FieldVector> buildOutputs,
-    /* Contains the key field vectors in incoming probe side batch for VECTORIZED_GENERIC
-     * Only for VECTORIZED_GENERIC
-     */
-    final List<FieldVector> probeIncomingKeys,
-    /* Contains the key field vectors in build side output for VECTORIZED_GENERIC
-     * Only for VECTORIZED_GENERIC
-     */
-    final List<FieldVector> buildOutputKeys,
-    final Map<String, String> build2ProbeKeyMap,
-    VectorizedHashJoinOperator.Mode mode,
-    JoinRelType joinRelType,
-    List<BuildInfo> buildInfos,
-    List<ArrowBuf> startIndices,
-    List<MatchBitSet> keyMatchBitVectors,
-    int maxHashTableIndex,
-    JoinTable table,
-    // Used to unpivot the keys in hash table to build side output
-    PivotDef buildUnpivot,
-    LogicalExpression extraFilter) {
+      OperatorContext context,
+      final ExpandableHyperContainer buildBatch,
+      final VectorAccessible probeBatch,
+      // Contains all vectors in probe side output
+      final List<FieldVector> probeOutputs,
+      /* Contains only carry over vectors in build side output for VECTORIZED_GENERIC
+       * Contains all field vectors in build side output for VECTORIZED_BIGINT
+       */
+      final List<FieldVector> buildOutputs,
+      /* Contains the key field vectors in incoming probe side batch for VECTORIZED_GENERIC
+       * Only for VECTORIZED_GENERIC
+       */
+      final List<FieldVector> probeIncomingKeys,
+      /* Contains the key field vectors in build side output for VECTORIZED_GENERIC
+       * Only for VECTORIZED_GENERIC
+       */
+      final List<FieldVector> buildOutputKeys,
+      final Map<String, String> build2ProbeKeyMap,
+      VectorizedHashJoinOperator.Mode mode,
+      JoinRelType joinRelType,
+      List<BuildInfo> buildInfos,
+      List<ArrowBuf> startIndices,
+      List<MatchBitSet> keyMatchBitVectors,
+      int maxHashTableIndex,
+      JoinTable table,
+      // Used to unpivot the keys in hash table to build side output
+      PivotDef buildUnpivot,
+      LogicalExpression extraFilter) {
 
     this.buildUnpivot = buildUnpivot;
     this.allocator = context.getAllocator();
@@ -172,7 +169,8 @@ public class VectorizedProbe implements AutoCloseable, ExtraConditionStats {
     this.keyFullyMatches = new MatchBitSet[keyMatchBitVectors.size()];
 
     if (startIndices.size() > 0) {
-      this.maxOffsetForLastBatch = maxHashTableIndex - (startIndices.size() - 1) * HashTable.BATCH_SIZE;
+      this.maxOffsetForLastBatch =
+          maxHashTableIndex - (startIndices.size() - 1) * HashTable.BATCH_SIZE;
     } else {
       this.maxOffsetForLastBatch = -1;
     }
@@ -181,16 +179,21 @@ public class VectorizedProbe implements AutoCloseable, ExtraConditionStats {
       starts[i] = startIndices.get(i);
       keyFullyMatches[i] = keyMatchBitVectors.get(i);
     }
-    this.extraMatcher = (extraFilter == null) ? NULL_MATCHER :
-      new JoinExtraConditionMatcher(context, extraFilter, build2ProbeKeyMap, probeBatch, buildBatch);
+    this.extraMatcher =
+        (extraFilter == null)
+            ? NULL_MATCHER
+            : new JoinExtraConditionMatcher(
+                context, extraFilter, build2ProbeKeyMap, probeBatch, buildBatch);
 
-    this.projectUnmatchedBuild = joinRelType == JoinRelType.RIGHT || joinRelType == JoinRelType.FULL;
+    this.projectUnmatchedBuild =
+        joinRelType == JoinRelType.RIGHT || joinRelType == JoinRelType.FULL;
     this.projectUnmatchedProbe = joinRelType == JoinRelType.LEFT || joinRelType == JoinRelType.FULL;
     this.targetRecordsPerBatch = context.getTargetBatchSize();
     this.projectProbeSv2 = allocator.buffer((long) targetRecordsPerBatch * BATCH_OFFSET_SIZE);
     this.probeSv2Addr = projectProbeSv2.memoryAddress();
     // first 4 bytes (int) are for batch index and rest 2 bytes are offset within the batch
-    this.projectBuildOffsetBuf = allocator.buffer((long) targetRecordsPerBatch * BUILD_RECORD_LINK_SIZE);
+    this.projectBuildOffsetBuf =
+        allocator.buffer((long) targetRecordsPerBatch * BUILD_RECORD_LINK_SIZE);
     this.projectBuildOffsetAddr = projectBuildOffsetBuf.memoryAddress();
     this.projectBuildKeyOffsetBuf = allocator.buffer((long) targetRecordsPerBatch * ORDINAL_SIZE);
 
@@ -199,9 +202,12 @@ public class VectorizedProbe implements AutoCloseable, ExtraConditionStats {
     this.buildOutputs = buildOutputs;
     copierFactory = CopierFactory.getInstance(context.getConfig(), context.getOptions());
     if (table.size() > 0) {
-      this.buildCopiers = projectUnmatchedProbe  ?
-        copierFactory.getSixByteConditionalCopiers(VectorContainer.getHyperFieldVectors(buildBatch), buildOutputs) :
-        copierFactory.getSixByteCopiers(VectorContainer.getHyperFieldVectors(buildBatch), buildOutputs);
+      this.buildCopiers =
+          projectUnmatchedProbe
+              ? copierFactory.getSixByteConditionalCopiers(
+                  VectorContainer.getHyperFieldVectors(buildBatch), buildOutputs)
+              : copierFactory.getSixByteCopiers(
+                  VectorContainer.getHyperFieldVectors(buildBatch), buildOutputs);
     } else {
       this.buildCopiers = Collections.emptyList();
     }
@@ -219,20 +225,20 @@ public class VectorizedProbe implements AutoCloseable, ExtraConditionStats {
         this.keysCopiers = Collections.emptyList();
       }
 
-      this.projectNullKeyOffset = allocator.buffer((long) targetRecordsPerBatch * BATCH_OFFSET_SIZE);
+      this.projectNullKeyOffset =
+          allocator.buffer((long) targetRecordsPerBatch * BATCH_OFFSET_SIZE);
       this.projectNullKeyOffsetAddr = projectNullKeyOffset.memoryAddress();
     } else {
       this.projectNullKeyOffsetAddr = 0;
       this.keysCopiers = null;
     }
 
-    this.probeCopiers = copierFactory.getTwoByteCopiers(VectorContainer.getFieldVectors(probeBatch), probeOutputs);
+    this.probeCopiers =
+        copierFactory.getTwoByteCopiers(VectorContainer.getFieldVectors(probeBatch), probeOutputs);
     this.extraMatcher.setup();
   }
 
-  /**
-   * Find all the probe records that match the hash table.
-   */
+  /** Find all the probe records that match the hash table. */
   private void findMatches(final int records) {
     if (probed == null || probed.capacity() < (long) records * ORDINAL_SIZE) {
       if (probed != null) {
@@ -246,12 +252,10 @@ public class VectorizedProbe implements AutoCloseable, ExtraConditionStats {
   }
 
   /**
-   * Probe with current batch. If we've run out of space, return a negative
-   * record count. If we processed the entire incoming batch, return a positive
-   * record count or zero.
+   * Probe with current batch. If we've run out of space, return a negative record count. If we
+   * processed the entire incoming batch, return a positive record count or zero.
    *
-   * @return Negative if partial batch complete. Otherwise, all of probe batch
-   * is complete.
+   * @return Negative if partial batch complete. Otherwise, all of probe batch is complete.
    */
   public int probeBatch(final int records) {
     final int targetRecordsPerBatch = this.targetRecordsPerBatch;
@@ -260,7 +264,8 @@ public class VectorizedProbe implements AutoCloseable, ExtraConditionStats {
     final ArrowBuf[] links = this.links;
     long unmatchedProbeCount = this.unmatchedProbeCount;
 
-    // we have two incoming options: we're starting on a new batch or we're picking up an existing batch.
+    // we have two incoming options: we're starting on a new batch or we're picking up an existing
+    // batch.
     int outputRecords = 0;
     int currentProbeIndex = this.nextProbeIndex;
 
@@ -282,31 +287,36 @@ public class VectorizedProbe implements AutoCloseable, ExtraConditionStats {
     final long projectNullKeyOffsetAddr = this.projectNullKeyOffsetAddr;
     short nullKeyCount = 0;
     while (outputRecords < targetRecordsPerBatch && currentProbeIndex < records) {
-      final int indexInBuild = PlatformDependent.getInt(foundAddr + (long) currentProbeIndex * ORDINAL_SIZE);
+      final int indexInBuild =
+          PlatformDependent.getInt(foundAddr + (long) currentProbeIndex * ORDINAL_SIZE);
       int unMatchedProbeIndex = -1;
       if (indexInBuild != -1) { // a matching key.
         if (currentLinkBatch == -1) {
           /* The current probe record has a key that matches. Get the index
            * of the first row in the build side that matches the current key
            */
-          final long memStart = starts[indexInBuild >> SHIFT_SIZE].memoryAddress() +
-            ((indexInBuild) % HashTable.BATCH_SIZE) * BUILD_RECORD_LINK_SIZE;
+          final long memStart =
+              starts[indexInBuild >> SHIFT_SIZE].memoryAddress()
+                  + ((indexInBuild) % HashTable.BATCH_SIZE) * BUILD_RECORD_LINK_SIZE;
 
           currentLinkAddress = memStart;
           currentLinkBatch = PlatformDependent.getInt(memStart);
-          currentLinkOffset = Short.toUnsignedInt(PlatformDependent.getShort(memStart + BATCH_INDEX_SIZE));
+          currentLinkOffset =
+              Short.toUnsignedInt(PlatformDependent.getShort(memStart + BATCH_INDEX_SIZE));
           currentSomeMatched = false;
           currentSomeMisMatched = false;
         }
         while ((currentLinkBatch != -1) && (outputRecords < targetRecordsPerBatch)) {
           final int actualLinkBatch = currentLinkBatch & Integer.MAX_VALUE;
-          if (extraMatcher.checkCurrentMatch(currentProbeIndex, actualLinkBatch, currentLinkOffset)) {
-            PlatformDependent.putShort(probeSv2Addr + (long) outputRecords * BATCH_OFFSET_SIZE,
-              (short) currentProbeIndex);
-            final long projectBuildOffsetAddrStart = projectBuildOffsetAddr +
-              (long) outputRecords * BUILD_RECORD_LINK_SIZE;
+          if (extraMatcher.checkCurrentMatch(
+              currentProbeIndex, actualLinkBatch, currentLinkOffset)) {
+            PlatformDependent.putShort(
+                probeSv2Addr + (long) outputRecords * BATCH_OFFSET_SIZE, (short) currentProbeIndex);
+            final long projectBuildOffsetAddrStart =
+                projectBuildOffsetAddr + (long) outputRecords * BUILD_RECORD_LINK_SIZE;
             PlatformDependent.putInt(projectBuildOffsetAddrStart, actualLinkBatch);
-            PlatformDependent.putShort(projectBuildOffsetAddrStart + BATCH_INDEX_SIZE, (short) currentLinkOffset);
+            PlatformDependent.putShort(
+                projectBuildOffsetAddrStart + BATCH_INDEX_SIZE, (short) currentLinkOffset);
             outputRecords++;
             PlatformDependent.putInt(currentLinkAddress, currentLinkBatch | Integer.MIN_VALUE);
             currentSomeMatched = true;
@@ -316,10 +326,13 @@ public class VectorizedProbe implements AutoCloseable, ExtraConditionStats {
             }
           }
 
-          long linkMemAddr = links[actualLinkBatch].memoryAddress() + (long) currentLinkOffset * BUILD_RECORD_LINK_SIZE;
+          long linkMemAddr =
+              links[actualLinkBatch].memoryAddress()
+                  + (long) currentLinkOffset * BUILD_RECORD_LINK_SIZE;
           currentLinkAddress = linkMemAddr;
           currentLinkBatch = PlatformDependent.getInt(linkMemAddr);
-          currentLinkOffset = Short.toUnsignedInt(PlatformDependent.getShort(linkMemAddr + BATCH_INDEX_SIZE));
+          currentLinkOffset =
+              Short.toUnsignedInt(PlatformDependent.getShort(linkMemAddr + BATCH_INDEX_SIZE));
           if (currentLinkBatch == -1) {
             currentLinkAddress = -1L;
             if (currentSomeMatched && !currentSomeMisMatched) {
@@ -348,18 +361,19 @@ public class VectorizedProbe implements AutoCloseable, ExtraConditionStats {
         currentProbeIndex++;
       }
       if (unMatchedProbeIndex >= 0 && projectUnmatchedProbe) {
-        PlatformDependent.putShort(probeSv2Addr + (long) outputRecords * BATCH_OFFSET_SIZE,
-          (short) unMatchedProbeIndex);
+        PlatformDependent.putShort(
+            probeSv2Addr + (long) outputRecords * BATCH_OFFSET_SIZE, (short) unMatchedProbeIndex);
         if (mode == VectorizedHashJoinOperator.Mode.VECTORIZED_GENERIC) {
           /* The build side keys of output should be null
            * Maintain all the index of the output records that have a null key
            * Used to set validity to 0 after copying keys from probe side to build side in output
            */
-          PlatformDependent.putShort(projectNullKeyOffsetAddr + nullKeyCount * BATCH_OFFSET_SIZE,
-            (short) outputRecords);
+          PlatformDependent.putShort(
+              projectNullKeyOffsetAddr + nullKeyCount * BATCH_OFFSET_SIZE, (short) outputRecords);
           nullKeyCount++;
         }
-        PlatformDependent.putInt(projectBuildOffsetAddr + (long) outputRecords * BUILD_RECORD_LINK_SIZE, SKIP);
+        PlatformDependent.putInt(
+            projectBuildOffsetAddr + (long) outputRecords * BUILD_RECORD_LINK_SIZE, SKIP);
         outputRecords++;
       }
     }
@@ -367,7 +381,12 @@ public class VectorizedProbe implements AutoCloseable, ExtraConditionStats {
 
     projectProbe(probeSv2Addr, outputRecords);
     if (mode == VectorizedHashJoinOperator.Mode.VECTORIZED_GENERIC) {
-      projectBuild(projectBuildOffsetAddr, probeSv2Addr, outputRecords, projectNullKeyOffsetAddr, nullKeyCount);
+      projectBuild(
+          projectBuildOffsetAddr,
+          probeSv2Addr,
+          outputRecords,
+          projectNullKeyOffsetAddr,
+          nullKeyCount);
     } else {
       projectBuild(projectBuildOffsetAddr, outputRecords);
     }
@@ -385,7 +404,8 @@ public class VectorizedProbe implements AutoCloseable, ExtraConditionStats {
       }
     }
 
-    // we need to clear the last saved position and tell the driver that we completed consuming the current batch.
+    // we need to clear the last saved position and tell the driver that we completed consuming the
+    // current batch.
     this.nextProbeIndex = 0;
     this.remainderLinkBatch = -1;
     this.remainderLinkOffset = -1;
@@ -397,9 +417,11 @@ public class VectorizedProbe implements AutoCloseable, ExtraConditionStats {
   }
 
   /**
-   * Project any remaining build items that were not matched. Only used when doing a FULL or RIGHT join.
+   * Project any remaining build items that were not matched. Only used when doing a FULL or RIGHT
+   * join.
    *
-   * @return Negative output if records were output but batch wasn't completed. Positive output if batch was completed.
+   * @return Negative output if records were output but batch wasn't completed. Positive output if
+   *     batch was completed.
    */
   public int projectBuildNonMatches() {
     assert projectUnmatchedBuild;
@@ -414,7 +436,8 @@ public class VectorizedProbe implements AutoCloseable, ExtraConditionStats {
     int currentLinkOffset = remainderLinkOffset;
     int baseOrdinalBatchCount = remainderOrdinalBatchIndex * HashTable.BATCH_SIZE;
 
-    MatchBitSet currentBitset = remainderOrdinalBatchIndex < 0 ? null : keyFullyMatches[remainderOrdinalBatchIndex];
+    MatchBitSet currentBitset =
+        remainderOrdinalBatchIndex < 0 ? null : keyFullyMatches[remainderOrdinalBatchIndex];
 
     final long projectBuildOffsetAddr = this.projectBuildOffsetAddr;
 
@@ -439,8 +462,8 @@ public class VectorizedProbe implements AutoCloseable, ExtraConditionStats {
           currentLinkOffset = -1;
           break;
         }
-      } else if ((remainderOrdinalBatchIndex == (keyFullyMatches.length - 1)) &&
-        (currentClearOrdinalOffset > maxOffsetForLastBatch)) {
+      } else if ((remainderOrdinalBatchIndex == (keyFullyMatches.length - 1))
+          && (currentClearOrdinalOffset > maxOffsetForLastBatch)) {
         /* Current StartIndices is last batch and currentClearOrdinalOffset is greater than maxOffsetForLastBatch,
          * so no bitsets left.
          */
@@ -458,32 +481,40 @@ public class VectorizedProbe implements AutoCloseable, ExtraConditionStats {
           currentClearOrdinalOffset = -1;
         } else {
           if (currentLinkBatch == -1) {
-            // Go through all the data records in BuildInfo from beginning of StartIndices to collect the non matched
+            // Go through all the data records in BuildInfo from beginning of StartIndices to
+            // collect the non matched
             // data records
             ArrowBuf startIndex = starts[remainderOrdinalBatchIndex];
-            long linkMemAddr = startIndex.memoryAddress() + (long) currentClearOrdinalOffset * BUILD_RECORD_LINK_SIZE;
+            long linkMemAddr =
+                startIndex.memoryAddress()
+                    + (long) currentClearOrdinalOffset * BUILD_RECORD_LINK_SIZE;
             currentLinkBatch = PlatformDependent.getInt(linkMemAddr);
-            currentLinkOffset = Short.toUnsignedInt(PlatformDependent.getShort(linkMemAddr + BATCH_INDEX_SIZE));
+            currentLinkOffset =
+                Short.toUnsignedInt(PlatformDependent.getShort(linkMemAddr + BATCH_INDEX_SIZE));
           }
           while ((currentLinkBatch != -1) && (outputRecords < targetRecordsPerBatch)) {
             final int actualLinkBatch = currentLinkBatch & Integer.MAX_VALUE;
             if ((currentLinkBatch & Integer.MIN_VALUE) == 0) {
-              final long projectBuildOffsetAddrStart = projectBuildOffsetAddr +
-                (long) outputRecords * BUILD_RECORD_LINK_SIZE;
+              final long projectBuildOffsetAddrStart =
+                  projectBuildOffsetAddr + (long) outputRecords * BUILD_RECORD_LINK_SIZE;
               PlatformDependent.putInt(projectBuildOffsetAddrStart, actualLinkBatch);
-              PlatformDependent.putShort(projectBuildOffsetAddrStart + BATCH_INDEX_SIZE, (short) currentLinkOffset);
+              PlatformDependent.putShort(
+                  projectBuildOffsetAddrStart + BATCH_INDEX_SIZE, (short) currentLinkOffset);
               if (this.mode == VectorizedHashJoinOperator.Mode.VECTORIZED_GENERIC) {
                 // Maintain the ordinal of the key for unpivot later
-                PlatformDependent.putInt(projectBuildKeyOffsetAddr + (long) outputRecords * ORDINAL_SIZE,
-                  baseOrdinalBatchCount + currentClearOrdinalOffset);
+                PlatformDependent.putInt(
+                    projectBuildKeyOffsetAddr + (long) outputRecords * ORDINAL_SIZE,
+                    baseOrdinalBatchCount + currentClearOrdinalOffset);
               }
               outputRecords++;
             }
 
-            long linkMemAddr = links[actualLinkBatch].memoryAddress() +
-              (long) currentLinkOffset * BUILD_RECORD_LINK_SIZE;
+            long linkMemAddr =
+                links[actualLinkBatch].memoryAddress()
+                    + (long) currentLinkOffset * BUILD_RECORD_LINK_SIZE;
             currentLinkBatch = PlatformDependent.getInt(linkMemAddr);
-            currentLinkOffset = Short.toUnsignedInt(PlatformDependent.getShort(linkMemAddr + BATCH_INDEX_SIZE));
+            currentLinkOffset =
+                Short.toUnsignedInt(PlatformDependent.getShort(linkMemAddr + BATCH_INDEX_SIZE));
           }
           if (currentLinkBatch != -1) {
             /* Output batch is full, we should exit now,
@@ -499,7 +530,8 @@ public class VectorizedProbe implements AutoCloseable, ExtraConditionStats {
     if (this.mode == VectorizedHashJoinOperator.Mode.VECTORIZED_GENERIC) {
       // Collect the keys for non matched records, and unpivot them to output
       try (FixedBlockVector fbv = new FixedBlockVector(allocator, buildUnpivot.getBlockWidth());
-           VariableBlockVector var = new VariableBlockVector(allocator, buildUnpivot.getVariableCount())) {
+          VariableBlockVector var =
+              new VariableBlockVector(allocator, buildUnpivot.getVariableCount())) {
         // The total size of the variable keys that are non matched in build side
         int totalVarSize = table.getCumulativeVarKeyLength(projectBuildKeyOffsetBuf, outputRecords);
         fbv.ensureAvailableBlocks(outputRecords);
@@ -544,7 +576,7 @@ public class VectorizedProbe implements AutoCloseable, ExtraConditionStats {
    * Project the build data (including keys from the probe)
    *
    * @param offsetAddr offset address
-   * @param count      count
+   * @param count count
    */
   private void projectBuild(final long offsetAddr, final int count) {
     buildCopyWatch.start();
@@ -566,12 +598,16 @@ public class VectorizedProbe implements AutoCloseable, ExtraConditionStats {
    * Project the build data (including keys from the probe)
    *
    * @param offsetBuildAddr offset build address
-   * @param count           count
-   * @param nullKeyAddr     null key address
-   * @param nullKeyCount    null key count
+   * @param count count
+   * @param nullKeyAddr null key address
+   * @param nullKeyCount null key count
    */
-  private void projectBuild(final long offsetBuildAddr, final long offsetProbeAddr, final int count,
-                            final long nullKeyAddr, final int nullKeyCount) {
+  private void projectBuild(
+      final long offsetBuildAddr,
+      final long offsetProbeAddr,
+      final int count,
+      final long nullKeyAddr,
+      final int nullKeyCount) {
     buildCopyWatch.start();
     // Copy the keys from probe batch to build side in output.
     if (projectUnmatchedProbe) {
@@ -601,7 +637,7 @@ public class VectorizedProbe implements AutoCloseable, ExtraConditionStats {
    * Project the probe data.
    *
    * @param sv2Addr sv2 address
-   * @param count   count
+   * @param count count
    */
   private void projectProbe(final long sv2Addr, final int count) {
     probeCopyWatch.start();
@@ -634,8 +670,12 @@ public class VectorizedProbe implements AutoCloseable, ExtraConditionStats {
   @Override
   public void close() throws Exception {
     try {
-      AutoCloseables.close(projectBuildOffsetBuf, projectProbeSv2, projectNullKeyOffset, projectBuildKeyOffsetBuf,
-        probed);
+      AutoCloseables.close(
+          projectBuildOffsetBuf,
+          projectProbeSv2,
+          projectNullKeyOffset,
+          projectBuildKeyOffsetBuf,
+          probed);
     } finally {
       projectBuildOffsetBuf = null;
       projectProbeSv2 = null;
@@ -662,14 +702,13 @@ public class VectorizedProbe implements AutoCloseable, ExtraConditionStats {
 
   private static final class NullExtraMatcher implements HashJoinExtraMatcher {
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
-    public boolean checkCurrentMatch(int currentProbeIndex, int currentLinkBatch, int currentLinkOffset) {
+    public boolean checkCurrentMatch(
+        int currentProbeIndex, int currentLinkBatch, int currentLinkOffset) {
       // always matches if there is no extra condition
       return true;
     }
-
   }
 }

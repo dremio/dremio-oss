@@ -18,8 +18,13 @@ package com.dremio.sabot.copier;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertEquals;
 
+import com.dremio.common.expression.CompleteType;
+import com.dremio.sabot.BaseTestOperator;
+import com.dremio.sabot.op.copier.FieldBufferCopier;
+import com.dremio.sabot.op.copier.FieldBufferCopierFactory;
+import com.google.common.collect.ImmutableList;
+import io.netty.util.internal.PlatformDependent;
 import java.util.List;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.AllocationHelper;
 import org.apache.arrow.vector.BitVector;
@@ -32,19 +37,11 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.junit.Test;
 
-import com.dremio.common.expression.CompleteType;
-import com.dremio.sabot.BaseTestOperator;
-import com.dremio.sabot.op.copier.FieldBufferCopier;
-import com.dremio.sabot.op.copier.FieldBufferCopierFactory;
-import com.google.common.collect.ImmutableList;
-
-import io.netty.util.internal.PlatformDependent;
-
 public class TestCopier6RoundTrip extends BaseTestOperator {
   private static final int SV6_SIZE = 6;
 
-  private static void copy(List<FieldBufferCopier> copiers, long offsetAddr, int count){
-    for(FieldBufferCopier fbc : copiers){
+  private static void copy(List<FieldBufferCopier> copiers, long offsetAddr, int count) {
+    for (FieldBufferCopier fbc : copiers) {
       fbc.copy(offsetAddr, count);
     }
   }
@@ -65,7 +62,7 @@ public class TestCopier6RoundTrip extends BaseTestOperator {
 
       long mem = sv6.memoryAddress() + idx * SV6_SIZE;
       PlatformDependent.putInt(mem, batchIdx);
-      PlatformDependent.putShort(mem + 4, (short)recordIdxInBatch);
+      PlatformDependent.putShort(mem + 4, (short) recordIdxInBatch);
     }
   }
 
@@ -78,17 +75,15 @@ public class TestCopier6RoundTrip extends BaseTestOperator {
 
       long mem = sv6.memoryAddress() + idx * SV6_SIZE;
       PlatformDependent.putInt(mem, batchIdx);
-      PlatformDependent.putShort(mem + 4, (short)recordIdxInBatch);
+      PlatformDependent.putShort(mem + 4, (short) recordIdxInBatch);
     }
   }
 
   @Test
-  public void intRoundTrip(){
-    try(
-      IntVector in1 = new IntVector("in1", allocator);
-      IntVector in2 = new IntVector("in2", allocator);
-      IntVector out = new IntVector("out", allocator);
-    ){
+  public void intRoundTrip() {
+    try (IntVector in1 = new IntVector("in1", allocator);
+        IntVector in2 = new IntVector("in2", allocator);
+        IntVector out = new IntVector("out", allocator); ) {
       IntVector[] in = {in1, in2};
       int[] count = {512, 512};
 
@@ -104,10 +99,10 @@ public class TestCopier6RoundTrip extends BaseTestOperator {
       }
 
       int totalCount = count[0] + count[1];
-      List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getSixByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
-      try(
-        final ArrowBuf sv6 = allocator.buffer(SV6_SIZE * totalCount);
-      ){
+      List<FieldBufferCopier> copiers =
+          new FieldBufferCopierFactory(testContext.getOptions())
+              .getSixByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
+      try (final ArrowBuf sv6 = allocator.buffer(SV6_SIZE * totalCount); ) {
         // create full sv6.
         fillSV6Full(sv6, count[0], count[1]);
 
@@ -126,12 +121,10 @@ public class TestCopier6RoundTrip extends BaseTestOperator {
   }
 
   @Test
-  public void intAppend(){
-    try(
-      IntVector in1 = new IntVector("in1", allocator);
-      IntVector in2 = new IntVector("in2", allocator);
-      IntVector out = new IntVector("out", allocator);
-    ){
+  public void intAppend() {
+    try (IntVector in1 = new IntVector("in1", allocator);
+        IntVector in2 = new IntVector("in2", allocator);
+        IntVector out = new IntVector("out", allocator); ) {
 
       IntVector[] in = {in1, in2};
       int[] count = {512, 512};
@@ -149,10 +142,10 @@ public class TestCopier6RoundTrip extends BaseTestOperator {
 
       // set alternate elements.
       int totalCount = (count[0] + count[1]) / 2;
-      List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getSixByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
-      try(
-        final ArrowBuf sv6 = allocator.buffer(SV6_SIZE * totalCount);
-      ){
+      List<FieldBufferCopier> copiers =
+          new FieldBufferCopierFactory(testContext.getOptions())
+              .getSixByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
+      try (final ArrowBuf sv6 = allocator.buffer(SV6_SIZE * totalCount); ) {
         fillSV6Alternate(sv6, count[0], count[1]);
 
         // do the copy
@@ -172,12 +165,10 @@ public class TestCopier6RoundTrip extends BaseTestOperator {
   }
 
   @Test
-  public void varcharRoundTrip(){
-    try(
-      VarCharVector in1 = new VarCharVector("in1", allocator);
-      VarCharVector in2 = new VarCharVector("in2", allocator);
-      VarCharVector out = new VarCharVector("out", allocator);
-    ){
+  public void varcharRoundTrip() {
+    try (VarCharVector in1 = new VarCharVector("in1", allocator);
+        VarCharVector in2 = new VarCharVector("in2", allocator);
+        VarCharVector out = new VarCharVector("out", allocator); ) {
       VarCharVector[] in = {in1, in2};
       int[] count = {512, 512};
 
@@ -194,10 +185,10 @@ public class TestCopier6RoundTrip extends BaseTestOperator {
       }
 
       int totalCount = count[0] + count[1];
-      List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getSixByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
-      try(
-        final ArrowBuf sv6 = allocator.buffer(SV6_SIZE * totalCount);
-      ){
+      List<FieldBufferCopier> copiers =
+          new FieldBufferCopierFactory(testContext.getOptions())
+              .getSixByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
+      try (final ArrowBuf sv6 = allocator.buffer(SV6_SIZE * totalCount); ) {
         // create full sv6.
         fillSV6Full(sv6, count[0], count[1]);
 
@@ -216,12 +207,10 @@ public class TestCopier6RoundTrip extends BaseTestOperator {
   }
 
   @Test
-  public void varcharAppend(){
-    try(
-      VarCharVector in1 = new VarCharVector("in1", allocator);
-      VarCharVector in2 = new VarCharVector("in2", allocator);
-      VarCharVector out = new VarCharVector("out", allocator);
-    ){
+  public void varcharAppend() {
+    try (VarCharVector in1 = new VarCharVector("in1", allocator);
+        VarCharVector in2 = new VarCharVector("in2", allocator);
+        VarCharVector out = new VarCharVector("out", allocator); ) {
       VarCharVector[] in = {in1, in2};
       int[] count = {512, 512};
 
@@ -239,10 +228,10 @@ public class TestCopier6RoundTrip extends BaseTestOperator {
 
       // set alternate elements.
       int totalCount = (count[0] + count[1]) / 2;
-      List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getSixByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
-      try(
-        final ArrowBuf sv6 = allocator.buffer(SV6_SIZE * totalCount);
-      ){
+      List<FieldBufferCopier> copiers =
+          new FieldBufferCopierFactory(testContext.getOptions())
+              .getSixByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
+      try (final ArrowBuf sv6 = allocator.buffer(SV6_SIZE * totalCount); ) {
         fillSV6Alternate(sv6, count[0], count[1]);
 
         // do the copy
@@ -262,12 +251,10 @@ public class TestCopier6RoundTrip extends BaseTestOperator {
   }
 
   @Test
-  public void bitAppend(){
-    try(
-      BitVector in1 = new BitVector("in1", allocator);
-      BitVector in2 = new BitVector("in2", allocator);
-      BitVector out = new BitVector("out", allocator);
-    ){
+  public void bitAppend() {
+    try (BitVector in1 = new BitVector("in1", allocator);
+        BitVector in2 = new BitVector("in2", allocator);
+        BitVector out = new BitVector("out", allocator); ) {
       BitVector[] in = {in1, in2};
       int[] count = {512, 512};
 
@@ -284,10 +271,10 @@ public class TestCopier6RoundTrip extends BaseTestOperator {
 
       // set alternate elements.
       int totalCount = (count[0] + count[1]) / 2;
-      List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getSixByteConditionalCopiers(ImmutableList.of(in), ImmutableList.of(out));
-      try(
-        final ArrowBuf sv6 = allocator.buffer(SV6_SIZE * totalCount);
-      ){
+      List<FieldBufferCopier> copiers =
+          new FieldBufferCopierFactory(testContext.getOptions())
+              .getSixByteConditionalCopiers(ImmutableList.of(in), ImmutableList.of(out));
+      try (final ArrowBuf sv6 = allocator.buffer(SV6_SIZE * totalCount); ) {
         fillSV6Alternate(sv6, count[0], count[1]);
 
         // do the copy
@@ -308,20 +295,21 @@ public class TestCopier6RoundTrip extends BaseTestOperator {
 
   @Test
   public void structRoundtrip() {
-    final FieldType structType = CompleteType.struct(
-      CompleteType.VARCHAR.toField("string"),
-      CompleteType.INT.toField("integer")
-    ).toField("struct").getFieldType();
+    final FieldType structType =
+        CompleteType.struct(
+                CompleteType.VARCHAR.toField("string"), CompleteType.INT.toField("integer"))
+            .toField("struct")
+            .getFieldType();
 
-    try (
-      StructVector in1 = new StructVector("in1", allocator, structType, null);
-      StructVector in2 = new StructVector("in2", allocator, structType, null);
-      StructVector out = new StructVector("out", allocator, structType, null);
-      ArrowBuf tempBuf = allocator.buffer(2048);
-    ) {
+    try (StructVector in1 = new StructVector("in1", allocator, structType, null);
+        StructVector in2 = new StructVector("in2", allocator, structType, null);
+        StructVector out = new StructVector("out", allocator, structType, null);
+        ArrowBuf tempBuf = allocator.buffer(2048); ) {
 
-      Field stringField = new Field("string", new FieldType(true, new ArrowType.Utf8(), null), null);
-      Field intField = new Field("integer", new FieldType(true, new ArrowType.Int(32, true), null), null);
+      Field stringField =
+          new Field("string", new FieldType(true, new ArrowType.Utf8(), null), null);
+      Field intField =
+          new Field("integer", new FieldType(true, new ArrowType.Int(32, true), null), null);
 
       StructVector[] in = {in1, in2};
       int[] count = {512, 512};
@@ -347,10 +335,10 @@ public class TestCopier6RoundTrip extends BaseTestOperator {
       }
 
       out.initializeChildrenFromFields(ImmutableList.of(stringField, intField));
-      List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getSixByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
-      try (
-        final ArrowBuf sv6 = allocator.buffer(SV6_SIZE * totalCount);
-      ) {
+      List<FieldBufferCopier> copiers =
+          new FieldBufferCopierFactory(testContext.getOptions())
+              .getSixByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
+      try (final ArrowBuf sv6 = allocator.buffer(SV6_SIZE * totalCount); ) {
         fillSV6Full(sv6, count[0], count[1]);
 
         // do the copy
@@ -369,20 +357,21 @@ public class TestCopier6RoundTrip extends BaseTestOperator {
 
   @Test
   public void structAppend() {
-    final FieldType structType = CompleteType.struct(
-      CompleteType.VARCHAR.toField("string"),
-      CompleteType.INT.toField("integer")
-    ).toField("struct").getFieldType();
+    final FieldType structType =
+        CompleteType.struct(
+                CompleteType.VARCHAR.toField("string"), CompleteType.INT.toField("integer"))
+            .toField("struct")
+            .getFieldType();
 
-    try (
-      StructVector in1 = new StructVector("in1", allocator, structType, null);
-      StructVector in2 = new StructVector("in2", allocator, structType, null);
-      StructVector out = new StructVector("out", allocator, structType, null);
-      ArrowBuf tempBuf = allocator.buffer(2048);
-    ) {
+    try (StructVector in1 = new StructVector("in1", allocator, structType, null);
+        StructVector in2 = new StructVector("in2", allocator, structType, null);
+        StructVector out = new StructVector("out", allocator, structType, null);
+        ArrowBuf tempBuf = allocator.buffer(2048); ) {
 
-      Field stringField = new Field("string", new FieldType(true, new ArrowType.Utf8(), null), null);
-      Field intField = new Field("integer", new FieldType(true, new ArrowType.Int(32, true), null), null);
+      Field stringField =
+          new Field("string", new FieldType(true, new ArrowType.Utf8(), null), null);
+      Field intField =
+          new Field("integer", new FieldType(true, new ArrowType.Int(32, true), null), null);
 
       StructVector[] in = {in1, in2};
       int[] count = {512, 512};
@@ -408,10 +397,10 @@ public class TestCopier6RoundTrip extends BaseTestOperator {
 
       out.initializeChildrenFromFields(ImmutableList.of(stringField, intField));
       int totalCount = (count[0] + count[1]) / 2;
-      List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getSixByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
-      try (
-        final ArrowBuf sv6 = allocator.buffer(SV6_SIZE * totalCount);
-      ) {
+      List<FieldBufferCopier> copiers =
+          new FieldBufferCopierFactory(testContext.getOptions())
+              .getSixByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
+      try (final ArrowBuf sv6 = allocator.buffer(SV6_SIZE * totalCount); ) {
         // set alternate elements.
         fillSV6Alternate(sv6, count[0], count[1]);
 

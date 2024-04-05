@@ -18,15 +18,11 @@ package com.dremio.common.logical.data;
 import java.util.Collections;
 import java.util.Iterator;
 
-
-/**
- * An operator that produces data without any parents.  (zero input operator)
- */
-public abstract class SourceOperator extends LogicalOperatorBase{
+/** An operator that produces data without any parents. (zero input operator) */
+public abstract class SourceOperator extends LogicalOperatorBase {
 
   @Override
   public Iterator<LogicalOperator> iterator() {
-      return Collections.emptyIterator();
+    return Collections.emptyIterator();
   }
-
 }

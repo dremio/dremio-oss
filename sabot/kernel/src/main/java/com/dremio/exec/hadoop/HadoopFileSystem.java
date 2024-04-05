@@ -20,6 +20,25 @@ import static com.dremio.io.file.UriSchemes.HDFS_SCHEME;
 import static com.dremio.io.file.UriSchemes.MAPRFS_SCHEME;
 import static com.dremio.io.file.UriSchemes.WEBHDFS_SCHEME;
 
+import com.dremio.common.VM;
+import com.dremio.exec.store.LocalSyncableFileSystem;
+import com.dremio.exec.store.dfs.OpenFileTracker;
+import com.dremio.exec.store.dfs.SimpleFileBlockLocation;
+import com.dremio.io.AsyncByteReader;
+import com.dremio.io.FSInputStream;
+import com.dremio.io.FSOutputStream;
+import com.dremio.io.FilterFSInputStream;
+import com.dremio.io.file.FileAttributes;
+import com.dremio.io.file.FileBlockLocation;
+import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.Path;
+import com.dremio.sabot.exec.context.OperatorStats;
+import com.dremio.sabot.exec.context.OperatorStats.WaitRecorder;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Maps;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
@@ -40,7 +59,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Predicate;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.BlockLocation;
 import org.apache.hadoop.fs.FSDataInputStream;
@@ -55,38 +73,19 @@ import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.security.AccessControlException;
 
-import com.dremio.common.VM;
-import com.dremio.exec.store.LocalSyncableFileSystem;
-import com.dremio.exec.store.dfs.OpenFileTracker;
-import com.dremio.exec.store.dfs.SimpleFileBlockLocation;
-import com.dremio.io.AsyncByteReader;
-import com.dremio.io.FSInputStream;
-import com.dremio.io.FSOutputStream;
-import com.dremio.io.FilterFSInputStream;
-import com.dremio.io.file.FileAttributes;
-import com.dremio.io.file.FileBlockLocation;
-import com.dremio.io.file.FileSystem;
-import com.dremio.io.file.Path;
-import com.dremio.sabot.exec.context.OperatorStats;
-import com.dremio.sabot.exec.context.OperatorStats.WaitRecorder;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Maps;
-
 /**
  * FileSystemWrapper is the wrapper around the actual FileSystem implementation.
- * <p>
- * If {@link com.dremio.sabot.exec.context.OperatorStats} are provided it returns an instrumented FSDataInputStream to
- * measure IO wait time and tracking file open/close operations.
+ *
+ * <p>If {@link com.dremio.sabot.exec.context.OperatorStats} are provided it returns an instrumented
+ * FSDataInputStream to measure IO wait time and tracking file open/close operations.
  */
-public class HadoopFileSystem
-  implements FileSystem, OpenFileTracker {
+public class HadoopFileSystem implements FileSystem, OpenFileTracker {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HadoopFileSystem.class);
 
-  // This provider path property is a comma separated list of one or more credential provider URIs that is traversed while trying to resolve a credential alias.
-  public static final String HADOOP_SECURITY_CREDENTIAL_PROVIDER_PATH = "hadoop.security.credential.provider.path";
+  // This provider path property is a comma separated list of one or more credential provider URIs
+  // that is traversed while trying to resolve a credential alias.
+  public static final String HADOOP_SECURITY_CREDENTIAL_PROVIDER_PATH =
+      "hadoop.security.credential.provider.path";
   public static final String DREMIO_CREDENTIAL_PROVIDER_PATH = "dremio:///";
 
   private static final boolean TRACKING_ENABLED = VM.areAssertsEnabled();
@@ -104,14 +103,15 @@ public class HadoopFileSystem
   private final boolean isHDFS;
   private final boolean enableAsync;
 
-  public static FileSystem get(URI uri, Configuration fsConf, boolean enableAsync) throws IOException {
+  public static FileSystem get(URI uri, Configuration fsConf, boolean enableAsync)
+      throws IOException {
     fsConf.set(HADOOP_SECURITY_CREDENTIAL_PROVIDER_PATH, DREMIO_CREDENTIAL_PROVIDER_PATH);
     org.apache.hadoop.fs.FileSystem fs = org.apache.hadoop.fs.FileSystem.get(uri, fsConf);
     return get(fs, null, enableAsync);
   }
 
-  public static FileSystem get(URI uri, Iterator<Map.Entry<String, String>> conf,
-                               boolean enableAsync) throws IOException {
+  public static FileSystem get(
+      URI uri, Iterator<Map.Entry<String, String>> conf, boolean enableAsync) throws IOException {
     // we are passing the conf as map<string,string> to work around
     // Configuration objects being loaded by different class loaders.
     Configuration fsConf = new Configuration();
@@ -130,13 +130,16 @@ public class HadoopFileSystem
     return get(fs);
   }
 
-  public static FileSystem get(Path path, Configuration fsConf, OperatorStats stats) throws IOException {
+  public static FileSystem get(Path path, Configuration fsConf, OperatorStats stats)
+      throws IOException {
     fsConf.set(HADOOP_SECURITY_CREDENTIAL_PROVIDER_PATH, DREMIO_CREDENTIAL_PROVIDER_PATH);
     org.apache.hadoop.fs.FileSystem fs = toHadoopPath(path).getFileSystem(fsConf);
     return get(fs, stats, false);
   }
 
-  public static FileSystem get(Path path, Configuration fsConf, OperatorStats stats, boolean enableAsync) throws IOException {
+  public static FileSystem get(
+      Path path, Configuration fsConf, OperatorStats stats, boolean enableAsync)
+      throws IOException {
     fsConf.set(HADOOP_SECURITY_CREDENTIAL_PROVIDER_PATH, DREMIO_CREDENTIAL_PROVIDER_PATH);
     org.apache.hadoop.fs.FileSystem fs = toHadoopPath(path).getFileSystem(fsConf);
     return get(fs, stats, enableAsync);
@@ -165,23 +168,27 @@ public class HadoopFileSystem
     return get(fs, null, false);
   }
 
-  public static HadoopFileSystem get(org.apache.hadoop.fs.FileSystem fs, OperatorStats operatorStats) {
+  public static HadoopFileSystem get(
+      org.apache.hadoop.fs.FileSystem fs, OperatorStats operatorStats) {
     return get(fs, operatorStats, false);
   }
 
-  public static HadoopFileSystem get(org.apache.hadoop.fs.FileSystem fs, OperatorStats operatorStats, boolean enableAsync) {
+  public static HadoopFileSystem get(
+      org.apache.hadoop.fs.FileSystem fs, OperatorStats operatorStats, boolean enableAsync) {
     return new HadoopFileSystem(fs, operatorStats, enableAsync);
   }
 
-  private HadoopFileSystem(org.apache.hadoop.fs.FileSystem fs, OperatorStats operatorStats, boolean enableAsync) {
+  private HadoopFileSystem(
+      org.apache.hadoop.fs.FileSystem fs, OperatorStats operatorStats, boolean enableAsync) {
     this.underlyingFs = fs;
     this.operatorStats = operatorStats;
-    this.isPdfs = (underlyingFs instanceof PathCanonicalizer); // only pdfs implements PathCanonicalizer
+    this.isPdfs =
+        (underlyingFs instanceof PathCanonicalizer); // only pdfs implements PathCanonicalizer
     this.isMapRfs = isMapRfs(underlyingFs);
     this.isNAS = isNAS(underlyingFs);
     this.isHDFS = isHDFS(underlyingFs);
     this.enableAsync = enableAsync;
-    if(operatorStats != null) {
+    if (operatorStats != null) {
       this.operatorStats.createMetadataReadIOStats();
     }
   }
@@ -196,7 +203,8 @@ public class HadoopFileSystem
 
   private static boolean isNAS(org.apache.hadoop.fs.FileSystem fs) {
     try {
-      return fs instanceof LocalSyncableFileSystem || FILE_SCHEME.equals(fs.getScheme().toLowerCase(Locale.ROOT));
+      return fs instanceof LocalSyncableFileSystem
+          || FILE_SCHEME.equals(fs.getScheme().toLowerCase(Locale.ROOT));
     } catch (UnsupportedOperationException e) {
     }
     return false;
@@ -216,13 +224,15 @@ public class HadoopFileSystem
   }
 
   /**
-   * If OperatorStats are provided return a instrumented {@link org.apache.hadoop.fs.FSDataInputStream}.
+   * If OperatorStats are provided return a instrumented {@link
+   * org.apache.hadoop.fs.FSDataInputStream}.
    */
   @Override
   public FSInputStream open(Path f) throws IOException {
     try (WaitRecorder metaRecorder = OperatorStats.getMetadataWaitRecorder(operatorStats, f)) {
-      return newFSDataInputStreamWrapper(f, underlyingFs.open(toHadoopPath(f)), operatorStats, true);
-    } catch(FSError e) {
+      return newFSDataInputStreamWrapper(
+          f, underlyingFs.open(toHadoopPath(f)), operatorStats, true);
+    } catch (FSError e) {
       throw propagateFSError(e);
     }
   }
@@ -236,7 +246,7 @@ public class HadoopFileSystem
   public FSOutputStream create(Path f) throws IOException {
     try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return newFSDataOutputStreamWrapper(underlyingFs.create(toHadoopPath(f)), f.toString());
-    } catch(FSError e) {
+    } catch (FSError e) {
       throw propagateFSError(e);
     }
   }
@@ -244,8 +254,9 @@ public class HadoopFileSystem
   @Override
   public FSOutputStream create(Path f, boolean overwrite) throws IOException {
     try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
-      return newFSDataOutputStreamWrapper(underlyingFs.create(toHadoopPath(f), overwrite), f.toString());
-    } catch(FSError e) {
+      return newFSDataOutputStreamWrapper(
+          underlyingFs.create(toHadoopPath(f), overwrite), f.toString());
+    } catch (FSError e) {
       throw propagateFSError(e);
     } catch (FileAlreadyExistsException e) {
       throw new java.nio.file.FileAlreadyExistsException(e.getMessage());
@@ -300,8 +311,12 @@ public class HadoopFileSystem
       if (openedFiles.size() != 0) {
         final StringBuffer errMsgBuilder = new StringBuffer();
 
-        errMsgBuilder.append(String.format("Not all files opened using this FileSystem are closed. " + "There are" +
-          " still [%d] files open.\n", openedFiles.size()));
+        errMsgBuilder.append(
+            String.format(
+                "Not all files opened using this FileSystem are closed. "
+                    + "There are"
+                    + " still [%d] files open.\n",
+                openedFiles.size()));
 
         for (DebugStackTrace stackTrace : openedFiles.values()) {
           stackTrace.addToStringBuilder(errMsgBuilder);
@@ -316,7 +331,8 @@ public class HadoopFileSystem
 
   @Override
   public boolean mkdirs(Path folderPath) throws IOException {
-    try (WaitRecorder metaDataRecorder = OperatorStats.getMetadataWaitRecorder(operatorStats, folderPath)) {
+    try (WaitRecorder metaDataRecorder =
+        OperatorStats.getMetadataWaitRecorder(operatorStats, folderPath)) {
       org.apache.hadoop.fs.Path path = toHadoopPath(folderPath);
       if (!underlyingFs.exists(path)) {
         return underlyingFs.mkdirs(path);
@@ -341,16 +357,19 @@ public class HadoopFileSystem
   @Override
   public DirectoryStream<FileAttributes> listFiles(Path f, boolean recursive) throws IOException {
     try (WaitRecorder metaDataRecorder = OperatorStats.getMetadataWaitRecorder(operatorStats, f)) {
-      return new FetchOnDemandDirectoryStream(underlyingFs.listFiles(toHadoopPath(f), recursive), f, operatorStats);
+      return new FetchOnDemandDirectoryStream(
+          underlyingFs.listFiles(toHadoopPath(f), recursive), f, operatorStats);
     } catch (FSError e) {
       throw propagateFSError(e);
     }
   }
 
   @Override
-  public DirectoryStream<FileAttributes> list(Path f, Predicate<Path> filter) throws FileNotFoundException, IOException {
+  public DirectoryStream<FileAttributes> list(Path f, Predicate<Path> filter)
+      throws FileNotFoundException, IOException {
     try (WaitRecorder metaRecorder = OperatorStats.getMetadataWaitRecorder(operatorStats, f)) {
-      return new ArrayDirectoryStream(underlyingFs.listStatus(toHadoopPath(f), toPathFilter(filter)));
+      return new ArrayDirectoryStream(
+          underlyingFs.listStatus(toHadoopPath(f), toPathFilter(filter)));
     } catch (FSError e) {
       throw propagateFSError(e);
     }
@@ -358,9 +377,11 @@ public class HadoopFileSystem
 
   @Override
   public DirectoryStream<FileAttributes> glob(Path pattern, Predicate<Path> filter)
-    throws FileNotFoundException, IOException {
-    try (WaitRecorder metaRecorder = OperatorStats.getMetadataWaitRecorder(operatorStats, pattern)) {
-      FileStatus[] fileStatuses = underlyingFs.globStatus(toHadoopPath(pattern), toPathFilter(filter));
+      throws FileNotFoundException, IOException {
+    try (WaitRecorder metaRecorder =
+        OperatorStats.getMetadataWaitRecorder(operatorStats, pattern)) {
+      FileStatus[] fileStatuses =
+          underlyingFs.globStatus(toHadoopPath(pattern), toPathFilter(filter));
       if (fileStatuses != null && logger.isTraceEnabled()) {
         for (FileStatus fileStatus : fileStatuses) {
           logger.trace("HFS glob file status: {}", fileStatus.toString());
@@ -404,14 +425,21 @@ public class HadoopFileSystem
       throw propagateFSError(e);
     } catch (IOException e) {
       if (e.getMessage().contains("FileSystem is closed")) {
-        // Fix for S3AFileSystem - if the filesystem is closed (e.g. we are in the process of a JVM shutdown and its
-        // shutdown hook has already run), it throws an IOException. This is poor behavior - it should be unchecked as
-        // it is not a predictable scenario that callers might be expected to recover from. Additionally, it being a raw
-        // IOException makes it hard to differentiate from IOException's that reflect permission errors and other
-        // problems that callers might assume are due to a bad file path rather than source in a bad state. For example,
-        // MetadataSynchronizer needs to handle those cases differently: delete the dataset when inaccessible due to bad
+        // Fix for S3AFileSystem - if the filesystem is closed (e.g. we are in the process of a JVM
+        // shutdown and its
+        // shutdown hook has already run), it throws an IOException. This is poor behavior - it
+        // should be unchecked as
+        // it is not a predictable scenario that callers might be expected to recover from.
+        // Additionally, it being a raw
+        // IOException makes it hard to differentiate from IOException's that reflect permission
+        // errors and other
+        // problems that callers might assume are due to a bad file path rather than source in a bad
+        // state. For example,
+        // MetadataSynchronizer needs to handle those cases differently: delete the dataset when
+        // inaccessible due to bad
         // path or permissions, but preserve if inaccessible because JVM shutdown is in progress.
-        // Ref: https://github.com/apache/hadoop/blob/735e35d6484ca9908efeaa7c2f6f4d654b1fcf41/hadoop-tools/hadoop-aws/src/main/java/org/apache/hadoop/fs/s3a/S3AFileSystem.java#L4070
+        // Ref:
+        // https://github.com/apache/hadoop/blob/735e35d6484ca9908efeaa7c2f6f4d654b1fcf41/hadoop-tools/hadoop-aws/src/main/java/org/apache/hadoop/fs/s3a/S3AFileSystem.java#L4070
         throw new IllegalStateException(e);
       }
     }
@@ -461,7 +489,8 @@ public class HadoopFileSystem
   }
 
   @Override
-  public Iterable<FileBlockLocation> getFileBlockLocations(FileAttributes file, long start, long len) throws IOException {
+  public Iterable<FileBlockLocation> getFileBlockLocations(
+      FileAttributes file, long start, long len) throws IOException {
     if (!(file instanceof FileStatusWrapper)) {
       throw new ProviderMismatchException();
     }
@@ -475,16 +504,19 @@ public class HadoopFileSystem
   }
 
   @Override
-  public Iterable<FileBlockLocation> getFileBlockLocations(Path p, long start, long len) throws IOException {
+  public Iterable<FileBlockLocation> getFileBlockLocations(Path p, long start, long len)
+      throws IOException {
     try (WaitRecorder metaRecorder = OperatorStats.getMetadataWaitRecorder(operatorStats, p)) {
-      return toFileBlockLocations(() -> underlyingFs.getFileBlockLocations(toHadoopPath(p), start, len));
+      return toFileBlockLocations(
+          () -> underlyingFs.getFileBlockLocations(toHadoopPath(p), start, len));
     } catch (FSError e) {
       throw propagateFSError(e);
     }
   }
 
   @Override
-  public void access(final Path path, final Set<AccessMode> mode) throws AccessControlException, FileNotFoundException, IOException {
+  public void access(final Path path, final Set<AccessMode> mode)
+      throws AccessControlException, FileNotFoundException, IOException {
     try (WaitRecorder recorder = OperatorStats.getMetadataWaitRecorder(operatorStats, path)) {
       underlyingFs.access(toHadoopPath(path), toFsAction(mode));
     } catch (FSError e) {
@@ -494,19 +526,19 @@ public class HadoopFileSystem
 
   private void forceRefresh(Path f) {
     /*
-      In some cases, especially for NFS, the directory lookup is from the cache. So, a
-      new file/directory created in another client may not be seen by this client.
-      Now, NFS must adhere to close-to-open consistency.  Hence opening is a way to force
-      a refresh of the attribute cache.
+     In some cases, especially for NFS, the directory lookup is from the cache. So, a
+     new file/directory created in another client may not be seen by this client.
+     Now, NFS must adhere to close-to-open consistency.  Hence opening is a way to force
+     a refresh of the attribute cache.
 
-      This uses Java File APIs directly.
-     */
+     This uses Java File APIs directly.
+    */
     java.nio.file.Path p = Paths.get(f.toString());
 
     /*
-      n level of directories may be created in the executor. To refresh, the base directory
-      the coordinator is aware of needs to be refreshed. The default level is 2.
-     */
+     n level of directories may be created in the executor. To refresh, the base directory
+     the coordinator is aware of needs to be refreshed. The default level is 2.
+    */
     for (int i = 0; i < FORCE_REFRESH_LEVELS_VALUE; i++) {
       p = p.getParent();
       if (p == null) {
@@ -520,7 +552,7 @@ public class HadoopFileSystem
         already known to the client refreshes the directory tree.
       */
       try (DirectoryStream<java.nio.file.Path> ignore = Files.newDirectoryStream(p)) {
-        return; //return if there is no exception, i.e. it was found
+        return; // return if there is no exception, i.e. it was found
       } catch (IOException e) {
         logger.trace("Refresh failed", e);
       }
@@ -563,16 +595,18 @@ public class HadoopFileSystem
   /**
    * Canonicalizes a path if supported by the filesystem
    *
-   * @param fs   the filesystem to use
+   * @param fs the filesystem to use
    * @param path the path to canonicalize
    * @return the canonicalized path, or the same path if not supported by the filesystem.
    * @throws IOException
    */
-  public static Path canonicalizePath(org.apache.hadoop.fs.FileSystem fs, Path path) throws IOException {
+  public static Path canonicalizePath(org.apache.hadoop.fs.FileSystem fs, Path path)
+      throws IOException {
     try {
       if (fs instanceof PathCanonicalizer) {
         final org.apache.hadoop.fs.Path hadoopPath = toHadoopPath(path);
-        final org.apache.hadoop.fs.Path result = ((PathCanonicalizer) fs).canonicalizePath(hadoopPath);
+        final org.apache.hadoop.fs.Path result =
+            ((PathCanonicalizer) fs).canonicalizePath(hadoopPath);
         if (hadoopPath == result) {
           return path;
         }
@@ -595,7 +629,8 @@ public class HadoopFileSystem
 
   @Override
   public void fileOpened(Path path, FSInputStream fsInputStream) {
-    openedFiles.put(fsInputStream, new DebugStackTrace(path, Thread.currentThread().getStackTrace()));
+    openedFiles.put(
+        fsInputStream, new DebugStackTrace(path, Thread.currentThread().getStackTrace()));
   }
 
   @Override
@@ -616,41 +651,49 @@ public class HadoopFileSystem
   }
 
   @Override
-  public AsyncByteReader getAsyncByteReader(AsyncByteReader.FileKey fileKey, Map<String, String> options) throws IOException {
+  public AsyncByteReader getAsyncByteReader(
+      AsyncByteReader.FileKey fileKey, Map<String, String> options) throws IOException {
     return getAsyncByteReader(fileKey, operatorStats, options);
   }
 
-  public AsyncByteReader getAsyncByteReader(AsyncByteReader.FileKey fileKey, OperatorStats operatorStats, Map<String, String> options) throws IOException {
+  public AsyncByteReader getAsyncByteReader(
+      AsyncByteReader.FileKey fileKey, OperatorStats operatorStats, Map<String, String> options)
+      throws IOException {
     if (!enableAsync) {
       throw new UnsupportedOperationException();
     }
 
     final org.apache.hadoop.fs.Path path = toHadoopPath(fileKey.getPath());
     if (underlyingFs instanceof MayProvideAsyncStream) {
-      return ((MayProvideAsyncStream) underlyingFs).getAsyncByteReader(path, fileKey.getVersion(),options);
+      return ((MayProvideAsyncStream) underlyingFs)
+          .getAsyncByteReader(path, fileKey.getVersion(), options);
     } else {
       FSDataInputStream is;
-      try (WaitRecorder recorder = OperatorStats.getMetadataWaitRecorder(operatorStats, fileKey.getPath())) {
+      try (WaitRecorder recorder =
+          OperatorStats.getMetadataWaitRecorder(operatorStats, fileKey.getPath())) {
         is = underlyingFs.open(path);
       }
       logger.debug("Opening new inputstream for {} ", path);
-      FSInputStream inputStream = newFSDataInputStreamWrapper(fileKey.getPath(), is, operatorStats, false);
+      FSInputStream inputStream =
+          newFSDataInputStreamWrapper(fileKey.getPath(), is, operatorStats, false);
       return new HadoopAsyncByteReader(this, fileKey.getPath(), inputStream);
     }
   }
 
   @Override
   public boolean supportsPathsWithScheme() {
-   return false;
+    return false;
   }
 
   private static final class ArrayDirectoryStream implements DirectoryStream<FileAttributes> {
     private final List<FileAttributes> delegate;
 
     private ArrayDirectoryStream(FileStatus[] statuses) {
-      delegate = statuses != null
-        ? ImmutableList.copyOf(Iterables.transform(Arrays.asList(statuses), FileStatusWrapper::new))
-        : Collections.emptyList();
+      delegate =
+          statuses != null
+              ? ImmutableList.copyOf(
+                  Iterables.transform(Arrays.asList(statuses), FileStatusWrapper::new))
+              : Collections.emptyList();
     }
 
     @Override
@@ -659,36 +702,42 @@ public class HadoopFileSystem
     }
 
     @Override
-    public void close() throws IOException {
-    }
+    public void close() throws IOException {}
   }
 
-  public static final class FetchOnDemandDirectoryStream implements DirectoryStream<FileAttributes> {
+  public static final class FetchOnDemandDirectoryStream
+      implements DirectoryStream<FileAttributes> {
     private final Iterator<FileAttributes> convertedIterator;
 
-    public FetchOnDemandDirectoryStream(RemoteIterator<LocatedFileStatus> statuses, Path p, OperatorStats stats) {
+    public FetchOnDemandDirectoryStream(
+        RemoteIterator<LocatedFileStatus> statuses, Path p, OperatorStats stats) {
 
-      convertedIterator = new Iterator<FileAttributes>() {
-        @Override
-        public boolean hasNext() {
-          try(WaitRecorder metaRecorder = OperatorStats.getMetadataWaitRecorder(stats, p)) {
-              return statuses.hasNext();
-          } catch (IOException e) {
-            logger.error("IO exception in FetchOnDemandDirectoryStream while performing hasNext on RemoteIterator", e);
-            throw new RuntimeException(e.getCause());
-          }
-        }
+      convertedIterator =
+          new Iterator<FileAttributes>() {
+            @Override
+            public boolean hasNext() {
+              try (WaitRecorder metaRecorder = OperatorStats.getMetadataWaitRecorder(stats, p)) {
+                return statuses.hasNext();
+              } catch (IOException e) {
+                logger.error(
+                    "IO exception in FetchOnDemandDirectoryStream while performing hasNext on RemoteIterator",
+                    e);
+                throw new RuntimeException(e.getCause());
+              }
+            }
 
-        @Override
-        public FileAttributes next() {
-          try (WaitRecorder metaRecorder = OperatorStats.getMetadataWaitRecorder(stats, p)){
-              return new FileStatusWrapper(statuses.next());
-          } catch (IOException e) {
-            logger.error("IO exception in FetchOnDemandDirectoryStream in fetching next fileAttribute ", e);
-            throw new RuntimeException(e.getCause());
-          }
-        }
-      };
+            @Override
+            public FileAttributes next() {
+              try (WaitRecorder metaRecorder = OperatorStats.getMetadataWaitRecorder(stats, p)) {
+                return new FileStatusWrapper(statuses.next());
+              } catch (IOException e) {
+                logger.error(
+                    "IO exception in FetchOnDemandDirectoryStream in fetching next fileAttribute ",
+                    e);
+                throw new RuntimeException(e.getCause());
+              }
+            }
+          };
     }
 
     @Override
@@ -697,8 +746,7 @@ public class HadoopFileSystem
     }
 
     @Override
-    public void close() throws IOException {
-    }
+    public void close() throws IOException {}
   }
 
   public static class DebugStackTrace {
@@ -715,7 +763,8 @@ public class HadoopFileSystem
       sb.append(path.toString());
       sb.append("' opened at callstack:\n");
 
-      // add all stack elements except the top three as they point to FileSystemWrapper.open() and inner stack elements.
+      // add all stack elements except the top three as they point to FileSystemWrapper.open() and
+      // inner stack elements.
       for (int i = 3; i < elements.length; i++) {
         sb.append("\t");
         sb.append(elements[i]);
@@ -725,7 +774,9 @@ public class HadoopFileSystem
     }
   }
 
-  FSInputStream newFSDataInputStreamWrapper(Path f, final FSDataInputStream is, OperatorStats stats, boolean recordWaitTimes) throws IOException {
+  FSInputStream newFSDataInputStreamWrapper(
+      Path f, final FSDataInputStream is, OperatorStats stats, boolean recordWaitTimes)
+      throws IOException {
     FSInputStream result;
     if (stats != null) {
       result = FSDataInputStreamWithStatsWrapper.of(is, stats, recordWaitTimes, f.toString());
@@ -733,19 +784,21 @@ public class HadoopFileSystem
       result = FSDataInputStreamWrapper.of(is);
     }
     if (TRACKING_ENABLED) {
-      result = new FilterFSInputStream(result) {
-        @Override
-        public void close() throws IOException {
-          fileClosed(this);
-          super.close();
-        }
-      };
+      result =
+          new FilterFSInputStream(result) {
+            @Override
+            public void close() throws IOException {
+              fileClosed(this);
+              super.close();
+            }
+          };
       fileOpened(f, result);
     }
     return result;
   }
 
-  FSOutputStream newFSDataOutputStreamWrapper(FSDataOutputStream os, String path) throws IOException {
+  FSOutputStream newFSDataOutputStreamWrapper(FSDataOutputStream os, String path)
+      throws IOException {
     FSOutputStream result = new FSDataOutputStreamWrapper(os);
     if (operatorStats != null) {
       result = new FSDataOutputStreamWithStatsWrapper(result, operatorStats, path);
@@ -756,7 +809,7 @@ public class HadoopFileSystem
 
   @VisibleForTesting
   static FsAction toFsAction(Set<AccessMode> mode) {
-    final char[] perms = new char[]{'-', '-', '-'};
+    final char[] perms = new char[] {'-', '-', '-'};
     for (AccessMode m : mode) {
       switch (m) {
         case READ:
@@ -802,11 +855,14 @@ public class HadoopFileSystem
     V call() throws IOException;
   }
 
-  private static Iterable<FileBlockLocation> toFileBlockLocations(IOCallable<BlockLocation[]> call) throws IOException {
+  private static Iterable<FileBlockLocation> toFileBlockLocations(IOCallable<BlockLocation[]> call)
+      throws IOException {
     final BlockLocation[] blocks = call.call();
     final List<FileBlockLocation> results = new ArrayList<>(blocks.length);
     for (BlockLocation block : blocks) {
-      results.add(new SimpleFileBlockLocation(block.getOffset(), block.getLength(), ImmutableList.copyOf(block.getHosts())));
+      results.add(
+          new SimpleFileBlockLocation(
+              block.getOffset(), block.getLength(), ImmutableList.copyOf(block.getHosts())));
     }
     return results;
   }

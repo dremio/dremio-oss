@@ -16,30 +16,24 @@
 package com.dremio.exec.server;
 
 import com.dremio.service.Service;
-
 import io.grpc.ManagedChannel;
 
-/**
- * Interface which provides a channel to the SysFlight Service
- */
+/** Interface which provides a channel to the SysFlight Service */
 public interface SysFlightChannelProvider extends Service {
   ManagedChannel get();
 
-  /**
-   * NO_OP implementation
-   */
-  public static final SysFlightChannelProvider NO_OP = new SysFlightChannelProvider() {
-    @Override
-    public void start() throws Exception {
-    }
+  /** NO_OP implementation */
+  public static final SysFlightChannelProvider NO_OP =
+      new SysFlightChannelProvider() {
+        @Override
+        public void start() throws Exception {}
 
-    @Override
-    public void close() throws Exception {
-    }
+        @Override
+        public void close() throws Exception {}
 
-    @Override
-    public ManagedChannel get() {
-      return null;
-    }
-  };
+        @Override
+        public ManagedChannel get() {
+          return null;
+        }
+      };
 }

@@ -17,26 +17,26 @@ package com.dremio.exec.store.parquet;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import org.junit.Test;
-
 import com.dremio.exec.ExecConstants;
 import com.dremio.options.OptionResolver;
 import com.dremio.test.specs.OptionResolverSpec;
 import com.dremio.test.specs.OptionResolverSpecBuilder;
+import org.junit.Test;
 
 public class TestParquetReaderOptions {
 
   @Test
   public void testBuild() {
-    ParquetReaderOptions options = ParquetReaderOptions.builder()
-      .enableVectorization(true)
-      .enableAutoCorrectCorruptDates(true)
-      .enableReadInt96AsTimestamp(true)
-      .enableDetailedTracing(true)
-      .enablePrefetching(true)
-      .setNumSplitsToPrefetch(2)
-      .enableArrowCaching(true)
-      .build();
+    ParquetReaderOptions options =
+        ParquetReaderOptions.builder()
+            .enableVectorization(true)
+            .enableAutoCorrectCorruptDates(true)
+            .enableReadInt96AsTimestamp(true)
+            .enableDetailedTracing(true)
+            .enablePrefetching(true)
+            .setNumSplitsToPrefetch(2)
+            .enableArrowCaching(true)
+            .build();
 
     assertThat(options.isVectorizationEnabled()).isTrue();
     assertThat(options.isAutoCorrectCorruptDatesEnabled()).isTrue();
@@ -49,14 +49,16 @@ public class TestParquetReaderOptions {
 
   @Test
   public void testBuildFromOptions() {
-    final OptionResolver optionResolver = OptionResolverSpecBuilder.build(new OptionResolverSpec()
-      .addOption(ExecConstants.PARQUET_READER_VECTORIZE, true)
-      .addOption(ExecConstants.PARQUET_AUTO_CORRECT_DATES_VALIDATOR, true)
-      .addOption(ExecConstants.PARQUET_READER_INT96_AS_TIMESTAMP_VALIDATOR, true)
-      .addOption(ExecConstants.ENABLED_PARQUET_TRACING, true)
-      .addOption(ExecConstants.PREFETCH_READER, true)
-      .addOption(ExecConstants.NUM_SPLITS_TO_PREFETCH, 2)
-      .addOption(ExecConstants.ENABLE_PARQUET_ARROW_CACHING, true));
+    final OptionResolver optionResolver =
+        OptionResolverSpecBuilder.build(
+            new OptionResolverSpec()
+                .addOption(ExecConstants.PARQUET_READER_VECTORIZE, true)
+                .addOption(ExecConstants.PARQUET_AUTO_CORRECT_DATES_VALIDATOR, true)
+                .addOption(ExecConstants.PARQUET_READER_INT96_AS_TIMESTAMP_VALIDATOR, true)
+                .addOption(ExecConstants.ENABLED_PARQUET_TRACING, true)
+                .addOption(ExecConstants.PREFETCH_READER, true)
+                .addOption(ExecConstants.NUM_SPLITS_TO_PREFETCH, 2)
+                .addOption(ExecConstants.ENABLE_PARQUET_ARROW_CACHING, true));
 
     ParquetReaderOptions options = ParquetReaderOptions.from(optionResolver);
 

@@ -15,17 +15,15 @@
  */
 package com.dremio.exec.store.dfs.easy;
 
+import com.dremio.BaseTestQuery;
+import com.dremio.exec.store.dfs.implicit.ImplicitFilesystemColumnFinder;
+import com.dremio.options.OptionManager;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
-
 import org.junit.Assert;
 import org.junit.Test;
-
-import com.dremio.BaseTestQuery;
-import com.dremio.exec.store.dfs.implicit.ImplicitFilesystemColumnFinder;
-import com.dremio.options.OptionManager;
 
 public class TestOptionKeys extends BaseTestQuery {
 
@@ -40,7 +38,8 @@ public class TestOptionKeys extends BaseTestQuery {
     //      $file column will appear
     //      $file column values will be a relative (to the query) path + filename:  'enabled.json'
     //      prior to DX-69983 the full path would appear
-    //         '/Users/userName/dremio/dremio/oss/sabot/kernel/target/randomNumber/file_field_enabled/enabled.json'
+    //
+    // '/Users/userName/dremio/dremio/oss/sabot/kernel/target/randomNumber/file_field_enabled/enabled.json'
 
     Path root = Paths.get(getDfsTestTmpSchemaLocation(), "file_field_enabled");
     Files.createDirectories(root);
@@ -51,37 +50,43 @@ public class TestOptionKeys extends BaseTestQuery {
 
     // Test the "$file" column appears using dremio.store.file.file-field-enabled
 
-    setSystemOption(ImplicitFilesystemColumnFinder.IMPLICIT_FILE_FIELD_ENABLE.getOptionName(), "true");
+    setSystemOption(
+        ImplicitFilesystemColumnFinder.IMPLICIT_FILE_FIELD_ENABLE.getOptionName(), "true");
 
     testBuilder()
-      .sqlQuery("select $file from dfs_test.file_field_enabled.\"enabled.json\"")
-      .unOrdered()
-      .baselineColumns("$file")
-      .baselineValues("enabled.json")
-      .build().run();
+        .sqlQuery("select $file from dfs_test.file_field_enabled.\"enabled.json\"")
+        .unOrdered()
+        .baselineColumns("$file")
+        .baselineValues("enabled.json")
+        .build()
+        .run();
 
     // Test the rename of the "$file" column using dremio.store.file.file-field-label
 
-    setSystemOption(ImplicitFilesystemColumnFinder.IMPLICIT_FILE_FIELD_LABEL.getOptionName(), "\'XX_FileName_XX\'");
+    setSystemOption(
+        ImplicitFilesystemColumnFinder.IMPLICIT_FILE_FIELD_LABEL.getOptionName(),
+        "\'XX_FileName_XX\'");
 
     testBuilder()
-      .sqlQuery("select XX_FileName_XX from dfs_test.file_field_enabled.\"labeled.json\"")
-      .unOrdered()
-      .baselineColumns("XX_FileName_XX")
-      .baselineValues("labeled.json")
-      .build().run();
+        .sqlQuery("select XX_FileName_XX from dfs_test.file_field_enabled.\"labeled.json\"")
+        .unOrdered()
+        .baselineColumns("XX_FileName_XX")
+        .baselineValues("labeled.json")
+        .build()
+        .run();
 
     // Reset to Off/Baseline and verify off
     resetSystemOption(ImplicitFilesystemColumnFinder.IMPLICIT_FILE_FIELD_LABEL.getOptionName());
 
     try {
       testBuilder()
-        .sqlQuery("select XX_FileName_XX from dfs_test.file_field_enabled.\"unlabeled.json\"")
-        .unOrdered()
-        .baselineColumns("XX_FileName_XX")
-        .baselineValues("unlabeled.json")
-        .build().run();
-      Assert.fail("Failure: did not expect column 'XX_FileName_XX' to appear" );
+          .sqlQuery("select XX_FileName_XX from dfs_test.file_field_enabled.\"unlabeled.json\"")
+          .unOrdered()
+          .baselineColumns("XX_FileName_XX")
+          .baselineValues("unlabeled.json")
+          .build()
+          .run();
+      Assert.fail("Failure: did not expect column 'XX_FileName_XX' to appear");
     } catch (Exception e) {
       // Failure Expected, the 'XX_FileName_XX' column should not appear in the table
       Assert.assertTrue(e.getMessage().contains("Column 'XX_FileName_XX' not found in any table"));
@@ -91,12 +96,13 @@ public class TestOptionKeys extends BaseTestQuery {
 
     try {
       testBuilder()
-        .sqlQuery("select $file from dfs_test.file_field_enabled.\"disabled.json\"")
-        .unOrdered()
-        .baselineColumns("$file")
-        .baselineValues("disabled.json")
-        .build().run();
-      Assert.fail("Failure: did not expect column '$file' to appear" );
+          .sqlQuery("select $file from dfs_test.file_field_enabled.\"disabled.json\"")
+          .unOrdered()
+          .baselineColumns("$file")
+          .baselineValues("disabled.json")
+          .build()
+          .run();
+      Assert.fail("Failure: did not expect column '$file' to appear");
     } catch (Exception e) {
       // Failure Expected, the '$file' column should not appear in the table
       Assert.assertTrue(e.getMessage().contains("Column '$file' not found in any table"));
@@ -129,26 +135,35 @@ public class TestOptionKeys extends BaseTestQuery {
     Files.createDirectories(root1);
     Files.write(root1.resolve("enabled1.json"), "{a:1}".getBytes(), StandardOpenOption.CREATE);
 
-    Path root2 = Paths.get(getDfsTestTmpSchemaLocation(), "file_field_enabled", "dirName1", "dirName2");
+    Path root2 =
+        Paths.get(getDfsTestTmpSchemaLocation(), "file_field_enabled", "dirName1", "dirName2");
     Files.createDirectories(root2);
     Files.write(root2.resolve("enabled2.json"), "{b:2}".getBytes(), StandardOpenOption.CREATE);
 
-    Path root3 = Paths.get(getDfsTestTmpSchemaLocation(), "file_field_enabled", "dirName1", "dirName2", "dirName3");
+    Path root3 =
+        Paths.get(
+            getDfsTestTmpSchemaLocation(),
+            "file_field_enabled",
+            "dirName1",
+            "dirName2",
+            "dirName3");
     Files.createDirectories(root3);
     Files.write(root3.resolve("enabled3.json"), "{c:3}".getBytes(), StandardOpenOption.CREATE);
 
     // Test the "$file" column appears using dremio.store.file.file-field-enabled
 
-    setSystemOption(ImplicitFilesystemColumnFinder.IMPLICIT_FILE_FIELD_ENABLE.getOptionName(), "true");
+    setSystemOption(
+        ImplicitFilesystemColumnFinder.IMPLICIT_FILE_FIELD_ENABLE.getOptionName(), "true");
 
     testBuilder()
-      .sqlQuery("select $file from dfs_test.file_field_enabled.dirName1")
-      .unOrdered()
-      .baselineColumns("$file")
-      .baselineValues("enabled1.json")
-      .baselineValues("dirName2/enabled2.json")
-      .baselineValues("dirName2/dirName3/enabled3.json")
-      .build().run();
+        .sqlQuery("select $file from dfs_test.file_field_enabled.dirName1")
+        .unOrdered()
+        .baselineColumns("$file")
+        .baselineValues("enabled1.json")
+        .baselineValues("dirName2/enabled2.json")
+        .baselineValues("dirName2/dirName3/enabled3.json")
+        .build()
+        .run();
   }
 
   /*
@@ -171,25 +186,30 @@ public class TestOptionKeys extends BaseTestQuery {
 
     // Test the "$mtime" column appears using dremio.store.file.mod-field-enabled
 
-    setSystemOption(ImplicitFilesystemColumnFinder.IMPLICIT_MOD_FIELD_ENABLE.getOptionName(), "true");
+    setSystemOption(
+        ImplicitFilesystemColumnFinder.IMPLICIT_MOD_FIELD_ENABLE.getOptionName(), "true");
 
     testBuilder()
-      .sqlQuery("select $mtime from dfs_test.mod_field_enabled.\"enabled.json\"")
-      .unOrdered()
-      .baselineColumns("$mtime")
-      .baselineValues(enabledMTime)
-      .build().run();
+        .sqlQuery("select $mtime from dfs_test.mod_field_enabled.\"enabled.json\"")
+        .unOrdered()
+        .baselineColumns("$mtime")
+        .baselineValues(enabledMTime)
+        .build()
+        .run();
 
     // Test the rename of the "$mtime" column using dremio.store.file.mod-field-label
 
-    setSystemOption(ImplicitFilesystemColumnFinder.IMPLICIT_MOD_FIELD_LABEL.getOptionName(), "\'XX_Modified_XX\'");
+    setSystemOption(
+        ImplicitFilesystemColumnFinder.IMPLICIT_MOD_FIELD_LABEL.getOptionName(),
+        "\'XX_Modified_XX\'");
 
     testBuilder()
-      .sqlQuery("select XX_Modified_XX from dfs_test.mod_field_enabled.\"labeled.json\"")
-      .unOrdered()
-      .baselineColumns("XX_Modified_XX")
-      .baselineValues(labeledMTime)
-      .build().run();
+        .sqlQuery("select XX_Modified_XX from dfs_test.mod_field_enabled.\"labeled.json\"")
+        .unOrdered()
+        .baselineColumns("XX_Modified_XX")
+        .baselineValues(labeledMTime)
+        .build()
+        .run();
 
     // Reset to Off/Baseline and verify off
 
@@ -197,12 +217,13 @@ public class TestOptionKeys extends BaseTestQuery {
 
     try {
       testBuilder()
-        .sqlQuery("select XX_Modified_XX from dfs_test.mod_field_enabled.\"unlabeled.json\"")
-        .unOrdered()
-        .baselineColumns("XX_Modified_XX")
-        .baselineValues(unlabeledMTime)
-        .build().run();
-      Assert.fail("Failure: did not expect column 'XX_Modified_XX' to appear" );
+          .sqlQuery("select XX_Modified_XX from dfs_test.mod_field_enabled.\"unlabeled.json\"")
+          .unOrdered()
+          .baselineColumns("XX_Modified_XX")
+          .baselineValues(unlabeledMTime)
+          .build()
+          .run();
+      Assert.fail("Failure: did not expect column 'XX_Modified_XX' to appear");
     } catch (Exception e) {
       // Failure Expected, the 'XX_Modified_XX' column should not appear in the table
       Assert.assertTrue(e.getMessage().contains("Column 'XX_Modified_XX' not found in any table"));
@@ -212,12 +233,13 @@ public class TestOptionKeys extends BaseTestQuery {
 
     try {
       testBuilder()
-        .sqlQuery("select $mtime from dfs_test.mod_field_enabled.\"disabled.json\"")
-        .unOrdered()
-        .baselineColumns("$mtime")
-        .baselineValues(disabledMTime)
-        .build().run();
-      Assert.fail("Failure: did not expect column '$mtime' to appear" );
+          .sqlQuery("select $mtime from dfs_test.mod_field_enabled.\"disabled.json\"")
+          .unOrdered()
+          .baselineColumns("$mtime")
+          .baselineValues(disabledMTime)
+          .build()
+          .run();
+      Assert.fail("Failure: did not expect column '$mtime' to appear");
     } catch (Exception e) {
       // Failure Expected, the '$mtime' column should not appear in the table
       Assert.assertTrue(e.getMessage().contains("Column '$mtime' not found in any table"));
@@ -238,54 +260,69 @@ public class TestOptionKeys extends BaseTestQuery {
 
     Path root1 = Paths.get(getDfsTestTmpSchemaLocation(), "dirName1A", "dirName2A");
     Files.createDirectories(root1);
-    Files.write(root1.resolve("enabled1.json"), "{JsonPropName1:\"abc\"}".getBytes(), StandardOpenOption.CREATE);
+    Files.write(
+        root1.resolve("enabled1.json"),
+        "{JsonPropName1:\"abc\"}".getBytes(),
+        StandardOpenOption.CREATE);
 
     Path root2 = Paths.get(getDfsTestTmpSchemaLocation(), "dirName1A", "dirName2A", "dirName3A");
     Files.createDirectories(root2);
-    Files.write(root2.resolve("enabled2.json"), "{JsonPropName1:\"xyz\"}".getBytes(), StandardOpenOption.CREATE);
+    Files.write(
+        root2.resolve("enabled2.json"),
+        "{JsonPropName1:\"xyz\"}".getBytes(),
+        StandardOpenOption.CREATE);
 
     Path root3 = Paths.get(getDfsTestTmpSchemaLocation(), "dirName1B", "dirName2B");
     Files.createDirectories(root3);
-    Files.write(root3.resolve("disabled1.json"), "{JsonPropName2:\"abc\"}".getBytes(), StandardOpenOption.CREATE);
+    Files.write(
+        root3.resolve("disabled1.json"),
+        "{JsonPropName2:\"abc\"}".getBytes(),
+        StandardOpenOption.CREATE);
 
     Path root4 = Paths.get(getDfsTestTmpSchemaLocation(), "dirName1B", "dirName2B", "dirName3B");
     Files.createDirectories(root4);
-    Files.write(root4.resolve("disabled2.json"), "{JsonPropName2:\"xyz\"}".getBytes(), StandardOpenOption.CREATE);
+    Files.write(
+        root4.resolve("disabled2.json"),
+        "{JsonPropName2:\"xyz\"}".getBytes(),
+        StandardOpenOption.CREATE);
 
     // Test the directories appear as columns using dremio.store.file.dir-field-enabled
 
-
-    setSystemOption(ImplicitFilesystemColumnFinder.IMPLICIT_DIRS_FIELD_ENABLE.getOptionName(), "true");
+    setSystemOption(
+        ImplicitFilesystemColumnFinder.IMPLICIT_DIRS_FIELD_ENABLE.getOptionName(), "true");
 
     testBuilder()
-      .sqlQuery("select * from dfs_test.dirName1A")
-      .unOrdered()
-      .baselineColumns("dir0", "dir1", "JsonPropName1")
-      .baselineValues("dirName2A", null, "abc")
-      .baselineValues("dirName2A", "dirName3A", "xyz")
-      .build().run();
+        .sqlQuery("select * from dfs_test.dirName1A")
+        .unOrdered()
+        .baselineColumns("dir0", "dir1", "JsonPropName1")
+        .baselineValues("dirName2A", null, "abc")
+        .baselineValues("dirName2A", "dirName3A", "xyz")
+        .build()
+        .run();
 
-      testBuilder()
+    testBuilder()
         .sqlQuery("select * from dfs_test.dirName1A.dirName2A")
         .unOrdered()
         .baselineColumns("dir0", "JsonPropName1")
         .baselineValues(null, "abc")
         .baselineValues("dirName3A", "xyz")
-        .build().run();
+        .build()
+        .run();
 
     // Set to Off/Baseline and verify off
 
-    setSystemOption(ImplicitFilesystemColumnFinder.IMPLICIT_DIRS_FIELD_ENABLE.getOptionName(), "false");
+    setSystemOption(
+        ImplicitFilesystemColumnFinder.IMPLICIT_DIRS_FIELD_ENABLE.getOptionName(), "false");
 
     testBuilder()
-      .sqlQuery("select * from dfs_test.dirName1B")
-      .unOrdered()
-      .baselineColumns("JsonPropName2")
-      .baselineValues("abc")
-      .baselineValues("xyz")
-      .build().run();
+        .sqlQuery("select * from dfs_test.dirName1B")
+        .unOrdered()
+        .baselineColumns("JsonPropName2")
+        .baselineValues("abc")
+        .baselineValues("xyz")
+        .build()
+        .run();
 
     resetSystemOption(ImplicitFilesystemColumnFinder.IMPLICIT_DIRS_FIELD_ENABLE.getOptionName());
-
   }
 }

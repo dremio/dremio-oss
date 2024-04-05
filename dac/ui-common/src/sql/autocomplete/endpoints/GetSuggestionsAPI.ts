@@ -18,7 +18,7 @@ import type { GetSuggestionsParams } from "./GetSuggestionsParams.type";
 import type { GetSuggestionsResponse } from "./GetSuggestionsResponse.type";
 
 export type GetSuggestionsAPI = (
-  payload: GetSuggestionsParams
+  payload: GetSuggestionsParams,
 ) => Promise<GetSuggestionsResponse>;
 
 export const getSuggestionsAPICreator =
@@ -28,7 +28,7 @@ export const getSuggestionsAPICreator =
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: authToken,
+        ...(authToken && { Authorization: authToken }),
       },
       body: JSON.stringify(payload),
     }).then((res: Response) => res.json());

@@ -15,17 +15,6 @@
  */
 package com.dremio.exec.work.foreman;
 
-import java.util.Collections;
-import java.util.function.Consumer;
-
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.Mock;
-import org.mockito.Mockito;
-import org.mockito.junit.MockitoJUnitRunner;
-
 import com.dremio.common.config.SabotConfig;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.MetadataStatsCollector;
@@ -46,23 +35,27 @@ import com.dremio.resource.common.ResourceSchedulingContext;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.test.DremioTest;
 import com.google.common.util.concurrent.Futures;
+import java.util.Collections;
+import java.util.function.Consumer;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.Mock;
+import org.mockito.Mockito;
+import org.mockito.junit.MockitoJUnitRunner;
 
 @RunWith(MockitoJUnitRunner.class)
 public class TestResourceSchedulerInProfile extends DremioTest {
-  @Mock
-  private OptionManager optionManager;
+  @Mock private OptionManager optionManager;
 
-  @Mock
-  private QueryContext context;
+  @Mock private QueryContext context;
 
-  @Mock
-  private AccelerationManager accelerationManager;
+  @Mock private AccelerationManager accelerationManager;
 
-  @Mock
-  private Catalog catalog;
+  @Mock private Catalog catalog;
 
-  @Mock
-  private MetadataStatsCollector metadataStatsCollector;
+  @Mock private MetadataStatsCollector metadataStatsCollector;
 
   @Before
   public void setUp() {
@@ -82,58 +75,62 @@ public class TestResourceSchedulerInProfile extends DremioTest {
 
   @Test
   public void testResourceSchedulingInProfile() throws Exception {
-    UserBitShared.QueryId queryId = UserBitShared.QueryId.newBuilder()
-      .setPart1(10)
-      .setPart2(20)
-      .build();
+    UserBitShared.QueryId queryId =
+        UserBitShared.QueryId.newBuilder().setPart1(10).setPart2(20).build();
 
-    final NodeEndpoint endpoint = NodeEndpoint.newBuilder().setAddress("host1").setFabricPort(12345).build();
+    final NodeEndpoint endpoint =
+        NodeEndpoint.newBuilder().setAddress("host1").setFabricPort(12345).build();
 
     Mockito.when(context.getCurrentEndpoint()).thenReturn(endpoint);
 
-    ResourceAllocator ra = new ResourceAllocator() {
-      @Override
-      public ResourceSchedulingResult allocate(ResourceSchedulingContext queryContext,
-        ResourceSchedulingProperties resourceSchedulingProperties,
-        ResourceSchedulingObserver observer,
-        Consumer<ResourceSchedulingDecisionInfo> resourceDecisionConsumer) {
+    ResourceAllocator ra =
+        new ResourceAllocator() {
+          @Override
+          public ResourceSchedulingResult allocate(
+              ResourceSchedulingContext queryContext,
+              ResourceSchedulingProperties resourceSchedulingProperties,
+              ResourceSchedulingObserver observer,
+              Consumer<ResourceSchedulingDecisionInfo> resourceDecisionConsumer) {
 
-        final ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo = new ResourceSchedulingDecisionInfo();
-        resourceSchedulingDecisionInfo.setQueueId("abcd");
-        resourceSchedulingDecisionInfo.setQueueName("queue.abcd");
-        resourceDecisionConsumer.accept(resourceSchedulingDecisionInfo);
+            final ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo =
+                new ResourceSchedulingDecisionInfo();
+            resourceSchedulingDecisionInfo.setQueueId("abcd");
+            resourceSchedulingDecisionInfo.setQueueName("queue.abcd");
+            resourceDecisionConsumer.accept(resourceSchedulingDecisionInfo);
 
-        return new ResourceSchedulingResult(resourceSchedulingDecisionInfo,
-          Futures.immediateFuture(new ResourceSet.ResourceSetNoOp()));
-      }
+            return new ResourceSchedulingResult(
+                resourceSchedulingDecisionInfo,
+                Futures.immediateFuture(new ResourceSet.ResourceSetNoOp()));
+          }
 
-      @Override
-      public void cancel(ResourceSchedulingContext queryContext) {
-      }
+          @Override
+          public void cancel(ResourceSchedulingContext queryContext) {}
 
-      @Override
-      public GroupResourceInformation getGroupResourceInformation(OptionManager optionManager,
-                                                                  ResourceSchedulingProperties resourceSchedulingProperties) {
-        return null;
-      }
+          @Override
+          public GroupResourceInformation getGroupResourceInformation(
+              OptionManager optionManager,
+              ResourceSchedulingProperties resourceSchedulingProperties) {
+            return null;
+          }
 
-      @Override
-      public void start() throws Exception {
+          @Override
+          public void start() throws Exception {}
 
-      }
+          @Override
+          public void close() throws Exception {}
+        };
 
-      @Override
-      public void close() throws Exception {
-
-      }
-    };
-
-    AttemptProfileTracker tracker = new AttemptProfileTracker(queryId,
-      context, "test",
-      () -> UserBitShared.QueryResult.QueryState.COMPLETED,
-      AbstractAttemptObserver.NOOP, null);
+    AttemptProfileTracker tracker =
+        new AttemptProfileTracker(
+            queryId,
+            context,
+            "test",
+            () -> UserBitShared.QueryResult.QueryState.COMPLETED,
+            AbstractAttemptObserver.NOOP,
+            null);
     ResourceSchedulingDecisionInfo info =
-      ra.allocate(null, null, ResourceSchedulingObserver.NO_OP, x -> {}).getResourceSchedulingDecisionInfo();
+        ra.allocate(null, null, ResourceSchedulingObserver.NO_OP, x -> {})
+            .getResourceSchedulingDecisionInfo();
     tracker.getObserver().resourcesScheduled(info);
 
     UserBitShared.QueryProfile queryProfile = tracker.getPlanningProfile();

@@ -107,6 +107,10 @@
       &__content {
         overflow: auto;
 
+        &.error code {
+          white-space: pre-wrap !important;
+        }
+
         .inner-actions {
           display: flex;
           position: absolute;
@@ -115,7 +119,6 @@
 
           .dremio-icon-button {
             color: var(--dremio--color--icon--main);
-
             dremio-icon {
               block-size: 24px !important;
               inline-size: 24px !important;
@@ -283,7 +286,9 @@
       flex: 1 1 auto;
       max-width: 250px;
       opacity: 1;
-      transition: 300ms ease-out max-width, 300ms ease opacity;
+      transition:
+        300ms ease-out max-width,
+        300ms ease opacity;
       visibility: visible;
 
       &__item {

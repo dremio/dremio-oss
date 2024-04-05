@@ -15,22 +15,20 @@
  */
 package com.dremio.sabot.op.join.merge;
 
-import javax.inject.Named;
-
-import org.apache.calcite.rel.core.JoinRelType;
-import org.apache.commons.lang3.tuple.Pair;
-
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.sabot.exec.context.FunctionContext;
 import com.dremio.sabot.op.join.merge.MergeJoinOperator.InternalState;
 import com.google.common.base.Preconditions;
+import javax.inject.Named;
+import org.apache.calcite.rel.core.JoinRelType;
+import org.apache.commons.lang3.tuple.Pair;
 
 /**
  * The comparator handles different join types, and specific merge join looping logic
  *
- * Notable issue TODO: DX-12621
- * Improve performance by projecting records in the same column at a time
+ * <p>Notable issue TODO: DX-12621 Improve performance by projecting records in the same column at a
+ * time
  */
 public abstract class MergeJoinComparatorTemplate implements MergeJoinComparator {
   private MarkedAsyncIterator leftIterator;
@@ -52,9 +50,13 @@ public abstract class MergeJoinComparatorTemplate implements MergeJoinComparator
   private FunctionContext context;
 
   @Override
-  public void setupMergeJoin(FunctionContext functionContext, JoinRelType joinType,
-      MarkedAsyncIterator leftIterator, MarkedAsyncIterator rightIterator,
-      VectorContainer outgoing, int targetRecordsPerBatch) {
+  public void setupMergeJoin(
+      FunctionContext functionContext,
+      JoinRelType joinType,
+      MarkedAsyncIterator leftIterator,
+      MarkedAsyncIterator rightIterator,
+      VectorContainer outgoing,
+      int targetRecordsPerBatch) {
     Preconditions.checkArgument(state == InternalState.NEEDS_SETUP);
     state = InternalState.OUT_OF_LOOPS;
 
@@ -146,20 +148,21 @@ public abstract class MergeJoinComparatorTemplate implements MergeJoinComparator
     // comparison continues if:
     // out of loops / inner loop --> have data from both table
     // outer loop --> have data from left, because will resume from marked position from right
-    while (outputRecordsCounter < targetRecordsPerBatch && leftIterator.hasNext() &&
-        (rightIterator.hasNext() || state == InternalState.IN_OUTER_LOOP)) {
+    while (outputRecordsCounter < targetRecordsPerBatch
+        && leftIterator.hasNext()
+        && (rightIterator.hasNext() || state == InternalState.IN_OUTER_LOOP)) {
       switch (state) {
-      case OUT_OF_LOOPS:
-        continueFromOutOfLoops();
-        break;
-      case IN_OUTER_LOOP:
-        continueFromInOuterLoop();
-        break;
-      case IN_INNER_LOOP:
-        continueFromInInnerLoop();
-        break;
-      default:
-        throw new IllegalStateException("Reach illegal state");
+        case OUT_OF_LOOPS:
+          continueFromOutOfLoops();
+          break;
+        case IN_OUTER_LOOP:
+          continueFromInOuterLoop();
+          break;
+        case IN_INNER_LOOP:
+          continueFromInInnerLoop();
+          break;
+        default:
+          throw new IllegalStateException("Reach illegal state");
       }
     }
   }
@@ -175,17 +178,12 @@ public abstract class MergeJoinComparatorTemplate implements MergeJoinComparator
   }
 
   /**
-   * while (r < s) { advance r, yield <r, null> if left or full join }
-   * while (r > s) { advance s, yield <null, s> if right or full join }
+   * while (r < s) { advance r, yield <r, null> if left or full join } while (r > s) { advance s,
+   * yield <null, s> if right or full join }
    *
-   * if (r == s) {
-   *   mark s
-   *   yield <r, s>
-   *   advance s
+   * <p>if (r == s) { mark s yield <r, s> advance s
    *
-   *   goto inner_loop
-   * }
-   *
+   * <p>goto inner_loop }
    */
   private void continueFromOutOfLoops() {
     while (outputRecordsCounter < targetRecordsPerBatch) {
@@ -197,7 +195,8 @@ public abstract class MergeJoinComparatorTemplate implements MergeJoinComparator
       final Pair<VectorAccessible, Integer> left = leftIterator.peek();
       final Pair<VectorAccessible, Integer> right = rightIterator.peek();
 
-      final int compareOutput = _doCompare(left.getLeft(), right.getLeft(), left.getRight(), right.getRight());
+      final int compareOutput =
+          _doCompare(left.getLeft(), right.getLeft(), left.getRight(), right.getRight());
 
       if (compareOutput < 0) {
         // left < right
@@ -225,23 +224,17 @@ public abstract class MergeJoinComparatorTemplate implements MergeJoinComparator
   }
 
   /**
-   * if (r == (s at marked position)) {
-   *   reset s to mark
-   *   yield <r, s>
-   *   advance s
+   * if (r == (s at marked position)) { reset s to mark yield <r, s> advance s
    *
-   *   goto inner_loop
-   * } else {
-   *   goto out_of_loops
-   * }
-   *
+   * <p>goto inner_loop } else { goto out_of_loops }
    */
   private void continueFromInOuterLoop() {
     final Pair<VectorAccessible, Integer> left = leftIterator.peek();
 
     // check for end of cartesian join
     final Pair<VectorAccessible, Integer> rightMarked = rightIterator.peekMark();
-    final int compareMarked = _doCompare(left.getLeft(), rightMarked.getLeft(), left.getRight(), rightMarked.getRight());
+    final int compareMarked =
+        _doCompare(left.getLeft(), rightMarked.getLeft(), left.getRight(), rightMarked.getRight());
     if (compareMarked != 0) {
       // end of cartesian join, return to out of loops
       state = InternalState.OUT_OF_LOOPS;
@@ -259,14 +252,9 @@ public abstract class MergeJoinComparatorTemplate implements MergeJoinComparator
   }
 
   /**
-   * while (r == s) {
-   *   yield <r, s>
-   *   advance s
-   * }
+   * while (r == s) { yield <r, s> advance s }
    *
-   * advance r
-   * goto outer_loop
-   *
+   * <p>advance r goto outer_loop
    */
   private void continueFromInInnerLoop() {
     while (outputRecordsCounter < targetRecordsPerBatch) {
@@ -278,7 +266,8 @@ public abstract class MergeJoinComparatorTemplate implements MergeJoinComparator
       final Pair<VectorAccessible, Integer> left = leftIterator.peek();
       final Pair<VectorAccessible, Integer> right = rightIterator.peek();
 
-      final int compareOutput = _doCompare(left.getLeft(), right.getLeft(), left.getRight(), right.getRight());
+      final int compareOutput =
+          _doCompare(left.getLeft(), right.getLeft(), left.getRight(), right.getRight());
 
       if (compareOutput != 0) {
         // left != right
@@ -294,7 +283,8 @@ public abstract class MergeJoinComparatorTemplate implements MergeJoinComparator
   }
 
   // helper function for comparing two records
-  private int _doCompare(VectorAccessible leftBatch, VectorAccessible rightBatch, int leftIndex, int rightIndex) {
+  private int _doCompare(
+      VectorAccessible leftBatch, VectorAccessible rightBatch, int leftIndex, int rightIndex) {
     if (this.lastLeft != leftBatch || this.lastRight != rightBatch) {
       doSetup(this.context, leftBatch, rightBatch, outgoing);
       lastLeft = leftBatch;
@@ -304,7 +294,8 @@ public abstract class MergeJoinComparatorTemplate implements MergeJoinComparator
   }
 
   // helper function for yielding records
-  private void yield(VectorAccessible leftBatch, VectorAccessible rightBatch, int leftIndex, int rightIndex) {
+  private void yield(
+      VectorAccessible leftBatch, VectorAccessible rightBatch, int leftIndex, int rightIndex) {
     if (this.lastLeft != leftBatch || this.lastRight != rightBatch) {
       doSetup(this.context, leftBatch, rightBatch, outgoing);
       lastLeft = leftBatch;
@@ -336,13 +327,20 @@ public abstract class MergeJoinComparatorTemplate implements MergeJoinComparator
   }
 
   /** below are template methods that actually do the join */
-  protected abstract void doSetup(@Named("context") FunctionContext context,
-      @Named("leftBatch") VectorAccessible leftBatch, @Named("rightBatch") VectorAccessible rightBatch, @Named("outgoing") VectorAccessible outgoing);
+  protected abstract void doSetup(
+      @Named("context") FunctionContext context,
+      @Named("leftBatch") VectorAccessible leftBatch,
+      @Named("rightBatch") VectorAccessible rightBatch,
+      @Named("outgoing") VectorAccessible outgoing);
 
-  // return a negative integer, zero, or a positive integer as the first argument is less than, equal to, or greater than the second
-  protected abstract int doCompare(@Named("leftIndex") int leftIndex, @Named("rightIndex") int rightIndex);
+  // return a negative integer, zero, or a positive integer as the first argument is less than,
+  // equal to, or greater than the second
+  protected abstract int doCompare(
+      @Named("leftIndex") int leftIndex, @Named("rightIndex") int rightIndex);
 
   // project, set index of null side to -1 to skip
-  protected abstract void doProject(@Named("leftIndex") int leftIndex, @Named("rightIndex") int rightIndex, @Named("outIndex") int outIndex);
-
+  protected abstract void doProject(
+      @Named("leftIndex") int leftIndex,
+      @Named("rightIndex") int rightIndex,
+      @Named("outIndex") int outIndex);
 }

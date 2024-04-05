@@ -15,24 +15,22 @@
  */
 package com.dremio.common.scanner.persistence;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.lang.reflect.Array;
 import java.util.List;
 import java.util.Map;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonProperty;
-
-/**
- * a class fields
- */
+/** a class fields */
 public final class FieldDescriptor {
   private final String name;
   private final String descriptor;
   private final List<AnnotationDescriptor> annotations;
   private final Map<String, AnnotationDescriptor> annotationMap;
 
-  @JsonCreator public FieldDescriptor(
+  @JsonCreator
+  public FieldDescriptor(
       @JsonProperty("name") String name,
       @JsonProperty("descriptor") String descriptor,
       @JsonProperty("annotations") List<AnnotationDescriptor> annotations) {
@@ -73,21 +71,21 @@ public final class FieldDescriptor {
 
   @JsonIgnore
   public TypeDescriptor getType() {
-      int arrayDim = 0;
-      char c;
-      while ((c = descriptor.charAt(arrayDim)) == '[') {
-          ++arrayDim;
+    int arrayDim = 0;
+    char c;
+    while ((c = descriptor.charAt(arrayDim)) == '[') {
+      ++arrayDim;
+    }
+    if (c == 'L') {
+      int lastIndex = descriptor.length() - 1;
+      if (descriptor.charAt(lastIndex) != ';') {
+        throw new IllegalArgumentException("Illegal descriptor: " + descriptor);
       }
-      if (c == 'L') {
-        int lastIndex = descriptor.length() - 1;
-        if (descriptor.charAt(lastIndex) != ';') {
-          throw new IllegalArgumentException("Illegal descriptor: " + descriptor);
-        }
-        String className = descriptor.substring(arrayDim + 1, lastIndex).replace('/', '.');
-        return TypeDescriptor.forClass(className, arrayDim);
-      } else {
-        return TypeDescriptor.forPrimitive(c, arrayDim);
-      }
+      String className = descriptor.substring(arrayDim + 1, lastIndex).replace('/', '.');
+      return TypeDescriptor.forClass(className, arrayDim);
+    } else {
+      return TypeDescriptor.forPrimitive(c, arrayDim);
+    }
   }
 
   @JsonIgnore
@@ -103,6 +101,12 @@ public final class FieldDescriptor {
 
   @Override
   public String toString() {
-    return "Field[name=" + name + ", descriptor=" + descriptor + ", annotations=" + annotations + "]";
+    return "Field[name="
+        + name
+        + ", descriptor="
+        + descriptor
+        + ", annotations="
+        + annotations
+        + "]";
   }
 }

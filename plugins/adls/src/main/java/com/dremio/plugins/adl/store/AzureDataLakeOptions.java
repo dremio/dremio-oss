@@ -18,12 +18,12 @@ package com.dremio.plugins.adl.store;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators;
 
-/**
- * System Options for Azure Storage
- */
+/** System Options for Azure Storage */
 @Options
 public class AzureDataLakeOptions {
 
-  // If enabled, use the asynchronous interface for files. If disabled, use the hadoop file interface.
-  public static final TypeValidators.BooleanValidator ASYNC_READS = new TypeValidators.BooleanValidator("store.adl.async", true);
+  // If enabled, use the asynchronous interface for files. If disabled, use the hadoop file
+  // interface.
+  public static final TypeValidators.BooleanValidator ASYNC_READS =
+      new TypeValidators.BooleanValidator("store.adl.async", true);
 }

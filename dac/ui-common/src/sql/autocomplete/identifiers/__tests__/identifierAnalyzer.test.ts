@@ -29,7 +29,7 @@ describe("identifierAnalyzer", () => {
   describe("analyzeIdentifier", () => {
     const runTest = (
       queryText: string,
-      expected: AnalyzedIdentifier | undefined
+      expected: AnalyzedIdentifier | undefined,
     ): void => {
       const [query, caretPosition] = prepareQuery(queryText);
       const { parseTree, parser } = getAutocompleteParseTree(query);
@@ -37,7 +37,7 @@ describe("identifierAnalyzer", () => {
         parseTree,
         parser,
         caretPosition,
-        []
+        [],
       ).get();
       const analyzedIdentifier = suggestions.identifiers
         ? analyzeIdentifier(suggestions.identifiers, suggestions.cursorInfo)
@@ -106,7 +106,7 @@ describe("identifierAnalyzer", () => {
       it("SELECT FROM tbl MATCH_RECOGNIZE (MEASURES col AS ^)", () =>
         runTest(
           "SELECT FROM tbl MATCH_RECOGNIZE (MEASURES col AS ^)",
-          undefined
+          undefined,
         ));
 
       it("SELECT FROM tbl MATCH_RECOGNIZE (PATTERN (^))", () =>
@@ -115,36 +115,36 @@ describe("identifierAnalyzer", () => {
       it("SELECT FROM tbl MATCH_RECOGNIZE (PATTERN (term) SUBSET ^)", () =>
         runTest(
           "SELECT FROM tbl MATCH_RECOGNIZE (PATTERN (term) SUBSET ^)",
-          undefined
+          undefined,
         ));
 
       it("SELECT FROM tbl MATCH_RECOGNIZE (PATTERN (term) SUBSET S1 = (^))", () =>
         runTest(
           "SELECT FROM tbl MATCH_RECOGNIZE (PATTERN (term) SUBSET S1 = (^))",
-          undefined
+          undefined,
         ));
 
       it("SELECT FROM tbl MATCH_RECOGNIZE (PATTERN (term) DEFINE ^)", () =>
         runTest(
           "SELECT FROM tbl MATCH_RECOGNIZE (PATTERN (term) DEFINE ^)",
-          undefined
+          undefined,
         ));
 
       it("SELECT FROM tbl MATCH_RECOGNIZE (PATTERN (term) DEFINE term AS ^)", () =>
         runTest(
           "SELECT FROM tbl MATCH_RECOGNIZE (PATTERN (term) DEFINE term AS ^)",
-          COLUMN()
+          COLUMN(),
         ));
 
       it("DESCRIBE tbl ^", () => runTest("DESCRIBE tbl ^)", COLUMN()));
 
       it("DESCRIBE TABLE tbl ^", () =>
-        runTest("DESCRIBE TABLE tbl ^)", COLUMN(false)));
+        runTest("DESCRIBE TABLE tbl ^)", COLUMN()));
 
       it("CREATE OR REPLACE VDS view1 ROW ACCESS POLICY func1(^)", () =>
         runTest(
           "CREATE OR REPLACE VDS view1 ROW ACCESS POLICY func1(^)",
-          COLUMN(false)
+          COLUMN(false),
         ));
 
       it("CREATE TABLE tbl (^)", () =>
@@ -162,7 +162,7 @@ describe("identifierAnalyzer", () => {
       it("SELECT * FROM tbl PIVOT(SUM(colA) FOR colB IN (^))", () =>
         runTest(
           "SELECT * FROM tbl PIVOT(SUM(colA) FOR colB IN (^))",
-          undefined
+          undefined,
         ));
 
       it("VALUES(^)", () => runTest("VALUES(^)", undefined));
@@ -176,7 +176,7 @@ describe("identifierAnalyzer", () => {
       it("SELECT * FROM tbl UNPIVOT(colA FOR colB IN (^))", () =>
         runTest(
           "SELECT * FROM tbl UNPIVOT(colA FOR colB IN (^))",
-          COLUMN(false)
+          COLUMN(false),
         ));
 
       it("SELECT CAST(^)", () => runTest("SELECT CAST(^)", COLUMN()));
@@ -230,13 +230,13 @@ describe("identifierAnalyzer", () => {
       it("ALTER TABLE pds1 ADD ROW ACCESS POLICY policy1 (^)", () =>
         runTest(
           "ALTER TABLE pds1 ADD ROW ACCESS POLICY policy1 (^)",
-          COLUMN(false)
+          COLUMN(false),
         ));
 
       it("ALTER VDS vds1 DROP ROW ACCESS POLICY policy1 (^)", () =>
         runTest(
           "ALTER VDS vds1 DROP ROW ACCESS POLICY policy1 (^)",
-          COLUMN(false)
+          COLUMN(false),
         ));
 
       it("ALTER PDS pds1 ADD PRIMARY KEY (^)", () =>
@@ -266,13 +266,13 @@ describe("identifierAnalyzer", () => {
       it("ALTER VIEW vds1 CHANGE colA SET MASKING POLICY policy1 (^)", () =>
         runTest(
           "ALTER VIEW vds1 CHANGE colA SET MASKING POLICY policy1 (^)",
-          COLUMN(false)
+          COLUMN(false),
         ));
 
       it("ALTER DATASET vds1 CHANGE colA SET MASKING POLICY policy1 (^)", () =>
         runTest(
           "ALTER DATASET vds1 CHANGE colA SET MASKING POLICY policy1 (^)",
-          COLUMN(false)
+          COLUMN(false),
         ));
 
       it("ALTER DATASET vds1 CHANGE colA SET ^", () =>
@@ -290,61 +290,61 @@ describe("identifierAnalyzer", () => {
       it("ALTER VDS vds1 REFRESH METADATA FOR PARTITIONS (^)", () =>
         runTest(
           "ALTER VDS vds1 REFRESH METADATA FOR PARTITIONS (^)",
-          COLUMN(false)
+          COLUMN(false),
         ));
 
       it("ALTER VDS vds1 CREATE AGGREGATE REFLECTION refl1 USING DIMENSIONS (^)", () =>
         runTest(
           "ALTER VDS vds1 CREATE AGGREGATE REFLECTION refl1 USING DIMENSIONS (^)",
-          COLUMN(false)
+          COLUMN(false),
         ));
 
       it("ALTER VDS vds1 CREATE AGGREGATE REFLECTION refl1 USING DIMENSIONS (colA) MEASURES (^)", () =>
         runTest(
           "ALTER VDS vds1 CREATE AGGREGATE REFLECTION refl1 USING DIMENSIONS (colA) MEASURES (^)",
-          COLUMN(false)
+          COLUMN(false),
         ));
 
       it("ALTER VDS vds1 CREATE AGGREGATE REFLECTION refl1 USING DIMENSIONS (colA) MEASURES (colB) DISTRIBUTE BY (^)", () =>
         runTest(
           "ALTER VDS vds1 CREATE AGGREGATE REFLECTION refl1 USING DIMENSIONS (colA) MEASURES (colB) DISTRIBUTE BY (^)",
-          COLUMN(false)
+          COLUMN(false),
         ));
 
       it("ALTER VDS vds1 CREATE AGGREGATE REFLECTION refl1 USING DIMENSIONS (colA) MEASURES (colB) PARTITION BY (^)", () =>
         runTest(
           "ALTER VDS vds1 CREATE AGGREGATE REFLECTION refl1 USING DIMENSIONS (colA) MEASURES (colB) PARTITION BY (^)",
-          COLUMN(false)
+          COLUMN(false),
         ));
 
       it("ALTER VDS vds1 CREATE AGGREGATE REFLECTION refl1 USING DIMENSIONS (colA) MEASURES (colB) LOCALSORT BY (^)", () =>
         runTest(
           "ALTER VDS vds1 CREATE AGGREGATE REFLECTION refl1 USING DIMENSIONS (colA) MEASURES (colB) LOCALSORT BY (^)",
-          COLUMN(false)
+          COLUMN(false),
         ));
 
       it("ALTER VDS vds1 CREATE RAW REFLECTION refl1 USING DISPLAY (^)", () =>
         runTest(
           "ALTER VDS vds1 CREATE RAW REFLECTION refl1 USING DISPLAY (^)",
-          COLUMN(false)
+          COLUMN(false),
         ));
 
       it("ALTER VDS vds1 CREATE RAW REFLECTION refl1 USING DISPLAY DISTRIBUTE BY (^)", () =>
         runTest(
           "ALTER VDS vds1 CREATE RAW REFLECTION refl1 USING DISPLAY DISTRIBUTE BY (^)",
-          COLUMN(false)
+          COLUMN(false),
         ));
 
       it("ALTER VDS vds1 CREATE RAW REFLECTION refl1 USING DISPLAY PARTITION BY (^)", () =>
         runTest(
           "ALTER VDS vds1 CREATE RAW REFLECTION refl1 USING DISPLAY PARTITION BY (^)",
-          COLUMN(false)
+          COLUMN(false),
         ));
 
       it("ALTER VDS vds1 CREATE RAW REFLECTION refl1 USING DISPLAY LOCALSORT BY (^)", () =>
         runTest(
           "ALTER VDS vds1 CREATE RAW REFLECTION refl1 USING DISPLAY LOCALSORT BY (^)",
-          COLUMN(false)
+          COLUMN(false),
         ));
 
       it("SELECT * FROM tbl WHERE ^", () =>
@@ -374,7 +374,7 @@ describe("identifierAnalyzer", () => {
       it("SELECT * FROM tbl WINDOW win1 AS (ROWS BETWEEN ^)", () =>
         runTest(
           "SELECT * FROM tbl WINDOW win1 AS (ROWS BETWEEN ^)",
-          undefined
+          undefined,
         ));
 
       it("SELECT * FROM tbl JOIN tbl2 USING (^)", () =>
@@ -401,13 +401,13 @@ describe("identifierAnalyzer", () => {
       it("MERGE INTO tbl USING tbl2 ON colA = 1 WHEN MATCHED THEN UPDATE SET ^", () =>
         runTest(
           "MERGE INTO tbl USING tbl2 ON colA = 1 WHEN MATCHED THEN UPDATE SET ^",
-          COLUMN(false)
+          COLUMN(false),
         ));
 
       it("MERGE INTO tbl USING tbl2 ON colA = 1 WHEN NOT MATCHED THEN INSERT (^)", () =>
         runTest(
           "MERGE INTO tbl USING tbl2 ON colA = 1 WHEN NOT MATCHED THEN INSERT (^)",
-          COLUMN(false)
+          COLUMN(false),
         ));
     });
 
@@ -729,7 +729,7 @@ describe("identifierAnalyzer", () => {
       it("CREATE TABLE IF NOT EXISTS tbl (colA MASKING POLICY ^)", () =>
         runTest(
           "CREATE TABLE IF NOT EXISTS tbl (colA MASKING POLICY ^)",
-          UDF()
+          UDF(),
         ));
 
       it("CREATE TABLE IF NOT EXISTS tbl ROW ACCESS POLICY ^", () =>
@@ -747,7 +747,7 @@ describe("identifierAnalyzer", () => {
       it("ALTER DATASET vds1 CHANGE colA UNSET MASKING POLICY ^", () =>
         runTest(
           "ALTER DATASET vds1 CHANGE colA UNSET MASKING POLICY ^",
-          UDF()
+          UDF(),
         ));
 
       it("DROP FUNCTION ^", () => runTest("DROP FUNCTION ^", UDF()));

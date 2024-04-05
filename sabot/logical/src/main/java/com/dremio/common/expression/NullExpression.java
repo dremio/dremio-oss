@@ -39,9 +39,12 @@ public class NullExpression implements LogicalExpression {
   }
 
   @Override
-  public int getSelfCost() { return 0 ; }
+  public int getSelfCost() {
+    return 0;
+  }
 
   @Override
-  public int getCumulativeCost() { return 0; }
-
+  public int getCumulativeCost() {
+    return 0;
+  }
 }

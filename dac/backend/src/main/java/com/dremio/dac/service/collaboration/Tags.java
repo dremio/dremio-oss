@@ -15,24 +15,19 @@
  */
 package com.dremio.dac.service.collaboration;
 
-import java.util.Collections;
-import java.util.List;
-
 import com.dremio.dac.proto.model.collaboration.CollaborationTag;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.Collections;
+import java.util.List;
 
-/**
- * Collaboration tags
- */
+/** Collaboration tags */
 public class Tags {
   private final List<String> tags;
   private final String version;
 
   @JsonCreator
-  public Tags(
-    @JsonProperty("tags") List<String> tags,
-    @JsonProperty("version") String version) {
+  public Tags(@JsonProperty("tags") List<String> tags, @JsonProperty("version") String version) {
     this.tags = (tags == null) ? Collections.emptyList() : tags;
     this.version = version;
   }

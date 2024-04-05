@@ -18,13 +18,10 @@ package com.dremio.plugins.adl.store;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.DelegateToFileSystem;
 
-/**
- * AbstractFileSystem implementation for DremioAdlFileSystem.
- */
+/** AbstractFileSystem implementation for DremioAdlFileSystem. */
 public class DremioAdl extends DelegateToFileSystem {
   DremioAdl(URI theUri, Configuration conf) throws IOException, URISyntaxException {
     super(theUri, createDataLakeFileSystem(conf), conf, DremioAdlFileSystem.SCHEME, false);

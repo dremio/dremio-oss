@@ -15,20 +15,15 @@
  */
 package com.dremio.provision.yarn.service;
 
+import com.dremio.provision.Property;
+import com.google.common.collect.Maps;
 import java.util.List;
 import java.util.Map;
 
-import com.dremio.provision.Property;
-import com.google.common.collect.Maps;
-
-/**
- * To implement common methods of YarnConfigurator
- */
+/** To implement common methods of YarnConfigurator */
 public abstract class YarnConfiguratorBaseClass implements YarnConfigurator {
 
-  public YarnConfiguratorBaseClass() {
-
-  }
+  public YarnConfiguratorBaseClass() {}
 
   @Override
   public void mergeProperties(List<Property> originalProperties) {

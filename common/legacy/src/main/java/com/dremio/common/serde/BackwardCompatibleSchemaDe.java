@@ -17,16 +17,6 @@ package com.dremio.common.serde;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import java.io.IOException;
-import java.util.List;
-import java.util.Map;
-
-import org.apache.arrow.vector.types.pojo.ArrowType;
-import org.apache.arrow.vector.types.pojo.DictionaryEncoding;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.types.pojo.FieldType;
-import org.apache.arrow.vector.types.pojo.Schema;
-
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -37,10 +27,18 @@ import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.node.NullNode;
+import java.io.IOException;
+import java.util.List;
+import java.util.Map;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.DictionaryEncoding;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
+import org.apache.arrow.vector.types.pojo.Schema;
 
 /**
- * Custom deserializer for Arrow Pojos Schema/Field to avoid issues
- * with incompatible change of Arrow removing "typeLayout" field
+ * Custom deserializer for Arrow Pojos Schema/Field to avoid issues with incompatible change of
+ * Arrow removing "typeLayout" field
  */
 public class BackwardCompatibleSchemaDe extends StdDeserializer<Schema> {
 
@@ -53,7 +51,8 @@ public class BackwardCompatibleSchemaDe extends StdDeserializer<Schema> {
     mapper.registerModule(module);
   }
 
-  private static final ObjectReader fieldsReader = mapper.readerFor(new TypeReference<List<Field>>() {});
+  private static final ObjectReader fieldsReader =
+      mapper.readerFor(new TypeReference<List<Field>>() {});
 
   protected BackwardCompatibleSchemaDe() {
     this(null);
@@ -64,14 +63,15 @@ public class BackwardCompatibleSchemaDe extends StdDeserializer<Schema> {
   }
 
   public static Schema fromJSON(String json) throws IOException {
-      return mapper.readValue(checkNotNull(json), Schema.class);
+    return mapper.readValue(checkNotNull(json), Schema.class);
   }
 
   @Override
-  public Schema deserialize(JsonParser jsonParser, DeserializationContext deserializationContext) throws IOException, JsonProcessingException {
+  public Schema deserialize(JsonParser jsonParser, DeserializationContext deserializationContext)
+      throws IOException, JsonProcessingException {
     JsonNode node = jsonParser.getCodec().readTree(jsonParser);
     JsonNode metadataNode = node.get("metadata");
-    Map<String,String> metadata = mapper.convertValue(metadataNode, Map.class);
+    Map<String, String> metadata = mapper.convertValue(metadataNode, Map.class);
 
     JsonNode fieldsNode = node.get("fields");
     Iterable<Field> fields = fieldsReader.readValue(fieldsNode);
@@ -85,12 +85,13 @@ public class BackwardCompatibleSchemaDe extends StdDeserializer<Schema> {
       this(null);
     }
 
-    public  BackwardCompatibleFieldDeserializer(Class<?> vc) {
+    public BackwardCompatibleFieldDeserializer(Class<?> vc) {
       super(vc);
     }
 
     @Override
-    public Field deserialize(JsonParser jsonParser, DeserializationContext deserializationContext) throws IOException, JsonProcessingException {
+    public Field deserialize(JsonParser jsonParser, DeserializationContext deserializationContext)
+        throws IOException, JsonProcessingException {
       JsonNode node = jsonParser.getCodec().readTree(jsonParser);
 
       JsonNode nameNode = node.get("name");
@@ -112,7 +113,7 @@ public class BackwardCompatibleSchemaDe extends StdDeserializer<Schema> {
       List<Field> children = fieldsReader.readValue(childrenNode);
 
       JsonNode metadataNode = node.get("metadata");
-      Map<String,String> metadata = mapper.convertValue(metadataNode, Map.class);
+      Map<String, String> metadata = mapper.convertValue(metadataNode, Map.class);
 
       FieldType fieldType = new FieldType(nullable, arrowType, dictionary, metadata);
       return new Field(name, fieldType, children);

@@ -29,69 +29,66 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 
-/**
- * Iceberg writer POP
- */
+/** Iceberg writer POP */
 @JsonTypeName("iceberg-manifest-writer")
 public class IcebergManifestWriterPOP extends AbstractWriter {
-    private final String location;
-    private final MutablePlugin plugin;
-    private final boolean singleWriter;
+  private final String location;
+  private final MutablePlugin plugin;
+  private final boolean singleWriter;
 
-    @JsonCreator
-    public IcebergManifestWriterPOP(
-            @JsonProperty("props") OpProps props,
-            @JsonProperty("child") PhysicalOperator child,
-            @JsonProperty("location") String location,
-            @JsonProperty("options") WriterOptions options,
-            @JsonProperty("pluginId") StoragePluginId pluginId,
-            @JacksonInject StoragePluginResolver storagePluginResolver,
-            @JsonProperty("singleWriter") boolean singleWriter
-    ) {
-        super(props, child, options);
-        this.plugin = storagePluginResolver.getSource(pluginId);
-        this.location = location;
-        this.singleWriter = singleWriter;
-    }
+  @JsonCreator
+  public IcebergManifestWriterPOP(
+      @JsonProperty("props") OpProps props,
+      @JsonProperty("child") PhysicalOperator child,
+      @JsonProperty("location") String location,
+      @JsonProperty("options") WriterOptions options,
+      @JsonProperty("pluginId") StoragePluginId pluginId,
+      @JacksonInject StoragePluginResolver storagePluginResolver,
+      @JsonProperty("singleWriter") boolean singleWriter) {
+    super(props, child, options);
+    this.plugin = storagePluginResolver.getSource(pluginId);
+    this.location = location;
+    this.singleWriter = singleWriter;
+  }
 
-    public IcebergManifestWriterPOP(
-            OpProps props,
-            PhysicalOperator child,
-            String location,
-            WriterOptions options,
-            MutablePlugin plugin,
-            boolean singleWriter) {
-        super(props, child, options);
-        this.plugin = plugin;
-        this.location = location;
-        this.singleWriter = singleWriter;
-    }
+  public IcebergManifestWriterPOP(
+      OpProps props,
+      PhysicalOperator child,
+      String location,
+      WriterOptions options,
+      MutablePlugin plugin,
+      boolean singleWriter) {
+    super(props, child, options);
+    this.plugin = plugin;
+    this.location = location;
+    this.singleWriter = singleWriter;
+  }
 
-    @JsonProperty("location")
-    public String getLocation() {
-        return location;
-    }
+  @JsonProperty("location")
+  public String getLocation() {
+    return location;
+  }
 
-    public StoragePluginId getPluginId() {
-        return plugin.getId();
-    }
+  public StoragePluginId getPluginId() {
+    return plugin.getId();
+  }
 
-    public boolean isSingleWriter() {
-      return singleWriter;
-    }
+  public boolean isSingleWriter() {
+    return singleWriter;
+  }
 
   @Override
-    protected PhysicalOperator getNewWithChild(PhysicalOperator child) {
-        return new IcebergManifestWriterPOP(props, child, location, options, plugin, singleWriter);
-    }
+  protected PhysicalOperator getNewWithChild(PhysicalOperator child) {
+    return new IcebergManifestWriterPOP(props, child, location, options, plugin, singleWriter);
+  }
 
-    @Override
-    public int getOperatorType() {
-        return UserBitShared.CoreOperatorType.ICEBERG_MANIFEST_WRITER_VALUE;
-    }
+  @Override
+  public int getOperatorType() {
+    return UserBitShared.CoreOperatorType.ICEBERG_MANIFEST_WRITER_VALUE;
+  }
 
-    @JsonIgnore
-    public MutablePlugin getPlugin() {
-        return plugin;
-    }
+  @JsonIgnore
+  public MutablePlugin getPlugin() {
+    return plugin;
+  }
 }

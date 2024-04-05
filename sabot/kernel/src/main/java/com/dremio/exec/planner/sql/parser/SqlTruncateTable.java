@@ -15,8 +15,10 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.dremio.service.namespace.NamespaceKey;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import java.util.List;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -27,24 +29,23 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.dremio.service.namespace.NamespaceKey;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
-
 public class SqlTruncateTable extends SqlCall {
-  public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("TRUNCATE TABLE", SqlKind.OTHER_DDL) {
-    @Override
-    public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 5, "SqlTruncateTable.createCall() " +
-          "has to get 5 operands!");
-      return new SqlTruncateTable(pos,
-        (SqlLiteral) operands[0],
-        (SqlLiteral) operands[1],
-        (SqlIdentifier) operands[2],
-        ((SqlLiteral) operands[3]).symbolValue(ReferenceType.class),
-        (SqlIdentifier) operands[4]);
-    }
-  };
+  public static final SqlSpecialOperator OPERATOR =
+      new SqlSpecialOperator("TRUNCATE TABLE", SqlKind.OTHER_DDL) {
+        @Override
+        public SqlCall createCall(
+            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+          Preconditions.checkArgument(
+              operands.length == 5, "SqlTruncateTable.createCall() " + "has to get 5 operands!");
+          return new SqlTruncateTable(
+              pos,
+              (SqlLiteral) operands[0],
+              (SqlLiteral) operands[1],
+              (SqlIdentifier) operands[2],
+              ((SqlLiteral) operands[3]).symbolValue(ReferenceType.class),
+              (SqlIdentifier) operands[4]);
+        }
+      };
   private static final SqlLiteral sqlLiteralNull = SqlLiteral.createNull(SqlParserPos.ZERO);
   private SqlIdentifier tableName;
   private boolean shouldErrorIfTableDoesNotExist;
@@ -53,21 +54,29 @@ public class SqlTruncateTable extends SqlCall {
   private final ReferenceType refType;
   private final SqlIdentifier refValue;
 
-  public SqlTruncateTable(SqlParserPos pos,
-                          SqlLiteral shouldErrorIfTableDoesNotExist,
-                          SqlLiteral tableKeywordPresent,
-                          SqlIdentifier tableName,
-                          ReferenceType refType,
-                          SqlIdentifier refValue) {
-    this(pos, shouldErrorIfTableDoesNotExist.booleanValue(), tableKeywordPresent.booleanValue(), tableName, refType, refValue);
+  public SqlTruncateTable(
+      SqlParserPos pos,
+      SqlLiteral shouldErrorIfTableDoesNotExist,
+      SqlLiteral tableKeywordPresent,
+      SqlIdentifier tableName,
+      ReferenceType refType,
+      SqlIdentifier refValue) {
+    this(
+        pos,
+        shouldErrorIfTableDoesNotExist.booleanValue(),
+        tableKeywordPresent.booleanValue(),
+        tableName,
+        refType,
+        refValue);
   }
 
-  public SqlTruncateTable(SqlParserPos pos,
-                          boolean shouldErrorIfTableDoesNotExist,
-                          boolean tableKeywordPresent,
-                          SqlIdentifier tableName,
-                          ReferenceType refType,
-                          SqlIdentifier refValue) {
+  public SqlTruncateTable(
+      SqlParserPos pos,
+      boolean shouldErrorIfTableDoesNotExist,
+      boolean tableKeywordPresent,
+      SqlIdentifier tableName,
+      ReferenceType refType,
+      SqlIdentifier refValue) {
     super(pos);
     this.tableName = tableName;
     this.shouldErrorIfTableDoesNotExist = shouldErrorIfTableDoesNotExist;

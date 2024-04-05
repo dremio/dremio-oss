@@ -18,11 +18,6 @@ package com.dremio.dac.explore;
 import static java.lang.String.format;
 import static java.util.Arrays.asList;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.ProtostuffUtil;
 import com.dremio.dac.explore.model.DatasetPath;
@@ -41,17 +36,21 @@ import com.dremio.dac.proto.model.dataset.SourceVersionReference;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetState;
 import com.dremio.service.jobs.metadata.proto.QueryMetadata;
 import com.google.common.base.Joiner;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
-/**
- * Manages modifying the state
- */
+/** Manages modifying the state */
 class DatasetStateMutator {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DatasetStateMutator.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(DatasetStateMutator.class);
 
   private VirtualDatasetState virtualDatasetState;
   private final boolean preview;
 
-  public DatasetStateMutator(String username, VirtualDatasetState virtualDatasetState, boolean preview) {
+  public DatasetStateMutator(
+      String username, VirtualDatasetState virtualDatasetState, boolean preview) {
     super();
     this.virtualDatasetState = ProtostuffUtil.copy(virtualDatasetState);
     this.preview = preview;
@@ -111,21 +110,21 @@ class DatasetStateMutator {
 
   public String getDatasetAlias() {
     switch (virtualDatasetState.getFrom().getType()) {
-    case SubQuery:
-      return virtualDatasetState.getFrom().getSubQuery().getAlias();
-    case SQL:
-      return virtualDatasetState.getFrom().getSql().getAlias();
-    case Table:
-      if (virtualDatasetState.getFrom().getTable().getAlias() != null) {
-        return virtualDatasetState.getFrom().getTable().getAlias();
-      } else {
-        DatasetPath datasetPath = new DatasetPath(virtualDatasetState.getFrom().getTable().getDatasetPath());
-        return datasetPath.getDataset().getName();
-      }
-    default:
-      throw new UnsupportedOperationException("NYI");
+      case SubQuery:
+        return virtualDatasetState.getFrom().getSubQuery().getAlias();
+      case SQL:
+        return virtualDatasetState.getFrom().getSql().getAlias();
+      case Table:
+        if (virtualDatasetState.getFrom().getTable().getAlias() != null) {
+          return virtualDatasetState.getFrom().getTable().getAlias();
+        } else {
+          DatasetPath datasetPath =
+              new DatasetPath(virtualDatasetState.getFrom().getTable().getDatasetPath());
+          return datasetPath.getDataset().getName();
+        }
+      default:
+        throw new UnsupportedOperationException("NYI");
     }
-
   }
 
   private void shouldNotExist(String colName) {
@@ -220,7 +219,7 @@ class DatasetStateMutator {
   /**
    * nest the query before transforming
    *
-   * For example to apply a group by on an already grouped by query.
+   * <p>For example to apply a group by on an already grouped by query.
    */
   public void nest() {
 
@@ -228,12 +227,13 @@ class DatasetStateMutator {
     Set<String> tableNames = getReferredTables(virtualDatasetState);
     String name = newTableName(tableNames);
 
-    VirtualDatasetState newState = new VirtualDatasetState()
-        .setFrom(new FromSubQuery(name, virtualDatasetState).wrap());
+    VirtualDatasetState newState =
+        new VirtualDatasetState().setFrom(new FromSubQuery(name, virtualDatasetState).wrap());
     List<Column> columns = getColumns();
     List<Column> newColumnsList = new ArrayList<>();
     for (Column column : columns) {
-      newColumnsList.add(new Column(column.getName(), new ExpColumnReference(column.getName()).wrap()));
+      newColumnsList.add(
+          new Column(column.getName(), new ExpColumnReference(column.getName()).wrap()));
     }
 
     // update all values for new dataset state.
@@ -271,17 +271,19 @@ class DatasetStateMutator {
     return result().modified(newCol);
   }
 
-  public TransformResult apply(String oldCol, String newCol, ExpressionBase newExp, boolean dropSourceColumn) {
+  public TransformResult apply(
+      String oldCol, String newCol, ExpressionBase newExp, boolean dropSourceColumn) {
     return apply(oldCol, newCol, newExp.wrap(), dropSourceColumn);
   }
 
-  public TransformResult apply(String oldCol, String newCol, Expression newExpWrapped, boolean dropSourceColumn) {
+  public TransformResult apply(
+      String oldCol, String newCol, Expression newExpWrapped, boolean dropSourceColumn) {
     boolean sameColumn = oldCol.equals(newCol);
     if (sameColumn && !dropSourceColumn) {
       // you can only set the same name if you also drop the old column
       throw UserException.validationError()
-        .message("You cannot use a column name that already exists in the table: %s", newCol)
-        .build(logger);
+          .message("You cannot use a column name that already exists in the table: %s", newCol)
+          .build(logger);
     }
     // if preview we just mark the column as deleted
     boolean drop = dropSourceColumn && !preview;
@@ -302,6 +304,7 @@ class DatasetStateMutator {
 
   /**
    * Will find the column by name and return the expression defining it's value
+   *
    * @see DatasetStateMutator#findColForModification(String)
    * @param colName the name of the column
    * @return it's value
@@ -312,8 +315,9 @@ class DatasetStateMutator {
   }
 
   /**
-   * Will find the column by name and return the expression defining it's value
-   * assume we are not going to modify it
+   * Will find the column by name and return the expression defining it's value assume we are not
+   * going to modify it
+   *
    * @param colName the name of the column
    * @return it's value
    * @throws IllegalArgumentException if the column is not found
@@ -323,10 +327,10 @@ class DatasetStateMutator {
   }
 
   /**
-   * Will find the column by name and return it
-   * As the goal is to modify this column as part of a transformation,
-   * if the column is referred in a group by or a sort it will be wrapped in a subquery
-   * before returning a value allowing to modify it without changing these operations.
+   * Will find the column by name and return it As the goal is to modify this column as part of a
+   * transformation, if the column is referred in a group by or a sort it will be wrapped in a
+   * subquery before returning a value allowing to modify it without changing these operations.
+   *
    * @param colName the name of the column
    * @param drop
    * @return the column found by this name
@@ -382,12 +386,14 @@ class DatasetStateMutator {
       colNames.add(col.getName());
     }
     return new IllegalArgumentException(
-        format("Invalid col name %s. It is not in the current schema: %s", columnName, Joiner.on(", ").join(colNames)));
+        format(
+            "Invalid col name %s. It is not in the current schema: %s",
+            columnName, Joiner.on(", ").join(colNames)));
   }
 
   private static Set<String> getReferredTables(final VirtualDatasetState virtualDatasetState) {
     List<String> referred = virtualDatasetState.getReferredTablesList();
-    if(referred == null){
+    if (referred == null) {
       return new HashSet<>();
     } else {
       return new HashSet<>(virtualDatasetState.getReferredTablesList());
@@ -402,12 +408,14 @@ class DatasetStateMutator {
   public void dropColumn(String droppedColumnName) {
     findColForModification(droppedColumnName, true);
     if (getColumns().size() == 0) {
-      throw new IllegalArgumentException(format("Can not remove the last column %s", droppedColumnName));
+      throw new IllegalArgumentException(
+          format("Can not remove the last column %s", droppedColumnName));
     }
 
     Ref<Order> order = findOrder(droppedColumnName);
     if (order != null) {
-      throw new IllegalArgumentException(format("Dropping columns should not affect order by: %s", droppedColumnName));
+      throw new IllegalArgumentException(
+          format("Dropping columns should not affect order by: %s", droppedColumnName));
     }
   }
 
@@ -431,17 +439,19 @@ class DatasetStateMutator {
   private static class Ref<T> {
     private final T val;
     private final int index;
+
     public Ref(T val, int index) {
       super();
       this.val = val;
       this.index = index;
     }
+
     public T getVal() {
       return val;
     }
+
     public int getIndex() {
       return index;
     }
   }
-
 }

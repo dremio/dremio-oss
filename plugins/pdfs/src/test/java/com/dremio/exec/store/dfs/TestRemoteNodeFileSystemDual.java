@@ -19,28 +19,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import java.io.EOFException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.Random;
-
-import javax.inject.Provider;
-
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.hadoop.fs.FSDataInputStream;
-import org.apache.hadoop.fs.FSDataOutputStream;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.LocatedFileStatus;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.RemoteIterator;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.concurrent.CloseableThreadPool;
 import com.dremio.exec.hadoop.PathCanonicalizer;
@@ -55,12 +33,27 @@ import com.dremio.test.AllocatorRule;
 import com.dremio.test.DremioTest;
 import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
+import java.io.EOFException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import java.util.Random;
+import javax.inject.Provider;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.LocatedFileStatus;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.RemoteIterator;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
-import io.opentracing.noop.NoopTracerFactory;
-
-/**
- * End-to-end test for {@link RemoteNodeFileSystem} using a Fabric server
- */
+/** End-to-end test for {@link RemoteNodeFileSystem} using a Fabric server */
 public class TestRemoteNodeFileSystemDual extends BaseTestFabric {
 
   private static final String HOSTNAME = "localhost";
@@ -70,7 +63,7 @@ public class TestRemoteNodeFileSystemDual extends BaseTestFabric {
   private static final int TIMEOUT = 0;
 
   @ClassRule public static final TemporaryFolder temporaryFolder = new TemporaryFolder();
-  @ClassRule  public static final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
+  @ClassRule public static final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
 
   private static ServiceHolder data;
   private static ServiceHolder client;
@@ -86,28 +79,29 @@ public class TestRemoteNodeFileSystemDual extends BaseTestFabric {
   }
 
   @AfterClass
-  public static void teardown() throws Exception{
+  public static void teardown() throws Exception {
     AutoCloseables.close(data, client);
   }
 
   @Test
   public void basicClientReadWrite() throws Exception {
     Path basePath = new Path(temporaryFolder.newFolder().getAbsolutePath());
-    Path path = ((PathCanonicalizer) clientFS).canonicalizePath(new Path(basePath, "testfile.bytes"));
-    final byte[] randomBytesMoreThanBuffer = new byte[RemoteNodeFileSystem.REMOTE_WRITE_BUFFER_SIZE_DEFAULT * 3];
+    Path path =
+        ((PathCanonicalizer) clientFS).canonicalizePath(new Path(basePath, "testfile.bytes"));
+    final byte[] randomBytesMoreThanBuffer =
+        new byte[RemoteNodeFileSystem.REMOTE_WRITE_BUFFER_SIZE_DEFAULT * 3];
     Random r = new Random();
     r.nextBytes(randomBytesMoreThanBuffer);
 
-    try(FSDataOutputStream stream = clientFS.create(path, false)){
+    try (FSDataOutputStream stream = clientFS.create(path, false)) {
       stream.write(randomBytesMoreThanBuffer);
     }
-
 
     RemoteIterator<LocatedFileStatus> iter = client.fileSystem.listFiles(basePath, false);
     assertEquals(true, iter.hasNext());
     LocatedFileStatus status = iter.next();
 
-    try(FSDataInputStream in = clientFS.open(status.getPath())){
+    try (FSDataInputStream in = clientFS.open(status.getPath())) {
       byte[] back = new byte[randomBytesMoreThanBuffer.length];
       int dataRead = in.read(back);
       assertEquals(back.length, dataRead);
@@ -119,7 +113,8 @@ public class TestRemoteNodeFileSystemDual extends BaseTestFabric {
   @Test
   public void testClientWriteEmptyFile() throws Exception {
     Path basePath = new Path(temporaryFolder.newFolder().getAbsolutePath());
-    Path path = ((PathCanonicalizer) clientFS).canonicalizePath(new Path(basePath, "testfile.bytes"));
+    Path path =
+        ((PathCanonicalizer) clientFS).canonicalizePath(new Path(basePath, "testfile.bytes"));
 
     // create a file
     FSDataOutputStream stream = clientFS.create(path, false);
@@ -131,7 +126,7 @@ public class TestRemoteNodeFileSystemDual extends BaseTestFabric {
     assertEquals(true, iter.hasNext());
     LocatedFileStatus status = iter.next();
 
-    try(FSDataInputStream in = clientFS.open(status.getPath())){
+    try (FSDataInputStream in = clientFS.open(status.getPath())) {
       in.readByte();
       fail("Fail is expected to be empty");
     } catch (EOFException e) {
@@ -150,24 +145,43 @@ public class TestRemoteNodeFileSystemDual extends BaseTestFabric {
     private final PDFSService service;
     private final FileSystem fileSystem;
 
-    public ServiceHolder(Provider<Iterable<NodeEndpoint>> nodeProvider, PDFSMode mode, String name) throws Exception{
+    public ServiceHolder(Provider<Iterable<NodeEndpoint>> nodeProvider, PDFSMode mode, String name)
+        throws Exception {
       this.allocator = allocatorRule.newAllocator(name, 0, Long.MAX_VALUE);
       pool = new CloseableThreadPool(name);
-      fabric = new FabricServiceImpl(HOSTNAME, 9970, true, THREAD_COUNT, this.allocator, RESERVATION,
-          MAX_ALLOCATION, TIMEOUT, pool);
+      fabric =
+          new FabricServiceImpl(
+              HOSTNAME,
+              9970,
+              true,
+              THREAD_COUNT,
+              this.allocator,
+              RESERVATION,
+              MAX_ALLOCATION,
+              TIMEOUT,
+              pool);
       fabric.start();
 
-      endpoint = NodeEndpoint.newBuilder()
-          .setAddress(fabric.getAddress()).setFabricPort(fabric.getPort())
-          .setRoles(Roles.newBuilder().setJavaExecutor(mode == PDFSMode.DATA))
-          .build();
+      endpoint =
+          NodeEndpoint.newBuilder()
+              .setAddress(fabric.getAddress())
+              .setFabricPort(fabric.getPort())
+              .setRoles(Roles.newBuilder().setJavaExecutor(mode == PDFSMode.DATA))
+              .build();
 
-      service = new PDFSService(DirectProvider.wrap((FabricService) fabric), DirectProvider.wrap(endpoint), nodeProvider, NoopTracerFactory.create(), DremioTest.DEFAULT_SABOT_CONFIG, this.allocator, mode);
+      service =
+          new PDFSService(
+              DirectProvider.wrap((FabricService) fabric),
+              DirectProvider.wrap(endpoint),
+              nodeProvider,
+              DremioTest.DEFAULT_SABOT_CONFIG,
+              this.allocator,
+              mode);
       service.start();
       fileSystem = service.createFileSystem();
     }
 
-    public NodeEndpoint getEndpoint(){
+    public NodeEndpoint getEndpoint() {
       return endpoint;
     }
 
@@ -182,15 +196,18 @@ public class TestRemoteNodeFileSystemDual extends BaseTestFabric {
 
     @Override
     public Collection<NodeEndpoint> get() {
-      return FluentIterable.from(holders).transform(new Function<ServiceHolder, NodeEndpoint>() {
-        @Override
-        public NodeEndpoint apply(ServiceHolder input) {
-          return input.getEndpoint();
-        }
-      }).toList();
+      return FluentIterable.from(holders)
+          .transform(
+              new Function<ServiceHolder, NodeEndpoint>() {
+                @Override
+                public NodeEndpoint apply(ServiceHolder input) {
+                  return input.getEndpoint();
+                }
+              })
+          .toList();
     }
 
-    public void add(ServiceHolder holder){
+    public void add(ServiceHolder holder) {
       holders.add(holder);
     }
   }

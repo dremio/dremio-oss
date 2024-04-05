@@ -16,12 +16,14 @@
 
 package org.apache.arrow.vector;
 
+import com.dremio.sabot.op.aggregate.vectorized.Accumulator;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Stopwatch;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.complex.reader.FieldReader;
@@ -33,26 +35,20 @@ import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.util.Text;
 import org.apache.arrow.vector.util.TransferPair;
 
-import com.dremio.sabot.op.aggregate.vectorized.Accumulator;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Stopwatch;
-
-
 /**
- * MutableVarcharVector implements a variable width vector of VARCHAR
- * values which could be NULL. A validity buffer (bit vector) is maintained
- * to track which elements in the vector are null. The main difference between
- * a VarCharVector is that the values may be mutated over time. Internally the values
- * are always appended at the end of the buffer.The index to those values is maintained
- * internally in another vector viz. 'fwdIndex'. Thus over time it may have unreferenced
- * values (called as garbage). Compaction must be preformed over time to recover space in the buffer.
+ * MutableVarcharVector implements a variable width vector of VARCHAR values which could be NULL. A
+ * validity buffer (bit vector) is maintained to track which elements in the vector are null. The
+ * main difference between a VarCharVector is that the values may be mutated over time. Internally
+ * the values are always appended at the end of the buffer.The index to those values is maintained
+ * internally in another vector viz. 'fwdIndex'. Thus over time it may have unreferenced values
+ * (called as garbage). Compaction must be preformed over time to recover space in the buffer.
  */
 public class MutableVarcharVector extends BaseVariableWidthVector {
   private int garbageSizeInBytes;
   private double compactionThreshold;
 
   private UInt2Vector fwdIndex;
-  private int head; //the index at which a new value may be appended
+  private int head; // the index at which a new value may be appended
   private Stopwatch compactionTimer = Stopwatch.createUnstarted();
   private static int DEFAULT_MAX_VECTOR_USAGE_PERCENT = 95;
   private int maxVarWidthVecUsagePercent;
@@ -60,46 +56,65 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
   private Accumulator.AccumStats accumStats;
 
   /**
-   * Instantiate a MutableVarcharVector. This doesn't allocate any memory for
-   * the data in vector.
+   * Instantiate a MutableVarcharVector. This doesn't allocate any memory for the data in vector.
    *
-   * @param name                name of the vector
-   * @param allocator           allocator for memory management.
-   * @param compactionThreshold this value bounds the ratio of garbage data to capacity of the buffer. If the ratio
-   *                            is more than the threshold, then compaction gets triggered on next update.
+   * @param name name of the vector
+   * @param allocator allocator for memory management.
+   * @param compactionThreshold this value bounds the ratio of garbage data to capacity of the
+   *     buffer. If the ratio is more than the threshold, then compaction gets triggered on next
+   *     update.
    */
   public MutableVarcharVector(String name, BufferAllocator allocator, double compactionThreshold) {
-    this(name, FieldType.nullable(MinorType.VARCHAR.getType()), allocator,
-      compactionThreshold, DEFAULT_MAX_VECTOR_USAGE_PERCENT, null);
+    this(
+        name,
+        FieldType.nullable(MinorType.VARCHAR.getType()),
+        allocator,
+        compactionThreshold,
+        DEFAULT_MAX_VECTOR_USAGE_PERCENT,
+        null);
   }
 
   /**
-   * Instantiate a MutableVarcharVector. This doesn't allocate any memory for
-   * the data in vector.
+   * Instantiate a MutableVarcharVector. This doesn't allocate any memory for the data in vector.
    *
-   * @param name                name of the vector
-   * @param allocator           allocator for memory management.
-   * @param compactionThreshold this value bounds the ratio of garbage data to capacity of the buffer. If the ratio
-   *                            is more than the threshold, then compaction gets triggered on next update.
+   * @param name name of the vector
+   * @param allocator allocator for memory management.
+   * @param compactionThreshold this value bounds the ratio of garbage data to capacity of the
+   *     buffer. If the ratio is more than the threshold, then compaction gets triggered on next
+   *     update.
    */
-  public MutableVarcharVector(String name, BufferAllocator allocator, double compactionThreshold,
-                              int maxVarWidthVecUsagePercent, Accumulator.AccumStats accumStats) {
-    this(name, FieldType.nullable(MinorType.VARCHAR.getType()), allocator,
-      compactionThreshold, maxVarWidthVecUsagePercent, accumStats);
+  public MutableVarcharVector(
+      String name,
+      BufferAllocator allocator,
+      double compactionThreshold,
+      int maxVarWidthVecUsagePercent,
+      Accumulator.AccumStats accumStats) {
+    this(
+        name,
+        FieldType.nullable(MinorType.VARCHAR.getType()),
+        allocator,
+        compactionThreshold,
+        maxVarWidthVecUsagePercent,
+        accumStats);
   }
 
   /**
-   * Instantiate a MutableVarcharVector. This doesn't allocate any memory for
-   * the data in vector.
+   * Instantiate a MutableVarcharVector. This doesn't allocate any memory for the data in vector.
    *
-   * @param name                name of the vector
-   * @param fieldType           type of Field materialized by this vector
-   * @param allocator           allocator for memory management.
-   * @param compactionThreshold this value bounds the ratio of garbage data to capacity of the buffer. If the ratio
-   *                            is more than the threshold, then compaction gets triggered on next update.
+   * @param name name of the vector
+   * @param fieldType type of Field materialized by this vector
+   * @param allocator allocator for memory management.
+   * @param compactionThreshold this value bounds the ratio of garbage data to capacity of the
+   *     buffer. If the ratio is more than the threshold, then compaction gets triggered on next
+   *     update.
    */
-  public MutableVarcharVector(String name, FieldType fieldType, BufferAllocator allocator,
-                              double compactionThreshold, int maxVarWidthVecUsagePercent, Accumulator.AccumStats accumStats) {
+  public MutableVarcharVector(
+      String name,
+      FieldType fieldType,
+      BufferAllocator allocator,
+      double compactionThreshold,
+      int maxVarWidthVecUsagePercent,
+      Accumulator.AccumStats accumStats) {
     super(new Field(name, fieldType, null), allocator);
 
     assert compactionThreshold <= 1.0;
@@ -125,14 +140,15 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
      * XXX: Ideally, the backing (BaseVariableWidthVector) may be allocated twice in size
      * for validity and offset buffer, so that the number of compactions can be reduced.
      */
-    return head >= super.getValueCapacity() ||
-      (getDataBuffer().capacity() > 0 &&
-        ((garbageSizeInBytes * 1.0D) / getDataBuffer().capacity()) > compactionThreshold);
+    return head >= super.getValueCapacity()
+        || (getDataBuffer().capacity() > 0
+            && ((garbageSizeInBytes * 1.0D) / getDataBuffer().capacity()) > compactionThreshold);
   }
 
   public static int getValidityBufferSizeFromCount(int count) {
     // validity bits for index + validity bits for the data buffer
-    return UInt2Vector.getValidityBufferSizeFromCount(count) + VarCharVector.getValidityBufferSizeFromCount(count);
+    return UInt2Vector.getValidityBufferSizeFromCount(count)
+        + VarCharVector.getValidityBufferSizeFromCount(count);
   }
 
   private static int getIndexDataBufferSizeFromCount(int count) {
@@ -171,8 +187,8 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
   }
 
   /**
-   * This value gets updated as the previous values in the buffer are updated with newer ones.
-   * The length of the old value is added to the garbageSizeInBytes.
+   * This value gets updated as the previous values in the buffer are updated with newer ones. The
+   * length of the old value is added to the garbageSizeInBytes.
    *
    * @return the garbage size accumulated so far in the buffer.
    */
@@ -198,8 +214,7 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
   }
 
   /**
-   * Get minor type for this vector. The vector holds values belonging
-   * to a particular type.
+   * Get minor type for this vector. The vector holds values belonging to a particular type.
    *
    * @return {@link org.apache.arrow.vector.types.Types.MinorType}
    */
@@ -209,8 +224,8 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
   }
 
   /**
-   * Reset the vector to initial state. Same as {@link #zeroVector()}.
-   * Note that this method doesn't release any memory.
+   * Reset the vector to initial state. Same as {@link #zeroVector()}. Note that this method doesn't
+   * release any memory.
    */
   @Override
   public void reset() {
@@ -221,17 +236,13 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
     garbageSizeInBytes = 0;
   }
 
-  /**
-   * Close the vector and release the associated buffers.
-   */
+  /** Close the vector and release the associated buffers. */
   @Override
   public void close() {
     this.clear();
   }
 
-  /**
-   * Same as {@link #close()}.
-   */
+  /** Same as {@link #close()}. */
   @Override
   public void clear() {
     super.clear();
@@ -241,13 +252,11 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
     garbageSizeInBytes = 0;
   }
 
-
   /*----------------------------------------------------------------*
-   |                                                                |
-   |          vector value retrieval methods                        |
-   |                                                                |
-   *----------------------------------------------------------------*/
-
+  |                                                                |
+  |          vector value retrieval methods                        |
+  |                                                                |
+  *----------------------------------------------------------------*/
 
   /**
    * Get the variable length element at specified index as byte array.
@@ -287,10 +296,9 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
   }
 
   /**
-   * Get the variable length element at specified index and sets the state
-   * in provided holder.
+   * Get the variable length element at specified index and sets the state in provided holder.
    *
-   * @param index  position of element to get
+   * @param index position of element to get
    * @param holder data holder to be populated by this function
    */
   public void get(int index, NullableVarCharHolder holder) {
@@ -314,70 +322,68 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
     holder.buffer = getDataBuffer();
   }
 
-
   /*----------------------------------------------------------------*
-   |                                                                |
-   |          vector value setter methods                           |
-   |                                                                |
-   *----------------------------------------------------------------*/
-
+  |                                                                |
+  |          vector value setter methods                           |
+  |                                                                |
+  *----------------------------------------------------------------*/
 
   /**
-   * Copy a cell value from a particular index in source vector to a particular
-   * position in this vector.
+   * Copy a cell value from a particular index in source vector to a particular position in this
+   * vector.
    *
    * @param fromIndex position to copy from in source vector
    * @param thisIndex position to copy to in this vector
-   * @param from      source vector
+   * @param from source vector
    */
   public void copyFrom(int fromIndex, int thisIndex, VarCharVector from) {
-        /*
-        final int start = from.offsetBuffer.getInt(fromIndex * OFFSET_WIDTH);
-        final int end = from.offsetBuffer.getInt((fromIndex + 1) * OFFSET_WIDTH);
-        final int length = end - start;
-        fillHoles(thisIndex);
-        BitVectorHelper.setValidityBit(this.validityBuffer, thisIndex, from.isSet(fromIndex));
-        final int copyStart = offsetBuffer.getInt(thisIndex * OFFSET_WIDTH);
-        from.valueBuffer.getBytes(start, this.valueBuffer, copyStart, length);
-        offsetBuffer.setInt((thisIndex + 1) * OFFSET_WIDTH, copyStart + length);
-        lastSet = thisIndex;
-        */
+    /*
+    final int start = from.offsetBuffer.getInt(fromIndex * OFFSET_WIDTH);
+    final int end = from.offsetBuffer.getInt((fromIndex + 1) * OFFSET_WIDTH);
+    final int length = end - start;
+    fillHoles(thisIndex);
+    BitVectorHelper.setValidityBit(this.validityBuffer, thisIndex, from.isSet(fromIndex));
+    final int copyStart = offsetBuffer.getInt(thisIndex * OFFSET_WIDTH);
+    from.valueBuffer.getBytes(start, this.valueBuffer, copyStart, length);
+    offsetBuffer.setInt((thisIndex + 1) * OFFSET_WIDTH, copyStart + length);
+    lastSet = thisIndex;
+    */
     throw new UnsupportedOperationException("not supported");
   }
 
   /**
-   * Same as {@link #copyFrom(int, int, VarCharVector)} except that
-   * it handles the case when the capacity of the vector needs to be expanded
-   * before copy.
+   * Same as {@link #copyFrom(int, int, VarCharVector)} except that it handles the case when the
+   * capacity of the vector needs to be expanded before copy.
    *
    * @param fromIndex position to copy from in source vector
    * @param thisIndex position to copy to in this vector
-   * @param from      source vector
+   * @param from source vector
    */
   public void copyFromSafe(int fromIndex, int thisIndex, VarCharVector from) {
-        /*
-        final int start = from.offsetBuffer.getInt(fromIndex * OFFSET_WIDTH);
-        final int end = from.offsetBuffer.getInt((fromIndex + 1) * OFFSET_WIDTH);
-        final int length = end - start;
-        handleSafe(thisIndex, length);
-        fillHoles(thisIndex);
-        BitVectorHelper.setValidityBit(this.validityBuffer, thisIndex, from.isSet(fromIndex));
-        final int copyStart = offsetBuffer.getInt(thisIndex * OFFSET_WIDTH);
-        from.valueBuffer.getBytes(start, this.valueBuffer, copyStart, length);
-        offsetBuffer.setInt((thisIndex + 1) * OFFSET_WIDTH, copyStart + length);
-        lastSet = thisIndex;
-        */
+    /*
+    final int start = from.offsetBuffer.getInt(fromIndex * OFFSET_WIDTH);
+    final int end = from.offsetBuffer.getInt((fromIndex + 1) * OFFSET_WIDTH);
+    final int length = end - start;
+    handleSafe(thisIndex, length);
+    fillHoles(thisIndex);
+    BitVectorHelper.setValidityBit(this.validityBuffer, thisIndex, from.isSet(fromIndex));
+    final int copyStart = offsetBuffer.getInt(thisIndex * OFFSET_WIDTH);
+    from.valueBuffer.getBytes(start, this.valueBuffer, copyStart, length);
+    offsetBuffer.setInt((thisIndex + 1) * OFFSET_WIDTH, copyStart + length);
+    lastSet = thisIndex;
+    */
     throw new UnsupportedOperationException("not supported");
   }
 
   /**
-   * If 'numOfRecords' number of records could fit in this vector, return free space left.
-   * If these records don't fit (no space in offset buffer/validity buffer), return -1.
+   * If 'numOfRecords' number of records could fit in this vector, return free space left. If these
+   * records don't fit (no space in offset buffer/validity buffer), return -1.
+   *
    * @param numOfRecords
    * @return
    */
   private int returnFreeSpaceIfRecordsFit(final int numOfRecords) {
-    if (head + numOfRecords  <= this.valueCapacity) {
+    if (head + numOfRecords <= this.valueCapacity) {
       return super.getByteCapacity() - getCurrentOffset();
     } else {
       /* Return -1 instead 0 so that the caller cannot even insert a null value */
@@ -393,27 +399,26 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
       return true;
     }
 
-
     /*
-        If freeSpace is -1 - we are out of offsets/validity bits. return false
-        if freeSpace + garbageSizeInBytes is less than required space, we don't have space even after accounting for garbage values. - return false
-        freeSpace + garbageSizeInBytes > required space but this available free space is less than 5% (default value of maxVarWidthVecUsagePercent) of total space, return false
-        if all above conditions are false, return true.
-     */
-    return freeSpace != -1 && (freeSpace + garbageSizeInBytes) >= space && !isFreeSpaceLessThanGivenPercentage(freeSpace + garbageSizeInBytes);
-
+       If freeSpace is -1 - we are out of offsets/validity bits. return false
+       if freeSpace + garbageSizeInBytes is less than required space, we don't have space even after accounting for garbage values. - return false
+       freeSpace + garbageSizeInBytes > required space but this available free space is less than 5% (default value of maxVarWidthVecUsagePercent) of total space, return false
+       if all above conditions are false, return true.
+    */
+    return freeSpace != -1
+        && (freeSpace + garbageSizeInBytes) >= space
+        && !isFreeSpaceLessThanGivenPercentage(freeSpace + garbageSizeInBytes);
   }
 
   private boolean isFreeSpaceLessThanGivenPercentage(int freeSpace) {
-    return (((freeSpace) * 1.0D) / getDataBuffer().capacity()) <
-      (((100 - maxVarWidthVecUsagePercent) * 1.0D) / 100);
+    return (((freeSpace) * 1.0D) / getDataBuffer().capacity())
+        < (((100 - maxVarWidthVecUsagePercent) * 1.0D) / 100);
   }
 
   /**
-   * This api is invoked during the 'set/setSafe' operations.
-   * If the index is already valid, then increment the garbageSizeInBytes, as the value
-   * is being overwritten. If then the compaction threshold is met, then
-   * trigger the compaction.
+   * This api is invoked during the 'set/setSafe' operations. If the index is already valid, then
+   * increment the garbageSizeInBytes, as the value is being overwritten. If then the compaction
+   * threshold is met, then trigger the compaction.
    *
    * @param index the position at which the set operation is being done.
    */
@@ -427,10 +432,10 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
       final int dataLength = getStartOffset(actualIndex + 1) - dataOffset;
       garbageSizeInBytes += dataLength;
 
-      //mark the value in buffer as invalid
-       super.setNull(actualIndex);
+      // mark the value in buffer as invalid
+      super.setNull(actualIndex);
 
-      //treat this index also as invalid, as its going to get overwritten
+      // treat this index also as invalid, as its going to get overwritten
       fwdIndex.setNull(index);
     }
 
@@ -451,10 +456,10 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
   private final void compactInternal() {
     compactionTimer.start();
 
-    //maps valid offset to its corresponding index
+    // maps valid offset to its corresponding index
     final Map<Integer, Integer> validOffsetMap = new HashMap<>();
 
-    //populate the mapping
+    // populate the mapping
     final int idxCapacity = fwdIndex.getValueCapacity();
     for (int i = 0; i < idxCapacity; ++i) {
       if (!fwdIndex.isNull(i)) {
@@ -467,7 +472,7 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
     int target = 0;
 
     while (current < head) {
-      //check the validity bitmap
+      // check the validity bitmap
       final boolean isValid = (super.isSet(current) != 0);
 
       if (!isValid) {
@@ -491,11 +496,11 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
 
       ++target;
       ++current;
-    } //while
+    } // while
 
     head = target;
 
-    //only valid data remains in the buffer now.
+    // only valid data remains in the buffer now.
     garbageSizeInBytes = 0;
     compactionTimer.stop();
     if (accumStats != null) {
@@ -506,10 +511,10 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
   }
 
   /**
-   * Set the variable length element at the specified index to the data
-   * buffer supplied in the holder. Internally appends the data at the end.
+   * Set the variable length element at the specified index to the data buffer supplied in the
+   * holder. Internally appends the data at the end.
    *
-   * @param index  position of the element to set
+   * @param index position of the element to set
    * @param holder holder that carries data buffer.
    */
   public void set(int index, VarCharHolder holder) {
@@ -517,20 +522,19 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
 
     updateGarbageAndCompact(index, holder.end - holder.start);
 
-    //update the index
+    // update the index
     fwdIndex.set(index, head);
 
-    //append at the end
+    // append at the end
     super.set(head, holder.start, holder.end - holder.start, holder.buffer);
     ++head;
   }
 
   /**
-   * Same as {@link #set(int, VarCharHolder)} except that it handles the
-   * case where index and length of new element are beyond the existing
-   * capacity of the vector.
+   * Same as {@link #set(int, VarCharHolder)} except that it handles the case where index and length
+   * of new element are beyond the existing capacity of the vector.
    *
-   * @param index  position of the element to set
+   * @param index position of the element to set
    * @param holder holder that carries data buffer.
    */
   public void setSafe(int index, VarCharHolder holder) {
@@ -539,20 +543,20 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
     /* No need to force compact as setSafe can grow the buffers */
     updateGarbageAndCompact(index, 0);
 
-    //update the index
+    // update the index
     fwdIndex.setSafe(index, head);
 
-    //append at the end
+    // append at the end
     super.setSafe(head, holder.start, holder.end - holder.start, holder.buffer);
 
     ++head;
   }
 
   /**
-   * Set the variable length element at the specified index to the data
-   * buffer supplied in the holder.
+   * Set the variable length element at the specified index to the data buffer supplied in the
+   * holder.
    *
-   * @param index  position of the element to set
+   * @param index position of the element to set
    * @param holder holder that carries data buffer.
    */
   public void set(int index, NullableVarCharHolder holder) {
@@ -560,21 +564,20 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
 
     updateGarbageAndCompact(index, holder.end - holder.start);
 
-    //update the index
+    // update the index
     fwdIndex.set(index, head);
 
-    //append at the end
+    // append at the end
     super.set(head, holder.start, holder.end - holder.start, holder.buffer);
 
     ++head;
   }
 
   /**
-   * Same as {@link #set(int, NullableVarCharHolder)} except that it handles the
-   * case where index and length of new element are beyond the existing
-   * capacity of the vector.
+   * Same as {@link #set(int, NullableVarCharHolder)} except that it handles the case where index
+   * and length of new element are beyond the existing capacity of the vector.
    *
-   * @param index  position of the element to set
+   * @param index position of the element to set
    * @param holder holder that carries data buffer.
    */
   public void setSafe(int index, NullableVarCharHolder holder) {
@@ -583,43 +586,39 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
     /* No need to force compact as setSafe can grow the buffers */
     updateGarbageAndCompact(index, 0);
 
-    //update the index
+    // update the index
     fwdIndex.setSafe(index, head);
 
-    //append at the end
+    // append at the end
     super.setSafe(head, holder.start, holder.end - holder.start, holder.buffer);
 
     ++head;
   }
 
   /**
-   * Set the variable length element at the specified index to the
-   * content in supplied Text.
+   * Set the variable length element at the specified index to the content in supplied Text.
    *
    * @param index position of the element to set
-   * @param text  Text object with data
+   * @param text Text object with data
    */
   public void set(int index, Text text) {
     set(index, text.getBytes(), 0, text.getLength());
   }
 
   /**
-   * Same as {@link #set(int, NullableVarCharHolder)} except that it handles the
-   * case where index and length of new element are beyond the existing
-   * capacity of the vector.
+   * Same as {@link #set(int, NullableVarCharHolder)} except that it handles the case where index
+   * and length of new element are beyond the existing capacity of the vector.
    *
    * @param index position of the element to set.
-   * @param text  Text object with data
+   * @param text Text object with data
    */
   public void setSafe(int index, Text text) {
     setSafe(index, text.getBytes(), 0, text.getLength());
   }
 
-
   /**
-   * Set the variable length element at the specified index to the supplied
-   * byte array. This is same as using {@link #set(int, byte[], int, int)}
-   * with start as 0 and length as value.length
+   * Set the variable length element at the specified index to the supplied byte array. This is same
+   * as using {@link #set(int, byte[], int, int)} with start as 0 and length as value.length
    *
    * @param index position of the element to set
    * @param value array of bytes to write
@@ -630,19 +629,18 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
 
     updateGarbageAndCompact(index, value.length);
 
-    //update the index
+    // update the index
     fwdIndex.set(index, head);
 
-    //append at the end
+    // append at the end
     super.set(head, value);
 
     ++head;
   }
 
   /**
-   * Same as {@link #set(int, byte[])} except that it handles the
-   * case where index and length of new element are beyond the existing
-   * capacity of the vector.
+   * Same as {@link #set(int, byte[])} except that it handles the case where index and length of new
+   * element are beyond the existing capacity of the vector.
    *
    * @param index position of the element to set
    * @param value array of bytes to write
@@ -654,22 +652,21 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
     /* No need to force compact as setSafe can grow the buffers */
     updateGarbageAndCompact(index, 0);
 
-    //update the index
+    // update the index
     fwdIndex.setSafe(index, head);
 
-    //append at the end
+    // append at the end
     super.setSafe(head, value);
 
     ++head;
   }
 
   /**
-   * Set the variable length element at the specified index to the supplied
-   * byte array.
+   * Set the variable length element at the specified index to the supplied byte array.
    *
-   * @param index  position of the element to set
-   * @param value  array of bytes to write
-   * @param start  start index in array of bytes
+   * @param index position of the element to set
+   * @param value array of bytes to write
+   * @param start start index in array of bytes
    * @param length length of data in array of bytes
    */
   @Override
@@ -678,23 +675,22 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
 
     updateGarbageAndCompact(index, length);
 
-    //update the index
+    // update the index
     fwdIndex.set(index, head);
 
-    //append at the end
+    // append at the end
     super.set(head, value, start, length);
 
     ++head;
   }
 
   /**
-   * Same as {@link #set(int, byte[], int, int)} except that it handles the
-   * case where index and length of new element are beyond the existing
-   * capacity of the vector.
+   * Same as {@link #set(int, byte[], int, int)} except that it handles the case where index and
+   * length of new element are beyond the existing capacity of the vector.
    *
-   * @param index  position of the element to set
-   * @param value  array of bytes to write
-   * @param start  start index in array of bytes
+   * @param index position of the element to set
+   * @param value array of bytes to write
+   * @param start start index in array of bytes
    * @param length length of data in array of bytes
    */
   @Override
@@ -704,22 +700,21 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
     /* No need to force compact as setSafe can grow the buffers */
     updateGarbageAndCompact(index, 0);
 
-    //update the index
+    // update the index
     fwdIndex.setSafe(index, head);
 
-    //append at the end
+    // append at the end
     super.setSafe(head, value, start, length);
 
     ++head;
   }
 
   /**
-   * Set the variable length element at the specified index to the
-   * content in supplied ByteBuffer.
+   * Set the variable length element at the specified index to the content in supplied ByteBuffer.
    *
-   * @param index  position of the element to set
-   * @param value  ByteBuffer with data
-   * @param start  start index in ByteBuffer
+   * @param index position of the element to set
+   * @param value ByteBuffer with data
+   * @param start start index in ByteBuffer
    * @param length length of data in ByteBuffer
    */
   @Override
@@ -728,23 +723,22 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
 
     updateGarbageAndCompact(index, length);
 
-    //update the index
+    // update the index
     fwdIndex.set(index, head);
 
-    //append at the end
+    // append at the end
     super.set(head, value, start, length);
 
     ++head;
   }
 
   /**
-   * Same as {@link #set(int, ByteBuffer, int, int)} except that it handles the
-   * case where index and length of new element are beyond the existing
-   * capacity of the vector.
+   * Same as {@link #set(int, ByteBuffer, int, int)} except that it handles the case where index and
+   * length of new element are beyond the existing capacity of the vector.
    *
-   * @param index  position of the element to set
-   * @param value  ByteBuffer with data
-   * @param start  start index in ByteBuffer
+   * @param index position of the element to set
+   * @param value ByteBuffer with data
+   * @param start start index in ByteBuffer
    * @param length length of data in ByteBuffer
    */
   @Override
@@ -754,26 +748,24 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
     /* No need to force compact as setSafe can grow the buffers */
     updateGarbageAndCompact(index, 0);
 
-    //update the index
+    // update the index
     fwdIndex.setSafe(index, head);
 
-    //append at the end
+    // append at the end
     super.setSafe(head, value, start, length);
 
     ++head;
   }
 
-
   /**
-   * Store the given value at a particular position in the vector. isSet indicates
-   * whether the value is NULL or not.
+   * Store the given value at a particular position in the vector. isSet indicates whether the value
+   * is NULL or not.
    *
-   * @param index  position of the new value
-   * @param isSet  0 for NULL value, 1 otherwise
-   * @param start  start position of data in buffer
-   * @param end    end position of data in buffer
-   * @param buffer data buffer containing the variable width element to be stored
-   *               in the vector
+   * @param index position of the new value
+   * @param isSet 0 for NULL value, 1 otherwise
+   * @param start start position of data in buffer
+   * @param end end position of data in buffer
+   * @param buffer data buffer containing the variable width element to be stored in the vector
    */
   @Override
   public void set(int index, int isSet, int start, int end, ArrowBuf buffer) {
@@ -781,26 +773,24 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
 
     updateGarbageAndCompact(index, end - start);
 
-    //update the index
+    // update the index
     fwdIndex.set(index, head);
 
-    //update the index
+    // update the index
     super.set(head, isSet, start, end, buffer);
 
     ++head;
   }
 
   /**
-   * Same as {@link #set(int, int, int, int, ArrowBuf)} except that it handles the case
-   * when index is greater than or equal to current value capacity of the
-   * vector.
+   * Same as {@link #set(int, int, int, int, ArrowBuf)} except that it handles the case when index
+   * is greater than or equal to current value capacity of the vector.
    *
-   * @param index  position of the new value
-   * @param isSet  0 for NULL value, 1 otherwise
-   * @param start  start position of data in buffer
-   * @param end    end position of data in buffer
-   * @param buffer data buffer containing the variable width element to be stored
-   *               in the vector
+   * @param index position of the new value
+   * @param isSet 0 for NULL value, 1 otherwise
+   * @param start start position of data in buffer
+   * @param end end position of data in buffer
+   * @param buffer data buffer containing the variable width element to be stored in the vector
    */
   @Override
   public void setSafe(int index, int isSet, int start, int end, ArrowBuf buffer) {
@@ -809,24 +799,23 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
     /* No need to force compact as setSafe can grow the buffers */
     updateGarbageAndCompact(index, 0);
 
-    //update the index
+    // update the index
     fwdIndex.setSafe(index, head);
 
-    //update the index
+    // update the index
     super.setSafe(head, isSet, start, end, buffer);
 
     ++head;
   }
 
   /**
-   * Store the given value at a particular position in the vector. isSet indicates
-   * whether the value is NULL or not.
+   * Store the given value at a particular position in the vector. isSet indicates whether the value
+   * is NULL or not.
    *
-   * @param index  position of the new value
-   * @param start  start position of data in buffer
+   * @param index position of the new value
+   * @param start start position of data in buffer
    * @param length length of data in buffer
-   * @param buffer data buffer containing the variable width element to be stored
-   *               in the vector
+   * @param buffer data buffer containing the variable width element to be stored in the vector
    */
   @Override
   public void set(int index, int start, int length, ArrowBuf buffer) {
@@ -834,25 +823,23 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
 
     updateGarbageAndCompact(index, length);
 
-    //update the index
+    // update the index
     fwdIndex.set(index, head);
 
-    //update the index
+    // update the index
     super.set(head, start, length, buffer);
 
     ++head;
   }
 
   /**
-   * Same as {@link #set(int, int, int, int, ArrowBuf)} except that it handles the case
-   * when index is greater than or equal to current value capacity of the
-   * vector.
+   * Same as {@link #set(int, int, int, int, ArrowBuf)} except that it handles the case when index
+   * is greater than or equal to current value capacity of the vector.
    *
-   * @param index  position of the new value
-   * @param start  start position of data in buffer
+   * @param index position of the new value
+   * @param start start position of data in buffer
    * @param length length of data in buffer
-   * @param buffer data buffer containing the variable width element to be stored
-   *               in the vector
+   * @param buffer data buffer containing the variable width element to be stored in the vector
    */
   @Override
   public void setSafe(int index, int start, int length, ArrowBuf buffer) {
@@ -861,24 +848,25 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
     /* No need to force compact as setSafe can grow the buffers */
     updateGarbageAndCompact(index, 0);
 
-    //update the index
+    // update the index
     fwdIndex.setSafe(index, head);
 
-    //update the index
+    // update the index
     super.setSafe(head, start, length, buffer);
 
     ++head;
   }
 
   /**
-   * Copies the entries pointed by fwdIndex into the varchar vector.
-   * It assumes that the vector has been sized to hold the entries.
+   * Copies the entries pointed by fwdIndex into the varchar vector. It assumes that the vector has
+   * been sized to hold the entries.
    *
    * @param outVector target BaseVariableWidthVector where data is copied
    * @param recordsInBatch number of entries to copy
    * @param targetStartIndex index at which topy in the target vector
    */
-  public void copyToVarWidthVec(BaseVariableWidthVector outVector, final int recordsInBatch, final int targetStartIndex) {
+  public void copyToVarWidthVec(
+      BaseVariableWidthVector outVector, final int recordsInBatch, final int targetStartIndex) {
     Preconditions.checkArgument(recordsInBatch <= fwdIndex.getValueCapacity());
     for (int i = 0; i < recordsInBatch; ++i) {
       if (!fwdIndex.isNull(i)) {
@@ -902,8 +890,12 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
     throw new UnsupportedOperationException("not supported");
   }
 
-  public void loadBuffers(int valueCount, final int varLenAccumulatorCapacity, final ArrowBuf dataBuffer, final ArrowBuf validityBuffer) {
-    //load validity buffers
+  public void loadBuffers(
+      int valueCount,
+      final int varLenAccumulatorCapacity,
+      final ArrowBuf dataBuffer,
+      final ArrowBuf validityBuffer) {
+    // load validity buffers
     final int indexValSize = UInt2Vector.getValidityBufferSizeFromCount(valueCount);
     fwdIndex.validityBuffer = validityBuffer.slice(0, indexValSize);
     fwdIndex.validityBuffer.writerIndex(indexValSize);
@@ -914,19 +906,19 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
     super.validityBuffer.writerIndex(dataValSize);
     super.validityBuffer.getReferenceManager().retain(1);
 
-    //load offset buffer
+    // load offset buffer
     final int offsetSize = ((valueCount + 1) * 4);
     super.offsetBuffer = dataBuffer.slice(0, offsetSize);
     super.offsetBuffer.writerIndex(offsetSize);
     super.offsetBuffer.getReferenceManager().retain(1);
 
-    //load index data buffer
+    // load index data buffer
     final int indexBufSize = this.getIndexDataBufferSizeFromCount(valueCount);
     fwdIndex.valueBuffer = dataBuffer.slice(offsetSize, indexBufSize);
     fwdIndex.valueBuffer.writerIndex(indexBufSize);
     fwdIndex.valueBuffer.getReferenceManager().retain(1);
 
-    //load value data buffer
+    // load value data buffer
     super.valueBuffer = dataBuffer.slice((offsetSize + indexBufSize), varLenAccumulatorCapacity);
     super.valueBuffer.writerIndex(varLenAccumulatorCapacity);
     super.valueBuffer.getReferenceManager().retain(1);
@@ -939,15 +931,17 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
   }
 
   /**
-   * This api copies the records to the target vector. It starts copying from 'startIndex',
-   * of numRecords, usually till the end.
-   * It frees up the space after copying the records to destination.
+   * This api copies the records to the target vector. It starts copying from 'startIndex', of
+   * numRecords, usually till the end. It frees up the space after copying the records to
+   * destination.
+   *
    * @param startIndex index from which the records to be moved
    * @param dstStartIndex start index to which the records are moved to
    * @param numRecords number of records to copy
    * @param toVector destination
    */
-  public void moveValuesAndFreeSpace(final int startIndex, int dstStartIndex, final int numRecords, FieldVector toVector) {
+  public void moveValuesAndFreeSpace(
+      final int startIndex, int dstStartIndex, final int numRecords, FieldVector toVector) {
     Boolean dataMoved = false;
     Preconditions.checkArgument(startIndex + numRecords <= fwdIndex.getValueCapacity());
     for (int count = 0; count < numRecords; ++dstStartIndex, ++count) {
@@ -956,38 +950,38 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
         Preconditions.checkArgument(actualIndex >= 0);
         final int startOffset = getStartOffset(actualIndex);
         final int dataLength = getStartOffset(actualIndex + 1) - startOffset;
-        ((MutableVarcharVector)toVector).set(dstStartIndex, startOffset, dataLength, getDataBuffer());
+        ((MutableVarcharVector) toVector)
+            .set(dstStartIndex, startOffset, dataLength, getDataBuffer());
         dataMoved = true;
 
-        //mark it as free now
+        // mark it as free now
         super.setNull(actualIndex);
         fwdIndex.setNull(startIndex + count);
       }
     }
 
-    //force compact to clean up the 'moved' data
+    // force compact to clean up the 'moved' data
     if (dataMoved) {
       this.forceCompact();
     }
   }
 
   /*----------------------------------------------------------------*
-   |                                                                |
-   |                      vector transfer                           |
-   |                                                                |
-   *----------------------------------------------------------------*/
+  |                                                                |
+  |                      vector transfer                           |
+  |                                                                |
+  *----------------------------------------------------------------*/
 
   /**
-   * Construct a TransferPair comprising of this and and a target vector of
-   * the same type.
+   * Construct a TransferPair comprising of this and and a target vector of the same type.
    *
-   * @param ref       name of the target vector
+   * @param ref name of the target vector
    * @param allocator allocator for the target vector
    * @return {@link TransferPair}
    */
   @Override
   public TransferPair getTransferPair(String ref, BufferAllocator allocator) {
-    //return new VarCharVector.TransferImpl(ref, allocator);
+    // return new VarCharVector.TransferImpl(ref, allocator);
     throw new UnsupportedOperationException("not supported");
   }
 
@@ -1004,7 +998,7 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
    */
   @Override
   public TransferPair makeTransferPair(ValueVector to) {
-    //return new VarCharVector.TransferImpl((VarCharVector) to);
+    // return new VarCharVector.TransferImpl((VarCharVector) to);
     throw new UnsupportedOperationException("not supported");
   }
 

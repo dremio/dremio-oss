@@ -15,18 +15,14 @@
  */
 package com.dremio.service.functions.model;
 
-import javax.annotation.Nullable;
-import javax.ws.rs.NotSupportedException;
-
-import org.immutables.value.Value;
-
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import javax.annotation.Nullable;
+import javax.ws.rs.NotSupportedException;
+import org.immutables.value.Value;
 
-/**
- * Information about a function parameter in a function signature.
- */
+/** Information about a function parameter in a function signature. */
 @Value.Immutable
 @Value.Style(stagedBuilder = true)
 @JsonSerialize(as = ImmutableParameter.class)
@@ -40,11 +36,15 @@ public abstract class Parameter {
   }
 
   public abstract ParameterKind getKind();
+
   public abstract ParameterType getType();
+
   @Nullable
   public abstract String getName();
+
   @Nullable
   public abstract String getDescription();
+
   @Nullable
   public abstract String getFormat();
 
@@ -54,35 +54,31 @@ public abstract class Parameter {
 
   @Override
   public String toString() {
-    StringBuilder stringBuilder = new StringBuilder()
-      .append(getType());
+    StringBuilder stringBuilder = new StringBuilder().append(getType());
 
     String symbol;
     switch (getKind()) {
-    case VARARG:
-      symbol = SYMBOLS.VARARG;
-      break;
+      case VARARG:
+        symbol = SYMBOLS.VARARG;
+        break;
 
-    case OPTIONAL:
-      symbol = SYMBOLS.OPTIONAL;
-      break;
+      case OPTIONAL:
+        symbol = SYMBOLS.OPTIONAL;
+        break;
 
-    case REGULAR:
-      symbol = SYMBOLS.REGULAR;
-      break;
+      case REGULAR:
+        symbol = SYMBOLS.REGULAR;
+        break;
 
-    default:
-      throw new NotSupportedException();
+      default:
+        throw new NotSupportedException();
     }
 
     stringBuilder.append(symbol);
 
     String description = getDescription();
     if (description != null) {
-      stringBuilder
-        .append("[")
-        .append(description)
-        .append("]");
+      stringBuilder.append("[").append(description).append("]");
     }
 
     return stringBuilder.toString();
@@ -108,28 +104,25 @@ public abstract class Parameter {
 
     String parameterTypeText;
     switch (kind) {
-    case VARARG:
-      parameterTypeText = text.substring(0, text.length() - SYMBOLS.VARARG.length());
-      break;
+      case VARARG:
+        parameterTypeText = text.substring(0, text.length() - SYMBOLS.VARARG.length());
+        break;
 
-    case OPTIONAL:
-      parameterTypeText = text.substring(0, text.length() - SYMBOLS.OPTIONAL.length());
-      break;
+      case OPTIONAL:
+        parameterTypeText = text.substring(0, text.length() - SYMBOLS.OPTIONAL.length());
+        break;
 
-    case REGULAR:
-      parameterTypeText = text.substring(0, text.length() - SYMBOLS.REGULAR.length());
-      break;
+      case REGULAR:
+        parameterTypeText = text.substring(0, text.length() - SYMBOLS.REGULAR.length());
+        break;
 
-    default:
-      throw new NotSupportedException();
+      default:
+        throw new NotSupportedException();
     }
 
     ParameterType type = ParameterType.valueOf(parameterTypeText);
 
-    ImmutableParameter.BuildFinal builder = Parameter.builder()
-      .kind(kind)
-      .type(type)
-      .name("");
+    ImmutableParameter.BuildFinal builder = Parameter.builder().kind(kind).type(type).name("");
 
     if (description != null) {
       builder = builder.description(description);

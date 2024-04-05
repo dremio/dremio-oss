@@ -50,9 +50,9 @@ public interface DatasetSplit {
 
   /**
    * Get any additional information about the split.
-   * <p>
-   * This will be provided by the catalog to other modules that request the catalog about the split, so any custom
-   * state could be returned.
+   *
+   * <p>This will be provided by the catalog to other modules that request the catalog about the
+   * split, so any custom state could be returned.
    *
    * @return extra information, not null
    */
@@ -74,30 +74,30 @@ public interface DatasetSplit {
   /**
    * Create {@code DatasetSplit}.
    *
-   * @param affinities  list of affinities
+   * @param affinities list of affinities
    * @param sizeInBytes size in bytes
    * @param recordCount record count
    * @return dataset split
    */
-  static DatasetSplit of(List<DatasetSplitAffinity> affinities, long sizeInBytes, long recordCount) {
+  static DatasetSplit of(
+      List<DatasetSplitAffinity> affinities, long sizeInBytes, long recordCount) {
     return of(affinities, sizeInBytes, recordCount, BytesOutput.NONE);
   }
 
   /**
    * Create {@code DatasetSplit}.
    *
-   * @param affinities  list of affinities
+   * @param affinities list of affinities
    * @param sizeInBytes size in bytes
    * @param recordCount record count
-   * @param extraInfo   extra info
+   * @param extraInfo extra info
    * @return dataset split
    */
   static DatasetSplit of(
       List<DatasetSplitAffinity> affinities,
       long sizeInBytes,
       long recordCount,
-      BytesOutput extraInfo
-  ) {
+      BytesOutput extraInfo) {
     Objects.requireNonNull(affinities, "affinities is required");
     Objects.requireNonNull(extraInfo, "extra info is required");
 

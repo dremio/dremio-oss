@@ -16,8 +16,8 @@
 package com.dremio.connector.metadata.extensions;
 
 /**
- * Implemented as an extension to {@link com.dremio.connector.metadata.DatasetMetadata} to
- * provide additional Deltalake related metadata to the catalog.
+ * Implemented as an extension to {@link com.dremio.connector.metadata.DatasetMetadata} to provide
+ * additional Deltalake related metadata to the catalog.
  */
 public interface SupportsDeltaMetadata {
 

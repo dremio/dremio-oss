@@ -19,9 +19,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
-/**
- * Manager to create/delete input/output file streams.
- */
+/** Manager to create/delete input/output file streams. */
 public interface FileStreamManager {
   /**
    * Identifier for the set of files (may or may not be in the same directory).
@@ -32,6 +30,7 @@ public interface FileStreamManager {
 
   /**
    * Create an output stream for the given sequence number.
+   *
    * @param fileSeq sequence number
    * @return output stream
    * @throws IOException on io errors
@@ -40,6 +39,7 @@ public interface FileStreamManager {
 
   /**
    * Open an input stream for the given sequence number.
+   *
    * @param fileSeq sequence number
    * @return input stream
    * @throws IOException on io errors
@@ -48,6 +48,7 @@ public interface FileStreamManager {
 
   /**
    * Delete the file & reclaim space for the given sequence number.
+   *
    * @param fileSeq sequence number.
    * @throws IOException on io errors.
    */
@@ -55,6 +56,7 @@ public interface FileStreamManager {
 
   /**
    * Delete all files.
+   *
    * @throws IOException on io errors.
    */
   void deleteAll() throws IOException;

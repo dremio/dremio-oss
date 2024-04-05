@@ -18,9 +18,7 @@ package com.dremio.dac.service.errors;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response;
 
-/**
- * An exception that maps to HTTP 409
- */
+/** An exception that maps to HTTP 409 */
 public class ResourceExistsException extends WebApplicationException {
   public ResourceExistsException(final String message) {
     super(message, Response.Status.CONFLICT);

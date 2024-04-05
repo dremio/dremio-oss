@@ -19,20 +19,26 @@ import com.dremio.exec.rpc.Response;
 import com.dremio.exec.rpc.ResponseSender;
 import com.dremio.exec.rpc.RpcException;
 import com.google.protobuf.ByteString;
-
 import io.netty.buffer.ByteBuf;
 
 /**
- * An abstract protocol that provides a handle() method that treats requests as synchronous for simplicity.
+ * An abstract protocol that provides a handle() method that treats requests as synchronous for
+ * simplicity.
  */
 public abstract class AbstractProtocol implements FabricProtocol {
 
   @Override
-  public void handle(PhysicalConnection connection, int rpcType, ByteString pBody, ByteBuf dBody, ResponseSender sender)
+  public void handle(
+      PhysicalConnection connection,
+      int rpcType,
+      ByteString pBody,
+      ByteBuf dBody,
+      ResponseSender sender)
       throws RpcException {
     sender.send(handle(connection, rpcType, pBody, dBody));
   }
 
-  protected abstract Response handle(PhysicalConnection connection, int rpcType, ByteString pBody, ByteBuf dBody) throws RpcException;
-
+  protected abstract Response handle(
+      PhysicalConnection connection, int rpcType, ByteString pBody, ByteBuf dBody)
+      throws RpcException;
 }

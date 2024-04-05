@@ -15,14 +15,6 @@
  */
 package com.dremio.service.listing;
 
-import java.util.List;
-import java.util.stream.Collectors;
-
-import javax.inject.Provider;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.namespace.DatasetListingRPC.DLGetSourceRequest;
@@ -39,17 +31,22 @@ import com.dremio.services.fabric.simple.SendEndpoint;
 import com.dremio.services.fabric.simple.SendEndpointCreator;
 import com.dremio.services.fabric.simple.SentResponseMessage;
 import com.google.protobuf.ByteString;
-
 import io.protostuff.LinkedBuffer;
 import io.protostuff.ProtobufIOUtil;
+import java.util.List;
+import java.util.stream.Collectors;
+import javax.inject.Provider;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.BufferAllocator;
 
 /**
  * Adapter that interacts with the {@link DatasetListingService} running on master coordinator.
- * <p>
- * If this service is running on either an executor or a non-master coordinator, this will makes blocking remote
- * procedure calls using the {@link FabricService} to communicate with the {@link DatasetListingService listing service}
- * running on the master coordinator node. Otherwise, i.e. on master coordinator node, this will interact with the
- * in situ {@link DatasetListingServiceImpl listing service}.
+ *
+ * <p>If this service is running on either an executor or a non-master coordinator, this will makes
+ * blocking remote procedure calls using the {@link FabricService} to communicate with the {@link
+ * DatasetListingService listing service} running on the master coordinator node. Otherwise, i.e. on
+ * master coordinator node, this will interact with the in situ {@link DatasetListingServiceImpl
+ * listing service}.
  */
 public class DatasetListingInvoker implements DatasetListingService {
   private static final int TYPE_DL_FIND = 1; // no longer supported
@@ -62,16 +59,17 @@ public class DatasetListingInvoker implements DatasetListingService {
   private final BufferAllocator allocator;
   private final DatasetListingService datasetListing;
 
-  private SendEndpointCreator<DLGetSourceRequest, DLGetSourceResponse> getSourceEndpointCreator; // used on server and client side
-  private SendEndpointCreator<DLGetSourcesRequest, DLGetSourcesResponse> getSourcesEndpointCreator; // used on server and client side
+  private SendEndpointCreator<DLGetSourceRequest, DLGetSourceResponse>
+      getSourceEndpointCreator; // used on server and client side
+  private SendEndpointCreator<DLGetSourcesRequest, DLGetSourcesResponse>
+      getSourcesEndpointCreator; // used on server and client side
 
   public DatasetListingInvoker(
       final boolean isMaster,
       final Provider<NodeEndpoint> masterEndpoint,
       final Provider<FabricService> fabricService,
       final BufferAllocator allocator,
-      final DatasetListingService datasetListing
-  ) {
+      final DatasetListingService datasetListing) {
     this.isMaster = isMaster;
     this.masterEndpoint = masterEndpoint;
     this.fabricService = fabricService;
@@ -82,72 +80,83 @@ public class DatasetListingInvoker implements DatasetListingService {
   @Override
   public void start() throws Exception {
     datasetListing.start();
-    final ProtocolBuilder builder = ProtocolBuilder.builder()
-        .protocolId(57)
-        .allocator(allocator)
-        .name("dataset-listing-rpc")
-        .timeout(10 * 1000);
+    final ProtocolBuilder builder =
+        ProtocolBuilder.builder()
+            .protocolId(57)
+            .allocator(allocator)
+            .name("dataset-listing-rpc")
+            .timeout(10 * 1000);
 
-    this.getSourceEndpointCreator = builder.register(TYPE_DL_SOURCE,
-        new AbstractReceiveHandler<DLGetSourceRequest, DLGetSourceResponse>(
-            DLGetSourceRequest.getDefaultInstance(), DLGetSourceResponse.getDefaultInstance()) {
-          @Override
-          public SentResponseMessage<DLGetSourceResponse> handle(DLGetSourceRequest getSourceRequest, ArrowBuf dBody) {
+    this.getSourceEndpointCreator =
+        builder.register(
+            TYPE_DL_SOURCE,
+            new AbstractReceiveHandler<DLGetSourceRequest, DLGetSourceResponse>(
+                DLGetSourceRequest.getDefaultInstance(), DLGetSourceResponse.getDefaultInstance()) {
+              @Override
+              public SentResponseMessage<DLGetSourceResponse> handle(
+                  DLGetSourceRequest getSourceRequest, ArrowBuf dBody) {
 
-            final SourceConfig sourceResults;
-            try {
-              sourceResults = datasetListing.getSource(getSourceRequest.getUsername(), getSourceRequest.getSourcename());
-            } catch (NamespaceException e) {
-              return new SentResponseMessage<>(
-                  DLGetSourceResponse.newBuilder()
-                      .setFailureMessage(e.getMessage())
-                      .build());
-            }
+                final SourceConfig sourceResults;
+                try {
+                  sourceResults =
+                      datasetListing.getSource(
+                          getSourceRequest.getUsername(), getSourceRequest.getSourcename());
+                } catch (NamespaceException e) {
+                  return new SentResponseMessage<>(
+                      DLGetSourceResponse.newBuilder().setFailureMessage(e.getMessage()).build());
+                }
 
-            LinkedBuffer buffer = LinkedBuffer.allocate();
-            // TODO(DX-10857): change from opaque object to protobuf; avoid unnecessary copies
-            ByteString bytes = ByteString.copyFrom(
-              ProtobufIOUtil.toByteArray(sourceResults, SourceConfig.getSchema(), buffer));
-            buffer.clear();
-
-            return new SentResponseMessage<>(
-                DLGetSourceResponse.newBuilder()
-                    .setResponse(bytes)
-                    .build());
-          }
-        });
-
-    this.getSourcesEndpointCreator = builder.register(TYPE_DL_SOURCES,
-        new AbstractReceiveHandler<DLGetSourcesRequest, DLGetSourcesResponse>(
-            DLGetSourcesRequest.getDefaultInstance(), DLGetSourcesResponse.getDefaultInstance()) {
-          @Override
-          public SentResponseMessage<DLGetSourcesResponse> handle(DLGetSourcesRequest getSourcesRequest, ArrowBuf dBody) {
-
-            final List<SourceConfig> sourcesResults;
-            try {
-              sourcesResults = datasetListing.getSources(getSourcesRequest.getUsername());
-            } catch (NamespaceException e) {
-              return new SentResponseMessage<>(
-                  DLGetSourcesResponse.newBuilder()
-                      .setFailureMessage(e.getMessage())
-                      .build());
-            }
-
-            LinkedBuffer buffer = LinkedBuffer.allocate();
-            List<ByteString> containersAsBytes = sourcesResults.stream().map(input -> {
+                LinkedBuffer buffer = LinkedBuffer.allocate();
                 // TODO(DX-10857): change from opaque object to protobuf; avoid unnecessary copies
-                final ByteString bytes = ByteString.copyFrom(
-                  ProtobufIOUtil.toByteArray(input, SourceConfig.getSchema(), buffer));
-                  buffer.clear();
-                  return bytes;
-              }).collect(Collectors.toList());
+                ByteString bytes =
+                    ByteString.copyFrom(
+                        ProtobufIOUtil.toByteArray(
+                            sourceResults, SourceConfig.getSchema(), buffer));
+                buffer.clear();
 
-            return new SentResponseMessage<>(
-                DLGetSourcesResponse.newBuilder()
-                    .addAllResponse(containersAsBytes)
-                    .build());
-          }
-        });
+                return new SentResponseMessage<>(
+                    DLGetSourceResponse.newBuilder().setResponse(bytes).build());
+              }
+            });
+
+    this.getSourcesEndpointCreator =
+        builder.register(
+            TYPE_DL_SOURCES,
+            new AbstractReceiveHandler<DLGetSourcesRequest, DLGetSourcesResponse>(
+                DLGetSourcesRequest.getDefaultInstance(),
+                DLGetSourcesResponse.getDefaultInstance()) {
+              @Override
+              public SentResponseMessage<DLGetSourcesResponse> handle(
+                  DLGetSourcesRequest getSourcesRequest, ArrowBuf dBody) {
+
+                final List<SourceConfig> sourcesResults;
+                try {
+                  sourcesResults = datasetListing.getSources(getSourcesRequest.getUsername());
+                } catch (NamespaceException e) {
+                  return new SentResponseMessage<>(
+                      DLGetSourcesResponse.newBuilder().setFailureMessage(e.getMessage()).build());
+                }
+
+                LinkedBuffer buffer = LinkedBuffer.allocate();
+                List<ByteString> containersAsBytes =
+                    sourcesResults.stream()
+                        .map(
+                            input -> {
+                              // TODO(DX-10857): change from opaque object to protobuf; avoid
+                              // unnecessary copies
+                              final ByteString bytes =
+                                  ByteString.copyFrom(
+                                      ProtobufIOUtil.toByteArray(
+                                          input, SourceConfig.getSchema(), buffer));
+                              buffer.clear();
+                              return bytes;
+                            })
+                        .collect(Collectors.toList());
+
+                return new SentResponseMessage<>(
+                    DLGetSourcesResponse.newBuilder().addAllResponse(containersAsBytes).build());
+              }
+            });
 
     builder.register(fabricService.get());
   }
@@ -157,7 +166,8 @@ public class DatasetListingInvoker implements DatasetListingService {
     datasetListing.close();
   }
 
-  private SendEndpoint<DLGetSourcesRequest, DLGetSourcesResponse> newGetSourcesEndpoint() throws RpcException {
+  private SendEndpoint<DLGetSourcesRequest, DLGetSourcesResponse> newGetSourcesEndpoint()
+      throws RpcException {
     final NodeEndpoint master = masterEndpoint.get();
     if (master == null) {
       throw new RpcException("master node is down");
@@ -166,7 +176,8 @@ public class DatasetListingInvoker implements DatasetListingService {
     return getSourcesEndpointCreator.getEndpoint(master.getAddress(), master.getFabricPort());
   }
 
-  private SendEndpoint<DLGetSourceRequest, DLGetSourceResponse> newGetSourceEndpoint() throws RpcException {
+  private SendEndpoint<DLGetSourceRequest, DLGetSourceResponse> newGetSourceEndpoint()
+      throws RpcException {
     final NodeEndpoint master = masterEndpoint.get();
     if (master == null) {
       throw new RpcException("master node is down");
@@ -176,11 +187,8 @@ public class DatasetListingInvoker implements DatasetListingService {
   }
 
   @Override
-  public SourceConfig getSource(
-    String username,
-    String sourcename
-  ) throws NamespaceException {
-     if (isMaster) { // RPC calls unless running on master
+  public SourceConfig getSource(String username, String sourcename) throws NamespaceException {
+    if (isMaster) { // RPC calls unless running on master
       return datasetListing.getSource(username, sourcename);
     }
 
@@ -190,9 +198,7 @@ public class DatasetListingInvoker implements DatasetListingService {
 
     final DLGetSourceResponse getSourceResponse;
     try {
-      getSourceResponse = newGetSourceEndpoint()
-        .send(requestBuilder.build())
-        .getBody();
+      getSourceResponse = newGetSourceEndpoint().send(requestBuilder.build()).getBody();
     } catch (RpcException e) {
       throw new RemoteNamespaceException("dataset listing failed: " + e.getMessage());
     }
@@ -201,15 +207,14 @@ public class DatasetListingInvoker implements DatasetListingService {
     }
 
     final SourceConfig source = SourceConfig.getSchema().newMessage();
-    ProtobufIOUtil.mergeFrom(getSourceResponse.getResponse().toByteArray(), source, SourceConfig.getSchema());
+    ProtobufIOUtil.mergeFrom(
+        getSourceResponse.getResponse().toByteArray(), source, SourceConfig.getSchema());
 
     return source;
   }
 
   @Override
-  public List<SourceConfig> getSources(
-    String username
-  ) throws NamespaceException {
+  public List<SourceConfig> getSources(String username) throws NamespaceException {
     if (isMaster) { // RPC calls unless running on master
       return datasetListing.getSources(username);
     }
@@ -219,9 +224,7 @@ public class DatasetListingInvoker implements DatasetListingService {
 
     final DLGetSourcesResponse getSourcesResponse;
     try {
-      getSourcesResponse = newGetSourcesEndpoint()
-        .send(requestBuilder.build())
-        .getBody();
+      getSourcesResponse = newGetSourcesEndpoint().send(requestBuilder.build()).getBody();
     } catch (RpcException e) {
       throw new RemoteNamespaceException("dataset listing failed: " + e.getMessage());
     }
@@ -229,11 +232,14 @@ public class DatasetListingInvoker implements DatasetListingService {
       throw new RemoteNamespaceException(getSourcesResponse.getFailureMessage());
     }
 
-    return getSourcesResponse.getResponseList().stream().map(input -> {
-        // TODO(DX-10857): change from opaque object to protobuf; avoid unnecessary copies
-        final SourceConfig source = SourceConfig.getSchema().newMessage();
-        ProtobufIOUtil.mergeFrom(input.toByteArray(), source, SourceConfig.getSchema());
-        return source;
-      }).collect(Collectors.toList());
+    return getSourcesResponse.getResponseList().stream()
+        .map(
+            input -> {
+              // TODO(DX-10857): change from opaque object to protobuf; avoid unnecessary copies
+              final SourceConfig source = SourceConfig.getSchema().newMessage();
+              ProtobufIOUtil.mergeFrom(input.toByteArray(), source, SourceConfig.getSchema());
+              return source;
+            })
+        .collect(Collectors.toList());
   }
 }

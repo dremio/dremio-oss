@@ -15,17 +15,17 @@
  */
 package com.dremio.exec.planner.acceleration;
 
+import com.google.common.base.Predicate;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.TableScan;
 
-import com.google.common.base.Predicate;
-
 /**
- * Interface to allow old and new scans to be rewritten to support incremental
- * acceleration. Should be removed once we remove OldScanCrel.
+ * Interface to allow old and new scans to be rewritten to support incremental acceleration. Should
+ * be removed once we remove OldScanCrel.
  */
 public interface IncrementallyUpdateable extends RelNode {
 
   TableScan projectInvisibleColumn(String name);
+
   TableScan filterColumns(Predicate<String> predicate);
 }

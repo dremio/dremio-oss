@@ -25,9 +25,7 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
 
-/**
- * Collection of properties applicable to all operators.
- */
+/** Collection of properties applicable to all operators. */
 @JsonInclude(Include.NON_NULL)
 public class OpProps {
 
@@ -49,36 +47,48 @@ public class OpProps {
   private long forcedMemLimit;
 
   public OpProps(
-    int operatorId,
-    String userName,
-    long memReserve,
-    long memLimit,
-    long memLowLimit,
-    double cost,
-    boolean singleStream,
-    int targetBatchSize,
-    BatchSchema schema,
-    boolean memoryBound,
-    double memoryFactor,
-    boolean memoryExpensive) {
-    this(operatorId, userName, memReserve, memLimit, memLowLimit, 0, cost, singleStream,
-      targetBatchSize, schema, memoryBound, memoryFactor, memoryExpensive);
+      int operatorId,
+      String userName,
+      long memReserve,
+      long memLimit,
+      long memLowLimit,
+      double cost,
+      boolean singleStream,
+      int targetBatchSize,
+      BatchSchema schema,
+      boolean memoryBound,
+      double memoryFactor,
+      boolean memoryExpensive) {
+    this(
+        operatorId,
+        userName,
+        memReserve,
+        memLimit,
+        memLowLimit,
+        0,
+        cost,
+        singleStream,
+        targetBatchSize,
+        schema,
+        memoryBound,
+        memoryFactor,
+        memoryExpensive);
   }
 
   public OpProps(
-    int operatorId,
-    String userName,
-    long memReserve,
-    long memLimit,
-    long memLowLimit,
-    long forcedMemLimit,
-    double cost,
-    boolean singleStream,
-    int targetBatchSize,
-    BatchSchema schema,
-    boolean memoryBound,
-    double memoryFactor,
-    boolean memoryExpensive) {
+      int operatorId,
+      String userName,
+      long memReserve,
+      long memLimit,
+      long memLowLimit,
+      long forcedMemLimit,
+      double cost,
+      boolean singleStream,
+      int targetBatchSize,
+      BatchSchema schema,
+      boolean memoryBound,
+      double memoryFactor,
+      boolean memoryExpensive) {
     super();
     this.operatorId = operatorId;
     this.userName = userName;
@@ -98,14 +108,14 @@ public class OpProps {
 
   @JsonCreator
   public OpProps(
-    @JsonProperty("operatorId") int operatorId,
-    @JsonProperty("userName") String userName,
-    @JsonProperty("memReserve") long memReserve,
-    @JsonProperty("memLimit") long memLimit,
-    @JsonProperty("cost") double cost,
-    @JsonProperty("singleStream") boolean singleStream,
-    @JsonProperty("targetBatchSize") int targetBatchSize,
-    @JsonProperty("schemaHashCode") int schemaHashCode) {
+      @JsonProperty("operatorId") int operatorId,
+      @JsonProperty("userName") String userName,
+      @JsonProperty("memReserve") long memReserve,
+      @JsonProperty("memLimit") long memLimit,
+      @JsonProperty("cost") double cost,
+      @JsonProperty("singleStream") boolean singleStream,
+      @JsonProperty("targetBatchSize") int targetBatchSize,
+      @JsonProperty("schemaHashCode") int schemaHashCode) {
     super();
     this.operatorId = operatorId;
     this.userName = userName;
@@ -179,10 +189,14 @@ public class OpProps {
   }
 
   @JsonIgnore
-  public int getMajorFragmentId() { return getMajorFragmentId(operatorId); }
+  public int getMajorFragmentId() {
+    return getMajorFragmentId(operatorId);
+  }
 
   @JsonIgnore
-  public int getLocalOperatorId() { return getLocalOperatorId(operatorId); }
+  public int getLocalOperatorId() {
+    return getLocalOperatorId(operatorId);
+  }
 
   public static int buildOperatorId(int majorFragmentId, int localOperatorId) {
     return (majorFragmentId << 16) + localOperatorId;
@@ -214,7 +228,7 @@ public class OpProps {
    * equal to zero.
    *
    * @return 1.0 for average weight, >1 should get more than average, <1 to get less than average.
-   *         If set to 0, this means this operator shouldn't be considered for factoring.
+   *     If set to 0, this means this operator shouldn't be considered for factoring.
    */
   @JsonIgnore
   public double getMemoryFactor() {
@@ -222,41 +236,125 @@ public class OpProps {
   }
 
   public OpProps cloneWithNewReserve(long newReserve) {
-    return new OpProps(operatorId, userName, newReserve, memLimit, memLowLimit, forcedMemLimit, cost,
-      singleStream, targetBatchSize, schema, memoryBound, memoryFactor, memoryExpensive);
+    return new OpProps(
+        operatorId,
+        userName,
+        newReserve,
+        memLimit,
+        memLowLimit,
+        forcedMemLimit,
+        cost,
+        singleStream,
+        targetBatchSize,
+        schema,
+        memoryBound,
+        memoryFactor,
+        memoryExpensive);
   }
 
   public OpProps cloneWithMemoryFactor(double memoryFactor) {
-    return new OpProps(operatorId, userName, memReserve, memLimit, memLowLimit, forcedMemLimit, cost,
-      singleStream, targetBatchSize, schema, memoryBound, memoryFactor, memoryExpensive);
+    return new OpProps(
+        operatorId,
+        userName,
+        memReserve,
+        memLimit,
+        memLowLimit,
+        forcedMemLimit,
+        cost,
+        singleStream,
+        targetBatchSize,
+        schema,
+        memoryBound,
+        memoryFactor,
+        memoryExpensive);
   }
 
   public OpProps cloneWithBound(boolean bounded) {
-    return new OpProps(operatorId, userName, memReserve, memLimit, memLowLimit, forcedMemLimit, cost,
-      singleStream, targetBatchSize, schema, bounded, memoryFactor, memoryExpensive);
+    return new OpProps(
+        operatorId,
+        userName,
+        memReserve,
+        memLimit,
+        memLowLimit,
+        forcedMemLimit,
+        cost,
+        singleStream,
+        targetBatchSize,
+        schema,
+        bounded,
+        memoryFactor,
+        memoryExpensive);
   }
 
   public OpProps cloneWithMemoryExpensive(boolean memExpensive) {
-    return new OpProps(operatorId, userName, memReserve, memLimit, memLowLimit, forcedMemLimit, cost,
-      singleStream, targetBatchSize, schema, memoryBound, memoryFactor, memExpensive);
+    return new OpProps(
+        operatorId,
+        userName,
+        memReserve,
+        memLimit,
+        memLowLimit,
+        forcedMemLimit,
+        cost,
+        singleStream,
+        targetBatchSize,
+        schema,
+        memoryBound,
+        memoryFactor,
+        memExpensive);
   }
 
   public OpProps cloneWithNewBatchSize(int targetBatchSize) {
-    return new OpProps(operatorId, userName, memReserve, memLimit, memLowLimit, forcedMemLimit, cost,
-      singleStream, targetBatchSize, schema, memoryBound, memoryFactor, memoryExpensive);
+    return new OpProps(
+        operatorId,
+        userName,
+        memReserve,
+        memLimit,
+        memLowLimit,
+        forcedMemLimit,
+        cost,
+        singleStream,
+        targetBatchSize,
+        schema,
+        memoryBound,
+        memoryFactor,
+        memoryExpensive);
   }
 
   public OpProps cloneWithNewIdAndSchema(int id, BatchSchema schema) {
-    return new OpProps(id, userName, memReserve, memLimit, memLowLimit, forcedMemLimit, cost,
-      singleStream, targetBatchSize, schema, memoryBound, memoryFactor, memoryExpensive);
+    return new OpProps(
+        id,
+        userName,
+        memReserve,
+        memLimit,
+        memLowLimit,
+        forcedMemLimit,
+        cost,
+        singleStream,
+        targetBatchSize,
+        schema,
+        memoryBound,
+        memoryFactor,
+        memoryExpensive);
   }
 
   public static OpProps prototype(int operatorId, long reserve, long limit) {
-    return new OpProps(operatorId, SystemUser.SYSTEM_USERNAME, reserve, limit, 0, 1, false, 1024, new BatchSchema(ImmutableList.of()), false, 1.0d, false);
+    return new OpProps(
+        operatorId,
+        SystemUser.SYSTEM_USERNAME,
+        reserve,
+        limit,
+        0,
+        1,
+        false,
+        1024,
+        new BatchSchema(ImmutableList.of()),
+        false,
+        1.0d,
+        false);
   }
 
   public static OpProps prototype(long reserve, long limit) {
-    return  prototype(0, reserve, limit);
+    return prototype(0, reserve, limit);
   }
 
   public static OpProps prototype(int operatorId) {

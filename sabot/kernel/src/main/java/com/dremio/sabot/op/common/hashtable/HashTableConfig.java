@@ -15,15 +15,14 @@
  */
 package com.dremio.sabot.op.common.hashtable;
 
-import java.util.List;
-
 import com.dremio.common.logical.data.NamedExpression;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import java.util.List;
 
 @JsonTypeName("hashtable-config")
-public class HashTableConfig  {
+public class HashTableConfig {
 
   private final int initialCapacity;
   private final float loadFactor;
@@ -32,10 +31,12 @@ public class HashTableConfig  {
   private final List<Comparator> comparators;
 
   @JsonCreator
-  public HashTableConfig(@JsonProperty("initialCapacity") int initialCapacity, @JsonProperty("loadFactor") float loadFactor,
-                         @JsonProperty("keyExprsBuild") List<NamedExpression> keyExprsBuild,
-                         @JsonProperty("keyExprsProbe") List<NamedExpression> keyExprsProbe,
-                         @JsonProperty("comparators") List<Comparator> comparators) {
+  public HashTableConfig(
+      @JsonProperty("initialCapacity") int initialCapacity,
+      @JsonProperty("loadFactor") float loadFactor,
+      @JsonProperty("keyExprsBuild") List<NamedExpression> keyExprsBuild,
+      @JsonProperty("keyExprsProbe") List<NamedExpression> keyExprsProbe,
+      @JsonProperty("comparators") List<Comparator> comparators) {
     this.initialCapacity = initialCapacity;
     this.loadFactor = loadFactor;
     this.keyExprsBuild = keyExprsBuild;

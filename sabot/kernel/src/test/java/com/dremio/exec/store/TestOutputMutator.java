@@ -15,19 +15,6 @@
  */
 package com.dremio.exec.store;
 
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.Map;
-
-import javax.annotation.Nullable;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.BufferManager;
-import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.util.CallBack;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.exec.expr.TypeHelper;
@@ -39,6 +26,16 @@ import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.Map;
+import javax.annotation.Nullable;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.BufferManager;
+import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.util.CallBack;
 
 public class TestOutputMutator implements OutputMutator, Iterable<VectorWrapper<?>>, AutoCloseable {
 
@@ -67,7 +64,7 @@ public class TestOutputMutator implements OutputMutator, Iterable<VectorWrapper<
     fieldVectorMap.put(vector.getField().getName().toLowerCase(), vector);
   }
 
-  public void finalizeContainer(int recordCount){
+  public void finalizeContainer(int recordCount) {
     container.buildSchema();
     container.setRecordCount(recordCount);
   }
@@ -77,9 +74,7 @@ public class TestOutputMutator implements OutputMutator, Iterable<VectorWrapper<
     return container.iterator();
   }
 
-  public void clear() {
-
-  }
+  public void clear() {}
 
   @Override
   public void allocate(int recordCount) {
@@ -87,12 +82,16 @@ public class TestOutputMutator implements OutputMutator, Iterable<VectorWrapper<
   }
 
   @Override
-  public <T extends ValueVector> T addField(Field field, Class<T> clazz) throws SchemaChangeException {
+  public <T extends ValueVector> T addField(Field field, Class<T> clazz)
+      throws SchemaChangeException {
     ValueVector v = fieldVectorMap.get(field.getName().toLowerCase());
     if (v == null || v.getClass() != clazz) {
       v = TypeHelper.getNewVector(field, allocator);
       if (!clazz.isAssignableFrom(v.getClass())) {
-        throw new SchemaChangeException(String.format("The class that was provided %s does not correspond to the expected vector type of %s.", clazz.getSimpleName(), v.getClass().getSimpleName()));
+        throw new SchemaChangeException(
+            String.format(
+                "The class that was provided %s does not correspond to the expected vector type of %s.",
+                clazz.getSimpleName(), v.getClass().getSimpleName()));
       }
       addField(v);
     }
@@ -106,13 +105,16 @@ public class TestOutputMutator implements OutputMutator, Iterable<VectorWrapper<
 
   @Override
   public Collection<ValueVector> getVectors() {
-    return Lists.newArrayList(Iterables.transform(container, new Function<VectorWrapper<?>, ValueVector>() {
-      @Nullable
-      @Override
-      public ValueVector apply(@Nullable VectorWrapper<?> input) {
-        return input.getValueVector();
-      }
-    }));
+    return Lists.newArrayList(
+        Iterables.transform(
+            container,
+            new Function<VectorWrapper<?>, ValueVector>() {
+              @Nullable
+              @Override
+              public ValueVector apply(@Nullable VectorWrapper<?> input) {
+                return input.getValueVector();
+              }
+            }));
   }
 
   @Override
@@ -140,7 +142,7 @@ public class TestOutputMutator implements OutputMutator, Iterable<VectorWrapper<
     return false;
   }
 
-  public Map<String,ValueVector> getFieldVectorMap() {
+  public Map<String, ValueVector> getFieldVectorMap() {
     return fieldVectorMap;
   }
 

@@ -16,11 +16,14 @@
 package com.dremio.exec.physical.config.copyinto;
 
 import com.dremio.exec.physical.config.ExtendedProperty;
+import java.util.HashSet;
+import java.util.Set;
 
-public final class CopyIntoQueryProperties implements ExtendedProperty {
+public class CopyIntoQueryProperties implements ExtendedProperty {
 
   private OnErrorOption onErrorOption;
   private String storageLocation;
+  private Set<CopyIntoFileLoadInfo.CopyIntoFileState> recordStateEvents = new HashSet<>();
 
   public CopyIntoQueryProperties() {
     // Needed for serialization-deserialization
@@ -29,6 +32,20 @@ public final class CopyIntoQueryProperties implements ExtendedProperty {
   public CopyIntoQueryProperties(OnErrorOption onErrorOption, String storageLocation) {
     this.onErrorOption = onErrorOption;
     this.storageLocation = storageLocation;
+    setStateRecordEvents();
+  }
+
+  private void setStateRecordEvents() {
+    recordStateEvents.clear();
+    switch (onErrorOption) {
+      case CONTINUE:
+        addEventHistoryRecordsForState(CopyIntoFileLoadInfo.CopyIntoFileState.PARTIALLY_LOADED);
+        addEventHistoryRecordsForState(CopyIntoFileLoadInfo.CopyIntoFileState.SKIPPED);
+        break;
+      case SKIP_FILE:
+        addEventHistoryRecordsForState(CopyIntoFileLoadInfo.CopyIntoFileState.SKIPPED);
+        break;
+    }
   }
 
   public void setOnErrorOption(OnErrorOption onErrorOption) {
@@ -47,15 +64,38 @@ public final class CopyIntoQueryProperties implements ExtendedProperty {
     return storageLocation;
   }
 
+  public void addEventHistoryRecordsForState(CopyIntoFileLoadInfo.CopyIntoFileState state) {
+    recordStateEvents.add(state);
+  }
+
+  public boolean shouldRecord(CopyIntoFileLoadInfo.CopyIntoFileState state) {
+    return recordStateEvents.contains(state);
+  }
+
+  public Set<CopyIntoFileLoadInfo.CopyIntoFileState> getRecordStateEvents() {
+    return recordStateEvents;
+  }
+
+  public void setRecordStateEvents(Set<CopyIntoFileLoadInfo.CopyIntoFileState> recordStateEvents) {
+    this.recordStateEvents = recordStateEvents;
+  }
+
   @Override
   public String toString() {
-    return "ReaderOptions{" +
-      "onErrorOption='" + onErrorOption + "'\n" +
-      "storageLocation='" + storageLocation + "'\n" +
-      '}';
+    return "CopyIntoQueryProperties{"
+        + "onErrorOption="
+        + onErrorOption
+        + ", storageLocation='"
+        + storageLocation
+        + '\''
+        + ", recordStateEvents="
+        + recordStateEvents
+        + '}';
   }
 
   public enum OnErrorOption {
-    ABORT, CONTINUE
+    ABORT,
+    CONTINUE,
+    SKIP_FILE
   }
 }

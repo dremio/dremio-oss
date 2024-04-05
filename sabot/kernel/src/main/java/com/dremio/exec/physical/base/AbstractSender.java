@@ -15,12 +15,10 @@
  */
 package com.dremio.exec.physical.base;
 
-
-import java.util.List;
-
 import com.dremio.exec.physical.config.MinorFragmentEndpoint;
 import com.dremio.exec.planner.fragment.EndpointsIndex;
 import com.dremio.exec.record.BatchSchema;
+import java.util.List;
 
 public abstract class AbstractSender extends AbstractSingle implements Sender {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AbstractSender.class);
@@ -29,17 +27,15 @@ public abstract class AbstractSender extends AbstractSingle implements Sender {
   protected final int receiverMajorFragmentId;
 
   public AbstractSender(
-      OpProps props,
-      BatchSchema schema,
-      PhysicalOperator child,
-      int receiverMajorFragmentId) {
+      OpProps props, BatchSchema schema, PhysicalOperator child, int receiverMajorFragmentId) {
     super(props, child);
     this.schema = schema;
     this.receiverMajorFragmentId = receiverMajorFragmentId;
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value) throws E {
+  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value)
+      throws E {
     return physicalVisitor.visitSender(this, value);
   }
 
@@ -55,6 +51,7 @@ public abstract class AbstractSender extends AbstractSingle implements Sender {
 
   /**
    * Resolve the index values and return the minor fragment endpoints.
+   *
    * @param endpointsIndex index of endpoints.
    * @return List of MinorFragmentEndpoints each containing a minor fragment id and an endpoint.
    */

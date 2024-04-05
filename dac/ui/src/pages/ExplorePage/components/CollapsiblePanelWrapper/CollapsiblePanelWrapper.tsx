@@ -15,8 +15,10 @@
  */
 
 import { IconButton } from "dremio-ui-lib/components";
+import { browserHistory } from "react-router";
 import { isNotSoftware } from "dyn-load/utils/versionUtils";
 import { useMultiTabIsEnabled } from "@app/components/SQLScripts/useMultiTabIsEnabled";
+import { isTabbableUrl } from "@app/utils/explorePageTypeUtils";
 import * as classes from "./CollapsiblePanelWrapper.module.less";
 
 type CollapsiblePanelWrapperProps = {
@@ -28,11 +30,11 @@ type CollapsiblePanelWrapperProps = {
 };
 
 export const CollapsiblePanelWrapper = (
-  props: CollapsiblePanelWrapperProps
+  props: CollapsiblePanelWrapperProps,
 ) => {
   const isOpen = !props.datasetDetailsCollapsed;
   const isMultiTabsEnabled = useMultiTabIsEnabled();
-
+  const location = browserHistory.getCurrentLocation();
   return (
     <div
       className={classes["collapsible-details-panel"]}
@@ -73,7 +75,7 @@ export const CollapsiblePanelWrapper = (
           className={classes["collapsible-details-panel__content"]}
           style={{
             height: `calc(100vh - ${
-              isMultiTabsEnabled ? "0" : "65"
+              isMultiTabsEnabled && isTabbableUrl(location) ? "0" : "65"
             }px - 40px - ${isNotSoftware() ? 39 : 60}px)`,
           }}
         >

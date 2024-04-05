@@ -15,11 +15,10 @@
  */
 package com.dremio.exec.planner;
 
-import org.apache.calcite.plan.RelOptRuleCall;
-import org.apache.calcite.rel.rules.JoinToMultiJoinRule;
-
 import com.dremio.exec.planner.logical.DremioRelFactories;
 import com.dremio.exec.planner.logical.JoinRel;
+import org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.calcite.rel.rules.JoinToMultiJoinRule;
 
 public class DremioJoinToMuliJoinRule extends JoinToMultiJoinRule {
 
@@ -29,7 +28,12 @@ public class DremioJoinToMuliJoinRule extends JoinToMultiJoinRule {
   private final boolean supportOuterJoin;
 
   protected DremioJoinToMuliJoinRule(boolean supportOuterJoin) {
-    super(((Config)JoinToMultiJoinRule.Config.DEFAULT.withRelBuilderFactory(DremioRelFactories.LOGICAL_BUILDER).as(Config.class)).withOperandFor(JoinRel.class));
+    super(
+        ((Config)
+                JoinToMultiJoinRule.Config.DEFAULT
+                    .withRelBuilderFactory(DremioRelFactories.LOGICAL_BUILDER)
+                    .as(Config.class))
+            .withOperandFor(JoinRel.class));
     this.supportOuterJoin = supportOuterJoin;
   }
 

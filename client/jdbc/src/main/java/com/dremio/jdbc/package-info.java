@@ -16,10 +16,7 @@
 
 /**
  * JDBC driver for Dremio.
- * <p>
- *   Dremio JDBC driver class is
- *   {@link com.dremio.jdbc.Driver com.dremio.jdbc.Driver}.
- * </p>
  *
+ * <p>Dremio JDBC driver class is {@link com.dremio.jdbc.Driver com.dremio.jdbc.Driver}.
  */
 package com.dremio.jdbc;

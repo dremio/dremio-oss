@@ -16,15 +16,13 @@
     limitations under the License.
 
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-  <parent>
-    <artifactId>dremio-plugin-parent</artifactId>
-    <groupId>com.dremio.plugins</groupId>
-    <version>24.3.2-202401241821100032-d2d8a497</version>
-  </parent>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>com.dremio.plugins</groupId>
+    <artifactId>dremio-plugin-parent</artifactId>
+    <version>25.0.0-202404051521110861-ed9515a8</version>
+  </parent>
 
   <artifactId>dremio-dataplane-plugin</artifactId>
 
@@ -106,13 +104,19 @@
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-nessie-metadata-cache</artifactId>
+      <version>${project.version}</version>
+      <scope>compile</scope>
+    </dependency>
   </dependencies>
 
   <build>
     <testResources>
       <testResource>
-        <directory>${project.basedir}/src/test/resources</directory>
         <filtering>true</filtering>
+        <directory>${project.basedir}/src/test/resources</directory>
       </testResource>
     </testResources>
   </build>

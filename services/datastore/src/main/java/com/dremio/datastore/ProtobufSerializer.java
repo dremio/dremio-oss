@@ -15,15 +15,15 @@
  */
 package com.dremio.datastore;
 
-import java.io.IOException;
-
 import com.dremio.common.utils.ProtobufUtils;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
 import com.google.protobuf.Parser;
+import java.io.IOException;
 
 /**
  * a Serializer implementation for protostuff generated classes
+ *
  * @param <T> a protostuff generated class
  */
 public class ProtobufSerializer<T extends Message> extends Serializer<T, byte[]> {

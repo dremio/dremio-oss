@@ -18,13 +18,6 @@ package com.dremio.exec.compile;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.io.IOException;
-
-import org.codehaus.commons.compiler.CompileException;
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.Test;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.exec.compile.ClassTransformer.ClassSet;
 import com.dremio.exec.compile.sig.GeneratorMapping;
@@ -39,29 +32,42 @@ import com.dremio.options.OptionValue.OptionType;
 import com.dremio.sabot.exec.context.CompilationOptions;
 import com.dremio.sabot.exec.context.FunctionContext;
 import com.dremio.sabot.rpc.user.UserSession;
+import java.io.IOException;
+import org.codehaus.commons.compiler.CompileException;
+import org.junit.Assert;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
 public class TestClassTransformation extends BaseTestQuery {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestClassTransformation.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(TestClassTransformation.class);
 
-  private static final int ITERATION_COUNT = Integer.valueOf(System.getProperty("TestClassTransformation.iteration", "1"));
+  private static final int ITERATION_COUNT =
+      Integer.parseInt(System.getProperty("TestClassTransformation.iteration", "1"));
 
   private static OptionManager sessionOptions;
 
   @BeforeClass
-  public static void beforeTestClassTransformation() throws Exception {
-    final UserSession userSession = UserSession.Builder.newBuilder()
-      .withSessionOptionManager(
-        new SessionOptionManagerImpl(getSabotContext().getOptionValidatorListing()),
-        getSabotContext().getOptionManager())
-      .build();
+  public static void beforeTestClassTransformation() {
+    final UserSession userSession =
+        UserSession.Builder.newBuilder()
+            .withSessionOptionManager(
+                new SessionOptionManagerImpl(getSabotContext().getOptionValidatorListing()),
+                getSabotContext().getOptionManager())
+            .build();
     sessionOptions = userSession.getOptions();
   }
 
   @Test
   public void testJaninoClassCompiler() throws Exception {
     logger.debug("Testing JaninoClassCompiler");
-    sessionOptions.setOption(OptionValue.createString(OptionType.SESSION, ClassCompilerSelector.JAVA_COMPILER_OPTION, ClassCompilerSelector.CompilerPolicy.JANINO.name()));
-    ClassCompilerSelector classCompilerSelector = new ClassCompilerSelector(DEFAULT_SABOT_CONFIG, sessionOptions);
+    sessionOptions.setOption(
+        OptionValue.createString(
+            OptionType.SESSION,
+            ClassCompilerSelector.JAVA_COMPILER_OPTION,
+            ClassCompilerSelector.CompilerPolicy.JANINO.name()));
+    ClassCompilerSelector classCompilerSelector =
+        new ClassCompilerSelector(DEFAULT_SABOT_CONFIG, sessionOptions);
     QueryClassLoader loader = new QueryClassLoader(classCompilerSelector);
     for (int i = 0; i < ITERATION_COUNT; i++) {
       compilationInnerClass(loader);
@@ -72,8 +78,13 @@ public class TestClassTransformation extends BaseTestQuery {
   @Test
   public void testJDKClassCompiler() throws Exception {
     logger.debug("Testing JDKClassCompiler");
-    sessionOptions.setOption(OptionValue.createString(OptionType.SESSION, ClassCompilerSelector.JAVA_COMPILER_OPTION, ClassCompilerSelector.CompilerPolicy.JDK.name()));
-    ClassCompilerSelector classCompilerSelector = new ClassCompilerSelector(DEFAULT_SABOT_CONFIG, sessionOptions);
+    sessionOptions.setOption(
+        OptionValue.createString(
+            OptionType.SESSION,
+            ClassCompilerSelector.JAVA_COMPILER_OPTION,
+            ClassCompilerSelector.CompilerPolicy.JDK.name()));
+    ClassCompilerSelector classCompilerSelector =
+        new ClassCompilerSelector(DEFAULT_SABOT_CONFIG, sessionOptions);
     QueryClassLoader loader = new QueryClassLoader(classCompilerSelector);
     for (int i = 0; i < ITERATION_COUNT; i++) {
       compilationInnerClass(loader);
@@ -82,15 +93,27 @@ public class TestClassTransformation extends BaseTestQuery {
   }
 
   @Test
-  public void testCompilationNoDebug() throws CompileException, ClassNotFoundException, ClassTransformationException, IOException {
-    CodeGenerator<ExampleInner> cg = newCodeGenerator(ExampleInner.class, ExampleTemplateWithInner.class);
-    ClassSet classSet = new ClassSet(null, cg.getDefinition().getTemplateClassName(), cg.getMaterializedClassName());
+  public void testCompilationNoDebug()
+      throws CompileException, ClassNotFoundException, ClassTransformationException, IOException {
+    CodeGenerator<ExampleInner> cg =
+        newCodeGenerator(ExampleInner.class, ExampleTemplateWithInner.class);
+    final CodeGenerator.CodeDefinition<ExampleInner> cgd = cg.getCodeDefinition();
+    ClassSet classSet =
+        new ClassSet(
+            null, cgd.getDefinition().getTemplateClassName(), cgd.getMaterializedClassName());
     cg.generate();
-    String sourceCode = cg.getGeneratedCode();
-    sessionOptions.setOption(OptionValue.createString(OptionType.SESSION, ClassCompilerSelector.JAVA_COMPILER_OPTION, ClassCompilerSelector.CompilerPolicy.JDK.name()));
+    String sourceCode = cgd.getGeneratedCode();
+    sessionOptions.setOption(
+        OptionValue.createString(
+            OptionType.SESSION,
+            ClassCompilerSelector.JAVA_COMPILER_OPTION,
+            ClassCompilerSelector.CompilerPolicy.JDK.name()));
 
-    sessionOptions.setOption(OptionValue.createBoolean(OptionType.SESSION, ClassCompilerSelector.JAVA_COMPILER_DEBUG_OPTION, false));
-    ClassCompilerSelector classCompilerSelector = new ClassCompilerSelector(DEFAULT_SABOT_CONFIG, sessionOptions);
+    sessionOptions.setOption(
+        OptionValue.createBoolean(
+            OptionType.SESSION, ClassCompilerSelector.JAVA_COMPILER_DEBUG_OPTION, false));
+    ClassCompilerSelector classCompilerSelector =
+        new ClassCompilerSelector(DEFAULT_SABOT_CONFIG, sessionOptions);
     QueryClassLoader loader = new QueryClassLoader(classCompilerSelector);
     final ClassBytes[] codeWithoutDebug = loader.getClassByteCode(classSet.generated, sourceCode);
     loader.close();
@@ -99,31 +122,46 @@ public class TestClassTransformation extends BaseTestQuery {
       sizeWithoutDebug += bs.getBytes().length;
     }
 
-    sessionOptions.setOption(OptionValue.createBoolean(OptionType.SESSION, ClassCompilerSelector.JAVA_COMPILER_DEBUG_OPTION, true));
+    sessionOptions.setOption(
+        OptionValue.createBoolean(
+            OptionType.SESSION, ClassCompilerSelector.JAVA_COMPILER_DEBUG_OPTION, true));
     classCompilerSelector = new ClassCompilerSelector(DEFAULT_SABOT_CONFIG, sessionOptions);
     loader = new QueryClassLoader(classCompilerSelector);
     final ClassBytes[] codeWithDebug = loader.getClassByteCode(classSet.generated, sourceCode);
     loader.close();
     int sizeWithDebug = 0;
-    for(ClassBytes bs : codeWithDebug) {
+    for (ClassBytes bs : codeWithDebug) {
       sizeWithDebug += bs.getBytes().length;
     }
 
-    Assert.assertTrue("Debug code is smaller than optimized code!!!", sizeWithDebug > sizeWithoutDebug);
-    logger.debug("Optimized code is {}% smaller than debug code.", (int)((sizeWithDebug - sizeWithoutDebug)/(double)sizeWithDebug*100));
+    Assert.assertTrue(
+        "Debug code is smaller than optimized code!!!", sizeWithDebug > sizeWithoutDebug);
+    logger.debug(
+        "Optimized code is {}% smaller than debug code.",
+        (int) ((sizeWithDebug - sizeWithoutDebug) / (double) sizeWithDebug * 100));
   }
 
   /**
    * Do a test of a three level class to ensure that nested code generators works correctly.
+   *
    * @throws Exception
    */
-  private void compilationInnerClass(QueryClassLoader loader) throws Exception{
-    CodeGenerator<ExampleInner> cg = newCodeGenerator(ExampleInner.class, ExampleTemplateWithInner.class);
+  @SuppressWarnings("unchecked")
+  private void compilationInnerClass(QueryClassLoader loader) throws Exception {
+    CodeGenerator<ExampleInner> cg =
+        newCodeGenerator(ExampleInner.class, ExampleTemplateWithInner.class);
 
     ClassTransformer ct = new ClassTransformer(sessionOptions);
     cg.generate();
-    Class<? extends ExampleInner> c = (Class<? extends ExampleInner>) ct.getImplementationClass(loader, cg.getDefinition(), cg.getGeneratedCode(), cg.getMaterializedClassName());
-    ExampleInner t = c.newInstance();
+    final CodeGenerator.CodeDefinition<ExampleInner> cgd = cg.getCodeDefinition();
+    Class<? extends ExampleInner> c =
+        (Class<? extends ExampleInner>)
+            ct.getImplementationClass(
+                loader,
+                cgd.getDefinition(),
+                cgd.getGeneratedCode(),
+                cgd.getMaterializedClassName());
+    ExampleInner t = c.getDeclaredConstructor().newInstance();
     t.doOutside();
     t.doInsideOutside();
   }
@@ -135,12 +173,12 @@ public class TestClassTransformation extends BaseTestQuery {
     when(mockFunctionContext.getCompilationOptions()).thenReturn(compilationOptions);
 
     final TemplateClassDefinition<T> template = new TemplateClassDefinition<>(iface, impl);
-    CodeGenerator<T> cg = CodeGenerator.get(template, getSabotContext().getCompiler(), mockFunctionContext);
+    CodeGenerator<T> cg =
+        CodeGenerator.get(template, getSabotContext().getCompiler(), mockFunctionContext);
 
     ClassGenerator<T> root = cg.getRoot();
     root.setMappingSet(new MappingSet(new GeneratorMapping("doOutside", null, null, null)));
     root.getSetupBlock().directStatement("System.out.println(\"outside\");");
-
 
     ClassGenerator<T> inner = root.getInnerGenerator("TheInnerClass");
     inner.setMappingSet(new MappingSet(new GeneratorMapping("doInside", null, null, null)));

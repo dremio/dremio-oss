@@ -43,7 +43,7 @@ function validateProps(props: IconButtonProps) {
 
   invariant(
     !isValid,
-    "One of props 'tooltip' or 'aria-label' must be defined and not both."
+    "One of props 'tooltip' or 'aria-label' must be defined and not both.",
   );
 }
 
@@ -95,5 +95,5 @@ export const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
     } else {
       return ButtonElement;
     }
-  }
+  },
 );

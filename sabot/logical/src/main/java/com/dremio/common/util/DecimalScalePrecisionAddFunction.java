@@ -17,22 +17,28 @@ package com.dremio.common.util;
 
 public class DecimalScalePrecisionAddFunction extends ScalePrecisionFunctionBase {
 
-  public DecimalScalePrecisionAddFunction(int leftPrecision, int leftScale, int rightPrecision, int rightScale) {
+  public DecimalScalePrecisionAddFunction(
+      int leftPrecision, int leftScale, int rightPrecision, int rightScale) {
     super(leftPrecision, leftScale, rightPrecision, rightScale);
   }
 
   @Override
-  public void computeScalePrecision(int leftPrecision, int leftScale, int rightPrecision, int rightScale) {
+  public void computeScalePrecision(
+      int leftPrecision, int leftScale, int rightPrecision, int rightScale) {
     // compute the output scale and precision here
     outputScale = Math.max(leftScale, rightScale);
-    int maxResultIntegerDigits = Math.max((leftPrecision - leftScale), (rightPrecision - rightScale)) + 1;
+    int maxResultIntegerDigits =
+        Math.max((leftPrecision - leftScale), (rightPrecision - rightScale)) + 1;
 
     outputPrecision = (outputScale + maxResultIntegerDigits);
 
     // If we are beyond the maximum precision range, cut down the fractional part
     if (outputPrecision > 38) {
       outputPrecision = 38;
-      outputScale = (outputPrecision - maxResultIntegerDigits >= 0) ? (outputPrecision - maxResultIntegerDigits) : 0;
+      outputScale =
+          (outputPrecision - maxResultIntegerDigits >= 0)
+              ? (outputPrecision - maxResultIntegerDigits)
+              : 0;
     }
   }
 }

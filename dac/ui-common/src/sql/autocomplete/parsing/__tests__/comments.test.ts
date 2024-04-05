@@ -26,7 +26,7 @@ describe("comments", () => {
       const [query, caretPosition] = prepareQuery("SELECT ^");
       const { commonTokenStream, lexer } = getAutocompleteParseTree(query);
       expect(
-        isInComment(caretPosition, commonTokenStream.getTokens(), lexer._mode)
+        isInComment(caretPosition, commonTokenStream.getTokens(), lexer._mode),
       ).toBe(false);
     });
 
@@ -34,7 +34,7 @@ describe("comments", () => {
       const [query, caretPosition] = prepareQuery("SELECT /* comment */ ^");
       const { commonTokenStream, lexer } = getAutocompleteParseTree(query);
       expect(
-        isInComment(caretPosition, commonTokenStream.getTokens(), lexer._mode)
+        isInComment(caretPosition, commonTokenStream.getTokens(), lexer._mode),
       ).toBe(false);
     });
 
@@ -42,7 +42,7 @@ describe("comments", () => {
       const [query, caretPosition] = prepareQuery('SELECT "/* ^ */"');
       const { commonTokenStream, lexer } = getAutocompleteParseTree(query);
       expect(
-        isInComment(caretPosition, commonTokenStream.getTokens(), lexer._mode)
+        isInComment(caretPosition, commonTokenStream.getTokens(), lexer._mode),
       ).toBe(false);
     });
 
@@ -50,7 +50,7 @@ describe("comments", () => {
       const [query, caretPosition] = prepareQuery('SELECT "--^"');
       const { commonTokenStream, lexer } = getAutocompleteParseTree(query);
       expect(
-        isInComment(caretPosition, commonTokenStream.getTokens(), lexer._mode)
+        isInComment(caretPosition, commonTokenStream.getTokens(), lexer._mode),
       ).toBe(false);
     });
 
@@ -59,7 +59,7 @@ describe("comments", () => {
       const [query, caretPosition] = prepareQuery("SELECT /* comment ^ */");
       const { commonTokenStream, lexer } = getAutocompleteParseTree(query);
       expect(
-        isInComment(caretPosition, commonTokenStream.getTokens(), lexer._mode)
+        isInComment(caretPosition, commonTokenStream.getTokens(), lexer._mode),
       ).toBe(true);
     });
 
@@ -69,7 +69,7 @@ describe("comments", () => {
       const [query, caretPosition] = prepareQuery("SELECT /* comment */^");
       const { commonTokenStream, lexer } = getAutocompleteParseTree(query);
       expect(
-        isInComment(caretPosition, commonTokenStream.getTokens(), lexer._mode)
+        isInComment(caretPosition, commonTokenStream.getTokens(), lexer._mode),
       ).toBe(true);
     });
 
@@ -77,7 +77,7 @@ describe("comments", () => {
       const [query, caretPosition] = prepareQuery("SELECT /* comment */ ^");
       const { commonTokenStream, lexer } = getAutocompleteParseTree(query);
       expect(
-        isInComment(caretPosition, commonTokenStream.getTokens(), lexer._mode)
+        isInComment(caretPosition, commonTokenStream.getTokens(), lexer._mode),
       ).toBe(false);
     });
 
@@ -85,7 +85,7 @@ describe("comments", () => {
       const [query, caretPosition] = prepareQuery("SELECT /* comment \n ^ */");
       const { commonTokenStream, lexer } = getAutocompleteParseTree(query);
       expect(
-        isInComment(caretPosition, commonTokenStream.getTokens(), lexer._mode)
+        isInComment(caretPosition, commonTokenStream.getTokens(), lexer._mode),
       ).toBe(true);
     });
 
@@ -93,7 +93,7 @@ describe("comments", () => {
       const [query, caretPosition] = prepareQuery("SELECT /* comment ^");
       const { commonTokenStream, lexer } = getAutocompleteParseTree(query);
       expect(
-        isInComment(caretPosition, commonTokenStream.getTokens(), lexer._mode)
+        isInComment(caretPosition, commonTokenStream.getTokens(), lexer._mode),
       ).toBe(true);
     });
 
@@ -101,7 +101,7 @@ describe("comments", () => {
       const [query, caretPosition] = prepareQuery("SELECT /*^");
       const { commonTokenStream, lexer } = getAutocompleteParseTree(query);
       expect(
-        isInComment(caretPosition, commonTokenStream.getTokens(), lexer._mode)
+        isInComment(caretPosition, commonTokenStream.getTokens(), lexer._mode),
       ).toBe(true);
     });
 
@@ -109,7 +109,7 @@ describe("comments", () => {
       const [query, caretPosition] = prepareQuery("SELECT --^");
       const { commonTokenStream, lexer } = getAutocompleteParseTree(query);
       expect(
-        isInComment(caretPosition, commonTokenStream.getTokens(), lexer._mode)
+        isInComment(caretPosition, commonTokenStream.getTokens(), lexer._mode),
       ).toBe(true);
     });
 
@@ -117,7 +117,7 @@ describe("comments", () => {
       const [query, caretPosition] = prepareQuery("SELECT -- comment ^");
       const { commonTokenStream, lexer } = getAutocompleteParseTree(query);
       expect(
-        isInComment(caretPosition, commonTokenStream.getTokens(), lexer._mode)
+        isInComment(caretPosition, commonTokenStream.getTokens(), lexer._mode),
       ).toBe(true);
     });
 
@@ -125,7 +125,7 @@ describe("comments", () => {
       const [query, caretPosition] = prepareQuery("SELECT -- comment /* */ ^");
       const { commonTokenStream, lexer } = getAutocompleteParseTree(query);
       expect(
-        isInComment(caretPosition, commonTokenStream.getTokens(), lexer._mode)
+        isInComment(caretPosition, commonTokenStream.getTokens(), lexer._mode),
       ).toBe(true);
     });
 
@@ -133,7 +133,7 @@ describe("comments", () => {
       const [query, caretPosition] = prepareQuery("SELECT -- comment\n^");
       const { commonTokenStream, lexer } = getAutocompleteParseTree(query);
       expect(
-        isInComment(caretPosition, commonTokenStream.getTokens(), lexer._mode)
+        isInComment(caretPosition, commonTokenStream.getTokens(), lexer._mode),
       ).toBe(false);
     });
   });

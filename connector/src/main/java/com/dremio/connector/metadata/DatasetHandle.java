@@ -17,18 +17,20 @@ package com.dremio.connector.metadata;
 
 /**
  * This is a marker interface that represents a handle to a dataset.
- * <p>
- * Implementations typically hold onto some context (state) about the dataset being requested, so that when callers use
- * this handle to invoke other metadata API, more expensive operations can be performed.
- * <p>
- * For example, the entity path will be held as state.
- * <p>
- * Another example, when iterating over dataset handles using {@link SupportsListingDatasets#listDatasetHandles list handles
- * API}, a concrete implementation may hold onto a table name and driver connection (in turn, held inside the iterator),
- * and on invoking {@link SourceMetadata#getDatasetMetadata dataset metadata API}, the state in the handle is
- * used to get {@link DatasetStats} about that dataset from the source.
- * <p>
- * Note that the state held by implementations must have a small memory footprint.
+ *
+ * <p>Implementations typically hold onto some context (state) about the dataset being requested, so
+ * that when callers use this handle to invoke other metadata API, more expensive operations can be
+ * performed.
+ *
+ * <p>For example, the entity path will be held as state.
+ *
+ * <p>Another example, when iterating over dataset handles using {@link
+ * SupportsListingDatasets#listDatasetHandles list handles API}, a concrete implementation may hold
+ * onto a table name and driver connection (in turn, held inside the iterator), and on invoking
+ * {@link SourceMetadata#getDatasetMetadata dataset metadata API}, the state in the handle is used
+ * to get {@link DatasetStats} about that dataset from the source.
+ *
+ * <p>Note that the state held by implementations must have a small memory footprint.
  */
 public interface DatasetHandle extends Unwrappable {
 
@@ -38,5 +40,4 @@ public interface DatasetHandle extends Unwrappable {
    * @return path to dataset, not null
    */
   EntityPath getDatasetPath();
-
 }

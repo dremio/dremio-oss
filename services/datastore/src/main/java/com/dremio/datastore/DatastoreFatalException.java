@@ -15,9 +15,7 @@
  */
 package com.dremio.datastore;
 
-/**
- * Exceptions during creating of datastore. Callers should consider this as a fatal error.
- */
+/** Exceptions during creating of datastore. Callers should consider this as a fatal error. */
 @SuppressWarnings("serial")
 public class DatastoreFatalException extends DatastoreException {
   public DatastoreFatalException(String message, Throwable cause) {

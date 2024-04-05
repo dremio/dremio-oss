@@ -15,14 +15,6 @@
  */
 package com.dremio.catalog.model.dataset;
 
-import java.sql.Timestamp;
-import java.time.Instant;
-import java.util.Objects;
-import java.util.Optional;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.catalog.model.VersionContext;
 import com.dremio.connector.metadata.options.TimeTravelOption;
@@ -33,15 +25,22 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.util.Objects;
+import java.util.Optional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * Version context for a table.  Table version contexts support branch/tag/commit hash relative versioning similar
- * to the session scoped VersionContext, as well as table-specific versioning either by snapshot ID or timestamp.
+ * Version context for a table. Table version contexts support branch/tag/commit hash relative
+ * versioning similar to the session scoped VersionContext, as well as table-specific versioning
+ * either by snapshot ID or timestamp.
  *
- * Expected values for each version type:
+ * <p>Expected values for each version type:
  *
- * SNAPSHOT_ID/BRANCH/TAG/COMMIT/REFERENCE: string
- * TIMESTAMP: long - for timestamp this is in milliseconds since epoch
+ * <p>SNAPSHOT_ID/BRANCH/TAG/COMMIT/REFERENCE: string TIMESTAMP: long - for timestamp this is in
+ * milliseconds since epoch
  */
 public class TableVersionContext {
   private static final Logger logger = LoggerFactory.getLogger(TableVersionContext.class);
@@ -51,24 +50,22 @@ public class TableVersionContext {
   private final Instant timestamp;
 
   public static final TableVersionContext NOT_SPECIFIED =
-    new TableVersionContext(TableVersionType.NOT_SPECIFIED, "");
+      new TableVersionContext(TableVersionType.NOT_SPECIFIED, "");
 
   @JsonCreator
-  public TableVersionContext(@JsonProperty("type") TableVersionType type,
-                             @JsonProperty("value") Object value) {
+  public TableVersionContext(
+      @JsonProperty("type") TableVersionType type, @JsonProperty("value") Object value) {
     this.type = Preconditions.checkNotNull(type);
     this.value = validateTypeAndSpecifier(type, value);
     this.timestamp = null;
   }
 
-  public TableVersionContext(
-    TableVersionType type,
-    Object value,
-    Instant timestamp) {
+  public TableVersionContext(TableVersionType type, Object value, Instant timestamp) {
     this.type = Preconditions.checkNotNull(type);
     this.value = validateTypeAndSpecifier(type, value);
     this.timestamp = timestamp;
   }
+
   public TableVersionType getType() {
     return type;
   }
@@ -94,6 +91,7 @@ public class TableVersionContext {
 
   /**
    * Converts the TableVersionContext into a valid SQL expression
+   *
    * @return
    */
   public String toSql() {
@@ -124,8 +122,7 @@ public class TableVersionContext {
     }
 
     TableVersionContext other = (TableVersionContext) obj;
-    return Objects.equals(type, other.type) &&
-      Objects.equals(value, other.value);
+    return Objects.equals(type, other.type) && Objects.equals(value, other.value);
   }
 
   @Override
@@ -187,9 +184,11 @@ public class TableVersionContext {
       case TAG:
         return new TableVersionContext(TableVersionType.TAG, resolvedVersionContext.getRefName());
       case BRANCH:
-        return new TableVersionContext(TableVersionType.BRANCH, resolvedVersionContext.getRefName());
+        return new TableVersionContext(
+            TableVersionType.BRANCH, resolvedVersionContext.getRefName());
       case COMMIT:
-        return new TableVersionContext(TableVersionType.COMMIT, resolvedVersionContext.getCommitHash());
+        return new TableVersionContext(
+            TableVersionType.COMMIT, resolvedVersionContext.getCommitHash());
       default:
         throw new IllegalStateException("Unexpected value: " + resolvedVersionContext.getType());
     }
@@ -199,17 +198,20 @@ public class TableVersionContext {
     Preconditions.checkNotNull(versionContext);
     switch (versionContext.getType()) {
       case TAG_AS_OF_TIMESTAMP:
-        return new TableVersionContext(TableVersionType.TAG, versionContext.getValue(), versionContext.getTimestamp());
+        return new TableVersionContext(
+            TableVersionType.TAG, versionContext.getValue(), versionContext.getTimestamp());
       case TAG:
         return new TableVersionContext(TableVersionType.TAG, versionContext.getValue());
       case BRANCH_AS_OF_TIMESTAMP:
-        return new TableVersionContext(TableVersionType.BRANCH, versionContext.getValue(), versionContext.getTimestamp());
+        return new TableVersionContext(
+            TableVersionType.BRANCH, versionContext.getValue(), versionContext.getTimestamp());
       case BRANCH:
         return new TableVersionContext(TableVersionType.BRANCH, versionContext.getValue());
       case COMMIT:
         return new TableVersionContext(TableVersionType.COMMIT, versionContext.getValue());
       case REF_AS_OF_TIMESTAMP:
-        return new TableVersionContext(TableVersionType.REFERENCE, versionContext.getValue(), versionContext.getTimestamp());
+        return new TableVersionContext(
+            TableVersionType.REFERENCE, versionContext.getValue(), versionContext.getTimestamp());
       case REF:
         return new TableVersionContext(TableVersionType.REFERENCE, versionContext.getValue());
       case NOT_SPECIFIED:
@@ -222,11 +224,13 @@ public class TableVersionContext {
   public static TableVersionContext of(TimeTravelOption.TimeTravelRequest timeTravelRequest) {
     Preconditions.checkNotNull(timeTravelRequest);
     if (timeTravelRequest instanceof TimeTravelOption.TimestampRequest) {
-      return new TableVersionContext(TableVersionType.TIMESTAMP,
-        (((TimeTravelOption.TimestampRequest) timeTravelRequest).getTimestampMillis()));
+      return new TableVersionContext(
+          TableVersionType.TIMESTAMP,
+          (((TimeTravelOption.TimestampRequest) timeTravelRequest).getTimestampMillis()));
     } else if (timeTravelRequest instanceof TimeTravelOption.SnapshotIdRequest) {
-      return new TableVersionContext((TableVersionType.SNAPSHOT_ID),
-        ((TimeTravelOption.SnapshotIdRequest) timeTravelRequest).getSnapshotId());
+      return new TableVersionContext(
+          (TableVersionType.SNAPSHOT_ID),
+          ((TimeTravelOption.SnapshotIdRequest) timeTravelRequest).getSnapshotId());
     } else {
       throw new IllegalStateException("Unexpected value for TimeTravelRequest ");
     }

@@ -15,15 +15,12 @@
  */
 package com.dremio.dac.explore.model;
 
-import java.util.List;
-
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.List;
 
-/**
- * Return information about dataset's parents.
- */
+/** Return information about dataset's parents. */
 public class ParentDatasetUI {
 
   private final List<String> fullPath;
@@ -31,8 +28,8 @@ public class ParentDatasetUI {
 
   @JsonCreator
   public ParentDatasetUI(
-    @JsonProperty("fullPath") List<String> fullPath,
-    @JsonProperty("datasetType") DatasetType datasetType) {
+      @JsonProperty("fullPath") List<String> fullPath,
+      @JsonProperty("datasetType") DatasetType datasetType) {
     this.fullPath = fullPath;
     this.datasetType = datasetType;
   }
@@ -44,5 +41,4 @@ public class ParentDatasetUI {
   public DatasetType getDatasetType() {
     return datasetType;
   }
-
 }

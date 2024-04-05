@@ -16,23 +16,20 @@
 
 package com.dremio.service.flight;
 
+import com.dremio.service.flight.impl.FlightWorkManager;
 import org.apache.arrow.flight.CallOption;
 import org.junit.BeforeClass;
 
-import com.dremio.service.flight.impl.FlightWorkManager;
-
-/**
- * Test FlightServer with basic authentication.
- */
+/** Test FlightServer with basic authentication. */
 public class TestFlightServerWithBasicAuth extends AbstractTestFlightServer {
   @BeforeClass
   public static void setup() throws Exception {
     setupBaseFlightQueryTest(
-      false,
-      true,
-      "flight.endpoint.port",
-      FlightWorkManager.RunQueryResponseHandlerFactory.DEFAULT,
-      DremioFlightService.FLIGHT_LEGACY_AUTH_MODE);
+        false,
+        true,
+        "flight.endpoint.port",
+        FlightWorkManager.RunQueryResponseHandlerFactory.DEFAULT,
+        DremioFlightService.FLIGHT_LEGACY_AUTH_MODE);
   }
 
   @Override

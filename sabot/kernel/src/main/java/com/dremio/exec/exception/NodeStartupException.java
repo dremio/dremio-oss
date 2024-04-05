@@ -15,14 +15,16 @@
  */
 package com.dremio.exec.exception;
 
-public class NodeStartupException extends Exception{
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(NodeStartupException.class);
+public class NodeStartupException extends Exception {
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(NodeStartupException.class);
 
   public NodeStartupException() {
     super();
   }
 
-  public NodeStartupException(String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
+  public NodeStartupException(
+      String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
     super(message, cause, enableSuppression, writableStackTrace);
   }
 
@@ -37,6 +39,4 @@ public class NodeStartupException extends Exception{
   public NodeStartupException(Throwable cause) {
     super(cause);
   }
-
-
 }

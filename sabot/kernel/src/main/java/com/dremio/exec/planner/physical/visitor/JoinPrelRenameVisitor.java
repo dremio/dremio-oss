@@ -16,32 +16,29 @@
 
 package com.dremio.exec.planner.physical.visitor;
 
-import java.util.List;
-
-import org.apache.calcite.rel.RelNode;
-
 import com.dremio.exec.planner.physical.JoinPrel;
 import com.dremio.exec.planner.physical.Prel;
 import com.google.common.collect.Lists;
+import java.util.List;
+import org.apache.calcite.rel.RelNode;
 
-public class JoinPrelRenameVisitor extends BasePrelVisitor<Prel, Void, RuntimeException>{
+public class JoinPrelRenameVisitor extends BasePrelVisitor<Prel, Void, RuntimeException> {
 
   private static JoinPrelRenameVisitor INSTANCE = new JoinPrelRenameVisitor();
 
-  public static Prel insertRenameProject(Prel prel){
+  public static Prel insertRenameProject(Prel prel) {
     return prel.accept(INSTANCE, null);
   }
 
   @Override
   public Prel visitPrel(Prel prel, Void value) throws RuntimeException {
     List<RelNode> children = Lists.newArrayList();
-    for(Prel child : prel){
+    for (Prel child : prel) {
       child = child.accept(this, null);
       children.add(child);
     }
 
     return (Prel) prel.copy(prel.getTraitSet(), children);
-
   }
 
   @Override
@@ -49,7 +46,7 @@ public class JoinPrelRenameVisitor extends BasePrelVisitor<Prel, Void, RuntimeEx
 
     List<RelNode> children = Lists.newArrayList();
 
-    for(Prel child : prel){
+    for (Prel child : prel) {
       child = child.accept(this, null);
       children.add(child);
     }
@@ -66,5 +63,4 @@ public class JoinPrelRenameVisitor extends BasePrelVisitor<Prel, Void, RuntimeEx
 
     return (Prel) prel.copy(prel.getTraitSet(), reNamedChildren);
   }
-
 }

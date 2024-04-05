@@ -15,6 +15,8 @@
  */
 package com.dremio.common;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.StandardSystemProperty;
 import java.lang.management.ManagementFactory;
 import java.lang.reflect.Method;
 import java.util.Arrays;
@@ -25,42 +27,29 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.StandardSystemProperty;
-
-/**
- * Captures important informations about JVM and its current environment
- */
+/** Captures important informations about JVM and its current environment */
 public final class VM {
   private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(VM.class);
 
-  private VM() {
-  }
+  private VM() {}
 
   private static final Pattern MAX_DIRECT_MEMORY_SIZE_ARG_MATCHER =
       Pattern.compile("-XX:MaxDirectMemorySize=(?<amount>\\d+)(?<unit>[kKmMgGtT]?)");
 
-  private static final Pattern DEBUG_ARG_MATCHER =
-      Pattern.compile("-Xdebug|-agentlib:jdwp=.*");
+  private static final Pattern DEBUG_ARG_MATCHER = Pattern.compile("-Xdebug|-agentlib:jdwp=.*");
 
   private static final long MAX_DIRECT_MEMORY = maxDirectMemory();
 
-  /**
-   * System property key to control the number of cpus used by Dremio
-   */
+  /** System property key to control the number of cpus used by Dremio */
   public static final String DREMIO_CPU_AVAILABLE_PROPERTY = "dremio.cpu.available";
 
-  /**
-   * Legacy system property key to control the number of cpus used by Dremio
-   */
+  /** Legacy system property key to control the number of cpus used by Dremio */
   private static final String DREMIO_LEGACY_CPU_AVAILABLE_PROPERTY = "dremio.executor.cores";
 
   private static final boolean IS_DEBUG = isDebugEnabled0();
   private static final boolean IS_ASSERT = isAssertEnabled0();
 
-  /**
-   * Returns true if a debugger agent has been added to the JVM
-   */
+  /** Returns true if a debugger agent has been added to the JVM */
   public static boolean isDebugEnabled() {
     return IS_DEBUG;
   }
@@ -76,23 +65,18 @@ public final class VM {
   /**
    * Return the number of available processors on the machine
    *
-   * Will check first if system property overrides value detected by the
-   * virtual machine
+   * <p>Will check first if system property overrides value detected by the virtual machine
+   *
    * @return
    */
   public static int availableProcessors() {
-    int cpuCount = getIntegerSystemProperty(
-        DREMIO_CPU_AVAILABLE_PROPERTY,
-        DREMIO_LEGACY_CPU_AVAILABLE_PROPERTY,
-        0);
-    return cpuCount != 0
-        ? cpuCount
-        : Runtime.getRuntime().availableProcessors();
+    int cpuCount =
+        getIntegerSystemProperty(
+            DREMIO_CPU_AVAILABLE_PROPERTY, DREMIO_LEGACY_CPU_AVAILABLE_PROPERTY, 0);
+    return cpuCount != 0 ? cpuCount : Runtime.getRuntime().availableProcessors();
   }
 
-  /**
-   * Get the maximum amount of directory memory the JVM can allocate, in bytes
-   */
+  /** Get the maximum amount of directory memory the JVM can allocate, in bytes */
   public static long getMaxDirectMemory() {
     return MAX_DIRECT_MEMORY;
   }
@@ -104,16 +88,12 @@ public final class VM {
   private static final boolean IS_MACOS_HOST = isMacOSHost0();
   private static final boolean IS_WINDOWS_HOST = isWindowsHost0();
 
-  /**
-   * Return if the host is running MacOS operating system
-   */
+  /** Return if the host is running MacOS operating system */
   public static boolean isMacOSHost() {
     return IS_MACOS_HOST;
   }
 
-  /**
-   * Return if the host is running Windows operating system
-   */
+  /** Return if the host is running Windows operating system */
   public static boolean isWindowsHost() {
     return IS_WINDOWS_HOST;
   }
@@ -134,7 +114,7 @@ public final class VM {
 
   @VisibleForTesting
   static boolean isDebugEnabled(final List<String> inputArguments) {
-    for(String argument: inputArguments) {
+    for (String argument : inputArguments) {
       if (DEBUG_ARG_MATCHER.matcher(argument).matches()) {
         return true;
       }
@@ -173,31 +153,31 @@ public final class VM {
   @VisibleForTesting
   static long maxDirectMemory(final List<String> inputArguments) {
     try {
-      for(String argument: inputArguments) {
+      for (String argument : inputArguments) {
         final Matcher matcher = MAX_DIRECT_MEMORY_SIZE_ARG_MATCHER.matcher(argument);
         if (!matcher.matches()) {
           continue;
         }
         long multiplier = 1;
-        switch(matcher.group("unit")) {
-        case "t":
-        case "T":
-          multiplier *= 1024;
-          // fall through
-        case "g":
-        case "G":
-          multiplier *= 1024;
-          // fall through
-        case "m":
-        case "M":
-          multiplier *= 1024;
-          // fall through
-        case "k":
-        case "K":
-          multiplier *= 1024;
-          // fall through
-        default:
-          break;
+        switch (matcher.group("unit")) {
+          case "t":
+          case "T":
+            multiplier *= 1024;
+            // fall through
+          case "g":
+          case "G":
+            multiplier *= 1024;
+            // fall through
+          case "m":
+          case "M":
+            multiplier *= 1024;
+            // fall through
+          case "k":
+          case "K":
+            multiplier *= 1024;
+            // fall through
+          default:
+            break;
         }
 
         return Long.parseLong(matcher.group("amount")) * multiplier;
@@ -209,7 +189,8 @@ public final class VM {
     return 0;
   }
 
-  private static final long invokeMaxDirectMemory(String className) throws ReflectiveOperationException {
+  private static final long invokeMaxDirectMemory(String className)
+      throws ReflectiveOperationException {
     Class<?> vmClass = Class.forName(className, true, ClassLoader.getSystemClassLoader());
     Method m = vmClass.getDeclaredMethod("maxDirectMemory");
     return ((Number) m.invoke(null)).longValue();
@@ -228,13 +209,13 @@ public final class VM {
   }
 
   private static final String getOSName() {
-    return Optional
-        .ofNullable(StandardSystemProperty.OS_NAME.value())
+    return Optional.ofNullable(StandardSystemProperty.OS_NAME.value())
         .orElse("")
         .toLowerCase(Locale.ROOT);
   }
 
-  private static final int getIntegerSystemProperty(String name, String legacyName, int defaultValue) {
+  private static final int getIntegerSystemProperty(
+      String name, String legacyName, int defaultValue) {
     Integer value = Integer.getInteger(name);
     if (value != null) {
       return value;
@@ -252,11 +233,11 @@ public final class VM {
   public static String getCurrentStackTraceAsString() {
     StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
     return Arrays.asList(stackTrace)
-      // remove Thread.getStackTrace
-      // remove VM.getCurrentStackTraceAsString
-      .subList(2, stackTrace.length)
-      .stream()
-      .map(e -> e.toString())
-      .collect(Collectors.joining("\n"));
+        // remove Thread.getStackTrace
+        // remove VM.getCurrentStackTraceAsString
+        .subList(2, stackTrace.length)
+        .stream()
+        .map(e -> e.toString())
+        .collect(Collectors.joining("\n"));
   }
 }

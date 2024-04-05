@@ -15,11 +15,6 @@
  */
 package com.dremio.exec.compile;
 
-import java.io.IOException;
-import java.util.Arrays;
-
-import org.codehaus.commons.compiler.CompileException;
-
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.compile.ClassTransformer.ClassNames;
@@ -31,44 +26,55 @@ import com.dremio.options.Options;
 import com.dremio.options.TypeValidators.BooleanValidator;
 import com.dremio.options.TypeValidators.LongValidator;
 import com.dremio.options.TypeValidators.StringValidator;
+import java.io.IOException;
+import java.util.Arrays;
+import org.codehaus.commons.compiler.CompileException;
 
 /**
- * {@code ClassCompiler} factory choosing the right instance
- * based on config and session options.
+ * {@code ClassCompiler} factory choosing the right instance based on config and session options.
  */
 @Options
 public class ClassCompilerSelector {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ClassCompilerSelector.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ClassCompilerSelector.class);
 
   public enum CompilerPolicy {
-    DEFAULT, JDK, JANINO
+    DEFAULT,
+    JDK,
+    JANINO
   }
 
   public static final String JAVA_COMPILER_OPTION = "exec.java_compiler";
-  public static final StringValidator JAVA_COMPILER_VALIDATOR = new StringValidator(JAVA_COMPILER_OPTION, CompilerPolicy.DEFAULT.toString()) {
-    @Override
-    public void validate(OptionValue v) {
-      super.validate(v);
-      try {
-        CompilerPolicy.valueOf(v.getStringVal().toUpperCase());
-      } catch (IllegalArgumentException e) {
-        throw UserException.validationError()
-            .message("Invalid value '%s' specified for option '%s'. Valid values are %s.",
-              v.getStringVal(), getOptionName(), Arrays.toString(CompilerPolicy.values()))
-            .build(logger);
-      }
-    }
-  };
+  public static final StringValidator JAVA_COMPILER_VALIDATOR =
+      new StringValidator(JAVA_COMPILER_OPTION, CompilerPolicy.DEFAULT.toString()) {
+        @Override
+        public void validate(OptionValue v) {
+          super.validate(v);
+          try {
+            CompilerPolicy.valueOf(v.getStringVal().toUpperCase());
+          } catch (IllegalArgumentException e) {
+            throw UserException.validationError(e)
+                .message(
+                    "Invalid value '%s' specified for option '%s'. Valid values are %s.",
+                    v.getStringVal(), getOptionName(), Arrays.toString(CompilerPolicy.values()))
+                .build(logger);
+          }
+        }
+      };
 
   public static final String JAVA_COMPILER_DEBUG_OPTION = "exec.java_compiler_debug";
-  public static final OptionValidator JAVA_COMPILER_DEBUG = new BooleanValidator(JAVA_COMPILER_DEBUG_OPTION, true);
+  public static final OptionValidator JAVA_COMPILER_DEBUG =
+      new BooleanValidator(JAVA_COMPILER_DEBUG_OPTION, true);
 
-  public static final String JAVA_COMPILER_JANINO_MAXSIZE_OPTION = "exec.java_compiler_janino_maxsize";
-  public static final OptionValidator JAVA_COMPILER_JANINO_MAXSIZE = new LongValidator(JAVA_COMPILER_JANINO_MAXSIZE_OPTION, 256*1024);
+  public static final String JAVA_COMPILER_JANINO_MAXSIZE_OPTION =
+      "exec.java_compiler_janino_maxsize";
+  public static final OptionValidator JAVA_COMPILER_JANINO_MAXSIZE =
+      new LongValidator(JAVA_COMPILER_JANINO_MAXSIZE_OPTION, 256 * 1024);
 
   public static final String JAVA_COMPILER_CONFIG = "dremio.exec.compile.compiler";
   public static final String JAVA_COMPILER_DEBUG_CONFIG = "dremio.exec.compile.debug";
-  public static final String JAVA_COMPILER_JANINO_MAXSIZE_CONFIG = "dremio.exec.compile.janino_maxsize";
+  public static final String JAVA_COMPILER_JANINO_MAXSIZE_CONFIG =
+      "dremio.exec.compile.janino_maxsize";
 
   private final CompilerPolicy defaultPolicy;
   private final long defaultJaninoThreshold;
@@ -82,7 +88,8 @@ public class ClassCompilerSelector {
   public ClassCompilerSelector(SabotConfig config, OptionManager sessionOptions) {
     this.sessionOptions = sessionOptions;
 
-    this.defaultPolicy = CompilerPolicy.valueOf(config.getString(JAVA_COMPILER_CONFIG).toUpperCase());
+    this.defaultPolicy =
+        CompilerPolicy.valueOf(config.getString(JAVA_COMPILER_CONFIG).toUpperCase());
     this.defaultJaninoThreshold = config.getLong(JAVA_COMPILER_JANINO_MAXSIZE_CONFIG);
     this.defaultDebug = config.getBoolean(JAVA_COMPILER_DEBUG_CONFIG);
 
@@ -93,7 +100,10 @@ public class ClassCompilerSelector {
   public ClassBytes[] getClassByteCode(ClassNames className, String sourceCode)
       throws CompileException, ClassNotFoundException, ClassTransformationException, IOException {
     OptionValue value = sessionOptions.getOption(JAVA_COMPILER_OPTION);
-    CompilerPolicy policy = (value != null) ? CompilerPolicy.valueOf(value.getStringVal().toUpperCase()) : defaultPolicy;
+    CompilerPolicy policy =
+        (value != null)
+            ? CompilerPolicy.valueOf(value.getStringVal().toUpperCase())
+            : defaultPolicy;
 
     value = sessionOptions.getOption(JAVA_COMPILER_JANINO_MAXSIZE_OPTION);
     long janinoThreshold = (value != null) ? value.getNumVal() : defaultJaninoThreshold;
@@ -102,8 +112,9 @@ public class ClassCompilerSelector {
     boolean debug = (value != null) ? value.getBoolVal() : defaultDebug;
 
     ClassCompiler classCompiler;
-    if (jdkClassCompiler != null &&
-        (policy == CompilerPolicy.JDK || (policy == CompilerPolicy.DEFAULT && sourceCode.length() > janinoThreshold))) {
+    if (jdkClassCompiler != null
+        && (policy == CompilerPolicy.JDK
+            || (policy == CompilerPolicy.DEFAULT && sourceCode.length() > janinoThreshold))) {
       classCompiler = jdkClassCompiler;
     } else {
       classCompiler = janinoClassCompiler;

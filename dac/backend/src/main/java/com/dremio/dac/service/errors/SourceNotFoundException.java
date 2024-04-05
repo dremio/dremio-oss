@@ -18,9 +18,7 @@ package com.dremio.dac.service.errors;
 import com.dremio.dac.model.sources.SourceName;
 import com.dremio.dac.model.sources.SourceResourcePath;
 
-/**
- * Thrown when a source is not found for a given path.
- */
+/** Thrown when a source is not found for a given path. */
 public class SourceNotFoundException extends NotFoundException {
   private static final long serialVersionUID = 1L;
 

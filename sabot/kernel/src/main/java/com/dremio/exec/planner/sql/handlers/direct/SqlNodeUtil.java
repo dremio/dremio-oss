@@ -15,15 +15,13 @@
  */
 package com.dremio.exec.planner.sql.handlers.direct;
 
+import com.dremio.exec.expr.fn.impl.RegexpUtil;
+import com.dremio.exec.work.foreman.ForemanSetupException;
 import java.util.regex.Pattern;
-
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOrderBy;
 import org.apache.calcite.sql.SqlWith;
-
-import com.dremio.exec.expr.fn.impl.RegexpUtil;
-import com.dremio.exec.work.foreman.ForemanSetupException;
 
 public class SqlNodeUtil {
 
@@ -34,23 +32,25 @@ public class SqlNodeUtil {
     if (clazz.isAssignableFrom(o.getClass())) {
       return (T) o;
     } else {
-      throw new ForemanSetupException(String.format("Failure trying to treat %s as type %s.",
-        o.getClass().getSimpleName(), clazz.getSimpleName()));
+      throw new ForemanSetupException(
+          String.format(
+              "Failure trying to treat %s as type %s.",
+              o.getClass().getSimpleName(), clazz.getSimpleName()));
     }
   }
 
-
-  public static Pattern getPattern(SqlNode node){
-    if(node == null){
+  public static Pattern getPattern(SqlNode node) {
+    if (node == null) {
       return MATCH_ALL;
     }
 
-    if( !(node instanceof SqlCharStringLiteral) ){
+    if (!(node instanceof SqlCharStringLiteral)) {
       throw new IllegalArgumentException("You must provide a string literal.");
     }
 
     String str = ((SqlCharStringLiteral) node).toValue().trim();
-    return Pattern.compile(RegexpUtil.sqlToRegexLike(str),
+    return Pattern.compile(
+        RegexpUtil.sqlToRegexLike(str),
         Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE | Pattern.DOTALL);
   }
 
@@ -70,6 +70,5 @@ public class SqlNodeUtil {
   }
 
   // prevent instantiation
-  private SqlNodeUtil() {
-  }
+  private SqlNodeUtil() {}
 }

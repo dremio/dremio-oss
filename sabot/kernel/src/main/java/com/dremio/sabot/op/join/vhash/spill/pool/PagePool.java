@@ -15,30 +15,32 @@
  */
 package com.dremio.sabot.op.join.vhash.spill.pool;
 
+import com.dremio.common.AutoCloseables;
+import com.dremio.common.AutoCloseables.RollbackCloseable;
+import com.google.common.base.Preconditions;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
 import javax.annotation.concurrent.NotThreadSafe;
-
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
-
-import com.dremio.common.AutoCloseables;
-import com.dremio.common.AutoCloseables.RollbackCloseable;
-import com.google.common.base.Preconditions;
 
 /**
  * Provides a pool of equal sized memory pages.
  *
- * Not thread safe.
+ * <p>Not thread safe.
  */
 @NotThreadSafe
 public class PagePool implements AutoCloseable {
-  private enum State {NEW, INIT, CLOSED}
+  private enum State {
+    NEW,
+    INIT,
+    CLOSED
+  }
+
   private State state = State.NEW;
   private final int pageSize;
   private final int minimumCount;
@@ -46,16 +48,17 @@ public class PagePool implements AutoCloseable {
   private final Set<PageImpl> pages = new HashSet<>();
   private final List<PageImpl> unused = new ArrayList<>();
 
-  private final Release releaser = page -> {
-    Preconditions.checkArgument(pages.remove(page));
-    if (unused.size() < getMinimumCount()) {
-      PageImpl p = page.toNewPage();
-      pages.add(p);
-      unused.add(p);
-    } else {
-      page.deallocate();
-    }
-  };
+  private final Release releaser =
+      page -> {
+        Preconditions.checkArgument(pages.remove(page));
+        if (unused.size() < getMinimumCount()) {
+          PageImpl p = page.toNewPage();
+          pages.add(p);
+          unused.add(p);
+        } else {
+          page.deallocate();
+        }
+      };
 
   public PagePool(BufferAllocator allocator, int pageSize) {
     this(allocator, pageSize, 0);
@@ -65,12 +68,13 @@ public class PagePool implements AutoCloseable {
     super();
     this.pageSize = pageSize;
     this.minimumCount = minimumCount;
-    this.allocator = allocator.newChildAllocator("page-pool", pageSize * minimumCount, Long.MAX_VALUE);
+    this.allocator =
+        allocator.newChildAllocator("page-pool", pageSize * minimumCount, Long.MAX_VALUE);
   }
 
   public void start() {
     Preconditions.checkArgument(state == State.NEW);
-    try(RollbackCloseable rb = new RollbackCloseable()){
+    try (RollbackCloseable rb = new RollbackCloseable()) {
       for (int i = 0; i < minimumCount; i++) {
         PageImpl p = createNewPage();
         pages.add(rb.add(p));
@@ -115,11 +119,12 @@ public class PagePool implements AutoCloseable {
 
   /**
    * Get the requested number of pages. Returns null if all of the pages can't be allocated.
+   *
    * @param count
    * @return
    */
   public List<Page> getPages(int count) {
-    try(RollbackCloseable rb = new RollbackCloseable()){
+    try (RollbackCloseable rb = new RollbackCloseable()) {
       List<Page> pages = new ArrayList<>();
       for (int i = 0; i < count; i++) {
         PageImpl p = (PageImpl) newPage();
@@ -157,15 +162,19 @@ public class PagePool implements AutoCloseable {
 
     try {
       if (pages.size() > unused.size()) {
-        throw new IllegalStateException("Some pages " +  (pages.size() - unused.size()) + " are still in use");
+        throw new IllegalStateException(
+            "Some pages " + (pages.size() - unused.size()) + " are still in use");
       }
 
-      List<AutoCloseable> ac = Stream.concat(
-        unused.stream().map(p -> {
-          return (AutoCloseable) p::deallocate;
-        }),
-        Stream.of((AutoCloseable) allocator))
-        .collect(Collectors.toList());
+      List<AutoCloseable> ac =
+          Stream.concat(
+                  unused.stream()
+                      .map(
+                          p -> {
+                            return (AutoCloseable) p::deallocate;
+                          }),
+                  Stream.of((AutoCloseable) allocator))
+              .collect(Collectors.toList());
       AutoCloseables.close(ac);
     } catch (RuntimeException e) {
       throw e;
@@ -179,5 +188,4 @@ public class PagePool implements AutoCloseable {
   interface Release {
     void release(PageImpl page);
   }
-
 }

@@ -15,14 +15,13 @@
  */
 package com.dremio.exec.planner.sql.evaluator;
 
+import com.dremio.common.util.DateTimes;
+import com.dremio.common.util.JodaDateUtility;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 import org.joda.time.DateMidnight;
 import org.joda.time.DateTimeZone;
 import org.joda.time.LocalDateTime;
-
-import com.dremio.common.util.DateTimes;
-import com.dremio.common.util.JodaDateUtility;
 
 public final class CurrentDateEvaluator implements FunctionEval {
   public static final CurrentDateEvaluator INSTANCE = new CurrentDateEvaluator();
@@ -33,16 +32,17 @@ public final class CurrentDateEvaluator implements FunctionEval {
   public RexNode evaluate(EvaluationContext cx, RexCall call) {
     final int timeZoneIndex = cx.getContextInformation().getRootFragmentTimeZone();
     final DateTimeZone timeZone = DateTimeZone.forID(JodaDateUtility.getTimeZone(timeZoneIndex));
-    final LocalDateTime dateTime = new LocalDateTime(cx.getContextInformation().getQueryStartTime(), timeZone);
+    final LocalDateTime dateTime =
+        new LocalDateTime(cx.getContextInformation().getQueryStartTime(), timeZone);
     final long midNightAsMillis =
-      new DateMidnight(dateTime.getYear(), dateTime.getMonthOfYear(), dateTime.getDayOfMonth(),
-        timeZone)
-        .withZoneRetainFields(DateTimeZone.UTC)
-        .getMillis();
+        new DateMidnight(
+                dateTime.getYear(), dateTime.getMonthOfYear(), dateTime.getDayOfMonth(), timeZone)
+            .withZoneRetainFields(DateTimeZone.UTC)
+            .getMillis();
 
     return cx.getRexBuilder()
-      .makeDateLiteral(DateTimes.toDateTime(
-          new LocalDateTime(midNightAsMillis, DateTimeZone.UTC))
-        .toCalendar(null)); // null sets locale to default locale
+        .makeDateLiteral(
+            DateTimes.toDateTime(new LocalDateTime(midNightAsMillis, DateTimeZone.UTC))
+                .toCalendar(null)); // null sets locale to default locale
   }
 }

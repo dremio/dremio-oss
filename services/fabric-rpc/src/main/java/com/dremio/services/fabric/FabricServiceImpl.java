@@ -15,15 +15,6 @@
  */
 package com.dremio.services.fabric;
 
-import java.net.InetAddress;
-import java.net.UnknownHostException;
-import java.util.Optional;
-import java.util.concurrent.Executor;
-
-import javax.net.ssl.SSLException;
-
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.rpc.EventLoopCloseable;
 import com.dremio.exec.rpc.RpcCommand;
@@ -37,14 +28,18 @@ import com.dremio.services.fabric.proto.FabricProto.FabricIdentity;
 import com.dremio.ssl.SSLEngineFactory;
 import com.google.common.base.Preconditions;
 import com.google.protobuf.MessageLite;
-
 import io.netty.channel.EventLoopGroup;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+import java.util.Optional;
+import java.util.concurrent.Executor;
+import javax.net.ssl.SSLException;
+import org.apache.arrow.memory.BufferAllocator;
 
-/**
- * Fabric service implementation. Manages node-to-node communication.
- */
+/** Fabric service implementation. Manages node-to-node communication. */
 public class FabricServiceImpl implements FabricService {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FabricServiceImpl.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(FabricServiceImpl.class);
 
   private final FabricMessageHandler handler = new FabricMessageHandler();
 
@@ -75,8 +70,7 @@ public class FabricServiceImpl implements FabricService {
       long reservationInBytes,
       long maxAllocationInBytes,
       int timeoutInSeconds,
-      Executor rpcHandleDispatcher
-  ) {
+      Executor rpcHandleDispatcher) {
     this.address = address;
     if (initialPort == 0) {
       this.initialPort = initialPort;
@@ -108,22 +102,24 @@ public class FabricServiceImpl implements FabricService {
 
   @Override
   public void start() throws Exception {
-    allocator = bootstrapAllocator.newChildAllocator("fabric-allocator", reservationInBytes, maxAllocationInBytes);
+    allocator =
+        bootstrapAllocator.newChildAllocator(
+            "fabric-allocator", reservationInBytes, maxAllocationInBytes);
     logger.info("fabric service has {} bytes reserved", reservationInBytes);
 
     eventLoop = TransportCheck.createEventLoopGroup(threadCount, "FABRIC-");
     eventLoopCloseable = new EventLoopCloseable(eventLoop);
 
-    registry = new ConnectionManagerRegistry(getRpcConfig(), eventLoop, allocator, handler, getSSLEngineFactory());
+    registry =
+        new ConnectionManagerRegistry(
+            getRpcConfig(), eventLoop, allocator, handler, getSSLEngineFactory());
 
     server = newFabricServer();
 
     port = server.bind(initialPort, allowPortHunting);
 
-    registry.setIdentity(FabricIdentity.newBuilder()
-        .setAddress(address)
-        .setPort(port)
-        .build());
+    registry.setIdentity(FabricIdentity.newBuilder().setAddress(address).setPort(port).build());
+    logger.info("Fabric Service started");
   }
 
   @Override
@@ -139,6 +135,7 @@ public class FabricServiceImpl implements FabricService {
   @Override
   public void close() throws Exception {
     AutoCloseables.close(server, registry, eventLoopCloseable, allocator);
+    logger.info("Fabric Service stopped");
   }
 
   protected Optional<SSLEngineFactory> getSSLEngineFactory() throws SSLException {
@@ -146,7 +143,8 @@ public class FabricServiceImpl implements FabricService {
   }
 
   protected FabricServer newFabricServer() throws Exception {
-    return new FabricServer(getAddress(), getHandler(), getRpcConfig(), getAllocator(), getRegistry(), getEventLoop());
+    return new FabricServer(
+        getAddress(), getHandler(), getRpcConfig(), getAllocator(), getRegistry(), getEventLoop());
   }
 
   protected FabricMessageHandler getHandler() {
@@ -181,13 +179,14 @@ public class FabricServiceImpl implements FabricService {
     }
 
     @Override
-    public <R extends MessageLite, C extends RpcCommand<R, ProxyConnection>> void runCommand(C cmd) {
+    public <R extends MessageLite, C extends RpcCommand<R, ProxyConnection>> void runCommand(
+        C cmd) {
       manager.runCommand(new ProxyCommand<>(cmd, protocol));
     }
-
   }
 
-  private static class ProxyCommand<R extends MessageLite> implements RpcCommand<R, FabricConnection> {
+  private static class ProxyCommand<R extends MessageLite>
+      implements RpcCommand<R, FabricConnection> {
 
     private final RpcCommand<R, ProxyConnection> proxyCommand;
     private final FabricProtocol protocol;
@@ -204,7 +203,8 @@ public class FabricServiceImpl implements FabricService {
     }
 
     @Override
-    public void connectionFailed(com.dremio.exec.rpc.RpcConnectionHandler.FailureType type, Throwable t) {
+    public void connectionFailed(
+        com.dremio.exec.rpc.RpcConnectionHandler.FailureType type, Throwable t) {
       proxyCommand.connectionFailed(type, t);
     }
 
@@ -212,7 +212,6 @@ public class FabricServiceImpl implements FabricService {
     public void connectionAvailable(FabricConnection connection) {
       proxyCommand.connectionAvailable(new ProxyConnection(connection, protocol));
     }
-
   }
 
   private class RunnerFactory implements FabricRunnerFactory {
@@ -225,13 +224,16 @@ public class FabricServiceImpl implements FabricService {
 
     @Override
     public FabricCommandRunner getCommandRunner(String address, int port) {
-      final FabricConnectionManager manager = registry.getConnectionManager(FabricIdentity.newBuilder().setAddress(address).setPort(port).build());
+      final FabricConnectionManager manager =
+          registry.getConnectionManager(
+              FabricIdentity.newBuilder().setAddress(address).setPort(port).build());
       return new CommandRunner(protocol, manager);
     }
   }
 
   public static String getAddress(boolean useIP) throws UnknownHostException {
-    return useIP ? InetAddress.getLocalHost().getHostAddress() : InetAddress.getLocalHost().getCanonicalHostName();
+    return useIP
+        ? InetAddress.getLocalHost().getHostAddress()
+        : InetAddress.getLocalHost().getCanonicalHostName();
   }
-
 }

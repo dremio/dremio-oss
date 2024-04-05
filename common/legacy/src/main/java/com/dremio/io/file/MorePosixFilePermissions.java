@@ -15,19 +15,15 @@
  */
 package com.dremio.io.file;
 
+import com.google.common.base.Preconditions;
 import java.nio.file.attribute.PosixFilePermission;
 import java.util.EnumSet;
 import java.util.Set;
 
-import com.google.common.base.Preconditions;
-
-/**
- * Supplementary methods for {@code java.nio.file.attribute.PosixFilePermissions}
- */
+/** Supplementary methods for {@code java.nio.file.attribute.PosixFilePermissions} */
 public final class MorePosixFilePermissions {
 
-  private MorePosixFilePermissions() {
-  }
+  private MorePosixFilePermissions() {}
 
   /*
    * Note that PosixFilePermission values matches bit order (Big Endian)
@@ -39,7 +35,9 @@ public final class MorePosixFilePermissions {
 
   /**
    * Converts octal mode permission into a set of {@code PosixFilePermission}
-   * @param mode permission octal mode as defined by POSIX. Only read/write/execute bits for owner/group/others is supported
+   *
+   * @param mode permission octal mode as defined by POSIX. Only read/write/execute bits for
+   *     owner/group/others is supported
    * @return a set of permission
    * @throws IllegalArgumentException if mode is less than 0 or greater than 0777
    */
@@ -49,7 +47,7 @@ public final class MorePosixFilePermissions {
     final Set<PosixFilePermission> result = EnumSet.noneOf(PosixFilePermission.class);
     // Start with most significant bit
     int mask = 1 << (PERMISSIONS_LENGTH - 1);
-    for (PosixFilePermission permission: PERMISSIONS) {
+    for (PosixFilePermission permission : PERMISSIONS) {
       if ((mode & mask) != 0) {
         result.add(permission);
       }
@@ -62,13 +60,15 @@ public final class MorePosixFilePermissions {
 
   /**
    * Converts octal mode permission into a set of {@code PosixFilePermission}
-   * @param mode permission octal mode as defined by POSIX. Only read/write/execute bits for owner/group/others is supported
+   *
+   * @param mode permission octal mode as defined by POSIX. Only read/write/execute bits for
+   *     owner/group/others is supported
    * @return a set of permission
-   * @throws IllegalArgumentException if mode is less than 0 or greater than 0777, or if mode does not represent an octal number
+   * @throws IllegalArgumentException if mode is less than 0 or greater than 0777, or if mode does
+   *     not represent an octal number
    */
   public static Set<PosixFilePermission> fromOctalMode(String mode) {
     int m = Integer.parseInt(mode, 8);
     return fromOctalMode(m);
   }
-
 }

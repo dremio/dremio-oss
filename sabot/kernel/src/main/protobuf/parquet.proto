@@ -48,19 +48,13 @@ message ParquetDatasetSplitScanXAttr {
   optional int32 rowGroupIndex = 5;
   optional int64 last_modification_time = 6;
   optional string originalPath = 7;  // original split path before normalized by getContainerSpecificRelativePath()
+  optional bool is_dry_run = 8;
 }
 
 message ParquetDatasetXAttr {
   optional string selectionRoot = 1;
-  optional DictionaryEncodedColumns dictionaryEncodedColumns = 2;
+  // 2 is occupied since it was used before
   repeated ColumnValueCount columnValueCounts = 3;
-}
-
-// Dictionary encoded column info
-message DictionaryEncodedColumns {
-  optional int64 version = 1; // monotonically increasing dictionary version starting from 0
-  repeated string columns = 2; // full column names for which global dictionaries are created.
-  optional string rootPath = 3; // absolute path to directory where dictonary files are located
 }
 
 message ParquetBlockBasedSplitXAttr {

@@ -15,24 +15,22 @@
  */
 package com.dremio.jdbc.impl;
 
-import java.sql.SQLException;
-import java.util.TimeZone;
-
-import org.apache.arrow.vector.ValueVector;
-import org.apache.calcite.avatica.util.Cursor.Accessor;
-
 import com.dremio.exec.record.RecordBatchLoader;
 import com.dremio.exec.vector.accessor.BoundCheckingAccessor;
 import com.dremio.exec.vector.accessor.SqlAccessor;
 import com.dremio.exec.vector.accessor.SqlAccessorBuilder;
 import com.dremio.jdbc.JdbcApiSqlException;
-
+import java.sql.SQLException;
+import java.util.TimeZone;
+import org.apache.arrow.vector.ValueVector;
+import org.apache.calcite.avatica.util.Cursor.Accessor;
 
 class DremioAccessorList extends BasicList<Accessor> {
 
   @SuppressWarnings("unused")
   private static final org.slf4j.Logger logger =
       org.slf4j.LoggerFactory.getLogger(DremioAccessorList.class);
+
   /** "None" value for rowLastColumnOffset. */
   // (Not -1, since -1 can result from 0 (bad 1-based index) minus 1 (offset
   // from 1-based to 0-based indexing.)
@@ -40,15 +38,12 @@ class DremioAccessorList extends BasicList<Accessor> {
 
   private SqlAccessorWrapper[] accessors = new SqlAccessorWrapper[0];
 
-  /** Zero-based offset of last column referenced in current row.
-   *  For {@link #wasNull()}. */
+  /** Zero-based offset of last column referenced in current row. For {@link #wasNull()}. */
   private int rowLastColumnOffset = NULL_LAST_COLUMN_INDEX;
 
-
   /**
-   * Resets last-column-referenced information for {@link #wasNull}.
-   * Must be called whenever row is advanced (when {@link ResultSet#next()}
-   * is called).
+   * Resets last-column-referenced information for {@link #wasNull}. Must be called whenever row is
+   * advanced (when {@link ResultSet#next()} is called).
    */
   void clearLastColumnIndexedInRow() {
     rowLastColumnOffset = NULL_LAST_COLUMN_INDEX;
@@ -57,20 +52,20 @@ class DremioAccessorList extends BasicList<Accessor> {
   void generateAccessors(DremioCursor cursor, RecordBatchLoader currentBatch, TimeZone defaultTz) {
     int cnt = currentBatch.getSchema().getFieldCount();
     accessors = new SqlAccessorWrapper[cnt];
-    for(int i =0; i < cnt; i++){
+    for (int i = 0; i < cnt; i++) {
       final ValueVector vector = currentBatch.getValueAccessorById(null, i).getValueVector();
       final SqlAccessor acc =
           new TypeConvertingSqlAccessor(
-              new BoundCheckingAccessor(vector, SqlAccessorBuilder.getSqlAccessor(vector, defaultTz))
-              );
+              new BoundCheckingAccessor(
+                  vector, SqlAccessorBuilder.getSqlAccessor(vector, defaultTz)));
       accessors[i] = new SqlAccessorWrapper(acc, cursor);
     }
     clearLastColumnIndexedInRow();
   }
 
   /**
-   * @param  accessorOffset  0-based index of accessor array (not 1-based SQL
-   *           column index/ordinal value)
+   * @param accessorOffset 0-based index of accessor array (not 1-based SQL column index/ordinal
+   *     value)
    */
   @Override
   public SqlAccessorWrapper get(final int accessorOffset) {
@@ -81,11 +76,11 @@ class DremioAccessorList extends BasicList<Accessor> {
     return accessor;
   }
 
-  boolean wasNull() throws SQLException{
+  boolean wasNull() throws SQLException {
     if (NULL_LAST_COLUMN_INDEX == rowLastColumnOffset) {
       throw new JdbcApiSqlException(
           "ResultSet.wasNull() called without a preceding call to a column"
-          + " getter method since the last call to ResultSet.next()");
+              + " getter method since the last call to ResultSet.next()");
     }
     return accessors[rowLastColumnOffset].wasNull();
   }
@@ -94,5 +89,4 @@ class DremioAccessorList extends BasicList<Accessor> {
   public int size() {
     return accessors.length;
   }
-
 }

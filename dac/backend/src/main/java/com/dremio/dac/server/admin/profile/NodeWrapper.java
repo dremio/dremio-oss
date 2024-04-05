@@ -15,15 +15,13 @@
  */
 package com.dremio.dac.server.admin.profile;
 
+import com.dremio.exec.proto.UserBitShared.NodeQueryProfile;
 import java.io.IOException;
 
-import com.dremio.exec.proto.UserBitShared.NodeQueryProfile;
-
-/**
- * Wrapper class for per-node information in the query profile
- */
+/** Wrapper class for per-node information in the query profile */
 public class NodeWrapper {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(NodeWrapper.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(NodeWrapper.class);
 
   private final NodeQueryProfile nodeQueryProfile;
 
@@ -31,7 +29,9 @@ public class NodeWrapper {
     this.nodeQueryProfile = nodeQueryProfile;
   }
 
-  public static final String[] NODE_OVERVIEW_COLUMNS = {"Host Name", "Resource Waiting Time", "Peak Memory"};
+  public static final String[] NODE_OVERVIEW_COLUMNS = {
+    "Host Name", "Resource Waiting Time", "Peak Memory"
+  };
 
   public void addSummary(TableBuilder tb) {
     try {
@@ -42,5 +42,4 @@ public class NodeWrapper {
       logger.debug("Failed to add summary", e);
     }
   }
-
 }

@@ -15,9 +15,13 @@
  */
 package com.dremio.sabot.op.join.vhash.spill.slicer;
 
+import com.dremio.exec.expr.TypeHelper;
+import com.dremio.exec.record.VectorWrapper;
+import com.dremio.exec.util.RoundUtil;
+import com.dremio.sabot.op.join.vhash.spill.pool.Page;
+import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BaseFixedWidthVector;
@@ -26,15 +30,7 @@ import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.ipc.message.ArrowFieldNode;
 import org.apache.arrow.vector.types.Types;
 
-import com.dremio.exec.expr.TypeHelper;
-import com.dremio.exec.record.VectorWrapper;
-import com.dremio.exec.util.RoundUtil;
-import com.dremio.sabot.op.join.vhash.spill.pool.Page;
-import com.google.common.collect.ImmutableList;
-
-/**
- * Merger for fixed-length vectors.
- */
+/** Merger for fixed-length vectors. */
 public class FixedMerger implements Merger {
   private final int dataSizeInBits;
   private final int wrapperIdx;
@@ -62,17 +58,19 @@ public class FixedMerger implements Merger {
       mergeBitType(src, dst, recordCount, vectorOutput);
       return;
     }
-    final FieldVector outgoing = (FieldVector) src.get(0).getTransferPair(allocator).getTo();
+    final FieldVector outgoing =
+        (FieldVector) src.get(0).getTransferPair(src.get(0).getField(), allocator).getTo();
     vectorOutput.add(outgoing);
 
     final int validityLen = RoundUtil.round64up(recordCount) / BYTE_SIZE_BITS;
     final int dataLen = RoundUtil.round64up(dataSizeInBits * recordCount) / BYTE_SIZE_BITS;
     try (final ArrowBuf validityBuf = dst.sliceAligned(validityLen);
-         final ArrowBuf dataBuf = dst.sliceAligned(dataLen)) {
-      outgoing.loadFieldBuffers(new ArrowFieldNode(recordCount, -1),
-        ImmutableList.of(validityBuf, dataBuf));
+        final ArrowBuf dataBuf = dst.sliceAligned(dataLen)) {
+      outgoing.loadFieldBuffers(
+          new ArrowFieldNode(recordCount, -1), ImmutableList.of(validityBuf, dataBuf));
 
-      // The bit copiers do ORs to set the bits, and expect that the buffer is zero-filled to begin with.
+      // The bit copiers do ORs to set the bits, and expect that the buffer is zero-filled to begin
+      // with.
       validityBuf.setZero(0, validityLen);
 
       // copy validity
@@ -91,7 +89,8 @@ public class FixedMerger implements Merger {
     }
   }
 
-  private void mergeBitType(List<ValueVector> src, Page dst, int recordCount, List<FieldVector> vectorOutput) {
+  private void mergeBitType(
+      List<ValueVector> src, Page dst, int recordCount, List<FieldVector> vectorOutput) {
     final FieldVector outgoing = (FieldVector) src.get(0).getTransferPair(allocator).getTo();
     vectorOutput.add(outgoing);
 
@@ -99,17 +98,18 @@ public class FixedMerger implements Merger {
     final int dataLen = validityLen;
 
     try (final ArrowBuf validityBuf = dst.sliceAligned(validityLen);
-         final ArrowBuf dataBuf = dst.sliceAligned(dataLen)) {
+        final ArrowBuf dataBuf = dst.sliceAligned(dataLen)) {
       validityBuf.setZero(0, validityLen);
       dataBuf.setZero(0, dataLen);
 
-      outgoing.loadFieldBuffers(new ArrowFieldNode(recordCount, -1),
-        ImmutableList.of(validityBuf, dataBuf));
+      outgoing.loadFieldBuffers(
+          new ArrowFieldNode(recordCount, -1), ImmutableList.of(validityBuf, dataBuf));
 
       int dstBitPos = 0;
       for (ValueVector current : src) {
         // copy validity
-        Merger.copyBits(current.getValidityBuffer(), validityBuf, dstBitPos, current.getValueCount());
+        Merger.copyBits(
+            current.getValidityBuffer(), validityBuf, dstBitPos, current.getValueCount());
         // copy data
         Merger.copyBits(current.getDataBuffer(), dataBuf, dstBitPos, current.getValueCount());
         dstBitPos += current.getValueCount();

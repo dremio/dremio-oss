@@ -15,12 +15,6 @@
  */
 package com.dremio.service.usersessions;
 
-import java.util.Map;
-
-import org.apache.calcite.avatica.util.Quoting;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.catalog.model.VersionContext;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserProtos;
@@ -33,16 +27,18 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
 import com.google.protobuf.ProtocolStringList;
+import java.util.Map;
+import org.apache.calcite.avatica.util.Quoting;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * Contains the static methods to convert from and to protobuf
- */
+/** Contains the static methods to convert from and to protobuf */
 public final class GrpcUserSessionConverter {
   private static final Logger logger = LoggerFactory.getLogger(GrpcUserSessionConverter.class);
-  private static final ObjectMapper mapper = new ObjectMapper(); // thread safe only if the configuration doesn't change
+  private static final ObjectMapper mapper =
+      new ObjectMapper(); // thread safe only if the configuration doesn't change
 
-  private GrpcUserSessionConverter() {
-  }
+  private GrpcUserSessionConverter() {}
 
   /**
    * Creates a protobuf of a UserSession object.
@@ -52,18 +48,19 @@ public final class GrpcUserSessionConverter {
    */
   public static UserSessionRPC toProtoBuf(UserSession session) throws JsonProcessingException {
     final UserSessionProtobuf.SubstitutionSettingsRPC substitutionSettingsRPC =
-      UserSessionProtobuf.SubstitutionSettingsRPC.newBuilder()
-        .addAllExclusions(session.getSubstitutionSettings().getExclusions())
-        .addAllInclusions(session.getSubstitutionSettings().getInclusions())
-        .build();
+        UserSessionProtobuf.SubstitutionSettingsRPC.newBuilder()
+            .addAllExclusions(session.getSubstitutionSettings().getExclusions())
+            .addAllInclusions(session.getSubstitutionSettings().getInclusions())
+            .build();
 
-    final UserSessionProtobuf.UserSessionRPC.Builder sessionBuilder = UserSessionProtobuf.UserSessionRPC.newBuilder()
-      .setSupportFullyQualifiedProjections(session.supportFullyQualifiedProjections())
-      .setUseLegacyCatalogName(session.useLegacyCatalogName())
-      .setSubstitutionSettings(substitutionSettingsRPC)
-      .setSupportComplexTypes(session.isSupportComplexTypes())
-      .setExposeInternalSources(session.exposeInternalSources())
-      .setTracingEnabled(session.isTracingEnabled());
+    final UserSessionProtobuf.UserSessionRPC.Builder sessionBuilder =
+        UserSessionProtobuf.UserSessionRPC.newBuilder()
+            .setSupportFullyQualifiedProjections(session.supportFullyQualifiedProjections())
+            .setUseLegacyCatalogName(session.useLegacyCatalogName())
+            .setSubstitutionSettings(substitutionSettingsRPC)
+            .setSupportComplexTypes(session.isSupportComplexTypes())
+            .setExposeInternalSources(session.exposeInternalSources())
+            .setTracingEnabled(session.isTracingEnabled());
 
     final UserBitShared.RpcEndpointInfos clientInfos = session.getClientInfos();
     if (clientInfos != null) {
@@ -125,47 +122,67 @@ public final class GrpcUserSessionConverter {
 
   /**
    * Creates a UserSession object from a protobuf UserSession object.
-   * <p>
-   * Note: the SessionOptionManager and OptionManager are not rehydrated
+   *
+   * <p>Note: the SessionOptionManager and OptionManager are not rehydrated
    *
    * @param userSessionRPC a ProtoBuf representation of the UserSession
    * @return the UserSession object
    */
-  public static UserSession fromProtoBuf(UserSessionProtobuf.UserSessionRPC userSessionRPC) throws JsonProcessingException {
+  public static UserSession fromProtoBuf(UserSessionProtobuf.UserSessionRPC userSessionRPC)
+      throws JsonProcessingException {
 
     final SubstitutionSettings substitutionSettings =
-      new SubstitutionSettings(userSessionRPC.getSubstitutionSettings().getExclusionsList());
+        new SubstitutionSettings(userSessionRPC.getSubstitutionSettings().getExclusionsList());
     if (!userSessionRPC.getSubstitutionSettings().getInclusionsList().isEmpty()) {
-      substitutionSettings.setInclusions(userSessionRPC.getSubstitutionSettings().getInclusionsList());
+      substitutionSettings.setInclusions(
+          userSessionRPC.getSubstitutionSettings().getInclusionsList());
     }
 
-    final UserProtos.UserProperties.Builder userPropBuilder = UserProtos.UserProperties.newBuilder()
-      .addProperties(UserProtos.Property.newBuilder()
-        .setKey(UserSession.TRACING_ENABLED).setValue(String.valueOf(userSessionRPC.getTracingEnabled())).build());
+    final UserProtos.UserProperties.Builder userPropBuilder =
+        UserProtos.UserProperties.newBuilder()
+            .addProperties(
+                UserProtos.Property.newBuilder()
+                    .setKey(UserSession.TRACING_ENABLED)
+                    .setValue(String.valueOf(userSessionRPC.getTracingEnabled()))
+                    .build());
     if (userSessionRPC.hasRoutingQueue()) {
-      userPropBuilder.addProperties(UserProtos.Property.newBuilder()
-        .setKey(UserSession.ROUTING_QUEUE).setValue(userSessionRPC.getRoutingQueue()).build());
+      userPropBuilder.addProperties(
+          UserProtos.Property.newBuilder()
+              .setKey(UserSession.ROUTING_QUEUE)
+              .setValue(userSessionRPC.getRoutingQueue())
+              .build());
     }
     if (userSessionRPC.hasRoutingEngine()) {
-      userPropBuilder.addProperties(UserProtos.Property.newBuilder()
-        .setKey(UserSession.ROUTING_ENGINE).setValue(userSessionRPC.getRoutingEngine()).build());
+      userPropBuilder.addProperties(
+          UserProtos.Property.newBuilder()
+              .setKey(UserSession.ROUTING_ENGINE)
+              .setValue(userSessionRPC.getRoutingEngine())
+              .build());
     }
     if (userSessionRPC.hasRoutingTag()) {
-      userPropBuilder.addProperties(UserProtos.Property.newBuilder()
-        .setKey(UserSession.ROUTING_TAG).setValue(userSessionRPC.getRoutingTag()).build());
+      userPropBuilder.addProperties(
+          UserProtos.Property.newBuilder()
+              .setKey(UserSession.ROUTING_TAG)
+              .setValue(userSessionRPC.getRoutingTag())
+              .build());
     }
     if (userSessionRPC.hasQueryLabel()) {
-      userPropBuilder.addProperties(UserProtos.Property.newBuilder()
-              .setKey(UserSession.QUERY_LABEL).setValue(userSessionRPC.getQueryLabel()).build());
+      userPropBuilder.addProperties(
+          UserProtos.Property.newBuilder()
+              .setKey(UserSession.QUERY_LABEL)
+              .setValue(userSessionRPC.getQueryLabel())
+              .build());
     }
     if (userSessionRPC.hasImpersonationTarget()) {
-      userPropBuilder.addProperties(UserProtos.Property.newBuilder()
-        .setKey(UserSession.IMPERSONATION_TARGET).setValue(userSessionRPC.getImpersonationTarget()).build());
+      userPropBuilder.addProperties(
+          UserProtos.Property.newBuilder()
+              .setKey(UserSession.IMPERSONATION_TARGET)
+              .setValue(userSessionRPC.getImpersonationTarget())
+              .build());
     }
 
-
-    final UserSession.Builder sessionBuilder = UserSession.Builder.newBuilder()
-      .withUserProperties(userPropBuilder.build());
+    final UserSession.Builder sessionBuilder =
+        UserSession.Builder.newBuilder().withUserProperties(userPropBuilder.build());
 
     if (userSessionRPC.getUseLegacyCatalogName()) {
       sessionBuilder.withLegacyCatalog();
@@ -173,13 +190,11 @@ public final class GrpcUserSessionConverter {
 
     final ProtocolStringList defaultSchemaPathList = userSessionRPC.getDefaultSchemaPathList();
     if (defaultSchemaPathList != null && !defaultSchemaPathList.isEmpty()) {
-      sessionBuilder
-        .withDefaultSchema(defaultSchemaPathList);
+      sessionBuilder.withDefaultSchema(defaultSchemaPathList);
     }
 
     if (userSessionRPC.hasSubstitutionSettings()) {
-      sessionBuilder
-        .withSubstitutionSettings(substitutionSettings);
+      sessionBuilder.withSubstitutionSettings(substitutionSettings);
     }
 
     if (userSessionRPC.hasRecordBatchFormat()) {
@@ -187,22 +202,19 @@ public final class GrpcUserSessionConverter {
     }
 
     if (userSessionRPC.hasSupportFullyQualifiedProjections()) {
-      sessionBuilder
-        .withFullyQualifiedProjectsSupport(userSessionRPC.getSupportFullyQualifiedProjections());
+      sessionBuilder.withFullyQualifiedProjectsSupport(
+          userSessionRPC.getSupportFullyQualifiedProjections());
     }
     if (userSessionRPC.hasExposeInternalSources()) {
-      sessionBuilder
-        .exposeInternalSources(userSessionRPC.getExposeInternalSources());
+      sessionBuilder.exposeInternalSources(userSessionRPC.getExposeInternalSources());
     }
 
     if (userSessionRPC.hasSupportComplexTypes()) {
-      sessionBuilder
-        .setSupportComplexTypes(userSessionRPC.getSupportComplexTypes());
+      sessionBuilder.setSupportComplexTypes(userSessionRPC.getSupportComplexTypes());
     }
 
     if (userSessionRPC.hasCredentials()) {
-      sessionBuilder
-        .withCredentials(userSessionRPC.getCredentials());
+      sessionBuilder.withCredentials(userSessionRPC.getCredentials());
     }
 
     if (userSessionRPC.hasClientInfos()) {
@@ -214,7 +226,6 @@ public final class GrpcUserSessionConverter {
     }
 
     final UserSession session = sessionBuilder.build();
-
 
     for (Map.Entry<String, String> entry : userSessionRPC.getSourceVersionMappingMap().entrySet()) {
       final String key = entry.getKey();

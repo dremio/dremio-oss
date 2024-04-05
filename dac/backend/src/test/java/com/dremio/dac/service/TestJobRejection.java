@@ -19,11 +19,6 @@ import static com.dremio.exec.ExecConstants.MAX_FOREMEN_PER_COORDINATOR;
 import static java.util.concurrent.TimeUnit.MINUTES;
 import static org.junit.Assert.assertTrue;
 
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.atomic.AtomicInteger;
-
-import org.junit.Test;
-
 import com.dremio.common.VM;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.model.spaces.SpacePath;
@@ -35,10 +30,11 @@ import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.junit.Test;
 
-/**
- * Submit enough jobs to get some of them rejected and make sure job submission doesn't block
- */
+/** Submit enough jobs to get some of them rejected and make sure job submission doesn't block */
 public class TestJobRejection extends BaseTestServer {
 
   @Test
@@ -49,33 +45,39 @@ public class TestJobRejection extends BaseTestServer {
     // create a test space
     final String testSpace = "test_space";
     final SpaceConfig config = new SpaceConfig().setName(testSpace);
-    l(NamespaceService.class).addOrUpdateSpace(new SpacePath(config.getName()).toNamespaceKey(), config);
+    l(NamespaceService.class)
+        .addOrUpdateSpace(new SpacePath(config.getName()).toNamespaceKey(), config);
 
     // submit enough "CREATE VDS" queries to saturate the command pool and more
     final int numVds = VM.availableProcessors() * 2;
     Semaphore semaphore = new Semaphore(0);
     final AtomicInteger numFailed = new AtomicInteger();
     for (int i = 0; i < numVds; i++) {
-      final String query = String.format("CREATE VDS %s.vds%d AS SELECT * FROM sys.version", testSpace, i);
-      Thread thread = new Thread(() -> {
-        try {
-          submitAndWaitUntilSubmitted(
-            JobRequest.newBuilder()
-              .setSqlQuery(new SqlQuery(query, SampleDataPopulator.DEFAULT_USER_NAME))
-              .setQueryType(QueryType.UI_INTERNAL_RUN)
-              .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
-              .build());
-        } catch (Exception e) {
-          numFailed.incrementAndGet();
-        } finally {
-          semaphore.release();
-        }
-      });
+      final String query =
+          String.format("CREATE VDS %s.vds%d AS SELECT * FROM sys.version", testSpace, i);
+      Thread thread =
+          new Thread(
+              () -> {
+                try {
+                  submitAndWaitUntilSubmitted(
+                      JobRequest.newBuilder()
+                          .setSqlQuery(new SqlQuery(query, SampleDataPopulator.DEFAULT_USER_NAME))
+                          .setQueryType(QueryType.UI_INTERNAL_RUN)
+                          .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+                          .build());
+                } catch (Exception e) {
+                  numFailed.incrementAndGet();
+                } finally {
+                  semaphore.release();
+                }
+              });
       thread.start();
     }
 
     // all submitted jobs should complete
-    assertTrue("Not all submitted jobs completed after 1 minute", semaphore.tryAcquire(numVds, 1, MINUTES));
+    assertTrue(
+        "Not all submitted jobs completed after 1 minute",
+        semaphore.tryAcquire(numVds, 1, MINUTES));
     assertTrue("none of the job submission failed", numFailed.get() > 0);
   }
 }

@@ -16,27 +16,26 @@
 
 package com.dremio.common.util;
 
-import java.util.HashSet;
-import java.util.Set;
-import java.util.concurrent.Callable;
-import java.util.function.Function;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.io.ExponentialBackoff;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.errorprone.annotations.CheckReturnValue;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.function.Function;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * Simple retrying utility
- */
+/** Simple retrying utility */
 @SuppressWarnings("checkstyle:FinalClass")
 public class Retryer implements ExponentialBackoff {
   private static final Logger logger = LoggerFactory.getLogger(Retryer.class);
 
-  public enum WaitStrategy {EXPONENTIAL, FLAT}  //Can be extended
+  public enum WaitStrategy {
+    EXPONENTIAL,
+    FLAT
+  } // Can be extended
 
   private final Set<Class<? extends Exception>> retryableExceptionClasses = new HashSet<>();
   private WaitStrategy waitStrategy = WaitStrategy.EXPONENTIAL;
@@ -45,34 +44,17 @@ public class Retryer implements ExponentialBackoff {
   private int maxMillis = 2_500;
   private boolean infiniteRetries;
   private final Function<Exception, Boolean> isExceptionClassRetriable =
-    (ex) -> retryableExceptionClasses.stream().anyMatch(clz -> clz.isInstance(ex));
+      (ex) -> retryableExceptionClasses.stream().anyMatch(clz -> clz.isInstance(ex));
   private Function<Exception, Boolean> isRetriable = isExceptionClassRetriable;
 
-  private Retryer() {
-  }
+  private Retryer() {}
 
   public <T> T call(Callable<T> callable) {
     for (int attemptNo = 1; infiniteRetries || (attemptNo <= maxRetries); attemptNo++) {
       try {
         return callable.call();
       } catch (Exception e) {
-        boolean retryable = isRetriable.apply(e);
-        if (!retryable || attemptNo == maxRetries) {
-          throw new OperationFailedAfterRetriesException(e);
-        }
-        final StackTraceElement caller = Thread.currentThread().getStackTrace()[2];
-        logger.warn("Retry attempt {} for the failure at {}:{}:{}, Error - {}",
-          attemptNo, caller.getClassName(), caller.getMethodName(), caller.getLineNumber(), e.getMessage());
-        switch (waitStrategy) {
-          case EXPONENTIAL:
-            backoffWait(attemptNo);
-            break;
-          case FLAT:
-            flatWait();
-            break;
-          default:
-            throw new UnsupportedOperationException("Strategy not implemented: " + waitStrategy.name());
-        }
+        checkRetriableException(attemptNo, e);
       }
     }
 
@@ -86,28 +68,37 @@ public class Retryer implements ExponentialBackoff {
         runnable.run();
         return;
       } catch (Exception e) {
-        boolean retryable = isRetriable.apply(e);
-        if (!retryable || attemptNo == maxRetries) {
-          throw new OperationFailedAfterRetriesException(e);
-        }
-        final StackTraceElement caller = Thread.currentThread().getStackTrace()[2];
-        logger.warn("Retry attempt {} for the failure at {}:{}:{}, Error - {}",
-          attemptNo, caller.getClassName(), caller.getMethodName(), caller.getLineNumber(), e.getMessage());
-        switch (waitStrategy) {
-          case EXPONENTIAL:
-            backoffWait(attemptNo);
-            break;
-          case FLAT:
-            flatWait();
-            break;
-          default:
-            throw new UnsupportedOperationException("Strategy not implemented: " + waitStrategy.name());
-        }
+        checkRetriableException(attemptNo, e);
       }
     }
 
     // will ever reach here
     throw new OperationFailedAfterRetriesException();
+  }
+
+  private void checkRetriableException(int attemptNo, Exception e) {
+    boolean retryable = isRetriable.apply(e);
+    if (!retryable || (!infiniteRetries && attemptNo == maxRetries)) {
+      throw new OperationFailedAfterRetriesException(e);
+    }
+    final StackTraceElement caller = Thread.currentThread().getStackTrace()[2];
+    logger.warn(
+        "Retry attempt {} for the failure at {}:{}:{}, Error - {}",
+        attemptNo,
+        caller.getClassName(),
+        caller.getMethodName(),
+        caller.getLineNumber(),
+        e.getMessage());
+    switch (waitStrategy) {
+      case EXPONENTIAL:
+        backoffWait(attemptNo);
+        break;
+      case FLAT:
+        flatWait();
+        break;
+      default:
+        throw new UnsupportedOperationException("Strategy not implemented: " + waitStrategy.name());
+    }
   }
 
   @Override
@@ -151,15 +142,17 @@ public class Retryer implements ExponentialBackoff {
     }
 
     public Builder retryIfExceptionOfType(Class<? extends Exception> clazz) {
-      Preconditions.checkState(retryer.isRetriable == retryer.isExceptionClassRetriable,
-        "Retryer does not support mix of exception class and exception function");
+      Preconditions.checkState(
+          retryer.isRetriable == retryer.isExceptionClassRetriable,
+          "Retryer does not support mix of exception class and exception function");
       retryer.retryableExceptionClasses.add(clazz);
       return this;
     }
 
     public Builder retryOnExceptionFunc(Function<Exception, Boolean> function) {
-      Preconditions.checkState(retryer.retryableExceptionClasses.isEmpty(),
-        "Retryer does not support mix of exception class and exception function");
+      Preconditions.checkState(
+          retryer.retryableExceptionClasses.isEmpty(),
+          "Retryer does not support mix of exception class and exception function");
       retryer.isRetriable = function;
       return this;
     }
@@ -206,7 +199,8 @@ public class Retryer implements ExponentialBackoff {
       super(e);
     }
 
-    public <T extends Exception> T getWrappedCause(Class<T> clazz, Function<Throwable, T> conversionFunc) {
+    public <T extends Exception> T getWrappedCause(
+        Class<T> clazz, Function<Throwable, T> conversionFunc) {
       Throwable cause = getCause();
       return clazz.isInstance(cause) ? clazz.cast(cause) : conversionFunc.apply(cause);
     }

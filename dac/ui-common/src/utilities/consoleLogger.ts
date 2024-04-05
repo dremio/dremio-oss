@@ -46,7 +46,7 @@ const getPrefixColor = (() => {
       incrementNext();
       return color;
     },
-    { maxSize: 50 }
+    { maxSize: 50 },
   );
 })();
 

@@ -17,13 +17,11 @@ package com.dremio;
 
 import static org.junit.Assert.assertEquals;
 
-import java.util.List;
-
-import org.junit.Test;
-
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.exec.resolver.TypeCastRules;
 import com.google.common.collect.Lists;
+import java.util.List;
+import org.junit.Test;
 
 public class TestImplicitCasting {
   @Test

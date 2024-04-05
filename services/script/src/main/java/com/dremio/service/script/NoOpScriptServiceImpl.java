@@ -16,20 +16,16 @@
 
 package com.dremio.service.script;
 
+import com.dremio.service.script.proto.ScriptProto;
 import java.util.List;
 
-import com.dremio.service.script.proto.ScriptProto;
-
-/**
- * Dummy class for no operations in script service.
- */
+/** Dummy class for no operations in script service. */
 public class NoOpScriptServiceImpl implements ScriptService {
 
   public static final org.slf4j.Logger logger =
-    org.slf4j.LoggerFactory.getLogger(NoOpScriptServiceImpl.class);
+      org.slf4j.LoggerFactory.getLogger(NoOpScriptServiceImpl.class);
 
-  public NoOpScriptServiceImpl() {
-  }
+  public NoOpScriptServiceImpl() {}
 
   @Override
   public void start() throws Exception {
@@ -38,54 +34,51 @@ public class NoOpScriptServiceImpl implements ScriptService {
   }
 
   @Override
-  public List<ScriptProto.Script> getScripts(int offset,
-                                             int limit,
-                                             String search,
-                                             String orderBy,
-                                             String filter,
-                                             String createdBy) {
+  public List<ScriptProto.Script> getScripts(
+      int offset, int limit, String search, String orderBy, String filter, String createdBy) {
     throw new UnsupportedOperationException("getScripts not implemented in NoOpScriptServiceImpl");
   }
 
   @Override
   public ScriptProto.Script createScript(ScriptProto.ScriptRequest scriptRequest)
-    throws DuplicateScriptNameException {
-    throw new UnsupportedOperationException("createScript not implemented in NoOpScriptServiceImpl");
+      throws DuplicateScriptNameException {
+    throw new UnsupportedOperationException(
+        "createScript not implemented in NoOpScriptServiceImpl");
   }
 
   @Override
-  public ScriptProto.Script updateScript(String scriptId,
-                                         ScriptProto.ScriptRequest scriptRequest)
-    throws ScriptNotFoundException, DuplicateScriptNameException, ScriptNotAccessible {
-    throw new UnsupportedOperationException("updateScript not implemented in NoOpScriptServiceImpl");
+  public ScriptProto.Script updateScript(String scriptId, ScriptProto.ScriptRequest scriptRequest)
+      throws ScriptNotFoundException, DuplicateScriptNameException, ScriptNotAccessible {
+    throw new UnsupportedOperationException(
+        "updateScript not implemented in NoOpScriptServiceImpl");
   }
 
   @Override
   public ScriptProto.Script updateScriptContext(String scriptId, String sessionId) {
-    throw new UnsupportedOperationException("updateScriptContext not implemented in NoOpScriptServiceImpl");
-}
+    throw new UnsupportedOperationException(
+        "updateScriptContext not implemented in NoOpScriptServiceImpl");
+  }
 
   @Override
   public ScriptProto.Script getScriptById(String scriptId)
-    throws ScriptNotFoundException, ScriptNotAccessible {
-    throw new UnsupportedOperationException("getScriptById not implemented in NoOpScriptServiceImpl");
+      throws ScriptNotFoundException, ScriptNotAccessible {
+    throw new UnsupportedOperationException(
+        "getScriptById not implemented in NoOpScriptServiceImpl");
   }
 
   @Override
   public void deleteScriptById(String scriptId)
-    throws ScriptNotFoundException, ScriptNotAccessible {
+      throws ScriptNotFoundException, ScriptNotAccessible {
     throw new UnsupportedOperationException(
-      "deleteScriptById not implemented in NoOpScriptServiceImpl");
+        "deleteScriptById not implemented in NoOpScriptServiceImpl");
   }
 
   @Override
   public Long getCountOfMatchingScripts(String search, String filter, String createdBy) {
     throw new UnsupportedOperationException(
-      "getCountOfMatchingScripts not implemented in NoOpScriptServiceImpl");
+        "getCountOfMatchingScripts not implemented in NoOpScriptServiceImpl");
   }
 
   @Override
-  public void close() throws Exception {
-
-  }
+  public void close() throws Exception {}
 }

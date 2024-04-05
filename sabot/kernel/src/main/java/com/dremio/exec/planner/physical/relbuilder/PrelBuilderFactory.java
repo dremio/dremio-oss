@@ -22,13 +22,11 @@ import org.apache.calcite.plan.RelOptSchema;
 import org.apache.calcite.tools.RelBuilderFactory;
 
 public class PrelBuilderFactory implements RelBuilderFactory {
-  private static final Context CONTEXT = Contexts.of(
-    PrelFactories.FILTER,
-    PrelFactories.PROJECT);
+  private static final Context CONTEXT = Contexts.of(PrelFactories.FILTER, PrelFactories.PROJECT);
   public static final PrelBuilderFactory INSTANCE = new PrelBuilderFactory();
 
-  @Override public PrelBuilder create(RelOptCluster cluster,
-    RelOptSchema schema) {
+  @Override
+  public PrelBuilder create(RelOptCluster cluster, RelOptSchema schema) {
     return new PrelBuilder(CONTEXT, cluster, schema);
   }
 }

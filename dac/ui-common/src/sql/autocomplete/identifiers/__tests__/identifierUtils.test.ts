@@ -47,7 +47,7 @@ describe("identifierUtils", () => {
         "colA",
         undefined,
         undefined,
-        true
+        true,
       ).getParser();
       const simpleIdentifier = parser.simpleIdentifier();
       const cursorInfo: CursorInfo = {
@@ -74,7 +74,7 @@ describe("identifierUtils", () => {
         '"col-A"',
         undefined,
         undefined,
-        true
+        true,
       ).getParser();
       const simpleIdentifier = parser.simpleIdentifier();
       const cursorInfo: CursorInfo = {
@@ -102,7 +102,7 @@ describe("identifierUtils", () => {
         "tbl.colA",
         undefined,
         undefined,
-        true
+        true,
       ).getParser();
       const compoundIdentifier = parser.compoundIdentifier();
       const cursorInfo: CursorInfo = {
@@ -131,7 +131,7 @@ describe("identifierUtils", () => {
         '"tbl-A"."col-A"',
         undefined,
         undefined,
-        true
+        true,
       ).getParser();
       const compoundIdentifier = parser.compoundIdentifier();
       const cursorInfo: CursorInfo = {
@@ -167,7 +167,7 @@ describe("identifierUtils", () => {
         completable: true,
       });
       expect(terminal).toBe(
-        cursorInfo.priorTerminals[cursorInfo.priorTerminals.length - 2]
+        cursorInfo.priorTerminals[cursorInfo.priorTerminals.length - 2],
       );
     });
 
@@ -176,7 +176,7 @@ describe("identifierUtils", () => {
         "tbl.*",
         undefined,
         undefined,
-        true
+        true,
       ).getParser();
       const compoundIdentifier = parser.compoundIdentifier();
       const cursorInfo: CursorInfo = {
@@ -202,7 +202,7 @@ describe("identifierUtils", () => {
         "tbl.colA[0]",
         undefined,
         undefined,
-        true
+        true,
       ).getParser();
       const compoundIdentifier = parser.compoundIdentifier();
       const cursorInfo: CursorInfo = {
@@ -228,7 +228,7 @@ describe("identifierUtils", () => {
         "tbl.colA[0][1]",
         undefined,
         undefined,
-        true
+        true,
       ).getParser();
       const compoundIdentifier = parser.compoundIdentifier();
       const cursorInfo: CursorInfo = {
@@ -256,7 +256,7 @@ describe("identifierUtils", () => {
         'colA, "col-B", colC',
         undefined,
         undefined,
-        true
+        true,
       ).getParser();
       const list = parser.simpleIdentifierCommaList();
       expect(getUnquotedSimpleIdentifiers(list)).toEqual([

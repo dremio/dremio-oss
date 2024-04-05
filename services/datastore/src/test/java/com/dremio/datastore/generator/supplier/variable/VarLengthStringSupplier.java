@@ -15,9 +15,7 @@
  */
 package com.dremio.datastore.generator.supplier.variable;
 
-/**
- * Supplier that generates variable-length strings.
- */
+/** Supplier that generates variable-length strings. */
 public class VarLengthStringSupplier extends VarLengthSupplier<String> {
   public VarLengthStringSupplier(String prefix) {
     super(prefix);

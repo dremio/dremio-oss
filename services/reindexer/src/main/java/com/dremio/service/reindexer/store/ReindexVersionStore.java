@@ -16,20 +16,17 @@
 
 package com.dremio.service.reindexer.store;
 
+import com.dremio.service.Service;
+import com.dremio.service.reindexer.proto.ReindexVersionInfo;
 import java.util.function.Predicate;
 import java.util.function.UnaryOperator;
 
-import com.dremio.service.Service;
-import com.dremio.service.reindexer.proto.ReindexVersionInfo;
-
-
-/**
- * Store used to save and retrieve version info
- */
+/** Store used to save and retrieve version info */
 public interface ReindexVersionStore extends Service {
 
   /**
    * Creates/Saves version information
+   *
    * @param collectionName Collection name key
    * @param versionInfo Version Information
    */
@@ -37,14 +34,20 @@ public interface ReindexVersionStore extends Service {
 
   /**
    * Updates ReindexVersionInfo with the modifier based on a condition
+   *
    * @param collectionName Collection name key
    * @param modifier The function that should modifies the ReindexVersionInfo
    * @param predicate condition to satisfy for update operation
    */
-  void update(String collectionName, UnaryOperator<ReindexVersionInfo> modifier, Predicate<Integer> predicate) throws ReindexVersionStoreException;
+  void update(
+      String collectionName,
+      UnaryOperator<ReindexVersionInfo> modifier,
+      Predicate<Integer> predicate)
+      throws ReindexVersionStoreException;
 
   /**
    * Deletes version information for the given collection
+   *
    * @param collectionName Collection name key
    */
   void delete(String collectionName);

@@ -42,6 +42,4 @@ public class UserRpcException extends RpcException {
   public Throwable getUserException() {
     return t;
   }
-
-
 }

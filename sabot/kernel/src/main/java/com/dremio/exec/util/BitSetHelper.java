@@ -18,9 +18,7 @@ package com.dremio.exec.util;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Utility class containing functions that operate on bits
- */
+/** Utility class containing functions that operate on bits */
 public final class BitSetHelper {
 
   private static final List<List<Integer>> setBitPositions;
@@ -35,7 +33,9 @@ public final class BitSetHelper {
     setBitsFor1.add(0);
     setBitPositions.add(setBitsFor1);
 
-    for (int powerOf2 = 2, highestSetBit = 1; powerOf2 <= SIZE / 2; powerOf2 *= 2, highestSetBit++) {
+    for (int powerOf2 = 2, highestSetBit = 1;
+        powerOf2 <= SIZE / 2;
+        powerOf2 *= 2, highestSetBit++) {
       for (int j = 0; j < powerOf2; j++) {
         List<Integer> setBitsArray = new ArrayList<>(setBitPositions.get(j));
         setBitsArray.add(highestSetBit);

@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.record;
 
-import java.io.IOException;
-
 import com.dremio.common.types.TypeProtos.DataMode;
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;
@@ -33,10 +31,10 @@ import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
+import java.io.IOException;
 
 public class MajorTypeSerDe {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MajorTypeSerDe.class);
-
 
   public static class De extends StdDeserializer<MajorType> {
 
@@ -45,11 +43,10 @@ public class MajorTypeSerDe {
     }
 
     @Override
-    public MajorType deserialize(JsonParser jp, DeserializationContext ctxt) throws IOException,
-        JsonProcessingException {
+    public MajorType deserialize(JsonParser jp, DeserializationContext ctxt)
+        throws IOException, JsonProcessingException {
       return jp.readValueAs(MajorTypeHolder.class).getMajorType();
     }
-
   }
 
   public static class Se extends StdSerializer<MajorType> {
@@ -59,24 +56,30 @@ public class MajorTypeSerDe {
     }
 
     @Override
-    public void serialize(MajorType value, JsonGenerator jgen, SerializerProvider provider) throws IOException,
-        JsonGenerationException {
+    public void serialize(MajorType value, JsonGenerator jgen, SerializerProvider provider)
+        throws IOException, JsonGenerationException {
       MajorTypeHolder holder = MajorTypeHolder.get(value);
       jgen.writeObject(holder);
     }
-
   }
 
   @JsonInclude(Include.NON_NULL)
-  public static class MajorTypeHolder{
-    @JsonProperty("type") public MinorType minorType;
+  public static class MajorTypeHolder {
+    @JsonProperty("type")
+    public MinorType minorType;
+
     public DataMode mode;
     public Integer width;
     public Integer precision;
     public Integer scale;
 
     @JsonCreator
-    public MajorTypeHolder(@JsonProperty("type") MinorType minorType, @JsonProperty("mode") DataMode mode, @JsonProperty("width") Integer width, @JsonProperty("precision") Integer precision, @JsonProperty("scale") Integer scale) {
+    public MajorTypeHolder(
+        @JsonProperty("type") MinorType minorType,
+        @JsonProperty("mode") DataMode mode,
+        @JsonProperty("width") Integer width,
+        @JsonProperty("precision") Integer precision,
+        @JsonProperty("scale") Integer scale) {
       super();
       this.minorType = minorType;
       this.mode = mode;
@@ -120,5 +123,4 @@ public class MajorTypeSerDe {
       return h;
     }
   }
-
 }

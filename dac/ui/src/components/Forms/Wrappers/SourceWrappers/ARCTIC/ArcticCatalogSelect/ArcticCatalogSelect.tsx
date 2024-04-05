@@ -33,7 +33,6 @@ import { intl } from "@app/utils/intl";
 import { FormContext } from "@app/pages/HomePage/components/modals/formContext";
 import sentryUtil from "@app/utils/sentryUtil";
 import { useFeatureFlag } from "@app/exports/providers/useFeatureFlag";
-import { ARCTIC_CATALOG_CREATION } from "@inject/featureFlags/flags/ARCTIC_CATALOG_CREATION";
 import { useArcticCatalogs } from "@inject/arctic/providers/useArcticCatalogs";
 import { useSelector } from "react-redux";
 import { getSortedSources } from "@app/selectors/home";
@@ -103,15 +102,14 @@ const ArcticCatalogSelectItem = forwardRef<HTMLDivElement, ItemProps>(
         {getContent()}
       </div>
     );
-  }
+  },
 );
 
 function getOptions(
   catalogs: ArcticCatalog[] | null,
   pending: boolean | undefined,
-  enableNewCatalogItem: boolean,
   isOptionDisabled: ((catalog: ArcticCatalog) => boolean) | undefined,
-  canAddCatalog: boolean
+  canAddCatalog: boolean,
 ) {
   if (pending) {
     return Skeletons;
@@ -121,9 +119,9 @@ function getOptions(
         value: cur.id,
         label: cur.name,
         disabled: isOptionDisabled?.(cur) || false,
-      })
+      }),
     );
-    if (enableNewCatalogItem && canAddCatalog) {
+    if (canAddCatalog) {
       options.push({
         value: NEW_CATALOG_ITEM,
         label: "",
@@ -153,14 +151,13 @@ export function ArcticCatalogSelect({
 }: ArcticCatalogSelectProps) {
   const canAddCatalog = useSelector(
     (state: Record<string, any>) =>
-      state.privileges.organization?.arcticCatalogs?.canCreate
+      state.privileges.organization?.arcticCatalogs?.canCreate,
   );
 
   // Temporary configuration to filter out catalogs for ARS during project creation
   // const { filterCatalogs } = useContext(ArcticCatalogSelectConfig);
 
   const newArcticCatalog = useModalContainer();
-  const [result] = useFeatureFlag(ARCTIC_CATALOG_CREATION);
 
   const handleArcticCatalogCreation = useCallback(
     (createdCatalog: ArcticCatalog) => {
@@ -174,7 +171,7 @@ export function ArcticCatalogSelect({
         newArcticCatalog.close();
       }
     },
-    [newArcticCatalog, onChange, onCatalogCreateSuccess]
+    [newArcticCatalog, onChange, onCatalogCreateSuccess],
   );
 
   const onSelectChange = useCallback(
@@ -183,19 +180,17 @@ export function ArcticCatalogSelect({
       if (value === NEW_CATALOG_ITEM) {
         newArcticCatalog.open();
       } else if (catalogs) {
-        const name = catalogs.find(
-          (cur: ArcticCatalog) => cur.id === value
-        )?.name;
+        const name = catalogs.find((cur: ArcticCatalog) => cur.id === value)
+          ?.name;
         onChange?.(value, name);
       }
     },
-    [onChange, newArcticCatalog, catalogs, disabled, pending]
+    [onChange, newArcticCatalog, catalogs, disabled, pending],
   );
 
   const options = useMemo(
-    () =>
-      getOptions(catalogs, pending, !!result, isOptionDisabled, canAddCatalog),
-    [catalogs, pending, result, isOptionDisabled, canAddCatalog]
+    () => getOptions(catalogs, pending, isOptionDisabled, canAddCatalog),
+    [catalogs, pending, isOptionDisabled, canAddCatalog],
   );
 
   return (
@@ -236,7 +231,7 @@ function ArcticCatalogSelectWrapper({
       field.onChange(value);
       fields.name.onChange(name);
     },
-    [field, fields.name]
+    [field, fields.name],
   );
 
   const { editing } = useContext(FormContext);

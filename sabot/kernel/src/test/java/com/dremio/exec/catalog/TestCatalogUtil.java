@@ -18,15 +18,6 @@ package com.dremio.exec.catalog;
 import static java.util.Arrays.asList;
 import static org.junit.Assert.assertEquals;
 
-import java.io.IOException;
-import java.util.List;
-import java.util.UUID;
-import java.util.concurrent.atomic.AtomicInteger;
-
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-
 import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.DatasetSplit;
@@ -45,10 +36,15 @@ import com.dremio.service.namespace.dataset.proto.ReadDefinition;
 import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.test.DremioTest;
 import com.google.common.collect.ImmutableList;
+import java.io.IOException;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
-/**
- * Test for CatalogUtil
- */
+/** Test for CatalogUtil */
 public class TestCatalogUtil {
   private LegacyKVStoreProvider kvStoreProvider;
   private NamespaceService namespaceService;
@@ -56,8 +52,7 @@ public class TestCatalogUtil {
 
   @Before
   public void setup() throws Exception {
-    kvStoreProvider =
-      LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT);
+    kvStoreProvider = LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT);
     kvStoreProvider.start();
     namespaceService = new NamespaceServiceImpl(kvStoreProvider, new CatalogStatusEventsImpl());
   }
@@ -81,8 +76,7 @@ public class TestCatalogUtil {
 
     final DatasetConfig datasetConfig = new DatasetConfig();
 
-    datasetConfig.setId(new EntityId()
-      .setId(UUID.randomUUID().toString()));
+    datasetConfig.setId(new EntityId().setId(UUID.randomUUID().toString()));
     datasetConfig.setCreatedAt(System.currentTimeMillis());
     datasetConfig.setName(ds.getDatasetPath().getName());
     datasetConfig.setFullPathList(ds.getDatasetPath().getComponents());
@@ -93,16 +87,23 @@ public class TestCatalogUtil {
     datasetConfig.setReadDefinition(readDefinition);
     List<List<DatasetSplit>> splits = s1.getDatasetSplitsForDataset(ds);
     AtomicInteger recordCountFromSource = new AtomicInteger();
-    splits.stream().flatMap(List::stream).forEach(x -> recordCountFromSource.addAndGet((int) x.getRecordCount()));
+    splits.stream()
+        .flatMap(List::stream)
+        .forEach(x -> recordCountFromSource.addAndGet((int) x.getRecordCount()));
 
     try {
-      DatasetMetadataSaver metadataSaver = namespaceService.newDatasetMetadataSaver(dsPath, datasetConfig.getId(), NamespaceService.SplitCompression.SNAPPY,
-        Long.MAX_VALUE, false);
+      DatasetMetadataSaver metadataSaver =
+          namespaceService.newDatasetMetadataSaver(
+              dsPath,
+              datasetConfig.getId(),
+              NamespaceService.SplitCompression.SNAPPY,
+              Long.MAX_VALUE,
+              false);
       final PartitionChunkListing chunkListing = s1.listPartitionChunks(ds);
-      recordCountFromSplits = CatalogUtil.savePartitionChunksInSplitsStores(metadataSaver, chunkListing);
+      recordCountFromSplits =
+          CatalogUtil.savePartitionChunksInSplitsStores(metadataSaver, chunkListing);
     } catch (IOException e) {
     }
     assertEquals(recordCountFromSource.get(), recordCountFromSplits);
   }
-
 }

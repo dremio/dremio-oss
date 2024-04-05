@@ -16,15 +16,13 @@
 
 package com.dremio.exec.store.ischema.writers;
 
+import com.dremio.sabot.op.scan.OutputMutator;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Function;
-
 import org.apache.arrow.vector.types.pojo.Field;
-
-import com.dremio.sabot.op.scan.OutputMutator;
 
 /**
  * Writes a table.
@@ -45,20 +43,22 @@ public abstract class TableWriter<V> {
 
   /**
    * Initialize the table writer.
-   * <p>
-   * Add ordered field writers using {@link #addStringWriter} and {@link #addIntWriter}.
+   *
+   * <p>Add ordered field writers using {@link #addStringWriter} and {@link #addIntWriter}.
    *
    * @param outputMutator output mutator
    */
   public abstract void init(OutputMutator outputMutator);
 
-  protected void addStringWriter(Field field, OutputMutator outputMutator, Function<V, String> stringExtractor) {
+  protected void addStringWriter(
+      Field field, OutputMutator outputMutator, Function<V, String> stringExtractor) {
     if (selectedFields.contains(field.getName())) {
       fieldWriters.add(new StringFieldWriter<>(field, outputMutator, stringExtractor));
     }
   }
 
-  protected void addIntWriter(Field field, OutputMutator outputMutator, Function<V, Integer> intExtractor) {
+  protected void addIntWriter(
+      Field field, OutputMutator outputMutator, Function<V, Integer> intExtractor) {
     if (selectedFields.contains(field.getName())) {
       fieldWriters.add(new IntFieldWriter<>(field, outputMutator, intExtractor));
     }
@@ -80,10 +80,14 @@ public abstract class TableWriter<V> {
         allocated = true;
       }
 
-      // Gets next message from catalog service. The underlying stream observer uses automatic flow control. Note that,
-      // " ... Netty translates the per-message flow control to byte-based flow control, plus some buffering. So Netty,
-      // for instance, won't turn isReady() from true to false unless you end up writing at least 64K worth of
-      // messages. ...", so this could degenerate to one #request per call to this #write method for messages > 64 KB.
+      // Gets next message from catalog service. The underlying stream observer uses automatic flow
+      // control. Note that,
+      // " ... Netty translates the per-message flow control to byte-based flow control, plus some
+      // buffering. So Netty,
+      // for instance, won't turn isReady() from true to false unless you end up writing at least
+      // 64K worth of
+      // messages. ...", so this could degenerate to one #request per call to this #write method for
+      // messages > 64 KB.
       // batch_schema in TableSchema message with 800 VARCHAR fields is roughly 64 KB.
       final V value = messageIterator.next();
       final int currentCount = count;

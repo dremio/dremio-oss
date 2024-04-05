@@ -15,17 +15,14 @@
  */
 package com.dremio.exec.store.excel;
 
-import org.junit.Assert;
-import org.junit.Test;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.common.exceptions.UserRemoteException;
 import com.dremio.common.util.TestTools;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
+import org.junit.Assert;
+import org.junit.Test;
 
-/**
- * Tests for reading excel format files.
- */
+/** Tests for reading excel format files. */
 public abstract class TestExcelFormatPluginBase extends BaseTestQuery {
 
   abstract ExcelTestHelper getHelper();
@@ -64,19 +61,23 @@ public abstract class TestExcelFormatPluginBase extends BaseTestQuery {
     testHelper("", true, true);
   }
 
-  private void testHelper(String sheetName, boolean header, boolean mergedCellExpansion) throws Exception {
+  private void testHelper(String sheetName, boolean header, boolean mergedCellExpansion)
+      throws Exception {
     getHelper().test(testBuilder(), sheetName, header, mergedCellExpansion);
   }
 
-  void testAndExpectUserException(final String query, ErrorType errorType, final String errorMessage) throws Exception {
+  void testAndExpectUserException(
+      final String query, ErrorType errorType, final String errorMessage) throws Exception {
     try {
       test(query);
       Assert.fail("Query should've failed");
     } catch (UserRemoteException uex) {
-      Assert.assertEquals("Error Message: "+ uex.getMessage(), errorType, uex.getErrorType());
+      Assert.assertEquals("Error Message: " + uex.getMessage(), errorType, uex.getErrorType());
       Assert.assertTrue(
-          String.format("Expected error message to contain: %s but was actually [%s].", errorMessage, uex.getMessage()),
-              uex.getMessage().contains(errorMessage));
+          String.format(
+              "Expected error message to contain: %s but was actually [%s].",
+              errorMessage, uex.getMessage()),
+          uex.getMessage().contains(errorMessage));
     }
   }
 }

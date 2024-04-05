@@ -15,20 +15,6 @@
  */
 package com.dremio.dac.server.test;
 
-import java.io.IOException;
-
-import javax.annotation.security.RolesAllowed;
-import javax.inject.Inject;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.Context;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.SecurityContext;
-
 import com.dremio.dac.annotations.RestResourceUsedForTesting;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.annotations.TemporaryAccess;
@@ -42,10 +28,20 @@ import com.dremio.service.job.proto.SessionId;
 import com.dremio.service.jobs.JobNotFoundException;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.namespace.NamespaceService;
+import java.io.IOException;
+import javax.annotation.security.RolesAllowed;
+import javax.inject.Inject;
+import javax.ws.rs.Consumes;
+import javax.ws.rs.GET;
+import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
+import javax.ws.rs.QueryParam;
+import javax.ws.rs.core.Context;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.SecurityContext;
 
-/**
- * Job test resource
- */
+/** Job test resource */
 @RestResourceUsedForTesting
 @Secured
 @RolesAllowed({"admin", "user"})
@@ -55,15 +51,21 @@ public class TestJobResource extends JobResource {
 
   @Inject
   public TestJobResource(
-    JobsService jobsService,
-    DatasetVersionMutator datasetService,
-    @Context SecurityContext securityContext,
-    NamespaceService namespace,
-    BufferAllocatorFactory allocatorFactory,
-    @PathParam("jobId") JobId jobId,
-    @PathParam("sessionId") SessionId sessionId
-  ) {
-    super(jobsService, datasetService, securityContext, namespace, allocatorFactory, jobId, sessionId);
+      JobsService jobsService,
+      DatasetVersionMutator datasetService,
+      @Context SecurityContext securityContext,
+      NamespaceService namespace,
+      BufferAllocatorFactory allocatorFactory,
+      @PathParam("jobId") JobId jobId,
+      @PathParam("sessionId") SessionId sessionId) {
+    super(
+        jobsService,
+        datasetService,
+        securityContext,
+        namespace,
+        allocatorFactory,
+        jobId,
+        sessionId);
     this.jobId = jobId;
   }
 
@@ -81,8 +83,8 @@ public class TestJobResource extends JobResource {
   @Path("download")
   @Consumes(MediaType.APPLICATION_JSON)
   @TemporaryAccess
-  public Response download(@QueryParam("downloadFormat") DownloadFormat downloadFormat
-  ) throws JobResourceNotFoundException, JobNotFoundException {
+  public Response download(@QueryParam("downloadFormat") DownloadFormat downloadFormat)
+      throws JobResourceNotFoundException, JobNotFoundException {
     return doDownload(jobId, downloadFormat);
   }
 

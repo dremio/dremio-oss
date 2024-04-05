@@ -20,20 +20,21 @@ import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
 import com.dremio.service.reflection.proto.RefreshRequest;
 
 /**
- * DependencyResolutionContext interfaces controls how a ReflectionManager.sync
- * resolves information it needs on its dependencies such as dataset reflection
- * settings and refresh requests.  Lifecycle tied to just a single sync operation
- * and then discarded.
+ * DependencyResolutionContext interfaces controls how a ReflectionManager.sync resolves information
+ * it needs on its dependencies such as dataset reflection settings and refresh requests. Lifecycle
+ * tied to just a single sync operation and then discarded.
  */
 public interface DependencyResolutionContext extends AutoCloseable {
   AccelerationSettings getReflectionSettings(CatalogEntityKey key);
+
   RefreshRequest getRefreshRequest(String datasetId);
 
   /**
    * @return true if acceleration settings have changed in the system between the current context
-   * and the last context.
+   *     and the last context.
    */
   boolean hasAccelerationSettingsChanged();
+
   @Override
   void close();
 }

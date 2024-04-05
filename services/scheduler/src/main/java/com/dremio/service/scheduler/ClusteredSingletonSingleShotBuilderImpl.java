@@ -18,11 +18,10 @@ package com.dremio.service.scheduler;
 import static com.dremio.service.scheduler.Schedule.ClusteredSingletonSingleShotBuilder;
 import static com.dremio.service.scheduler.Schedule.SingleShotType;
 
+import com.google.common.base.Preconditions;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
-
-import com.google.common.base.Preconditions;
 
 /**
  * Builder Implementation to create single shot {@code Schedule} instances for clustered singleton
@@ -37,7 +36,7 @@ final class ClusteredSingletonSingleShotBuilderImpl implements ClusteredSingleto
     this.scheduleBuilder = scheduleBuilder;
     this.taskName = taskName;
     this.inLockStep = false;
-    this.singleShotType = SingleShotType.RUN_ONCE_EVERY_UPGRADE;
+    this.singleShotType = SingleShotType.RUN_EXACTLY_ONCE;
   }
 
   @Override
@@ -66,14 +65,21 @@ final class ClusteredSingletonSingleShotBuilderImpl implements ClusteredSingleto
   @Override
   public Schedule build() {
     if (inLockStep) {
-      Preconditions.checkArgument(!singleShotType.equals(SingleShotType.RUN_ONCE_EVERY_MEMBER_DEATH),
-        "Lock step schedules cannot be done for run once on death schedules");
-      Preconditions.checkArgument(scheduleBuilder.getStart().isBefore(Instant.now().plusMillis(10L)),
-        "Lock step schedules must be immediate");
-      Preconditions.checkArgument(scheduleBuilder.getZoneId().equals(ZoneOffset.UTC),
-        "Lock step schedules must be in default UTC time zone");
+      Preconditions.checkArgument(
+          !singleShotType.equals(SingleShotType.RUN_ONCE_EVERY_MEMBER_DEATH),
+          "Lock step schedules cannot be done for run once on death schedules");
+      Preconditions.checkArgument(
+          scheduleBuilder.getStart().isBefore(Instant.now().plusMillis(10L)),
+          "Lock step schedules must be immediate");
+      Preconditions.checkArgument(
+          scheduleBuilder.getZoneId().equals(ZoneOffset.UTC),
+          "Lock step schedules must be in default UTC time zone");
     }
-    return
-      new BaseSchedule(singleShotType, scheduleBuilder.getStart(), scheduleBuilder.getZoneId(), taskName, inLockStep);
+    return new BaseSchedule(
+        singleShotType,
+        scheduleBuilder.getStart(),
+        scheduleBuilder.getZoneId(),
+        taskName,
+        inLockStep);
   }
 }

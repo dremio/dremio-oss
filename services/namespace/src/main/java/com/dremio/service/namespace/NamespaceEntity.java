@@ -15,8 +15,6 @@
  */
 package com.dremio.service.namespace;
 
-import java.util.List;
-
 import com.dremio.common.Any;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.function.proto.FunctionConfig;
@@ -26,10 +24,9 @@ import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.space.proto.FolderConfig;
 import com.dremio.service.namespace.space.proto.HomeConfig;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
+import java.util.List;
 
-/**
- * Class that includes the namespace path and container.
- */
+/** Class that includes the namespace path and container. */
 final class NamespaceEntity {
 
   private final NamespaceInternalKey pathKey;
@@ -48,15 +45,9 @@ final class NamespaceEntity {
     return container;
   }
 
-  /**
-   * Helper method that converts the given object into a {@link NamespaceEntity}
-   */
+  /** Helper method that converts the given object into a {@link NamespaceEntity} */
   static NamespaceEntity toEntity(
-      Type type,
-      NamespaceKey path,
-      Object config,
-      List<Any> attributes
-  ) {
+      Type type, NamespaceKey path, Object config, List<Any> attributes) {
     final NameSpaceContainer container = new NameSpaceContainer();
     final NamespaceInternalKey namespaceInternalKey = new NamespaceInternalKey(path);
     container.setType(type);

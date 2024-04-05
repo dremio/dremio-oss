@@ -15,13 +15,12 @@
  */
 package com.dremio.exec.planner.physical;
 
+import com.dremio.exec.planner.logical.ProjectRel;
+import com.dremio.exec.planner.logical.RelOptHelper;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
-
-import com.dremio.exec.planner.logical.ProjectRel;
-import com.dremio.exec.planner.logical.RelOptHelper;
 
 public class ProjectPrule extends Prule {
   public static final RelOptRule INSTANCE = new ProjectPrule();
@@ -41,8 +40,14 @@ public class ProjectPrule extends Prule {
     boolean traitPull = new ProjectTraitPull(call).go(project, convertedInput);
 
     // If ProjectTraitPull didn't transform, let's do a conversion anyway
-    if(!traitPull){
-      call.transformTo(ProjectPrel.create(project.getCluster(), convertedInput.getTraitSet(), convertedInput, project.getProjects(), project.getRowType()));
+    if (!traitPull) {
+      call.transformTo(
+          ProjectPrel.create(
+              project.getCluster(),
+              convertedInput.getTraitSet(),
+              convertedInput,
+              project.getProjects(),
+              project.getRowType()));
     }
   }
 
@@ -55,8 +60,8 @@ public class ProjectPrule extends Prule {
     @Override
     public RelNode convertChild(ProjectRel project, RelNode rel) throws RuntimeException {
       RelTraitSet newProjectTraits = newTraitSet(Prel.PHYSICAL);
-      return ProjectPrel.create(project.getCluster(), newProjectTraits, rel, project.getProjects(), project.getRowType());
+      return ProjectPrel.create(
+          project.getCluster(), newProjectTraits, rel, project.getProjects(), project.getRowType());
     }
-
   }
 }

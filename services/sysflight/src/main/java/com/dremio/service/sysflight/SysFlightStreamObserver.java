@@ -17,29 +17,28 @@ package com.dremio.service.sysflight;
 
 import static com.dremio.service.sysflight.ProtobufRecordReader.allocateNewUtil;
 
+import com.dremio.common.AutoCloseables;
+import com.google.protobuf.Descriptors;
+import com.google.protobuf.Message;
+import io.grpc.stub.StreamObserver;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
-
 import org.apache.arrow.flight.FlightProducer.ServerStreamListener;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.AllocationHelper;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
 
-import com.dremio.common.AutoCloseables;
-import com.google.protobuf.Descriptors;
-import com.google.protobuf.Message;
-
-import io.grpc.stub.StreamObserver;
-
 /**
  * Stream observer implementation to read gRPC stream & relay to flight stream listener in batches
+ *
  * @param <E>
  */
 public class SysFlightStreamObserver<E extends Message> implements StreamObserver<E> {
-  private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(SysFlightStreamObserver.class);
+  private static final org.slf4j.Logger LOGGER =
+      org.slf4j.LoggerFactory.getLogger(SysFlightStreamObserver.class);
 
   private final BufferAllocator allocator;
   private final ServerStreamListener listener;
@@ -52,18 +51,20 @@ public class SysFlightStreamObserver<E extends Message> implements StreamObserve
   private final AtomicInteger totalMsgCount = new AtomicInteger(0);
   private final List<E> batch = new ArrayList<>();
 
-  public SysFlightStreamObserver(BufferAllocator allocator,
-                                 ServerStreamListener listener,
-                                 Descriptors.Descriptor descriptor,
-                                 int recordBatchSize) {
+  public SysFlightStreamObserver(
+      BufferAllocator allocator,
+      ServerStreamListener listener,
+      Descriptors.Descriptor descriptor,
+      int recordBatchSize) {
     LOGGER.info("Requesting to fetch system table data for {}", descriptor.getFullName());
-    this.allocator = allocator.newChildAllocator("sys-flight-stream-observer-allocator", 0, Long.MAX_VALUE);
+    this.allocator =
+        allocator.newChildAllocator("sys-flight-stream-observer-allocator", 0, Long.MAX_VALUE);
     this.listener = listener;
     this.descriptor = descriptor;
     this.recordBatchSize = recordBatchSize;
 
     vectorMap = ProtobufRecordReader.setup(descriptor, allocator);
-    for (Map.Entry<String, ValueVector>  vectorEntry : vectorMap.entrySet()) {
+    for (Map.Entry<String, ValueVector> vectorEntry : vectorMap.entrySet()) {
       AllocationHelper.allocateNew(vectorEntry.getValue(), recordBatchSize);
     }
     root = VectorSchemaRoot.create(ProtobufRecordReader.getSchema(descriptor), allocator);
@@ -88,25 +89,32 @@ public class SysFlightStreamObserver<E extends Message> implements StreamObserve
       LOGGER.error("Exception fetching system table data for {}", descriptor.getFullName(), th);
       close(th);
     } catch (Exception ex) {
-      LOGGER.error("Exception closing SysFlightStreamObserver:onError for {}", descriptor.getFullName(), ex);
+      LOGGER.error(
+          "Exception closing SysFlightStreamObserver:onError for {}", descriptor.getFullName(), ex);
     }
   }
 
   @Override
   public void onCompleted() {
     try {
-      LOGGER.debug("Completed receiving data for {}, total received {}", descriptor.getFullName(), totalMsgCount);
+      LOGGER.debug(
+          "Completed receiving data for {}, total received {}",
+          descriptor.getFullName(),
+          totalMsgCount);
       close(null);
     } catch (Throwable ex) {
       listener.error(ex);
-      LOGGER.error("Exception closing SysFlightStreamObserver:onCompleted for {}", descriptor.getFullName(), ex);
+      LOGGER.error(
+          "Exception closing SysFlightStreamObserver:onCompleted for {}",
+          descriptor.getFullName(),
+          ex);
     }
   }
 
   private void close(Throwable ex) throws Exception {
     try {
       if (ex == null) {
-        if(batch.size() > 0) {
+        if (batch.size() > 0) {
           ProtobufRecordReader.handleBatch(root, vectorMap, allocator, listener, batch);
           batch.clear();
         }

@@ -15,9 +15,7 @@
  */
 package com.dremio.service;
 
-/**
- * Interface for Dremio Service
- */
+/** Interface for Dremio Service */
 public interface Service extends AutoCloseable {
   void start() throws Exception;
 }

@@ -72,7 +72,7 @@ export abstract class AbstractSqlAstVisitor
   visitStart(ctx: StartContext): VisitorResult {
     const getSqlForStatement = (statementIdx: number): string => {
       const hiddenTokensLinesBefore = this.serializeHiddenTokens(
-        this.originalTokensInfo[statementIdx][0].hiddenTokensBefore
+        this.originalTokensInfo[statementIdx][0].hiddenTokensBefore,
       );
       const statementResult = statements[statementIdx].accept(this);
       const semicolons = ctx
@@ -91,7 +91,7 @@ export abstract class AbstractSqlAstVisitor
       const statementLines = this.mergeLinesWithOverlap(
         "",
         statementResult.sql,
-        semicolonLines
+        semicolonLines,
       );
       return (
         [...hiddenTokensLinesBefore, ...statementLines]
@@ -121,7 +121,7 @@ export abstract class AbstractSqlAstVisitor
    * Visit the child statement and surround in parentheses.
    */
   visitStatementParenthesized(
-    ctx: StatementParenthesizedContext
+    ctx: StatementParenthesizedContext,
   ): VisitorResult {
     const lparen: string[] = this.serializeSingleTerminal(ctx.LPAREN());
     const statementResult = ctx.statement().accept(this);
@@ -130,12 +130,12 @@ export abstract class AbstractSqlAstVisitor
       "",
       lparen,
       statementResult.sql,
-      rparenStr
+      rparenStr,
     );
     const sql = this.indentLines(
       merged,
       1 /* num spaces */,
-      1 /* start line */
+      1 /* start line */,
     );
     return { type: "sql", sql };
   }
@@ -162,7 +162,7 @@ export abstract class AbstractSqlAstVisitor
 
   protected abstract formatClauses(
     commandsSql: string[][],
-    parametersSql: string[][]
+    parametersSql: string[][],
   ): string[];
 
   /**
@@ -176,7 +176,7 @@ export abstract class AbstractSqlAstVisitor
       sql = this.mergeLinesWithOverlap(
         " ".repeat(leadingSpaces),
         sql,
-        child.accept(this).sql
+        child.accept(this).sql,
       );
     }
     return { type: "sql", sql };
@@ -212,7 +212,7 @@ export abstract class AbstractSqlAstVisitor
     const formattedlparenLines: string[] = this.indentLines(
       lparen,
       indentSpaces,
-      1
+      1,
     );
 
     let parenSql: string[] = [];
@@ -223,14 +223,14 @@ export abstract class AbstractSqlAstVisitor
       const formattedBodyLines: string[] = this.indentLines(
         bodyLines,
         indentSpaces,
-        1 /* start line */
+        1 /* start line */,
       );
       parenSql.push(
         ...this.mergeLinesWithOverlap(
           "",
           formattedlparenLines,
-          formattedBodyLines
-        )
+          formattedBodyLines,
+        ),
       );
     } else {
       // otherwise, newline after open parens
@@ -240,7 +240,7 @@ export abstract class AbstractSqlAstVisitor
       const formattedBodyLines: string[] = this.indentLines(
         bodyLines,
         indentSpaces,
-        0 /* start line */
+        0 /* start line */,
       );
       parenSql.push(...formattedlparenLines);
       parenSql.push(...formattedBodyLines);
@@ -308,14 +308,14 @@ export abstract class AbstractSqlAstVisitor
   }
 
   protected abstract formatCommands(
-    commands: string[][]
+    commands: string[][],
   ): [formatted: string[][], maxCommandLength: number];
 
   protected indentLines(
     lines: string[],
     spaces: number,
     rangeStartInclusive?: number,
-    rangeEndExclusive?: number
+    rangeEndExclusive?: number,
   ): string[] {
     const start = rangeStartInclusive != undefined ? rangeStartInclusive : 0;
     const end =
@@ -427,7 +427,7 @@ export abstract class AbstractSqlAstVisitor
    */
   private serializeTerminals(
     terminals: TerminalNode[],
-    areCommandTokens?: boolean
+    areCommandTokens?: boolean,
   ): string[] {
     let serialized = [""];
     for (let i = 0; i < terminals.length; i++) {
@@ -444,7 +444,7 @@ export abstract class AbstractSqlAstVisitor
       const hiddenTokensAfter = originalTokenInfo.hiddenTokensAfter;
       const commentsAfter = this.serializeHiddenTokensAfter(
         terminal,
-        hiddenTokensAfter
+        hiddenTokensAfter,
       );
       if (commentsAfter.length > 1 || commentsAfter[0] != "") {
         const separatorSpaces = areCommandTokens
@@ -479,13 +479,13 @@ export abstract class AbstractSqlAstVisitor
 
   private serializeHiddenTokensAfter(
     terminal: TerminalNode,
-    hiddenTokensAfter: HiddenTokens
+    hiddenTokensAfter: HiddenTokens,
   ): string[] {
     let prevTerminalOriginalLineNum: number =
       this.getOriginalToken(terminal).lineNum;
     return this.serializeHiddenTokens(
       hiddenTokensAfter,
-      prevTerminalOriginalLineNum
+      prevTerminalOriginalLineNum,
     );
   }
 
@@ -498,7 +498,7 @@ export abstract class AbstractSqlAstVisitor
    */
   private serializeHiddenTokens(
     hiddenTokens: HiddenTokens,
-    prevTerminalOriginalLineNum?: number
+    prevTerminalOriginalLineNum?: number,
   ): string[] {
     let hiddenTokensLines: string[] = [""];
     let lastTokenOriginalLineNum: number = prevTerminalOriginalLineNum || -1;
@@ -542,7 +542,7 @@ export abstract class AbstractSqlAstVisitor
         hiddenTokensLines = this.mergeLinesWithOverlap(
           " ",
           hiddenTokensLines,
-          hiddenTokenText
+          hiddenTokenText,
         );
       }
       if (isSingleLineComment) {

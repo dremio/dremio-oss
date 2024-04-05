@@ -15,17 +15,16 @@
  */
 package com.dremio.sabot.exec.rpc;
 
-import java.util.concurrent.atomic.AtomicInteger;
-
 import com.dremio.exec.proto.ExecRPC.RpcType;
 import com.dremio.exec.rpc.Acks;
 import com.dremio.exec.rpc.Response;
 import com.dremio.exec.rpc.ResponseSender;
 import com.google.common.annotations.VisibleForTesting;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Utility class that allows a group of receivers to confirm reception of a record batch as a single unit. Response
- * isn't send upstream until all receivers have successfully consumed data.
+ * Utility class that allows a group of receivers to confirm reception of a record batch as a single
+ * unit. Response isn't send upstream until all receivers have successfully consumed data.
  */
 public class AckSenderImpl implements AckSender {
   private final AtomicInteger failed = new AtomicInteger(0);
@@ -43,23 +42,19 @@ public class AckSenderImpl implements AckSender {
     this.failAction = failAction;
   }
 
-  /**
-   * Add another sender to wait for.
-   */
+  /** Add another sender to wait for. */
   void increment() {
     count.incrementAndGet();
   }
 
-  /**
-   * Disable any sending of the ok message.
-   */
+  /** Disable any sending of the ok message. */
   void clear() {
     count.set(-100000);
   }
 
   /**
-   * Decrement the number of references still holding on to this response. When the number of references hit zero, send
-   * response upstream.
+   * Decrement the number of references still holding on to this response. When the number of
+   * references hit zero, send response upstream.
    */
   @Override
   public void sendOk() {
@@ -74,10 +69,9 @@ public class AckSenderImpl implements AckSender {
   public static final Response OK = new Response(RpcType.ACK, Acks.OK);
   public static final Response FAIL = new Response(RpcType.ACK, Acks.FAIL);
 
-
-  private void dec(){
+  private void dec() {
     if (0 == count.decrementAndGet()) {
-      if(failed.get() == 0){
+      if (failed.get() == 0) {
         okAction.run();
       } else {
         failAction.run();

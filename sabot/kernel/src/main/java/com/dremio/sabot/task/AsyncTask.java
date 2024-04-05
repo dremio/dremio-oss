@@ -20,26 +20,33 @@ import com.dremio.sabot.threads.sharedres.SharedResourceType;
 
 public interface AsyncTask extends Runnable {
 
-  /**
-   * Invoked before a task is run
-   */
+  /** Invoked before a task is run */
   default String preRunUpdate(int load) {
     return "";
   }
 
-  /**
-   * Invoked after a run of the task
-   */
-  default void postRunUpdate(long taskRunTimeNanos, String preRunName) {
-  }
+  /** Invoked after a run of the task */
+  default void postRunUpdate(long taskRunTimeNanos, String preRunName) {}
+
   void refreshState();
+
   Task.State getState();
+
+  String getTaskId();
+
   SharedResourceType getFirstBlockedResource();
+
   void updateSleepDuration(long duration);
+
   void updateBlockedOnDownstreamDuration(long duration);
+
   void updateBlockedOnUpstreamDuration(long duration);
+
   void updateBlockedOnMemoryDuration(long duration);
+
   void addBlockedOnSharedResourceDuration(SharedResourceType resource, long duration);
+
   void setWakeupCallback(AvailabilityCallback callback);
+
   void setTaskDescriptor(TaskDescriptor descriptor);
 }

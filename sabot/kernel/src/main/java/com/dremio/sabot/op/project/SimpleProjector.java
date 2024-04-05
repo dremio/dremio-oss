@@ -15,11 +15,6 @@
  */
 package com.dremio.sabot.op.project;
 
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-
-import org.apache.arrow.vector.util.TransferPair;
-
 import com.carrotsearch.hppc.IntHashSet;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.logical.data.NamedExpression;
@@ -35,11 +30,13 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+import org.apache.arrow.vector.util.TransferPair;
 
 /**
- * Given a list of expressions, inputVectors, outputVectors
- * evaluates expressions on inputs and writes output to outputVectors.
- * Expressions should specify input, output refs
+ * Given a list of expressions, inputVectors, outputVectors evaluates expressions on inputs and
+ * writes output to outputVectors. Expressions should specify input, output refs
  */
 public class SimpleProjector implements AutoCloseable {
 
@@ -53,24 +50,42 @@ public class SimpleProjector implements AutoCloseable {
   private final ExpressionEvaluationOptions projectorOptions;
   private final List<NamedExpression> exprs;
 
-  public SimpleProjector(OperatorContext context, VectorContainer inputVectors, List<NamedExpression> exprs, VectorContainer outputVectors) {
+  public SimpleProjector(
+      OperatorContext context,
+      VectorContainer inputVectors,
+      List<NamedExpression> exprs,
+      VectorContainer outputVectors) {
     this.context = context;
     this.inputVectors = inputVectors;
     this.exprs = exprs;
     this.outputVectors = outputVectors;
     this.projectorOptions = new ExpressionEvaluationOptions(context.getOptions());
-    this.projectorOptions.setCodeGenOption(context.getOptions().getOption(ExecConstants.QUERY_EXEC_OPTION.getOptionName()).getStringVal());
+    this.projectorOptions.setCodeGenOption(
+        context
+            .getOptions()
+            .getOption(ExecConstants.QUERY_EXEC_OPTION.getOptionName())
+            .getStringVal());
   }
 
   public void setup() {
 
-    final ClassGenerator<Projector> cg = context.getClassProducer().createGenerator(Projector.TEMPLATE_DEFINITION).getRoot();
+    final ClassGenerator<Projector> cg =
+        context.getClassProducer().createGenerator(Projector.TEMPLATE_DEFINITION).getRoot();
     final IntHashSet transferFieldIds = new IntHashSet();
     final List<TransferPair> transfers = Lists.newArrayList();
 
     try {
-      splitter = ProjectOperator.createSplitterWithExpressions(inputVectors, this.exprs, transfers, cg,
-        transferFieldIds, context, projectorOptions, outputVectors, null);
+      splitter =
+          ProjectOperator.createSplitterWithExpressions(
+              inputVectors,
+              this.exprs,
+              transfers,
+              cg,
+              transferFieldIds,
+              context,
+              projectorOptions,
+              outputVectors,
+              null);
       splitter.setupProjector(outputVectors, javaCodeGenWatch, gandivaCodeGenWatch);
 
     } catch (Exception e) {
@@ -78,11 +93,15 @@ public class SimpleProjector implements AutoCloseable {
     }
     javaCodeGenWatch.start();
     this.projector = cg.getCodeGenerator().getImplementationClass();
-    this.projector.setup(context.getFunctionContext(), inputVectors, outputVectors, transfers, name -> null);
+    this.projector.setup(
+        context.getFunctionContext(), inputVectors, outputVectors, transfers, name -> null);
     javaCodeGenWatch.stop();
     OperatorStats stats = context.getStats();
-    stats.addLongStat(ScanOperator.Metric.JAVA_BUILD_TIME_NS, javaCodeGenWatch.elapsed(TimeUnit.NANOSECONDS));
-    stats.addLongStat(ScanOperator.Metric.GANDIVA_BUILD_TIME_NS, gandivaCodeGenWatch.elapsed(TimeUnit.NANOSECONDS));
+    stats.addLongStat(
+        ScanOperator.Metric.JAVA_BUILD_TIME_NS, javaCodeGenWatch.elapsed(TimeUnit.NANOSECONDS));
+    stats.addLongStat(
+        ScanOperator.Metric.GANDIVA_BUILD_TIME_NS,
+        gandivaCodeGenWatch.elapsed(TimeUnit.NANOSECONDS));
     gandivaCodeGenWatch.reset();
     javaCodeGenWatch.reset();
   }
@@ -91,8 +110,7 @@ public class SimpleProjector implements AutoCloseable {
     Preconditions.checkNotNull(projector, "eval called before setup");
     try {
       if (recordCount > 0) {
-        splitter.projectRecords(recordCount, javaCodeGenWatch,
-          gandivaCodeGenWatch);
+        splitter.projectRecords(recordCount, javaCodeGenWatch, gandivaCodeGenWatch);
       }
       javaCodeGenWatch.start();
       projector.projectRecords(recordCount);
@@ -101,8 +119,11 @@ public class SimpleProjector implements AutoCloseable {
       throw Throwables.propagate(e);
     }
     OperatorStats stats = context.getStats();
-    stats.addLongStat(ScanOperator.Metric.JAVA_EXECUTE_TIME_NS, javaCodeGenWatch.elapsed(TimeUnit.NANOSECONDS));
-    stats.addLongStat(ScanOperator.Metric.GANDIVA_EXECUTE_TIME_NS, gandivaCodeGenWatch.elapsed(TimeUnit.NANOSECONDS));
+    stats.addLongStat(
+        ScanOperator.Metric.JAVA_EXECUTE_TIME_NS, javaCodeGenWatch.elapsed(TimeUnit.NANOSECONDS));
+    stats.addLongStat(
+        ScanOperator.Metric.GANDIVA_EXECUTE_TIME_NS,
+        gandivaCodeGenWatch.elapsed(TimeUnit.NANOSECONDS));
     javaCodeGenWatch.reset();
     gandivaCodeGenWatch.reset();
   }

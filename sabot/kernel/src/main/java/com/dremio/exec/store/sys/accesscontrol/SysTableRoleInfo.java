@@ -17,9 +17,7 @@ package com.dremio.exec.store.sys.accesscontrol;
 
 import java.util.Objects;
 
-/**
- * Schema for an entry in system table sys.roles.
- */
+/** Schema for an entry in system table sys.roles. */
 public class SysTableRoleInfo {
   public final String role_id;
   public final String role_name;
@@ -28,14 +26,19 @@ public class SysTableRoleInfo {
   public final String owner_type;
   public final String created_by;
 
-  /**
-   * enum for sources of a role
-   */
+  /** enum for sources of a role */
   public enum RoleSource {
-    LOCAL, EXTERNAL
+    LOCAL,
+    EXTERNAL
   }
 
-  public SysTableRoleInfo(String role_id, String role_name, String role_type, String owner_id, String owner_type, String created_by) {
+  public SysTableRoleInfo(
+      String role_id,
+      String role_name,
+      String role_type,
+      String owner_id,
+      String owner_type,
+      String created_by) {
     this.role_id = role_id;
     this.role_name = role_name;
     this.role_type = role_type;
@@ -77,12 +80,12 @@ public class SysTableRoleInfo {
       return false;
     }
     SysTableRoleInfo that = (SysTableRoleInfo) o;
-    return Objects.equals(role_id, that.role_id) &&
-      Objects.equals(role_name, that.role_name) &&
-      Objects.equals(role_type, that.role_type) &&
-      Objects.equals(owner_id, that.owner_id) &&
-      Objects.equals(owner_type, that.owner_type) &&
-      Objects.equals(created_by, that.created_by);
+    return Objects.equals(role_id, that.role_id)
+        && Objects.equals(role_name, that.role_name)
+        && Objects.equals(role_type, that.role_type)
+        && Objects.equals(owner_id, that.owner_id)
+        && Objects.equals(owner_type, that.owner_type)
+        && Objects.equals(created_by, that.created_by);
   }
 
   @Override
@@ -92,13 +95,25 @@ public class SysTableRoleInfo {
 
   @Override
   public String toString() {
-    return "SysTableRole{" +
-      "role_id='" + role_id + '\'' +
-      ", role_name='" + role_name + '\'' +
-      ", role_type='" + role_type + '\'' +
-      ", owner_id='" + owner_id + '\'' +
-      ", owner_type='" + owner_type + '\'' +
-      ", created_by='" + created_by + '\'' +
-      '}';
+    return "SysTableRole{"
+        + "role_id='"
+        + role_id
+        + '\''
+        + ", role_name='"
+        + role_name
+        + '\''
+        + ", role_type='"
+        + role_type
+        + '\''
+        + ", owner_id='"
+        + owner_id
+        + '\''
+        + ", owner_type='"
+        + owner_type
+        + '\''
+        + ", created_by='"
+        + created_by
+        + '\''
+        + '}';
   }
 }

@@ -16,15 +16,13 @@
     limitations under the License.
 
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-  <parent>
-    <artifactId>dremio-sabot-parent</artifactId>
-    <groupId>com.dremio.sabot</groupId>
-    <version>24.3.2-202401241821100032-d2d8a497</version>
-  </parent>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>com.dremio.sabot</groupId>
+    <artifactId>dremio-sabot-parent</artifactId>
+    <version>25.0.0-202404051521110861-ed9515a8</version>
+  </parent>
 
   <artifactId>dremio-sabot-grammar</artifactId>
   <name>Sabot - Grammar</name>
@@ -45,10 +43,10 @@
             it under ${project.build.directory}/codegen/templates where all freemarker templates are. -->
           <execution>
             <id>unpack-parser-template</id>
-            <phase>initialize</phase>
             <goals>
               <goal>unpack</goal>
             </goals>
+            <phase>initialize</phase>
             <configuration>
               <artifactItems>
                 <artifactItem>
@@ -68,10 +66,13 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-resources-plugin</artifactId>
         <executions>
-          <execution> <!-- copy all templates/data in the same location to compile them at once -->
+          <execution>
+            <!-- copy all templates/data in the same location to compile them at once -->
             <id>copy-fmpp-resources</id>
+            <goals>
+              <goal>copy-resources</goal>
+            </goals>
             <phase>initialize</phase>
-            <goals><goal>copy-resources</goal></goals>
             <configuration>
               <outputDirectory>${project.build.directory}/codegen</outputDirectory>
               <resources>
@@ -84,14 +85,17 @@
           </execution>
         </executions>
       </plugin>
-      <plugin> <!-- generate sources from fmpp -->
+      <plugin>
+        <!-- generate sources from fmpp -->
         <groupId>com.dremio.tools</groupId>
         <artifactId>dremio-fmpp-maven-plugin</artifactId>
         <executions>
           <execution>
             <id>generate-fmpp</id>
+            <goals>
+              <goal>generate</goal>
+            </goals>
             <phase>generate-sources</phase>
-            <goals><goal>generate</goal></goals>
             <configuration>
               <config>${project.build.directory}/codegen/config.fmpp</config>
               <output>${project.build.directory}/generated-sources</output>

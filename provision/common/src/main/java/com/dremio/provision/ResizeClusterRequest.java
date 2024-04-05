@@ -14,19 +14,17 @@
  * limitations under the License.
  */
 package com.dremio.provision;
-import javax.validation.constraints.NotNull;
-
-import org.immutables.value.Value.Immutable;
 
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import javax.validation.constraints.NotNull;
+import org.immutables.value.Value.Immutable;
 
-/**
- * Request to resize a cluster.
- */
+/** Request to resize a cluster. */
 @JsonDeserialize(builder = ImmutableResizeClusterRequest.Builder.class)
 @Immutable
 public interface ResizeClusterRequest {
-  @NotNull int getContainerCount();
+  @NotNull
+  int getContainerCount();
 
   public static ImmutableResizeClusterRequest.Builder builder() {
     return new ImmutableResizeClusterRequest.Builder();

@@ -15,8 +15,10 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.dremio.service.namespace.NamespaceKey;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import java.util.List;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -27,28 +29,21 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.dremio.service.namespace.NamespaceKey;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
-
-/**
- * DROP FUNCTION [ IF EXISTS ] function_name
- */
+/** DROP FUNCTION [ IF EXISTS ] function_name */
 public class SqlDropFunction extends SqlCall {
   private final SqlIdentifier name;
   private boolean ifExists;
 
-  public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("DROP_FUNCTION", SqlKind.OTHER) {
-    @Override
-    public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 2, "SqlCreateFunction.createCall() has to get 5 operands!");
-      return new SqlDropFunction(
-        pos,
-        (SqlLiteral) operands[0],
-        (SqlIdentifier) operands[1]
-      );
-    }
-  };
+  public static final SqlSpecialOperator OPERATOR =
+      new SqlSpecialOperator("DROP_FUNCTION", SqlKind.OTHER) {
+        @Override
+        public SqlCall createCall(
+            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+          Preconditions.checkArgument(
+              operands.length == 2, "SqlCreateFunction.createCall() has to get 5 operands!");
+          return new SqlDropFunction(pos, (SqlLiteral) operands[0], (SqlIdentifier) operands[1]);
+        }
+      };
 
   public SqlDropFunction(SqlParserPos pos, SqlLiteral ifExists, SqlIdentifier name) {
     super(pos);
@@ -75,9 +70,7 @@ public class SqlDropFunction extends SqlCall {
 
   @Override
   public List<SqlNode> getOperandList() {
-    return ImmutableList.of(
-      SqlLiteral.createBoolean(ifExists, SqlParserPos.ZERO),
-      name);
+    return ImmutableList.of(SqlLiteral.createBoolean(ifExists, SqlParserPos.ZERO), name);
   }
 
   @Override

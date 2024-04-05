@@ -17,31 +17,24 @@ package com.dremio.jdbc.impl;
 
 import java.sql.SQLException;
 import java.util.List;
-
 import org.apache.calcite.avatica.Meta.MetaResultSet;
 import org.apache.calcite.avatica.Meta.Pat;
 
-/**
- * Access to metadata
- */
+/** Access to metadata */
 public interface DremioMeta {
   /** Per {@link java.sql.DatabaseMetaData#getCatalogs()}. */
   MetaResultSet getCatalogs() throws SQLException;
 
   /** Per {@link java.sql.DatabaseMetaData#getSchemas(String, String)}. */
-  MetaResultSet getSchemas(String catalog,
-      Pat schemaPattern) throws SQLException;
+  MetaResultSet getSchemas(String catalog, Pat schemaPattern) throws SQLException;
 
   /** Per {@link java.sql.DatabaseMetaData#getTables(String, String, String, String[])}. */
-  MetaResultSet getTables(String catalog,
-      Pat schemaPattern,
-      Pat tableNamePattern,
-      List<String> typeList) throws SQLException;
+  MetaResultSet getTables(
+      String catalog, Pat schemaPattern, Pat tableNamePattern, List<String> typeList)
+      throws SQLException;
 
   /** Per {@link java.sql.DatabaseMetaData#getColumns(String, String, String, String)}. */
-  MetaResultSet getColumns(String catalog,
-      Pat schemaPattern,
-      Pat tableNamePattern,
-      Pat columnNamePattern) throws SQLException;
-
+  MetaResultSet getColumns(
+      String catalog, Pat schemaPattern, Pat tableNamePattern, Pat columnNamePattern)
+      throws SQLException;
 }

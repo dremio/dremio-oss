@@ -17,9 +17,14 @@ package com.dremio.exec.planner;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.dremio.PlanTestBase;
+import com.dremio.common.exceptions.UserRemoteException;
+import com.dremio.exec.fn.interp.TestConstantFolding;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 import java.util.List;
 import java.util.Map;
-
 import org.apache.arrow.vector.util.JsonStringArrayList;
 import org.apache.arrow.vector.util.Text;
 import org.junit.Before;
@@ -29,18 +34,12 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import com.dremio.PlanTestBase;
-import com.dremio.common.exceptions.UserRemoteException;
-import com.dremio.exec.fn.interp.TestConstantFolding;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
-
 public class TestDirectoryExplorerUDFs extends PlanTestBase {
 
   private static class ConstantFoldingTestConfig {
     String funcName;
     String expectedFolderName;
+
     public ConstantFoldingTestConfig(String funcName, String expectedFolderName) {
       this.funcName = funcName;
       this.expectedFolderName = expectedFolderName;
@@ -50,8 +49,7 @@ public class TestDirectoryExplorerUDFs extends PlanTestBase {
   private static List<ConstantFoldingTestConfig> tests;
   private String path;
 
-  @Rule
-  public TemporaryFolder folder = new TemporaryFolder();
+  @Rule public TemporaryFolder folder = new TemporaryFolder();
 
   @BeforeClass
   public static void init() {
@@ -63,12 +61,13 @@ public class TestDirectoryExplorerUDFs extends PlanTestBase {
     // first in the case-sensitive ordering.
     // SMALLFILE_2 comes last in a case-insensitive ordering because it has
     // a suffix not found on smallfile.
-    tests = ImmutableList.<ConstantFoldingTestConfig>builder()
-        .add(new ConstantFoldingTestConfig("MAXDIR", "smallfile"))
-        .add(new ConstantFoldingTestConfig("IMAXDIR", "SMALLFILE_2"))
-        .add(new ConstantFoldingTestConfig("MINDIR", "BIGFILE_2"))
-        .add(new ConstantFoldingTestConfig("IMINDIR", "bigfile"))
-        .build();
+    tests =
+        ImmutableList.<ConstantFoldingTestConfig>builder()
+            .add(new ConstantFoldingTestConfig("MAXDIR", "smallfile"))
+            .add(new ConstantFoldingTestConfig("IMAXDIR", "SMALLFILE_2"))
+            .add(new ConstantFoldingTestConfig("MINDIR", "BIGFILE_2"))
+            .add(new ConstantFoldingTestConfig("IMINDIR", "bigfile"))
+            .build();
   }
 
   @Before
@@ -77,27 +76,29 @@ public class TestDirectoryExplorerUDFs extends PlanTestBase {
     path = folder.getRoot().toPath().toString();
   }
 
-
   @Ignore
   @Test
   public void testConstExprFolding_maxDir0() throws Exception {
 
     test("use dfs_root");
 
-    List<String> allFiles = ImmutableList.<String>builder()
-        .add("smallfile")
-        .add("SMALLFILE_2")
-        .add("bigfile")
-        .add("BIGFILE_2")
-        .build();
+    List<String> allFiles =
+        ImmutableList.<String>builder()
+            .add("smallfile")
+            .add("SMALLFILE_2")
+            .add("bigfile")
+            .add("BIGFILE_2")
+            .build();
 
-    String query = "select * from dfs_root.\"" + path + "/*/*.csv\" where dir0 = %s('dfs','" + path + "')";
+    String query =
+        "select * from dfs_root.\"" + path + "/*/*.csv\" where dir0 = %s('dfs','" + path + "')";
     for (ConstantFoldingTestConfig config : tests) {
       // make all of the other folders unexpected patterns, except for the one expected in this case
       List<String> excludedPatterns = Lists.newArrayList();
       excludedPatterns.addAll(allFiles);
       excludedPatterns.remove(config.expectedFolderName);
-      // The list is easier to construct programmatically, but the API below takes an array to make it easier
+      // The list is easier to construct programmatically, but the API below takes an array to make
+      // it easier
       // to write a list as a literal array in a typical test definition
       String[] excludedArray = new String[excludedPatterns.size()];
 
@@ -125,20 +126,55 @@ public class TestDirectoryExplorerUDFs extends PlanTestBase {
   @Test
   public void testIncorrectFunctionPlacement() throws Exception {
 
-    Map<String, String> configMap = ImmutableMap.<String, String>builder()
-        .put("select %s('dfs_root','" + path + "') from dfs.\"" + path + "/*/*.csv\"", "Select List")
-        .put("select dir0 from dfs.\"" + path + "/*/*.csv\" order by %s('dfs_root','" + path + "')", "Order By")
-        .put("select max(dir0) from dfs.\"" + path + "/*/*.csv\" group by %s('dfs_root','" + path + "')", "Group By")
-        .put("select concat(concat(%s('dfs_root','" + path + "'),'someName'),'someName') from dfs.\"" + path + "/*/*.csv\"", "Select List")
-        .put("select dir0 from dfs.\"" + path + "/*/*.csv\" order by concat(%s('dfs_root','" + path + "'),'someName')", "Order By")
-        .put("select max(dir0) from dfs.\"" + path + "/*/*.csv\" group by concat(%s('dfs_root','" + path + "'),'someName')", "Group By")
-        .build();
+    Map<String, String> configMap =
+        ImmutableMap.<String, String>builder()
+            .put(
+                "select %s('dfs_root','" + path + "') from dfs.\"" + path + "/*/*.csv\"",
+                "Select List")
+            .put(
+                "select dir0 from dfs.\""
+                    + path
+                    + "/*/*.csv\" order by %s('dfs_root','"
+                    + path
+                    + "')",
+                "Order By")
+            .put(
+                "select max(dir0) from dfs.\""
+                    + path
+                    + "/*/*.csv\" group by %s('dfs_root','"
+                    + path
+                    + "')",
+                "Group By")
+            .put(
+                "select concat(concat(%s('dfs_root','"
+                    + path
+                    + "'),'someName'),'someName') from dfs.\""
+                    + path
+                    + "/*/*.csv\"",
+                "Select List")
+            .put(
+                "select dir0 from dfs.\""
+                    + path
+                    + "/*/*.csv\" order by concat(%s('dfs_root','"
+                    + path
+                    + "'),'someName')",
+                "Order By")
+            .put(
+                "select max(dir0) from dfs.\""
+                    + path
+                    + "/*/*.csv\" group by concat(%s('dfs_root','"
+                    + path
+                    + "'),'someName')",
+                "Group By")
+            .build();
 
     for (Map.Entry<String, String> configEntry : configMap.entrySet()) {
       for (ConstantFoldingTestConfig functionConfig : tests) {
         assertThatThrownBy(() -> test(String.format(configEntry.getKey(), functionConfig.funcName)))
-          .isInstanceOf(UserRemoteException.class)
-          .hasMessageContaining("Directory explorers [MAXDIR, IMAXDIR, MINDIR, IMINDIR] functions are not supported in %s", configEntry.getValue());
+            .isInstanceOf(UserRemoteException.class)
+            .hasMessageContaining(
+                "Directory explorers [MAXDIR, IMAXDIR, MINDIR, IMINDIR] functions are not supported in %s",
+                configEntry.getValue());
       }
     }
   }
@@ -148,12 +184,14 @@ public class TestDirectoryExplorerUDFs extends PlanTestBase {
   public void testConstantFoldingOff() throws Exception {
     try {
       test("set \"planner.enable_constant_folding\" = false;");
-      String query = "select * from dfs.\"" + path + "/*/*.csv\" where dir0 = %s('dfs_root','" + path + "')";
+      String query =
+          "select * from dfs.\"" + path + "/*/*.csv\" where dir0 = %s('dfs_root','" + path + "')";
       for (ConstantFoldingTestConfig config : tests) {
         assertThatThrownBy(() -> test(String.format(query, config.funcName)))
-          .isInstanceOf(UserRemoteException.class)
-          .hasMessageContaining("Directory explorers [MAXDIR, IMAXDIR, MINDIR, IMINDIR] functions can not be used " +
-              "when planner.enable_constant_folding option is set to false");
+            .isInstanceOf(UserRemoteException.class)
+            .hasMessageContaining(
+                "Directory explorers [MAXDIR, IMAXDIR, MINDIR, IMINDIR] functions can not be used "
+                    + "when planner.enable_constant_folding option is set to false");
       }
     } finally {
       test("set \"planner.enable_constant_folding\" = true;");

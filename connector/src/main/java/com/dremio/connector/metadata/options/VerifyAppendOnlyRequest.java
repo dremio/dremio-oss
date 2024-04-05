@@ -16,7 +16,8 @@
 package com.dremio.connector.metadata.options;
 
 /**
- * Metadata verify request for verifying if operations between "begin-snapshot" and "end-snapshot" were append-only.
+ * Metadata verify request for verifying if operations between "begin-snapshot" and "end-snapshot"
+ * were append-only.
  */
 public final class VerifyAppendOnlyRequest implements MetadataVerifyRequest {
   private final String beginSnapshotId;

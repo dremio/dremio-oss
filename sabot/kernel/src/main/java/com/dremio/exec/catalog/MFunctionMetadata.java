@@ -15,17 +15,14 @@
  */
 package com.dremio.exec.catalog;
 
-import java.util.Optional;
-
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import java.util.Optional;
 
-/**
- * A metadata provider for macro such as table_history, table_snapshot, table_manifests
- */
+/** A metadata provider for macro such as table_history, table_snapshot, table_manifests */
 public interface MFunctionMetadata {
 
   /**
@@ -50,5 +47,4 @@ public interface MFunctionMetadata {
    * @return iceberg metadata location to read metadata details at execution
    */
   String getMetadataLocation();
-
 }

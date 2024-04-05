@@ -19,19 +19,6 @@ import static com.dremio.exec.catalog.CatalogUtil.permittedNessieKey;
 import static com.dremio.exec.catalog.VersionedDatasetId.isVersionedDatasetId;
 import static com.dremio.exec.planner.physical.PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT;
 
-import java.security.AccessControlException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.ConcurrentModificationException;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.StreamSupport;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.PathUtils;
@@ -43,7 +30,6 @@ import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.connector.metadata.SourceMetadata;
 import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.api.LegacyIndexedStore.LegacyFindByCondition;
-import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.CatalogImpl.IdentityResolver;
 import com.dremio.exec.catalog.ManagedStoragePlugin.MetadataAccessType;
 import com.dremio.exec.catalog.conf.ConnectionConf;
@@ -82,15 +68,25 @@ import com.google.common.base.Stopwatch;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
-
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
+import java.security.AccessControlException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.ConcurrentModificationException;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.StreamSupport;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The workhorse of Catalog, responsible for retrieving datasets and interacting with sources as
  * necessary to complete a query.
  *
- * This operates entirely in the context of the user's namespace with the exception of the
+ * <p>This operates entirely in the context of the user's namespace with the exception of the
  * DatasetSaver, which hides access to the SystemUser namespace solely for purposes of retrieving
  * datasets.
  */
@@ -125,19 +121,18 @@ class DatasetManager {
 
   /**
    * A path is ambiguous if it has two parts and the root contains a period. In this case, we don't
-   * know whether the root should be considered a single part or multiple parts and need to do a search
-   * for an unescaped path rather than a lookup.
+   * know whether the root should be considered a single part or multiple parts and need to do a
+   * search for an unescaped path rather than a lookup.
    *
-   * This is because JDBC & ODBC tools use a two part naming scheme and thus we also present Dremio
-   * datasets using this two part scheme where all parts of the path except the leaf are presented
-   * as part of the schema of the table.
+   * <p>This is because JDBC & ODBC tools use a two part naming scheme and thus we also present
+   * Dremio datasets using this two part scheme where all parts of the path except the leaf are
+   * presented as part of the schema of the table.
    *
-   * @param key
-   *          Key to test
+   * @param key Key to test
    * @return Whether path is ambiguous.
    */
   private boolean isAmbiguousKey(NamespaceKey key) {
-    if(key.size() != 2) {
+    if (key.size() != 2) {
       return false;
     }
 
@@ -145,12 +140,12 @@ class DatasetManager {
   }
 
   private DatasetConfig getConfig(final NamespaceKey key) {
-    if(!isAmbiguousKey(key)) {
+    if (!isAmbiguousKey(key)) {
       try {
         return userNamespaceService.getDataset(key);
-      } catch(NamespaceNotFoundException ex) {
+      } catch (NamespaceNotFoundException ex) {
         return null;
-      } catch(NamespaceException ex) {
+      } catch (NamespaceException ex) {
         throw Throwables.propagate(ex);
       }
     }
@@ -158,42 +153,48 @@ class DatasetManager {
     /**
      * If we have an ambiguous key, let's search for possible matches in the namespace.
      *
-     * From there we will:
-     * - only consider keys that have the same leaf value (since ambiguity isn't allowed there)
-     * - return the first key by ordering the keys by segment (cis then cs).
+     * <p>From there we will: - only consider keys that have the same leaf value (since ambiguity
+     * isn't allowed there) - return the first key by ordering the keys by segment (cis then cs).
      */
     final LegacyFindByCondition condition = new LegacyFindByCondition();
-    condition.setCondition(SearchQueryUtils.newTermQuery(NamespaceIndexKeys.UNQUOTED_LC_PATH, key.toUnescapedString().toLowerCase()));
+    condition.setCondition(
+        SearchQueryUtils.newTermQuery(
+            NamespaceIndexKeys.UNQUOTED_LC_PATH, key.toUnescapedString().toLowerCase()));
     // do a case insensitive order first.
     // do a case sensitive order second.
     return StreamSupport.stream(userNamespaceService.find(condition).spliterator(), false)
-      .filter(entry -> entry.getKey().getLeaf().equalsIgnoreCase(key.getLeaf()))
-      .map(input -> input.getValue().getDataset())
-      .min((o1, o2) -> {
-        List<String> p1 = o1.getFullPathList();
-        List<String> p2 = o2.getFullPathList();
+        .filter(entry -> entry.getKey().getLeaf().equalsIgnoreCase(key.getLeaf()))
+        .map(input -> input.getValue().getDataset())
+        .min(
+            (o1, o2) -> {
+              List<String> p1 = o1.getFullPathList();
+              List<String> p2 = o2.getFullPathList();
 
-        final int size = Math.max(p1.size(), p2.size());
+              final int size = Math.max(p1.size(), p2.size());
 
-        for (int i = 0; i < size; i++) {
+              for (int i = 0; i < size; i++) {
 
-          // do a case insensitive order first.
-          int cmp = p1.get(i).toLowerCase().compareTo(p2.get(i).toLowerCase());
-          if (cmp != 0) {
-            return cmp;
-          }
+                // do a case insensitive order first.
+                int cmp = p1.get(i).toLowerCase().compareTo(p2.get(i).toLowerCase());
+                if (cmp != 0) {
+                  return cmp;
+                }
 
-          // do a case sensitive order second.
-          cmp = p1.get(i).compareTo(p2.get(i));
-          if (cmp != 0) {
-            return cmp;
-          }
+                // do a case sensitive order second.
+                cmp = p1.get(i).compareTo(p2.get(i));
+                if (cmp != 0) {
+                  return cmp;
+                }
+              }
 
-        }
-
-        Preconditions.checkArgument(p1.size() == p2.size(), "Two keys were indexed the same but had different lengths. %s, %s", p1, p2);
-        return 0;
-      }).orElse(null);
+              Preconditions.checkArgument(
+                  p1.size() == p2.size(),
+                  "Two keys were indexed the same but had different lengths. %s, %s",
+                  p1,
+                  p2);
+              return 0;
+            })
+        .orElse(null);
   }
 
   private DatasetConfig getConfig(final String datasetId) {
@@ -204,7 +205,7 @@ class DatasetManager {
     Preconditions.checkArgument(isAmbiguousKey(key), "%s should be ambiguous", key.getSchemaPath());
     List<String> pathComponents = key.getPathComponents();
     List<String> entries = new ArrayList<>();
-    for (String component: pathComponents) {
+    for (String component : pathComponents) {
       entries.addAll(Arrays.asList(component.split("\\.(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)")));
     }
     return new NamespaceKey(entries);
@@ -212,19 +213,15 @@ class DatasetManager {
 
   @WithSpan
   public DremioTable getTable(
-      NamespaceKey key,
-      MetadataRequestOptions options,
-      boolean ignoreColumnCount
-      ){
-
+      NamespaceKey key, MetadataRequestOptions options, boolean ignoreColumnCount) {
     final DatasetConfig config = getConfig(key);
 
-    if(config != null) {
+    if (config != null) {
       // canonicalize the path.
       key = new NamespaceKey(config.getFullPathList());
     }
 
-    if(isAmbiguousKey(key)) {
+    if (isAmbiguousKey(key)) {
       key = getCanonicalKey(key);
     }
 
@@ -237,37 +234,36 @@ class DatasetManager {
       logger.debug("Got config id {}", config.getId());
     }
 
-    if(plugin != null) {
+    if (plugin != null) {
 
-      // if we have a plugin and the info isn't a vds (this happens in home, where VDS are intermingled with plugin datasets).
-      if(config == null || config.getType() != DatasetType.VIRTUAL_DATASET) {
+      // if we have a plugin and the info isn't a vds (this happens in home, where VDS are
+      // intermingled with plugin datasets).
+      if (config == null || config.getType() != DatasetType.VIRTUAL_DATASET) {
         return getTableFromPlugin(key, config, plugin, options, ignoreColumnCount);
       }
     }
 
-    if(config == null) {
+    if (config == null) {
       return null;
     }
 
     // at this point, we should only be looking at virtual datasets.
-    if(config.getType() != DatasetType.VIRTUAL_DATASET) {
-      // if we're not looking at a virtual dataset, it must mean that we hit a race condition where the source has been removed but the dataset was retrieved just before.
+    if (config.getType() != DatasetType.VIRTUAL_DATASET) {
+      // if we're not looking at a virtual dataset, it must mean that we hit a race condition where
+      // the source has been removed but the dataset was retrieved just before.
       return null;
     }
 
     return createTableFromVirtualDataset(config, options);
   }
 
-  public DremioTable getTable(
-    String datasetId,
-    MetadataRequestOptions options
-  ) {
+  public DremioTable getTable(String datasetId, MetadataRequestOptions options) {
     final DatasetConfig config = getConfig(datasetId);
 
     if (config == null) {
       if (isVersionedDatasetId(datasetId)) {
         Span.current().setAttribute("dremio.catalog.getTable.isVersionedDatasetId", true);
-        //try lookup in external catalog
+        // try lookup in external catalog
         return getTableFromNessieCatalog(datasetId, options);
       } else {
         return null;
@@ -297,21 +293,29 @@ class DatasetManager {
     if (plugin == null) {
       return null;
     }
-    MetadataRequestOptions optionsWithVersion = options.cloneWith(tableKey.get(0), versionContext.asVersionContext());
-    DremioTable table = getTableFromNessieCatalog(new NamespaceKey(tableKey), plugin, optionsWithVersion );
+    MetadataRequestOptions optionsWithVersion =
+        options.cloneWith(tableKey.get(0), versionContext.asVersionContext());
+    DremioTable table =
+        getTableFromNessieCatalog(new NamespaceKey(tableKey), plugin, optionsWithVersion);
     if (table != null) {
-      //check for ContentId . If someone has dropped and recreated the table with the same key
+      // check for ContentId . If someone has dropped and recreated the table with the same key
       // in the same VersionContext , the ContentId will be different
       VersionedDatasetId returnedVersionedDatasetId = null;
       try {
-        returnedVersionedDatasetId = VersionedDatasetId.fromString(table.getDatasetConfig().getId().getId());
+        returnedVersionedDatasetId =
+            VersionedDatasetId.fromString(table.getDatasetConfig().getId().getId());
       } catch (JsonProcessingException e) {
-        logger.debug("Could not parse VersionedDatasetId from string : {}", table.getDatasetConfig().getId().getId(), e);
+        logger.debug(
+            "Could not parse VersionedDatasetId from string : {}",
+            table.getDatasetConfig().getId().getId(),
+            e);
         return null;
       }
       if (!returnedVersionedDatasetId.getContentId().equals(versionedDatasetId.getContentId())) {
-        logger.debug("ContentId mismatch. VersionedDatasetId in : {} : VersionedDatasetId out : {}",
-          versionedDatasetId.asString(), returnedVersionedDatasetId.asString());
+        logger.debug(
+            "ContentId mismatch. VersionedDatasetId in : {} : VersionedDatasetId out : {}",
+            versionedDatasetId.asString(),
+            returnedVersionedDatasetId.asString());
         return null;
       }
     }
@@ -319,33 +323,50 @@ class DatasetManager {
   }
 
   @WithSpan
-  private NamespaceTable getTableFromNamespace(NamespaceKey key, DatasetConfig datasetConfig, ManagedStoragePlugin plugin,
-                                               String accessUserName, MetadataRequestOptions options) {
+  private NamespaceTable getTableFromNamespace(
+      NamespaceKey key,
+      DatasetConfig datasetConfig,
+      ManagedStoragePlugin plugin,
+      MetadataRequestOptions options) {
+    final String accessUserName = getAccessUserName(plugin, options.getSchemaConfig());
+
     Span.current().setAttribute("dremio.namespace.key.schemapath", key.getSchemaPath());
     plugin.checkAccess(key, datasetConfig, accessUserName, options);
 
-    if (plugin.getPlugin() instanceof FileSystemPlugin && optionManager.getOption(ExecConstants.FS_PATH_TRAVERSAL_PREVENTION_ENABLED)) {
-      // DX-84516: Need to verify here and not just when accessing the path from FS plugin because the user may have
-      // already created/promoted a table they should not have access to - so we need to block the direct NS access too
+    if (plugin.getPlugin() instanceof FileSystemPlugin) {
+      // DX-84516: Need to verify here and not just when accessing the path from FS plugin because
+      // the user may have
+      // already created/promoted a table they should not have access to - so we need to block the
+      // direct NS access too
       List<String> pathComponents = key.getPathComponents();
-      PathUtils.verifyNoDirectoryTraversal(pathComponents, () ->
-        UserException.permissionError()
-          .message("Not allowed to perform directory traversal").addContext("Path", pathComponents.toString()).buildSilently());
+      PathUtils.verifyNoDirectoryTraversal(
+          pathComponents,
+          () ->
+              UserException.permissionError()
+                  .message("Not allowed to perform directory traversal")
+                  .addContext("Path", pathComponents.toString())
+                  .buildSilently());
     }
 
-    final TableMetadata tableMetadata = new TableMetadataImpl(plugin.getId(),
-      datasetConfig,
-      accessUserName,
-      DatasetSplitsPointer.of(userNamespaceService, datasetConfig),
-      getPrimaryKey(plugin.getPlugin(), datasetConfig, options.getSchemaConfig(), key, true));
-    return new NamespaceTable(tableMetadata, optionManager.getOption(FULL_NESTED_SCHEMA_SUPPORT));
+    final TableMetadata tableMetadata =
+        new TableMetadataImpl(
+            plugin.getId(),
+            datasetConfig,
+            accessUserName,
+            DatasetSplitsPointer.of(userNamespaceService, datasetConfig),
+            getPrimaryKey(plugin.getPlugin(), datasetConfig, options.getSchemaConfig(), key, true));
+    return new NamespaceTable(
+        tableMetadata,
+        plugin.getDatasetMetadataState(datasetConfig),
+        optionManager.getOption(FULL_NESTED_SCHEMA_SUPPORT));
   }
 
-  private List<String> getPrimaryKey(StoragePlugin plugin,
-                                     DatasetConfig datasetConfig,
-                                     SchemaConfig config,
-                                     NamespaceKey key,
-                                     boolean saveInKvStore) {
+  private List<String> getPrimaryKey(
+      StoragePlugin plugin,
+      DatasetConfig datasetConfig,
+      SchemaConfig config,
+      NamespaceKey key,
+      boolean saveInKvStore) {
     List<String> primaryKey = null;
     if (plugin instanceof MutablePlugin) {
       MutablePlugin mutablePlugin = (MutablePlugin) plugin;
@@ -358,50 +379,47 @@ class DatasetManager {
     return primaryKey;
   }
 
-  /**
-   * Retrieves a source table, checking that things are up to date.
-   */
+  /** Retrieves a source table, checking that things are up to date. */
   @WithSpan
   private DremioTable getTableFromPlugin(
       NamespaceKey key,
       DatasetConfig datasetConfig,
       ManagedStoragePlugin plugin,
       MetadataRequestOptions options,
-      boolean ignoreColumnCount
-  ) {
+      boolean ignoreColumnCount) {
+    // Special case 1: versioned plug-in.
     final StoragePlugin underlyingPlugin = plugin.getPlugin();
-    if (underlyingPlugin instanceof VersionedPlugin) {
-     return getTableFromNessieCatalog(key, plugin, options);
+    if (underlyingPlugin != null && underlyingPlugin.isWrapperFor(VersionedPlugin.class)) {
+      return getTableFromNessieCatalog(key, plugin, options);
     }
 
-    // Figure out the user we want to access the source with.  If the source supports impersonation we allow it to
-    // override the delegated username.
-    final SchemaConfig schemaConfig = options.getSchemaConfig();
-    final String accessUserName = getAccessUserName(plugin, schemaConfig);
-
-    final Stopwatch stopwatch = Stopwatch.createStarted();
-    if (plugin.isCompleteAndValid(datasetConfig, options)) {
-      final NamespaceKey canonicalKey = new NamespaceKey(datasetConfig.getFullPathList());
-      final NamespaceTable namespaceTable = getTableFromNamespace(key, datasetConfig, plugin, accessUserName, options);
-      options.getStatsCollector()
-          .addDatasetStat(canonicalKey.getSchemaPath(), MetadataAccessType.CACHED_METADATA.name(),
-              stopwatch.elapsed(TimeUnit.MILLISECONDS));
-      return namespaceTable;
-    }
-
-    try {
-      // TODO: move views to namespace and out of filesystem.
-      if (datasetConfig == null) {
+    // Special case 2: key is for a view.
+    // TODO: move views to namespace and out of filesystem.
+    if (datasetConfig == null) {
+      try {
         ViewTable view = plugin.getView(key, options);
         if (view != null) {
           return view;
         }
+      } catch (UserException ex) {
+        throw ex;
+      } catch (Exception ex) {
+        logger.warn("Exception while trying to read view.", ex);
+        return null;
       }
-    } catch (UserException ex) {
-      throw ex;
-    } catch (Exception ex) {
-      logger.warn("Exception while trying to read view.", ex);
-      return null;
+    }
+
+    // Check completeness and validity of table metadata and get it.
+    final Stopwatch stopwatch = Stopwatch.createStarted();
+    if (plugin.checkValidity(datasetConfig, options)) {
+      NamespaceTable table = getTableFromNamespace(key, datasetConfig, plugin, options);
+      options
+          .getStatsCollector()
+          .addDatasetStat(
+              new NamespaceKey(datasetConfig.getFullPathList()).getSchemaPath(),
+              MetadataAccessType.CACHED_METADATA.name(),
+              stopwatch.elapsed(TimeUnit.MILLISECONDS));
+      return table;
     }
 
     // If only the cached version is needed, check and return when no entry is found
@@ -409,119 +427,185 @@ class DatasetManager {
       return null;
     }
 
+    // Get dataset handle from the plugin.
     if (datasetConfig != null) {
       // canonicalize key if we can.
       key = new NamespaceKey(datasetConfig.getFullPathList());
     }
-
-    final DatasetRetrievalOptions retrievalOptions = plugin.getDefaultRetrievalOptions()
-        .toBuilder()
-        .setIgnoreAuthzErrors(schemaConfig.getIgnoreAuthErrors())
-        .setMaxMetadataLeafColumns(
-          (ignoreColumnCount) ? Integer.MAX_VALUE : plugin.getDefaultRetrievalOptions().maxMetadataLeafColumns()
-        )
-        .setMaxNestedLevel(plugin.getDefaultRetrievalOptions().maxNestedLevel())
-        .build();
-
     final Optional<DatasetHandle> handle;
     try {
-      handle = plugin.getDatasetHandle(key, datasetConfig, retrievalOptions);
+      handle =
+          plugin.getDatasetHandle(
+              key, datasetConfig, getDatasetRetrievalOptions(plugin, options, ignoreColumnCount));
     } catch (ConnectorException e) {
       throw UserException.validationError(e)
           .message("Failure while retrieving dataset [%s].", key)
           .build(logger);
     }
-
     if (!handle.isPresent()) {
       return null;
     }
 
-    final NamespaceKey canonicalKey = MetadataObjectsUtils.toNamespaceKey(handle.get().getDatasetPath());
-
+    final NamespaceKey canonicalKey =
+        MetadataObjectsUtils.toNamespaceKey(handle.get().getDatasetPath());
     if (datasetConfig == null && !canonicalKey.equals(key)) {
-      // before we do anything with this accessor, we should reprobe namespace as it is possible that the request the
-      // user made was not the canonical key and therefore we missed when trying to retrieve data from the namespace.
+      // before we do anything with this accessor, we should reprobe namespace as it is possible
+      // that the request the
+      // user made was not the canonical key and therefore we missed when trying to retrieve data
+      // from the namespace.
 
       try {
         datasetConfig = userNamespaceService.getDataset(canonicalKey);
-        if (datasetConfig != null && plugin.isCompleteAndValid(datasetConfig, options)) {
-          // if the dataset config is complete and unexpired, we'll recurse because we don't need the just retrieved
-          // SourceTableDefinition. Since they're lazy, little harm done.
-          // Otherwise, we'll fall through and use the found accessor.
-          return getTableFromPlugin(canonicalKey, datasetConfig, plugin, options, ignoreColumnCount);
+        if (plugin.checkValidity(datasetConfig, options)) {
+          NamespaceTable table =
+              getTableFromNamespace(canonicalKey, datasetConfig, plugin, options);
+          options
+              .getStatsCollector()
+              .addDatasetStat(
+                  new NamespaceKey(datasetConfig.getFullPathList()).getSchemaPath(),
+                  MetadataAccessType.CACHED_METADATA.name(),
+                  stopwatch.elapsed(TimeUnit.MILLISECONDS));
+          return table;
         }
       } catch (NamespaceException e) {
         // ignore, we'll fall through.
       }
     }
 
-    // arriving here means that the metadata for the table is either incomplete, missing or out of date. We need
+    // arriving here means that the metadata for the table is either incomplete, missing or out of
+    // date. We need
     // to save it and return the updated data.
+    return refreshMetadataAndGetTable(
+        stopwatch, canonicalKey, datasetConfig, handle.get(), plugin, options, ignoreColumnCount);
+  }
+
+  /**
+   * The method reads metadata (schema and other) from source via {@link ManagedStoragePlugin} and
+   * creates and instance of {@link DremioTable} from result.
+   *
+   * <p>This could be expensive as it runs SQL command, which may spin up new executors.
+   */
+  @WithSpan
+  private DremioTable refreshMetadataAndGetTable(
+      Stopwatch stopwatch,
+      NamespaceKey key,
+      DatasetConfig datasetConfig,
+      DatasetHandle handle,
+      ManagedStoragePlugin plugin,
+      MetadataRequestOptions options,
+      boolean ignoreColumnCount) {
+
+    final NamespaceKey canonicalKey = MetadataObjectsUtils.toNamespaceKey(handle.getDatasetPath());
 
     boolean opportunisticSave = (datasetConfig == null);
     if (opportunisticSave) {
-      datasetConfig = MetadataObjectsUtils.newShallowConfig(handle.get());
+      datasetConfig = MetadataObjectsUtils.newShallowConfig(handle);
     }
     logger.debug("Attempting inline refresh for  key : {} , canonicalKey : {} ", key, canonicalKey);
     try {
-      plugin.getSaver()
-          .save(datasetConfig, handle.get(), plugin.unwrap(StoragePlugin.class), opportunisticSave, retrievalOptions,
-                userName);
+      plugin
+          .getSaver()
+          .save(
+              datasetConfig,
+              handle,
+              plugin.unwrap(StoragePlugin.class),
+              opportunisticSave,
+              getDatasetRetrievalOptions(plugin, options, ignoreColumnCount),
+              userName);
     } catch (ConcurrentModificationException cme) {
-      // Some other query, or perhaps the metadata refresh, must have already created this dataset. Re-obtain it
+      // Some other query, or perhaps the metadata refresh, must have already created this dataset.
+      // Re-obtain it
       // from the namespace
       assert opportunisticSave : "Non-opportunistic saves should have already handled a CME";
       try {
         datasetConfig = userNamespaceService.getDataset(canonicalKey);
       } catch (NamespaceException e) {
-        // We got a concurrent modification exception because a dataset existed. It shouldn't be the case that it
-        // no longer exists. In the very rare case of this code racing with both another update *and* a dataset deletion
+        // We got a concurrent modification exception because a dataset existed. It shouldn't be the
+        // case that it
+        // no longer exists. In the very rare case of this code racing with both another update
+        // *and* a dataset deletion
         // we should act as if the delete won
         logger.warn("Unable to obtain dataset {}. Likely race with dataset deletion", canonicalKey);
         return null;
       }
-      final NamespaceTable namespaceTable = getTableFromNamespace(key, datasetConfig, plugin, accessUserName, options);
-      options.getStatsCollector()
-          .addDatasetStat(canonicalKey.getSchemaPath(), MetadataAccessType.CACHED_METADATA.name(),
+      final NamespaceTable namespaceTable =
+          getTableFromNamespace(key, datasetConfig, plugin, options);
+      options
+          .getStatsCollector()
+          .addDatasetStat(
+              canonicalKey.getSchemaPath(),
+              MetadataAccessType.CACHED_METADATA.name(),
               stopwatch.elapsed(TimeUnit.MILLISECONDS));
       return namespaceTable;
     } catch (AccessControlException ignored) {
       return null;
     }
 
-    options.getStatsCollector()
-        .addDatasetStat(canonicalKey.getSchemaPath(), MetadataAccessType.PARTIAL_METADATA.name(),
+    options
+        .getStatsCollector()
+        .addDatasetStat(
+            canonicalKey.getSchemaPath(),
+            MetadataAccessType.PARTIAL_METADATA.name(),
             stopwatch.elapsed(TimeUnit.MILLISECONDS));
+
+    final SchemaConfig schemaConfig = options.getSchemaConfig();
+    final String accessUserName = getAccessUserName(plugin, schemaConfig);
 
     plugin.checkAccess(canonicalKey, datasetConfig, accessUserName, options);
 
     // TODO: use MaterializedSplitsPointer if metadata is not too big!
-    final TableMetadata tableMetadata = new TableMetadataImpl(plugin.getId(), datasetConfig,
-      accessUserName, DatasetSplitsPointer.of(userNamespaceService, datasetConfig),
-      getPrimaryKey(plugin.getPlugin(), datasetConfig, schemaConfig, key,
-        false /* The metadata for the table is either incomplete, missing or out of date.
-        Storing in namespace can cause issues if the metadata is missing. Don't save here.
-        */));
-    return new NamespaceTable(tableMetadata, optionManager.getOption(FULL_NESTED_SCHEMA_SUPPORT));
+    final TableMetadata tableMetadata =
+        new TableMetadataImpl(
+            plugin.getId(),
+            datasetConfig,
+            accessUserName,
+            DatasetSplitsPointer.of(userNamespaceService, datasetConfig),
+            getPrimaryKey(
+                plugin.getPlugin(),
+                datasetConfig,
+                schemaConfig,
+                key,
+                false /* The metadata for the table is either incomplete, missing or out of date.
+                      Storing in namespace can cause issues if the metadata is missing. Don't save here.
+                      */));
+    return new NamespaceTable(
+        tableMetadata,
+        plugin.getDatasetMetadataState(datasetConfig),
+        optionManager.getOption(FULL_NESTED_SCHEMA_SUPPORT));
   }
 
-  /**
-   * Return whether or not saves are allowed
-   */
+  private static DatasetRetrievalOptions getDatasetRetrievalOptions(
+      ManagedStoragePlugin plugin, MetadataRequestOptions options, boolean ignoreColumnCount) {
+    return plugin.getDefaultRetrievalOptions().toBuilder()
+        .setIgnoreAuthzErrors(options.getSchemaConfig().getIgnoreAuthErrors())
+        .setMaxMetadataLeafColumns(
+            (ignoreColumnCount)
+                ? Integer.MAX_VALUE
+                : plugin.getDefaultRetrievalOptions().maxMetadataLeafColumns())
+        .setMaxNestedLevel(plugin.getDefaultRetrievalOptions().maxNestedLevel())
+        .build();
+  }
+
+  /** Return whether or not saves are allowed */
   protected boolean checkCanSave(NamespaceKey key) {
     return true;
   }
 
-  // Figure out the user we want to access the source with.  If the source supports impersonation we allow it to
+  // Figure out the user we want to access the source with.  If the source supports impersonation we
+  // allow it to
   // override the delegated username.
   private String getAccessUserName(ManagedStoragePlugin plugin, SchemaConfig schemaConfig) {
     final String accessUserName;
 
-    ConnectionConf<?,?> conf = plugin.getConnectionConf();
+    ConnectionConf<?, ?> conf = plugin.getConnectionConf();
     if (conf instanceof ImpersonationConf) {
-      if (plugin.getPlugin() instanceof SupportsImpersonation && !(schemaConfig.getAuthContext().getSubject() instanceof CatalogUser)) {
+      if (plugin.getPlugin() instanceof SupportsImpersonation
+          && !(schemaConfig.getAuthContext().getSubject() instanceof CatalogUser)) {
         if (((SupportsImpersonation) plugin.getPlugin()).isImpersonationEnabled()) {
-          throw UserException.unsupportedError(new InvalidImpersonationTargetException("Only users can be used to connect to impersonation enabled sources.")).buildSilently();
+          throw UserException.unsupportedError(
+                  new InvalidImpersonationTargetException(
+                      "Only users can be used to connect to impersonation enabled sources."))
+              .buildSilently();
         }
       }
 
@@ -529,7 +613,8 @@ class DatasetManager {
       if (schemaConfig.getViewExpansionContext() != null) {
         queryUser = schemaConfig.getViewExpansionContext().getQueryUser().getName();
       }
-      accessUserName = ((ImpersonationConf) conf).getAccessUserName(schemaConfig.getUserName(), queryUser);
+      accessUserName =
+          ((ImpersonationConf) conf).getAccessUserName(schemaConfig.getUserName(), queryUser);
     } else {
       accessUserName = schemaConfig.getUserName();
     }
@@ -538,32 +623,47 @@ class DatasetManager {
   }
 
   @WithSpan("create-table-from-view")
-  private ViewTable createTableFromVirtualDataset(DatasetConfig datasetConfig, MetadataRequestOptions options) {
+  private ViewTable createTableFromVirtualDataset(
+      DatasetConfig datasetConfig, MetadataRequestOptions options) {
     try {
       // 1.4.0 and earlier didn't correctly save virtual dataset schema information.
-      BatchSchema schema = DatasetHelper.getSchemaBytes(datasetConfig) != null ? CalciteArrowHelper.fromDataset(datasetConfig) : null;
+      BatchSchema schema =
+          DatasetHelper.getSchemaBytes(datasetConfig) != null
+              ? CalciteArrowHelper.fromDataset(datasetConfig)
+              : null;
 
-      View view = Views.fieldTypesToView(
-        Iterables.getLast(datasetConfig.getFullPathList()),
-        datasetConfig.getVirtualDataset().getSql(),
-        ViewFieldsHelper.getViewFields(datasetConfig),
-        datasetConfig.getVirtualDataset().getContextList(),
-        options.getSchemaConfig().getOptions() != null && options.getSchemaConfig().getOptions().getOption(FULL_NESTED_SCHEMA_SUPPORT) ? schema : null
-      );
+      View view =
+          Views.fieldTypesToView(
+              Iterables.getLast(datasetConfig.getFullPathList()),
+              datasetConfig.getVirtualDataset().getSql(),
+              ViewFieldsHelper.getViewFields(datasetConfig),
+              datasetConfig.getVirtualDataset().getContextList(),
+              options.getSchemaConfig().getOptions() != null
+                      && options
+                          .getSchemaConfig()
+                          .getOptions()
+                          .getOption(FULL_NESTED_SCHEMA_SUPPORT)
+                  ? schema
+                  : null);
 
-      return new ViewTable(new NamespaceKey(datasetConfig.getFullPathList()), view,
-        identityProvider.getOwner(datasetConfig.getFullPathList()),
-        datasetConfig, schema);
+      return new ViewTable(
+          new NamespaceKey(datasetConfig.getFullPathList()),
+          view,
+          identityProvider.getOwner(datasetConfig.getFullPathList()),
+          datasetConfig,
+          schema);
     } catch (Exception e) {
-      throw new RuntimeException(String.format("Failure while constructing the ViewTable from datasetConfig for key %s with datasetId %s",
-        String.join(".", datasetConfig.getFullPathList()),
-        datasetConfig.getId().getId()),
-        e);
+      throw new RuntimeException(
+          String.format(
+              "Failure while constructing the ViewTable from datasetConfig for key %s with datasetId %s",
+              String.join(".", datasetConfig.getFullPathList()), datasetConfig.getId().getId()),
+          e);
     }
   }
 
   @WithSpan
-  private DremioTable getTableFromNessieCatalog(NamespaceKey key, ManagedStoragePlugin plugin, MetadataRequestOptions options) {
+  private DremioTable getTableFromNessieCatalog(
+      NamespaceKey key, ManagedStoragePlugin plugin, MetadataRequestOptions options) {
     final String accessUserName = options.getSchemaConfig().getUserName();
     final StoragePlugin underlyingPlugin = plugin.getPlugin();
     VersionedDatasetAdapter versionedDatasetAdapter;
@@ -571,17 +671,19 @@ class DatasetManager {
       return null;
     }
     try {
-      versionedDatasetAdapter = versionedDatasetAdapterFactory
-        .newInstance(
-          key.getPathComponents(),
-          versionContextResolver.resolveVersionContext(
-            plugin.getName().getRoot(), options.getVersionForSource(plugin.getName().getRoot(), key)),
-          underlyingPlugin,
-          plugin.getId(),
-          optionManager);
-    } catch (NessieReferenceException e ) {
-      logger.debug( "Unable to retrieve table metadata for {} ", key, e);
-      // Any error in resolving the version context returns a NessieReferenceException with a detailed error.
+      versionedDatasetAdapter =
+          versionedDatasetAdapterFactory.newInstance(
+              key.getPathComponents(),
+              versionContextResolver.resolveVersionContext(
+                  plugin.getName().getRoot(),
+                  options.getVersionForSource(plugin.getName().getRoot(), key)),
+              underlyingPlugin,
+              plugin.getId(),
+              optionManager);
+    } catch (NessieReferenceException e) {
+      logger.debug("Unable to retrieve table metadata for {} ", key, e);
+      // Any error in resolving the version context returns a NessieReferenceException with a
+      // detailed error.
       // We log that and return null to indicate that the table cannot be found.
       return null;
     }
@@ -593,18 +695,18 @@ class DatasetManager {
   }
 
   private static boolean isFSBasedDataset(DatasetConfig datasetConfig) {
-    return datasetConfig.getType() == DatasetType.PHYSICAL_DATASET_HOME_FILE ||
-      datasetConfig.getType() == DatasetType.PHYSICAL_DATASET_SOURCE_FILE ||
-      datasetConfig.getType() == DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER ||
-      datasetConfig.getType() == DatasetType.PHYSICAL_DATASET_HOME_FOLDER;
+    return datasetConfig.getType() == DatasetType.PHYSICAL_DATASET_HOME_FILE
+        || datasetConfig.getType() == DatasetType.PHYSICAL_DATASET_SOURCE_FILE
+        || datasetConfig.getType() == DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER
+        || datasetConfig.getType() == DatasetType.PHYSICAL_DATASET_HOME_FOLDER;
   }
 
   public boolean createOrUpdateDataset(
       ManagedStoragePlugin plugin,
       NamespaceKey datasetPath,
       DatasetConfig newConfig,
-      NamespaceAttribute... attributes
-  ) throws NamespaceException {
+      NamespaceAttribute... attributes)
+      throws NamespaceException {
 
     if (!isFSBasedDataset(newConfig)) {
       return userNamespaceService.tryCreatePhysicalDataset(datasetPath, newConfig, attributes);
@@ -618,9 +720,11 @@ class DatasetManager {
     }
 
     // if format settings did not change fall back to namespace based update
-    if (currentConfig != null &&
-        currentConfig.getPhysicalDataset().getFormatSettings().equals(
-            newConfig.getPhysicalDataset().getFormatSettings())) {
+    if (currentConfig != null
+        && currentConfig
+            .getPhysicalDataset()
+            .getFormatSettings()
+            .equals(newConfig.getPhysicalDataset().getFormatSettings())) {
       return userNamespaceService.tryCreatePhysicalDataset(datasetPath, newConfig, attributes);
     }
 
@@ -628,30 +732,49 @@ class DatasetManager {
     try {
       // for home files dataset path is location of file not path in namespace.
       if (newConfig.getType() == DatasetType.PHYSICAL_DATASET_HOME_FILE) {
-        final NamespaceKey pathInHome = new NamespaceKey(ImmutableList.<String>builder()
-            .add("__home") // TODO (AH) hack.
-            .addAll(PathUtils.toPathComponents(newConfig.getPhysicalDataset().getFormatSettings().getLocation()))
-            .build());
+        final NamespaceKey pathInHome =
+            new NamespaceKey(
+                ImmutableList.<String>builder()
+                    .add("__home") // TODO (AH) hack.
+                    .addAll(
+                        PathUtils.toPathComponents(
+                            newConfig.getPhysicalDataset().getFormatSettings().getLocation()))
+                    .build());
 
-        final Optional<DatasetHandle> handle = getHandle(plugin, pathInHome, newConfig, retrievalOptions);
+        final Optional<DatasetHandle> handle =
+            getHandle(plugin, pathInHome, newConfig, retrievalOptions);
         if (!handle.isPresent()) {
           // setting format setting on empty folders?
           return userNamespaceService.tryCreatePhysicalDataset(datasetPath, newConfig, attributes);
         }
 
-        saveInHomeSpace(userNamespaceService, plugin.unwrap(StoragePlugin.class), handle.get(), retrievalOptions, newConfig);
+        saveInHomeSpace(
+            userNamespaceService,
+            plugin.unwrap(StoragePlugin.class),
+            handle.get(),
+            retrievalOptions,
+            newConfig);
         return true;
       }
 
-      final Optional<DatasetHandle> handle = getHandle(plugin, datasetPath, newConfig, retrievalOptions);
+      final Optional<DatasetHandle> handle =
+          getHandle(plugin, datasetPath, newConfig, retrievalOptions);
       if (!handle.isPresent()) {
         // setting format setting on empty folders?
         return userNamespaceService.tryCreatePhysicalDataset(datasetPath, newConfig, attributes);
       }
 
       NamespaceUtils.copyFromOldConfig(currentConfig, newConfig);
-      plugin.getSaver()
-          .save(newConfig, handle.get(), plugin.unwrap(StoragePlugin.class), false, retrievalOptions, userName, attributes);
+      plugin
+          .getSaver()
+          .save(
+              newConfig,
+              handle.get(),
+              plugin.unwrap(StoragePlugin.class),
+              false,
+              retrievalOptions,
+              userName,
+              attributes);
     } catch (Exception e) {
       Throwables.propagateIfPossible(e, NamespaceException.class);
       throw new RuntimeException("Failed to get new dataset ", e);
@@ -663,8 +786,7 @@ class DatasetManager {
       ManagedStoragePlugin plugin,
       NamespaceKey key,
       DatasetConfig datasetConfig,
-      DatasetRetrievalOptions retrievalOptions
-  ) {
+      DatasetRetrievalOptions retrievalOptions) {
     try {
       return plugin.getDatasetHandle(key, datasetConfig, retrievalOptions);
     } catch (ConnectorException e) {
@@ -674,7 +796,10 @@ class DatasetManager {
     }
   }
 
-  public void createDataset(NamespaceKey key, ManagedStoragePlugin plugin, Function<DatasetConfig, DatasetConfig> datasetMutator) {
+  public void createDataset(
+      NamespaceKey key,
+      ManagedStoragePlugin plugin,
+      Function<DatasetConfig, DatasetConfig> datasetMutator) {
     DatasetConfig config;
     try {
       config = userNamespaceService.getDataset(key);
@@ -685,7 +810,10 @@ class DatasetManager {
             .build(logger);
       }
     } catch (NamespaceException ex) {
-      logger.debug("Failure while trying to retrieve dataset for key {}. Exception: {}", key, ex.getLocalizedMessage());
+      logger.debug(
+          "Failure while trying to retrieve dataset for key {}. Exception: {}",
+          key,
+          ex.getLocalizedMessage());
     }
 
     final DatasetRetrievalOptions retrievalOptions = plugin.getDefaultRetrievalOptions();
@@ -706,8 +834,15 @@ class DatasetManager {
 
     config = MetadataObjectsUtils.newShallowConfig(handle.get());
 
-    plugin.getSaver()
-        .save(config, handle.get(), plugin.unwrap(StoragePlugin.class), false, retrievalOptions, datasetMutator::apply);
+    plugin
+        .getSaver()
+        .save(
+            config,
+            handle.get(),
+            plugin.unwrap(StoragePlugin.class),
+            false,
+            retrievalOptions,
+            datasetMutator::apply);
   }
 
   private void saveInHomeSpace(
@@ -715,8 +850,7 @@ class DatasetManager {
       SourceMetadata sourceMetadata,
       DatasetHandle handle,
       DatasetRetrievalOptions options,
-      DatasetConfig nsConfig
-  ) {
+      DatasetConfig nsConfig) {
     Preconditions.checkNotNull(nsConfig);
     final NamespaceKey key = new NamespaceKey(nsConfig.getFullPathList());
 
@@ -724,18 +858,32 @@ class DatasetManager {
       nsConfig.setId(new EntityId(UUID.randomUUID().toString()));
     }
 
-    NamespaceService.SplitCompression splitCompression = NamespaceService.SplitCompression.valueOf(optionManager.getOption(CatalogOptions.SPLIT_COMPRESSION_TYPE).toUpperCase());
-    try (DatasetMetadataSaver saver = userNamespace.newDatasetMetadataSaver(key, nsConfig.getId(), splitCompression,
-      optionManager.getOption(CatalogOptions.SINGLE_SPLIT_PARTITION_MAX), optionManager.getOption(NamespaceOptions.DATASET_METADATA_CONSISTENCY_VALIDATE))) {
-      final PartitionChunkListing chunkListing = sourceMetadata.listPartitionChunks(handle,
-          options.asListPartitionChunkOptions(nsConfig));
+    NamespaceService.SplitCompression splitCompression =
+        NamespaceService.SplitCompression.valueOf(
+            optionManager.getOption(CatalogOptions.SPLIT_COMPRESSION_TYPE).toUpperCase());
+    try (DatasetMetadataSaver saver =
+        userNamespace.newDatasetMetadataSaver(
+            key,
+            nsConfig.getId(),
+            splitCompression,
+            optionManager.getOption(CatalogOptions.SINGLE_SPLIT_PARTITION_MAX),
+            optionManager.getOption(NamespaceOptions.DATASET_METADATA_CONSISTENCY_VALIDATE))) {
+      final PartitionChunkListing chunkListing =
+          sourceMetadata.listPartitionChunks(handle, options.asListPartitionChunkOptions(nsConfig));
 
-      final long recordCountFromSplits = saver == null || chunkListing == null ? 0 :
-        CatalogUtil.savePartitionChunksInSplitsStores(saver,chunkListing);
-      final DatasetMetadata datasetMetadata = sourceMetadata.getDatasetMetadata(handle, chunkListing,
-          options.asGetMetadataOptions(nsConfig));
-      MetadataObjectsUtils.overrideExtended(nsConfig, datasetMetadata, Optional.empty(),
-        recordCountFromSplits, options.maxMetadataLeafColumns());
+      final long recordCountFromSplits =
+          saver == null || chunkListing == null
+              ? 0
+              : CatalogUtil.savePartitionChunksInSplitsStores(saver, chunkListing);
+      final DatasetMetadata datasetMetadata =
+          sourceMetadata.getDatasetMetadata(
+              handle, chunkListing, options.asGetMetadataOptions(nsConfig));
+      MetadataObjectsUtils.overrideExtended(
+          nsConfig,
+          datasetMetadata,
+          Optional.empty(),
+          recordCountFromSplits,
+          options.maxMetadataLeafColumns());
       saver.saveDataset(nsConfig, false);
     } catch (DatasetMetadataTooLargeException e) {
       nsConfig.setRecordSchema(null);
@@ -744,8 +892,7 @@ class DatasetManager {
         userNamespaceService.addOrUpdateDataset(key, nsConfig);
       } catch (NamespaceException ignored) {
       }
-      throw UserException.validationError(e)
-          .build(logger);
+      throw UserException.validationError(e).build(logger);
     } catch (Exception e) {
       logger.warn("Failure while retrieving and saving dataset {}.", key, e);
     }

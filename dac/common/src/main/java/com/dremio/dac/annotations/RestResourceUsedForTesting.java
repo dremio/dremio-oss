@@ -15,17 +15,13 @@
  */
 package com.dremio.dac.annotations;
 
-
 import static java.lang.annotation.ElementType.TYPE;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 
-/**
- * If the resource is only for testing purposes, use this annotation.
- */
+/** If the resource is only for testing purposes, use this annotation. */
 @Retention(RUNTIME) // runtime retention (unlike VisibleForTesting)
 @Target(TYPE)
-public @interface RestResourceUsedForTesting {
-}
+public @interface RestResourceUsedForTesting {}

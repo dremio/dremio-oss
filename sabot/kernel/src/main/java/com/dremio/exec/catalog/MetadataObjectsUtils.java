@@ -15,24 +15,6 @@
  */
 package com.dremio.exec.catalog;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.ObjectInput;
-import java.io.ObjectInputStream;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Spliterators;
-import java.util.UUID;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
-
-import org.apache.commons.lang3.StringUtils;
-
 import com.dremio.connector.metadata.BytesOutput;
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.DatasetMetadata;
@@ -58,19 +40,34 @@ import com.dremio.service.namespace.dataset.proto.TableProperties;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.dremio.service.namespace.file.proto.FileType;
 import com.dremio.service.namespace.proto.EntityId;
-
 import io.protostuff.ByteString;
 import io.protostuff.ByteStringUtil;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectInput;
+import java.io.ObjectInputStream;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Spliterators;
+import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
+import org.apache.commons.lang3.StringUtils;
 
 /**
- * Utility functions to convert from metadata object provided by source connectors to metadata object stored in
- * the catalog.
+ * Utility functions to convert from metadata object provided by source connectors to metadata
+ * object stored in the catalog.
  */
 public final class MetadataObjectsUtils {
 
   /**
-   * Creates a serializable {@link DatasetConfig} for the given handle. The returned object is "shallow", effectively
-   * setting only the name of the dataset.
+   * Creates a serializable {@link DatasetConfig} for the given handle. The returned object is
+   * "shallow", effectively setting only the name of the dataset.
    *
    * @param handle dataset handle
    * @return dataset config
@@ -78,8 +75,7 @@ public final class MetadataObjectsUtils {
   public static DatasetConfig newShallowConfig(DatasetHandle handle) {
     final DatasetConfig shallowConfig = new DatasetConfig();
 
-    shallowConfig.setId(new EntityId()
-        .setId(UUID.randomUUID().toString()));
+    shallowConfig.setId(new EntityId().setId(UUID.randomUUID().toString()));
     shallowConfig.setCreatedAt(System.currentTimeMillis());
     shallowConfig.setName(handle.getDatasetPath().getName());
     shallowConfig.setFullPathList(handle.getDatasetPath().getComponents());
@@ -93,50 +89,62 @@ public final class MetadataObjectsUtils {
   }
 
   /**
-   * Overrides attributes of the given serializable dataset config with the corresponding values from the given
-   * extended dataset metadata. Optionally sets the read signature if one is provided.
+   * Overrides attributes of the given serializable dataset config with the corresponding values
+   * from the given extended dataset metadata. Optionally sets the read signature if one is
+   * provided.
+   *
    * @param datasetConfig dataset config
-   * @param newExtended   extended metadata
-   * @param newSignature  optional read signature
-   * @param newRecordCount   the number of records for sources that do not support record counts in stats.
+   * @param newExtended extended metadata
+   * @param newSignature optional read signature
+   * @param newRecordCount the number of records for sources that do not support record counts in
+   *     stats.
    * @param maxLeafFields the number of leaf fields permitted
    */
   public static void overrideExtended(
-    DatasetConfig datasetConfig,
-    DatasetMetadata newExtended,
-    Optional<ByteString> newSignature,
-    long newRecordCount,
-    int maxLeafFields) {
+      DatasetConfig datasetConfig,
+      DatasetMetadata newExtended,
+      Optional<ByteString> newSignature,
+      long newRecordCount,
+      int maxLeafFields) {
     // 1. preserve shallow and misc attributes as is
     // no-op
 
     // 2. override extended metadata attributes
-    datasetConfig.setSchemaVersion(datasetConfig.getSchemaVersion());  // TODO: how to detect changes?
+    datasetConfig.setSchemaVersion(
+        datasetConfig.getSchemaVersion()); // TODO: how to detect changes?
     final BatchSchema batchSchema = new BatchSchema(newExtended.getRecordSchema().getFields());
     if (batchSchema.getTotalFieldCount() > maxLeafFields) {
       throw new ColumnCountTooLargeException(maxLeafFields);
     }
-    datasetConfig.setRecordSchema(new BatchSchema(newExtended.getRecordSchema().getFields()).toByteString());
+    datasetConfig.setRecordSchema(
+        new BatchSchema(newExtended.getRecordSchema().getFields()).toByteString());
 
     final ReadDefinition readDefinition = new ReadDefinition();
     readDefinition.setPartitionColumnsList(newExtended.getPartitionColumns());
-    readDefinition.setSortColumnsList(newExtended.getSortColumns()); // TODO: not required from connectors
+    readDefinition.setSortColumnsList(
+        newExtended.getSortColumns()); // TODO: not required from connectors
     readDefinition.setExtendedProperty(toProtostuff(newExtended.getExtraInfo()));
     final DatasetStats datasetStats = newExtended.getDatasetStats();
     final long datasetRecordCount = datasetStats.getRecordCount();
-    readDefinition.setScanStats(new ScanStats()
-        .setScanFactor(datasetStats.getScanFactor())
-        .setType(datasetStats.isExactRecordCount() ? ScanStatsType.EXACT_ROW_COUNT : ScanStatsType.NO_EXACT_ROW_COUNT)
-        .setRecordCount(datasetRecordCount >= 0 ? datasetRecordCount : newRecordCount)
-    );
+    readDefinition.setScanStats(
+        new ScanStats()
+            .setScanFactor(datasetStats.getScanFactor())
+            .setType(
+                datasetStats.isExactRecordCount()
+                    ? ScanStatsType.EXACT_ROW_COUNT
+                    : ScanStatsType.NO_EXACT_ROW_COUNT)
+            .setRecordCount(datasetRecordCount >= 0 ? datasetRecordCount : newRecordCount));
 
     final DatasetStats manifestStats = newExtended.getManifestStats();
     if (manifestStats != null) {
-      readDefinition.setManifestScanStats(new ScanStats()
+      readDefinition.setManifestScanStats(
+          new ScanStats()
               .setScanFactor(manifestStats.getScanFactor())
-              .setType(manifestStats.isExactRecordCount() ? ScanStatsType.EXACT_ROW_COUNT:ScanStatsType.NO_EXACT_ROW_COUNT)
-              .setRecordCount(manifestStats.getRecordCount())
-      );
+              .setType(
+                  manifestStats.isExactRecordCount()
+                      ? ScanStatsType.EXACT_ROW_COUNT
+                      : ScanStatsType.NO_EXACT_ROW_COUNT)
+              .setRecordCount(manifestStats.getRecordCount()));
     }
 
     if (newExtended instanceof SupportsDeltaMetadata) {
@@ -151,7 +159,8 @@ public final class MetadataObjectsUtils {
       }
     }
 
-    if (newExtended instanceof FileConfigMetadata && !DatasetHelper.isInternalIcebergTable(datasetConfig)) {
+    if (newExtended instanceof FileConfigMetadata
+        && !DatasetHelper.isInternalIcebergTable(datasetConfig)) {
       final PhysicalDataset pds = getPhysicalDataset(datasetConfig);
       FileConfig fileConfig = ((FileConfigMetadata) newExtended).getFileConfig();
       if (pds.getFormatSettings() != null) {
@@ -160,7 +169,8 @@ public final class MetadataObjectsUtils {
       pds.setFormatSettings(fileConfig);
     }
 
-    newSignature.ifPresent(bs -> readDefinition.setReadSignature(ByteStringUtil.wrap(bs.toByteArray())));
+    newSignature.ifPresent(
+        bs -> readDefinition.setReadSignature(ByteStringUtil.wrap(bs.toByteArray())));
 
     datasetConfig.setReadDefinition(readDefinition);
 
@@ -175,43 +185,55 @@ public final class MetadataObjectsUtils {
       icebergMetadata.setMetadataFileLocation(newMetadata.getMetadataFileLocation());
       icebergMetadata.setJsonSchema(newMetadata.getIcebergSchema());
       icebergMetadata.setPartitionSpecsJsonMap(toProtostuff(newMetadata.getPartitionSpecs()));
+      icebergMetadata.setDefaultPartitionSpecId(newMetadata.getDefaultPartitionSpecId());
       icebergMetadata.setSortOrder(newMetadata.getSortOrder());
-      icebergMetadata.setTablePropertiesList(convertTablePropertiesToList(newMetadata.getTableProperties()));
+      icebergMetadata.setTablePropertiesList(
+          convertTablePropertiesToList(newMetadata.getTableProperties()));
       if (newMetadata.getSnapshotId() > 0) {
         icebergMetadata.setSnapshotId(newMetadata.getSnapshotId());
       }
       if (deleteStats != null) {
-        icebergMetadata.setDeleteStats(new ScanStats()
-            .setScanFactor(deleteStats.getScanFactor())
-            .setType(deleteStats.isExactRecordCount() ? ScanStatsType.EXACT_ROW_COUNT :
-                ScanStatsType.NO_EXACT_ROW_COUNT)
-            .setRecordCount(deleteStats.getRecordCount()));
+        icebergMetadata.setDeleteStats(
+            new ScanStats()
+                .setScanFactor(deleteStats.getScanFactor())
+                .setType(
+                    deleteStats.isExactRecordCount()
+                        ? ScanStatsType.EXACT_ROW_COUNT
+                        : ScanStatsType.NO_EXACT_ROW_COUNT)
+                .setRecordCount(deleteStats.getRecordCount()));
       }
       if (equalityDeleteStats != null) {
-        icebergMetadata.setEqualityDeleteStats(new ScanStats()
-          .setScanFactor(equalityDeleteStats.getScanFactor())
-          .setType(equalityDeleteStats.isExactRecordCount() ? ScanStatsType.EXACT_ROW_COUNT :
-            ScanStatsType.NO_EXACT_ROW_COUNT)
-          .setRecordCount(equalityDeleteStats.getRecordCount()));
+        icebergMetadata.setEqualityDeleteStats(
+            new ScanStats()
+                .setScanFactor(equalityDeleteStats.getScanFactor())
+                .setType(
+                    equalityDeleteStats.isExactRecordCount()
+                        ? ScanStatsType.EXACT_ROW_COUNT
+                        : ScanStatsType.NO_EXACT_ROW_COUNT)
+                .setRecordCount(equalityDeleteStats.getRecordCount()));
       }
       if (deleteManifestStats != null) {
-        icebergMetadata.setDeleteManifestStats(new ScanStats()
-            .setScanFactor(deleteManifestStats.getScanFactor())
-            .setType(deleteManifestStats.isExactRecordCount() ? ScanStatsType.EXACT_ROW_COUNT :
-                ScanStatsType.NO_EXACT_ROW_COUNT)
-            .setRecordCount(deleteManifestStats.getRecordCount()));
+        icebergMetadata.setDeleteManifestStats(
+            new ScanStats()
+                .setScanFactor(deleteManifestStats.getScanFactor())
+                .setType(
+                    deleteManifestStats.isExactRecordCount()
+                        ? ScanStatsType.EXACT_ROW_COUNT
+                        : ScanStatsType.NO_EXACT_ROW_COUNT)
+                .setRecordCount(deleteManifestStats.getRecordCount()));
       }
       if (DatasetHelper.isInternalIcebergTable(datasetConfig)) {
         icebergMetadata.setTableUuid(pds.getIcebergMetadata().getTableUuid());
       }
       pds.setIcebergMetadata(icebergMetadata);
       datasetConfig.setLastModified(newMetadata.getMtime());
-    } else { // TODO(DX-43317): try deprecated way of populating iceberg metadata, until DX-43317 is resolved.
+    } else { // TODO(DX-43317): try deprecated way of populating iceberg metadata, until DX-43317 is
+      // resolved.
 
       final byte[] icebergMetadataBytes = newExtended.getIcebergMetadata();
       if (icebergMetadataBytes != null && icebergMetadataBytes.length > 0) {
         try (ByteArrayInputStream bis = new ByteArrayInputStream(icebergMetadataBytes);
-             ObjectInput in = new ObjectInputStream(bis)) {
+            ObjectInput in = new ObjectInputStream(bis)) {
           final PhysicalDataset pds = getPhysicalDataset(datasetConfig);
 
           final IcebergMetadata icebergMetadata = (IcebergMetadata) in.readObject();
@@ -230,12 +252,13 @@ public final class MetadataObjectsUtils {
     return datasetConfig.getPhysicalDataset();
   }
 
-  private static List<TableProperties> convertTablePropertiesToList(Map<String, String> tablePropertiesMap) {
+  private static List<TableProperties> convertTablePropertiesToList(
+      Map<String, String> tablePropertiesMap) {
     if (tablePropertiesMap == null || tablePropertiesMap.isEmpty()) {
       return Collections.emptyList();
     }
     List<TableProperties> tablePropertiesList = new ArrayList<>();
-    for (Map.Entry<String,String> entry : tablePropertiesMap.entrySet()) {
+    for (Map.Entry<String, String> entry : tablePropertiesMap.entrySet()) {
       TableProperties tableProperties = new TableProperties();
       tableProperties.setTablePropertyName(entry.getKey());
       tableProperties.setTablePropertyValue(entry.getValue());
@@ -251,34 +274,39 @@ public final class MetadataObjectsUtils {
    * @param partitionChunk partition chunk
    * @return partition chunk stream
    */
-  @Deprecated // this will end up creating a legacy partition chunk metadata impl, which will be handled correctly
-  public static Stream<PartitionProtobuf.PartitionChunk>
-  newPartitionChunk(String splitPrefix, PartitionChunk partitionChunk) {
+  @Deprecated // this will end up creating a legacy partition chunk metadata impl, which will be
+  // handled correctly
+  public static Stream<PartitionProtobuf.PartitionChunk> newPartitionChunk(
+      String splitPrefix, PartitionChunk partitionChunk) {
 
-    final List<PartitionProtobuf.PartitionValue> values = partitionChunk.getPartitionValues()
-        .stream()
-        .map(MetadataProtoUtils::toProtobuf)
-        .collect(Collectors.toList());
+    final List<PartitionProtobuf.PartitionValue> values =
+        partitionChunk.getPartitionValues().stream()
+            .map(MetadataProtoUtils::toProtobuf)
+            .collect(Collectors.toList());
     final Pointer<Long> id = new Pointer<>(0L);
-    return StreamSupport.stream(Spliterators.spliterator(partitionChunk.getSplits().iterator(), 0, 0), false)
-        .map(datasetSplit -> {
-          PartitionProtobuf.PartitionChunk.Builder builder = PartitionProtobuf.PartitionChunk.newBuilder();
-          builder.addAllPartitionValues(values);
-          builder.addAllAffinities(datasetSplit.getAffinities()
-              .stream()
-              .map(MetadataProtoUtils::toProtobuf)
-              .collect(Collectors.toList()));
+    return StreamSupport.stream(
+            Spliterators.spliterator(partitionChunk.getSplits().iterator(), 0, 0), false)
+        .map(
+            datasetSplit -> {
+              PartitionProtobuf.PartitionChunk.Builder builder =
+                  PartitionProtobuf.PartitionChunk.newBuilder();
+              builder.addAllPartitionValues(values);
+              builder.addAllAffinities(
+                  datasetSplit.getAffinities().stream()
+                      .map(MetadataProtoUtils::toProtobuf)
+                      .collect(Collectors.toList()));
 
-          if (datasetSplit.getExtraInfo() != BytesOutput.NONE) {
-            builder.setPartitionExtendedProperty(MetadataProtoUtils.toProtobuf(datasetSplit.getExtraInfo()));
-          }
+              if (datasetSplit.getExtraInfo() != BytesOutput.NONE) {
+                builder.setPartitionExtendedProperty(
+                    MetadataProtoUtils.toProtobuf(datasetSplit.getExtraInfo()));
+              }
 
-          builder.setRowCount(datasetSplit.getRecordCount());
-          builder.setSize(datasetSplit.getSizeInBytes());
-          builder.setSplitKey(splitPrefix + id.value);
-          id.value++;
-          return builder.build();
-        });
+              builder.setRowCount(datasetSplit.getRecordCount());
+              builder.setSize(datasetSplit.getSizeInBytes());
+              builder.setSplitKey(splitPrefix + id.value);
+              id.value++;
+              return builder.build();
+            });
   }
 
   /**
@@ -318,6 +346,5 @@ public final class MetadataObjectsUtils {
   }
 
   // prevent instantiation
-  private MetadataObjectsUtils() {
-  }
+  private MetadataObjectsUtils() {}
 }

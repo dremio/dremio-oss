@@ -15,11 +15,6 @@
  */
 package com.dremio.exec.store.dfs.easy;
 
-import java.io.IOException;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;
@@ -35,9 +30,14 @@ import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.io.file.FileSystem;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterators;
+import java.io.IOException;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
 
 public class EasyGroupScanUtils {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(EasyGroupScanUtils.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(EasyGroupScanUtils.class);
 
   private FileSelection selection;
   private final FileSystemPlugin<?> plugin;
@@ -55,11 +55,13 @@ public class EasyGroupScanUtils {
       EasyFormatPlugin<?> formatPlugin,
       List<SchemaPath> columns,
       String selectionRoot,
-      boolean includeModTime
-      ) throws IOException{
+      boolean includeModTime)
+      throws IOException {
     this.plugin = plugin;
     this.selection = Preconditions.checkNotNull(selection);
-    this.formatPlugin = Preconditions.checkNotNull(formatPlugin, "Unable to load format plugin for provided format config.");
+    this.formatPlugin =
+        Preconditions.checkNotNull(
+            formatPlugin, "Unable to load format plugin for provided format config.");
     this.columns = columns == null ? GroupScan.ALL_COLUMNS : columns;
     this.selectionRoot = selectionRoot;
     this.includeModTime = includeModTime;
@@ -67,12 +69,15 @@ public class EasyGroupScanUtils {
     initFromSelection(selection, formatPlugin);
   }
 
-
-  private void initFromSelection(FileSelection selection, EasyFormatPlugin<?> formatPlugin) throws IOException {
+  private void initFromSelection(FileSelection selection, EasyFormatPlugin<?> formatPlugin)
+      throws IOException {
     final FileSystem dfs = plugin.createFS(userName);
     this.selection = selection;
-    BlockMapBuilder b = new BlockMapBuilder(plugin.getCompressionCodecFactory(), dfs, plugin.getContext().getExecutors());
-    this.chunks = b.generateFileWork(selection.getFileAttributesList(), formatPlugin.isBlockSplittable());
+    BlockMapBuilder b =
+        new BlockMapBuilder(
+            plugin.getCompressionCodecFactory(), dfs, plugin.getContext().getExecutors());
+    this.chunks =
+        b.generateFileWork(selection.getFileAttributesList(), formatPlugin.isBlockSplittable());
   }
 
   public FileSelection getSelection() {
@@ -137,7 +142,8 @@ public class EasyGroupScanUtils {
 
   public List<SchemaPath> getPartitionColumns() {
     if (includeModTime) {
-      return Collections.singletonList(SchemaPath.getSimplePath(IncrementalUpdateUtils.UPDATE_COLUMN));
+      return Collections.singletonList(
+          SchemaPath.getSimplePath(IncrementalUpdateUtils.UPDATE_COLUMN));
     } else {
       return Collections.emptyList();
     }

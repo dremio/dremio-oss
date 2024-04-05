@@ -16,25 +16,24 @@
 
 package com.dremio.service.jobresults.server;
 
-import java.util.concurrent.atomic.AtomicBoolean;
-
 import com.dremio.exec.rpc.Acks;
 import com.dremio.exec.rpc.Response;
 import com.dremio.exec.rpc.ResponseSender;
 import com.dremio.exec.rpc.UserRpcException;
 import com.dremio.service.jobresults.JobResultsResponse;
-
 import io.grpc.stub.StreamObserver;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 class JobResultsGrpcLocalResponseSender implements ResponseSender {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(JobResultsGrpcLocalResponseSender.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(JobResultsGrpcLocalResponseSender.class);
   private StreamObserver<JobResultsResponse> responseStreamObserver;
   private long sequenceId;
   private String queryId;
   private AtomicBoolean sentFailure = new AtomicBoolean(false);
 
-  JobResultsGrpcLocalResponseSender(StreamObserver<JobResultsResponse> responseStreamObserver, long sequenceId,
-                                    String queryId) {
+  JobResultsGrpcLocalResponseSender(
+      StreamObserver<JobResultsResponse> responseStreamObserver, long sequenceId, String queryId) {
     this.responseStreamObserver = responseStreamObserver;
     this.sequenceId = sequenceId;
     this.queryId = queryId;
@@ -51,7 +50,10 @@ class JobResultsGrpcLocalResponseSender implements ResponseSender {
   @SuppressWarnings("DremioGRPCStreamObserverOnError")
   public void sendFailure(UserRpcException e) {
     if (sentFailure.compareAndSet(false, true)) {
-      logger.error("JobResultsService stream failed with error from result forwarder for queryId {}", queryId, e);
+      logger.error(
+          "JobResultsService stream failed with error from result forwarder for queryId {}",
+          queryId,
+          e);
       responseStreamObserver.onError(e);
     }
   }

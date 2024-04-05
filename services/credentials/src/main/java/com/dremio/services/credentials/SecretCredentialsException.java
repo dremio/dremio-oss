@@ -15,9 +15,7 @@
  */
 package com.dremio.services.credentials;
 
-/**
- * Thrown when secure CredentialsProvider encounters unrecoverable error.
- */
+/** Thrown when secure CredentialsProvider encounters unrecoverable error. */
 public class SecretCredentialsException extends CredentialsException {
   private static final long serialVersionUID = 1L;
 

@@ -15,13 +15,13 @@
  */
 package com.dremio.services.nessie.grpc.client.impl;
 
+import com.dremio.services.nessie.grpc.api.TreeServiceGrpc.TreeServiceBlockingStub;
 import org.projectnessie.client.api.AssignReferenceBuilder;
 import org.projectnessie.model.Reference;
 
-import com.dremio.services.nessie.grpc.api.TreeServiceGrpc.TreeServiceBlockingStub;
-
-final class GrpcAssignReference extends BaseGrpcAssignReference<Reference, AssignReferenceBuilder<Reference>>
-  implements AssignReferenceBuilder<Reference> {
+final class GrpcAssignReference
+    extends BaseGrpcAssignReference<Reference, AssignReferenceBuilder<Reference>>
+    implements AssignReferenceBuilder<Reference> {
 
   GrpcAssignReference(TreeServiceBlockingStub stub) {
     super(stub);

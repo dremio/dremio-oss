@@ -15,25 +15,12 @@
  */
 package com.dremio.exec.store.parquet;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-
-import org.apache.arrow.memory.OutOfMemoryException;
-import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.types.pojo.FieldType;
-import org.apache.arrow.vector.types.pojo.Schema;
-import org.apache.parquet.schema.Type;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.arrow.DremioArrowSchema;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.expr.TypeHelper;
-import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.RuntimeFilter;
@@ -42,24 +29,33 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.google.common.collect.ImmutableList;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import org.apache.arrow.memory.OutOfMemoryException;
+import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
+import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.parquet.schema.Type;
 
 /**
- * Parquet reader for Iceberg and DeltaLake datasets. This will be an inner reader of a
- * coercion reader to support up promotion of column data types.
+ * Parquet reader for Iceberg and DeltaLake datasets. This will be an inner reader of a coercion
+ * reader to support up promotion of column data types.
  */
 public abstract class TransactionalTableParquetReader implements RecordReader {
 
-  protected static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TransactionalTableParquetReader.class);
+  protected static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(TransactionalTableParquetReader.class);
   protected final OperatorContext context;
   protected final ParquetReaderFactory readerFactory;
   protected final BatchSchema tableSchema;
   protected final ParquetScanProjectedColumns projectedColumns;
-  protected final Map<String, GlobalDictionaryFieldInfo> globalDictionaryFieldInfoMap;
   protected final ParquetFilters filters;
   protected final ParquetProtobuf.ParquetDatasetSplitScanXAttr readEntry;
   protected final FileSystem fs;
   protected final MutableParquetMetadata footer;
-  protected final GlobalDictionaries dictionaries;
   protected final SchemaDerivationHelper schemaHelper;
   protected final boolean vectorize;
   protected final boolean enableDetailedTracing;
@@ -70,32 +66,28 @@ public abstract class TransactionalTableParquetReader implements RecordReader {
   protected final List<RuntimeFilter> runtimeFilters = new ArrayList<>();
 
   public TransactionalTableParquetReader(
-    OperatorContext context,
-    ParquetReaderFactory readerFactory,
-    BatchSchema tableSchema,
-    ParquetScanProjectedColumns projectedColumns,
-    Map<String, GlobalDictionaryFieldInfo> globalDictionaryFieldInfoMap,
-    ParquetFilters filters,
-    ParquetProtobuf.ParquetDatasetSplitScanXAttr readEntry,
-    FileSystem fs,
-    MutableParquetMetadata footer,
-    GlobalDictionaries dictionaries,
-    SchemaDerivationHelper schemaHelper,
-    boolean vectorize,
-    boolean enableDetailedTracing,
-    boolean supportsColocatedReads,
-    InputStreamProvider inputStreamProvider,
-    boolean isConvertedIcebergDataset) {
+      OperatorContext context,
+      ParquetReaderFactory readerFactory,
+      BatchSchema tableSchema,
+      ParquetScanProjectedColumns projectedColumns,
+      ParquetFilters filters,
+      ParquetProtobuf.ParquetDatasetSplitScanXAttr readEntry,
+      FileSystem fs,
+      MutableParquetMetadata footer,
+      SchemaDerivationHelper schemaHelper,
+      boolean vectorize,
+      boolean enableDetailedTracing,
+      boolean supportsColocatedReads,
+      InputStreamProvider inputStreamProvider,
+      boolean isConvertedIcebergDataset) {
     this.context = context;
     this.readerFactory = readerFactory;
     this.tableSchema = tableSchema;
     this.projectedColumns = projectedColumns;
-    this.globalDictionaryFieldInfoMap = globalDictionaryFieldInfoMap;
     this.filters = filters;
     this.readEntry = readEntry;
     this.fs = fs;
     this.footer = footer;
-    this.dictionaries = dictionaries;
     this.schemaHelper = schemaHelper;
     this.vectorize = vectorize;
     this.enableDetailedTracing = enableDetailedTracing;
@@ -104,46 +96,10 @@ public abstract class TransactionalTableParquetReader implements RecordReader {
     this.isConvertedIcebergDataset = isConvertedIcebergDataset;
   }
 
-  public TransactionalTableParquetReader(
-    OperatorContext context,
-    ParquetReaderFactory readerFactory,
-    BatchSchema tableSchema,
-    ParquetScanProjectedColumns projectedColumns,
-    Map<String, GlobalDictionaryFieldInfo> globalDictionaryFieldInfoMap,
-    ParquetFilters filters,
-    ParquetProtobuf.ParquetDatasetSplitScanXAttr readEntry,
-    FileSystem fs,
-    MutableParquetMetadata footer,
-    GlobalDictionaries dictionaries,
-    SchemaDerivationHelper schemaHelper,
-    boolean vectorize,
-    boolean enableDetailedTracing,
-    boolean supportsColocatedReads,
-    InputStreamProvider inputStreamProvider) {
-
-    this(
-      context,
-      readerFactory,
-      tableSchema,
-      projectedColumns,
-      globalDictionaryFieldInfoMap,
-      filters,
-      readEntry,
-      fs,
-      footer,
-      dictionaries,
-      schemaHelper,
-      vectorize,
-      enableDetailedTracing,
-      supportsColocatedReads,
-      inputStreamProvider,
-      true);
-  }
-
-
   @Override
   public void setup(OutputMutator output) throws ExecutionSetupException {
-    ParquetColumnResolver columnResolver = projectedColumns.getColumnResolver(footer.getFileMetaData().getSchema());
+    ParquetColumnResolver columnResolver =
+        projectedColumns.getColumnResolver(footer.getFileMetaData().getSchema());
 
     Schema arrowSchema;
     try {
@@ -160,8 +116,12 @@ public abstract class TransactionalTableParquetReader implements RecordReader {
         String name = projectedPath.getRootSegment().getNameSegment().getPath();
         if (parquetField.getName().equalsIgnoreCase(name)) {
           if (parquetField.isPrimitive()) {
-            Field field = ParquetTypeHelper.createField(columnResolver.getBatchSchemaColumnPath(columnSchemaPath),
-              parquetField.asPrimitiveType(), parquetField.getOriginalType(), schemaHelper);
+            Field field =
+                ParquetTypeHelper.createField(
+                    columnResolver.getBatchSchemaColumnPath(columnSchemaPath),
+                    parquetField.asPrimitiveType(),
+                    parquetField.getOriginalType(),
+                    schemaHelper);
             final Class<? extends ValueVector> clazz = TypeHelper.getValueVectorClass(field);
             output.addField(field, clazz);
           } else {
@@ -171,7 +131,11 @@ public abstract class TransactionalTableParquetReader implements RecordReader {
               arrowField.add(groupField);
               List<Field> dremioField = CompleteType.convertToDremioFields(arrowField);
               Field dremioGroupField = dremioField.get(0);
-              Field field = new Field(columnResolver.getBatchSchemaColumnName(parquetField.getName()), new FieldType(true,  dremioGroupField.getType(), null), dremioGroupField.getChildren());
+              Field field =
+                  new Field(
+                      columnResolver.getBatchSchemaColumnName(parquetField.getName()),
+                      new FieldType(true, dremioGroupField.getType(), null),
+                      dremioGroupField.getChildren());
               final Class<? extends ValueVector> clazz = TypeHelper.getValueVectorClass(field);
               output.addField(field, clazz);
             } else {
@@ -191,19 +155,22 @@ public abstract class TransactionalTableParquetReader implements RecordReader {
   }
 
   protected void setupCurrentReader(OutputMutator output) throws ExecutionSetupException {
-    currentReader = new UnifiedParquetReader(
+    currentReader =
+        new UnifiedParquetReader(
             context,
             readerFactory,
             this.tableSchema,
             projectedColumns,
-            this.globalDictionaryFieldInfoMap,
             filters,
-            readerFactory.newFilterCreator(context, ParquetReaderFactory.ManagedSchemaType.ICEBERG, null, context.getAllocator()),
+            readerFactory.newFilterCreator(
+                context,
+                ParquetReaderFactory.ManagedSchemaType.ICEBERG,
+                null,
+                context.getAllocator()),
             ParquetDictionaryConvertor.DEFAULT,
             this.readEntry,
             fs,
             footer,
-            this.dictionaries,
             schemaHelper,
             vectorize,
             enableDetailedTracing,
@@ -235,7 +202,7 @@ public abstract class TransactionalTableParquetReader implements RecordReader {
 
   @Override
   public List<SchemaPath> getColumnsToBoost() {
-    if(currentReader != null) {
+    if (currentReader != null) {
       return currentReader.getColumnsToBoost();
     }
 

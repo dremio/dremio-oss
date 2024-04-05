@@ -15,128 +15,134 @@
  */
 package com.dremio.exec.store.excel;
 
+import com.dremio.BaseTestQuery;
+import com.dremio.common.util.TestTools;
 import java.util.concurrent.TimeUnit;
-
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestRule;
 
-import com.dremio.BaseTestQuery;
-import com.dremio.common.util.TestTools;
-
 @Ignore("Move these tests to function regression")
 public class TestCompareExcelAndTextPlugins extends BaseTestQuery {
 
-  @Rule
-  public final TestRule timeoutRule = TestTools.getTimeoutRule(5000, TimeUnit.SECONDS);
+  @Rule public final TestRule timeoutRule = TestTools.getTimeoutRule(5000, TimeUnit.SECONDS);
 
-  private static final String E_SIMPLE = String.format(
-      "SELECT * FROM " +
-          "TABLE(%s (" +
-              "type => 'excel', " +
-              "sheet => 'Sheet1', " +
-              "extractHeader => true, " +
-              "hasMergedCells => true)" +
-          ") ",
-      "dfs.\"/Users/venki/test_data/excel/simple_70k.xlsx\"");
+  private static final String E_SIMPLE =
+      String.format(
+          "SELECT * FROM "
+              + "TABLE(%s ("
+              + "type => 'excel', "
+              + "sheet => 'Sheet1', "
+              + "extractHeader => true, "
+              + "hasMergedCells => true)"
+              + ") ",
+          "dfs.\"/Users/venki/test_data/excel/simple_70k.xlsx\"");
 
-  private static final String T_SIMPLE = String.format(
-      "SELECT * FROM " +
-          "TABLE(%s (" +
-              "type => 'text', " +
-              "fieldDelimiter => ',', " +
-              "extractHeader => true)" +
-          ") ",
-      "dfs.\"/Users/venki/test_data/excel/simple_70k.csv\"");
+  private static final String T_SIMPLE =
+      String.format(
+          "SELECT * FROM "
+              + "TABLE(%s ("
+              + "type => 'text', "
+              + "fieldDelimiter => ',', "
+              + "extractHeader => true)"
+              + ") ",
+          "dfs.\"/Users/venki/test_data/excel/simple_70k.csv\"");
 
-  private static final String E_GROUPBY = String.format(
-      "SELECT \"Number\", count(*) AS cnt FROM " +
-          "TABLE(%s (" +
-              "type => 'excel', " +
-              "sheet => 'Sheet1', " +
-              "extractHeader => true, " +
-              "hasMergedCells => true)" +
-          ") " +
-          "GROUP BY \"Number\"",
-      "dfs.\"/Users/venki/test_data/excel/simple_70k.xlsx\"");
+  private static final String E_GROUPBY =
+      String.format(
+          "SELECT \"Number\", count(*) AS cnt FROM "
+              + "TABLE(%s ("
+              + "type => 'excel', "
+              + "sheet => 'Sheet1', "
+              + "extractHeader => true, "
+              + "hasMergedCells => true)"
+              + ") "
+              + "GROUP BY \"Number\"",
+          "dfs.\"/Users/venki/test_data/excel/simple_70k.xlsx\"");
 
-  private static final String T_GROUPBY = String.format(
-      "SELECT \"Number\", count(*) AS cnt FROM " +
-          "TABLE(%s (" +
-              "type => 'text', " +
-              "fieldDelimiter => ',', " +
-              "extractHeader => true)" +
-          ") " +
-          "GROUP BY \"Number\"",
-      "dfs.\"/Users/venki/test_data/excel/simple_70k.csv\"");
+  private static final String T_GROUPBY =
+      String.format(
+          "SELECT \"Number\", count(*) AS cnt FROM "
+              + "TABLE(%s ("
+              + "type => 'text', "
+              + "fieldDelimiter => ',', "
+              + "extractHeader => true)"
+              + ") "
+              + "GROUP BY \"Number\"",
+          "dfs.\"/Users/venki/test_data/excel/simple_70k.csv\"");
 
-  private static final String E_ORDERBY = String.format(
-      "SELECT * FROM " +
-          "TABLE(%s (" +
-              "type => 'excel', " +
-              "sheet => 'Sheet1', " +
-              "extractHeader => true, " +
-              "hasMergedCells => true)" +
-          ") ORDER BY \"Number\" ",
-      "dfs.\"/Users/venki/test_data/excel/simple_70k.xlsx\"");
+  private static final String E_ORDERBY =
+      String.format(
+          "SELECT * FROM "
+              + "TABLE(%s ("
+              + "type => 'excel', "
+              + "sheet => 'Sheet1', "
+              + "extractHeader => true, "
+              + "hasMergedCells => true)"
+              + ") ORDER BY \"Number\" ",
+          "dfs.\"/Users/venki/test_data/excel/simple_70k.xlsx\"");
 
-  private static final String T_ORDERBY = String.format(
-      "SELECT * FROM " +
-          "TABLE(%s (" +
-              "type => 'text', " +
-              "fieldDelimiter => ',', " +
-              "extractHeader => true)" +
-          ") ORDER BY \"Number\" ",
-      "dfs.\"/Users/venki/test_data/excel/simple_70k.csv\"");
+  private static final String T_ORDERBY =
+      String.format(
+          "SELECT * FROM "
+              + "TABLE(%s ("
+              + "type => 'text', "
+              + "fieldDelimiter => ',', "
+              + "extractHeader => true)"
+              + ") ORDER BY \"Number\" ",
+          "dfs.\"/Users/venki/test_data/excel/simple_70k.csv\"");
 
-  private static final String E_JOIN = String.format(
-      "SELECT * FROM " +
-          "TABLE(%s (" +
-              "type => 'excel', " +
-              "sheet => 'Sheet1', " +
-              "extractHeader => true, " +
-              "hasMergedCells => true)" +
-          ") e70k " +
-          "JOIN " +
-          "TABLE(%s (" +
-              "type => 'excel', " +
-              "sheet => 'Sheet1', " +
-              "extractHeader => true, " +
-              "hasMergedCells => true)" +
-          ") e13k " +
-          "ON e70k.\"Number\" = e13k.\"Number\" " +
-          "LIMIT 10",
-      "dfs.\"/Users/venki/test_data/excel/simple_70k.xlsx\"",
-      "dfs.\"/Users/venki/test_data/excel/simple_15k.xlsx\"");
+  private static final String E_JOIN =
+      String.format(
+          "SELECT * FROM "
+              + "TABLE(%s ("
+              + "type => 'excel', "
+              + "sheet => 'Sheet1', "
+              + "extractHeader => true, "
+              + "hasMergedCells => true)"
+              + ") e70k "
+              + "JOIN "
+              + "TABLE(%s ("
+              + "type => 'excel', "
+              + "sheet => 'Sheet1', "
+              + "extractHeader => true, "
+              + "hasMergedCells => true)"
+              + ") e13k "
+              + "ON e70k.\"Number\" = e13k.\"Number\" "
+              + "LIMIT 10",
+          "dfs.\"/Users/venki/test_data/excel/simple_70k.xlsx\"",
+          "dfs.\"/Users/venki/test_data/excel/simple_15k.xlsx\"");
 
-  private static final String T_JOIN = String.format(
-      "SELECT * FROM " +
-          "TABLE(%s (" +
-              "type => 'text', " +
-              "fieldDelimiter => ',', " +
-              "extractHeader => true)" +
-          ") e70k " +
-          "JOIN " +
-          "TABLE(%s (" +
-              "type => 'text', " +
-              "fieldDelimiter => ',', " +
-              "extractHeader => true)" +
-          ") e13k " +
-          "ON e70k.\"Number\" = e13k.\"Number\" " +
-          "LIMIT 10",
-      "dfs.\"/Users/venki/test_data/excel/simple_70k.csv\"",
-      "dfs.\"/Users/venki/test_data/excel/simple_15k.csv\"");
+  private static final String T_JOIN =
+      String.format(
+          "SELECT * FROM "
+              + "TABLE(%s ("
+              + "type => 'text', "
+              + "fieldDelimiter => ',', "
+              + "extractHeader => true)"
+              + ") e70k "
+              + "JOIN "
+              + "TABLE(%s ("
+              + "type => 'text', "
+              + "fieldDelimiter => ',', "
+              + "extractHeader => true)"
+              + ") e13k "
+              + "ON e70k.\"Number\" = e13k.\"Number\" "
+              + "LIMIT 10",
+          "dfs.\"/Users/venki/test_data/excel/simple_70k.csv\"",
+          "dfs.\"/Users/venki/test_data/excel/simple_15k.csv\"");
 
-  private static final String E_WITH_PICTURE_CHART = String.format(
-      "SELECT * FROM " +
-          "TABLE(%s (" +
-          "type => 'excel', " +
-          "sheet => 'Sheet1', " +
-          "extractHeader => false, " +
-          "hasMergedCells => false)" +
-          ") ",
-      "dfs.\"/Users/venki/test_data/excel/with-pic-chart.xlsx\"");
+  private static final String E_WITH_PICTURE_CHART =
+      String.format(
+          "SELECT * FROM "
+              + "TABLE(%s ("
+              + "type => 'excel', "
+              + "sheet => 'Sheet1', "
+              + "extractHeader => false, "
+              + "hasMergedCells => false)"
+              + ") ",
+          "dfs.\"/Users/venki/test_data/excel/with-pic-chart.xlsx\"");
 
   @Test
   public void simpleExcel() throws Exception {

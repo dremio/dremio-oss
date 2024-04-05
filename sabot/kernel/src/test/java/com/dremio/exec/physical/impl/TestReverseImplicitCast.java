@@ -18,13 +18,6 @@ package com.dremio.exec.physical.impl;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import java.util.Iterator;
-import java.util.List;
-import java.util.Properties;
-
-import org.apache.arrow.vector.ValueVector;
-import org.junit.Test;
-
 import com.dremio.exec.client.DremioClient;
 import com.dremio.exec.pop.PopUnitTestBase;
 import com.dremio.exec.record.RecordBatchLoader;
@@ -33,6 +26,11 @@ import com.dremio.exec.server.SabotNode;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.local.LocalClusterCoordinator;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Properties;
+import org.apache.arrow.vector.ValueVector;
+import org.junit.Test;
 
 public class TestReverseImplicitCast extends PopUnitTestBase {
 
@@ -41,15 +39,21 @@ public class TestReverseImplicitCast extends PopUnitTestBase {
 
     // Function checks for casting from Float, Double to Decimal data types
     try (ClusterCoordinator clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
-         SabotNode bit = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, true);
-         DremioClient client = new DremioClient(DEFAULT_SABOT_CONFIG, clusterCoordinator)) {
+        SabotNode bit =
+            new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, true);
+        DremioClient client = new DremioClient(DEFAULT_SABOT_CONFIG, clusterCoordinator)) {
       // run query.
       bit.run();
-      client.connect(new Properties(){{
-        put("user", "anonymous");
-      }});
-      List<QueryDataBatch> results = client.runQuery(com.dremio.exec.proto.UserBitShared.QueryType.PHYSICAL,
-        readResourceAsString("/functions/cast/two_way_implicit_cast.json"));
+      client.connect(
+          new Properties() {
+            {
+              put("user", "anonymous");
+            }
+          });
+      List<QueryDataBatch> results =
+          client.runQuery(
+              com.dremio.exec.proto.UserBitShared.QueryType.PHYSICAL,
+              readResourceAsString("/functions/cast/two_way_implicit_cast.json"));
 
       RecordBatchLoader batchLoader = new RecordBatchLoader(bit.getContext().getAllocator());
 

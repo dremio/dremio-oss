@@ -15,10 +15,9 @@
  */
 package com.dremio.exec.planner.sql.handlers;
 
+import com.dremio.exec.planner.logical.FlattenRel;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelVisitor;
-
-import com.dremio.exec.planner.logical.FlattenRel;
 
 class FlattenRelFinder extends RelVisitor {
   private boolean found = false;

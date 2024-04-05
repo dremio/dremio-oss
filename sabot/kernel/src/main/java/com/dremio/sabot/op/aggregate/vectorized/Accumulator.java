@@ -17,44 +17,41 @@ package com.dremio.sabot.op.aggregate.vectorized;
 
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
+import com.dremio.exec.proto.UserBitShared;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.FieldVector;
 
-import com.dremio.exec.proto.UserBitShared;
-
 /**
- * Interface for implementing a measure. Maintains an array of workspace and/or
- * output vectors as well as a refrence to the input vector.
+ * Interface for implementing a measure. Maintains an array of workspace and/or output vectors as
+ * well as a refrence to the input vector.
  */
 public interface Accumulator extends AutoCloseable {
   /**
-   * Accumulate the data that is specified at the provided offset vector. The
-   * offset vector describes which local mapping each of the <count> records
-   * should be addressed.
+   * Accumulate the data that is specified at the provided offset vector. The offset vector
+   * describes which local mapping each of the <count> records should be addressed.
    *
-   * @param offsetAddr starting address of buffer containing partition and
-   *                   hash table information along with record index
+   * @param offsetAddr starting address of buffer containing partition and hash table information
+   *     along with record index
    * @param count number of records in the partition.
-   *
-   * this function works on a per-partition basis.
+   *     <p>this function works on a per-partition basis.
    */
   void accumulate(long offsetAddr, int count, int bitsInChunk, int chunkOffsetMask);
 
   /**
-   * Along with force accumulation, compact() allow to free up space in the accumulation vector, if any.
+   * Along with force accumulation, compact() allow to free up space in the accumulation vector, if
+   * any.
    *
    * @param batchIndex Compaction to be applied on batchIndex batch.
    * @param nextRecSize Size of the next record, expected to join the accumulator. It is up to the
-   *                    accumulator to reserve the space or let the batch get spliced.
+   *     accumulator to reserve the space or let the batch get spliced.
    */
   void compact(final int batchIndex, final int nextRecSize);
 
   /**
-   * Output the data from multiple batches starting from startBatchIndex.
-   * for each batch, the record count is provided in recordsInBatches array.
+   * Output the data from multiple batches starting from startBatchIndex. for each batch, the record
+   * count is provided in recordsInBatches array.
    *
    * @param startBatchIndex
    * @param recordsInBatches
@@ -62,8 +59,8 @@ public interface Accumulator extends AutoCloseable {
   void output(int startBatchIndex, int[] recordsInBatches);
 
   /**
-   * return the size of accumulator by looking at vector in the
-   * accumulator and the size of ArrowBufs inside the vectors.
+   * return the size of accumulator by looking at vector in the accumulator and the size of
+   * ArrowBufs inside the vectors.
    *
    * @return size(in bytes)
    */
@@ -111,8 +108,8 @@ public interface Accumulator extends AutoCloseable {
   AccumulatorBuilder.AccumulatorType getType();
 
   /**
-   * Check if the accumulator for the given batchIndex has given 'space' space
-   * available. This is valid for variable length accumulators.
+   * Check if the accumulator for the given batchIndex has given 'space' space available. This is
+   * valid for variable length accumulators.
    *
    * @param space Total space to be reserved
    * @param numOfRecords Total number of records to be reserved
@@ -120,13 +117,14 @@ public interface Accumulator extends AutoCloseable {
    * @param offsetInBatch Index in the batch for which the reservation is made
    * @return
    */
-  default boolean hasSpace(final int space, final int numOfRecords, final int batchIndex, final int offsetInBatch) {
+  default boolean hasSpace(
+      final int space, final int numOfRecords, final int batchIndex, final int offsetInBatch) {
     return true;
   }
 
   /**
-   * Get the backing buffers for the given batchIndex for numRecords which accumulated before.
-   * The buffers will have the valueCount and readerIndex and writerIndex set.
+   * Get the backing buffers for the given batchIndex for numRecords which accumulated before. The
+   * buffers will have the valueCount and readerIndex and writerIndex set.
    *
    * @param batchIndex
    * @param numRecords
@@ -144,9 +142,8 @@ public interface Accumulator extends AutoCloseable {
   UserBitShared.SerializedField getSerializedField(int batchIndex, final int numRecords);
 
   /**
-   * Move numRecords entries starting from srcStartIndex from batch srcBatchIndex to
-   * dstStartIndex in batch dstBatchIndex in the accumulator. This is called during
-   * splice() by HashTable.
+   * Move numRecords entries starting from srcStartIndex from batch srcBatchIndex to dstStartIndex
+   * in batch dstBatchIndex in the accumulator. This is called during splice() by HashTable.
    *
    * @param srcBatchIndex
    * @param dstBatchIndex
@@ -154,15 +151,18 @@ public interface Accumulator extends AutoCloseable {
    * @param dstStartIndex
    * @param numRecords
    */
-  default void moveValuesAndFreeSpace(final int srcBatchIndex, final int dstBatchIndex,
-                                      final int srcStartIndex, final int dstStartIndex,
-                                      int numRecords) {
+  default void moveValuesAndFreeSpace(
+      final int srcBatchIndex,
+      final int dstBatchIndex,
+      final int srcStartIndex,
+      final int dstStartIndex,
+      int numRecords) {
     throw new UnsupportedOperationException("not supported");
   }
 
   /**
-   * Total time spend for compactions done in the accumulator. Only BaseVarBinaryAccumulator
-   * backed MutableVarCharVector currently do compactions.
+   * Total time spend for compactions done in the accumulator. Only BaseVarBinaryAccumulator backed
+   * MutableVarCharVector currently do compactions.
    *
    * @return Total time spend on compactions.
    */
@@ -171,8 +171,8 @@ public interface Accumulator extends AutoCloseable {
   }
 
   /**
-   * Number of compactions done in the accumulator. Only BaseVarBinaryAccumulator
-   * backed MutableVarCharVector currently do compactions.
+   * Number of compactions done in the accumulator. Only BaseVarBinaryAccumulator backed
+   * MutableVarCharVector currently do compactions.
    *
    * @return number of compactions done in the accumulator
    */

@@ -20,28 +20,25 @@ import static com.dremio.service.flight.client.properties.DremioFlightClientProp
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import com.dremio.exec.proto.UserProtos;
+import com.dremio.sabot.rpc.user.UserSession;
 import java.util.Arrays;
 import java.util.List;
-
 import org.apache.arrow.flight.CallHeaders;
 import org.apache.arrow.flight.ErrorFlightMetadata;
 import org.junit.Test;
 
-import com.dremio.exec.proto.UserProtos;
-import com.dremio.sabot.rpc.user.UserSession;
-
-/**
- * Test client properties processing methods in DremioFlightClientProperties.
- */
+/** Test client properties processing methods in DremioFlightClientProperties. */
 public class TestDremioFlightClientProperties {
   @Test
   public void testApplyMutableClientProperties() {
     // Arrange
     final String testSchema = "test.catalog.table";
 
-    final UserSession userSession = UserSession.Builder.newBuilder()
-      .withDefaultSchema(Arrays.asList(testSchema.split("\\.")))
-      .build();
+    final UserSession userSession =
+        UserSession.Builder.newBuilder()
+            .withDefaultSchema(Arrays.asList(testSchema.split("\\.")))
+            .build();
 
     // Update UserSession with new CallHeaders.
     final CallHeaders testCallHeaders = new ErrorFlightMetadata();
@@ -53,7 +50,8 @@ public class TestDremioFlightClientProperties {
     applyMutableClientProperties(userSession, testCallHeaders);
 
     // Verify
-    assertEquals(newTestSchema, String.join(".", userSession.getDefaultSchemaPath().getPathComponents()));
+    assertEquals(
+        newTestSchema, String.join(".", userSession.getDefaultSchemaPath().getPathComponents()));
   }
 
   @Test
@@ -61,14 +59,14 @@ public class TestDremioFlightClientProperties {
     // Arrange
     final String testSchema = "test.catalog.table";
 
-    final UserSession userSession = UserSession.Builder.newBuilder()
-      .withDefaultSchema(Arrays.asList(testSchema.split("\\.")))
-      .build();
+    final UserSession userSession =
+        UserSession.Builder.newBuilder()
+            .withDefaultSchema(Arrays.asList(testSchema.split("\\.")))
+            .build();
 
     // Update UserSession with new CallHeaders.
     final CallHeaders testCallHeaders = new ErrorFlightMetadata();
     final String newTestSchema = "new.\"catalog.table\"";
-
 
     testCallHeaders.insert(UserSession.SCHEMA, newTestSchema);
 
@@ -91,15 +89,24 @@ public class TestDremioFlightClientProperties {
     final String testSchema = "test.catalog.table";
     final String testRoutingEngine = "test.engine.value";
 
-    final UserSession userSession = UserSession.Builder.newBuilder()
-      .withUserProperties(
-        UserProtos.UserProperties.newBuilder()
-          .addProperties(DremioFlightClientProperties.createUserProperty(UserSession.SCHEMA, testSchema))
-          .addProperties(DremioFlightClientProperties.createUserProperty(UserSession.ROUTING_TAG, testRoutingTag))
-          .addProperties(DremioFlightClientProperties.createUserProperty(UserSession.ROUTING_QUEUE, testRoutingQueue))
-          .addProperties(DremioFlightClientProperties.createUserProperty(UserSession.ROUTING_ENGINE, testRoutingEngine))
-          .build())
-      .build();
+    final UserSession userSession =
+        UserSession.Builder.newBuilder()
+            .withUserProperties(
+                UserProtos.UserProperties.newBuilder()
+                    .addProperties(
+                        DremioFlightClientProperties.createUserProperty(
+                            UserSession.SCHEMA, testSchema))
+                    .addProperties(
+                        DremioFlightClientProperties.createUserProperty(
+                            UserSession.ROUTING_TAG, testRoutingTag))
+                    .addProperties(
+                        DremioFlightClientProperties.createUserProperty(
+                            UserSession.ROUTING_QUEUE, testRoutingQueue))
+                    .addProperties(
+                        DremioFlightClientProperties.createUserProperty(
+                            UserSession.ROUTING_ENGINE, testRoutingEngine))
+                    .build())
+            .build();
 
     // Update UserSession with new CallHeaders.
     final CallHeaders updatedHeaders = new ErrorFlightMetadata();
@@ -121,20 +128,20 @@ public class TestDremioFlightClientProperties {
     assertEquals(testRoutingTag, userSession.getRoutingTag());
     // Routing queue should remain unchanged since it is not a mutable property.
     assertEquals(testRoutingQueue, userSession.getRoutingQueue());
-    assertEquals(newTestSchema, String.join(".", userSession.getDefaultSchemaPath().getPathComponents()));
+    assertEquals(
+        newTestSchema, String.join(".", userSession.getDefaultSchemaPath().getPathComponents()));
     assertEquals(newTestRoutingEngine, userSession.getRoutingEngine());
   }
 
   @Test
   public void testApplyMutableClientPropertiesWithUnsupportedProperties() {
     // Arrange
-    final String defaultEngineName =  "default-engine-name";
+    final String defaultEngineName = "default-engine-name";
     final CallHeaders incomingHeaders = new ErrorFlightMetadata();
     incomingHeaders.insert("engine-name", "new-engine-name");
 
-    final UserSession userSession = UserSession.Builder.newBuilder()
-      .withEngineName(defaultEngineName)
-      .build();
+    final UserSession userSession =
+        UserSession.Builder.newBuilder().withEngineName(defaultEngineName).build();
 
     // Act
     applyMutableClientProperties(userSession, incomingHeaders);
@@ -146,10 +153,11 @@ public class TestDremioFlightClientProperties {
 
   @Test
   public void testApplyMutableClientPropertiesWithNullCallHeaders() {
-    final String testSchema =  "test.catalog.table";
-    final UserSession userSession = UserSession.Builder.newBuilder()
-      .withDefaultSchema(Arrays.asList(testSchema.split("\\.")))
-      .build();
+    final String testSchema = "test.catalog.table";
+    final UserSession userSession =
+        UserSession.Builder.newBuilder()
+            .withDefaultSchema(Arrays.asList(testSchema.split("\\.")))
+            .build();
     applyMutableClientProperties(userSession, null);
   }
 
@@ -179,18 +187,19 @@ public class TestDremioFlightClientProperties {
     // Verify
     assertEquals(testRoutingTag, userSession.getRoutingTag());
     assertEquals(testRoutingQueue, userSession.getRoutingQueue());
-    assertEquals(testSchema, String.join(".", userSession.getDefaultSchemaPath().getPathComponents()));
+    assertEquals(
+        testSchema, String.join(".", userSession.getDefaultSchemaPath().getPathComponents()));
   }
 
   @Test
   public void testBuildWithClientPropertiesWithUnsupportedProperties() {
     // Arrange
-    final String defaultEngineName =  "default-engine-name";
+    final String defaultEngineName = "default-engine-name";
     final CallHeaders incomingHeaders = new ErrorFlightMetadata();
     incomingHeaders.insert("engine-name", "new-engine-name");
 
-    final UserSession.Builder builder = UserSession.Builder.newBuilder()
-      .withEngineName(defaultEngineName);
+    final UserSession.Builder builder =
+        UserSession.Builder.newBuilder().withEngineName(defaultEngineName);
 
     // Act
     applyClientPropertiesToUserSessionBuilder(builder, incomingHeaders);

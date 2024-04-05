@@ -15,6 +15,7 @@
  */
 package com.dremio.dac.server.admin.profile;
 
+import com.dremio.common.util.PrettyPrintUtils;
 import java.io.IOException;
 import java.text.DateFormat;
 import java.text.DecimalFormat;
@@ -22,17 +23,13 @@ import java.text.NumberFormat;
 import java.text.SimpleDateFormat;
 import java.util.Locale;
 
-import com.dremio.common.util.PrettyPrintUtils;
-
-/**
- * Abstract class for building profile data
- */
+/** Abstract class for building profile data */
 abstract class ProfileBuilder {
   private final NumberFormat format = NumberFormat.getInstance(Locale.US);
   private final DateFormat dateFormat = new SimpleDateFormat("HH:mm:ss");
   private final DecimalFormat intformat = new DecimalFormat("#,###");
 
-  abstract void appendCell(String string) throws IOException;
+  abstract ProfileBuilder appendCell(String string) throws IOException;
 
   void appendTime(final long d) throws IOException {
     appendCell(getDateFormat().format(d));

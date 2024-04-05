@@ -1,4 +1,4 @@
-<?xml version="1.0"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!--
 
     Copyright (C) 2017-2019 Dremio Corporation
@@ -16,18 +16,29 @@
     limitations under the License.
 
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <parent>
     <groupId>com.dremio.services</groupId>
     <artifactId>dremio-services-parent</artifactId>
-    <version>24.3.2-202401241821100032-d2d8a497</version>
+    <version>25.0.0-202404051521110861-ed9515a8</version>
   </parent>
   <artifactId>dremio-services-telemetry-api</artifactId>
   <name>Services - Telemetry - API</name>
 
   <dependencies>
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-core</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-commons</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-registry-prometheus</artifactId>
+    </dependency>
     <dependency>
       <groupId>com.dremio</groupId>
       <artifactId>dremio-common</artifactId>
@@ -128,16 +139,10 @@
       <version>${javax.ws.rs-api.version}</version>
       <scope>provided</scope>
     </dependency>
-    <dependency>
-      <groupId>javax.annotation</groupId>
-      <artifactId>javax.annotation-api</artifactId>
-      <scope>provided</scope>
-    </dependency>
     <!--  required by rolling metrics but marked provided in that pom -->
     <dependency>
       <groupId>org.hdrhistogram</groupId>
       <artifactId>HdrHistogram</artifactId>
-      <version>2.1.8</version>
     </dependency>
     <dependency>
       <groupId>io.opentracing</groupId>
@@ -179,10 +184,10 @@
         <executions>
           <execution>
             <id>generate-proto</id>
-            <phase>generate-sources</phase>
             <goals>
               <goal>compile</goal>
             </goals>
+            <phase>generate-sources</phase>
           </execution>
         </executions>
       </plugin>

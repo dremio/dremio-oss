@@ -18,9 +18,7 @@ package com.dremio.service.namespace.capabilities;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-/**
- * A boolean capability value.
- */
+/** A boolean capability value. */
 public final class BooleanCapabilityValue extends CapabilityValue<Boolean, BooleanCapability> {
 
   @JsonCreator
@@ -29,5 +27,4 @@ public final class BooleanCapabilityValue extends CapabilityValue<Boolean, Boole
       @JsonProperty("value") boolean value) {
     super(capability, value);
   }
-
 }

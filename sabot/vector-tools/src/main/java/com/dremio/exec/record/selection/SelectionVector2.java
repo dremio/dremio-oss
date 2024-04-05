@@ -15,14 +15,11 @@
  */
 package com.dremio.exec.record.selection;
 
+import com.dremio.exec.record.DeadBuf;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 
-import com.dremio.exec.record.DeadBuf;
-
-/**
- * A selection vector that fronts, at most, a
- */
+/** A selection vector that fronts, at most, a */
 public class SelectionVector2 implements AutoCloseable {
 
   private final BufferAllocator allocator;
@@ -43,7 +40,7 @@ public class SelectionVector2 implements AutoCloseable {
     return getBuffer(true);
   }
 
-  public long memoryAddress(){
+  public long memoryAddress() {
     return buffer.memoryAddress();
   }
 
@@ -64,11 +61,11 @@ public class SelectionVector2 implements AutoCloseable {
   }
 
   public void setBuffer(ArrowBuf bufferHandle) {
-      /* clear the existing buffer */
-      clear();
+    /* clear the existing buffer */
+    clear();
 
-      this.buffer = bufferHandle;
-      buffer.getReferenceManager().retain(1);
+    this.buffer = bufferHandle;
+    buffer.getReferenceManager().retain(1);
   }
 
   public char getIndex(int index) {
@@ -111,6 +108,7 @@ public class SelectionVector2 implements AutoCloseable {
 
   /**
    * Copy reference to buffer from incoming selection vector and copy its record count.
+   *
    * @param from selection vector 2
    */
   public void referTo(SelectionVector2 from) {
@@ -128,8 +126,8 @@ public class SelectionVector2 implements AutoCloseable {
     }
   }
 
-  public void setRecordCount(int recordCount){
-//    logger.debug("Setting record count to {}", recordCount);
+  public void setRecordCount(int recordCount) {
+    //    logger.debug("Setting record count to {}", recordCount);
     this.recordCount = recordCount;
   }
 

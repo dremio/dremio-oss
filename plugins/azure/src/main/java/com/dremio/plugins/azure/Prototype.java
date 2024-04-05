@@ -25,37 +25,37 @@ import org.apache.hadoop.fs.azurebfs.constants.FileSystemUriSchemes;
 
 class Prototype {
 
-  public static final Prototype WASB = new Prototype(
-      "http",
-      "blob.core.windows.net",
-      FileSystemUriSchemes.WASB_SCHEME,
-      NativeAzureFileSystem.class,
-      true
-      );
+  public static final Prototype WASB =
+      new Prototype(
+          "http",
+          "blob.core.windows.net",
+          FileSystemUriSchemes.WASB_SCHEME,
+          NativeAzureFileSystem.class,
+          true);
 
-  public static final Prototype WASBS = new Prototype(
-      "https",
-      "blob.core.windows.net",
-      FileSystemUriSchemes.WASB_SECURE_SCHEME,
-      NativeAzureFileSystem.Secure.class,
-      true
-      );
+  public static final Prototype WASBS =
+      new Prototype(
+          "https",
+          "blob.core.windows.net",
+          FileSystemUriSchemes.WASB_SECURE_SCHEME,
+          NativeAzureFileSystem.Secure.class,
+          true);
 
-  public static final Prototype ABFS = new Prototype(
-      "http",
-      "dfs.core.windows.net",
-      FileSystemUriSchemes.ABFS_SCHEME,
-      AzureBlobFileSystem.class,
-      false
-      );
+  public static final Prototype ABFS =
+      new Prototype(
+          "http",
+          "dfs.core.windows.net",
+          FileSystemUriSchemes.ABFS_SCHEME,
+          AzureBlobFileSystem.class,
+          false);
 
-  public static final Prototype ABFSS = new Prototype(
-      "https",
-      "dfs.core.windows.net",
-      FileSystemUriSchemes.ABFS_SECURE_SCHEME,
-      SecureAzureBlobFileSystem.class,
-      false
-      );
+  public static final Prototype ABFSS =
+      new Prototype(
+          "https",
+          "dfs.core.windows.net",
+          FileSystemUriSchemes.ABFS_SECURE_SCHEME,
+          SecureAzureBlobFileSystem.class,
+          false);
 
   private final String endpointScheme;
   private final String endpointSuffix;
@@ -63,7 +63,12 @@ class Prototype {
   private final Class<? extends FileSystem> fsImpl;
   private final boolean legacyMode;
 
-  public Prototype(String endpointScheme, String endpointSuffix, String scheme, Class<? extends FileSystem> fsImpl, boolean legacyMode) {
+  public Prototype(
+      String endpointScheme,
+      String endpointSuffix,
+      String scheme,
+      Class<? extends FileSystem> fsImpl,
+      boolean legacyMode) {
     this.endpointScheme = endpointScheme;
     this.endpointSuffix = endpointSuffix;
     this.scheme = scheme;
@@ -93,19 +98,31 @@ class Prototype {
     }
   }
 
-  public void setImpl(Configuration conf, String account, String clientId, String endpoint,
-                      String clientSecret, String azureEndpoint) {
+  public void setImpl(
+      Configuration conf,
+      String account,
+      String clientId,
+      String endpoint,
+      String clientSecret,
+      String azureEndpoint) {
     conf.set(String.format("fs.%s.impl", scheme), fsImpl.getName());
     if (legacyMode) {
       // TODO(DX-68107): fix STORAGE_V1
       conf.set(ConfigurationKeys.FS_AZURE_ACCOUNT_AUTH_TYPE_PROPERTY_NAME, "OAUTH");
-      conf.set(String.format("fs.azure.account.oauth2.client.id.%s.%s", account, azureEndpoint), clientId);
-      conf.set(String.format("fs.azure.account.oauth2.client.endpoint.%s.%s", account, azureEndpoint), endpoint);
-      conf.set(String.format("fs.azure.account.oauth2.client.secret.%s.%s", account, azureEndpoint), clientSecret);
+      conf.set(
+          String.format("fs.azure.account.oauth2.client.id.%s.%s", account, azureEndpoint),
+          clientId);
+      conf.set(
+          String.format("fs.azure.account.oauth2.client.endpoint.%s.%s", account, azureEndpoint),
+          endpoint);
+      conf.set(
+          String.format("fs.azure.account.oauth2.client.secret.%s.%s", account, azureEndpoint),
+          clientSecret);
     } else {
       conf.set(ConfigurationKeys.FS_AZURE_ACCOUNT_AUTH_TYPE_PROPERTY_NAME, "Custom");
-      conf.set(ConfigurationKeys.FS_AZURE_ACCOUNT_TOKEN_PROVIDER_TYPE_PROPERTY_NAME,
-        ClientCredentialsBasedTokenProviderImpl.class.getName());
+      conf.set(
+          ConfigurationKeys.FS_AZURE_ACCOUNT_TOKEN_PROVIDER_TYPE_PROPERTY_NAME,
+          ClientCredentialsBasedTokenProviderImpl.class.getName());
     }
   }
 }

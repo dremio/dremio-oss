@@ -15,11 +15,6 @@
  */
 package com.dremio.plugins.sysflight;
 
-import java.util.Iterator;
-
-import org.apache.arrow.flight.FlightClient;
-import org.apache.arrow.flight.FlightDescriptor;
-
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.DatasetMetadata;
 import com.dremio.connector.metadata.DatasetSplit;
@@ -30,25 +25,25 @@ import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.exec.planner.cost.ScanCostFactor;
 import com.dremio.exec.record.BatchSchema;
 import com.google.common.collect.ImmutableList;
+import java.util.Iterator;
+import org.apache.arrow.flight.FlightClient;
+import org.apache.arrow.flight.FlightDescriptor;
 
-/**
- * SysFlightTable
- */
+/** SysFlightTable */
 public class SysFlightTable implements DatasetHandle, DatasetMetadata, PartitionChunkListing {
 
   private static final long RECORD_COUNT = 10000L;
   private static final long SIZE_IN_BYTES = 100000L;
 
   private static final DatasetStats DATASET_STATS =
-    DatasetStats.of(RECORD_COUNT, ScanCostFactor.OTHER.getFactor());
+      DatasetStats.of(RECORD_COUNT, ScanCostFactor.OTHER.getFactor());
   private static final ImmutableList<PartitionChunk> PARTITION_CHUNKS =
-    ImmutableList.of(PartitionChunk.of(DatasetSplit.of(SIZE_IN_BYTES, RECORD_COUNT)));
+      ImmutableList.of(PartitionChunk.of(DatasetSplit.of(SIZE_IN_BYTES, RECORD_COUNT)));
 
   private final FlightClient client;
   private final EntityPath entityPath;
 
-  public SysFlightTable(EntityPath entityPath,
-                        FlightClient client) {
+  public SysFlightTable(EntityPath entityPath, FlightClient client) {
     this.entityPath = entityPath;
     this.client = client;
   }
@@ -65,8 +60,12 @@ public class SysFlightTable implements DatasetHandle, DatasetMetadata, Partition
 
   @Override
   public BatchSchema getRecordSchema() {
-    return new BatchSchema(client.getSchema(
-      FlightDescriptor.path(entityPath.getComponents().subList(1, entityPath.size()))).getSchema().getFields());
+    return new BatchSchema(
+        client
+            .getSchema(
+                FlightDescriptor.path(entityPath.getComponents().subList(1, entityPath.size())))
+            .getSchema()
+            .getFields());
   }
 
   @Override

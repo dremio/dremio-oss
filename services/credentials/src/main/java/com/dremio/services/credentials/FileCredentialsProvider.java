@@ -15,19 +15,16 @@
  */
 package com.dremio.services.credentials;
 
+import com.google.inject.Inject;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 
-import com.google.inject.Inject;
-
-/**
- * File Credential Provider.
- */
-@RemoteRestricted
-public class FileCredentialsProvider extends AbstractSimpleCredentialsProvider implements CredentialsProvider {
+/** File Credential Provider. */
+public class FileCredentialsProvider extends AbstractSimpleCredentialsProvider
+    implements CredentialsProvider {
 
   @Inject
   public FileCredentialsProvider() {
@@ -44,5 +41,4 @@ public class FileCredentialsProvider extends AbstractSimpleCredentialsProvider i
       throw new FileCredentialsException("Encountered an IO error while reading file.", e);
     }
   }
-
 }

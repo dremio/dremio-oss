@@ -16,6 +16,8 @@
 package com.dremio.service.namespace.catalogstatusevents;
 
 public interface CatalogStatusEvents {
-  void subscribe(CatalogStatusEventTopic catalogStatusEventTopic, CatalogStatusSubscriber subscriber);
+  void subscribe(
+      CatalogStatusEventTopic catalogStatusEventTopic, CatalogStatusSubscriber subscriber);
+
   void publish(CatalogStatusEvent event);
 }

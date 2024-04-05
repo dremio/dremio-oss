@@ -15,25 +15,25 @@
  */
 package com.dremio.common.logical.data;
 
-import java.util.Iterator;
-import java.util.List;
-
 import com.dremio.common.expression.FieldReference;
 import com.dremio.common.logical.data.visitors.LogicalVisitor;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.Iterators;
+import java.util.Iterator;
+import java.util.List;
 
 @JsonTypeName("runningaggregate")
-public class RunningAggregate extends SingleInputOperator{
+public class RunningAggregate extends SingleInputOperator {
 
   private final FieldReference within;
   private final List<NamedExpression> aggregations;
 
   @JsonCreator
-  public RunningAggregate(@JsonProperty("within") FieldReference within,
-                          @JsonProperty("aggregations") List<NamedExpression> aggregations) {
+  public RunningAggregate(
+      @JsonProperty("within") FieldReference within,
+      @JsonProperty("aggregations") List<NamedExpression> aggregations) {
     super();
     this.within = within;
     this.aggregations = aggregations;
@@ -47,16 +47,14 @@ public class RunningAggregate extends SingleInputOperator{
     return aggregations;
   }
 
-    @Override
-    public <T, X, E extends Throwable> T accept(LogicalVisitor<T, X, E> logicalVisitor, X value) throws E {
-        return logicalVisitor.visitRunningAggregate(this, value);
-    }
+  @Override
+  public <T, X, E extends Throwable> T accept(LogicalVisitor<T, X, E> logicalVisitor, X value)
+      throws E {
+    return logicalVisitor.visitRunningAggregate(this, value);
+  }
 
-    @Override
-    public Iterator<LogicalOperator> iterator() {
-        return Iterators.singletonIterator(getInput());
-    }
-
-
-
+  @Override
+  public Iterator<LogicalOperator> iterator() {
+    return Iterators.singletonIterator(getInput());
+  }
 }

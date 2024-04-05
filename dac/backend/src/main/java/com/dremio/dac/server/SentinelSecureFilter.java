@@ -25,9 +25,7 @@ import com.fasterxml.jackson.databind.ser.BeanPropertyWriter;
 import com.fasterxml.jackson.databind.ser.PropertyFilter;
 import com.fasterxml.jackson.databind.ser.PropertyWriter;
 
-/**
- * A filter that automatically replaces a value with a Sentinel value if being serialized.
- */
+/** A filter that automatically replaces a value with a Sentinel value if being serialized. */
 public final class SentinelSecureFilter implements PropertyFilter {
 
   public static final PropertyFilter SECURE = new SentinelSecureFilter(true);
@@ -41,13 +39,15 @@ public final class SentinelSecureFilter implements PropertyFilter {
   }
 
   @Override
-  public void serializeAsField(Object pojo, JsonGenerator gen, SerializerProvider prov, PropertyWriter writer)
+  public void serializeAsField(
+      Object pojo, JsonGenerator gen, SerializerProvider prov, PropertyWriter writer)
       throws Exception {
     filter(writer).serializeAsField(pojo, gen, prov);
   }
 
   @Override
-  public void serializeAsElement(Object elementValue, JsonGenerator gen, SerializerProvider prov, PropertyWriter writer)
+  public void serializeAsElement(
+      Object elementValue, JsonGenerator gen, SerializerProvider prov, PropertyWriter writer)
       throws Exception {
     filter(writer).serializeAsElement(elementValue, gen, prov);
   }
@@ -67,12 +67,16 @@ public final class SentinelSecureFilter implements PropertyFilter {
 
   @SuppressWarnings("deprecation")
   @Override
-  public void depositSchemaProperty(PropertyWriter writer, ObjectNode propertiesNode, SerializerProvider provider) throws JsonMappingException {
+  public void depositSchemaProperty(
+      PropertyWriter writer, ObjectNode propertiesNode, SerializerProvider provider)
+      throws JsonMappingException {
     writer.depositSchemaProperty(propertiesNode, provider);
   }
 
   @Override
-  public void depositSchemaProperty(PropertyWriter writer, JsonObjectFormatVisitor objectVisitor, SerializerProvider provider) throws JsonMappingException {
+  public void depositSchemaProperty(
+      PropertyWriter writer, JsonObjectFormatVisitor objectVisitor, SerializerProvider provider)
+      throws JsonMappingException {
     writer.depositSchemaProperty(objectVisitor, provider);
   }
 
@@ -87,9 +91,8 @@ public final class SentinelSecureFilter implements PropertyFilter {
     }
 
     @Override
-    public void serializeAsField(Object bean,
-                                 JsonGenerator gen,
-                                 SerializerProvider prov) throws Exception {
+    public void serializeAsField(Object bean, JsonGenerator gen, SerializerProvider prov)
+        throws Exception {
       Object value = writer.get(bean);
       if (value == null) {
         writer.serializeAsField(bean, gen, prov);
@@ -97,7 +100,8 @@ public final class SentinelSecureFilter implements PropertyFilter {
       }
 
       if (!(value instanceof String)) {
-        throw new UnsupportedOperationException("SentinelSecure is only allowed on String properties.");
+        throw new UnsupportedOperationException(
+            "SentinelSecure is only allowed on String properties.");
       }
 
       String str = (String) value;
@@ -109,11 +113,10 @@ public final class SentinelSecureFilter implements PropertyFilter {
     }
 
     @Override
-    public void serializeAsElement(Object bean,
-        JsonGenerator gen,
-        SerializerProvider prov) throws Exception {
-      throw new UnsupportedOperationException("SentinelSecure is only allowed on String properties, not Lists or Arrays.");
+    public void serializeAsElement(Object bean, JsonGenerator gen, SerializerProvider prov)
+        throws Exception {
+      throw new UnsupportedOperationException(
+          "SentinelSecure is only allowed on String properties, not Lists or Arrays.");
     }
-
   }
 }

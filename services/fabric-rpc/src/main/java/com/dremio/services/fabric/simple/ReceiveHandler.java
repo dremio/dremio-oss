@@ -15,10 +15,9 @@
  */
 package com.dremio.services.fabric.simple;
 
-import org.apache.arrow.memory.ArrowBuf;
-
 import com.dremio.exec.rpc.RpcException;
 import com.google.protobuf.MessageLite;
+import org.apache.arrow.memory.ArrowBuf;
 
 /**
  * Interface for implementing reception and handling of a single type of message.
@@ -29,8 +28,8 @@ import com.google.protobuf.MessageLite;
 public interface ReceiveHandler<REQUEST extends MessageLite, RESPONSE extends MessageLite> {
 
   public SentResponseMessage<RESPONSE> handle(REQUEST request, ArrowBuf dBody) throws RpcException;
+
   public RESPONSE getDefaultResponse();
+
   public REQUEST getDefaultRequest();
-
-
 }

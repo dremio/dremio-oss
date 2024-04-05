@@ -18,7 +18,6 @@ package com.dremio.provision.yarn;
 import java.io.File;
 import java.util.Arrays;
 import java.util.Objects;
-
 import org.apache.twill.api.TwillContext;
 import org.apache.twill.api.TwillRunnable;
 import org.apache.twill.api.TwillRunnableSpecification;
@@ -28,30 +27,22 @@ import org.slf4j.LoggerFactory;
 /**
  * Application bundle runnable
  *
- * Requires a jar generated using {@code AppBundleGenerator}
+ * <p>Requires a jar generated using {@code AppBundleGenerator}
  */
 public class AppBundleRunnable implements TwillRunnable {
 
   private static final Logger logger = LoggerFactory.getLogger(AppBundleRunnable.class);
 
-  /**
-   * Contains runtime arguments for {@code DremioTwillRunner}.
-   */
+  /** Contains runtime arguments for {@code DremioTwillRunner}. */
   static class Arguments {
 
-    /**
-     * Filename of the bundled jar, as specified in the TwillSpecification local files.
-     */
+    /** Filename of the bundled jar, as specified in the TwillSpecification local files. */
     private final String jarFileName;
 
-    /**
-     * Class name of the class having the main() that is to be called.
-     */
+    /** Class name of the class having the main() that is to be called. */
     private final String mainClassName;
 
-    /**
-     * Arguments to pass the main() of the class specified by mainClassName.
-     */
+    /** Arguments to pass the main() of the class specified by mainClassName. */
     private final String[] mainArgs;
 
     Arguments(String jarFileName, String mainClassName, String[] mainArgs) {
@@ -61,8 +52,8 @@ public class AppBundleRunnable implements TwillRunnable {
     }
 
     public static Arguments fromArray(String[] args) {
-      checkArgument(args.length >= 1, "Requires at least 2 argument:"
-        + " <jarFileName> <mainClassName>");
+      checkArgument(
+          args.length >= 1, "Requires at least 2 argument:" + " <jarFileName> <mainClassName>");
 
       return new Arguments(args[0], args[1], Arrays.copyOfRange(args, 2, args.length));
     }
@@ -112,14 +103,10 @@ public class AppBundleRunnable implements TwillRunnable {
     }
   }
 
-  /**
-   * Runs the bundled jar.
-   */
+  /** Runs the bundled jar. */
   private AppBundleRunner jarRunner;
 
-  /**
-   * Arguments for running the bundled jar.
-   */
+  /** Arguments for running the bundled jar. */
   private Arguments arguments;
 
   @Override
@@ -152,10 +139,7 @@ public class AppBundleRunnable implements TwillRunnable {
 
   @Override
   public TwillRunnableSpecification configure() {
-    return TwillRunnableSpecification.Builder.with()
-      .setName(getName())
-      .noConfigs()
-      .build();
+    return TwillRunnableSpecification.Builder.with().setName(getName()).noConfigs().build();
   }
 
   private AppBundleRunner loadJarRunner(File jarFile, Arguments arguments) {
@@ -176,7 +160,8 @@ public class AppBundleRunnable implements TwillRunnable {
     arguments = Arguments.fromArray(context.getArguments());
 
     final File jarFile = new File(arguments.getJarFileName());
-    Objects.requireNonNull(jarFile, String.format("Jar file %s cannot be null", jarFile.getAbsolutePath()));
+    Objects.requireNonNull(
+        jarFile, String.format("Jar file %s cannot be null", jarFile.getAbsolutePath()));
     checkArgument(jarFile.exists(), "Jar file %s must exist", jarFile.getAbsolutePath());
     checkArgument(jarFile.canRead(), "Jar file %s must be readable", jarFile.getAbsolutePath());
 

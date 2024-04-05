@@ -14,16 +14,13 @@
  * limitations under the License.
  */
 package com.dremio.provision;
-import javax.validation.constraints.NotNull;
 
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import javax.validation.constraints.NotNull;
 import org.immutables.value.Value.Default;
 import org.immutables.value.Value.Immutable;
 
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-
-/**
- * Cluster creation request
- */
+/** Cluster creation request */
 @JsonDeserialize(builder = ImmutableClusterCreateRequest.Builder.class)
 @Immutable
 @ConsistentProps.Annotation
@@ -32,17 +29,26 @@ public interface ClusterCreateRequest extends ConsistentProps {
   String getName();
 
   @Override
-  @NotNull ClusterType getClusterType();
+  @NotNull
+  ClusterType getClusterType();
 
-  @NotNull DynamicConfig getDynamicConfig();
+  @NotNull
+  DynamicConfig getDynamicConfig();
 
   @Override
   YarnPropsApi getYarnProps();
+
   @Override
   AwsPropsApi getAwsProps();
+
   boolean isAllowAutoStart();
+
   boolean isAllowAutoStop();
-  @Default default long getShutdownInterval() { return 7_200_000; }
+
+  @Default
+  default long getShutdownInterval() {
+    return 7_200_000;
+  }
 
   public static ImmutableClusterCreateRequest.Builder builder() {
     return new ImmutableClusterCreateRequest.Builder();

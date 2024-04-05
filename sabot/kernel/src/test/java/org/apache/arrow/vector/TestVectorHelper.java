@@ -15,10 +15,11 @@
  */
 package org.apache.arrow.vector;
 
+import com.dremio.test.AllocatorRule;
+import com.dremio.test.DremioTest;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.complex.ListVector;
@@ -31,14 +32,10 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
-import com.dremio.test.AllocatorRule;
-import com.dremio.test.DremioTest;
-
 public class TestVectorHelper extends DremioTest {
   private BufferAllocator testAllocator;
 
-  @Rule
-  public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
+  @Rule public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
 
   @Before
   public void setupBeforeTest() {
@@ -65,12 +62,12 @@ public class TestVectorHelper extends DremioTest {
     Assert.assertEquals(info.getSize(), getTotalStringArrayLength(stringList.get(testIndex)));
     Assert.assertEquals(info.getNumOfElements(), stringList.get(testIndex).size());
 
-    //test null entry
+    // test null entry
     info = VectorHelper.getListVectorEntrySizeAndCount(listVector, stringList.size());
     Assert.assertEquals(info.getSize(), -1);
     Assert.assertEquals(info.getNumOfElements(), -1);
 
-    //test empty list
+    // test empty list
     info = VectorHelper.getListVectorEntrySizeAndCount(listVector, stringList.size() + 1);
     Assert.assertEquals(info.getSize(), 0);
     Assert.assertEquals(info.getNumOfElements(), 1);
@@ -85,18 +82,17 @@ public class TestVectorHelper extends DremioTest {
 
     final List<String> stringList = getRandomTextList(count);
 
-
     final VarCharVector vector = (VarCharVector) getFilledVarcharVector(stringList);
     final int testIndex = rn.nextInt(count);
 
     int valueLen = VectorHelper.getVariableWidthVectorValueLength(vector, testIndex);
     Assert.assertEquals(valueLen, stringList.get(testIndex).length());
 
-    //test null value
+    // test null value
     valueLen = VectorHelper.getVariableWidthVectorValueLength(vector, stringList.size());
     Assert.assertEquals(valueLen, -1);
 
-    //test 0 length value
+    // test 0 length value
     valueLen = VectorHelper.getVariableWidthVectorValueLength(vector, stringList.size() + 1);
     Assert.assertEquals(valueLen, 0);
 
@@ -104,9 +100,7 @@ public class TestVectorHelper extends DremioTest {
   }
 
   int getTotalStringArrayLength(final List<String> words) {
-    return words.stream()
-      .mapToInt(String::length)
-      .sum();
+    return words.stream().mapToInt(String::length).sum();
   }
 
   private List<List<String>> getRandomTextMatrix(final int numOfRows) {
@@ -141,14 +135,13 @@ public class TestVectorHelper extends DremioTest {
     final Random rn = new Random();
 
     // words of length 5 through 20
-    final char[] word = new char[rn.nextInt(15)+5];
+    final char[] word = new char[rn.nextInt(15) + 5];
 
     for (int k = 0; k < word.length; k++) {
-      word[k] = (char)('a' + rn.nextInt(26));
+      word[k] = (char) ('a' + rn.nextInt(26));
     }
 
     return new String(word);
-
   }
 
   private BaseVariableWidthVector getFilledVarcharVector(final List<String> stringList) {
@@ -160,15 +153,15 @@ public class TestVectorHelper extends DremioTest {
       vector.set(i, stringList.get(i).getBytes());
     }
 
-    //size + 1'th entry is empty, entry at size'th index will be null
-    vector.set(stringList.size() + 1 , "".getBytes());
+    // size + 1'th entry is empty, entry at size'th index will be null
+    vector.set(stringList.size() + 1, "".getBytes());
 
     return vector;
-
   }
 
   private ListVector getFilledListVector(final List<List<String>> stringList) {
-    final ListVector listVector = new ListVector("colList", testAllocator, FieldType.nullable(ArrowType.List.INSTANCE), null);
+    final ListVector listVector =
+        new ListVector("colList", testAllocator, FieldType.nullable(ArrowType.List.INSTANCE), null);
 
     listVector.allocateNew();
 
@@ -190,13 +183,12 @@ public class TestVectorHelper extends DremioTest {
         i++;
       }
 
-      //set empty list at size + 1 index, value at size'th index will be null
+      // set empty list at size + 1 index, value at size'th index will be null
       listWriter.setPosition(stringList.size() + 1);
       listWriter.startList();
       listWriter.endList();
     }
 
     return listVector;
-
   }
 }

@@ -17,34 +17,36 @@ package com.dremio.exec.store.pojo;
 
 import static com.dremio.common.util.MajorTypeHelper.getArrowMinorType;
 
-import java.lang.reflect.Field;
-
-import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.types.pojo.FieldType;
-
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.exec.expr.TypeHelper;
 import com.dremio.sabot.op.scan.OutputMutator;
+import java.lang.reflect.Field;
+import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.types.pojo.FieldType;
 
-abstract class AbstractWriter<V extends ValueVector> implements PojoWriter{
+abstract class AbstractWriter<V extends ValueVector> implements PojoWriter {
 
   protected final Field field;
   protected V vector;
   protected final MajorType type;
 
-  public AbstractWriter(Field field, MajorType type){
+  public AbstractWriter(Field field, MajorType type) {
     this.field = field;
     this.type = type;
   }
 
   @Override
   public void init(OutputMutator output) throws SchemaChangeException {
-//    MaterializedField mf = MajorTypeHelper.getFieldForNameAndMajorType(field.getName(), type);
-    org.apache.arrow.vector.types.pojo.Field mf = new org.apache.arrow.vector.types.pojo.Field(field.getName(), new FieldType(true,  getArrowMinorType(type.getMinorType()).getType(), null),
-    null);
+    //    MaterializedField mf = MajorTypeHelper.getFieldForNameAndMajorType(field.getName(), type);
+    org.apache.arrow.vector.types.pojo.Field mf =
+        new org.apache.arrow.vector.types.pojo.Field(
+            field.getName(),
+            new FieldType(true, getArrowMinorType(type.getMinorType()).getType(), null),
+            null);
     @SuppressWarnings("unchecked")
-    Class<V> valueVectorClass = (Class<V>) TypeHelper.getValueVectorClass(getArrowMinorType(type.getMinorType()));
+    Class<V> valueVectorClass =
+        (Class<V>) TypeHelper.getValueVectorClass(getArrowMinorType(type.getMinorType()));
     this.vector = output.addField(mf, valueVectorClass);
   }
 
@@ -54,13 +56,10 @@ abstract class AbstractWriter<V extends ValueVector> implements PojoWriter{
   }
 
   @Override
-  public void setValueCount(int valueCount){
+  public void setValueCount(int valueCount) {
     vector.setValueCount(valueCount);
   }
 
   @Override
-  public void cleanup() {
-  }
-
-
+  public void cleanup() {}
 }

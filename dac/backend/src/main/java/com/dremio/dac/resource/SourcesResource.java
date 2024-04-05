@@ -17,6 +17,16 @@ package com.dremio.dac.resource;
 
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
+import com.dremio.dac.annotations.RestResource;
+import com.dremio.dac.annotations.Secured;
+import com.dremio.dac.model.sources.SourceUI;
+import com.dremio.dac.model.sources.Sources;
+import com.dremio.dac.service.source.SourceService;
+import com.dremio.service.namespace.BoundedDatasetCount;
+import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.NamespaceService;
+import com.dremio.service.namespace.SourceState;
+import com.dremio.service.namespace.source.proto.SourceConfig;
 import javax.annotation.security.RolesAllowed;
 import javax.inject.Inject;
 import javax.ws.rs.Consumes;
@@ -28,25 +38,13 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 
-import com.dremio.dac.annotations.RestResource;
-import com.dremio.dac.annotations.Secured;
-import com.dremio.dac.model.sources.SourceUI;
-import com.dremio.dac.model.sources.Sources;
-import com.dremio.dac.service.source.SourceService;
-import com.dremio.service.namespace.BoundedDatasetCount;
-import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.namespace.NamespaceService;
-import com.dremio.service.namespace.SourceState;
-import com.dremio.service.namespace.source.proto.SourceConfig;
-
-/**
- * Resource for information about sources.
- */
+/** Resource for information about sources. */
 @RestResource
 @Secured
 @RolesAllowed({"admin", "user"})
 @Path("/sources")
-@Consumes(APPLICATION_JSON) @Produces(APPLICATION_JSON)
+@Consumes(APPLICATION_JSON)
+@Produces(APPLICATION_JSON)
 public class SourcesResource {
   private final NamespaceService namespaceService;
   private final SourceService sourceService;
@@ -58,13 +56,19 @@ public class SourcesResource {
   }
 
   @GET
-  public Sources getSources(@QueryParam("includeDatasetCount") @DefaultValue("true") boolean includeDatasetCount) throws Exception {
+  public Sources getSources(
+      @QueryParam("includeDatasetCount") @DefaultValue("true") boolean includeDatasetCount)
+      throws Exception {
     final Sources sources = new Sources();
     for (SourceConfig sourceConfig : sourceService.getSources()) {
       SourceUI source = newSource(sourceConfig);
 
       if (includeDatasetCount) {
-        BoundedDatasetCount datasetCount = namespaceService.getDatasetCount(new NamespaceKey(source.getName()), BoundedDatasetCount.SEARCH_TIME_LIMIT_MS, BoundedDatasetCount.COUNT_LIMIT_TO_STOP_SEARCH);
+        BoundedDatasetCount datasetCount =
+            namespaceService.getDatasetCount(
+                new NamespaceKey(source.getName()),
+                BoundedDatasetCount.SEARCH_TIME_LIMIT_MS,
+                BoundedDatasetCount.COUNT_LIMIT_TO_STOP_SEARCH);
         source.setNumberOfDatasets(datasetCount.getCount());
         source.setDatasetCountBounded(datasetCount.isCountBound() || datasetCount.isTimeBound());
       }
@@ -77,9 +81,7 @@ public class SourcesResource {
     return sources;
   }
 
-  /**
-   * Response class for metadata impacting requests
-   */
+  /** Response class for metadata impacting requests */
   public class MetadataImpactingResponse {
     private final boolean isMetadataImpacting;
 
@@ -98,7 +100,8 @@ public class SourcesResource {
   @Consumes(MediaType.APPLICATION_JSON)
   public MetadataImpactingResponse isMetadataImpacating(SourceUI sourceUI) {
     final SourceConfig sourceConfig = sourceUI.asSourceConfig();
-    return new MetadataImpactingResponse(sourceService.isSourceConfigMetadataImpacting(sourceConfig));
+    return new MetadataImpactingResponse(
+        sourceService.isSourceConfigMetadataImpacting(sourceConfig));
   }
 
   protected SourceUI newSource(SourceConfig sourceConfig) throws Exception {

@@ -24,21 +24,20 @@ import com.dremio.sabot.rpc.user.UserSession;
 public interface UserToForemenManager {
 
   void submitNewExternal(
-    final ExternalId externalId,
-    final QueryObserver observer,
-    final UserSession session,
-    final UserRequest request,
-    final TerminationListenerRegistry registry,
-    final OptionProvider config);
-
+      final ExternalId externalId,
+      final QueryObserver observer,
+      final UserSession session,
+      final UserRequest request,
+      final TerminationListenerRegistry registry,
+      final OptionProvider config);
 
   void submitNewInternal(
-    final ExternalId externalId,
-    final QueryObserver observer,
-    final UserSession session,
-    final UserRequest request,
-    final TerminationListenerRegistry registry,
-    final OptionProvider config);
+      final ExternalId externalId,
+      final QueryObserver observer,
+      final UserSession session,
+      final UserRequest request,
+      final TerminationListenerRegistry registry,
+      final OptionProvider config);
 
   void cancel(ExternalId id);
 }

@@ -18,9 +18,12 @@ package com.dremio.exec.store.easy.excel.xls;
 import static org.apache.poi.hssf.model.InternalWorkbook.OLD_WORKBOOK_DIR_ENTRY_NAME;
 import static org.apache.poi.hssf.model.InternalWorkbook.WORKBOOK_DIR_ENTRY_NAMES;
 
+import com.dremio.exec.store.easy.excel.xls.poi.DirectoryNode;
+import com.dremio.exec.store.easy.excel.xls.poi.DocumentNode;
+import com.dremio.exec.store.easy.excel.xls.properties.PropertyTable;
+import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.io.InputStream;
-
 import org.apache.poi.EncryptedDocumentException;
 import org.apache.poi.hssf.OldExcelFormatException;
 import org.apache.poi.poifs.common.POIFSConstants;
@@ -29,21 +32,17 @@ import org.apache.poi.poifs.filesystem.DocumentEntry;
 import org.apache.poi.poifs.filesystem.Entry;
 import org.apache.poi.poifs.storage.HeaderBlock;
 
-import com.dremio.exec.store.easy.excel.xls.poi.DirectoryNode;
-import com.dremio.exec.store.easy.excel.xls.poi.DocumentNode;
-import com.dremio.exec.store.easy.excel.xls.properties.PropertyTable;
-import com.google.common.base.Preconditions;
-
 /**
  * Bare minimum xls reader based on POI
  *
- * XLS files are Compound File Binary (CFB) Files.<br>
- * A compound file is divided into equal-length sectors.
- * The first sector contains the compound file header.
- * Subsequent sectors are identified by a 32-bit nonnegative integer number, called the sector number.
+ * <p>XLS files are Compound File Binary (CFB) Files.<br>
+ * A compound file is divided into equal-length sectors. The first sector contains the compound file
+ * header. Subsequent sectors are identified by a 32-bit nonnegative integer number, called the
+ * sector number.
  *
- * A group of sectors can form a sector chain, which is a linked list of sectors forming a logical byte array,
- * even though the sectors can be in non-consecutive locations in the compound file
+ * <p>A group of sectors can form a sector chain, which is a linked list of sectors forming a
+ * logical byte array, even though the sectors can be in non-consecutive locations in the compound
+ * file
  */
 class XlsReader {
   private final XlsInputStream is;
@@ -58,7 +57,6 @@ class XlsReader {
    * Extracts all information necessary to read the workbook stream.
    *
    * @param inputStream XLS input stream
-   *
    * @throws IOException if data doesn't start with proper header
    */
   private XlsReader(final XlsInputStream inputStream) throws IOException {
@@ -114,8 +112,9 @@ class XlsReader {
     // check for an encrypted .xlsx file - they get OLE2 wrapped
     try {
       directory.getEntry(Decryptor.DEFAULT_POIFS_ENTRY);
-      throw new EncryptedDocumentException("The supplied spreadsheet seems to be an Encrypted .xlsx file." +
-              "It must be decrypted before it can be read");
+      throw new EncryptedDocumentException(
+          "The supplied spreadsheet seems to be an Encrypted .xlsx file."
+              + "It must be decrypted before it can be read");
     } catch (IllegalStateException e) {
       // fall through
     }
@@ -123,13 +122,15 @@ class XlsReader {
     // check for previous version of file format
     try {
       directory.getEntry(OLD_WORKBOOK_DIR_ENTRY_NAME);
-      throw new OldExcelFormatException("The supplied spreadsheet seems to be Excel 5.0/7.0 (BIFF5) format. "
+      throw new OldExcelFormatException(
+          "The supplied spreadsheet seems to be Excel 5.0/7.0 (BIFF5) format. "
               + "We only support BIFF8 format (from Excel versions 97/2000/XP/2003)");
     } catch (IllegalStateException e) {
       // fall through
     }
 
-    throw new IllegalArgumentException("The supplied XLS file does not contain a BIFF8 'Workbook' entry. "
+    throw new IllegalArgumentException(
+        "The supplied XLS file does not contain a BIFF8 'Workbook' entry. "
             + "Is it really an excel file?");
   }
 
@@ -139,17 +140,18 @@ class XlsReader {
     String name = getWorkbookDirEntryName(dir);
 
     Entry workbook = dir.getEntry(name);
-    Preconditions.checkState(!workbook.isDocumentEntry(), "Entry '" + workbook.getName() + "' is not a DocumentEntry");
+    Preconditions.checkState(
+        !workbook.isDocumentEntry(), "Entry '" + workbook.getName() + "' is not a DocumentEntry");
 
     return (DocumentEntry) workbook;
   }
 
   /**
-   * returns a {@link BlockStoreInputStream} that exposes all workbook sectors in their correct order
+   * returns a {@link BlockStoreInputStream} that exposes all workbook sectors in their correct
+   * order
    *
    * @param is XLS InputStream
    * @return {@link BlockStoreInputStream} that wraps the workbook's stream
-   *
    * @throws IOException if the data doesn't contain a proper MS-CFB header
    * @throws OldExcelFormatException if the file is too old to be supported
    */
@@ -159,10 +161,10 @@ class XlsReader {
     DocumentNode workbookNode = (DocumentNode) workBookEntry;
 
     // use proper blockStore
-    final boolean useMiniStore = workbookNode.getSize() < POIFSConstants.BIG_BLOCK_MINIMUM_DOCUMENT_SIZE;
+    final boolean useMiniStore =
+        workbookNode.getSize() < POIFSConstants.BIG_BLOCK_MINIMUM_DOCUMENT_SIZE;
     final BlockStore blockStore = useMiniStore ? xlsReader.miniStore : xlsReader.difats;
 
     return new BlockStoreInputStream(is, blockStore, workbookNode.getProperty().getStartBlock());
   }
-
 }

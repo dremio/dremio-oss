@@ -15,23 +15,8 @@
  */
 package com.dremio.plugins.elastic;
 
-
 import static javax.ws.rs.core.HttpHeaders.ACCEPT;
 import static javax.ws.rs.core.HttpHeaders.CONTENT_TYPE;
-
-import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.Invocation;
-import javax.ws.rs.client.InvocationCallback;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.Response;
 
 import com.dremio.plugins.elastic.mapping.ElasticMappingSet.ClusterMetadata;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -40,10 +25,23 @@ import com.google.common.base.Joiner;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.client.Entity;
+import javax.ws.rs.client.Invocation;
+import javax.ws.rs.client.InvocationCallback;
+import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.Response;
 
 public class ElasticActions {
 
-  public static final String APPLICATION_ES_JSON = "application/vnd.elasticsearch+json; compatible-with=7";
+  public static final String APPLICATION_ES_JSON =
+      "application/vnd.elasticsearch+json; compatible-with=7";
   private static final String APPLICATION_JSON = "application/json";
 
   static JsonParser parser = new JsonParser();
@@ -55,6 +53,7 @@ public class ElasticActions {
   public abstract static class ElasticAction {
     /**
      * Interface for the connection pool to generate request.
+     *
      * @param target
      * @return
      */
@@ -90,7 +89,7 @@ public class ElasticActions {
       throw new UnsupportedOperationException();
     }
 
-    public <T> T getAsObject(){
+    public <T> T getAsObject() {
       throw new UnsupportedOperationException();
     }
 
@@ -158,7 +157,8 @@ public class ElasticActions {
     @Override
     public Result getResult(WebTarget target, int version) {
       try {
-        Invocation.Builder builder = addHeader(target.path("_cluster/health").request(), version, false);
+        Invocation.Builder builder =
+            addHeader(target.path("_cluster/health").request(), version, false);
         return new JsonResult(builder.buildGet().invoke(byte[].class));
       } catch (WebApplicationException e) {
         return new FailureResult(e.getResponse().getStatus(), e.getMessage());
@@ -166,10 +166,10 @@ public class ElasticActions {
     }
   }
 
-  public static Invocation.Builder addHeader(Invocation.Builder builder, int majorVersion, boolean sendLegacyAccept) {
+  public static Invocation.Builder addHeader(
+      Invocation.Builder builder, int majorVersion, boolean sendLegacyAccept) {
     if (majorVersion > 7) {
-      builder.header(ACCEPT, APPLICATION_ES_JSON)
-        .header(CONTENT_TYPE, APPLICATION_ES_JSON);
+      builder.header(ACCEPT, APPLICATION_ES_JSON).header(CONTENT_TYPE, APPLICATION_ES_JSON);
     } else {
       if (sendLegacyAccept) {
         builder.header(ACCEPT, APPLICATION_JSON);
@@ -195,19 +195,18 @@ public class ElasticActions {
   public abstract static class Search<T> extends ElasticAction2<T> {
     private String query;
     private String resource;
-    private Map<String,String> parameters = new HashMap<>();
-
+    private Map<String, String> parameters = new HashMap<>();
 
     public Search(Class<T> clazz) {
       super("start search", clazz);
     }
 
-    public Search<T> setQuery(String query){
+    public Search<T> setQuery(String query) {
       this.query = query;
       return this;
     }
 
-    public Search<T> setResource(String resource){
+    public Search<T> setResource(String resource) {
       this.resource = resource;
       return this;
     }
@@ -217,16 +216,14 @@ public class ElasticActions {
       return this;
     }
 
-    public String getResource(){
+    public String getResource() {
       return resource;
     }
 
     @Override
     Invocation buildRequest(WebTarget initial, ContextListener context, int version) {
-      WebTarget t = initial
-        .path(resource)
-        .path("_search");
-      for (Entry<String,String> entry : parameters.entrySet()) {
+      WebTarget t = initial.path(resource).path("_search");
+      for (Entry<String, String> entry : parameters.entrySet()) {
         t = t.queryParam(entry.getKey(), entry.getValue());
       }
 
@@ -234,7 +231,8 @@ public class ElasticActions {
       context.addContext("Query", query);
       context.addContext("version", Integer.toString(version));
       Invocation.Builder builder = addHeader(t.request(), version, false);
-      return builder.build("POST", version == 8 ? Entity.entity(query, APPLICATION_ES_JSON) : Entity.json(query));
+      return builder.build(
+          "POST", version == 8 ? Entity.entity(query, APPLICATION_ES_JSON) : Entity.json(query));
     }
   }
 
@@ -242,6 +240,7 @@ public class ElasticActions {
 
     @JsonProperty("scroll_id")
     private String scrollId;
+
     @JsonProperty("scroll")
     private String scrollTimeout;
 
@@ -265,7 +264,8 @@ public class ElasticActions {
       context.addContext(target);
 
       Invocation.Builder builder = addHeader(target.request(), version, false);
-      return builder.buildPost(version > 7 ? Entity.entity(this, APPLICATION_ES_JSON) : Entity.json(this));
+      return builder.buildPost(
+          version > 7 ? Entity.entity(this, APPLICATION_ES_JSON) : Entity.json(this));
     }
   }
 
@@ -278,7 +278,8 @@ public class ElasticActions {
 
     public void delete(WebTarget target, InvocationCallback<Response> callback, int version) {
       addHeader(target.path("_search/scroll").path(scrollId).request(), version, false)
-        .buildDelete().submit(callback);
+          .buildDelete()
+          .submit(callback);
     }
   }
 
@@ -290,7 +291,7 @@ public class ElasticActions {
       return this;
     }
 
-    public SearchShards addIndices(List<String> indices){
+    public SearchShards addIndices(List<String> indices) {
       indexes.addAll(indices);
       return this;
     }
@@ -298,9 +299,11 @@ public class ElasticActions {
     @Override
     public Result getResult(WebTarget target, int version) {
       try {
-        Invocation.Builder builder = addHeader(
-          target.path(Joiner.on(",").join(indexes))
-            .path("_search_shards").request(), version, false);
+        Invocation.Builder builder =
+            addHeader(
+                target.path(Joiner.on(",").join(indexes)).path("_search_shards").request(),
+                version,
+                false);
         return new JsonResult(builder.buildGet().invoke(byte[].class));
       } catch (WebApplicationException e) {
         return new FailureResult(e.getResponse().getStatus(), e.getMessage());
@@ -338,15 +341,17 @@ public class ElasticActions {
     @Override
     public Result getResult(WebTarget target, int version) {
       try {
-          Invocation.Builder builder = target.path(Joiner.on(",").join(indexes))
-            .path(Joiner.on(",").join(types))
-            .path("_count")
-            .request();
+        Invocation.Builder builder =
+            target
+                .path(Joiner.on(",").join(indexes))
+                .path(Joiner.on(",").join(types))
+                .path("_count")
+                .request();
 
         addHeader(builder, version, false);
 
-        return new CountResult(parse(builder
-          .buildGet().invoke(String.class)).get("count").getAsLong());
+        return new CountResult(
+            parse(builder.buildGet().invoke(String.class)).get("count").getAsLong());
       } catch (WebApplicationException e) {
         return new FailureResult(e.getResponse().getStatus(), e.getMessage());
       }
@@ -355,13 +360,16 @@ public class ElasticActions {
 
   public static class CatAlias extends ElasticAction {
     private final String alias;
+
     public CatAlias(String alias) {
       this.alias = alias;
     }
+
     @Override
     public Result getResult(WebTarget target, int version) {
       try {
-        Invocation.Builder builder = addHeader(target.path("_alias").path(alias).request(), version, true);
+        Invocation.Builder builder =
+            addHeader(target.path("_alias").path(alias).request(), version, true);
         return new JsonResult(builder.buildGet().invoke(byte[].class));
       } catch (WebApplicationException e) {
         return new FailureResult(e.getResponse().getStatus(), e.getMessage());
@@ -387,6 +395,7 @@ public class ElasticActions {
         public int getAsInt() {
           return obj.getStatus();
         }
+
         @Override
         public boolean success() {
           return isHttpSuccessful(obj.getStatus());
@@ -398,7 +407,6 @@ public class ElasticActions {
   private static boolean isHttpSuccessful(int httpCode) {
     return (httpCode / 100) == 2;
   }
-
 
   public abstract static class ElasticAction2<T> {
 
@@ -412,12 +420,12 @@ public class ElasticActions {
     }
 
     @JsonIgnore
-    public Class<T> getResponseClass(){
+    public Class<T> getResponseClass() {
       return responseClazz;
     }
 
     @JsonIgnore
-    String getAction(){
+    String getAction() {
       return action;
     }
 
@@ -427,11 +435,11 @@ public class ElasticActions {
   public static class GetClusterMetadata extends ElasticAction2<ClusterMetadata> {
     private String indexName;
 
-    public GetClusterMetadata(){
+    public GetClusterMetadata() {
       super("retrieving cluster metadata", ClusterMetadata.class);
     }
 
-    public GetClusterMetadata setIndex(String indexName){
+    public GetClusterMetadata setIndex(String indexName) {
       this.indexName = indexName;
       return this;
     }
@@ -439,7 +447,7 @@ public class ElasticActions {
     @Override
     Invocation buildRequest(WebTarget target, ContextListener context, int version) {
       target = target.path("_cluster/state/metadata");
-      if(indexName != null){
+      if (indexName != null) {
         target = target.path(indexName);
       }
 
@@ -452,8 +460,7 @@ public class ElasticActions {
 
   public interface ContextListener {
     ContextListener addContext(WebTarget target);
-    ContextListener addContext(String context, String message, Object...args);
+
+    ContextListener addContext(String context, String message, Object... args);
   }
-
-
 }

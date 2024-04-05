@@ -15,16 +15,13 @@
  */
 package com.dremio.exec.server;
 
-import java.util.List;
-import java.util.Optional;
-
 import com.dremio.exec.planner.acceleration.MaterializationDescriptor;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.google.common.collect.ImmutableList;
+import java.util.List;
+import java.util.Optional;
 
-/**
- * A materialization provider
- */
+/** A materialization provider */
 public interface MaterializationDescriptorProvider {
   /**
    * Provides a list of materialization instances.
@@ -34,25 +31,33 @@ public interface MaterializationDescriptorProvider {
   List<MaterializationDescriptor> get();
 
   /**
-   * Returns the default raw materialization that provider considers for substitution
-   * for the VDS with the given path
+   * Returns the default raw materialization that provider considers for substitution for the VDS
+   * with the given path
+   *
    * @return The default reflection for the VDS
    */
   Optional<MaterializationDescriptor> getDefaultRawMaterialization(ViewTable table);
 
-  /**
-   * Empty materialization provider.
-   */
-  MaterializationDescriptorProvider EMPTY = new MaterializationDescriptorProvider() {
+  /** Returns true when materialization cache is primed and ready to go */
+  boolean isMaterializationCacheInitialized();
 
-    @Override
-    public List<MaterializationDescriptor> get() {
-      return ImmutableList.of();
-    }
+  /** Empty materialization provider. */
+  MaterializationDescriptorProvider EMPTY =
+      new MaterializationDescriptorProvider() {
 
-    @Override
-    public Optional<MaterializationDescriptor> getDefaultRawMaterialization(ViewTable table) {
-      return Optional.empty();
-    }
-  };
+        @Override
+        public List<MaterializationDescriptor> get() {
+          return ImmutableList.of();
+        }
+
+        @Override
+        public Optional<MaterializationDescriptor> getDefaultRawMaterialization(ViewTable table) {
+          return Optional.empty();
+        }
+
+        @Override
+        public boolean isMaterializationCacheInitialized() {
+          return true;
+        }
+      };
 }

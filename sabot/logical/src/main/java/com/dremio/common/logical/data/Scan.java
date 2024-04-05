@@ -27,7 +27,9 @@ public class Scan extends SourceOperator {
   private final JSONOptions selection;
 
   @JsonCreator
-  public Scan(@JsonProperty("storageengine") String storageEngine, @JsonProperty("selection") JSONOptions selection) {
+  public Scan(
+      @JsonProperty("storageengine") String storageEngine,
+      @JsonProperty("selection") JSONOptions selection) {
     super();
     this.storageEngine = storageEngine;
     this.selection = selection;
@@ -43,15 +45,16 @@ public class Scan extends SourceOperator {
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(LogicalVisitor<T, X, E> logicalVisitor, X value) throws E {
-      return logicalVisitor.visitScan(this, value);
+  public <T, X, E extends Throwable> T accept(LogicalVisitor<T, X, E> logicalVisitor, X value)
+      throws E {
+    return logicalVisitor.visitScan(this, value);
   }
 
   public static Builder builder() {
     return new Builder();
   }
 
-  public static class Builder extends AbstractBuilder<Scan>{
+  public static class Builder extends AbstractBuilder<Scan> {
     private String storageEngine;
     private JSONOptions selection;
 
@@ -69,7 +72,5 @@ public class Scan extends SourceOperator {
     public Scan build() {
       return new Scan(storageEngine, selection);
     }
-
   }
-
 }

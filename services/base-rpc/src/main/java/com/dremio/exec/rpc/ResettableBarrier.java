@@ -19,15 +19,15 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.AbstractQueuedSynchronizer;
 
 /**
- * Modified implementation of countdown latch that allows a barrier to be unilaterally opened and closed.  All others simply wait when it is closed.  Is initialized in a closed state.
+ * Modified implementation of countdown latch that allows a barrier to be unilaterally opened and
+ * closed. All others simply wait when it is closed. Is initialized in a closed state.
  */
 public class ResettableBarrier {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ResettableBarrier.class);
 
   private final InternalSynchronizer sync = new InternalSynchronizer();
 
-  public ResettableBarrier() {
-  }
+  public ResettableBarrier() {}
 
   private static final class InternalSynchronizer extends AbstractQueuedSynchronizer {
 
@@ -45,7 +45,7 @@ public class ResettableBarrier {
     protected boolean tryReleaseShared(int releases) {
       assert releases == 1;
 
-      while(true) {
+      while (true) {
         int c = getState();
         if (c == 0) {
           return false;
@@ -60,27 +60,25 @@ public class ResettableBarrier {
     protected void reset() {
       setState(1);
     }
-
   }
 
   public void await() throws InterruptedException {
-//    logger.debug("awaiting barrier interruptibly.");
+    //    logger.debug("awaiting barrier interruptibly.");
     sync.acquireSharedInterruptibly(1);
   }
 
   public boolean await(long timeout, TimeUnit unit) throws InterruptedException {
-//    logger.debug("awaiting barrier with timeout {}.", timeout);
+    //    logger.debug("awaiting barrier with timeout {}.", timeout);
     return sync.tryAcquireSharedNanos(1, unit.toNanos(timeout));
   }
 
   public void openBarrier() {
-//    logger.debug("opening barrier.");
+    //    logger.debug("opening barrier.");
     sync.releaseShared(1);
   }
 
   public void closeBarrier() {
-//    logger.debug("closing barrier.");
+    //    logger.debug("closing barrier.");
     sync.reset();
   }
-
 }

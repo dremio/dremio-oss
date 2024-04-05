@@ -15,14 +15,12 @@
  */
 package com.dremio.plugins.util.awsauth;
 
+import com.dremio.aws.SharedInstanceProfileCredentialsProvider;
+import com.dremio.service.coordinator.DremioAssumeRoleCredentialsProviderV2;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.s3a.AnonymousAWSCredentialsProvider;
 import org.apache.hadoop.fs.s3a.Constants;
 import org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider;
-
-import com.dremio.aws.SharedInstanceProfileCredentialsProvider;
-import com.dremio.service.coordinator.DremioAssumeRoleCredentialsProviderV2;
-
 import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
@@ -31,37 +29,40 @@ import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 /**
  * Factory to provide the appropriate AWSCredentialsProvider based on a Configuration.
  *
- * Note: This package can hopefully be used in the future to consolidate very
- * similar code in S3, Hive, and Glue plugins, but that was out of scope for
- * the current work.
+ * <p>Note: This package can hopefully be used in the future to consolidate very similar code in S3,
+ * Hive, and Glue plugins, but that was out of scope for the current work.
  */
 public final class DremioAWSCredentialsProviderFactoryV2 {
 
   // AWS Credential providers
   public static final String ACCESS_KEY_PROVIDER = SimpleAWSCredentialsProvider.NAME;
-  public static final String EC2_METADATA_PROVIDER = "com.amazonaws.auth.InstanceProfileCredentialsProvider";
+  public static final String EC2_METADATA_PROVIDER =
+      "com.amazonaws.auth.InstanceProfileCredentialsProvider";
   public static final String NONE_PROVIDER = AnonymousAWSCredentialsProvider.NAME;
-  public static final String ASSUME_ROLE_PROVIDER = "com.dremio.plugins.s3.store.STSCredentialProviderV1";
+  public static final String ASSUME_ROLE_PROVIDER =
+      "com.dremio.plugins.s3.store.STSCredentialProviderV1";
   // Credential provider for DCS data roles
-  public static final String DREMIO_ASSUME_ROLE_PROVIDER = "com.dremio.service.coordinator" +
-    ".DremioAssumeRoleCredentialsProviderV1";
-  public static final String GLUE_DREMIO_ASSUME_ROLE_PROVIDER = "com.dremio.exec.store.hive.GlueDremioAssumeRoleCredentialsProviderV1";
-  public static final String AWS_PROFILE_PROVIDER = "com.dremio.plugins.s3.store.AWSProfileCredentialsProviderV1";
+  public static final String DREMIO_ASSUME_ROLE_PROVIDER =
+      "com.dremio.service.coordinator" + ".DremioAssumeRoleCredentialsProviderV1";
+  public static final String GLUE_DREMIO_ASSUME_ROLE_PROVIDER =
+      "com.dremio.exec.store.hive.GlueDremioAssumeRoleCredentialsProviderV1";
+  public static final String AWS_PROFILE_PROVIDER =
+      "com.dremio.plugins.s3.store.AWSProfileCredentialsProviderV1";
 
-
-  private DremioAWSCredentialsProviderFactoryV2() {
-  }
+  private DremioAWSCredentialsProviderFactoryV2() {}
 
   /**
    * Constructs and returns the appropriate AWSCredentialsProvider.
+   *
    * @return
    */
   public static AwsCredentialsProvider getAWSCredentialsProvider(Configuration config) {
 
-    switch(config.get(Constants.AWS_CREDENTIALS_PROVIDER)) {
+    switch (config.get(Constants.AWS_CREDENTIALS_PROVIDER)) {
       case ACCESS_KEY_PROVIDER:
-        return StaticCredentialsProvider.create(AwsBasicCredentials.create(
-          config.get(Constants.ACCESS_KEY), config.get(Constants.SECRET_KEY)));
+        return StaticCredentialsProvider.create(
+            AwsBasicCredentials.create(
+                config.get(Constants.ACCESS_KEY), config.get(Constants.SECRET_KEY)));
       case EC2_METADATA_PROVIDER:
         return new SharedInstanceProfileCredentialsProvider();
       case NONE_PROVIDER:
@@ -75,7 +76,9 @@ public final class DremioAWSCredentialsProviderFactoryV2 {
       case AWS_PROFILE_PROVIDER:
         return new AWSProfileCredentialsProviderV2(config);
       default:
-        throw new IllegalStateException("Invalid AWSCredentialsProvider provided: " + config.get(Constants.AWS_CREDENTIALS_PROVIDER));
+        throw new IllegalStateException(
+            "Invalid AWSCredentialsProvider provided: "
+                + config.get(Constants.AWS_CREDENTIALS_PROVIDER));
     }
   }
 }

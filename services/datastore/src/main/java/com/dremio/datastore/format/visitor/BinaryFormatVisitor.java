@@ -21,14 +21,11 @@ import com.dremio.datastore.FormatVisitor;
 import com.dremio.datastore.format.Format;
 import com.google.protobuf.Message;
 
-/**
- * A visitor that visits Formats and indicates whether this Format is Binary.
- */
+/** A visitor that visits Formats and indicates whether this Format is Binary. */
 public final class BinaryFormatVisitor implements FormatVisitor<Boolean> {
   public static final BinaryFormatVisitor INSTANCE = new BinaryFormatVisitor();
 
-  private BinaryFormatVisitor() {
-  }
+  private BinaryFormatVisitor() {}
 
   @Override
   public Boolean visitStringFormat() throws DatastoreFatalException {
@@ -46,27 +43,39 @@ public final class BinaryFormatVisitor implements FormatVisitor<Boolean> {
   }
 
   @Override
-  public <K1, K2> Boolean visitCompoundPairFormat(String key1Name, Format<K1> key1Format, String key2Name, Format<K2> key2Format) {
+  public <K1, K2> Boolean visitCompoundPairFormat(
+      String key1Name, Format<K1> key1Format, String key2Name, Format<K2> key2Format) {
     return key1Format.apply(this) || key2Format.apply(this);
   }
 
   @Override
-  public <K1, K2, K3> Boolean visitCompoundTripleFormat(String key1Name, Format<K1> key1Format, String key2Name, Format<K2> key2Format, String key3Name, Format<K3> key3Format) throws DatastoreFatalException {
+  public <K1, K2, K3> Boolean visitCompoundTripleFormat(
+      String key1Name,
+      Format<K1> key1Format,
+      String key2Name,
+      Format<K2> key2Format,
+      String key3Name,
+      Format<K3> key3Format)
+      throws DatastoreFatalException {
     return key1Format.apply(this) || key2Format.apply(this) || key3Format.apply(this);
   }
 
   @Override
-  public <OUTER, INNER> Boolean visitWrappedFormat(Class<OUTER> clazz, Converter<OUTER, INNER> converter, Format<INNER> inner) throws DatastoreFatalException {
+  public <OUTER, INNER> Boolean visitWrappedFormat(
+      Class<OUTER> clazz, Converter<OUTER, INNER> converter, Format<INNER> inner)
+      throws DatastoreFatalException {
     return inner.apply(this);
   }
 
   @Override
-  public <P extends Message> Boolean visitProtobufFormat(Class<P> clazz) throws DatastoreFatalException {
+  public <P extends Message> Boolean visitProtobufFormat(Class<P> clazz)
+      throws DatastoreFatalException {
     return false;
   }
 
   @Override
-  public <P extends io.protostuff.Message<P>> Boolean visitProtostuffFormat(Class<P> clazz) throws DatastoreFatalException {
+  public <P extends io.protostuff.Message<P>> Boolean visitProtostuffFormat(Class<P> clazz)
+      throws DatastoreFatalException {
     return false;
   }
 }

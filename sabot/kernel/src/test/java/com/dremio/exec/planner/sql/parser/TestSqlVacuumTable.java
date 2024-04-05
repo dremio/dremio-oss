@@ -22,18 +22,15 @@ import static org.apache.iceberg.TableProperties.MAX_SNAPSHOT_AGE_MS_DEFAULT;
 import static org.apache.iceberg.TableProperties.MIN_SNAPSHOTS_TO_KEEP_DEFAULT;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.dremio.exec.catalog.VacuumOptions;
+import com.google.common.collect.ImmutableList;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.sql.pretty.SqlPrettyWriter;
 import org.assertj.core.data.Percentage;
 import org.junit.Test;
 
-import com.dremio.exec.catalog.VacuumOptions;
-import com.google.common.collect.ImmutableList;
-
-/**
- * Validates VACUUM TABLE sql syntax
- */
+/** Validates VACUUM TABLE sql syntax */
 public class TestSqlVacuumTable {
   private final SqlPrettyWriter writer = new SqlPrettyWriter(DREMIO_DIALECT);
 
@@ -46,7 +43,8 @@ public class TestSqlVacuumTable {
     VacuumOptions vacuumOptions = sqlVacuumTable.getVacuumOptions();
 
     long expectedSnapshotCutoff = System.currentTimeMillis() - MAX_SNAPSHOT_AGE_MS_DEFAULT;
-    assertThat(vacuumOptions.getOlderThanInMillis()).isCloseTo(expectedSnapshotCutoff, Percentage.withPercentage(0.1));
+    assertThat(vacuumOptions.getOlderThanInMillis())
+        .isCloseTo(expectedSnapshotCutoff, Percentage.withPercentage(0.1));
     assertThat(vacuumOptions.getRetainLast()).isEqualTo(MIN_SNAPSHOTS_TO_KEEP_DEFAULT);
 
     assertThat(vacuumOptions.isExpireSnapshots()).isTrue();
@@ -55,7 +53,9 @@ public class TestSqlVacuumTable {
 
   @Test
   public void testNonDefaultOptions() throws SqlParseException {
-    SqlNode parsed = parse("VACUUM TABLE a.b.c EXPIRE SNAPSHOTS OLDER_THAN '2023-01-01 00:00:00.000' RETAIN_LAST 5");
+    SqlNode parsed =
+        parse(
+            "VACUUM TABLE a.b.c EXPIRE SNAPSHOTS OLDER_THAN '2023-01-01 00:00:00.000' RETAIN_LAST 5");
     assertThat(parsed).isInstanceOf(SqlVacuumTable.class);
 
     SqlVacuumTable sqlVacuumTable = (SqlVacuumTable) parsed;
@@ -71,10 +71,14 @@ public class TestSqlVacuumTable {
 
   @Test
   public void testUnparseAllOptions() throws SqlParseException {
-    SqlNode parsed = parse("VACUUM TABLE a.b.c EXPIRE SNAPSHOTS OLDER_THAN '2023-01-01 00:00:00.000' RETAIN_LAST 5");
+    SqlNode parsed =
+        parse(
+            "VACUUM TABLE a.b.c EXPIRE SNAPSHOTS OLDER_THAN '2023-01-01 00:00:00.000' RETAIN_LAST 5");
     parsed.unparse(writer, 0, 0);
 
-    assertThat(writer.toString()).isEqualTo("VACUUM TABLE \"a\".\"b\".\"c\" EXPIRE SNAPSHOTS \"older_than\" '2023-01-01 00:00:00.000' \"retain_last\" 5");
+    assertThat(writer.toString())
+        .isEqualTo(
+            "VACUUM TABLE \"a\".\"b\".\"c\" EXPIRE SNAPSHOTS \"older_than\" '2023-01-01 00:00:00.000' \"retain_last\" 5");
   }
 
   @Test
@@ -86,7 +90,8 @@ public class TestSqlVacuumTable {
     VacuumOptions vacuumOptions = sqlVacuumTable.getVacuumOptions();
 
     long expectedSnapshotCutoff = System.currentTimeMillis() - MAX_FILE_AGE_MS_DEFAULT;
-    assertThat(vacuumOptions.getOlderThanInMillis()).isCloseTo(expectedSnapshotCutoff, Percentage.withPercentage(0.1));
+    assertThat(vacuumOptions.getOlderThanInMillis())
+        .isCloseTo(expectedSnapshotCutoff, Percentage.withPercentage(0.1));
 
     assertThat(vacuumOptions.isExpireSnapshots()).isFalse();
     assertThat(vacuumOptions.isRemoveOrphans()).isTrue();

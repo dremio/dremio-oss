@@ -15,9 +15,7 @@
  */
 package com.dremio.exec.catalog;
 
-/**
- * Metadata sync status.
- */
+/** Metadata sync status. */
 class SyncStatus {
 
   private final boolean fullRefresh;
@@ -85,13 +83,22 @@ class SyncStatus {
   @Override
   public String toString() {
     final StringBuilder builder = new StringBuilder();
-    builder.append(String.format("Shallow probed %d datasets: %d added, %d unchanged, %d deleted\n",
-        shallowAdded + shallowUnchanged + shallowDeleted, shallowAdded, shallowUnchanged, shallowDeleted));
+    builder.append(
+        String.format(
+            "Shallow probed %d datasets: %d added, %d unchanged, %d deleted\n",
+            shallowAdded + shallowUnchanged + shallowDeleted,
+            shallowAdded,
+            shallowUnchanged,
+            shallowDeleted));
     if (fullRefresh) {
       builder.append(
-          String.format("Deep probed %d queried datasets: %d changed, %d unchanged, %d deleted, %d unreadable\n",
-              extendedChanged + extendedUnchanged + extendedDeleted + extendedUnreadable, extendedChanged,
-              extendedUnchanged, extendedDeleted, extendedUnreadable));
+          String.format(
+              "Deep probed %d queried datasets: %d changed, %d unchanged, %d deleted, %d unreadable\n",
+              extendedChanged + extendedUnchanged + extendedDeleted + extendedUnreadable,
+              extendedChanged,
+              extendedUnchanged,
+              extendedDeleted,
+              extendedUnreadable));
     }
     return builder.toString();
   }

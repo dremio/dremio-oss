@@ -15,19 +15,15 @@
  */
 package com.dremio.exec.planner.sql.handlers.direct;
 
-import java.util.Collections;
-import java.util.List;
-
-import org.apache.calcite.sql.SqlNode;
-
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.planner.sql.parser.SqlAlterTableDropPrimaryKey;
 import com.dremio.exec.planner.sql.parser.SqlGrant;
 import com.dremio.service.namespace.NamespaceKey;
+import java.util.Collections;
+import java.util.List;
+import org.apache.calcite.sql.SqlNode;
 
-/**
- * Drops the primary key info from a table
- */
+/** Drops the primary key info from a table */
 public class DropPrimaryKeyHandler extends SimpleDirectHandler {
   private final Catalog catalog;
 
@@ -37,12 +33,19 @@ public class DropPrimaryKeyHandler extends SimpleDirectHandler {
 
   @Override
   public List<SimpleCommandResult> toResult(String sql, SqlNode sqlNode) throws Exception {
-    SqlAlterTableDropPrimaryKey sqlDropPrimaryKey = SqlNodeUtil.unwrap(sqlNode, SqlAlterTableDropPrimaryKey.class);
+    SqlAlterTableDropPrimaryKey sqlDropPrimaryKey =
+        SqlNodeUtil.unwrap(sqlNode, SqlAlterTableDropPrimaryKey.class);
 
     NamespaceKey path = catalog.resolveSingle(sqlDropPrimaryKey.getTable());
     catalog.validatePrivilege(path, SqlGrant.Privilege.ALTER);
 
-    catalog.dropPrimaryKey(path, sqlDropPrimaryKey.getSqlTableVersionSpec().getTableVersionSpec().getTableVersionContext().asVersionContext(), catalog);
+    catalog.dropPrimaryKey(
+        path,
+        sqlDropPrimaryKey
+            .getSqlTableVersionSpec()
+            .getTableVersionSpec()
+            .getTableVersionContext()
+            .asVersionContext());
 
     return Collections.singletonList(SimpleCommandResult.successful("Primary key dropped."));
   }

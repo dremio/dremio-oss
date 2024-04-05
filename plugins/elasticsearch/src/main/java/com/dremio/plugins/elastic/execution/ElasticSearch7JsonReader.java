@@ -15,34 +15,41 @@
  */
 package com.dremio.plugins.elastic.execution;
 
-import java.io.IOException;
-import java.util.List;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.calcite.util.Pair;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.plugins.elastic.ElasticsearchConstants;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonToken;
 import com.google.common.base.Preconditions;
+import java.io.IOException;
+import java.util.List;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.calcite.util.Pair;
 
-/**
- * Elasticsearch Json Reader for ES7 Version. Overrides {@link ElasticsearchJsonReader}
- */
+/** Elasticsearch Json Reader for ES7 Version. Overrides {@link ElasticsearchJsonReader} */
 public class ElasticSearch7JsonReader extends ElasticsearchJsonReader {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ElasticSearch7JsonReader.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ElasticSearch7JsonReader.class);
 
-  public ElasticSearch7JsonReader(ArrowBuf managedBuf,
-                                  List<SchemaPath> columns,
-                                  String resourceName,
-                                  FieldReadDefinition rootDefinition,
-                                  boolean fieldsProjected,
-                                  boolean metaUIDSelected,
-                                  boolean metaIDSelected,
-                                  boolean metaTypeSelected,
-                                  boolean metaIndexSelected) {
-    super(managedBuf, columns, resourceName, rootDefinition, fieldsProjected, metaUIDSelected, metaIDSelected, metaTypeSelected, metaIndexSelected);
+  public ElasticSearch7JsonReader(
+      ArrowBuf managedBuf,
+      List<SchemaPath> columns,
+      String resourceName,
+      FieldReadDefinition rootDefinition,
+      boolean fieldsProjected,
+      boolean metaUIDSelected,
+      boolean metaIDSelected,
+      boolean metaTypeSelected,
+      boolean metaIndexSelected) {
+    super(
+        managedBuf,
+        columns,
+        resourceName,
+        rootDefinition,
+        fieldsProjected,
+        metaUIDSelected,
+        metaIDSelected,
+        metaTypeSelected,
+        metaIndexSelected);
   }
 
   @Override

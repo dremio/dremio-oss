@@ -28,9 +28,9 @@ import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 
 /**
- * Dummy handle used for new metadata refresh flows. Returns only path and type of dataset.
- * Other operations such as creating partition chunks, readSignature creation etc are not supported
- * as they are done during execution.
+ * Dummy handle used for new metadata refresh flows. Returns only path and type of dataset. Other
+ * operations such as creating partition chunks, readSignature creation etc are not supported as
+ * they are done during execution.
  */
 public class UnlimitedSplitsFileDatasetHandle implements FileDatasetHandle {
 
@@ -39,16 +39,18 @@ public class UnlimitedSplitsFileDatasetHandle implements FileDatasetHandle {
 
   public UnlimitedSplitsFileDatasetHandle(DatasetType type, NamespaceKey datasetPath) {
     this.type = type;
-    this.path  = datasetPath;
+    this.path = datasetPath;
   }
 
   @Override
-  public DatasetMetadata getDatasetMetadata(GetMetadataOption... options) throws ConnectorException {
+  public DatasetMetadata getDatasetMetadata(GetMetadataOption... options)
+      throws ConnectorException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public PartitionChunkListing listPartitionChunks(ListPartitionChunkOption... options) throws ConnectorException {
+  public PartitionChunkListing listPartitionChunks(ListPartitionChunkOption... options)
+      throws ConnectorException {
     throw new UnsupportedOperationException();
   }
 

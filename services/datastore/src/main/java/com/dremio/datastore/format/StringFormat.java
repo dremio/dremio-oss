@@ -26,9 +26,7 @@ final class StringFormat implements Format<String> {
     return INSTANCE;
   }
 
-  private StringFormat() {
-
-  }
+  private StringFormat() {}
 
   @Override
   public Class<String> getRepresentedClass() {

@@ -17,11 +17,6 @@ package com.dremio.exec.planner.sql.handlers.direct;
 
 import static com.dremio.exec.planner.sql.parser.SqlAlterDatasetReflectionRouting.RoutingType;
 
-import java.util.Collections;
-import java.util.List;
-
-import org.apache.calcite.sql.SqlNode;
-
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.physical.PlannerSettings;
@@ -35,19 +30,21 @@ import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.space.proto.FolderConfig;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
+import java.util.Collections;
+import java.util.List;
+import org.apache.calcite.sql.SqlNode;
 
-/**
- * Handler for <code>ALTER DATASET .. ROUTE REFLECTIONS TO ..</code> command.
- */
+/** Handler for <code>ALTER DATASET .. ROUTE REFLECTIONS TO ..</code> command. */
 public abstract class CommonReflectionRoutingHandler extends SimpleDirectHandler {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CommonReflectionRoutingHandler.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(CommonReflectionRoutingHandler.class);
 
   private final Catalog catalog;
   protected final ReflectionRoutingManager reflectionRoutingManager;
   private final NamespaceService systemNamespaceService;
   private final QueryContext context;
 
-  public CommonReflectionRoutingHandler(QueryContext context){
+  public CommonReflectionRoutingHandler(QueryContext context) {
     this.catalog = context.getCatalog();
     this.context = context;
     reflectionRoutingManager = context.getReflectionRoutingManager();
@@ -56,20 +53,22 @@ public abstract class CommonReflectionRoutingHandler extends SimpleDirectHandler
 
   @Override
   public List<SimpleCommandResult> toResult(String sql, SqlNode sqlNode) throws Exception {
-    final SqlAlterDatasetReflectionRouting reflectionRouting = SqlNodeUtil.unwrap(sqlNode, SqlAlterDatasetReflectionRouting.class);
+    final SqlAlterDatasetReflectionRouting reflectionRouting =
+        SqlNodeUtil.unwrap(sqlNode, SqlAlterDatasetReflectionRouting.class);
     checkRoutingSyntax(reflectionRouting);
 
     String destinationName = null;
-    if(!reflectionRouting.isDefault()) {
+    if (!reflectionRouting.isDefault()) {
       destinationName = reflectionRouting.getQueueOrEngineName().toString();
       verifyRoutingDestination(destinationName);
     }
 
     String successMessage;
 
-    boolean routingInheritanceEnabled = context.getOptions().getOption(PlannerSettings.REFLECTION_ROUTING_INHERITANCE_ENABLED);
+    boolean routingInheritanceEnabled =
+        context.getOptions().getOption(PlannerSettings.REFLECTION_ROUTING_INHERITANCE_ENABLED);
 
-    switch(RoutingType.valueOf(reflectionRouting.getType().toString())) {
+    switch (RoutingType.valueOf(reflectionRouting.getType().toString())) {
       case TABLE:
         successMessage = setRoutingForTable(reflectionRouting, destinationName);
         break;
@@ -87,53 +86,68 @@ public abstract class CommonReflectionRoutingHandler extends SimpleDirectHandler
         break;
       default:
         throw new UnsupportedOperationException(
-          String.format("cannot set reflection routing for unknown type %s", reflectionRouting.getType()));
+            String.format(
+                "cannot set reflection routing for unknown type %s", reflectionRouting.getType()));
     }
 
-    return Collections.singletonList(SimpleCommandResult.successful(
-      successMessage.concat(getRoutingDestination(reflectionRouting.isDefault(), destinationName))));
+    return Collections.singletonList(
+        SimpleCommandResult.successful(
+            successMessage.concat(
+                getRoutingDestination(reflectionRouting.isDefault(), destinationName))));
   }
 
-  public String setRoutingForTable(SqlAlterDatasetReflectionRouting reflectionRouting, String destinationName) throws Exception {
-    final SchemaUtilities.TableWithPath table = SchemaUtilities.verify(catalog, reflectionRouting.getName(), context.getSession(), SqlTableVersionSpec.NOT_SPECIFIED, context.getOptions());
+  public String setRoutingForTable(
+      SqlAlterDatasetReflectionRouting reflectionRouting, String destinationName) throws Exception {
+    final SchemaUtilities.TableWithPath table =
+        SchemaUtilities.verify(
+            catalog,
+            reflectionRouting.getName(),
+            context.getSession(),
+            SqlTableVersionSpec.NOT_SPECIFIED,
+            context.getOptions());
     DatasetConfig datasetConfig = table.getTable().getDatasetConfig();
 
-    //set destination
+    // set destination
     setRoutingDestination(datasetConfig, destinationName);
-    //refresh catalog
+    // refresh catalog
     final NamespaceKey namespaceKey = new NamespaceKey(datasetConfig.getFullPathList());
     catalog.addOrUpdateDataset(namespaceKey, datasetConfig);
 
-    return String.format("OK: Reflections dependent on %s will be refreshed using ",
-      datasetConfig.getFullPathList());
+    return String.format(
+        "OK: Reflections dependent on %s will be refreshed using ",
+        datasetConfig.getFullPathList());
   }
 
-  public String setRoutingForFolder(SqlAlterDatasetReflectionRouting reflectionRouting, String destinationName) throws Exception {
+  public String setRoutingForFolder(
+      SqlAlterDatasetReflectionRouting reflectionRouting, String destinationName) throws Exception {
     List<String> folderName = reflectionRouting.getName().names;
 
     NamespaceKey folderKey = catalog.resolveSingle(new NamespaceKey(folderName));
 
     FolderConfig folderConfig;
 
-    //If folder config is in namespace, grab it. Otherwise, create it and add to namespace.
+    // If folder config is in namespace, grab it. Otherwise, create it and add to namespace.
     try {
       folderConfig = systemNamespaceService.getFolder(folderKey);
     } catch (NamespaceNotFoundException ex) {
-      folderConfig = new FolderConfig()
-        .setName(folderKey.getLeaf())
-        .setFullPathList(folderKey.getPathComponents());
+      folderConfig =
+          new FolderConfig()
+              .setName(folderKey.getLeaf())
+              .setFullPathList(folderKey.getPathComponents());
     }
 
-    //set destination
+    // set destination
     setRoutingDestination(folderConfig, destinationName);
-    //refresh catalog
+    // refresh catalog
     systemNamespaceService.addOrUpdateFolder(folderKey, folderConfig);
 
-    return String.format("OK: Reflections inside folder %s will be refreshed using ",
-      folderConfig.getFullPathList());
+    return String.format(
+        "OK: Reflections inside folder %s will be refreshed using ",
+        folderConfig.getFullPathList());
   }
 
-  public String setRoutingForSpace(SqlAlterDatasetReflectionRouting reflectionRouting, String destinationName) throws Exception {
+  public String setRoutingForSpace(
+      SqlAlterDatasetReflectionRouting reflectionRouting, String destinationName) throws Exception {
     NamespaceKey spaceKey = new NamespaceKey(reflectionRouting.getName().names);
 
     SpaceConfig spaceConfig;
@@ -142,19 +156,20 @@ public abstract class CommonReflectionRoutingHandler extends SimpleDirectHandler
       spaceConfig = systemNamespaceService.getSpace(spaceKey);
     } catch (NamespaceNotFoundException ex) {
       throw new UnsupportedOperationException(
-        String.format("cannot find space %s", spaceKey.getName()));
+          String.format("cannot find space %s", spaceKey.getName()));
     }
 
-    //set destination
+    // set destination
     setRoutingDestination(spaceConfig, destinationName);
-    //refresh catalog
+    // refresh catalog
     systemNamespaceService.addOrUpdateSpace(new NamespaceKey(spaceConfig.getName()), spaceConfig);
 
-    return String.format("OK: Reflections inside space %s will be refreshed using ",
-      spaceConfig.getName());
+    return String.format(
+        "OK: Reflections inside space %s will be refreshed using ", spaceConfig.getName());
   }
 
-  public void checkRoutingSyntax(SqlAlterDatasetReflectionRouting reflectionRouting) throws Exception {
+  public void checkRoutingSyntax(SqlAlterDatasetReflectionRouting reflectionRouting)
+      throws Exception {
     throw new UnsupportedOperationException("operation not supported");
   }
 

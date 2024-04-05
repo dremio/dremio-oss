@@ -15,9 +15,9 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
-
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import java.util.List;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -28,29 +28,27 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
-
 /**
- * A <code>SqlShowTableProperties</code> is a node of a parse tree that represents a
- * {@code SHOW TBLPROPERTIES } statement.
+ * A <code>SqlShowTableProperties</code> is a node of a parse tree that represents a {@code SHOW
+ * TBLPROPERTIES } statement.
  */
 public class SqlShowTableProperties extends SqlCall {
 
   private final SqlIdentifier tableName;
 
   public static final SqlSpecialOperator OPERATOR =
-    new SqlSpecialOperator("SHOW_TBLPROPERTIES", SqlKind.OTHER) {
-      @Override public SqlCall createCall(SqlLiteral functionQualifier,
-                                          SqlParserPos pos, SqlNode... operands) {
-        Preconditions.checkArgument(operands.length == 1, "SqlShowTableProperties.createCall() has to get 2 operands!");
-        return new SqlShowTableProperties(pos, (SqlIdentifier) operands[0]);
-      }
-    };
+      new SqlSpecialOperator("SHOW_TBLPROPERTIES", SqlKind.OTHER) {
+        @Override
+        public SqlCall createCall(
+            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+          Preconditions.checkArgument(
+              operands.length == 1, "SqlShowTableProperties.createCall() has to get 2 operands!");
+          return new SqlShowTableProperties(pos, (SqlIdentifier) operands[0]);
+        }
+      };
 
   /** Creates a SqlShowTableProperties. */
-  public SqlShowTableProperties(SqlParserPos pos,
-                             SqlIdentifier tableName) {
+  public SqlShowTableProperties(SqlParserPos pos, SqlIdentifier tableName) {
     super(pos);
     this.tableName = tableName;
   }
@@ -62,16 +60,17 @@ public class SqlShowTableProperties extends SqlCall {
     tableName.unparse(writer, leftPrec, rightPrec);
   }
 
-  @Override public SqlOperator getOperator() {
+  @Override
+  public SqlOperator getOperator() {
     return OPERATOR;
   }
 
-  @Override public List<SqlNode> getOperandList() {
+  @Override
+  public List<SqlNode> getOperandList() {
     return ImmutableList.of(tableName);
   }
 
   public SqlIdentifier getTableName() {
     return tableName;
   }
-
 }

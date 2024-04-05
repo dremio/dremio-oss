@@ -1,4 +1,3 @@
-
 /*
  * Copyright (C) 2017-2019 Dremio Corporation
  *
@@ -16,11 +15,13 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.dremio.exec.planner.sql.handlers.RefreshDatasetHandler;
+import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
+import com.dremio.exec.planner.sql.handlers.query.SqlToPlanHandler;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -34,31 +35,27 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.ImmutableNullableList;
 
-import com.dremio.exec.planner.sql.handlers.RefreshDatasetHandler;
-import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
-import com.dremio.exec.planner.sql.handlers.query.SqlToPlanHandler;
-
-/**
- * SQL node tree for the internal <code>REFRESH DATASET table_identifier</code> command.
- */
+/** SQL node tree for the internal <code>REFRESH DATASET table_identifier</code> command. */
 public class SqlRefreshDataset extends SqlCall implements SqlToPlanHandler.Creator {
   public static final SqlSpecialOperator OPERATOR =
-    new SqlSpecialOperator("REFRESH_DATASET", SqlKind.OTHER) {
-      @Override public SqlCall createCall(SqlLiteral functionQualifier,
-                                          SqlParserPos pos, SqlNode... operands) {
-        return new SqlRefreshDataset(pos,
-          (SqlIdentifier) operands[0],
-          (SqlLiteral) operands[1],
-          (SqlLiteral) operands[2],
-          (SqlLiteral) operands[3],
-          (SqlLiteral) operands[4],
-          (SqlLiteral) operands[5],
-          (SqlLiteral) operands[6],
-          (SqlLiteral) operands[7],
-          (SqlNodeList) operands[8],
-          (SqlNodeList) operands[9]);
-      }
-    };
+      new SqlSpecialOperator("REFRESH_DATASET", SqlKind.OTHER) {
+        @Override
+        public SqlCall createCall(
+            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+          return new SqlRefreshDataset(
+              pos,
+              (SqlIdentifier) operands[0],
+              (SqlLiteral) operands[1],
+              (SqlLiteral) operands[2],
+              (SqlLiteral) operands[3],
+              (SqlLiteral) operands[4],
+              (SqlLiteral) operands[5],
+              (SqlLiteral) operands[6],
+              (SqlLiteral) operands[7],
+              (SqlNodeList) operands[8],
+              (SqlNodeList) operands[9]);
+        }
+      };
   private SqlIdentifier table;
   private SqlLiteral deleteUnavail;
   private SqlLiteral forceUp;
@@ -71,20 +68,19 @@ public class SqlRefreshDataset extends SqlCall implements SqlToPlanHandler.Creat
   private SqlNodeList partitionList;
   private Map<String, String> partitionKVMap;
 
-  /**
-   * Creates a SqlRefreshDataset.
-   */
-  public SqlRefreshDataset(SqlParserPos pos,
-                           SqlIdentifier table,
-                           SqlLiteral deleteUnavail,
-                           SqlLiteral forceUp,
-                           SqlLiteral promotion,
-                           SqlLiteral allFilesRefresh,
-                           SqlLiteral allPartitionsRefresh,
-                           SqlLiteral fileRefresh,
-                           SqlLiteral partitionRefresh,
-                           SqlNodeList filesList,
-                           SqlNodeList partitionList) {
+  /** Creates a SqlRefreshDataset. */
+  public SqlRefreshDataset(
+      SqlParserPos pos,
+      SqlIdentifier table,
+      SqlLiteral deleteUnavail,
+      SqlLiteral forceUp,
+      SqlLiteral promotion,
+      SqlLiteral allFilesRefresh,
+      SqlLiteral allPartitionsRefresh,
+      SqlLiteral fileRefresh,
+      SqlLiteral partitionRefresh,
+      SqlNodeList filesList,
+      SqlNodeList partitionList) {
     super(pos);
     this.table = table;
     this.deleteUnavail = deleteUnavail;
@@ -172,12 +168,12 @@ public class SqlRefreshDataset extends SqlCall implements SqlToPlanHandler.Creat
     }
   }
 
-  private void unparseKeyValuePair(SqlNodeList pair, SqlWriter writer, int leftPrec, int rightPrec) {
+  private void unparseKeyValuePair(
+      SqlNodeList pair, SqlWriter writer, int leftPrec, int rightPrec) {
     pair.get(0).unparse(writer, leftPrec, rightPrec);
     writer.keyword("=");
     pair.get(1).unparse(writer, leftPrec, rightPrec);
   }
-
 
   @Override
   public void setOperand(int i, SqlNode operand) {
@@ -223,24 +219,66 @@ public class SqlRefreshDataset extends SqlCall implements SqlToPlanHandler.Creat
     return OPERATOR;
   }
 
-  @Override public List<SqlNode> getOperandList() {
-    return ImmutableNullableList.<SqlNode>of(table,
-      deleteUnavail, forceUp, promotion, allFilesRefresh, allPartitionsRefresh, fileRefresh, partitionRefresh, filesList, partitionList);
+  @Override
+  public List<SqlNode> getOperandList() {
+    return ImmutableNullableList.<SqlNode>of(
+        table,
+        deleteUnavail,
+        forceUp,
+        promotion,
+        allFilesRefresh,
+        allPartitionsRefresh,
+        fileRefresh,
+        partitionRefresh,
+        filesList,
+        partitionList);
   }
 
-  public SqlIdentifier getTable() { return table; }
-  public SqlLiteral getDeleteUnavail() { return deleteUnavail; }
-  public SqlLiteral getForceUpdate() { return forceUp; }
-  public SqlLiteral getPromotion() { return promotion; }
-  public SqlLiteral getAllFilesRefresh() { return allFilesRefresh; }
-  public SqlLiteral getAllPartitionsRefresh() { return allPartitionsRefresh; }
-  public SqlLiteral getFileRefresh() { return fileRefresh; }
-  public SqlLiteral getPartitionRefresh() { return partitionRefresh; }
-  public SqlNodeList getFilesList() { return filesList; }
-  public SqlNodeList getPartitionList() { return partitionList; }
+  public SqlIdentifier getTable() {
+    return table;
+  }
+
+  public SqlLiteral getDeleteUnavail() {
+    return deleteUnavail;
+  }
+
+  public SqlLiteral getForceUpdate() {
+    return forceUp;
+  }
+
+  public SqlLiteral getPromotion() {
+    return promotion;
+  }
+
+  public SqlLiteral getAllFilesRefresh() {
+    return allFilesRefresh;
+  }
+
+  public SqlLiteral getAllPartitionsRefresh() {
+    return allPartitionsRefresh;
+  }
+
+  public SqlLiteral getFileRefresh() {
+    return fileRefresh;
+  }
+
+  public SqlLiteral getPartitionRefresh() {
+    return partitionRefresh;
+  }
+
+  public SqlNodeList getFilesList() {
+    return filesList;
+  }
+
+  public SqlNodeList getPartitionList() {
+    return partitionList;
+  }
 
   public List<String> getFileNames() {
-    List<String> fileNames = filesList.getList().stream().map(o -> ((SqlLiteral)o).getValueAs(String.class)).collect(Collectors.toList());
+    List<String> fileNames =
+        filesList.getList().stream()
+            .map(o -> ((SqlLiteral) o).getValueAs(String.class))
+            .collect(Collectors.toList());
     return fileNames;
   }
 
@@ -250,17 +288,18 @@ public class SqlRefreshDataset extends SqlCall implements SqlToPlanHandler.Creat
 
   private void setPartitionKVMap() {
     partitionKVMap = new LinkedHashMap<>();
-    partitionList.forEach(node -> {
-      final SqlNodeList pair = (SqlNodeList) node;
-      final SqlIdentifier name = (SqlIdentifier) pair.get(0);
-      final SqlLiteral value = (SqlLiteral) pair.get(1);
+    partitionList.forEach(
+        node -> {
+          final SqlNodeList pair = (SqlNodeList) node;
+          final SqlIdentifier name = (SqlIdentifier) pair.get(0);
+          final SqlLiteral value = (SqlLiteral) pair.get(1);
 
-      if (value.getTypeName().equals(SqlTypeName.NULL)) {
-        partitionKVMap.put(name.getSimple(), null);
-      } else {
-        partitionKVMap.put(name.getSimple(), value.getValueAs(String.class));
-      }
-    });
+          if (value.getTypeName().equals(SqlTypeName.NULL)) {
+            partitionKVMap.put(name.getSimple(), null);
+          } else {
+            partitionKVMap.put(name.getSimple(), value.getValueAs(String.class));
+          }
+        });
   }
 
   public boolean isPartialRefresh() {

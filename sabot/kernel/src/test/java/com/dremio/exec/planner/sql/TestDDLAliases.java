@@ -15,40 +15,47 @@
  */
 package com.dremio.exec.planner.sql;
 
+import com.dremio.exec.planner.physical.PlannerSettings;
 import org.apache.calcite.avatica.util.Quoting;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.sql.parser.SqlParser;
 import org.junit.Test;
 
-import com.dremio.exec.planner.physical.PlannerSettings;
-
 public class TestDDLAliases {
 
-  private SqlNode parse(String toParse) throws SqlParseException{
-    ParserConfig config = new ParserConfig(Quoting.DOUBLE_QUOTE, 255, PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
+  private SqlNode parse(String toParse) throws SqlParseException {
+    ParserConfig config =
+        new ParserConfig(
+            Quoting.DOUBLE_QUOTE,
+            255,
+            PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
     SqlParser parser = SqlParser.create(toParse, config);
     return parser.parseStmt();
   }
 
   @Test
-  public void alterDataset() throws SqlParseException{
-    parse("ALTER DATASET a.b.c CREATE AGGREGATE REFLECTION reflection USING DIMENSIONS (x by day,y) MEASURES (b,c) DISTRIBUTE BY (r,z) PARTITION BY (s,l) LOCALSORT BY (n,x)");
+  public void alterDataset() throws SqlParseException {
+    parse(
+        "ALTER DATASET a.b.c CREATE AGGREGATE REFLECTION reflection USING DIMENSIONS (x by day,y) MEASURES (b,c) DISTRIBUTE BY (r,z) PARTITION BY (s,l) LOCALSORT BY (n,x)");
   }
 
   @Test
-  public void alterVDS() throws SqlParseException{
-    parse("ALTER VDS a.b.c CREATE AGGREGATE REFLECTION reflection USING DIMENSIONS (x by day,y) MEASURES (b,c) DISTRIBUTE BY (r,z) PARTITION BY (s,l) LOCALSORT BY (n,x)");
+  public void alterVDS() throws SqlParseException {
+    parse(
+        "ALTER VDS a.b.c CREATE AGGREGATE REFLECTION reflection USING DIMENSIONS (x by day,y) MEASURES (b,c) DISTRIBUTE BY (r,z) PARTITION BY (s,l) LOCALSORT BY (n,x)");
   }
 
   @Test
-  public void alterView() throws SqlParseException{
-    parse("ALTER VIEW a.b.c CREATE AGGREGATE REFLECTION reflection USING DIMENSIONS (x by day,y) MEASURES (b,c) DISTRIBUTE BY (r,z) PARTITION BY (s,l) LOCALSORT BY (n,x)");
+  public void alterView() throws SqlParseException {
+    parse(
+        "ALTER VIEW a.b.c CREATE AGGREGATE REFLECTION reflection USING DIMENSIONS (x by day,y) MEASURES (b,c) DISTRIBUTE BY (r,z) PARTITION BY (s,l) LOCALSORT BY (n,x)");
   }
 
   @Test
   public void alterPDS() throws SqlParseException {
-    parse("ALTER PDS a.b.c CREATE AGGREGATE REFLECTION reflection USING DIMENSIONS (x by day,y) MEASURES (b,c) DISTRIBUTE BY (r,z) PARTITION BY (s,l) LOCALSORT BY (n,x)");
+    parse(
+        "ALTER PDS a.b.c CREATE AGGREGATE REFLECTION reflection USING DIMENSIONS (x by day,y) MEASURES (b,c) DISTRIBUTE BY (r,z) PARTITION BY (s,l) LOCALSORT BY (n,x)");
   }
 
   @Test
@@ -56,16 +63,14 @@ public class TestDDLAliases {
     parse("CREATE VDS MY_VDS AS SELECT * FROM SYS.OPTIONS");
   }
 
-  @Test //DX-17257
-  public void createVDSWithWhereRowIn() throws  SqlParseException
-  {
-    parse("CREATE VDS FILTERED_VDS AS SELECT * FROM SYS.OPTIONS WHERE ROW(col1, col2) in (ROW('aa', 'bb'))");
+  @Test // DX-17257
+  public void createVDSWithWhereRowIn() throws SqlParseException {
+    parse(
+        "CREATE VDS FILTERED_VDS AS SELECT * FROM SYS.OPTIONS WHERE ROW(col1, col2) in (ROW('aa', 'bb'))");
   }
-
 
   @Test
   public void dropVDS() throws SqlParseException {
     parse("DROP VDS MY_VDS");
   }
-
 }

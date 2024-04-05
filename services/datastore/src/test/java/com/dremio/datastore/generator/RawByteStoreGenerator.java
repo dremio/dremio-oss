@@ -20,9 +20,7 @@ import com.dremio.datastore.generator.factory.StringSupplierFactory;
 import com.dremio.datastore.generator.supplier.UniqueSupplier;
 import com.dremio.datastore.generator.supplier.UniqueSupplierOptions;
 
-/**
- * Generates data for a raw bytes store.
- */
+/** Generates data for a raw bytes store. */
 public class RawByteStoreGenerator implements DataGenerator<String, byte[]> {
   private final UniqueSupplier<String> nextKey;
   private final UniqueSupplier<byte[]> nextValue;

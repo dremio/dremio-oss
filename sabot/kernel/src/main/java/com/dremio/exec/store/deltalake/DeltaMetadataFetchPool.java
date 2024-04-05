@@ -16,23 +16,29 @@
 
 package com.dremio.exec.store.deltalake;
 
+import com.dremio.common.concurrent.NamedThreadFactory;
+import com.google.common.annotations.VisibleForTesting;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-import com.dremio.common.concurrent.NamedThreadFactory;
-import com.google.common.annotations.VisibleForTesting;
-
 /**
- * Singleton thread pool used by {@link DeltaMetadataFetchJobManager} to run different {@link DeltaMetadataFetchJob} instances in parallel.
+ * Singleton thread pool used by {@link DeltaMetadataFetchJobManager} to run different {@link
+ * DeltaMetadataFetchJob} instances in parallel.
  */
-
 public class DeltaMetadataFetchPool {
-  @VisibleForTesting
-  static Integer POOL_SIZE = 40;
+  @VisibleForTesting static Integer POOL_SIZE = 40;
 
   private static class LazyThreadPoolHolder {
-    static final ThreadPoolExecutor THREAD_POOL = new ThreadPoolExecutor(POOL_SIZE, POOL_SIZE, 1, TimeUnit.SECONDS, new LinkedBlockingQueue<>(), new NamedThreadFactory("delta-metadata-fetch"));
+    static final ThreadPoolExecutor THREAD_POOL =
+        new ThreadPoolExecutor(
+            POOL_SIZE,
+            POOL_SIZE,
+            1,
+            TimeUnit.SECONDS,
+            new LinkedBlockingQueue<>(),
+            new NamedThreadFactory("delta-metadata-fetch"));
+
     static {
       THREAD_POOL.allowCoreThreadTimeOut(true);
     }

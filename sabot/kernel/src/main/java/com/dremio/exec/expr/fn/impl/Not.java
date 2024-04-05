@@ -16,22 +16,24 @@
 
 package com.dremio.exec.expr.fn.impl;
 
-import org.apache.arrow.vector.holders.BitHolder;
-
 import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
+import org.apache.arrow.vector.holders.BitHolder;
 
 public class Not {
-  @FunctionTemplate(names = {"not"}, scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.NULL_IF_NULL)
+  @FunctionTemplate(
+      names = {"not"},
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.NULL_IF_NULL)
   public static class Required implements SimpleFunction {
 
     @Param BitHolder in;
     @Output BitHolder out;
 
     @Override
-    public void setup() { }
+    public void setup() {}
 
     @Override
     public void eval() {

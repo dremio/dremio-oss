@@ -17,11 +17,6 @@ package com.dremio.exec.store.hive.orc;
 
 import static org.junit.Assert.assertEquals;
 
-import org.apache.arrow.vector.types.pojo.ArrowType;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.hadoop.conf.Configuration;
-import org.junit.Test;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.hadoop.HadoopFileSystem;
@@ -33,16 +28,19 @@ import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorContextImpl;
 import com.google.common.io.Resources;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.hadoop.conf.Configuration;
+import org.junit.Test;
 
-/**
- * Test class for Hive ORC Footer Reader
- */
+/** Test class for Hive ORC Footer Reader */
 public class TestHiveOrcFooterReader extends BaseTestQuery {
 
   @Test
   public void testOrcFooterReaderWithFileRead() throws Exception {
     try (AutoCloseable ac = withSystemOption(ExecConstants.STORE_ACCURATE_PARTITION_STATS, true)) {
-      BatchSchema tableSchema = BatchSchema.of(
+      BatchSchema tableSchema =
+          BatchSchema.of(
               Field.nullablePrimitive("col1", new ArrowType.PrimitiveType.Utf8()),
               Field.nullablePrimitive("col2", new ArrowType.PrimitiveType.Int(32, true)),
               Field.nullablePrimitive("col3", new ArrowType.PrimitiveType.Bool()));
@@ -63,39 +61,52 @@ public class TestHiveOrcFooterReader extends BaseTestQuery {
   @Test
   public void testOrcFooterReaderWithEstimate() throws Exception {
     try (AutoCloseable ac = withSystemOption(ExecConstants.STORE_ACCURATE_PARTITION_STATS, false)) {
-      BatchSchema tableSchema = BatchSchema.of(
-        Field.nullablePrimitive("col1", new ArrowType.PrimitiveType.Int(32, true)),
-        Field.nullablePrimitive("col2", new ArrowType.PrimitiveType.Utf8()));
+      BatchSchema tableSchema =
+          BatchSchema.of(
+              Field.nullablePrimitive("col1", new ArrowType.PrimitiveType.Int(32, true)),
+              Field.nullablePrimitive("col2", new ArrowType.PrimitiveType.Utf8()));
       OperatorContext opCtx = getOpCtx();
       FileSystem fs = HadoopFileSystem.getLocal(new Configuration());
 
       long fileSize = 280L;
       double compressionFactor = 30f;
-      int recordSize = tableSchema.estimateRecordSize((int) opCtx.getOptions().getOption(ExecConstants.BATCH_LIST_SIZE_ESTIMATE),
-        (int) opCtx.getOptions().getOption(ExecConstants.BATCH_VARIABLE_FIELD_SIZE_ESTIMATE));
+      int recordSize =
+          tableSchema.estimateRecordSize(
+              (int) opCtx.getOptions().getOption(ExecConstants.BATCH_LIST_SIZE_ESTIMATE),
+              (int) opCtx.getOptions().getOption(ExecConstants.BATCH_VARIABLE_FIELD_SIZE_ESTIMATE));
       HiveOrcFooterReader reader = new HiveOrcFooterReader(tableSchema, fs, opCtx);
       Path fileRoot = Path.of(Resources.getResource("orc/").toURI());
       String file1 = fileRoot.resolve("testsample1.orc").toString();
       Footer footer = reader.getFooter(file1, fileSize);
-      assertEquals((long) Math.ceil(fileSize * compressionFactor / recordSize), footer.getRowCount());
+      assertEquals(
+          (long) Math.ceil(fileSize * compressionFactor / recordSize), footer.getRowCount());
 
-      tableSchema = BatchSchema.of(
-        Field.nullablePrimitive("col1", new ArrowType.PrimitiveType.Utf8()),
-        Field.nullablePrimitive("col2", new ArrowType.PrimitiveType.Int(32, true)),
-        Field.nullablePrimitive("col3", new ArrowType.PrimitiveType.Bool())
-      );
+      tableSchema =
+          BatchSchema.of(
+              Field.nullablePrimitive("col1", new ArrowType.PrimitiveType.Utf8()),
+              Field.nullablePrimitive("col2", new ArrowType.PrimitiveType.Int(32, true)),
+              Field.nullablePrimitive("col3", new ArrowType.PrimitiveType.Bool()));
       fileSize = 372L;
-      recordSize = tableSchema.estimateRecordSize((int) opCtx.getOptions().getOption(ExecConstants.BATCH_LIST_SIZE_ESTIMATE),
-        (int) opCtx.getOptions().getOption(ExecConstants.BATCH_VARIABLE_FIELD_SIZE_ESTIMATE));
+      recordSize =
+          tableSchema.estimateRecordSize(
+              (int) opCtx.getOptions().getOption(ExecConstants.BATCH_LIST_SIZE_ESTIMATE),
+              (int) opCtx.getOptions().getOption(ExecConstants.BATCH_VARIABLE_FIELD_SIZE_ESTIMATE));
       String file2 = fileRoot.resolve("testsample2.orc").toString();
       reader = new HiveOrcFooterReader(tableSchema, fs, opCtx);
       footer = reader.getFooter(file2, fileSize);
-      assertEquals((long) Math.ceil(fileSize * compressionFactor / recordSize), footer.getRowCount());
+      assertEquals(
+          (long) Math.ceil(fileSize * compressionFactor / recordSize), footer.getRowCount());
     }
   }
 
   private OperatorContext getOpCtx() {
     SabotContext sabotContext = getSabotContext();
-    return new OperatorContextImpl(sabotContext.getConfig(), sabotContext.getDremioConfig(), getAllocator(), sabotContext.getOptionManager(), 10, sabotContext.getExpressionSplitCache());
+    return new OperatorContextImpl(
+        sabotContext.getConfig(),
+        sabotContext.getDremioConfig(),
+        getAllocator(),
+        sabotContext.getOptionManager(),
+        10,
+        sabotContext.getExpressionSplitCache());
   }
 }

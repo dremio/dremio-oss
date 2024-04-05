@@ -15,15 +15,12 @@
  */
 package com.dremio.service.reflection;
 
-import java.util.Optional;
-
 import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
+import java.util.Optional;
 
-/**
- * Interface for datasets/sources acceleration settings.
- */
+/** Interface for datasets/sources acceleration settings. */
 public interface ReflectionSettings {
   // only returns a AccelerationSettings if one is specifically defined for the specified key
   @Deprecated
@@ -46,5 +43,8 @@ public interface ReflectionSettings {
 
   void removeSettings(CatalogEntityKey key);
 
-  default int getAllHash() { return 0; };
+  default int getAllHash() {
+    return 0;
+  }
+  ;
 }

@@ -15,14 +15,6 @@
  */
 package com.dremio.service.accelerator;
 
-import java.util.Iterator;
-import java.util.Optional;
-
-import javax.inject.Provider;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.config.DremioConfig;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
@@ -36,10 +28,13 @@ import com.dremio.service.reflection.ReflectionService;
 import com.dremio.service.reflection.ReflectionStatusService;
 import com.dremio.service.reflection.store.MaterializationStore;
 import com.google.common.collect.Streams;
+import java.util.Iterator;
+import java.util.Optional;
+import javax.inject.Provider;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * Exposes the acceleration manager interface to the rest of the system (executor side)
- */
+/** Exposes the acceleration manager interface to the rest of the system (executor side) */
 public class AccelerationListManagerImpl implements AccelerationListManager {
   private static final Logger logger = LoggerFactory.getLogger(AccelerationListManagerImpl.class);
 
@@ -56,13 +51,12 @@ public class AccelerationListManagerImpl implements AccelerationListManager {
   public AccelerationListManagerImpl(
       Provider<LegacyKVStoreProvider> storeProvider,
       Provider<ReflectionStatusService> reflectionStatusService,
-      Provider<ReflectionService>  reflectionService,
+      Provider<ReflectionService> reflectionService,
       Provider<DremioConfig> dremioConfigProvider,
       boolean isMaster,
       boolean isCoordinator,
       Provider<Optional<NodeEndpoint>> serviceLeaderProvider,
-      Provider<ConduitProvider> conduitProvider
-  ) {
+      Provider<ConduitProvider> conduitProvider) {
     this.materializationStore = new MaterializationStore(storeProvider);
     this.reflectionStatusService = reflectionStatusService;
     this.reflectionService = reflectionService;
@@ -73,100 +67,117 @@ public class AccelerationListManagerImpl implements AccelerationListManager {
     this.conduitProvider = conduitProvider;
   }
 
-
   @Override
-  public void start() {
-  }
+  public void start() {}
 
-  public ReflectionDescriptionServiceGrpc.ReflectionDescriptionServiceBlockingStub getAccelerationListServiceBlockingStub() {
-    ReflectionDescriptionServiceGrpc.ReflectionDescriptionServiceBlockingStub accelerationListServiceBlockingStub;
+  public ReflectionDescriptionServiceGrpc.ReflectionDescriptionServiceBlockingStub
+      getAccelerationListServiceBlockingStub() {
+    ReflectionDescriptionServiceGrpc.ReflectionDescriptionServiceBlockingStub
+        accelerationListServiceBlockingStub;
 
     Optional<CoordinationProtos.NodeEndpoint> master = serviceLeaderProvider.get();
     if (!master.isPresent()) {
-      throw UserException.connectionError().message("Unable to get task leader while trying to get Reflection Information")
-        .build(logger);
+      throw UserException.connectionError()
+          .message("Unable to get task leader while trying to get Reflection Information")
+          .build(logger);
     }
-    accelerationListServiceBlockingStub = ReflectionDescriptionServiceGrpc.newBlockingStub(this.conduitProvider.get().getOrCreateChannel(master.get()));
+    accelerationListServiceBlockingStub =
+        ReflectionDescriptionServiceGrpc.newBlockingStub(
+            this.conduitProvider.get().getOrCreateChannel(master.get()));
 
     return accelerationListServiceBlockingStub;
   }
 
-
   @Override
-  public void close() throws Exception {
-
-  }
+  public void close() throws Exception {}
 
   @Override
   public Iterator<ReflectionInfo> getReflections() {
-    if (isMaster ||
-      (isCoordinator && dremioConfigProvider.get().isMasterlessEnabled())) {
+    if (isMaster || (isCoordinator && dremioConfigProvider.get().isMasterlessEnabled())) {
       return reflectionStatusService.get().getReflections();
     }
 
     // need to do RPC call
     try {
-      ReflectionDescriptionServiceRPC.ListReflectionsRequest reflectionInfoReq = ReflectionDescriptionServiceRPC.ListReflectionsRequest.newBuilder().build();
-      final Iterator<ReflectionDescriptionServiceRPC.ListReflectionsResponse> reflectionCombinedStatusResp = getAccelerationListServiceBlockingStub().listReflections(reflectionInfoReq);
-      return Streams.stream(reflectionCombinedStatusResp).map(ReflectionInfo::getReflectionInfo).iterator();
+      ReflectionDescriptionServiceRPC.ListReflectionsRequest reflectionInfoReq =
+          ReflectionDescriptionServiceRPC.ListReflectionsRequest.newBuilder().build();
+      final Iterator<ReflectionDescriptionServiceRPC.ListReflectionsResponse>
+          reflectionCombinedStatusResp =
+              getAccelerationListServiceBlockingStub().listReflections(reflectionInfoReq);
+      return Streams.stream(reflectionCombinedStatusResp)
+          .map(ReflectionInfo::getReflectionInfo)
+          .iterator();
     } catch (Exception e) {
-      throw UserException.connectionError(e).message("Error while getting Reflection Information")
-        .build(logger);
+      throw UserException.connectionError(e)
+          .message("Error while getting Reflection Information")
+          .build(logger);
     }
-   }
+  }
 
   @Override
   public Iterator<DependencyInfo> getReflectionDependencies() {
-    if (isMaster ||
-      (isCoordinator && dremioConfigProvider.get().isMasterlessEnabled())) {
+    if (isMaster || (isCoordinator && dremioConfigProvider.get().isMasterlessEnabled())) {
       return reflectionService.get().getReflectionDependencies();
     }
 
     // need to do RPC call
     try {
-      ReflectionDescriptionServiceRPC.ListReflectionDependenciesRequest dependencyInfoReq = ReflectionDescriptionServiceRPC.ListReflectionDependenciesRequest.newBuilder().build();
-      final Iterator<ReflectionDescriptionServiceRPC.ListReflectionDependenciesResponse> dependencyInfosResp = getAccelerationListServiceBlockingStub().listReflectionDependencies(dependencyInfoReq);
+      ReflectionDescriptionServiceRPC.ListReflectionDependenciesRequest dependencyInfoReq =
+          ReflectionDescriptionServiceRPC.ListReflectionDependenciesRequest.newBuilder().build();
+      final Iterator<ReflectionDescriptionServiceRPC.ListReflectionDependenciesResponse>
+          dependencyInfosResp =
+              getAccelerationListServiceBlockingStub()
+                  .listReflectionDependencies(dependencyInfoReq);
       return Streams.stream(dependencyInfosResp).map(DependencyInfo::getDependencyInfo).iterator();
     } catch (Exception e) {
-      throw UserException.connectionError(e).message("Error while getting Dependency Information")
-        .build(logger);
+      throw UserException.connectionError(e)
+          .message("Error while getting Dependency Information")
+          .build(logger);
     }
-   }
+  }
 
   @Override
   public Iterator<MaterializationInfo> getMaterializations() {
-    if (isMaster ||
-      (isCoordinator && dremioConfigProvider.get().isMasterlessEnabled())) {
+    if (isMaster || (isCoordinator && dremioConfigProvider.get().isMasterlessEnabled())) {
       return AccelerationMaterializationUtils.getMaterializationsFromStore(materializationStore);
     }
 
     // need to do RPC call
     try {
-      ReflectionDescriptionServiceRPC.ListMaterializationsRequest materializationInfoReq = ReflectionDescriptionServiceRPC.ListMaterializationsRequest.newBuilder().build();
-      final Iterator<ReflectionDescriptionServiceRPC.ListMaterializationsResponse> materializationInfosResp = getAccelerationListServiceBlockingStub().listMaterializations(materializationInfoReq);
-      return Streams.stream(materializationInfosResp).map(MaterializationInfo::fromMaterializationInfo).iterator();
+      ReflectionDescriptionServiceRPC.ListMaterializationsRequest materializationInfoReq =
+          ReflectionDescriptionServiceRPC.ListMaterializationsRequest.newBuilder().build();
+      final Iterator<ReflectionDescriptionServiceRPC.ListMaterializationsResponse>
+          materializationInfosResp =
+              getAccelerationListServiceBlockingStub().listMaterializations(materializationInfoReq);
+      return Streams.stream(materializationInfosResp)
+          .map(MaterializationInfo::fromMaterializationInfo)
+          .iterator();
     } catch (Exception e) {
-      throw UserException.connectionError(e).message("Error while getting Materialization Information")
-        .build(logger);
+      throw UserException.connectionError(e)
+          .message("Error while getting Materialization Information")
+          .build(logger);
     }
   }
 
   @Override
   public Iterator<RefreshInfo> getRefreshInfos() {
-    if (isMaster ||
-      (isCoordinator && dremioConfigProvider.get().isMasterlessEnabled())) {
+    if (isMaster || (isCoordinator && dremioConfigProvider.get().isMasterlessEnabled())) {
       return Streams.stream(reflectionStatusService.get().getRefreshInfos())
-        .map(RefreshInfo::fromRefreshInfo).iterator();
+          .map(RefreshInfo::fromRefreshInfo)
+          .iterator();
     }
 
     // need to do RPC call
     try {
-      ReflectionDescriptionServiceRPC.GetRefreshInfoRequest refreshInfoReq = ReflectionDescriptionServiceRPC.GetRefreshInfoRequest.newBuilder().build();
-      final Iterator<ReflectionDescriptionServiceRPC.GetRefreshInfoResponse> refreshInfosResp = getAccelerationListServiceBlockingStub().getRefreshInfo(refreshInfoReq);
+      ReflectionDescriptionServiceRPC.GetRefreshInfoRequest refreshInfoReq =
+          ReflectionDescriptionServiceRPC.GetRefreshInfoRequest.newBuilder().build();
+      final Iterator<ReflectionDescriptionServiceRPC.GetRefreshInfoResponse> refreshInfosResp =
+          getAccelerationListServiceBlockingStub().getRefreshInfo(refreshInfoReq);
       return Streams.stream(refreshInfosResp).map(RefreshInfo::fromRefreshInfo).iterator();
     } catch (Exception e) {
-      throw UserException.connectionError(e).message("Error while getting Refresh Information")
-        .build(logger);
+      throw UserException.connectionError(e)
+          .message("Error while getting Refresh Information")
+          .build(logger);
     }
   }
 }

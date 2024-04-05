@@ -17,7 +17,6 @@ package com.dremio.plugins.azure;
 
 import java.util.Arrays;
 import java.util.List;
-
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -26,23 +25,25 @@ public class TestClientCredentialsBasedTokenProvider {
   @Test // move the test
   public void testOAuthURLValidation() {
     List<String> emptyOauthURLs = Arrays.asList(null, "");
-    List<String> validOauthURLs = Arrays.asList(
-      "https://login.microsoftonline.com/tenantid/oauth2/token",
-      "https://www.microsoftonline.com/tenantid/oauth2/token");
-    List<String> invalidOauthURLs = Arrays.asList(
-      "http:///",
-      "https:///",
-      "https://login.microsoftonline.com/",
-      "https://login.microsoftonline.com/tenantid",
-      "https://login.microsoftonline.com/tenantid/",
-      "https://login.microsoftonline.com/tenantid/oauth2",
-      "https://login.microsoftonline.com/tenantid/oauth2.0/token",
-      "http://login.microsoftonline.com/tenantid/oauth2/token",
-      "https://login.microsoftonline.com/tenantid/oauth2/tokens");
+    List<String> validOauthURLs =
+        Arrays.asList(
+            "https://login.microsoftonline.com/tenantid/oauth2/token",
+            "https://www.microsoftonline.com/tenantid/oauth2/token");
+    List<String> invalidOauthURLs =
+        Arrays.asList(
+            "http:///",
+            "https:///",
+            "https://login.microsoftonline.com/",
+            "https://login.microsoftonline.com/tenantid",
+            "https://login.microsoftonline.com/tenantid/",
+            "https://login.microsoftonline.com/tenantid/oauth2",
+            "https://login.microsoftonline.com/tenantid/oauth2.0/token",
+            "http://login.microsoftonline.com/tenantid/oauth2/token",
+            "https://login.microsoftonline.com/tenantid/oauth2/tokens");
     int emptyOauthURLsCount = 0;
     int validOauthURLsCount = 0;
     int invalidOauthURLsCount = 0;
-    for(String url : emptyOauthURLs) {
+    for (String url : emptyOauthURLs) {
       try {
         ClientCredentialsBasedTokenProviderImpl.validateOAuthURL(url);
       } catch (Exception exception) {
@@ -50,7 +51,7 @@ public class TestClientCredentialsBasedTokenProvider {
         Assert.assertEquals(exception.getMessage(), "OAuth 2.0 Token Endpoint cannot be empty.");
       }
     }
-    for(String url : validOauthURLs) {
+    for (String url : validOauthURLs) {
       try {
         ClientCredentialsBasedTokenProviderImpl.validateOAuthURL(url);
         validOauthURLsCount++;
@@ -58,12 +59,14 @@ public class TestClientCredentialsBasedTokenProvider {
         System.out.println(ignore);
       }
     }
-    for(String url : invalidOauthURLs) {
+    for (String url : invalidOauthURLs) {
       try {
         ClientCredentialsBasedTokenProviderImpl.validateOAuthURL(url);
       } catch (Exception exception) {
         invalidOauthURLsCount++;
-        Assert.assertEquals(exception.getMessage(), "Invalid OAuth 2.0 Token Endpoint. Expected format is https://<host>/<tenantId>/oauth2/token");
+        Assert.assertEquals(
+            exception.getMessage(),
+            "Invalid OAuth 2.0 Token Endpoint. Expected format is https://<host>/<tenantId>/oauth2/token");
       }
     }
     Assert.assertEquals(emptyOauthURLsCount, emptyOauthURLs.size());

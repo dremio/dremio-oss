@@ -15,60 +15,78 @@
  */
 package com.dremio.sabot.op.copier;
 
-import java.util.List;
-
-import org.apache.arrow.vector.FieldVector;
-
 import com.dremio.options.OptionManager;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import java.util.List;
+import org.apache.arrow.vector.FieldVector;
 
-/**
- * Factory class containing methods for assigning copiers for a list of field vectors
- */
+/** Factory class containing methods for assigning copiers for a list of field vectors */
 public class FieldBufferCopierFactory implements CopierFactory {
 
   private final OptionManager optionManager;
+
   public FieldBufferCopierFactory(OptionManager optionManager) {
     this.optionManager = optionManager;
   }
 
   @Override
-  public List<FieldBufferCopier> getTwoByteCopiers(List<FieldVector> inputs, List<FieldVector> outputs, boolean isTargetVectorZeroedOut) {
+  public List<FieldBufferCopier> getTwoByteCopiers(
+      List<FieldVector> inputs, List<FieldVector> outputs, boolean isTargetVectorZeroedOut) {
     ImmutableList.Builder<FieldBufferCopier> copiers = ImmutableList.builder();
-    Preconditions.checkArgument(inputs.size() == outputs.size(), "Input and output lists must be same size.");
+    Preconditions.checkArgument(
+        inputs.size() == outputs.size(), "Input and output lists must be same size.");
     for (int i = 0; i < inputs.size(); i++) {
       final FieldVector input = inputs.get(i);
       final FieldVector output = outputs.get(i);
-      FieldBufferCopier2Util.addValueCopier(input, output, copiers, optionManager, isTargetVectorZeroedOut);
+      FieldBufferCopier2Util.addValueCopier(
+          input, output, copiers, optionManager, isTargetVectorZeroedOut);
     }
     return copiers.build();
   }
 
   @Override
-  public List<FieldBufferCopier> getFourByteCopiers(List<FieldVector[]> inputs, List<FieldVector> outputs){
-    return getCopiers(inputs, outputs, (input, output, copiers) -> FieldBufferCopier4Util.addValueCopier(input, output, copiers));
+  public List<FieldBufferCopier> getFourByteCopiers(
+      List<FieldVector[]> inputs, List<FieldVector> outputs) {
+    return getCopiers(
+        inputs,
+        outputs,
+        (input, output, copiers) -> FieldBufferCopier4Util.addValueCopier(input, output, copiers));
   }
 
   @Override
-  public List<FieldBufferCopier> getSixByteCopiers(List<FieldVector[]> inputs, List<FieldVector> outputs) {
-    return getCopiers(inputs, outputs, (input, output, copiers) -> FieldBufferCopier6Util.addValueCopier(input, output, copiers));
+  public List<FieldBufferCopier> getSixByteCopiers(
+      List<FieldVector[]> inputs, List<FieldVector> outputs) {
+    return getCopiers(
+        inputs,
+        outputs,
+        (input, output, copiers) -> FieldBufferCopier6Util.addValueCopier(input, output, copiers));
   }
 
   @Override
-  public List<FieldBufferCopier> getSixByteConditionalCopiers(List<FieldVector[]> inputs, List<FieldVector> outputs) {
-    return getCopiers(inputs, outputs, (input, output, copiers) -> ConditionalFieldBufferCopier6Util.addValueCopier(input, output, copiers));
+  public List<FieldBufferCopier> getSixByteConditionalCopiers(
+      List<FieldVector[]> inputs, List<FieldVector> outputs) {
+    return getCopiers(
+        inputs,
+        outputs,
+        (input, output, copiers) ->
+            ConditionalFieldBufferCopier6Util.addValueCopier(input, output, copiers));
   }
 
   @FunctionalInterface
   private interface ValueCopierAdder {
-    void addValueCopier(final FieldVector[] source, final FieldVector target, ImmutableList.Builder<FieldBufferCopier> copiers);
+    void addValueCopier(
+        final FieldVector[] source,
+        final FieldVector target,
+        ImmutableList.Builder<FieldBufferCopier> copiers);
   }
 
-  private List<FieldBufferCopier> getCopiers(List<FieldVector[]> inputs, List<FieldVector> outputs, ValueCopierAdder valueCopierAdder) {
+  private List<FieldBufferCopier> getCopiers(
+      List<FieldVector[]> inputs, List<FieldVector> outputs, ValueCopierAdder valueCopierAdder) {
     ImmutableList.Builder<FieldBufferCopier> copiers = ImmutableList.builder();
-    Preconditions.checkArgument(inputs.size() == outputs.size(), "Input and output lists must be same size.");
-    for(int i = 0; i < inputs.size(); i++){
+    Preconditions.checkArgument(
+        inputs.size() == outputs.size(), "Input and output lists must be same size.");
+    for (int i = 0; i < inputs.size(); i++) {
       final FieldVector[] input = inputs.get(i);
       final FieldVector output = outputs.get(i);
       valueCopierAdder.addValueCopier(input, output, copiers);

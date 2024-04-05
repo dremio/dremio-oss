@@ -35,7 +35,7 @@ export const AvatarGroup = forwardRef<
       className={clsx(
         "dremio-avatar-group",
 
-        className
+        className,
       )}
     >
       {children}

@@ -23,21 +23,24 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 
 /**
- * See {@link com.dremio.exec.testing.CountDownLatchInjection} Degenerates to
- * {@link com.dremio.exec.testing.PauseInjection#pause}, if initialized to zero count. In any case, this injection
- * provides more control than PauseInjection.
+ * See {@link com.dremio.exec.testing.CountDownLatchInjection} Degenerates to {@link
+ * com.dremio.exec.testing.PauseInjection#pause}, if initialized to zero count. In any case, this
+ * injection provides more control than PauseInjection.
  */
 @JsonAutoDetect(fieldVisibility = Visibility.ANY)
 public class CountDownLatchInjectionImpl extends Injection implements CountDownLatchInjection {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CountDownLatchInjectionImpl.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(CountDownLatchInjectionImpl.class);
 
   private ExtendedLatch latch = null;
 
   @JsonCreator // ensures instances are created only through JSON
-  private CountDownLatchInjectionImpl(@JsonProperty("address") final String address,
-                                      @JsonProperty("port") final int port,
-                                      @JsonProperty("siteClass") final String siteClass,
-                                      @JsonProperty("desc") final String desc) throws InjectionConfigurationException {
+  private CountDownLatchInjectionImpl(
+      @JsonProperty("address") final String address,
+      @JsonProperty("port") final int port,
+      @JsonProperty("siteClass") final String siteClass,
+      @JsonProperty("desc") final String desc)
+      throws InjectionConfigurationException {
     super(address, port, siteClass, desc, 0, 1);
   }
 
@@ -48,16 +51,23 @@ public class CountDownLatchInjectionImpl extends Injection implements CountDownL
 
   @Override
   public void initialize(final int count) {
-    Preconditions.checkArgument(latch == null, "Latch can be initialized only once at %s in %s.", desc,
-      siteClass.getSimpleName());
-    Preconditions.checkArgument(count > 0, "Count has to be a positive integer at %s in %s.", desc,
-      siteClass.getSimpleName());
+    Preconditions.checkArgument(
+        latch == null,
+        "Latch can be initialized only once at %s in %s.",
+        desc,
+        siteClass.getSimpleName());
+    Preconditions.checkArgument(
+        count > 0,
+        "Count has to be a positive integer at %s in %s.",
+        desc,
+        siteClass.getSimpleName());
     latch = new ExtendedLatch(count);
   }
 
   @Override
   public void await() throws InterruptedException {
-    Preconditions.checkNotNull(latch, "Latch not initialized in %s at %s.", siteClass.getSimpleName(), desc);
+    Preconditions.checkNotNull(
+        latch, "Latch not initialized in %s at %s.", siteClass.getSimpleName(), desc);
     try {
       latch.await();
     } catch (final InterruptedException e) {
@@ -68,13 +78,15 @@ public class CountDownLatchInjectionImpl extends Injection implements CountDownL
 
   @Override
   public void awaitUninterruptibly() {
-    Preconditions.checkNotNull(latch, "Latch not initialized in %s at %s.", siteClass.getSimpleName(), desc);
+    Preconditions.checkNotNull(
+        latch, "Latch not initialized in %s at %s.", siteClass.getSimpleName(), desc);
     latch.awaitUninterruptibly();
   }
 
   @Override
   public void countDown() {
-    Preconditions.checkNotNull(latch, "Latch not initialized in %s at %s.", siteClass.getSimpleName(), desc);
+    Preconditions.checkNotNull(
+        latch, "Latch not initialized in %s at %s.", siteClass.getSimpleName(), desc);
     Preconditions.checkArgument(latch.getCount() > 0, "Counting down on latch more than intended.");
     latch.countDown();
   }

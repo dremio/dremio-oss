@@ -15,17 +15,14 @@
  */
 package com.dremio.sabot.rpc.user;
 
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicInteger;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.proto.UserBitShared.QueryResult.QueryState;
 import com.dremio.exec.rpc.ConnectionThrottle;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
 
-/**
- * General mechanism for waiting on the query to be executed
- */
+/** General mechanism for waiting on the query to be executed */
 public class AwaitableUserResultsListener implements UserResultsListener {
 
   private final AtomicInteger count = new AtomicInteger();
@@ -75,5 +72,4 @@ public class AwaitableUserResultsListener implements UserResultsListener {
     }
     return count.get();
   }
-
 }

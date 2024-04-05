@@ -15,6 +15,8 @@
  */
 package com.dremio.service.flight;
 
+import com.dremio.common.AutoCloseables;
+import com.dremio.service.flight.utils.TestConnectionProperties;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -22,7 +24,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-
 import org.apache.arrow.flight.CallOption;
 import org.apache.arrow.flight.FlightClient;
 import org.apache.arrow.flight.Location;
@@ -35,16 +36,9 @@ import org.apache.arrow.flight.grpc.CredentialCallOption;
 import org.apache.arrow.flight.sql.FlightSqlClient;
 import org.apache.arrow.memory.BufferAllocator;
 
-import com.dremio.common.AutoCloseables;
-import com.dremio.service.flight.utils.TestConnectionProperties;
-
-/**
- * Utility class for working with FlightClients
- */
+/** Utility class for working with FlightClients */
 public final class FlightClientUtils {
-  /**
-   * Container class for holding a FlightClient and its associated allocator.
-   */
+  /** Container class for holding a FlightClient and its associated allocator. */
   public static final class FlightClientWrapper implements AutoCloseable {
     private final BufferAllocator allocator;
     private FlightClient client;
@@ -54,14 +48,20 @@ public final class FlightClientUtils {
     private final TestConnectionProperties clientProperties;
     private CredentialCallOption tokenCallOption;
 
-    public FlightClientWrapper(BufferAllocator allocator, FlightClient client,
-                               String authMode, TestConnectionProperties clientProperties) {
+    public FlightClientWrapper(
+        BufferAllocator allocator,
+        FlightClient client,
+        String authMode,
+        TestConnectionProperties clientProperties) {
       this(allocator, client, authMode, Collections.emptyList(), clientProperties);
     }
 
-    public FlightClientWrapper(BufferAllocator allocator, FlightClient client,
-                               String authMode, Collection<CallOption> options,
-                               TestConnectionProperties clientProperties) {
+    public FlightClientWrapper(
+        BufferAllocator allocator,
+        FlightClient client,
+        String authMode,
+        Collection<CallOption> options,
+        TestConnectionProperties clientProperties) {
       this.allocator = allocator;
       this.client = client;
       this.sqlClient = new FlightSqlClient(this.client);
@@ -91,17 +91,22 @@ public final class FlightClientUtils {
           final InputStream trustedCerts = clientProperties.getTrustedCerts();
 
           client =
-            openEncryptedFlightClient(host, port, user, password, trustedCerts, allocator, authMode).getClient();
+              openEncryptedFlightClient(
+                      host, port, user, password, trustedCerts, allocator, authMode)
+                  .getClient();
           sqlClient = new FlightSqlClient(client);
           break;
         case FlightClientWithOptions:
           sqlClient.close();
 
-          client = openFlightClientWithOptions(port, user, password, allocator, authMode, options).getClient();
+          client =
+              openFlightClientWithOptions(port, user, password, allocator, authMode, options)
+                  .getClient();
           sqlClient = new FlightSqlClient(client);
           break;
         default:
-          throw new UnsupportedOperationException("Missing resetClient implementation for clientType: " + clientType);
+          throw new UnsupportedOperationException(
+              "Missing resetClient implementation for clientType: " + clientType);
       }
     }
 
@@ -151,41 +156,42 @@ public final class FlightClientUtils {
     }
   }
 
-  public static FlightClientWrapper openFlightClient(int port, String user, String password,
-                                                     BufferAllocator allocator, String authMode) throws Exception {
-    final String host = "localhost";  // TODO: Can this come from dremioConfig.getNode() in BaseFlightQueryTest?
-    FlightClient.Builder builder = FlightClient.builder()
-      .allocator(allocator)
-      .location(Location.forGrpcInsecure(host, port));
+  public static FlightClientWrapper openFlightClient(
+      int port, String user, String password, BufferAllocator allocator, String authMode)
+      throws Exception {
+    final String host =
+        "localhost"; // TODO: Can this come from dremioConfig.getNode() in BaseFlightQueryTest?
+    FlightClient.Builder builder =
+        FlightClient.builder().allocator(allocator).location(Location.forGrpcInsecure(host, port));
 
-    final TestConnectionProperties clientProperties = new TestConnectionProperties(
-      FlightClientWrapper.FlightClientType.FlightClient,
-      host,
-      port,
-      user,
-      password,
-      null);
+    final TestConnectionProperties clientProperties =
+        new TestConnectionProperties(
+            FlightClientWrapper.FlightClientType.FlightClient, host, port, user, password, null);
 
-    final FlightClientWrapper wrapper = new FlightClientWrapper(allocator, builder.build(), authMode, clientProperties);
+    final FlightClientWrapper wrapper =
+        new FlightClientWrapper(allocator, builder.build(), authMode, clientProperties);
 
     try {
       if (DremioFlightService.FLIGHT_LEGACY_AUTH_MODE.equals(authMode)) {
         wrapper.client.authenticateBasic(user, password);
       } else if (DremioFlightService.FLIGHT_AUTH2_AUTH_MODE.equals(authMode)) {
         final ClientIncomingAuthHeaderMiddleware.Factory authFactory =
-          new ClientIncomingAuthHeaderMiddleware.Factory(new ClientBearerHeaderHandler());
+            new ClientIncomingAuthHeaderMiddleware.Factory(new ClientBearerHeaderHandler());
 
         builder.intercept(authFactory);
         builder.intercept(new ClientCookieMiddleware.Factory());
 
-        Optional<CredentialCallOption> callOption = Optional.ofNullable(
-          getTokenAuthenticate(wrapper.client,
-            new CredentialCallOption(new BasicAuthCredentialWriter(user, password)), authFactory));
+        Optional<CredentialCallOption> callOption =
+            Optional.ofNullable(
+                getTokenAuthenticate(
+                    wrapper.client,
+                    new CredentialCallOption(new BasicAuthCredentialWriter(user, password)),
+                    authFactory));
         callOption.ifPresent(wrapper::setTokenCredentialCallOption);
         callOption.ifPresent(option -> wrapper.addOptions(Collections.singletonList(option)));
       } else {
-        throw new UnsupportedOperationException(authMode
-          + " is not a supported FlightServer Endpoint authentication mode.");
+        throw new UnsupportedOperationException(
+            authMode + " is not a supported FlightServer Endpoint authentication mode.");
       }
       return wrapper;
     } catch (Exception ex) {
@@ -194,46 +200,58 @@ public final class FlightClientUtils {
     }
   }
 
-  public static FlightClientWrapper openEncryptedFlightClient(String host, int port, String user,
-                                                              String password, InputStream trustedCerts,
-                                                              BufferAllocator allocator, String authMode) throws Exception {
-    final FlightClient.Builder builder = FlightClient.builder()
-      .allocator(allocator)
-      .useTls()
-      .location(Location.forGrpcTls(host, port));
+  public static FlightClientWrapper openEncryptedFlightClient(
+      String host,
+      int port,
+      String user,
+      String password,
+      InputStream trustedCerts,
+      BufferAllocator allocator,
+      String authMode)
+      throws Exception {
+    final FlightClient.Builder builder =
+        FlightClient.builder()
+            .allocator(allocator)
+            .useTls()
+            .location(Location.forGrpcTls(host, port));
 
     if (trustedCerts != null) {
       builder.trustedCertificates(trustedCerts);
     }
 
-    final TestConnectionProperties clientProperties = new TestConnectionProperties(
-      FlightClientWrapper.FlightClientType.EncryptedFlightClient,
-      host,
-      port,
-      user,
-      password,
-      trustedCerts);
+    final TestConnectionProperties clientProperties =
+        new TestConnectionProperties(
+            FlightClientWrapper.FlightClientType.EncryptedFlightClient,
+            host,
+            port,
+            user,
+            password,
+            trustedCerts);
 
-    final FlightClientWrapper wrapper = new FlightClientWrapper(allocator, builder.build(), authMode, clientProperties);
+    final FlightClientWrapper wrapper =
+        new FlightClientWrapper(allocator, builder.build(), authMode, clientProperties);
 
     try {
       if (DremioFlightService.FLIGHT_LEGACY_AUTH_MODE.equals(authMode)) {
         wrapper.client.authenticateBasic(user, password);
       } else if (DremioFlightService.FLIGHT_AUTH2_AUTH_MODE.equals(authMode)) {
         final ClientIncomingAuthHeaderMiddleware.Factory authFactory =
-          new ClientIncomingAuthHeaderMiddleware.Factory(new ClientBearerHeaderHandler());
+            new ClientIncomingAuthHeaderMiddleware.Factory(new ClientBearerHeaderHandler());
 
         builder.intercept(authFactory);
         builder.intercept(new ClientCookieMiddleware.Factory());
 
-        Optional<CredentialCallOption> callOption = Optional.ofNullable(
-          getTokenAuthenticate(wrapper.client,
-            new CredentialCallOption(new BasicAuthCredentialWriter(user, password)), authFactory));
+        Optional<CredentialCallOption> callOption =
+            Optional.ofNullable(
+                getTokenAuthenticate(
+                    wrapper.client,
+                    new CredentialCallOption(new BasicAuthCredentialWriter(user, password)),
+                    authFactory));
         callOption.ifPresent(wrapper::setTokenCredentialCallOption);
         callOption.ifPresent(option -> wrapper.addOptions(Collections.singletonList(option)));
       } else {
-        throw new UnsupportedOperationException(authMode
-          + " is not a supported FlightServer Endpoint authentication mode.");
+        throw new UnsupportedOperationException(
+            authMode + " is not a supported FlightServer Endpoint authentication mode.");
       }
       return wrapper;
     } catch (Exception ex) {
@@ -242,28 +260,30 @@ public final class FlightClientUtils {
     }
   }
 
-  public static FlightClientWrapper openFlightClientWithOptions(int port, String user, String password,
-                                                                BufferAllocator allocator, String authMode,
-                                                                Collection<CallOption> options) throws Exception {
-    final String host = "localhost";  // TODO: Can this come from dremioConfig.getNode() in BaseFlightQueryTest?
-    FlightClient.Builder builder = FlightClient.builder()
-      .allocator(allocator)
-      .location(Location.forGrpcInsecure(host, port));
+  public static FlightClientWrapper openFlightClientWithOptions(
+      int port,
+      String user,
+      String password,
+      BufferAllocator allocator,
+      String authMode,
+      Collection<CallOption> options)
+      throws Exception {
+    final String host =
+        "localhost"; // TODO: Can this come from dremioConfig.getNode() in BaseFlightQueryTest?
+    FlightClient.Builder builder =
+        FlightClient.builder().allocator(allocator).location(Location.forGrpcInsecure(host, port));
 
-    final TestConnectionProperties clientProperties = new TestConnectionProperties(
-      FlightClientWrapper.FlightClientType.FlightClientWithOptions,
-      host,
-      port,
-      user,
-      password,
-      null);
+    final TestConnectionProperties clientProperties =
+        new TestConnectionProperties(
+            FlightClientWrapper.FlightClientType.FlightClientWithOptions,
+            host,
+            port,
+            user,
+            password,
+            null);
 
-    final FlightClientWrapper wrapper = new FlightClientWrapper(
-      allocator,
-      builder.build(),
-      authMode,
-      options,
-      clientProperties);
+    final FlightClientWrapper wrapper =
+        new FlightClientWrapper(allocator, builder.build(), authMode, options, clientProperties);
 
     try {
       if (DremioFlightService.FLIGHT_LEGACY_AUTH_MODE.equals(authMode)) {
@@ -271,21 +291,23 @@ public final class FlightClientUtils {
         wrapper.client.authenticate(authHandler, options.toArray(new CallOption[0]));
       } else if (DremioFlightService.FLIGHT_AUTH2_AUTH_MODE.equals(authMode)) {
         final ClientIncomingAuthHeaderMiddleware.Factory authFactory =
-          new ClientIncomingAuthHeaderMiddleware.Factory(new ClientBearerHeaderHandler());
+            new ClientIncomingAuthHeaderMiddleware.Factory(new ClientBearerHeaderHandler());
 
         builder.intercept(authFactory);
         builder.intercept(new ClientCookieMiddleware.Factory());
 
-        Optional<CredentialCallOption> callOption = Optional.ofNullable(
-          getTokenAuthenticate(wrapper.client,
-            new CredentialCallOption(new BasicAuthCredentialWriter(user, password)),
-            authFactory,
-            options.toArray(new CallOption[0])));
+        Optional<CredentialCallOption> callOption =
+            Optional.ofNullable(
+                getTokenAuthenticate(
+                    wrapper.client,
+                    new CredentialCallOption(new BasicAuthCredentialWriter(user, password)),
+                    authFactory,
+                    options.toArray(new CallOption[0])));
         callOption.ifPresent(wrapper::setTokenCredentialCallOption);
         callOption.ifPresent(option -> wrapper.addOptions(Collections.singletonList(option)));
       } else {
-        throw new UnsupportedOperationException(authMode
-          + " is not a supported FlightServer Endpoint authentication mode.");
+        throw new UnsupportedOperationException(
+            authMode + " is not a supported FlightServer Endpoint authentication mode.");
       }
       return wrapper;
     } catch (Exception ex) {
@@ -294,10 +316,11 @@ public final class FlightClientUtils {
     }
   }
 
-  private static CredentialCallOption getTokenAuthenticate(final FlightClient client,
-                                                           final CredentialCallOption token,
-                                                           final ClientIncomingAuthHeaderMiddleware.Factory factory,
-                                                           final CallOption... options) {
+  private static CredentialCallOption getTokenAuthenticate(
+      final FlightClient client,
+      final CredentialCallOption token,
+      final ClientIncomingAuthHeaderMiddleware.Factory factory,
+      final CallOption... options) {
     final List<CallOption> theseOptions = new ArrayList<>();
     theseOptions.add(token);
     theseOptions.addAll(Arrays.asList(options));

@@ -15,17 +15,13 @@
  */
 package com.dremio.plugins.elastic;
 
-import java.util.Set;
-
-import javax.xml.bind.DatatypeConverter;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.plugins.Version;
 import com.google.common.collect.ImmutableSet;
+import java.util.Set;
+import javax.xml.bind.DatatypeConverter;
 
-/**
- * Common constant values
- */
+/** Common constant values */
 public interface ElasticsearchConstants {
   // Defaults
   int ES_CONFIG_DEFAULT_BATCH_SIZE = 4000;
@@ -37,8 +33,10 @@ public interface ElasticsearchConstants {
   public static final Version MIN_ELASTICSEARCH_VERSION = new Version(2, 0, 0);
 
   // Defines a cutoff for enabling newer features that have been added to elasticsearch. Rather than
-  // maintain an exact matrix of what is supported, We simply try to make use of all features available
-  // above this version and disable them for connections to any version below. This cutoff is inclusive
+  // maintain an exact matrix of what is supported, We simply try to make use of all features
+  // available
+  // above this version and disable them for connections to any version below. This cutoff is
+  // inclusive
   // on the ENABLE side so all new features must be available in 2.1.2 and up. Everything missing in
   // a version between 2.0 and 2.1.1 is disabled for all versions in that range.
   public static final Version MIN_VERSION_TO_ENABLE_NEW_FEATURES = new Version(2, 1, 2);
@@ -46,7 +44,7 @@ public interface ElasticsearchConstants {
   // Version 5x or higher
   public static final Version ELASTICSEARCH_VERSION_5X = new Version(5, 0, 0);
 
-  //Version 5.3.x or higher
+  // Version 5.3.x or higher
   public static final Version ELASTICSEARCH_VERSION_5_3_X = new Version(5, 3, 0);
 
   // Version 6.0.x or higher
@@ -55,7 +53,7 @@ public interface ElasticsearchConstants {
   // Version 6.8.x or higher
   public static final Version ELASTICSEARCH_VERSION_6_8_X = new Version(6, 8, 0);
 
-  //Version 7.0.x or higher
+  // Version 7.0.x or higher
   public static final Version ELASTICSEARCH_VERSION_7_0_X = new Version(7, 0, 0);
 
   // Elasticsearch formats
@@ -64,9 +62,9 @@ public interface ElasticsearchConstants {
   public static final String ES_GENERIC_FORMAT3 = "[yyyy[-][/]MM[-][/]dd['T'][ ]HH:mm[:][.]ss";
   public static final String ES_GENERIC_FORMAT4 = "[Z][X]]";
   public static final String ES_GENERIC_FORMAT5 = "[EEE, dd MMM yyyy HH:mm:ss zzz]";
-  public static final String ES_GENERIC_FORMAT6 =  "[yyyyMMdd['T']HHmmss[.][SSS][zzz]]";
+  public static final String ES_GENERIC_FORMAT6 = "[yyyyMMdd['T']HHmmss[.][SSS][zzz]]";
   public static final String ES_GENERIC_FORMAT7 = "[yyyy[-][/][MM]]";
-  public static final String ES_GENERIC_FORMAT8 =  "[yyyy[-][/]DDD['T']HH[:]mm[:]sszz]";
+  public static final String ES_GENERIC_FORMAT8 = "[yyyy[-][/]DDD['T']HH[:]mm[:]sszz]";
   public static final String ES_GENERIC_FORMAT9 = "[HH[:]mm[:]ss[.][SSS][Z]]";
   public static final String ES_TIME_FORMAT = "[['T']HH[:]mm[:]ss[.][SSS][z]]";
 
@@ -132,10 +130,10 @@ public interface ElasticsearchConstants {
   String GEO_SHAPE_RADIUS = "radius";
 
   Set<String> META_COLUMNS = ImmutableSet.of(UID, ID, TYPE, INDEX);
-  Set<SchemaPath> META_PATHS = ImmutableSet.of(
-      SchemaPath.getSimplePath(UID),
-      SchemaPath.getSimplePath(ID),
-      SchemaPath.getSimplePath(TYPE),
-      SchemaPath.getSimplePath(INDEX)
-      );
+  Set<SchemaPath> META_PATHS =
+      ImmutableSet.of(
+          SchemaPath.getSimplePath(UID),
+          SchemaPath.getSimplePath(ID),
+          SchemaPath.getSimplePath(TYPE),
+          SchemaPath.getSimplePath(INDEX));
 }

@@ -25,9 +25,15 @@ import static com.dremio.common.types.TypeProtos.MinorType.MAP;
 import static com.dremio.common.types.TypeProtos.MinorType.VARBINARY;
 import static com.dremio.common.types.TypeProtos.MinorType.VARCHAR;
 
+import com.dremio.common.types.TypeProtos;
+import com.dremio.common.types.TypeProtos.DataMode;
+import com.dremio.common.types.TypeProtos.MinorType;
+import com.dremio.common.types.Types;
+import com.dremio.exec.proto.UserBitShared.SerializedField;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.NettyArrowBuf;
 import java.math.BigDecimal;
 import java.util.List;
-
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.DecimalHelper;
 import org.apache.arrow.vector.DecimalVector;
@@ -35,22 +41,15 @@ import org.apache.arrow.vector.util.DecimalUtility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.common.types.TypeProtos;
-import com.dremio.common.types.TypeProtos.DataMode;
-import com.dremio.common.types.TypeProtos.MinorType;
-import com.dremio.common.types.Types;
-import com.dremio.exec.proto.UserBitShared.SerializedField;
-
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.NettyArrowBuf;
-
 /**
- * This encoder ensures that the data batches sent to the user are backwards compatible i.e. if necessary, the batches
- * are patched to be compatible with the old Drill protocol. So if the client on the session is using an older record
- * batch format, this encoder is added to the Netty pipeline.
+ * This encoder ensures that the data batches sent to the user are backwards compatible i.e. if
+ * necessary, the batches are patched to be compatible with the old Drill protocol. So if the client
+ * on the session is using an older record batch format, this encoder is added to the Netty
+ * pipeline.
  */
 class DrillBackwardsCompatibilityHandler extends BaseBackwardsCompatibilityHandler {
-  private static final Logger logger = LoggerFactory.getLogger(DrillBackwardsCompatibilityHandler.class);
+  private static final Logger logger =
+      LoggerFactory.getLogger(DrillBackwardsCompatibilityHandler.class);
 
   /* format for DECIMAL38_SPARSE in Drill */
   public static final int NUMBER_DECIMAL_DIGITS = 6;
@@ -60,15 +59,27 @@ class DrillBackwardsCompatibilityHandler extends BaseBackwardsCompatibilityHandl
   }
 
   @Override
-  public void patch(SerializedField.Builder field, ByteBuf[] buffers, int bufferStart,
-                     int buffersLength, String parentName, String indent) {
+  public void patch(
+      SerializedField.Builder field,
+      ByteBuf[] buffers,
+      int bufferStart,
+      int buffersLength,
+      String parentName,
+      String indent) {
     DataMode mode = field.getMajorType().getMode();
     MinorType minor = field.getMajorType().getMinorType();
     String name = field.getNamePart().getName();
     boolean changed = false;
     if (logger.isDebugEnabled()) {
-      logger.debug("{} BEFORE PATCH: buffers {} for field {}.{}: {} {} expecting {}", indent,
-          sizesString(buffers, bufferStart, buffersLength), parentName, name, mode, minor, field.getBufferLength());
+      logger.debug(
+          "{} BEFORE PATCH: buffers {} for field {}.{}: {} {} expecting {}",
+          indent,
+          sizesString(buffers, bufferStart, buffersLength),
+          parentName,
+          name,
+          mode,
+          minor,
+          field.getBufferLength());
     }
     if ("$values$".equals(name)) {
       // the values vectors inside the Vectors used to be called the same as their parent.
@@ -99,8 +110,10 @@ class DrillBackwardsCompatibilityHandler extends BaseBackwardsCompatibilityHandl
         if (bitsField.getMajorType().getMinorType() != BIT
             || !"$bits$".equals(bitsField.getNamePart().getName())
             || bitsField.getMajorType().getMode() != REQUIRED) {
-          throw new IllegalStateException("bit vector should be called $bits$ and have type REQUIRED BIT." +
-              " Found field: " + field.build());
+          throw new IllegalStateException(
+              "bit vector should be called $bits$ and have type REQUIRED BIT."
+                  + " Found field: "
+                  + field.build());
         }
         NettyArrowBuf newBuf = convertBitsToBytes(getAllocator(), bitsField, bitsBuffer);
         buffers[bufferStart + bitsIndex] = newBuf;
@@ -115,12 +128,14 @@ class DrillBackwardsCompatibilityHandler extends BaseBackwardsCompatibilityHandl
           /* DecimalVector: {validityBuffer, dataBuffer} */
           final int decimalBufferIndex = 1;
           SerializedField.Builder decimalField = children.get(decimalBufferIndex);
-          final NettyArrowBuf decimalBuffer = (NettyArrowBuf)buffers[bufferStart + decimalBufferIndex];
+          final NettyArrowBuf decimalBuffer =
+              (NettyArrowBuf) buffers[bufferStart + decimalBufferIndex];
           if (decimalField.getMajorType().getMinorType() != DECIMAL
               || decimalField.getMajorType().getMode() != REQUIRED) {
             throw new IllegalStateException("Found incorrect decimal field: " + field.build());
           }
-          final ByteBuf newBuffer = patchDecimal(getAllocator(), decimalBuffer, field, decimalField);
+          final ByteBuf newBuffer =
+              patchDecimal(getAllocator(), decimalBuffer, field, decimalField);
           buffers[bufferStart + decimalBufferIndex] = newBuffer;
         }
         if (minor == MAP) {
@@ -136,8 +151,8 @@ class DrillBackwardsCompatibilityHandler extends BaseBackwardsCompatibilityHandl
         buffers[bufferStart] = newBuf;
       }
     } else if (mode == OPTIONAL && minor == MAP) {
-        field.getMajorTypeBuilder().setMinorType(LIST);
-        changed = true;
+      field.getMajorTypeBuilder().setMinorType(LIST);
+      changed = true;
     }
     if (children.size() > 0) {
       if ((minor == VARCHAR || minor == VARBINARY) && mode == REQUIRED) {
@@ -153,8 +168,11 @@ class DrillBackwardsCompatibilityHandler extends BaseBackwardsCompatibilityHandl
           newBuffersLength = buffersLength - 1;
           if (childrenBufferLength + buffers[bufferStart + newBuffersLength].readableBytes()
               != field.getBufferLength()) {
-            throw new IllegalStateException("bufferLength mismatch for field " + field.build()
-                + " children: " + sizesString(buffers, bufferStart, buffersLength));
+            throw new IllegalStateException(
+                "bufferLength mismatch for field "
+                    + field.build()
+                    + " children: "
+                    + sizesString(buffers, bufferStart, buffersLength));
           }
         }
         patchFields(children, buffers, bufferStart, newBuffersLength, name, indent + "  ");
@@ -175,19 +193,26 @@ class DrillBackwardsCompatibilityHandler extends BaseBackwardsCompatibilityHandl
       changed = true;
     }
     if (logger.isDebugEnabled() && changed) {
-      logger.debug("{} AFTER PATCH: buffers {} for field {}.{}: {} {} expecting {}", indent,
-          sizesString(buffers, bufferStart, buffersLength), parentName, name, mode, minor, field.getBufferLength());
+      logger.debug(
+          "{} AFTER PATCH: buffers {} for field {}.{}: {} {} expecting {}",
+          indent,
+          sizesString(buffers, bufferStart, buffersLength),
+          parentName,
+          name,
+          mode,
+          minor,
+          field.getBufferLength());
     }
   }
 
-  static NettyArrowBuf convertBitsToBytes(BufferAllocator allocator,
-                                          SerializedField.Builder fieldBuilder,
-                                          NettyArrowBuf oldBuf) {
+  static NettyArrowBuf convertBitsToBytes(
+      BufferAllocator allocator, SerializedField.Builder fieldBuilder, NettyArrowBuf oldBuf) {
     int valueCount = fieldBuilder.getValueCount();
     NettyArrowBuf newBuf;
     try {
       /**
-       * Create a new buffer, loop all the bit value in oldBuf, and then convert to byte value in new buffer
+       * Create a new buffer, loop all the bit value in oldBuf, and then convert to byte value in
+       * new buffer
        */
       newBuf = NettyArrowBuf.unwrapBuffer(allocator.buffer(valueCount));
       for (int i = 0; i < valueCount; i++) {
@@ -207,15 +232,25 @@ class DrillBackwardsCompatibilityHandler extends BaseBackwardsCompatibilityHandl
     return newBuf;
   }
 
-  static NettyArrowBuf padValues(BufferAllocator allocator, SerializedField.Builder fieldBuilder, ByteBuf oldBuf,
-                            int originalTypeByteWidth, int targetTypeByteWidth) {
+  static NettyArrowBuf padValues(
+      BufferAllocator allocator,
+      SerializedField.Builder fieldBuilder,
+      ByteBuf oldBuf,
+      int originalTypeByteWidth,
+      int targetTypeByteWidth) {
     if (targetTypeByteWidth <= originalTypeByteWidth) {
-      throw new IllegalArgumentException("the target width must be larger than the original one. "
-        + targetTypeByteWidth + " is not larger than " + originalTypeByteWidth);
+      throw new IllegalArgumentException(
+          "the target width must be larger than the original one. "
+              + targetTypeByteWidth
+              + " is not larger than "
+              + originalTypeByteWidth);
     }
     if (oldBuf.readableBytes() % originalTypeByteWidth != 0) {
-      throw new IllegalArgumentException("the buffer size must be a multiple of the type width. "
-        + oldBuf.readableBytes() + " is not a multiple of " + originalTypeByteWidth);
+      throw new IllegalArgumentException(
+          "the buffer size must be a multiple of the type width. "
+              + oldBuf.readableBytes()
+              + " is not a multiple of "
+              + originalTypeByteWidth);
     }
     int valueCount = oldBuf.readableBytes() / originalTypeByteWidth;
     int newBufferLength = targetTypeByteWidth * valueCount;
@@ -234,36 +269,52 @@ class DrillBackwardsCompatibilityHandler extends BaseBackwardsCompatibilityHandl
   }
 
   /**
-   * Dremio has 16 byte little endian decimal format. When sending data to Drill clients
-   * we map our data to 24 byte DECIMAL38SPARSE format in Drill.
+   * Dremio has 16 byte little endian decimal format. When sending data to Drill clients we map our
+   * data to 24 byte DECIMAL38SPARSE format in Drill.
+   *
    * @param dataBuffer data buffer of decimal vector
    */
-  static ByteBuf patchDecimal(BufferAllocator allocator, final NettyArrowBuf dataBuffer,
-                              final SerializedField.Builder decimalField, final SerializedField.Builder childDecimalField) {
+  static ByteBuf patchDecimal(
+      BufferAllocator allocator,
+      final NettyArrowBuf dataBuffer,
+      final SerializedField.Builder decimalField,
+      final SerializedField.Builder childDecimalField) {
     final int decimalLength = DecimalVector.TYPE_WIDTH;
     final int startPoint = dataBuffer.readerIndex();
-    final int valueCount = dataBuffer.readableBytes()/decimalLength;
-    final ByteBuf drillBuffer = NettyArrowBuf.unwrapBuffer(allocator.buffer(dataBuffer.readableBytes() + 8*valueCount));
+    final int valueCount = dataBuffer.readableBytes() / decimalLength;
+    final ByteBuf drillBuffer =
+        NettyArrowBuf.unwrapBuffer(allocator.buffer(dataBuffer.readableBytes() + 8 * valueCount));
     int length = 0;
-    for (int i = startPoint; i < startPoint + dataBuffer.readableBytes() - 1; i+=decimalLength) {
-      final BigDecimal arrowDecimal = DecimalUtility.getBigDecimalFromArrowBuf(dataBuffer.arrowBuf(), i/16,
-        decimalField.getMajorType().getScale(), DecimalVector.TYPE_WIDTH);
+    for (int i = startPoint; i < startPoint + dataBuffer.readableBytes() - 1; i += decimalLength) {
+      final BigDecimal arrowDecimal =
+          DecimalUtility.getBigDecimalFromArrowBuf(
+              dataBuffer.arrowBuf(),
+              i / 16,
+              decimalField.getMajorType().getScale(),
+              DecimalVector.TYPE_WIDTH);
       final int startIndex = (i == startPoint) ? i : i + length;
-      DecimalHelper.getSparseFromBigDecimal(arrowDecimal, drillBuffer, startIndex, decimalField.getMajorType().getScale(), NUMBER_DECIMAL_DIGITS);
+      DecimalHelper.getSparseFromBigDecimal(
+          arrowDecimal,
+          drillBuffer,
+          startIndex,
+          decimalField.getMajorType().getScale(),
+          NUMBER_DECIMAL_DIGITS);
       length += 8;
     }
 
-    TypeProtos.MajorType.Builder majorTypeBuilder = TypeProtos.MajorType.newBuilder()
-      .setMinorType(MinorType.DECIMAL38SPARSE)
-      .setMode(DataMode.OPTIONAL)
-      .setPrecision(decimalField.getMajorType().getPrecision())
-      .setScale(decimalField.getMajorType().getScale());
+    TypeProtos.MajorType.Builder majorTypeBuilder =
+        TypeProtos.MajorType.newBuilder()
+            .setMinorType(MinorType.DECIMAL38SPARSE)
+            .setMode(DataMode.OPTIONAL)
+            .setPrecision(decimalField.getMajorType().getPrecision())
+            .setScale(decimalField.getMajorType().getScale());
 
     decimalField.setMajorType(majorTypeBuilder.build());
-    decimalField.setBufferLength(decimalField.getBufferLength() + 8*valueCount);
-    drillBuffer.writerIndex(dataBuffer.readableBytes() + 8*valueCount);
-    childDecimalField.setMajorType(com.dremio.common.types.Types.required(MinorType.DECIMAL38SPARSE));
-    childDecimalField.setBufferLength(childDecimalField.getBufferLength() + 8*valueCount);
+    decimalField.setBufferLength(decimalField.getBufferLength() + 8 * valueCount);
+    drillBuffer.writerIndex(dataBuffer.readableBytes() + 8 * valueCount);
+    childDecimalField.setMajorType(
+        com.dremio.common.types.Types.required(MinorType.DECIMAL38SPARSE));
+    childDecimalField.setBufferLength(childDecimalField.getBufferLength() + 8 * valueCount);
     dataBuffer.release();
 
     return drillBuffer;

@@ -17,30 +17,29 @@ package com.dremio.plugins.elastic;
 
 import static com.dremio.plugins.elastic.ElasticsearchType.TEXT;
 
-import java.util.List;
-
-import org.junit.Assert;
-import org.junit.Test;
-
 import com.dremio.common.types.TypeProtos.DataMode;
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
+import java.util.List;
+import org.junit.Assert;
+import org.junit.Test;
 
 public class ITTestLimit0 extends ElasticBaseTestQuery {
 
   @Test
   public void test() throws Exception {
 
-    ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
-            new ElasticsearchCluster.ColumnData("column", TEXT, new Object[][]{
-                    {"value"}
-            })
-    };
+    ElasticsearchCluster.ColumnData[] data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData("column", TEXT, new Object[][] {{"value"}})
+        };
 
     elastic.load(schema, table, data);
 
-    List<QueryDataBatch> results = testSqlWithResults(String.format("select * from elasticsearch.%s.%s limit 0", schema, table));
+    List<QueryDataBatch> results =
+        testSqlWithResults(
+            String.format("select * from elasticsearch.%s.%s limit 0", schema, table));
 
     MajorType t = results.get(0).getHeader().getDef().getField(0).getMajorType();
     Assert.assertEquals("Mismatched type", MinorType.VARCHAR, t.getMinorType());

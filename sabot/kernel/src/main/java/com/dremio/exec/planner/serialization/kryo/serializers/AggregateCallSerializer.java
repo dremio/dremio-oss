@@ -15,21 +15,17 @@
  */
 package com.dremio.exec.planner.serialization.kryo.serializers;
 
-import java.lang.reflect.Field;
-
-import org.apache.calcite.rel.RelCollations;
-import org.apache.calcite.rel.core.AggregateCall;
-
 import com.dremio.common.SuppressForbidden;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import com.esotericsoftware.kryo.serializers.FieldSerializer;
+import java.lang.reflect.Field;
+import org.apache.calcite.rel.RelCollations;
+import org.apache.calcite.rel.core.AggregateCall;
 
-/**
- * Serializer to serialize and deserialize AggregateCall objects.
- */
+/** Serializer to serialize and deserialize AggregateCall objects. */
 public class AggregateCallSerializer<T extends AggregateCall> extends Serializer<T> {
   private final FieldSerializer<T> delegate;
 
@@ -56,7 +52,8 @@ public class AggregateCallSerializer<T extends AggregateCall> extends Serializer
           Field f1 = aggCall.getClass().getDeclaredField("collation");
           f1.setAccessible(true);
           f1.set(aggCall, RelCollations.EMPTY);
-        } catch(IllegalAccessException | NoSuchFieldException ignored) {}
+        } catch (IllegalAccessException | NoSuchFieldException ignored) {
+        }
       }
     }
     kryo.reference(aggCall);

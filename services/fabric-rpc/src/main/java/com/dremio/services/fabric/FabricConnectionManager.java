@@ -15,10 +15,6 @@
  */
 package com.dremio.services.fabric;
 
-import java.util.Optional;
-
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.exec.rpc.BasicClient;
 import com.dremio.exec.rpc.ReconnectingConnection;
 import com.dremio.exec.rpc.RpcConfig;
@@ -26,13 +22,13 @@ import com.dremio.exec.rpc.RpcException;
 import com.dremio.services.fabric.proto.FabricProto.FabricHandshake;
 import com.dremio.services.fabric.proto.FabricProto.FabricIdentity;
 import com.dremio.ssl.SSLEngineFactory;
-
 import io.netty.channel.EventLoopGroup;
+import java.util.Optional;
+import org.apache.arrow.memory.BufferAllocator;
 
-/**
- * Maintains connection between two particular daemons/sockets.
- */
-final class FabricConnectionManager extends ReconnectingConnection<FabricConnection, FabricHandshake> {
+/** Maintains connection between two particular daemons/sockets. */
+final class FabricConnectionManager
+    extends ReconnectingConnection<FabricConnection, FabricHandshake> {
 
   private final FabricIdentity remoteIdentity;
   private final FabricIdentity localIdentity;
@@ -49,14 +45,13 @@ final class FabricConnectionManager extends ReconnectingConnection<FabricConnect
       final FabricIdentity localIdentity,
       final EventLoopGroup eventLoop,
       final FabricMessageHandler handler,
-      Optional<SSLEngineFactory> engineFactory
-  ) {
+      Optional<SSLEngineFactory> engineFactory) {
     super(
         rpcConfig.getName(),
         FabricHandshake.newBuilder()
-          .setRpcVersion(FabricRpcConfig.RPC_VERSION)
-          .setIdentity(localIdentity)
-          .build(),
+            .setRpcVersion(FabricRpcConfig.RPC_VERSION)
+            .setIdentity(localIdentity)
+            .build(),
         remoteIdentity.getAddress(),
         remoteIdentity.getPort());
 
@@ -70,9 +65,17 @@ final class FabricConnectionManager extends ReconnectingConnection<FabricConnect
   }
 
   @Override
-  protected BasicClient<?, FabricConnection, FabricHandshake, ?> getNewClient() throws RpcException {
-    return new FabricClient(rpcConfig, eventLoop, allocator, remoteIdentity, localIdentity, handler,
-        new CloseHandlerCreator(), engineFactory);
+  protected BasicClient<?, FabricConnection, FabricHandshake, ?> getNewClient()
+      throws RpcException {
+    return new FabricClient(
+        rpcConfig,
+        eventLoop,
+        allocator,
+        remoteIdentity,
+        localIdentity,
+        handler,
+        new CloseHandlerCreator(),
+        engineFactory);
   }
 
   @Override

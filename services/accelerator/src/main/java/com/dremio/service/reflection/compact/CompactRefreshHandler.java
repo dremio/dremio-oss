@@ -17,21 +17,6 @@ package com.dremio.service.reflection.compact;
 
 import static com.dremio.exec.planner.acceleration.IncrementalUpdateUtils.UPDATE_COLUMN;
 
-import java.util.List;
-import java.util.Optional;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.sql.SqlIdentifier;
-import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.sql.SqlNodeList;
-import org.apache.calcite.sql.SqlSelect;
-import org.apache.calcite.sql.parser.SqlParserPos;
-import org.apache.calcite.tools.RelConversionException;
-import org.apache.calcite.tools.ValidationException;
-import org.apache.calcite.util.Pair;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.ops.SnapshotDiffContext;
@@ -40,6 +25,7 @@ import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.planner.logical.ScreenRel;
 import com.dremio.exec.planner.logical.WriterRel;
+import com.dremio.exec.planner.normalizer.NormalizerException;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.sql.SqlExceptionHelper;
@@ -72,12 +58,27 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import java.util.List;
+import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlNodeList;
+import org.apache.calcite.sql.SqlSelect;
+import org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.calcite.tools.RelConversionException;
+import org.apache.calcite.tools.ValidationException;
+import org.apache.calcite.util.Pair;
 
 /**
- * Sql syntax handler for the $COMPACT REFRESH command, an internal command used to compact reflection refreshes.
+ * Sql syntax handler for the $COMPACT REFRESH command, an internal command used to compact
+ * reflection refreshes.
  */
 public class CompactRefreshHandler implements SqlToPlanHandler {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CompactRefreshHandler.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(CompactRefreshHandler.class);
 
   private final WriterOptionManager writerOptionManager;
 
@@ -97,9 +98,10 @@ public class CompactRefreshHandler implements SqlToPlanHandler {
       return components;
     }
 
-    // there is one component, let's see if we can split it (using only slash paths instead of dotted paths).
+    // there is one component, let's see if we can split it (using only slash paths instead of
+    // dotted paths).
     final String[] pieces = components.get(0).split("/");
-    if(pieces.length != 2) {
+    if (pieces.length != 2) {
       return null;
     }
 
@@ -107,54 +109,74 @@ public class CompactRefreshHandler implements SqlToPlanHandler {
   }
 
   @Override
-  public PhysicalPlan getPlan(SqlHandlerConfig config, String sql, SqlNode sqlNode) throws Exception {
+  public PhysicalPlan getPlan(SqlHandlerConfig config, String sql, SqlNode sqlNode)
+      throws Exception {
     try {
-      final SqlCompactMaterialization compact = SqlNodeUtil.unwrap(sqlNode, SqlCompactMaterialization.class);
+      final SqlCompactMaterialization compact =
+          SqlNodeUtil.unwrap(sqlNode, SqlCompactMaterialization.class);
 
-      if(!SystemUser.SYSTEM_USERNAME.equals(config.getContext().getQueryUserName())) {
-        throw SqlExceptionHelper.parseError("$COMPACT REFRESH not supported.", sql, compact.getParserPosition())
-          .build(logger);
+      if (!SystemUser.SYSTEM_USERNAME.equals(config.getContext().getQueryUserName())) {
+        throw SqlExceptionHelper.parseError(
+                "$COMPACT REFRESH not supported.", sql, compact.getParserPosition())
+            .build(logger);
       }
 
-      ReflectionService service = config.getContext().getAccelerationManager().unwrap(ReflectionService.class);
+      ReflectionService service =
+          config.getContext().getAccelerationManager().unwrap(ReflectionService.class);
 
       // Let's validate the plan.
-      final List<String> materializationPath = normalizeComponents(compact.getMaterializationPath());
+      final List<String> materializationPath =
+          normalizeComponents(compact.getMaterializationPath());
       if (materializationPath == null) {
-        throw SqlExceptionHelper.parseError("Unknown materialization", sql, compact.getParserPosition())
-          .build(logger);
+        throw SqlExceptionHelper.parseError(
+                "Unknown materialization", sql, compact.getParserPosition())
+            .build(logger);
       }
 
       final ReflectionId reflectionId = new ReflectionId(materializationPath.get(0));
       Optional<ReflectionGoal> goalOpt = service.getGoal(reflectionId);
-      if(!goalOpt.isPresent()) {
-        throw SqlExceptionHelper.parseError("Unknown reflection id.", sql, compact.getParserPosition()).build(logger);
+      if (!goalOpt.isPresent()) {
+        throw SqlExceptionHelper.parseError(
+                "Unknown reflection id.", sql, compact.getParserPosition())
+            .build(logger);
       }
       final ReflectionGoal goal = goalOpt.get();
 
       Optional<ReflectionEntry> entryOpt = service.getEntry(reflectionId);
-      if(!entryOpt.isPresent()) {
-        throw SqlExceptionHelper.parseError("Unknown reflection id.", sql, compact.getParserPosition()).build(logger);
+      if (!entryOpt.isPresent()) {
+        throw SqlExceptionHelper.parseError(
+                "Unknown reflection id.", sql, compact.getParserPosition())
+            .build(logger);
       }
       final ReflectionEntry entry = entryOpt.get();
-      if(!ReflectionGoalChecker.checkGoal(goal, entry)) {
-        throw UserException.validationError().message("Reflection has been updated since reflection was scheduled.").build(logger);
+      if (!ReflectionGoalChecker.checkGoal(goal, entry)) {
+        throw UserException.validationError()
+            .message("Reflection has been updated since reflection was scheduled.")
+            .build(logger);
       }
 
-      Optional<Materialization> materializationOpt = service.getMaterialization(new MaterializationId(materializationPath.get(1)));
+      Optional<Materialization> materializationOpt =
+          service.getMaterialization(new MaterializationId(materializationPath.get(1)));
       if (!materializationOpt.isPresent()) {
-        throw SqlExceptionHelper.parseError("Unknown materialization id", sql, compact.getParserPosition()).build(logger);
+        throw SqlExceptionHelper.parseError(
+                "Unknown materialization id", sql, compact.getParserPosition())
+            .build(logger);
       }
       final Materialization materialization = materializationOpt.get();
 
       List<Refresh> refreshes = Lists.newArrayList(service.getRefreshes(materialization));
       if (refreshes.size() != 1) {
-        throw SqlExceptionHelper.parseError("Invalid materialization", sql, compact.getParserPosition()).build(logger);
+        throw SqlExceptionHelper.parseError(
+                "Invalid materialization", sql, compact.getParserPosition())
+            .build(logger);
       }
 
-      Optional<Materialization> newMaterializationOpt = service.getMaterialization(new MaterializationId(compact.getNewMaterializationId()));
+      Optional<Materialization> newMaterializationOpt =
+          service.getMaterialization(new MaterializationId(compact.getNewMaterializationId()));
       if (!newMaterializationOpt.isPresent()) {
-        throw SqlExceptionHelper.parseError("Unknown new materialization id", sql, compact.getParserPosition()).build(logger);
+        throw SqlExceptionHelper.parseError(
+                "Unknown new materialization id", sql, compact.getParserPosition())
+            .build(logger);
       }
       final Materialization newMaterialization = newMaterializationOpt.get();
 
@@ -166,22 +188,28 @@ public class CompactRefreshHandler implements SqlToPlanHandler {
       drel = DrelTransformer.convertToDrelMaintainingNames(config, initial);
       final List<String> fields = drel.getRowType().getFieldNames();
       final long ringCount = config.getContext().getOptions().getOption(PlannerSettings.RING_COUNT);
-      final Rel writerDrel = new WriterRel(
-        drel.getCluster(),
-        drel.getCluster().traitSet().plus(Rel.LOGICAL),
-        drel,
-        config.getContext().getCatalog().createNewTable(
-          new NamespaceKey(ReflectionUtils.getMaterializationPath(newMaterialization)),
-          null,
-          writerOptionManager.buildWriterOptionForReflectionGoal((int) ringCount, goal, fields, SnapshotDiffContext.NO_SNAPSHOT_DIFF),
-          ImmutableMap.of()
-        ),
-        initial.getRowType()
-      );
+      final Rel writerDrel =
+          new WriterRel(
+              drel.getCluster(),
+              drel.getCluster().traitSet().plus(Rel.LOGICAL),
+              drel,
+              config
+                  .getContext()
+                  .getCatalog()
+                  .createNewTable(
+                      new NamespaceKey(ReflectionUtils.getMaterializationPath(newMaterialization)),
+                      null,
+                      writerOptionManager.buildWriterOptionForReflectionGoal(
+                          (int) ringCount, goal, fields, SnapshotDiffContext.NO_SNAPSHOT_DIFF),
+                      ImmutableMap.of()),
+              initial.getRowType());
 
-      final RelNode doubleWriter = SqlHandlerUtil.storeQueryResultsIfNeeded(config.getConverter().getParserConfig(), config.getContext(), writerDrel);
+      final RelNode doubleWriter =
+          SqlHandlerUtil.storeQueryResultsIfNeeded(
+              config.getConverter().getParserConfig(), config.getContext(), writerDrel);
 
-      final ScreenRel screen = new ScreenRel(writerDrel.getCluster(), writerDrel.getTraitSet(), doubleWriter);
+      final ScreenRel screen =
+          new ScreenRel(writerDrel.getCluster(), writerDrel.getTraitSet(), doubleWriter);
 
       final Pair<Prel, String> convertToPrel = PrelTransformer.convertToPrel(config, screen);
       final Prel prel = convertToPrel.getKey();
@@ -209,29 +237,41 @@ public class CompactRefreshHandler implements SqlToPlanHandler {
     return drel;
   }
 
-  private RelNode getPlan(SqlHandlerConfig sqlHandlerConfig, List<String> refreshTablePath, PlanNormalizer planNormalizer) {
-    SqlSelect select = new SqlSelect(
-      SqlParserPos.ZERO,
-      new SqlNodeList(SqlParserPos.ZERO),
-      new SqlNodeList(ImmutableList.<SqlNode>of(SqlIdentifier.star(SqlParserPos.ZERO)), SqlParserPos.ZERO),
-      new SqlIdentifier(refreshTablePath, SqlParserPos.ZERO),
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null
-    );
+  private RelNode getPlan(
+      SqlHandlerConfig sqlHandlerConfig,
+      List<String> refreshTablePath,
+      PlanNormalizer planNormalizer) {
+    SqlSelect select =
+        new SqlSelect(
+            SqlParserPos.ZERO,
+            new SqlNodeList(SqlParserPos.ZERO),
+            new SqlNodeList(
+                ImmutableList.<SqlNode>of(SqlIdentifier.star(SqlParserPos.ZERO)),
+                SqlParserPos.ZERO),
+            new SqlIdentifier(refreshTablePath, SqlParserPos.ZERO),
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null);
 
     try {
-      ConvertedRelNode converted = SqlToRelTransformer.validateAndConvert(sqlHandlerConfig, select, planNormalizer);
+
+      ConvertedRelNode converted =
+          SqlToRelTransformer.validateAndConvertForReflectionRefreshAndCompact(
+              sqlHandlerConfig, select, planNormalizer);
 
       return converted.getConvertedNode();
-    } catch (ForemanSetupException | RelConversionException | ValidationException e) {
-      throw Throwables.propagate(SqlExceptionHelper.coerceException(logger, select.toString(), e, false));
+    } catch (ForemanSetupException
+        | RelConversionException
+        | ValidationException
+        | NormalizerException e) {
+      throw Throwables.propagate(
+          SqlExceptionHelper.coerceException(logger, select.toString(), e, false));
     }
   }
 
@@ -244,13 +284,16 @@ public class CompactRefreshHandler implements SqlToPlanHandler {
 
     @Override
     public RelNode transform(RelNode relNode) {
-      final String partitionDesignator = optionManager.getOption(ExecConstants.FILESYSTEM_PARTITION_COLUMN_LABEL_VALIDATOR);
-      final Matcher directoryMatcher = Pattern.compile(String.format("%s([0-9]+)", Pattern.quote(partitionDesignator))).matcher("");
-      return ReflectionUtils.removeColumns(relNode, (field) ->
-        UPDATE_COLUMN.equals(field.getName()) || directoryMatcher.reset(field.getName().toLowerCase()).matches()
-      );
+      final String partitionDesignator =
+          optionManager.getOption(ExecConstants.FILESYSTEM_PARTITION_COLUMN_LABEL_VALIDATOR);
+      final Matcher directoryMatcher =
+          Pattern.compile(String.format("%s([0-9]+)", Pattern.quote(partitionDesignator)))
+              .matcher("");
+      return ReflectionUtils.removeColumns(
+          relNode,
+          (field) ->
+              UPDATE_COLUMN.equals(field.getName())
+                  || directoryMatcher.reset(field.getName().toLowerCase()).matches());
     }
-
   }
-
 }

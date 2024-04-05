@@ -49,8 +49,7 @@ public final class DataplaneViewInfo {
     private String sqlDefinition;
     private String sqlContext;
 
-    public newBuilder() {
-    }
+    public newBuilder() {}
 
     public newBuilder viewId(String viewId) {
       this.viewId = viewId;
@@ -61,21 +60,23 @@ public final class DataplaneViewInfo {
       this.spaceId = spaceId;
       return this;
     }
+
     public newBuilder viewName(String viewName) {
       this.viewName = viewName;
       return this;
     }
-    public newBuilder schemaId (String schemaId) {
+
+    public newBuilder schemaId(String schemaId) {
       this.schemaId = schemaId;
       return this;
     }
 
-    public newBuilder path (String path) {
+    public newBuilder path(String path) {
       this.path = path;
       return this;
     }
 
-    public newBuilder tag (String tag) {
+    public newBuilder tag(String tag) {
       this.uniqueInstanceId = tag;
       return this;
     }
@@ -94,11 +95,13 @@ public final class DataplaneViewInfo {
       this.sqlContext = sqlContext;
       return this;
     }
+
     public DataplaneViewInfo build() {
-      DataplaneViewInfo dataplaneViewInfo =  new DataplaneViewInfo(this);
+      DataplaneViewInfo dataplaneViewInfo = new DataplaneViewInfo(this);
       validateDataplaneViewInfo(dataplaneViewInfo);
       return dataplaneViewInfo;
     }
+
     private void validateDataplaneViewInfo(DataplaneViewInfo dataplaneViewInfo) {
       if (dataplaneViewInfo.viewId == null) {
         throw new IllegalStateException();
@@ -130,13 +133,23 @@ public final class DataplaneViewInfo {
     return this.schemaId;
   }
 
-  public String getPath() {return this.path;}
+  public String getPath() {
+    return this.path;
+  }
 
-  public String getUniqueInstanceId() {return this.uniqueInstanceId;}
+  public String getUniqueInstanceId() {
+    return this.uniqueInstanceId;
+  }
 
-  public long getCreatedAt() {return this.createdAt;}
+  public long getCreatedAt() {
+    return this.createdAt;
+  }
 
-  public String getSqlDefinition() {return this.sqlDefinition;}
+  public String getSqlDefinition() {
+    return this.sqlDefinition;
+  }
 
-  public String getSqlContext() {return this.sqlContext;}
+  public String getSqlContext() {
+    return this.sqlContext;
+  }
 }

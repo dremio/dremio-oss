@@ -15,35 +15,30 @@
  */
 package com.dremio.service.jobcounts;
 
+import com.dremio.service.grpc.GrpcChannelBuilderFactory;
+import com.dremio.service.grpc.GrpcServerBuilderFactory;
+import io.grpc.ManagedChannelBuilder;
+import io.grpc.ServerBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.service.grpc.GrpcChannelBuilderFactory;
-import com.dremio.service.grpc.GrpcServerBuilderFactory;
-
-import io.grpc.ManagedChannelBuilder;
-import io.grpc.ServerBuilder;
-
-/**
- * Utilities related to RPC.
- */
+/** Utilities related to RPC. */
 public final class JobCountsRpcUtils {
   private static final Logger logger = LoggerFactory.getLogger(JobCountsRpcUtils.class);
 
   private static final String IN_PROCESS_SERVICE_NAME = "local_job_counts_service";
   private static final String JOB_COUNTS_HOSTNAME =
-    System.getProperty("services.jobcounts.hostname");
-  private static final int JOB_COUNTS_PORT =
-    Integer.getInteger("services.jobcounts.port", 9000);
+      System.getProperty("services.jobcounts.hostname");
+  private static final int JOB_COUNTS_PORT = Integer.getInteger("services.jobcounts.port", 9000);
 
   /**
-   * Create a new in-process server builder. Append the fabricPort to handle the case
-   * where multiple SabotNode are started within the same jvm (for eg. mongo tests).
+   * Create a new in-process server builder. Append the fabricPort to handle the case where multiple
+   * SabotNode are started within the same jvm (for eg. mongo tests).
    *
    * @return server builder
    */
-  public static ServerBuilder<?> newInProcessServerBuilder(GrpcServerBuilderFactory grpcFactory,
-                                                           int fabricPort) {
+  public static ServerBuilder<?> newInProcessServerBuilder(
+      GrpcServerBuilderFactory grpcFactory, int fabricPort) {
     return grpcFactory.newInProcessServerBuilder(IN_PROCESS_SERVICE_NAME + ":" + fabricPort);
   }
 
@@ -60,11 +55,11 @@ public final class JobCountsRpcUtils {
    *
    * @return channel builder
    */
-  public static ManagedChannelBuilder<?> newLocalChannelBuilder(GrpcChannelBuilderFactory grpcFactory, int fabricPort) {
+  public static ManagedChannelBuilder<?> newLocalChannelBuilder(
+      GrpcChannelBuilderFactory grpcFactory, int fabricPort) {
     return grpcFactory.newInProcessChannelBuilder(IN_PROCESS_SERVICE_NAME + ":" + fabricPort);
   }
 
   // prevent instantiation
-  private JobCountsRpcUtils() {
-  }
+  private JobCountsRpcUtils() {}
 }

@@ -15,18 +15,16 @@
  */
 package com.dremio.exec.catalog.udf;
 
-import java.util.List;
-import java.util.Objects;
-
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeFactory;
-import org.apache.calcite.schema.FunctionParameter;
-
 import com.dremio.common.expression.CompleteType;
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.store.sys.udf.UserDefinedFunction;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import java.util.List;
+import java.util.Objects;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.calcite.schema.FunctionParameter;
 
 public class FunctionParameterImpl implements FunctionParameter {
 
@@ -40,23 +38,28 @@ public class FunctionParameterImpl implements FunctionParameter {
     this.type = Preconditions.checkNotNull(type);
   }
 
-  @Override public int getOrdinal() {
+  @Override
+  public int getOrdinal() {
     return ordinal;
   }
 
-  @Override public String getName() {
+  @Override
+  public String getName() {
     return name;
   }
 
-  @Override public RelDataType getType(RelDataTypeFactory relDataTypeFactory) {
+  @Override
+  public RelDataType getType(RelDataTypeFactory relDataTypeFactory) {
     return CalciteArrowHelper.wrap(type).toCalciteType(relDataTypeFactory, true);
   }
 
-  @Override public boolean isOptional() {
+  @Override
+  public boolean isOptional() {
     return false;
   }
 
-  @Override public boolean equals(Object o) {
+  @Override
+  public boolean equals(Object o) {
     if (this == o) {
       return true;
     } else if (o == null || getClass() != o.getClass()) {
@@ -66,11 +69,13 @@ public class FunctionParameterImpl implements FunctionParameter {
     return ordinal == that.ordinal && name.equals(that.name) && type.equals(that.type);
   }
 
-  @Override public int hashCode() {
+  @Override
+  public int hashCode() {
     return Objects.hash(ordinal, name, type);
   }
 
-  public static List<FunctionParameter> createParameters(List<UserDefinedFunction.FunctionArg> args) {
+  public static List<FunctionParameter> createParameters(
+      List<UserDefinedFunction.FunctionArg> args) {
     ImmutableList.Builder<FunctionParameter> functionParameters = ImmutableList.builder();
     for (int i = 0; i < args.size(); i++) {
       UserDefinedFunction.FunctionArg arg = args.get(i);

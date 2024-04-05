@@ -15,64 +15,37 @@
  */
 package com.dremio.exec.planner.normalizer;
 
+import com.dremio.exec.planner.events.PlannerEventBus;
+import com.dremio.exec.planner.observer.AttemptObserver;
+import com.dremio.exec.planner.sql.handlers.RelTransformer;
+import com.dremio.exec.work.foreman.SqlUnsupportedException;
 import org.apache.calcite.rel.RelNode;
 
-import com.dremio.exec.planner.HepPlannerRunner;
-import com.dremio.exec.planner.logical.PreProcessRel;
-import com.dremio.exec.planner.logical.RedundantSortEliminator;
-import com.dremio.exec.planner.logical.UncollectToFlattenConverter;
-import com.dremio.exec.planner.logical.ValuesRewriteShuttle;
-import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.work.foreman.SqlUnsupportedException;
+public interface RelNormalizerTransformer {
 
-public class RelNormalizerTransformer {
-  private final HepPlannerRunner hepPlannerRunner;
-  private final NormalizerRuleSets normalizerRuleSets;
-  private final PlannerSettings plannerSettings;
+  PreSerializedQuery transform(RelNode relNode, AttemptObserver attemptObserver)
+      throws SqlUnsupportedException;
 
-  public RelNormalizerTransformer(
-    HepPlannerRunner hepPlannerRunner,
-    NormalizerRuleSets normalizerRuleSets,
-    PlannerSettings plannerSettings) {
-    this.hepPlannerRunner = hepPlannerRunner;
-    this.normalizerRuleSets = normalizerRuleSets;
-    this.plannerSettings = plannerSettings;
-  }
+  /**
+   * Normalizes the query with custom logic for reflections.
+   *
+   * <p>AttemptObserver should be reworked to not require so many dependencies.
+   *
+   * @param relNode
+   * @param relTransformer post-processing for reflections
+   * @param attemptObserver
+   * @param plannerEventBus
+   * @return
+   * @throws SqlUnsupportedException
+   */
+  PreSerializedQuery transformForCompactAndMaterializations(
+      RelNode relNode,
+      RelTransformer relTransformer,
+      AttemptObserver attemptObserver,
+      PlannerEventBus plannerEventBus)
+      throws SqlUnsupportedException, NormalizerException;
 
-  public RelNode transformPreSerialization(RelNode relNode) {
-    // This has to be the very first step, since it will expand RexSubqueries to Correlates and all the other
-    // transformations can't operate on the RelNode inside of RexSubquery.
-    RelNode expanded = hepPlannerRunner.transform(relNode, normalizerRuleSets.createEntityExpansion());
-    // We don't have an execution for uncollect, so flatten needs to be part of the normalized query.
-    RelNode uncollectsReplaced = UncollectToFlattenConverter.convert(expanded);
-    RelNode aggregateRewritten = hepPlannerRunner.transform(uncollectsReplaced, normalizerRuleSets.createAggregateRewrite());
-    RelNode reduced = reduce(aggregateRewritten);
-    return reduced;
-  }
+  PreSerializedQuery transformPreSerialization(RelNode relNode);
 
-  public RelNode transformPostSerialization(RelNode relNode) throws SqlUnsupportedException {
-    RelNode expandedOperators = hepPlannerRunner.transform(relNode, normalizerRuleSets.createOperatorExpansion());
-    RelNode values = expandedOperators.accept(new ValuesRewriteShuttle());
-    RelNode preprocessedRel = preprocess(values);
-
-    return preprocessedRel;
-  }
-
-  private RelNode reduce(RelNode relNode) {
-    RelNode reduced = hepPlannerRunner.transform(relNode, normalizerRuleSets.createReduceExpression());
-    return plannerSettings.isSortInJoinRemoverEnabled()
-      ?  RedundantSortEliminator.apply(reduced)
-      : reduced;
-  }
-
-  private RelNode preprocess(RelNode relNode) throws SqlUnsupportedException {
-    PreProcessRel visitor = PreProcessRel.createVisitor(
-      relNode.getCluster().getRexBuilder());
-    try {
-      return relNode.accept(visitor);
-    } catch (UnsupportedOperationException ex) {
-      visitor.convertException();
-      throw ex;
-    }
-  }
+  RelNode transformPostSerialization(RelNode relNode) throws SqlUnsupportedException;
 }

@@ -20,8 +20,8 @@ import com.dremio.service.reflection.ReflectionManager.WakeUpCallback;
 import com.google.common.base.Preconditions;
 
 /**
- * {@link JobStatusListener} implementation that wakes up the
- * {@link ReflectionManager} when the job is done.
+ * {@link JobStatusListener} implementation that wakes up the {@link ReflectionManager} when the job
+ * is done.
  */
 public class WakeUpManagerWhenJobDone implements JobStatusListener {
   private final WakeUpCallback wakeUpCallback;

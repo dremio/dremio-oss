@@ -15,15 +15,6 @@
  */
 package com.dremio.sabot.op.sort.external;
 
-import java.util.concurrent.TimeUnit;
-
-import javax.inject.Named;
-
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.SimpleIntVector;
-import org.apache.hadoop.util.IndexedSortable;
-import org.apache.hadoop.util.QuickSort;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.exec.record.ExpandableHyperContainer;
@@ -33,9 +24,16 @@ import com.dremio.exec.record.selection.SelectionVector2;
 import com.dremio.exec.record.selection.SelectionVector4;
 import com.dremio.sabot.exec.context.FunctionContext;
 import com.google.common.base.Stopwatch;
+import java.util.concurrent.TimeUnit;
+import javax.inject.Named;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.SimpleIntVector;
+import org.apache.hadoop.util.IndexedSortable;
+import org.apache.hadoop.util.QuickSort;
 
 public abstract class QuickSorterTemplate implements QuickSorterInterface, IndexedSortable {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(QuickSorterTemplate.class);
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(QuickSorterTemplate.class);
 
   private FunctionContext context;
   private ExpandableHyperContainer hyperBatch;
@@ -43,7 +41,8 @@ public abstract class QuickSorterTemplate implements QuickSorterInterface, Index
   private int totalCount;
 
   @Override
-  public void init(FunctionContext context, ExpandableHyperContainer hyperContainer) throws SchemaChangeException {
+  public void init(FunctionContext context, ExpandableHyperContainer hyperContainer)
+      throws SchemaChangeException {
     this.context = context;
     this.hyperBatch = hyperContainer;
     doSetup(context, hyperContainer, null);
@@ -60,25 +59,29 @@ public abstract class QuickSorterTemplate implements QuickSorterInterface, Index
     final Stopwatch watch = Stopwatch.createStarted();
 
     final int batchIndex = hyperBatch.size();
-    hyperBatch.addBatch(batch.getContainer());
+    hyperBatch.addBatch(batch.getVectorAccessible());
     doSetup(context, hyperBatch, null);
 
     final SelectionVector2 incomingSv2 = batch.getSv2();
     final int recordCount = batch.getRecordCount();
     for (int count = 0; count < recordCount; count++) {
-      int index = (batchIndex << 16) |
-        ((incomingSv2 != null ? incomingSv2.getIndex(count) : count) & 65535);
+      int index =
+          (batchIndex << 16)
+              | ((incomingSv2 != null ? incomingSv2.getIndex(count) : count) & 65535);
       intVector.set(totalCount, index);
       totalCount++;
     }
     assert totalCount <= intVector.getValueCapacity();
 
-    logger.debug("Took {} us to add {} records for batch number {}",
-      watch.elapsed(TimeUnit.MICROSECONDS), batch.getRecordCount(), batchIndex);
+    logger.debug(
+        "Took {} us to add {} records for batch number {}",
+        watch.elapsed(TimeUnit.MICROSECONDS),
+        batch.getRecordCount(),
+        batchIndex);
   }
 
   @Override
-  public SelectionVector4 getFinalSort(BufferAllocator allocator, int targetBatchSize){
+  public SelectionVector4 getFinalSort(BufferAllocator allocator, int targetBatchSize) {
     Stopwatch watch = Stopwatch.createStarted();
 
     intVector.setValueCount(totalCount);
@@ -87,13 +90,17 @@ public abstract class QuickSorterTemplate implements QuickSorterInterface, Index
       qs.sort(this, 0, totalCount);
     }
 
-    SelectionVector4 finalSortedSV4 = new SelectionVector4(allocator.buffer(totalCount * 4), totalCount, targetBatchSize);
+    SelectionVector4 finalSortedSV4 =
+        new SelectionVector4(allocator.buffer(totalCount * 4), totalCount, targetBatchSize);
     for (int i = 0; i < totalCount; i++) {
       finalSortedSV4.set(i, intVector.get(i));
     }
 
-    logger.debug("Took {} us to final sort {} records in {} batches",
-      watch.elapsed(TimeUnit.MICROSECONDS), totalCount, hyperBatch.size());
+    logger.debug(
+        "Took {} us to final sort {} records in {} batches",
+        watch.elapsed(TimeUnit.MICROSECONDS),
+        totalCount,
+        hyperBatch.size());
 
     return finalSortedSV4;
   }
@@ -104,7 +111,7 @@ public abstract class QuickSorterTemplate implements QuickSorterInterface, Index
   }
 
   @Override
-  public void close() throws Exception{
+  public void close() throws Exception {
     AutoCloseables.close(hyperBatch);
   }
 
@@ -122,9 +129,11 @@ public abstract class QuickSorterTemplate implements QuickSorterInterface, Index
     return doEval(leftVal, rightVal);
   }
 
-  public abstract void doSetup(@Named("context") FunctionContext context, @Named("incoming") VectorAccessible incoming,
+  public abstract void doSetup(
+      @Named("context") FunctionContext context,
+      @Named("incoming") VectorAccessible incoming,
       @Named("outgoing") VectorAccessible outgoing);
 
-  public abstract int doEval(@Named("leftIndex") int leftIndex, @Named("rightIndex") int rightIndex);
-
+  public abstract int doEval(
+      @Named("leftIndex") int leftIndex, @Named("rightIndex") int rightIndex);
 }

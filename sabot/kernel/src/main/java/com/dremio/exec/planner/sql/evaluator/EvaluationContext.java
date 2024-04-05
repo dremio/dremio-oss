@@ -15,9 +15,8 @@
  */
 package com.dremio.exec.planner.sql.evaluator;
 
-import org.apache.calcite.rex.RexBuilder;
-
 import com.dremio.sabot.exec.context.ContextInformation;
+import org.apache.calcite.rex.RexBuilder;
 
 public final class EvaluationContext {
   private final RexBuilder rexBuilder;

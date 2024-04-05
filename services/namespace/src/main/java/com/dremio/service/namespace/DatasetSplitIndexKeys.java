@@ -18,24 +18,22 @@ package com.dremio.service.namespace;
 import com.dremio.datastore.SearchTypes;
 import com.dremio.datastore.indexed.IndexKey;
 
-/**
- * Search index keys for dataset split index
- */
+/** Search index keys for dataset split index */
 public interface DatasetSplitIndexKeys {
-  IndexKey SPLIT_ID = IndexKey.newBuilder("id", "SPLIT_ID", String.class)
-    .setIncludeInSearchAllFields(true)
-    .build();
-  IndexKey SPLIT_VERSION = IndexKey.newBuilder("sver", "SPLIT_VERSION", Long.class)
-    .build();
-  IndexKey DATASET_ID = IndexKey.newBuilder("dsid", "DATASET_ID", String.class)
-    .build();
-  IndexKey SPLIT_IDENTIFIER = IndexKey.newBuilder("spltid", "SPLIT_IDENTIFIER", String.class)
-    .setSortedValueType(SearchTypes.SearchFieldSorting.FieldType.STRING)
-    .build();
-  IndexKey SPLIT_SIZE = IndexKey.newBuilder("size", "SPLIT_SIZE", Long.class)
-    .setSortedValueType(SearchTypes.SearchFieldSorting.FieldType.LONG)
-    .build();
-  IndexKey SPLIT_ROWS = IndexKey.newBuilder("rows", "SPLIT_ROWS", Long.class)
-    .setSortedValueType(SearchTypes.SearchFieldSorting.FieldType.LONG)
-    .build();
+  IndexKey SPLIT_ID =
+      IndexKey.newBuilder("id", "SPLIT_ID", String.class).setIncludeInSearchAllFields(true).build();
+  IndexKey SPLIT_VERSION = IndexKey.newBuilder("sver", "SPLIT_VERSION", Long.class).build();
+  IndexKey DATASET_ID = IndexKey.newBuilder("dsid", "DATASET_ID", String.class).build();
+  IndexKey SPLIT_IDENTIFIER =
+      IndexKey.newBuilder("spltid", "SPLIT_IDENTIFIER", String.class)
+          .setSortedValueType(SearchTypes.SearchFieldSorting.FieldType.STRING)
+          .build();
+  IndexKey SPLIT_SIZE =
+      IndexKey.newBuilder("size", "SPLIT_SIZE", Long.class)
+          .setSortedValueType(SearchTypes.SearchFieldSorting.FieldType.LONG)
+          .build();
+  IndexKey SPLIT_ROWS =
+      IndexKey.newBuilder("rows", "SPLIT_ROWS", Long.class)
+          .setSortedValueType(SearchTypes.SearchFieldSorting.FieldType.LONG)
+          .build();
 }

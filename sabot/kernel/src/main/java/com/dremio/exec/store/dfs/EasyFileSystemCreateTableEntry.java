@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.store.dfs;
 
-import java.io.IOException;
-
 import com.dremio.common.logical.FormatPluginConfig;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.OpProps;
@@ -26,7 +24,7 @@ import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.StoragePluginResolver;
-import com.dremio.exec.store.dfs.copyinto.CopyIntoErrorPluginAwareCreateTableEntry;
+import com.dremio.exec.store.dfs.copyinto.SystemIcebergTablePluginAwareCreateTableEntry;
 import com.dremio.exec.store.dfs.system.SystemIcebergTablesStoragePlugin;
 import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.service.namespace.NamespaceKey;
@@ -35,13 +33,16 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import java.io.IOException;
 
 /**
  * Implements <code>CreateTableEntry</code> interface to create new tables in FileSystem storage.
  */
 @JsonTypeName("filesystem")
-public class EasyFileSystemCreateTableEntry implements CreateTableEntry, CopyIntoErrorPluginAwareCreateTableEntry {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(EasyFileSystemCreateTableEntry.class);
+public class EasyFileSystemCreateTableEntry
+    implements CreateTableEntry, SystemIcebergTablePluginAwareCreateTableEntry {
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(EasyFileSystemCreateTableEntry.class);
 
   private final String userName;
   private final FileSystemPlugin<?> plugin;
@@ -65,8 +66,7 @@ public class EasyFileSystemCreateTableEntry implements CreateTableEntry, CopyInt
       @JsonProperty("options") WriterOptions options,
       @JsonProperty("datasetPath") NamespaceKey datasetPath,
       @JsonProperty("sourceTablePluginId") StoragePluginId sourceTablePluginId,
-      @JacksonInject StoragePluginResolver storagePluginResolver
-  ) {
+      @JacksonInject StoragePluginResolver storagePluginResolver) {
     this.userName = userName;
     this.plugin = storagePluginResolver.getSource(pluginId);
     this.formatPlugin = plugin.getFormatPlugin(formatConfig);
@@ -93,8 +93,7 @@ public class EasyFileSystemCreateTableEntry implements CreateTableEntry, CopyInt
       String location,
       IcebergTableProps icebergTableProps,
       WriterOptions options,
-      NamespaceKey datasetPath
-  ) {
+      NamespaceKey datasetPath) {
     this(userName, plugin, formatPlugin, location, icebergTableProps, options, datasetPath, null);
   }
 
@@ -106,8 +105,7 @@ public class EasyFileSystemCreateTableEntry implements CreateTableEntry, CopyInt
       IcebergTableProps icebergTableProps,
       WriterOptions options,
       NamespaceKey datasetPath,
-      StoragePluginId sourceTablePluginId
-  ) {
+      StoragePluginId sourceTablePluginId) {
     this.userName = userName;
     this.plugin = plugin;
     this.formatPlugin = formatPlugin;
@@ -145,13 +143,15 @@ public class EasyFileSystemCreateTableEntry implements CreateTableEntry, CopyInt
   }
 
   @Override
-  public EasyFileSystemCreateTableEntry cloneWithNewLocation(String newLocation){
-    return new EasyFileSystemCreateTableEntry(userName, plugin, formatPlugin, newLocation, icebergTableProps, options, datasetPath);
+  public EasyFileSystemCreateTableEntry cloneWithNewLocation(String newLocation) {
+    return new EasyFileSystemCreateTableEntry(
+        userName, plugin, formatPlugin, newLocation, icebergTableProps, options, datasetPath);
   }
 
   @Override
-  public EasyFileSystemCreateTableEntry cloneWithFields(WriterOptions writerOptions){
-    return new EasyFileSystemCreateTableEntry(userName, plugin, formatPlugin, location, icebergTableProps, writerOptions, datasetPath);
+  public EasyFileSystemCreateTableEntry cloneWithFields(WriterOptions writerOptions) {
+    return new EasyFileSystemCreateTableEntry(
+        userName, plugin, formatPlugin, location, icebergTableProps, writerOptions, datasetPath);
   }
 
   @Override
@@ -160,13 +160,15 @@ public class EasyFileSystemCreateTableEntry implements CreateTableEntry, CopyInt
   }
 
   @Override
-  public Writer getWriter(
-      OpProps props,
-      PhysicalOperator child
-      ) throws IOException {
-    // In a iceberg flow, schema in a icebergTableProps should be set only once and by the first writer i.e parquet writer.
-    // Because any writer in a plan after first ParquetWriter will have RecordWriterSchema which is not valid iceberg table schema.
-    if (child != null && child.getProps() != null && icebergTableProps != null && !icebergTableProps.isSchemaSet()) {
+  public Writer getWriter(OpProps props, PhysicalOperator child) throws IOException {
+    // In a iceberg flow, schema in a icebergTableProps should be set only once and by the first
+    // writer i.e parquet writer.
+    // Because any writer in a plan after first ParquetWriter will have RecordWriterSchema which is
+    // not valid iceberg table schema.
+    if (child != null
+        && child.getProps() != null
+        && icebergTableProps != null
+        && !icebergTableProps.isSchemaSet()) {
       BatchSchema writerSchema = child.getProps().getSchema();
       writerSchema = IcebergUtils.getWriterSchema(writerSchema, options);
       icebergTableProps.setFullSchema(writerSchema);
@@ -204,7 +206,8 @@ public class EasyFileSystemCreateTableEntry implements CreateTableEntry, CopyInt
   }
 
   @Override
-  public void setSystemIcebergTablesPlugin(SystemIcebergTablesStoragePlugin systemIcebergTablesPlugin) {
+  public void setSystemIcebergTablesPlugin(
+      SystemIcebergTablesStoragePlugin systemIcebergTablesPlugin) {
     this.systemIcebergTablesPlugin = systemIcebergTablesPlugin;
     if (systemIcebergTablesPlugin != null) {
       this.systemIcebergTablesPluginId = systemIcebergTablesPlugin.getId();

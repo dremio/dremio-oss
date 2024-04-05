@@ -17,39 +17,31 @@ package com.dremio.plugins.elastic;
 
 import static com.dremio.plugins.elastic.ElasticsearchType.TEXT;
 
+import com.dremio.common.util.TestTools;
 import java.util.concurrent.TimeUnit;
-
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestRule;
 
-import com.dremio.common.util.TestTools;
-
 public class ITTestParallelization extends ElasticBaseTestQuery {
 
-  @Rule
-  public final TestRule timeoutRule = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
+  @Rule public final TestRule timeoutRule = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
 
   @Test
   public void test() throws Exception {
 
     elastic.schema(10, 0, schema);
 
-    ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
-            new ElasticsearchCluster.ColumnData("column", TEXT, new Object[][]{
-                    {"value"},
-                    {"value"},
-                    {"value"},
-                    {"value"},
-                    {"value"},
-                    {"value"},
-                    {"value"},
-                    {"value"},
-                    {"value"},
-                    {"value"},
-                    {"value"}
-            })
-    };
+    ElasticsearchCluster.ColumnData[] data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "column",
+              TEXT,
+              new Object[][] {
+                {"value"}, {"value"}, {"value"}, {"value"}, {"value"}, {"value"}, {"value"},
+                {"value"}, {"value"}, {"value"}, {"value"}
+              })
+        };
 
     loadWithRetry(schema, table, data);
     testNoResult("set planner.width.max_per_node = 10");

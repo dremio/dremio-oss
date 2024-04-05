@@ -27,16 +27,21 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.options.OptionManager;
 
 /**
- * A special exchange that facilitates CTEs
- * - the sender writes to local files,
- * - the receiver and other bridge reader(s) can read from the same local files.
+ * A special exchange that facilitates CTEs - the sender writes to local files, - the receiver and
+ * other bridge reader(s) can read from the same local files.
  */
 public class BridgeExchange extends AbstractExchange {
   private final OptionManager optionManager;
   private final String bridgeSetId; // unique identifier within the query.
 
-  public BridgeExchange(OpProps props, OpProps senderProps, OpProps receiverProps, BatchSchema schema, PhysicalOperator child, OptionManager optionManager,
-                        String bridgeSetId) {
+  public BridgeExchange(
+      OpProps props,
+      OpProps senderProps,
+      OpProps receiverProps,
+      BatchSchema schema,
+      PhysicalOperator child,
+      OptionManager optionManager,
+      String bridgeSetId) {
     super(props, senderProps, receiverProps, schema, child, optionManager);
     this.optionManager = optionManager;
     this.bridgeSetId = bridgeSetId;
@@ -44,17 +49,20 @@ public class BridgeExchange extends AbstractExchange {
 
   @Override
   protected PhysicalOperator getNewWithChild(PhysicalOperator child) {
-    return new BridgeExchange(props, senderProps, receiverProps, schema, child,
-      getOptionManager(), getBridgeSetId());
+    return new BridgeExchange(
+        props, senderProps, receiverProps, schema, child, getOptionManager(), getBridgeSetId());
   }
 
   @Override
-  public final <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value) throws E {
+  public final <T, X, E extends Throwable> T accept(
+      PhysicalVisitor<T, X, E> physicalVisitor, X value) throws E {
     return physicalVisitor.visitBridgeExchange(this, value);
   }
 
   @Override
-  public Sender getSender(int minorFragmentId, PhysicalOperator child, EndpointsIndex.Builder builder) throws PhysicalOperatorSetupException {
+  public Sender getSender(
+      int minorFragmentId, PhysicalOperator child, EndpointsIndex.Builder builder)
+      throws PhysicalOperatorSetupException {
     return new BridgeFileWriterSender(senderProps, schema, child, bridgeSetId);
   }
 
@@ -73,7 +81,8 @@ public class BridgeExchange extends AbstractExchange {
 
   @Override
   public ParallelizationDependency getParallelizationDependency() {
-    // Since the write happens to local files, the parallelization of the sender/receiver and other bridge reader(s)
+    // Since the write happens to local files, the parallelization of the sender/receiver and other
+    // bridge reader(s)
     // must be exactly the same.
     return ParallelizationDependency.RECEIVER_MUST_MATCH_SENDER;
   }

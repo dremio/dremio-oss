@@ -19,16 +19,21 @@ import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf;
 import com.google.protobuf.InvalidProtocolBufferException;
 
-public class ParquetBlockBasedSplit implements Comparable<ParquetBlockBasedSplit>{
+public class ParquetBlockBasedSplit implements Comparable<ParquetBlockBasedSplit> {
   private final SplitAndPartitionInfo splitAndPartitionInfo;
   private final ParquetProtobuf.ParquetBlockBasedSplitXAttr parquetBlockBasedSplitXAttr;
 
   ParquetBlockBasedSplit(SplitAndPartitionInfo splitAndPartitionInfo) {
     this.splitAndPartitionInfo = splitAndPartitionInfo;
     try {
-      this.parquetBlockBasedSplitXAttr = ParquetProtobuf.ParquetBlockBasedSplitXAttr.parseFrom(splitAndPartitionInfo.getDatasetSplitInfo().getExtendedProperty());
+      this.parquetBlockBasedSplitXAttr =
+          ParquetProtobuf.ParquetBlockBasedSplitXAttr.parseFrom(
+              splitAndPartitionInfo.getDatasetSplitInfo().getExtendedProperty());
     } catch (InvalidProtocolBufferException e) {
-      throw new RuntimeException("Failed to parse dataset split for " + splitAndPartitionInfo.getPartitionInfo().getSplitKey(), e);
+      throw new RuntimeException(
+          "Failed to parse dataset split for "
+              + splitAndPartitionInfo.getPartitionInfo().getSplitKey(),
+          e);
     }
   }
 

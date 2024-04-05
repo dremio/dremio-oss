@@ -17,7 +17,7 @@
 export type SessionContext = {
   handleInvalidSession: () => void;
   handleLogout: () => void;
-  getSessionIdentifier: () => string;
+  getSessionIdentifier?: () => string;
   getOrganizationId?: () => string;
 };
 

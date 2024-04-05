@@ -15,10 +15,8 @@
  */
 package com.dremio.service.users;
 
-/**
- * Thrown when create a user which already exists
- */
-public class UserAlreadyExistException extends IllegalArgumentException{
+/** Thrown when create a user which already exists */
+public class UserAlreadyExistException extends IllegalArgumentException {
   private static final long serialVersionUID = 1L;
 
   public UserAlreadyExistException(String userName) {

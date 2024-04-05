@@ -15,20 +15,16 @@
  */
 package com.dremio.sabot.op.copier;
 
-import java.util.List;
-
-import org.apache.arrow.vector.FieldVector;
-import org.apache.arrow.vector.FixedWidthVector;
-import org.apache.arrow.vector.VariableWidthVector;
-import org.apache.arrow.vector.util.TransferPair;
-
 import com.dremio.common.expression.CompleteType;
 import com.dremio.sabot.op.aggregate.vectorized.VariableLengthValidator;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
-
 import io.netty.util.internal.PlatformDependent;
-
+import java.util.List;
+import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.FixedWidthVector;
+import org.apache.arrow.vector.VariableWidthVector;
+import org.apache.arrow.vector.util.TransferPair;
 
 public abstract class FieldBufferPreAllocedCopier {
 
@@ -56,8 +52,9 @@ public abstract class FieldBufferPreAllocedCopier {
 
   /**
    * Copy starting from the previous cursor.
+   *
    * @param sv2Addr offset addr of the selection vector
-   * @param count  number of entries to copy
+   * @param count number of entries to copy
    * @param cursor cursor returned in the previous call (set to null on first call).
    * @return cursor after the copy.
    */
@@ -66,7 +63,8 @@ public abstract class FieldBufferPreAllocedCopier {
   // Ensure that the vector is sized upto capacity 'size'.
   protected void ensure(FixedWidthVector vector, int size) {
     if (vector.getValueCapacity() < size) {
-      throw new IllegalArgumentException("vector size required " + size + ", but found " + vector.getValueCapacity());
+      throw new IllegalArgumentException(
+          "vector size required " + size + ", but found " + vector.getValueCapacity());
     }
   }
 
@@ -119,9 +117,9 @@ public abstract class FieldBufferPreAllocedCopier {
       long dstAddr = target.getDataBufferAddress() + (seekTo * SIZE);
       for (long addr = sv2Addr; addr < max; addr += STEP_SIZE, dstAddr += SIZE) {
         PlatformDependent.putInt(
-          dstAddr,
-          PlatformDependent.getInt(
-            srcAddr + Short.toUnsignedInt(PlatformDependent.getShort(addr)) * SIZE));
+            dstAddr,
+            PlatformDependent.getInt(
+                srcAddr + Short.toUnsignedInt(PlatformDependent.getShort(addr)) * SIZE));
       }
     }
   }
@@ -140,9 +138,9 @@ public abstract class FieldBufferPreAllocedCopier {
       long dstAddr = target.getDataBufferAddress() + (seekTo * SIZE);
       for (long addr = sv2Addr; addr < max; addr += STEP_SIZE, dstAddr += SIZE) {
         PlatformDependent.putLong(
-          dstAddr,
-          PlatformDependent.getLong(
-            srcAddr + Short.toUnsignedInt(PlatformDependent.getShort(addr)) * SIZE));
+            dstAddr,
+            PlatformDependent.getLong(
+                srcAddr + Short.toUnsignedInt(PlatformDependent.getShort(addr)) * SIZE));
       }
     }
   }
@@ -162,7 +160,7 @@ public abstract class FieldBufferPreAllocedCopier {
       for (long addr = sv2Addr; addr < max; addr += STEP_SIZE, dstAddr += SIZE) {
         final int offset = Short.toUnsignedInt(PlatformDependent.getShort(addr)) * SIZE;
         PlatformDependent.putLong(dstAddr, PlatformDependent.getLong(srcAddr + offset));
-        PlatformDependent.putLong(dstAddr+8, PlatformDependent.getLong(srcAddr + offset + 8));
+        PlatformDependent.putLong(dstAddr + 8, PlatformDependent.getLong(srcAddr + offset + 8));
       }
     }
   }
@@ -197,10 +195,15 @@ public abstract class FieldBufferPreAllocedCopier {
       final long srcDataAddr = source.getDataBufferAddress();
 
       long dstOffsetAddr = target.getOffsetBufferAddress() + (targetIndex + 1) * 4;
-      long dstDataAddr = target.getDataBufferAddress() + targetDataIndex; // start address for next copy in target
-      long dstMaxDataAddr = target.getDataBufferAddress() + target.getDataBuffer().capacity(); // max bytes we can copy to target before we need to reallocate
+      long dstDataAddr =
+          target.getDataBufferAddress() + targetDataIndex; // start address for next copy in target
+      long dstMaxDataAddr =
+          target.getDataBufferAddress()
+              + target
+                  .getDataBuffer()
+                  .capacity(); // max bytes we can copy to target before we need to reallocate
 
-      for(; sv2Addr < maxSv2; sv2Addr += STEP_SIZE, dstOffsetAddr += 4){
+      for (; sv2Addr < maxSv2; sv2Addr += STEP_SIZE, dstOffsetAddr += 4) {
         // copy from recordIndex to last available position in target
         final int recordIndex = Short.toUnsignedInt(PlatformDependent.getShort(sv2Addr));
         // retrieve start offset and length of value we want to copy
@@ -210,8 +213,11 @@ public abstract class FieldBufferPreAllocedCopier {
         final int len = secondOffset - firstOffset;
         // check if sufficient space in target buffer
         if (dstDataAddr + len > dstMaxDataAddr) {
-          throw new IllegalArgumentException("data size required " + (dstDataAddr + len - target.getDataBufferAddress()) +
-            ", but found " + target.getDataBuffer().capacity());
+          throw new IllegalArgumentException(
+              "data size required "
+                  + (dstDataAddr + len - target.getDataBufferAddress())
+                  + ", but found "
+                  + target.getDataBuffer().capacity());
         }
 
         targetDataIndex += len;
@@ -244,8 +250,12 @@ public abstract class FieldBufferPreAllocedCopier {
         cursor = new Cursor();
       }
       if (targetAlt.getValueCapacity() < cursor.targetIndex + count) {
-        throw new IllegalArgumentException("vector size required " + cursor.targetDataIndex + count +
-            ", but found " + targetAlt.getValueCapacity());
+        throw new IllegalArgumentException(
+            "vector size required "
+                + cursor.targetDataIndex
+                + count
+                + ", but found "
+                + targetAlt.getValueCapacity());
       }
       return seekAndCopy(sv2Addr, count, cursor);
     }
@@ -281,7 +291,7 @@ public abstract class FieldBufferPreAllocedCopier {
 
       final long maxAddr = sv2Addr + count * STEP_SIZE;
       int targetIndex = seekTo;
-      for(; sv2Addr < maxAddr; sv2Addr += STEP_SIZE, targetIndex++){
+      for (; sv2Addr < maxAddr; sv2Addr += STEP_SIZE, targetIndex++) {
         final int recordIndex = Short.toUnsignedInt(PlatformDependent.getShort(sv2Addr));
         final int byteValue = PlatformDependent.getByte(srcAddr + (recordIndex >>> 3));
         final int bitVal = ((byteValue >>> (recordIndex & 7)) & 1) << (targetIndex & 7);
@@ -301,8 +311,11 @@ public abstract class FieldBufferPreAllocedCopier {
         cursor = new Cursor();
       }
       if (target.getValueCapacity() < cursor.targetIndex + count) {
-        throw new IllegalArgumentException("vector size required " + (cursor.targetIndex + count) +
-          ", but found " + target.getValueCapacity());
+        throw new IllegalArgumentException(
+            "vector size required "
+                + (cursor.targetIndex + count)
+                + ", but found "
+                + target.getValueCapacity());
       }
       seekAndCopy(sv2Addr, count, cursor.targetIndex);
       cursor.targetIndex += count;
@@ -328,7 +341,7 @@ public abstract class FieldBufferPreAllocedCopier {
 
       final long maxAddr = sv2Addr + count * STEP_SIZE;
       int targetIndex = 0;
-      for(; sv2Addr < maxAddr; sv2Addr += STEP_SIZE, targetIndex++){
+      for (; sv2Addr < maxAddr; sv2Addr += STEP_SIZE, targetIndex++) {
         final int recordIndex = Short.toUnsignedInt(PlatformDependent.getShort(sv2Addr));
         final int byteValue = PlatformDependent.getByte(srcAddr + (recordIndex >>> 3));
         final int bitVal = ((byteValue >>> (recordIndex & 7)) & 1) << (targetIndex & 7);
@@ -353,7 +366,7 @@ public abstract class FieldBufferPreAllocedCopier {
     private final TransferPair transfer;
     private final FieldVector dst;
 
-    public GenericCopier(FieldVector source, FieldVector dst){
+    public GenericCopier(FieldVector source, FieldVector dst) {
       this.transfer = source.makeTransferPair(dst);
       this.dst = dst;
     }
@@ -389,10 +402,13 @@ public abstract class FieldBufferPreAllocedCopier {
     }
   }
 
-  private static void addValueCopier(final FieldVector source, final FieldVector target, ImmutableList.Builder<FieldBufferPreAllocedCopier> copiers) {
-    Preconditions.checkArgument(source.getClass() == target.getClass(), "Input and output vectors must be same type.");
-    switch(CompleteType.fromField(source.getField()).toMinorType()){
-
+  private static void addValueCopier(
+      final FieldVector source,
+      final FieldVector target,
+      ImmutableList.Builder<FieldBufferPreAllocedCopier> copiers) {
+    Preconditions.checkArgument(
+        source.getClass() == target.getClass(), "Input and output vectors must be same type.");
+    switch (CompleteType.fromField(source.getField()).toMinorType()) {
       case TIMESTAMP:
       case FLOAT8:
       case BIGINT:
@@ -438,11 +454,13 @@ public abstract class FieldBufferPreAllocedCopier {
     }
   }
 
-  public static ImmutableList<FieldBufferPreAllocedCopier> getCopiers(List<FieldVector> inputs, List<FieldVector> outputs){
+  public static ImmutableList<FieldBufferPreAllocedCopier> getCopiers(
+      List<FieldVector> inputs, List<FieldVector> outputs) {
     ImmutableList.Builder<FieldBufferPreAllocedCopier> copiers = ImmutableList.builder();
 
-    Preconditions.checkArgument(inputs.size() == outputs.size(), "Input and output lists must be same size.");
-    for(int i = 0; i < inputs.size(); i++){
+    Preconditions.checkArgument(
+        inputs.size() == outputs.size(), "Input and output lists must be same size.");
+    for (int i = 0; i < inputs.size(); i++) {
       final FieldVector input = inputs.get(i);
       final FieldVector output = outputs.get(i);
       addValueCopier(input, output, copiers);

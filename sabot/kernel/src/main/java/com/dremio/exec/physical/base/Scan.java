@@ -15,19 +15,17 @@
  */
 package com.dremio.exec.physical.base;
 
-import java.util.List;
-
 import com.dremio.common.expression.SchemaPath;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.List;
 
 public interface Scan extends Leaf {
-
 
   /**
    * The set of projected columns.
    *
-   * @return The columns to be projected (they are applied to outcome of
-   *         getSchema() to generate the projected schema.
+   * @return The columns to be projected (they are applied to outcome of getSchema() to generate the
+   *     projected schema.
    */
   @JsonProperty("columns")
   List<SchemaPath> getColumns();

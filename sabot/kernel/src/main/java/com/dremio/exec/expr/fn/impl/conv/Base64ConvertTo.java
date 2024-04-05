@@ -15,34 +15,32 @@
  */
 package com.dremio.exec.expr.fn.impl.conv;
 
-import javax.inject.Inject;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.vector.holders.NullableVarCharHolder;
-import org.apache.arrow.vector.holders.VarBinaryHolder;
-
 import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
+import javax.inject.Inject;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.vector.holders.NullableVarCharHolder;
+import org.apache.arrow.vector.holders.VarBinaryHolder;
 
-@FunctionTemplate(name = "convert_toBASE64", scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.NULL_IF_NULL)
+@FunctionTemplate(
+    name = "convert_toBASE64",
+    scope = FunctionTemplate.FunctionScope.SIMPLE,
+    nulls = FunctionTemplate.NullHandling.NULL_IF_NULL)
 public class Base64ConvertTo implements SimpleFunction {
 
-  @Param
-  NullableVarCharHolder in;
-  @Output
-  VarBinaryHolder out;
-  @Inject
-  ArrowBuf buffer;
+  @Param NullableVarCharHolder in;
+  @Output VarBinaryHolder out;
+  @Inject ArrowBuf buffer;
 
   @Override
-  public void setup() {
-  }
+  public void setup() {}
 
   @Override
   public void eval() {
-    final String inputStr = com.dremio.exec.expr.fn.impl.StringFunctionHelpers.getStringFromNullableVarCharHolder(in);
+    final String inputStr =
+        com.dremio.exec.expr.fn.impl.StringFunctionHelpers.getStringFromNullableVarCharHolder(in);
     final byte[] outBytea = javax.xml.bind.DatatypeConverter.parseBase64Binary(inputStr);
     buffer = buffer.reallocIfNeeded(outBytea.length);
     out.buffer = buffer;

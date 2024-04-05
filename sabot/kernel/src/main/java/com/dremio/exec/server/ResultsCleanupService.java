@@ -15,17 +15,6 @@
  */
 package com.dremio.exec.server;
 
-import java.nio.file.DirectoryStream;
-import java.nio.file.attribute.FileTime;
-import java.time.LocalTime;
-import java.time.ZoneId;
-import java.util.concurrent.TimeUnit;
-
-import javax.inject.Provider;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.store.JobResultsStoreConfig;
 import com.dremio.io.file.FileAttributes;
@@ -36,6 +25,14 @@ import com.dremio.service.Service;
 import com.dremio.service.scheduler.Cancellable;
 import com.dremio.service.scheduler.Schedule;
 import com.dremio.service.scheduler.SchedulerService;
+import java.nio.file.DirectoryStream;
+import java.nio.file.attribute.FileTime;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.util.concurrent.TimeUnit;
+import javax.inject.Provider;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ResultsCleanupService implements Service {
   private static final long ONE_DAY_IN_MILLIS = TimeUnit.DAYS.toMillis(1);
@@ -46,9 +43,10 @@ public class ResultsCleanupService implements Service {
   private final Provider<OptionManager> optionManagerProvider;
   private Cancellable jobResultsCleanupTask;
 
-  public ResultsCleanupService(Provider<SchedulerService> schedulerService,
-                               Provider<JobResultsStoreConfig> jobResultsStoreConfigProvider,
-                               Provider<OptionManager> optionManagerProvider) {
+  public ResultsCleanupService(
+      Provider<SchedulerService> schedulerService,
+      Provider<JobResultsStoreConfig> jobResultsStoreConfigProvider,
+      Provider<OptionManager> optionManagerProvider) {
     this.schedulerService = schedulerService;
     this.jobResultsStoreConfigProvider = jobResultsStoreConfigProvider;
     this.optionManagerProvider = optionManagerProvider;
@@ -70,14 +68,14 @@ public class ResultsCleanupService implements Service {
 
     logger.info("Starting ResultsCleanupService..");
 
-
-    final long maxJobResultsAgeInDays = optionManager.getOption(ExecConstants.RESULTS_MAX_AGE_IN_DAYS);
+    final long maxJobResultsAgeInDays =
+        optionManager.getOption(ExecConstants.RESULTS_MAX_AGE_IN_DAYS);
     if (maxJobResultsAgeInDays != DISABLE_CLEANUP_VALUE) {
-      final long jobResultsCleanupStartHour = optionManager.getOption(ExecConstants.JOB_RESULTS_CLEANUP_START_HOUR);
+      final long jobResultsCleanupStartHour =
+          optionManager.getOption(ExecConstants.JOB_RESULTS_CLEANUP_START_HOUR);
       final LocalTime startTime = LocalTime.of((int) jobResultsCleanupStartHour, 0);
-      final Schedule resultSchedule = Schedule.Builder.everyDays(1, startTime)
-        .withTimeZone(ZoneId.systemDefault())
-        .build();
+      final Schedule resultSchedule =
+          Schedule.Builder.everyDays(1, startTime).withTimeZone(ZoneId.systemDefault()).build();
       jobResultsCleanupTask = schedulerService.get().schedule(resultSchedule, new ResultsCleanup());
     }
   }
@@ -101,22 +99,24 @@ public class ResultsCleanupService implements Service {
       FileSystem dfs = jobResultsStoreConfigProvider.get().getFileSystem();
       Path resultsFolder = jobResultsStoreConfigProvider.get().getStoragePath();
       final OptionManager optionManager = optionManagerProvider.get();
-      long maxAgeInMillis = optionManager.getOption(ExecConstants.DEBUG_RESULTS_MAX_AGE_IN_MILLISECONDS);
+      long maxAgeInMillis =
+          optionManager.getOption(ExecConstants.DEBUG_RESULTS_MAX_AGE_IN_MILLISECONDS);
       long maxAgeInDays = optionManager.getOption(ExecConstants.RESULTS_MAX_AGE_IN_DAYS);
       long jobResultsMaxAgeInMillis = (maxAgeInDays * ONE_DAY_IN_MILLIS) + maxAgeInMillis;
 
       try {
         long cutOffTime = System.currentTimeMillis() - jobResultsMaxAgeInMillis;
         if (!(dfs.exists(resultsFolder))) {
-          //directory does not exist so nothing to clean up
+          // directory does not exist so nothing to clean up
           return;
         }
-        DirectoryStream<FileAttributes> listOfAttributes = jobResultsStoreConfigProvider.get().getFileSystem().list(resultsFolder);
-        //iterate through the directory and cleanup files created before the cutoff time
+        DirectoryStream<FileAttributes> listOfAttributes =
+            jobResultsStoreConfigProvider.get().getFileSystem().list(resultsFolder);
+        // iterate through the directory and cleanup files created before the cutoff time
         for (FileAttributes attr : listOfAttributes) {
           FileTime creationTime = attr.creationTime();
           if (creationTime.toMillis() < cutOffTime) {
-            //cleanup
+            // cleanup
             if (!jobResultsStoreConfigProvider.get().getFileSystem().delete(attr.getPath(), true)) {
               logger.info("Failed to delete directory, {}", attr.getPath());
             }

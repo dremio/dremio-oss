@@ -20,8 +20,8 @@ import org.apache.poi.hssf.record.CellValueRecordInterface;
 import org.apache.poi.ss.usermodel.DateUtil;
 
 /**
- * Keeps track of all Format/ExtendedFormat records encountered and exposes
- * helper methods to identify the formatting of a given cell
+ * Keeps track of all Format/ExtendedFormat records encountered and exposes helper methods to
+ * identify the formatting of a given cell
  */
 public class FormatManager extends FormatTrackingHSSFListener {
 

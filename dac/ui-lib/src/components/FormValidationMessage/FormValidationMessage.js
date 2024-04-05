@@ -29,14 +29,14 @@ const FormValidationMessage = ({ className, children, id, variant }) => {
   const rootClass = clsx(
     "validationError",
     { "--qualifier": variant === QUALIFIER },
-    className
+    className,
   );
 
   return (
     <div className={rootClass} id={id}>
       {updatedChildren &&
         updatedChildren.map(
-          (child, idx) => child && <div key={`error-${idx}`}>{child}</div>
+          (child, idx) => child && <div key={`error-${idx}`}>{child}</div>,
         )}
     </div>
   );

@@ -17,6 +17,11 @@ package com.dremio.exec.expr.fn;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.common.util.FileUtils;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.io.CharStreams;
+import com.google.common.io.Resources;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
@@ -24,24 +29,18 @@ import java.net.URL;
 import java.util.Collection;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Pattern;
-
 import org.codehaus.commons.compiler.CompileException;
 import org.codehaus.janino.Java;
 import org.codehaus.janino.Parser;
 import org.codehaus.janino.Scanner;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.common.util.FileUtils;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.io.CharStreams;
-import com.google.common.io.Resources;
-
 /**
- * To avoid the cost of initializing all functions up front,
- * this class contains all information required to initialize a function when it is used.
+ * To avoid the cost of initializing all functions up front, this class contains all information
+ * required to initialize a function when it is used.
  */
 public class FunctionInitializer {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FunctionInitializer.class);
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(FunctionInitializer.class);
 
   private final String className;
   private ImmutableMap<String, String> methods;
@@ -106,28 +105,30 @@ public class FunctionInitializer {
         methods = ImmutableMap.copyOf(MethodGrabber.getMethods(cu, clazz));
         if (methods.isEmpty()) {
           throw UserException.functionError()
-            .message("Failure reading Function class. No methods were found.")
-            .addContext("Function Class", className)
-            .build(logger);
+              .message("Failure reading Function class. No methods were found.")
+              .addContext("Function Class", className)
+              .build(logger);
         } else {
           if (logger.isTraceEnabled()) {
-            logger.trace("{} Methods for class {} loaded. Methods available: {}", methods.size(), className,
-              methods.entrySet());
+            logger.trace(
+                "{} Methods for class {} loaded. Methods available: {}",
+                methods.size(),
+                className,
+                methods.entrySet());
           }
         }
         ready = true;
       } catch (IOException | ClassNotFoundException e) {
         throw UserException.functionError(e)
-          .message("Failure reading Function class.")
-          .addContext("Function Class", className)
-          .build(logger);
+            .message("Failure reading Function class.")
+            .addContext("Function Class", className)
+            .build(logger);
       }
     }
   }
 
   /**
-   * Helper method to get the resource URL of a source file based on the class
-   * name.
+   * Helper method to get the resource URL of a source file based on the class name.
    *
    * @param c the class name
    * @return the URL to the source file
@@ -177,6 +178,16 @@ public class FunctionInitializer {
     return new Replacement(type + "Holder", "Nullable" + type + "Holder");
   }
 
-  private static final Replacement[] REPLACERS = {r("BigInt"), r("Int"), r("Float4"), r("Float8"), r("VarChar"),
-    r("VarBinary"), r("Time"), r("TimeStampMilli"), r("Date"), r("Decimal")};
+  private static final Replacement[] REPLACERS = {
+    r("BigInt"),
+    r("Int"),
+    r("Float4"),
+    r("Float8"),
+    r("VarChar"),
+    r("VarBinary"),
+    r("Time"),
+    r("TimeStampMilli"),
+    r("Date"),
+    r("Decimal")
+  };
 }

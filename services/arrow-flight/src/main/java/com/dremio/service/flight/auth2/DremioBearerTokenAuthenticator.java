@@ -15,8 +15,12 @@
  */
 package com.dremio.service.flight.auth2;
 
+import com.dremio.service.flight.DremioFlightSessionsManager;
+import com.dremio.service.flight.utils.DremioFlightAuthUtils;
+import com.dremio.service.tokens.TokenManager;
+import com.dremio.service.users.UserService;
+import com.google.common.annotations.VisibleForTesting;
 import javax.inject.Provider;
-
 import org.apache.arrow.flight.CallHeaders;
 import org.apache.arrow.flight.CallStatus;
 import org.apache.arrow.flight.auth2.Auth2Constants;
@@ -26,30 +30,26 @@ import org.apache.arrow.flight.auth2.CallHeaderAuthenticator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.service.flight.DremioFlightSessionsManager;
-import com.dremio.service.flight.utils.DremioFlightAuthUtils;
-import com.dremio.service.tokens.TokenManager;
-import com.dremio.service.users.UserService;
-import com.google.common.annotations.VisibleForTesting;
-
 /**
- * Dremio's custom implementation of CallHeaderAuthenticator for bearer token authentication.
- * This class implements CallHeaderAuthenticator rather than BearerTokenAuthenticator. Dremio
- * creates UserSession objects when the bearer token is created and requires access to the CallHeaders
- * in getAuthResultWithBearerToken.
+ * Dremio's custom implementation of CallHeaderAuthenticator for bearer token authentication. This
+ * class implements CallHeaderAuthenticator rather than BearerTokenAuthenticator. Dremio creates
+ * UserSession objects when the bearer token is created and requires access to the CallHeaders in
+ * getAuthResultWithBearerToken.
  */
 public class DremioBearerTokenAuthenticator implements CallHeaderAuthenticator {
-  private static final Logger LOGGER = LoggerFactory.getLogger(DremioBearerTokenAuthenticator.class);
+  private static final Logger LOGGER =
+      LoggerFactory.getLogger(DremioBearerTokenAuthenticator.class);
 
   private final CallHeaderAuthenticator initialAuthenticator;
   private final Provider<TokenManager> tokenManagerProvider;
   private final DremioFlightSessionsManager dremioFlightSessionsManager;
 
-  public DremioBearerTokenAuthenticator(Provider<UserService> userServiceProvider,
-                                        Provider<TokenManager> tokenManagerProvider,
-                                        DremioFlightSessionsManager dremioFlightSessionsManager) {
-    this.initialAuthenticator = new BasicCallHeaderAuthenticator(
-      new DremioCredentialValidator(userServiceProvider));
+  public DremioBearerTokenAuthenticator(
+      Provider<UserService> userServiceProvider,
+      Provider<TokenManager> tokenManagerProvider,
+      DremioFlightSessionsManager dremioFlightSessionsManager) {
+    this.initialAuthenticator =
+        new BasicCallHeaderAuthenticator(new DremioCredentialValidator(userServiceProvider));
     this.tokenManagerProvider = tokenManagerProvider;
     this.dremioFlightSessionsManager = dremioFlightSessionsManager;
   }
@@ -60,15 +60,15 @@ public class DremioBearerTokenAuthenticator implements CallHeaderAuthenticator {
    * Then it generates a token and creates a UserSession with the retrieved client properties.
    * associated with it.
    *
-   * If a bearer token is provided, the method validates the provided token.
+   * <p>If a bearer token is provided, the method validates the provided token.
    *
    * @param incomingHeaders call headers to retrieve client properties and auth headers from.
    * @return an AuthResult with the bearer token and peer identity.
    */
   @Override
   public AuthResult authenticate(CallHeaders incomingHeaders) {
-    final String bearerToken = AuthUtilities.getValueFromAuthHeader(incomingHeaders,
-      Auth2Constants.BEARER_PREFIX);
+    final String bearerToken =
+        AuthUtilities.getValueFromAuthHeader(incomingHeaders, Auth2Constants.BEARER_PREFIX);
 
     if (bearerToken != null) {
       return validateBearer(bearerToken);
@@ -106,9 +106,9 @@ public class DremioBearerTokenAuthenticator implements CallHeaderAuthenticator {
   @VisibleForTesting
   AuthResult getAuthResultWithBearerToken(AuthResult authResult, CallHeaders incomingHeaders) {
     final String username = authResult.getPeerIdentity();
-    final String token = DremioFlightAuthUtils.createUserSessionWithTokenAndProperties(
-      tokenManagerProvider,
-      username);
+    final String token =
+        DremioFlightAuthUtils.createUserSessionWithTokenAndProperties(
+            tokenManagerProvider, username);
 
     return createAuthResultWithBearerToken(token);
   }
@@ -123,8 +123,8 @@ public class DremioBearerTokenAuthenticator implements CallHeaderAuthenticator {
     return new AuthResult() {
       @Override
       public void appendToOutgoingHeaders(CallHeaders outgoingHeaders) {
-        outgoingHeaders.insert(Auth2Constants.AUTHORIZATION_HEADER,
-          Auth2Constants.BEARER_PREFIX + token);
+        outgoingHeaders.insert(
+            Auth2Constants.AUTHORIZATION_HEADER, Auth2Constants.BEARER_PREFIX + token);
       }
 
       @Override

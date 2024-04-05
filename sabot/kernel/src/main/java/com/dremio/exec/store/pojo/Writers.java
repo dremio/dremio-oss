@@ -17,9 +17,11 @@ package com.dremio.exec.store.pojo;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import com.dremio.common.types.TypeProtos.MajorType;
+import com.dremio.common.types.TypeProtos.MinorType;
+import com.dremio.common.types.Types;
 import java.lang.reflect.Field;
 import java.sql.Timestamp;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
@@ -29,10 +31,6 @@ import org.apache.arrow.vector.TimeStampMilliVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.holders.NullableVarCharHolder;
 import org.joda.time.DateTime;
-
-import com.dremio.common.types.TypeProtos.MajorType;
-import com.dremio.common.types.TypeProtos.MinorType;
-import com.dremio.common.types.Types;
 
 public class Writers {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(Writers.class);
@@ -48,7 +46,8 @@ public class Writers {
     }
 
     @Override
-    public void writeField(Object pojo, int outboundIndex) throws IllegalArgumentException, IllegalAccessException {
+    public void writeField(Object pojo, int outboundIndex)
+        throws IllegalArgumentException, IllegalAccessException {
       Integer i = (Integer) field.get(pojo);
       if (i != null) {
         vector.setSafe(outboundIndex, i);
@@ -56,7 +55,7 @@ public class Writers {
     }
   }
 
-  public static class BitWriter extends AbstractWriter<BitVector>{
+  public static class BitWriter extends AbstractWriter<BitVector> {
     public static final MajorType TYPE = Types.optional(MinorType.BIT);
 
     public BitWriter(Field field) {
@@ -67,16 +66,16 @@ public class Writers {
     }
 
     @Override
-    public void writeField(Object pojo, int outboundIndex) throws IllegalArgumentException, IllegalAccessException {
+    public void writeField(Object pojo, int outboundIndex)
+        throws IllegalArgumentException, IllegalAccessException {
       Boolean o = (Boolean) field.get(pojo);
       if (o != null) {
         vector.setSafe(outboundIndex, o ? 1 : 0);
       }
     }
-
   }
 
-  public static class LongWriter extends AbstractWriter<BigIntVector>{
+  public static class LongWriter extends AbstractWriter<BigIntVector> {
     public static final MajorType TYPE = Types.optional(MinorType.BIGINT);
 
     public LongWriter(Field field) {
@@ -87,7 +86,8 @@ public class Writers {
     }
 
     @Override
-    public void writeField(Object pojo, int outboundIndex) throws IllegalArgumentException, IllegalAccessException {
+    public void writeField(Object pojo, int outboundIndex)
+        throws IllegalArgumentException, IllegalAccessException {
       Long o = (Long) field.get(pojo);
       if (o != null) {
         vector.setSafe(outboundIndex, o);
@@ -95,7 +95,7 @@ public class Writers {
     }
   }
 
-  public static class DoubleWriter extends AbstractWriter<Float8Vector>{
+  public static class DoubleWriter extends AbstractWriter<Float8Vector> {
     public static final MajorType TYPE = Types.optional(MinorType.FLOAT8);
 
     public DoubleWriter(Field field) {
@@ -106,16 +106,16 @@ public class Writers {
     }
 
     @Override
-    public void writeField(Object pojo, int outboundIndex) throws IllegalArgumentException, IllegalAccessException {
+    public void writeField(Object pojo, int outboundIndex)
+        throws IllegalArgumentException, IllegalAccessException {
       Double o = (Double) field.get(pojo);
       if (o != null) {
         vector.setSafe(outboundIndex, o);
       }
     }
-
   }
 
-  private abstract static class AbstractStringWriter extends AbstractWriter<VarCharVector>{
+  private abstract static class AbstractStringWriter extends AbstractWriter<VarCharVector> {
     public static final MajorType TYPE = Types.optional(MinorType.VARCHAR);
 
     private ArrowBuf data;
@@ -132,10 +132,10 @@ public class Writers {
     }
 
     @Override
-    public void cleanup() {
-    }
+    public void cleanup() {}
 
-    public void writeString(String s, int outboundIndex) throws IllegalArgumentException, IllegalAccessException {
+    public void writeString(String s, int outboundIndex)
+        throws IllegalArgumentException, IllegalAccessException {
       if (s == null) {
         return;
       } else {
@@ -150,10 +150,9 @@ public class Writers {
         vector.setSafe(outboundIndex, h);
       }
     }
-
   }
 
-  public static class EnumWriter extends AbstractStringWriter{
+  public static class EnumWriter extends AbstractStringWriter {
     public EnumWriter(Field field, ArrowBuf managedBuf) {
       super(field, managedBuf);
       if (!field.getType().isEnum()) {
@@ -162,8 +161,9 @@ public class Writers {
     }
 
     @Override
-    public void writeField(Object pojo, int outboundIndex) throws IllegalArgumentException, IllegalAccessException {
-      Enum<?> e= ((Enum<?>) field.get(pojo));
+    public void writeField(Object pojo, int outboundIndex)
+        throws IllegalArgumentException, IllegalAccessException {
+      Enum<?> e = ((Enum<?>) field.get(pojo));
       if (e == null) {
         return;
       }
@@ -180,13 +180,14 @@ public class Writers {
     }
 
     @Override
-    public void writeField(Object pojo, int outboundIndex) throws IllegalArgumentException, IllegalAccessException {
+    public void writeField(Object pojo, int outboundIndex)
+        throws IllegalArgumentException, IllegalAccessException {
       String s = (String) field.get(pojo);
       writeString(s, outboundIndex);
     }
   }
 
-  public static class TimeStampMilliWriter extends AbstractWriter<TimeStampMilliVector>{
+  public static class TimeStampMilliWriter extends AbstractWriter<TimeStampMilliVector> {
     public static final MajorType TYPE = Types.optional(MinorType.TIMESTAMP);
 
     public TimeStampMilliWriter(Field field) {
@@ -197,7 +198,8 @@ public class Writers {
     }
 
     @Override
-    public void writeField(Object pojo, int outboundIndex) throws IllegalArgumentException, IllegalAccessException {
+    public void writeField(Object pojo, int outboundIndex)
+        throws IllegalArgumentException, IllegalAccessException {
       Timestamp o;
       if (field.getType() == DateTime.class) {
         DateTime dateTime = (DateTime) field.get(pojo);

@@ -15,14 +15,11 @@
  */
 package com.dremio.sabot.op.join.vhash.spill;
 
-import java.util.LinkedList;
-
 import com.dremio.common.AutoCloseables;
 import com.google.common.base.Preconditions;
+import java.util.LinkedList;
 
-/**
- * Wrapper over multiple memory releasers.
- */
+/** Wrapper over multiple memory releasers. */
 public class MultiMemoryReleaser implements MemoryReleaser {
   private final LinkedList<MemoryReleaser> memoryReleasers = new LinkedList<>();
 

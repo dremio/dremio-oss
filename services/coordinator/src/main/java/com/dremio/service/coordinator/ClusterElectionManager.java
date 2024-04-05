@@ -15,9 +15,7 @@
  */
 package com.dremio.service.coordinator;
 
-/**
- * Interface to cluster election manager.
- */
+/** Interface to cluster election manager. */
 public interface ClusterElectionManager {
 
   /**

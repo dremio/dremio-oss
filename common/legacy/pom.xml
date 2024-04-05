@@ -1,4 +1,4 @@
-<?xml version="1.0"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!--
 
     Copyright (C) 2017-2019 Dremio Corporation
@@ -16,14 +16,13 @@
     limitations under the License.
 
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
     <groupId>com.dremio.common</groupId>
     <artifactId>dremio-common-parent</artifactId>
-    <version>24.3.2-202401241821100032-d2d8a497</version>
+    <version>25.0.0-202404051521110861-ed9515a8</version>
   </parent>
 
   <!-- Dremio common module used to be a single large module. In Sept 2023 it was moved to this legacy module to assist
@@ -33,65 +32,6 @@
   <artifactId>dremio-common</artifactId>
   <packaging>jar</packaging>
   <name>Common - Legacy</name>
-
-  <build>
-    <resources>
-      <resource>
-        <directory>src/main/resources</directory>
-        <filtering>true</filtering>
-      </resource>
-    </resources>
-
-    <plugins>
-      <plugin> <!-- generate sources from fmpp -->
-        <groupId>com.dremio.tools</groupId>
-        <artifactId>dremio-fmpp-maven-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>generate-fmpp</id>
-            <phase>generate-sources</phase>
-            <goals>
-              <goal>generate</goal>
-            </goals>
-            <configuration>
-              <config>${project.basedir}/src/main/codegen/config.fmpp</config>
-              <output>${project.build.directory}/generated-sources/fmpp</output>
-              <templates>${project.basedir}/src/main/codegen/templates</templates>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <groupId>com.mycila</groupId>
-        <artifactId>license-maven-plugin</artifactId>
-        <configuration>
-          <licenseSets>
-            <licenseSet>
-              <validHeaders>
-                <validHeader>src/main/licenses/io.protostuff.JsonIOUtils.license.txt</validHeader>
-              </validHeaders>
-              <excludes combine.children="append">
-                <exclude>src/test/resources/maprtest/conf/login.conf</exclude> <!-- it needs Java style, was handedited -->
-              </excludes>
-            </licenseSet>
-          </licenseSets>
-        </configuration>
-      </plugin>
-      <plugin>
-        <groupId>org.xolstice.maven.plugins</groupId>
-        <artifactId>protobuf-maven-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>generate-test-proto</id>
-            <phase>generate-test-sources</phase>
-            <goals>
-              <goal>test-compile</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
-    </plugins>
-  </build>
 
   <dependencies>
     <dependency>
@@ -200,7 +140,8 @@
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>jul-to-slf4j</artifactId>
-      <scope>provided</scope> <!-- only provided because a runtime dependency for all other modules -->
+      <!-- only provided because a runtime dependency for all other modules -->
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>javax.inject</groupId>
@@ -272,4 +213,65 @@
       <scope>test</scope>
     </dependency>
   </dependencies>
+
+  <build>
+    <resources>
+      <resource>
+        <filtering>true</filtering>
+        <directory>src/main/resources</directory>
+      </resource>
+    </resources>
+
+    <plugins>
+      <plugin>
+        <!-- generate sources from fmpp -->
+        <groupId>com.dremio.tools</groupId>
+        <artifactId>dremio-fmpp-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>generate-fmpp</id>
+            <goals>
+              <goal>generate</goal>
+            </goals>
+            <phase>generate-sources</phase>
+            <configuration>
+              <config>${project.basedir}/src/main/codegen/config.fmpp</config>
+              <output>${project.build.directory}/generated-sources/fmpp</output>
+              <templates>${project.basedir}/src/main/codegen/templates</templates>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>com.mycila</groupId>
+        <artifactId>license-maven-plugin</artifactId>
+        <configuration>
+          <licenseSets>
+            <licenseSet>
+              <validHeaders>
+                <validHeader>src/main/licenses/io.protostuff.JsonIOUtils.license.txt</validHeader>
+              </validHeaders>
+              <excludes combine.children="append">
+                <!-- it needs Java style, was handedited -->
+                <exclude>src/test/resources/maprtest/conf/login.conf</exclude>
+              </excludes>
+            </licenseSet>
+          </licenseSets>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.xolstice.maven.plugins</groupId>
+        <artifactId>protobuf-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>generate-test-proto</id>
+            <goals>
+              <goal>test-compile</goal>
+            </goals>
+            <phase>generate-test-sources</phase>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
 </project>

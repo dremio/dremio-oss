@@ -15,36 +15,32 @@
  */
 package com.dremio.service.grpc;
 
-import java.util.Map;
-import java.util.Set;
-
-import javax.inject.Provider;
-
 import com.dremio.context.RequestContext;
 import com.google.common.collect.Sets;
-
 import io.grpc.ClientInterceptor;
 import io.opentracing.Tracer;
+import java.util.Map;
+import java.util.Set;
+import javax.inject.Provider;
 
-/**
- *  Channel builder factory where the client is a single-tenant service.
- */
+/** Channel builder factory where the client is a single-tenant service. */
 public class SingleTenantGrpcChannelBuilderFactory extends BaseGrpcChannelBuilderFactory {
   public SingleTenantGrpcChannelBuilderFactory(
-    Tracer tracer,
-    Provider<RequestContext> defaultContext,
-    Provider<Map<String, Object>> defaultServiceConfigProvider)
-  {
-    super(tracer,
-      Sets.newHashSet(ContextualizedClientInterceptor.buildSingleTenantClientInterceptorWithDefaults(defaultContext)),
-      defaultServiceConfigProvider);
+      Tracer tracer,
+      Provider<RequestContext> defaultContext,
+      Provider<Map<String, Object>> defaultServiceConfigProvider) {
+    super(
+        tracer,
+        Sets.newHashSet(
+            ContextualizedClientInterceptor.buildSingleTenantClientInterceptorWithDefaults(
+                defaultContext)),
+        defaultServiceConfigProvider);
   }
 
   public SingleTenantGrpcChannelBuilderFactory(
-    Tracer tracer,
-    Provider<Map<String, Object>> defaultServiceConfigProvider,
-    Set<ClientInterceptor> interceptors)
-  {
+      Tracer tracer,
+      Provider<Map<String, Object>> defaultServiceConfigProvider,
+      Set<ClientInterceptor> interceptors) {
     super(tracer, interceptors, defaultServiceConfigProvider);
   }
 }

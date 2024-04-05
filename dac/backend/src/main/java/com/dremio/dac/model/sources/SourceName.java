@@ -19,9 +19,7 @@ import com.dremio.dac.model.common.RootEntity;
 import com.dremio.dac.model.spaces.HomeName;
 import com.fasterxml.jackson.annotation.JsonCreator;
 
-/**
- * name of a source
- */
+/** name of a source */
 public final class SourceName extends RootEntity {
 
   public static final String SOURCE_URL = "source";
@@ -30,7 +28,8 @@ public final class SourceName extends RootEntity {
   public SourceName(String name) {
     super(name);
     if (name.startsWith(HomeName.HOME_PREFIX)) {
-      throw new IllegalArgumentException(String.format("Source %s can not start with %s", name, HomeName.HOME_PREFIX));
+      throw new IllegalArgumentException(
+          String.format("Source %s can not start with %s", name, HomeName.HOME_PREFIX));
     }
   }
 

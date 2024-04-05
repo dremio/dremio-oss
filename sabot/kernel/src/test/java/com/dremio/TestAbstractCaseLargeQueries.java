@@ -15,40 +15,43 @@
  */
 package com.dremio;
 
+import com.dremio.test.TemporarySystemProperties;
 import org.junit.Rule;
 import org.junit.Test;
 
-import com.dremio.test.TemporarySystemProperties;
-
 public abstract class TestAbstractCaseLargeQueries extends PlanTestBase {
 
-  @Rule
-  public TemporarySystemProperties properties = new TemporarySystemProperties();
+  @Rule public TemporarySystemProperties properties = new TemporarySystemProperties();
 
   private static final int MAX_CASE_CONDITIONS = 500;
 
   @Test
   public void testLargeCaseStatement() throws Exception {
-    final String sql = String.format("select %s from cp.\"tpch/nation.parquet\" limit 5",
-      projectLargeCase(MAX_CASE_CONDITIONS, 1));
+    final String sql =
+        String.format(
+            "select %s from cp.\"tpch/nation.parquet\" limit 5",
+            projectLargeCase(MAX_CASE_CONDITIONS, 1));
     testBuilder()
-      .sqlQuery(sql)
-      .unOrdered()
-      .baselineColumns("nation")
-      .baselineValues("ALGERIA_ABC")
-      .baselineValues("argentina_xy1")
-      .baselineValues("brazil_xy2")
-      .baselineValues("canada_xy3")
-      .baselineValues("egypt_xy4")
-      .go();
+        .sqlQuery(sql)
+        .unOrdered()
+        .baselineColumns("nation")
+        .baselineValues("ALGERIA_ABC")
+        .baselineValues("argentina_xy1")
+        .baselineValues("brazil_xy2")
+        .baselineValues("canada_xy3")
+        .baselineValues("egypt_xy4")
+        .go();
   }
 
   protected String projectLargeCase(int level1Size, int level2Size) {
     StringBuilder sb = new StringBuilder();
     sb.append("CASE n_nationkey").append(System.lineSeparator());
     for (int i = level1Size; i > 0; i--) {
-      sb.append("WHEN ").append(i).append(" THEN ").append(getNextClause(level2Size, "_XY" + i))
-        .append(System.lineSeparator());
+      sb.append("WHEN ")
+          .append(i)
+          .append(" THEN ")
+          .append(getNextClause(level2Size, "_XY" + i))
+          .append(System.lineSeparator());
     }
     sb.append("ELSE concat(n_name, '_ABC') END as nation").append(System.lineSeparator());
     return sb.toString();
@@ -63,8 +66,11 @@ public abstract class TestAbstractCaseLargeQueries extends PlanTestBase {
       sb.append("CASE n_regionkey").append(System.lineSeparator());
       for (int i = level2Size; i > 0; i--) {
         final int regionIdx = (i >= regions.length) ? 0 : i;
-        sb.append("WHEN ").append(i).append(" THEN ").append((getNextClause(1, regions[regionIdx])))
-          .append(System.lineSeparator());
+        sb.append("WHEN ")
+            .append(i)
+            .append(" THEN ")
+            .append((getNextClause(1, regions[regionIdx])))
+            .append(System.lineSeparator());
       }
       sb.append("ELSE lower(concat(n_name, '_UNKNOWN')) END").append(System.lineSeparator());
       return sb.toString();

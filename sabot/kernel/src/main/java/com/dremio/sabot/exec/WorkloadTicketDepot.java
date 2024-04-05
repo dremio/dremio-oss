@@ -15,10 +15,6 @@
  */
 package com.dremio.sabot.exec;
 
-import java.util.Collection;
-
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.exec.proto.CoordExecRPC.SchedulingInfo;
@@ -26,10 +22,10 @@ import com.dremio.sabot.task.AsyncTaskWrapper;
 import com.dremio.sabot.task.GroupManager;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import java.util.Collection;
+import org.apache.arrow.memory.BufferAllocator;
 
-/**
- * Storage and access of {@link WorkloadTicket}s -- one per workload
- */
+/** Storage and access of {@link WorkloadTicket}s -- one per workload */
 public class WorkloadTicketDepot implements AutoCloseable {
   private static final String INSTANT_MAX_ALLOCATION_CONFIG = "allocators.instant.max";
   private static final String BACKGROUND_MAX_ALLOCATION_CONFIG = "allocators.background.max";
@@ -45,19 +41,35 @@ public class WorkloadTicketDepot implements AutoCloseable {
   private final WorkloadTicket generalWorkloadTicket;
   private final WorkloadTicket backgroundWorkloadTicket;
 
-  public WorkloadTicketDepot(BufferAllocator parentAllocator, SabotConfig config, GroupManager<AsyncTaskWrapper> manager) {
+  public WorkloadTicketDepot(
+      BufferAllocator parentAllocator, SabotConfig config, GroupManager<AsyncTaskWrapper> manager) {
     this.manager = Preconditions.checkNotNull(manager, "Task manager required");
 
-    nrtWorkloadTicket = new WorkloadTicket(parentAllocator.newChildAllocator("nrt-workload-allocator", 0,
-      getLongConfig(config, INSTANT_MAX_ALLOCATION_CONFIG, Long.MAX_VALUE)), manager.newGroup(NRT_WEIGHT));
+    nrtWorkloadTicket =
+        new WorkloadTicket(
+            parentAllocator.newChildAllocator(
+                "nrt-workload-allocator",
+                0,
+                getLongConfig(config, INSTANT_MAX_ALLOCATION_CONFIG, Long.MAX_VALUE)),
+            manager.newGroup(NRT_WEIGHT));
     nrtWorkloadTicket.reserve();
 
-    generalWorkloadTicket = new WorkloadTicket(parentAllocator.newChildAllocator("general-workload-allocator", 0,
-      getLongConfig(config, GENERAL_MAX_ALLOCATION_CONFIG, Long.MAX_VALUE)), manager.newGroup(GENERAL_WEIGHT));
+    generalWorkloadTicket =
+        new WorkloadTicket(
+            parentAllocator.newChildAllocator(
+                "general-workload-allocator",
+                0,
+                getLongConfig(config, GENERAL_MAX_ALLOCATION_CONFIG, Long.MAX_VALUE)),
+            manager.newGroup(GENERAL_WEIGHT));
     generalWorkloadTicket.reserve();
 
-    backgroundWorkloadTicket = new WorkloadTicket(parentAllocator.newChildAllocator("background-workload-allocator", 0,
-      getLongConfig(config, BACKGROUND_MAX_ALLOCATION_CONFIG, Long.MAX_VALUE)), manager.newGroup(BACKGROUND_WEIGHT));
+    backgroundWorkloadTicket =
+        new WorkloadTicket(
+            parentAllocator.newChildAllocator(
+                "background-workload-allocator",
+                0,
+                getLongConfig(config, BACKGROUND_MAX_ALLOCATION_CONFIG, Long.MAX_VALUE)),
+            manager.newGroup(BACKGROUND_WEIGHT));
     backgroundWorkloadTicket.reserve();
   }
 
@@ -69,8 +81,8 @@ public class WorkloadTicketDepot implements AutoCloseable {
   }
 
   /**
-   * Get the ticket that corresponds to the appropriate workload
-   * The ticket is always 'reserve()'d, which means that callers should call release() on it once they're done using it
+   * Get the ticket that corresponds to the appropriate workload The ticket is always 'reserve()'d,
+   * which means that callers should call release() on it once they're done using it
    */
   public WorkloadTicket getWorkloadTicket(final SchedulingInfo schedulingInfo) {
     WorkloadTicket result;
@@ -101,9 +113,8 @@ public class WorkloadTicketDepot implements AutoCloseable {
   @Override
   public void close() throws Exception {
     AutoCloseables.close(
-      (nrtWorkloadTicket.release() ? nrtWorkloadTicket : null),
-      (backgroundWorkloadTicket.release() ? backgroundWorkloadTicket : null),
-      (generalWorkloadTicket.release() ? generalWorkloadTicket : null)
-    );
+        (nrtWorkloadTicket.release() ? nrtWorkloadTicket : null),
+        (backgroundWorkloadTicket.release() ? backgroundWorkloadTicket : null),
+        (generalWorkloadTicket.release() ? generalWorkloadTicket : null));
   }
 }

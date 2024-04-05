@@ -45,7 +45,7 @@ describe("External Link", () => {
         target: "_blank",
         rel: "noopener noreferrer",
         className: "sample-class",
-      })
+      }),
     );
   });
 

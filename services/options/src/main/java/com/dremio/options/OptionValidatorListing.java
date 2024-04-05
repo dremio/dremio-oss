@@ -18,9 +18,7 @@ package com.dremio.options;
 import java.util.Collection;
 import java.util.Iterator;
 
-/**
- * Provides OptionValidators
- */
+/** Provides OptionValidators */
 public interface OptionValidatorListing {
   /**
    * Get the option validator for a given name

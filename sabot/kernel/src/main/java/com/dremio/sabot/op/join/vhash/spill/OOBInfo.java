@@ -15,16 +15,16 @@
  */
 package com.dremio.sabot.op.join.vhash.spill;
 
-import java.util.List;
-
 import com.dremio.exec.planner.fragment.EndpointsIndex;
 import com.dremio.exec.proto.CoordExecRPC;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.sabot.exec.rpc.TunnelProvider;
+import java.util.List;
 
 /**
- * Relays info required to send an OOB message from {@link VectorizedSpillingHashJoinOperator} to MemoryPartition, since spilling
- * of VectorizedSpillingHashJoinOperator is performed from MemoryPartition.
+ * Relays info required to send an OOB message from {@link VectorizedSpillingHashJoinOperator} to
+ * MemoryPartition, since spilling of VectorizedSpillingHashJoinOperator is performed from
+ * MemoryPartition.
  */
 public class OOBInfo {
 
@@ -38,9 +38,16 @@ public class OOBInfo {
   private boolean oobSpillEnabled;
   private String message_type;
 
-  public OOBInfo(final List<CoordExecRPC.FragmentAssignment> assignments, final QueryId queryId, final int majorFragmentId,
-                 final int operatorId, final int minorFragmentId, final EndpointsIndex endpointsIndex,
-                 final TunnelProvider tunnelProvider, final boolean oobSpillEnabled, final String message_type) {
+  public OOBInfo(
+      final List<CoordExecRPC.FragmentAssignment> assignments,
+      final QueryId queryId,
+      final int majorFragmentId,
+      final int operatorId,
+      final int minorFragmentId,
+      final EndpointsIndex endpointsIndex,
+      final TunnelProvider tunnelProvider,
+      final boolean oobSpillEnabled,
+      final String message_type) {
     this.assignments = assignments;
     this.queryId = queryId;
     this.majorFragmentId = majorFragmentId;

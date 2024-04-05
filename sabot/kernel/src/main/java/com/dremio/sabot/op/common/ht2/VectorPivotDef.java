@@ -15,31 +15,36 @@
  */
 package com.dremio.sabot.op.common.ht2;
 
-import org.apache.arrow.vector.FieldVector;
-
 import com.dremio.common.expression.Describer;
 import com.dremio.sabot.op.common.ht2.PivotBuilder.FieldType;
 import com.google.common.annotations.VisibleForTesting;
+import org.apache.arrow.vector.FieldVector;
 
-/**
- * Class describing the way a particular vector should be pivoted.
- */
+/** Class describing the way a particular vector should be pivoted. */
 public class VectorPivotDef {
   private final FieldType type;
   private final int nullByteOffset;
   private final int nullBitOffset;
 
   // the address offset of the buffer in this buffer collection.
-  // is bit offset if bit type, byte offset if fixed byte type, position offset in case of variable type.
+  // is bit offset if bit type, byte offset if fixed byte type, position offset in case of variable
+  // type.
   private final int offset;
   private final FieldVectorPair vector;
 
   @VisibleForTesting
-  VectorPivotDef(FieldType type, int nullByteOffset, int nullBitOffset, int offset, FieldVector input, FieldVector output) {
+  VectorPivotDef(
+      FieldType type,
+      int nullByteOffset,
+      int nullBitOffset,
+      int offset,
+      FieldVector input,
+      FieldVector output) {
     this(type, nullByteOffset, nullBitOffset, offset, new FieldVectorPair(input, output));
   }
 
-  public VectorPivotDef(FieldType type, int nullByteOffset, int nullBitOffset, int offset, FieldVectorPair vector) {
+  public VectorPivotDef(
+      FieldType type, int nullByteOffset, int nullBitOffset, int offset, FieldVectorPair vector) {
     super();
     this.type = type;
     this.nullByteOffset = nullByteOffset;
@@ -126,15 +131,23 @@ public class VectorPivotDef {
     return true;
   }
 
-  public VectorPivotDef cloneWithShift(int nullShift, int valueShift){
-    return new VectorPivotDef(type, nullShift + nullByteOffset, nullBitOffset, valueShift + offset, vector);
+  public VectorPivotDef cloneWithShift(int nullShift, int valueShift) {
+    return new VectorPivotDef(
+        type, nullShift + nullByteOffset, nullBitOffset, valueShift + offset, vector);
   }
 
   @Override
   public String toString() {
-    return "VectorPivotDef [type=" + type + ", nullByteOffset=" + nullByteOffset + ", nullBitOffset=" + nullBitOffset
-        + ", offset=" + offset + ", vector=" + Describer.describe(vector.getIncoming().getField()) + "]";
+    return "VectorPivotDef [type="
+        + type
+        + ", nullByteOffset="
+        + nullByteOffset
+        + ", nullBitOffset="
+        + nullBitOffset
+        + ", offset="
+        + offset
+        + ", vector="
+        + Describer.describe(vector.getIncoming().getField())
+        + "]";
   }
-
-
 }

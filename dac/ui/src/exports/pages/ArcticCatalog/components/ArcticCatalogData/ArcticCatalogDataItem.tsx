@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import { useMemo } from "react";
 import FontIcon from "@app/components/Icon/FontIcon";
 import { useIntl } from "react-intl";
 import { EntryV1 as Entry } from "@app/services/nessie/client";
@@ -23,16 +24,17 @@ import {
   useArcticCatalogContext,
   getIconByType,
 } from "@app/exports/pages/ArcticCatalog/arctic-catalog-utils";
-import { ARCTIC_ENTITY_PRIVILEGES } from "@inject/featureFlags/flags/ARCTIC_ENTITY_PRIVILEGES";
-import { useFeatureFlag } from "@app/exports/providers/useFeatureFlag";
 import { useNessieContext } from "@app/pages/NessieHomePage/utils/context";
 import ArcticCatalogDataItemSettings from "@inject/pages/ArcticCatalog/components/ArcticCatalogDataItemSettings/ArcticCatalogDataItemSettings";
-import "@app/pages/NessieHomePage/components/NamespaceItem/NamespaceItem.less";
-import { type EngineStateRead } from "@app/exports/endpoints/ArcticCatalogs/Configuration/CatalogConfiguration.types";
+import { useFeatureFlag } from "@app/exports/providers/useFeatureFlag";
+import { ARCTIC_INHERITABLE_ACCESS_CONTROL } from "@inject/featureFlags/flags/ARCTIC_INHERITABLE_ACCESS_CONTROL";
 import {
   ICEBERG_TABLE,
   ICEBERG_VIEW,
+  ICEBERG_FOLDER,
 } from "@inject/pages/ArcticCatalog/components/ArcticCatalogDataItemSettings/settings-utils";
+import "@app/pages/NessieHomePage/components/NamespaceItem/NamespaceItem.less";
+import { type EngineStateRead } from "@app/exports/endpoints/ArcticCatalogs/Configuration/CatalogConfiguration.types";
 import { Type } from "@app/types/nessie";
 import "./ArcticCatalogDataItem.less";
 
@@ -58,7 +60,6 @@ function ArcticCatalogDataItem({
   const {
     state: { hash, reference },
   } = useNessieContext();
-  const [entityPrivilegesFlag] = useFeatureFlag(ARCTIC_ENTITY_PRIVILEGES);
 
   if (!entry.name || entry.name.elements.length === 0 || !reference)
     return null;
@@ -73,20 +74,22 @@ function ArcticCatalogDataItem({
     namespace: `${encodeURIComponent(params?.branchName)}/${fullPath}`,
     hash: hash ? `?hash=${hash}` : "",
   });
+  const [isInheritableEnabled] = useFeatureFlag(
+    ARCTIC_INHERITABLE_ACCESS_CONTROL,
+  );
+
   const isOnTagOrCommit = reference.type === "TAG" || !!hash;
-  const renderSettingsButton = (): boolean => {
+  const renderSettingsButton = useMemo(() => {
+    const type = entry.type;
     if (
-      entry.type === ICEBERG_VIEW &&
-      entityPrivilegesFlag &&
-      !isOnTagOrCommit
+      (type === ICEBERG_VIEW && !isOnTagOrCommit) ||
+      type === ICEBERG_TABLE ||
+      (type === ICEBERG_FOLDER && !isOnTagOrCommit && isInheritableEnabled)
     ) {
       return true;
     }
-    if (entry.type === ICEBERG_TABLE && entityPrivilegesFlag) {
-      return true;
-    }
     return false;
-  };
+  }, [isInheritableEnabled]);
 
   const mainContent = (
     <>
@@ -97,7 +100,7 @@ function ArcticCatalogDataItem({
       >
         {elements[elements.length - 1]}
       </span>
-      {renderSettingsButton() && (
+      {renderSettingsButton && (
         <ArcticCatalogDataItemSettings
           refValue={hash ?? reference.name}
           fullPath={elements}

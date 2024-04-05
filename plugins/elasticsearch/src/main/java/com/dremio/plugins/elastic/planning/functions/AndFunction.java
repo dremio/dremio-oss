@@ -15,20 +15,18 @@
  */
 package com.dremio.plugins.elastic.planning.functions;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import org.apache.calcite.rex.RexCall;
-import org.apache.calcite.rex.RexNode;
-
 import com.dremio.plugins.elastic.planning.rules.SchemaField.NullReference;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import java.util.ArrayList;
+import java.util.List;
+import org.apache.calcite.rex.RexCall;
+import org.apache.calcite.rex.RexNode;
 
 class AndFunction extends ElasticFunction {
 
-  public AndFunction(){
+  public AndFunction() {
     super("and", "&&");
   }
 
@@ -43,7 +41,7 @@ class AndFunction extends ElasticFunction {
       refs.add(r.getNulls());
     }
 
-    return new FunctionRender("( " + Joiner.on(" " + elasticName + " ").join(operands) + " )", Iterables.concat(refs));
+    return new FunctionRender(
+        "( " + Joiner.on(" " + elasticName + " ").join(operands) + " )", Iterables.concat(refs));
   }
-
 }

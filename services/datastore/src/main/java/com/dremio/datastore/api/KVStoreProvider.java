@@ -17,24 +17,19 @@ package com.dremio.datastore.api;
 
 import static java.lang.reflect.Modifier.isPublic;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
-import java.util.Map;
-import java.util.Set;
-
-import javax.inject.Provider;
-
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.datastore.format.Format;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.service.Service;
 import com.dremio.services.fabric.api.FabricService;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.util.Map;
+import java.util.Set;
+import javax.inject.Provider;
+import org.apache.arrow.memory.BufferAllocator;
 
-/**
- * Key-value store abstraction
- */
+/** Key-value store abstraction */
 public interface KVStoreProvider extends Service {
 
   /**
@@ -50,8 +45,8 @@ public interface KVStoreProvider extends Service {
    * @param creator The creator function.
    * @return The associated kvstore, already initialized.
    */
-  <K, V, T extends KVStore<K, V>> T getStore(Class<? extends StoreCreationFunction<K, V, T>> creator);
-
+  <K, V, T extends KVStore<K, V>> T getStore(
+      Class<? extends StoreCreationFunction<K, V, T>> creator);
 
   /**
    * Get method to retrieve the StoreBuilder of this KVStoreProvider.
@@ -117,8 +112,8 @@ public interface KVStoreProvider extends Service {
   }
 
   /**
-   * Method that allows decorators of kv store to be peeled off.
-   * If unwrap cannot succeed, null is returned.
+   * Method that allows decorators of kv store to be peeled off. If unwrap cannot succeed, null is
+   * returned.
    */
   default <T> T unwrap(Class<T> clazz) {
     if (clazz.isInstance(this)) {
@@ -128,19 +123,16 @@ public interface KVStoreProvider extends Service {
   }
 
   /**
-   * This method retrieves the expected constructor from {@link KVStoreProvider} implementations. It can be used to
-   * write tests to ensure the correct constructor is maintained.
+   * This method retrieves the expected constructor from {@link KVStoreProvider} implementations. It
+   * can be used to write tests to ensure the correct constructor is maintained.
    */
-  static Constructor<? extends KVStoreProvider> getConstructor(Class<? extends KVStoreProvider> cls) {
+  static Constructor<? extends KVStoreProvider> getConstructor(
+      Class<? extends KVStoreProvider> cls) {
     Constructor<? extends KVStoreProvider> constructor;
     try {
-      constructor =  cls.getDeclaredConstructor(
-        ScanResult.class,
-        Provider.class,
-        Provider.class,
-        BufferAllocator.class,
-        Map.class
-      );
+      constructor =
+          cls.getDeclaredConstructor(
+              ScanResult.class, Provider.class, Provider.class, BufferAllocator.class, Map.class);
     } catch (NoSuchMethodException e) {
       throw new RuntimeException(cls + " must have the expected constructor", e);
     }

@@ -17,14 +17,6 @@ package com.dremio.exec.expr.fn;
 
 import static com.dremio.common.util.MajorTypeHelper.getArrowMinorType;
 
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import org.apache.arrow.vector.complex.reader.FieldReader;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.FunctionHolderExpression;
@@ -50,10 +42,17 @@ import com.sun.codemodel.JExpr;
 import com.sun.codemodel.JInvocation;
 import com.sun.codemodel.JType;
 import com.sun.codemodel.JVar;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import org.apache.arrow.vector.complex.reader.FieldReader;
 
 public abstract class BaseFunctionHolder extends AbstractFunctionHolder {
 
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BaseFunctionHolder.class);
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(BaseFunctionHolder.class);
 
   private final FunctionAttributes attributes;
   private final OutputDerivation derivation;
@@ -71,9 +70,7 @@ public abstract class BaseFunctionHolder extends AbstractFunctionHolder {
   private final boolean usesErrContext;
   private final ImmutableList<CompleteType> paramTypes;
 
-  public BaseFunctionHolder(
-      FunctionAttributes attributes,
-      FunctionInitializer initializer) {
+  public BaseFunctionHolder(FunctionAttributes attributes, FunctionInitializer initializer) {
     super();
     this.attributes = attributes;
     this.scope = attributes.getScope();
@@ -92,11 +89,11 @@ public abstract class BaseFunctionHolder extends AbstractFunctionHolder {
     if (parameters == null) {
       this.paramTypes = ImmutableList.of();
     } else {
-      this.paramTypes = ImmutableList.copyOf(
-        Arrays.stream(parameters)
-        .map(ValueReference::getType)
-        .collect(ImmutableList.toImmutableList())
-      );
+      this.paramTypes =
+          ImmutableList.copyOf(
+              Arrays.stream(parameters)
+                  .map(ValueReference::getType)
+                  .collect(ImmutableList.toImmutableList()));
     }
 
     boolean usesErrContext = false;
@@ -109,12 +106,17 @@ public abstract class BaseFunctionHolder extends AbstractFunctionHolder {
     this.usesErrContext = usesErrContext;
 
     // Make sure functions with INTERNAL null handling use a Nullable output
-    assert nullHandling != NullHandling.INTERNAL || returnValue.getOldType().getMode() == TypeProtos.DataMode.OPTIONAL :
-      "Function [" + initializer.getClassName() + "] with INTERNAL null handling should use a Nullable output";
+    assert nullHandling != NullHandling.INTERNAL
+            || returnValue.getOldType().getMode() == TypeProtos.DataMode.OPTIONAL
+        : "Function ["
+            + initializer.getClassName()
+            + "] with INTERNAL null handling should use a Nullable output";
 
     // Make sure functions with Complex output define a proper output derivation
-    assert !returnValue.isComplexWriter() || !isReturnTypeIndependent() :
-      "Function [" + initializer.getClassName() + "] has a ComplexWriter output but it's using the Default derivation";
+    assert !returnValue.isComplexWriter() || !isReturnTypeIndependent()
+        : "Function ["
+            + initializer.getClassName()
+            + "] has a ComplexWriter output but it's using the Default derivation";
   }
 
   protected String meth(String methodName) {
@@ -129,9 +131,10 @@ public abstract class BaseFunctionHolder extends AbstractFunctionHolder {
       }
       long count = initializer.getCount();
       Collection<String> methods = initializer.getMethodNames();
-      throw UserException
-          .functionError()
-          .message("Failure while trying use function. No body found for required method %s. Count %d, Methods that were available %s", methodName, count, methods)
+      throw UserException.functionError()
+          .message(
+              "Failure while trying use function. No body found for required method %s. Count %d, Methods that were available %s",
+              methodName, count, methods)
           .addContext("FunctionClass", initializer.getClassName())
           .build(logger);
     }
@@ -139,16 +142,26 @@ public abstract class BaseFunctionHolder extends AbstractFunctionHolder {
   }
 
   @Override
-  public JVar[] renderStart(ClassGenerator<?> g, CompleteType resolvedOutput, HoldingContainer[] inputVariables, FunctionErrorContext errorContext) {
+  public JVar[] renderStart(
+      ClassGenerator<?> g,
+      CompleteType resolvedOutput,
+      HoldingContainer[] inputVariables,
+      FunctionErrorContext errorContext) {
     return declareWorkspaceVariables(g, errorContext);
   }
 
   @Override
-  public void renderMiddle(ClassGenerator<?> g, CompleteType resolvedOutput, HoldingContainer[] inputVariables, JVar[] workspaceJVars) {
-  }
+  public void renderMiddle(
+      ClassGenerator<?> g,
+      CompleteType resolvedOutput,
+      HoldingContainer[] inputVariables,
+      JVar[] workspaceJVars) {}
 
   @Override
-  public abstract HoldingContainer renderEnd(ClassGenerator<?> g, CompleteType resolvedOutput, HoldingContainer[] inputVariables,
+  public abstract HoldingContainer renderEnd(
+      ClassGenerator<?> g,
+      CompleteType resolvedOutput,
+      HoldingContainer[] inputVariables,
       JVar[] workspaceJVars);
 
   @Override
@@ -175,8 +188,11 @@ public abstract class BaseFunctionHolder extends AbstractFunctionHolder {
     return syntax;
   }
 
-  protected JVar[] declareWorkspaceVariables(ClassGenerator<?> g, FunctionErrorContext errorContext) {
-    assert usesErrContext == (errorContext != null);  // Caller should have created a FunctionErrorContext if usesErrContext()
+  protected JVar[] declareWorkspaceVariables(
+      ClassGenerator<?> g, FunctionErrorContext errorContext) {
+    assert usesErrContext
+        == (errorContext
+            != null); // Caller should have created a FunctionErrorContext if usesErrContext()
 
     JVar[] workspaceJVars = new JVar[workspaceVars.length];
     for (int i = 0; i < workspaceVars.length; i++) {
@@ -192,30 +208,36 @@ public abstract class BaseFunctionHolder extends AbstractFunctionHolder {
       }
 
       if (ref.isInject()) {
-        String injectableFactoryFunction = FunctionContext.INJECTABLE_GETTER_METHODS.get(ref.getType());
+        String injectableFactoryFunction =
+            FunctionContext.INJECTABLE_GETTER_METHODS.get(ref.getType());
         if (injectableFactoryFunction != null) {
-          JInvocation injectableFactoryInvocation = JExpr.direct("context").invoke(injectableFactoryFunction);
+          JInvocation injectableFactoryInvocation =
+              JExpr.direct("context").invoke(injectableFactoryFunction);
           if (ref.getType() == FunctionErrorContext.class) {
             injectableFactoryInvocation.arg(JExpr.lit(errorContext.getId()));
-            g.getBlock(BlockType.SETUP)
-              .assign(workspaceJVars[i], injectableFactoryInvocation);
+            g.getBlock(BlockType.SETUP).assign(workspaceJVars[i], injectableFactoryInvocation);
           } else {
-            g.getBlock(BlockType.SETUP)
-              .assign(workspaceJVars[i], injectableFactoryInvocation);
+            g.getBlock(BlockType.SETUP).assign(workspaceJVars[i], injectableFactoryInvocation);
           }
         } else {
           // Invalid injectable type provided, this should have been caught in FunctionConverter
-          throw new IllegalArgumentException("Invalid injectable type requested in UDF: " + ref.getType().getSimpleName());
+          throw new IllegalArgumentException(
+              "Invalid injectable type requested in UDF: " + ref.getType().getSimpleName());
         }
       } else {
-        //g.getBlock(BlockType.SETUP).assign(workspaceJVars[i], JExpr._new(jtype));
+        // g.getBlock(BlockType.SETUP).assign(workspaceJVars[i], JExpr._new(jtype));
       }
     }
     return workspaceJVars;
   }
 
-  protected void generateBody(ClassGenerator<?> g, BlockType bt, String body, HoldingContainer[] inputVariables,
-      JVar[] workspaceJVars, boolean decConstantInputOnly) {
+  protected void generateBody(
+      ClassGenerator<?> g,
+      BlockType bt,
+      String body,
+      HoldingContainer[] inputVariables,
+      JVar[] workspaceJVars,
+      boolean decConstantInputOnly) {
     final String trimmedBody = Strings.nullToEmpty(body).trim();
     if (!trimmedBody.isEmpty() && !"{}".equals(trimmedBody)) {
       JBlock sub = new JBlock(true, true);
@@ -224,14 +246,23 @@ public abstract class BaseFunctionHolder extends AbstractFunctionHolder {
       } else {
         addProtectedBlock(g, sub, body, null, workspaceJVars, false);
       }
-      g.getBlock(bt).directStatement(String.format("/** start %s for function %s **/ ", bt.name(), registeredNames[0]));
+      g.getBlock(bt)
+          .directStatement(
+              String.format("/** start %s for function %s **/ ", bt.name(), registeredNames[0]));
       g.getBlock(bt).add(sub);
-      g.getBlock(bt).directStatement(String.format("/** end %s for function %s **/ ", bt.name(), registeredNames[0]));
+      g.getBlock(bt)
+          .directStatement(
+              String.format("/** end %s for function %s **/ ", bt.name(), registeredNames[0]));
     }
   }
 
-  protected void addProtectedBlock(ClassGenerator<?> g, JBlock sub, String body, HoldingContainer[] inputVariables,
-      JVar[] workspaceJVars, boolean decConstInputOnly) {
+  protected void addProtectedBlock(
+      ClassGenerator<?> g,
+      JBlock sub,
+      String body,
+      HoldingContainer[] inputVariables,
+      JVar[] workspaceJVars,
+      boolean decConstInputOnly) {
     Map<JVar, JVar> inputStartPositionMap = new HashMap<>();
     if (inputVariables != null) {
       for (int i = 0; i < inputVariables.length; i++) {
@@ -241,19 +272,32 @@ public abstract class BaseFunctionHolder extends AbstractFunctionHolder {
 
         ValueReference parameter = parameters[i];
         HoldingContainer inputVariable = inputVariables[i];
-        if (parameter.isFieldReader && !inputVariable.isReader() && inputVariable.getCompleteType().isScalar()) {
-          JType singularReaderClass = g.getModel()._ref(TypeHelper.getHolderReaderImpl(getArrowMinorType(inputVariable.getCompleteType().toMinorType())));
+        if (parameter.isFieldReader
+            && !inputVariable.isReader()
+            && inputVariable.getCompleteType().isScalar()) {
+          JType singularReaderClass =
+              g.getModel()
+                  ._ref(
+                      TypeHelper.getHolderReaderImpl(
+                          getArrowMinorType(inputVariable.getCompleteType().toMinorType())));
           JType fieldReadClass = g.getModel()._ref(FieldReader.class);
-          sub.decl(fieldReadClass, parameter.name, JExpr._new(singularReaderClass).arg(inputVariable.getHolder()));
-        }else if(parameter.isFieldReader && inputVariable.isReader() && (inputVariable.getCompleteType().isList() ||
-          inputVariable.getCompleteType().isMap())) {
-          // Need this block to store the start position of the list reader for case when the list reader used for different
+          sub.decl(
+              fieldReadClass,
+              parameter.name,
+              JExpr._new(singularReaderClass).arg(inputVariable.getHolder()));
+        } else if (parameter.isFieldReader
+            && inputVariable.isReader()
+            && (inputVariable.getCompleteType().isList()
+                || inputVariable.getCompleteType().isMap())) {
+          // Need this block to store the start position of the list reader for case when the list
+          // reader used for different
           // functions in the same expression and function iterate by each element.
-          JVar input = sub.decl(inputVariable.getJType(), parameter.name, inputVariable.getHolder());
-          JVar listStartPosition = sub.decl(g.getModel().INT, "listStartPosition" + i,
-            input.invoke("getPosition"));
+          JVar input =
+              sub.decl(inputVariable.getJType(), parameter.name, inputVariable.getHolder());
+          JVar listStartPosition =
+              sub.decl(g.getModel().INT, "listStartPosition" + i, input.invoke("getPosition"));
           inputStartPositionMap.put(input, listStartPosition);
-        }else {
+        } else {
           sub.decl(inputVariable.getJType(), parameter.name, inputVariable.getHolder());
         }
       }
@@ -262,17 +306,20 @@ public abstract class BaseFunctionHolder extends AbstractFunctionHolder {
     JVar[] internalVars = new JVar[workspaceJVars.length];
     for (int i = 0; i < workspaceJVars.length; i++) {
       if (decConstInputOnly) {
-        internalVars[i] = sub.decl(g.getModel()._ref(workspaceVars[i].type), workspaceVars[i].name, workspaceJVars[i]);
+        internalVars[i] =
+            sub.decl(
+                g.getModel()._ref(workspaceVars[i].type), workspaceVars[i].name, workspaceJVars[i]);
       } else {
-        internalVars[i] = sub.decl(g.getModel()._ref(workspaceVars[i].type), workspaceVars[i].name, workspaceJVars[i]);
+        internalVars[i] =
+            sub.decl(
+                g.getModel()._ref(workspaceVars[i].type), workspaceVars[i].name, workspaceJVars[i]);
       }
-
     }
 
     Preconditions.checkNotNull(body);
     sub.directStatement(body);
 
-    if(!inputStartPositionMap.isEmpty()) {
+    if (!inputStartPositionMap.isEmpty()) {
       for (Map.Entry<JVar, JVar> entry : inputStartPositionMap.entrySet()) {
         sub.add(entry.getKey().invoke("reset"));
         sub.add(entry.getKey().invoke("setPosition").arg(entry.getValue()));
@@ -295,7 +342,7 @@ public abstract class BaseFunctionHolder extends AbstractFunctionHolder {
     }
 
     for (int i = 0; i < parameters.length; i++) {
-      if(!parameters[i].type.equals(argTypes.get(i))){
+      if (!parameters[i].type.equals(argTypes.get(i))) {
         return false;
       }
     }
@@ -332,7 +379,7 @@ public abstract class BaseFunctionHolder extends AbstractFunctionHolder {
     return derivation.getOutputType(returnValue.type, args);
   }
 
-  public String getReturnName(){
+  public String getReturnName() {
     return returnValue.name;
   }
 
@@ -353,10 +400,17 @@ public abstract class BaseFunctionHolder extends AbstractFunctionHolder {
   public String toString() {
     final int maxLen = 10;
     return this.getClass().getSimpleName()
-        + " [functionNames=" + Arrays.toString(registeredNames)
-        + ", returnType=" + returnValue.type
-        + ", nullHandling=" + nullHandling
-        + ", parameters=" + (parameters != null ? Arrays.asList(parameters).subList(0, Math.min(parameters.length, maxLen)) : null) + "]";
+        + " [functionNames="
+        + Arrays.toString(registeredNames)
+        + ", returnType="
+        + returnValue.type
+        + ", nullHandling="
+        + nullHandling
+        + ", parameters="
+        + (parameters != null
+            ? Arrays.asList(parameters).subList(0, Math.min(parameters.length, maxLen))
+            : null)
+        + "]";
   }
 
   public WorkspaceReference[] getWorkspaceVars() {
@@ -374,7 +428,6 @@ public abstract class BaseFunctionHolder extends AbstractFunctionHolder {
     private boolean isConstant = false;
     private boolean isFieldReader = false;
     private boolean isComplexWriter = false;
-
 
     public ValueReference(CompleteType type, MajorType oldType, String name) {
       super();
@@ -402,7 +455,7 @@ public abstract class BaseFunctionHolder extends AbstractFunctionHolder {
       this.isConstant = isConstant;
     }
 
-    public boolean isConstant(){
+    public boolean isConstant() {
       return isConstant;
     }
 
@@ -427,7 +480,6 @@ public abstract class BaseFunctionHolder extends AbstractFunctionHolder {
     public boolean isComplexWriter() {
       return isComplexWriter;
     }
-
   }
 
   public static class WorkspaceReference {
@@ -470,11 +522,9 @@ public abstract class BaseFunctionHolder extends AbstractFunctionHolder {
     return false;
   }
 
-  /**
-   * Does this function always return the same type, no matter the inputs?
-   */
+  /** Does this function always return the same type, no matter the inputs? */
   @Override
-  public boolean isReturnTypeIndependent(){
+  public boolean isReturnTypeIndependent() {
     return derivation.getClass() == OutputDerivation.Default.class;
   }
 
@@ -482,7 +532,7 @@ public abstract class BaseFunctionHolder extends AbstractFunctionHolder {
     return returnValue;
   }
 
-  public List<CompleteType> getParamTypes(){
+  public List<CompleteType> getParamTypes() {
     return paramTypes;
   }
 }

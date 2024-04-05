@@ -18,13 +18,11 @@ package com.dremio.plugins.s3.store;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators;
 
-/**
- * System options for the S3 plugin
- */
+/** System options for the S3 plugin */
 @Options
 public class S3Options {
 
   // If enabled, use the asynchronous S3 interface for S3 files.
-  public static final TypeValidators.BooleanValidator ASYNC = new TypeValidators.BooleanValidator("store.s3.async", true);
-
+  public static final TypeValidators.BooleanValidator ASYNC =
+      new TypeValidators.BooleanValidator("store.s3.async", true);
 }

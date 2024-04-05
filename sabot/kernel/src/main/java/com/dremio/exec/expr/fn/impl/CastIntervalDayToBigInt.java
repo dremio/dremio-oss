@@ -15,33 +15,32 @@
  */
 package com.dremio.exec.expr.fn.impl;
 
-import org.apache.arrow.vector.holders.BigIntHolder;
-import org.apache.arrow.vector.holders.IntervalDayHolder;
-
 import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
+import org.apache.arrow.vector.holders.BigIntHolder;
+import org.apache.arrow.vector.holders.IntervalDayHolder;
 
-/**
- * generated from CastIntervalExactNumeric.java IntervalDay BigInt IntervalDayExactNumeric
- */
+/** generated from CastIntervalExactNumeric.java IntervalDay BigInt IntervalDayExactNumeric */
 @SuppressWarnings("unused")
-@FunctionTemplate(name = "castBIGINT", scope = FunctionTemplate.FunctionScope.SIMPLE, nulls=NullHandling.NULL_IF_NULL)
+@FunctionTemplate(
+    name = "castBIGINT",
+    scope = FunctionTemplate.FunctionScope.SIMPLE,
+    nulls = NullHandling.NULL_IF_NULL)
 public class CastIntervalDayToBigInt implements SimpleFunction {
 
-  @Param
-  IntervalDayHolder in;
-  @Output
-  BigIntHolder out;
+  @Param IntervalDayHolder in;
+  @Output BigIntHolder out;
 
   @Override
-  public void setup() {
-  }
+  public void setup() {}
 
   @Override
   public void eval() {
-    out.value = (long) in.milliseconds + (long) in.days * (long) org.apache.arrow.vector.util.DateUtility.daysToStandardMillis;
+    out.value =
+        (long) in.milliseconds
+            + (long) in.days * (long) org.apache.arrow.vector.util.DateUtility.daysToStandardMillis;
   }
 }

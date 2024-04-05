@@ -15,18 +15,16 @@
  */
 package com.dremio.exec.vector.accessor;
 
+import com.dremio.common.types.TypeProtos.MajorType;
+import com.dremio.common.types.TypeProtos.MinorType;
+import com.dremio.common.types.Types;
+import com.google.common.base.Preconditions;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Calendar;
 import java.util.TimeZone;
-
 import org.apache.arrow.vector.TimeStampMilliVector;
-
-import com.dremio.common.types.TypeProtos.MajorType;
-import com.dremio.common.types.TypeProtos.MinorType;
-import com.dremio.common.types.Types;
-import com.google.common.base.Preconditions;
 
 public class TimeStampMilliAccessor extends AbstractSqlAccessor {
 
@@ -62,7 +60,8 @@ public class TimeStampMilliAccessor extends AbstractSqlAccessor {
 
   @Override
   public Timestamp getTimestamp(int index, Calendar calendar) {
-    Preconditions.checkNotNull(calendar, "Invalid calendar used when attempting to retrieve timestamp.");
+    Preconditions.checkNotNull(
+        calendar, "Invalid calendar used when attempting to retrieve timestamp.");
     return getTimestamp(index, calendar.getTimeZone());
   }
 
@@ -74,7 +73,10 @@ public class TimeStampMilliAccessor extends AbstractSqlAccessor {
     LocalDateTime ldt = ac.getObject(index);
     if (tz != defaultTimeZone) {
       final long arrowMillis = ac.get(index);
-      ldt = ldt.minus(tz.getOffset(arrowMillis) - defaultTimeZone.getOffset(arrowMillis), ChronoUnit.MILLIS);
+      ldt =
+          ldt.minus(
+              tz.getOffset(arrowMillis) - defaultTimeZone.getOffset(arrowMillis),
+              ChronoUnit.MILLIS);
     }
 
     return Timestamp.valueOf(ldt);

@@ -15,38 +15,40 @@
  */
 package com.dremio.exec.planner.tablefunctions;
 
-import org.apache.calcite.plan.RelOptRule;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.convert.ConverterRule;
-
 import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.planner.physical.DistributionTrait;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.tablefunctions.ExternalQueryScanDrel;
 import com.dremio.exec.tablefunctions.ExternalQueryScanPrel;
+import org.apache.calcite.plan.RelOptRule;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.convert.ConverterRule;
 
-/**
- * Rule to convert ExternalQuerynScanDrel nodes to ExternalQueryIntermediateScanPrel nodes
- */
+/** Rule to convert ExternalQuerynScanDrel nodes to ExternalQueryIntermediateScanPrel nodes */
 public final class ExternalQueryScanPrule extends ConverterRule {
   public static final RelOptRule INSTANCE = new ExternalQueryScanPrule();
 
   private ExternalQueryScanPrule() {
-    super(ExternalQueryScanDrel.class, Rel.LOGICAL, Prel.PHYSICAL, "ExternalQueryScanDrel_To_ExternalQueryScanPrel_Converter_");
+    super(
+        ExternalQueryScanDrel.class,
+        Rel.LOGICAL,
+        Prel.PHYSICAL,
+        "ExternalQueryScanDrel_To_ExternalQueryScanPrel_Converter_");
   }
 
   @Override
   public RelNode convert(RelNode relNode) {
     final ExternalQueryScanDrel scan = (ExternalQueryScanDrel) relNode;
-    final RelTraitSet physicalTraits = scan.getTraitSet().replace(getOutTrait()).replace(DistributionTrait.SINGLETON);
+    final RelTraitSet physicalTraits =
+        scan.getTraitSet().replace(getOutTrait()).replace(DistributionTrait.SINGLETON);
 
     return new ExternalQueryScanPrel(
-      scan.getCluster(),
-      physicalTraits,
-      scan.getRowType(),
-      scan.getPluginId(),
-      scan.getSql(),
-      scan.getBatchSchema());
+        scan.getCluster(),
+        physicalTraits,
+        scan.getRowType(),
+        scan.getPluginId(),
+        scan.getSql(),
+        scan.getBatchSchema());
   }
 }

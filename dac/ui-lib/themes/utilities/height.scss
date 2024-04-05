@@ -24,6 +24,10 @@
   block-size: auto;
 }
 
+.h-max-content {
+  block-size: max-content;
+}
+
 @each $size in helpers.$sizes {
   .h-#{$size} {
     block-size: var(--scale-#{$size});

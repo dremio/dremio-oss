@@ -15,9 +15,7 @@
  */
 package com.dremio.exec.work;
 
-/**
- * This is the schema for sys."cache_manager_storage_plugins"
- */
+/** This is the schema for sys."cache_manager_storage_plugins" */
 public class CacheManagerStoragePluginInfo {
   public final String hostname;
   public final String storage_plugin_name;
@@ -25,8 +23,12 @@ public class CacheManagerStoragePluginInfo {
   public final long approx_size_bytes;
   public final long max_available_space;
 
-  public CacheManagerStoragePluginInfo(String hostname, String storagePluginName, long approxFileCount,
-                                       long approxSizeBytes, long maxAvailableSpace) {
+  public CacheManagerStoragePluginInfo(
+      String hostname,
+      String storagePluginName,
+      long approxFileCount,
+      long approxSizeBytes,
+      long maxAvailableSpace) {
     this.hostname = hostname;
     this.storage_plugin_name = storagePluginName;
     this.approx_file_count = approxFileCount;

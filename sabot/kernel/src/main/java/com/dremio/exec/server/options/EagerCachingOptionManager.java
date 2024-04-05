@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.server.options;
 
-import java.util.Map;
-
 import com.dremio.common.map.CaseInsensitiveMap;
 import com.dremio.options.OptionList;
 import com.dremio.options.OptionManager;
@@ -26,6 +24,7 @@ import com.dremio.options.OptionValue.OptionType;
 import com.dremio.options.TypeValidators.DoubleValidator;
 import com.dremio.options.TypeValidators.LongValidator;
 import com.dremio.options.TypeValidators.StringValidator;
+import java.util.Map;
 
 /**
  * An OptionManager that eagerly loads all non-default options and caches them in memory.

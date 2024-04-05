@@ -18,8 +18,7 @@ package com.mapr.fs;
 /**
  * OSInfo
  *
- * Included for compiling ShimLoader
- *
+ * <p>Included for compiling ShimLoader
  */
 public final class OSInfo {
   private OSInfo() {

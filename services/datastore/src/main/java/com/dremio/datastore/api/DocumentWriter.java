@@ -17,12 +17,11 @@ package com.dremio.datastore.api;
 
 import com.dremio.datastore.indexed.IndexKey;
 
-/**
- * Writer for adding documents to the index.
- */
+/** Writer for adding documents to the index. */
 public interface DocumentWriter {
   /**
    * Add the provided string values to the index.
+   *
    * @param key index key.
    * @param values values to be indexed.
    */
@@ -30,6 +29,7 @@ public interface DocumentWriter {
 
   /**
    * Add the provided byte values to the index.
+   *
    * @param key index key.
    * @param values values to be indexed.
    */
@@ -37,6 +37,7 @@ public interface DocumentWriter {
 
   /**
    * Add the provided long values to the index.
+   *
    * @param key index key.
    * @param value values to be indexed.
    */
@@ -44,6 +45,7 @@ public interface DocumentWriter {
 
   /**
    * Add the provided double values to the index.
+   *
    * @param key index key.
    * @param value values to be indexed.
    */
@@ -51,18 +53,20 @@ public interface DocumentWriter {
 
   /**
    * Add the provided integer values to the index.
+   *
    * @param key index key.
    * @param value values to be indexed.
    */
   void write(IndexKey key, Integer value);
 
   /**
-   * Add the provided Long values to the TTL index.
-   * KVStores that support TTL based expiry should implement this method in their DocumentWriter implementation
+   * Add the provided Long values to the TTL index. KVStores that support TTL based expiry should
+   * implement this method in their DocumentWriter implementation
+   *
    * @param key index key.
    * @param value TTL expireAt values to be indexed in long format.
    */
-  default void writeTTLExpireAt(IndexKey key, Long value){
+  default void writeTTLExpireAt(IndexKey key, Long value) {
     // NO-OP by default
   }
 }

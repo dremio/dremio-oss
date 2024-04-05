@@ -15,13 +15,6 @@
  */
 package com.dremio.exec.planner.physical.visitor;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.core.JoinRelType;
-import org.apache.calcite.rel.type.RelDataTypeField;
-
 import com.dremio.common.types.TypeProtos;
 import com.dremio.exec.planner.common.MoreRelOptUtil;
 import com.dremio.exec.planner.physical.EmptyPrel;
@@ -29,19 +22,26 @@ import com.dremio.exec.planner.physical.FilterPrel;
 import com.dremio.exec.planner.physical.JoinPrel;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.ProjectPrel;
+import com.dremio.exec.planner.physical.SortPrel;
 import com.dremio.exec.planner.physical.UnionPrel;
 import com.dremio.exec.planner.sql.TypeInferenceUtils;
 import com.dremio.exec.planner.sql.handlers.PrelTransformer;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.record.BatchSchema;
 import com.google.common.collect.ImmutableList;
+import java.util.ArrayList;
+import java.util.List;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.core.JoinRelType;
+import org.apache.calcite.rel.type.RelDataTypeField;
 
 /**
- * Removes a node and propagates the EmptyPrel up if the node under this is an EmptyPrel, for following nodes:
- * - Filter
- * - Project
- * - Join
- * - Union
+ * Removes a node and propagates the EmptyPrel up if the node under this is an EmptyPrel, for
+ * following nodes: - Filter - Project - Join - Union
+ *
+ * <p>Note that the work of this class is handled by EmptyRelPropagator, but we keep this here,
+ * since some part of the PrelTransformer is adding a bunch of extra projects and changing that
+ * would require a bunch of baseline updates.
  */
 public class EmptyPrelPropagator extends BasePrelVisitor<Prel, Void, RuntimeException> {
   private final SqlHandlerConfig config;
@@ -60,6 +60,11 @@ public class EmptyPrelPropagator extends BasePrelVisitor<Prel, Void, RuntimeExce
     for (Prel child : prel) {
       child = child.accept(this, value);
       children.add(child);
+    }
+    if (prel instanceof SortPrel) {
+      if (children.get(0) instanceof EmptyPrel) {
+        return createEmptyPrelFromNode(prel);
+      }
     }
     return (Prel) prel.copy(prel.getTraitSet(), children);
   }
@@ -80,10 +85,16 @@ public class EmptyPrelPropagator extends BasePrelVisitor<Prel, Void, RuntimeExce
     JoinRelType joinType = newJoin.getJoinType();
     RelNode right = newJoin.getRight();
     RelNode left = newJoin.getLeft();
-    boolean createEmptyPrelFromNode = (right instanceof EmptyPrel && left instanceof EmptyPrel) || // Both nodes are empty
-      (joinType == JoinRelType.INNER && (right instanceof EmptyPrel || left instanceof EmptyPrel)) || // Inner join and either node is empty
-      (joinType == JoinRelType.LEFT && left instanceof EmptyPrel) || // Left join and left node is empty
-      (joinType == JoinRelType.RIGHT && right instanceof EmptyPrel); // Right join and right node is empty
+    boolean createEmptyPrelFromNode =
+        (right instanceof EmptyPrel && left instanceof EmptyPrel)
+            || // Both nodes are empty
+            (joinType == JoinRelType.INNER
+                && (right instanceof EmptyPrel || left instanceof EmptyPrel))
+            || // Inner join and either node is empty
+            (joinType == JoinRelType.LEFT && left instanceof EmptyPrel)
+            || // Left join and left node is empty
+            (joinType == JoinRelType.RIGHT
+                && right instanceof EmptyPrel); // Right join and right node is empty
     if (createEmptyPrelFromNode) {
       return createEmptyPrelFromNode(newJoin);
     } else {
@@ -104,8 +115,13 @@ public class EmptyPrelPropagator extends BasePrelVisitor<Prel, Void, RuntimeExce
       return createEmptyPrelFromNode(newUnion);
     }
     if (newChildren.size() == 1) {
-      ProjectPrel project = ProjectPrel.create(union.getCluster(), union.getTraitSet(), newChildren.get(0),
-        MoreRelOptUtil.identityProjects(union.getRowType()), union.getRowType());
+      ProjectPrel project =
+          ProjectPrel.create(
+              union.getCluster(),
+              union.getTraitSet(),
+              newChildren.get(0),
+              MoreRelOptUtil.identityProjects(union.getRowType()),
+              union.getRowType());
       return project;
     }
     return newUnion;
@@ -123,13 +139,17 @@ public class EmptyPrelPropagator extends BasePrelVisitor<Prel, Void, RuntimeExce
 
   private Prel createEmptyPrelFromNode(Prel prel) {
     for (RelDataTypeField field : prel.getRowType().getFieldList()) {
-      if (TypeInferenceUtils.getMinorTypeFromCalciteType(field.getValue()) == TypeProtos.MinorType.LATE) {
+      if (TypeInferenceUtils.getMinorTypeFromCalciteType(field.getValue())
+          == TypeProtos.MinorType.LATE) {
         return prel;
       }
     }
     try {
-      BatchSchema batchSchema = PrelTransformer.convertToPop(config, prel)
-        .getProps().getSchema().clone(BatchSchema.SelectionVectorMode.NONE);
+      BatchSchema batchSchema =
+          PrelTransformer.convertToPop(config, prel)
+              .getProps()
+              .getSchema()
+              .clone(BatchSchema.SelectionVectorMode.NONE);
       return new EmptyPrel(prel.getCluster(), prel.getTraitSet(), prel.getRowType(), batchSchema);
     } catch (Exception ex) {
       throw new RuntimeException(ex);

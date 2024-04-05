@@ -32,10 +32,8 @@ public class PartialWork {
   public long getLength() {
     return length;
   }
+
   public NodeEndpoint[] getLocations() {
     return locations;
   }
-
-
-
 }

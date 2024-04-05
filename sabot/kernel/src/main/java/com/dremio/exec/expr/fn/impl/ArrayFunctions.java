@@ -15,18 +15,6 @@
  */
 package com.dremio.exec.expr.fn.impl;
 
-import java.math.BigDecimal;
-import java.util.List;
-import java.util.function.BiFunction;
-
-import javax.inject.Inject;
-
-import org.apache.arrow.vector.complex.impl.UnionListReader;
-import org.apache.arrow.vector.complex.reader.FieldReader;
-import org.apache.arrow.vector.holders.NullableBitHolder;
-import org.apache.arrow.vector.holders.NullableIntHolder;
-import org.apache.arrow.vector.util.Text;
-
 import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.FunctionTemplate.FunctionScope;
@@ -35,30 +23,36 @@ import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
 import com.dremio.exec.expr.fn.FunctionErrorContext;
 import com.dremio.exec.expr.fn.FunctionGenerationHelper;
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.function.BiFunction;
+import javax.inject.Inject;
+import org.apache.arrow.vector.complex.impl.UnionListReader;
+import org.apache.arrow.vector.complex.reader.FieldReader;
+import org.apache.arrow.vector.holders.NullableBitHolder;
+import org.apache.arrow.vector.holders.NullableIntHolder;
+import org.apache.arrow.vector.util.Text;
 
 /**
  * Functions for arrays.
  *
- * Note to developers: FieldReader is a UnionListReader that gets passed in from code generation
- * with the curor set to the proper index. This means that something like equals and hashcode get called
- * once per list in the vector.
+ * <p>Note to developers: FieldReader is a UnionListReader that gets passed in from code generation
+ * with the curor set to the proper index. This means that something like equals and hashcode get
+ * called once per list in the vector.
  */
 public class ArrayFunctions {
-  @FunctionTemplate(names = {"equal", "==", "="},
-    scope = FunctionScope.SIMPLE,
-    nulls = NullHandling.NULL_IF_NULL)
+  @FunctionTemplate(
+      names = {"equal", "==", "="},
+      scope = FunctionScope.SIMPLE,
+      nulls = NullHandling.NULL_IF_NULL)
   public static final class ArrayEquals implements SimpleFunction {
-    @Param
-    FieldReader left;
-    @Param
-    FieldReader right;
-    @Output
-    NullableBitHolder resultHolder;
+    @Param FieldReader left;
+    @Param FieldReader right;
+    @Output NullableBitHolder resultHolder;
     @Inject FunctionErrorContext errorContext;
 
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
     public void eval() {
@@ -68,27 +62,25 @@ public class ArrayFunctions {
       }
 
       resultHolder.isSet = 1;
-      boolean areFieldReadersEqual = com.dremio.exec.expr.fn.impl.ArrayFunctions.areFieldReadersEqual(left, right, errorContext);
+      boolean areFieldReadersEqual =
+          com.dremio.exec.expr.fn.impl.ArrayFunctions.areFieldReadersEqual(
+              left, right, errorContext);
       resultHolder.value = areFieldReadersEqual ? 1 : 0;
     }
   }
 
   @FunctionTemplate(
-    names = {"not_equal", "<>", "!="},
-    scope = FunctionScope.SIMPLE,
-    nulls = NullHandling.NULL_IF_NULL)
+      names = {"not_equal", "<>", "!="},
+      scope = FunctionScope.SIMPLE,
+      nulls = NullHandling.NULL_IF_NULL)
   public static final class ArrayNotEquals implements SimpleFunction {
-    @Param
-    FieldReader left;
-    @Param
-    FieldReader right;
-    @Output
-    NullableBitHolder resultHolder;
+    @Param FieldReader left;
+    @Param FieldReader right;
+    @Output NullableBitHolder resultHolder;
     @Inject FunctionErrorContext errorContext;
 
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
     public void eval() {
@@ -98,34 +90,28 @@ public class ArrayFunctions {
       }
 
       resultHolder.isSet = 1;
-      boolean areFieldReadersEqual = com.dremio.exec.expr.fn.impl.ArrayFunctions.areFieldReadersEqual(left, right, errorContext);
+      boolean areFieldReadersEqual =
+          com.dremio.exec.expr.fn.impl.ArrayFunctions.areFieldReadersEqual(
+              left, right, errorContext);
       resultHolder.value = areFieldReadersEqual ? 0 : 1;
     }
   }
 
   public static boolean areFieldReadersEqual(
-    FieldReader left,
-    FieldReader right,
-    FunctionErrorContext functionErrorContext) {
+      FieldReader left, FieldReader right, FunctionErrorContext functionErrorContext) {
     return compareTo(left, right, functionErrorContext) == 0;
   }
 
-  /**
-   * Array comparator where null appears last i.e. nulls are considered
-   * larger than all values.
-   */
-  @FunctionTemplate(name = FunctionGenerationHelper.COMPARE_TO_NULLS_HIGH,
-    scope = FunctionTemplate.FunctionScope.SIMPLE,
-    nulls = NullHandling.INTERNAL)
+  /** Array comparator where null appears last i.e. nulls are considered larger than all values. */
+  @FunctionTemplate(
+      name = FunctionGenerationHelper.COMPARE_TO_NULLS_HIGH,
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      nulls = NullHandling.INTERNAL)
   public static class ArrayCompareToNullsHigh implements SimpleFunction {
-    @Param
-    FieldReader left;
-    @Param
-    FieldReader right;
-    @Output
-    NullableIntHolder out;
-    @Inject
-    FunctionErrorContext errorContext;
+    @Param FieldReader left;
+    @Param FieldReader right;
+    @Output NullableIntHolder out;
+    @Inject FunctionErrorContext errorContext;
 
     @Override
     public void setup() {}
@@ -134,7 +120,8 @@ public class ArrayFunctions {
     public void eval() {
       out.isSet = 1;
       if (left.isSet() && right.isSet()) {
-        out.value = com.dremio.exec.expr.fn.impl.ArrayFunctions.compareTo(left, right, errorContext);
+        out.value =
+            com.dremio.exec.expr.fn.impl.ArrayFunctions.compareTo(left, right, errorContext);
       } else if (left.isSet() && !right.isSet()) {
         out.value = 1;
       } else if (!left.isSet() && right.isSet()) {
@@ -146,9 +133,7 @@ public class ArrayFunctions {
   }
 
   public static int compareTo(
-    FieldReader left,
-    FieldReader right,
-    FunctionErrorContext functionErrorContext) {
+      FieldReader left, FieldReader right, FunctionErrorContext functionErrorContext) {
     boolean leftIsValid = left instanceof UnionListReader;
     boolean rightIsValid = right instanceof UnionListReader;
     if (leftIsValid && !rightIsValid) {
@@ -166,9 +151,7 @@ public class ArrayFunctions {
   }
 
   public static <T> int compareToJavaList(
-    List<T> leftList,
-    List<T> rightList,
-    FunctionErrorContext functionErrorContext) {
+      List<T> leftList, List<T> rightList, FunctionErrorContext functionErrorContext) {
     if (leftList.size() < rightList.size()) {
       return -1;
     }
@@ -186,9 +169,10 @@ public class ArrayFunctions {
     String otherElementType = rightList.get(0).getClass().getSimpleName();
     if (!elementType.equals(otherElementType)) {
       throw functionErrorContext
-        .error()
-        .message("Unable to compare list of type: " + elementType + " with type: " + otherElementType)
-        .build();
+          .error()
+          .message(
+              "Unable to compare list of type: " + elementType + " with type: " + otherElementType)
+          .build();
     }
 
     if ("JsonStringArrayList".equals(elementType)) {
@@ -211,89 +195,83 @@ public class ArrayFunctions {
 
     int cmp;
     switch (elementType) {
-    case "Boolean":
-      cmp = compareToListOfComparable(
-        (List<Boolean>) leftList,
-        (List<Boolean>) rightList,
-        Boolean::compareTo);
-      break;
+      case "Boolean":
+        cmp =
+            compareToListOfComparable(
+                (List<Boolean>) leftList, (List<Boolean>) rightList, Boolean::compareTo);
+        break;
 
-    case "Integer":
-      cmp = compareToListOfComparable(
-        (List<Integer>) leftList,
-        (List<Integer>) rightList,
-        Integer::compareTo);
-      break;
+      case "Integer":
+        cmp =
+            compareToListOfComparable(
+                (List<Integer>) leftList, (List<Integer>) rightList, Integer::compareTo);
+        break;
 
-    case "Long":
-      cmp = compareToListOfComparable(
-        (List<Long>) leftList,
-        (List<Long>) rightList,
-        Long::compareTo);
-      break;
+      case "Long":
+        cmp =
+            compareToListOfComparable(
+                (List<Long>) leftList, (List<Long>) rightList, Long::compareTo);
+        break;
 
-    case "Float":
-      cmp = compareToListOfComparable(
-        (List<Float>) leftList,
-        (List<Float>) rightList,
-        Float::compareTo);
-      break;
+      case "Float":
+        cmp =
+            compareToListOfComparable(
+                (List<Float>) leftList, (List<Float>) rightList, Float::compareTo);
+        break;
 
-    case "Double":
-      cmp = compareToListOfComparable(
-        (List<Double>) leftList,
-        (List<Double>) rightList,
-        Double::compareTo);
-      break;
+      case "Double":
+        cmp =
+            compareToListOfComparable(
+                (List<Double>) leftList, (List<Double>) rightList, Double::compareTo);
+        break;
 
-    case "BigDecimal":
-      cmp = compareToListOfComparable(
-        (List<BigDecimal>) leftList,
-        (List<BigDecimal>) rightList,
-        BigDecimal::compareTo);
-      break;
+      case "BigDecimal":
+        cmp =
+            compareToListOfComparable(
+                (List<BigDecimal>) leftList, (List<BigDecimal>) rightList, BigDecimal::compareTo);
+        break;
 
-    case "Text":
-      cmp = compareToListOfComparable(
-        (List<Text>) leftList,
-        (List<Text>) rightList,
-        (t1, t2) -> {
-          byte[] t1Bytes = t1.getBytes();
-          byte[] t2Bytes = t2.getBytes();
+      case "Text":
+        cmp =
+            compareToListOfComparable(
+                (List<Text>) leftList,
+                (List<Text>) rightList,
+                (t1, t2) -> {
+                  byte[] t1Bytes = t1.getBytes();
+                  byte[] t2Bytes = t2.getBytes();
 
-          if (t1Bytes.length < t2Bytes.length) {
-            return -1;
-          } else if (t2Bytes.length < t1Bytes.length) {
-            return 1;
-          } else {
-            for (int i = 0; i < t1Bytes.length; i++) {
-              if (t1Bytes[i] < t2Bytes[i]) {
-                return -1;
-              }
+                  if (t1Bytes.length < t2Bytes.length) {
+                    return -1;
+                  } else if (t2Bytes.length < t1Bytes.length) {
+                    return 1;
+                  } else {
+                    for (int i = 0; i < t1Bytes.length; i++) {
+                      if (t1Bytes[i] < t2Bytes[i]) {
+                        return -1;
+                      }
 
-              if (t2Bytes[i] < t1Bytes[i]) {
-                return 1;
-              }
-            }
+                      if (t2Bytes[i] < t1Bytes[i]) {
+                        return 1;
+                      }
+                    }
 
-            return 0;
-          }
-        });
-      break;
+                    return 0;
+                  }
+                });
+        break;
 
-    default:
-      throw functionErrorContext.error()
-        .message("Unknown list element type: " + elementType)
-        .build();
+      default:
+        throw functionErrorContext
+            .error()
+            .message("Unknown list element type: " + elementType)
+            .build();
     }
 
     return cmp;
   }
 
   private static <T> int compareToListOfComparable(
-    List<T> leftList,
-    List<T> rightList,
-    BiFunction<T, T, Integer> elementCompareFunction) {
+      List<T> leftList, List<T> rightList, BiFunction<T, T, Integer> elementCompareFunction) {
     int cmp;
     for (int i = 0; i < leftList.size(); i++) {
       T leftItem = leftList.get(i);
@@ -308,14 +286,16 @@ public class ArrayFunctions {
     return 0;
   }
 
-  @FunctionTemplate(names = {"hash", "hash32"}, scope = FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.INTERNAL )
+  @FunctionTemplate(
+      names = {"hash", "hash32"},
+      scope = FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.INTERNAL)
   public static class ArrayHashCode implements SimpleFunction {
     @Param FieldReader array;
     @Output NullableIntHolder out;
 
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
     public void eval() {
@@ -328,15 +308,17 @@ public class ArrayFunctions {
     }
   }
 
-  @FunctionTemplate(names = {"hash", "hash32"}, scope = FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.INTERNAL )
+  @FunctionTemplate(
+      names = {"hash", "hash32"},
+      scope = FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.INTERNAL)
   public static class ArrayHashCodeCombine implements SimpleFunction {
     @Param FieldReader array;
     @Param NullableIntHolder otherHash;
     @Output NullableIntHolder out;
 
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
     public void eval() {
@@ -344,7 +326,8 @@ public class ArrayFunctions {
       if ((!array.isSet()) || (otherHash.isSet == 0)) {
         out.value = 0;
       } else {
-        out.value = com.dremio.exec.expr.fn.impl.ArrayFunctions.hashCodeHelper(array) ^ otherHash.value;
+        out.value =
+            com.dremio.exec.expr.fn.impl.ArrayFunctions.hashCodeHelper(array) ^ otherHash.value;
       }
     }
   }

@@ -15,33 +15,32 @@
  */
 package com.dremio.exec.planner.cost;
 
+import com.dremio.exec.planner.physical.SelectionVectorRemoverPrel;
+import com.dremio.exec.planner.physical.TableFunctionPrel;
+import com.google.common.collect.Sets;
 import java.util.Set;
-
 import org.apache.calcite.rel.metadata.ReflectiveRelMetadataProvider;
 import org.apache.calcite.rel.metadata.RelMetadataProvider;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rex.RexTableInputRef;
 import org.apache.calcite.util.BuiltInMethod;
 
-import com.dremio.exec.planner.physical.SelectionVectorRemoverPrel;
-import com.dremio.exec.planner.physical.TableFunctionPrel;
-import com.google.common.collect.Sets;
-
-/**
- * Override {@link RelMdTableReferences}
- */
-public class RelMdTableReferences extends org.apache.calcite.rel.metadata.RelMdTableReferences{
+/** Override {@link RelMdTableReferences} */
+public class RelMdTableReferences extends org.apache.calcite.rel.metadata.RelMdTableReferences {
   private static final RelMdTableReferences INSTANCE = new RelMdTableReferences();
 
-  public static final RelMetadataProvider SOURCE = ReflectiveRelMetadataProvider.reflectiveSource(BuiltInMethod.TABLE_REFERENCES.method, INSTANCE);
-  /**
-   * TableFunctionPrel table reference.
-   */
-  public Set<RexTableInputRef.RelTableRef> getTableReferences(TableFunctionPrel rel, RelMetadataQuery mq) {
+  public static final RelMetadataProvider SOURCE =
+      ReflectiveRelMetadataProvider.reflectiveSource(
+          BuiltInMethod.TABLE_REFERENCES.method, INSTANCE);
+
+  /** TableFunctionPrel table reference. */
+  public Set<RexTableInputRef.RelTableRef> getTableReferences(
+      TableFunctionPrel rel, RelMetadataQuery mq) {
     return Sets.newHashSet(RexTableInputRef.RelTableRef.of(rel.getTable(), 0));
   }
 
-  public Set<RexTableInputRef.RelTableRef> getTableReferences(SelectionVectorRemoverPrel rel, RelMetadataQuery mq) {
+  public Set<RexTableInputRef.RelTableRef> getTableReferences(
+      SelectionVectorRemoverPrel rel, RelMetadataQuery mq) {
     return mq.getTableReferences(rel.getInput());
   }
 }

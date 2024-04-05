@@ -17,13 +17,12 @@ package com.dremio.exec.planner.serialization;
 
 import org.apache.calcite.rel.RelNode;
 
-/**
- * An interface used to serialize {@link RelNode logical plan}.
- */
+/** An interface used to serialize {@link RelNode logical plan}. */
 public interface LogicalPlanSerializer {
 
   /**
    * Serialize this relnode tree to a sequence of bytes.
+   *
    * @param plan The tree to serialize
    * @return The serialized bytes.
    */
@@ -31,10 +30,9 @@ public interface LogicalPlanSerializer {
 
   /**
    * Generate a JSON representation of this RelNode tree as a JSON structure.
+   *
    * @param plan
    * @return
    */
   String serializeToJson(RelNode plan);
-
-
 }

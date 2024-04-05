@@ -17,9 +17,8 @@ package com.dremio.common.expression;
 
 import static org.junit.Assert.assertEquals;
 
-import org.junit.Test;
-
 import com.dremio.test.DremioTest;
+import org.junit.Test;
 
 public class PathSegmentTest extends DremioTest {
   protected PathSegment makeArraySegment(final int len, final PathSegment tail) {
@@ -38,8 +37,10 @@ public class PathSegmentTest extends DremioTest {
     assertEquals("result of clone & original segments must be identical", segment, clone);
 
     final PathSegment tail = new PathSegment.NameSegment("tail");
-    final PathSegment newSegment = new PathSegment.NameSegment("test", makeArraySegment(levels, tail));
+    final PathSegment newSegment =
+        new PathSegment.NameSegment("test", makeArraySegment(levels, tail));
     final PathSegment newClone = segment.cloneWithNewChild(tail);
-    assertEquals("result of cloneWithChild & original segment must be identical", newSegment, newClone);
+    assertEquals(
+        "result of cloneWithChild & original segment must be identical", newSegment, newClone);
   }
 }

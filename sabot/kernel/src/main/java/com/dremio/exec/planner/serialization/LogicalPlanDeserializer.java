@@ -17,21 +17,20 @@ package com.dremio.exec.planner.serialization;
 
 import org.apache.calcite.rel.RelNode;
 
-/**
- * An interface used to deserialize given bytes to a {@link RelNode}.
- */
+/** An interface used to deserialize given bytes to a {@link RelNode}. */
 public interface LogicalPlanDeserializer {
 
   /**
    * Deserialize a RelNode tree from bytes.
+   *
    * @param data The bytes to deserialize from.
    * @return RelNode tree.
    */
   RelNode deserialize(byte[] data) throws DeserializationException;
 
-
   /**
    * Deserialize a RelNode tree that was stored using JSON.
+   *
    * @param The json to deserialize
    * @return The deserialized RelNode tree.
    */

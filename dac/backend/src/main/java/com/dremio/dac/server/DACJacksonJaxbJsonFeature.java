@@ -15,20 +15,6 @@
  */
 package com.dremio.dac.server;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.lang.annotation.Annotation;
-import java.lang.reflect.Type;
-
-import javax.inject.Inject;
-import javax.ws.rs.core.Configuration;
-import javax.ws.rs.core.Feature;
-import javax.ws.rs.core.FeatureContext;
-
-import org.glassfish.jersey.CommonProperties;
-import org.glassfish.jersey.internal.InternalProperties;
-import org.glassfish.jersey.internal.util.PropertiesHelper;
-
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.dac.explore.model.VirtualDatasetUIMixin;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
@@ -37,34 +23,48 @@ import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.server.BootStrapContext;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
+import java.io.IOException;
+import java.io.InputStream;
+import java.lang.annotation.Annotation;
+import java.lang.reflect.Type;
+import javax.inject.Inject;
+import javax.ws.rs.core.Configuration;
+import javax.ws.rs.core.Feature;
+import javax.ws.rs.core.FeatureContext;
+import org.glassfish.jersey.CommonProperties;
+import org.glassfish.jersey.internal.InternalProperties;
+import org.glassfish.jersey.internal.util.PropertiesHelper;
 
-/**
- * DAC Feature to add Jackson provider
- */
+/** DAC Feature to add Jackson provider */
 public class DACJacksonJaxbJsonFeature implements Feature {
-  private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(DACJacksonJaxbJsonFeature.class);
-  private static final String JSON_FEATURE_CLASSNAME = DACJacksonJaxbJsonFeature.class.getSimpleName();
+  private static final org.slf4j.Logger LOGGER =
+      org.slf4j.LoggerFactory.getLogger(DACJacksonJaxbJsonFeature.class);
+  private static final String JSON_FEATURE_CLASSNAME =
+      DACJacksonJaxbJsonFeature.class.getSimpleName();
 
-  /**
-   * Jackson provider performing input validation
-   */
+  /** Jackson provider performing input validation */
   public static final class DACJacksonJaxbJsonProvider extends JacksonJaxbJsonProvider {
     private final InputValidation validation = new InputValidation();
 
     @Inject
-    public DACJacksonJaxbJsonProvider(Configuration configuration, BootStrapContext context, ConnectionReader connectionReader) {
+    public DACJacksonJaxbJsonProvider(
+        Configuration configuration, BootStrapContext context, ConnectionReader connectionReader) {
       this.setMapper(newObjectMapper(configuration, context.getClasspathScan(), connectionReader));
     }
 
     @Override
-    public Object readFrom(Class<Object> type,
+    public Object readFrom(
+        Class<Object> type,
         Type genericType,
         Annotation[] annotations,
         javax.ws.rs.core.MediaType mediaType,
-        javax.ws.rs.core.MultivaluedMap<String,String> httpHeaders,
-        InputStream entityStream) throws IOException {
-      Object o = super.readFrom(type, genericType, annotations, mediaType, httpHeaders, entityStream);
-      // Some POST requests does not accept body and we need to enhance the requests to accept body and also to make it backwards compatible
+        javax.ws.rs.core.MultivaluedMap<String, String> httpHeaders,
+        InputStream entityStream)
+        throws IOException {
+      Object o =
+          super.readFrom(type, genericType, annotations, mediaType, httpHeaders, entityStream);
+      // Some POST requests does not accept body and we need to enhance the requests to accept body
+      // and also to make it backwards compatible
       // For e.g: new_untitled API
       if (o != null) {
         validation.validate(o);
@@ -72,8 +72,10 @@ public class DACJacksonJaxbJsonFeature implements Feature {
       return o;
     }
 
-    protected ObjectMapper newObjectMapper(Configuration configuration, ScanResult scanResult, ConnectionReader connectionReader) {
-      Boolean property = PropertyHelper.getProperty(configuration, RestServerV2.JSON_PRETTYPRINT_ENABLE);
+    protected ObjectMapper newObjectMapper(
+        Configuration configuration, ScanResult scanResult, ConnectionReader connectionReader) {
+      Boolean property =
+          PropertyHelper.getProperty(configuration, RestServerV2.JSON_PRETTYPRINT_ENABLE);
       final boolean prettyPrint = property != null && property;
 
       ObjectMapper mapper = prettyPrint ? JSONUtil.prettyMapper() : JSONUtil.mapper();
@@ -88,16 +90,23 @@ public class DACJacksonJaxbJsonFeature implements Feature {
   public boolean configure(FeatureContext context) {
     final Configuration config = context.getConfiguration();
 
-    final String jsonFeature = CommonProperties.getValue(config.getProperties(), config.getRuntimeType(),
-      InternalProperties.JSON_FEATURE, JSON_FEATURE_CLASSNAME, String.class);
-      // Other JSON providers registered.
-      if (!JSON_FEATURE_CLASSNAME.equalsIgnoreCase(jsonFeature)) {
-        LOGGER.error("Another JSON provider has been registered: {}", jsonFeature);
-        return false;
-      }
+    final String jsonFeature =
+        CommonProperties.getValue(
+            config.getProperties(),
+            config.getRuntimeType(),
+            InternalProperties.JSON_FEATURE,
+            JSON_FEATURE_CLASSNAME,
+            String.class);
+    // Other JSON providers registered.
+    if (!JSON_FEATURE_CLASSNAME.equalsIgnoreCase(jsonFeature)) {
+      LOGGER.error("Another JSON provider has been registered: {}", jsonFeature);
+      return false;
+    }
 
-      // Disable other JSON providers.
-      context.property(PropertiesHelper.getPropertyNameForRuntime(InternalProperties.JSON_FEATURE, config.getRuntimeType()),
+    // Disable other JSON providers.
+    context.property(
+        PropertiesHelper.getPropertyNameForRuntime(
+            InternalProperties.JSON_FEATURE, config.getRuntimeType()),
         JSON_FEATURE_CLASSNAME);
 
     context.register(DACJacksonJaxbJsonProvider.class);

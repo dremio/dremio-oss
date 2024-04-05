@@ -17,17 +17,6 @@ package com.dremio.service.jobs;
 
 import static java.lang.String.format;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
-
 import com.dremio.common.utils.PathUtils;
 import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.proto.UserBitShared;
@@ -60,16 +49,28 @@ import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 /**
- * Parse query profile into job details, stats.
- * All incomplete fields are either marked null or with -1.
+ * Parse query profile into job details, stats. All incomplete fields are either marked null or with
+ * -1.
  */
 class QueryProfileParser {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(QueryProfileParser.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(QueryProfileParser.class);
 
-  private static final Splitter splitter = Splitter.on(CharMatcher.is(',')).trimResults().omitEmptyStrings();
+  private static final Splitter splitter =
+      Splitter.on(CharMatcher.is(',')).trimResults().omitEmptyStrings();
 
   private final Map<String, String> operatorToTable;
   private final Map<String, TableDatasetProfile> tableDatasetProfileMap;
@@ -141,10 +142,13 @@ class QueryProfileParser {
     if (operatorProfile == null) {
       return;
     }
-    long addedFiles = Optional.ofNullable(jobStats.getAddedFiles()).orElse(0L) + operatorProfile.getAddedFiles();
+    long addedFiles =
+        Optional.ofNullable(jobStats.getAddedFiles()).orElse(0L) + operatorProfile.getAddedFiles();
     jobStats.setAddedFiles(addedFiles);
 
-    long removedFiles = Optional.ofNullable(jobStats.getRemovedFiles()).orElse(0L) + operatorProfile.getRemovedFiles();
+    long removedFiles =
+        Optional.ofNullable(jobStats.getRemovedFiles()).orElse(0L)
+            + operatorProfile.getRemovedFiles();
     jobStats.setRemovedFiles(removedFiles);
   }
 
@@ -160,7 +164,8 @@ class QueryProfileParser {
   // Set time spent in planning
   private void parsePlanningDetails() {
     if (queryProfile.getPlanningEnd() > 0 && queryProfile.getPlanningStart() > 0) {
-      jobDetails.setTimeSpentInPlanning(queryProfile.getPlanningEnd() - queryProfile.getPlanningStart());
+      jobDetails.setTimeSpentInPlanning(
+          queryProfile.getPlanningEnd() - queryProfile.getPlanningStart());
     } else {
       jobDetails.setTimeSpentInPlanning(null);
     }
@@ -170,12 +175,14 @@ class QueryProfileParser {
 
   private void parseMemoryDetails() {
     // Not yet available.
-    //jobDetails.setPeakMemory(null);
+    // jobDetails.setPeakMemory(null);
   }
 
-  private void checkIsAssignable(String field, Class<?> target, Class<?> expected) throws IOException {
+  private void checkIsAssignable(String field, Class<?> target, Class<?> expected)
+      throws IOException {
     if (!expected.isAssignableFrom(target)) {
-      throw new IOException(format("Invalid field %s, expected type %s, found %s", field, expected, target));
+      throw new IOException(
+          format("Invalid field %s, expected type %s, found %s", field, expected, target));
     }
   }
 
@@ -187,11 +194,13 @@ class QueryProfileParser {
     }
   }
 
-  private void setCommonDatasetProfile(CommonDatasetProfile datasetProfile,
-                                       OperatorProfile operatorProfile,
-                                       MajorFragmentProfile majorFragment,
-                                       long inputBytes, long inputRecords,
-                                       List<String> datasetPath) {
+  private void setCommonDatasetProfile(
+      CommonDatasetProfile datasetProfile,
+      OperatorProfile operatorProfile,
+      MajorFragmentProfile majorFragment,
+      long inputBytes,
+      long inputRecords,
+      List<String> datasetPath) {
 
     if (datasetProfile.getBytesRead() != null) {
       datasetProfile.setBytesRead(datasetProfile.getRecordsRead() + inputBytes);
@@ -205,13 +214,14 @@ class QueryProfileParser {
       datasetProfile.setRecordsRead(inputRecords);
     }
 
-    final DatasetPathUI datasetPathUI =  new DatasetPathUI().setDatasetPathList(datasetPath);
+    final DatasetPathUI datasetPathUI = new DatasetPathUI().setDatasetPathList(datasetPath);
     if (!datasetProfile.getDatasetPathsList().contains(datasetPathUI)) {
       datasetProfile.getDatasetPathsList().add(datasetPathUI);
     }
 
     if (datasetProfile.getWaitOnSource() != null) {
-      datasetProfile.setWaitOnSource(datasetProfile.getWaitOnSource() + toMillis(operatorProfile.getWaitNanos()));
+      datasetProfile.setWaitOnSource(
+          datasetProfile.getWaitOnSource() + toMillis(operatorProfile.getWaitNanos()));
     } else {
       datasetProfile.setWaitOnSource(toMillis(operatorProfile.getWaitNanos()));
     }
@@ -223,8 +233,12 @@ class QueryProfileParser {
     }
   }
 
-  private void setScanStats(CoreOperatorType operatorType, OperatorProfile operatorProfile, MajorFragmentProfile majorFragment) {
-    final String operatorId = createOperatorKey(majorFragment.getMajorFragmentId(), operatorProfile.getOperatorId());
+  private void setScanStats(
+      CoreOperatorType operatorType,
+      OperatorProfile operatorProfile,
+      MajorFragmentProfile majorFragment) {
+    final String operatorId =
+        createOperatorKey(majorFragment.getMajorFragmentId(), operatorProfile.getOperatorId());
     long inputBytes = 0L;
     long inputRecords = 0L;
     if (operatorProfile.getInputProfileList() != null) {
@@ -241,11 +255,17 @@ class QueryProfileParser {
       TableDatasetProfile tableDatasetProfile = tableDatasetProfileMap.get(tableName);
       if (tableDatasetProfile == null) {
         tableDatasetProfile = new TableDatasetProfile();
-        tableDatasetProfile.setDatasetProfile(new CommonDatasetProfile().setDatasetPathsList(Lists.<DatasetPathUI>newArrayList()));
+        tableDatasetProfile.setDatasetProfile(
+            new CommonDatasetProfile().setDatasetPathsList(Lists.<DatasetPathUI>newArrayList()));
         tableDatasetProfileMap.put(tableName, tableDatasetProfile);
       }
-      setCommonDatasetProfile(tableDatasetProfile.getDatasetProfile(), operatorProfile, majorFragment, inputBytes, inputRecords,
-        PathUtils.parseFullPath(tableName));
+      setCommonDatasetProfile(
+          tableDatasetProfile.getDatasetProfile(),
+          operatorProfile,
+          majorFragment,
+          inputBytes,
+          inputRecords,
+          PathUtils.parseFullPath(tableName));
       tableDatasetProfile.setPushdownQuery(null);
     }
   }
@@ -257,8 +277,10 @@ class QueryProfileParser {
     final List<UserBitShared.MetricValue> metricValues = operatorProfile.getMetricList();
     for (UserBitShared.MetricValue metricValue : metricValues) {
       final int metricId = metricValue.getMetricId();
-      if (metricId == HashAggStats.Metric.TOTAL_SPILLED_DATA_SIZE.ordinal() && metricValue.hasLongValue()) {
-        spillJobDetails.setTotalBytesSpilledByHashAgg(spillJobDetails.getTotalBytesSpilledByHashAgg() + metricValue.getLongValue());
+      if (metricId == HashAggStats.Metric.TOTAL_SPILLED_DATA_SIZE.ordinal()
+          && metricValue.hasLongValue()) {
+        spillJobDetails.setTotalBytesSpilledByHashAgg(
+            spillJobDetails.getTotalBytesSpilledByHashAgg() + metricValue.getLongValue());
       }
     }
   }
@@ -270,9 +292,11 @@ class QueryProfileParser {
     final List<UserBitShared.MetricValue> metricValues = operatorProfile.getMetricList();
     for (UserBitShared.MetricValue metricValue : metricValues) {
       final int metricId = metricValue.getMetricId();
-      if ((metricId == HashJoinStats.Metric.SPILL_WR_BUILD_BYTES.ordinal() ||
-           metricId == HashJoinStats.Metric.SPILL_WR_PROBE_BYTES.ordinal()) && metricValue.hasLongValue()) {
-        spillJobDetails.setTotalBytesSpilledByHashJoin(spillJobDetails.getTotalBytesSpilledByHashJoin() + metricValue.getLongValue());
+      if ((metricId == HashJoinStats.Metric.SPILL_WR_BUILD_BYTES.ordinal()
+              || metricId == HashJoinStats.Metric.SPILL_WR_PROBE_BYTES.ordinal())
+          && metricValue.hasLongValue()) {
+        spillJobDetails.setTotalBytesSpilledByHashJoin(
+            spillJobDetails.getTotalBytesSpilledByHashJoin() + metricValue.getLongValue());
       }
     }
   }
@@ -280,9 +304,9 @@ class QueryProfileParser {
   private void initSpillJobDetails() {
     if (spillJobDetails == null) {
       this.spillJobDetails = new SpillJobDetails();
-      spillJobDetails.setTotalBytesSpilledByHashAgg((long)0);
-      spillJobDetails.setTotalBytesSpilledByHashJoin((long)0);
-      spillJobDetails.setTotalBytesSpilledBySort((long)0);
+      spillJobDetails.setTotalBytesSpilledByHashAgg((long) 0);
+      spillJobDetails.setTotalBytesSpilledByHashJoin((long) 0);
+      spillJobDetails.setTotalBytesSpilledBySort((long) 0);
     }
   }
 
@@ -293,20 +317,25 @@ class QueryProfileParser {
     final List<UserBitShared.MetricValue> metricValues = operatorProfile.getMetricList();
     for (UserBitShared.MetricValue metricValue : metricValues) {
       final int metricId = metricValue.getMetricId();
-      if (metricId == ExternalSortStats.Metric.TOTAL_SPILLED_DATA_SIZE.ordinal() && metricValue.hasLongValue()) {
-        spillJobDetails.setTotalBytesSpilledBySort(spillJobDetails.getTotalBytesSpilledBySort() + metricValue.getLongValue());
+      if (metricId == ExternalSortStats.Metric.TOTAL_SPILLED_DATA_SIZE.ordinal()
+          && metricValue.hasLongValue()) {
+        spillJobDetails.setTotalBytesSpilledBySort(
+            spillJobDetails.getTotalBytesSpilledBySort() + metricValue.getLongValue());
       }
     }
   }
 
   /**
    * Get the spill info for the the job after parsing the query profile
-   * @return null if the query never spilled, non-null if some operator spilled
-   * as of now, we only consider external sort and hashagg operators.
+   *
+   * @return null if the query never spilled, non-null if some operator spilled as of now, we only
+   *     consider external sort and hashagg operators.
    */
   SpillJobDetails getSpillDetails() {
-    if (spillJobDetails != null && (spillJobDetails.getTotalBytesSpilledByHashAgg() > 0 || spillJobDetails.getTotalBytesSpilledBySort() > 0 ||
-        spillJobDetails.getTotalBytesSpilledByHashJoin() > 0)) {
+    if (spillJobDetails != null
+        && (spillJobDetails.getTotalBytesSpilledByHashAgg() > 0
+            || spillJobDetails.getTotalBytesSpilledBySort() > 0
+            || spillJobDetails.getTotalBytesSpilledByHashJoin() > 0)) {
       return spillJobDetails;
     }
     return null;
@@ -339,14 +368,17 @@ class QueryProfileParser {
     }
     // Parse the plan and map tables to major fragment and operator ids.
     final Map<String, Object> plan = mapper.readValue(queryProfile.getJsonPlan(), Map.class);
-    for (Map.Entry<String, Object> entry: plan.entrySet()) {
+    for (Map.Entry<String, Object> entry : plan.entrySet()) {
       checkIsAssignable(entry.getKey(), entry.getValue().getClass(), Map.class);
-      final Map<String, Object> operatorInfo = (Map)entry.getValue();
+      final Map<String, Object> operatorInfo = (Map) entry.getValue();
       final String operator = (String) operatorInfo.get("\"op\"");
-      if (operator != null && (operator.contains("Scan") || operator.contains("TableFunction")) && operatorInfo.containsKey("\"values\"")) {
+      if (operator != null
+          && (operator.contains("Scan") || operator.contains("TableFunction"))
+          && operatorInfo.containsKey("\"values\"")) {
         // Get table name
-        checkIsAssignable(entry.getKey() + ": values", operatorInfo.get("\"values\"").getClass(), Map.class);
-        final Map<String, Object> values = (Map)operatorInfo.get("\"values\"");
+        checkIsAssignable(
+            entry.getKey() + ": values", operatorInfo.get("\"values\"").getClass(), Map.class);
+        final Map<String, Object> values = (Map) operatorInfo.get("\"values\"");
         if (values.containsKey("\"table\"")) {
           // TODO (Amit H) remove this after we clean up code.
           final String tokens = ((String) values.get("\"table\"")).replaceAll("^\\[|\\]$", "");
@@ -358,8 +390,8 @@ class QueryProfileParser {
   }
 
   /**
-   * Parse query profile into JobDetails and JobStats.
-   * Avoid going over same data twice.
+   * Parse query profile into JobDetails and JobStats. Avoid going over same data twice.
+   *
    * @return JobDetails
    * @throws IOException
    */
@@ -371,7 +403,11 @@ class QueryProfileParser {
     try {
       parsePhysicalPlan();
     } catch (IOException ioe) {
-      logger.error("Failed to parse physical plan for query {}, plan {}", jobId.getId(), queryProfile.getJsonPlan(), ioe);
+      logger.error(
+          "Failed to parse physical plan for query {}, plan {}",
+          jobId.getId(),
+          queryProfile.getJsonPlan(),
+          ioe);
     }
 
     parseMemoryDetails();
@@ -385,21 +421,28 @@ class QueryProfileParser {
 
     boolean outputLimited = false;
     final ListMultimap<CoreOperatorType, OperatorProfile> operators = ArrayListMultimap.create();
-    for (MajorFragmentProfile majorFragment: queryProfile.getFragmentProfileList()) {
+    for (MajorFragmentProfile majorFragment : queryProfile.getFragmentProfileList()) {
       if (majorFragment.getMinorFragmentProfileList() == null) {
         continue;
       }
-      for (MinorFragmentProfile minorFragmentProfile : majorFragment.getMinorFragmentProfileList()) {
+      for (MinorFragmentProfile minorFragmentProfile :
+          majorFragment.getMinorFragmentProfileList()) {
         if (minorFragmentProfile.getOperatorProfileList() == null) {
           continue;
         }
         for (OperatorProfile operatorProfile : minorFragmentProfile.getOperatorProfileList()) {
-          totalTimeInMillis += toMillis(operatorProfile.getProcessNanos() + operatorProfile.getWaitNanos() + operatorProfile.getSetupNanos());
-          final CoreOperatorType operatorType = CoreOperatorType.valueOf(operatorProfile.getOperatorType());
+          totalTimeInMillis +=
+              toMillis(
+                  operatorProfile.getProcessNanos()
+                      + operatorProfile.getWaitNanos()
+                      + operatorProfile.getSetupNanos());
+          final CoreOperatorType operatorType =
+              CoreOperatorType.valueOf(operatorProfile.getOperatorType());
 
           // TODO (Amit H) undefined operators, TRACE, unknown.
           if (operatorType == null) {
-            logger.error("QueryProfile has unknown operator type " + operatorProfile.getOperatorType());
+            logger.error(
+                "QueryProfile has unknown operator type " + operatorProfile.getOperatorType());
             setOperationStats(OperationType.Misc, toMillis(operatorProfile.getProcessNanos()));
             continue;
           }
@@ -410,8 +453,12 @@ class QueryProfileParser {
             case SCREEN:
               setWaitInClient(toMillis(operatorProfile.getWaitNanos()));
               // Time spent in client side processing and wait
-              setOperationStats(OperationType.Client,
-                toMillis(operatorProfile.getProcessNanos() + operatorProfile.getWaitNanos() + operatorProfile.getSetupNanos()));
+              setOperationStats(
+                  OperationType.Client,
+                  toMillis(
+                      operatorProfile.getProcessNanos()
+                          + operatorProfile.getWaitNanos()
+                          + operatorProfile.getSetupNanos()));
               break;
 
             case AVRO_SUB_SCAN:
@@ -431,34 +478,48 @@ class QueryProfileParser {
             case FLIGHT_SUB_SCAN:
               setScanStats(operatorType, operatorProfile, majorFragment);
               // wait time in scan is shown per table.
-              setOperationStats(OperationType.Reading, toMillis(operatorProfile.getProcessNanos() + operatorProfile.getSetupNanos()));
+              setOperationStats(
+                  OperationType.Reading,
+                  toMillis(operatorProfile.getProcessNanos() + operatorProfile.getSetupNanos()));
               break;
 
             case VALUES_READER:
               addInputBytesAndRecords(0, 0); // 0 bytes/records read from disk
-              setOperationStats(OperationType.Reading, toMillis(operatorProfile.getProcessNanos() + operatorProfile.getSetupNanos()));
+              setOperationStats(
+                  OperationType.Reading,
+                  toMillis(operatorProfile.getProcessNanos() + operatorProfile.getSetupNanos()));
               break;
 
             case EXTERNAL_SORT:
               setSortSpillInfo(operatorType, operatorProfile);
-              setOperationStats(OperationType.Sort, toMillis(operatorProfile.getProcessNanos() + operatorProfile.getSetupNanos()));
+              setOperationStats(
+                  OperationType.Sort,
+                  toMillis(operatorProfile.getProcessNanos() + operatorProfile.getSetupNanos()));
               break;
 
             case OLD_SORT:
             case TOP_N_SORT:
-              setOperationStats(OperationType.Sort, toMillis(operatorProfile.getProcessNanos() + operatorProfile.getSetupNanos()));
+              setOperationStats(
+                  OperationType.Sort,
+                  toMillis(operatorProfile.getProcessNanos() + operatorProfile.getSetupNanos()));
               break;
 
             case HASH_AGGREGATE:
               setAggSpillInfo(operatorType, operatorProfile);
-              setOperationStats(OperationType.Aggregate, toMillis(operatorProfile.getProcessNanos() + operatorProfile.getSetupNanos()));
+              setOperationStats(
+                  OperationType.Aggregate,
+                  toMillis(operatorProfile.getProcessNanos() + operatorProfile.getSetupNanos()));
               break;
             case STREAMING_AGGREGATE:
-              setOperationStats(OperationType.Aggregate, toMillis(operatorProfile.getProcessNanos() + operatorProfile.getSetupNanos()));
-            break;
+              setOperationStats(
+                  OperationType.Aggregate,
+                  toMillis(operatorProfile.getProcessNanos() + operatorProfile.getSetupNanos()));
+              break;
 
             case PROJECT:
-              setOperationStats(OperationType.Project, toMillis(operatorProfile.getProcessNanos() + operatorProfile.getSetupNanos()));
+              setOperationStats(
+                  OperationType.Project,
+                  toMillis(operatorProfile.getProcessNanos() + operatorProfile.getSetupNanos()));
               break;
 
             case HASH_JOIN:
@@ -466,20 +527,28 @@ class QueryProfileParser {
               // fall through
             case MERGE_JOIN:
             case NESTED_LOOP_JOIN:
-              setOperationStats(OperationType.Join, toMillis(operatorProfile.getProcessNanos() + operatorProfile.getSetupNanos()));
+              setOperationStats(
+                  OperationType.Join,
+                  toMillis(operatorProfile.getProcessNanos() + operatorProfile.getSetupNanos()));
               break;
 
             case FILTER:
             case SELECTION_VECTOR_REMOVER:
-              setOperationStats(OperationType.Filter, toMillis(operatorProfile.getProcessNanos() + operatorProfile.getSetupNanos()));
+              setOperationStats(
+                  OperationType.Filter,
+                  toMillis(operatorProfile.getProcessNanos() + operatorProfile.getSetupNanos()));
               break;
 
             case UNION:
-              setOperationStats(OperationType.Union, toMillis(operatorProfile.getProcessNanos() + operatorProfile.getSetupNanos()));
+              setOperationStats(
+                  OperationType.Union,
+                  toMillis(operatorProfile.getProcessNanos() + operatorProfile.getSetupNanos()));
               break;
 
             case WINDOW:
-              setOperationStats(OperationType.Window, toMillis(operatorProfile.getProcessNanos() + operatorProfile.getSetupNanos()));
+              setOperationStats(
+                  OperationType.Window,
+                  toMillis(operatorProfile.getProcessNanos() + operatorProfile.getSetupNanos()));
               break;
 
             case HASH_PARTITION_SENDER:
@@ -488,54 +557,76 @@ class QueryProfileParser {
             case RANGE_SENDER:
             case SINGLE_SENDER:
               // for senders include processing, setup and wait time
-              setOperationStats(OperationType.Data_exchange,
-                toMillis(operatorProfile.getSetupNanos() + operatorProfile.getProcessNanos() + operatorProfile.getWaitNanos()));
+              setOperationStats(
+                  OperationType.Data_exchange,
+                  toMillis(
+                      operatorProfile.getSetupNanos()
+                          + operatorProfile.getProcessNanos()
+                          + operatorProfile.getWaitNanos()));
               break;
 
             case MERGING_RECEIVER:
             case UNORDERED_RECEIVER:
               // for receivers include processing and setup time.
-              setOperationStats(OperationType.Data_exchange, toMillis(operatorProfile.getProcessNanos() + operatorProfile.getSetupNanos()));
+              setOperationStats(
+                  OperationType.Data_exchange,
+                  toMillis(operatorProfile.getProcessNanos() + operatorProfile.getSetupNanos()));
               break;
 
-            // job output writer
+              // job output writer
             case ARROW_WRITER:
-              setOperationStats(OperationType.Writing, toMillis(operatorProfile.getProcessNanos() + operatorProfile.getSetupNanos()));
+              setOperationStats(
+                  OperationType.Writing,
+                  toMillis(operatorProfile.getProcessNanos() + operatorProfile.getSetupNanos()));
               if (isArrowWriterOutputLimited(operatorProfile)) {
                 outputLimited = true;
               }
               break;
 
-            // CTAS writers
+              // CTAS writers
             case PARQUET_WRITER:
             case TEXT_WRITER:
             case JSON_WRITER:
               setOutputStats(operatorProfile.getInputProfileList());
-              setOperationStats(OperationType.Writing, toMillis(operatorProfile.getProcessNanos() + operatorProfile.getSetupNanos()));
+              setOperationStats(
+                  OperationType.Writing,
+                  toMillis(operatorProfile.getProcessNanos() + operatorProfile.getSetupNanos()));
               break;
 
             case LIMIT:
-              setOperationStats(OperationType.Limit, toMillis(operatorProfile.getProcessNanos() + operatorProfile.getSetupNanos()));
+              setOperationStats(
+                  OperationType.Limit,
+                  toMillis(operatorProfile.getProcessNanos() + operatorProfile.getSetupNanos()));
               break;
 
             case COMPLEX_TO_JSON:
-              setOperationStats(OperationType.Complext_to_JSON, toMillis(operatorProfile.getProcessNanos() + operatorProfile.getSetupNanos()));
+              setOperationStats(
+                  OperationType.Complext_to_JSON,
+                  toMillis(operatorProfile.getProcessNanos() + operatorProfile.getSetupNanos()));
               break;
 
             case PRODUCER_CONSUMER:
-              setOperationStats(OperationType.Producer_consumer, toMillis(operatorProfile.getProcessNanos() + operatorProfile.getSetupNanos()));
+              setOperationStats(
+                  OperationType.Producer_consumer,
+                  toMillis(operatorProfile.getProcessNanos() + operatorProfile.getSetupNanos()));
               break;
             case FLATTEN:
-              setOperationStats(OperationType.Flatten, toMillis(operatorProfile.getProcessNanos() + operatorProfile.getSetupNanos()));
+              setOperationStats(
+                  OperationType.Flatten,
+                  toMillis(operatorProfile.getProcessNanos() + operatorProfile.getSetupNanos()));
               break;
             case TABLE_FUNCTION:
-              if(operatorProfile.getOperatorSubtype() == TableFunctionConfig.FunctionType.DATA_FILE_SCAN.ordinal()
-              || operatorProfile.getOperatorSubtype() == TableFunctionConfig.FunctionType.EASY_DATA_FILE_SCAN.ordinal()) {
+              if (operatorProfile.getOperatorSubtype()
+                      == TableFunctionConfig.FunctionType.DATA_FILE_SCAN.ordinal()
+                  || operatorProfile.getOperatorSubtype()
+                      == TableFunctionConfig.FunctionType.EASY_DATA_FILE_SCAN.ordinal()) {
                 setScanStats(operatorType, operatorProfile, majorFragment);
               }
               break;
             case DELTALAKE_SUB_SCAN:
-              setOperationStats(OperationType.Reading, toMillis(operatorProfile.getProcessNanos() + operatorProfile.getSetupNanos()));
+              setOperationStats(
+                  OperationType.Reading,
+                  toMillis(operatorProfile.getProcessNanos() + operatorProfile.getSetupNanos()));
               break;
             case WRITER_COMMITTER:
               setDmlStats(operatorProfile);
@@ -552,13 +643,14 @@ class QueryProfileParser {
 
     // Get query output stats
     // Try first ARROW_WRITER operators (UI) or SCREEN otherwise (for external clients)
-    for(CoreOperatorType operatorType: Arrays.asList(CoreOperatorType.ARROW_WRITER, CoreOperatorType.SCREEN)) {
+    for (CoreOperatorType operatorType :
+        Arrays.asList(CoreOperatorType.ARROW_WRITER, CoreOperatorType.SCREEN)) {
       List<OperatorProfile> profiles = operators.get(operatorType);
       if (profiles.isEmpty()) {
         continue;
       }
 
-      for(OperatorProfile profile: profiles) {
+      for (OperatorProfile profile : profiles) {
         List<StreamProfile> streams = profile.getInputProfileList();
         setOutputStatsForQueryResults(streams, outputLimited);
       }
@@ -587,28 +679,36 @@ class QueryProfileParser {
         topOperations.add(new TopOperation(entry.getKey(), entry.getValue() * factor));
       }
     }
-    Collections.sort(topOperations, new Comparator<TopOperation>() {
-      @Override
-      public int compare(TopOperation o1, TopOperation o2) {
-        // descending order
-        return Float.compare(o2.getTimeConsumed(), o1.getTimeConsumed());
-      }
-    });
+    Collections.sort(
+        topOperations,
+        new Comparator<TopOperation>() {
+          @Override
+          public int compare(TopOperation o1, TopOperation o2) {
+            // descending order
+            return Float.compare(o2.getTimeConsumed(), o1.getTimeConsumed());
+          }
+        });
     jobDetails.setTopOperationsList(topOperations);
   }
 
   private void setJobPhasesData(MajorFragmentProfile majorFragment) {
     Long totalMemory = 0L;
 
-    if(jobDetails.getTotalMemory() != null) {
+    if (jobDetails.getTotalMemory() != null) {
       if (jobDetails.getTotalMemory() > 0) {
         totalMemory = jobDetails.getTotalMemory();
       }
     }
-    totalMemory += majorFragment.getNodePhaseProfileList().stream().collect(Collectors.summarizingLong(memory -> memory.getMaxMemoryUsed())).getSum();
-    Long peakMemory = majorFragment.getNodePhaseProfileList().stream().collect(Collectors.summarizingLong(memory -> memory.getMaxMemoryUsed())).getMax();
-    if(jobDetails.getPeakMemory() != null){
-      if(jobDetails.getPeakMemory() > peakMemory){
+    totalMemory +=
+        majorFragment.getNodePhaseProfileList().stream()
+            .collect(Collectors.summarizingLong(memory -> memory.getMaxMemoryUsed()))
+            .getSum();
+    Long peakMemory =
+        majorFragment.getNodePhaseProfileList().stream()
+            .collect(Collectors.summarizingLong(memory -> memory.getMaxMemoryUsed()))
+            .getMax();
+    if (jobDetails.getPeakMemory() != null) {
+      if (jobDetails.getPeakMemory() > peakMemory) {
         peakMemory = jobDetails.getPeakMemory();
       }
     }

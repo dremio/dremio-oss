@@ -15,14 +15,12 @@
  */
 package com.dremio.common;
 
-/**
- * Some standard uncaught exception handlers that can be used
- */
+/** Some standard uncaught exception handlers that can be used */
 public final class UncaughtExceptionHandlers {
-  private UncaughtExceptionHandlers() {
-  }
+  private UncaughtExceptionHandlers() {}
 
   public static Thread.UncaughtExceptionHandler processExit() {
-    return (t, e) -> ProcessExit.exit(e, "Thread " + t.getName() + " exited with an uncaught exception ", 5);
+    return (t, e) ->
+        ProcessExit.exit(e, "Thread " + t.getName() + " exited with an uncaught exception ", 5);
   }
 }

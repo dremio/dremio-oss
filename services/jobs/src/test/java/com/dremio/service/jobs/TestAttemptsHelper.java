@@ -18,12 +18,6 @@ package com.dremio.service.jobs;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-
-import org.junit.Test;
-
 import com.dremio.exec.proto.beans.AttemptEvent;
 import com.dremio.exec.proto.beans.AttemptEvent.State;
 import com.dremio.service.job.proto.JobAttempt;
@@ -32,13 +26,17 @@ import com.dremio.service.job.proto.JobInfo;
 import com.dremio.service.job.proto.JobState;
 import com.dremio.service.job.proto.ResourceSchedulingInfo;
 import com.google.common.base.Preconditions;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+import org.junit.Test;
 
 /**
- * Unit tests for {@link AttemptsHelper}
- * <br>
+ * Unit tests for {@link AttemptsHelper} <br>
  * The following tests ensure that:<br>
  * - we compute sensible values for edge cases<br>
- * - ensure the assumptions we used to implement AttemptsHelper still hold (i.e. until planning is done JobDetails.timeSpentInPlanning is null
+ * - ensure the assumptions we used to implement AttemptsHelper still hold (i.e. until planning is
+ * done JobDetails.timeSpentInPlanning is null
  */
 public class TestAttemptsHelper {
 
@@ -46,15 +44,30 @@ public class TestAttemptsHelper {
 
   public TestAttemptsHelper() {
     List<AttemptEvent> events = new ArrayList<>();
-    events.add(new com.dremio.exec.proto.beans.AttemptEvent().setState(State.PENDING).setStartTime(1));
-    events.add(new com.dremio.exec.proto.beans.AttemptEvent().setState(State.METADATA_RETRIEVAL).setStartTime(2));
-    events.add(new com.dremio.exec.proto.beans.AttemptEvent().setState(State.PLANNING).setStartTime(3));
-    events.add(new com.dremio.exec.proto.beans.AttemptEvent().setState(State.ENGINE_START).setStartTime(4));
-    events.add(new com.dremio.exec.proto.beans.AttemptEvent().setState(State.QUEUED).setStartTime(5));
-    events.add(new com.dremio.exec.proto.beans.AttemptEvent().setState(State.EXECUTION_PLANNING).setStartTime(6));
-    events.add(new com.dremio.exec.proto.beans.AttemptEvent().setState(State.STARTING).setStartTime(7));
-    events.add(new com.dremio.exec.proto.beans.AttemptEvent().setState(State.RUNNING).setStartTime(8));
-    events.add(new com.dremio.exec.proto.beans.AttemptEvent().setState(State.COMPLETED).setStartTime(9));
+    events.add(
+        new com.dremio.exec.proto.beans.AttemptEvent().setState(State.PENDING).setStartTime(1));
+    events.add(
+        new com.dremio.exec.proto.beans.AttemptEvent()
+            .setState(State.METADATA_RETRIEVAL)
+            .setStartTime(2));
+    events.add(
+        new com.dremio.exec.proto.beans.AttemptEvent().setState(State.PLANNING).setStartTime(3));
+    events.add(
+        new com.dremio.exec.proto.beans.AttemptEvent()
+            .setState(State.ENGINE_START)
+            .setStartTime(4));
+    events.add(
+        new com.dremio.exec.proto.beans.AttemptEvent().setState(State.QUEUED).setStartTime(5));
+    events.add(
+        new com.dremio.exec.proto.beans.AttemptEvent()
+            .setState(State.EXECUTION_PLANNING)
+            .setStartTime(6));
+    events.add(
+        new com.dremio.exec.proto.beans.AttemptEvent().setState(State.STARTING).setStartTime(7));
+    events.add(
+        new com.dremio.exec.proto.beans.AttemptEvent().setState(State.RUNNING).setStartTime(8));
+    events.add(
+        new com.dremio.exec.proto.beans.AttemptEvent().setState(State.COMPLETED).setStartTime(9));
 
     JobAttempt jobAttempt = new JobAttempt().setStateListList(events);
     attemptsHelper = new AttemptsHelper(jobAttempt);
@@ -63,30 +76,27 @@ public class TestAttemptsHelper {
   @Test
   public void testGetEnqueuedTime() {
     // job that has been enqueued for at 3 hours
-    final ResourceSchedulingInfo schedulingInfo = new ResourceSchedulingInfo()
-      .setResourceSchedulingStart(System.currentTimeMillis() - TimeUnit.HOURS.toMillis(3))
-      .setResourceSchedulingEnd(0L);
-    final JobInfo info = new JobInfo()
-      .setResourceSchedulingInfo(schedulingInfo);
-    final JobAttempt attempt = new JobAttempt()
-      .setInfo(info)
-      .setState(JobState.ENQUEUED);
+    final ResourceSchedulingInfo schedulingInfo =
+        new ResourceSchedulingInfo()
+            .setResourceSchedulingStart(System.currentTimeMillis() - TimeUnit.HOURS.toMillis(3))
+            .setResourceSchedulingEnd(0L);
+    final JobInfo info = new JobInfo().setResourceSchedulingInfo(schedulingInfo);
+    final JobAttempt attempt = new JobAttempt().setInfo(info).setState(JobState.ENQUEUED);
 
-    assertTrue("Enqueued job has wrong enqueued time",
-      AttemptsHelper.getLegacyEnqueuedTime(attempt) >= TimeUnit.HOURS.toMillis(3));
+    assertTrue(
+        "Enqueued job has wrong enqueued time",
+        AttemptsHelper.getLegacyEnqueuedTime(attempt) >= TimeUnit.HOURS.toMillis(3));
   }
 
   @Test
   public void testGetEnqueuedTimeFailedJob() {
     // job that has been enqueued for at 3 hours
-    final ResourceSchedulingInfo schedulingInfo = new ResourceSchedulingInfo()
-      .setResourceSchedulingStart(System.currentTimeMillis() - TimeUnit.HOURS.toMillis(3))
-      .setResourceSchedulingEnd(0L);
-    final JobInfo info = new JobInfo()
-      .setResourceSchedulingInfo(schedulingInfo);
-    final JobAttempt attempt = new JobAttempt()
-      .setInfo(info)
-      .setState(JobState.FAILED);
+    final ResourceSchedulingInfo schedulingInfo =
+        new ResourceSchedulingInfo()
+            .setResourceSchedulingStart(System.currentTimeMillis() - TimeUnit.HOURS.toMillis(3))
+            .setResourceSchedulingEnd(0L);
+    final JobInfo info = new JobInfo().setResourceSchedulingInfo(schedulingInfo);
+    final JobAttempt attempt = new JobAttempt().setInfo(info).setState(JobState.FAILED);
 
     assertEquals(0L, AttemptsHelper.getLegacyEnqueuedTime(attempt));
   }
@@ -94,15 +104,13 @@ public class TestAttemptsHelper {
   @Test
   public void testGetPlanningTime() {
     // enqueued job
-    final ResourceSchedulingInfo schedulingInfo = new ResourceSchedulingInfo()
-      .setResourceSchedulingStart(System.currentTimeMillis() - TimeUnit.HOURS.toMillis(3))
-      .setResourceSchedulingEnd(0L);
-    final JobInfo info = new JobInfo()
-      .setResourceSchedulingInfo(schedulingInfo);
-    final JobAttempt attempt = new JobAttempt()
-      .setInfo(info)
-      .setState(JobState.ENQUEUED)
-      .setDetails(new JobDetails());
+    final ResourceSchedulingInfo schedulingInfo =
+        new ResourceSchedulingInfo()
+            .setResourceSchedulingStart(System.currentTimeMillis() - TimeUnit.HOURS.toMillis(3))
+            .setResourceSchedulingEnd(0L);
+    final JobInfo info = new JobInfo().setResourceSchedulingInfo(schedulingInfo);
+    final JobAttempt attempt =
+        new JobAttempt().setInfo(info).setState(JobState.ENQUEUED).setDetails(new JobDetails());
 
     assertEquals(0L, AttemptsHelper.getLegacyPlanningTime(attempt));
   }
@@ -110,15 +118,13 @@ public class TestAttemptsHelper {
   @Test
   public void testGetExecutionTime() {
     // enqueued job
-    final ResourceSchedulingInfo schedulingInfo = new ResourceSchedulingInfo()
-      .setResourceSchedulingStart(System.currentTimeMillis() - TimeUnit.HOURS.toMillis(3))
-      .setResourceSchedulingEnd(0L);
-    final JobInfo info = new JobInfo()
-      .setResourceSchedulingInfo(schedulingInfo);
-    final JobAttempt attempt = new JobAttempt()
-      .setInfo(info)
-      .setState(JobState.ENQUEUED)
-      .setDetails(new JobDetails());
+    final ResourceSchedulingInfo schedulingInfo =
+        new ResourceSchedulingInfo()
+            .setResourceSchedulingStart(System.currentTimeMillis() - TimeUnit.HOURS.toMillis(3))
+            .setResourceSchedulingEnd(0L);
+    final JobInfo info = new JobInfo().setResourceSchedulingInfo(schedulingInfo);
+    final JobAttempt attempt =
+        new JobAttempt().setInfo(info).setState(JobState.ENQUEUED).setDetails(new JobDetails());
 
     assertEquals(0L, AttemptsHelper.getLegacyExecutionTime(attempt));
   }
@@ -128,6 +134,7 @@ public class TestAttemptsHelper {
     Preconditions.checkNotNull(attemptsHelper.getPendingTime());
     assertTrue(1L == attemptsHelper.getPendingTime());
   }
+
   @Test
   public void testGetMetadataRetrievalTime() {
     Preconditions.checkNotNull(attemptsHelper.getMetadataRetrievalTime());

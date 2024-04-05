@@ -15,23 +15,27 @@
  */
 package com.dremio.exec.catalog;
 
-import java.io.IOException;
-import java.util.List;
-
 import com.dremio.exec.catalog.namespace.NamespacePassthrough;
 import com.dremio.exec.dotfile.View;
 import com.dremio.exec.physical.base.ViewOptions;
 import com.dremio.exec.store.PartitionNotFoundException;
-import com.dremio.exec.store.sys.udf.UserDefinedFunction;
 import com.dremio.service.namespace.NamespaceAttribute;
 import com.dremio.service.namespace.NamespaceKey;
+import java.io.IOException;
+import java.util.List;
 
 /**
- * Interface used to retrieve virtual and physical datasets. This is always contextualized to a single user and
- * default schema. Implementations must be thread-safe
+ * Interface used to retrieve virtual and physical datasets. This is always contextualized to a
+ * single user and default schema. Implementations must be thread-safe
  */
-public interface Catalog extends SimpleCatalog<Catalog>, EntityExplorer, DatasetCatalog, SourceCatalog,
-  InformationSchemaCatalog, VersionContextResolver, NamespacePassthrough {
+public interface Catalog
+    extends SimpleCatalog<Catalog>,
+        EntityExplorer,
+        DatasetCatalog,
+        SourceCatalog,
+        InformationSchemaCatalog,
+        VersionContextResolver,
+        NamespacePassthrough {
   /**
    * Resolve an ambiguous reference using the following rules: if the reference is a single value
    * and a default schema is defined, resolve using the default schema. Otherwise, resolve using the
@@ -44,11 +48,11 @@ public interface Catalog extends SimpleCatalog<Catalog>, EntityExplorer, Dataset
 
   /**
    * Resolve the provided key to the default schema path, if there is one.
+   *
    * @param key
    * @return
    */
   NamespaceKey resolveToDefault(NamespaceKey key);
-
 
   /**
    * Return a new Catalog contextualized to the provided subject
@@ -62,30 +66,26 @@ public interface Catalog extends SimpleCatalog<Catalog>, EntityExplorer, Dataset
     return getMetadataRequestOptions().getStatsCollector();
   }
 
-  //TODO(DX-21034): Rework View Creator
-  void createView(final NamespaceKey key, View view, ViewOptions viewOptions, NamespaceAttribute... attributes) throws IOException;
+  // TODO(DX-21034): Rework View Creator
+  void createView(
+      final NamespaceKey key, View view, ViewOptions viewOptions, NamespaceAttribute... attributes)
+      throws IOException;
 
-  //TODO(DX-21034): Rework View Creator
-  void updateView(final NamespaceKey key, View view, ViewOptions viewOptions, NamespaceAttribute... attributes) throws IOException;
+  // TODO(DX-21034): Rework View Creator
+  void updateView(
+      final NamespaceKey key, View view, ViewOptions viewOptions, NamespaceAttribute... attributes)
+      throws IOException;
 
-  //TODO(DX-21034): Rework View Creator
+  // TODO(DX-21034): Rework View Creator
   void dropView(final NamespaceKey key, ViewOptions viewOptions) throws IOException;
 
-  void createFunction(NamespaceKey key, UserDefinedFunction userDefinedFunction, NamespaceAttribute...attributes) throws IOException;
+  Iterable<String> getSubPartitions(
+      NamespaceKey key, List<String> partitionColumns, List<String> partitionValues)
+      throws PartitionNotFoundException;
 
-  void updateFunction(NamespaceKey key, UserDefinedFunction userDefinedFunction, NamespaceAttribute...attributes) throws IOException;
-
-  void dropFunction(NamespaceKey key) throws IOException;
-
-  UserDefinedFunction getFunction(NamespaceKey key) throws IOException;
-
-  Iterable<UserDefinedFunction> getAllFunctions() throws IOException;
-
-  Iterable<String> getSubPartitions(NamespaceKey key, List<String> partitionColumns, List<String> partitionValues) throws PartitionNotFoundException;
   default void addCatalogStats() {}
 
   default void invalidateNamespaceCache(final NamespaceKey key) {}
 
   MetadataRequestOptions getMetadataRequestOptions();
-
 }

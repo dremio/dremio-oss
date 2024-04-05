@@ -15,17 +15,17 @@
  */
 package com.dremio.exec.store;
 
-import java.util.List;
-import java.util.Map;
-
 import com.dremio.connector.metadata.ListPartitionChunkOption;
 import com.dremio.connector.metadata.options.RefreshTableFilterOption;
+import java.util.List;
+import java.util.Map;
 
 public class DatasetRetrievalPartitionOptions extends DatasetRetrievalOptions {
 
   private final Map<String, String> partition;
 
-  DatasetRetrievalPartitionOptions(DatasetRetrievalOptions.Builder builder, Map<String, String> partition) {
+  DatasetRetrievalPartitionOptions(
+      DatasetRetrievalOptions.Builder builder, Map<String, String> partition) {
     super(builder);
     this.partition = partition;
   }

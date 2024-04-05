@@ -18,7 +18,7 @@ import clsx from "clsx";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
 import { injectIntl } from "react-intl";
-import { Tooltip, Button } from "dremio-ui-lib";
+import { Tooltip } from "dremio-ui-lib";
 import { AutoSizer, List, CellMeasurer } from "react-virtualized";
 
 import EllipsedText from "components/EllipsedText";
@@ -309,12 +309,14 @@ export default class FilterSelectMenu extends Component {
 
   getUnselectedItems = memoOne((items, selectedValues, pattern) => {
     const selectedMap = this.getSelectedMap(items, selectedValues);
-    return items.filter(
-      (item) =>
-        !selectedMap[item.id] &&
-        (!pattern ||
-          item.label.toLowerCase().includes(pattern.trim().toLowerCase()))
-    );
+    return items
+      .filter(
+        (item) =>
+          !selectedMap[item.id] &&
+          (!pattern ||
+            item.label.toLowerCase().includes(pattern.trim().toLowerCase()))
+      )
+      .sort((a, b) => a.label.localeCompare(b.label));
   });
 
   getSelectedMap = memoOne((items, selectedValues) => {
@@ -537,16 +539,9 @@ export default class FilterSelectMenu extends Component {
     } = this.props;
     if (selectType === "button") {
       return (
-        <Fragment>
-          <Button
-            variant="text"
-            title={label}
-            text={label}
-            classes={{
-              root: "gutter-left--half",
-            }}
-          />
-        </Fragment>
+        <span title={label} className="pl-05 pr-1">
+          {label}
+        </span>
       );
     } else {
       return (

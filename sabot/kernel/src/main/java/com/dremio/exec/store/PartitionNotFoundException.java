@@ -17,7 +17,7 @@ package com.dremio.exec.store;
 
 public class PartitionNotFoundException extends Exception {
 
-  public PartitionNotFoundException() { }
+  public PartitionNotFoundException() {}
 
   public PartitionNotFoundException(String s) {
     super(s);

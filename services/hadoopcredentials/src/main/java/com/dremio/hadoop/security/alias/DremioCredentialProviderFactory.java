@@ -15,20 +15,15 @@
  */
 package com.dremio.hadoop.security.alias;
 
+import com.dremio.services.credentials.CredentialsService;
 import java.io.IOException;
 import java.net.URI;
-
 import javax.inject.Provider;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.security.alias.CredentialProvider;
 import org.apache.hadoop.security.alias.CredentialProviderFactory;
 
-import com.dremio.services.credentials.CredentialsService;
-
-/**
- * The Dremio factory to create Credential Providers, which is used by the Hadoop ServiceLoader.
- */
+/** The Dremio factory to create Credential Providers, which is used by the Hadoop ServiceLoader. */
 public class DremioCredentialProviderFactory extends CredentialProviderFactory {
   public static final String DREMIO_SCHEME = "dremio";
 
@@ -52,17 +47,18 @@ public class DremioCredentialProviderFactory extends CredentialProviderFactory {
   }
 
   @Override
-  public CredentialProvider createProvider(URI providerName, Configuration conf) throws IOException {
+  public CredentialProvider createProvider(URI providerName, Configuration conf)
+      throws IOException {
     if (DREMIO_SCHEME.equalsIgnoreCase(providerName.getScheme())) {
       return new DremioCredentialProvider(
-        CredentialsServiceSingleton.getInstance().credentialsService, conf);
+          CredentialsServiceSingleton.getInstance().credentialsService, conf);
     }
     return null;
   }
 
-
   /**
-   * Called by Dremio Boostrap to bind DremioCredentialProviderFactory with CredentialsService Provider.
+   * Called by Dremio Boostrap to bind DremioCredentialProviderFactory with CredentialsService
+   * Provider.
    */
   public static void configure(Provider<CredentialsService> credentialsServiceProvider) {
     DremioCredentialProviderFactory.credentialsServiceProvider = credentialsServiceProvider;

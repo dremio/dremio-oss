@@ -15,14 +15,11 @@
  */
 package com.dremio.common.util;
 
-
 import java.io.DataInput;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
-
 import org.apache.commons.lang3.exception.ExceptionUtils;
-
 
 public final class DataInputInputStream extends InputStream {
 
@@ -30,16 +27,15 @@ public final class DataInputInputStream extends InputStream {
   private boolean closed = false;
 
   /**
-   * Construct an InputStream from the given DataInput. If 'in'
-   * is already an InputStream, simply returns it. Otherwise, wraps
-   * it in an InputStream.
+   * Construct an InputStream from the given DataInput. If 'in' is already an InputStream, simply
+   * returns it. Otherwise, wraps it in an InputStream.
+   *
    * @param in the DataInput to wrap
    * @return an InputStream instance that inputs to 'in'
    */
-
   public static InputStream constructInputStream(DataInput in) {
     if (in instanceof InputStream) {
-      return (InputStream)in;
+      return (InputStream) in;
     } else {
       return new DataInputInputStream(in);
     }
@@ -69,7 +65,7 @@ public final class DataInputInputStream extends InputStream {
     for (int i = off; i < off + len; i++) {
       try {
         b[i] = in.readByte();
-      } catch(Exception e) {
+      } catch (Exception e) {
         if (ExceptionUtils.getRootCause(e) instanceof EOFException) {
           return i - off;
         } else {

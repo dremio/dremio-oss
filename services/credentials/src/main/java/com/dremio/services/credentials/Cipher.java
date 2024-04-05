@@ -15,9 +15,7 @@
  */
 package com.dremio.services.credentials;
 
-/**
- * A generic interface for encrypting and decrypting
- */
+/** A generic interface for encrypting and decrypting */
 public interface Cipher {
   String encrypt(String secret) throws CredentialsException;
 

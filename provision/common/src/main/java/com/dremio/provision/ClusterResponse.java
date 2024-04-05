@@ -15,17 +15,13 @@
  */
 package com.dremio.provision;
 
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
-
 import org.immutables.value.Value.Default;
 import org.immutables.value.Value.Immutable;
 
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-
-/**
- * Cluster response
- */
+/** Cluster response */
 @JsonDeserialize(builder = ImmutableClusterResponse.Builder.class)
 @Immutable
 @Valid
@@ -52,7 +48,9 @@ public interface ClusterResponse {
   Containers getContainers();
 
   String getError();
+
   String getDetailedError();
+
   ClusterDesiredState getDesiredState();
 
   YarnPropsApi getYarnProps();
@@ -60,11 +58,15 @@ public interface ClusterResponse {
   AwsPropsApi getAwsProps();
 
   boolean isAllowAutoStart();
+
   boolean isAllowAutoStop();
-  @Default default long getShutdownInterval() { return 900_000; }
+
+  @Default
+  default long getShutdownInterval() {
+    return 900_000;
+  }
 
   public static ImmutableClusterResponse.Builder builder() {
     return new ImmutableClusterResponse.Builder();
   }
-
 }

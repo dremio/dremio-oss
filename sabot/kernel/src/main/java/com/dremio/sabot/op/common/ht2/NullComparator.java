@@ -15,16 +15,18 @@
  */
 package com.dremio.sabot.op.common.ht2;
 
+import io.netty.util.internal.PlatformDependent;
 import java.util.BitSet;
 
-import io.netty.util.internal.PlatformDependent;
-
-/**
- * Determines whether a particular pivot set of bits allows comparison.
- */
+/** Determines whether a particular pivot set of bits allows comparison. */
 public class NullComparator {
 
-  public enum Mode {NONE, FOUR, EIGHT, BIG}
+  public enum Mode {
+    NONE,
+    FOUR,
+    EIGHT,
+    BIG
+  }
 
   private final long[] bigs;
   private final Mode mode;
@@ -34,16 +36,16 @@ public class NullComparator {
   public NullComparator(BitSet mask, int count) {
     super();
     this.bigs = mask.toLongArray();
-    if(mask.cardinality() == 0){
+    if (mask.cardinality() == 0) {
       mode = Mode.NONE;
       four = 0;
       eight = 0;
-    }else{
-      if(count > 64){
+    } else {
+      if (count > 64) {
         mode = Mode.BIG;
         four = 0;
         eight = 0;
-      }else if(count > 32){
+      } else if (count > 32) {
         mode = Mode.EIGHT;
         four = 0;
         eight = bigs[0];

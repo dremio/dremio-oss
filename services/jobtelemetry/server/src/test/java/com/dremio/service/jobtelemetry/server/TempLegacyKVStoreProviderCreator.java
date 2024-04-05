@@ -21,20 +21,18 @@ import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 
-/**
- * Creates a LegacyKVStoreProvider off a temporary folder.
- */
+/** Creates a LegacyKVStoreProvider off a temporary folder. */
 public final class TempLegacyKVStoreProviderCreator {
   public static final SabotConfig DEFAULT_SABOT_CONFIG = SabotConfig.forClient();
   public static final ScanResult CLASSPATH_SCAN_RESULT =
-    ClassPathScanner.fromPrescan(DEFAULT_SABOT_CONFIG);
+      ClassPathScanner.fromPrescan(DEFAULT_SABOT_CONFIG);
 
-  private TempLegacyKVStoreProviderCreator() {
-  }
+  private TempLegacyKVStoreProviderCreator() {}
 
   public static LegacyKVStoreProvider create() {
     try {
-      LegacyKVStoreProvider kvStoreProvider = LegacyKVStoreProviderAdapter.inMemory(CLASSPATH_SCAN_RESULT);
+      LegacyKVStoreProvider kvStoreProvider =
+          LegacyKVStoreProviderAdapter.inMemory(CLASSPATH_SCAN_RESULT);
       kvStoreProvider.start();
       return kvStoreProvider;
     } catch (RuntimeException e) {

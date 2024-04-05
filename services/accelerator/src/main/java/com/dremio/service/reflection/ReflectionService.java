@@ -15,15 +15,6 @@
  */
 package com.dremio.service.reflection;
 
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.Future;
-import java.util.concurrent.FutureTask;
-
-import javax.inject.Provider;
-
 import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.exec.store.sys.accel.AccelerationListManager;
 import com.dremio.exec.store.sys.accel.AccelerationManager.ExcludedReflectionsProvider;
@@ -38,10 +29,15 @@ import com.dremio.service.reflection.proto.ReflectionId;
 import com.dremio.service.reflection.proto.Refresh;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.Future;
+import java.util.concurrent.FutureTask;
+import javax.inject.Provider;
 
-/**
- * Reflection service
- */
+/** Reflection service */
 public interface ReflectionService extends Service, ReflectionAdministrationService {
 
   Iterable<ExternalReflection> getAllExternalReflections();
@@ -59,9 +55,7 @@ public interface ReflectionService extends Service, ReflectionAdministrationServ
 
   Iterable<Materialization> getMaterializations(ReflectionId reflectionId);
 
-  /**
-   * wakes up the reflection manager if it isn't already running.
-   */
+  /** wakes up the reflection manager if it isn't already running. */
   Future<?> wakeupManager(String reason);
 
   @VisibleForTesting
@@ -75,11 +69,12 @@ public interface ReflectionService extends Service, ReflectionAdministrationServ
 
   Provider<CacheViewer> getCacheViewerProvider();
 
-  ReflectionManager getReflectionManager();
+  Optional<ReflectionManager> getReflectionManager();
 
-  /**
-   * mainly useful to reduce conflicts on the implementation when we update this interface
-   */
+  /** Admin action to clean reflection collections to get reflection management healthy */
+  void clean();
+
+  /** mainly useful to reduce conflicts on the implementation when we update this interface */
   class BaseReflectionService implements ReflectionService {
     @Override
     public Iterable<ReflectionGoal> getAllReflections() {
@@ -102,7 +97,8 @@ public interface ReflectionService extends Service, ReflectionAdministrationServ
     }
 
     @Override
-    public ReflectionId createExternalReflection(String name, List<String> datasetPath, List<String> targetDatasetPath) {
+    public ReflectionId createExternalReflection(
+        String name, List<String> datasetPath, List<String> targetDatasetPath) {
       return null;
     }
 
@@ -117,18 +113,19 @@ public interface ReflectionService extends Service, ReflectionAdministrationServ
     }
 
     @Override
-    public Iterable<ExternalReflection> getExternalReflectionByDatasetPath(List<String> datasetPath) {
+    public Iterable<ExternalReflection> getExternalReflectionByDatasetPath(
+        List<String> datasetPath) {
       return Collections.emptyList();
     }
 
     @Override
-    public void dropExternalReflection(String idOrName) { }
+    public void dropExternalReflection(String idOrName) {}
 
     @Override
-    public void update(ReflectionGoal goal) { }
+    public void update(ReflectionGoal goal) {}
 
     @Override
-    public void setSubstitutionEnabled(boolean enable) { }
+    public void setSubstitutionEnabled(boolean enable) {}
 
     @Override
     public boolean isSubstitutionEnabled() {
@@ -136,7 +133,7 @@ public interface ReflectionService extends Service, ReflectionAdministrationServ
     }
 
     @Override
-    public void remove(ReflectionGoal goal) { }
+    public void remove(ReflectionGoal goal) {}
 
     @Override
     public Optional<ReflectionEntry> getEntry(ReflectionId reflectionId) {
@@ -164,13 +161,19 @@ public interface ReflectionService extends Service, ReflectionAdministrationServ
     }
 
     @Override
-    public void start() { }
+    public void start() {}
 
     @Override
-    public void close() throws Exception { }
+    public void close() throws Exception {}
 
     @Override
-    public void clearAll() { }
+    public void clearAll() {}
+
+    @Override
+    public void retryUnavailable() {}
+
+    @Override
+    public void clean() {}
 
     @Override
     public Iterable<DependencyEntry> getDependencies(ReflectionId reflectionId) {
@@ -213,10 +216,12 @@ public interface ReflectionService extends Service, ReflectionAdministrationServ
     }
 
     @Override
-    public void requestRefresh(String datasetId) { }
+    public void requestRefresh(String datasetId) {}
 
     @Override
-    public Future<?> wakeupManager(String reason) { return new FutureTask<Void>(null, null); }
+    public Future<?> wakeupManager(String reason) {
+      return new FutureTask<Void>(null, null);
+    }
 
     @Override
     public Provider<CacheViewer> getCacheViewerProvider() {
@@ -229,19 +234,17 @@ public interface ReflectionService extends Service, ReflectionAdministrationServ
         @Override
         public List<String> getExcludedReflections(String rId) {
           return ImmutableList.of();
-        }};
+        }
+      };
     }
 
     @Override
-    public ReflectionManager getReflectionManager() {
-      return null;
+    public Optional<ReflectionManager> getReflectionManager() {
+      return Optional.empty();
     }
-
   }
 
-  /**
-   * Reflection related entity not found.
-   */
+  /** Reflection related entity not found. */
   class NotFoundException extends RuntimeException {
     NotFoundException(String msg) {
       super(msg);

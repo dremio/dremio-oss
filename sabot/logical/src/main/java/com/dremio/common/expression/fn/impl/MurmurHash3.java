@@ -15,21 +15,16 @@
  */
 package com.dremio.common.expression.fn.impl;
 
+import io.netty.util.internal.PlatformDependent;
 import org.apache.arrow.memory.ArrowBuf;
 
-import io.netty.util.internal.PlatformDependent;
-
 /**
- *
- * MurmurHash3 was written by Austin Appleby, and is placed in the public
- * domain.
- * See http://smhasher.googlecode.com/svn/trunk/MurmurHash3.cpp
- * MurmurHash3_x64_128
- * MurmurHash3_x86_32
+ * MurmurHash3 was written by Austin Appleby, and is placed in the public domain. See
+ * http://smhasher.googlecode.com/svn/trunk/MurmurHash3.cpp MurmurHash3_x64_128 MurmurHash3_x86_32
  */
 public final class MurmurHash3 extends HashBase {
 
-   public static final long fmix64(long k) {
+  public static final long fmix64(long k) {
     k ^= k >>> 33;
     k *= 0xff51afd7ed558ccdL;
     k ^= k >>> 33;
@@ -55,52 +50,67 @@ public final class MurmurHash3 extends HashBase {
     long start = buffer.memoryAddress() + bStart;
     long end = buffer.memoryAddress() + bEnd;
     long length = bEnd - bStart;
-    long roundedEnd = start + ( length & 0xFFFFFFF0);  // round down to 16 byte block
-    for (long i=start; i<roundedEnd; i+=16) {
+    long roundedEnd = start + (length & 0xFFFFFFF0); // round down to 16 byte block
+    for (long i = start; i < roundedEnd; i += 16) {
       long k1 = getLongLittleEndian(i);
-      long k2 = getLongLittleEndian(i+8);
+      long k2 = getLongLittleEndian(i + 8);
       k1 *= c1;
-      k1  = Long.rotateLeft(k1,31);
+      k1 = Long.rotateLeft(k1, 31);
       k1 *= c2;
       h1 ^= k1;
-      h1 = Long.rotateLeft(h1,27);
+      h1 = Long.rotateLeft(h1, 27);
       h1 += h2;
-      h1 = h1*5+0x52dce729;
+      h1 = h1 * 5 + 0x52dce729;
       k2 *= c2;
-      k2  = Long.rotateLeft(k2,33);
+      k2 = Long.rotateLeft(k2, 33);
       k2 *= c1;
       h2 ^= k2;
-      h2 = Long.rotateLeft(h2,31);
+      h2 = Long.rotateLeft(h2, 31);
       h2 += h1;
-      h2 = h2*5+0x38495ab5;
+      h2 = h2 * 5 + 0x38495ab5;
     }
 
     long k1 = 0;
     long k2 = 0;
 
     // tail
-    switch ((int)length & 15) {
-      case 15: k2  = (PlatformDependent.getByte(roundedEnd+14) & 0xffL) << 48;
-      case 14: k2 ^= (PlatformDependent.getByte(roundedEnd+13) & 0xffL) << 40;
-      case 13: k2 ^= (PlatformDependent.getByte(roundedEnd+12) & 0xffL) << 32;
-      case 12: k2 ^= (PlatformDependent.getByte(roundedEnd+11) & 0xffL) << 24;
-      case 11: k2 ^= (PlatformDependent.getByte(roundedEnd+10) & 0xffL) << 16;
-      case 10: k2 ^= (PlatformDependent.getByte(roundedEnd+ 9) & 0xffL) << 8;
-      case  9: k2 ^= (PlatformDependent.getByte(roundedEnd+ 8) & 0xffL);
+    switch ((int) length & 15) {
+      case 15:
+        k2 = (PlatformDependent.getByte(roundedEnd + 14) & 0xffL) << 48;
+      case 14:
+        k2 ^= (PlatformDependent.getByte(roundedEnd + 13) & 0xffL) << 40;
+      case 13:
+        k2 ^= (PlatformDependent.getByte(roundedEnd + 12) & 0xffL) << 32;
+      case 12:
+        k2 ^= (PlatformDependent.getByte(roundedEnd + 11) & 0xffL) << 24;
+      case 11:
+        k2 ^= (PlatformDependent.getByte(roundedEnd + 10) & 0xffL) << 16;
+      case 10:
+        k2 ^= (PlatformDependent.getByte(roundedEnd + 9) & 0xffL) << 8;
+      case 9:
+        k2 ^= (PlatformDependent.getByte(roundedEnd + 8) & 0xffL);
         k2 *= c2;
-        k2  = Long.rotateLeft(k2, 33);
+        k2 = Long.rotateLeft(k2, 33);
         k2 *= c1;
         h2 ^= k2;
-      case  8: k1  = (long)PlatformDependent.getByte(roundedEnd+7) << 56;
-      case  7: k1 ^= (PlatformDependent.getByte(roundedEnd+6) & 0xffL) << 48;
-      case  6: k1 ^= (PlatformDependent.getByte(roundedEnd+5) & 0xffL) << 40;
-      case  5: k1 ^= (PlatformDependent.getByte(roundedEnd+4) & 0xffL) << 32;
-      case  4: k1 ^= (PlatformDependent.getByte(roundedEnd+3) & 0xffL) << 24;
-      case  3: k1 ^= (PlatformDependent.getByte(roundedEnd+2) & 0xffL) << 16;
-      case  2: k1 ^= (PlatformDependent.getByte(roundedEnd+1) & 0xffL) << 8;
-      case  1: k1 ^= (PlatformDependent.getByte(roundedEnd ) & 0xffL);
+      case 8:
+        k1 = (long) PlatformDependent.getByte(roundedEnd + 7) << 56;
+      case 7:
+        k1 ^= (PlatformDependent.getByte(roundedEnd + 6) & 0xffL) << 48;
+      case 6:
+        k1 ^= (PlatformDependent.getByte(roundedEnd + 5) & 0xffL) << 40;
+      case 5:
+        k1 ^= (PlatformDependent.getByte(roundedEnd + 4) & 0xffL) << 32;
+      case 4:
+        k1 ^= (PlatformDependent.getByte(roundedEnd + 3) & 0xffL) << 24;
+      case 3:
+        k1 ^= (PlatformDependent.getByte(roundedEnd + 2) & 0xffL) << 16;
+      case 2:
+        k1 ^= (PlatformDependent.getByte(roundedEnd + 1) & 0xffL) << 8;
+      case 1:
+        k1 ^= (PlatformDependent.getByte(roundedEnd) & 0xffL);
         k1 *= c1;
-        k1  = Long.rotateLeft(k1,31);
+        k1 = Long.rotateLeft(k1, 31);
         k1 *= c2;
         h1 ^= k1;
     }
@@ -133,7 +143,7 @@ public final class MurmurHash3 extends HashBase {
 
     k1 = val;
     k1 *= c1;
-    k1  = Long.rotateLeft(k1,31);
+    k1 = Long.rotateLeft(k1, 31);
     k1 *= c2;
     h1 ^= k1;
 
@@ -148,10 +158,9 @@ public final class MurmurHash3 extends HashBase {
 
     h1 += h2;
 
-    //h2 += h1;
+    // h2 += h1;
     // murmur3_128 should return 128 bit (h1,h2), now we return only 64bits,
     return h1;
-
   }
 
   @SuppressWarnings({"FallThrough", "checkstyle:MissingSwitchDefault"})
@@ -161,16 +170,19 @@ public final class MurmurHash3 extends HashBase {
     final long c2 = 0x1b873593L;
     long start = buffer.memoryAddress() + bStart;
     long length = bEnd - bStart;
-    long UINT_MASK=0xffffffffL;
+    long UINT_MASK = 0xffffffffL;
     long lh1 = seed;
-    long roundedEnd = start + (length & 0xfffffffc);  // round down to 4 byte block
+    long roundedEnd = start + (length & 0xfffffffc); // round down to 4 byte block
 
-    for (long i=start; i<roundedEnd; i+=4) {
+    for (long i = start; i < roundedEnd; i += 4) {
       // little endian load order
-      long lk1 = (PlatformDependent.getByte(i) & 0xff) | ((PlatformDependent.getByte(i+1) & 0xff) << 8) |
-              ((PlatformDependent.getByte(i+2) & 0xff) << 16) | (PlatformDependent.getByte(i+3) << 24);
+      long lk1 =
+          (PlatformDependent.getByte(i) & 0xff)
+              | ((PlatformDependent.getByte(i + 1) & 0xff) << 8)
+              | ((PlatformDependent.getByte(i + 2) & 0xff) << 16)
+              | (PlatformDependent.getByte(i + 3) << 24);
 
-      //k1 *= c1;
+      // k1 *= c1;
       lk1 *= c1;
       lk1 &= UINT_MASK;
 
@@ -181,14 +193,14 @@ public final class MurmurHash3 extends HashBase {
       lh1 ^= lk1;
       lh1 = ((lh1 << 13) & UINT_MASK) | (lh1 >>> 19);
 
-      lh1 = lh1*5+0xe6546b64L;
+      lh1 = lh1 * 5 + 0xe6546b64L;
       lh1 = UINT_MASK & lh1;
     }
 
     // tail
     long lk1 = 0;
 
-    switch((byte)length & 0x03) {
+    switch ((byte) length & 0x03) {
       case 3:
         lk1 = (PlatformDependent.getByte(roundedEnd + 2) & 0xff) << 16;
       case 2:
@@ -217,20 +229,20 @@ public final class MurmurHash3 extends HashBase {
     lh1 = UINT_MASK & lh1;
     lh1 ^= lh1 >>> 16;
 
-    return (int)(lh1 & UINT_MASK);
+    return (int) (lh1 & UINT_MASK);
   }
 
   public static int murmur3_32(long val, int seed) {
     final long c1 = 0xcc9e2d51L;
     final long c2 = 0x1b873593;
     long length = 8;
-    long UINT_MASK=0xffffffffL;
+    long UINT_MASK = 0xffffffffL;
     long lh1 = seed & UINT_MASK;
-    for (int i=0; i<2; i++) {
-      //int ik1 = (int)((val >> i*32) & UINT_MASK);
-      long lk1 = ((val >> i*32) & UINT_MASK);
+    for (int i = 0; i < 2; i++) {
+      // int ik1 = (int)((val >> i*32) & UINT_MASK);
+      long lk1 = ((val >> i * 32) & UINT_MASK);
 
-      //k1 *= c1;
+      // k1 *= c1;
       lk1 *= c1;
       lk1 &= UINT_MASK;
 
@@ -242,7 +254,7 @@ public final class MurmurHash3 extends HashBase {
       lh1 ^= lk1;
       lh1 = ((lh1 << 13) & UINT_MASK) | (lh1 >>> 19);
 
-      lh1 = lh1*5+0xe6546b64L;
+      lh1 = lh1 * 5 + 0xe6546b64L;
       lh1 = UINT_MASK & lh1;
     }
     // finalization
@@ -256,7 +268,7 @@ public final class MurmurHash3 extends HashBase {
     lh1 = UINT_MASK & lh1;
     lh1 ^= lh1 >>> 16;
 
-    return (int)lh1;
+    return (int) lh1;
   }
 
   public static long hash64(double val, long seed) {
@@ -274,5 +286,4 @@ public final class MurmurHash3 extends HashBase {
   public static int hash32(int start, int end, ArrowBuf buffer, int seed) {
     return murmur3_32(start, end, buffer, seed);
   }
-
 }

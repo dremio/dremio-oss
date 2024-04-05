@@ -15,10 +15,6 @@
  */
 package com.dremio.sabot.exec;
 
-import javax.inject.Provider;
-
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.config.DremioConfig;
@@ -27,9 +23,12 @@ import com.dremio.sabot.task.GroupManager;
 import com.dremio.sabot.task.TaskPool;
 import com.dremio.service.Service;
 import com.google.common.annotations.VisibleForTesting;
+import javax.inject.Provider;
+import org.apache.arrow.memory.BufferAllocator;
 
 /**
- * Service that creates the {@link WorkloadTicketDepot} singleton when started, and provides it through the registry
+ * Service that creates the {@link WorkloadTicketDepot} singleton when started, and provides it
+ * through the registry
  */
 public class WorkloadTicketDepotService implements Service {
 
@@ -39,8 +38,10 @@ public class WorkloadTicketDepotService implements Service {
 
   private WorkloadTicketDepot ticketDepot;
 
-  public WorkloadTicketDepotService(final Provider<BufferAllocator> allocator, final Provider<TaskPool> taskPool,
-                                    final Provider<DremioConfig> dremioConfig) {
+  public WorkloadTicketDepotService(
+      final Provider<BufferAllocator> allocator,
+      final Provider<TaskPool> taskPool,
+      final Provider<DremioConfig> dremioConfig) {
     this.allocator = allocator;
     this.taskPool = taskPool;
     this.dremioConfig = dremioConfig;
@@ -66,7 +67,8 @@ public class WorkloadTicketDepotService implements Service {
     return taskPool.get().getGroupManager();
   }
 
-  protected WorkloadTicketDepot newTicketDepot(BufferAllocator parentAllocator, SabotConfig config) {
+  protected WorkloadTicketDepot newTicketDepot(
+      BufferAllocator parentAllocator, SabotConfig config) {
     return new WorkloadTicketDepot(parentAllocator, config, getGroupManager());
   }
 }

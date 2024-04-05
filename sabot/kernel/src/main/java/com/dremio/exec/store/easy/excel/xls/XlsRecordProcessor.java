@@ -17,13 +17,22 @@ package com.dremio.exec.store.easy.excel.xls;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import com.dremio.common.AutoCloseables;
+import com.dremio.common.exceptions.FieldSizeLimitExceptionHelper;
+import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.store.easy.excel.ColumnNameHandler;
+import com.dremio.exec.store.easy.excel.ExcelFormatPluginConfig;
+import com.dremio.exec.store.easy.excel.ExcelParser;
+import com.dremio.exec.store.easy.excel.SheetNotFoundException;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.complex.impl.VectorContainerWriter;
 import org.apache.arrow.vector.complex.writer.BaseWriter;
@@ -51,28 +60,17 @@ import org.apache.poi.ss.usermodel.FormulaError;
 import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.util.LocaleUtil;
 
-import com.dremio.common.AutoCloseables;
-import com.dremio.common.exceptions.FieldSizeLimitExceptionHelper;
-import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.store.easy.excel.ColumnNameHandler;
-import com.dremio.exec.store.easy.excel.ExcelFormatPluginConfig;
-import com.dremio.exec.store.easy.excel.ExcelParser;
-import com.dremio.exec.store.easy.excel.SheetNotFoundException;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-
 /**
  * XLS parser based on Apache POI.<br>
  * <br>
  * Uses a combination of {@link XlsInputStream} and {@link BlockStoreInputStream} to read the file
- * in direct memory. It still relies on a {@link RecordFactoryInputStream} which will instantiate all
- * cells in heap.
- * <br>
+ * in direct memory. It still relies on a {@link RecordFactoryInputStream} which will instantiate
+ * all cells in heap. <br>
  * This class takes care of closing the given {@link XlsInputStream} when we close it.
  */
 public class XlsRecordProcessor implements ExcelParser {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(XlsRecordProcessor.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(XlsRecordProcessor.class);
 
   private final InputStream workbookStream;
 
@@ -96,8 +94,8 @@ public class XlsRecordProcessor implements ExcelParser {
   private final ColumnNameHandler columnNameHandler = new ColumnNameHandler();
 
   /**
-   * Merge cell map. Key is the top-left cell in the merged region. Value is null if there is no merge cell
-   * expansion needed or no merge cells found.
+   * Merge cell map. Key is the top-left cell in the merged region. Value is null if there is no
+   * merge cell expansion needed or no merge cells found.
    */
   private Map<Integer, MergedCell> mergeCells;
 
@@ -105,22 +103,26 @@ public class XlsRecordProcessor implements ExcelParser {
   private final Set<String> columnsToProject;
 
   /**
-   * Extracts the workbook stream for the byte array and instantiates a {@link RecordFactoryInputStream} that will
-   * be used to process al Records of the stream.
+   * Extracts the workbook stream for the byte array and instantiates a {@link
+   * RecordFactoryInputStream} that will be used to process al Records of the stream.
    *
    * @param is XLS InputStream
    * @param writer will be used to write the retrieved record into the outgoing vector container
    * @param managedBuf managed buffer used to allocate VarChar values
    * @param skipQuery if a query should skip columns
    * @param maxCellSize maximum allowable size of variable length cells
-   *
    * @throws IOException if data doesn't start with a proper XLS header
    * @throws SheetNotFoundException if the sheet is not part of the workbook
    */
-  public XlsRecordProcessor(final XlsInputStream is, final ExcelFormatPluginConfig pluginConfig,
-                            final VectorContainerWriter writer, final ArrowBuf managedBuf,
-                            final Set<String> columnsToProject, final boolean skipQuery,
-                            final int maxCellSize) throws IOException, SheetNotFoundException {
+  public XlsRecordProcessor(
+      final XlsInputStream is,
+      final ExcelFormatPluginConfig pluginConfig,
+      final VectorContainerWriter writer,
+      final ArrowBuf managedBuf,
+      final Set<String> columnsToProject,
+      final boolean skipQuery,
+      final int maxCellSize)
+      throws IOException, SheetNotFoundException {
     this.writer = writer.rootAsStruct();
     this.managedBuf = managedBuf;
     this.columnsToProject = columnsToProject;
@@ -134,7 +136,8 @@ public class XlsRecordProcessor implements ExcelParser {
       throw UserException.dataReadError(e).build(logger);
     }
 
-    // WARNING RecordFactoryInputStream will ignore DBCells among others and will also instantiate every single
+    // WARNING RecordFactoryInputStream will ignore DBCells among others and will also instantiate
+    // every single
     // Record it parses
     recordStream = new RecordFactoryInputStream(workbookStream, true);
 
@@ -145,23 +148,22 @@ public class XlsRecordProcessor implements ExcelParser {
   }
 
   /**
-   * Extracts a set of general information from the workbook stream, moves to the beginning
-   * of the target sheet, then extract all row blocks and merged cells from the stream.
-   * This includes:
+   * Extracts a set of general information from the workbook stream, moves to the beginning of the
+   * target sheet, then extract all row blocks and merged cells from the stream. This includes:
+   *
    * <ul>
-   *   <li>all BoundSheet records</li>
-   *   <li>SST record</li>
-   *   <li>DateWindow1904 record</li>
+   *   <li>all BoundSheet records
+   *   <li>SST record
+   *   <li>DateWindow1904 record
    * </ul>
    *
    * @param sheetName target sheet we want to read
    * @param extractHeader if set to true, will use the first row values as column names
    * @param handleMergeCells if set to true, will take into account merged cells
-   *
    * @throws SheetNotFoundException couldn't find the target sheet
    */
   private void init(final String sheetName, boolean extractHeader, boolean handleMergeCells)
-          throws SheetNotFoundException {
+      throws SheetNotFoundException {
     if (handleMergeCells) {
       mergeCells = Maps.newHashMap();
     }
@@ -176,8 +178,8 @@ public class XlsRecordProcessor implements ExcelParser {
 
   /**
    * parses all records between BOF and EOF records.<br>
-   * Finds the sheet index of the target sheet and extracts global information needed to process
-   * all cells of the target sheet.
+   * Finds the sheet index of the target sheet and extracts global information needed to process all
+   * cells of the target sheet.
    *
    * @param sheetName target sheet name
    */
@@ -193,7 +195,8 @@ public class XlsRecordProcessor implements ExcelParser {
     }
 
     Record r = recordStream.nextRecord();
-    Preconditions.checkState(r != null && r.getSid() == BOFRecord.sid, "improper start of workbook: " + r);
+    Preconditions.checkState(
+        r != null && r.getSid() == BOFRecord.sid, "improper start of workbook: " + r);
 
     while (true) {
       r = Preconditions.checkNotNull(recordStream.nextRecord(), "workbook stream ended abruptly");
@@ -240,7 +243,7 @@ public class XlsRecordProcessor implements ExcelParser {
         sstRecord = (SSTRecord) r;
       }
       if (sid == DateWindow1904Record.sid) {
-        dateWindow1904 = ((DateWindow1904Record)r).getWindowing() == 1;
+        dateWindow1904 = ((DateWindow1904Record) r).getWindowing() == 1;
       }
 
       formatManager.processRecordInternally(r);
@@ -256,8 +259,9 @@ public class XlsRecordProcessor implements ExcelParser {
    */
   private void moveToStartOfSheet(int sheetIndex) {
     int currentSheet = -1;
-    while(currentSheet < sheetIndex) {
-      final Record r = Preconditions.checkNotNull(recordStream.nextRecord(), "stream ended abruptly");
+    while (currentSheet < sheetIndex) {
+      final Record r =
+          Preconditions.checkNotNull(recordStream.nextRecord(), "stream ended abruptly");
       final short sid = r.getSid();
 
       if (sid == BOFRecord.sid) { // start of a stream
@@ -281,8 +285,9 @@ public class XlsRecordProcessor implements ExcelParser {
     RowBlock rowBlock = null;
     RowRecordsAggregate rowsAggregate = null;
 
-    while(true) {
-      final Record r = Preconditions.checkNotNull(recordStream.nextRecord(), "sheet ended abruptly");
+    while (true) {
+      final Record r =
+          Preconditions.checkNotNull(recordStream.nextRecord(), "sheet ended abruptly");
       final short sid = r.getSid();
       if (sid == EOFRecord.sid) {
         break; // end of target sheet
@@ -342,7 +347,6 @@ public class XlsRecordProcessor implements ExcelParser {
       MergedCell prev = mergeCells.put(cellId, new MergedCell(area));
       assert prev == null : "two merge cells share the same top/left cell";
     }
-
   }
 
   /**
@@ -412,10 +416,10 @@ public class XlsRecordProcessor implements ExcelParser {
         final MergedCell mergedCell = mergeCells == null ? null : mergeCells.get(colId);
 
         if (mergedCell != null) {
-            mergedCell.setValue(value);
-            // don't write the cell value in the writer now, it will be done by handleMergeCells()
-          } else {
-            writeValue(column, value);
+          mergedCell.setValue(value);
+          // don't write the cell value in the writer now, it will be done by handleMergeCells()
+        } else {
+          writeValue(column, value);
         }
 
         nextCell = getNextCell();
@@ -447,9 +451,7 @@ public class XlsRecordProcessor implements ExcelParser {
 
   /**
    * @param cell current cell
-   *
-   * @return cell's value. Could be Boolean, String, or Double.
-   *         returns Null if cell is blank
+   * @return cell's value. Could be Boolean, String, or Double. returns Null if cell is blank
    */
   private Object resolveCellValue(CellValueRecordInterface cell) {
     if (cell instanceof FormulaRecordAggregate) {
@@ -460,8 +462,9 @@ public class XlsRecordProcessor implements ExcelParser {
         type = CellType.forInt(fr.getCachedResultType());
       } catch (IllegalArgumentException e) {
         throw UserException.dataReadError(e)
-          .message("Unexpected formula result type at cell (%d, %d)", cell.getRow(), cell.getColumn())
-          .build(logger);
+            .message(
+                "Unexpected formula result type at cell (%d, %d)", cell.getRow(), cell.getColumn())
+            .build(logger);
       }
 
       switch (type) {
@@ -475,51 +478,55 @@ public class XlsRecordProcessor implements ExcelParser {
           return FormulaError.forInt(fr.getCachedErrorValue()).getString();
         default:
           throw UserException.dataReadError()
-                  .message("Unexpected formula result type at cell (%d, %d)", cell.getRow(), cell.getColumn())
-                  .build(logger);
+              .message(
+                  "Unexpected formula result type at cell (%d, %d)",
+                  cell.getRow(), cell.getColumn())
+              .build(logger);
       }
     } else {
       int sid = ((Record) cell).getSid();
       switch (sid) {
         case BlankRecord.sid:
           return null; // blank cell
-        case BoolErrRecord.sid: {
-          final BoolErrRecord brec = (BoolErrRecord) cell;
-          if (brec.isBoolean()) {
-            return brec.getBooleanValue();
-          } else {
-            return FormulaError.forInt(brec.getErrorValue()).getString();
+        case BoolErrRecord.sid:
+          {
+            final BoolErrRecord brec = (BoolErrRecord) cell;
+            if (brec.isBoolean()) {
+              return brec.getBooleanValue();
+            } else {
+              return FormulaError.forInt(brec.getErrorValue()).getString();
+            }
           }
-        }
-        case LabelSSTRecord.sid: {
-          final LabelSSTRecord lrec = (LabelSSTRecord) cell;
-          final int sstIndex = lrec.getSSTIndex();
-          return sstRecord.getString(sstIndex).toString();
-        }
-        case LabelRecord.sid: {
-          final LabelRecord lrec = (LabelRecord) cell;
-          return lrec.getValue();
-        }
-        case NumberRecord.sid: {
-          final NumberRecord nrec = (NumberRecord) cell;
-          final double value = nrec.getValue();
-          if (formatManager.isDateFormat(cell)) {
-            return DateUtil.getJavaDate(value, dateWindow1904, LocaleUtil.TIMEZONE_UTC).getTime();
-          } else {
-            return value;
+        case LabelSSTRecord.sid:
+          {
+            final LabelSSTRecord lrec = (LabelSSTRecord) cell;
+            final int sstIndex = lrec.getSSTIndex();
+            return sstRecord.getString(sstIndex).toString();
           }
-        }
+        case LabelRecord.sid:
+          {
+            final LabelRecord lrec = (LabelRecord) cell;
+            return lrec.getValue();
+          }
+        case NumberRecord.sid:
+          {
+            final NumberRecord nrec = (NumberRecord) cell;
+            final double value = nrec.getValue();
+            if (formatManager.isDateFormat(cell)) {
+              return DateUtil.getJavaDate(value, dateWindow1904, LocaleUtil.TIMEZONE_UTC).getTime();
+            } else {
+              return value;
+            }
+          }
         default:
           throw UserException.dataReadError()
-            .message("Unexpected cell record at (%d, %d)", cell.getRow(), cell.getColumn())
-            .build(logger);
+              .message("Unexpected cell record at (%d, %d)", cell.getRow(), cell.getColumn())
+              .build(logger);
       }
     }
   }
 
-  /**
-   * writes given value into the specified column vector
-   */
+  /** writes given value into the specified column vector */
   private void writeValue(final int column, final Object value) {
     final String columnName = columnNameHandler.getColumnName(column);
 
@@ -544,7 +551,7 @@ public class XlsRecordProcessor implements ExcelParser {
   }
 
   private void writeBoolean(final String columnName, boolean value) {
-    writer.bit(columnName).writeBit(value ? 1:0);
+    writer.bit(columnName).writeBit(value ? 1 : 0);
   }
 
   private void writeVarChar(final String columnName, final String value) {
@@ -564,9 +571,7 @@ public class XlsRecordProcessor implements ExcelParser {
     writer.float8(columnName).writeFloat8(value);
   }
 
-  /**
-   * Inner class used to store a merged cell along with it's top/left cell's value.
-   */
+  /** Inner class used to store a merged cell along with it's top/left cell's value. */
   private class MergedCell {
     private final CellRangeAddress range;
     private Object value;

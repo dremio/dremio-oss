@@ -16,8 +16,6 @@
 
 package com.dremio.exec.store.hive;
 
-import java.util.Map;
-
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.AWSSessionCredentials;
@@ -26,11 +24,14 @@ import com.dremio.common.util.concurrent.ContextClassLoaderSwapper;
 import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.service.Pointer;
 import com.dremio.service.coordinator.DremioAssumeRoleCredentialsProviderV1;
+import java.util.Map;
 
 /**
- * Glue specific wrapper to {@link DremioAssumeRoleCredentialsProviderV1} to avoid class loader issues.
+ * Glue specific wrapper to {@link DremioAssumeRoleCredentialsProviderV1} to avoid class loader
+ * issues.
  */
-public class GlueDremioAssumeRoleCredentialsProviderV1 implements AWSCredentialsProvider, AutoCloseable {
+public class GlueDremioAssumeRoleCredentialsProviderV1
+    implements AWSCredentialsProvider, AutoCloseable {
   private Closeable swapClassLoader() {
     return ContextClassLoaderSwapper.swapClassLoader(HadoopFileSystem.class);
   }
@@ -42,7 +43,8 @@ public class GlueDremioAssumeRoleCredentialsProviderV1 implements AWSCredentials
     Pointer<String> sessionToken = new Pointer<>("");
 
     try (Closeable swapper = swapClassLoader()) {
-      final DremioAssumeRoleCredentialsProviderV1 provider = new DremioAssumeRoleCredentialsProviderV1();
+      final DremioAssumeRoleCredentialsProviderV1 provider =
+          new DremioAssumeRoleCredentialsProviderV1();
       Map<String, String> credentialsMap = provider.getCredentialsMap();
       accessKey.value = credentialsMap.get(DremioAssumeRoleCredentialsProviderV1.ACCESS_KEY);
       secretKey.value = credentialsMap.get(DremioAssumeRoleCredentialsProviderV1.SECRET_KEY);
@@ -53,10 +55,12 @@ public class GlueDremioAssumeRoleCredentialsProviderV1 implements AWSCredentials
       public String getAWSAccessKeyId() {
         return accessKey.value;
       }
+
       @Override
       public String getAWSSecretKey() {
         return secretKey.value;
       }
+
       @Override
       public String getSessionToken() {
         return sessionToken.value;
@@ -69,5 +73,4 @@ public class GlueDremioAssumeRoleCredentialsProviderV1 implements AWSCredentials
 
   @Override
   public void close() throws Exception {}
-
 }

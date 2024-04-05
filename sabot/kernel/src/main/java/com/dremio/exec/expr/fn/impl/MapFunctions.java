@@ -15,13 +15,6 @@
  */
 package com.dremio.exec.expr.fn.impl;
 
-import java.util.List;
-
-import org.apache.arrow.vector.complex.reader.FieldReader;
-import org.apache.arrow.vector.complex.writer.BaseWriter;
-import org.apache.arrow.vector.holders.NullableIntHolder;
-import org.apache.arrow.vector.types.pojo.Field;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.LogicalExpression;
@@ -31,71 +24,81 @@ import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
 import com.dremio.exec.expr.fn.OutputDerivation;
-import com.google.common.base.Preconditions;
+import java.util.List;
+import org.apache.arrow.vector.complex.reader.FieldReader;
+import org.apache.arrow.vector.complex.writer.BaseWriter;
+import org.apache.arrow.vector.holders.NullableIntHolder;
+import org.apache.arrow.vector.types.pojo.Field;
 
 public class MapFunctions {
 
   public static final String LAST_MATCHING_ENTRY_FUNC = "last_matching_map_entry_for_key";
 
-  @FunctionTemplate(names = {"map_keys"}, scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL, derivation = ListOfKeys.class)
+  @FunctionTemplate(
+      names = {"map_keys"},
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      nulls = NullHandling.NULL_IF_NULL,
+      derivation = ListOfKeys.class)
   public static class GetMapKeys implements SimpleFunction {
-    @Param
-    FieldReader input;
+    @Param FieldReader input;
 
-    @Output
-    BaseWriter.ComplexWriter out;
+    @Output BaseWriter.ComplexWriter out;
 
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
     public void eval() {
-      org.apache.arrow.vector.complex.impl.UnionMapReader mapReader = (org.apache.arrow.vector.complex.impl.UnionMapReader) input;
+      org.apache.arrow.vector.complex.impl.UnionMapReader mapReader =
+          (org.apache.arrow.vector.complex.impl.UnionMapReader) input;
       org.apache.arrow.vector.complex.writer.BaseWriter.ListWriter listWriter = out.rootAsList();
       listWriter.startList();
       while (mapReader.next()) {
-        org.apache.arrow.vector.complex.impl.ComplexCopier.copy(mapReader.key(), (org.apache.arrow.vector.complex.writer.FieldWriter) listWriter);
+        org.apache.arrow.vector.complex.impl.ComplexCopier.copy(
+            mapReader.key(), (org.apache.arrow.vector.complex.writer.FieldWriter) listWriter);
       }
       listWriter.endList();
     }
   }
 
-  @FunctionTemplate(names = {"map_values"}, scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL, derivation = ListOfValues.class)
+  @FunctionTemplate(
+      names = {"map_values"},
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      nulls = NullHandling.NULL_IF_NULL,
+      derivation = ListOfValues.class)
   public static class GetMapValues implements SimpleFunction {
-    @Param
-    FieldReader input;
+    @Param FieldReader input;
 
-    @Output
-    BaseWriter.ComplexWriter out;
+    @Output BaseWriter.ComplexWriter out;
 
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
     public void eval() {
-      org.apache.arrow.vector.complex.impl.UnionMapReader mapReader = (org.apache.arrow.vector.complex.impl.UnionMapReader) input;
+      org.apache.arrow.vector.complex.impl.UnionMapReader mapReader =
+          (org.apache.arrow.vector.complex.impl.UnionMapReader) input;
       org.apache.arrow.vector.complex.writer.BaseWriter.ListWriter listWriter = out.rootAsList();
       listWriter.startList();
       while (mapReader.next()) {
-        org.apache.arrow.vector.complex.impl.ComplexCopier.copy(mapReader.value(), (org.apache.arrow.vector.complex.writer.FieldWriter) listWriter);
+        org.apache.arrow.vector.complex.impl.ComplexCopier.copy(
+            mapReader.value(), (org.apache.arrow.vector.complex.writer.FieldWriter) listWriter);
       }
       listWriter.endList();
     }
   }
 
-  @FunctionTemplate(names = {"size"}, scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = NullHandling.INTERNAL)
+  @FunctionTemplate(
+      names = {"size"},
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      nulls = NullHandling.INTERNAL)
   public static class GetMapSize implements SimpleFunction {
-    @Param
-    FieldReader input;
+    @Param FieldReader input;
 
-    @Output
-    NullableIntHolder out;
+    @Output NullableIntHolder out;
 
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
     public void eval() {
@@ -137,13 +140,20 @@ public class MapFunctions {
     CompleteType mapType = args.get(0).getCompleteType();
     if (!mapType.isMap()) {
       throw UserException.functionError()
-        .message("The %s function can only be used when operating against maps. The type you were attempting to apply it to was a %s.", functionName,
-          mapType.toString())
-        .build();
+          .message(
+              "The %s function can only be used when operating against maps. The type you were attempting to apply it to was a %s.",
+              functionName, mapType.toString())
+          .build();
     }
-    Preconditions.checkArgument(mapType.getChildren().size() == 1, "Unexpected map structure %s", mapType.toString());
+    if (mapType.getChildren().size() != 1) {
+      throw new IllegalArgumentException(
+          String.format("Unexpected map structure %s", mapType.toString()));
+    }
     Field entryStruct = mapType.getChildren().get(0);
-    Preconditions.checkArgument(entryStruct.getChildren().size() == 2, "Unexpected entry in map structure %s", entryStruct.toString());
+    if (entryStruct.getChildren().size() != 2) {
+      throw new IllegalArgumentException(
+          String.format("Unexpected entry in map structure %s", entryStruct.toString()));
+    }
     return entryStruct;
   }
 }

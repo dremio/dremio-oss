@@ -15,11 +15,8 @@
  */
 package com.dremio.partitionstats.storeprovider;
 
-
 import com.dremio.datastore.transientstore.InMemoryTransientStoreProvider;
 
-/**
- * In memory store provider for partition stats cache.
- */
-public class PartitionStatsCacheInMemoryStoreProvider extends InMemoryTransientStoreProvider implements PartitionStatsCacheStoreProvider {
-}
+/** In memory store provider for partition stats cache. */
+public class PartitionStatsCacheInMemoryStoreProvider extends InMemoryTransientStoreProvider
+    implements PartitionStatsCacheStoreProvider {}

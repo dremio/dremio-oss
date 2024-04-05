@@ -15,15 +15,6 @@
  */
 package com.dremio.exec.planner.logical;
 
-import org.apache.calcite.plan.RelOptTable;
-import org.apache.calcite.plan.RelOptTable.ToRelContext;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeFactory;
-import org.apache.calcite.schema.Schema.TableType;
-import org.apache.calcite.schema.Statistic;
-import org.apache.calcite.schema.Statistics;
-
 import com.dremio.catalog.model.VersionContext;
 import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.exec.catalog.CatalogIdentity;
@@ -34,6 +25,14 @@ import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import org.apache.calcite.plan.RelOptTable;
+import org.apache.calcite.plan.RelOptTable.ToRelContext;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.calcite.schema.Schema.TableType;
+import org.apache.calcite.schema.Statistic;
+import org.apache.calcite.schema.Statistics;
 
 public class ViewTable implements DremioTable {
 
@@ -45,34 +44,27 @@ public class ViewTable implements DremioTable {
   private final VersionContext versionContext;
   private final boolean hasAtSpecifier;
 
-  public ViewTable(
-    NamespaceKey path,
-    View view,
-    CatalogIdentity viewOwner,
-    BatchSchema schema
-  ) {
+  public ViewTable(NamespaceKey path, View view, CatalogIdentity viewOwner, BatchSchema schema) {
     this(path, view, viewOwner, null, schema, null, false);
   }
 
   public ViewTable(
-    NamespaceKey path,
-    View view,
-    CatalogIdentity viewOwner,
-    DatasetConfig config,
-    BatchSchema schema
-  ) {
+      NamespaceKey path,
+      View view,
+      CatalogIdentity viewOwner,
+      DatasetConfig config,
+      BatchSchema schema) {
     this(path, view, viewOwner, config, schema, null, false);
   }
 
   public ViewTable(
-    NamespaceKey path,
-    View view,
-    CatalogIdentity viewOwner,
-    DatasetConfig config,
-    BatchSchema schema,
-    VersionContext versionContext,
-    boolean hasAtSpecifier
-  ) {
+      NamespaceKey path,
+      View view,
+      CatalogIdentity viewOwner,
+      DatasetConfig config,
+      BatchSchema schema,
+      VersionContext versionContext,
+      boolean hasAtSpecifier) {
     this.view = view;
     this.path = path;
     this.viewOwner = viewOwner;

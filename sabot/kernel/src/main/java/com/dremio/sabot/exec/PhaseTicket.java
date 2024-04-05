@@ -15,27 +15,26 @@
  */
 package com.dremio.sabot.exec;
 
+import com.dremio.exec.proto.CoordExecRPC.NodePhaseStatus;
+import com.google.common.collect.ImmutableList;
 import java.util.Collection;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-
 import org.apache.arrow.memory.BufferAllocator;
 
-import com.dremio.exec.proto.CoordExecRPC.NodePhaseStatus;
-import com.google.common.collect.ImmutableList;
-
 /**
- *  Manages the phase (major fragment) level allocator. Allows for reporting of phase-level stats to the coordinator.<br>
+ * Manages the phase (major fragment) level allocator. Allows for reporting of phase-level stats to
+ * the coordinator.<br>
+ * A PhaseTicket is created for each phase (major fragment) of a query on an executor node. The
+ * PhaseTicket tracks the allocator used for this phase. It contains a phase reporter that's used to
+ * report the status of this phase of this query on this node to the coordinator
  *
- *  A PhaseTicket is created for each phase (major fragment) of a query on an executor node. The PhaseTicket tracks the
- *  allocator used for this phase. It contains a phase reporter that's used to report the status of this phase of this
- *  query on this node to the coordinator
+ * <p>PhaseTickets are issued by the QueriesClerk given a QueryTicket. In turn, given a PhaseTicket,
+ * the QueriesClerk can issue a FragmentTicket for any one (minor) fragment of this query
  *
- *  PhaseTickets are issued by the QueriesClerk given a QueryTicket. In turn, given a PhaseTicket, the QueriesClerk can
- *  issue a FragmentTicket for any one (minor) fragment of this query
- *
- *  The PhaseTicket tracks the child FragmentTickets. When the last FragmentTicket is closed, the PhaseTicket closes the
- *  phase-level allocator. Any further operations on the phase-level allocator will throw an {@link IllegalStateException}
+ * <p>The PhaseTicket tracks the child FragmentTickets. When the last FragmentTicket is closed, the
+ * PhaseTicket closes the phase-level allocator. Any further operations on the phase-level allocator
+ * will throw an {@link IllegalStateException}
  */
 public class PhaseTicket extends TicketWithChildren {
   private final QueryTicket queryTicket;
@@ -43,7 +42,8 @@ public class PhaseTicket extends TicketWithChildren {
   private final int phaseWeight;
   private final Set<FragmentTicket> fragmentTickets = ConcurrentHashMap.newKeySet();
 
-  public PhaseTicket(QueryTicket queryTicket, int majorFragmentId, BufferAllocator allocator, int phaseWeight) {
+  public PhaseTicket(
+      QueryTicket queryTicket, int majorFragmentId, BufferAllocator allocator, int phaseWeight) {
     super(allocator);
     this.queryTicket = queryTicket;
     this.majorFragmentId = majorFragmentId;
@@ -72,15 +72,13 @@ public class PhaseTicket extends TicketWithChildren {
     return ImmutableList.copyOf(fragmentTickets);
   }
 
-  /**
-   * Return the status of the query's phase tracked by this ticket, on this node.
-   */
+  /** Return the status of the query's phase tracked by this ticket, on this node. */
   NodePhaseStatus getStatus() {
     return NodePhaseStatus.newBuilder()
-      .setMajorFragmentId(majorFragmentId)
-      .setMaxMemoryUsed(getAllocator().getPeakMemoryAllocation())
-      .setPhaseWeight(phaseWeight)
-      .build();
+        .setMajorFragmentId(majorFragmentId)
+        .setMaxMemoryUsed(getAllocator().getPeakMemoryAllocation())
+        .setPhaseWeight(phaseWeight)
+        .build();
   }
 
   public int getPhaseWeight() {

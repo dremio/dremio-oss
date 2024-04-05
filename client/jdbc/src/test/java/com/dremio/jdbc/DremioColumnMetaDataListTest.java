@@ -23,10 +23,11 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.dremio.exec.record.BatchSchema;
+import com.dremio.jdbc.impl.DremioColumnMetaDataList;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-
 import org.apache.arrow.vector.types.Types.MinorType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.avatica.ColumnMetaData;
@@ -37,9 +38,6 @@ import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
-import com.dremio.exec.record.BatchSchema;
-import com.dremio.jdbc.impl.DremioColumnMetaDataList;
-
 public class DremioColumnMetaDataListTest {
 
   private DremioColumnMetaDataList emptyList;
@@ -48,15 +46,51 @@ public class DremioColumnMetaDataListTest {
 
   private DremioColumnMetaDataList twoElementList;
 
-  private ColumnMetaData exampleIntColumn = new ColumnMetaData(
-    0, false, false, false, false, 0, true, 10, "intLabel", "intColName", "schemaName",
-    0, 1, ",myTable", "myCategory", new ColumnMetaData.ScalarType( 1, "myIntType", ColumnMetaData.Rep.INTEGER ),
-    true, false, false, Integer.class.getName() );
+  private ColumnMetaData exampleIntColumn =
+      new ColumnMetaData(
+          0,
+          false,
+          false,
+          false,
+          false,
+          0,
+          true,
+          10,
+          "intLabel",
+          "intColName",
+          "schemaName",
+          0,
+          1,
+          ",myTable",
+          "myCategory",
+          new ColumnMetaData.ScalarType(1, "myIntType", ColumnMetaData.Rep.INTEGER),
+          true,
+          false,
+          false,
+          Integer.class.getName());
 
-  private ColumnMetaData exampleStringColumn = new ColumnMetaData(
-    0, false, false, false, false, 0, true, 10, "stringLabel", "stringColName", "schemaName",
-    0, 1, ",myTable", "myCategory", new ColumnMetaData.ScalarType( 1, "myStringType", ColumnMetaData.Rep.STRING ),
-    false, true, true, String.class.getName() );
+  private ColumnMetaData exampleStringColumn =
+      new ColumnMetaData(
+          0,
+          false,
+          false,
+          false,
+          false,
+          0,
+          true,
+          10,
+          "stringLabel",
+          "stringColName",
+          "schemaName",
+          0,
+          1,
+          ",myTable",
+          "myCategory",
+          new ColumnMetaData.ScalarType(1, "myStringType", ColumnMetaData.Rep.STRING),
+          false,
+          true,
+          true,
+          String.class.getName());
 
   @Before
   public void setUp() throws Exception {
@@ -75,52 +109,52 @@ public class DremioColumnMetaDataListTest {
     BatchSchema oneElementSchema = mock(BatchSchema.class);
     when(oneElementSchema.getFieldCount()).thenReturn(1);
     doAnswer(
-        new Answer<Field>() {
+            new Answer<Field>() {
 
-          @Override
-          public Field answer(InvocationOnMock invocationOnMock) throws Throwable {
-            Integer index = (Integer) invocationOnMock.getArguments()[0];
-            if (index == 0) {
-              return exampleIntField;
-            }
-            return null;
-          }
-        }
-    ).when(oneElementSchema).getColumn(Mockito.anyInt());
+              @Override
+              public Field answer(InvocationOnMock invocationOnMock) throws Throwable {
+                Integer index = (Integer) invocationOnMock.getArguments()[0];
+                if (index == 0) {
+                  return exampleIntField;
+                }
+                return null;
+              }
+            })
+        .when(oneElementSchema)
+        .getColumn(Mockito.anyInt());
     List<Class<?>> oneClassList = new ArrayList<>();
     oneClassList.add(Integer.class);
-    oneElementList.updateColumnMetaData("testCatalog", "testSchema", "testTable",
-                                        oneElementSchema, oneClassList);
+    oneElementList.updateColumnMetaData(
+        "testCatalog", "testSchema", "testTable", oneElementSchema, oneClassList);
 
     twoElementList = new DremioColumnMetaDataList();
     BatchSchema twoElementSchema = mock(BatchSchema.class);
     when(twoElementSchema.getFieldCount()).thenReturn(2);
     doAnswer(
-      new Answer<Field>() {
+            new Answer<Field>() {
 
-        @Override
-        public Field answer(InvocationOnMock invocationOnMock) throws Throwable {
-          Integer index = (Integer) invocationOnMock.getArguments()[0];
-          if (index == 0) {
-            return exampleIntField;
-          } else if (index == 1) {
-            return exampleStringField;
-          }
-          return null;
-        }
-      }
-    ).when(twoElementSchema).getColumn(Mockito.anyInt());
+              @Override
+              public Field answer(InvocationOnMock invocationOnMock) throws Throwable {
+                Integer index = (Integer) invocationOnMock.getArguments()[0];
+                if (index == 0) {
+                  return exampleIntField;
+                } else if (index == 1) {
+                  return exampleStringField;
+                }
+                return null;
+              }
+            })
+        .when(twoElementSchema)
+        .getColumn(Mockito.anyInt());
     List<Class<?>> twoClassList = new ArrayList<>();
     twoClassList.add(Integer.class);
     twoClassList.add(String.class);
-    twoElementList.updateColumnMetaData("testCatalog", "testSchema", "testTable",
-                                        twoElementSchema, twoClassList);
+    twoElementList.updateColumnMetaData(
+        "testCatalog", "testSchema", "testTable", twoElementSchema, twoClassList);
   }
 
   @After
-  public void tearDown() throws Exception {
-
-  }
+  public void tearDown() throws Exception {}
 
   @Test
   public void testSize() throws Exception {
@@ -142,9 +176,7 @@ public class DremioColumnMetaDataListTest {
   }
 
   @Test
-  public void testUpdateColumnMetaData() throws Exception {
-
-  }
+  public void testUpdateColumnMetaData() throws Exception {}
 
   @Test
   public void testIsEmpty() throws Exception {

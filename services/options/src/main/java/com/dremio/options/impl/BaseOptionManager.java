@@ -39,7 +39,7 @@ public abstract class BaseOptionManager implements OptionManager {
    * @return option value
    * @throws IllegalArgumentException - if the validator is not found
    */
-  private OptionValue getOptionSafe(OptionValidator validator)  {
+  private OptionValue getOptionSafe(OptionValidator validator) {
     return getOption(validator.getOptionName());
   }
 

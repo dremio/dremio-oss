@@ -18,8 +18,8 @@ export interface paths {
         200: {
           content: {
             "application/json": {
-              data?: components["schemas"]["Script"][];
-              total?: number;
+              data: components["schemas"]["Script"][];
+              total: number;
             };
           };
         };
@@ -110,6 +110,7 @@ export interface components {
       content: string;
       context: string[];
       description: string;
+      jobIds?: string[];
       name: string;
       referencesList?: components["schemas"]["SourceVersionReference"][];
     };
@@ -121,6 +122,8 @@ export interface components {
       description: string;
       /** Format: uuid */
       id: string;
+      jobIds: string[];
+      jobResultUrls: string[];
       modifiedAt: number;
       modifiedBy: components["schemas"]["User"];
       name: string;

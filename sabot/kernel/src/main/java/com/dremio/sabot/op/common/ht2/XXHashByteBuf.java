@@ -15,9 +15,8 @@
  */
 package com.dremio.sabot.op.common.ht2;
 
-import org.apache.arrow.memory.ArrowBuf;
-
 import io.netty.util.internal.PlatformDependent;
+import org.apache.arrow.memory.ArrowBuf;
 
 public class XXHashByteBuf {
 
@@ -26,12 +25,12 @@ public class XXHashByteBuf {
     return hashAddr(buf.memoryAddress(), bufferOffset, len, seed);
   }
 
-  public static int hashAddr(long memoryAddress, int bufferOffset, int len, int seed){
+  public static int hashAddr(long memoryAddress, int bufferOffset, int len, int seed) {
     long off = memoryAddress + bufferOffset;
     return hashAddr(off, len, seed);
   }
 
-  public static int hashAddr(long off, int len, int seed){
+  public static int hashAddr(long off, int len, int seed) {
 
     long end = off + len;
     int h32;
@@ -64,8 +63,11 @@ public class XXHashByteBuf {
         off += 4;
       } while (off <= limit);
 
-      h32 = Integer.rotateLeft(v1, 1) + Integer.rotateLeft(v2, 7) + Integer.rotateLeft(v3, 12)
-          + Integer.rotateLeft(v4, 18);
+      h32 =
+          Integer.rotateLeft(v1, 1)
+              + Integer.rotateLeft(v2, 7)
+              + Integer.rotateLeft(v3, 12)
+              + Integer.rotateLeft(v4, 18);
     } else {
       h32 = seed + 374761393;
     }

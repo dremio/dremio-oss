@@ -15,13 +15,6 @@
  */
 package com.dremio.common;
 
-import java.io.IOException;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.JSONOptions.De;
 import com.dremio.common.JSONOptions.Se;
 import com.dremio.common.config.LogicalPlanPersistence;
@@ -43,6 +36,11 @@ import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import com.fasterxml.jackson.databind.node.TreeTraversingParser;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 import com.google.common.base.Preconditions;
+import java.io.IOException;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @JsonSerialize(using = Se.class)
 @JsonDeserialize(using = De.class)
@@ -74,26 +72,33 @@ public class JSONOptions {
         if (opaqueClass.equals(c)) {
           return (T) opaque;
         } else {
-          // Enum values that override methods are given $1, $2 ... extensions. Ignore the extension.
+          // Enum values that override methods are given $1, $2 ... extensions. Ignore the
+          // extension.
           // e.g. SystemTable$1 for SystemTable.OPTION
           if (c.isEnum()) {
             final String opaqueName = opaqueClass.getName().replaceAll("\\$\\d+$", "");
             final String cName = c.getName();
-            if(opaqueName.equals(cName)) {
+            if (opaqueName.equals(cName)) {
               return (T) opaque;
             }
           }
-          throw new IllegalArgumentException(String.format("Attempted to retrieve a option with type of %s.  " +
-            "However, the JSON options carried an opaque value of type %s.", c.getName(), opaqueClass.getName()));
+          throw new IllegalArgumentException(
+              String.format(
+                  "Attempted to retrieve a option with type of %s.  "
+                      + "However, the JSON options carried an opaque value of type %s.",
+                  c.getName(), opaqueClass.getName()));
         }
       }
 
-      //logger.debug("Read tree {}", root);
+      // logger.debug("Read tree {}", root);
       return lpPersistance.getMapper().treeToValue(root, c);
     } catch (JsonProcessingException e) {
-      throw new LogicalPlanParsingException(String.format("Failure while trying to convert late bound " +
-        "json options to type of %s. Reference was originally located at line %d, column %d.",
-        c.getCanonicalName(), location.getLineNr(), location.getColumnNr()), e);
+      throw new LogicalPlanParsingException(
+          String.format(
+              "Failure while trying to convert late bound "
+                  + "json options to type of %s. Reference was originally located at line %d, column %d.",
+              c.getCanonicalName(), location.getLineNr(), location.getColumnNr()),
+          e);
     }
   }
 
@@ -101,13 +106,17 @@ public class JSONOptions {
     return getListWith(config.getMapper(), t);
   }
 
-  public JsonNode asNode(){
-    Preconditions.checkArgument(this.root != null, "Attempted to grab JSONOptions as JsonNode when no root node was stored.  You can only convert non-opaque JSONOptions values to JsonNodes.");
+  public JsonNode asNode() {
+    Preconditions.checkArgument(
+        this.root != null,
+        "Attempted to grab JSONOptions as JsonNode when no root node was stored.  You can only convert non-opaque JSONOptions values to JsonNodes.");
     return root;
   }
 
-  public JsonParser asParser(){
-    Preconditions.checkArgument(this.root != null, "Attempted to grab JSONOptions as Parser when no root node was stored.  You can only convert non-opaque JSONOptions values to parsers.");
+  public JsonParser asParser() {
+    Preconditions.checkArgument(
+        this.root != null,
+        "Attempted to grab JSONOptions as Parser when no root node was stored.  You can only convert non-opaque JSONOptions values to parsers.");
     return new TreeTraversingParser(root);
   }
 
@@ -116,13 +125,16 @@ public class JSONOptions {
     if (opaque != null) {
       Type c = t.getType();
       if (c instanceof ParameterizedType) {
-        c = ((ParameterizedType)c).getRawType();
+        c = ((ParameterizedType) c).getRawType();
       }
-      if ( c.equals(opaque.getClass())) {
+      if (c.equals(opaque.getClass())) {
         return (T) opaque;
       } else {
-        throw new IOException(String.format("Attempted to retrieve a list with type of %s.  However, the JSON " +
-          "options carried an opaque value of type %s.", t.getType(), opaque.getClass().getName()));
+        throw new IOException(
+            String.format(
+                "Attempted to retrieve a list with type of %s.  However, the JSON "
+                    + "options carried an opaque value of type %s.",
+                t.getType(), opaque.getClass().getName()));
       }
     }
     if (root == null) {
@@ -136,7 +148,7 @@ public class JSONOptions {
   }
 
   public JsonNode getRoot() {
-      return root;
+    return root;
   }
 
   public boolean isOpaque() {
@@ -151,19 +163,19 @@ public class JSONOptions {
     }
 
     @Override
-    public JSONOptions deserialize(JsonParser jp, DeserializationContext ctxt) throws IOException,
-        JsonProcessingException {
+    public JSONOptions deserialize(JsonParser jp, DeserializationContext ctxt)
+        throws IOException, JsonProcessingException {
       JsonLocation l = jp.getTokenLocation();
-//      logger.debug("Reading tree.");
+      //      logger.debug("Reading tree.");
       TreeNode n = jp.readValueAsTree();
-//      logger.debug("Tree {}", n);
+      //      logger.debug("Tree {}", n);
       if (n instanceof JsonNode) {
-        return new JSONOptions( (JsonNode) n, l);
+        return new JSONOptions((JsonNode) n, l);
       } else {
-        throw new IllegalArgumentException(String.format("Received something other than a JsonNode %s", n));
+        throw new IllegalArgumentException(
+            String.format("Received something other than a JsonNode %s", n));
       }
     }
-
   }
 
   public static class Se extends StdSerializer<JSONOptions> {
@@ -173,16 +185,13 @@ public class JSONOptions {
     }
 
     @Override
-    public void serialize(JSONOptions value, JsonGenerator jgen, SerializerProvider provider) throws IOException,
-        JsonGenerationException {
+    public void serialize(JSONOptions value, JsonGenerator jgen, SerializerProvider provider)
+        throws IOException, JsonGenerationException {
       if (value.opaque != null) {
         jgen.writeObject(value.opaque);
       } else {
         jgen.writeTree(value.root);
       }
-
     }
-
   }
-
 }

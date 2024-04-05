@@ -15,21 +15,22 @@
  */
 package com.dremio.resource;
 
-import java.util.Collection;
-
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.options.OptionResolver;
+import java.util.Collection;
 
 /**
- * GroupResourceInformation implementation when only a subset of executors are selected for the query.
- * This happens in Software/DCS edition where engines can be spawned as required and query will be
- * scheduled on particular engines only.
+ * GroupResourceInformation implementation when only a subset of executors are selected for the
+ * query. This happens in Software/DCS edition where engines can be spawned as required and query
+ * will be scheduled on particular engines only.
  */
 public class SelectedExecutorsResourceInformation implements GroupResourceInformation {
   private long averageExecutorMemory;
   private int averageExecutorCores;
   private int executorCount;
-  public SelectedExecutorsResourceInformation(final Collection<CoordinationProtos.NodeEndpoint> executors) {
+
+  public SelectedExecutorsResourceInformation(
+      final Collection<CoordinationProtos.NodeEndpoint> executors) {
     if (executors == null || executors.isEmpty()) {
       averageExecutorMemory = 0;
       averageExecutorCores = 0;
@@ -59,16 +60,13 @@ public class SelectedExecutorsResourceInformation implements GroupResourceInform
 
   @Override
   public long getAverageExecutorCores(OptionResolver optionManager) {
-    return GroupResourceInformation.computeCoresAvailableForExecutor(averageExecutorCores, optionManager);
+    return GroupResourceInformation.computeCoresAvailableForExecutor(
+        averageExecutorCores, optionManager);
   }
 
   @Override
-  public void start() throws Exception {
-
-  }
+  public void start() throws Exception {}
 
   @Override
-  public void close() throws Exception {
-
-  }
+  public void close() throws Exception {}
 }

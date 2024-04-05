@@ -17,11 +17,10 @@ package com.dremio.exec.planner.sql.convertlet;
 
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.CASE;
 
+import com.google.common.base.Preconditions;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
-
-import com.google.common.base.Preconditions;
 
 public abstract class NullableFunctionConvertlet implements FunctionConvertlet {
   private final FunctionConvertlet innerConvertlet;
@@ -39,9 +38,7 @@ public abstract class NullableFunctionConvertlet implements FunctionConvertlet {
   }
 
   @Override
-  public RexCall convertCall(
-    ConvertletContext cx,
-    RexCall call) {
+  public RexCall convertCall(ConvertletContext cx, RexCall call) {
     RexBuilder rexBuilder = cx.getRexBuilder();
     RexNode when = whenReturnNull(rexBuilder, call);
     RexCall innerRewrite = innerConvertlet.convertCall(cx, call);

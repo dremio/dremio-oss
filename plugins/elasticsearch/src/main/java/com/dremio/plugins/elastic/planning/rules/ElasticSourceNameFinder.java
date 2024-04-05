@@ -15,11 +15,13 @@
  */
 package com.dremio.plugins.elastic.planning.rules;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.common.expression.SchemaPath;
+import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexCall;
@@ -36,13 +38,9 @@ import org.apache.calcite.rex.RexVisitorImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.common.expression.SchemaPath;
-import com.google.common.collect.Lists;
-
 /**
- * Finds the source column names in elasticsearch (complex expressions with multiple column references in a project
- * column should also resolve to a set of elastic source column names).
+ * Finds the source column names in elasticsearch (complex expressions with multiple column
+ * references in a project column should also resolve to a set of elastic source column names).
  */
 public class ElasticSourceNameFinder extends RexVisitorImpl<List<List<String>>> {
 
@@ -93,9 +91,13 @@ public class ElasticSourceNameFinder extends RexVisitorImpl<List<List<String>>> 
 
   @Override
   public List<List<String>> visitCall(RexCall call) {
-    if (call.getOperator().getName().equalsIgnoreCase("item") || call.getOperator().getName().equalsIgnoreCase("dot")) {
+    if (call.getOperator().getName().equalsIgnoreCase("item")
+        || call.getOperator().getName().equalsIgnoreCase("dot")) {
       if (call.getOperands().size() != 2) {
-        throw UserException.planError().message("Item operator should only have two operands, but got " + call.getOperands().size()).build(logger);
+        throw UserException.planError()
+            .message(
+                "Item operator should only have two operands, but got " + call.getOperands().size())
+            .build(logger);
       }
       RexNode leftRex = call.getOperands().get(0);
       RexNode rightRex = call.getOperands().get(1);
@@ -150,10 +152,12 @@ public class ElasticSourceNameFinder extends RexVisitorImpl<List<List<String>>> 
     return visitUnknown(correlVariable);
   }
 
-  protected List<List<String>> visitUnknown(RexNode o){
+  protected List<List<String>> visitUnknown(RexNode o) {
     // raise an error
     throw UserException.planError()
-            .message("Unsupported for elastic pushdown: RexNode Class: %s, RexNode Digest: %s", o.getClass().getName(), o.toString())
-            .build(logger);
+        .message(
+            "Unsupported for elastic pushdown: RexNode Class: %s, RexNode Digest: %s",
+            o.getClass().getName(), o.toString())
+        .build(logger);
   }
 }

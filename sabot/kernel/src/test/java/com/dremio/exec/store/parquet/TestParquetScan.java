@@ -15,6 +15,9 @@
  */
 package com.dremio.exec.store.parquet;
 
+import com.dremio.BaseTestQuery;
+import com.dremio.exec.ExecConstants;
+import com.google.common.io.Resources;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
@@ -23,14 +26,11 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import com.dremio.BaseTestQuery;
-import com.dremio.exec.ExecConstants;
-import com.google.common.io.Resources;
-
 public class TestParquetScan extends BaseTestQuery {
 
   static FileSystem fs;
-  private static final String DISABLE_VECTORIZED_READ = "alter system set \"store.parquet.vectorize\" = %s";
+  private static final String DISABLE_VECTORIZED_READ =
+      "alter system set \"store.parquet.vectorize\" = %s";
 
   @BeforeClass
   public static void initFs() throws Exception {
@@ -68,15 +68,16 @@ public class TestParquetScan extends BaseTestQuery {
 
   @Test
   public void testDataPageV2() throws Exception {
-    final String sql = "select count(*) as cnt from dfs.\"${WORKING_PATH}/src/test/resources/datapage_v2.parquet\" where extractmonth(Kommtzeit) = 10";
+    final String sql =
+        "select count(*) as cnt from dfs.\"${WORKING_PATH}/src/test/resources/datapage_v2.parquet\" where extractmonth(Kommtzeit) = 10";
 
     testBuilder()
-      .sqlQuery(sql)
-      .unOrdered()
-      .baselineColumns("cnt")
-      .baselineValues(570696L)
-      .build()
-      .run();
+        .sqlQuery(sql)
+        .unOrdered()
+        .baselineColumns("cnt")
+        .baselineValues(570696L)
+        .build()
+        .run();
   }
 
   @Test
@@ -109,7 +110,8 @@ public class TestParquetScan extends BaseTestQuery {
           .run();
 
       // TODO(DX-15645): remove this sleep
-      Thread.sleep(1000L); // fs modification times have second precision so read signature might be valid
+      Thread.sleep(
+          1000L); // fs modification times have second precision so read signature might be valid
 
       // delete every alternate file.
       for (int i = 0; i < 10; ++i) {
@@ -119,7 +121,8 @@ public class TestParquetScan extends BaseTestQuery {
       }
 
       // TODO(DX-15645): remove this sleep
-      Thread.sleep(1000L); // fs modification times have second precision so read signature might be valid
+      Thread.sleep(
+          1000L); // fs modification times have second precision so read signature might be valid
 
       // re-run the query. Should trigger a metadata refresh and succeed.
       testBuilder()
@@ -163,16 +166,17 @@ public class TestParquetScan extends BaseTestQuery {
 
       // query on all 9 files.
       testBuilder()
-        .sqlQuery(
-          "select count(*) c from dfs.tmp.parquet_scan_dir_refresh where length(n_comment) > 0")
-        .unOrdered()
-        .baselineColumns("c")
-        .baselineValues(225L)
-        .build()
-        .run();
+          .sqlQuery(
+              "select count(*) c from dfs.tmp.parquet_scan_dir_refresh where length(n_comment) > 0")
+          .unOrdered()
+          .baselineColumns("c")
+          .baselineValues(225L)
+          .build()
+          .run();
 
       // TODO(DX-15645): remove this sleep
-      Thread.sleep(1000L); // fs modification times have second precision so read signature might be valid
+      Thread.sleep(
+          1000L); // fs modification times have second precision so read signature might be valid
 
       // delete every third subdir.
       for (int i = 0; i < 9; ++i) {
@@ -182,17 +186,18 @@ public class TestParquetScan extends BaseTestQuery {
       }
 
       // TODO(DX-15645): remove this sleep
-      Thread.sleep(1000L); // fs modification times have second precision so read signature might be valid
+      Thread.sleep(
+          1000L); // fs modification times have second precision so read signature might be valid
 
       // re-run the query. Should trigger a metadata refresh and succeed.
       testBuilder()
-        .sqlQuery(
-          "select count(*) c from dfs.tmp.parquet_scan_dir_refresh where length(n_comment) > 0")
-        .unOrdered()
-        .baselineColumns("c")
-        .baselineValues(150L)
-        .build()
-        .run();
+          .sqlQuery(
+              "select count(*) c from dfs.tmp.parquet_scan_dir_refresh where length(n_comment) > 0")
+          .unOrdered()
+          .baselineColumns("c")
+          .baselineValues(150L)
+          .build()
+          .run();
 
       // cleanup
       fs.delete(dir, true);
@@ -203,85 +208,77 @@ public class TestParquetScan extends BaseTestQuery {
 
   @Test
   public void testMaxFooterSizeLimit() throws Exception {
-    final String sql = "select count(*) as cnt from dfs.\"${WORKING_PATH}/src/test/resources/datapage_v2.snappy.parquet\"";
-    test("ALTER SYSTEM SET \"" + ExecConstants.PARQUET_MAX_FOOTER_LEN_VALIDATOR.getOptionName() + "\" = 32");
+    final String sql =
+        "select count(*) as cnt from dfs.\"${WORKING_PATH}/src/test/resources/datapage_v2.snappy.parquet\"";
+    test(
+        "ALTER SYSTEM SET \""
+            + ExecConstants.PARQUET_MAX_FOOTER_LEN_VALIDATOR.getOptionName()
+            + "\" = 32");
 
     try {
       testBuilder()
-        .sqlQuery(sql)
-        .unOrdered()
-        .baselineColumns("cnt")
-        .baselineValues(5L)
-        .build()
-        .run();
+          .sqlQuery(sql)
+          .unOrdered()
+          .baselineColumns("cnt")
+          .baselineValues(5L)
+          .build()
+          .run();
       Assert.fail("Did not throw expected footer size exception!");
     } catch (Exception e) {
       System.out.println("Encountered footer size exception");
     } finally {
-      test("ALTER SYSTEM RESET \"" + ExecConstants.PARQUET_MAX_FOOTER_LEN_VALIDATOR.getOptionName() + "\"");
+      test(
+          "ALTER SYSTEM RESET \""
+              + ExecConstants.PARQUET_MAX_FOOTER_LEN_VALIDATOR.getOptionName()
+              + "\"");
     }
   }
 
   @Test
   public void testDX15475() throws Exception {
-    final String sql = "select count(*) as cnt from dfs.\"${WORKING_PATH}/src/test/resources/datapage_v2.snappy.parquet\"";
+    final String sql =
+        "select count(*) as cnt from dfs.\"${WORKING_PATH}/src/test/resources/datapage_v2.snappy.parquet\"";
 
-    testBuilder()
-      .sqlQuery(sql)
-      .unOrdered()
-      .baselineColumns("cnt")
-      .baselineValues(5L)
-      .build()
-      .run();
+    testBuilder().sqlQuery(sql).unOrdered().baselineColumns("cnt").baselineValues(5L).build().run();
   }
 
   @Test
   public void testEmptyParquetFile() throws Exception {
     final String sql = "select * from dfs.\"${WORKING_PATH}/src/test/resources/zero-rows.parquet\"";
     testBuilder()
-      .sqlQuery(sql)
-      .unOrdered()
-      .baselineColumns("ad_id", "creative_id", "url_tags", "load_date")
-      .expectsEmptyResultSet()
-      .build()
-      .run();
+        .sqlQuery(sql)
+        .unOrdered()
+        .baselineColumns("ad_id", "creative_id", "url_tags", "load_date")
+        .expectsEmptyResultSet()
+        .build()
+        .run();
   }
 
   @Test
   public void testNoExtParquetFile() throws Exception {
-    final String sql = "select count(*) as cnt from dfs.\"${WORKING_PATH}/src/test/resources/parquet/parquet_without_ext_dir/no_extension\"";
+    final String sql =
+        "select count(*) as cnt from dfs.\"${WORKING_PATH}/src/test/resources/parquet/parquet_without_ext_dir/no_extension\"";
 
-    testBuilder()
-      .sqlQuery(sql)
-      .unOrdered()
-      .baselineColumns("cnt")
-      .baselineValues(5L)
-      .build()
-      .run();
+    testBuilder().sqlQuery(sql).unOrdered().baselineColumns("cnt").baselineValues(5L).build().run();
   }
 
   @Test
   public void testNoExtParquetDir() throws Exception {
-    final String sql = "select count(*) as cnt from dfs.\"${WORKING_PATH}/src/test/resources/parquet/parquet_without_ext_dir/no_extension_dir\"";
+    final String sql =
+        "select count(*) as cnt from dfs.\"${WORKING_PATH}/src/test/resources/parquet/parquet_without_ext_dir/no_extension_dir\"";
 
-    testBuilder()
-      .sqlQuery(sql)
-      .unOrdered()
-      .baselineColumns("cnt")
-      .baselineValues(5L)
-      .build()
-      .run();
+    testBuilder().sqlQuery(sql).unOrdered().baselineColumns("cnt").baselineValues(5L).build().run();
   }
 
   @Test
   public void testParquetRecordReaderWithPruning() throws Exception {
     testBuilder()
-            .optionSettingQueriesForTestQuery(DISABLE_VECTORIZED_READ, false)
-            .sqlQuery("select int_col c from cp.\"parquet/alltypes_required.parquet\" where int_col > 1")
-            .unOrdered()
-            .expectsEmptyResultSet()
-            .build()
-            .run();
+        .optionSettingQueriesForTestQuery(DISABLE_VECTORIZED_READ, false)
+        .sqlQuery(
+            "select int_col c from cp.\"parquet/alltypes_required.parquet\" where int_col > 1")
+        .unOrdered()
+        .expectsEmptyResultSet()
+        .build()
+        .run();
   }
-
 }

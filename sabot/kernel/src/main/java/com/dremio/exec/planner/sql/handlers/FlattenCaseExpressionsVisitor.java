@@ -15,9 +15,9 @@
  */
 package com.dremio.exec.planner.sql.handlers;
 
+import com.dremio.exec.planner.StatelessRelShuttleImpl;
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.logical.LogicalFilter;
 import org.apache.calcite.rel.logical.LogicalJoin;
@@ -28,11 +28,7 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexShuttle;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 
-import com.dremio.exec.planner.StatelessRelShuttleImpl;
-
-/**
- * Flatten nested CASE expressions.
- */
+/** Flatten nested CASE expressions. */
 public class FlattenCaseExpressionsVisitor extends StatelessRelShuttleImpl {
   private static final FlattenCaseExpressionsVisitor INSTANCE = new FlattenCaseExpressionsVisitor();
 
@@ -71,8 +67,8 @@ public class FlattenCaseExpressionsVisitor extends StatelessRelShuttleImpl {
 
     final CaseExpressionUnwrapper visitor = new CaseExpressionUnwrapper(rexBuilder);
     final RexNode condition = join.getCondition().accept(visitor);
-    return join.copy(join.getTraitSet(), condition, left, right,
-      join.getJoinType(), join.isSemiJoinDone());
+    return join.copy(
+        join.getTraitSet(), condition, left, right, join.getJoinType(), join.isSemiJoinDone());
   }
 
   public static final class CaseExpressionUnwrapper extends RexShuttle {
@@ -127,7 +123,9 @@ public class FlattenCaseExpressionsVisitor extends StatelessRelShuttleImpl {
           if (elseOperators.isEmpty()) {
             unwrapped = false;
           } else {
-            operands.remove(operands.size() - 1); // Remove the ELSE expression and replace with the unwrapped one
+            operands.remove(
+                operands.size()
+                    - 1); // Remove the ELSE expression and replace with the unwrapped one
             operands.addAll(elseOperators);
           }
         }

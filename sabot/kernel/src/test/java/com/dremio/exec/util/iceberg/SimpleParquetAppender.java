@@ -18,7 +18,6 @@ package com.dremio.exec.util.iceberg;
 import java.io.IOException;
 import java.util.List;
 import java.util.stream.Collectors;
-
 import org.apache.iceberg.Metrics;
 import org.apache.iceberg.io.FileAppender;
 import org.apache.iceberg.io.OutputFile;
@@ -26,10 +25,7 @@ import org.apache.parquet.hadoop.ParquetWriter;
 import org.apache.parquet.hadoop.metadata.BlockMetaData;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 
-/**
- * Simple appender for writing parquet files. Currently only supports
- * row count metrics.
- */
+/** Simple appender for writing parquet files. Currently only supports row count metrics. */
 public class SimpleParquetAppender<T> implements FileAppender<T> {
 
   private ParquetWriter<T> writer;
@@ -53,10 +49,7 @@ public class SimpleParquetAppender<T> implements FileAppender<T> {
 
   @Override
   public Metrics metrics() {
-    final Long rowCount = footer.getBlocks()
-      .stream()
-      .mapToLong(BlockMetaData::getRowCount)
-      .sum();
+    final Long rowCount = footer.getBlocks().stream().mapToLong(BlockMetaData::getRowCount).sum();
     return new Metrics(rowCount, null, null, null, null);
   }
 
@@ -67,11 +60,10 @@ public class SimpleParquetAppender<T> implements FileAppender<T> {
 
   @Override
   public List<Long> splitOffsets() {
-    return footer.getBlocks()
-      .stream()
-      .map(BlockMetaData::getStartingPos)
-      .sorted()
-      .collect(Collectors.toList());
+    return footer.getBlocks().stream()
+        .map(BlockMetaData::getStartingPos)
+        .sorted()
+        .collect(Collectors.toList());
   }
 
   @Override

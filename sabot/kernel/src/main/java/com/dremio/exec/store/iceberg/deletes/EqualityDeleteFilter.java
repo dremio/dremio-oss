@@ -17,17 +17,6 @@ package com.dremio.exec.store.iceberg.deletes;
 
 import static com.dremio.sabot.op.common.ht2.LBlockHashTable.ORDINAL_SIZE;
 
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-
-import javax.annotation.concurrent.NotThreadSafe;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.BitVectorHelper;
-import org.apache.arrow.vector.FieldVector;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.sabot.exec.context.OperatorStats;
@@ -40,10 +29,19 @@ import com.dremio.sabot.op.common.ht2.VariableBlockVector;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.dremio.sabot.op.tablefunction.TableFunctionOperator;
 import com.google.common.base.Preconditions;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import javax.annotation.concurrent.NotThreadSafe;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.BitVectorHelper;
+import org.apache.arrow.vector.FieldVector;
 
 /**
- * Exposes a filtering interface on top of a set of {@link EqualityDeleteHashTable} instances suitable for use with
- * RecordReader implementations - e.g. {@link com.dremio.exec.store.parquet.UnifiedParquetReader}.
+ * Exposes a filtering interface on top of a set of {@link EqualityDeleteHashTable} instances
+ * suitable for use with RecordReader implementations - e.g. {@link
+ * com.dremio.exec.store.parquet.UnifiedParquetReader}.
  */
 @NotThreadSafe
 public class EqualityDeleteFilter implements AutoCloseable {
@@ -57,8 +55,11 @@ public class EqualityDeleteFilter implements AutoCloseable {
   private List<TableGroup> tableGroups;
   private int refCount;
 
-  public EqualityDeleteFilter(BufferAllocator allocator, LazyEqualityDeleteTableSupplier tablesSupplier,
-      int initialRefCount, OperatorStats operatorStats) {
+  public EqualityDeleteFilter(
+      BufferAllocator allocator,
+      LazyEqualityDeleteTableSupplier tablesSupplier,
+      int initialRefCount,
+      OperatorStats operatorStats) {
     this.allocator = Preconditions.checkNotNull(allocator);
     this.tablesSupplier = Preconditions.checkNotNull(tablesSupplier);
     this.refCount = initialRefCount;
@@ -94,22 +95,29 @@ public class EqualityDeleteFilter implements AutoCloseable {
     this.validityBuf = Preconditions.checkNotNull(validityBuf);
 
     // validate that all equality fields are present in the provided output mutator
-    List<SchemaPath> missingFields = getAllEqualityFields().stream()
-        .filter(p -> mutator.getVector(p.getAsUnescapedPath()) == null)
-        .collect(Collectors.toList());
-    Preconditions.checkState(missingFields.isEmpty(),
-        String.format("Missing equality delete filter fields in OutputMutator: %s",
+    List<SchemaPath> missingFields =
+        getAllEqualityFields().stream()
+            .filter(p -> mutator.getVector(p.getAsUnescapedPath()) == null)
+            .collect(Collectors.toList());
+    Preconditions.checkState(
+        missingFields.isEmpty(),
+        String.format(
+            "Missing equality delete filter fields in OutputMutator: %s",
             missingFields.stream().map(SchemaPath::toString).collect(Collectors.joining(", "))));
 
     // group tables by their equality field list
-    Map<List<SchemaPath>, List<EqualityDeleteHashTable>> tablesByEqualityFields = tablesSupplier.get().stream()
-        .collect(Collectors.groupingBy(EqualityDeleteHashTable::getEqualityFields,
-            Collectors.mapping(v -> v, Collectors.toList())));
+    Map<List<SchemaPath>, List<EqualityDeleteHashTable>> tablesByEqualityFields =
+        tablesSupplier.get().stream()
+            .collect(
+                Collectors.groupingBy(
+                    EqualityDeleteHashTable::getEqualityFields,
+                    Collectors.mapping(v -> v, Collectors.toList())));
 
     // create a PivotDef for each table group and create the final list of TableGroups
-    this.tableGroups = tablesByEqualityFields.entrySet().stream()
-        .map(e -> new TableGroup(e.getValue(), createPivotDefForFields(e.getKey())))
-        .collect(Collectors.toList());
+    this.tableGroups =
+        tablesByEqualityFields.entrySet().stream()
+            .map(e -> new TableGroup(e.getValue(), createPivotDefForFields(e.getKey())))
+            .collect(Collectors.toList());
   }
 
   public List<SchemaPath> getAllEqualityFields() {
@@ -135,10 +143,11 @@ public class EqualityDeleteFilter implements AutoCloseable {
   private PivotDef createPivotDefForFields(List<SchemaPath> equalityFields) {
     // TODO: does this work with nested fields?
     Preconditions.checkState(mutator != null, "setup must be called prior to using the filter");
-    List<FieldVectorPair> fieldVectorPairs = equalityFields.stream()
-        .map(f -> (FieldVector) mutator.getVector(f.getAsUnescapedPath()))
-        .map(v -> new FieldVectorPair(v, v))
-        .collect(Collectors.toList());
+    List<FieldVectorPair> fieldVectorPairs =
+        equalityFields.stream()
+            .map(f -> (FieldVector) mutator.getVector(f.getAsUnescapedPath()))
+            .map(v -> new FieldVectorPair(v, v))
+            .collect(Collectors.toList());
 
     return PivotBuilder.getBlockDefinition(fieldVectorPairs);
   }
@@ -146,12 +155,14 @@ public class EqualityDeleteFilter implements AutoCloseable {
   private int filterOnTableGroup(int records, TableGroup tableGroup) {
     int deleteCount = 0;
 
-    try (
-        FixedBlockVector fbv = new FixedBlockVector(allocator, tableGroup.pivotDef.getBlockWidth());
-        VariableBlockVector vbv = new VariableBlockVector(allocator, tableGroup.pivotDef.getVariableCount());
+    try (FixedBlockVector fbv =
+            new FixedBlockVector(allocator, tableGroup.pivotDef.getBlockWidth());
+        VariableBlockVector vbv =
+            new VariableBlockVector(allocator, tableGroup.pivotDef.getVariableCount());
         ArrowBuf outOrdinals = allocator.buffer((long) records * ORDINAL_SIZE)) {
 
-      // compute the row-wise key pivot once for the TableGroup as key structure is the same for all tables
+      // compute the row-wise key pivot once for the TableGroup as key structure is the same for all
+      // tables
       // in the group
       Pivots.pivot(tableGroup.pivotDef, records, fbv, vbv);
 

@@ -17,108 +17,105 @@ package com.dremio.common.serde;
 
 import static org.junit.Assert.assertFalse;
 
+import com.dremio.common.arrow.DremioArrowSchema;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Test;
 
-import com.dremio.common.arrow.DremioArrowSchema;
-
-/**
- * To test BackwardCompatibleSchemaDeTest
- */
+/** To test BackwardCompatibleSchemaDeTest */
 public class BackwardCompatibleSchemaDeTest {
 
   private static final String OLD_SCHEMA =
-    "{\n" +
-      "  \"fields\" : [ {\n" +
-      "    \"name\" : \"R_REGIONKEY\",\n" +
-      "    \"nullable\" : true,\n" +
-      "    \"type\" : {\n" +
-      "      \"name\" : \"int\",\n" +
-      "      \"bitWidth\" : 64,\n" +
-      "      \"isSigned\" : true\n" +
-      "    },\n" +
-      "    \"children\" : [{\n" +
-      "      \"name\" : \"c\",\n" +
-      "      \"nullable\" : true,\n" +
-      "      \"type\" : {\n" +
-      "        \"name\" : \"int\",\n" +
-      "        \"bitWidth\" : 16,\n" +
-      "        \"isSigned\" : true},\n" +
-      "       \"typeLayout\" : {\n" +
-      "      \"vectors\" : [ {\n" +
-      "        \"type\" : \"VALIDITY\",\n" +
-      "        \"typeBitWidth\" : 1\n" +
-      "      }, {\n" +
-      "        \"type\" : \"DATA\",\n" +
-      "        \"typeBitWidth\" : 64\n" +
-      "      } ]\n" +
-      "      },\n" +
-      "      \"children\" : [ ],\n" +
-      "      \"metadata\" : {\n" +
-      "        \"abc\" : \"bcd\",\n" +
-      "        \"kef\" : \"dbg\"\n" +
-      "      }\n" +
-      "    }, {\n" +
-      "      \"name\" : \"d\",\n" +
-      "      \"nullable\" : true,\n" +
-      "      \"type\" : {\n" +
-      "        \"name\" : \"utf8\"\n" +
-      "      },\n" +
-      "      \"children\" : [ ],\n" +
-      "      \"metadata\" : {\n" +
-      "        \"abc\" : \"bcd\",\n" +
-      "        \"kef\" : \"dbg\"\n" +
-      "      }\n" +
-      "    } ],\n" +
-      "    \"typeLayout\" : {\n" +
-      "      \"vectors\" : [ {\n" +
-      "        \"type\" : \"VALIDITY\",\n" +
-      "        \"typeBitWidth\" : 1\n" +
-      "      }, {\n" +
-      "        \"type\" : \"DATA\",\n" +
-      "        \"typeBitWidth\" : 64\n" +
-      "      } ]\n" +
-      "    }\n" +
-      "  }, {\n" +
-      "    \"name\" : \"R_NAME\",\n" +
-      "    \"nullable\" : true,\n" +
-      "    \"type\" : {\n" +
-      "      \"name\" : \"utf8\"\n" +
-      "    },\n" +
-      "    \"children\" : [ ],\n" +
-      "    \"typeLayout\" : {\n" +
-      "      \"vectors\" : [ {\n" +
-      "        \"type\" : \"VALIDITY\",\n" +
-      "        \"typeBitWidth\" : 1\n" +
-      "      }, {\n" +
-      "        \"type\" : \"OFFSET\",\n" +
-      "        \"typeBitWidth\" : 32\n" +
-      "      }, {\n" +
-      "        \"type\" : \"DATA\",\n" +
-      "        \"typeBitWidth\" : 8\n" +
-      "      } ]\n" +
-      "    }\n" +
-      "  }, {\n" +
-      "    \"name\" : \"R_COMMENT\",\n" +
-      "    \"nullable\" : true,\n" +
-      "    \"type\" : {\n" +
-      "      \"name\" : \"utf8\"\n" +
-      "    },\n" +
-      "    \"children\" : [ ],\n" +
-      "    \"typeLayout\" : {\n" +
-      "      \"vectors\" : [ {\n" +
-      "        \"type\" : \"VALIDITY\",\n" +
-      "        \"typeBitWidth\" : 1\n" +
-      "      }, {\n" +
-      "        \"type\" : \"OFFSET\",\n" +
-      "        \"typeBitWidth\" : 32\n" +
-      "      }, {\n" +
-      "        \"type\" : \"DATA\",\n" +
-      "        \"typeBitWidth\" : 8\n" +
-      "      } ]\n" +
-      "    }\n" +
-      "  } ]\n" +
-      "}";
+      "{\n"
+          + "  \"fields\" : [ {\n"
+          + "    \"name\" : \"R_REGIONKEY\",\n"
+          + "    \"nullable\" : true,\n"
+          + "    \"type\" : {\n"
+          + "      \"name\" : \"int\",\n"
+          + "      \"bitWidth\" : 64,\n"
+          + "      \"isSigned\" : true\n"
+          + "    },\n"
+          + "    \"children\" : [{\n"
+          + "      \"name\" : \"c\",\n"
+          + "      \"nullable\" : true,\n"
+          + "      \"type\" : {\n"
+          + "        \"name\" : \"int\",\n"
+          + "        \"bitWidth\" : 16,\n"
+          + "        \"isSigned\" : true},\n"
+          + "       \"typeLayout\" : {\n"
+          + "      \"vectors\" : [ {\n"
+          + "        \"type\" : \"VALIDITY\",\n"
+          + "        \"typeBitWidth\" : 1\n"
+          + "      }, {\n"
+          + "        \"type\" : \"DATA\",\n"
+          + "        \"typeBitWidth\" : 64\n"
+          + "      } ]\n"
+          + "      },\n"
+          + "      \"children\" : [ ],\n"
+          + "      \"metadata\" : {\n"
+          + "        \"abc\" : \"bcd\",\n"
+          + "        \"kef\" : \"dbg\"\n"
+          + "      }\n"
+          + "    }, {\n"
+          + "      \"name\" : \"d\",\n"
+          + "      \"nullable\" : true,\n"
+          + "      \"type\" : {\n"
+          + "        \"name\" : \"utf8\"\n"
+          + "      },\n"
+          + "      \"children\" : [ ],\n"
+          + "      \"metadata\" : {\n"
+          + "        \"abc\" : \"bcd\",\n"
+          + "        \"kef\" : \"dbg\"\n"
+          + "      }\n"
+          + "    } ],\n"
+          + "    \"typeLayout\" : {\n"
+          + "      \"vectors\" : [ {\n"
+          + "        \"type\" : \"VALIDITY\",\n"
+          + "        \"typeBitWidth\" : 1\n"
+          + "      }, {\n"
+          + "        \"type\" : \"DATA\",\n"
+          + "        \"typeBitWidth\" : 64\n"
+          + "      } ]\n"
+          + "    }\n"
+          + "  }, {\n"
+          + "    \"name\" : \"R_NAME\",\n"
+          + "    \"nullable\" : true,\n"
+          + "    \"type\" : {\n"
+          + "      \"name\" : \"utf8\"\n"
+          + "    },\n"
+          + "    \"children\" : [ ],\n"
+          + "    \"typeLayout\" : {\n"
+          + "      \"vectors\" : [ {\n"
+          + "        \"type\" : \"VALIDITY\",\n"
+          + "        \"typeBitWidth\" : 1\n"
+          + "      }, {\n"
+          + "        \"type\" : \"OFFSET\",\n"
+          + "        \"typeBitWidth\" : 32\n"
+          + "      }, {\n"
+          + "        \"type\" : \"DATA\",\n"
+          + "        \"typeBitWidth\" : 8\n"
+          + "      } ]\n"
+          + "    }\n"
+          + "  }, {\n"
+          + "    \"name\" : \"R_COMMENT\",\n"
+          + "    \"nullable\" : true,\n"
+          + "    \"type\" : {\n"
+          + "      \"name\" : \"utf8\"\n"
+          + "    },\n"
+          + "    \"children\" : [ ],\n"
+          + "    \"typeLayout\" : {\n"
+          + "      \"vectors\" : [ {\n"
+          + "        \"type\" : \"VALIDITY\",\n"
+          + "        \"typeBitWidth\" : 1\n"
+          + "      }, {\n"
+          + "        \"type\" : \"OFFSET\",\n"
+          + "        \"typeBitWidth\" : 32\n"
+          + "      }, {\n"
+          + "        \"type\" : \"DATA\",\n"
+          + "        \"typeBitWidth\" : 8\n"
+          + "      } ]\n"
+          + "    }\n"
+          + "  } ]\n"
+          + "}";
 
   @Test
   public void testBackwardCompatofSchema() throws Exception {

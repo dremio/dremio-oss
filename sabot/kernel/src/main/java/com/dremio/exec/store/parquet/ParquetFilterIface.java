@@ -26,5 +26,4 @@ public interface ParquetFilterIface {
   default boolean exact() {
     return true;
   }
-
 }

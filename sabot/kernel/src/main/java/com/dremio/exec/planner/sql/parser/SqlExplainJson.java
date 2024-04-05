@@ -15,8 +15,8 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.google.common.collect.Lists;
 import java.util.List;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -27,27 +27,22 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.google.common.collect.Lists;
-
-/**
- * SqlNode for EXPLAIN JSON
- */
+/** SqlNode for EXPLAIN JSON */
 public class SqlExplainJson extends SqlCall {
 
-  public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("EXPLAIN_JSON", SqlKind.OTHER) {
-    @Override
-    public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      return new SqlExplainJson(pos, operands[0], (SqlIdentifier) operands[1]);
-    }
-  };
+  public static final SqlSpecialOperator OPERATOR =
+      new SqlSpecialOperator("EXPLAIN_JSON", SqlKind.OTHER) {
+        @Override
+        public SqlCall createCall(
+            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+          return new SqlExplainJson(pos, operands[0], (SqlIdentifier) operands[1]);
+        }
+      };
 
   private SqlNode query;
   private SqlIdentifier phase;
 
-  public SqlExplainJson(
-      SqlParserPos pos,
-      SqlNode query,
-      SqlIdentifier phase) {
+  public SqlExplainJson(SqlParserPos pos, SqlNode query, SqlIdentifier phase) {
     super(pos);
     this.query = query;
     this.phase = phase;
@@ -67,7 +62,7 @@ public class SqlExplainJson extends SqlCall {
   }
 
   public String getPhase() {
-    if(phase != null) {
+    if (phase != null) {
       return phase.getSimple().toUpperCase();
     } else {
       return "ORIGINAL";
@@ -78,7 +73,7 @@ public class SqlExplainJson extends SqlCall {
   public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
     writer.keyword("EXPLAIN");
     writer.keyword("JSON");
-    if(phase != null) {
+    if (phase != null) {
       phase.unparse(writer, 0, 0);
     }
     writer.keyword("FOR");
@@ -88,5 +83,4 @@ public class SqlExplainJson extends SqlCall {
   public SqlNode getQuery() {
     return query;
   }
-
 }

@@ -15,25 +15,22 @@
  */
 package com.dremio.ssl;
 
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import java.net.Socket;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
-
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.X509ExtendedTrustManager;
 import javax.net.ssl.X509TrustManager;
 
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
-
-
 /**
  * A TrustManager that checks if certificates validate against multiple sources.
  *
- * Note: This class subclasses and aggregates X509ExtendedTrustManager because Netty
- * uses different verification callbacks when it detects that an X509TrustsManager
- * is an X509ExtendedTrustManager.
+ * <p>Note: This class subclasses and aggregates X509ExtendedTrustManager because Netty uses
+ * different verification callbacks when it detects that an X509TrustsManager is an
+ * X509ExtendedTrustManager.
  */
 class CompositeTrustManager extends X509ExtendedTrustManager implements X509TrustManager {
   private final ImmutableList<X509ExtendedTrustManager> trustManagers;
@@ -48,45 +45,51 @@ class CompositeTrustManager extends X509ExtendedTrustManager implements X509Trus
   }
 
   @Override
-  public void checkClientTrusted(X509Certificate[] x509Certificates, String authType) throws CertificateException {
+  public void checkClientTrusted(X509Certificate[] x509Certificates, String authType)
+      throws CertificateException {
     doTrustCheck(tm -> tm.checkClientTrusted(x509Certificates, authType));
   }
 
   @Override
-  public void checkServerTrusted(X509Certificate[] x509Certificates, String authType) throws CertificateException {
+  public void checkServerTrusted(X509Certificate[] x509Certificates, String authType)
+      throws CertificateException {
     doTrustCheck(tm -> tm.checkServerTrusted(x509Certificates, authType));
   }
 
   @Override
   public X509Certificate[] getAcceptedIssuers() {
     return trustManagers.stream()
-      .flatMap(tm -> Arrays.stream(tm.getAcceptedIssuers()))
-      .toArray(X509Certificate[]::new);
+        .flatMap(tm -> Arrays.stream(tm.getAcceptedIssuers()))
+        .toArray(X509Certificate[]::new);
   }
 
-
   @Override
-  public void checkClientTrusted(X509Certificate[] x509Certificates, String s, Socket socket) throws CertificateException {
+  public void checkClientTrusted(X509Certificate[] x509Certificates, String s, Socket socket)
+      throws CertificateException {
     doTrustCheck(tm -> tm.checkClientTrusted(x509Certificates, s, socket));
   }
 
   @Override
-  public void checkServerTrusted(X509Certificate[] x509Certificates, String s, Socket socket) throws CertificateException {
+  public void checkServerTrusted(X509Certificate[] x509Certificates, String s, Socket socket)
+      throws CertificateException {
     doTrustCheck(tm -> tm.checkServerTrusted(x509Certificates, s, socket));
   }
 
   @Override
-  public void checkClientTrusted(X509Certificate[] x509Certificates, String s, SSLEngine sslEngine) throws CertificateException {
+  public void checkClientTrusted(X509Certificate[] x509Certificates, String s, SSLEngine sslEngine)
+      throws CertificateException {
     doTrustCheck(tm -> tm.checkClientTrusted(x509Certificates, s, sslEngine));
   }
 
   @Override
-  public void checkServerTrusted(X509Certificate[] x509Certificates, String s, SSLEngine sslEngine) throws CertificateException {
+  public void checkServerTrusted(X509Certificate[] x509Certificates, String s, SSLEngine sslEngine)
+      throws CertificateException {
     doTrustCheck(tm -> tm.checkServerTrusted(x509Certificates, s, sslEngine));
   }
 
   private void doTrustCheck(CheckTrustedFunction callback) throws CertificateException {
-    final CertificateException wrapperException = new CertificateException("Failed to verify the certificate.");
+    final CertificateException wrapperException =
+        new CertificateException("Failed to verify the certificate.");
     for (X509ExtendedTrustManager tm : trustManagers) {
       try {
         callback.apply(tm);
@@ -97,5 +100,4 @@ class CompositeTrustManager extends X509ExtendedTrustManager implements X509Trus
     }
     throw wrapperException;
   }
-
 }

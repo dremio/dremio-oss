@@ -15,29 +15,27 @@
  */
 package com.dremio.exec.server;
 
-import org.apache.arrow.memory.OutOfMemoryException;
-
 import com.dremio.common.exceptions.UserException;
+import org.apache.arrow.memory.OutOfMemoryException;
 
 /**
  * Node-level debug information, exposed down to individual operators (through the operator context)
  */
 public interface NodeDebugContextProvider {
-  /**
-   * no-op implementation of the NodeDebugContext
-   */
-  public static final NodeDebugContextProvider NOOP = new NodeDebugContextProvider() {
-    @Override
-    public void addMemoryContext(UserException.Builder exceptionBuilder) {
-    }
+  /** no-op implementation of the NodeDebugContext */
+  public static final NodeDebugContextProvider NOOP =
+      new NodeDebugContextProvider() {
+        @Override
+        public void addMemoryContext(UserException.Builder exceptionBuilder) {}
 
-    @Override
-    public void addMemoryContext(UserException.Builder exceptionBuilder, OutOfMemoryException e) {
-    }
-  };
+        @Override
+        public void addMemoryContext(
+            UserException.Builder exceptionBuilder, OutOfMemoryException e) {}
+      };
 
   /**
    * Add information about the various allocators in the system. Useful when dealing with an OOM
+   *
    * @param exceptionBuilder the exception (builder) that's about to get thrown
    */
   void addMemoryContext(UserException.Builder exceptionBuilder);
@@ -45,6 +43,7 @@ public interface NodeDebugContextProvider {
   /**
    * Add information about the specific allocator that caused the failure. Useful when dealing with
    * an OOM
+   *
    * @param exceptionBuilder the exception (builder) that's about to get thrown
    */
   void addMemoryContext(UserException.Builder exceptionBuilder, OutOfMemoryException e);

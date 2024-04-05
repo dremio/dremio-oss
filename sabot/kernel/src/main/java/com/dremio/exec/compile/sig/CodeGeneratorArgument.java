@@ -15,7 +15,6 @@
  */
 package com.dremio.exec.compile.sig;
 
-
 public class CodeGeneratorArgument {
 
   private final String name;
@@ -34,5 +33,4 @@ public class CodeGeneratorArgument {
   public Class<?> getType() {
     return type;
   }
-
 }

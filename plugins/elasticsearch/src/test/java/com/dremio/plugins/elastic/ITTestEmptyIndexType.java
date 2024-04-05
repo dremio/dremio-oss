@@ -19,22 +19,23 @@ import static com.dremio.plugins.elastic.ElasticsearchType.FLOAT;
 import static com.dremio.plugins.elastic.ElasticsearchType.INTEGER;
 import static com.dremio.plugins.elastic.ElasticsearchType.TEXT;
 
-import org.junit.Before;
-import org.junit.Test;
-
 import com.dremio.exec.record.BatchSchema;
 import com.google.common.collect.ImmutableMap;
+import org.junit.Before;
+import org.junit.Test;
 
 public class ITTestEmptyIndexType extends ElasticBaseTestQuery {
 
   @Before
   public void setup() throws Exception {
-    final ElasticsearchCluster.ColumnData[] justMapping = new ElasticsearchCluster.ColumnData[]{
-        new ElasticsearchCluster.ColumnData("full_address", TEXT, null),
-        new ElasticsearchCluster.ColumnData("city", TEXT, ImmutableMap.of("index", "false"), null),
-        new ElasticsearchCluster.ColumnData("review_count", INTEGER, null),
-        new ElasticsearchCluster.ColumnData("stars", FLOAT, null)
-    };
+    final ElasticsearchCluster.ColumnData[] justMapping =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData("full_address", TEXT, null),
+          new ElasticsearchCluster.ColumnData(
+              "city", TEXT, ImmutableMap.of("index", "false"), null),
+          new ElasticsearchCluster.ColumnData("review_count", INTEGER, null),
+          new ElasticsearchCluster.ColumnData("stars", FLOAT, null)
+        };
 
     elastic.load(schema, table, justMapping);
   }
@@ -45,36 +46,48 @@ public class ITTestEmptyIndexType extends ElasticBaseTestQuery {
     final String query = "select * from elasticsearch." + schema + "." + table;
 
     testBuilder()
-      .sqlQuery("describe elasticsearch." + schema + "." + table)
-      .unOrdered()
-      .baselineColumns("COLUMN_NAME", "DATA_TYPE", "IS_NULLABLE", "NUMERIC_PRECISION", "NUMERIC_SCALE", "EXTENDED_PROPERTIES", "MASKING_POLICY", "SORT_ORDER_PRIORITY")
-      .baselineValues("city", "CHARACTER VARYING", "YES", null, null, "[]", null, null)
-      .baselineValues("full_address", "CHARACTER VARYING", "YES", null, null, "[]", null, null)
-      .baselineValues("review_count", "INTEGER", "YES", 32, 0, "[]",null, null)
-      .baselineValues("stars", "FLOAT", "YES", 24, null, "[]", null, null)
-      .go();
+        .sqlQuery("describe elasticsearch." + schema + "." + table)
+        .unOrdered()
+        .baselineColumns(
+            "COLUMN_NAME",
+            "DATA_TYPE",
+            "IS_NULLABLE",
+            "NUMERIC_PRECISION",
+            "NUMERIC_SCALE",
+            "EXTENDED_PROPERTIES",
+            "MASKING_POLICY",
+            "SORT_ORDER_PRIORITY")
+        .baselineValues("city", "CHARACTER VARYING", "YES", null, null, "[]", null, null)
+        .baselineValues("full_address", "CHARACTER VARYING", "YES", null, null, "[]", null, null)
+        .baselineValues("review_count", "INTEGER", "YES", 32, 0, "[]", null, null)
+        .baselineValues("stars", "FLOAT", "YES", 24, null, "[]", null, null)
+        .go();
     testBuilder()
-      .sqlQuery(query)
-      .unOrdered()
-      .baselineColumns(BatchSchema.SCHEMA_UNKNOWN_NO_DATA_COLNAME)
-      .expectsEmptyResultSet()
-      .go();
+        .sqlQuery(query)
+        .unOrdered()
+        .baselineColumns(BatchSchema.SCHEMA_UNKNOWN_NO_DATA_COLNAME)
+        .expectsEmptyResultSet()
+        .go();
   }
 
   @Test
   public void testIndexNotPresent() throws Exception {
-    errorMsgTestHelper("SELECT * FROM elasticsearch.noIndex.noTable",
+    errorMsgTestHelper(
+        "SELECT * FROM elasticsearch.noIndex.noTable",
         "'noIndex' not found within 'elasticsearch'");
 
-    final ElasticsearchCluster.ColumnData[] justMapping = new ElasticsearchCluster.ColumnData[]{
-        new ElasticsearchCluster.ColumnData("full_address", TEXT, null),
-        new ElasticsearchCluster.ColumnData("city", TEXT, ImmutableMap.of("index", "false"), null),
-        new ElasticsearchCluster.ColumnData("review_count", INTEGER, null),
-        new ElasticsearchCluster.ColumnData("stars", FLOAT, null)
-    };
+    final ElasticsearchCluster.ColumnData[] justMapping =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData("full_address", TEXT, null),
+          new ElasticsearchCluster.ColumnData(
+              "city", TEXT, ImmutableMap.of("index", "false"), null),
+          new ElasticsearchCluster.ColumnData("review_count", INTEGER, null),
+          new ElasticsearchCluster.ColumnData("stars", FLOAT, null)
+        };
 
     elastic.load(schema, table, justMapping);
-    errorMsgTestHelper(String.format("SELECT * FROM elasticsearch.%s.noTable", schema),
+    errorMsgTestHelper(
+        String.format("SELECT * FROM elasticsearch.%s.noTable", schema),
         "not found within 'elasticsearch");
   }
 }

@@ -17,15 +17,11 @@ package com.dremio.authenticator;
 
 import org.immutables.value.Value;
 
-/**
- * Request of Authentication contains credentials and/or user info.
- */
+/** Request of Authentication contains credentials and/or user info. */
 @Value.Immutable
 public abstract class AuthRequest {
 
-  /**
-   * Specifies token type. If absent (empty or null), uses default behavior.
-   */
+  /** Specifies token type. If absent (empty or null), uses default behavior. */
   public abstract String getTokenType();
 
   /**
@@ -33,14 +29,10 @@ public abstract class AuthRequest {
    */
   public abstract String getUsername();
 
-  /**
-   * Required. Can be a password or a token.
-   */
+  /** Required. Can be a password or a token. */
   public abstract String getToken();
 
-  /**
-   * Types of resource.
-   */
+  /** Types of resource. */
   public enum Resource {
     UNSPECIFIED,
     HTTP,
@@ -48,9 +40,7 @@ public abstract class AuthRequest {
     USER_RPC
   }
 
-  /**
-   * Required. Returns the type of resource. Usually determined by the type of client.
-   */
+  /** Required. Returns the type of resource. Usually determined by the type of client. */
   public abstract Resource getResource();
 
   /**
@@ -62,12 +52,11 @@ public abstract class AuthRequest {
     return new ImmutableAuthRequest.Builder();
   }
 
-  /**
-   * Returns a string version of an instance of AuthRequest. Do not show sensitive info.
-   */
+  /** Returns a string version of an instance of AuthRequest. Do not show sensitive info. */
   @Override
   public String toString() {
-    return String.format("AuthRequest[username:%s, tokenType:%s, resource:%s]",
-      getUsername(), getTokenType(), getResource());
+    return String.format(
+        "AuthRequest[username:%s, tokenType:%s, resource:%s]",
+        getUsername(), getTokenType(), getResource());
   }
 }

@@ -17,27 +17,22 @@ package com.dremio.exec.work.protector;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.io.File;
-import java.nio.charset.StandardCharsets;
-
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.TestBuilder;
 import com.dremio.config.DremioConfig;
 import com.dremio.exec.ExecConstants;
 import com.dremio.test.TemporarySystemProperties;
 import com.google.common.io.Files;
+import java.io.File;
+import java.nio.charset.StandardCharsets;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
 
-/**
- * Make sure auto fix works.
- */
+/** Make sure auto fix works. */
 public class TestDatasetAutoFix extends BaseTestQuery {
 
-  @Rule
-  public TemporarySystemProperties properties = new TemporarySystemProperties();
+  @Rule public TemporarySystemProperties properties = new TemporarySystemProperties();
 
   @Before
   public void before() {
@@ -49,20 +44,22 @@ public class TestDatasetAutoFix extends BaseTestQuery {
   public void addNewColumnOnSelectStarMultiLevel() throws Exception {
     setupAndRun(
         (String tableName, File f1, File folder, TestBuilder testBuilder) -> {
-          testNoResult("create view dfs_test.view2_%s as select * from dfs_test.view_%s", tableName, tableName);
+          testNoResult(
+              "create view dfs_test.view2_%s as select * from dfs_test.view_%s",
+              tableName, tableName);
 
           // add a second file.
           File f2 = new File(folder, "file2.json");
           Files.write("{a:2, b:3, c:4}", f2, StandardCharsets.UTF_8);
           testNoResult("alter pds dfs_test.%s refresh metadata force update", tableName);
 
-          testBuilder().sqlQuery("select * from dfs_test.view2_%s order by a", tableName)
-            .ordered()
-            .baselineColumns("a", "b", "c")
-            .baselineValues(1L, 2L, null)
-            .baselineValues(2L, 3L, 4L)
-            .go();
-
+          testBuilder()
+              .sqlQuery("select * from dfs_test.view2_%s order by a", tableName)
+              .ordered()
+              .baselineColumns("a", "b", "c")
+              .baselineValues(1L, 2L, null)
+              .baselineValues(2L, 3L, 4L)
+              .go();
         });
   }
 
@@ -75,11 +72,11 @@ public class TestDatasetAutoFix extends BaseTestQuery {
           Files.write("{a:2, b:3, c:4}", f2, StandardCharsets.UTF_8);
           testNoResult("alter pds dfs_test.%s refresh metadata force update", tableName);
 
-          testBuilder.baselineColumns("a", "b", "c")
-            .baselineValues(1L, 2L, null)
-            .baselineValues(2L, 3L, 4L)
-            .go();
-
+          testBuilder
+              .baselineColumns("a", "b", "c")
+              .baselineValues(1L, 2L, null)
+              .baselineValues(2L, 3L, 4L)
+              .go();
         });
   }
 
@@ -92,10 +89,7 @@ public class TestDatasetAutoFix extends BaseTestQuery {
           File f2 = new File(folder, "file2.json");
           Files.write("{b:2, a:3}", f2, StandardCharsets.UTF_8);
 
-          testBuilder.baselineColumns("a", "b")
-            .baselineValues(3L, 2L)
-            .go();
-
+          testBuilder.baselineColumns("a", "b").baselineValues(3L, 2L).go();
         });
   }
 
@@ -111,10 +105,7 @@ public class TestDatasetAutoFix extends BaseTestQuery {
           // refresh the metadata
           testNoResult("alter pds dfs_test.%s forget metadata", tableName);
 
-          testBuilder.baselineColumns("b", "a")
-            .baselineValues(2L, 3L)
-            .go();
-
+          testBuilder.baselineColumns("b", "a").baselineValues(2L, 3L).go();
         });
   }
 
@@ -122,7 +113,9 @@ public class TestDatasetAutoFix extends BaseTestQuery {
   public void failedUpdate() throws Exception {
     setupAndRun(
         (String tableName, File f1, File folder, TestBuilder testBuilder) -> {
-          testNoResult("create view dfs_test.view2_%s as select a,b from dfs_test.view_%s", tableName, tableName);
+          testNoResult(
+              "create view dfs_test.view2_%s as select a,b from dfs_test.view_%s",
+              tableName, tableName);
 
           f1.delete();
           testNoResult("alter pds dfs_test.%s forget metadata", tableName);
@@ -131,9 +124,12 @@ public class TestDatasetAutoFix extends BaseTestQuery {
           File f2 = new File(folder, "file2.json");
           Files.write("{b:3, c:4}", f2, StandardCharsets.UTF_8);
 
-          assertThatThrownBy(() -> testNoResult("select * from dfs_test.view2_%s order by a", tableName))
-            .hasMessageContaining(
-              String.format("Error while expanding view dfs_test.view2_%s. Column 'a' not found in any table. Verify the view’s SQL definition.", tableName));
+          assertThatThrownBy(
+                  () -> testNoResult("select * from dfs_test.view2_%s order by a", tableName))
+              .hasMessageContaining(
+                  String.format(
+                      "Error while expanding view dfs_test.view2_%s. Column 'a' not found in any table. Verify the view’s SQL definition.",
+                      tableName));
         });
   }
 
@@ -149,14 +145,14 @@ public class TestDatasetAutoFix extends BaseTestQuery {
           testNoResult("alter pds dfs_test.%s forget metadata", tableName);
 
           // make sure that that we automatically learn schema, update vds, show correct result.
-          testBuilder.baselineColumns("a", "b")
-            .baselineValues(1L, "hello")
-            .go();
+          testBuilder.baselineColumns("a", "b").baselineValues(1L, "hello").go();
         });
   }
 
   /**
-   * Create a new table based on the test method name with a single record of two columns, a.b and both of integer type.
+   * Create a new table based on the test method name with a single record of two columns, a.b and
+   * both of integer type.
+   *
    * @param op The operation that should run within this setup.
    * @throws Exception
    */
@@ -179,12 +175,15 @@ public class TestDatasetAutoFix extends BaseTestQuery {
     // create a view on autopromoted table.
     testNoResult("create view dfs_test.view_%s as select * from dfs_test.%s", testName, testName);
 
-    op.doit(testName, f1, folder, testBuilder().sqlQuery("select * from dfs_test.%s order by a", testName).ordered());
-
+    op.doit(
+        testName,
+        f1,
+        folder,
+        testBuilder().sqlQuery("select * from dfs_test.%s order by a", testName).ordered());
   }
 
   private interface InbetweenOp {
-    public void doit(String tableName, File f1, File folder, TestBuilder testBuilder) throws Exception;
+    public void doit(String tableName, File f1, File folder, TestBuilder testBuilder)
+        throws Exception;
   }
-
 }

@@ -22,21 +22,23 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Sort;
 import org.apache.calcite.rex.RexNode;
 
-/**
- *
- * Base class for logical and physical Sort implemented in Dremio
- */
+/** Base class for logical and physical Sort implemented in Dremio */
 public abstract class SortRelBase extends Sort {
   /** Creates a SortRel with offset and fetch. */
-  protected SortRelBase(RelOptCluster cluster, RelTraitSet traits, RelNode input, RelCollation collation, RexNode offset, RexNode fetch) {
+  protected SortRelBase(
+      RelOptCluster cluster,
+      RelTraitSet traits,
+      RelNode input,
+      RelCollation collation,
+      RexNode offset,
+      RexNode fetch) {
     super(cluster, traits, input, collation, null, null);
     // Dremio does not support offset and fetch
     assert offset == null : "offset is not supported";
-    assert fetch == null: "fetch is not supported";
+    assert fetch == null : "fetch is not supported";
   }
 
   protected static RelTraitSet adjustTraits(RelTraitSet traits, RelCollation collation) {
     return traits.plus(collation);
   }
-
 }

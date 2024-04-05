@@ -15,6 +15,8 @@
  */
 package com.dremio.service.scheduler;
 
+import com.dremio.common.AutoCloseables;
+import com.dremio.common.concurrent.CloseableSchedulerThreadPool;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Iterator;
@@ -24,17 +26,15 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-
 import org.jetbrains.annotations.NotNull;
 
-import com.dremio.common.AutoCloseables;
-import com.dremio.common.concurrent.CloseableSchedulerThreadPool;
-
 /**
- * Simple implementation of {@link SchedulerService} that only accepts tasks that needs to be scheduled locally.
+ * Simple implementation of {@link SchedulerService} that only accepts tasks that needs to be
+ * scheduled locally.
  */
 public class SimpleLocalSchedulerService implements SchedulerService {
-  private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(SimpleLocalSchedulerService.class);
+  private static final org.slf4j.Logger LOGGER =
+      org.slf4j.LoggerFactory.getLogger(SimpleLocalSchedulerService.class);
   private static final String THREAD_NAME_PREFIX = "scheduler-";
   private final CloseableSchedulerThreadPool executorService;
   private final AtomicInteger idCounter;
@@ -192,7 +192,8 @@ public class SimpleLocalSchedulerService implements SchedulerService {
 
   @Override
   public Cancellable schedule(Schedule schedule, Runnable task) {
-    CancellableTask cancellableTask = new CancellableTask(schedule, task, idCounter.incrementAndGet());
+    CancellableTask cancellableTask =
+        new CancellableTask(schedule, task, idCounter.incrementAndGet());
     cancellableTask.scheduleNext();
 
     return cancellableTask;

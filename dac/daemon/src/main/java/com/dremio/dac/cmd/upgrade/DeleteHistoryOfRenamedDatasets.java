@@ -15,8 +15,6 @@
  */
 package com.dremio.dac.cmd.upgrade;
 
-import java.util.Map;
-
 import com.dremio.common.Version;
 import com.dremio.dac.cmd.AdminLogger;
 import com.dremio.dac.proto.model.dataset.NameDatasetRef;
@@ -26,19 +24,20 @@ import com.dremio.dac.service.datasets.DatasetVersionMutator.VersionStoreCreator
 import com.dremio.datastore.api.LegacyKVStore;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
+import java.util.Map;
 
 /**
- * Deletes history of renamed datasets by setting the "previous version" link of the latest version of renamed datasets
- * to null.
+ * Deletes history of renamed datasets by setting the "previous version" link of the latest version
+ * of renamed datasets to null.
  */
-public class DeleteHistoryOfRenamedDatasets extends UpgradeTask implements  LegacyUpgradeTask {
+public class DeleteHistoryOfRenamedDatasets extends UpgradeTask implements LegacyUpgradeTask {
 
-
-  //DO NOT MODIFY
+  // DO NOT MODIFY
   static final String taskUUID = "149b8d09-9099-4eba-8902-0edf103a441c";
 
   public DeleteHistoryOfRenamedDatasets() {
-    super("Delete history of renamed datasets", ImmutableList.of(UpdateDatasetSplitIdTask.taskUUID));
+    super(
+        "Delete history of renamed datasets", ImmutableList.of(UpdateDatasetSplitIdTask.taskUUID));
   }
 
   @Override
@@ -57,7 +56,8 @@ public class DeleteHistoryOfRenamedDatasets extends UpgradeTask implements  Lega
         context.getLegacyKVStoreProvider().getStore(VersionStoreCreator.class);
 
     final Map<VersionDatasetKey, VirtualDatasetVersion> renamedDatasets = Maps.newHashMap();
-    for (final Map.Entry<VersionDatasetKey, VirtualDatasetVersion> datasetVersion : datasetVersions.find()) {
+    for (final Map.Entry<VersionDatasetKey, VirtualDatasetVersion> datasetVersion :
+        datasetVersions.find()) {
       final String currentEntryPath = datasetVersion.getKey().getPath().toPathString();
       final NameDatasetRef prevEntry = datasetVersion.getValue().getPreviousVersion();
       if (prevEntry != null && !currentEntryPath.equals(prevEntry.getDatasetPath())) {
@@ -65,11 +65,12 @@ public class DeleteHistoryOfRenamedDatasets extends UpgradeTask implements  Lega
       }
     }
 
-    AdminLogger.log("Found {} renamed entries. Remove their previous version links.", renamedDatasets.size());
+    AdminLogger.log(
+        "Found {} renamed entries. Remove their previous version links.", renamedDatasets.size());
 
-    for (final Map.Entry<VersionDatasetKey, VirtualDatasetVersion> datasetVersion : renamedDatasets.entrySet()) {
-      final VirtualDatasetVersion newValue = datasetVersion.getValue()
-          .setPreviousVersion(null);
+    for (final Map.Entry<VersionDatasetKey, VirtualDatasetVersion> datasetVersion :
+        renamedDatasets.entrySet()) {
+      final VirtualDatasetVersion newValue = datasetVersion.getValue().setPreviousVersion(null);
       datasetVersions.put(datasetVersion.getKey(), newValue);
     }
   }

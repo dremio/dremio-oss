@@ -15,16 +15,13 @@
  */
 package com.dremio.service.jobs;
 
-import java.util.concurrent.CountDownLatch;
-
 import com.dremio.common.DeferredException;
 import com.dremio.datastore.api.LegacyIndexedStore;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobResult;
+import java.util.concurrent.CountDownLatch;
 
-/**
- * Internal Job Loader
- */
+/** Internal Job Loader */
 public class InternalJobLoader implements JobLoader {
 
   private final DeferredException exception;
@@ -33,8 +30,12 @@ public class InternalJobLoader implements JobLoader {
   private final JobResultsStore jobResultsStore;
   private final LegacyIndexedStore<JobId, JobResult> store;
 
-  public InternalJobLoader(DeferredException exception, CountDownLatch completionLatch, JobId id,
-                           JobResultsStore jobResultsStore, LegacyIndexedStore<JobId, JobResult> store) {
+  public InternalJobLoader(
+      DeferredException exception,
+      CountDownLatch completionLatch,
+      JobId id,
+      JobResultsStore jobResultsStore,
+      LegacyIndexedStore<JobId, JobResult> store) {
     super();
     this.exception = exception;
     this.completionLatch = completionLatch;

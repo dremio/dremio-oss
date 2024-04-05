@@ -159,6 +159,7 @@
     }
 
     &__layoutHeaderRecommendationButton,
+    &__layoutHeaderRefeshButton,
     &__layoutHeaderDeleteButton,
     &__layoutHeaderSettingsButton {
       height: 24px;
@@ -172,6 +173,10 @@
 
       &:hover {
         color: var(--dremio--color--link) !important;
+      }
+
+      &__layoutHeaderRefeshButton.--disabled {
+        color: var(--dremio--color--text--disabled) !important;
       }
     }
 

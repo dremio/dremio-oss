@@ -31,7 +31,7 @@
 
   <!-- Maximum file line length -->
   <module name="FileLength">
-    <property name="max" value="3000"/>
+    <property name="max" value="4000"/>
   </module>
 
   <!-- No TAB characters -->
@@ -69,19 +69,8 @@
       <property name="allowStaticMemberImports" value="true"/>
     </module>
 
-    <module name="ImportOrder">
-      <property name="groups" value="java.,javax.,org.,com."/>
-      <property name="ordered" value="true"/>
-      <property name="separated" value="true"/>
-      <property name="option" value="top"/>
-      <property name="sortStaticImportsAlphabetically" value="true"/>
-    </module>
-
-    <module name="UnusedImports"/>
-    <module name="RedundantImport"/>
-
     <!-- Checks for Javadoc comments. -->
-    <!-- See http://checkstyle.sf.net/config_javadoc.html -->
+    <!-- See https://checkstyle.org/checks/javadoc -->
     <module name="JavadocType">
       <property name="scope" value="public"/>
       <property name="allowMissingParamTags" value="true"/>
@@ -91,7 +80,7 @@
     </module>
 
     <!-- Checks for Naming Conventions. -->
-    <!-- See http://checkstyle.sf.net/config_naming.html -->
+    <!-- See https://checkstyle.org/checks/naming -->
     <module name="ConstantName">
       <!-- TODO: move to error -->
       <property name="severity" value="warning"/>
@@ -117,7 +106,8 @@
     </module>
 
     <module name="RegexpSinglelineJava">
-      <property name="format" value="extends RelShuttleImpl"/>
+      <property name="id" value="prefer-StatelessRelShuttleImpl"/>
+      <property name="format" value="extends\s+RelShuttleImpl"/>
       <property name="ignoreComments" value="true"/>
       <property name="message" value="Please do not extend RelShuttleImpl, instead extend StatelessRelShuttleImpl"/>
     </module>
@@ -129,14 +119,11 @@
     </module>
 
     <!-- Modifier Checks -->
-    <!-- See http://checkstyle.sourceforge.net/config_modifier.html -->
-    <module name="ModifierOrder">
-      <message key="mod.order" value="''{0}'' modifier out of order with the JLS suggestions: public protected private abstract static final transient volatile synchronized native strictfp"/>
-    </module>
+    <!-- See https://checkstyle.org/checks/modifier -->
     <!-- module name="RedundantModifier"/ -->
 
     <!-- Checks for blocks. You know, those {}'s -->
-    <!-- See http://checkstyle.sf.net/config_blocks.html -->
+    <!-- See https://checkstyle.org/checks/blocks -->
     <module name="EmptyBlock">
       <property name="option" value="text"/>
     </module>
@@ -144,12 +131,10 @@
       <!-- TODO: move to error -->
       <property name="severity" value="warning"/>
     </module>
-    <!-- module name="LeftCurly"/ -->
     <module name="NeedBraces"/>
-    <module name="RightCurly"/>
 
     <!-- Checks for common coding problems -->
-    <!-- See http://checkstyle.sf.net/config_coding.html -->
+    <!-- See https://checkstyle.org/checks/coding -->
     <module name="EmptyStatement"/>
     <module name="EqualsAvoidNull"/>
     <module name="EqualsHashCode"/>
@@ -173,7 +158,7 @@
     <module name="StringLiteralEquality"/>
 
     <!-- Checks for class design -->
-    <!-- See http://checkstyle.sf.net/config_design.html -->
+    <!-- See https://checkstyle.org/checks/design -->
     <module name="MutableException"/>
     <module name="FinalClass"/>
     <module name="HideUtilityClassConstructor">
@@ -197,7 +182,7 @@
     </module>
 
     <!-- Miscellaneous other checks. -->
-    <!-- See http://checkstyle.sf.net/config_misc.html -->
+    <!-- See https://checkstyle.org/checks/misc -->
     <module name="ArrayTypeStyle"/>
     <module name="UpperEll"/>
 
@@ -227,7 +212,7 @@
   </module>
   <!-- Disable all checks in resource files that are not part of <resourceIncludes> in the maven plugin config -->
   <!-- This allows equivalent usage of this checkstyle config outside of maven -->
-  <!-- see https://checkstyle.org/config_filefilters.html#BeforeExecutionExclusionFileFilter -->
+  <!-- see https://checkstyle.org/filefilters -->
   <module name="BeforeExecutionExclusionFileFilter">
     <property name="fileNamePattern" value="[\\/]src[\\/](test|main)[\\/]resources[\\/].+\.(?!properties$|conf$|json$|xml$).+$"/>
   </module>

@@ -20,9 +20,7 @@ import com.dremio.exec.proto.CoordExecRPC.NodeQueryFirstError;
 import com.dremio.exec.proto.CoordExecRPC.NodeQueryScreenCompletion;
 import com.dremio.exec.rpc.RpcException;
 
-/**
- * Handler for status messages from executor to coordinator.
- */
+/** Handler for status messages from executor to coordinator. */
 public interface ExecToCoordStatusHandler {
   void screenCompleted(NodeQueryScreenCompletion completion) throws RpcException;
 

@@ -15,6 +15,7 @@
  */
 package com.dremio.datastore.indexed.doughnut;
 
+import com.dremio.datastore.Converter;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -23,19 +24,14 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutput;
 import java.io.ObjectOutputStream;
 
-import com.dremio.datastore.Converter;
-
-/**
- * Doughnut Converter to serialize and deserialize Doughnut objects.
- */
+/** Doughnut Converter to serialize and deserialize Doughnut objects. */
 public class DoughnutConverter extends Converter<Doughnut, byte[]> {
-  public DoughnutConverter() {
-  }
+  public DoughnutConverter() {}
 
   @Override
   public byte[] convert(Doughnut v) {
     try (ByteArrayOutputStream bos = new ByteArrayOutputStream();
-         ObjectOutput out = new ObjectOutputStream(bos)) {
+        ObjectOutput out = new ObjectOutputStream(bos)) {
       out.writeObject(v);
       return bos.toByteArray();
     } catch (IOException e) {
@@ -46,7 +42,7 @@ public class DoughnutConverter extends Converter<Doughnut, byte[]> {
   @Override
   public Doughnut revert(byte[] v) {
     try (ByteArrayInputStream bis = new ByteArrayInputStream(v);
-         ObjectInput in = new ObjectInputStream(bis)) {
+        ObjectInput in = new ObjectInputStream(bis)) {
       return (Doughnut) (in.readObject());
     } catch (IOException | ClassNotFoundException e) {
       throw new RuntimeException("failed to deserialize", e);

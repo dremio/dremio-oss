@@ -19,5 +19,4 @@ package com.dremio.exec.planner.cost;
 public interface RelOptCost extends org.apache.calcite.plan.RelOptCost {
 
   double getNetwork();
-
 }

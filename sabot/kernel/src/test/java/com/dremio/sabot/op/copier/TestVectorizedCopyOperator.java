@@ -15,23 +15,30 @@
  */
 package com.dremio.sabot.op.copier;
 
-import org.junit.Assert;
-import org.junit.Test;
-
 import com.dremio.exec.physical.config.SelectionVectorRemover;
 import com.dremio.sabot.BaseTestOperator;
 import com.dremio.sabot.CustomGeneratorWithSV2;
 import com.dremio.sabot.CustomGeneratorWithSV2.SelectionVariant;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.copier.VectorizedCopyOperator.Metric;
+import org.junit.Assert;
+import org.junit.Test;
 
 public class TestVectorizedCopyOperator extends BaseTestOperator {
   static final int NUM_ROWS = 200;
 
-  private void testWithBatchSize(int batchSize, CustomGeneratorWithSV2.SelectionVariant variant) throws Exception {
-    try (CustomGeneratorWithSV2 generator = new CustomGeneratorWithSV2(NUM_ROWS, getTestAllocator(), variant)) {
+  private void testWithBatchSize(int batchSize, CustomGeneratorWithSV2.SelectionVariant variant)
+      throws Exception {
+    try (CustomGeneratorWithSV2 generator =
+        new CustomGeneratorWithSV2(NUM_ROWS, getTestAllocator(), variant)) {
       SelectionVectorRemover pop = new SelectionVectorRemover(PROPS, null);
-      OperatorStats stats = validateSingle(pop, VectorizedCopyOperator.class, generator, generator.getExpectedTable(), batchSize);
+      OperatorStats stats =
+          validateSingle(
+              pop,
+              VectorizedCopyOperator.class,
+              generator,
+              generator.getExpectedTable(),
+              batchSize);
 
       int expectedBatches = (generator.totalSelectedRows() + batchSize - 1) / batchSize;
       Assert.assertEquals(expectedBatches, stats.getLongStat(Metric.OUTPUT_BATCH_COUNT));

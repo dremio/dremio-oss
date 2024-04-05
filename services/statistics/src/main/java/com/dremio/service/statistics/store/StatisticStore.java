@@ -15,12 +15,6 @@
  */
 package com.dremio.service.statistics.store;
 
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.TimeUnit;
-
-import javax.inject.Provider;
-
 import com.dremio.datastore.VersionExtractor;
 import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.datastore.api.LegacyKVStoreCreationFunction;
@@ -36,10 +30,12 @@ import com.google.common.base.Suppliers;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.Weigher;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+import javax.inject.Provider;
 
-/**
- * store for external reflections
- */
+/** store for external reflections */
 public class StatisticStore {
   private static final String TABLE_NAME = "statistic_store";
   private final Supplier<LegacyKVStore<StatisticId, StatisticMessage>> store;
@@ -48,18 +44,21 @@ public class StatisticStore {
   @SuppressWarnings("NoGuavaCacheUsage") // TODO: fix as part of DX-51884
   public StatisticStore(final Provider<LegacyKVStoreProvider> provider, long max, long timeout) {
     Preconditions.checkNotNull(provider, "kvStore provider required");
-    this.store = Suppliers.memoize(new Supplier<LegacyKVStore<StatisticId, StatisticMessage>>() {
-      @Override
-      public LegacyKVStore<StatisticId, StatisticMessage> get() {
-        return provider.get().getStore(StoreCreator.class);
-      }
-    });
-    this.cache = CacheBuilder.newBuilder()
-      .maximumWeight(max)
-      .weigher((Weigher<StatisticId, Optional<Statistic>>) (key, val) -> 1)
-      .softValues()
-      .expireAfterAccess(timeout, TimeUnit.MINUTES)
-      .build();
+    this.store =
+        Suppliers.memoize(
+            new Supplier<LegacyKVStore<StatisticId, StatisticMessage>>() {
+              @Override
+              public LegacyKVStore<StatisticId, StatisticMessage> get() {
+                return provider.get().getStore(StoreCreator.class);
+              }
+            });
+    this.cache =
+        CacheBuilder.newBuilder()
+            .maximumWeight(max)
+            .weigher((Weigher<StatisticId, Optional<Statistic>>) (key, val) -> 1)
+            .softValues()
+            .expireAfterAccess(timeout, TimeUnit.MINUTES)
+            .build();
   }
 
   public void save(StatisticId id, Statistic statistic) {
@@ -106,21 +105,18 @@ public class StatisticStore {
     }
   }
 
-
-  /**
-   * {@link StatisticStore} creator
-   */
-  public static final class StoreCreator implements LegacyKVStoreCreationFunction<StatisticId, StatisticMessage> {
+  /** {@link StatisticStore} creator */
+  public static final class StoreCreator
+      implements LegacyKVStoreCreationFunction<StatisticId, StatisticMessage> {
     @Override
     public LegacyKVStore<StatisticId, StatisticMessage> build(LegacyStoreBuildingFactory factory) {
-      return factory.<StatisticId, StatisticMessage>newStore()
-        .name(TABLE_NAME)
-        .keyFormat(Format.ofProtostuff(StatisticId.class))
-        .valueFormat(Format.ofProtostuff(StatisticMessage.class))
-        .versionExtractor(StatisticStore.StatisticStoreExtractor.class)
-        .build();
+      return factory
+          .<StatisticId, StatisticMessage>newStore()
+          .name(TABLE_NAME)
+          .keyFormat(Format.ofProtostuff(StatisticId.class))
+          .valueFormat(Format.ofProtostuff(StatisticMessage.class))
+          .versionExtractor(StatisticStore.StatisticStoreExtractor.class)
+          .build();
     }
   }
-
-
 }

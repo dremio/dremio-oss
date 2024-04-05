@@ -18,11 +18,8 @@ package com.dremio.service.executor;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.service.Service;
 
-/**
- * Factory to get the executor client.
- */
-public interface ExecutorServiceClientFactory  extends Service  {
+/** Factory to get the executor client. */
+public interface ExecutorServiceClientFactory extends Service {
 
   public ExecutorServiceClient getClientForEndpoint(CoordinationProtos.NodeEndpoint endpoint);
-
 }

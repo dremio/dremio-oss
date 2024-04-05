@@ -15,6 +15,18 @@
  */
 package com.dremio.service.functions;
 
+import com.dremio.service.functions.model.Function;
+import com.dremio.service.functions.model.FunctionSignatureComparator;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
+import com.fasterxml.jackson.datatype.guava.GuavaModule;
+import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.io.Resources;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -33,38 +45,23 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
 import org.apache.commons.io.FilenameUtils;
 
-import com.dremio.service.functions.model.Function;
-import com.dremio.service.functions.model.FunctionSignatureComparator;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
-import com.fasterxml.jackson.datatype.guava.GuavaModule;
-import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.io.Resources;
-
-/**
- * Singleton Dictionary used to interface with the static resource files for function list API.
- */
+/** Singleton Dictionary used to interface with the static resource files for function list API. */
 public final class FunctionListDictionary {
   private static final ConcurrentMap<String, Object> FILE_SYSTEM_LOCKS = new ConcurrentHashMap<>();
 
-  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper(
-    new YAMLFactory()
-      .disable(YAMLGenerator.Feature.SPLIT_LINES)
-      .disable(YAMLGenerator.Feature.CANONICAL_OUTPUT)
-      .enable(YAMLGenerator.Feature.INDENT_ARRAYS))
-    .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
-    .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
-    .registerModule(new JavaTimeModule())
-    .registerModule(new GuavaModule())
-    .registerModule(new Jdk8Module());
+  private static final ObjectMapper OBJECT_MAPPER =
+      new ObjectMapper(
+              new YAMLFactory()
+                  .disable(YAMLGenerator.Feature.SPLIT_LINES)
+                  .disable(YAMLGenerator.Feature.CANONICAL_OUTPUT)
+                  .enable(YAMLGenerator.Feature.INDENT_ARRAYS))
+          .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
+          .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+          .registerModule(new JavaTimeModule())
+          .registerModule(new GuavaModule())
+          .registerModule(new Jdk8Module());
 
   private static final ImmutableMap<String, FunctionSpecWithInfo> MAP = getFunctions();
 
@@ -75,11 +72,9 @@ public final class FunctionListDictionary {
   }
 
   public static Set<String> getDocumentedFunctionNames() {
-    return MAP
-      .keySet()
-      .stream()
-      .filter(key -> MAP.get(key).isDocumented)
-      .collect(Collectors.toSet());
+    return MAP.keySet().stream()
+        .filter(key -> MAP.get(key).isDocumented)
+        .collect(Collectors.toSet());
   }
 
   public static Optional<Function> tryGetFunction(String functionName) {
@@ -93,8 +88,10 @@ public final class FunctionListDictionary {
   }
 
   private static ImmutableMap<String, FunctionSpecWithInfo> getFunctions() {
-    Map<String, FunctionSpecWithInfo> documentedFunctions = getFunctions("function_specs/documented", true);
-    Map<String, FunctionSpecWithInfo> undocumentedFunctions = getFunctions("function_specs/undocumented", false);
+    Map<String, FunctionSpecWithInfo> documentedFunctions =
+        getFunctions("function_specs/documented", true);
+    Map<String, FunctionSpecWithInfo> undocumentedFunctions =
+        getFunctions("function_specs/undocumented", false);
     Map<String, FunctionSpecWithInfo> allFunctions = new HashMap<>();
     for (String functionName : documentedFunctions.keySet()) {
       allFunctions.put(functionName.toUpperCase(), documentedFunctions.get(functionName));
@@ -102,7 +99,8 @@ public final class FunctionListDictionary {
 
     for (String functionName : undocumentedFunctions.keySet()) {
       if (allFunctions.containsKey(functionName)) {
-        throw new RuntimeException("The following function is already documented: '" + functionName + "'");
+        throw new RuntimeException(
+            "The following function is already documented: '" + functionName + "'");
       }
 
       allFunctions.put(functionName.toUpperCase(), undocumentedFunctions.get(functionName));
@@ -111,16 +109,15 @@ public final class FunctionListDictionary {
     return ImmutableMap.copyOf(allFunctions);
   }
 
-  private static Map<String, FunctionSpecWithInfo> getFunctions(String resourceName, boolean isDocumented) {
+  private static Map<String, FunctionSpecWithInfo> getFunctions(
+      String resourceName, boolean isDocumented) {
     Map<String, FunctionSpecWithInfo> map = new HashMap<>();
     for (Path path : getFunctionFilePaths(resourceName)) {
       try {
-        String fileName = FilenameUtils
-          .removeExtension(path.getFileName().toString())
-          .toUpperCase();
-        Function functionSpec = OBJECT_MAPPER.readValue(
-          path.toUri().toURL(),
-          new TypeReference<Function>(){});
+        String fileName =
+            FilenameUtils.removeExtension(path.getFileName().toString()).toUpperCase();
+        Function functionSpec =
+            OBJECT_MAPPER.readValue(path.toUri().toURL(), new TypeReference<Function>() {});
         functionSpec = sortAndNormalizeFunction(functionSpec);
         FunctionSpecWithInfo withInfo = new FunctionSpecWithInfo(functionSpec, isDocumented);
         map.put(fileName, withInfo);
@@ -155,10 +152,7 @@ public final class FunctionListDictionary {
 
   private static List<Path> getFilesInDirectory(Path path) {
     try (Stream<Path> stream = Files.walk(path)) {
-      return stream
-        .filter(Files::isRegularFile)
-        .sorted()
-        .collect(Collectors.toList());
+      return stream.filter(Files::isRegularFile).sorted().collect(Collectors.toList());
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
@@ -172,18 +166,16 @@ public final class FunctionListDictionary {
   }
 
   private static Function sortAndNormalizeFunction(Function function) {
-    return Function
-      .builder()
-      .name(function.getName().toUpperCase())
-      .addAllSignatures(function
-        .getSignatures()
-        .stream()
-        .sorted(FunctionSignatureComparator.INSTANCE)
-        .collect(Collectors.toList()))
-      .dremioVersion(function.getDremioVersion())
-      .functionCategories(function.getFunctionCategories())
-      .description(function.getDescription())
-      .build();
+    return Function.builder()
+        .name(function.getName().toUpperCase())
+        .addAllSignatures(
+            function.getSignatures().stream()
+                .sorted(FunctionSignatureComparator.INSTANCE)
+                .collect(Collectors.toList()))
+        .dremioVersion(function.getDremioVersion())
+        .functionCategories(function.getFunctionCategories())
+        .description(function.getDescription())
+        .build();
   }
 
   private static final class FunctionSpecWithInfo {

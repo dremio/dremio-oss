@@ -16,22 +16,20 @@
 package com.dremio.sabot.op.join.vhash;
 
 /**
- * Matcher interface to evaluate the extra inequality expression that follows as conjuncts of the equality expressions
- * of an equijoin.
+ * Matcher interface to evaluate the extra inequality expression that follows as conjuncts of the
+ * equality expressions of an equijoin.
  */
 public interface HashJoinExtraMatcher extends ExtraConditionStats {
   int SHIFT_SIZE = 16;
   int BATCH_OFFSET_SIZE = 2;
   int BATCH_INDEX_SIZE = 4;
 
-  /**
-   * Sets up the extra filter matcher.
-   */
+  /** Sets up the extra filter matcher. */
   void setup();
 
   /**
-   * Checks if there is a current match for the given probe index against the build record represented by
-   * {@code buildBatch} and {@code buildOffset}.
+   * Checks if there is a current match for the given probe index against the build record
+   * represented by {@code buildBatch} and {@code buildOffset}.
    *
    * @param currentProbeIndex Index into record within the current probe batch
    * @return true if the probe record matched the build record, false otherwise

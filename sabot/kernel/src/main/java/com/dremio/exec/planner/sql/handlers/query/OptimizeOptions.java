@@ -16,20 +16,19 @@
 
 package com.dremio.exec.planner.sql.handlers.query;
 
-import java.util.Optional;
-
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.sql.parser.SqlOptimize;
 import com.dremio.options.OptionManager;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.base.Preconditions;
+import java.util.Optional;
 
 /**
  * A rewrite strategy for data files which determines which files to rewrite based on their size. If
- * files are either smaller than the {@link #OptimizeOptions#minFileSizeBytes} threshold or larger than the
- * {@link #OptimizeOptions#maxFileSizeBytes} threshold, they are considered targets for being rewritten.
- * Groups will be considered for rewriting if they
- * contain more files than {@link #OptimizeOptions#minInputFiles} or would produce at least one file of {@link
+ * files are either smaller than the {@link #OptimizeOptions#minFileSizeBytes} threshold or larger
+ * than the {@link #OptimizeOptions#maxFileSizeBytes} threshold, they are considered targets for
+ * being rewritten. Groups will be considered for rewriting if they contain more files than {@link
+ * #OptimizeOptions#minInputFiles} or would produce at least one file of {@link
  * OptimizeOptions#targetFileSizeBytes}.
  */
 public final class OptimizeOptions {
@@ -38,19 +37,26 @@ public final class OptimizeOptions {
   private final Long maxFileSizeBytes;
   private final Long minFileSizeBytes;
   private final Long minInputFiles;
+
   /**
-   * If a dataset is non-partitioned, it should use a single parquet writer.
-   * It will avoid different blocks of the same parquet to be written by different fragments.
-   * It should use a single parquet writer to ensure the writer rolls to the next file only after completing the current one.
-   * This avoids creation of small files when execution planning over parallelisms.
+   * If a dataset is non-partitioned, it should use a single parquet writer. It will avoid different
+   * blocks of the same parquet to be written by different fragments. It should use a single parquet
+   * writer to ensure the writer rolls to the next file only after completing the current one. This
+   * avoids creation of small files when execution planning over parallelisms.
    */
   private final boolean isSingleDataWriter;
+
   private final boolean optimizeDataFiles;
   private final boolean optimizeManifestFiles;
 
-
-  private OptimizeOptions(Long targetFileSizeBytes, Long maxFileSizeBytes, Long minFileSizeBytes, Long minInputFiles,
-                          boolean isSingleDataWriter, boolean optimizeDataFiles, boolean optimizeManifestFiles) {
+  private OptimizeOptions(
+      Long targetFileSizeBytes,
+      Long maxFileSizeBytes,
+      Long minFileSizeBytes,
+      Long minInputFiles,
+      boolean isSingleDataWriter,
+      boolean optimizeDataFiles,
+      boolean optimizeManifestFiles) {
     this.targetFileSizeBytes = targetFileSizeBytes;
     this.maxFileSizeBytes = maxFileSizeBytes;
     this.minFileSizeBytes = minFileSizeBytes;
@@ -60,17 +66,24 @@ public final class OptimizeOptions {
     this.optimizeManifestFiles = optimizeManifestFiles;
   }
 
-  public static OptimizeOptions createInstance(OptionManager optionManager, SqlOptimize call, boolean isSingleDataWriter) {
+  public static OptimizeOptions createInstance(
+      OptionManager optionManager, SqlOptimize call, boolean isSingleDataWriter) {
     Builder instanceBuilder = new Builder();
 
     instanceBuilder.setSingleWriter(isSingleDataWriter);
-    instanceBuilder.setTargetFileSizeMB(call.getTargetFileSize().orElse(optionManager.getOption(ExecConstants.OPTIMIZE_TARGET_FILE_SIZE_MB)));
-    instanceBuilder.setMaxFileSizeRatio(optionManager.getOption(ExecConstants.OPTIMIZE_MAXIMUM_FILE_SIZE_DEFAULT_RATIO));
-    instanceBuilder.setMinFileSizeRatio(optionManager.getOption(ExecConstants.OPTIMIZE_MINIMUM_FILE_SIZE_DEFAULT_RATIO));
+    instanceBuilder.setTargetFileSizeMB(
+        call.getTargetFileSize()
+            .orElse(optionManager.getOption(ExecConstants.OPTIMIZE_TARGET_FILE_SIZE_MB)));
+    instanceBuilder.setMaxFileSizeRatio(
+        optionManager.getOption(ExecConstants.OPTIMIZE_MAXIMUM_FILE_SIZE_DEFAULT_RATIO));
+    instanceBuilder.setMinFileSizeRatio(
+        optionManager.getOption(ExecConstants.OPTIMIZE_MINIMUM_FILE_SIZE_DEFAULT_RATIO));
 
     instanceBuilder.setMaxFileSizeMB(call.getMaxFileSize()); // computed from ratio if not set
-    instanceBuilder.setMinFileSizeMB(call.getMinFileSize());// computed from ratio if not set
-    Long minInputFiles = call.getMinInputFiles().orElse(optionManager.getOption(ExecConstants.OPTIMIZE_MINIMUM_INPUT_FILES));
+    instanceBuilder.setMinFileSizeMB(call.getMinFileSize()); // computed from ratio if not set
+    Long minInputFiles =
+        call.getMinInputFiles()
+            .orElse(optionManager.getOption(ExecConstants.OPTIMIZE_MINIMUM_INPUT_FILES));
     instanceBuilder.setMinInputFiles(Optional.of(minInputFiles));
 
     instanceBuilder.setOptimizeDataFiles(call.getRewriteDataFiles().booleanValue());
@@ -93,44 +106,43 @@ public final class OptimizeOptions {
     return instanceBuilder.build();
   }
 
-  public static void validateOptions(Long targetFileSizeMB, Long minFileSizeMB, Long maxFileSizeMB, Long minInputFiles) {
+  public static void validateOptions(
+      Long targetFileSizeMB, Long minFileSizeMB, Long maxFileSizeMB, Long minInputFiles) {
     Preconditions.checkArgument(
-      targetFileSizeMB > 0,
-      "TARGET_FILE_SIZE_MB [%s] should be a positive integer value.",
-      targetFileSizeMB);
+        targetFileSizeMB > 0,
+        "TARGET_FILE_SIZE_MB [%s] should be a positive integer value.",
+        targetFileSizeMB);
 
     Preconditions.checkArgument(
-      minFileSizeMB >= 0,
-      "MIN_FILE_SIZE_MB [%s] should be a non-negative integer value.",
-      minFileSizeMB);
+        minFileSizeMB >= 0,
+        "MIN_FILE_SIZE_MB [%s] should be a non-negative integer value.",
+        minFileSizeMB);
 
     Preconditions.checkArgument(
-      maxFileSizeMB > 0,
-      "MAX_FILE_SIZE_MB [%s] should be a positive integer value.",
-      maxFileSizeMB);
+        maxFileSizeMB > 0,
+        "MAX_FILE_SIZE_MB [%s] should be a positive integer value.",
+        maxFileSizeMB);
 
     Preconditions.checkArgument(
-      maxFileSizeMB >= minFileSizeMB,
-      "Value of MIN_FILE_SIZE_MB [%s] cannot be greater than MAX_FILE_SIZE_MB [%s].",
-      minFileSizeMB,
-      maxFileSizeMB);
+        maxFileSizeMB >= minFileSizeMB,
+        "Value of MIN_FILE_SIZE_MB [%s] cannot be greater than MAX_FILE_SIZE_MB [%s].",
+        minFileSizeMB,
+        maxFileSizeMB);
 
     Preconditions.checkArgument(
-      targetFileSizeMB >= minFileSizeMB,
-      "Value of TARGET_FILE_SIZE_MB [%s] cannot be less than MIN_FILE_SIZE_MB [%s].",
-      targetFileSizeMB,
-      minFileSizeMB);
+        targetFileSizeMB >= minFileSizeMB,
+        "Value of TARGET_FILE_SIZE_MB [%s] cannot be less than MIN_FILE_SIZE_MB [%s].",
+        targetFileSizeMB,
+        minFileSizeMB);
 
     Preconditions.checkArgument(
-      maxFileSizeMB >= targetFileSizeMB,
-      "Value of TARGET_FILE_SIZE_MB [%s] cannot be greater than MAX_FILE_SIZE_MB [%s].",
-      targetFileSizeMB,
-      maxFileSizeMB);
+        maxFileSizeMB >= targetFileSizeMB,
+        "Value of TARGET_FILE_SIZE_MB [%s] cannot be greater than MAX_FILE_SIZE_MB [%s].",
+        targetFileSizeMB,
+        maxFileSizeMB);
 
     Preconditions.checkArgument(
-      minInputFiles > 0,
-      "Value of MIN_INPUT_FILES [%s] cannot be less than 1.",
-      minInputFiles);
+        minInputFiles > 0, "Value of MIN_INPUT_FILES [%s] cannot be less than 1.", minInputFiles);
   }
 
   public Long getTargetFileSizeBytes() {
@@ -167,12 +179,16 @@ public final class OptimizeOptions {
   }
 
   private static class Builder {
-    private Long targetFileSizeMB = ExecConstants.OPTIMIZE_TARGET_FILE_SIZE_MB.getDefault().getNumVal();
-    private Double maxFileSizeRatio = ExecConstants.OPTIMIZE_MAXIMUM_FILE_SIZE_DEFAULT_RATIO.getDefault().getFloatVal();
-    private Double minFileSizeRatio = ExecConstants.OPTIMIZE_MINIMUM_FILE_SIZE_DEFAULT_RATIO.getDefault().getFloatVal();
+    private Long targetFileSizeMB =
+        ExecConstants.OPTIMIZE_TARGET_FILE_SIZE_MB.getDefault().getNumVal();
+    private Double maxFileSizeRatio =
+        ExecConstants.OPTIMIZE_MAXIMUM_FILE_SIZE_DEFAULT_RATIO.getDefault().getFloatVal();
+    private Double minFileSizeRatio =
+        ExecConstants.OPTIMIZE_MINIMUM_FILE_SIZE_DEFAULT_RATIO.getDefault().getFloatVal();
     private Optional<Long> maxFileSizeMB = Optional.empty();
     private Optional<Long> minFileSizeMB = Optional.empty();
-    private long minInputFiles = ExecConstants.OPTIMIZE_MINIMUM_INPUT_FILES.getDefault().getNumVal();
+    private long minInputFiles =
+        ExecConstants.OPTIMIZE_MINIMUM_INPUT_FILES.getDefault().getNumVal();
     private boolean optimizeDataFiles = true;
     private boolean optimizeManifestFiles = true;
     private boolean isSingleWriter = false;
@@ -220,8 +236,10 @@ public final class OptimizeOptions {
     }
 
     private OptimizeOptions build() {
-      long maxFileSizeMbVal = this.maxFileSizeMB.orElse((long) (this.targetFileSizeMB * maxFileSizeRatio));
-      long minFileSizeMbVal = this.minFileSizeMB.orElse((long) (this.targetFileSizeMB * minFileSizeRatio));
+      long maxFileSizeMbVal =
+          this.maxFileSizeMB.orElse((long) (this.targetFileSizeMB * maxFileSizeRatio));
+      long minFileSizeMbVal =
+          this.minFileSizeMB.orElse((long) (this.targetFileSizeMB * minFileSizeRatio));
 
       validateOptions(targetFileSizeMB, minFileSizeMbVal, maxFileSizeMbVal, minInputFiles);
 
@@ -229,7 +247,14 @@ public final class OptimizeOptions {
       long maxFileSizeBytes = mbToBytes(maxFileSizeMbVal);
       long minFileSizeBytes = mbToBytes(minFileSizeMbVal);
 
-      return new OptimizeOptions(targetFileSizeBytes, maxFileSizeBytes, minFileSizeBytes, minInputFiles, isSingleWriter, optimizeDataFiles, optimizeManifestFiles);
+      return new OptimizeOptions(
+          targetFileSizeBytes,
+          maxFileSizeBytes,
+          minFileSizeBytes,
+          minInputFiles,
+          isSingleWriter,
+          optimizeDataFiles,
+          optimizeManifestFiles);
     }
   }
 }

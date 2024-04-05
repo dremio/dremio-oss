@@ -15,15 +15,6 @@
  */
 package com.dremio.exec.fn.hive;
 
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-
-import org.apache.commons.lang3.tuple.Pair;
-import org.junit.ClassRule;
-import org.junit.Ignore;
-import org.junit.Test;
-import org.junit.rules.TestRule;
-
 import com.dremio.TestBuilder;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.types.TypeProtos.MajorType;
@@ -32,6 +23,13 @@ import com.dremio.common.types.Types;
 import com.dremio.common.util.TestTools;
 import com.dremio.exec.hive.HiveTestBase;
 import com.google.common.collect.Lists;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+import org.apache.commons.lang3.tuple.Pair;
+import org.junit.ClassRule;
+import org.junit.Ignore;
+import org.junit.Test;
+import org.junit.rules.TestRule;
 
 public class ITInbuiltHiveUDFs extends HiveTestBase {
 
@@ -45,7 +43,7 @@ public class ITInbuiltHiveUDFs extends HiveTestBase {
         .unOrdered()
         .baselineColumns("rst")
         .baselineValues("stringstringfield|")
-        .baselineValues(new Object[] { null })
+        .baselineValues(new Object[] {null})
         .go();
   }
 
@@ -56,26 +54,23 @@ public class ITInbuiltHiveUDFs extends HiveTestBase {
         .unOrdered()
         .baselineColumns("rst")
         .baselineValues("varcharfield".getBytes())
-        .baselineValues(new Object[] { null })
+        .baselineValues(new Object[] {null})
         .go();
   }
 
   @Test
   public void testXpath_Double() throws Exception {
-    final String query = "select xpath_double ('<a><b>20</b><c>40</c></a>', 'a/b * a/c') as col \n" +
-        "from hive.kv \n" +
-        "limit 0";
+    final String query =
+        "select xpath_double ('<a><b>20</b><c>40</c></a>', 'a/b * a/c') as col \n"
+            + "from hive.kv \n"
+            + "limit 0";
 
     final MajorType majorType = Types.optional(MinorType.FLOAT8);
 
     final List<Pair<SchemaPath, MajorType>> expectedSchema = Lists.newArrayList();
     expectedSchema.add(Pair.of(SchemaPath.getSimplePath("col"), majorType));
 
-    testBuilder()
-        .sqlQuery(query)
-        .schemaBaseLine(expectedSchema)
-        .build()
-        .run();
+    testBuilder().sqlQuery(query).schemaBaseLine(expectedSchema).build().run();
   }
 
   @Test // DRILL-4459
@@ -83,13 +78,24 @@ public class ITInbuiltHiveUDFs extends HiveTestBase {
     setEnableReAttempts(true);
     try {
       testBuilder()
-              .sqlQuery("select convert_from(json, 'json') as json from hive.simple_json " +
-                      "where GET_JSON_OBJECT(simple_json.json, '$.employee_id') like 'Emp2'")
-              .ordered()
-              .baselineColumns("json")
-              .baselineValues(TestBuilder.mapOf("employee_id", "Emp2", "full_name", "Kamesh",
-                      "first_name", "Bh", "last_name", "Venkata", "position", "Store"))
-              .go();
+          .sqlQuery(
+              "select convert_from(json, 'json') as json from hive.simple_json "
+                  + "where GET_JSON_OBJECT(simple_json.json, '$.employee_id') like 'Emp2'")
+          .ordered()
+          .baselineColumns("json")
+          .baselineValues(
+              TestBuilder.mapOf(
+                  "employee_id",
+                  "Emp2",
+                  "full_name",
+                  "Kamesh",
+                  "first_name",
+                  "Bh",
+                  "last_name",
+                  "Venkata",
+                  "position",
+                  "Store"))
+          .go();
     } finally {
       setEnableReAttempts(false);
     }
@@ -109,34 +115,28 @@ public class ITInbuiltHiveUDFs extends HiveTestBase {
   @Test // DRILL-4618
   public void testRand() throws Exception {
     String query = "select 2*rand()=2*rand() col1 from (values (1))";
-    testBuilder()
-            .sqlQuery(query)
-            .unOrdered()
-            .baselineColumns("col1")
-            .baselineValues(false)
-            .go();
+    testBuilder().sqlQuery(query).unOrdered().baselineColumns("col1").baselineValues(false).go();
   }
 
-  @Test //DRILL-4868
+  @Test // DRILL-4868
   @Ignore("DX-56213 - unhex returns empty string for null input and convert_from throws")
   public void testEmbeddedHiveFunctionCall() throws Exception {
     final String[] queries = {
-        "SELECT convert_from(unhex(key2), 'INT_BE') as intkey \n" +
-            "FROM cp.\"functions/conv/conv.json\"",
+      "SELECT convert_from(unhex(key2), 'INT_BE') as intkey \n"
+          + "FROM cp.\"functions/conv/conv.json\"",
     };
 
-    for (String query: queries) {
+    for (String query : queries) {
       testBuilder()
           .sqlQuery(query)
           .ordered()
           .baselineColumns("intkey")
           .baselineValues(1244739896)
-          .baselineValues(new Object[] { null })
+          .baselineValues(new Object[] {null})
           .baselineValues(1313814865)
           .baselineValues(1852782897)
           .build()
           .run();
     }
   }
-
 }

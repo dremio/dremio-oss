@@ -19,19 +19,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.spy;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.time.LocalDateTime;
-
-import javax.ws.rs.client.Entity;
-
-import org.apache.hadoop.conf.Configuration;
-import org.junit.Assume;
-import org.junit.BeforeClass;
-import org.junit.Test;
-import org.mockito.Mockito;
-
 import com.beust.jcommander.JCommander;
 import com.dremio.common.VM;
 import com.dremio.common.perf.Timer;
@@ -57,22 +44,30 @@ import com.dremio.service.jobs.JobsProtoUtil;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.test.DremioTest;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.time.LocalDateTime;
+import javax.ws.rs.client.Entity;
+import org.apache.hadoop.conf.Configuration;
+import org.junit.Assume;
+import org.junit.BeforeClass;
+import org.junit.Test;
+import org.mockito.Mockito;
 
-/**
- * Test export-profiles command.
- */
+/** Test export-profiles command. */
 public class TestExportProfiles extends BaseTestServer {
 
   private static UserBitShared.QueryProfile queryProfile = null;
 
-  private static DACConfig dacConfig =  DACConfig
-    .newDebugConfig(DremioTest.DEFAULT_SABOT_CONFIG)
-    .autoPort(true)
-    .allowTestApis(true)
-    .serveUI(false)
-    .inMemoryStorage(false)
-    .with(DremioConfig.FLIGHT_SERVICE_ENABLED_BOOLEAN, false)
-    .clusterMode(DACDaemon.ClusterMode.LOCAL);
+  private static DACConfig dacConfig =
+      DACConfig.newDebugConfig(DremioTest.DEFAULT_SABOT_CONFIG)
+          .autoPort(true)
+          .allowTestApis(true)
+          .serveUI(false)
+          .inMemoryStorage(false)
+          .with(DremioConfig.FLIGHT_SERVICE_ENABLED_BOOLEAN, false)
+          .clusterMode(DACDaemon.ClusterMode.LOCAL);
 
   private static FileSystem fs;
 
@@ -107,27 +102,45 @@ public class TestExportProfiles extends BaseTestServer {
   private static UserBitShared.QueryProfile runDummyJob() throws Exception {
     // Run a job to generate a profile to export
     final JobsService jobsService = l(JobsService.class);
-    final JobRequest jobRequest = JobRequest.newBuilder().setSqlQuery(new SqlQuery("select * from sys.reflections", DEFAULT_USERNAME)).build();
-    final JobId jobId = JobsServiceTestUtils.submitJobAndWaitUntilCompletion(jobsService, jobRequest);
+    final JobRequest jobRequest =
+        JobRequest.newBuilder()
+            .setSqlQuery(new SqlQuery("select * from sys.reflections", DEFAULT_USERNAME))
+            .build();
+    final JobId jobId =
+        JobsServiceTestUtils.submitJobAndWaitUntilCompletion(jobsService, jobRequest);
 
     // Get a profile from the job
-    final QueryProfileRequest request = QueryProfileRequest.newBuilder()
-      .setJobId(JobsProtoUtil.toBuf(jobId)).setAttempt(0).setUserName(DEFAULT_USERNAME).build();
+    final QueryProfileRequest request =
+        QueryProfileRequest.newBuilder()
+            .setJobId(JobsProtoUtil.toBuf(jobId))
+            .setAttempt(0)
+            .setUserName(DEFAULT_USERNAME)
+            .build();
 
     return jobsService.getProfile(request);
   }
 
-  private void verifyResult(String path, UserBitShared.QueryProfile queryProfile, String command) throws Exception {
+  private void verifyResult(String path, UserBitShared.QueryProfile queryProfile, String command)
+      throws Exception {
 
-    final Path profilePath = fs.list(Path.of(path),PathFilters.ALL_FILES).iterator().next().getPath();
-    assertTrue(String.format("Failed to find profile from expected location (command: export-profiles %s)", command), fs.list(profilePath, PathFilters.endsWith(".json")).iterator().hasNext());
+    final Path profilePath =
+        fs.list(Path.of(path), PathFilters.ALL_FILES).iterator().next().getPath();
+    assertTrue(
+        String.format(
+            "Failed to find profile from expected location (command: export-profiles %s)", command),
+        fs.list(profilePath, PathFilters.endsWith(".json")).iterator().hasNext());
 
-    final InputStream is = fs.open(fs.list(profilePath, PathFilters.endsWith(".json")).iterator().next().getPath());
+    final InputStream is =
+        fs.open(fs.list(profilePath, PathFilters.endsWith(".json")).iterator().next().getPath());
     byte[] b = readAll(is);
     is.close();
 
-    final UserBitShared.QueryProfile profile = ProtobufUtils.fromJSONString(UserBitShared.QueryProfile.class, new String(b));
-    assertEquals(String.format("Failed to verify returned profile (command: export-profiles %s)", command), profile.toString(),queryProfile.toString());
+    final UserBitShared.QueryProfile profile =
+        ProtobufUtils.fromJSONString(UserBitShared.QueryProfile.class, new String(b));
+    assertEquals(
+        String.format("Failed to verify returned profile (command: export-profiles %s)", command),
+        profile.toString(),
+        queryProfile.toString());
   }
 
   private ExportProfilesOptions getExportOptions(String[] args) {
@@ -142,14 +155,23 @@ public class TestExportProfiles extends BaseTestServer {
   @Test
   public void testOnline() throws Exception {
     final String tmpPath = folder0.newFolder("testOnline").getAbsolutePath();
-    expectSuccess(getBuilder(getAPIv2().path("export-profiles"))
-      .buildPost(Entity.entity(new ExportProfilesParams(tmpPath, ExportProfilesParams.WriteFileMode.FAIL_IF_EXISTS, null, null, ExportProfilesParams.ExportFormatType.JSON, 1), JSON)), ExportProfilesStats.class);
+    expectSuccess(
+        getBuilder(getAPIv2().path("export-profiles"))
+            .buildPost(
+                Entity.entity(
+                    new ExportProfilesParams(
+                        tmpPath,
+                        ExportProfilesParams.WriteFileMode.FAIL_IF_EXISTS,
+                        null,
+                        null,
+                        ExportProfilesParams.ExportFormatType.JSON,
+                        1),
+                    JSON)),
+        ExportProfilesStats.class);
     verifyResult(tmpPath, queryProfile, "online");
   }
 
-  /**
-   * Test export-profiles display message when no profiles were found.
-   */
+  /** Test export-profiles display message when no profiles were found. */
   @Test
   public void testRetrieveExportProfileStats() throws Exception {
     final String tmpPath = folder0.newFolder("testStats").getAbsolutePath();
@@ -157,7 +179,9 @@ public class TestExportProfiles extends BaseTestServer {
     final LocalDateTime fromDate = toDate.minusDays(30);
     ExportProfilesStats stats = new ExportProfilesStats(0, 0, 0, tmpPath);
 
-    String expect = String.format("Defaulting to %s to %s. No profiles were found for the duration.", fromDate, toDate);
+    String expect =
+        String.format(
+            "Defaulting to %s to %s. No profiles were found for the duration.", fromDate, toDate);
     assertEquals(expect, stats.retrieveStats(fromDate, toDate, false));
 
     expect = String.format("No profiles were found from %s to %s.", fromDate, toDate);
@@ -170,10 +194,16 @@ public class TestExportProfiles extends BaseTestServer {
   @Test
   public void testLocal() throws Exception {
     final String tmpPath = folder0.newFolder("testLocal").getAbsolutePath();
-    final String[] args = {"-l", "--output", tmpPath, "--format", "JSON", "--write-mode", "FAIL_IF_EXISTS"};
+    final String[] args = {
+      "-l", "--output", tmpPath, "--format", "JSON", "--write-mode", "FAIL_IF_EXISTS"
+    };
     final ExportProfilesOptions options = getExportOptions(args);
     String vmid = VM.getProcessId();
-    DremioAttach.main(vmid, new String[] {"export-profiles", ExportProfiles.getAPIExportParams(options).toParamString()});
+    DremioAttach.main(
+        vmid,
+        new String[] {
+          "export-profiles", ExportProfiles.getAPIExportParams(options).toParamString()
+        });
     verifyResult(tmpPath, queryProfile, String.join(" ", args));
   }
 
@@ -185,7 +215,9 @@ public class TestExportProfiles extends BaseTestServer {
     final LegacyKVStoreProvider spy = spy(localKVStoreProvider);
     Mockito.doNothing().when(spy).close();
 
-    final String[] args = {"-o", "--output", tmpPath, "--format", "JSON", "--write-mode", "FAIL_IF_EXISTS"};
+    final String[] args = {
+      "-o", "--output", tmpPath, "--format", "JSON", "--write-mode", "FAIL_IF_EXISTS"
+    };
     final ExportProfiles.ExportProfilesOptions options = getExportOptions(args);
     ExportProfiles.exportOffline(options, spy);
     verifyResult(tmpPath, queryProfile, String.join(" ", args));

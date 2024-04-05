@@ -15,9 +15,7 @@
  */
 package com.dremio.dac.model.common;
 
-/**
- * Base class for dac uncaught exceptions
- */
+/** Base class for dac uncaught exceptions */
 public class DACRuntimeException extends RuntimeException {
   private static final long serialVersionUID = 1L;
 
@@ -32,5 +30,4 @@ public class DACRuntimeException extends RuntimeException {
   public DACRuntimeException(Throwable cause) {
     super(cause);
   }
-
 }

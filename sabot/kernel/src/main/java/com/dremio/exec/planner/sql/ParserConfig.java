@@ -15,21 +15,19 @@
  */
 package com.dremio.exec.planner.sql;
 
-import java.util.Set;
-
-import org.apache.calcite.avatica.util.Casing;
-import org.apache.calcite.avatica.util.Quoting;
-import org.apache.calcite.config.CharLiteralStyle;
-import org.apache.calcite.sql.parser.SqlParser;
-import org.apache.calcite.sql.parser.SqlParserImplFactory;
-import org.apache.calcite.sql.validate.SqlConformance;
-
 import com.dremio.common.utils.SqlUtils;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.parser.impl.ParserImpl;
 import com.dremio.exec.planner.sql.parser.impl.ParserWithCompoundIdConverter;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.google.common.collect.ImmutableSet;
+import java.util.Set;
+import org.apache.calcite.avatica.util.Casing;
+import org.apache.calcite.avatica.util.Quoting;
+import org.apache.calcite.config.CharLiteralStyle;
+import org.apache.calcite.sql.parser.SqlParser;
+import org.apache.calcite.sql.parser.SqlParserImplFactory;
+import org.apache.calcite.sql.validate.SqlConformance;
 
 public class ParserConfig implements SqlParser.Config {
   // exists only for old tests that haven't yet been updated.
@@ -38,7 +36,10 @@ public class ParserConfig implements SqlParser.Config {
   public static final Quoting QUOTING;
 
   static {
-    QUOTING = "true".equalsIgnoreCase(System.getProperty(LEGACY_USE_BACKTICKS)) ? Quoting.BACK_TICK : Quoting.DOUBLE_QUOTE;
+    QUOTING =
+        "true".equalsIgnoreCase(System.getProperty(LEGACY_USE_BACKTICKS))
+            ? Quoting.BACK_TICK
+            : Quoting.DOUBLE_QUOTE;
   }
 
   private final Quoting quoting;
@@ -46,11 +47,16 @@ public class ParserConfig implements SqlParser.Config {
   private final boolean supportFullyQualifiedProjections;
   private final boolean withCalciteComplexTypeSupport;
 
-  public ParserConfig(Quoting quoting, final long identifierMaxLength, boolean withCalciteComplexTypeSupport) {
+  public ParserConfig(
+      Quoting quoting, final long identifierMaxLength, boolean withCalciteComplexTypeSupport) {
     this(quoting, identifierMaxLength, false, withCalciteComplexTypeSupport);
   }
 
-  public ParserConfig(Quoting quoting, final long identifierMaxLength, final boolean supportFullyQualifiedProjections, boolean withCalciteComplexTypeSupport) {
+  public ParserConfig(
+      Quoting quoting,
+      final long identifierMaxLength,
+      final boolean supportFullyQualifiedProjections,
+      boolean withCalciteComplexTypeSupport) {
     this.identifierMaxLength = identifierMaxLength;
     this.quoting = quoting;
     this.supportFullyQualifiedProjections = supportFullyQualifiedProjections;
@@ -58,8 +64,13 @@ public class ParserConfig implements SqlParser.Config {
   }
 
   public static ParserConfig newInstance(UserSession session, PlannerSettings settings) {
-    Quoting quote = session.getInitialQuoting() != null ? session.getInitialQuoting() : ParserConfig.QUOTING;
-    return new ParserConfig(quote, settings.getIdentifierMaxLength(), session.supportFullyQualifiedProjections(), settings.isFullNestedSchemaSupport());
+    Quoting quote =
+        session.getInitialQuoting() != null ? session.getInitialQuoting() : ParserConfig.QUOTING;
+    return new ParserConfig(
+        quote,
+        settings.getIdentifierMaxLength(),
+        session.supportFullyQualifiedProjections(),
+        settings.isFullNestedSchemaSupport());
   }
 
   @Override
@@ -77,8 +88,8 @@ public class ParserConfig implements SqlParser.Config {
     return Casing.UNCHANGED;
   }
 
-  public ParserConfig cloneWithSystemDefault(){
-    if(quoting == QUOTING && !supportFullyQualifiedProjections){
+  public ParserConfig cloneWithSystemDefault() {
+    if (quoting == QUOTING && !supportFullyQualifiedProjections) {
       return this;
     }
     return new ParserConfig(QUOTING, identifierMaxLength, withCalciteComplexTypeSupport);

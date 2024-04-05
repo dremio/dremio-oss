@@ -16,4 +16,5 @@
 
 import { getLoggingContext } from "../../contexts/LoggingContext";
 
-export const sqlRunnerSessionLogger = getLoggingContext().createLogger("SqlRunnerSession");
+export const sqlRunnerSessionLogger =
+  getLoggingContext().createLogger("SqlRunnerSession");

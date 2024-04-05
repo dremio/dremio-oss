@@ -16,15 +16,6 @@
 
 package com.dremio.datastore.indexed.reindex;
 
-import java.util.function.Consumer;
-import java.util.stream.StreamSupport;
-
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Ignore;
-import org.junit.Test;
-
 import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.SearchTypes;
 import com.dremio.datastore.api.DocumentConverter;
@@ -36,10 +27,15 @@ import com.dremio.datastore.indexed.doughnut.Doughnut;
 import com.dremio.datastore.indexed.doughnut.DoughnutIndexKeys;
 import com.dremio.datastore.indexed.doughnut.DoughnutIndexedStore;
 import com.dremio.datastore.indexed.doughnut.UpgradedDoughnutStoreCreator;
+import java.util.function.Consumer;
+import java.util.stream.StreamSupport;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Ignore;
+import org.junit.Test;
 
-/**
- * Abstract class for reindex api
- */
+/** Abstract class for reindex api */
 public abstract class AbstractReindexTestKVStore {
   private static final Integer NUMBER_OF_DOUGHNUTS = 24;
   private static final Integer NUMBER_OF_FLAVORS = 4;
@@ -78,14 +74,14 @@ public abstract class AbstractReindexTestKVStore {
     initUpgradedStore();
 
     FindByCondition findByCondition =
-      new ImmutableFindByCondition.Builder()
-      .setPageSize(26)
-      .setLimit(26)
-      .setCondition(SearchQueryUtils.not(
-        SearchQueryUtils
-          .newTermQuery(DocumentConverter.VERSION_INDEX_KEY,
-                        upgradedKVStore.version())))
-      .build();
+        new ImmutableFindByCondition.Builder()
+            .setPageSize(26)
+            .setLimit(26)
+            .setCondition(
+                SearchQueryUtils.not(
+                    SearchQueryUtils.newTermQuery(
+                        DocumentConverter.VERSION_INDEX_KEY, upgradedKVStore.version())))
+            .build();
 
     upgradedKVStore.reindex(findByCondition);
     verifyDocumentsWithNoFlavour(upgradedKVStore);
@@ -98,19 +94,23 @@ public abstract class AbstractReindexTestKVStore {
     }
   }
 
-  private void verifyDocumentsWithFlavourExists(IndexedStore<String, Doughnut> indexedStore){
+  private void verifyDocumentsWithFlavourExists(IndexedStore<String, Doughnut> indexedStore) {
     verifyData(indexedStore, (count) -> Assert.assertTrue(count > 0));
   }
 
-  private void verifyDocumentsWithNoFlavour(IndexedStore<String, Doughnut> indexedStore){
+  private void verifyDocumentsWithNoFlavour(IndexedStore<String, Doughnut> indexedStore) {
     verifyData(indexedStore, (count) -> Assert.assertEquals(0, (long) count));
   }
 
-  private void verifyData(IndexedStore<String, Doughnut> indexedStore, Consumer<Long> assertFunction) {
-    for(int i = 0; i<NUMBER_OF_FLAVORS; i++) {
-      final SearchTypes.SearchQuery nameQuery = SearchQueryUtils.newTermQuery(DoughnutIndexKeys.FLAVOR, "good_flavor_" + i);
-      final FindByCondition condition = new ImmutableFindByCondition.Builder().setCondition(nameQuery).build();
-      assertFunction.accept(StreamSupport.stream(indexedStore.find(condition).spliterator(), true).count());
+  private void verifyData(
+      IndexedStore<String, Doughnut> indexedStore, Consumer<Long> assertFunction) {
+    for (int i = 0; i < NUMBER_OF_FLAVORS; i++) {
+      final SearchTypes.SearchQuery nameQuery =
+          SearchQueryUtils.newTermQuery(DoughnutIndexKeys.FLAVOR, "good_flavor_" + i);
+      final FindByCondition condition =
+          new ImmutableFindByCondition.Builder().setCondition(nameQuery).build();
+      assertFunction.accept(
+          StreamSupport.stream(indexedStore.find(condition).spliterator(), true).count());
     }
   }
 }

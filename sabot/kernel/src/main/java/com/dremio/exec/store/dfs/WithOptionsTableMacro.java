@@ -15,16 +15,6 @@
  */
 package com.dremio.exec.store.dfs;
 
-import java.io.InterruptedIOException;
-import java.util.ArrayList;
-import java.util.List;
-
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeFactory;
-import org.apache.calcite.schema.FunctionParameter;
-import org.apache.calcite.schema.TableMacro;
-import org.apache.calcite.schema.TranslatableTable;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.CatalogOptions;
 import com.dremio.exec.catalog.MaterializedDatasetTableProvider;
@@ -33,13 +23,20 @@ import com.dremio.exec.store.SchemaConfig;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.TableInstance;
 import com.google.common.base.Throwables;
+import java.io.InterruptedIOException;
+import java.util.ArrayList;
+import java.util.List;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.calcite.schema.FunctionParameter;
+import org.apache.calcite.schema.TableMacro;
+import org.apache.calcite.schema.TranslatableTable;
 
-/**
- * Implementation of a table macro that generates a table based on parameters
- */
+/** Implementation of a table macro that generates a table based on parameters */
 public final class WithOptionsTableMacro implements TableMacro {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(WithOptionsTableMacro.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(WithOptionsTableMacro.class);
 
   private final List<String> tableSchemaPath;
   private final TableInstance.TableSignature sig;
@@ -47,11 +44,10 @@ public final class WithOptionsTableMacro implements TableMacro {
   private final SchemaConfig schemaConfig;
 
   WithOptionsTableMacro(
-    List<String> tableSchemaPath,
-    TableInstance.TableSignature sig,
-    FileSystemPlugin<?> plugin,
-    SchemaConfig schemaConfig
-  ) {
+      List<String> tableSchemaPath,
+      TableInstance.TableSignature sig,
+      FileSystemPlugin<?> plugin,
+      SchemaConfig schemaConfig) {
     this.tableSchemaPath = tableSchemaPath;
     this.sig = sig;
     this.plugin = plugin;
@@ -64,27 +60,28 @@ public final class WithOptionsTableMacro implements TableMacro {
     for (int i = 0; i < sig.getParams().size(); i++) {
       final TableInstance.TableParamDef p = sig.getParams().get(i);
       final int ordinal = i;
-      result.add(new FunctionParameter() {
-        @Override
-        public int getOrdinal() {
-          return ordinal;
-        }
+      result.add(
+          new FunctionParameter() {
+            @Override
+            public int getOrdinal() {
+              return ordinal;
+            }
 
-        @Override
-        public String getName() {
-          return p.getName();
-        }
+            @Override
+            public String getName() {
+              return p.getName();
+            }
 
-        @Override
-        public RelDataType getType(RelDataTypeFactory typeFactory) {
-          return typeFactory.createJavaType(p.getType());
-        }
+            @Override
+            public RelDataType getType(RelDataTypeFactory typeFactory) {
+              return typeFactory.createJavaType(p.getType());
+            }
 
-        @Override
-        public boolean isOptional() {
-          return p.isOptional();
-        }
-      });
+            @Override
+            public boolean isOptional() {
+              return p.isOptional();
+            }
+          });
     }
     return result;
   }
@@ -92,33 +89,45 @@ public final class WithOptionsTableMacro implements TableMacro {
   @Override
   public TranslatableTable apply(final List<? extends Object> arguments) {
     try {
-      final DatasetRetrievalOptions options = DatasetRetrievalOptions.DEFAULT.toBuilder()
-        .setIgnoreAuthzErrors(schemaConfig.getIgnoreAuthErrors())
-        .setMaxMetadataLeafColumns((int) schemaConfig.getOptions().getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX))
-        .build();
+      final DatasetRetrievalOptions options =
+          DatasetRetrievalOptions.DEFAULT.toBuilder()
+              .setIgnoreAuthzErrors(schemaConfig.getIgnoreAuthErrors())
+              .setMaxMetadataLeafColumns(
+                  (int)
+                      schemaConfig.getOptions().getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX))
+              .build();
 
-      final FileDatasetHandle handle = plugin.getDatasetWithOptions(
-        new NamespaceKey(tableSchemaPath),
-        new TableInstance(sig, arguments),
-        schemaConfig.getIgnoreAuthErrors(),
-        schemaConfig.getUserName(),
-        (int) schemaConfig.getOptions().getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX)
-      );
+      final FileDatasetHandle handle =
+          plugin.getDatasetWithOptions(
+              new NamespaceKey(tableSchemaPath),
+              new TableInstance(sig, arguments),
+              schemaConfig.getIgnoreAuthErrors(),
+              schemaConfig.getUserName(),
+              (int) schemaConfig.getOptions().getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX));
 
       if (handle == null) {
         throw UserException.validationError()
-          .message("Unable to read table %s using provided options.",
-            new NamespaceKey(tableSchemaPath).toString())
-          .build(logger);
+            .message(
+                "Unable to read table %s using provided options.",
+                new NamespaceKey(tableSchemaPath).toString())
+            .build(logger);
       }
 
-      return new MaterializedDatasetTableProvider(null, handle, plugin, plugin.getId(), schemaConfig, options, schemaConfig.getOptions())
-        .get();
+      return new MaterializedDatasetTableProvider(
+              null,
+              handle,
+              plugin,
+              plugin.getId(),
+              schemaConfig,
+              options,
+              schemaConfig.getOptions())
+          .get();
     } catch (InterruptedIOException e) {
-      throw UserException.validationError()
-        .message("Unable to read table %s using provided options.",
-          new NamespaceKey(tableSchemaPath).toString())
-        .build(logger);
+      throw UserException.validationError(e)
+          .message(
+              "Unable to read table %s using provided options.",
+              new NamespaceKey(tableSchemaPath).toString())
+          .build(logger);
     } catch (Exception e) {
       Throwables.throwIfUnchecked(e);
       throw new RuntimeException(e);

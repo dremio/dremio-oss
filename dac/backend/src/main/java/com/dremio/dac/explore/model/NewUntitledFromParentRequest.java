@@ -15,20 +15,17 @@
  */
 package com.dremio.dac.explore.model;
 
-import java.util.Map;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.Map;
 
-/**
- * Request payload for new_untitled API
- */
+/** Request payload for new_untitled API */
 public class NewUntitledFromParentRequest {
   private final Map<String, VersionContextReq> references;
 
   @JsonCreator
   public NewUntitledFromParentRequest(
-    @JsonProperty("references")Map<String, VersionContextReq> references) {
+      @JsonProperty("references") Map<String, VersionContextReq> references) {
     this.references = references;
   }
 

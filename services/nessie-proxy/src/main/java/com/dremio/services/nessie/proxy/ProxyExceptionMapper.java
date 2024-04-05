@@ -20,25 +20,26 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.ResponseBuilder;
 import javax.ws.rs.ext.ExceptionMapper;
 import javax.ws.rs.ext.Provider;
-
 import org.projectnessie.client.rest.NessieServiceException;
 import org.projectnessie.error.NessieError;
 
 /**
- * Maps the client-side {@link NessieServiceException} thrown by the {@code DremioNessieApiV1} back to
- * HTTP responses.
+ * Maps the client-side {@link NessieServiceException} thrown by the {@code DremioNessieApiV1} back
+ * to HTTP responses.
  */
 @Provider
 public class ProxyExceptionMapper implements ExceptionMapper<NessieServiceException> {
 
-  // Do not move this class without adjusting c.d.d.a.atlantisservice.server.nessie.processing.NessieServiceResourceConfig !
+  // Do not move this class without adjusting
+  // c.d.d.a.atlantisservice.server.nessie.processing.NessieServiceResourceConfig !
 
   @Override
   public Response toResponse(NessieServiceException e) {
     NessieError error = e.getError();
     ResponseBuilder responseBuilder =
-      Response.status(error.getStatus(), error.getReason()).entity(error)
-        .type(MediaType.APPLICATION_JSON_TYPE);
+        Response.status(error.getStatus(), error.getReason())
+            .entity(error)
+            .type(MediaType.APPLICATION_JSON_TYPE);
     return responseBuilder.build();
   }
 }

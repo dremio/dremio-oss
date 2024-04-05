@@ -15,15 +15,6 @@
  */
 package com.dremio.exec.planner.fragment;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ThreadLocalRandom;
-
 import com.dremio.exec.physical.EndpointAffinity;
 import com.dremio.exec.physical.PhysicalOperatorSetupException;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
@@ -34,37 +25,55 @@ import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * Implementation of {@link FragmentParallelizer} where fragment has zero or more endpoints with affinities. Width
- * per node is depended on the affinity to the endpoint and total width (calculated using costs). Based on various
- * factors endpoints which have no affinity can be assigned to run the fragments.
+ * Implementation of {@link FragmentParallelizer} where fragment has zero or more endpoints with
+ * affinities. Width per node is depended on the affinity to the endpoint and total width
+ * (calculated using costs). Based on various factors endpoints which have no affinity can be
+ * assigned to run the fragments.
  */
 public class SoftAffinityFragmentParallelizer implements FragmentParallelizer {
-  public static final SoftAffinityFragmentParallelizer INSTANCE = new SoftAffinityFragmentParallelizer();
+  public static final SoftAffinityFragmentParallelizer INSTANCE =
+      new SoftAffinityFragmentParallelizer();
   private static final int MAX_SYSTEM_ENDPOINTS = 10000;
   private static final Ordering<EndpointAffinity> ENDPOINT_AFFINITY_ORDERING =
-      Ordering.from(new Comparator<EndpointAffinity>() {
-        @Override
-        public int compare(EndpointAffinity o1, EndpointAffinity o2) {
-          // Sort in descending order of affinity values
-          return Double.compare(o2.getAffinity(), o1.getAffinity());
-        }
-      });
+      Ordering.from(
+          new Comparator<EndpointAffinity>() {
+            @Override
+            public int compare(EndpointAffinity o1, EndpointAffinity o2) {
+              // Sort in descending order of affinity values
+              return Double.compare(o2.getAffinity(), o1.getAffinity());
+            }
+          });
 
-  private int getWidth(final Stats stats, final int minWidth, final int maxWidth,
-                       final ParallelizationParameters parameters, int numEndpoints) {
-    // 1. Find the parallelization based on cost. Use max cost of all operators in this fragment; this is consistent
+  private int getWidth(
+      final Stats stats,
+      final int minWidth,
+      final int maxWidth,
+      final ParallelizationParameters parameters,
+      int numEndpoints) {
+    // 1. Find the parallelization based on cost. Use max cost of all operators in this fragment;
+    // this is consistent
     //    with the calculation that ExcessiveExchangeRemover uses.
     int width = (int) Math.ceil(stats.getMaxCost() / parameters.getSliceTarget());
 
-    // 2. Cap the parallelization width by fragment level width limit and system level per query width limit
+    // 2. Cap the parallelization width by fragment level width limit and system level per query
+    // width limit
     width = Math.min(width, Math.min(maxWidth, parameters.getMaxGlobalWidth()));
 
     // 3. Cap the parallelization width by system level per node width limit
     //    adding extra step to avoid overflow
     Long sysMaxWidthL = Long.valueOf(parameters.getMaxWidthPerNode() * numEndpoints);
-    int sysMaxWidth = (sysMaxWidthL > Integer.MAX_VALUE) ? Integer.MAX_VALUE:sysMaxWidthL.intValue();
+    int sysMaxWidth =
+        (sysMaxWidthL > Integer.MAX_VALUE) ? Integer.MAX_VALUE : sysMaxWidthL.intValue();
     width = Math.min(width, sysMaxWidth);
 
     // 4. Make sure width is at least the min width enforced by operators
@@ -80,46 +89,65 @@ public class SoftAffinityFragmentParallelizer implements FragmentParallelizer {
   }
 
   @Override
-  public void parallelizeFragment(final Wrapper fragmentWrapper, final ParallelizationParameters parameters,
-      final Collection<NodeEndpoint> activeEndpoints) throws PhysicalOperatorSetupException {
+  public void parallelizeFragment(
+      final Wrapper fragmentWrapper,
+      final ParallelizationParameters parameters,
+      final Collection<NodeEndpoint> activeEndpoints)
+      throws PhysicalOperatorSetupException {
     // Find the parallelization width of fragment
     final Stats stats = fragmentWrapper.getStats();
     final ParallelizationInfo parallelizationInfo = stats.getParallelizationInfo();
 
-    final int width = getWidth(stats, parallelizationInfo.getMinWidth(), parallelizationInfo.getMaxWidth(),
-      parameters, activeEndpoints.size());
+    final int width =
+        getWidth(
+            stats,
+            parallelizationInfo.getMinWidth(),
+            parallelizationInfo.getMaxWidth(),
+            parameters,
+            activeEndpoints.size());
 
     fragmentWrapper.setWidth(width);
 
-    final List<NodeEndpoint> assignedEndpoints = findEndpoints(activeEndpoints,
-        getEndpointAffinityMap(parallelizationInfo.getEndpointAffinityMap(),
-          fragmentWrapper.getFragmentDependencies().isEmpty(),
-          parameters),
-        fragmentWrapper.getWidth(), parameters);
+    final List<NodeEndpoint> assignedEndpoints =
+        findEndpoints(
+            activeEndpoints,
+            getEndpointAffinityMap(
+                parallelizationInfo.getEndpointAffinityMap(),
+                fragmentWrapper.getFragmentDependencies().isEmpty(),
+                parameters),
+            fragmentWrapper.getWidth(),
+            parameters);
     fragmentWrapper.assignEndpoints(parameters, assignedEndpoints);
   }
 
   @Override
-  public int getIdealFragmentWidth(final Wrapper fragment, final ParallelizationParameters parameters) {
+  public int getIdealFragmentWidth(
+      final Wrapper fragment, final ParallelizationParameters parameters) {
     // Find the parallelization width of fragment
     final Stats stats = fragment.getStats();
-    return getWidth(stats, stats.getMinWidth(), stats.getMaxWidth(), parameters, MAX_SYSTEM_ENDPOINTS);
+    return getWidth(
+        stats, stats.getMinWidth(), stats.getMaxWidth(), parameters, MAX_SYSTEM_ENDPOINTS);
   }
 
   @VisibleForTesting
-  Map<NodeEndpoint, EndpointAffinity> getEndpointAffinityMap(final Map<NodeEndpoint, EndpointAffinity> inputAffinityMap,
-                                                             final boolean isLeafFragment,
-                                                             final ParallelizationParameters parameters) {
+  Map<NodeEndpoint, EndpointAffinity> getEndpointAffinityMap(
+      final Map<NodeEndpoint, EndpointAffinity> inputAffinityMap,
+      final boolean isLeafFragment,
+      final ParallelizationParameters parameters) {
 
-    return parameters.shouldIgnoreLeafAffinity() && isLeafFragment ? Collections.emptyMap() : inputAffinityMap;
+    return parameters.shouldIgnoreLeafAffinity() && isLeafFragment
+        ? Collections.emptyMap()
+        : inputAffinityMap;
   }
 
   // Assign endpoints based on the given endpoint list, affinity map and width.
   @VisibleForTesting
-  List<NodeEndpoint> findEndpoints(final Collection<NodeEndpoint> activeEndpoints,
-      final Map<NodeEndpoint, EndpointAffinity> endpointAffinityMap, final int width,
+  List<NodeEndpoint> findEndpoints(
+      final Collection<NodeEndpoint> activeEndpoints,
+      final Map<NodeEndpoint, EndpointAffinity> endpointAffinityMap,
+      final int width,
       final ParallelizationParameters parameters)
-    throws PhysicalOperatorSetupException {
+      throws PhysicalOperatorSetupException {
 
     List<EndpointAffinity> sortedAffinityList;
     Set<NodeEndpoint> endpointsWithAffinity;
@@ -127,18 +155,21 @@ public class SoftAffinityFragmentParallelizer implements FragmentParallelizer {
       endpointsWithAffinity = ImmutableSet.of();
       sortedAffinityList = ImmutableList.of();
     } else {
-      // Pick endpoints from the list of active endpoints, sorted by affinity (descending, i.e., largest affinity first)
+      // Pick endpoints from the list of active endpoints, sorted by affinity (descending, i.e.,
+      // largest affinity first)
       // In other words: find the active endpoints which have the highest affinity
       final Set<NodeEndpoint> activeEndpointsSet = ImmutableSet.copyOf(activeEndpoints);
-      sortedAffinityList = endpointAffinityMap.values()
-        .stream()
-        .filter((endpointAffinity) -> activeEndpointsSet.contains(endpointAffinity.getEndpoint()))
-        .sorted(Comparator.comparing(EndpointAffinity::getAffinity).reversed())
-        .collect(ImmutableList.toImmutableList());
+      sortedAffinityList =
+          endpointAffinityMap.values().stream()
+              .filter(
+                  (endpointAffinity) -> activeEndpointsSet.contains(endpointAffinity.getEndpoint()))
+              .sorted(Comparator.comparing(EndpointAffinity::getAffinity).reversed())
+              .collect(ImmutableList.toImmutableList());
 
-      endpointsWithAffinity = sortedAffinityList.stream()
-        .map(EndpointAffinity::getEndpoint)
-        .collect(ImmutableSet.toImmutableSet());
+      endpointsWithAffinity =
+          sortedAffinityList.stream()
+              .map(EndpointAffinity::getEndpoint)
+              .collect(ImmutableSet.toImmutableSet());
     }
 
     final List<NodeEndpoint> endpoints = Lists.newArrayList();
@@ -149,20 +180,28 @@ public class SoftAffinityFragmentParallelizer implements FragmentParallelizer {
         if (ep.isAssignmentRequired()) {
           numRequiredNodes++;
         } else {
-          // As the list is sorted in descending order of affinities, we don't need to go beyond the first occurrance
+          // As the list is sorted in descending order of affinities, we don't need to go beyond the
+          // first occurrance
           // of non-mandatory node
           break;
         }
       }
 
       if (width < numRequiredNodes) {
-        throw new PhysicalOperatorSetupException("Can not parallelize the fragment as the parallelization width (" + width + ") is " +
-            "less than the number of mandatory nodes (" + numRequiredNodes + " nodes with +INFINITE affinity).");
+        throw new PhysicalOperatorSetupException(
+            "Can not parallelize the fragment as the parallelization width ("
+                + width
+                + ") is "
+                + "less than the number of mandatory nodes ("
+                + numRequiredNodes
+                + " nodes with +INFINITE affinity).");
       }
 
-      // Find the maximum number of slots which should go to endpoints with affinity (See DRILL-855 for details)
+      // Find the maximum number of slots which should go to endpoints with affinity (See DRILL-855
+      // for details)
       int affinedSlots =
-          Math.max(1, (int) (parameters.getAffinityFactor() * width / activeEndpoints.size())) * sortedAffinityList.size();
+          Math.max(1, (int) (parameters.getAffinityFactor() * width / activeEndpoints.size()))
+              * sortedAffinityList.size();
 
       // Make sure affined slots is at least the number of mandatory nodes
       affinedSlots = Math.max(affinedSlots, numRequiredNodes);
@@ -184,17 +223,22 @@ public class SoftAffinityFragmentParallelizer implements FragmentParallelizer {
       // Get a list of endpoints that are not part of the affinity endpoint list
       List<NodeEndpoint> endpointsWithNoAffinity;
       if (endpointsWithAffinity.isEmpty()) {
-        endpointsWithNoAffinity = Lists.newArrayList(activeEndpoints); // Need to create a copy instead of an
-        // immutable copy, because we need to shuffle the list (next statement) and Collections.shuffle() doesn't
+        endpointsWithNoAffinity =
+            Lists.newArrayList(activeEndpoints); // Need to create a copy instead of an
+        // immutable copy, because we need to shuffle the list (next statement) and
+        // Collections.shuffle() doesn't
         // support immutable copy as input.
       } else {
-        endpointsWithNoAffinity = Lists.newArrayList(Sets.difference(ImmutableSet.copyOf(activeEndpoints), endpointsWithAffinity));
+        endpointsWithNoAffinity =
+            Lists.newArrayList(
+                Sets.difference(ImmutableSet.copyOf(activeEndpoints), endpointsWithAffinity));
       }
 
       // round robin with random start.
       Collections.shuffle(endpointsWithNoAffinity, ThreadLocalRandom.current());
       Iterator<NodeEndpoint> otherEPItr =
-          Iterators.cycle(endpointsWithNoAffinity.size() > 0 ? endpointsWithNoAffinity : endpointsWithAffinity);
+          Iterators.cycle(
+              endpointsWithNoAffinity.size() > 0 ? endpointsWithNoAffinity : endpointsWithAffinity);
       while (endpoints.size() < width) {
         endpoints.add(otherEPItr.next());
       }

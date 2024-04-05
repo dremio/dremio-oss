@@ -15,14 +15,14 @@
  */
 package com.dremio.reflection.hints;
 
+import com.dremio.sabot.kernel.proto.ReflectionExplanation;
+import com.google.common.collect.ImmutableList;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-import com.dremio.sabot.kernel.proto.ReflectionExplanation;
-import com.google.common.collect.ImmutableList;
-
-public class ReflectionExplanationsAndQueryDistance implements Comparable<ReflectionExplanationsAndQueryDistance> {
+public class ReflectionExplanationsAndQueryDistance
+    implements Comparable<ReflectionExplanationsAndQueryDistance> {
   final String reflectionId;
   final double queryDistance;
   boolean hintHidden = false;
@@ -32,7 +32,10 @@ public class ReflectionExplanationsAndQueryDistance implements Comparable<Reflec
     this(reflectionId, queryDistance, ImmutableList.of());
   }
 
-  public ReflectionExplanationsAndQueryDistance(String reflectionId, double queryDistance, List<ReflectionExplanation> displayHintMessageList) {
+  public ReflectionExplanationsAndQueryDistance(
+      String reflectionId,
+      double queryDistance,
+      List<ReflectionExplanation> displayHintMessageList) {
     this.reflectionId = reflectionId;
     this.queryDistance = queryDistance;
     this.displayHintMessageList = displayHintMessageList;
@@ -85,8 +88,11 @@ public class ReflectionExplanationsAndQueryDistance implements Comparable<Reflec
   public String toString() {
     return ""
         + "ReflectionExplanationsAndQueryDistance{"
-        + "reflectionId='" + reflectionId + '\''
-        + ", queryDistance=" + queryDistance
+        + "reflectionId='"
+        + reflectionId
+        + '\''
+        + ", queryDistance="
+        + queryDistance
         + ", displayHintMessageList={\n\t"
         + displayHintMessageList.stream()
             .map(ExplanationUtil::toString)

@@ -1,0 +1,12 @@
+{
+  "name" : "Albert",
+  "age" : "28",
+  "profession" : "teacher",
+  "salary" : "not known"
+}
+{
+  "name" : "Zoey",
+  "age" : 37,
+  "profession" : "doctor",
+  "salary" : 110
+}

@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <!--
 
     Copyright (C) 2017-2019 Dremio Corporation
@@ -21,7 +22,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-dac-parent</artifactId>
-    <version>24.3.2-202401241821100032-d2d8a497</version>
+    <version>25.0.0-202404051521110861-ed9515a8</version>
   </parent>
 
   <artifactId>dremio-ui-lib</artifactId>
@@ -58,18 +59,18 @@
         <executions>
           <execution>
             <id>install node and npm</id>
-            <phase>initialize</phase>
             <goals>
               <goal>install-node-and-npm</goal>
               <goal>install-node-and-pnpm</goal>
             </goals>
+            <phase>initialize</phase>
           </execution>
           <execution>
             <id>pnpm install</id>
-            <phase>initialize</phase>
             <goals>
               <goal>pnpm</goal>
             </goals>
+            <phase>initialize</phase>
             <!-- Optional configuration which provides for running any npm
               command -->
             <configuration>
@@ -84,10 +85,10 @@
             [ERROR] Ran all test suites.
             -->
             <id>test</id>
-            <phase>process-sources</phase>
             <goals>
               <goal>npm</goal>
             </goals>
+            <phase>process-sources</phase>
             <configuration>
               <arguments>run test</arguments>
               <skip>${skipTests}</skip>
@@ -96,10 +97,10 @@
 
           <execution>
             <id>build</id>
-            <phase>generate-resources</phase>
             <goals>
               <goal>npm</goal>
             </goals>
+            <phase>generate-resources</phase>
             <configuration>
               <arguments>run build</arguments>
             </configuration>

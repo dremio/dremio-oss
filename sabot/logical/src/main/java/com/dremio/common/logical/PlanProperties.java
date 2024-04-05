@@ -19,11 +19,12 @@ import com.dremio.common.JSONOptions;
 import com.dremio.common.logical.PlanProperties.Generator.ResultMode;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-/**
- * Logical plan meta properties.
- */
+/** Logical plan meta properties. */
 public final class PlanProperties {
-  public static enum PlanType {LOGICAL, PHYSICAL}
+  public static enum PlanType {
+    LOGICAL,
+    PHYSICAL
+  }
 
   public PlanType type;
   public int version;
@@ -32,13 +33,15 @@ public final class PlanProperties {
   public JSONOptions options;
   public int queue;
 
-//  @JsonInclude(Include.NON_NULL)
+  //  @JsonInclude(Include.NON_NULL)
   public static final class Generator {
     public String type;
     public String info;
 
     public static enum ResultMode {
-      EXEC, LOGICAL, PHYSICAL;
+      EXEC,
+      LOGICAL,
+      PHYSICAL;
     }
 
     private Generator(@JsonProperty("type") String type, @JsonProperty("info") String info) {
@@ -47,13 +50,13 @@ public final class PlanProperties {
     }
   }
 
-  private PlanProperties(@JsonProperty("version") int version,
-                         @JsonProperty("generator") Generator generator,
-                         @JsonProperty("type") PlanType type,
-                         @JsonProperty("mode") ResultMode resultMode,
-                         @JsonProperty("options") JSONOptions options,
-                         @JsonProperty("queue") int queue
-                         ) {
+  private PlanProperties(
+      @JsonProperty("version") int version,
+      @JsonProperty("generator") Generator generator,
+      @JsonProperty("type") PlanType type,
+      @JsonProperty("mode") ResultMode resultMode,
+      @JsonProperty("options") JSONOptions options,
+      @JsonProperty("queue") int queue) {
     this.version = version;
     this.queue = queue;
     this.generator = generator;
@@ -112,7 +115,5 @@ public final class PlanProperties {
     public PlanProperties build() {
       return new PlanProperties(version, generator, type, mode, options, queueNumber);
     }
-
   }
-
 }

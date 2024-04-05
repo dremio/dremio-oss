@@ -16,7 +16,6 @@
 package com.dremio.jdbc;
 
 import java.util.Properties;
-
 import org.apache.calcite.avatica.ConnectionConfigImpl;
 
 // TODO(DRILL-3730):  Change public DremioConnectionConfig from class to
@@ -25,36 +24,32 @@ import org.apache.calcite.avatica.ConnectionConfigImpl;
 // com.dremio.jdbc to class in implementation package
 // com.dremio.jdbc.impl.
 /**
- *  <p>
- *    NOTE:  DremioConnectionConfig will be changed from a class to an interface.
- *  </p>
- *  <p>
- *    In the meantime, clients must not use the fact that
- *    {@code DremioConnectionConfig} currently extends
- *    {@link net.hydromatic.avatica.ConnectionConfigImpl}.  They must call only
- *    methods declared directly in DremioConnectionConfig (or inherited Object).
- *  </p>
+ * NOTE: DremioConnectionConfig will be changed from a class to an interface.
+ *
+ * <p>In the meantime, clients must not use the fact that {@code DremioConnectionConfig} currently
+ * extends {@link net.hydromatic.avatica.ConnectionConfigImpl}. They must call only methods declared
+ * directly in DremioConnectionConfig (or inherited Object).
  */
 public class DremioConnectionConfig extends ConnectionConfigImpl {
   private final Properties props;
 
-  public DremioConnectionConfig(Properties p){
+  public DremioConnectionConfig(Properties p) {
     super(p);
     this.props = p;
   }
 
-  public boolean isLocal(){
+  public boolean isLocal() {
     // TODO  Why doesn't this call getZookeeperConnectionString()?
     return "local".equals(props.getProperty("zk"));
   }
 
   // True if the URL points directly to a node
-  public boolean isDirect(){
-    return props.getProperty("direct")!=null;
+  public boolean isDirect() {
+    return props.getProperty("direct") != null;
   }
 
   // TODO: Check: Shouldn't something validate that URL has "zk" parameter?
-  public String getZookeeperConnectionString(){
+  public String getZookeeperConnectionString() {
     return props.getProperty("zk");
   }
 

@@ -17,13 +17,10 @@ package com.dremio.datastore.indexed;
 
 import java.io.File;
 import java.io.IOException;
-
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.Term;
 
-/**
- * Read only {@link LuceneSearchIndex}. Mutations are ignored.
- */
+/** Read only {@link LuceneSearchIndex}. Mutations are ignored. */
 public class ReadOnlyLuceneSearchIndex extends LuceneSearchIndex {
 
   public ReadOnlyLuceneSearchIndex(File localStorageDir, String name, boolean inMemory) {
@@ -31,34 +28,26 @@ public class ReadOnlyLuceneSearchIndex extends LuceneSearchIndex {
   }
 
   @Override
-  protected void commit() throws IOException {
-  }
+  protected void commit() throws IOException {}
 
   @Override
-  public void add(Document document) {
-  }
+  public void add(Document document) {}
 
   @Override
-  public void addMany(Document... documents) {
-  }
+  public void addMany(Document... documents) {}
 
   @Override
-  public void update(Term term, Document document) {
-  }
+  public void update(Term term, Document document) {}
 
   @Override
-  public void deleteDocuments(Term key) {
-  }
+  public void deleteDocuments(Term key) {}
 
   @Override
-  public void delete() {
-  }
+  public void delete() {}
 
   @Override
-  public void forReindexing(Runnable r) {
-  }
+  public void forReindexing(Runnable r) {}
 
   @Override
-  public void deleteEverything() throws IOException {
-  }
+  public void deleteEverything() throws IOException {}
 }

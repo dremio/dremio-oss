@@ -15,6 +15,10 @@
  */
 package com.dremio.exec.planner;
 
+import com.dremio.exec.planner.common.MoreRelOptUtil;
+import com.dremio.exec.planner.logical.DremioRelFactories;
+import com.dremio.exec.planner.logical.JoinRel;
+import com.dremio.exec.planner.physical.PrelUtil;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.rel.core.Join;
@@ -23,25 +27,24 @@ import org.apache.calcite.rel.rules.JoinCommuteRule;
 import org.apache.calcite.rel.rules.LoptJoinTree;
 import org.apache.calcite.rel.rules.LoptMultiJoin;
 
-import com.dremio.exec.planner.common.MoreRelOptUtil;
-import com.dremio.exec.planner.logical.DremioRelFactories;
-import com.dremio.exec.planner.logical.JoinRel;
-import com.dremio.exec.planner.physical.PrelUtil;
-
 /**
- * Version of {@link JoinCommuteRule} that only applies if the rowcount difference is greater than a configurable
- * threshold, or if rowcount is within threshold, but right side has more columns. Having fewer columns on the right(build)
- * side will have a lower memory footprint.
- * This is similar to the logic used in
- * {@link org.apache.calcite.rel.rules.DremioLoptOptimizeJoinRule#swapInputs(RelMetadataQuery, LoptMultiJoin, LoptJoinTree, LoptJoinTree, boolean)}
+ * Version of {@link JoinCommuteRule} that only applies if the rowcount difference is greater than a
+ * configurable threshold, or if rowcount is within threshold, but right side has more columns.
+ * Having fewer columns on the right(build) side will have a lower memory footprint. This is similar
+ * to the logic used in {@link
+ * org.apache.calcite.rel.rules.DremioLoptOptimizeJoinRule#swapInputs(RelMetadataQuery,
+ * LoptMultiJoin, LoptJoinTree, LoptJoinTree, boolean)}
  */
 public class DremioJoinCommuteRule extends JoinCommuteRule {
   public static final RelOptRule INSTANCE = new DremioJoinCommuteRule();
+
   protected DremioJoinCommuteRule() {
-    super(Config.DEFAULT.withRelBuilderFactory(DremioRelFactories.LOGICAL_BUILDER)
-      .as(Config.class)
-      .withOperandFor(JoinRel.class)
-      .withSwapOuter(true));
+    super(
+        Config.DEFAULT
+            .withRelBuilderFactory(DremioRelFactories.LOGICAL_BUILDER)
+            .as(Config.class)
+            .withOperandFor(JoinRel.class)
+            .withSwapOuter(true));
   }
 
   @Override
@@ -50,8 +53,10 @@ public class DremioJoinCommuteRule extends JoinCommuteRule {
     RelMetadataQuery mq = join.getCluster().getMetadataQuery();
 
     // Check if we need to force a broadcast exchange.
-    MoreRelOptUtil.BroadcastHintCollector leftHintCollector = new MoreRelOptUtil.BroadcastHintCollector();
-    MoreRelOptUtil.BroadcastHintCollector rightHintCollector = new MoreRelOptUtil.BroadcastHintCollector();
+    MoreRelOptUtil.BroadcastHintCollector leftHintCollector =
+        new MoreRelOptUtil.BroadcastHintCollector();
+    MoreRelOptUtil.BroadcastHintCollector rightHintCollector =
+        new MoreRelOptUtil.BroadcastHintCollector();
     join.getLeft().accept(leftHintCollector);
     boolean leftBroadcast = leftHintCollector.shouldBroadcast();
     join.getRight().accept(rightHintCollector);
@@ -77,8 +82,10 @@ public class DremioJoinCommuteRule extends JoinCommuteRule {
     if (leftBigger) {
       return false;
     }
-    // left and right about the same. Swap if right has more columns, so less memory is needed on build side
+    // left and right about the same. Swap if right has more columns, so less memory is needed on
+    // build side
     // of hash join
-    return join.getRight().getRowType().getFieldCount() > join.getLeft().getRowType().getFieldCount();
+    return join.getRight().getRowType().getFieldCount()
+        > join.getLeft().getRowType().getFieldCount();
   }
 }

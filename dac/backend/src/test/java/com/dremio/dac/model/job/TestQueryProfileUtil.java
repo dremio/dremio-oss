@@ -17,30 +17,28 @@ package com.dremio.dac.model.job;
 
 import static org.junit.Assert.assertEquals;
 
+import com.dremio.dac.util.QueryProfileUtil;
+import com.dremio.service.jobAnalysis.proto.ThreadData;
 import java.util.ArrayList;
 import java.util.List;
-
 import org.junit.Before;
 import org.junit.Test;
 
-import com.dremio.dac.util.QueryProfileUtil;
-import com.dremio.service.jobAnalysis.proto.ThreadData;
-
 /*
-  * All the test case are based on current logic of skewness in function "checkOperatorSkewness".
-  * Whenever above function changes these testcase need to be reviewed.
+ * All the test case are based on current logic of skewness in function "checkOperatorSkewness".
+ * Whenever above function changes these testcase need to be reviewed.
  */
 public class TestQueryProfileUtil {
   private List<ThreadData> threadDataList;
 
   @Before
   public void setUp() throws Exception {
-    threadDataList= getThreadDataList();
+    threadDataList = getThreadDataList();
   }
 
-  private List<ThreadData> getThreadDataList(){
+  private List<ThreadData> getThreadDataList() {
     List<ThreadData> localThreadDataList = new ArrayList<>();
-    for(int i=0;i<10;i++){
+    for (int i = 0; i < 10; i++) {
       localThreadDataList.add(new ThreadData());
       localThreadDataList.get(i).setRecordsProcessed(1L);
       localThreadDataList.get(i).setProcessingTime(1L);
@@ -50,7 +48,7 @@ public class TestQueryProfileUtil {
   }
 
   @Test
-  public void testOneThreadSkewed(){
+  public void testOneThreadSkewed() {
     threadDataList.get(0).setRecordsProcessed(100L);
     JobProfileOperatorHealth jpOperatorHealth = new JobProfileOperatorHealth();
     QueryProfileUtil.isOperatorSkewedAcrossThreads(threadDataList, jpOperatorHealth);
@@ -58,7 +56,7 @@ public class TestQueryProfileUtil {
   }
 
   @Test
-  public void testTwoThreadsSkewed(){
+  public void testTwoThreadsSkewed() {
     threadDataList.get(0).setRecordsProcessed(100L);
     threadDataList.get(1).setRecordsProcessed(100L);
     JobProfileOperatorHealth jpOperatorHealth = new JobProfileOperatorHealth();
@@ -67,7 +65,7 @@ public class TestQueryProfileUtil {
   }
 
   @Test
-  public void testThreeThreadsSkewed(){
+  public void testThreeThreadsSkewed() {
     threadDataList.get(0).setRecordsProcessed(100L);
     threadDataList.get(1).setRecordsProcessed(100L);
     threadDataList.get(2).setRecordsProcessed(100L);
@@ -76,14 +74,14 @@ public class TestQueryProfileUtil {
     assertEquals(false, jpOperatorHealth.getIsSkewedOnRecordsProcessed());
   }
 
-  private void setLinearData(){
-    for(int i=0;i<threadDataList.size();i++){
-      threadDataList.get(i).setRecordsProcessed((i+1)*100L);
+  private void setLinearData() {
+    for (int i = 0; i < threadDataList.size(); i++) {
+      threadDataList.get(i).setRecordsProcessed((i + 1) * 100L);
     }
   }
 
   @Test
-  public void testThreadsWithLinearData(){
+  public void testThreadsWithLinearData() {
     setLinearData();
     JobProfileOperatorHealth jpOperatorHealth = new JobProfileOperatorHealth();
     QueryProfileUtil.isOperatorSkewedAcrossThreads(threadDataList, jpOperatorHealth);
@@ -91,16 +89,16 @@ public class TestQueryProfileUtil {
   }
 
   @Test
-  public void testThreadsWithUniformData(){
-    //the default threadDataList is created with uniform data
+  public void testThreadsWithUniformData() {
+    // the default threadDataList is created with uniform data
     JobProfileOperatorHealth jpOperatorHealth = new JobProfileOperatorHealth();
     QueryProfileUtil.isOperatorSkewedAcrossThreads(threadDataList, jpOperatorHealth);
     assertEquals(false, jpOperatorHealth.getIsSkewedOnRecordsProcessed());
   }
 
-  private void setHalfThreadsWithHighData(){
-    for(int i=0;i<threadDataList.size();i+=2){
-      threadDataList.get(i).setRecordsProcessed((i+1)*100L);
+  private void setHalfThreadsWithHighData() {
+    for (int i = 0; i < threadDataList.size(); i += 2) {
+      threadDataList.get(i).setRecordsProcessed((i + 1) * 100L);
     }
   }
 
@@ -112,9 +110,9 @@ public class TestQueryProfileUtil {
     assertEquals(false, jpOperatorHealth.getIsSkewedOnRecordsProcessed());
   }
 
-  private void setOneThreadsWithLowData(){
-    for(int i=1;i<threadDataList.size();i++){
-      threadDataList.get(i).setRecordsProcessed((i+1)*100L);
+  private void setOneThreadsWithLowData() {
+    for (int i = 1; i < threadDataList.size(); i++) {
+      threadDataList.get(i).setRecordsProcessed((i + 1) * 100L);
     }
   }
 
@@ -125,5 +123,4 @@ public class TestQueryProfileUtil {
     QueryProfileUtil.isOperatorSkewedAcrossThreads(threadDataList, jpOperatorHealth);
     assertEquals(false, jpOperatorHealth.getIsSkewedOnRecordsProcessed());
   }
-
 }

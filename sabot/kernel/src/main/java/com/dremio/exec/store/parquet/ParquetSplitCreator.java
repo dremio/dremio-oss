@@ -26,9 +26,7 @@ import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
 import com.google.common.base.Preconditions;
 
-/**
- * Creates Parquet Split and partition info
- */
+/** Creates Parquet Split and partition info */
 public class ParquetSplitCreator implements BlockBasedSplitGenerator.SplitCreator {
   private final OperatorContext context;
   private final boolean convertToRelativePath;
@@ -39,23 +37,28 @@ public class ParquetSplitCreator implements BlockBasedSplitGenerator.SplitCreato
   }
 
   @Override
-  public SplitAndPartitionInfo createSplit(PartitionProtobuf.NormalizedPartitionInfo filePartitionInfo, SplitIdentity splitIdentity,
-                                           String fileFormat, long fileSize, long currentModTime) {
+  public SplitAndPartitionInfo createSplit(
+      PartitionProtobuf.NormalizedPartitionInfo filePartitionInfo,
+      SplitIdentity splitIdentity,
+      String fileFormat,
+      long fileSize,
+      long currentModTime) {
 
+    String splitPath = splitIdentity.getPath();
+    Preconditions.checkArgument(fileFormat.equalsIgnoreCase(PARQUET.toString()));
+    ParquetProtobuf.ParquetBlockBasedSplitXAttr splitExtended =
+        ParquetProtobuf.ParquetBlockBasedSplitXAttr.newBuilder()
+            .setPath(splitPath)
+            .setStart(splitIdentity.getOffset())
+            .setLength(splitIdentity.getLength())
+            .setFileLength(fileSize)
+            .setLastModificationTime(currentModTime)
+            .build();
 
-  String splitPath = splitIdentity.getPath();
-  Preconditions.checkArgument(fileFormat.equalsIgnoreCase(PARQUET.toString()));
-    ParquetProtobuf.ParquetBlockBasedSplitXAttr splitExtended = ParquetProtobuf.ParquetBlockBasedSplitXAttr.newBuilder()
-      .setPath(splitPath)
-      .setStart(splitIdentity.getOffset())
-      .setLength(splitIdentity.getLength())
-      .setFileLength(fileSize)
-      .setLastModificationTime(currentModTime)
-      .build();
-
-    PartitionProtobuf.NormalizedDatasetSplitInfo.Builder splitInfo = PartitionProtobuf.NormalizedDatasetSplitInfo.newBuilder()
-      .setPartitionId(filePartitionInfo.getId())
-      .setExtendedProperty(splitExtended.toByteString());
+    PartitionProtobuf.NormalizedDatasetSplitInfo.Builder splitInfo =
+        PartitionProtobuf.NormalizedDatasetSplitInfo.newBuilder()
+            .setPartitionId(filePartitionInfo.getId())
+            .setExtendedProperty(splitExtended.toByteString());
 
     return new SplitAndPartitionInfo(filePartitionInfo, splitInfo.build());
   }

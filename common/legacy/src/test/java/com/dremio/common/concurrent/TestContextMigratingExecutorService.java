@@ -15,6 +15,10 @@
  */
 package com.dremio.common.concurrent;
 
+import com.dremio.context.RequestContext;
+import com.dremio.context.UserContext;
+import com.dremio.service.Pointer;
+import io.opentracing.mock.MockTracer;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -22,31 +26,22 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import com.dremio.context.RequestContext;
-import com.dremio.context.UserContext;
-import com.dremio.service.Pointer;
-
-import io.opentracing.mock.MockTracer;
-
-/**
- * Tests for {@link ContextMigratingExecutorService}
- */
+/** Tests for {@link ContextMigratingExecutorService} */
 public class TestContextMigratingExecutorService {
 
   private final MockTracer tracer = new MockTracer();
   // single threaded pool to have a deterministic ordering of execution
   // and because one is enough to test migration.
-  private final ExecutorService pool = new ContextMigratingExecutorService<>(
-    new ThreadPoolExecutor(1, 1, 0, TimeUnit.SECONDS, new ArrayBlockingQueue<Runnable>(5)));
+  private final ExecutorService pool =
+      new ContextMigratingExecutorService<>(
+          new ThreadPoolExecutor(1, 1, 0, TimeUnit.SECONDS, new ArrayBlockingQueue<Runnable>(5)));
 
   @Before
-  public void setup() {
-  }
+  public void setup() {}
 
   private void blockingAsyncNoopWork() throws InterruptedException, ExecutionException {
     Future<?> future = pool.submit(() -> {});
@@ -54,7 +49,8 @@ public class TestContextMigratingExecutorService {
   }
 
   @Test
-  public void testNoSpanForWaitingOnCommandPoolIfNoActiveSpan() throws InterruptedException, ExecutionException {
+  public void testNoSpanForWaitingOnCommandPoolIfNoActiveSpan()
+      throws InterruptedException, ExecutionException {
 
     blockingAsyncNoopWork();
 
@@ -66,9 +62,10 @@ public class TestContextMigratingExecutorService {
     final String testUser = "testUser1";
 
     Callable<String> callable = () -> RequestContext.current().get(UserContext.CTX_KEY).getUserId();
-    Future<String> future = RequestContext.empty()
-      .with(UserContext.CTX_KEY, new UserContext(testUser))
-      .call(() -> pool.submit(callable));
+    Future<String> future =
+        RequestContext.empty()
+            .with(UserContext.CTX_KEY, new UserContext(testUser))
+            .call(() -> pool.submit(callable));
     Assert.assertEquals(testUser, future.get());
   }
 
@@ -77,10 +74,12 @@ public class TestContextMigratingExecutorService {
     final String testUser = "testUser2";
     final Pointer<String> foundUser = new Pointer<>();
 
-    Runnable runnable = () -> foundUser.value = RequestContext.current().get(UserContext.CTX_KEY).getUserId();
-    Future<?> future = RequestContext.empty()
-      .with(UserContext.CTX_KEY, new UserContext(testUser))
-      .call(() -> pool.submit(runnable));
+    Runnable runnable =
+        () -> foundUser.value = RequestContext.current().get(UserContext.CTX_KEY).getUserId();
+    Future<?> future =
+        RequestContext.empty()
+            .with(UserContext.CTX_KEY, new UserContext(testUser))
+            .call(() -> pool.submit(runnable));
     future.get();
 
     Assert.assertEquals(testUser, foundUser.value);

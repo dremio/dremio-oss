@@ -15,9 +15,15 @@
  */
 package com.dremio.exec.planner.serializer.logical;
 
+import com.dremio.exec.planner.serializer.RelCollationSerde;
+import com.dremio.exec.planner.serializer.RelNodeSerde;
+import com.dremio.exec.planner.serializer.SqlOperatorSerde;
+import com.dremio.plan.serialization.PAggregateCall;
+import com.dremio.plan.serialization.PGroupSet;
+import com.dremio.plan.serialization.PLogicalAggregate;
+import com.google.protobuf.StringValue;
 import java.util.List;
 import java.util.stream.Collectors;
-
 import org.apache.calcite.rel.RelCollation;
 import org.apache.calcite.rel.RelCollations;
 import org.apache.calcite.rel.RelNode;
@@ -26,33 +32,22 @@ import org.apache.calcite.rel.logical.LogicalAggregate;
 import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.util.ImmutableBitSet;
 
-import com.dremio.exec.planner.serializer.RelCollationSerde;
-import com.dremio.exec.planner.serializer.RelNodeSerde;
-import com.dremio.exec.planner.serializer.SqlOperatorSerde;
-import com.dremio.plan.serialization.PAggregateCall;
-import com.dremio.plan.serialization.PGroupSet;
-import com.dremio.plan.serialization.PLogicalAggregate;
-import com.google.protobuf.StringValue;
-
-/**
- * Serde for LogicalAggregate
- */
-public final class LogicalAggregateSerde implements RelNodeSerde<LogicalAggregate, PLogicalAggregate> {
+/** Serde for LogicalAggregate */
+public final class LogicalAggregateSerde
+    implements RelNodeSerde<LogicalAggregate, PLogicalAggregate> {
   @Override
   public PLogicalAggregate serialize(LogicalAggregate aggregate, RelToProto s) {
     return PLogicalAggregate.newBuilder()
         .setInput(s.toProto(aggregate.getInput()))
         .addAllAggregateCall(
-            aggregate.getAggCallList()
-            .stream()
-            .map(c -> toProto(c, s.getSqlOperatorSerde()))
-            .collect(Collectors.toList()))
+            aggregate.getAggCallList().stream()
+                .map(c -> toProto(c, s.getSqlOperatorSerde()))
+                .collect(Collectors.toList()))
         .setGroupSet(toProto(aggregate.getGroupSet()))
-        .addAllGroupSets(aggregate
-          .getGroupSets()
-          .stream()
-          .map(LogicalAggregateSerde::toProto)
-          .collect(Collectors.toList()))
+        .addAllGroupSets(
+            aggregate.getGroupSets().stream()
+                .map(LogicalAggregateSerde::toProto)
+                .collect(Collectors.toList()))
         .setIndicator(false)
         .build();
   }
@@ -60,30 +55,31 @@ public final class LogicalAggregateSerde implements RelNodeSerde<LogicalAggregat
   @Override
   public LogicalAggregate deserialize(PLogicalAggregate node, RelFromProto s) {
     RelNode input = s.toRel(node.getInput());
-    List<AggregateCall> calls = node.getAggregateCallList().stream().map(call -> fromProto(s, call, input, node.getGroupSet().getGroupList().size())).collect(Collectors.toList());
+    List<AggregateCall> calls =
+        node.getAggregateCallList().stream()
+            .map(call -> fromProto(s, call, input, node.getGroupSet().getGroupList().size()))
+            .collect(Collectors.toList());
     ImmutableBitSet groupSet = ImmutableBitSet.of(node.getGroupSet().getGroupList());
-    List<ImmutableBitSet> groupSets = node
-      .getGroupSetsList()
-      .stream()
-      .map(gs -> ImmutableBitSet.of(gs.getGroupList()))
-      .collect(Collectors.toList());
+    List<ImmutableBitSet> groupSets =
+        node.getGroupSetsList().stream()
+            .map(gs -> ImmutableBitSet.of(gs.getGroupList()))
+            .collect(Collectors.toList());
     return LogicalAggregate.create(input, groupSet, groupSets, calls);
   }
 
   public static PGroupSet toProto(ImmutableBitSet set) {
-    return PGroupSet.newBuilder()
-        .addAllGroup(set.asList())
-        .build();
+    return PGroupSet.newBuilder().addAllGroup(set.asList()).build();
   }
 
   public static PAggregateCall toProto(AggregateCall c, SqlOperatorSerde sqlOperatorSerde) {
-    PAggregateCall.Builder builder = PAggregateCall.newBuilder()
-        .setApproximate(c.isApproximate())
-        .addAllArg(c.getArgList())
-        .setDistinct(c.isDistinct())
-        .setFilterArg(c.filterArg)
-        .setRelCollation(RelCollationSerde.toProto(c.collation))
-        .setOperator(sqlOperatorSerde.toProto(c.getAggregation()));
+    PAggregateCall.Builder builder =
+        PAggregateCall.newBuilder()
+            .setApproximate(c.isApproximate())
+            .addAllArg(c.getArgList())
+            .setDistinct(c.isDistinct())
+            .setFilterArg(c.filterArg)
+            .setRelCollation(RelCollationSerde.toProto(c.collation))
+            .setOperator(sqlOperatorSerde.toProto(c.getAggregation()));
     if (c.getName() != null) {
       builder.setName(StringValue.of(c.getName()));
     }
@@ -92,10 +88,7 @@ public final class LogicalAggregateSerde implements RelNodeSerde<LogicalAggregat
   }
 
   public static AggregateCall fromProto(
-    RelFromProto s,
-    PAggregateCall pAggregateCall,
-    RelNode input,
-    int cardinality) {
+      RelFromProto s, PAggregateCall pAggregateCall, RelNode input, int cardinality) {
     String name = null;
     if (pAggregateCall.hasName()) {
       name = pAggregateCall.getName().getValue();
@@ -113,15 +106,15 @@ public final class LogicalAggregateSerde implements RelNodeSerde<LogicalAggregat
     }
 
     return AggregateCall.create(
-      (SqlAggFunction) s.toOp(pAggregateCall.getOperator()),
-      pAggregateCall.getDistinct(),
-      pAggregateCall.getApproximate(),
-      pAggregateCall.getArgList(),
-      -1,
-      relCollation,
-      cardinality,
-      input,
-      null,
-      name);
+        (SqlAggFunction) s.toOp(pAggregateCall.getOperator()),
+        pAggregateCall.getDistinct(),
+        pAggregateCall.getApproximate(),
+        pAggregateCall.getArgList(),
+        -1,
+        relCollation,
+        cardinality,
+        input,
+        null,
+        name);
   }
 }

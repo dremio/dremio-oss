@@ -15,32 +15,30 @@
  */
 package com.dremio.exec.util.rhash;
 
-import java.util.ArrayList;
-import java.util.Random;
-
-import org.junit.Assert;
-import org.junit.Test;
-
 import com.google.common.collect.Sets;
 import com.google.common.hash.AlwaysOneHashFunction;
 import com.google.common.hash.Funnel;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 import com.google.common.hash.PrimitiveSink;
+import java.util.ArrayList;
+import java.util.Random;
+import org.junit.Assert;
+import org.junit.Test;
 
-/**
- * Test the rendezvous hash function
- */
+/** Test the rendezvous hash function */
 @SuppressWarnings("serial")
 public class TestRendezvousHash {
   private static final String NODE = "node";
   private static final Random rand = new Random();
   private static final HashFunction hfunc = Hashing.murmur3_128();
-  private static final Funnel<String> strFunnel = new Funnel<String>(){
-    @Override
-    public void funnel(String from, PrimitiveSink into) {
-      into.putBytes(from.getBytes());
-    }};
+  private static final Funnel<String> strFunnel =
+      new Funnel<String>() {
+        @Override
+        public void funnel(String from, PrimitiveSink into) {
+          into.putBytes(from.getBytes());
+        }
+      };
 
   @Test
   public void testEmpty() {
@@ -48,30 +46,26 @@ public class TestRendezvousHash {
     Assert.assertEquals(null, h.get("key"));
   }
 
-  /**
-   * Ensure the same node returned for same key after a large change to the pool of nodes
-   */
+  /** Ensure the same node returned for same key after a large change to the pool of nodes */
   @Test
   public void testConsistentAfterRemove() {
     RendezvousHash<String, String> h = genEmpty();
-    for(int i = 0 ; i < 1000; i++) {
+    for (int i = 0; i < 1000; i++) {
       h.add(NODE + i);
     }
     String node = h.get("key");
     Assert.assertEquals(node, h.get("key"));
 
-    for(int i = 0; i < 250; i++) {
+    for (int i = 0; i < 250; i++) {
       String toRemove = "node" + rand.nextInt(1000);
-      if(!toRemove.equals(node)) {
+      if (!toRemove.equals(node)) {
         h.remove(toRemove);
       }
     }
     Assert.assertEquals(node, h.get("key"));
   }
 
-  /**
-   * Ensure that a new node returned after deleted
-   */
+  /** Ensure that a new node returned after deleted */
   @Test
   public void testPreviousDeleted() {
     RendezvousHash<String, String> h = genEmpty();
@@ -83,9 +77,7 @@ public class TestRendezvousHash {
     Assert.assertTrue(!node.equals(h.get("key")));
   }
 
-  /**
-   * Ensure same node will still be returned if removed/readded
-   */
+  /** Ensure same node will still be returned if removed/readded */
   @Test
   public void testReAdd() {
     RendezvousHash<String, String> h = genEmpty();
@@ -97,17 +89,15 @@ public class TestRendezvousHash {
     Assert.assertEquals(node, h.get("key"));
   }
 
-  /**
-   * Ensure 2 hashes if have nodes added in different order will have same results
-   */
+  /** Ensure 2 hashes if have nodes added in different order will have same results */
   @Test
   public void testDifferentOrder() {
     RendezvousHash<String, String> h = genEmpty();
     RendezvousHash<String, String> h2 = genEmpty();
-    for(int i = 0 ; i < 1000; i++) {
+    for (int i = 0; i < 1000; i++) {
       h.add(NODE + i);
     }
-    for(int i = 1000 ; i >= 0; i--) {
+    for (int i = 1000; i >= 0; i--) {
       h2.add(NODE + i);
     }
     Assert.assertEquals(h2.get("key"), h.get("key"));
@@ -116,13 +106,15 @@ public class TestRendezvousHash {
   @Test
   public void testCollsion() {
     HashFunction hfunc = new AlwaysOneHashFunction();
-    RendezvousHash h1 = new RendezvousHash<String, String>(hfunc, strFunnel, strFunnel, new ArrayList<String>());
-    RendezvousHash h2 = new RendezvousHash<String, String>(hfunc, strFunnel, strFunnel, new ArrayList<String>());
+    RendezvousHash h1 =
+        new RendezvousHash<String, String>(hfunc, strFunnel, strFunnel, new ArrayList<String>());
+    RendezvousHash h2 =
+        new RendezvousHash<String, String>(hfunc, strFunnel, strFunnel, new ArrayList<String>());
 
-    for(int i = 0 ; i < 1000; i++) {
+    for (int i = 0; i < 1000; i++) {
       h1.add(NODE + i);
     }
-    for(int i = 1000 ; i >= 0; i--) {
+    for (int i = 1000; i >= 0; i--) {
       h2.add(NODE + i);
     }
     Assert.assertEquals(h2.get("key"), h1.get("key"));

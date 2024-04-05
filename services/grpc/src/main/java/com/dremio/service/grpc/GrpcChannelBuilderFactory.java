@@ -15,38 +15,29 @@
  */
 package com.dremio.service.grpc;
 
+import io.grpc.ManagedChannelBuilder;
 import java.util.Map;
 
-import io.grpc.ManagedChannelBuilder;
-
-/**
- * Interface for gRPC channel builder factory.
- */
+/** Interface for gRPC channel builder factory. */
 public interface GrpcChannelBuilderFactory {
   int MAX_RETRY = Integer.parseInt(System.getProperty("dremio.grpc.retry_max", "10"));
 
-  /**
-   * Returns a new gRPC ManagedChannelBuilder with instrumentation.
-   */
+  /** Returns a new gRPC ManagedChannelBuilder with instrumentation. */
   ManagedChannelBuilder<?> newManagedChannelBuilder(String host, int port);
 
-  /**
-   * Returns a new gRPC ManagedChannelBuilder with instrumentation.
-   */
-  ManagedChannelBuilder<?> newManagedChannelBuilder(String host, int port, Map<String, Object> defaultServiceConfigProvider);
+  /** Returns a new gRPC ManagedChannelBuilder with instrumentation. */
+  ManagedChannelBuilder<?> newManagedChannelBuilder(
+      String host, int port, Map<String, Object> defaultServiceConfigProvider);
 
-  /**
-   * Returns a new gRPC ManagedChannelBuilder with instrumentation.
-   */
+  /** Returns a new gRPC ManagedChannelBuilder with instrumentation. */
   ManagedChannelBuilder<?> newManagedChannelBuilder(String target);
 
-  ManagedChannelBuilder<?> newManagedChannelBuilder(String target, Map<String, Object> defaultServiceConfigProvider);
+  ManagedChannelBuilder<?> newManagedChannelBuilder(
+      String target, Map<String, Object> defaultServiceConfigProvider);
 
-  /**
-   * Returns a new gRPC InProcessChannelBuilder with instrumentation.
-   */
+  /** Returns a new gRPC InProcessChannelBuilder with instrumentation. */
   ManagedChannelBuilder<?> newInProcessChannelBuilder(String processName);
 
-  ManagedChannelBuilder<?> newInProcessChannelBuilder(String processName,
-                                                      Map<String, Object> defaultServiceConfigProvider);
+  ManagedChannelBuilder<?> newInProcessChannelBuilder(
+      String processName, Map<String, Object> defaultServiceConfigProvider);
 }

@@ -16,13 +16,6 @@
 
 package com.dremio.service.script;
 
-import java.util.Iterator;
-import java.util.Optional;
-import java.util.function.Supplier;
-
-import javax.inject.Inject;
-import javax.inject.Provider;
-
 import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.SearchTypes;
 import com.dremio.datastore.api.Document;
@@ -39,10 +32,13 @@ import com.dremio.datastore.format.Format;
 import com.dremio.service.script.proto.ScriptProto.Script;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Suppliers;
+import java.util.Iterator;
+import java.util.Optional;
+import java.util.function.Supplier;
+import javax.inject.Inject;
+import javax.inject.Provider;
 
-/**
- * ScriptStore to store scripts
- */
+/** ScriptStore to store scripts */
 public class ScriptStoreImpl implements ScriptStore {
 
   private static final String STORE_NAME = "script";
@@ -58,13 +54,11 @@ public class ScriptStoreImpl implements ScriptStore {
   @Override
   public void start() throws Exception {
     store =
-      Suppliers.memoize(() -> kvStoreProvider.get().getStore(ScriptStoreImpl.StoreCreator.class));
+        Suppliers.memoize(() -> kvStoreProvider.get().getStore(ScriptStoreImpl.StoreCreator.class));
   }
 
   @Override
-  public void close() throws Exception {
-
-  }
+  public void close() throws Exception {}
 
   @Override
   public Optional<Script> get(String scriptId) {
@@ -79,10 +73,12 @@ public class ScriptStoreImpl implements ScriptStore {
   public Optional<Script> getByName(String name) throws ScriptNotFoundException {
     ImmutableFindByCondition.Builder builder = new ImmutableFindByCondition.Builder();
     FindByCondition condition =
-      builder.setCondition(SearchQueryUtils.and(
-          SearchQueryUtils.newTermQuery(ScriptStoreIndexedKeys.NAME, name)))
-        .setLimit(1)
-        .build();
+        builder
+            .setCondition(
+                SearchQueryUtils.and(
+                    SearchQueryUtils.newTermQuery(ScriptStoreIndexedKeys.NAME, name)))
+            .setLimit(1)
+            .build();
     Iterable<Document<String, Script>> doc = store.get().find(condition);
     Iterator<Document<String, Script>> iter = doc.iterator();
     if (iter.hasNext()) {
@@ -124,17 +120,16 @@ public class ScriptStoreImpl implements ScriptStore {
     return store.get().getCounts(condition).get(0);
   }
 
-  /**
-   * StoreCreator
-   */
+  /** StoreCreator */
   public static final class StoreCreator implements IndexedStoreCreationFunction<String, Script> {
     @Override
     public IndexedStore<String, Script> build(StoreBuildingFactory factory) {
-      return factory.<String, Script>newStore()
-        .name(STORE_NAME)
-        .keyFormat(Format.ofString())
-        .valueFormat(Format.ofProtobuf(Script.class))
-        .buildIndexed(new ScriptDocumentConverter());
+      return factory
+          .<String, Script>newStore()
+          .name(STORE_NAME)
+          .keyFormat(Format.ofString())
+          .valueFormat(Format.ofProtobuf(Script.class))
+          .buildIndexed(new ScriptDocumentConverter());
     }
   }
 
@@ -143,9 +138,7 @@ public class ScriptStoreImpl implements ScriptStore {
     private final Integer version = 0;
 
     @Override
-    public void convert(DocumentWriter writer,
-                        String key,
-                        Script record) {
+    public void convert(DocumentWriter writer, String key, Script record) {
       writer.write(ScriptStoreIndexedKeys.ID, record.getScriptId());
       writer.write(ScriptStoreIndexedKeys.NAME, record.getName());
       writer.write(ScriptStoreIndexedKeys.CREATED_AT, record.getCreatedAt());

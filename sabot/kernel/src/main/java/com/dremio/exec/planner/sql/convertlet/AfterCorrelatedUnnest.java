@@ -16,7 +16,6 @@
 package com.dremio.exec.planner.sql.convertlet;
 
 import java.util.function.Consumer;
-
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.CorrelationId;
 import org.apache.calcite.tools.RelBuilder;
@@ -59,6 +58,9 @@ public final class AfterCorrelatedUnnest {
   }
 
   public AfterTransform noOp() {
-    return transform(builder -> {/*NO OP*/});
+    return transform(
+        builder -> {
+          /*NO OP*/
+        });
   }
 }

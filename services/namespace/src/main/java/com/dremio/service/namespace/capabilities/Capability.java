@@ -17,9 +17,7 @@ package com.dremio.service.namespace.capabilities;
 
 import com.google.common.base.Objects;
 
-/**
- * Handle for a type of capability.
- */
+/** Handle for a type of capability. */
 abstract class Capability<T> {
 
   private final String name;
@@ -29,11 +27,8 @@ abstract class Capability<T> {
   /**
    * Create a capability singleton for reference purposes.
    *
-   * @param name
-   *          The friendly name of this capability.
-   * @param defaultValue
-   *          The default value for this capability if it isn't defined by a
-   *          source.
+   * @param name The friendly name of this capability.
+   * @param defaultValue The default value for this capability if it isn't defined by a source.
    */
   Capability(String name, T defaultValue) {
     super();
@@ -55,12 +50,14 @@ abstract class Capability<T> {
 
   @Override
   public boolean equals(final Object other) {
-    // use class identity since we don't allow capability inheritance beyond this to its direct children.
+    // use class identity since we don't allow capability inheritance beyond this to its direct
+    // children.
     if (!(other.getClass().equals(this.getClass()))) {
       return false;
     }
     Capability<?> castOther = (Capability<?>) other;
-    return Objects.equal(name, castOther.name) && Objects.equal(defaultValue, castOther.defaultValue)
+    return Objects.equal(name, castOther.name)
+        && Objects.equal(defaultValue, castOther.defaultValue)
         && Objects.equal(usedInExecution, castOther.usedInExecution);
   }
 
@@ -68,5 +65,4 @@ abstract class Capability<T> {
   public int hashCode() {
     return Objects.hashCode(name, defaultValue, usedInExecution);
   }
-
 }

@@ -15,11 +15,6 @@
  */
 package com.dremio.exec.catalog;
 
-import java.util.List;
-import java.util.Map;
-
-import org.apache.arrow.vector.types.pojo.Field;
-
 import com.dremio.catalog.exception.UnsupportedForgetTableException;
 import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.catalog.model.VersionContext;
@@ -27,6 +22,7 @@ import com.dremio.common.expression.CompleteType;
 import com.dremio.connector.metadata.AttributeValue;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.logical.CreateTableEntry;
+import com.dremio.exec.planner.sql.parser.SqlGrant;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.dfs.IcebergTableProps;
@@ -36,11 +32,12 @@ import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
+import java.util.List;
+import java.util.Map;
+import org.apache.arrow.vector.types.pojo.Field;
 
-/**
- * Interface to perform actions on datasets.
- */
-public interface DatasetCatalog extends PrivilegeCatalog {
+/** Interface to perform actions on datasets. */
+public interface DatasetCatalog {
   /**
    * Add or update a dataset.
    *
@@ -48,31 +45,50 @@ public interface DatasetCatalog extends PrivilegeCatalog {
    * @param dataset
    * @throws NamespaceException
    */
-  void addOrUpdateDataset(NamespaceKey namespaceKey, DatasetConfig dataset) throws NamespaceException;
+  void addOrUpdateDataset(NamespaceKey namespaceKey, DatasetConfig dataset)
+      throws NamespaceException;
 
-  CreateTableEntry createNewTable(NamespaceKey key, IcebergTableProps icebergTableProps,
-                                  WriterOptions writerOptions, Map<String, Object> storageOptions);
+  CreateTableEntry createNewTable(
+      NamespaceKey key,
+      IcebergTableProps icebergTableProps,
+      WriterOptions writerOptions,
+      Map<String, Object> storageOptions);
 
-  CreateTableEntry createNewTable(NamespaceKey key, IcebergTableProps icebergTableProps,
-                                  WriterOptions writerOptions, Map<String, Object> storageOptions, boolean isResultsTable);
+  CreateTableEntry createNewTable(
+      NamespaceKey key,
+      IcebergTableProps icebergTableProps,
+      WriterOptions writerOptions,
+      Map<String, Object> storageOptions,
+      boolean isResultsTable);
 
   void createEmptyTable(NamespaceKey key, BatchSchema batchSchema, WriterOptions writerOptions);
 
   void dropTable(NamespaceKey key, TableMutationOptions tableMutationOptions);
 
-  void alterTable(NamespaceKey key, DatasetConfig datasetConfig, AlterTableOption alterTableOption, TableMutationOptions tableMutationOptions);
+  void alterTable(
+      NamespaceKey key,
+      DatasetConfig datasetConfig,
+      AlterTableOption alterTableOption,
+      TableMutationOptions tableMutationOptions);
 
   void forgetTable(NamespaceKey key) throws UnsupportedForgetTableException;
 
   /**
    * Create a new dataset at this location and mutate the dataset before saving.
+   *
    * @param key
    * @param datasetMutator
    */
-  void createDataset(NamespaceKey key, com.google.common.base.Function<DatasetConfig, DatasetConfig> datasetMutator);
+  void createDataset(
+      NamespaceKey key,
+      com.google.common.base.Function<DatasetConfig, DatasetConfig> datasetMutator);
 
   UpdateStatus refreshDataset(NamespaceKey key, DatasetRetrievalOptions retrievalOptions);
-  UpdateStatus refreshDataset(NamespaceKey key, DatasetRetrievalOptions retrievalOptions, boolean isPrivilegeValidationNeeded);
+
+  UpdateStatus refreshDataset(
+      NamespaceKey key,
+      DatasetRetrievalOptions retrievalOptions,
+      boolean isPrivilegeValidationNeeded);
 
   /**
    * Create or update a physical dataset along with its read definitions and splits.
@@ -85,10 +101,17 @@ public interface DatasetCatalog extends PrivilegeCatalog {
    * @return true if dataset is created/updated
    * @throws NamespaceException
    */
-  boolean createOrUpdateDataset(NamespaceService userNamespaceService, NamespaceKey source, NamespaceKey datasetPath, DatasetConfig datasetConfig, NamespaceAttribute... attributes) throws NamespaceException;
+  boolean createOrUpdateDataset(
+      NamespaceService userNamespaceService,
+      NamespaceKey source,
+      NamespaceKey datasetPath,
+      DatasetConfig datasetConfig,
+      NamespaceAttribute... attributes)
+      throws NamespaceException;
 
   /**
    * Update a dataset configuration with a newly detected schema.
+   *
    * @param datasetKey the dataset NamespaceKey
    * @param newSchema the detected schema from the executor
    */
@@ -96,6 +119,7 @@ public interface DatasetCatalog extends PrivilegeCatalog {
 
   /**
    * Update a dataset configuration with a newly detected schema.
+   *
    * @param datasetKey the dataset NamespaceKey
    * @param originField the original field
    * @param fieldSchema the new schema
@@ -104,36 +128,69 @@ public interface DatasetCatalog extends PrivilegeCatalog {
 
   void truncateTable(NamespaceKey path, TableMutationOptions tableMutationOptions);
 
-  void rollbackTable(NamespaceKey path, DatasetConfig datasetConfig, RollbackOption rollbackOption, TableMutationOptions tableMutationOptions);
+  void rollbackTable(
+      NamespaceKey path,
+      DatasetConfig datasetConfig,
+      RollbackOption rollbackOption,
+      TableMutationOptions tableMutationOptions);
 
-  void addColumns(NamespaceKey datasetKey, DatasetConfig datasetConfig, List<Field> colsToAdd, TableMutationOptions tableMutationOptions);
+  void addColumns(
+      NamespaceKey datasetKey,
+      DatasetConfig datasetConfig,
+      List<Field> colsToAdd,
+      TableMutationOptions tableMutationOptions);
 
-  void dropColumn(NamespaceKey datasetKey, DatasetConfig datasetConfig, String columnToDrop, TableMutationOptions tableMutationOptions);
+  void dropColumn(
+      NamespaceKey datasetKey,
+      DatasetConfig datasetConfig,
+      String columnToDrop,
+      TableMutationOptions tableMutationOptions);
 
-  void changeColumn(NamespaceKey datasetKey, DatasetConfig datasetConfig, String columnToChange, Field fieldFromSqlColDeclaration, TableMutationOptions tableMutationOptions);
+  void changeColumn(
+      NamespaceKey datasetKey,
+      DatasetConfig datasetConfig,
+      String columnToChange,
+      Field fieldFromSqlColDeclaration,
+      TableMutationOptions tableMutationOptions);
 
-  boolean alterDataset(final CatalogEntityKey catalogEntityKey, final Map<String, AttributeValue> attributes);
+  boolean alterDataset(
+      final CatalogEntityKey catalogEntityKey, final Map<String, AttributeValue> attributes);
 
-  boolean alterColumnOption(final NamespaceKey key, String columnToChange,
-                            final String attributeName, final AttributeValue attributeValue);
+  boolean alterColumnOption(
+      final NamespaceKey key,
+      String columnToChange,
+      final String attributeName,
+      final AttributeValue attributeValue);
 
-  void addPrimaryKey(final NamespaceKey namespaceKey, List<String> columns, VersionContext statementSourceVersion, Catalog catalog);
+  void addPrimaryKey(
+      final NamespaceKey namespaceKey, List<String> columns, VersionContext statementVersion);
 
-  void dropPrimaryKey(final NamespaceKey namespaceKey, VersionContext statementSourceVersion, Catalog catalog);
+  void dropPrimaryKey(final NamespaceKey namespaceKey, VersionContext statementVersion);
 
   List<String> getPrimaryKey(final NamespaceKey namespaceKey);
 
   boolean toggleSchemaLearning(NamespaceKey path, boolean enableSchemaLearning);
 
-  void alterSortOrder(NamespaceKey path, DatasetConfig datasetConfig, BatchSchema schema, List<String> sortOrderColumns, TableMutationOptions tableMutationOptions);
+  void alterSortOrder(
+      NamespaceKey path,
+      DatasetConfig datasetConfig,
+      BatchSchema schema,
+      List<String> sortOrderColumns,
+      TableMutationOptions tableMutationOptions);
 
-  void updateTableProperties(NamespaceKey table, DatasetConfig datasetConfig, BatchSchema schema, Map<String, String> tableProperties, TableMutationOptions tableMutationOptions, boolean isRemove);
+  void updateTableProperties(
+      NamespaceKey table,
+      DatasetConfig datasetConfig,
+      BatchSchema schema,
+      Map<String, String> tableProperties,
+      TableMutationOptions tableMutationOptions,
+      boolean isRemove);
 
   Catalog resolveCatalog(Map<String, VersionContext> sourceVersionMapping);
 
   Catalog resolveCatalogResetContext(String sourceName, VersionContext versionContext);
 
-  //TODO(DX-83443) Move read interfaces to EntityExplorer
+  // TODO(DX-83443) Move read interfaces to EntityExplorer
   /**
    * Retrieve a table
    *
@@ -150,9 +207,10 @@ public interface DatasetCatalog extends PrivilegeCatalog {
    */
   DremioTable getTable(NamespaceKey key);
 
-  //TODO(DX-83443) Move read interfaces to EntityExplorer
+  // TODO(DX-83443) Move read interfaces to EntityExplorer
   /**
    * Get a DremioTable
+   *
    * @param catalogEntityKey
    * @return DremioTable. Null if table not found
    */
@@ -163,20 +221,30 @@ public interface DatasetCatalog extends PrivilegeCatalog {
   DatasetType getDatasetType(CatalogEntityKey key);
 
   enum UpdateStatus {
-    /**
-     * Metadata hasn't changed.
-     */
+    /** Metadata hasn't changed. */
     UNCHANGED,
 
-
-    /**
-     * Metadata has changed.
-     */
+    /** Metadata has changed. */
     CHANGED,
 
-    /**
-     * Dataset has been deleted.
-     */
+    /** Dataset has been deleted. */
     DELETED
   }
+
+  /**
+   * Validate user's ownership.
+   *
+   * @param key
+   */
+  @Deprecated
+  void validateOwnership(CatalogEntityKey key);
+
+  /**
+   * Validate user's privilege.
+   *
+   * @param key
+   * @param privilege
+   */
+  @Deprecated
+  void validatePrivilege(NamespaceKey key, SqlGrant.Privilege privilege);
 }

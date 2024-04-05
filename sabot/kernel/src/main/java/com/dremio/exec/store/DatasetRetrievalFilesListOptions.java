@@ -15,16 +15,16 @@
  */
 package com.dremio.exec.store;
 
-import java.util.List;
-
 import com.dremio.connector.metadata.ListPartitionChunkOption;
 import com.dremio.connector.metadata.options.RefreshTableFilterOption;
+import java.util.List;
 
 public class DatasetRetrievalFilesListOptions extends DatasetRetrievalOptions {
 
   private final List<String> filesList;
 
-  DatasetRetrievalFilesListOptions(DatasetRetrievalOptions.Builder builder, List<String> filesList) {
+  DatasetRetrievalFilesListOptions(
+      DatasetRetrievalOptions.Builder builder, List<String> filesList) {
     super(builder);
     this.filesList = filesList;
   }

@@ -15,12 +15,6 @@
  */
 package com.dremio.exec.store;
 
-import java.util.List;
-import java.util.Map;
-
-import org.apache.arrow.memory.OutOfMemoryException;
-import org.apache.arrow.vector.ValueVector;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.ExecConstants;
@@ -30,10 +24,12 @@ import com.dremio.exec.record.VectorContainer;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.google.common.base.Stopwatch;
+import java.util.List;
+import java.util.Map;
+import org.apache.arrow.memory.OutOfMemoryException;
+import org.apache.arrow.vector.ValueVector;
 
-/**
- * FilteringFileCoercionReader
- */
+/** FilteringFileCoercionReader */
 public abstract class FilteringFileCoercionReader extends AbstractRecordReader {
   protected final RecordReader inner;
   protected final OperatorContext context;
@@ -50,8 +46,12 @@ public abstract class FilteringFileCoercionReader extends AbstractRecordReader {
   protected boolean initialProjectorSetUpDone;
   protected NextMethodState nextMethodState = NextMethodState.NOT_CALLED_BY_FILTERING_READER;
 
-  protected FilteringFileCoercionReader(OperatorContext context, List<SchemaPath> columns, RecordReader inner,
-                                        BatchSchema originalSchema, TypeCoercion typeCoercion) {
+  protected FilteringFileCoercionReader(
+      OperatorContext context,
+      List<SchemaPath> columns,
+      RecordReader inner,
+      BatchSchema originalSchema,
+      TypeCoercion typeCoercion) {
     super(context, columns);
     this.mutator = new SampleMutator(context.getAllocator());
     this.incoming = mutator.getContainer();
@@ -59,9 +59,20 @@ public abstract class FilteringFileCoercionReader extends AbstractRecordReader {
     this.inner = inner;
     this.context = context;
     this.projectorOptions = new ExpressionEvaluationOptions(context.getOptions());
-    this.projectorOptions.setCodeGenOption(context.getOptions().getOption(ExecConstants.QUERY_EXEC_OPTION.getOptionName()).getStringVal());
+    this.projectorOptions.setCodeGenOption(
+        context
+            .getOptions()
+            .getOption(ExecConstants.QUERY_EXEC_OPTION.getOptionName())
+            .getStringVal());
     this.originalSchema = originalSchema;
-    this.compositeReader = new CompositeReader(mutator, context, typeCoercion, Stopwatch.createUnstarted(), Stopwatch.createUnstarted(), originalSchema);
+    this.compositeReader =
+        new CompositeReader(
+            mutator,
+            context,
+            typeCoercion,
+            Stopwatch.createUnstarted(),
+            Stopwatch.createUnstarted(),
+            originalSchema);
     this.projectorOutput = outgoing;
   }
 
@@ -77,11 +88,14 @@ public abstract class FilteringFileCoercionReader extends AbstractRecordReader {
 
   @Override
   public void allocate(Map<String, ValueVector> vectorMap) throws OutOfMemoryException {
-    // Do not allocate if called by FilteringReader when the status is 'FIRST_CALL_BY_FILTERING_READER'.
-    // DX-40891, if the FilteringReader excludes all rows for a batch and needs to call 'inner' reader
-    // to read another batch to process, it needs to allocate more memory for field vectors in 'mutator'.
-    if (nextMethodState == NextMethodState.NOT_CALLED_BY_FILTERING_READER ||
-      nextMethodState == NextMethodState.REPEATED_CALL_BY_FILTERING_READER) {
+    // Do not allocate if called by FilteringReader when the status is
+    // 'FIRST_CALL_BY_FILTERING_READER'.
+    // DX-40891, if the FilteringReader excludes all rows for a batch and needs to call 'inner'
+    // reader
+    // to read another batch to process, it needs to allocate more memory for field vectors in
+    // 'mutator'.
+    if (nextMethodState == NextMethodState.NOT_CALLED_BY_FILTERING_READER
+        || nextMethodState == NextMethodState.REPEATED_CALL_BY_FILTERING_READER) {
       super.allocate(vectorMap);
       inner.allocate(mutator.getFieldVectorMap());
     }

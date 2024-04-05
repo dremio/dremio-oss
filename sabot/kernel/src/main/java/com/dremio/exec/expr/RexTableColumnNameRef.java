@@ -15,21 +15,21 @@
  */
 package com.dremio.exec.expr;
 
+import com.dremio.common.utils.PathUtils;
+import com.dremio.exec.planner.physical.visitor.QueryProfileProcessor;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexTableInputRef;
 
-import com.dremio.common.utils.PathUtils;
-import com.dremio.exec.planner.physical.visitor.QueryProfileProcessor;
-
 /**
  * Variable which wraps a tableInputRef and stores the table.columnName in its digest.
  *
- * <p>This object is used by
- * {@link QueryProfileProcessor} to show the entire columnName of the referenced InputRef
- * <p>Note that this kind of {@link RexNode} is an auxiliary data structure with
- * a very specific purpose and should not be used in relational expressions.
+ * <p>This object is used by {@link QueryProfileProcessor} to show the entire columnName of the
+ * referenced InputRef
+ *
+ * <p>Note that this kind of {@link RexNode} is an auxiliary data structure with a very specific
+ * purpose and should not be used in relational expressions.
  */
 public class RexTableColumnNameRef extends RexInputRef {
 
@@ -39,24 +39,29 @@ public class RexTableColumnNameRef extends RexInputRef {
     super(tableRef.getIndex(), tableRef.getType());
     this.tableInputRef = tableRef;
     RelOptTable table = tableRef.getTableRef().getTable();
-    this.digest =  PathUtils.constructFullPath(table.getQualifiedName() )+ "." +
-      table.getRowType().getFieldList().get(index).getName();
+    this.digest =
+        PathUtils.constructFullPath(table.getQualifiedName())
+            + "."
+            + table.getRowType().getFieldList().get(index).getName();
   }
 
-  //~ Methods ----------------------------------------------------------------
+  // ~ Methods ----------------------------------------------------------------
 
-  @Override public boolean equals(Object obj) {
+  @Override
+  public boolean equals(Object obj) {
     return this == obj
-      || obj instanceof RexTableInputRef
-      && tableInputRef.equals(((RexTableInputRef) obj))
-      && index == ((RexTableInputRef) obj).getIndex();
+        || obj instanceof RexTableInputRef
+            && tableInputRef.equals(((RexTableInputRef) obj))
+            && index == ((RexTableInputRef) obj).getIndex();
   }
 
-  @Override public String toString() {
+  @Override
+  public String toString() {
     return digest;
   }
 
-  @Override public int hashCode() {
+  @Override
+  public int hashCode() {
     return digest.hashCode();
   }
 }

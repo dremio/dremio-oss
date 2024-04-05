@@ -21,8 +21,8 @@ import org.apache.poi.poifs.storage.BATBlock;
 import org.apache.poi.poifs.storage.HeaderBlock;
 
 /**
- * the DIFAT or Double Indirect File Allocation Table, is a structure that is used to locate FAT blocks in a
- * compound file.
+ * the DIFAT or Double Indirect File Allocation Table, is a structure that is used to locate FAT
+ * blocks in a compound file.
  */
 class DIFAT extends BlockStoreBase {
 
@@ -45,15 +45,15 @@ class DIFAT extends BlockStoreBase {
   /**
    * reads all DIFAT sectors.<br>
    * <br>
-   * the first DIFAT array, which contains up to 109 element is part of the header
-   * (POI refers to it as BAT table). The remaining DIFATs (or XBATs) are stored as a FAT chain where the first
-   * one is at sector header._xbat_start
+   * the first DIFAT array, which contains up to 109 element is part of the header (POI refers to it
+   * as BAT table). The remaining DIFATs (or XBATs) are stored as a FAT chain where the first one is
+   * at sector header._xbat_start
    */
   private void readAllBATs() {
     // Most likely we only need it to return nextBlock of a given sector
 
     // the first 109 FAT sectors' indices are stored in the header
-    for(int fatAt : header.getBATArray()) {
+    for (int fatAt : header.getBATArray()) {
       readBAT(fatAt);
     }
     // Any additional BAT sectors are held in the XBAT (DIFAT) sectors in a chain.
@@ -63,7 +63,7 @@ class DIFAT extends BlockStoreBase {
 
     // Now read the XFAT blocks, and the FATs within them
     int nextAt = header.getXBATIndex();
-    for(int i = 0; i < header.getXBATCount(); i++) {
+    for (int i = 0; i < header.getXBATCount(); i++) {
       BATBlock xfat = BATBlock.createBATBlock(bigBlockSize, getBlockBuffer(nextAt));
       xfat.setOurBlockIndex(nextAt);
       // notice that XFATs are stored as a chain in the FAT
@@ -71,7 +71,7 @@ class DIFAT extends BlockStoreBase {
 
       // Process all the (used) FATs from this XFAT
       int xbatFATs = Math.min(remainingFATs, bigBlockSize.getXBATEntriesPerBlock());
-      for(int j = 0; j < xbatFATs; j++) {
+      for (int j = 0; j < xbatFATs; j++) {
         int fatAt = xfat.getValueAt(j);
         if (fatAt == POIFSConstants.UNUSED_BLOCK || fatAt == POIFSConstants.END_OF_CHAIN) {
           break;
@@ -87,5 +87,4 @@ class DIFAT extends BlockStoreBase {
     bat.setOurBlockIndex(sector);
     blocks.add(bat);
   }
-
 }

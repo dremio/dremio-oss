@@ -15,49 +15,46 @@
  */
 package com.dremio.service.namespace;
 
-import java.io.IOException;
-
 import com.dremio.connector.metadata.DatasetSplit;
 import com.dremio.connector.metadata.PartitionChunk;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import java.io.IOException;
 
 /**
- * The DatasetMetadataSaver is used to save the metadata of a single dataset
- * The methods need to be invoked in order. In particular, the partition chunk listing must be saved then the dataset.
- * Saving of the dataset always completes with the saving of the dataset config
- * Order of invocation:
- *      - dataset split +    // one or more invocations to {@link #saveDatasetSplit(DatasetSplit)}
- *    - partition chunk      // refers to all the dataset split(s) above
- *      - dataset split +
- *    - partition chunk      // refers to the dataset split(s) saved after the last partition chunk
- *  - dataset config         // "closes" the save. Refers to all the partition chunks saved above
+ * The DatasetMetadataSaver is used to save the metadata of a single dataset The methods need to be
+ * invoked in order. In particular, the partition chunk listing must be saved then the dataset.
+ * Saving of the dataset always completes with the saving of the dataset config Order of invocation:
+ * - dataset split + // one or more invocations to {@link #saveDatasetSplit(DatasetSplit)} -
+ * partition chunk // refers to all the dataset split(s) above - dataset split + - partition chunk
+ * // refers to the dataset split(s) saved after the last partition chunk - dataset config //
+ * "closes" the save. Refers to all the partition chunks saved above
  */
 public interface DatasetMetadataSaver extends AutoCloseable {
 
-  /**
-   * Save a single split
-   */
+  /** Save a single split */
   void saveDatasetSplit(DatasetSplit split);
 
   /**
-   * Save a partition chunk that refers to all the dataset splits since the last invocation
-   * of {@link #savePartitionChunk(PartitionChunk)}, or since the creation of this metadata saver, whichever came last.
-   * At least one {@link #saveDatasetSplit(DatasetSplit)} must have been invoked, or this method will throw a
-   * RuntimeException
+   * Save a partition chunk that refers to all the dataset splits since the last invocation of
+   * {@link #savePartitionChunk(PartitionChunk)}, or since the creation of this metadata saver,
+   * whichever came last. At least one {@link #saveDatasetSplit(DatasetSplit)} must have been
+   * invoked, or this method will throw a RuntimeException
    */
   void savePartitionChunk(PartitionChunk partitionChunk) throws IOException;
 
   /**
-   * Complete the saving of this dataset. After this method is invoked, invoking any other method on this saver will
-   * throw a RuntimeException
-   * It's only legal to call this method after a partition chunk has been saved. Invoking this method without saving
-   * a partition chunk will throw a runtime exception, as will invoking this method directly after saving a dataset split
+   * Complete the saving of this dataset. After this method is invoked, invoking any other method on
+   * this saver will throw a RuntimeException It's only legal to call this method after a partition
+   * chunk has been saved. Invoking this method without saving a partition chunk will throw a
+   * runtime exception, as will invoking this method directly after saving a dataset split
    */
-  void saveDataset(DatasetConfig datasetConfig, boolean opportunisticSave, NamespaceAttribute... attributes) throws NamespaceException;
+  void saveDataset(
+      DatasetConfig datasetConfig, boolean opportunisticSave, NamespaceAttribute... attributes)
+      throws NamespaceException;
 
   /**
-   * If {@link #saveDataset} was not invoked, will clean up any effects of the {@link #saveDatasetSplit(DatasetSplit)}
-   * and {@link #savePartitionChunk(PartitionChunk)} calls
+   * If {@link #saveDataset} was not invoked, will clean up any effects of the {@link
+   * #saveDatasetSplit(DatasetSplit)} and {@link #savePartitionChunk(PartitionChunk)} calls
    */
   @Override
   void close();

@@ -15,17 +15,14 @@
  */
 package com.dremio.dac.explore.model.extract;
 
-import java.util.List;
-
 import com.dremio.dac.explore.model.HistogramValue;
 import com.dremio.dac.proto.model.dataset.ReplacePatternRule;
 import com.dremio.dac.util.JSONUtil;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.List;
 
-/**
- * ExtractCards model
- */
+/** ExtractCards model */
 public class ReplaceCards {
 
   private final List<Card<ReplacePatternRule>> cards;
@@ -33,7 +30,9 @@ public class ReplaceCards {
   private final ReplaceValuesCard values;
 
   @JsonCreator
-  public ReplaceCards(@JsonProperty("cards") List<Card<ReplacePatternRule>> cards, @JsonProperty("values") ReplaceValuesCard values) {
+  public ReplaceCards(
+      @JsonProperty("cards") List<Card<ReplacePatternRule>> cards,
+      @JsonProperty("values") ReplaceValuesCard values) {
     this.cards = cards;
     this.values = values;
   }
@@ -51,9 +50,7 @@ public class ReplaceCards {
     return JSONUtil.toString(this);
   }
 
-  /**
-   * support for displaying the replace values card
-   */
+  /** support for displaying the replace values card */
   public static class ReplaceValuesCard {
 
     private final List<HistogramValue> availableValues;
@@ -77,12 +74,15 @@ public class ReplaceCards {
     public List<HistogramValue> getAvailableValues() {
       return availableValues;
     }
+
     public long getMatchedValues() {
       return matchedValues;
     }
+
     public long getUnmatchedValues() {
       return unmatchedValues;
     }
+
     public long getAvailableValuesCount() {
       return availableValuesCount;
     }

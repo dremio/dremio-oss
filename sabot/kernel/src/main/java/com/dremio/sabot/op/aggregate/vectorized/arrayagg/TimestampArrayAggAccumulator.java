@@ -16,6 +16,7 @@
 
 package com.dremio.sabot.op.aggregate.vectorized.arrayagg;
 
+import io.netty.util.internal.PlatformDependent;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BaseValueVector;
@@ -23,11 +24,14 @@ import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.TimeStampMilliVector;
 import org.apache.arrow.vector.complex.impl.UnionListWriter;
 
-import io.netty.util.internal.PlatformDependent;
-
-public class TimestampArrayAggAccumulator extends BaseArrayAggAccumulator<Long, TimeStampMilliVector> {
-  public TimestampArrayAggAccumulator(FieldVector input, FieldVector transferVector, int maxValuesPerBatch,
-                                      BaseValueVector tempAccumulatorHolder, BufferAllocator allocator) {
+public class TimestampArrayAggAccumulator
+    extends BaseArrayAggAccumulator<Long, TimeStampMilliVector> {
+  public TimestampArrayAggAccumulator(
+      FieldVector input,
+      FieldVector transferVector,
+      int maxValuesPerBatch,
+      BaseValueVector tempAccumulatorHolder,
+      BufferAllocator allocator) {
     super(input, transferVector, maxValuesPerBatch, tempAccumulatorHolder, allocator);
   }
 
@@ -42,13 +46,14 @@ public class TimestampArrayAggAccumulator extends BaseArrayAggAccumulator<Long, 
   }
 
   @Override
-  protected BaseArrayAggAccumulatorHolder<Long, TimeStampMilliVector> getAccumulatorHolder(int maxValuesPerBatch,
-                                                                                      BufferAllocator allocator) {
+  protected BaseArrayAggAccumulatorHolder<Long, TimeStampMilliVector> getAccumulatorHolder(
+      int maxValuesPerBatch, BufferAllocator allocator) {
     return new TimestampArrayAggAccumulatorHolder(maxValuesPerBatch, allocator);
   }
 
   @Override
-  protected Long getElement(long baseAddress, int itemIndex, ArrowBuf dataBuffer, ArrowBuf offsetBuffer) {
+  protected Long getElement(
+      long baseAddress, int itemIndex, ArrowBuf dataBuffer, ArrowBuf offsetBuffer) {
     long offHeapMemoryAddress = getOffHeapAddressForFixedWidthTypes(baseAddress, itemIndex);
     return PlatformDependent.getLong(offHeapMemoryAddress);
   }

@@ -15,11 +15,6 @@
  */
 package com.dremio.exec.planner.physical.visitor;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import org.apache.calcite.rel.RelNode;
-
 import com.dremio.exec.planner.fragment.DistributionAffinity;
 import com.dremio.exec.planner.physical.AggregatePrel;
 import com.dremio.exec.planner.physical.ExchangePrel;
@@ -34,23 +29,24 @@ import com.dremio.exec.planner.physical.SortPrel;
 import com.dremio.exec.planner.physical.TableFunctionPrel;
 import com.dremio.exec.planner.physical.TopNPrel;
 import com.dremio.exec.planner.physical.WindowPrel;
+import java.util.ArrayList;
+import java.util.List;
+import org.apache.calcite.rel.RelNode;
 
 /**
- * Removes all exchanges if the plan fits the following description:
- *   Leaf limits are disabled.
- *   Plan has no joins, window operators or aggregates (union alls are okay)
- *   Plan has at least one subpattern that is scan > project > limit or scan > limit,
- *   The limit is slice target or less
- *   All scans are soft affinity and there are no filters pushed into them.
+ * Removes all exchanges if the plan fits the following description: Leaf limits are disabled. Plan
+ * has no joins, window operators or aggregates (union alls are okay) Plan has at least one
+ * subpattern that is scan > project > limit or scan > limit, The limit is slice target or less All
+ * scans are soft affinity and there are no filters pushed into them.
  */
 public class SimpleLimitExchangeRemover {
 
-  public static Prel apply(PlannerSettings settings, Prel input){
-    if(!settings.isTrivialSingularOptimized() || settings.isLeafLimitsEnabled()) {
+  public static Prel apply(PlannerSettings settings, Prel input) {
+    if (!settings.isTrivialSingularOptimized() || settings.isLeafLimitsEnabled()) {
       return input;
     }
 
-    if(input.accept(new Identifier(), false)){
+    if (input.accept(new Identifier(), false)) {
       return input.accept(new AllExchangeRemover(), null);
     }
     return input;
@@ -63,8 +59,8 @@ public class SimpleLimitExchangeRemover {
       if (prel instanceof WindowPrel || prel instanceof SortPrel || prel instanceof TopNPrel) {
         return false;
       }
-      for(Prel p : prel) {
-        if(!p.accept(this, isTrivial)) {
+      for (Prel p : prel) {
+        if (!p.accept(this, isTrivial)) {
           return false;
         }
       }
@@ -81,7 +77,8 @@ public class SimpleLimitExchangeRemover {
     }
 
     @Override
-    public Boolean visitTableFunction(TableFunctionPrel prel, Boolean isTrivial) throws RuntimeException {
+    public Boolean visitTableFunction(TableFunctionPrel prel, Boolean isTrivial)
+        throws RuntimeException {
       // Do not remove exchanges when we have filters inside scans.
       if (prel.hasFilter()) {
         return false;
@@ -114,24 +111,21 @@ public class SimpleLimitExchangeRemover {
 
       return isTrivial;
     }
-
   }
 
   private static class AllExchangeRemover extends BasePrelVisitor<Prel, Void, RuntimeException> {
     @Override
     public Prel visitExchange(ExchangePrel prel, Void dummy) {
-      return (Prel) ((Prel)prel.getInput()).accept(this, null);
+      return (Prel) ((Prel) prel.getInput()).accept(this, null);
     }
 
     @Override
     public Prel visitPrel(Prel prel, Void dummy) {
       List<RelNode> children = new ArrayList<>();
-      for(Prel p : prel){
+      for (Prel p : prel) {
         children.add(p.accept(this, null));
       }
       return (Prel) prel.copy(prel.getTraitSet(), children);
     }
-
   }
-
 }

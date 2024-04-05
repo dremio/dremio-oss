@@ -15,18 +15,13 @@
  */
 package com.dremio.dac.api;
 
-
+import com.dremio.exec.catalog.conf.DoNotDisplay;
+import com.dremio.exec.catalog.conf.SourceType;
+import io.protostuff.Tag;
 import org.junit.Assert;
 import org.junit.Test;
 
-import com.dremio.exec.catalog.conf.DoNotDisplay;
-import com.dremio.exec.catalog.conf.SourceType;
-
-import io.protostuff.Tag;
-
-/**
- * Test class for {@link SourceTypeTemplate}
- */
+/** Test class for {@link SourceTypeTemplate} */
 public class TestSourceTypeTemplate {
   @Test
   public void testPropertyOverride() {
@@ -38,7 +33,6 @@ public class TestSourceTypeTemplate {
     SourceTypeTemplate classCTemplate = SourceTypeTemplate.fromSourceClass(ClassC.class, true);
     // the sub-subclass unhid the field
     Assert.assertEquals(4, classCTemplate.getElements().size());
-
   }
 
   @SourceType(value = "ClassA")
@@ -53,8 +47,7 @@ public class TestSourceTypeTemplate {
     @Tag(3)
     public String field;
 
-    public ClassA() {
-    }
+    public ClassA() {}
   }
 
   @SourceType(value = "ClassB")
@@ -66,8 +59,7 @@ public class TestSourceTypeTemplate {
     @Tag(4)
     public double field;
 
-    public ClassB() {
-    }
+    public ClassB() {}
   }
 
   @SourceType(value = "ClassC")
@@ -78,7 +70,6 @@ public class TestSourceTypeTemplate {
     @Tag(3)
     public String field;
 
-    public ClassC() {
-    }
+    public ClassC() {}
   }
 }

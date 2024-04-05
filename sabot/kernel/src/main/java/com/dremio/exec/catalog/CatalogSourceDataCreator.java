@@ -15,7 +15,6 @@
  */
 package com.dremio.exec.catalog;
 
-
 import com.dremio.datastore.VersionExtractor;
 import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.datastore.api.LegacyKVStoreCreationFunction;
@@ -24,24 +23,25 @@ import com.dremio.datastore.format.Format;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.source.proto.SourceInternalData;
 
-/**
- * Creator for catalog source data kvstore
- */
-public class CatalogSourceDataCreator implements LegacyKVStoreCreationFunction<NamespaceKey, SourceInternalData> {
+/** Creator for catalog source data kvstore */
+public class CatalogSourceDataCreator
+    implements LegacyKVStoreCreationFunction<NamespaceKey, SourceInternalData> {
   @Override
   public LegacyKVStore<NamespaceKey, SourceInternalData> build(LegacyStoreBuildingFactory factory) {
-    return factory.<NamespaceKey, SourceInternalData>newStore()
-      .name(CatalogServiceImpl.CATALOG_SOURCE_DATA_NAMESPACE)
-      .keyFormat(Format.wrapped(NamespaceKey.class, NamespaceKey::toString, NamespaceKey::new, Format.ofString()))
-      .valueFormat(Format.ofProtostuff(SourceInternalData.class))
-      .versionExtractor(SourceInternalDataVersionExtractor.class)
-      .build();
+    return factory
+        .<NamespaceKey, SourceInternalData>newStore()
+        .name(CatalogServiceImpl.CATALOG_SOURCE_DATA_NAMESPACE)
+        .keyFormat(
+            Format.wrapped(
+                NamespaceKey.class, NamespaceKey::toString, NamespaceKey::new, Format.ofString()))
+        .valueFormat(Format.ofProtostuff(SourceInternalData.class))
+        .versionExtractor(SourceInternalDataVersionExtractor.class)
+        .build();
   }
 
-  /**
-   * version extractor for namespace container.
-   */
-  public static class SourceInternalDataVersionExtractor implements VersionExtractor<SourceInternalData> {
+  /** version extractor for namespace container. */
+  public static class SourceInternalDataVersionExtractor
+      implements VersionExtractor<SourceInternalData> {
     @Override
     public String getTag(SourceInternalData value) {
       return value.getTag();

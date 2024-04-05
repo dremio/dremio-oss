@@ -16,14 +16,6 @@
 
 package com.dremio.exec.planner.physical;
 
-import java.io.IOException;
-import java.util.Iterator;
-
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rex.RexNode;
-
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.config.Filter;
 import com.dremio.exec.planner.common.FilterRelBase;
@@ -33,19 +25,28 @@ import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators.LongValidator;
 import com.dremio.options.TypeValidators.PositiveLongValidator;
+import java.io.IOException;
+import java.util.Iterator;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rex.RexNode;
 
 @Options
 public class FilterPrel extends FilterRelBase implements Prel {
 
-  public static final LongValidator RESERVE = new PositiveLongValidator("planner.op.filter.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
-  public static final LongValidator LIMIT = new PositiveLongValidator("planner.op.filter.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
+  public static final LongValidator RESERVE =
+      new PositiveLongValidator("planner.op.filter.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
+  public static final LongValidator LIMIT =
+      new PositiveLongValidator("planner.op.filter.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
 
   public FilterPrel(RelOptCluster cluster, RelTraitSet traits, RelNode child, RexNode condition) {
     super(Prel.PHYSICAL, cluster, traits, child, condition);
   }
 
   @Override
-  public org.apache.calcite.rel.core.Filter copy(RelTraitSet traitSet, RelNode input, RexNode condition) {
+  public org.apache.calcite.rel.core.Filter copy(
+      RelTraitSet traitSet, RelNode input, RexNode condition) {
     return new FilterPrel(getCluster(), traitSet, input, condition);
   }
 
@@ -57,11 +58,15 @@ public class FilterPrel extends FilterRelBase implements Prel {
     PhysicalOperator childPOP = child.getPhysicalOperator(creator);
 
     return new Filter(
-        creator.props(this, null, childPOP.getProps().getSchema().clone(SelectionVectorMode.TWO_BYTE), RESERVE, LIMIT),
+        creator.props(
+            this,
+            null,
+            childPOP.getProps().getSchema().clone(SelectionVectorMode.TWO_BYTE),
+            RESERVE,
+            LIMIT),
         childPOP,
         getFilterExpression(new ParseContext(PrelUtil.getSettings(getCluster()))),
-        1.0f
-        );
+        1.0f);
   }
 
   @Override
@@ -70,7 +75,8 @@ public class FilterPrel extends FilterRelBase implements Prel {
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(PrelVisitor<T, X, E> logicalVisitor, X value) throws E {
+  public <T, X, E extends Throwable> T accept(PrelVisitor<T, X, E> logicalVisitor, X value)
+      throws E {
     return logicalVisitor.visitFilter(this, value);
   }
 
@@ -79,9 +85,7 @@ public class FilterPrel extends FilterRelBase implements Prel {
     return SelectionVectorMode.DEFAULT;
   }
 
-  /**
-   * FilterPrel adds an SV2 (TWO_BYTE mode SelectionVector).
-   */
+  /** FilterPrel adds an SV2 (TWO_BYTE mode SelectionVector). */
   @Override
   public SelectionVectorMode getEncoding() {
     return SelectionVectorMode.TWO_BYTE;
@@ -92,7 +96,8 @@ public class FilterPrel extends FilterRelBase implements Prel {
     return true;
   }
 
-  public static FilterPrel create(RelOptCluster cluster, RelTraitSet traits, RelNode child, RexNode condition) {
+  public static FilterPrel create(
+      RelOptCluster cluster, RelTraitSet traits, RelNode child, RexNode condition) {
     return new FilterPrel(cluster, traits, child, condition);
   }
 }

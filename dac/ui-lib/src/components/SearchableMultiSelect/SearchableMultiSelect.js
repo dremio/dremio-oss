@@ -52,7 +52,7 @@ const SearchableMultiSelect = (props) => {
 
   const visibleValues = useMemo(
     () => (limitTags && !showMenu ? value.slice(0, limitTags) : value),
-    [value, limitTags, showMenu]
+    [value, limitTags, showMenu],
   );
 
   const hasError = get(touched, name) && get(errors, name);
@@ -63,7 +63,7 @@ const SearchableMultiSelect = (props) => {
     "SearchableMultiSelect__value",
     { "--error": hasError },
     { "--disabled": disabled },
-    { [classes.value]: classes.value }
+    { [classes.value]: classes.value },
   );
 
   const inputClass = clsx("SearchableMultiSelect__input", "margin-top", {
@@ -85,7 +85,7 @@ const SearchableMultiSelect = (props) => {
 
   const removeValue = (deleteValue) => {
     const updatedValue = value.filter(
-      (selectedVal) => selectedVal.value !== deleteValue
+      (selectedVal) => selectedVal.value !== deleteValue,
     );
     updateValue(updatedValue);
   };
@@ -112,7 +112,7 @@ const SearchableMultiSelect = (props) => {
 
   const handleMenuItemClick = (selectedLabel, selectedValue) => {
     const isValueExist = value.find(
-      (valueObject) => valueObject.value === selectedValue
+      (valueObject) => valueObject.value === selectedValue,
     );
     if (!isValueExist) {
       addValue(selectedLabel, selectedValue);
@@ -149,7 +149,7 @@ const SearchableMultiSelect = (props) => {
       e.key === "Enter" &&
       value.findIndex(
         (selectedVal) =>
-          selectedVal.value.toLowerCase() === options[0].value.toLowerCase()
+          selectedVal.value.toLowerCase() === options[0].value.toLowerCase(),
       ) === -1
     ) {
       addValue(options[0].label, options[0].value);
@@ -294,7 +294,7 @@ SearchableMultiSelect.propTypes = {
     PropTypes.shape({
       label: PropTypes.string,
       value: PropTypes.string,
-    })
+    }),
   ).isRequired,
   handleChange: PropTypes.func,
   style: PropTypes.object,

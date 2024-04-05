@@ -20,25 +20,21 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertSame;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.lang.reflect.Method;
-import java.nio.ByteBuffer;
-
-import org.apache.commons.lang3.reflect.FieldUtils;
-import org.junit.Test;
-
 import com.dremio.common.SuppressForbidden;
 import com.google.protobuf.ByteOutput;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.UnsafeByteOperations;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.lang.reflect.Method;
+import java.nio.ByteBuffer;
+import org.apache.commons.lang3.reflect.FieldUtils;
+import org.junit.Test;
 
-/**
- * Test {@link ByteOutput} implementation API usage.
- */
+/** Test {@link ByteOutput} implementation API usage. */
 @SuppressForbidden
 public class TestOptimisticByteOutput {
-  private static final byte[] smallData = new byte[]{0, 1, 2, 3, 0, 127};
+  private static final byte[] smallData = new byte[] {0, 1, 2, 3, 0, 127};
 
   @Test
   public void testWriteLazyArray() throws IOException {
@@ -305,7 +301,6 @@ public class TestOptimisticByteOutput {
     assertSame(array, byteOutput.toByteArray());
   }
 
-
   @Test
   public void testRopeByteString() throws Exception {
     ByteString literal = ByteString.copyFrom(smallData);
@@ -330,10 +325,12 @@ public class TestOptimisticByteOutput {
   }
 
   private static final Method NEW_ROPE_BYTE_STRING_INSTANCE;
+
   static {
     try {
       Class<?> clazz = Class.forName("com.google.protobuf.RopeByteString");
-      Method method = clazz.getDeclaredMethod("newInstanceForTest", ByteString.class, ByteString.class);
+      Method method =
+          clazz.getDeclaredMethod("newInstanceForTest", ByteString.class, ByteString.class);
       method.setAccessible(true);
       NEW_ROPE_BYTE_STRING_INSTANCE = method;
     } catch (ClassNotFoundException | NoSuchMethodException e) {
@@ -345,7 +342,8 @@ public class TestOptimisticByteOutput {
   public void testRopeByteStringWithZeroOnLeft() throws Exception {
     ByteString literal = ByteString.copyFrom(smallData);
 
-    ByteString data = (ByteString) NEW_ROPE_BYTE_STRING_INSTANCE.invoke(null, ByteString.EMPTY, literal);
+    ByteString data =
+        (ByteString) NEW_ROPE_BYTE_STRING_INSTANCE.invoke(null, ByteString.EMPTY, literal);
 
     OptimisticByteOutput byteOutput = new OptimisticByteOutput(smallData.length);
     UnsafeByteOperations.unsafeWriteTo(data, byteOutput);
@@ -359,7 +357,8 @@ public class TestOptimisticByteOutput {
   public void testRopeByteStringWithZeroOnRight() throws Exception {
     ByteString literal = ByteString.copyFrom(smallData);
 
-    ByteString data = (ByteString) NEW_ROPE_BYTE_STRING_INSTANCE.invoke(null, literal, ByteString.EMPTY);
+    ByteString data =
+        (ByteString) NEW_ROPE_BYTE_STRING_INSTANCE.invoke(null, literal, ByteString.EMPTY);
 
     OptimisticByteOutput byteOutput = new OptimisticByteOutput(smallData.length);
     UnsafeByteOperations.unsafeWriteTo(data, byteOutput);

@@ -17,23 +17,6 @@ package com.dremio.dac.resource;
 
 import static com.dremio.service.namespace.proto.NameSpaceContainer.Type.SOURCE;
 
-import java.io.UnsupportedEncodingException;
-import java.util.List;
-
-import javax.annotation.security.RolesAllowed;
-import javax.inject.Inject;
-import javax.inject.Provider;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.Context;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.SecurityContext;
-
-import org.apache.commons.collections4.CollectionUtils;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
@@ -55,10 +38,22 @@ import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.space.proto.HomeConfig;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
 import com.google.common.collect.Lists;
+import java.io.UnsupportedEncodingException;
+import java.util.List;
+import javax.annotation.security.RolesAllowed;
+import javax.inject.Inject;
+import javax.inject.Provider;
+import javax.ws.rs.GET;
+import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
+import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
+import javax.ws.rs.core.Context;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.SecurityContext;
+import org.apache.commons.collections4.CollectionUtils;
 
-/**
- * Rest resource for resource tree.
- */
+/** Rest resource for resource tree. */
 @RestResource
 @Secured
 @RolesAllowed({"admin", "user"})
@@ -72,9 +67,11 @@ public class ResourceTreeResource {
 
   @Inject
   public ResourceTreeResource(
-    Provider<NamespaceService> namespaceService,
-    @Context SecurityContext securityContext,
-    SourceService sourceService, SabotContext context, ConnectionReader connectionReader) {
+      Provider<NamespaceService> namespaceService,
+      @Context SecurityContext securityContext,
+      SourceService sourceService,
+      SabotContext context,
+      ConnectionReader connectionReader) {
     this.namespaceService = namespaceService;
     this.securityContext = securityContext;
     this.sourceService = sourceService;
@@ -84,10 +81,11 @@ public class ResourceTreeResource {
 
   @GET
   @Produces(MediaType.APPLICATION_JSON)
-  public ResourceList getResourceTree(@QueryParam("showSpaces") boolean showSpaces,
-                                      @QueryParam("showSources") boolean showSources,
-                                      @QueryParam("showHomes") boolean showHomes)
-    throws NamespaceException, UnsupportedEncodingException {
+  public ResourceList getResourceTree(
+      @QueryParam("showSpaces") boolean showSpaces,
+      @QueryParam("showSources") boolean showSources,
+      @QueryParam("showHomes") boolean showHomes)
+      throws NamespaceException, UnsupportedEncodingException {
     final List<ResourceTreeEntity> resources = Lists.newArrayList();
     if (showSpaces) {
       resources.addAll(getSpaces());
@@ -109,26 +107,22 @@ public class ResourceTreeResource {
       @QueryParam("showDatasets") boolean showDatasets,
       @QueryParam("refType") String refType,
       @QueryParam("refValue") String refValue)
-    throws NamespaceException, UnsupportedEncodingException {
+      throws NamespaceException, UnsupportedEncodingException {
     final FolderPath folderPath = new FolderPath(rootPath);
 
-    return new ResourceList(
-      listPath(
-        folderPath.toNamespaceKey(),
-        showDatasets,
-        refType,
-        refValue));
+    return new ResourceList(listPath(folderPath.toNamespaceKey(), showDatasets, refType, refValue));
   }
 
   @GET
   @Path("/{rootPath}/expand")
   @Produces(MediaType.APPLICATION_JSON)
-  public ResourceList getResourceTreeWithExpansion(@PathParam("rootPath") String rootPath,
-                                                   @QueryParam("showSpaces") boolean showSpaces,
-                                                   @QueryParam("showSources") boolean showSources,
-                                                   @QueryParam("showDatasets") boolean showDatasets,
-                                                   @QueryParam("showHomes") boolean showHomes)
-    throws NamespaceException, UnsupportedEncodingException {
+  public ResourceList getResourceTreeWithExpansion(
+      @PathParam("rootPath") String rootPath,
+      @QueryParam("showSpaces") boolean showSpaces,
+      @QueryParam("showSources") boolean showSources,
+      @QueryParam("showDatasets") boolean showDatasets,
+      @QueryParam("showHomes") boolean showHomes)
+      throws NamespaceException, UnsupportedEncodingException {
     final List<ResourceTreeEntity> resources = Lists.newArrayList();
     final FolderPath folderPath = new FolderPath(rootPath);
     final List<String> expandPathList = folderPath.toPathList();
@@ -164,7 +158,9 @@ public class ResourceTreeResource {
     // see if root is space
     if (root == null) {
       try {
-        root = new ResourceTreeEntity(namespaceService.get().getSpace(new NamespaceKey(expandPathList.get(0))));
+        root =
+            new ResourceTreeEntity(
+                namespaceService.get().getSpace(new NamespaceKey(expandPathList.get(0))));
         resources.add(root);
       } catch (NamespaceException nse) {
         // ignore
@@ -174,7 +170,9 @@ public class ResourceTreeResource {
     // see if root is home
     if (root == null) {
       try {
-        root = new ResourceTreeEntity(namespaceService.get().getHome(new NamespaceKey(expandPathList.get(0))));
+        root =
+            new ResourceTreeEntity(
+                namespaceService.get().getHome(new NamespaceKey(expandPathList.get(0))));
         resources.add(root);
       } catch (NamespaceException nse) {
         // ignore
@@ -183,7 +181,8 @@ public class ResourceTreeResource {
 
     if (root == null) {
       try {
-        SourceConfig sourceConfig = namespaceService.get().getSource(new NamespaceKey(expandPathList.get(0)));
+        SourceConfig sourceConfig =
+            namespaceService.get().getSource(new NamespaceKey(expandPathList.get(0)));
         if (!SourceUI.isInternal(sourceConfig, connectionReader)) {
           root = new ResourceTreeEntity(sourceConfig);
           resources.add(root);
@@ -196,7 +195,8 @@ public class ResourceTreeResource {
     // expand path starting from root entity.
     for (int i = 0; i < expandPathList.size() - 1; ++i) {
       NamespaceKey parentPath = new NamespaceKey(expandPathList.subList(0, i + 1));
-      List<ResourceTreeEntity> intermediateResources = listPath(parentPath, showDatasets, null, null);
+      List<ResourceTreeEntity> intermediateResources =
+          listPath(parentPath, showDatasets, null, null);
       if (!intermediateResources.isEmpty()) {
         root.expand(intermediateResources);
         // reset root
@@ -223,13 +223,12 @@ public class ResourceTreeResource {
   }
 
   public List<ResourceTreeEntity> listPath(
-      NamespaceKey path,
-      boolean showDatasets,
-      String refType,
-      String refValue)
+      NamespaceKey path, boolean showDatasets, String refType, String refValue)
       throws NamespaceException, UnsupportedEncodingException {
     if (CollectionUtils.isEmpty(path.getPathComponents())) {
-      throw UserException.validationError().message("Invalid path. Can't list a null or empty path.").buildSilently();
+      throw UserException.validationError()
+          .message("Invalid path. Can't list a null or empty path.")
+          .buildSilently();
     }
     NamespaceKey root = new NamespaceKey(path.getRoot());
     if (namespaceService.get().exists(root, SOURCE)) {
@@ -254,7 +253,7 @@ public class ResourceTreeResource {
   private ResourceTreeEntity.ResourceType getRootType(NamespaceKey root) throws NamespaceException {
     NameSpaceContainer container = namespaceService.get().getEntityByPath(root);
     Type rootContainerType = container.getType();
-    switch(rootContainerType) {
+    switch (rootContainerType) {
       case SOURCE:
         return ResourceTreeEntity.ResourceType.SOURCE;
       case SPACE:
@@ -262,11 +261,14 @@ public class ResourceTreeResource {
       case HOME:
         return ResourceTreeEntity.ResourceType.HOME;
       default:
-        throw UserException.validationError().message(String.format("Invalid root container type %s", rootContainerType)).buildSilently();
+        throw UserException.validationError()
+            .message(String.format("Invalid root container type %s", rootContainerType))
+            .buildSilently();
     }
   }
 
-  public List<ResourceTreeEntity>  getSpaces() throws NamespaceException, UnsupportedEncodingException  {
+  public List<ResourceTreeEntity> getSpaces()
+      throws NamespaceException, UnsupportedEncodingException {
     final List<ResourceTreeEntity> resources = Lists.newArrayList();
     for (SpaceConfig spaceConfig : namespaceService.get().getSpaces()) {
       resources.add(new ResourceTreeEntity(spaceConfig));
@@ -274,23 +276,33 @@ public class ResourceTreeResource {
     return resources;
   }
 
-  public List<ResourceTreeEntity> getHomes(boolean all) throws NamespaceException, UnsupportedEncodingException  {
+  public List<ResourceTreeEntity> getHomes(boolean all)
+      throws NamespaceException, UnsupportedEncodingException {
     final List<ResourceTreeEntity> resources = Lists.newArrayList();
     if (all) {
       for (HomeConfig homeConfig : namespaceService.get().getHomeSpaces()) {
         resources.add(new ResourceTreeEntity(homeConfig));
       }
     } else {
-      resources.add(new ResourceTreeEntity(namespaceService.get().getHome(
-        new NamespaceKey(HomeName.getUserHomePath(securityContext.getUserPrincipal().getName()).getName()))));
+      resources.add(
+          new ResourceTreeEntity(
+              namespaceService
+                  .get()
+                  .getHome(
+                      new NamespaceKey(
+                          HomeName.getUserHomePath(securityContext.getUserPrincipal().getName())
+                              .getName()))));
     }
     return resources;
   }
 
-  public List<ResourceTreeEntity> getSources() throws NamespaceException, UnsupportedEncodingException  {
+  public List<ResourceTreeEntity> getSources()
+      throws NamespaceException, UnsupportedEncodingException {
     final List<ResourceTreeEntity> resources = Lists.newArrayList();
     for (SourceConfig sourceConfig : sourceService.getSources()) {
-      resources.add(new ResourceTreeSourceEntity(sourceConfig, sourceService.getSourceState(sourceConfig.getName())));
+      resources.add(
+          new ResourceTreeSourceEntity(
+              sourceConfig, sourceService.getSourceState(sourceConfig.getName())));
     }
     return resources;
   }

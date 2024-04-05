@@ -19,6 +19,8 @@ package com.dremio.dac.api;
 import static com.dremio.dac.util.DateUtils.getLastSundayDate;
 import static com.dremio.dac.util.DateUtils.getMonthStartDate;
 
+import com.dremio.common.util.DremioVersionInfo;
+import com.dremio.dac.util.DateUtils;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -27,13 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import com.dremio.common.util.DremioVersionInfo;
-import com.dremio.dac.util.DateUtils;
-
-
-/**
- * User statistics. Used by {@link UserStatsResource}
- */
+/** User statistics. Used by {@link UserStatsResource} */
 public class UserStats {
   private static String DREMIO_EDITION_FORMAT = "dremio-%s-%s";
 
@@ -52,12 +48,14 @@ public class UserStats {
     return userStatsByDate;
   }
 
-  public static UserStats createUserStats(String edition,
-                                          List<Map<String, Object>> userStatsByDate,
-                                          List<Map<String, Object>> userStatsByWeek,
-                                          List<Map<String, Object>> userStatsByMonth) {
+  public static UserStats createUserStats(
+      String edition,
+      List<Map<String, Object>> userStatsByDate,
+      List<Map<String, Object>> userStatsByWeek,
+      List<Map<String, Object>> userStatsByMonth) {
     UserStats userStats = new UserStats();
-    userStats.edition = String.format(DREMIO_EDITION_FORMAT, edition, DremioVersionInfo.getVersion());
+    userStats.edition =
+        String.format(DREMIO_EDITION_FORMAT, edition, DremioVersionInfo.getVersion());
     userStats.userStatsByDate.addAll(userStatsByDate);
     userStats.userStatsByWeek.addAll(userStatsByWeek);
     userStats.userStatsByMonth.addAll(userStatsByMonth);
@@ -79,14 +77,16 @@ public class UserStats {
     private final Map<LocalDate, UserJobTypeStats> activeUsersByMonth = new HashMap<>();
 
     // Last two weeks. This gets the date of the Saturday
-    private final LocalDate weekStatsLimit = LocalDate.now().minusWeeks(2).plusDays((7 - LocalDate.now().getDayOfWeek().getValue()));
+    private final LocalDate weekStatsLimit =
+        LocalDate.now().minusWeeks(2).plusDays((7 - LocalDate.now().getDayOfWeek().getValue()));
     // Last 10 days
     private final LocalDate dailyStatsLimit = LocalDate.now().minusDays(10);
 
     private UserStats instance = new UserStats();
 
     public void setEdition(String edition) {
-      instance.edition = String.format(DREMIO_EDITION_FORMAT, edition, DremioVersionInfo.getVersion());
+      instance.edition =
+          String.format(DREMIO_EDITION_FORMAT, edition, DremioVersionInfo.getVersion());
     }
 
     public void addUserStat(final long startTime, final String jobType, final String user) {
@@ -101,11 +101,15 @@ public class UserStats {
       addToStats(activeUsersByMonth, getMonthStartDate(date), jobType, user);
     }
 
-    private void performCountForWindow(String timeUnit, Map<LocalDate, UserJobTypeStats> allUsers, List<Map<String, Object>> countContainer) {
+    private void performCountForWindow(
+        String timeUnit,
+        Map<LocalDate, UserJobTypeStats> allUsers,
+        List<Map<String, Object>> countContainer) {
       for (Map.Entry<LocalDate, UserJobTypeStats> usersByDay : allUsers.entrySet()) {
         final Map<String, Object> dateStats = new HashMap<>();
         dateStats.put(timeUnit, usersByDay.getKey().toString());
-        for (Map.Entry<String, Set<String>> jobTypeStats : usersByDay.getValue().getActiveUsers().entrySet()) {
+        for (Map.Entry<String, Set<String>> jobTypeStats :
+            usersByDay.getValue().getActiveUsers().entrySet()) {
           dateStats.put(jobTypeStats.getKey(), jobTypeStats.getValue().size());
         }
         countContainer.add(dateStats);
@@ -119,7 +123,8 @@ public class UserStats {
       return instance;
     }
 
-    private void addToStats(Map<LocalDate, UserJobTypeStats> stats, LocalDate date, String jobType, String user) {
+    private void addToStats(
+        Map<LocalDate, UserJobTypeStats> stats, LocalDate date, String jobType, String user) {
       stats.putIfAbsent(date, new UserJobTypeStats());
       UserJobTypeStats userJobTypeStats = stats.get(date);
       userJobTypeStats.getActiveUsers().putIfAbsent(jobType, new HashSet<>());
@@ -132,6 +137,7 @@ public class UserStats {
 
     private final class UserJobTypeStats {
       private final Map<String, Set<String>> activeUsers = new HashMap<>();
+
       public Map<String, Set<String>> getActiveUsers() {
         return activeUsers;
       }

@@ -17,8 +17,20 @@ package com.dremio.exec.planner;
 
 import static com.dremio.exec.work.foreman.AttemptManager.INJECTOR_DURING_PLANNING_PAUSE;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.planner.acceleration.substitution.SubstitutionProvider;
+import com.dremio.exec.planner.acceleration.substitution.SubstitutionProvider.SubstitutionStream;
+import com.dremio.exec.planner.logical.CancelFlag;
+import com.dremio.exec.planner.logical.ConstExecutor;
+import com.dremio.exec.planner.physical.DistributionTraitDef;
+import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.planner.sql.SqlConverter;
+import com.dremio.exec.testing.ControlsInjector;
+import com.dremio.exec.testing.ControlsInjectorFactory;
+import com.dremio.exec.testing.ExecutionControls;
+import com.dremio.service.Pointer;
+import com.google.common.base.Throwables;
 import java.util.Set;
-
 import org.apache.calcite.plan.Context;
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.ConventionTraitDef;
@@ -39,23 +51,11 @@ import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rex.RexExecutor;
 import org.apache.calcite.runtime.CalciteException;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.planner.acceleration.substitution.SubstitutionProvider;
-import com.dremio.exec.planner.acceleration.substitution.SubstitutionProvider.SubstitutionStream;
-import com.dremio.exec.planner.logical.CancelFlag;
-import com.dremio.exec.planner.logical.ConstExecutor;
-import com.dremio.exec.planner.physical.DistributionTraitDef;
-import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.planner.sql.SqlConverter;
-import com.dremio.exec.testing.ControlsInjector;
-import com.dremio.exec.testing.ControlsInjectorFactory;
-import com.dremio.exec.testing.ExecutionControls;
-import com.dremio.service.Pointer;
-import com.google.common.base.Throwables;
-
 public class DremioVolcanoPlanner extends VolcanoPlanner {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DremioVolcanoPlanner.class);
-  private static final ControlsInjector INJECTOR = ControlsInjectorFactory.getInjector(DremioVolcanoPlanner.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(DremioVolcanoPlanner.class);
+  private static final ControlsInjector INJECTOR =
+      ControlsInjectorFactory.getInjector(DremioVolcanoPlanner.class);
 
   private SubstitutionProvider substitutionProvider;
 
@@ -68,7 +68,8 @@ public class DremioVolcanoPlanner extends VolcanoPlanner {
   private ExecutionControls executionControls;
   private PlannerSettings plannerSettings;
 
-  private DremioVolcanoPlanner(RelOptCostFactory costFactory, Context context, SubstitutionProvider substitutionProvider) {
+  private DremioVolcanoPlanner(
+      RelOptCostFactory costFactory, Context context, SubstitutionProvider substitutionProvider) {
     super(costFactory, context);
     this.substitutionProvider = substitutionProvider;
     plannerSettings = context.unwrap(PlannerSettings.class);
@@ -76,10 +77,14 @@ public class DremioVolcanoPlanner extends VolcanoPlanner {
     this.executionControls = plannerSettings.unwrap(ExecutionControls.class);
     this.phase = null;
     this.maxNodesListener = new MaxNodesListener(plannerSettings.getMaxNodesPerPlan());
-    this.matchCountListener = new MatchCountListener((int) plannerSettings.getOptions().getOption(PlannerSettings.HEP_PLANNER_MATCH_LIMIT),
-      plannerSettings.getOptions().getOption(PlannerSettings.VERBOSE_PROFILE), Thread.currentThread().getName());
-    // A hacky way to add listeners to first multicast listener and register that listener to the Volcano planner.
-    // The Volcano planner currently only supports a single listener. Need to update that to use the multi class
+    this.matchCountListener =
+        new MatchCountListener(
+            (int) plannerSettings.getOptions().getOption(PlannerSettings.HEP_PLANNER_MATCH_LIMIT),
+            Thread.currentThread().getName());
+    // A hacky way to add listeners to first multicast listener and register that listener to the
+    // Volcano planner.
+    // The Volcano planner currently only supports a single listener. Need to update that to use the
+    // multi class
     // listener from its super class AbstractRelOptPlanner.
     MulticastRelOptListener listener = new MulticastRelOptListener();
     listener.addListener(maxNodesListener);
@@ -88,13 +93,26 @@ public class DremioVolcanoPlanner extends VolcanoPlanner {
   }
 
   public static DremioVolcanoPlanner of(final SqlConverter converter) {
-    final ConstExecutor executor = new ConstExecutor(converter.getFunctionImplementationRegistry(), converter.getFunctionContext(), converter.getSettings());
+    final ConstExecutor executor =
+        new ConstExecutor(
+            converter.getFunctionImplementationRegistry(),
+            converter.getFunctionContext(),
+            converter.getSettings());
 
-    return of(converter.getCostFactory(), converter.getSettings(), converter.getSubstitutionProvider(), executor);
+    return of(
+        converter.getCostFactory(),
+        converter.getSettings(),
+        converter.getSubstitutionProvider(),
+        executor);
   }
 
-  public static DremioVolcanoPlanner of(RelOptCostFactory costFactory, Context context, SubstitutionProvider substitutionProvider, RexExecutor executor) {
-    DremioVolcanoPlanner volcanoPlanner = new DremioVolcanoPlanner(costFactory, context, substitutionProvider);
+  public static DremioVolcanoPlanner of(
+      RelOptCostFactory costFactory,
+      Context context,
+      SubstitutionProvider substitutionProvider,
+      RexExecutor executor) {
+    DremioVolcanoPlanner volcanoPlanner =
+        new DremioVolcanoPlanner(costFactory, context, substitutionProvider);
     volcanoPlanner.setExecutor(executor);
     volcanoPlanner.clearRelTraitDefs();
     volcanoPlanner.addRelTraitDef(ConventionTraitDef.INSTANCE);
@@ -111,10 +129,10 @@ public class DremioVolcanoPlanner extends VolcanoPlanner {
       maxNodesListener.reset();
       matchCountListener.reset();
       return super.findBestExp();
-    } catch(RuntimeException ex) {
+    } catch (RuntimeException ex) {
       // if the planner is hiding a UserException, bubble it's message to the top.
       Throwable t = Throwables.getRootCause(ex);
-      if(t instanceof UserException) {
+      if (t instanceof UserException) {
         throw UserException.parseError(ex).message(t.getMessage()).build(logger);
       } else {
         throw ex;
@@ -133,19 +151,25 @@ public class DremioVolcanoPlanner extends VolcanoPlanner {
     SubstitutionStream result;
     try {
       result = substitutionProvider.findSubstitutions(getOriginalRoot());
+      cancelFlag.reset();
     } catch (RuntimeException ex) {
       logger.debug(ex.getMessage());
       throw ex;
     }
     Pointer<Integer> count = new Pointer<>(0);
     try {
-      result.stream().forEach(substitution -> {
-        count.value++;
-        if (!isRegistered(substitution.getReplacement())) {
-          RelNode equiv = substitution.considerThisRootEquivalent() ? getRoot() : substitution.getEquivalent();
-          register(substitution.getReplacement(), ensureRegistered(equiv, null));
-        }
-      });
+      result.stream()
+          .forEach(
+              substitution -> {
+                count.value++;
+                if (!isRegistered(substitution.getReplacement())) {
+                  RelNode equiv =
+                      substitution.considerThisRootEquivalent()
+                          ? getRoot()
+                          : substitution.getEquivalent();
+                  register(substitution.getReplacement(), ensureRegistered(equiv, null));
+                }
+              });
     } catch (Exception | AssertionError e) {
       result.failure(e);
       logger.debug("found {} substitutions", count.value);
@@ -158,9 +182,15 @@ public class DremioVolcanoPlanner extends VolcanoPlanner {
   @Override
   public void checkCancel() {
     if (cancelFlag.isCancelRequested()) {
-      ExceptionUtils.throwUserException(String.format("Query was cancelled because planning time exceeded %d seconds",
-                                                      cancelFlag.getTimeoutInSecs()),
-                                        null, plannerSettings, phase, UserException.AttemptCompletionState.PLANNING_TIMEOUT, logger);
+      ExceptionUtils.throwUserException(
+          String.format(
+              "Query was cancelled because planning time exceeded %d seconds",
+              cancelFlag.getTimeoutInSecs()),
+          null,
+          plannerSettings,
+          phase,
+          UserException.AttemptCompletionState.PLANNING_TIMEOUT,
+          logger);
     }
 
     if (executionControls != null) {
@@ -171,7 +201,13 @@ public class DremioVolcanoPlanner extends VolcanoPlanner {
       super.checkCancel();
     } catch (CalciteException e) {
       if (plannerSettings.isCancelledByHeapMonitor()) {
-        ExceptionUtils.throwUserException(plannerSettings.getCancelReason(), e, plannerSettings, phase, UserException.AttemptCompletionState.HEAP_MONITOR_C, logger);
+        ExceptionUtils.throwUserException(
+            plannerSettings.getCancelReason(),
+            e,
+            plannerSettings,
+            phase,
+            UserException.AttemptCompletionState.HEAP_MONITOR_C,
+            logger);
       } else {
         ExceptionUtils.throwUserCancellationException(plannerSettings);
       }
@@ -206,6 +242,7 @@ public class DremioVolcanoPlanner extends VolcanoPlanner {
 
   /**
    * Overridden to prevent VolcanoPlanner from holding on to references to DremioCatalogReader.
+   *
    * @param schema
    */
   @Override
@@ -213,7 +250,7 @@ public class DremioVolcanoPlanner extends VolcanoPlanner {
 
   /**
    * Disposing planner state is critical to reduce memory usage anytime the plan lives beyond the
-   * lifetime of a single query.  This occurs with both plan cache and materialization cache.
+   * lifetime of a single query. This occurs with both plan cache and materialization cache.
    */
   public void dispose() {
     clear();
@@ -238,8 +275,7 @@ public class DremioVolcanoPlanner extends VolcanoPlanner {
     }
 
     @Override
-    public RelOptCost computeSelfCost(RelOptPlanner planner,
-                                      RelMetadataQuery mq) {
+    public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
       return planner.getCostFactory().makeInfiniteCost();
     }
 
@@ -247,8 +283,8 @@ public class DremioVolcanoPlanner extends VolcanoPlanner {
     protected RelDataType deriveRowType() {
       final RelDataTypeFactory typeFactory = getCluster().getTypeFactory();
       return new RelDataTypeFactory.Builder(getCluster().getTypeFactory())
-        .add("none", typeFactory.createJavaType(Void.TYPE))
-        .build();
+          .add("none", typeFactory.createJavaType(Void.TYPE))
+          .build();
     }
 
     @Override

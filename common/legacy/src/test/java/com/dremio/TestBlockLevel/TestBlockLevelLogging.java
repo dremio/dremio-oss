@@ -15,11 +15,9 @@
  */
 package com.dremio.TestBlockLevel;
 
-import java.util.List;
-
-import org.junit.Assert;
-import org.junit.Test;
-
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.dremio.common.logging.obfuscation.TestBlockLevel.A.First.AFirst;
 import com.dremio.common.logging.obfuscation.TestBlockLevel.A.Second.ASecond;
 import com.dremio.common.logging.obfuscation.TestBlockLevel.A.Third.AThird;
@@ -28,18 +26,14 @@ import com.dremio.common.logging.obfuscation.TestBlockLevel.B.Second.BSecond;
 import com.dremio.common.logging.obfuscation.TestBlockLevel.B.Third.BThird;
 import com.dremio.common.logging.obfuscation.TestBlockLevel.C.CFirst;
 import com.dremio.common.logging.obfuscation.TestBlockLevel.C.Second.CSecond;
+import java.util.List;
+import org.junit.Assert;
+import org.junit.Test;
 
-import ch.qos.logback.classic.Level;
-import ch.qos.logback.classic.spi.ILoggingEvent;
-import ch.qos.logback.core.read.ListAppender;
-
-/**
- * expectations in this test depend on the log configuration in the logback-test.xml resource
- */
+/** expectations in this test depend on the log configuration in the logback-test.xml resource */
 public class TestBlockLevelLogging {
 
-  private static void assertLowestLogLevel(List<ILoggingEvent> logsList, Level level)
-  {
+  private static void assertLowestLogLevel(List<ILoggingEvent> logsList, Level level) {
     Level lowestLevel = null;
     for (ILoggingEvent event : logsList) {
       Level eventLevel = event.getLevel();

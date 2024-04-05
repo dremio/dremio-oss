@@ -15,34 +15,31 @@
  */
 package com.dremio.dac.service.flight;
 
+import com.dremio.common.AutoCloseables;
+import com.dremio.service.grpc.CloseableBindableService;
+import io.grpc.BindableService;
+import io.grpc.ServerServiceDefinition;
 import java.util.concurrent.ExecutorService;
-
 import org.apache.arrow.flight.FlightGrpcUtils;
 import org.apache.arrow.flight.FlightProducer;
 import org.apache.arrow.flight.auth.ServerAuthHandler;
 import org.apache.arrow.memory.BufferAllocator;
 
-import com.dremio.common.AutoCloseables;
-import com.dremio.service.grpc.CloseableBindableService;
-
-import io.grpc.BindableService;
-import io.grpc.ServerServiceDefinition;
-
-
-/**
- * A wrapper class around FlightBindingService
- */
+/** A wrapper class around FlightBindingService */
 public class FlightCloseableBindableService implements CloseableBindableService {
   private final FlightProducer producer;
   private final BufferAllocator allocator;
   private final BindableService flightService;
 
-  public FlightCloseableBindableService(BufferAllocator allocator, FlightProducer producer,
-                                        ServerAuthHandler authHandler, ExecutorService executor) {
+  public FlightCloseableBindableService(
+      BufferAllocator allocator,
+      FlightProducer producer,
+      ServerAuthHandler authHandler,
+      ExecutorService executor) {
     this.producer = producer;
     this.allocator = allocator;
-    this.flightService = FlightGrpcUtils.createFlightService(allocator, producer,
-      authHandler, executor);
+    this.flightService =
+        FlightGrpcUtils.createFlightService(allocator, producer, authHandler, executor);
   }
 
   @Override

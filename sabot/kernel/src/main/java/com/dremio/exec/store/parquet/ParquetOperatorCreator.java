@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.store.parquet;
 
-import java.util.concurrent.TimeUnit;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.store.dfs.PrefetchingIterator;
 import com.dremio.options.Options;
@@ -25,19 +23,24 @@ import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.sabot.op.spi.ProducerOperator;
 import com.dremio.sabot.op.spi.ProducerOperator.Creator;
 import com.google.common.base.Stopwatch;
+import java.util.concurrent.TimeUnit;
 
-/**
- * Parquet scan batch creator from dataset config
- */
+/** Parquet scan batch creator from dataset config */
 @Options
 public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ParquetOperatorCreator.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ParquetOperatorCreator.class);
 
   @Override
-  public ProducerOperator create(FragmentExecutionContext fragmentExecContext, final OperatorContext context, final ParquetSubScan config) throws ExecutionSetupException {
+  public ProducerOperator create(
+      FragmentExecutionContext fragmentExecContext,
+      final OperatorContext context,
+      final ParquetSubScan config)
+      throws ExecutionSetupException {
     final Stopwatch watch = Stopwatch.createStarted();
     try {
-      ParquetSplitReaderCreatorIterator creator = new ParquetSplitReaderCreatorIterator(fragmentExecContext, context, config, true);
+      ParquetSplitReaderCreatorIterator creator =
+          new ParquetSplitReaderCreatorIterator(fragmentExecContext, context, config, true);
       logger.debug("Took {} ms to create Parquet Scan.", watch.elapsed(TimeUnit.MILLISECONDS));
       return creator.createScan();
     } catch (Exception ex) {
@@ -45,9 +48,13 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
     }
   }
 
-  public RecordReaderIterator getReaders(FragmentExecutionContext fragmentExecContext, final OperatorContext context, final ParquetSubScan config) throws ExecutionSetupException {
-    ParquetSplitReaderCreatorIterator creator = new ParquetSplitReaderCreatorIterator(fragmentExecContext, context, config, true);
+  public RecordReaderIterator getReaders(
+      FragmentExecutionContext fragmentExecContext,
+      final OperatorContext context,
+      final ParquetSubScan config)
+      throws ExecutionSetupException {
+    ParquetSplitReaderCreatorIterator creator =
+        new ParquetSplitReaderCreatorIterator(fragmentExecContext, context, config, true);
     return new PrefetchingIterator(creator);
   }
-
 }

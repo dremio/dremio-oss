@@ -106,8 +106,12 @@ message JobFailureInfo {
   }
 
   optional string message = 1;
-  optional Type type = 2;
+
+  /* type has been deprecated in favour of using root_error_type instead */
+  optional Type type = 2 [deprecated=true];
+
   repeated Error errors = 3;
+  optional exec.shared.DremioPBError.ErrorType root_error_type = 4;
 }
 
 message JobCancellationInfo {

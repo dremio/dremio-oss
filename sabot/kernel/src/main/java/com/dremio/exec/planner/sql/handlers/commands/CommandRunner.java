@@ -24,19 +24,21 @@ public interface CommandRunner<T> {
     SYNC_RESPONSE,
 
     /**
-     * A command that runs on the coordination node and returns a response via query data and result.
+     * A command that runs on the coordination node and returns a response via query data and
+     * result.
      */
     SYNC_QUERY,
 
     /**
-     * A command that runs on one or more execution nodes and returns response via query data and result.
+     * A command that runs on one or more execution nodes and returns response via query data and
+     * result.
      */
     ASYNC_QUERY
-
   }
 
   /**
    * Plan until cost can be determined for query.
+   *
    * @return
    * @throws Exception
    */
@@ -44,11 +46,14 @@ public interface CommandRunner<T> {
 
   /**
    * Release any resources
+   *
    * @throws Exception
    */
   void close() throws Exception;
+
   /**
    * Finish planning and start execution.
+   *
    * @throws Exception
    */
   T execute() throws Exception;
@@ -56,5 +61,4 @@ public interface CommandRunner<T> {
   CommandType getCommandType();
 
   String getDescription();
-
 }

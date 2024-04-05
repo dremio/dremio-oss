@@ -15,18 +15,9 @@
  */
 package com.dremio.exec.planner.observer;
 
-import java.util.List;
-import java.util.Map;
-
-import org.apache.calcite.plan.RelOptPlanner;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.RelRoot;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.sql.SqlNode;
-
 import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.exec.catalog.DremioTable;
-import com.dremio.exec.planner.CachedAccelDetails;
+import com.dremio.exec.planner.CachedPlan;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.acceleration.DremioMaterialization;
 import com.dremio.exec.planner.acceleration.RelWithInfo;
@@ -34,9 +25,12 @@ import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
 import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
+import com.dremio.exec.proto.UserBitShared.AccelerationProfile;
 import com.dremio.exec.proto.UserBitShared.AttemptEvent;
 import com.dremio.exec.proto.UserBitShared.FragmentRpcSizeStats;
+import com.dremio.exec.proto.UserBitShared.PlannerPhaseRulesStats;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.exec.work.QueryWorkUnit;
 import com.dremio.exec.work.foreman.ExecutionPlan;
@@ -44,6 +38,12 @@ import com.dremio.exec.work.protector.UserRequest;
 import com.dremio.exec.work.protector.UserResult;
 import com.dremio.reflection.hints.ReflectionExplanationsAndQueryDistance;
 import com.dremio.resource.ResourceSchedulingDecisionInfo;
+import java.util.List;
+import org.apache.calcite.plan.RelOptPlanner;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.RelRoot;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.sql.SqlNode;
 
 public class DelegatingAttemptObserver implements AttemptObserver {
 
@@ -74,8 +74,12 @@ public class DelegatingAttemptObserver implements AttemptObserver {
   }
 
   @Override
-  public void planValidated(RelDataType rowType, SqlNode node, long millisTaken) {
-    observer.planValidated(rowType, node, millisTaken);
+  public void planValidated(
+      RelDataType rowType,
+      SqlNode node,
+      long millisTaken,
+      boolean isMaterializationCacheInitialized) {
+    observer.planValidated(rowType, node, millisTaken, isMaterializationCacheInitialized);
   }
 
   @Override
@@ -90,11 +94,12 @@ public class DelegatingAttemptObserver implements AttemptObserver {
 
   /**
    * Gets the refresh decision and how long it took to make the refresh decision
+   *
    * @param text A string describing if we decided to do full or incremental refresh
    * @param millisTaken time taken in planning the refresh decision
    */
   @Override
-  public void planRefreshDecision(String text, long millisTaken){
+  public void planRefreshDecision(String text, long millisTaken) {
     observer.planRefreshDecision(text, millisTaken);
   }
 
@@ -104,7 +109,8 @@ public class DelegatingAttemptObserver implements AttemptObserver {
   }
 
   @Override
-  public void planExpandView(RelRoot expanded, List<String> schemaPath, int nestingLevel, String sql) {
+  public void planExpandView(
+      RelRoot expanded, List<String> schemaPath, int nestingLevel, String sql) {
     observer.planExpandView(expanded, schemaPath, nestingLevel, sql);
   }
 
@@ -119,14 +125,19 @@ public class DelegatingAttemptObserver implements AttemptObserver {
   }
 
   @Override
-  public void finalPrel(Prel prel) {
-    observer.finalPrel(prel);
+  public void finalPrelPlanGenerated(Prel prel) {
+    observer.finalPrelPlanGenerated(prel);
   }
 
   @Override
-  public void planRelTransform(PlannerPhase phase, RelOptPlanner planner, RelNode before, RelNode after,
-                               long millisTaken, final Map<String, Long> timeBreakdownPerRule) {
-    observer.planRelTransform(phase, planner, before, after, millisTaken, timeBreakdownPerRule);
+  public void planRelTransform(
+      PlannerPhase phase,
+      RelOptPlanner planner,
+      RelNode before,
+      RelNode after,
+      long millisTaken,
+      final List<PlannerPhaseRulesStats> rulesBreakdownStats) {
+    observer.planRelTransform(phase, planner, before, after, millisTaken, rulesBreakdownStats);
   }
 
   @Override
@@ -155,10 +166,14 @@ public class DelegatingAttemptObserver implements AttemptObserver {
   }
 
   @Override
-  public void planSubstituted(DremioMaterialization materialization, List<RelWithInfo> substitutions,
-                              RelWithInfo target, long millisTaken, boolean defaultReflection) {
-    observer.planSubstituted(materialization, substitutions, target, millisTaken,
-      defaultReflection);
+  public void planSubstituted(
+      DremioMaterialization materialization,
+      List<RelWithInfo> substitutions,
+      RelWithInfo target,
+      long millisTaken,
+      boolean defaultReflection) {
+    observer.planSubstituted(
+        materialization, substitutions, target, millisTaken, defaultReflection);
   }
 
   @Override
@@ -167,8 +182,13 @@ public class DelegatingAttemptObserver implements AttemptObserver {
   }
 
   @Override
-  public void applyAccelDetails(final CachedAccelDetails accelDetails) {
-    observer.applyAccelDetails(accelDetails);
+  public void addAccelerationProfileToCachedPlan(CachedPlan plan) {
+    observer.addAccelerationProfileToCachedPlan(plan);
+  }
+
+  @Override
+  public void restoreAccelerationProfileFromCachedPlan(AccelerationProfile accelerationProfile) {
+    observer.restoreAccelerationProfileFromCachedPlan(accelerationProfile);
   }
 
   @Override
@@ -177,8 +197,8 @@ public class DelegatingAttemptObserver implements AttemptObserver {
   }
 
   @Override
-  public void planCompleted(final ExecutionPlan plan) {
-    observer.planCompleted(plan);
+  public void planCompleted(final ExecutionPlan plan, final BatchSchema batchSchema) {
+    observer.planCompleted(plan, batchSchema);
   }
 
   @Override
@@ -202,8 +222,14 @@ public class DelegatingAttemptObserver implements AttemptObserver {
   }
 
   @Override
-  public void executorsSelected(long millisTaken, int idealNumFragments, int idealNumNodes, int numExecutors, String detailsText) {
-    observer.executorsSelected(millisTaken, idealNumFragments, idealNumNodes, numExecutors, detailsText);
+  public void executorsSelected(
+      long millisTaken,
+      int idealNumFragments,
+      int idealNumNodes,
+      int numExecutors,
+      String detailsText) {
+    observer.executorsSelected(
+        millisTaken, idealNumFragments, idealNumNodes, numExecutors, detailsText);
   }
 
   @Override
@@ -232,10 +258,14 @@ public class DelegatingAttemptObserver implements AttemptObserver {
   }
 
   @Override
-  public void fragmentsActivated(long millisTaken) { observer.fragmentsActivated(millisTaken); }
+  public void fragmentsActivated(long millisTaken) {
+    observer.fragmentsActivated(millisTaken);
+  }
 
   @Override
-  public void activateFragmentFailed(Exception ex){ observer.activateFragmentFailed(ex); }
+  public void activateFragmentFailed(Exception ex) {
+    observer.activateFragmentFailed(ex);
+  }
 
   @Override
   public void resourcesScheduled(ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo) {
@@ -253,7 +283,8 @@ public class DelegatingAttemptObserver implements AttemptObserver {
   }
 
   @Override
-  public void updateReflectionsWithHints(ReflectionExplanationsAndQueryDistance reflectionExplanationsAndQueryDistance) {
+  public void updateReflectionsWithHints(
+      ReflectionExplanationsAndQueryDistance reflectionExplanationsAndQueryDistance) {
     observer.updateReflectionsWithHints(reflectionExplanationsAndQueryDistance);
   }
 

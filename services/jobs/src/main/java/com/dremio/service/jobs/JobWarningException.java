@@ -17,9 +17,7 @@ package com.dremio.service.jobs;
 
 import com.dremio.service.job.proto.JobId;
 
-/**
- * Job exception class for warning (non-fatal) messages
- */
+/** Job exception class for warning (non-fatal) messages */
 public class JobWarningException extends JobException {
   private static final long serialVersionUID = -1989717288896970795L;
 

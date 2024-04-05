@@ -16,15 +16,13 @@
     limitations under the License.
 
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
   <parent>
     <groupId>com.dremio.services</groupId>
     <artifactId>dremio-services-jobtelemetry</artifactId>
-    <version>24.3.2-202401241821100032-d2d8a497</version>
+    <version>25.0.0-202404051521110861-ed9515a8</version>
   </parent>
-  <modelVersion>4.0.0</modelVersion>
 
   <groupId>com.dremio.services</groupId>
   <artifactId>dremio-services-jobtelemetry-client</artifactId>
@@ -43,11 +41,10 @@
       <version>${project.version}</version>
     </dependency>
     <dependency>
-      <artifactId>dremio-services-jobtelemetry-common</artifactId>
       <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-jobtelemetry-common</artifactId>
       <version>${project.version}</version>
     </dependency>
   </dependencies>
-
 
 </project>

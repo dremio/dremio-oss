@@ -15,14 +15,11 @@
  */
 package com.dremio.exec.store.sys.statistics;
 
+import com.dremio.service.namespace.NamespaceKey;
 import java.util.List;
-
 import org.apache.arrow.vector.types.pojo.Field;
 
-import com.dremio.service.namespace.NamespaceKey;
-/**
- * Interface for administrating statistics.
- */
+/** Interface for administrating statistics. */
 public interface StatisticsAdministrationService {
   String requestStatistics(List<Field> fields, NamespaceKey key, Double samplingRate);
 
@@ -32,9 +29,7 @@ public interface StatisticsAdministrationService {
 
   void validate(NamespaceKey key);
 
-  /**
-   * Factyory for {@StatisticsAdministrationService}
-   */
+  /** Factyory for {@StatisticsAdministrationService} */
   interface Factory {
     StatisticsAdministrationService get(String userName);
   }

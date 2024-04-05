@@ -19,6 +19,7 @@ import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.proto.UserBitShared.AttemptEvent;
 import com.dremio.exec.proto.UserBitShared.FragmentRpcSizeStats;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.work.QueryWorkUnit;
 import com.dremio.exec.work.foreman.ExecutionPlan;
 import com.dremio.resource.ResourceSchedulingDecisionInfo;
@@ -26,111 +27,122 @@ import com.dremio.resource.ResourceSchedulingDecisionInfo;
 public interface MaestroObserver {
 
   /**
-   * Called to report the beginning of a new state.
-   * Called multiple times during a query lifetime
+   * Called to report the beginning of a new state. Called multiple times during a query lifetime
    */
   void beginState(AttemptEvent event);
 
   /**
-   * Called to report the wait in the command pool.
-   * May be called multiple times during a query lifetime, as often as the query's tasks are put into the command pool
+   * Called to report the wait in the command pool. May be called multiple times during a query
+   * lifetime, as often as the query's tasks are put into the command pool
    */
   void commandPoolWait(long waitInMillis);
 
-
   /**
    * Generic ability to record extra information in a job.
-   * @param name The name of the extra info. This can be thought of as a list rather than set and calls with the same name will all be recorded.
+   *
+   * @param name The name of the extra info. This can be thought of as a list rather than set and
+   *     calls with the same name will all be recorded.
    * @param bytes The data to persist.
    */
   void recordExtraInfo(String name, byte[] bytes);
 
   /**
    * The planning and parallelization phase of the query is completed.
-   * An {@link ExecutionPlan execution plan} is provided to observer.
+   *
+   * @param plan The {@link ExecutionPlan execution plan} provided to the observer
+   * @param batchSchema only used when plan is null
    */
-  void planCompleted(ExecutionPlan plan);
+  void planCompleted(ExecutionPlan plan, BatchSchema batchSchema);
 
   /**
    * The execution of the query started.
+   *
    * @param profile The initial query profile for the query.
    */
   void execStarted(QueryProfile profile);
 
+  /** Executor nodes were selected for the query */
+  void executorsSelected(
+      long millisTaken,
+      int idealNumFragments,
+      int idealNumNodes,
+      int numExecutors,
+      String detailsText);
 
-  /**
-   * Executor nodes were selected for the query
-   */
-  void executorsSelected(long millisTaken, int idealNumFragments, int idealNumNodes, int numExecutors, String detailsText);
-
-  /**
-   * Parallelization planning started
-   */
+  /** Parallelization planning started */
   void planParallelStart();
 
   /**
    * The decisions made for parallelizations and fragments were completed.
+   *
    * @param planningSet parallelized execution plan
    */
   void planParallelized(PlanningSet planningSet);
 
   /**
    * Time taken to assign fragments to nodes.
+   *
    * @param millisTaken time in milliseconds
    */
   void planAssignmentTime(long millisTaken);
 
   /**
    * Time taken to generate fragments.
+   *
    * @param millisTaken time in milliseconds
    */
   void planGenerationTime(long millisTaken);
 
   /**
    * The decisions for distribution of work are completed.
+   *
    * @param unit The distribution decided for each node.
    */
   void plansDistributionComplete(QueryWorkUnit unit);
 
   /**
    * Number of records processed
+   *
    * @param recordCount records processed
    */
   void recordsProcessed(long recordCount);
 
   /**
    * Number of output records
+   *
    * @param recordCount output records
    */
   void recordsOutput(long recordCount);
 
   /**
    * Time taken for sending start fragment rpcs to all nodes.
+   *
    * @param millisTaken time in millis
    */
   void fragmentsStarted(long millisTaken, FragmentRpcSizeStats stats);
 
   /**
    * Time taken for sending activate fragment rpcs to all nodes.
+   *
    * @param millisTaken time in millis
    */
   void fragmentsActivated(long millisTaken);
 
   /**
    * Failed to activate fragment.
+   *
    * @param ex actual cause of failure
    */
   void activateFragmentFailed(Exception ex);
 
   /**
    * ResourceScheduling related information
+   *
    * @param resourceSchedulingDecisionInfo Information of completed resource allocation
    */
   void resourcesScheduled(ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo);
 
-  /**
-   * Signals movement to next stage within maestro
-   */
+  /** Signals movement to next stage within maestro */
   interface ExecutionStageChangeListener {
     void moveToNextStage(AttemptEvent.State nextStage);
   }

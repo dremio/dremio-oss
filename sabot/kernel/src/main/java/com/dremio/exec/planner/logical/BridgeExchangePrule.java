@@ -15,13 +15,12 @@
  */
 package com.dremio.exec.planner.logical;
 
-import org.apache.calcite.plan.RelOptRule;
-import org.apache.calcite.plan.RelOptRuleCall;
-import org.apache.calcite.rel.RelNode;
-
 import com.dremio.exec.planner.physical.BridgeExchangePrel;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.Prule;
+import org.apache.calcite.plan.RelOptRule;
+import org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.calcite.rel.RelNode;
 
 public class BridgeExchangePrule extends Prule {
   public static final RelOptRule INSTANCE = new BridgeExchangePrule();
@@ -36,13 +35,12 @@ public class BridgeExchangePrule extends Prule {
 
     RelNode input = convert(exchange.getInput(), exchange.getTraitSet().replace(Prel.PHYSICAL));
 
-    BridgeExchangePrel prel = new BridgeExchangePrel(
-      exchange.getCluster(),
-      exchange.getTraitSet().replace(Prel.PHYSICAL),
-      input,
-      exchange.getBridgeSetId()
-    );
+    BridgeExchangePrel prel =
+        new BridgeExchangePrel(
+            exchange.getCluster(),
+            exchange.getTraitSet().replace(Prel.PHYSICAL),
+            input,
+            exchange.getBridgeSetId());
     call.transformTo(prel);
   }
-
 }

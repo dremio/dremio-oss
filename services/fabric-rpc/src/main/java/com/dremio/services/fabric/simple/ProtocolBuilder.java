@@ -15,13 +15,6 @@
  */
 package com.dremio.services.fabric.simple;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Map.Entry;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.rpc.Response;
 import com.dremio.exec.rpc.ResponseSender;
@@ -38,13 +31,15 @@ import com.google.common.base.Preconditions;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Internal.EnumLite;
 import com.google.protobuf.MessageLite;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.NettyArrowBuf;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Map.Entry;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.BufferAllocator;
 
-/**
- * Builder for creating simplified protocols on top of the fabric infrastructure.
- */
+/** Builder for creating simplified protocols on top of the fabric infrastructure. */
 public final class ProtocolBuilder {
 
   private int protocolId;
@@ -54,22 +49,28 @@ public final class ProtocolBuilder {
   private final ProxyFactory proxyFactory = new ProxyFactory();
   private Map<Integer, ReceiveHandler<MessageLite, MessageLite>> handlers = new HashMap<>();
 
+  private ProtocolBuilder() {}
 
-  private ProtocolBuilder(){
-  }
-
-  public static ProtocolBuilder builder(){
+  public static ProtocolBuilder builder() {
     return new ProtocolBuilder();
   }
 
   @SuppressWarnings("unchecked")
   public <REQUEST extends MessageLite, RESPONSE extends MessageLite>
-  SendEndpointCreator<REQUEST, RESPONSE> register(int id, ReceiveHandler<REQUEST, RESPONSE> handler) {
+      SendEndpointCreator<REQUEST, RESPONSE> register(
+          int id, ReceiveHandler<REQUEST, RESPONSE> handler) {
     Preconditions.checkArgument(id > -1 && id < 2048, "A request id must be between 0 and 2047.");
     Preconditions.checkNotNull(handler);
-    Preconditions.checkArgument(!handlers.containsKey(id), "Only a single handler can be registered per id. You tried to register a handler for id %s twice.", id);
+    Preconditions.checkArgument(
+        !handlers.containsKey(id),
+        "Only a single handler can be registered per id. You tried to register a handler for id %s twice.",
+        id);
     handlers.put(id, (ReceiveHandler<MessageLite, MessageLite>) handler);
-    return new EndpointCreator<>(proxyFactory, new PseudoEnum(id), (Class<RESPONSE>) handler.getDefaultResponse().getClass(), timeoutMillis);
+    return new EndpointCreator<>(
+        proxyFactory,
+        new PseudoEnum(id),
+        (Class<RESPONSE>) handler.getDefaultResponse().getClass(),
+        timeoutMillis);
   }
 
   public ProtocolBuilder name(String name) {
@@ -79,7 +80,10 @@ public final class ProtocolBuilder {
 
   public ProtocolBuilder timeout(long timeoutMillis) {
     Preconditions.checkArgument(timeoutMillis > -1);
-    Preconditions.checkArgument(handlers.isEmpty(), "You can only set a timeout before registering any handlers. You've already registered %s handlers.", handlers.size());
+    Preconditions.checkArgument(
+        handlers.isEmpty(),
+        "You can only set a timeout before registering any handlers. You've already registered %s handlers.",
+        handlers.size());
     this.timeoutMillis = timeoutMillis;
     return this;
   }
@@ -96,16 +100,21 @@ public final class ProtocolBuilder {
     return this;
   }
 
-  private void validateProtocol(){
-    Preconditions.checkArgument(protocolId > 1 && protocolId < 64, "ProtocolId must be between 2 and 63. You tried to set it to %s.", protocolId);
+  private void validateProtocol() {
+    Preconditions.checkArgument(
+        protocolId > 1 && protocolId < 64,
+        "ProtocolId must be between 2 and 63. You tried to set it to %s.",
+        protocolId);
   }
 
-  public void register(FabricService fabric){
-    Preconditions.checkArgument(proxyFactory.factory == null, "You can only register a protocol builder once.");
+  public void register(FabricService fabric) {
+    Preconditions.checkArgument(
+        proxyFactory.factory == null, "You can only register a protocol builder once.");
     validateProtocol();
     Preconditions.checkNotNull(name, "Name must be set.");
     Preconditions.checkNotNull(allocator, "Allocator must be set.");
-    Preconditions.checkArgument(handlers.size() > 0, "You must add at least one handler to your protocol.");
+    Preconditions.checkArgument(
+        handlers.size() > 0, "You must add at least one handler to your protocol.");
 
     FabricProtocol protocol = new SimpleProtocol(protocolId, handlers, allocator, name);
     proxyFactory.factory = fabric.registerProtocol(protocol);
@@ -114,27 +123,33 @@ public final class ProtocolBuilder {
   private static class SimpleProtocol implements FabricProtocol {
 
     private final int protocolId;
-    private final ReceiveHandler<MessageLite,MessageLite>[] handlers;
+    private final ReceiveHandler<MessageLite, MessageLite>[] handlers;
     private final MessageLite[] defaultResponseInstances;
     private final MessageLite[] defaultRequestInstances;
     private final BufferAllocator allocator;
     private final RpcConfig config;
 
     @SuppressWarnings("unchecked")
-    public SimpleProtocol(int protocolId, Map<Integer, ReceiveHandler<MessageLite, MessageLite>> handlers, BufferAllocator allocator, String name) {
+    public SimpleProtocol(
+        int protocolId,
+        Map<Integer, ReceiveHandler<MessageLite, MessageLite>> handlers,
+        BufferAllocator allocator,
+        String name) {
       super();
       this.protocolId = protocolId;
       this.handlers = new ReceiveHandler[2048];
       this.defaultResponseInstances = new MessageLite[2048];
       this.defaultRequestInstances = new MessageLite[2048];
-      RpcConfigBuilder builder = RpcConfig.newBuilder()
-          .name(name)
-          .timeout(0);
-      for(Entry<Integer, ReceiveHandler<MessageLite, MessageLite>> e : handlers.entrySet()) {
+      RpcConfigBuilder builder = RpcConfig.newBuilder().name(name).timeout(0);
+      for (Entry<Integer, ReceiveHandler<MessageLite, MessageLite>> e : handlers.entrySet()) {
         final int id = e.getKey();
-        final ReceiveHandler<?,?> handler = e.getValue();
+        final ReceiveHandler<?, ?> handler = e.getValue();
         final EnumLite num = new PseudoEnum(id);
-        builder.add(num, (Class<? extends MessageLite>) handler.getDefaultRequest().getClass(), num, (Class<? extends MessageLite>) handler.getDefaultResponse().getClass());
+        builder.add(
+            num,
+            (Class<? extends MessageLite>) handler.getDefaultRequest().getClass(),
+            num,
+            (Class<? extends MessageLite>) handler.getDefaultResponse().getClass());
         this.handlers[id] = e.getValue();
         this.defaultResponseInstances[id] = e.getValue().getDefaultResponse();
         this.defaultRequestInstances[id] = e.getValue().getDefaultRequest();
@@ -164,33 +179,43 @@ public final class ProtocolBuilder {
     }
 
     @Override
-    public void handle(PhysicalConnection connection, int rpcType, ByteString pBody, ByteBuf dBody,
-        ResponseSender sender) throws RpcException {
+    public void handle(
+        PhysicalConnection connection,
+        int rpcType,
+        ByteString pBody,
+        ByteBuf dBody,
+        ResponseSender sender)
+        throws RpcException {
       MessageLite defaultInstance = defaultRequestInstances[rpcType];
-      try{
+      try {
         MessageLite value = defaultInstance.getParserForType().parseFrom(pBody);
         ArrowBuf dBody1 = dBody != null ? ((NettyArrowBuf) dBody).arrowBuf() : null;
         SentResponseMessage<MessageLite> response = handlers[rpcType].handle(value, dBody1);
-        sender.send(new Response(new PseudoEnum(rpcType), response.getBody(), response.getBuffers()));
-      } catch(Exception e){
-        final String fail = String.format("Failure consuming message for protocol[%d], request[%d] in the %s rpc layer.", getProtocolId(), rpcType, getConfig().getName());
+        sender.send(
+            new Response(new PseudoEnum(rpcType), response.getBody(), response.getBuffers()));
+      } catch (Exception e) {
+        final String fail =
+            String.format(
+                "Failure consuming message for protocol[%d], request[%d] in the %s rpc layer.",
+                getProtocolId(), rpcType, getConfig().getName());
         throw new UserRpcException(NodeEndpoint.getDefaultInstance(), fail, e);
       }
-
     }
   }
 
   /**
-   * A fabric runner factory that proxies another, checking it is set before returning any command runners.
+   * A fabric runner factory that proxies another, checking it is set before returning any command
+   * runners.
    */
   private final class ProxyFactory implements FabricRunnerFactory {
     private FabricRunnerFactory factory;
+
     @Override
     public FabricCommandRunner getCommandRunner(String address, int port) {
-      Preconditions.checkNotNull(factory, "You must register your protocol before you attempt to send a message.");
+      Preconditions.checkNotNull(
+          factory, "You must register your protocol before you attempt to send a message.");
       return factory.getCommandRunner(address, port);
     }
-
   }
 
   private static class PseudoEnum implements EnumLite {
@@ -235,7 +260,5 @@ public final class ProtocolBuilder {
       }
       return true;
     }
-
-
   }
 }

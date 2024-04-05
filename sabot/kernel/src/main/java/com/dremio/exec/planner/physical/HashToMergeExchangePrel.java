@@ -15,17 +15,6 @@
  */
 package com.dremio.exec.planner.physical;
 
-import java.io.IOException;
-import java.util.List;
-
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelOptCost;
-import org.apache.calcite.plan.RelOptPlanner;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelCollation;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.metadata.RelMetadataQuery;
-
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.config.HashSenderCalculator;
@@ -38,23 +27,43 @@ import com.dremio.options.OptionManager;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators.LongValidator;
 import com.dremio.options.TypeValidators.PositiveLongValidator;
+import java.io.IOException;
+import java.util.List;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptCost;
+import org.apache.calcite.plan.RelOptPlanner;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelCollation;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
 @Options
 public class HashToMergeExchangePrel extends ExchangePrel {
 
-  public static final LongValidator SENDER_RESERVE = new PositiveLongValidator("planner.op.hashmerge.sender.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
-  public static final LongValidator SENDER_LIMIT = new PositiveLongValidator("planner.op.hashmerge.sender.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
-  public static final LongValidator RECEIVER_RESERVE = new PositiveLongValidator("planner.op.hashmerge.receiver.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
-  public static final LongValidator RECEIVER_LIMIT = new PositiveLongValidator("planner.op.hashmerge.receiver.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
+  public static final LongValidator SENDER_RESERVE =
+      new PositiveLongValidator(
+          "planner.op.hashmerge.sender.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
+  public static final LongValidator SENDER_LIMIT =
+      new PositiveLongValidator(
+          "planner.op.hashmerge.sender.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
+  public static final LongValidator RECEIVER_RESERVE =
+      new PositiveLongValidator(
+          "planner.op.hashmerge.receiver.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
+  public static final LongValidator RECEIVER_LIMIT =
+      new PositiveLongValidator(
+          "planner.op.hashmerge.receiver.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
 
   private final List<DistributionField> distFields;
   private int numEndPoints = 0;
-  private final RelCollation collation ;
+  private final RelCollation collation;
 
-  public HashToMergeExchangePrel(RelOptCluster cluster, RelTraitSet traitSet, RelNode input,
-                                 List<DistributionField> fields,
-                                 RelCollation collation,
-                                 int numEndPoints) {
+  public HashToMergeExchangePrel(
+      RelOptCluster cluster,
+      RelTraitSet traitSet,
+      RelNode input,
+      List<DistributionField> fields,
+      RelCollation collation,
+      int numEndPoints) {
     super(cluster, traitSet, input);
     this.distFields = fields;
     this.collation = collation;
@@ -70,19 +79,20 @@ public class HashToMergeExchangePrel extends ExchangePrel {
     RelNode child = this.getInput();
     double inputRows = mq.getRowCount(child);
 
-    int  rowWidth = child.getRowType().getFieldCount() * DremioCost.AVG_FIELD_WIDTH;
+    int rowWidth = child.getRowType().getFieldCount() * DremioCost.AVG_FIELD_WIDTH;
     double hashCpuCost = DremioCost.HASH_CPU_COST * inputRows * distFields.size();
     double svrCpuCost = DremioCost.SVR_CPU_COST * inputRows;
-    double mergeCpuCost = DremioCost.COMPARE_CPU_COST * inputRows * (Math.log(numEndPoints)/Math.log(2));
+    double mergeCpuCost =
+        DremioCost.COMPARE_CPU_COST * inputRows * (Math.log(numEndPoints) / Math.log(2));
     double networkCost = DremioCost.BYTE_NETWORK_COST * inputRows * rowWidth;
-    Factory costFactory = (Factory)planner.getCostFactory();
+    Factory costFactory = (Factory) planner.getCostFactory();
     return costFactory.makeCost(inputRows, hashCpuCost + svrCpuCost + mergeCpuCost, 0, networkCost);
   }
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new HashToMergeExchangePrel(getCluster(), traitSet, sole(inputs), distFields,
-        this.collation, numEndPoints);
+    return new HashToMergeExchangePrel(
+        getCluster(), traitSet, sole(inputs), distFields, this.collation, numEndPoints);
   }
 
   @Override
@@ -94,15 +104,27 @@ public class HashToMergeExchangePrel extends ExchangePrel {
     OptionManager optionManager = creator.getOptionManager();
 
     final OpProps props = creator.props(this, null, childPOP.getProps().getSchema());
-    final int senderOperatorId = OpProps.buildOperatorId(childPOP.getProps().getMajorFragmentId(), 0);
-    final OpProps senderProps = creator.props(senderOperatorId, this, null, props.getSchema(), SENDER_RESERVE, SENDER_LIMIT, props.getCost() * 0.5);
-    final OpProps receiverProps = creator.props(this, null, props.getSchema(), RECEIVER_RESERVE, RECEIVER_LIMIT, props.getCost() * 0.5);
+    final int senderOperatorId =
+        OpProps.buildOperatorId(childPOP.getProps().getMajorFragmentId(), 0);
+    final OpProps senderProps =
+        creator.props(
+            senderOperatorId,
+            this,
+            null,
+            props.getSchema(),
+            SENDER_RESERVE,
+            SENDER_LIMIT,
+            props.getCost() * 0.5);
+    final OpProps receiverProps =
+        creator.props(
+            this, null, props.getSchema(), RECEIVER_RESERVE, RECEIVER_LIMIT, props.getCost() * 0.5);
 
     return new HashToMergeExchange(
         props,
         senderProps,
         receiverProps,
-        HashSenderCalculator.captureBucketOptions(creator.getOptionManager(), SENDER_RESERVE, props.getSchema()),
+        HashSenderCalculator.captureBucketOptions(
+            creator.getOptionManager(), SENDER_RESERVE, props.getSchema()),
         props.getSchema(),
         childPOP,
         HashPrelUtil.getHashExpression(this.distFields, getInput().getRowType()),
@@ -122,5 +144,4 @@ public class HashToMergeExchangePrel extends ExchangePrel {
   public SelectionVectorMode getEncoding() {
     return SelectionVectorMode.NONE;
   }
-
 }

@@ -15,26 +15,6 @@
  */
 package com.dremio.plugins.elastic.planning.rules;
 
-import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
-
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeFactory;
-import org.apache.calcite.rel.type.RelDataTypeField;
-import org.apache.calcite.rex.RexCall;
-import org.apache.calcite.rex.RexFieldAccess;
-import org.apache.calcite.rex.RexInputRef;
-import org.apache.calcite.rex.RexLiteral;
-import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.rex.RexShuttle;
-import org.apache.calcite.rex.RexVisitorImpl;
-import org.apache.calcite.sql.SqlSyntax;
-import org.apache.calcite.sql.fun.SqlStdOperatorTable;
-import org.apache.calcite.util.Pair;
-import org.apache.commons.lang3.StringEscapeUtils;
-
 import com.dremio.common.expression.BasePath.SchemaPathVisitor;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.FieldReference;
@@ -58,22 +38,41 @@ import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableSet;
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.calcite.rex.RexCall;
+import org.apache.calcite.rex.RexFieldAccess;
+import org.apache.calcite.rex.RexInputRef;
+import org.apache.calcite.rex.RexLiteral;
+import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexShuttle;
+import org.apache.calcite.rex.RexVisitorImpl;
+import org.apache.calcite.sql.SqlSyntax;
+import org.apache.calcite.sql.fun.SqlStdOperatorTable;
+import org.apache.calcite.util.Pair;
+import org.apache.commons.lang3.StringEscapeUtils;
 
-//import org.apache.commons.lang.StringEscapeUtils;
+// import org.apache.commons.lang.StringEscapeUtils;
 
 /**
- * A specialized version of RexInputRef that holds an entire schema path along
- * with important information to support planning.
+ * A specialized version of RexInputRef that holds an entire schema path along with important
+ * information to support planning.
  */
 public final class SchemaField extends RexInputRef {
 
-  public static final Set<ElasticSpecialType> NON_DOC_TYPES = ImmutableSet.of(
-    // you can't retrieve geo shapes using doc values
-    ElasticSpecialType.GEO_SHAPE,
+  public static final Set<ElasticSpecialType> NON_DOC_TYPES =
+      ImmutableSet.of(
+          // you can't retrieve geo shapes using doc values
+          ElasticSpecialType.GEO_SHAPE,
 
-    // nested documents require a special nested_aggregation concept, not currently supported in Dremio.
-    ElasticSpecialType.NESTED
-  );
+          // nested documents require a special nested_aggregation concept, not currently supported
+          // in Dremio.
+          ElasticSpecialType.NESTED);
 
   private static final String OPEN_BQ = "[\"";
   private static final String CLOSE_BQ = "\"]";
@@ -86,7 +85,17 @@ public final class SchemaField extends RexInputRef {
   private final boolean isPainless;
   private final boolean isV7;
 
-  private SchemaField(int index, SchemaPath path, CompleteType type, FieldAnnotation annotation, RelDataTypeFactory factory, ElasticSpecialType specialType, boolean isV5, boolean isPainless, boolean complexTypeSupport, boolean isV7) {
+  private SchemaField(
+      int index,
+      SchemaPath path,
+      CompleteType type,
+      FieldAnnotation annotation,
+      RelDataTypeFactory factory,
+      ElasticSpecialType specialType,
+      boolean isV5,
+      boolean isPainless,
+      boolean complexTypeSupport,
+      boolean isV7) {
     super(index, CalciteArrowHelper.wrap(type).toCalciteType(factory, complexTypeSupport));
     this.path = path;
     this.type = type;
@@ -113,11 +122,14 @@ public final class SchemaField extends RexInputRef {
     return annotation;
   }
 
-  public ElasticFieldReference toReference(final boolean useDocIfPossible, final boolean sourceAvailable,
-                                           final boolean allowPushdownAnalyzedNormalizedFields) {
+  public ElasticFieldReference toReference(
+      final boolean useDocIfPossible,
+      final boolean sourceAvailable,
+      final boolean allowPushdownAnalyzedNormalizedFields) {
 
     // doc references have to be scalar or scalar-list return values.
-    final boolean isScalarOrScalarListReturn = type.isScalar() || (type.isList() && type.getOnlyChildType().isScalar());
+    final boolean isScalarOrScalarListReturn =
+        type.isScalar() || (type.isList() && type.getOnlyChildType().isScalar());
 
     // on es2, IP fields are integers, need to access via source.
     final boolean isIpOnPreES5 = annotation != null && annotation.isIpType() && !isV5;
@@ -129,16 +141,25 @@ public final class SchemaField extends RexInputRef {
     final boolean hasCorrectDocValue = annotation == null || !annotation.isNormalized();
 
     final boolean hasSpecialType = NON_DOC_TYPES.contains(specialType);
-    final boolean useDoc = useDocIfPossible && hasDocValue && hasCorrectDocValue &&
-      isScalarOrScalarListReturn && !isIpOnPreES5 && !hasSpecialType;
+    final boolean useDoc =
+        useDocIfPossible
+            && hasDocValue
+            && hasCorrectDocValue
+            && isScalarOrScalarListReturn
+            && !isIpOnPreES5
+            && !hasSpecialType;
 
     final StringBuilder sb = new StringBuilder();
     final StringBuilder fullPath = new StringBuilder();
     final List<Pair<String, String>> possibleNulls = new ArrayList<>();
 
-    if (useDoc && !allowPushdownAnalyzedNormalizedFields && type.isText() && annotation != null &&
-      (annotation.isAnalyzed() || annotation.isNormalized())) {
-      throw new RuntimeException("Cannot pushdown because of analyzed or normalized text or keyword field.");
+    if (useDoc
+        && !allowPushdownAnalyzedNormalizedFields
+        && type.isText()
+        && annotation != null
+        && (annotation.isAnalyzed() || annotation.isNormalized())) {
+      throw new RuntimeException(
+          "Cannot pushdown because of analyzed or normalized text or keyword field.");
     }
 
     if (useDoc) {
@@ -146,10 +167,12 @@ public final class SchemaField extends RexInputRef {
       sb.append(OPEN_BQ);
     } else {
       if (!sourceAvailable) {
-        throw new RuntimeException("Cannot pushdown because neither _source nor doc value is available.");
+        throw new RuntimeException(
+            "Cannot pushdown because neither _source nor doc value is available.");
       }
       if (isPainless) {
-        // on V5, we use painless instead of groovy. In that case, source needs to be referenced differently.
+        // on V5, we use painless instead of groovy. In that case, source needs to be referenced
+        // differently.
         sb.append(ElasticsearchConstants.SOURCE_PAINLESS);
       } else {
         sb.append(ElasticsearchConstants.SOURCE_GROOVY);
@@ -157,135 +180,152 @@ public final class SchemaField extends RexInputRef {
     }
 
     final Pointer<Boolean> first = new Pointer<>(true);
-    path.accept(new SchemaPathVisitor<Void, Void>() {
+    path.accept(
+        new SchemaPathVisitor<Void, Void>() {
 
-      @Override
-      public Void visitName(NameSegment segment, Void in) {
-        if (useDoc) {
-          if (segment.isLastPath() && specialType == ElasticSpecialType.GEO_POINT && ("lat".equals(segment.getPath()) || "lon".equals(segment.getPath()))) {
-            // since geo point is a atomic type, we need to exit the type to correctly manage things.
-            sb.append(CLOSE_BQ);
-            possibleNulls.add(new Pair(sb.toString(), fullPath.toString()));
-            sb.append('.');
-            sb.append(segment.getPath());
-            if (type.isList()) {
-              sb.append('s');
-            }
-          } else {
-            if (first.value) {
-              first.value = false;
-            } else {
-              sb.append(".");
-              fullPath.append(".");
-            }
-            String segmentPath = StringEscapeUtils.escapeJava(segment.getPath());
-            sb.append(segmentPath);
-            fullPath.append(segmentPath);
-            if (segment.isLastPath()) {
-              sb.append(CLOSE_BQ);
-              possibleNulls.add(new Pair(sb.toString(), fullPath.toString()));
-              if (type.isList()) {
-                sb.append(".values");
-              } else if (!isV5 && (annotation != null && annotation.isIpType())) {
-                // for a non v5 install, we need to convert ip to string
-                throw new IllegalStateException("Prior to version 5, ip type cannot be pushed down.");
-              } else if (type.isTemporal()) {
-                if (isV7) {
-                  sb.append(".value");
-                } else {
-                  sb.append(".date");
+          @Override
+          public Void visitName(NameSegment segment, Void in) {
+            if (useDoc) {
+              if (segment.isLastPath()
+                  && specialType == ElasticSpecialType.GEO_POINT
+                  && ("lat".equals(segment.getPath()) || "lon".equals(segment.getPath()))) {
+                // since geo point is a atomic type, we need to exit the type to correctly manage
+                // things.
+                sb.append(CLOSE_BQ);
+                possibleNulls.add(new Pair(sb.toString(), fullPath.toString()));
+                sb.append('.');
+                sb.append(segment.getPath());
+                if (type.isList()) {
+                  sb.append('s');
                 }
               } else {
-                sb.append(".value");
+                if (first.value) {
+                  first.value = false;
+                } else {
+                  sb.append(".");
+                  fullPath.append(".");
+                }
+                String segmentPath = StringEscapeUtils.escapeJava(segment.getPath());
+                sb.append(segmentPath);
+                fullPath.append(segmentPath);
+                if (segment.isLastPath()) {
+                  sb.append(CLOSE_BQ);
+                  possibleNulls.add(new Pair(sb.toString(), fullPath.toString()));
+                  if (type.isList()) {
+                    sb.append(".values");
+                  } else if (!isV5 && (annotation != null && annotation.isIpType())) {
+                    // for a non v5 install, we need to convert ip to string
+                    throw new IllegalStateException(
+                        "Prior to version 5, ip type cannot be pushed down.");
+                  } else if (type.isTemporal()) {
+                    if (isV7) {
+                      sb.append(".value");
+                    } else {
+                      sb.append(".date");
+                    }
+                  } else {
+                    sb.append(".value");
+                  }
+                }
+              }
+            } else {
+              if (segment.getPath().matches("[a-zA-Z_][a-zA-Z\\d_]*")) {
+                // if this field a valid field identifier, lacking special characters, use the less
+                // cluttered dot syntax
+                // to reference it _source.field_name
+                sb.append(".");
+                sb.append(segment.getPath());
+              } else {
+                sb.append(OPEN_BQ);
+                sb.append(StringEscapeUtils.escapeJava(segment.getPath()));
+                sb.append(CLOSE_BQ);
+              }
+
+              // add all parts of field as possible nulls.
+              possibleNulls.add(new Pair(sb.toString(), fullPath.toString()));
+
+              if (segment.isLastPath()) {
+                switch (type.toMinorType()) {
+                  case BIGINT:
+                    sb.append(".longValue()");
+                    break;
+
+                  case FLOAT4:
+                    sb.append(".floatValue()");
+                    break;
+
+                  case FLOAT8:
+                    sb.append(".doubleValue()");
+                    break;
+
+                  case DATE:
+                  case TIME:
+                  case TIMESTAMP:
+                    if (isV7) {
+                      sb.append(".value");
+                    } else {
+                      sb.append(".date");
+                    }
+                    break;
+
+                  case INT:
+                    sb.append(".intValue()");
+                    break;
+
+                  default:
+                    break;
+                }
               }
             }
 
-          }
-        } else {
-          if (segment.getPath().matches("[a-zA-Z_][a-zA-Z\\d_]*")) {
-            // if this field a valid field identifier, lacking special characters, use the less cluttered dot syntax
-            // to reference it _source.field_name
-            sb.append(".");
-            sb.append(segment.getPath());
-          } else {
-            sb.append(OPEN_BQ);
-            sb.append(StringEscapeUtils.escapeJava(segment.getPath()));
-            sb.append(CLOSE_BQ);
-          }
-
-          // add all parts of field as possible nulls.
-          possibleNulls.add(new Pair(sb.toString(), fullPath.toString()));
-
-          if (segment.isLastPath()) {
-            switch (type.toMinorType()) {
-              case BIGINT:
-                sb.append(".longValue()");
-                break;
-
-              case FLOAT4:
-                sb.append(".floatValue()");
-                break;
-
-              case FLOAT8:
-                sb.append(".doubleValue()");
-                break;
-
-              case DATE:
-              case TIME:
-              case TIMESTAMP:
-                if (isV7) {
-                  sb.append(".value");
-                } else {
-                  sb.append(".date");
-                }
-                break;
-
-              case INT:
-                sb.append(".intValue()");
-                break;
-
-              default:
-                break;
-
+            if (segment.getChild() != null) {
+              return segment.getChild().accept(this, in);
             }
+            return null;
           }
-        }
 
-        if (segment.getChild() != null) {
-          return segment.getChild().accept(this, in);
-        }
-        return null;
-      }
+          @Override
+          public Void visitArray(ArraySegment segment, Void in) {
+            if (!segment.isLastPath()) {
+              throw new IllegalStateException(
+                  String.format(
+                      "Unable to pushdown reference %s as it includes at least one array index that is non-terminal.",
+                      path.getAsUnescapedPath()));
+            }
 
-      @Override
-      public Void visitArray(ArraySegment segment, Void in) {
-        if (!segment.isLastPath()) {
-          throw new IllegalStateException(String.format("Unable to pushdown reference %s as it includes at least one array index that is non-terminal.", path.getAsUnescapedPath()));
-        }
+            if (useDoc) {
+              sb.append(CLOSE_BQ);
+              sb.append(".values");
+              sb.append('[');
+              sb.append(segment.getOptionalIndex());
+              sb.append(']');
+              possibleNulls.add(new Pair(sb.toString(), fullPath.toString()));
+            } else {
+              throw new IllegalStateException(
+                  String.format(
+                      "Unable to pushdown reference %s as it includes at least one array index on a field that cannot be doc value accessed.",
+                      path.getAsUnescapedPath()));
+            }
 
-        if (useDoc) {
-          sb.append(CLOSE_BQ);
-          sb.append(".values");
-          sb.append('[');
-          sb.append(segment.getOptionalIndex());
-          sb.append(']');
-          possibleNulls.add(new Pair(sb.toString(), fullPath.toString()));
-        } else {
-          throw new IllegalStateException(String.format("Unable to pushdown reference %s as it includes at least one array index on a field that cannot be doc value accessed.", path.getAsUnescapedPath()));
-        }
+            return null;
+          }
+        },
+        null);
 
-        return null;
+    List<NullReference> nullReferences =
+        FluentIterable.from(possibleNulls)
+            .transform(
+                new Function<Pair<String, String>, NullReference>() {
 
-      }
-    }, null);
-
-    List<NullReference> nullReferences = FluentIterable.from(possibleNulls).transform(new Function<Pair<String, String>, NullReference>() {
-
-      @Override
-      public NullReference apply(Pair<String, String> input) {
-        return new NullReference(input.getKey(), input.getValue(), useDoc ? ReferenceType.DOC : ReferenceType.SOURCE);
-      }
-    }).toList();
+                  @Override
+                  public NullReference apply(Pair<String, String> input) {
+                    return new NullReference(
+                        input.getKey(),
+                        input.getValue(),
+                        useDoc ? ReferenceType.DOC : ReferenceType.SOURCE);
+                  }
+                })
+            .toList();
 
     String ref;
 
@@ -299,7 +339,8 @@ public final class SchemaField extends RexInputRef {
   }
 
   public static enum ReferenceType {
-    SOURCE, DOC
+    SOURCE,
+    DOC
   }
 
   public static class ElasticFieldReference {
@@ -327,15 +368,14 @@ public final class SchemaField extends RexInputRef {
         return false;
       }
       ElasticFieldReference castOther = (ElasticFieldReference) other;
-      return Objects.equal(reference, castOther.reference) && Objects.equal(possibleNulls, castOther.possibleNulls);
+      return Objects.equal(reference, castOther.reference)
+          && Objects.equal(possibleNulls, castOther.possibleNulls);
     }
 
     @Override
     public int hashCode() {
       return Objects.hashCode(reference, possibleNulls);
     }
-
-
   }
 
   public static class NullReference {
@@ -368,39 +408,38 @@ public final class SchemaField extends RexInputRef {
         return false;
       }
       NullReference castOther = (NullReference) other;
-      return Objects.equal(value, castOther.value) && Objects.equal(referenceType, castOther.referenceType);
+      return Objects.equal(value, castOther.value)
+          && Objects.equal(referenceType, castOther.referenceType);
     }
 
     @Override
     public int hashCode() {
       return Objects.hashCode(value, referenceType);
     }
-
-
   }
 
   /**
-   * Given a subtree, return an updated rexnode tree that replaces item operatos
-   * and input refs with a schema aware node. If conversion fails, an
-   * IllegalStateException is thrown as one or more ITEM operators are expected
-   * to always be directly above input refs
+   * Given a subtree, return an updated rexnode tree that replaces item operatos and input refs with
+   * a schema aware node. If conversion fails, an IllegalStateException is thrown as one or more
+   * ITEM operators are expected to always be directly above input refs
    *
    * @param node Node to convert
    * @param scan Elastic scan that is below this expression.
-   * @return A new node where RexInputRefs and ITEM operations are all converted
-   * to RexInputRef subclass SchemaField.
+   * @return A new node where RexInputRefs and ITEM operations are all converted to RexInputRef
+   *     subclass SchemaField.
    */
   public static RexNode convert(RexNode node, ElasticIntermediateScanPrel scan) {
     return node.accept(new SchemaingShuttle(scan, ImmutableSet.<ElasticSpecialType>of()));
   }
 
-  public static RexNode convert(RexNode node, ElasticIntermediateScanPrel scan, Set<ElasticSpecialType> disallowedSpecialTypes) {
+  public static RexNode convert(
+      RexNode node,
+      ElasticIntermediateScanPrel scan,
+      Set<ElasticSpecialType> disallowedSpecialTypes) {
     return node.accept(new SchemaingShuttle(scan, disallowedSpecialTypes));
   }
 
-  /**
-   * Visitor that replaces item calls with a new type of RexInput
-   */
+  /** Visitor that replaces item calls with a new type of RexInput */
   private static class SchemaingShuttle extends RexShuttle {
 
     private final Set<ElasticSpecialType> disallowedSpecialTypes;
@@ -410,20 +449,31 @@ public final class SchemaField extends RexInputRef {
     private final boolean complexTypeSupport;
     private final boolean isV7;
 
-    public SchemaingShuttle(ElasticIntermediateScanPrel scan, Set<ElasticSpecialType> disallowedSpecialTypes) {
+    public SchemaingShuttle(
+        ElasticIntermediateScanPrel scan, Set<ElasticSpecialType> disallowedSpecialTypes) {
       this.scan = scan;
-      this.complexTypeSupport = PrelUtil.getPlannerSettings(scan.getCluster()).isFullNestedSchemaSupport();
-      this.isV5 = scan.getPluginId().getCapabilities().getCapability(ElasticsearchStoragePlugin.ENABLE_V5_FEATURES);
-      this.isV7 = scan.getPluginId().getCapabilities().getCapability(ElasticsearchStoragePlugin.ENABLE_V7_FEATURES);
+      this.complexTypeSupport =
+          PrelUtil.getPlannerSettings(scan.getCluster()).isFullNestedSchemaSupport();
+      this.isV5 =
+          scan.getPluginId()
+              .getCapabilities()
+              .getCapability(ElasticsearchStoragePlugin.ENABLE_V5_FEATURES);
+      this.isV7 =
+          scan.getPluginId()
+              .getCapabilities()
+              .getCapability(ElasticsearchStoragePlugin.ENABLE_V7_FEATURES);
       this.disallowedSpecialTypes = disallowedSpecialTypes;
-      ElasticsearchConf config = ElasticsearchConf.createElasticsearchConf(scan.getPluginId().getConnectionConf());
+      ElasticsearchConf config =
+          ElasticsearchConf.createElasticsearchConf(scan.getPluginId().getConnectionConf());
       this.isPainless = isV5 && config.isUsePainless();
     }
 
     @Override
     public RexNode visitCall(RexCall call) {
-      final boolean isItem = call.getOperator().getSyntax() == SqlSyntax.SPECIAL
-        && (call.getOperator() == SqlStdOperatorTable.ITEM || call.getOperator() == SqlStdOperatorTable.DOT);
+      final boolean isItem =
+          call.getOperator().getSyntax() == SqlSyntax.SPECIAL
+              && (call.getOperator() == SqlStdOperatorTable.ITEM
+                  || call.getOperator() == SqlStdOperatorTable.DOT);
       if (isItem) {
         return visitCandidate(call);
       }
@@ -437,12 +487,26 @@ public final class SchemaField extends RexInputRef {
 
       FieldAnnotation annotation = scan.getAnnotation(path);
       ElasticSpecialType specialType = scan.getSpecialTypeRecursive(path);
-      Preconditions.checkArgument(!disallowedSpecialTypes.contains(specialType), "Unable to pushdown query, %s is of type %s.", path.getAsUnescapedPath(), specialType);
+      Preconditions.checkArgument(
+          !disallowedSpecialTypes.contains(specialType),
+          "Unable to pushdown query, %s is of type %s.",
+          path.getAsUnescapedPath(),
+          specialType);
       TypedFieldId fieldId = scan.getBatchSchema().getFieldId(path);
       Preconditions.checkArgument(fieldId != null, "Unable to resolve item path %s.", node);
       CompleteType type = fieldId.getFinalType();
 
-      return new SchemaField(fieldId.getFieldIds()[0], path, type, annotation, scan.getCluster().getTypeFactory(), specialType, isV5, isPainless, complexTypeSupport, isV7);
+      return new SchemaField(
+          fieldId.getFieldIds()[0],
+          path,
+          type,
+          annotation,
+          scan.getCluster().getTypeFactory(),
+          specialType,
+          isV5,
+          isPainless,
+          complexTypeSupport,
+          isV7);
     }
 
     @Override
@@ -455,7 +519,6 @@ public final class SchemaField extends RexInputRef {
       return visitCandidate(fieldAccess);
     }
   }
-
 
   public static class PathVisitor extends RexVisitorImpl<SchemaPath> {
 
@@ -492,7 +555,9 @@ public final class SchemaField extends RexInputRef {
 
     @Override
     public SchemaPath visitCall(RexCall call) {
-      if (call.getOperator().getSyntax() != SqlSyntax.SPECIAL || (call.getOperator() != SqlStdOperatorTable.ITEM && call.getOperator() != SqlStdOperatorTable.DOT)) {
+      if (call.getOperator().getSyntax() != SqlSyntax.SPECIAL
+          || (call.getOperator() != SqlStdOperatorTable.ITEM
+              && call.getOperator() != SqlStdOperatorTable.DOT)) {
         return null;
       }
       LogicalExpression logExpr = call.getOperands().get(0).accept(this);
@@ -526,5 +591,4 @@ public final class SchemaField extends RexInputRef {
       return null;
     }
   }
-
 }

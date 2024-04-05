@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.planner.fragment;
 
-import java.util.Map;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.physical.base.AbstractPhysicalVisitor;
 import com.dremio.exec.physical.base.FragmentRoot;
@@ -25,12 +23,14 @@ import com.dremio.exec.planner.PhysicalPlanReader;
 import com.dremio.exec.proto.CoordExecRPC.PlanFragmentMajor;
 import com.dremio.options.OptionList;
 import com.google.common.collect.Maps;
+import java.util.Map;
 
 /**
  * This reader caches the de-serialized object from json, and avoids repeated de-serializations for
  * each minor.
  */
-public class CachedFragmentReader extends AbstractPhysicalVisitor<PhysicalOperator, Void, ExecutionSetupException>{
+public class CachedFragmentReader
+    extends AbstractPhysicalVisitor<PhysicalOperator, Void, ExecutionSetupException> {
   final PhysicalPlanReader reader;
   final PlanFragmentsIndex planFragmentsIndex;
   // Cached deserialized fragment_json
@@ -52,40 +52,48 @@ public class CachedFragmentReader extends AbstractPhysicalVisitor<PhysicalOperat
     final PlanFragmentMajor major = planFragment.getMajor();
 
     // Check if already present in the cache.
-    return majorIdToOptionListMap.computeIfAbsent(majorId, k -> {
-      OptionList innerList = null;
-      if (!major.hasOptionsJson() || major.getOptionsJson().isEmpty()) {
-        innerList = new OptionList();
-      } else {
-        try {
-          innerList = reader.readOptionList(major.getOptionsJson(), major.getFragmentCodec());
-        } catch (final Exception e) {
-          throw new RuntimeException("Failure while reading plan options.", e);
-        }
-      }
-      return innerList;
-    });
-
+    return majorIdToOptionListMap.computeIfAbsent(
+        majorId,
+        k -> {
+          OptionList innerList = null;
+          if (!major.hasOptionsJson() || major.getOptionsJson().isEmpty()) {
+            innerList = new OptionList();
+          } else {
+            try {
+              innerList = reader.readOptionList(major.getOptionsJson(), major.getFragmentCodec());
+            } catch (final Exception e) {
+              throw new RuntimeException("Failure while reading plan options.", e);
+            }
+          }
+          return innerList;
+        });
   }
 
   public FragmentRoot readFragment(PlanFragmentFull planFragment) throws ExecutionSetupException {
     int majorId = planFragment.getMajorFragmentId();
     final PlanFragmentMajor major = planFragment.getMajor();
 
-    FragmentRoot root = majorIdToRootMap.computeIfAbsent(majorId, k -> {
-      try {
-        return reader.readFragmentOperator(major.getFragmentJson(), major.getFragmentCodec());
-      } catch (final Exception e) {
-        throw new RuntimeException(e);
-      }
-    });
+    FragmentRoot root =
+        majorIdToRootMap.computeIfAbsent(
+            majorId,
+            k -> {
+              try {
+                return reader.readFragmentOperator(
+                    major.getFragmentJson(), major.getFragmentCodec());
+              } catch (final Exception e) {
+                throw new RuntimeException(e);
+              }
+            });
 
     // Copy the operator tree. Populate minor-specific attributes in the copy, and return the copy.
-    final MinorDataSerDe minorDataSerDe = new MinorDataSerDe(reader,
-      planFragment.getMajor().getFragmentCodec());
-    return (FragmentRoot)MinorDataPopulator.populate(planFragment.getHandle(), root,
-      minorDataSerDe,
-      MinorAttrsMap.create(planFragment.getMinor().getAttrsList()),
-      planFragmentsIndex);
+    final MinorDataSerDe minorDataSerDe =
+        new MinorDataSerDe(reader, planFragment.getMajor().getFragmentCodec());
+    return (FragmentRoot)
+        MinorDataPopulator.populate(
+            planFragment.getHandle(),
+            root,
+            minorDataSerDe,
+            MinorAttrsMap.create(planFragment.getMinor().getAttrsList()),
+            planFragmentsIndex);
   }
 }

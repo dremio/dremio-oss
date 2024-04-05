@@ -17,11 +17,10 @@ package com.dremio.exec.ops;
 
 import com.dremio.service.users.SystemUser;
 
-/**
- * StatisticsContext Context
- */
+/** StatisticsContext Context */
 public class StatisticsContext {
-  public static final StatisticsContext SYSTEM_USER_CONTEXT = new StatisticsContext(SystemUser.SYSTEM_USERNAME, true);
+  public static final StatisticsContext SYSTEM_USER_CONTEXT =
+      new StatisticsContext(SystemUser.SYSTEM_USERNAME, true);
 
   private final String userName;
   private final boolean isAdmin;

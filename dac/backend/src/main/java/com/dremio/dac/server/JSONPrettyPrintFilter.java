@@ -15,23 +15,19 @@
  */
 package com.dremio.dac.server;
 
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.databind.ObjectWriter;
+import com.fasterxml.jackson.jaxrs.cfg.EndpointConfigBase;
+import com.fasterxml.jackson.jaxrs.cfg.ObjectWriterInjector;
+import com.fasterxml.jackson.jaxrs.cfg.ObjectWriterModifier;
 import java.io.IOException;
-
 import javax.ws.rs.container.ContainerRequestContext;
 import javax.ws.rs.container.ContainerResponseContext;
 import javax.ws.rs.container.ContainerResponseFilter;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.UriInfo;
 
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.databind.ObjectWriter;
-import com.fasterxml.jackson.jaxrs.cfg.EndpointConfigBase;
-import com.fasterxml.jackson.jaxrs.cfg.ObjectWriterInjector;
-import com.fasterxml.jackson.jaxrs.cfg.ObjectWriterModifier;
-
-/**
- * A filter to pretty-print json if pretty parameter is present in request query.
- */
+/** A filter to pretty-print json if pretty parameter is present in request query. */
 public class JSONPrettyPrintFilter implements ContainerResponseFilter {
 
   private static final class PrettyPrintWriter extends ObjectWriterModifierChain {
@@ -41,18 +37,25 @@ public class JSONPrettyPrintFilter implements ContainerResponseFilter {
     }
 
     @Override
-    public ObjectWriter modify(EndpointConfigBase<?> endpoint, MultivaluedMap<String, Object> responseHeaders,
-      Object valueToWrite, ObjectWriter w, JsonGenerator g) throws IOException {
+    public ObjectWriter modify(
+        EndpointConfigBase<?> endpoint,
+        MultivaluedMap<String, Object> responseHeaders,
+        Object valueToWrite,
+        ObjectWriter w,
+        JsonGenerator g)
+        throws IOException {
       ObjectWriter writer = super.modify(endpoint, responseHeaders, valueToWrite, w, g);
       g.useDefaultPrettyPrinter();
 
       return writer;
     }
-  };
+  }
+  ;
 
   @Override
-  public void filter(ContainerRequestContext requestContext, ContainerResponseContext responseContext)
-    throws IOException {
+  public void filter(
+      ContainerRequestContext requestContext, ContainerResponseContext responseContext)
+      throws IOException {
     UriInfo info = requestContext.getUriInfo();
     if (!info.getQueryParameters().containsKey("pretty")) {
       return;
@@ -60,5 +63,4 @@ public class JSONPrettyPrintFilter implements ContainerResponseFilter {
 
     ObjectWriterInjector.set(new PrettyPrintWriter(ObjectWriterInjector.getAndClear()));
   }
-
 }

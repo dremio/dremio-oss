@@ -15,54 +15,59 @@
  */
 package com.dremio.exec.expr.fn.impl;
 
-import org.apache.arrow.vector.holders.DateMilliHolder;
-import org.apache.arrow.vector.holders.IntervalDayHolder;
-import org.apache.arrow.vector.holders.TimeStampMilliHolder;
-
 import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.FunctionTemplate.FunctionScope;
 import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
+import org.apache.arrow.vector.holders.DateMilliHolder;
+import org.apache.arrow.vector.holders.IntervalDayHolder;
+import org.apache.arrow.vector.holders.TimeStampMilliHolder;
 
 public class DateTimestampMinusFunctions {
 
-  @FunctionTemplate(names = {"date_diff", "subtract", "date_sub"}, scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+  @FunctionTemplate(
+      names = {"date_diff", "subtract", "date_sub"},
+      scope = FunctionScope.SIMPLE,
+      nulls = NullHandling.NULL_IF_NULL)
   public static class DateDiff implements SimpleFunction {
 
     @Param DateMilliHolder input1;
     @Param DateMilliHolder input2;
-    @Output
-    IntervalDayHolder out;
+    @Output IntervalDayHolder out;
 
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
     public void eval() {
-      out.days =  (int) ((input1.value - input2.value) / org.apache.arrow.vector.util.DateUtility.daysToStandardMillis);
+      out.days =
+          (int)
+              ((input1.value - input2.value)
+                  / org.apache.arrow.vector.util.DateUtility.daysToStandardMillis);
       out.milliseconds = 0;
     }
   }
 
-  @FunctionTemplate(names = {"date_diff", "subtract", "date_sub"}, scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+  @FunctionTemplate(
+      names = {"date_diff", "subtract", "date_sub"},
+      scope = FunctionScope.SIMPLE,
+      nulls = NullHandling.NULL_IF_NULL)
   public static class TimestampDiff implements SimpleFunction {
 
     @Param TimeStampMilliHolder input1;
     @Param TimeStampMilliHolder input2;
-    @Output
-    IntervalDayHolder out;
+    @Output IntervalDayHolder out;
 
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
     public void eval() {
       long difference = (input1.value - input2.value);
-      out.milliseconds = (int) (difference % org.apache.arrow.vector.util.DateUtility.daysToStandardMillis);
+      out.milliseconds =
+          (int) (difference % org.apache.arrow.vector.util.DateUtility.daysToStandardMillis);
       out.days = (int) (difference / org.apache.arrow.vector.util.DateUtility.daysToStandardMillis);
     }
   }

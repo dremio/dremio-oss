@@ -45,7 +45,8 @@ import com.dremio.common.expression.ValueExpressions.QuotedString;
 import com.dremio.common.expression.ValueExpressions.TimeExpression;
 import com.dremio.common.expression.ValueExpressions.TimeStampExpression;
 
-public final class AggregateChecker implements ExprVisitor<Boolean, ErrorCollector, RuntimeException>{
+public final class AggregateChecker
+    implements ExprVisitor<Boolean, ErrorCollector, RuntimeException> {
 
   public static final AggregateChecker INSTANCE = new AggregateChecker();
 
@@ -55,17 +56,21 @@ public final class AggregateChecker implements ExprVisitor<Boolean, ErrorCollect
 
   @Override
   public Boolean visitFunctionCall(FunctionCall call, ErrorCollector errors) {
-    throw new UnsupportedOperationException("FunctionCall is not expected here. "+
-      "It should have been converted to FunctionHolderExpression in materialization");
+    throw new UnsupportedOperationException(
+        "FunctionCall is not expected here. "
+            + "It should have been converted to FunctionHolderExpression in materialization");
   }
 
   @Override
-  public Boolean visitFunctionHolderExpression(FunctionHolderExpression holder, ErrorCollector errors) {
+  public Boolean visitFunctionHolderExpression(
+      FunctionHolderExpression holder, ErrorCollector errors) {
     if (holder.isAggregating()) {
       for (int i = 0; i < holder.args.size(); i++) {
         LogicalExpression e = holder.args.get(i);
-        if(e.accept(this, errors)) {
-          errors.addGeneralError("Aggregating function call %s includes nested aggregations at arguments number %d. This isn't allowed.", holder.getName(), i);
+        if (e.accept(this, errors)) {
+          errors.addGeneralError(
+              "Aggregating function call %s includes nested aggregations at arguments number %d. This isn't allowed.",
+              holder.getName(), i);
         }
       }
       return true;
@@ -109,7 +114,8 @@ public final class AggregateChecker implements ExprVisitor<Boolean, ErrorCollect
   }
 
   @Override
-  public Boolean visitCaseExpression(CaseExpression caseExpression, ErrorCollector value) throws RuntimeException {
+  public Boolean visitCaseExpression(CaseExpression caseExpression, ErrorCollector value)
+      throws RuntimeException {
     return false;
   }
 
@@ -137,6 +143,7 @@ public final class AggregateChecker implements ExprVisitor<Boolean, ErrorCollect
   public Boolean visitBooleanConstant(BooleanExpression e, ErrorCollector errors) {
     return false;
   }
+
   @Override
   public Boolean visitDecimalConstant(DecimalExpression decExpr, ErrorCollector errors) {
     return false;
@@ -158,47 +165,51 @@ public final class AggregateChecker implements ExprVisitor<Boolean, ErrorCollect
   }
 
   @Override
-  public Boolean visitConvertExpression(ConvertExpression e, ErrorCollector errors) throws RuntimeException {
+  public Boolean visitConvertExpression(ConvertExpression e, ErrorCollector errors)
+      throws RuntimeException {
     return e.getInput().accept(this, errors);
   }
 
   @Override
   public Boolean visitDateConstant(DateExpression intExpr, ErrorCollector errors) {
-      return false;
+    return false;
   }
 
   @Override
   public Boolean visitTimeConstant(TimeExpression intExpr, ErrorCollector errors) {
-      return false;
+    return false;
   }
 
   @Override
   public Boolean visitTimeStampConstant(TimeStampExpression intExpr, ErrorCollector errors) {
-      return false;
+    return false;
   }
 
   @Override
   public Boolean visitIntervalYearConstant(IntervalYearExpression intExpr, ErrorCollector errors) {
-      return false;
+    return false;
   }
 
   @Override
   public Boolean visitIntervalDayConstant(IntervalDayExpression intExpr, ErrorCollector errors) {
-      return false;
-  }
-
-  @Override
-  public Boolean visitNullConstant(TypedNullConstant e, ErrorCollector value) throws RuntimeException {
     return false;
   }
 
   @Override
-  public Boolean visitNullExpression(NullExpression e, ErrorCollector value) throws RuntimeException {
+  public Boolean visitNullConstant(TypedNullConstant e, ErrorCollector value)
+      throws RuntimeException {
     return false;
   }
 
   @Override
-  public Boolean visitListAggExpression(ListAggExpression e, ErrorCollector value) throws RuntimeException {
+  public Boolean visitNullExpression(NullExpression e, ErrorCollector value)
+      throws RuntimeException {
+    return false;
+  }
+
+  @Override
+  public Boolean visitListAggExpression(ListAggExpression e, ErrorCollector value)
+      throws RuntimeException {
     return true;
   }
 
@@ -208,7 +219,8 @@ public final class AggregateChecker implements ExprVisitor<Boolean, ErrorCollect
   }
 
   @Override
-  public Boolean visitArrayLiteralExpression(ArrayLiteralExpression e, ErrorCollector value) throws RuntimeException {
+  public Boolean visitArrayLiteralExpression(ArrayLiteralExpression e, ErrorCollector value)
+      throws RuntimeException {
     return true;
   }
 }

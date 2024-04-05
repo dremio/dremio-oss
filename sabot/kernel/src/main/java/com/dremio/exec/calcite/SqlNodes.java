@@ -17,8 +17,8 @@ package com.dremio.exec.calcite;
 
 import static java.util.Arrays.asList;
 
+import com.dremio.common.utils.SqlUtils;
 import java.util.List;
-
 import org.apache.calcite.config.NullCollation;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlDataTypeSpec;
@@ -34,15 +34,15 @@ import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.pretty.SqlPrettyWriter;
 import org.apache.calcite.sql.util.SqlVisitor;
 
-import com.dremio.common.utils.SqlUtils;
-
-/**
- * Utilities to work with SqlNode
- *
- */
+/** Utilities to work with SqlNode */
 public class SqlNodes {
   public static SqlDialect DREMIO_DIALECT =
-      new SqlDialect(DatabaseProduct.UNKNOWN, "Dremio", Character.toString(SqlUtils.QUOTE), NullCollation.FIRST);
+      new SqlDialect(
+          DatabaseProduct.UNKNOWN,
+          "Dremio",
+          Character.toString(SqlUtils.QUOTE),
+          NullCollation.FIRST);
+
   /**
    * @param sqlNode
    * @return SQL representation of the node
@@ -65,12 +65,9 @@ public class SqlNodes {
     node.accept(visitor);
     return visitor.toString();
   }
-
 }
 
-/**
- * Visitor to print as a tree
- */
+/** Visitor to print as a tree */
 class PrinterVisitor implements SqlVisitor<Void> {
   private StringBuilder sb = new StringBuilder();
   private int indent = 0;
@@ -85,48 +82,48 @@ class PrinterVisitor implements SqlVisitor<Void> {
 
   private String label(SqlKind kind, int i) {
     switch (kind) {
-    case SELECT:
-      switch(i)  {
-      case 0:
-        return "keywords";
-      case 1:
-        return "select";
-      case 2:
-        return "from";
-      case 3:
-        return "where";
-      case 4:
-        return "groupBy";
-      case 5:
-        return "having";
-      case 6:
-        return "windowDecls";
-      case 7:
-        return "orderBy";
-      case 8:
-        return "offset";
-      case 9:
-        return "fetch";
+      case SELECT:
+        switch (i) {
+          case 0:
+            return "keywords";
+          case 1:
+            return "select";
+          case 2:
+            return "from";
+          case 3:
+            return "where";
+          case 4:
+            return "groupBy";
+          case 5:
+            return "having";
+          case 6:
+            return "windowDecls";
+          case 7:
+            return "orderBy";
+          case 8:
+            return "offset";
+          case 9:
+            return "fetch";
+          default:
+            break;
+        }
+        break;
+      case ORDER_BY:
+        switch (i) {
+          case 0:
+            return "query";
+          case 1:
+            return "orderList";
+          case 2:
+            return "offset";
+          case 3:
+            return "fetch";
+          default:
+            break;
+        }
+        break;
       default:
         break;
-      }
-      break;
-    case ORDER_BY:
-      switch(i) {
-      case 0:
-        return "query";
-      case 1:
-        return "orderList";
-      case 2:
-        return "offset";
-      case 3:
-        return "fetch";
-      default:
-        break;
-      }
-      break;
-    default:
-      break;
     }
     return String.valueOf(i);
   }
@@ -146,7 +143,7 @@ class PrinterVisitor implements SqlVisitor<Void> {
           sqlNode.accept(this);
         }
         sb.append(",\n");
-        ++ i;
+        ++i;
       }
       indent();
       sb.append("}");
@@ -161,31 +158,38 @@ class PrinterVisitor implements SqlVisitor<Void> {
     }
   }
 
-  @Override public Void visit(SqlLiteral literal) {
+  @Override
+  public Void visit(SqlLiteral literal) {
     return format(literal);
   }
 
-  @Override public Void visit(SqlCall call) {
+  @Override
+  public Void visit(SqlCall call) {
     return format(call, call.getOperator().toString(), call.getOperandList());
   }
 
-  @Override public Void visit(SqlNodeList nodeList) {
+  @Override
+  public Void visit(SqlNodeList nodeList) {
     return format(nodeList, "list", nodeList.getList());
   }
 
-  @Override public Void visit(SqlIdentifier id) {
+  @Override
+  public Void visit(SqlIdentifier id) {
     return format(id);
   }
 
-  @Override public Void visit(SqlDataTypeSpec type) {
+  @Override
+  public Void visit(SqlDataTypeSpec type) {
     return format(type);
   }
 
-  @Override public Void visit(SqlDynamicParam param) {
+  @Override
+  public Void visit(SqlDynamicParam param) {
     return format(param);
   }
 
-  @Override public Void visit(SqlIntervalQualifier intervalQualifier) {
+  @Override
+  public Void visit(SqlIntervalQualifier intervalQualifier) {
     return format(intervalQualifier);
   }
 

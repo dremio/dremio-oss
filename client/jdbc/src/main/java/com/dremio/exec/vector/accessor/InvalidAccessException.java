@@ -28,7 +28,7 @@ import java.sql.SQLNonTransientException;
 public class InvalidAccessException extends SQLNonTransientException {
   private static final long serialVersionUID = 2015_04_07L;
 
-  public InvalidAccessException( String message ) {
+  public InvalidAccessException(String message) {
     super(message);
   }
 }

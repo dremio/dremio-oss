@@ -19,7 +19,5 @@ import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 
 public interface FunctionEval {
-  RexNode evaluate(
-    EvaluationContext cx,
-    RexCall call);
+  RexNode evaluate(EvaluationContext cx, RexCall call);
 }

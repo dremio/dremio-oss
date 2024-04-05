@@ -15,13 +15,11 @@
  */
 package com.dremio.exec.store.sys.udf;
 
+import com.dremio.common.expression.CompleteType;
 import java.sql.Timestamp;
 import java.util.List;
 import java.util.Objects;
-
 import javax.annotation.Nullable;
-
-import com.dremio.common.expression.CompleteType;
 
 public final class UserDefinedFunction {
   private final String name;
@@ -31,20 +29,18 @@ public final class UserDefinedFunction {
   private final List<String> fullPath;
   private final byte[] serializedFunctionPlan;
 
-  @Nullable
-  private Timestamp createdAt;
-  @Nullable
-  private Timestamp modifiedAt;
+  @Nullable private Timestamp createdAt;
+  @Nullable private Timestamp modifiedAt;
 
   public UserDefinedFunction(
-    String name,
-    String functionSql,
-    CompleteType returnType,
-    List<FunctionArg> functionArgList,
-    List<String> fullPath,
-    byte[] serializedFunctionPlan,
-    Timestamp createdAt,
-    Timestamp modifiedAt) {
+      String name,
+      String functionSql,
+      CompleteType returnType,
+      List<FunctionArg> functionArgList,
+      List<String> fullPath,
+      byte[] serializedFunctionPlan,
+      Timestamp createdAt,
+      Timestamp modifiedAt) {
     this.name = name;
     this.functionSql = functionSql;
     this.returnType = returnType;
@@ -69,11 +65,11 @@ public final class UserDefinedFunction {
     return name;
   }
 
-  public String getFunctionSql(){
+  public String getFunctionSql() {
     return functionSql;
   }
 
-  public CompleteType getReturnType(){
+  public CompleteType getReturnType() {
     return returnType;
   }
 
@@ -98,8 +94,10 @@ public final class UserDefinedFunction {
       return false;
     }
     UserDefinedFunction that = (UserDefinedFunction) o;
-    return name.equals(that.name) && functionSql.equals(that.functionSql) &&
-      returnType.equals(that.returnType) && Objects.equals(functionArgList, that.functionArgList);
+    return name.equals(that.name)
+        && functionSql.equals(that.functionSql)
+        && returnType.equals(that.returnType)
+        && Objects.equals(functionArgList, that.functionArgList);
   }
 
   @Override
@@ -140,13 +138,15 @@ public final class UserDefinedFunction {
       }
       FunctionArg that = (FunctionArg) o;
       return this.dataType.equals(that.dataType)
-        && name.equals(that.name)
-        && defaultExpression.equals(that.defaultExpression);
+          && name.equals(that.name)
+          && defaultExpression.equals(that.defaultExpression);
     }
 
     @Override
     public String toString() {
-      return String.format("{\"name\": \"%s\", \"type\": \"%s\", \"default_expr\": \"%s\"}", name, dataType.toString(), defaultExpression);
+      return String.format(
+          "{\"name\": \"%s\", \"type\": \"%s\", \"default_expr\": \"%s\"}",
+          name, dataType.toString(), defaultExpression);
     }
 
     @Override

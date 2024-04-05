@@ -15,12 +15,11 @@
  */
 package com.dremio.exec.planner.physical.rule.computation;
 
+import com.dremio.exec.planner.logical.RexRewriter;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexUtil;
-
-import com.dremio.exec.planner.logical.RexRewriter;
 
 class TrigFractionRewriteRule extends RexRewriter.RewriteRule {
 
@@ -40,8 +39,8 @@ class TrigFractionRewriteRule extends RexRewriter.RewriteRule {
         RexCall child = (RexCall) call.getOperands().get(0);
         switch (child.getOperator().getKind()) {
           case DIVIDE:
-            if (!(RexUtil.isConstant(child.getOperands().get(1)) && child.getOperands()
-              .get(0) instanceof RexCall)) {
+            if (!(RexUtil.isConstant(child.getOperands().get(1))
+                && child.getOperands().get(0) instanceof RexCall)) {
               return null;
             }
             RexCall gChild = (RexCall) child.getOperands().get(0);
@@ -52,21 +51,17 @@ class TrigFractionRewriteRule extends RexRewriter.RewriteRule {
               case PLUS:
               case MINUS:
                 return builder.makeCall(
-                  call.getOperator(),
-                  builder.makeCall(
-                    gChild.getOperator(),
+                    call.getOperator(),
                     builder.makeCall(
-                      child.getOperator(),
-                      gChild.getOperands().get(0),
-                      child.getOperands().get(1)
-                    ),
-                    builder.makeCall(
-                      child.getOperator(),
-                      gChild.getOperands().get(1),
-                      child.getOperands().get(1)
-                    )
-                  )
-                );
+                        gChild.getOperator(),
+                        builder.makeCall(
+                            child.getOperator(),
+                            gChild.getOperands().get(0),
+                            child.getOperands().get(1)),
+                        builder.makeCall(
+                            child.getOperator(),
+                            gChild.getOperands().get(1),
+                            child.getOperands().get(1))));
               default:
                 return null;
             }

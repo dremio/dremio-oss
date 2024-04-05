@@ -15,20 +15,18 @@
  */
 package com.dremio;
 
+import com.dremio.common.SentinelSecure;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-
 import org.immutables.value.Value.Style;
-
-import com.dremio.common.SentinelSecure;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
 /**
  * Describes Dremio's default annotation style for Immutables.
  *
- * Keep in sync with {@link ValidatingGnarlyStyle}.
+ * <p>Keep in sync with {@link ValidatingGnarlyStyle}.
  */
 @Target({ElementType.PACKAGE, ElementType.TYPE})
 @Retention(RetentionPolicy.CLASS)
@@ -38,6 +36,5 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
     init = "set*",
     typeImmutable = "Immutable*",
     validationMethod = Style.ValidationMethod.NONE,
-    additionalJsonAnnotations = {SentinelSecure.class}
-    )
+    additionalJsonAnnotations = {SentinelSecure.class})
 public @interface GnarlyStyle {}

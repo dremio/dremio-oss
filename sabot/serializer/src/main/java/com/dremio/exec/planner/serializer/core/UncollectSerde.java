@@ -15,61 +15,59 @@
  */
 package com.dremio.exec.planner.serializer.core;
 
-import java.util.Collections;
-import java.util.stream.Collectors;
-
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.core.Uncollect;
-
 import com.dremio.exec.planner.serializer.RelNodeSerde;
 import com.dremio.exec.planner.serializer.RelTraitSetSerde;
 import com.dremio.plan.serialization.PAbstractRelNode;
 import com.dremio.plan.serialization.PSingleRel;
 import com.dremio.plan.serialization.PUncollect;
+import java.util.Collections;
+import java.util.stream.Collectors;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.core.Uncollect;
 
-/**
- * Serde for Uncollect.
- */
+/** Serde for Uncollect. */
 public final class UncollectSerde implements RelNodeSerde<Uncollect, PUncollect> {
   /**
    * How to serialize this RelNode
    *
    * @param node The node to serialize
-   * @param s    Contextual utility to help with serialization.
+   * @param s Contextual utility to help with serialization.
    * @return The serialized Protobuf message
    */
   @Override
   public PUncollect serialize(Uncollect node, RelToProto s) {
     return PUncollect.newBuilder()
-      .setSingleRel(
-        PSingleRel.newBuilder()
-          .setAbstractRelNode(
-            PAbstractRelNode.newBuilder()
-              // DX-68622: There is a bug in the trait set serializer so for now we are just using an empty trait set.
-              .setTraitSet(RelTraitSetSerde.toProto(RelTraitSet.createEmpty()))
-              .build())
-          .setInput(s.toProto(node.getInput()))
-          .build())
-      .setWithOrdinality(node.withOrdinality)
-      // This is empty for now, since unnest does not expose the aliases to us.
-      .addAllItemAliases(Collections.emptyList())
-      .build();
+        .setSingleRel(
+            PSingleRel.newBuilder()
+                .setAbstractRelNode(
+                    PAbstractRelNode.newBuilder()
+                        // DX-68622: There is a bug in the trait set serializer so for now we are
+                        // just using an empty trait set.
+                        .setTraitSet(RelTraitSetSerde.toProto(RelTraitSet.createEmpty()))
+                        .build())
+                .setInput(s.toProto(node.getInput()))
+                .build())
+        .setWithOrdinality(node.withOrdinality)
+        // This is empty for now, since unnest does not expose the aliases to us.
+        .addAllItemAliases(Collections.emptyList())
+        .build();
   }
 
   /**
    * How to deserialize a RelNode from the corresponding Protobuf Message.
    *
    * @param pUncollect The Protobuf Message to deserialize
-   * @param s          Contextual utility used to help with deserialization.
+   * @param s Contextual utility used to help with deserialization.
    * @return
    */
   @Override
   public Uncollect deserialize(PUncollect pUncollect, RelFromProto s) {
     return Uncollect.create(
-      // DX-68622: There is a bug in the trait set serializer so for now we are just using an empty trait set.
-      RelTraitSet.createEmpty(),
-      s.toRel(pUncollect.getSingleRel().getInput()),
-      pUncollect.getWithOrdinality(),
-      pUncollect.getItemAliasesList().stream().collect(Collectors.toList()));
+        // DX-68622: There is a bug in the trait set serializer so for now we are just using an
+        // empty trait set.
+        RelTraitSet.createEmpty(),
+        s.toRel(pUncollect.getSingleRel().getInput()),
+        pUncollect.getWithOrdinality(),
+        pUncollect.getItemAliasesList().stream().collect(Collectors.toList()));
   }
 }

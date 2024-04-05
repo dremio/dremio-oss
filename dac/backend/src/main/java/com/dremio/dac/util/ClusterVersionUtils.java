@@ -18,20 +18,18 @@ package com.dremio.dac.util;
 import com.dremio.common.Version;
 import com.dremio.dac.proto.model.source.ClusterVersion;
 
-/**
- * Helper methods to convert from/to {@link ClusterVersion}
- */
+/** Helper methods to convert from/to {@link ClusterVersion} */
 public final class ClusterVersionUtils {
 
   private ClusterVersionUtils() {}
 
   public static ClusterVersion toClusterVersion(Version version) {
     return new ClusterVersion()
-      .setMajor(version.getMajorVersion())
-      .setMinor(version.getMinorVersion())
-      .setBuildNumber(version.getBuildNumber())
-      .setPatch(version.getPatchVersion())
-      .setQualifier(version.getQualifier());
+        .setMajor(version.getMajorVersion())
+        .setMinor(version.getMinorVersion())
+        .setBuildNumber(version.getBuildNumber())
+        .setPatch(version.getPatchVersion())
+        .setQualifier(version.getQualifier());
   }
 
   public static Version fromClusterVersion(ClusterVersion version) {
@@ -39,12 +37,16 @@ public final class ClusterVersionUtils {
       return null;
     }
     return new Version(
-      String.format("%d.%d.%d-%s", version.getMajor(), version.getMinor(), version.getPatch(), version.getQualifier()), // not really needed when comparing versions
-      version.getMajor(),
-      version.getMinor(),
-      version.getPatch(),
-      version.getBuildNumber(),
-      version.getQualifier());
+        String.format(
+            "%d.%d.%d-%s",
+            version.getMajor(),
+            version.getMinor(),
+            version.getPatch(),
+            version.getQualifier()), // not really needed when comparing versions
+        version.getMajor(),
+        version.getMinor(),
+        version.getPatch(),
+        version.getBuildNumber(),
+        version.getQualifier());
   }
-
 }

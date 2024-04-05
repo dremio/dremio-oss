@@ -17,23 +17,19 @@ package com.dremio.exec.planner.sql;
 
 import static com.dremio.exec.planner.sql.DremioSqlOperatorTable.ARRAY_AGG;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.planner.StatelessRelShuttleImpl;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.logical.LogicalAggregate;
 import org.apache.calcite.rel.logical.LogicalSort;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.planner.StatelessRelShuttleImpl;
-
-/**
- * Visitor that checks to see if the query plan is unsupported.
- */
+/** Visitor that checks to see if the query plan is unsupported. */
 public final class UnsupportedQueryPlanVisitor extends StatelessRelShuttleImpl {
   private static final UnsupportedQueryPlanVisitor INSTANCE = new UnsupportedQueryPlanVisitor();
 
-  private UnsupportedQueryPlanVisitor() {
-  }
+  private UnsupportedQueryPlanVisitor() {}
 
   @Override
   public RelNode visit(LogicalSort sort) {
@@ -59,27 +55,30 @@ public final class UnsupportedQueryPlanVisitor extends StatelessRelShuttleImpl {
   private static void checkArrayAggWithRollup(LogicalAggregate aggregate) {
     if (aggregate.getGroupSets().size() > 1) {
       if (aggregate.getAggCallList().stream().anyMatch(x -> ARRAY_AGG.equals(x.getAggregation()))) {
-        throw UserException.planError().message("ARRAY_AGG with ROLLUP is currently not supported.").buildSilently();
+        throw UserException.planError()
+            .message("ARRAY_AGG with ROLLUP is currently not supported.")
+            .buildSilently();
       }
     }
   }
 
   private static void checkArrayAggContainsOrdering(AggregateCall aggCall) {
-    if (aggCall.getAggregation() == ARRAY_AGG && !aggCall.getCollation().getFieldCollations().isEmpty()) {
-    throw UserException.planError().message("ARRAY_AGG currently does not support ordering within group.").buildSilently();
+    if (aggCall.getAggregation() == ARRAY_AGG
+        && !aggCall.getCollation().getFieldCollations().isEmpty()) {
+      throw UserException.planError()
+          .message("ARRAY_AGG currently does not support ordering within group.")
+          .buildSilently();
     }
   }
 
   private static void checkOrderByArray(LogicalSort sort) {
-    boolean orderingByArray = sort
-      .getSortExps()
-      .stream()
-      .anyMatch(node -> node.getType().getSqlTypeName() == SqlTypeName.ARRAY);
+    boolean orderingByArray =
+        sort.getSortExps().stream()
+            .anyMatch(node -> node.getType().getSqlTypeName() == SqlTypeName.ARRAY);
     if (orderingByArray) {
-      throw UserException
-        .planError()
-        .message("Sorting by arrays is not supported.")
-        .buildSilently();
+      throw UserException.planError()
+          .message("Sorting by arrays is not supported.")
+          .buildSilently();
     }
   }
 }

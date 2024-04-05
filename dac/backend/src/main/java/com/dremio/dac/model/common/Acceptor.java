@@ -15,6 +15,7 @@
  */
 package com.dremio.dac.model.common;
 
+import com.dremio.datastore.Converter;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -25,12 +26,11 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import com.dremio.datastore.Converter;
-
 /**
  * Generic implementation of the visitor pattern for protostuff generated classes
  *
- * The base class will have the following:
+ * <p>The base class will have the following:
+ *
  * <pre>
  * &#64;JsonTypeInfo(use = JsonTypeInfo.Id.CUSTOM, include = JsonTypeInfo.As.PROPERTY, property = "type")
  * &#64;JsonTypeIdResolver(TransformTypeIdResolver.class)
@@ -48,6 +48,7 @@ import com.dremio.datastore.Converter;
  *   }
  * }
  * </pre>
+ *
  * @param <C> the base class of the protos
  * @param <V> the Visitor type. Typically MyVisitor<?>
  * @param <W> the Wrapper type. Must have a type field and a field for each type
@@ -72,16 +73,16 @@ public abstract class Acceptor<C, V, W> {
 
   public Acceptor() {
     Type type = getClass().getGenericSuperclass();
-    Type[] actualTypeArguments = ((ParameterizedType)type).getActualTypeArguments();
+    Type[] actualTypeArguments = ((ParameterizedType) type).getActualTypeArguments();
 
     @SuppressWarnings("unchecked") // by definition the 1st argument is a Class<C>
-    Class<C> baseClass = (Class<C>)actualTypeArguments[0];
+    Class<C> baseClass = (Class<C>) actualTypeArguments[0];
     this.baseType = baseClass;
 
-    ParameterizedType visitorType = ((ParameterizedType)actualTypeArguments[1]);
+    ParameterizedType visitorType = ((ParameterizedType) actualTypeArguments[1]);
 
     @SuppressWarnings("unchecked") // by definition the 3rd argument is a Class<W>
-    Class<W> w = (Class<W>)actualTypeArguments[2];
+    Class<W> w = (Class<W>) actualTypeArguments[2];
     this.wrapper = w;
 
     indexVisitorMethods(visitorType);
@@ -97,9 +98,9 @@ public abstract class Acceptor<C, V, W> {
     }
 
     if (!classesMissingBase.isEmpty()) {
-      throw new IllegalArgumentException(String.format(
-          "some classes do not extends the base type %s: %s",
-          baseClass, classesMissingBase));
+      throw new IllegalArgumentException(
+          String.format(
+              "some classes do not extends the base type %s: %s", baseClass, classesMissingBase));
     }
 
     TypesEnum typesEnum = baseClass.getAnnotation(TypesEnum.class);
@@ -109,15 +110,17 @@ public abstract class Acceptor<C, V, W> {
       String className = mapping.getClassName(e);
       Class<?> c = foundClasses.remove(className);
       if (c == null) {
-        throw new IllegalArgumentException(String.format(
-            "Class %s not found in visitor %s for enum value %s",
-            className, visitorType.getRawType(), e));
+        throw new IllegalArgumentException(
+            String.format(
+                "Class %s not found in visitor %s for enum value %s",
+                className, visitorType.getRawType(), e));
       } else {
         visitedType.put(c, e);
       }
     }
     if (!foundClasses.isEmpty()) {
-      throw new IllegalArgumentException(String.format("Missing enums for classes %s", foundClasses));
+      throw new IllegalArgumentException(
+          String.format("Missing enums for classes %s", foundClasses));
     }
 
     indexWrapperGettersAndSetters(typesEnum.types());
@@ -130,9 +133,10 @@ public abstract class Acceptor<C, V, W> {
   }
 
   private void indexVisitorMethods(ParameterizedType visitorType) {
-    Class<?> vc = (Class<?>)visitorType.getRawType();
+    Class<?> vc = (Class<?>) visitorType.getRawType();
     for (Method method : vc.getMethods()) {
-      if (method.getName().equals("visit") && method.getParameterTypes().length == 1
+      if (method.getName().equals("visit")
+          && method.getParameterTypes().length == 1
           && Modifier.isAbstract(method.getModifiers())) {
         Class<?> visited = method.getParameterTypes()[0];
         visitorMethod.put(visited, method);
@@ -146,34 +150,30 @@ public abstract class Acceptor<C, V, W> {
         Class<?> setClass = method.getParameterTypes()[0];
         if (setClass.equals(typesEnum)) {
           if (setWrapperTypeMethod != null) {
-            throw new IllegalArgumentException(String.format(
-                "Two type setters: %s and %s",
-                method, getWrapperTypeMethod));
+            throw new IllegalArgumentException(
+                String.format("Two type setters: %s and %s", method, getWrapperTypeMethod));
           }
           setWrapperTypeMethod = method;
         } else if (visitorMethod.containsKey(setClass)) {
           Method previous = wrapperSetter.put(setClass, method);
           if (previous != null) {
-            throw new IllegalArgumentException(String.format(
-                "Two setters for %s: %s and %s",
-                setClass, method, previous));
+            throw new IllegalArgumentException(
+                String.format("Two setters for %s: %s and %s", setClass, method, previous));
           }
         }
       } else if (method.getName().startsWith("get") && method.getParameterTypes().length == 0) {
         Class<?> getClass = method.getReturnType();
         if (getClass.equals(typesEnum)) {
           if (getWrapperTypeMethod != null) {
-            throw new IllegalArgumentException(String.format(
-                "Two type getters: %s and %s",
-                method, getWrapperTypeMethod));
+            throw new IllegalArgumentException(
+                String.format("Two type getters: %s and %s", method, getWrapperTypeMethod));
           }
           getWrapperTypeMethod = method;
         } else if (visitorMethod.containsKey(getClass)) {
           Method previous = wrapperGetter.put(visitedType.get(getClass), method);
           if (previous != null) {
-            throw new IllegalArgumentException(String.format(
-                "Two getters for %s: %s and %s",
-                getClass, method, previous));
+            throw new IllegalArgumentException(
+                String.format("Two getters for %s: %s and %s", getClass, method, previous));
           }
         }
       }
@@ -191,14 +191,16 @@ public abstract class Acceptor<C, V, W> {
     } catch (InvocationTargetException e) {
       Throwable targetException = e.getTargetException();
       if (targetException instanceof RuntimeException) {
-        throw (RuntimeException)targetException;
+        throw (RuntimeException) targetException;
       } else if (targetException instanceof Error) {
-        throw (Error)targetException;
+        throw (Error) targetException;
       } else if (targetException instanceof Exception) {
-        throw new VisitorException("visitor threw an exception visiting " + visited, (Exception)targetException);
+        throw new VisitorException(
+            "visitor threw an exception visiting " + visited, (Exception) targetException);
       } else {
         // can not happen
-        throw new RuntimeException("visitor threw an exception visiting " + visited, targetException);
+        throw new RuntimeException(
+            "visitor threw an exception visiting " + visited, targetException);
       }
     }
   }
@@ -230,9 +232,13 @@ public abstract class Acceptor<C, V, W> {
   public W wrap(C subInstance) {
     W newInstance;
     try {
-      newInstance = wrapper.newInstance();
+      newInstance = wrapper.getDeclaredConstructor().newInstance();
       wrap(subInstance, newInstance);
-    } catch (InstantiationException | IllegalAccessException | IllegalArgumentException e) {
+    } catch (InstantiationException
+        | IllegalAccessException
+        | IllegalArgumentException
+        | InvocationTargetException
+        | NoSuchMethodException e) {
       throw new RuntimeException("can't wrap " + subInstance, e);
     }
     return newInstance;
@@ -252,7 +258,7 @@ public abstract class Acceptor<C, V, W> {
       return null;
     }
     try {
-      Enum<?> type = (Enum<?>)getWrapperTypeMethod.invoke(wrapper);
+      Enum<?> type = (Enum<?>) getWrapperTypeMethod.invoke(wrapper);
       return baseType.cast(wrapperGetter.get(type).invoke(wrapper));
     } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
       throw new RuntimeException("can't unwrap " + wrapper, e);
@@ -273,11 +279,11 @@ public abstract class Acceptor<C, V, W> {
       public W convert(C v) {
         return wrap(v);
       }
+
       @Override
       public C revert(W v) {
         return unwrap(v);
       }
     };
   }
-
 }

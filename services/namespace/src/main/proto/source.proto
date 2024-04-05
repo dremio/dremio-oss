@@ -50,6 +50,9 @@ message SourceConfig {
   optional bool checkTableAuthorizer = 20 [default = true];
   optional bool disableMetadataValidityCheck = 21 [default = false];
   optional bool isPrimaryCatalog = 22 [default = false];
+  optional int64 last_modified_at = 23;
+  optional RefreshPolicyType accelerationActivePolicyType = 24 [default = PERIOD];
+  optional string accelerationRefreshSchedule = 25;;
 }
 
 // Version notes:

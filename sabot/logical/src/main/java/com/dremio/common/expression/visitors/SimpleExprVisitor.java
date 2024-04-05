@@ -32,7 +32,7 @@ import com.dremio.common.expression.ValueExpressions.QuotedString;
 import com.dremio.common.expression.ValueExpressions.TimeExpression;
 import com.dremio.common.expression.ValueExpressions.TimeStampExpression;
 
-public abstract class SimpleExprVisitor<T> implements ExprVisitor<T, Void, RuntimeException>{
+public abstract class SimpleExprVisitor<T> implements ExprVisitor<T, Void, RuntimeException> {
 
   @Override
   public T visitFunctionCall(FunctionCall call, Void value) throws RuntimeException {
@@ -40,7 +40,8 @@ public abstract class SimpleExprVisitor<T> implements ExprVisitor<T, Void, Runti
   }
 
   @Override
-  public T visitFunctionHolderExpression(FunctionHolderExpression holder, Void value) throws RuntimeException {
+  public T visitFunctionHolderExpression(FunctionHolderExpression holder, Void value)
+      throws RuntimeException {
     return visitFunctionHolderExpression(holder);
   }
 
@@ -74,19 +75,20 @@ public abstract class SimpleExprVisitor<T> implements ExprVisitor<T, Void, Runti
     return visitDateConstant(intExpr);
   }
 
-
   @Override
   public T visitTimeConstant(TimeExpression intExpr, Void value) throws RuntimeException {
     return visitTimeConstant(intExpr);
   }
 
   @Override
-  public T visitIntervalYearConstant(IntervalYearExpression intExpr, Void value) throws RuntimeException {
+  public T visitIntervalYearConstant(IntervalYearExpression intExpr, Void value)
+      throws RuntimeException {
     return visitIntervalYearConstant(intExpr);
   }
 
   @Override
-  public T visitIntervalDayConstant(IntervalDayExpression intExpr, Void value) throws RuntimeException {
+  public T visitIntervalDayConstant(IntervalDayExpression intExpr, Void value)
+      throws RuntimeException {
     return visitIntervalDayConstant(intExpr);
   }
 
@@ -115,21 +117,35 @@ public abstract class SimpleExprVisitor<T> implements ExprVisitor<T, Void, Runti
     return visitQuotedStringConstant(e);
   }
 
-
   public abstract T visitFunctionCall(FunctionCall call);
+
   public abstract T visitFunctionHolderExpression(FunctionHolderExpression call);
+
   public abstract T visitIfExpression(IfExpression ifExpr);
+
   public abstract T visitSchemaPath(SchemaPath path);
+
   public abstract T visitIntConstant(IntExpression intExpr);
+
   public abstract T visitFloatConstant(FloatExpression fExpr);
+
   public abstract T visitLongConstant(LongExpression intExpr);
+
   public abstract T visitDateConstant(DateExpression intExpr);
+
   public abstract T visitTimeConstant(TimeExpression intExpr);
+
   public abstract T visitIntervalYearConstant(IntervalYearExpression intExpr);
+
   public abstract T visitIntervalDayConstant(IntervalDayExpression intExpr);
+
   public abstract T visitTimeStampConstant(TimeStampExpression intExpr);
+
   public abstract T visitDecimalConstant(DecimalExpression intExpr);
+
   public abstract T visitDoubleConstant(DoubleExpression dExpr);
+
   public abstract T visitBooleanConstant(BooleanExpression e);
+
   public abstract T visitQuotedStringConstant(QuotedString e);
 }

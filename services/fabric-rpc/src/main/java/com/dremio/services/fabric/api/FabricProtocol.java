@@ -15,37 +15,35 @@
  */
 package com.dremio.services.fabric.api;
 
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.exec.rpc.ResponseSender;
 import com.dremio.exec.rpc.RpcConfig;
 import com.dremio.exec.rpc.RpcException;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.MessageLite;
-
 import io.netty.buffer.ByteBuf;
+import org.apache.arrow.memory.BufferAllocator;
 
-/**
- * An interface that allows application developers to express a pseudo-wire protocol.
- */
+/** An interface that allows application developers to express a pseudo-wire protocol. */
 public interface FabricProtocol {
 
   /**
-   * Returns a unique protocol id. In a particular fabric instance, each protocol must implement its own protocol id.
+   * Returns a unique protocol id. In a particular fabric instance, each protocol must implement its
+   * own protocol id.
+   *
    * @return A unique id.
    */
   public int getProtocolId();
 
   /**
    * Returns the allocator that should be associated with this protocol.
+   *
    * @return An allocator.
    */
   public BufferAllocator getAllocator();
 
   /**
-   * The REQUEST <> RESPONSE configuration that should be used for this
-   * protocol. Note that Executor and Timeout options are ignored if set since
-   * those are a purview of the actual wire protocol.
+   * The REQUEST <> RESPONSE configuration that should be used for this protocol. Note that Executor
+   * and Timeout options are ignored if set since those are a purview of the actual wire protocol.
    *
    * @return A communication configuration.
    */
@@ -53,6 +51,7 @@ public interface FabricProtocol {
 
   /**
    * Returns the default response id for a particular incoming message type.
+   *
    * @param rpcType The number associated with the EnumLite that was used to send the message.
    * @return A default instance of the expected Message type.
    * @throws RpcException
@@ -61,6 +60,7 @@ public interface FabricProtocol {
 
   /**
    * How this protocol will handle incoming REQUEST messages.
+   *
    * @param connection The connection associated with the message.
    * @param rpcType The incoming message type received.
    * @param pBody The serialized protobuf body associated with the message.
@@ -68,6 +68,11 @@ public interface FabricProtocol {
    * @param sender An callback handler than can be used to return the response.
    * @throws RpcException
    */
-  public void handle(final PhysicalConnection connection, final int rpcType, final ByteString pBody, final ByteBuf dBody, final ResponseSender sender) throws RpcException;
-
+  public void handle(
+      final PhysicalConnection connection,
+      final int rpcType,
+      final ByteString pBody,
+      final ByteBuf dBody,
+      final ResponseSender sender)
+      throws RpcException;
 }

@@ -19,27 +19,22 @@ package com.dremio.exec.store.deltalake;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 
+import com.dremio.BaseTestQuery;
+import com.dremio.exec.hadoop.HadoopFileSystem;
+import com.dremio.exec.server.SabotContext;
+import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.Path;
 import java.io.IOException;
-
 import org.apache.hadoop.conf.Configuration;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import com.dremio.BaseTestQuery;
-import com.dremio.exec.hadoop.HadoopFileSystem;
-import com.dremio.exec.server.SabotContext;
-import com.dremio.io.file.FileSystem;
-import com.dremio.io.file.Path;
-
-/**
- * Tests for {@link DeltaMetadataFetchJob}
- */
+/** Tests for {@link DeltaMetadataFetchJob} */
 public class TestDeltaMetadataFetchJob extends BaseTestQuery {
 
-  @Rule
-  public TemporaryFolder tempDir = new TemporaryFolder();
+  @Rule public TemporaryFolder tempDir = new TemporaryFolder();
 
   static FileSystem fs;
   static SabotContext context;
@@ -59,14 +54,14 @@ public class TestDeltaMetadataFetchJob extends BaseTestQuery {
 
     assertEquals(snapshot.getVersionId(), 0);
     assertEquals("WRITE", snapshot.getOperationType());
-    final String expectedSchemaString  = "{\"type\":\"struct\",\"fields\":[{\"name\":\"iso_code\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"location\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"date\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"id\",\"type\":\"long\",\"nullable\":true,\"metadata\":{}}]}";
+    final String expectedSchemaString =
+        "{\"type\":\"struct\",\"fields\":[{\"name\":\"iso_code\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"location\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"date\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"id\",\"type\":\"long\",\"nullable\":true,\"metadata\":{}}]}";
     assertEquals(expectedSchemaString, snapshot.getSchema());
     assertEquals(1L, snapshot.getNetFilesAdded());
     assertEquals(11L, snapshot.getNetOutputRows());
 
-
     job = new DeltaMetadataFetchJob(context, metaDir, fs, DeltaVersion.ofCheckpoint(0L, 1));
-    //Will try checkpoint read first then JSON read
+    // Will try checkpoint read first then JSON read
     snapshot = job.get();
 
     assertEquals(snapshot.getVersionId(), 0);
@@ -77,7 +72,8 @@ public class TestDeltaMetadataFetchJob extends BaseTestQuery {
 
   @Test
   public void testMultiDigitCommitJsonRead() {
-    DeltaMetadataFetchJob job = new DeltaMetadataFetchJob(context, metaDir, fs, DeltaVersion.of(11L));
+    DeltaMetadataFetchJob job =
+        new DeltaMetadataFetchJob(context, metaDir, fs, DeltaVersion.of(11L));
     DeltaLogSnapshot snapshot = job.get();
 
     assertEquals(snapshot.getVersionId(), 11);
@@ -89,12 +85,14 @@ public class TestDeltaMetadataFetchJob extends BaseTestQuery {
 
   @Test
   public void testCheckpointParquetRead() {
-    DeltaMetadataFetchJob job = new DeltaMetadataFetchJob(context, metaDir, fs, DeltaVersion.ofCheckpoint(10L, 1));
+    DeltaMetadataFetchJob job =
+        new DeltaMetadataFetchJob(context, metaDir, fs, DeltaVersion.ofCheckpoint(10L, 1));
     DeltaLogSnapshot snapshot = job.get();
 
     assertEquals(10L, snapshot.getVersionId());
     assertEquals("UNKNOWN", snapshot.getOperationType());
-    final String expectedSchemaString  = "{\"type\":\"struct\",\"fields\":[{\"name\":\"iso_code\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"location\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"date\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"id\",\"type\":\"long\",\"nullable\":true,\"metadata\":{}}]}";
+    final String expectedSchemaString =
+        "{\"type\":\"struct\",\"fields\":[{\"name\":\"iso_code\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"location\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"date\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"id\",\"type\":\"long\",\"nullable\":true,\"metadata\":{}}]}";
     assertEquals(expectedSchemaString, snapshot.getSchema());
     assertEquals(11L, snapshot.getNetFilesAdded());
     assertEquals(276L, snapshot.getNetOutputRows());
@@ -102,14 +100,19 @@ public class TestDeltaMetadataFetchJob extends BaseTestQuery {
 
   @Test
   public void testCommitFileNotFound() {
-    DeltaMetadataFetchJob job = new DeltaMetadataFetchJob(context, metaDir, fs, DeltaVersion.of(1000L));
-    assertThatThrownBy(() -> job.get()).cause().isInstanceOf(DeltaMetadataFetchJob.InvalidFileException.class);
+    DeltaMetadataFetchJob job =
+        new DeltaMetadataFetchJob(context, metaDir, fs, DeltaVersion.of(1000L));
+    assertThatThrownBy(() -> job.get())
+        .cause()
+        .isInstanceOf(DeltaMetadataFetchJob.InvalidFileException.class);
   }
-
 
   @Test
   public void testCheckpointFileNotFound() {
-    DeltaMetadataFetchJob job = new DeltaMetadataFetchJob(context, metaDir, fs, DeltaVersion.ofCheckpoint(1000L, 1));
-    assertThatThrownBy(() -> job.get()).cause().isInstanceOf(DeltaMetadataFetchJob.InvalidFileException.class);
+    DeltaMetadataFetchJob job =
+        new DeltaMetadataFetchJob(context, metaDir, fs, DeltaVersion.ofCheckpoint(1000L, 1));
+    assertThatThrownBy(() -> job.get())
+        .cause()
+        .isInstanceOf(DeltaMetadataFetchJob.InvalidFileException.class);
   }
 }

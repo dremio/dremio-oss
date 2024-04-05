@@ -15,9 +15,6 @@
  */
 package com.dremio.service.jobs;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import com.dremio.exec.store.easy.arrow.ArrowFileMetadata;
 import com.dremio.exec.work.user.SubstitutionSettings;
 import com.dremio.service.job.proto.DownloadInfo;
@@ -30,11 +27,11 @@ import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import java.util.ArrayList;
+import java.util.List;
 
-/**
- * Job request.
- */
-//TODO (DX-19215): Move to test module
+/** Job request. */
+// TODO (DX-19215): Move to test module
 public final class JobRequest {
 
   private final RequestType requestType;
@@ -50,24 +47,27 @@ public final class JobRequest {
 
   private final MaterializationSummary materializationSummary;
   private final SubstitutionSettings substitutionSettings;
+
   /** if set to true, query is not going to be scheduled on a separate thread */
   private final boolean runInSameThread;
+
   private final boolean runInSingleThread;
   private final boolean streamResultsMode;
 
-  private JobRequest(RequestType requestType,
-                     SqlQuery sqlQuery,
-                     QueryType queryType,
-                     String username,
-                     List<String> datasetPathComponents,
-                     String datasetVersion,
-                     String downloadId,
-                     String fileName,
-                     MaterializationSummary materializationSummary,
-                     SubstitutionSettings substitutionSettings,
-                     boolean runInSameThread,
-                     boolean runInSingleThread,
-                     boolean streamResultsMode) {
+  private JobRequest(
+      RequestType requestType,
+      SqlQuery sqlQuery,
+      QueryType queryType,
+      String username,
+      List<String> datasetPathComponents,
+      String datasetVersion,
+      String downloadId,
+      String fileName,
+      MaterializationSummary materializationSummary,
+      SubstitutionSettings substitutionSettings,
+      boolean runInSameThread,
+      boolean runInSingleThread,
+      boolean streamResultsMode) {
     this.requestType = requestType;
 
     this.sqlQuery = sqlQuery;
@@ -139,36 +139,33 @@ public final class JobRequest {
   }
 
   JobInfo asJobInfo(final JobId jobId, final String inSpace) {
-    final JobInfo jobInfo = new JobInfo(jobId, sqlQuery.getSql(), datasetVersion, queryType)
-        .setSpace(inSpace)
-        .setUser(username)
-        .setStartTime(System.currentTimeMillis())
-        .setDatasetPathList(datasetPathComponents)
-        .setResultMetadataList(new ArrayList<ArrowFileMetadata>())
-        .setContextList(sqlQuery.getContext());
+    final JobInfo jobInfo =
+        new JobInfo(jobId, sqlQuery.getSql(), datasetVersion, queryType)
+            .setSpace(inSpace)
+            .setUser(username)
+            .setStartTime(System.currentTimeMillis())
+            .setDatasetPathList(datasetPathComponents)
+            .setResultMetadataList(new ArrayList<ArrowFileMetadata>())
+            .setContextList(sqlQuery.getContext());
 
     if (requestType == RequestType.MATERIALIZATION) {
-        jobInfo.setMaterializationFor(materializationSummary);
+      jobInfo.setMaterializationFor(materializationSummary);
     }
 
     if (requestType == RequestType.DOWNLOAD) {
-        jobInfo.setDownloadInfo(new DownloadInfo()
-          .setDownloadId(downloadId)
-          .setFileName(fileName));
+      jobInfo.setDownloadInfo(new DownloadInfo().setDownloadId(downloadId).setFileName(fileName));
     }
     return jobInfo;
   }
 
-  /**
-   * RequestType for job.
-   */
-   public enum RequestType {
-    DEFAULT, DOWNLOAD, MATERIALIZATION
+  /** RequestType for job. */
+  public enum RequestType {
+    DEFAULT,
+    DOWNLOAD,
+    MATERIALIZATION
   }
 
-  /**
-   * Job request builder.
-   */
+  /** Job request builder. */
   public static final class Builder {
 
     private final RequestType requestType;
@@ -196,8 +193,8 @@ public final class JobRequest {
       this.runInSingleThread = runInSingleThread;
     }
 
-    private Builder(MaterializationSummary materializationSummary,
-                    SubstitutionSettings substitutionSettings) {
+    private Builder(
+        MaterializationSummary materializationSummary, SubstitutionSettings substitutionSettings) {
       this.requestType = RequestType.MATERIALIZATION;
       this.materializationSummary = materializationSummary;
       this.substitutionSettings = substitutionSettings;
@@ -242,6 +239,7 @@ public final class JobRequest {
 
     /**
      * Set the substitution settings for this job request.
+     *
      * @param substitutionSettings the substitution settings for this run.
      * @return this builder.
      */
@@ -273,7 +271,9 @@ public final class JobRequest {
     }
 
     /**
-     * Set JobRequest runInSameThread. If true, corresponding AttemptManager(s) will run in the same calling thread
+     * Set JobRequest runInSameThread. If true, corresponding AttemptManager(s) will run in the same
+     * calling thread
+     *
      * @return this builder
      */
     public Builder runInSameThread(boolean enabled) {
@@ -282,7 +282,9 @@ public final class JobRequest {
     }
 
     /**
-     * Set JobRequest streamResultsMode. If true, results are streamed back instead of being stored & fetched
+     * Set JobRequest streamResultsMode. If true, results are streamed back instead of being stored
+     * & fetched
+     *
      * @return this builder
      */
     public Builder setStreamResultsMode(boolean enabled) {
@@ -309,7 +311,8 @@ public final class JobRequest {
           this.datasetVersion == null ? "UNKNOWN" : this.datasetVersion.getVersion();
 
       if (requestType == RequestType.DOWNLOAD) {
-        Preconditions.checkArgument(queryType == QueryType.UI_EXPORT, "download jobs must be of UI_EXPORT type");
+        Preconditions.checkArgument(
+            queryType == QueryType.UI_EXPORT, "download jobs must be of UI_EXPORT type");
         Preconditions.checkNotNull(downloadId, "download id not provided");
         Preconditions.checkNotNull(fileName, "file name not provided");
       }
@@ -349,25 +352,24 @@ public final class JobRequest {
    * Create a download job builder.
    *
    * @param downloadId download id used to find output of job (required)
-   * @param fileName   filename to use when data is downloaded (required)
+   * @param fileName filename to use when data is downloaded (required)
    * @return new builder
    */
-  public static Builder newDownloadJobBuilder(String downloadId,
-                                              String fileName,
-                                              boolean runInSingleThread) {
+  public static Builder newDownloadJobBuilder(
+      String downloadId, String fileName, boolean runInSingleThread) {
     return new Builder(downloadId, fileName, runInSingleThread);
   }
 
   /**
    * Create a materialization job builder.
    *
-   * @param materializationSummary information related to materialization, like materializationId, layoutId, etc.
-   *                               (required)
-   * @param substitutionSettings   settings related to substitution (required)
+   * @param materializationSummary information related to materialization, like materializationId,
+   *     layoutId, etc. (required)
+   * @param substitutionSettings settings related to substitution (required)
    * @return new builder
    */
-  public static Builder newMaterializationJobBuilder(MaterializationSummary materializationSummary,
-                                                     SubstitutionSettings substitutionSettings) {
+  public static Builder newMaterializationJobBuilder(
+      MaterializationSummary materializationSummary, SubstitutionSettings substitutionSettings) {
     return new Builder(materializationSummary, substitutionSettings);
   }
 }

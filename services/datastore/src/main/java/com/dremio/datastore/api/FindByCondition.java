@@ -15,17 +15,13 @@
  */
 package com.dremio.datastore.api;
 
+import com.dremio.datastore.SearchTypes;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import java.util.List;
-
 import org.immutables.value.Value;
 import org.immutables.value.Value.Immutable;
 
-import com.dremio.datastore.SearchTypes;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-
-/**
- * Configuration for finding values by condition.
- */
+/** Configuration for finding values by condition. */
 @JsonDeserialize(builder = ImmutableFindByCondition.Builder.class)
 @Immutable
 public interface FindByCondition {
@@ -35,18 +31,21 @@ public interface FindByCondition {
 
   /**
    * Retrieves search condition.
+   *
    * @return condition.
    */
   SearchTypes.SearchQuery getCondition();
 
   /**
    * Retrieves sort.
+   *
    * @return sort.
    */
   List<SearchTypes.SearchFieldSorting> getSort();
 
   /**
    * Retrieves page size.
+   *
    * @return page size.
    */
   @Value.Default
@@ -56,19 +55,22 @@ public interface FindByCondition {
 
   /**
    * Retrieves offset.
+   *
    * @return offset.
    */
   @Value.Default
   default int getOffset() {
     return DEFAULT_OFFSET;
-  };
+  }
+  ;
 
   /**
    * Retrieves limit.
+   *
    * @return limit
    */
   @Value.Default
-  default int getLimit(){
+  default int getLimit() {
     return DEFAULT_LIMIT;
   }
 }

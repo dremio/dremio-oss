@@ -18,7 +18,6 @@ import PropTypes from "prop-types";
 import { compose } from "redux";
 import { connect } from "react-redux";
 import authorize from "@inject/containers/authorize";
-import settingActions, { getDefinedSettings } from "actions/resources/setting";
 import { getViewState } from "selectors/resources";
 import Immutable from "immutable";
 import SettingHeader from "@app/components/SettingHeader";
@@ -30,8 +29,9 @@ import BiApplicationTools, {
 } from "@app/pages/AdminPage/subpages/BiApplicationTools";
 
 import SettingsMicroForm from "./SettingsMicroForm";
-import { LABELS_IN_SECTIONS } from "./settingsConfig";
 import { RESERVED as INTERNAL_SUPPORT_RESERVED } from "./InternalSupportEmail";
+import { CLIENT_TOOLS_POWERBI } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
+import { withBIApps } from "@app/pages/AdminPage/useBIApps";
 
 import "./BiApplications.less";
 
@@ -45,30 +45,32 @@ export const RESERVED = new Set([
 
 export class BiApplications extends PureComponent {
   static propTypes = {
-    getDefinedSettings: PropTypes.func.isRequired,
     viewState: PropTypes.instanceOf(Immutable.Map).isRequired,
-    settings: PropTypes.instanceOf(Immutable.Map).isRequired,
     setChildDirtyState: PropTypes.func,
-    getSetting: PropTypes.func,
+    powerBI: PropTypes.bool,
+    tableau: PropTypes.bool,
   };
-
-  UNSAFE_componentWillMount() {
-    this.props.getDefinedSettings(
-      [...RESERVED, ...Object.keys(LABELS_IN_SECTIONS)],
-      true,
-      VIEW_ID
-    );
-  }
 
   state = {
-    getSettingInProgress: false,
-    tempShown: new Immutable.OrderedSet(),
+    powerBI: null,
+    tableau: null,
   };
+
+  async componentDidMount() {
+    const { powerBI, tableau } = this.props;
+
+    this.setState({ powerBI: await powerBI, tableau: await tableau });
+  }
 
   renderSettingsMicroForm = (settingId, props) => {
     const formKey = "settings-" + settingId;
     return (
       <SettingsMicroForm
+        customSetting={
+          settingId === CLIENT_TOOLS_POWERBI
+            ? this.state.powerBI
+            : this.state.tableau
+        }
         updateFormDirtyState={this.props.setChildDirtyState(formKey)}
         form={formKey}
         key={formKey}
@@ -93,10 +95,7 @@ export class BiApplications extends PureComponent {
             hideChildrenWhenFailed={false}
             style={{ overflow: "auto", height: "100%", flex: "1 1 auto" }}
           >
-            <BiApplicationTools
-              renderSettings={this.renderSettingsMicroForm}
-              settings={this.props.settings}
-            />
+            <BiApplicationTools renderSettings={this.renderSettingsMicroForm} />
           </ViewStateWrapper>
         </div>
       </div>
@@ -107,16 +106,12 @@ export class BiApplications extends PureComponent {
 function mapStateToProps(state) {
   return {
     viewState: getViewState(state, VIEW_ID),
-    settings: state.resources.entities.get("setting"),
   };
 }
 
 export default compose(
   authorize("Support"),
-  connect(mapStateToProps, {
-    // todo: find way to auto-inject PropTypes for actions
-    getSetting: settingActions.get.dispatch,
-    getDefinedSettings,
-  }),
-  FormUnsavedRouteLeave
+  connect(mapStateToProps),
+  FormUnsavedRouteLeave,
+  withBIApps
 )(BiApplications);

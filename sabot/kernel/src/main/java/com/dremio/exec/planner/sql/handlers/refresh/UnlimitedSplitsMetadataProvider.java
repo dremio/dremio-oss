@@ -15,16 +15,6 @@
  */
 package com.dremio.exec.planner.sql.handlers.refresh;
 
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.namespace.NamespaceException;
@@ -33,12 +23,21 @@ import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.space.proto.FolderConfig;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * Given a table's logical name should interact with the KV-store to get schema, partition columns and other metadata
+ * Given a table's logical name should interact with the KV-store to get schema, partition columns
+ * and other metadata
  */
 public class UnlimitedSplitsMetadataProvider {
-  private static final Logger logger = LoggerFactory.getLogger(UnlimitedSplitsMetadataProvider.class);
+  private static final Logger logger =
+      LoggerFactory.getLogger(UnlimitedSplitsMetadataProvider.class);
   private final NamespaceKey tableNSKey;
   private boolean metadataExists = false;
 
@@ -68,14 +67,14 @@ public class UnlimitedSplitsMetadataProvider {
     }
 
     Collections.reverse(missingParentEntities);
-    for(NamespaceKey missingParent : missingParentEntities) {
+    for (NamespaceKey missingParent : missingParentEntities) {
       try {
         logger.info("Creating parent entity {} for {}", missingParent, tableNSKey);
-        nsService.addOrUpdateFolder(missingParent,
-          new FolderConfig()
-            .setName(missingParent.getName())
-            .setFullPathList(missingParent.getPathComponents())
-        );
+        nsService.addOrUpdateFolder(
+            missingParent,
+            new FolderConfig()
+                .setName(missingParent.getName())
+                .setFullPathList(missingParent.getPathComponents()));
       } catch (NamespaceException namespaceException) {
         // suppress exception
         logger.warn("Unable to create parent entity {}", missingParent);
@@ -92,7 +91,8 @@ public class UnlimitedSplitsMetadataProvider {
         config = nsService.getDataset(tableNSKey);
       }
     } catch (NamespaceException e) {
-      // due to a bug in an earlier version, exists check returned true while getDataset() threw an exception
+      // due to a bug in an earlier version, exists check returned true while getDataset() threw an
+      // exception
       // because parent entities were deleted
       if (existsCheckPassed && createParentFolders) {
         logger.info("Trying to create parent folders for {}", tableNSKey);
@@ -111,7 +111,8 @@ public class UnlimitedSplitsMetadataProvider {
     try {
       checkIfDatasetExists(true);
     } catch (NamespaceException e) {
-      String errorMessage = String.format("Error while getting metadata for [%s].", tableNSKey.getSchemaPath());
+      String errorMessage =
+          String.format("Error while getting metadata for [%s].", tableNSKey.getSchemaPath());
       logger.error(errorMessage, e);
       throw new RuntimeException(errorMessage, e);
     }
@@ -120,15 +121,20 @@ public class UnlimitedSplitsMetadataProvider {
       logger.info("Table metadata for {} not found", tableNSKey.getSchemaPath());
       return;
     } else if (config.getPhysicalDataset() == null
-      || !Boolean.TRUE.equals(config.getPhysicalDataset().getIcebergMetadataEnabled())) {
-      logger.info("Forgetting current metadata for {}, it'll be re-promoted to use Iceberg to store metadata.", tableNSKey);
+        || !Boolean.TRUE.equals(config.getPhysicalDataset().getIcebergMetadataEnabled())) {
+      logger.info(
+          "Forgetting current metadata for {}, it'll be re-promoted to use Iceberg to store metadata.",
+          tableNSKey);
       return;
     }
 
     schema = BatchSchema.deserialize(config.getRecordSchema());
-    String tableLocation = config.getPhysicalDataset().getIcebergMetadata().getMetadataFileLocation();
+    String tableLocation =
+        config.getPhysicalDataset().getIcebergMetadata().getMetadataFileLocation();
     tableUuid = config.getPhysicalDataset().getIcebergMetadata().getTableUuid();
-    partitionCols = Optional.ofNullable(config.getReadDefinition().getPartitionColumnsList()).orElse(Collections.EMPTY_LIST);
+    partitionCols =
+        Optional.ofNullable(config.getReadDefinition().getPartitionColumnsList())
+            .orElse(Collections.EMPTY_LIST);
     metadataExists = true;
     logger.info("Table metadata found for {}, at {}", tableNSKey.getSchemaPath(), tableLocation);
   }
@@ -154,8 +160,8 @@ public class UnlimitedSplitsMetadataProvider {
   }
 
   public void resetMetadata() {
-    // get dataset config again from namespace service and reinitialize schema and partitionCols fields
+    // get dataset config again from namespace service and reinitialize schema and partitionCols
+    // fields
     evaluateExistingMetadata();
   }
-
 }

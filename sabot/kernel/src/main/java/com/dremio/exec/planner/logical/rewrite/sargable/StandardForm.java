@@ -15,15 +15,16 @@
  */
 package com.dremio.exec.planner.logical.rewrite.sargable;
 
+import com.dremio.exec.planner.common.MoreRelOptUtil;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlOperator;
 
-import com.dremio.exec.planner.common.MoreRelOptUtil;
-
 /**
+ *
+ *
  * <pre>
  * Standard form of a SARGable logical filter
  *     lhsCall(column, lhsParam1[, lhsParam2]) < logicalOp > rhsNode
@@ -68,13 +69,18 @@ public class StandardForm {
     RexNode lhs = call.operands.get(0);
     RexNode rhs = call.operands.get(1);
     SqlOperator operator = call.getOperator();
-    if (lhs instanceof RexCall && rhs instanceof RexLiteral && containsOneRexInputRef((RexCall) lhs)) {
+    if (lhs instanceof RexCall
+        && rhs instanceof RexLiteral
+        && containsOneRexInputRef((RexCall) lhs)) {
       return new StandardForm((RexCall) lhs, rhs, operator, false);
-    } else if (lhs instanceof RexLiteral && rhs instanceof RexCall && containsOneRexInputRef((RexCall) rhs)) {
+    } else if (lhs instanceof RexLiteral
+        && rhs instanceof RexCall
+        && containsOneRexInputRef((RexCall) rhs)) {
       return new StandardForm((RexCall) rhs, lhs, operator, true);
     } else if (call.getKind().equals(SqlKind.CASE)) {
       for (int i = 0; i < call.operands.size() - 1; i += 2) {
-        if (call.operands.get(i) instanceof RexCall && call.operands.get(i + 1) instanceof RexCall) {
+        if (call.operands.get(i) instanceof RexCall
+            && call.operands.get(i + 1) instanceof RexCall) {
           RexCall cond = (RexCall) call.operands.get(i);
           if (!cond.getKind().equals(SqlKind.IS_NOT_NULL)) {
             return null;

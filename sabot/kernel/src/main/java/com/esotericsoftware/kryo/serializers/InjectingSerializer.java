@@ -15,12 +15,6 @@
  */
 package com.esotericsoftware.kryo.serializers;
 
-import java.lang.reflect.Field;
-import java.util.Arrays;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.SuppressForbidden;
 import com.dremio.exec.planner.serialization.kryo.InjectionMapping;
 import com.esotericsoftware.kryo.Kryo;
@@ -28,14 +22,18 @@ import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import com.google.common.base.Preconditions;
+import java.lang.reflect.Field;
+import java.util.Arrays;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A reflective field serializer with injection capabilities.
  *
- * The serializer does not write subclasses of given injections but rather plugs them in during deserialization.
- * This is especially handy for system or component-wide singletons.
+ * <p>The serializer does not write subclasses of given injections but rather plugs them in during
+ * deserialization. This is especially handy for system or component-wide singletons.
  *
- * Injections are provided via {@link InjectionMapping}.
+ * <p>Injections are provided via {@link InjectionMapping}.
  *
  * @param <T> type to serialize
  */
@@ -77,18 +75,21 @@ public class InjectingSerializer<T> extends FieldSerializer<T> {
       final Field field = InjectingSerializer.class.getSuperclass().getDeclaredField(fieldName);
       field.setAccessible(true);
       field.set(this, value);
-    } catch (final NoSuchFieldException|IllegalAccessException e) {
+    } catch (final NoSuchFieldException | IllegalAccessException e) {
       logger.error("unable to retrieve fields variable from FieldSerializer", e);
     }
   }
 
   protected CachedField[] transform(final CachedField[] fields) {
     return Arrays.asList(fields).stream()
-      .map(field -> mapping.findInjection(field.getField().getType())
-        .map(injection -> new InjectingCachedField(field, injection.getValue()))
-        .map(CachedField.class::cast)
-        .orElse(field))
-      .toArray(CachedField[]::new);
+        .map(
+            field ->
+                mapping
+                    .findInjection(field.getField().getType())
+                    .map(injection -> new InjectingCachedField(field, injection.getValue()))
+                    .map(CachedField.class::cast)
+                    .orElse(field))
+        .toArray(CachedField[]::new);
   }
 
   protected static class DelegatingCachedField extends CachedField {
@@ -142,7 +143,7 @@ public class InjectingSerializer<T> extends FieldSerializer<T> {
     public void read(final Input input, final Object object) {
       try {
         delegate.read(input, object);
-      }catch (Exception ex) {
+      } catch (Exception ex) {
         throw ex;
       }
     }
@@ -180,6 +181,4 @@ public class InjectingSerializer<T> extends FieldSerializer<T> {
       delegate.copy(original, copy);
     }
   }
-
-
 }

@@ -15,8 +15,8 @@
  */
 package com.dremio.exec.planner.sql;
 
+import com.google.common.collect.Lists;
 import java.util.List;
-
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
@@ -33,44 +33,46 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql2rel.SqlRexContext;
 import org.apache.calcite.sql2rel.SqlRexConvertlet;
 
-import com.google.common.collect.Lists;
-
 /**
- * Custom convertlet to handle equals, not equals, is distinct from, and is not distinct from for Decimal types
- * Specifically, this will preserve the scale of the input types, with the
- * possibility of not being able to preserve the precision if doing so
- * would result in precision higher than the MAX_PRECISION
+ * Custom convertlet to handle equals, not equals, is distinct from, and is not distinct from for
+ * Decimal types Specifically, this will preserve the scale of the input types, with the possibility
+ * of not being able to preserve the precision if doing so would result in precision higher than the
+ * MAX_PRECISION
  */
 public class EqualityConvertlet implements SqlRexConvertlet {
 
   public static final EqualityConvertlet INSTANCE = new EqualityConvertlet();
 
-  private EqualityConvertlet() {
-  }
+  private EqualityConvertlet() {}
 
   @Override
   public RexNode convertCall(SqlRexContext cx, SqlCall call) {
     return convertEquality(cx, call);
   }
 
-  private static List<RexNode> convertExpressionList(SqlRexContext cx,
-                                                     List<SqlNode> nodes) {
+  private static List<RexNode> convertExpressionList(SqlRexContext cx, List<SqlNode> nodes) {
     final List<RexNode> exprs = Lists.newArrayList();
     for (SqlNode node : nodes) {
       exprs.add(cx.convertExpression(node));
     }
+    final List<RelDataType> types = RexUtil.types(exprs);
+    if (ConsistentTypeUtil.allExactNumeric(types) && ConsistentTypeUtil.anyDecimal(types)) {
+      return exprs;
+    }
     if (exprs.size() > 1) {
       final SqlOperandTypeChecker.Consistency consistency = Consistency.LEAST_RESTRICTIVE;
-      final List<RelDataType> types = RexUtil.types(exprs);
       final RelDataType type;
       if (ConsistentTypeUtil.allExactNumeric(types) && ConsistentTypeUtil.anyDecimal(types)) {
-        // for mixed types, INT and BIGINT will be treated as DECIMAL(10,0) and DECIMAL(19,0) respectively
+        // for mixed types, INT and BIGINT will be treated as DECIMAL(10,0) and DECIMAL(19,0)
+        // respectively
         type = ConsistentTypeUtil.consistentDecimalType(cx.getTypeFactory(), types);
       } else {
-        // if there are no Decimal types or some of the types are non-exact, fall back to default Calcite
+        // if there are no Decimal types or some of the types are non-exact, fall back to default
+        // Calcite
         // behavior which will convert to Double
         type = ConsistentTypeUtil.consistentType(cx.getTypeFactory(), consistency, types);
       }
+
       if (type != null) {
         final List<RexNode> oldExprs = Lists.newArrayList(exprs);
         exprs.clear();
@@ -86,8 +88,7 @@ public class EqualityConvertlet implements SqlRexConvertlet {
 
     final List<SqlNode> operands = call.getOperandList();
     final RexBuilder rexBuilder = cx.getRexBuilder();
-    final List<RexNode> exprs =
-      convertExpressionList(cx, operands);
+    final List<RexNode> exprs = convertExpressionList(cx, operands);
     SqlOperator op = call.getOperator();
     RelDataType type = rexBuilder.deriveReturnType(op, exprs);
     RexCall convertedCall = (RexCall) rexBuilder.makeCall(type, op, RexUtil.flatten(exprs, op));
@@ -99,30 +100,29 @@ public class EqualityConvertlet implements SqlRexConvertlet {
     final RexNode integerOp;
 
     if (op0.getType().getSqlTypeName() == SqlTypeName.BOOLEAN
-      && SqlTypeName.INT_TYPES.contains(op1.getType().getSqlTypeName())) {
+        && SqlTypeName.INT_TYPES.contains(op1.getType().getSqlTypeName())) {
       booleanOp = op0;
       integerOp = op1;
     } else if (SqlTypeName.INT_TYPES.contains(op0.getType().getSqlTypeName())
-      && op1.getType().getSqlTypeName() == SqlTypeName.BOOLEAN) {
+        && op1.getType().getSqlTypeName() == SqlTypeName.BOOLEAN) {
       booleanOp = op1;
       integerOp = op0;
     } else {
       return convertedCall;
     }
 
-    SqlOperator newOp = (op.getKind() == SqlKind.EQUALS || op.getKind() == SqlKind.NOT_EQUALS) ?
-      SqlStdOperatorTable.EQUALS :
-      SqlStdOperatorTable.IS_NOT_DISTINCT_FROM;
+    SqlOperator newOp =
+        (op.getKind() == SqlKind.EQUALS || op.getKind() == SqlKind.NOT_EQUALS)
+            ? SqlStdOperatorTable.EQUALS
+            : SqlStdOperatorTable.IS_NOT_DISTINCT_FROM;
 
-    return rexBuilder.makeCall(call.getOperator(),
-      booleanOp,
-      rexBuilder.makeCall(
-        SqlStdOperatorTable.CASE,
+    return rexBuilder.makeCall(
+        call.getOperator(),
+        booleanOp,
         rexBuilder.makeCall(
-          newOp,
-          integerOp,
-          rexBuilder.makeZeroLiteral(integerOp.getType())),
-        rexBuilder.makeLiteral(false),
-        rexBuilder.makeLiteral(true)));
+            SqlStdOperatorTable.CASE,
+            rexBuilder.makeCall(newOp, integerOp, rexBuilder.makeZeroLiteral(integerOp.getType())),
+            rexBuilder.makeLiteral(false),
+            rexBuilder.makeLiteral(true)));
   }
 }

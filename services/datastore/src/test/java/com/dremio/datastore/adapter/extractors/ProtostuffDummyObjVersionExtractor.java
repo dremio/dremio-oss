@@ -18,9 +18,7 @@ package com.dremio.datastore.adapter.extractors;
 import com.dremio.datastore.VersionExtractor;
 import com.dremio.datastore.proto.DummyObj;
 
-/**
- * DummyObj VersionExtractor for Protostuff.
- */
+/** DummyObj VersionExtractor for Protostuff. */
 public class ProtostuffDummyObjVersionExtractor implements VersionExtractor<DummyObj> {
   @Override
   public String getTag(DummyObj value) {

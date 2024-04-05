@@ -15,22 +15,20 @@
  */
 package com.dremio.exec.planner.physical.visitor;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rex.RexBuilder;
-import org.apache.calcite.rex.RexNode;
-
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.ProjectPrel;
 import com.dremio.exec.planner.physical.ScreenPrel;
 import com.dremio.exec.planner.physical.UnionPrel;
 import com.dremio.exec.planner.physical.WriterPrel;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rex.RexBuilder;
+import org.apache.calcite.rex.RexNode;
 
-public class FinalColumnReorderer extends BasePrelVisitor<Prel, Void, RuntimeException>{
+public class FinalColumnReorderer extends BasePrelVisitor<Prel, Void, RuntimeException> {
 
   private static FinalColumnReorderer INSTANCE = new FinalColumnReorderer();
 
@@ -41,7 +39,9 @@ public class FinalColumnReorderer extends BasePrelVisitor<Prel, Void, RuntimeExc
   @Override
   public Prel visitScreen(ScreenPrel prel, Void value) throws RuntimeException {
     Prel newChild = ((Prel) prel.getInput()).accept(this, value);
-    return prel.copy(prel.getTraitSet(), Collections.singletonList( (RelNode) addTrivialOrderedProjectPrel(newChild, true)));
+    return prel.copy(
+        prel.getTraitSet(),
+        Collections.singletonList((RelNode) addTrivialOrderedProjectPrel(newChild, true)));
   }
 
   private Prel addTrivialOrderedProjectPrel(Prel prel) {
@@ -59,11 +59,12 @@ public class FinalColumnReorderer extends BasePrelVisitor<Prel, Void, RuntimeExc
     for (int i = 0; i < projectCount; i++) {
       projections.add(b.makeInputRef(prel, i));
     }
-    return ProjectPrel.create(prel.getCluster(), prel.getTraitSet(), prel, projections, prel.getRowType());
+    return ProjectPrel.create(
+        prel.getCluster(), prel.getTraitSet(), prel, projections, prel.getRowType());
   }
 
   private Prel addTrivialOrderedProjectPrel(Prel prel, boolean checkNecessity) {
-    if(checkNecessity && !prel.needsFinalColumnReordering()) {
+    if (checkNecessity && !prel.needsFinalColumnReordering()) {
       return prel;
     } else {
       return addTrivialOrderedProjectPrel(prel);
@@ -73,7 +74,9 @@ public class FinalColumnReorderer extends BasePrelVisitor<Prel, Void, RuntimeExc
   @Override
   public Prel visitWriter(WriterPrel prel, Void value) throws RuntimeException {
     Prel newChild = ((Prel) prel.getInput()).accept(this, null);
-    return prel.copy(prel.getTraitSet(), Collections.singletonList( (RelNode) addTrivialOrderedProjectPrel(newChild, true)));
+    return prel.copy(
+        prel.getTraitSet(),
+        Collections.singletonList((RelNode) addTrivialOrderedProjectPrel(newChild, true)));
   }
 
   @Override
@@ -106,7 +109,7 @@ public class FinalColumnReorderer extends BasePrelVisitor<Prel, Void, RuntimeExc
       Prel child = p.accept(this, null);
 
       boolean needProjectBelowUnion = !(p instanceof ProjectPrel);
-      if(needProjectBelowUnion) {
+      if (needProjectBelowUnion) {
         child = addTrivialOrderedProjectPrel(child, false);
       }
 

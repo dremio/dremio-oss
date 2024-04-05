@@ -15,7 +15,7 @@
  */
 package com.dremio.exec.catalog;
 
-import static com.dremio.exec.catalog.CatalogUtil.getTimeTravelRequest;
+import static com.dremio.exec.catalog.CatalogUtil.getIcebergTimeTravelRequest;
 
 import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.exec.store.DatasetRetrievalOptions;
@@ -24,30 +24,34 @@ import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.google.common.base.Preconditions;
 
-/**
- * Table functions metadata for plugin except data plane.
- */
+/** Table functions metadata for plugin except data plane. */
 public class MFunctionNonVersionedSourceMetadata extends MFunctionMetadataImpl {
 
   private final DatasetConfig underlyingTableConfig;
 
-  public MFunctionNonVersionedSourceMetadata(NamespaceKey canonicalKey, DatasetConfig currentConfig, ManagedStoragePlugin plugin,
-                                             SchemaConfig schemaConfig, TableVersionContext context) {
+  public MFunctionNonVersionedSourceMetadata(
+      NamespaceKey canonicalKey,
+      DatasetConfig currentConfig,
+      ManagedStoragePlugin plugin,
+      SchemaConfig schemaConfig,
+      TableVersionContext context) {
     super(canonicalKey, currentConfig, plugin, schemaConfig, context);
     this.underlyingTableConfig = currentConfig;
   }
 
   @Override
   public DatasetRetrievalOptions getOptions() {
-    return plugin.getDefaultRetrievalOptions()
-      .toBuilder()
-      .setTimeTravelRequest(getTimeTravelRequest(canonicalKey, context))
-      .build();
+    return plugin.getDefaultRetrievalOptions().toBuilder()
+        .setTimeTravelRequest(getIcebergTimeTravelRequest(canonicalKey, context))
+        .build();
   }
 
   @Override
   public String getMetadataLocation() {
     Preconditions.checkNotNull(underlyingTableConfig);
-    return underlyingTableConfig.getPhysicalDataset().getIcebergMetadata().getMetadataFileLocation();
+    return underlyingTableConfig
+        .getPhysicalDataset()
+        .getIcebergMetadata()
+        .getMetadataFileLocation();
   }
 }

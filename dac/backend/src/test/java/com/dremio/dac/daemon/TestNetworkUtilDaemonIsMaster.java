@@ -17,13 +17,10 @@ package com.dremio.dac.daemon;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-
 import org.junit.Assert;
 import org.junit.Test;
 
-/**
- * Test NetworkUtil's addressResolvesToThisNode() method
- */
+/** Test NetworkUtil's addressResolvesToThisNode() method */
 public class TestNetworkUtilDaemonIsMaster {
 
   @Test
@@ -38,9 +35,10 @@ public class TestNetworkUtilDaemonIsMaster {
 
   @Test
   public void testLocalHostCanonical() throws UnknownHostException {
-    Assert.assertTrue(NetworkUtil.addressResolvesToThisNode(InetAddress.getByName(InetAddress.getLocalHost().getCanonicalHostName())));
+    Assert.assertTrue(
+        NetworkUtil.addressResolvesToThisNode(
+            InetAddress.getByName(InetAddress.getLocalHost().getCanonicalHostName())));
   }
-
 
   @Test
   public void testAnotherAddress() throws UnknownHostException {
@@ -51,6 +49,4 @@ public class TestNetworkUtilDaemonIsMaster {
   public void testAnotherAddress2() throws UnknownHostException {
     Assert.assertFalse(NetworkUtil.addressResolvesToThisNode(InetAddress.getByName("172.50.1.1")));
   }
-
-
 }

@@ -16,6 +16,7 @@
 
 package com.dremio.exec.expr.fn.arrayagg;
 
+import com.dremio.exec.planner.sql.DremioReturnTypes;
 import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlKind;
@@ -23,39 +24,37 @@ import org.apache.calcite.sql.type.OperandTypes;
 import org.apache.calcite.sql.type.ReturnTypes;
 import org.apache.calcite.util.Optionality;
 
-import com.dremio.exec.planner.sql.DremioReturnTypes;
-
 public class ArrayAggInternalOperators {
 
   public static class Phase1ArrayAgg extends SqlAggFunction {
     public Phase1ArrayAgg() {
-      super("PHASE1_ARRAY_AGG",
-        null,
-        SqlKind.LISTAGG,
-        DremioReturnTypes.TO_ARRAY,
-        null,
-        OperandTypes.ANY,
-        SqlFunctionCategory.USER_DEFINED_FUNCTION,
-        false,
-        false,
-        Optionality.FORBIDDEN
-      );
+      super(
+          "PHASE1_ARRAY_AGG",
+          null,
+          SqlKind.LISTAGG,
+          DremioReturnTypes.TO_ARRAY,
+          null,
+          OperandTypes.ANY,
+          SqlFunctionCategory.USER_DEFINED_FUNCTION,
+          false,
+          false,
+          Optionality.FORBIDDEN);
     }
   }
 
   public static class Phase2ArrayAgg extends SqlAggFunction {
     public Phase2ArrayAgg() {
-      super("PHASE2_ARRAY_AGG",
-        null,
-        SqlKind.LISTAGG,
-        ReturnTypes.ARG0,
-        null,
-        OperandTypes.ARRAY,
-        SqlFunctionCategory.USER_DEFINED_FUNCTION,
-        false,
-        false,
-        Optionality.FORBIDDEN
-      );
+      super(
+          "PHASE2_ARRAY_AGG",
+          null,
+          SqlKind.LISTAGG,
+          ReturnTypes.ARG0,
+          null,
+          OperandTypes.ARRAY,
+          SqlFunctionCategory.USER_DEFINED_FUNCTION,
+          false,
+          false,
+          Optionality.FORBIDDEN);
     }
   }
 }

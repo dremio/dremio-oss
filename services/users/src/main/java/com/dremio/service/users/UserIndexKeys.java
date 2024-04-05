@@ -19,42 +19,57 @@ import com.dremio.datastore.SearchTypes.SearchFieldSorting;
 import com.dremio.datastore.indexed.FilterIndexMapping;
 import com.dremio.datastore.indexed.IndexKey;
 
-/**
- * Search index keys for users
- */
+/** Search index keys for users */
 public interface UserIndexKeys {
-  IndexKey UID = IndexKey.newBuilder("id", "id", String.class)
-    .setSortedValueType(SearchFieldSorting.FieldType.STRING)
-    .build();
-  IndexKey NAME = IndexKey.newBuilder("name", "USERNAME", String.class)
-    .setSortedValueType(SearchFieldSorting.FieldType.STRING)
-    .build();
-  IndexKey FIRST_NAME = IndexKey.newBuilder("first", "FIRST_NAME", String.class)
-    .setSortedValueType(SearchFieldSorting.FieldType.STRING)
-    .build();
-  IndexKey LAST_NAME = IndexKey.newBuilder("last", "LAST_NAME", String.class)
-    .setSortedValueType(SearchFieldSorting.FieldType.STRING)
-    .build();
-  IndexKey EMAIL = IndexKey.newBuilder("email", "EMAIL", String.class)
-    .setSortedValueType(SearchFieldSorting.FieldType.STRING)
-    .build();
-  IndexKey ROLE = IndexKey.newBuilder("role", "ROLE", String.class)
-    .build();
-  IndexKey EXTERNAL_ID = IndexKey.newBuilder("extid", "EXTERNAL_ID", String.class)
-    .build();
-  IndexKey NAME_LOWERCASE = IndexKey.newBuilder("name_lowercase", "USERNAME_LOWERCASE", String.class)
-    .setSortedValueType(SearchFieldSorting.FieldType.STRING)
-    .build();
-  IndexKey FIRST_NAME_LOWERCASE = IndexKey.newBuilder("first_lowercase", "FIRST_NAME_LOWERCASE", String.class)
-    .setSortedValueType(SearchFieldSorting.FieldType.STRING)
-    .build();
-  IndexKey LAST_NAME_LOWERCASE = IndexKey.newBuilder("last_lowercase", "LAST_NAME_LOWERCASE", String.class)
-    .setSortedValueType(SearchFieldSorting.FieldType.STRING)
-    .build();
-  IndexKey EMAIL_LOWERCASE = IndexKey.newBuilder("email_lowercase", "EMAIL_LOWERCASE", String.class)
-    .setSortedValueType(SearchFieldSorting.FieldType.STRING)
-    .build();
-  FilterIndexMapping MAPPING = new FilterIndexMapping(UID, NAME, FIRST_NAME, LAST_NAME, EMAIL, ROLE, EXTERNAL_ID,
-    NAME_LOWERCASE, FIRST_NAME_LOWERCASE, LAST_NAME_LOWERCASE, EMAIL_LOWERCASE);
-
+  IndexKey UID =
+      IndexKey.newBuilder("id", "id", String.class)
+          .setSortedValueType(SearchFieldSorting.FieldType.STRING)
+          .build();
+  IndexKey NAME =
+      IndexKey.newBuilder("name", "USERNAME", String.class)
+          .setSortedValueType(SearchFieldSorting.FieldType.STRING)
+          .build();
+  IndexKey FIRST_NAME =
+      IndexKey.newBuilder("first", "FIRST_NAME", String.class)
+          .setSortedValueType(SearchFieldSorting.FieldType.STRING)
+          .build();
+  IndexKey LAST_NAME =
+      IndexKey.newBuilder("last", "LAST_NAME", String.class)
+          .setSortedValueType(SearchFieldSorting.FieldType.STRING)
+          .build();
+  IndexKey EMAIL =
+      IndexKey.newBuilder("email", "EMAIL", String.class)
+          .setSortedValueType(SearchFieldSorting.FieldType.STRING)
+          .build();
+  IndexKey ROLE = IndexKey.newBuilder("role", "ROLE", String.class).build();
+  IndexKey EXTERNAL_ID = IndexKey.newBuilder("extid", "EXTERNAL_ID", String.class).build();
+  IndexKey NAME_LOWERCASE =
+      IndexKey.newBuilder("name_lowercase", "USERNAME_LOWERCASE", String.class)
+          .setSortedValueType(SearchFieldSorting.FieldType.STRING)
+          .build();
+  IndexKey FIRST_NAME_LOWERCASE =
+      IndexKey.newBuilder("first_lowercase", "FIRST_NAME_LOWERCASE", String.class)
+          .setSortedValueType(SearchFieldSorting.FieldType.STRING)
+          .build();
+  IndexKey LAST_NAME_LOWERCASE =
+      IndexKey.newBuilder("last_lowercase", "LAST_NAME_LOWERCASE", String.class)
+          .setSortedValueType(SearchFieldSorting.FieldType.STRING)
+          .build();
+  IndexKey EMAIL_LOWERCASE =
+      IndexKey.newBuilder("email_lowercase", "EMAIL_LOWERCASE", String.class)
+          .setSortedValueType(SearchFieldSorting.FieldType.STRING)
+          .build();
+  FilterIndexMapping MAPPING =
+      new FilterIndexMapping(
+          UID,
+          NAME,
+          FIRST_NAME,
+          LAST_NAME,
+          EMAIL,
+          ROLE,
+          EXTERNAL_ID,
+          NAME_LOWERCASE,
+          FIRST_NAME_LOWERCASE,
+          LAST_NAME_LOWERCASE,
+          EMAIL_LOWERCASE);
 }

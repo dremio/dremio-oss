@@ -45,6 +45,7 @@ export class MainInfoItemName extends Component {
     onMount: PropTypes.func, // takes width parameter
     versionContext: PropTypes.object,
     openDetailsPanel: PropTypes.func,
+    tagsLength: PropTypes.number,
   };
 
   static contextTypes = {
@@ -147,7 +148,7 @@ export class MainInfoItemName extends Component {
   }
 
   render() {
-    const { item, versionContext } = this.props;
+    const { item, versionContext, tagsLength } = this.props;
     const fileType = item.get("fileType");
 
     let tempHref;
@@ -177,7 +178,10 @@ export class MainInfoItemName extends Component {
 
     return (
       <div
-        style={{ ...styles.flexAlign, ...styles.base }}
+        style={{
+          ...styles.flexAlign,
+          maxWidth: `calc(100% - ${tagsLength > 0 ? "160" : "32"}px)`,
+        }}
         className={shouldGetADeadLink ? "--dead-link" : null}
         ref={this.setWrapRef}
       >
@@ -195,7 +199,7 @@ export class MainInfoItemName extends Component {
 
 const styles = {
   base: {
-    maxWidth: "calc(100% - 100px)", // reserve 100px for tags [IE 11]
+    maxWidth: "calc(100% - 160px)", // reserve 100px for tags [IE 11]
   },
   fullPath: {
     marginLeft: 5,

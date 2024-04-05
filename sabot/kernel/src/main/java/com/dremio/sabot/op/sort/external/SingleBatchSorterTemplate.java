@@ -15,27 +15,27 @@
  */
 package com.dremio.sabot.op.sort.external;
 
-import java.util.concurrent.TimeUnit;
-
-import javax.inject.Named;
-
-import org.apache.hadoop.util.IndexedSortable;
-import org.apache.hadoop.util.QuickSort;
-
 import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.selection.SelectionVector2;
 import com.dremio.sabot.exec.context.FunctionContext;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
+import java.util.concurrent.TimeUnit;
+import javax.inject.Named;
+import org.apache.hadoop.util.IndexedSortable;
+import org.apache.hadoop.util.QuickSort;
 
-public abstract class SingleBatchSorterTemplate implements SingleBatchSorterInterface, IndexedSortable{
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SingleBatchSorterTemplate.class);
+public abstract class SingleBatchSorterTemplate
+    implements SingleBatchSorterInterface, IndexedSortable {
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(SingleBatchSorterTemplate.class);
 
   private SelectionVector2 vector2;
 
   @Override
-  public void setup(FunctionContext context, SelectionVector2 vector2, VectorAccessible incoming) throws SchemaChangeException{
+  public void setup(FunctionContext context, SelectionVector2 vector2, VectorAccessible incoming)
+      throws SchemaChangeException {
     Preconditions.checkNotNull(vector2);
     this.vector2 = vector2;
     try {
@@ -46,13 +46,14 @@ public abstract class SingleBatchSorterTemplate implements SingleBatchSorterInte
   }
 
   @Override
-  public void sort(SelectionVector2 vector2){
+  public void sort(SelectionVector2 vector2) {
     QuickSort qs = new QuickSort();
     Stopwatch watch = Stopwatch.createStarted();
     if (vector2.getCount() > 0) {
       qs.sort(this, 0, vector2.getCount());
     }
-    logger.debug("Took {} us to sort {} records", watch.elapsed(TimeUnit.MICROSECONDS), vector2.getCount());
+    logger.debug(
+        "Took {} us to sort {} records", watch.elapsed(TimeUnit.MICROSECONDS), vector2.getCount());
   }
 
   @Override
@@ -69,7 +70,11 @@ public abstract class SingleBatchSorterTemplate implements SingleBatchSorterInte
     return doEval(sv1, sv2);
   }
 
-  public abstract void doSetup(@Named("context") FunctionContext context, @Named("incoming") VectorAccessible incoming, @Named("outgoing") VectorAccessible outgoing);
-  public abstract int doEval(@Named("leftIndex") char leftIndex, @Named("rightIndex") char rightIndex);
+  public abstract void doSetup(
+      @Named("context") FunctionContext context,
+      @Named("incoming") VectorAccessible incoming,
+      @Named("outgoing") VectorAccessible outgoing);
 
+  public abstract int doEval(
+      @Named("leftIndex") char leftIndex, @Named("rightIndex") char rightIndex);
 }

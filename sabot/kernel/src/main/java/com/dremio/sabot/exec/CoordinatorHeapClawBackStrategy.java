@@ -15,27 +15,23 @@
  */
 package com.dremio.sabot.exec;
 
+import com.dremio.common.exceptions.UserException;
 import java.util.function.Consumer;
 
-import com.dremio.common.exceptions.UserException;
-
-/**
- * This implementation of HeapClawBackStrategy is to be used on coordinator side.
- */
+/** This implementation of HeapClawBackStrategy is to be used on coordinator side. */
 public class CoordinatorHeapClawBackStrategy implements HeapClawBackStrategy {
   private final Consumer<CancelQueryContext> cancelConsumer;
   // CancelQueryContext for cancelling queries in planning phase.
   private static final CancelQueryContext CANCEL_QUERY_CONTEXT =
-    new CancelQueryContext(UserException.OOM_MSG,
-      "Query cancelled by coordinator heap monitor",
-      true);
+      new CancelQueryContext(
+          UserException.OOM_MSG, "Query cancelled by coordinator heap monitor", true);
 
   public CoordinatorHeapClawBackStrategy(Consumer<CancelQueryContext> cancelConsumer) {
     this.cancelConsumer = cancelConsumer;
   }
 
   @Override
-  public void clawBack() {
+  public void clawBack(String statusToDisplay) {
     cancelConsumer.accept(CANCEL_QUERY_CONTEXT);
   }
 

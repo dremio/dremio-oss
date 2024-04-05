@@ -23,7 +23,6 @@ import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.io.OutputFile;
 
-
 public class LazyManifestWriter {
   private ManifestWriter<DataFile> manifestWriter = null;
 
@@ -48,5 +47,4 @@ public class LazyManifestWriter {
   public boolean isInitialized() {
     return manifestWriter != null;
   }
-
 }

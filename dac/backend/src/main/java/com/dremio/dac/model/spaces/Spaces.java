@@ -15,15 +15,11 @@
  */
 package com.dremio.dac.model.spaces;
 
-
+import com.dremio.dac.util.JSONUtil;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.dremio.dac.util.JSONUtil;
-
-/**
- * Spaces model
- */
+/** Spaces model */
 public class Spaces {
   private List<Space> spaces;
 

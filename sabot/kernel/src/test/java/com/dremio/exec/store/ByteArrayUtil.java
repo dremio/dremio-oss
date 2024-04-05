@@ -15,7 +15,7 @@
  */
 package com.dremio.exec.store;
 
-//TODO - make sure we figure out the license on these
+// TODO - make sure we figure out the license on these
 public class ByteArrayUtil {
 
   public static byte[] toByta(Object data) throws Exception {
@@ -34,13 +34,14 @@ public class ByteArrayUtil {
     }
   }
 
-  // found at http://www.daniweb.com/software-development/java/code/216874/primitive-types-as-byte-arrays
+  // found at
+  // http://www.daniweb.com/software-development/java/code/216874/primitive-types-as-byte-arrays
   // I have modified them to switch the endianess of integers and longs
   /* ========================= */
   /* "primitive type --> byte[] data" Methods */
   /* ========================= */
   public static byte[] toByta(byte data) {
-    return new byte[]{data};
+    return new byte[] {data};
   }
 
   public static byte[] toByta(byte[] data) {
@@ -49,9 +50,8 @@ public class ByteArrayUtil {
 
   /* ========================= */
   public static byte[] toByta(short data) {
-    return new byte[]{
-        (byte) ((data >> 8) & 0xff),
-        (byte) ((data >> 0) & 0xff),
+    return new byte[] {
+      (byte) ((data >> 8) & 0xff), (byte) ((data >> 0) & 0xff),
     };
   }
 
@@ -69,9 +69,8 @@ public class ByteArrayUtil {
 
   /* ========================= */
   public static byte[] toByta(char data) {
-    return new byte[]{
-        (byte) ((data >> 8) & 0xff),
-        (byte) ((data >> 0) & 0xff),
+    return new byte[] {
+      (byte) ((data >> 8) & 0xff), (byte) ((data >> 0) & 0xff),
     };
   }
 
@@ -89,11 +88,11 @@ public class ByteArrayUtil {
 
   /* ========================= */
   public static byte[] toByta(int data) {
-    return new byte[]{
-        (byte) ((data >> 0) & 0xff),
-        (byte) ((data >> 8) & 0xff),
-        (byte) ((data >> 16) & 0xff),
-        (byte) ((data >> 24) & 0xff),
+    return new byte[] {
+      (byte) ((data >> 0) & 0xff),
+      (byte) ((data >> 8) & 0xff),
+      (byte) ((data >> 16) & 0xff),
+      (byte) ((data >> 24) & 0xff),
     };
   }
 
@@ -111,15 +110,15 @@ public class ByteArrayUtil {
 
   /* ========================= */
   public static byte[] toByta(long data) {
-    return new byte[]{
-        (byte) ((data >> 0) & 0xff),
-        (byte) ((data >> 8) & 0xff),
-        (byte) ((data >> 16) & 0xff),
-        (byte) ((data >> 24) & 0xff),
-        (byte) ((data >> 32) & 0xff),
-        (byte) ((data >> 40) & 0xff),
-        (byte) ((data >> 48) & 0xff),
-        (byte) ((data >> 56) & 0xff),
+    return new byte[] {
+      (byte) ((data >> 0) & 0xff),
+      (byte) ((data >> 8) & 0xff),
+      (byte) ((data >> 16) & 0xff),
+      (byte) ((data >> 24) & 0xff),
+      (byte) ((data >> 32) & 0xff),
+      (byte) ((data >> 40) & 0xff),
+      (byte) ((data >> 48) & 0xff),
+      (byte) ((data >> 56) & 0xff),
     };
   }
 
@@ -171,7 +170,7 @@ public class ByteArrayUtil {
 
   /* ========================= */
   public static byte[] toByta(boolean data) {
-    return new byte[]{(byte) (data ? 0x01 : 0x00)}; // bool -> {1 byte}
+    return new byte[] {(byte) (data ? 0x01 : 0x00)}; // bool -> {1 byte}
   }
 
   public static byte[] toByta(boolean[] data) {

@@ -15,31 +15,25 @@
  */
 package com.dremio.telemetry.api.config;
 
-import java.util.concurrent.TimeUnit;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Objects;
+import java.util.concurrent.TimeUnit;
 
-/**
- * Used to specify if config can be refreshed and how often.
- */
+/** Used to specify if config can be refreshed and how often. */
 public class RefreshConfiguration {
 
   private final boolean enabled;
   private final long refreshIntervalMS;
 
-
   @JsonCreator
   public RefreshConfiguration(
-    @JsonProperty("enabled") boolean enabled,
-    @JsonProperty("period") long refreshInterval,
-    @JsonProperty("unit") TimeUnit unit
-  ) {
+      @JsonProperty("enabled") boolean enabled,
+      @JsonProperty("period") long refreshInterval,
+      @JsonProperty("unit") TimeUnit unit) {
     this.enabled = enabled;
     this.refreshIntervalMS = unit.toMillis(refreshInterval);
   }
-
 
   public boolean isEnabled() {
     return enabled;
@@ -61,7 +55,6 @@ public class RefreshConfiguration {
     }
 
     RefreshConfiguration that = (RefreshConfiguration) obj;
-    return this.enabled == that.enabled
-        && this.refreshIntervalMS == that.refreshIntervalMS;
+    return this.enabled == that.enabled && this.refreshIntervalMS == that.refreshIntervalMS;
   }
 }

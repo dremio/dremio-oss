@@ -16,23 +16,6 @@
 
 package com.dremio.exec.store.dfs;
 
-import java.io.IOException;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Objects;
-
-import org.apache.calcite.plan.RelOptRuleCall;
-import org.apache.calcite.plan.RelOptRuleOperand;
-import org.apache.calcite.rel.core.AggregateCall;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeFactory;
-import org.apache.calcite.rel.type.RelDataTypeField;
-import org.apache.calcite.rel.type.RelDataTypeFieldImpl;
-import org.apache.calcite.rel.type.RelRecordType;
-import org.apache.calcite.rex.RexInputRef;
-import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.sql.type.SqlTypeName;
-
 import com.dremio.common.JSONOptions;
 import com.dremio.datastore.LegacyProtobufSerializer;
 import com.dremio.exec.catalog.conf.SourceType;
@@ -59,29 +42,34 @@ import com.fasterxml.jackson.databind.util.TokenBuffer;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.protobuf.InvalidProtocolBufferException;
+import java.io.IOException;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Objects;
+import org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.calcite.plan.RelOptRuleOperand;
+import org.apache.calcite.rel.core.AggregateCall;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.calcite.rel.type.RelDataTypeFieldImpl;
+import org.apache.calcite.rel.type.RelRecordType;
+import org.apache.calcite.rex.RexInputRef;
+import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
- * This rule will convert
- *   " select count(*)  as mycount from table "
- * or " select count( not-nullable-expr) as mycount from table "
- *   into
+ * This rule will convert " select count(*) as mycount from table " or " select count(
+ * not-nullable-expr) as mycount from table " into
  *
- *    Project(mycount)
- *         \
- *    ValuesRel ((columnValueCount))
+ * <p>Project(mycount) \ ValuesRel ((columnValueCount))
  *
- * or
- *    " select count(column) as mycount from table "
- *    into
- *      Project(mycount)
- *           \
- *            ValuesRel ((columnValueCount))
+ * <p>or " select count(column) as mycount from table " into Project(mycount) \ ValuesRel
+ * ((columnValueCount))
  *
- * Currently, only parquet group scan has the exact row count and column value count,
- * obtained from parquet row group info. This will save the cost to
- * scan the whole parquet files.
+ * <p>Currently, only parquet group scan has the exact row count and column value count, obtained
+ * from parquet row group info. This will save the cost to scan the whole parquet files.
  */
-
 public class ConvertCountToDirectScan extends Prule {
 
   private static final ObjectMapper MAPPER = new ObjectMapper();
@@ -89,15 +77,17 @@ public class ConvertCountToDirectScan extends Prule {
   private final SourceType type;
   private final int scanIndex;
 
-  public static ConvertCountToDirectScan getAggProjOnScan(SourceType type){
+  public static ConvertCountToDirectScan getAggProjOnScan(SourceType type) {
     return new ConvertCountToDirectScan(
-        RelOptHelper.some(AggregateRel.class, RelOptHelper.some(ProjectRel.class, RelOptHelper.any(FilesystemScanDrel.class))),
+        RelOptHelper.some(
+            AggregateRel.class,
+            RelOptHelper.some(ProjectRel.class, RelOptHelper.any(FilesystemScanDrel.class))),
         type.value() + "Agg_on_proj_on_scan",
         2,
         type);
   }
 
-  public static ConvertCountToDirectScan getAggOnScan(SourceType type){
+  public static ConvertCountToDirectScan getAggOnScan(SourceType type) {
     return new ConvertCountToDirectScan(
         RelOptHelper.some(AggregateRel.class, RelOptHelper.any(FilesystemScanDrel.class)),
         type.value() + "Agg_on_scan",
@@ -105,7 +95,8 @@ public class ConvertCountToDirectScan extends Prule {
         type);
   }
 
-  private ConvertCountToDirectScan(RelOptRuleOperand rule, String id, int scanIndex, SourceType type) {
+  private ConvertCountToDirectScan(
+      RelOptRuleOperand rule, String id, int scanIndex, SourceType type) {
     super(rule, "ConvertCountToDirectScan:" + id);
     this.type = type;
     this.scanIndex = scanIndex;
@@ -114,46 +105,51 @@ public class ConvertCountToDirectScan extends Prule {
   @Override
   public boolean matches(RelOptRuleCall call) {
     FilesystemScanDrel scan = call.rel(scanIndex);
-    if (scan.getFilter() != null ||
-      scan.getPartitionFilter() != null) { // We should not convert to Values if there is a partition filter, otherwise we will get wrong results
+    if (scan.getFilter() != null
+        || scan.getPartitionFilter()
+            != null) { // We should not convert to Values if there is a partition filter, otherwise
+      // we will get wrong results
       return false;
     }
     // we only support accurate counts when using Parquet, everything else is executed normally.
-    return scan.getPluginId().getType().equals(type) &&
-            DatasetHelper.hasParquetDataFiles(scan.getTableMetadata().getFormatSettings());
+    return scan.getPluginId().getType().equals(type)
+        && DatasetHelper.hasParquetDataFiles(scan.getTableMetadata().getFormatSettings());
   }
 
-  private static long getAccurateRowCount(Iterator<PartitionChunkMetadata> splits){
+  private static long getAccurateRowCount(Iterator<PartitionChunkMetadata> splits) {
     long def = 0;
-    while(splits.hasNext()){
+    while (splits.hasNext()) {
       PartitionChunkMetadata split = splits.next();
       def += split.getRowCount();
     }
     return def;
   }
 
-  private static long getAccurateColumnCount(String name, TableMetadata tableMetadata){
+  private static long getAccurateColumnCount(String name, TableMetadata tableMetadata) {
     Iterator<PartitionChunkMetadata> partitionChunks = tableMetadata.getSplits();
     /**
-     * Currently for internal iceberg table(Filesystem table) we don't store column level stats.
-     * So we should return GroupScan.NO_COLUMN_STATS
-     * - internal iceberg table(Filesystem table) stores row count for table its taken from snapshot.summary()
-     * - Ticket to implement column level stats for internal iceberg table can be track here DX-38342
+     * Currently for internal iceberg table(Filesystem table) we don't store column level stats. So
+     * we should return GroupScan.NO_COLUMN_STATS - internal iceberg table(Filesystem table) stores
+     * row count for table its taken from snapshot.summary() - Ticket to implement column level
+     * stats for internal iceberg table can be track here DX-38342
      */
-    if (Objects.nonNull(tableMetadata.getDatasetConfig().getPhysicalDataset().getIcebergMetadataEnabled()) &&
-            tableMetadata.getDatasetConfig().getPhysicalDataset().getIcebergMetadataEnabled()) {
+    if (Objects.nonNull(
+            tableMetadata.getDatasetConfig().getPhysicalDataset().getIcebergMetadataEnabled())
+        && tableMetadata.getDatasetConfig().getPhysicalDataset().getIcebergMetadataEnabled()) {
       return GroupScan.NO_COLUMN_STATS;
     }
     long def = 0;
     int splitCount = 0;
     int columnObservation = 0;
-    while(partitionChunks.hasNext()){
+    while (partitionChunks.hasNext()) {
       PartitionChunkMetadata partitionChunk = partitionChunks.next();
       for (DatasetSplit split : partitionChunk.getDatasetSplits()) {
         splitCount++;
         ParquetDatasetSplitXAttr xattr;
         try {
-          xattr = LegacyProtobufSerializer.parseFrom(ParquetDatasetSplitXAttr.PARSER, split.getSplitExtendedProperty());
+          xattr =
+              LegacyProtobufSerializer.parseFrom(
+                  ParquetDatasetSplitXAttr.PARSER, split.getSplitExtendedProperty());
         } catch (InvalidProtocolBufferException e) {
           throw new RuntimeException("Could not deserialize Parquet split info", e);
         }
@@ -167,7 +163,7 @@ public class ConvertCountToDirectScan extends Prule {
       }
     }
 
-    if(splitCount != columnObservation){
+    if (splitCount != columnObservation) {
       // missing metadata observations, make sure to avoid wrong result.
       return GroupScan.NO_COLUMN_STATS;
     }
@@ -177,7 +173,7 @@ public class ConvertCountToDirectScan extends Prule {
   @Override
   public void onMatch(RelOptRuleCall call) {
     final AggregateRel agg = (AggregateRel) call.rel(0);
-    final FilesystemScanDrel scan = (FilesystemScanDrel) call.rel(call.rels.length -1);
+    final FilesystemScanDrel scan = (FilesystemScanDrel) call.rel(call.rels.length - 1);
     final ProjectRel proj = call.rels.length == 3 ? (ProjectRel) call.rel(1) : null;
 
     // Only apply the rule when :
@@ -192,21 +188,27 @@ public class ConvertCountToDirectScan extends Prule {
 
     AggregateCall aggCall = agg.getAggCallList().get(0);
 
-    if (aggCall.getAggregation().getName().equals("COUNT") ) {
+    if (aggCall.getAggregation().getName().equals("COUNT")) {
 
       long cnt = 0;
       //  count(*)  == >  empty arg  ==>  rowCount
       //  count(Not-null-input) ==> rowCount
-      if (aggCall.getArgList().isEmpty() ||
-          (aggCall.getArgList().size() == 1 &&
-           ! agg.getInput().getRowType().getFieldList().get(aggCall.getArgList().get(0).intValue()).getType().isNullable())) {
+      if (aggCall.getArgList().isEmpty()
+          || (aggCall.getArgList().size() == 1
+              && !agg.getInput()
+                  .getRowType()
+                  .getFieldList()
+                  .get(aggCall.getArgList().get(0).intValue())
+                  .getType()
+                  .isNullable())) {
         cnt = getAccurateRowCount(scan.getTableMetadata().getSplits());
       } else if (aggCall.getArgList().size() == 1) {
-      // count(columnName) ==> Agg ( Scan )) ==> columnValueCount
+        // count(columnName) ==> Agg ( Scan )) ==> columnValueCount
         int index = aggCall.getArgList().get(0);
 
         if (proj != null) {
-          // project in the middle of Agg and Scan : Only when input of AggCall is a RexInputRef in Project, we find the index of Scan's field.
+          // project in the middle of Agg and Scan : Only when input of AggCall is a RexInputRef in
+          // Project, we find the index of Scan's field.
           // For instance,
           // Agg - count($0)
           //  \
@@ -218,7 +220,7 @@ public class ConvertCountToDirectScan extends Prule {
           if (proj.getProjects().get(index) instanceof RexInputRef) {
             index = ((RexInputRef) proj.getProjects().get(index)).getIndex();
           } else {
-            return;  // do not apply for all other cases.
+            return; // do not apply for all other cases.
           }
         }
 
@@ -234,19 +236,29 @@ public class ConvertCountToDirectScan extends Prule {
       }
 
       RelDataType scanRowType = getCountRowType(agg.getCluster().getTypeFactory());
-      final ValuesPrel values = new ValuesPrel(agg.getCluster(), scan.getTraitSet().plus(Prel.PHYSICAL).plus(DistributionTrait.SINGLETON), scanRowType, new JSONOptions(getResultsNode(cnt)), 1);
+      final ValuesPrel values =
+          new ValuesPrel(
+              agg.getCluster(),
+              scan.getTraitSet().plus(Prel.PHYSICAL).plus(DistributionTrait.SINGLETON),
+              scanRowType,
+              new JSONOptions(getResultsNode(cnt)),
+              1);
       List<RexNode> exprs = Lists.newArrayList();
       exprs.add(RexInputRef.of(0, scanRowType));
 
-      final ProjectPrel newProj = ProjectPrel.create(agg.getCluster(), agg.getTraitSet().plus(Prel.PHYSICAL)
-          .plus(DistributionTrait.SINGLETON), values, exprs, agg.getRowType());
+      final ProjectPrel newProj =
+          ProjectPrel.create(
+              agg.getCluster(),
+              agg.getTraitSet().plus(Prel.PHYSICAL).plus(DistributionTrait.SINGLETON),
+              values,
+              exprs,
+              agg.getRowType());
       call.transformTo(newProj);
     }
-
   }
 
   private JsonNode getResultsNode(long count) {
-    try{
+    try {
       TokenBuffer out = new TokenBuffer(MAPPER.getFactory().getCodec(), false);
       JsonOutput json = new ExtendedJsonOutput(out);
       json.writeStartArray();
@@ -257,14 +269,12 @@ public class ConvertCountToDirectScan extends Prule {
       json.writeEndArray();
       json.flush();
       return out.asParser().readValueAsTree();
-    }catch(IOException ex){
+    } catch (IOException ex) {
       throw Throwables.propagate(ex);
     }
   }
 
-  /**
-   * Class to represent the count aggregate result.
-   */
+  /** Class to represent the count aggregate result. */
   public static class CountQueryResult {
     public long count;
 
@@ -278,6 +288,4 @@ public class ConvertCountToDirectScan extends Prule {
     fields.add(new RelDataTypeFieldImpl("count", 0, typeFactory.createSqlType(SqlTypeName.BIGINT)));
     return new RelRecordType(fields);
   }
-
-
 }

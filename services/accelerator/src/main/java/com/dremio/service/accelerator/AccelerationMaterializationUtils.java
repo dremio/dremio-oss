@@ -15,16 +15,6 @@
  */
 package com.dremio.service.accelerator;
 
-import java.io.IOException;
-import java.sql.Timestamp;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.StreamSupport;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.datastore.ProtostuffSerializer;
 import com.dremio.datastore.Serializer;
 import com.dremio.exec.store.sys.accel.AccelerationListManager;
@@ -32,15 +22,26 @@ import com.dremio.service.job.proto.JoinAnalysis;
 import com.dremio.service.reflection.ReflectionUtils;
 import com.dremio.service.reflection.proto.DataPartition;
 import com.dremio.service.reflection.store.MaterializationStore;
+import java.io.IOException;
+import java.sql.Timestamp;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.StreamSupport;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * Helper methods for extracting a list of {@link com.dremio.service.reflection.proto.Materialization} from a
- * {@link MaterializationStore} and converting them to a list of
- * {@link com.dremio.exec.store.sys.accel.AccelerationListManager.MaterializationInfo}.
+ * Helper methods for extracting a list of {@link
+ * com.dremio.service.reflection.proto.Materialization} from a {@link MaterializationStore} and
+ * converting them to a list of {@link
+ * com.dremio.exec.store.sys.accel.AccelerationListManager.MaterializationInfo}.
  */
 public class AccelerationMaterializationUtils {
-  private static final Logger logger = LoggerFactory.getLogger(AccelerationMaterializationUtils.class);
-  private static final Serializer<JoinAnalysis, byte[]> JOIN_ANALYSIS_ABSTRACT_SERIALIZER = ProtostuffSerializer.of(JoinAnalysis.getSchema());
+  private static final Logger logger =
+      LoggerFactory.getLogger(AccelerationMaterializationUtils.class);
+  private static final Serializer<JoinAnalysis, byte[]> JOIN_ANALYSIS_ABSTRACT_SERIALIZER =
+      ProtostuffSerializer.of(JoinAnalysis.getSchema());
 
   private static String dataPartitionsToString(List<DataPartition> partitions) {
     if (partitions == null || partitions.isEmpty()) {
@@ -55,49 +56,62 @@ public class AccelerationMaterializationUtils {
     return dataPartitions.toString();
   }
 
-  public static Iterator<AccelerationListManager.MaterializationInfo> getMaterializationsFromStore(MaterializationStore materializationStore) {
-    return StreamSupport.stream(ReflectionUtils.getAllMaterializations(materializationStore).spliterator(), false)
-      .map(materialization -> {
-          long footPrint = -1L;
-          try {
-            footPrint = materializationStore.getMetrics(materialization).left.getFootprint();
-          } catch (Exception e) {
-            // let's not fail the query if we can't retrieve the footprint for one materialization
-          }
+  public static Iterator<AccelerationListManager.MaterializationInfo> getMaterializationsFromStore(
+      MaterializationStore materializationStore) {
+    return StreamSupport.stream(
+            ReflectionUtils.getAllMaterializations(materializationStore).spliterator(), false)
+        .map(
+            materialization -> {
+              long footPrint = -1L;
+              try {
+                footPrint = materializationStore.getMetrics(materialization).left.getFootprint();
+              } catch (Exception e) {
+                // let's not fail the query if we can't retrieve the footprint for one
+                // materialization
+              }
 
-          String joinAnalysisJson = null;
-          try {
-            if (materialization.getJoinAnalysis() != null) {
-              joinAnalysisJson = JOIN_ANALYSIS_ABSTRACT_SERIALIZER.toJson(materialization.getJoinAnalysis());
-            }
-          } catch (IOException e) {
-            logger.debug("Failed to serialize join analysis", e);
-          }
+              String joinAnalysisJson = null;
+              try {
+                if (materialization.getJoinAnalysis() != null) {
+                  joinAnalysisJson =
+                      JOIN_ANALYSIS_ABSTRACT_SERIALIZER.toJson(materialization.getJoinAnalysis());
+                }
+              } catch (IOException e) {
+                logger.debug("Failed to serialize join analysis", e);
+              }
 
-          final String failureMsg = materialization.getFailure() != null ? materialization.getFailure().getMessage() : null;
+              final String failureMsg =
+                  materialization.getFailure() != null
+                      ? materialization.getFailure().getMessage()
+                      : null;
 
-          Long lastRefreshDuration = null;
-          if (materialization.getLastRefreshFromPds() != null && materialization.getLastRefreshFinished() != null) {
-            lastRefreshDuration = materialization.getLastRefreshFinished() - materialization.getLastRefreshFromPds();
-          }
+              Long lastRefreshDuration = null;
+              if (materialization.getLastRefreshFromPds() != null
+                  && materialization.getLastRefreshFinished() != null) {
+                lastRefreshDuration =
+                    materialization.getLastRefreshFinished()
+                        - materialization.getLastRefreshFromPds();
+              }
 
-          return new AccelerationListManager.MaterializationInfo(
-            materialization.getReflectionId().getId(),
-            materialization.getId().getId(),
-            new Timestamp(materialization.getCreatedAt()),
-            new Timestamp(Optional.ofNullable(materialization.getExpiration()).orElse(0L)),
-            footPrint,
-            materialization.getSeriesId(),
-            materialization.getInitRefreshJobId(),
-            materialization.getSeriesOrdinal(),
-            joinAnalysisJson,
-            materialization.getState().toString(),
-            Optional.ofNullable(failureMsg).orElse("NONE"),
-            dataPartitionsToString(materialization.getPartitionList()),
-            new Timestamp(Optional.ofNullable(materialization.getLastRefreshFromPds()).orElse(0L)),
-            new Timestamp(Optional.ofNullable(materialization.getLastRefreshFinished()).orElse(0L)),
-            lastRefreshDuration
-            );
-       }).iterator();
+              return new AccelerationListManager.MaterializationInfo(
+                  materialization.getReflectionId().getId(),
+                  materialization.getId().getId(),
+                  new Timestamp(materialization.getCreatedAt()),
+                  new Timestamp(Optional.ofNullable(materialization.getExpiration()).orElse(0L)),
+                  footPrint,
+                  materialization.getSeriesId(),
+                  materialization.getInitRefreshJobId(),
+                  materialization.getSeriesOrdinal(),
+                  joinAnalysisJson,
+                  materialization.getState().toString(),
+                  Optional.ofNullable(failureMsg).orElse("NONE"),
+                  dataPartitionsToString(materialization.getPartitionList()),
+                  new Timestamp(
+                      Optional.ofNullable(materialization.getLastRefreshFromPds()).orElse(0L)),
+                  new Timestamp(
+                      Optional.ofNullable(materialization.getLastRefreshFinished()).orElse(0L)),
+                  lastRefreshDuration);
+            })
+        .iterator();
   }
 }

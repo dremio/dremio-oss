@@ -15,23 +15,25 @@
  */
 package com.dremio.exec.store.sys;
 
-import java.util.Collections;
-import java.util.Iterator;
-
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.work.CacheManagerStoragePluginInfo;
 import com.dremio.sabot.exec.context.OperatorContext;
+import java.util.Collections;
+import java.util.Iterator;
 
-/**
- * Iterator which returns cache manager storage plugins information
- */
+/** Iterator which returns cache manager storage plugins information */
 public class CacheManagerStoragePluginIterator implements Iterator<Object> {
   private final Iterator<CacheManagerStoragePluginInfo> iter;
 
   CacheManagerStoragePluginIterator(SabotContext sabotContext, OperatorContext operatorContext) {
-    iter = sabotContext.getFileSystemWrapper().isWrapperFor(CacheManagerStatsProvider.class) ?
-        sabotContext.getFileSystemWrapper().unwrap(CacheManagerStatsProvider.class).getStoragePluginStats().iterator() :
-        Collections.EMPTY_LIST.iterator();
+    iter =
+        sabotContext.getFileSystemWrapper().isWrapperFor(CacheManagerStatsProvider.class)
+            ? sabotContext
+                .getFileSystemWrapper()
+                .unwrap(CacheManagerStatsProvider.class)
+                .getStoragePluginStats()
+                .iterator()
+            : Collections.EMPTY_LIST.iterator();
   }
 
   @Override
@@ -48,5 +50,4 @@ public class CacheManagerStoragePluginIterator implements Iterator<Object> {
   public void remove() {
     throw new UnsupportedOperationException();
   }
-
 }

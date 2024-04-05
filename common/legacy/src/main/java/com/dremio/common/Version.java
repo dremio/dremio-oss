@@ -15,17 +15,13 @@
  */
 package com.dremio.common;
 
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ComparisonChain;
 import java.util.Comparator;
 import java.util.Locale;
 import java.util.Objects;
 
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ComparisonChain;
-
-/**
- * Encapsulates version information and provides ordering
- *
- */
+/** Encapsulates version information and provides ordering */
 public final class Version implements Comparable<Version> {
   private final String version;
   private final int major;
@@ -35,8 +31,8 @@ public final class Version implements Comparable<Version> {
   private final String qualifier;
   private final String lcQualifier; // lower-case qualifier for comparison
 
-  public Version(String version, int major, int minor, int patch, int buildNumber,
-      String qualifier) {
+  public Version(
+      String version, int major, int minor, int patch, int buildNumber, String qualifier) {
     this.version = version;
     this.major = major;
     this.minor = minor;
@@ -123,23 +119,25 @@ public final class Version implements Comparable<Version> {
     return String.format("Version; %s", version);
   }
 
-  private static final Comparator<String> QUALIFIER_COMPARATOR = new Comparator<String>() {
-    @Override public int compare(String q1, String q2) {
-      if (q1.equals(q2)) {
-        return 0;
-      }
+  private static final Comparator<String> QUALIFIER_COMPARATOR =
+      new Comparator<String>() {
+        @Override
+        public int compare(String q1, String q2) {
+          if (q1.equals(q2)) {
+            return 0;
+          }
 
-      if ("snapshot".equalsIgnoreCase(q1)) {
-        return -1;
-      }
+          if ("snapshot".equalsIgnoreCase(q1)) {
+            return -1;
+          }
 
-      if ("snapshot".equalsIgnoreCase(q2)) {
-        return 1;
-      }
+          if ("snapshot".equalsIgnoreCase(q2)) {
+            return 1;
+          }
 
-      return q1.compareTo(q2);
-    }
-  };
+          return q1.compareTo(q2);
+        }
+      };
 
   @Override
   public int compareTo(Version o) {

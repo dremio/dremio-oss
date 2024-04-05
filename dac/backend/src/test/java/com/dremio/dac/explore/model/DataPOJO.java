@@ -15,13 +15,6 @@
  */
 package com.dremio.dac.explore.model;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import org.apache.arrow.vector.types.pojo.Field;
-
 import com.dremio.dac.model.job.JobDataFragment;
 import com.dremio.dac.proto.model.dataset.DataType;
 import com.dremio.dac.util.JSONUtil;
@@ -34,13 +27,18 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonSerializer.None;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.google.common.base.Throwables;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import org.apache.arrow.vector.types.pojo.Field;
 
 /**
- * POJO version of {@link JobData} for deserializing from JSON value. This class is for testing purposes only to
- * deserialize the result output from server. Server has its own custom serializer and doesn't have the
- * equivalent custom deserializer.
+ * POJO version of {@link JobData} for deserializing from JSON value. This class is for testing
+ * purposes only to deserialize the result output from server. Server has its own custom serializer
+ * and doesn't have the equivalent custom deserializer.
  */
-@JsonSerialize(using=None.class) // override super class custom serializer with default one
+@JsonSerialize(using = None.class) // override super class custom serializer with default one
 public class DataPOJO implements JobDataFragment {
 
   private final List<Column> columns;
@@ -81,7 +79,8 @@ public class DataPOJO implements JobDataFragment {
 
   @Override
   public List<Field> getFields() {
-    return Collections.emptyList();  }
+    return Collections.emptyList();
+  }
 
   @Override
   public List<RecordBatchHolder> getRecordBatches() {
@@ -95,9 +94,9 @@ public class DataPOJO implements JobDataFragment {
 
   @Override
   public Column getColumn(String name) {
-    if(nameToColumn == null){
+    if (nameToColumn == null) {
       nameToColumn = new HashMap<>();
-      for(int i =0; i < columns.size(); i++){
+      for (int i = 0; i < columns.size(); i++) {
         Column c = columns.get(i);
         nameToColumn.put(columns.get(i).getName(), c);
       }
@@ -106,9 +105,9 @@ public class DataPOJO implements JobDataFragment {
   }
 
   @Override
-  public String extractString(String column, int index){
+  public String extractString(String column, int index) {
     final Object obj = extractValue(column, index);
-    if(obj != null){
+    if (obj != null) {
       if (obj instanceof Map || obj instanceof List) {
         try {
           return JSONUtil.mapper().writeValueAsString(obj);
@@ -122,7 +121,7 @@ public class DataPOJO implements JobDataFragment {
   }
 
   @Override
-  public Object extractValue(String column, int index){
+  public Object extractValue(String column, int index) {
     final RowPOJO row = rows.get(index);
     return row.getCell(getColumn(column)).getValue();
   }
@@ -133,7 +132,7 @@ public class DataPOJO implements JobDataFragment {
   }
 
   @Override
-  public DataType extractType(String column, int index){
+  public DataType extractType(String column, int index) {
     final RowPOJO row = rows.get(index);
     return row.getCell(getColumn(column)).getType();
   }

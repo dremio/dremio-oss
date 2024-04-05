@@ -80,18 +80,18 @@ class Message extends PureComponent {
   constructor(props) {
     super(props);
     const messageText = `messageType must be one of ${JSON.stringify(
-      Message.MESSAGE_TYPES
+      Message.MESSAGE_TYPES,
     )}`;
     invariant(
       Message.MESSAGE_TYPES.indexOf(this.props.messageType) !== -1,
-      messageText
+      messageText,
     );
 
     const hideForeverErrorMessage =
       "local storage key required to permanently hide message";
     invariant(
       this.props.allowHideForever ? !!this.props.localStorageKey : true,
-      hideForeverErrorMessage
+      hideForeverErrorMessage,
     );
   }
 
@@ -133,7 +133,7 @@ class Message extends PureComponent {
       if (!hiddenMessages.includes(localStorageKey)) {
         localStorage.setItem(
           HIDDEN_MESSAGES,
-          JSON.stringify([...hiddenMessages, localStorageKey])
+          JSON.stringify([...hiddenMessages, localStorageKey]),
         );
       }
     }
@@ -246,7 +246,7 @@ class Message extends PureComponent {
       details.push(
         <div style={{ ...styles.stackTrace, ...fixedWidthDefault }}>
           {stackTrace}
-        </div>
+        </div>,
       );
     }
 
@@ -283,7 +283,7 @@ class Message extends PureComponent {
         );
       case "MATERIALIZATION_FAILURE": {
         const messageForCode = laDeprecated(
-          "There was an error building a Reflection"
+          "There was an error building a Reflection",
         );
         // todo: #materializationFailure should become generic #details
         const url = jobsUtils.navigationURLForJobId({
@@ -311,11 +311,11 @@ class Message extends PureComponent {
         const messageObj = message.toJS();
         const reflectionSaveErrors = messageObj?.details?.reflectionSaveErrors;
         const shouldShowPermissionsMessage = Object.values(
-          reflectionSaveErrors
+          reflectionSaveErrors,
         ).every(
           (saveError) =>
             saveError?.message?.errorMessage ===
-            "Permission denied. A support user cannot create a reflection"
+            "Permission denied. A support user cannot create a reflection",
         );
 
         return (
@@ -333,7 +333,7 @@ class Message extends PureComponent {
         return (
           <span>
             {laDeprecated(
-              "Some Reflections had to be updated to work with the latest version of the dataset. Please review all Reflections before saving."
+              "Some Reflections had to be updated to work with the latest version of the dataset. Please review all Reflections before saving.",
             )}
           </span>
         );
@@ -487,7 +487,7 @@ class Message extends PureComponent {
             {details && this.renderShowMoreToggle()}
           </span>
           {messageAction}
-          <div className="flex --alignCenter">
+          <div className="flex --alignCenter dismiss-btn-wrapper">
             {allowHideForever && (
               <Checkbox
                 label={<FormattedMessage id="Message.Hide.Forever" />}

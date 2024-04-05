@@ -22,9 +22,8 @@ import com.dremio.datastore.format.compound.KeyTriple;
 /**
  * Format representing a collection of other formats.
  *
- * The order the keys appear in the type arguments and the constructor will match the
- * order they appear when serialized. The types and order of the keys may not be
- * altered after being deployed.
+ * <p>The order the keys appear in the type arguments and the constructor will match the order they
+ * appear when serialized. The types and order of the keys may not be altered after being deployed.
  *
  * @param <K1> - The type of the first key.
  * @param <K2> - The type of the second key.
@@ -39,7 +38,13 @@ public final class CompoundTripleFormat<K1, K2, K3> implements Format<KeyTriple<
   private final String key3Name;
   private final Format<K3> key3Format;
 
-  CompoundTripleFormat(String key1Name, Format<K1> key1Format, String key2Name, Format<K2> key2Format, String key3Name, Format<K3> key3Format) {
+  CompoundTripleFormat(
+      String key1Name,
+      Format<K1> key1Format,
+      String key2Name,
+      Format<K2> key2Format,
+      String key3Name,
+      Format<K3> key3Format) {
     this.key1Name = key1Name;
     this.key1Format = key1Format;
     this.key2Name = key2Name;
@@ -55,6 +60,7 @@ public final class CompoundTripleFormat<K1, K2, K3> implements Format<KeyTriple<
 
   @Override
   public <RET> RET apply(FormatVisitor<RET> visitor) throws DatastoreFatalException {
-    return visitor.visitCompoundTripleFormat(key1Name, key1Format, key2Name, key2Format, key3Name, key3Format);
+    return visitor.visitCompoundTripleFormat(
+        key1Name, key1Format, key2Name, key2Format, key3Name, key3Format);
   }
 }

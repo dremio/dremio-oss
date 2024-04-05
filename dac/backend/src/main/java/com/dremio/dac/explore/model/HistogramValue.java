@@ -19,9 +19,7 @@ import com.dremio.dac.proto.model.dataset.DataType;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-/**
- * to display an histogram
- */
+/** to display an histogram */
 public class HistogramValue {
   private final DataType type;
   // value is used as a label, so it can be range label as well
@@ -48,13 +46,19 @@ public class HistogramValue {
   public DataType getType() {
     return type;
   }
+
   public String getValue() {
     return value;
   }
-  public ValueRange getValueRange() { return valueRange; }
+
+  public ValueRange getValueRange() {
+    return valueRange;
+  }
+
   public double getPercent() {
     return percent;
   }
+
   public long getCount() {
     return count;
   }
@@ -64,16 +68,16 @@ public class HistogramValue {
   }
 
   /**
-   * Helper class to keep lower and Upper boundaries, so we could reuse it to dig deeper
-   * into a particular histogram bin if needed
+   * Helper class to keep lower and Upper boundaries, so we could reuse it to dig deeper into a
+   * particular histogram bin if needed
    */
   public static final class ValueRange {
     private final Object lowerLimit;
     private final Object upperLimit;
 
     @JsonCreator
-    public ValueRange(@JsonProperty("start") Object lowerLimit,
-                      @JsonProperty("end") Object upperLimit) {
+    public ValueRange(
+        @JsonProperty("start") Object lowerLimit, @JsonProperty("end") Object upperLimit) {
       this.lowerLimit = lowerLimit;
       this.upperLimit = upperLimit;
     }

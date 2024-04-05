@@ -44,6 +44,9 @@ const availabilityStatusMatrix = {
   NONE: {
     availabilityStatus: "NONE",
   },
+  CANNOT_ACCELERATE_INITIALIZING: {
+    combinedStatus: "CANNOT_ACCELERATE_INITIALIZING",
+  },
 };
 
 type Params = {
@@ -64,17 +67,21 @@ const getFilterConfig = (params: Params) => {
   const configStatus = (params.availabilityStatus || [])
     .map((x) => availabilityStatusMatrix[x].configStatus)
     .filter(Boolean);
+  const combinedStatus = (params.availabilityStatus || [])
+    .map((x) => availabilityStatusMatrix[x].combinedStatus)
+    .filter(Boolean);
   const enabledFlag = !(params.availabilityStatus || []).some(
-    (x) => availabilityStatusMatrix[x].enabledFlag === false
+    (x) => availabilityStatusMatrix[x].enabledFlag === false,
   );
   const filter = {
     ...(params.reflectionNameOrDatasetPath && {
       reflectionNameOrDatasetPath: encodeURIComponent(
-        params.reflectionNameOrDatasetPath
+        params.reflectionNameOrDatasetPath,
       ),
     }),
     ...(availabilityStatus.length && { availabilityStatus }),
     ...(configStatus.length && { configStatus }),
+    ...(combinedStatus.length && { combinedStatus }),
     ...(params.reflectionType && { reflectionType: params.reflectionType }),
     ...(!enabledFlag && { enabledFlag: false }),
     ...(params.refreshStatus?.length && {
@@ -93,7 +100,7 @@ const getFilterConfig = (params: Params) => {
 };
 
 const extractJobLinkFilters = (
-  reflectionSummaries: ReflectionSummaries
+  reflectionSummaries: ReflectionSummaries,
 ): ReflectionSummaries => {
   const result = {
     ...reflectionSummaries,
@@ -103,8 +110,8 @@ const extractJobLinkFilters = (
         chosenJobsFilters: reflectionSummary.chosenJobsLink
           ? JSON.parse(
               decodeURIComponent(
-                reflectionSummary.chosenJobsLink.replace("/jobs?filters=", "")
-              )
+                reflectionSummary.chosenJobsLink.replace("/jobs?filters=", ""),
+              ),
             )
           : null,
         consideredJobsFilters: reflectionSummary.consideredJobsLink
@@ -112,16 +119,16 @@ const extractJobLinkFilters = (
               decodeURIComponent(
                 reflectionSummary.consideredJobsLink.replace(
                   "/jobs?filters=",
-                  ""
-                )
-              )
+                  "",
+                ),
+              ),
             )
           : null,
         matchedJobsFilters: reflectionSummary.matchedJobsLink
           ? JSON.parse(
               decodeURIComponent(
-                reflectionSummary.matchedJobsLink.replace("/jobs?filters=", "")
-              )
+                reflectionSummary.matchedJobsLink.replace("/jobs?filters=", ""),
+              ),
             )
           : null,
       };
@@ -131,12 +138,12 @@ const extractJobLinkFilters = (
 };
 
 export const getReflectionSummary = async (
-  params: Params
+  params: Params,
 ): Promise<ReflectionSummaries> => {
   return getApiContext()
     .fetch(reflectionSummaryUrl(getFilterConfig(params)))
     .then((res) => res.json())
     .then((reflectionSummaries: ReflectionSummaries) =>
-      extractJobLinkFilters(reflectionSummaries)
+      extractJobLinkFilters(reflectionSummaries),
     );
 };

@@ -15,9 +15,7 @@
  */
 package com.dremio.exec.store;
 
-/**
- * Thrown if a reference is not found by a timestamp
- */
+/** Thrown if a reference is not found by a timestamp */
 public class ReferenceNotFoundByTimestampException extends RuntimeException {
   private static final long serialVersionUID = 1L;
 

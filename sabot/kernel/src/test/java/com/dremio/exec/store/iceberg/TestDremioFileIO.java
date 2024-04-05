@@ -22,18 +22,16 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.io.FileNotFoundException;
-import java.nio.file.attribute.FileTime;
-
-import org.apache.hadoop.conf.Configuration;
-import org.joda.time.DateTime;
-import org.junit.Before;
-import org.junit.Test;
-
 import com.dremio.exec.hadoop.HadoopFileSystemConfigurationAdapter;
 import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
+import java.io.FileNotFoundException;
+import java.nio.file.attribute.FileTime;
+import org.apache.hadoop.conf.Configuration;
+import org.joda.time.DateTime;
+import org.junit.Before;
+import org.junit.Test;
 
 public class TestDremioFileIO {
 
@@ -43,8 +41,14 @@ public class TestDremioFileIO {
   @Before
   public void beforeTest() throws Exception {
     fs = mock(FileSystem.class);
-    io = new DremioFileIO(fs, null, null, null, null,
-        new HadoopFileSystemConfigurationAdapter(new Configuration()));
+    io =
+        new DremioFileIO(
+            fs,
+            null,
+            null,
+            null,
+            null,
+            new HadoopFileSystemConfigurationAdapter(new Configuration()));
   }
 
   @Test
@@ -55,9 +59,12 @@ public class TestDremioFileIO {
     when(fs.getFileAttributes(any())).thenReturn(fileAttributes);
     when(fileAttributes.lastModifiedTime()).thenReturn(lastModifiedTime);
     when(fileAttributes.size()).thenReturn(1L);
-    DremioInputFile inputFile = (DremioInputFile)io.newInputFile("dummy");
+    DremioInputFile inputFile = (DremioInputFile) io.newInputFile("dummy");
     long version = inputFile.getVersion();
-    assertEquals("file version should be equal to the last file modification time", lastModifiedTime.toMillis(), version);
+    assertEquals(
+        "file version should be equal to the last file modification time",
+        lastModifiedTime.toMillis(),
+        version);
   }
 
   @Test
@@ -65,7 +72,7 @@ public class TestDremioFileIO {
     when(fs.supportsPathsWithScheme()).thenReturn(true);
     when(fs.getFileAttributes(any())).thenThrow(new FileNotFoundException());
     when(fs.exists(Path.of("dummy"))).thenReturn(false);
-    DremioInputFile inputFile = (DremioInputFile)io.newInputFile("dummy");
+    DremioInputFile inputFile = (DremioInputFile) io.newInputFile("dummy");
     assertFalse(inputFile.exists());
   }
 }

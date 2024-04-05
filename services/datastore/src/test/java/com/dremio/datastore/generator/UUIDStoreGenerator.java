@@ -15,19 +15,19 @@
  */
 package com.dremio.datastore.generator;
 
+import com.dremio.datastore.generator.supplier.fixed.FixedLengthStringSupplier;
 import java.util.Comparator;
 import java.util.UUID;
 import java.util.function.Supplier;
 
-import com.dremio.datastore.generator.supplier.fixed.FixedLengthStringSupplier;
-
 /**
  * Generates data for UUIDStores.
  *
- * Does not produce UUIDs in a sorted order.
+ * <p>Does not produce UUIDs in a sorted order.
  */
 public class UUIDStoreGenerator implements DataGenerator<UUID, String> {
-  private final Supplier<String> nextValue = new FixedLengthStringSupplier("Str1ng-@uuid-value#!=V");
+  private final Supplier<String> nextValue =
+      new FixedLengthStringSupplier("Str1ng-@uuid-value#!=V");
 
   @Override
   public UUID newKey() {

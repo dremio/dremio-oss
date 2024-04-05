@@ -15,9 +15,6 @@
  */
 package com.dremio.sabot.op.sender.partition;
 
-import java.io.IOException;
-import java.util.List;
-
 import com.dremio.exec.compile.TemplateClassDefinition;
 import com.dremio.exec.physical.config.HashPartitionSender;
 import com.dremio.exec.record.VectorAccessible;
@@ -25,31 +22,41 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.exec.rpc.TunnelProvider;
 import com.dremio.sabot.op.sender.SenderLatencyTracker;
+import java.io.IOException;
+import java.util.List;
 
 public interface Partitioner extends AutoCloseable {
 
-  void setup(VectorAccessible incoming,
+  void setup(
+      VectorAccessible incoming,
       HashPartitionSender popConfig,
       OperatorStats stats,
       OperatorContext context,
       TunnelProvider tunnelProvider,
       SenderLatencyTracker latencyTracker,
       int numPartitions,
-      int start, int end);
+      int start,
+      int end);
 
   void partitionBatch(VectorAccessible incoming) throws IOException;
+
   void flushOutgoingBatches() throws IOException;
+
   void sendTermination() throws IOException;
+
   List<? extends PartitionOutgoingBatch> getOutgoingBatches();
 
   /**
    * Method to get PartitionOutgoingBatch based on the fact that there can be > 1 Partitioner
+   *
    * @param index
-   * @return PartitionOutgoingBatch that matches index within Partitioner. This method can
-   * return null if index does not fall within boundary of this Partitioner
+   * @return PartitionOutgoingBatch that matches index within Partitioner. This method can return
+   *     null if index does not fall within boundary of this Partitioner
    */
   PartitionOutgoingBatch getOutgoingBatch(int index);
+
   OperatorStats getStats();
 
-  TemplateClassDefinition<Partitioner> TEMPLATE_DEFINITION = new TemplateClassDefinition<>(Partitioner.class, PartitionerTemplate.class);
+  TemplateClassDefinition<Partitioner> TEMPLATE_DEFINITION =
+      new TemplateClassDefinition<>(Partitioner.class, PartitionerTemplate.class);
 }

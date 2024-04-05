@@ -15,24 +15,23 @@
  */
 package com.dremio.exec.rpc;
 
-import java.util.List;
-
 import com.dremio.common.exceptions.ErrorCompatibility;
 import com.dremio.exec.proto.GeneralRPCProtos.RpcMode;
 import com.dremio.exec.proto.UserBitShared.DremioPBError;
 import com.google.protobuf.MessageLite;
-
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.MessageToMessageEncoder;
+import java.util.List;
 
 /**
  * A message encoder to reencode error messages so they are backward compatible with Drill
  *
- * Located in this package due to package privacy settings of OutboundRpcMessage.
+ * <p>Located in this package due to package privacy settings of OutboundRpcMessage.
  */
 public final class RpcCompatibilityEncoder extends MessageToMessageEncoder<OutboundRpcMessage> {
   @Override
-  protected void encode(ChannelHandlerContext context, OutboundRpcMessage message, List<Object> out) throws Exception {
+  protected void encode(ChannelHandlerContext context, OutboundRpcMessage message, List<Object> out)
+      throws Exception {
     if (message.mode != RpcMode.RESPONSE_FAILURE) {
       out.add(message);
       return;
@@ -47,7 +46,8 @@ public final class RpcCompatibilityEncoder extends MessageToMessageEncoder<Outbo
     DremioPBError error = (DremioPBError) pBody;
     DremioPBError newError = ErrorCompatibility.convertIfNecessary(error);
 
-    out.add(new OutboundRpcMessage(message.mode, message.rpcType, message.coordinationId, newError, message.dBodies));
+    out.add(
+        new OutboundRpcMessage(
+            message.mode, message.rpcType, message.coordinationId, newError, message.dBodies));
   }
-
 }

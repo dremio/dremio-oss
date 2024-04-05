@@ -15,14 +15,11 @@
  */
 package com.dremio.dac.api;
 
-import java.util.List;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.List;
 
-/**
- * Home space
- */
+/** Home space */
 public class Home implements CatalogEntity {
   private final String id;
   private final String name;
@@ -31,11 +28,10 @@ public class Home implements CatalogEntity {
 
   @JsonCreator
   public Home(
-    @JsonProperty("id") String id,
-    @JsonProperty("name") String name,
-    @JsonProperty("tag") String tag,
-    @JsonProperty("children") List<CatalogItem> children
-  ) {
+      @JsonProperty("id") String id,
+      @JsonProperty("name") String name,
+      @JsonProperty("tag") String tag,
+      @JsonProperty("children") List<CatalogItem> children) {
     this.id = id;
     this.name = name;
     this.tag = tag;

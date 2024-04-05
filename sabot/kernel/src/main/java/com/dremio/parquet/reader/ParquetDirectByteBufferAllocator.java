@@ -16,21 +16,19 @@
 
 package com.dremio.parquet.reader;
 
+import io.netty.buffer.ByteBuf;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.parquet.bytes.ByteBufferAllocator;
 
-import io.netty.buffer.ByteBuf;
-
 /**
- * {@link ByteBufferAllocator} implementation that uses Dremio's {@link BufferAllocator} to allocate and release
- * {@link ByteBuffer} objects.<br>
- * To properly release an allocated {@link ByteBuf}, this class keeps track of it's corresponding {@link ByteBuffer}
- * that was passed to the Parquet library.
+ * {@link ByteBufferAllocator} implementation that uses Dremio's {@link BufferAllocator} to allocate
+ * and release {@link ByteBuffer} objects.<br>
+ * To properly release an allocated {@link ByteBuf}, this class keeps track of it's corresponding
+ * {@link ByteBuffer} that was passed to the Parquet library.
  */
 public class ParquetDirectByteBufferAllocator implements ByteBufferAllocator {
 
@@ -47,7 +45,8 @@ public class ParquetDirectByteBufferAllocator implements ByteBufferAllocator {
     ByteBuffer b = bb.nioBuffer(0, sz);
     final Key key = new Key(b);
     allocatedBuffers.put(key, bb);
-//    logger.debug("ParquetDirectByteBufferAllocator: Allocated {} bytes. Allocated ByteBuffer id: {}", sz, key.hash);
+    //    logger.debug("ParquetDirectByteBufferAllocator: Allocated {} bytes. Allocated ByteBuffer
+    // id: {}", sz, key.hash);
     return b;
   }
 
@@ -57,8 +56,9 @@ public class ParquetDirectByteBufferAllocator implements ByteBufferAllocator {
     final ArrowBuf bb = allocatedBuffers.get(key);
     // The ByteBuffer passed in may already have been freed or not allocated by this allocator.
     // If it is not found in the allocated buffers, do nothing
-    if(bb != null) {
-//      logger.debug("ParquetDirectByteBufferAllocator: Freed byte buffer. Allocated ByteBuffer id: {}", key.hash);
+    if (bb != null) {
+      //      logger.debug("ParquetDirectByteBufferAllocator: Freed byte buffer. Allocated
+      // ByteBuffer id: {}", key.hash);
       bb.close();
       allocatedBuffers.remove(key);
     }
@@ -70,13 +70,15 @@ public class ParquetDirectByteBufferAllocator implements ByteBufferAllocator {
   }
 
   /**
-   * ByteBuffer wrapper that computes a fixed hashcode.
-   * <br><br>
-   * Parquet only handles {@link ByteBuffer} objects, so we need to use them as keys to keep track of their corresponding
-   * {@link ByteBuf}, but {@link ByteBuffer} is mutable and it can't be used as a {@link HashMap} key as it is.<br>
-   * This class solves this by providing a fixed hashcode for {@link ByteBuffer} and uses reference equality in case
-   * of collisions (we don't need to compare the content of {@link ByteBuffer} because the object passed to
-   * {@link #release(ByteBuffer)} will be the same object returned from a previous {@link #allocate(int)}.
+   * ByteBuffer wrapper that computes a fixed hashcode. <br>
+   * <br>
+   * Parquet only handles {@link ByteBuffer} objects, so we need to use them as keys to keep track
+   * of their corresponding {@link ByteBuf}, but {@link ByteBuffer} is mutable and it can't be used
+   * as a {@link HashMap} key as it is.<br>
+   * This class solves this by providing a fixed hashcode for {@link ByteBuffer} and uses reference
+   * equality in case of collisions (we don't need to compare the content of {@link ByteBuffer}
+   * because the object passed to {@link #release(ByteBuffer)} will be the same object returned from
+   * a previous {@link #allocate(int)}.
    */
   private static final class Key {
     private final int hash;

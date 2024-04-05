@@ -15,11 +15,6 @@
  */
 package com.dremio.exec.planner.fragment;
 
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.physical.base.AbstractPhysicalVisitor;
 import com.dremio.exec.physical.base.AbstractWriter;
@@ -35,8 +30,14 @@ import com.dremio.exec.store.schedule.CompleteWork;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Lists;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
-public class Materializer extends AbstractPhysicalVisitor<PhysicalOperator, Materializer.IndexedFragmentNode, ExecutionSetupException>{
+public class Materializer
+    extends AbstractPhysicalVisitor<
+        PhysicalOperator, Materializer.IndexedFragmentNode, ExecutionSetupException> {
 
   private final Map<GroupScan, ListMultimap<Integer, CompleteWork>> splitSets;
   private EndpointsIndex.Builder indexBuilder;
@@ -47,33 +48,40 @@ public class Materializer extends AbstractPhysicalVisitor<PhysicalOperator, Mate
 
   private Set<Integer> extCommunicableMajorFragments = new HashSet<>();
 
-  Materializer(Map<GroupScan, ListMultimap<Integer, CompleteWork>> splitSets, EndpointsIndex.Builder indexBuilder) {
+  Materializer(
+      Map<GroupScan, ListMultimap<Integer, CompleteWork>> splitSets,
+      EndpointsIndex.Builder indexBuilder) {
     this.splitSets = splitSets;
     this.indexBuilder = indexBuilder;
   }
 
   @Override
-  public PhysicalOperator visitExchange(Exchange exchange, IndexedFragmentNode iNode) throws ExecutionSetupException {
+  public PhysicalOperator visitExchange(Exchange exchange, IndexedFragmentNode iNode)
+      throws ExecutionSetupException {
     iNode.addAllocation(exchange);
     extCommunicableMajorFragments.addAll(exchange.getExtCommunicableMajorFragments());
 
-    if(exchange == iNode.getNode().getSendingExchange()){
+    if (exchange == iNode.getNode().getSendingExchange()) {
       // this is a sending exchange.
 
       PhysicalOperator child = exchange.getChild().accept(this, iNode);
-      PhysicalOperator materializedSender = exchange.getSender(iNode.getMinorFragmentId(), child, indexBuilder);
+      PhysicalOperator materializedSender =
+          exchange.getSender(iNode.getMinorFragmentId(), child, indexBuilder);
       return materializedSender;
 
-    }else{
+    } else {
       // receiving exchange.
-      PhysicalOperator materializedReceiver = exchange.getReceiver(iNode.getMinorFragmentId(), indexBuilder);
+      PhysicalOperator materializedReceiver =
+          exchange.getReceiver(iNode.getMinorFragmentId(), indexBuilder);
       return materializedReceiver;
     }
   }
 
   @SuppressWarnings("unchecked")
   @Override
-  public PhysicalOperator visitGroupScan(@SuppressWarnings("rawtypes") GroupScan groupScan, IndexedFragmentNode iNode) throws ExecutionSetupException {
+  public PhysicalOperator visitGroupScan(
+      @SuppressWarnings("rawtypes") GroupScan groupScan, IndexedFragmentNode iNode)
+      throws ExecutionSetupException {
     ListMultimap<Integer, CompleteWork> splits = splitSets.get(groupScan);
     Preconditions.checkNotNull(splits);
     List<CompleteWork> work = splits.get(iNode.getMinorFragmentId());
@@ -86,7 +94,8 @@ public class Materializer extends AbstractPhysicalVisitor<PhysicalOperator, Mate
   }
 
   @Override
-  public PhysicalOperator visitSubScan(SubScan subScan, IndexedFragmentNode value) throws ExecutionSetupException {
+  public PhysicalOperator visitSubScan(SubScan subScan, IndexedFragmentNode value)
+      throws ExecutionSetupException {
     value.addAllocation(subScan);
     extCommunicableMajorFragments.addAll(subScan.getExtCommunicableMajorFragments());
     // TODO - implement this
@@ -94,17 +103,19 @@ public class Materializer extends AbstractPhysicalVisitor<PhysicalOperator, Mate
   }
 
   @Override
-  public PhysicalOperator visitBridgeFileReader(BridgeFileReader op, IndexedFragmentNode iNode) throws ExecutionSetupException {
+  public PhysicalOperator visitBridgeFileReader(BridgeFileReader op, IndexedFragmentNode iNode)
+      throws ExecutionSetupException {
     return visitOp(op, iNode);
   }
 
   @Override
-  public PhysicalOperator visitOp(PhysicalOperator op, IndexedFragmentNode iNode) throws ExecutionSetupException {
+  public PhysicalOperator visitOp(PhysicalOperator op, IndexedFragmentNode iNode)
+      throws ExecutionSetupException {
     iNode.addAllocation(op);
-//    logger.debug("Visiting catch all: {}", op);
+    //    logger.debug("Visiting catch all: {}", op);
     extCommunicableMajorFragments.addAll(op.getExtCommunicableMajorFragments());
     List<PhysicalOperator> children = Lists.newArrayList();
-    for(PhysicalOperator child : op){
+    for (PhysicalOperator child : op) {
       children.add(child.accept(this, iNode));
     }
     PhysicalOperator newOp = op.getNewWithChildren(children);
@@ -112,18 +123,17 @@ public class Materializer extends AbstractPhysicalVisitor<PhysicalOperator, Mate
   }
 
   @Override
-  public PhysicalOperator visitWriter(Writer op, IndexedFragmentNode iNode) throws ExecutionSetupException {
+  public PhysicalOperator visitWriter(Writer op, IndexedFragmentNode iNode)
+      throws ExecutionSetupException {
     if (AbstractWriter.class.isAssignableFrom(op.getClass())) {
-      setTruncatedRecordLimit((AbstractWriter) op,
-                              iNode.getInfo().getWidth());
+      setTruncatedRecordLimit((AbstractWriter) op, iNode.getInfo().getWidth());
     }
     return visitOp(op, iNode);
   }
 
   /**
-   * If output records needs to be truncated,
-   * this method computes the number of records to be written per minor fragment
-   * and sets the computed number in WriterOptions in the AbstractWriter.
+   * If output records needs to be truncated, this method computes the number of records to be
+   * written per minor fragment and sets the computed number in WriterOptions in the AbstractWriter.
    *
    * @param abstractWriter
    * @param numMinorFragments
@@ -131,12 +141,14 @@ public class Materializer extends AbstractPhysicalVisitor<PhysicalOperator, Mate
   private void setTruncatedRecordLimit(AbstractWriter abstractWriter, int numMinorFragments) {
     WriterOptions wo = abstractWriter.getOptions();
     if (wo.isOutputLimitEnabled()) {
-      wo.setRecordLimit(Math.max(PlannerSettings.MIN_RECORDS_PER_FRAGMENT,
-                                 wo.getOutputLimitSize() / numMinorFragments));
+      wo.setRecordLimit(
+          Math.max(
+              PlannerSettings.MIN_RECORDS_PER_FRAGMENT,
+              wo.getOutputLimitSize() / numMinorFragments));
     }
   }
 
-  public static class IndexedFragmentNode{
+  public static class IndexedFragmentNode {
     final Wrapper info;
     final int minorFragmentId;
 
@@ -161,7 +173,5 @@ public class Materializer extends AbstractPhysicalVisitor<PhysicalOperator, Mate
     public void addAllocation(PhysicalOperator pop) {
       info.addAllocation(pop);
     }
-
   }
-
 }

@@ -18,80 +18,73 @@ package com.dremio.exec.server.options;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import org.junit.Test;
-
 import com.dremio.options.OptionValue;
 import com.dremio.options.OptionValueProto;
+import org.junit.Test;
 
-/**
- * Tests for {@link OptionValueProtoUtils}
- */
+/** Tests for {@link OptionValueProtoUtils} */
 public class TestOptionValueProtoUtils {
 
   @Test
   public void testBoolOptionToProto() {
-    final OptionValue option = OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, "test.option", true);
+    final OptionValue option =
+        OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, "test.option", true);
     final OptionValueProto optionProto = OptionValueProtoUtils.toOptionValueProto(option);
     assertTrue(verifyEquivalent(option, optionProto));
   }
 
   @Test
   public void testLongOptionToProto() {
-    final OptionValue option = OptionValue.createLong(OptionValue.OptionType.SYSTEM, "test.option", 1234);
+    final OptionValue option =
+        OptionValue.createLong(OptionValue.OptionType.SYSTEM, "test.option", 1234);
     final OptionValueProto optionProto = OptionValueProtoUtils.toOptionValueProto(option);
     assertTrue(verifyEquivalent(option, optionProto));
   }
 
   @Test
   public void testStringOptionToProto() {
-    final OptionValue option = OptionValue.createString(OptionValue.OptionType.SYSTEM, "test.option", "test-option");
+    final OptionValue option =
+        OptionValue.createString(OptionValue.OptionType.SYSTEM, "test.option", "test-option");
     final OptionValueProto optionProto = OptionValueProtoUtils.toOptionValueProto(option);
     assertTrue(verifyEquivalent(option, optionProto));
   }
 
   @Test
   public void testDoubleOptionToProto() {
-    final OptionValue option = OptionValue.createDouble(OptionValue.OptionType.SYSTEM, "test.option", 1234.1234);
+    final OptionValue option =
+        OptionValue.createDouble(OptionValue.OptionType.SYSTEM, "test.option", 1234.1234);
     final OptionValueProto optionProto = OptionValueProtoUtils.toOptionValueProto(option);
     assertTrue(verifyEquivalent(option, optionProto));
   }
 
   @Test
   public void testBoolOptionFromProto() {
-    final OptionValueProto optionProto = OptionValueProto.newBuilder()
-      .setName("test.option")
-      .setBoolVal(true)
-      .build();
+    final OptionValueProto optionProto =
+        OptionValueProto.newBuilder().setName("test.option").setBoolVal(true).build();
     final OptionValue option = OptionValueProtoUtils.toOptionValue(optionProto);
     assertTrue(verifyEquivalent(option, optionProto));
   }
 
   @Test
   public void testLongOptionFromProto() {
-    final OptionValueProto optionProto = OptionValueProto.newBuilder()
-      .setName("test.option")
-      .setNumVal(1234)
-      .build();
+    final OptionValueProto optionProto =
+        OptionValueProto.newBuilder().setName("test.option").setNumVal(1234).build();
     final OptionValue option = OptionValueProtoUtils.toOptionValue(optionProto);
     assertTrue(verifyEquivalent(option, optionProto));
   }
 
   @Test
   public void testStringOptionFromProto() {
-    final OptionValueProto optionProto = OptionValueProto.newBuilder()
-      .setName("test.option")
-      .setStringVal("test-option")
-      .build();
+    final OptionValueProto optionProto =
+        OptionValueProto.newBuilder().setName("test.option").setStringVal("test-option").build();
     final OptionValue option = OptionValueProtoUtils.toOptionValue(optionProto);
     assertTrue(verifyEquivalent(option, optionProto));
   }
 
   @Test
   public void testFloatOptionFromProto() {
-    final OptionValueProto optionProto = OptionValueProto.newBuilder()
-      .setName("test.option")
-      .setFloatVal(1234.1234)
-      .build();
+    final OptionValueProto optionProto =
+        OptionValueProto.newBuilder().setName("test.option").setFloatVal(1234.1234).build();
     final OptionValue option = OptionValueProtoUtils.toOptionValue(optionProto);
     assertTrue(verifyEquivalent(option, optionProto));
   }
@@ -99,7 +92,7 @@ public class TestOptionValueProtoUtils {
   private boolean verifyEquivalent(OptionValue optionValue, OptionValueProto optionValueProto) {
     checkName(optionValue, optionValueProto);
 
-    switch(optionValue.getKind()) {
+    switch (optionValue.getKind()) {
       case BOOLEAN:
         return optionValue.getBoolVal().equals(optionValueProto.getBoolVal());
       case LONG:

@@ -100,7 +100,7 @@ export const UPDATE_SCRIPT_FAILURE = "UPDATE_SCRIPT_FAILURE";
 export function updateScript(
   payload: any,
   scriptId: string,
-  hideFail: boolean
+  hideFail: boolean,
 ): any {
   const meta = { viewId: "AllScripts" };
   const apiCall = new APIV2Call().path("scripts").path(scriptId);
@@ -154,7 +154,7 @@ export const SET_TAB_VIEW = "SET_TAB_VIEW";
 
 export const setTabView = (
   script: Record<string, any>,
-  prevScript: Record<string, any>
+  prevScript: Record<string, any>,
 ) => ({
   type: SET_TAB_VIEW,
   script,
@@ -172,7 +172,7 @@ export const POLL_SCRIPT_JOBS = "POLL_SCRIPT_JOBS";
 
 export const pollScriptJobs = (
   script: Record<string, any>,
-  queryStatuses: Record<string, any>[]
+  queryStatuses: Record<string, any>[],
 ) => ({
   type: POLL_SCRIPT_JOBS,
   script,
@@ -189,4 +189,11 @@ export const CLEAR_SCRIPT_STATE = "CLEAR_SCRIPT_STATE";
 
 export const clearActiveScript = () => ({
   type: CLEAR_SCRIPT_STATE,
+});
+
+export const LOAD_SCRIPT_JOBS = "LOAD_SCRIPT_JOBS";
+
+export const loadScriptJobs = (script: Record<string, any>) => ({
+  type: LOAD_SCRIPT_JOBS,
+  script,
 });

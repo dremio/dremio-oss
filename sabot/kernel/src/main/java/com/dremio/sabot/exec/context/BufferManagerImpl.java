@@ -15,30 +15,28 @@
  */
 package com.dremio.sabot.exec.context;
 
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.carrotsearch.hppc.LongObjectHashMap;
 import com.carrotsearch.hppc.predicates.LongObjectPredicate;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.BufferAllocator;
 
 public class BufferManagerImpl implements SlicedBufferManager {
   private LongObjectHashMap<ArrowBuf> managedBuffers = new LongObjectHashMap<>();
   private final BufferAllocator allocator;
 
   /**
-   * This class keeps a pre-allocated large buffer & serve any subsequent allocation
-   * requests via slicing from this large buffer.
-   * This helps in reducing the heap allocation overhead as sliced ArrowBuf has smaller footprint.
-   * Also, the allocation of large buffer may be optimized by doing power-of-2 allocations.
+   * This class keeps a pre-allocated large buffer & serve any subsequent allocation requests via
+   * slicing from this large buffer. This helps in reducing the heap allocation overhead as sliced
+   * ArrowBuf has smaller footprint. Also, the allocation of large buffer may be optimized by doing
+   * power-of-2 allocations.
    *
-   * largeBufCapacity: the capacity of the largeBuf
-   * largeBufUsed tracks: how much memory has been sliced away from the largeBuf
+   * <p>largeBufCapacity: the capacity of the largeBuf largeBufUsed tracks: how much memory has been
+   * sliced away from the largeBuf
    */
   private int largeBufCapacity;
+
   private int largeBufUsed;
   private ArrowBuf largeBuf;
-
 
   public BufferManagerImpl(BufferAllocator allocator) {
     this.allocator = allocator;
@@ -53,13 +51,14 @@ public class BufferManagerImpl implements SlicedBufferManager {
 
   @Override
   public void close() {
-    managedBuffers.forEach(new LongObjectPredicate<ArrowBuf>() {
-      @Override
-      public boolean apply(long key, ArrowBuf value) {
-        value.close();
-        return true;
-      }
-    });
+    managedBuffers.forEach(
+        new LongObjectPredicate<ArrowBuf>() {
+          @Override
+          public boolean apply(long key, ArrowBuf value) {
+            value.close();
+            return true;
+          }
+        });
     managedBuffers.clear();
   }
 

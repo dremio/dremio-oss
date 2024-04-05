@@ -17,10 +17,9 @@ package com.dremio.exec.store.excel;
 
 import static org.junit.Assert.assertEquals;
 
+import com.dremio.exec.store.easy.excel.ColumnNameHandler;
 import org.junit.Before;
 import org.junit.Test;
-
-import com.dremio.exec.store.easy.excel.ColumnNameHandler;
 
 public class TestColumnNameHandler {
 

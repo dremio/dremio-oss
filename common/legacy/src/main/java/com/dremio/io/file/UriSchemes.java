@@ -15,9 +15,7 @@
  */
 package com.dremio.io.file;
 
-/**
- * Listing of schemes supported in Dremio.
- */
+/** Listing of schemes supported in Dremio. */
 public interface UriSchemes {
   String HDFS_SCHEME = "hdfs";
   String MAPRFS_SCHEME = "maprfs";

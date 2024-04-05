@@ -17,16 +17,14 @@ package com.dremio.exec.planner.sql.handlers.refresh;
 
 import static com.dremio.exec.store.metadatarefresh.RefreshDatasetTestUtils.fsDelete;
 
+import com.dremio.BaseTestQuery;
 import java.nio.file.Paths;
-
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.Test;
-
-import com.dremio.BaseTestQuery;
 
 public class TestFileSystemFullRefreshPlanBuilder extends BaseTestQuery {
   private static FileSystem fs;
@@ -44,7 +42,9 @@ public class TestFileSystemFullRefreshPlanBuilder extends BaseTestQuery {
     }
     fs.mkdirs(p);
 
-    copyFromJar("metadatarefresh/incrementRefreshAddingPartition", Paths.get(testRootPath + "/incrementRefreshAddingPartition"));
+    copyFromJar(
+        "metadatarefresh/incrementRefreshAddingPartition",
+        Paths.get(testRootPath + "/incrementRefreshAddingPartition"));
     BaseTestQuery.setEnableReAttempts(true);
     BaseTestQuery.disablePlanCache();
   }
@@ -53,7 +53,8 @@ public class TestFileSystemFullRefreshPlanBuilder extends BaseTestQuery {
   public void cleanup() throws Exception {
     Path p = new Path(testRootPath);
     fs.delete(p, true);
-    //TODO: also cleanup the KV store so that if 2 tests are working on the same dataset we don't get issues.
+    // TODO: also cleanup the KV store so that if 2 tests are working on the same dataset we don't
+    // get issues.
   }
 
   @AfterClass
@@ -63,15 +64,13 @@ public class TestFileSystemFullRefreshPlanBuilder extends BaseTestQuery {
 
   @Test
   public void testIncrementalRefreshFailureAfterIcebergCommit() throws Exception {
-    try (AutoCloseable c1 = enableUnlimitedSplitsSupportFlags()) {
-      String sql = "refresh dataset dfs.tmp.metadatarefreshfailures.incrementRefreshAddingPartition";
+    String sql = "refresh dataset dfs.tmp.metadatarefreshfailures.incrementRefreshAddingPartition";
 
-      // this will do a full refresh first
-      runSQL(sql);
+    // this will do a full refresh first
+    runSQL(sql);
 
-      // now run with incorrect casing to check it still passes
-      sql = "refresh dataset dfs.tmp.metadatarefreshfailures.incrementRefreshAddingPARTITION";
-      runSQL(sql);
-    }
+    // now run with incorrect casing to check it still passes
+    sql = "refresh dataset dfs.tmp.metadatarefreshfailures.incrementRefreshAddingPARTITION";
+    runSQL(sql);
   }
 }

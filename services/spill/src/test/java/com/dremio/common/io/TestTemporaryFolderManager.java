@@ -37,7 +37,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.IntSupplier;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -50,9 +49,7 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-/**
- * Test the temporary folder management functionality.
- */
+/** Test the temporary folder management functionality. */
 @RunWith(Parameterized.class)
 public class TestTemporaryFolderManager {
   private static final int DEFAULT_TEST_STALENESS_LIMIT_SECONDS = 5;
@@ -72,21 +69,16 @@ public class TestTemporaryFolderManager {
   @Parameterized.Parameters(name = "Executor 1: {0}, Executor 2: {1}, Executor 3: {2}")
   public static List<Object[]> parameters() {
     return Arrays.asList(
-      new Object[]{"localhost1", "localhost2", "localhost3"},
-      new Object[]{
-        "dremio-executor-reflections-1.dremio-cluster-pod.abc-test.svc.cluster.local",
-        "dremio-executor-reflections-2.dremio-cluster-pod.abc-test.svc.cluster.local",
-        "dremio-executor-reflections-3.dremio-cluster-pod.abc-test.svc.cluster.local"
-      },
-      new Object[]{
-        "192.168.1.1",
-        "192.168.1.2",
-        "http://192.168.1.3"
-      });
+        new Object[] {"localhost1", "localhost2", "localhost3"},
+        new Object[] {
+          "dremio-executor-reflections-1.dremio-cluster-pod.abc-test.svc.cluster.local",
+          "dremio-executor-reflections-2.dremio-cluster-pod.abc-test.svc.cluster.local",
+          "dremio-executor-reflections-3.dremio-cluster-pod.abc-test.svc.cluster.local"
+        },
+        new Object[] {"192.168.1.1", "192.168.1.2", "http://192.168.1.3"});
   }
 
-  @Rule
-  public TemporaryFolder testRootDir = new TemporaryFolder();
+  @Rule public TemporaryFolder testRootDir = new TemporaryFolder();
 
   private final ExecutorId thisExecutor;
   private final ExecutorId otherExecutor1;
@@ -114,8 +106,7 @@ public class TestTemporaryFolderManager {
   }
 
   @After
-  public void tearDown() throws Exception {
-  }
+  public void tearDown() throws Exception {}
 
   @Test
   public void testTempDirsAreCreated() throws Exception {
@@ -225,8 +216,8 @@ public class TestTemporaryFolderManager {
   @Test
   public void testAutoClose() throws Exception {
     final Path testPath = new Path(testRootDir.newFolder().getPath());
-    try (TemporaryFolderManager manager = new DefaultTemporaryFolderManager(() -> otherExecutor1, TEST_CONFIG,
-      () -> null, "test")) {
+    try (TemporaryFolderManager manager =
+        new DefaultTemporaryFolderManager(() -> otherExecutor1, TEST_CONFIG, () -> null, "test")) {
       manager.startMonitoring();
       manager.createTmpDirectory(testPath);
     }
@@ -239,7 +230,7 @@ public class TestTemporaryFolderManager {
     folderManagerUnderTest.close();
     final Path testPath = new Path(testRootDir.newFolder().getPath());
     assertThatThrownBy(() -> folderManagerUnderTest.createTmpDirectory(testPath))
-      .hasMessageContaining("closed");
+        .hasMessageContaining("closed");
   }
 
   @Test
@@ -272,13 +263,15 @@ public class TestTemporaryFolderManager {
     }
   }
 
-  private void assertRootPathsHasTempDirs(int expectedExecutors, int expectedIncarnations) throws IOException {
+  private void assertRootPathsHasTempDirs(int expectedExecutors, int expectedIncarnations)
+      throws IOException {
     for (final Path rootPath : rootPaths) {
       assertIndividualPath(rootPath, expectedExecutors, expectedIncarnations);
     }
   }
 
-  private void assertIndividualPath(Path rootPath, int expectedExecutors, int expectedIncarnations) throws IOException {
+  private void assertIndividualPath(Path rootPath, int expectedExecutors, int expectedIncarnations)
+      throws IOException {
     final FileSystem fs = rootPath.getFileSystem(TEST_CONFIG);
     final FileStatus[] statuses = fs.listStatus(rootPath);
     assertThat(statuses).hasSize(expectedExecutors);
@@ -286,7 +279,7 @@ public class TestTemporaryFolderManager {
       assertTrue(status.isDirectory());
       final FileStatus[] l2Statuses = fs.listStatus(status.getPath());
       assertThat(l2Statuses).hasSize(expectedIncarnations);
-      for (final  FileStatus l2Status : l2Statuses) {
+      for (final FileStatus l2Status : l2Statuses) {
         assertTrue(l2Status.isDirectory());
         long incarnation = Long.parseLong(l2Status.getPath().getName());
         assertThat(incarnation).isGreaterThan(Instant.now().toEpochMilli() - 60000);
@@ -294,15 +287,17 @@ public class TestTemporaryFolderManager {
     }
   }
 
-  private void assertRootPathsHasTempDirsWithWait(int maxWaitSeconds, int expectedExecutors,
-                                                  int[] expectedIncarnations) throws IOException {
+  private void assertRootPathsHasTempDirsWithWait(
+      int maxWaitSeconds, int expectedExecutors, int[] expectedIncarnations) throws IOException {
     for (final Path rootPath : rootPaths) {
-      assertIndividualPathWithWait(maxWaitSeconds, rootPath, expectedExecutors, expectedIncarnations);
+      assertIndividualPathWithWait(
+          maxWaitSeconds, rootPath, expectedExecutors, expectedIncarnations);
     }
   }
 
-  private void assertIndividualPathWithWait(int maxWaitSeconds, Path rootPath, int expectedExecutors,
-                                            int[] expectedIncarnations) throws IOException {
+  private void assertIndividualPathWithWait(
+      int maxWaitSeconds, Path rootPath, int expectedExecutors, int[] expectedIncarnations)
+      throws IOException {
     final FileSystem fs = rootPath.getFileSystem(TEST_CONFIG);
     final FileStatus[] statuses = fs.listStatus(rootPath);
     assertThat(statuses).hasSize(expectedExecutors);
@@ -310,16 +305,19 @@ public class TestTemporaryFolderManager {
       assertTrue(status.isDirectory());
       String executor = status.getPath().getName();
       int idx = executor.charAt(executor.length() - 1) - '0';
-      waitUntil(maxWaitSeconds, expectedIncarnations[idx], () -> {
-        try {
-          return fs.listStatus(status.getPath()).length;
-        } catch (IOException e) {
-          return 0;
-        }
-      });
+      waitUntil(
+          maxWaitSeconds,
+          expectedIncarnations[idx],
+          () -> {
+            try {
+              return fs.listStatus(status.getPath()).length;
+            } catch (IOException e) {
+              return 0;
+            }
+          });
       final FileStatus[] l2Statuses = fs.listStatus(status.getPath());
       assertThat(l2Statuses).hasSize(expectedIncarnations[idx]);
-      for (final  FileStatus l2Status : l2Statuses) {
+      for (final FileStatus l2Status : l2Statuses) {
         assertTrue(l2Status.isDirectory());
         long incarnation = Long.parseLong(l2Status.getPath().getName());
         assertThat(incarnation).isGreaterThan(Instant.now().toEpochMilli() - 60000);
@@ -354,8 +352,9 @@ public class TestTemporaryFolderManager {
   }
 
   private TemporaryFolderManager createManager() throws IOException {
-    final TemporaryFolderManager mgrUnderTest = new DefaultTemporaryFolderManager(() -> thisExecutor, TEST_CONFIG,
-      () -> null, "test", new TestCleanupConfig());
+    final TemporaryFolderManager mgrUnderTest =
+        new DefaultTemporaryFolderManager(
+            () -> thisExecutor, TEST_CONFIG, () -> null, "test", new TestCleanupConfig());
     mgrUnderTest.startMonitoring();
     for (final Path rootPath : rootPaths) {
       mgrUnderTest.createTmpDirectory(rootPath);
@@ -363,10 +362,16 @@ public class TestTemporaryFolderManager {
     return mgrUnderTest;
   }
 
-  private TemporaryFolderManager createManager(ExecutorId executorId, int stale, int delay, int variation,
-                                               int unhealthy) throws IOException {
-    final TemporaryFolderManager mgrUnderTest = new DefaultTemporaryFolderManager(() -> executorId, TEST_CONFIG,
-      zkService, "test", new TestCleanupConfig(stale, delay, variation, unhealthy));
+  private TemporaryFolderManager createManager(
+      ExecutorId executorId, int stale, int delay, int variation, int unhealthy)
+      throws IOException {
+    final TemporaryFolderManager mgrUnderTest =
+        new DefaultTemporaryFolderManager(
+            () -> executorId,
+            TEST_CONFIG,
+            zkService,
+            "test",
+            new TestCleanupConfig(stale, delay, variation, unhealthy));
     mgrUnderTest.startMonitoring();
     for (final Path rootPath : rootPaths) {
       mgrUnderTest.createTmpDirectory(rootPath);
@@ -374,17 +379,23 @@ public class TestTemporaryFolderManager {
     return mgrUnderTest;
   }
 
-  private TemporaryFolderManager createManagerOnly(ExecutorId executorId, int stale, int delay, int variation,
-                                               int unhealthy) {
-    final TemporaryFolderManager mgrUnderTest = new DefaultTemporaryFolderManager(() -> executorId, TEST_CONFIG,
-      zkService, "test", new TestCleanupConfig(stale, delay, variation, unhealthy));
+  private TemporaryFolderManager createManagerOnly(
+      ExecutorId executorId, int stale, int delay, int variation, int unhealthy) {
+    final TemporaryFolderManager mgrUnderTest =
+        new DefaultTemporaryFolderManager(
+            () -> executorId,
+            TEST_CONFIG,
+            zkService,
+            "test",
+            new TestCleanupConfig(stale, delay, variation, unhealthy));
     mgrUnderTest.startMonitoring();
     return mgrUnderTest;
   }
 
   private TemporaryFolderManager createNullManager() {
-    final TemporaryFolderManager mgrUnderTest = new DefaultTemporaryFolderManager(() -> null, TEST_CONFIG,
-      () -> null, "test", new TestCleanupConfig());
+    final TemporaryFolderManager mgrUnderTest =
+        new DefaultTemporaryFolderManager(
+            () -> null, TEST_CONFIG, () -> null, "test", new TestCleanupConfig());
     mgrUnderTest.startMonitoring();
     return mgrUnderTest;
   }
@@ -438,10 +449,11 @@ public class TestTemporaryFolderManager {
     public Set<ExecutorId> get() {
       currentCycle.incrementAndGet();
       if (!transientMap.isEmpty()) {
-        final Set<ExecutorId> executorIds = transientMap.entrySet().stream()
-          .filter((e) -> e.getValue() > currentCycle.get())
-          .map(Map.Entry::getKey)
-          .collect(Collectors.toSet());
+        final Set<ExecutorId> executorIds =
+            transientMap.entrySet().stream()
+                .filter((e) -> e.getValue() > currentCycle.get())
+                .map(Map.Entry::getKey)
+                .collect(Collectors.toSet());
         availableExecutors.addAll(executorIds);
         executorIds.forEach(transientMap::remove);
       }
@@ -453,7 +465,8 @@ public class TestTemporaryFolderManager {
     }
   }
 
-  private static final class TestCleanupConfig implements DefaultTemporaryFolderManager.CleanupConfig {
+  private static final class TestCleanupConfig
+      implements DefaultTemporaryFolderManager.CleanupConfig {
     private final int stalenessLimitSeconds;
     private final int cleanupDelaySeconds;
     private final int cleanupDelayMaxVariationSeconds;
@@ -475,7 +488,8 @@ public class TestTemporaryFolderManager {
 
     @Override
     public int getStalenessOnRestartSeconds() {
-      // for tests, staleness checks can be same for restart of same executor and for monitoring other
+      // for tests, staleness checks can be same for restart of same executor and for monitoring
+      // other
       // executors
       return stalenessLimitSeconds;
     }

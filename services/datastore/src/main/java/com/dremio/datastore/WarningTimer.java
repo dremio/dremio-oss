@@ -15,16 +15,16 @@
  */
 package com.dremio.datastore;
 
+import com.google.common.base.Stopwatch;
 import java.util.concurrent.TimeUnit;
 
-import com.google.common.base.Stopwatch;
-
 /**
- * Fancy watch that computes the elapsed time between creation and closing and logs a warning if it exceeds
- * the given warnDelay
+ * Fancy watch that computes the elapsed time between creation and closing and logs a warning if it
+ * exceeds the given warnDelay
  */
 public final class WarningTimer implements AutoCloseable {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(WarningTimer.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(WarningTimer.class);
 
   private final Stopwatch stopwatch;
   private final String name;

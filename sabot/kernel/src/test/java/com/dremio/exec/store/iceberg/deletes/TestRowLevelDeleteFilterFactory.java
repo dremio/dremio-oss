@@ -27,22 +27,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.vector.IntVector;
-import org.apache.arrow.vector.SimpleIntVector;
-import org.apache.arrow.vector.types.Types;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.iceberg.FileContent;
-import org.junit.Before;
-import org.junit.Test;
-import org.mockito.Mock;
-
 import com.dremio.exec.store.TestOutputMutator;
 import com.dremio.exec.store.iceberg.deletes.RowLevelDeleteFilterFactory.DataFileInfo;
 import com.dremio.exec.store.iceberg.deletes.RowLevelDeleteFilterFactory.DeleteFileInfo;
@@ -53,6 +37,20 @@ import com.dremio.sabot.exec.context.OperatorContextImpl;
 import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.SimpleIntVector;
+import org.apache.arrow.vector.types.Types;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.iceberg.FileContent;
+import org.junit.Before;
+import org.junit.Test;
+import org.mockito.Mock;
 
 public class TestRowLevelDeleteFilterFactory extends BaseTestOperator {
 
@@ -63,51 +61,45 @@ public class TestRowLevelDeleteFilterFactory extends BaseTestOperator {
   private static final Path EQ_DELETE_FILE_1 = Path.of("eq-delete1");
   private static final Path EQ_DELETE_FILE_2 = Path.of("eq-delete2");
   private static final Path EQ_DELETE_FILE_3 = Path.of("eq-delete3");
-  private static final DeleteFileInfo POS_DELETE_FILE_INFO_1 = new DeleteFileInfo(POS_DELETE_FILE_1.toString(),
-      FileContent.POSITION_DELETES, 10, null);
-  private static final DeleteFileInfo POS_DELETE_FILE_INFO_2 = new DeleteFileInfo(POS_DELETE_FILE_2.toString(),
-      FileContent.POSITION_DELETES, 20, null);
-  private static final DeleteFileInfo POS_DELETE_FILE_INFO_3 = new DeleteFileInfo(POS_DELETE_FILE_3.toString(),
-      FileContent.POSITION_DELETES, 30, null);
-  private static final DeleteFileInfo EQ_DELETE_FILE_INFO_1 = new DeleteFileInfo(EQ_DELETE_FILE_1.toString(),
-      FileContent.EQUALITY_DELETES, 10, ImmutableList.of(1));
-  private static final DeleteFileInfo EQ_DELETE_FILE_INFO_2 = new DeleteFileInfo(EQ_DELETE_FILE_2.toString(),
-      FileContent.EQUALITY_DELETES, 20, ImmutableList.of(1));
-  private static final DeleteFileInfo EQ_DELETE_FILE_INFO_3 = new DeleteFileInfo(EQ_DELETE_FILE_3.toString(),
-      FileContent.EQUALITY_DELETES, 30, ImmutableList.of(1));
+  private static final DeleteFileInfo POS_DELETE_FILE_INFO_1 =
+      new DeleteFileInfo(POS_DELETE_FILE_1.toString(), FileContent.POSITION_DELETES, 10, null);
+  private static final DeleteFileInfo POS_DELETE_FILE_INFO_2 =
+      new DeleteFileInfo(POS_DELETE_FILE_2.toString(), FileContent.POSITION_DELETES, 20, null);
+  private static final DeleteFileInfo POS_DELETE_FILE_INFO_3 =
+      new DeleteFileInfo(POS_DELETE_FILE_3.toString(), FileContent.POSITION_DELETES, 30, null);
+  private static final DeleteFileInfo EQ_DELETE_FILE_INFO_1 =
+      new DeleteFileInfo(
+          EQ_DELETE_FILE_1.toString(), FileContent.EQUALITY_DELETES, 10, ImmutableList.of(1));
+  private static final DeleteFileInfo EQ_DELETE_FILE_INFO_2 =
+      new DeleteFileInfo(
+          EQ_DELETE_FILE_2.toString(), FileContent.EQUALITY_DELETES, 20, ImmutableList.of(1));
+  private static final DeleteFileInfo EQ_DELETE_FILE_INFO_3 =
+      new DeleteFileInfo(
+          EQ_DELETE_FILE_3.toString(), FileContent.EQUALITY_DELETES, 30, ImmutableList.of(1));
   private static final String DATA_FILE_1 = "file1";
   private static final String DATA_FILE_2 = "file2";
   private static final String DATA_FILE_3 = "file3";
   private static final List<Long> POSITIONS_1 = ImmutableList.of(1L, 2L, 3L);
   private static final List<Long> POSITIONS_2 = ImmutableList.of(4L, 5L, 6L);
   private static final List<Long> POSITIONS_3 = ImmutableList.of(7L, 8L, 9L);
-  private static final List<IcebergProtobuf.IcebergSchemaField> ICEBERG_FIELDS = ImmutableList.of(
-      IcebergProtobuf.IcebergSchemaField.newBuilder().setSchemaPath("col1").setId(1).build());
+  private static final List<IcebergProtobuf.IcebergSchemaField> ICEBERG_FIELDS =
+      ImmutableList.of(
+          IcebergProtobuf.IcebergSchemaField.newBuilder().setSchemaPath("col1").setId(1).build());
 
   private OperatorContextImpl context;
   private SimpleIntVector deltas;
   private TestOutputMutator mutator;
   private ArrowBuf validityBuf;
-  @Mock
-  private RowLevelDeleteFileReaderFactory readerFactory;
-  @Mock
-  private PositionalDeleteFileReader posReader1;
-  @Mock
-  private PositionalDeleteFileReader posReader2;
-  @Mock
-  private PositionalDeleteFileReader posReader3;
-  @Mock
-  private EqualityDeleteFileReader eqReader1;
-  @Mock
-  private EqualityDeleteFileReader eqReader2;
-  @Mock
-  private EqualityDeleteFileReader eqReader3;
-  @Mock
-  private EqualityDeleteHashTable eqTable1;
-  @Mock
-  private EqualityDeleteHashTable eqTable2;
-  @Mock
-  private EqualityDeleteHashTable eqTable3;
+  @Mock private RowLevelDeleteFileReaderFactory readerFactory;
+  @Mock private PositionalDeleteFileReader posReader1;
+  @Mock private PositionalDeleteFileReader posReader2;
+  @Mock private PositionalDeleteFileReader posReader3;
+  @Mock private EqualityDeleteFileReader eqReader1;
+  @Mock private EqualityDeleteFileReader eqReader2;
+  @Mock private EqualityDeleteFileReader eqReader3;
+  @Mock private EqualityDeleteHashTable eqTable1;
+  @Mock private EqualityDeleteHashTable eqTable2;
+  @Mock private EqualityDeleteHashTable eqTable3;
 
   @Before
   public void beforeTest() throws Exception {
@@ -122,37 +114,64 @@ public class TestRowLevelDeleteFilterFactory extends BaseTestOperator {
     validityBuf = getTestAllocator().buffer(1);
     testCloseables.add(validityBuf);
 
-    when(readerFactory.createPositionalDeleteFileReader(any(), eq(POS_DELETE_FILE_1), anyList())).thenAnswer(i -> {
-      i.getArgument(0, OperatorContext.class).getStats().addLongStat(PARQUET_BYTES_READ, 30);
-      return posReader1;
-    });
-    when(readerFactory.createPositionalDeleteFileReader(any(), eq(POS_DELETE_FILE_2), anyList())).thenAnswer(i -> {
-      i.getArgument(0, OperatorContext.class).getStats().addLongStat(PARQUET_BYTES_READ, 40);
-      return posReader2;
-    });
-    when(readerFactory.createPositionalDeleteFileReader(any(), eq(POS_DELETE_FILE_3), anyList())).thenAnswer(i -> {
-      i.getArgument(0, OperatorContext.class).getStats().addLongStat(PARQUET_BYTES_READ, 50);
-      return posReader3;
-    });
-    when(posReader1.createIteratorForDataFile(any())).thenAnswer(i -> createIteratorFromList(POSITIONS_1, posReader1));
-    when(posReader2.createIteratorForDataFile(any())).thenAnswer(i -> createIteratorFromList(POSITIONS_2, posReader2));
-    when(posReader3.createIteratorForDataFile(any())).thenAnswer(i -> createIteratorFromList(POSITIONS_3, posReader3));
+    when(readerFactory.createPositionalDeleteFileReader(any(), eq(POS_DELETE_FILE_1), anyList()))
+        .thenAnswer(
+            i -> {
+              i.getArgument(0, OperatorContext.class)
+                  .getStats()
+                  .addLongStat(PARQUET_BYTES_READ, 30);
+              return posReader1;
+            });
+    when(readerFactory.createPositionalDeleteFileReader(any(), eq(POS_DELETE_FILE_2), anyList()))
+        .thenAnswer(
+            i -> {
+              i.getArgument(0, OperatorContext.class)
+                  .getStats()
+                  .addLongStat(PARQUET_BYTES_READ, 40);
+              return posReader2;
+            });
+    when(readerFactory.createPositionalDeleteFileReader(any(), eq(POS_DELETE_FILE_3), anyList()))
+        .thenAnswer(
+            i -> {
+              i.getArgument(0, OperatorContext.class)
+                  .getStats()
+                  .addLongStat(PARQUET_BYTES_READ, 50);
+              return posReader3;
+            });
+    when(posReader1.createIteratorForDataFile(any()))
+        .thenAnswer(i -> createIteratorFromList(POSITIONS_1, posReader1));
+    when(posReader2.createIteratorForDataFile(any()))
+        .thenAnswer(i -> createIteratorFromList(POSITIONS_2, posReader2));
+    when(posReader3.createIteratorForDataFile(any()))
+        .thenAnswer(i -> createIteratorFromList(POSITIONS_3, posReader3));
 
-    when(readerFactory.createEqualityDeleteFileReader(any(), eq(EQ_DELETE_FILE_1), anyLong(), anyList(), anyList()))
-        .thenAnswer(i -> {
-          i.getArgument(0, OperatorContext.class).getStats().addLongStat(PARQUET_BYTES_READ, 30);
-          return eqReader1;
-        });
-    when(readerFactory.createEqualityDeleteFileReader(any(), eq(EQ_DELETE_FILE_2), anyLong(), anyList(), anyList()))
-        .thenAnswer(i -> {
-          i.getArgument(0, OperatorContext.class).getStats().addLongStat(PARQUET_BYTES_READ, 40);
-          return eqReader2;
-        });
-    when(readerFactory.createEqualityDeleteFileReader(any(), eq(EQ_DELETE_FILE_3), anyLong(), anyList(), anyList()))
-        .thenAnswer(i -> {
-          i.getArgument(0, OperatorContext.class).getStats().addLongStat(PARQUET_BYTES_READ, 50);
-          return eqReader3;
-        });
+    when(readerFactory.createEqualityDeleteFileReader(
+            any(), eq(EQ_DELETE_FILE_1), anyLong(), anyList(), anyList()))
+        .thenAnswer(
+            i -> {
+              i.getArgument(0, OperatorContext.class)
+                  .getStats()
+                  .addLongStat(PARQUET_BYTES_READ, 30);
+              return eqReader1;
+            });
+    when(readerFactory.createEqualityDeleteFileReader(
+            any(), eq(EQ_DELETE_FILE_2), anyLong(), anyList(), anyList()))
+        .thenAnswer(
+            i -> {
+              i.getArgument(0, OperatorContext.class)
+                  .getStats()
+                  .addLongStat(PARQUET_BYTES_READ, 40);
+              return eqReader2;
+            });
+    when(readerFactory.createEqualityDeleteFileReader(
+            any(), eq(EQ_DELETE_FILE_3), anyLong(), anyList(), anyList()))
+        .thenAnswer(
+            i -> {
+              i.getArgument(0, OperatorContext.class)
+                  .getStats()
+                  .addLongStat(PARQUET_BYTES_READ, 50);
+              return eqReader3;
+            });
 
     when(eqReader1.buildHashTable()).thenReturn(eqTable1);
     when(eqReader2.buildHashTable()).thenReturn(eqTable2);
@@ -167,9 +186,10 @@ public class TestRowLevelDeleteFilterFactory extends BaseTestOperator {
 
   @Test
   public void testDataFileWithNoDeleteFilesReturnsNull() throws Exception {
-    try (RowLevelDeleteFilterFactory factory = new RowLevelDeleteFilterFactory(context, readerFactory)) {
-      Map<String, DataFileInfo> dataFileInfo = ImmutableMap.of(
-          DATA_FILE_1, new DataFileInfo(DATA_FILE_1, ImmutableList.of(), 1));
+    try (RowLevelDeleteFilterFactory factory =
+        new RowLevelDeleteFilterFactory(context, readerFactory)) {
+      Map<String, DataFileInfo> dataFileInfo =
+          ImmutableMap.of(DATA_FILE_1, new DataFileInfo(DATA_FILE_1, ImmutableList.of(), 1));
       factory.setDataFileInfoForBatch(dataFileInfo);
 
       assertThat(factory.createPositionalDeleteFilter(DATA_FILE_1)).isNull();
@@ -179,9 +199,12 @@ public class TestRowLevelDeleteFilterFactory extends BaseTestOperator {
 
   @Test
   public void testCreatePositionalDeleteFilterWithSingleFile() throws Exception {
-    try (RowLevelDeleteFilterFactory factory = new RowLevelDeleteFilterFactory(context, readerFactory)) {
-      Map<String, DataFileInfo> dataFileInfo = ImmutableMap.of(
-          DATA_FILE_1, new DataFileInfo(DATA_FILE_1, ImmutableList.of(POS_DELETE_FILE_INFO_1), 1));
+    try (RowLevelDeleteFilterFactory factory =
+        new RowLevelDeleteFilterFactory(context, readerFactory)) {
+      Map<String, DataFileInfo> dataFileInfo =
+          ImmutableMap.of(
+              DATA_FILE_1,
+              new DataFileInfo(DATA_FILE_1, ImmutableList.of(POS_DELETE_FILE_INFO_1), 1));
       factory.setDataFileInfoForBatch(dataFileInfo);
       PositionalDeleteFilter filter = factory.createPositionalDeleteFilter(DATA_FILE_1);
       filter.seek(0);
@@ -197,10 +220,15 @@ public class TestRowLevelDeleteFilterFactory extends BaseTestOperator {
 
   @Test
   public void testCreatePositionalDeleteFilterWithMultipleFiles() throws Exception {
-    try (RowLevelDeleteFilterFactory factory = new RowLevelDeleteFilterFactory(context, readerFactory)) {
-      Map<String, DataFileInfo> dataFileInfo = ImmutableMap.of(
-          DATA_FILE_1, new DataFileInfo(DATA_FILE_1,
-              ImmutableList.of(POS_DELETE_FILE_INFO_1, POS_DELETE_FILE_INFO_2), 1));
+    try (RowLevelDeleteFilterFactory factory =
+        new RowLevelDeleteFilterFactory(context, readerFactory)) {
+      Map<String, DataFileInfo> dataFileInfo =
+          ImmutableMap.of(
+              DATA_FILE_1,
+              new DataFileInfo(
+                  DATA_FILE_1,
+                  ImmutableList.of(POS_DELETE_FILE_INFO_1, POS_DELETE_FILE_INFO_2),
+                  1));
       factory.setDataFileInfoForBatch(dataFileInfo);
       PositionalDeleteFilter filter = factory.createPositionalDeleteFilter(DATA_FILE_1);
       filter.seek(0);
@@ -215,10 +243,15 @@ public class TestRowLevelDeleteFilterFactory extends BaseTestOperator {
 
   @Test
   public void testCreatePositionalDeleteFilterForMultipleRowGroups() throws Exception {
-    try (RowLevelDeleteFilterFactory factory = new RowLevelDeleteFilterFactory(context, readerFactory)) {
-      Map<String, DataFileInfo> dataFileInfo = ImmutableMap.of(
-          DATA_FILE_1, new DataFileInfo(DATA_FILE_1,
-              ImmutableList.of(POS_DELETE_FILE_INFO_1, POS_DELETE_FILE_INFO_2), 3));
+    try (RowLevelDeleteFilterFactory factory =
+        new RowLevelDeleteFilterFactory(context, readerFactory)) {
+      Map<String, DataFileInfo> dataFileInfo =
+          ImmutableMap.of(
+              DATA_FILE_1,
+              new DataFileInfo(
+                  DATA_FILE_1,
+                  ImmutableList.of(POS_DELETE_FILE_INFO_1, POS_DELETE_FILE_INFO_2),
+                  3));
       factory.setDataFileInfoForBatch(dataFileInfo);
 
       // first "row group", grab rows 0..2
@@ -248,15 +281,22 @@ public class TestRowLevelDeleteFilterFactory extends BaseTestOperator {
 
   @Test
   public void testIncrementRowGroupCount() throws Exception {
-    try (RowLevelDeleteFilterFactory factory = new RowLevelDeleteFilterFactory(context, readerFactory)) {
-      Map<String, DataFileInfo> dataFileInfo = ImmutableMap.of(
-          DATA_FILE_1, new DataFileInfo(DATA_FILE_1,
-              ImmutableList.of(POS_DELETE_FILE_INFO_1, POS_DELETE_FILE_INFO_2, EQ_DELETE_FILE_INFO_1), 2));
+    try (RowLevelDeleteFilterFactory factory =
+        new RowLevelDeleteFilterFactory(context, readerFactory)) {
+      Map<String, DataFileInfo> dataFileInfo =
+          ImmutableMap.of(
+              DATA_FILE_1,
+              new DataFileInfo(
+                  DATA_FILE_1,
+                  ImmutableList.of(
+                      POS_DELETE_FILE_INFO_1, POS_DELETE_FILE_INFO_2, EQ_DELETE_FILE_INFO_1),
+                  2));
       factory.setDataFileInfoForBatch(dataFileInfo);
 
       // first "row group"
       PositionalDeleteFilter posFilter = factory.createPositionalDeleteFilter(DATA_FILE_1);
-      EqualityDeleteFilter eqFilter = factory.createEqualityDeleteFilter(DATA_FILE_1, ICEBERG_FIELDS);
+      EqualityDeleteFilter eqFilter =
+          factory.createEqualityDeleteFilter(DATA_FILE_1, ICEBERG_FIELDS);
       posFilter.release();
       eqFilter.release();
 
@@ -286,14 +326,26 @@ public class TestRowLevelDeleteFilterFactory extends BaseTestOperator {
 
   @Test
   public void testDecrementRowGroupCountToZero() throws Exception {
-    try (RowLevelDeleteFilterFactory factory = new RowLevelDeleteFilterFactory(context, readerFactory)) {
-      Map<String, DataFileInfo> dataFileInfo = new HashMap<>(ImmutableMap.of(
-          DATA_FILE_1, new DataFileInfo(DATA_FILE_1,
-              ImmutableList.of(POS_DELETE_FILE_INFO_1, POS_DELETE_FILE_INFO_2), 1),
-          DATA_FILE_2, new DataFileInfo(DATA_FILE_2,
-              ImmutableList.of(POS_DELETE_FILE_INFO_1, POS_DELETE_FILE_INFO_2), 1),
-          DATA_FILE_3, new DataFileInfo(DATA_FILE_3,
-              ImmutableList.of(EQ_DELETE_FILE_INFO_1, EQ_DELETE_FILE_INFO_2), 2)));
+    try (RowLevelDeleteFilterFactory factory =
+        new RowLevelDeleteFilterFactory(context, readerFactory)) {
+      Map<String, DataFileInfo> dataFileInfo =
+          new HashMap<>(
+              ImmutableMap.of(
+                  DATA_FILE_1,
+                      new DataFileInfo(
+                          DATA_FILE_1,
+                          ImmutableList.of(POS_DELETE_FILE_INFO_1, POS_DELETE_FILE_INFO_2),
+                          1),
+                  DATA_FILE_2,
+                      new DataFileInfo(
+                          DATA_FILE_2,
+                          ImmutableList.of(POS_DELETE_FILE_INFO_1, POS_DELETE_FILE_INFO_2),
+                          1),
+                  DATA_FILE_3,
+                      new DataFileInfo(
+                          DATA_FILE_3,
+                          ImmutableList.of(EQ_DELETE_FILE_INFO_1, EQ_DELETE_FILE_INFO_2),
+                          2)));
       factory.setDataFileInfoForBatch(dataFileInfo);
 
       PositionalDeleteFilter posFilter = factory.createPositionalDeleteFilter(DATA_FILE_1);
@@ -302,15 +354,18 @@ public class TestRowLevelDeleteFilterFactory extends BaseTestOperator {
       verify(posReader1, times(1)).release();
       verify(posReader2, times(1)).release();
 
-      // test decrement of row group count on data file with single row group which has shared pos delete files
+      // test decrement of row group count on data file with single row group which has shared pos
+      // delete files
       // with previous data file
       factory.adjustRowGroupCount(DATA_FILE_2, -1);
       verify(posReader1, times(2)).release();
       verify(posReader2, times(2)).release();
 
-      // test decrement of row group count on data file with multiple row groups and an active eq delete filter
+      // test decrement of row group count on data file with multiple row groups and an active eq
+      // delete filter
       // create filter and do the release for 1st row group
-      EqualityDeleteFilter eqFilter = factory.createEqualityDeleteFilter(DATA_FILE_3, ICEBERG_FIELDS);
+      EqualityDeleteFilter eqFilter =
+          factory.createEqualityDeleteFilter(DATA_FILE_3, ICEBERG_FIELDS);
       eqFilter.release();
       // decrement row group count to 0
       factory.adjustRowGroupCount(DATA_FILE_3, -1);
@@ -320,10 +375,15 @@ public class TestRowLevelDeleteFilterFactory extends BaseTestOperator {
 
   @Test
   public void testCreatePositionalDeleteFilterForNonAdjacentRowGroups() throws Exception {
-    try (RowLevelDeleteFilterFactory factory = new RowLevelDeleteFilterFactory(context, readerFactory)) {
-      Map<String, DataFileInfo> dataFileInfo = ImmutableMap.of(
-          DATA_FILE_1, new DataFileInfo(DATA_FILE_1,
-              ImmutableList.of(POS_DELETE_FILE_INFO_1, POS_DELETE_FILE_INFO_2), 2));
+    try (RowLevelDeleteFilterFactory factory =
+        new RowLevelDeleteFilterFactory(context, readerFactory)) {
+      Map<String, DataFileInfo> dataFileInfo =
+          ImmutableMap.of(
+              DATA_FILE_1,
+              new DataFileInfo(
+                  DATA_FILE_1,
+                  ImmutableList.of(POS_DELETE_FILE_INFO_1, POS_DELETE_FILE_INFO_2),
+                  2));
       factory.setDataFileInfoForBatch(dataFileInfo);
 
       // first "row group", grab rows 0..2
@@ -344,12 +404,19 @@ public class TestRowLevelDeleteFilterFactory extends BaseTestOperator {
 
   @Test
   public void testCreatePositionalDeleteFilterForMultipleDataFiles() throws Exception {
-    try (RowLevelDeleteFilterFactory factory = new RowLevelDeleteFilterFactory(context, readerFactory)) {
-      Map<String, DataFileInfo> dataFileInfo = ImmutableMap.of(
-          DATA_FILE_1, new DataFileInfo(DATA_FILE_1,
-              ImmutableList.of(POS_DELETE_FILE_INFO_1, POS_DELETE_FILE_INFO_2), 1),
-          DATA_FILE_2, new DataFileInfo(DATA_FILE_2, ImmutableList.of(POS_DELETE_FILE_INFO_2), 1),
-          DATA_FILE_3, new DataFileInfo(DATA_FILE_3, ImmutableList.of(POS_DELETE_FILE_INFO_3), 1));
+    try (RowLevelDeleteFilterFactory factory =
+        new RowLevelDeleteFilterFactory(context, readerFactory)) {
+      Map<String, DataFileInfo> dataFileInfo =
+          ImmutableMap.of(
+              DATA_FILE_1,
+                  new DataFileInfo(
+                      DATA_FILE_1,
+                      ImmutableList.of(POS_DELETE_FILE_INFO_1, POS_DELETE_FILE_INFO_2),
+                      1),
+              DATA_FILE_2,
+                  new DataFileInfo(DATA_FILE_2, ImmutableList.of(POS_DELETE_FILE_INFO_2), 1),
+              DATA_FILE_3,
+                  new DataFileInfo(DATA_FILE_3, ImmutableList.of(POS_DELETE_FILE_INFO_3), 1));
       factory.setDataFileInfoForBatch(dataFileInfo);
 
       PositionalDeleteFilter filter = factory.createPositionalDeleteFilter(DATA_FILE_1);
@@ -380,11 +447,17 @@ public class TestRowLevelDeleteFilterFactory extends BaseTestOperator {
 
   @Test
   public void testCreatePositionalDeleteFilterInMultipleBatches() throws Exception {
-    try (RowLevelDeleteFilterFactory factory = new RowLevelDeleteFilterFactory(context, readerFactory)) {
-      Map<String, DataFileInfo> dataFileInfo = ImmutableMap.of(
-          DATA_FILE_1, new DataFileInfo(DATA_FILE_1,
-              ImmutableList.of(POS_DELETE_FILE_INFO_1, POS_DELETE_FILE_INFO_2), 1),
-          DATA_FILE_2, new DataFileInfo(DATA_FILE_2, ImmutableList.of(POS_DELETE_FILE_INFO_2), 1));
+    try (RowLevelDeleteFilterFactory factory =
+        new RowLevelDeleteFilterFactory(context, readerFactory)) {
+      Map<String, DataFileInfo> dataFileInfo =
+          ImmutableMap.of(
+              DATA_FILE_1,
+                  new DataFileInfo(
+                      DATA_FILE_1,
+                      ImmutableList.of(POS_DELETE_FILE_INFO_1, POS_DELETE_FILE_INFO_2),
+                      1),
+              DATA_FILE_2,
+                  new DataFileInfo(DATA_FILE_2, ImmutableList.of(POS_DELETE_FILE_INFO_2), 1));
       factory.setDataFileInfoForBatch(dataFileInfo);
 
       PositionalDeleteFilter filter = factory.createPositionalDeleteFilter(DATA_FILE_1);
@@ -400,8 +473,10 @@ public class TestRowLevelDeleteFilterFactory extends BaseTestOperator {
       verifyFilter(filter, ImmutableList.of(0, 3, 0));
       filter.release();
 
-      dataFileInfo = ImmutableMap.of(
-          DATA_FILE_3, new DataFileInfo(DATA_FILE_3, ImmutableList.of(POS_DELETE_FILE_INFO_3), 1));
+      dataFileInfo =
+          ImmutableMap.of(
+              DATA_FILE_3,
+              new DataFileInfo(DATA_FILE_3, ImmutableList.of(POS_DELETE_FILE_INFO_3), 1));
       factory.setDataFileInfoForBatch(dataFileInfo);
 
       filter = factory.createPositionalDeleteFilter(DATA_FILE_3);
@@ -419,13 +494,22 @@ public class TestRowLevelDeleteFilterFactory extends BaseTestOperator {
 
   @Test
   public void testPositionalDeleteFileReadersCreatedOnce() throws Exception {
-    try (RowLevelDeleteFilterFactory factory = new RowLevelDeleteFilterFactory(context, readerFactory)) {
-      Map<String, DataFileInfo> dataFileInfo = ImmutableMap.of(
-          DATA_FILE_1, new DataFileInfo(DATA_FILE_1,
-              ImmutableList.of(POS_DELETE_FILE_INFO_1, POS_DELETE_FILE_INFO_2), 1),
-          DATA_FILE_2, new DataFileInfo(DATA_FILE_2, ImmutableList.of(POS_DELETE_FILE_INFO_2), 1),
-          DATA_FILE_3, new DataFileInfo(DATA_FILE_3,
-              ImmutableList.of(POS_DELETE_FILE_INFO_1, POS_DELETE_FILE_INFO_3), 1));
+    try (RowLevelDeleteFilterFactory factory =
+        new RowLevelDeleteFilterFactory(context, readerFactory)) {
+      Map<String, DataFileInfo> dataFileInfo =
+          ImmutableMap.of(
+              DATA_FILE_1,
+                  new DataFileInfo(
+                      DATA_FILE_1,
+                      ImmutableList.of(POS_DELETE_FILE_INFO_1, POS_DELETE_FILE_INFO_2),
+                      1),
+              DATA_FILE_2,
+                  new DataFileInfo(DATA_FILE_2, ImmutableList.of(POS_DELETE_FILE_INFO_2), 1),
+              DATA_FILE_3,
+                  new DataFileInfo(
+                      DATA_FILE_3,
+                      ImmutableList.of(POS_DELETE_FILE_INFO_1, POS_DELETE_FILE_INFO_3),
+                      1));
       factory.setDataFileInfoForBatch(dataFileInfo);
 
       PositionalDeleteFilter filter = factory.createPositionalDeleteFilter(DATA_FILE_1);
@@ -437,27 +521,39 @@ public class TestRowLevelDeleteFilterFactory extends BaseTestOperator {
       filter = factory.createPositionalDeleteFilter(DATA_FILE_3);
       filter.release();
 
-      verify(readerFactory, times(1)).createPositionalDeleteFileReader(any(), eq(POS_DELETE_FILE_1), anyList());
-      verify(readerFactory, times(1)).createPositionalDeleteFileReader(any(), eq(POS_DELETE_FILE_2), anyList());
-      verify(readerFactory, times(1)).createPositionalDeleteFileReader(any(), eq(POS_DELETE_FILE_3), anyList());
+      verify(readerFactory, times(1))
+          .createPositionalDeleteFileReader(any(), eq(POS_DELETE_FILE_1), anyList());
+      verify(readerFactory, times(1))
+          .createPositionalDeleteFileReader(any(), eq(POS_DELETE_FILE_2), anyList());
+      verify(readerFactory, times(1))
+          .createPositionalDeleteFileReader(any(), eq(POS_DELETE_FILE_3), anyList());
     }
   }
 
   @Test
   public void testFilterFromPreviousBatchCanBeUsedAfterNewBatchAdded() throws Exception {
-    try (RowLevelDeleteFilterFactory factory = new RowLevelDeleteFilterFactory(context, readerFactory)) {
-      Map<String, DataFileInfo> dataFileInfo = ImmutableMap.of(
-          DATA_FILE_1, new DataFileInfo(DATA_FILE_1,
-              ImmutableList.of(POS_DELETE_FILE_INFO_1, POS_DELETE_FILE_INFO_2, EQ_DELETE_FILE_INFO_1), 1));
+    try (RowLevelDeleteFilterFactory factory =
+        new RowLevelDeleteFilterFactory(context, readerFactory)) {
+      Map<String, DataFileInfo> dataFileInfo =
+          ImmutableMap.of(
+              DATA_FILE_1,
+              new DataFileInfo(
+                  DATA_FILE_1,
+                  ImmutableList.of(
+                      POS_DELETE_FILE_INFO_1, POS_DELETE_FILE_INFO_2, EQ_DELETE_FILE_INFO_1),
+                  1));
       factory.setDataFileInfoForBatch(dataFileInfo);
 
       // filter is created and assigned to a prefetched reader but not advanced
       PositionalDeleteFilter posFilter = factory.createPositionalDeleteFilter(DATA_FILE_1);
-      EqualityDeleteFilter eqFilter = factory.createEqualityDeleteFilter(DATA_FILE_1, ICEBERG_FIELDS);
+      EqualityDeleteFilter eqFilter =
+          factory.createEqualityDeleteFilter(DATA_FILE_1, ICEBERG_FIELDS);
 
       // start a new batch
-      dataFileInfo = ImmutableMap.of(
-          DATA_FILE_2, new DataFileInfo(DATA_FILE_2, ImmutableList.of(POS_DELETE_FILE_INFO_2), 1));
+      dataFileInfo =
+          ImmutableMap.of(
+              DATA_FILE_2,
+              new DataFileInfo(DATA_FILE_2, ImmutableList.of(POS_DELETE_FILE_INFO_2), 1));
       factory.setDataFileInfoForBatch(dataFileInfo);
 
       // now advance previously created filter from old batch
@@ -474,11 +570,17 @@ public class TestRowLevelDeleteFilterFactory extends BaseTestOperator {
 
   @Test
   public void testPositionalDeleteFiltersCanBeAdvancedLazily() throws Exception {
-    try (RowLevelDeleteFilterFactory factory = new RowLevelDeleteFilterFactory(context, readerFactory)) {
-      Map<String, DataFileInfo> dataFileInfo = ImmutableMap.of(
-          DATA_FILE_1, new DataFileInfo(DATA_FILE_1,
-              ImmutableList.of(POS_DELETE_FILE_INFO_1, POS_DELETE_FILE_INFO_2), 2),
-          DATA_FILE_2, new DataFileInfo(DATA_FILE_2, ImmutableList.of(POS_DELETE_FILE_INFO_2), 1));
+    try (RowLevelDeleteFilterFactory factory =
+        new RowLevelDeleteFilterFactory(context, readerFactory)) {
+      Map<String, DataFileInfo> dataFileInfo =
+          ImmutableMap.of(
+              DATA_FILE_1,
+                  new DataFileInfo(
+                      DATA_FILE_1,
+                      ImmutableList.of(POS_DELETE_FILE_INFO_1, POS_DELETE_FILE_INFO_2),
+                      2),
+              DATA_FILE_2,
+                  new DataFileInfo(DATA_FILE_2, ImmutableList.of(POS_DELETE_FILE_INFO_2), 1));
       factory.setDataFileInfoForBatch(dataFileInfo);
 
       // create 3 filters - 2 row groups for DATA_FILE_1, 1 row groups for DATA_FILE_2
@@ -506,9 +608,12 @@ public class TestRowLevelDeleteFilterFactory extends BaseTestOperator {
 
   @Test
   public void testCreateEqualityDeleteFilterWithSingleFile() throws Exception {
-    try (RowLevelDeleteFilterFactory factory = new RowLevelDeleteFilterFactory(context, readerFactory)) {
-      Map<String, DataFileInfo> dataFileInfo = ImmutableMap.of(
-          DATA_FILE_1, new DataFileInfo(DATA_FILE_1, ImmutableList.of(EQ_DELETE_FILE_INFO_1), 1));
+    try (RowLevelDeleteFilterFactory factory =
+        new RowLevelDeleteFilterFactory(context, readerFactory)) {
+      Map<String, DataFileInfo> dataFileInfo =
+          ImmutableMap.of(
+              DATA_FILE_1,
+              new DataFileInfo(DATA_FILE_1, ImmutableList.of(EQ_DELETE_FILE_INFO_1), 1));
       factory.setDataFileInfoForBatch(dataFileInfo);
       EqualityDeleteFilter filter = factory.createEqualityDeleteFilter(DATA_FILE_1, ICEBERG_FIELDS);
       filter.setup(mutator, validityBuf);
@@ -525,10 +630,13 @@ public class TestRowLevelDeleteFilterFactory extends BaseTestOperator {
 
   @Test
   public void testCreateEqualityDeleteFilterWithMultipleFiles() throws Exception {
-    try (RowLevelDeleteFilterFactory factory = new RowLevelDeleteFilterFactory(context, readerFactory)) {
-      Map<String, DataFileInfo> dataFileInfo = ImmutableMap.of(
-          DATA_FILE_1, new DataFileInfo(DATA_FILE_1,
-              ImmutableList.of(EQ_DELETE_FILE_INFO_1, EQ_DELETE_FILE_INFO_2), 1));
+    try (RowLevelDeleteFilterFactory factory =
+        new RowLevelDeleteFilterFactory(context, readerFactory)) {
+      Map<String, DataFileInfo> dataFileInfo =
+          ImmutableMap.of(
+              DATA_FILE_1,
+              new DataFileInfo(
+                  DATA_FILE_1, ImmutableList.of(EQ_DELETE_FILE_INFO_1, EQ_DELETE_FILE_INFO_2), 1));
       factory.setDataFileInfoForBatch(dataFileInfo);
       EqualityDeleteFilter filter = factory.createEqualityDeleteFilter(DATA_FILE_1, ICEBERG_FIELDS);
       filter.setup(mutator, validityBuf);
@@ -548,10 +656,13 @@ public class TestRowLevelDeleteFilterFactory extends BaseTestOperator {
 
   @Test
   public void testCreateEqualityDeleteFilterForMultipleRowGroups() throws Exception {
-    try (RowLevelDeleteFilterFactory factory = new RowLevelDeleteFilterFactory(context, readerFactory)) {
-      Map<String, DataFileInfo> dataFileInfo = ImmutableMap.of(
-          DATA_FILE_1, new DataFileInfo(DATA_FILE_1,
-              ImmutableList.of(EQ_DELETE_FILE_INFO_1, EQ_DELETE_FILE_INFO_2), 3));
+    try (RowLevelDeleteFilterFactory factory =
+        new RowLevelDeleteFilterFactory(context, readerFactory)) {
+      Map<String, DataFileInfo> dataFileInfo =
+          ImmutableMap.of(
+              DATA_FILE_1,
+              new DataFileInfo(
+                  DATA_FILE_1, ImmutableList.of(EQ_DELETE_FILE_INFO_1, EQ_DELETE_FILE_INFO_2), 3));
       factory.setDataFileInfoForBatch(dataFileInfo);
 
       // first "row group"
@@ -597,7 +708,8 @@ public class TestRowLevelDeleteFilterFactory extends BaseTestOperator {
     assertThat(actual).isEqualTo(expected);
   }
 
-  private static PositionalDeleteIterator createIteratorFromList(List<Long> list, PositionalDeleteFileReader reader) {
+  private static PositionalDeleteIterator createIteratorFromList(
+      List<Long> list, PositionalDeleteFileReader reader) {
     Iterator<Long> iterator = list.iterator();
     return new PositionalDeleteIterator() {
       @Override

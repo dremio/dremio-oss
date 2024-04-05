@@ -15,9 +15,6 @@
  */
 package com.dremio.dac.cmd.upgrade;
 
-import java.util.Optional;
-import java.util.function.Supplier;
-
 import com.dremio.common.Version;
 import com.dremio.dac.proto.model.source.ClusterIdentity;
 import com.dremio.dac.resource.TableauResource;
@@ -29,18 +26,20 @@ import com.dremio.service.DirectProvider;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
+import java.util.Optional;
+import java.util.function.Supplier;
 
-/**
- * Task to set a valid default for Tableau that varies based on version.
- */
+/** Task to set a valid default for Tableau that varies based on version. */
 public class SetTableauDefaults extends UpgradeTask {
-  //DO NOT MODIFY
+  // DO NOT MODIFY
   static final String taskUUID = "67780ff3-80e1-4d40-88f1-cb7139b5c3de";
 
   private static final Version VERSION_460 = new Version("4.6.0", 4, 6, 0, 0, "");
 
   public SetTableauDefaults() {
-    super("Set Tableau client defaults", ImmutableList.of(DeleteSysMaterializationsMetadata.taskUUID));
+    super(
+        "Set Tableau client defaults",
+        ImmutableList.of(DeleteSysMaterializationsMetadata.taskUUID));
   }
 
   @Override
@@ -51,31 +50,38 @@ public class SetTableauDefaults extends UpgradeTask {
   @Override
   public void upgrade(UpgradeContext context) throws Exception {
     final Optional<ClusterIdentity> identity =
-      BasicSupportService.getClusterIdentity(context.getLegacyKVStoreProvider());
+        BasicSupportService.getClusterIdentity(context.getLegacyKVStoreProvider());
 
     final Version previousVersion = Upgrade.retrieveStoreVersion(identity.get());
 
-    final Supplier<SystemOptionManager> optionManagerSupplier = Suppliers.memoize(() ->
-      new SystemOptionManager(new OptionValidatorListingImpl(context.getScanResult()),
-        context.getLpPersistence(),
-        DirectProvider.wrap(context.getLegacyKVStoreProvider()),
-        false));
+    final Supplier<SystemOptionManager> optionManagerSupplier =
+        Suppliers.memoize(
+            () ->
+                new SystemOptionManager(
+                    new OptionValidatorListingImpl(context.getScanResult()),
+                    context.getLpPersistence(),
+                    DirectProvider.wrap(context.getLegacyKVStoreProvider()),
+                    false));
 
     updateOptionsIfNeeded(previousVersion, optionManagerSupplier, false);
   }
 
   /**
-   * Add the Tableau option to the given OptionManager. Note that if the option manager is
-   * not already opened, it will lazily be initialized, opened, and closed.
+   * Add the Tableau option to the given OptionManager. Note that if the option manager is not
+   * already opened, it will lazily be initialized, opened, and closed.
    *
-   * @param previousVersion         The version of the KV store to check.
-   * @param optionManagerSupplier   The OptionManager to update. This is assumed to not be started and will be closed.
-   * @param isOptionManagerOpen     Indicates if the supplied option manager is already opened.
+   * @param previousVersion The version of the KV store to check.
+   * @param optionManagerSupplier The OptionManager to update. This is assumed to not be started and
+   *     will be closed.
+   * @param isOptionManagerOpen Indicates if the supplied option manager is already opened.
    * @return true if the Tableau option was overridden.
    */
   @VisibleForTesting
-  static boolean updateOptionsIfNeeded(Version previousVersion, Supplier<SystemOptionManager> optionManagerSupplier,
-                                       boolean isOptionManagerOpen) throws Exception {
+  static boolean updateOptionsIfNeeded(
+      Version previousVersion,
+      Supplier<SystemOptionManager> optionManagerSupplier,
+      boolean isOptionManagerOpen)
+      throws Exception {
     // We write a default only when upgrading from versions older than 4.6.0.
     // The default is to enable Tableau for these older versions.
     // For versions newer, use the normal default for the option.
@@ -90,8 +96,9 @@ public class SetTableauDefaults extends UpgradeTask {
       }
 
       final OptionValue regularTableauDefault = TableauResource.CLIENT_TOOLS_TABLEAU.getDefault();
-      final OptionValue tableauEnable = OptionValue.createBoolean(regularTableauDefault.getType(),
-        regularTableauDefault.getName(), false);
+      final OptionValue tableauEnable =
+          OptionValue.createBoolean(
+              regularTableauDefault.getType(), regularTableauDefault.getName(), false);
 
       if (!optionManager.isSet(TableauResource.CLIENT_TOOLS_TABLEAU.getOptionName())) {
         optionManager.setOption(tableauEnable);

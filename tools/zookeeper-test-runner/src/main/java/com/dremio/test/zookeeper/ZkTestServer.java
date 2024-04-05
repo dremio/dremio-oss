@@ -15,9 +15,9 @@
  */
 package com.dremio.test.zookeeper;
 
+import com.google.common.base.Preconditions;
+import com.google.common.base.Throwables;
 import java.io.IOException;
-import java.net.BindException;
-
 import org.apache.curator.CuratorZookeeperClient;
 import org.apache.curator.retry.RetryOneTime;
 import org.apache.curator.test.TestingServer;
@@ -25,12 +25,10 @@ import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
-
 public class ZkTestServer implements AutoCloseable {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ZkTestServer.class);
+
   private final String path;
   private TestingServer testingServer;
   private volatile CuratorZookeeperClient zkClient;
@@ -45,25 +43,8 @@ public class ZkTestServer implements AutoCloseable {
   }
 
   public void start() throws Throwable {
-    System.setProperty("zookeeper.admin.enableServer", "false");
-    // TODO(DX-21477): Upgrade curator-test and clean up the code once the bug is fixed in https://issues.apache.org/jira/browse/CURATOR-535
-    final int tries = 10;
-    for (int i = 1; i <= tries; i++) {
-      try {
-        testingServer = new TestingServer(true);
-        testingServer.start();
-        break;
-      } catch (BindException e) {
-        try {
-          testingServer.close();
-        } catch (IOException ignored) {}
-        if (i < tries) {
-          LOGGER.warn("Failed to start ZK server, will try to start again.", e);
-        } else {
-          throw new RuntimeException(String.format("Failed to start ZK server after %d tries.", tries));
-        }
-      }
-    }
+    testingServer = new TestingServer(true);
+    testingServer.start();
     LOGGER.info("ZK Testing Server created");
   }
 
@@ -125,7 +106,9 @@ public class ZkTestServer implements AutoCloseable {
     if (zkClient == null) {
       synchronized (this) {
         if (zkClient == null) {
-          zkClient = new CuratorZookeeperClient(testingServer.getConnectString(), 10000, 10000, null, new RetryOneTime(2000));
+          zkClient =
+              new CuratorZookeeperClient(
+                  testingServer.getConnectString(), 10000, 10000, null, new RetryOneTime(2000));
           zkClient.start();
           LOGGER.info("ZK Client started. State {}", zkClient.getZooKeeper().getState());
 
@@ -133,12 +116,12 @@ public class ZkTestServer implements AutoCloseable {
             zkClient.close();
             zkClient = null;
             testingServer.close();
-            throw new IllegalStateException("ZK Client not connected." + zkClient.getZooKeeper().getState());
+            throw new IllegalStateException(
+                "ZK Client not connected." + zkClient.getZooKeeper().getState());
           }
           LOGGER.info("ZK Client connected");
         }
       }
     }
   }
-
 }

@@ -17,12 +17,10 @@ package com.dremio.exec.tablefunctions;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.google.common.collect.ImmutableList;
 import java.util.List;
-
 import org.junit.Assert;
 import org.junit.Test;
-
-import com.google.common.collect.ImmutableList;
 
 public class TestTimeTravelTableMacro {
 
@@ -54,9 +52,9 @@ public class TestTimeTravelTableMacro {
   @Test
   public void testSplitTableIdentifierWithInvalidIdentifier() {
     assertThatThrownBy(() -> TimeTravelTableMacro.splitTableIdentifier("table1..table2"))
-      .isInstanceOf(IllegalArgumentException.class);
+        .isInstanceOf(IllegalArgumentException.class);
 
     assertThatThrownBy(() -> TimeTravelTableMacro.splitTableIdentifier("\"tab\"le1..table2"))
-      .isInstanceOf(IllegalArgumentException.class);
+        .isInstanceOf(IllegalArgumentException.class);
   }
 }

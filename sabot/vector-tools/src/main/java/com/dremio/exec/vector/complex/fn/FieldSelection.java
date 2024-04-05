@@ -15,41 +15,43 @@
  */
 package com.dremio.exec.vector.complex.fn;
 
+import com.dremio.common.expression.BasePath;
+import com.dremio.common.expression.PathSegment;
+import com.google.common.collect.Maps;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.TreeMap;
 
-import com.dremio.common.expression.BasePath;
-import com.dremio.common.expression.PathSegment;
-import com.google.common.collect.Maps;
-
-
-/**
- * This class manages the projection pushdown for a complex path.
- */
+/** This class manages the projection pushdown for a complex path. */
 public final class FieldSelection {
 
-  public static final FieldSelection INVALID_NODE = new FieldSelection(null, ValidityMode.NEVER_VALID);
-  public static final FieldSelection ALL_VALID = new FieldSelection(null, ValidityMode.ALWAYS_VALID);
+  public static final FieldSelection INVALID_NODE =
+      new FieldSelection(null, ValidityMode.NEVER_VALID);
+  public static final FieldSelection ALL_VALID =
+      new FieldSelection(null, ValidityMode.ALWAYS_VALID);
 
-  private enum ValidityMode {CHECK_CHILDREN, NEVER_VALID, ALWAYS_VALID}
+  private enum ValidityMode {
+    CHECK_CHILDREN,
+    NEVER_VALID,
+    ALWAYS_VALID
+  }
 
   private final Map<String, FieldSelection> children;
   private final Map<String, FieldSelection> childrenInsensitive;
   private ValidityMode mode;
 
-  private FieldSelection(){
+  private FieldSelection() {
     this(new HashMap<String, FieldSelection>(), ValidityMode.CHECK_CHILDREN);
   }
 
-  private FieldSelection(Map<String, FieldSelection> children, ValidityMode mode){
+  private FieldSelection(Map<String, FieldSelection> children, ValidityMode mode) {
     this.children = children;
-    if(children != null){
+    if (children != null) {
       childrenInsensitive = new TreeMap<String, FieldSelection>(String.CASE_INSENSITIVE_ORDER);
       childrenInsensitive.putAll(children);
-    }else{
+    } else {
       childrenInsensitive = null;
     }
     this.mode = mode;
@@ -57,31 +59,32 @@ public final class FieldSelection {
 
   @Override
   public String toString() {
-    return
-        super.toString()
-        + "[mode = " + mode
-        + ", children = " + children
-        + ", childrenInsensitive = " + childrenInsensitive + "]";
+    return super.toString()
+        + "[mode = "
+        + mode
+        + ", children = "
+        + children
+        + ", childrenInsensitive = "
+        + childrenInsensitive
+        + "]";
   }
 
-  /**
-   * Create a new tree that has all leaves fixed to support full depth validity.
-   */
-  private FieldSelection fixNodes(){
-    if(children.isEmpty()){
+  /** Create a new tree that has all leaves fixed to support full depth validity. */
+  private FieldSelection fixNodes() {
+    if (children.isEmpty()) {
       return ALL_VALID;
-    }else{
+    } else {
       Map<String, FieldSelection> newMap = Maps.newHashMap();
-      for(Entry<String, FieldSelection> e : children.entrySet()){
+      for (Entry<String, FieldSelection> e : children.entrySet()) {
         newMap.put(e.getKey(), e.getValue().fixNodes());
       }
       return new FieldSelection(newMap, mode);
     }
   }
 
-  private FieldSelection addChild(String name){
+  private FieldSelection addChild(String name) {
     name = name.toLowerCase();
-    if(children.containsKey(name)){
+    if (children.containsKey(name)) {
       return children.get(name);
     }
 
@@ -90,8 +93,8 @@ public final class FieldSelection {
     return n;
   }
 
-  private void add(PathSegment segment){
-    if(segment.isNamed()){
+  private void add(PathSegment segment) {
+    if (segment.isNamed()) {
       boolean lastPath = segment.isLastPath();
       FieldSelection child = addChild(segment.getNameSegment().getPath());
       if (lastPath) {
@@ -103,7 +106,7 @@ public final class FieldSelection {
     }
   }
 
-  public boolean isNeverValid(){
+  public boolean isNeverValid() {
     return mode == ValidityMode.NEVER_VALID;
   }
 
@@ -115,30 +118,30 @@ public final class FieldSelection {
     return mode == ValidityMode.ALWAYS_VALID;
   }
 
-  public FieldSelection getChild(String name){
-    switch(mode){
-    case ALWAYS_VALID:
-      return ALL_VALID;
-    case CHECK_CHILDREN:
-      FieldSelection n = children.get(name);
+  public FieldSelection getChild(String name) {
+    switch (mode) {
+      case ALWAYS_VALID:
+        return ALL_VALID;
+      case CHECK_CHILDREN:
+        FieldSelection n = children.get(name);
 
-      // if we don't find, check to see if the lower case version of this path is available, if so, we'll add it with the new case to the original map.
-      if(n == null){
-        n = childrenInsensitive.get(name);
-        if(n != null){
-          children.put(name, n);
+        // if we don't find, check to see if the lower case version of this path is available, if
+        // so, we'll add it with the new case to the original map.
+        if (n == null) {
+          n = childrenInsensitive.get(name);
+          if (n != null) {
+            children.put(name, n);
+          }
         }
-      }
-      if(n == null){
+        if (n == null) {
+          return INVALID_NODE;
+        } else {
+          return n;
+        }
+      case NEVER_VALID:
         return INVALID_NODE;
-      }else{
-        return n;
-      }
-    case NEVER_VALID:
-      return INVALID_NODE;
-    default:
-      throw new IllegalStateException();
-
+      default:
+        throw new IllegalStateException();
     }
   }
 
@@ -152,23 +155,24 @@ public final class FieldSelection {
   }
 
   /**
-   * Generates a field selection based on a list of fields.  Assumes that a partial path a.b is equivalent to a.b.*
+   * Generates a field selection based on a list of fields. Assumes that a partial path a.b is
+   * equivalent to a.b.*
+   *
    * @param fields
    * @return
    */
-  public static FieldSelection getFieldSelection(List<? extends BasePath> fields){
-    if(containsStar(fields)){
+  public static FieldSelection getFieldSelection(List<? extends BasePath> fields) {
+    if (containsStar(fields)) {
       return ALL_VALID;
-    }else{
+    } else {
       if (fields.size() == 0) {
         return INVALID_NODE;
       }
       FieldSelection root = new FieldSelection();
-      for(BasePath p : fields){
+      for (BasePath p : fields) {
         root.add(p.getRootSegment());
       }
       return root.fixNodes();
     }
   }
-
 }

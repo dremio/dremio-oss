@@ -15,14 +15,13 @@
  */
 package com.dremio.common.logical.data;
 
-import java.util.Iterator;
-
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.logical.data.visitors.LogicalVisitor;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.Iterators;
+import java.util.Iterator;
 
 @JsonTypeName("filter")
 public class Filter extends SingleInputOperator {
@@ -37,14 +36,14 @@ public class Filter extends SingleInputOperator {
     return expr;
   }
 
-    @Override
-    public <T, X, E extends Throwable> T accept(LogicalVisitor<T, X, E> logicalVisitor, X value) throws E {
-        return logicalVisitor.visitFilter(this, value);
-    }
+  @Override
+  public <T, X, E extends Throwable> T accept(LogicalVisitor<T, X, E> logicalVisitor, X value)
+      throws E {
+    return logicalVisitor.visitFilter(this, value);
+  }
 
-    @Override
-    public Iterator<LogicalOperator> iterator() {
-        return Iterators.singletonIterator(getInput());
-    }
-
+  @Override
+  public Iterator<LogicalOperator> iterator() {
+    return Iterators.singletonIterator(getInput());
+  }
 }

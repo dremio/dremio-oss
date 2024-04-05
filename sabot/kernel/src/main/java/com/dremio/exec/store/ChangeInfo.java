@@ -16,9 +16,7 @@
 
 package com.dremio.exec.store;
 
-/**
- * Change info used to support versioning.
- */
+/** Change info used to support versioning. */
 public final class ChangeInfo {
   public final String commitHash;
   public final String authorName;

@@ -15,24 +15,6 @@
  */
 package com.dremio.sabot.op.aggregate.hash;
 
-import java.io.IOException;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-
-import javax.inject.Named;
-
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.AllocationHelper;
-import org.apache.arrow.vector.FixedWidthVector;
-import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.VariableWidthVector;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.types.pojo.FieldType;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.SuppressForbidden;
 import com.dremio.common.expression.CompleteType;
@@ -60,9 +42,25 @@ import com.dremio.sabot.op.common.hashtable.HashTableStats;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
+import java.io.IOException;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
+import javax.inject.Named;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.AllocationHelper;
+import org.apache.arrow.vector.FixedWidthVector;
+import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.VariableWidthVector;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 
 public abstract class HashAggTemplate implements HashAggregator {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HashAggTemplate.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(HashAggTemplate.class);
 
   private static final int VARIABLE_WIDTH_VALUE_SIZE = 50;
 
@@ -86,17 +84,20 @@ public abstract class HashAggTemplate implements HashAggregator {
   public BatchHolder newBatchHolder() {
     try {
       return innerConstructor.newInstance(this);
-    } catch (InstantiationException | IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
+    } catch (InstantiationException
+        | IllegalAccessException
+        | IllegalArgumentException
+        | InvocationTargetException e) {
       throw Throwables.propagate(e);
     }
   }
 
   @SuppressForbidden
-  public HashAggTemplate(){
-    try{
+  public HashAggTemplate() {
+    try {
       Class<?> clazz = null;
-      for(Class<?> c : getClass().getDeclaredClasses()){
-        if(c.getSimpleName().equals("BatchHolder")){
+      for (Class<?> c : getClass().getDeclaredClasses()) {
+        if (c.getSimpleName().equals("BatchHolder")) {
           clazz = c;
           break;
         }
@@ -105,7 +106,7 @@ public abstract class HashAggTemplate implements HashAggregator {
       Preconditions.checkNotNull(clazz);
       this.innerConstructor = (Constructor<BatchHolder>) clazz.getConstructor(this.getClass());
       innerConstructor.setAccessible(true);
-    }catch(Exception ex){
+    } catch (Exception ex) {
       throw Throwables.propagate(ex);
     }
   }
@@ -129,17 +130,24 @@ public abstract class HashAggTemplate implements HashAggregator {
           // Create a type-specific ValueVector for this value
           vector = TypeHelper.getNewVector(outputField, allocator);
 
-          // Try to allocate space to store BATCH_SIZE records. Key stored at index i in HashTable has its workspace
-          // variables (such as count, sum etc) stored at index i in HashAgg. HashTable and HashAgg both have
-          // BatchHolders. Whenever a BatchHolder in HashAgg reaches its capacity, a new BatchHolder is added to
-          // HashTable. If HashAgg can't store BATCH_SIZE records in a BatchHolder, it leaves empty slots in current
-          // BatchHolder in HashTable, causing the HashTable to be space inefficient. So it is better to allocate space
+          // Try to allocate space to store BATCH_SIZE records. Key stored at index i in HashTable
+          // has its workspace
+          // variables (such as count, sum etc) stored at index i in HashAgg. HashTable and HashAgg
+          // both have
+          // BatchHolders. Whenever a BatchHolder in HashAgg reaches its capacity, a new BatchHolder
+          // is added to
+          // HashTable. If HashAgg can't store BATCH_SIZE records in a BatchHolder, it leaves empty
+          // slots in current
+          // BatchHolder in HashTable, causing the HashTable to be space inefficient. So it is
+          // better to allocate space
           // to fit as close to as BATCH_SIZE records.
           if (vector instanceof FixedWidthVector) {
             ((FixedWidthVector) vector).allocateNew(HashTable.BATCH_SIZE);
           } else if (vector instanceof VariableWidthVector) {
-            ((VariableWidthVector) vector).allocateNew(((long) HashTable.VARIABLE_WIDTH_VECTOR_SIZE) * HashTable.BATCH_SIZE,
-                HashTable.BATCH_SIZE);
+            ((VariableWidthVector) vector)
+                .allocateNew(
+                    ((long) HashTable.VARIABLE_WIDTH_VECTOR_SIZE) * HashTable.BATCH_SIZE,
+                    HashTable.BATCH_SIZE);
           } else if (vector instanceof ObjectVector) {
             ((ObjectVector) vector).allocateNew(HashTable.BATCH_SIZE);
           } else {
@@ -167,13 +175,13 @@ public abstract class HashAggTemplate implements HashAggregator {
       setupInterior(context, incoming, outContainer, aggrValuesContainer);
     }
 
-    public int getRecordCount(){
+    public int getRecordCount() {
       return maxOccupiedIdx + 1;
     }
 
     private void outputValues() {
       final int recordCount = maxOccupiedIdx + 1;
-      for(int i = 0; i < recordCount; i++){
+      for (int i = 0; i < recordCount; i++) {
         outputRecordValues(i, i);
       }
     }
@@ -190,16 +198,15 @@ public abstract class HashAggTemplate implements HashAggregator {
         @Named("context") FunctionContext context,
         @Named("incoming") VectorAccessible incoming,
         @Named("outgoing") VectorAccessible outgoing,
-        @Named("aggrValuesContainer") VectorContainer aggrValuesContainer) {
-    }
+        @Named("aggrValuesContainer") VectorContainer aggrValuesContainer) {}
 
     @RuntimeOverridden
-    public void updateAggrValuesInternal(@Named("incomingRowIdx") int incomingRowIdx, @Named("htRowIdx") int htRowIdx) {
-    }
+    public void updateAggrValuesInternal(
+        @Named("incomingRowIdx") int incomingRowIdx, @Named("htRowIdx") int htRowIdx) {}
 
     @RuntimeOverridden
-    public void outputRecordValues(@Named("htRowIdx") int htRowIdx, @Named("outRowIdx") int outRowIdx) {
-    }
+    public void outputRecordValues(
+        @Named("htRowIdx") int htRowIdx, @Named("outRowIdx") int outRowIdx) {}
   }
 
   @Override
@@ -208,11 +215,19 @@ public abstract class HashAggTemplate implements HashAggregator {
   }
 
   @Override
-  public void setup(HashAggregate hashAggrConfig, HashTableConfig htConfig, ClassProducer producer,
-                    OperatorStats stats, BufferAllocator allocator, VectorAccessible incoming,
-                    LogicalExpression[] valueExprs, List<TypedFieldId> valueFieldIds, TypedFieldId[] groupByOutFieldIds,
-                    VectorContainer outContainer, OptionManager optionManager)
-    throws SchemaChangeException, ClassTransformationException, IOException {
+  public void setup(
+      HashAggregate hashAggrConfig,
+      HashTableConfig htConfig,
+      ClassProducer producer,
+      OperatorStats stats,
+      BufferAllocator allocator,
+      VectorAccessible incoming,
+      LogicalExpression[] valueExprs,
+      List<TypedFieldId> valueFieldIds,
+      TypedFieldId[] groupByOutFieldIds,
+      VectorContainer outContainer,
+      OptionManager optionManager)
+      throws SchemaChangeException, ClassTransformationException, IOException {
 
     if (valueExprs == null || valueFieldIds == null) {
       throw new IllegalArgumentException("Invalid aggr value exprs or workspace variables.");
@@ -228,8 +243,8 @@ public abstract class HashAggTemplate implements HashAggregator {
     // we need to build a hash table on the aggregation column a1.
     // TODO:  This functionality will be added later.
     if (hashAggrConfig.getGroupByExprs().size() == 0) {
-      throw new IllegalArgumentException("Currently, hash aggregation is only applicable if there are group-by " +
-          "expressions.");
+      throw new IllegalArgumentException(
+          "Currently, hash aggregation is only applicable if there are group-by " + "expressions.");
     }
 
     this.hashTableStats = new HashTableStats();
@@ -241,45 +256,59 @@ public abstract class HashAggTemplate implements HashAggregator {
 
     if (valueFieldIds.size() > 0) {
       int i = 0;
-      FieldReference ref =
-          new FieldReference("dummy", valueFieldIds.get(0).getIntermediateType());
+      FieldReference ref = new FieldReference("dummy", valueFieldIds.get(0).getIntermediateType());
       for (TypedFieldId id : valueFieldIds) {
         if (id.getIntermediateType() == CompleteType.OBJECT) {
-          materializedValueFields[i++] = new Field(ref.getAsNamePart().getName(), new FieldType(true, id.getIntermediateType().getType(), null), null);
+          materializedValueFields[i++] =
+              new Field(
+                  ref.getAsNamePart().getName(),
+                  new FieldType(true, id.getIntermediateType().getType(), null),
+                  null);
         } else {
-          materializedValueFields[i++] = new Field(ref.getAsNamePart().getName(), new FieldType(true, id.getIntermediateType().getType(), null), null);
+          materializedValueFields[i++] =
+              new Field(
+                  ref.getAsNamePart().getName(),
+                  new FieldType(true, id.getIntermediateType().getType(), null),
+                  null);
         }
       }
     }
 
     // Get informed when the hash table adds a new batch.
-    final HashTable.BatchAddedListener listener = new HashTable.BatchAddedListener(){
-      @Override
-      public void batchAdded() {
-        @SuppressWarnings("resource")
-        final BatchHolder bh = newBatchHolder();
-        batchHolders.add(bh);
+    final HashTable.BatchAddedListener listener =
+        new HashTable.BatchAddedListener() {
+          @Override
+          public void batchAdded() {
+            @SuppressWarnings("resource")
+            final BatchHolder bh = newBatchHolder();
+            batchHolders.add(bh);
 
-        if (EXTRA_DEBUG_1) {
-          logger.debug("HashAggregate: Added new batch; num batches = {}.", batchHolders.size());
-        }
+            if (EXTRA_DEBUG_1) {
+              logger.debug(
+                  "HashAggregate: Added new batch; num batches = {}.", batchHolders.size());
+            }
 
-        bh.setup();
-      }
-    };
+            bh.setup();
+          }
+        };
 
     context = producer.getFunctionContext();
 
     final ChainedHashTable ht =
-        new ChainedHashTable(htConfig, producer, allocator, incoming, null /* no incoming probe */, outContainer, listener);
+        new ChainedHashTable(
+            htConfig,
+            producer,
+            allocator,
+            incoming,
+            null /* no incoming probe */,
+            outContainer,
+            listener);
     this.batchHolders = new ArrayList<>();
     this.numGroupByOutFields = groupByOutFieldIds.length;
     this.htable = ht.createAndSetupHashTable(groupByOutFieldIds, optionManager);
 
     doSetup(producer.getFunctionContext(), incoming);
   }
-
-
 
   @Override
   public void addBatch(int records) {
@@ -288,7 +317,7 @@ public abstract class HashAggTemplate implements HashAggregator {
     // The htIdxHolder contains the index of the group in the hash table container; this same
     // index is also used for the aggregation values maintained by the hash aggregate.
 
-    for(int i = 0; i < records; i++){
+    for (int i = 0; i < records; i++) {
 
       int vectorIndex = getVectorIndex(i);
 
@@ -362,12 +391,11 @@ public abstract class HashAggTemplate implements HashAggregator {
     return htable.size();
   }
 
-
   // Code-generated methods (implemented in HashAggBatch)
-  public abstract void doSetup(@Named("context") FunctionContext context, @Named("incoming") VectorAccessible incoming);
+  public abstract void doSetup(
+      @Named("context") FunctionContext context, @Named("incoming") VectorAccessible incoming);
 
   public abstract int getVectorIndex(@Named("recordIndex") int recordIndex);
 
   public abstract boolean resetValues();
-
 }

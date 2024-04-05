@@ -15,6 +15,9 @@
  */
 package com.dremio.io.file;
 
+import com.dremio.common.AutoCloseables;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.nio.file.DirectoryIteratorException;
 import java.nio.file.DirectoryStream;
@@ -25,27 +28,26 @@ import java.util.NoSuchElementException;
 import java.util.Stack;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
-
 import javax.annotation.Nonnull;
 
-import com.dremio.common.AutoCloseables;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Iterables;
-
 /**
- * Lazy file iterator that could exclude hidden files and folders
- * if a folder is treated as hidden, all its content is ignored
+ * Lazy file iterator that could exclude hidden files and folders if a folder is treated as hidden,
+ * all its content is ignored
  */
 class RecursiveDirectoryStream implements DirectoryStream<FileAttributes> {
-  private final Stack<Map.Entry<DirectoryStream<FileAttributes>, Iterator<FileAttributes>>> iteratorsStack;
+  private final Stack<Map.Entry<DirectoryStream<FileAttributes>, Iterator<FileAttributes>>>
+      iteratorsStack;
   private final FileSystem fileSystem;
   private final Predicate<Path> pathFilter;
 
   private final AtomicBoolean init = new AtomicBoolean(false);
   private final AtomicBoolean closed = new AtomicBoolean(false);
 
-
-  public RecursiveDirectoryStream(@Nonnull FileSystem fileSystem, @Nonnull DirectoryStream<FileAttributes> stream, Predicate<Path> pathFilter) throws IOException {
+  public RecursiveDirectoryStream(
+      @Nonnull FileSystem fileSystem,
+      @Nonnull DirectoryStream<FileAttributes> stream,
+      Predicate<Path> pathFilter)
+      throws IOException {
     this.pathFilter = pathFilter;
     this.fileSystem = fileSystem;
     iteratorsStack = new Stack<>();
@@ -82,7 +84,8 @@ class RecursiveDirectoryStream implements DirectoryStream<FileAttributes> {
 
       @Override
       public boolean hasNext() {
-        // we have already prefetched a file and we know that it satisfies a path filter (this happens when hasNext
+        // we have already prefetched a file and we know that it satisfies a path filter (this
+        // happens when hasNext
         // called several times without next call)
         if (lastFetchedElement != null) {
           return true;
@@ -90,7 +93,8 @@ class RecursiveDirectoryStream implements DirectoryStream<FileAttributes> {
 
         // lastFetchedElement is empty here
         while (!iteratorsStack.empty()) {
-          final Map.Entry<DirectoryStream<FileAttributes>, Iterator<FileAttributes>> currentEntry = iteratorsStack.peek();
+          final Map.Entry<DirectoryStream<FileAttributes>, Iterator<FileAttributes>> currentEntry =
+              iteratorsStack.peek();
           final Iterator<FileAttributes> currentIterator = currentEntry.getValue();
           if (!currentIterator.hasNext()) {
             try {
@@ -103,14 +107,16 @@ class RecursiveDirectoryStream implements DirectoryStream<FileAttributes> {
           }
 
           // we need to prefetch the next element to check if its path satisfies the filter
-          // also mandated by DirectoryStream interface that if hasNext() return true, next() should not throw.
+          // also mandated by DirectoryStream interface that if hasNext() return true, next() should
+          // not throw.
           final FileAttributes currentFileAttributes = currentIterator.next();
           final Path currentPath = currentFileAttributes.getPath();
           if (pathFilter.test(currentPath)) {
             // a next element is found
             lastFetchedElement = currentFileAttributes;
 
-            // add current folder to the iterator stack.  Will be used once the other iterators are exhausted.
+            // add current folder to the iterator stack.  Will be used once the other iterators are
+            // exhausted.
             if (currentFileAttributes.isDirectory()) {
               try {
                 pushToStack(fileSystem.list(currentPath, pathFilter));
@@ -132,7 +138,7 @@ class RecursiveDirectoryStream implements DirectoryStream<FileAttributes> {
         if (this.hasNext()) {
           // hasNext populates {@code lastFetchedElement} field that we should use
           final FileAttributes fileAttributes = lastFetchedElement;
-          //reset {@code lastFetchedElement} as we are going to return it
+          // reset {@code lastFetchedElement} as we are going to return it
           lastFetchedElement = null;
 
           return fileAttributes;

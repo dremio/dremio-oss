@@ -18,12 +18,6 @@ package com.dremio.service.sysflight;
 import static org.mockito.AdditionalAnswers.delegatesTo;
 import static org.mockito.Mockito.mock;
 
-import java.util.Map;
-
-import org.apache.arrow.flight.FlightProducer.ServerStreamListener;
-import org.apache.arrow.memory.BufferAllocator;
-import org.junit.rules.ExternalResource;
-
 import com.dremio.exec.proto.FlightProtos.SysFlightTicket;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.job.ActiveJobSummary;
@@ -31,15 +25,16 @@ import com.dremio.service.job.ActiveJobsRequest;
 import com.dremio.service.job.ChronicleGrpc;
 import com.dremio.service.sysflight.SystemTableManager.TABLES;
 import com.google.common.collect.Maps;
-
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
+import java.util.Map;
+import org.apache.arrow.flight.FlightProducer.ServerStreamListener;
+import org.apache.arrow.memory.BufferAllocator;
+import org.junit.rules.ExternalResource;
 
-/**
- * Sys Flight test resource
- */
+/** Sys Flight test resource */
 public class TestSysFlightResource extends ExternalResource {
 
   private Server server;
@@ -47,25 +42,28 @@ public class TestSysFlightResource extends ExternalResource {
 
   // mock ChronicleGrpc service
   private final ChronicleGrpc.ChronicleImplBase chronicleService =
-    mock(ChronicleGrpc.ChronicleImplBase.class,
-       delegatesTo(
-         new ChronicleGrpc.ChronicleImplBase(){
-           @Override
-           public void getActiveJobs(ActiveJobsRequest jobsRequest,
-                                     io.grpc.stub.StreamObserver<com.dremio.service.job.ActiveJobSummary> responseObserver){
-             responseObserver.onNext(ActiveJobSummary.newBuilder()
-               .setJobId("1")
-               .setStatus("RUNNING")
-               .setQueryType("UI_RUN")
-               .setUserName("user")
-               .setAccelerated(false)
-               .setErrorMsg("err")
-               .build());
-             responseObserver.onNext(ActiveJobSummary.getDefaultInstance());
-             responseObserver.onCompleted();
-           }
-         }
-       ));
+      mock(
+          ChronicleGrpc.ChronicleImplBase.class,
+          delegatesTo(
+              new ChronicleGrpc.ChronicleImplBase() {
+                @Override
+                public void getActiveJobs(
+                    ActiveJobsRequest jobsRequest,
+                    io.grpc.stub.StreamObserver<com.dremio.service.job.ActiveJobSummary>
+                        responseObserver) {
+                  responseObserver.onNext(
+                      ActiveJobSummary.newBuilder()
+                          .setJobId("1")
+                          .setStatus("RUNNING")
+                          .setQueryType("UI_RUN")
+                          .setUserName("user")
+                          .setAccelerated(false)
+                          .setErrorMsg("err")
+                          .build());
+                  responseObserver.onNext(ActiveJobSummary.getDefaultInstance());
+                  responseObserver.onCompleted();
+                }
+              }));
 
   @Override
   public void before() throws Exception {
@@ -75,12 +73,17 @@ public class TestSysFlightResource extends ExternalResource {
   /** instantiates in-process gRPC server with mock implementation & creates a channel to it */
   private void setupServer() throws Exception {
     String serverName = InProcessServerBuilder.generateName();
-    server = InProcessServerBuilder.forName(serverName).directExecutor().addService(chronicleService).build().start();
+    server =
+        InProcessServerBuilder.forName(serverName)
+            .directExecutor()
+            .addService(chronicleService)
+            .build()
+            .start();
     channel = InProcessChannelBuilder.forName(serverName).directExecutor().build();
   }
 
-  private ChronicleGrpc.ChronicleStub getChronicleStub(){
-    return  ChronicleGrpc.newStub(channel);
+  private ChronicleGrpc.ChronicleStub getChronicleStub() {
+    return ChronicleGrpc.newStub(channel);
   }
 
   public Map<TABLES, SysFlightDataProvider> getTablesProvider() {
@@ -104,10 +107,16 @@ public class TestSysFlightResource extends ExternalResource {
 
     @Override
     public void streamData(
-      SysFlightTicket ticket, ServerStreamListener listener, BufferAllocator allocator, int recordBatchSize) {
-      ActiveJobsRequest searchJobsRequest = ActiveJobsRequest.newBuilder().setQuery(ticket.getQuery()).build();
-      jobsStub.getActiveJobs(searchJobsRequest, new SysFlightStreamObserver<>(allocator, listener,
-        ActiveJobSummary.getDescriptor(), recordBatchSize));
+        SysFlightTicket ticket,
+        ServerStreamListener listener,
+        BufferAllocator allocator,
+        int recordBatchSize) {
+      ActiveJobsRequest searchJobsRequest =
+          ActiveJobsRequest.newBuilder().setQuery(ticket.getQuery()).build();
+      jobsStub.getActiveJobs(
+          searchJobsRequest,
+          new SysFlightStreamObserver<>(
+              allocator, listener, ActiveJobSummary.getDescriptor(), recordBatchSize));
     }
 
     @Override

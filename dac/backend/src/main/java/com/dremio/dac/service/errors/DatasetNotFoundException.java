@@ -18,9 +18,7 @@ package com.dremio.dac.service.errors;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.explore.model.DatasetResourcePath;
 
-/**
- * Thrown when a dataset was not found for a given path
- */
+/** Thrown when a dataset was not found for a given path */
 public class DatasetNotFoundException extends NotFoundException {
   private static final long serialVersionUID = 1L;
 

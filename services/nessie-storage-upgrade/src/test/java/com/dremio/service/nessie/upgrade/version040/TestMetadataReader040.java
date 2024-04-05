@@ -20,16 +20,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-
 import com.dremio.datastore.api.Document;
 import com.dremio.datastore.api.KVStore;
 import com.dremio.datastore.api.KVStoreProvider;
@@ -42,15 +32,20 @@ import com.dremio.service.nessie.upgrade.version040.model.NessieCommit;
 import com.dremio.service.nessie.upgrade.version040.model.Operations;
 import com.dremio.service.nessie.upgrade.version040.model.PutOperation;
 import com.google.common.collect.Lists;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 public class TestMetadataReader040 {
-  @Mock
-  private KVStoreProvider kvStoreProvider;
-  @Mock
-  private KVStore<NessieRefKVStoreBuilder.NamedRef, String> refKVStore;
-  @Mock
-  private KVStore<String, NessieCommit> commitKVStore;
+  @Mock private KVStoreProvider kvStoreProvider;
+  @Mock private KVStore<NessieRefKVStoreBuilder.NamedRef, String> refKVStore;
+  @Mock private KVStore<String, NessieCommit> commitKVStore;
 
   private MetadataReader040 metadataReader;
 
@@ -77,9 +72,9 @@ public class TestMetadataReader040 {
       }
 
       final MigratedCommit other = (MigratedCommit) o;
-      return Objects.equals(branchName, other.branchName) &&
-        Objects.equals(contentsKey, other.contentsKey) &&
-        Objects.equals(location, other.location);
+      return Objects.equals(branchName, other.branchName)
+          && Objects.equals(contentsKey, other.contentsKey)
+          && Objects.equals(location, other.location);
     }
   }
 
@@ -92,18 +87,18 @@ public class TestMetadataReader040 {
 
   @Test
   public void testTwoPuts() {
-    final NessieCommit commit1 = buildNessieCommitForPut(
-      "hash1",
-      MetadataReader040.INITIAL_HASH,
-      Lists.newArrayList("foo", "bar"),
-      "file://target/test-classes/iceberg-file1.json"
-    );
-    final NessieCommit commit2 = buildNessieCommitForPut(
-      "hash2",
-      "hash1",
-      Lists.newArrayList("part1", "part2"),
-      "file://target/test-classes/iceberg-file2.json"
-    );
+    final NessieCommit commit1 =
+        buildNessieCommitForPut(
+            "hash1",
+            MetadataReader040.INITIAL_HASH,
+            Lists.newArrayList("foo", "bar"),
+            "file://target/test-classes/iceberg-file1.json");
+    final NessieCommit commit2 =
+        buildNessieCommitForPut(
+            "hash2",
+            "hash1",
+            Lists.newArrayList("part1", "part2"),
+            "file://target/test-classes/iceberg-file2.json");
 
     final Document<NessieRefKVStoreBuilder.NamedRef, String> branchDoc = mock(Document.class);
     when(branchDoc.getKey()).thenReturn(new NessieRefKVStoreBuilder.BranchRef("main"));
@@ -119,33 +114,35 @@ public class TestMetadataReader040 {
     when(commitKVStore.get("hash1")).thenReturn(commitDoc1);
 
     final List<MigratedCommit> migratedCommits = new ArrayList<>();
-    metadataReader.doUpgrade((branchName, contentsKey, location) ->
-      migratedCommits.add(new MigratedCommit(branchName, contentsKey, location)));
+    metadataReader.doUpgrade(
+        (branchName, contentsKey, location) ->
+            migratedCommits.add(new MigratedCommit(branchName, contentsKey, location)));
 
     assertEquals(2, migratedCommits.size());
-    assertEquals(new MigratedCommit(
-      "main",
-      Lists.newArrayList("part1", "part2"),
-      "file://target/test-classes/iceberg-file2.json"), migratedCommits.get(0));
-    assertEquals(new MigratedCommit(
-      "main",
-      Lists.newArrayList("foo", "bar"),
-      "file://target/test-classes/iceberg-file1.json"), migratedCommits.get(1));
+    assertEquals(
+        new MigratedCommit(
+            "main",
+            Lists.newArrayList("part1", "part2"),
+            "file://target/test-classes/iceberg-file2.json"),
+        migratedCommits.get(0));
+    assertEquals(
+        new MigratedCommit(
+            "main",
+            Lists.newArrayList("foo", "bar"),
+            "file://target/test-classes/iceberg-file1.json"),
+        migratedCommits.get(1));
   }
 
   @Test
   public void testDeleteAfterPut() {
-    final NessieCommit commit1 = buildNessieCommitForPut(
-      "hash1",
-      MetadataReader040.INITIAL_HASH,
-      Lists.newArrayList("foo", "bar"),
-      "file://target/test-classes/iceberg-file1.json"
-    );
-    final NessieCommit commit2 = buildNessieCommitForDelete(
-      "hash2",
-      "hash1",
-      Lists.newArrayList("foo", "bar")
-    );
+    final NessieCommit commit1 =
+        buildNessieCommitForPut(
+            "hash1",
+            MetadataReader040.INITIAL_HASH,
+            Lists.newArrayList("foo", "bar"),
+            "file://target/test-classes/iceberg-file1.json");
+    final NessieCommit commit2 =
+        buildNessieCommitForDelete("hash2", "hash1", Lists.newArrayList("foo", "bar"));
 
     final Document<NessieRefKVStoreBuilder.NamedRef, String> branchDoc = mock(Document.class);
     when(branchDoc.getKey()).thenReturn(new NessieRefKVStoreBuilder.BranchRef("main"));
@@ -161,25 +158,24 @@ public class TestMetadataReader040 {
     when(commitKVStore.get("hash1")).thenReturn(commitDoc1);
 
     final List<MigratedCommit> migratedCommits = new ArrayList<>();
-    metadataReader.doUpgrade((branchName, contentsKey, location) ->
-      migratedCommits.add(new MigratedCommit(branchName, contentsKey, location)));
+    metadataReader.doUpgrade(
+        (branchName, contentsKey, location) ->
+            migratedCommits.add(new MigratedCommit(branchName, contentsKey, location)));
 
     assertTrue(migratedCommits.isEmpty());
   }
 
   @Test
   public void testPutAfterDelete() {
-    final NessieCommit commit1 = buildNessieCommitForDelete(
-      "hash1",
-      MetadataReader040.INITIAL_HASH,
-      Lists.newArrayList("foo", "bar")
-    );
-    final NessieCommit commit2 = buildNessieCommitForPut(
-      "hash2",
-      "hash1",
-      Lists.newArrayList("foo", "bar"),
-      "file://target/test-classes/iceberg-file1.json"
-    );
+    final NessieCommit commit1 =
+        buildNessieCommitForDelete(
+            "hash1", MetadataReader040.INITIAL_HASH, Lists.newArrayList("foo", "bar"));
+    final NessieCommit commit2 =
+        buildNessieCommitForPut(
+            "hash2",
+            "hash1",
+            Lists.newArrayList("foo", "bar"),
+            "file://target/test-classes/iceberg-file1.json");
 
     final Document<NessieRefKVStoreBuilder.NamedRef, String> branchDoc = mock(Document.class);
     when(branchDoc.getKey()).thenReturn(new NessieRefKVStoreBuilder.BranchRef("main"));
@@ -195,30 +191,33 @@ public class TestMetadataReader040 {
     when(commitKVStore.get("hash1")).thenReturn(commitDoc1);
 
     final List<MigratedCommit> migratedCommits = new ArrayList<>();
-    metadataReader.doUpgrade((branchName, contentsKey, location) ->
-      migratedCommits.add(new MigratedCommit(branchName, contentsKey, location)));
+    metadataReader.doUpgrade(
+        (branchName, contentsKey, location) ->
+            migratedCommits.add(new MigratedCommit(branchName, contentsKey, location)));
 
     assertEquals(1, migratedCommits.size());
-    assertEquals(new MigratedCommit(
-      "main",
-      Lists.newArrayList("foo", "bar"),
-      "file://target/test-classes/iceberg-file1.json"), migratedCommits.get(0));
+    assertEquals(
+        new MigratedCommit(
+            "main",
+            Lists.newArrayList("foo", "bar"),
+            "file://target/test-classes/iceberg-file1.json"),
+        migratedCommits.get(0));
   }
 
   @Test
   public void testTwoPutsSame() {
-    final NessieCommit commit1 = buildNessieCommitForPut(
-      "hash1",
-      MetadataReader040.INITIAL_HASH,
-      Lists.newArrayList("foo", "bar"),
-      "file://target/test-classes/iceberg-file1.json"
-    );
-    final NessieCommit commit2 = buildNessieCommitForPut(
-      "hash2",
-      "hash1",
-      Lists.newArrayList("foo", "bar"),
-      "file://target/test-classes/iceberg-file1.json"
-    );
+    final NessieCommit commit1 =
+        buildNessieCommitForPut(
+            "hash1",
+            MetadataReader040.INITIAL_HASH,
+            Lists.newArrayList("foo", "bar"),
+            "file://target/test-classes/iceberg-file1.json");
+    final NessieCommit commit2 =
+        buildNessieCommitForPut(
+            "hash2",
+            "hash1",
+            Lists.newArrayList("foo", "bar"),
+            "file://target/test-classes/iceberg-file1.json");
 
     final Document<NessieRefKVStoreBuilder.NamedRef, String> branchDoc = mock(Document.class);
     when(branchDoc.getKey()).thenReturn(new NessieRefKVStoreBuilder.BranchRef("main"));
@@ -234,18 +233,20 @@ public class TestMetadataReader040 {
     when(commitKVStore.get("hash1")).thenReturn(commitDoc1);
 
     final List<MigratedCommit> migratedCommits = new ArrayList<>();
-    metadataReader.doUpgrade((branchName, contentsKey, location) ->
-      migratedCommits.add(new MigratedCommit(branchName, contentsKey, location)));
+    metadataReader.doUpgrade(
+        (branchName, contentsKey, location) ->
+            migratedCommits.add(new MigratedCommit(branchName, contentsKey, location)));
 
     assertEquals(1, migratedCommits.size());
-    assertEquals(new MigratedCommit(
-      "main",
-      Lists.newArrayList("foo", "bar"),
-      "file://target/test-classes/iceberg-file1.json"), migratedCommits.get(0));
+    assertEquals(
+        new MigratedCommit(
+            "main",
+            Lists.newArrayList("foo", "bar"),
+            "file://target/test-classes/iceberg-file1.json"),
+        migratedCommits.get(0));
   }
 
-  private NessieCommit buildEmptyNessieCommit(String hash,
-                                              String ancestor) {
+  private NessieCommit buildEmptyNessieCommit(String hash, String ancestor) {
     final NessieCommit commit = new NessieCommit();
     commit.setHash(new Hash());
     commit.getHash().setHash(hash);
@@ -265,10 +266,8 @@ public class TestMetadataReader040 {
     return commit;
   }
 
-  private NessieCommit buildNessieCommitForPut(String hash,
-                                               String ancestor,
-                                               List<String> contentsKey,
-                                               String location) {
+  private NessieCommit buildNessieCommitForPut(
+      String hash, String ancestor, List<String> contentsKey, String location) {
     final NessieCommit commit = buildEmptyNessieCommit(hash, ancestor);
 
     commit.setOperations(new Operations());
@@ -277,14 +276,15 @@ public class TestMetadataReader040 {
     commit.getOperations().getOperations().get(0).setKey(new ContentsKey());
     commit.getOperations().getOperations().get(0).getKey().setElements(contentsKey);
     ((PutOperation) commit.getOperations().getOperations().get(0)).setContents(new IcebergTable());
-    ((PutOperation) commit.getOperations().getOperations().get(0)).getContents().setMetadataLocation(location);
+    ((PutOperation) commit.getOperations().getOperations().get(0))
+        .getContents()
+        .setMetadataLocation(location);
 
     return commit;
   }
 
-  private NessieCommit buildNessieCommitForDelete(String hash,
-                                                  String ancestor,
-                                                  List<String> contentsKey) {
+  private NessieCommit buildNessieCommitForDelete(
+      String hash, String ancestor, List<String> contentsKey) {
     final NessieCommit commit = buildEmptyNessieCommit(hash, ancestor);
 
     commit.setOperations(new Operations());

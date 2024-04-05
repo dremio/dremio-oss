@@ -27,21 +27,21 @@ public class NestedAccumulatorNoSpill implements AccumulatorNoSpill {
 
   @Override
   public void resized(int newCapacity) {
-    for(AccumulatorNoSpill a : children){
+    for (AccumulatorNoSpill a : children) {
       a.resized(newCapacity);
     }
   }
 
   @Override
   public void accumulate(final long offsetAddr, final int count) {
-    for(AccumulatorNoSpill a : children){
+    for (AccumulatorNoSpill a : children) {
       a.accumulate(offsetAddr, count);
     }
   }
 
   @Override
   public void output(int batchIndex) {
-    for(AccumulatorNoSpill a : children){
+    for (AccumulatorNoSpill a : children) {
       a.output(batchIndex);
     }
   }

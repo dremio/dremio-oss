@@ -19,12 +19,11 @@ import static com.dremio.services.nessie.grpc.GrpcExceptionMapper.handleNessieNo
 import static com.dremio.services.nessie.grpc.ProtoUtil.fromProto;
 import static com.dremio.services.nessie.grpc.ProtoUtil.toProto;
 
+import com.dremio.services.nessie.grpc.api.TreeServiceGrpc.TreeServiceBlockingStub;
 import org.projectnessie.api.v1.params.CommitLogParams;
 import org.projectnessie.client.builder.BaseGetCommitLogBuilder;
 import org.projectnessie.error.NessieNotFoundException;
 import org.projectnessie.model.LogResponse;
-
-import com.dremio.services.nessie.grpc.api.TreeServiceGrpc.TreeServiceBlockingStub;
 
 final class GrpcGetCommitLog extends BaseGetCommitLogBuilder<CommitLogParams> {
 
@@ -38,17 +37,16 @@ final class GrpcGetCommitLog extends BaseGetCommitLogBuilder<CommitLogParams> {
   @Override
   protected CommitLogParams params() {
     return CommitLogParams.builder()
-      .filter(filter)
-      .maxRecords(maxRecords)
-      .fetchOption(fetchOption)
-      .startHash(untilHash)
-      .endHash(hashOnRef)
-      .build();
+        .filter(filter)
+        .maxRecords(maxRecords)
+        .fetchOption(fetchOption)
+        .startHash(untilHash)
+        .endHash(hashOnRef)
+        .build();
   }
 
   @Override
   protected LogResponse get(CommitLogParams p) throws NessieNotFoundException {
-    return handleNessieNotFoundEx(
-      () -> fromProto(stub.getCommitLog(toProto(refName, p))));
+    return handleNessieNotFoundEx(() -> fromProto(stub.getCommitLog(toProto(refName, p))));
   }
 }

@@ -15,16 +15,13 @@
  */
 package com.dremio.dac.explore.model;
 
-import java.util.List;
-
 import com.dremio.dac.proto.model.dataset.DataType;
 import com.dremio.dac.util.JSONUtil;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.List;
 
-/**
- * Supports the data cleanup screen
- */
+/** Supports the data cleanup screen */
 public class CleanDataCard {
 
   private final String newFieldName;
@@ -80,9 +77,7 @@ public class CleanDataCard {
     return JSONUtil.toString(this);
   }
 
-  /**
-   * to display based on the typed picked in the "desiredType" dropdown
-   */
+  /** to display based on the typed picked in the "desiredType" dropdown */
   public static class ConvertToSingleType {
     private final DataType desiredType;
     private final boolean castWhenPossible;
@@ -101,27 +96,30 @@ public class CleanDataCard {
       this.nonMatchingCount = nonMatchingCount;
       this.availableNonMatching = availableNonMatching;
     }
+
     public DataType getDesiredType() {
       return desiredType;
     }
+
     public boolean isCastWhenPossible() {
       return castWhenPossible;
     }
+
     public long getNonMatchingCount() {
       return nonMatchingCount;
     }
+
     public List<HistogramValue> getAvailableNonMatching() {
       return availableNonMatching;
     }
+
     @Override
     public String toString() {
       return JSONUtil.toString(this);
     }
   }
 
-  /**
-   * stats per type
-   */
+  /** stats per type */
   public static class SplitByDataType {
     private final DataType type;
     private final double matchingPercent;
@@ -134,12 +132,15 @@ public class CleanDataCard {
       this.type = type;
       this.matchingPercent = matchingPercent;
     }
+
     public DataType getType() {
       return type;
     }
+
     public double getMatchingPercent() {
       return matchingPercent;
     }
+
     @Override
     public String toString() {
       return JSONUtil.toString(this);

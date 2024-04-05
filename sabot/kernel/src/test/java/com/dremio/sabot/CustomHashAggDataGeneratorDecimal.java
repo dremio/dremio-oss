@@ -19,32 +19,31 @@ import static com.dremio.sabot.Fixtures.t;
 import static com.dremio.sabot.Fixtures.th;
 import static com.dremio.sabot.Fixtures.tr;
 
-import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
-
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.DecimalVector;
-import org.apache.arrow.vector.types.pojo.ArrowType;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.types.pojo.FieldType;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.google.common.base.Preconditions;
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.DecimalVector;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 
-/**
- * Copy of CustomHashAggDataGenerator but does Decimal computations.
- */
+/** Copy of CustomHashAggDataGenerator but does Decimal computations. */
 public class CustomHashAggDataGeneratorDecimal implements Generator {
-  private static final FieldType DECIMAL_FIELD_TYPE = FieldType.nullable(new ArrowType.Decimal(38, 9, 128));
-  private static final ArrowType.Decimal DECIMAL_ARROWTYPE = (ArrowType.Decimal) DECIMAL_FIELD_TYPE.getType();
-  private static final CompleteType DECIMAL_COMPLETE_TYPE = new CompleteType(DECIMAL_ARROWTYPE, new ArrayList<>());
+  private static final FieldType DECIMAL_FIELD_TYPE =
+      FieldType.nullable(new ArrowType.Decimal(38, 9, 128));
+  private static final ArrowType.Decimal DECIMAL_ARROWTYPE =
+      (ArrowType.Decimal) DECIMAL_FIELD_TYPE.getType();
+  private static final CompleteType DECIMAL_COMPLETE_TYPE =
+      new CompleteType(DECIMAL_ARROWTYPE, new ArrayList<>());
 
   private static final Field DECIMAL_KEY = DECIMAL_COMPLETE_TYPE.toField("DECIMAL_KEY");
 
@@ -78,22 +77,21 @@ public class CustomHashAggDataGeneratorDecimal implements Generator {
   private final int numRows;
   private final Map<Key, Value> aggregatedResults = new HashMap<>();
 
-  public CustomHashAggDataGeneratorDecimal(int numRows, BufferAllocator allocator,
-                                    final boolean largeVarChars) {
-    Preconditions.checkState(numRows > 0 && numRows%BATCH_SIZE == 0,
-      "ERROR: total number of rows should be greater than 0");
+  public CustomHashAggDataGeneratorDecimal(
+      int numRows, BufferAllocator allocator, final boolean largeVarChars) {
+    Preconditions.checkState(
+        numRows > 0 && numRows % BATCH_SIZE == 0,
+        "ERROR: total number of rows should be greater than 0");
     this.numRows = numRows;
-    this.batches = numRows/BATCH_SIZE;
+    this.batches = numRows / BATCH_SIZE;
     this.largeVarChars = largeVarChars;
     createBigSchemaAndInputContainer(allocator);
     buildInputTableDataAndResultset();
   }
 
   private void createBigSchemaAndInputContainer(final BufferAllocator allocator) {
-    final BatchSchema schema = BatchSchema.newBuilder()
-      .addField(DECIMAL_KEY)
-      .addField(DECIMAL_MEASURE)
-      .build();
+    final BatchSchema schema =
+        BatchSchema.newBuilder().addField(DECIMAL_KEY).addField(DECIMAL_MEASURE).build();
 
     container = VectorContainer.create(allocator, schema);
 
@@ -138,8 +136,8 @@ public class CustomHashAggDataGeneratorDecimal implements Generator {
   }
 
   /**
-   * Currently we generate a simple patter where we fix the number of times
-   * a key will repeat and after how many records it will repeat.
+   * Currently we generate a simple patter where we fix the number of times a key will repeat and
+   * after how many records it will repeat.
    */
   private void buildInputTableDataAndResultset() {
     decimalKeyValues = new BigDecimal[numRows];
@@ -180,13 +178,21 @@ public class CustomHashAggDataGeneratorDecimal implements Generator {
         final Key k = new Key(decimalKeyValues[i]);
         Value v = aggregatedResults.get(k);
         if (v == null) {
-          v = new Value(decimalMeasureValues[i], decimalMeasureValues[i], decimalMeasureValues[i], 1);
+          v =
+              new Value(
+                  decimalMeasureValues[i], decimalMeasureValues[i], decimalMeasureValues[i], 1);
           aggregatedResults.put(k, v);
         } else {
 
           v.sumDecimal = v.sumDecimal.add(decimalMeasureValues[i]);
-          v.minDecimal = decimalMeasureValues[i].compareTo(v.minDecimal) < 0 ? decimalMeasureValues[i] : v.minDecimal;
-          v.maxDecimal = decimalMeasureValues[i].compareTo(v.maxDecimal) > 0 ?decimalMeasureValues[i] : v.maxDecimal;
+          v.minDecimal =
+              decimalMeasureValues[i].compareTo(v.minDecimal) < 0
+                  ? decimalMeasureValues[i]
+                  : v.minDecimal;
+          v.maxDecimal =
+              decimalMeasureValues[i].compareTo(v.maxDecimal) > 0
+                  ? decimalMeasureValues[i]
+                  : v.maxDecimal;
           v.countDecimal++;
         }
       }
@@ -194,7 +200,8 @@ public class CustomHashAggDataGeneratorDecimal implements Generator {
       batch++;
     }
 
-    Preconditions.checkArgument(aggregatedResults.size() == (GROUPS_PER_BATCH * batches), "result table built incorrectly");
+    Preconditions.checkArgument(
+        aggregatedResults.size() == (GROUPS_PER_BATCH * batches), "result table built incorrectly");
   }
 
   public Fixtures.Table getExpectedGroupsAndAggregations() {
@@ -202,16 +209,14 @@ public class CustomHashAggDataGeneratorDecimal implements Generator {
     Iterator iterator = aggregatedResults.entrySet().iterator();
     int row = 0;
     while (iterator.hasNext()) {
-      final Map.Entry<Key, Value> pair = (Map.Entry<Key, Value>)iterator.next();
+      final Map.Entry<Key, Value> pair = (Map.Entry<Key, Value>) iterator.next();
       final Key k = pair.getKey();
       final Value v = pair.getValue();
-      rows[row] = tr(k.decimalKey,
-        v.sumDecimal, v.minDecimal, v.maxDecimal, v.sumDecimal);
+      rows[row] = tr(k.decimalKey, v.sumDecimal, v.minDecimal, v.maxDecimal, v.sumDecimal);
       row++;
     }
-    return t(th("DECIMAL_KEY",
-      "SUM_DECIMAL", "MIN_DECIMAL", "MAX_DECIMAL", "SUM0_DECIMAL"),
-      rows).orderInsensitive();
+    return t(th("DECIMAL_KEY", "SUM_DECIMAL", "MIN_DECIMAL", "MAX_DECIMAL", "SUM0_DECIMAL"), rows)
+        .orderInsensitive();
   }
 
   private static final class Key {
@@ -222,12 +227,12 @@ public class CustomHashAggDataGeneratorDecimal implements Generator {
     }
 
     @Override
-    public boolean equals (Object other) {
+    public boolean equals(Object other) {
       if (!(other instanceof Key)) {
         return false;
       }
 
-      final Key k = (Key)other;
+      final Key k = (Key) other;
       return (this.decimalKey.compareTo(((Key) other).decimalKey) == 0);
     }
 
@@ -243,7 +248,11 @@ public class CustomHashAggDataGeneratorDecimal implements Generator {
     private BigDecimal maxDecimal;
     private long countDecimal;
 
-    Value(final BigDecimal sumDecimal, final BigDecimal minDecimal, final BigDecimal maxDecimal, final long countDecimal) {
+    Value(
+        final BigDecimal sumDecimal,
+        final BigDecimal minDecimal,
+        final BigDecimal maxDecimal,
+        final long countDecimal) {
       this.sumDecimal = sumDecimal;
       this.minDecimal = minDecimal;
       this.maxDecimal = maxDecimal;

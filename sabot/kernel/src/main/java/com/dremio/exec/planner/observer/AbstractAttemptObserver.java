@@ -15,15 +15,6 @@
  */
 package com.dremio.exec.planner.observer;
 
-import java.util.List;
-import java.util.Map;
-
-import org.apache.calcite.plan.RelOptPlanner;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.RelRoot;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.sql.SqlNode;
-
 import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.planner.PlannerPhase;
@@ -35,7 +26,9 @@ import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.proto.UserBitShared.AttemptEvent;
 import com.dremio.exec.proto.UserBitShared.FragmentRpcSizeStats;
+import com.dremio.exec.proto.UserBitShared.PlannerPhaseRulesStats;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.exec.work.QueryWorkUnit;
 import com.dremio.exec.work.foreman.ExecutionPlan;
@@ -43,181 +36,165 @@ import com.dremio.exec.work.protector.UserRequest;
 import com.dremio.exec.work.protector.UserResult;
 import com.dremio.reflection.hints.ReflectionExplanationsAndQueryDistance;
 import com.dremio.resource.ResourceSchedulingDecisionInfo;
+import java.util.List;
+import org.apache.calcite.plan.RelOptPlanner;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.RelRoot;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.sql.SqlNode;
 
 public abstract class AbstractAttemptObserver implements AttemptObserver {
 
-  public static final AbstractAttemptObserver NOOP = new AbstractAttemptObserver() {
-  };
+  public static final AbstractAttemptObserver NOOP = new AbstractAttemptObserver() {};
 
   @Override
-  public void beginState(AttemptEvent event) {
-  }
+  public void beginState(AttemptEvent event) {}
 
   @Override
-  public void planText(String text, long millisTaken) {
-  }
+  public void planText(String text, long millisTaken) {}
 
   @Override
-  public void finalPrel(Prel prel) {
-  }
+  public void finalPrelPlanGenerated(Prel prel) {}
 
   @Override
-  public void planRelTransform(PlannerPhase phase, RelOptPlanner planner, RelNode before, RelNode after,
-                               long millisTaken, final Map<String, Long> timeBreakdownPerRule) {
-  }
+  public void planRelTransform(
+      PlannerPhase phase,
+      RelOptPlanner planner,
+      RelNode before,
+      RelNode after,
+      long millisTaken,
+      List<PlannerPhaseRulesStats> rulesBreakdownStats) {}
 
   @Override
-  public void planParallelStart() {
-  }
+  public void planParallelStart() {}
 
   @Override
-  public void planParallelized(PlanningSet planningSet) {
-  }
+  public void planParallelized(PlanningSet planningSet) {}
 
   @Override
-  public void planFindMaterializations(long millisTaken) {
-  }
+  public void planFindMaterializations(long millisTaken) {}
 
   @Override
-  public void recordExtraInfo(String name, byte[] bytes) {
-  }
+  public void recordExtraInfo(String name, byte[] bytes) {}
 
   @Override
-  public void planNormalized(long millisTaken, List<RelWithInfo> normalizedQueryPlans) {
-  }
+  public void planNormalized(long millisTaken, List<RelWithInfo> normalizedQueryPlans) {}
 
   @Override
-  public void planSubstituted(long millisTaken) {
-  }
+  public void planSubstituted(long millisTaken) {}
 
   @Override
-  public void planAccelerated(final SubstitutionInfo info) {
-  }
+  public void planAccelerated(final SubstitutionInfo info) {}
 
   @Override
-  public void planConvertedToRel(RelNode converted, long millisTaken) {
-  }
+  public void planConvertedToRel(RelNode converted, long millisTaken) {}
 
   @Override
-  public void planConvertedScan(RelNode converted, long millisTaken) {
-  }
+  public void planConvertedScan(RelNode converted, long millisTaken) {}
 
   /**
    * Gets the refresh decision and how long it took to make the refresh decision
+   *
    * @param text A string describing if we decided to do full or incremental refresh
    * @param millisTaken time taken in planning the refresh decision
    */
   @Override
-  public void planRefreshDecision(String text, long millisTaken) {
-  }
+  public void planRefreshDecision(String text, long millisTaken) {}
 
   @Override
-  public void planSubstituted(DremioMaterialization materialization, List<RelWithInfo> substitutions,
-                              RelWithInfo target, long millisTaken, boolean defaultReflection) {
-  }
+  public void planSubstituted(
+      DremioMaterialization materialization,
+      List<RelWithInfo> substitutions,
+      RelWithInfo target,
+      long millisTaken,
+      boolean defaultReflection) {}
 
   @Override
-  public void substitutionFailures(Iterable<String> errors) {
-  }
+  public void substitutionFailures(Iterable<String> errors) {}
 
   @Override
-  public void planCompleted(final ExecutionPlan plan) {
-  }
+  public void planCompleted(final ExecutionPlan plan, final BatchSchema batchSchema) {}
 
   @Override
-  public void planStart(String rawPlan) {
-  }
+  public void planStart(String rawPlan) {}
 
   @Override
-  public void planValidated(RelDataType rowType, SqlNode node, long millisTaken) {
-  }
+  public void planValidated(
+      RelDataType rowType,
+      SqlNode node,
+      long millisTaken,
+      boolean isMaterializationCacheInitialized) {}
 
   @Override
-  public void planSerializable(RelNode serializable) {
-  }
+  public void planSerializable(RelNode serializable) {}
 
   @Override
-  public void planExpandView(RelRoot expanded, List<String> schemaPath, int nestingLevel, String sql) {
-  }
+  public void planExpandView(
+      RelRoot expanded, List<String> schemaPath, int nestingLevel, String sql) {}
 
   @Override
-  public void plansDistributionComplete(QueryWorkUnit unit) {
-  }
+  public void plansDistributionComplete(QueryWorkUnit unit) {}
 
   @Override
-  public void execDataArrived(RpcOutcomeListener<Ack> outcomeListener, QueryWritableBatch result) {
-  }
+  public void execDataArrived(RpcOutcomeListener<Ack> outcomeListener, QueryWritableBatch result) {}
 
   @Override
-  public void attemptCompletion(UserResult result) {
-  }
+  public void attemptCompletion(UserResult result) {}
 
   @Override
-  public void queryStarted(UserRequest query, String user) {
-  }
+  public void queryStarted(UserRequest query, String user) {}
 
   @Override
-  public void commandPoolWait(long waitInMillis) {
-  }
+  public void commandPoolWait(long waitInMillis) {}
 
   @Override
-  public void execStarted(QueryProfile profile) {
-  }
+  public void execStarted(QueryProfile profile) {}
 
   @Override
-  public void planJsonPlan(String text) {
-  }
+  public void planJsonPlan(String text) {}
 
   @Override
-  public void executorsSelected(long millisTaken, int idealNumFragments, int idealNumNodes, int numExecutors, String detailsText) {
-  }
+  public void executorsSelected(
+      long millisTaken,
+      int idealNumFragments,
+      int idealNumNodes,
+      int numExecutors,
+      String detailsText) {}
 
   @Override
-  public void recordsProcessed(long recordCount) {
-  }
+  public void recordsProcessed(long recordCount) {}
 
   @Override
-  public void recordsOutput(long recordCount) {
-  }
+  public void recordsOutput(long recordCount) {}
 
   @Override
-  public void planGenerationTime(long millisTaken) {
-  }
+  public void planGenerationTime(long millisTaken) {}
 
   @Override
-  public void planAssignmentTime(long millisTaken) {
-  }
+  public void planAssignmentTime(long millisTaken) {}
 
   @Override
-  public void fragmentsStarted(long millisTaken, FragmentRpcSizeStats stats) {
-  }
+  public void fragmentsStarted(long millisTaken, FragmentRpcSizeStats stats) {}
 
   @Override
-  public void fragmentsActivated(long millisTaken) {
-  }
+  public void fragmentsActivated(long millisTaken) {}
 
   @Override
-  public void activateFragmentFailed(Exception ex) {
-
-  }
+  public void activateFragmentFailed(Exception ex) {}
 
   @Override
-  public void tablesCollected(Iterable<DremioTable> tables) {
-  }
+  public void tablesCollected(Iterable<DremioTable> tables) {}
 
   @Override
-  public void resourcesScheduled(ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo) {
-  }
+  public void resourcesScheduled(ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo) {}
 
   @Override
-  public void updateReflectionsWithHints(ReflectionExplanationsAndQueryDistance reflectionExplanationsAndQueryDistance) {
-  }
+  public void updateReflectionsWithHints(
+      ReflectionExplanationsAndQueryDistance reflectionExplanationsAndQueryDistance) {}
 
   @Override
-  public void setNumJoinsInUserQuery(Integer joins) {
-  }
+  public void setNumJoinsInUserQuery(Integer joins) {}
 
   @Override
-  public void setNumJoinsInFinalPrel(Integer joins) {
-  }
+  public void setNumJoinsInFinalPrel(Integer joins) {}
 }

@@ -17,11 +17,6 @@ package com.dremio.service.namespace;
 
 import static com.dremio.service.namespace.dataset.proto.DatasetType.PHYSICAL_DATASET;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
-
 import com.dremio.common.utils.PathUtils;
 import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
@@ -35,29 +30,31 @@ import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.space.proto.FolderConfig;
 import com.dremio.service.namespace.space.proto.HomeConfig;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
-/**
- * Helper methods for working with the Namespace Service.
- */
+/** Helper methods for working with the Namespace Service. */
 public final class NamespaceTestUtils {
   private static final long REFRESH_PERIOD_MS = TimeUnit.HOURS.toMillis(24);
   private static final long GRACE_PERIOD_MS = TimeUnit.HOURS.toMillis(48);
 
-  private NamespaceTestUtils() {
-  }
+  private NamespaceTestUtils() {}
 
   public static SourceConfig addSource(NamespaceService ns, String name) throws Exception {
     return addSourceWithRefreshAndGracePeriod(ns, name, REFRESH_PERIOD_MS, GRACE_PERIOD_MS);
   }
 
-  public static SourceConfig addSourceWithRefreshAndGracePeriod(NamespaceService ns, String name, long refreshPeriod,
-                                                                long gracePeriod) throws Exception {
-    final SourceConfig src = new SourceConfig()
-      .setName(name)
-      .setCtime(100L)
-      .setLegacySourceTypeEnum(LegacySourceType.NAS)
-      .setAccelerationRefreshPeriod(refreshPeriod)
-      .setAccelerationGracePeriod(gracePeriod);
+  public static SourceConfig addSourceWithRefreshAndGracePeriod(
+      NamespaceService ns, String name, long refreshPeriod, long gracePeriod) throws Exception {
+    final SourceConfig src =
+        new SourceConfig()
+            .setName(name)
+            .setCtime(100L)
+            .setLegacySourceTypeEnum(LegacySourceType.NAS)
+            .setAccelerationRefreshPeriod(refreshPeriod)
+            .setAccelerationGracePeriod(gracePeriod);
     ns.addOrUpdateSource(new NamespaceKey(name), src);
     return src;
   }
@@ -104,10 +101,13 @@ public final class NamespaceTestUtils {
   public static void addFile(NamespaceService ns, List<String> path) throws Exception {
     NamespaceKey filePath = new NamespaceKey(path);
     final boolean isHome = path.get(0).startsWith("@");
-    final DatasetConfig ds = new DatasetConfig()
-        .setType(isHome ? DatasetType.PHYSICAL_DATASET_HOME_FILE : DatasetType.PHYSICAL_DATASET_SOURCE_FILE)
-        .setPhysicalDataset(new PhysicalDataset()
-            .setFormatSettings(new FileConfig()));
+    final DatasetConfig ds =
+        new DatasetConfig()
+            .setType(
+                isHome
+                    ? DatasetType.PHYSICAL_DATASET_HOME_FILE
+                    : DatasetType.PHYSICAL_DATASET_SOURCE_FILE)
+            .setPhysicalDataset(new PhysicalDataset().setFormatSettings(new FileConfig()));
     ns.addOrUpdateDataset(filePath, ds);
   }
 
@@ -121,11 +121,14 @@ public final class NamespaceTestUtils {
     addPhysicalDS(ns, filePath, null);
   }
 
-  public static void addPhysicalDS(NamespaceService ns, String filePath, byte[] datasetSchema) throws Exception {
+  public static void addPhysicalDS(NamespaceService ns, String filePath, byte[] datasetSchema)
+      throws Exception {
     addPhysicalDS(ns, filePath, PHYSICAL_DATASET, datasetSchema);
   }
 
-  public static void addPhysicalDS(NamespaceService ns, String filePath, DatasetType type, byte[] datasetSchema) throws Exception {
+  public static void addPhysicalDS(
+      NamespaceService ns, String filePath, DatasetType type, byte[] datasetSchema)
+      throws Exception {
     NamespaceKey datasetPath = new NamespaceKey(PathUtils.parseFullPath(filePath));
     final DatasetConfig datasetConfig = new DatasetConfig();
     datasetConfig.setName(datasetPath.getName());
@@ -141,15 +144,18 @@ public final class NamespaceTestUtils {
     ns.tryCreatePhysicalDataset(datasetPath, datasetConfig);
   }
 
-  public static Map<String, NameSpaceContainer> listFolder(NamespaceService ns, String parent) throws Exception {
+  public static Map<String, NameSpaceContainer> listFolder(NamespaceService ns, String parent)
+      throws Exception {
     Map<String, NameSpaceContainer> children = new HashMap<>();
-    for (NameSpaceContainer container : ns.list(new NamespaceKey(PathUtils.parseFullPath(parent)))) {
+    for (NameSpaceContainer container :
+        ns.list(new NamespaceKey(PathUtils.parseFullPath(parent)))) {
       children.put(PathUtils.constructFullPath(container.getFullPathList()), container);
     }
     return children;
   }
 
-  public static Map<String, NameSpaceContainer> listHome(NamespaceService ns, String parent) throws Exception {
+  public static Map<String, NameSpaceContainer> listHome(NamespaceService ns, String parent)
+      throws Exception {
     Map<String, NameSpaceContainer> children = new HashMap<>();
     for (NameSpaceContainer container : ns.list(new NamespaceKey(parent))) {
       children.put(PathUtils.constructFullPath(container.getFullPathList()), container);

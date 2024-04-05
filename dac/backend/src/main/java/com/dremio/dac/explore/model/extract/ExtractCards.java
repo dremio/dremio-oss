@@ -15,16 +15,13 @@
  */
 package com.dremio.dac.explore.model.extract;
 
-import java.util.List;
-
 import com.dremio.dac.proto.model.dataset.ExtractCard;
 import com.dremio.dac.util.JSONUtil;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.List;
 
-/**
- * ExtractCards model
- */
+/** ExtractCards model */
 public class ExtractCards {
 
   private final List<ExtractCard> cards;

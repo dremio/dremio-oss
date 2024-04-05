@@ -15,13 +15,10 @@
  */
 package com.dremio.service.jobs;
 
+import com.dremio.service.job.proto.JobId;
 import javax.annotation.Nullable;
 
-import com.dremio.service.job.proto.JobId;
-
-/**
- * Thrown when a job is not found.
- */
+/** Thrown when a job is not found. */
 public class JobNotFoundException extends JobException {
   private static final long serialVersionUID = 1L;
 
@@ -59,7 +56,8 @@ public class JobNotFoundException extends JobException {
     this(jobId, CauseOfFailure.NOT_FOUND, null, error);
   }
 
-  private JobNotFoundException(JobId jobId, CauseOfFailure errorType, @Nullable Throwable cause, @Nullable String message) {
+  private JobNotFoundException(
+      JobId jobId, CauseOfFailure errorType, @Nullable Throwable cause, @Nullable String message) {
     super(jobId, message != null ? message : errorType.buildErrorMessage(jobId), cause);
     this.errorType = errorType;
   }

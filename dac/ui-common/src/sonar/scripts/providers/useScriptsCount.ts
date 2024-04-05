@@ -14,13 +14,16 @@
  * limitations under the License.
  */
 
-import { $Scripts } from "../resources/ScriptsResource"
-import { useBehaviorSubject } from "../../../utilities/useBehaviorSubject"
+import { $Scripts } from "../resources/ScriptsResource";
+import { useBehaviorSubject } from "../../../utilities/useBehaviorSubject";
 import { BehaviorSubject, distinctUntilChanged, map } from "rxjs";
 
-const ScriptsCount = $Scripts.pipe(map(scripts => scripts?.length ?? null), distinctUntilChanged()) as BehaviorSubject<number | null>
+const ScriptsCount = $Scripts.pipe(
+  map((scripts) => scripts?.length ?? null),
+  distinctUntilChanged(),
+) as BehaviorSubject<number | null>;
 
 export const useScriptsCount = (): number | null => {
   const [scriptsCount] = useBehaviorSubject(ScriptsCount);
   return scriptsCount;
-}
+};

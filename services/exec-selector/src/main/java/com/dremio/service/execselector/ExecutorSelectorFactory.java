@@ -17,15 +17,14 @@ package com.dremio.service.execselector;
 
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-/**
- * A factory for {@link ExecutorSelector}s
- */
+/** A factory for {@link ExecutorSelector}s */
 public interface ExecutorSelectorFactory {
   /**
    * Create a {@link ExecutorSelector}
-   * @param selectorType  What kind of executor selector this factory should create
-   * @param rwLock        A read-write lock that the resulting {@link ExecutorSelector} can use to protect
-   *                      entry points that do not come from the executor selector service
+   *
+   * @param selectorType What kind of executor selector this factory should create
+   * @param rwLock A read-write lock that the resulting {@link ExecutorSelector} can use to protect
+   *     entry points that do not come from the executor selector service
    */
   ExecutorSelector createExecutorSelector(String selectorType, ReentrantReadWriteLock rwLock);
 }

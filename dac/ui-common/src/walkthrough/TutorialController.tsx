@@ -55,7 +55,7 @@ type TutorialActions =
 
 const activeTutorialReducer = (
   state: TutorialState["activeTutorialId"] = null,
-  action: TutorialActions
+  action: TutorialActions,
 ): TutorialState["activeTutorialId"] => {
   const completedTutorials = getCompletedTutorials();
   switch (action.type) {
@@ -67,7 +67,7 @@ const activeTutorialReducer = (
       if (state) completedTutorials.push(state);
       localStorage.setItem(
         "completedTutorials",
-        JSON.stringify(completedTutorials)
+        JSON.stringify(completedTutorials),
       );
       return null;
     }
@@ -78,7 +78,7 @@ const activeTutorialReducer = (
 
 const activeTutorialStepReducer = (
   state: TutorialState["activeTutorialStep"] = null,
-  action: TutorialActions
+  action: TutorialActions,
 ): TutorialState["activeTutorialStep"] => {
   switch (action.type) {
     case "start_tutorial":
@@ -94,7 +94,7 @@ const activeTutorialStepReducer = (
 
 const currentOutletReducer = (
   state: TutorialState["currentOutletId"] = null,
-  action: TutorialActions
+  action: TutorialActions,
 ): TutorialState["currentOutletId"] => {
   switch (action.type) {
     case "set_outlet":
@@ -106,9 +106,9 @@ const currentOutletReducer = (
 
 const isTutorialHiddenReducer = (
   state: TutorialState["isTutorialHidden"] = localStorage.getItem?.(
-    "isTutorialHidden"
+    "isTutorialHidden",
   ) === "true",
-  action: TutorialActions
+  action: TutorialActions,
 ): TutorialState["isTutorialHidden"] => {
   switch (action.type) {
     case "hide_tutorial": {
@@ -122,7 +122,7 @@ const isTutorialHiddenReducer = (
 
 const wikiEditorReducer = (
   state: TutorialState["wikiEditor"] = null,
-  action: TutorialActions
+  action: TutorialActions,
 ): TutorialState["wikiEditor"] => {
   switch (action.type) {
     case "set_wiki_editor": {
@@ -135,13 +135,13 @@ const wikiEditorReducer = (
 
 const tutorialStateReducer = (
   state: TutorialState,
-  action: TutorialActions
+  action: TutorialActions,
 ): TutorialState => {
   return {
     activeTutorialId: activeTutorialReducer(state.activeTutorialId, action),
     activeTutorialStep: activeTutorialStepReducer(
       state.activeTutorialStep,
-      action
+      action,
     ),
     currentOutletId: currentOutletReducer(state.currentOutletId, action),
     isTutorialHidden: isTutorialHiddenReducer(state.isTutorialHidden, action),
@@ -177,7 +177,7 @@ const logTutorialEvents =
 export const TutorialController = (props: any) => {
   const [state, dispatch] = useReducer(
     logTutorialEvents(tutorialStateReducer),
-    tutorialStateReducer({} as any, { type: "INIT" } as any)
+    tutorialStateReducer({} as any, { type: "INIT" } as any),
   );
   const endTutorialDialog = useModalContainer();
 
@@ -187,15 +187,15 @@ export const TutorialController = (props: any) => {
   }, []);
   const completeTutorial = useCallback(
     () => dispatch({ type: "complete_tutorial" }),
-    []
+    [],
   );
   const hideTutorial = useCallback(
     (hide: boolean) => dispatch({ type: "hide_tutorial", hide: hide }),
-    []
+    [],
   );
   const setWikiEditor = useCallback(
     (editor: any) => dispatch({ type: "set_wiki_editor", editor: editor }),
-    []
+    [],
   );
   const ctxVal = useMemo(
     () => ({
@@ -207,7 +207,7 @@ export const TutorialController = (props: any) => {
       setWikiEditor,
       dispatch,
     }),
-    [state, dispatch]
+    [state, dispatch],
   );
   return (
     <tutorialContext.Provider value={ctxVal}>

@@ -18,11 +18,6 @@ package com.dremio.exec.planner.fragment;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import org.junit.Test;
-
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.proto.CoordExecRPC.MinorAttr;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
@@ -30,38 +25,35 @@ import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.NormalizedDatasetSplitInfo;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.NormalizedPartitionInfo;
 import com.google.protobuf.ByteString;
+import java.util.ArrayList;
+import java.util.List;
+import org.junit.Test;
 
 public class TestSplitNormalizer {
-  NodeEndpoint dummyEndpoint0 = NodeEndpoint
-    .newBuilder()
-    .setAddress("test0")
-    .build();
+  NodeEndpoint dummyEndpoint0 = NodeEndpoint.newBuilder().setAddress("test0").build();
 
-  NodeEndpoint dummyEndpoint1 = NodeEndpoint
-    .newBuilder()
-    .setAddress("test1")
-    .build();
+  NodeEndpoint dummyEndpoint1 = NodeEndpoint.newBuilder().setAddress("test1").build();
 
   private List<SplitAndPartitionInfo> buildSplits(int numPartitions, int numSplitsPerPartition) {
     List<SplitAndPartitionInfo> splitAndPartitionInfos = new ArrayList<>();
 
     for (int i = 0; i < numPartitions; ++i) {
       String extendedProp = "partition_extended_" + String.valueOf(i);
-      NormalizedPartitionInfo partitionInfo = NormalizedPartitionInfo
-        .newBuilder()
-        .setId(String.valueOf(i))
-        .setSize(i * 1000)
-        .setExtendedProperty(ByteString.copyFrom(extendedProp.getBytes()))
-        .build();
+      NormalizedPartitionInfo partitionInfo =
+          NormalizedPartitionInfo.newBuilder()
+              .setId(String.valueOf(i))
+              .setSize(i * 1000)
+              .setExtendedProperty(ByteString.copyFrom(extendedProp.getBytes()))
+              .build();
 
       for (int j = 0; j < numSplitsPerPartition; ++j) {
         String splitExtendedProp = "split_extended_" + String.valueOf(j);
 
-        NormalizedDatasetSplitInfo splitInfo = NormalizedDatasetSplitInfo
-          .newBuilder()
-          .setPartitionId(String.valueOf(i))
-          .setExtendedProperty(ByteString.copyFrom(splitExtendedProp.getBytes()))
-          .build();
+        NormalizedDatasetSplitInfo splitInfo =
+            NormalizedDatasetSplitInfo.newBuilder()
+                .setPartitionId(String.valueOf(i))
+                .setExtendedProperty(ByteString.copyFrom(splitExtendedProp.getBytes()))
+                .build();
 
         splitAndPartitionInfos.add(new SplitAndPartitionInfo(partitionInfo, splitInfo));
       }
@@ -73,18 +65,17 @@ public class TestSplitNormalizer {
   public void singleNode() throws Exception {
     MinorDataSerDe serDe = new MinorDataSerDe(null, null);
 
-
     // write the split infos.
     List<SplitAndPartitionInfo> writeSplits = buildSplits(5, 10);
     PlanFragmentsIndex.Builder indexBuilder = new PlanFragmentsIndex.Builder();
     MinorDataWriter writer = new MinorDataWriter(null, dummyEndpoint0, serDe, indexBuilder);
     SplitNormalizer.write(OpProps.prototype(1), writer, writeSplits);
 
-
     // read the split infos.
-    List<MinorAttr> sharedAttrs = indexBuilder.getSharedAttrsIndexBuilder(dummyEndpoint0).getAllAttrs();
-    PlanFragmentsIndex index = new PlanFragmentsIndex(
-      indexBuilder.endpointsIndexBuilder.getAllEndpoints(), sharedAttrs);
+    List<MinorAttr> sharedAttrs =
+        indexBuilder.getSharedAttrsIndexBuilder(dummyEndpoint0).getAllAttrs();
+    PlanFragmentsIndex index =
+        new PlanFragmentsIndex(indexBuilder.endpointsIndexBuilder.getAllEndpoints(), sharedAttrs);
     assertEquals(5, sharedAttrs.size());
 
     MinorAttrsMap minorAttrsMap = MinorAttrsMap.create(writer.getAllAttrs());
@@ -125,7 +116,8 @@ public class TestSplitNormalizer {
     // read the split infos.
     for (int i = 0; i < 2; ++i) {
 
-      List<MinorAttr> sharedAttrs = indexBuilder.getSharedAttrsIndexBuilder(endpoints[i]).getAllAttrs();
+      List<MinorAttr> sharedAttrs =
+          indexBuilder.getSharedAttrsIndexBuilder(endpoints[i]).getAllAttrs();
       PlanFragmentsIndex index =
           new PlanFragmentsIndex(indexBuilder.endpointsIndexBuilder.getAllEndpoints(), sharedAttrs);
       assertEquals(5, sharedAttrs.size());

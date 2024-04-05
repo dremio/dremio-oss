@@ -17,29 +17,26 @@ package com.dremio.sabot;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.dremio.common.expression.Describer;
+import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.record.RecordBatchData;
+import com.google.common.base.Preconditions;
+import de.vandermeer.asciitable.v2.V2_AsciiTable;
+import de.vandermeer.asciitable.v2.render.V2_AsciiTableRenderer;
+import de.vandermeer.asciitable.v2.render.WidthAbsoluteEven;
+import de.vandermeer.asciitable.v2.themes.V2_E_TableThemes;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.Period;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
-
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.util.Text;
 
-import com.dremio.common.expression.Describer;
-import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.record.RecordBatchData;
-import com.google.common.base.Preconditions;
-
-import de.vandermeer.asciitable.v2.V2_AsciiTable;
-import de.vandermeer.asciitable.v2.render.V2_AsciiTableRenderer;
-import de.vandermeer.asciitable.v2.render.WidthAbsoluteEven;
-import de.vandermeer.asciitable.v2.themes.V2_E_TableThemes;
-
-public class RecordBatchValidatorDefaultImpl implements RecordBatchValidator{
+public class RecordBatchValidatorDefaultImpl implements RecordBatchValidator {
 
   protected final RecordSet recordSet;
 
@@ -51,37 +48,47 @@ public class RecordBatchValidatorDefaultImpl implements RecordBatchValidator{
   public void checkValid(List<RecordBatchData> actualBatches) {
     assertThat(actualBatches.size()).as("Batch count").isGreaterThan(0);
 
-    int actualCount = actualBatches.stream()
-      .map(RecordBatchData::getRecordCount)
-      .reduce(0, Integer::sum);
-    int expectedCount = Arrays.stream(recordSet.getBatches())
-      .map(b -> b.records.length)
-      .reduce(0, Integer::sum);
+    int actualCount =
+        actualBatches.stream().map(RecordBatchData::getRecordCount).reduce(0, Integer::sum);
+    int expectedCount =
+        Arrays.stream(recordSet.getBatches()).map(b -> b.records.length).reduce(0, Integer::sum);
 
     V2_AsciiTable output = new V2_AsciiTable();
-    boolean schemasMatch = compareSchemas(recordSet.getSchema(), actualBatches.get(0).getSchema(), output);
+    boolean schemasMatch =
+        compareSchemas(recordSet.getSchema(), actualBatches.get(0).getSchema(), output);
     // only compare records if schemas match
-    boolean recordsMatch = schemasMatch && compareAllRecords(recordSet.getBatches(), actualBatches, output);
+    boolean recordsMatch =
+        schemasMatch && compareAllRecords(recordSet.getBatches(), actualBatches, output);
 
     V2_AsciiTableRenderer rend = new V2_AsciiTableRenderer();
     rend.setTheme(V2_E_TableThemes.UTF_LIGHT.get());
     rend.setWidth(new WidthAbsoluteEven(300));
 
     assertThat(schemasMatch)
-      .as(() -> "\n" + rend.render(output) +
-        "\nSchemas do not match - fields displayed as [ actual (expected) ]")
-      .isTrue();
+        .as(
+            () ->
+                "\n"
+                    + rend.render(output)
+                    + "\nSchemas do not match - fields displayed as [ actual (expected) ]")
+        .isTrue();
     assertThat(actualCount)
-      .as(() -> "\n" + rend.render(output)  +
-        "\nRecord counts do not match - column values displayed as [ actual (expected) ]")
-      .isEqualTo(expectedCount);
+        .as(
+            () ->
+                "\n"
+                    + rend.render(output)
+                    + "\nRecord counts do not match - column values displayed as [ actual (expected) ]")
+        .isEqualTo(expectedCount);
     assertThat(recordsMatch)
-      .as(() -> "\n" + rend.render(output) +
-        "\nRecords do not match - column values displayed as [ actual (expected) ]")
-      .isTrue();
+        .as(
+            () ->
+                "\n"
+                    + rend.render(output)
+                    + "\nRecords do not match - column values displayed as [ actual (expected) ]")
+        .isTrue();
   }
 
-  private boolean compareSchemas(BatchSchema expectedSchema, BatchSchema actualSchema, V2_AsciiTable output) {
+  private boolean compareSchemas(
+      BatchSchema expectedSchema, BatchSchema actualSchema, V2_AsciiTable output) {
     // compare schemas & output header row
     boolean matches = true;
     int maxFieldCount = Math.max(expectedSchema.getFieldCount(), actualSchema.getFieldCount());
@@ -94,9 +101,11 @@ public class RecordBatchValidatorDefaultImpl implements RecordBatchValidator{
         outputValues[c] = Describer.describe(actualField);
       } else {
         matches = false;
-        outputValues[c] = String.format("%s (%s)",
-          actualField == null ? "-" : Describer.describe(actualField),
-          expectedField == null ? "-" : Describer.describe(expectedField));
+        outputValues[c] =
+            String.format(
+                "%s (%s)",
+                actualField == null ? "-" : Describer.describe(actualField),
+                expectedField == null ? "-" : Describer.describe(expectedField));
       }
     }
 
@@ -107,7 +116,8 @@ public class RecordBatchValidatorDefaultImpl implements RecordBatchValidator{
     return matches;
   }
 
-  private boolean compareAllRecords(RecordSet.Batch[] expected, List<RecordBatchData> actual, V2_AsciiTable output) {
+  private boolean compareAllRecords(
+      RecordSet.Batch[] expected, List<RecordBatchData> actual, V2_AsciiTable output) {
     int actualBatchIndex = 0;
     int expectedBatchIndex = 0;
     int actualIndex = 0;
@@ -118,7 +128,8 @@ public class RecordBatchValidatorDefaultImpl implements RecordBatchValidator{
 
     // compare records until either actual or expected records are fully iterated
     while (actualBatchIndex < actual.size() && expectedBatchIndex < expected.length) {
-      while (actualBatchIndex < actual.size() && actualIndex == actual.get(actualBatchIndex).getRecordCount()) {
+      while (actualBatchIndex < actual.size()
+          && actualIndex == actual.get(actualBatchIndex).getRecordCount()) {
         actualBatchIndex++;
         actualIndex = 0;
         if (actualBatchIndex < actual.size()) {
@@ -126,14 +137,19 @@ public class RecordBatchValidatorDefaultImpl implements RecordBatchValidator{
         }
       }
 
-      while (expectedBatchIndex < expected.length && expectedIndex == expected[expectedBatchIndex].records.length) {
+      while (expectedBatchIndex < expected.length
+          && expectedIndex == expected[expectedBatchIndex].records.length) {
         expectedBatchIndex++;
         expectedIndex = 0;
       }
 
       if (actualBatchIndex < actual.size() && expectedBatchIndex < expected.length) {
         boolean recordsMatch =
-          compareRecord(expected[expectedBatchIndex].records[expectedIndex], actualVectors, actualIndex, output);
+            compareRecord(
+                expected[expectedBatchIndex].records[expectedIndex],
+                actualVectors,
+                actualIndex,
+                output);
         matches = matches && recordsMatch;
 
         actualIndex++;
@@ -143,7 +159,8 @@ public class RecordBatchValidatorDefaultImpl implements RecordBatchValidator{
 
     // output any additional actual records
     while (actualBatchIndex < actual.size()) {
-      while (actualBatchIndex < actual.size() && actualIndex == actual.get(actualBatchIndex).getRecordCount()) {
+      while (actualBatchIndex < actual.size()
+          && actualIndex == actual.get(actualBatchIndex).getRecordCount()) {
         actualBatchIndex++;
         actualIndex = 0;
         if (actualBatchIndex < actual.size()) {
@@ -167,7 +184,8 @@ public class RecordBatchValidatorDefaultImpl implements RecordBatchValidator{
 
     // output any additional expected records
     while (expectedBatchIndex < expected.length) {
-      while (expectedBatchIndex < expected.length && expectedIndex == expected[expectedBatchIndex].records.length) {
+      while (expectedBatchIndex < expected.length
+          && expectedIndex == expected[expectedBatchIndex].records.length) {
         expectedBatchIndex++;
         expectedIndex = 0;
       }
@@ -188,7 +206,8 @@ public class RecordBatchValidatorDefaultImpl implements RecordBatchValidator{
     return matches;
   }
 
-  protected boolean compareRecord(RecordSet.Record expected, List<ValueVector> actual, int actualIndex, V2_AsciiTable output) {
+  protected boolean compareRecord(
+      RecordSet.Record expected, List<ValueVector> actual, int actualIndex, V2_AsciiTable output) {
     assertThat(actual.size()).isEqualTo(expected.values.length);
     boolean matches = true;
     Object[] outputValues = new Object[actual.size()];
@@ -202,7 +221,8 @@ public class RecordBatchValidatorDefaultImpl implements RecordBatchValidator{
         outputValues[c] = actualText;
       } else {
         matches = false;
-        outputValues[c] = String.format("%s (%s)", actualText, expectedToString(expected.values[c]));
+        outputValues[c] =
+            String.format("%s (%s)", actualText, expectedToString(expected.values[c]));
       }
     }
 
@@ -276,7 +296,9 @@ public class RecordBatchValidatorDefaultImpl implements RecordBatchValidator{
         break;
       default:
         throw new IllegalArgumentException(
-          String.format("Unsupported type %s for field %s", actual.getMinorType(), actual.getField().getName()));
+            String.format(
+                "Unsupported type %s for field %s",
+                actual.getMinorType(), actual.getField().getName()));
     }
   }
 
@@ -302,16 +324,21 @@ public class RecordBatchValidatorDefaultImpl implements RecordBatchValidator{
       case DECIMAL:
         return Objects.equals(actual.readObject(), normalizeExpected(expectedValue));
       case VARBINARY:
-        return expectedValue instanceof byte[] && Arrays.equals((byte[]) actual.readObject(), (byte[]) expectedValue);
+        return expectedValue instanceof byte[]
+            && Arrays.equals((byte[]) actual.readObject(), (byte[]) expectedValue);
       case FLOAT4:
-        return compareFloat((Float) actual.readObject(),
-          expectedValue instanceof Float ? (Float) expectedValue : null);
+        return compareFloat(
+            (Float) actual.readObject(),
+            expectedValue instanceof Float ? (Float) expectedValue : null);
       case FLOAT8:
-        return compareDouble((Double) actual.readObject(),
-          expectedValue instanceof Double ? (Double) expectedValue : null);
+        return compareDouble(
+            (Double) actual.readObject(),
+            expectedValue instanceof Double ? (Double) expectedValue : null);
       default:
         throw new IllegalArgumentException(
-          String.format("Unsupported type %s for field %s", actual.getMinorType(), actual.getField().getName()));
+            String.format(
+                "Unsupported type %s for field %s",
+                actual.getMinorType(), actual.getField().getName()));
     }
   }
 
@@ -322,9 +349,11 @@ public class RecordBatchValidatorDefaultImpl implements RecordBatchValidator{
 
     Object[] values = ((RecordSet.Tuple) expected).values;
     List<Field> fields = actual.getField().getChildren();
-    Preconditions.checkState(values.length == fields.size(),
-      "Provided struct value has incorrect field count - expected %s fields: %s", fields.size(),
-      expectedToString(expected));
+    Preconditions.checkState(
+        values.length == fields.size(),
+        "Provided struct value has incorrect field count - expected %s fields: %s",
+        fields.size(),
+        expectedToString(expected));
     boolean matches = true;
     for (int i = 0; matches && i < values.length; i++) {
       matches = compareValue(values[i], actual.reader(fields.get(i).getName()));

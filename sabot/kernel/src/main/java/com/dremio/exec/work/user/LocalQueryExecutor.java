@@ -19,14 +19,12 @@ import com.dremio.exec.planner.observer.QueryObserver;
 import com.dremio.exec.proto.UserBitShared.ExternalId;
 import com.dremio.sabot.rpc.user.UserSession;
 
-/**
- * Will submit a query locally without going through the client
- */
+/** Will submit a query locally without going through the client */
 public interface LocalQueryExecutor {
 
   /**
-   * Should be called as early as possible before submitting a new query, this allows the coordinator to protect itself
-   * from running out of resources
+   * Should be called as early as possible before submitting a new query, this allows the
+   * coordinator to protect itself from running out of resources
    *
    * @return true if the local query executor can accept more work
    */
@@ -34,8 +32,9 @@ public interface LocalQueryExecutor {
 
   /**
    * Will submit a query locally without going through the client.
-   * @param observer QueryObserver used to get notifications about the queryJob.
-   *                    Overrides the use of QueryObserverFactory defined in the context
+   *
+   * @param observer QueryObserver used to get notifications about the queryJob. Overrides the use
+   *     of QueryObserverFactory defined in the context
    * @param query the query definition
    * @param prepare whether this is a prepared statement
    * @param config local execution config
@@ -43,12 +42,11 @@ public interface LocalQueryExecutor {
    * @param userSession current user session
    */
   void submitLocalQuery(
-    ExternalId externalId,
-    QueryObserver observer,
-    Object query,
-    boolean prepare,
-    LocalExecutionConfig config,
-    boolean runInSameThread,
-    UserSession userSession);
-
+      ExternalId externalId,
+      QueryObserver observer,
+      Object query,
+      boolean prepare,
+      LocalExecutionConfig config,
+      boolean runInSameThread,
+      UserSession userSession);
 }

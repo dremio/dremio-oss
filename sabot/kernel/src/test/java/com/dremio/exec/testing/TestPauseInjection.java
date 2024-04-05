@@ -18,13 +18,6 @@ package com.dremio.exec.testing;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import java.util.Properties;
-import java.util.concurrent.CountDownLatch;
-
-import org.apache.curator.test.TestingServer;
-import org.junit.Test;
-import org.slf4j.Logger;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.common.concurrent.ExtendedLatch;
 import com.dremio.common.config.SabotConfig;
@@ -45,27 +38,33 @@ import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.Pointer;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.local.LocalClusterCoordinator;
+import java.util.Properties;
+import java.util.concurrent.CountDownLatch;
+import org.apache.curator.test.TestingServer;
+import org.junit.Test;
+import org.slf4j.Logger;
 
 public class TestPauseInjection extends BaseTestQuery {
 
-  private static final UserSession session = UserSession.Builder.newBuilder()
-    .withSessionOptionManager(
-      new SessionOptionManagerImpl(nodes[0].getContext().getOptionValidatorListing()),
-      nodes[0].getContext().getOptionManager())
-    .withCredentials(UserCredentials.newBuilder()
-        .setUserName(UserServiceTestImpl.TEST_USER_1)
-        .build())
-      .withUserProperties(UserProperties.getDefaultInstance())
-      .build();
+  private static final UserSession session =
+      UserSession.Builder.newBuilder()
+          .withSessionOptionManager(
+              new SessionOptionManagerImpl(nodes[0].getContext().getOptionValidatorListing()),
+              nodes[0].getContext().getOptionManager())
+          .withCredentials(
+              UserCredentials.newBuilder().setUserName(UserServiceTestImpl.TEST_USER_1).build())
+          .withUserProperties(UserProperties.getDefaultInstance())
+          .build();
 
   /**
-   * Class whose methods we want to simulate pauses at run-time for testing
-   * purposes. The class must have access to {@link com.dremio.exec.ops.QueryContext} or
-   * {@link com.dremio.sabot.exec.fragment.FragmentContext}.
+   * Class whose methods we want to simulate pauses at run-time for testing purposes. The class must
+   * have access to {@link com.dremio.exec.ops.QueryContext} or {@link
+   * com.dremio.sabot.exec.fragment.FragmentContext}.
    */
   private static class DummyClass {
     private static final Logger logger = org.slf4j.LoggerFactory.getLogger(DummyClass.class);
-    private static final ControlsInjector injector = ControlsInjectorFactory.getInjector(DummyClass.class);
+    private static final ControlsInjector injector =
+        ControlsInjectorFactory.getInjector(DummyClass.class);
 
     private final QueryContext context;
     private final CountDownLatch latch;
@@ -103,8 +102,11 @@ public class TestPauseInjection extends BaseTestQuery {
     private final Pointer<Exception> ex;
     private final long millis;
 
-    public ResumingThread(final QueryContext context, final ExtendedLatch latch, final Pointer<Exception> ex,
-                          final long millis) {
+    public ResumingThread(
+        final QueryContext context,
+        final ExtendedLatch latch,
+        final Pointer<Exception> ex,
+        final long millis) {
       this.context = context;
       this.latch = latch;
       this.ex = ex;
@@ -129,21 +131,22 @@ public class TestPauseInjection extends BaseTestQuery {
     final ExtendedLatch trigger = new ExtendedLatch(1);
     final Pointer<Exception> ex = new Pointer<>();
 
-    final String controls = Controls.newBuilder()
-      .addPause(DummyClass.class, DummyClass.PAUSES)
-      .build();
+    final String controls =
+        Controls.newBuilder().addPause(DummyClass.class, DummyClass.PAUSES).build();
 
     ControlsInjectionUtil.setControls(session, controls);
 
-    final QueryContext queryContext = new QueryContext(session, nodes[0].getContext(), QueryId.getDefaultInstance());
+    final QueryContext queryContext =
+        new QueryContext(session, nodes[0].getContext(), QueryId.getDefaultInstance());
 
     (new ResumingThread(queryContext, trigger, ex, expectedDuration)).start();
 
     // test that the pause happens
     final DummyClass dummyClass = new DummyClass(queryContext, trigger);
     final long actualDuration = dummyClass.pauses();
-    assertTrue(String.format("Test should stop for at least %d milliseconds.", expectedDuration),
-      expectedDuration <= actualDuration);
+    assertTrue(
+        String.format("Test should stop for at least %d milliseconds.", expectedDuration),
+        expectedDuration <= actualDuration);
     assertTrue("No exception should be thrown.", ex.value == null);
     try {
       queryContext.close();
@@ -161,27 +164,29 @@ public class TestPauseInjection extends BaseTestQuery {
 
       final ScanResult classpathScanResult = ClassPathScanner.fromPrescan(config);
       // Creating two nodes
-      try (
-        ClusterCoordinator clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
-        SabotNode node1 = SabotNode.start(config, clusterCoordinator, classpathScanResult);
-        SabotNode node2 = SabotNode.start(config, clusterCoordinator, classpathScanResult)) {
+      try (ClusterCoordinator clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
+          SabotNode node1 = SabotNode.start(config, clusterCoordinator, classpathScanResult);
+          SabotNode node2 = SabotNode.start(config, clusterCoordinator, classpathScanResult)) {
         final SabotContext nodeContext1 = node1.getContext();
         final SabotContext nodeContext2 = node2.getContext();
 
-        final UserSession session = UserSession.Builder.newBuilder()
-          .withSessionOptionManager(
-            new SessionOptionManagerImpl(nodeContext1.getOptionValidatorListing()),
-            nodeContext1.getOptionManager())
-          .withCredentials(UserCredentials.newBuilder()
-            .setUserName(UserServiceTestImpl.TEST_USER_1)
-            .build())
-          .withUserProperties(UserProperties.getDefaultInstance())
-          .build();
+        final UserSession session =
+            UserSession.Builder.newBuilder()
+                .withSessionOptionManager(
+                    new SessionOptionManagerImpl(nodeContext1.getOptionValidatorListing()),
+                    nodeContext1.getOptionManager())
+                .withCredentials(
+                    UserCredentials.newBuilder()
+                        .setUserName(UserServiceTestImpl.TEST_USER_1)
+                        .build())
+                .withUserProperties(UserProperties.getDefaultInstance())
+                .build();
 
         final NodeEndpoint nodeEndpoint1 = nodeContext1.getEndpoint();
-        final String controls = Controls.newBuilder()
-          .addPauseOnNode(DummyClass.class, DummyClass.PAUSES, nodeEndpoint1)
-          .build();
+        final String controls =
+            Controls.newBuilder()
+                .addPauseOnNode(DummyClass.class, DummyClass.PAUSES, nodeEndpoint1)
+                .build();
 
         ControlsInjectionUtil.setControls(session, controls);
 
@@ -189,14 +194,16 @@ public class TestPauseInjection extends BaseTestQuery {
           final long expectedDuration = 1000L;
           final ExtendedLatch trigger = new ExtendedLatch(1);
           final Pointer<Exception> ex = new Pointer<>();
-          final QueryContext queryContext = new QueryContext(session, nodeContext1, QueryId.getDefaultInstance());
+          final QueryContext queryContext =
+              new QueryContext(session, nodeContext1, QueryId.getDefaultInstance());
           (new ResumingThread(queryContext, trigger, ex, expectedDuration)).start();
 
           // test that the pause happens
           final DummyClass dummyClass = new DummyClass(queryContext, trigger);
           final long actualDuration = dummyClass.pauses();
-          assertTrue(String.format("Test should stop for at least %d milliseconds.", expectedDuration),
-            expectedDuration <= actualDuration);
+          assertTrue(
+              String.format("Test should stop for at least %d milliseconds.", expectedDuration),
+              expectedDuration <= actualDuration);
           assertTrue("No exception should be thrown.", ex.value == null);
           try {
             queryContext.close();
@@ -207,7 +214,8 @@ public class TestPauseInjection extends BaseTestQuery {
 
         {
           final ExtendedLatch trigger = new ExtendedLatch(1);
-          final QueryContext queryContext = new QueryContext(session, nodeContext2, QueryId.getDefaultInstance());
+          final QueryContext queryContext =
+              new QueryContext(session, nodeContext2, QueryId.getDefaultInstance());
 
           // if the resume did not happen, the test would hang
           final DummyClass dummyClass = new DummyClass(queryContext, trigger);

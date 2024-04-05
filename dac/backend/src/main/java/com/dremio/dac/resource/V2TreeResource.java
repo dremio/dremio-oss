@@ -15,10 +15,11 @@
  */
 package com.dremio.dac.resource;
 
+import com.dremio.services.nessie.proxy.ProxyV2TreeResource;
+import com.fasterxml.jackson.annotation.JsonView;
 import javax.inject.Inject;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response;
-
 import org.projectnessie.api.v2.params.Transplant;
 import org.projectnessie.client.api.NessieApiV2;
 import org.projectnessie.error.NessieConflictException;
@@ -30,14 +31,10 @@ import org.projectnessie.model.Reference;
 import org.projectnessie.model.SingleReferenceResponse;
 import org.projectnessie.model.ser.Views;
 
-import com.dremio.services.nessie.proxy.ProxyV2TreeResource;
-import com.fasterxml.jackson.annotation.JsonView;
-
 /**
- * Nessie-specific extension of {@link ProxyV2TreeResource}.
- * Disables certain API calls that are not needed in the NaaS proxy.
+ * Nessie-specific extension of {@link ProxyV2TreeResource}. Disables certain API calls that are not
+ * needed in the NaaS proxy.
  */
-
 public class V2TreeResource extends ProxyV2TreeResource {
 
   @Inject
@@ -48,18 +45,23 @@ public class V2TreeResource extends ProxyV2TreeResource {
   @Override
   @JsonView(Views.V2.class)
   public SingleReferenceResponse assignReference(String typeName, String ref, Reference assignTo) {
-    throw new WebApplicationException("assignReference is not supported", Response.Status.FORBIDDEN);
+    throw new WebApplicationException(
+        "assignReference is not supported", Response.Status.FORBIDDEN);
   }
 
   @Override
   @JsonView(Views.V2.class)
-  public MergeResponse transplantCommitsIntoBranch(String branch, Transplant transplant) throws NessieConflictException, NessieNotFoundException {
-    throw new WebApplicationException("transplantCommitsIntoBranch is not supported", Response.Status.FORBIDDEN);
+  public MergeResponse transplantCommitsIntoBranch(String branch, Transplant transplant)
+      throws NessieConflictException, NessieNotFoundException {
+    throw new WebApplicationException(
+        "transplantCommitsIntoBranch is not supported", Response.Status.FORBIDDEN);
   }
 
   @Override
   @JsonView(Views.V2.class)
-  public CommitResponse commitMultipleOperations(String branch, Operations operations) throws NessieConflictException, NessieNotFoundException {
-    throw new WebApplicationException("commitMultipleOperations is not supported", Response.Status.FORBIDDEN);
+  public CommitResponse commitMultipleOperations(String branch, Operations operations)
+      throws NessieConflictException, NessieNotFoundException {
+    throw new WebApplicationException(
+        "commitMultipleOperations is not supported", Response.Status.FORBIDDEN);
   }
 }

@@ -23,8 +23,7 @@ public enum Hook {
   /** Called with the logical plan. */
   LOGICAL_PLAN;
 
-  private final List<Consumer<Object>> handlers =
-      new CopyOnWriteArrayList<>();
+  private final List<Consumer<Object>> handlers = new CopyOnWriteArrayList<>();
 
   public Closeable add(final Consumer handler) {
     handlers.add(handler);

@@ -15,18 +15,15 @@
  */
 package com.dremio.exec.store.parquet;
 
+import com.dremio.io.FSInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-
 import org.apache.parquet.io.DelegatingSeekableInputStream;
 import org.apache.parquet.io.SeekableInputStream;
 
-import com.dremio.io.FSInputStream;
-
 public final class Streams {
 
-  private Streams() {
-  }
+  private Streams() {}
 
   public static SeekableInputStream wrap(FSInputStream in) throws IOException {
     return new DelegatingSeekableInputStream(in) {
@@ -46,7 +43,6 @@ public final class Streams {
       @Override
       public void seek(long newPos) throws IOException {
         in.setPosition(newPos);
-
       }
 
       @Override
@@ -55,5 +51,4 @@ public final class Streams {
       }
     };
   }
-
 }

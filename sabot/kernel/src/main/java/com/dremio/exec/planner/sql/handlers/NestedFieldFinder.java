@@ -16,7 +16,6 @@
 package com.dremio.exec.planner.sql.handlers;
 
 import java.util.Locale;
-
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelVisitor;
 import org.apache.calcite.rel.core.Filter;
@@ -30,8 +29,8 @@ import org.apache.calcite.util.Util;
 class NestedFieldFinder extends RelVisitor {
 
   final RexVisitor<Void> rexFieldAccessVisitor =
-    new RexVisitorImpl<Void>(true) {
-      @Override
+      new RexVisitorImpl<Void>(true) {
+        @Override
         public Void visitFieldAccess(RexFieldAccess fieldAccess) {
           throw new Util.FoundOne(fieldAccess);
         }
@@ -41,35 +40,31 @@ class NestedFieldFinder extends RelVisitor {
           if ("dot".equals(rexCall.getOperator().getName().toLowerCase(Locale.ROOT))) {
             throw new Util.FoundOne(rexCall);
           }
-          if("item".equals(rexCall.getOperator().getName().toLowerCase(Locale.ROOT))){
+          if ("item".equals(rexCall.getOperator().getName().toLowerCase(Locale.ROOT))) {
             throw new Util.FoundOne(rexCall);
           }
           return super.visitCall(rexCall);
         }
-
-    };
-
+      };
 
   public boolean run(RelNode input) {
-   try {
-     go(input);
-     return false;
-   } catch (Util.FoundOne e) {
-     Util.swallow(e, null);
-     return true;
-   }
+    try {
+      go(input);
+      return false;
+    } catch (Util.FoundOne e) {
+      Util.swallow(e, null);
+      return true;
+    }
   }
 
   @Override
   public void visit(RelNode node, int ordinal, RelNode parent) {
-      if (node instanceof Project) {
-         ((Project) node).getProjects().forEach(p -> p.accept(rexFieldAccessVisitor));
-      }
-      if (node instanceof Filter) {
-        ((Filter) node).getCondition().accept(rexFieldAccessVisitor);
-      }
+    if (node instanceof Project) {
+      ((Project) node).getProjects().forEach(p -> p.accept(rexFieldAccessVisitor));
+    }
+    if (node instanceof Filter) {
+      ((Filter) node).getCondition().accept(rexFieldAccessVisitor);
+    }
     super.visit(node, ordinal, parent);
   }
-
-
 }

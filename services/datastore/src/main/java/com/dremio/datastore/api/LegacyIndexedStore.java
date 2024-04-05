@@ -15,42 +15,36 @@
  */
 package com.dremio.datastore.api;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map.Entry;
-
 import com.dremio.datastore.SearchTypes.SearchFieldSorting;
 import com.dremio.datastore.SearchTypes.SearchQuery;
 import com.dremio.datastore.indexed.FilterIndexMapping;
 import com.dremio.datastore.indexed.SearchFilterToQueryConverter;
 import com.google.common.base.Objects;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map.Entry;
 
-/**
- * A KVStore that also maintains a index of documents for arbitrary retrieval.
- */
+/** A KVStore that also maintains a index of documents for arbitrary retrieval. */
 @Deprecated
 public interface LegacyIndexedStore<K, V> extends LegacyKVStore<K, V> {
 
   String ID_FIELD_NAME = "_id";
 
   /**
-   * Creates a lazy iterable over items that match the provided condition, in
-   * the order requested. Exposing the appropriate keys and values. Note that
-   * each iterator is independent and goes back to the source data to collect
-   * data. As such, if you need to use multiple iterators, it is better to cache
-   * the results. Note that this may also be internally paginating so different
+   * Creates a lazy iterable over items that match the provided condition, in the order requested.
+   * Exposing the appropriate keys and values. Note that each iterator is independent and goes back
+   * to the source data to collect data. As such, if you need to use multiple iterators, it is
+   * better to cache the results. Note that this may also be internally paginating so different
    * calls to hasNext/next may have different performance characteristics.
    *
-   * Note that two unexpected outcomes can occur with this iterator.
+   * <p>Note that two unexpected outcomes can occur with this iterator.
    *
-   * (1) It is possible some of the values of this iterator will be null. This
-   * can happen if the value is deleted around the time the iterator is created
-   * and when the value is retrieved.
+   * <p>(1) It is possible some of the values of this iterator will be null. This can happen if the
+   * value is deleted around the time the iterator is created and when the value is retrieved.
    *
-   * (2) This iterator could return values that don't match the provided
-   * conditions. This should be rare but can occur if the value was changed
-   * around the time the iterator is created.
+   * <p>(2) This iterator could return values that don't match the provided conditions. This should
+   * be rare but can occur if the value was changed around the time the iterator is created.
    *
    * @param find The condition to match.
    * @return A lazy iterable over the matching items.
@@ -58,17 +52,14 @@ public interface LegacyIndexedStore<K, V> extends LegacyKVStore<K, V> {
   Iterable<Entry<K, V>> find(LegacyFindByCondition find);
 
   /**
-   * Provide a count of the number of documents that match each of the requested
-   * conditions.
+   * Provide a count of the number of documents that match each of the requested conditions.
    *
    * @param conditions
    * @return
    */
   List<Integer> getCounts(SearchQuery... conditions);
 
-  /**
-   * Definition of how to find data by condition.
-   */
+  /** Definition of how to find data by condition. */
   @Deprecated
   public static class LegacyFindByCondition {
     private SearchQuery condition;
@@ -78,8 +69,7 @@ public interface LegacyIndexedStore<K, V> extends LegacyKVStore<K, V> {
     private final List<SearchFieldSorting> sort = new ArrayList<>();
     private boolean keySortRequired = true;
 
-    public LegacyFindByCondition() {
-    }
+    public LegacyFindByCondition() {}
 
     public LegacyFindByCondition setCondition(String condition, FilterIndexMapping mapping) {
       this.condition = SearchFilterToQueryConverter.toQuery(condition, mapping);
@@ -115,13 +105,12 @@ public interface LegacyIndexedStore<K, V> extends LegacyKVStore<K, V> {
       return this;
     }
 
-
-    public LegacyFindByCondition setLimit(int limit){
+    public LegacyFindByCondition setLimit(int limit) {
       this.limit = limit;
       return this;
     }
 
-    public LegacyFindByCondition setOffset(int offset){
+    public LegacyFindByCondition setOffset(int offset) {
       this.offset = offset;
       return this;
     }
@@ -142,8 +131,8 @@ public interface LegacyIndexedStore<K, V> extends LegacyKVStore<K, V> {
       return offset;
     }
 
-    public int getLimit(){
-      if(limit < pageSize){
+    public int getLimit() {
+      if (limit < pageSize) {
         pageSize = limit;
       }
       return limit;
@@ -155,8 +144,10 @@ public interface LegacyIndexedStore<K, V> extends LegacyKVStore<K, V> {
         return false;
       }
       LegacyFindByCondition castOther = (LegacyFindByCondition) other;
-      return Objects.equal(condition, castOther.condition) && Objects.equal(pageSize, castOther.pageSize)
-          && Objects.equal(limit, castOther.limit) && Objects.equal(offset, castOther.offset)
+      return Objects.equal(condition, castOther.condition)
+          && Objects.equal(pageSize, castOther.pageSize)
+          && Objects.equal(limit, castOther.limit)
+          && Objects.equal(offset, castOther.offset)
           && Objects.equal(sort, castOther.sort);
     }
 
@@ -164,8 +155,5 @@ public interface LegacyIndexedStore<K, V> extends LegacyKVStore<K, V> {
     public int hashCode() {
       return Objects.hashCode(condition, pageSize, limit, offset, sort);
     }
-
-
   }
-
 }

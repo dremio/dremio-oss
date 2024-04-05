@@ -18,9 +18,7 @@ package com.dremio.dac.model.usergroup;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-/**
- * Permissions associated with a particular user session.
- */
+/** Permissions associated with a particular user session. */
 public class SessionPermissions {
 
   private final boolean canUploadProfiles;
@@ -77,45 +75,59 @@ public class SessionPermissions {
   public boolean isCanUploadProfiles() {
     return canUploadProfiles;
   }
+
   public boolean isCanDownloadProfiles() {
     return canDownloadProfiles;
   }
+
   public boolean isCanEmailForSupport() {
     return canEmailForSupport;
   }
+
   public boolean isCanChatForSupport() {
     return canChatForSupport;
   }
+
   public boolean isCanViewAllJobs() {
     return canViewAllJobs;
   }
+
   public boolean isCanCreateUser() {
     return canCreateUser;
   }
+
   public boolean isCanCreateRole() {
     return canCreateRole;
   }
+
   public boolean isCanCreateSource() {
     return canCreateSource;
   }
+
   public boolean isCanUploadFile() {
     return canUploadFile;
   }
+
   public boolean isCanManageNodeActivity() {
     return canManageNodeActivity;
   }
+
   public boolean isCanManageEngines() {
     return canManageEngines;
   }
+
   public boolean isCanManageQueues() {
     return canManageQueues;
   }
+
   public boolean isCanManageEngineRouting() {
     return canManageEngineRouting;
   }
+
   public boolean isCanManageSupportSettings() {
     return canManageSupportSettings;
   }
+
   public boolean isCanConfigureSecurity() {
     return canConfigureSecurity;
   }

@@ -19,10 +19,7 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
-/**
- * Tests for the object data type.
- */
+/** Tests for the object data type. */
 public class ITTestObjectType extends ElasticBaseTestQuery {
 
   private static final Logger logger = LoggerFactory.getLogger(ITTestObjectType.class);
@@ -36,23 +33,26 @@ public class ITTestObjectType extends ElasticBaseTestQuery {
 
     elastic.load(schema, table, EXPLICIT_JSON_MAPPING, JSON_DATA);
 
-
     logger.info("--> mapping:\n{}", elastic.mapping(schema, table));
     logger.info("--> index contents:\n{}", elastic.search(schema, table));
 
     String sql =
-            " select t.message as message, t.person.sid as sid, " +
-                    " t.person.name.first_name as first_name, t.person.name.last_name as last_name " +
-                    " from " +
-                    " elasticsearch." + schema + "." + table + " t";
+        " select t.message as message, t.person.sid as sid, "
+            + " t.person.name.first_name as first_name, t.person.name.last_name as last_name "
+            + " from "
+            + " elasticsearch."
+            + schema
+            + "."
+            + table
+            + " t";
 
     testBuilder()
-            .sqlQuery(sql)
-            .baselineColumns("message", "sid", "first_name", "last_name")
-            .unOrdered()
-            .baselineValues("This is a message.", 12345, "BillyBob", "Hecka")
-            .baselineValues("This is a funny tweet!", 12346, "Andrew", "S")
-            .go();
+        .sqlQuery(sql)
+        .baselineColumns("message", "sid", "first_name", "last_name")
+        .unOrdered()
+        .baselineValues("This is a message.", 12345, "BillyBob", "Hecka")
+        .baselineValues("This is a funny tweet!", 12346, "Andrew", "S")
+        .go();
   }
 
   @Test
@@ -64,17 +64,21 @@ public class ITTestObjectType extends ElasticBaseTestQuery {
     logger.info("--> index contents:\n{}", elastic.search(schema, table));
 
     String sql =
-            " select t.message as message, t.person.sid as sid, " +
-                    " t.person.name.first_name as first_name, t.person.name.last_name as last_name " +
-                    " from " +
-                    " elasticsearch." + schema + "." + table + " t";
+        " select t.message as message, t.person.sid as sid, "
+            + " t.person.name.first_name as first_name, t.person.name.last_name as last_name "
+            + " from "
+            + " elasticsearch."
+            + schema
+            + "."
+            + table
+            + " t";
 
     testBuilder()
-            .sqlQuery(sql)
-            .baselineColumns("message", "sid", "first_name", "last_name")
-            .unOrdered()
-            .baselineValues("This is a message.", 12345, "BillyBob", "Hecka")
-            .baselineValues("This is a funny tweet!", 12346, "Andrew", "S")
-            .go();
+        .sqlQuery(sql)
+        .baselineColumns("message", "sid", "first_name", "last_name")
+        .unOrdered()
+        .baselineValues("This is a message.", 12345, "BillyBob", "Hecka")
+        .baselineValues("This is a funny tweet!", 12346, "Andrew", "S")
+        .go();
   }
 }

@@ -15,9 +15,7 @@
  */
 package com.dremio.service.nessie;
 
-/**
- * Creates the KV store for Named References (their HEAD commits).
- */
+/** Creates the KV store for Named References (their HEAD commits). */
 public class NessieNamedRefHeadsStoreBuilder extends AbstractNessieStoreBuilder {
   public NessieNamedRefHeadsStoreBuilder() {
     super("nessie_reference_heads");

@@ -15,9 +15,7 @@
  */
 package com.dremio.exec.catalog;
 
-/**
- * Represents the identity that the Catalog is contextualized to.
- */
+/** Represents the identity that the Catalog is contextualized to. */
 public interface CatalogIdentity {
   String getName();
 }

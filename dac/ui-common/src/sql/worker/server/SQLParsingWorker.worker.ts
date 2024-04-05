@@ -98,7 +98,7 @@ let errorDetectionEngine: ErrorDetectionEngine;
 
 function initialize(data: RunInitializeData): void {
   const autocompleteApi = new AutocompleteApiClient(
-    getSuggestionsAPICreator(data.authToken, data.getSuggestionsURL)
+    getSuggestionsAPICreator(data.authToken, data.getSuggestionsURL),
   );
   if (!liveEditParsingEngine) {
     liveEditParsingEngine = new LiveEditParsingEngine();
@@ -107,12 +107,12 @@ function initialize(data: RunInitializeData): void {
   autocompleteEngine = new AutocompleteEngine(
     liveEditParsingEngine,
     autocompleteApi,
-    data.sqlFunctions
+    data.sqlFunctions,
   );
 }
 
 function runAutocomplete(
-  data: RunAutocompleteData
+  data: RunAutocompleteData,
 ): Promise<RunAutocompleteResponse> {
   const queryPosition: CursorQueryPosition = {
     line: data.position.lineNumber,
@@ -121,12 +121,12 @@ function runAutocomplete(
   return autocompleteEngine.generateCompletionItems(
     data.document.linesContent,
     queryPosition,
-    data.queryContext
+    data.queryContext,
   );
 }
 
 function runErrorDetection(
-  data: RunErrorDetectionData
+  data: RunErrorDetectionData,
 ): RunErrorDetectionResponse {
   return errorDetectionEngine.detectSqlErrors(data.linesContent);
 }

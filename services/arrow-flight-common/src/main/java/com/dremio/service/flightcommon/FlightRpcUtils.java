@@ -15,27 +15,21 @@
  */
 package com.dremio.service.flightcommon;
 
-import java.util.Optional;
-
-import org.apache.arrow.flight.ErrorFlightMetadata;
-import org.apache.arrow.flight.FlightRuntimeException;
-
 import com.dremio.common.exceptions.GrpcExceptionUtil;
 import com.dremio.common.exceptions.UserException;
 import com.google.rpc.Status;
-
 import io.grpc.Metadata;
 import io.grpc.protobuf.lite.ProtoLiteUtils;
+import java.util.Optional;
+import org.apache.arrow.flight.ErrorFlightMetadata;
+import org.apache.arrow.flight.FlightRuntimeException;
 
-/**
- * Utilities related to Flight RPC
- */
-
-public final class FlightRpcUtils{
+/** Utilities related to Flight RPC */
+public final class FlightRpcUtils {
 
   private static final String GRPC_STATUS_METADATA = "grpc-status-details-bin";
   private static final Metadata.BinaryMarshaller<Status> marshaller =
-    ProtoLiteUtils.metadataMarshaller(Status.getDefaultInstance());
+      ProtoLiteUtils.metadataMarshaller(Status.getDefaultInstance());
 
   /**
    * Converts the given {@link FlightRuntimeException} to a {@link UserException}, if possible.
@@ -47,7 +41,8 @@ public final class FlightRpcUtils{
     if (fre.status().metadata() != null) {
       ErrorFlightMetadata metadata = fre.status().metadata();
       if (metadata.containsKey(GRPC_STATUS_METADATA)) {
-        return GrpcExceptionUtil.fromStatus(marshaller.parseBytes(metadata.getByte(GRPC_STATUS_METADATA)));
+        return GrpcExceptionUtil.fromStatus(
+            marshaller.parseBytes(metadata.getByte(GRPC_STATUS_METADATA)));
       }
     }
     return Optional.empty();

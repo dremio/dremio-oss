@@ -21,6 +21,7 @@ import {
   Button,
   ModalContainer,
   DialogContent,
+  IconButton,
 } from "dremio-ui-lib/components";
 import Message from "@app/components/Message";
 import {
@@ -141,12 +142,9 @@ export const AddFolderDialog = ({
       >
         <DialogContent
           toolbar={
-            <dremio-icon
-              name="interface/close-big"
-              alt=""
-              class={classes["close-icon"]}
-              onClick={close}
-            />
+            <IconButton onClick={close} aria-label="close dialog">
+              <dremio-icon name="interface/close-big" alt="" />
+            </IconButton>
           }
           error={error && <Message message={error} messageType="error" />}
           className={classes["add-folder-dialog"]}

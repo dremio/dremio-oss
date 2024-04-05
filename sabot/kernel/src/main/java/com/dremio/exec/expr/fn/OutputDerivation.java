@@ -19,19 +19,17 @@ import static com.dremio.exec.expr.fn.DerivationShortcuts.prec;
 import static com.dremio.exec.expr.fn.DerivationShortcuts.scale;
 import static com.dremio.exec.expr.fn.DerivationShortcuts.val;
 
-import java.util.List;
-
-import org.apache.arrow.gandiva.evaluator.DecimalTypeUtil;
-import org.apache.arrow.gandiva.evaluator.DecimalTypeUtil.OperationType;
-import org.apache.arrow.vector.types.pojo.ArrowType;
-import org.apache.arrow.vector.types.pojo.ArrowType.Decimal;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.ValueExpressions;
 import com.dremio.common.expression.ValueExpressions.LongExpression;
 import com.google.common.base.Preconditions;
+import java.util.List;
+import org.apache.arrow.gandiva.evaluator.DecimalTypeUtil;
+import org.apache.arrow.gandiva.evaluator.DecimalTypeUtil.OperationType;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.ArrowType.Decimal;
 
 public interface OutputDerivation {
   OutputDerivation DECIMAL_MAX = new DecimalMax();
@@ -49,13 +47,12 @@ public interface OutputDerivation {
   OutputDerivation DECIMAL_DIVIDE = new DecimalDivide();
   OutputDerivation DECIMAL_NEGATIVE = new DecimalNegativeScale();
   OutputDerivation DECIMAL_MOD =
-    ((base, args) -> DecimalGandivaBinaryOutput.getOutputType(OperationType.MOD, args));
+      ((base, args) -> DecimalGandivaBinaryOutput.getOutputType(OperationType.MOD, args));
   OutputDerivation DECIMAL_SINGLE_VALUE = new DecimalSingleValue();
-
 
   CompleteType getOutputType(CompleteType baseReturn, List<LogicalExpression> args);
 
-  class Default implements OutputDerivation{
+  class Default implements OutputDerivation {
     @Override
     public CompleteType getOutputType(CompleteType baseReturn, List<LogicalExpression> args) {
       return baseReturn;
@@ -80,7 +77,8 @@ public interface OutputDerivation {
   }
 
   class DecimalUnion implements OutputDerivation {
-    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DecimalUnion.class);
+    private static final org.slf4j.Logger logger =
+        org.slf4j.LoggerFactory.getLogger(DecimalUnion.class);
 
     @Override
     public CompleteType getOutputType(CompleteType baseReturn, List<LogicalExpression> args) {
@@ -94,9 +92,9 @@ public interface OutputDerivation {
         integral = Math.max(integral, arg.getPrecision() - scale);
       }
       if (scale + integral > 38) {
-        throw UserException.functionError().message(
-          "derived precision for union of %d arguments exceeds 38", args.size()
-        ).build(logger);
+        throw UserException.functionError()
+            .message("derived precision for union of %d arguments exceeds 38", args.size())
+            .build(logger);
       }
 
       return CompleteType.fromDecimalPrecisionScale(integral + scale, scale);
@@ -105,16 +103,23 @@ public interface OutputDerivation {
 
   class DecimalCast implements OutputDerivation {
 
-    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DecimalCast.class);
+    private static final org.slf4j.Logger logger =
+        org.slf4j.LoggerFactory.getLogger(DecimalCast.class);
 
     @Override
     public CompleteType getOutputType(CompleteType baseReturn, List<LogicalExpression> args) {
-      if (args.size() != 3 || !(args.get(1) instanceof LongExpression) || !(args.get(2) instanceof LongExpression) ) {
-        throw UserException.functionError().message("Attempted to cast decimal function %s with incorrect number of arguments. Expected 3 arguments (value, precision, scale) but received %d arguments.", baseReturn.toString(), args.size()).build(logger);
+      if (args.size() != 3
+          || !(args.get(1) instanceof LongExpression)
+          || !(args.get(2) instanceof LongExpression)) {
+        throw UserException.functionError()
+            .message(
+                "Attempted to cast decimal function %s with incorrect number of arguments. Expected 3 arguments (value, precision, scale) but received %d arguments.",
+                baseReturn.toString(), args.size())
+            .build(logger);
       }
 
-      int precision = (int) ((LongExpression)(args.get(1))).getLong();
-      int scale = (int) ((LongExpression)(args.get(2))).getLong();
+      int precision = (int) ((LongExpression) (args.get(1))).getLong();
+      int scale = (int) ((LongExpression) (args.get(2))).getLong();
       return CompleteType.fromDecimalPrecisionScale(precision, scale);
     }
   }
@@ -128,8 +133,8 @@ public interface OutputDerivation {
       assert (args.size() == 2) && (args.get(1) instanceof ValueExpressions.IntExpression);
       // Get the scale from the second argument which should be a constant
       int scale = val(args.get(1));
-      ArrowType.Decimal type =  getDecimalOutputTypeForTruncate(prec(args.get(0)),
-        scale(args.get(0)), scale);
+      ArrowType.Decimal type =
+          getDecimalOutputTypeForTruncate(prec(args.get(0)), scale(args.get(0)), scale);
       return CompleteType.fromDecimalPrecisionScale(type.getPrecision(), type.getScale());
     }
   }
@@ -140,8 +145,8 @@ public interface OutputDerivation {
       assert (args.size() == 2) && (args.get(1) instanceof ValueExpressions.IntExpression);
       // Get the scale from the second argument which should be a constant
       int scale = val(args.get(1));
-      ArrowType.Decimal type =  getDecimalOutputTypeForRound(prec(args.get(0)),
-        scale(args.get(0)), scale);
+      ArrowType.Decimal type =
+          getDecimalOutputTypeForRound(prec(args.get(0)), scale(args.get(0)), scale);
       return CompleteType.fromDecimalPrecisionScale(type.getPrecision(), type.getScale());
     }
   }
@@ -149,8 +154,8 @@ public interface OutputDerivation {
   class DecimalZeroScaleRound implements OutputDerivation {
     @Override
     public CompleteType getOutputType(CompleteType baseReturn, List<LogicalExpression> args) {
-      ArrowType.Decimal type =  getDecimalOutputTypeForRound(prec(args.get(0)),
-        scale(args.get(0)), 0);
+      ArrowType.Decimal type =
+          getDecimalOutputTypeForRound(prec(args.get(0)), scale(args.get(0)), 0);
       return CompleteType.fromDecimalPrecisionScale(type.getPrecision(), type.getScale());
     }
   }
@@ -165,22 +170,26 @@ public interface OutputDerivation {
   class DecimalZeroScaleTruncate implements OutputDerivation {
     @Override
     public CompleteType getOutputType(CompleteType baseReturn, List<LogicalExpression> args) {
-      ArrowType.Decimal type =  getDecimalOutputTypeForTruncate(prec(args.get(0)),
-        scale(args.get(0)), 0);
+      ArrowType.Decimal type =
+          getDecimalOutputTypeForTruncate(prec(args.get(0)), scale(args.get(0)), 0);
       return CompleteType.fromDecimalPrecisionScale(type.getPrecision(), type.getScale());
     }
   }
 
-  static ArrowType.Decimal getDecimalOutputTypeForTruncate(int arg1Precision, int arg1Scale,
-                                                           int destinationScale) {
+  static ArrowType.Decimal getDecimalOutputTypeForTruncate(
+      int arg1Precision, int arg1Scale, int destinationScale) {
     int finalScale = Math.min(arg1Scale, destinationScale);
     if (finalScale < 0) {
       // -ve scale has special semantics in round/truncate fns.
       finalScale = 0;
     }
-    Preconditions.checkState(arg1Scale >= finalScale,
-      "Final scale " + finalScale+" cannot be greater than " +
-      "original scale of argument : " + arg1Scale);
+    Preconditions.checkState(
+        arg1Scale >= finalScale,
+        "Final scale "
+            + finalScale
+            + " cannot be greater than "
+            + "original scale of argument : "
+            + arg1Scale);
 
     int finalPrecision = arg1Precision - (arg1Scale - finalScale);
     if (finalPrecision == 0) {
@@ -189,16 +198,20 @@ public interface OutputDerivation {
     return new ArrowType.Decimal(finalPrecision, finalScale, 128);
   }
 
-  static ArrowType.Decimal getDecimalOutputTypeForRound(int arg1Precision, int arg1Scale,
-                                                        int destinationScale) {
+  static ArrowType.Decimal getDecimalOutputTypeForRound(
+      int arg1Precision, int arg1Scale, int destinationScale) {
     int finalScale = Math.min(arg1Scale, destinationScale);
     if (finalScale < 0) {
       // -ve scale has special semantics in round/truncate fns.
       finalScale = 0;
     }
-    Preconditions.checkState(arg1Scale >= finalScale,
-      "Final scale " + finalScale+" cannot be greater than " +
-        "original scale of argument : " + arg1Scale);
+    Preconditions.checkState(
+        arg1Scale >= finalScale,
+        "Final scale "
+            + finalScale
+            + " cannot be greater than "
+            + "original scale of argument : "
+            + arg1Scale);
 
     int finalPrecision = arg1Precision - (arg1Scale - finalScale);
     if (finalScale < arg1Scale) {
@@ -225,26 +238,34 @@ public interface OutputDerivation {
 
   // Binary functions implemented in gandiva.
   class DecimalGandivaBinaryOutput {
-    public static CompleteType getOutputType(OperationType operationType, List<LogicalExpression> args) {
-      return new CompleteType(DecimalTypeUtil.getResultTypeForOperation(operationType,
-        args.get(0).getCompleteType().getType(ArrowType.Decimal.class),
-        args.get(1).getCompleteType().getType(ArrowType.Decimal.class)));
+    public static CompleteType getOutputType(
+        OperationType operationType, List<LogicalExpression> args) {
+      return new CompleteType(
+          DecimalTypeUtil.getResultTypeForOperation(
+              operationType,
+              args.get(0).getCompleteType().getType(ArrowType.Decimal.class),
+              args.get(1).getCompleteType().getType(ArrowType.Decimal.class)));
     }
   }
 
   /**
-   * Used to derive the output precision and scale for sum and sum0 aggregations.
-   * Rules follow T-SQL derivation rules.
+   * Used to derive the output precision and scale for sum and sum0 aggregations. Rules follow T-SQL
+   * derivation rules.
    */
   class DecimalAggSum implements OutputDerivation {
 
-    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DecimalAggSum.class);
+    private static final org.slf4j.Logger logger =
+        org.slf4j.LoggerFactory.getLogger(DecimalAggSum.class);
 
     @Override
     public CompleteType getOutputType(CompleteType baseReturn, List<LogicalExpression> args) {
       if (args.size() != 1) {
-        throw UserException.functionError().message("Attempted to sum a decimal column with " +
-          "inccorect number of arguments. Expected one but received %d arguments.", args.size()).build(logger);
+        throw UserException.functionError()
+            .message(
+                "Attempted to sum a decimal column with "
+                    + "inccorect number of arguments. Expected one but received %d arguments.",
+                args.size())
+            .build(logger);
       }
 
       LogicalExpression aggColumn = args.get(0);
@@ -254,24 +275,29 @@ public interface OutputDerivation {
   }
 
   /**
-   * Used to derive the output precision and scale for min and max aggregations.
-   * Rules follow T-SQL derivation rules.
+   * Used to derive the output precision and scale for min and max aggregations. Rules follow T-SQL
+   * derivation rules.
    */
   class DecimalAggMinMax implements OutputDerivation {
 
-    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DecimalAggMinMax.class);
+    private static final org.slf4j.Logger logger =
+        org.slf4j.LoggerFactory.getLogger(DecimalAggMinMax.class);
 
     @Override
     public CompleteType getOutputType(CompleteType baseReturn, List<LogicalExpression> args) {
       if (args.size() != 1) {
-        throw UserException.functionError().message("Attempted to min/max a decimal column with " +
-          "inccorect number of arguments. Expected one but received %d arguments.", args.size()).build(logger);
+        throw UserException.functionError()
+            .message(
+                "Attempted to min/max a decimal column with "
+                    + "inccorect number of arguments. Expected one but received %d arguments.",
+                args.size())
+            .build(logger);
       }
 
       LogicalExpression aggColumn = args.get(0);
 
-      return CompleteType.fromDecimalPrecisionScale(aggColumn.getCompleteType().getPrecision(), aggColumn
-        .getCompleteType().getScale());
+      return CompleteType.fromDecimalPrecisionScale(
+          aggColumn.getCompleteType().getPrecision(), aggColumn.getCompleteType().getScale());
     }
   }
 
@@ -280,8 +306,12 @@ public interface OutputDerivation {
     @Override
     public CompleteType getOutputType(CompleteType baseReturn, List<LogicalExpression> args) {
       if (args.size() != 2) {
-        throw UserException.functionError().message("Attempted to add decimal columns with \" +\n" +
-          "          \"incorrect number of arguments. Expected two but received %d arguments.", args.size()).buildSilently();
+        throw UserException.functionError()
+            .message(
+                "Attempted to add decimal columns with \" +\n"
+                    + "          \"incorrect number of arguments. Expected two but received %d arguments.",
+                args.size())
+            .buildSilently();
       }
       return DecimalGandivaBinaryOutput.getOutputType(OperationType.ADD, args);
     }
@@ -292,8 +322,12 @@ public interface OutputDerivation {
     @Override
     public CompleteType getOutputType(CompleteType baseReturn, List<LogicalExpression> args) {
       if (args.size() != 1) {
-        throw UserException.functionError().message("Attempted to get decimal value with \" +\n" +
-          "          \"incorrect number of arguments. Expected one but received %d arguments.", args.size()).buildSilently();
+        throw UserException.functionError()
+            .message(
+                "Attempted to get decimal value with \" +\n"
+                    + "          \"incorrect number of arguments. Expected one but received %d arguments.",
+                args.size())
+            .buildSilently();
       }
       return args.get(0).getCompleteType();
     }
@@ -303,7 +337,11 @@ public interface OutputDerivation {
     @Override
     public CompleteType getOutputType(CompleteType baseReturn, List<LogicalExpression> args) {
       if (args.size() != 2) {
-        throw UserException.functionError().message("Attempted to subtract decimal columns with incorrect number of arguments. Expected two but received %d arguments.", args.size()).buildSilently();
+        throw UserException.functionError()
+            .message(
+                "Attempted to subtract decimal columns with incorrect number of arguments. Expected two but received %d arguments.",
+                args.size())
+            .buildSilently();
       }
       return DecimalGandivaBinaryOutput.getOutputType(OperationType.SUBTRACT, args);
     }
@@ -313,7 +351,11 @@ public interface OutputDerivation {
     @Override
     public CompleteType getOutputType(CompleteType baseReturn, List<LogicalExpression> args) {
       if (args.size() != 2) {
-        throw UserException.functionError().message("Attempted to multiply decimal columns with incorrect number of arguments. Expected two but received %d arguments.", args.size()).buildSilently();
+        throw UserException.functionError()
+            .message(
+                "Attempted to multiply decimal columns with incorrect number of arguments. Expected two but received %d arguments.",
+                args.size())
+            .buildSilently();
       }
       return DecimalGandivaBinaryOutput.getOutputType(OperationType.MULTIPLY, args);
     }
@@ -323,7 +365,11 @@ public interface OutputDerivation {
     @Override
     public CompleteType getOutputType(CompleteType baseReturn, List<LogicalExpression> args) {
       if (args.size() != 2) {
-        throw UserException.functionError().message("Attempted to divide decimal columns with incorrect number of arguments. Expected two but received %d arguments.", args.size()).buildSilently();
+        throw UserException.functionError()
+            .message(
+                "Attempted to divide decimal columns with incorrect number of arguments. Expected two but received %d arguments.",
+                args.size())
+            .buildSilently();
       }
       return DecimalGandivaBinaryOutput.getOutputType(OperationType.DIVIDE, args);
     }
@@ -333,10 +379,13 @@ public interface OutputDerivation {
     @Override
     public CompleteType getOutputType(CompleteType baseReturn, List<LogicalExpression> args) {
       if (args.size() != 2) {
-        throw UserException.functionError().message("Attempted to compute modulo on decimal columns with incorrect number of arguments. Expected two but received %d arguments.", args.size()).buildSilently();
+        throw UserException.functionError()
+            .message(
+                "Attempted to compute modulo on decimal columns with incorrect number of arguments. Expected two but received %d arguments.",
+                args.size())
+            .buildSilently();
       }
       return DecimalGandivaBinaryOutput.getOutputType(OperationType.MOD, args);
     }
   }
-
 }

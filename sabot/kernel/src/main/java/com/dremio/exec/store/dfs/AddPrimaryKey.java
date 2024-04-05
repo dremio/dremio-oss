@@ -15,10 +15,6 @@
  */
 package com.dremio.exec.store.dfs;
 
-import java.util.List;
-
-import org.apache.arrow.vector.types.pojo.Field;
-
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePlugin;
@@ -26,19 +22,20 @@ import com.dremio.exec.store.iceberg.model.IcebergModel;
 import com.dremio.io.file.Path;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import java.util.List;
+import org.apache.arrow.vector.types.pojo.Field;
 
-/**
- * To add primary keys to the iceberg metadata
- */
+/** To add primary keys to the iceberg metadata */
 public class AddPrimaryKey extends PrimaryKeyOperations {
 
-  public AddPrimaryKey(NamespaceKey key,
-                       SabotContext context,
-                       DatasetConfig datasetConfig,
-                       SchemaConfig schemaConfig,
-                       IcebergModel model,
-                       Path path,
-                       StoragePlugin storagePlugin) {
+  public AddPrimaryKey(
+      NamespaceKey key,
+      SabotContext context,
+      DatasetConfig datasetConfig,
+      SchemaConfig schemaConfig,
+      IcebergModel model,
+      Path path,
+      StoragePlugin storagePlugin) {
     super(datasetConfig, context, key, schemaConfig, model, path, storagePlugin);
   }
 

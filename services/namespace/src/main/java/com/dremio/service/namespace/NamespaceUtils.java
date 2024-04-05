@@ -21,21 +21,18 @@ import static com.dremio.service.namespace.proto.NameSpaceContainer.Type.HOME;
 import static com.dremio.service.namespace.proto.NameSpaceContainer.Type.SOURCE;
 import static com.dremio.service.namespace.proto.NameSpaceContainer.Type.SPACE;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.google.common.base.Preconditions;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
-/**
- * Utility methods for namespace service.
- */
+/** Utility methods for namespace service. */
 public final class NamespaceUtils {
 
   public static boolean isListable(final NameSpaceContainer.Type t) {
@@ -48,69 +45,62 @@ public final class NamespaceUtils {
         || datasetType == DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER);
   }
 
-  /**
-   * helper method that returns the id of the entity in given container
-   */
+  /** helper method that returns the id of the entity in given container */
   public static String getIdOrNull(NameSpaceContainer container) {
     EntityId entityId;
     switch (container.getType()) {
-    case SOURCE:
-      entityId = container.getSource().getId();
-      break;
-    case SPACE:
-      entityId = container.getSpace().getId();
-      break;
-    case HOME:
-      entityId = container.getHome().getId();
-      break;
-    case FOLDER:
-      entityId = container.getFolder().getId();
-      break;
-    case DATASET:
-      entityId = container.getDataset().getId();
-      break;
-    case FUNCTION:
-      entityId = container.getFunction().getId();
-      break;
-    default:
-      throw new RuntimeException("Invalid container type");
+      case SOURCE:
+        entityId = container.getSource().getId();
+        break;
+      case SPACE:
+        entityId = container.getSpace().getId();
+        break;
+      case HOME:
+        entityId = container.getHome().getId();
+        break;
+      case FOLDER:
+        entityId = container.getFolder().getId();
+        break;
+      case DATASET:
+        entityId = container.getDataset().getId();
+        break;
+      case FUNCTION:
+        entityId = container.getFunction().getId();
+        break;
+      default:
+        throw new RuntimeException("Invalid container type");
     }
 
     return entityId != null ? entityId.getId() : null;
   }
 
-  /**
-   * helper method that sets the given id in given container
-   */
+  /** helper method that sets the given id in given container */
   public static void setId(NameSpaceContainer container, String id) {
     switch (container.getType()) {
-    case SOURCE:
-      container.getSource().setId(new EntityId(id));
-      return;
-    case SPACE:
-      container.getSpace().setId(new EntityId(id));
-      return;
-    case HOME:
-      container.getHome().setId(new EntityId(id));
-      return;
-    case FOLDER:
-      container.getFolder().setId(new EntityId(id));
-      return;
-    case DATASET:
-      container.getDataset().setId(new EntityId(id));
-      return;
-    case FUNCTION:
-      container.getFunction().setId(new EntityId(id));
-      return;
-    default:
-      throw new RuntimeException("Invalid container type");
+      case SOURCE:
+        container.getSource().setId(new EntityId(id));
+        return;
+      case SPACE:
+        container.getSpace().setId(new EntityId(id));
+        return;
+      case HOME:
+        container.getHome().setId(new EntityId(id));
+        return;
+      case FOLDER:
+        container.getFolder().setId(new EntityId(id));
+        return;
+      case DATASET:
+        container.getDataset().setId(new EntityId(id));
+        return;
+      case FUNCTION:
+        container.getFunction().setId(new EntityId(id));
+        return;
+      default:
+        throw new RuntimeException("Invalid container type");
     }
   }
 
-
-  /**
-   * helper method that returns the tag of the entity in given container
-   */
+  /** helper method that returns the tag of the entity in given container */
   public static String getTag(NameSpaceContainer container) {
     switch (container.getType()) {
       case SOURCE:
@@ -123,7 +113,7 @@ public final class NamespaceUtils {
         return container.getFolder().getTag();
       case DATASET:
         return container.getDataset().getTag();
-    case FUNCTION:
+      case FUNCTION:
         return container.getFunction().getTag();
       default:
         throw new RuntimeException("Invalid container type");
@@ -170,34 +160,34 @@ public final class NamespaceUtils {
     }
   }
 
-  public static String getVersion(NamespaceKey namespaceKey, NamespaceService namespaceService) throws NamespaceException {
+  public static String getVersion(NamespaceKey namespaceKey, NamespaceService namespaceService)
+      throws NamespaceException {
     NameSpaceContainer container = namespaceService.getEntities(Arrays.asList(namespaceKey)).get(0);
 
     switch (container.getType()) {
-    case SOURCE:
-      return container.getSource().getTag();
-    case SPACE:
-      return container.getSpace().getTag();
-    case HOME:
-      return container.getHome().getTag();
-    case FOLDER:
-      return container.getFolder().getTag();
-    case DATASET:
-      return container.getDataset().getTag();
-    default:
-      throw new RuntimeException("Invalid container type");
+      case SOURCE:
+        return container.getSource().getTag();
+      case SPACE:
+        return container.getSpace().getTag();
+      case HOME:
+        return container.getHome().getTag();
+      case FOLDER:
+        return container.getFolder().getTag();
+      case DATASET:
+        return container.getDataset().getTag();
+      default:
+        throw new RuntimeException("Invalid container type");
     }
   }
 
   /**
-   * Get the attribute list if not null, otherwise creates new list and sets it
-   * on the nameSpaceContainer.
+   * Get the attribute list if not null, otherwise creates new list and sets it on the
+   * nameSpaceContainer.
    *
    * @param nameSpaceContainer nameSpaceContainer
    * @return given list if not null, or else, a new array list
    */
-  public static List<com.dremio.common.Any> getOrCreateList(
-      NameSpaceContainer nameSpaceContainer) {
+  public static List<com.dremio.common.Any> getOrCreateList(NameSpaceContainer nameSpaceContainer) {
     if (null == nameSpaceContainer.getAttributesList()) {
       nameSpaceContainer.setAttributesList(new ArrayList<>());
     }
@@ -208,7 +198,7 @@ public final class NamespaceUtils {
    * Get the given list if not null, or else, an immutable empty list.
    *
    * @param list list
-   * @param <T>  entity type
+   * @param <T> entity type
    * @return given list if not null, or else, an immutable empty list
    */
   public static <T> List<T> getOrEmptyList(List<T> list) {
@@ -222,10 +212,11 @@ public final class NamespaceUtils {
 
     final List<String> rootFullPathList = rootEntity.getFullPathList();
     return "INFORMATION_SCHEMA".equals(rootEntity.getSource().getType())
-      || "ESYS".equals(rootEntity.getSource().getType())
-      || "ESYSFLIGHT".equals(rootEntity.getSource().getType())
-      || ("INTERNAL".equals(rootEntity.getSource().getType()) && "$scratch".equals(rootEntity.getSource().getName()))
-      || rootFullPathList.get(0).startsWith("__");
+        || "ESYS".equals(rootEntity.getSource().getType())
+        || "ESYSFLIGHT".equals(rootEntity.getSource().getType())
+        || ("INTERNAL".equals(rootEntity.getSource().getType())
+            && "$scratch".equals(rootEntity.getSource().getName()))
+        || rootFullPathList.get(0).startsWith("__");
   }
 
   public static boolean isACLRestrictedInternalSource(NameSpaceContainer rootEntity) {
@@ -234,8 +225,9 @@ public final class NamespaceUtils {
     }
     final List<String> rootFullPathList = rootEntity.getFullPathList();
     return "INFORMATION_SCHEMA".equals(rootEntity.getSource().getType())
-      || ("INTERNAL".equals(rootEntity.getSource().getType()) && "$scratch".equals(rootEntity.getSource().getName()))
-      || rootFullPathList.get(0).startsWith("__");
+        || ("INTERNAL".equals(rootEntity.getSource().getType())
+            && "$scratch".equals(rootEntity.getSource().getName()))
+        || rootFullPathList.get(0).startsWith("__");
   }
 
   public static boolean isSystemTable(NameSpaceContainer rootEntity) {
@@ -243,6 +235,6 @@ public final class NamespaceUtils {
       return false;
     }
     return "ESYS".equals(rootEntity.getSource().getType())
-      || "ESYSFLIGHT".equals(rootEntity.getSource().getType());
+        || "ESYSFLIGHT".equals(rootEntity.getSource().getType());
   }
 }

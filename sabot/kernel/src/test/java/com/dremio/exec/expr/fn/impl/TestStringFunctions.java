@@ -18,21 +18,18 @@ package com.dremio.exec.expr.fn.impl;
 import static java.lang.String.format;
 import static org.junit.Assert.assertTrue;
 
+import com.dremio.BaseTestQuery;
+import com.dremio.TestBuilder;
+import com.dremio.test.UserExceptionAssert;
 import java.io.File;
 import java.io.PrintWriter;
-
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import com.dremio.BaseTestQuery;
-import com.dremio.TestBuilder;
-import com.dremio.test.UserExceptionAssert;
-
 public class TestStringFunctions extends BaseTestQuery {
 
-  @Rule
-  public final TemporaryFolder tempDir = new TemporaryFolder();
+  @Rule public final TemporaryFolder tempDir = new TemporaryFolder();
 
   @Test
   public void testStrPosMultiByte() throws Exception {
@@ -43,12 +40,12 @@ public class TestStringFunctions extends BaseTestQuery {
         .baselineValues(1)
         .go();
 
-      testBuilder()
-          .sqlQuery("select \"position\"('a', 'abcabc', 2) res1 from (values(1))")
-          .ordered()
-          .baselineColumns("res1")
-          .baselineValues(4)
-          .go();
+    testBuilder()
+        .sqlQuery("select \"position\"('a', 'abcabc', 2) res1 from (values(1))")
+        .ordered()
+        .baselineColumns("res1")
+        .baselineValues(4)
+        .go();
 
     testBuilder()
         .sqlQuery("select \"position\"('\\u11E9', '\\u11E9\\u0031') res1 from (values(1))")
@@ -59,8 +56,9 @@ public class TestStringFunctions extends BaseTestQuery {
 
     // edge case
     testBuilder()
-        .sqlQuery("SELECT POSITION('foo' IN 'foobar' FROM 1) p1, POSITION('foo' IN a FROM 1) p2" +
-            " FROM (VALUES('foobar')) tbl(a)")
+        .sqlQuery(
+            "SELECT POSITION('foo' IN 'foobar' FROM 1) p1, POSITION('foo' IN a FROM 1) p2"
+                + " FROM (VALUES('foobar')) tbl(a)")
         .ordered()
         // p1 is calcite const evaluation, p2 is dremio expression evaluation
         .baselineColumns("p1", "p2")
@@ -71,8 +69,9 @@ public class TestStringFunctions extends BaseTestQuery {
   @Test
   public void locate() throws Exception {
     testBuilder()
-        .sqlQuery("SELECT LOCATE('foo', 'foobar', 1) l1, LOCATE('foo', a, 1) l2" +
-            " FROM (VALUES('foobar')) tbl(a)")
+        .sqlQuery(
+            "SELECT LOCATE('foo', 'foobar', 1) l1, LOCATE('foo', a, 1) l2"
+                + " FROM (VALUES('foobar')) tbl(a)")
         .ordered()
         // l1 is calcite const evaluation, l2 is dremio expression evaluation
         .baselineColumns("l1", "l2")
@@ -80,8 +79,9 @@ public class TestStringFunctions extends BaseTestQuery {
         .go();
 
     testBuilder()
-        .sqlQuery("SELECT LOCATE('nope', 'foobar', 1) l1, LOCATE('nope', a, 1) l2" +
-            " FROM (VALUES('foobar')) tbl(a)")
+        .sqlQuery(
+            "SELECT LOCATE('nope', 'foobar', 1) l1, LOCATE('nope', a, 1) l2"
+                + " FROM (VALUES('foobar')) tbl(a)")
         .ordered()
         // l1 is calcite const evaluation, l2 is dremio expression evaluation
         .baselineColumns("l1", "l2")
@@ -98,8 +98,9 @@ public class TestStringFunctions extends BaseTestQuery {
 
   @Test
   public void invalidLocate() {
-    UserExceptionAssert.assertThatThrownBy(() -> test("SELECT LOCATE('nope', a, 0) FROM (VALUES('foobar')) tbl(a)"))
-      .hasMessageContaining("must be greater than 0");
+    UserExceptionAssert.assertThatThrownBy(
+            () -> test("SELECT LOCATE('nope', a, 0) FROM (VALUES('foobar')) tbl(a)"))
+        .hasMessageContaining("must be greater than 0");
   }
 
   @Test
@@ -129,7 +130,8 @@ public class TestStringFunctions extends BaseTestQuery {
           .go();
       expectedErrorEncountered = false;
     } catch (Exception ex) {
-      assertTrue(ex.getMessage().contains("Index in split_part must be positive, value provided was 0"));
+      assertTrue(
+          ex.getMessage().contains("Index in split_part must be positive, value provided was 0"));
       expectedErrorEncountered = true;
     }
     if (!expectedErrorEncountered) {
@@ -138,7 +140,8 @@ public class TestStringFunctions extends BaseTestQuery {
 
     // with a multi-byte splitter
     testBuilder()
-        .sqlQuery("select split_part('abc\\u1111dremio\\u1111ghi', '\\u1111', 2) res1 from (values(1))")
+        .sqlQuery(
+            "select split_part('abc\\u1111dremio\\u1111ghi', '\\u1111', 2) res1 from (values(1))")
         .ordered()
         .baselineColumns("res1")
         .baselineValues("dremio")
@@ -162,18 +165,18 @@ public class TestStringFunctions extends BaseTestQuery {
 
     // test with mutlibyte chars
     testBuilder()
-      .sqlQuery("select split_part('åå†:åå†', ':', 2) res1 from (values(1))")
-      .ordered()
-      .baselineColumns("res1")
-      .baselineValues("åå†")
-      .go();
+        .sqlQuery("select split_part('åå†:åå†', ':', 2) res1 from (values(1))")
+        .ordered()
+        .baselineColumns("res1")
+        .baselineValues("åå†")
+        .go();
 
     testBuilder()
-      .sqlQuery("select split_part('åå†::åå†', ':', 2) res1 from (values(1))")
-      .ordered()
-      .baselineColumns("res1")
-      .baselineValues("")
-      .go();
+        .sqlQuery("select split_part('åå†::åå†', ':', 2) res1 from (values(1))")
+        .ordered()
+        .baselineColumns("res1")
+        .baselineValues("")
+        .go();
   }
 
   @Test
@@ -186,38 +189,45 @@ public class TestStringFunctions extends BaseTestQuery {
     pw.close();
 
     testBuilder()
-      .sqlQuery(String.format("select split_part(columns[0], '~@~', 1) as res1 FROM dfs.\"%s\"",
-        datasetSplit.getAbsolutePath()))
-      .ordered()
-      .baselineColumns("res1")
-      .baselineValues("abc")
-      .baselineValues("abc")
-      .baselineValues("abc")
-      .go();
+        .sqlQuery(
+            String.format(
+                "select split_part(columns[0], '~@~', 1) as res1 FROM dfs.\"%s\"",
+                datasetSplit.getAbsolutePath()))
+        .ordered()
+        .baselineColumns("res1")
+        .baselineValues("abc")
+        .baselineValues("abc")
+        .baselineValues("abc")
+        .go();
 
     testBuilder()
-      .sqlQuery(String.format("select split_part(columns[0], '~@~', 2) as res1 FROM dfs.\"%s\"",
-        datasetSplit.getAbsolutePath()))
-      .ordered()
-      .baselineColumns("res1")
-      .baselineValues("def")
-      .baselineValues("def")
-      .baselineValues("")
-      .go();
+        .sqlQuery(
+            String.format(
+                "select split_part(columns[0], '~@~', 2) as res1 FROM dfs.\"%s\"",
+                datasetSplit.getAbsolutePath()))
+        .ordered()
+        .baselineColumns("res1")
+        .baselineValues("def")
+        .baselineValues("def")
+        .baselineValues("")
+        .go();
 
     // invalid index
     boolean expectedErrorEncountered;
     try {
       testBuilder()
-        .sqlQuery(String.format("select split_part(columns[0], '~@~', 0) as res1 FROM dfs.\"%s\"",
-          datasetSplit.getAbsolutePath()))
-        .ordered()
-        .baselineColumns("res1")
-        .baselineValues("abc")
-        .go();
+          .sqlQuery(
+              String.format(
+                  "select split_part(columns[0], '~@~', 0) as res1 FROM dfs.\"%s\"",
+                  datasetSplit.getAbsolutePath()))
+          .ordered()
+          .baselineColumns("res1")
+          .baselineValues("abc")
+          .go();
       expectedErrorEncountered = false;
     } catch (Exception ex) {
-      assertTrue(ex.getMessage().contains("Index in split_part must be positive, value provided was 0"));
+      assertTrue(
+          ex.getMessage().contains("Index in split_part must be positive, value provided was 0"));
       expectedErrorEncountered = true;
     }
     if (!expectedErrorEncountered) {
@@ -233,32 +243,37 @@ public class TestStringFunctions extends BaseTestQuery {
 
     // with a multi-byte splitter
     testBuilder()
-      .sqlQuery(String.format("select split_part(columns[0], '\\u1111', 2) as res1 FROM dfs.\"%s\"",
-        datasetMultiByteSplit.getAbsolutePath()))
-      .ordered()
-      .baselineColumns("res1")
-      .baselineValues("dremio")
-      .baselineValues("dremio1")
-      .baselineValues("dremio2")
-      .go();
+        .sqlQuery(
+            String.format(
+                "select split_part(columns[0], '\\u1111', 2) as res1 FROM dfs.\"%s\"",
+                datasetMultiByteSplit.getAbsolutePath()))
+        .ordered()
+        .baselineColumns("res1")
+        .baselineValues("dremio")
+        .baselineValues("dremio1")
+        .baselineValues("dremio2")
+        .go();
 
     // if the delimiter does not appear in the string, 1 returns the whole string
     testBuilder()
-      .sqlQuery(String.format("select split_part(columns[0], ' ', 1) as res1 FROM dfs.\"%s\"",
-        datasetSplit.getAbsolutePath()))
-      .ordered()
-      .baselineColumns("res1")
-      .baselineValues("abc~@~def~@~ghi")
-      .baselineValues("abc~@~def")
-      .baselineValues("abc")
-      .go();
+        .sqlQuery(
+            String.format(
+                "select split_part(columns[0], ' ', 1) as res1 FROM dfs.\"%s\"",
+                datasetSplit.getAbsolutePath()))
+        .ordered()
+        .baselineColumns("res1")
+        .baselineValues("abc~@~def~@~ghi")
+        .baselineValues("abc~@~def")
+        .baselineValues("abc")
+        .go();
   }
 
   @Test
   public void testRegexpMatches() throws Exception {
     testBuilder()
-        .sqlQuery("select regexp_like(a, '^a.*') res1, regexp_matches(b, '^a.*') res2, regexp_like(c, '.*b') res3 " +
-                  "from (values('abc', 'bcd', 'cd \\n b'), ('bcd', 'abc', 'cd \\n c')) as t(a,b,c)")
+        .sqlQuery(
+            "select regexp_like(a, '^a.*') res1, regexp_matches(b, '^a.*') res2, regexp_like(c, '.*b') res3 "
+                + "from (values('abc', 'bcd', 'cd \\n b'), ('bcd', 'abc', 'cd \\n c')) as t(a,b,c)")
         .unOrdered()
         .baselineColumns("res1", "res2", "res3")
         .baselineValues(true, false, true)
@@ -269,207 +284,92 @@ public class TestStringFunctions extends BaseTestQuery {
 
   @Test
   public void testRegexpReplaceStartsWith() throws Exception {
-    validateRegexpReplace("^a", "bar",
-        "barbc",
-        "Ab",
-        "bar",
-        "defabc",
-        "deab",
-        "efa",
-        null
-    );
+    validateRegexpReplace("^a", "bar", "barbc", "Ab", "bar", "defabc", "deab", "efa", null);
   }
 
   @Test
   public void testRegexpMatchesStartsWith() throws Exception {
-    validateRegexpMatches("^a.*?",
-        true,
-        false,
-        true,
-        false,
-        false,
-        false,
-        null
-    );
+    validateRegexpMatches("^a.*?", true, false, true, false, false, false, null);
   }
 
   @Test
   public void testRegexpReplaceStartsWithIgnoreCase() throws Exception {
-    validateRegexpReplace("(?i)(?u)^a", "bar",
-        "barbc",
-        "barb",
-        "bar",
-        "defabc",
-        "deab",
-        "efa",
-        null
-    );
+    validateRegexpReplace(
+        "(?i)(?u)^a", "bar", "barbc", "barb", "bar", "defabc", "deab", "efa", null);
   }
 
   @Test
   public void testRegexpMatchesStartsWithIgnoreCase() throws Exception {
-    validateRegexpMatches("(?i)(?u)^a.*?",
-        true,
-        true,
-        true,
-        false,
-        false,
-        false,
-        null
-    );
+    validateRegexpMatches("(?i)(?u)^a.*?", true, true, true, false, false, false, null);
   }
 
   @Test
   public void testRegexpReplaceEndsWith() throws Exception {
-    validateRegexpReplace("bc$", "bar",
-        "abar",
-        "Ab",
-        "a",
-        "defabar",
-        "deab",
-        "efa",
-        null
-    );
+    validateRegexpReplace("bc$", "bar", "abar", "Ab", "a", "defabar", "deab", "efa", null);
   }
 
   @Test
   public void testRegexpMatchesEndsWith() throws Exception {
-    validateRegexpMatches(".*?bc$",
-        true,
-        false,
-        false,
-        true,
-        false,
-        false,
-        null
-    );
+    validateRegexpMatches(".*?bc$", true, false, false, true, false, false, null);
   }
 
   @Test
   public void testRegexpReplaceContains() throws Exception {
-    validateRegexpReplace("ab", "bar",
-        "barc",
-        "Ab",
-        "a",
-        "defbarc",
-        "debar",
-        "efa",
-        null
-    );
+    validateRegexpReplace("ab", "bar", "barc", "Ab", "a", "defbarc", "debar", "efa", null);
   }
 
   @Test
   public void testRegexpMatchesContains() throws Exception {
-    validateRegexpMatches(".*?ab.*?",
-        true,
-        false,
-        false,
-        true,
-        true,
-        false,
-        null
-    );
+    validateRegexpMatches(".*?ab.*?", true, false, false, true, true, false, null);
   }
 
   @Test
   public void testRegexpReplaceContainsIgnoreCase() throws Exception {
-    validateRegexpReplace("(?i)(?u)ab", "bar",
-        "barc",
-        "bar",
-        "a",
-        "defbarc",
-        "debar",
-        "efa",
-        null
-    );
+    validateRegexpReplace("(?i)(?u)ab", "bar", "barc", "bar", "a", "defbarc", "debar", "efa", null);
   }
 
   @Test
   public void testRegexpMatchesContainsIgnoreCase() throws Exception {
-    validateRegexpMatches("(?i)(?u).*?ab.*?",
-        true,
-        true,
-        false,
-        true,
-        true,
-        false,
-        null
-    );
+    validateRegexpMatches("(?i)(?u).*?ab.*?", true, true, false, true, true, false, null);
   }
 
   @Test
   public void testRegexpReplacePattern() throws Exception {
-    validateRegexpReplace("[ec]", "bar",
-        "abbar",
-        "Ab",
-        "a",
-        "dbarfabbar",
-        "dbarab",
-        "barfa",
-        null
-    );
+    validateRegexpReplace("[ec]", "bar", "abbar", "Ab", "a", "dbarfabbar", "dbarab", "barfa", null);
   }
 
   @Test
   public void testRegexpMatchesPattern() throws Exception {
-    validateRegexpMatches(".*?[ec].*?",
-        true,
-        false,
-        false,
-        true,
-        true,
-        true,
-        null
-    );
+    validateRegexpMatches(".*?[ec].*?", true, false, false, true, true, true, null);
   }
 
   @Test
   public void testRegexpReplacePatternIgnoreCase() throws Exception {
-    validateRegexpReplace("(?i)(?u)[Ac]", "bar",
-        "barbbar",
-        "barb",
-        "bar",
-        "defbarbbar",
-        "debarb",
-        "efbar",
-        null
-    );
+    validateRegexpReplace(
+        "(?i)(?u)[Ac]", "bar", "barbbar", "barb", "bar", "defbarbbar", "debarb", "efbar", null);
   }
 
   @Test
   public void testRegexpMatchesPatternIgnoreCase() throws Exception {
-    validateRegexpMatches("(?i)(?u).*?[Ac].*?",
-        true,
-        true,
-        true,
-        true,
-        true,
-        true,
-        null
-    );
+    validateRegexpMatches("(?i)(?u).*?[Ac].*?", true, true, true, true, true, true, null);
   }
 
-  private void validateRegexpReplace(String pattern, String newValue, String... expected) throws Exception {
+  private void validateRegexpReplace(String pattern, String newValue, String... expected)
+      throws Exception {
     /**
-     * Contents of test file:
-     *   { "a": "abc", "b": 0}
-     *   { "a": "Ab", "b": 1}
-     *   { "a": "a", "b": 2}
-     *   { "a": "defabc", "b": 3}
-     *   { "a": "deab", "b": 4}
-     *   { "a": "efa", "b": 5}
-     *   { "b": 6}
+     * Contents of test file: { "a": "abc", "b": 0} { "a": "Ab", "b": 1} { "a": "a", "b": 2} { "a":
+     * "defabc", "b": 3} { "a": "deab", "b": 4} { "a": "efa", "b": 5} { "b": 6}
      */
-    final String sql = format("select regexp_replace(a, '%s', '%s') as a from cp.\"functions/string/regexp_replace.json\"", pattern, newValue);
+    final String sql =
+        format(
+            "select regexp_replace(a, '%s', '%s') as a from cp.\"functions/string/regexp_replace.json\"",
+            pattern, newValue);
 
-    TestBuilder builder = testBuilder()
-        .sqlQuery(sql)
-        .unOrdered()
-        .baselineColumns("a");
+    TestBuilder builder = testBuilder().sqlQuery(sql).unOrdered().baselineColumns("a");
 
-    for(String exp : expected) {
+    for (String exp : expected) {
       if (exp == null) {
-        builder = builder.baselineValues(new Object[] { null });
+        builder = builder.baselineValues(new Object[] {null});
       } else {
         builder = builder.baselineValues(exp);
       }
@@ -480,25 +380,19 @@ public class TestStringFunctions extends BaseTestQuery {
 
   private void validateRegexpMatches(String pattern, Boolean... expected) throws Exception {
     /**
-     * Contents of test file:
-     *   { "a": "abc", "b": 0}
-     *   { "a": "Ab", "b": 1}
-     *   { "a": "a", "b": 2}
-     *   { "a": "defabc", "b": 3}
-     *   { "a": "deab", "b": 4}
-     *   { "a": "efa", "b": 5}
-     *   { "b": 6}
+     * Contents of test file: { "a": "abc", "b": 0} { "a": "Ab", "b": 1} { "a": "a", "b": 2} { "a":
+     * "defabc", "b": 3} { "a": "deab", "b": 4} { "a": "efa", "b": 5} { "b": 6}
      */
-    final String sql = format("select regexp_matches(a, '%s') as a from cp.\"functions/string/regexp_replace.json\"", pattern);
+    final String sql =
+        format(
+            "select regexp_matches(a, '%s') as a from cp.\"functions/string/regexp_replace.json\"",
+            pattern);
 
-    TestBuilder builder = testBuilder()
-        .sqlQuery(sql)
-        .unOrdered()
-        .baselineColumns("a");
+    TestBuilder builder = testBuilder().sqlQuery(sql).unOrdered().baselineColumns("a");
 
-    for(Boolean exp : expected) {
+    for (Boolean exp : expected) {
       if (exp == null) {
-        builder = builder.baselineValues(new Object[] { null });
+        builder = builder.baselineValues(new Object[] {null});
       } else {
         builder = builder.baselineValues(exp);
       }
@@ -510,8 +404,9 @@ public class TestStringFunctions extends BaseTestQuery {
   @Test
   public void testRegexpMatchesNonAscii() throws Exception {
     testBuilder()
-        .sqlQuery("select regexp_matches(a, 'München') res1, regexp_matches(b, 'AMünchenA') res2 " +
-            "from cp.\"functions/string/regexp_replace_ascii.json\"")
+        .sqlQuery(
+            "select regexp_matches(a, 'München') res1, regexp_matches(b, 'AMünchenA') res2 "
+                + "from cp.\"functions/string/regexp_replace_ascii.json\"")
         .unOrdered()
         .baselineColumns("res1", "res2")
         .baselineValues(true, false)
@@ -523,8 +418,9 @@ public class TestStringFunctions extends BaseTestQuery {
   @Test
   public void testRegexpReplace() throws Exception {
     testBuilder()
-        .sqlQuery("select regexp_replace(a, 'a|c', 'x') res1, regexp_replace(b, 'd', 'zzz') res2 " +
-                  "from (values('abc', 'bcd'), ('bcd', 'abc')) as t(a,b)")
+        .sqlQuery(
+            "select regexp_replace(a, 'a|c', 'x') res1, regexp_replace(b, 'd', 'zzz') res2 "
+                + "from (values('abc', 'bcd'), ('bcd', 'abc')) as t(a,b)")
         .unOrdered()
         .baselineColumns("res1", "res2")
         .baselineValues("xbx", "bczzz")
@@ -536,11 +432,12 @@ public class TestStringFunctions extends BaseTestQuery {
   @Test
   public void testILike() throws Exception {
     testBuilder()
-        .sqlQuery("select " +
-            "ilike('UNITED_STATE', '%UNITED%') c1, " +
-            "ilike('UNITED_KINGDOM', 'united%') c2, " +
-            "ilike('KINGDOM \n NOT UNITED', '%united') c3 " +
-            "from INFORMATION_SCHEMA.CATALOGS")
+        .sqlQuery(
+            "select "
+                + "ilike('UNITED_STATE', '%UNITED%') c1, "
+                + "ilike('UNITED_KINGDOM', 'united%') c2, "
+                + "ilike('KINGDOM \n NOT UNITED', '%united') c3 "
+                + "from INFORMATION_SCHEMA.CATALOGS")
         .unOrdered()
         .baselineColumns("c1", "c2", "c3")
         .baselineValues(true, true, true)
@@ -551,7 +448,8 @@ public class TestStringFunctions extends BaseTestQuery {
   @Test
   public void testILikeEscape() throws Exception {
     testBuilder()
-        .sqlQuery("select a from (select concat(r_name , '_region') a from cp.\"tpch/region.parquet\") where ilike(a, 'asia#_region', '#') = true")
+        .sqlQuery(
+            "select a from (select concat(r_name , '_region') a from cp.\"tpch/region.parquet\") where ilike(a, 'asia#_region', '#') = true")
         .unOrdered()
         .baselineColumns("a")
         .baselineValues("ASIA_region")
@@ -562,7 +460,8 @@ public class TestStringFunctions extends BaseTestQuery {
   @Test
   public void testSubstr() throws Exception {
     testBuilder()
-        .sqlQuery("select substr(n_name, 'UN.TE.') a from cp.\"tpch/nation.parquet\" where ilike(n_name, 'united%') = true")
+        .sqlQuery(
+            "select substr(n_name, 'UN.TE.') a from cp.\"tpch/nation.parquet\" where ilike(n_name, 'united%') = true")
         .unOrdered()
         .baselineColumns("a")
         .baselineValues("UNITED")
@@ -573,205 +472,165 @@ public class TestStringFunctions extends BaseTestQuery {
 
   @Test
   public void testLpadTwoArgConvergeToLpad() throws Exception {
-    final String query1 = "SELECT lpad(r_name, 25) \n" +
-        "FROM cp.\"tpch/region.parquet\"";
+    final String query1 = "SELECT lpad(r_name, 25) \n" + "FROM cp.\"tpch/region.parquet\"";
 
+    final String query2 = "SELECT lpad(r_name, 25, ' ') \n" + "FROM cp.\"tpch/region.parquet\"";
 
-    final String query2 = "SELECT lpad(r_name, 25, ' ') \n" +
-        "FROM cp.\"tpch/region.parquet\"";
-
-    testBuilder()
-        .sqlQuery(query1)
-        .unOrdered()
-        .sqlBaselineQuery(query2)
-        .build()
-        .run();
+    testBuilder().sqlQuery(query1).unOrdered().sqlBaselineQuery(query2).build().run();
   }
 
   @Test
   public void testRpadTwoArgConvergeToRpad() throws Exception {
-    final String query1 = "SELECT rpad(r_name, 25) \n" +
-        "FROM cp.\"tpch/region.parquet\"";
+    final String query1 = "SELECT rpad(r_name, 25) \n" + "FROM cp.\"tpch/region.parquet\"";
 
+    final String query2 = "SELECT rpad(r_name, 25, ' ') \n" + "FROM cp.\"tpch/region.parquet\"";
 
-    final String query2 = "SELECT rpad(r_name, 25, ' ') \n" +
-        "FROM cp.\"tpch/region.parquet\"";
-
-    testBuilder()
-        .sqlQuery(query1)
-        .unOrdered()
-        .sqlBaselineQuery(query2)
-        .build()
-        .run();
+    testBuilder().sqlQuery(query1).unOrdered().sqlBaselineQuery(query2).build().run();
   }
 
   @Test
   public void testLtrimOneArgConvergeToLtrim() throws Exception {
-    final String query1 = "SELECT ltrim(concat(' ', r_name, ' ')) \n" +
-        "FROM cp.\"tpch/region.parquet\"";
+    final String query1 =
+        "SELECT ltrim(concat(' ', r_name, ' ')) \n" + "FROM cp.\"tpch/region.parquet\"";
 
+    final String query2 =
+        "SELECT ltrim(concat(' ', r_name, ' '), ' ') \n" + "FROM cp.\"tpch/region.parquet\"";
 
-    final String query2 = "SELECT ltrim(concat(' ', r_name, ' '), ' ') \n" +
-        "FROM cp.\"tpch/region.parquet\"";
-
-    testBuilder()
-        .sqlQuery(query1)
-        .unOrdered()
-        .sqlBaselineQuery(query2)
-        .build()
-        .run();
+    testBuilder().sqlQuery(query1).unOrdered().sqlBaselineQuery(query2).build().run();
   }
 
   @Test
   public void testRtrimOneArgConvergeToRtrim() throws Exception {
-    final String query1 = "SELECT rtrim(concat(' ', r_name, ' ')) \n" +
-        "FROM cp.\"tpch/region.parquet\"";
+    final String query1 =
+        "SELECT rtrim(concat(' ', r_name, ' ')) \n" + "FROM cp.\"tpch/region.parquet\"";
 
+    final String query2 =
+        "SELECT rtrim(concat(' ', r_name, ' '), ' ') \n" + "FROM cp.\"tpch/region.parquet\"";
 
-    final String query2 = "SELECT rtrim(concat(' ', r_name, ' '), ' ') \n" +
-        "FROM cp.\"tpch/region.parquet\"";
-
-    testBuilder()
-        .sqlQuery(query1)
-        .unOrdered()
-        .sqlBaselineQuery(query2)
-        .build()
-        .run();
+    testBuilder().sqlQuery(query1).unOrdered().sqlBaselineQuery(query2).build().run();
   }
 
   @Test
   public void testBtrimOneArgConvergeToBtrim() throws Exception {
-    final String query1 = "SELECT btrim(concat(' ', r_name, ' ')) \n" +
-        "FROM cp.\"tpch/region.parquet\"";
+    final String query1 =
+        "SELECT btrim(concat(' ', r_name, ' ')) \n" + "FROM cp.\"tpch/region.parquet\"";
 
+    final String query2 =
+        "SELECT btrim(concat(' ', r_name, ' '), ' ') \n" + "FROM cp.\"tpch/region.parquet\"";
 
-    final String query2 = "SELECT btrim(concat(' ', r_name, ' '), ' ') \n" +
-        "FROM cp.\"tpch/region.parquet\"";
-
-    testBuilder()
-        .sqlQuery(query1)
-        .unOrdered()
-        .sqlBaselineQuery(query2)
-        .build()
-        .run();
+    testBuilder().sqlQuery(query1).unOrdered().sqlBaselineQuery(query2).build().run();
   }
 
   @Test
   public void testInitCap() throws Exception {
-    final String query1 = "SELECT x, initcap(x) as y FROM (VALUES ('abc'), ('ABC'), ('12ABC')) as t1(x)";
-    final String expected = "SELECT x, y FROM (VALUES ('abc', 'Abc'), ('ABC', 'Abc'), ('12ABC', '12abc')) as t1(x, y)";
+    final String query1 =
+        "SELECT x, initcap(x) as y FROM (VALUES ('abc'), ('ABC'), ('12ABC')) as t1(x)";
+    final String expected =
+        "SELECT x, y FROM (VALUES ('abc', 'Abc'), ('ABC', 'Abc'), ('12ABC', '12abc')) as t1(x, y)";
 
-    testBuilder()
-      .sqlQuery(query1)
-      .unOrdered()
-      .sqlBaselineQuery(expected)
-      .build()
-      .run();
+    testBuilder().sqlQuery(query1).unOrdered().sqlBaselineQuery(expected).build().run();
   }
 
   @Test
   public void testReverse() throws Exception {
     testBuilder()
-      .sqlQuery("SELECT full_name, reverse(substring(full_name, 2, 5)) AS reverse_sub_name "
-        + "FROM cp.\"employee.json\" LIMIT 1")
-      .unOrdered()
-      .baselineColumns("full_name", "reverse_sub_name")
-      .baselineValues("Sheri Nowmer", " ireh")
-      .go();
+        .sqlQuery(
+            "SELECT full_name, reverse(substring(full_name, 2, 5)) AS reverse_sub_name "
+                + "FROM cp.\"employee.json\" LIMIT 1")
+        .unOrdered()
+        .baselineColumns("full_name", "reverse_sub_name")
+        .baselineValues("Sheri Nowmer", " ireh")
+        .go();
   }
 
   @Test
   public void testRegexpColLike() throws Exception {
-    final String query = "select *, regexp_col_like(columns[0], columns[1]) as col_matches " +
-      "from cp.\"csv/regexp_col_like_test.csv\" " +
-      "where columns[2] != col_matches";
+    final String query =
+        "select *, regexp_col_like(columns[0], columns[1]) as col_matches "
+            + "from cp.\"csv/regexp_col_like_test.csv\" "
+            + "where columns[2] != col_matches";
 
-    testBuilder()
-      .unOrdered()
-      .sqlQuery(query)
-      .expectsEmptyResultSet()
-      .go();
+    testBuilder().unOrdered().sqlQuery(query).expectsEmptyResultSet().go();
   }
 
   @Test
   public void testRegexpColMatches() throws Exception {
-    final String query = "select *, regexp_col_matches(columns[0], columns[1]) as col_matches " +
-      "from cp.\"csv/regexp_col_like_test.csv\" " +
-      "where columns[2] != col_matches";
+    final String query =
+        "select *, regexp_col_matches(columns[0], columns[1]) as col_matches "
+            + "from cp.\"csv/regexp_col_like_test.csv\" "
+            + "where columns[2] != col_matches";
 
-    testBuilder()
-      .unOrdered()
-      .sqlQuery(query)
-      .expectsEmptyResultSet()
-      .go();
+    testBuilder().unOrdered().sqlQuery(query).expectsEmptyResultSet().go();
   }
 
   @Test
   public void testSpace() throws Exception {
     String query = "select space(5) as space_result";
     testBuilder()
-      .sqlQuery(query)
-      .ordered()
-      .baselineColumns("space_result")
-      .baselineValues("     ")
-      .go();
+        .sqlQuery(query)
+        .ordered()
+        .baselineColumns("space_result")
+        .baselineValues("     ")
+        .go();
 
     query = "select space(0) as space_result";
-    testBuilder()
-      .sqlQuery(query)
-      .ordered()
-      .baselineColumns("space_result")
-      .baselineValues("")
-      .go();
+    testBuilder().sqlQuery(query).ordered().baselineColumns("space_result").baselineValues("").go();
   }
 
   @Test
   public void testNormalize() throws Exception {
-    String query = "select normalize_string('schön', 'NFC') as nfc1,"
-      + "normalize_string('schön', 'NFD') as nfd1,"
-      + "normalize_string('schön', 'NFKC') as nfkc1,"
-      + "normalize_string('schön', 'NFKD') as nfkd1,"
-      + "normalize_string('teẛ̣t', 'NFC') as nfc2,"
-      + "normalize_string('teẛ̣t', 'NFD') as nfd2,"
-      + "normalize_string('teẛ̣t', 'NFKC') as nfkc2,"
-      + "normalize_string('teẛ̣t', 'NFKD') as nfkd2,"
-      + "normalize_string('teẛ̣t', 'nFkD') as nfkdcase2;";
+    String query =
+        "select normalize_string('schön', 'NFC') as nfc1,"
+            + "normalize_string('schön', 'NFD') as nfd1,"
+            + "normalize_string('schön', 'NFKC') as nfkc1,"
+            + "normalize_string('schön', 'NFKD') as nfkd1,"
+            + "normalize_string('teẛ̣t', 'NFC') as nfc2,"
+            + "normalize_string('teẛ̣t', 'NFD') as nfd2,"
+            + "normalize_string('teẛ̣t', 'NFKC') as nfkc2,"
+            + "normalize_string('teẛ̣t', 'NFKD') as nfkd2,"
+            + "normalize_string('teẛ̣t', 'nFkD') as nfkdcase2;";
     testBuilder()
-      .sqlQuery(query)
-      .ordered()
-      .baselineColumns("nfc1", "nfd1", "nfkc1", "nfkd1", "nfc2", "nfd2", "nfkc2", "nfkd2", "nfkdcase2")
-      .baselineValues("schön", "sch\u006f\u0308n", "schön", "sch\u006f\u0308n",
-        "te\u1e9b\u0323t","te\u017f\u0323\u0307t","te\u1e69t","te\u0073\u0323\u0307t","te\u0073\u0323\u0307t")
-      .go();
+        .sqlQuery(query)
+        .ordered()
+        .baselineColumns(
+            "nfc1", "nfd1", "nfkc1", "nfkd1", "nfc2", "nfd2", "nfkc2", "nfkd2", "nfkdcase2")
+        .baselineValues(
+            "schön",
+            "sch\u006f\u0308n",
+            "schön",
+            "sch\u006f\u0308n",
+            "te\u1e9b\u0323t",
+            "te\u017f\u0323\u0307t",
+            "te\u1e69t",
+            "te\u0073\u0323\u0307t",
+            "te\u0073\u0323\u0307t")
+        .go();
 
-    query= "select normalize_string(null, 'NFC') as res1,  normalize_string('', 'NFC') as res2, normalize_string('schön', 'nFd') as res3";
+    query =
+        "select normalize_string(null, 'NFC') as res1,  normalize_string('', 'NFC') as res2, normalize_string('schön', 'nFd') as res3";
     testBuilder()
-      .sqlQuery(query)
-      .ordered()
-      .baselineColumns("res1", "res2", "res3")
-      .baselineValues(null, "","sch\u006f\u0308n")
-      .go();
-    try{
-      query= "select normalize_string('schön', 'WRONG') as res1";
-      testBuilder()
         .sqlQuery(query)
         .ordered()
-        .baselineColumns("res1")
-        .baselineValues(null)
+        .baselineColumns("res1", "res2", "res3")
+        .baselineValues(null, "", "sch\u006f\u0308n")
         .go();
-    } catch(Exception ex){
-      assertTrue(ex.getMessage().contains("Unknown normalization form specified, valid values are: NFD, NFC, NFKD, NFKC"));
+    try {
+      query = "select normalize_string('schön', 'WRONG') as res1";
+      testBuilder().sqlQuery(query).ordered().baselineColumns("res1").baselineValues(null).go();
+    } catch (Exception ex) {
+      assertTrue(
+          ex.getMessage()
+              .contains(
+                  "Unknown normalization form specified, valid values are: NFD, NFC, NFKD, NFKC"));
     }
-    try{
-      query= "select normalize_string('schön', null) as res1";
-      testBuilder()
-        .sqlQuery(query)
-        .ordered()
-        .baselineColumns("res1")
-        .baselineValues(null)
-        .go();
-    } catch(Exception ex){
-      assertTrue(ex.getMessage().contains("Unknown normalization form specified, valid values are: NFD, NFC, NFKD, NFKC"));
+    try {
+      query = "select normalize_string('schön', null) as res1";
+      testBuilder().sqlQuery(query).ordered().baselineColumns("res1").baselineValues(null).go();
+    } catch (Exception ex) {
+      assertTrue(
+          ex.getMessage()
+              .contains(
+                  "Unknown normalization form specified, valid values are: NFD, NFC, NFKD, NFKC"));
     }
   }
 }

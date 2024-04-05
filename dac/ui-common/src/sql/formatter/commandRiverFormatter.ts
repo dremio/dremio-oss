@@ -20,12 +20,12 @@ export abstract class CommandRiverFormatter extends AbstractSqlAstVisitor {
   protected abstract formatCommandLine(
     line: string,
     commandLength: number,
-    maxCommandLength: number
+    maxCommandLength: number,
   ): string;
 
   protected formatClauses(
     commandsSql: string[][],
-    parametersSql: string[][]
+    parametersSql: string[][],
   ): string[] {
     const [commandsAsRiver, maxCommandLength] =
       this.formatCommands(commandsSql);
@@ -39,12 +39,12 @@ export abstract class CommandRiverFormatter extends AbstractSqlAstVisitor {
       const indentedParameterLines = this.indentLines(
         parametersSqlLines,
         parameterLinesLeadingSpaces,
-        1 /* start line */
+        1 /* start line */,
       );
       const clauseSql = this.mergeLinesWithOverlap(
         " ".repeat(this.getNumSpacesAfterCommand()),
         commandAsRiver,
-        indentedParameterLines
+        indentedParameterLines,
       );
       sql.push(...clauseSql);
     }
@@ -63,7 +63,7 @@ export abstract class CommandRiverFormatter extends AbstractSqlAstVisitor {
   // [IN]                   [       IN]
   // Command could be multi line if there was 1 or more single line comments between or after the command tokens
   protected formatCommands(
-    commands: string[][]
+    commands: string[][],
   ): [formatted: string[][], maxCommandLength: number] {
     let maxCommandLength = 0;
     const getCommandWords = (line: string) => line.split(/\s*[^\w\s]/, 1)[0]; // DROP USER --blah or DROP USER /* blah */ -> DROP USER
@@ -89,13 +89,13 @@ export abstract class CommandRiverFormatter extends AbstractSqlAstVisitor {
           formattedLines.push(
             " ".repeat(maxCommandLength) +
               " ".repeat(this.getNumSpacesAfterCommand()) +
-              line
+              line,
           );
         } else {
           // Normal case: Add leading spaces so all command token of each clause across the entire statement
           // line up along the river
           formattedLines.push(
-            this.formatCommandLine(line, commandWords.length, maxCommandLength)
+            this.formatCommandLine(line, commandWords.length, maxCommandLength),
           );
         }
       }

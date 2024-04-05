@@ -20,16 +20,6 @@ import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.hadoop.fs.FSDataInputStream;
-import org.junit.Test;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.cache.VectorAccessibleSerializable;
 import com.dremio.exec.physical.config.BridgeFileWriterSender;
@@ -51,13 +41,18 @@ import com.dremio.sabot.exec.rpc.TunnelProvider;
 import com.dremio.sabot.op.sender.BridgeFileWriterSenderOperator;
 import com.dremio.sabot.op.sort.external.SpillManager;
 import com.dremio.sabot.threads.sharedres.SharedResource;
-
 import io.airlift.tpch.GenerationDefinition;
 import io.airlift.tpch.TpchGenerator;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.hadoop.fs.FSDataInputStream;
+import org.junit.Test;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
-/**
- * Testing BridgeFileWriterSender
- */
+/** Testing BridgeFileWriterSender */
 public class TestBridgeFileWriterSender extends BaseTestOperator {
   @Test
   public void simple() throws Exception {
@@ -76,8 +71,10 @@ public class TestBridgeFileWriterSender extends BaseTestOperator {
     }
   }
 
-  private void check(GenerationDefinition.TpchTable table, double scale, int batchSize) throws Exception {
-    Fixtures.Table expected = TpchGenerator.singleGenerator(table, scale, getAllocator()).toTable(batchSize);
+  private void check(GenerationDefinition.TpchTable table, double scale, int batchSize)
+      throws Exception {
+    Fixtures.Table expected =
+        TpchGenerator.singleGenerator(table, scale, getAllocator()).toTable(batchSize);
     try (Generator generator = TpchGenerator.singleGenerator(table, scale, getTestAllocator())) {
       check(expected, batchSize, generator);
     }
@@ -92,20 +89,27 @@ public class TestBridgeFileWriterSender extends BaseTestOperator {
     when(sharedResource.isAvailable()).thenReturn(true);
 
     final TunnelProvider provider = mock(TunnelProvider.class);
-    when(provider.getFileTunnel(any(FileStreamManager.class), anyInt())).thenAnswer(
-      new Answer<Object>() {
-        @Override
-        public Object answer(InvocationOnMock invocation) throws Throwable {
-          Object[] args = invocation.getArguments();
-          return new AccountingFileTunnel(new FileTunnel((FileStreamManager)args[0], (int)args[1]),
-            fileCursorManagerFactory, sharedResource);
-        }
-      }
-    );
+    when(provider.getFileTunnel(any(FileStreamManager.class), anyInt()))
+        .thenAnswer(
+            new Answer<Object>() {
+              @Override
+              public Object answer(InvocationOnMock invocation) throws Throwable {
+                Object[] args = invocation.getArguments();
+                return new AccountingFileTunnel(
+                    new FileTunnel((FileStreamManager) args[0], (int) args[1]),
+                    fileCursorManagerFactory,
+                    sharedResource);
+              }
+            });
 
     List<RecordBatchData> actual = null;
-    try (BridgeFileWriterSenderOperator op = newOperator(BridgeFileWriterSenderOperator.class, sender, batchSize,
-      new EndpointsIndex(), provider)) {
+    try (BridgeFileWriterSenderOperator op =
+        newOperator(
+            BridgeFileWriterSenderOperator.class,
+            sender,
+            batchSize,
+            new EndpointsIndex(),
+            provider)) {
       int numRecords;
       op.setup(generator.getOutput());
       while ((numRecords = generator.next(batchSize)) != 0) {
@@ -125,7 +129,8 @@ public class TestBridgeFileWriterSender extends BaseTestOperator {
     }
   }
 
-  List<RecordBatchData> readAllDataFromDir(SpillManager spillManager, BatchSchema schema) throws IOException {
+  List<RecordBatchData> readAllDataFromDir(SpillManager spillManager, BatchSchema schema)
+      throws IOException {
     List<RecordBatchData> allBatches = new ArrayList<>();
 
     // iterate over all files in the directory till end-of-stream marker.
@@ -144,7 +149,6 @@ public class TestBridgeFileWriterSender extends BaseTestOperator {
     return allBatches;
   }
 
-
   private static class FileReadResult {
     List<RecordBatchData> records;
     boolean isStreamClosed;
@@ -153,9 +157,11 @@ public class TestBridgeFileWriterSender extends BaseTestOperator {
       this.records = records;
       this.isStreamClosed = isStreamClosed;
     }
-  };
+  }
+  ;
 
-  FileReadResult readAllDataFromFile(FSDataInputStream input, BatchSchema schema) throws IOException {
+  FileReadResult readAllDataFromFile(FSDataInputStream input, BatchSchema schema)
+      throws IOException {
     List<RecordBatchData> fileBatches = new ArrayList<>();
     boolean isStreamClosed = false;
 

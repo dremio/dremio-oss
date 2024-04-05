@@ -15,15 +15,12 @@
  */
 package com.dremio.sabot.task;
 
-import java.util.concurrent.atomic.AtomicBoolean;
-
 import com.dremio.sabot.task.TaskManager.TaskHandle;
 import com.dremio.sabot.threads.AvailabilityCallback;
 import com.google.common.base.Preconditions;
+import java.util.concurrent.atomic.AtomicBoolean;
 
-/**
- * A callback wrapper around {@code TaskHandle} to be called after task is unblocked
- */
+/** A callback wrapper around {@code TaskHandle} to be called after task is unblocked */
 public class BlockRun implements AvailabilityCallback {
 
   private final TaskHandle<AsyncTaskWrapper> handle;
@@ -37,8 +34,8 @@ public class BlockRun implements AvailabilityCallback {
 
   @Override
   public void nowAvailable() {
-    Preconditions.checkArgument(executed.compareAndSet(false, true), "Now available executed multiple times.");
+    Preconditions.checkArgument(
+        executed.compareAndSet(false, true), "Now available executed multiple times.");
     handle.reEnqueue();
   }
-
 }

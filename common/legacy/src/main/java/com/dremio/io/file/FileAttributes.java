@@ -21,12 +21,11 @@ import java.io.IOException;
 import java.nio.file.NotLinkException;
 import java.nio.file.attribute.PosixFileAttributes;
 
-/**
- * File attributes associated with file
- */
+/** File attributes associated with file */
 public interface FileAttributes extends PosixFileAttributes {
   /**
    * Gets the path to the file
+   *
    * @return the path
    */
   Path getPath();

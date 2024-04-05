@@ -15,43 +15,40 @@
  */
 package com.dremio.exec.store.sys;
 
+import com.google.common.base.Functions;
+import com.google.common.collect.ImmutableSortedMap;
+import com.google.common.collect.Iterators;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
 
-import com.google.common.base.Functions;
-import com.google.common.collect.ImmutableSortedMap;
-import com.google.common.collect.Iterators;
-
-/**
- * Class to hold TimezoneAbbr-offset mapping
- */
+/** Class to hold TimezoneAbbr-offset mapping */
 public class TimezoneAbbreviations {
 
   private static final Map<String, TimezoneAbbr> abbrOffsetMap;
 
   /**
-   * Method to get offset for a timezone
-   * Returns empty if the timezone is not in the mapping
+   * Method to get offset for a timezone Returns empty if the timezone is not in the mapping
+   *
    * @param abbr
    * @return
    */
   public static Optional<String> getOffset(String abbr) {
     String abbrUpper = abbr.toUpperCase();
-    if(abbrOffsetMap.containsKey(abbrUpper)) {
+    if (abbrOffsetMap.containsKey(abbrUpper)) {
       return Optional.of(abbrOffsetMap.get(abbrUpper).tz_offset);
     }
     return Optional.empty();
   }
 
   public static Iterator<Object> getIterator() {
-    return Iterators.transform(abbrOffsetMap.values().iterator(), Functions.identity()); // transform so we don't have to typecast
+    return Iterators.transform(
+        abbrOffsetMap.values().iterator(),
+        Functions.identity()); // transform so we don't have to typecast
   }
 
-  /**
-   * TimeZone Abbreviation POJO. This is the schema for sys.timezone_abbrevs
-   */
+  /** TimeZone Abbreviation POJO. This is the schema for sys.timezone_abbrevs */
   public static class TimezoneAbbr {
     public String timezone_abbrev;
     public String tz_offset;

@@ -15,11 +15,10 @@
  */
 package com.dremio.service.functions.model;
 
-import org.immutables.value.Value;
-
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import org.immutables.value.Value;
 
 @Value.Immutable
 @Value.Style(stagedBuilder = true)
@@ -28,6 +27,7 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 @JsonInclude(JsonInclude.Include.NON_ABSENT)
 public abstract class SampleCode {
   public abstract String getCall();
+
   public abstract String getResult();
 
   public static ImmutableSampleCode.CallBuildStage builder() {
@@ -35,9 +35,6 @@ public abstract class SampleCode {
   }
 
   public static SampleCode create(String sampleCall, String sampleReturn) {
-    return builder()
-      .call(sampleCall)
-      .result(sampleReturn)
-      .build();
+    return builder().call(sampleCall).result(sampleReturn).build();
   }
 }

@@ -15,37 +15,63 @@
  */
 package com.dremio.plugins.elastic.planning.rels;
 
-
+import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.planner.common.ScanRelBase;
+import com.dremio.exec.planner.logical.Rel;
+import com.dremio.exec.store.TableMetadata;
 import java.util.List;
-
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.hint.RelHint;
 
-import com.dremio.common.expression.SchemaPath;
-import com.dremio.exec.catalog.StoragePluginId;
-import com.dremio.exec.planner.common.ScanRelBase;
-import com.dremio.exec.planner.logical.Rel;
-import com.dremio.exec.store.TableMetadata;
-
 public class ElasticsearchScanDrel extends ScanRelBase implements Rel {
 
-  public ElasticsearchScanDrel(RelOptCluster cluster, RelTraitSet traitSet, RelOptTable table,
-      StoragePluginId pluginId, TableMetadata tableMetadata, List<SchemaPath> projectedColumns,
-      double observedRowcountAdjustment, List<RelHint> hints) {
-    super(cluster, traitSet, table, pluginId, tableMetadata, projectedColumns, observedRowcountAdjustment, hints);
+  public ElasticsearchScanDrel(
+      RelOptCluster cluster,
+      RelTraitSet traitSet,
+      RelOptTable table,
+      StoragePluginId pluginId,
+      TableMetadata tableMetadata,
+      List<SchemaPath> projectedColumns,
+      double observedRowcountAdjustment,
+      List<RelHint> hints) {
+    super(
+        cluster,
+        traitSet,
+        table,
+        pluginId,
+        tableMetadata,
+        projectedColumns,
+        observedRowcountAdjustment,
+        hints);
   }
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new ElasticsearchScanDrel(getCluster(), traitSet, table, pluginId, tableMetadata, getProjectedColumns(), observedRowcountAdjustment, hints);
+    return new ElasticsearchScanDrel(
+        getCluster(),
+        traitSet,
+        table,
+        pluginId,
+        tableMetadata,
+        getProjectedColumns(),
+        observedRowcountAdjustment,
+        hints);
   }
 
   @Override
   public ScanRelBase cloneWithProject(List<SchemaPath> projection) {
-    return new ElasticsearchScanDrel(getCluster(), traitSet, table, pluginId, tableMetadata, projection, observedRowcountAdjustment, hints);
+    return new ElasticsearchScanDrel(
+        getCluster(),
+        traitSet,
+        table,
+        pluginId,
+        tableMetadata,
+        projection,
+        observedRowcountAdjustment,
+        hints);
   }
-
 }

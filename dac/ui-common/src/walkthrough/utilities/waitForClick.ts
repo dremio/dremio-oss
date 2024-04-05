@@ -17,7 +17,7 @@
 export async function waitForElement(
   selector: string,
   timeout = 10000,
-  refresh = 500
+  refresh = 500,
 ) {
   const start = Date.now();
 
@@ -29,13 +29,13 @@ export async function waitForElement(
     await new Promise((resolve) => setTimeout(resolve, refresh));
   }
 
-  return new Promise(() => { });
+  return new Promise(() => {});
 }
 
 export async function waitForElementQuery(
   query: () => Element | null,
   timeout = 10000,
-  refresh = 500
+  refresh = 500,
 ) {
   const start = Date.now();
 
@@ -52,7 +52,7 @@ export async function waitForElementQuery(
     await new Promise((resolve) => setTimeout(resolve, refresh));
   }
 
-  return new Promise(() => { });
+  return new Promise(() => {});
 }
 
 export const waitForClick = (el: Element | Promise<Element>): Promise<void> =>
@@ -62,6 +62,6 @@ export const waitForClick = (el: Element | Promise<Element>): Promise<void> =>
       () => {
         resolve(undefined);
       },
-      { once: true }
+      { once: true },
     );
   });

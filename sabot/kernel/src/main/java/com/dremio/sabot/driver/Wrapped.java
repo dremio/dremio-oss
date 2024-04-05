@@ -25,11 +25,14 @@ import com.dremio.sabot.op.spi.Operator;
  */
 interface Wrapped<T> extends Operator, AutoCloseable {
   int getOperatorId();
+
   T getInner();
+
   OperatorContext getContext();
 
   /**
    * Shrink memory usage by the given number of bytes
+   *
    * @param memoryUsed The amount of memory in bytes to reduce
    * @return
    * @throws Exception

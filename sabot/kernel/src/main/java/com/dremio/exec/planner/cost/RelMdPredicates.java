@@ -26,12 +26,11 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.util.BuiltInMethod;
 import org.apache.calcite.util.Util;
 
-/**
- * a metadata handler for pulling predicates.
- */
+/** a metadata handler for pulling predicates. */
 public class RelMdPredicates implements MetadataHandler<BuiltInMetadata.Predicates> {
-  public static final RelMetadataProvider SOURCE = ReflectiveRelMetadataProvider
-      .reflectiveSource(BuiltInMethod.PREDICATES.method, new RelMdPredicates());
+  public static final RelMetadataProvider SOURCE =
+      ReflectiveRelMetadataProvider.reflectiveSource(
+          BuiltInMethod.PREDICATES.method, new RelMdPredicates());
 
   // Not used...
   @Override
@@ -39,11 +38,11 @@ public class RelMdPredicates implements MetadataHandler<BuiltInMetadata.Predicat
     return BuiltInMetadata.Predicates.DEF;
   }
 
-  public RelOptPredicateList getPredicates(RelSubset subset,
-      RelMetadataQuery mq) {
+  public RelOptPredicateList getPredicates(RelSubset subset, RelMetadataQuery mq) {
     // Currently disabled in Calcite upstream
     // Only go over the best node if it exists, and try the original node otherwise
-    RelOptPredicateList predicates = mq.getPulledUpPredicates(Util.first(subset.getBest(), subset.getOriginal()));
+    RelOptPredicateList predicates =
+        mq.getPulledUpPredicates(Util.first(subset.getBest(), subset.getOriginal()));
     return predicates;
   }
 }

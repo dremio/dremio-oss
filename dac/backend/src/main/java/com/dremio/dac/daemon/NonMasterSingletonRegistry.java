@@ -15,11 +15,6 @@
  */
 package com.dremio.dac.daemon;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import javax.inject.Provider;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.dac.service.exec.MasterStatusListener;
 import com.dremio.datastore.DatastoreFatalException;
@@ -28,12 +23,14 @@ import com.dremio.exec.rpc.RpcException;
 import com.dremio.service.Service;
 import com.dremio.service.SingletonRegistry;
 import com.google.common.collect.Lists;
+import java.util.ArrayList;
+import java.util.List;
+import javax.inject.Provider;
 
-/**
- * Service registry which waits for master in case of remote exception.
- */
+/** Service registry which waits for master in case of remote exception. */
 public class NonMasterSingletonRegistry extends SingletonRegistry {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(NonMasterSingletonRegistry.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(NonMasterSingletonRegistry.class);
 
   private final List<Service> servicesStarted = new ArrayList<>();
   private final Provider<MasterStatusListener> masterStatusListener;
@@ -45,7 +42,7 @@ public class NonMasterSingletonRegistry extends SingletonRegistry {
   @Override
   public void start() throws Exception {
     final MasterStatusListener masterStatusListener = this.masterStatusListener.get();
-    for(Service service : getServices()) {
+    for (Service service : getServices()) {
       if (!masterStatusListener.isMasterUp()) {
         masterStatusListener.waitForMaster();
       }
@@ -55,7 +52,10 @@ public class NonMasterSingletonRegistry extends SingletonRegistry {
           servicesStarted.add(service);
           break;
         } catch (ConnectionFailedException connectionFailedException) {
-          logger.error("Service {} failed to start due to connection failure, waiting for master", service.getClass().getName(), connectionFailedException);
+          logger.error(
+              "Service {} failed to start due to connection failure, waiting for master",
+              service.getClass().getName(),
+              connectionFailedException);
           masterStatusListener.waitForMaster();
         } catch (RpcException rpcException) {
           logger.error("Service {} failed to start", service.getClass().getName(), rpcException);

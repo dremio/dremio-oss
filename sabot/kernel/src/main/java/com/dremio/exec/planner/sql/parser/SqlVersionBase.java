@@ -15,17 +15,14 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.dremio.exec.ops.QueryContext;
+import com.dremio.exec.planner.sql.handlers.direct.SqlDirectHandler;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.dremio.exec.ops.QueryContext;
-import com.dremio.exec.planner.sql.handlers.direct.SqlDirectHandler;
-
-/**
- * Base class that contains an optional versioned source name.
- */
+/** Base class that contains an optional versioned source name. */
 public abstract class SqlVersionBase extends SqlCall {
 
   private final SqlIdentifier sourceName;
@@ -47,5 +44,4 @@ public abstract class SqlVersionBase extends SqlCall {
       getSourceName().unparse(writer, leftPrec, rightPrec);
     }
   }
-
 }

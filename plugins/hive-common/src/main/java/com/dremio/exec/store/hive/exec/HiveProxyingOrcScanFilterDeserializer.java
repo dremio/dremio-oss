@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.store.hive.exec;
 
-import java.io.IOException;
-
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.store.StoragePluginResolver;
 import com.dremio.exec.store.SupportsPF4JStoragePlugin;
@@ -32,12 +30,14 @@ import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.deser.ResolvableDeserializer;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
+import java.io.IOException;
 
 /**
- * Helper class for deserializing an OrcScanFilter that delegates to a OrcScanFilter
- * that is in a separate classloader.
+ * Helper class for deserializing an OrcScanFilter that delegates to a OrcScanFilter that is in a
+ * separate classloader.
  */
-public class HiveProxyingOrcScanFilterDeserializer extends StdDeserializer<HiveProxyingOrcScanFilter> {
+public class HiveProxyingOrcScanFilterDeserializer
+    extends StdDeserializer<HiveProxyingOrcScanFilter> {
 
   public HiveProxyingOrcScanFilterDeserializer() {
     this(null);
@@ -48,37 +48,52 @@ public class HiveProxyingOrcScanFilterDeserializer extends StdDeserializer<HiveP
   }
 
   @Override
-  public HiveProxyingOrcScanFilter deserialize(JsonParser jsonParser, DeserializationContext deserializationContext) throws IOException, JsonProcessingException {
+  public HiveProxyingOrcScanFilter deserialize(
+      JsonParser jsonParser, DeserializationContext deserializationContext)
+      throws IOException, JsonProcessingException {
     // TODO: Optimize performance as described in https://dremio.atlassian.net/browse/DX-17732
     final JsonNode node = jsonParser.getCodec().readTree(jsonParser);
 
-    final StoragePluginId pluginId = HiveCommonUtilities.deserialize(jsonParser, deserializationContext,
-      node.get(HiveProxyingOrcScanFilter.JSON_PROP_PLUGINID), StoragePluginId.class);
+    final StoragePluginId pluginId =
+        HiveCommonUtilities.deserialize(
+            jsonParser,
+            deserializationContext,
+            node.get(HiveProxyingOrcScanFilter.JSON_PROP_PLUGINID),
+            StoragePluginId.class);
 
     // get subscan class type from plugin.
-    final StoragePluginResolver storagePluginResolver = (StoragePluginResolver) deserializationContext
-      .findInjectableValue(StoragePluginResolver.class.getName(), null, null);
+    final StoragePluginResolver storagePluginResolver =
+        (StoragePluginResolver)
+            deserializationContext.findInjectableValue(
+                StoragePluginResolver.class.getName(), null, null);
     final SupportsPF4JStoragePlugin pf4JStoragePlugin = storagePluginResolver.getSource(pluginId);
     final StoragePluginCreator.PF4JStoragePlugin plugin = pf4JStoragePlugin.getPF4JStoragePlugin();
     final Class<? extends HiveProxiedOrcScanFilter> scanClazz = plugin.getOrcScanFilterClass();
 
     final JavaType scanType = deserializationContext.getTypeFactory().constructType(scanClazz);
     final BeanDescription description = deserializationContext.getConfig().introspect(scanType);
-    final JsonDeserializer<Object> orcScanFilterDeserializer = deserializationContext.getFactory().createBeanDeserializer(
-      deserializationContext, scanType, description);
+    final JsonDeserializer<Object> orcScanFilterDeserializer =
+        deserializationContext
+            .getFactory()
+            .createBeanDeserializer(deserializationContext, scanType, description);
 
     if (orcScanFilterDeserializer instanceof ResolvableDeserializer) {
       ((ResolvableDeserializer) orcScanFilterDeserializer).resolve(deserializationContext);
     }
 
-    final JsonParser movedParser = jsonParser.getCodec().treeAsTokens(node.get(HiveProxyingOrcScanFilter.JSON_PROP_WRAPPEDHIVEORCSCANFILTER));
+    final JsonParser movedParser =
+        jsonParser
+            .getCodec()
+            .treeAsTokens(node.get(HiveProxyingOrcScanFilter.JSON_PROP_WRAPPEDHIVEORCSCANFILTER));
     deserializationContext.getConfig().initialize(movedParser);
 
     if (movedParser.getCurrentToken() == null) {
       movedParser.nextToken();
     }
 
-    final HiveProxiedOrcScanFilter orcScanFilter = (HiveProxiedOrcScanFilter) orcScanFilterDeserializer.deserialize(movedParser, deserializationContext);
+    final HiveProxiedOrcScanFilter orcScanFilter =
+        (HiveProxiedOrcScanFilter)
+            orcScanFilterDeserializer.deserialize(movedParser, deserializationContext);
     return new HiveProxyingOrcScanFilter(pluginId, orcScanFilter);
   }
 }

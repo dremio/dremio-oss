@@ -38,3 +38,9 @@ message TimePeriod {
 message EntityId {
   required string id = 1;
 }
+
+enum RefreshPolicyType {
+  PERIOD = 1;
+  SCHEDULE = 2;
+  NEVER = 3;
+}

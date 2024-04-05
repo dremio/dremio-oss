@@ -16,7 +16,7 @@
 package com.dremio.exec.store;
 
 public class BatchExceededException extends RuntimeException {
-    public BatchExceededException(int capacity, int attempted) {
-        super("Batch exceeded in size. Capacity: " + capacity + ", Attempted: " + attempted);
-    }
+  public BatchExceededException(int capacity, int attempted) {
+    super("Batch exceeded in size. Capacity: " + capacity + ", Attempted: " + attempted);
+  }
 }

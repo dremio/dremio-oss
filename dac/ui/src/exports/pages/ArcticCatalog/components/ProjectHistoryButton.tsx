@@ -14,19 +14,22 @@
  * limitations under the License.
  */
 
-// @ts-ignore
 import { Button } from "dremio-ui-lib/components";
+import { Link } from "react-router";
 import { FormattedMessage } from "react-intl";
 
 import * as headerClasses from "@app/exports/components/ArcticTableHeader/ArcticTableHeader.module.less";
 
-const ProjectHistoryButton = (props: { onClick?: () => void }) => (
+const ProjectHistoryButton = (props: {
+  to: string | Record<string, unknown>;
+}) => (
   <Button
     variant="secondary"
-    onClick={props?.onClick}
+    as={Link}
+    to={props.to}
     className={headerClasses["arctic-table-header__header-button"]}
   >
-    <dremio-icon name="interface/history" />
+    <dremio-icon name="interface/history" alt="history" />
     <FormattedMessage id="Common.History" />
   </Button>
 );

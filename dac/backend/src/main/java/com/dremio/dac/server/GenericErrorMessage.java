@@ -15,23 +15,24 @@
  */
 package com.dremio.dac.server;
 
-import java.io.ByteArrayOutputStream;
-import java.io.PrintWriter;
-
 import com.dremio.dac.util.JSONUtil;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.io.ByteArrayOutputStream;
+import java.io.PrintWriter;
 
 /**
  * Error message representation for unexpected/unhandled exceptions.<br>
- * We should always use UserExceptions to report errors to the user, anything that makes it past UserExceptionMapper
- * will be treated as a system exception and a generic message will be displayed.
+ * We should always use UserExceptions to report errors to the user, anything that makes it past
+ * UserExceptionMapper will be treated as a system exception and a generic message will be
+ * displayed.
  */
 public class GenericErrorMessage {
 
   public static final String NO_USER_MSG = "No User Available";
   public static final String MISSING_VERSION_PARAM_MSG = "Missing Version Parameter";
-  public static final String UNKNOWN_FORMAT_MSG = "The table cannot be saved when the format is set to UNKNOWN. Please select the correct format for the table";
+  public static final String UNKNOWN_FORMAT_MSG =
+      "The table cannot be saved when the format is set to UNKNOWN. Please select the correct format for the table";
   public static final String GENERIC_ERROR_MSG = "Something went wrong.";
 
   private final String errorMessage;
@@ -51,8 +52,8 @@ public class GenericErrorMessage {
       @JsonProperty("errorMessage") String errorMessage,
       @JsonProperty("moreInfo") String moreInfo,
       @JsonProperty("stackTrace") String[] stackTrace) {
-    this.errorMessage = errorMessage == null || errorMessage.trim().isEmpty()
-      ? GENERIC_ERROR_MSG : errorMessage;
+    this.errorMessage =
+        errorMessage == null || errorMessage.trim().isEmpty() ? GENERIC_ERROR_MSG : errorMessage;
     this.moreInfo = moreInfo;
     this.stackTrace = stackTrace;
   }
@@ -74,7 +75,7 @@ public class GenericErrorMessage {
     return JSONUtil.toString(this);
   }
 
-  public static String[] printStackTrace(Throwable throwable){
+  public static String[] printStackTrace(Throwable throwable) {
     String[] stackTrace;
     ByteArrayOutputStream out = new ByteArrayOutputStream();
     try (PrintWriter s = new PrintWriter(out)) {

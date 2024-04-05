@@ -28,8 +28,8 @@ export const Divider = React.forwardRef<HTMLDivElement, DividerProps>(
         className,
         "dremio-divider",
         "margin-top--triple",
-        "margin-bottom--triple"
+        "margin-bottom--triple",
       )}
     />
-  )
+  ),
 );

@@ -15,9 +15,9 @@
  */
 package com.dremio.exec.planner.logical;
 
+import com.dremio.exec.planner.sql.DremioSqlOperatorTable;
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptUtil;
@@ -43,23 +43,36 @@ import org.apache.calcite.tools.RelBuilderFactory;
 import org.apache.calcite.util.Pair;
 import org.apache.calcite.util.Util;
 
-import com.dremio.exec.planner.sql.DremioSqlOperatorTable;
-
 public class PushFilterPastProjectRule extends RelOptRule {
 
-  public static final PushFilterPastProjectRule INSTANCE = new PushFilterPastProjectRule(
-      FilterRel.class, ProjectRel.class, RelNode.class, DremioRelFactories.LOGICAL_PROPAGATE_BUILDER);
+  public static final PushFilterPastProjectRule INSTANCE =
+      new PushFilterPastProjectRule(
+          FilterRel.class,
+          ProjectRel.class,
+          RelNode.class,
+          DremioRelFactories.LOGICAL_PROPAGATE_BUILDER);
 
-  public static final PushFilterPastProjectRule LOGICAL_INSTANCE = new PushFilterPastProjectRule(
-    FilterRel.class, ProjectRel.class, RelNode.class, DremioRelFactories.LOGICAL_BUILDER,
-    new UnsupportedProjectExprFinderWithRexFieldAccessAllowed()
-  );
+  public static final PushFilterPastProjectRule LOGICAL_INSTANCE =
+      new PushFilterPastProjectRule(
+          FilterRel.class,
+          ProjectRel.class,
+          RelNode.class,
+          DremioRelFactories.LOGICAL_BUILDER,
+          new UnsupportedProjectExprFinderWithRexFieldAccessAllowed());
 
-  public static final RelOptRule CALCITE_INSTANCE = new PushFilterPastProjectRule(
-      LogicalFilter.class, LogicalProject.class, RelNode.class, DremioRelFactories.CALCITE_LOGICAL_BUILDER);
+  public static final RelOptRule CALCITE_INSTANCE =
+      new PushFilterPastProjectRule(
+          LogicalFilter.class,
+          LogicalProject.class,
+          RelNode.class,
+          DremioRelFactories.CALCITE_LOGICAL_BUILDER);
 
-  public static final RelOptRule CALCITE_NO_CHILD_CHECK = new PushFilterPastProjectRule(
-      LogicalFilter.class, LogicalProject.class, null, DremioRelFactories.CALCITE_LOGICAL_BUILDER);
+  public static final RelOptRule CALCITE_NO_CHILD_CHECK =
+      new PushFilterPastProjectRule(
+          LogicalFilter.class,
+          LogicalProject.class,
+          null,
+          DremioRelFactories.CALCITE_LOGICAL_BUILDER);
 
   private final RexVisitorImpl<Void> unsupportedExprFinder;
 
@@ -88,8 +101,10 @@ public class PushFilterPastProjectRule extends RelOptRule {
           new RexVisitorImpl<Void>(true) {
             @Override
             public Void visitCall(RexCall call) {
-              if (SqlStdOperatorTable.ITEM.equals(call.getOperator()) ||
-                  DremioSqlOperatorTable.FLATTEN.getName().equalsIgnoreCase(call.getOperator().getName())) {
+              if (SqlStdOperatorTable.ITEM.equals(call.getOperator())
+                  || DremioSqlOperatorTable.FLATTEN
+                      .getName()
+                      .equalsIgnoreCase(call.getOperator().getName())) {
                 throw new Util.FoundOne(call);
               }
               return super.visitCall(call);
@@ -121,8 +136,8 @@ public class PushFilterPastProjectRule extends RelOptRule {
   }
 
   /**
-   * Push filter past project.  Only push filter past project if the projects underneath are collapsed into
-   * a single project.  Don't create a long chain of projects!
+   * Push filter past project. Only push filter past project if the projects underneath are
+   * collapsed into a single project. Don't create a long chain of projects!
    *
    * @param filterClass filter class
    * @param projectClass project class
@@ -133,42 +148,47 @@ public class PushFilterPastProjectRule extends RelOptRule {
       Class<? extends Project> projectClass,
       Class<? extends RelNode> childClass,
       RelBuilderFactory relBuilderFactory,
-      RexVisitorImpl<Void> unsupportedExprFinder
-    ) {
-    super(childClass == null ?
-        operand(filterClass, operand(projectClass, any())) :
-        operand(filterClass, operand(projectClass, operand(childClass, any()))),
-        relBuilderFactory, "PushFilterPastProjectRule");
+      RexVisitorImpl<Void> unsupportedExprFinder) {
+    super(
+        childClass == null
+            ? operand(filterClass, operand(projectClass, any()))
+            : operand(filterClass, operand(projectClass, operand(childClass, any()))),
+        relBuilderFactory,
+        "PushFilterPastProjectRule");
     this.checkChild = childClass != null;
     this.unsupportedExprFinder = unsupportedExprFinder;
   }
 
   private PushFilterPastProjectRule(
-    Class<? extends Filter> filterClass,
-    Class<? extends Project> projectClass,
-    Class<? extends RelNode> childClass,
-    RelBuilderFactory relBuilderFactory
-  ) {
-    super(childClass == null ?
-        operand(filterClass, operand(projectClass, any())) :
-        operand(filterClass, operand(projectClass, operand(childClass, any()))),
-      relBuilderFactory, "PushFilterPastProjectRule");
+      Class<? extends Filter> filterClass,
+      Class<? extends Project> projectClass,
+      Class<? extends RelNode> childClass,
+      RelBuilderFactory relBuilderFactory) {
+    super(
+        childClass == null
+            ? operand(filterClass, operand(projectClass, any()))
+            : operand(filterClass, operand(projectClass, operand(childClass, any()))),
+        relBuilderFactory,
+        "PushFilterPastProjectRule");
     this.unsupportedExprFinder = new UnsupportedProjectExprFinder();
     this.checkChild = childClass != null;
   }
 
-  //~ Methods ----------------------------------------------------------------
+  // ~ Methods ----------------------------------------------------------------
 
   @Override
   public boolean matches(RelOptRuleCall call) {
-    if(!checkChild) {
+    if (!checkChild) {
       return true;
     }
-    // Make sure that we do not push filter past project onto things that it can't go past (filter/aggregate).
-    // Also, do not push filter past project if there is yet another project.  Just make the projects merge first.
-    return !(call.rel(2) instanceof Project || call.rel(2) instanceof Aggregate || call.rel(2) instanceof Values);
+    // Make sure that we do not push filter past project onto things that it can't go past
+    // (filter/aggregate).
+    // Also, do not push filter past project if there is yet another project.  Just make the
+    // projects merge first.
+    return !(call.rel(2) instanceof Project
+        || call.rel(2) instanceof Aggregate
+        || call.rel(2) instanceof Values);
   }
-
 
   // implement RelOptRule
   @Override
@@ -183,19 +203,18 @@ public class PushFilterPastProjectRule extends RelOptRule {
   }
 
   /**
-   * Rewrites a FP to either FPF, PF, FP, P, F, or _
-   *   * FPF if only part of the filter can be pushed down
-   *   * FP when no filters can be pushed down(Reference to filter rel is returned)
-   *   * PF if all the filter can be pushed down
-   *   * F when a trivial project is encountered
-   *   * P when the filters is trivial
-   *   * _ when the filter and project are trivial
+   * Rewrites a FP to either FPF, PF, FP, P, F, or _ * FPF if only part of the filter can be pushed
+   * down * FP when no filters can be pushed down(Reference to filter rel is returned) * PF if all
+   * the filter can be pushed down * F when a trivial project is encountered * P when the filters is
+   * trivial * _ when the filter and project are trivial
+   *
    * @param filterRel
    * @param projRel
    * @return Returns filterRel if unable to rewrite, otherwise will return the rewritten node
    */
   public RelNode rewrite(Filter filterRel, Project projRel) {
-    // get a conjunctions of the filter condition. For each conjunction, if it refers to ITEM or FLATTEN expression
+    // get a conjunctions of the filter condition. For each conjunction, if it refers to ITEM or
+    // FLATTEN expression
     // then we could not pushed down. Otherwise, it's qualified to be pushed down.
     final List<RexNode> predList = RelOptUtil.conjunctions(filterRel.getCondition());
 
@@ -210,36 +229,38 @@ public class PushFilterPastProjectRule extends RelOptRule {
       }
     }
 
-    final RexNode qualifiedPred = RexUtil.composeConjunction(filterRel.getCluster().getRexBuilder(), qualifiedPredList, true);
+    final RexNode qualifiedPred =
+        RexUtil.composeConjunction(filterRel.getCluster().getRexBuilder(), qualifiedPredList, true);
 
     if (qualifiedPred == null) {
       return filterRel;
     }
 
     // convert the filter to one that references the child of the project
-    RexNode newCondition =
-        RelOptUtil.pushPastProject(qualifiedPred, projRel);
+    RexNode newCondition = RelOptUtil.pushPastProject(qualifiedPred, projRel);
 
     RelBuilder relBuilder = relBuilderFactory.create(filterRel.getCluster(), null);
     relBuilder.push(projRel.getInput());
     relBuilder.filter(newCondition);
-    relBuilder.project(Pair.left(projRel.getNamedProjects()), Pair.right(projRel.getNamedProjects()));
+    relBuilder.project(
+        Pair.left(projRel.getNamedProjects()), Pair.right(projRel.getNamedProjects()));
 
-    final RexNode unqualifiedPred = RexUtil.composeConjunction(filterRel.getCluster().getRexBuilder(), unqualifiedPredList, true);
+    final RexNode unqualifiedPred =
+        RexUtil.composeConjunction(
+            filterRel.getCluster().getRexBuilder(), unqualifiedPredList, true);
 
     if (unqualifiedPred == null) {
       return relBuilder.build();
     } else {
-      // if there are filters not qualified to be pushed down, then we have to put those filters on top of
+      // if there are filters not qualified to be pushed down, then we have to put those filters on
+      // top of
       // the new Project operator.
       // Filter -- unqualified filters
       //   \
       //    Project
       //     \
       //      Filter  -- qualified filters
-      return relBuilder
-        .filter(unqualifiedPred)
-        .build();
+      return relBuilder.filter(unqualifiedPred).build();
     }
   }
 
@@ -261,8 +282,10 @@ public class PushFilterPastProjectRule extends RelOptRule {
 
     @Override
     public Void visitCall(RexCall call) {
-      if (SqlStdOperatorTable.ITEM.equals(call.getOperator()) ||
-          DremioSqlOperatorTable.FLATTEN.getName().equalsIgnoreCase(call.getOperator().getName())) {
+      if (SqlStdOperatorTable.ITEM.equals(call.getOperator())
+          || DremioSqlOperatorTable.FLATTEN
+              .getName()
+              .equalsIgnoreCase(call.getOperator().getName())) {
         throw new Util.FoundOne(call);
       }
       return super.visitCall(call);
@@ -279,7 +302,8 @@ public class PushFilterPastProjectRule extends RelOptRule {
     }
   }
 
-  private static class UnsupportedProjectExprFinderWithRexFieldAccessAllowed extends RexVisitorImpl<Void> {
+  private static class UnsupportedProjectExprFinderWithRexFieldAccessAllowed
+      extends RexVisitorImpl<Void> {
 
     UnsupportedProjectExprFinderWithRexFieldAccessAllowed() {
       super(true);
@@ -287,8 +311,7 @@ public class PushFilterPastProjectRule extends RelOptRule {
 
     @Override
     public Void visitCall(RexCall call) {
-      if (
-        DremioSqlOperatorTable.FLATTEN.getName().equalsIgnoreCase(call.getOperator().getName())) {
+      if (DremioSqlOperatorTable.FLATTEN.getName().equalsIgnoreCase(call.getOperator().getName())) {
         throw new Util.FoundOne(call);
       }
       return super.visitCall(call);

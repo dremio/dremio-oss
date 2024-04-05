@@ -15,15 +15,14 @@
  */
 package com.dremio.common.util;
 
-import org.apache.arrow.vector.types.pojo.ArrowType;
-
 import com.google.flatbuffers.FlatBufferBuilder;
+import org.apache.arrow.vector.types.pojo.ArrowType;
 
 public final class ObjectType extends ArrowType.Null {
 
   public static final ArrowType INTERNAL_OBJECT_TYPE = new ObjectType();
 
-  private ObjectType(){}
+  private ObjectType() {}
 
   @Override
   public ArrowTypeID getTypeID() {
@@ -44,5 +43,4 @@ public final class ObjectType extends ArrowType.Null {
   public boolean isComplex() {
     return false;
   }
-
 }

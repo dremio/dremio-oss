@@ -15,29 +15,32 @@
  */
 package com.dremio.datastore.adapter.stores;
 
-import java.util.Arrays;
-import java.util.List;
-
 import com.dremio.datastore.adapter.TestLegacyStoreCreationFunction;
 import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.datastore.api.LegacyStoreBuildingFactory;
 import com.dremio.datastore.format.Format;
 import com.dremio.datastore.generator.ByteContainerStoreGenerator.ByteContainer;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * Used to test that bytes and wrapped values are stored/retrieved properly.
- * <p>
- * We use a byte container instead of raw byte[] so we may implement a custom
- * equals method. Normal array comparison is address-wise, not element-wise.
+ *
+ * <p>We use a byte container instead of raw byte[] so we may implement a custom equals method.
+ * Normal array comparison is address-wise, not element-wise.
  */
-public class LegacyByteContainerStore implements TestLegacyStoreCreationFunction<String, ByteContainer> {
+public class LegacyByteContainerStore
+    implements TestLegacyStoreCreationFunction<String, ByteContainer> {
   @Override
   public LegacyKVStore<String, ByteContainer> build(LegacyStoreBuildingFactory factory) {
-    return factory.<String, ByteContainer>newStore()
-      .name("legacy-byte-container-store")
-      .keyFormat(getKeyFormat())
-      .valueFormat(Format.wrapped(ByteContainer.class, ByteContainer::getBytes, ByteContainer::new, Format.ofBytes()))
-      .build();
+    return factory
+        .<String, ByteContainer>newStore()
+        .name("legacy-byte-container-store")
+        .keyFormat(getKeyFormat())
+        .valueFormat(
+            Format.wrapped(
+                ByteContainer.class, ByteContainer::getBytes, ByteContainer::new, Format.ofBytes()))
+        .build();
   }
 
   @Override

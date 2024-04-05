@@ -15,10 +15,6 @@
  */
 package com.dremio.sabot.op.sender.partition;
 
-import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicIntegerArray;
-
 import com.carrotsearch.hppc.IntArrayList;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
@@ -46,9 +42,13 @@ import com.google.common.annotations.VisibleForTesting;
 import com.sun.codemodel.JExpr;
 import com.sun.codemodel.JExpression;
 import com.sun.codemodel.JType;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicIntegerArray;
 
 public class PartitionSenderOperator extends BaseSender {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PartitionSenderOperator.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(PartitionSenderOperator.class);
 
   private final OperatorContext context;
   private final HashPartitionSender config;
@@ -60,7 +60,8 @@ public class PartitionSenderOperator extends BaseSender {
   private final TunnelProvider tunnelProvider;
 
   /**
-   * A volatile value set by an external to operation thread that means that this nobody is listening to this operator. As such, it can terminate as soon as it likes.
+   * A volatile value set by an external to operation thread that means that this nobody is
+   * listening to this operator. As such, it can terminate as soon as it likes.
    */
   private volatile boolean nobodyListening = false;
 
@@ -100,8 +101,10 @@ public class PartitionSenderOperator extends BaseSender {
     MAX_ACK_MILLIS,
 
     // OOB related metrics
-    OOB_PARTITION_COUNTERS_SENDS, // Number of times operator informed others of local seen partition counters
-    OOB_PARTITION_COUNTERS_RECEIVES, // Number of times operator received a notification of partition counters from peers.
+    OOB_PARTITION_COUNTERS_SENDS, // Number of times operator informed others of local seen
+    // partition counters
+    OOB_PARTITION_COUNTERS_RECEIVES, // Number of times operator received a notification of
+    // partition counters from peers.
 
     OOB_DOP; // Adjusted DOP based on oob messages
 
@@ -112,9 +115,7 @@ public class PartitionSenderOperator extends BaseSender {
   }
 
   public PartitionSenderOperator(
-      OperatorContext context,
-      TunnelProvider tunnelProvider,
-      HashPartitionSender config) {
+      OperatorContext context, TunnelProvider tunnelProvider, HashPartitionSender config) {
     super(config);
     this.context = context;
     this.tunnelProvider = tunnelProvider;
@@ -128,7 +129,8 @@ public class PartitionSenderOperator extends BaseSender {
     // numberOfRows/sliceTarget/numReceivers/threadfactor
     this.cost = config.getChild().getProps().getCost();
     this.numberPartitions = getNumberPartitions(context, config);
-    this.actualPartitions = outGoingBatchCount > numberPartitions ? numberPartitions : outGoingBatchCount;
+    this.actualPartitions =
+        outGoingBatchCount > numberPartitions ? numberPartitions : outGoingBatchCount;
     this.stats.setLongStat(Metric.SENDING_THREADS_COUNT, actualPartitions);
     this.stats.setDoubleStat(Metric.COST, this.cost);
     logger.debug("Preliminary number of sending threads is: " + numberPartitions);
@@ -153,7 +155,7 @@ public class PartitionSenderOperator extends BaseSender {
   public void consumeData(int records) throws Exception {
     state.is(State.CAN_CONSUME);
 
-    if(nobodyListening){
+    if (nobodyListening) {
       state = State.DONE;
       return;
     }
@@ -165,7 +167,7 @@ public class PartitionSenderOperator extends BaseSender {
   public void noMoreToConsume() throws Exception {
     state.is(State.CAN_CONSUME);
 
-    if(nobodyListening){
+    if (nobodyListening) {
       state = State.DONE;
       return;
     }
@@ -174,10 +176,9 @@ public class PartitionSenderOperator extends BaseSender {
     state = State.DONE;
   }
 
-
   @VisibleForTesting
   protected void createPartitioners(VectorAccessible incoming) throws Exception {
-    final int divisor = Math.max(1, outGoingBatchCount/actualPartitions);
+    final int divisor = Math.max(1, outGoingBatchCount / actualPartitions);
     final int longTail = outGoingBatchCount % actualPartitions;
 
     final List<Partitioner> subPartitioners = createClassInstances(actualPartitions);
@@ -193,8 +194,18 @@ public class PartitionSenderOperator extends BaseSender {
           endIndex++;
         }
         final OperatorStats partitionStats = new OperatorStats(stats, true);
-        subPartitioners.get(i).setup(incoming, config, partitionStats, context, tunnelProvider,
-            latencyTracker, actualPartitions, startIndex, endIndex);
+        subPartitioners
+            .get(i)
+            .setup(
+                incoming,
+                config,
+                partitionStats,
+                context,
+                tunnelProvider,
+                latencyTracker,
+                actualPartitions,
+                startIndex,
+                endIndex);
       }
 
       synchronized (this) {
@@ -213,34 +224,44 @@ public class PartitionSenderOperator extends BaseSender {
     }
   }
 
-  private List<Partitioner> createClassInstances(int actualPartitions) throws SchemaChangeException {
+  private List<Partitioner> createClassInstances(int actualPartitions)
+      throws SchemaChangeException {
     // set up partitioning function
     final LogicalExpression expr = config.getExpr();
-    final ClassGenerator<Partitioner> cg = context.getClassProducer().createGenerator(Partitioner.TEMPLATE_DEFINITION).getRoot();
+    final ClassGenerator<Partitioner> cg =
+        context.getClassProducer().createGenerator(Partitioner.TEMPLATE_DEFINITION).getRoot();
     ClassGenerator<Partitioner> cgInner = cg.getInnerGenerator("OutgoingRecordBatch");
 
-    final LogicalExpression materializedExpr = context.getClassProducer().materialize(expr, incoming);
+    final LogicalExpression materializedExpr =
+        context.getClassProducer().materialize(expr, incoming);
 
-    // generate code to copy from an incoming value vector to the destination partition's outgoing value vector
+    // generate code to copy from an incoming value vector to the destination partition's outgoing
+    // value vector
     JExpression bucket = JExpr.direct("bucket");
 
     // generate evaluate expression to determine the hash
     ClassGenerator.HoldingContainer exprHolder = cg.addExpr(materializedExpr);
-    cg.getEvalBlock().decl(JType.parse(cg.getModel(), "int"), "bucket", exprHolder.getValue().mod(JExpr.lit(outGoingBatchCount)));
+    cg.getEvalBlock()
+        .decl(
+            JType.parse(cg.getModel(), "int"),
+            "bucket",
+            exprHolder.getValue().mod(JExpr.lit(outGoingBatchCount)));
     cg.getEvalBlock()._return(cg.getModel().ref(Math.class).staticInvoke("abs").arg(bucket));
 
-    CopyUtil.generateCopies(cgInner, incoming, incoming.getSchema().getSelectionVectorMode() == SelectionVectorMode.FOUR_BYTE);
+    CopyUtil.generateCopies(
+        cgInner,
+        incoming,
+        incoming.getSchema().getSelectionVectorMode() == SelectionVectorMode.FOUR_BYTE);
 
     // compile and setup generated code
-    List<Partitioner> subPartitioners = cg.getCodeGenerator().getImplementationClass(actualPartitions);
+    List<Partitioner> subPartitioners =
+        cg.getCodeGenerator().getImplementationClass(actualPartitions);
     return subPartitioners;
   }
 
-  /**
-   * Find min and max record count seen across the outgoing batches and put them in stats.
-   */
+  /** Find min and max record count seen across the outgoing batches and put them in stats. */
   private void updateAggregateStats() {
-    for (Partitioner part : partitioner.getPartitioners() ) {
+    for (Partitioner part : partitioner.getPartitioners()) {
       for (PartitionOutgoingBatch o : part.getOutgoingBatches()) {
         long totalRecords = o.getTotalRecords();
         minReceiverRecordCount = Math.min(minReceiverRecordCount, totalRecords);
@@ -271,7 +292,8 @@ public class PartitionSenderOperator extends BaseSender {
   }
 
   @Override
-  public <OUT, IN, EXCEP extends Throwable> OUT accept(OperatorVisitor<OUT, IN, EXCEP> visitor, IN value) throws EXCEP {
+  public <OUT, IN, EXCEP extends Throwable> OUT accept(
+      OperatorVisitor<OUT, IN, EXCEP> visitor, IN value) throws EXCEP {
     return visitor.visitTerminalOperator(this, value);
   }
 
@@ -286,27 +308,41 @@ public class PartitionSenderOperator extends BaseSender {
     }
   }
 
-  static int getNumberPartitions(OperatorContext context, HashPartitionSender config){
+  static int getNumberPartitions(OperatorContext context, HashPartitionSender config) {
     final OptionManager optMgr = context.getOptions();
     long sliceTarget = optMgr.getOption(ExecConstants.SLICE_TARGET).getNumVal();
-    int threadFactor = optMgr.getOption(PlannerSettings.PARTITION_SENDER_THREADS_FACTOR.getOptionName()).getNumVal()
-      .intValue();
+    int threadFactor =
+        optMgr
+            .getOption(PlannerSettings.PARTITION_SENDER_THREADS_FACTOR.getOptionName())
+            .getNumVal()
+            .intValue();
     int tmpParts = 1;
     int outGoingBatchCount = config.getDestinations().size();
     double cost = config.getProps().getCost();
-    if ( sliceTarget != 0 && outGoingBatchCount != 0 ) {
-      tmpParts = (int) Math.round((((cost / (sliceTarget*1.0)) / (outGoingBatchCount*1.0)) / (threadFactor*1.0)));
-      if ( tmpParts < 1) {
+    if (sliceTarget != 0 && outGoingBatchCount != 0) {
+      tmpParts =
+          (int)
+              Math.round(
+                  (((cost / (sliceTarget * 1.0)) / (outGoingBatchCount * 1.0))
+                      / (threadFactor * 1.0)));
+      if (tmpParts < 1) {
         tmpParts = 1;
       }
     }
-    final int imposedThreads = optMgr.getOption(PlannerSettings.PARTITION_SENDER_SET_THREADS.getOptionName()).getNumVal()
-      .intValue();
-    if (imposedThreads > 0 ) {
+    final int imposedThreads =
+        optMgr
+            .getOption(PlannerSettings.PARTITION_SENDER_SET_THREADS.getOptionName())
+            .getNumVal()
+            .intValue();
+    if (imposedThreads > 0) {
       return imposedThreads;
     } else {
-      return Math.min(tmpParts, optMgr.getOption(PlannerSettings.PARTITION_SENDER_MAX_THREADS.getOptionName()).getNumVal()
-        .intValue());
+      return Math.min(
+          tmpParts,
+          optMgr
+              .getOption(PlannerSettings.PARTITION_SENDER_MAX_THREADS.getOptionName())
+              .getNumVal()
+              .intValue());
     }
   }
 
@@ -317,7 +353,8 @@ public class PartitionSenderOperator extends BaseSender {
 
   public static class Creator implements TerminalOperator.Creator<HashPartitionSender> {
     @Override
-    public TerminalOperator create(TunnelProvider tunnelProvider, OperatorContext context, HashPartitionSender operator)
+    public TerminalOperator create(
+        TunnelProvider tunnelProvider, OperatorContext context, HashPartitionSender operator)
         throws ExecutionSetupException {
       if (context.getOptions().getOption(ExecConstants.ENABLE_VECTORIZED_PARTITIONER)) {
         if (operator.getAdaptiveHash()) {
@@ -326,9 +363,8 @@ public class PartitionSenderOperator extends BaseSender {
           return new VectorizedPartitionSenderOperator(context, tunnelProvider, operator);
         }
       } else {
-      return new PartitionSenderOperator(context, tunnelProvider, operator);
+        return new PartitionSenderOperator(context, tunnelProvider, operator);
       }
     }
   }
-
 }

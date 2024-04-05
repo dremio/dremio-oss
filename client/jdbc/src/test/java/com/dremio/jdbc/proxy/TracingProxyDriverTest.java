@@ -18,6 +18,9 @@ package com.dremio.jdbc.proxy;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.dremio.exec.ExecTest;
+import com.dremio.exec.rpc.user.security.testing.UserServiceTestImpl;
+import com.dremio.jdbc.SabotNodeRule;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
@@ -30,41 +33,34 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Properties;
-
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 
-import com.dremio.exec.ExecTest;
-import com.dremio.exec.rpc.user.security.testing.UserServiceTestImpl;
-import com.dremio.jdbc.SabotNodeRule;
-
-/**
- * Test of TracingProxyDriver other than loading of driver classes.
- */
+/** Test of TracingProxyDriver other than loading of driver classes. */
 public class TracingProxyDriverTest extends ExecTest {
-  @ClassRule
-  public static final SabotNodeRule sabotNode = new SabotNodeRule();
+  @ClassRule public static final SabotNodeRule sabotNode = new SabotNodeRule();
 
   private static Driver proxyDriver;
   private static Connection proxyConnection;
 
   @BeforeClass
-  public static void setUpTestCase() throws SQLException,
-                                            ClassNotFoundException {
-    Class.forName( "com.dremio.jdbc.proxy.TracingProxyDriver" );
+  public static void setUpTestCase() throws SQLException, ClassNotFoundException {
+    Class.forName("com.dremio.jdbc.proxy.TracingProxyDriver");
     proxyDriver =
         DriverManager.getDriver(
-            "jdbc:proxy:com.dremio.jdbc.Driver:" + sabotNode.getJDBCConnectionString() );
+            "jdbc:proxy:com.dremio.jdbc.Driver:" + sabotNode.getJDBCConnectionString());
     proxyConnection =
-        DriverManager.getConnection( "jdbc:proxy::" + sabotNode.getJDBCConnectionString(), UserServiceTestImpl.ANONYMOUS, "");
+        DriverManager.getConnection(
+            "jdbc:proxy::" + sabotNode.getJDBCConnectionString(),
+            UserServiceTestImpl.ANONYMOUS,
+            "");
   }
 
   @Test
   public void testBasicProxying() throws SQLException {
-    try ( final Statement stmt = proxyConnection.createStatement() ) {
-      final ResultSet rs =
-          stmt.executeQuery( "SELECT * FROM INFORMATION_SCHEMA.CATALOGS" );
+    try (final Statement stmt = proxyConnection.createStatement()) {
+      final ResultSet rs = stmt.executeQuery("SELECT * FROM INFORMATION_SCHEMA.CATALOGS");
       assertThat(rs.next()).isTrue();
       assertThat(rs.getString(1)).isEqualTo("DREMIO");
       assertThat(rs.getObject(1)).isEqualTo((Object) "DREMIO");
@@ -74,7 +70,7 @@ public class TracingProxyDriverTest extends ExecTest {
   private static class StdErrCapturer {
     private final PrintStream savedStdErr;
     private final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-    private final PrintStream capturingStream = new PrintStream( buffer );
+    private final PrintStream capturingStream = new PrintStream(buffer);
     private boolean redirected;
 
     StdErrCapturer() {
@@ -113,10 +109,10 @@ public class TracingProxyDriverTest extends ExecTest {
     // Check captured System.err:
 
     final String output = nameThis.getOutput();
-    final String[] lines = output.split( "\n" );
+    final String[] lines = output.split("\n");
     assertThat(lines).hasSize(2);
-    final String callLine = lines[ 0 ];
-    final String returnLine = lines[ 1 ];
+    final String callLine = lines[0];
+    final String returnLine = lines[1];
 
     // Expect something like current:
     // TRACER: CALL:   ((Connection) <id=3> ...) . isClosed()
@@ -143,8 +139,8 @@ public class TracingProxyDriverTest extends ExecTest {
 
     try {
       stdErrCapturer.redirect();
-      statement.execute( "" );
-    } catch ( final SQLException e ) {
+      statement.execute("");
+    } catch (final SQLException e) {
       // "already closed" is expected
     } finally {
       stdErrCapturer.unredirect();
@@ -153,10 +149,10 @@ public class TracingProxyDriverTest extends ExecTest {
     // Check captured System.err:
 
     final String output = stdErrCapturer.getOutput();
-    final String[] lines = output.split( "\n" );
+    final String[] lines = output.split("\n");
     assertThat(lines).hasSize(2);
-    final String callLine = lines[ 0 ];
-    final String returnLine = lines[ 1 ];
+    final String callLine = lines[0];
+    final String returnLine = lines[1];
 
     // Expect something like current:
     // TRACER: CALL:   ((Statement) <id=6> ...) . execute( (String) "" )
@@ -188,7 +184,8 @@ public class TracingProxyDriverTest extends ExecTest {
     proxyDriver.getMinorVersion();
     proxyDriver.jdbcCompliant();
     proxyDriver.getParentLogger();
-    proxyDriver.getPropertyInfo( "jdbc:proxy::" + sabotNode.getJDBCConnectionString(), new Properties() );
+    proxyDriver.getPropertyInfo(
+        "jdbc:proxy::" + sabotNode.getJDBCConnectionString(), new Properties());
 
     final DatabaseMetaData dbMetaData = proxyConnection.getMetaData();
     assertThat(dbMetaData).isNotNull().isInstanceOf(DatabaseMetaData.class);
@@ -197,8 +194,9 @@ public class TracingProxyDriverTest extends ExecTest {
 
     dbMetaData.allTablesAreSelectable();
     assertThatThrownBy(() -> dbMetaData.ownUpdatesAreVisible(ResultSet.TYPE_FORWARD_ONLY))
-      .satisfiesAnyOf(t -> assertThat(t).isInstanceOf(SQLException.class),
-        t -> assertThat(t).isInstanceOf(RuntimeException.class));
+        .satisfiesAnyOf(
+            t -> assertThat(t).isInstanceOf(SQLException.class),
+            t -> assertThat(t).isInstanceOf(RuntimeException.class));
 
     final ResultSet catalogsResultSet = dbMetaData.getCatalogs();
     assertThat(catalogsResultSet).isNotNull().isInstanceOf(ResultSet.class);
@@ -215,8 +213,7 @@ public class TracingProxyDriverTest extends ExecTest {
       catalogsResultSet.getObject(cx);
       catalogsResultSet.getString(cx);
       int finalcx = cx;
-      assertThatThrownBy(() -> catalogsResultSet.getInt(finalcx))
-        .isInstanceOf(SQLException.class);
+      assertThatThrownBy(() -> catalogsResultSet.getInt(finalcx)).isInstanceOf(SQLException.class);
     }
 
     assertThat(proxyConnection.getMetaData()).isSameAs(dbMetaData);

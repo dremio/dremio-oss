@@ -15,29 +15,34 @@
  */
 package com.dremio.service.reflection;
 
-import org.immutables.value.Value;
-
 import com.dremio.service.reflection.proto.MaterializationId;
 import com.dremio.service.reflection.proto.ReflectionState;
+import org.immutables.value.Value;
 
 /**
- * Support class represent cached ReflectionEntry and Materialization information that ReflectionManager.sync requires
- * when resolving information of a reflection on its dependencies.
+ * Support class represent cached ReflectionEntry and Materialization information that
+ * ReflectionManager.sync requires when resolving information of a reflection on its dependencies.
  */
 @Value.Immutable
 public interface MaterializationInfo {
   MaterializationId getMaterializationId();
+
   Long getSnapshotId();
+
   /**
-   * Flag marking if the materialization has been vacuumed or not.
-   * Vacuum is called after an incremental reflection is refreshed and when:
-   *   - all its successors in the DependencyGraph are dependent on its latest snapshot.
-   *   - this flag is not set; if a materialization has already been vacuumed it cannot be vacuumed again.
+   * Flag marking if the materialization has been vacuumed or not. Vacuum is called after an
+   * incremental reflection is refreshed and when: - all its successors in the DependencyGraph are
+   * dependent on its latest snapshot. - this flag is not set; if a materialization has already been
+   * vacuumed it cannot be vacuumed again.
    */
   Boolean isVacuumed();
+
   String getReflectionName();
+
   ReflectionState getReflectionState();
+
   Long getLastSubmittedRefresh();
+
   Long getLastSuccessfulRefresh();
 
   static ImmutableMaterializationInfo.Builder builder() {

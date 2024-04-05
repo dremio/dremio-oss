@@ -15,9 +15,7 @@
  */
 package com.dremio.concurrent;
 
-/**
- * A wrapper for Runnables that provides a hook to do cleanup.
- */
+/** A wrapper for Runnables that provides a hook to do cleanup. */
 public abstract class SelfCleaningRunnable implements Runnable {
   private final Runnable delegate;
 
@@ -47,9 +45,8 @@ public abstract class SelfCleaningRunnable implements Runnable {
   /**
    * Cleanup.
    *
-   * <p>Derived classes should put any necessary cleanup in here. This
-   * is guaranteed to be called, even if the wrapped Runnable throws an
-   * exception.
+   * <p>Derived classes should put any necessary cleanup in here. This is guaranteed to be called,
+   * even if the wrapped Runnable throws an exception.
    */
   protected abstract void cleanup();
 }

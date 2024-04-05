@@ -26,8 +26,8 @@ import org.projectnessie.model.Tag;
 final class ProxyUtil {
   private ProxyUtil() {}
 
-  static <B extends PagingBuilder<B, RESP, ENTRY>, RESP, ENTRY> B paging(B builder, String pageToken,
-                                                                         Integer maxRecords) {
+  static <B extends PagingBuilder<B, RESP, ENTRY>, RESP, ENTRY> B paging(
+      B builder, String pageToken, Integer maxRecords) {
     if (pageToken != null) {
       builder.pageToken(pageToken);
     }
@@ -38,10 +38,12 @@ final class ProxyUtil {
   }
 
   static <T extends MergeTransplantBuilder<T>> MergeTransplantBuilder<T> applyBaseMergeTransplant(
-    MergeTransplantBuilder<T> builder, BaseMergeTransplant base) {
+      MergeTransplantBuilder<T> builder, BaseMergeTransplant base) {
     if (base.getKeyMergeModes() != null) {
-      base.getKeyMergeModes().forEach(
-        keyBehavior -> builder.mergeMode(keyBehavior.getKey(), keyBehavior.getMergeBehavior()));
+      base.getKeyMergeModes()
+          .forEach(
+              keyBehavior ->
+                  builder.mergeMode(keyBehavior.getKey(), keyBehavior.getMergeBehavior()));
     }
     if (base.getDefaultKeyMergeMode() != null) {
       builder.defaultMergeMode(base.getDefaultKeyMergeMode());
@@ -75,5 +77,4 @@ final class ProxyUtil {
         throw new IllegalArgumentException("Unsupported reference type: " + type);
     }
   }
-
 }

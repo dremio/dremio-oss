@@ -19,6 +19,7 @@ import type { SQLRunnerSession } from "../SqlRunnerSession.type";
 import {
   $SqlRunnerSession,
   closeTab,
+  closeTabs,
   newTab,
   selectTab,
   newPopulatedTab,
@@ -26,7 +27,7 @@ import {
 
 export const useSqlRunnerSession = () => {
   const [sqlRunnerSession] = useBehaviorSubject<SQLRunnerSession | null>(
-    $SqlRunnerSession.$merged as any
+    $SqlRunnerSession.$merged as any,
   );
 
   useEffect(() => {
@@ -38,6 +39,7 @@ export const useSqlRunnerSession = () => {
   return {
     ...sqlRunnerSession,
     closeTab,
+    closeTabs,
     selectTab,
     newTab,
     newPopulatedTab,

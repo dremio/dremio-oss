@@ -15,8 +15,10 @@
  */
 package com.dremio.exec.util;
 
+import com.dremio.common.AutoCloseables;
+import com.dremio.test.AllocatorRule;
+import com.dremio.test.DremioTest;
 import java.math.BigDecimal;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.junit.After;
@@ -25,19 +27,15 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
-import com.dremio.common.AutoCloseables;
-import com.dremio.test.AllocatorRule;
-import com.dremio.test.DremioTest;
-
 public class DecimalMixedEndianComparatorTest extends DremioTest {
   private BufferAllocator testAllocator;
 
-  @Rule
-  public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
+  @Rule public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
 
   @Before
   public void setupBeforeTest() {
-    testAllocator = allocatorRule.newAllocator("decimal-mixed-endian-comparator-test", 0, Long.MAX_VALUE);
+    testAllocator =
+        allocatorRule.newAllocator("decimal-mixed-endian-comparator-test", 0, Long.MAX_VALUE);
   }
 
   @After
@@ -47,59 +45,84 @@ public class DecimalMixedEndianComparatorTest extends DremioTest {
 
   @Test
   public void compareMixedEndianValues() {
-    DecimalMixedEndianComparator decimalComparatorMixedEndian16Bytes = new DecimalMixedEndian16BytesComparator();
-    DecimalMixedEndianComparator decimalComparatorMixedEndianGT8Bytes = new DecimalMixedEndianGT8BytesComparator();
-    DecimalMixedEndianComparator decimalComparatorMixedEndianLE8Bytes = new DecimalMixedEndianLE8BytesComparator();
+    DecimalMixedEndianComparator decimalComparatorMixedEndian16Bytes =
+        new DecimalMixedEndian16BytesComparator();
+    DecimalMixedEndianComparator decimalComparatorMixedEndianGT8Bytes =
+        new DecimalMixedEndianGT8BytesComparator();
+    DecimalMixedEndianComparator decimalComparatorMixedEndianLE8Bytes =
+        new DecimalMixedEndianLE8BytesComparator();
 
-    BigDecimal[] leftValLE8Bytes = new BigDecimal[]{BigDecimal.valueOf(Long.MIN_VALUE), BigDecimal.ONE.multiply(BigDecimal.valueOf(-1)), BigDecimal.ZERO, BigDecimal
-      .ONE, BigDecimal.valueOf(Long.MAX_VALUE)};
+    BigDecimal[] leftValLE8Bytes =
+        new BigDecimal[] {
+          BigDecimal.valueOf(Long.MIN_VALUE),
+          BigDecimal.ONE.multiply(BigDecimal.valueOf(-1)),
+          BigDecimal.ZERO,
+          BigDecimal.ONE,
+          BigDecimal.valueOf(Long.MAX_VALUE)
+        };
 
-    BigDecimal[] leftValGT8Bytes = new BigDecimal[]{BigDecimal.valueOf(Long.MAX_VALUE).multiply
-      (BigDecimal.valueOf(100)), BigDecimal.valueOf(Long.MAX_VALUE).multiply(BigDecimal.valueOf
-      (-10)), BigDecimal.valueOf(Long.MIN_VALUE).multiply(BigDecimal.valueOf(100))};
+    BigDecimal[] leftValGT8Bytes =
+        new BigDecimal[] {
+          BigDecimal.valueOf(Long.MAX_VALUE).multiply(BigDecimal.valueOf(100)),
+          BigDecimal.valueOf(Long.MAX_VALUE).multiply(BigDecimal.valueOf(-10)),
+          BigDecimal.valueOf(Long.MIN_VALUE).multiply(BigDecimal.valueOf(100))
+        };
 
-    BigDecimal[] leftVal16Bytes = new BigDecimal[]{DecimalUtils.MIN_DECIMAL, DecimalUtils.MAX_DECIMAL};
+    BigDecimal[] leftVal16Bytes =
+        new BigDecimal[] {DecimalUtils.MIN_DECIMAL, DecimalUtils.MAX_DECIMAL};
 
-    BigDecimal[] val2 = new BigDecimal[]{DecimalUtils.MIN_DECIMAL, BigDecimal.valueOf(Long
-      .MIN_VALUE), BigDecimal.ONE.multiply(BigDecimal.valueOf(-1)), BigDecimal.ZERO, BigDecimal
-      .ONE, BigDecimal.valueOf(2), BigDecimal.valueOf(Long.MAX_VALUE), DecimalUtils.MAX_DECIMAL};
+    BigDecimal[] val2 =
+        new BigDecimal[] {
+          DecimalUtils.MIN_DECIMAL,
+          BigDecimal.valueOf(Long.MIN_VALUE),
+          BigDecimal.ONE.multiply(BigDecimal.valueOf(-1)),
+          BigDecimal.ZERO,
+          BigDecimal.ONE,
+          BigDecimal.valueOf(2),
+          BigDecimal.valueOf(Long.MAX_VALUE),
+          DecimalUtils.MAX_DECIMAL
+        };
 
     for (BigDecimal arg1 : leftValLE8Bytes) {
       for (BigDecimal arg2 : val2) {
-        int compare = getCompareResultForMixedEndianBytes(arg1, arg2, 0,
-          decimalComparatorMixedEndianLE8Bytes);
+        int compare =
+            getCompareResultForMixedEndianBytes(
+                arg1, arg2, 0, decimalComparatorMixedEndianLE8Bytes);
         Assert.assertTrue(compare == arg1.compareTo(arg2));
       }
     }
 
     for (BigDecimal arg1 : leftValGT8Bytes) {
       for (BigDecimal arg2 : val2) {
-        int compare = getCompareResultForMixedEndianBytes(arg1, arg2, 0,
-          decimalComparatorMixedEndianGT8Bytes);
+        int compare =
+            getCompareResultForMixedEndianBytes(
+                arg1, arg2, 0, decimalComparatorMixedEndianGT8Bytes);
         Assert.assertTrue(compare == arg1.compareTo(arg2));
       }
     }
 
     for (BigDecimal arg1 : leftVal16Bytes) {
       for (BigDecimal arg2 : val2) {
-        int compare = getCompareResultForMixedEndianBytes(arg1, arg2, 0,
-          decimalComparatorMixedEndian16Bytes);
+        int compare =
+            getCompareResultForMixedEndianBytes(arg1, arg2, 0, decimalComparatorMixedEndian16Bytes);
         Assert.assertTrue(compare == arg1.compareTo(arg2));
       }
     }
-
   }
 
-  private int getCompareResultForMixedEndianBytes(BigDecimal value1, BigDecimal value2, int
-    scale, DecimalMixedEndianComparator decimalComparatorMixedEndian16Bytes) {
+  private int getCompareResultForMixedEndianBytes(
+      BigDecimal value1,
+      BigDecimal value2,
+      int scale,
+      DecimalMixedEndianComparator decimalComparatorMixedEndian16Bytes) {
     byte[] value1InBytes = value1.setScale(scale).unscaledValue().toByteArray();
     byte[] value2InBytes = DecimalUtils.convertBigDecimalToArrowByteArray(value2.setScale(scale));
     try (ArrowBuf bufferValue1 = testAllocator.buffer(value1InBytes.length);
-         ArrowBuf bufferValue2 = testAllocator.buffer(DecimalUtils.DECIMAL_WIDTH);) {
+        ArrowBuf bufferValue2 = testAllocator.buffer(DecimalUtils.DECIMAL_WIDTH); ) {
       bufferValue1.setBytes(0, value1InBytes, 0, value1InBytes.length);
       bufferValue2.setBytes(0, value2InBytes, 0, value2InBytes.length);
-      return decimalComparatorMixedEndian16Bytes.compare
-        (bufferValue1, 0, value1InBytes.length, bufferValue2, 0);
+      return decimalComparatorMixedEndian16Bytes.compare(
+          bufferValue1, 0, value1InBytes.length, bufferValue2, 0);
     }
   }
 
@@ -142,22 +165,20 @@ public class DecimalMixedEndianComparatorTest extends DremioTest {
   private int getCompareResultForMixedEndianBytesInt(int value1, BigDecimal value2) {
     byte[] value2InBytes = DecimalUtils.convertBigDecimalToArrowByteArray(value2);
     try (ArrowBuf bufferValue1 = testAllocator.buffer(4);
-         ArrowBuf bufferValue2 = testAllocator.buffer(DecimalUtils.DECIMAL_WIDTH);) {
+        ArrowBuf bufferValue2 = testAllocator.buffer(DecimalUtils.DECIMAL_WIDTH); ) {
       bufferValue1.setInt(0, value1);
       bufferValue2.setBytes(0, value2InBytes, 0, value2InBytes.length);
-      return new IntDecimalComparator().compare(bufferValue1, 0, 4,
-        bufferValue2, 0);
+      return new IntDecimalComparator().compare(bufferValue1, 0, 4, bufferValue2, 0);
     }
   }
 
   private int getCompareResultForMixedEndianBytesLong(long value1, BigDecimal value2) {
     byte[] value2InBytes = DecimalUtils.convertBigDecimalToArrowByteArray(value2);
     try (ArrowBuf bufferValue1 = testAllocator.buffer(8);
-         ArrowBuf bufferValue2 = testAllocator.buffer(DecimalUtils.DECIMAL_WIDTH);) {
+        ArrowBuf bufferValue2 = testAllocator.buffer(DecimalUtils.DECIMAL_WIDTH); ) {
       bufferValue1.setLong(0, value1);
       bufferValue2.setBytes(0, value2InBytes, 0, value2InBytes.length);
-      return new LongDecimalComparator().compare(bufferValue1, 0
-        , 8, bufferValue2, 0);
+      return new LongDecimalComparator().compare(bufferValue1, 0, 8, bufferValue2, 0);
     }
   }
 }

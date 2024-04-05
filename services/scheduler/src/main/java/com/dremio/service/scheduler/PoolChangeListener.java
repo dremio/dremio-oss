@@ -16,17 +16,18 @@
 package com.dremio.service.scheduler;
 
 /**
- * A listener who will be notified if a pool size change is requested by the user and hence the caller/user of
- * the {@code ClusteredSingletonTaskScheduler}.
- * <p>
- * On getting notified on this interface, the scheduler will re-adjust the pool size for corresponding pool.
- * </p>
+ * A listener who will be notified if a pool size change is requested by the user and hence the
+ * caller/user of the {@code ClusteredSingletonTaskScheduler}.
+ *
+ * <p>On getting notified on this interface, the scheduler will re-adjust the pool size for
+ * corresponding pool.
  */
 public interface PoolChangeListener {
   /**
    * Callers of the scheduler library must invoke this method if they wish to change the pool sizes.
    *
-   * @param currentSize current size of the pool. Must match the current size as understood by the scheduler
+   * @param currentSize current size of the pool. Must match the current size as understood by the
+   *     scheduler
    * @param newSize new size of the pool
    */
   void changePoolSize(int currentSize, int newSize);

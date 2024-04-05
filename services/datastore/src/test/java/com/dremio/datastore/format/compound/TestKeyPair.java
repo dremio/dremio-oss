@@ -23,25 +23,23 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-/**
- * Test KeyPair class.
- */
+/** Test KeyPair class. */
 @RunWith(Parameterized.class)
 public class TestKeyPair {
 
   @Parameterized.Parameters(name = "Values: {0}, Valid: {1}")
   public static Collection<Object[]> parameters() {
-    return Arrays.asList(new Object[][]{
-      {Collections.emptyList(), false},
-      {Collections.singletonList("value1"), false},
-      {Arrays.asList("value1", "value2"), true},
-      {Arrays.asList("value1", "value2", "value3"), false},
-    });
+    return Arrays.asList(
+        new Object[][] {
+          {Collections.emptyList(), false},
+          {Collections.singletonList("value1"), false},
+          {Arrays.asList("value1", "value2"), true},
+          {Arrays.asList("value1", "value2", "value3"), false},
+        });
   }
 
   private final List<Object> values;
@@ -55,8 +53,7 @@ public class TestKeyPair {
   @Test
   public void testOf() {
     if (!valid) {
-      assertThatThrownBy(() -> KeyPair.of(values))
-        .isInstanceOf(IllegalArgumentException.class);
+      assertThatThrownBy(() -> KeyPair.of(values)).isInstanceOf(IllegalArgumentException.class);
     } else {
       KeyPair<String, String> keyPair = KeyPair.of(values);
 

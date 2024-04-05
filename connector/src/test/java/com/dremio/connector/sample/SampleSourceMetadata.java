@@ -16,14 +16,6 @@
 
 package com.dremio.connector.sample;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Optional;
-
-import org.apache.arrow.vector.types.pojo.Schema;
-
 import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.BytesOutput;
 import com.dremio.connector.metadata.DatasetHandle;
@@ -41,14 +33,18 @@ import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.connector.metadata.SourceMetadata;
 import com.dremio.connector.metadata.extensions.SupportsListingDatasets;
 import com.google.common.collect.ImmutableList;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Optional;
+import org.apache.arrow.vector.types.pojo.Schema;
 
 /**
- *
  * Sample test connector for SourceMetadata
  *
- * Provides a set of private sample class implementations for interfaces
- * and classes referred to by the interface SourceMetadata
- *
+ * <p>Provides a set of private sample class implementations for interfaces and classes referred to
+ * by the interface SourceMetadata
  */
 public class SampleSourceMetadata implements SourceMetadata, SupportsListingDatasets {
   private final List<DatasetHandle> allDatasetHandles;
@@ -74,7 +70,8 @@ public class SampleSourceMetadata implements SourceMetadata, SupportsListingData
   }
 
   @Override
-  public Optional<DatasetHandle> getDatasetHandle(EntityPath datasetPath, GetDatasetOption... options) {
+  public Optional<DatasetHandle> getDatasetHandle(
+      EntityPath datasetPath, GetDatasetOption... options) {
     for (DatasetHandle handle : allDatasetHandles) {
       if (datasetPath.equals(handle.getDatasetPath())) {
         return Optional.of(handle);
@@ -88,14 +85,13 @@ public class SampleSourceMetadata implements SourceMetadata, SupportsListingData
   public DatasetMetadata getDatasetMetadata(
       DatasetHandle datasetHandle,
       PartitionChunkListing chunkListing,
-      GetMetadataOption... options
-  ) {
+      GetMetadataOption... options) {
     return ((SampleHandleImpl) datasetHandle).getDatasetMetadata();
   }
 
   @Override
-  public PartitionChunkListing listPartitionChunks
-    (DatasetHandle datasetHandle, ListPartitionChunkOption... options) {
+  public PartitionChunkListing listPartitionChunks(
+      DatasetHandle datasetHandle, ListPartitionChunkOption... options) {
     return ((SampleHandleImpl) datasetHandle).unwrap(PartitionChunkListing.class);
   }
 
@@ -106,6 +102,7 @@ public class SampleSourceMetadata implements SourceMetadata, SupportsListingData
 
   /**
    * return list of datasetMetadata
+   *
    * @return a list of dataset metadata
    */
   List<DatasetMetadata> getAllDatasetMetadata() {
@@ -124,21 +121,21 @@ public class SampleSourceMetadata implements SourceMetadata, SupportsListingData
    * @return a list of dataset handles
    */
   List<DatasetHandle> getAllDatasetHandles(GetDatasetOption options) throws ConnectorException {
-    Iterator<? extends DatasetHandle> handleListingIterator = listDatasetHandles(options).iterator();
+    Iterator<? extends DatasetHandle> handleListingIterator =
+        listDatasetHandles(options).iterator();
     List<DatasetHandle> datasetHandles = new ArrayList<>();
 
     while (handleListingIterator.hasNext()) {
       datasetHandles.add(handleListingIterator.next());
     }
 
-    return  datasetHandles;
+    return datasetHandles;
   }
 
   /**
    * return a list of all entity paths associated with the metadata
    *
    * @return a list of entity paths
-   *
    */
   List<EntityPath> getAllEntityPaths() {
     List<EntityPath> entityPaths = new ArrayList<>();
@@ -150,7 +147,6 @@ public class SampleSourceMetadata implements SourceMetadata, SupportsListingData
   }
 
   /**
-   *
    * add a handle to the existing list of dataset handles
    *
    * @param handle a new dataset handle
@@ -160,11 +156,10 @@ public class SampleSourceMetadata implements SourceMetadata, SupportsListingData
   }
 
   /**
-   *
    * given some number n and n pathnames, generate those many datasets
    *
    * @param numDatasets number of datasets to add
-   * @param pathNames   list of pathnames
+   * @param pathNames list of pathnames
    */
   public void addNDatasets(int numDatasets, List<List<String>> pathNames) {
     if (numDatasets != pathNames.size()) {
@@ -182,7 +177,6 @@ public class SampleSourceMetadata implements SourceMetadata, SupportsListingData
     }
   }
 
-
   /**
    * add n datasets to the namespace
    *
@@ -190,13 +184,15 @@ public class SampleSourceMetadata implements SourceMetadata, SupportsListingData
    * @param numPartitionChunks number of partition chunks per dataset
    * @param numSplitsPerPartitionChunk number of splits per partition chunk
    */
-  public void addNDatasets(int numDatasets, int numPartitionChunks, int numSplitsPerPartitionChunk) {
+  public void addNDatasets(
+      int numDatasets, int numPartitionChunks, int numSplitsPerPartitionChunk) {
     DatasetStats datasetStats = DatasetStats.of(0, SCAN_COST_FACTOR);
     Schema schema = new Schema(new ArrayList<>());
 
-    for (int datasetI = 0 ; datasetI < numDatasets; datasetI++) {
+    for (int datasetI = 0; datasetI < numDatasets; datasetI++) {
       DatasetMetadata datasetMetadata = DatasetMetadata.of(datasetStats, schema);
-      EntityPath entityPath = new EntityPath(ImmutableList.of("a", String.format("%05d", datasetI)));
+      EntityPath entityPath =
+          new EntityPath(ImmutableList.of("a", String.format("%05d", datasetI)));
       List<PartitionChunk> partitionChunks = new ArrayList<>();
 
       for (int partitionJ = 0; partitionJ < numPartitionChunks; partitionJ++) {
@@ -205,7 +201,8 @@ public class SampleSourceMetadata implements SourceMetadata, SupportsListingData
         for (int splitK = 0; splitK < numSplitsPerPartitionChunk; splitK++) {
           final int chunkNum = partitionJ;
           final int splitNum = splitK;
-          BytesOutput extraInfo = os -> os.write(String.format("p%d_s%d", chunkNum, splitNum).getBytes());
+          BytesOutput extraInfo =
+              os -> os.write(String.format("p%d_s%d", chunkNum, splitNum).getBytes());
 
           DatasetSplit datasetSplit = DatasetSplit.of(new ArrayList<>(), 10, 10, extraInfo);
 
@@ -231,8 +228,7 @@ public class SampleSourceMetadata implements SourceMetadata, SupportsListingData
     for (int i = 0; i < pathNames.size(); i++) {
       DatasetMetadata datasetMetadata = DatasetMetadata.of(datasetStats, schema);
 
-      addDatasetHandle(SampleHandleImpl.of(
-          datasetMetadata, new EntityPath(pathNames.get(i))));
+      addDatasetHandle(SampleHandleImpl.of(datasetMetadata, new EntityPath(pathNames.get(i))));
     }
   }
 
@@ -249,11 +245,11 @@ public class SampleSourceMetadata implements SourceMetadata, SupportsListingData
     for (EntityPath entityPath : entityPaths) {
       DatasetMetadata datasetMetadata = DatasetMetadata.of(datasetStats, schema);
       addDatasetHandle(
-        SampleHandleImpl.of(
-          datasetMetadata,
-          entityPath,
-          new ArrayList<>(),
-          new ArrayList<>(numPartitionColumns)));
+          SampleHandleImpl.of(
+              datasetMetadata,
+              entityPath,
+              new ArrayList<>(),
+              new ArrayList<>(numPartitionColumns)));
     }
   }
 
@@ -267,9 +263,7 @@ public class SampleSourceMetadata implements SourceMetadata, SupportsListingData
     Schema schema = new Schema(new ArrayList<>());
 
     addDatasetHandle(
-      SampleHandleImpl.of(
-        DatasetMetadata.of(datasetStats, schema),
-        new EntityPath(pathName)));
+        SampleHandleImpl.of(DatasetMetadata.of(datasetStats, schema), new EntityPath(pathName)));
   }
 
   /**
@@ -281,10 +275,7 @@ public class SampleSourceMetadata implements SourceMetadata, SupportsListingData
     DatasetStats datasetStats = DatasetStats.of(0, SCAN_COST_FACTOR);
     Schema schema = new Schema(new ArrayList<>());
 
-    addDatasetHandle(
-      SampleHandleImpl.of(
-        DatasetMetadata.of(datasetStats, schema),
-        entityPath));
+    addDatasetHandle(SampleHandleImpl.of(DatasetMetadata.of(datasetStats, schema), entityPath));
   }
 
   /**
@@ -300,7 +291,7 @@ public class SampleSourceMetadata implements SourceMetadata, SupportsListingData
    * given a dataset handle and a value n, add n partition chunks associated with this handle
    *
    * @param datasetHandle a dataset handle
-   * @param n             number of partition chunks to associate with this handle
+   * @param n number of partition chunks to associate with this handle
    */
   public void addNPartitionChunks(DatasetHandle datasetHandle, int n) {
     for (int i = 0; i < n; i++) {
@@ -309,8 +300,7 @@ public class SampleSourceMetadata implements SourceMetadata, SupportsListingData
   }
 
   /**
-   * return an iterator over a list of partition chunks associated with a
-   * dataset handle
+   * return an iterator over a list of partition chunks associated with a dataset handle
    *
    * @param datasetHandle a datasetHandle
    * @return an iterator over partition chunks associated with this handle
@@ -368,8 +358,7 @@ public class SampleSourceMetadata implements SourceMetadata, SupportsListingData
   }
 
   /**
-   * given an entityPath, return the datasetHandle associated with it through
-   * their datasetMetadata
+   * given an entityPath, return the datasetHandle associated with it through their datasetMetadata
    *
    * @param datasetHandle a dataset handle
    * @return the associated entityPath
@@ -410,7 +399,7 @@ public class SampleSourceMetadata implements SourceMetadata, SupportsListingData
    * @param datasetHandle a dataset handle
    * @return
    */
-  public List<List<DatasetSplit> > getDatasetSplitsForDataset(DatasetHandle datasetHandle) {
+  public List<List<DatasetSplit>> getDatasetSplitsForDataset(DatasetHandle datasetHandle) {
     List<List<DatasetSplit>> allDatasetSplits = new ArrayList<>();
     List<PartitionChunk> partitionChunks = ((SampleHandleImpl) datasetHandle).getPartitionChunks();
 

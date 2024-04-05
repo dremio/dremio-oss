@@ -84,6 +84,8 @@ service Chronicle {
   rpc GetRecentJobs(RecentJobsRequest) returns (stream RecentJobSummary) {}
 
   rpc GetNodeStatus(NodeStatusRequest) returns (NodeStatusResponse) {}
+
+  rpc HasAtLeastOneJob(HasAtLeastOneJobRequest) returns (HasAtLeastOneJobResponse);
 }
 
 message JobEvent {
@@ -126,6 +128,7 @@ message JobSummaryRequest {
   com.dremio.service.job.proto.JobId job_id = 1;
   string user_name = 2;
   bool from_store = 3;
+  int64 max_sql_length = 4;
 }
 
 message JobSummary {
@@ -164,6 +167,7 @@ message JobSummary {
   repeated com.dremio.service.job.proto.ParentDatasetInfo parents = 33;
   com.dremio.service.job.proto.SessionId session_id = 34;
   bool job_completed = 35;
+  bytes acceleration_details = 36;
 }
 
 message ActiveJobSummary {
@@ -266,7 +270,7 @@ message JobDetailsRequest {
   string user_name = 2;
   bool from_store = 3;
   bool provide_result_info = 4; // if the response should contain information about job result data
-  bool provide_profile_info = 5; // if the response should contain information about job profile
+  bool skip_profile_info = 5; // if the response should skip fetching information about job profile
   int32 attempt_index = 6; // to be provided only if job profile information is required
 }
 
@@ -582,4 +586,19 @@ message NodeStatusRequest {}
 
 message NodeStatusResponse {
  int64 start_time = 1;
+}
+
+message HasAtLeastOneJobRequest {
+  google.protobuf.Timestamp start_date = 1;
+  google.protobuf.Timestamp end_date = 2;
+  repeated JobStats.Type job_stats_type = 3;
+}
+
+message HasAtLeastOneJobResponse {
+  message HasAtLeastOneJobWithType {
+    JobStats.Type job_stats_type = 1;
+    bool has_at_least_one_job = 2;
+  }
+
+  repeated HasAtLeastOneJobWithType type_response = 1;
 }

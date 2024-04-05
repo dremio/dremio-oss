@@ -15,18 +15,16 @@
  */
 package com.dremio.service.users;
 
-import javax.inject.Provider;
-
-import org.jetbrains.annotations.NotNull;
-
 import com.dremio.authenticator.AuthException;
 import com.dremio.authenticator.AuthRequest;
 import com.dremio.authenticator.AuthResult;
 import com.dremio.authenticator.Authenticator;
+import javax.inject.Provider;
+import org.jetbrains.annotations.NotNull;
 
 /**
- * A Basic Authenticator that uses the LocalUsernamePasswordAuthProvider
- * for username/password authentication.
+ * A Basic Authenticator that uses the LocalUsernamePasswordAuthProvider for username/password
+ * authentication.
  */
 public class BasicAuthenticator implements Authenticator {
 
@@ -35,8 +33,7 @@ public class BasicAuthenticator implements Authenticator {
   private LocalUsernamePasswordAuthProvider usernamePasswordAuthProvider;
 
   public BasicAuthenticator(
-    Provider<LocalUsernamePasswordAuthProvider> usernamePasswordAuthProviderProvider
-  ) {
+      Provider<LocalUsernamePasswordAuthProvider> usernamePasswordAuthProviderProvider) {
     this.usernamePasswordAuthProviderProvider = usernamePasswordAuthProviderProvider;
   }
 
@@ -45,9 +42,7 @@ public class BasicAuthenticator implements Authenticator {
     usernamePasswordAuthProvider = usernamePasswordAuthProviderProvider.get();
   }
 
-  /**
-   * Validates username/password.
-   */
+  /** Validates username/password. */
   @Override
   @NotNull
   public AuthResult authenticate(AuthRequest request) throws AuthException {

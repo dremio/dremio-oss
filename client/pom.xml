@@ -1,4 +1,4 @@
-<?xml version="1.0"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!--
 
     Copyright (C) 2017-2019 Dremio Corporation
@@ -22,13 +22,13 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-parent</artifactId>
-    <version>24.3.2-202401241821100032-d2d8a497</version>
+    <version>25.0.0-202404051521110861-ed9515a8</version>
   </parent>
 
   <groupId>com.dremio.client</groupId>
   <artifactId>dremio-client-parent</artifactId>
-  <name>Client - Parent</name>
   <packaging>pom</packaging>
+  <name>Client - Parent</name>
 
   <modules>
     <module>base</module>

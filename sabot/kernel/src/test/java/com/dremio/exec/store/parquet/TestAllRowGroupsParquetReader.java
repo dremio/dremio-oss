@@ -27,18 +27,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-import org.apache.arrow.vector.BigIntVector;
-import org.apache.arrow.vector.VarCharVector;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.hadoop.conf.Configuration;
-import org.junit.Before;
-import org.junit.Test;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.util.TestTools;
 import com.dremio.exec.expr.TypeHelper;
@@ -52,6 +40,16 @@ import com.dremio.io.file.Path;
 import com.dremio.sabot.BaseTestOperator;
 import com.dremio.sabot.exec.context.OperatorContextImpl;
 import com.google.common.collect.ImmutableList;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import org.apache.arrow.vector.BigIntVector;
+import org.apache.arrow.vector.VarCharVector;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.hadoop.conf.Configuration;
+import org.junit.Before;
+import org.junit.Test;
 
 public class TestAllRowGroupsParquetReader extends BaseTestOperator {
 
@@ -59,22 +57,23 @@ public class TestAllRowGroupsParquetReader extends BaseTestOperator {
   private FileSystem fs;
   private SampleMutator mutator;
 
-  // Test file with 900 deletes spread equally across 3 different data files.  Deleted positions in each data file are
+  // Test file with 900 deletes spread equally across 3 different data files.  Deleted positions in
+  // each data file are
   // [ 0, 1, 2, 10, 11, 12, 20, 21, 22, ..., 990, 991, 992 ]
-  private static final Path MULTI_ROWGROUP_DELETE_FILE = Path.of(TestTools.getWorkingPath() +
-    "/src/test/resources/iceberg/v2/multi_rowgroup_orders_with_deletes/data/2021/delete-2021-00.parquet");
+  private static final Path MULTI_ROWGROUP_DELETE_FILE =
+      Path.of(
+          TestTools.getWorkingPath()
+              + "/src/test/resources/iceberg/v2/multi_rowgroup_orders_with_deletes/data/2021/delete-2021-00.parquet");
 
-  private static final ParquetReaderOptions DEFAULT_READER_OPTIONS = ParquetReaderOptions.builder()
-    .enablePrefetching(false)
-    .setNumSplitsToPrefetch(0)
-    .build();
-  private static final ParquetReaderOptions PREFETCH_READER_OPTIONS = ParquetReaderOptions.builder()
-    .enablePrefetching(true)
-    .setNumSplitsToPrefetch(1)
-    .build();
+  private static final ParquetReaderOptions DEFAULT_READER_OPTIONS =
+      ParquetReaderOptions.builder().enablePrefetching(false).setNumSplitsToPrefetch(0).build();
+  private static final ParquetReaderOptions PREFETCH_READER_OPTIONS =
+      ParquetReaderOptions.builder().enablePrefetching(true).setNumSplitsToPrefetch(1).build();
 
-  private static final ParquetScanProjectedColumns PROJECTED_COLUMNS = ParquetScanProjectedColumns.fromSchemaPaths(
-    ImmutableList.of(SchemaPath.getSimplePath(FILE_PATH_COLUMN), SchemaPath.getSimplePath(POS_COLUMN)));
+  private static final ParquetScanProjectedColumns PROJECTED_COLUMNS =
+      ParquetScanProjectedColumns.fromSchemaPaths(
+          ImmutableList.of(
+              SchemaPath.getSimplePath(FILE_PATH_COLUMN), SchemaPath.getSimplePath(POS_COLUMN)));
 
   private static final List<String> EXPECTED_FILE_PATHS = generateExpectedFilePaths();
   private static final List<Long> EXPECTED_POSITIONS = generateExpectedPositions();
@@ -91,17 +90,18 @@ public class TestAllRowGroupsParquetReader extends BaseTestOperator {
 
   @Test
   public void testSimpleRead() throws Exception {
-    AllRowGroupsParquetReader reader = new AllRowGroupsParquetReader(
-      context,
-      MULTI_ROWGROUP_DELETE_FILE,
-      null,
-      fs,
-      InputStreamProviderFactory.DEFAULT,
-      ParquetReaderFactory.NONE,
-      IcebergTestTables.V2_ORDERS_DELETE_FILE_SCHEMA,
-      PROJECTED_COLUMNS,
-      ParquetFilters.NONE,
-      DEFAULT_READER_OPTIONS);
+    AllRowGroupsParquetReader reader =
+        new AllRowGroupsParquetReader(
+            context,
+            MULTI_ROWGROUP_DELETE_FILE,
+            null,
+            fs,
+            InputStreamProviderFactory.DEFAULT,
+            ParquetReaderFactory.NONE,
+            IcebergTestTables.V2_ORDERS_DELETE_FILE_SCHEMA,
+            PROJECTED_COLUMNS,
+            ParquetFilters.NONE,
+            DEFAULT_READER_OPTIONS);
     testCloseables.add(reader);
 
     validateResults(reader, 0, 900);
@@ -109,19 +109,21 @@ public class TestAllRowGroupsParquetReader extends BaseTestOperator {
 
   @Test
   public void testFilteredRead() throws Exception {
-    AllRowGroupsParquetReader reader = new AllRowGroupsParquetReader(
-      context,
-      MULTI_ROWGROUP_DELETE_FILE,
-      null,
-      fs,
-      InputStreamProviderFactory.DEFAULT,
-      ParquetReaderFactory.NONE,
-      IcebergTestTables.V2_ORDERS_DELETE_FILE_SCHEMA,
-      PROJECTED_COLUMNS,
-      new ParquetFilters(ParquetDeleteFileFilterCreator.DEFAULT.createFilePathFilter(
-          "/tmp/iceberg-test-tables/v2/multi_rowgroup_orders_with_deletes/data/2021/2021-02.parquet",
-          "/tmp/iceberg-test-tables/v2/multi_rowgroup_orders_with_deletes/data/2021/2021-02.parquet")),
-      DEFAULT_READER_OPTIONS);
+    AllRowGroupsParquetReader reader =
+        new AllRowGroupsParquetReader(
+            context,
+            MULTI_ROWGROUP_DELETE_FILE,
+            null,
+            fs,
+            InputStreamProviderFactory.DEFAULT,
+            ParquetReaderFactory.NONE,
+            IcebergTestTables.V2_ORDERS_DELETE_FILE_SCHEMA,
+            PROJECTED_COLUMNS,
+            new ParquetFilters(
+                ParquetDeleteFileFilterCreator.DEFAULT.createFilePathFilter(
+                    "/tmp/iceberg-test-tables/v2/multi_rowgroup_orders_with_deletes/data/2021/2021-02.parquet",
+                    "/tmp/iceberg-test-tables/v2/multi_rowgroup_orders_with_deletes/data/2021/2021-02.parquet")),
+            DEFAULT_READER_OPTIONS);
     testCloseables.add(reader);
 
     validateResults(reader, 600, 900);
@@ -132,17 +134,18 @@ public class TestAllRowGroupsParquetReader extends BaseTestOperator {
 
     InputStreamProviderFactory factorySpy = spy(InputStreamProviderFactory.DEFAULT);
 
-    AllRowGroupsParquetReader reader = new AllRowGroupsParquetReader(
-      context,
-      MULTI_ROWGROUP_DELETE_FILE,
-      null,
-      fs,
-      factorySpy,
-      ParquetReaderFactory.NONE,
-      IcebergTestTables.V2_ORDERS_DELETE_FILE_SCHEMA,
-      PROJECTED_COLUMNS,
-      ParquetFilters.NONE,
-      PREFETCH_READER_OPTIONS);
+    AllRowGroupsParquetReader reader =
+        new AllRowGroupsParquetReader(
+            context,
+            MULTI_ROWGROUP_DELETE_FILE,
+            null,
+            fs,
+            factorySpy,
+            ParquetReaderFactory.NONE,
+            IcebergTestTables.V2_ORDERS_DELETE_FILE_SCHEMA,
+            PROJECTED_COLUMNS,
+            ParquetFilters.NONE,
+            PREFETCH_READER_OPTIONS);
     testCloseables.add(reader);
 
     for (Field field : IcebergTestTables.V2_ORDERS_DELETE_FILE_SCHEMA.getFields()) {
@@ -174,22 +177,27 @@ public class TestAllRowGroupsParquetReader extends BaseTestOperator {
 
   @Test
   public void testPathWithScheme() throws Exception {
-    // This may look a bit odd, but it simulates what happens with the S3 filesystem and serves to test the scenario...
-    // The constructor should normalize the path to be a container-specific relative path.  This test takes advantage of
-    // the fact that the filesystem doesn't check whether it supports a specific scheme before normalizing it, since
-    // this test passes a path with s3:// scheme but the filesystem instance is a local Hadoop filesystem.
+    // This may look a bit odd, but it simulates what happens with the S3 filesystem and serves to
+    // test the scenario...
+    // The constructor should normalize the path to be a container-specific relative path.  This
+    // test takes advantage of
+    // the fact that the filesystem doesn't check whether it supports a specific scheme before
+    // normalizing it, since
+    // this test passes a path with s3:// scheme but the filesystem instance is a local Hadoop
+    // filesystem.
     Path path = Path.of("s3:/" + MULTI_ROWGROUP_DELETE_FILE);
-    AllRowGroupsParquetReader reader = new AllRowGroupsParquetReader(
-        context,
-        path,
-        null,
-        fs,
-        InputStreamProviderFactory.DEFAULT,
-        ParquetReaderFactory.NONE,
-        IcebergTestTables.V2_ORDERS_DELETE_FILE_SCHEMA,
-        PROJECTED_COLUMNS,
-        ParquetFilters.NONE,
-        DEFAULT_READER_OPTIONS);
+    AllRowGroupsParquetReader reader =
+        new AllRowGroupsParquetReader(
+            context,
+            path,
+            null,
+            fs,
+            InputStreamProviderFactory.DEFAULT,
+            ParquetReaderFactory.NONE,
+            IcebergTestTables.V2_ORDERS_DELETE_FILE_SCHEMA,
+            PROJECTED_COLUMNS,
+            ParquetFilters.NONE,
+            DEFAULT_READER_OPTIONS);
     testCloseables.add(reader);
 
     validateResults(reader, 0, 900);
@@ -200,17 +208,18 @@ public class TestAllRowGroupsParquetReader extends BaseTestOperator {
     InputStreamProviderFactory factorySpy = spy(InputStreamProviderFactory.DEFAULT);
 
     List<String> datasetKey = ImmutableList.of("my", "table");
-    AllRowGroupsParquetReader reader = new AllRowGroupsParquetReader(
-        context,
-        MULTI_ROWGROUP_DELETE_FILE,
-        datasetKey,
-        fs,
-        factorySpy,
-        ParquetReaderFactory.NONE,
-        IcebergTestTables.V2_ORDERS_DELETE_FILE_SCHEMA,
-        PROJECTED_COLUMNS,
-        ParquetFilters.NONE,
-        PREFETCH_READER_OPTIONS);
+    AllRowGroupsParquetReader reader =
+        new AllRowGroupsParquetReader(
+            context,
+            MULTI_ROWGROUP_DELETE_FILE,
+            datasetKey,
+            fs,
+            factorySpy,
+            ParquetReaderFactory.NONE,
+            IcebergTestTables.V2_ORDERS_DELETE_FILE_SCHEMA,
+            PROJECTED_COLUMNS,
+            ParquetFilters.NONE,
+            PREFETCH_READER_OPTIONS);
     testCloseables.add(reader);
 
     for (Field field : IcebergTestTables.V2_ORDERS_DELETE_FILE_SCHEMA.getFields()) {
@@ -225,62 +234,77 @@ public class TestAllRowGroupsParquetReader extends BaseTestOperator {
     verifyDatasetKey(factorySpy, datasetKey);
   }
 
-  private void verifyRowGroupPrefetched(InputStreamProviderFactory spy, int rowGroupIndex) throws Exception {
-    verify(spy).create(
-      eq(fs),
-      eq(context),
-      eq(MULTI_ROWGROUP_DELETE_FILE),
-      anyLong(),
-      anyLong(),
-      eq(PROJECTED_COLUMNS),
-      any(),
-      any(),
-      argThat(arg -> arg.apply(null) == rowGroupIndex),
-      eq(false),
-      eq(null),
-      anyLong(),
-      eq(false),
-      eq(true), eq(ParquetFilters.NONE), eq(ParquetFilterCreator.DEFAULT), eq(InputStreamProviderFactory.DEFAULT_NON_PARTITION_COLUMN_RF));
+  private void verifyRowGroupPrefetched(InputStreamProviderFactory spy, int rowGroupIndex)
+      throws Exception {
+    verify(spy)
+        .create(
+            eq(fs),
+            eq(context),
+            eq(MULTI_ROWGROUP_DELETE_FILE),
+            anyLong(),
+            anyLong(),
+            eq(PROJECTED_COLUMNS),
+            any(),
+            any(),
+            argThat(arg -> arg.apply(null) == rowGroupIndex),
+            eq(false),
+            eq(null),
+            anyLong(),
+            eq(false),
+            eq(true),
+            eq(ParquetFilters.NONE),
+            eq(ParquetFilterCreator.DEFAULT),
+            eq(InputStreamProviderFactory.DEFAULT_NON_PARTITION_COLUMN_RF));
   }
 
-  private void verifyRowGroupNotPrefetched(InputStreamProviderFactory spy, int rowGroupIndex) throws Exception {
-    verify(spy, never()).create(
-      eq(fs),
-      eq(context),
-      eq(MULTI_ROWGROUP_DELETE_FILE),
-      anyLong(),
-      anyLong(),
-      eq(PROJECTED_COLUMNS),
-      any(),
-      any(),
-      argThat(arg -> arg.apply(null) == rowGroupIndex),
-      eq(false),
-      eq(null),
-      anyLong(),
-      eq(false),
-      eq(true), eq(ParquetFilters.NONE), eq(ParquetFilterCreator.DEFAULT), eq(InputStreamProviderFactory.DEFAULT_NON_PARTITION_COLUMN_RF));
+  private void verifyRowGroupNotPrefetched(InputStreamProviderFactory spy, int rowGroupIndex)
+      throws Exception {
+    verify(spy, never())
+        .create(
+            eq(fs),
+            eq(context),
+            eq(MULTI_ROWGROUP_DELETE_FILE),
+            anyLong(),
+            anyLong(),
+            eq(PROJECTED_COLUMNS),
+            any(),
+            any(),
+            argThat(arg -> arg.apply(null) == rowGroupIndex),
+            eq(false),
+            eq(null),
+            anyLong(),
+            eq(false),
+            eq(true),
+            eq(ParquetFilters.NONE),
+            eq(ParquetFilterCreator.DEFAULT),
+            eq(InputStreamProviderFactory.DEFAULT_NON_PARTITION_COLUMN_RF));
   }
 
-  private void verifyDatasetKey(InputStreamProviderFactory spy, List<String> dataset) throws Exception {
-    verify(spy, atLeastOnce()).create(
-        eq(fs),
-        eq(context),
-        eq(MULTI_ROWGROUP_DELETE_FILE),
-        anyLong(),
-        anyLong(),
-        eq(PROJECTED_COLUMNS),
-        any(),
-        any(),
-        any(),
-        eq(false),
-        eq(dataset),
-        anyLong(),
-        eq(false),
-        eq(true), eq(ParquetFilters.NONE), eq(ParquetFilterCreator.DEFAULT), eq(InputStreamProviderFactory.DEFAULT_NON_PARTITION_COLUMN_RF));
+  private void verifyDatasetKey(InputStreamProviderFactory spy, List<String> dataset)
+      throws Exception {
+    verify(spy, atLeastOnce())
+        .create(
+            eq(fs),
+            eq(context),
+            eq(MULTI_ROWGROUP_DELETE_FILE),
+            anyLong(),
+            anyLong(),
+            eq(PROJECTED_COLUMNS),
+            any(),
+            any(),
+            any(),
+            eq(false),
+            eq(dataset),
+            anyLong(),
+            eq(false),
+            eq(true),
+            eq(ParquetFilters.NONE),
+            eq(ParquetFilterCreator.DEFAULT),
+            eq(InputStreamProviderFactory.DEFAULT_NON_PARTITION_COLUMN_RF));
   }
 
-  private void validateResults(AllRowGroupsParquetReader reader, int expectedStartRow, int expectedEndRow)
-    throws Exception {
+  private void validateResults(
+      AllRowGroupsParquetReader reader, int expectedStartRow, int expectedEndRow) throws Exception {
 
     for (Field field : IcebergTestTables.V2_ORDERS_DELETE_FILE_SCHEMA.getFields()) {
       mutator.addField(field, TypeHelper.getValueVectorClass(field));
@@ -305,28 +329,29 @@ public class TestAllRowGroupsParquetReader extends BaseTestOperator {
       }
     }
 
-    assertThat(actualFilePaths).isEqualTo(EXPECTED_FILE_PATHS.subList(expectedStartRow, expectedEndRow));
-    assertThat(actualPositions).isEqualTo(EXPECTED_POSITIONS.subList(expectedStartRow, expectedEndRow));
+    assertThat(actualFilePaths)
+        .isEqualTo(EXPECTED_FILE_PATHS.subList(expectedStartRow, expectedEndRow));
+    assertThat(actualPositions)
+        .isEqualTo(EXPECTED_POSITIONS.subList(expectedStartRow, expectedEndRow));
   }
 
   private static List<String> generateExpectedFilePaths() {
-    List<String> expectedFilePaths = ImmutableList.of(
-      "/tmp/iceberg-test-tables/v2/multi_rowgroup_orders_with_deletes/data/2021/2021-00.parquet",
-      "/tmp/iceberg-test-tables/v2/multi_rowgroup_orders_with_deletes/data/2021/2021-01.parquet",
-      "/tmp/iceberg-test-tables/v2/multi_rowgroup_orders_with_deletes/data/2021/2021-02.parquet"
-    );
+    List<String> expectedFilePaths =
+        ImmutableList.of(
+            "/tmp/iceberg-test-tables/v2/multi_rowgroup_orders_with_deletes/data/2021/2021-00.parquet",
+            "/tmp/iceberg-test-tables/v2/multi_rowgroup_orders_with_deletes/data/2021/2021-01.parquet",
+            "/tmp/iceberg-test-tables/v2/multi_rowgroup_orders_with_deletes/data/2021/2021-02.parquet");
 
     return Stream.iterate(0, i -> i + 1)
-      .limit(900)
-      .map(i -> expectedFilePaths.get(i / 300))
-      .collect(Collectors.toList());
+        .limit(900)
+        .map(i -> expectedFilePaths.get(i / 300))
+        .collect(Collectors.toList());
   }
 
   private static List<Long> generateExpectedPositions() {
     return Stream.iterate(0, i -> i + 1)
-      .limit(900)
-      .map(i -> (((i % 300) / 3) * 10L) + (i % 3))
-      .collect(Collectors.toList());
+        .limit(900)
+        .map(i -> (((i % 300) / 3) * 10L) + (i % 3))
+        .collect(Collectors.toList());
   }
-
 }

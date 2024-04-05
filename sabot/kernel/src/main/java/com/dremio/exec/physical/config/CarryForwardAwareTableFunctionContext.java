@@ -15,13 +15,8 @@
  */
 package com.dremio.exec.physical.config;
 
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
-import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.ScanFilter;
 import com.dremio.exec.util.SchemaPathMapDeserializer;
@@ -32,8 +27,10 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-
 import io.protostuff.ByteString;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonTypeName("carry-forward-enabled-context")
@@ -44,27 +41,43 @@ public class CarryForwardAwareTableFunctionContext extends TableFunctionContext 
   private final String constVal;
 
   @JsonCreator
-  public CarryForwardAwareTableFunctionContext(@JsonProperty("formatSettings") FileConfig formatSettings,
-                                               @JsonProperty("schema") BatchSchema fullSchema,
-                                               @JsonProperty("tableschema") BatchSchema tableSchema,
-                                               @JsonProperty("referencedTables") List<List<String>> tablePath,
-                                               @JsonProperty("scanFilter") ScanFilter scanFilter,
-                                               @JsonProperty("pluginId") StoragePluginId pluginId,
-                                               @JsonProperty("internalTablePluginId") StoragePluginId internalTablePluginId,
-                                               @JsonProperty("columns") List<SchemaPath> columns,
-                                               @JsonProperty("partitionColumns") List<String> partitionColumns,
-                                               @JsonProperty("globalDictionaryEncodedColumns") List<GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns,
-                                               @JsonProperty("extendedProperty") ByteString extendedProperty,
-                                               @JsonProperty("arrowCachingEnabled") boolean arrowCachingEnabled,
-                                               @JsonProperty("convertedIcebergDataset") boolean isConvertedIcebergDataset,
-                                               @JsonProperty("icebergMetadata") boolean isIcebergMetadata,
-                                               @JsonProperty("userDefinedSchemaSettings") UserDefinedSchemaSettings userDefinedSchemaSettings,
-                                               @JsonProperty("carryForwardEnabled") boolean isCarryForwardEnabled,
-                                               @JsonProperty("inputColMap") @JsonDeserialize(using = SchemaPathMapDeserializer.class) Map<SchemaPath, SchemaPath> inputColMap,
-                                               @JsonProperty("constValueCol") String constValCol,
-                                               @JsonProperty("constValue") String constVal) {
-    super(formatSettings, fullSchema, tableSchema, tablePath, scanFilter, null, pluginId, internalTablePluginId, columns, partitionColumns, globalDictionaryEncodedColumns,
-      extendedProperty, arrowCachingEnabled, isConvertedIcebergDataset, isIcebergMetadata, userDefinedSchemaSettings);
+  public CarryForwardAwareTableFunctionContext(
+      @JsonProperty("formatSettings") FileConfig formatSettings,
+      @JsonProperty("schema") BatchSchema fullSchema,
+      @JsonProperty("tableschema") BatchSchema tableSchema,
+      @JsonProperty("referencedTables") List<List<String>> tablePath,
+      @JsonProperty("scanFilter") ScanFilter scanFilter,
+      @JsonProperty("pluginId") StoragePluginId pluginId,
+      @JsonProperty("internalTablePluginId") StoragePluginId internalTablePluginId,
+      @JsonProperty("columns") List<SchemaPath> columns,
+      @JsonProperty("partitionColumns") List<String> partitionColumns,
+      @JsonProperty("extendedProperty") ByteString extendedProperty,
+      @JsonProperty("arrowCachingEnabled") boolean arrowCachingEnabled,
+      @JsonProperty("convertedIcebergDataset") boolean isConvertedIcebergDataset,
+      @JsonProperty("icebergMetadata") boolean isIcebergMetadata,
+      @JsonProperty("userDefinedSchemaSettings")
+          UserDefinedSchemaSettings userDefinedSchemaSettings,
+      @JsonProperty("carryForwardEnabled") boolean isCarryForwardEnabled,
+      @JsonProperty("inputColMap") @JsonDeserialize(using = SchemaPathMapDeserializer.class)
+          Map<SchemaPath, SchemaPath> inputColMap,
+      @JsonProperty("constValueCol") String constValCol,
+      @JsonProperty("constValue") String constVal) {
+    super(
+        formatSettings,
+        fullSchema,
+        tableSchema,
+        tablePath,
+        scanFilter,
+        null,
+        pluginId,
+        internalTablePluginId,
+        columns,
+        partitionColumns,
+        extendedProperty,
+        arrowCachingEnabled,
+        isConvertedIcebergDataset,
+        isIcebergMetadata,
+        userDefinedSchemaSettings);
 
     this.isCarryForwardEnabled = isCarryForwardEnabled;
     this.inputColMap = inputColMap;
@@ -72,29 +85,34 @@ public class CarryForwardAwareTableFunctionContext extends TableFunctionContext 
     this.constVal = constVal;
   }
 
-  public CarryForwardAwareTableFunctionContext(BatchSchema outputSchema, StoragePluginId storagePluginId,
-                                               boolean isCarryForwardEnabled, Map<SchemaPath, SchemaPath> inputColMap,
-                                               String constValCol, String constVal) {
+  public CarryForwardAwareTableFunctionContext(
+      BatchSchema outputSchema,
+      StoragePluginId storagePluginId,
+      boolean isCarryForwardEnabled,
+      Map<SchemaPath, SchemaPath> inputColMap,
+      String constValCol,
+      String constVal) {
     this(
-      null,
-      outputSchema,
-      null,
-      null,
-      null,
-      storagePluginId,
-      null,
-      outputSchema.getFields().stream().map(f -> SchemaPath.getSimplePath(f.getName())).collect(Collectors.toList()),
-      null,
-      null,
-      null,
-      false,
-      false,
-      false,
-      null,
-      isCarryForwardEnabled,
-      inputColMap,
-      constValCol,
-      constVal);
+        null,
+        outputSchema,
+        null,
+        null,
+        null,
+        storagePluginId,
+        null,
+        outputSchema.getFields().stream()
+            .map(f -> SchemaPath.getSimplePath(f.getName()))
+            .collect(Collectors.toList()),
+        null,
+        null,
+        false,
+        false,
+        false,
+        null,
+        isCarryForwardEnabled,
+        inputColMap,
+        constValCol,
+        constVal);
   }
 
   public boolean isCarryForwardEnabled() {

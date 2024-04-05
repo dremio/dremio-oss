@@ -15,16 +15,6 @@
  */
 package com.dremio.sabot.exec;
 
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
-
-import javax.inject.Provider;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.concurrent.CloseableSchedulerThreadPool;
 import com.dremio.common.nodes.EndpointHelper;
@@ -48,56 +38,65 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.Empty;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import javax.inject.Provider;
 
-/**
- * Local Proxy for the maestro service running on the coordinator/job-service.
- */
+/** Local Proxy for the maestro service running on the coordinator/job-service. */
 public class MaestroProxy implements AutoCloseable {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MaestroProxy.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(MaestroProxy.class);
   private final Provider<MaestroClientFactory> maestroServiceClientFactoryProvider;
   private final Provider<JobTelemetryExecutorClientFactory> jobTelemetryClientFactoryProvider;
   private final ClusterCoordinator clusterCoordinator;
   private final LoadingCacheWithExpiry<QueryId, QueryTracker> trackers;
   private final CloseableSchedulerThreadPool retryPool =
-    new CloseableSchedulerThreadPool("maestro-proxy-retry", 1);
+      new CloseableSchedulerThreadPool("maestro-proxy-retry", 1);
   private final long evictionDelayMillis;
   private final Set<QueryId> doNotTrackQueries;
 
   public MaestroProxy(
-    Provider<MaestroClientFactory> maestroServiceClientFactoryProvider,
-    Provider<JobTelemetryExecutorClientFactory> jobTelemetryClientFactoryProvider,
-    ClusterCoordinator clusterCoordinator,
-    Provider<NodeEndpoint> selfEndpoint,
-    OptionManager options) {
+      Provider<MaestroClientFactory> maestroServiceClientFactoryProvider,
+      Provider<JobTelemetryExecutorClientFactory> jobTelemetryClientFactoryProvider,
+      ClusterCoordinator clusterCoordinator,
+      Provider<NodeEndpoint> selfEndpoint,
+      OptionManager options) {
 
     this.maestroServiceClientFactoryProvider = maestroServiceClientFactoryProvider;
     this.jobTelemetryClientFactoryProvider = jobTelemetryClientFactoryProvider;
     this.clusterCoordinator = clusterCoordinator;
-    this.evictionDelayMillis = TimeUnit.SECONDS.toMillis(
-      options.getOption(ExecConstants.FRAGMENT_CACHE_EVICTION_DELAY_S));
+    this.evictionDelayMillis =
+        TimeUnit.SECONDS.toMillis(options.getOption(ExecConstants.FRAGMENT_CACHE_EVICTION_DELAY_S));
 
     this.doNotTrackQueries = ConcurrentHashMap.newKeySet();
 
     // Create a cache that evicts expired entries after a delay. This allows for handling
     // duplicate ops and out-of-order ops (eg. cancel arrives before start).
-    this.trackers = new LoadingCacheWithExpiry<>("foreman-node-proxy",
-      new CacheLoader<QueryId, QueryTracker>() {
-        @Override
-        public QueryTracker load(QueryId queryId) {
-          if (doNotTrackQueries.contains(queryId)) {
-            return new NoOpQueryTracker();
-          }
-          return new MaestroProxyQueryTracker(queryId, selfEndpoint,
-            evictionDelayMillis, retryPool, clusterCoordinator);
-        }
-      },
-    null, evictionDelayMillis);
+    this.trackers =
+        new LoadingCacheWithExpiry<>(
+            "foreman-node-proxy",
+            new CacheLoader<QueryId, QueryTracker>() {
+              @Override
+              public QueryTracker load(QueryId queryId) {
+                if (doNotTrackQueries.contains(queryId)) {
+                  return new NoOpQueryTracker();
+                }
+                return new MaestroProxyQueryTracker(
+                    queryId, selfEndpoint, evictionDelayMillis, retryPool, clusterCoordinator);
+              }
+            },
+            null,
+            evictionDelayMillis);
   }
 
   public void doNotTrack(QueryId queryId) {
     doNotTrackQueries.add(queryId);
   }
-
 
   /**
    * Try and start a query.
@@ -110,10 +109,11 @@ public class MaestroProxy implements AutoCloseable {
   boolean tryStartQuery(QueryId queryId, QueryTicket ticket, Long querySentTime) {
     QueryTracker queryTracker = trackers.getUnchecked(queryId);
     queryTracker.setQuerySentTime(querySentTime);
-    return  queryTracker.tryStart(ticket,
-            ticket.getForeman(),
-            maestroServiceClientFactoryProvider.get().getMaestroClient(ticket.getForeman()),
-            jobTelemetryClientFactoryProvider.get().getClient(ticket.getForeman()));
+    return queryTracker.tryStart(
+        ticket,
+        ticket.getForeman(),
+        maestroServiceClientFactoryProvider.get().getMaestroClient(ticket.getForeman()),
+        jobTelemetryClientFactoryProvider.get().getClient(ticket.getForeman()));
   }
 
   boolean isQueryStarted(QueryId queryId) {
@@ -136,12 +136,13 @@ public class MaestroProxy implements AutoCloseable {
   /**
    * Initialize the query tracker with the set of fragment handles. This should be done prior to
    * starting the fragments.
+   *
    * @param queryId
    * @param pendingFragments
    */
-  void initFragmentHandlesForQuery(QueryId queryId,
-                                   Set<ExecProtos.FragmentHandle> pendingFragments) {
-     trackers.getUnchecked(queryId).initFragmentsForQuery(pendingFragments);
+  void initFragmentHandlesForQuery(
+      QueryId queryId, Set<ExecProtos.FragmentHandle> pendingFragments) {
+    trackers.getUnchecked(queryId).initFragmentsForQuery(pendingFragments);
   }
 
   /**
@@ -150,7 +151,9 @@ public class MaestroProxy implements AutoCloseable {
    * @param fragmentStatus status of one fragment
    */
   public void fragmentStatusChanged(FragmentStatus fragmentStatus) {
-    trackers.getUnchecked(fragmentStatus.getHandle().getQueryId()).fragmentStatusChanged(fragmentStatus);
+    trackers
+        .getUnchecked(fragmentStatus.getHandle().getQueryId())
+        .fragmentStatusChanged(fragmentStatus);
   }
 
   /**
@@ -159,7 +162,9 @@ public class MaestroProxy implements AutoCloseable {
    * @param fragmentStatus
    */
   public void refreshFragmentStatus(FragmentStatus fragmentStatus) {
-    trackers.getUnchecked(fragmentStatus.getHandle().getQueryId()).refreshFragmentStatus(fragmentStatus);
+    trackers
+        .getUnchecked(fragmentStatus.getHandle().getQueryId())
+        .refreshFragmentStatus(fragmentStatus);
   }
 
   /**
@@ -186,8 +191,9 @@ public class MaestroProxy implements AutoCloseable {
   }
 
   /**
-   * Determine queries to be cancelled based on activeQueryList and
-   * cancel those queries. See implementation for actual algo.
+   * Determine queries to be cancelled based on activeQueryList and cancel those queries. See
+   * implementation for actual algo.
+   *
    * @param activeQueryList
    */
   public Set<QueryId> reconcileActiveQueries(CoordExecRPC.ActiveQueryList activeQueryList) {
@@ -195,13 +201,13 @@ public class MaestroProxy implements AutoCloseable {
   }
 
   @VisibleForTesting
-  static Set<QueryId> reconcileActiveQueriesHelper(CoordExecRPC.ActiveQueryList activeQueryList,
-                                                   Map<QueryId, QueryTracker> queryTrackerMap) {
-    final Set<QueryId> activeQueriesOnExec = queryTrackerMap.entrySet()
-                                                            .stream()
-                                                            .filter(e -> !e.getValue().isTerminal()) // skip terminal queries
-                                                            .map(e -> e.getKey())
-                                                            .collect(Collectors.toSet());
+  static Set<QueryId> reconcileActiveQueriesHelper(
+      CoordExecRPC.ActiveQueryList activeQueryList, Map<QueryId, QueryTracker> queryTrackerMap) {
+    final Set<QueryId> activeQueriesOnExec =
+        queryTrackerMap.entrySet().stream()
+            .filter(e -> !e.getValue().isTerminal()) // skip terminal queries
+            .map(e -> e.getKey())
+            .collect(Collectors.toSet());
 
     if (activeQueriesOnExec.isEmpty()) {
       logger.info("There are no active queries on this executor. So nothing to reconcile.");
@@ -210,11 +216,11 @@ public class MaestroProxy implements AutoCloseable {
 
     logger.debug("ActiveQueryList received: {}", activeQueryList.toString());
 
-    Set<QueryId> activeQueriesFromAQL = activeQueryList.getActiveQueriesOnForemanList()
-                                                       .stream()
-                                                       .map(x->x.getQueryIdList())
-                                                       .flatMap(x->x.stream())
-                                                       .collect(Collectors.toSet());
+    Set<QueryId> activeQueriesFromAQL =
+        activeQueryList.getActiveQueriesOnForemanList().stream()
+            .map(x -> x.getQueryIdList())
+            .flatMap(x -> x.stream())
+            .collect(Collectors.toSet());
 
     final Set<QueryId> queryIdsToCheck = Sets.difference(activeQueriesOnExec, activeQueriesFromAQL);
 
@@ -223,15 +229,18 @@ public class MaestroProxy implements AutoCloseable {
       return Sets.newHashSet();
     }
 
-    logger.debug("Potential stale queries to be checked:{}", queryIdsToCheck.stream()
-                                                                            .map(q->QueryIdHelper.getQueryId(q))
-                                                                            .collect(Collectors.joining(", ")));
+    logger.debug(
+        "Potential stale queries to be checked:{}",
+        queryIdsToCheck.stream()
+            .map(q -> QueryIdHelper.getQueryId(q))
+            .collect(Collectors.joining(", ")));
 
     // process AQL
     final Map<NodeEndpoint, Long> foremanToTimestampMapFromAQL = Maps.newHashMap();
     final Set<NodeEndpoint> foremanSetFromAQL = Sets.newHashSet();
 
-    for(ActiveQueriesOnForeman activeQueriesOnForeman: activeQueryList.getActiveQueriesOnForemanList()) {
+    for (ActiveQueriesOnForeman activeQueriesOnForeman :
+        activeQueryList.getActiveQueriesOnForemanList()) {
       NodeEndpoint foremanFromAQL = activeQueriesOnForeman.getForeman();
       foremanSetFromAQL.add(EndpointHelper.getMinimalEndpoint(foremanFromAQL));
       foremanToTimestampMapFromAQL.put(foremanFromAQL, activeQueriesOnForeman.getTimestamp());
@@ -240,12 +249,12 @@ public class MaestroProxy implements AutoCloseable {
     final Set<QueryId> queryIdsToCancel = new HashSet<>();
 
     // For each active query on the executor side
-    for (QueryId queryId: queryIdsToCheck) {
+    for (QueryId queryId : queryIdsToCheck) {
       String queryIdString = QueryIdHelper.getQueryId(queryId);
       QueryTracker queryTracker = queryTrackerMap.get(queryId);
       if (queryTracker == null) {
-       logger.debug("QueryId:{} is no more active on executor.", queryIdString);
-       continue;
+        logger.debug("QueryId:{} is no more active on executor.", queryIdString);
+        continue;
       }
       if (queryTracker instanceof NoOpQueryTracker) {
         logger.debug("QueryId:{} is a doNotTrackQuery.", queryIdString);
@@ -255,7 +264,8 @@ public class MaestroProxy implements AutoCloseable {
 
       // If foreman endpoint is not present in AQL, then cancel query.
       if (!foremanSetFromAQL.contains(foremanEndpoint)) {
-        logger.info("Foreman of queryId:{} is not in AQL. Considered for cancelling.", queryIdString);
+        logger.info(
+            "Foreman of queryId:{} is not in AQL. Considered for cancelling.", queryIdString);
         queryIdsToCancel.add(queryId);
         continue;
       }
@@ -268,12 +278,12 @@ public class MaestroProxy implements AutoCloseable {
       if (queryIdStartTimestamp >= aqlTimestamp) {
         continue;
       } else {
-        logger.info("Stale queryId:{} running on executor. Considered for cancelling.", queryIdString);
+        logger.info(
+            "Stale queryId:{} running on executor. Considered for cancelling.", queryIdString);
         queryIdsToCancel.add(queryId);
         continue;
       }
     }
     return queryIdsToCancel;
   }
-
 }

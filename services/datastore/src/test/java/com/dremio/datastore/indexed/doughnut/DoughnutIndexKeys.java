@@ -19,32 +19,36 @@ import com.dremio.datastore.SearchTypes;
 import com.dremio.datastore.indexed.FilterIndexMapping;
 import com.dremio.datastore.indexed.IndexKey;
 
-/**
- * Doughnut IndexKeys.
- */
+/** Doughnut IndexKeys. */
 public final class DoughnutIndexKeys {
   private DoughnutIndexKeys() {}
 
-  public static final IndexKey NAME = IndexKey.newBuilder("n", "name", String.class)
-    .setSortedValueType(SearchTypes.SearchFieldSorting.FieldType.STRING)
-    .setStored(true)
-    .build();
-  public static final IndexKey FLAVOR = IndexKey.newBuilder("f", "flavor", String.class)
-    .setSortedValueType(SearchTypes.SearchFieldSorting.FieldType.STRING)
-    .setStored(true)
-    .build();
-  public static final IndexKey PRICE = IndexKey.newBuilder("p", "price", Double.class)
-    .setSortedValueType(SearchTypes.SearchFieldSorting.FieldType.DOUBLE)
-    .setStored(true)
-    .build();
-  public static final IndexKey THICKNESS = IndexKey.newBuilder("t", "thickness", Integer.class)
-    .setSortedValueType(SearchTypes.SearchFieldSorting.FieldType.INTEGER)
-    .setStored(true)
-    .build();
-  public static final IndexKey DIAMETER = IndexKey.newBuilder("d", "diameter", Long.class)
-    .setSortedValueType(SearchTypes.SearchFieldSorting.FieldType.LONG)
-    .setStored(true)
-    .build();
+  public static final IndexKey NAME =
+      IndexKey.newBuilder("n", "name", String.class)
+          .setSortedValueType(SearchTypes.SearchFieldSorting.FieldType.STRING)
+          .setStored(true)
+          .build();
+  public static final IndexKey FLAVOR =
+      IndexKey.newBuilder("f", "flavor", String.class)
+          .setSortedValueType(SearchTypes.SearchFieldSorting.FieldType.STRING)
+          .setStored(true)
+          .build();
+  public static final IndexKey PRICE =
+      IndexKey.newBuilder("p", "price", Double.class)
+          .setSortedValueType(SearchTypes.SearchFieldSorting.FieldType.DOUBLE)
+          .setStored(true)
+          .build();
+  public static final IndexKey THICKNESS =
+      IndexKey.newBuilder("t", "thickness", Integer.class)
+          .setSortedValueType(SearchTypes.SearchFieldSorting.FieldType.INTEGER)
+          .setStored(true)
+          .build();
+  public static final IndexKey DIAMETER =
+      IndexKey.newBuilder("d", "diameter", Long.class)
+          .setSortedValueType(SearchTypes.SearchFieldSorting.FieldType.LONG)
+          .setStored(true)
+          .build();
 
-  public static final FilterIndexMapping MAPPING = new FilterIndexMapping(NAME, FLAVOR, PRICE, THICKNESS, DIAMETER);
+  public static final FilterIndexMapping MAPPING =
+      new FilterIndexMapping(NAME, FLAVOR, PRICE, THICKNESS, DIAMETER);
 }

@@ -15,16 +15,6 @@
  */
 package com.dremio.sabot.op.sort.external;
 
-import java.io.IOException;
-
-import javax.inject.Named;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.OutOfMemoryException;
-import org.apache.arrow.vector.DensityAwareVector;
-import org.apache.arrow.vector.ValueVector;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.exception.SchemaChangeException;
@@ -35,9 +25,17 @@ import com.dremio.exec.record.selection.SelectionVector4;
 import com.dremio.sabot.exec.context.FunctionContext;
 import com.dremio.sabot.op.sort.external.DiskRunManager.DiskRunIterator;
 import com.google.common.collect.Iterables;
+import java.io.IOException;
+import javax.inject.Named;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.OutOfMemoryException;
+import org.apache.arrow.vector.DensityAwareVector;
+import org.apache.arrow.vector.ValueVector;
 
 public abstract class PriorityQueueCopierTemplate implements PriorityQueueCopier {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PriorityQueueCopierTemplate.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(PriorityQueueCopierTemplate.class);
 
   private SelectionVector4 vector4;
   private DiskRunIterator[] iterators;
@@ -47,8 +45,8 @@ public abstract class PriorityQueueCopierTemplate implements PriorityQueueCopier
   private int queueSize = 0;
 
   /**
-   * Last density parameter used to successfully allocate memory for outgoing vectors. We keep track of this parameter
-   * to use it across copy calls.
+   * Last density parameter used to successfully allocate memory for outgoing vectors. We keep track
+   * of this parameter to use it across copy calls.
    */
   private double lastSuccessfulDensity = 1.0d;
 
@@ -58,7 +56,8 @@ public abstract class PriorityQueueCopierTemplate implements PriorityQueueCopier
       BufferAllocator allocator,
       DiskRunIterator[] iterators,
       VectorAccessible incoming,
-      VectorContainer outgoing) throws SchemaChangeException, IOException {
+      VectorContainer outgoing)
+      throws SchemaChangeException, IOException {
     this.incoming = new Sv4HyperContainer(allocator, incoming.getSchema());
     this.size = iterators.length;
     final ArrowBuf arrowBuf = allocator.buffer(4 * size);
@@ -80,7 +79,7 @@ public abstract class PriorityQueueCopierTemplate implements PriorityQueueCopier
   public int copy(int targetRecordCount) {
     allocateVectors(targetRecordCount);
     int outgoingIndex = 0;
-    try{
+    try {
       for (; outgoingIndex < targetRecordCount; outgoingIndex++) {
 
         if (queueSize == 0) {
@@ -89,7 +88,8 @@ public abstract class PriorityQueueCopierTemplate implements PriorityQueueCopier
 
         final int compoundIndex = vector4.get(0);
         final int batch = compoundIndex >>> 16;
-        assert batch < iterators.length : String.format("batch: %d batchGroups: %d", batch, iterators.length);
+        assert batch < iterators.length
+            : String.format("batch: %d batchGroups: %d", batch, iterators.length);
         doCopy(compoundIndex, outgoingIndex);
 
         int nextIndex = iterators[batch].getNextId();
@@ -107,25 +107,25 @@ public abstract class PriorityQueueCopierTemplate implements PriorityQueueCopier
       setValueCount(targetRecordCount);
       return targetRecordCount;
 
-    }catch(IOException ex) {
-      throw UserException
-        .dataReadError(ex)
-        .message("Failure while reading sort spilling files.")
-        .build(logger);
-    }catch(OutOfMemoryException ex) {
-      if(outgoingIndex > 0){
+    } catch (IOException ex) {
+      throw UserException.dataReadError(ex)
+          .message("Failure while reading sort spilling files.")
+          .build(logger);
+    } catch (OutOfMemoryException ex) {
+      if (outgoingIndex > 0) {
         // TODO we may not be able to recover from an OOM
-        // DiskRunManager.getNextId() may throw an OOM in the middle of VectorAccessibleSerializable.readFromStream()
+        // DiskRunManager.getNextId() may throw an OOM in the middle of
+        // VectorAccessibleSerializable.readFromStream()
         // trying to load that batch again will throw an exception in protobuf
         return outgoingIndex;
-      }else{
+      } else {
         throw ex;
       }
     }
   }
 
   private void setValueCount(int count) {
-    for (VectorWrapper<?> w: outgoing) {
+    for (VectorWrapper<?> w : outgoing) {
       w.getValueVector().setValueCount(count);
     }
   }
@@ -133,13 +133,11 @@ public abstract class PriorityQueueCopierTemplate implements PriorityQueueCopier
   @Override
   public void close() throws Exception {
     AutoCloseables.close(
-      Iterables.concat(
-          AutoCloseables.iter(vector4),
-          AutoCloseables.iter(outgoing),
-          incoming,
-          AutoCloseables.iter(iterators)
-      )
-    );
+        Iterables.concat(
+            AutoCloseables.iter(vector4),
+            AutoCloseables.iter(outgoing),
+            incoming,
+            AutoCloseables.iter(iterators)));
   }
 
   private void siftUp() {
@@ -174,12 +172,16 @@ public abstract class PriorityQueueCopierTemplate implements PriorityQueueCopier
         // halve the density and try again
         density = density / 2;
         if (density < 0.01) {
-          logger.debug("PriorityQueueCopierTemplate ran out of memory to allocate outgoing batch. " +
-              "Records: {}, density: {}", targetRecordCount, density);
+          logger.debug(
+              "PriorityQueueCopierTemplate ran out of memory to allocate outgoing batch. "
+                  + "Records: {}, density: {}",
+              targetRecordCount,
+              density);
           throw ex;
         }
         // try allocating again with lower density
-        logger.debug("PriorityQueueCopierTemplate: Ran out of memory. Retrying allocation with lower density.");
+        logger.debug(
+            "PriorityQueueCopierTemplate: Ran out of memory. Retrying allocation with lower density.");
       }
     }
   }
@@ -191,13 +193,16 @@ public abstract class PriorityQueueCopierTemplate implements PriorityQueueCopier
       if (p * 2 + 2 >= queueSize) { // if current node has only one child, then we only look at it
         next = p * 2 + 1;
       } else {
-        if (compare(p * 2 + 1, p * 2 + 2) <= 0) {//if current node has two children, we must first determine which one has higher priority
+        if (compare(p * 2 + 1, p * 2 + 2)
+            <= 0) { // if current node has two children, we must first determine which one has
+          // higher priority
           next = p * 2 + 1;
         } else {
           next = p * 2 + 2;
         }
       }
-      if (compare(p, next) > 0) { // compare current node to highest priority child and swap if necessary
+      if (compare(p, next)
+          > 0) { // compare current node to highest priority child and swap if necessary
         swap(p, next);
         p = next;
       } else {
@@ -218,8 +223,13 @@ public abstract class PriorityQueueCopierTemplate implements PriorityQueueCopier
     return doEval(sv1, sv2);
   }
 
-  public abstract void doSetup(@Named("context") FunctionContext context, @Named("incoming") VectorAccessible incoming, @Named("outgoing") VectorAccessible outgoing);
-  public abstract int doEval(@Named("leftIndex") int leftIndex, @Named("rightIndex") int rightIndex);
-  public abstract void doCopy(@Named("inIndex") int inIndex, @Named("outIndex") int outIndex);
+  public abstract void doSetup(
+      @Named("context") FunctionContext context,
+      @Named("incoming") VectorAccessible incoming,
+      @Named("outgoing") VectorAccessible outgoing);
 
+  public abstract int doEval(
+      @Named("leftIndex") int leftIndex, @Named("rightIndex") int rightIndex);
+
+  public abstract void doCopy(@Named("inIndex") int inIndex, @Named("outIndex") int outIndex);
 }

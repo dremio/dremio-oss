@@ -15,10 +15,6 @@
  */
 package com.dremio.dac.service.collaboration;
 
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Optional;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.proto.model.collaboration.CollaborationWiki;
 import com.dremio.datastore.SearchQueryUtils;
@@ -34,33 +30,41 @@ import com.dremio.datastore.indexed.IndexKey;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Optional;
 
-/**
- * Collaboration Wiki store
- */
+/** Collaboration Wiki store */
 public class CollaborationWikiStore {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CollaborationWikiStore.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(CollaborationWikiStore.class);
 
-  public static final IndexKey ENTITY_ID = IndexKey.newBuilder("id", "ENTITY_ID", String.class)
-    .build();
-  public static final IndexKey CREATED_AT = IndexKey.newBuilder("createdAt", "CREATED_AT", Long.class)
-    .setSortedValueType(SearchTypes.SearchFieldSorting.FieldType.LONG)
-    .build();
+  public static final IndexKey ENTITY_ID =
+      IndexKey.newBuilder("id", "ENTITY_ID", String.class).build();
+  public static final IndexKey CREATED_AT =
+      IndexKey.newBuilder("createdAt", "CREATED_AT", Long.class)
+          .setSortedValueType(SearchTypes.SearchFieldSorting.FieldType.LONG)
+          .build();
 
   private static final long MAX_WIKI_LENGTH = 100_000;
 
-  private static final SearchTypes.SearchFieldSorting LATEST_WIKI = SearchTypes.SearchFieldSorting.newBuilder()
-    .setType(SearchTypes.SearchFieldSorting.FieldType.LONG)
-    .setField(CREATED_AT.getIndexFieldName())
-    .setOrder(SearchTypes.SortOrder.DESCENDING)
-    .build();
+  private static final SearchTypes.SearchFieldSorting LATEST_WIKI =
+      SearchTypes.SearchFieldSorting.newBuilder()
+          .setType(SearchTypes.SearchFieldSorting.FieldType.LONG)
+          .setField(CREATED_AT.getIndexFieldName())
+          .setOrder(SearchTypes.SortOrder.DESCENDING)
+          .build();
 
   private static final String WIKI_STORE = "collaboration_wiki";
   private final Supplier<LegacyIndexedStore<String, CollaborationWiki>> wikiStore;
 
   public CollaborationWikiStore(final LegacyKVStoreProvider storeProvider) {
     Preconditions.checkNotNull(storeProvider, "kvStore provider required");
-    wikiStore = Suppliers.memoize(() -> storeProvider.getStore(CollaborationWikiStore.CollaborationWikiStoreStoreCreator.class));
+    wikiStore =
+        Suppliers.memoize(
+            () ->
+                storeProvider.getStore(
+                    CollaborationWikiStore.CollaborationWikiStoreStoreCreator.class));
   }
 
   public void save(CollaborationWiki wiki) {
@@ -79,46 +83,47 @@ public class CollaborationWikiStore {
 
   private void validateWiki(CollaborationWiki wiki) {
     if (wiki.getEntityId() == null) {
-      throw UserException.validationError()
-        .message("Wiki entity id cannot be null.")
-        .build(logger);
+      throw UserException.validationError().message("Wiki entity id cannot be null.").build(logger);
     }
 
     String text = wiki.getText();
     if (text != null && text.length() > MAX_WIKI_LENGTH) {
       throw UserException.validationError()
-        .message("Wiki text can not contain more than 100K characters but found [%s].", text.length())
-        .build(logger);
+          .message(
+              "Wiki text can not contain more than 100K characters but found [%s].", text.length())
+          .build(logger);
     }
   }
 
   public Optional<CollaborationWiki> getLatestWikiForEntityId(String id) {
-    final LegacyIndexedStore.LegacyFindByCondition findByCondition = new LegacyIndexedStore.LegacyFindByCondition()
-      .addSorting(LATEST_WIKI)
-      .setOffset(0)
-      .setLimit(1)
-      .setCondition(SearchQueryUtils.newTermQuery(ENTITY_ID, id));
+    final LegacyIndexedStore.LegacyFindByCondition findByCondition =
+        new LegacyIndexedStore.LegacyFindByCondition()
+            .addSorting(LATEST_WIKI)
+            .setOffset(0)
+            .setLimit(1)
+            .setCondition(SearchQueryUtils.newTermQuery(ENTITY_ID, id));
     Iterable<Map.Entry<String, CollaborationWiki>> entries = wikiStore.get().find(findByCondition);
 
     Iterator<Map.Entry<String, CollaborationWiki>> iterator = entries.iterator();
     return iterator.hasNext() ? Optional.ofNullable(iterator.next().getValue()) : Optional.empty();
   }
 
-  /**
-   * store creator
-   */
-  public static final class CollaborationWikiStoreStoreCreator implements LegacyIndexedStoreCreationFunction<String, CollaborationWiki> {
+  /** store creator */
+  public static final class CollaborationWikiStoreStoreCreator
+      implements LegacyIndexedStoreCreationFunction<String, CollaborationWiki> {
     @Override
     public LegacyIndexedStore<String, CollaborationWiki> build(LegacyStoreBuildingFactory factory) {
-      return factory.<String, CollaborationWiki>newStore()
-        .name(WIKI_STORE)
-        .keyFormat(Format.ofString())
-        .valueFormat(Format.ofProtostuff(CollaborationWiki.class))
-        .buildIndexed(new CollaborationWikiStore.CollaborationWikiConverter());
+      return factory
+          .<String, CollaborationWiki>newStore()
+          .name(WIKI_STORE)
+          .keyFormat(Format.ofString())
+          .valueFormat(Format.ofProtostuff(CollaborationWiki.class))
+          .buildIndexed(new CollaborationWikiStore.CollaborationWikiConverter());
     }
   }
 
-  private static final class CollaborationWikiConverter implements DocumentConverter<String, CollaborationWiki> {
+  private static final class CollaborationWikiConverter
+      implements DocumentConverter<String, CollaborationWiki> {
     private Integer version = 0;
 
     @Override

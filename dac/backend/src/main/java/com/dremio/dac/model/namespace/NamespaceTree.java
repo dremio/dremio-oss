@@ -17,12 +17,6 @@ package com.dremio.dac.model.namespace;
 
 import static com.dremio.service.namespace.proto.NameSpaceContainer.Type.SOURCE;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-
 import com.dremio.dac.explore.model.Dataset;
 import com.dremio.dac.explore.model.DatasetName;
 import com.dremio.dac.explore.model.DatasetPath;
@@ -60,10 +54,13 @@ import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.proto.NameSpaceContainer.Type;
 import com.dremio.service.namespace.space.proto.FolderConfig;
 import com.google.common.base.Preconditions;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
-/**
- * Full/Partial representation of a namespace.
- */
+/** Full/Partial representation of a namespace. */
 public class NamespaceTree {
 
   private static DatasetVersionMutator datasetService;
@@ -90,27 +87,31 @@ public class NamespaceTree {
 
   // Spaces, home and sources are top level folders hence can never show in children.
   public static NamespaceTree newInstance(
-    final DatasetVersionMutator datasetService,
-    List<NameSpaceContainer> children,
-    Type rootEntityType,
-    CollaborationHelper collaborationService) throws NamespaceException, DatasetNotFoundException {
+      final DatasetVersionMutator datasetService,
+      List<NameSpaceContainer> children,
+      Type rootEntityType,
+      CollaborationHelper collaborationService)
+      throws NamespaceException, DatasetNotFoundException {
 
-    return newInstance(datasetService, children, rootEntityType, collaborationService, null, null, null);
+    return newInstance(
+        datasetService, children, rootEntityType, collaborationService, null, null, null);
   }
 
   public static NamespaceTree newInstance(
-    final DatasetVersionMutator datasetService,
-    List<NameSpaceContainer> children,
-    Type rootEntityType,
-    CollaborationHelper collaborationService,
-    Boolean fileSystemSource,
-    Boolean isImpersonationEnabled,
-    OptionManager optionManager) throws NamespaceException, DatasetNotFoundException {
+      final DatasetVersionMutator datasetService,
+      List<NameSpaceContainer> children,
+      Type rootEntityType,
+      CollaborationHelper collaborationService,
+      Boolean fileSystemSource,
+      Boolean isImpersonationEnabled,
+      OptionManager optionManager)
+      throws NamespaceException, DatasetNotFoundException {
     NamespaceTree result = new NamespaceTree();
     result.setIsFileSystemSource(fileSystemSource);
     result.setIsImpersonationEnabled(isImpersonationEnabled);
 
-    populateInstance(result, datasetService, children, rootEntityType, collaborationService, optionManager);
+    populateInstance(
+        result, datasetService, children, rootEntityType, collaborationService, optionManager);
 
     return result;
   }
@@ -120,106 +121,134 @@ public class NamespaceTree {
       DatasetVersionMutator datasetService,
       List<NameSpaceContainer> children,
       Type rootEntityType,
-      CollaborationHelper collaborationService, OptionManager optionManager)
+      CollaborationHelper collaborationService,
+      OptionManager optionManager)
       throws NamespaceException, DatasetNotFoundException {
 
     // get a list of all ids so we can fetch all collaboration tags in one search
     final Map<String, CollaborationTag> tags = new HashMap<>();
     if (collaborationService != null) {
-      TagsSearchResult tagsInfo = collaborationService.getTagsForIds(children.stream().
-        map(NamespaceUtils::getIdOrNull).collect(Collectors.toSet()));
+      TagsSearchResult tagsInfo =
+          collaborationService.getTagsForIds(
+              children.stream().map(NamespaceUtils::getIdOrNull).collect(Collectors.toSet()));
 
       tags.putAll(tagsInfo.getTags());
       tree.setCanTagsBeSkipped(tagsInfo.getCanTagsBeSkipped());
     }
 
-    for (final NameSpaceContainer container: children) {
+    for (final NameSpaceContainer container : children) {
       switch (container.getType()) {
-        case FOLDER: {
-          if (rootEntityType == SOURCE) {
-            tree.addFolder(new SourceFolderPath(container.getFullPathList()), container.getFolder(), null, rootEntityType, false, false);
-          } else {
-            tree.addFolder(new FolderPath(container.getFullPathList()), container.getFolder(), rootEntityType);
+        case FOLDER:
+          {
+            if (rootEntityType == SOURCE) {
+              tree.addFolder(
+                  new SourceFolderPath(container.getFullPathList()),
+                  container.getFolder(),
+                  null,
+                  rootEntityType,
+                  false,
+                  false);
+            } else {
+              tree.addFolder(
+                  new FolderPath(container.getFullPathList()),
+                  container.getFolder(),
+                  rootEntityType);
+            }
           }
-        }
-        break;
+          break;
 
-        case DATASET: {
-          final DatasetPath datasetPath = new DatasetPath(container.getFullPathList());
-          final DatasetConfig datasetConfig = container.getDataset();
-          switch (datasetConfig.getType()) {
-            case VIRTUAL_DATASET:
-              Preconditions.checkArgument(rootEntityType != SOURCE);
-              final VirtualDatasetUI vds = datasetService.get(datasetPath, datasetConfig.getVirtualDataset().getVersion());
-              tree.addDataset(
-                new DatasetResourcePath(datasetPath),
-                new DatasetVersionResourcePath(datasetPath, vds.getVersion()),
-                datasetPath.getDataset(),
-                vds.getSql(),
-                vds,
-                datasetService.getJobsCount(datasetPath.toNamespaceKey(), optionManager),
-                rootEntityType,
-                tags.get(datasetConfig.getId().getId())
-              );
-              break;
+        case DATASET:
+          {
+            final DatasetPath datasetPath = new DatasetPath(container.getFullPathList());
+            final DatasetConfig datasetConfig = container.getDataset();
+            switch (datasetConfig.getType()) {
+              case VIRTUAL_DATASET:
+                Preconditions.checkArgument(rootEntityType != SOURCE);
+                final VirtualDatasetUI vds =
+                    datasetService.get(datasetPath, datasetConfig.getVirtualDataset().getVersion());
+                tree.addDataset(
+                    new DatasetResourcePath(datasetPath),
+                    new DatasetVersionResourcePath(datasetPath, vds.getVersion()),
+                    datasetPath.getDataset(),
+                    vds.getSql(),
+                    vds,
+                    datasetService.getJobsCount(datasetPath.toNamespaceKey(), optionManager),
+                    rootEntityType,
+                    tags.get(datasetConfig.getId().getId()));
+                break;
 
-            case PHYSICAL_DATASET_HOME_FILE:
-              final String fileDSId = container.getDataset().getId().getId();
-              final FileFormat fileFormat = FileFormat.getForFile(DatasetsUtil.toFileConfig(container.getDataset()));
-              tree.addFile(
-                fileDSId,
-                new FilePath(container.getFullPathList()),
-                fileFormat,
-                datasetService.getJobsCount(datasetPath.toNamespaceKey(), optionManager), false, true,
-                fileFormat.getFileType() != FileType.UNKNOWN, datasetConfig.getType(),
-                tags.get(fileDSId)
-              );
-              break;
+              case PHYSICAL_DATASET_HOME_FILE:
+                final String fileDSId = container.getDataset().getId().getId();
+                final FileFormat fileFormat =
+                    FileFormat.getForFile(DatasetsUtil.toFileConfig(container.getDataset()));
+                tree.addFile(
+                    fileDSId,
+                    new FilePath(container.getFullPathList()),
+                    fileFormat,
+                    datasetService.getJobsCount(datasetPath.toNamespaceKey(), optionManager),
+                    false,
+                    true,
+                    fileFormat.getFileType() != FileType.UNKNOWN,
+                    datasetConfig.getType(),
+                    tags.get(fileDSId));
+                break;
 
-            case PHYSICAL_DATASET_SOURCE_FILE:
-              final String sourceFileDSId = container.getDataset().getId().getId();
-              final FileFormat sourceFileFormat = FileFormat.getForFile(DatasetsUtil.toFileConfig(container.getDataset()));
-              tree.addFile(
-                sourceFileDSId,
-                new SourceFilePath(container.getFullPathList()),
-                sourceFileFormat,
-                datasetService.getJobsCount(datasetPath.toNamespaceKey(), optionManager), false, false,
-                sourceFileFormat.getFileType() != FileType.UNKNOWN, datasetConfig.getType(),
-                tags.get(sourceFileDSId)
-              );
-              break;
+              case PHYSICAL_DATASET_SOURCE_FILE:
+                final String sourceFileDSId = container.getDataset().getId().getId();
+                final FileFormat sourceFileFormat =
+                    FileFormat.getForFile(DatasetsUtil.toFileConfig(container.getDataset()));
+                tree.addFile(
+                    sourceFileDSId,
+                    new SourceFilePath(container.getFullPathList()),
+                    sourceFileFormat,
+                    datasetService.getJobsCount(datasetPath.toNamespaceKey(), optionManager),
+                    false,
+                    false,
+                    sourceFileFormat.getFileType() != FileType.UNKNOWN,
+                    datasetConfig.getType(),
+                    tags.get(sourceFileDSId));
+                break;
 
-            case PHYSICAL_DATASET_SOURCE_FOLDER:
-              final FileFormat sourceFolderFormat = FileFormat.getForFile(DatasetsUtil.toFileConfig(container.getDataset()));
-              final FolderConfig folderConfig = new FolderConfig()
-                .setId(container.getDataset().getId())
-                .setFullPathList(container.getFullPathList())
-                .setName(container.getDataset().getName())
-                .setTag(container.getDataset().getTag());
+              case PHYSICAL_DATASET_SOURCE_FOLDER:
+                final FileFormat sourceFolderFormat =
+                    FileFormat.getForFile(DatasetsUtil.toFileConfig(container.getDataset()));
+                final FolderConfig folderConfig =
+                    new FolderConfig()
+                        .setId(container.getDataset().getId())
+                        .setFullPathList(container.getFullPathList())
+                        .setName(container.getDataset().getName())
+                        .setTag(container.getDataset().getTag());
 
-              tree.addFolder(new SourceFolderPath(container.getFullPathList()), folderConfig, sourceFolderFormat, rootEntityType,
-                sourceFolderFormat.getFileType() != FileType.UNKNOWN, true);
-              break;
+                tree.addFolder(
+                    new SourceFolderPath(container.getFullPathList()),
+                    folderConfig,
+                    sourceFolderFormat,
+                    rootEntityType,
+                    sourceFolderFormat.getFileType() != FileType.UNKNOWN,
+                    true);
+                break;
 
-            case PHYSICAL_DATASET:
-              final PhysicalDatasetPath path = new PhysicalDatasetPath(datasetConfig.getFullPathList());
-              tree.addPhysicalDataset(
-                new PhysicalDatasetResourcePath(path),
-                new PhysicalDatasetName(path.getFileName().getName()),
-                DatasetsUtil.toPhysicalDatasetConfig(container.getDataset()),
-                datasetService.getJobsCount(datasetPath.toNamespaceKey(), optionManager),
-                tags.get(container.getDataset().getId().getId())
-              );
-              break;
-            default:
-              throw new DACRuntimeException("Possible corruption found. Invalid types in namespace tree " + children);
+              case PHYSICAL_DATASET:
+                final PhysicalDatasetPath path =
+                    new PhysicalDatasetPath(datasetConfig.getFullPathList());
+                tree.addPhysicalDataset(
+                    new PhysicalDatasetResourcePath(path),
+                    new PhysicalDatasetName(path.getFileName().getName()),
+                    DatasetsUtil.toPhysicalDatasetConfig(container.getDataset()),
+                    datasetService.getJobsCount(datasetPath.toNamespaceKey(), optionManager),
+                    tags.get(container.getDataset().getId().getId()));
+                break;
+              default:
+                throw new DACRuntimeException(
+                    "Possible corruption found. Invalid types in namespace tree " + children);
+            }
           }
-        }
-        break;
+          break;
         case FUNCTION:
           break;
         default:
-          throw new DACRuntimeException("Possible corruption found. Invalid types in namespace tree " + container.getType());
+          throw new DACRuntimeException(
+              "Possible corruption found. Invalid types in namespace tree " + container.getType());
       }
     }
   }
@@ -228,15 +257,36 @@ public class NamespaceTree {
     folders.add(f);
   }
 
-  public void addFolder(SourceFolderPath folderPath, FolderConfig folderConfig, FileFormat fileFormat,
-                        NameSpaceContainer.Type rootEntityType, boolean isQueryable, boolean isPromoted) throws NamespaceNotFoundException {
-    Folder folder = Folder.newInstance(folderPath, folderConfig, fileFormat, null, isQueryable, isFileSystemSource != null && isFileSystemSource, 0);
+  public void addFolder(
+      SourceFolderPath folderPath,
+      FolderConfig folderConfig,
+      FileFormat fileFormat,
+      NameSpaceContainer.Type rootEntityType,
+      boolean isQueryable,
+      boolean isPromoted)
+      throws NamespaceNotFoundException {
+    Folder folder =
+        Folder.newInstance(
+            folderPath,
+            folderConfig,
+            fileFormat,
+            null,
+            isQueryable,
+            isFileSystemSource != null && isFileSystemSource,
+            0);
     addFolder(folder);
   }
 
-
-  public void addFolder(FolderPath folderPath, FolderConfig folderConfig, NameSpaceContainer.Type rootEntityType) throws NamespaceNotFoundException {
-    Folder folder = Folder.newInstance(folderPath, folderConfig, null, false, isFileSystemSource != null && isFileSystemSource);
+  public void addFolder(
+      FolderPath folderPath, FolderConfig folderConfig, NameSpaceContainer.Type rootEntityType)
+      throws NamespaceNotFoundException {
+    Folder folder =
+        Folder.newInstance(
+            folderPath,
+            folderConfig,
+            null,
+            false,
+            isFileSystemSource != null && isFileSystemSource);
     addFolder(folder);
   }
 
@@ -244,31 +294,53 @@ public class NamespaceTree {
     files.add(f);
   }
 
-  protected void addFile(String id, NamespacePath filePath, FileFormat fileFormat, Integer jobCount,
-      boolean isStaged, boolean isHomeFile, boolean isQueryable, DatasetType datasetType, CollaborationTag collaborationTag) throws NamespaceNotFoundException {
-    final File file = File.newInstance(
-        id,
-        filePath,
-        fileFormat,
-        jobCount,
-        isStaged, isHomeFile, isQueryable, getTags(collaborationTag)
-      );
-      addFile(file);
+  protected void addFile(
+      String id,
+      NamespacePath filePath,
+      FileFormat fileFormat,
+      Integer jobCount,
+      boolean isStaged,
+      boolean isHomeFile,
+      boolean isQueryable,
+      DatasetType datasetType,
+      CollaborationTag collaborationTag)
+      throws NamespaceNotFoundException {
+    final File file =
+        File.newInstance(
+            id,
+            filePath,
+            fileFormat,
+            jobCount,
+            isStaged,
+            isHomeFile,
+            isQueryable,
+            getTags(collaborationTag));
+    addFile(file);
   }
 
   public void addDataset(final Dataset ds) {
     datasets.add(ds);
   }
 
-  protected void addDataset(DatasetResourcePath resourcePath,
+  protected void addDataset(
+      DatasetResourcePath resourcePath,
       DatasetVersionResourcePath versionedResourcePath,
       DatasetName datasetName,
       String sql,
       VirtualDatasetUI datasetConfig,
-      int jobCount, NameSpaceContainer.Type rootEntityType,
-      CollaborationTag collaborationTag
-  ) throws NamespaceNotFoundException {
-    Dataset dataset = Dataset.newInstance(resourcePath, versionedResourcePath, datasetName, sql, datasetConfig, jobCount, getTags(collaborationTag));
+      int jobCount,
+      NameSpaceContainer.Type rootEntityType,
+      CollaborationTag collaborationTag)
+      throws NamespaceNotFoundException {
+    Dataset dataset =
+        Dataset.newInstance(
+            resourcePath,
+            versionedResourcePath,
+            datasetName,
+            sql,
+            datasetConfig,
+            jobCount,
+            getTags(collaborationTag));
 
     addDataset(dataset);
   }
@@ -286,9 +358,12 @@ public class NamespaceTree {
       PhysicalDatasetName datasetName,
       PhysicalDatasetConfig datasetConfig,
       Integer jobCount,
-      CollaborationTag collaborationTag) throws NamespaceNotFoundException {
+      CollaborationTag collaborationTag)
+      throws NamespaceNotFoundException {
 
-    PhysicalDataset physicalDataset = new PhysicalDataset(resourcePath, datasetName, datasetConfig, jobCount, getTags(collaborationTag));
+    PhysicalDataset physicalDataset =
+        new PhysicalDataset(
+            resourcePath, datasetName, datasetConfig, jobCount, getTags(collaborationTag));
 
     addPhysicalDataset(physicalDataset);
   }
@@ -334,6 +409,9 @@ public class NamespaceTree {
   }
 
   public long totalCount() {
-    return getFolders().size() + getDatasets().size() + getFiles().size() + getPhysicalDatasets().size();
+    return getFolders().size()
+        + getDatasets().size()
+        + getFiles().size()
+        + getPhysicalDatasets().size();
   }
 }

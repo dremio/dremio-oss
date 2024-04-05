@@ -18,9 +18,7 @@ package com.dremio.dac.service.errors;
 import com.dremio.dac.model.spaces.HomeName;
 import com.dremio.dac.model.spaces.HomeResourcePath;
 
-/**
- * Thrown when a home is not found for a given path.
- */
+/** Thrown when a home is not found for a given path. */
 public class HomeNotFoundException extends NotFoundException {
   private static final long serialVersionUID = 1L;
 

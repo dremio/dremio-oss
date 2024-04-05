@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.store.sys.udf;
 
-import org.junit.Test;
-
 import com.dremio.common.expression.CompleteType;
 import com.dremio.datastore.ProtostuffSerializer;
 import com.dremio.service.namespace.function.proto.FunctionArg;
@@ -26,93 +24,111 @@ import com.dremio.service.namespace.function.proto.FunctionDefinition;
 import com.dremio.service.namespace.function.proto.ReturnType;
 import com.dremio.test.GoldenFileTestBuilder;
 import com.google.common.collect.ImmutableList;
-
 import io.protostuff.ByteString;
+import org.junit.Test;
 
 public class UserDefinedFunctionSerdeTest {
 
   @Test
   public void testToProto() {
     GoldenFileTestBuilder.create(UserDefinedFunctionSerde::toProto)
-      .add("No args",
-        new UserDefinedFunction(
-          "foo",
-          "SELECT 1",
-          CompleteType.INT,
-          ImmutableList.of(),
-          ImmutableList.of("dir", "space"),
-          null,
-          null,
-          null))
-      .add("1 arg",
-        new UserDefinedFunction(
-          "foo",
-          "SELECT 1",
-          CompleteType.INT,
-          ImmutableList.of(
-            new UserDefinedFunction.FunctionArg("bar", CompleteType.VARCHAR, null)),
-          null,
-          null,
-          null,
-          null))
-      .runTests();
+        .add(
+            "No args",
+            new UserDefinedFunction(
+                "foo",
+                "SELECT 1",
+                CompleteType.INT,
+                ImmutableList.of(),
+                ImmutableList.of("dir", "space"),
+                null,
+                null,
+                null))
+        .add(
+            "1 arg",
+            new UserDefinedFunction(
+                "foo",
+                "SELECT 1",
+                CompleteType.INT,
+                ImmutableList.of(
+                    new UserDefinedFunction.FunctionArg("bar", CompleteType.VARCHAR, null)),
+                null,
+                null,
+                null,
+                null))
+        .runTests();
   }
 
   @Test
-  public void testFromProto () {
+  public void testFromProto() {
     GoldenFileTestBuilder.create(UserDefinedFunctionSerde::fromProto)
-      .add("No Args",
-        new FunctionConfig()
-          .setName("foo")
-          .setReturnType(new ReturnType().setRawDataType(ByteString.copyFrom(CompleteType.INT.serialize())))
-          .setFunctionDefinitionsList(ImmutableList.of(
-            new FunctionDefinition()
-              .setFunctionArgList(ImmutableList.of())
-              .setFunctionBody(new FunctionBody().setRawBody("SELECT 1"))
-          ))
-          .setFullPathList(ImmutableList.of("dir", "space"))
-      )
-      .add("1 arg",
-        new FunctionConfig()
-          .setFunctionDefinitionsList(ImmutableList.of(
-            new FunctionDefinition()
-              .setFunctionArgList(ImmutableList.of(
-                new FunctionArg()
-                  .setName("bar")
-                  .setRawDataType(ByteString.copyFrom(CompleteType.VARCHAR.serialize()))
-              ))
-              .setFunctionBody(new FunctionBody().setRawBody("SELECT 1")))
-          )
-          .setFullPathList(null)
-          .setName("foo")
-          .setReturnType(new ReturnType().setRawDataType(ByteString.copyFrom(CompleteType.INT.serialize()))))
-      .runTests();
+        .add(
+            "No Args",
+            new FunctionConfig()
+                .setName("foo")
+                .setReturnType(
+                    new ReturnType()
+                        .setRawDataType(ByteString.copyFrom(CompleteType.INT.serialize())))
+                .setFunctionDefinitionsList(
+                    ImmutableList.of(
+                        new FunctionDefinition()
+                            .setFunctionArgList(ImmutableList.of())
+                            .setFunctionBody(new FunctionBody().setRawBody("SELECT 1"))))
+                .setFullPathList(ImmutableList.of("dir", "space")))
+        .add(
+            "1 arg",
+            new FunctionConfig()
+                .setFunctionDefinitionsList(
+                    ImmutableList.of(
+                        new FunctionDefinition()
+                            .setFunctionArgList(
+                                ImmutableList.of(
+                                    new FunctionArg()
+                                        .setName("bar")
+                                        .setRawDataType(
+                                            ByteString.copyFrom(CompleteType.VARCHAR.serialize()))))
+                            .setFunctionBody(new FunctionBody().setRawBody("SELECT 1"))))
+                .setFullPathList(null)
+                .setName("foo")
+                .setReturnType(
+                    new ReturnType()
+                        .setRawDataType(ByteString.copyFrom(CompleteType.INT.serialize()))))
+        .runTests();
   }
 
   @Test
-  public void testRoundTrip () {
+  public void testRoundTrip() {
     ProtostuffSerializer<FunctionConfig> protostuffSerializer =
-      new ProtostuffSerializer<>(FunctionConfig.getSchema());
-    GoldenFileTestBuilder.create((UserDefinedFunction fc) -> {
-      FunctionConfig proto1 = UserDefinedFunctionSerde.toProto(fc);
-      byte[] bytes = protostuffSerializer.convert(proto1);
-      FunctionConfig proto2 = protostuffSerializer.revert(bytes);
-      return UserDefinedFunctionSerde.fromProto(proto2);
-    })
-      .add("No Args",
-        new UserDefinedFunction(
-          "foo",
-          "SELECT 1",
-          CompleteType.INT,
-          ImmutableList.of(), ImmutableList.of("dir", "space"), null, null, null))
-      .add("1 arg",
-        new UserDefinedFunction(
-          "foo",
-          "SELECT 1",
-          CompleteType.INT,
-          ImmutableList.of(
-            new UserDefinedFunction.FunctionArg("bar", CompleteType.VARCHAR, null)
-          ), null, null, null, null))
-      .runTests();
+        new ProtostuffSerializer<>(FunctionConfig.getSchema());
+    GoldenFileTestBuilder.create(
+            (UserDefinedFunction fc) -> {
+              FunctionConfig proto1 = UserDefinedFunctionSerde.toProto(fc);
+              byte[] bytes = protostuffSerializer.convert(proto1);
+              FunctionConfig proto2 = protostuffSerializer.revert(bytes);
+              return UserDefinedFunctionSerde.fromProto(proto2);
+            })
+        .add(
+            "No Args",
+            new UserDefinedFunction(
+                "foo",
+                "SELECT 1",
+                CompleteType.INT,
+                ImmutableList.of(),
+                ImmutableList.of("dir", "space"),
+                null,
+                null,
+                null))
+        .add(
+            "1 arg",
+            new UserDefinedFunction(
+                "foo",
+                "SELECT 1",
+                CompleteType.INT,
+                ImmutableList.of(
+                    new UserDefinedFunction.FunctionArg("bar", CompleteType.VARCHAR, null)),
+                null,
+                null,
+                null,
+                null))
+        .runTests();
   }
 }

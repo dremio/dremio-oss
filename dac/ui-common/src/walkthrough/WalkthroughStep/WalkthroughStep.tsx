@@ -51,8 +51,8 @@ const sides = {
 } as const;
 
 const getPlacementProperty = (
-  placement: Placement
-): typeof sides[keyof typeof sides] => {
+  placement: Placement,
+): (typeof sides)[keyof typeof sides] => {
   return (sides as any)[placement.split("-")[0] as any];
 };
 

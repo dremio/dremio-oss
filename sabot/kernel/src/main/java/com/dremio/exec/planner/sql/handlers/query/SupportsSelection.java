@@ -17,9 +17,7 @@ package com.dremio.exec.planner.sql.handlers.query;
 
 import org.apache.calcite.sql.SqlSelect;
 
-/**
- * Indicates that the SqlNode contains a selection clause.
- */
+/** Indicates that the SqlNode contains a selection clause. */
 public interface SupportsSelection {
 
   SqlSelect getSourceSelect();

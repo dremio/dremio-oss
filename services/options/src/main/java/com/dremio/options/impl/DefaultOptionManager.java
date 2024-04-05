@@ -15,24 +15,22 @@
  */
 package com.dremio.options.impl;
 
-import java.util.Iterator;
-
 import com.dremio.options.OptionList;
 import com.dremio.options.OptionValidator;
 import com.dremio.options.OptionValidatorListing;
 import com.dremio.options.OptionValue;
+import java.util.Iterator;
 
-/**
- * Option manager for static defaults.
- */
+/** Option manager for static defaults. */
 public class DefaultOptionManager extends BaseOptionManager {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DefaultOptionManager.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(DefaultOptionManager.class);
 
   private final OptionValidatorListing optionValidatorListing;
 
   public DefaultOptionManager(OptionValidatorListing optionValidatorListing) {
-      super(optionValidatorListing);
-      this.optionValidatorListing = optionValidatorListing;
+    super(optionValidatorListing);
+    this.optionValidatorListing = optionValidatorListing;
   }
 
   @Override
@@ -64,9 +62,9 @@ public class DefaultOptionManager extends BaseOptionManager {
   @Override
   public OptionList getDefaultOptions() {
     OptionList result = new OptionList();
-    optionValidatorListing.iterator().forEachRemaining(
-      validator -> result.add(validator.getDefault())
-    );
+    optionValidatorListing
+        .iterator()
+        .forEachRemaining(validator -> result.add(validator.getDefault()));
     return result;
   }
 

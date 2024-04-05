@@ -18,31 +18,24 @@ package com.dremio.connector.metadata;
 import java.nio.ByteBuffer;
 
 /**
- * Interface for a connector to provide a value for a partition column. The caller is responsible for determining the
- * type of the column, and casting to the relevant sub-type, and then getting the value.
- * <p>
- * No type conversion is expected in implementations of this interface.
+ * Interface for a connector to provide a value for a partition column. The caller is responsible
+ * for determining the type of the column, and casting to the relevant sub-type, and then getting
+ * the value.
+ *
+ * <p>No type conversion is expected in implementations of this interface.
  */
 public interface PartitionValue {
 
-  /**
-   * Enum describing types of partition values.
-   */
+  /** Enum describing types of partition values. */
   enum PartitionValueType {
 
-    /**
-     * ...
-     */
+    /** ... */
     VISIBLE,
 
-    /**
-     * ...
-     */
+    /** ... */
     IMPLICIT,
 
-    /**
-     * ...
-     */
+    /** ... */
     INVISIBLE
   }
 
@@ -71,9 +64,7 @@ public interface PartitionValue {
     return true;
   }
 
-  /**
-   * Boolean partition column value.
-   */
+  /** Boolean partition column value. */
   interface BooleanPartitionValue extends PartitionValue {
 
     /**
@@ -82,12 +73,9 @@ public interface PartitionValue {
      * @return value
      */
     boolean getValue();
-
   }
 
-  /**
-   * Int partition column value.
-   */
+  /** Int partition column value. */
   interface IntPartitionValue extends PartitionValue {
 
     /**
@@ -96,12 +84,9 @@ public interface PartitionValue {
      * @return value
      */
     int getValue();
-
   }
 
-  /**
-   * Long partition column value.
-   */
+  /** Long partition column value. */
   interface LongPartitionValue extends PartitionValue {
 
     /**
@@ -110,12 +95,9 @@ public interface PartitionValue {
      * @return value
      */
     long getValue();
-
   }
 
-  /**
-   * Float partition column value.
-   */
+  /** Float partition column value. */
   interface FloatPartitionValue extends PartitionValue {
 
     /**
@@ -124,12 +106,9 @@ public interface PartitionValue {
      * @return value
      */
     float getValue();
-
   }
 
-  /**
-   * Double partition column value.
-   */
+  /** Double partition column value. */
   interface DoublePartitionValue extends PartitionValue {
 
     /**
@@ -138,12 +117,9 @@ public interface PartitionValue {
      * @return value
      */
     double getValue();
-
   }
 
-  /**
-   * Binary partition column value.
-   */
+  /** Binary partition column value. */
   interface BinaryPartitionValue extends PartitionValue {
 
     /**
@@ -152,12 +128,9 @@ public interface PartitionValue {
      * @return value
      */
     ByteBuffer getValue();
-
   }
 
-  /**
-   * String partition column value.
-   */
+  /** String partition column value. */
   interface StringPartitionValue extends PartitionValue {
 
     /**
@@ -166,7 +139,6 @@ public interface PartitionValue {
      * @return value
      */
     String getValue();
-
   }
 
   /**
@@ -193,7 +165,7 @@ public interface PartitionValue {
   /**
    * Create string {@code PartitionValue} with name and type.
    *
-   * @param name  partition column name
+   * @param name partition column name
    * @param value partition column value
    * @return partition value
    */
@@ -204,9 +176,9 @@ public interface PartitionValue {
   /**
    * Create string {@code PartitionValue} with name and type.
    *
-   * @param name  partition column name
+   * @param name partition column name
    * @param value partition column value
-   * @param type  partition value type
+   * @param type partition value type
    * @return partition value
    */
   static PartitionValue of(String name, String value, PartitionValueType type) {
@@ -216,7 +188,7 @@ public interface PartitionValue {
   /**
    * Create int {@code PartitionValue} with name and type.
    *
-   * @param name  partition column name
+   * @param name partition column name
    * @param value partition column value
    * @return partition value
    */
@@ -227,9 +199,9 @@ public interface PartitionValue {
   /**
    * Create int {@code PartitionValue} with name and type.
    *
-   * @param name  partition column name
+   * @param name partition column name
    * @param value partition column value
-   * @param type  partition value type
+   * @param type partition value type
    * @return partition value
    */
   static PartitionValue of(String name, int value, PartitionValueType type) {
@@ -239,7 +211,7 @@ public interface PartitionValue {
   /**
    * Create double {@code PartitionValue} with name and type.
    *
-   * @param name  partition column name
+   * @param name partition column name
    * @param value partition column value
    * @return partition value
    */
@@ -250,9 +222,9 @@ public interface PartitionValue {
   /**
    * Create double {@code PartitionValue} with name and type.
    *
-   * @param name  partition column name
+   * @param name partition column name
    * @param value partition column value
-   * @param type  partition value type
+   * @param type partition value type
    * @return partition value
    */
   static PartitionValue of(String name, double value, PartitionValueType type) {
@@ -262,7 +234,7 @@ public interface PartitionValue {
   /**
    * Create long {@code PartitionValue} with name and type.
    *
-   * @param name  partition column name
+   * @param name partition column name
    * @param value partition column value
    * @return partition value
    */
@@ -273,9 +245,9 @@ public interface PartitionValue {
   /**
    * Create long {@code PartitionValue} with name and type.
    *
-   * @param name  partition column name
+   * @param name partition column name
    * @param value partition column value
-   * @param type  partition value type
+   * @param type partition value type
    * @return partition value
    */
   static PartitionValue of(String name, long value, PartitionValueType type) {
@@ -285,7 +257,7 @@ public interface PartitionValue {
   /**
    * Create float {@code PartitionValue} with name and type.
    *
-   * @param name  partition column name
+   * @param name partition column name
    * @param value partition column value
    * @return partition value
    */
@@ -296,9 +268,9 @@ public interface PartitionValue {
   /**
    * Create float {@code PartitionValue} with name and type.
    *
-   * @param name  partition column name
+   * @param name partition column name
    * @param value partition column value
-   * @param type  partition value type
+   * @param type partition value type
    * @return partition value
    */
   static PartitionValue of(String name, float value, PartitionValueType type) {
@@ -308,7 +280,7 @@ public interface PartitionValue {
   /**
    * Create boolean {@code PartitionValue} with name and type.
    *
-   * @param name  partition column name
+   * @param name partition column name
    * @param value partition column value
    * @return partition value
    */
@@ -319,9 +291,9 @@ public interface PartitionValue {
   /**
    * Create boolean {@code PartitionValue} with name and type.
    *
-   * @param name  partition column name
+   * @param name partition column name
    * @param value partition column value
-   * @param type  partition value type
+   * @param type partition value type
    * @return partition value
    */
   static PartitionValue of(String name, boolean value, PartitionValueType type) {
@@ -331,7 +303,7 @@ public interface PartitionValue {
   /**
    * Create binary {@code PartitionValue} with name and type.
    *
-   * @param name  partition column name
+   * @param name partition column name
    * @param value partition column value
    * @return partition value
    */
@@ -342,9 +314,9 @@ public interface PartitionValue {
   /**
    * Create binary {@code PartitionValue} with name and type.
    *
-   * @param name  partition column name
+   * @param name partition column name
    * @param value partition column value
-   * @param type  partition value type
+   * @param type partition value type
    * @return partition value
    */
   static PartitionValue of(String name, ByteBuffer value, PartitionValueType type) {

@@ -39,7 +39,7 @@ export const Skeleton = forwardRef<HTMLDivElement, SkeletonProps>(
           className={clsx(
             "dremio-skeleton",
             `dremio-skeleton--${type}`,
-            className
+            className,
           )}
           style={{
             inlineSize: width,
@@ -49,5 +49,5 @@ export const Skeleton = forwardRef<HTMLDivElement, SkeletonProps>(
         />
       </span>
     );
-  }
+  },
 );

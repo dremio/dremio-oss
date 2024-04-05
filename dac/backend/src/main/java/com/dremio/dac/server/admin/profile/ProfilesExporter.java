@@ -15,16 +15,6 @@
  */
 package com.dremio.dac.server.admin.profile;
 
-import java.io.BufferedOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.util.Map;
-import java.util.Optional;
-
-import javax.ws.rs.NotSupportedException;
-
-import org.apache.hadoop.conf.Configuration;
-
 import com.dremio.common.utils.ProtobufUtils;
 import com.dremio.common.utils.protos.AttemptId;
 import com.dremio.common.utils.protos.AttemptIdUtils;
@@ -54,14 +44,19 @@ import com.dremio.service.jobs.JobsStoreCreator;
 import com.dremio.service.jobtelemetry.server.store.LocalProfileStore;
 import com.dremio.services.configuration.ConfigurationStore;
 import com.dremio.services.configuration.proto.ConfigurationEntry;
-
 import io.protostuff.ProtostuffIOUtil;
+import java.io.BufferedOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.util.Map;
+import java.util.Optional;
+import javax.ws.rs.NotSupportedException;
+import org.apache.hadoop.conf.Configuration;
 
-/**
- * Export profiles utils
- */
+/** Export profiles utils */
 public final class ProfilesExporter {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ProfilesExporter.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ProfilesExporter.class);
 
   private String outputFilePath;
   private final WriteFileMode writeMode;
@@ -72,7 +67,7 @@ public final class ProfilesExporter {
 
   public ProfilesExporter(ExportProfilesParams exportParams) {
     String path = exportParams.getOutputFilePath();
-    if(path.charAt(path.length()-1) != '/'){ // in case '/' is missing at the end
+    if (path.charAt(path.length() - 1) != '/') { // in case '/' is missing at the end
       path = path + '/';
     }
     this.outputFilePath = path;
@@ -93,19 +88,21 @@ public final class ProfilesExporter {
   }
 
   private LegacyIndexedStore.LegacyFindByCondition getJobsFilter(Long fromDate, Long toDate) {
-    LegacyIndexedStore.LegacyFindByCondition jobsFilter = new LegacyIndexedStore.LegacyFindByCondition();
+    LegacyIndexedStore.LegacyFindByCondition jobsFilter =
+        new LegacyIndexedStore.LegacyFindByCondition();
 
     // date condition
-    SearchQuery dateQuery = SearchQueryUtils.newRangeLong(JobIndexKeys.END_TIME.getIndexFieldName(),
-      fromDate, toDate, true, false);
+    SearchQuery dateQuery =
+        SearchQueryUtils.newRangeLong(
+            JobIndexKeys.END_TIME.getIndexFieldName(), fromDate, toDate, true, false);
 
     // job state condition
     String jobStatusKey = JobIndexKeys.JOB_STATE.getIndexFieldName();
-    SearchQuery jobStateQuery = SearchQueryUtils.or(
-      SearchQueryUtils.newTermQuery(jobStatusKey, JobState.FAILED.toString()),
-      SearchQueryUtils.newTermQuery(jobStatusKey, JobState.CANCELED.toString()),
-      SearchQueryUtils.newTermQuery(jobStatusKey, JobState.COMPLETED.toString())
-    );
+    SearchQuery jobStateQuery =
+        SearchQueryUtils.or(
+            SearchQueryUtils.newTermQuery(jobStatusKey, JobState.FAILED.toString()),
+            SearchQueryUtils.newTermQuery(jobStatusKey, JobState.CANCELED.toString()),
+            SearchQueryUtils.newTermQuery(jobStatusKey, JobState.COMPLETED.toString()));
 
     jobsFilter.setCondition(SearchQueryUtils.and(dateQuery, jobStateQuery)).setPageSize(100);
 
@@ -114,13 +111,13 @@ public final class ProfilesExporter {
 
   /**
    * Checks if files should be skipped
+   *
    * @param fs file system abstraction
    * @param fileName file name to check
    * @return returns true if file already exists and export options are set to skip such files.
    * @throws IOException
    */
-  private boolean skipFile(FileSystem fs, Path fileName)
-    throws IOException {
+  private boolean skipFile(FileSystem fs, Path fileName) throws IOException {
     if (fs.exists(fileName)) {
       switch (writeMode) {
         case FAIL_IF_EXISTS:
@@ -137,8 +134,7 @@ public final class ProfilesExporter {
     return false;
   }
 
-  public final ExportProfilesStats export(LegacyKVStoreProvider provider)
-    throws Exception {
+  public final ExportProfilesStats export(LegacyKVStoreProvider provider) throws Exception {
 
     Path fakeFileName = getProfileFileNameWithPath("fake_id");
     Configuration conf = new Configuration();
@@ -147,8 +143,9 @@ public final class ProfilesExporter {
 
     BackupRestoreUtil.checkOrCreateDirectory(fs, fakeFileName.getParent());
 
-    //Append ClusterId to outputPath
-    Optional<ClusterIdentity> clusterIdentity = getClusterIdentity(new ConfigurationStore(provider),provider);
+    // Append ClusterId to outputPath
+    Optional<ClusterIdentity> clusterIdentity =
+        getClusterIdentity(new ConfigurationStore(provider), provider);
     if (!clusterIdentity.isPresent()) {
       throw new Exception("Cluster ID doesn't exist");
     }
@@ -161,10 +158,11 @@ public final class ProfilesExporter {
   }
 
   private ExportProfilesStats exportJSON(FileSystem fs, LegacyKVStoreProvider provider)
-    throws IOException {
+      throws IOException {
     final LegacyKVStore<AttemptId, UserBitShared.QueryProfile> profilesStore =
-      provider.getStore(LocalProfileStore.KVProfileStoreCreator.class);
-    final LegacyIndexedStore<JobId, JobResult> jobsStore = provider.getStore(JobsStoreCreator.class);
+        provider.getStore(LocalProfileStore.KVProfileStoreCreator.class);
+    final LegacyIndexedStore<JobId, JobResult> jobsStore =
+        provider.getStore(JobsStoreCreator.class);
 
     LegacyIndexedStore.LegacyFindByCondition jobsFilter = getJobsFilter(fromDate, toDate);
 
@@ -174,13 +172,14 @@ public final class ProfilesExporter {
     long skippedProfilesCount = 0;
 
     logger.debug("Profiles export is started");
-    for(Map.Entry<JobId, JobResult> jobEntry: jobsStore.find(jobsFilter)) {
+    for (Map.Entry<JobId, JobResult> jobEntry : jobsStore.find(jobsFilter)) {
       for (JobAttempt attempt : jobEntry.getValue().getAttemptsList()) {
         if (attempt.getAttemptId() == null) {
           logger.debug("failed to get an id for attempt: {}", attempt);
           continue;
         }
-        UserBitShared.QueryProfile profile = profilesStore.get(AttemptIdUtils.fromString(attempt.getAttemptId()));
+        UserBitShared.QueryProfile profile =
+            profilesStore.get(AttemptIdUtils.fromString(attempt.getAttemptId()));
         if (profile == null) {
           logger.debug("Profile for attempt id: '{}' was not found", attempt.getAttemptId());
           continue;
@@ -192,12 +191,10 @@ public final class ProfilesExporter {
         if (skipFile(fs, fileName)) {
           logger.debug("'{}' attempt is skipped as file already exists", attempt.getAttemptId());
           skippedProfilesCount++;
-          //do not use continue here to log totalCount in the end of the loop
+          // do not use continue here to log totalCount in the end of the loop
         } else {
-          try (
-            final OutputStream fsout = fs.create(fileName, true);
-            final BufferedOutputStream bufferedOut = new BufferedOutputStream(fsout);
-          ) {
+          try (final OutputStream fsout = fs.create(fileName, true);
+              final BufferedOutputStream bufferedOut = new BufferedOutputStream(fsout); ) {
             ProtobufUtils.writeAsJSONTo(fsout, profile);
           }
         }
@@ -209,14 +206,16 @@ public final class ProfilesExporter {
     }
     logger.debug("Export is completed. {} profiles are processed.", profilesCount);
 
-    return new ExportProfilesStats(totalJobsCount, profilesCount, skippedProfilesCount, outputFilePath);
+    return new ExportProfilesStats(
+        totalJobsCount, profilesCount, skippedProfilesCount, outputFilePath);
   }
 
   private ExportProfilesStats exportChunk(FileSystem fs, LegacyKVStoreProvider provider)
-    throws IOException {
+      throws IOException {
     final LegacyKVStore<AttemptId, UserBitShared.QueryProfile> profilesStore =
-      provider.getStore(LocalProfileStore.KVProfileStoreCreator.class);
-    final LegacyIndexedStore<JobId, JobResult> jobsStore = provider.getStore(JobsStoreCreator.class);
+        provider.getStore(LocalProfileStore.KVProfileStoreCreator.class);
+    final LegacyIndexedStore<JobId, JobResult> jobsStore =
+        provider.getStore(JobsStoreCreator.class);
 
     LegacyIndexedStore.LegacyFindByCondition jobsFilter = getJobsFilter(fromDate, toDate);
 
@@ -229,19 +228,22 @@ public final class ProfilesExporter {
     ZipUtil chunkWriter = new ZipUtil(capacity, fs, outputFilePath);
 
     logger.debug("Profiles export is started");
-    for(Map.Entry<JobId, JobResult> jobEntry: jobsStore.find(jobsFilter)) {
+    for (Map.Entry<JobId, JobResult> jobEntry : jobsStore.find(jobsFilter)) {
       for (JobAttempt attempt : jobEntry.getValue().getAttemptsList()) {
         if (attempt.getAttemptId() == null) {
           logger.debug("failed to get an id for attempt: {}", attempt);
           continue;
         }
-        UserBitShared.QueryProfile profile = profilesStore.get(AttemptIdUtils.fromString(attempt.getAttemptId()));
+        UserBitShared.QueryProfile profile =
+            profilesStore.get(AttemptIdUtils.fromString(attempt.getAttemptId()));
         if (profile == null) {
           logger.debug("Profile for attempt id: '{}' was not found", attempt.getAttemptId());
           continue;
         }
 
-        chunkWriter.writeFile(String.format("profile_%s.JSON",attempt.getAttemptId()), ProtobufUtils.toJSONByteArray(profile));
+        chunkWriter.writeFile(
+            String.format("profile_%s.JSON", attempt.getAttemptId()),
+            ProtobufUtils.toJSONByteArray(profile));
         profilesCount++;
 
         if (profilesCount % 1000 == 0) {
@@ -254,14 +256,17 @@ public final class ProfilesExporter {
 
     logger.debug("Export is completed. {} profiles are processed.", profilesCount);
 
-    return new ExportProfilesStats(totalJobsCount, profilesCount, skippedProfilesCount, outputFilePath);
+    return new ExportProfilesStats(
+        totalJobsCount, profilesCount, skippedProfilesCount, outputFilePath);
   }
 
-  private Optional<ClusterIdentity> getClusterIdentity(ConfigurationStore store, LegacyKVStoreProvider provider) {
+  private Optional<ClusterIdentity> getClusterIdentity(
+      ConfigurationStore store, LegacyKVStoreProvider provider) {
     final ConfigurationEntry entry = store.get(SupportService.CLUSTER_ID);
     try {
       ClusterIdentity identity = ClusterIdentity.getSchema().newMessage();
-      ProtostuffIOUtil.mergeFrom(entry.getValue().toByteArray(), identity, ClusterIdentity.getSchema());
+      ProtostuffIOUtil.mergeFrom(
+          entry.getValue().toByteArray(), identity, ClusterIdentity.getSchema());
       return Optional.ofNullable(identity);
     } catch (Exception e) {
       logger.info("failed to get cluster identity", e);

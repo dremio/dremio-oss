@@ -17,6 +17,7 @@ import { shallow } from "enzyme";
 import Immutable from "immutable";
 import { TEXT, MAP, LIST } from "@app/constants/DataTypes";
 import TransformView from "pages/ExplorePage/components/Transform/TransformView";
+import * as transformUtils from "./utils";
 
 import { Transform } from "./Transform";
 
@@ -34,8 +35,6 @@ describe("Transform", () => {
     };
     minimalProps = {
       transform: Immutable.Map({ columnType: "TEXT" }),
-      viewState: Immutable.Map(),
-      cards: Immutable.List(),
       cardsViewState: Immutable.Map(),
       submit: sinon.spy(),
       loadTransformCards: sinon.spy(),
@@ -62,13 +61,16 @@ describe("Transform", () => {
     let action;
     beforeEach(() => {
       sinon
-        .stub(instance, "loadTransformCards")
+        .stub(transformUtils, "loadTransformCardsWrapper")
         .callsFake(() => Promise.resolve(action));
     });
-    it("should loadTransformCards and resetViewState", () => {
+    afterEach(() => {
+      transformUtils.loadTransformCardsWrapper.restore();
+    });
+    it("should loadTransformCardsWrapper and resetViewState", () => {
       instance.componentDidMount();
       expect(minimalProps.resetViewState).to.be.calledOnce;
-      expect(instance.loadTransformCards).to.be.calledOnce;
+      expect(transformUtils.loadTransformCardsWrapper).to.be.calledOnce;
     });
     it("should call router.replace if method is Values and all availableValues are unique", () => {
       action = { payload: { values: { availableValues: [{ count: 1 }] } } };
@@ -81,8 +83,8 @@ describe("Transform", () => {
       };
       wrapper.setProps(props);
       instance.componentDidMount();
-      expect(instance.loadTransformCards).to.be.called;
-      return instance.loadTransformCards().then(() => {
+      expect(transformUtils.loadTransformCardsWrapper).to.be.called;
+      return transformUtils.loadTransformCardsWrapper().then(() => {
         expect(context.router.replace).to.be.calledOnce;
         expect(context.router.replace).to.calledWith({
           ...minimalProps.location,
@@ -105,8 +107,8 @@ describe("Transform", () => {
       };
       wrapper.setProps(props);
       instance.componentDidMount();
-      expect(instance.loadTransformCards).to.be.called;
-      return instance.loadTransformCards().then(() => {
+      expect(transformUtils.loadTransformCardsWrapper).to.be.called;
+      return transformUtils.loadTransformCardsWrapper().then(() => {
         expect(context.router.replace).to.not.been.called;
         return null;
       });
@@ -122,8 +124,8 @@ describe("Transform", () => {
       };
       wrapper.setProps(props);
       instance.componentDidMount();
-      expect(instance.loadTransformCards).to.be.called;
-      return instance.loadTransformCards().then(() => {
+      expect(transformUtils.loadTransformCardsWrapper).to.be.called;
+      return transformUtils.loadTransformCardsWrapper().then(() => {
         expect(context.router.replace).to.be.calledOnce;
         expect(context.router.replace).to.calledWith({
           ...minimalProps.location,
@@ -146,8 +148,8 @@ describe("Transform", () => {
       };
       wrapper.setProps(props);
       instance.componentDidMount();
-      expect(instance.loadTransformCards).to.be.called;
-      return instance.loadTransformCards().then(() => {
+      expect(transformUtils.loadTransformCardsWrapper).to.be.called;
+      return transformUtils.loadTransformCardsWrapper().then(() => {
         expect(context.router.replace).to.not.been.called;
         return null;
       });
@@ -161,17 +163,20 @@ describe("Transform", () => {
     });
     beforeEach(() => {
       wrapper.setProps({ transform });
-      sinon.stub(instance, "loadTransformCards");
+      sinon.stub(transformUtils, "loadTransformCardsWrapper");
+    });
+    afterEach(() => {
+      transformUtils.loadTransformCardsWrapper.restore();
     });
     it("should loadTransformCards when transform property was changed ", () => {
       instance.UNSAFE_componentWillReceiveProps({
         transform: { transformType: "type2", columnType: "cType2" },
       });
-      expect(instance.loadTransformCards).to.be.calledOnce;
+      expect(transformUtils.loadTransformCardsWrapper).to.be.calledOnce;
     });
     it("shouldn't loadTransformCards when transform property wasn't changed ", () => {
       instance.UNSAFE_componentWillReceiveProps({ transform });
-      expect(instance.loadTransformCards).to.not.be.called;
+      expect(transformUtils.loadTransformCardsWrapper).to.not.be.called;
     });
   });
 
@@ -182,7 +187,7 @@ describe("Transform", () => {
         columnType: TEXT,
       });
       wrapper.setProps({ transform });
-      instance.loadTransformCards(instance.props);
+      transformUtils.loadTransformCardsWrapper(instance.props);
       expect(instance.props.loadTransformCards).to.not.be.called;
     });
 
@@ -193,15 +198,15 @@ describe("Transform", () => {
         columnType: MAP,
       });
       wrapper.setProps({ transform });
-      instance.loadTransformCards(instance.props);
+      transformUtils.loadTransformCardsWrapper(instance.props);
       expect(instance.props.loadTransformCards).to.not.be.called;
 
       wrapper.setProps({ transform: transform.set("columnType", LIST) });
-      instance.loadTransformCards(instance.props);
+      transformUtils.loadTransformCardsWrapper(instance.props);
       expect(instance.props.loadTransformCards).to.not.be.called;
 
       wrapper.setProps({ transform: transform.set("columnType", TEXT) });
-      instance.loadTransformCards(instance.props);
+      transformUtils.loadTransformCardsWrapper(instance.props);
       expect(instance.props.loadTransformCards).to.be.called;
     });
 
@@ -214,8 +219,7 @@ describe("Transform", () => {
       wrapper.setProps({ transform });
       instance.props.loadTransformCards.resetHistory(); // called in componentDidMount
 
-      sinon.stub(instance, "transformTypeURLMapper");
-      instance.loadTransformCards(instance.props);
+      transformUtils.loadTransformCardsWrapper(instance.props);
       expect(instance.props.loadTransformCards).to.be.calledOnce;
     });
   });
@@ -228,7 +232,6 @@ describe("Transform", () => {
       });
       const dataset = Immutable.Map({ values: "sometext" });
       wrapper.setProps({ transform, dataset });
-      sinon.stub(instance, "transformTypeURLMapper").returns("actionType");
       instance.loadTransformCardPreview("index", "model");
       expect(
         instance.props.loadTransformCardPreview.calledWith(
@@ -273,28 +276,28 @@ describe("Transform", () => {
   describe("transformTypeURLMapper", () => {
     it('should return transformType if transformType is "split"', () => {
       expect(
-        instance.transformTypeURLMapper(
+        transformUtils.transformTypeURLMapper(
           Immutable.fromJS({ transformType: "split", columnType: MAP })
         )
       ).to.equal("split");
     });
     it("should return transformType when columnType is undefined", () => {
       expect(
-        instance.transformTypeURLMapper(
+        transformUtils.transformTypeURLMapper(
           Immutable.fromJS({ transformType: "other type" })
         )
       ).to.equal("other type");
     });
     it('should return transformType concat "_map" if columnType is MAP', () => {
       expect(
-        instance.transformTypeURLMapper(
+        transformUtils.transformTypeURLMapper(
           Immutable.fromJS({ transformType: "type", columnType: MAP })
         )
       ).to.equal("type_map");
     });
     it('should return transformType concat "_list"  if columnType is LIST', () => {
       expect(
-        instance.transformTypeURLMapper(
+        transformUtils.transformTypeURLMapper(
           Immutable.fromJS({ transformType: "type", columnType: LIST })
         )
       ).to.equal("type_list");

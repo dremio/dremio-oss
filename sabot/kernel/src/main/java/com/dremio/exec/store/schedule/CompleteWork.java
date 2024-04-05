@@ -15,14 +15,12 @@
  */
 package com.dremio.exec.store.schedule;
 
+import com.dremio.exec.physical.EndpointAffinity;
 import java.util.List;
 
-import com.dremio.exec.physical.EndpointAffinity;
-
-/**
- * Container that holds a complete work unit.  Can contain one or more partial units.
- */
-public interface CompleteWork extends Comparable<CompleteWork>{
+/** Container that holds a complete work unit. Can contain one or more partial units. */
+public interface CompleteWork extends Comparable<CompleteWork> {
   long getTotalBytes();
+
   List<EndpointAffinity> getAffinity();
 }

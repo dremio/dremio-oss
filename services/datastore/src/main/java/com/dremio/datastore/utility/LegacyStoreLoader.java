@@ -15,54 +15,65 @@
  */
 package com.dremio.datastore.utility;
 
-import java.util.Set;
-
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.datastore.api.LegacyStoreBuildingFactory;
 import com.dremio.datastore.api.LegacyStoreCreationFunction;
 import com.google.common.collect.ImmutableMap;
+import java.util.Set;
 
-/**
- * Utility class to load defined LegacyKVStores.
- */
+/** Utility class to load defined LegacyKVStores. */
 @Deprecated
 public class LegacyStoreLoader {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(LegacyStoreLoader.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(LegacyStoreLoader.class);
 
   /**
    * Create a map of stores defined in the provided scan using the provided factory.
+   *
    * @param scan classpath scan results.
    * @param factory LegacyStoreBuildingFactory for building LegacyKVStore implementations.
    * @return a map of all legacy store impls with the provided legacy factory.
    */
   @Deprecated
-  public static ImmutableMap<Class<? extends LegacyStoreCreationFunction<?, ?, ?, ?>>, LegacyKVStore<?, ?>> buildLegacyStores(ScanResult scan, LegacyStoreBuildingFactory factory){
+  public static ImmutableMap<
+          Class<? extends LegacyStoreCreationFunction<?, ?, ?, ?>>, LegacyKVStore<?, ?>>
+      buildLegacyStores(ScanResult scan, LegacyStoreBuildingFactory factory) {
     return buildLegacyStores(scan.getImplementations(LegacyStoreCreationFunction.class), factory);
   }
 
   /**
    * Builds a map of all legacy store impls using the provided legacy factory.
+   *
    * @param impls a set of implementations of the LegacyStoreCreationFunction.
    * @param factory the legacyStoreBuildingFactory.
    * @return a map of all legacy store impls with the provided legacy factory.
    */
-  @SuppressWarnings({ "rawtypes", "unchecked" })
+  @SuppressWarnings({"rawtypes", "unchecked"})
   @Deprecated
-  public static ImmutableMap<Class<? extends LegacyStoreCreationFunction<?, ?, ?, ?>>, LegacyKVStore<?, ?>> buildLegacyStores(
-    Set<Class<? extends LegacyStoreCreationFunction>> impls, LegacyStoreBuildingFactory factory) {
-    ImmutableMap.Builder builder = ImmutableMap.<Class<? extends LegacyStoreCreationFunction<?, ?, ?, ?>>, LegacyKVStore<?, ?>>builder();
+  public static ImmutableMap<
+          Class<? extends LegacyStoreCreationFunction<?, ?, ?, ?>>, LegacyKVStore<?, ?>>
+      buildLegacyStores(
+          Set<Class<? extends LegacyStoreCreationFunction>> impls,
+          LegacyStoreBuildingFactory factory) {
+    ImmutableMap.Builder builder =
+        ImmutableMap
+            .<Class<? extends LegacyStoreCreationFunction<?, ?, ?, ?>>, LegacyKVStore<?, ?>>
+                builder();
 
-    for(Class<? extends LegacyStoreCreationFunction> functionClass : impls) {
+    for (Class<? extends LegacyStoreCreationFunction> functionClass : impls) {
       try {
-        final LegacyKVStore<?, ?> store = functionClass.newInstance().build(factory);
+        final LegacyKVStore<?, ?> store =
+            functionClass.getDeclaredConstructor().newInstance().build(factory);
         builder.put(functionClass, store);
       } catch (Exception e) {
         logger.warn("Unable to load StoreCreationFunction {}", functionClass.getSimpleName(), e);
       }
     }
 
-    final ImmutableMap<Class<? extends LegacyStoreCreationFunction<?, ?, ?, ?>>, LegacyKVStore<?, ?>> map = builder.build();
+    final ImmutableMap<
+            Class<? extends LegacyStoreCreationFunction<?, ?, ?, ?>>, LegacyKVStore<?, ?>>
+        map = builder.build();
     logger.debug("Loaded the following StoreCreationFunctions: {}.", map.keySet());
     return map;
   }

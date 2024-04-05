@@ -19,15 +19,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 
+import com.dremio.test.DremioTest;
 import java.net.URI;
-
 import org.junit.Test;
 
-import com.dremio.test.DremioTest;
-
-/**
- * Test cases for {@code Path}
- */
+/** Test cases for {@code Path} */
 public class TestPath extends DremioTest {
 
   /*
@@ -64,7 +60,9 @@ public class TestPath extends DremioTest {
     checkPathOfString("hdfs:///foo/bar", "hdfs:/foo/bar");
     checkPathOfString("hdfs://foo/bar", "hdfs://foo/bar");
     checkPathOfString("file:/foo/bar baz", "file:/foo/bar baz");
-    checkPathOfString("webhdfs://hostname.domain:12345/foo/bar baz", "webhdfs://hostname.domain:12345/foo/bar baz");
+    checkPathOfString(
+        "webhdfs://hostname.domain:12345/foo/bar baz",
+        "webhdfs://hostname.domain:12345/foo/bar baz");
     // check normalization
     checkPathOfString("/foo/bar/..", "/foo/");
     checkPathOfString("/foo/../bar", "/bar");
@@ -75,7 +73,9 @@ public class TestPath extends DremioTest {
     checkPathOfString("hdfs://hostname/foo//bar", "hdfs://hostname/foo/bar");
     checkPathOfString("dremioS3://bucket/foo/bar", "dremioS3://bucket/foo/bar");
     checkPathOfString("dremioS3://bucket/foo:space/bar", "dremioS3://bucket/foo:space/bar");
-    checkPathOfString("dremioS3://bucket/foo:space/bar:space.parquet", "dremioS3://bucket/foo:space/bar:space.parquet");
+    checkPathOfString(
+        "dremioS3://bucket/foo:space/bar:space.parquet",
+        "dremioS3://bucket/foo:space/bar:space.parquet");
     checkPathOfString("scheme:dir/sub:dir", "scheme:dir/sub:dir");
     checkPathOfString("/dir/sub:dir/dir", "/dir/sub:dir/dir");
   }
@@ -97,9 +97,9 @@ public class TestPath extends DremioTest {
 
   private void checkInvalidPathOfString(String value) {
     assertThatThrownBy(() -> Path.of(value))
-      .satisfiesAnyOf(
-        t -> assertThat(t).isInstanceOf(NullPointerException.class),
-        t -> assertThat(t).isInstanceOf(IllegalArgumentException.class));
+        .satisfiesAnyOf(
+            t -> assertThat(t).isInstanceOf(NullPointerException.class),
+            t -> assertThat(t).isInstanceOf(IllegalArgumentException.class));
   }
 
   /*
@@ -124,9 +124,14 @@ public class TestPath extends DremioTest {
   @Test
   public void testResolveOfPath() {
     checkResolveOfPath(Path.of("hdfs://hostname/base"), Path.of("/foo/bar"), Path.of("/foo/bar"));
-    checkResolveOfPath(Path.of("hdfs://hostname/base"), Path.of("foo/bar"), Path.of("hdfs://hostname/base/foo/bar"));
-    checkResolveOfPath(Path.of("hdfs://hostname/base"), Path.of(URI.create("")), Path.of("hdfs://hostname/base"));
-    checkResolveOfPath(Path.of("hdfs://hostname/base"), Path.of("file://baz"), Path.of("file://baz"));
+    checkResolveOfPath(
+        Path.of("hdfs://hostname/base"),
+        Path.of("foo/bar"),
+        Path.of("hdfs://hostname/base/foo/bar"));
+    checkResolveOfPath(
+        Path.of("hdfs://hostname/base"), Path.of(URI.create("")), Path.of("hdfs://hostname/base"));
+    checkResolveOfPath(
+        Path.of("hdfs://hostname/base"), Path.of("file://baz"), Path.of("file://baz"));
     checkResolveOfPath(Path.of("."), Path.of("foo"), Path.of("foo"));
     checkResolveOfPath(Path.of("foo"), Path.of("."), Path.of("foo"));
     checkResolveOfPath(Path.of("/"), Path.of("."), Path.of("/"));
@@ -142,8 +147,10 @@ public class TestPath extends DremioTest {
   @Test
   public void testResolveOfString() {
     checkResolveOfString(Path.of("hdfs://hostname/base"), "/foo/bar", Path.of("/foo/bar"));
-    checkResolveOfString(Path.of("hdfs://hostname/base"), "foo/bar", Path.of("hdfs://hostname/base/foo/bar"));
-    checkResolveOfString(Path.of("hdfs://hostname/base"), "foo bar", Path.of("hdfs://hostname/base/foo bar"));
+    checkResolveOfString(
+        Path.of("hdfs://hostname/base"), "foo/bar", Path.of("hdfs://hostname/base/foo/bar"));
+    checkResolveOfString(
+        Path.of("hdfs://hostname/base"), "foo bar", Path.of("hdfs://hostname/base/foo bar"));
     checkResolveOfString(Path.of("hdfs://hostname/base"), "file://baz", Path.of("file://baz"));
     checkResolveOfString(Path.of("."), "foo", Path.of("foo"));
     checkResolveOfString(Path.of("foo"), ".", Path.of("foo"));
@@ -160,10 +167,18 @@ public class TestPath extends DremioTest {
    */
   @Test
   public void testMergePaths() {
-    checkMergePaths(Path.of("hdfs://hostname/base"), Path.of("/foo/bar"), Path.of("hdfs://hostname/base/foo/bar"));
-    checkMergePaths(Path.of("hdfs://hostname/base"), Path.of("foo/bar"), Path.of("hdfs://hostname/base/foo/bar"));
-    checkMergePaths(Path.of("hdfs://hostname/base"), Path.of(URI.create("")), Path.of("hdfs://hostname/base"));
-    checkMergePaths(Path.of("hdfs://hostname/base"), Path.of("file://baz"), Path.of("hdfs://hostname/base"));
+    checkMergePaths(
+        Path.of("hdfs://hostname/base"),
+        Path.of("/foo/bar"),
+        Path.of("hdfs://hostname/base/foo/bar"));
+    checkMergePaths(
+        Path.of("hdfs://hostname/base"),
+        Path.of("foo/bar"),
+        Path.of("hdfs://hostname/base/foo/bar"));
+    checkMergePaths(
+        Path.of("hdfs://hostname/base"), Path.of(URI.create("")), Path.of("hdfs://hostname/base"));
+    checkMergePaths(
+        Path.of("hdfs://hostname/base"), Path.of("file://baz"), Path.of("hdfs://hostname/base"));
     checkMergePaths(Path.of("."), Path.of("foo"), Path.of("foo"));
     checkMergePaths(Path.of("foo"), Path.of("."), Path.of("foo"));
     checkMergePaths(Path.of("/"), Path.of("."), Path.of("/"));
@@ -173,9 +188,7 @@ public class TestPath extends DremioTest {
     assertThat(Path.mergePaths(base, value)).isEqualTo(expected);
   }
 
-  /**
-   * Check that value.getName() == expected
-   */
+  /** Check that value.getName() == expected */
   @Test
   public void testGetName() {
     checkGetName(Path.of("/foo/bar"), "bar");
@@ -192,9 +205,7 @@ public class TestPath extends DremioTest {
     assertThat(value.getName()).isEqualTo(expected);
   }
 
-  /**
-   * Check that value.isAbsolute() == expected
-   */
+  /** Check that value.isAbsolute() == expected */
   @Test
   public void testIsAbsolute() {
     checkIsAbsolute(Path.of("/"), true);
@@ -209,9 +220,8 @@ public class TestPath extends DremioTest {
   private void checkIsAbsolute(Path value, boolean expected) {
     assertThat(value.isAbsolute()).isEqualTo(expected);
   }
-  /**
-   * Check that value.depth() == expected
-   */
+
+  /** Check that value.depth() == expected */
   @Test
   public void testDepth() {
     checkDepth(Path.of("/"), 0);
@@ -226,29 +236,44 @@ public class TestPath extends DremioTest {
 
   @Test
   public void testgetContainerSpecificRelativePath() {
-    String path = "wasbs://testdir@azurev1accountName.blob.core.windows.net/Automation/regression/iceberg/alltypes/metadata/snap-6325739561998439041-1-bb5ecd1c-80fb-494f-9716-d2baa8f69eff.avro";
+    String path =
+        "wasbs://testdir@azurev1accountName.blob.core.windows.net/Automation/regression/iceberg/alltypes/metadata/snap-6325739561998439041-1-bb5ecd1c-80fb-494f-9716-d2baa8f69eff.avro";
     Path p = Path.of(path);
     String modified = Path.getContainerSpecificRelativePath(p);
-    assertEquals("/testdir/Automation/regression/iceberg/alltypes/metadata/snap-6325739561998439041-1-bb5ecd1c-80fb-494f-9716-d2baa8f69eff.avro", modified);
+    assertEquals(
+        "/testdir/Automation/regression/iceberg/alltypes/metadata/snap-6325739561998439041-1-bb5ecd1c-80fb-494f-9716-d2baa8f69eff.avro",
+        modified);
 
-    path = "s3a://unittest.dremio.com/icebergtables/t63/metadata/snap-2789552798039628309-1-8a1551a0-80cf-44fd-9a28-2e3334b9602f.avro";
+    path =
+        "s3a://unittest.dremio.com/icebergtables/t63/metadata/snap-2789552798039628309-1-8a1551a0-80cf-44fd-9a28-2e3334b9602f.avro";
     p = Path.of(path);
     modified = Path.getContainerSpecificRelativePath(p);
-    assertEquals("/unittest.dremio.com/icebergtables/t63/metadata/snap-2789552798039628309-1-8a1551a0-80cf-44fd-9a28-2e3334b9602f.avro", modified);
+    assertEquals(
+        "/unittest.dremio.com/icebergtables/t63/metadata/snap-2789552798039628309-1-8a1551a0-80cf-44fd-9a28-2e3334b9602f.avro",
+        modified);
 
-    path = "adl://databrickstest.azuredatalakestore.net/Automation/regression/iceberg/init32_decimal_test/metadata/snap-5631102415330351524-1-0d989445-a0f5-47cf-bf19-a3d648ac1b31.avro";
+    path =
+        "adl://databrickstest.azuredatalakestore.net/Automation/regression/iceberg/init32_decimal_test/metadata/snap-5631102415330351524-1-0d989445-a0f5-47cf-bf19-a3d648ac1b31.avro";
     p = Path.of(path);
     modified = Path.getContainerSpecificRelativePath(p);
-    assertEquals("/Automation/regression/iceberg/init32_decimal_test/metadata/snap-5631102415330351524-1-0d989445-a0f5-47cf-bf19-a3d648ac1b31.avro", modified);
+    assertEquals(
+        "/Automation/regression/iceberg/init32_decimal_test/metadata/snap-5631102415330351524-1-0d989445-a0f5-47cf-bf19-a3d648ac1b31.avro",
+        modified);
 
-    path = "file:///Automation/regression/iceberg/init32_decimal_test/metadata/snap-5631102415330351524-1-0d989445-a0f5-47cf-bf19-a3d648ac1b31.avro";
+    path =
+        "file:///Automation/regression/iceberg/init32_decimal_test/metadata/snap-5631102415330351524-1-0d989445-a0f5-47cf-bf19-a3d648ac1b31.avro";
     p = Path.of(path);
     modified = Path.getContainerSpecificRelativePath(p);
-    assertEquals("/Automation/regression/iceberg/init32_decimal_test/metadata/snap-5631102415330351524-1-0d989445-a0f5-47cf-bf19-a3d648ac1b31.avro", modified);
+    assertEquals(
+        "/Automation/regression/iceberg/init32_decimal_test/metadata/snap-5631102415330351524-1-0d989445-a0f5-47cf-bf19-a3d648ac1b31.avro",
+        modified);
 
-    path = "gs://amit-data/regression/iceberg/init32_decimal_test/metadata/snap-5631102415330351524-1-0d989445-a0f5-47cf-bf19-a3d648ac1b31.avro";
+    path =
+        "gs://amit-data/regression/iceberg/init32_decimal_test/metadata/snap-5631102415330351524-1-0d989445-a0f5-47cf-bf19-a3d648ac1b31.avro";
     p = Path.of(path);
     modified = Path.getContainerSpecificRelativePath(p);
-    assertEquals("/amit-data/regression/iceberg/init32_decimal_test/metadata/snap-5631102415330351524-1-0d989445-a0f5-47cf-bf19-a3d648ac1b31.avro", modified);
+    assertEquals(
+        "/amit-data/regression/iceberg/init32_decimal_test/metadata/snap-5631102415330351524-1-0d989445-a0f5-47cf-bf19-a3d648ac1b31.avro",
+        modified);
   }
 }

@@ -15,16 +15,14 @@
  */
 package com.dremio.exec.planner;
 
+import com.dremio.common.exceptions.UserException;
 import org.apache.calcite.plan.RelOptListener;
 
-import com.dremio.common.exceptions.UserException;
-
-/**
- * Monitors planners and limits the amount of nodes generated.
- */
+/** Monitors planners and limits the amount of nodes generated. */
 class MaxNodesListener implements RelOptListener {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MaxNodesListener.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(MaxNodesListener.class);
 
   private final long maxEquivalence;
   private long foundNodes = 0;
@@ -37,10 +35,10 @@ class MaxNodesListener implements RelOptListener {
   @Override
   public void relEquivalenceFound(RelEquivalenceEvent event) {
     foundNodes++;
-    if(foundNodes > maxEquivalence) {
+    if (foundNodes > maxEquivalence) {
       throw UserException.resourceError()
-      .message("Job was canceled because the query is too complex. Please simplify the query.")
-      .build(logger);
+          .message("Job was canceled because the query is too complex. Please simplify the query.")
+          .build(logger);
     }
   }
 
@@ -49,12 +47,10 @@ class MaxNodesListener implements RelOptListener {
   }
 
   @Override
-  public void ruleAttempted(RuleAttemptedEvent event) {
-  }
+  public void ruleAttempted(RuleAttemptedEvent event) {}
 
   @Override
-  public void ruleProductionSucceeded(RuleProductionEvent event) {
-  }
+  public void ruleProductionSucceeded(RuleProductionEvent event) {}
 
   @Override
   public void relDiscarded(RelDiscardedEvent event) {
@@ -63,7 +59,5 @@ class MaxNodesListener implements RelOptListener {
   }
 
   @Override
-  public void relChosen(RelChosenEvent event) {
-  }
-
+  public void relChosen(RelChosenEvent event) {}
 }

@@ -20,30 +20,29 @@ import java.nio.ByteBuffer;
 /**
  * This interface describes a way to read a series of blocks stored as a FAT chain.<br>
  * <br>
- * According to the MS-CFB file format, a file is a series of blocks that need to be read according to a FAT
- * stored in the file itself. The FAT can define "chains" as a series of blocks where we store in the FAT for
- * each block it's following block in the chain or END_OF_CHAIN if the chain ended.
- * <br><br>
+ * According to the MS-CFB file format, a file is a series of blocks that need to be read according
+ * to a FAT stored in the file itself. The FAT can define "chains" as a series of blocks where we
+ * store in the FAT for each block it's following block in the chain or END_OF_CHAIN if the chain
+ * ended. <br>
+ * <br>
  * Simplified implementation of {@link org.apache.poi.poifs.filesystem.BlockStore}
  */
 public interface BlockStore {
 
   int getBlockSize();
 
-
   /**
    * Works out what block follows the current one.
    *
    * @param block current block index
-   *
    * @return next block index or POIFSConstants.END_OF_CHAIN
    */
   int getNextBlock(int block);
 
   /**
    * computes start offset of a given block stored in this BlockStore
-   * @param block block index in the store
    *
+   * @param block block index in the store
    * @return absolute block offset
    */
   int getBlockOffset(int block);

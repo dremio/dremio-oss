@@ -15,9 +15,7 @@
  */
 package com.dremio.sabot.rpc;
 
-/**
- * Fabric protocol ids for inner node communication.
- */
+/** Fabric protocol ids for inner node communication. */
 public interface Protocols {
 
   int COORD_TO_COORD = 1;

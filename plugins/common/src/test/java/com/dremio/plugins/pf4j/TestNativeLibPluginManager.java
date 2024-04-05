@@ -17,24 +17,19 @@ package com.dremio.plugins.pf4j;
 
 import static org.mockito.Mockito.mock;
 
+import com.dremio.config.DremioConfig;
+import com.dremio.options.OptionResolver;
+import com.dremio.test.TemporarySystemProperties;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
-import com.dremio.config.DremioConfig;
-import com.dremio.options.OptionResolver;
-import com.dremio.test.TemporarySystemProperties;
-
-/**
- * Test {@code NativeLibPluginManager} class
- */
+/** Test {@code NativeLibPluginManager} class */
 public class TestNativeLibPluginManager {
 
-  @Rule
-  public TemporarySystemProperties properties = new TemporarySystemProperties();
+  @Rule public TemporarySystemProperties properties = new TemporarySystemProperties();
 
   @Test
   public void testShouldReturnPluginRoot() {

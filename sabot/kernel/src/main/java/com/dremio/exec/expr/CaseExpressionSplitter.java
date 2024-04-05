@@ -15,17 +15,14 @@
  */
 package com.dremio.exec.expr;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import com.dremio.common.expression.CaseExpression;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.TypedNullConstant;
+import java.util.ArrayList;
+import java.util.List;
 
-/**
- * Splits a case expression depending on the output of {@code CaseExpressionAnalyzer}.
- */
+/** Splits a case expression depending on the output of {@code CaseExpressionAnalyzer}. */
 public class CaseExpressionSplitter {
   private final CaseSplits caseSplits;
   private final CodeGenContext originalExprWithContext;
@@ -35,9 +32,12 @@ public class CaseExpressionSplitter {
   private final SplitDependencyTracker parentTracker;
   private final PreferenceBasedSplitter ifSplitter;
 
-  CaseExpressionSplitter(CodeGenContext originalExpression, SplitDependencyTracker parentTracker,
-                         ExpressionSplitter splitter, CaseSplits split,
-                         PreferenceBasedSplitter ifSplitter) {
+  CaseExpressionSplitter(
+      CodeGenContext originalExpression,
+      SplitDependencyTracker parentTracker,
+      ExpressionSplitter splitter,
+      CaseSplits split,
+      PreferenceBasedSplitter ifSplitter) {
     this.caseSplits = split;
     this.originalExprWithContext = originalExpression;
     this.originalExpr = (CaseExpression) originalExpression.getChild();
@@ -61,13 +61,14 @@ public class CaseExpressionSplitter {
 
   /**
    * Slice the "when" vertical split further based on information given by the analyzer.
-   * <p>
-   * "when" splits cannot be combined as order matters for "when" split to adhere to the case expression
-   * semantics.
-   * </p>
+   *
+   * <p>"when" splits cannot be combined as order matters for "when" split to adhere to the case
+   * expression semantics.
+   *
    * @param firstWhenSplit the first "when" split marker
-   * @return the actual final "when" split whose value vector will contain information about which "when" condition got
-   *         evaluated. This information can then be used to wrap the "then" splits.
+   * @return the actual final "when" split whose value vector will contain information about which
+   *     "when" condition got evaluated. This information can then be used to wrap the "then"
+   *     splits.
    * @throws Exception when the splitter fails for some reason
    */
   private ExpressionSplit doAllWhenSplits(CaseSplit firstWhenSplit) throws Exception {
@@ -90,12 +91,13 @@ public class CaseExpressionSplitter {
 
   /**
    * Slices the "then" (or "else") vertical splits based on the execution engine.
-   * <p>
-   * Note that then splits need not have order as they execute based on the result of "when" splits. This allows the
-   * "then" splits to be compressed into max two splits (one for preferred and one for non-preferred).
-   * </p>
-   * @param vwSplit the final "when" split which provides a value vector containing the final result of the "when"
-   *                vertical split.
+   *
+   * <p>Note that then splits need not have order as they execute based on the result of "when"
+   * splits. This allows the "then" splits to be compressed into max two splits (one for preferred
+   * and one for non-preferred).
+   *
+   * @param vwSplit the final "when" split which provides a value vector containing the final result
+   *     of the "when" vertical split.
    * @return Final "then" split
    * @throws Exception when the splitter runs into issues.
    */
@@ -106,8 +108,8 @@ public class CaseExpressionSplitter {
     MixedThenTracker mixedInfo = processMixedThenSplits(mixedThenSplits, vwSplit);
     switch (mixedInfo.getEffectiveSplitType(nonPreferredThenSplits, preferredThenSplits)) {
       case MIXED:
-        final ExpressionSplit prevThenSplit = doIntermediateThenSplit(nonPreferredThenSplits, vwSplit,
-          mixedInfo);
+        final ExpressionSplit prevThenSplit =
+            doIntermediateThenSplit(nonPreferredThenSplits, vwSplit, mixedInfo);
         return doFinalThenSplit(preferredThenSplits, vwSplit, prevThenSplit, mixedInfo, true);
 
       case NON_PREFERRED:
@@ -134,16 +136,21 @@ public class CaseExpressionSplitter {
       newConditions.add(new CaseExpression.CaseConditionNode(whenExpr, thenExpr));
     }
     final LogicalExpression elseExpr = whenSplit.getElseExpressionWhenSplit();
-    final CodeGenContext splitContext = whenSplit.getSplitWithContext(CaseExpression.newBuilder()
-      .setCaseConditions(newConditions)
-      .setElseExpr(elseExpr)
-      .setOutputType(CompleteType.INT).build());
+    final CodeGenContext splitContext =
+        whenSplit.getSplitWithContext(
+            CaseExpression.newBuilder()
+                .setCaseConditions(newConditions)
+                .setElseExpr(elseExpr)
+                .setOutputType(CompleteType.INT)
+                .build());
     return doCaseSplit(splitContext, whenSplit, prevSplit, null);
   }
 
-  private ExpressionSplit doMixedWhenSplit(CaseSplit whenSplit, ExpressionSplit prevWhenSplit) throws Exception {
+  private ExpressionSplit doMixedWhenSplit(CaseSplit whenSplit, ExpressionSplit prevWhenSplit)
+      throws Exception {
     final CodeGenContext whenExpr =
-      (CodeGenContext) originalExpr.caseConditions.get(whenSplit.getConditionStartIndex()).whenExpr;
+        (CodeGenContext)
+            originalExpr.caseConditions.get(whenSplit.getConditionStartIndex()).whenExpr;
     final SplitDependencyTracker myTracker = new SplitDependencyTracker(parentTracker);
     myTracker.addCaseBlock(prevWhenSplit, whenSplit, true);
     final int currIdx = whenSplit.getConditionStartIndex();
@@ -157,31 +164,39 @@ public class CaseExpressionSplitter {
       final LogicalExpression firstThenExpr = prevWhenSplit.getReadExpressionContext();
       newConditions.add(new CaseExpression.CaseConditionNode(firstWhenExpr, firstThenExpr));
     }
-    newConditions.add(new CaseExpression.CaseConditionNode(splitWhenExpr, whenSplit.getIntExpression(currIdx)));
+    newConditions.add(
+        new CaseExpression.CaseConditionNode(splitWhenExpr, whenSplit.getIntExpression(currIdx)));
     final LogicalExpression elseExpr = whenSplit.getElseExpressionWhenSplit();
-    final CodeGenContext splitContext = whenSplit.getSplitWithContext(CaseExpression.newBuilder()
-      .setCaseConditions(newConditions)
-      .setElseExpr(elseExpr)
-      .setOutputType(CompleteType.INT).build());
+    final CodeGenContext splitContext =
+        whenSplit.getSplitWithContext(
+            CaseExpression.newBuilder()
+                .setCaseConditions(newConditions)
+                .setElseExpr(elseExpr)
+                .setOutputType(CompleteType.INT)
+                .build());
     whenSplit.addEngineToContextMixed(splitWhenExpr, splitContext);
     return doCaseSplit(splitContext, whenSplit, prevWhenSplit, myTracker);
   }
 
-  private ExpressionSplit doIntermediateThenSplit(List<CaseSplit> thenSplits, ExpressionSplit vwSplit,
-                                                  MixedThenTracker mixedInfo) {
+  private ExpressionSplit doIntermediateThenSplit(
+      List<CaseSplit> thenSplits, ExpressionSplit vwSplit, MixedThenTracker mixedInfo) {
     final SplitDependencyTracker myTracker = new SplitDependencyTracker(parentTracker);
-    final CodeGenContext splitContext = createNormalThenContext(thenSplits, vwSplit, null, true, mixedInfo, false);
+    final CodeGenContext splitContext =
+        createNormalThenContext(thenSplits, vwSplit, null, true, mixedInfo, false);
     myTracker.addDependency(vwSplit);
     mixedInfo.addMixedDependencies(false, myTracker);
-    return splitter.splitAndGenerateVectorReadExpression(splitContext, new NullDependencyTracker(parentTracker),
-      myTracker);
+    return splitter.splitAndGenerateVectorReadExpression(
+        splitContext, new NullDependencyTracker(parentTracker), myTracker);
   }
 
-  private CodeGenContext doFinalThenSplit(List<CaseSplit> thenSplits, ExpressionSplit vwSplit,
-                                          ExpressionSplit prevThenSplit, MixedThenTracker mixedInfo,
-                                          boolean preferred) {
-    final CodeGenContext splitContext = createNormalThenContext(thenSplits, vwSplit, prevThenSplit, false,
-      mixedInfo, preferred);
+  private CodeGenContext doFinalThenSplit(
+      List<CaseSplit> thenSplits,
+      ExpressionSplit vwSplit,
+      ExpressionSplit prevThenSplit,
+      MixedThenTracker mixedInfo,
+      boolean preferred) {
+    final CodeGenContext splitContext =
+        createNormalThenContext(thenSplits, vwSplit, prevThenSplit, false, mixedInfo, preferred);
     if (prevThenSplit != null) {
       parentTracker.addDependency(prevThenSplit);
     }
@@ -189,13 +204,20 @@ public class CaseExpressionSplitter {
     return splitContext;
   }
 
-  CodeGenContext createNormalThenContext(List<CaseSplit> thenSplits, ExpressionSplit vwSplit,
-                                         ExpressionSplit prevThenSplit, boolean intermediate,
-                                         MixedThenTracker mixedInfo, boolean preferred) {
+  CodeGenContext createNormalThenContext(
+      List<CaseSplit> thenSplits,
+      ExpressionSplit vwSplit,
+      ExpressionSplit prevThenSplit,
+      boolean intermediate,
+      MixedThenTracker mixedInfo,
+      boolean preferred) {
     List<CaseExpression.CaseConditionNode> newConditions = new ArrayList<>();
     mixedInfo.fillConditions(newConditions, preferred);
-    CodeGenContext elseExpr = (prevThenSplit != null) ? prevThenSplit.getReadExpressionContext() :
-      CodeGenContext.buildWithAllEngines(new TypedNullConstant(originalExpr.getCompleteType()));
+    CodeGenContext elseExpr =
+        (prevThenSplit != null)
+            ? prevThenSplit.getReadExpressionContext()
+            : CodeGenContext.buildWithAllEngines(
+                new TypedNullConstant(originalExpr.getCompleteType()));
     if (!thenSplits.isEmpty()) {
       final CodeGenContext leftExpr = vwSplit.getReadExpressionContext();
       CaseSplit finalSplit = thenSplits.get(0);
@@ -221,19 +243,22 @@ public class CaseExpressionSplitter {
         }
       }
     }
-    final CodeGenContext context = CodeGenContext.buildWithNoDefaultSupport(CaseExpression.newBuilder()
-      .setCaseConditions(newConditions)
-      .setElseExpr(elseExpr)
-      .setOutputType(originalExpr.getCompleteType()).build());
-    context.addSupportedExecutionEngineForSubExpression((preferred) ? ifSplitter.preferredEngine :
-      ifSplitter.nonPreferredEngine);
-    context.addSupportedExecutionEngineForExpression((preferred) ? ifSplitter.preferredEngine :
-      ifSplitter.nonPreferredEngine);
+    final CodeGenContext context =
+        CodeGenContext.buildWithNoDefaultSupport(
+            CaseExpression.newBuilder()
+                .setCaseConditions(newConditions)
+                .setElseExpr(elseExpr)
+                .setOutputType(originalExpr.getCompleteType())
+                .build());
+    context.addSupportedExecutionEngineForSubExpression(
+        (preferred) ? ifSplitter.preferredEngine : ifSplitter.nonPreferredEngine);
+    context.addSupportedExecutionEngineForExpression(
+        (preferred) ? ifSplitter.preferredEngine : ifSplitter.nonPreferredEngine);
     return context;
   }
 
-  private MixedThenTracker processMixedThenSplits(List<CaseSplit> mixedThenSplits, ExpressionSplit vwSplit)
-    throws Exception {
+  private MixedThenTracker processMixedThenSplits(
+      List<CaseSplit> mixedThenSplits, ExpressionSplit vwSplit) throws Exception {
     final MixedThenTracker mixedThenTracker = new MixedThenTracker();
     if (mixedThenSplits.isEmpty()) {
       return mixedThenTracker;
@@ -244,9 +269,11 @@ public class CaseExpressionSplitter {
       final SplitDependencyTracker tracker = new SplitDependencyTracker(parentTracker);
       final LogicalExpression whenExpr = thenSplit.getEqualExpression(leftExpr, currIdx);
       tracker.addCaseBlock(vwSplit, thenSplit, false);
-      CodeGenContext splitThenExpr = (currIdx >= origSz - 1) ?
-        ((CodeGenContext) originalExpr.elseExpr).accept(ifSplitter, tracker) :
-        ((CodeGenContext) originalExpr.caseConditions.get(currIdx).thenExpr).accept(ifSplitter, tracker);
+      CodeGenContext splitThenExpr =
+          (currIdx >= origSz - 1)
+              ? ((CodeGenContext) originalExpr.elseExpr).accept(ifSplitter, tracker)
+              : ((CodeGenContext) originalExpr.caseConditions.get(currIdx).thenExpr)
+                  .accept(ifSplitter, tracker);
       tracker.removeLastCaseBlock();
       mixedThenTracker.addCondition(whenExpr, splitThenExpr, tracker);
     }
@@ -255,24 +282,27 @@ public class CaseExpressionSplitter {
 
   /**
    * Do a case condition split.
-   * <p>
-   * For a case condition split, an intermediate "when" or "then" split will have only dependency to previous case
-   * split and so it should not be tied to the parent tracker. Only the final "when" or "then" split will be tied
-   * to the parent tracker.
-   * </p>
+   *
+   * <p>For a case condition split, an intermediate "when" or "then" split will have only dependency
+   * to previous case split and so it should not be tied to the parent tracker. Only the final
+   * "when" or "then" split will be tied to the parent tracker.
    *
    * @param splitWithContext the case split expression
-   * @param currentSplit     the case split information used to create current case split
-   * @param prevSplit        the actual previous case expression split
-   * @param mixedTracker     split dependency tracker for mixed "when", "then" or "else" expressions that belongs to
-   *                         this case split, null if no mixed expression in this case split.
+   * @param currentSplit the case split information used to create current case split
+   * @param prevSplit the actual previous case expression split
+   * @param mixedTracker split dependency tracker for mixed "when", "then" or "else" expressions
+   *     that belongs to this case split, null if no mixed expression in this case split.
    * @return a case split as an expression split
    */
-  private ExpressionSplit doCaseSplit(CodeGenContext splitWithContext, CaseSplit currentSplit,
-                                      ExpressionSplit prevSplit, SplitDependencyTracker mixedTracker) {
+  private ExpressionSplit doCaseSplit(
+      CodeGenContext splitWithContext,
+      CaseSplit currentSplit,
+      ExpressionSplit prevSplit,
+      SplitDependencyTracker mixedTracker) {
     final SplitDependencyTracker myTracker = new SplitDependencyTracker(parentTracker);
     if (mixedTracker != null) {
-      // add all dependencies of mixed tracker to my tracker (w.o) increasing reader count as final expr
+      // add all dependencies of mixed tracker to my tracker (w.o) increasing reader count as final
+      // expr
       // is mered with the case.
       myTracker.addAllDependencies(mixedTracker);
     }
@@ -280,15 +310,17 @@ public class CaseExpressionSplitter {
       myTracker.addDependency(prevSplit);
     }
     if (caseSplits.isLastSplit(currentSplit)) {
-      return splitter.splitAndGenerateVectorReadExpression(splitWithContext, parentTracker, myTracker);
+      return splitter.splitAndGenerateVectorReadExpression(
+          splitWithContext, parentTracker, myTracker);
     } else {
-      return splitter.splitAndGenerateVectorReadExpression(splitWithContext, new NullDependencyTracker(parentTracker),
-        myTracker);
+      return splitter.splitAndGenerateVectorReadExpression(
+          splitWithContext, new NullDependencyTracker(parentTracker), myTracker);
     }
   }
 
   /**
-   * This avoids double counting of readers in the split as the intermediate splits have to be already tracked outside.
+   * This avoids double counting of readers in the split as the intermediate splits have to be
+   * already tracked outside.
    */
   private static class NullDependencyTracker extends SplitDependencyTracker {
     NullDependencyTracker(SplitDependencyTracker parent) {
@@ -296,8 +328,7 @@ public class CaseExpressionSplitter {
     }
 
     @Override
-    void addDependency(ExpressionSplit preReq) {
-    }
+    void addDependency(ExpressionSplit preReq) {}
   }
 
   private class MixedThenTracker {
@@ -313,8 +344,8 @@ public class CaseExpressionSplitter {
       nonPreferredSplitDependencies = new ArrayList<>();
     }
 
-    private void addCondition(LogicalExpression whenExpr, CodeGenContext splitThenExpr,
-                              SplitDependencyTracker tracker) {
+    private void addCondition(
+        LogicalExpression whenExpr, CodeGenContext splitThenExpr, SplitDependencyTracker tracker) {
       if (splitThenExpr.isExpressionExecutableInEngine(ifSplitter.preferredEngine)) {
         preferredConditions.add(new CaseExpression.CaseConditionNode(whenExpr, splitThenExpr));
         preferredSplitDependencies.addAll(tracker.getTransfersIn());
@@ -324,15 +355,20 @@ public class CaseExpressionSplitter {
       }
     }
 
-    public CaseSplit.CaseSplitType getEffectiveSplitType(List<CaseSplit> nonPreferredThenSplits,
-                                                         List<CaseSplit> preferredThenSplits) {
+    public CaseSplit.CaseSplitType getEffectiveSplitType(
+        List<CaseSplit> nonPreferredThenSplits, List<CaseSplit> preferredThenSplits) {
       final boolean preferred = !preferredThenSplits.isEmpty() || !preferredConditions.isEmpty();
-      final boolean nonPreferred = !nonPreferredThenSplits.isEmpty() || !nonPreferredConditions.isEmpty();
-      return (preferred && nonPreferred ? CaseSplit.CaseSplitType.MIXED :
-        (preferred) ? CaseSplit.CaseSplitType.PREFERRED : CaseSplit.CaseSplitType.NON_PREFERRED);
+      final boolean nonPreferred =
+          !nonPreferredThenSplits.isEmpty() || !nonPreferredConditions.isEmpty();
+      return (preferred && nonPreferred
+          ? CaseSplit.CaseSplitType.MIXED
+          : (preferred)
+              ? CaseSplit.CaseSplitType.PREFERRED
+              : CaseSplit.CaseSplitType.NON_PREFERRED);
     }
 
-    public void fillConditions(List<CaseExpression.CaseConditionNode> newConditions, boolean preferred) {
+    public void fillConditions(
+        List<CaseExpression.CaseConditionNode> newConditions, boolean preferred) {
       if (preferred) {
         newConditions.addAll(preferredConditions);
       } else {

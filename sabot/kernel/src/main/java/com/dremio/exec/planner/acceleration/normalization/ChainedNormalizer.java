@@ -15,13 +15,10 @@
  */
 package com.dremio.exec.planner.acceleration.normalization;
 
+import com.google.common.base.Preconditions;
 import org.apache.calcite.rel.RelNode;
 
-import com.google.common.base.Preconditions;
-
-/**
- * chained normalizer
- */
+/** chained normalizer */
 public class ChainedNormalizer implements Normalizer {
 
   private final Normalizer[] normalizers;

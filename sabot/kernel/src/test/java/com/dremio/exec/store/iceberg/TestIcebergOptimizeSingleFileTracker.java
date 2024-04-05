@@ -17,9 +17,9 @@ package com.dremio.exec.store.iceberg;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.google.common.collect.Sets;
 import java.util.Set;
 import java.util.UUID;
-
 import org.apache.commons.lang3.NotImplementedException;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DataFiles;
@@ -33,25 +33,22 @@ import org.apache.iceberg.io.SeekableInputStream;
 import org.apache.iceberg.types.Types;
 import org.junit.Test;
 
-import com.google.common.collect.Sets;
-
-/**
- * Tests for {@link IcebergOptimizeSingleFileTracker}
- */
+/** Tests for {@link IcebergOptimizeSingleFileTracker} */
 public class TestIcebergOptimizeSingleFileTracker {
 
-  private static final Schema TEST_SCHEMA = new Schema(
-    Types.NestedField.optional(1, "n_nationkey", Types.IntegerType.get()),
-    Types.NestedField.optional(2, "n_name", Types.StringType.get()),
-    Types.NestedField.optional(3, "n_regionkey", Types.IntegerType.get()),
-    Types.NestedField.optional(4, "n_comment", Types.StringType.get())
-  );
+  private static final Schema TEST_SCHEMA =
+      new Schema(
+          Types.NestedField.optional(1, "n_nationkey", Types.IntegerType.get()),
+          Types.NestedField.optional(2, "n_name", Types.StringType.get()),
+          Types.NestedField.optional(3, "n_regionkey", Types.IntegerType.get()),
+          Types.NestedField.optional(4, "n_comment", Types.StringType.get()));
 
   private static final String DATA_FILE_PATH_PREFIX = "s3://testdata/test_table/data/";
 
-  private static final PartitionSpec SPEC_UNPARTITIONED = PartitionSpec.builderFor(TEST_SCHEMA).withSpecId(0).build();
-  private static final PartitionSpec SPEC_PARTITIONED = PartitionSpec.builderFor(TEST_SCHEMA).withSpecId(1)
-    .identity("n_nationkey").build();
+  private static final PartitionSpec SPEC_UNPARTITIONED =
+      PartitionSpec.builderFor(TEST_SCHEMA).withSpecId(0).build();
+  private static final PartitionSpec SPEC_PARTITIONED =
+      PartitionSpec.builderFor(TEST_SCHEMA).withSpecId(1).identity("n_nationkey").build();
 
   @Test
   public void testSingleDataFileInMultiplePartitions() {
@@ -80,7 +77,9 @@ public class TestIcebergOptimizeSingleFileTracker {
     assertThat(addDataFiles).isEmpty();
     assertThat(delDataFiles).isEmpty();
 
-    assertThat(removed).contains(add1.path().toString(), add2.path().toString(), addUnpartitioned.path().toString());
+    assertThat(removed)
+        .contains(
+            add1.path().toString(), add2.path().toString(), addUnpartitioned.path().toString());
   }
 
   @Test
@@ -204,10 +203,10 @@ public class TestIcebergOptimizeSingleFileTracker {
     }
 
     return builder
-      .withInputFile(new MockInputFile())
-      .withRecordCount(25)
-      .withFormat(FileFormat.PARQUET)
-      .build();
+        .withInputFile(new MockInputFile())
+        .withRecordCount(25)
+        .withFormat(FileFormat.PARQUET)
+        .build();
   }
 
   public DeleteFile testDeleteFile(PartitionSpec spec, int partitionVal) {
@@ -217,11 +216,11 @@ public class TestIcebergOptimizeSingleFileTracker {
     }
 
     return builder
-      .ofPositionDeletes()
-      .withInputFile(new MockInputFile())
-      .withRecordCount(4)
-      .withFormat(FileFormat.PARQUET)
-      .build();
+        .ofPositionDeletes()
+        .withInputFile(new MockInputFile())
+        .withRecordCount(4)
+        .withFormat(FileFormat.PARQUET)
+        .build();
   }
 
   class MockInputFile implements InputFile {

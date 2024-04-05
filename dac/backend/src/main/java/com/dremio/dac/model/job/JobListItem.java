@@ -15,8 +15,6 @@
  */
 package com.dremio.dac.model.job;
 
-import java.util.List;
-
 import com.dremio.proto.model.attempts.RequestType;
 import com.dremio.service.job.JobSummary;
 import com.dremio.service.job.proto.JobState;
@@ -24,10 +22,9 @@ import com.dremio.service.job.proto.ParentDatasetInfo;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.List;
 
-/**
- * Represents one job returned as part of jobs list
- */
+/** Represents one job returned as part of jobs list */
 public class JobListItem extends PartialJobListItem {
   private final DatasetType datasetType;
   private final List<String> datasetPathList;
@@ -51,8 +48,22 @@ public class JobListItem extends PartialJobListItem {
       @JsonProperty("spilled") boolean spilled,
       @JsonProperty("outputRecords") long outputRecords,
       @JsonProperty("outputLimited") boolean outputLimited) {
-    super(id, state, failureInfo, cancellationInfo, user, startTime, endTime, description, requestType,
-        accelerated, datasetVersion, snowflakeAccelerated, spilled, outputRecords, outputLimited);
+    super(
+        id,
+        state,
+        failureInfo,
+        cancellationInfo,
+        user,
+        startTime,
+        endTime,
+        description,
+        requestType,
+        accelerated,
+        datasetVersion,
+        snowflakeAccelerated,
+        spilled,
+        outputRecords,
+        outputLimited);
     this.datasetPathList = datasetPathList;
     this.datasetType = datasetType;
   }
@@ -70,5 +81,4 @@ public class JobListItem extends PartialJobListItem {
   public DatasetType getDatasetType() {
     return datasetType;
   }
-
 }

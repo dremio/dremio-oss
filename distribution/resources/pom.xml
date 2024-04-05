@@ -16,13 +16,12 @@
     limitations under the License.
 
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <parent>
     <groupId>com.dremio.distribution</groupId>
     <artifactId>dremio-distribution-parent</artifactId>
-    <version>24.3.2-202401241821100032-d2d8a497</version>
+    <version>25.0.0-202404051521110861-ed9515a8</version>
   </parent>
 
   <artifactId>dremio-distribution-resources</artifactId>
@@ -30,21 +29,8 @@
   <name>Distribution - Scripts and Resources</name>
 
   <properties>
-   <profile.tag>default</profile.tag>
+    <profile.tag>default</profile.tag>
   </properties>
-  <profiles>
-   <profile>
-    <id>mapr</id>
-    <activation>
-      <property>
-        <name>mapr</name>
-      </property>
-    </activation>
-    <properties>
-     <profile.tag>mapr</profile.tag>
-    </properties>
-   </profile>
-  </profiles>
 
   <build>
     <resources>
@@ -62,8 +48,7 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
         <configuration>
-          <excludes combine.self="override">
-          </excludes>
+          <excludes combine.self="override"/>
         </configuration>
       </plugin>
 
@@ -95,4 +80,17 @@
       </plugin>
     </plugins>
   </build>
+  <profiles>
+    <profile>
+      <id>mapr</id>
+      <activation>
+        <property>
+          <name>mapr</name>
+        </property>
+      </activation>
+      <properties>
+        <profile.tag>mapr</profile.tag>
+      </properties>
+    </profile>
+  </profiles>
 </project>

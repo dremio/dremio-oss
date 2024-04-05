@@ -15,18 +15,6 @@
  */
 package com.dremio.jdbc.impl;
 
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.RowIdLifetime;
-import java.sql.SQLException;
-import java.sql.SQLFeatureNotSupportedException;
-import java.util.Objects;
-import java.util.Set;
-import java.util.concurrent.ExecutionException;
-
-import org.apache.calcite.avatica.AvaticaConnection;
-import org.apache.calcite.avatica.AvaticaDatabaseMetaData;
-
 import com.dremio.common.Version;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.types.Types;
@@ -51,17 +39,20 @@ import com.dremio.jdbc.DremioDatabaseMetaData;
 import com.google.common.base.Joiner;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableSet;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.RowIdLifetime;
+import java.sql.SQLException;
+import java.sql.SQLFeatureNotSupportedException;
+import java.util.Objects;
+import java.util.Set;
+import java.util.concurrent.ExecutionException;
+import org.apache.calcite.avatica.AvaticaConnection;
+import org.apache.calcite.avatica.AvaticaDatabaseMetaData;
 
-
-/**
- * Dremio's implementation of {@link DatabaseMetaData}.
- */
-class DremioDatabaseMetaDataImpl extends AvaticaDatabaseMetaData
-                                 implements DremioDatabaseMetaData {
-  /**
-   * Holds allowed conversion between SQL types
-   *
-   */
+/** Dremio's implementation of {@link DatabaseMetaData}. */
+class DremioDatabaseMetaDataImpl extends AvaticaDatabaseMetaData implements DremioDatabaseMetaData {
+  /** Holds allowed conversion between SQL types */
   private static final class SQLConvertSupport {
     public final int from;
     public final int to;
@@ -76,7 +67,8 @@ class DremioDatabaseMetaDataImpl extends AvaticaDatabaseMetaData
       return Objects.hash(from, to);
     }
 
-    @Override public boolean equals(Object obj) {
+    @Override
+    public boolean equals(Object obj) {
       if (this == obj) {
         return true;
       }
@@ -89,14 +81,15 @@ class DremioDatabaseMetaDataImpl extends AvaticaDatabaseMetaData
       return from == other.from && to == other.to;
     }
 
-    public static final Set<SQLConvertSupport> toSQLConvertSupport(Iterable<ConvertSupport> convertSupportIterable) {
+    public static final Set<SQLConvertSupport> toSQLConvertSupport(
+        Iterable<ConvertSupport> convertSupportIterable) {
       ImmutableSet.Builder<SQLConvertSupport> sqlConvertSupportSet = ImmutableSet.builder();
-      for(ConvertSupport convertSupport: convertSupportIterable) {
+      for (ConvertSupport convertSupport : convertSupportIterable) {
         try {
-          sqlConvertSupportSet.add(new SQLConvertSupport(
-              toSQLType(convertSupport.getFrom()),
-              toSQLType(convertSupport.getTo())));
-        } catch(IllegalArgumentException e) {
+          sqlConvertSupportSet.add(
+              new SQLConvertSupport(
+                  toSQLType(convertSupport.getFrom()), toSQLType(convertSupport.getTo())));
+        } catch (IllegalArgumentException e) {
           // Ignore unknown types...
         }
       }
@@ -112,8 +105,8 @@ class DremioDatabaseMetaDataImpl extends AvaticaDatabaseMetaData
   private volatile ServerMeta serverMeta;
   private volatile Set<SQLConvertSupport> convertSupport;
 
-  protected DremioDatabaseMetaDataImpl( AvaticaConnection connection ) {
-    super( connection );
+  protected DremioDatabaseMetaDataImpl(AvaticaConnection connection) {
+    super(connection);
   }
 
   /**
@@ -123,16 +116,14 @@ class DremioDatabaseMetaDataImpl extends AvaticaDatabaseMetaData
    * @throws SQLException if error in calling {@link Connection#isClosed()}
    */
   private void throwIfClosed() throws SQLException {
-    if ( getConnection().isClosed() ) {
-      throw new AlreadyClosedSqlException(
-          "DatabaseMetaData's Connection is already closed." );
+    if (getConnection().isClosed()) {
+      throw new AlreadyClosedSqlException("DatabaseMetaData's Connection is already closed.");
     }
   }
 
   private boolean getServerMetaSupported() throws SQLException {
     DremioConnection connection = (DremioConnection) getConnection();
-    return
-        !connection.getConfig().isServerMetadataDisabled()
+    return !connection.getConfig().isServerMetadataDisabled()
         && connection.getClient().getSupportedMethods().contains(ServerMethod.GET_SERVER_META);
   }
 
@@ -150,7 +141,7 @@ class DremioDatabaseMetaDataImpl extends AvaticaDatabaseMetaData
     assert getServerMetaSupported();
 
     if (serverMeta == null) {
-      synchronized(this) {
+      synchronized (this) {
         if (serverMeta == null) {
           DremioConnection connection = (DremioConnection) getConnection();
 
@@ -161,11 +152,12 @@ class DremioDatabaseMetaDataImpl extends AvaticaDatabaseMetaData
               throw new SQLException("Error when getting server meta: " + error.getMessage());
             }
             serverMeta = resp.getServerMeta();
-            convertSupport = SQLConvertSupport.toSQLConvertSupport(serverMeta.getConvertSupportList());
+            convertSupport =
+                SQLConvertSupport.toSQLConvertSupport(serverMeta.getConvertSupportList());
           } catch (InterruptedException e) {
             throw new SQLException("Interrupted when getting server meta", e);
           } catch (ExecutionException e) {
-            Throwable cause =  e.getCause();
+            Throwable cause = e.getCause();
             if (cause == null) {
               throw new AssertionError("Something unknown happened", e);
             }
@@ -224,7 +216,6 @@ class DremioDatabaseMetaDataImpl extends AvaticaDatabaseMetaData
     }
     return getServerMeta().getReadOnly();
   }
-
 
   // For omitted NULLS FIRST/NULLS HIGH, Dremio sort NULL sorts as highest value:
 
@@ -523,7 +514,8 @@ class DremioDatabaseMetaDataImpl extends AvaticaDatabaseMetaData
       return super.supportsTableCorrelationNames();
     }
     return getServerMeta().getCorrelationNamesSupport() == CorrelationNamesSupport.CN_ANY
-        || getServerMeta().getCorrelationNamesSupport() == CorrelationNamesSupport.CN_DIFFERENT_NAMES;
+        || getServerMeta().getCorrelationNamesSupport()
+            == CorrelationNamesSupport.CN_DIFFERENT_NAMES;
   }
 
   @Override
@@ -532,7 +524,8 @@ class DremioDatabaseMetaDataImpl extends AvaticaDatabaseMetaData
     if (!getServerMetaSupported()) {
       return super.supportsDifferentTableCorrelationNames();
     }
-    return getServerMeta().getCorrelationNamesSupport() == CorrelationNamesSupport.CN_DIFFERENT_NAMES;
+    return getServerMeta().getCorrelationNamesSupport()
+        == CorrelationNamesSupport.CN_DIFFERENT_NAMES;
   }
 
   @Override
@@ -1089,8 +1082,7 @@ class DremioDatabaseMetaDataImpl extends AvaticaDatabaseMetaData
   }
 
   @Override
-  public boolean supportsDataDefinitionAndDataManipulationTransactions()
-      throws SQLException {
+  public boolean supportsDataDefinitionAndDataManipulationTransactions() throws SQLException {
     throwIfClosed();
     return super.supportsDataDefinitionAndDataManipulationTransactions();
   }
@@ -1114,42 +1106,41 @@ class DremioDatabaseMetaDataImpl extends AvaticaDatabaseMetaData
   }
 
   @Override
-  public ResultSet getProcedures(String catalog, String schemaPattern,
-                                 String procedureNamePattern) throws SQLException {
+  public ResultSet getProcedures(String catalog, String schemaPattern, String procedureNamePattern)
+      throws SQLException {
     throwIfClosed();
     return super.getProcedures(catalog, schemaPattern, procedureNamePattern);
   }
 
   @Override
-  public ResultSet getProcedureColumns(String catalog, String schemaPattern,
-                                       String procedureNamePattern,
-                                       String columnNamePattern) throws SQLException {
+  public ResultSet getProcedureColumns(
+      String catalog, String schemaPattern, String procedureNamePattern, String columnNamePattern)
+      throws SQLException {
     throwIfClosed();
-    return super.getProcedureColumns(catalog, schemaPattern,
-                                     procedureNamePattern, columnNamePattern);
+    return super.getProcedureColumns(
+        catalog, schemaPattern,
+        procedureNamePattern, columnNamePattern);
   }
 
   @Override
-  public ResultSet getTables(String catalog,
-                             String schemaPattern,
-                             String tableNamePattern,
-                             String[] types) throws SQLException {
+  public ResultSet getTables(
+      String catalog, String schemaPattern, String tableNamePattern, String[] types)
+      throws SQLException {
     throwIfClosed();
     try {
-      return super.getTables(catalog, schemaPattern,tableNamePattern, types);
-    } catch(SQLExecutionError e) {
+      return super.getTables(catalog, schemaPattern, tableNamePattern, types);
+    } catch (SQLExecutionError e) {
       Throwables.propagateIfInstanceOf(e.getCause(), SQLException.class);
       throw e;
     }
   }
-
 
   @Override
   public ResultSet getSchemas() throws SQLException {
     throwIfClosed();
     try {
       return super.getSchemas();
-    } catch(SQLExecutionError e) {
+    } catch (SQLExecutionError e) {
       Throwables.propagateIfInstanceOf(e.getCause(), SQLException.class);
       throw e;
     }
@@ -1160,7 +1151,7 @@ class DremioDatabaseMetaDataImpl extends AvaticaDatabaseMetaData
     throwIfClosed();
     try {
       return super.getCatalogs();
-    } catch(SQLExecutionError e) {
+    } catch (SQLExecutionError e) {
       Throwables.propagateIfInstanceOf(e.getCause(), SQLException.class);
       throw e;
     }
@@ -1173,76 +1164,78 @@ class DremioDatabaseMetaDataImpl extends AvaticaDatabaseMetaData
   }
 
   @Override
-  public ResultSet getColumns(String catalog, String schema, String table,
-                              String columnNamePattern) throws SQLException {
+  public ResultSet getColumns(String catalog, String schema, String table, String columnNamePattern)
+      throws SQLException {
     try {
       throwIfClosed();
       return super.getColumns(catalog, schema, table, columnNamePattern);
-    } catch(SQLExecutionError e) {
+    } catch (SQLExecutionError e) {
       Throwables.propagateIfInstanceOf(e.getCause(), SQLException.class);
       throw e;
     }
   }
 
   @Override
-  public ResultSet getColumnPrivileges(String catalog, String schema,
-                                       String table,
-                                       String columnNamePattern) throws SQLException {
+  public ResultSet getColumnPrivileges(
+      String catalog, String schema, String table, String columnNamePattern) throws SQLException {
     throwIfClosed();
     return super.getColumnPrivileges(catalog, schema, table, columnNamePattern);
   }
 
   @Override
-  public ResultSet getTablePrivileges(String catalog, String schemaPattern,
-                                      String tableNamePattern) throws SQLException {
+  public ResultSet getTablePrivileges(String catalog, String schemaPattern, String tableNamePattern)
+      throws SQLException {
     throwIfClosed();
     return super.getTablePrivileges(catalog, schemaPattern, tableNamePattern);
   }
 
   @Override
-  public ResultSet getBestRowIdentifier(String catalog, String schema,
-                                        String table, int scope,
-                                        boolean nullable) throws SQLException {
+  public ResultSet getBestRowIdentifier(
+      String catalog, String schema, String table, int scope, boolean nullable)
+      throws SQLException {
     throwIfClosed();
     return super.getBestRowIdentifier(catalog, schema, table, scope, nullable);
   }
 
   @Override
-  public ResultSet getVersionColumns(String catalog, String schema,
-                                     String table) throws SQLException {
+  public ResultSet getVersionColumns(String catalog, String schema, String table)
+      throws SQLException {
     throwIfClosed();
     return super.getVersionColumns(catalog, schema, table);
   }
 
   @Override
-  public ResultSet getPrimaryKeys(String catalog, String schema,
-                                  String table) throws SQLException {
+  public ResultSet getPrimaryKeys(String catalog, String schema, String table) throws SQLException {
     throwIfClosed();
     return super.getPrimaryKeys(catalog, schema, table);
   }
 
   @Override
-  public ResultSet getImportedKeys(String catalog, String schema,
-                                   String table) throws SQLException {
+  public ResultSet getImportedKeys(String catalog, String schema, String table)
+      throws SQLException {
     throwIfClosed();
     return super.getImportedKeys(catalog, schema, table);
   }
 
   @Override
-  public ResultSet getExportedKeys(String catalog, String schema,
-                                   String table) throws SQLException {
+  public ResultSet getExportedKeys(String catalog, String schema, String table)
+      throws SQLException {
     throwIfClosed();
     return super.getExportedKeys(catalog, schema, table);
   }
 
   @Override
   public ResultSet getCrossReference(
-      String parentCatalog, String parentSchema, String parentTable,
-      String foreignCatalog, String foreignSchema,
-      String foreignTable ) throws SQLException {
+      String parentCatalog,
+      String parentSchema,
+      String parentTable,
+      String foreignCatalog,
+      String foreignSchema,
+      String foreignTable)
+      throws SQLException {
     throwIfClosed();
-    return super.getCrossReference(parentCatalog, parentSchema, parentTable,
-                                   foreignCatalog, foreignSchema, foreignTable );
+    return super.getCrossReference(
+        parentCatalog, parentSchema, parentTable, foreignCatalog, foreignSchema, foreignTable);
   }
 
   @Override
@@ -1252,9 +1245,9 @@ class DremioDatabaseMetaDataImpl extends AvaticaDatabaseMetaData
   }
 
   @Override
-  public ResultSet getIndexInfo(String catalog, String schema, String table,
-                                boolean unique,
-                                boolean approximate) throws SQLException {
+  public ResultSet getIndexInfo(
+      String catalog, String schema, String table, boolean unique, boolean approximate)
+      throws SQLException {
     throwIfClosed();
     return super.getIndexInfo(catalog, schema, table, unique, approximate);
   }
@@ -1266,8 +1259,7 @@ class DremioDatabaseMetaDataImpl extends AvaticaDatabaseMetaData
   }
 
   @Override
-  public boolean supportsResultSetConcurrency(int type,
-                                              int concurrency) throws SQLException {
+  public boolean supportsResultSetConcurrency(int type, int concurrency) throws SQLException {
     throwIfClosed();
     return super.supportsResultSetConcurrency(type, concurrency);
   }
@@ -1279,8 +1271,7 @@ class DremioDatabaseMetaDataImpl extends AvaticaDatabaseMetaData
       return super.ownUpdatesAreVisible(type);
     } catch (RuntimeException e) {
       if ("todo: implement this method".equals(e.getMessage())) {
-        throw new SQLFeatureNotSupportedException(
-            "ownUpdatesAreVisible(int) is not supported", e);
+        throw new SQLFeatureNotSupportedException("ownUpdatesAreVisible(int) is not supported", e);
       } else {
         throw new SQLException(e.getMessage(), e);
       }
@@ -1294,8 +1285,7 @@ class DremioDatabaseMetaDataImpl extends AvaticaDatabaseMetaData
       return super.ownDeletesAreVisible(type);
     } catch (RuntimeException e) {
       if ("todo: implement this method".equals(e.getMessage())) {
-        throw new SQLFeatureNotSupportedException(
-            "ownDeletesAreVisible(int) is not supported", e);
+        throw new SQLFeatureNotSupportedException("ownDeletesAreVisible(int) is not supported", e);
       } else {
         throw new SQLException(e.getMessage(), e);
       }
@@ -1309,8 +1299,7 @@ class DremioDatabaseMetaDataImpl extends AvaticaDatabaseMetaData
       return super.ownInsertsAreVisible(type);
     } catch (RuntimeException e) {
       if ("todo: implement this method".equals(e.getMessage())) {
-        throw new SQLFeatureNotSupportedException(
-            "ownInsertsAreVisible(int) is not supported", e);
+        throw new SQLFeatureNotSupportedException("ownInsertsAreVisible(int) is not supported", e);
       } else {
         throw new SQLException(e.getMessage(), e);
       }
@@ -1369,8 +1358,7 @@ class DremioDatabaseMetaDataImpl extends AvaticaDatabaseMetaData
       return super.updatesAreDetected(type);
     } catch (RuntimeException e) {
       if ("todo: implement this method".equals(e.getMessage())) {
-        throw new SQLFeatureNotSupportedException(
-            "updatesAreDetected(int) is not supported", e);
+        throw new SQLFeatureNotSupportedException("updatesAreDetected(int) is not supported", e);
       } else {
         throw new SQLException(e.getMessage(), e);
       }
@@ -1384,8 +1372,7 @@ class DremioDatabaseMetaDataImpl extends AvaticaDatabaseMetaData
       return super.deletesAreDetected(type);
     } catch (RuntimeException e) {
       if ("todo: implement this method".equals(e.getMessage())) {
-        throw new SQLFeatureNotSupportedException(
-            "deletesAreDetected(int) is not supported", e);
+        throw new SQLFeatureNotSupportedException("deletesAreDetected(int) is not supported", e);
       } else {
         throw new SQLException(e.getMessage(), e);
       }
@@ -1399,8 +1386,7 @@ class DremioDatabaseMetaDataImpl extends AvaticaDatabaseMetaData
       return super.insertsAreDetected(type);
     } catch (RuntimeException e) {
       if ("todo: implement this method".equals(e.getMessage())) {
-        throw new SQLFeatureNotSupportedException(
-            "insertsAreDetected(int) is not supported", e);
+        throw new SQLFeatureNotSupportedException("insertsAreDetected(int) is not supported", e);
       } else {
         throw new SQLException(e.getMessage(), e);
       }
@@ -1414,9 +1400,9 @@ class DremioDatabaseMetaDataImpl extends AvaticaDatabaseMetaData
   }
 
   @Override
-  public ResultSet getUDTs(String catalog, String schemaPattern,
-                           String typeNamePattern,
-                           int[] types) throws SQLException {
+  public ResultSet getUDTs(
+      String catalog, String schemaPattern, String typeNamePattern, int[] types)
+      throws SQLException {
     throwIfClosed();
     return super.getUDTs(catalog, schemaPattern, typeNamePattern, types);
   }
@@ -1452,26 +1438,25 @@ class DremioDatabaseMetaDataImpl extends AvaticaDatabaseMetaData
   }
 
   @Override
-  public ResultSet getSuperTypes(String catalog, String schemaPattern,
-                                 String typeNamePattern) throws SQLException {
+  public ResultSet getSuperTypes(String catalog, String schemaPattern, String typeNamePattern)
+      throws SQLException {
     throwIfClosed();
     return super.getSuperTypes(catalog, schemaPattern, typeNamePattern);
   }
 
   @Override
-  public ResultSet getSuperTables(String catalog, String schemaPattern,
-                                  String tableNamePattern) throws SQLException {
+  public ResultSet getSuperTables(String catalog, String schemaPattern, String tableNamePattern)
+      throws SQLException {
     throwIfClosed();
     return super.getSuperTables(catalog, schemaPattern, tableNamePattern);
   }
 
   @Override
-  public ResultSet getAttributes(String catalog, String schemaPattern,
-                                 String typeNamePattern,
-                                 String attributeNamePattern) throws SQLException {
+  public ResultSet getAttributes(
+      String catalog, String schemaPattern, String typeNamePattern, String attributeNamePattern)
+      throws SQLException {
     throwIfClosed();
-    return super.getAttributes(catalog, schemaPattern, typeNamePattern,
-                               attributeNamePattern);
+    return super.getAttributes(catalog, schemaPattern, typeNamePattern, attributeNamePattern);
   }
 
   @Override
@@ -1560,8 +1545,7 @@ class DremioDatabaseMetaDataImpl extends AvaticaDatabaseMetaData
   }
 
   @Override
-  public ResultSet getSchemas(String catalog,
-                              String schemaPattern) throws SQLException {
+  public ResultSet getSchemas(String catalog, String schemaPattern) throws SQLException {
     throwIfClosed();
     return super.getSchemas(catalog, schemaPattern);
   }
@@ -1585,28 +1569,26 @@ class DremioDatabaseMetaDataImpl extends AvaticaDatabaseMetaData
   }
 
   @Override
-  public ResultSet getFunctions(String catalog, String schemaPattern,
-                                String functionNamePattern) throws SQLException {
+  public ResultSet getFunctions(String catalog, String schemaPattern, String functionNamePattern)
+      throws SQLException {
     throwIfClosed();
     return super.getFunctions(catalog, schemaPattern, functionNamePattern);
   }
 
   @Override
-  public ResultSet getFunctionColumns(String catalog, String schemaPattern,
-                                      String functionNamePattern,
-                                      String columnNamePattern) throws SQLException {
+  public ResultSet getFunctionColumns(
+      String catalog, String schemaPattern, String functionNamePattern, String columnNamePattern)
+      throws SQLException {
     throwIfClosed();
-    return super.getFunctionColumns(catalog, schemaPattern, functionNamePattern,
-                                    columnNamePattern);
+    return super.getFunctionColumns(catalog, schemaPattern, functionNamePattern, columnNamePattern);
   }
 
   @Override
-  public ResultSet getPseudoColumns(String catalog, String schemaPattern,
-                                    String tableNamePattern,
-                                    String columnNamePattern) throws SQLException {
+  public ResultSet getPseudoColumns(
+      String catalog, String schemaPattern, String tableNamePattern, String columnNamePattern)
+      throws SQLException {
     throwIfClosed();
-    return super.getPseudoColumns(catalog, schemaPattern, tableNamePattern,
-                                  columnNamePattern);
+    return super.getPseudoColumns(catalog, schemaPattern, tableNamePattern, columnNamePattern);
   }
 
   @Override
@@ -1614,6 +1596,4 @@ class DremioDatabaseMetaDataImpl extends AvaticaDatabaseMetaData
     throwIfClosed();
     return super.generatedKeyAlwaysReturned();
   }
-
-
 }

@@ -19,20 +19,19 @@ import com.dremio.common.expression.visitors.ExprVisitor;
 
 public class TypedNullConstant extends LogicalExpressionBase {
 
-    private final CompleteType type;
+  private final CompleteType type;
 
-    public TypedNullConstant(CompleteType type) {
-      this.type = type;
-    }
+  public TypedNullConstant(CompleteType type) {
+    this.type = type;
+  }
 
-    @Override
-    public CompleteType getCompleteType() {
-      return this.type;
-    }
+  @Override
+  public CompleteType getCompleteType() {
+    return this.type;
+  }
 
-    @Override
-    public <T, V, E extends Exception> T accept(ExprVisitor<T, V, E> visitor, V value) throws E {
-      return visitor.visitNullConstant(this, value);
-    }
-
+  @Override
+  public <T, V, E extends Exception> T accept(ExprVisitor<T, V, E> visitor, V value) throws E {
+    return visitor.visitNullConstant(this, value);
+  }
 }

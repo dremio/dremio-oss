@@ -30,11 +30,10 @@ package io.airlift.tpch;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import io.airlift.tpch.GenerationDefinition.TpchTable;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.VarCharVector;
-
-import io.airlift.tpch.GenerationDefinition.TpchTable;
 
 public class RegionGenerator extends TpchGenerator {
   private static final int COMMENT_AVERAGE_LENGTH = 72;
@@ -46,10 +45,12 @@ public class RegionGenerator extends TpchGenerator {
   private final Distribution regions;
   private final RandomText commentRandom;
 
-  public RegionGenerator(BufferAllocator allocator, GenerationDefinition def, String...includedColumns) {
+  public RegionGenerator(
+      BufferAllocator allocator, GenerationDefinition def, String... includedColumns) {
     super(TpchTable.REGION, allocator, def, 1, includedColumns);
     this.regions = Distributions.getDefaultDistributions().getRegions();
-    this.commentRandom = randomText(1500869201, TextPool.getDefaultTestPool(), COMMENT_AVERAGE_LENGTH);
+    this.commentRandom =
+        randomText(1500869201, TextPool.getDefaultTestPool(), COMMENT_AVERAGE_LENGTH);
 
     this.regionKey = int8("r_regionKey");
     this.name = varChar("r_name");
@@ -69,9 +70,5 @@ public class RegionGenerator extends TpchGenerator {
     // comment
     byte[] commentVal = commentRandom.nextValue().getBytes(UTF_8);
     comment.setSafe(outputIndex, commentVal, 0, commentVal.length);
-
   }
-
-
-
 }

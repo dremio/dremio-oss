@@ -15,65 +15,64 @@
  */
 package com.dremio.exec.expr.annotations;
 
+import com.dremio.exec.expr.fn.OutputDerivation;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-
-import com.dremio.exec.expr.fn.OutputDerivation;
-
 
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.TYPE})
 public @interface FunctionTemplate {
 
   /**
-   * Name of function (when only one.)
-   * Use this annotation element if there is only one name for the function.
-   * Note: If you use this annotation don't use {@link #names()}.
-   * <p>
-   *   TODO:  Refer to wherever list of possible or at least known names is,
-   *   to resolve the current issue of spaces vs. underlines in names (e.g., we
-   *   have both "less_than" and "less than".
-   * </p>
+   * Name of function (when only one.) Use this annotation element if there is only one name for the
+   * function. Note: If you use this annotation don't use {@link #names()}.
+   *
+   * <p>TODO: Refer to wherever list of possible or at least known names is, to resolve the current
+   * issue of spaces vs. underlines in names (e.g., we have both "less_than" and "less than".
+   *
    * @return
    */
   String name() default "";
 
   /**
-   * Names of function (when multiple).
-   * Use this annotation element if there are multiple names for the function.
-   * Note: If you use this annotation don't use {@link #name()}.
-   * <p>
-   *   TODO:  Refer to wherever list of possible or at least known names is,
-   *   to resolve the current issue of spaces vs. underlines in names (e.g., we
-   *   have both "less_than" and "less than".
-   * </p>
+   * Names of function (when multiple). Use this annotation element if there are multiple names for
+   * the function. Note: If you use this annotation don't use {@link #name()}.
+   *
+   * <p>TODO: Refer to wherever list of possible or at least known names is, to resolve the current
+   * issue of spaces vs. underlines in names (e.g., we have both "less_than" and "less than".
+   *
    * @return
    */
   String[] names() default {};
 
   FunctionScope scope() default FunctionScope.SIMPLE;
+
   NullHandling nulls() default NullHandling.INTERNAL;
+
   boolean isBinaryCommutative() default false;
-  boolean isDeterministic()  default true;
+
+  boolean isDeterministic() default true;
+
   boolean isDynamic() default false; // see Calcite's SqlOperator#isDynamicFunction
+
   FunctionSyntax syntax() default FunctionSyntax.FUNCTION;
+
   String desc() default "";
+
   FunctionCostCategory costCategory() default FunctionCostCategory.SIMPLE;
+
   Class<? extends OutputDerivation> derivation() default OutputDerivation.Default.class;
 
   public static enum NullHandling {
-    /**
-     * Method handles nulls.
-     */
+    /** Method handles nulls. */
     INTERNAL,
 
     /**
-     * Null output if any null input:
-     * Indicates that a method's associated logical operation returns NULL if
-     * either input is NULL, and therefore that the method must not be called
-     * with null inputs.  (The calling framework must handle NULLs.)
+     * Null output if any null input: Indicates that a method's associated logical operation returns
+     * NULL if either input is NULL, and therefore that the method must not be called with null
+     * inputs. (The calling framework must handle NULLs.)
      */
     NULL_IF_NULL;
   }
@@ -89,7 +88,9 @@ public @interface FunctionTemplate {
   }
 
   public static enum FunctionCostCategory {
-    SIMPLE(1), MEDIUM(20), COMPLEX(50);
+    SIMPLE(1),
+    MEDIUM(20),
+    COMPLEX(50);
 
     private final int value;
 
@@ -104,6 +105,5 @@ public @interface FunctionTemplate {
     public static FunctionCostCategory getDefault() {
       return SIMPLE;
     }
-
   }
 }

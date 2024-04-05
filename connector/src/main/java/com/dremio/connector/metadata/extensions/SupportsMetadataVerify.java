@@ -15,19 +15,19 @@
  */
 package com.dremio.connector.metadata.extensions;
 
-import java.util.Optional;
-
-import javax.annotation.Nonnull;
-
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.DatasetMetadataVerifyResult;
 import com.dremio.connector.metadata.options.MetadataVerifyRequest;
+import java.util.Optional;
+import javax.annotation.Nonnull;
 
 /**
- * This is an optional interface. When implemented by a plugin, this is used to perform ad-hoc metadata verification
- * base on {@link MetadataVerifyRequest} and return a {@link DatasetMetadataVerifyResult}
+ * This is an optional interface. When implemented by a plugin, this is used to perform ad-hoc
+ * metadata verification base on {@link MetadataVerifyRequest} and return a {@link
+ * DatasetMetadataVerifyResult}
  */
 public interface SupportsMetadataVerify {
   @Nonnull
-  Optional<DatasetMetadataVerifyResult> verifyMetadata(DatasetHandle datasetHandle, MetadataVerifyRequest metadataVerifyRequest);
+  Optional<DatasetMetadataVerifyResult> verifyMetadata(
+      DatasetHandle datasetHandle, MetadataVerifyRequest metadataVerifyRequest);
 }

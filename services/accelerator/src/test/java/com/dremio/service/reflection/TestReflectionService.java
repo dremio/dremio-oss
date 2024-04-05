@@ -18,31 +18,17 @@ package com.dremio.service.reflection;
 import static com.dremio.sabot.rpc.user.UserSession.MAX_METADATA_COUNT;
 import static com.dremio.service.reflection.ReflectionOptions.AUTO_REBUILD_PLAN;
 import static com.dremio.service.reflection.ReflectionOptions.MATERIALIZATION_CACHE_ENABLED;
+import static com.dremio.service.reflection.ReflectionServiceImpl.DEFAULT_MATERIALIZATION_DESCRIPTOR_FACTORY;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
-import java.util.Collections;
-import java.util.List;
-import java.util.concurrent.ExecutorService;
-
-import javax.inject.Provider;
-
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.calcite.adapter.java.JavaTypeFactory;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Mock;
-import org.mockito.Mockito;
-import org.mockito.junit.MockitoJUnitRunner;
 
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
@@ -50,10 +36,13 @@ import com.dremio.config.DremioConfig;
 import com.dremio.datastore.api.LegacyIndexedStore;
 import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
+import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.ops.PlannerCatalog;
-import com.dremio.exec.ops.QueryContext;
+import com.dremio.exec.planner.acceleration.DremioMaterialization;
 import com.dremio.exec.planner.acceleration.MaterializationDescriptor;
-import com.dremio.exec.planner.serialization.DeserializationException;
+import com.dremio.exec.planner.acceleration.MaterializationExpander.RebuildPlanException;
+import com.dremio.exec.planner.acceleration.StrippingFactory;
 import com.dremio.exec.planner.sql.SqlConverter;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
@@ -63,8 +52,12 @@ import com.dremio.service.DirectProvider;
 import com.dremio.service.job.DeleteJobCountsRequest;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.reflection.proto.ExternalReflection;
+import com.dremio.service.reflection.proto.JobDetails;
 import com.dremio.service.reflection.proto.Materialization;
 import com.dremio.service.reflection.proto.MaterializationId;
+import com.dremio.service.reflection.proto.MaterializationMetrics;
+import com.dremio.service.reflection.proto.MaterializationPlan;
+import com.dremio.service.reflection.proto.MaterializationPlanId;
 import com.dremio.service.reflection.proto.MaterializationState;
 import com.dremio.service.reflection.proto.ReflectionDetails;
 import com.dremio.service.reflection.proto.ReflectionEntry;
@@ -73,67 +66,79 @@ import com.dremio.service.reflection.proto.ReflectionGoalState;
 import com.dremio.service.reflection.proto.ReflectionId;
 import com.dremio.service.reflection.proto.ReflectionType;
 import com.dremio.service.reflection.proto.Refresh;
-import com.dremio.service.reflection.proto.RefreshDecision;
 import com.dremio.service.reflection.proto.RefreshId;
 import com.dremio.service.reflection.refresh.ReflectionPlanGenerator;
 import com.dremio.service.reflection.store.ExternalReflectionStore;
+import com.dremio.service.reflection.store.MaterializationPlanStore;
 import com.dremio.service.reflection.store.MaterializationStore;
 import com.dremio.service.reflection.store.ReflectionEntriesStore;
 import com.dremio.service.reflection.store.ReflectionGoalsStore;
 import com.dremio.service.scheduler.SchedulerService;
+import com.google.common.base.Function;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
+import io.protostuff.ByteString;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import javax.inject.Provider;
+import org.apache.arrow.memory.BufferAllocator;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.function.ThrowingRunnable;
+import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+import org.mockito.Mockito;
+import org.mockito.junit.MockitoJUnitRunner;
 
 @RunWith(MockitoJUnitRunner.Silent.class)
 public class TestReflectionService {
-  @Mock
-  private SabotContext sabotContext;
+  @Mock private SabotContext sabotContext;
+
+  @Mock private JobsService jobsService;
+
+  @Mock private CatalogService catalogService;
+
+  @Mock private BufferAllocator allocator;
+
+  @Mock private SabotConfig config;
+
+  @Mock private OptionManager optionManager;
+
+  @Mock private DremioConfig dremioConfig;
+
+  @Mock private LegacyKVStoreProvider kvStoreProvider;
+
+  @Mock private LegacyIndexedStore<ReflectionId, ReflectionGoal> reflectionGoalStore;
+
+  @Mock private LegacyKVStore<ReflectionId, ReflectionEntry> reflectionEntryStore;
+
+  @Mock private LegacyIndexedStore<MaterializationId, Materialization> materializationStore;
 
   @Mock
-  private JobsService jobsService;
+  private LegacyIndexedStore<MaterializationPlanId, MaterializationPlan> materializationPlanStore;
 
-  @Mock
-  private CatalogService catalogService;
+  @Mock private LegacyIndexedStore<RefreshId, Refresh> refreshStore;
 
-  @Mock
-  private BufferAllocator allocator;
+  @Mock private LegacyIndexedStore<ReflectionId, ExternalReflection> externalReflectionStore;
 
-  @Mock
-  private SabotConfig config;
+  @Mock private ReflectionStatusService reflectionStatusService;
 
-  @Mock
-  private OptionManager optionManager;
+  @Mock private SqlConverter converter;
 
-  @Mock
-  private DremioConfig dremioConfig;
-
-  @Mock
-  private LegacyKVStoreProvider kvStoreProvider;
-
-  @Mock
-  private LegacyIndexedStore<ReflectionId, ReflectionGoal> reflectionGoalStore;
-
-  @Mock
-  private LegacyKVStore<ReflectionId, ReflectionEntry> reflectionEntryStore;
-
-  @Mock
-  private LegacyIndexedStore<MaterializationId, Materialization> materializationStore;
-
-  @Mock
-  private LegacyIndexedStore<RefreshId, Refresh> refreshStore;
-
-  @Mock
-  private LegacyIndexedStore<ReflectionId, ExternalReflection> externalReflectionStore;
-
-  @Mock
-  private SqlConverter converter;
+  @Mock private MaterializationCache.CacheHelper cacheHelper;
 
   private ReflectionServiceImpl service;
 
-  private MaterializationDescriptor descriptor;
+  @Mock private MaterializationDescriptor descriptor;
 
-  private boolean isCoordinatorStarting;
+  @Mock private DremioMaterialization dremioMaterialization;
+
+  @Mock private Catalog catalog;
 
   private Materialization materialization;
   private ReflectionEntry entry;
@@ -141,37 +146,49 @@ public class TestReflectionService {
   private ReflectionServiceImpl.ExpansionHelper expansionHelper;
   private ReflectionServiceImpl.PlanCacheInvalidationHelper planCacheInvalidationHelper;
 
-
   @Before
   public void setup() {
     when(sabotContext.getDremioConfig()).thenReturn(dremioConfig);
     when(sabotContext.getOptionManager()).thenReturn(optionManager);
+    when(config.getInstance(
+            "dremio.reflection.materialization.descriptor.factory",
+            MaterializationDescriptorFactory.class,
+            DEFAULT_MATERIALIZATION_DESCRIPTOR_FACTORY))
+        .thenReturn(DEFAULT_MATERIALIZATION_DESCRIPTOR_FACTORY);
+
     when(optionManager.getOption(MATERIALIZATION_CACHE_ENABLED)).thenReturn(true);
     when(optionManager.getOption(AUTO_REBUILD_PLAN)).thenReturn(true);
-    when(optionManager.getOption(MAX_METADATA_COUNT.getOptionName())).thenReturn(MAX_METADATA_COUNT.getDefault());
+    when(optionManager.getOption(MAX_METADATA_COUNT.getOptionName()))
+        .thenReturn(MAX_METADATA_COUNT.getDefault());
 
-    service = new TestableReflectionServiceImpl(config,
-      DirectProvider.wrap(kvStoreProvider),
-      DirectProvider.wrap(Mockito.mock(SchedulerService.class)),
-      DirectProvider.wrap(jobsService),
-      DirectProvider.wrap(catalogService),
-      DirectProvider.wrap(sabotContext),
-      DirectProvider.wrap(Mockito.mock(ReflectionStatusService.class)),
-      Mockito.mock(ExecutorService.class),
-      DirectProvider.wrap(Mockito.mock(ForemenWorkManager.class)),
-      false,
-      allocator);
+    service =
+        new TestableReflectionServiceImpl(
+            config,
+            DirectProvider.wrap(kvStoreProvider),
+            DirectProvider.wrap(Mockito.mock(SchedulerService.class)),
+            DirectProvider.wrap(jobsService),
+            DirectProvider.wrap(catalogService),
+            DirectProvider.wrap(sabotContext),
+            DirectProvider.wrap(reflectionStatusService),
+            Mockito.mock(ExecutorService.class),
+            DirectProvider.wrap(Mockito.mock(ForemenWorkManager.class)),
+            false,
+            allocator);
 
     // Test KV store objects
     ReflectionId rId = new ReflectionId("r1");
     MaterializationId mId = new MaterializationId("m1");
-    materialization = new Materialization()
-      .setId(mId)
-      .setReflectionId(rId)
-      .setReflectionGoalVersion("v1")
-      .setState(MaterializationState.DONE)
-      .setSeriesId(5L)
-      .setSeriesOrdinal(0);
+    materialization =
+        new Materialization()
+            .setId(mId)
+            .setReflectionId(rId)
+            .setReflectionGoalVersion("v1")
+            .setState(MaterializationState.DONE)
+            .setSeriesId(5L)
+            .setSeriesOrdinal(0)
+            .setExpiration(0L)
+            .setStripVersion(StrippingFactory.LATEST_STRIP_VERSION)
+            .setInitRefreshSubmit(0L);
     entry = new ReflectionEntry();
     entry.setId(rId);
     ReflectionDetails details = new ReflectionDetails();
@@ -179,74 +196,126 @@ public class TestReflectionService {
     details.setDistributionFieldList(ImmutableList.of());
     details.setPartitionFieldList(ImmutableList.of());
     details.setSortFieldList(ImmutableList.of());
-    goal = new ReflectionGoal()
-      .setId(rId)
-      .setTag(materialization.getReflectionGoalVersion())
-      .setType(ReflectionType.RAW)
-      .setDetails(details);
+    goal =
+        new ReflectionGoal()
+            .setId(rId)
+            .setTag(materialization.getReflectionGoalVersion())
+            .setType(ReflectionType.RAW)
+            .setDetails(details);
 
-    when(kvStoreProvider.getStore(ReflectionGoalsStore.StoreCreator.class)).thenReturn(reflectionGoalStore);
+    when(kvStoreProvider.getStore(ReflectionGoalsStore.StoreCreator.class))
+        .thenReturn(reflectionGoalStore);
     when(reflectionGoalStore.get(rId)).thenReturn(goal);
-    when(kvStoreProvider.getStore(ReflectionEntriesStore.StoreCreator.class)).thenReturn(reflectionEntryStore);
+    when(kvStoreProvider.getStore(ReflectionEntriesStore.StoreCreator.class))
+        .thenReturn(reflectionEntryStore);
     when(reflectionEntryStore.get(rId)).thenReturn(entry);
-    when(kvStoreProvider.getStore(MaterializationStore.MaterializationStoreCreator.class)).thenReturn(materializationStore);
+    when(kvStoreProvider.getStore(MaterializationStore.MaterializationStoreCreator.class))
+        .thenReturn(materializationStore);
     when(materializationStore.get(mId)).thenReturn(materialization);
-    when(kvStoreProvider.getStore(MaterializationStore.RefreshStoreCreator.class)).thenReturn(refreshStore);
+    when(materializationStore.find(any(LegacyIndexedStore.LegacyFindByCondition.class)))
+        .thenReturn(ImmutableList.of(Maps.immutableEntry(mId, materialization)));
+    when(kvStoreProvider.getStore(MaterializationStore.RefreshStoreCreator.class))
+        .thenReturn(refreshStore);
     Refresh refresh = new Refresh();
     refresh.setId(new RefreshId("refresh1"));
-    when(refreshStore.find(Mockito.any(LegacyIndexedStore.LegacyFindByCondition.class))).thenReturn(ImmutableMap.of(refresh.getId(), refresh).entrySet());
-    when(materializationStore.find(Mockito.any(LegacyIndexedStore.LegacyFindByCondition.class))).thenReturn(ImmutableMap.of(materialization.getId(), materialization).entrySet());
-    when(kvStoreProvider.getStore(ExternalReflectionStore.StoreCreator.class)).thenReturn(externalReflectionStore);
+    MaterializationMetrics metrics = new MaterializationMetrics();
+    metrics.setFootprint(0L);
+    metrics.setOriginalCost(0d);
+    metrics.setFootprint(0L);
+    refresh.setMetrics(metrics);
+    JobDetails jobDetails = new JobDetails();
+    jobDetails.setOutputRecords(0L);
+    refresh.setJob(jobDetails);
+    when(refreshStore.find(Mockito.any(LegacyIndexedStore.LegacyFindByCondition.class)))
+        .thenReturn(ImmutableMap.of(refresh.getId(), refresh).entrySet());
+    when(materializationStore.find(Mockito.any(LegacyIndexedStore.LegacyFindByCondition.class)))
+        .thenReturn(ImmutableMap.of(materialization.getId(), materialization).entrySet());
+    when(kvStoreProvider.getStore(ExternalReflectionStore.StoreCreator.class))
+        .thenReturn(externalReflectionStore);
+
+    when(kvStoreProvider.getStore(MaterializationPlanStore.MaterializationPlanStoreCreator.class))
+        .thenReturn(materializationPlanStore);
 
     // Setup Materialization expansion helper
     expansionHelper = Mockito.mock(ReflectionServiceImpl.ExpansionHelper.class);
-    planCacheInvalidationHelper = Mockito.mock(ReflectionServiceImpl.PlanCacheInvalidationHelper.class);
+    planCacheInvalidationHelper =
+        Mockito.mock(ReflectionServiceImpl.PlanCacheInvalidationHelper.class);
     converter = Mockito.mock(SqlConverter.class);
     when(converter.getPlannerCatalog()).thenReturn(Mockito.mock(PlannerCatalog.class));
-    when(converter.getTypeFactory()).thenReturn(Mockito.mock(JavaTypeFactory.class));
     when(expansionHelper.getConverter()).thenReturn(converter);
 
-    // Test descriptor
-    descriptor = new MaterializationDescriptor(ReflectionUtils.toReflectionInfo(goal), mId.getId(), "tag",
-      0, null, ImmutableList.of(), 0.0, 0, ImmutableList.of(), null,
-      null, 0L, 0, catalogService);
+    when(descriptor.getMaterializationFor(any())).thenReturn(dremioMaterialization);
+    when(descriptor.getMaterializationId()).thenReturn(mId.getId());
+    when(descriptor.getLayoutInfo()).thenReturn(ReflectionUtils.toReflectionInfo(goal));
+    when(descriptor.getPath()).thenReturn(ImmutableList.of());
 
+    when(catalogService.getCatalog(any())).thenReturn(catalog);
+    when(catalog.getAllRequestedTables())
+        .thenReturn(ImmutableList.of(Mockito.mock(DremioTable.class)));
+    when(cacheHelper.getValidMaterializations()).thenReturn(ImmutableList.of(materialization));
   }
 
-  /**
-   * Verifies that reflection service won't trigger an inline metadata refresh on startup
-   */
+  /** Verifies that materialization cache initialization doesn't happen during start */
   @Test
-  public void testNoInlineMetadataRefreshOnStart() {
-    isCoordinatorStarting = true;
-    service.start();
-    verify(expansionHelper, times(1)).close(); // No rebuild so only called once
-    assertFalse(service.getCacheViewerProvider().get().isCached(materialization.getId()));
-    isCoordinatorStarting = false;
-    service.refreshCache();
-    assertFalse(service.getCacheViewerProvider().get().isCached(materialization.getId()));
-    verify(expansionHelper, times(2)).close();
+  public void testStartAndMaterializationCacheInit() {
+    TestableReflectionServiceImpl serviceWithMockDescriptor =
+        new TestableReflectionServiceImpl(
+            config,
+            DirectProvider.wrap(kvStoreProvider),
+            DirectProvider.wrap(Mockito.mock(SchedulerService.class)),
+            DirectProvider.wrap(jobsService),
+            DirectProvider.wrap(catalogService),
+            DirectProvider.wrap(sabotContext),
+            DirectProvider.wrap(Mockito.mock(ReflectionStatusService.class)),
+            Mockito.mock(ExecutorService.class),
+            DirectProvider.wrap(Mockito.mock(ForemenWorkManager.class)),
+            false,
+            allocator) {
+          @Override
+          MaterializationDescriptor getDescriptor(
+              Materialization materialization,
+              Catalog catalog,
+              ReflectionPlanGeneratorProvider provider)
+              throws MaterializationCache.CacheException {
+            return TestReflectionService.this.descriptor;
+          }
+        };
+
+    serviceWithMockDescriptor.start();
+    assertFalse(serviceWithMockDescriptor.getCacheViewerProvider().get().isInitialized());
+    verify(expansionHelper, times(0)).close();
+    assertFalse(
+        serviceWithMockDescriptor.getCacheViewerProvider().get().isCached(materialization.getId()));
+    serviceWithMockDescriptor.refreshCache();
+    assertTrue(serviceWithMockDescriptor.getCacheViewerProvider().get().isInitialized());
+    assertTrue(
+        serviceWithMockDescriptor.getCacheViewerProvider().get().isCached(materialization.getId()));
+    verify(expansionHelper, times(1)).close();
+    // Verify shared catalog cache is cleared
+    verify(catalog, times(1)).clearDatasetCache(any(), any());
   }
 
   @Test
   public void testMaterializationCacheDisabled() {
     MaterializationCache mockCache = Mockito.mock(MaterializationCache.class);
-    TestableReflectionServiceImpl serviceWithMockCache = new TestableReflectionServiceImpl(config,
-      DirectProvider.wrap(kvStoreProvider),
-      DirectProvider.wrap(Mockito.mock(SchedulerService.class)),
-      DirectProvider.wrap(jobsService),
-      DirectProvider.wrap(catalogService),
-      DirectProvider.wrap(sabotContext),
-      DirectProvider.wrap(Mockito.mock(ReflectionStatusService.class)),
-      Mockito.mock(ExecutorService.class),
-      DirectProvider.wrap(Mockito.mock(ForemenWorkManager.class)),
-      false,
-      allocator){
-      @Override
-      MaterializationCache createMaterializationCache() {
-        return mockCache;
-      }
-    };
+    TestableReflectionServiceImpl serviceWithMockCache =
+        new TestableReflectionServiceImpl(
+            config,
+            DirectProvider.wrap(kvStoreProvider),
+            DirectProvider.wrap(Mockito.mock(SchedulerService.class)),
+            DirectProvider.wrap(jobsService),
+            DirectProvider.wrap(catalogService),
+            DirectProvider.wrap(sabotContext),
+            DirectProvider.wrap(Mockito.mock(ReflectionStatusService.class)),
+            Mockito.mock(ExecutorService.class),
+            DirectProvider.wrap(Mockito.mock(ForemenWorkManager.class)),
+            false,
+            allocator) {
+          @Override
+          MaterializationCache createMaterializationCache() {
+            return mockCache;
+          }
+        };
     serviceWithMockCache.start();
     when(optionManager.getOption(MATERIALIZATION_CACHE_ENABLED)).thenReturn(false);
     try {
@@ -256,96 +325,113 @@ public class TestReflectionService {
       serviceWithMockCache.refreshCache();
       verify(mockCache, times(2)).resetCache();
     } finally {
-      //get back to previous state
+      // get back to previous state
       when(optionManager.getOption(MATERIALIZATION_CACHE_ENABLED)).thenReturn(true);
     }
   }
-  /**
-   * Verifies that we can successfully upgrade a descriptor and finish the upgrade processing.
-   */
+
   @Test
-  public void testDescriptorUpgradeSuccess() {
-    // Setup
-    when(converter.getSerializerFactory()).thenThrow(new DeserializationException(new RuntimeException("Boom!")));
-    ReflectionServiceImpl.ReflectionPlanGeneratorProvider provider = (expansionHelper, catalogService, config, goal,
-                                                                      entry, materialization, reflectionSettings, materializationStore,
-                                                                      forceFullUpdate, stripVersion, isRebuildPlan) -> {
-      ReflectionPlanGenerator generator = Mockito.mock(ReflectionPlanGenerator.class);
-      when(generator.getRefreshDecision()).thenReturn(Mockito.mock(RefreshDecision.class));
-      return generator;
-    };
+  public void testDescriptorUpgradeSuccess() throws MaterializationCache.CacheException {
+    ReflectionServiceImpl.ReflectionPlanGeneratorProvider provider =
+        (expansionHelper,
+            catalogService,
+            config,
+            goal,
+            entry,
+            materialization,
+            reflectionSettings,
+            materializationStore,
+            dependenciesStore,
+            forceFullUpdate,
+            isRebuildPlan) -> {
+          ReflectionPlanGenerator generator = Mockito.mock(ReflectionPlanGenerator.class);
+          when(generator.getMatchingPlanBytes()).thenReturn(ByteString.bytesDefaultValue("abc"));
+          return generator;
+        };
 
-    // Test
-    service.start();
-    assertFalse(service.isUpgradeDescriptorsDone());
-    assertEquals(MaterializationState.DONE, materialization.getState());
-    verify(expansionHelper, times(0)).close(); // No rebuild attempted during startup
-    assertFalse(service.getCacheViewerProvider().get().isCached(materialization.getId()));
-
-    // Upgrade descriptor
-    assertFalse(service.isUpgradeDescriptorsDone());
-    service.upgradeMaterializationDescriptors(provider);
-    verify(expansionHelper, times(2)).close();
-    assertFalse(service.getCacheViewerProvider().get().isCached(materialization.getId()));
-    assertEquals(MaterializationState.DONE, materialization.getState());
-    assertEquals("Warning: Plan was rebuilt", materialization.getFailure().getMessage());
-
-    // Verify upgrade finished
-    assertTrue(service.isUpgradeDescriptorsDone());
+    MaterializationDescriptor descriptorWithPlan =
+        service.getDescriptor(materialization, catalog, provider);
+    assertTrue(Arrays.equals(new byte[] {'a', 'b', 'c'}, descriptorWithPlan.getPlan()));
+    verify(materializationPlanStore, times(1))
+        .put(
+            eq(MaterializationPlanStore.createMaterializationPlanId(materialization.getId())),
+            any(MaterializationPlan.class));
+    when(cacheHelper.getValidMaterializations()).thenReturn(ImmutableList.of(materialization));
+    verify(expansionHelper, times(1)).close();
   }
 
   /**
-   * Verifies that when a descriptor can't be upgraded, we mark the materialization as failed
-   * and stop attempting upgrades.
+   * Verifies that when a descriptor can't be upgraded, we mark the materialization as failed and
+   * stop attempting upgrades.
    */
   @Test
   public void testDescriptorUpgradeFailure() {
-    // Setup
-    when(converter.getSerializerFactory()).thenThrow(new DeserializationException(new RuntimeException("Boom!")));
+    ReflectionServiceImpl.ReflectionPlanGeneratorProvider provider =
+        (expansionHelper,
+            catalogService,
+            config,
+            goal,
+            entry,
+            materialization,
+            reflectionSettings,
+            materializationStore,
+            dependenciesStore,
+            forceFullUpdate,
+            isRebuildPlan) -> {
+          ReflectionPlanGenerator generator = Mockito.mock(ReflectionPlanGenerator.class);
+          when(generator.generateNormalizedPlan()).thenThrow(new RuntimeException("Boom!"));
+          return generator;
+        };
 
-    // Test
-    service.start();
-    assertFalse(service.isUpgradeDescriptorsDone());
     assertEquals(MaterializationState.DONE, materialization.getState());
-    verify(expansionHelper, times(0)).close(); // No rebuild attempted during startup
-    assertFalse(service.getCacheViewerProvider().get().isCached(materialization.getId()));
-
-    // Upgrade descriptor which is expected to fail
-    assertFalse(service.isUpgradeDescriptorsDone());
-    service.upgradeMaterializationDescriptors(ReflectionServiceImpl.ReflectionPlanGeneratorProvider.DEFAULT);
-    verify(expansionHelper, times(2)).close();
-    assertFalse(service.getCacheViewerProvider().get().isCached(materialization.getId()));
+    assertRedbuildException(() -> service.getDescriptor(materialization, catalog, provider), false);
     assertEquals(MaterializationState.FAILED, materialization.getState());
-    assertTrue(materialization.getFailure().getMessage().startsWith("Upgrade: Failed to rebuild plan for materialization r1/m1. Marking materialization as FAILED."));
+    assertTrue(
+        materialization
+            .getFailure()
+            .getMessage()
+            .contains("Materialization plan upgrade: Failed to rebuild plan for"));
+    verify(materializationStore, times(1)).put(any(), any());
+  }
 
-    // Verify upgrade finished
-    assertTrue(service.isUpgradeDescriptorsDone());
+  private void assertRedbuildException(ThrowingRunnable runnable, boolean sourceDown) {
+    try {
+      runnable.run();
+    } catch (Throwable e) {
+      assertEquals(RebuildPlanException.class, e.getClass());
+      assertEquals(sourceDown, ReflectionUtils.isSourceDown(e));
+    }
   }
 
   /**
-   * Verifies that when a descriptor can't be upgraded because of a down source, we continue to retry upgrade.
+   * Verifies that when a descriptor can't be upgraded because of a down source, we continue to
+   * retry upgrade.
    */
   @Test
   public void testDescriptorUpgradeWithSourceDown() {
-    // Setup
-    when(converter.getSerializerFactory()).thenThrow(new DeserializationException(UserException.sourceInBadState().buildSilently()));
 
-    // Test
-    service.start();
-    assertFalse(service.isUpgradeDescriptorsDone());
+    ReflectionServiceImpl.ReflectionPlanGeneratorProvider provider =
+        (expansionHelper,
+            catalogService,
+            config,
+            goal,
+            entry,
+            materialization,
+            reflectionSettings,
+            materializationStore,
+            dependenciesStore,
+            forceFullUpdate,
+            isRebuildPlan) -> {
+          ReflectionPlanGenerator generator = Mockito.mock(ReflectionPlanGenerator.class);
+          when(generator.generateNormalizedPlan())
+              .thenThrow(new RuntimeException(UserException.sourceInBadState().buildSilently()));
+          return generator;
+        };
+
     assertEquals(MaterializationState.DONE, materialization.getState());
-    verify(expansionHelper, times(0)).close(); // No rebuild attempted during startup
-    assertFalse(service.getCacheViewerProvider().get().isCached(materialization.getId()));
-
-    // Upgrade descriptor which is expected to retry
-    assertFalse(service.isUpgradeDescriptorsDone());
-    service.upgradeMaterializationDescriptors(ReflectionServiceImpl.ReflectionPlanGeneratorProvider.DEFAULT);
-    verify(expansionHelper, times(1)).close();
-    assertFalse(service.getCacheViewerProvider().get().isCached(materialization.getId()));
-    assertEquals(MaterializationState.DONE, materialization.getState()); // Materialization still around
-
-    // Verify upgrade will retry
-    assertFalse(service.isUpgradeDescriptorsDone());
+    assertRedbuildException(() -> service.getDescriptor(materialization, catalog, provider), true);
+    assertEquals(MaterializationState.DONE, materialization.getState());
+    verify(materializationStore, times(0)).put(any(), any());
   }
 
   @Test
@@ -357,29 +443,37 @@ public class TestReflectionService {
     details.setDistributionFieldList(ImmutableList.of());
     details.setPartitionFieldList(ImmutableList.of());
     details.setSortFieldList(ImmutableList.of());
-    final ReflectionGoal reflectionGoal = new ReflectionGoal()
-      .setId(reflectionId)
-      .setName("rName")
-      .setTag(materialization.getReflectionGoalVersion())
-      .setType(ReflectionType.RAW)
-      .setState(ReflectionGoalState.ENABLED)
-      .setDetails(details)
-      .setDatasetId("datasetId");
-    when(reflectionGoalStore.get(reflectionId)).thenReturn(new ReflectionGoal()
-      .setId(reflectionId)
-      .setName("rName")
-      .setTag(materialization.getReflectionGoalVersion())
-      .setType(ReflectionType.RAW)
-      .setState(ReflectionGoalState.ENABLED)
-      .setDetails(details)
-      .setDatasetId("datasetId"));
-    ArgumentCaptor<DeleteJobCountsRequest> deleteJobCountsRequestArgumentCaptor = ArgumentCaptor.forClass(DeleteJobCountsRequest.class);
+    final ReflectionGoal reflectionGoal =
+        new ReflectionGoal()
+            .setId(reflectionId)
+            .setName("rName")
+            .setTag(materialization.getReflectionGoalVersion())
+            .setType(ReflectionType.RAW)
+            .setState(ReflectionGoalState.ENABLED)
+            .setDetails(details)
+            .setDatasetId("datasetId");
+    when(reflectionGoalStore.get(reflectionId))
+        .thenReturn(
+            new ReflectionGoal()
+                .setId(reflectionId)
+                .setName("rName")
+                .setTag(materialization.getReflectionGoalVersion())
+                .setType(ReflectionType.RAW)
+                .setState(ReflectionGoalState.ENABLED)
+                .setDetails(details)
+                .setDatasetId("datasetId"));
+    ArgumentCaptor<DeleteJobCountsRequest> deleteJobCountsRequestArgumentCaptor =
+        ArgumentCaptor.forClass(DeleteJobCountsRequest.class);
     service.remove(reflectionGoal);
     verify(jobsService).deleteJobCounts(deleteJobCountsRequestArgumentCaptor.capture());
 
     // ASSERT
     // deleteJobCounts get the request to delete reflection when remove is called
-    List<String> deleteReflectionIds = deleteJobCountsRequestArgumentCaptor.getValue().getReflectionsOrBuilder().getReflectionIdsList();
+    List<String> deleteReflectionIds =
+        deleteJobCountsRequestArgumentCaptor
+            .getValue()
+            .getReflectionsOrBuilder()
+            .getReflectionIdsList();
     assertEquals(deleteReflectionIds, Collections.singletonList(reflectionGoal.getId().getId()));
   }
 
@@ -387,20 +481,26 @@ public class TestReflectionService {
   public void testDropExternalReflectionDeleteJobCounts() {
     service.start();
     String externalReflectionId = "externalReflectionId";
-    ArgumentCaptor<DeleteJobCountsRequest> deleteJobCountsRequestArgumentCaptor = ArgumentCaptor.forClass(DeleteJobCountsRequest.class);
+    ArgumentCaptor<DeleteJobCountsRequest> deleteJobCountsRequestArgumentCaptor =
+        ArgumentCaptor.forClass(DeleteJobCountsRequest.class);
     service.dropExternalReflection(externalReflectionId);
     verify(jobsService).deleteJobCounts(deleteJobCountsRequestArgumentCaptor.capture());
 
     // ASSERT
-    // deleteJobCounts get the request to delete externalReflection when dropExternalReflection is called
-    List<String> deleteExternalReflectionIds = deleteJobCountsRequestArgumentCaptor.getValue().getReflectionsOrBuilder().getReflectionIdsList();
+    // deleteJobCounts get the request to delete externalReflection when dropExternalReflection is
+    // called
+    List<String> deleteExternalReflectionIds =
+        deleteJobCountsRequestArgumentCaptor
+            .getValue()
+            .getReflectionsOrBuilder()
+            .getReflectionIdsList();
     assertEquals(deleteExternalReflectionIds, Collections.singletonList(externalReflectionId));
   }
 
   /**
-   * In order to make ReflectionServiceImpl testable, we need to override methods instead of using a Mockito spy.
-   * The issue with Mockito spy (which uses the decorator design pattern) is that ReflectionServiceImpl inner classes
-   * can't see the spy.
+   * In order to make ReflectionServiceImpl testable, we need to override methods instead of using a
+   * Mockito spy. The issue with Mockito spy (which uses the decorator design pattern) is that
+   * ReflectionServiceImpl inner classes can't see the spy.
    */
   private class TestableReflectionServiceImpl extends ReflectionServiceImpl {
 
@@ -432,26 +532,10 @@ public class TestReflectionService {
     }
 
     @Override
-    Supplier<QueryContext> getQueryContext() {
-      return new Supplier<QueryContext>() {
+    Function<Catalog, ExpansionHelper> getExpansionHelper() {
+      return new Function<Catalog, ExpansionHelper>() {
         @Override
-        public QueryContext get() {
-          /**
-           * Validates that we set the {@link com.dremio.exec.catalog.MetadataRequestOptions#neverPromote}
-           */
-          Assert.assertEquals(isCoordinatorStarting, isNeverPromote);
-          QueryContext context = Mockito.mock(QueryContext.class);
-          return context;
-        }
-      };
-    }
-
-    @Override
-    Supplier<ExpansionHelper> getExpansionHelper() {
-      return new Supplier<ExpansionHelper>() {
-        @Override
-        public ExpansionHelper get() {
-          when(expansionHelper.getContext()).thenReturn(getQueryContext().get());
+        public ExpansionHelper apply(Catalog input) {
           return expansionHelper;
         }
       };
@@ -462,7 +546,9 @@ public class TestReflectionService {
       return new Supplier<PlanCacheInvalidationHelper>() {
         @Override
         public PlanCacheInvalidationHelper get() {
-          doNothing().when(planCacheInvalidationHelper).invalidateReflectionAssociatedPlanCache(anyString());
+          doNothing()
+              .when(planCacheInvalidationHelper)
+              .invalidateReflectionAssociatedPlanCache(anyString());
           return planCacheInvalidationHelper;
         }
       };
@@ -472,12 +558,5 @@ public class TestReflectionService {
     public Iterable<ExternalReflection> getAllExternalReflections() {
       return ImmutableList.of();
     }
-
-    @Override
-    MaterializationDescriptor getDescriptor(Materialization materialization) throws MaterializationCache.CacheException {
-      return TestReflectionService.this.descriptor;
-    }
-
-
   }
 }

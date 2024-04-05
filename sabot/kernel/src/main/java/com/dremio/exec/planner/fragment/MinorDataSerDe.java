@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.planner.fragment;
 
-import java.io.IOException;
-
 import com.dremio.exec.planner.PhysicalPlanReader;
 import com.dremio.exec.proto.CoordExecRPC.FragmentCodec;
 import com.dremio.exec.proto.CoordExecRPC.MinorFragmentIndexEndpoint;
@@ -25,7 +23,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.MessageLite;
-
+import java.io.IOException;
 
 public class MinorDataSerDe {
   private final PhysicalPlanReader reader;
@@ -40,11 +38,13 @@ public class MinorDataSerDe {
     return msg.toByteString();
   }
 
-  public MinorFragmentIndexEndpoint deserializeMinorFragmentIndexEndpoint(ByteString buffer) throws InvalidProtocolBufferException {
+  public MinorFragmentIndexEndpoint deserializeMinorFragmentIndexEndpoint(ByteString buffer)
+      throws InvalidProtocolBufferException {
     return MinorFragmentIndexEndpoint.parseFrom(buffer);
   }
 
-  public MinorFragmentIndexEndpointList deserializeMinorFragmentIndexEndpointList(ByteString buffer) throws InvalidProtocolBufferException {
+  public MinorFragmentIndexEndpointList deserializeMinorFragmentIndexEndpointList(ByteString buffer)
+      throws InvalidProtocolBufferException {
     return MinorFragmentIndexEndpointList.parseFrom(buffer);
   }
 
@@ -55,5 +55,4 @@ public class MinorDataSerDe {
   public <T> T deserializeObjectFromJson(Class<T> clazz, ByteString buffer) throws IOException {
     return reader.readObject(clazz, buffer, codec);
   }
-
 }

@@ -18,11 +18,6 @@ package com.dremio.common.utils;
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-import java.net.URL;
-import java.util.List;
-
-import org.apache.commons.lang3.text.StrTokenizer;
-
 import com.google.common.base.CharMatcher;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
@@ -30,10 +25,11 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.io.Resources;
+import java.net.URL;
+import java.util.List;
+import org.apache.commons.lang3.text.StrTokenizer;
 
-/**
- * Utility methods to quote or find reserved keywords.
- */
+/** Utility methods to quote or find reserved keywords. */
 public class SqlUtils {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SqlUtils.class);
 
@@ -57,11 +53,11 @@ public class SqlUtils {
   private static final String RESERVED_SQL_KEYWORDS_FILE = "sql-reserved-keywords.txt";
 
   private static final CharMatcher ALPHANUM_MATCHER =
-      CharMatcher.inRange('0', '9' )
-      .or(CharMatcher.inRange('a', 'z'))
-      .or(CharMatcher.inRange('A', 'Z'))
-      .or(CharMatcher.is('_'))
-      .precomputed();
+      CharMatcher.inRange('0', '9')
+          .or(CharMatcher.inRange('a', 'z'))
+          .or(CharMatcher.inRange('A', 'Z'))
+          .or(CharMatcher.is('_'))
+          .precomputed();
 
   private static final CharMatcher NEWLINE_MATCHER = CharMatcher.anyOf("\n\r").precomputed();
 
@@ -71,11 +67,14 @@ public class SqlUtils {
 
   static {
     URL parserListPath = null;
-    try  {
+    try {
       parserListPath = Resources.getResource(SqlUtils.RESERVED_SQL_KEYWORDS_FILE);
     } catch (final Throwable e) {
-      logger.error(format("Failed to find Dremio SQL parser's reserved keywords file '%s' on classpath.",
-          SqlUtils.RESERVED_SQL_KEYWORDS_FILE), e);
+      logger.error(
+          format(
+              "Failed to find Dremio SQL parser's reserved keywords file '%s' on classpath.",
+              SqlUtils.RESERVED_SQL_KEYWORDS_FILE),
+          e);
     }
 
     ImmutableSet<String> set = null;
@@ -90,27 +89,29 @@ public class SqlUtils {
         }
         set = builder.build();
       } catch (final Throwable e) {
-        logger.error(format("Failed to load Dremio SQL parser's reserved keywords from file: %s",
-            parserListPath.toString()), e);
+        logger.error(
+            format(
+                "Failed to load Dremio SQL parser's reserved keywords from file: %s",
+                parserListPath.toString()),
+            e);
       }
     }
 
     RESERVED_SQL_KEYWORDS = set;
   }
 
-  public static String quotedCompound(List<String> strings){
+  public static String quotedCompound(List<String> strings) {
     return quotedCompound(strings, QUOTER);
   }
 
-  public static String quotedCompound(List<String> strings, Function<String, String> quoter){
+  public static String quotedCompound(List<String> strings, Function<String, String> quoter) {
     return FluentIterable.from(strings).transform(quoter).join(Joiner.on('.'));
   }
 
   /**
-   * quote the identifier if it is a:
-   *  - doesn't start with a character,
-   *  - contains non-alphanumeric characters or
-   *  - is a reserved keyword
+   * quote the identifier if it is a: - doesn't start with a character, - contains non-alphanumeric
+   * characters or - is a reserved keyword
+   *
    * @param id
    * @return
    */
@@ -146,36 +147,39 @@ public class SqlUtils {
   private static String quoteUnicodeString(final String id) {
     StringBuilder sb = new StringBuilder();
     sb.append("U&").append(QUOTE);
-    for(int i = 0; i<id.length(); i++) {
+    for (int i = 0; i < id.length(); i++) {
       char c = id.charAt(i);
-      switch(c) {
-      case '\n':
-        sb.append("\\000a");
-        break;
+      switch (c) {
+        case '\n':
+          sb.append("\\000a");
+          break;
 
-      case '\r':
-        sb.append("\\000d");
-        break;
+        case '\r':
+          sb.append("\\000d");
+          break;
 
-      default:
-        if (c == QUOTE) {
-          sb.append(QUOTE_WITH_ESCAPE);
-        } else {
-          sb.append(c);
-        }
+        default:
+          if (c == QUOTE) {
+            sb.append(QUOTE_WITH_ESCAPE);
+          } else {
+            sb.append(c);
+          }
       }
     }
 
     sb.append(QUOTE);
     return sb.toString();
   }
+
   /**
    * Is the given id a reserved keyword?
+   *
    * @param id
    * @return
    */
   public static boolean isKeyword(String id) {
-    Preconditions.checkState(RESERVED_SQL_KEYWORDS != null,
+    Preconditions.checkState(
+        RESERVED_SQL_KEYWORDS != null,
         "SQL reserved keyword list is not loaded. Please check the logs for error messages.");
     return RESERVED_SQL_KEYWORDS.contains(id.toUpperCase());
   }
@@ -193,6 +197,7 @@ public class SqlUtils {
 
   /**
    * Parse the schema path into a list of schema entries.
+   *
    * @param schemaPath
    * @return
    */

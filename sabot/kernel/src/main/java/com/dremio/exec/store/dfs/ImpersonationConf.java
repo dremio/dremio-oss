@@ -15,9 +15,7 @@
  */
 package com.dremio.exec.store.dfs;
 
-/**
- * Interface for ConnectionConfs that support impersonation
- */
+/** Interface for ConnectionConfs that support impersonation */
 public interface ImpersonationConf {
   default String getAccessUserName(String delegatedUserName, String queryUserName) {
     return delegatedUserName;

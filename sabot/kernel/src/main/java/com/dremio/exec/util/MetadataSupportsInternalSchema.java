@@ -15,28 +15,25 @@
  */
 package com.dremio.exec.util;
 
-import java.util.List;
-
-import org.apache.arrow.vector.types.pojo.Field;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.types.SupportsTypeCoercionsAndUpPromotions;
 import com.dremio.exec.exception.NoSupportedUpPromotionOrCoercionException;
 import com.dremio.exec.record.BatchSchema;
+import java.util.List;
+import org.apache.arrow.vector.types.pojo.Field;
 
-/**
- * Implements schema merging APIs which help Metadata retrieval to determine schema
- */
+/** Implements schema merging APIs which help Metadata retrieval to determine schema */
 public interface MetadataSupportsInternalSchema extends SupportsTypeCoercionsAndUpPromotions {
 
-  default BatchSchema getMergedSchema(BatchSchema oldSchema,
-                                      BatchSchema newSchema,
-                                      boolean isSchemaLearningEnabled,
-                                      List<Field> droppedFields,
-                                      List<Field> modifiedFields,
-                                      boolean isInternalSchemaSupportKeyEnabled,
-                                      List<String> datasetPath,
-                                      String filePath) {
+  default BatchSchema getMergedSchema(
+      BatchSchema oldSchema,
+      BatchSchema newSchema,
+      boolean isSchemaLearningEnabled,
+      List<Field> droppedFields,
+      List<Field> modifiedFields,
+      boolean isInternalSchemaSupportKeyEnabled,
+      List<String> datasetPath,
+      String filePath) {
     try {
       newSchema = newSchema != null ? newSchema.removeNullFields().handleUnions(this) : null;
       oldSchema = oldSchema != null ? oldSchema.removeNullFields().handleUnions(this) : null;
@@ -53,10 +50,13 @@ public interface MetadataSupportsInternalSchema extends SupportsTypeCoercionsAnd
 
         if (droppedFields != null && modifiedFields != null) {
           BatchSchemaDiffer batchSchemaDiffer = new BatchSchemaDiffer();
-          BatchSchemaDiff diff = batchSchemaDiffer.diff(oldSchema.getFields(), newSchema.getFields());
+          BatchSchemaDiff diff =
+              batchSchemaDiffer.diff(oldSchema.getFields(), newSchema.getFields());
 
-          boolean schemaNotChanged = diff.getModifiedFields().equals(modifiedFields)
-            && diff.getDroppedFields().equals(droppedFields) && diff.getAddedFields().isEmpty();
+          boolean schemaNotChanged =
+              diff.getModifiedFields().equals(modifiedFields)
+                  && diff.getDroppedFields().equals(droppedFields)
+                  && diff.getAddedFields().isEmpty();
 
           if (schemaNotChanged) {
             return oldSchema;
@@ -72,15 +72,16 @@ public interface MetadataSupportsInternalSchema extends SupportsTypeCoercionsAnd
           modifiedSchema = modifiedSchema.difference(new BatchSchema(droppedFields));
           modifiedSchema = modifiedSchema.difference(new BatchSchema(modifiedFields));
 
-          //remove any columns where there is a struct. We don't do schema learning on top level structs
+          // remove any columns where there is a struct. We don't do schema learning on top level
+          // structs
           for (Field field : modifiedFields) {
-            //only for non complex columns change the type
+            // only for non complex columns change the type
             if (!field.getChildren().isEmpty()) {
               addedSchema = addedSchema.dropField(field.getName());
               modifiedSchema = modifiedSchema.dropField(field.getName());
             }
           }
-          //add the added fields
+          // add the added fields
           oldSchema = oldSchema.mergeWithUpPromotion(addedSchema, this);
           oldSchema = oldSchema.mergeWithUpPromotion(modifiedSchema, this);
         }

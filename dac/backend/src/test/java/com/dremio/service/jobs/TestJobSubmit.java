@@ -18,19 +18,15 @@ package com.dremio.service.jobs;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
-import java.util.List;
-
-import org.junit.Before;
-import org.junit.Test;
-
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.service.job.JobSummary;
 import com.dremio.service.job.SearchJobsRequest;
 import com.google.common.collect.ImmutableList;
+import java.util.List;
+import org.junit.Before;
+import org.junit.Test;
 
-/**
- * Test for failure to submit a job in job service.
- */
+/** Test for failure to submit a job in job service. */
 public class TestJobSubmit extends BaseTestServer {
 
   @Before
@@ -55,11 +51,14 @@ public class TestJobSubmit extends BaseTestServer {
       // expected
     }
 
-    List<JobSummary> jobs = ImmutableList.copyOf(
-        l(JobsService.class).searchJobs(SearchJobsRequest.newBuilder()
-        .setFilterString("jst==FAILED")
-        .setUserName(DEFAULT_USERNAME)
-        .build()));
+    List<JobSummary> jobs =
+        ImmutableList.copyOf(
+            l(JobsService.class)
+                .searchJobs(
+                    SearchJobsRequest.newBuilder()
+                        .setFilterString("jst==FAILED")
+                        .setUserName(DEFAULT_USERNAME)
+                        .build()));
     assertEquals(1, jobs.size());
   }
 }

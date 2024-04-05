@@ -23,8 +23,6 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 
-import org.junit.Test;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.config.DremioConfig;
@@ -35,10 +33,9 @@ import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.service.commandpool.CommandPool;
 import com.dremio.service.commandpool.CommandPoolFactory;
 import com.google.inject.Provider;
+import org.junit.Test;
 
-/**
- * Tests {@link ForemenWorkManager}
- */
+/** Tests {@link ForemenWorkManager} */
 public class TestForemenWorkManager {
 
   @Test
@@ -46,21 +43,32 @@ public class TestForemenWorkManager {
     // Arrange - setup
     DremioConfig config = mock(DremioConfig.class);
     doReturn(false).when(config).getBoolean(any());
-    Provider<CommandPool> commandPoolProvider = ()-> CommandPoolFactory.INSTANCE.newPool(config, null);
-    ForemenWorkManager foremenWorkManager = new ForemenWorkManager(null, null, commandPoolProvider,
-      null, null, null, null, null, null,null, null);
+    Provider<CommandPool> commandPoolProvider =
+        () -> CommandPoolFactory.INSTANCE.newPool(config, null);
+    ForemenWorkManager foremenWorkManager =
+        new ForemenWorkManager(
+            null, null, commandPoolProvider, null, null, null, null, null, null, null);
 
     foremenWorkManager = spy(foremenWorkManager);
-    UserException userException = UserException.resourceError().message(UserException.QUERY_REJECTED_MSG).buildSilently();
-    doThrow(userException).when(foremenWorkManager).submitWorkCommand(any(), any(), any(), any(), any(), any(), any());
+    UserException userException =
+        UserException.resourceError().message(UserException.QUERY_REJECTED_MSG).buildSilently();
+    doThrow(userException)
+        .when(foremenWorkManager)
+        .submitWorkCommand(any(), any(), any(), any(), any(), any(), any());
     final UserResult[] userResult = new UserResult[1];
 
-    UserResponseHandler userResponseHandler = new UserResponseHandler() {
-      @Override
-      public void sendData(RpcOutcomeListener<GeneralRPCProtos.Ack> outcomeListener, QueryWritableBatch result) {}
-      @Override
-      public void completed(UserResult result) { userResult[0] = result; }
-    };
+    UserResponseHandler userResponseHandler =
+        new UserResponseHandler() {
+          @Override
+          public void sendData(
+              RpcOutcomeListener<GeneralRPCProtos.Ack> outcomeListener,
+              QueryWritableBatch result) {}
+
+          @Override
+          public void completed(UserResult result) {
+            userResult[0] = result;
+          }
+        };
 
     // Act - make the request
     UserRequest userRequest = new UserRequest(UserProtos.RpcType.RUN_QUERY, new Object(), true);
@@ -68,8 +76,8 @@ public class TestForemenWorkManager {
     foremenWorkManager.submitWork(externalId, null, userResponseHandler, userRequest, null, null);
 
     // Assert - Verify the results
-    assertEquals(UserException.QUERY_REJECTED_MSG + ". Root cause: " + UserException.QUERY_REJECTED_MSG,
-                 userResult[0].getException().getMessage());
+    assertEquals(
+        UserException.QUERY_REJECTED_MSG + ". Root cause: " + UserException.QUERY_REJECTED_MSG,
+        userResult[0].getException().getMessage());
   }
-
 }

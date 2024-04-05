@@ -16,13 +16,6 @@
 
 package com.dremio.exec.store.iceberg;
 
-import java.io.IOException;
-import java.util.List;
-
-import org.apache.hadoop.conf.Configuration;
-import org.apache.iceberg.TableOperations;
-import org.apache.iceberg.io.FileIO;
-
 import com.dremio.common.logical.FormatPluginConfig;
 import com.dremio.exec.store.dfs.FormatPlugin;
 import com.dremio.exec.store.iceberg.model.IcebergTableIdentifier;
@@ -31,73 +24,80 @@ import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import java.io.IOException;
+import java.util.List;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.iceberg.TableOperations;
+import org.apache.iceberg.io.FileIO;
 
-/**
- * Interface for plugins that support reading of iceberg root pointers.
- */
+/** Interface for plugins that support reading of iceberg root pointers. */
 public interface SupportsIcebergRootPointer {
 
   /**
-   *
    * @return A copy of the configuration to use for the plugin.
    */
   Configuration getFsConfCopy();
 
-  /**
-   * Checks if a metadata validity check is required.
-   */
-  boolean isMetadataValidityCheckRecentEnough(Long lastMetadataValidityCheckTime, Long currentTime, OptionManager optionManager);
+  /** Checks if a metadata validity check is required. */
+  boolean isMetadataValidityCheckRecentEnough(
+      Long lastMetadataValidityCheckTime, Long currentTime, OptionManager optionManager);
 
   /**
-   *
    * @param formatConfig
    * @return Returns format plugin based on the the formatConfig.
    */
   FormatPlugin getFormatPlugin(FormatPluginConfig formatConfig);
 
   /**
-   *
    * @param filePath The filepath for the file system.
    * @param userName The userName for the file system.
    * @param operatorContext The operatorContext for creating the file system.
    * @return The filesystem to use to access the iceberg tables.
    * @throws IOException
    */
-  FileSystem createFS(String filePath, String userName, OperatorContext operatorContext) throws IOException;
+  FileSystem createFS(String filePath, String userName, OperatorContext operatorContext)
+      throws IOException;
 
   /**
-   *
    * @param filePath The filepath for the file system.
    * @param userName The userName for the file system.
    * @param operatorContext The operatorContext for creating the file system.
    * @return The filesystem to use to access the iceberg tables.
    * @throws IOException
    */
-  FileSystem createFSWithAsyncOptions(String filePath, String userName, OperatorContext operatorContext) throws IOException;
+  FileSystem createFSWithAsyncOptions(
+      String filePath, String userName, OperatorContext operatorContext) throws IOException;
 
   /**
-   *
    * @param filePath The filepath for the file system.
    * @param userName The userName for the file system.
    * @param operatorContext The operatorContext for creating the file system.
    * @return The filesystem without using hadoop fs cache.
    * @throws IOException
    */
-  FileSystem createFSWithoutHDFSCache(String filePath, String userName, OperatorContext operatorContext) throws IOException;
+  FileSystem createFSWithoutHDFSCache(
+      String filePath, String userName, OperatorContext operatorContext) throws IOException;
 
-  default boolean supportsColocatedReads() { return  true;}
+  default boolean supportsColocatedReads() {
+    return true;
+  }
 
   /**
-   * Checks if the Iceberg Metadata present in the kvstore for the given dataset
-   * is valid or not.
+   * Checks if the Iceberg Metadata present in the kvstore for the given dataset is valid or not.
    */
   boolean isIcebergMetadataValid(DatasetConfig config, NamespaceKey key);
 
   /**
-   * Based on the source plugin, creates an instance of corresponding Iceberg Catalog table operations.
+   * Based on the source plugin, creates an instance of corresponding Iceberg Catalog table
+   * operations.
    */
-  TableOperations createIcebergTableOperations(FileIO fileIO, String queryUserName, IcebergTableIdentifier tableIdentifier);
+  TableOperations createIcebergTableOperations(
+      FileIO fileIO, String queryUserName, IcebergTableIdentifier tableIdentifier);
 
-  FileIO createIcebergFileIO(FileSystem fs, OperatorContext context, List<String> dataset, String datasourcePluginUID,
+  FileIO createIcebergFileIO(
+      FileSystem fs,
+      OperatorContext context,
+      List<String> dataset,
+      String datasourcePluginUID,
       Long fileLength);
 }

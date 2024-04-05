@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.store.hive;
 
-import java.io.IOException;
-
 import com.dremio.exec.catalog.StoragePluginId;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -26,18 +24,28 @@ import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.deser.ResolvableDeserializer;
+import java.io.IOException;
 
-/**
- * Class contains miscellaneous utility functions for Hive Common
- */
+/** Class contains miscellaneous utility functions for Hive Common */
 public class HiveCommonUtilities {
 
-  public static <T> T deserialize(JsonParser jsonParser, DeserializationContext context, JsonNode node,
-                           Class<? extends T> clazz) throws IOException, JsonProcessingException {
+  public static final String AWS_GLUE_HIVE_METASTORE_PLACEHOLDER = "DremioGlueHive";
+
+  // this is used to convert the array of allowed databases to a string
+  // This should be a character disallowed in Hive and Glue database names
+  // Since this isn't persisted on disk, there is no upgrade implication of changing this string
+  public static final String HIVE_DATABASES_LIST_SEPARATOR = ",";
+
+  public static <T> T deserialize(
+      JsonParser jsonParser,
+      DeserializationContext context,
+      JsonNode node,
+      Class<? extends T> clazz)
+      throws IOException, JsonProcessingException {
     final JavaType javaType = context.getTypeFactory().constructType(clazz);
     final BeanDescription description = context.getConfig().introspect(javaType);
-    final JsonDeserializer<Object> deserializer = context.getFactory().createBeanDeserializer(
-      context, javaType, description);
+    final JsonDeserializer<Object> deserializer =
+        context.getFactory().createBeanDeserializer(context, javaType, description);
     if (deserializer instanceof ResolvableDeserializer) {
       ((ResolvableDeserializer) deserializer).resolve(context);
     }

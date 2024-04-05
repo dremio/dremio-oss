@@ -18,6 +18,8 @@ package com.dremio.exec.vector.complex.writer;
 
 import static com.dremio.TestBuilder.listOf;
 
+import com.dremio.BaseTestQuery;
+import com.dremio.TestBuilder;
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -25,16 +27,13 @@ import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import com.dremio.BaseTestQuery;
-import com.dremio.TestBuilder;
-
-public class TestComplexTypeReader extends BaseTestQuery{
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestComplexTypeReader.class);
+public class TestComplexTypeReader extends BaseTestQuery {
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(TestComplexTypeReader.class);
 
   @BeforeClass
   public static void init() throws Exception {
@@ -43,160 +42,162 @@ public class TestComplexTypeReader extends BaseTestQuery{
 
   @Test
   // Repeated map (map) -> json.
-  public void testX() throws Exception{
+  public void testX() throws Exception {
     test("select convert_to(z[0], 'JSON') from cp.\"jsoninput/input2.json\";");
   }
 
   @Test
-  //map -> json.
-  public void testX2() throws Exception{
+  // map -> json.
+  public void testX2() throws Exception {
     test("select convert_to(x, 'JSON') from cp.\"jsoninput/input2.json\";");
   }
 
   @Test
-  //Map (mapfield) -> json.
-  public void testX3() throws Exception{
+  // Map (mapfield) -> json.
+  public void testX3() throws Exception {
     test("select convert_to(tbl.x.y, 'JSON') from cp.\"jsoninput/input2.json\" tbl;");
   }
 
   @Test
-  //float value -> json
-  public void testX4() throws Exception{
+  // float value -> json
+  public void testX4() throws Exception {
     test("select convert_to(\"float\", 'JSON') from cp.\"jsoninput/input2.json\";");
   }
 
   @Test
-  //integer value -> json
-  public void testX5() throws Exception{
+  // integer value -> json
+  public void testX5() throws Exception {
     test("select convert_to(\"integer\", 'JSON') from cp.\"jsoninput/input2.json\";");
   }
 
   @Test
   // repeated map -> json.
-  public void testX6() throws Exception{
+  public void testX6() throws Exception {
     test("select convert_to(z, 'JSON')  from cp.\"jsoninput/input2.json\";");
   }
 
   @Test
-  //repeated list (Repeated BigInt) -> json
-  public void testX7() throws Exception{
+  // repeated list (Repeated BigInt) -> json
+  public void testX7() throws Exception {
     test("select convert_to(rl[1], 'JSON') from cp.\"jsoninput/input2.json\";");
   }
 
   @Test
-  //repeated list (Repeated BigInt) -> json
-  public void testX8() throws Exception{
+  // repeated list (Repeated BigInt) -> json
+  public void testX8() throws Exception {
     test("select convert_to(rl[0][1], 'JSON') from cp.\"jsoninput/input2.json\";");
   }
 
   @Test
-  //repeated list -> json
-  public void testX9() throws Exception{
+  // repeated list -> json
+  public void testX9() throws Exception {
     test("select convert_to(rl, 'JSON') from cp.\"jsoninput/input2.json\";");
   }
 
   @Test
-  public void testY() throws Exception{
+  public void testY() throws Exception {
     test("select z[0] from cp.\"jsoninput/input2.json\";");
   }
 
   @Test
-  public void testY2() throws Exception{
+  public void testY2() throws Exception {
     test("select x from cp.\"jsoninput/input2.json\";");
   }
 
   @Test
-  public void testY3() throws Exception{
+  public void testY3() throws Exception {
     test("select tbl.x.y from cp.\"jsoninput/input2.json\" tbl;");
   }
 
   @Test
-  public void testY6() throws Exception{
+  public void testY6() throws Exception {
     test("select z  from cp.\"jsoninput/input2.json\";");
   }
 
   @Test
-  //repeated list (Repeated BigInt)
-  public void testZ() throws Exception{
+  // repeated list (Repeated BigInt)
+  public void testZ() throws Exception {
     test("select rl[1] from cp.\"jsoninput/input2.json\";");
   }
 
   @Test
-  //repeated list (Repeated BigInt ( BigInt) ) )
-  public void testZ1() throws Exception{
+  // repeated list (Repeated BigInt ( BigInt) ) )
+  public void testZ1() throws Exception {
     test("select rl[0][1] from cp.\"jsoninput/input2.json\";");
   }
 
   @Test
-  //repeated list (Repeated BigInt ( BigInt) ) ). The first index is out of boundary
-  public void testZ2() throws Exception{
+  // repeated list (Repeated BigInt ( BigInt) ) ). The first index is out of boundary
+  public void testZ2() throws Exception {
     test("select rl[1000][1] from cp.\"jsoninput/input2.json\";");
   }
 
   @Test
-  //repeated list (Repeated BigInt ( BigInt) ) ). The second index is out of boundary
-  public void testZ3() throws Exception{
+  // repeated list (Repeated BigInt ( BigInt) ) ). The second index is out of boundary
+  public void testZ3() throws Exception {
     test("select rl[0][1000] from cp.\"jsoninput/input2.json\";");
   }
 
   @Test
-  //repeated list. The repeated list is asked for twice, hence requires copying (evaluation in ProjectRecordBatch)
-  public void testZ4() throws Exception{
+  // repeated list. The repeated list is asked for twice, hence requires copying (evaluation in
+  // ProjectRecordBatch)
+  public void testZ4() throws Exception {
     test("select rl, rl from cp.\"jsoninput/input2.json\";");
   }
 
   @Test
-  //repeated map  --> Json.  It will go beyond the buffer of size 256 allocated in setup.
-  public void testA0() throws Exception{
+  // repeated map  --> Json.  It will go beyond the buffer of size 256 allocated in setup.
+  public void testA0() throws Exception {
     test("  select convert_to(types, 'JSON') from cp.\"jsoninput/vvtypes.json\";");
   }
 
   @Test
-  //repeated map (map) --> Json.
-  public void testA1() throws Exception{
+  // repeated map (map) --> Json.
+  public void testA1() throws Exception {
     test("  select convert_to(types[1], 'JSON') from cp.\"jsoninput/vvtypes.json\";");
   }
 
   @Test
-  //repeated map (map (repeated map) ) --> Json.
-  public void testA2() throws Exception{
+  // repeated map (map (repeated map) ) --> Json.
+  public void testA2() throws Exception {
     test("  select convert_to(types[1].minor, 'JSON') from cp.\"jsoninput/vvtypes.json\";");
   }
 
   @Test
-  //repeated map (map( repeated map (map (varchar)))) --> Json.
-  public void testA3() throws Exception{
-    test("  select convert_to(types[1].minor[0].valueHolder, 'JSON') from cp.\"jsoninput/vvtypes.json\";");
-  }
-
-
-  @Test
-  //Two complex type functions in SELECT clause : repeated map (map) --> Json,
-  public void testA4() throws Exception{
-    test("  select convert_to(types[1], 'JSON'), convert_to(modes[2], 'JSON') from cp.\"jsoninput/vvtypes.json\";");
+  // repeated map (map( repeated map (map (varchar)))) --> Json.
+  public void testA3() throws Exception {
+    test(
+        "  select convert_to(types[1].minor[0].valueHolder, 'JSON') from cp.\"jsoninput/vvtypes.json\";");
   }
 
   @Test
-  //repeated map (map) .
-  public void testB1() throws Exception{
+  // Two complex type functions in SELECT clause : repeated map (map) --> Json,
+  public void testA4() throws Exception {
+    test(
+        "  select convert_to(types[1], 'JSON'), convert_to(modes[2], 'JSON') from cp.\"jsoninput/vvtypes.json\";");
+  }
+
+  @Test
+  // repeated map (map) .
+  public void testB1() throws Exception {
     test("  select types[1] from cp.\"jsoninput/vvtypes.json\";");
   }
 
   @Test
-  //repeated map (map (repeated map) ).
-  public void testB2() throws Exception{
+  // repeated map (map (repeated map) ).
+  public void testB2() throws Exception {
     test("  select types[1].minor from cp.\"jsoninput/vvtypes.json\";");
   }
 
   @Test
-  //repeated map (map( repeated map (map (varchar)))).
-  public void testB3() throws Exception{
+  // repeated map (map( repeated map (map (varchar)))).
+  public void testB3() throws Exception {
     test("  select types[1].minor[0].valueholder from cp.\"jsoninput/vvtypes.json\";");
   }
 
-  @Test  // DRILL-1250
-  //repeated scalar values evaluation.
-  public void test_repeatedList() throws Exception{
+  @Test // DRILL-1250
+  // repeated scalar values evaluation.
+  public void test_repeatedList() throws Exception {
     test("select l, l from cp.\"jsoninput/input2.json\";");
   }
 
@@ -235,15 +236,14 @@ public class TestComplexTypeReader extends BaseTestQuery{
   }
 
   @Test
-  @Ignore( "until flattening code creates correct ListVector (DRILL-4045)" )
+  @Ignore("until flattening code creates correct ListVector (DRILL-4045)")
   public void testNestedFlatten() throws Exception {
     test("select flatten(rl) from cp.\"jsoninput/input2.json\"");
   }
 
-
-  @Test  // DRILL-4410
+  @Test // DRILL-4410
   // ListVector allocation
-  public void test_array() throws Exception{
+  public void test_array() throws Exception {
 
     final long numRecords = 100_000;
 
@@ -253,40 +253,44 @@ public class TestComplexTypeReader extends BaseTestQuery{
     Path path1 = Paths.get(file1);
     Path path2 = Paths.get(file2);
 
-    String arrayString = "[ \"abcdef\", \"ghijkl\", \"mnopqr\", \"stuvwx\", \"yz1234\", \"567890\" ] ";
+    String arrayString =
+        "[ \"abcdef\", \"ghijkl\", \"mnopqr\", \"stuvwx\", \"yz1234\", \"567890\" ] ";
     Files.deleteIfExists(path1);
     Files.deleteIfExists(path2);
     Files.createFile(path1);
     Files.createFile(path2);
 
-    try(PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(file1, true)))) {
+    try (PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(file1, true)))) {
       for (long i = 0; i < numRecords; i++) {
         out.println("{ \"id\" : " + i + ", \"array\" : " + arrayString + "}");
       }
-    }catch (IOException e) {
+    } catch (IOException e) {
       throw e;
     }
 
-    try(PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(file2, true)))) {
+    try (PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(file2, true)))) {
       for (long i = 0; i < numRecords; i++) {
         out.println("{ \"id\" : " + i + ", \"array\" : " + arrayString + "}");
       }
-    }catch (IOException e) {
+    } catch (IOException e) {
       throw e;
     }
 
-    String queryString = String.format(
-        ""
-//        + "create table dfs.\"/tmp/blue32\" \n"
-//        + "STORE AS (type => 'json', prettyPrint => false) WITH SINGLE WRITER AS \n"
-//        + ""
-        + "select\n"
-        + "a1.id as id,\n"
-        + "a2.id as id0, "
-        + "a1.\"array\" as \"array\",\n"
-        + "a2.\"array\" as array0\n"
-        + "from dfs.\"%s\" \"a1\"\n"
-        + "INNER JOIN dfs.\"%s\" \"a2\" ON (\"a1\".id = \"a2\".id)", file1, file2);
+    String queryString =
+        String.format(
+            ""
+                //        + "create table dfs.\"/tmp/blue32\" \n"
+                //        + "STORE AS (type => 'json', prettyPrint => false) WITH SINGLE WRITER AS
+                // \n"
+                //        + ""
+                + "select\n"
+                + "a1.id as id,\n"
+                + "a2.id as id0, "
+                + "a1.\"array\" as \"array\",\n"
+                + "a2.\"array\" as array0\n"
+                + "from dfs.\"%s\" \"a1\"\n"
+                + "INNER JOIN dfs.\"%s\" \"a2\" ON (\"a1\".id = \"a2\".id)",
+            file1, file2);
     TestBuilder testBuilder = testBuilder().sqlQuery(queryString).unOrdered();
     testBuilder.baselineColumns("id", "id0", "array", "array0");
     for (long i = 0; i < numRecords; i++) {

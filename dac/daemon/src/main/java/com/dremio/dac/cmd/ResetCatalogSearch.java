@@ -17,15 +17,12 @@ package com.dremio.dac.cmd;
 
 import static com.dremio.dac.service.search.SearchIndexManager.CONFIG_KEY;
 
-import java.util.Optional;
-
 import com.dremio.dac.server.DACConfig;
 import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.services.configuration.ConfigurationStore;
+import java.util.Optional;
 
-/**
- * Reset catalog search command line.
- */
+/** Reset catalog search command line. */
 @AdminCommand(value = "reset-catalog-search", description = "Reset index to recover catalog search")
 public class ResetCatalogSearch {
 
@@ -45,7 +42,8 @@ public class ResetCatalogSearch {
       throw new UnsupportedOperationException("Reset catalog search should be run on master node");
     }
 
-    final Optional<LocalKVStoreProvider> providerOptional = CmdUtils.getKVStoreProvider(dacConfig.getConfig());
+    final Optional<LocalKVStoreProvider> providerOptional =
+        CmdUtils.getKVStoreProvider(dacConfig.getConfig());
     if (!providerOptional.isPresent()) {
       AdminLogger.log("Failed to complete catalog search reset. No KVStore detected.");
       return;
@@ -70,5 +68,4 @@ public class ResetCatalogSearch {
       System.exit(1);
     }
   }
-
 }

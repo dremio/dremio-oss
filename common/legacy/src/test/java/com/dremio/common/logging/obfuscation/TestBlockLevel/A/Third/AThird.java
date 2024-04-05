@@ -15,20 +15,15 @@
  */
 package com.dremio.common.logging.obfuscation.TestBlockLevel.A.Third;
 
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import com.dremio.TestBlockLevel.TestBlockLevelLogging;
 import java.util.List;
 
-import com.dremio.TestBlockLevel.TestBlockLevelLogging;
-
-import ch.qos.logback.classic.spi.ILoggingEvent;
-
-/**
- * class for testing custom log filtering
- */
+/** class for testing custom log filtering */
 public class AThird {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AThird.class);
 
   public List<ILoggingEvent> testLogFiltering() {
     return TestBlockLevelLogging.testLogFilteringUtil(logger);
-
   }
 }

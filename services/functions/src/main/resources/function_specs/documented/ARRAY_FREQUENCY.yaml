@@ -1,0 +1,34 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+name: ARRAY_FREQUENCY
+signatures:
+  - returnType: MAP
+    parameters:
+      - kind: REGULAR
+        type: ARRAY
+        name: array
+        description: The ARRAY of values to calculate frequency for. Accepts ARRAY of primitive types. Null elements ignored.
+    sampleCodes:
+      - call: "SELECT ARRAY_FREQUENCY(ARRAY[2,1,2,1,1,5])"
+        result: '{"1":3, "2":2, "5":1}'
+      - call: "SELECT ARRAY_FREQUENCY(ARRAY['a','b','ab','b','a'])"
+        result: '{"a":2, "ab":1, "b":2}'
+      - call: "# array_value is ARRAY[1, 2, NULL, 2]\nSELECT ARRAY_FREQUENCY(array_value)"
+        result: '{"1":1, "2":2}'
+functionCategories: [ARRAY]
+description: Returns a map with the frequency of all unique elements in an array.

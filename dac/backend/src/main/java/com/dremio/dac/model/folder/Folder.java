@@ -17,17 +17,6 @@ package com.dremio.dac.model.folder;
 
 import static com.dremio.common.utils.PathUtils.encodeURIComponent;
 
-import java.io.UnsupportedEncodingException;
-import java.net.URLDecoder;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
 import com.dremio.dac.model.common.NamespacePath;
 import com.dremio.dac.model.common.RootEntity;
 import com.dremio.dac.model.job.JobFilters;
@@ -41,11 +30,21 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
-/**
- * Folder model.
- */
-@JsonIgnoreProperties(value={"fullPathList", "links" }, allowGetters=true)
+/** Folder model. */
+@JsonIgnoreProperties(
+    value = {"fullPathList", "links"},
+    allowGetters = true)
 public class Folder {
 
   private final String id;
@@ -69,18 +68,18 @@ public class Folder {
 
   @JsonCreator
   public Folder(
-    @JsonProperty("id") String id,
-    @JsonProperty("name") String name,
-    @JsonProperty("urlPath") String urlPath,
-    @JsonProperty("isPhysicalDataset") Boolean isPhysicalDataset,
-    @JsonProperty("isFileSystemFolder") boolean isFileSystemFolder,
-    @JsonProperty("isQueryable") boolean isQueryable,
-    @JsonProperty("extendedConfig") ExtendedConfig extendedConfig,
-    @JsonProperty("version") String version,
-    @JsonProperty("fileformat") FileFormat fileFormat,
-    @JsonProperty("contents") NamespaceTree contents,
-    @JsonProperty("tags") List<String> tags,
-    @JsonProperty("jobCount") int jobCount) {
+      @JsonProperty("id") String id,
+      @JsonProperty("name") String name,
+      @JsonProperty("urlPath") String urlPath,
+      @JsonProperty("isPhysicalDataset") Boolean isPhysicalDataset,
+      @JsonProperty("isFileSystemFolder") boolean isFileSystemFolder,
+      @JsonProperty("isQueryable") boolean isQueryable,
+      @JsonProperty("extendedConfig") ExtendedConfig extendedConfig,
+      @JsonProperty("version") String version,
+      @JsonProperty("fileformat") FileFormat fileFormat,
+      @JsonProperty("contents") NamespaceTree contents,
+      @JsonProperty("tags") List<String> tags,
+      @JsonProperty("jobCount") int jobCount) {
     this.id = id;
     this.folderPath = Folder.parseUrlPath(urlPath);
     this.name = name;
@@ -152,14 +151,15 @@ public class Folder {
       if (queryable && fileFormat != null && fileFormat.getVersion() != null) {
         final String version = fileFormat.getVersion();
         links.put(
-          "delete_format",
-          folderPath.toUrlPathWithAction("folder_format") + "?version="
-            + (version == null ? version : encodeURIComponent(version))
-        );
+            "delete_format",
+            folderPath.toUrlPathWithAction("folder_format")
+                + "?version="
+                + (version == null ? version : encodeURIComponent(version)));
         // overwrite jobs link since this folder is queryable
-        final JobFilters jobFilters = new JobFilters()
-          .addFilter(JobIndexKeys.ALL_DATASETS, folderPath.toString())
-          .addFilter(JobIndexKeys.QUERY_TYPE, JobIndexKeys.UI, JobIndexKeys.EXTERNAL);
+        final JobFilters jobFilters =
+            new JobFilters()
+                .addFilter(JobIndexKeys.ALL_DATASETS, folderPath.toString())
+                .addFilter(JobIndexKeys.QUERY_TYPE, JobIndexKeys.UI, JobIndexKeys.EXTERNAL);
         links.put("jobs", jobFilters.toUrl());
       }
     } else {
@@ -172,9 +172,10 @@ public class Folder {
     }
     // add jobs if not already added.
     if (!links.containsKey("jobs")) {
-      final JobFilters jobFilters = new JobFilters()
-        .addContainsFilter(folderPath.toNamespaceKey().toString())
-        .addFilter(JobIndexKeys.QUERY_TYPE, "UI", "EXTERNAL");
+      final JobFilters jobFilters =
+          new JobFilters()
+              .addContainsFilter(folderPath.toNamespaceKey().toString())
+              .addFilter(JobIndexKeys.QUERY_TYPE, "UI", "EXTERNAL");
       links.put("jobs", jobFilters.toUrl());
     }
     return links;
@@ -185,25 +186,25 @@ public class Folder {
   }
 
   private static final Pattern PARSER = Pattern.compile("/([^/]+)/([^/]+)/[^/]+/(.*)");
-  private static final Function<String, String> PATH_DECODER = new Function<String, String>() {
-    @Override
-    public String apply(String input) {
-      try {
-        return URLDecoder.decode(input, "UTF-8");
-      } catch (UnsupportedEncodingException e) {
-        throw new UnsupportedOperationException(e);
-      }
-    }
-  };
+  private static final Function<String, String> PATH_DECODER =
+      new Function<String, String>() {
+        @Override
+        public String apply(String input) {
+          try {
+            return URLDecoder.decode(input, "UTF-8");
+          } catch (UnsupportedEncodingException e) {
+            throw new UnsupportedOperationException(e);
+          }
+        }
+      };
 
   static NamespacePath parseUrlPath(String urlPath) {
     Matcher m = PARSER.matcher(urlPath);
     if (m.matches()) {
-      List<String> pathParts = Stream.concat(
-        Stream.of(m.group(2)),
-        Stream.of(m.group(3).split("/")))
-        .map(PATH_DECODER)
-        .collect(ImmutableList.toImmutableList());
+      List<String> pathParts =
+          Stream.concat(Stream.of(m.group(2)), Stream.of(m.group(3).split("/")))
+              .map(PATH_DECODER)
+              .collect(ImmutableList.toImmutableList());
 
       if (m.group(1).equals("source")) {
         return new SourceFolderPath(pathParts);
@@ -216,37 +217,81 @@ public class Folder {
 
   public static Folder newInstance(RootEntity rootEntity, FolderConfig folderConfig, String id) {
     return new Folder(
-      (id == null) ? UUID.randomUUID().toString() : id,
-      folderConfig.getName(),
-      new FolderPath(
-        rootEntity,
-        folderConfig.getFullPathList().subList(1, folderConfig.getFullPathList().size() - 1)
-          .stream()
-          .map(FolderName::new)
-          .collect(Collectors.toList()),
-        new FolderName(folderConfig.getName())).toUrlPath(),
-      false,
-      false,
-      false,
-      null,
-      null,
-      null,
-      null,
-      null,
-      0);
+        (id == null) ? UUID.randomUUID().toString() : id,
+        folderConfig.getName(),
+        new FolderPath(
+                rootEntity,
+                folderConfig
+                    .getFullPathList()
+                    .subList(1, folderConfig.getFullPathList().size() - 1)
+                    .stream()
+                    .map(FolderName::new)
+                    .collect(Collectors.toList()),
+                new FolderName(folderConfig.getName()))
+            .toUrlPath(),
+        false,
+        false,
+        false,
+        null,
+        null,
+        null,
+        null,
+        null,
+        0);
   }
 
-  public static Folder newInstance(FolderPath folderPath, FolderConfig folderConfig, NamespaceTree contents, boolean isQueryable, boolean isFileSystemFolder) {
-    return newInstance(folderPath, folderConfig, null, contents, isQueryable, isFileSystemFolder, null, 0);
+  public static Folder newInstance(
+      FolderPath folderPath,
+      FolderConfig folderConfig,
+      NamespaceTree contents,
+      boolean isQueryable,
+      boolean isFileSystemFolder) {
+    return newInstance(
+        folderPath, folderConfig, null, contents, isQueryable, isFileSystemFolder, null, 0);
   }
 
-  public static Folder newInstance(SourceFolderPath folderPath, FolderConfig folderConfig, FileFormat fileFormat, NamespaceTree contents, boolean isQueryable, boolean isFileSystemFolder, int jobCount) {
-    return newInstance((NamespacePath) folderPath, folderConfig, fileFormat, contents, isQueryable, isFileSystemFolder, null, jobCount);
+  public static Folder newInstance(
+      SourceFolderPath folderPath,
+      FolderConfig folderConfig,
+      FileFormat fileFormat,
+      NamespaceTree contents,
+      boolean isQueryable,
+      boolean isFileSystemFolder,
+      int jobCount) {
+    return newInstance(
+        (NamespacePath) folderPath,
+        folderConfig,
+        fileFormat,
+        contents,
+        isQueryable,
+        isFileSystemFolder,
+        null,
+        jobCount);
   }
 
-  protected static Folder newInstance(NamespacePath folderPath, FolderConfig folderConfig, FileFormat fileFormat, NamespaceTree contents, boolean isQueryable, boolean isFileSystemFolder, List<String> tags, int jobCount) {
-    String id = folderConfig.getId() == null ? folderPath.toUrlPath() : folderConfig.getId().getId();
-    return new Folder(id, folderConfig.getName(), folderPath.toUrlPath(), folderConfig.getIsPhysicalDataset(),
-        isFileSystemFolder, isQueryable, folderConfig.getExtendedConfig(), folderConfig.getTag(), fileFormat, contents, tags, jobCount);
+  protected static Folder newInstance(
+      NamespacePath folderPath,
+      FolderConfig folderConfig,
+      FileFormat fileFormat,
+      NamespaceTree contents,
+      boolean isQueryable,
+      boolean isFileSystemFolder,
+      List<String> tags,
+      int jobCount) {
+    String id =
+        folderConfig.getId() == null ? folderPath.toUrlPath() : folderConfig.getId().getId();
+    return new Folder(
+        id,
+        folderConfig.getName(),
+        folderPath.toUrlPath(),
+        folderConfig.getIsPhysicalDataset(),
+        isFileSystemFolder,
+        isQueryable,
+        folderConfig.getExtendedConfig(),
+        folderConfig.getTag(),
+        fileFormat,
+        contents,
+        tags,
+        jobCount);
   }
 }

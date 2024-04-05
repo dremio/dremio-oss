@@ -19,9 +19,7 @@ import com.dremio.datastore.generator.factory.StringSupplierFactory;
 import com.dremio.datastore.generator.supplier.UniqueSupplier;
 import com.dremio.datastore.generator.supplier.UniqueSupplierOptions;
 
-/**
- * Used to generate data for a store with string keys and values
- */
+/** Used to generate data for a store with string keys and values */
 public class StringStoreGenerator implements DataGenerator<String, String> {
   private final UniqueSupplier<String> nextKey;
   private final UniqueSupplier<String> nextValue;

@@ -15,17 +15,14 @@
  */
 package com.dremio.sabot.op.join.vhash.spill.replay;
 
+import com.dremio.sabot.op.join.vhash.spill.io.SpillFileDescriptor;
+import com.dremio.sabot.op.sort.external.SpillManager.SpillFile;
+import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import com.dremio.sabot.op.join.vhash.spill.io.SpillFileDescriptor;
-import com.dremio.sabot.op.sort.external.SpillManager.SpillFile;
-import com.google.common.collect.ImmutableList;
-
-/**
- * A set of join spill files that can be replayed in isolation to any other data/partitions.
- */
+/** A set of join spill files that can be replayed in isolation to any other data/partitions. */
 public class JoinReplayEntry {
   // list of build files
   private final List<SpillFileDescriptor> buildSpills;
@@ -37,16 +34,18 @@ public class JoinReplayEntry {
     this.probeSpills = probeSpills;
   }
 
-  public static JoinReplayEntry of(List<SpillFileDescriptor> preBuildSpills, SpillFileDescriptor buildSpill, SpillFileDescriptor probeSpill) {
+  public static JoinReplayEntry of(
+      List<SpillFileDescriptor> preBuildSpills,
+      SpillFileDescriptor buildSpill,
+      SpillFileDescriptor probeSpill) {
     ImmutableList.Builder<SpillFileDescriptor> buildFilesBuilder = new ImmutableList.Builder<>();
     buildFilesBuilder.addAll(preBuildSpills);
     if (buildSpill != null) {
       buildFilesBuilder.add(buildSpill);
     }
     return new JoinReplayEntry(
-      buildFilesBuilder.build(),
-      probeSpill == null ? ImmutableList.of() : ImmutableList.of(probeSpill)
-    );
+        buildFilesBuilder.build(),
+        probeSpill == null ? ImmutableList.of() : ImmutableList.of(probeSpill));
   }
 
   private long getCumulativeSize(List<SpillFileDescriptor> spills) throws IOException {
@@ -82,14 +81,10 @@ public class JoinReplayEntry {
   }
 
   List<SpillFile> getBuildFiles() {
-    return buildSpills.stream()
-      .map(SpillFileDescriptor::getFile)
-      .collect(Collectors.toList());
+    return buildSpills.stream().map(SpillFileDescriptor::getFile).collect(Collectors.toList());
   }
 
   List<SpillFile> getProbeFiles() {
-    return probeSpills.stream()
-      .map(SpillFileDescriptor::getFile)
-      .collect(Collectors.toList());
+    return probeSpills.stream().map(SpillFileDescriptor::getFile).collect(Collectors.toList());
   }
 }

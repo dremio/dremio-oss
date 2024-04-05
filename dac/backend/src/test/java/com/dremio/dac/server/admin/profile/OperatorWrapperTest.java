@@ -17,13 +17,6 @@ package com.dremio.dac.server.admin.profile;
 
 import static org.junit.Assert.assertEquals;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.util.HashSet;
-
-import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.junit.Test;
-
 import com.dremio.exec.ops.OperatorMetricRegistry;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.OperatorProfile;
@@ -33,10 +26,13 @@ import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.ImmutableList;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.util.HashSet;
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.junit.Test;
 
-/**
- * Test cases for @{@link OperatorWrapper}
- */
+/** Test cases for @{@link OperatorWrapper} */
 public class OperatorWrapperTest {
 
   @Test
@@ -45,26 +41,26 @@ public class OperatorWrapperTest {
     int numMetrics = OperatorMetricRegistry.getMetricNames(operatorType).length;
 
     // find the number of registered metrics for parquet scan.
-    OperatorProfile op = OperatorProfile
-      .newBuilder().addMetric(
-        UserBitShared.MetricValue.newBuilder()
-          .setMetricId(1)
-          .setDoubleValue(200))
-      .addMetric(
-        UserBitShared.MetricValue.newBuilder()
-          .setMetricId(numMetrics + 5)  // add an unregistered metric
-          .setDoubleValue(21))
-      .setOperatorId(0)
-      .setOperatorType(operatorType)
-      .build();
+    OperatorProfile op =
+        OperatorProfile.newBuilder()
+            .addMetric(UserBitShared.MetricValue.newBuilder().setMetricId(1).setDoubleValue(200))
+            .addMetric(
+                UserBitShared.MetricValue.newBuilder()
+                    .setMetricId(numMetrics + 5) // add an unregistered metric
+                    .setDoubleValue(21))
+            .setOperatorId(0)
+            .setOperatorType(operatorType)
+            .build();
 
     ImmutablePair<OperatorProfile, Integer> pair = new ImmutablePair<>(op, 1);
 
-    OperatorWrapper ow = new OperatorWrapper(1,
-                                              ImmutableList.of(pair),
-                                              OperatorMetricRegistry.getCoreOperatorTypeMetricsMap(),
-                                              HashBasedTable.create(),
-                                              new HashSet<>());
+    OperatorWrapper ow =
+        new OperatorWrapper(
+            1,
+            ImmutableList.of(pair),
+            OperatorMetricRegistry.getCoreOperatorTypeMetricsMap(),
+            HashBasedTable.create(),
+            new HashSet<>());
 
     final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
     final JsonGenerator jsonGenerator = new JsonFactory().createGenerator(outputStream);
@@ -74,8 +70,16 @@ public class OperatorWrapperTest {
     jsonGenerator.flush();
 
     final JsonElement element = new JsonParser().parse(outputStream.toString());
-    final int size = element.getAsJsonObject().get("metrics").getAsJsonObject().get("data").getAsJsonArray().get(0).getAsJsonArray().size();
+    final int size =
+        element
+            .getAsJsonObject()
+            .get("metrics")
+            .getAsJsonObject()
+            .get("data")
+            .getAsJsonArray()
+            .get(0)
+            .getAsJsonArray()
+            .size();
     assertEquals(numMetrics + 1, size); // operatorID is always added to the metrics
   }
-
 }

@@ -29,5 +29,4 @@ public class ReferenceTypeConflictException extends RuntimeException {
   public ReferenceTypeConflictException(String message, Throwable cause) {
     super(message, cause);
   }
-
 }

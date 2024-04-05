@@ -15,23 +15,17 @@
  */
 package com.dremio.exec.store.iceberg.glue;
 
-import javax.annotation.Nullable;
-
-import org.apache.iceberg.TableOperations;
-import org.apache.iceberg.io.FileIO;
-
 import com.dremio.exec.store.iceberg.SupportsIcebergMutablePlugin;
 import com.dremio.exec.store.iceberg.model.IcebergBaseModel;
 import com.dremio.exec.store.iceberg.model.IcebergCommand;
 import com.dremio.exec.store.iceberg.model.IcebergCommitOrigin;
 import com.dremio.exec.store.iceberg.model.IcebergTableIdentifier;
 import com.dremio.sabot.exec.context.OperatorContext;
+import javax.annotation.Nullable;
+import org.apache.iceberg.TableOperations;
+import org.apache.iceberg.io.FileIO;
 
-
-
-/**
- * Entry point for Glue catalog based Iceberg tables
- */
+/** Entry point for Glue catalog based Iceberg tables */
 public class IcebergGlueModel extends IcebergBaseModel {
 
   private final SupportsIcebergMutablePlugin plugin;
@@ -40,13 +34,12 @@ public class IcebergGlueModel extends IcebergBaseModel {
   public static final String GLUE = "glue";
 
   public IcebergGlueModel(
-    String namespace,
-    String tableName,
-    FileIO fileIO,
-    String queryUserName,
-    OperatorContext operatorContext,
-    SupportsIcebergMutablePlugin plugin
-  ) {
+      String namespace,
+      String tableName,
+      FileIO fileIO,
+      String queryUserName,
+      OperatorContext operatorContext,
+      SupportsIcebergMutablePlugin plugin) {
     super(namespace, plugin.getFsConfCopy(), fileIO, operatorContext, null, plugin);
     this.queryUserName = queryUserName;
     this.plugin = plugin;
@@ -55,12 +48,14 @@ public class IcebergGlueModel extends IcebergBaseModel {
 
   @Override
   protected IcebergCommand getIcebergCommand(
-    IcebergTableIdentifier tableIdentifier,
-    @Nullable IcebergCommitOrigin commitOrigin
-  ) {
-    TableOperations tableOperations = plugin.createIcebergTableOperations(fileIO, queryUserName, tableIdentifier);
-    return new IcebergGlueCommand(configuration,
-      ((IcebergGlueTableIdentifier)tableIdentifier).getTableFolder(), tableOperations, currentQueryId());
+      IcebergTableIdentifier tableIdentifier, @Nullable IcebergCommitOrigin commitOrigin) {
+    TableOperations tableOperations =
+        plugin.createIcebergTableOperations(fileIO, queryUserName, tableIdentifier);
+    return new IcebergGlueCommand(
+        configuration,
+        ((IcebergGlueTableIdentifier) tableIdentifier).getTableFolder(),
+        tableOperations,
+        currentQueryId());
   }
 
   @Override

@@ -15,11 +15,10 @@
  */
 package com.dremio.dac.model.sqlrunner;
 
-import java.util.List;
-
 import com.dremio.service.sqlrunner.SQLRunnerSession;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.List;
 
 public class SQLRunnerSessionJson {
 
@@ -29,19 +28,16 @@ public class SQLRunnerSessionJson {
 
   @JsonCreator
   public SQLRunnerSessionJson(
-    @JsonProperty("userId") String userId,
-    @JsonProperty("scriptIds") List<String> scriptIds,
-    @JsonProperty("currentScriptId") String currentScriptId
-  ) {
+      @JsonProperty("userId") String userId,
+      @JsonProperty("scriptIds") List<String> scriptIds,
+      @JsonProperty("currentScriptId") String currentScriptId) {
     this.userId = userId;
     this.scriptIds = scriptIds;
     this.currentScriptId = currentScriptId;
   }
 
   public SQLRunnerSessionJson(SQLRunnerSession session) {
-    this(session.getUserId(),
-      session.getScriptIds(),
-      session.getCurrentScriptId());
+    this(session.getUserId(), session.getScriptIds(), session.getCurrentScriptId());
   }
 
   public String getUserId() {

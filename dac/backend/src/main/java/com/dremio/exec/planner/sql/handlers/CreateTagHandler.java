@@ -17,12 +17,6 @@ package com.dremio.exec.planner.sql.handlers;
 
 import static java.util.Objects.requireNonNull;
 
-import java.util.Collections;
-import java.util.List;
-
-import org.apache.calcite.sql.SqlIdentifier;
-import org.apache.calcite.sql.SqlNode;
-
 import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
@@ -38,13 +32,16 @@ import com.dremio.exec.store.ReferenceTypeConflictException;
 import com.dremio.exec.work.foreman.ForemanSetupException;
 import com.dremio.options.OptionResolver;
 import com.dremio.sabot.rpc.user.UserSession;
+import java.util.Collections;
+import java.util.List;
+import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlNode;
 
 /**
  * Handler for creating a tag.
  *
- * CREATE TAG [ IF NOT EXISTS ] tagName
- * [ AT ( REF[ERENCE] | BRANCH | TAG | COMMIT ) refValue [AS OF timestamp] ]
- * [ IN sourceName ]
+ * <p>CREATE TAG [ IF NOT EXISTS ] tagName [ AT ( REF[ERENCE] | BRANCH | TAG | COMMIT ) refValue [AS
+ * OF timestamp] ] [ IN sourceName ]
  */
 public class CreateTagHandler extends BaseVersionHandler<SimpleCommandResult> {
   private final UserSession userSession;
@@ -61,15 +58,17 @@ public class CreateTagHandler extends BaseVersionHandler<SimpleCommandResult> {
 
     final SqlCreateTag createTag = requireNonNull(SqlNodeUtil.unwrap(sqlNode, SqlCreateTag.class));
     final SqlIdentifier sourceIdentifier = createTag.getSourceName();
-    final String sourceName = VersionedHandlerUtils.resolveSourceName
-      (sourceIdentifier,
-      userSession.getDefaultSchemaPath());
+    final String sourceName =
+        VersionedHandlerUtils.resolveSourceName(
+            sourceIdentifier, userSession.getDefaultSchemaPath());
 
-    final boolean shouldErrorIfVersionExists = createTag.shouldErrorIfVersionExists().booleanValue();
+    final boolean shouldErrorIfVersionExists =
+        createTag.shouldErrorIfVersionExists().booleanValue();
     final String tagName = requireNonNull(createTag.getTagName()).toString();
 
     VersionContext statementSourceVersion =
-      ReferenceTypeUtils.map(createTag.getRefType(), createTag.getRefValue(), createTag.getTimestamp());
+        ReferenceTypeUtils.map(
+            createTag.getRefType(), createTag.getRefValue(), createTag.getTimestamp());
     VersionContext sessionVersion = userSession.getSessionVersionForSource(sourceName);
     VersionContext sourceVersion = statementSourceVersion.orElse(sessionVersion);
 
@@ -83,33 +82,31 @@ public class CreateTagHandler extends BaseVersionHandler<SimpleCommandResult> {
             .buildSilently();
       }
       return Collections.singletonList(
-        SimpleCommandResult.successful(
-          HandlerUtils.REFERENCE_ALREADY_EXISTS_MESSAGE,
-          tagName,
-          sourceName));
+          SimpleCommandResult.successful(
+              HandlerUtils.REFERENCE_ALREADY_EXISTS_MESSAGE, tagName, sourceName));
     } catch (ReferenceNotFoundException e) {
       throw UserException.validationError(e)
           .message("Source %s not found in source %s.", sourceVersion, sourceName)
           .buildSilently();
     } catch (NoDefaultBranchException e) {
       throw UserException.validationError(e)
-        .message("Unable to resolve source version. Version was not specified and Source %s does not have a default branch set.", sourceName)
-        .buildSilently();
+          .message(
+              "Unable to resolve source version. Version was not specified and Source %s does not have a default branch set.",
+              sourceName)
+          .buildSilently();
     } catch (ReferenceTypeConflictException e) {
       throw UserException.validationError(e)
-        .message("Requested %s in source %s is not the requested type.", sourceVersion, sourceName)
-        .buildSilently();
+          .message(
+              "Requested %s in source %s is not the requested type.", sourceVersion, sourceName)
+          .buildSilently();
     }
 
-    String sourceVersionMessage = sourceVersion.isSpecified()
-      ? sourceVersion.toString()
-      : "the default branch";
+    String sourceVersionMessage =
+        sourceVersion.isSpecified() ? sourceVersion.toString() : "the default branch";
     return Collections.singletonList(
         SimpleCommandResult.successful(
             "Tag %s has been created at %s in source %s.",
-            tagName,
-            sourceVersionMessage,
-            sourceName));
+            tagName, sourceVersionMessage, sourceName));
   }
 
   @Override

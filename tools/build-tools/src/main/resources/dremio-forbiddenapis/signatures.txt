@@ -1,3 +1,6 @@
+#SecretRefUnsafe
+com.dremio.exec.catalog.conf.SecretRefUnsafe @ Use com.dremio.exec.catalog.conf.SecretRefImpl instead
+
 # Protostuff
 io.protostuff.JsonIOUtil @ Use io.protostuff.JsonIOUtils instead
 
@@ -48,6 +51,7 @@ com.mongodb.internal.** @ Use Standard-Library or Guava (com.google.common) inst
 org.apache.arrow.util.AutoCloseables @ Use com.dremio.common.AutoCloseables instead
 de.flapdoodle.embed.mongo.util.** @ Use Guava (com.google.common) or org.apache.commons.io instead
 autovalue.shaded.** @ Use original library instead (i.e. use com.google.common instead)
+org.apache.curator.utils.CloseableExecutorService @ Use com.dremio.common.concurrent.CloseableThreadPool instead
 
 # Deprecated
 org.apache.commons.collections.map.HashedMap @ Use java.util.HashMap instead
@@ -56,6 +60,7 @@ org.apache.commons.io.Charsets @ Use java.nio.charset.StandardCharsets instead
 com.google.common.base.Charsets @ Use java.nio.charset.StandardCharsets instead
 com.google.common.base.Optional @ Use java.util.Optional instead
 io.opentelemetry.extension.annotations.WithSpan @ Use io.opentelemetry.instrumentation.annotations.WithSpan instead
+org.codehaus.jackson.** @ Use com.fasterxml.jackson instead
 
 # XML Factories
 @defaultMessage Use SafeXMLFactories methods instead

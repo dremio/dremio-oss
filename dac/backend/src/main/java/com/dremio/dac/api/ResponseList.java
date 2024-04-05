@@ -15,15 +15,12 @@
  */
 package com.dremio.dac.api;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonInclude;
-
-/**
- * Generic list model for the public REST API.
- */
+/** Generic list model for the public REST API. */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class ResponseList<T> {
   private List<T> data;
@@ -42,6 +39,7 @@ public class ResponseList<T> {
   public void add(T item) {
     data.add(item);
   }
+
   public void addIncluded(Object item) {
     included.add(item);
   }

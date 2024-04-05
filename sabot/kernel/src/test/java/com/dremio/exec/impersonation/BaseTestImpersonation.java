@@ -15,49 +15,58 @@
  */
 package com.dremio.exec.impersonation;
 
-
 import static com.dremio.exec.rpc.user.security.testing.UserServiceTestImpl.DEFAULT_PASSWORD;
 
+import com.dremio.exec.BaseTestMiniDFS;
+import com.dremio.service.users.SimpleUser;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.junit.BeforeClass;
 
-import com.dremio.exec.BaseTestMiniDFS;
-import com.dremio.service.users.SimpleUser;
-
-/**
- * Base class for impersonation tests
- */
+/** Base class for impersonation tests */
 public class BaseTestImpersonation extends BaseTestMiniDFS {
   // Test users and groups
-  protected static final String[] org1Users = { "user0_1", "user1_1", "user2_1", "user3_1", "user4_1", "user5_1" };
-  protected static final String[] org1Groups = { "group0_1", "group1_1", "group2_1", "group3_1", "group4_1", "group5_1" };
-  protected static final String[] org2Users = { "user0_2", "user1_2", "user2_2", "user3_2", "user4_2", "user5_2" };
-  protected static final String[] org2Groups = { "group0_2", "group1_2", "group2_2", "group3_2", "group4_2", "group5_2" };
+  protected static final String[] org1Users = {
+    "user0_1", "user1_1", "user2_1", "user3_1", "user4_1", "user5_1"
+  };
+  protected static final String[] org1Groups = {
+    "group0_1", "group1_1", "group2_1", "group3_1", "group4_1", "group5_1"
+  };
+  protected static final String[] org2Users = {
+    "user0_2", "user1_2", "user2_2", "user3_2", "user4_2", "user5_2"
+  };
+  protected static final String[] org2Groups = {
+    "group0_2", "group1_2", "group2_2", "group3_2", "group4_2", "group5_2"
+  };
 
   static {
-    // "user0_1" belongs to "groups0_1". From "user1_1" onwards each user belongs to corresponding group and the group
+    // "user0_1" belongs to "groups0_1". From "user1_1" onwards each user belongs to corresponding
+    // group and the group
     // directly before it, i.e "user2_1" belongs to "group2_1" and "group1_1" (but not group0_1).
-    UserGroupInformation.createUserForTesting(org1Users[0], new String[]{org1Groups[0]});
-    for(int i=1; i<org1Users.length; i++) {
-      UserGroupInformation.createUserForTesting(org1Users[i], new String[] { org1Groups[i], org1Groups[i-1] });
+    UserGroupInformation.createUserForTesting(org1Users[0], new String[] {org1Groups[0]});
+    for (int i = 1; i < org1Users.length; i++) {
+      UserGroupInformation.createUserForTesting(
+          org1Users[i], new String[] {org1Groups[i], org1Groups[i - 1]});
     }
 
-    UserGroupInformation.createUserForTesting(org2Users[0], new String[] { org2Groups[0] });
-    for(int i=1; i<org2Users.length; i++) {
-      UserGroupInformation.createUserForTesting(org2Users[i], new String[] { org2Groups[i], org2Groups[i-1] });
+    UserGroupInformation.createUserForTesting(org2Users[0], new String[] {org2Groups[0]});
+    for (int i = 1; i < org2Users.length; i++) {
+      UserGroupInformation.createUserForTesting(
+          org2Users[i], new String[] {org2Groups[i], org2Groups[i - 1]});
     }
   }
 
   /**
    * Start a MiniDFS cluster backed SabotNode cluster with impersonation enabled.
+   *
    * @param testClass
    * @throws Exception
    * @return configuration
    */
   protected static Configuration startMiniDfsCluster(String testClass) throws Exception {
     Configuration configuration = new Configuration();
-    // Set the proxyuser settings so that the user who is running the SabotNodes/MiniDfs can impersonate other users.
+    // Set the proxyuser settings so that the user who is running the SabotNodes/MiniDfs can
+    // impersonate other users.
     configuration.set(String.format("hadoop.proxyuser.%s.hosts", processUser), "*");
     configuration.set(String.format("hadoop.proxyuser.%s.groups", processUser), "*");
     startMiniDfsCluster(testClass, configuration);

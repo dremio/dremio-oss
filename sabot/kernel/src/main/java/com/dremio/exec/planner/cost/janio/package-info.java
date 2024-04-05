@@ -17,8 +17,7 @@
 /**
  * Code for generating {@link org.apache.calcite.rel.metadata.MetadataHandler}.
  *
- * As of apache/calcite 1.27, the current bugs exists:
- * * Multiple Overrides do not respect the chain ordering
- * *
+ * <p>As of apache/calcite 1.27, the current bugs exists: * Multiple Overrides do not respect the
+ * chain ordering *
  */
 package com.dremio.exec.planner.cost.janio;

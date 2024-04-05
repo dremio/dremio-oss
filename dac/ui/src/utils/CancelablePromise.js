@@ -22,7 +22,7 @@ export default class CancelablePromise extends Promise {
     let _reject;
     super((resolve, reject) => {
       _reject = reject;
-      return fcn(resolve, reject);
+      return fcn?.(resolve, reject);
     });
     this._reject = _reject;
   }
@@ -43,7 +43,7 @@ export default class CancelablePromise extends Promise {
     const cancelHandler = superThen.call(
       this,
       (val) => (this._cancelObject ? Promise.reject(this._cancelObject) : val),
-      (error) => Promise.reject(this._cancelObject || error)
+      (error) => Promise.reject(this._cancelObject || error),
     );
     return superThen.apply(cancelHandler, arguments);
   }

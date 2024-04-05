@@ -130,17 +130,6 @@ const BreadCrumbs = ({
           </BreadCrumbItem>
           <span className={longCrumbs ? "spacing" : ""}>.</span>
           <BreadCrumbItem longCrumbs={longCrumbs}>{lastCrumb}</BreadCrumbItem>
-          {fullPath && showCopyButton && (
-            <CopyButton
-              className="copy-button"
-              contents={
-                includeQuotes
-                  ? formatFullPath(fullPath).join(".")
-                  : fullPath.join(".")
-              }
-              size="L"
-            />
-          )}
           <Menu
             disableAutoFocusItem
             elevation={0}
@@ -190,18 +179,6 @@ const BreadCrumbs = ({
           },
           []
         )}
-        {extraContent && <div className="margin-left">{extraContent}</div>}
-        {fullPath && showCopyButton && (
-          <CopyButton
-            className="copy-button"
-            contents={
-              includeQuotes
-                ? formatFullPath(fullPath).join(".")
-                : fullPath.join(".")
-            }
-            size="L"
-          />
-        )}
       </>
     );
   };
@@ -219,12 +196,26 @@ const BreadCrumbs = ({
     ? "Breadcrumbs"
     : "Breadcrumbs shortMaxWidth";
   return (
-    <div
-      onMouseOver={(e) => e.stopPropagation()}
-      onFocus={(e) => e.stopPropagation()}
-      className={containerClasses}
-    >
-      {renderPath()}{" "}
+    <div className="BreadcrumbsWrapper">
+      <div
+        onMouseOver={(e) => e.stopPropagation()}
+        onFocus={(e) => e.stopPropagation()}
+        className={containerClasses}
+      >
+        {renderPath()}{" "}
+      </div>
+      {extraContent && <div className="margin-left">{extraContent}</div>}
+      {fullPath && showCopyButton && (
+        <CopyButton
+          className="copy-button"
+          contents={
+            includeQuotes
+              ? formatFullPath(fullPath).join(".")
+              : fullPath.join(".")
+          }
+          size="L"
+        />
+      )}
     </div>
   );
 };

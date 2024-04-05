@@ -15,9 +15,8 @@
  */
 package com.dremio.exec.fn.impl;
 
-import org.junit.Test;
-
 import com.dremio.BaseTestQuery;
+import org.junit.Test;
 
 public class TestTrigFunctions extends BaseTestQuery {
 

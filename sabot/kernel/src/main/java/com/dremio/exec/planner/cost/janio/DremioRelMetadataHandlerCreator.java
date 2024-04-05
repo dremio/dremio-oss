@@ -15,6 +15,9 @@
  */
 package com.dremio.exec.planner.cost.janio;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Multimap;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -25,7 +28,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
 import org.apache.calcite.interpreter.JaninoRexCompiler;
 import org.apache.calcite.linq4j.Ord;
 import org.apache.calcite.rel.metadata.Metadata;
@@ -36,17 +38,10 @@ import org.codehaus.commons.compiler.CompilerFactoryFactory;
 import org.codehaus.commons.compiler.ICompilerFactory;
 import org.codehaus.commons.compiler.ISimpleCompiler;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Multimap;
-
-/**
- * Generates the {@link MetadataHandler} code, then compiles the code using janino.
- */
+/** Generates the {@link MetadataHandler} code, then compiles the code using janino. */
 public class DremioRelMetadataHandlerCreator {
 
-  private DremioRelMetadataHandlerCreator() {
-  }
+  private DremioRelMetadataHandlerCreator() {}
 
   public static <M extends Metadata, MH extends MetadataHandler<M>> MH newInstance(
       Class<MH> handlerClass,
@@ -54,27 +49,28 @@ public class DremioRelMetadataHandlerCreator {
     final ImmutableList<? extends MetadataHandler<?>> handlers =
         ImmutableList.copyOf(metadataMethodToHandlers.values());
     final StringBuilder buff = new StringBuilder();
-    final String name =
-        "GeneratedMetadata_" + simpleNameForHandler(handlerClass);
+    final String name = "GeneratedMetadata_" + simpleNameForHandler(handlerClass);
     final Set<MetadataHandler<?>> distinctHandlerSet = new HashSet<>();
     final Map<MetadataHandler<?>, String> handlerToName = new LinkedHashMap<>();
     for (MetadataHandler<?> handler : handlers) {
       if (distinctHandlerSet.add(handler)) {
-        handlerToName.put(handler,
-            "provider" + (distinctHandlerSet.size() - 1));
+        handlerToName.put(handler, "provider" + (distinctHandlerSet.size() - 1));
       }
     }
 
-    //PROPERTIES
+    // PROPERTIES
     for (Ord<Method> method : Ord.zip(handlerClass.getDeclaredMethods())) {
       CacheGenerator.cacheProperties(buff, method.e, method.i);
     }
     for (Map.Entry<MetadataHandler<?>, String> handlerAndName : handlerToName.entrySet()) {
-      buff.append("  public final ").append(handlerAndName.getKey().getClass().getName())
-          .append(' ').append(handlerAndName.getValue()).append(";\n");
+      buff.append("  public final ")
+          .append(handlerAndName.getKey().getClass().getName())
+          .append(' ')
+          .append(handlerAndName.getValue())
+          .append(";\n");
     }
 
-    //CONSTRUCTOR
+    // CONSTRUCTOR
     buff.append("  public ").append(name).append("(\n");
     for (Map.Entry<MetadataHandler<?>, String> handlerAndName : handlerToName.entrySet()) {
       buff.append("      ")
@@ -88,45 +84,35 @@ public class DremioRelMetadataHandlerCreator {
     }
     buff.append(") {\n");
     for (String handlerName : handlerToName.values()) {
-      buff.append("    this.").append(handlerName).append(" = ").append(handlerName)
-          .append(";\n");
+      buff.append("    this.").append(handlerName).append(" = ").append(handlerName).append(";\n");
     }
     buff.append("  }\n");
 
-    //METHODS
-    getDefMethod(buff,
-        handlerToName.values()
-            .stream()
-            .findFirst()
-            .orElse(null));
+    // METHODS
+    getDefMethod(buff, handlerToName.values().stream().findFirst().orElse(null));
 
     DispatchGenerator dispatchGenerator = new DispatchGenerator(handlerToName);
     for (Ord<Method> method : Ord.zip(handlerClass.getDeclaredMethods())) {
       CacheGenerator.cachedMethod(buff, method.e, method.i);
-      dispatchGenerator.dispatchMethod(buff, method.e,
-          findHandlers(method.e, metadataMethodToHandlers));
+      dispatchGenerator.dispatchMethod(
+          buff, method.e, findHandlers(method.e, metadataMethodToHandlers));
     }
 
     final List<Object> argList = new ArrayList<>(handlerToName.keySet());
     try {
       return compile(name, buff.toString(), handlerClass, argList);
     } catch (CompileException | IOException e) {
-      throw new RuntimeException("Error compiling:\n"
-          + buff, e);
+      throw new RuntimeException("Error compiling:\n" + buff, e);
     }
   }
 
   private static void getDefMethod(StringBuilder buff, String handlerName) {
-    buff.append("  public ")
-        .append(MetadataDef.class.getName())
-        .append(" getDef() {\n");
+    buff.append("  public ").append(MetadataDef.class.getName()).append(" getDef() {\n");
 
     if (handlerName == null) {
       buff.append("    return null;");
     } else {
-      buff.append("    return ")
-          .append(handlerName)
-          .append(".getDef();\n");
+      buff.append("    return ").append(handlerName).append(".getDef();\n");
     }
     buff.append("  }\n");
   }
@@ -152,8 +138,8 @@ public class DremioRelMetadataHandlerCreator {
 
   private static String simpleNameForHandler(Class<? extends MetadataHandler<?>> clazz) {
     String simpleName = clazz.getSimpleName();
-    //Previously the pattern was to have a nested in class named Handler
-    //So we need to add the parents class to get a unique name
+    // Previously the pattern was to have a nested in class named Handler
+    // So we need to add the parents class to get a unique name
     if ("Handler".equals(simpleName)) {
       String[] parts = clazz.getName().split("\\.|\\$");
       return parts[parts.length - 2] + parts[parts.length - 1];
@@ -162,32 +148,34 @@ public class DremioRelMetadataHandlerCreator {
     }
   }
 
-  private static <MH extends MetadataHandler<?>> MH compile(String className,
-      String classBody, Class<MH> handlerClass,
-      List<Object> argList) throws CompileException, IOException {
+  private static <MH extends MetadataHandler<?>> MH compile(
+      String className, String classBody, Class<MH> handlerClass, List<Object> argList)
+      throws CompileException, IOException {
     final ICompilerFactory compilerFactory;
     try {
       compilerFactory = CompilerFactoryFactory.getDefaultCompilerFactory();
     } catch (Exception e) {
-      throw new IllegalStateException(
-          "Unable to instantiate java compiler", e);
+      throw new IllegalStateException("Unable to instantiate java compiler", e);
     }
 
     final ISimpleCompiler compiler = compilerFactory.newSimpleCompiler();
     compiler.setParentClassLoader(JaninoRexCompiler.class.getClassLoader());
 
-    final String s = "public final class " + className
-        + " implements " + handlerClass.getCanonicalName() + " {\n"
-        + classBody
-        + "\n"
-        + "}";
+    final String s =
+        "public final class "
+            + className
+            + " implements "
+            + handlerClass.getCanonicalName()
+            + " {\n"
+            + classBody
+            + "\n"
+            + "}";
 
     compiler.cook(s);
     final Constructor constructor;
     final Object o;
     try {
-      constructor = compiler.getClassLoader().loadClass(className)
-          .getDeclaredConstructors()[0];
+      constructor = compiler.getClassLoader().loadClass(className).getDeclaredConstructors()[0];
       o = constructor.newInstance(argList.toArray());
     } catch (InstantiationException
         | IllegalAccessException

@@ -27,7 +27,10 @@ import { NullCell } from "../../../components/TableCells/NullCell";
 import { ClickableCell } from "../../../components/TableCells/ClickableCell";
 import { jobs } from "../../../paths/jobs";
 import { getSonarContext } from "../../../contexts/SonarContext";
-import { type ReflectionSummary } from "../../reflections/ReflectionSummary.type";
+import {
+  ReflectionSummaryStatus,
+  type ReflectionSummary,
+} from "../../reflections/ReflectionSummary.type";
 
 export const getReflectionColumnLabels = () => {
   const { t } = getIntlContext();
@@ -36,9 +39,16 @@ export const getReflectionColumnLabels = () => {
     reflectionType: t("Sonar.Reflection.Column.Type.Label"),
     datasetName: t("Sonar.Reflection.Column.Dataset.Label"),
     refreshStatus: t("Sonar.Reflection.Column.RefreshStatus.Label"),
+    lastRefreshFromTable: t(
+      "Sonar.Reflection.Column.LastRefreshFromTable.Label",
+    ),
     recordCount: t("Sonar.Reflection.Column.RecordCount.Label"),
-    currentFootprint: t("Sonar.Reflection.Column.CurrentFootprint.Label"),
-    totalFootprint: t("Sonar.Reflection.Column.TotalFootprint.Label"),
+    currentFootprint: t("Sonar.Reflection.Column.CurrentFootprint.Label", {
+      b: (chunk: string[]) => <>{chunk}</>,
+    }),
+    totalFootprint: t("Sonar.Reflection.Column.TotalFootprint.Label", {
+      b: (chunk: string[]) => <>{chunk}</>,
+    }),
     lastRefresh: t("Sonar.Reflection.Column.LastRefreshDuration.Label"),
     refreshMethod: t("Sonar.Reflection.Column.RefreshMethod.Label"),
     availableUntil: t("Sonar.Reflection.Column.AvailableUntil.Label"),
@@ -55,12 +65,20 @@ export const reflectionsTableColumns = ({
   onRowClick,
   renderDataset,
   getHistoryLink,
+  onReflectionRefresh,
+  disabledRefresh,
+  canRefreshReflection,
+  renderRefreshStatusCell,
 }: {
   canViewJobs: boolean;
   getHistoryLink: (id: string) => string;
   onReflectionDelete: (id: string) => void;
   onRowClick: (id: string) => void;
   renderDataset: any;
+  onReflectionRefresh: (id: string) => void;
+  disabledRefresh: any;
+  canRefreshReflection: boolean;
+  renderRefreshStatusCell: any;
 }): Column<
   ReflectionSummary & {
     chosenJobsFilters: any;
@@ -180,28 +198,44 @@ export const reflectionsTableColumns = ({
         </Tooltip>
       ),
       renderCell: (row) =>
-        row.data ? (
-          <Tooltip
-            portal
-            content={
-              <div
-                className="dremio-prose"
-                style={{ width: "max-content", maxWidth: "40ch" }}
-              >
-                {getIntlContext().t(
-                  `Sonar.Reflection.RefreshStatus.${row.data.status.refreshStatus}.Hint`
-                )}
-              </div>
-            }
-          >
-            <span style={{ cursor: "default" }}>
+        row.data ? renderRefreshStatusCell(row) : <Skeleton width="11ch" />,
+    },
+    {
+      id: "lastRefreshFromTable",
+      class: "leantable--align-right",
+      renderHeaderCell: () => (
+        <Tooltip
+          portal
+          content={
+            <div
+              className="dremio-prose"
+              style={{ width: "max-content", maxWidth: "40ch" }}
+            >
               {getIntlContext().t(
-                `Sonar.Reflection.RefreshStatus.${row.data.status.refreshStatus}`
+                "Sonar.Reflection.Column.LastRefreshFromTable.Hint",
               )}
-            </span>
-          </Tooltip>
+            </div>
+          }
+        >
+          <span style={{ cursor: "default" }}>
+            {reflectionColumnLabels["lastRefreshFromTable"]}
+          </span>
+        </Tooltip>
+      ),
+      renderCell: (row) =>
+        row.data ? (
+          row.data.status.lastDataFetchAt === null ? (
+            <NullCell />
+          ) : (
+            <TimestampCellShortNoTZ
+              timestamp={new Date(row.data.status.lastDataFetchAt)}
+              applyFormat={(value) => value.replace(",", "")}
+            />
+          )
         ) : (
-          <Skeleton width="11ch" />
+          <NumericCell>
+            <Skeleton width="11ch" />
+          </NumericCell>
         ),
     },
     {
@@ -250,7 +284,7 @@ export const reflectionsTableColumns = ({
               style={{ width: "max-content", maxWidth: "40ch" }}
             >
               {getIntlContext().t(
-                "Sonar.Reflection.Column.CurrentFootprint.Hint"
+                "Sonar.Reflection.Column.CurrentFootprint.Hint",
               )}
             </div>
           }
@@ -282,7 +316,7 @@ export const reflectionsTableColumns = ({
               style={{ width: "max-content", maxWidth: "40ch" }}
             >
               {getIntlContext().t(
-                "Sonar.Reflection.Column.TotalFootprint.Hint"
+                "Sonar.Reflection.Column.TotalFootprint.Hint",
               )}
             </div>
           }
@@ -314,7 +348,7 @@ export const reflectionsTableColumns = ({
               style={{ width: "max-content", maxWidth: "40ch" }}
             >
               {getIntlContext().t(
-                "Sonar.Reflection.Column.LastRefreshDuration.Hint"
+                "Sonar.Reflection.Column.LastRefreshDuration.Hint",
               )}
             </div>
           }
@@ -356,7 +390,7 @@ export const reflectionsTableColumns = ({
       renderCell: (row) =>
         row.data ? (
           getIntlContext().t(
-            `Sonar.Reflection.RefreshMethod.${row.data.status.refreshMethod}`
+            `Sonar.Reflection.RefreshMethod.${row.data.status.refreshMethod}`,
           )
         ) : (
           <Skeleton width="9ch" />
@@ -374,7 +408,7 @@ export const reflectionsTableColumns = ({
               style={{ width: "max-content", maxWidth: "40ch" }}
             >
               {getIntlContext().t(
-                "Sonar.Reflection.Column.AvailableUntil.Hint"
+                "Sonar.Reflection.Column.AvailableUntil.Hint",
               )}
             </div>
           }
@@ -412,7 +446,7 @@ export const reflectionsTableColumns = ({
               style={{ width: "max-content", maxWidth: "40ch" }}
             >
               {getIntlContext().t(
-                "Sonar.Reflection.Column.ConsideredCount.Hint"
+                "Sonar.Reflection.Column.ConsideredCount.Hint",
               )}
             </div>
           }
@@ -433,6 +467,7 @@ export const reflectionsTableColumns = ({
                   filters: row.data.consideredJobsFilters,
                 })}
                 target="_blank"
+                rel="noreferrer"
               >
                 {row.data.consideredCount.toLocaleString()}
               </a>
@@ -476,6 +511,7 @@ export const reflectionsTableColumns = ({
                   filters: row.data.matchedJobsFilters,
                 })}
                 target="_blank"
+                rel="noreferrer"
               >
                 {row.data.matchedCount.toLocaleString()}
               </a>
@@ -501,7 +537,7 @@ export const reflectionsTableColumns = ({
                 style={{ width: "max-content", maxWidth: "40ch" }}
               >
                 {getIntlContext().t(
-                  "Sonar.Reflection.Column.AcceleratedCount.Hint"
+                  "Sonar.Reflection.Column.AcceleratedCount.Hint",
                 )}
               </div>
             }
@@ -523,6 +559,7 @@ export const reflectionsTableColumns = ({
                   filters: row.data.chosenJobsFilters,
                 })}
                 target="_blank"
+                rel="noreferrer"
               >
                 {row.data.chosenCount.toLocaleString()}
               </a>
@@ -543,7 +580,11 @@ export const reflectionsTableColumns = ({
           return <Skeleton width="7ch" />;
         }
         return (
-          <a href={getHistoryLink(row.data.id)} target="_blank">
+          <a
+            href={getHistoryLink(row.data.id)}
+            target="_blank"
+            rel="noreferrer"
+          >
             {getIntlContext().t("Sonar.Reflection.Column.RefreshHistory.Link")}
           </a>
         );
@@ -552,22 +593,54 @@ export const reflectionsTableColumns = ({
     {
       id: "actions",
       class:
-        "leantable-row-hover-visibility leantable-sticky-column leantable-sticky-column--right",
+        "leantable-row-hover-visibility leantable-sticky-column leantable-sticky-column--right leantable--align-right",
       renderHeaderCell: () => null,
-      renderCell: (row) =>
-        row.data && row.data.isCanAlter ? (
-          <div className="dremio-button-group">
-            <IconButton
-              tooltip="Delete"
-              tooltipPortal
-              tooltipDelay={500}
-              onClick={() => onReflectionDelete(row.id)}
-            >
-              {/* @ts-ignore */}
-              <dremio-icon name="interface/delete"></dremio-icon>
-            </IconButton>
-          </div>
-        ) : null,
+      renderCell: (row) => {
+        if (row.data && row.data.isCanAlter) {
+          const status = row.data.status.refreshStatus;
+          const disableRefreshIcon =
+            status === ReflectionSummaryStatus.RefreshStatusEnum.RUNNING ||
+            status === ReflectionSummaryStatus.RefreshStatusEnum.PENDING ||
+            !!disabledRefresh[row.data.id];
+          return (
+            <div className="dremio-button-group">
+              {canRefreshReflection && row.data.isEnabled && (
+                <IconButton
+                  tooltip={
+                    !disableRefreshIcon
+                      ? getIntlContext().t("Sonar.Reflection.Refresh.Now")
+                      : getIntlContext().t(
+                          `Sonar.Reflection.Refresh.${
+                            status ===
+                            ReflectionSummaryStatus.RefreshStatusEnum.RUNNING
+                              ? "Running"
+                              : "Pending"
+                          }`,
+                        )
+                  }
+                  tooltipPortal
+                  tooltipDelay={500}
+                  onClick={() => onReflectionRefresh(row.id)}
+                  /* @ts-ignore */
+                  disabled={disableRefreshIcon}
+                >
+                  {/* @ts-ignore */}
+                  <dremio-icon name="interface/refresh-clockwise"></dremio-icon>
+                </IconButton>
+              )}
+              <IconButton
+                tooltip={getIntlContext().t("Common.Actions.Delete")}
+                tooltipPortal
+                tooltipDelay={500}
+                onClick={() => onReflectionDelete(row.id)}
+              >
+                {/* @ts-ignore */}
+                <dremio-icon name="interface/delete"></dremio-icon>
+              </IconButton>
+            </div>
+          );
+        } else return null;
+      },
     },
   ];
 };

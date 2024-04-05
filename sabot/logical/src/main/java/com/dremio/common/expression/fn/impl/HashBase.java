@@ -18,30 +18,28 @@ package com.dremio.common.expression.fn.impl;
 
 import io.netty.util.internal.PlatformDependent;
 
-/**
- * The base class of hash classes used in Dremio.
- */
+/** The base class of hash classes used in Dremio. */
 public class HashBase {
 
-    public static final long getLongLittleEndian(long offset) {
-        //return PlatformDependent.getLong(offset);
-        return     ((long) PlatformDependent.getByte(offset+7)    << 56)
-                | ((PlatformDependent.getByte(offset+6) & 0xffL) << 48)
-                | ((PlatformDependent.getByte(offset+5) & 0xffL) << 40)
-                | ((PlatformDependent.getByte(offset+4) & 0xffL) << 32)
-                | ((PlatformDependent.getByte(offset+3) & 0xffL) << 24)
-                | ((PlatformDependent.getByte(offset+2) & 0xffL) << 16)
-                | ((PlatformDependent.getByte(offset+1) & 0xffL) << 8)
-                | ((PlatformDependent.getByte(offset) & 0xffL));
-    }
+  public static final long getLongLittleEndian(long offset) {
+    // return PlatformDependent.getLong(offset);
+    return ((long) PlatformDependent.getByte(offset + 7) << 56)
+        | ((PlatformDependent.getByte(offset + 6) & 0xffL) << 48)
+        | ((PlatformDependent.getByte(offset + 5) & 0xffL) << 40)
+        | ((PlatformDependent.getByte(offset + 4) & 0xffL) << 32)
+        | ((PlatformDependent.getByte(offset + 3) & 0xffL) << 24)
+        | ((PlatformDependent.getByte(offset + 2) & 0xffL) << 16)
+        | ((PlatformDependent.getByte(offset + 1) & 0xffL) << 8)
+        | ((PlatformDependent.getByte(offset) & 0xffL));
+  }
 
-    public static final long getIntLittleEndian(long offset) {
-        long retl = 0;
-        retl = ((PlatformDependent.getByte(offset+3) &0xffL) << 24)
-                | ((PlatformDependent.getByte(offset+2) & 0xffL) << 16)
-                | ((PlatformDependent.getByte(offset+1) & 0xffL) << 8)
-                | ((PlatformDependent.getByte(offset) & 0xffL));
-        return retl;
-    }
-
+  public static final long getIntLittleEndian(long offset) {
+    long retl = 0;
+    retl =
+        ((PlatformDependent.getByte(offset + 3) & 0xffL) << 24)
+            | ((PlatformDependent.getByte(offset + 2) & 0xffL) << 16)
+            | ((PlatformDependent.getByte(offset + 1) & 0xffL) << 8)
+            | ((PlatformDependent.getByte(offset) & 0xffL));
+    return retl;
+  }
 }

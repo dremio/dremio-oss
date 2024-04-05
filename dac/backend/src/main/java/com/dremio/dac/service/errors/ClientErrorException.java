@@ -18,10 +18,7 @@ package com.dremio.dac.service.errors;
 import com.dremio.dac.model.common.DACRuntimeException;
 import com.dremio.dac.model.common.ValidationErrorMessages;
 
-/**
- * 4xx errors
- *
- */
+/** 4xx errors */
 public class ClientErrorException extends DACRuntimeException {
   private static final long serialVersionUID = 1L;
 
@@ -50,5 +47,4 @@ public class ClientErrorException extends DACRuntimeException {
   public ValidationErrorMessages getMessages() {
     return messages;
   }
-
 }

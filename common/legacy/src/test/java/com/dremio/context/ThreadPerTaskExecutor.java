@@ -19,9 +19,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Future;
 import java.util.concurrent.FutureTask;
 
-/**
- * Test helper for running tasks in separate threads.
- */
+/** Test helper for running tasks in separate threads. */
 public class ThreadPerTaskExecutor implements Executor {
   private static final ThreadPerTaskExecutor INSTANCE = new ThreadPerTaskExecutor();
 
@@ -30,9 +28,7 @@ public class ThreadPerTaskExecutor implements Executor {
     new Thread(command).start();
   }
 
-  /**
-   * Runs the command in a separate thread
-   */
+  /** Runs the command in a separate thread */
   public static Future<Void> run(Runnable runnable) {
     final FutureTask<Void> task = new FutureTask<>(runnable, null);
     INSTANCE.execute(task);

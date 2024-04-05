@@ -21,7 +21,8 @@ public class SchemaChangeException extends RuntimeException {
     super();
   }
 
-  public SchemaChangeException(String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
+  public SchemaChangeException(
+      String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
     super(message, cause, enableSuppression, writableStackTrace);
   }
 
@@ -37,11 +38,11 @@ public class SchemaChangeException extends RuntimeException {
     super(cause);
   }
 
-  public SchemaChangeException(String message, Object...objects){
+  public SchemaChangeException(String message, Object... objects) {
     super(String.format(message, objects));
   }
 
-  public SchemaChangeException(String message, Throwable cause, Object...objects){
+  public SchemaChangeException(String message, Throwable cause, Object... objects) {
     super(String.format(message, objects), cause);
   }
 }

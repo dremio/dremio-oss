@@ -15,15 +15,15 @@
  */
 package com.dremio.plugins.elastic;
 
+import com.dremio.exec.ExecConstants;
 import org.junit.After;
 import org.junit.Before;
 
-import com.dremio.exec.ExecConstants;
-
 /**
- * Runs the same set of tests as TestAggregationsAndFilter, but with batch size set to 1 for the entire test.
- * This is important to make sure that batch size is handled properly in elasticsearch readers and that when next()
- * is called after the first iteration returns data properly, especially in ElasticsearchAggregatorReader.
+ * Runs the same set of tests as TestAggregationsAndFilter, but with batch size set to 1 for the
+ * entire test. This is important to make sure that batch size is handled properly in elasticsearch
+ * readers and that when next() is called after the first iteration returns data properly,
+ * especially in ElasticsearchAggregatorReader.
  */
 public class ITTestProjectionsAndFilterWithBatchSizeOne extends ITTestProjectionsAndFilter {
   @Override

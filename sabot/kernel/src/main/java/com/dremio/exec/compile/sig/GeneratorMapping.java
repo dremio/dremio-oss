@@ -26,7 +26,8 @@ public class GeneratorMapping {
   private final String reset;
   private final String cleanup;
 
-  public GeneratorMapping(final String setup, final String eval, final String reset, final String cleanup) {
+  public GeneratorMapping(
+      final String setup, final String eval, final String reset, final String cleanup) {
     super();
     this.setup = setup;
     this.eval = eval;
@@ -57,21 +58,25 @@ public class GeneratorMapping {
   }
 
   public String getMethodName(final BlockType type) {
-    switch(type) {
-    case CLEANUP:
-      Preconditions.checkNotNull(cleanup, "The current mapping does not have a cleanup method defined.");
-      return cleanup;
-    case EVAL:
-      Preconditions.checkNotNull(eval, "The current mapping does not have an eval method defined.");
-      return eval;
-    case RESET:
-      Preconditions.checkNotNull(reset, "The current mapping does not have a reset method defined.");
-      return reset;
-    case SETUP:
-      Preconditions.checkNotNull(setup, "The current mapping does not have a setup method defined.");
-      return setup;
-    default:
-      throw new IllegalStateException();
+    switch (type) {
+      case CLEANUP:
+        Preconditions.checkNotNull(
+            cleanup, "The current mapping does not have a cleanup method defined.");
+        return cleanup;
+      case EVAL:
+        Preconditions.checkNotNull(
+            eval, "The current mapping does not have an eval method defined.");
+        return eval;
+      case RESET:
+        Preconditions.checkNotNull(
+            reset, "The current mapping does not have a reset method defined.");
+        return reset;
+      case SETUP:
+        Preconditions.checkNotNull(
+            setup, "The current mapping does not have a setup method defined.");
+        return setup;
+      default:
+        throw new IllegalStateException();
     }
   }
 }

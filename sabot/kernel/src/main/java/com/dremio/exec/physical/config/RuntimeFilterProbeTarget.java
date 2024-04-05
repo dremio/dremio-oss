@@ -15,17 +15,13 @@
  */
 package com.dremio.exec.physical.config;
 
-import java.util.List;
-
-import javax.annotation.concurrent.NotThreadSafe;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
+import java.util.List;
+import javax.annotation.concurrent.NotThreadSafe;
 
-/**
- * Groups the information for runtime filtering.
- */
+/** Groups the information for runtime filtering. */
 public class RuntimeFilterProbeTarget {
   private final int probeScanMajorFragmentId;
   private final int probeScanOperatorId;
@@ -55,7 +51,8 @@ public class RuntimeFilterProbeTarget {
   }
 
   public boolean isSameProbeCoordinate(int majorFragmentId, int operatorId) {
-    return this.probeScanMajorFragmentId == majorFragmentId && this.probeScanOperatorId == operatorId;
+    return this.probeScanMajorFragmentId == majorFragmentId
+        && this.probeScanOperatorId == operatorId;
   }
 
   public List<String> getPartitionBuildTableKeys() {
@@ -84,21 +81,29 @@ public class RuntimeFilterProbeTarget {
 
   @Override
   public String toString() {
-    return "RuntimeFilterInfoProbeTarget{" +
-      "probeScanMajorFragmentId=" + probeScanMajorFragmentId +
-      ", probeScanOperatorId=" + probeScanOperatorId +
-      ", partitionBuildTableKeys=" + partitionBuildTableKeys +
-      ", partitionProbeTableKeys=" + partitionProbeTableKeys +
-      ", nonPartitionBuildTableKeys=" + nonPartitionBuildTableKeys +
-      ", nonPartitionProbeTableKeys=" + nonPartitionProbeTableKeys +
-      '}';
+    return "RuntimeFilterInfoProbeTarget{"
+        + "probeScanMajorFragmentId="
+        + probeScanMajorFragmentId
+        + ", probeScanOperatorId="
+        + probeScanOperatorId
+        + ", partitionBuildTableKeys="
+        + partitionBuildTableKeys
+        + ", partitionProbeTableKeys="
+        + partitionProbeTableKeys
+        + ", nonPartitionBuildTableKeys="
+        + nonPartitionBuildTableKeys
+        + ", nonPartitionProbeTableKeys="
+        + nonPartitionProbeTableKeys
+        + '}';
   }
 
   public String toTargetIdString() {
-    return "RuntimeFilterInfoProbeTarget{" +
-      "probeScanMajorFragmentId=" + probeScanMajorFragmentId +
-      ", probeScanOperatorId=" + probeScanOperatorId +
-      '}';
+    return "RuntimeFilterInfoProbeTarget{"
+        + "probeScanMajorFragmentId="
+        + probeScanMajorFragmentId
+        + ", probeScanOperatorId="
+        + probeScanOperatorId
+        + '}';
   }
 
   @NotThreadSafe
@@ -112,9 +117,9 @@ public class RuntimeFilterProbeTarget {
 
     // non-partitioned at the probe side, and respective build side keys
     private final ImmutableList.Builder<String> nonPartitionBuildTableKeys =
-      ImmutableList.builder();
+        ImmutableList.builder();
     private final ImmutableList.Builder<String> nonPartitionProbeTableKeys =
-      ImmutableList.builder();
+        ImmutableList.builder();
 
     public Builder(int probeScanMajorFragmentId, int probeScanOperatorId) {
       this.probeScanMajorFragmentId = probeScanMajorFragmentId;
@@ -135,13 +140,12 @@ public class RuntimeFilterProbeTarget {
 
     public RuntimeFilterProbeTarget build() {
       return new RuntimeFilterProbeTarget(
-        probeScanMajorFragmentId,
-        probeScanOperatorId,
-        partitionBuildTableKeys.build(),
-        partitionProbeTableKeys.build(),
-        nonPartitionBuildTableKeys.build(),
-        nonPartitionProbeTableKeys.build()
-      );
+          probeScanMajorFragmentId,
+          probeScanOperatorId,
+          partitionBuildTableKeys.build(),
+          partitionProbeTableKeys.build(),
+          nonPartitionBuildTableKeys.build(),
+          nonPartitionProbeTableKeys.build());
     }
   }
 }

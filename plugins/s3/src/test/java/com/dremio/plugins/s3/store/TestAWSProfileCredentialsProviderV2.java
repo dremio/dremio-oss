@@ -17,32 +17,29 @@ package com.dremio.plugins.s3.store;
 
 import static org.junit.Assert.assertEquals;
 
+import com.dremio.plugins.util.AwsProfile;
+import com.dremio.test.TemporaryEnvironment;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-
 import org.apache.hadoop.conf.Configuration;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-
-import com.dremio.plugins.util.AwsProfile;
-import com.dremio.test.TemporaryEnvironment;
-
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
 
-/**
- * Tests for AWSProfileCredentialsProviderV2
- */
+/** Tests for AWSProfileCredentialsProviderV2 */
 public class TestAWSProfileCredentialsProviderV2 {
-  @ClassRule
-  public static final TemporaryFolder temporaryFolder = new TemporaryFolder();
+  @ClassRule public static final TemporaryFolder temporaryFolder = new TemporaryFolder();
+
   @ClassRule
   public static final TemporaryEnvironment temporaryEnvironment = new TemporaryEnvironment();
 
-  private static final AwsProfile DEFAULT_PROFILE = new AwsProfile("default", "defaultId", "defaultSecret");
-  private static final AwsProfile PROFILE_1 = new AwsProfile("profile1", "profile1Id", "profile1Secret");
+  private static final AwsProfile DEFAULT_PROFILE =
+      new AwsProfile("default", "defaultId", "defaultSecret");
+  private static final AwsProfile PROFILE_1 =
+      new AwsProfile("profile1", "profile1Id", "profile1Secret");
 
   @BeforeClass
   public static void setup() throws IOException {
@@ -55,7 +52,8 @@ public class TestAWSProfileCredentialsProviderV2 {
     }
 
     // Tell AWS SDK where to find credentials file
-    temporaryEnvironment.setEnvironmentVariable("AWS_SHARED_CREDENTIALS_FILE", credentialsFile.getAbsolutePath());
+    temporaryEnvironment.setEnvironmentVariable(
+        "AWS_SHARED_CREDENTIALS_FILE", credentialsFile.getAbsolutePath());
   }
 
   @Test

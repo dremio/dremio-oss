@@ -250,7 +250,6 @@ export default class ConfirmModal extends Component {
           confirm={this.onConfirm}
           confirmText={confirmText || laDeprecated("OK")}
           confirmButtonStyle={confirmButtonStyle}
-          className={clsx(classes[`${confirmButtonStyle}ButtonPsuedoClasses`])}
           cancelText={cancelText || laDeprecated("Cancel")}
           cancel={onCancel}
           canSubmit={canSubmit}

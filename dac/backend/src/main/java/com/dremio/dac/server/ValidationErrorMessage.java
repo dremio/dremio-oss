@@ -19,9 +19,7 @@ import com.dremio.dac.model.common.ValidationErrorMessages;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-/**
- * Exception message representation for {@link ClientErrorException} exceptions.
- */
+/** Exception message representation for {@link ClientErrorException} exceptions. */
 public class ValidationErrorMessage extends GenericErrorMessage {
   private final ValidationErrorMessages validationErrorMessages;
 

@@ -15,16 +15,6 @@
  */
 package com.dremio.sabot.op.join.vhash.spill;
 
-import java.util.ArrayList;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.FieldVector;
-import org.apache.calcite.rel.core.JoinRelType;
-import org.apache.calcite.util.ImmutableBitSet;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.expression.LogicalExpression;
@@ -44,10 +34,16 @@ import com.dremio.sabot.op.join.vhash.spill.list.ProbeBuffers;
 import com.dremio.sabot.op.join.vhash.spill.pool.PagePool;
 import com.dremio.sabot.op.join.vhash.spill.replay.JoinReplayEntry;
 import com.dremio.sabot.op.sort.external.SpillManager;
+import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.FieldVector;
+import org.apache.calcite.rel.core.JoinRelType;
+import org.apache.calcite.util.ImmutableBitSet;
 
-/**
- * Join Setup Params: Common parameters used in several stages of hash-join.
- */
+/** Join Setup Params: Common parameters used in several stages of hash-join. */
 public final class JoinSetupParams implements AutoCloseable {
   public static final int TABLE_HASH_SIZE = 4;
 
@@ -109,10 +105,12 @@ public final class JoinSetupParams implements AutoCloseable {
   // generation number (bumped on each recycle of the partitions)
   private int generation = 1;
 
-  // memory releaser for the operator. Each switch from MemoryPartition to DiskPartition appends an entry to the list.
+  // memory releaser for the operator. Each switch from MemoryPartition to DiskPartition appends an
+  // entry to the list.
   private final MultiMemoryReleaser multiMemoryReleaser = new MultiMemoryReleaser();
 
-  // list of replay entries for the operator. Each close of a DiskPartition appends an entry to the list.
+  // list of replay entries for the operator. Each close of a DiskPartition appends an entry to the
+  // list.
   private final LinkedList<JoinReplayEntry> replayEntries = new LinkedList<>();
   private final boolean runtimeFilterEnabled;
   private final LogicalExpression extraCondition;
@@ -120,30 +118,31 @@ public final class JoinSetupParams implements AutoCloseable {
   private final OOBInfo oobInfo;
   private final int operatorId;
 
-  JoinSetupParams(OperatorContext context,
-                  FixedBlockVector pivotedFixedBlock,
-                  VariableBlockVector pivotedVariableBlock,
-                  JoinRelType joinType,
-                  VectorAccessible right,
-                  VectorAccessible left,
-                  PivotDef buildKeyPivot,
-                  PivotDef buildKeyUnpivot,
-                  List<FieldVector> buildOutputKeys,
-                  List<FieldVector> buildOutputCarryOvers,
-                  BatchSchema carryAlongSchema,
-                  ImmutableBitSet buildNonKeyFieldsBitset,
-                  NullComparator comparator,
-                  PivotDef probeKeyPivot,
-                  List<FieldVector> probeIncomingKeys,
-                  List<FieldVector> probeOutputs,
-                  ProbeBuffers probeBuffers,
-                  LogicalExpression extraCondition,
-                  Map<String, String> build2ProbeKeyMap,
-                  SpillManager spillManager,
-                  PagePool spillPagePool,
-                  OOBInfo oobInfo,
-                  int operatorId,
-                  boolean runtimeFilterEnabled) {
+  JoinSetupParams(
+      OperatorContext context,
+      FixedBlockVector pivotedFixedBlock,
+      VariableBlockVector pivotedVariableBlock,
+      JoinRelType joinType,
+      VectorAccessible right,
+      VectorAccessible left,
+      PivotDef buildKeyPivot,
+      PivotDef buildKeyUnpivot,
+      List<FieldVector> buildOutputKeys,
+      List<FieldVector> buildOutputCarryOvers,
+      BatchSchema carryAlongSchema,
+      ImmutableBitSet buildNonKeyFieldsBitset,
+      NullComparator comparator,
+      PivotDef probeKeyPivot,
+      List<FieldVector> probeIncomingKeys,
+      List<FieldVector> probeOutputs,
+      ProbeBuffers probeBuffers,
+      LogicalExpression extraCondition,
+      Map<String, String> build2ProbeKeyMap,
+      SpillManager spillManager,
+      PagePool spillPagePool,
+      OOBInfo oobInfo,
+      int operatorId,
+      boolean runtimeFilterEnabled) {
     this.context = context;
     this.options = context.getOptions();
     this.sabotConfig = context.getConfig();
@@ -174,8 +173,8 @@ public final class JoinSetupParams implements AutoCloseable {
     this.runtimeFilterEnabled = runtimeFilterEnabled;
 
     SpillSerializable serializable = new SpillSerializableImpl();
-    this.buildSpillSerializable = new SpillSerializableWithStats(serializable,  spillStats, true);
-    this.probeSpillSerializable = new SpillSerializableWithStats(serializable,  spillStats, false);
+    this.buildSpillSerializable = new SpillSerializableWithStats(serializable, spillStats, true);
+    this.probeSpillSerializable = new SpillSerializableWithStats(serializable, spillStats, false);
   }
 
   public OptionManager getOptions() {

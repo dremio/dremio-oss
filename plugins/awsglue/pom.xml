@@ -1,4 +1,4 @@
-<?xml version="1.0"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!--
 
     Copyright (C) 2017-2019 Dremio Corporation
@@ -16,19 +16,17 @@
     limitations under the License.
 
 -->
-<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
-         xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <parent>
-    <artifactId>dremio-plugin-parent</artifactId>
     <groupId>com.dremio.plugins</groupId>
-    <version>24.3.2-202401241821100032-d2d8a497</version>
+    <artifactId>dremio-plugin-parent</artifactId>
+    <version>25.0.0-202404051521110861-ed9515a8</version>
   </parent>
 
   <artifactId>dremio-awsglue-plugin</artifactId>
-  <name>Plugins - AWS Glue Catalog Plugin</name>
   <packaging>jar</packaging>
+  <name>Plugins - AWS Glue Catalog Plugin</name>
 
   <properties>
     <dremio.plugins.path>${project.build.directory}</dremio.plugins.path>
@@ -50,8 +48,8 @@
           <artifactId>commons-logging</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>commons-codec</artifactId>
           <groupId>commons-codec</groupId>
+          <artifactId>commons-codec</artifactId>
         </exclusion>
         <exclusion>
           <groupId>com.fasterxml.jackson.core</groupId>
@@ -114,9 +112,9 @@
     <dependency>
       <groupId>com.dremio</groupId>
       <artifactId>dremio-common</artifactId>
+      <version>${project.version}</version>
       <classifier>tests</classifier>
       <type>test-jar</type>
-      <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -154,15 +152,6 @@
     <plugins>
       <plugin>
         <artifactId>maven-dependency-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>copy</id>
-            <phase>compile</phase>
-            <goals>
-              <goal>copy</goal>
-            </goals>
-          </execution>
-        </executions>
         <configuration>
           <artifactItems>
             <artifactItem>
@@ -177,21 +166,15 @@
           <overWriteReleases>true</overWriteReleases>
           <overWriteSnapshots>true</overWriteSnapshots>
         </configuration>
-      </plugin>
-      <plugin>
-        <artifactId>maven-surefire-plugin</artifactId>
-        <configuration>
-          <!-- Need to run with Java 8, because `GuavaPatcher` runs too late, and
-           `com.google.common.base.Stopwatch` has already been loaded. GuavaPatcher
-            tries to re-define the Stopwatch class in the same classloader, but Java
-            Java 11 no longer allows this. The existing workaround with that
-            `GuavaPatcherRunner` runs into the same issue. A proper solution would be
-            to implement a Java agent, which _is_ allowed to re-define classes.
-            -->
-          <jdkToolchain>
-            <version>1.8</version>
-          </jdkToolchain>
-        </configuration>
+        <executions>
+          <execution>
+            <id>copy</id>
+            <goals>
+              <goal>copy</goal>
+            </goals>
+            <phase>compile</phase>
+          </execution>
+        </executions>
       </plugin>
       <plugin>
         <artifactId>maven-failsafe-plugin</artifactId>

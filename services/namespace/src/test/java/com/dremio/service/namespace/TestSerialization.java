@@ -17,15 +17,12 @@ package com.dremio.service.namespace;
 
 import static org.junit.Assert.assertTrue;
 
-import org.junit.Test;
-
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.PartitionValue;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hubspot.jackson.datatype.protobuf.ProtobufModule;
+import org.junit.Test;
 
-/**
- * Serialization tests
- */
+/** Serialization tests */
 public class TestSerialization {
 
   private static void assertContains(String expectedContains, String string) {
@@ -33,26 +30,23 @@ public class TestSerialization {
   }
 
   private static void assertNotContains(String expectedContains, String string) {
-    assertTrue(string + " should not contain " + expectedContains, !string.contains(expectedContains));
+    assertTrue(
+        string + " should not contain " + expectedContains, !string.contains(expectedContains));
   }
 
   @Test
   public void testNullValueSerialization() throws Exception {
-    ObjectMapper mapper = new ObjectMapper()
-        // Need to register proto module (as PhysicalPlanReader...)
-        .registerModule(new ProtobufModule());
+    ObjectMapper mapper =
+        new ObjectMapper()
+            // Need to register proto module (as PhysicalPlanReader...)
+            .registerModule(new ProtobufModule());
 
-    PartitionValue value = PartitionValue.newBuilder()
-        .setColumn("test")
-        .setIntValue(10)
-        .build();
+    PartitionValue value = PartitionValue.newBuilder().setColumn("test").setIntValue(10).build();
     String serialized = mapper.writeValueAsString(value);
     assertContains("intValue", serialized);
     assertNotContains("longValue", serialized);
 
-    value = PartitionValue.newBuilder()
-        .setColumn("test")
-        .build();
+    value = PartitionValue.newBuilder().setColumn("test").build();
     serialized = mapper.writeValueAsString(value);
     assertNotContains("intValue", serialized);
   }

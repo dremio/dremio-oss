@@ -15,18 +15,14 @@
  */
 package com.dremio.exec.store.sys;
 
+import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.work.CacheManagerDatasetInfo;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-
 import org.rocksdb.RocksIterator;
 
-import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.work.CacheManagerDatasetInfo;
-
-/**
- * Iterator which returns cache manager dataset information
- */
+/** Iterator which returns cache manager dataset information */
 public class CacheManagerDatasetIterator implements Iterator<Object> {
   private final boolean isCachedFileSystem;
   private List<CacheManagerDatasetInfo> datasetInfoList = new ArrayList<>();
@@ -35,10 +31,12 @@ public class CacheManagerDatasetIterator implements Iterator<Object> {
   private RocksIterator dsIterator;
 
   CacheManagerDatasetIterator(SabotContext sabotContext) {
-    isCachedFileSystem = sabotContext.getFileSystemWrapper().isWrapperFor(CacheManagerStatsProvider.class);
+    isCachedFileSystem =
+        sabotContext.getFileSystemWrapper().isWrapperFor(CacheManagerStatsProvider.class);
 
     if (isCachedFileSystem) {
-      cacheManagerStatsProvider = sabotContext.getFileSystemWrapper().unwrap(CacheManagerStatsProvider.class);
+      cacheManagerStatsProvider =
+          sabotContext.getFileSystemWrapper().unwrap(CacheManagerStatsProvider.class);
       dsIterator = cacheManagerStatsProvider.getDatasetIterator();
       if (dsIterator != null) {
         datasetInfoList = cacheManagerStatsProvider.getDatasetStats(dsIterator);

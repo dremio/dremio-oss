@@ -15,15 +15,11 @@
  */
 package com.dremio.common.logging.obfuscation.TestBlockLevel.B.Second;
 
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import com.dremio.TestBlockLevel.TestBlockLevelLogging;
 import java.util.List;
 
-import com.dremio.TestBlockLevel.TestBlockLevelLogging;
-
-import ch.qos.logback.classic.spi.ILoggingEvent;
-
-/**
- *class for testing custom log filtering
- */
+/** class for testing custom log filtering */
 public class BSecond {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BSecond.class);
 

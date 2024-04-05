@@ -15,20 +15,16 @@
  */
 package com.dremio.exec.store.parquet;
 
+import com.dremio.common.expression.SchemaPath;
 import java.util.List;
-
 import org.apache.arrow.vector.ValueVector;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.schema.MessageType;
 
-import com.dremio.common.expression.SchemaPath;
-/**
- * Interface to resolve column names during parquet scan operation
- */
+/** Interface to resolve column names during parquet scan operation */
 public interface ParquetColumnResolver {
 
   /**
-   *
    * @return project column schemapaths from table schema
    */
   List<SchemaPath> getBatchSchemaProjectedColumns();
@@ -39,49 +35,42 @@ public interface ParquetColumnResolver {
   List<SchemaPath> getProjectedParquetColumns();
 
   /**
-   *
    * @param columnInParquetFile Column name form parquet schema
    * @return column name from table schema
    */
   String getBatchSchemaColumnName(String columnInParquetFile);
 
   /**
-   *
    * @param columnInParquetFile list of column names from parquet schema
    * @return list of column names from table schema
    */
   List<String> getBatchSchemaColumnName(List<String> columnInParquetFile);
 
   /**
-   *
    * @param name Column name from table schema
    * @return column name from parquet schema
    */
   String getParquetColumnName(String name);
 
   /**
-   *
    * @param parquestSchemaPaths list of schemapaths from parquet schema
    * @return list of schemapaths from table schema
    */
   List<SchemaPath> getBatchSchemaColumns(List<SchemaPath> parquestSchemaPaths);
 
   /**
-   *
    * @param pathInParquetFile schema path in parquet file
    * @return schema path from batch schema
    */
   SchemaPath getBatchSchemaColumnPath(SchemaPath pathInParquetFile);
 
   /**
-   *
    * @param schemaPath input schema path
    * @return list of name segments from the path
    */
   List<String> getNameSegments(SchemaPath schemaPath);
 
   /**
-   *
    * @param schema
    * @param columnDesc
    * @return
@@ -89,7 +78,6 @@ public interface ParquetColumnResolver {
   List<String> convertColumnDescriptor(MessageType schema, ColumnDescriptor columnDesc);
 
   /**
-   *
    * @param schemaPath
    * @param vector
    * @return Dotted string representation of given schemaPath

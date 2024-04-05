@@ -17,9 +17,16 @@ package com.dremio.dac.api;
 
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
+import com.dremio.context.SupportContext;
+import com.dremio.dac.annotations.APIResource;
+import com.dremio.dac.annotations.Secured;
+import com.dremio.dac.service.catalog.CatalogServiceHelper;
+import com.dremio.dac.service.errors.ConflictException;
+import com.dremio.dac.service.errors.ReflectionNotFound;
+import com.dremio.dac.service.reflection.ReflectionServiceHelper;
+import com.dremio.service.reflection.proto.ReflectionGoal;
 import java.util.ConcurrentModificationException;
 import java.util.Optional;
-
 import javax.annotation.security.RolesAllowed;
 import javax.inject.Inject;
 import javax.ws.rs.Consumes;
@@ -33,18 +40,7 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.Response;
 
-import com.dremio.context.SupportContext;
-import com.dremio.dac.annotations.APIResource;
-import com.dremio.dac.annotations.Secured;
-import com.dremio.dac.service.catalog.CatalogServiceHelper;
-import com.dremio.dac.service.errors.ConflictException;
-import com.dremio.dac.service.errors.ReflectionNotFound;
-import com.dremio.dac.service.reflection.ReflectionServiceHelper;
-import com.dremio.service.reflection.proto.ReflectionGoal;
-
-/**
- * Reflection API resource.
- */
+/** Reflection API resource. */
 @APIResource
 @Secured
 @RolesAllowed({"admin", "user"})
@@ -56,7 +52,8 @@ public class ReflectionResource {
   private final CatalogServiceHelper catalogServiceHelper;
 
   @Inject
-  public ReflectionResource(ReflectionServiceHelper reflectionServiceHelper, CatalogServiceHelper catalogServiceHelper) {
+  public ReflectionResource(
+      ReflectionServiceHelper reflectionServiceHelper, CatalogServiceHelper catalogServiceHelper) {
     this.reflectionServiceHelper = reflectionServiceHelper;
     this.catalogServiceHelper = catalogServiceHelper;
   }
@@ -76,11 +73,11 @@ public class ReflectionResource {
   @POST
   public Reflection createReflection(Reflection reflection) throws ForbiddenException {
     // TODO: handle exceptions
-    if(SupportContext.isSupportUser())
-    {
+    if (SupportContext.isSupportUser()) {
       throw new ForbiddenException("Permission denied. A support user cannot create a reflection");
     }
-    final ReflectionGoal newReflection = reflectionServiceHelper.createReflection(reflection.toReflectionGoal());
+    final ReflectionGoal newReflection =
+        reflectionServiceHelper.createReflection(reflection.toReflectionGoal());
     final String id = newReflection.getId().getId();
 
     return reflectionServiceHelper.newReflection(newReflection);
@@ -90,25 +87,26 @@ public class ReflectionResource {
   @Path("/{id}")
   public Reflection editReflection(@PathParam("id") String id, Reflection reflection) {
     try {
-      if(SupportContext.isSupportUser())
-      {
+      if (SupportContext.isSupportUser()) {
         throw new ForbiddenException("Permission denied. A support user cannot edit a reflection");
       }
       // force ids to match
       reflection.setId(id);
 
-      final ReflectionGoal reflectionGoal = reflectionServiceHelper.updateReflection(reflection.toReflectionGoal());
+      final ReflectionGoal reflectionGoal =
+          reflectionServiceHelper.updateReflection(reflection.toReflectionGoal());
       return reflectionServiceHelper.newReflection(reflectionGoal);
     } catch (ConcurrentModificationException e) {
-      throw new ConflictException("The reflection seems to have been modified by another flow. Please verify the reflection definition and retry.",e);
+      throw new ConflictException(
+          "The reflection seems to have been modified by another flow. Please verify the reflection definition and retry.",
+          e);
     }
   }
 
   @DELETE
   @Path("/{id}")
   public Response deleteReflection(@PathParam("id") String id) {
-    if(SupportContext.isSupportUser())
-    {
+    if (SupportContext.isSupportUser()) {
       throw new ForbiddenException("Permission denied. A support user cannot delete a reflection");
     }
     reflectionServiceHelper.removeReflection(id);

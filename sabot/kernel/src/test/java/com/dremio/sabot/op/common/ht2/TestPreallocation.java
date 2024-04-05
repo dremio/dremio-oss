@@ -18,8 +18,17 @@ package com.dremio.sabot.op.common.ht2;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
+import com.dremio.exec.record.VectorContainer;
+import com.dremio.sabot.op.aggregate.vectorized.Accumulator;
+import com.dremio.sabot.op.aggregate.vectorized.AccumulatorSet;
+import com.dremio.sabot.op.aggregate.vectorized.MaxAccumulators;
+import com.dremio.sabot.op.aggregate.vectorized.SumAccumulators;
+import com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggOperator;
+import com.dremio.test.AllocatorRule;
+import com.dremio.test.DremioTest;
+import com.koloboke.collect.hash.HashConfig;
+import io.netty.util.internal.PlatformDependent;
 import java.util.Random;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BigIntVector;
@@ -30,23 +39,10 @@ import org.apache.arrow.vector.VarCharVector;
 import org.junit.Rule;
 import org.junit.Test;
 
-import com.dremio.exec.record.VectorContainer;
-import com.dremio.sabot.op.aggregate.vectorized.Accumulator;
-import com.dremio.sabot.op.aggregate.vectorized.AccumulatorSet;
-import com.dremio.sabot.op.aggregate.vectorized.MaxAccumulators;
-import com.dremio.sabot.op.aggregate.vectorized.SumAccumulators;
-import com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggOperator;
-import com.dremio.test.AllocatorRule;
-import com.dremio.test.DremioTest;
-import com.koloboke.collect.hash.HashConfig;
-
-import io.netty.util.internal.PlatformDependent;
-
 public class TestPreallocation extends DremioTest {
   private static int MAX_VALUES_PER_BATCH = 0;
 
-  @Rule
-  public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
+  @Rule public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
 
   @Test
   public void testInsertIntoPreallocatedHashTable() throws Exception {
@@ -64,32 +60,33 @@ public class TestPreallocation extends DremioTest {
   private void testPreallocationHelper() throws Exception {
     /* GROUP BY key columns */
     String[] col1arr = {
-      "hello", "my", "hello", "hello",
-      null, null, "hello", null,
-      "hello", "my", "my", "hello"
+      "hello", "my", "hello", "hello", null, null, "hello", null, "hello", "my", "my", "hello"
     };
 
     String[] col2arr = {
-      "every", "every", "every", "none",
-      null, null, "every", null,
-      "none", "every", "every", "every"
+      "every", "every", "every", "none", null, null, "every", null, "none", "every", "every",
+      "every"
     };
 
     Integer[] col3arr = {
       1, 1, 1, 1,
       1, 1, 2, 2,
-      1, 1, null, 1};
+      1, 1, null, 1
+    };
 
     /* Measure columns */
-    Integer[] aggcol1 = {100000, 160000, 200000, 300000, 120000, 50000, 80000, 140000, 90000, 100000, 110000, null};
+    Integer[] aggcol1 = {
+      100000, 160000, 200000, 300000, 120000, 50000, 80000, 140000, 90000, 100000, 110000, null
+    };
     final Long[] expectedSum = {300000L, 260000L, 390000L, 170000L, 80000L, 140000L, 110000L};
     final Integer[] expectedMax = {200000, 160000, 300000, 120000, 80000, 140000, 110000};
 
     /* Expected ordinals after insertion into hash table */
     final int[] expectedOrdinals = {0, 1, 0, 2, 3, 3, 4, 5, 2, 1, 6, 0};
 
-    try (final BufferAllocator allocator = allocatorRule.newAllocator("test-preallocation", 0, Long.MAX_VALUE);
-         final VectorContainer c = new VectorContainer()) {
+    try (final BufferAllocator allocator =
+            allocatorRule.newAllocator("test-preallocation", 0, Long.MAX_VALUE);
+        final VectorContainer c = new VectorContainer()) {
 
       /* GROUP BY key columns */
       VarCharVector col1 = new VarCharVector("col1", allocator);
@@ -112,30 +109,37 @@ public class TestPreallocation extends DremioTest {
       final int records = c.setAllCount(col1arr.length);
 
       /* create pivot definition */
-      final PivotDef pivot = PivotBuilder.getBlockDefinition(
-        new FieldVectorPair(col1, col1),
-        new FieldVectorPair(col2, col2),
-        new FieldVectorPair(col3, col3)
-      );
+      final PivotDef pivot =
+          PivotBuilder.getBlockDefinition(
+              new FieldVectorPair(col1, col1),
+              new FieldVectorPair(col2, col2),
+              new FieldVectorPair(col3, col3));
 
-      try(final AccumulatorSet accumulator = createAccumulator(m1, allocator);
-          final LBlockHashTable hashTable = new LBlockHashTable(HashConfig.getDefault(), pivot, allocator, 16000,
-            10, true, MAX_VALUES_PER_BATCH)) {
+      try (final AccumulatorSet accumulator = createAccumulator(m1, allocator);
+          final LBlockHashTable hashTable =
+              new LBlockHashTable(
+                  HashConfig.getDefault(),
+                  pivot,
+                  allocator,
+                  16000,
+                  10,
+                  true,
+                  MAX_VALUES_PER_BATCH)) {
         hashTable.registerResizeListener(accumulator);
         final Accumulator[] accumulators = accumulator.getChildren();
         assertEquals(2, accumulators.length);
 
         /* check state before preallocation */
-        assertEquals(0, ((SumAccumulators.IntSumAccumulator)(accumulators[0])).getBatchCount());
-        assertEquals(0, ((MaxAccumulators.IntMaxAccumulator)(accumulators[1])).getBatchCount());
+        assertEquals(0, ((SumAccumulators.IntSumAccumulator) (accumulators[0])).getBatchCount());
+        assertEquals(0, ((MaxAccumulators.IntMaxAccumulator) (accumulators[1])).getBatchCount());
         assertEquals(0, hashTable.getCurrentNumberOfBlocks());
 
         /* preallocate space for single batch before inserting anything */
         hashTable.preallocateSingleBatch();
 
         /* check state after preallocation */
-        assertEquals(1, ((SumAccumulators.IntSumAccumulator)(accumulators[0])).getBatchCount());
-        assertEquals(1, ((MaxAccumulators.IntMaxAccumulator)(accumulators[1])).getBatchCount());
+        assertEquals(1, ((SumAccumulators.IntSumAccumulator) (accumulators[0])).getBatchCount());
+        assertEquals(1, ((MaxAccumulators.IntMaxAccumulator) (accumulators[1])).getBatchCount());
         assertEquals(1, hashTable.getCurrentNumberOfBlocks());
         /* hashtable size and blocks should not be affected due to preallocation since they are based on currentOrdinal */
         assertEquals(0, hashTable.size());
@@ -144,7 +148,8 @@ public class TestPreallocation extends DremioTest {
         assertEquals(0, hashTable.getFixedBlockBuffers().size());
 
         /* insert and accumulate */
-        insertAndAccumulateForAllPartitions(allocator, records, pivot, hashTable, accumulator, expectedOrdinals);
+        insertAndAccumulateForAllPartitions(
+            allocator, records, pivot, hashTable, accumulator, expectedOrdinals);
 
         /* check state after insertion -- all should go into pre-allocated batch */
         assertEquals(7, hashTable.size());
@@ -153,8 +158,10 @@ public class TestPreallocation extends DremioTest {
         assertEquals(1, hashTable.getFixedBlockBuffers().size());
         assertEquals(7, hashTable.getRecordsInBatch(0));
 
-        final FieldVector sumOutput = ((SumAccumulators.IntSumAccumulator)(accumulators[0])).getAccumulatorVector(0);
-        final FieldVector maxOutput = ((MaxAccumulators.IntMaxAccumulator)(accumulators[1])).getAccumulatorVector(0);
+        final FieldVector sumOutput =
+            ((SumAccumulators.IntSumAccumulator) (accumulators[0])).getAccumulatorVector(0);
+        final FieldVector maxOutput =
+            ((MaxAccumulators.IntMaxAccumulator) (accumulators[1])).getAccumulatorVector(0);
 
         for (int i = 0; i < hashTable.getRecordsInBatch(0); i++) {
           assertEquals(expectedSum[i], sumOutput.getObject(i));
@@ -164,27 +171,28 @@ public class TestPreallocation extends DremioTest {
     }
   }
 
-  private AccumulatorSet createAccumulator(IntVector in1,
-                                           final BufferAllocator allocator) {
+  private AccumulatorSet createAccumulator(IntVector in1, final BufferAllocator allocator) {
     /* SUM Accumulator */
     BigIntVector in1SumOutputVector = new BigIntVector("int-sum", allocator);
     final SumAccumulators.IntSumAccumulator in1SumAccum =
-      new SumAccumulators.IntSumAccumulator(in1, in1SumOutputVector, in1SumOutputVector, MAX_VALUES_PER_BATCH, allocator);
+        new SumAccumulators.IntSumAccumulator(
+            in1, in1SumOutputVector, in1SumOutputVector, MAX_VALUES_PER_BATCH, allocator);
 
     /* Min Accumulator */
     IntVector in1MaxOutputVector = new IntVector("int-max", allocator);
     final MaxAccumulators.IntMaxAccumulator in1MaxAccum =
-      new MaxAccumulators.IntMaxAccumulator(in1, in1MaxOutputVector, in1MaxOutputVector, MAX_VALUES_PER_BATCH, allocator);
+        new MaxAccumulators.IntMaxAccumulator(
+            in1, in1MaxOutputVector, in1MaxOutputVector, MAX_VALUES_PER_BATCH, allocator);
 
-    return new AccumulatorSet(4*1024, 64*1024, allocator, in1SumAccum, in1MaxAccum);
+    return new AccumulatorSet(4 * 1024, 64 * 1024, allocator, in1SumAccum, in1MaxAccum);
   }
 
   private void populateInt(IntVector vector, Integer[] data) {
     vector.allocateNew();
     Random r = new Random();
-    for(int i =0; i < data.length; i++){
+    for (int i = 0; i < data.length; i++) {
       Integer val = data[i];
-      if(val != null){
+      if (val != null) {
         vector.setSafe(i, val);
       } else {
         vector.setSafe(i, 0, r.nextInt());
@@ -193,16 +201,19 @@ public class TestPreallocation extends DremioTest {
     vector.setValueCount(data.length);
   }
 
-  private void insertAndAccumulateForAllPartitions(final BufferAllocator allocator,
-                                                   final int records,
-                                                   final PivotDef pivot,
-                                                   final LBlockHashTable hashTable,
-                                                   final AccumulatorSet accumulator,
-                                                   final int[] expectedOrdinals) {
+  private void insertAndAccumulateForAllPartitions(
+      final BufferAllocator allocator,
+      final int records,
+      final PivotDef pivot,
+      final LBlockHashTable hashTable,
+      final AccumulatorSet accumulator,
+      final int[] expectedOrdinals) {
     try (final FixedBlockVector fbv = new FixedBlockVector(allocator, pivot.getBlockWidth());
-         final VariableBlockVector var = new VariableBlockVector(allocator, pivot.getVariableCount());
-         final ArrowBuf offsets = allocator.buffer(records * VectorizedHashAggOperator.PARTITIONINDEX_HTORDINAL_WIDTH);
-         final SimpleBigIntVector hashValues = new SimpleBigIntVector("hashvalues", allocator)) {
+        final VariableBlockVector var =
+            new VariableBlockVector(allocator, pivot.getVariableCount());
+        final ArrowBuf offsets =
+            allocator.buffer(records * VectorizedHashAggOperator.PARTITIONINDEX_HTORDINAL_WIDTH);
+        final SimpleBigIntVector hashValues = new SimpleBigIntVector("hashvalues", allocator)) {
 
       /* pivot the data into temporary space */
       Pivots.pivot(pivot, records, fbv, var);
@@ -214,24 +225,41 @@ public class TestPreallocation extends DremioTest {
 
       /* compute hash on the pivoted data */
       hashValues.allocateNew(records);
-      final BlockChunk blockChunk = new BlockChunk(keyFixedVectorAddr, keyVarVectorAddr, var.getCapacity(), fixedOnly,
-        pivot.getBlockWidth(), records, hashValues.getBufferAddress(), 0);
+      final BlockChunk blockChunk =
+          new BlockChunk(
+              keyFixedVectorAddr,
+              keyVarVectorAddr,
+              var.getCapacity(),
+              fixedOnly,
+              pivot.getBlockWidth(),
+              records,
+              hashValues.getBufferAddress(),
+              0);
       HashComputation.computeHash(blockChunk);
 
       /* insert */
       long offsetAddr = offsets.memoryAddress();
-      for (int keyIndex = 0; keyIndex < records; keyIndex++, offsetAddr += VectorizedHashAggOperator.PARTITIONINDEX_HTORDINAL_WIDTH) {
-        final int keyHash = (int)hashValues.get(keyIndex);
-        actualOrdinals[keyIndex] = hashTable.add(keyFixedVectorAddr, keyVarVectorAddr, var.getCapacity(), keyIndex, keyHash);
-        PlatformDependent.putByte(offsetAddr, (byte)0);
-        PlatformDependent.putInt(offsetAddr + VectorizedHashAggOperator.HTORDINAL_OFFSET, actualOrdinals[keyIndex]);
+      for (int keyIndex = 0;
+          keyIndex < records;
+          keyIndex++, offsetAddr += VectorizedHashAggOperator.PARTITIONINDEX_HTORDINAL_WIDTH) {
+        final int keyHash = (int) hashValues.get(keyIndex);
+        actualOrdinals[keyIndex] =
+            hashTable.add(
+                keyFixedVectorAddr, keyVarVectorAddr, var.getCapacity(), keyIndex, keyHash);
+        PlatformDependent.putByte(offsetAddr, (byte) 0);
+        PlatformDependent.putInt(
+            offsetAddr + VectorizedHashAggOperator.HTORDINAL_OFFSET, actualOrdinals[keyIndex]);
         PlatformDependent.putInt(offsetAddr + VectorizedHashAggOperator.KEYINDEX_OFFSET, keyIndex);
       }
 
       assertArrayEquals(expectedOrdinals, actualOrdinals);
 
       /* accumulate */
-      accumulator.accumulate(offsets.memoryAddress(), records, hashTable.getBitsInChunk(), hashTable.getChunkOffsetMask());
+      accumulator.accumulate(
+          offsets.memoryAddress(),
+          records,
+          hashTable.getBitsInChunk(),
+          hashTable.getChunkOffsetMask());
     }
   }
 }

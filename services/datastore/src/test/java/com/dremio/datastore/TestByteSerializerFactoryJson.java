@@ -18,9 +18,8 @@ package com.dremio.datastore;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
-import java.io.IOException;
-
 import com.dremio.datastore.format.Format;
+import java.io.IOException;
 
 /**
  * Runs test cases in AbstractTestByteSerializerFactory through the JSON serialization code path.

@@ -55,7 +55,7 @@ export type CompoundIdentifierPart = {
 );
 
 export function getCompoundIdentifierParts(
-  compoundIdentifier: CompoundIdentifierContext
+  compoundIdentifier: CompoundIdentifierContext,
 ): CompoundIdentifierPart[] {
   const parts: CompoundIdentifierPart[] = [];
   for (const child of compoundIdentifier.children || []) {
@@ -144,7 +144,7 @@ export function getIdentifierInfo(cursorInfo: CursorInfo): IdentifierInfo {
   const compoundIdentifier = findAncestorOfType(
     terminal,
     (ruleContext): ruleContext is CompoundIdentifierContext =>
-      ruleContext instanceof CompoundIdentifierContext
+      ruleContext instanceof CompoundIdentifierContext,
   );
   if (compoundIdentifier) {
     const identifierParts = getCompoundIdentifierParts(compoundIdentifier);
@@ -192,7 +192,7 @@ export function getIdentifierInfo(cursorInfo: CursorInfo): IdentifierInfo {
 }
 
 export function getUnquotedSimpleIdentifiers(
-  list: SimpleIdentifierCommaListContext
+  list: SimpleIdentifierCommaListContext,
 ): string[] {
   return list.simpleIdentifier().map((identifier) => getText(identifier).text);
 }
@@ -207,12 +207,12 @@ export function needsQuoting(text: string): boolean {
 }
 
 export function excludeTrailingIdentifiers(
-  priorTerminals: TerminalNode[]
+  priorTerminals: TerminalNode[],
 ): TerminalNode[] {
   let i = priorTerminals.length - 1;
   let priorTerminal = priorTerminals[i];
   const isIdentifier = (
-    ruleContext: TerminalNode | RuleContext
+    ruleContext: TerminalNode | RuleContext,
   ): ruleContext is
     | CompoundIdentifierContext
     | SimpleIdentifierContext

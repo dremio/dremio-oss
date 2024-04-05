@@ -15,20 +15,16 @@
  */
 package com.dremio.exec.planner.serializer.logical;
 
+import com.dremio.exec.planner.serializer.RelNodeSerde;
+import com.dremio.plan.serialization.PLogicalProject;
+import com.google.common.collect.ImmutableList;
 import java.util.List;
 import java.util.stream.Collectors;
-
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.logical.LogicalProject;
 import org.apache.calcite.rex.RexNode;
 
-import com.dremio.exec.planner.serializer.RelNodeSerde;
-import com.dremio.plan.serialization.PLogicalProject;
-import com.google.common.collect.ImmutableList;
-
-/**
- * Serde for LogicalProject
- */
+/** Serde for LogicalProject */
 public final class LogicalProjectSerde implements RelNodeSerde<LogicalProject, PLogicalProject> {
   @Override
   public PLogicalProject serialize(LogicalProject project, RelToProto s) {
@@ -42,11 +38,10 @@ public final class LogicalProjectSerde implements RelNodeSerde<LogicalProject, P
   @Override
   public LogicalProject deserialize(PLogicalProject node, RelFromProto s) {
     RelNode input = s.toRel(node.getInput());
-    List<RexNode> projects = node
-      .getExprList()
-      .stream()
-      .map(expr -> s.toRex(expr, input.getRowType()))
-      .collect(Collectors.toList());
+    List<RexNode> projects =
+        node.getExprList().stream()
+            .map(expr -> s.toRex(expr, input.getRowType()))
+            .collect(Collectors.toList());
     return LogicalProject.create(input, ImmutableList.of(), projects, node.getNameList());
   }
 }

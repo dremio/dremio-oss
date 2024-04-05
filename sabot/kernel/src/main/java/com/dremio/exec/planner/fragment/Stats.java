@@ -15,11 +15,6 @@
  */
 package com.dremio.exec.planner.fragment;
 
-import java.util.Collection;
-import java.util.IdentityHashMap;
-import java.util.List;
-import java.util.Map;
-
 import com.carrotsearch.hppc.ObjectDoubleHashMap;
 import com.carrotsearch.hppc.ObjectIntHashMap;
 import com.carrotsearch.hppc.cursors.ObjectIntCursor;
@@ -31,6 +26,10 @@ import com.dremio.exec.store.schedule.CompleteWork;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Lists;
+import java.util.Collection;
+import java.util.IdentityHashMap;
+import java.util.List;
+import java.util.Map;
 
 public class Stats {
   private final ParallelizationInfoCollector collector = new ParallelizationInfoCollector();
@@ -38,7 +37,7 @@ public class Stats {
   private DistributionAffinity distributionAffinity = DistributionAffinity.NONE;
   private final IdentityHashMap<GroupScan, List<CompleteWork>> splitMap = new IdentityHashMap<>();
 
-  public void addCost(double cost){
+  public void addCost(double cost) {
     maxCost = Math.max(maxCost, cost);
   }
 
@@ -69,15 +68,18 @@ public class Stats {
     setDistributionAffinity(scan.getDistributionAffinity());
 
     if (scan.getDistributionAffinity() == DistributionAffinity.HARD) {
-      // If the newly added scan has hard affinity make sure, there is no other scan in this fragment.
-      Preconditions.checkState(splitMap.isEmpty(),
+      // If the newly added scan has hard affinity make sure, there is no other scan in this
+      // fragment.
+      Preconditions.checkState(
+          splitMap.isEmpty(),
           "Cannot have two scans with hard affinity requirements in the same fragment");
 
       final ObjectIntHashMap<NodeEndpoint> maxWidthPerNode = new ObjectIntHashMap<>();
       final ObjectDoubleHashMap<NodeEndpoint> affinityPerNode = new ObjectDoubleHashMap<>();
-      for(CompleteWork split : splits) {
+      for (CompleteWork split : splits) {
         final List<EndpointAffinity> splitAffinity = split.getAffinity();
-        Preconditions.checkArgument(splitAffinity != null && splitAffinity.size() == 1,
+        Preconditions.checkArgument(
+            splitAffinity != null && splitAffinity.size() == 1,
             "Expected hard affinity work split to contain affinity to exactly one node");
         final EndpointAffinity endpointAffinity = splitAffinity.get(0);
         final NodeEndpoint endpoint = endpointAffinity.getEndpoint();
@@ -88,13 +90,14 @@ public class Stats {
       }
 
       final List<EndpointAffinity> affinityList = Lists.newArrayList();
-      for(ObjectIntCursor<NodeEndpoint> entry : maxWidthPerNode) {
-        affinityList.add(new EndpointAffinity(entry.key, affinityPerNode.get(entry.key), true, entry.value));
+      for (ObjectIntCursor<NodeEndpoint> entry : maxWidthPerNode) {
+        affinityList.add(
+            new EndpointAffinity(entry.key, affinityPerNode.get(entry.key), true, entry.value));
       }
 
       collector.addSplitAffinities(affinityList);
     } else {
-      for(CompleteWork split : splits) {
+      for (CompleteWork split : splits) {
         collector.addSplitAffinities(split.getAffinity());
       }
     }
@@ -111,14 +114,16 @@ public class Stats {
   }
 
   /**
-   * Return the minimum parallelization width without forcing the collector to materialize its endpoint affinities
+   * Return the minimum parallelization width without forcing the collector to materialize its
+   * endpoint affinities
    */
   public int getMinWidth() {
     return collector.getMinWidth();
   }
 
   /**
-   * Return the maximum parallelization width without forcing the collector to materialize its endpoint affinities
+   * Return the maximum parallelization width without forcing the collector to materialize its
+   * endpoint affinities
    */
   public int getMaxWidth() {
     return collector.getMaxWidth();
@@ -126,7 +131,7 @@ public class Stats {
 
   @Override
   public String toString() {
-    return "Stats [maxCost=" + maxCost +", parallelizationInfo=" + collector.toString() + "]";
+    return "Stats [maxCost=" + maxCost + ", parallelizationInfo=" + collector.toString() + "]";
   }
 
   public double getMaxCost() {

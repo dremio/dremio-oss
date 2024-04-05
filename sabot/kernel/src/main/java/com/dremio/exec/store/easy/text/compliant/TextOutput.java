@@ -29,28 +29,34 @@ abstract class TextOutput {
 
   /**
    * Start processing a new field within a record.
-   * @param index  index within the record
+   *
+   * @param index index within the record
    */
   public abstract void startField(int index);
 
   /**
    * End processing a field within a record.
-   * @return  true if engine should continue processing record.  false if rest of record can be skipped.
+   *
+   * @return true if engine should continue processing record. false if rest of record can be
+   *     skipped.
    */
   public abstract boolean endField();
 
   /**
    * Shortcut that lets the output know that we are closing ending a field with no data.
-   * @return true if engine should continue processing record.  false if rest of record can be skipped.
+   *
+   * @return true if engine should continue processing record. false if rest of record can be
+   *     skipped.
    */
   public abstract boolean endEmptyField();
 
   /**
    * Add the provided data but drop any whitespace.
+   *
    * @param data
    */
-  public void appendIgnoringWhitespace(byte data){
-    if (TextReader.isWhite(data)){
+  public void appendIgnoringWhitespace(byte data) {
+    if (TextReader.isWhite(data)) {
       // noop
     } else {
       append(data);
@@ -59,34 +65,30 @@ abstract class TextOutput {
 
   /**
    * This function appends the byte to the output character data buffer
-   * @param data  current byte read
+   *
+   * @param data current byte read
    */
   public abstract void append(byte data);
 
   /**
-   * Completes the processing of a given record. Also completes the processing of the
-   * last field being read.
+   * Completes the processing of a given record. Also completes the processing of the last field
+   * being read.
    */
   public abstract void finishRecord();
 
-  /**
-   *  Return the total number of records (across batches) processed
-   */
+  /** Return the total number of records (across batches) processed */
   public abstract long getRecordCount();
 
-  /**
-   * Informs output to setup for new record batch.
-   */
+  /** Informs output to setup for new record batch. */
   public abstract void startBatch();
 
   /**
-   * Does any final cleanup that is required for closing a batch.  Example might include closing the last field.
+   * Does any final cleanup that is required for closing a batch. Example might include closing the
+   * last field.
    */
   public abstract void finishBatch();
 
-  /**
-   * Helper method to check if the current record has any non-empty fields
-   */
+  /** Helper method to check if the current record has any non-empty fields */
   public abstract boolean rowHasData();
 
   public void close() {
@@ -94,10 +96,14 @@ abstract class TextOutput {
   }
 
   public int getFieldCurrentDataPointer() {
-    throw UserException.unsupportedError().message("Unsupported operation \"getCurrentDataPointer\"").buildSilently();
+    throw UserException.unsupportedError()
+        .message("Unsupported operation \"getCurrentDataPointer\"")
+        .buildSilently();
   }
 
   public void setFieldCurrentDataPointer(int currentDataPointer) {
-    throw UserException.unsupportedError().message("Unsupported operation \"setCurrentDataPointer\"").buildSilently();
+    throw UserException.unsupportedError()
+        .message("Unsupported operation \"setCurrentDataPointer\"")
+        .buildSilently();
   }
 }

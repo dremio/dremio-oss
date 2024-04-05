@@ -20,9 +20,7 @@ import com.dremio.service.namespace.dataset.proto.RefreshMethod;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-/**
- * UI wrapper for {@link AccelerationSettings}
- */
+/** UI wrapper for {@link AccelerationSettings} */
 public class AccelerationSettingsUI {
   private final RefreshMethod method;
   private final String refreshField;
@@ -31,10 +29,10 @@ public class AccelerationSettingsUI {
 
   @JsonCreator
   AccelerationSettingsUI(
-    @JsonProperty("method") RefreshMethod method,
-    @JsonProperty("refreshField") String refreshField,
-    @JsonProperty("refreshPeriod") Long refreshPeriod,
-    @JsonProperty("gracePeriod") Long gracePeriod) {
+      @JsonProperty("method") RefreshMethod method,
+      @JsonProperty("refreshField") String refreshField,
+      @JsonProperty("refreshPeriod") Long refreshPeriod,
+      @JsonProperty("gracePeriod") Long gracePeriod) {
     this.method = method;
     this.refreshField = refreshField;
     this.refreshPeriod = refreshPeriod;
@@ -42,7 +40,11 @@ public class AccelerationSettingsUI {
   }
 
   AccelerationSettingsUI(AccelerationSettings settings) {
-    this(settings.getMethod(), settings.getRefreshField(), settings.getGracePeriod(), settings.getGracePeriod());
+    this(
+        settings.getMethod(),
+        settings.getRefreshField(),
+        settings.getGracePeriod(),
+        settings.getGracePeriod());
   }
 
   public RefreshMethod getMethod() {

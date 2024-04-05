@@ -19,9 +19,9 @@ public class Pointer<T> {
   @SuppressWarnings("checkstyle:VisibilityModifier")
   public T value;
 
-  public Pointer(){}
+  public Pointer() {}
 
-  public Pointer(T value){
+  public Pointer(T value) {
     this.value = value;
   }
 }

@@ -15,9 +15,6 @@
  */
 package com.dremio.dac.api;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import com.dremio.service.accelerator.AccelerationDetailsUtils;
 import com.dremio.service.accelerator.proto.AccelerationDetails;
 import com.dremio.service.accelerator.proto.ReflectionRelationship;
@@ -29,43 +26,38 @@ import com.dremio.service.job.proto.ResourceSchedulingInfo;
 import com.dremio.service.jobs.JobsProtoUtil;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.ArrayList;
+import java.util.List;
 
-/**
- * Job Status
- */
+/** Job Status */
 public class JobStatus {
   private final JobState jobState;
   private final Long rowCount;
   private final String errorMessage;
-  @JsonISODateTime
-  private final Long startedAt;
-  @JsonISODateTime
-  private final Long endedAt;
+  @JsonISODateTime private final Long startedAt;
+  @JsonISODateTime private final Long endedAt;
   private final JobAccelerationStatus acceleration;
   private final String queryType;
   private final String queueName;
   private final String queueId;
-  @JsonISODateTime
-  private final Long resourceSchedulingStartedAt;
-  @JsonISODateTime
-  private final Long resourceSchedulingEndedAt;
+  @JsonISODateTime private final Long resourceSchedulingStartedAt;
+  @JsonISODateTime private final Long resourceSchedulingEndedAt;
   private final String cancellationReason;
 
   @JsonCreator
   public JobStatus(
-    @JsonProperty("jobState") JobState jobState,
-    @JsonProperty("rowCount") Long rowCount,
-    @JsonProperty("errorMessage") String errorMessage,
-    @JsonProperty("startedAt") Long startedAt,
-    @JsonProperty("endedAt") Long endedAt,
-    @JsonProperty("acceleration") JobAccelerationStatus acceleration,
-    @JsonProperty("queryType") String queryType,
-    @JsonProperty("queueName") String queueName,
-    @JsonProperty("queueId") String queueId,
-    @JsonProperty("resourceSchedulingStartedAt") Long resourceSchedulingStartedAt,
-    @JsonProperty("resourceSchedulingEndedAt") Long resourceSchedulingEndedAt,
-    @JsonProperty("cancellationReason") String cancellationReason
-  ) {
+      @JsonProperty("jobState") JobState jobState,
+      @JsonProperty("rowCount") Long rowCount,
+      @JsonProperty("errorMessage") String errorMessage,
+      @JsonProperty("startedAt") Long startedAt,
+      @JsonProperty("endedAt") Long endedAt,
+      @JsonProperty("acceleration") JobAccelerationStatus acceleration,
+      @JsonProperty("queryType") String queryType,
+      @JsonProperty("queueName") String queueName,
+      @JsonProperty("queueId") String queueId,
+      @JsonProperty("resourceSchedulingStartedAt") Long resourceSchedulingStartedAt,
+      @JsonProperty("resourceSchedulingEndedAt") Long resourceSchedulingEndedAt,
+      @JsonProperty("cancellationReason") String cancellationReason) {
     this.jobState = jobState;
     this.rowCount = rowCount;
     this.errorMessage = errorMessage;
@@ -136,21 +128,23 @@ public class JobStatus {
     JobAccelerationStatus accelerationStatus = null;
 
     switch (state) {
-    case FAILED:
-      errorMessage = lastAttempt.getInfo().getFailureInfo();
-      break;
-    case COMPLETED:
-      AccelerationDetails details = AccelerationDetailsUtils.deserialize(lastAttempt.getAccelerationDetails());
-      if (details != null && details.getReflectionRelationshipsList() != null) {
-        accelerationStatus = JobAccelerationStatus.fromAccelerationDetails(details);
-      }
-      break;
-    case CANCELED:
-      final JobCancellationInfo cancellationInfo = lastAttempt.getInfo().getCancellationInfo();
-      cancellationReason = cancellationInfo == null ? "Query was cancelled" : cancellationInfo.getMessage();
-      break;
-    default:
-      // nothing
+      case FAILED:
+        errorMessage = lastAttempt.getInfo().getFailureInfo();
+        break;
+      case COMPLETED:
+        AccelerationDetails details =
+            AccelerationDetailsUtils.deserialize(lastAttempt.getAccelerationDetails());
+        if (details != null && details.getReflectionRelationshipsList() != null) {
+          accelerationStatus = JobAccelerationStatus.fromAccelerationDetails(details);
+        }
+        break;
+      case CANCELED:
+        final JobCancellationInfo cancellationInfo = lastAttempt.getInfo().getCancellationInfo();
+        cancellationReason =
+            cancellationInfo == null ? "Query was cancelled" : cancellationInfo.getMessage();
+        break;
+      default:
+        // nothing
     }
 
     final ResourceSchedulingInfo rsi = lastAttempt.getInfo().getResourceSchedulingInfo();
@@ -160,30 +154,27 @@ public class JobStatus {
     final Long resourceSchedulingEndedAt = rsi == null ? null : rsi.getResourceSchedulingEnd();
 
     return new JobStatus(
-      lastAttempt.getState(),
-      lastAttempt.getDetails().getOutputRecords(),
-      errorMessage,
-      lastAttempt.getInfo().getStartTime(),
-      lastAttempt.getInfo().getFinishTime(),
-      accelerationStatus,
-      lastAttempt.getInfo().getQueryType().toString(),
-      queueName,
-      queueId,
-      resourceSchedulingStartedAt,
-      resourceSchedulingEndedAt,
-      cancellationReason
-    );
+        lastAttempt.getState(),
+        lastAttempt.getDetails().getOutputRecords(),
+        errorMessage,
+        lastAttempt.getInfo().getStartTime(),
+        lastAttempt.getInfo().getFinishTime(),
+        accelerationStatus,
+        lastAttempt.getInfo().getQueryType().toString(),
+        queueName,
+        queueId,
+        resourceSchedulingStartedAt,
+        resourceSchedulingEndedAt,
+        cancellationReason);
   }
 
-  /**
-   * Acceleration status for a job
-   */
+  /** Acceleration status for a job */
   public static class JobAccelerationStatus {
     private final List<JobAccelerationRelationship> relationships;
 
     @JsonCreator
     public JobAccelerationStatus(
-      @JsonProperty("relationships") List<JobAccelerationRelationship> relationships) {
+        @JsonProperty("relationships") List<JobAccelerationRelationship> relationships) {
       this.relationships = relationships;
     }
 
@@ -202,9 +193,7 @@ public class JobStatus {
     }
   }
 
-  /**
-   * Acceleration relationship for a job
-   */
+  /** Acceleration relationship for a job */
   public static class JobAccelerationRelationship {
     private final String datasetId;
     private final String reflectionId;
@@ -212,19 +201,20 @@ public class JobStatus {
 
     @JsonCreator
     public JobAccelerationRelationship(
-      @JsonProperty("datasetId") String datasetId,
-      @JsonProperty("reflectionId") String reflectionId,
-      @JsonProperty("relationship") String relationship) {
+        @JsonProperty("datasetId") String datasetId,
+        @JsonProperty("reflectionId") String reflectionId,
+        @JsonProperty("relationship") String relationship) {
       this.datasetId = datasetId;
       this.reflectionId = reflectionId;
       this.relationship = relationship;
     }
 
-    public static JobAccelerationRelationship fromReflectionRelationShip(ReflectionRelationship relationship) {
+    public static JobAccelerationRelationship fromReflectionRelationShip(
+        ReflectionRelationship relationship) {
       return new JobAccelerationRelationship(
-        relationship.getDataset().getId(),
-        relationship.getReflection().getId().getId(),
-        relationship.getState().toString());
+          relationship.getDataset().getId(),
+          relationship.getReflection().getId().getId(),
+          relationship.getState().toString());
     }
 
     public String getRelationship() {
@@ -239,5 +229,4 @@ public class JobStatus {
       return datasetId;
     }
   }
-
 }

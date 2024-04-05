@@ -18,22 +18,21 @@ package com.dremio.sabot.op.common.ht2;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
+import com.dremio.sabot.BaseTestWithAllocator;
 import java.util.Random;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.IntVector;
 import org.junit.Test;
 
-import com.dremio.sabot.BaseTestWithAllocator;
-
 public class TestIntPivot extends BaseTestWithAllocator {
 
-  private static void validateIntValues(int blockWidth, VectorPivotDef def, FixedBlockVector block, Integer[] expected){
+  private static void validateIntValues(
+      int blockWidth, VectorPivotDef def, FixedBlockVector block, Integer[] expected) {
     int[] expectNulls = new int[expected.length];
     int[] expectValues = new int[expected.length];
-    for(int i =0; i < expected.length; i++){
+    for (int i = 0; i < expected.length; i++) {
       Integer e = expected[i];
-      if(e != null){
+      if (e != null) {
         expectNulls[i] = 1;
         expectValues[i] = e;
       }
@@ -42,20 +41,21 @@ public class TestIntPivot extends BaseTestWithAllocator {
     int[] actualValues = new int[expectNulls.length];
     int nullBitOffsetA = def.getNullBitOffset();
     final ArrowBuf buf = block.getUnderlying();
-    for(int i =0; i < expectNulls.length; i++){
-      actualNulls[i] =  (buf.getInt(((i * blockWidth) + def.getNullByteOffset())) >>> nullBitOffsetA) & 1;
+    for (int i = 0; i < expectNulls.length; i++) {
+      actualNulls[i] =
+          (buf.getInt(((i * blockWidth) + def.getNullByteOffset())) >>> nullBitOffsetA) & 1;
       actualValues[i] = buf.getInt((i * blockWidth) + def.getOffset());
     }
     assertArrayEquals(expectNulls, actualNulls);
     assertArrayEquals(expectValues, actualValues);
   }
 
-  static void populate(IntVector vector, Integer[] values){
+  public static void populate(IntVector vector, Integer[] values) {
     vector.allocateNew();
     Random r = new Random();
-    for(int i =0; i < values.length; i++){
+    for (int i = 0; i < values.length; i++) {
       Integer val = values[i];
-      if(val != null){
+      if (val != null) {
         vector.setSafe(i, val);
       } else {
         // add noise so we make sure not to read/see noise.
@@ -65,100 +65,89 @@ public class TestIntPivot extends BaseTestWithAllocator {
     vector.setValueCount(values.length);
   }
 
-
   @Test
-  public void testIntPivot(){
+  public void testIntPivot() {
     final Integer[] vectA = {15, null, Integer.MAX_VALUE - 45, null, Integer.MIN_VALUE + 17};
     final Integer[] vectB = {null, 45, null, 65, 77};
 
-    try(
-        IntVector col1 = new IntVector("col1", allocator);
-        IntVector col2 = new IntVector("col2", allocator);){
-      PivotDef pivot = PivotBuilder.getBlockDefinition(
-          new FieldVectorPair(col1, col1),
-          new FieldVectorPair(col2, col2)
-          );
+    try (IntVector col1 = new IntVector("col1", allocator);
+        IntVector col2 = new IntVector("col2", allocator); ) {
+      PivotDef pivot =
+          PivotBuilder.getBlockDefinition(
+              new FieldVectorPair(col1, col1), new FieldVectorPair(col2, col2));
       populate(col1, vectA);
       populate(col2, vectB);
 
       assertEquals(12, pivot.getBlockWidth());
 
-      try(
-          FixedBlockVector fixed = new FixedBlockVector(allocator, pivot.getBlockWidth());
-          VariableBlockVector variable = new VariableBlockVector(allocator, pivot.getVariableCount());
-          ){
+      try (FixedBlockVector fixed = new FixedBlockVector(allocator, pivot.getBlockWidth());
+          VariableBlockVector variable =
+              new VariableBlockVector(allocator, pivot.getVariableCount()); ) {
         Pivots.pivot(pivot, 5, fixed, variable);
         validateIntValues(pivot.getBlockWidth(), pivot.getFixedPivots().get(0), fixed, vectA);
         validateIntValues(pivot.getBlockWidth(), pivot.getFixedPivots().get(1), fixed, vectB);
       }
     }
-
   }
 
-
-
   @Test
-  public void testIntPivotLarge(){
+  public void testIntPivotLarge() {
     Random r = new Random();
     final int count = 6000;
     final Integer[] vectA = new Integer[count];
     final Integer[] vectB = new Integer[count];
 
-    for(int i =0; i < count; i++){
-      if(r.nextBoolean()){
+    for (int i = 0; i < count; i++) {
+      if (r.nextBoolean()) {
         vectA[i] = r.nextInt();
       }
 
-      if(r.nextBoolean()){
+      if (r.nextBoolean()) {
         vectB[i] = r.nextInt();
       }
     }
     testDualIntVectors(count, vectA, vectB);
-
   }
 
-  private void testDualIntVectors(int count, Integer[] vectA, Integer[] vectB){
-    try(
-        IntVector col1 = new IntVector("col1", allocator);
-        IntVector col2 = new IntVector("col2", allocator);){
-      PivotDef pivot = PivotBuilder.getBlockDefinition(new FieldVectorPair(col1, col1),
-          new FieldVectorPair(col2, col2)
-          );
+  private void testDualIntVectors(int count, Integer[] vectA, Integer[] vectB) {
+    try (IntVector col1 = new IntVector("col1", allocator);
+        IntVector col2 = new IntVector("col2", allocator); ) {
+      PivotDef pivot =
+          PivotBuilder.getBlockDefinition(
+              new FieldVectorPair(col1, col1), new FieldVectorPair(col2, col2));
       populate(col1, vectA);
       populate(col2, vectB);
 
       assertEquals(12, pivot.getBlockWidth());
 
-      try(
-          FixedBlockVector fixed = new FixedBlockVector(allocator, pivot.getBlockWidth());
-          VariableBlockVector variable = new VariableBlockVector(allocator, pivot.getVariableCount());
-          ){
+      try (FixedBlockVector fixed = new FixedBlockVector(allocator, pivot.getBlockWidth());
+          VariableBlockVector variable =
+              new VariableBlockVector(allocator, pivot.getVariableCount()); ) {
         Pivots.pivot(pivot, count, fixed, variable);
         validateIntValues(pivot.getBlockWidth(), pivot.getFixedPivots().get(0), fixed, vectA);
         validateIntValues(pivot.getBlockWidth(), pivot.getFixedPivots().get(1), fixed, vectB);
       }
     }
-
   }
 
   @Test
-  public void testIntPivotLargeWithRuns(){
+  public void testIntPivotLargeWithRuns() {
     Random r = new Random();
     final int count = 55555;
     final Integer[] vectA = new Integer[count];
     final Integer[] vectB = new Integer[count];
 
     boolean bool = false;
-    for(int i =0; i < count; i++){
-      if(i % 80 == 0){
+    for (int i = 0; i < count; i++) {
+      if (i % 80 == 0) {
         bool = r.nextBoolean();
       }
 
-      if(bool){
+      if (bool) {
         vectA[i] = r.nextInt();
       }
 
-      if(r.nextBoolean()){
+      if (r.nextBoolean()) {
         vectB[i] = r.nextInt();
       }
     }

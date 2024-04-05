@@ -15,12 +15,6 @@
  */
 package com.dremio.sabot.op.join.nlje;
 
-import java.util.Arrays;
-
-import org.apache.arrow.vector.IntVector;
-import org.junit.Test;
-import org.mockito.Mockito;
-
 import com.dremio.common.expression.FieldReference;
 import com.dremio.common.expression.FunctionCall;
 import com.dremio.common.expression.InputReference;
@@ -30,6 +24,10 @@ import com.dremio.exec.record.VectorContainer;
 import com.dremio.sabot.BaseTestOperator;
 import com.dremio.sabot.exec.context.BufferManagerImpl;
 import com.dremio.sabot.exec.context.CompilationOptions;
+import java.util.Arrays;
+import org.apache.arrow.vector.IntVector;
+import org.junit.Test;
+import org.mockito.Mockito;
 
 public class TestTemplate extends BaseTestOperator {
 
@@ -49,12 +47,15 @@ public class TestTemplate extends BaseTestOperator {
     build.addHyperList(Arrays.asList(new IntVector("a", getAllocator())));
     build.buildSchema(SelectionVectorMode.FOUR_BYTE);
 
-    LogicalExpression e = new FunctionCall("=", Arrays.asList(
-        new InputReference(0, FieldReference.getSimplePath("a")),
-        new InputReference(1, FieldReference.getSimplePath("a"))
-        ));
+    LogicalExpression e =
+        new FunctionCall(
+            "=",
+            Arrays.asList(
+                new InputReference(0, FieldReference.getSimplePath("a")),
+                new InputReference(1, FieldReference.getSimplePath("a"))));
 
-    MatchGenerator matchHolder = MatchGenerator.generate(e, testContext.newClassProducer(new BufferManagerImpl(getAllocator())), probe, build);
+    MatchGenerator matchHolder =
+        MatchGenerator.generate(
+            e, testContext.newClassProducer(new BufferManagerImpl(getAllocator())), probe, build);
   }
-
 }

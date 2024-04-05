@@ -15,25 +15,20 @@
  */
 package com.dremio.exec.work.protector;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.google.common.annotations.VisibleForTesting;
-
 import io.opentracing.Span;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * This class analyses a query attempt
- */
+/** This class analyses a query attempt */
 public class AttemptAnalyser {
   private static final Logger logger = LoggerFactory.getLogger(AttemptAnalyser.class);
   private static final String ATTEMPT_STATUS_ATTRIBUTE = "dremio.attempt.status";
 
   // Used in unit tests to verify the state of the last attempt
-  @VisibleForTesting
-  public static String LAST_ATTEMPT_COMPLETION_STATE = null;
+  @VisibleForTesting public static String LAST_ATTEMPT_COMPLETION_STATE = null;
 
   // attempt span
   private final Span attemptSpan;
@@ -48,7 +43,8 @@ public class AttemptAnalyser {
   }
 
   protected void analyseAttemptCompletion(final UserResult result) {
-    UserException.AttemptCompletionState attemptCompletionState = result.getAttemptCompletionState();
+    UserException.AttemptCompletionState attemptCompletionState =
+        result.getAttemptCompletionState();
     if (attemptCompletionState != UserException.AttemptCompletionState.DREMIO_PB_ERROR) {
       setAttemptCompletionAttribute(attemptCompletionState.toString());
       return;

@@ -15,40 +15,42 @@
  */
 package com.dremio.exec.planner.sql;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.planner.sql.parser.SqlRefreshDataset;
+import com.google.common.collect.Sets;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 import org.junit.Assert;
 import org.junit.Test;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.planner.sql.parser.SqlRefreshDataset;
-import com.google.common.collect.Sets;
-
 public class TestSQLRefreshDataset {
-  private final ParserConfig parserConfig = new ParserConfig(ParserConfig.QUOTING, 100, PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
+  private final ParserConfig parserConfig =
+      new ParserConfig(
+          ParserConfig.QUOTING,
+          100,
+          PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
 
   @Test
   public void testAlterTableRefreshMetadataAllFiles() {
     final String sql = "REFRESH DATASET tbl FOR ALL FILES";
-    final  SqlNode sqlNode = SqlConverter.parseSingleStatementImpl(sql, parserConfig, false);
+    final SqlNode sqlNode = SqlConverter.parseSingleStatementImpl(sql, parserConfig, false);
     Assert.assertTrue(sqlNode.isA(Sets.immutableEnumSet(SqlKind.OTHER)));
 
-    final  SqlRefreshDataset sqlRefreshDataset = (SqlRefreshDataset) sqlNode;
+    final SqlRefreshDataset sqlRefreshDataset = (SqlRefreshDataset) sqlNode;
     Assert.assertTrue(sqlRefreshDataset.getAllFilesRefresh().booleanValue());
   }
 
   @Test
   public void testAlterTableRefreshMetadataAllPartitions() {
     final String sql = "REFRESH DATASET tbl FOR ALL PARTITIONS";
-    final  SqlNode sqlNode = SqlConverter.parseSingleStatementImpl(sql, parserConfig, false);
+    final SqlNode sqlNode = SqlConverter.parseSingleStatementImpl(sql, parserConfig, false);
     Assert.assertTrue(sqlNode.isA(Sets.immutableEnumSet(SqlKind.OTHER)));
 
-    final  SqlRefreshDataset sqlRefreshDataset = (SqlRefreshDataset) sqlNode;
+    final SqlRefreshDataset sqlRefreshDataset = (SqlRefreshDataset) sqlNode;
     Assert.assertTrue(sqlRefreshDataset.getAllPartitionsRefresh().booleanValue());
   }
 
@@ -94,7 +96,8 @@ public class TestSQLRefreshDataset {
 
     final SqlRefreshDataset sqlRefreshDataset = (SqlRefreshDataset) sqlNode;
     Assert.assertTrue(sqlRefreshDataset.getFileRefresh().booleanValue());
-    Assert.assertArrayEquals(new String[]{"file1.json"}, sqlRefreshDataset.getFileNames().toArray(new String[0]));
+    Assert.assertArrayEquals(
+        new String[] {"file1.json"}, sqlRefreshDataset.getFileNames().toArray(new String[0]));
   }
 
   @Test
@@ -133,7 +136,9 @@ public class TestSQLRefreshDataset {
 
     final SqlRefreshDataset sqlRefreshDataset = (SqlRefreshDataset) sqlNode;
     Assert.assertTrue(sqlRefreshDataset.getFileRefresh().booleanValue());
-    Assert.assertArrayEquals(new String[]{"file1.json", "file2.json"}, sqlRefreshDataset.getFileNames().toArray(new String[0]));
+    Assert.assertArrayEquals(
+        new String[] {"file1.json", "file2.json"},
+        sqlRefreshDataset.getFileNames().toArray(new String[0]));
   }
 
   @Test
@@ -146,7 +151,8 @@ public class TestSQLRefreshDataset {
     Assert.assertTrue(sqlRefreshDataset.getPartitionRefresh().booleanValue());
     Assert.assertEquals(2, sqlRefreshDataset.getPartition().size());
 
-    final Iterator<Map.Entry<String, String>> pairIterator = sqlRefreshDataset.getPartition().entrySet().iterator();
+    final Iterator<Map.Entry<String, String>> pairIterator =
+        sqlRefreshDataset.getPartition().entrySet().iterator();
     Map.Entry<String, String> entry = pairIterator.next();
     Assert.assertEquals("year", entry.getKey());
     Assert.assertEquals("2021", entry.getValue());

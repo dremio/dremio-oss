@@ -15,17 +15,15 @@
  */
 package com.dremio.sabot.op.scan;
 
+import com.dremio.exec.exception.SchemaChangeException;
+import com.dremio.exec.record.VectorContainer;
+import com.google.common.base.Preconditions;
 import java.util.Collection;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferManager;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.util.CallBack;
-
-import com.dremio.exec.exception.SchemaChangeException;
-import com.dremio.exec.record.VectorContainer;
-import com.google.common.base.Preconditions;
 
 public class VectorContainerMutator implements OutputMutator {
 
@@ -34,17 +32,18 @@ public class VectorContainerMutator implements OutputMutator {
   private final VectorContainer container;
   private final BufferManager manager;
 
-  public VectorContainerMutator(VectorContainer container){
+  public VectorContainerMutator(VectorContainer container) {
     this(container, null);
   }
 
-  public VectorContainerMutator(VectorContainer container, BufferManager manager){
+  public VectorContainerMutator(VectorContainer container, BufferManager manager) {
     this.container = container;
     this.manager = manager;
   }
 
   @Override
-  public <T extends ValueVector> T addField(Field field, Class<T> clazz) throws SchemaChangeException {
+  public <T extends ValueVector> T addField(Field field, Class<T> clazz)
+      throws SchemaChangeException {
     return container.addOrGet(field);
   }
 
@@ -60,7 +59,8 @@ public class VectorContainerMutator implements OutputMutator {
 
   @Override
   public ArrowBuf getManagedBuffer() {
-    Preconditions.checkNotNull(manager, "Must construct a vector container mutator with a buffer manager to use it.");
+    Preconditions.checkNotNull(
+        manager, "Must construct a vector container mutator with a buffer manager to use it.");
     return manager.getManagedBuffer();
   }
 

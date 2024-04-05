@@ -15,14 +15,11 @@
  */
 package com.dremio.service.usersessions.store;
 
+import com.dremio.datastore.transientstore.InMemoryTransientStoreProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.datastore.transientstore.InMemoryTransientStoreProvider;
-
-/**
- * TransientStoreProvider for UserSession service
- */
+/** TransientStoreProvider for UserSession service */
 public class UserSessionStoreProvider extends InMemoryTransientStoreProvider {
   private static final Logger logger = LoggerFactory.getLogger(UserSessionStoreProvider.class);
 

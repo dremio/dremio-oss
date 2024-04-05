@@ -15,22 +15,22 @@
  */
 package com.dremio.exec.planner.physical;
 
+import com.dremio.exec.planner.common.ScreenRelBase;
+import com.dremio.exec.planner.logical.Rel;
+import com.dremio.exec.planner.logical.RelOptHelper;
+import com.dremio.exec.planner.logical.ScreenRel;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 
-import com.dremio.exec.planner.common.ScreenRelBase;
-import com.dremio.exec.planner.logical.Rel;
-import com.dremio.exec.planner.logical.RelOptHelper;
-import com.dremio.exec.planner.logical.ScreenRel;
-
-public class ScreenPrule extends Prule{
+public class ScreenPrule extends Prule {
   public static final RelOptRule INSTANCE = new ScreenPrule();
 
-
   public ScreenPrule() {
-    super(RelOptHelper.some(ScreenRel.class, Rel.LOGICAL, RelOptHelper.any(RelNode.class)), "Prel.ScreenPrule");
+    super(
+        RelOptHelper.some(ScreenRel.class, Rel.LOGICAL, RelOptHelper.any(RelNode.class)),
+        "Prel.ScreenPrule");
   }
 
   @Override
@@ -38,11 +38,14 @@ public class ScreenPrule extends Prule{
     final ScreenRelBase screen = (ScreenRelBase) call.rel(0);
     final RelNode input = call.rel(1);
 
-    final RelTraitSet traits = input.getTraitSet().plus(Prel.PHYSICAL).plus(DistributionTrait.SINGLETON);
+    final RelTraitSet traits =
+        input.getTraitSet().plus(Prel.PHYSICAL).plus(DistributionTrait.SINGLETON);
     final RelNode convertedInput = convert(input, traits);
-    ScreenRelBase newScreen = new ScreenPrel(screen.getCluster(), screen.getTraitSet().plus(Prel.PHYSICAL).plus(DistributionTrait.SINGLETON), convertedInput);
+    ScreenRelBase newScreen =
+        new ScreenPrel(
+            screen.getCluster(),
+            screen.getTraitSet().plus(Prel.PHYSICAL).plus(DistributionTrait.SINGLETON),
+            convertedInput);
     call.transformTo(newScreen);
   }
-
-
 }

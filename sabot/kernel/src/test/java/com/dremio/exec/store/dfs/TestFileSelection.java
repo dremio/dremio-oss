@@ -15,32 +15,29 @@
  */
 package com.dremio.exec.store.dfs;
 
-
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-
-import java.io.File;
-import java.util.Optional;
-
-import org.apache.hadoop.conf.Configuration;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 
 import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
+import java.io.File;
+import java.util.Optional;
+import org.apache.hadoop.conf.Configuration;
+import org.junit.ClassRule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 public class TestFileSelection {
-  @ClassRule
-  public static final TemporaryFolder tempDir = new TemporaryFolder();
+  @ClassRule public static final TemporaryFolder tempDir = new TemporaryFolder();
 
   @Test
   public void testGetFileWithRegularHiddenFile() throws Exception {
     FileSystem fs = HadoopFileSystem.getLocal(new Configuration());
     File hiddenFile = tempDir.newFile(".abc");
-    Optional<FileAttributes> fileAttributes = FileSelection.getFirstFileIteratively(fs, Path.of(hiddenFile.toURI()));
+    Optional<FileAttributes> fileAttributes =
+        FileSelection.getFirstFileIteratively(fs, Path.of(hiddenFile.toURI()));
     assertFalse(fileAttributes.isPresent());
   }
 
@@ -48,7 +45,8 @@ public class TestFileSelection {
   public void testGetFileWithRegularNoHiddenFile() throws Exception {
     FileSystem fs = HadoopFileSystem.getLocal(new Configuration());
     File hiddenFile = tempDir.newFile("test.parquet");
-    Optional<FileAttributes> fileAttributes = FileSelection.getFirstFileIteratively(fs, Path.of(hiddenFile.toURI()));
+    Optional<FileAttributes> fileAttributes =
+        FileSelection.getFirstFileIteratively(fs, Path.of(hiddenFile.toURI()));
     assertTrue(fileAttributes.isPresent());
   }
 }

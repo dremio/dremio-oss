@@ -19,9 +19,7 @@ import static org.junit.Assert.assertEquals;
 
 import org.junit.Test;
 
-/**
- * Test translation of millisecond durations into human readable format
- */
+/** Test translation of millisecond durations into human readable format */
 public class TestSimpleDurationFormat {
   private void validateDurationFormat(long durationInMillisec, String expected) {
     assertEquals(expected, SimpleDurationFormat.format(durationInMillisec));
@@ -59,7 +57,7 @@ public class TestSimpleDurationFormat {
 
   @Test
   public void testCompactManyDayHourMin() {
-    validateDurationFormat(45453420 + 20*86400000, "20d12h37m");
+    validateDurationFormat(45453420 + 20 * 86400000, "20d12h37m");
   }
 
   @Test

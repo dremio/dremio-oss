@@ -15,15 +15,12 @@
  */
 package com.dremio.exec.planner.logical;
 
+import com.dremio.exec.calcite.logical.VacuumCatalogCrel;
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 
-import com.dremio.exec.calcite.logical.VacuumCatalogCrel;
-
-/**
- * Planner rule, Applicable for VACUUM CATALOG command only.
- */
+/** Planner rule, Applicable for VACUUM CATALOG command only. */
 public class VacuumCatalogRule extends RelOptRule {
 
   public static final RelOptRule INSTANCE = new VacuumCatalogRule();
@@ -35,13 +32,14 @@ public class VacuumCatalogRule extends RelOptRule {
   @Override
   public void onMatch(RelOptRuleCall call) {
     final VacuumCatalogCrel vacuumCatalogCrel = call.rel(0);
-    call.transformTo(new VacuumCatalogDrel(
-      vacuumCatalogCrel.getCluster(),
-      vacuumCatalogCrel.getTraitSet().plus(Rel.LOGICAL),
-      vacuumCatalogCrel.getStoragePluginId(),
-      vacuumCatalogCrel.getUser(),
-      vacuumCatalogCrel.getSourceName(),
-      vacuumCatalogCrel.getCostEstimates(),
-      vacuumCatalogCrel.getVacuumOptions()));
+    call.transformTo(
+        new VacuumCatalogDrel(
+            vacuumCatalogCrel.getCluster(),
+            vacuumCatalogCrel.getTraitSet().plus(Rel.LOGICAL),
+            vacuumCatalogCrel.getStoragePluginId(),
+            vacuumCatalogCrel.getUser(),
+            vacuumCatalogCrel.getSourceName(),
+            vacuumCatalogCrel.getCostEstimates(),
+            vacuumCatalogCrel.getVacuumOptions()));
   }
 }

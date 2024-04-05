@@ -17,10 +17,6 @@ package com.dremio.dac.server;
 
 import static org.junit.Assert.assertEquals;
 
-import java.io.IOException;
-
-import org.junit.Test;
-
 import com.dremio.common.SentinelSecure;
 import com.dremio.dac.util.JSONUtil;
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -28,22 +24,21 @@ import com.fasterxml.jackson.annotation.JsonFilter;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ser.impl.SimpleFilterProvider;
+import java.io.IOException;
+import org.junit.Test;
 
-/**
- * Ensure SentinelSecure Filter works correctly.
- */
+/** Ensure SentinelSecure Filter works correctly. */
 public class TestSentinelSecureFilter {
 
   private static final String SENTINEL = "mySentinel";
 
-  /**
-   * Test object for sentinel secure
-   */
+  /** Test object for sentinel secure */
   @JsonFilter(SentinelSecure.FILTER_NAME)
   public static class Example {
 
     @SentinelSecure(SENTINEL)
     private final String secured;
+
     private final String foo;
 
     @JsonCreator
@@ -60,7 +55,6 @@ public class TestSentinelSecureFilter {
     public String getFoo() {
       return foo;
     }
-
   }
 
   @Test
@@ -82,7 +76,9 @@ public class TestSentinelSecureFilter {
   @Test
   public void ensureTestOnlyWithNull() throws IOException {
     ObjectMapper mapper = JSONUtil.mapper();
-    mapper.setFilterProvider(new SimpleFilterProvider().addFilter(SentinelSecure.FILTER_NAME, SentinelSecureFilter.TEST_ONLY));
+    mapper.setFilterProvider(
+        new SimpleFilterProvider()
+            .addFilter(SentinelSecure.FILTER_NAME, SentinelSecureFilter.TEST_ONLY));
     Example e1 = new Example(null, "bar");
     Example e2 = mapper.readValue(mapper.writeValueAsString(e1), Example.class);
     assertEquals(e1.getSecured(), e2.getSecured());
@@ -91,10 +87,11 @@ public class TestSentinelSecureFilter {
   @Test
   public void ensureTestOnlyWithValue() throws IOException {
     ObjectMapper mapper = JSONUtil.mapper();
-    mapper.setFilterProvider(new SimpleFilterProvider().addFilter(SentinelSecure.FILTER_NAME, SentinelSecureFilter.TEST_ONLY));
+    mapper.setFilterProvider(
+        new SimpleFilterProvider()
+            .addFilter(SentinelSecure.FILTER_NAME, SentinelSecureFilter.TEST_ONLY));
     Example e1 = new Example("secret", "bar");
     Example e2 = mapper.readValue(mapper.writeValueAsString(e1), Example.class);
     assertEquals(e1.getSecured(), e2.getSecured());
   }
-
 }

@@ -15,18 +15,6 @@
  */
 package com.dremio.exec.store.parquet;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
-
-import org.apache.arrow.memory.OutOfMemoryException;
-import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.util.CallBack;
-import org.apache.arrow.vector.util.TransferPair;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
@@ -54,12 +42,24 @@ import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.sabot.op.scan.ScanOperator.ScanMutator;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Maps;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+import org.apache.arrow.memory.OutOfMemoryException;
+import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.util.CallBack;
+import org.apache.arrow.vector.util.TransferPair;
 
 /**
- * Implementation of {@link RecordReader} that wraps another record reader and provider filter push down handling.
+ * Implementation of {@link RecordReader} that wraps another record reader and provider filter push
+ * down handling.
  */
 public class CopyingFilteringReader implements RecordReader {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CopyingFilteringReader.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(CopyingFilteringReader.class);
 
   private final RecordReader delegate;
   private final OperatorContext context;
@@ -86,7 +86,8 @@ public class CopyingFilteringReader implements RecordReader {
   private Filterer filter;
   private Copier copier;
 
-  public CopyingFilteringReader(RecordReader delegate, OperatorContext context, LogicalExpression filterCondition) {
+  public CopyingFilteringReader(
+      RecordReader delegate, OperatorContext context, LogicalExpression filterCondition) {
     this.delegate = delegate;
     this.context = context;
     this.filterCondition = filterCondition;
@@ -97,7 +98,9 @@ public class CopyingFilteringReader implements RecordReader {
     this.externalCallback = output.getCallBack();
 
     // create an inner vector container, this will be populated by the delegate reader
-    readerOutput = new VectorContainerWithSV(context.getAllocator(), new SelectionVector2(context.getAllocator()));
+    readerOutput =
+        new VectorContainerWithSV(
+            context.getAllocator(), new SelectionVector2(context.getAllocator()));
     mutator = new ScanMutator(readerOutput, fieldVectorMap, context, innerCallback);
 
     // ScanOperator already materialized the schema in the output mutator
@@ -114,27 +117,33 @@ public class CopyingFilteringReader implements RecordReader {
     delegate.setup(mutator);
 
     // generate a filterer using the passed filterCondition
-    final ClassGenerator<Filterer> cg = context.getClassProducer().createGenerator(Filterer.TEMPLATE_DEFINITION2).getRoot();
+    final ClassGenerator<Filterer> cg =
+        context.getClassProducer().createGenerator(Filterer.TEMPLATE_DEFINITION2).getRoot();
 
-    final LogicalExpression expr = context.getClassProducer().materializeAndAllowComplex(filterCondition, readerOutput);
+    final LogicalExpression expr =
+        context.getClassProducer().materializeAndAllowComplex(filterCondition, readerOutput);
     cg.addExpr(new ReturnValueExpression(expr), ClassGenerator.BlockCreateMode.MERGE);
 
-    // we only need the filterer to set the selection vector of scanOutput, that's why we use a SV2Holder instead of a VectorContainer
+    // we only need the filterer to set the selection vector of scanOutput, that's why we use a
+    // SV2Holder instead of a VectorContainer
     final SelectionVector2 filteredSV2 = new SelectionVector2(context.getAllocator());
     final SV2Holder sv2Holder = new SV2Holder(filteredSV2);
     this.filter = cg.getCodeGenerator().getImplementationClass();
     filter.setup(context.getClassProducer().getFunctionContext(), readerOutput, sv2Holder);
 
-    // generate a copier that takes as input the reader output (along with the filtered SV2) and copies the data to the copyOutput
+    // generate a copier that takes as input the reader output (along with the filtered SV2) and
+    // copies the data to the copyOutput
     final VectorAccessible copyInput = new ContainerAndSV2(readerOutput, filteredSV2);
     copyOutput = VectorContainer.create(context.getAllocator(), readerOutput.getSchema());
     copyOutput.setInitialCapacity(context.getTargetBatchSize());
     copier = CopierOperator.getGenerated2Copier(context.getClassProducer(), copyInput, copyOutput);
 
-    // prepare the transfer pairs that will be used to transfer buffers from the copy container to the output mutator
+    // prepare the transfer pairs that will be used to transfer buffers from the copy container to
+    // the output mutator
     for (VectorWrapper<?> wrapper : copyOutput) {
       final Field field = wrapper.getField();
-      copierToOutputTransfers.add(wrapper.getValueVector().makeTransferPair(output.getVector(field.getName())));
+      copierToOutputTransfers.add(
+          wrapper.getValueVector().makeTransferPair(output.getVector(field.getName())));
     }
   }
 
@@ -142,7 +151,6 @@ public class CopyingFilteringReader implements RecordReader {
   public void allocate(Map<String, ValueVector> vectorMap) throws OutOfMemoryException {
     delegate.allocate(vectorMap);
   }
-
 
   @Override
   public int next() {
@@ -178,7 +186,9 @@ public class CopyingFilteringReader implements RecordReader {
     int copied = copier.copyRecords(0, recordCount);
     copyWatch.stop();
     if (copied != recordCount) { // copier may return earlier if it runs out of memory
-      throw UserException.memoryError().message("Ran out of memory while trying to copy the records.").build(logger);
+      throw UserException.memoryError()
+          .message("Ran out of memory while trying to copy the records.")
+          .build(logger);
     }
 
     copyOutput.setAllCount(recordCount);
@@ -187,8 +197,12 @@ public class CopyingFilteringReader implements RecordReader {
       t.transfer();
     }
 
-    context.getStats().addLongStat(ScanOperator.Metric.COPY_NS, copyWatch.elapsed(TimeUnit.NANOSECONDS));
-    context.getStats().addLongStat(ScanOperator.Metric.FILTER_NS, filterWatch.elapsed(TimeUnit.NANOSECONDS));
+    context
+        .getStats()
+        .addLongStat(ScanOperator.Metric.COPY_NS, copyWatch.elapsed(TimeUnit.NANOSECONDS));
+    context
+        .getStats()
+        .addLongStat(ScanOperator.Metric.FILTER_NS, filterWatch.elapsed(TimeUnit.NANOSECONDS));
     return recordCount;
   }
 
@@ -209,7 +223,8 @@ public class CopyingFilteringReader implements RecordReader {
     }
 
     @Override
-    public <T extends ValueVector> VectorWrapper<T> getValueAccessorById(Class<T> clazz, int... fieldIds) {
+    public <T extends ValueVector> VectorWrapper<T> getValueAccessorById(
+        Class<T> clazz, int... fieldIds) {
       return inner.getValueAccessorById(clazz, fieldIds);
     }
 
@@ -258,7 +273,8 @@ public class CopyingFilteringReader implements RecordReader {
     }
 
     @Override
-    public <T extends ValueVector> VectorWrapper<T> getValueAccessorById(Class<T> clazz, int... fieldIds) {
+    public <T extends ValueVector> VectorWrapper<T> getValueAccessorById(
+        Class<T> clazz, int... fieldIds) {
       throw new UnsupportedOperationException();
     }
 

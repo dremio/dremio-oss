@@ -17,8 +17,5 @@ package com.dremio.connector.metadata.options;
 
 import com.dremio.connector.metadata.GetDatasetOption;
 
-/**
- * Ignore authorization errors.
- */
-public class IgnoreAuthzErrors implements FlagMetadataOption, GetDatasetOption {
-}
+/** Ignore authorization errors. */
+public class IgnoreAuthzErrors implements FlagMetadataOption, GetDatasetOption {}

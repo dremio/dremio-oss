@@ -27,7 +27,6 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Types;
-
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
@@ -66,12 +65,10 @@ import org.junit.Test;
 //   'NO' for some columns that contain only null (e.g., for
 //   "CREATE VIEW x AS SELECT CAST(NULL AS ...) ..."
 
-
 /**
  * Test class for Dremio's java.sql.DatabaseMetaData.getColumns() implementation.
- * <p>
- *   Based on JDBC 4.1 (Java 7).
- * </p>
+ *
+ * <p>Based on JDBC 4.1 (Java 7).
  */
 @Ignore("DX-2490")
 public class DatabaseMetaDataGetColumnsTest extends JdbcWithServerTestBase {
@@ -82,10 +79,8 @@ public class DatabaseMetaDataGetColumnsTest extends JdbcWithServerTestBase {
   /** Overall (connection-level) metadata. */
   protected static DatabaseMetaData dbMetadata;
 
-  /** getColumns result metadata.  For checking columns themselves (not cell
-   *  values or row order). */
+  /** getColumns result metadata. For checking columns themselves (not cell values or row order). */
   protected static ResultSetMetaData rowsMetadata;
-
 
   ////////////////////
   // Results from getColumns for test columns of various types.
@@ -152,18 +147,23 @@ public class DatabaseMetaDataGetColumnsTest extends JdbcWithServerTestBase {
   // uniontypetype column: OTHER (?), non=nullable(?):
   private static ResultSet mdrUnkUnion;
 
-
-  private static ResultSet setUpRow( final String schemaName,
-                                     final String tableOrViewName,
-                                     final String columnName ) throws SQLException
-  {
-    System.out.println( "(Setting up row for " + tableOrViewName + "."
-                        + columnName + ".)");
+  private static ResultSet setUpRow(
+      final String schemaName, final String tableOrViewName, final String columnName)
+      throws SQLException {
+    System.out.println("(Setting up row for " + tableOrViewName + "." + columnName + ".)");
     assertThat(dbMetadata).isNotNull();
     final ResultSet testRow =
-      dbMetadata.getColumns("DREMIO", schemaName, tableOrViewName, columnName);
-    assertThat(testRow.next()).as("Test setup error:  No row for column DREMIO . \"" + schemaName
-      + "\" . \"" + tableOrViewName + "\" . \"" + columnName + "\"").isTrue();
+        dbMetadata.getColumns("DREMIO", schemaName, tableOrViewName, columnName);
+    assertThat(testRow.next())
+        .as(
+            "Test setup error:  No row for column DREMIO . \""
+                + schemaName
+                + "\" . \""
+                + tableOrViewName
+                + "\" . \""
+                + columnName
+                + "\"")
+        .isTrue();
     return testRow;
   }
 
@@ -208,110 +208,114 @@ public class DatabaseMetaDataGetColumnsTest extends JdbcWithServerTestBase {
     TODO(DRILL-3253)(end) */
 
     // Create temporary test-columns view:
-    util = stmt.executeQuery( "USE dfs_test" );
-    assertThat( util.next() ).isTrue();
-    assertThat(util.getBoolean(1)).as("Error setting schema for test: " + util.getString(2))
-      .isTrue();
+    util = stmt.executeQuery("USE dfs_test");
+    assertThat(util.next()).isTrue();
+    assertThat(util.getBoolean(1))
+        .as("Error setting schema for test: " + util.getString(2))
+        .isTrue();
     // TODO(DRILL-2470): Adjust when TINYINT is implemented:
     // TODO(DRILL-2470): Adjust when SMALLINT is implemented:
     // TODO(DRILL-2683): Adjust when REAL is implemented:
-    util = stmt.executeQuery(
-        ""
-        +   "CREATE OR REPLACE VIEW " + VIEW_NAME + " AS SELECT "
-        + "\n  CAST( NULL    AS BOOLEAN            ) AS mdrOptBOOLEAN,        "
-        + "\n  "
-        + "\n  CAST(    1    AS INT            ) AS mdrReqTINYINT,        "
-        + "\n  CAST( NULL    AS INT           ) AS mdrOptSMALLINT,       "
-        //+ "\n  CAST(    1    AS TINYINT            ) AS mdrReqTINYINT,        "
-        //+ "\n  CAST( NULL    AS SMALLINT           ) AS mdrOptSMALLINT,       "
-        + "\n  CAST(    2    AS INTEGER            ) AS mdrReqINTEGER,        "
-        + "\n  CAST( NULL    AS BIGINT             ) AS mdrOptBIGINT,         "
-        + "\n  "
-        + "\n  CAST( NULL    AS FLOAT               ) AS mdrOptREAL,           "
-        //+ "\n  CAST( NULL    AS REAL               ) AS mdrOptREAL,           "
-        + "\n  CAST( NULL    AS FLOAT              ) AS mdrOptFLOAT,          "
-        + "\n  CAST(  3.3    AS DOUBLE             ) AS mdrReqDOUBLE,         "
-        + "\n  "
-        + "\n  CAST(  4.4    AS DECIMAL(5,3)       ) AS mdrReqDECIMAL_5_3,    "
-        + "\n  "
-        + "\n  CAST( 'Hi'    AS VARCHAR(10)        ) AS mdrReqVARCHAR_10,     "
-        + "\n  CAST( NULL    AS VARCHAR            ) AS mdrOptVARCHAR,        "
-        + "\n  CAST( '55'    AS CHAR(5)            ) AS mdrReqCHAR_5,         "
-        + "\n  CAST( NULL    AS VARBINARY(16)      ) AS mdrOptVARBINARY_16,   "
-        + "\n  CAST( NULL    AS VARBINARY(1048576) ) AS mdrOptBINARY_1048576, "
-        + "\n  CAST( NULL    AS BINARY(8)          ) AS mdrOptBINARY_8,       "
-        + "\n  "
-        + "\n                   DATE '2015-01-01'    AS mdrReqDATE,           "
-        + "\n                   TIME '23:59:59'      AS mdrReqTIME,           "
-        + "\n  CAST( NULL    AS TIME(7)            ) AS mdrOptTIME_7,         "
-        + "\n  CAST( NULL    AS TIMESTAMP          ) AS mdrOptTIMESTAMP,      "
-        + "\n  INTERVAL '1'     YEAR                 AS mdrReqINTERVAL_Y,     "
-        + "\n  INTERVAL '1-2'   YEAR(3) TO MONTH     AS mdrReqINTERVAL_3Y_Mo, "
-        + "\n  INTERVAL '2'     MONTH                AS mdrReqINTERVAL_Mo,    "
-        + "\n  INTERVAL '3'     DAY                  AS mdrReqINTERVAL_D,     "
-        + "\n  INTERVAL '3 4'   DAY(4) TO HOUR       AS mdrReqINTERVAL_4D_H,  "
-        + "\n  INTERVAL '3 4:5' DAY(3) TO MINUTE     AS mdrReqINTERVAL_3D_Mi, "
-        + "\n  INTERVAL '3 4:5:6' DAY(2) TO SECOND(5) AS mdrReqINTERVAL_2D_S5, "
-        + "\n  INTERVAL '4'     HOUR                 AS mdrReqINTERVAL_H,     "
-        + "\n  INTERVAL '4:5'   HOUR(1) TO MINUTE    AS mdrReqINTERVAL_1H_Mi, "
-        + "\n  INTERVAL '4:5:6' HOUR(3) TO SECOND(1) AS mdrReqINTERVAL_3H_S1, "
-        + "\n  INTERVAL '5'     MINUTE               AS mdrReqINTERVAL_Mi,    "
-        + "\n  INTERVAL '5:6'   MINUTE(5) TO SECOND  AS mdrReqINTERVAL_5Mi_S, "
-        + "\n  INTERVAL '6'     SECOND               AS mdrReqINTERVAL_S,     "
-        + "\n  INTERVAL '6'     SECOND(3)            AS mdrReqINTERVAL_3S,    "
-        + "\n  INTERVAL '6'     SECOND(3, 1)         AS mdrReqINTERVAL_3S1,   "
-        + "\n  '' "
-        + "\nFROM INFORMATION_SCHEMA.COLUMNS "
-        + "\nLIMIT 1 " );
+    util =
+        stmt.executeQuery(
+            ""
+                + "CREATE OR REPLACE VIEW "
+                + VIEW_NAME
+                + " AS SELECT "
+                + "\n  CAST( NULL    AS BOOLEAN            ) AS mdrOptBOOLEAN,        "
+                + "\n  "
+                + "\n  CAST(    1    AS INT            ) AS mdrReqTINYINT,        "
+                + "\n  CAST( NULL    AS INT           ) AS mdrOptSMALLINT,       "
+                // + "\n  CAST(    1    AS TINYINT            ) AS mdrReqTINYINT,        "
+                // + "\n  CAST( NULL    AS SMALLINT           ) AS mdrOptSMALLINT,       "
+                + "\n  CAST(    2    AS INTEGER            ) AS mdrReqINTEGER,        "
+                + "\n  CAST( NULL    AS BIGINT             ) AS mdrOptBIGINT,         "
+                + "\n  "
+                + "\n  CAST( NULL    AS FLOAT               ) AS mdrOptREAL,           "
+                // + "\n  CAST( NULL    AS REAL               ) AS mdrOptREAL,           "
+                + "\n  CAST( NULL    AS FLOAT              ) AS mdrOptFLOAT,          "
+                + "\n  CAST(  3.3    AS DOUBLE             ) AS mdrReqDOUBLE,         "
+                + "\n  "
+                + "\n  CAST(  4.4    AS DECIMAL(5,3)       ) AS mdrReqDECIMAL_5_3,    "
+                + "\n  "
+                + "\n  CAST( 'Hi'    AS VARCHAR(10)        ) AS mdrReqVARCHAR_10,     "
+                + "\n  CAST( NULL    AS VARCHAR            ) AS mdrOptVARCHAR,        "
+                + "\n  CAST( '55'    AS CHAR(5)            ) AS mdrReqCHAR_5,         "
+                + "\n  CAST( NULL    AS VARBINARY(16)      ) AS mdrOptVARBINARY_16,   "
+                + "\n  CAST( NULL    AS VARBINARY(1048576) ) AS mdrOptBINARY_1048576, "
+                + "\n  CAST( NULL    AS BINARY(8)          ) AS mdrOptBINARY_8,       "
+                + "\n  "
+                + "\n                   DATE '2015-01-01'    AS mdrReqDATE,           "
+                + "\n                   TIME '23:59:59'      AS mdrReqTIME,           "
+                + "\n  CAST( NULL    AS TIME(7)            ) AS mdrOptTIME_7,         "
+                + "\n  CAST( NULL    AS TIMESTAMP          ) AS mdrOptTIMESTAMP,      "
+                + "\n  INTERVAL '1'     YEAR                 AS mdrReqINTERVAL_Y,     "
+                + "\n  INTERVAL '1-2'   YEAR(3) TO MONTH     AS mdrReqINTERVAL_3Y_Mo, "
+                + "\n  INTERVAL '2'     MONTH                AS mdrReqINTERVAL_Mo,    "
+                + "\n  INTERVAL '3'     DAY                  AS mdrReqINTERVAL_D,     "
+                + "\n  INTERVAL '3 4'   DAY(4) TO HOUR       AS mdrReqINTERVAL_4D_H,  "
+                + "\n  INTERVAL '3 4:5' DAY(3) TO MINUTE     AS mdrReqINTERVAL_3D_Mi, "
+                + "\n  INTERVAL '3 4:5:6' DAY(2) TO SECOND(5) AS mdrReqINTERVAL_2D_S5, "
+                + "\n  INTERVAL '4'     HOUR                 AS mdrReqINTERVAL_H,     "
+                + "\n  INTERVAL '4:5'   HOUR(1) TO MINUTE    AS mdrReqINTERVAL_1H_Mi, "
+                + "\n  INTERVAL '4:5:6' HOUR(3) TO SECOND(1) AS mdrReqINTERVAL_3H_S1, "
+                + "\n  INTERVAL '5'     MINUTE               AS mdrReqINTERVAL_Mi,    "
+                + "\n  INTERVAL '5:6'   MINUTE(5) TO SECOND  AS mdrReqINTERVAL_5Mi_S, "
+                + "\n  INTERVAL '6'     SECOND               AS mdrReqINTERVAL_S,     "
+                + "\n  INTERVAL '6'     SECOND(3)            AS mdrReqINTERVAL_3S,    "
+                + "\n  INTERVAL '6'     SECOND(3, 1)         AS mdrReqINTERVAL_3S1,   "
+                + "\n  '' "
+                + "\nFROM INFORMATION_SCHEMA.COLUMNS "
+                + "\nLIMIT 1 ");
     assertThat(util.next()).isTrue();
-    assertThat(util.getBoolean(1)).as(
-      "Error creating temporary test-columns view " + VIEW_NAME + ": "
-        + util.getString(2)).isTrue();
+    assertThat(util.getBoolean(1))
+        .as("Error creating temporary test-columns view " + VIEW_NAME + ": " + util.getString(2))
+        .isTrue();
 
     // Set up result rows for temporary test view and Hivetest columns:
 
-    mdrOptBOOLEAN        = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrOptBOOLEAN" );
+    mdrOptBOOLEAN = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrOptBOOLEAN");
 
     // TODO(DRILL-2470): Uncomment when TINYINT is implemented:
-    //mdrReqTINYINT        = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrReqTINYINT" );
+    // mdrReqTINYINT        = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrReqTINYINT" );
     // TODO(DRILL-2470): Uncomment when SMALLINT is implemented:
-    //mdrOptSMALLINT       = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrOptSMALLINT" );
-    mdrReqINTEGER        = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrReqINTEGER" );
-    mdrOptBIGINT         = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrOptBIGINT" );
+    // mdrOptSMALLINT       = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrOptSMALLINT" );
+    mdrReqINTEGER = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrReqINTEGER");
+    mdrOptBIGINT = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrOptBIGINT");
 
     // TODO(DRILL-2683): Uncomment when REAL is implemented:
-    //mdrOptREAL           = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrOptREAL" );
-    mdrOptFLOAT          = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrOptFLOAT" );
-    mdrReqDOUBLE         = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrReqDOUBLE" );
+    // mdrOptREAL           = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrOptREAL" );
+    mdrOptFLOAT = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrOptFLOAT");
+    mdrReqDOUBLE = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrReqDOUBLE");
 
-    mdrReqDECIMAL_5_3    = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrReqDECIMAL_5_3" );
+    mdrReqDECIMAL_5_3 = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrReqDECIMAL_5_3");
 
-    mdrReqVARCHAR_10     = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrReqVARCHAR_10" );
-    mdrOptVARCHAR        = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrOptVARCHAR" );
-    mdrReqCHAR_5         = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrReqCHAR_5" );
-    mdrOptVARBINARY_16   = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrOptVARBINARY_16" );
-    mdrOptBINARY_1048576 = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrOptBINARY_1048576" );
+    mdrReqVARCHAR_10 = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrReqVARCHAR_10");
+    mdrOptVARCHAR = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrOptVARCHAR");
+    mdrReqCHAR_5 = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrReqCHAR_5");
+    mdrOptVARBINARY_16 = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrOptVARBINARY_16");
+    mdrOptBINARY_1048576 = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrOptBINARY_1048576");
 
-    mdrReqDATE           = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrReqDATE" );
-    mdrReqTIME           = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrReqTIME" );
-    mdrOptTIME_7         = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrOptTIME_7" );
-    mdrOptTIMESTAMP      = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrOptTIMESTAMP" );
+    mdrReqDATE = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrReqDATE");
+    mdrReqTIME = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrReqTIME");
+    mdrOptTIME_7 = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrOptTIME_7");
+    mdrOptTIMESTAMP = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrOptTIMESTAMP");
 
-    mdrReqINTERVAL_Y     = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_Y" );
-    mdrReqINTERVAL_3Y_Mo = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_3Y_Mo" );
-    mdrReqINTERVAL_Mo    = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_Mo" );
-    mdrReqINTERVAL_D     = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_D" );
-    mdrReqINTERVAL_4D_H  = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_4D_H" );
-    mdrReqINTERVAL_3D_Mi = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_3D_Mi" );
-    mdrReqINTERVAL_2D_S5 = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_2D_S5" );
-    mdrReqINTERVAL_H     = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_H" );
-    mdrReqINTERVAL_1H_Mi = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_1H_Mi" );
-    mdrReqINTERVAL_3H_S1 = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_3H_S1" );
-    mdrReqINTERVAL_Mi    = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_Mi" );
-    mdrReqINTERVAL_5Mi_S = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_5Mi_S" );
-    mdrReqINTERVAL_S     = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_S" );
-    mdrReqINTERVAL_3S    = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_3S" );
-    mdrReqINTERVAL_3S1   = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_3S1" );
+    mdrReqINTERVAL_Y = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_Y");
+    mdrReqINTERVAL_3Y_Mo = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_3Y_Mo");
+    mdrReqINTERVAL_Mo = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_Mo");
+    mdrReqINTERVAL_D = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_D");
+    mdrReqINTERVAL_4D_H = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_4D_H");
+    mdrReqINTERVAL_3D_Mi = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_3D_Mi");
+    mdrReqINTERVAL_2D_S5 = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_2D_S5");
+    mdrReqINTERVAL_H = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_H");
+    mdrReqINTERVAL_1H_Mi = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_1H_Mi");
+    mdrReqINTERVAL_3H_S1 = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_3H_S1");
+    mdrReqINTERVAL_Mi = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_Mi");
+    mdrReqINTERVAL_5Mi_S = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_5Mi_S");
+    mdrReqINTERVAL_S = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_S");
+    mdrReqINTERVAL_3S = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_3S");
+    mdrReqINTERVAL_3S1 = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_3S1");
 
     /* TODO(DRILL-3253)(start): Update this once we have test plugin supporting all needed types.
     mdrReqARRAY   = setUpRow( "hive_test.default", "infoschematest", "listtype" );
@@ -324,30 +328,30 @@ public class DatabaseMetaDataGetColumnsTest extends JdbcWithServerTestBase {
 
     // Get all columns for more diversity of values (e.g., nulls and non-nulls),
     // in case that affects metadata (e.g., nullability) (in future).
-    final ResultSet allColumns = dbMetadata.getColumns( null /* any catalog */,
-                                                        null /* any schema */,
-                                                        "%"  /* any table */,
-                                                        "%"  /* any column */ );
+    final ResultSet allColumns =
+        dbMetadata.getColumns(
+            null /* any catalog */,
+            null /* any schema */,
+            "%" /* any table */,
+            "%" /* any column */);
     rowsMetadata = allColumns.getMetaData();
   }
 
   @AfterClass
   public static void tearDownConnection() throws SQLException {
     final ResultSet util =
-      getConnection().createStatement().executeQuery("DROP VIEW " + VIEW_NAME + "");
+        getConnection().createStatement().executeQuery("DROP VIEW " + VIEW_NAME + "");
     assertThat(util.next()).isTrue();
-    assertThat(util.getBoolean(1)).as(
-      "Error dropping temporary test-columns view " + VIEW_NAME + ": "
-        + util.getString(2)).isTrue();
+    assertThat(util.getBoolean(1))
+        .as("Error dropping temporary test-columns view " + VIEW_NAME + ": " + util.getString(2))
+        .isTrue();
     JdbcWithServerTestBase.tearDownConnection();
   }
 
-
-  private Integer getIntOrNull( ResultSet row, String columnName ) throws SQLException {
-    final int value = row.getInt( columnName );
+  private Integer getIntOrNull(ResultSet row, String columnName) throws SQLException {
+    final int value = row.getInt(columnName);
     return row.wasNull() ? null : value;
   }
-
 
   //////////////////////////////////////////////////////////////////////
   // Tests:
@@ -360,7 +364,6 @@ public class DatabaseMetaDataGetColumnsTest extends JdbcWithServerTestBase {
     // TODO:  Review:  Is this check valid?  (Are extra columns allowed?)
     assertThat(rowsMetadata.getColumnCount()).isEqualTo(24);
   }
-
 
   ////////////////////////////////////////////////////////////
   // #1: TABLE_CAT:
@@ -999,123 +1002,122 @@ public class DatabaseMetaDataGetColumnsTest extends JdbcWithServerTestBase {
 
   @Test
   public void test_COLUMN_SIZE_hasRightValue_mdrReqTIME() throws SQLException {
-    assertThat(getIntOrNull(mdrReqTIME, "COLUMN_SIZE")).isEqualTo(8  /* HH:MM:SS */);
+    assertThat(getIntOrNull(mdrReqTIME, "COLUMN_SIZE")).isEqualTo(8 /* HH:MM:SS */);
   }
 
   @Ignore("TODO(DRILL-3225): unignore when datetime precision is implemented")
   @Test
   public void test_COLUMN_SIZE_hasRightValue_mdrOptTIME_7() throws SQLException {
-    assertThat(getIntOrNull(mdrOptTIME_7, "COLUMN_SIZE")).isEqualTo(
-      8  /* HH:MM:SS */ + 1 /* '.' */ + 7 /* sssssss */);
+    assertThat(getIntOrNull(mdrOptTIME_7, "COLUMN_SIZE"))
+        .isEqualTo(8 /* HH:MM:SS */ + 1 /* '.' */ + 7 /* sssssss */);
   }
 
   @Test
   public void test_COLUMN_SIZE_hasINTERIMValue_mdrOptTIME_7() throws SQLException {
-    assertThat(getIntOrNull(mdrOptTIME_7, "COLUMN_SIZE")).isEqualTo(8  /* HH:MM:SS */);
+    assertThat(getIntOrNull(mdrOptTIME_7, "COLUMN_SIZE")).isEqualTo(8 /* HH:MM:SS */);
   }
 
   @Test
   public void test_COLUMN_SIZE_hasRightValue_mdrOptTIMESTAMP() throws SQLException {
-    assertThat(getIntOrNull(mdrOptTIMESTAMP, "COLUMN_SIZE")).isEqualTo(
-      19 /* YYYY-MM-DDTHH:MM:SS */);
+    assertThat(getIntOrNull(mdrOptTIMESTAMP, "COLUMN_SIZE"))
+        .isEqualTo(19 /* YYYY-MM-DDTHH:MM:SS */);
   }
 
   @Test
   public void test_COLUMN_SIZE_hasRightValue_mdrReqINTERVAL_Y() throws SQLException {
-    assertThat(getIntOrNull(mdrReqINTERVAL_Y, "COLUMN_SIZE")).isEqualTo(4);  // "P12Y"
+    assertThat(getIntOrNull(mdrReqINTERVAL_Y, "COLUMN_SIZE")).isEqualTo(4); // "P12Y"
   }
 
   @Test
   public void test_COLUMN_SIZE_hasRightValue_mdrReqINTERVAL_3Y_Mo() throws SQLException {
-    assertThat(getIntOrNull(mdrReqINTERVAL_3Y_Mo, "COLUMN_SIZE")).isEqualTo(8);  // "P123Y12M"
+    assertThat(getIntOrNull(mdrReqINTERVAL_3Y_Mo, "COLUMN_SIZE")).isEqualTo(8); // "P123Y12M"
   }
 
   @Test
   public void test_COLUMN_SIZE_hasRightValue_mdrReqINTERVAL_Mo() throws SQLException {
-    assertThat(getIntOrNull(mdrReqINTERVAL_Mo, "COLUMN_SIZE")).isEqualTo(4);  // "P12M"
+    assertThat(getIntOrNull(mdrReqINTERVAL_Mo, "COLUMN_SIZE")).isEqualTo(4); // "P12M"
   }
 
   @Test
   public void test_COLUMN_SIZE_hasRightValue_mdrReqINTERVAL_D() throws SQLException {
-    assertThat(getIntOrNull(mdrReqINTERVAL_D, "COLUMN_SIZE")).isEqualTo(4);  // "P12D"
+    assertThat(getIntOrNull(mdrReqINTERVAL_D, "COLUMN_SIZE")).isEqualTo(4); // "P12D"
   }
 
   @Test
   public void test_COLUMN_SIZE_hasRightValue_mdrReqINTERVAL_4D_H() throws SQLException {
-    assertThat(getIntOrNull(mdrReqINTERVAL_4D_H, "COLUMN_SIZE")).isEqualTo(10);  // "P1234DT12H"
+    assertThat(getIntOrNull(mdrReqINTERVAL_4D_H, "COLUMN_SIZE")).isEqualTo(10); // "P1234DT12H"
   }
 
   @Test
   public void test_COLUMN_SIZE_hasRightValue_mdrReqINTERVAL_3D_Mi() throws SQLException {
-    assertThat(getIntOrNull(mdrReqINTERVAL_3D_Mi, "COLUMN_SIZE")).isEqualTo(12);  // "P123DT12H12M"
+    assertThat(getIntOrNull(mdrReqINTERVAL_3D_Mi, "COLUMN_SIZE")).isEqualTo(12); // "P123DT12H12M"
   }
 
   @Ignore("TODO(DRILL-3244): unignore when fractional secs. prec. is right")
   @Test
   public void test_COLUMN_SIZE_hasRightValue_mdrReqINTERVAL_2D_S5() throws SQLException {
-    assertThat(getIntOrNull(mdrReqINTERVAL_2D_S5, "COLUMN_SIZE")).isEqualTo(
-      20);  // "P12DT12H12M12.12345S"
+    assertThat(getIntOrNull(mdrReqINTERVAL_2D_S5, "COLUMN_SIZE"))
+        .isEqualTo(20); // "P12DT12H12M12.12345S"
   }
 
   @Test
   public void test_COLUMN_SIZE_hasINTERIMValue_mdrReqINTERVAL_2D_S5() throws SQLException {
-    assertThat(getIntOrNull(mdrReqINTERVAL_2D_S5, "COLUMN_SIZE")).isEqualTo(
-      17);  // "P12DT12H12M12.12S"
+    assertThat(getIntOrNull(mdrReqINTERVAL_2D_S5, "COLUMN_SIZE"))
+        .isEqualTo(17); // "P12DT12H12M12.12S"
   }
 
   @Test
   public void test_COLUMN_SIZE_hasRightValue_mdrReqINTERVAL_3H() throws SQLException {
-    assertThat(getIntOrNull(mdrReqINTERVAL_H, "COLUMN_SIZE")).isEqualTo(5);  // "PT12H"
+    assertThat(getIntOrNull(mdrReqINTERVAL_H, "COLUMN_SIZE")).isEqualTo(5); // "PT12H"
   }
 
   @Test
   public void test_COLUMN_SIZE_hasRightValue_mdrReqINTERVAL_4H_Mi() throws SQLException {
-    assertThat(getIntOrNull(mdrReqINTERVAL_1H_Mi, "COLUMN_SIZE")).isEqualTo(7);  // "PT1H12M"
+    assertThat(getIntOrNull(mdrReqINTERVAL_1H_Mi, "COLUMN_SIZE")).isEqualTo(7); // "PT1H12M"
   }
 
   @Ignore("TODO(DRILL-3244): unignore when fractional secs. prec. is right")
   @Test
   public void test_COLUMN_SIZE_hasRightValue_mdrReqINTERVAL_3H_S1() throws SQLException {
-    assertThat(getIntOrNull(mdrReqINTERVAL_3H_S1, "COLUMN_SIZE")).isEqualTo(
-      14);  // "PT123H12M12.1S"
+    assertThat(getIntOrNull(mdrReqINTERVAL_3H_S1, "COLUMN_SIZE")).isEqualTo(14); // "PT123H12M12.1S"
   }
 
   @Test
   public void test_COLUMN_SIZE_hasINTERIMValue_mdrReqINTERVAL_3H_S1() throws SQLException {
-    assertThat(
-      getIntOrNull(mdrReqINTERVAL_3H_S1, "COLUMN_SIZE")).isEqualTo(16);  // "PT123H12M12.123S"
+    assertThat(getIntOrNull(mdrReqINTERVAL_3H_S1, "COLUMN_SIZE"))
+        .isEqualTo(16); // "PT123H12M12.123S"
   }
 
   @Test
   public void test_COLUMN_SIZE_hasRightValue_mdrReqINTERVAL_Mi() throws SQLException {
-    assertThat(getIntOrNull(mdrReqINTERVAL_Mi, "COLUMN_SIZE")).isEqualTo(5);  // "PT12M"
+    assertThat(getIntOrNull(mdrReqINTERVAL_Mi, "COLUMN_SIZE")).isEqualTo(5); // "PT12M"
   }
 
   @Test
   public void test_COLUMN_SIZE_hasRightValue_mdrReqINTERVAL_5Mi_S() throws SQLException {
-    assertThat(getIntOrNull(mdrReqINTERVAL_5Mi_S, "COLUMN_SIZE")).isEqualTo(
-      18);  // "PT12345M12.123456S"
+    assertThat(getIntOrNull(mdrReqINTERVAL_5Mi_S, "COLUMN_SIZE"))
+        .isEqualTo(18); // "PT12345M12.123456S"
   }
 
   @Test
   public void test_COLUMN_SIZE_hasRightValue_mdrReqINTERVAL_S() throws SQLException {
-    assertThat(getIntOrNull(mdrReqINTERVAL_S, "COLUMN_SIZE")).isEqualTo(12);  // "PT12.123456S"
+    assertThat(getIntOrNull(mdrReqINTERVAL_S, "COLUMN_SIZE")).isEqualTo(12); // "PT12.123456S"
   }
 
   @Test
   public void test_COLUMN_SIZE_hasRightValue_mdrReqINTERVAL_3S() throws SQLException {
-    assertThat(getIntOrNull(mdrReqINTERVAL_3S, "COLUMN_SIZE")).isEqualTo(13);  // "PT123.123456S"
+    assertThat(getIntOrNull(mdrReqINTERVAL_3S, "COLUMN_SIZE")).isEqualTo(13); // "PT123.123456S"
   }
 
   @Ignore("TODO(DRILL-3244): unignore when fractional secs. prec. is right")
   @Test
   public void test_COLUMN_SIZE_hasRightValue_mdrReqINTERVAL_3S1() throws SQLException {
-    assertThat(getIntOrNull(mdrReqINTERVAL_3S1, "COLUMN_SIZE")).isEqualTo(8);  // "PT123.1S"
+    assertThat(getIntOrNull(mdrReqINTERVAL_3S1, "COLUMN_SIZE")).isEqualTo(8); // "PT123.1S"
   }
 
   @Test
   public void test_COLUMN_SIZE_hasINTERIMValue_mdrReqINTERVAL_3S1() throws SQLException {
-    assertThat(getIntOrNull(mdrReqINTERVAL_3S1, "COLUMN_SIZE")).isEqualTo(10);  // "PT123.123S"
+    assertThat(getIntOrNull(mdrReqINTERVAL_3S1, "COLUMN_SIZE")).isEqualTo(10); // "PT123.123S"
   }
 
   @Test
@@ -1903,7 +1905,7 @@ public class DatabaseMetaDataGetColumnsTest extends JdbcWithServerTestBase {
   @Test
   public void test_COLUMN_DEF_hasRightClass() throws SQLException {
 
-    assertThat(rowsMetadata.getColumnClassName(13)).isEqualTo(String.class.getName()); //???Text
+    assertThat(rowsMetadata.getColumnClassName(13)).isEqualTo(String.class.getName()); // ???Text
   }
 
   @Test
@@ -2040,22 +2042,19 @@ public class DatabaseMetaDataGetColumnsTest extends JdbcWithServerTestBase {
   @Test
   public void test_CHAR_OCTET_LENGTH_hasRightValue_mdrReqVARCHAR_10() throws SQLException {
     assertThat(getIntOrNull(mdrReqVARCHAR_10, "CHAR_OCTET_LENGTH"))
-      .isEqualTo(10   /* chars. */
-        * 4  /* max. UTF-8 bytes per char. */);
+        .isEqualTo(10 /* chars. */ * 4 /* max. UTF-8 bytes per char. */);
   }
 
   @Test
   public void test_CHAR_OCTET_LENGTH_hasRightValue_mdrOptVARCHAR() throws SQLException {
-    assertThat(getIntOrNull(mdrOptVARCHAR, "CHAR_OCTET_LENGTH")).isEqualTo(
-      65536 /* chars. (default of 65536) */
-        * 4  /* max. UTF-8 bytes per char. */);
+    assertThat(getIntOrNull(mdrOptVARCHAR, "CHAR_OCTET_LENGTH"))
+        .isEqualTo(65536 /* chars. (default of 65536) */ * 4 /* max. UTF-8 bytes per char. */);
   }
 
   @Test
   public void test_CHAR_OCTET_LENGTH_hasRightValue_mdrReqCHAR_5() throws SQLException {
     assertThat(getIntOrNull(mdrReqCHAR_5, "CHAR_OCTET_LENGTH"))
-      .isEqualTo(5    /* chars. */
-        * 4  /* max. UTF-8 bytes per char. */);
+        .isEqualTo(5 /* chars. */ * 4 /* max. UTF-8 bytes per char. */);
   }
 
   @Test
@@ -2686,5 +2685,4 @@ public class DatabaseMetaDataGetColumnsTest extends JdbcWithServerTestBase {
   public void test_IS_GENERATEDCOLUMN_hasRightNullability() throws SQLException {
     assertThat(rowsMetadata.isNullable(24)).isEqualTo(columnNoNulls);
   }
-
 } // class DatabaseMetaGetColumnsDataTest

@@ -18,20 +18,20 @@ package com.dremio.service.execselector;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.Set;
-
 import com.dremio.common.util.DremioVersionInfo;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.service.coordinator.NodeStatusListener;
 import com.dremio.service.coordinator.RegistrationHandle;
 import com.dremio.service.coordinator.ServiceSet;
 import com.google.common.collect.ImmutableSet;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
- * Implementation of a {@link ServiceSet} that allows manual addition and removal of endpoints
- * The endpoints thus added only contain an address, with the rest of the {@link NodeEndpoint} proto not set
+ * Implementation of a {@link ServiceSet} that allows manual addition and removal of endpoints The
+ * endpoints thus added only contain an address, with the rest of the {@link NodeEndpoint} proto not
+ * set
  */
 public class TestExecutorSelectionServiceSet implements ServiceSet {
   private Set<NodeEndpoint> endpoints = new HashSet<>();
@@ -60,14 +60,12 @@ public class TestExecutorSelectionServiceSet implements ServiceSet {
   }
 
   void testAddNode(String address) {
-     testAddNode(address, DremioVersionInfo.getVersion());
+    testAddNode(address, DremioVersionInfo.getVersion());
   }
 
   void testAddNode(String address, String dremioVersion) {
-    NodeEndpoint newNode = NodeEndpoint.newBuilder()
-      .setAddress(address)
-      .setDremioVersion(dremioVersion)
-      .build();
+    NodeEndpoint newNode =
+        NodeEndpoint.newBuilder().setAddress(address).setDremioVersion(dremioVersion).build();
     endpoints.add(newNode);
     if (listener != null) {
       listener.nodesRegistered(ImmutableSet.of(newNode));
@@ -79,10 +77,8 @@ public class TestExecutorSelectionServiceSet implements ServiceSet {
   }
 
   void testRemoveNode(String address, String dremioVersion) {
-    NodeEndpoint removedNode = NodeEndpoint.newBuilder()
-      .setAddress(address)
-      .setDremioVersion(dremioVersion)
-      .build();
+    NodeEndpoint removedNode =
+        NodeEndpoint.newBuilder().setAddress(address).setDremioVersion(dremioVersion).build();
     endpoints.remove(removedNode);
     if (listener != null) {
       listener.nodesUnregistered(ImmutableSet.of(removedNode));

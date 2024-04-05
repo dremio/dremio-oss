@@ -15,8 +15,11 @@
  */
 package com.dremio.exec.catalog;
 
+import com.dremio.catalog.model.dataset.TableVersionContext;
+import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.store.TableMetadata;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import java.util.List;
-
 import org.apache.calcite.config.CalciteConnectionConfig;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.schema.ExtensibleTable;
@@ -24,13 +27,9 @@ import org.apache.calcite.schema.Table;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlNode;
 
-import com.dremio.catalog.model.dataset.TableVersionContext;
-import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.store.TableMetadata;
-import com.dremio.service.namespace.dataset.proto.DatasetConfig;
-
 /**
- * A TranslatableTable (View or Table) that also knows its canonical name and exposes schema information.
+ * A TranslatableTable (View or Table) that also knows its canonical name and exposes schema
+ * information.
  */
 public interface DremioTable extends DremioTranslatableTable, ExtensibleTable {
 
@@ -58,10 +57,7 @@ public interface DremioTable extends DremioTranslatableTable, ExtensibleTable {
 
   @Override
   default boolean rolledUpColumnValidInsideAgg(
-      String column,
-      SqlCall call,
-      SqlNode parent,
-      CalciteConnectionConfig config) {
+      String column, SqlCall call, SqlNode parent, CalciteConnectionConfig config) {
     return true;
   }
 
@@ -70,8 +66,8 @@ public interface DremioTable extends DremioTranslatableTable, ExtensibleTable {
   }
 
   /**
-   * Override `extend` and `getExtendedColumnOffset` if you want the implementing class
-   * to be able to extend its schema.
+   * Override `extend` and `getExtendedColumnOffset` if you want the implementing class to be able
+   * to extend its schema.
    */
   String UNSUPPORTED_EXTENDED_TABLE = "The extended table of type '%s' is unsupported.";
 
@@ -86,9 +82,10 @@ public interface DremioTable extends DremioTranslatableTable, ExtensibleTable {
   }
 
   /**
-   * For DML (i.e., DELETE, MERGE, UPDATE (not INSERT)) operations, the table gets extended with system
-   * columns (defined in ColumnUtils). For those cases, the table needs to get extended via the `EXTEND`
-   * sql statement. This will return the sql required to extend the table with the fields.
+   * For DML (i.e., DELETE, MERGE, UPDATE (not INSERT)) operations, the table gets extended with
+   * system columns (defined in ColumnUtils). For those cases, the table needs to get extended via
+   * the `EXTEND` sql statement. This will return the sql required to extend the table with the
+   * fields.
    */
   default String getExtendTableSql() {
     throw new UnsupportedExtendTableException();
@@ -100,5 +97,9 @@ public interface DremioTable extends DremioTranslatableTable, ExtensibleTable {
 
   default boolean hasAtSpecifier() {
     return false;
+  }
+
+  default DatasetMetadataState getDatasetMetadataState() {
+    return DatasetMetadataState.builder().setIsComplete(true).setIsExpired(false).build();
   }
 }

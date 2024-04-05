@@ -16,31 +16,38 @@
 package com.dremio.exec.catalog;
 
 /**
- * System for monitoring the status of the catalog service. Also allows mocking testing. Can be expanded for monitoring
- * other operations of catalog service in the future.
+ * System for monitoring the status of the catalog service. Also allows mocking testing. Can be
+ * expanded for monitoring other operations of catalog service in the future.
  */
 interface CatalogServiceMonitor {
 
-  /**
-   * A default, no-op monitor.
-   */
+  /** A default, no-op monitor. */
   CatalogServiceMonitor DEFAULT = new CatalogServiceMonitor() {};
 
   /**
    * Construct an monitor for a particular plugin.
    *
-   * The monitor implementation can decide whether to track each plugin separately or track as one.
+   * <p>The monitor implementation can decide whether to track each plugin separately or track as
+   * one.
    *
    * @param name Which plugin to retrieve the monitor for.
    * @return The monitor for the named plugin.
    */
-  default CatalogServiceMonitor forPlugin(String name) {return this;}
+  default CatalogServiceMonitor forPlugin(String name) {
+    return this;
+  }
 
   default void onWakeup() {}
+
   default void startAdhocRefreshWithLock() {}
+
   default void startAdhocRefresh() {}
+
   default void finishAdhocRefresh() {}
+
   default void startBackgroundRefresh() {}
+
   default void startBackgroundRefreshWithLock() {}
+
   default void finishBackgroundRefresh() {}
 }

@@ -17,19 +17,15 @@ package com.dremio.service.nessie.upgrade.version040;
 
 import java.util.List;
 
-/**
- * Implementers should create the commit in the current Nessie format.
- */
+/** Implementers should create the commit in the current Nessie format. */
 @FunctionalInterface
 public interface CommitConsumer {
   /**
    * Processes a commit
+   *
    * @param branchName name of the branch for the commit
    * @param contentKey content key for the commit
    * @param location location of the Iceberg file
    */
-  void migrateCommit(
-    String branchName,
-    List<String> contentKey,
-    String location);
+  void migrateCommit(String branchName, List<String> contentKey, String location);
 }

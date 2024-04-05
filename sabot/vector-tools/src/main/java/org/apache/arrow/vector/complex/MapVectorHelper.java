@@ -31,12 +31,16 @@ public class MapVectorHelper extends ListVectorHelper {
   @Override
   public UserBitShared.SerializedField.Builder getMetadataBuilder() {
     return UserBitShared.SerializedField.newBuilder()
-      .setMajorType(TypeProtos.MajorType.newBuilder().setMinorType(TypeProtos.MinorType.MAP).setMode(TypeProtos.DataMode.OPTIONAL).build())
-      .setNamePart(UserBitShared.NamePart.newBuilder().setName(mapVector.getField().getName()))
-      .setValueCount(mapVector.getValueCount())
-      .setBufferLength(mapVector.getBufferSize())
-      .addChild(buildOffsetMetadata())
-      .addChild(buildValidityMetadata())
-      .addChild(TypeHelper.getMetadata(mapVector.vector));
+        .setMajorType(
+            TypeProtos.MajorType.newBuilder()
+                .setMinorType(TypeProtos.MinorType.MAP)
+                .setMode(TypeProtos.DataMode.OPTIONAL)
+                .build())
+        .setNamePart(UserBitShared.NamePart.newBuilder().setName(mapVector.getField().getName()))
+        .setValueCount(mapVector.getValueCount())
+        .setBufferLength(mapVector.getBufferSize())
+        .addChild(buildOffsetMetadata())
+        .addChild(buildValidityMetadata())
+        .addChild(TypeHelper.getMetadata(mapVector.vector));
   }
 }

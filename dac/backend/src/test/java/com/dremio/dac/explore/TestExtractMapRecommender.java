@@ -17,25 +17,22 @@ package com.dremio.dac.explore;
 
 import static org.junit.Assert.assertEquals;
 
-import java.util.List;
-
-import org.junit.Test;
-
 import com.dremio.dac.explore.Recommender.TransformRuleWrapper;
 import com.dremio.dac.explore.model.extract.MapSelection;
 import com.dremio.dac.proto.model.dataset.DataType;
 import com.dremio.dac.proto.model.dataset.ExtractMapRule;
 import com.google.common.collect.ImmutableList;
+import java.util.List;
+import org.junit.Test;
 
-/**
- * Tests for {@link ExtractMapRecommender}
- */
+/** Tests for {@link ExtractMapRecommender} */
 public class TestExtractMapRecommender {
   private ExtractMapRecommender recommender = new ExtractMapRecommender();
 
   @Test
   public void testExtractMapRules() throws Exception {
-    List<ExtractMapRule> rules = recommender.getRules(new MapSelection("foo", ImmutableList.of("a")), DataType.STRUCT);
+    List<ExtractMapRule> rules =
+        recommender.getRules(new MapSelection("foo", ImmutableList.of("a")), DataType.STRUCT);
     assertEquals(1, rules.size());
     assertEquals("a", rules.get(0).getPath());
   }
@@ -48,12 +45,14 @@ public class TestExtractMapRecommender {
     assertEquals("tbl.foo.a IS NOT NULL", wrapper.getMatchFunctionExpr("tbl.foo"));
     assertEquals("tbl.foo.a", wrapper.getFunctionExpr("tbl.foo"));
 
-    TransformRuleWrapper<ExtractMapRule> wrapper2 = recommender.wrapRule(new ExtractMapRule("c[0].b"));
+    TransformRuleWrapper<ExtractMapRule> wrapper2 =
+        recommender.wrapRule(new ExtractMapRule("c[0].b"));
     assertEquals("extract from map c[0].b", wrapper2.describe());
     assertEquals("tbl.foo.c[0].b IS NOT NULL", wrapper2.getMatchFunctionExpr("tbl.foo"));
     assertEquals("tbl.foo.c[0].b", wrapper2.getFunctionExpr("tbl.foo"));
 
-    // Not adding any validation of the function or match expression as they are just map/list element references
+    // Not adding any validation of the function or match expression as they are just map/list
+    // element references
     // which are covered in core execution engine/Arrow tests.
   }
 }

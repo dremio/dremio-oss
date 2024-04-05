@@ -15,30 +15,27 @@
  */
 package com.dremio.exec.store.dfs;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import javax.inject.Provider;
-
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.server.SabotContext;
+import java.util.ArrayList;
+import java.util.List;
+import javax.inject.Provider;
 
-/**
- * File system plugin for NAS source
- */
+/** File system plugin for NAS source */
 public class NASFileSystem extends FileSystemPlugin<NASConf> {
-    public NASFileSystem(NASConf config, SabotContext context, String name, Provider<StoragePluginId> idProvider) {
-        super(config, context, name, idProvider);
-    }
+  public NASFileSystem(
+      NASConf config, SabotContext context, String name, Provider<StoragePluginId> idProvider) {
+    super(config, context, name, idProvider);
+  }
 
-    @Override
-    protected List<Property> getProperties() {
-        List<Property> properties = new ArrayList<>();
-        NASConf conf = getConfig();
-        if (conf.getProperties() != null) {
-            properties.addAll(conf.getProperties());
-        }
-        return properties;
+  @Override
+  protected List<Property> getProperties() {
+    List<Property> properties = new ArrayList<>();
+    NASConf conf = getConfig();
+    if (conf.getProperties() != null) {
+      properties.addAll(conf.getProperties());
     }
+    return properties;
+  }
 }

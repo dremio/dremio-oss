@@ -15,21 +15,20 @@
  */
 package com.dremio.sabot.join.hash;
 
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.BigIntVector;
-
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.types.Types;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.sabot.Generator;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.BigIntVector;
 
 public class EmptyGenerator implements Generator {
 
   private final VectorContainer c;
 
-  public EmptyGenerator(BufferAllocator allocator){
+  public EmptyGenerator(BufferAllocator allocator) {
     c = new VectorContainer(allocator);
     c.addOrGet("key", Types.optional(MinorType.BIGINT), BigIntVector.class);
     c.addOrGet("value", Types.optional(MinorType.BIGINT), BigIntVector.class);
@@ -51,5 +50,4 @@ public class EmptyGenerator implements Generator {
     c.allocateNew();
     return c.setAllCount(0);
   }
-
 }

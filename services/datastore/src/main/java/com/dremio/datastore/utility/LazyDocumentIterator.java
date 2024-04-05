@@ -15,11 +15,10 @@
  */
 package com.dremio.datastore.utility;
 
+import com.dremio.datastore.api.Document;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
-
-import com.dremio.datastore.api.Document;
 
 /**
  * Lazy document iterator takes an iterable of documents and provides an iterator interface to
@@ -51,8 +50,8 @@ public class LazyDocumentIterator<KEY_TYPE, VALUE_TYPE> implements Iterator<VALU
       return nextDoc.getValue();
     } catch (NoSuchElementException e) {
       /* We checked that hasNext() returned true but still didn't receive the doc from the next() call.
-         This is an unexpected state to be in, so thus throw an IllegalStateException.
-       */
+        This is an unexpected state to be in, so thus throw an IllegalStateException.
+      */
       throw new IllegalStateException("Iterator did not have a next document as claimed.", e);
     }
   }

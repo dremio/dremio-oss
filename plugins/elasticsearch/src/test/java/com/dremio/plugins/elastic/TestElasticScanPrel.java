@@ -15,8 +15,11 @@
  */
 package com.dremio.plugins.elastic;
 
+import com.dremio.exec.planner.physical.Prel;
+import com.dremio.plugins.elastic.planning.rels.ElasticScanPrel;
+import com.dremio.plugins.elastic.planning.rels.ElasticsearchPrel;
+import com.dremio.plugins.elastic.planning.rels.ScanBuilder;
 import java.util.Collections;
-
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitSet;
@@ -26,14 +29,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
 
-import com.dremio.exec.planner.physical.Prel;
-import com.dremio.plugins.elastic.planning.rels.ElasticScanPrel;
-import com.dremio.plugins.elastic.planning.rels.ElasticsearchPrel;
-import com.dremio.plugins.elastic.planning.rels.ScanBuilder;
-
-/**
- * Test ElasticScanPrel.
- */
+/** Test ElasticScanPrel. */
 public class TestElasticScanPrel {
   private static final RelTraitSet EMPTY_TRAIT = RelTraitSet.createEmpty();
   private ElasticScanPrel prel;
@@ -44,11 +40,7 @@ public class TestElasticScanPrel {
     final ElasticsearchPrel scanPrel = Mockito.mock(ElasticsearchPrel.class);
     final ScanBuilder builder = Mockito.mock(ScanBuilder.class);
     Mockito.when(builder.getTable()).thenReturn(Mockito.mock(RelOptTable.class));
-    prel = new ElasticScanPrel(
-      cluster,
-      EMPTY_TRAIT,
-      scanPrel,
-      builder);
+    prel = new ElasticScanPrel(cluster, EMPTY_TRAIT, scanPrel, builder);
   }
 
   @Test
@@ -64,7 +56,7 @@ public class TestElasticScanPrel {
     final RelTraitSet newTraits = RelTraitSet.createEmpty().plus(Prel.PHYSICAL);
     final RelNode copyPrel = prel.copy(newTraits, Collections.emptyList());
     Assert.assertTrue(copyPrel instanceof ElasticScanPrel);
-    final ElasticScanPrel copyESPrel = (ElasticScanPrel)copyPrel;
+    final ElasticScanPrel copyESPrel = (ElasticScanPrel) copyPrel;
 
     // This should not be the same object, since the traits are different.
     Assert.assertNotSame(prel, copyPrel);

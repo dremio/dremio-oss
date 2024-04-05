@@ -15,24 +15,30 @@
  */
 package com.dremio.exec.store.iceberg;
 
-import java.io.IOException;
-import java.util.List;
-
-import org.apache.iceberg.io.SeekableInputStream;
-
 import com.dremio.io.FSInputStream;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
+import java.io.IOException;
+import java.util.List;
+import org.apache.iceberg.io.SeekableInputStream;
 
 public interface SeekableInputStreamFactory {
 
   String KEY = "dremio.plugins.iceberg.manifests.input_stream_factory";
 
-  SeekableInputStream getStream(FileSystem fs, OperatorContext context, Path path, Long fileLength, Long mtime,
-                                List<String> dataset, String datasourcePluginUID) throws IOException;
+  SeekableInputStream getStream(
+      FileSystem fs,
+      OperatorContext context,
+      Path path,
+      Long fileLength,
+      Long mtime,
+      List<String> dataset,
+      String datasourcePluginUID)
+      throws IOException;
 
-  SeekableInputStreamFactory DEFAULT = (fs, context, path, fileLength, mtime, dataset, pluginUID) -> wrap(fs.open(path));
+  SeekableInputStreamFactory DEFAULT =
+      (fs, context, path, fileLength, mtime, dataset, pluginUID) -> wrap(fs.open(path));
 
   static SeekableInputStream wrap(FSInputStream is) {
     return new SeekableInputStream() {

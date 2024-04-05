@@ -19,19 +19,16 @@ import com.dremio.common.config.SabotConfig;
 import com.dremio.options.OptionResolver;
 
 /**
- * Factory class to create default (calcite) {@code org.apache.calcite.plan.substitution.UnifyingSubstitutionProvider}
- *
+ * Factory class to create default (calcite) {@code
+ * org.apache.calcite.plan.substitution.UnifyingSubstitutionProvider}
  */
 public class DefaultSubstitutionProviderFactory implements SubstitutionProviderFactory {
 
-  public DefaultSubstitutionProviderFactory() {
-  }
+  public DefaultSubstitutionProviderFactory() {}
 
   @Override
   public SubstitutionProvider getSubstitutionProvider(
-      SabotConfig config,
-      MaterializationProvider materializationProvider,
-      OptionResolver options) {
+      SabotConfig config, MaterializationProvider materializationProvider, OptionResolver options) {
     return new UnifyingSubstitutionProvider(materializationProvider);
   }
 }

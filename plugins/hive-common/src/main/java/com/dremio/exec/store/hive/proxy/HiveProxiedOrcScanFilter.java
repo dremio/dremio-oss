@@ -15,16 +15,14 @@
  */
 package com.dremio.exec.store.hive.proxy;
 
-import org.apache.calcite.rex.RexNode;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.apache.calcite.rex.RexNode;
 
 /**
- * Abstract class representing a Hive OrcScanFilter that is in a separate
- * ClassLoader from Dremio's.
+ * Abstract class representing a Hive OrcScanFilter that is in a separate ClassLoader from Dremio's.
  */
 public abstract class HiveProxiedOrcScanFilter {
 
@@ -64,5 +62,4 @@ public abstract class HiveProxiedOrcScanFilter {
 
   @JsonIgnore
   public abstract RexNode getRexFilter();
-
 }

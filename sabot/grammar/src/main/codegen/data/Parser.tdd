@@ -174,8 +174,10 @@
     "RETAIN_LAST_SNAPSHOTS",
     "PIPE",
     "PIPES",
+    "DEDUPE_LOOKBACK_PERIOD",
     "NOTIFICATION_PROVIDER",
-    "NOTIFICATION_QUEUE_REFERENCE"
+    "NOTIFICATION_QUEUE_REFERENCE",
+    "BATCH"
   ]
 
   nonReservedKeywords: [
@@ -205,6 +207,7 @@
     "ATTRIBUTES"
     "AUTO"
     "AVOID"
+    "BATCH"
     "BEFORE"
     "BERNOULLI"
     "BIN_PACK"
@@ -313,6 +316,7 @@
     "HASH"
     "HIERARCHY"
     "HISTORY"
+    "IGNORE"
     "IMMEDIATE"
     "IMMEDIATELY"
     "IMPLEMENTATION"
@@ -326,9 +330,16 @@
     "INTO"
     "INVOKER"
     "ISOLATION"
+    "ISODOW"
+    "ISOYEAR"
     "JAVA"
     "JOB"
     "JSON"
+    "JSON_DEPTH"
+    "JSON_KEYS"
+    "JSON_LENGTH"
+    "JSON_PRETTY"
+    "JSON_TYPE"
     "K"
     "KEY"
     "KEY_MEMBER"
@@ -364,6 +375,7 @@
     "MESSAGE_TEXT"
     "MICROSECOND"
     "MILLENNIUM"
+    "MILLISECOND"
     "MINVALUE"
     "MIN_FILE_SIZE_MB"
     "MIN_INPUT_FILES"
@@ -431,6 +443,7 @@
     "RELATIVE"
     "REPEATABLE"
     "REPLACE"
+    "RESPECT"
     "RESTART"
     "RESTRICT"
     "RETURNED_CARDINALITY"
@@ -547,6 +560,7 @@
     "TRANSACTIONS_ROLLED_BACK"
     "TRANSFORM"
     "TRANSFORMS"
+    "TRIGGER"
     "TRIGGER_CATALOG"
     "TRIGGER_NAME"
     "TRIGGER_SCHEMA"
@@ -633,10 +647,13 @@
     "SqlCreateFolder()",
     "SqlDropFolder()",
     "SqlShowCreate()",
+    "SqlShowTableProperties()",
+    "SqlAlterPipe()",
     "SqlCreatePipe()",
-    "SqlShowTableProperties()"
     "SqlDescribePipe()",
-    "SqlShowPipes()"
+    "SqlDropPipe()",
+    "SqlShowPipes()",
+    "SqlTriggerPipe()"
   ]
 
   # List of methods for parsing custom literals.
@@ -685,7 +702,14 @@
     "grant.ftl",
     "role.ftl",
     "user.ftl",
-    "versionSupport.ftl"
+    "versionSupport.ftl",
+    "ingestion.ftl"
+  ]
+
+  # List of methods for parsing builtin function calls.
+  # Return type of method implementation should be "SqlNode".
+  # Example: DateFunctionCall().
+  builtinFunctionCallMethods: [
   ]
 
   includeCompoundIdentifier: false,

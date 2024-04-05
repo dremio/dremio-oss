@@ -20,8 +20,8 @@ import com.dremio.common.VM;
 public class ControlsInjectorFactory {
 
   /**
-   * Returns an {@link ExecutionControlsInjector} if assertions are not enabled, or {@link NoOpControlsInjector}
-   * otherwise.
+   * Returns an {@link ExecutionControlsInjector} if assertions are not enabled, or {@link
+   * NoOpControlsInjector} otherwise.
    *
    * @param clazz the owning class
    * @return the newly created injector

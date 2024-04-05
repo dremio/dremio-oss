@@ -19,9 +19,7 @@ import com.dremio.dac.model.common.RootEntity;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.google.common.base.Preconditions;
 
-/**
- * Temp space entity
- */
+/** Temp space entity */
 public class TempSpace extends RootEntity {
 
   private static final String TEMP_SPACE = "tmp";

@@ -15,14 +15,13 @@
  */
 package com.dremio.exec.planner.sql.evaluator;
 
+import com.dremio.common.util.DateTimes;
+import com.dremio.common.util.JodaDateUtility;
 import org.apache.arrow.vector.util.DateUtility;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 import org.joda.time.DateTimeZone;
 import org.joda.time.LocalDateTime;
-
-import com.dremio.common.util.DateTimes;
-import com.dremio.common.util.JodaDateUtility;
 
 public final class CurrentTimeEvaluator implements FunctionEval {
   public static final CurrentTimeEvaluator INSTANCE = new CurrentTimeEvaluator();
@@ -33,16 +32,18 @@ public final class CurrentTimeEvaluator implements FunctionEval {
   public RexNode evaluate(EvaluationContext cx, RexCall call) {
     final int timeZoneIndex = cx.getContextInformation().getRootFragmentTimeZone();
     final DateTimeZone timeZone = DateTimeZone.forID(JodaDateUtility.getTimeZone(timeZoneIndex));
-    final LocalDateTime dateTime = new LocalDateTime(cx.getContextInformation().getQueryStartTime(), timeZone);
+    final LocalDateTime dateTime =
+        new LocalDateTime(cx.getContextInformation().getQueryStartTime(), timeZone);
     final long queryStartTime =
-      ((long) dateTime.getHourOfDay() * DateUtility.hoursToMillis) +
-        ((long) dateTime.getMinuteOfHour() * DateUtility.minutesToMillis) +
-        ((long) dateTime.getSecondOfMinute() * DateUtility.secondsToMillis) +
-        (dateTime.getMillisOfSecond());
+        ((long) dateTime.getHourOfDay() * DateUtility.hoursToMillis)
+            + ((long) dateTime.getMinuteOfHour() * DateUtility.minutesToMillis)
+            + ((long) dateTime.getSecondOfMinute() * DateUtility.secondsToMillis)
+            + (dateTime.getMillisOfSecond());
 
-    return cx.getRexBuilder().makeTimeLiteral(
-      DateTimes.toDateTime(new LocalDateTime(queryStartTime, timeZone))
-        .toCalendar(null), // null sets locale to default locale
-      call.getType().getPrecision());
+    return cx.getRexBuilder()
+        .makeTimeLiteral(
+            DateTimes.toDateTime(new LocalDateTime(queryStartTime, timeZone))
+                .toCalendar(null), // null sets locale to default locale
+            call.getType().getPrecision());
   }
 }

@@ -20,9 +20,7 @@ import org.apache.calcite.rel.RelNode;
 /**
  * An interface that is used to normalize an incoming query for canonicalization.
  *
- * <p>
- * In general, used for pre-acceleration clean-up, common simplifications and canonicalization.
- * </p>
+ * <p>In general, used for pre-acceleration clean-up, common simplifications and canonicalization.
  */
 public interface Normalizer {
 
@@ -33,5 +31,4 @@ public interface Normalizer {
    * @return normalized query
    */
   RelNode normalize(RelNode query);
-
 }

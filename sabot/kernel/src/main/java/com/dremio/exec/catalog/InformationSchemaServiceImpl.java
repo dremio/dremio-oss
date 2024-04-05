@@ -16,18 +16,6 @@
 
 package com.dremio.exec.catalog;
 
-import java.util.Iterator;
-import java.util.Locale;
-import java.util.NoSuchElementException;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
-import java.util.function.Function;
-
-import javax.inject.Provider;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.datastore.indexed.IndexKey;
 import com.dremio.exec.planner.sql.handlers.commands.MetadataProvider;
 import com.dremio.exec.planner.sql.handlers.commands.MetadataProviderUtils;
@@ -56,20 +44,31 @@ import com.dremio.service.grpc.OnReadyHandler;
 import com.dremio.service.namespace.DatasetIndexKeys;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.collect.ImmutableMap;
-
 import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
+import java.util.Iterator;
+import java.util.Locale;
+import java.util.NoSuchElementException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.function.Function;
+import javax.inject.Provider;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * Implementation of information schema service which adapts the RPC requests and responses to Catalog API.
+ * Implementation of information schema service which adapts the RPC requests and responses to
+ * Catalog API.
  */
-public class InformationSchemaServiceImpl extends InformationSchemaServiceGrpc.InformationSchemaServiceImplBase {
+public class InformationSchemaServiceImpl
+    extends InformationSchemaServiceGrpc.InformationSchemaServiceImplBase {
   private static final Logger logger = LoggerFactory.getLogger(InformationSchemaServiceImpl.class);
 
   private final Provider<Executor> executor;
   private final Provider<CatalogService> catalogService;
 
-  public InformationSchemaServiceImpl(Provider<CatalogService> catalogService, Provider<Executor> executor) {
+  public InformationSchemaServiceImpl(
+      Provider<CatalogService> catalogService, Provider<Executor> executor) {
     this.catalogService = catalogService;
     this.executor = executor;
   }
@@ -80,15 +79,22 @@ public class InformationSchemaServiceImpl extends InformationSchemaServiceGrpc.I
 
   @Override
   public void listCatalogs(ListCatalogsRequest request, StreamObserver<Catalog> responseObserver) {
-    final ServerCallStreamObserver<Catalog> streamObserver = (ServerCallStreamObserver<Catalog>) responseObserver;
+    final ServerCallStreamObserver<Catalog> streamObserver =
+        (ServerCallStreamObserver<Catalog>) responseObserver;
 
-    final Iterator<Catalog> catalogs = catalogService.get()
-      .getCatalog(createRequestOptions(request.getUsername()))
-      .listCatalogs(request.hasQuery() ? request.getQuery() : null);
+    final Iterator<Catalog> catalogs =
+        catalogService
+            .get()
+            .getCatalog(createRequestOptions(request.getUsername()))
+            .listCatalogs(request.hasQuery() ? request.getQuery() : null);
 
     final class ListCatalogs extends OnReadyHandler<Catalog> {
       ListCatalogs() {
-        super("list-catalogs", InformationSchemaServiceImpl.this.executor.get(), streamObserver, catalogs);
+        super(
+            "list-catalogs",
+            InformationSchemaServiceImpl.this.executor.get(),
+            streamObserver,
+            catalogs);
       }
     }
 
@@ -99,15 +105,22 @@ public class InformationSchemaServiceImpl extends InformationSchemaServiceGrpc.I
 
   @Override
   public void listSchemata(ListSchemataRequest request, StreamObserver<Schema> responseObserver) {
-    final ServerCallStreamObserver<Schema> streamObserver = (ServerCallStreamObserver<Schema>) responseObserver;
+    final ServerCallStreamObserver<Schema> streamObserver =
+        (ServerCallStreamObserver<Schema>) responseObserver;
 
-    final Iterator<Schema> schemata = catalogService.get()
-      .getCatalog(createRequestOptions(request.getUsername()))
-      .listSchemata(request.hasQuery() ? request.getQuery() : null);
+    final Iterator<Schema> schemata =
+        catalogService
+            .get()
+            .getCatalog(createRequestOptions(request.getUsername()))
+            .listSchemata(request.hasQuery() ? request.getQuery() : null);
 
     final class ListSchemata extends OnReadyHandler<Schema> {
       ListSchemata() {
-        super("list-schemata", InformationSchemaServiceImpl.this.executor.get(), streamObserver, schemata);
+        super(
+            "list-schemata",
+            InformationSchemaServiceImpl.this.executor.get(),
+            streamObserver,
+            schemata);
       }
     }
 
@@ -118,15 +131,22 @@ public class InformationSchemaServiceImpl extends InformationSchemaServiceGrpc.I
 
   @Override
   public void listTables(ListTablesRequest request, StreamObserver<Table> responseObserver) {
-    final ServerCallStreamObserver<Table> streamObserver = (ServerCallStreamObserver<Table>) responseObserver;
+    final ServerCallStreamObserver<Table> streamObserver =
+        (ServerCallStreamObserver<Table>) responseObserver;
 
-    final Iterator<Table> tables = catalogService.get()
-      .getCatalog(createRequestOptions(request.getUsername()))
-      .listTables(request.hasQuery() ? request.getQuery() : null);
+    final Iterator<Table> tables =
+        catalogService
+            .get()
+            .getCatalog(createRequestOptions(request.getUsername()))
+            .listTables(request.hasQuery() ? request.getQuery() : null);
 
     final class ListTables extends OnReadyHandler<Table> {
       ListTables() {
-        super("list-tables", InformationSchemaServiceImpl.this.executor.get(), streamObserver, tables);
+        super(
+            "list-tables",
+            InformationSchemaServiceImpl.this.executor.get(),
+            streamObserver,
+            tables);
       }
     }
 
@@ -137,15 +157,19 @@ public class InformationSchemaServiceImpl extends InformationSchemaServiceGrpc.I
 
   @Override
   public void listViews(ListViewsRequest request, StreamObserver<View> responseObserver) {
-    final ServerCallStreamObserver<View> streamObserver = (ServerCallStreamObserver<View>) responseObserver;
+    final ServerCallStreamObserver<View> streamObserver =
+        (ServerCallStreamObserver<View>) responseObserver;
 
-    final Iterator<View> views = catalogService.get()
-      .getCatalog(createRequestOptions(request.getUsername()))
-      .listViews(request.hasQuery() ? request.getQuery() : null);
+    final Iterator<View> views =
+        catalogService
+            .get()
+            .getCatalog(createRequestOptions(request.getUsername()))
+            .listViews(request.hasQuery() ? request.getQuery() : null);
 
     final class ListViews extends OnReadyHandler<View> {
       ListViews() {
-        super("list-views", InformationSchemaServiceImpl.this.executor.get(), streamObserver, views);
+        super(
+            "list-views", InformationSchemaServiceImpl.this.executor.get(), streamObserver, views);
       }
     }
 
@@ -155,17 +179,24 @@ public class InformationSchemaServiceImpl extends InformationSchemaServiceGrpc.I
   }
 
   @Override
-  public void listTableSchemata(ListTableSchemataRequest request, StreamObserver<TableSchema> responseObserver) {
+  public void listTableSchemata(
+      ListTableSchemataRequest request, StreamObserver<TableSchema> responseObserver) {
     final ServerCallStreamObserver<TableSchema> streamObserver =
-      (ServerCallStreamObserver<TableSchema>) responseObserver;
+        (ServerCallStreamObserver<TableSchema>) responseObserver;
 
-    final Iterator<TableSchema> tableSchemata = catalogService.get()
-      .getCatalog(createRequestOptions(request.getUsername()))
-      .listTableSchemata(request.hasQuery() ? request.getQuery() : null);
+    final Iterator<TableSchema> tableSchemata =
+        catalogService
+            .get()
+            .getCatalog(createRequestOptions(request.getUsername()))
+            .listTableSchemata(request.hasQuery() ? request.getQuery() : null);
 
     final class ListTableSchemata extends OnReadyHandler<TableSchema> {
       ListTableSchemata() {
-        super("list-table-schemata", InformationSchemaServiceImpl.this.executor.get(), streamObserver, tableSchemata);
+        super(
+            "list-table-schemata",
+            InformationSchemaServiceImpl.this.executor.get(),
+            streamObserver,
+            tableSchemata);
       }
     }
 
@@ -175,65 +206,87 @@ public class InformationSchemaServiceImpl extends InformationSchemaServiceGrpc.I
   }
 
   @Override
-  public void listSysCatalogs(ListSysCatalogsRequest request, StreamObserver<UserProtos.CatalogMetadata> responseObserver) {
+  public void listSysCatalogs(
+      ListSysCatalogsRequest request, StreamObserver<UserProtos.CatalogMetadata> responseObserver) {
     logger.info("Received listSysCatalogs request {}", request);
-    Function<Catalog, UserProtos.CatalogMetadata> toCatalogMetadataConverter = catalog -> MetadataProviderUtils.toCatalogMetadata(catalog, "");
+    Function<Catalog, UserProtos.CatalogMetadata> toCatalogMetadataConverter =
+        catalog -> MetadataProviderUtils.toCatalogMetadata(catalog, "");
     SearchQuery searchQuery = toSearchQuery(request.getQuery());
-    ListCatalogsRequest.Builder builder = ListCatalogsRequest.newBuilder().setUsername(request.getUsername());
-    if (searchQuery != null)  {
+    ListCatalogsRequest.Builder builder =
+        ListCatalogsRequest.newBuilder().setUsername(request.getUsername());
+    if (searchQuery != null) {
       builder.setQuery(searchQuery);
     }
     AdaptingServerCallStreamObserver<Catalog, UserProtos.CatalogMetadata> catalogsSCSO =
-      new AdaptingServerCallStreamObserver<>((ServerCallStreamObserver<UserProtos.CatalogMetadata>) responseObserver, toCatalogMetadataConverter);
+        new AdaptingServerCallStreamObserver<>(
+            (ServerCallStreamObserver<UserProtos.CatalogMetadata>) responseObserver,
+            toCatalogMetadataConverter);
     listCatalogs(builder.build(), catalogsSCSO);
   }
 
   @Override
-  public void listSysSchemas(ListSysSchemasRequest request, StreamObserver<UserProtos.SchemaMetadata> responseObserver) {
+  public void listSysSchemas(
+      ListSysSchemasRequest request, StreamObserver<UserProtos.SchemaMetadata> responseObserver) {
     logger.info("Received listSysSchemas request {}", request);
-    Function<Schema, UserProtos.SchemaMetadata> toSchemaMetadataConverter = schema -> MetadataProviderUtils.toSchemaMetadata(schema, "");
+    Function<Schema, UserProtos.SchemaMetadata> toSchemaMetadataConverter =
+        schema -> MetadataProviderUtils.toSchemaMetadata(schema, "");
     SearchQuery searchQuery = toSearchQuery(request.getQuery());
-    ListSchemataRequest.Builder builder = ListSchemataRequest.newBuilder().setUsername(request.getUsername());
-    if (searchQuery != null)  {
+    ListSchemataRequest.Builder builder =
+        ListSchemataRequest.newBuilder().setUsername(request.getUsername());
+    if (searchQuery != null) {
       builder.setQuery(searchQuery);
     }
     AdaptingServerCallStreamObserver<Schema, UserProtos.SchemaMetadata> schemaSCSO =
-      new AdaptingServerCallStreamObserver<>((ServerCallStreamObserver<UserProtos.SchemaMetadata>) responseObserver, toSchemaMetadataConverter);
+        new AdaptingServerCallStreamObserver<>(
+            (ServerCallStreamObserver<UserProtos.SchemaMetadata>) responseObserver,
+            toSchemaMetadataConverter);
     listSchemata(builder.build(), schemaSCSO);
   }
 
   @Override
-  public void listSysColumns(ListSysColumnsRequest request, StreamObserver<ColumnMetadata> responseObserver) {
+  public void listSysColumns(
+      ListSysColumnsRequest request, StreamObserver<ColumnMetadata> responseObserver) {
     logger.info("Received listSysColumns request {}", request);
     SearchQuery searchQuery = toSearchQuery(request.getQuery());
     listTableSchemata(searchQuery, request.getUsername(), responseObserver)
-      .exceptionally(ex -> {
-        if (ex instanceof NoSuchElementException) {
-          // if there are no responses and if the request is a point lookup, refresh inline and request again
-          SearchQuery schemaNameQuery = getFieldFilter(DatasetIndexKeys.UNQUOTED_SCHEMA.getIndexFieldName(), searchQuery);
-          SearchQuery tableNameQuery = getFieldFilter(DatasetIndexKeys.UNQUOTED_NAME.getIndexFieldName(), searchQuery);
-          if (schemaNameQuery != null && tableNameQuery != null) {
-            final NamespaceKey tableKey = MetadataProvider.getTableKeyFromFilter(schemaNameQuery, tableNameQuery);
-            if (tableKey != null) {
-              catalogService.get().getCatalog(MetadataRequestOptions.of(
-                SchemaConfig.newBuilder(CatalogUser.from(request.getUsername())).build()))
-                .getTable(tableKey);
-              listTableSchemata(searchQuery, request.getUsername(), responseObserver)
-                .exceptionally(th -> {
-                  if (th instanceof NoSuchElementException) {
+        .exceptionally(
+            ex -> {
+              if (ex instanceof NoSuchElementException) {
+                // if there are no responses and if the request is a point lookup, refresh inline
+                // and request again
+                SearchQuery schemaNameQuery =
+                    getFieldFilter(
+                        DatasetIndexKeys.UNQUOTED_SCHEMA.getIndexFieldName(), searchQuery);
+                SearchQuery tableNameQuery =
+                    getFieldFilter(DatasetIndexKeys.UNQUOTED_NAME.getIndexFieldName(), searchQuery);
+                if (schemaNameQuery != null && tableNameQuery != null) {
+                  final NamespaceKey tableKey =
+                      MetadataProvider.getTableKeyFromFilter(schemaNameQuery, tableNameQuery);
+                  if (tableKey != null) {
+                    catalogService
+                        .get()
+                        .getCatalog(
+                            MetadataRequestOptions.of(
+                                SchemaConfig.newBuilder(CatalogUser.from(request.getUsername()))
+                                    .build()))
+                        .getTable(tableKey);
+                    listTableSchemata(searchQuery, request.getUsername(), responseObserver)
+                        .exceptionally(
+                            th -> {
+                              if (th instanceof NoSuchElementException) {
+                                responseObserver.onCompleted();
+                              }
+                              return null;
+                            });
+                  } else {
                     responseObserver.onCompleted();
                   }
-                  return null;
-                });
-            } else {
-              responseObserver.onCompleted();
-            }
-          } else {
-            responseObserver.onCompleted();
-          }
-        }
-        return null;
-      });
+                } else {
+                  responseObserver.onCompleted();
+                }
+              }
+              return null;
+            });
   }
 
   private SearchQuery getFieldFilter(String fieldName, SearchQuery searchQuery) {
@@ -241,13 +294,13 @@ public class InformationSchemaServiceImpl extends InformationSchemaServiceGrpc.I
       return null;
     }
     if ((searchQuery.hasLike() && searchQuery.getLike().getField().equals(fieldName))
-      || (searchQuery.hasEquals() && searchQuery.getEquals().getField().equals(fieldName))) {
+        || (searchQuery.hasEquals() && searchQuery.getEquals().getField().equals(fieldName))) {
       return searchQuery;
     }
     if (searchQuery.hasAnd()) {
       for (SearchQuery query : searchQuery.getAnd().getClausesList()) {
         if ((query.hasLike() && query.getLike().getField().equals(fieldName))
-          || (query.hasEquals() && query.getEquals().getField().equals(fieldName))) {
+            || (query.hasEquals() && query.getEquals().getField().equals(fieldName))) {
           return query;
         }
       }
@@ -256,39 +309,48 @@ public class InformationSchemaServiceImpl extends InformationSchemaServiceGrpc.I
   }
 
   /**
-   * Helper method for listSysColumns api, calls listTableSchemata api internally and sends a stream of ColumnMetadata
-   * in responseObserver on each table schema found.
-   * sends {@link NoSuchElementException} in completable future if no table schema found
+   * Helper method for listSysColumns api, calls listTableSchemata api internally and sends a stream
+   * of ColumnMetadata in responseObserver on each table schema found. sends {@link
+   * NoSuchElementException} in completable future if no table schema found
    */
-  private CompletableFuture<Void> listTableSchemata(SearchQuery searchQuery, String userName,
-                                                    StreamObserver<ColumnMetadata> responseObserver) {
-    final ListTableSchemataRequest.Builder builder = ListTableSchemataRequest.newBuilder().setUsername(userName);
+  private CompletableFuture<Void> listTableSchemata(
+      SearchQuery searchQuery, String userName, StreamObserver<ColumnMetadata> responseObserver) {
+    final ListTableSchemataRequest.Builder builder =
+        ListTableSchemataRequest.newBuilder().setUsername(userName);
     if (searchQuery != null) {
       builder.setQuery(searchQuery);
     }
     CompletableFuture<Void> future = new CompletableFuture<>();
-    final class ColumnsServerCallStreamObserver extends AdaptingServerCallStreamObserver<TableSchema, ColumnMetadata> {
+    final class ColumnsServerCallStreamObserver
+        extends AdaptingServerCallStreamObserver<TableSchema, ColumnMetadata> {
       private boolean tableSchemaFound = false;
-      public ColumnsServerCallStreamObserver(ServerCallStreamObserver<ColumnMetadata> serverCallStreamObserver) {
+
+      public ColumnsServerCallStreamObserver(
+          ServerCallStreamObserver<ColumnMetadata> serverCallStreamObserver) {
         super(serverCallStreamObserver, null);
       }
+
       @Override
       public void onNext(TableSchema value) {
         tableSchemaFound = true;
-        ServerCallStreamObserver<ColumnMetadata> serverCallStreamObserver = getDelegateServerCallStreamObserver();
+        ServerCallStreamObserver<ColumnMetadata> serverCallStreamObserver =
+            getDelegateServerCallStreamObserver();
         (MetadataProviderUtils.toColumnMetadata(value, null, false))
-          .forEach((columnMetadata) -> {
-            synchronized (serverCallStreamObserver) {
-              serverCallStreamObserver.onNext(columnMetadata);
-            }
-          });
+            .forEach(
+                (columnMetadata) -> {
+                  synchronized (serverCallStreamObserver) {
+                    serverCallStreamObserver.onNext(columnMetadata);
+                  }
+                });
       }
+
       @Override
       public void onError(Throwable th) {
         logger.error("Exception in listTableSchemata call", th);
         getDelegateServerCallStreamObserver().onError(th);
         future.completeExceptionally(th);
       }
+
       @Override
       public void onCompleted() {
         if (!tableSchemaFound) {
@@ -299,12 +361,16 @@ public class InformationSchemaServiceImpl extends InformationSchemaServiceGrpc.I
         future.complete(null);
       }
     }
-    listTableSchemata(builder.build(), new ColumnsServerCallStreamObserver((ServerCallStreamObserver<ColumnMetadata>) responseObserver));
+    listTableSchemata(
+        builder.build(),
+        new ColumnsServerCallStreamObserver(
+            (ServerCallStreamObserver<ColumnMetadata>) responseObserver));
     return future;
   }
 
   /**
-   * Convert SearchProtos.SearchQuery(received in system table requests) to Indexed Catalog SearchQuery. UnIndexed fields are ignored
+   * Convert SearchProtos.SearchQuery(received in system table requests) to Indexed Catalog
+   * SearchQuery. UnIndexed fields are ignored
    */
   private static SearchQuery toSearchQuery(SearchProtos.SearchQuery query) {
     SearchQuery catalogSearchQuery = null;
@@ -314,7 +380,8 @@ public class InformationSchemaServiceImpl extends InformationSchemaServiceGrpc.I
         if (indexKey == null) {
           return null;
         }
-        SearchQuery.Equals.Builder builder = SearchQuery.Equals.newBuilder().setField(indexKey.getIndexFieldName());
+        SearchQuery.Equals.Builder builder =
+            SearchQuery.Equals.newBuilder().setField(indexKey.getIndexFieldName());
         if (query.getEquals().hasStringValue()) {
           builder.setStringValue(query.getEquals().getStringValue());
         } else {
@@ -326,22 +393,29 @@ public class InformationSchemaServiceImpl extends InformationSchemaServiceGrpc.I
         if (indexKey == null) {
           return null;
         }
-        SearchQuery.Like.Builder builder = SearchQuery.Like.newBuilder().setField(indexKey.getIndexFieldName())
-          .setPattern(query.getLike().getPattern())
-          .setEscape(query.getLike().getEscape())
-          .setCaseInsensitive(query.getLike().getCaseInsensitive());
+        SearchQuery.Like.Builder builder =
+            SearchQuery.Like.newBuilder()
+                .setField(indexKey.getIndexFieldName())
+                .setPattern(query.getLike().getPattern())
+                .setEscape(query.getLike().getEscape())
+                .setCaseInsensitive(query.getLike().getCaseInsensitive());
         catalogSearchQuery = SearchQuery.newBuilder().setLike(builder.build()).build();
       } else if (query.hasAnd()) {
         SearchQuery.And.Builder builder = SearchQuery.And.newBuilder();
-        query.getAnd().getClausesList()
-          .forEach((currQuery) -> {
-            SearchQuery currCatalogQuery =  toSearchQuery(currQuery);
-            if (currCatalogQuery != null) {
-              builder.addClauses(currCatalogQuery);
-            }
-          });
+        query
+            .getAnd()
+            .getClausesList()
+            .forEach(
+                (currQuery) -> {
+                  SearchQuery currCatalogQuery = toSearchQuery(currQuery);
+                  if (currCatalogQuery != null) {
+                    builder.addClauses(currCatalogQuery);
+                  }
+                });
         SearchQuery.And searchQueryList = builder.build();
-        return searchQueryList.getClausesList().size() != 0 ? SearchQuery.newBuilder().setAnd(searchQueryList).build() : null;
+        return searchQueryList.getClausesList().size() != 0
+            ? SearchQuery.newBuilder().setAnd(searchQueryList).build()
+            : null;
       } else if (query.hasOr()) {
         SearchQuery.Or.Builder builder = SearchQuery.Or.newBuilder();
         for (SearchProtos.SearchQuery currQuery : query.getOr().getClausesList()) {
@@ -360,12 +434,10 @@ public class InformationSchemaServiceImpl extends InformationSchemaServiceGrpc.I
     return catalogSearchQuery;
   }
 
-  /**
-   * Mapping of information schema system table fields to indexed kvstore fields
-   */
-  private static final ImmutableMap<String, IndexKey> FIELDS = ImmutableMap.of(
-    "TABLE_SCHEMA".toLowerCase(Locale.ROOT), DatasetIndexKeys.UNQUOTED_SCHEMA,
-    "TABLE_NAME".toLowerCase(Locale.ROOT), DatasetIndexKeys.UNQUOTED_NAME,
-    "SCHEMA_NAME".toLowerCase(Locale.ROOT), DatasetIndexKeys.UNQUOTED_SCHEMA
-  );
+  /** Mapping of information schema system table fields to indexed kvstore fields */
+  private static final ImmutableMap<String, IndexKey> FIELDS =
+      ImmutableMap.of(
+          "TABLE_SCHEMA".toLowerCase(Locale.ROOT), DatasetIndexKeys.UNQUOTED_SCHEMA,
+          "TABLE_NAME".toLowerCase(Locale.ROOT), DatasetIndexKeys.UNQUOTED_NAME,
+          "SCHEMA_NAME".toLowerCase(Locale.ROOT), DatasetIndexKeys.UNQUOTED_SCHEMA);
 }

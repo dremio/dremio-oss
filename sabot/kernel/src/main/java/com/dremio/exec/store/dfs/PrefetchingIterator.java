@@ -15,11 +15,6 @@
  */
 package com.dremio.exec.store.dfs;
 
-import java.util.List;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.RuntimeFilter;
@@ -30,9 +25,13 @@ import com.dremio.exec.store.parquet.RecordReaderIterator;
 import com.dremio.exec.store.parquet.SplitReaderCreatorIterator;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf;
 import com.google.common.base.Preconditions;
+import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * A split, separates initialization of the input reader from actually constructing the reader to allow prefetching.
+ * A split, separates initialization of the input reader from actually constructing the reader to
+ * allow prefetching.
  */
 public class PrefetchingIterator implements RecordReaderIterator {
   private static final Logger logger = LoggerFactory.getLogger(PrefetchingIterator.class);
@@ -80,7 +79,6 @@ public class PrefetchingIterator implements RecordReaderIterator {
   public ParquetProtobuf.ParquetDatasetSplitScanXAttr getCurrentSplitXAttr() {
     return current.getSplitXAttr();
   }
-
 
   @Override
   public SplitAndPartitionInfo getCurrentSplitAndPartitionInfo() {

@@ -16,7 +16,6 @@
 package com.dremio.exec.vector.accessor;
 
 import java.util.TimeZone;
-
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
 import org.apache.arrow.vector.DateMilliVector;
@@ -46,56 +45,57 @@ public final class SqlAccessorBuilder {
   private SqlAccessorBuilder() {}
 
   public static SqlAccessor getSqlAccessor(ValueVector vector, TimeZone defaultTz) {
-    final MinorType type = org.apache.arrow.vector.types.Types.getMinorTypeForArrowType(vector.getField().getType());
-    switch(type){
-    case UNION:
-      return new UnionSqlAccessor((UnionVector) vector);
-    case TINYINT:
-      return new TinyIntAccessor((TinyIntVector) vector);
-    case UINT1:
-      return new UInt1Accessor((UInt1Vector) vector);
-    case UINT2:
-      return new UInt2Accessor((UInt2Vector) vector);
-    case SMALLINT:
-      return new SmallIntAccessor((SmallIntVector) vector);
-    case INT:
-      return new IntAccessor((IntVector) vector);
-    case UINT4:
-      return new UInt4Accessor((UInt4Vector) vector);
-    case FLOAT4:
-      return new Float4Accessor((Float4Vector) vector);
-    case INTERVALYEAR:
-      return new IntervalYearAccessor((IntervalYearVector) vector);
-    case TIMEMILLI:
-      return new TimeMilliAccessor((TimeMilliVector) vector, defaultTz);
-    case BIGINT:
-      return new BigIntAccessor((BigIntVector) vector);
-    case UINT8:
-      return new UInt8Accessor((UInt8Vector) vector);
-    case FLOAT8:
-      return new Float8Accessor((Float8Vector) vector);
-    case DATEMILLI:
-      return new DateMilliAccessor((DateMilliVector) vector, defaultTz);
-    case TIMESTAMPMILLI:
-      return new TimeStampMilliAccessor((TimeStampMilliVector) vector, defaultTz);
-    case INTERVALDAY:
-      return new IntervalDayAccessor((IntervalDayVector) vector);
-    case DECIMAL:
-      return new DecimalAccessor((DecimalVector) vector);
-    case FIXEDSIZEBINARY:
-      return new FixedSizeBinaryAccessor((FixedSizeBinaryVector) vector);
-    case VARBINARY:
-      return new VarBinaryAccessor((VarBinaryVector) vector);
-    case VARCHAR:
-      return new VarCharAccessor((VarCharVector) vector);
-    case BIT:
-      return new BitAccessor((BitVector) vector);
-    case STRUCT:
-    case LIST:
-    case MAP:
-      return new GenericAccessor(vector);
+    final MinorType type =
+        org.apache.arrow.vector.types.Types.getMinorTypeForArrowType(vector.getField().getType());
+    switch (type) {
+      case UNION:
+        return new UnionSqlAccessor((UnionVector) vector);
+      case TINYINT:
+        return new TinyIntAccessor((TinyIntVector) vector);
+      case UINT1:
+        return new UInt1Accessor((UInt1Vector) vector);
+      case UINT2:
+        return new UInt2Accessor((UInt2Vector) vector);
+      case SMALLINT:
+        return new SmallIntAccessor((SmallIntVector) vector);
+      case INT:
+        return new IntAccessor((IntVector) vector);
+      case UINT4:
+        return new UInt4Accessor((UInt4Vector) vector);
+      case FLOAT4:
+        return new Float4Accessor((Float4Vector) vector);
+      case INTERVALYEAR:
+        return new IntervalYearAccessor((IntervalYearVector) vector);
+      case TIMEMILLI:
+        return new TimeMilliAccessor((TimeMilliVector) vector, defaultTz);
+      case BIGINT:
+        return new BigIntAccessor((BigIntVector) vector);
+      case UINT8:
+        return new UInt8Accessor((UInt8Vector) vector);
+      case FLOAT8:
+        return new Float8Accessor((Float8Vector) vector);
+      case DATEMILLI:
+        return new DateMilliAccessor((DateMilliVector) vector, defaultTz);
+      case TIMESTAMPMILLI:
+        return new TimeStampMilliAccessor((TimeStampMilliVector) vector, defaultTz);
+      case INTERVALDAY:
+        return new IntervalDayAccessor((IntervalDayVector) vector);
+      case DECIMAL:
+        return new DecimalAccessor((DecimalVector) vector);
+      case FIXEDSIZEBINARY:
+        return new FixedSizeBinaryAccessor((FixedSizeBinaryVector) vector);
+      case VARBINARY:
+        return new VarBinaryAccessor((VarBinaryVector) vector);
+      case VARCHAR:
+        return new VarCharAccessor((VarCharVector) vector);
+      case BIT:
+        return new BitAccessor((BitVector) vector);
+      case STRUCT:
+      case LIST:
+      case MAP:
+        return new GenericAccessor(vector);
     }
-    throw new UnsupportedOperationException(String.format("Unable to find sql accessor for minor type [%s]", type));
+    throw new UnsupportedOperationException(
+        String.format("Unable to find sql accessor for minor type [%s]", type));
   }
-
 }

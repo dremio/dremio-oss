@@ -15,9 +15,6 @@
  */
 package com.dremio.exec.store.sys;
 
-import java.util.Collection;
-import java.util.List;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.AbstractSubScan;
@@ -31,6 +28,8 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.Iterables;
+import java.util.Collection;
+import java.util.List;
 
 @JsonTypeName("sys")
 public class SystemSubScan extends AbstractSubScan implements OpWithMinorSpecificAttrs {
@@ -44,8 +43,7 @@ public class SystemSubScan extends AbstractSubScan implements OpWithMinorSpecifi
       @JsonProperty("props") OpProps props,
       @JsonProperty("table") SystemTable table,
       @JsonProperty("columns") List<SchemaPath> columns,
-      @JsonProperty("pluginId") StoragePluginId pluginId
-      ) {
+      @JsonProperty("pluginId") StoragePluginId pluginId) {
     super(props, table.getRecordSchema(), table.getDatasetPath().getComponents());
     this.columns = columns;
     this.table = table;
@@ -90,7 +88,7 @@ public class SystemSubScan extends AbstractSubScan implements OpWithMinorSpecifi
   }
 
   @Override
-  public String toString(){
+  public String toString() {
     return new NamespaceKey(Iterables.getOnlyElement(getReferencedTables())).toString();
   }
 }

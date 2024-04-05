@@ -33,16 +33,33 @@ signatures:
  -
   returnType: "NUMERIC"
   parameters:
-   -
-    kind: "REGULAR"
-    type: "NUMERIC"
-    name: "expression"
-    description: "Enter an expression to evaluate the number of records. This value can either be a column name or *."
-   -
-    kind: "REGULAR"
-    type: "NUMERIC"
-    name: "scale"
-    description: "Optional argument that maps to a precision used by the HyperLogLog (HLL) algorithm based on the mapping formula: `precision = scale +8`. Enter an NUMERIC in the range from 1 to 10."
+   - kind: "REGULAR"
+     type: "NUMERIC"
+     name: "expression"
+     description: "Enter an expression to evaluate the number of records. This value can either be a column name or *."
+   - kind: "REGULAR"
+     type: "NUMERIC"
+     name: "scale"
+     description: "Optional argument that maps to a precision used by the HyperLogLog (HLL) algorithm based on the mapping formula: `precision = scale +8`. Enter an NUMERIC in the range from 1 to 10."
+   - description: "An optional expression that groups rows into partitions. You can\
+      \ specify a single expression or a comma-separated list of expressions. For\
+      \ example, `PARTITION BY column1, column3, \u2026`."
+     kind: OPTIONAL
+     name: partition_expression
+     type: CHARACTERS
+   - description: "An expression that specifies the order of the rows within each partition.\
+      \ You can specify a single expression or a comma-separated list of expressions.\
+      \ For example, `PARTITION BY column1, column3, \u2026` ORDER BY column3;"
+     kind: OPTIONAL
+     name: order_expression
+     type: CHARACTERS
+   - description: "Can be cumulative ('PARTITION BY column1 ORDER BY column2 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW')\
+      \ or sliding ('PARTITION BY column1 ORDER BY column2 ROWS BETWEEN ? PRECEDING AND ? FOLLOWING') window frame.\
+      \ In order to use window frames effectively, it's essential to have the data within the window arranged in a specific way.\
+      \ Consequently, including the ORDER BY clause inside the OVER clause becomes necessary for proper window frame syntax."
+     kind: OPTIONAL
+     name: window_frame
+     type: CHARACTERS
   description: "Returns an estimate of total number of records for the specified expression."
   sampleCodes:
    -

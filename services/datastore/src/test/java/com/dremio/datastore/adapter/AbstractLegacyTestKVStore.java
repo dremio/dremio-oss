@@ -21,25 +21,6 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map.Entry;
-import java.util.Set;
-import java.util.UUID;
-
-import org.junit.After;
-import org.junit.Assume;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameter;
-import org.junit.runners.parameterized.ParametersRunnerFactory;
-
 import com.dremio.datastore.adapter.stores.LegacyByteContainerStore;
 import com.dremio.datastore.adapter.stores.LegacyProtobufStore;
 import com.dremio.datastore.adapter.stores.LegacyProtostuffStore;
@@ -66,54 +47,83 @@ import com.dremio.datastore.proto.DummyId;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
+import java.lang.reflect.InvocationTargetException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map.Entry;
+import java.util.Set;
+import java.util.UUID;
+import org.junit.After;
+import org.junit.Assume;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameter;
+import org.junit.runners.parameterized.ParametersRunnerFactory;
 
 /**
  * Test kvstore + key value serde storage.
  *
- * TODO: add tests that explore the limits of values.
+ * <p>TODO: add tests that explore the limits of values.
  */
 @SuppressWarnings("deprecation")
 @RunWith(Parameterized.class)
 public abstract class AbstractLegacyTestKVStore<K, V> {
   private static final int SAMPLING_SIZE = 30;
   private static final ImmutableSet<Class<?>> KEY_DOES_NOT_SUPPORT_FIND =
-    ImmutableSet.of(UUID.class, Dummy.DummyId.class, DummyId.class);
+      ImmutableSet.of(UUID.class, Dummy.DummyId.class, DummyId.class);
   private static final ImmutableSet<Class<?>> STORE_DOES_NOT_SUPPORT_NULL_FIELDS =
-    ImmutableSet.of(UUID.class, String.class, ByteContainer.class, Dummy.DummyId.class);
+      ImmutableSet.of(UUID.class, String.class, ByteContainer.class, Dummy.DummyId.class);
 
   private LegacyKVStore<K, V> kvStore;
   private LegacyKVStoreProvider provider;
+
   /**
    * Exempt the parameters from the visibility modifier check.
    *
-   * Normally, we would have a public constructor to create the parameterized tests.
-   * However, this is an abstract class, so we could not use the constructor approach here
-   * without putting a burden on all extenders. If we wanted to make these variables private, we could
-   * write a custom {@link ParametersRunnerFactory} to style-soundly inject our parameters. That would however
-   * be a non-trivial amount of development.
-   *
+   * <p>Normally, we would have a public constructor to create the parameterized tests. However,
+   * this is an abstract class, so we could not use the constructor approach here without putting a
+   * burden on all extenders. If we wanted to make these variables private, we could write a custom
+   * {@link ParametersRunnerFactory} to style-soundly inject our parameters. That would however be a
+   * non-trivial amount of development.
    */
-  @Parameter
-  public Class<TestLegacyStoreCreationFunction<K, V>> storeCreationFunction;
+  @Parameter public Class<TestLegacyStoreCreationFunction<K, V>> storeCreationFunction;
 
   @Parameter(1)
   public DataGenerator<K, V> gen;
 
   @Parameterized.Parameters(name = "Table: {0}")
   public static Collection<Object[]> parameters() {
-    return Arrays.asList(new Object[][] {
-      {LegacyUUIDStore.class, new UUIDStoreGenerator()},
-      {LegacyProtobufStore.class, new ProtobufStoreGenerator()},
-      {LegacyProtostuffStore.class, new ProtostuffStoreGenerator()},
-      //Variable-length
-      {LegacyStringStore.class, new StringStoreGenerator(UniqueSupplierOptions.VARIABLE_LENGTH)},
-      {LegacyRawByteStore.class, new RawByteStoreGenerator(UniqueSupplierOptions.VARIABLE_LENGTH)},
-      {LegacyByteContainerStore.class, new ByteContainerStoreGenerator(UniqueSupplierOptions.VARIABLE_LENGTH)},
-      //Fixed-length
-      {LegacyStringStore.class, new StringStoreGenerator(UniqueSupplierOptions.FIXED_LENGTH)},
-      {LegacyRawByteStore.class, new RawByteStoreGenerator(UniqueSupplierOptions.FIXED_LENGTH)},
-      {LegacyByteContainerStore.class, new ByteContainerStoreGenerator(UniqueSupplierOptions.FIXED_LENGTH)}
-    });
+    return Arrays.asList(
+        new Object[][] {
+          {LegacyUUIDStore.class, new UUIDStoreGenerator()},
+          {LegacyProtobufStore.class, new ProtobufStoreGenerator()},
+          {LegacyProtostuffStore.class, new ProtostuffStoreGenerator()},
+          // Variable-length
+          {
+            LegacyStringStore.class, new StringStoreGenerator(UniqueSupplierOptions.VARIABLE_LENGTH)
+          },
+          {
+            LegacyRawByteStore.class,
+            new RawByteStoreGenerator(UniqueSupplierOptions.VARIABLE_LENGTH)
+          },
+          {
+            LegacyByteContainerStore.class,
+            new ByteContainerStoreGenerator(UniqueSupplierOptions.VARIABLE_LENGTH)
+          },
+          // Fixed-length
+          {LegacyStringStore.class, new StringStoreGenerator(UniqueSupplierOptions.FIXED_LENGTH)},
+          {LegacyRawByteStore.class, new RawByteStoreGenerator(UniqueSupplierOptions.FIXED_LENGTH)},
+          {
+            LegacyByteContainerStore.class,
+            new ByteContainerStoreGenerator(UniqueSupplierOptions.FIXED_LENGTH)
+          }
+        });
   }
 
   @Before
@@ -137,14 +147,14 @@ public abstract class AbstractLegacyTestKVStore<K, V> {
 
   @Test
   public void testEntries() {
-    final Dataset<K, V> data =  populateStoreWith(SAMPLING_SIZE);
+    final Dataset<K, V> data = populateStoreWith(SAMPLING_SIZE);
 
     assertResultsEqual(data.getDatasetSlice(0, SAMPLING_SIZE - 1), kvStore.find(), false);
   }
 
   @Test
   public void testGetWithKeys() {
-    final Dataset<K, V> data = populateStoreWith(SAMPLING_SIZE/2);
+    final Dataset<K, V> data = populateStoreWith(SAMPLING_SIZE / 2);
     final List<V> result = kvStore.get(data.getKeys());
 
     assertEquals(data.getValues().size(), result.size());
@@ -153,7 +163,7 @@ public abstract class AbstractLegacyTestKVStore<K, V> {
 
   @Test
   public void testGetWithKeysStateless() {
-    final Dataset<K, V> data = populateStoreWith(SAMPLING_SIZE/2);
+    final Dataset<K, V> data = populateStoreWith(SAMPLING_SIZE / 2);
     final List<V> firstResult = kvStore.get(data.getKeys());
 
     assertEquals(data.getValues().size(), firstResult.size());
@@ -182,7 +192,7 @@ public abstract class AbstractLegacyTestKVStore<K, V> {
   public void testGetWithMissingKeys() {
     final K key = gen.newKey();
     final V value = gen.newVal();
-    final int numMissingKeys = SAMPLING_SIZE/2;
+    final int numMissingKeys = SAMPLING_SIZE / 2;
 
     final ImmutableList.Builder<K> missingKeysBuilder = new ImmutableList.Builder<>();
     final ArrayList<K> expected = new ArrayList<>();
@@ -251,7 +261,8 @@ public abstract class AbstractLegacyTestKVStore<K, V> {
     try {
       kvStore.put(key, value);
       fail("KVtore null value insertions should fail with NullPointerException");
-    } catch (NullPointerException e) {}
+    } catch (NullPointerException e) {
+    }
   }
 
   @Test
@@ -311,13 +322,13 @@ public abstract class AbstractLegacyTestKVStore<K, V> {
   @Test
   public void testExclusiveEmptyRange() {
     ignoreIfFindNotSupported();
-    testFindByRange(SAMPLING_SIZE / 3, 5, 5, false,false, false);
+    testFindByRange(SAMPLING_SIZE / 3, 5, 5, false, false, false);
   }
 
   @Test
   public void testInclusiveStartEmptyRange() {
     ignoreIfFindNotSupported();
-    testFindByRange(SAMPLING_SIZE /3, 5, 5, true, false, false);
+    testFindByRange(SAMPLING_SIZE / 3, 5, 5, true, false, false);
   }
 
   @Test
@@ -401,24 +412,25 @@ public abstract class AbstractLegacyTestKVStore<K, V> {
     final int loadedDataEndIndex = 4;
     final int unusedKeyIndex = 5;
 
-    //Dataset returned is sorted
+    // Dataset returned is sorted
     final Dataset<K, V> dataset = gen.sortDataset(gen.makeDataset(numKVPairs));
 
-    //Load the first 5 values into the kvstore.
-    for(int i = 0; i < numKVPairsToLoad; i++) {
+    // Load the first 5 values into the kvstore.
+    for (int i = 0; i < numKVPairsToLoad; i++) {
       kvStore.put(dataset.getKey(i), dataset.getVal(i));
     }
 
     // The unused key is greater than all previous keys.
     final K unusedKey = dataset.getKey(unusedKeyIndex);
-    final LegacyFindByRange<K> range = new LegacyFindByRange<>(dataset.getKey(0), true, unusedKey, true);
+    final LegacyFindByRange<K> range =
+        new LegacyFindByRange<>(dataset.getKey(0), true, unusedKey, true);
     final Iterable<Entry<K, V>> result = kvStore.find(range);
     assertResultsEqual(dataset.getDatasetSlice(0, loadedDataEndIndex), result, false);
   }
 
   @Test
   public void testNullableFields() {
-    //This test is only ran against protostuff since its fields can be null if not set.
+    // This test is only ran against protostuff since its fields can be null if not set.
     ignoreIfNullFieldsNotSupported();
     final K key = gen.newKey();
     final V value = gen.newVal();
@@ -426,7 +438,6 @@ public abstract class AbstractLegacyTestKVStore<K, V> {
 
     final V valueWithNullFields = gen.newValWithNullFields();
     putAndValidate(key, valueWithNullFields);
-
   }
 
   /**
@@ -449,58 +460,86 @@ public abstract class AbstractLegacyTestKVStore<K, V> {
    * @param message the message explaining temporary test ignore.
    * @param classes key classes in which test should be ignored.
    */
-  protected void temporarilyDisableTest(String ticket, String message, Set<Class<?>> classes){
+  protected void temporarilyDisableTest(String ticket, String message, Set<Class<?>> classes) {
     try {
-      Assume.assumeFalse("[TEST DISABLED]" + ticket + " - " + message, !Collections.disjoint(classes, storeCreationFunction.newInstance().getKeyClasses()));
-    } catch (InstantiationException | IllegalAccessException e) {
+      Assume.assumeFalse(
+          "[TEST DISABLED]" + ticket + " - " + message,
+          !Collections.disjoint(
+              classes,
+              storeCreationFunction.getDeclaredConstructor().newInstance().getKeyClasses()));
+    } catch (InstantiationException
+        | IllegalAccessException
+        | NoSuchMethodException
+        | InvocationTargetException e) {
       fail("TestStoreCreationFunction instantiation problem: " + e.getMessage());
     }
   }
 
   /**
-   * Method to ignore tests for data formats that do not support{@code null} fields, namely protobuf, UUID, String and bytes.
+   * Method to ignore tests for data formats that do not support{@code null} fields, namely
+   * protobuf, UUID, String and bytes.
    */
   private void ignoreIfNullFieldsNotSupported() {
     try {
-      Assume.assumeTrue("This store value format does not support null fields", storeCreationFunction.newInstance().getKeyFormat().apply(new SupportNullFieldsFormatVisitor()));
-    } catch (InstantiationException | IllegalAccessException e) {
+      Assume.assumeTrue(
+          "This store value format does not support null fields",
+          storeCreationFunction
+              .getDeclaredConstructor()
+              .newInstance()
+              .getKeyFormat()
+              .apply(new SupportNullFieldsFormatVisitor()));
+    } catch (InstantiationException
+        | IllegalAccessException
+        | NoSuchMethodException
+        | InvocationTargetException e) {
       fail("TestStoreCreationFunction instantiation problem: " + e.getMessage());
     }
   }
 
   /**
-   * Method to ignore tests for data formats that do not support range queries, namely protobuf, protostuff and UUID.
+   * Method to ignore tests for data formats that do not support range queries, namely protobuf,
+   * protostuff and UUID.
    */
   private void ignoreIfFindNotSupported() {
     try {
-      Assume.assumeTrue("This format does not support range queries", storeCreationFunction.newInstance().getKeyFormat().apply(new SupportFindFormatVisitor()));
-    } catch (InstantiationException | IllegalAccessException e) {
+      Assume.assumeTrue(
+          "This format does not support range queries",
+          storeCreationFunction
+              .getDeclaredConstructor()
+              .newInstance()
+              .getKeyFormat()
+              .apply(new SupportFindFormatVisitor()));
+    } catch (InstantiationException
+        | IllegalAccessException
+        | NoSuchMethodException
+        | InvocationTargetException e) {
       fail("TestStoreCreationFunction instantiation problem: " + e.getMessage());
     }
   }
 
   /**
-   * Helper method to obtain the end key from the testing dataset.
-   * Returns {@code null} if provided endRange is negative.
+   * Helper method to obtain the end key from the testing dataset. Returns {@code null} if provided
+   * endRange is negative.
    *
    * @param data testing dataset.
    * @param endRange end range index.
    * @return key K from the testing dataset. Returns {@code null} if provided endRange is negative.
    */
   private K getFindByRangeEndKey(Dataset<K, V> data, int endRange) {
-    return (endRange < 0)? null : data.getKey(endRange);
+    return (endRange < 0) ? null : data.getKey(endRange);
   }
 
   /**
-   * Helper method to obtain the start key from the testing dataset.
-   * Returns {@code null} if provided startRange is negative.
+   * Helper method to obtain the start key from the testing dataset. Returns {@code null} if
+   * provided startRange is negative.
    *
    * @param data testing dataset.
    * @param startRange start range index.
-   * @return key K from the testing dataset. Returns {@code null} if provided startRange is negative.
+   * @return key K from the testing dataset. Returns {@code null} if provided startRange is
+   *     negative.
    */
   private K getFindByRangeStartKey(Dataset<K, V> data, int startRange) {
-    return (startRange < 0)? null : data.getKey(startRange);
+    return (startRange < 0) ? null : data.getKey(startRange);
   }
 
   /**
@@ -515,11 +554,16 @@ public abstract class AbstractLegacyTestKVStore<K, V> {
    * @param endInclusive whether end range is inclusive.
    * @return a map of type K, V. Returns an empty map if expected results is empty.
    */
-  private Iterable<Entry<K, V>> getExpectedFindByRangeResult(int samplingSize, Dataset<K, V> data, int startRange, int endRange,
-                                                          boolean startInclusive, boolean endInclusive) {
-    final int start = (startRange < 0)? 0 : (startInclusive)? startRange : startRange + 1;
-    final int end = (endRange < 0)? samplingSize - 1 : (endInclusive)? endRange : endRange - 1;
-    return (start > end)? Collections.emptyList() : data.getDatasetSlice(start, end);
+  private Iterable<Entry<K, V>> getExpectedFindByRangeResult(
+      int samplingSize,
+      Dataset<K, V> data,
+      int startRange,
+      int endRange,
+      boolean startInclusive,
+      boolean endInclusive) {
+    final int start = (startRange < 0) ? 0 : (startInclusive) ? startRange : startRange + 1;
+    final int end = (endRange < 0) ? samplingSize - 1 : (endInclusive) ? endRange : endRange - 1;
+    return (start > end) ? Collections.emptyList() : data.getDatasetSlice(start, end);
   }
 
   /**
@@ -530,21 +574,30 @@ public abstract class AbstractLegacyTestKVStore<K, V> {
    * @param endRange end range index.
    * @param startInclusive whether start is inclusive.
    * @param endInclusive whether end is inclusive.
-   * @param testSortOrder boolean indicating whether test should take result set sort order into account.
+   * @param testSortOrder boolean indicating whether test should take result set sort order into
+   *     account.
    */
-  private void testFindByRange(int samplingSize, int startRange, int endRange,
-                               boolean startInclusive, boolean endInclusive, boolean testSortOrder) {
+  private void testFindByRange(
+      int samplingSize,
+      int startRange,
+      int endRange,
+      boolean startInclusive,
+      boolean endInclusive,
+      boolean testSortOrder) {
     final Dataset<K, V> data = populateStoreWith(samplingSize);
-    final Iterable<Entry<K, V>> expected = getExpectedFindByRangeResult(samplingSize, data, startRange, endRange, startInclusive, endInclusive);
+    final Iterable<Entry<K, V>> expected =
+        getExpectedFindByRangeResult(
+            samplingSize, data, startRange, endRange, startInclusive, endInclusive);
 
-    LegacyFindByRange<K> range = new LegacyFindByRange<>(
-      getFindByRangeStartKey(data, startRange), startInclusive,
-      getFindByRangeEndKey(data, endRange), endInclusive);
+    LegacyFindByRange<K> range =
+        new LegacyFindByRange<>(
+            getFindByRangeStartKey(data, startRange), startInclusive,
+            getFindByRangeEndKey(data, endRange), endInclusive);
 
-      final Iterable<Entry<K, V>> result = kvStore.find(range);
+    final Iterable<Entry<K, V>> result = kvStore.find(range);
 
     if (Iterables.isEmpty(expected)) {
-      //Testing empty ranges, result should be empty.
+      // Testing empty ranges, result should be empty.
       assertEquals(0, Iterables.size(result));
     } else {
       assertResultsEqual(expected, result, testSortOrder);
@@ -552,15 +605,16 @@ public abstract class AbstractLegacyTestKVStore<K, V> {
   }
 
   /**
-   * Helper method to check whether two Iterable of Entry(s) of key type K and value type V are identical.
-   * If checkSortOrder is true, it checks whether the two Iterable(s) are equal without sorting, otherwise,
-   * it sorts the two Iterables before checking for equality.
+   * Helper method to check whether two Iterable of Entry(s) of key type K and value type V are
+   * identical. If checkSortOrder is true, it checks whether the two Iterable(s) are equal without
+   * sorting, otherwise, it sorts the two Iterables before checking for equality.
    *
    * @param expected expected Iterable
    * @param actual actual Iterable.
    * @param checkSortOrder whether to check for exact sort order.
    */
-  private void assertResultsEqual(Iterable<Entry<K, V>> expected, Iterable<Entry<K, V>> actual, boolean checkSortOrder){
+  private void assertResultsEqual(
+      Iterable<Entry<K, V>> expected, Iterable<Entry<K, V>> actual, boolean checkSortOrder) {
     assertSizeEquals(expected, actual);
 
     if (checkSortOrder) {
@@ -571,7 +625,8 @@ public abstract class AbstractLegacyTestKVStore<K, V> {
   }
 
   /**
-   * Helper method to check whether two Iterable of Entry(s) of key type K and value type V are identical.
+   * Helper method to check whether two Iterable of Entry(s) of key type K and value type V are
+   * identical.
    *
    * @param expected expected Iterable.
    * @param actual actual Iterable.
@@ -609,6 +664,7 @@ public abstract class AbstractLegacyTestKVStore<K, V> {
 
   /**
    * Populates the kv store with data and returns the dataset.
+   *
    * @param numKVPairs number of unique keys and values to put into the store.
    * @return dataset used.
    */

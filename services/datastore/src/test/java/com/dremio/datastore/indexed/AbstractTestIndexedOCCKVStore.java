@@ -15,18 +15,16 @@
  */
 package com.dremio.datastore.indexed;
 
-import org.junit.Test;
-
 import com.dremio.datastore.OCCKVStoreTests;
 import com.dremio.datastore.generator.supplier.UniqueSupplierOptions;
 import com.dremio.datastore.indexed.doughnut.DoughnutStoreGenerator;
+import org.junit.Test;
 
-/**
- * Tests index and OCC operations against an OCCIndexedKVStore
- */
+/** Tests index and OCC operations against an OCCIndexedKVStore */
 public abstract class AbstractTestIndexedOCCKVStore extends AbstractTestIndexedStore {
 
-  private DoughnutStoreGenerator gen = new DoughnutStoreGenerator(UniqueSupplierOptions.FIXED_LENGTH);
+  private DoughnutStoreGenerator gen =
+      new DoughnutStoreGenerator(UniqueSupplierOptions.FIXED_LENGTH);
 
   @Test(expected = NullPointerException.class)
   public void testShouldNotPutNulls() {

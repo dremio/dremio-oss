@@ -17,7 +17,7 @@ package com.dremio.exec.rpc;
 
 public final class RpcConstants {
 
-  private RpcConstants(){}
+  private RpcConstants() {}
 
   public static final String BIT_RPC_TIMEOUT = "dremio.exec.rpc.bit.timeout";
   public static final boolean SOME_DEBUGGING = false;

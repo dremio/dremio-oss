@@ -132,7 +132,7 @@ const ArcticCatalogData = (props: WithRouterProps) => {
         className={headerClasses["arctic-table-header"]}
         rightContent={
           <span className={headerClasses["arctic-table-header__right"]}>
-            <ProjectHistoryButton onClick={() => router.push(pushPath)} />
+            <ProjectHistoryButton to={pushPath} />
             <SearchField
               placeholder={intl.formatMessage({
                 id: "ArcticCatalog.FilterName",

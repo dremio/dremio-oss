@@ -15,23 +15,21 @@
  */
 package com.dremio.telemetry.api.config;
 
+import com.dremio.common.concurrent.NamedThreadFactory;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
-
 import javax.inject.Provider;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.common.concurrent.NamedThreadFactory;
-
 /**
- * Template for creating auto refreshing configs. Users listen to config changes by implementing
- * a configRefreshListener<T>. As the refresh settings change, they are automatically applied.
- * If the provider cannot provide any initial config, then the auto refresher auto refreshes at a default
+ * Template for creating auto refreshing configs. Users listen to config changes by implementing a
+ * configRefreshListener<T>. As the refresh settings change, they are automatically applied. If the
+ * provider cannot provide any initial config, then the auto refresher auto refreshes at a default
  * interval until a file is picked up.
+ *
  * @param <T> The type of the root level config that sits beside refreshConfigurator.
  */
 public class AutoRefreshConfigurator<T> {
@@ -50,14 +48,16 @@ public class AutoRefreshConfigurator<T> {
     this(getter, listener, DEFAULT_MINIMUM_REFRESH_FREQUENCY);
   }
 
-  public AutoRefreshConfigurator(Provider<CompleteRefreshConfig<T>> getter, Consumer<T> listener, long minRefreshIntervalMS) {
+  public AutoRefreshConfigurator(
+      Provider<CompleteRefreshConfig<T>> getter, Consumer<T> listener, long minRefreshIntervalMS) {
     this.getter = getter;
     this.minRefreshIntervalMS = minRefreshIntervalMS;
     // In case the first read is bad.
     this.refreshIntervalMS = this.minRefreshIntervalMS;
     trigger = new ValueChangeDetector<>(listener);
-    refreshScheduler = Executors.newScheduledThreadPool(1, new NamedThreadFactory("config-refresh"));
-    refreshScheduler.submit(()->refresh(true));
+    refreshScheduler =
+        Executors.newScheduledThreadPool(1, new NamedThreadFactory("config-refresh"));
+    refreshScheduler.submit(() -> refresh(true));
   }
 
   private void refresh(boolean initialLoad) {
@@ -71,10 +71,17 @@ public class AutoRefreshConfigurator<T> {
 
         if (proposedRefreshMs < minRefreshIntervalMS) {
           if (initialLoad) {
-            //Warn only once during initial load. Subsequent logs should be debug level to avoid noise.
-            LOGGER.warn("Requested configuration refresh frequency {}ms. Adjusting to minimum of {}ms.", proposedRefreshMs, minRefreshIntervalMS);
+            // Warn only once during initial load. Subsequent logs should be debug level to avoid
+            // noise.
+            LOGGER.warn(
+                "Requested configuration refresh frequency {}ms. Adjusting to minimum of {}ms.",
+                proposedRefreshMs,
+                minRefreshIntervalMS);
           } else {
-            LOGGER.debug("Requested configuration refresh frequency {}ms. Adjusting to minimum of {}ms.", proposedRefreshMs, minRefreshIntervalMS);
+            LOGGER.debug(
+                "Requested configuration refresh frequency {}ms. Adjusting to minimum of {}ms.",
+                proposedRefreshMs,
+                minRefreshIntervalMS);
           }
           refreshIntervalMS = minRefreshIntervalMS;
         } else {
@@ -82,22 +89,29 @@ public class AutoRefreshConfigurator<T> {
         }
       } else {
         if (initialLoad) {
-          //Warn only once during initial load. Subsequent logs should be debug level to avoid noise.
-          LOGGER.warn("Could not detect refresh settings. Continuing to refresh at {}s intervals.", TimeUnit.MILLISECONDS.toSeconds(refreshIntervalMS));
+          // Warn only once during initial load. Subsequent logs should be debug level to avoid
+          // noise.
+          LOGGER.warn(
+              "Could not detect refresh settings. Continuing to refresh at {}s intervals.",
+              TimeUnit.MILLISECONDS.toSeconds(refreshIntervalMS));
         } else {
-          LOGGER.debug("Could not detect refresh settings. Continuing to refresh at {}s intervals.", TimeUnit.MILLISECONDS.toSeconds(refreshIntervalMS));
+          LOGGER.debug(
+              "Could not detect refresh settings. Continuing to refresh at {}s intervals.",
+              TimeUnit.MILLISECONDS.toSeconds(refreshIntervalMS));
         }
       }
       trigger.checkNewValue(newState.getUserConfig());
     }
 
     if (refreshEnabled) {
-      refreshScheduler.schedule(() -> refresh(false), this.refreshIntervalMS, TimeUnit.MILLISECONDS);
+      refreshScheduler.schedule(
+          () -> refresh(false), this.refreshIntervalMS, TimeUnit.MILLISECONDS);
     }
   }
 
   /**
    * User config bundled with refresh config.
+   *
    * @param <T> user config type
    */
   public static class CompleteRefreshConfig<T> {
@@ -119,15 +133,13 @@ public class AutoRefreshConfigurator<T> {
   }
 
   /**
-   * Provides a generic way to run a reaction when a value changes.
-   * Treats null as a unique instance.
+   * Provides a generic way to run a reaction when a value changes. Treats null as a unique
+   * instance.
    *
-   * Consider a series of values:
-   * null 1 1 1 null null 2 2 2
-   *      ^     ^         ^
-   * The reaction will be run at the ^ places.
-   * The initial "remembered" value is null. Currently not configurable.
-   * Although, I supposed it could be DI.
+   * <p>Consider a series of values: null 1 1 1 null null 2 2 2 ^ ^ ^ The reaction will be run at
+   * the ^ places. The initial "remembered" value is null. Currently not configurable. Although, I
+   * supposed it could be DI.
+   *
    * @param <T> The type of the value you want to detect changes on. Must implement hashCode.
    */
   public static class ValueChangeDetector<T> {
@@ -159,6 +171,5 @@ public class AutoRefreshConfigurator<T> {
     public T getLastValue() {
       return lastValue;
     }
-
   }
 }

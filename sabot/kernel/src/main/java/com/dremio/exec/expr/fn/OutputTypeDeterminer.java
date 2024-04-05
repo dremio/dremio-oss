@@ -15,6 +15,4 @@
  */
 package com.dremio.exec.expr.fn;
 
-public class OutputTypeDeterminer {
-
-}
+public class OutputTypeDeterminer {}

@@ -15,8 +15,5 @@
  */
 package com.dremio.common.concurrent;
 
-/**
- * Implements a runnable that also migrates context
- */
-public interface ContextMigratingRunnableTask extends ContextMigratingTask, Runnable {
-}
+/** Implements a runnable that also migrates context */
+public interface ContextMigratingRunnableTask extends ContextMigratingTask, Runnable {}

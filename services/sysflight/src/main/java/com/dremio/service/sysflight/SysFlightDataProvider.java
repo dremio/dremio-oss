@@ -15,34 +15,36 @@
  */
 package com.dremio.service.sysflight;
 
+import com.dremio.exec.proto.FlightProtos.SysFlightTicket;
+import com.dremio.exec.record.BatchSchema;
 import org.apache.arrow.flight.FlightProducer.ServerStreamListener;
 import org.apache.arrow.memory.BufferAllocator;
 
-import com.dremio.exec.proto.FlightProtos.SysFlightTicket;
-import com.dremio.exec.record.BatchSchema;
-
-/**
- * Interface to get schema & data for the SysFlight tables
- */
+/** Interface to get schema & data for the SysFlight tables */
 public interface SysFlightDataProvider {
 
-  void streamData(SysFlightTicket ticket, ServerStreamListener listener, BufferAllocator allocator, int recordBatchSize)
-    throws Exception;
+  void streamData(
+      SysFlightTicket ticket,
+      ServerStreamListener listener,
+      BufferAllocator allocator,
+      int recordBatchSize)
+      throws Exception;
 
   BatchSchema getSchema();
 
+  /** No op implementation */
+  SysFlightDataProvider NO_OP =
+      new SysFlightDataProvider() {
+        @Override
+        public void streamData(
+            SysFlightTicket ticket,
+            ServerStreamListener listener,
+            BufferAllocator allocator,
+            int recordBatchSize) {}
 
-  /**
-   * No op implementation
-   */
-  SysFlightDataProvider NO_OP = new SysFlightDataProvider() {
-    @Override
-    public void streamData(SysFlightTicket ticket, ServerStreamListener listener,
-      BufferAllocator allocator, int recordBatchSize) { }
-
-    @Override
-    public BatchSchema getSchema() {
-      return BatchSchema.EMPTY;
-    }
-  };
+        @Override
+        public BatchSchema getSchema() {
+          return BatchSchema.EMPTY;
+        }
+      };
 }

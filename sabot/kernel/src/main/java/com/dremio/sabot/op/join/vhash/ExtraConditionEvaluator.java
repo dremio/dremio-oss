@@ -15,15 +15,6 @@
  */
 package com.dremio.sabot.op.join.vhash;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.function.IntFunction;
-
-import javax.inject.Named;
-
-import org.apache.arrow.vector.complex.FieldIdUtil2;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.BooleanOperator;
 import com.dremio.common.expression.CaseExpression;
@@ -50,91 +41,115 @@ import com.dremio.exec.record.TypedFieldId;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.sabot.exec.context.FunctionContext;
 import com.sun.codemodel.JExpr;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.function.IntFunction;
+import javax.inject.Named;
+import org.apache.arrow.vector.complex.FieldIdUtil2;
 
 /**
- * Matches the extra condition in a hash join by generating the code for that expression and evaluating data inside
- * containers (arrow) of both probe side and build side against the expression.
- * <p>
- * This code uses JAVA code generator to generate code that matches the expression.
+ * Matches the extra condition in a hash join by generating the code for that expression and
+ * evaluating data inside containers (arrow) of both probe side and build side against the
+ * expression.
+ *
+ * <p>This code uses JAVA code generator to generate code that matches the expression.
+ *
  * <p>
  */
 public abstract class ExtraConditionEvaluator implements AutoCloseable {
 
   private static final TemplateClassDefinition<ExtraConditionEvaluator> TEMPLATE_DEFINITION =
-    new TemplateClassDefinition<>(ExtraConditionEvaluator.class, ExtraConditionEvaluator.class);
+      new TemplateClassDefinition<>(ExtraConditionEvaluator.class, ExtraConditionEvaluator.class);
 
   public void setup(
-    FunctionContext context,
-    VectorAccessible probeBatch,
-    VectorAccessible buildBatch) {
+      FunctionContext context, VectorAccessible probeBatch, VectorAccessible buildBatch) {
     doSetup(context, probeBatch, buildBatch);
   }
 
   public abstract void doSetup(
-    @Named("context") FunctionContext context,
-    @Named("probeVectorAccessible") VectorAccessible probeVectorAccessible,
-    @Named("buildVectorAccessible") VectorAccessible buildVectorAccessible
-  );
+      @Named("context") FunctionContext context,
+      @Named("probeVectorAccessible") VectorAccessible probeVectorAccessible,
+      @Named("buildVectorAccessible") VectorAccessible buildVectorAccessible);
 
   public abstract boolean doEval(
-    @Named("probeIndex") int probeIndex,
-    @Named("buildIndex") int buildIndex
-  );
+      @Named("probeIndex") int probeIndex, @Named("buildIndex") int buildIndex);
 
   /**
-   * Generate code (a JAVA sub class of this class) that can evaluate the expression specified by extra join
-   * condition.
-   * <p>
-   * Note that a build side key in the extra join condition expression is converted to a probe side key as the
-   * build side container may not have keys in the schema of the hyper container in certain cases.
-   * </p>
+   * Generate code (a JAVA sub class of this class) that can evaluate the expression specified by
+   * extra join condition.
    *
-   * @param expr          The extra join condition, rooted with InputReferences. Must be non null.
+   * <p>Note that a build side key in the extra join condition expression is converted to a probe
+   * side key as the build side container may not have keys in the schema of the hyper container in
+   * certain cases.
+   *
+   * @param expr The extra join condition, rooted with InputReferences. Must be non null.
    * @param classProducer Tool for class generation.
-   * @param probe         The probe side of the expression (single container).
-   * @param build         The build side of the expression (hyper container).
+   * @param probe The probe side of the expression (single container).
+   * @param build The build side of the expression (hyper container).
    * @param build2ProbeKeys A mapping of equivalent probe side keys to build side keys
    * @return The generated Matcher
    */
-  public static ExtraConditionEvaluator generate(LogicalExpression expr, ClassProducer classProducer,
-                                                 VectorAccessible probe, VectorAccessible build,
-                                                 Map<String, String> build2ProbeKeys) {
-    final MappingSet probeMappingSet = new MappingSet("probeIndex", null, "probeVectorAccessible", null,
-      ClassGenerator.DEFAULT_CONSTANT_MAP, ClassGenerator.DEFAULT_SCALAR_MAP);
-    final MappingSet buildMappingSet = new MappingSet("buildIndex", null, "buildVectorAccessible", null,
-      ClassGenerator.DEFAULT_CONSTANT_MAP, ClassGenerator.DEFAULT_SCALAR_MAP);
+  public static ExtraConditionEvaluator generate(
+      LogicalExpression expr,
+      ClassProducer classProducer,
+      VectorAccessible probe,
+      VectorAccessible build,
+      Map<String, String> build2ProbeKeys) {
+    final MappingSet probeMappingSet =
+        new MappingSet(
+            "probeIndex",
+            null,
+            "probeVectorAccessible",
+            null,
+            ClassGenerator.DEFAULT_CONSTANT_MAP,
+            ClassGenerator.DEFAULT_SCALAR_MAP);
+    final MappingSet buildMappingSet =
+        new MappingSet(
+            "buildIndex",
+            null,
+            "buildVectorAccessible",
+            null,
+            ClassGenerator.DEFAULT_CONSTANT_MAP,
+            ClassGenerator.DEFAULT_SCALAR_MAP);
 
     CodeGenerator<ExtraConditionEvaluator> cg = classProducer.createGenerator(TEMPLATE_DEFINITION);
     ClassGenerator<ExtraConditionEvaluator> g = cg.getRoot();
 
-    ReferenceMaterializer referenceMaterializer = new ReferenceMaterializer(g, build2ProbeKeys, (i) -> {
-      switch (i) {
-        case 1:
-          return new InputSide(buildMappingSet, build.getSchema());
-        case 0:
-          return new InputSide(probeMappingSet, probe.getSchema());
-        default:
-          throw new UnsupportedOperationException("Unknown input reference " + i);
-      }
-    });
+    ReferenceMaterializer referenceMaterializer =
+        new ReferenceMaterializer(
+            g,
+            build2ProbeKeys,
+            (i) -> {
+              switch (i) {
+                case 1:
+                  return new InputSide(buildMappingSet, build.getSchema());
+                case 0:
+                  return new InputSide(probeMappingSet, probe.getSchema());
+                default:
+                  throw new UnsupportedOperationException("Unknown input reference " + i);
+              }
+            });
 
     // materialize, identify and separate probe side and build side of expression
-    final LogicalExpression materialized = classProducer.materialize(expr.accept(referenceMaterializer, null), null);
+    final LogicalExpression materialized =
+        classProducer.materialize(expr.accept(referenceMaterializer, null), null);
 
     // add the materialized expression to codegen
-    final HoldingContainer out = g.addExpr(materialized, ClassGenerator.BlockCreateMode.MERGE, false);
+    final HoldingContainer out =
+        g.addExpr(materialized, ClassGenerator.BlockCreateMode.MERGE, false);
 
     // return true if the condition is positive.
-    g.getEvalBlock()._if(
-      out.getIsSet().eq(JExpr.lit(1)).cand(out.getValue().eq(JExpr.lit(1))))._then()._return(JExpr.TRUE);
+    g.getEvalBlock()
+        ._if(out.getIsSet().eq(JExpr.lit(1)).cand(out.getValue().eq(JExpr.lit(1))))
+        ._then()
+        ._return(JExpr.TRUE);
 
     g.getEvalBlock()._return(JExpr.FALSE);
     return cg.getImplementationClass();
   }
 
-  /**
-   * Pojo for holding the information needed to materialize each set of expression.
-   */
+  /** Pojo for holding the information needed to materialize each set of expression. */
   private static class InputSide {
     private final MappingSet mappingSet;
     private final BatchSchema schema;
@@ -147,16 +162,20 @@ public abstract class ExtraConditionEvaluator implements AutoCloseable {
   }
 
   /**
-   * ExprVisitor that rewrites the tree so that each reference is pointing at the correct side of the join.
+   * ExprVisitor that rewrites the tree so that each reference is pointing at the correct side of
+   * the join.
    */
-  private static class ReferenceMaterializer extends AbstractExprVisitor<LogicalExpression, Void, RuntimeException> {
+  private static class ReferenceMaterializer
+      extends AbstractExprVisitor<LogicalExpression, Void, RuntimeException> {
 
     private final ClassGenerator<?> generator;
     private final IntFunction<InputSide> inputFunction;
     private final Map<String, String> build2ProbeKeys;
 
-    public ReferenceMaterializer(ClassGenerator<?> generator, Map<String, String> build2ProbeKeys,
-                                 IntFunction<InputSide> inputFunction) {
+    public ReferenceMaterializer(
+        ClassGenerator<?> generator,
+        Map<String, String> build2ProbeKeys,
+        IntFunction<InputSide> inputFunction) {
       super();
       this.generator = generator;
       this.inputFunction = inputFunction;
@@ -169,11 +188,14 @@ public abstract class ExtraConditionEvaluator implements AutoCloseable {
     }
 
     @Override
-    public LogicalExpression visitFunctionHolderExpression(FunctionHolderExpression holder,
-                                                           Void v) throws RuntimeException {
-      // Unexpected as this visitor is visited pre-materialization, so only FunctionCall is expected.
-      throw new UnsupportedOperationException(String.format(
-        "Unexpected Internal Error: A function holder expression `%s` detected pre-materialization", holder.getName()));
+    public LogicalExpression visitFunctionHolderExpression(FunctionHolderExpression holder, Void v)
+        throws RuntimeException {
+      // Unexpected as this visitor is visited pre-materialization, so only FunctionCall is
+      // expected.
+      throw new UnsupportedOperationException(
+          String.format(
+              "Unexpected Internal Error: A function holder expression `%s` detected pre-materialization",
+              holder.getName()));
     }
 
     @Override
@@ -187,9 +209,11 @@ public abstract class ExtraConditionEvaluator implements AutoCloseable {
     }
 
     @Override
-    public LogicalExpression visitInputReference(InputReference sideExpr, Void value) throws RuntimeException {
+    public LogicalExpression visitInputReference(InputReference sideExpr, Void value)
+        throws RuntimeException {
       if (sideExpr.getInputOrdinal() == 1) {
-        // convert build side keys to equivalent probe side for VECTORIZED_GENERIC as build side keys are not
+        // convert build side keys to equivalent probe side for VECTORIZED_GENERIC as build side
+        // keys are not
         // in the build side hyper container.
         String probeSide = build2ProbeKeys.get(sideExpr.getReference().getAsUnescapedPath());
         if (probeSide != null) {
@@ -202,11 +226,15 @@ public abstract class ExtraConditionEvaluator implements AutoCloseable {
       try {
         TypedFieldId tfId = FieldIdUtil2.getFieldId(input.schema, sideExpr.getReference());
         if (tfId == null) {
-          throw UserException.validationError().message("Unable to find the referenced field: [%s].",
-            sideExpr.getReference().getAsUnescapedPath()).buildSilently();
+          throw UserException.validationError()
+              .message(
+                  "Unable to find the referenced field: [%s].",
+                  sideExpr.getReference().getAsUnescapedPath())
+              .buildSilently();
         }
-        HoldingContainer container = generator.addExpr(new ValueVectorReadExpression(tfId),
-          ClassGenerator.BlockCreateMode.MERGE, false);
+        HoldingContainer container =
+            generator.addExpr(
+                new ValueVectorReadExpression(tfId), ClassGenerator.BlockCreateMode.MERGE, false);
         return new HoldingContainerExpression(container);
       } finally {
         generator.setMappingSet(orig);
@@ -233,22 +261,27 @@ public abstract class ExtraConditionEvaluator implements AutoCloseable {
       LogicalExpression newElseExpr = ifExpr.elseExpression.accept(this, null);
       IfExpression.IfCondition condition = new IfExpression.IfCondition(newCondition, newExpr);
       return IfExpression.newBuilder()
-        .setElse(newElseExpr)
-        .setIfCondition(condition)
-        .setOutputType(ifExpr.outputType)
-        .build();
+          .setElse(newElseExpr)
+          .setIfCondition(condition)
+          .setOutputType(ifExpr.outputType)
+          .build();
     }
 
     @Override
-    public LogicalExpression visitCaseExpression(CaseExpression caseExpression, Void value) throws RuntimeException {
+    public LogicalExpression visitCaseExpression(CaseExpression caseExpression, Void value)
+        throws RuntimeException {
       List<CaseExpression.CaseConditionNode> caseConditions = new ArrayList<>();
       for (CaseExpression.CaseConditionNode conditionNode : caseExpression.caseConditions) {
-        caseConditions.add(new CaseExpression.CaseConditionNode(
-          conditionNode.whenExpr.accept(this, value),
-          conditionNode.thenExpr.accept(this, value)));
+        caseConditions.add(
+            new CaseExpression.CaseConditionNode(
+                conditionNode.whenExpr.accept(this, value),
+                conditionNode.thenExpr.accept(this, value)));
       }
       LogicalExpression elseExpr = caseExpression.elseExpr.accept(this, value);
-      return CaseExpression.newBuilder().setCaseConditions(caseConditions).setElseExpr(elseExpr).build();
+      return CaseExpression.newBuilder()
+          .setCaseConditions(caseConditions)
+          .setElseExpr(elseExpr)
+          .build();
     }
 
     @Override
@@ -258,7 +291,8 @@ public abstract class ExtraConditionEvaluator implements AutoCloseable {
 
     @Override
     public LogicalExpression visitConvertExpression(ConvertExpression e, Void v) {
-      return new ConvertExpression(e.getConvertFunction(), e.getEncodingType(), e.getInput().accept(this, null));
+      return new ConvertExpression(
+          e.getConvertFunction(), e.getEncodingType(), e.getInput().accept(this, null));
     }
 
     @Override
@@ -268,6 +302,5 @@ public abstract class ExtraConditionEvaluator implements AutoCloseable {
   }
 
   @Override
-  public void close() throws Exception {
-  }
+  public void close() throws Exception {}
 }

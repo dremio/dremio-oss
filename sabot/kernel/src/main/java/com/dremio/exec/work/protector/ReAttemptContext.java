@@ -20,9 +20,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.protos.AttemptId;
 
-/**
- * Context for reattempting.
- */
+/** Context for reattempting. */
 public class ReAttemptContext {
 
   private final AttemptId attemptId;
@@ -30,8 +28,8 @@ public class ReAttemptContext {
   private final boolean containsHashAggregate;
   private final boolean isCTAS;
 
-  ReAttemptContext(AttemptId attemptId, UserException exception,
-                   boolean containsHashAggregate, boolean isCTAS) {
+  ReAttemptContext(
+      AttemptId attemptId, UserException exception, boolean containsHashAggregate, boolean isCTAS) {
     this.attemptId = checkNotNull(attemptId);
     this.exception = exception;
     this.containsHashAggregate = containsHashAggregate;

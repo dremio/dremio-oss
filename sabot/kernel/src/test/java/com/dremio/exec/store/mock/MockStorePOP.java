@@ -27,7 +27,8 @@ public class MockStorePOP extends AbstractStore {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MockStorePOP.class);
 
   @JsonCreator
-  public MockStorePOP(@JsonProperty("props") OpProps props, @JsonProperty("child") PhysicalOperator child) {
+  public MockStorePOP(
+      @JsonProperty("props") OpProps props, @JsonProperty("child") PhysicalOperator child) {
     super(props, child);
   }
 
@@ -40,5 +41,4 @@ public class MockStorePOP extends AbstractStore {
   public int getOperatorType() {
     return Integer.MIN_VALUE;
   }
-
 }

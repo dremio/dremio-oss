@@ -73,7 +73,7 @@ const generateTestResult = (queryText: string): TestResult => {
     parseTree,
     parser,
     caretPosition,
-    TEST_FUNCTIONS
+    TEST_FUNCTIONS,
   ).get();
 
   const keywords = suggestions.keywords;
@@ -85,10 +85,10 @@ const generateTestResult = (queryText: string): TestResult => {
         ? [
             tokenTypeToKeyword(keywordSuggestion.tokenType),
             ...keywordSuggestion.requiredFollowTokenTypes.map(
-              tokenTypeToKeyword
+              tokenTypeToKeyword,
             ),
           ]
-        : tokenTypeToKeyword(keywordSuggestion.tokenType)
+        : tokenTypeToKeyword(keywordSuggestion.tokenType),
     ),
     functions,
     identifiers,
@@ -138,7 +138,7 @@ describe("TokenSuggestions", () => {
       testCases,
       testExpecteds as Expecteds,
       __filename,
-      generateTestResult
+      generateTestResult,
     );
   });
 });

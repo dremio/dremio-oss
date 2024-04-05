@@ -51,9 +51,7 @@ import ExplorePage from "./ExplorePage";
 import * as commonPaths from "dremio-ui-common/paths/common.js";
 import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
 import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
-import { isNotSoftware } from "dyn-load/utils/versionUtils";
 import { fetchFeatureFlag } from "@inject/actions/featureFlag";
-import { SQL_JOB_STATUS } from "@inject/featureFlags/flags/SQL_JOB_STATUS";
 import { excludePageType } from "./pageTypeUtils";
 import {
   isTabbableUrl,
@@ -67,6 +65,8 @@ import {
 } from "@app/components/SQLScripts/sqlScriptsUtils";
 import { withIsMultiTabEnabled } from "@app/components/SQLScripts/useMultiTabIsEnabled";
 import { refreshScriptsResource } from "@app/actions/resources/scripts";
+import { getSupportFlag } from "@app/exports/endpoints/SupportFlags/getSupportFlag";
+import { SQLRUNNER_TABS_UI } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
 
 const HEIGHT_AROUND_SQL_EDITOR = 175;
 const defaultPageType = PageTypes.default;
@@ -116,15 +116,19 @@ export class ExplorePageControllerComponent extends Component {
     };
   }
 
-  componentDidMount() {
-    const { addHasChangesHook, initRefs } = this.props;
-    initRefs(); //Initialize Nessie references to current browsing context before load
+  async componentDidMount() {
+    const { addHasChangesHook, initRefs, location } = this.props;
+
+    const areTabsEnabled = (await getSupportFlag(SQLRUNNER_TABS_UI)).value;
+
+    if (!areTabsEnabled || (areTabsEnabled && !isTabbableUrl(location))) {
+      initRefs(); //Initialize Nessie references to current browsing context before load
+    }
+
     this.receiveProps(this.props);
     if (addHasChangesHook) {
       addHasChangesHook(this.shouldShowUnsavedChangesPopup);
     }
-
-    isNotSoftware() && this.props.fetchFeatureFlag(SQL_JOB_STATUS);
   }
 
   UNSAFE_componentWillReceiveProps(nextProps) {
@@ -143,7 +147,7 @@ export class ExplorePageControllerComponent extends Component {
 
     const datasetChanged = hasDatasetChanged(
       nextProps.dataset,
-      prevProps.dataset
+      prevProps.dataset,
     );
     if (datasetChanged) {
       // reset the view state in case we had an error, but now we are navigating to a properly loaded and cached version
@@ -337,7 +341,7 @@ function mapStateToProps(state, ownProps) {
   const explorePageState = getExploreState(state);
   const sqlHeight = Math.min(
     explorePageState.ui.get("sqlSize"),
-    domHelpers.ownerWindow().innerHeight - HEIGHT_AROUND_SQL_EDITOR
+    domHelpers.ownerWindow().innerHeight - HEIGHT_AROUND_SQL_EDITOR,
   );
 
   return {
@@ -356,7 +360,7 @@ function mapStateToProps(state, ownProps) {
 }
 
 export const ExplorePageController = withRouter(
-  withRouteLeaveSubscription(ExplorePageControllerComponent)
+  withRouteLeaveSubscription(ExplorePageControllerComponent),
 );
 
 const Connected = compose(
@@ -371,7 +375,7 @@ const Connected = compose(
     fetchFeatureFlag,
   }),
   withDatasetChanges,
-  withIsMultiTabEnabled
+  withIsMultiTabEnabled,
 )(ExplorePageController);
 
 export default moduleStateHOC(exploreStateKey, explore)(Connected);

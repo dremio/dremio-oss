@@ -17,9 +17,7 @@ package com.dremio.service.coordinator;
 
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 
-/**
- * Provider to {@code com.dremio.exec.proto.CoordinationProtos.NodeEndpoint}
- */
+/** Provider to {@code com.dremio.exec.proto.CoordinationProtos.NodeEndpoint} */
 public interface ServiceSet extends ListenableSet {
 
   /**

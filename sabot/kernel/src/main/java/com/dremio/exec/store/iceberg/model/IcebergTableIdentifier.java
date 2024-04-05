@@ -15,8 +15,5 @@
  */
 package com.dremio.exec.store.iceberg.model;
 
-/**
- * represents and Iceberg table root pointer
- */
-public interface IcebergTableIdentifier {
-}
+/** represents and Iceberg table root pointer */
+public interface IcebergTableIdentifier {}

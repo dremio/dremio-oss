@@ -15,12 +15,6 @@
  */
 package com.dremio.services.fabric;
 
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-
-import org.apache.arrow.memory.BufferAllocator;
-import org.junit.Test;
-
 import com.dremio.common.util.concurrent.DremioFutures;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.UserBitShared.QueryId;
@@ -39,12 +33,13 @@ import com.dremio.services.fabric.api.FabricService;
 import com.dremio.services.fabric.api.PhysicalConnection;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.MessageLite;
-
 import io.netty.buffer.ByteBuf;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import org.apache.arrow.memory.BufferAllocator;
+import org.junit.Test;
 
-/**
- * Test fabric behaviors that aren't available at the protocol builder level.
- */
+/** Test fabric behaviors that aren't available at the protocol builder level. */
 public class TestFabric extends BaseTestFabric {
 
   protected FabricService getFabric() {
@@ -55,38 +50,51 @@ public class TestFabric extends BaseTestFabric {
   public void firstDisconnectRecovery() throws Exception {
     CountDownLatch closeLatch = new CountDownLatch(1);
     FabricRunnerFactory factory = getFabric().registerProtocol(new Protocol(closeLatch));
-    FabricCommandRunner runner = factory.getCommandRunner(getFabric().getAddress(), getFabric().getPort());
-
+    FabricCommandRunner runner =
+        factory.getCommandRunner(getFabric().getAddress(), getFabric().getPort());
 
     // send a message, establishing the connection.
     {
       SimpleMessage m = new SimpleMessage(1);
       runner.runCommand(m);
-      DremioFutures.getChecked(m.getFuture(), RpcException.class, 1000, TimeUnit.MILLISECONDS, RpcException::mapException);
+      DremioFutures.getChecked(
+          m.getFuture(),
+          RpcException.class,
+          1000,
+          TimeUnit.MILLISECONDS,
+          RpcException::mapException);
     }
 
     closeLatch.countDown();
     // wait for the local connection to be closed.
     Thread.sleep(1000);
 
-
     // ensure we can send message again.
     {
       SimpleMessage m = new SimpleMessage(1);
       runner.runCommand(m);
-      DremioFutures.getChecked(m.getFuture(), RpcException.class, 1000, TimeUnit.MILLISECONDS, RpcException::mapException);
+      DremioFutures.getChecked(
+          m.getFuture(),
+          RpcException.class,
+          1000,
+          TimeUnit.MILLISECONDS,
+          RpcException::mapException);
     }
-
-
   }
 
-  @Test(expected=ChannelClosedException.class)
+  @Test(expected = ChannelClosedException.class)
   public void failureOnDisconnection() throws Exception {
     FabricRunnerFactory factory = getFabric().registerProtocol(new Protocol(null));
-    FabricCommandRunner runner = factory.getCommandRunner(getFabric().getAddress(), getFabric().getPort());
+    FabricCommandRunner runner =
+        factory.getCommandRunner(getFabric().getAddress(), getFabric().getPort());
     SimpleMessage m = new SimpleMessage(2);
     runner.runCommand(m);
-    DremioFutures.getChecked(m.getFuture(), RpcException.class, 10000, TimeUnit.MILLISECONDS, RpcException::mapException);
+    DremioFutures.getChecked(
+        m.getFuture(),
+        RpcException.class,
+        10000,
+        TimeUnit.MILLISECONDS,
+        RpcException::mapException);
   }
 
   private class SimpleMessage extends FutureBitCommand<NodeEndpoint, ProxyConnection> {
@@ -99,10 +107,10 @@ public class TestFabric extends BaseTestFabric {
     }
 
     @Override
-    public void doRpcCall(RpcOutcomeListener<NodeEndpoint> outcomeListener, ProxyConnection connection) {
+    public void doRpcCall(
+        RpcOutcomeListener<NodeEndpoint> outcomeListener, ProxyConnection connection) {
       connection.send(outcomeListener, new FakeEnum(type), expectedQ, NodeEndpoint.class);
     }
-
   }
 
   private class Protocol implements FabricProtocol {
@@ -120,7 +128,6 @@ public class TestFabric extends BaseTestFabric {
       this.depleteResponseQueue = depleteResponseQueue;
     }
 
-
     @Override
     public int getProtocolId() {
       return 2;
@@ -133,7 +140,9 @@ public class TestFabric extends BaseTestFabric {
 
     @Override
     public RpcConfig getConfig() {
-      return RpcConfig.newBuilder().name("test1").timeout(0)
+      return RpcConfig.newBuilder()
+          .name("test1")
+          .timeout(0)
           .add(new FakeEnum(1), QueryId.class, new FakeEnum(1), NodeEndpoint.class)
           .add(new FakeEnum(2), QueryId.class, new FakeEnum(2), NodeEndpoint.class)
           .build();
@@ -141,50 +150,49 @@ public class TestFabric extends BaseTestFabric {
 
     @Override
     public MessageLite getResponseDefaultInstance(int rpcType) throws RpcException {
-      switch(rpcType){
-      case 1:
-      case 2:
-        return NodeEndpoint.getDefaultInstance();
+      switch (rpcType) {
+        case 1:
+        case 2:
+          return NodeEndpoint.getDefaultInstance();
 
-      default:
-        throw new UnsupportedOperationException();
-
+        default:
+          throw new UnsupportedOperationException();
       }
-
     }
 
     @Override
-    public void handle(final PhysicalConnection connection, int rpcType, ByteString pBody, ByteBuf dBody,
-                       ResponseSender sender) throws RpcException {
+    public void handle(
+        final PhysicalConnection connection,
+        int rpcType,
+        ByteString pBody,
+        ByteBuf dBody,
+        ResponseSender sender)
+        throws RpcException {
 
-      switch(rpcType){
-      case 1:
-        sender.send(new Response(new FakeEnum(1), expectedD));
-        new Thread(){
+      switch (rpcType) {
+        case 1:
+          sender.send(new Response(new FakeEnum(1), expectedD));
+          new Thread() {
 
-          @Override
-          public void run() {
-            try {
-              closeLatch.await();
-              ((RemoteConnection)connection).getChannel().close();
-            } catch (InterruptedException e) {
+            @Override
+            public void run() {
+              try {
+                closeLatch.await();
+                ((RemoteConnection) connection).getChannel().close();
+              } catch (InterruptedException e) {
+              }
             }
-          }
+          }.start();
 
-        }.start();
+          return;
 
-        return;
+        case 2:
+          ((RemoteConnection) connection).getChannel().close();
+          return;
 
-      case 2:
-        ((RemoteConnection)connection).getChannel().close();
-        return;
-
-      default:
-        throw new UnsupportedOperationException();
+        default:
+          throw new UnsupportedOperationException();
       }
-
-
     }
-
   }
 }

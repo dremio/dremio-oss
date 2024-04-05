@@ -15,26 +15,31 @@
  */
 package com.dremio.sabot.memory;
 
-import org.apache.arrow.memory.RootAllocator;
-
 import com.dremio.common.config.SabotConfig;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.FragmentExecutors;
 import com.dremio.sabot.exec.QueriesClerk;
-
+import org.apache.arrow.memory.RootAllocator;
 
 /**
- * This interface defines the MemoryArbiter. The MemoryArbiter allows sharing of memory by
- * various tasks
+ * This interface defines the MemoryArbiter. The MemoryArbiter allows sharing of memory by various
+ * tasks
  */
 public interface MemoryArbiter extends AutoCloseable {
-  static MemoryArbiter newInstance(SabotConfig sabotConfig, RootAllocator rootAllocator,
-                                   FragmentExecutors fragmentExecutors, QueriesClerk clerk,
-                                   final OptionManager options) {
-    MemoryArbiterFactory memoryArbiterFactory = sabotConfig.getInstance(MemoryArbiterFactory.DREMIO_MEMORY_ARBITER_FACTORY_CLASS,
-      MemoryArbiterFactory.class, DefaultMemoryArbiter.Factory.class);
+  static MemoryArbiter newInstance(
+      SabotConfig sabotConfig,
+      RootAllocator rootAllocator,
+      FragmentExecutors fragmentExecutors,
+      QueriesClerk clerk,
+      final OptionManager options) {
+    MemoryArbiterFactory memoryArbiterFactory =
+        sabotConfig.getInstance(
+            MemoryArbiterFactory.DREMIO_MEMORY_ARBITER_FACTORY_CLASS,
+            MemoryArbiterFactory.class,
+            DefaultMemoryArbiter.Factory.class);
 
-    return memoryArbiterFactory.newInstance(sabotConfig, rootAllocator, fragmentExecutors, clerk, options);
+    return memoryArbiterFactory.newInstance(
+        sabotConfig, rootAllocator, fragmentExecutors, clerk, options);
   }
 
   /**
@@ -54,7 +59,7 @@ public interface MemoryArbiter extends AutoCloseable {
   /**
    * Acquires a grant of memory to run the task
    *
-   * @param memoryArbiterTask  The task that is requesting the grant
+   * @param memoryArbiterTask The task that is requesting the grant
    * @param memoryGrantInBytes The memory size in bytes
    * @return true, if the request has been granted
    */
@@ -74,13 +79,18 @@ public interface MemoryArbiter extends AutoCloseable {
    */
   boolean removeFromBlocked(MemoryArbiterTask memoryArbiterTask);
 
+  void removeFromSpilling(MemoryTaskAndShrinkableOperator memoryTaskAndShrinkableOperator);
+
   void addTaskToQueue(MemoryArbiterTask memoryArbiterTask);
 
   public static interface MemoryArbiterFactory {
     String DREMIO_MEMORY_ARBITER_FACTORY_CLASS = "dremio.memory.arbiter.factory.class";
 
-    MemoryArbiter newInstance(SabotConfig sabotConfig, RootAllocator rootAllocator,
-                              FragmentExecutors fragmentExecutors, QueriesClerk clerk,
-                              OptionManager options);
+    MemoryArbiter newInstance(
+        SabotConfig sabotConfig,
+        RootAllocator rootAllocator,
+        FragmentExecutors fragmentExecutors,
+        QueriesClerk clerk,
+        OptionManager options);
   }
 }

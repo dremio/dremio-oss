@@ -17,18 +17,16 @@ package com.dremio.common.util;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import com.dremio.common.VM;
+import com.google.common.io.Resources;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.URL;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
-
 import org.junit.rules.TestRule;
 import org.junit.rules.Timeout;
-
-import com.dremio.common.VM;
-import com.google.common.io.Resources;
 
 public class TestTools {
 
@@ -48,15 +46,10 @@ public class TestTools {
       // no timeout
       return NOP_RULE;
     }
-    return Timeout.builder()
-      .withTimeout(timeout, unit)
-      .withLookingForStuckThread(true)
-      .build();
+    return Timeout.builder().withTimeout(timeout, unit).withLookingForStuckThread(true).build();
   }
 
-  /**
-   * If not enforced, the repeat rule applies only if the test is run in non-debug mode.
-   */
+  /** If not enforced, the repeat rule applies only if the test is run in non-debug mode. */
   public static TestRule getRepeatRule(final boolean enforce) {
     return enforce || !VM.isDebugEnabled() ? new RepeatTestRule() : NOP_RULE;
   }
@@ -66,24 +59,30 @@ public class TestTools {
   }
 
   private static final String PATH_SEPARATOR = System.getProperty("file.separator");
-  private static final String[] STRUCTURE = {"dremio", "exec", "java-exec", "src", "test", "resources"};
+  private static final String[] STRUCTURE = {
+    "dremio", "exec", "java-exec", "src", "test", "resources"
+  };
 
   /**
-   * Returns fully qualified path where test resources reside if current working directory is at any level in the
-   * following root->exec->java-exec->src->test->resources, throws an {@link IllegalStateException} otherwise.
+   * Returns fully qualified path where test resources reside if current working directory is at any
+   * level in the following root->exec->java-exec->src->test->resources, throws an {@link
+   * IllegalStateException} otherwise.
    */
   public static String getTestResourcesPath() {
     final StringBuilder builder = new StringBuilder(WORKING_PATH);
-    for (int i=0; i< STRUCTURE.length; i++) {
+    for (int i = 0; i < STRUCTURE.length; i++) {
       if (WORKING_PATH.endsWith(STRUCTURE[i])) {
-        for (int j=i+1; j< STRUCTURE.length; j++) {
+        for (int j = i + 1; j < STRUCTURE.length; j++) {
           builder.append(PATH_SEPARATOR).append(STRUCTURE[j]);
         }
         return builder.toString();
       }
     }
-    final String msg = String.format("Unable to recognize working directory[%s]. The workspace must be root or exec " +
-        "module.", WORKING_PATH);
+    final String msg =
+        String.format(
+            "Unable to recognize working directory[%s]. The workspace must be root or exec "
+                + "module.",
+            WORKING_PATH);
     throw new IllegalStateException(msg);
   }
 

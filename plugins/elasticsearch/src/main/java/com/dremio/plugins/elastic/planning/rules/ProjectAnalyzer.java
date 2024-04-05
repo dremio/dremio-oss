@@ -15,8 +15,19 @@
  */
 package com.dremio.plugins.elastic.planning.rules;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.common.expression.SchemaPath;
+import com.dremio.plugins.elastic.ElasticsearchConstants;
+import com.dremio.plugins.elastic.planning.functions.ElasticFunction;
+import com.dremio.plugins.elastic.planning.functions.ElasticFunctions;
+import com.dremio.plugins.elastic.planning.functions.FunctionRender;
+import com.dremio.plugins.elastic.planning.functions.FunctionRenderer;
+import com.dremio.plugins.elastic.planning.functions.FunctionRenderer.RenderMode;
+import com.dremio.plugins.elastic.planning.rules.SchemaField.ElasticFieldReference;
+import com.dremio.plugins.elastic.planning.rules.SchemaField.NullReference;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import java.util.Calendar;
-
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexCorrelVariable;
 import org.apache.calcite.rex.RexDigestIncludeType;
@@ -34,19 +45,6 @@ import org.elasticsearch.script.ScriptType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.common.expression.SchemaPath;
-import com.dremio.plugins.elastic.ElasticsearchConstants;
-import com.dremio.plugins.elastic.planning.functions.ElasticFunction;
-import com.dremio.plugins.elastic.planning.functions.ElasticFunctions;
-import com.dremio.plugins.elastic.planning.functions.FunctionRender;
-import com.dremio.plugins.elastic.planning.functions.FunctionRenderer;
-import com.dremio.plugins.elastic.planning.functions.FunctionRenderer.RenderMode;
-import com.dremio.plugins.elastic.planning.rules.SchemaField.ElasticFieldReference;
-import com.dremio.plugins.elastic.planning.rules.SchemaField.NullReference;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-
 public final class ProjectAnalyzer extends RexVisitorImpl<FunctionRender> {
 
   private static final Logger logger = LoggerFactory.getLogger(ProjectAnalyzer.class);
@@ -58,19 +56,22 @@ public final class ProjectAnalyzer extends RexVisitorImpl<FunctionRender> {
 
   private FunctionRenderer renderer;
 
-  public static Script getScript(RexNode node,
+  public static Script getScript(
+      RexNode node,
       boolean painlessAllowed,
       boolean supportsV5Features,
       boolean scriptsEnabled,
       boolean isAggregationContext,
       boolean allowPushdownAnalyzedNormalizedFields,
-      boolean variationDetected){
-    ProjectAnalyzer analyzer = new ProjectAnalyzer(isAggregationContext, allowPushdownAnalyzedNormalizedFields);
-    RenderMode mode = painlessAllowed && supportsV5Features ? RenderMode.PAINLESS : RenderMode.GROOVY;
+      boolean variationDetected) {
+    ProjectAnalyzer analyzer =
+        new ProjectAnalyzer(isAggregationContext, allowPushdownAnalyzedNormalizedFields);
+    RenderMode mode =
+        painlessAllowed && supportsV5Features ? RenderMode.PAINLESS : RenderMode.GROOVY;
     FunctionRenderer r = new FunctionRenderer(supportsV5Features, scriptsEnabled, mode, analyzer);
     analyzer.renderer = r;
     FunctionRender render = node.accept(analyzer);
-    if(analyzer.isNotAllowed()){
+    if (analyzer.isNotAllowed()) {
       throw new RuntimeException(String.format("Failed to convert expression %s to script.", node));
     }
 
@@ -83,14 +84,19 @@ public final class ProjectAnalyzer extends RexVisitorImpl<FunctionRender> {
 
     if (mode == RenderMode.PAINLESS) {
       // when returning a painless script, let's make sure we cast to a valid output type.
-      return new Script(ScriptType.INLINE,  "painless", String.format("(def) (%s)", nullGuardedScript), ImmutableMap.of());
+      return new Script(
+          ScriptType.INLINE,
+          "painless",
+          String.format("(def) (%s)", nullGuardedScript),
+          ImmutableMap.of());
     } else {
       // keeping this so plan matching tests will pass
       return new Script(ScriptType.INLINE, "groovy", nullGuardedScript, ImmutableMap.of());
     }
   }
 
-  private ProjectAnalyzer(boolean isAggregationContext, boolean allowPushdownAnalyzedNormalizedFields) {
+  private ProjectAnalyzer(
+      boolean isAggregationContext, boolean allowPushdownAnalyzedNormalizedFields) {
     super(true);
     this.isAggregationContext = isAggregationContext;
     this.allowPushdownAnalyzedNormalizedFields = allowPushdownAnalyzedNormalizedFields;
@@ -104,7 +110,9 @@ public final class ProjectAnalyzer extends RexVisitorImpl<FunctionRender> {
   public FunctionRender visitLiteral(RexLiteral literal) {
     String litVal = literal.computeDigest(RexDigestIncludeType.NO_TYPE);
     if (!renderer.isScriptsEnabled()) {
-      throw UserException.permissionError().message("Scripts must be enabled to allow for complex expression pushdowns.").build(logger);
+      throw UserException.permissionError()
+          .message("Scripts must be enabled to allow for complex expression pushdowns.")
+          .build(logger);
     }
     requiresScripts = true;
     switch (literal.getType().getSqlTypeName()) {
@@ -121,7 +129,9 @@ public final class ProjectAnalyzer extends RexVisitorImpl<FunctionRender> {
       case INTERVAL_MINUTE:
       case INTERVAL_MINUTE_SECOND:
       case INTERVAL_SECOND:
-        throw UserException.unsupportedError().message("Intervals are not allowed for complex expression pushdowns.").build(logger);
+        throw UserException.unsupportedError()
+            .message("Intervals are not allowed for complex expression pushdowns.")
+            .build(logger);
 
       case BIGINT:
         return new FunctionRender(litVal + "L", ImmutableList.<NullReference>of());
@@ -132,7 +142,11 @@ public final class ProjectAnalyzer extends RexVisitorImpl<FunctionRender> {
       case DATE:
       case TIME:
       case TIMESTAMP:
-        return new FunctionRender("Instant.ofEpochMilli(" + Long.toString(((Calendar) literal.getValue()).getTimeInMillis()) + "L)", ImmutableList.of());
+        return new FunctionRender(
+            "Instant.ofEpochMilli("
+                + Long.toString(((Calendar) literal.getValue()).getTimeInMillis())
+                + "L)",
+            ImmutableList.of());
       default:
         return new FunctionRender(litVal, ImmutableList.<NullReference>of());
     }
@@ -147,7 +161,8 @@ public final class ProjectAnalyzer extends RexVisitorImpl<FunctionRender> {
       foundMetaColumn = true;
     }
 
-    ElasticFieldReference reference = field.toReference(true, isAggregationContext, allowPushdownAnalyzedNormalizedFields);
+    ElasticFieldReference reference =
+        field.toReference(true, isAggregationContext, allowPushdownAnalyzedNormalizedFields);
     return new FunctionRender(reference.getReference(), reference.getPossibleNulls());
   }
 
@@ -158,11 +173,16 @@ public final class ProjectAnalyzer extends RexVisitorImpl<FunctionRender> {
     final ElasticFunction elasticFunction = ElasticFunctions.getFunction(call);
 
     if (elasticFunction == null) {
-      throw new RuntimeException("Unknown function, " + funcName + ", encountered while trying to pushdown to elasticsearch.");
+      throw new RuntimeException(
+          "Unknown function, "
+              + funcName
+              + ", encountered while trying to pushdown to elasticsearch.");
     }
 
     if (!renderer.isScriptsEnabled()) {
-      throw UserException.permissionError().message("Scripts must be enabled to allow for complex expression pushdowns.").build(logger);
+      throw UserException.permissionError()
+          .message("Scripts must be enabled to allow for complex expression pushdowns.")
+          .build(logger);
     }
 
     requiresScripts = true;
@@ -200,10 +220,12 @@ public final class ProjectAnalyzer extends RexVisitorImpl<FunctionRender> {
     return visitUnknown(correlVariable);
   }
 
-  protected FunctionRender visitUnknown(RexNode o){
+  protected FunctionRender visitUnknown(RexNode o) {
     // raise an error
     throw UserException.planError()
-            .message("Unsupported for elastic pushdown: RexNode Class: %s, RexNode Digest: %s", o.getClass().getName(), o.toString())
-            .build(logger);
+        .message(
+            "Unsupported for elastic pushdown: RexNode Class: %s, RexNode Digest: %s",
+            o.getClass().getName(), o.toString())
+        .build(logger);
   }
 }

@@ -15,22 +15,21 @@
  */
 package com.dremio.test;
 
+import com.dremio.common.SuppressForbidden;
 import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
-
 import org.junit.rules.ExternalResource;
 
-import com.dremio.common.SuppressForbidden;
-
 /**
- * The TemporaryEnvironment rule allows editing of system environment variables.
- * Unsafe: the implementation violates the JVM contract that the environment is immutable.
- * Automatically restores original environment state on cleanup.
+ * The TemporaryEnvironment rule allows editing of system environment variables. Unsafe: the
+ * implementation violates the JVM contract that the environment is immutable. Automatically
+ * restores original environment state on cleanup.
  */
 public class TemporaryEnvironment extends ExternalResource {
   private static final Map<String, String> WRITABLE_ENVIRONMENT = getWritableEnvironment();
-  private static final Map<String, String> ORIGINAL_ENVIRONMENT = new HashMap<>(WRITABLE_ENVIRONMENT);
+  private static final Map<String, String> ORIGINAL_ENVIRONMENT =
+      new HashMap<>(WRITABLE_ENVIRONMENT);
 
   @SuppressForbidden
   private static Map<String, String> getWritableEnvironment() {

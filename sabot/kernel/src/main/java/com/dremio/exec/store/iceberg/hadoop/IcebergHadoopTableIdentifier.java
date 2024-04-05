@@ -17,24 +17,22 @@ package com.dremio.exec.store.iceberg.hadoop;
 
 import com.dremio.exec.store.iceberg.model.IcebergTableIdentifier;
 
-/**
- * Hadoop based iceberg table identifier
- */
+/** Hadoop based iceberg table identifier */
 public class IcebergHadoopTableIdentifier implements IcebergTableIdentifier {
 
-    private final String tableFolder;
-    private final String namespace;
+  private final String tableFolder;
+  private final String namespace;
 
-    public IcebergHadoopTableIdentifier(String namespace, String tableFolder) {
-        this.namespace = namespace;
-        this.tableFolder = tableFolder;
-    }
+  public IcebergHadoopTableIdentifier(String namespace, String tableFolder) {
+    this.namespace = namespace;
+    this.tableFolder = tableFolder;
+  }
 
-    public String getTableFolder() {
-        return tableFolder;
-    }
+  public String getTableFolder() {
+    return tableFolder;
+  }
 
-    public String getNamespace() {
-        return namespace;
-    }
+  public String getNamespace() {
+    return namespace;
+  }
 }

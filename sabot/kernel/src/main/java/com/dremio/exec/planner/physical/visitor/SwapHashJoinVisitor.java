@@ -16,42 +16,37 @@
 
 package com.dremio.exec.planner.physical.visitor;
 
-import java.util.List;
-
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.core.JoinRelType;
-import org.apache.calcite.rel.metadata.RelMetadataQuery;
-
 import com.dremio.exec.planner.physical.HashJoinPrel;
 import com.dremio.exec.planner.physical.JoinPrel;
 import com.dremio.exec.planner.physical.Prel;
 import com.google.common.collect.Lists;
+import java.util.List;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.core.JoinRelType;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
 /**
- * Visit Prel tree. Find all the HashJoinPrel nodes and set the flag to swap the Left/Right for HashJoinPrel
- * when 1) It's inner join, 2) left rowcount is < (1 + percentage) * right_row_count.
+ * Visit Prel tree. Find all the HashJoinPrel nodes and set the flag to swap the Left/Right for
+ * HashJoinPrel when 1) It's inner join, 2) left rowcount is < (1 + percentage) * right_row_count.
  * The purpose of this visitor is to prevent planner from putting bigger dataset in the RIGHT side,
  * which is not good performance-wise.
  *
  * @see com.dremio.exec.planner.physical.HashJoinPrel
  */
-
-public class SwapHashJoinVisitor extends BasePrelVisitor<Prel, Double, RuntimeException>{
+public class SwapHashJoinVisitor extends BasePrelVisitor<Prel, Double, RuntimeException> {
 
   private static SwapHashJoinVisitor INSTANCE = new SwapHashJoinVisitor();
 
-  public static Prel swapHashJoin(Prel prel, Double marginFactor){
+  public static Prel swapHashJoin(Prel prel, Double marginFactor) {
     return prel.accept(INSTANCE, marginFactor);
   }
 
-  private SwapHashJoinVisitor() {
-
-  }
+  private SwapHashJoinVisitor() {}
 
   @Override
   public Prel visitPrel(Prel prel, Double value) throws RuntimeException {
     List<RelNode> children = Lists.newArrayList();
-    for(Prel child : prel){
+    for (Prel child : prel) {
       child = child.accept(this, value);
       children.add(child);
     }
@@ -64,9 +59,10 @@ public class SwapHashJoinVisitor extends BasePrelVisitor<Prel, Double, RuntimeEx
     JoinPrel newJoin = (JoinPrel) visitPrel(prel, value);
     RelMetadataQuery mq = prel.getCluster().getMetadataQuery();
     if (prel instanceof HashJoinPrel) {
-      // Mark left/right is swapped, when INNER hash join's left row count < ( 1+ margin factor) right row count.
-      if ( (mq.getRowCount(newJoin.getLeft())
-          < (1 + value.doubleValue() ) * mq.getRowCount(newJoin.getRight()) )
+      // Mark left/right is swapped, when INNER hash join's left row count < ( 1+ margin factor)
+      // right row count.
+      if ((mq.getRowCount(newJoin.getLeft())
+              < (1 + value.doubleValue()) * mq.getRowCount(newJoin.getRight()))
           && newJoin.getJoinType() == JoinRelType.INNER) {
         return ((HashJoinPrel) newJoin).swap();
       }
@@ -74,5 +70,4 @@ public class SwapHashJoinVisitor extends BasePrelVisitor<Prel, Double, RuntimeEx
 
     return newJoin;
   }
-
 }

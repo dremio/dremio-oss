@@ -17,27 +17,18 @@ package com.dremio.services.credentials;
 
 import java.net.URI;
 
-/**
- * CredentialsProvider operations
- */
+/** CredentialsProvider operations */
 public interface CredentialsProvider {
 
   /**
-   * Returns the secret from the pattern
+   * Returns the secret from the pattern.
    *
-   * @param pattern
    * @return a string represents the secret indicated by the pattern
    * @throws IllegalArgumentException if {@code pattern} is invalid
    * @throws CredentialsException if {@code pattern} encounters internal or IO error
    */
   String lookup(URI pattern) throws IllegalArgumentException, CredentialsException;
 
-  /**
-   * Returns true if an URI pattern is supported
-   *
-   * @param pattern
-   * @return true if pattern is supported
-   */
+  /** Returns true if a URI pattern is supported. */
   boolean isSupported(URI pattern);
-
 }

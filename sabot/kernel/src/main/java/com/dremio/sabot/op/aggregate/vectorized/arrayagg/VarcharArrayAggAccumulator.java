@@ -28,10 +28,20 @@ import org.apache.arrow.vector.util.Text;
 
 public final class VarcharArrayAggAccumulator extends BaseArrayAggAccumulator<Text, VarCharVector> {
   private final int maxFieldSizeBytes;
+
   public VarcharArrayAggAccumulator(
-    FieldVector input, FieldVector transferVector, int maxValuesPerBatch,
-    BaseValueVector tempAccumulatorHolder, BufferAllocator computationVectorAllocator, int maxFieldSizeBytes) {
-    super(input, transferVector, maxValuesPerBatch, tempAccumulatorHolder, computationVectorAllocator);
+      FieldVector input,
+      FieldVector transferVector,
+      int maxValuesPerBatch,
+      BaseValueVector tempAccumulatorHolder,
+      BufferAllocator computationVectorAllocator,
+      int maxFieldSizeBytes) {
+    super(
+        input,
+        transferVector,
+        maxValuesPerBatch,
+        tempAccumulatorHolder,
+        computationVectorAllocator);
     this.maxFieldSizeBytes = maxFieldSizeBytes;
   }
 
@@ -59,14 +69,18 @@ public final class VarcharArrayAggAccumulator extends BaseArrayAggAccumulator<Te
   }
 
   @Override
-  protected BaseArrayAggAccumulatorHolder<Text, VarCharVector> getAccumulatorHolder(int maxValuesPerBatch, BufferAllocator allocator) {
+  protected BaseArrayAggAccumulatorHolder<Text, VarCharVector> getAccumulatorHolder(
+      int maxValuesPerBatch, BufferAllocator allocator) {
     return new VarcharArrayAggAccumulatorHolder(maxValuesPerBatch, allocator);
   }
 
   @Override
-  protected Text getElement(long offHeapMemoryAddress, int itemIndex, ArrowBuf dataBuffer, ArrowBuf offsetBuffer) {
-    final int startOffset = offsetBuffer.getInt((long) itemIndex * MutableVarcharVector.OFFSET_WIDTH);
-    final int endOffset = offsetBuffer.getInt((long) (itemIndex + 1) * MutableVarcharVector.OFFSET_WIDTH);
+  protected Text getElement(
+      long offHeapMemoryAddress, int itemIndex, ArrowBuf dataBuffer, ArrowBuf offsetBuffer) {
+    final int startOffset =
+        offsetBuffer.getInt((long) itemIndex * MutableVarcharVector.OFFSET_WIDTH);
+    final int endOffset =
+        offsetBuffer.getInt((long) (itemIndex + 1) * MutableVarcharVector.OFFSET_WIDTH);
     final int len = endOffset - startOffset;
     byte[] data = new byte[len];
     dataBuffer.getBytes(startOffset, data);

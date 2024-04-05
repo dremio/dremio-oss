@@ -18,8 +18,8 @@ package com.dremio.jdbc.impl;
 import com.dremio.service.coordinator.ClusterCoordinator;
 
 class GlobalCoordinatorReference {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(GlobalCoordinatorReference.class);
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(GlobalCoordinatorReference.class);
 
   static final ThreadLocal<ClusterCoordinator> COORDINATORS = new ThreadLocal<>();
-
 }

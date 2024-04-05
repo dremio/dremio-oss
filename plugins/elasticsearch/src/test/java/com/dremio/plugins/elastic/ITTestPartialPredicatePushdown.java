@@ -15,19 +15,17 @@
  */
 package com.dremio.plugins.elastic;
 
+import com.dremio.plugins.elastic.ElasticBaseTestQuery.ScriptsEnabled;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.plugins.elastic.ElasticBaseTestQuery.ScriptsEnabled;
-
-/**
- * Tests for validating that partial predicate pushdown works
- */
-@ScriptsEnabled(enabled=false)
+/** Tests for validating that partial predicate pushdown works */
+@ScriptsEnabled(enabled = false)
 public class ITTestPartialPredicatePushdown extends ElasticPredicatePushdownBase {
 
-  private static final Logger logger = LoggerFactory.getLogger(ITTestPartialPredicatePushdown.class);
+  private static final Logger logger =
+      LoggerFactory.getLogger(ITTestPartialPredicatePushdown.class);
 
   @Test
   public void partialPushdown() throws Exception {
@@ -35,28 +33,31 @@ public class ITTestPartialPredicatePushdown extends ElasticPredicatePushdownBase
 
     elastic.load(schema, table, data);
 
-    String sql = String.format("select * from elasticsearch.%s.%s where city = 'Cambridge' and business_id = full_address", schema, table);
+    String sql =
+        String.format(
+            "select * from elasticsearch.%s.%s where city = 'Cambridge' and business_id = full_address",
+            schema, table);
 
-    assertPushDownContains(sql,
-      "{\n" +
-      "  \"from\" : 0,\n" +
-      "  \"size\" : 4000,\n" +
-      "  \"query\" : {\n" +
-      "    \"match\" : {\n" +
-      "      \"city\" : {\n" +
-      "        \"query\" : \"Cambridge\",\n" +
-      "        \"operator\" : \"OR\",\n" +
-      "        \"prefix_length\" : 0,\n" +
-      "        \"max_expansions\" : 50000,\n" +
-      "        \"fuzzy_transpositions\" : false,\n" +
-      "        \"lenient\" : false,\n" +
-      "        \"zero_terms_query\" : \"NONE\",\n" +
-      "        \"auto_generate_synonyms_phrase_query\": true,\n" +
-      "        \"boost\" : 1.0\n" +
-      "      }\n" +
-      "    }\n" +
-      "  }\n" +
-      "}"
-    );
+    assertPushDownContains(
+        sql,
+        "{\n"
+            + "  \"from\" : 0,\n"
+            + "  \"size\" : 4000,\n"
+            + "  \"query\" : {\n"
+            + "    \"match\" : {\n"
+            + "      \"city\" : {\n"
+            + "        \"query\" : \"Cambridge\",\n"
+            + "        \"operator\" : \"OR\",\n"
+            + "        \"prefix_length\" : 0,\n"
+            + "        \"max_expansions\" : 50000,\n"
+            + "        \"fuzzy_transpositions\" : false,\n"
+            + "        \"lenient\" : false,\n"
+            + "        \"zero_terms_query\" : \"NONE\",\n"
+            + "        \"auto_generate_synonyms_phrase_query\": true,\n"
+            + "        \"boost\" : 1.0\n"
+            + "      }\n"
+            + "    }\n"
+            + "  }\n"
+            + "}");
   }
 }

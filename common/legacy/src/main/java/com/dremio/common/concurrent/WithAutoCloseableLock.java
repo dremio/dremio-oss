@@ -41,6 +41,7 @@ public class WithAutoCloseableLock<T> implements Closeable {
 
   /**
    * Get the lock that this exposes as an autocloseable.
+   *
    * @return
    */
   public AutoCloseableLock getLock() {
@@ -49,10 +50,10 @@ public class WithAutoCloseableLock<T> implements Closeable {
 
   /**
    * Get the value that is included with the lock.
+   *
    * @return Value of type T.
    */
   public T getValue() {
     return value;
   }
-
 }

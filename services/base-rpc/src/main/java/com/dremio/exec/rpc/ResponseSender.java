@@ -15,8 +15,8 @@
  */
 package com.dremio.exec.rpc;
 
-
 public interface ResponseSender {
   void send(Response r);
+
   void sendFailure(UserRpcException e);
 }

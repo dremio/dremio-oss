@@ -15,8 +15,5 @@
  */
 package com.dremio.connector.metadata;
 
-/**
- * Marker interface for metadata option.
- */
-public interface MetadataOption {
-}
+/** Marker interface for metadata option. */
+public interface MetadataOption {}

@@ -17,8 +17,5 @@ package com.dremio.dac.explore.model;
 
 import java.util.ArrayList;
 
-/**
- * list of datasets for search ui.
- */
-public class DatasetSearchUIs extends ArrayList<DatasetSearchUI> {
-}
+/** list of datasets for search ui. */
+public class DatasetSearchUIs extends ArrayList<DatasetSearchUI> {}

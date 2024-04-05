@@ -15,9 +15,7 @@
  */
 package com.dremio.resource;
 
-/**
- * Basic ResourceScheduling Properties
- */
+/** Basic ResourceScheduling Properties */
 public class ResourceSchedulingProperties {
 
   private String user;
@@ -31,9 +29,7 @@ public class ResourceSchedulingProperties {
   private String ruleSetEngine;
   private String queryLabel;
 
-  public ResourceSchedulingProperties() {
-
-  }
+  public ResourceSchedulingProperties() {}
 
   public String getUser() {
     return user;

@@ -18,9 +18,7 @@ package com.dremio.service.namespace.capabilities;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-/**
- * A string capability value.
- */
+/** A string capability value. */
 public final class StringCapabilityValue extends CapabilityValue<String, StringCapability> {
 
   @JsonCreator

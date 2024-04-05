@@ -15,8 +15,15 @@
  */
 package com.dremio.exec.planner.logical;
 
+import com.dremio.catalog.model.dataset.TableVersionContext;
+import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.ops.DremioCatalogReader;
+import com.dremio.exec.planner.sql.DremioToRelContext;
+import com.dremio.exec.record.BatchSchema;
+import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.google.common.collect.ImmutableSet;
 import java.util.Set;
-
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelHomogeneousShuttle;
@@ -27,26 +34,18 @@ import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.schema.Schema.TableType;
 import org.apache.calcite.schema.Statistic;
 
-import com.dremio.catalog.model.dataset.TableVersionContext;
-import com.dremio.exec.catalog.DremioTable;
-import com.dremio.exec.ops.DremioCatalogReader;
-import com.dremio.exec.planner.sql.DremioToRelContext;
-import com.dremio.exec.record.BatchSchema;
-import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.namespace.dataset.proto.DatasetConfig;
-import com.google.common.collect.ImmutableSet;
-
 /**
- * ConvertedViewTable is used to decorate a ViewTable with the view's converted Calcite type.  The converted type
- * is basically the validated and converted row type of the view's SQL.  This converted type is then returned
- * as the validated type of this view by {@link DremioCatalogReader}.  This ensures that
- * planning and reflection matching always see the view type to be the same as its converted type regardless
- * if the view is stored in Sonar Catalog or Nessie sources (Iceberg Views).
+ * ConvertedViewTable is used to decorate a ViewTable with the view's converted Calcite type. The
+ * converted type is basically the validated and converted row type of the view's SQL. This
+ * converted type is then returned as the validated type of this view by {@link
+ * DremioCatalogReader}. This ensures that planning and reflection matching always see the view type
+ * to be the same as its converted type regardless if the view is stored in Sonar Catalog or Nessie
+ * sources (Iceberg Views).
  *
- * Planning rules including reflection matching should be always be done with validated and converted Calcite types.
- * Using an Arrow or Iceberg type, translating to Calcite and then using that type for planning will result in subtle
- * bugs including varchar precision, nullability, duplicate column name issues and complex types issues.
- *
+ * <p>Planning rules including reflection matching should be always be done with validated and
+ * converted Calcite types. Using an Arrow or Iceberg type, translating to Calcite and then using
+ * that type for planning will result in subtle bugs including varchar precision, nullability,
+ * duplicate column name issues and complex types issues.
  */
 public final class ConvertedViewTable implements DremioTable {
 
@@ -57,7 +56,8 @@ public final class ConvertedViewTable implements DremioTable {
   private final boolean isCorrelated;
   private boolean hasUsedCachedRel = false;
 
-  private ConvertedViewTable(ViewTable unconvertedViewTable, RelDataType validatedRowType, RelNode relNode) {
+  private ConvertedViewTable(
+      ViewTable unconvertedViewTable, RelDataType validatedRowType, RelNode relNode) {
     this.unconvertedViewTable = unconvertedViewTable;
     this.validatedRowType = validatedRowType;
     this.relNode = relNode;
@@ -94,7 +94,9 @@ public final class ConvertedViewTable implements DremioTable {
   @Override
   public RelNode toRel(RelOptTable.ToRelContext context, RelOptTable relOptTable) {
     if (isCorrelated && hasUsedCachedRel) {
-      return ((DremioToRelContext.DremioQueryToRelContext) context).expandView(unconvertedViewTable).rel;
+      return ((DremioToRelContext.DremioQueryToRelContext) context)
+          .expandView(unconvertedViewTable)
+          .rel;
     }
     hasUsedCachedRel = true;
     return relNode;
@@ -115,19 +117,20 @@ public final class ConvertedViewTable implements DremioTable {
     return unconvertedViewTable.getJdbcTableType();
   }
 
-  public static ConvertedViewTable of(final ViewTable table, final RelDataType validatedRowType, final RelNode relNode) {
+  public static ConvertedViewTable of(
+      final ViewTable table, final RelDataType validatedRowType, final RelNode relNode) {
     return new ConvertedViewTable(table, validatedRowType, relNode);
   }
 
   /**
-   * Used to find the presence of any correlationIds in a rel tree.
-   * Similar to {@link RelOptUtil}'s CorrelationCollector except used variables are not unset by rels
-   * in parent scope.
+   * Used to find the presence of any correlationIds in a rel tree. Similar to {@link RelOptUtil}'s
+   * CorrelationCollector except used variables are not unset by rels in parent scope.
    */
   private static class CorrelationCollector extends RelHomogeneousShuttle {
     private final RelOptUtil.VariableUsedVisitor vuv = new RelOptUtil.VariableUsedVisitor(this);
 
-    @Override public RelNode visit(RelNode other) {
+    @Override
+    public RelNode visit(RelNode other) {
       other.collectVariablesUsed(vuv.variables);
       other.accept(vuv);
       RelNode result = super.visit(other);

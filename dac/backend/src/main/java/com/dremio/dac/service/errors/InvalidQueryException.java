@@ -15,19 +15,15 @@
  */
 package com.dremio.dac.service.errors;
 
-import java.util.List;
-
 import com.dremio.dac.explore.model.DatasetSummary;
 import com.dremio.dac.model.job.QueryError;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.SessionId;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.List;
 
-/**
- * Exception for invalid queries
- *
- */
+/** Exception for invalid queries */
 public class InvalidQueryException extends IllegalArgumentException {
   private static final long serialVersionUID = 1L;
 
@@ -42,9 +38,7 @@ public class InvalidQueryException extends IllegalArgumentException {
     return details;
   }
 
-  /**
-   * Basic information needed to populate the explore page to retry a failed initial preview.
-   */
+  /** Basic information needed to populate the explore page to retry a failed initial preview. */
   public static final class Details {
     private final String sql;
     private final List<String> context;
@@ -81,7 +75,9 @@ public class InvalidQueryException extends IllegalArgumentException {
       return errors;
     }
 
-    public DatasetSummary getDatasetSummary() { return datasetSummary; }
+    public DatasetSummary getDatasetSummary() {
+      return datasetSummary;
+    }
 
     public JobId getJobId() {
       return jobId;

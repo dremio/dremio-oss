@@ -19,17 +19,16 @@ import org.joda.time.Chronology;
 import org.joda.time.DateTimeZone;
 
 /**
- * {@link Chronology} that wraps around any base chronology, except for {@link #dayOfWeek()} function, in which case,
- * the field is replaced with {@link DayOfWeekFromSundayDateTimeField}.
+ * {@link Chronology} that wraps around any base chronology, except for {@link #dayOfWeek()}
+ * function, in which case, the field is replaced with {@link DayOfWeekFromSundayDateTimeField}.
  */
 public final class DayOfWeekFromSundayChronology extends AssembledChronology {
 
-  /**
-   * Serialization version.
-   */
+  /** Serialization version. */
   private static final long serialVersionUID = 9086460675149718250L;
 
-  private static final DayOfWeekFromSundayChronology ISO_INSTANCE_UTC = withBase(ISOChronology.getInstanceUTC());
+  private static final DayOfWeekFromSundayChronology ISO_INSTANCE_UTC =
+      withBase(ISOChronology.getInstanceUTC());
 
   /**
    * Gets an instance of DayOfWeekFromSundayChronology with the given chronology as the base.
@@ -42,8 +41,8 @@ public final class DayOfWeekFromSundayChronology extends AssembledChronology {
   }
 
   /**
-   * Gets an instance of the DayOfWeekFromSundayChronology wrapped around ISOChronology.
-   * The time zone of the returned instance is UTC.
+   * Gets an instance of the DayOfWeekFromSundayChronology wrapped around ISOChronology. The time
+   * zone of the returned instance is UTC.
    *
    * @return a singleton UTC instance of the chronology
    */
@@ -91,5 +90,4 @@ public final class DayOfWeekFromSundayChronology extends AssembledChronology {
   public String toString() {
     return "[DayOfWeekFromSundayChronology " + getBase().toString() + "]";
   }
-
 }

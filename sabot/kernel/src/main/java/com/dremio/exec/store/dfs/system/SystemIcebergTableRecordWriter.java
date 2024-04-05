@@ -36,33 +36,40 @@ import com.dremio.service.users.SystemUser;
 import com.google.common.collect.ImmutableList;
 
 /**
- * *** IMPORTANT ***
- * This record writer must be used only in the context of copy into command.
- * *****************
- * This class is responsible for writing records to the "system iceberg tables" in Parquet format.
- * It encapsulates the logic of setting up the {@link ParquetRecordWriter}, initializing it, writing records, and closing it.
+ * *** IMPORTANT *** This record writer must be used only in the context of copy into command.
+ * ***************** This class is responsible for writing records to the "system iceberg tables" in
+ * Parquet format. It encapsulates the logic of setting up the {@link ParquetRecordWriter},
+ * initializing it, writing records, and closing it.
  */
 public class SystemIcebergTableRecordWriter {
 
   private final ParquetRecordWriter recordWriter;
 
   /**
-   * Constructs a new instance of CopyIntoErrorsTableRecordWriter.
+   * Constructs a new instance of {@link SystemIcebergTableRecordWriter}.
    *
-   * @param operatorContext            The operator context associated with the operation.
-   * @param plugin                     The SystemIcebergTablesStoragePlugin instance.
-   * @param dataLocationPath           The location path for writing the data.
+   * @param operatorContext The operator context associated with the operation.
+   * @param plugin The SystemIcebergTablesStoragePlugin instance.
+   * @param dataLocationPath The location path for writing the data.
    */
-  public SystemIcebergTableRecordWriter(OperatorContext operatorContext, SystemIcebergTablesStoragePlugin plugin, SystemIcebergTableMetadata tableMetadata, Path dataLocationPath) {
-    this.recordWriter = new ParquetRecordWriter(operatorContext, getWriter(plugin, dataLocationPath.toString(),
-      tableMetadata.getIcebergTablePropsForInsert()), getFormatConfig());
+  public SystemIcebergTableRecordWriter(
+      OperatorContext operatorContext,
+      SystemIcebergTablesStoragePlugin plugin,
+      SystemIcebergTableMetadata tableMetadata,
+      Path dataLocationPath) {
+    this.recordWriter =
+        new ParquetRecordWriter(
+            operatorContext,
+            getWriter(
+                plugin, dataLocationPath.toString(), tableMetadata.getIcebergTablePropsForInsert()),
+            getFormatConfig());
   }
 
   /**
-   * Writes the contents of a {@link VectorContainer} to a Parquet data file. After the write operation the provided
-   * {@link VectorContainer} is cleared and closed.
+   * Writes the contents of a {@link VectorContainer} to a Parquet data file. After the write
+   * operation the provided {@link VectorContainer} is cleared and closed.
    *
-   * @param container           The {@link VectorContainer} containing the data to be written.
+   * @param container The {@link VectorContainer} containing the data to be written.
    * @param dataFileLocationPath The path where the Parquet data file will be created.
    * @throws Exception If an error occurs during the writing process.
    */
@@ -80,6 +87,7 @@ public class SystemIcebergTableRecordWriter {
 
   /**
    * Close the underlying {@link ParquetRecordWriter} instance.
+   *
    * @throws Exception if an error occurs during the closing process.
    */
   public void close() throws Exception {
@@ -88,6 +96,7 @@ public class SystemIcebergTableRecordWriter {
 
   /**
    * Get the file size of the written parquet file.
+   *
    * @return File size, always non-null.
    */
   public long getFileSize() {
@@ -97,48 +106,66 @@ public class SystemIcebergTableRecordWriter {
   /**
    * Get a ParquetWriter instance for writing Parquet data.
    *
-   * @param plugin            The MutablePlugin instance associated with the writer.
-   * @param dataLocation      The location where the data will be written.
+   * @param plugin The MutablePlugin instance associated with the writer.
+   * @param dataLocation The location where the data will be written.
    * @param icebergTableProps
    * @return A ParquetWriter instance for writing data.
    */
-  private ParquetWriter getWriter(MutablePlugin plugin, String dataLocation, IcebergTableProps icebergTableProps) {
-    return new ParquetWriter(getOpProps(), null, dataLocation, getWriterOptions(icebergTableProps), plugin);
+  private ParquetWriter getWriter(
+      MutablePlugin plugin, String dataLocation, IcebergTableProps icebergTableProps) {
+    return new ParquetWriter(
+        getOpProps(), null, dataLocation, getWriterOptions(icebergTableProps), plugin);
   }
 
   /**
    * Generates the {@link WriterOptions} for writing data to an Iceberg table.
    *
-   * @param icebergTableProps The {@link IcebergTableProps} containing properties specific to the Iceberg table.
+   * @param icebergTableProps The {@link IcebergTableProps} containing properties specific to the
+   *     Iceberg table.
    * @return The {@link WriterOptions} used for writing data to the table.
    */
   private WriterOptions getWriterOptions(IcebergTableProps icebergTableProps) {
-    return new WriterOptions(null, ImmutableList.of(), ImmutableList.<String>of(), ImmutableList.<String>of(),
-      PartitionDistributionStrategy.UNSPECIFIED, null, false,
-      Long.MAX_VALUE, getTableFormatWriterOptions(icebergTableProps), null);
+    return new WriterOptions(
+        null,
+        ImmutableList.of(),
+        ImmutableList.<String>of(),
+        ImmutableList.<String>of(),
+        PartitionDistributionStrategy.UNSPECIFIED,
+        null,
+        false,
+        Long.MAX_VALUE,
+        getTableFormatWriterOptions(icebergTableProps),
+        null);
   }
 
   /**
-   * Generates the {@link TableFormatWriterOptions} for writing data to an Iceberg table in a specific format.
+   * Generates the {@link TableFormatWriterOptions} for writing data to an Iceberg table in a
+   * specific format.
    *
-   * @param icebergTableProps The {@link IcebergTableProps} containing properties specific to the Iceberg table.
+   * @param icebergTableProps The {@link IcebergTableProps} containing properties specific to the
+   *     Iceberg table.
    * @return The {@link TableFormatWriterOptions} used for writing data to the table.
    */
-  private TableFormatWriterOptions getTableFormatWriterOptions(IcebergTableProps icebergTableProps) {
+  private TableFormatWriterOptions getTableFormatWriterOptions(
+      IcebergTableProps icebergTableProps) {
     return new ImmutableTableFormatWriterOptions.Builder()
-      .setOperation(TableFormatWriterOptions.TableFormatOperation.INSERT)
-      .setIcebergSpecificOptions(getIcebergWriterOptions(icebergTableProps))
-      .build();
+        .setOperation(TableFormatWriterOptions.TableFormatOperation.INSERT)
+        .setIcebergSpecificOptions(getIcebergWriterOptions(icebergTableProps))
+        .build();
   }
 
   /**
-   * Generates the {@link IcebergWriterOptions} for writing data to an Iceberg table with specific properties.
+   * Generates the {@link IcebergWriterOptions} for writing data to an Iceberg table with specific
+   * properties.
    *
-   * @param icebergTableProps The {@link IcebergTableProps} containing properties specific to the Iceberg table.
+   * @param icebergTableProps The {@link IcebergTableProps} containing properties specific to the
+   *     Iceberg table.
    * @return The {@link IcebergWriterOptions} used for writing data to the table.
    */
   private IcebergWriterOptions getIcebergWriterOptions(IcebergTableProps icebergTableProps) {
-    return new ImmutableIcebergWriterOptions.Builder().setIcebergTableProps(icebergTableProps).build();
+    return new ImmutableIcebergWriterOptions.Builder()
+        .setIcebergTableProps(icebergTableProps)
+        .build();
   }
 
   /**
@@ -156,7 +183,18 @@ public class SystemIcebergTableRecordWriter {
    * @return An OpProps instance for operation properties.
    */
   private OpProps getOpProps() {
-    return new OpProps(0, SystemUser.SYSTEM_USERNAME, 0, Long.MAX_VALUE, 0, 0, false, 4095, RecordWriter.SCHEMA, false, 0.0d, false);
+    return new OpProps(
+        0,
+        SystemUser.SYSTEM_USERNAME,
+        0,
+        Long.MAX_VALUE,
+        0,
+        0,
+        false,
+        4095,
+        RecordWriter.SCHEMA,
+        false,
+        0.0d,
+        false);
   }
-
 }

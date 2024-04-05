@@ -15,8 +15,10 @@
  */
 package com.dremio.sabot.op.join.vhash.spill.slicer;
 
+import com.dremio.common.expression.CompleteType;
+import com.dremio.exec.util.RoundUtil;
+import com.dremio.sabot.op.join.vhash.spill.pool.Page;
 import java.util.List;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BaseFixedWidthVector;
@@ -29,13 +31,7 @@ import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.complex.StructVector;
 import org.apache.arrow.vector.complex.UnionVector;
 
-import com.dremio.common.expression.CompleteType;
-import com.dremio.exec.util.RoundUtil;
-import com.dremio.sabot.op.join.vhash.spill.pool.Page;
-
-/**
- * Merge input list of vectors into a single vector, allocated from the supplied page.
- */
+/** Merge input list of vectors into a single vector, allocated from the supplied page. */
 interface Merger {
 
   int BYTE_SIZE_BITS = 8;
@@ -60,8 +56,10 @@ interface Merger {
     } else if (vector instanceof DenseUnionVector) {
       return new DenseUnionMerger((DenseUnionVector) vector, wrapperIdx, allocator);
     } else {
-      throw new UnsupportedOperationException(String.format("Vectors for field %s of type %s not yet supported.",
-        vector.getField().getName(), CompleteType.fromField(vector.getField()).toString()));
+      throw new UnsupportedOperationException(
+          String.format(
+              "Vectors for field %s of type %s not yet supported.",
+              vector.getField().getName(), CompleteType.fromField(vector.getField()).toString()));
     }
   }
 
@@ -84,6 +82,7 @@ interface Merger {
 
   /**
    * Bits required to store validity bits for given number of records
+   *
    * @param numberOfRecords
    * @return
    */
@@ -93,32 +92,37 @@ interface Merger {
 
   /**
    * Merge validity buffers of given vectors into a given single buffer
+   *
    * @param src
    * @param validityBuf all validity buffers are merged into this buffer
    */
-  static void mergeValidityBuffers(final List<? extends ValueVector> src, final ArrowBuf validityBuf) {
+  static void mergeValidityBuffers(
+      final List<? extends ValueVector> src, final ArrowBuf validityBuf) {
     int bitPosition = 0;
     for (final ValueVector current : src) {
-      Merger.copyBits(current.getValidityBuffer(), validityBuf, bitPosition, current.getValueCount());
+      Merger.copyBits(
+          current.getValidityBuffer(), validityBuf, bitPosition, current.getValueCount());
       bitPosition += current.getValueCount();
     }
   }
 
   /**
    * Bits required to store offset values for given number of records
+   *
    * @param numberOfRecords
    * @return
    */
-  static int getOffsetBufferSizeInBits(final int numberOfRecords){
-    return RoundUtil.round64up(OFFSET_SIZE_BITS * ( numberOfRecords + 1));
+  static int getOffsetBufferSizeInBits(final int numberOfRecords) {
+    return RoundUtil.round64up(OFFSET_SIZE_BITS * (numberOfRecords + 1));
   }
 
   /**
    * Bits required to store type data (in union vectors) for given number of records
+   *
    * @param numberOfRecords
    * @return
    */
-  static int getTypeBufferSizeInBits(final int numberOfRecords){
+  static int getTypeBufferSizeInBits(final int numberOfRecords) {
     return RoundUtil.round64up(numberOfRecords * BYTE_SIZE_BITS);
   }
 }

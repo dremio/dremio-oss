@@ -17,27 +17,30 @@ package com.dremio.dac.service.errors;
 
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON_TYPE;
 
+import com.dremio.dac.server.GenericErrorMessage;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response;
 
-import com.dremio.dac.server.GenericErrorMessage;
-
-/**
- * Thrown when a source is in bad state or got permission issues.
- */
+/** Thrown when a source is in bad state or got permission issues. */
 public class SourceBadStateException extends WebApplicationException {
   private static final long serialVersionUID = 1L;
 
   private static Response newResponse(Object entity) {
     return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-      .entity(entity)
-      .type(APPLICATION_JSON_TYPE)
-      .build();
+        .entity(entity)
+        .type(APPLICATION_JSON_TYPE)
+        .build();
   }
 
   public SourceBadStateException(String sourceName, String details, Exception e) {
-    super(e, newResponse(new GenericErrorMessage(
-        String.format("The source [%s] is in bad state. Please check the detailed error message.", sourceName),
-        details, null)));
+    super(
+        e,
+        newResponse(
+            new GenericErrorMessage(
+                String.format(
+                    "The source [%s] is in bad state. Please check the detailed error message.",
+                    sourceName),
+                details,
+                null)));
   }
 }

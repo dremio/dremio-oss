@@ -15,28 +15,28 @@
  */
 package com.dremio.exec.planner.physical;
 
-import org.apache.calcite.plan.RelOptRuleCall;
-import org.apache.calcite.rel.RelNode;
-
 import com.dremio.exec.ops.OptimizerRulesContext;
 import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.planner.logical.RelOptHelper;
 import com.dremio.exec.planner.logical.VacuumTableRel;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
+import org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.calcite.rel.RelNode;
 
-/**
- * Generate physical plan for VACUUM TABLE with file systems.
- */
+/** Generate physical plan for VACUUM TABLE with file systems. */
 public class FileSystemVacuumTablePrule extends VacuumTablePruleBase {
 
   public FileSystemVacuumTablePrule(OptimizerRulesContext context) {
-    super(RelOptHelper.some(VacuumTableRel.class, Rel.LOGICAL, RelOptHelper.any(RelNode.class)),
-      "Prel.FileSystemVacuumTablePrule", context);
+    super(
+        RelOptHelper.some(VacuumTableRel.class, Rel.LOGICAL, RelOptHelper.any(RelNode.class)),
+        "Prel.FileSystemVacuumTablePrule",
+        context);
   }
 
   @Override
   public boolean matches(RelOptRuleCall call) {
-    return call.<VacuumTableRel>rel(0).getCreateTableEntry().getPlugin() instanceof FileSystemPlugin;
+    return call.<VacuumTableRel>rel(0).getCreateTableEntry().getPlugin()
+        instanceof FileSystemPlugin;
   }
 
   @Override

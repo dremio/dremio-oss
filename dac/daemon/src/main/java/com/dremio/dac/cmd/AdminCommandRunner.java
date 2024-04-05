@@ -15,6 +15,15 @@
  */
 package com.dremio.dac.cmd;
 
+import com.dremio.common.config.SabotConfig;
+import com.dremio.common.scanner.ClassPathScanner;
+import com.dremio.common.scanner.persistence.ScanResult;
+import com.dremio.dac.server.DACConfig;
+import com.dremio.hadoop.security.alias.DremioCredentialProviderFactory;
+import com.dremio.services.credentials.CredentialsService;
+import com.dremio.services.credentials.CredentialsServiceImpl;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Throwables;
 import java.io.PrintStream;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -22,18 +31,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import com.dremio.common.config.SabotConfig;
-import com.dremio.common.scanner.ClassPathScanner;
-import com.dremio.common.scanner.persistence.ScanResult;
-import com.dremio.dac.server.DACConfig;
-import com.dremio.hadoop.security.alias.DremioCredentialProviderFactory;
-import com.dremio.services.credentials.CredentialsService;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
-
-/**
- * Runs an admin command.
- */
+/** Runs an admin command. */
 public final class AdminCommandRunner {
 
   public static void main(String[] args) throws Exception {
@@ -68,8 +66,8 @@ public final class AdminCommandRunner {
       System.exit(2);
     }
 
-    try (CredentialsService credentialsService = CredentialsService.newInstance(dacConfig.getConfig(), classpathScan))
-    {
+    try (CredentialsService credentialsService =
+        CredentialsServiceImpl.newInstance(dacConfig.getConfig(), classpathScan)) {
       credentialsService.start();
       DremioCredentialProviderFactory.configure(() -> credentialsService);
       runCommand(commandName, command, Arrays.copyOfRange(args, 1, args.length));
@@ -79,10 +77,13 @@ public final class AdminCommandRunner {
     }
   }
 
-  public static void runCommand(String commandName, Class<?> command, String[] commandArgs) throws Exception {
+  public static void runCommand(String commandName, Class<?> command, String[] commandArgs)
+      throws Exception {
     final Method mainMethod = command.getMethod("main", String[].class);
-    Preconditions.checkState(Modifier.isStatic(mainMethod.getModifiers())
-        && Modifier.isPublic(mainMethod.getModifiers()), "#main(String[]) must have public and static modifiers");
+    Preconditions.checkState(
+        Modifier.isStatic(mainMethod.getModifiers())
+            && Modifier.isPublic(mainMethod.getModifiers()),
+        "#main(String[]) must have public and static modifiers");
 
     final Object[] objects = new Object[1];
     objects[0] = commandArgs;
@@ -92,7 +93,7 @@ public final class AdminCommandRunner {
     } catch (final ReflectiveOperationException e) {
       final Throwable cause = e.getCause() != null ? e.getCause() : e;
       Throwables.throwIfUnchecked(cause);
-      throw (Exception)cause;
+      throw (Exception) cause;
     }
   }
 
@@ -101,19 +102,22 @@ public final class AdminCommandRunner {
       stream.println(reason);
     }
 
-    final String commandNames = adminCommands.stream()
-        .map(aClass -> aClass.getAnnotation(AdminCommand.class))
-        .map(AdminCommand::value)
-        .collect(Collectors.joining("|"));
+    final String commandNames =
+        adminCommands.stream()
+            .map(aClass -> aClass.getAnnotation(AdminCommand.class))
+            .map(AdminCommand::value)
+            .collect(Collectors.joining("|"));
 
     stream.println("Usage: dremio-admin (" + commandNames + ") [args...]");
 
-    adminCommands.forEach(clazz -> {
-      final AdminCommand adminCommand = clazz.getAnnotation(AdminCommand.class);
-      stream.println("  " + adminCommand.value() + ": " + adminCommand.description());
-    });
+    adminCommands.forEach(
+        clazz -> {
+          final AdminCommand adminCommand = clazz.getAnnotation(AdminCommand.class);
+          stream.println("  " + adminCommand.value() + ": " + adminCommand.description());
+        });
 
     stream.println("Run export 'DREMIO_ADMIN_LOG_DIR=<path>' to set log directory.");
-    stream.println("Run export 'DREMIO_ADMIN_LOG_VERBOSITY=<value>' to set verbosity. Default is INFO.");
+    stream.println(
+        "Run export 'DREMIO_ADMIN_LOG_VERBOSITY=<value>' to set verbosity. Default is INFO.");
   }
 }

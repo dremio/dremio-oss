@@ -16,18 +16,14 @@
 
 package com.dremio.plugins.async.utils;
 
+import com.google.common.base.Stopwatch;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Stopwatch;
-
-/**
- * Captures the latency breakups and logs them in the end.
- */
+/** Captures the latency breakups and logs them in the end. */
 public class MetricsLogger {
   private final Map<String, Stopwatch> watchers = new HashMap<>();
   private final Map<String, Integer> counters = new HashMap<>();
@@ -58,7 +54,11 @@ public class MetricsLogger {
       buffer.append(Thread.currentThread().getId());
       buffer.append(" [METRICS] ");
       for (Map.Entry<String, Stopwatch> watcherEntry : watchers.entrySet()) {
-        buffer.append(watcherEntry.getKey() + "=" + watcherEntry.getValue().elapsed(TimeUnit.MILLISECONDS) + ", ");
+        buffer.append(
+            watcherEntry.getKey()
+                + "="
+                + watcherEntry.getValue().elapsed(TimeUnit.MILLISECONDS)
+                + ", ");
       }
       if (!counters.isEmpty()) {
         buffer.append("[COUNTERS] ");

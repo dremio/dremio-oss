@@ -20,7 +20,7 @@ import {
 } from "../types/VersionContext.types";
 
 export const getVersionContextFromId = (
-  id: string
+  id: string,
 ): VersionContext | undefined => {
   try {
     const datasetReference = JSON.parse(id);
@@ -31,7 +31,7 @@ export const getVersionContextFromId = (
 };
 
 export const getDatasetReferenceFromId = (
-  id: string
+  id: string,
 ): DatasetReference | undefined => {
   try {
     const datasetReference = JSON.parse(id);

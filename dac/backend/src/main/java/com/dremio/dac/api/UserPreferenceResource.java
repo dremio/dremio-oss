@@ -18,27 +18,6 @@ package com.dremio.dac.api;
 
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.UUID;
-import java.util.stream.Collectors;
-
-import javax.inject.Inject;
-import javax.ws.rs.BadRequestException;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.DELETE;
-import javax.ws.rs.DefaultValue;
-import javax.ws.rs.ForbiddenException;
-import javax.ws.rs.GET;
-import javax.ws.rs.NotAuthorizedException;
-import javax.ws.rs.NotFoundException;
-import javax.ws.rs.PUT;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-
 import com.dremio.dac.annotations.APIResource;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.model.spaces.HomeName;
@@ -55,6 +34,25 @@ import com.dremio.service.userpreferences.UserPreferenceService;
 import com.dremio.service.userpreferences.proto.UserPreferenceProto;
 import com.dremio.service.users.UserNotFoundException;
 import com.google.protobuf.util.Timestamps;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.UUID;
+import java.util.stream.Collectors;
+import javax.inject.Inject;
+import javax.ws.rs.BadRequestException;
+import javax.ws.rs.Consumes;
+import javax.ws.rs.DELETE;
+import javax.ws.rs.DefaultValue;
+import javax.ws.rs.ForbiddenException;
+import javax.ws.rs.GET;
+import javax.ws.rs.NotAuthorizedException;
+import javax.ws.rs.NotFoundException;
+import javax.ws.rs.PUT;
+import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
+import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
 
 @APIResource
 @Secured
@@ -67,8 +65,8 @@ public class UserPreferenceResource {
   private final NamespaceService namespaceService;
 
   @Inject
-  public UserPreferenceResource(UserPreferenceService userPreferenceService,
-                                NamespaceService namespaceService) {
+  public UserPreferenceResource(
+      UserPreferenceService userPreferenceService, NamespaceService namespaceService) {
     this.userPreferenceService = userPreferenceService;
     this.namespaceService = namespaceService;
   }
@@ -76,41 +74,43 @@ public class UserPreferenceResource {
   @GET
   @Path("/{preferenceType}")
   public PreferenceData getPreferenceByType(
-    @PathParam("preferenceType") String preferenceType,
-    @QueryParam("showCatalogInfo") @DefaultValue("false") boolean showCatalogInfo)
-    throws NamespaceNotFoundException {
+      @PathParam("preferenceType") String preferenceType,
+      @QueryParam("showCatalogInfo") @DefaultValue("false") boolean showCatalogInfo)
+      throws NamespaceNotFoundException {
     try {
-      UserPreferenceProto.Preference preference = userPreferenceService.getPreferenceByType(validatePreferenceType(preferenceType));
+      UserPreferenceProto.Preference preference =
+          userPreferenceService.getPreferenceByType(validatePreferenceType(preferenceType));
 
       if (showCatalogInfo) {
-        Map<String, UserPreferenceProto.Entity> entityIdToEntityMap = preference.getEntitiesList()
-          .stream()
-          .collect(Collectors.toMap(UserPreferenceProto.Entity::getEntityId, entity -> entity));
+        Map<String, UserPreferenceProto.Entity> entityIdToEntityMap =
+            preference.getEntitiesList().stream()
+                .collect(
+                    Collectors.toMap(UserPreferenceProto.Entity::getEntityId, entity -> entity));
 
         List<NameSpaceContainer> entities =
-          namespaceService.getEntitiesByIds(preference.getEntitiesList()
-                                              .stream()
-                                              .map(UserPreferenceProto.Entity::getEntityId)
-                                              .collect(
-                                                Collectors.toList()));
-        return new PreferenceData(preference.getType(),
-                                  entities.parallelStream()
-                                    .map(container -> getEntityFromNameSpaceContainer(
-                                      container,
-                                      entityIdToEntityMap))
-                                    .collect(
-                                      Collectors.toList()));
+            namespaceService.getEntitiesByIds(
+                preference.getEntitiesList().stream()
+                    .map(UserPreferenceProto.Entity::getEntityId)
+                    .collect(Collectors.toList()));
+        return new PreferenceData(
+            preference.getType(),
+            entities.parallelStream()
+                .map(container -> getEntityFromNameSpaceContainer(container, entityIdToEntityMap))
+                .collect(Collectors.toList()));
       }
 
-      return new PreferenceData(preference.getType(),
-                                preference.getEntitiesList().stream().map(
-                                  entity -> new Entity(entity.getEntityId(),
-                                                       null,
-                                                       null,
-                                                       null,
-                                                       Timestamps.toMillis(entity.getTimestamp()))
-                              ).collect(
-                                Collectors.toList()));
+      return new PreferenceData(
+          preference.getType(),
+          preference.getEntitiesList().stream()
+              .map(
+                  entity ->
+                      new Entity(
+                          entity.getEntityId(),
+                          null,
+                          null,
+                          null,
+                          Timestamps.toMillis(entity.getTimestamp())))
+              .collect(Collectors.toList()));
     } catch (UserNotFoundException e) {
       throw new NotAuthorizedException(e.getMessage());
     }
@@ -118,21 +118,24 @@ public class UserPreferenceResource {
 
   @PUT
   @Path("/{preferenceType}/{entityId}")
-  public PreferenceData addEntityToPreference(@PathParam("preferenceType") String preferenceType,
-                                              @PathParam("entityId") UUID entityId) {
+  public PreferenceData addEntityToPreference(
+      @PathParam("preferenceType") String preferenceType, @PathParam("entityId") UUID entityId) {
     try {
-      UserPreferenceProto.Preference preference = userPreferenceService.addEntityToPreference(
-        validatePreferenceType(preferenceType),
-        entityId);
-      return new PreferenceData(preference.getType(),
-                                preference.getEntitiesList().stream().map(
-                                  entity -> new Entity(entity.getEntityId(),
-                                                       null,
-                                                       null,
-                                                       null,
-                                                       Timestamps.toMillis(entity.getTimestamp()))
-                                ).collect(
-                                  Collectors.toList()));
+      UserPreferenceProto.Preference preference =
+          userPreferenceService.addEntityToPreference(
+              validatePreferenceType(preferenceType), entityId);
+      return new PreferenceData(
+          preference.getType(),
+          preference.getEntitiesList().stream()
+              .map(
+                  entity ->
+                      new Entity(
+                          entity.getEntityId(),
+                          null,
+                          null,
+                          null,
+                          Timestamps.toMillis(entity.getTimestamp())))
+              .collect(Collectors.toList()));
     } catch (EntityAlreadyInPreferenceException exception) {
       throw new BadRequestException(exception.getMessage());
     } catch (EntityThresholdReachedException | IllegalAccessException exception) {
@@ -144,21 +147,24 @@ public class UserPreferenceResource {
 
   @DELETE
   @Path("/{preferenceType}/{entityId}")
-  public PreferenceData removeEntityFromPreference(@PathParam("preferenceType") String preferenceType,
-                                                   @PathParam("entityId") UUID entityId) {
+  public PreferenceData removeEntityFromPreference(
+      @PathParam("preferenceType") String preferenceType, @PathParam("entityId") UUID entityId) {
     try {
-      UserPreferenceProto.Preference preference = userPreferenceService.removeEntityFromPreference(
-        validatePreferenceType(preferenceType),
-        entityId);
-      return new PreferenceData(preference.getType(),
-                                preference.getEntitiesList().stream().map(
-                                  entity -> new Entity(entity.getEntityId(),
-                                                       null,
-                                                       null,
-                                                       null,
-                                                       Timestamps.toMillis(entity.getTimestamp()))
-                                ).collect(
-                                  Collectors.toList()));
+      UserPreferenceProto.Preference preference =
+          userPreferenceService.removeEntityFromPreference(
+              validatePreferenceType(preferenceType), entityId);
+      return new PreferenceData(
+          preference.getType(),
+          preference.getEntitiesList().stream()
+              .map(
+                  entity ->
+                      new Entity(
+                          entity.getEntityId(),
+                          null,
+                          null,
+                          null,
+                          Timestamps.toMillis(entity.getTimestamp())))
+              .collect(Collectors.toList()));
     } catch (EntityNotFoundInPreferenceException exception) {
       throw new NotFoundException(exception.getMessage());
     } catch (UserNotFoundException e) {
@@ -170,14 +176,13 @@ public class UserPreferenceResource {
     try {
       return UserPreferenceProto.PreferenceType.valueOf(preferenceType.toUpperCase(Locale.ROOT));
     } catch (IllegalArgumentException exception) {
-      throw new IllegalArgumentException(String.format("%s is not a valid preference type.",
-                                                       preferenceType));
+      throw new IllegalArgumentException(
+          String.format("%s is not a valid preference type.", preferenceType));
     }
   }
 
   private Entity getEntityFromNameSpaceContainer(
-    NameSpaceContainer container,
-    Map<String, UserPreferenceProto.Entity> entityIdToEntityMap) {
+      NameSpaceContainer container, Map<String, UserPreferenceProto.Entity> entityIdToEntityMap) {
     String name = "";
     String type = container.getType().toString();
     EntityId entityId = null;
@@ -200,14 +205,11 @@ public class UserPreferenceResource {
       entityId = container.getFolder().getId();
     }
 
-    return new Entity(entityId.getId(),
-                      name,
-                      container.getFullPathList(),
-                      type,
-                      Timestamps.toMillis(
-                        entityIdToEntityMap.get(entityId.getId())
-                          .getTimestamp()));
-
+    return new Entity(
+        entityId.getId(),
+        name,
+        container.getFullPathList(),
+        type,
+        Timestamps.toMillis(entityIdToEntityMap.get(entityId.getId()).getTimestamp()));
   }
-
 }

@@ -15,10 +15,9 @@
  */
 package com.dremio.telemetry.api.metrics;
 
-/**
- * Cache Hit Listener
- */
+/** Cache Hit Listener */
 public interface CacheMonitor {
   void hit(String... tags);
+
   void miss(String... tags);
 }

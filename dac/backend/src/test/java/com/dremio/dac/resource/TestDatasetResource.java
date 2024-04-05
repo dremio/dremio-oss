@@ -20,19 +20,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-import java.io.File;
-import java.io.PrintWriter;
-import java.util.concurrent.TimeUnit;
-
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.core.Response;
-
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.model.sources.SourceUI;
 import com.dremio.dac.model.sources.UIMetadataPolicy;
@@ -50,21 +37,30 @@ import com.dremio.service.namespace.dataset.proto.RefreshMethod;
 import com.dremio.service.namespace.physicaldataset.proto.AccelerationSettingsDescriptor;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import java.io.File;
+import java.io.PrintWriter;
+import java.util.concurrent.TimeUnit;
+import javax.ws.rs.client.Entity;
+import javax.ws.rs.core.Response;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
-/**
- * Tests {@link com.dremio.dac.explore.DatasetResource} API
- */
+/** Tests {@link com.dremio.dac.explore.DatasetResource} API */
 public class TestDatasetResource extends BaseTestServer {
   private static final String SOURCE_NAME = "mysrc";
   private static final String DATASET_NAME = "ds1.json";
   private static final String DATASET_NAME_2 = "ds2.json";
   private static final long DEFAULT_REFRESH_PERIOD = TimeUnit.HOURS.toMillis(4);
   private static final long DEFAULT_GRACE_PERIOD = TimeUnit.HOURS.toMillis(12);
-  private static final DatasetPath DATASET_PATH = new DatasetPath(ImmutableList.of(SOURCE_NAME, DATASET_NAME));
-  private static final DatasetPath DATASET_PATH_2 = new DatasetPath(ImmutableList.of(SOURCE_NAME, DATASET_NAME_2));
+  private static final DatasetPath DATASET_PATH =
+      new DatasetPath(ImmutableList.of(SOURCE_NAME, DATASET_NAME));
+  private static final DatasetPath DATASET_PATH_2 =
+      new DatasetPath(ImmutableList.of(SOURCE_NAME, DATASET_NAME_2));
 
-  @Rule
-  public final TemporaryFolder folder = new TemporaryFolder();
+  @Rule public final TemporaryFolder folder = new TemporaryFolder();
 
   protected NamespaceService getNamespaceService() {
     final NamespaceService service = newNamespaceService();
@@ -119,12 +115,13 @@ public class TestDatasetResource extends BaseTestServer {
 
   @Test
   public void testAccelerationSettings() throws Exception {
-    final String endpoint = String.format("/dataset/%s/acceleration/settings", DATASET_PATH.toPathString());
+    final String endpoint =
+        String.format("/dataset/%s/acceleration/settings", DATASET_PATH.toPathString());
     {
-      final AccelerationSettingsDescriptor descriptor = expectSuccess(
-          getBuilder(getAPIv2().path(endpoint)).buildGet(),
-          AccelerationSettingsDescriptor.class
-      );
+      final AccelerationSettingsDescriptor descriptor =
+          expectSuccess(
+              getBuilder(getAPIv2().path(endpoint)).buildGet(),
+              AccelerationSettingsDescriptor.class);
 
       assertEquals((Long) DEFAULT_REFRESH_PERIOD, descriptor.getAccelerationRefreshPeriod());
       assertEquals((Long) DEFAULT_GRACE_PERIOD, descriptor.getAccelerationGracePeriod());
@@ -133,12 +130,13 @@ public class TestDatasetResource extends BaseTestServer {
 
   @Test
   public void testAccelerationSettingsNeverRefreshOrExpire() throws Exception {
-    final String endpoint = String.format("/dataset/%s/acceleration/settings", DATASET_PATH.toPathString());
+    final String endpoint =
+        String.format("/dataset/%s/acceleration/settings", DATASET_PATH.toPathString());
     {
-      final AccelerationSettingsDescriptor descriptor = expectSuccess(
-        getBuilder(getAPIv2().path(endpoint)).buildGet(),
-        AccelerationSettingsDescriptor.class
-      );
+      final AccelerationSettingsDescriptor descriptor =
+          expectSuccess(
+              getBuilder(getAPIv2().path(endpoint)).buildGet(),
+              AccelerationSettingsDescriptor.class);
 
       assertEquals((Long) DEFAULT_REFRESH_PERIOD, descriptor.getAccelerationRefreshPeriod());
       assertEquals((Long) DEFAULT_GRACE_PERIOD, descriptor.getAccelerationGracePeriod());
@@ -147,13 +145,17 @@ public class TestDatasetResource extends BaseTestServer {
       descriptor.setAccelerationNeverRefresh(false);
 
       expectSuccess(
-        getBuilder(getAPIv2().path(String.format("/dataset/%s/acceleration/settings", DATASET_PATH.toPathString())))
-          .buildPut(Entity.entity(descriptor, JSON)));
+          getBuilder(
+                  getAPIv2()
+                      .path(
+                          String.format(
+                              "/dataset/%s/acceleration/settings", DATASET_PATH.toPathString())))
+              .buildPut(Entity.entity(descriptor, JSON)));
 
-      final AccelerationSettingsDescriptor middleDescriptor = expectSuccess(
-        getBuilder(getAPIv2().path(endpoint)).buildGet(),
-        AccelerationSettingsDescriptor.class
-      );
+      final AccelerationSettingsDescriptor middleDescriptor =
+          expectSuccess(
+              getBuilder(getAPIv2().path(endpoint)).buildGet(),
+              AccelerationSettingsDescriptor.class);
 
       assertTrue(middleDescriptor.getAccelerationNeverExpire());
       assertFalse(middleDescriptor.getAccelerationNeverRefresh());
@@ -162,14 +164,17 @@ public class TestDatasetResource extends BaseTestServer {
       middleDescriptor.setAccelerationNeverRefresh(true);
 
       expectSuccess(
-        getBuilder(getAPIv2().path(String.format("/dataset/%s/acceleration/settings", DATASET_PATH.toPathString())))
-          .buildPut(Entity.entity(middleDescriptor, JSON)));
+          getBuilder(
+                  getAPIv2()
+                      .path(
+                          String.format(
+                              "/dataset/%s/acceleration/settings", DATASET_PATH.toPathString())))
+              .buildPut(Entity.entity(middleDescriptor, JSON)));
 
-
-      final AccelerationSettingsDescriptor descriptorMod = expectSuccess(
-        getBuilder(getAPIv2().path(endpoint)).buildGet(),
-        AccelerationSettingsDescriptor.class
-      );
+      final AccelerationSettingsDescriptor descriptorMod =
+          expectSuccess(
+              getBuilder(getAPIv2().path(endpoint)).buildGet(),
+              AccelerationSettingsDescriptor.class);
 
       assertFalse(descriptorMod.getAccelerationNeverExpire());
       assertTrue(descriptorMod.getAccelerationNeverRefresh());
@@ -178,12 +183,12 @@ public class TestDatasetResource extends BaseTestServer {
 
   @Test
   public void testAccelerationSettingsRefreshLessthanExpire() throws Exception {
-    final String endpoint = String.format("/dataset/%s/acceleration/settings", DATASET_PATH.toPathString());
+    final String endpoint =
+        String.format("/dataset/%s/acceleration/settings", DATASET_PATH.toPathString());
 
-    final AccelerationSettingsDescriptor goodDescriptor = expectSuccess(
-      getBuilder(getAPIv2().path(endpoint)).buildGet(),
-      AccelerationSettingsDescriptor.class
-    );
+    final AccelerationSettingsDescriptor goodDescriptor =
+        expectSuccess(
+            getBuilder(getAPIv2().path(endpoint)).buildGet(), AccelerationSettingsDescriptor.class);
 
     goodDescriptor.setAccelerationRefreshPeriod(1L);
     goodDescriptor.setAccelerationGracePeriod(2L);
@@ -191,55 +196,80 @@ public class TestDatasetResource extends BaseTestServer {
     goodDescriptor.setAccelerationNeverRefresh(false);
 
     expectSuccess(
-      getBuilder(getAPIv2().path(String.format("/dataset/%s/acceleration/settings", DATASET_PATH.toPathString())))
-        .buildPut(Entity.entity(goodDescriptor, JSON)));
+        getBuilder(
+                getAPIv2()
+                    .path(
+                        String.format(
+                            "/dataset/%s/acceleration/settings", DATASET_PATH.toPathString())))
+            .buildPut(Entity.entity(goodDescriptor, JSON)));
 
-    final AccelerationSettingsDescriptor descriptor = new AccelerationSettingsDescriptor()
-      .setAccelerationRefreshPeriod(DEFAULT_REFRESH_PERIOD)
-      .setAccelerationGracePeriod(DEFAULT_GRACE_PERIOD)
-      .setMethod(RefreshMethod.FULL);
+    final AccelerationSettingsDescriptor descriptor =
+        new AccelerationSettingsDescriptor()
+            .setAccelerationRefreshPeriod(DEFAULT_REFRESH_PERIOD)
+            .setAccelerationGracePeriod(DEFAULT_GRACE_PERIOD)
+            .setMethod(RefreshMethod.FULL);
 
     expectSuccess(
-      getBuilder(getAPIv2().path(String.format("/dataset/%s/acceleration/settings", DATASET_PATH.toPathString())))
-        .buildPut(Entity.entity(descriptor, JSON)));
+        getBuilder(
+                getAPIv2()
+                    .path(
+                        String.format(
+                            "/dataset/%s/acceleration/settings", DATASET_PATH.toPathString())))
+            .buildPut(Entity.entity(descriptor, JSON)));
 
+    final AccelerationSettingsDescriptor badDescriptor =
+        expectSuccess(
+            getBuilder(getAPIv2().path(endpoint)).buildGet(), AccelerationSettingsDescriptor.class);
 
-    final AccelerationSettingsDescriptor badDescriptor = expectSuccess(
-      getBuilder(getAPIv2().path(endpoint)).buildGet(),
-      AccelerationSettingsDescriptor.class
-    );
-
-    badDescriptor.setAccelerationRefreshPeriod(2L); //this is > than expiration
+    badDescriptor.setAccelerationRefreshPeriod(2L); // this is > than expiration
     badDescriptor.setAccelerationGracePeriod(1L);
     badDescriptor.setAccelerationNeverExpire(false);
     badDescriptor.setAccelerationNeverRefresh(false);
 
-    expectError(FamilyExpectation.CLIENT_ERROR,
-      getBuilder(getAPIv2().path(String.format("/dataset/%s/acceleration/settings", DATASET_PATH.toPathString())))
-        .buildPut(Entity.entity(badDescriptor, JSON)), ValidationErrorMessage.class);
-
+    expectError(
+        FamilyExpectation.CLIENT_ERROR,
+        getBuilder(
+                getAPIv2()
+                    .path(
+                        String.format(
+                            "/dataset/%s/acceleration/settings", DATASET_PATH.toPathString())))
+            .buildPut(Entity.entity(badDescriptor, JSON)),
+        ValidationErrorMessage.class);
   }
 
   @Test
   public void testUpdateSettingsInFullMode() throws Exception {
     {
-      final AccelerationSettingsDescriptor descriptor = new AccelerationSettingsDescriptor()
-        .setAccelerationRefreshPeriod(DEFAULT_REFRESH_PERIOD)
-        .setAccelerationGracePeriod(DEFAULT_GRACE_PERIOD)
-        .setMethod(RefreshMethod.FULL);
+      final AccelerationSettingsDescriptor descriptor =
+          new AccelerationSettingsDescriptor()
+              .setAccelerationRefreshPeriod(DEFAULT_REFRESH_PERIOD)
+              .setAccelerationGracePeriod(DEFAULT_GRACE_PERIOD)
+              .setMethod(RefreshMethod.FULL);
 
       expectSuccess(
-          getBuilder(getAPIv2().path(String.format("/dataset/%s/acceleration/settings", DATASET_PATH.toPathString())))
+          getBuilder(
+                  getAPIv2()
+                      .path(
+                          String.format(
+                              "/dataset/%s/acceleration/settings", DATASET_PATH.toPathString())))
               .buildPut(Entity.entity(descriptor, JSON)));
 
-      final AccelerationSettingsDescriptor newDescriptor = expectSuccess(
-          getBuilder(getAPIv2().path(String.format("/dataset/%s/acceleration/settings", DATASET_PATH.toPathString()))).buildGet(),
-          AccelerationSettingsDescriptor.class
-      );
+      final AccelerationSettingsDescriptor newDescriptor =
+          expectSuccess(
+              getBuilder(
+                      getAPIv2()
+                          .path(
+                              String.format(
+                                  "/dataset/%s/acceleration/settings",
+                                  DATASET_PATH.toPathString())))
+                  .buildGet(),
+              AccelerationSettingsDescriptor.class);
 
       assertNotNull(newDescriptor);
-      assertEquals(descriptor.getAccelerationRefreshPeriod(), newDescriptor.getAccelerationRefreshPeriod());
-      assertEquals(descriptor.getAccelerationGracePeriod(), newDescriptor.getAccelerationGracePeriod());
+      assertEquals(
+          descriptor.getAccelerationRefreshPeriod(), newDescriptor.getAccelerationRefreshPeriod());
+      assertEquals(
+          descriptor.getAccelerationGracePeriod(), newDescriptor.getAccelerationGracePeriod());
       assertEquals(descriptor.getMethod(), newDescriptor.getMethod());
       assertEquals(descriptor.getRefreshField(), newDescriptor.getRefreshField());
     }
@@ -248,24 +278,37 @@ public class TestDatasetResource extends BaseTestServer {
   @Test
   public void testUpdateSettingsInIncrementalMode() throws Exception {
     {
-      final AccelerationSettingsDescriptor descriptor = new AccelerationSettingsDescriptor()
-        .setAccelerationRefreshPeriod(DEFAULT_REFRESH_PERIOD)
-        .setAccelerationGracePeriod(DEFAULT_GRACE_PERIOD)
-        .setMethod(RefreshMethod.INCREMENTAL)
-        .setRefreshField("test-field");
+      final AccelerationSettingsDescriptor descriptor =
+          new AccelerationSettingsDescriptor()
+              .setAccelerationRefreshPeriod(DEFAULT_REFRESH_PERIOD)
+              .setAccelerationGracePeriod(DEFAULT_GRACE_PERIOD)
+              .setMethod(RefreshMethod.INCREMENTAL)
+              .setRefreshField("test-field");
 
       expectSuccess(
-          getBuilder(getAPIv2().path(String.format("/dataset/%s/acceleration/settings", DATASET_PATH_2.toPathString())))
+          getBuilder(
+                  getAPIv2()
+                      .path(
+                          String.format(
+                              "/dataset/%s/acceleration/settings", DATASET_PATH_2.toPathString())))
               .buildPut(Entity.entity(descriptor, JSON)));
 
-      final AccelerationSettingsDescriptor newDescriptor = expectSuccess(
-          getBuilder(getAPIv2().path(String.format("/dataset/%s/acceleration/settings", DATASET_PATH_2.toPathString()))).buildGet(),
-          AccelerationSettingsDescriptor.class
-      );
+      final AccelerationSettingsDescriptor newDescriptor =
+          expectSuccess(
+              getBuilder(
+                      getAPIv2()
+                          .path(
+                              String.format(
+                                  "/dataset/%s/acceleration/settings",
+                                  DATASET_PATH_2.toPathString())))
+                  .buildGet(),
+              AccelerationSettingsDescriptor.class);
 
       assertNotNull(newDescriptor);
-      assertEquals(descriptor.getAccelerationRefreshPeriod(), newDescriptor.getAccelerationRefreshPeriod());
-      assertEquals(descriptor.getAccelerationGracePeriod(), newDescriptor.getAccelerationGracePeriod());
+      assertEquals(
+          descriptor.getAccelerationRefreshPeriod(), newDescriptor.getAccelerationRefreshPeriod());
+      assertEquals(
+          descriptor.getAccelerationGracePeriod(), newDescriptor.getAccelerationGracePeriod());
       assertEquals(descriptor.getMethod(), newDescriptor.getMethod());
       assertEquals(descriptor.getRefreshField(), newDescriptor.getRefreshField());
     }
@@ -274,52 +317,78 @@ public class TestDatasetResource extends BaseTestServer {
   @Test
   public void testValidation() throws Exception {
     {
-      final AccelerationSettingsDescriptor descriptor = new AccelerationSettingsDescriptor()
-        .setAccelerationRefreshPeriod(DEFAULT_REFRESH_PERIOD)
-        .setAccelerationGracePeriod(DEFAULT_GRACE_PERIOD)
-        .setMethod(RefreshMethod.INCREMENTAL);
+      final AccelerationSettingsDescriptor descriptor =
+          new AccelerationSettingsDescriptor()
+              .setAccelerationRefreshPeriod(DEFAULT_REFRESH_PERIOD)
+              .setAccelerationGracePeriod(DEFAULT_GRACE_PERIOD)
+              .setMethod(RefreshMethod.INCREMENTAL);
 
-      expectStatus(Response.Status.BAD_REQUEST,
-          getBuilder(getAPIv2().path(String.format("/dataset/%s/acceleration/settings", DATASET_PATH_2.toPathString())))
+      expectStatus(
+          Response.Status.BAD_REQUEST,
+          getBuilder(
+                  getAPIv2()
+                      .path(
+                          String.format(
+                              "/dataset/%s/acceleration/settings", DATASET_PATH_2.toPathString())))
               .buildPut(Entity.entity(descriptor, JSON)));
     }
 
     {
-      final AccelerationSettingsDescriptor descriptor = new AccelerationSettingsDescriptor()
-        .setAccelerationRefreshPeriod(DEFAULT_REFRESH_PERIOD)
-        .setAccelerationGracePeriod(DEFAULT_GRACE_PERIOD)
-        .setMethod(RefreshMethod.FULL)
-        .setRefreshField("some-field");
+      final AccelerationSettingsDescriptor descriptor =
+          new AccelerationSettingsDescriptor()
+              .setAccelerationRefreshPeriod(DEFAULT_REFRESH_PERIOD)
+              .setAccelerationGracePeriod(DEFAULT_GRACE_PERIOD)
+              .setMethod(RefreshMethod.FULL)
+              .setRefreshField("some-field");
 
-      expectStatus(Response.Status.BAD_REQUEST,
-          getBuilder(getAPIv2().path(String.format("/dataset/%s/acceleration/settings", DATASET_PATH.toPathString())))
+      expectStatus(
+          Response.Status.BAD_REQUEST,
+          getBuilder(
+                  getAPIv2()
+                      .path(
+                          String.format(
+                              "/dataset/%s/acceleration/settings", DATASET_PATH.toPathString())))
               .buildPut(Entity.entity(descriptor, JSON)));
     }
 
     {
-      final AccelerationSettingsDescriptor descriptor = new AccelerationSettingsDescriptor()
-        .setAccelerationRefreshPeriod(DEFAULT_REFRESH_PERIOD)
-        .setAccelerationGracePeriod(DEFAULT_GRACE_PERIOD)
-        .setMethod(RefreshMethod.INCREMENTAL)
-        .setRefreshField("some-field");
+      final AccelerationSettingsDescriptor descriptor =
+          new AccelerationSettingsDescriptor()
+              .setAccelerationRefreshPeriod(DEFAULT_REFRESH_PERIOD)
+              .setAccelerationGracePeriod(DEFAULT_GRACE_PERIOD)
+              .setMethod(RefreshMethod.INCREMENTAL)
+              .setRefreshField("some-field");
 
-      expectStatus(Response.Status.BAD_REQUEST,
-          getBuilder(getAPIv2().path(String.format("/dataset/%s/acceleration/settings", DATASET_PATH.toPathString())))
+      expectStatus(
+          Response.Status.BAD_REQUEST,
+          getBuilder(
+                  getAPIv2()
+                      .path(
+                          String.format(
+                              "/dataset/%s/acceleration/settings", DATASET_PATH.toPathString())))
               .buildPut(Entity.entity(descriptor, JSON)));
     }
 
     {
-      expectStatus(Response.Status.BAD_REQUEST,
-        getBuilder(getAPIv2().path(String.format("/dataset/%s/moveTo/%s", DATASET_PATH.toPathString(), DATASET_PATH.toPathString())))
-          .build("POST"));
+      expectStatus(
+          Response.Status.BAD_REQUEST,
+          getBuilder(
+                  getAPIv2()
+                      .path(
+                          String.format(
+                              "/dataset/%s/moveTo/%s",
+                              DATASET_PATH.toPathString(), DATASET_PATH.toPathString())))
+              .build("POST"));
     }
 
     {
-      expectStatus(Response.Status.BAD_REQUEST,
-        getBuilder(getAPIv2().path(String.format("/dataset/%s/rename/", DATASET_PATH.toPathString()))
-          .queryParam("renameTo", DATASET_PATH_2.getLeaf().toString()))
-          .build("POST"));
+      expectStatus(
+          Response.Status.BAD_REQUEST,
+          getBuilder(
+                  getAPIv2()
+                      .path(String.format("/dataset/%s/rename/", DATASET_PATH.toPathString()))
+                      .queryParam("renameTo", DATASET_PATH_2.getLeaf().toString()))
+              .build("POST"));
     }
-
   }
 }

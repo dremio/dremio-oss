@@ -15,10 +15,9 @@
  */
 package com.dremio.exec.work;
 
-import java.util.List;
-
 import com.dremio.exec.planner.fragment.PlanFragmentFull;
 import com.google.common.base.Preconditions;
+import java.util.List;
 
 public class QueryWorkUnit {
   private final List<PlanFragmentFull> fragments;

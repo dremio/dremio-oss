@@ -17,13 +17,6 @@ package com.dremio.exec.expr;
 
 import static com.dremio.exec.compile.sig.GeneratorMapping.GM;
 
-import java.lang.reflect.Constructor;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-
 import com.dremio.common.expression.CodeModelArrowHelper;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.FieldReference;
@@ -58,6 +51,12 @@ import com.sun.codemodel.JMethod;
 import com.sun.codemodel.JMod;
 import com.sun.codemodel.JType;
 import com.sun.codemodel.JVar;
+import java.lang.reflect.Constructor;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
 
 public class ClassGenerator<T> {
 
@@ -65,10 +64,17 @@ public class ClassGenerator<T> {
   public static final GeneratorMapping DEFAULT_CONSTANT_MAP = GM("doSetup", "doSetup", null, null);
 
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ClassGenerator.class);
-  public enum BlockType {SETUP, EVAL, RESET, CLEANUP}
+
+  public enum BlockType {
+    SETUP,
+    EVAL,
+    RESET,
+    CLEANUP
+  }
 
   private static final int MAX_EXPRESSIONS_IN_FUNCTION = 50;
-  // It is impossible (and hence a safe limit) for a single expression to have 100000 functions and not hit
+  // It is impossible (and hence a safe limit) for a single expression to have 100000 functions and
+  // not hit
   // code size limits
   private static final int MAX_EXPECTED_FUNCTIONS_IN_SINGLE_EXPRESSION = 100000;
 
@@ -98,7 +104,14 @@ public class ClassGenerator<T> {
   }
 
   @SuppressWarnings("unchecked")
-  ClassGenerator(CodeGenerator<T> codeGenerator, MappingSet mappingSet, SignatureHolder signature, EvaluationVisitor eval, JDefinedClass clazz, JCodeModel model) throws JClassAlreadyExistsException {
+  ClassGenerator(
+      CodeGenerator<T> codeGenerator,
+      MappingSet mappingSet,
+      SignatureHolder signature,
+      EvaluationVisitor eval,
+      JDefinedClass clazz,
+      JCodeModel model)
+      throws JClassAlreadyExistsException {
     this.codeGenerator = codeGenerator;
     this.clazz = clazz;
     this.mappings = mappingSet;
@@ -108,7 +121,7 @@ public class ClassGenerator<T> {
     this.cgen = new ConstantGenerator(this.clazz);
     blocks = new LinkedList[sig.size()];
 
-    for (int i =0; i < sig.size(); i++) {
+    for (int i = 0; i < sig.size(); i++) {
       blocks[i] = Lists.newLinkedList();
     }
     rotateBlock();
@@ -120,7 +133,7 @@ public class ClassGenerator<T> {
       innerClazz = clazz._class(JMod.FINAL, innerClassName)._extends(child.getSignatureClass());
 
       // we also need to delegate any inner class constructors.
-      for(Constructor<?> c : child.getSignatureClass().getDeclaredConstructors()){
+      for (Constructor<?> c : child.getSignatureClass().getDeclaredConstructors()) {
         final Class<?>[] params = c.getParameterTypes();
         JMethod constructor = innerClazz.constructor(JMod.PUBLIC);
         JBlock block = constructor.body();
@@ -134,7 +147,9 @@ public class ClassGenerator<T> {
         }
       }
 
-      innerClasses.put(innerClassName, new ClassGenerator<>(codeGenerator, mappingSet, child, eval, innerClazz, model));
+      innerClasses.put(
+          innerClassName,
+          new ClassGenerator<>(codeGenerator, mappingSet, child, eval, innerClazz, model));
     }
   }
 
@@ -152,7 +167,8 @@ public class ClassGenerator<T> {
     this.mappings = mappings;
   }
 
-  public void setConstantExtractor(ConstantExtractor constantExtractor, int constantArrayThreshold) {
+  public void setConstantExtractor(
+      ConstantExtractor constantExtractor, int constantArrayThreshold) {
     this.cgen.setConstantExtractor(constantExtractor, constantArrayThreshold);
   }
 
@@ -165,12 +181,16 @@ public class ClassGenerator<T> {
   }
 
   public boolean hasVVDeclaration(DirectExpression batchName, TypedFieldId fieldId) {
-    return vvDeclaration.get(new ValueVectorSetup(batchName, fieldId))!=null;
+    return vvDeclaration.get(new ValueVectorSetup(batchName, fieldId)) != null;
   }
 
   public JBlock getBlock(String methodName) {
     JBlock blk = this.blocks[sig.get(methodName)].getLast().getBlock();
-    Preconditions.checkNotNull(blk, "Requested method name of %s was not available for signature %s.",  methodName, this.sig);
+    Preconditions.checkNotNull(
+        blk,
+        "Requested method name of %s was not available for signature %s.",
+        methodName,
+        this.sig);
     return blk;
   }
 
@@ -181,21 +201,28 @@ public class ClassGenerator<T> {
   public JBlock getSetupBlock() {
     return getBlock(getCurrentMapping().getMethodName(BlockType.SETUP));
   }
+
   public JBlock getEvalBlock() {
     return getBlock(getCurrentMapping().getMethodName(BlockType.EVAL));
   }
+
   public JBlock getResetBlock() {
     return getBlock(getCurrentMapping().getMethodName(BlockType.RESET));
   }
+
   public JBlock getCleanupBlock() {
     return getBlock(getCurrentMapping().getMethodName(BlockType.CLEANUP));
   }
-  public List<ExpressionEvalInfo> getExpressionEvalInfos() { return expressionEvalInfos; }
+
+  public List<ExpressionEvalInfo> getExpressionEvalInfos() {
+    return expressionEvalInfos;
+  }
+
   public boolean doesLazyExpsContainComplexWriterFunctionHolder() {
-    for(int i=0 ;i<expressionEvalInfos.size();i++) {
-      if(expressionEvalInfos.get(i).getExp() instanceof FunctionHolderExpr) {
+    for (int i = 0; i < expressionEvalInfos.size(); i++) {
+      if (expressionEvalInfos.get(i).getExp() instanceof FunctionHolderExpr) {
         FunctionHolderExpr holderExpr = (FunctionHolderExpr) expressionEvalInfos.get(i).getExp();
-        if(holderExpr.isComplexWriterFuncHolder()) {
+        if (holderExpr.isComplexWriterFuncHolder()) {
           return true;
         }
       }
@@ -206,7 +233,8 @@ public class ClassGenerator<T> {
   private int innerMethodCount = 0;
 
   public JMethod innerMethod(CompleteType type) {
-    JMethod method = clazz.method(JMod.PRIVATE, type.getHolderClass(), "inner_method_" + innerMethodCount++);
+    JMethod method =
+        clazz.method(JMod.PRIVATE, type.getHolderClass(), "inner_method_" + innerMethodCount++);
     String methodName = getCurrentMapping().getMethodName(BlockType.EVAL);
     CodeGeneratorMethod cgm = sig.get(sig.get(methodName));
     for (CodeGeneratorArgument arg : cgm) {
@@ -218,7 +246,8 @@ public class ClassGenerator<T> {
   }
 
   public JMethod nestSetupMethod() {
-    JMethod method = clazz.method(JMod.PRIVATE, void.class, "inner_setup_method_" + innerMethodCount++);
+    JMethod method =
+        clazz.method(JMod.PRIVATE, void.class, "inner_setup_method_" + innerMethodCount++);
     String methodName = getCurrentMapping().getMethodName(BlockType.SETUP);
     CodeGeneratorMethod cgm = sig.get(sig.get(methodName));
     for (CodeGeneratorArgument arg : cgm) {
@@ -260,12 +289,13 @@ public class ClassGenerator<T> {
     this.blocks[sig.get(methodName)].removeLast();
   }
 
-  public JLabel getEvalBlockLabel (String prefix) {
-    return getEvalBlock().label(prefix + labelIndex ++);
+  public JLabel getEvalBlockLabel(String prefix) {
+    return getEvalBlock().label(prefix + labelIndex++);
   }
 
   /**
    * Creates an inner braced and indented block
+   *
    * @param type type of the created block
    * @return a newly created inner block
    */
@@ -278,6 +308,7 @@ public class ClassGenerator<T> {
 
   /**
    * Creates an inner braced and indented block for evaluation of the expression.
+   *
    * @return a newly created inner eval block
    */
   protected JBlock createInnerEvalBlock() {
@@ -285,7 +316,7 @@ public class ClassGenerator<T> {
   }
 
   public JVar declareVectorValueSetupAndMember(String batchName, TypedFieldId fieldId) {
-    return declareVectorValueSetupAndMember( DirectExpression.direct(batchName), fieldId);
+    return declareVectorValueSetupAndMember(DirectExpression.direct(batchName), fieldId);
   }
 
   public JVar declareVectorValueSetupAndMember(DirectExpression batchName, TypedFieldId fieldId) {
@@ -298,11 +329,14 @@ public class ClassGenerator<T> {
     final JVar vv = declareClassField("vv", retClass);
     final JBlock b = getSetupBlock();
     int[] fieldIndices = fieldId.getFieldIds();
-    JInvocation invoke = model.ref(VectorResolver.class).staticInvoke(fieldId.isHyperReader() ? "hyper" : "simple")
-        .arg(batchName)
-        .arg(vvClass.dotclass());
+    JInvocation invoke =
+        model
+            .ref(VectorResolver.class)
+            .staticInvoke(fieldId.isHyperReader() ? "hyper" : "simple")
+            .arg(batchName)
+            .arg(vvClass.dotclass());
 
-    for(int i = 0; i < fieldIndices.length; i++){
+    for (int i = 0; i < fieldIndices.length; i++) {
       invoke.arg(JExpr.lit(fieldIndices[i]));
     }
 
@@ -315,9 +349,10 @@ public class ClassGenerator<T> {
   }
 
   public enum BlockCreateMode {
-    NEW_BLOCK,  // Create new block
+    NEW_BLOCK, // Create new block
     MERGE, // Do not create block; put into existing block.
-    NEW_IF_TOO_LARGE // Create new block only if # of expressions added hit upper-bound MAX_EXPRESSIONS_IN_FUNCTION
+    NEW_IF_TOO_LARGE // Create new block only if # of expressions added hit upper-bound
+    // MAX_EXPRESSIONS_IN_FUNCTION
   }
 
   public HoldingContainer addExpr(LogicalExpression ex) {
@@ -337,13 +372,16 @@ public class ClassGenerator<T> {
     return addExpr(ex, mode, false);
   }
 
-  public HoldingContainer addExpr(LogicalExpression ex, BlockCreateMode mode, boolean allowInnerMethods) {
+  public HoldingContainer addExpr(
+      LogicalExpression ex, BlockCreateMode mode, boolean allowInnerMethods) {
     return addExpr(ex, mode, allowInnerMethods, null);
   }
 
-  public HoldingContainer addExpr(LogicalExpression ex, BlockCreateMode mode, boolean allowInnerMethods,
-                                  FieldReference ref) {
-    Preconditions.checkState(!isLazyExpressionsAddOn, "Lazy Expression evaluation is on, must not be adding exps directly");
+  public HoldingContainer addExpr(
+      LogicalExpression ex, BlockCreateMode mode, boolean allowInnerMethods, FieldReference ref) {
+    Preconditions.checkState(
+        !isLazyExpressionsAddOn,
+        "Lazy Expression evaluation is on, must not be adding exps directly");
     if (mode == BlockCreateMode.NEW_BLOCK || mode == BlockCreateMode.NEW_IF_TOO_LARGE) {
       rotateBlock(mode);
     }
@@ -357,7 +395,7 @@ public class ClassGenerator<T> {
   }
 
   public String getOutputReferenceName() {
-    return currentReference == null? "col" : currentReference.getRootSegment().getPath();
+    return currentReference == null ? "col" : currentReference.getRootSegment().getPath();
   }
 
   public int getFunctionErrorContextsCount() {
@@ -370,12 +408,12 @@ public class ClassGenerator<T> {
     if (expressionEvalInfos.isEmpty()) {
       return;
     }
-    Preconditions.checkArgument(count >= 0 && count < MAX_EXPECTED_FUNCTIONS_IN_SINGLE_EXPRESSION,
-      "Encountered unexpected function error count corruption");
+    Preconditions.checkArgument(
+        count >= 0 && count < MAX_EXPECTED_FUNCTIONS_IN_SINGLE_EXPRESSION,
+        "Encountered unexpected function error count corruption");
     while (count > 0) {
       FunctionErrorContext errorContext = null;
-      errorContext = FunctionErrorContextBuilder.builder()
-        .build();
+      errorContext = FunctionErrorContextBuilder.builder().build();
       codeGenerator.getFunctionContext().registerFunctionErrorContext(errorContext);
       count--;
     }
@@ -386,12 +424,20 @@ public class ClassGenerator<T> {
     lazyAddExp(ex, mode, allowInnerMethods, null);
   }
 
-  public void lazyAddExp(LogicalExpression ex, BlockCreateMode mode, boolean allowInnerMethods,
-                         FieldReference currentReference) {
-    Preconditions.checkState(codeGenerator.getFunctionContext().getOptions().getOption(ExecConstants.EXPRESSION_CODE_CACHE_ENABLED),
-      "Lazy Expression evaluation is set to false");
+  public void lazyAddExp(
+      LogicalExpression ex,
+      BlockCreateMode mode,
+      boolean allowInnerMethods,
+      FieldReference currentReference) {
+    Preconditions.checkState(
+        codeGenerator
+            .getFunctionContext()
+            .getOptions()
+            .getOption(ExecConstants.EXPRESSION_CODE_CACHE_ENABLED),
+        "Lazy Expression evaluation is set to false");
     isLazyExpressionsAddOn = true;
-    ExpressionEvalInfo expressionEvalInfo = new ExpressionEvalInfo(ex, mode, allowInnerMethods, currentReference);
+    ExpressionEvalInfo expressionEvalInfo =
+        new ExpressionEvalInfo(ex, mode, allowInnerMethods, currentReference);
     expressionEvalInfos.add(expressionEvalInfo);
   }
 
@@ -400,8 +446,11 @@ public class ClassGenerator<T> {
     Iterator<ExpressionEvalInfo> iterator = expressionEvalInfos.iterator();
     while (iterator.hasNext()) {
       ExpressionEvalInfo expressionEvalInfo = iterator.next();
-      addExpr(expressionEvalInfo.getExp(), expressionEvalInfo.getMode(),
-        expressionEvalInfo.isAllowInnerMethods(), expressionEvalInfo.getCurrentReference());
+      addExpr(
+          expressionEvalInfo.getExp(),
+          expressionEvalInfo.getMode(),
+          expressionEvalInfo.isAllowInnerMethods(),
+          expressionEvalInfo.getCurrentReference());
       iterator.remove();
     }
   }
@@ -414,9 +463,9 @@ public class ClassGenerator<T> {
   private void rotateBlock(BlockCreateMode mode) {
     boolean blockRotated = false;
     for (LinkedList<SizedJBlock> b : blocks) {
-      if (mode == BlockCreateMode.NEW_BLOCK ||
-          (mode == BlockCreateMode.NEW_IF_TOO_LARGE &&
-            b.getLast().getCount() > MAX_EXPRESSIONS_IN_FUNCTION)) {
+      if (mode == BlockCreateMode.NEW_BLOCK
+          || (mode == BlockCreateMode.NEW_IF_TOO_LARGE
+              && b.getLast().getCount() > MAX_EXPRESSIONS_IN_FUNCTION)) {
         b.add(new SizedJBlock(new JBlock(true, true)));
         blockRotated = true;
       }
@@ -426,15 +475,15 @@ public class ClassGenerator<T> {
     }
   }
 
-
   void flushCode() {
     int i = 0;
-    for(CodeGeneratorMethod method : sig) {
-      JMethod outer = clazz.method(JMod.PUBLIC, model._ref(method.getReturnType()), method.getMethodName());
-      for(CodeGeneratorArgument arg : method) {
+    for (CodeGeneratorMethod method : sig) {
+      JMethod outer =
+          clazz.method(JMod.PUBLIC, model._ref(method.getReturnType()), method.getMethodName());
+      for (CodeGeneratorArgument arg : method) {
         outer.param(arg.getType(), arg.getName());
       }
-      for(Class<?> c : method.getThrowsIterable()) {
+      for (Class<?> c : method.getThrowsIterable()) {
         outer._throws(model.ref(c));
       }
       outer._throws(SchemaChangeException.class);
@@ -442,11 +491,15 @@ public class ClassGenerator<T> {
       int methodIndex = 0;
       int exprsInMethod = 0;
       boolean isVoidMethod = method.getReturnType() == void.class;
-      for(SizedJBlock sb : blocks[i++]) {
+      for (SizedJBlock sb : blocks[i++]) {
         JBlock b = sb.getBlock();
-        if(!b.isEmpty()) {
+        if (!b.isEmpty()) {
           if (exprsInMethod > MAX_EXPRESSIONS_IN_FUNCTION) {
-            JMethod inner = clazz.method(JMod.PUBLIC, model._ref(method.getReturnType()), method.getMethodName() + methodIndex);
+            JMethod inner =
+                clazz.method(
+                    JMod.PUBLIC,
+                    model._ref(method.getReturnType()),
+                    method.getMethodName() + methodIndex);
             JInvocation methodCall = JExpr.invoke(inner);
             for (CodeGeneratorArgument arg : method) {
               inner.param(arg.getType(), arg.getName());
@@ -472,7 +525,7 @@ public class ClassGenerator<T> {
       }
     }
 
-    for(ClassGenerator<T> child : innerClasses.values()) {
+    for (ClassGenerator<T> child : innerClasses.values()) {
       child.flushCode();
     }
   }
@@ -525,7 +578,7 @@ public class ClassGenerator<T> {
     return this.workspaceVectors;
   }
 
-  private static class ValueVectorSetup{
+  private static class ValueVectorSetup {
     final DirectExpression batch;
     final TypedFieldId fieldId;
 
@@ -572,10 +625,9 @@ public class ClassGenerator<T> {
       }
       return true;
     }
-
   }
 
-  public static class HoldingContainer{
+  public static class HoldingContainer {
     private final JAssignmentTarget holder;
     private final JType jType;
     private final JFieldRef value;
@@ -590,17 +642,29 @@ public class ClassGenerator<T> {
       this(t, holder, holder.type(), value, isSet, false, false);
     }
 
-    public HoldingContainer(CompleteType t, JAssignmentTarget holder, JType jType, JFieldRef value, JFieldRef isSet) {
+    public HoldingContainer(
+        CompleteType t, JAssignmentTarget holder, JType jType, JFieldRef value, JFieldRef isSet) {
       this(t, holder, jType, value, isSet, false, false);
     }
 
-    public HoldingContainer(CompleteType t, JVar holder, JFieldRef value, JFieldRef isSet,
-                            boolean singularRepeated, boolean isReader) {
+    public HoldingContainer(
+        CompleteType t,
+        JVar holder,
+        JFieldRef value,
+        JFieldRef isSet,
+        boolean singularRepeated,
+        boolean isReader) {
       this(t, holder, holder.type(), value, isSet, singularRepeated, isReader);
     }
 
-    public HoldingContainer(CompleteType t, JAssignmentTarget holder, JType jType, JFieldRef value, JFieldRef isSet,
-                            boolean singularRepeated, boolean isReader) {
+    public HoldingContainer(
+        CompleteType t,
+        JAssignmentTarget holder,
+        JType jType,
+        JFieldRef value,
+        JFieldRef isSet,
+        boolean singularRepeated,
+        boolean isReader) {
       this.holder = holder;
       this.value = value;
       this.isSet = isSet;
@@ -655,7 +719,9 @@ public class ClassGenerator<T> {
     }
 
     public JFieldRef getIsSet() {
-      Preconditions.checkNotNull(isSet, "You cannot access the isSet variable when operating on a non-nullable output value.");
+      Preconditions.checkNotNull(
+          isSet,
+          "You cannot access the isSet variable when operating on a non-nullable output value.");
       return isSet;
     }
 
@@ -666,6 +732,5 @@ public class ClassGenerator<T> {
     public JType getJType() {
       return jType;
     }
-
   }
 }

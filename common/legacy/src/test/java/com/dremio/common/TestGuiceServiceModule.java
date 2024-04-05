@@ -19,10 +19,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import javax.inject.Provider;
-
-import org.junit.Test;
-
 import com.dremio.service.Service;
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
@@ -30,10 +26,10 @@ import com.google.inject.Injector;
 import com.google.inject.Provides;
 import com.google.inject.ProvisionException;
 import com.google.inject.Singleton;
+import javax.inject.Provider;
+import org.junit.Test;
 
-/**
- * GuiceServiceModule tests
- */
+/** GuiceServiceModule tests */
 public class TestGuiceServiceModule {
   @Test
   public void testSimpleChain() throws Exception {
@@ -71,7 +67,8 @@ public class TestGuiceServiceModule {
     final MultiImpl bInstance = (MultiImpl) injector.getInstance(B.class);
     final MultiImpl cInstance = (MultiImpl) injector.getInstance(C.class);
 
-    // B and C are bound to the same instance and Guice will only provision MultiImpl once, so it will
+    // B and C are bound to the same instance and Guice will only provision MultiImpl once, so it
+    // will
     // only be started once.
     assertEquals(bInstance, cInstance);
     assertEquals(1, bInstance.getStarted());
@@ -91,8 +88,7 @@ public class TestGuiceServiceModule {
 
   private final class SimpleGraphModule extends AbstractModule {
     @Override
-    protected void configure() {
-    }
+    protected void configure() {}
 
     @Provides
     A getA() {
@@ -125,7 +121,8 @@ public class TestGuiceServiceModule {
 
     @Provides
     @Singleton
-    ThrowsExceptionDuringStart getE(Provider<B> bProvider, Provider<C> cProvider, Provider<A> aProvider) {
+    ThrowsExceptionDuringStart getE(
+        Provider<B> bProvider, Provider<C> cProvider, Provider<A> aProvider) {
       return new ThrowsExceptionDuringStart();
     }
   }
@@ -139,18 +136,16 @@ public class TestGuiceServiceModule {
     }
   }
 
-  private static final class A {
-  }
+  private static final class A {}
 
-  private interface B {
-  }
+  private interface B {}
 
-  private interface C extends B {
-  }
+  private interface C extends B {}
 
   private static class Impl implements Service {
     private boolean started = false;
     private boolean closed = false;
+
     @Override
     public void start() throws Exception {
       started = true;
@@ -170,14 +165,11 @@ public class TestGuiceServiceModule {
     }
   }
 
-  private static class BImpl extends Impl implements B {
-  }
+  private static class BImpl extends Impl implements B {}
 
-  private static final class CImpl extends Impl implements C {
-  }
+  private static final class CImpl extends Impl implements C {}
 
-  private static final class D extends Impl {
-  }
+  private static final class D extends Impl {}
 
   private static final class MultiImpl extends BImpl implements C {
     private int started = 0;

@@ -19,12 +19,11 @@ import static com.dremio.services.nessie.grpc.GrpcExceptionMapper.handle;
 import static com.dremio.services.nessie.grpc.ProtoUtil.fromProto;
 import static com.dremio.services.nessie.grpc.ProtoUtil.toProto;
 
+import com.dremio.services.nessie.grpc.api.TreeServiceGrpc.TreeServiceBlockingStub;
 import org.projectnessie.client.builder.BaseMergeReferenceBuilder;
 import org.projectnessie.error.NessieConflictException;
 import org.projectnessie.error.NessieNotFoundException;
 import org.projectnessie.model.MergeResponse;
-
-import com.dremio.services.nessie.grpc.api.TreeServiceGrpc.TreeServiceBlockingStub;
 
 final class GrpcMergeReference extends BaseMergeReferenceBuilder {
 
@@ -37,10 +36,21 @@ final class GrpcMergeReference extends BaseMergeReferenceBuilder {
   @Override
   public MergeResponse merge() throws NessieNotFoundException, NessieConflictException {
     return handle(
-      () -> fromProto(
-        stub.mergeRefIntoBranch(
-          toProto(branchName, hash, message, commitMeta, fromRefName, fromHash, keepIndividualCommits, dryRun,
-            returnConflictAsResult, fetchAdditionalInfo, defaultMergeMode,
-            mergeModes == null ? null : mergeModes.values()))));
+        () ->
+            fromProto(
+                stub.mergeRefIntoBranch(
+                    toProto(
+                        branchName,
+                        hash,
+                        message,
+                        commitMeta,
+                        fromRefName,
+                        fromHash,
+                        keepIndividualCommits,
+                        dryRun,
+                        returnConflictAsResult,
+                        fetchAdditionalInfo,
+                        defaultMergeMode,
+                        mergeModes == null ? null : mergeModes.values()))));
   }
 }

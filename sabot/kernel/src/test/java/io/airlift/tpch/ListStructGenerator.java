@@ -15,9 +15,10 @@
  */
 package io.airlift.tpch;
 
+import com.dremio.common.expression.CompleteType;
+import com.dremio.test.AllocatorRule;
 import java.util.Arrays;
 import java.util.List;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.complex.ListVector;
@@ -25,12 +26,7 @@ import org.apache.arrow.vector.complex.impl.UnionListWriter;
 import org.apache.arrow.vector.complex.writer.BaseWriter.StructWriter;
 import org.apache.arrow.vector.types.pojo.Field;
 
-import com.dremio.common.expression.CompleteType;
-import com.dremio.test.AllocatorRule;
-
-/**
- * Creates a struct type vector and generates data for it.
- */
+/** Creates a struct type vector and generates data for it. */
 public class ListStructGenerator extends TpchGenerator {
 
   public static final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
@@ -44,24 +40,30 @@ public class ListStructGenerator extends TpchGenerator {
 
   private static BufferAllocator allocator;
 
-
   private final ListVector list;
 
-  /**
-   * Struct generated in this class would have 1 varchar and 1 int field
-   */
-
-
-  public ListStructGenerator(final BufferAllocator allocator, final GenerationDefinition def, final int partitionIndex, final GenerationDefinition.TpchTable table, final String...includedColumns) {
+  /** Struct generated in this class would have 1 varchar and 1 int field */
+  public ListStructGenerator(
+      final BufferAllocator allocator,
+      final GenerationDefinition def,
+      final int partitionIndex,
+      final GenerationDefinition.TpchTable table,
+      final String... includedColumns) {
 
     super(table, allocator, def, partitionIndex, includedColumns);
     this.allocator = allocator;
 
-    List<Field> children = Arrays.asList(CompleteType.VARCHAR.toField("varchar", true), CompleteType.INT.toField("int", true));
-    Field listOfStruct =  new CompleteType(CompleteType.LIST.getType(), CompleteType.struct(children).toField(ListVector.DATA_VECTOR_NAME, true)).toField("list", true);
-    //create a struct vector
+    List<Field> children =
+        Arrays.asList(
+            CompleteType.VARCHAR.toField("varchar", true), CompleteType.INT.toField("int", true));
+    Field listOfStruct =
+        new CompleteType(
+                CompleteType.LIST.getType(),
+                CompleteType.struct(children).toField(ListVector.DATA_VECTOR_NAME, true))
+            .toField("list", true);
+    // create a struct vector
     this.list = (ListVector) complexType(listOfStruct);
-    //this.list.initializeChildrenFromFields(Collections.singletonList(map));
+    // this.list.initializeChildrenFromFields(Collections.singletonList(map));
 
     finalizeSetup();
   }
@@ -71,7 +73,7 @@ public class ListStructGenerator extends TpchGenerator {
 
     final UnionListWriter listWriter = new UnionListWriter(list);
 
-    try(final ArrowBuf tempBuf =  allocator.buffer(1024)){
+    try (final ArrowBuf tempBuf = allocator.buffer(1024)) {
       listWriter.setPosition(outputIndex);
       listWriter.startList();
       for (int j = 0; j < 5; j++) {
@@ -79,9 +81,9 @@ public class ListStructGenerator extends TpchGenerator {
         structWriter.start();
         final byte[] varCharVal = wordRandom.nextValue().getBytes();
         tempBuf.setBytes(0, varCharVal);
-        if(j != 1 && j != 3 ){
+        if (j != 1 && j != 3) {
           structWriter.integer("int").writeInt(intRandom.nextValue());
-          structWriter.varChar("varchar").writeVarChar(0, varCharVal.length,tempBuf);
+          structWriter.varChar("varchar").writeVarChar(0, varCharVal.length, tempBuf);
         }
         structWriter.end();
         intRandom.rowFinished();
@@ -89,7 +91,6 @@ public class ListStructGenerator extends TpchGenerator {
         structWriter.end();
       }
       listWriter.endList();
-
     }
   }
 }

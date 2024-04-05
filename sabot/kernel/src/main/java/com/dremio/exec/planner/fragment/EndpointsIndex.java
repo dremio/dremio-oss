@@ -15,6 +15,12 @@
  */
 package com.dremio.exec.planner.fragment;
 
+import com.dremio.common.nodes.EndpointHelper;
+import com.dremio.exec.physical.config.MinorFragmentEndpoint;
+import com.dremio.exec.proto.CoordExecRPC.MinorFragmentIndexEndpoint;
+import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -22,24 +28,18 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
-import com.dremio.common.nodes.EndpointHelper;
-import com.dremio.exec.physical.config.MinorFragmentEndpoint;
-import com.dremio.exec.proto.CoordExecRPC.MinorFragmentIndexEndpoint;
-import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableList;
-
 /**
  * Index for node endpoints.
  *
- * Used to deduplicate references to the same endpoints, and reduce heap usage and rpc size.
+ * <p>Used to deduplicate references to the same endpoints, and reduce heap usage and rpc size.
  */
 public class EndpointsIndex {
   /*
    * The index can be accessed by multiple slicing threads in parallel, so it needs to be a
    * concurrent map.
    */
-  private Map<MinorFragmentIndexEndpoint, MinorFragmentEndpoint> fragmentsEndpointMap = new ConcurrentHashMap<>();
+  private Map<MinorFragmentIndexEndpoint, MinorFragmentEndpoint> fragmentsEndpointMap =
+      new ConcurrentHashMap<>();
   private final List<NodeEndpoint> endpoints;
 
   public EndpointsIndex(List<NodeEndpoint> endpoints) {
@@ -47,10 +47,13 @@ public class EndpointsIndex {
   }
 
   // For testing
-  public EndpointsIndex() { this.endpoints = ImmutableList.of(); }
+  public EndpointsIndex() {
+    this.endpoints = ImmutableList.of();
+  }
 
   /**
    * Resolve an endpoint index to an endpoint.
+   *
    * @param idx index of endpoint.
    * @return endpoint corresponding to the index.
    */
@@ -60,19 +63,20 @@ public class EndpointsIndex {
 
   /**
    * Resolve a fragment endpoint index to fragment endpoint.
+   *
    * @param ep fragment endpoint including minor fragment id and endpoint index.
    * @return fragment endpoint including minor fragment id and endpoint.
    */
   public MinorFragmentEndpoint getFragmentEndpoint(MinorFragmentIndexEndpoint ep) {
     // These tend to be repetitive. so, reuse object where possible.
-    return fragmentsEndpointMap.computeIfAbsent(ep,
-      k -> new MinorFragmentEndpoint(k.getMinorFragmentId(), endpoints.get(k.getEndpointIndex())));
+    return fragmentsEndpointMap.computeIfAbsent(
+        ep,
+        k ->
+            new MinorFragmentEndpoint(k.getMinorFragmentId(), endpoints.get(k.getEndpointIndex())));
   }
 
   public List<MinorFragmentEndpoint> getFragmentEndpoints(List<MinorFragmentIndexEndpoint> eps) {
-    return eps.stream()
-      .map(x -> getFragmentEndpoint(x))
-      .collect(Collectors.toList());
+    return eps.stream().map(x -> getFragmentEndpoint(x)).collect(Collectors.toList());
   }
 
   @VisibleForTesting
@@ -90,8 +94,7 @@ public class EndpointsIndex {
     // Index of all fragment index endpoints.
     private Map<Long, MinorFragmentIndexEndpoint> fragmentsIndexEndpointMap = new HashMap<>();
 
-    public Builder() {
-    }
+    public Builder() {}
 
     // Return the list of all collected endpoints.
     public List<NodeEndpoint> getAllEndpoints() {
@@ -114,33 +117,31 @@ public class EndpointsIndex {
       return index;
     }
 
-    public int addNodeEndpoint(NodeEndpoint endpoint){
+    public int addNodeEndpoint(NodeEndpoint endpoint) {
       return lookupOrAdd(endpoint);
     }
 
     private long longFromTwoInts(int a, int b) {
-      return ((long)a << 32) | (b & 0xffffffffL);
+      return ((long) a << 32) | (b & 0xffffffffL);
     }
 
-    public MinorFragmentIndexEndpoint addFragmentEndpoint(int minorFragmentId, NodeEndpoint endpoint) {
+    public MinorFragmentIndexEndpoint addFragmentEndpoint(
+        int minorFragmentId, NodeEndpoint endpoint) {
       int endpointIdx = lookupOrAdd(endpoint);
 
       // These tend to be repetitive. So, index and reuse.
       return fragmentsIndexEndpointMap.computeIfAbsent(
-        longFromTwoInts(minorFragmentId, endpointIdx),
-        k ->
-          MinorFragmentIndexEndpoint
-            .newBuilder()
-            .setMinorFragmentId(minorFragmentId)
-            .setEndpointIndex(endpointIdx)
-            .build()
-      );
+          longFromTwoInts(minorFragmentId, endpointIdx),
+          k ->
+              MinorFragmentIndexEndpoint.newBuilder()
+                  .setMinorFragmentId(minorFragmentId)
+                  .setEndpointIndex(endpointIdx)
+                  .build());
     }
 
     @VisibleForTesting
     int getUniqueFragmentIndexEndpointCount() {
       return fragmentsIndexEndpointMap.size();
     }
-
   }
 }

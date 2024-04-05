@@ -20,22 +20,24 @@ import com.dremio.exec.proto.UserBitShared;
 /**
  * Interface to be able to cancel running query
  *
- * Note that this interface is not used when query cancellation is triggered by APIs
+ * <p>Note that this interface is not used when query cancellation is triggered by APIs
  */
 public interface QueryCancelTool {
 
   /**
    * To cancel running query
+   *
    * @param id - query ID
    * @param reason - reason for cancellation
    * @return
    */
   boolean cancel(UserBitShared.ExternalId id, String reason, boolean runTimeExceeded);
 
-  QueryCancelTool NO_OP = new QueryCancelTool() {
-    @Override
-    public boolean cancel(UserBitShared.ExternalId id, String reason, boolean runTimeExceeded) {
-      return false;
-    }
-  };
+  QueryCancelTool NO_OP =
+      new QueryCancelTool() {
+        @Override
+        public boolean cancel(UserBitShared.ExternalId id, String reason, boolean runTimeExceeded) {
+          return false;
+        }
+      };
 }

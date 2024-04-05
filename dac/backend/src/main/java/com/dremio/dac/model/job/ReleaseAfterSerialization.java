@@ -15,9 +15,5 @@
  */
 package com.dremio.dac.model.job;
 
-/**
- * Marker interface that informs the job serializer to immediately release all data.
- */
-public interface ReleaseAfterSerialization extends com.dremio.service.jobs.JobDataFragment {
-
-}
+/** Marker interface that informs the job serializer to immediately release all data. */
+public interface ReleaseAfterSerialization extends com.dremio.service.jobs.JobDataFragment {}

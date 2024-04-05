@@ -15,24 +15,6 @@
  */
 package com.dremio.sabot.op.sort.external;
 
-import java.io.FilterInputStream;
-import java.io.FilterOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.function.Function;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FSDataInputStream;
-import org.apache.hadoop.fs.FSDataOutputStream;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.ExecConstants;
@@ -46,17 +28,33 @@ import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.service.spill.SpillDirectory;
 import com.dremio.service.spill.SpillService;
-
+import java.io.FilterInputStream;
+import java.io.FilterOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Function;
 import net.jpountz.lz4.LZ4BlockInputStream;
 import net.jpountz.lz4.LZ4BlockOutputStream;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 
 /**
- * Distribute spills across given list of directories.
- * Monitor disk space left and stop using disks which are running low on free space.
- * Monitoring is disabled for spill directories on non local filesystems.
+ * Distribute spills across given list of directories. Monitor disk space left and stop using disks
+ * which are running low on free space. Monitoring is disabled for spill directories on non local
+ * filesystems.
  */
 public class SpillManager implements AutoCloseable {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SpillManager.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(SpillManager.class);
 
   static final String DREMIO_LOCAL_IMPL_STRING = "fs.dremio-local.impl";
 
@@ -74,34 +72,51 @@ public class SpillManager implements AutoCloseable {
   private long ioReadWaitNanos;
   private long ioWriteWaitNanos;
 
-  public SpillManager(SabotConfig sabotConfig, OptionManager optionManager, String id, Configuration hadoopConf,
-      SpillService spillService, String caller, OperatorStats stats)  {
-    this(new ArrayList<>(sabotConfig.getStringList(ExecConstants.SPILL_DIRS)), optionManager, id, spillService, caller, stats);
+  public SpillManager(
+      SabotConfig sabotConfig,
+      OptionManager optionManager,
+      String id,
+      Configuration hadoopConf,
+      SpillService spillService,
+      String caller,
+      OperatorStats stats) {
+    this(
+        new ArrayList<>(sabotConfig.getStringList(ExecConstants.SPILL_DIRS)),
+        optionManager,
+        id,
+        spillService,
+        caller,
+        stats);
   }
 
-  public SpillManager(List<String> directories, OptionManager optionManager, String id, SpillService spillService,
-                      String caller, OperatorStats stats) {
+  public SpillManager(
+      List<String> directories,
+      OptionManager optionManager,
+      String id,
+      SpillService spillService,
+      String caller,
+      OperatorStats stats) {
     if (directories.isEmpty()) {
       throw UserException.dataWriteError().message("No spill locations specified.").build(logger);
     }
 
     this.stats = stats;
-    this.id  = id;
+    this.id = id;
     this.caller = caller;
     this.spillService = spillService;
     // load options
     if (optionManager != null) {
-      this.useDirectWritePathIfPossible = optionManager.getOption(ExecConstants.EXTERNAL_SORT_DIRECT_WRITE);
+      this.useDirectWritePathIfPossible =
+          optionManager.getOption(ExecConstants.EXTERNAL_SORT_DIRECT_WRITE);
     } else {
-      this.useDirectWritePathIfPossible = ExecConstants.EXTERNAL_SORT_DIRECT_WRITE.getDefault().getBoolVal();
+      this.useDirectWritePathIfPossible =
+          ExecConstants.EXTERNAL_SORT_DIRECT_WRITE.getDefault().getBoolVal();
     }
 
     try {
       spillService.makeSpillSubdirs(id);
     } catch (UserException e) {
-      throw UserException.dataWriteError(e)
-        .addContext("Caller", caller)
-        .build(logger);
+      throw UserException.dataWriteError(e).addContext("Caller", caller).build(logger);
     }
   }
 
@@ -112,12 +127,13 @@ public class SpillManager implements AutoCloseable {
   public SpillFile getSpillFile(String fileName) throws RuntimeException {
     try {
       final SpillDirectory spillDirectory = spillService.getSpillSubdir(id);
-      return new SpillFile(spillDirectory.getFileSystem(), new Path(spillDirectory.getSpillDirPath(), fileName));
+      return new SpillFile(
+          spillDirectory.getFileSystem(), new Path(spillDirectory.getSpillDirPath(), fileName));
     } catch (UserException e) {
       throw UserException.dataWriteError(e)
-        .addContext("for %s spill id %s", caller, id)
-        .addContext("Caller", caller)
-        .build(logger);
+          .addContext("for %s spill id %s", caller, id)
+          .addContext("Caller", caller)
+          .build(logger);
     }
   }
 
@@ -173,7 +189,8 @@ public class SpillManager implements AutoCloseable {
     }
   }
 
-  private static class ABOutputStreamWithStats extends OutputStreamWithStats implements WritesArrowBuf {
+  private static class ABOutputStreamWithStats extends OutputStreamWithStats
+      implements WritesArrowBuf {
 
     public ABOutputStreamWithStats(OutputStream out) {
       super(out);
@@ -187,25 +204,26 @@ public class SpillManager implements AutoCloseable {
       } finally {
         write.stop();
       }
-
     }
-
   }
 
-  private SpillOutputStream createSpillOutputStream(SpillFile file, boolean compressed) throws IOException {
+  private SpillOutputStream createSpillOutputStream(SpillFile file, boolean compressed)
+      throws IOException {
     FSDataOutputStream output = file.fs.create(file.path);
     OutputStream actualOutput = output;
     try {
       OutputStream inner = output.getWrappedStream();
-      if(inner instanceof LocalSyncableOutputStream) {
+      if (inner instanceof LocalSyncableOutputStream) {
         actualOutput = inner;
       }
     } catch (Exception ex) {
       logger.debug("Failed to get inner wrapped stream, using fallback.", ex);
     }
     ABOutputStreamWithStats base = new ABOutputStreamWithStats(actualOutput);
-    ABOutputStreamWithStats top = compressed ? new ABOutputStreamWithStats(new LZ4BlockOutputStream(base)) : base;
-    boolean useDirectWrite = useDirectWritePathIfPossible && !compressed && actualOutput instanceof WritesArrowBuf;
+    ABOutputStreamWithStats top =
+        compressed ? new ABOutputStreamWithStats(new LZ4BlockOutputStream(base)) : base;
+    boolean useDirectWrite =
+        useDirectWritePathIfPossible && !compressed && actualOutput instanceof WritesArrowBuf;
     return new SpillOutputStream(top, base, file, compressed, useDirectWrite);
   }
 
@@ -216,6 +234,8 @@ public class SpillManager implements AutoCloseable {
     private final SpillFile file;
     private final boolean compressed;
     private final boolean writeDirect;
+
+    private VectorAccessibleFlatBufSerializable serializable;
 
     private SpillOutputStream(
         ABOutputStreamWithStats top,
@@ -229,6 +249,7 @@ public class SpillManager implements AutoCloseable {
       this.file = file;
       this.compressed = compressed;
       this.writeDirect = writeDirect;
+      this.serializable = new VectorAccessibleFlatBufSerializable();
     }
 
     public boolean isCompressed() {
@@ -252,7 +273,7 @@ public class SpillManager implements AutoCloseable {
     }
 
     public long getCompressionTime() {
-      if(!compressed) {
+      if (!compressed) {
         return 0;
       }
 
@@ -260,7 +281,8 @@ public class SpillManager implements AutoCloseable {
     }
 
     public long writeBatch(VectorContainer outgoing) throws IOException {
-      VectorAccessibleFlatBufSerializable serializable = new VectorAccessibleFlatBufSerializable(outgoing, null);
+      serializable.clear();
+      serializable.setup(outgoing, null);
       serializable.setWriteDirect(writeDirect);
       serializable.writeToStream(top);
       return serializable.getBytesWritten();
@@ -278,7 +300,7 @@ public class SpillManager implements AutoCloseable {
     @Override
     public void close() throws IOException {
       super.close();
-      if(stats != null) {
+      if (stats != null) {
         stats.moveProcessingToWait(getIOTime());
       }
       ioWriteWaitNanos += getIOTime();
@@ -286,13 +308,14 @@ public class SpillManager implements AutoCloseable {
       ioWriteBytes += getIOBytes();
       compressionNanos += getCompressionTime();
     }
-
   }
 
-  private SpillInputStream createSpillInputStream(SpillFile file, boolean compressed) throws IOException {
+  private SpillInputStream createSpillInputStream(SpillFile file, boolean compressed)
+      throws IOException {
     InputStream output = file.fs.open(file.path);
     InputStreamWithStats base = new InputStreamWithStats(output);
-    InputStreamWithStats top = compressed ? new InputStreamWithStats(new LZ4BlockInputStream(base)) : base;
+    InputStreamWithStats top =
+        compressed ? new InputStreamWithStats(new LZ4BlockInputStream(base)) : base;
     return new SpillInputStream(top, base, file, compressed);
   }
 
@@ -302,17 +325,16 @@ public class SpillManager implements AutoCloseable {
     private final InputStreamWithStats base;
     private final SpillFile file;
     private boolean compressed;
+    private VectorAccessibleFlatBufSerializable serializable;
 
     private SpillInputStream(
-        InputStreamWithStats top,
-        InputStreamWithStats base,
-        SpillFile file,
-        boolean compressed) {
+        InputStreamWithStats top, InputStreamWithStats base, SpillFile file, boolean compressed) {
       super(top);
       this.top = top;
       this.base = base;
       this.file = file;
       this.compressed = compressed;
+      this.serializable = new VectorAccessibleFlatBufSerializable();
     }
 
     public boolean isCompressed() {
@@ -336,7 +358,7 @@ public class SpillManager implements AutoCloseable {
     }
 
     public long getDeompressionTime() {
-      if(!compressed) {
+      if (!compressed) {
         return 0;
       }
 
@@ -344,19 +366,22 @@ public class SpillManager implements AutoCloseable {
     }
 
     public void load(VectorContainer container, BufferAllocator allocator) throws IOException {
-      VectorAccessibleFlatBufSerializable serializable = new VectorAccessibleFlatBufSerializable(container, allocator);
+      serializable.clear();
+      serializable.setup(container, allocator);
       serializable.readFromStream(top);
     }
 
-    public void load(VectorContainer container, Function<Integer, ArrowBuf> allocatorFunc) throws IOException {
-      VectorAccessibleFlatBufSerializable serializable = new VectorAccessibleFlatBufSerializable(container, allocatorFunc, stats);
+    public void load(VectorContainer container, Function<Integer, ArrowBuf> allocatorFunc)
+        throws IOException {
+      serializable.clear();
+      serializable.setup(container, allocatorFunc, stats);
       serializable.readFromStream(top);
     }
 
     @Override
     public void close() throws IOException {
       super.close();
-      if(stats != null) {
+      if (stats != null) {
         stats.moveProcessingToWait(getIOTime());
       }
       ioReadWaitNanos += getIOTime();

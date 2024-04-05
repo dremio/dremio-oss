@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.physical.config;
 
-import java.util.List;
-
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.logical.data.Order.Ordering;
 import com.dremio.exec.physical.base.AbstractExchange;
@@ -31,6 +29,7 @@ import com.dremio.exec.proto.CoordExecRPC.MinorFragmentIndexEndpoint;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.options.OptionManager;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.List;
 
 public class HashToMergeExchange extends AbstractExchange {
 
@@ -62,25 +61,46 @@ public class HashToMergeExchange extends AbstractExchange {
   }
 
   @Override
-  public Sender getSender(int minorFragmentId, PhysicalOperator child, EndpointsIndex.Builder indexBuilder) {
-    final List<MinorFragmentIndexEndpoint> dest = PhysicalOperatorUtil.getIndexOrderedEndpoints(receiverLocations, indexBuilder);
-    return new HashPartitionSender(options.getResult(senderProps, dest.size()), schema, child, receiverMajorFragmentId, dest, distExpr);
+  public Sender getSender(
+      int minorFragmentId, PhysicalOperator child, EndpointsIndex.Builder indexBuilder) {
+    final List<MinorFragmentIndexEndpoint> dest =
+        PhysicalOperatorUtil.getIndexOrderedEndpoints(receiverLocations, indexBuilder);
+    return new HashPartitionSender(
+        options.getResult(senderProps, dest.size()),
+        schema,
+        child,
+        receiverMajorFragmentId,
+        dest,
+        distExpr);
   }
 
   @Override
   public Receiver getReceiver(int minorFragmentId, EndpointsIndex.Builder indexBuilder) {
-    return new MergingReceiverPOP(receiverProps, schema, senderMajorFragmentId,
-      PhysicalOperatorUtil.getIndexOrderedEndpoints(senderLocations, indexBuilder),
-      true, orderExprs);
+    return new MergingReceiverPOP(
+        receiverProps,
+        schema,
+        senderMajorFragmentId,
+        PhysicalOperatorUtil.getIndexOrderedEndpoints(senderLocations, indexBuilder),
+        true,
+        orderExprs);
   }
 
   @Override
   protected PhysicalOperator getNewWithChild(PhysicalOperator child) {
-    return new HashToMergeExchange(props, senderProps, receiverProps, options, schema, child, distExpr, orderExprs, optionManager);
+    return new HashToMergeExchange(
+        props,
+        senderProps,
+        receiverProps,
+        options,
+        schema,
+        child,
+        distExpr,
+        orderExprs,
+        optionManager);
   }
 
   @JsonProperty("orderExpr")
-  public List<Ordering> getOrderExpressions(){
+  public List<Ordering> getOrderExpressions() {
     return orderExprs;
   }
 }

@@ -18,17 +18,15 @@ package com.dremio.common.util;
 import java.util.Comparator;
 import java.util.List;
 
-/**
- * Common comparator implementations
- */
+/** Common comparator implementations */
 public final class DremioComparator {
   public static final Comparator<List<String>> StringLexographicSizeThenReverseElementOrder =
-    lexographicSizeThenReverseElementOrder(String::compareTo);
-  private DremioComparator() {
-  }
+      lexographicSizeThenReverseElementOrder(String::compareTo);
+
+  private DremioComparator() {}
 
   /**
-   * Compares list first on size then on reverse element order.  Primarily useful when an algorithm
+   * Compares list first on size then on reverse element order. Primarily useful when an algorithm
    * cares only about speed and lists are likely to start with common elements.
    *
    * @param valueComparator

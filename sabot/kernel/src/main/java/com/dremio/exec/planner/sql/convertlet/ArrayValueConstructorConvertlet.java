@@ -18,12 +18,13 @@ package com.dremio.exec.planner.sql.convertlet;
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.ARRAY_VALUE_CONSTRUCTOR;
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.CAST;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.planner.logical.RelDataTypeEqualityUtil;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
-
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.logical.LogicalValues;
 import org.apache.calcite.rel.type.RelDataType;
@@ -41,11 +42,9 @@ import org.apache.calcite.sql.type.OperandTypes;
 import org.apache.calcite.sql.type.ReturnTypes;
 import org.apache.calcite.tools.RelBuilder;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.planner.logical.RelDataTypeEqualityUtil;
-
 public final class ArrayValueConstructorConvertlet implements FunctionConvertlet {
-  public static final ArrayValueConstructorConvertlet INSTANCE = new ArrayValueConstructorConvertlet();
+  public static final ArrayValueConstructorConvertlet INSTANCE =
+      new ArrayValueConstructorConvertlet();
 
   private ArrayValueConstructorConvertlet() {}
 
@@ -56,15 +55,17 @@ public final class ArrayValueConstructorConvertlet implements FunctionConvertlet
 
   @Override
   public RexCall convertCall(ConvertletContext cx, RexCall call) {
-    boolean hasNulls = call.getOperands().stream().anyMatch(node -> node instanceof RexLiteral && ((RexLiteral) node).isNull());
+    boolean hasNulls =
+        call.getOperands().stream()
+            .anyMatch(node -> node instanceof RexLiteral && ((RexLiteral) node).isNull());
     if (hasNulls) {
-      throw UserException
-        .validationError()
-        .message("NULL values are not supported when constructing an ARRAY.")
-        .buildSilently();
+      throw UserException.validationError()
+          .message("NULL values are not supported when constructing an ARRAY.")
+          .buildSilently();
     }
 
-    boolean allLiterals = call.getOperands().stream().allMatch(arrayItem -> arrayItem instanceof RexLiteral);
+    boolean allLiterals =
+        call.getOperands().stream().allMatch(arrayItem -> arrayItem instanceof RexLiteral);
     return allLiterals ? convertCallLiteralsOnly(cx, call) : convertCallWithNonLiterals(cx, call);
   }
 
@@ -73,50 +74,49 @@ public final class ArrayValueConstructorConvertlet implements FunctionConvertlet
     RexBuilder rexBuilder = cx.getRexBuilder();
     RelBuilder relBuilder = cx.getRelBuilder();
 
-    List<List<RexLiteral>> literalColumn = call
-      .getOperands()
-      .stream()
-      .map(x -> (RexLiteral) x)
-      .map(Collections::singletonList)
-      .collect(Collectors.toList());
+    List<List<RexLiteral>> literalColumn =
+        call.getOperands().stream()
+            .map(x -> (RexLiteral) x)
+            .map(Collections::singletonList)
+            .collect(Collectors.toList());
 
-    RelDataType valuesType = relBuilder
-      .getTypeFactory()
-      .builder()
-      .add("col", call.getType().getComponentType())
-      .build();
+    RelDataType valuesType =
+        relBuilder.getTypeFactory().builder().add("col", call.getType().getComponentType()).build();
 
-    RelNode valuesSubquery = relBuilder
-      .values(literalColumn, valuesType)
-      .project(rexBuilder.makeInputRef(call.getType().getComponentType(), 0))
-      .build();
+    RelNode valuesSubquery =
+        relBuilder
+            .values(literalColumn, valuesType)
+            .project(rexBuilder.makeInputRef(call.getType().getComponentType(), 0))
+            .build();
 
     return RexSubQuery.array(valuesSubquery, null);
   }
 
   private static RexCall convertCallWithNonLiterals(ConvertletContext cx, RexCall call) {
-    boolean hasLegacyOnlyElements = call.getOperands()
-      .stream().anyMatch(arrayItem -> {
-          if (!(arrayItem instanceof RexCall)) {
-            return false;
-          }
+    boolean hasLegacyOnlyElements =
+        call.getOperands().stream()
+            .anyMatch(
+                arrayItem -> {
+                  if (!(arrayItem instanceof RexCall)) {
+                    return false;
+                  }
 
-          RexCall asCall = (RexCall) arrayItem;
-          if (asCall instanceof RexSubQuery) {
-            return true;
-          }
+                  RexCall asCall = (RexCall) arrayItem;
+                  if (asCall instanceof RexSubQuery) {
+                    return true;
+                  }
 
-          if (asCall.getOperator() instanceof ConvertFromSqlFunction) {
-            return true;
-          }
+                  if (asCall.getOperator() instanceof ConvertFromSqlFunction) {
+                    return true;
+                  }
 
-          return false;
-        });
+                  return false;
+                });
 
     // TODO: Once ARRAY_AGG supports ARRAYs we can remove this fork.
     return hasLegacyOnlyElements
-      ? convertCallWithNonLiteralsLegacy(cx, call)
-      : convertCallWithNonLiteralsProvisional(cx, call);
+        ? convertCallWithNonLiteralsLegacy(cx, call)
+        : convertCallWithNonLiteralsProvisional(cx, call);
   }
 
   private static RexCall convertCallWithNonLiteralsProvisional(ConvertletContext cx, RexCall call) {
@@ -132,10 +132,9 @@ public final class ArrayValueConstructorConvertlet implements FunctionConvertlet
       IllegalArrayItemDetector detector = new IllegalArrayItemDetector();
       arrayItem.accept(detector);
       if (detector.hasIllegalValue) {
-        throw UserException
-          .validationError()
-          .message("ARRAY Literal can not have array element: " + arrayItem)
-          .buildSilently();
+        throw UserException.validationError()
+            .message("ARRAY Literal can not have array element: " + arrayItem)
+            .buildSilently();
       }
 
       RelNode relOfArrayItem = nodeToRel(relBuilder, arrayItem);
@@ -147,23 +146,19 @@ public final class ArrayValueConstructorConvertlet implements FunctionConvertlet
   }
 
   private static RelNode nodeToRel(RelBuilder relBuilder, RexNode node) {
-    return relBuilder
-      .values(new String[]{"ZERO"}, 0)
-      .project(node)
-      .build();
+    return relBuilder.values(new String[] {"ZERO"}, 0).project(node).build();
   }
 
   public static RexCall convertCallWithNonLiteralsLegacy(ConvertletContext cx, RexCall call) {
     RexBuilder rexBuilder = cx.getRexBuilder();
     String arrayToString = arrayToString(rexBuilder, call);
-    return (RexCall) rexBuilder.makeCall(
-      new ConvertFromSqlFunction(call.getType()),
-      rexBuilder.makeLiteral(arrayToString));
+    return (RexCall)
+        rexBuilder.makeCall(
+            new ConvertFromSqlFunction(call.getType()), rexBuilder.makeLiteral(arrayToString));
   }
 
   private static String arrayToString(RexBuilder rexBuilder, RexCall array) {
-    StringBuilder arrayToStringBuilder = new StringBuilder()
-      .append('[');
+    StringBuilder arrayToStringBuilder = new StringBuilder().append('[');
 
     for (RexNode arrayItem : array.getOperands()) {
       if (arrayItem instanceof RexCall) {
@@ -171,10 +166,7 @@ public final class ArrayValueConstructorConvertlet implements FunctionConvertlet
         if (arrayItemCall.op.equals(CAST)) {
           RexNode noCastValue = arrayItemCall.getOperands().get(0);
           if (RelDataTypeEqualityUtil.areEquals(
-            arrayItem.getType(),
-            noCastValue.getType(),
-            false,
-            false)) {
+              arrayItem.getType(), noCastValue.getType(), false, false)) {
             // Array Coercion and UDF replacement could have added a no op precision cast:
             arrayItem = noCastValue;
           }
@@ -209,7 +201,8 @@ public final class ArrayValueConstructorConvertlet implements FunctionConvertlet
                 case DECIMAL:
                   // We are losing precision here, but that is what happens with CONVERT_FROM
                   // When we migrate to ARRAY subquery / array_agg the precision will be preserved.
-                  arrayItemToString = Double.toString(((BigDecimal)literal.getValue()).doubleValue());
+                  arrayItemToString =
+                      Double.toString(((BigDecimal) literal.getValue()).doubleValue());
                   break;
 
                 case TINYINT:
@@ -220,7 +213,8 @@ public final class ArrayValueConstructorConvertlet implements FunctionConvertlet
                   break;
 
                 default:
-                  throw new UnsupportedOperationException("Unknown decimal kind: " + literal.getType().getSqlTypeName());
+                  throw new UnsupportedOperationException(
+                      "Unknown decimal kind: " + literal.getType().getSqlTypeName());
               }
               break;
 
@@ -252,12 +246,14 @@ public final class ArrayValueConstructorConvertlet implements FunctionConvertlet
         default:
           // We could have a recursive convert_from call that we need to handle
           if (!(arrayItem instanceof RexCall)) {
-            throw new UnsupportedOperationException("Array elements must all be literals. Encountered: " + arrayItem);
+            throw new UnsupportedOperationException(
+                "Array elements must all be literals. Encountered: " + arrayItem);
           }
 
           RexCall arrayItemCall = (RexCall) arrayItem;
           if (!(arrayItemCall.op instanceof ConvertFromSqlFunction)) {
-            throw new UnsupportedOperationException("Array elements must all be literals. Encountered: " + arrayItem);
+            throw new UnsupportedOperationException(
+                "Array elements must all be literals. Encountered: " + arrayItem);
           }
 
           RexLiteral rexLiteral = (RexLiteral) arrayItemCall.getOperands().get(0);
@@ -265,15 +261,11 @@ public final class ArrayValueConstructorConvertlet implements FunctionConvertlet
           break;
       }
 
-      arrayToStringBuilder
-        .append(arrayItemToString)
-        .append(",");
+      arrayToStringBuilder.append(arrayItemToString).append(",");
     }
 
-    String arrayToString = arrayToStringBuilder
-      .deleteCharAt(arrayToStringBuilder.length() - 1)
-      .append(']')
-      .toString();
+    String arrayToString =
+        arrayToStringBuilder.deleteCharAt(arrayToStringBuilder.length() - 1).append(']').toString();
 
     return arrayToString;
   }
@@ -281,12 +273,12 @@ public final class ArrayValueConstructorConvertlet implements FunctionConvertlet
   private static final class ConvertFromSqlFunction extends SqlFunction {
     public ConvertFromSqlFunction(RelDataType arrayType) {
       super(
-        "CONVERT_FROMJSON",
-        SqlKind.OTHER,
-        ReturnTypes.explicit(arrayType),
-        null,
-        OperandTypes.CHARACTER,
-        SqlFunctionCategory.USER_DEFINED_FUNCTION);
+          "CONVERT_FROMJSON",
+          SqlKind.OTHER,
+          ReturnTypes.explicit(arrayType),
+          null,
+          OperandTypes.CHARACTER,
+          SqlFunctionCategory.USER_DEFINED_FUNCTION);
     }
   }
 

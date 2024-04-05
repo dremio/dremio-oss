@@ -36,7 +36,7 @@ export class LiveEditParsingEngine {
       query,
       lexerErrorListener,
       parserErrorListener,
-      true
+      true,
     ).parse();
 
     return {

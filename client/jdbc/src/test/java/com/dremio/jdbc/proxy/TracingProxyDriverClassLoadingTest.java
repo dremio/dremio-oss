@@ -18,24 +18,20 @@ package com.dremio.jdbc.proxy;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.dremio.exec.ExecTest;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.Driver;
 import java.sql.DriverManager;
 import java.sql.SQLException;
-
 import org.junit.Ignore;
 import org.junit.Test;
-
-import com.dremio.exec.ExecTest;
 
 // NOTE:  Currently, must not inherit from anything that loads the Dremio driver
 // class (and must not be run in JVM where the Dremio driver class has already
 // been loaded).
 
-/**
- * Test of TracingProxyDriver's loading of driver class.
- */
+/** Test of TracingProxyDriver's loading of driver class. */
 public class TracingProxyDriverClassLoadingTest extends ExecTest {
 
   @Ignore("except when run in own JVM (so Dremio Driver not already loaded)")
@@ -48,51 +44,50 @@ public class TracingProxyDriverClassLoadingTest extends ExecTest {
 
     // 1.  Confirm that Dremio driver is not loaded/registered.
     assertThatThrownBy(() -> DriverManager.getDriver("jdbc:dremio:zk=localhost:123456"))
-      .isInstanceOf(SQLException.class)
-      .hasMessage("No suitable driver");
+        .isInstanceOf(SQLException.class)
+        .hasMessage("No suitable driver");
 
     assertThatThrownBy(() -> DriverManager.getConnection("jdbc:dremio:zk=localhost:123456", null))
-      .isInstanceOf(SQLException.class)
-      .hasMessage("No suitable driver found for jdbc:dremio:zk=localhost:123456");
+        .isInstanceOf(SQLException.class)
+        .hasMessage("No suitable driver found for jdbc:dremio:zk=localhost:123456");
 
     // 2.  Confirm that TracingProxyDriver is not loaded/registered.
     assertThatThrownBy(() -> DriverManager.getDriver("jdbc:proxy::jdbc:dremio:zk=localhost:123456"))
-      .isInstanceOf(SQLException.class)
-      .hasMessage("No suitable driver");
+        .isInstanceOf(SQLException.class)
+        .hasMessage("No suitable driver");
 
     assertThatThrownBy(
-      () -> DriverManager.getConnection("jdbc:proxy::jdbc:dremio:zk=localhost:123456", null))
-      .isInstanceOf(SQLException.class)
-      .hasMessage("No suitable driver found for jdbc:proxy::jdbc:dremio:zk=localhost:123456");
+            () -> DriverManager.getConnection("jdbc:proxy::jdbc:dremio:zk=localhost:123456", null))
+        .isInstanceOf(SQLException.class)
+        .hasMessage("No suitable driver found for jdbc:proxy::jdbc:dremio:zk=localhost:123456");
 
     // 3.  Load TracingProxyDriver.
     Class.forName("com.dremio.jdbc.proxy.TracingProxyDriver");
 
     // 4.  Confirm that Dremio driver still is not registered.
     assertThatThrownBy(
-      () -> DriverManager.getConnection("jdbc:proxy::jdbc:dremio:zk=localhost:123456", null))
-      .isInstanceOf(ProxySetupSQLException.class)
-      .hasMessage(
-        "Error getting driver from DriverManager for proxied URL"
-          + " \"jdbc:dremio:zk=localhost:123456\" (from proxy driver URL"
-          + " \"jdbc:proxy::jdbc:dremio:zk=localhost:123456\" (after third colon))"
-          + ": java.sql.SQLException: No suitable driver");
+            () -> DriverManager.getConnection("jdbc:proxy::jdbc:dremio:zk=localhost:123456", null))
+        .isInstanceOf(ProxySetupSQLException.class)
+        .hasMessage(
+            "Error getting driver from DriverManager for proxied URL"
+                + " \"jdbc:dremio:zk=localhost:123456\" (from proxy driver URL"
+                + " \"jdbc:proxy::jdbc:dremio:zk=localhost:123456\" (after third colon))"
+                + ": java.sql.SQLException: No suitable driver");
 
     // 5.  Test that TracingProxyDriver can load and use a specified Driver class.
     final Driver driver =
-      DriverManager.getDriver(
-        "jdbc:proxy:com.dremio.jdbc.Driver:jdbc:dremio:zk=localhost:123456");
+        DriverManager.getDriver(
+            "jdbc:proxy:com.dremio.jdbc.Driver:jdbc:dremio:zk=localhost:123456");
 
     assertThat(driver.acceptsURL("jdbc:proxy::jdbc:dremio:zk=localhost:123456")).isTrue();
     assertThat(driver.acceptsURL("jdbc:dremio:zk=localhost:123456")).isFalse();
 
     // 7.  Test minimally that driver can get connection that works.
     final Connection proxyConnection =
-      DriverManager.getConnection("jdbc:proxy::jdbc:dremio:zk=localhost:123456", null);
+        DriverManager.getConnection("jdbc:proxy::jdbc:dremio:zk=localhost:123456", null);
     assertThat(proxyConnection).isNotNull();
 
     final DatabaseMetaData dbMetaData = proxyConnection.getMetaData();
     assertThat(dbMetaData).isInstanceOf(DatabaseMetaData.class);
   }
-
 } // class TracingProxyDriverClassLoadingTest

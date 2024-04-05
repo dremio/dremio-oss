@@ -15,14 +15,12 @@
  */
 package com.dremio.common.logical;
 
+import com.dremio.common.scanner.persistence.ScanResult;
 import java.util.Set;
 
-import com.dremio.common.scanner.persistence.ScanResult;
-
-
-public abstract class FormatPluginConfigBase implements FormatPluginConfig{
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FormatPluginConfigBase.class);
-
+public abstract class FormatPluginConfigBase implements FormatPluginConfig {
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(FormatPluginConfigBase.class);
 
   /**
    * scan for implementations of {@see FormatPlugin}.
@@ -30,8 +28,10 @@ public abstract class FormatPluginConfigBase implements FormatPluginConfig{
    * @param classpathScan - classpath scan result
    * @return - list of classes that implement the interface.
    */
-  public static Set<Class<? extends FormatPluginConfig>> getSubTypes(final ScanResult classpathScan) {
-    final Set<Class<? extends FormatPluginConfig>> pluginClasses = classpathScan.getImplementations(FormatPluginConfig.class);
+  public static Set<Class<? extends FormatPluginConfig>> getSubTypes(
+      final ScanResult classpathScan) {
+    final Set<Class<? extends FormatPluginConfig>> pluginClasses =
+        classpathScan.getImplementations(FormatPluginConfig.class);
     if (logger.isDebugEnabled()) {
       StringBuilder sb = new StringBuilder();
       sb.append("Found ");
@@ -52,5 +52,4 @@ public abstract class FormatPluginConfigBase implements FormatPluginConfig{
 
   @Override
   public abstract int hashCode();
-
 }

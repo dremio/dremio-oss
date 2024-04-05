@@ -15,25 +15,22 @@
  */
 package com.dremio.exec.planner.sql;
 
+import com.dremio.service.namespace.NamespaceKey;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rel.type.RelDataTypeFieldImpl;
 
-import com.dremio.service.namespace.NamespaceKey;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
-
-/**
- * Factory for creating MockDremioTables.
- */
+/** Factory for creating MockDremioTables. */
 public final class MockDremioTableFactory {
   private MockDremioTableFactory() {}
 
   public static MockDremioTable createFromSchema(
-    NamespaceKey namespaceKey,
-    RelDataTypeFactory relDataTypeFactory,
-    ImmutableList<MockSchemas.ColumnSchema> tableSchema) {
+      NamespaceKey namespaceKey,
+      RelDataTypeFactory relDataTypeFactory,
+      ImmutableList<MockSchemas.ColumnSchema> tableSchema) {
     Preconditions.checkNotNull(namespaceKey);
     Preconditions.checkNotNull(relDataTypeFactory);
     Preconditions.checkNotNull(tableSchema);
@@ -44,20 +41,16 @@ public final class MockDremioTableFactory {
 
       RelDataType relDataType;
       if (columnSchema.getPrecision().isPresent()) {
-        relDataType = relDataTypeFactory.createSqlType(
-          columnSchema.getSqlTypeName(),
-          columnSchema.getPrecision().get());
+        relDataType =
+            relDataTypeFactory.createSqlType(
+                columnSchema.getSqlTypeName(), columnSchema.getPrecision().get());
       } else {
-        relDataType = relDataTypeFactory.createSqlType(
-          columnSchema.getSqlTypeName());
+        relDataType = relDataTypeFactory.createSqlType(columnSchema.getSqlTypeName());
       }
 
       relDataType = relDataTypeFactory.createTypeWithNullability(relDataType, true);
 
-      RelDataTypeField field = new RelDataTypeFieldImpl(
-        columnSchema.getName(),
-        index,
-        relDataType);
+      RelDataTypeField field = new RelDataTypeFieldImpl(columnSchema.getName(), index, relDataType);
 
       fieldInfoBuilder.add(field);
     }
@@ -67,13 +60,10 @@ public final class MockDremioTableFactory {
   }
 
   public static MockDremioTable createExpandingTable(
-    NamespaceKey key,
-    RelDataTypeFactory relDataTypeFactory) {
+      NamespaceKey key, RelDataTypeFactory relDataTypeFactory) {
     Preconditions.checkNotNull(key);
     Preconditions.checkNotNull(relDataTypeFactory);
 
-    return MockDremioTable.create(
-      key,
-      new ExpandingRecordType(relDataTypeFactory));
+    return MockDremioTable.create(key, new ExpandingRecordType(relDataTypeFactory));
   }
 }

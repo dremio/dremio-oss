@@ -15,16 +15,13 @@
  */
 package com.dremio.exec.planner.physical;
 
+import com.dremio.exec.planner.logical.EmptyRel;
+import com.dremio.exec.planner.logical.RelOptHelper;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelTraitSet;
 
-import com.dremio.exec.planner.logical.EmptyRel;
-import com.dremio.exec.planner.logical.RelOptHelper;
-
-/**
- * Converts dremio logical {@link EmptyRel} to dremio physical {@link EmptyPrel}
- */
+/** Converts dremio logical {@link EmptyRel} to dremio physical {@link EmptyPrel} */
 public class EmptyPrule extends Prule {
 
   public static final RelOptRule INSTANCE = new EmptyPrule();
@@ -37,6 +34,7 @@ public class EmptyPrule extends Prule {
   public void onMatch(RelOptRuleCall call) {
     final EmptyRel empty = call.rel(0);
     final RelTraitSet traits = empty.getTraitSet().plus(Prel.PHYSICAL);
-    call.transformTo(new EmptyPrel(empty.getCluster(), traits, empty.getRowType(), empty.getSchema()));
+    call.transformTo(
+        new EmptyPrel(empty.getCluster(), traits, empty.getRowType(), empty.getSchema()));
   }
 }

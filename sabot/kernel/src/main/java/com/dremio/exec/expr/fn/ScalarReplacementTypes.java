@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.expr.fn;
 
+import com.google.common.collect.ImmutableSet;
 import org.apache.arrow.vector.holders.BigIntHolder;
 import org.apache.arrow.vector.holders.BitHolder;
 import org.apache.arrow.vector.holders.DateMilliHolder;
@@ -40,42 +41,37 @@ import org.apache.arrow.vector.holders.TimeStampMilliHolder;
 import org.apache.arrow.vector.holders.VarBinaryHolder;
 import org.apache.arrow.vector.holders.VarCharHolder;
 
-import com.google.common.collect.ImmutableSet;
-
-/**
- * Reference list of classes we will perform scalar replacement on.
- */
+/** Reference list of classes we will perform scalar replacement on. */
 public class ScalarReplacementTypes {
   // This class only has static utilities.
-  private ScalarReplacementTypes() {
-  }
+  private ScalarReplacementTypes() {}
 
   static {
     Class<?>[] classList = {
-        BitHolder.class,
-        IntHolder.class,
-        BigIntHolder.class,
-        Float4Holder.class,
-        Float8Holder.class,
-        IntervalDayHolder.class,
-        IntervalYearHolder.class,
-        DateMilliHolder.class,
-        TimeMilliHolder.class,
-        TimeStampMilliHolder.class,
-        VarCharHolder.class,
-        VarBinaryHolder.class,
-        NullableBitHolder.class,
-        NullableIntHolder.class,
-        NullableBigIntHolder.class,
-        NullableFloat4Holder.class,
-        NullableFloat8Holder.class,
-        NullableVarCharHolder.class,
-        NullableVarBinaryHolder.class,
-        NullableIntervalDayHolder.class,
-        NullableIntervalYearHolder.class,
-        NullableDateMilliHolder.class,
-        NullableTimeMilliHolder.class,
-        NullableTimeStampMilliHolder.class,
+      BitHolder.class,
+      IntHolder.class,
+      BigIntHolder.class,
+      Float4Holder.class,
+      Float8Holder.class,
+      IntervalDayHolder.class,
+      IntervalYearHolder.class,
+      DateMilliHolder.class,
+      TimeMilliHolder.class,
+      TimeStampMilliHolder.class,
+      VarCharHolder.class,
+      VarBinaryHolder.class,
+      NullableBitHolder.class,
+      NullableIntHolder.class,
+      NullableBigIntHolder.class,
+      NullableFloat4Holder.class,
+      NullableFloat8Holder.class,
+      NullableVarCharHolder.class,
+      NullableVarBinaryHolder.class,
+      NullableIntervalDayHolder.class,
+      NullableIntervalYearHolder.class,
+      NullableDateMilliHolder.class,
+      NullableTimeMilliHolder.class,
+      NullableTimeStampMilliHolder.class,
     };
 
     CLASSES = ImmutableSet.copyOf(classList);

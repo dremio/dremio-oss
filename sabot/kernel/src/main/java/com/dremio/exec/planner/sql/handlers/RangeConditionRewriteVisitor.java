@@ -17,11 +17,21 @@ package com.dremio.exec.planner.sql.handlers;
 
 import static org.apache.calcite.sql.type.SqlTypeName.DECIMAL;
 
+import com.dremio.exec.planner.StatelessRelShuttleImpl;
+import com.dremio.exec.planner.common.MoreRelOptUtil;
+import com.dremio.exec.planner.common.ScanRelBase;
+import com.dremio.exec.planner.physical.DistributionTrait;
+import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.planner.types.RelDataTypeSystemImpl;
+import com.dremio.exec.store.sys.statistics.StatisticsService;
+import com.dremio.service.namespace.NamespaceKey;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelCollations;
@@ -53,21 +63,7 @@ import org.apache.calcite.util.Pair;
 import org.apache.calcite.util.TimeString;
 import org.apache.calcite.util.TimestampString;
 
-import com.dremio.exec.planner.StatelessRelShuttleImpl;
-import com.dremio.exec.planner.common.MoreRelOptUtil;
-import com.dremio.exec.planner.common.ScanRelBase;
-import com.dremio.exec.planner.physical.DistributionTrait;
-import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.planner.types.RelDataTypeSystemImpl;
-import com.dremio.exec.store.sys.statistics.StatisticsService;
-import com.dremio.service.namespace.NamespaceKey;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
-
-/**
- * A bottom up visitor to rewrite a Join if there is a range join condition
- */
+/** A bottom up visitor to rewrite a Join if there is a range join condition */
 public class RangeConditionRewriteVisitor extends StatelessRelShuttleImpl {
   private static final int INTERVALS = 100; // Total intervals
   private static final int INTERVALS_SQRT = (int) Math.pow(INTERVALS, 0.5);
@@ -75,11 +71,12 @@ public class RangeConditionRewriteVisitor extends StatelessRelShuttleImpl {
   private final PlannerSettings plannerSettings;
 
   /**
-   * A rangeConditionInfo is used to see if there's a between operator in the Logical join.
-   * If there exists a between operator, eg: a between b and c, which is also a >= b and a <= c
-   * The logical plan is AND(>=($1, $3), <=($1, $4)) implies $1 = a, $3 = b, $4 = c
+   * A rangeConditionInfo is used to see if there's a between operator in the Logical join. If there
+   * exists a between operator, eg: a between b and c, which is also a >= b and a <= c The logical
+   * plan is AND(>=($1, $3), <=($1, $4)) implies $1 = a, $3 = b, $4 = c
    */
   private RangeConditionInfo rangeConditionInfo = new RangeConditionInfo();
+
   private Pair<Double, Double> range = null;
 
   public RangeConditionRewriteVisitor(PlannerSettings plannerSettings) {
@@ -103,28 +100,37 @@ public class RangeConditionRewriteVisitor extends StatelessRelShuttleImpl {
     if (middleIndex < leftFieldSize) {
       int leftIndex = rangeConditionInfo.left - leftFieldSize;
       int rightIndex = rangeConditionInfo.right - leftFieldSize;
-      RelNode updatedLeft = joinLeftTableWithIndex(join.getLeft(), indexTable, rexBuilder, middleIndex);
-      RelNode updatedRight = joinRightTableWithIndex(join.getRight(), indexTable, rexBuilder, leftIndex, rightIndex);
-      RelNode finalJoin = joinAndProject(updatedLeft, updatedRight, rexBuilder, leftIndex, rightIndex, middleIndex);
+      RelNode updatedLeft =
+          joinLeftTableWithIndex(join.getLeft(), indexTable, rexBuilder, middleIndex);
+      RelNode updatedRight =
+          joinRightTableWithIndex(join.getRight(), indexTable, rexBuilder, leftIndex, rightIndex);
+      RelNode finalJoin =
+          joinAndProject(updatedLeft, updatedRight, rexBuilder, leftIndex, rightIndex, middleIndex);
       RelNode finalProject = applyLeftProject(finalJoin, rexBuilder, leftFieldSize);
       return finalProject;
     } else {
       int leftIndex = rangeConditionInfo.left;
       int rightIndex = rangeConditionInfo.right;
       middleIndex = middleIndex - leftFieldSize;
-      RelNode updatedLeft = joinLeftTableWithIndex(join.getRight(), indexTable, rexBuilder, middleIndex);
-      RelNode updatedRight = joinRightTableWithIndex(join.getLeft(), indexTable, rexBuilder, leftIndex, rightIndex);
-      RelNode finalJoin = joinAndProject(updatedLeft, updatedRight, rexBuilder, leftIndex, rightIndex, middleIndex);
-      RelNode finalProject = applyRightProject(finalJoin, rexBuilder, rightFieldSize, leftFieldSize);
+      RelNode updatedLeft =
+          joinLeftTableWithIndex(join.getRight(), indexTable, rexBuilder, middleIndex);
+      RelNode updatedRight =
+          joinRightTableWithIndex(join.getLeft(), indexTable, rexBuilder, leftIndex, rightIndex);
+      RelNode finalJoin =
+          joinAndProject(updatedLeft, updatedRight, rexBuilder, leftIndex, rightIndex, middleIndex);
+      RelNode finalProject =
+          applyRightProject(finalJoin, rexBuilder, rightFieldSize, leftFieldSize);
       return finalProject;
     }
   }
 
   private void validateRangeConditionInfo() {
-    Preconditions.checkArgument(!rangeConditionInfo.isEmpty, "RangeConditionInfo is not initialized");
+    Preconditions.checkArgument(
+        !rangeConditionInfo.isEmpty, "RangeConditionInfo is not initialized");
   }
 
-  private RelNode applyRightProject(RelNode logicalJoin, RexBuilder rexBuilder, int rightFieldSize, int leftFieldSize) {
+  private RelNode applyRightProject(
+      RelNode logicalJoin, RexBuilder rexBuilder, int rightFieldSize, int leftFieldSize) {
     List<String> fieldNames = new ArrayList<>();
     List<RexNode> temp = new ArrayList<>();
     for (int i = rightFieldSize + 1; i < rightFieldSize + 1 + leftFieldSize; i++) {
@@ -136,12 +142,8 @@ public class RangeConditionRewriteVisitor extends StatelessRelShuttleImpl {
       temp.add(rexBuilder.makeInputRef(logicalJoin, i));
     }
     List<RexNode> projects = ImmutableList.copyOf(temp);
-    final LogicalProject finalProject = LogicalProject.create(
-      logicalJoin,
-      ImmutableList.of(),
-      projects,
-      fieldNames
-    );
+    final LogicalProject finalProject =
+        LogicalProject.create(logicalJoin, ImmutableList.of(), projects, fieldNames);
     return finalProject;
   }
 
@@ -156,18 +158,15 @@ public class RangeConditionRewriteVisitor extends StatelessRelShuttleImpl {
     temp.remove(leftFieldSize);
     temp.remove(temp.size() - 1);
     List<RexNode> projects = ImmutableList.copyOf(temp);
-    final LogicalProject finalProject = LogicalProject.create(
-      logicalJoin,
-      ImmutableList.of(),
-      projects,
-      fieldNames
-    );
+    final LogicalProject finalProject =
+        LogicalProject.create(logicalJoin, ImmutableList.of(), projects, fieldNames);
     return finalProject;
   }
 
   /**
-   * Matching Condition is to have an inequality join and join condition is on both sides
-   * scan all the operands and see if there is at least one operand from opposite side on each side of the join condition.
+   * Matching Condition is to have an inequality join and join condition is on both sides scan all
+   * the operands and see if there is at least one operand from opposite side on each side of the
+   * join condition.
    */
   private boolean checkPreconditions(LogicalJoin join) {
     if (!plannerSettings.getOptions().getOption(PlannerSettings.ENABLE_RANGE_QUERY_REWRITE)) {
@@ -213,78 +212,113 @@ public class RangeConditionRewriteVisitor extends StatelessRelShuttleImpl {
     }
     String leftColumnName = rowType.getFieldNames().get(leftIndex);
     String rightColumnName = rowType.getFieldNames().get(rightIndex);
-    SqlTypeName leftColumnType = rowType.getFieldList().get(leftIndex)
-      .getType().getSqlTypeName();
-    SqlTypeName rightColumnType = rowType.getFieldList().get(rightIndex)
-      .getType().getSqlTypeName();
+    SqlTypeName leftColumnType = rowType.getFieldList().get(leftIndex).getType().getSqlTypeName();
+    SqlTypeName rightColumnType = rowType.getFieldList().get(rightIndex).getType().getSqlTypeName();
 
-    StatisticsService.Histogram leftHistogram = statisticsService.getHistogram(
-      leftColumnName, new NamespaceKey(tablePath), leftColumnType);
-    StatisticsService.Histogram rightHistogram = statisticsService.getHistogram(
-      rightColumnName, new NamespaceKey(tablePath), rightColumnType);
+    StatisticsService.Histogram leftHistogram =
+        statisticsService.getHistogram(leftColumnName, new NamespaceKey(tablePath), leftColumnType);
+    StatisticsService.Histogram rightHistogram =
+        statisticsService.getHistogram(
+            rightColumnName, new NamespaceKey(tablePath), rightColumnType);
     if (leftHistogram == null || rightHistogram == null) {
       return false;
     }
-    range = Pair.of(Math.min(leftHistogram.quantile(0), rightHistogram.quantile(0)),
-      Math.max(leftHistogram.quantile(1), rightHistogram.quantile(1)));
+    range =
+        Pair.of(
+            Math.min(leftHistogram.quantile(0), rightHistogram.quantile(0)),
+            Math.max(leftHistogram.quantile(1), rightHistogram.quantile(1)));
     return true;
   }
 
-
-  private RelNode joinAndProject(RelNode updatedLeft, RelNode updatedRight, RexBuilder rexBuilder,
-                                 int leftIndex, int rightIndex, int middleIndex) {
+  private RelNode joinAndProject(
+      RelNode updatedLeft,
+      RelNode updatedRight,
+      RexBuilder rexBuilder,
+      int leftIndex,
+      int rightIndex,
+      int middleIndex) {
     final int leftFieldCount = updatedLeft.getRowType().getFieldCount();
     final int rightFieldCount = updatedRight.getRowType().getFieldCount();
-    final RexNode greaterOrEqualCond = rexBuilder.makeCall(
-      SqlStdOperatorTable.GREATER_THAN_OR_EQUAL,
-      rexBuilder.makeInputRef(updatedLeft, middleIndex),
-      rexBuilder.makeInputRef(updatedRight.getRowType().getFieldList().get(leftIndex).getType(), leftIndex + leftFieldCount));
+    final RexNode greaterOrEqualCond =
+        rexBuilder.makeCall(
+            SqlStdOperatorTable.GREATER_THAN_OR_EQUAL,
+            rexBuilder.makeInputRef(updatedLeft, middleIndex),
+            rexBuilder.makeInputRef(
+                updatedRight.getRowType().getFieldList().get(leftIndex).getType(),
+                leftIndex + leftFieldCount));
 
-    final RexNode lessOrEqualCond = rexBuilder.makeCall(
-      SqlStdOperatorTable.LESS_THAN_OR_EQUAL,
-      rexBuilder.makeInputRef(updatedLeft, middleIndex),
-      rexBuilder.makeInputRef(updatedRight.getRowType().getFieldList().get(rightIndex).getType(), rightIndex + leftFieldCount));
+    final RexNode lessOrEqualCond =
+        rexBuilder.makeCall(
+            SqlStdOperatorTable.LESS_THAN_OR_EQUAL,
+            rexBuilder.makeInputRef(updatedLeft, middleIndex),
+            rexBuilder.makeInputRef(
+                updatedRight.getRowType().getFieldList().get(rightIndex).getType(),
+                rightIndex + leftFieldCount));
 
-    final RexNode equalsCond = rexBuilder.makeCall(
-      SqlStdOperatorTable.EQUALS,
-      rexBuilder.makeInputRef(updatedLeft, leftFieldCount - 1),
-      rexBuilder.makeInputRef(updatedRight.getRowType().getFieldList().get(rightFieldCount - 1).getType(), rightFieldCount + leftFieldCount - 1));
+    final RexNode equalsCond =
+        rexBuilder.makeCall(
+            SqlStdOperatorTable.EQUALS,
+            rexBuilder.makeInputRef(updatedLeft, leftFieldCount - 1),
+            rexBuilder.makeInputRef(
+                updatedRight.getRowType().getFieldList().get(rightFieldCount - 1).getType(),
+                rightFieldCount + leftFieldCount - 1));
 
-    final RexNode condition = rexBuilder.makeCall(SqlStdOperatorTable.AND, greaterOrEqualCond, lessOrEqualCond, equalsCond);
-    final LogicalJoin logicalJoin = LogicalJoin.create(updatedLeft, updatedRight, ImmutableList.of(), condition, ImmutableSet.of(), JoinRelType.INNER);
+    final RexNode condition =
+        rexBuilder.makeCall(
+            SqlStdOperatorTable.AND, greaterOrEqualCond, lessOrEqualCond, equalsCond);
+    final LogicalJoin logicalJoin =
+        LogicalJoin.create(
+            updatedLeft,
+            updatedRight,
+            ImmutableList.of(),
+            condition,
+            ImmutableSet.of(),
+            JoinRelType.INNER);
     return logicalJoin;
   }
 
-  private RelNode joinRightTableWithIndex(RelNode right, RelNode indexTable,
-                                          RexBuilder rexBuilder,
-                                          int leftIndex, int rightIndex) {
+  private RelNode joinRightTableWithIndex(
+      RelNode right, RelNode indexTable, RexBuilder rexBuilder, int leftIndex, int rightIndex) {
     final RelDataType decimal20x1 = rexBuilder.getTypeFactory().createSqlType(DECIMAL, 20, 1);
     final int rightFieldCount = right.getRowType().getFieldCount();
-    final RexNode greaterCase = rexBuilder.makeCall(
-      SqlStdOperatorTable.GREATER_THAN,
-      rexBuilder.makeInputRef(right, leftIndex),
-      rexBuilder.makeInputRef(indexTable.getRowType().getFieldList().get(1).getType(), 1 + rightFieldCount));
+    final RexNode greaterCase =
+        rexBuilder.makeCall(
+            SqlStdOperatorTable.GREATER_THAN,
+            rexBuilder.makeInputRef(right, leftIndex),
+            rexBuilder.makeInputRef(
+                indexTable.getRowType().getFieldList().get(1).getType(), 1 + rightFieldCount));
 
-    final RexNode cast1 = rexBuilder.makeCast(decimal20x1, rexBuilder.makeInputRef(right, leftIndex), true);
-    final RexNode cast4 = rexBuilder.makeCast(
-      decimal20x1,
-      rexBuilder.makeInputRef(indexTable.getRowType().getFieldList().get(1).getType(), 1 + rightFieldCount),
-      true);
+    final RexNode cast1 =
+        rexBuilder.makeCast(decimal20x1, rexBuilder.makeInputRef(right, leftIndex), true);
+    final RexNode cast4 =
+        rexBuilder.makeCast(
+            decimal20x1,
+            rexBuilder.makeInputRef(
+                indexTable.getRowType().getFieldList().get(1).getType(), 1 + rightFieldCount),
+            true);
 
     final RexNode cond1 = rexBuilder.makeCall(SqlStdOperatorTable.CASE, greaterCase, cast1, cast4);
-    final RexNode lessCase = rexBuilder.makeCall(
-      SqlStdOperatorTable.LESS_THAN,
-      rexBuilder.makeInputRef(right, rightIndex),
-      rexBuilder.makeInputRef(indexTable.getRowType().getFieldList().get(2).getType(), 2 + rightFieldCount));
+    final RexNode lessCase =
+        rexBuilder.makeCall(
+            SqlStdOperatorTable.LESS_THAN,
+            rexBuilder.makeInputRef(right, rightIndex),
+            rexBuilder.makeInputRef(
+                indexTable.getRowType().getFieldList().get(2).getType(), 2 + rightFieldCount));
 
-    final RexNode cast2 = rexBuilder.makeCast(decimal20x1, rexBuilder.makeInputRef(right, rightIndex), true);
-    final RexNode cast5 = rexBuilder.makeCast(
-      decimal20x1,
-      rexBuilder.makeInputRef(indexTable.getRowType().getFieldList().get(2).getType(), 2 + rightFieldCount),
-      true);
+    final RexNode cast2 =
+        rexBuilder.makeCast(decimal20x1, rexBuilder.makeInputRef(right, rightIndex), true);
+    final RexNode cast5 =
+        rexBuilder.makeCast(
+            decimal20x1,
+            rexBuilder.makeInputRef(
+                indexTable.getRowType().getFieldList().get(2).getType(), 2 + rightFieldCount),
+            true);
     final RexNode cond2 = rexBuilder.makeCall(SqlStdOperatorTable.CASE, lessCase, cast2, cast5);
-    final RexNode condition = rexBuilder.makeCall(SqlStdOperatorTable.LESS_THAN_OR_EQUAL, cond1, cond2);
-    LogicalJoin logicalJoin = LogicalJoin.create(right, indexTable, ImmutableList.of(), condition, ImmutableSet.of(), JoinRelType.LEFT);
+    final RexNode condition =
+        rexBuilder.makeCall(SqlStdOperatorTable.LESS_THAN_OR_EQUAL, cond1, cond2);
+    LogicalJoin logicalJoin =
+        LogicalJoin.create(
+            right, indexTable, ImmutableList.of(), condition, ImmutableSet.of(), JoinRelType.LEFT);
 
     List<RexNode> projects = new ArrayList<>();
     List<String> fieldNames = new ArrayList<>(right.getRowType().getFieldNames());
@@ -293,31 +327,34 @@ public class RangeConditionRewriteVisitor extends StatelessRelShuttleImpl {
     }
     projects.add(rexBuilder.makeInputRef(logicalJoin, rightFieldCount));
     fieldNames.add("d_id");
-    final LogicalProject logicalProject = LogicalProject.create(
-      logicalJoin,
-      ImmutableList.of(),
-      projects,
-      fieldNames);
+    final LogicalProject logicalProject =
+        LogicalProject.create(logicalJoin, ImmutableList.of(), projects, fieldNames);
     return logicalProject;
   }
 
-  /**
-   * Project the logicalJoin RelNode into the
-   */
-  private RelNode joinLeftTableWithIndex(RelNode left, RelNode indexTable, RexBuilder rexBuilder, int middleIndex) {
+  /** Project the logicalJoin RelNode into the */
+  private RelNode joinLeftTableWithIndex(
+      RelNode left, RelNode indexTable, RexBuilder rexBuilder, int middleIndex) {
     final int leftFieldCount = left.getRowType().getFieldCount();
-    final RexNode greaterOrEqualCond = rexBuilder.makeCall(
-      SqlStdOperatorTable.GREATER_THAN_OR_EQUAL,
-      rexBuilder.makeInputRef(left, middleIndex),
-      rexBuilder.makeInputRef(indexTable.getRowType().getFieldList().get(1).getType(), 1 + leftFieldCount));
+    final RexNode greaterOrEqualCond =
+        rexBuilder.makeCall(
+            SqlStdOperatorTable.GREATER_THAN_OR_EQUAL,
+            rexBuilder.makeInputRef(left, middleIndex),
+            rexBuilder.makeInputRef(
+                indexTable.getRowType().getFieldList().get(1).getType(), 1 + leftFieldCount));
 
-    final RexNode lessCond = rexBuilder.makeCall(
-      SqlStdOperatorTable.LESS_THAN,
-      rexBuilder.makeInputRef(left, middleIndex),
-      rexBuilder.makeInputRef(indexTable.getRowType().getFieldList().get(2).getType(), 2 + leftFieldCount));
-    final RexNode condition = rexBuilder.makeCall(SqlStdOperatorTable.AND, greaterOrEqualCond, lessCond);
+    final RexNode lessCond =
+        rexBuilder.makeCall(
+            SqlStdOperatorTable.LESS_THAN,
+            rexBuilder.makeInputRef(left, middleIndex),
+            rexBuilder.makeInputRef(
+                indexTable.getRowType().getFieldList().get(2).getType(), 2 + leftFieldCount));
+    final RexNode condition =
+        rexBuilder.makeCall(SqlStdOperatorTable.AND, greaterOrEqualCond, lessCond);
 
-    final LogicalJoin logicalJoin = LogicalJoin.create(left, indexTable, ImmutableList.of(), condition, ImmutableSet.of(), JoinRelType.LEFT);
+    final LogicalJoin logicalJoin =
+        LogicalJoin.create(
+            left, indexTable, ImmutableList.of(), condition, ImmutableSet.of(), JoinRelType.LEFT);
     List<RexNode> temp = new ArrayList<>();
     List<String> fieldNames = new ArrayList<>(left.getRowType().getFieldNames());
     for (int i = 0; i < leftFieldCount; i++) {
@@ -326,17 +363,12 @@ public class RangeConditionRewriteVisitor extends StatelessRelShuttleImpl {
     temp.add(rexBuilder.makeInputRef(logicalJoin, leftFieldCount));
     fieldNames.add("d_id");
     List<RexNode> projects = ImmutableList.copyOf(temp);
-    LogicalProject logicalProject = LogicalProject.create(
-      logicalJoin,
-      ImmutableList.of(),
-      projects,
-      fieldNames);
+    LogicalProject logicalProject =
+        LogicalProject.create(logicalJoin, ImmutableList.of(), projects, fieldNames);
     return logicalProject;
   }
 
-  /**
-   * Check whether a sql contains a between operator
-   */
+  /** Check whether a sql contains a between operator */
   private static class RangeConditionInfoVisitor extends RexVisitorImpl<Void> {
     private final int leftFields;
     private final int[] lessOrEqualArray;
@@ -354,13 +386,15 @@ public class RangeConditionRewriteVisitor extends StatelessRelShuttleImpl {
     @Override
     public Void visitCall(RexCall call) {
       if (call.getOperator().getKind() == SqlKind.GREATER_THAN_OR_EQUAL) {
-        if (call.getOperands().get(0) instanceof RexInputRef && call.getOperands().get(1) instanceof RexInputRef) {
+        if (call.getOperands().get(0) instanceof RexInputRef
+            && call.getOperands().get(1) instanceof RexInputRef) {
           int left = ((RexInputRef) call.getOperands().get(0)).getIndex();
           int right = ((RexInputRef) call.getOperands().get(1)).getIndex();
           lessOrEqualArray[right] = left;
         }
       } else if (call.getOperator().getKind() == SqlKind.LESS_THAN_OR_EQUAL) {
-        if (call.getOperands().get(0) instanceof RexInputRef && call.getOperands().get(1) instanceof RexInputRef) {
+        if (call.getOperands().get(0) instanceof RexInputRef
+            && call.getOperands().get(1) instanceof RexInputRef) {
           int left = ((RexInputRef) call.getOperands().get(0)).getIndex();
           int right = ((RexInputRef) call.getOperands().get(1)).getIndex();
           lessOrEqualArray[left] = right;
@@ -384,8 +418,9 @@ public class RangeConditionRewriteVisitor extends StatelessRelShuttleImpl {
 
             // If the middle field is from left side of the join, make sure the other fields are
             // from right side of the join, or vice versa.
-            boolean rangeConditionSupported = (mid < leftFields && left >= leftFields && right >= leftFields) ||
-              (mid >= leftFields && left < leftFields && right < leftFields);
+            boolean rangeConditionSupported =
+                (mid < leftFields && left >= leftFields && right >= leftFields)
+                    || (mid >= leftFields && left < leftFields && right < leftFields);
             if (rangeConditionSupported) {
               rangeConditionInfoList.add(new RangeConditionInfo(left, mid, right));
               hasBetweenOperator = true;
@@ -393,8 +428,10 @@ public class RangeConditionRewriteVisitor extends StatelessRelShuttleImpl {
           }
         }
       }
-      return rangeConditionInfoList.size() == 0 ? new RangeConditionInfo() :
-        rangeConditionInfoList.get(0); // At the moment, we are assuming that there is only 1 between condition
+      return rangeConditionInfoList.size() == 0
+          ? new RangeConditionInfo()
+          : rangeConditionInfoList.get(
+              0); // At the moment, we are assuming that there is only 1 between condition
     }
 
     public boolean hasBetweenOperator() {
@@ -402,9 +439,7 @@ public class RangeConditionRewriteVisitor extends StatelessRelShuttleImpl {
     }
   }
 
-  /**
-   * A visitor to find full path for the table with given column field
-   */
+  /** A visitor to find full path for the table with given column field */
   private static class FullPathRelNodeVisitor extends StatelessRelShuttleImpl {
 
     private int fieldIndex;
@@ -430,10 +465,12 @@ public class RangeConditionRewriteVisitor extends StatelessRelShuttleImpl {
         LogicalProject project = (LogicalProject) child;
         RelDataType rowType = parent.getRowType();
         String fieldName = rowType.getFieldNames().get(fieldIndex);
-        Pair<Integer, RelDataTypeField> pair = MoreRelOptUtil.findFieldWithIndex(project.getRowType().getFieldList(),
-          rowType.getFieldNames().get(fieldIndex));
-        Preconditions.checkArgument(pair != null,
-          String.format("Can not find field: %s in row: %s", fieldName, rowType.toString()));
+        Pair<Integer, RelDataTypeField> pair =
+            MoreRelOptUtil.findFieldWithIndex(
+                project.getRowType().getFieldList(), rowType.getFieldNames().get(fieldIndex));
+        Preconditions.checkArgument(
+            pair != null,
+            String.format("Can not find field: %s in row: %s", fieldName, rowType.toString()));
         fieldIndex = pair.left;
       }
 
@@ -461,142 +498,170 @@ public class RangeConditionRewriteVisitor extends StatelessRelShuttleImpl {
     }
   }
 
-  /**
-   * Build a Table based on the start and end value
-   */
-  private RelNode buildIndexTable(LogicalJoin join,
-                                  RexBuilder rexBuilder,
-                                  Pair<Double, Double> range,
-                                  int middleIndex) {
+  /** Build a Table based on the start and end value */
+  private RelNode buildIndexTable(
+      LogicalJoin join, RexBuilder rexBuilder, Pair<Double, Double> range, int middleIndex) {
     // Build RowType & Tuples
-    RelDataTypeField relDataType = new RelDataTypeFieldImpl(
-      "ROW_VALUE",
-      0,
-      new BasicSqlType(RelDataTypeSystemImpl.REL_DATA_TYPE_SYSTEM, SqlTypeName.ANY));
+    RelDataTypeField relDataType =
+        new RelDataTypeFieldImpl(
+            "ROW_VALUE",
+            0,
+            new BasicSqlType(RelDataTypeSystemImpl.REL_DATA_TYPE_SYSTEM, SqlTypeName.ANY));
     RelDataType rowType = new RelRecordType(StructKind.FULLY_QUALIFIED, Arrays.asList(relDataType));
     ImmutableList.Builder<ImmutableList<RexLiteral>> tuples = new ImmutableList.Builder<>();
     for (int i = 0; i < INTERVALS_SQRT; i++) {
-      tuples.add(new ImmutableList.Builder<RexLiteral>().add(
-        rexBuilder.makeExactLiteral(new BigDecimal(i))).build());
+      tuples.add(
+          new ImmutableList.Builder<RexLiteral>()
+              .add(rexBuilder.makeExactLiteral(new BigDecimal(i)))
+              .build());
     }
 
     // Construct ValuesRel
-    final RelTraitSet traits = RelTraitSet.createEmpty()
-      .plus(Convention.NONE)
-      .plus(DistributionTrait.DEFAULT)
-      .plus(RelCollations.EMPTY);
+    final RelTraitSet traits =
+        RelTraitSet.createEmpty()
+            .plus(Convention.NONE)
+            .plus(DistributionTrait.DEFAULT)
+            .plus(RelCollations.EMPTY);
 
-    final LogicalValues logicalValues = new LogicalValues(join.getCluster(), traits, rowType, tuples.build());
-    LogicalProject logicalProject = LogicalProject.create(
-      logicalValues,
-      ImmutableList.of(),
-      rexBuilder.identityProjects(logicalValues.getRowType()),
-      Arrays.asList("a"));
+    final LogicalValues logicalValues =
+        new LogicalValues(join.getCluster(), traits, rowType, tuples.build());
+    LogicalProject logicalProject =
+        LogicalProject.create(
+            logicalValues,
+            ImmutableList.of(),
+            rexBuilder.identityProjects(logicalValues.getRowType()),
+            Arrays.asList("a"));
 
-    LogicalJoin logicalJoin = LogicalJoin.create(
-      logicalProject,
-      logicalProject,
-      ImmutableList.of(),
-      rexBuilder.makeLiteral(true),
-      ImmutableSet.of(),
-      JoinRelType.INNER);
+    LogicalJoin logicalJoin =
+        LogicalJoin.create(
+            logicalProject,
+            logicalProject,
+            ImmutableList.of(),
+            rexBuilder.makeLiteral(true),
+            ImmutableSet.of(),
+            JoinRelType.INNER);
 
     final RexNode input = rexBuilder.makeInputRef(logicalJoin.getLeft(), 0);
-    final RexNode multiNode = rexBuilder.makeCall(
-      SqlStdOperatorTable.MULTIPLY,
-      rexBuilder.makeExactLiteral(BigDecimal.valueOf(INTERVALS_SQRT)),
-      input);
-    final RexNode addNode = rexBuilder.makeCall(SqlStdOperatorTable.PLUS, multiNode, rexBuilder.makeInputRef(logicalJoin, 1));
-    final LogicalProject project1 = LogicalProject.create(
-      logicalJoin,
-      ImmutableList.of(),
-      ImmutableList.of(addNode),
-      Arrays.asList("val"));
+    final RexNode multiNode =
+        rexBuilder.makeCall(
+            SqlStdOperatorTable.MULTIPLY,
+            rexBuilder.makeExactLiteral(BigDecimal.valueOf(INTERVALS_SQRT)),
+            input);
+    final RexNode addNode =
+        rexBuilder.makeCall(
+            SqlStdOperatorTable.PLUS, multiNode, rexBuilder.makeInputRef(logicalJoin, 1));
+    final LogicalProject project1 =
+        LogicalProject.create(
+            logicalJoin, ImmutableList.of(), ImmutableList.of(addNode), Arrays.asList("val"));
 
     double intervalWidth = (range.right - range.left) / INTERVALS;
 
     final RexNode zeroInputRef = rexBuilder.makeInputRef(project1, 0);
-    final RexNode multiNode2 = getStartValueNode(join.getRowType().getFieldList().get(middleIndex).getType(), rexBuilder, intervalWidth, zeroInputRef);
+    final RexNode multiNode2 =
+        getStartValueNode(
+            join.getRowType().getFieldList().get(middleIndex).getType(),
+            rexBuilder,
+            intervalWidth,
+            zeroInputRef);
 
-    LogicalProject project2 = LogicalProject.create(
-      project1,
-      ImmutableList.of(),
-      ImmutableList.of(zeroInputRef, multiNode2),
-      Arrays.asList("val", "start_value"));
+    LogicalProject project2 =
+        LogicalProject.create(
+            project1,
+            ImmutableList.of(),
+            ImmutableList.of(zeroInputRef, multiNode2),
+            Arrays.asList("val", "start_value"));
 
     final RexNode secondInputRef = rexBuilder.makeInputRef(project2, 1);
-    final RexNode minusOne = rexBuilder.makeCall(
-      SqlStdOperatorTable.MINUS,
-      zeroInputRef,
-      rexBuilder.makeExactLiteral(BigDecimal.valueOf(1)));
-    final LogicalProject project3 = LogicalProject.create(
-      project2,
-      ImmutableList.of(),
-      ImmutableList.of(zeroInputRef, secondInputRef, minusOne),
-      Arrays.asList("val", "start_value", "end_value"));
+    final RexNode minusOne =
+        rexBuilder.makeCall(
+            SqlStdOperatorTable.MINUS,
+            zeroInputRef,
+            rexBuilder.makeExactLiteral(BigDecimal.valueOf(1)));
+    final LogicalProject project3 =
+        LogicalProject.create(
+            project2,
+            ImmutableList.of(),
+            ImmutableList.of(zeroInputRef, secondInputRef, minusOne),
+            Arrays.asList("val", "start_value", "end_value"));
 
-    final RexNode condition = rexBuilder.makeCall(
-      SqlStdOperatorTable.EQUALS,
-      zeroInputRef,
-      rexBuilder.makeInputRef(project3.getRowType().getFieldList().get(2).getType(), 2 + project2.getRowType().getFieldCount()));
-    LogicalJoin logicalJoin1 = LogicalJoin.create(project2, project3, ImmutableList.of(), condition, ImmutableSet.of(), JoinRelType.FULL);
+    final RexNode condition =
+        rexBuilder.makeCall(
+            SqlStdOperatorTable.EQUALS,
+            zeroInputRef,
+            rexBuilder.makeInputRef(
+                project3.getRowType().getFieldList().get(2).getType(),
+                2 + project2.getRowType().getFieldCount()));
+    LogicalJoin logicalJoin1 =
+        LogicalJoin.create(
+            project2, project3, ImmutableList.of(), condition, ImmutableSet.of(), JoinRelType.FULL);
 
-    List<RexNode> projects = ImmutableList.of(
-      rexBuilder.makeInputRef(logicalJoin1, 0),
-      rexBuilder.makeInputRef(logicalJoin1, 1),
-      rexBuilder.makeInputRef(logicalJoin1, 2),
-      rexBuilder.makeInputRef(logicalJoin1, 3));
-    final LogicalProject project4 = LogicalProject.create(
-      logicalJoin1,
-      ImmutableList.of(),
-      projects,
-      Arrays.asList("val", "start_value", "val0", "start_value0"));
+    List<RexNode> projects =
+        ImmutableList.of(
+            rexBuilder.makeInputRef(logicalJoin1, 0),
+            rexBuilder.makeInputRef(logicalJoin1, 1),
+            rexBuilder.makeInputRef(logicalJoin1, 2),
+            rexBuilder.makeInputRef(logicalJoin1, 3));
+    final LogicalProject project4 =
+        LogicalProject.create(
+            logicalJoin1,
+            ImmutableList.of(),
+            projects,
+            Arrays.asList("val", "start_value", "val0", "start_value0"));
 
-    RexNode rowNumCond = rexBuilder.makeCall(
-      SqlStdOperatorTable.CASE,
-      rexBuilder.makeCall(SqlStdOperatorTable.IS_NOT_NULL, zeroInputRef),
-      zeroInputRef,
-      rexBuilder.makeExactLiteral(BigDecimal.valueOf(-1)));
+    RexNode rowNumCond =
+        rexBuilder.makeCall(
+            SqlStdOperatorTable.CASE,
+            rexBuilder.makeCall(SqlStdOperatorTable.IS_NOT_NULL, zeroInputRef),
+            zeroInputRef,
+            rexBuilder.makeExactLiteral(BigDecimal.valueOf(-1)));
 
-    RexNode startValCond = rexBuilder.makeCall(
-      SqlStdOperatorTable.CASE,
-      rexBuilder.makeCall(SqlStdOperatorTable.IS_NOT_NULL, secondInputRef),
-      secondInputRef,
-      getLowerBound(join.getRowType().getFieldList().get(middleIndex).getType(), rexBuilder));
+    RexNode startValCond =
+        rexBuilder.makeCall(
+            SqlStdOperatorTable.CASE,
+            rexBuilder.makeCall(SqlStdOperatorTable.IS_NOT_NULL, secondInputRef),
+            secondInputRef,
+            getLowerBound(join.getRowType().getFieldList().get(middleIndex).getType(), rexBuilder));
     RexNode forthInputRef = rexBuilder.makeInputRef(project4, 3);
 
-    RexNode endValCond = rexBuilder.makeCall(
-      SqlStdOperatorTable.CASE,
-      rexBuilder.makeCall(SqlStdOperatorTable.IS_NOT_NULL, forthInputRef),
-      forthInputRef,
-      getUpperBound(join.getRowType().getFieldList().get(middleIndex).getType(), rexBuilder));
-    final LogicalProject project5 = LogicalProject.create(
-      project4,
-      ImmutableList.of(),
-      ImmutableList.of(rowNumCond, startValCond, endValCond),
-      Arrays.asList("_id", "start_value", "end_value"));
+    RexNode endValCond =
+        rexBuilder.makeCall(
+            SqlStdOperatorTable.CASE,
+            rexBuilder.makeCall(SqlStdOperatorTable.IS_NOT_NULL, forthInputRef),
+            forthInputRef,
+            getUpperBound(join.getRowType().getFieldList().get(middleIndex).getType(), rexBuilder));
+    final LogicalProject project5 =
+        LogicalProject.create(
+            project4,
+            ImmutableList.of(),
+            ImmutableList.of(rowNumCond, startValCond, endValCond),
+            Arrays.asList("_id", "start_value", "end_value"));
 
-    RelFieldCollation collation = new RelFieldCollation(1, RelFieldCollation.Direction.ASCENDING, RelFieldCollation.NullDirection.FIRST);
-    final LogicalSort logicalSort = LogicalSort.create(project5, RelCollations.of(collation), null, null);
+    RelFieldCollation collation =
+        new RelFieldCollation(
+            1, RelFieldCollation.Direction.ASCENDING, RelFieldCollation.NullDirection.FIRST);
+    final LogicalSort logicalSort =
+        LogicalSort.create(project5, RelCollations.of(collation), null, null);
     return logicalSort;
   }
 
-  @SuppressWarnings("FallThrough") // FIXME: remove suppression by properly handling switch fallthrough
-  private RexNode getStartValueNode(RelDataType type, RexBuilder rexBuilder, double intervalWidth, RexNode zeroInputRef) {
+  @SuppressWarnings(
+      "FallThrough") // FIXME: remove suppression by properly handling switch fallthrough
+  private RexNode getStartValueNode(
+      RelDataType type, RexBuilder rexBuilder, double intervalWidth, RexNode zeroInputRef) {
     switch (type.getSqlTypeName().getFamily()) {
       case NUMERIC:
         return rexBuilder.makeCall(
-          SqlStdOperatorTable.MULTIPLY,
-          rexBuilder.makeExactLiteral(BigDecimal.valueOf(intervalWidth)),
-          zeroInputRef);
-      case DATE: // TODO
-        rexBuilder.makeCall(
-          SqlStdOperatorTable.DATETIME_PLUS,
-          rexBuilder.makeDateLiteral(new DateString("1992-01-01")),
-          rexBuilder.makeCall(
             SqlStdOperatorTable.MULTIPLY,
             rexBuilder.makeExactLiteral(BigDecimal.valueOf(intervalWidth)),
-            zeroInputRef));
+            zeroInputRef);
+      case DATE: // TODO
+        rexBuilder.makeCall(
+            SqlStdOperatorTable.DATETIME_PLUS,
+            rexBuilder.makeDateLiteral(new DateString("1992-01-01")),
+            rexBuilder.makeCall(
+                SqlStdOperatorTable.MULTIPLY,
+                rexBuilder.makeExactLiteral(BigDecimal.valueOf(intervalWidth)),
+                zeroInputRef));
       case TIME: // TODO
       case TIMESTAMP: // TODO
       default:
@@ -614,7 +679,8 @@ public class RangeConditionRewriteVisitor extends StatelessRelShuttleImpl {
       case TIME:
         return rexBuilder.makeTimeLiteral(new TimeString("00:00:00"), type.getPrecision());
       case TIMESTAMP:
-        return rexBuilder.makeTimestampLiteral(new TimestampString("1970-01-01 00:00:00"), type.getPrecision());
+        return rexBuilder.makeTimestampLiteral(
+            new TimestampString("1970-01-01 00:00:00"), type.getPrecision());
       default:
         throw new RuntimeException(String.format("Unsupported type: %s", type.toString()));
     }
@@ -630,7 +696,8 @@ public class RangeConditionRewriteVisitor extends StatelessRelShuttleImpl {
       case TIME:
         return rexBuilder.makeTimeLiteral(new TimeString("23:59:59"), type.getPrecision());
       case TIMESTAMP:
-        return rexBuilder.makeTimestampLiteral(new TimestampString("2038-12-31 00:00:00"), type.getPrecision());
+        return rexBuilder.makeTimestampLiteral(
+            new TimestampString("2038-12-31 00:00:00"), type.getPrecision());
       default:
         throw new RuntimeException(String.format("Unsupported type: %s", type.toString()));
     }

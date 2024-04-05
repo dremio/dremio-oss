@@ -15,24 +15,25 @@
  */
 package com.dremio.common.logical.data;
 
-import java.util.Iterator;
-
 import com.dremio.common.JSONOptions;
 import com.dremio.common.logical.data.visitors.LogicalVisitor;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.Iterators;
+import java.util.Iterator;
 
 @JsonTypeName("store")
-public class Store extends SinkOperator{
+public class Store extends SinkOperator {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(Store.class);
 
   private final String storageEngine;
   private final JSONOptions target;
 
   @JsonCreator
-  public Store(@JsonProperty("storageengine") String storageEngine, @JsonProperty("target") JSONOptions target) {
+  public Store(
+      @JsonProperty("storageengine") String storageEngine,
+      @JsonProperty("target") JSONOptions target) {
     super();
     this.storageEngine = storageEngine;
     this.target = target;
@@ -47,20 +48,21 @@ public class Store extends SinkOperator{
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(LogicalVisitor<T, X, E> logicalVisitor, X value) throws E {
-      return logicalVisitor.visitStore(this, value);
+  public <T, X, E extends Throwable> T accept(LogicalVisitor<T, X, E> logicalVisitor, X value)
+      throws E {
+    return logicalVisitor.visitStore(this, value);
   }
 
   @Override
   public Iterator<LogicalOperator> iterator() {
-      return Iterators.singletonIterator(getInput());
+    return Iterators.singletonIterator(getInput());
   }
 
   public static Builder builder() {
     return new Builder();
   }
 
-  public static class Builder extends AbstractSingleBuilder<Store, Builder>{
+  public static class Builder extends AbstractSingleBuilder<Store, Builder> {
     private String storageEngine;
     private JSONOptions target;
 

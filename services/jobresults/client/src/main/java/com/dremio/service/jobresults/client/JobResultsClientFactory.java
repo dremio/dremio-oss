@@ -15,15 +15,15 @@
  */
 package com.dremio.service.jobresults.client;
 
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.service.Service;
+import org.apache.arrow.memory.BufferAllocator;
 
-/**
- * Factory to create JobResultsClient
- */
+/** Factory to create JobResultsClient */
 public interface JobResultsClientFactory extends Service {
-  JobResultsClient getJobResultsClient(CoordinationProtos.NodeEndpoint endpoint, BufferAllocator allocator,
-                                       String fragmentId, String queryId);
+  JobResultsClient getJobResultsClient(
+      CoordinationProtos.NodeEndpoint endpoint,
+      BufferAllocator allocator,
+      String fragmentId,
+      String queryId);
 }

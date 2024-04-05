@@ -15,18 +15,17 @@
  */
 package com.dremio.service.commandpool;
 
-import java.util.Comparator;
-import java.util.concurrent.CompletableFuture;
-
 import com.dremio.common.concurrent.ContextMigratingTask;
 import com.dremio.common.exceptions.ErrorHelper;
 import com.dremio.common.exceptions.UserException;
+import java.util.Comparator;
+import java.util.concurrent.CompletableFuture;
 
-/**
- * Wraps a {@link CommandPool.Command} to make it both {@link Runnable} and {@link Comparable}
- */
-public class CommandWrapper<T> implements ContextMigratingTask, Runnable, Comparable<CommandWrapper<T>> {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CommandWrapper.class);
+/** Wraps a {@link CommandPool.Command} to make it both {@link Runnable} and {@link Comparable} */
+public class CommandWrapper<T>
+    implements ContextMigratingTask, Runnable, Comparable<CommandWrapper<T>> {
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(CommandWrapper.class);
 
   private final String descriptor;
   private final String spanName;
@@ -35,7 +34,12 @@ public class CommandWrapper<T> implements ContextMigratingTask, Runnable, Compar
   private final CommandPool.Command<T> command;
   private final CompletableFuture<T> future = new CompletableFuture<>();
 
-  CommandWrapper(CommandPool.Priority priority, String descriptor, String spanName, long submittedTime, CommandPool.Command<T> command) {
+  CommandWrapper(
+      CommandPool.Priority priority,
+      String descriptor,
+      String spanName,
+      long submittedTime,
+      CommandPool.Command<T> command) {
     this.descriptor = descriptor;
     this.spanName = spanName;
     this.priority = priority;
@@ -66,15 +70,18 @@ public class CommandWrapper<T> implements ContextMigratingTask, Runnable, Compar
       final long waitInMillis = System.currentTimeMillis() - submittedTime;
       logger.debug("command {} started after waiting {} ms", descriptor, waitInMillis);
 
-
       final T result = command.get(waitInMillis);
       logger.debug("command {} completed successfully", descriptor);
       future.complete(result);
     } catch (Throwable t) {
       Throwable rootException = ErrorHelper.findWrappedCause(t, UserException.class);
-      if (rootException != null && rootException.getMessage().equals(UserException.QUERY_REJECTED_MSG)) {
-        // Ignore the exception and just show that the job was rejected if the query was rejected by alive queries limit
-        logger.error("command {} was rejected because it exceeded the maximum allowed number of live queries in a single coordinator", descriptor);
+      if (rootException != null
+          && rootException.getMessage().equals(UserException.QUERY_REJECTED_MSG)) {
+        // Ignore the exception and just show that the job was rejected if the query was rejected by
+        // alive queries limit
+        logger.error(
+            "command {} was rejected because it exceeded the maximum allowed number of live queries in a single coordinator",
+            descriptor);
       } else {
         logger.error("command {} failed", descriptor, t);
       }

@@ -15,8 +15,12 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.dremio.exec.catalog.RollbackOption;
+import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
+import com.dremio.service.namespace.NamespaceKey;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import java.util.List;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -27,31 +31,36 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.dremio.exec.catalog.RollbackOption;
-import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
-import com.dremio.service.namespace.NamespaceKey;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
-
 public class SqlRollbackTable extends SqlCall {
-  public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("ROLLBACK", SqlKind.ROLLBACK) {
-    @Override
-    public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 3, "SqlRollbackTable.createCall() " +
-        "has to get 3 operands!");
-      return new SqlRollbackTable(pos, (SqlIdentifier) operands[0], (SqlLiteral) operands[1], operands[2]);
-    }
-  };
+  public static final SqlSpecialOperator OPERATOR =
+      new SqlSpecialOperator("ROLLBACK", SqlKind.ROLLBACK) {
+        @Override
+        public SqlCall createCall(
+            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+          Preconditions.checkArgument(
+              operands.length == 3, "SqlRollbackTable.createCall() " + "has to get 3 operands!");
+          return new SqlRollbackTable(
+              pos, (SqlIdentifier) operands[0], (SqlLiteral) operands[1], operands[2]);
+        }
+      };
 
   private final SqlIdentifier tableName;
   private final boolean snapshotKeywordPresent;
   private final SqlNode specifier;
 
-  public SqlRollbackTable(SqlParserPos pos, SqlIdentifier tableName, SqlLiteral snapshotKeywordPresent, SqlNode specifier) {
+  public SqlRollbackTable(
+      SqlParserPos pos,
+      SqlIdentifier tableName,
+      SqlLiteral snapshotKeywordPresent,
+      SqlNode specifier) {
     this(pos, tableName, snapshotKeywordPresent.booleanValue(), specifier);
   }
 
-  public SqlRollbackTable(SqlParserPos pos, SqlIdentifier tableName, boolean snapshotKeywordPresent, SqlNode specifier) {
+  public SqlRollbackTable(
+      SqlParserPos pos,
+      SqlIdentifier tableName,
+      boolean snapshotKeywordPresent,
+      SqlNode specifier) {
     super(pos);
     this.tableName = tableName;
     this.snapshotKeywordPresent = snapshotKeywordPresent;
@@ -66,11 +75,10 @@ public class SqlRollbackTable extends SqlCall {
   @Override
   public List<SqlNode> getOperandList() {
     final List<SqlNode> ops =
-      ImmutableList.of(
-        tableName,
-        SqlLiteral.createBoolean(snapshotKeywordPresent, SqlParserPos.ZERO),
-        specifier
-      );
+        ImmutableList.of(
+            tableName,
+            SqlLiteral.createBoolean(snapshotKeywordPresent, SqlParserPos.ZERO),
+            specifier);
     return ops;
   }
 
@@ -103,8 +111,8 @@ public class SqlRollbackTable extends SqlCall {
         rollbackValue = Long.parseLong(literal);
       } catch (Exception e) {
         throw com.dremio.common.exceptions.UserException.parseError(e)
-          .message("Literal %s is an invalid snapshot id", literal)
-          .buildSilently();
+            .message("Literal %s is an invalid snapshot id", literal)
+            .buildSilently();
       }
     } else {
       type = RollbackOption.Type.TIME;

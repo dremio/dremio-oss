@@ -1,4 +1,5 @@
 package com.dremio.exec.planner;
+
 /*
  * Copyright (C) 2017-2019 Dremio Corporation
  *
@@ -15,12 +16,10 @@ package com.dremio.exec.planner;
  * limitations under the License.
  */
 
-
-import org.junit.Assert;
-import org.junit.Test;
-
 import com.dremio.PlanTestBase;
 import com.dremio.common.exceptions.UserRemoteException;
+import org.junit.Assert;
+import org.junit.Test;
 
 public class TestApproxPercentile extends PlanTestBase {
   /*
@@ -37,53 +36,58 @@ public class TestApproxPercentile extends PlanTestBase {
   @Test
   public void testApproxPercentile() throws Exception {
     final String sql = "SELECT approx_percentile(employee_id, 0.6) from cp.\"employee.json\" ";
-    testBuilder()
-      .unOrdered()
-      .sqlQuery(sql)
-      .baselineColumns("EXPR$0")
-      .baselineValues(694.5)
-      .go();
-
+    testBuilder().unOrdered().sqlQuery(sql).baselineColumns("EXPR$0").baselineValues(694.5).go();
   }
+
+  @Test
+  public void testApproxPercentileWithFilter() throws Exception {
+    final String sql =
+        "SELECT approx_percentile(employee_id, 0.6) from cp.\"employees.json\" where isFTE = true";
+    testBuilder().unOrdered().sqlQuery(sql).baselineColumns("EXPR$0").baselineValues(1107.3).go();
+  }
+
+  @Test
+  public void testApproxPercentileEmptyResult() throws Exception {
+    final String sql =
+        "SELECT approx_percentile(employee_id, 0.6) from cp.\"employees.json\" where false";
+    testBuilder().unOrdered().sqlQuery(sql).baselineColumns("EXPR$0").baselineValues(null).go();
+  }
+
   @Test
   public void testApproxPercentileMultipleProjections() throws Exception {
     final String sql = "SELECT approx_percentile(employee_id, 0.6), 111 from cp.\"employee.json\"";
     testBuilder()
-      .unOrdered()
-      .sqlQuery(sql)
-      .baselineColumns("EXPR$0","EXPR$1")
-      .baselineValues(694.5,111)
-      .go();
+        .unOrdered()
+        .sqlQuery(sql)
+        .baselineColumns("EXPR$0", "EXPR$1")
+        .baselineValues(694.5, 111)
+        .go();
   }
 
   @Test
   public void testApproxPercentileMultipleProjections2() throws Exception {
-    final String sql = "SELECT approx_percentile(employee_id, 0.6), approx_percentile(employee_id, 0.6)" +
-      " from cp.\"employee.json\"";
+    final String sql =
+        "SELECT approx_percentile(employee_id, 0.6), approx_percentile(employee_id, 0.6)"
+            + " from cp.\"employee.json\"";
     testBuilder()
-      .unOrdered()
-      .sqlQuery(sql)
-      .baselineColumns("EXPR$0","EXPR$1")
-      .baselineValues(694.5,694.5)
-      .go();
+        .unOrdered()
+        .sqlQuery(sql)
+        .baselineColumns("EXPR$0", "EXPR$1")
+        .baselineValues(694.5, 694.5)
+        .go();
   }
 
   @Test
   public void testApproxPercentileCombiningColumns() throws Exception {
-    final String sql = "SELECT approx_percentile(employee_id + employee_id, 0.6) from cp.\"employee.json\" ";
-    testBuilder()
-      .unOrdered()
-      .sqlQuery(sql)
-      .baselineColumns("EXPR$0")
-      .baselineValues(1389.0)
-      .go();
+    final String sql =
+        "SELECT approx_percentile(employee_id + employee_id, 0.6) from cp.\"employee.json\" ";
+    testBuilder().unOrdered().sqlQuery(sql).baselineColumns("EXPR$0").baselineValues(1389.0).go();
   }
 
   @Test
   public void testApproxPercentileOutOfRange1() {
     final String sql = "SELECT approx_percentile(employee_id, 1.6) from cp.\"employee.json\" ";
     Assert.assertThrows(UserRemoteException.class, () -> test(sql));
-
   }
 
   @Test

@@ -15,37 +15,38 @@
  */
 package com.dremio.service.namespace.dataset;
 
-import java.security.SecureRandom;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Ticker;
+import java.security.SecureRandom;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 
 /**
  * The version of a dataset
  *
- * Versions are not strictly ordered.
- * They are meant to simplify range queries.
- * All versions created after a version should be greater than getLowerBound()
- * All versions created before a version should be lower than getUpperBound()
+ * <p>Versions are not strictly ordered. They are meant to simplify range queries. All versions
+ * created after a version should be greater than getLowerBound() All versions created before a
+ * version should be lower than getUpperBound()
  */
 public class DatasetVersion implements Comparable<DatasetVersion> {
   public static final DatasetVersion MIN_VERSION = DatasetVersion.fromExistingVersion(0L);
-  public static final DatasetVersion MAX_VERSION = DatasetVersion.fromExistingVersion(Long.MAX_VALUE);
+  public static final DatasetVersion MAX_VERSION =
+      DatasetVersion.fromExistingVersion(Long.MAX_VALUE);
   public static final DatasetVersion NONE = new DatasetVersion(-1, true);
 
   private static final long ORIGIN;
   private static final int BITS_FOR_RAND;
   private static final long MASK;
+
   static {
     try {
       ORIGIN = new SimpleDateFormat("yyyy-MM-dd").parse("2015-08-17").getTime();
       long end = new SimpleDateFormat("yyyy-MM-dd").parse("2115-08-17").getTime();
-      BITS_FOR_RAND = Long.numberOfLeadingZeros(end - ORIGIN) - 1; // -1 to make sure it stays positive
+      BITS_FOR_RAND =
+          Long.numberOfLeadingZeros(end - ORIGIN) - 1; // -1 to make sure it stays positive
       MASK = (1 << BITS_FOR_RAND) - 1;
     } catch (ParseException e) {
       throw new RuntimeException(e);
@@ -135,7 +136,7 @@ public class DatasetVersion implements Comparable<DatasetVersion> {
     String string = Long.toString(this.value, 16);
     if (string.length() < 16) {
       StringBuilder sb = new StringBuilder();
-      for (int i = string.length(); i < 16; ++i){
+      for (int i = string.length(); i < 16; ++i) {
         sb.append('0');
       }
       sb.append(string);
@@ -182,7 +183,10 @@ public class DatasetVersion implements Comparable<DatasetVersion> {
       throw new IllegalArgumentException("timestamp should be after origin: " + timestamp);
     }
     if (Long.numberOfLeadingZeros(t) < BITS_FOR_RAND) {
-      throw new IllegalArgumentException(String.format("timestamp should fit in the time range: %s %s %s", timestamp, Long.numberOfLeadingZeros(t), BITS_FOR_RAND));
+      throw new IllegalArgumentException(
+          String.format(
+              "timestamp should fit in the time range: %s %s %s",
+              timestamp, Long.numberOfLeadingZeros(t), BITS_FOR_RAND));
     }
     return (t << BITS_FOR_RAND) | (r & MASK);
   }
@@ -208,7 +212,7 @@ public class DatasetVersion implements Comparable<DatasetVersion> {
     if (getClass() != obj.getClass()) {
       return false;
     }
-    DatasetVersion other = (DatasetVersion)obj;
+    DatasetVersion other = (DatasetVersion) obj;
     return value == other.value;
   }
 

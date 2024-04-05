@@ -19,7 +19,6 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,19 +58,17 @@ public class GraphAlgos {
       }
 
       sorted.add(n);
-
     }
 
     /**
      * Execute a depth-first sort on the reversed DAG.
      *
-     * @param graph
-     *          The adjacency list for the DAG.
-     * @param sourceNodes
-     *          List of nodes that
+     * @param graph The adjacency list for the DAG.
+     * @param sourceNodes List of nodes that
      * @return
      */
-    static <V extends GraphValue<V>> List<AdjacencyList<V>.Node> sortInternal(AdjacencyList<V> graph, boolean reverse) {
+    static <V extends GraphValue<V>> List<AdjacencyList<V>.Node> sortInternal(
+        AdjacencyList<V> graph, boolean reverse) {
       TopoSorter<V> ts = new TopoSorter<V>(graph, reverse);
       return ts.sorted;
     }
@@ -81,16 +78,17 @@ public class GraphAlgos {
       return l.convert(sortInternal(l, true));
     }
 
-      public static <V extends GraphValue<V>> List<V> sortLogical(Graph<V, ?, ?> graph) {
-          AdjacencyList<V> l = graph.getAdjList();
-          return l.convert(sortInternal(l, false));
-      }
+    public static <V extends GraphValue<V>> List<V> sortLogical(Graph<V, ?, ?> graph) {
+      AdjacencyList<V> l = graph.getAdjList();
+      return l.convert(sortInternal(l, false));
+    }
   }
 
-  static <V extends GraphValue<V>> List<List<AdjacencyList<V>.Node>> checkDirected(AdjacencyList<V> graph) {
+  static <V extends GraphValue<V>> List<List<AdjacencyList<V>.Node>> checkDirected(
+      AdjacencyList<V> graph) {
     Tarjan<V> t = new Tarjan<V>();
     List<List<AdjacencyList<V>.Node>> subgraphs = t.executeTarjan(graph);
-    for (Iterator<List<AdjacencyList<V>.Node>> i = subgraphs.iterator(); i.hasNext();) {
+    for (Iterator<List<AdjacencyList<V>.Node>> i = subgraphs.iterator(); i.hasNext(); ) {
       List<AdjacencyList<V>.Node> l = i.next();
       if (l.size() == 1) {
         i.remove();
@@ -99,7 +97,8 @@ public class GraphAlgos {
     return subgraphs;
   }
 
-  public static <V extends GraphValue<V>> List<List<AdjacencyList<V>.Node>> checkDirected(Graph<V, ?, ?> graph) {
+  public static <V extends GraphValue<V>> List<List<AdjacencyList<V>.Node>> checkDirected(
+      Graph<V, ?, ?> graph) {
     return checkDirected(graph.getAdjList());
   }
 
@@ -114,7 +113,8 @@ public class GraphAlgos {
       index = 0;
       stack.clear();
       if (graph != null) {
-        List<AdjacencyList<V>.Node> nodeList = new LinkedList<AdjacencyList<V>.Node>(graph.getNodeSet());
+        List<AdjacencyList<V>.Node> nodeList =
+            new LinkedList<AdjacencyList<V>.Node>(graph.getNodeSet());
         for (AdjacencyList<V>.Node node : nodeList) {
           if (node.index == -1) {
             tarjan(node, graph);
@@ -124,7 +124,8 @@ public class GraphAlgos {
       return scc;
     }
 
-    private List<List<AdjacencyList<V>.Node>> tarjan(AdjacencyList<V>.Node v, AdjacencyList<V> list) {
+    private List<List<AdjacencyList<V>.Node>> tarjan(
+        AdjacencyList<V>.Node v, AdjacencyList<V> list) {
       v.index = index;
       v.lowlink = index;
       index++;
@@ -153,5 +154,4 @@ public class GraphAlgos {
       return scc;
     }
   }
-
 }

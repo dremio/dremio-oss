@@ -15,8 +15,6 @@
  */
 package com.dremio.common.config;
 
-import java.util.Set;
-
 import com.dremio.common.expression.FieldReference;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.SchemaPath;
@@ -30,7 +28,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.module.afterburner.AfterburnerModule;
-
+import java.util.Set;
 
 public class LogicalPlanPersistence {
   private ObjectMapper mapper;
@@ -39,13 +37,14 @@ public class LogicalPlanPersistence {
     return mapper;
   }
 
-  public LogicalPlanPersistence(SabotConfig conf, ScanResult scanResult) {
+  public LogicalPlanPersistence(ScanResult scanResult) {
     mapper = new ObjectMapper();
 
-    SimpleModule deserModule = new SimpleModule("LogicalExpressionDeserializationModule")
-        .addDeserializer(LogicalExpression.class, new LogicalExpression.De())
-        .addDeserializer(SchemaPath.class, new SchemaPath.De())
-        .addDeserializer(FieldReference.class, new FieldReference.De());
+    SimpleModule deserModule =
+        new SimpleModule("LogicalExpressionDeserializationModule")
+            .addDeserializer(LogicalExpression.class, new LogicalExpression.De())
+            .addDeserializer(SchemaPath.class, new SchemaPath.De())
+            .addDeserializer(FieldReference.class, new FieldReference.De());
 
     mapper.registerModule(new AfterburnerModule());
     mapper.registerModule(deserModule);

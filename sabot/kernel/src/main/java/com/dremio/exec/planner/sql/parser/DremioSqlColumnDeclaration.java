@@ -15,8 +15,8 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.google.common.collect.ImmutableList;
 import java.util.List;
-
 import org.apache.calcite.schema.ColumnStrategy;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlDataTypeSpec;
@@ -29,25 +29,31 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.google.common.collect.ImmutableList;
-
 /**
  * Parse tree for {@code UNIQUE}, {@code PRIMARY KEY} constraints.
+ *
  * <p>And {@code FOREIGN KEY}, when we support it.
  */
 public class DremioSqlColumnDeclaration extends SqlCall {
   private static final SqlSpecialOperator OPERATOR =
-    new SqlSpecialOperator("COLUMN_DECL", SqlKind.COLUMN_DECL) {
-      @Override
-      public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-        if (operands.length == 2) {
-          return new DremioSqlColumnDeclaration(pos, (SqlColumnPolicyPair) operands[0], (SqlDataTypeSpec) operands[1], null);
-        } else if (operands.length == 3) {
-          return new DremioSqlColumnDeclaration(pos, (SqlColumnPolicyPair) operands[0], (SqlDataTypeSpec) operands[1], (SqlNode) operands[2]);
+      new SqlSpecialOperator("COLUMN_DECL", SqlKind.COLUMN_DECL) {
+        @Override
+        public SqlCall createCall(
+            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+          if (operands.length == 2) {
+            return new DremioSqlColumnDeclaration(
+                pos, (SqlColumnPolicyPair) operands[0], (SqlDataTypeSpec) operands[1], null);
+          } else if (operands.length == 3) {
+            return new DremioSqlColumnDeclaration(
+                pos,
+                (SqlColumnPolicyPair) operands[0],
+                (SqlDataTypeSpec) operands[1],
+                (SqlNode) operands[2]);
+          }
+          throw new IllegalArgumentException(
+              "SqlSpecialOperator.createCall() has to get 2 or 3 operands!");
         }
-        throw new IllegalArgumentException("SqlSpecialOperator.createCall() has to get 2 or 3 operands!");
-      }
-  };
+      };
 
   private final SqlIdentifier name;
   private final SqlDataTypeSpec dataType;
@@ -55,11 +61,12 @@ public class DremioSqlColumnDeclaration extends SqlCall {
   private final SqlNode expression;
   private final ColumnStrategy strategy;
 
-  /**
-   * Creates a SqlColumnDeclaration.
-   */
-  public DremioSqlColumnDeclaration(SqlParserPos pos, SqlColumnPolicyPair columnPolicyPair,
-                                    SqlDataTypeSpec dataType, SqlNode expression) {
+  /** Creates a SqlColumnDeclaration. */
+  public DremioSqlColumnDeclaration(
+      SqlParserPos pos,
+      SqlColumnPolicyPair columnPolicyPair,
+      SqlDataTypeSpec dataType,
+      SqlNode expression) {
     super(pos);
     this.name = columnPolicyPair.getName();
     this.dataType = dataType;

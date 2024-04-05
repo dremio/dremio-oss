@@ -19,13 +19,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 
-import org.apache.hadoop.conf.Configuration;
-import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
-
 import com.dremio.exec.store.iceberg.DremioFileIO;
 import com.dremio.exec.store.iceberg.model.IcebergTableIdentifier;
 import com.dremio.io.file.FileSystem;
+import org.apache.hadoop.conf.Configuration;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 
 class TestIcebergNessieCommand {
   private static final IcebergTableIdentifier ID = new IcebergNessieTableIdentifier("ns", "ptr");
@@ -40,8 +39,11 @@ class TestIcebergNessieCommand {
     IcebergNessieTableOperations ops = Mockito.mock(IcebergNessieTableOperations.class);
     Mockito.when(ops.io()).thenReturn(io);
     IcebergNessieCommand command = new IcebergNessieCommand(ID, conf, ops, null);
-    Mockito.when(fs.delete(any(), anyBoolean())).thenThrow(new RuntimeException("test-exception-1"));
-    assertThatThrownBy(command::deleteTable).isInstanceOf(RuntimeException.class).hasMessage("test-exception-1");
+    Mockito.when(fs.delete(any(), anyBoolean()))
+        .thenThrow(new RuntimeException("test-exception-1"));
+    assertThatThrownBy(command::deleteTable)
+        .isInstanceOf(RuntimeException.class)
+        .hasMessage("test-exception-1");
     Mockito.verify(ops, Mockito.times(1)).deleteKey();
   }
 
@@ -55,11 +57,11 @@ class TestIcebergNessieCommand {
     IcebergNessieCommand command = new IcebergNessieCommand(ID, conf, ops, null);
     RuntimeException innerException = new RuntimeException("test-exception-1");
     Mockito.doThrow(innerException).when(ops).deleteKey();
-    Mockito.when(fs.delete(any(), anyBoolean())).thenThrow(new RuntimeException("test-exception-2"));
+    Mockito.when(fs.delete(any(), anyBoolean()))
+        .thenThrow(new RuntimeException("test-exception-2"));
     assertThatThrownBy(command::deleteTable)
-      .isInstanceOf(RuntimeException.class)
-      .hasMessage("test-exception-2")
-      .hasSuppressedException(innerException);
+        .isInstanceOf(RuntimeException.class)
+        .hasMessage("test-exception-2")
+        .hasSuppressedException(innerException);
   }
-
 }

@@ -15,15 +15,18 @@
  */
 
 import { APIV2Call } from "@app/core/APICall";
-// @ts-ignore
 import { getApiContext } from "dremio-ui-common/contexts/ApiContext.js";
 
 export type GetEntityParams = {
   entityUrl: string;
+  query?: Record<string, string>;
 };
 
 export const getEntityUrl = (params: GetEntityParams) => {
-  return new APIV2Call().paths(params.entityUrl).toString();
+  return new APIV2Call()
+    .paths(params.entityUrl)
+    .params(params.query || {})
+    .toString();
 };
 
 export const getEntity = async (params: GetEntityParams): Promise<any> => {

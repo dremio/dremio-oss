@@ -16,26 +16,30 @@
 
 package com.dremio.exec.planner.physical;
 
+import com.dremio.exec.planner.common.UnionRelBase;
+import com.dremio.exec.planner.physical.visitor.PrelVisitor;
 import java.util.Iterator;
 import java.util.List;
-
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.InvalidRelException;
 import org.apache.calcite.rel.RelNode;
 
-import com.dremio.exec.planner.common.UnionRelBase;
-import com.dremio.exec.planner.physical.visitor.PrelVisitor;
-
 public abstract class UnionPrel extends UnionRelBase implements Prel {
 
-  public UnionPrel(RelOptCluster cluster, RelTraitSet traits, List<RelNode> inputs, boolean all,
-      boolean checkCompatibility) throws InvalidRelException {
+  public UnionPrel(
+      RelOptCluster cluster,
+      RelTraitSet traits,
+      List<RelNode> inputs,
+      boolean all,
+      boolean checkCompatibility)
+      throws InvalidRelException {
     super(cluster, traits, inputs, all, checkCompatibility);
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(PrelVisitor<T, X, E> logicalVisitor, X value) throws E {
+  public <T, X, E extends Throwable> T accept(PrelVisitor<T, X, E> logicalVisitor, X value)
+      throws E {
     return logicalVisitor.visitUnion(this, value);
   }
 
@@ -48,5 +52,4 @@ public abstract class UnionPrel extends UnionRelBase implements Prel {
   public boolean needsFinalColumnReordering() {
     return false;
   }
-
 }

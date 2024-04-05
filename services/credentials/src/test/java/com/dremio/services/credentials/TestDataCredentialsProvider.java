@@ -22,43 +22,38 @@ import static org.junit.Assert.assertNotEquals;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.Collection;
-
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
-/**
- * Tests for lookup in Data Credential Provider.
- */
+/** Tests for lookup in Data Credential Provider. */
 @RunWith(Parameterized.class)
 public class TestDataCredentialsProvider {
-  /**
-   * Type of test scenarios
-   */
+  /** Type of test scenarios */
   private enum TEST_TYPE {
-    VALID,     // valid data url for data credential provider
+    VALID, // valid data url for data credential provider
     INCORRECT, // incorrect data url representation in data credential provider
-    INVALID    // invalid data url data credential provider, IllegalArgument expected
+    INVALID // invalid data url data credential provider, IllegalArgument expected
   }
 
   @Parameters
   public static Collection<Object[]> data() {
-    return Arrays.asList(new Object[][] {
-      {TEST_TYPE.VALID, "Hello, World!", "data:,Hello%2C%20World!"},
-      {TEST_TYPE.VALID, "Hello, World!", "data:text/plain;base64,SGVsbG8sIFdvcmxkIQ=="},
-      {TEST_TYPE.VALID, "Hello, World!", "data:text/html;base64,SGVsbG8sIFdvcmxkIQ=="},
-      {TEST_TYPE.INCORRECT, "Hello, World!", "data:text/html,SGVsbG8sIFdvcmxkIQ=="},
-      {TEST_TYPE.INCORRECT, "Hello, World!", "data:,,Hello%2C%20World!"},
-      {TEST_TYPE.INVALID, "Hello, World!", "data:abcdef"},
-      {TEST_TYPE.INVALID, "Hello, World!", "data:text/plain;base644,SGVsbG8sIFdvcmxkIQ=="},
-      {TEST_TYPE.INVALID, "Hello, World!", "data:text/plain;base16,SGVsbG8sIFdvcmxkIQ=="}
-    });
+    return Arrays.asList(
+        new Object[][] {
+          {TEST_TYPE.VALID, "Hello, World!", "data:,Hello%2C%20World!"},
+          {TEST_TYPE.VALID, "Hello, World!", "data:text/plain;base64,SGVsbG8sIFdvcmxkIQ=="},
+          {TEST_TYPE.VALID, "Hello, World!", "data:text/html;base64,SGVsbG8sIFdvcmxkIQ=="},
+          {TEST_TYPE.INCORRECT, "Hello, World!", "data:text/html,SGVsbG8sIFdvcmxkIQ=="},
+          {TEST_TYPE.INCORRECT, "Hello, World!", "data:,,Hello%2C%20World!"},
+          {TEST_TYPE.INVALID, "Hello, World!", "data:abcdef"},
+          {TEST_TYPE.INVALID, "Hello, World!", "data:text/plain;base644,SGVsbG8sIFdvcmxkIQ=="},
+          {TEST_TYPE.INVALID, "Hello, World!", "data:text/plain;base16,SGVsbG8sIFdvcmxkIQ=="}
+        });
   }
 
-  @Parameter
-  public TEST_TYPE type;
+  @Parameter public TEST_TYPE type;
 
   @Parameter(1)
   public String originalString;
@@ -84,5 +79,4 @@ public class TestDataCredentialsProvider {
         throw new UnsupportedOperationException("Unsupported Test type " + type.toString());
     }
   }
-
 }

@@ -17,6 +17,8 @@ package com.dremio.datastore.generator;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.dremio.datastore.api.Document;
+import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -24,13 +26,10 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
-import com.dremio.datastore.api.Document;
-import com.google.common.collect.ImmutableList;
-
 /**
  * Used by abstract kv store tests to generate test data.
  *
- * Should issue values in increasing order.
+ * <p>Should issue values in increasing order.
  *
  * @param <K> Key type
  * @param <V> Value type
@@ -59,7 +58,7 @@ public interface DataGenerator<K, V> {
   V newValWithNullFields();
 
   default void reset() {
-    //No-op
+    // No-op
   }
 
   /**
@@ -92,23 +91,27 @@ public interface DataGenerator<K, V> {
   }
 
   /**
-   * Convert an unsorted dataset into a sorted dataset by sorting the keys.
-   * Used by tests for correct range sampling.
+   * Convert an unsorted dataset into a sorted dataset by sorting the keys. Used by tests for
+   * correct range sampling.
    *
    * @param dataset the unsorted dataset.
    * @return a dataset sorted by keys.
    */
   default Dataset<K, V> sortDataset(Dataset<K, V> dataset) {
-    final Iterable<Map.Entry<K, V>> entries = dataset.getDatasetSlice(0, dataset.getKeys().size() - 1);
-    final ImmutableList.Builder<K> keys = ImmutableList.builderWithExpectedSize(dataset.getKeys().size());
-    final ImmutableList.Builder<V> vals = ImmutableList.builderWithExpectedSize(dataset.getValues().size());
+    final Iterable<Map.Entry<K, V>> entries =
+        dataset.getDatasetSlice(0, dataset.getKeys().size() - 1);
+    final ImmutableList.Builder<K> keys =
+        ImmutableList.builderWithExpectedSize(dataset.getKeys().size());
+    final ImmutableList.Builder<V> vals =
+        ImmutableList.builderWithExpectedSize(dataset.getValues().size());
 
     StreamSupport.stream(entries.spliterator(), false)
-      .sorted(new EntryComparator<>(getComparator()))
-      .forEach(entry -> {
-        keys.add(entry.getKey());
-        vals.add(entry.getValue());
-      });
+        .sorted(new EntryComparator<>(getComparator()))
+        .forEach(
+            entry -> {
+              keys.add(entry.getKey());
+              vals.add(entry.getValue());
+            });
 
     return new Dataset<>(keys.build(), vals.build());
   }
@@ -121,8 +124,8 @@ public interface DataGenerator<K, V> {
    */
   default Iterable<Map.Entry<K, V>> sortEntries(Iterable<Map.Entry<K, V>> entries) {
     return StreamSupport.stream(entries.spliterator(), false)
-      .sorted(new EntryComparator<>(getComparator()))
-      .collect(Collectors.toList());
+        .sorted(new EntryComparator<>(getComparator()))
+        .collect(Collectors.toList());
   }
 
   /**
@@ -142,8 +145,8 @@ public interface DataGenerator<K, V> {
   }
 
   /**
-   * Sorts an unsorted DocumentDataset by sorting the keys.
-   * Used by tests for correct range sampling.
+   * Sorts an unsorted DocumentDataset by sorting the keys. Used by tests for correct range
+   * sampling.
    *
    * @param documentDataset the unsorted DocumentDataset.
    * @return a DocumentDataset sorted by keys.
@@ -153,8 +156,8 @@ public interface DataGenerator<K, V> {
   }
 
   /**
-   * Sorts an unsorted Iterable of Documents by sorting the keys.
-   * Used by tests for correct range sampling.
+   * Sorts an unsorted Iterable of Documents by sorting the keys. Used by tests for correct range
+   * sampling.
    *
    * @param documents the unsorted Iterable of Documents.
    * @return an Iterable of Documents sorted by keys.

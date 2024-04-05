@@ -15,29 +15,6 @@
  */
 package com.dremio.plugins.sysflight;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.function.Function;
-import java.util.function.Supplier;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-import javax.inject.Provider;
-
-import org.apache.arrow.flight.Criteria;
-import org.apache.arrow.flight.FlightClient;
-import org.apache.arrow.flight.FlightGrpcUtils;
-import org.apache.arrow.flight.FlightInfo;
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.connector.metadata.DatasetHandle;
@@ -73,16 +50,35 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
-
 import io.grpc.ManagedChannel;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import javax.inject.Provider;
+import org.apache.arrow.flight.Criteria;
+import org.apache.arrow.flight.FlightClient;
+import org.apache.arrow.flight.FlightGrpcUtils;
+import org.apache.arrow.flight.FlightInfo;
+import org.apache.arrow.memory.BufferAllocator;
 
-/**
- * Plugin for System tables using Flight protocol, also aware of tables in {@link SystemTable}
- */
+/** Plugin for System tables using Flight protocol, also aware of tables in {@link SystemTable} */
 public class SysFlightStoragePlugin implements StoragePlugin, SupportsListingDatasets {
   private final Map<EntityPath, SystemTable> legacyTableMap =
-    Stream.of(SystemTable.values())
-      .collect(Collectors.toMap(systemTable -> canonicalize(systemTable.getDatasetPath()), Function.identity()));
+      Stream.of(SystemTable.values())
+          .collect(
+              Collectors.toMap(
+                  systemTable -> canonicalize(systemTable.getDatasetPath()), Function.identity()));
 
   private volatile Set<EntityPath> flightTableList = new HashSet<>();
 
@@ -96,19 +92,31 @@ public class SysFlightStoragePlugin implements StoragePlugin, SupportsListingDat
   private volatile ManagedChannel prevChannel;
   private Supplier<SystemIcebergTablesStoragePlugin> systemIcebergTablesStoragePlugin;
 
-  public SysFlightStoragePlugin(SabotContext context,
-                                String name, Provider<StoragePluginId> pluginIdProvider,
-                                boolean useConduit,
-                                List<SystemTable> excludeLegacyTablesList) {
+  public SysFlightStoragePlugin(
+      SabotContext context,
+      String name,
+      Provider<StoragePluginId> pluginIdProvider,
+      boolean useConduit,
+      List<SystemTable> excludeLegacyTablesList) {
     excludeLegacyTables(legacyTableMap, excludeLegacyTablesList);
     this.context = context;
     this.jobResultInfoProvider = context.getJobResultInfoProvider();
     this.name = name;
     this.useConduit = useConduit;
-    allocator = context.getAllocator().newChildAllocator(SysFlightStoragePlugin.class.getName(), 0, Long.MAX_VALUE);
+    allocator =
+        context
+            .getAllocator()
+            .newChildAllocator(SysFlightStoragePlugin.class.getName(), 0, Long.MAX_VALUE);
 
     if (context.getOptionManager().getOption(ExecConstants.ENABLE_SYSTEM_ICEBERG_TABLES_STORAGE)) {
-      systemIcebergTablesStoragePlugin = Suppliers.memoize(() -> context.getCatalogService().getSource(SystemIcebergTablesStoragePluginConfig.SYSTEM_ICEBERG_TABLES_PLUGIN_NAME));
+      systemIcebergTablesStoragePlugin =
+          Suppliers.memoize(
+              () ->
+                  context
+                      .getCatalogService()
+                      .getSource(
+                          SystemIcebergTablesStoragePluginConfig
+                              .SYSTEM_ICEBERG_TABLES_PLUGIN_NAME));
     }
   }
 
@@ -128,8 +136,8 @@ public class SysFlightStoragePlugin implements StoragePlugin, SupportsListingDat
       synchronized (this) {
         if (prevChannel != curChannel) {
           AutoCloseables.closeNoChecked(flightClient);
+          flightClient = FlightGrpcUtils.createFlightClient(allocator, curChannel);
           prevChannel = curChannel;
-          flightClient = FlightGrpcUtils.createFlightClient(allocator, prevChannel);
         }
       }
     }
@@ -158,8 +166,12 @@ public class SysFlightStoragePlugin implements StoragePlugin, SupportsListingDat
 
   @Override
   public ViewTable getView(List<String> tableSchemaPath, SchemaConfig schemaConfig) {
-    if (systemIcebergTablesStoragePlugin != null && systemIcebergTablesStoragePlugin.get().isSupportedTablePath(tableSchemaPath)) {
-      return systemIcebergTablesStoragePlugin.get().getViewTable(tableSchemaPath, schemaConfig.getUserName());
+    if (tableSchemaPath.size() == 2
+        && systemIcebergTablesStoragePlugin != null
+        && systemIcebergTablesStoragePlugin.get().isSupportedTablePath(tableSchemaPath)) {
+      return systemIcebergTablesStoragePlugin
+          .get()
+          .getViewTable(tableSchemaPath, schemaConfig.getUserName());
     }
     if (!JobResultInfoProvider.isJobResultsTable(tableSchemaPath)) {
       return null;
@@ -167,14 +179,25 @@ public class SysFlightStoragePlugin implements StoragePlugin, SupportsListingDat
 
     final String jobId = Iterables.getLast(tableSchemaPath);
     final Optional<JobResultInfoProvider.JobResultInfo> jobResultInfo =
-      jobResultInfoProvider.getJobResultInfo(jobId, schemaConfig.getUserName());
+        jobResultInfoProvider.getJobResultInfo(jobId, schemaConfig.getUserName());
 
-    return jobResultInfo.map(info -> {
-      final View view = Views.fieldTypesToView(jobId, getJobResultsQuery(info.getResultDatasetPath()),
-        ViewFieldsHelper.getBatchSchemaFields(info.getBatchSchema()), null);
+    return jobResultInfo
+        .map(
+            info -> {
+              final View view =
+                  Views.fieldTypesToView(
+                      jobId,
+                      getJobResultsQuery(info.getResultDatasetPath()),
+                      ViewFieldsHelper.getBatchSchemaFields(info.getBatchSchema()),
+                      null);
 
-      return new ViewTable(new NamespaceKey(tableSchemaPath), view, CatalogUser.from(SystemUser.SYSTEM_USERNAME), info.getBatchSchema());
-    }).orElse(null);
+              return new ViewTable(
+                  new NamespaceKey(tableSchemaPath),
+                  view,
+                  CatalogUser.from(SystemUser.SYSTEM_USERNAME),
+                  info.getBatchSchema());
+            })
+        .orElse(null);
   }
 
   private static String getJobResultsQuery(List<String> resultDatasetPath) {
@@ -192,8 +215,7 @@ public class SysFlightStoragePlugin implements StoragePlugin, SupportsListingDat
   }
 
   @Override
-  public void start() throws IOException {
-  }
+  public void start() throws IOException {}
 
   @Override
   public void close() throws Exception {
@@ -204,28 +226,30 @@ public class SysFlightStoragePlugin implements StoragePlugin, SupportsListingDat
   public DatasetHandleListing listDatasetHandles(GetDatasetOption... options) {
     final Map<EntityPath, DatasetHandle> tablesMap = new HashMap<>();
 
-
     getFlightTableList(true).forEach(e -> tablesMap.put(e, getDataset(e).get()));
-    getLegacyTableMap().forEach((k, v) -> tablesMap.computeIfAbsent(k, value -> getDataset(k).get()));
+    getLegacyTableMap()
+        .forEach((k, v) -> tablesMap.computeIfAbsent(k, value -> getDataset(k).get()));
 
     return () -> (Iterator<? extends DatasetHandle>) tablesMap.values().iterator();
   }
 
   @Override
-  public Optional<DatasetHandle> getDatasetHandle(EntityPath datasetPath, GetDatasetOption... options) {
+  public Optional<DatasetHandle> getDatasetHandle(
+      EntityPath datasetPath, GetDatasetOption... options) {
     return getDataset(datasetPath);
   }
 
   @Override
   public DatasetMetadata getDatasetMetadata(
-    DatasetHandle datasetHandle,
-    PartitionChunkListing chunkListing,
-    GetMetadataOption... options) {
+      DatasetHandle datasetHandle,
+      PartitionChunkListing chunkListing,
+      GetMetadataOption... options) {
     return datasetHandle.unwrap(SystemTableWrapper.class);
   }
 
   @Override
-  public PartitionChunkListing listPartitionChunks(DatasetHandle datasetHandle, ListPartitionChunkOption... options) {
+  public PartitionChunkListing listPartitionChunks(
+      DatasetHandle datasetHandle, ListPartitionChunkOption... options) {
     return datasetHandle.unwrap(SystemTableWrapper.class);
   }
 
@@ -235,16 +259,17 @@ public class SysFlightStoragePlugin implements StoragePlugin, SupportsListingDat
   }
 
   static EntityPath canonicalize(EntityPath entityPath) {
-    return new EntityPath(entityPath.getComponents().stream()
-      .map(String::toLowerCase).collect(Collectors.toList()));
+    return new EntityPath(
+        entityPath.getComponents().stream().map(String::toLowerCase).collect(Collectors.toList()));
   }
 
   private Optional<DatasetHandle> getDataset(EntityPath entityPath) {
     entityPath = canonicalize(entityPath);
 
     if (getFlightTableList().contains(entityPath)) {
-      return Optional.of(SystemTableWrapper.wrap(new SysFlightTable(entityPath, getFlightClient())));
-    } else if (getLegacyTableMap().containsKey(entityPath)){
+      return Optional.of(
+          SystemTableWrapper.wrap(new SysFlightTable(entityPath, getFlightClient())));
+    } else if (getLegacyTableMap().containsKey(entityPath)) {
       return Optional.of(SystemTableWrapper.wrap(getLegacyTableMap().get(entityPath)));
     }
     return Optional.empty();
@@ -273,11 +298,13 @@ public class SysFlightStoragePlugin implements StoragePlugin, SupportsListingDat
   }
 
   boolean isDistributed(EntityPath datasetPath) {
-    Optional<SystemTable> datasetHandle = Optional.ofNullable(getLegacyTableMap().get(canonicalize(datasetPath)));
+    Optional<SystemTable> datasetHandle =
+        Optional.ofNullable(getLegacyTableMap().get(canonicalize(datasetPath)));
     return datasetHandle.map(SystemTable::isDistributed).orElse(false);
   }
 
-  void excludeLegacyTables(Map<EntityPath, SystemTable> legacyTableMap, List<SystemTable> excludeLegacyTablesList) {
+  void excludeLegacyTables(
+      Map<EntityPath, SystemTable> legacyTableMap, List<SystemTable> excludeLegacyTablesList) {
     if (excludeLegacyTablesList != null && !excludeLegacyTablesList.isEmpty()) {
       excludeLegacyTablesList.forEach(e -> legacyTableMap.remove(canonicalize(e.getDatasetPath())));
     }

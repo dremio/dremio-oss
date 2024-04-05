@@ -16,6 +16,7 @@
 
 package com.dremio.sabot.op.aggregate.vectorized.arrayagg;
 
+import io.netty.util.internal.PlatformDependent;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BaseValueVector;
@@ -23,11 +24,14 @@ import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.IntervalYearVector;
 import org.apache.arrow.vector.complex.impl.UnionListWriter;
 
-import io.netty.util.internal.PlatformDependent;
-
-public final class IntervalYearArrayAggAccumulator extends BaseArrayAggAccumulator<Integer, IntervalYearVector> {
-  public IntervalYearArrayAggAccumulator(FieldVector input, FieldVector transferVector, int maxValuesPerBatch,
-                                         BaseValueVector tempAccumulatorHolder, BufferAllocator allocator) {
+public final class IntervalYearArrayAggAccumulator
+    extends BaseArrayAggAccumulator<Integer, IntervalYearVector> {
+  public IntervalYearArrayAggAccumulator(
+      FieldVector input,
+      FieldVector transferVector,
+      int maxValuesPerBatch,
+      BaseValueVector tempAccumulatorHolder,
+      BufferAllocator allocator) {
     super(input, transferVector, maxValuesPerBatch, tempAccumulatorHolder, allocator);
   }
 
@@ -42,13 +46,14 @@ public final class IntervalYearArrayAggAccumulator extends BaseArrayAggAccumulat
   }
 
   @Override
-  protected BaseArrayAggAccumulatorHolder<Integer, IntervalYearVector> getAccumulatorHolder
-    (int maxValuesPerBatch, BufferAllocator allocator) {
+  protected BaseArrayAggAccumulatorHolder<Integer, IntervalYearVector> getAccumulatorHolder(
+      int maxValuesPerBatch, BufferAllocator allocator) {
     return new IntervalYearArrayAggAccumulatorHolder(maxValuesPerBatch, allocator);
   }
 
   @Override
-  protected Integer getElement(long baseAddress, int itemIndex, ArrowBuf dataBuffer, ArrowBuf offsetBuffer) {
+  protected Integer getElement(
+      long baseAddress, int itemIndex, ArrowBuf dataBuffer, ArrowBuf offsetBuffer) {
     long offHeapMemoryAddress = getOffHeapAddressForFixedWidthTypes(baseAddress, itemIndex);
     return PlatformDependent.getInt(offHeapMemoryAddress);
   }

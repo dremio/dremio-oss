@@ -15,19 +15,17 @@
  */
 package com.dremio.common;
 
-import java.util.concurrent.atomic.AtomicInteger;
-
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Collects one or more exceptions that may occur, using
- * <a href="http://docs.oracle.com/javase/tutorial/essential/exceptions/tryResourceClose.html#suppressed-exceptions">
- * suppressed exceptions</a>.
- * When this AutoCloseable is closed, if there was an exception added, it will be thrown. If more than one
- * exception was added, then all but the first will be added to the first as suppressed
- * exceptions.
+ * Collects one or more exceptions that may occur, using <a
+ * href="http://docs.oracle.com/javase/tutorial/essential/exceptions/tryResourceClose.html#suppressed-exceptions">
+ * suppressed exceptions</a>. When this AutoCloseable is closed, if there was an exception added, it
+ * will be thrown. If more than one exception was added, then all but the first will be added to the
+ * first as suppressed exceptions.
  *
  * <p>This class is thread safe.
  */
@@ -39,34 +37,30 @@ public class DeferredException implements AutoCloseable {
   private final AtomicInteger suppressedExceptions = new AtomicInteger(0);
   private static final int LIMIT_SUPRESSED_EXCEPTION = 5;
 
-  /**
-   * Constructor.
-   */
+  /** Constructor. */
   public DeferredException() {
     this(null);
   }
 
   /**
-   * Constructor. This constructor accepts a Supplier that can be used
-   * to create the root exception iff any other exceptions are added. For
-   * example, in a series of resources closures in a close(), if any of
-   * the individual closures fails, the root exception should come from
-   * the current class, not from the first subordinate close() to fail.
-   * This can be used to provide an exception in that case which will be
-   * the root exception; the subordinate failed close() will be added to
-   * that exception as a suppressed exception.
+   * Constructor. This constructor accepts a Supplier that can be used to create the root exception
+   * iff any other exceptions are added. For example, in a series of resources closures in a
+   * close(), if any of the individual closures fails, the root exception should come from the
+   * current class, not from the first subordinate close() to fail. This can be used to provide an
+   * exception in that case which will be the root exception; the subordinate failed close() will be
+   * added to that exception as a suppressed exception.
    *
-   * @param exceptionSupplier lazily supplies what will be the root exception
-   *   if any exceptions are added
+   * @param exceptionSupplier lazily supplies what will be the root exception if any exceptions are
+   *     added
    */
   public DeferredException(Supplier<Exception> exceptionSupplier) {
     this.exceptionSupplier = exceptionSupplier;
   }
 
   /**
-   * Add an exception. If this is the first exception added, it will be the one
-   * that is thrown when this is closed. If not the first exception, then it will
-   * be added to the suppressed exceptions on the first exception.
+   * Add an exception. If this is the first exception added, it will be the one that is thrown when
+   * this is closed. If not the first exception, then it will be added to the suppressed exceptions
+   * on the first exception.
    *
    * @param exception the exception to add
    */
@@ -79,7 +73,7 @@ public class DeferredException implements AutoCloseable {
 
     Exception exceptionToAdd = limitSuppressedExeptions(exception);
 
-    synchronized(this) {
+    synchronized (this) {
       Preconditions.checkState(!isClosed);
 
       if (this.exception == null) {
@@ -92,7 +86,7 @@ public class DeferredException implements AutoCloseable {
           }
           this.exception.addSuppressed(exceptionToAdd);
         }
-      } else if (this.exception != exception) { //Self-suppression is not permitted
+      } else if (this.exception != exception) { // Self-suppression is not permitted
         this.exception.addSuppressed(exceptionToAdd);
       }
     }
@@ -137,8 +131,8 @@ public class DeferredException implements AutoCloseable {
   }
 
   /**
-   * Get the deferred exception, if there is one. Note that if this returns null,
-   * the result could change at any time.
+   * Get the deferred exception, if there is one. Note that if this returns null, the result could
+   * change at any time.
    *
    * @return the deferred exception, or null
    */
@@ -163,8 +157,8 @@ public class DeferredException implements AutoCloseable {
   }
 
   /**
-   * If an exception exists, will throw the exception and then clear it. This is so in cases where want to reuse
-   * DeferredException, we don't double report the same exception.
+   * If an exception exists, will throw the exception and then clear it. This is so in cases where
+   * want to reuse DeferredException, we don't double report the same exception.
    *
    * @throws Exception
    */
@@ -176,29 +170,28 @@ public class DeferredException implements AutoCloseable {
   }
 
   /**
-   * If an exception exists, will throw the exception and then clear it. This is so in cases where want to reuse
-   * DeferredException, we don't double report the same exception.
+   * If an exception exists, will throw the exception and then clear it. This is so in cases where
+   * want to reuse DeferredException, we don't double report the same exception.
    *
    * @throws Exception
    */
   public synchronized void throwAndClearRuntime() {
     final Exception e = getAndClear();
-    if(e != null){
+    if (e != null) {
       throw Throwables.propagate(e);
     }
   }
 
   public synchronized void throwNoClearRuntime() {
     final Exception e = getException();
-    if(e != null){
+    if (e != null) {
       throw Throwables.propagate(e);
     }
   }
 
   /**
-   * Close the given AutoCloseable, suppressing any exceptions that are thrown.
-   * If an exception is thrown, the rules for {@link #addException(Exception)}
-   * are followed.
+   * Close the given AutoCloseable, suppressing any exceptions that are thrown. If an exception is
+   * thrown, the rules for {@link #addException(Exception)} are followed.
    *
    * @param autoCloseable the AutoCloseable to close; may be null
    */
@@ -215,7 +208,7 @@ public class DeferredException implements AutoCloseable {
 
     try {
       autoCloseable.close();
-    } catch(final Exception e) {
+    } catch (final Exception e) {
       addException(e);
     }
   }

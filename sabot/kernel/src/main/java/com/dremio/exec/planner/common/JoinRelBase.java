@@ -15,10 +15,20 @@
  */
 package com.dremio.exec.planner.common;
 
+import com.dremio.exec.ExecConstants;
+import com.dremio.exec.planner.cost.DremioCost;
+import com.dremio.exec.planner.cost.DremioCost.Factory;
+import com.dremio.exec.planner.cost.RelMdRowCount;
+import com.dremio.exec.planner.logical.JoinNormalizationRule;
+import com.dremio.exec.planner.physical.PrelUtil;
+import com.dremio.sabot.op.join.JoinUtils;
+import com.dremio.sabot.op.join.JoinUtils.JoinCategory;
+import com.dremio.service.Pointer;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
-
 import org.apache.arrow.vector.holders.IntHolder;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
@@ -41,49 +51,45 @@ import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.Litmus;
 
-import com.dremio.exec.ExecConstants;
-import com.dremio.exec.planner.cost.DremioCost;
-import com.dremio.exec.planner.cost.DremioCost.Factory;
-import com.dremio.exec.planner.cost.RelMdRowCount;
-import com.dremio.exec.planner.logical.JoinNormalizationRule;
-import com.dremio.exec.planner.physical.PrelUtil;
-import com.dremio.sabot.op.join.JoinUtils;
-import com.dremio.sabot.op.join.JoinUtils.JoinCategory;
-import com.dremio.service.Pointer;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
-
-/**
- * Base class for logical and physical Joins implemented in Dremio.
- */
+/** Base class for logical and physical Joins implemented in Dremio. */
 public abstract class JoinRelBase extends Join {
   protected final List<Integer> leftKeys;
   protected final List<Integer> rightKeys;
 
   /**
-   * The join key positions for which null values will not match. null values only match for the
-   * "is not distinct from" condition.
+   * The join key positions for which null values will not match. null values only match for the "is
+   * not distinct from" condition.
    */
   protected final List<Boolean> filterNulls;
 
-  /**
-   * The remaining filter condition composed of non-equi expressions
-   */
+  /** The remaining filter condition composed of non-equi expressions */
   protected final RexNode remaining;
 
-  /**
-   * Dremio join category
-   */
+  /** Dremio join category */
   protected final JoinUtils.JoinCategory joinCategory;
 
-  protected JoinRelBase(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, RexNode condition,
-                        JoinRelType joinType, boolean allowRowTypeMismatch) {
-    super(cluster, traits, left, right, condition, CorrelationId.setOf(Collections.emptySet()), joinType);
+  protected JoinRelBase(
+      RelOptCluster cluster,
+      RelTraitSet traits,
+      RelNode left,
+      RelNode right,
+      RexNode condition,
+      JoinRelType joinType,
+      boolean allowRowTypeMismatch) {
+    super(
+        cluster,
+        traits,
+        left,
+        right,
+        condition,
+        CorrelationId.setOf(Collections.emptySet()),
+        joinType);
     leftKeys = Lists.newArrayList();
     rightKeys = Lists.newArrayList();
     filterNulls = Lists.newArrayList();
 
-    remaining = RelOptUtil.splitJoinCondition(left, right, condition, leftKeys, rightKeys, filterNulls);
+    remaining =
+        RelOptUtil.splitJoinCondition(left, right, condition, leftKeys, rightKeys, filterNulls);
     joinCategory = getJoinCategory(condition, leftKeys, rightKeys, filterNulls, remaining);
   }
 
@@ -92,28 +98,30 @@ public abstract class JoinRelBase extends Join {
     return traits.replaceIfs(RelCollationTraitDef.INSTANCE, ImmutableList::of);
   }
 
-  @Override public boolean isValid(Litmus litmus, Context context) {
+  @Override
+  public boolean isValid(Litmus litmus, Context context) {
     if (condition != null) {
       if (condition.getType().getSqlTypeName() != SqlTypeName.BOOLEAN) {
-        return litmus.fail("condition must be boolean: {}",
-          condition.getType());
+        return litmus.fail("condition must be boolean: {}", condition.getType());
       }
       // The input to the condition is a row type consisting of system
       // fields, left fields, and right fields. Very similar to the
       // output row type, except that fields have not yet been made due
       // due to outer joins.
       RexChecker checker =
-        new RexChecker(
-          getCluster().getTypeFactory().builder()
-            .addAll(getSystemFieldList())
-            .addAll(getLeft().getRowType().getFieldList())
-            .addAll(getRight().getRowType().getFieldList())
-            .build(),
-          context, litmus);
+          new RexChecker(
+              getCluster()
+                  .getTypeFactory()
+                  .builder()
+                  .addAll(getSystemFieldList())
+                  .addAll(getLeft().getRowType().getFieldList())
+                  .addAll(getRight().getRowType().getFieldList())
+                  .build(),
+              context,
+              litmus);
       condition.accept(checker);
       if (checker.getFailureCount() > 0) {
-        return litmus.fail(checker.getFailureCount()
-          + " failures in condition " + condition);
+        return litmus.fail(checker.getFailureCount() + " failures in condition " + condition);
       }
     }
     return litmus.succeed();
@@ -126,16 +134,17 @@ public abstract class JoinRelBase extends Join {
     if (normalized != this) {
       // If normalized, return sum of all converted/generated rels
       final Pointer<RelOptCost> cost = new Pointer<>(planner.getCostFactory().makeZeroCost());
-      normalized.accept(new RelShuttleImpl() {
-        @Override
-        public RelNode visit(RelNode other) {
-          cost.value = cost.value.plus(mq.getNonCumulativeCost(other));
-          if (!(other instanceof Join)) {
-            return super.visit(other);
-          }
-          return other;
-        }
-      });
+      normalized.accept(
+          new RelShuttleImpl() {
+            @Override
+            public RelNode visit(RelNode other) {
+              cost.value = cost.value.plus(mq.getNonCumulativeCost(other));
+              if (!(other instanceof Join)) {
+                return super.visit(other);
+              }
+              return other;
+            }
+          });
       return cost.value;
     }
 
@@ -147,33 +156,37 @@ public abstract class JoinRelBase extends Join {
       // Similar to FilterRelBase
       double inputRows;
       if (joinType == JoinRelType.INNER) {
-        // This only works for inner joins, where we separate the filter in physical planning and apply it after the join.
+        // This only works for inner joins, where we separate the filter in physical planning and
+        // apply it after the join.
         inputRows = Math.max(mq.getRowCount(getLeft()), mq.getRowCount(getRight()));
       } else {
-        // For other join types, we apply the filter inside the join, the input rows should be the cartesian product of both sides.
+        // For other join types, we apply the filter inside the join, the input rows should be the
+        // cartesian product of both sides.
         inputRows = mq.getRowCount(getLeft()) * mq.getRowCount(getRight());
       }
       double compNum = inputRows;
-      double rowCompNum = this.getRowType().getFieldCount() * inputRows ;
+      double rowCompNum = this.getRowType().getFieldCount() * inputRows;
 
       final List<RexNode> conjunctions = RelOptUtil.conjunctions(condition);
       final int conjunctionsSize = conjunctions.size();
-      for (int i = 0; i< conjunctionsSize; i++) {
-        RexNode conjFilter = RexUtil.composeConjunction(this.getCluster().getRexBuilder(), conjunctions.subList(0, i + 1), false);
+      for (int i = 0; i < conjunctionsSize; i++) {
+        RexNode conjFilter =
+            RexUtil.composeConjunction(
+                this.getCluster().getRexBuilder(), conjunctions.subList(0, i + 1), false);
         compNum += RelMdUtil.estimateFilteredRows(this, conjFilter, mq);
       }
 
       double cpuCost = compNum * DremioCost.COMPARE_CPU_COST + rowCompNum * DremioCost.COPY_COST;
-      Factory costFactory = (Factory)planner.getCostFactory();
+      Factory costFactory = (Factory) planner.getCostFactory();
       // Do not include input rows into the extra filter cost
       remainingFilterCost = costFactory.makeCost(0, cpuCost, 0, 0);
     }
     return remainingFilterCost.plus(doComputeSelfCost(planner, mq));
   }
 
-
   /**
    * Compute inner cost of the join, not taking into account remaining conditions
+   *
    * @param planner
    * @param relMetadataQuery
    * @return
@@ -210,15 +223,14 @@ public abstract class JoinRelBase extends Join {
           /*
            * Make cost infinite (not supported)
            */
-          return ((Factory)planner.getCostFactory()).makeInfiniteCost();
+          return ((Factory) planner.getCostFactory()).makeInfiniteCost();
         }
 
         // If cartesian joins are allowed for non scalar inputs
         // return cost
         return computeLogicalJoinCost(planner, relMetadataQuery);
-
       }
-      return ((Factory)planner.getCostFactory()).makeInfiniteCost();
+      return ((Factory) planner.getCostFactory()).makeInfiniteCost();
     }
 
     return computeLogicalJoinCost(planner, relMetadataQuery);
@@ -236,9 +248,7 @@ public abstract class JoinRelBase extends Join {
     return RelMdRowCount.estimateRowCount(this, mq);
   }
 
-  /**
-   * Returns whether there are any elements in common between left and right.
-   */
+  /** Returns whether there are any elements in common between left and right. */
   private static <T> boolean intersects(List<T> left, List<T> right) {
     return new HashSet<>(left).removeAll(right);
   }
@@ -267,7 +277,8 @@ public abstract class JoinRelBase extends Join {
     return joinCategory;
   }
 
-  protected  RelOptCost computeCartesianJoinCost(RelOptPlanner planner, RelMetadataQuery relMetadataQuery) {
+  protected RelOptCost computeCartesianJoinCost(
+      RelOptPlanner planner, RelMetadataQuery relMetadataQuery) {
     final double probeRowCount = relMetadataQuery.getRowCount(this.getLeft());
     final double buildRowCount = relMetadataQuery.getRowCount(this.getRight());
     double rowCount = probeRowCount * buildRowCount;
@@ -278,20 +289,19 @@ public abstract class JoinRelBase extends Join {
     final Factory costFactory = (Factory) planner.getCostFactory();
 
     final double mulFactor = 10000; // This is a magic number,
-                                    // just to make sure Cartesian Join is more expensive
-                                    // than Non-Cartesian Join.
+    // just to make sure Cartesian Join is more expensive
+    // than Non-Cartesian Join.
 
-    final int keySize = 1 ;  // assume having 1 join key, when estimate join cost.
-    final DremioCost cost = (DremioCost) computeHashJoinCostWithKeySize(planner, keySize, relMetadataQuery).multiplyBy(mulFactor);
+    final int keySize = 1; // assume having 1 join key, when estimate join cost.
+    final DremioCost cost =
+        (DremioCost)
+            computeHashJoinCostWithKeySize(planner, keySize, relMetadataQuery)
+                .multiplyBy(mulFactor);
 
-    // Cartesian join row count will be product of two inputs. The other factors come from the above estimated DremioCost.
+    // Cartesian join row count will be product of two inputs. The other factors come from the above
+    // estimated DremioCost.
     return costFactory.makeCost(
-        rowCount,
-        cost.getCpu(),
-        cost.getIo(),
-        cost.getNetwork(),
-        cost.getMemory() );
-
+        rowCount, cost.getCpu(), cost.getIo(), cost.getNetwork(), cost.getMemory());
   }
 
   @Override
@@ -299,36 +309,44 @@ public abstract class JoinRelBase extends Join {
     return super.explainTerms(pw);
   }
 
-  protected RelOptCost computeLogicalJoinCost(RelOptPlanner planner, RelMetadataQuery relMetadataQuery) {
+  protected RelOptCost computeLogicalJoinCost(
+      RelOptPlanner planner, RelMetadataQuery relMetadataQuery) {
     // During Logical Planning, although we don't care much about the actual physical join that will
     // be chosen, we do care about which table - bigger or smaller - is chosen as the right input
     // of the join since that is important at least for hash join and we don't currently have
-    // hybrid-hash-join that can swap the inputs dynamically.  The Calcite planner's default cost of a join
-    // is the same whether the bigger table is used as left input or right. In order to overcome that,
-    // we will use the Hash Join cost as the logical cost such that cardinality of left and right inputs
+    // hybrid-hash-join that can swap the inputs dynamically.  The Calcite planner's default cost of
+    // a join
+    // is the same whether the bigger table is used as left input or right. In order to overcome
+    // that,
+    // we will use the Hash Join cost as the logical cost such that cardinality of left and right
+    // inputs
     // is considered appropriately.
-    if(this.condition.isAlwaysTrue() && PrelUtil.getPlannerSettings(planner).isUseCartesianCostForLogicalNljEnabled()){
+    if (this.condition.isAlwaysTrue()
+        && PrelUtil.getPlannerSettings(planner).isUseCartesianCostForLogicalNljEnabled()) {
       return computeCartesianJoinCost(planner, relMetadataQuery);
     }
     return computeHashJoinCost(planner, relMetadataQuery);
   }
 
-  protected RelOptCost computeHashJoinCost(RelOptPlanner planner, RelMetadataQuery relMetadataQuery) {
-      return computeHashJoinCostWithKeySize(planner, this.getLeftKeys().size(), relMetadataQuery);
+  protected RelOptCost computeHashJoinCost(
+      RelOptPlanner planner, RelMetadataQuery relMetadataQuery) {
+    return computeHashJoinCostWithKeySize(planner, this.getLeftKeys().size(), relMetadataQuery);
   }
 
   /**
-   *
-   * @param planner  : Optimization Planner.
-   * @param keySize  : the # of join keys in join condition. Left key size should be equal to right key size.
-   * @return         : RelOptCost
+   * @param planner : Optimization Planner.
+   * @param keySize : the # of join keys in join condition. Left key size should be equal to right
+   *     key size.
+   * @return : RelOptCost
    */
-  private RelOptCost computeHashJoinCostWithKeySize(RelOptPlanner planner, int keySize, RelMetadataQuery relMetadataQuery) {
+  private RelOptCost computeHashJoinCostWithKeySize(
+      RelOptPlanner planner, int keySize, RelMetadataQuery relMetadataQuery) {
     /**
-     * DRILL-1023, DX-3859:  Need to make sure that join row count is calculated in a reasonable manner.  Calcite's default
-     * implementation is leftRowCount * rightRowCount * discountBySelectivity, which is too large (cartesian join).
-     * Since we do not support cartesian join, we should just take the maximum of the two join input row counts when
-     * computing cost of the join.
+     * DRILL-1023, DX-3859: Need to make sure that join row count is calculated in a reasonable
+     * manner. Calcite's default implementation is leftRowCount * rightRowCount *
+     * discountBySelectivity, which is too large (cartesian join). Since we do not support cartesian
+     * join, we should just take the maximum of the two join input row counts when computing cost of
+     * the join.
      */
     double probeRowCount = relMetadataQuery.getRowCount(this.getLeft());
     double buildRowCount = relMetadataQuery.getRowCount(this.getRight());
@@ -347,21 +365,25 @@ public abstract class JoinRelBase extends Join {
     // cpu cost of evaluating each leftkey=rightkey join condition
     double joinConditionCost = DremioCost.COMPARE_CPU_COST * keySize;
 
-    double factor = PrelUtil.getPlannerSettings(planner).getOptions()
-        .getOption(ExecConstants.HASH_JOIN_TABLE_FACTOR);
-    long fieldWidth = PrelUtil.getPlannerSettings(planner).getOptions()
-        .getOption(ExecConstants.AVERAGE_FIELD_WIDTH);
+    double factor =
+        PrelUtil.getPlannerSettings(planner)
+            .getOptions()
+            .getOption(ExecConstants.HASH_JOIN_TABLE_FACTOR);
+    long fieldWidth =
+        PrelUtil.getPlannerSettings(planner)
+            .getOptions()
+            .getOption(ExecConstants.AVERAGE_FIELD_WIDTH);
 
     // table + hashValues + links
     double memCost =
-        (
-            (fieldWidth * keySize) +
-                IntHolder.WIDTH +
-                IntHolder.WIDTH
-        ) * buildRowCount * factor;
+        ((fieldWidth * keySize) + IntHolder.WIDTH + IntHolder.WIDTH) * buildRowCount * factor;
 
-    double cpuCost = joinConditionCost * (probeRowCount) // probe size determine the join condition comparison cost
-        + cpuCostBuild + cpuCostProbe + cpuCostColCount;
+    double cpuCost =
+        joinConditionCost
+                * (probeRowCount) // probe size determine the join condition comparison cost
+            + cpuCostBuild
+            + cpuCostProbe
+            + cpuCostColCount;
 
     Factory costFactory = (Factory) planner.getCostFactory();
 
@@ -369,21 +391,24 @@ public abstract class JoinRelBase extends Join {
   }
 
   private boolean hasScalarSubqueryInput() {
-    if (JoinUtils.isScalarSubquery(this.getLeft())
-        || JoinUtils.isScalarSubquery(this.getRight())) {
+    if (JoinUtils.isScalarSubquery(this.getLeft()) || JoinUtils.isScalarSubquery(this.getRight())) {
       return true;
     }
 
     return false;
   }
 
-  private static JoinCategory getJoinCategory(RexNode condition,
-      List<Integer> leftKeys, List<Integer> rightKeys, List<Boolean> filterNulls, RexNode remaining) {
+  private static JoinCategory getJoinCategory(
+      RexNode condition,
+      List<Integer> leftKeys,
+      List<Integer> rightKeys,
+      List<Boolean> filterNulls,
+      RexNode remaining) {
     if (condition.isAlwaysTrue()) {
       return JoinCategory.CARTESIAN;
     }
 
-    if (!remaining.isAlwaysTrue() || (leftKeys.size() == 0 || rightKeys.size() == 0) ) {
+    if (!remaining.isAlwaysTrue() || (leftKeys.size() == 0 || rightKeys.size() == 0)) {
       // for practical purposes these cases could be treated as inequality
       return JoinCategory.INEQUALITY;
     }

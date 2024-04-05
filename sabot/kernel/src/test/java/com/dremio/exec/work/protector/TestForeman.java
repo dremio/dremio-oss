@@ -18,29 +18,28 @@ package com.dremio.exec.work.protector;
 
 import static org.junit.Assert.assertEquals;
 
-import org.junit.Test;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.proto.model.attempts.AttemptReason;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
+import org.junit.Test;
 
-/**
- * Test class for unit testing helper functions in {@link Foreman}
- */
+/** Test class for unit testing helper functions in {@link Foreman} */
 public class TestForeman {
 
   @Test
   public void testDatasetValidityChecker() {
-    UserException invalidMetadataException = UserException.invalidMetadataError()
-                                                          .message("Invalid metadata exception without rawAdditionalContext.")
-                                                          .buildSilently();
-    Predicate<DatasetConfig> datasetValidityChecker = Foreman.getDatasetValidityChecker(invalidMetadataException,
-                                                                                        AttemptReason.INVALID_DATASET_METADATA);
-    assertEquals("Since rawAdditionalContext is null in invalidMetadataError, returned predicate should be true",
-                 Predicates.alwaysTrue(),
-                 datasetValidityChecker);
+    UserException invalidMetadataException =
+        UserException.invalidMetadataError()
+            .message("Invalid metadata exception without rawAdditionalContext.")
+            .buildSilently();
+    Predicate<DatasetConfig> datasetValidityChecker =
+        Foreman.getDatasetValidityChecker(
+            invalidMetadataException, AttemptReason.INVALID_DATASET_METADATA);
+    assertEquals(
+        "Since rawAdditionalContext is null in invalidMetadataError, returned predicate should be true",
+        Predicates.alwaysTrue(),
+        datasetValidityChecker);
   }
-
 }

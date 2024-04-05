@@ -24,7 +24,8 @@ import org.apache.calcite.rel.core.Sort;
 import org.apache.calcite.rel.logical.LogicalSort;
 
 /**
- * Rule that converts an {@link Sort} to a {@link SortRel}, implemented by a Dremio "order" operation.
+ * Rule that converts an {@link Sort} to a {@link SortRel}, implemented by a Dremio "order"
+ * operation.
  */
 public class SortRule extends RelOptRule {
   public static final RelOptRule INSTANCE = new SortRule();
@@ -48,6 +49,7 @@ public class SortRule extends RelOptRule {
     final RelTraitSet traits = sort.getTraitSet().plus(Rel.LOGICAL);
 
     final RelNode convertedInput = convert(input, input.getTraitSet().plus(Rel.LOGICAL).simplify());
-    call.transformTo(SortRel.create(sort.getCluster(), traits, convertedInput, sort.getCollation()));
+    call.transformTo(
+        SortRel.create(sort.getCluster(), traits, convertedInput, sort.getCollation()));
   }
 }

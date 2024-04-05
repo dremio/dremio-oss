@@ -20,7 +20,7 @@ public class UserDeletionEvent implements UserServiceEvent {
   private static final UserServiceEventTopic eventTopic = new UserServiceEventTopic(TOPIC_NAME);
   private final String userId;
 
-  public static  UserServiceEventTopic getEventTopic() {
+  public static UserServiceEventTopic getEventTopic() {
     return eventTopic;
   }
 

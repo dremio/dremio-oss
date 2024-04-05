@@ -15,16 +15,6 @@
  */
 package com.dremio.exec.planner.physical.visitor;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.core.JoinInfo;
-import org.apache.calcite.rel.core.JoinRelType;
-import org.apache.calcite.rex.RexInputRef;
-import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.util.Pair;
-
 import com.dremio.exec.planner.physical.AggregatePrel;
 import com.dremio.exec.planner.physical.BridgeExchangePrel;
 import com.dremio.exec.planner.physical.BroadcastExchangePrel;
@@ -44,15 +34,23 @@ import com.dremio.exec.planner.physical.filter.RuntimeFilteredRel;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.service.namespace.dataset.proto.ReadDefinition;
 import com.google.common.collect.ImmutableList;
+import java.util.ArrayList;
+import java.util.List;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.core.JoinInfo;
+import org.apache.calcite.rel.core.JoinRelType;
+import org.apache.calcite.rex.RexInputRef;
+import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.util.Pair;
 
 /**
- * This visitor does two major things:
- * 1) check with HashJoinPrel should use runtime filter
- * 2) build plan time RuntimeFilterInfo for HashJoinPrel
+ * This visitor does two major things: 1) check with HashJoinPrel should use runtime filter 2) build
+ * plan time RuntimeFilterInfo for HashJoinPrel
  */
 public class RuntimeFilterDecorator {
 
-  public static Prel addRuntimeFilterToHashJoin(Prel prel, boolean nonParitionRuntimeFiltersEnabled) {
+  public static Prel addRuntimeFilterToHashJoin(
+      Prel prel, boolean nonParitionRuntimeFiltersEnabled) {
     JoinVisitor instance = new JoinVisitor(nonParitionRuntimeFiltersEnabled);
     return prel.accept(instance, null);
   }
@@ -108,7 +106,7 @@ public class RuntimeFilterDecorator {
       final List<Integer> probeKeys;
       final List<Integer> buildKeys;
 
-      //identify probe sie and build side prel tree
+      // identify probe sie and build side prel tree
       if (hashJoinPrel.isSwapped()) {
         probeSideRel = hashJoinPrel.getRight();
         buildSideRel = hashJoinPrel.getLeft();
@@ -126,36 +124,38 @@ public class RuntimeFilterDecorator {
       // find exchange node from build side
       ExchangePrel buildExchangePrel = findExchangePrel(buildSideRel);
       ExchangePrel probeExchangePrel = findExchangePrel(probeSideRel);
-      if(buildExchangePrel == null && probeExchangePrel == null) {
-        //does not support single fragment mode, that is the right build side can
-        //only be BroadcastExchangePrel or HashToRandomExchangePrel
+      if (buildExchangePrel == null && probeExchangePrel == null) {
+        // does not support single fragment mode, that is the right build side can
+        // only be BroadcastExchangePrel or HashToRandomExchangePrel
         return;
       } else if (!(probeSideRel instanceof Prel)) {
-        //This also avoids the left field of the join condition with a function call.
+        // This also avoids the left field of the join condition with a function call.
         return;
       }
       List<String> rightFields = buildSideRel.getRowType().getFieldNames();
 
-      RuntimeFilterId id = RuntimeFilterId.createRuntimeFilterId(buildSideRel,
-          buildExchangePrel instanceof BroadcastExchangePrel);
+      RuntimeFilterId id =
+          RuntimeFilterId.createRuntimeFilterId(
+              buildSideRel, buildExchangePrel instanceof BroadcastExchangePrel);
       boolean found = false;
 
-      for (Pair<Integer,Integer> keyPair : Pair.zip(probeKeys, buildKeys)) {
+      for (Pair<Integer, Integer> keyPair : Pair.zip(probeKeys, buildKeys)) {
         Integer probeKey = keyPair.left;
         Integer buildKey = keyPair.right;
         String buildFieldName = rightFields.get(buildKey);
         List<ColumnOriginScan> probeSideColumnOriginList =
-          ((Prel) probeSideRel).accept(new FindScanVisitor(), probeKey);
+            ((Prel) probeSideRel).accept(new FindScanVisitor(), probeKey);
         for (ColumnOriginScan probeSideColumnOrigin : probeSideColumnOriginList) {
           RuntimeFilteredRel scanPrel = probeSideColumnOrigin.filteredRel;
           String probeFieldName = probeSideColumnOrigin.fieldName;
-          RuntimeFilteredRel.ColumnType columnType = isPartitionColumn(scanPrel, probeFieldName)
-            ? RuntimeFilteredRel.ColumnType.PARTITION
-            : RuntimeFilteredRel.ColumnType.RANDOM;
+          RuntimeFilteredRel.ColumnType columnType =
+              isPartitionColumn(scanPrel, probeFieldName)
+                  ? RuntimeFilteredRel.ColumnType.PARTITION
+                  : RuntimeFilteredRel.ColumnType.RANDOM;
           if (columnType == RuntimeFilteredRel.ColumnType.PARTITION
-            || (nonParitionRuntimeFiltersEnabled && shouldAddNonPartitionRF)) {
+              || (nonParitionRuntimeFiltersEnabled && shouldAddNonPartitionRF)) {
             scanPrel.addRuntimeFilter(
-              new RuntimeFilteredRel.Info(id, columnType, probeFieldName, buildFieldName));
+                new RuntimeFilteredRel.Info(id, columnType, probeFieldName, buildFieldName));
             found = true;
           }
         }
@@ -164,7 +164,6 @@ public class RuntimeFilterDecorator {
         hashJoinPrel.setRuntimeFilterId(id);
       }
     }
-
   }
 
   private static boolean hasFilter(RelNode rel) {
@@ -194,7 +193,8 @@ public class RuntimeFilterDecorator {
     }
   }
 
-  private static class FindScanVisitor extends BasePrelVisitor<List<ColumnOriginScan>,Integer,RuntimeException> {
+  private static class FindScanVisitor
+      extends BasePrelVisitor<List<ColumnOriginScan>, Integer, RuntimeException> {
 
     @Override
     public List<ColumnOriginScan> visitPrel(Prel prel, Integer idx) {
@@ -232,7 +232,7 @@ public class RuntimeFilterDecorator {
     public List<ColumnOriginScan> visitProject(ProjectPrel prel, Integer idx) {
       RexNode rex = prel.getProjects().get(idx);
       if (rex instanceof RexInputRef) {
-        return visitRel(prel.getInput(), ((RexInputRef)rex).getIndex());
+        return visitRel(prel.getInput(), ((RexInputRef) rex).getIndex());
       } else {
         return ImmutableList.of();
       }
@@ -250,8 +250,8 @@ public class RuntimeFilterDecorator {
     public List<ColumnOriginScan> visitLeaf(LeafPrel prel, Integer idx) {
       if (prel instanceof RuntimeFilteredRel) {
         return ImmutableList.of(
-          new ColumnOriginScan((RuntimeFilteredRel) prel,
-              prel.getRowType().getFieldNames().get(idx)));
+            new ColumnOriginScan(
+                (RuntimeFilteredRel) prel, prel.getRowType().getFieldNames().get(idx)));
       } else {
         return ImmutableList.of();
       }
@@ -276,8 +276,8 @@ public class RuntimeFilterDecorator {
     public List<ColumnOriginScan> visitTableFunction(TableFunctionPrel prel, Integer idx) {
       if (prel.isDataScan()) {
         // End here. Operators below this point are possibly dealing with manifests.
-        return ImmutableList.of(new ColumnOriginScan(prel,
-          prel.getRowType().getFieldNames().get(idx)));
+        return ImmutableList.of(
+            new ColumnOriginScan(prel, prel.getRowType().getFieldNames().get(idx)));
       } else {
         return ImmutableList.of();
       }
@@ -297,7 +297,7 @@ public class RuntimeFilterDecorator {
       return (ExchangePrel) relNode;
     } else if (relNode instanceof ScanPrelBase) {
       return null;
-    } else if(1 == relNode.getInputs().size()) {
+    } else if (1 == relNode.getInputs().size()) {
       return findExchangePrel(relNode.getInput(0));
     } else {
       return null;
@@ -311,8 +311,7 @@ public class RuntimeFilterDecorator {
       return false;
     } else {
       return !readDefinition.getPartitionColumnsList().isEmpty()
-        && readDefinition.getPartitionColumnsList().contains(fieldName);
+          && readDefinition.getPartitionColumnsList().contains(fieldName);
     }
   }
-
 }

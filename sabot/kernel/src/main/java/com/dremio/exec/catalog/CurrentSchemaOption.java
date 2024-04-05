@@ -15,31 +15,35 @@
  */
 package com.dremio.exec.catalog;
 
-import java.util.List;
-import java.util.stream.Stream;
-
-import org.apache.arrow.vector.types.pojo.Field;
-
 import com.dremio.connector.metadata.GetDatasetOption;
 import com.dremio.connector.metadata.GetMetadataOption;
 import com.dremio.connector.metadata.ListPartitionChunkOption;
 import com.dremio.connector.metadata.MetadataOption;
 import com.dremio.exec.record.BatchSchema;
+import java.util.List;
+import java.util.stream.Stream;
+import org.apache.arrow.vector.types.pojo.Field;
 
-public class CurrentSchemaOption implements GetMetadataOption, GetDatasetOption, ListPartitionChunkOption {
+public class CurrentSchemaOption
+    implements GetMetadataOption, GetDatasetOption, ListPartitionChunkOption {
 
   private final BatchSchema batchSchema;
   private final List<Field> droppedColumns;
   private final List<Field> updatedColumns;
   private boolean isSchemaLearningEnabled = true;
 
-  public CurrentSchemaOption(BatchSchema batchSchema, BatchSchema updatedColumns, BatchSchema droppedColumns) {
+  public CurrentSchemaOption(
+      BatchSchema batchSchema, BatchSchema updatedColumns, BatchSchema droppedColumns) {
     this.batchSchema = batchSchema;
     this.droppedColumns = droppedColumns.getFields();
     this.updatedColumns = updatedColumns.getFields();
   }
 
-  public CurrentSchemaOption(BatchSchema batchSchema, BatchSchema updatedColumns, BatchSchema droppedColumns, boolean isSchemaLearningEnabled) {
+  public CurrentSchemaOption(
+      BatchSchema batchSchema,
+      BatchSchema updatedColumns,
+      BatchSchema droppedColumns,
+      boolean isSchemaLearningEnabled) {
     this.batchSchema = batchSchema;
     this.droppedColumns = droppedColumns.getFields();
     this.updatedColumns = updatedColumns.getFields();
@@ -62,20 +66,35 @@ public class CurrentSchemaOption implements GetMetadataOption, GetDatasetOption,
     return isSchemaLearningEnabled;
   }
 
-
   public static List<Field> getDroppedColumns(MetadataOption... options) {
-    return Stream.of(options).filter(o -> o instanceof CurrentSchemaOption).findFirst().map(o -> ((CurrentSchemaOption) o).getDroppedColumns()).orElse(null);
+    return Stream.of(options)
+        .filter(o -> o instanceof CurrentSchemaOption)
+        .findFirst()
+        .map(o -> ((CurrentSchemaOption) o).getDroppedColumns())
+        .orElse(null);
   }
 
   public static BatchSchema getSchema(MetadataOption... options) {
-    return Stream.of(options).filter(o -> o instanceof CurrentSchemaOption).findFirst().map(o -> ((CurrentSchemaOption) o).getBatchSchema()).orElse(null);
+    return Stream.of(options)
+        .filter(o -> o instanceof CurrentSchemaOption)
+        .findFirst()
+        .map(o -> ((CurrentSchemaOption) o).getBatchSchema())
+        .orElse(null);
   }
 
   public static List<Field> getUpdatedColumns(MetadataOption... options) {
-    return Stream.of(options).filter(o -> o instanceof CurrentSchemaOption).findFirst().map(o -> ((CurrentSchemaOption) o).getUpdatedColumns()).orElse(null);
+    return Stream.of(options)
+        .filter(o -> o instanceof CurrentSchemaOption)
+        .findFirst()
+        .map(o -> ((CurrentSchemaOption) o).getUpdatedColumns())
+        .orElse(null);
   }
 
   public static Boolean isSchemaLearningEnabled(MetadataOption... options) {
-    return Stream.of(options).filter(o -> o instanceof CurrentSchemaOption).findFirst().map(o -> ((CurrentSchemaOption) o).isSchemaLearningEnabled()).orElse(true);
+    return Stream.of(options)
+        .filter(o -> o instanceof CurrentSchemaOption)
+        .findFirst()
+        .map(o -> ((CurrentSchemaOption) o).isSchemaLearningEnabled())
+        .orElse(true);
   }
 }

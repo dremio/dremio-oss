@@ -23,10 +23,8 @@ import java.util.function.Supplier;
  * @param <T> type of data generate.
  */
 public interface UniqueSupplier<T> extends Supplier<T> {
-  /**
-   * Resets the unique value supplier.
-   */
+  /** Resets the unique value supplier. */
   default void reset() {
-    //No-op
+    // No-op
   }
 }

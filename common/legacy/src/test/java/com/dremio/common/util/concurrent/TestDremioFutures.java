@@ -21,27 +21,21 @@ import static org.junit.Assert.assertSame;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.junit.Test;
-
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.SettableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.junit.Test;
 
-/**
- * Test Dremio Futures
- */
+/** Test Dremio Futures */
 public class TestDremioFutures {
 
-  /**
-   * Test basic value retrieval.
-   */
+  /** Test basic value retrieval. */
   @Test
   public void testBasic() {
     SettableFuture<Integer> future = SettableFuture.create();
@@ -49,36 +43,38 @@ public class TestDremioFutures {
     future.set(expectedValue);
 
     try {
-      Integer result = DremioFutures.getChecked(future, TestException.class, TestDremioFutures::testMapper);
+      Integer result =
+          DremioFutures.getChecked(future, TestException.class, TestDremioFutures::testMapper);
       assertEquals(result, expectedValue);
     } catch (TestException ignored) {
       throw new AssertionError();
     }
   }
 
-  /**
-   * Test timeout Exception is properly thrown by forcing timeout with a Callback.
-   */
+  /** Test timeout Exception is properly thrown by forcing timeout with a Callback. */
   @Test
   public void testTimeout() {
     SettableFuture future = SettableFuture.create();
-    Futures.addCallback(future, new FutureCallback<Integer>() {
-      @Override
-      public void onSuccess(@Nullable Integer result) {
-        try {
-          Thread.sleep(10000);
-        } catch (InterruptedException ignored) {
-        }
-        future.set(result);
-      }
+    Futures.addCallback(
+        future,
+        new FutureCallback<Integer>() {
+          @Override
+          public void onSuccess(@Nullable Integer result) {
+            try {
+              Thread.sleep(10000);
+            } catch (InterruptedException ignored) {
+            }
+            future.set(result);
+          }
 
-      @Override
-      public void onFailure(Throwable t) {
-      }
-    }, MoreExecutors.directExecutor());
+          @Override
+          public void onFailure(Throwable t) {}
+        },
+        MoreExecutors.directExecutor());
 
     try {
-      DremioFutures.getChecked(future, TestException.class, 1, TimeUnit.MILLISECONDS, TestDremioFutures::testMapper);
+      DremioFutures.getChecked(
+          future, TestException.class, 1, TimeUnit.MILLISECONDS, TestDremioFutures::testMapper);
       throw new AssertionError();
     } catch (TimeoutException e) {
       // Success
@@ -87,9 +83,7 @@ public class TestDremioFutures {
     }
   }
 
-  /**
-   * Tests exception mapping of ExecutionException to TestException.
-   */
+  /** Tests exception mapping of ExecutionException to TestException. */
   @Test
   public void testMappingCause() {
     Future future = mock(Future.class);
@@ -113,7 +107,7 @@ public class TestDremioFutures {
     return new TestException("Test Exception", t);
   }
 
-  private static class TestException extends Exception{
+  private static class TestException extends Exception {
 
     @SuppressWarnings("unused")
     public TestException(String message, Throwable cause) {

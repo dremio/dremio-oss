@@ -15,9 +15,6 @@
  */
 package com.dremio.exec.work.protector;
 
-import java.util.List;
-import java.util.Map;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.utils.protos.QueryWritableBatch;
@@ -27,19 +24,22 @@ import com.dremio.exec.proto.UserBitShared.SerializedField;
 import com.dremio.options.OptionManager;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.NettyArrowBuf;
+import java.util.List;
+import java.util.Map;
 
 /**
  * ReAttempt logic for external queries.<br>
- * If we didn't send anything to the client or if we just returned the schema without any data we can still finish the
- * query as long as all fields of the old schema are part of the new schema with the same exact types.
+ * If we didn't send anything to the client or if we just returned the schema without any data we
+ * can still finish the query as long as all fields of the old schema are part of the new schema
+ * with the same exact types.
  */
-class ExternalAttemptHandler  extends BaseAttemptHandler {
+class ExternalAttemptHandler extends BaseAttemptHandler {
 
   /** schema sent to the client */
   private Map<String, MajorType> schemaFields;
+
   private boolean patchResults; // true if data batches should be converted
   private volatile boolean firstBatch;
 
@@ -57,7 +57,8 @@ class ExternalAttemptHandler  extends BaseAttemptHandler {
   public QueryWritableBatch convertIfNecessary(QueryWritableBatch result) {
 
     if (firstBatch) {
-      // in the same attempt, we always expect the same schema to be sent to the client. So we only need to this once
+      // in the same attempt, we always expect the same schema to be sent to the client. So we only
+      // need to this once
       firstBatch = false;
       patchResults = false;
 
@@ -69,7 +70,9 @@ class ExternalAttemptHandler  extends BaseAttemptHandler {
         schemaFields = fieldsMap;
       } else {
         if (!isSchemaConvertible(schemaFields, fieldsMap)) {
-          throw UserException.schemaChangeError().message("Unsupported schema change").build(logger);
+          throw UserException.schemaChangeError()
+              .message("Unsupported schema change")
+              .build(logger);
         } else if (fieldsMap.size() > schemaFields.size()) {
           // we need to discard the "extra" fields from the results sent to the client
           patchResults = true;
@@ -85,14 +88,15 @@ class ExternalAttemptHandler  extends BaseAttemptHandler {
   }
 
   /**
-   * we already sent a schema to the user, this method checks if the new schema can be converted to match the one already
-   * sent
+   * we already sent a schema to the user, this method checks if the new schema can be converted to
+   * match the one already sent
+   *
    * @param oldSchema schema sent to the user
    * @param newSchema new schema
    * @return true if we can convert the schema, false otherwise
    */
-  private static boolean isSchemaConvertible(final Map<String, MajorType> oldSchema,
-                                             final Map<String, MajorType> newSchema) {
+  private static boolean isSchemaConvertible(
+      final Map<String, MajorType> oldSchema, final Map<String, MajorType> newSchema) {
 
     int numMatchedFields = 0;
 
@@ -115,22 +119,27 @@ class ExternalAttemptHandler  extends BaseAttemptHandler {
   }
 
   /**
-   * Converts a {@link QueryWritableBatch} to a specific schema by removing any field, and its corresponding buffers,
-   * that are not in the passed schema
+   * Converts a {@link QueryWritableBatch} to a specific schema by removing any field, and its
+   * corresponding buffers, that are not in the passed schema
+   *
    * @param result batch we want to convert
    * @param schemaFields target schema we are converting to
    * @return converted batch
    */
-  private static QueryWritableBatch patchWritableBatch(QueryWritableBatch result, Map<String, MajorType> schemaFields) {
+  private static QueryWritableBatch patchWritableBatch(
+      QueryWritableBatch result, Map<String, MajorType> schemaFields) {
     RecordBatchDef batchDef = result.getHeader().getDef();
     final List<SerializedField> fields = batchDef.getFieldList();
     final ByteBuf[] oldBuffers = result.getBuffers();
 
     RecordBatchDef.Builder patchedDef = RecordBatchDef.newBuilder(batchDef);
-    patchedDef.clearField(); // remove all fields, we'll add the ones that are part of the old schema
+    patchedDef
+        .clearField(); // remove all fields, we'll add the ones that are part of the old schema
 
-    // we instantiate a List<ArrowBuf> instead of List<ByteBuf> as we'll be getting an array out of it
-    // and other parts of the code (e.g. CloseableBuffers) will fail otherwise when casting the array
+    // we instantiate a List<ArrowBuf> instead of List<ByteBuf> as we'll be getting an array out of
+    // it
+    // and other parts of the code (e.g. CloseableBuffers) will fail otherwise when casting the
+    // array
     // to AutoCloseable[]
     List<NettyArrowBuf> patchedBuffers = Lists.newArrayList();
 
@@ -160,33 +169,41 @@ class ExternalAttemptHandler  extends BaseAttemptHandler {
     }
 
     if (bufferIndex != oldBuffers.length) {
-      throw new IllegalStateException("Fields should have consumed all the buffers. Instead " +
-        (oldBuffers.length - bufferIndex) + " buffers are left");
+      throw new IllegalStateException(
+          "Fields should have consumed all the buffers. Instead "
+              + (oldBuffers.length - bufferIndex)
+              + " buffers are left");
     }
 
-    return new QueryWritableBatch(QueryData.newBuilder(result.getHeader()).setDef(patchedDef).build(),
-            patchedBuffers.toArray(new NettyArrowBuf[0]));
+    return new QueryWritableBatch(
+        QueryData.newBuilder(result.getHeader()).setDef(patchedDef).build(),
+        patchedBuffers.toArray(new NettyArrowBuf[0]));
   }
 
   /**
    * computes the number of buffers for a given serialized field
+   *
    * @param field serialized field
    * @param buffers total buffers in the batch
    * @param buffersStart starting buffer for the passed field
-   *
    * @return number of buffers for the field
    */
-  private static int fieldBuffersCount(SerializedField field, ByteBuf[] buffers, final int buffersStart) {
+  private static int fieldBuffersCount(
+      SerializedField field, ByteBuf[] buffers, final int buffersStart) {
     int totalBufferWidth = 0;
     int lastIndex = buffersStart;
-    while (totalBufferWidth < field.getBufferLength() && lastIndex < buffersStart + buffers.length) {
+    while (totalBufferWidth < field.getBufferLength()
+        && lastIndex < buffersStart + buffers.length) {
       ByteBuf buf = buffers[lastIndex];
       totalBufferWidth += buf.readableBytes();
       ++lastIndex;
     }
     if (totalBufferWidth != field.getBufferLength()) {
-      throw new IllegalStateException("not enough buffers for field " + field.getNamePart().getName() +
-        " of type " + field.getMajorType());
+      throw new IllegalStateException(
+          "not enough buffers for field "
+              + field.getNamePart().getName()
+              + " of type "
+              + field.getMajorType());
     }
     return lastIndex - buffersStart;
   }

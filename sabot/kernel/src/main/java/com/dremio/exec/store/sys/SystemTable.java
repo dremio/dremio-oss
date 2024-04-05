@@ -15,11 +15,6 @@
  */
 package com.dremio.exec.store.sys;
 
-import java.util.Iterator;
-import java.util.stream.StreamSupport;
-
-import org.apache.calcite.rel.type.RelDataType;
-
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.DatasetMetadata;
 import com.dremio.connector.metadata.DatasetSplit;
@@ -55,17 +50,17 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.task.TaskPool;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
+import java.util.Iterator;
+import java.util.stream.StreamSupport;
+import org.apache.calcite.rel.type.RelDataType;
 
 /**
  * An enumeration of all tables in Dremio's system ("sys") schema.
- * <p>
- *   OPTION, NODES and VERSION are local tables available on every SabotNode.
- *   MEMORY and THREADS are distributed tables with one record on every
- *   SabotNode.
- * </p>
+ *
+ * <p>OPTION, NODES and VERSION are local tables available on every SabotNode. MEMORY and THREADS
+ * are distributed tables with one record on every SabotNode.
  */
 public enum SystemTable implements DatasetHandle, DatasetMetadata, PartitionChunkListing {
-
   OPTION(false, OptionValueWrapper.class, "options") {
     @Override
     public Iterator<?> getIterator(final SabotContext sContext, final OperatorContext context) {
@@ -142,13 +137,13 @@ public enum SystemTable implements DatasetHandle, DatasetMetadata, PartitionChun
     @Override
     public Iterator<?> getIterator(SabotContext sContext, OperatorContext context) {
       final CoordinationProtos.NodeEndpoint endpoint = sContext.getEndpoint();
-      final Iterable<TaskPool.ThreadInfo> threadInfos = sContext.getWorkStatsProvider().get().getSlicingThreads();
+      final Iterable<TaskPool.ThreadInfo> threadInfos =
+          sContext.getWorkStatsProvider().get().getSlicingThreads();
       return StreamSupport.stream(threadInfos.spliterator(), false)
-        .map((info) -> new SlicingThreadInfo(
-          endpoint.getAddress(),
-          endpoint.getFabricPort(),
-          info
-        )).iterator();
+          .map(
+              (info) ->
+                  new SlicingThreadInfo(endpoint.getAddress(), endpoint.getFabricPort(), info))
+          .iterator();
     }
   },
 
@@ -173,7 +168,8 @@ public enum SystemTable implements DatasetHandle, DatasetMetadata, PartitionChun
     }
   },
 
-  CACHE_MANAGER_STORAGE_PLUGINS(true, CacheManagerStoragePluginInfo.class, "cache", "storage_plugins") {
+  CACHE_MANAGER_STORAGE_PLUGINS(
+      true, CacheManagerStoragePluginInfo.class, "cache", "storage_plugins") {
     @Override
     public Iterator<?> getIterator(final SabotContext sContext, final OperatorContext context) {
       return new CacheManagerStoragePluginIterator(sContext, context);
@@ -196,23 +192,27 @@ public enum SystemTable implements DatasetHandle, DatasetMetadata, PartitionChun
 
   TIMEZONE_ABBREVIATIONS(false, TimezoneAbbreviations.TimezoneAbbr.class, "timezone_abbrevs") {
     @Override
-    public Iterator<?> getIterator(final SabotContext sabotContext, final OperatorContext operatorContext) {
+    public Iterator<?> getIterator(
+        final SabotContext sabotContext, final OperatorContext operatorContext) {
       return TimezoneAbbreviations.getIterator();
     }
   },
 
   TIMEZONE_NAMES(false, TimezoneNames.TimezoneRegion.class, "timezone_names") {
     @Override
-    public Iterator<?> getIterator(final SabotContext sabotContext, final OperatorContext operatorContext) {
+    public Iterator<?> getIterator(
+        final SabotContext sabotContext, final OperatorContext operatorContext) {
       return TimezoneNames.getIterator();
     }
   },
 
   ROLES(false, SysTableRoleInfo.class, "roles") {
     @Override
-    public Iterator<?> getIterator(final SabotContext sabotContext, final OperatorContext operatorContext) {
+    public Iterator<?> getIterator(
+        final SabotContext sabotContext, final OperatorContext operatorContext) {
       try {
-        final AccessControlListingManager accessControlListingManager = sabotContext.getAccessControlListingManager();
+        final AccessControlListingManager accessControlListingManager =
+            sabotContext.getAccessControlListingManager();
         if (accessControlListingManager == null) {
           throw new IllegalAccessException("Unable to retrieve sys.roles.");
         }
@@ -226,9 +226,11 @@ public enum SystemTable implements DatasetHandle, DatasetMetadata, PartitionChun
 
   PRIVILEGES(false, SysTablePrivilegeInfo.class, "privileges") {
     @Override
-    public Iterator<?> getIterator (final SabotContext sabotContext, final OperatorContext operatorContext){
+    public Iterator<?> getIterator(
+        final SabotContext sabotContext, final OperatorContext operatorContext) {
       try {
-        final AccessControlListingManager accessControlListingManager = sabotContext.getAccessControlListingManager();
+        final AccessControlListingManager accessControlListingManager =
+            sabotContext.getAccessControlListingManager();
         if (accessControlListingManager == null) {
           throw new IllegalAccessException("Unable to retrieve sys.privileges.");
         }
@@ -242,9 +244,11 @@ public enum SystemTable implements DatasetHandle, DatasetMetadata, PartitionChun
 
   MEMBERSHIP(false, SysTableMembershipInfo.class, "membership") {
     @Override
-    public Iterator<?> getIterator(final SabotContext sabotContext, final OperatorContext operatorContext) {
+    public Iterator<?> getIterator(
+        final SabotContext sabotContext, final OperatorContext operatorContext) {
       try {
-        final AccessControlListingManager accessControlListingManager = sabotContext.getAccessControlListingManager();
+        final AccessControlListingManager accessControlListingManager =
+            sabotContext.getAccessControlListingManager();
         if (accessControlListingManager == null) {
           throw new IllegalAccessException("Unable to retrieve sys.membership.");
         }
@@ -263,13 +267,13 @@ public enum SystemTable implements DatasetHandle, DatasetMetadata, PartitionChun
     }
   },
 
-  USER_DEFINED_FUNCTIONS(false, UserDefinedFunctionService.FunctionInfo.class, "user_defined_functions") {
+  USER_DEFINED_FUNCTIONS(
+      false, UserDefinedFunctionService.FunctionInfo.class, "user_defined_functions") {
     @Override
     public Iterator<?> getIterator(final SabotContext sContext, final OperatorContext context) {
       return sContext.getUserDefinedFunctionListManagerProvider().get().functionInfos().iterator();
     }
-  }
-  ;
+  };
 
   private static final long RECORD_COUNT = 100L;
   private static final long SIZE_IN_BYTES = 1000L;
@@ -283,18 +287,21 @@ public enum SystemTable implements DatasetHandle, DatasetMetadata, PartitionChun
   private final boolean distributed;
   private final Class<?> pojoClass;
 
-  SystemTable(final boolean distributed, final Class<?> pojoClass, final String component, final String... components) {
+  SystemTable(
+      final boolean distributed,
+      final Class<?> pojoClass,
+      final String component,
+      final String... components) {
     this.distributed = distributed;
     this.pojoClass = pojoClass;
 
-    this.entityPath = new EntityPath(ImmutableList.<String>builder()
-        .add("sys")
-        .add(component)
-        .add(components)
-        .build());
+    this.entityPath =
+        new EntityPath(
+            ImmutableList.<String>builder().add("sys").add(component).add(components).build());
   }
 
-  public abstract Iterator<?> getIterator(final SabotContext sContext, final OperatorContext context);
+  public abstract Iterator<?> getIterator(
+      final SabotContext sContext, final OperatorContext context);
 
   public boolean isDistributed() {
     return distributed;

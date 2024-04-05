@@ -15,20 +15,20 @@
  */
 package com.dremio.common.expression;
 
-import java.util.Iterator;
-
 import com.dremio.common.expression.visitors.ExprVisitor;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.Iterators;
+import java.util.Iterator;
 
 /**
- * A form reference that also declares both the specific field to retrieve and which input ordinal this expression is
- * associated with, allowing a single expression tree that references multiple inputs.
+ * A form reference that also declares both the specific field to retrieve and which input ordinal
+ * this expression is associated with, allowing a single expression tree that references multiple
+ * inputs.
  *
- * RexInputRef does this implicitly by the rules of how operators combine fields and using indices. Here we try to make
- * things a little bit more explicit.
+ * <p>RexInputRef does this implicitly by the rules of how operators combine fields and using
+ * indices. Here we try to make things a little bit more explicit.
  */
 @JsonTypeName("input")
 public class InputReference extends LogicalExpressionBase {
@@ -42,7 +42,9 @@ public class InputReference extends LogicalExpressionBase {
   }
 
   @JsonCreator
-  public InputReference(@JsonProperty("inputOrdinal") int inputOrdinal, @JsonProperty("reference") FieldReference reference) {
+  public InputReference(
+      @JsonProperty("inputOrdinal") int inputOrdinal,
+      @JsonProperty("reference") FieldReference reference) {
     this.inputOrdinal = inputOrdinal;
     this.reference = reference;
   }
@@ -69,5 +71,4 @@ public class InputReference extends LogicalExpressionBase {
   public int getSizeOfChildren() {
     return 1;
   }
-
 }

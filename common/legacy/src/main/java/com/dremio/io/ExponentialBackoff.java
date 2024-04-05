@@ -15,28 +15,26 @@
  */
 package com.dremio.io;
 
-/**
- * This interface implements exponential backoff
- */
+/** This interface implements exponential backoff */
 public interface ExponentialBackoff {
   /**
-   * Perform a sleep based on the attempt number, where the sleep period increases exponentially and adds jitter.
+   * Perform a sleep based on the attempt number, where the sleep period increases exponentially and
+   * adds jitter.
    *
    * @param attemptNumber The retry attempt number, which directly affects the sleep period.
    */
-
-  static double getBackoffWaitTime(int attemptNumber, int baseMillis, int maxMillis)
-  {
-    if (attemptNumber >= ((Math.log(Long.MAX_VALUE/(long)baseMillis))/(Math.log(2)))) {
-      return (long)maxMillis;
+  static double getBackoffWaitTime(int attemptNumber, int baseMillis, int maxMillis) {
+    if (attemptNumber >= ((Math.log(Long.MAX_VALUE / (long) baseMillis)) / (Math.log(2)))) {
+      return (long) maxMillis;
     } else {
-      return Math.min(maxMillis, (long)baseMillis * ((long)1 << attemptNumber));
+      return Math.min(maxMillis, (long) baseMillis * ((long) 1 << attemptNumber));
     }
   }
 
   default void backoffWait(int attemptNumber) {
     try {
-      // Algorithm taken from https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/
+      // Algorithm taken from
+      // https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/
       // sleep = min(cap, base * 2 ^ attemptNumber)
       final double sleep = getBackoffWaitTime(attemptNumber, getBaseMillis(), getMaxMillis());
       Thread.sleep((long) (Math.random() * (sleep + 1)));

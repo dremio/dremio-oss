@@ -19,28 +19,36 @@ import static com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggOperator
 import static com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggOperator.KEYINDEX_OFFSET;
 import static com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggOperator.PARTITIONINDEX_HTORDINAL_WIDTH;
 
+import com.dremio.exec.util.DecimalUtils;
+import io.netty.util.internal.PlatformDependent;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.DecimalVector;
 import org.apache.arrow.vector.FieldVector;
 
-import com.dremio.exec.util.DecimalUtils;
-
-import io.netty.util.internal.PlatformDependent;
-
 public class SumAccumulators {
 
   private static final int WIDTH_ACCUMULATOR = 8;
-  private SumAccumulators(){};
+
+  private SumAccumulators() {}
+  ;
 
   public static class IntSumAccumulator extends BaseSingleAccumulator {
 
-    private static final int WIDTH_INPUT = 4;     /* int input vector */
+    private static final int WIDTH_INPUT = 4; /* int input vector */
 
-    public IntSumAccumulator(FieldVector input, FieldVector output,
-                             FieldVector transferVector, int maxValuesPerBatch,
-                             BufferAllocator computationVectorAllocator) {
-      super(input, output, transferVector, AccumulatorBuilder.AccumulatorType.SUM, maxValuesPerBatch,
-            computationVectorAllocator);
+    public IntSumAccumulator(
+        FieldVector input,
+        FieldVector output,
+        FieldVector transferVector,
+        int maxValuesPerBatch,
+        BufferAllocator computationVectorAllocator) {
+      super(
+          input,
+          output,
+          transferVector,
+          AccumulatorBuilder.AccumulatorType.SUM,
+          maxValuesPerBatch,
+          computationVectorAllocator);
     }
 
     @Override
@@ -49,23 +57,30 @@ public class SumAccumulators {
     }
 
     @Override
-    public void accumulate(final long memoryAddr, final int count,
-                           final int bitsInChunk, final int chunkOffsetMask) {
+    public void accumulate(
+        final long memoryAddr, final int count, final int bitsInChunk, final int chunkOffsetMask) {
       final long maxAddr = memoryAddr + count * PARTITIONINDEX_HTORDINAL_WIDTH;
       final long incomingBit = getInput().getValidityBufferAddress();
-      final long incomingValue =  getInput().getDataBufferAddress();
+      final long incomingValue = getInput().getDataBufferAddress();
       final long[] bitAddresses = this.bitAddresses;
       final long[] valueAddresses = this.valueAddresses;
       final int maxValuesPerBatch = super.maxValuesPerBatch;
 
-      for (long partitionAndOrdinalAddr = memoryAddr; partitionAndOrdinalAddr < maxAddr; partitionAndOrdinalAddr += PARTITIONINDEX_HTORDINAL_WIDTH) {
+      for (long partitionAndOrdinalAddr = memoryAddr;
+          partitionAndOrdinalAddr < maxAddr;
+          partitionAndOrdinalAddr += PARTITIONINDEX_HTORDINAL_WIDTH) {
         /* get the hash table ordinal */
         final int tableIndex = PlatformDependent.getInt(partitionAndOrdinalAddr + HTORDINAL_OFFSET);
         /* get the index of data in input vector */
-        final int incomingIndex = PlatformDependent.getInt(partitionAndOrdinalAddr + KEYINDEX_OFFSET);
+        final int incomingIndex =
+            PlatformDependent.getInt(partitionAndOrdinalAddr + KEYINDEX_OFFSET);
         /* get the corresponding data from input vector -- source data for accumulation */
-        final int bitVal = (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3))) >>> (incomingIndex & 7)) & 1;
-        final int newVal = PlatformDependent.getInt(incomingValue + (incomingIndex * WIDTH_INPUT)) * bitVal;
+        final int bitVal =
+            (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3)))
+                    >>> (incomingIndex & 7))
+                & 1;
+        final int newVal =
+            PlatformDependent.getInt(incomingValue + (incomingIndex * WIDTH_INPUT)) * bitVal;
         /* get the hash table batch index */
         final int chunkIndex = tableIndex >>> bitsInChunk;
         final int chunkOffset = tableIndex & chunkOffsetMask;
@@ -75,20 +90,29 @@ public class SumAccumulators {
         final int bitUpdateVal = bitVal << (chunkOffset & 31);
         /* store the accumulated values at the target location of accumulation vector */
         PlatformDependent.putLong(sumAddr, PlatformDependent.getLong(sumAddr) + newVal);
-        PlatformDependent.putInt(bitUpdateAddr, PlatformDependent.getInt(bitUpdateAddr) | bitUpdateVal);
+        PlatformDependent.putInt(
+            bitUpdateAddr, PlatformDependent.getInt(bitUpdateAddr) | bitUpdateVal);
       }
     }
   }
 
   public static class FloatSumAccumulator extends BaseSingleAccumulator {
 
-    private static final int WIDTH_INPUT = 4;    /* float input vector */
+    private static final int WIDTH_INPUT = 4; /* float input vector */
 
-    public FloatSumAccumulator(FieldVector input, FieldVector output,
-                               FieldVector transferVector, int maxValuesPerBatch,
-                               BufferAllocator computationVectorAllocator) {
-      super(input, output, transferVector, AccumulatorBuilder.AccumulatorType.SUM, maxValuesPerBatch,
-            computationVectorAllocator);
+    public FloatSumAccumulator(
+        FieldVector input,
+        FieldVector output,
+        FieldVector transferVector,
+        int maxValuesPerBatch,
+        BufferAllocator computationVectorAllocator) {
+      super(
+          input,
+          output,
+          transferVector,
+          AccumulatorBuilder.AccumulatorType.SUM,
+          maxValuesPerBatch,
+          computationVectorAllocator);
     }
 
     @Override
@@ -97,23 +121,31 @@ public class SumAccumulators {
     }
 
     @Override
-    public void accumulate(final long memoryAddr, final int count,
-                           final int bitsInChunk, final int chunkOffsetMask) {
+    public void accumulate(
+        final long memoryAddr, final int count, final int bitsInChunk, final int chunkOffsetMask) {
       final long maxAddr = memoryAddr + count * PARTITIONINDEX_HTORDINAL_WIDTH;
       final long incomingBit = getInput().getValidityBufferAddress();
-      final long incomingValue =  getInput().getDataBufferAddress();
+      final long incomingValue = getInput().getDataBufferAddress();
       final long[] bitAddresses = this.bitAddresses;
       final long[] valueAddresses = this.valueAddresses;
       final int maxValuesPerBatch = super.maxValuesPerBatch;
 
-      for (long partitionAndOrdinalAddr = memoryAddr; partitionAndOrdinalAddr < maxAddr; partitionAndOrdinalAddr += PARTITIONINDEX_HTORDINAL_WIDTH) {
+      for (long partitionAndOrdinalAddr = memoryAddr;
+          partitionAndOrdinalAddr < maxAddr;
+          partitionAndOrdinalAddr += PARTITIONINDEX_HTORDINAL_WIDTH) {
         /* get the hash table ordinal */
         final int tableIndex = PlatformDependent.getInt(partitionAndOrdinalAddr + HTORDINAL_OFFSET);
         /* get the index of data in input vector */
-        final int incomingIndex = PlatformDependent.getInt(partitionAndOrdinalAddr + KEYINDEX_OFFSET);
+        final int incomingIndex =
+            PlatformDependent.getInt(partitionAndOrdinalAddr + KEYINDEX_OFFSET);
         /* get the corresponding data from input vector -- source data for accumulation */
-        final int bitVal = (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3))) >>> (incomingIndex & 7)) & 1;
-        final float newVal = Float.intBitsToFloat(PlatformDependent.getInt(incomingValue + (incomingIndex * WIDTH_INPUT)) * bitVal);
+        final int bitVal =
+            (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3)))
+                    >>> (incomingIndex & 7))
+                & 1;
+        final float newVal =
+            Float.intBitsToFloat(
+                PlatformDependent.getInt(incomingValue + (incomingIndex * WIDTH_INPUT)) * bitVal);
         /* get the hash table batch index */
         final int chunkIndex = tableIndex >>> bitsInChunk;
         final int chunkOffset = tableIndex & chunkOffsetMask;
@@ -122,88 +154,130 @@ public class SumAccumulators {
         final long bitUpdateAddr = bitAddresses[chunkIndex] + ((chunkOffset >>> 5) * 4);
         final int bitUpdateVal = bitVal << (chunkOffset & 31);
         /* store the accumulated values at the target location of accumulation vector */
-        PlatformDependent.putLong(sumAddr, Double.doubleToLongBits(Double.longBitsToDouble(PlatformDependent.getLong(sumAddr)) + newVal));
-        PlatformDependent.putInt(bitUpdateAddr, PlatformDependent.getInt(bitUpdateAddr) | bitUpdateVal);
+        PlatformDependent.putLong(
+            sumAddr,
+            Double.doubleToLongBits(
+                Double.longBitsToDouble(PlatformDependent.getLong(sumAddr)) + newVal));
+        PlatformDependent.putInt(
+            bitUpdateAddr, PlatformDependent.getInt(bitUpdateAddr) | bitUpdateVal);
       }
     }
   }
 
   public static class BigIntSumAccumulator extends BaseSingleAccumulator {
-    private static final int WIDTH_INPUT = 8;     /* long input vector */
+    private static final int WIDTH_INPUT = 8; /* long input vector */
 
-    public BigIntSumAccumulator(final FieldVector input, final FieldVector output,
-                                final FieldVector transferVector, final int maxValuesPerBatch,
-                                final BufferAllocator computationVectorAllocator) {
-      this(input, output, transferVector, maxValuesPerBatch,
-           computationVectorAllocator, null, null, null);
+    public BigIntSumAccumulator(
+        final FieldVector input,
+        final FieldVector output,
+        final FieldVector transferVector,
+        final int maxValuesPerBatch,
+        final BufferAllocator computationVectorAllocator) {
+      this(
+          input,
+          output,
+          transferVector,
+          maxValuesPerBatch,
+          computationVectorAllocator,
+          null,
+          null,
+          null);
     }
 
-    private BigIntSumAccumulator(final FieldVector input, final FieldVector output,
-                                 final FieldVector transferVector, final int maxValuesPerBatch,
-                                 final BufferAllocator computationVectorAllocator,
-                                 final long[] bitAddresses, final long[] valueAddresses,
-                                 final FieldVector[] accumulators) {
-      super(input, output, transferVector,
-            AccumulatorBuilder.AccumulatorType.SUM,
-            maxValuesPerBatch, computationVectorAllocator,
-            bitAddresses,
-            valueAddresses,
-            accumulators);
+    private BigIntSumAccumulator(
+        final FieldVector input,
+        final FieldVector output,
+        final FieldVector transferVector,
+        final int maxValuesPerBatch,
+        final BufferAllocator computationVectorAllocator,
+        final long[] bitAddresses,
+        final long[] valueAddresses,
+        final FieldVector[] accumulators) {
+      super(
+          input,
+          output,
+          transferVector,
+          AccumulatorBuilder.AccumulatorType.SUM,
+          maxValuesPerBatch,
+          computationVectorAllocator,
+          bitAddresses,
+          valueAddresses,
+          accumulators);
     }
 
     /**
-     * Create a BigIntSumAccumulator from an IntSumAccumulator. This is
-     * used for post-spill processing.
+     * Create a BigIntSumAccumulator from an IntSumAccumulator. This is used for post-spill
+     * processing.
+     *
      * @param intSumAccumulator int sum accumulator
      * @param input new input vector (read from spilled batch)
      * @param maxValuesPerBatch batch size
      * @param computationVectorAllocator accumulator vector allocator
      */
-    BigIntSumAccumulator(final IntSumAccumulator intSumAccumulator,
-                         final FieldVector input, final int maxValuesPerBatch,
-                         final BufferAllocator computationVectorAllocator) {
-      this(input, intSumAccumulator.getOutput(), intSumAccumulator.getTransferVector(),
-           maxValuesPerBatch, computationVectorAllocator,
-           intSumAccumulator.getBitAddresses(),
-           intSumAccumulator.getValueAddresses(),
-           intSumAccumulator.getAccumulators());
+    BigIntSumAccumulator(
+        final IntSumAccumulator intSumAccumulator,
+        final FieldVector input,
+        final int maxValuesPerBatch,
+        final BufferAllocator computationVectorAllocator) {
+      this(
+          input,
+          intSumAccumulator.getOutput(),
+          intSumAccumulator.getTransferVector(),
+          maxValuesPerBatch,
+          computationVectorAllocator,
+          intSumAccumulator.getBitAddresses(),
+          intSumAccumulator.getValueAddresses(),
+          intSumAccumulator.getAccumulators());
     }
 
     /**
-     * Create a BigIntSumAccumulator from a Count accumulator. This is
-     * used for post-spill processing.
+     * Create a BigIntSumAccumulator from a Count accumulator. This is used for post-spill
+     * processing.
+     *
      * @param countColumnAccumulator count accumulator
      * @param input new input vector (read from spilled batch)
      * @param maxValuesPerBatch batch size
      * @param computationVectorAllocator accumulator vector allocator
      */
-    BigIntSumAccumulator(final CountColumnAccumulator countColumnAccumulator,
-                         final FieldVector input, final int maxValuesPerBatch,
-                         final BufferAllocator computationVectorAllocator) {
-      this(input, countColumnAccumulator.getOutput(), countColumnAccumulator.getTransferVector(),
-           maxValuesPerBatch, computationVectorAllocator,
-           countColumnAccumulator.getBitAddresses(),
-           countColumnAccumulator.getValueAddresses(),
-           countColumnAccumulator.getAccumulators());
+    BigIntSumAccumulator(
+        final CountColumnAccumulator countColumnAccumulator,
+        final FieldVector input,
+        final int maxValuesPerBatch,
+        final BufferAllocator computationVectorAllocator) {
+      this(
+          input,
+          countColumnAccumulator.getOutput(),
+          countColumnAccumulator.getTransferVector(),
+          maxValuesPerBatch,
+          computationVectorAllocator,
+          countColumnAccumulator.getBitAddresses(),
+          countColumnAccumulator.getValueAddresses(),
+          countColumnAccumulator.getAccumulators());
     }
 
     /**
-     * Create a BigIntSumAccumulator from a CountOne accumulator. This is
-     * used for post-spill processing.
+     * Create a BigIntSumAccumulator from a CountOne accumulator. This is used for post-spill
+     * processing.
+     *
      * @param countOneAccumulator countone accumulator
      * @param input new input vector (read from spilled batch)
      * @param maxValuesPerBatch batch size
      * @param computationVectorAllocator accumulator vector allocator
      */
-    BigIntSumAccumulator(final CountOneAccumulator countOneAccumulator,
-                         final FieldVector input, final int maxValuesPerBatch,
-                         final BufferAllocator computationVectorAllocator) {
-      this(input, countOneAccumulator.getOutput(),
-           countOneAccumulator.getTransferVector(),
-           maxValuesPerBatch, computationVectorAllocator,
-           countOneAccumulator.getBitAddresses(),
-           countOneAccumulator.getValueAddresses(),
-           countOneAccumulator.getAccumulators());
+    BigIntSumAccumulator(
+        final CountOneAccumulator countOneAccumulator,
+        final FieldVector input,
+        final int maxValuesPerBatch,
+        final BufferAllocator computationVectorAllocator) {
+      this(
+          input,
+          countOneAccumulator.getOutput(),
+          countOneAccumulator.getTransferVector(),
+          maxValuesPerBatch,
+          computationVectorAllocator,
+          countOneAccumulator.getBitAddresses(),
+          countOneAccumulator.getValueAddresses(),
+          countOneAccumulator.getAccumulators());
     }
 
     @Override
@@ -212,8 +286,8 @@ public class SumAccumulators {
     }
 
     @Override
-    public void accumulate(final long memoryAddr, final int count,
-                           final int bitsInChunk, final int chunkOffsetMask) {
+    public void accumulate(
+        final long memoryAddr, final int count, final int bitsInChunk, final int chunkOffsetMask) {
       final long maxAddr = memoryAddr + count * PARTITIONINDEX_HTORDINAL_WIDTH;
       FieldVector inputVector = getInput();
       final long incomingBit = inputVector.getValidityBufferAddress();
@@ -222,14 +296,21 @@ public class SumAccumulators {
       final long[] valueAddresses = this.valueAddresses;
       final int maxValuesPerBatch = super.maxValuesPerBatch;
 
-      for (long partitionAndOrdinalAddr = memoryAddr; partitionAndOrdinalAddr < maxAddr; partitionAndOrdinalAddr += PARTITIONINDEX_HTORDINAL_WIDTH) {
+      for (long partitionAndOrdinalAddr = memoryAddr;
+          partitionAndOrdinalAddr < maxAddr;
+          partitionAndOrdinalAddr += PARTITIONINDEX_HTORDINAL_WIDTH) {
         /* get the hash table ordinal */
         final int tableIndex = PlatformDependent.getInt(partitionAndOrdinalAddr + HTORDINAL_OFFSET);
         /* get the index of data in input vector */
-        final int incomingIndex = PlatformDependent.getInt(partitionAndOrdinalAddr + KEYINDEX_OFFSET);
+        final int incomingIndex =
+            PlatformDependent.getInt(partitionAndOrdinalAddr + KEYINDEX_OFFSET);
         /* get the corresponding data from input vector -- source data for accumulation */
-        final int bitVal = (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3))) >>> (incomingIndex & 7)) & 1;
-        final long newVal = PlatformDependent.getLong(incomingValue + (incomingIndex * WIDTH_INPUT)) * bitVal;
+        final int bitVal =
+            (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3)))
+                    >>> (incomingIndex & 7))
+                & 1;
+        final long newVal =
+            PlatformDependent.getLong(incomingValue + (incomingIndex * WIDTH_INPUT)) * bitVal;
         /* get the hash table batch index */
         final int chunkIndex = tableIndex >>> bitsInChunk;
         final int chunkOffset = tableIndex & chunkOffsetMask;
@@ -239,90 +320,117 @@ public class SumAccumulators {
         final int bitUpdateVal = bitVal << (chunkOffset & 31);
         /* store the accumulated values at the target location of accumulation vector */
         PlatformDependent.putLong(sumAddr, PlatformDependent.getLong(sumAddr) + newVal);
-        PlatformDependent.putInt(bitUpdateAddr, PlatformDependent.getInt(bitUpdateAddr) | bitUpdateVal);
+        PlatformDependent.putInt(
+            bitUpdateAddr, PlatformDependent.getInt(bitUpdateAddr) | bitUpdateVal);
       }
     }
   }
 
-
   public static class DoubleSumAccumulator extends BaseSingleAccumulator {
-    private static final int WIDTH_INPUT = 8;       /* double input vector */
+    private static final int WIDTH_INPUT = 8; /* double input vector */
 
     /**
-     * Used during operator setup for creating accumulator vectors
-     * for the first time.
+     * Used during operator setup for creating accumulator vectors for the first time.
+     *
      * @param input input vector with values to be accumulated
      * @param output vector in outgoing container used for making a transfer pair
-     * @param transferVector output vector in outgoing container used for transferring the contents from accumulator vector
+     * @param transferVector output vector in outgoing container used for transferring the contents
+     *     from accumulator vector
      * @param maxValuesPerBatch maximum values in a single hashtable batch
-     * @param computationVectorAllocator allocator used for allocating
-     *                                   accumulators that store computed values
+     * @param computationVectorAllocator allocator used for allocating accumulators that store
+     *     computed values
      */
-    public DoubleSumAccumulator(FieldVector input, FieldVector output,
-                                FieldVector transferVector, int maxValuesPerBatch,
-                                BufferAllocator computationVectorAllocator) {
-      this(input, output, transferVector, maxValuesPerBatch, computationVectorAllocator,
-           null, null, null);
+    public DoubleSumAccumulator(
+        FieldVector input,
+        FieldVector output,
+        FieldVector transferVector,
+        int maxValuesPerBatch,
+        BufferAllocator computationVectorAllocator) {
+      this(
+          input,
+          output,
+          transferVector,
+          maxValuesPerBatch,
+          computationVectorAllocator,
+          null,
+          null,
+          null);
     }
 
     /*
      * private constructor that does the initialization.
      */
-    private DoubleSumAccumulator(final FieldVector input, final FieldVector output,
-                                 final FieldVector transferVector, final int maxValuesPerBatch,
-                                 final BufferAllocator computationVectorAllocator,
-                                 final long[] bitAddresses, final long[] valueAddresses,
-                                 final FieldVector[] accumulators) {
-      super(input, output, transferVector,
-            AccumulatorBuilder.AccumulatorType.SUM,
-            maxValuesPerBatch, computationVectorAllocator,
-            bitAddresses,
-            valueAddresses,
-            accumulators);
+    private DoubleSumAccumulator(
+        final FieldVector input,
+        final FieldVector output,
+        final FieldVector transferVector,
+        final int maxValuesPerBatch,
+        final BufferAllocator computationVectorAllocator,
+        final long[] bitAddresses,
+        final long[] valueAddresses,
+        final FieldVector[] accumulators) {
+      super(
+          input,
+          output,
+          transferVector,
+          AccumulatorBuilder.AccumulatorType.SUM,
+          maxValuesPerBatch,
+          computationVectorAllocator,
+          bitAddresses,
+          valueAddresses,
+          accumulators);
     }
 
     /**
-     * Used during post-spill processing to convert a float
-     * sum accumulator to a post-spill double sum accumulator
+     * Used during post-spill processing to convert a float sum accumulator to a post-spill double
+     * sum accumulator
      *
      * @param floatSumAccumulator pre-spill float sum accumulator
      * @param input input vector with values to be accumulated
      * @param maxValuesPerBatch max values in a hash table batch
-     * @param computationVectorAllocator allocator used for allocating
-     *                                   accumulators that store computed values
+     * @param computationVectorAllocator allocator used for allocating accumulators that store
+     *     computed values
      */
-    DoubleSumAccumulator(final FloatSumAccumulator floatSumAccumulator,
-                         final FieldVector input, final int maxValuesPerBatch,
-                         final BufferAllocator computationVectorAllocator) {
-      this(input, floatSumAccumulator.getOutput(),
-           floatSumAccumulator.getTransferVector(),
-           maxValuesPerBatch, computationVectorAllocator,
-           floatSumAccumulator.getBitAddresses(),
-           floatSumAccumulator.getValueAddresses(),
-           floatSumAccumulator.getAccumulators()
-      );
+    DoubleSumAccumulator(
+        final FloatSumAccumulator floatSumAccumulator,
+        final FieldVector input,
+        final int maxValuesPerBatch,
+        final BufferAllocator computationVectorAllocator) {
+      this(
+          input,
+          floatSumAccumulator.getOutput(),
+          floatSumAccumulator.getTransferVector(),
+          maxValuesPerBatch,
+          computationVectorAllocator,
+          floatSumAccumulator.getBitAddresses(),
+          floatSumAccumulator.getValueAddresses(),
+          floatSumAccumulator.getAccumulators());
     }
 
     /**
-     * Used during post-spill processing to convert a decimal
-     * sum accumulator to a post-spill double sum accumulator
+     * Used during post-spill processing to convert a decimal sum accumulator to a post-spill double
+     * sum accumulator
      *
      * @param decimalSumAccumulator pre-spill decimal sum accumulator
      * @param input input vector with values to be accumulated
      * @param maxValuesPerBatch max values in a hash table batch
-     * @param computationVectorAllocator allocator used for allocating
-     *                                   accumulators that store computed values
+     * @param computationVectorAllocator allocator used for allocating accumulators that store
+     *     computed values
      */
-    DoubleSumAccumulator(final DecimalSumAccumulator decimalSumAccumulator,
-                         final FieldVector input, final int maxValuesPerBatch,
-                         final BufferAllocator computationVectorAllocator) {
-      this(input, decimalSumAccumulator.getOutput(),
-           decimalSumAccumulator.getTransferVector(),
-           maxValuesPerBatch, computationVectorAllocator,
-           decimalSumAccumulator.getBitAddresses(),
-           decimalSumAccumulator.getValueAddresses(),
-           decimalSumAccumulator.getAccumulators()
-      );
+    DoubleSumAccumulator(
+        final DecimalSumAccumulator decimalSumAccumulator,
+        final FieldVector input,
+        final int maxValuesPerBatch,
+        final BufferAllocator computationVectorAllocator) {
+      this(
+          input,
+          decimalSumAccumulator.getOutput(),
+          decimalSumAccumulator.getTransferVector(),
+          maxValuesPerBatch,
+          computationVectorAllocator,
+          decimalSumAccumulator.getBitAddresses(),
+          decimalSumAccumulator.getValueAddresses(),
+          decimalSumAccumulator.getAccumulators());
     }
 
     @Override
@@ -331,23 +439,31 @@ public class SumAccumulators {
     }
 
     @Override
-    public void accumulate(final long memoryAddr, final int count,
-                           final int bitsInChunk, final int chunkOffsetMask) {
+    public void accumulate(
+        final long memoryAddr, final int count, final int bitsInChunk, final int chunkOffsetMask) {
       final long maxAddr = memoryAddr + count * PARTITIONINDEX_HTORDINAL_WIDTH;
       final long incomingBit = getInput().getValidityBufferAddress();
-      final long incomingValue =  getInput().getDataBufferAddress();
+      final long incomingValue = getInput().getDataBufferAddress();
       final long[] bitAddresses = this.bitAddresses;
       final long[] valueAddresses = this.valueAddresses;
       final int maxValuesPerBatch = super.maxValuesPerBatch;
 
-      for (long partitionAndOrdinalAddr = memoryAddr; partitionAndOrdinalAddr < maxAddr; partitionAndOrdinalAddr += PARTITIONINDEX_HTORDINAL_WIDTH) {
+      for (long partitionAndOrdinalAddr = memoryAddr;
+          partitionAndOrdinalAddr < maxAddr;
+          partitionAndOrdinalAddr += PARTITIONINDEX_HTORDINAL_WIDTH) {
         /* get the hash table ordinal */
         final int tableIndex = PlatformDependent.getInt(partitionAndOrdinalAddr + HTORDINAL_OFFSET);
         /* get the index of data in input vector */
-        final int incomingIndex = PlatformDependent.getInt(partitionAndOrdinalAddr + KEYINDEX_OFFSET);
+        final int incomingIndex =
+            PlatformDependent.getInt(partitionAndOrdinalAddr + KEYINDEX_OFFSET);
         /* get the corresponding data from input vector -- source data for accumulation */
-        final int bitVal = (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3))) >>> (incomingIndex & 7)) & 1;
-        final double newVal = Double.longBitsToDouble(PlatformDependent.getLong(incomingValue + (incomingIndex * WIDTH_INPUT)) * bitVal);
+        final int bitVal =
+            (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3)))
+                    >>> (incomingIndex & 7))
+                & 1;
+        final double newVal =
+            Double.longBitsToDouble(
+                PlatformDependent.getLong(incomingValue + (incomingIndex * WIDTH_INPUT)) * bitVal);
         /* get the hash table batch index */
         final int chunkIndex = tableIndex >>> bitsInChunk;
         final int chunkOffset = tableIndex & chunkOffsetMask;
@@ -356,21 +472,34 @@ public class SumAccumulators {
         final long bitUpdateAddr = bitAddresses[chunkIndex] + ((chunkOffset >>> 5) * 4);
         final int bitUpdateVal = bitVal << (chunkOffset & 31);
         /* store the accumulated values at the target location of accumulation vector */
-        PlatformDependent.putLong(sumAddr, Double.doubleToLongBits(Double.longBitsToDouble(PlatformDependent.getLong(sumAddr)) + newVal));
-        PlatformDependent.putInt(bitUpdateAddr, PlatformDependent.getInt(bitUpdateAddr) | bitUpdateVal);
+        PlatformDependent.putLong(
+            sumAddr,
+            Double.doubleToLongBits(
+                Double.longBitsToDouble(PlatformDependent.getLong(sumAddr)) + newVal));
+        PlatformDependent.putInt(
+            bitUpdateAddr, PlatformDependent.getInt(bitUpdateAddr) | bitUpdateVal);
       }
     }
   }
+
   public static class DecimalSumAccumulator extends BaseSingleAccumulator {
-    private static final int WIDTH_INPUT = 16;      // decimal inputs
+    private static final int WIDTH_INPUT = 16; // decimal inputs
     private static final int WIDTH_ACCUMULATOR = 8; // double accumulators
     private byte[] valBuf = new byte[WIDTH_INPUT];
 
-    public DecimalSumAccumulator(FieldVector input, FieldVector output,
-                                 FieldVector transferVector, int maxValuesPerBatch,
-                                 BufferAllocator computationVectorAllocator) {
-      super(input, output, transferVector, AccumulatorBuilder.AccumulatorType.SUM, maxValuesPerBatch,
-            computationVectorAllocator);
+    public DecimalSumAccumulator(
+        FieldVector input,
+        FieldVector output,
+        FieldVector transferVector,
+        int maxValuesPerBatch,
+        BufferAllocator computationVectorAllocator) {
+      super(
+          input,
+          output,
+          transferVector,
+          AccumulatorBuilder.AccumulatorType.SUM,
+          maxValuesPerBatch,
+          computationVectorAllocator);
     }
 
     @Override
@@ -379,8 +508,8 @@ public class SumAccumulators {
     }
 
     @Override
-    public void accumulate(final long memoryAddr, final int count,
-                           final int bitsInChunk, final int chunkOffsetMask) {
+    public void accumulate(
+        final long memoryAddr, final int count, final int bitsInChunk, final int chunkOffsetMask) {
       final long maxAddr = memoryAddr + count * PARTITIONINDEX_HTORDINAL_WIDTH;
       FieldVector inputVector = getInput();
       final long incomingBit = inputVector.getValidityBufferAddress();
@@ -390,14 +519,22 @@ public class SumAccumulators {
       final int scale = ((DecimalVector) inputVector).getScale();
       final int maxValuesPerBatch = super.maxValuesPerBatch;
 
-      for (long partitionAndOrdinalAddr = memoryAddr; partitionAndOrdinalAddr < maxAddr; partitionAndOrdinalAddr += PARTITIONINDEX_HTORDINAL_WIDTH) {
+      for (long partitionAndOrdinalAddr = memoryAddr;
+          partitionAndOrdinalAddr < maxAddr;
+          partitionAndOrdinalAddr += PARTITIONINDEX_HTORDINAL_WIDTH) {
         /* get the hash table ordinal */
         final int tableIndex = PlatformDependent.getInt(partitionAndOrdinalAddr + HTORDINAL_OFFSET);
         /* get the index of data in input vector */
-        final int incomingIndex = PlatformDependent.getInt(partitionAndOrdinalAddr + KEYINDEX_OFFSET);
+        final int incomingIndex =
+            PlatformDependent.getInt(partitionAndOrdinalAddr + KEYINDEX_OFFSET);
         /* get the corresponding data from input vector -- source data for accumulation */
-        final int bitVal = (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3))) >>> (incomingIndex & 7)) & 1;
-        java.math.BigDecimal newVal = DecimalUtils.getBigDecimalFromLEBytes(incomingValue + (incomingIndex * WIDTH_INPUT), valBuf, scale);
+        final int bitVal =
+            (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3)))
+                    >>> (incomingIndex & 7))
+                & 1;
+        java.math.BigDecimal newVal =
+            DecimalUtils.getBigDecimalFromLEBytes(
+                incomingValue + (incomingIndex * WIDTH_INPUT), valBuf, scale);
         /* get the hash table batch index */
         final int chunkIndex = tableIndex >>> bitsInChunk;
         final int chunkOffset = tableIndex & chunkOffsetMask;
@@ -406,21 +543,34 @@ public class SumAccumulators {
         final long bitUpdateAddr = bitAddresses[chunkIndex] + ((chunkOffset >>> 5) * 4);
         final int bitUpdateVal = bitVal << (chunkOffset & 31);
         /* store the accumulated values at the target location of accumulation vector */
-        PlatformDependent.putLong(sumAddr, Double.doubleToLongBits(Double.longBitsToDouble(PlatformDependent.getLong(sumAddr)) + newVal.doubleValue() * bitVal));
-        PlatformDependent.putInt(bitUpdateAddr, PlatformDependent.getInt(bitUpdateAddr) | bitUpdateVal);
+        PlatformDependent.putLong(
+            sumAddr,
+            Double.doubleToLongBits(
+                Double.longBitsToDouble(PlatformDependent.getLong(sumAddr))
+                    + newVal.doubleValue() * bitVal));
+        PlatformDependent.putInt(
+            bitUpdateAddr, PlatformDependent.getInt(bitUpdateAddr) | bitUpdateVal);
       }
     }
   }
 
   public static class DecimalSumAccumulatorV2 extends BaseSingleAccumulator {
-    private static final int WIDTH_INPUT = 16;      // decimal inputs
+    private static final int WIDTH_INPUT = 16; // decimal inputs
     private static final int WIDTH_ACCUMULATOR = 16; // decimal accumulators
 
-    public DecimalSumAccumulatorV2(FieldVector input, FieldVector output,
-                                   FieldVector transferVector, int maxValuesPerBatch,
-                                   BufferAllocator computationVectorAllocator) {
-      super(input, output, transferVector, AccumulatorBuilder.AccumulatorType.SUM, maxValuesPerBatch,
-        computationVectorAllocator);
+    public DecimalSumAccumulatorV2(
+        FieldVector input,
+        FieldVector output,
+        FieldVector transferVector,
+        int maxValuesPerBatch,
+        BufferAllocator computationVectorAllocator) {
+      super(
+          input,
+          output,
+          transferVector,
+          AccumulatorBuilder.AccumulatorType.SUM,
+          maxValuesPerBatch,
+          computationVectorAllocator);
     }
 
     @Override
@@ -429,8 +579,8 @@ public class SumAccumulators {
     }
 
     @Override
-    public void accumulate(final long memoryAddr, final int count,
-                           final int bitsInChunk, final int chunkOffsetMask) {
+    public void accumulate(
+        final long memoryAddr, final int count, final int bitsInChunk, final int chunkOffsetMask) {
       final long maxAddr = memoryAddr + count * PARTITIONINDEX_HTORDINAL_WIDTH;
       FieldVector inputVector = getInput();
       final long incomingBit = inputVector.getValidityBufferAddress();
@@ -440,17 +590,23 @@ public class SumAccumulators {
       final int scale = ((DecimalVector) inputVector).getScale();
       final int maxValuesPerBatch = super.maxValuesPerBatch;
 
-      for (long partitionAndOrdinalAddr = memoryAddr; partitionAndOrdinalAddr < maxAddr; partitionAndOrdinalAddr += PARTITIONINDEX_HTORDINAL_WIDTH) {
+      for (long partitionAndOrdinalAddr = memoryAddr;
+          partitionAndOrdinalAddr < maxAddr;
+          partitionAndOrdinalAddr += PARTITIONINDEX_HTORDINAL_WIDTH) {
         /* get the hash table ordinal */
         final int tableIndex = PlatformDependent.getInt(partitionAndOrdinalAddr + HTORDINAL_OFFSET);
         /* get the index of data in input vector */
-        final int incomingIndex = PlatformDependent.getInt(partitionAndOrdinalAddr + KEYINDEX_OFFSET);
+        final int incomingIndex =
+            PlatformDependent.getInt(partitionAndOrdinalAddr + KEYINDEX_OFFSET);
         /* get the corresponding data from input vector -- source data for accumulation */
-        final int bitVal = (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3))) >>> (incomingIndex & 7)) & 1;
+        final int bitVal =
+            (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3)))
+                    >>> (incomingIndex & 7))
+                & 1;
         long addressOfInput = incomingValue + (incomingIndex * WIDTH_INPUT);
         long newValLow = PlatformDependent.getLong(addressOfInput) * bitVal;
         long newValHigh =
-          PlatformDependent.getLong(addressOfInput + DecimalUtils.LENGTH_OF_LONG) * bitVal;
+            PlatformDependent.getLong(addressOfInput + DecimalUtils.LENGTH_OF_LONG) * bitVal;
         /* get the hash table batch index */
         final int chunkIndex = tableIndex >>> bitsInChunk;
         final int chunkOffset = tableIndex & chunkOffsetMask;
@@ -462,7 +618,8 @@ public class SumAccumulators {
         long curValLow = PlatformDependent.getLong(sumAddr);
         long curValHigh = PlatformDependent.getLong(sumAddr + DecimalUtils.LENGTH_OF_LONG);
         DecimalUtils.addSignedDecimals(sumAddr, newValLow, newValHigh, curValLow, curValHigh);
-        PlatformDependent.putInt(bitUpdateAddr, PlatformDependent.getInt(bitUpdateAddr) | bitUpdateVal);
+        PlatformDependent.putInt(
+            bitUpdateAddr, PlatformDependent.getInt(bitUpdateAddr) | bitUpdateVal);
       }
     }
   }

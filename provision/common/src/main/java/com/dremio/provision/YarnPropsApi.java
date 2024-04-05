@@ -15,26 +15,34 @@
  */
 package com.dremio.provision;
 
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import java.util.List;
-
 import javax.validation.constraints.NotNull;
-
 import org.immutables.value.Value.Default;
 import org.immutables.value.Value.Immutable;
 
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-
-/**
- * Yarn cluster related properties.
- */
+/** Yarn cluster related properties. */
 @JsonDeserialize(builder = ImmutableYarnPropsApi.Builder.class)
 @Immutable
 public interface YarnPropsApi {
-  @NotNull int getMemoryMB();
-  @NotNull int getVirtualCoreCount();
+  @NotNull
+  int getMemoryMB();
+
+  @NotNull
+  int getVirtualCoreCount();
+
   List<Property> getSubPropertyList();
-  @Default default DistroType getDistroType() {return DistroType.OTHER;}
-  @Default default boolean isSecure() {return false;}
+
+  @Default
+  default DistroType getDistroType() {
+    return DistroType.OTHER;
+  }
+
+  @Default
+  default boolean isSecure() {
+    return false;
+  }
+
   String getQueue();
 
   public static ImmutableYarnPropsApi.Builder builder() {

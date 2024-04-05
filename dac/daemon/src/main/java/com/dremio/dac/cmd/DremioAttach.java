@@ -20,9 +20,7 @@ import com.dremio.common.SuppressForbidden;
 import com.sun.tools.attach.VirtualMachine;
 import com.sun.tools.attach.VirtualMachineDescriptor;
 
-/**
- * Attach Tool
- */
+/** Attach Tool */
 @SuppressForbidden
 public class DremioAttach {
   private static String DREMIO_PROCESS_NAME = "DremioDaemon";
@@ -38,7 +36,9 @@ public class DremioAttach {
     VirtualMachine vm = null;
     try {
       vm = VirtualMachine.attach(vmid);
-      vm.loadAgent(DremioAgent.class.getProtectionDomain().getCodeSource().getLocation().getPath(), String.join("\t", args));
+      vm.loadAgent(
+          DremioAgent.class.getProtectionDomain().getCodeSource().getLocation().getPath(),
+          String.join("\t", args));
     } finally {
       if (vm != null) {
         vm.detach();
@@ -57,7 +57,8 @@ public class DremioAttach {
     }
 
     if (dremioCount != 1) {
-      throw new UnsupportedOperationException("Failed to attach: couldn't find Dremio process to attach");
+      throw new UnsupportedOperationException(
+          "Failed to attach: couldn't find Dremio process to attach");
     }
     return vmid;
   }

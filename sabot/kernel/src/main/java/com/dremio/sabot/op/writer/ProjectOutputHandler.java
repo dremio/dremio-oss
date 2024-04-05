@@ -15,8 +15,6 @@
  */
 package com.dremio.sabot.op.writer;
 
-import java.util.regex.Pattern;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.expression.FieldReference;
 import com.dremio.common.expression.FunctionCall;
@@ -32,10 +30,9 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.project.ProjectOperator;
 import com.dremio.sabot.op.spi.SingleInputOperator;
 import com.google.common.collect.ImmutableList;
+import java.util.regex.Pattern;
 
-/**
- * This strategy projects all incoming records to outgoing vectors
- */
+/** This strategy projects all incoming records to outgoing vectors */
 public class ProjectOutputHandler implements WriterCommitterOutputHandler {
   private final WriterCommitterPOP config;
   private final OperatorContext context;
@@ -51,36 +48,57 @@ public class ProjectOutputHandler implements WriterCommitterOutputHandler {
     // replacement expression.
     LogicalExpression replacement;
     if (config.getTempLocation() != null) {
-      replacement = new FunctionCall("REGEXP_REPLACE", ImmutableList.of(
-        SchemaPath.getSimplePath(RecordWriter.PATH.getName()),
-        new ValueExpressions.QuotedString(Pattern.quote(config.getTempLocation())),
-        new ValueExpressions.QuotedString(config.getFinalLocation())
-      ));
+      replacement =
+          new FunctionCall(
+              "REGEXP_REPLACE",
+              ImmutableList.of(
+                  SchemaPath.getSimplePath(RecordWriter.PATH.getName()),
+                  new ValueExpressions.QuotedString(Pattern.quote(config.getTempLocation())),
+                  new ValueExpressions.QuotedString(config.getFinalLocation())));
     } else {
       replacement = SchemaPath.getSimplePath(RecordWriter.PATH.getName());
     }
-    ImmutableList<NamedExpression> namedExpressions = ImmutableList.of(
-      new NamedExpression(SchemaPath.getSimplePath(RecordWriter.FRAGMENT.getName()), new FieldReference(RecordWriter.FRAGMENT.getName())),
-      new NamedExpression(SchemaPath.getSimplePath(RecordWriter.RECORDS.getName()), new FieldReference(RecordWriter.RECORDS.getName())),
-      new NamedExpression(replacement, new FieldReference(RecordWriter.PATH.getName())),
-      new NamedExpression(SchemaPath.getSimplePath(RecordWriter.METADATA.getName()), new FieldReference(RecordWriter.METADATA.getName())),
-      new NamedExpression(SchemaPath.getSimplePath(RecordWriter.PARTITION.getName()), new FieldReference(RecordWriter.PARTITION.getName())),
-      new NamedExpression(SchemaPath.getSimplePath(RecordWriter.FILESIZE.getName()), new FieldReference(RecordWriter.FILESIZE.getName())),
-      new NamedExpression(SchemaPath.getSimplePath(RecordWriter.ICEBERG_METADATA.getName()), new FieldReference(RecordWriter.ICEBERG_METADATA.getName())),
-      new NamedExpression(SchemaPath.getSimplePath(RecordWriter.FILE_SCHEMA.getName()), new FieldReference(RecordWriter.FILE_SCHEMA.getName())),
-      new NamedExpression(SchemaPath.getSimplePath(RecordWriter.PARTITION_DATA.getName()), new FieldReference(RecordWriter.PARTITION_DATA.getName())),
-      new NamedExpression(SchemaPath.getSimplePath(RecordWriter.OPERATION_TYPE.getName()), new FieldReference(RecordWriter.OPERATION_TYPE.getName())),
-      new NamedExpression(SchemaPath.getSimplePath(RecordWriter.PARTITION_VALUE.getName()), new FieldReference(RecordWriter.PARTITION_VALUE.getName())),
-      new NamedExpression(SchemaPath.getSimplePath(RecordWriter.REJECTED_RECORDS.getName()), new FieldReference(RecordWriter.REJECTED_RECORDS.getName()))
-    );
+    ImmutableList<NamedExpression> namedExpressions =
+        ImmutableList.of(
+            new NamedExpression(
+                SchemaPath.getSimplePath(RecordWriter.FRAGMENT.getName()),
+                new FieldReference(RecordWriter.FRAGMENT.getName())),
+            new NamedExpression(
+                SchemaPath.getSimplePath(RecordWriter.RECORDS.getName()),
+                new FieldReference(RecordWriter.RECORDS.getName())),
+            new NamedExpression(replacement, new FieldReference(RecordWriter.PATH.getName())),
+            new NamedExpression(
+                SchemaPath.getSimplePath(RecordWriter.METADATA.getName()),
+                new FieldReference(RecordWriter.METADATA.getName())),
+            new NamedExpression(
+                SchemaPath.getSimplePath(RecordWriter.PARTITION.getName()),
+                new FieldReference(RecordWriter.PARTITION.getName())),
+            new NamedExpression(
+                SchemaPath.getSimplePath(RecordWriter.FILESIZE.getName()),
+                new FieldReference(RecordWriter.FILESIZE.getName())),
+            new NamedExpression(
+                SchemaPath.getSimplePath(RecordWriter.ICEBERG_METADATA.getName()),
+                new FieldReference(RecordWriter.ICEBERG_METADATA.getName())),
+            new NamedExpression(
+                SchemaPath.getSimplePath(RecordWriter.FILE_SCHEMA.getName()),
+                new FieldReference(RecordWriter.FILE_SCHEMA.getName())),
+            new NamedExpression(
+                SchemaPath.getSimplePath(RecordWriter.PARTITION_DATA.getName()),
+                new FieldReference(RecordWriter.PARTITION_DATA.getName())),
+            new NamedExpression(
+                SchemaPath.getSimplePath(RecordWriter.OPERATION_TYPE.getName()),
+                new FieldReference(RecordWriter.OPERATION_TYPE.getName())),
+            new NamedExpression(
+                SchemaPath.getSimplePath(RecordWriter.PARTITION_VALUE.getName()),
+                new FieldReference(RecordWriter.PARTITION_VALUE.getName())),
+            new NamedExpression(
+                SchemaPath.getSimplePath(RecordWriter.REJECTED_RECORDS.getName()),
+                new FieldReference(RecordWriter.REJECTED_RECORDS.getName())));
 
-    assert namedExpressions.size() == RecordWriter.SCHEMA.getFields().size() : "Named expressions schema doesn't match RecordWriter Schema";
+    assert namedExpressions.size() == RecordWriter.SCHEMA.getFields().size()
+        : "Named expressions schema doesn't match RecordWriter Schema";
 
-    Project projectConfig = new Project(
-      config.getProps(),
-      null,
-      namedExpressions
-      );
+    Project projectConfig = new Project(config.getProps(), null, namedExpressions);
     this.project = new ProjectOperator(context, projectConfig);
     return project.setup(accessible);
   }

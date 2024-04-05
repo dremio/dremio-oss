@@ -15,29 +15,29 @@
  */
 package com.dremio.plugins.elastic.planning.functions;
 
-import org.apache.calcite.rex.RexCall;
-
 import com.google.common.base.Preconditions;
+import org.apache.calcite.rex.RexCall;
 
 public class ElasticFunctionUnaryPostfix extends ElasticFunction {
 
-  public ElasticFunctionUnaryPostfix(String commonName){
+  public ElasticFunctionUnaryPostfix(String commonName) {
     super(commonName, commonName);
   }
 
-  public ElasticFunctionUnaryPostfix(String dremioName, String elasticName){
+  public ElasticFunctionUnaryPostfix(String dremioName, String elasticName) {
     super(dremioName, elasticName);
   }
 
   @Override
   public FunctionRender render(FunctionRenderer renderer, RexCall call) {
-    Preconditions.checkArgument(call.getOperands().size() == 1,
-        "Unary operation %s should only have one argument, but got %s.", dremioName, call.getOperands().size());
+    Preconditions.checkArgument(
+        call.getOperands().size() == 1,
+        "Unary operation %s should only have one argument, but got %s.",
+        dremioName,
+        call.getOperands().size());
 
     FunctionRender operand = call.getOperands().get(0).accept(renderer.getVisitor());
-    return new FunctionRender(String.format("%s(%s)", operand.getScript(), elasticName), operand.getNulls());
+    return new FunctionRender(
+        String.format("%s(%s)", operand.getScript(), elasticName), operand.getNulls());
   }
-
-
-
 }

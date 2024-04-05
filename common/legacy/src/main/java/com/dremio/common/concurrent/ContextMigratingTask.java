@@ -16,13 +16,12 @@
 package com.dremio.common.concurrent;
 
 /**
- * Implement this interface to ensure that the tasks submitted via the
- * {@link ContextMigratingExecutorService} use friendly names for the spans created
+ * Implement this interface to ensure that the tasks submitted via the {@link
+ * ContextMigratingExecutorService} use friendly names for the spans created
  */
 public interface ContextMigratingTask {
   /**
    * @return the name of the child span created while running the task
    */
   String getSpanName();
-
 }

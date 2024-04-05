@@ -20,10 +20,7 @@ import static com.dremio.common.utils.PathUtils.getPathJoiner;
 import static com.dremio.dac.server.FamilyExpectation.CLIENT_ERROR;
 import static com.dremio.dac.server.JobsServiceTestUtils.submitJobAndGetData;
 import static com.dremio.dac.server.test.SampleDataPopulator.DEFAULT_USER_NAME;
-import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG;
 import static com.dremio.exec.ExecConstants.VERSIONED_VIEW_ENABLED;
-import static com.dremio.exec.catalog.dataplane.DataplaneTestDefines.fullyQualifiedTableName;
-import static com.dremio.exec.planner.physical.PlannerSettings.UNLIMITED_SPLITS_SUPPORT;
 import static com.dremio.service.namespace.dataset.DatasetVersion.newVersion;
 import static java.lang.String.format;
 import static java.util.Arrays.asList;
@@ -32,42 +29,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.glassfish.jersey.CommonProperties.FEATURE_AUTO_DISCOVERY_DISABLE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
-import java.io.File;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.net.InetAddress;
-import java.net.ServerSocket;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.security.Principal;
-import java.time.Duration;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import java.util.function.Function;
-
-import javax.inject.Provider;
-import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.Invocation;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response.Status;
-import javax.ws.rs.core.SecurityContext;
-
-import org.apache.arrow.memory.BufferAllocator;
-import org.assertj.core.api.AssertionsForClassTypes;
-import org.eclipse.jetty.http.HttpHeader;
-import org.glassfish.jersey.media.multipart.MultiPartFeature;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.io.TempDir;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.SentinelSecure;
@@ -112,7 +73,6 @@ import com.dremio.dac.service.reflection.ReflectionServiceHelper;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.dac.util.JSONUtil;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
-import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.client.DremioClient;
@@ -158,6 +118,40 @@ import com.fasterxml.jackson.databind.ser.impl.SimpleFilterProvider;
 import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import java.io.File;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.net.InetAddress;
+import java.net.ServerSocket;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.security.Principal;
+import java.time.Duration;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+import java.util.function.Function;
+import javax.inject.Provider;
+import javax.ws.rs.client.Client;
+import javax.ws.rs.client.ClientBuilder;
+import javax.ws.rs.client.Entity;
+import javax.ws.rs.client.Invocation;
+import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response.Status;
+import javax.ws.rs.core.SecurityContext;
+import org.apache.arrow.memory.BufferAllocator;
+import org.assertj.core.api.AssertionsForClassTypes;
+import org.assertj.core.api.SoftAssertions;
+import org.eclipse.jetty.http.HttpHeader;
+import org.glassfish.jersey.media.multipart.MultiPartFeature;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.io.TempDir;
 
 public abstract class BaseTestServerJunit5 extends BaseClientUtils {
   private static final org.slf4j.Logger logger =
@@ -420,7 +414,7 @@ public abstract class BaseTestServerJunit5 extends BaseClientUtils {
     Provider<Integer> jobsPortProvider =
         () -> currentDremioDaemon.getBindingProvider().lookup(ConduitServer.class).getPort();
 
-    //Turning on flag for NaaS
+    // Turning on flag for NaaS
     System.setProperty("nessie.source.resource.testing.enabled", "true");
 
     if (isMultinode()) {
@@ -531,7 +525,9 @@ public abstract class BaseTestServerJunit5 extends BaseClientUtils {
                   .with(DremioConfig.METADATA_PATH_STRING, distpath + "/metadata")
                   .with(DremioConfig.ACCELERATOR_PATH_STRING, distpath + "/accelerator")
                   .with(DremioConfig.GANDIVA_CACHE_PATH_STRING, distpath + "/gandiva")
-                  .with(DremioConfig.SYSTEM_ICEBERG_TABLES_PATH_STRING, distpath + "/system_iceberg_tables")
+                  .with(
+                      DremioConfig.SYSTEM_ICEBERG_TABLES_PATH_STRING,
+                      distpath + "/system_iceberg_tables")
                   .with(DremioConfig.FLIGHT_SERVICE_ENABLED_BOOLEAN, false)
                   .with(DremioConfig.NESSIE_SERVICE_ENABLED_BOOLEAN, true)
                   .with(DremioConfig.NESSIE_SERVICE_IN_MEMORY_BOOLEAN, true)
@@ -651,12 +647,19 @@ public abstract class BaseTestServerJunit5 extends BaseClientUtils {
   private static void assertAllocatorsAreClosed() {
     int resourceAllocatorCount = getResourceAllocatorCount();
     int queryPlanningAllocatorCount = getQueryPlanningAllocatorCount();
-    assertEquals(
-      0,
-      resourceAllocatorCount + queryPlanningAllocatorCount,
-      () -> String.format("Not all allocators were closed. ResourceAllocator count = %d; QueryPlanningAllocatorCount = %d",
-        resourceAllocatorCount, queryPlanningAllocatorCount)
-    );
+    SoftAssertions.assertSoftly(
+        softly -> {
+          softly
+              .assertThat(resourceAllocatorCount)
+              .withFailMessage("Not all resource allocators were closed.")
+              .isEqualTo(0);
+          softly
+              .assertThat(queryPlanningAllocatorCount)
+              .withFailMessage(
+                  "Not all query-planning allocators were closed. "
+                      + "There are queries that are still running and have not been cancelled.")
+              .isEqualTo(0);
+        });
   }
 
   @AfterAll
@@ -672,21 +675,28 @@ public abstract class BaseTestServerJunit5 extends BaseClientUtils {
       foremenWorkManager.close();
 
       // Drain actively running jobs
-      await().atMost(Duration.ofSeconds(50))
-        .until(() -> foremenWorkManager.getActiveQueryCount() == 0);
+      await()
+          .atMost(Duration.ofSeconds(50))
+          .until(() -> foremenWorkManager.getActiveQueryCount() == 0);
 
       // Fail if any jobs are still running and record query information
-      Assertions.assertEquals(0, foremenWorkManager.getActiveQueryCount(), () -> {
-        final StringBuilder msg = new StringBuilder();
-        msg.append("There are actively running queries that have not finished:\n");
-        foremenWorkManager.getActiveProfiles()
-          .forEach(profile -> msg.append("Query ")
-            .append(QueryIdHelper.getQueryId(profile.getId()))
-            .append(": ")
-            .append(profile.getQuery())
-            .append("\n\n"));
-        return msg.toString();
-      });
+      Assertions.assertEquals(
+          0,
+          foremenWorkManager.getActiveQueryCount(),
+          () -> {
+            final StringBuilder msg = new StringBuilder();
+            msg.append("There are actively running queries that have not finished:\n");
+            foremenWorkManager
+                .getActiveProfiles()
+                .forEach(
+                    profile ->
+                        msg.append("Query ")
+                            .append(QueryIdHelper.getQueryId(profile.getId()))
+                            .append(": ")
+                            .append(profile.getQuery())
+                            .append("\n\n"));
+            return msg.toString();
+          });
 
       assertAllocatorsAreClosed();
 
@@ -778,8 +788,11 @@ public abstract class BaseTestServerJunit5 extends BaseClientUtils {
   }
 
   protected static void populateInitialData()
-      throws DatasetNotFoundException, DatasetVersionNotFoundException, ExecutionSetupException,
-          NamespaceException, IOException {
+      throws DatasetNotFoundException,
+          DatasetVersionNotFoundException,
+          ExecutionSetupException,
+          NamespaceException,
+          IOException {
     populator.populateInitialData();
   }
 
@@ -969,58 +982,58 @@ public abstract class BaseTestServerJunit5 extends BaseClientUtils {
     return expectSuccess(invocation, DatasetUIWithHistory.class);
   }
 
-  protected UserExceptionMapper.ErrorMessageWithContext saveAsExpectError(DatasetUI datasetUI, DatasetPath newName) {
+  protected UserExceptionMapper.ErrorMessageWithContext saveAsExpectError(
+      DatasetUI datasetUI, DatasetPath newName) {
     final Invocation invocation =
-      getBuilder(
-        getAPIv2()
-          .path(versionedResourcePath(datasetUI) + "/save")
-          .queryParam("as", newName))
-        .buildPost(entity("", JSON));
+        getBuilder(
+                getAPIv2()
+                    .path(versionedResourcePath(datasetUI) + "/save")
+                    .queryParam("as", newName))
+            .buildPost(entity("", JSON));
 
-    //return expectSuccess(invocation, DatasetUIWithHistory.class);
-    return expectError(CLIENT_ERROR,invocation, UserExceptionMapper.ErrorMessageWithContext.class);
+    return expectError(CLIENT_ERROR, invocation, UserExceptionMapper.ErrorMessageWithContext.class);
   }
 
-  protected DatasetUIWithHistory saveAsInBranch(DatasetUI datasetUI, DatasetPath newName, String savedTag, String branchName) {
+  protected DatasetUIWithHistory saveAsInBranch(
+      DatasetUI datasetUI, DatasetPath newName, String savedTag, String branchName) {
     final Invocation invocation =
-      getBuilder(
-        getAPIv2()
-          .path(versionedResourcePath(datasetUI) + "/save")
-          .queryParam("as", newName)
-          .queryParam("branchName", branchName)
-          .queryParam("savedTag", savedTag))
-
-        .buildPost(entity("", JSON));
+        getBuilder(
+                getAPIv2()
+                    .path(versionedResourcePath(datasetUI) + "/save")
+                    .queryParam("as", newName)
+                    .queryParam("branchName", branchName)
+                    .queryParam("savedTag", savedTag))
+            .buildPost(entity("", JSON));
 
     return expectSuccess(invocation, DatasetUIWithHistory.class);
   }
 
-  protected DatasetUIWithHistory saveInBranch(DatasetUI datasetUI, String saveVersion, String branchName) {
+  protected DatasetUIWithHistory saveInBranch(
+      DatasetUI datasetUI, String saveVersion, String branchName) {
     final Invocation invocation =
-      getBuilder(
-        getAPIv2()
-          .path(versionedResourcePath(datasetUI) + "/save")
-          .queryParam("savedTag", saveVersion)
-          .queryParam("branchName", branchName))
-        .buildPost(entity("", JSON));
+        getBuilder(
+                getAPIv2()
+                    .path(versionedResourcePath(datasetUI) + "/save")
+                    .queryParam("savedTag", saveVersion)
+                    .queryParam("branchName", branchName))
+            .buildPost(entity("", JSON));
 
     return expectSuccess(invocation, DatasetUIWithHistory.class);
   }
 
-  protected UserExceptionMapper.ErrorMessageWithContext saveAsInBranchExpectError(DatasetUI datasetUI, DatasetPath newName, String savedTag, String branchName) {
+  protected UserExceptionMapper.ErrorMessageWithContext saveAsInBranchExpectError(
+      DatasetUI datasetUI, DatasetPath newName, String savedTag, String branchName) {
     final Invocation invocation =
-      getBuilder(
-        getAPIv2()
-          .path(versionedResourcePath(datasetUI) + "/save")
-          .queryParam("as", newName)
-          .queryParam("branchName", branchName)
-          .queryParam("savedTag", savedTag))
+        getBuilder(
+                getAPIv2()
+                    .path(versionedResourcePath(datasetUI) + "/save")
+                    .queryParam("as", newName)
+                    .queryParam("branchName", branchName)
+                    .queryParam("savedTag", savedTag))
+            .buildPost(entity("", JSON));
 
-        .buildPost(entity("", JSON));
-
-     return expectError(CLIENT_ERROR,invocation, UserExceptionMapper.ErrorMessageWithContext.class);
+    return expectError(CLIENT_ERROR, invocation, UserExceptionMapper.ErrorMessageWithContext.class);
   }
-
 
   protected DatasetUI delete(String datasetResourcePath, String savedVersion) {
     final Invocation invocation =
@@ -1060,17 +1073,24 @@ public abstract class BaseTestServerJunit5 extends BaseClientUtils {
   }
 
   protected UserExceptionMapper.ErrorMessageWithContext createDatasetFromSQLAndSaveExpectError(
-    DatasetPath datasetPath, String sql, List<String> context) {
+      DatasetPath datasetPath, String sql, List<String> context) {
     InitialPreviewResponse datasetCreateResponse = createDatasetFromSQL(sql, context);
     return saveAsExpectError(datasetCreateResponse.getDataset(), datasetPath);
   }
 
   protected DatasetUI createVersionedDatasetFromSQLAndSave(
-    DatasetPath datasetPath, String sql, List<String> context, String pluginName, String branchName) {
+      DatasetPath datasetPath,
+      String sql,
+      List<String> context,
+      String pluginName,
+      String branchName) {
     final Map<String, VersionContextReq> references = new HashMap<>();
-    references.put(pluginName, new VersionContextReq(VersionContextReq.VersionContextType.BRANCH, branchName));
-    InitialPreviewResponse datasetCreateResponse = createVersionedDatasetFromSQL(sql, context, pluginName, branchName);
-    return saveAsInBranch(datasetCreateResponse.getDataset(), datasetPath, null, branchName).getDataset();
+    references.put(
+        pluginName, new VersionContextReq(VersionContextReq.VersionContextType.BRANCH, branchName));
+    InitialPreviewResponse datasetCreateResponse =
+        createVersionedDatasetFromSQL(sql, context, pluginName, branchName);
+    return saveAsInBranch(datasetCreateResponse.getDataset(), datasetPath, null, branchName)
+        .getDataset();
   }
 
   protected InitialPreviewResponse createDatasetFromSQL(String sql, List<String> context) {
@@ -1093,17 +1113,18 @@ public abstract class BaseTestServerJunit5 extends BaseClientUtils {
     return expectSuccess(invocation, InitialPreviewResponse.class);
   }
 
-  protected InitialPreviewResponse createVersionedDatasetFromSQL(String sql, List<String> context, String pluginName, String branchName) {
+  protected InitialPreviewResponse createVersionedDatasetFromSQL(
+      String sql, List<String> context, String pluginName, String branchName) {
     final Map<String, VersionContextReq> references = new HashMap<>();
-    references.put(pluginName, new VersionContextReq(VersionContextReq.VersionContextType.BRANCH, branchName));
+    references.put(
+        pluginName, new VersionContextReq(VersionContextReq.VersionContextType.BRANCH, branchName));
 
     return expectSuccess(
-      getBuilder(
-        getAPIv2().path("datasets/new_untitled_sql").queryParam("newVersion", newVersion()))
-        .buildPost(entity(new CreateFromSQL(sql, context, references), JSON)), // => sending
-      InitialPreviewResponse.class); // <= receiving
+        getBuilder(
+                getAPIv2().path("datasets/new_untitled_sql").queryParam("newVersion", newVersion()))
+            .buildPost(entity(new CreateFromSQL(sql, context, references), JSON)), // => sending
+        InitialPreviewResponse.class); // <= receiving
   }
-
 
   protected DatasetUI createDatasetFromParentAndSave(
       DatasetPath newDatasetPath, String parentDataset) {
@@ -1227,14 +1248,6 @@ public abstract class BaseTestServerJunit5 extends BaseClientUtils {
     JobsServiceTestUtils.resetSystemOption(l(JobsService.class), optionName);
   }
 
-  protected static AutoCloseable enableDeltaLake() {
-    setSystemOption(PlannerSettings.ENABLE_DELTALAKE.getOptionName(), "true");
-    return () ->
-        setSystemOption(
-            PlannerSettings.ENABLE_DELTALAKE.getOptionName(),
-            PlannerSettings.ENABLE_DELTALAKE.getDefault().getBoolVal().toString());
-  }
-
   protected static AutoCloseable enableRowCountStat(boolean enableStatAfterTest) {
     setSystemOption(PlannerSettings.USE_ROW_COUNT_STATISTICS.getOptionName(), "true");
     setSystemOption(PlannerSettings.USE_STATISTICS.getOptionName(), "false");
@@ -1266,18 +1279,6 @@ public abstract class BaseTestServerJunit5 extends BaseClientUtils {
     return queryProfile;
   }
 
-  protected static AutoCloseable enableIcebergTables() {
-    setSystemOption(ENABLE_ICEBERG.getOptionName(), "true");
-    setSystemOption(ExecConstants.CTAS_CAN_USE_ICEBERG.getOptionName(), "true");
-    return () -> {
-      setSystemOption(
-          ENABLE_ICEBERG.getOptionName(), ENABLE_ICEBERG.getDefault().getBoolVal().toString());
-      setSystemOption(
-          ExecConstants.CTAS_CAN_USE_ICEBERG.getOptionName(),
-          ExecConstants.CTAS_CAN_USE_ICEBERG.getDefault().getBoolVal().toString());
-    };
-  }
-
   protected static AutoCloseable enableVersionedViews() {
     setSystemOption(VERSIONED_VIEW_ENABLED.getOptionName(), "true");
     return () -> {
@@ -1287,87 +1288,61 @@ public abstract class BaseTestServerJunit5 extends BaseClientUtils {
     };
   }
 
-  protected static AutoCloseable enableUnlimitedSplitsSupportFlags() {
-    setSystemOption(PlannerSettings.UNLIMITED_SPLITS_SUPPORT, "true");
-    setSystemOption(ExecConstants.ENABLE_ICEBERG, "true");
-
-    return () -> {
-      setSystemOption(
-          PlannerSettings.UNLIMITED_SPLITS_SUPPORT,
-          PlannerSettings.UNLIMITED_SPLITS_SUPPORT.getDefault().getBoolVal().toString());
-      setSystemOption(
-          ExecConstants.ENABLE_ICEBERG,
-          ExecConstants.ENABLE_ICEBERG.getDefault().getBoolVal().toString());
-    };
-  }
-
-  protected static AutoCloseable disableUnlimitedSplitsSupport() {
-    setSystemOption(UNLIMITED_SPLITS_SUPPORT.getOptionName(), "false");
-    setSystemOption(ENABLE_ICEBERG.getOptionName(), "false");
-    return () -> {
-      try {
-        setSystemOption(
-            UNLIMITED_SPLITS_SUPPORT.getOptionName(),
-            UNLIMITED_SPLITS_SUPPORT.getDefault().getBoolVal().toString());
-        setSystemOption(
-            ENABLE_ICEBERG.getOptionName(), ENABLE_ICEBERG.getDefault().getBoolVal().toString());
-      } catch (Exception e) {
-        // ignore
-      }
-    };
-  }
-
   protected static String readResourceAsString(String fileName) {
     return TestTools.readTestResourceAsString(fileName);
   }
 
   protected static JobRequest createNewJobRequestFromSql(String sql) {
-    return JobRequest.newBuilder()
-      .setSqlQuery(new SqlQuery(sql, DEFAULT_USERNAME))
-      .build();
+    return JobRequest.newBuilder().setSqlQuery(new SqlQuery(sql, DEFAULT_USERNAME)).build();
   }
 
   protected static JobRequest createJobRequestFromSqlAndSessionId(String sql, String sessionId) {
     return JobRequest.newBuilder()
-      .setSqlQuery(new SqlQuery(sql, ImmutableList.of(), DEFAULT_USERNAME,
-        null, sessionId))
-      .build();
+        .setSqlQuery(new SqlQuery(sql, ImmutableList.of(), DEFAULT_USERNAME, null, sessionId))
+        .build();
   }
 
-  protected static void runQueryInSession(String sql, String sessionId){
-    String executedSesssionId = getJobSubmissionAfterJobCompletion(
-        createJobRequestFromSqlAndSessionId(sql, sessionId)).getSessionId().getId();
+  protected static void runQueryInSession(String sql, String sessionId) {
+    String executedSesssionId =
+        getJobSubmissionAfterJobCompletion(createJobRequestFromSqlAndSessionId(sql, sessionId))
+            .getSessionId()
+            .getId();
     AssertionsForClassTypes.assertThat(executedSesssionId).isEqualTo(sessionId);
   }
 
   protected static String runQueryAndGetSessionId(String sql) {
-    return getJobSubmissionAfterJobCompletion(createNewJobRequestFromSql(sql)).getSessionId().getId();
+    return getJobSubmissionAfterJobCompletion(createNewJobRequestFromSql(sql))
+        .getSessionId()
+        .getId();
   }
 
   protected void runQueryCheckResults(
-    JobsService jobsService,
-    String sourcePluginName,
-    List<String> tablePath,
-    int rows,
-    int columns,
-    BufferAllocator allocator,
-    String sessionId)
-    throws JobNotFoundException {
+      JobsService jobsService,
+      String sourcePluginName,
+      List<String> tablePath,
+      int rows,
+      int columns,
+      BufferAllocator allocator,
+      String sessionId)
+      throws JobNotFoundException {
 
     try (final JobDataFragment truncData =
-           submitJobAndGetData(
-             jobsService,
-             JobRequest.newBuilder()
-               .setSqlQuery(new SqlQuery(format("select * from %s",
-                 fullyQualifiedTableName(sourcePluginName, tablePath)),
-                 ImmutableList.of(),
-                 DEFAULT_USERNAME,
-                 null,
-                 sessionId))
-               .build(),
-             0,
-             rows + 1,
-             allocator)) {
+        submitJobAndGetData(
+            jobsService,
+            JobRequest.newBuilder()
+                .setSqlQuery(
+                    new SqlQuery(
+                        format(
+                            "select * from %s",
+                            String.format("%s.%s", sourcePluginName, String.join(".", tablePath))),
+                        ImmutableList.of(),
+                        DEFAULT_USERNAME,
+                        null,
+                        sessionId))
+                .build(),
+            0,
+            rows + 1,
+            allocator)) {
       assertEquals(rows, truncData.getReturnedRowCount());
       assertEquals(columns, truncData.getColumns().size());
     }
@@ -1375,30 +1350,30 @@ public abstract class BaseTestServerJunit5 extends BaseClientUtils {
 
   protected static JobId runQuery(String query) {
     return submitJobAndWaitUntilCompletion(
-      JobRequest.newBuilder()
-        .setSqlQuery(new SqlQuery(query, SampleDataPopulator.DEFAULT_USER_NAME))
-        .setQueryType(QueryType.UI_INTERNAL_RUN)
-        .build());
+        JobRequest.newBuilder()
+            .setSqlQuery(new SqlQuery(query, SampleDataPopulator.DEFAULT_USER_NAME))
+            .setQueryType(QueryType.UI_INTERNAL_RUN)
+            .build());
   }
 
   protected static JobId runQuery(String query, String sessionId) {
     final SqlQuery sqlQuery =
-      (sessionId != null)
-        ? new SqlQuery(query, Collections.emptyList(), DEFAULT_USERNAME, null, sessionId)
-        : new SqlQuery(query, DEFAULT_USERNAME);
+        (sessionId != null)
+            ? new SqlQuery(query, Collections.emptyList(), DEFAULT_USERNAME, null, sessionId)
+            : new SqlQuery(query, DEFAULT_USERNAME);
     return submitJobAndWaitUntilCompletion(
-      JobRequest.newBuilder()
-        .setSqlQuery(sqlQuery)
-        .setQueryType(QueryType.UI_RUN)
-        .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
-        .build());
+        JobRequest.newBuilder()
+            .setSqlQuery(sqlQuery)
+            .setQueryType(QueryType.UI_RUN)
+            .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+            .build());
   }
 
   protected static JobId runQuery(SqlQuery sqlQuery) {
     return submitJobAndWaitUntilCompletion(
-      JobRequest.newBuilder()
-        .setSqlQuery(sqlQuery)
-        .setQueryType(QueryType.UI_INTERNAL_RUN)
-        .build());
+        JobRequest.newBuilder()
+            .setSqlQuery(sqlQuery)
+            .setQueryType(QueryType.UI_INTERNAL_RUN)
+            .build());
   }
 }

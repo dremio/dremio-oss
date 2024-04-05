@@ -15,8 +15,8 @@
  */
 package com.dremio.exec.planner;
 
+import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import java.nio.charset.StandardCharsets;
-
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rex.RexBuilder;
@@ -31,8 +31,12 @@ import org.apache.calcite.sql.type.SqlTypeUtil;
 import org.apache.calcite.util.NlsString;
 
 public class DremioRexBuilder extends RexBuilder {
+  public static final DremioRexBuilder INSTANCE =
+      new DremioRexBuilder(JavaTypeFactoryImpl.INSTANCE);
 
-  private static final SqlCollation Utf8SqlCollation = new SqlCollation("UTF-8$en_US$primary", SqlCollation.Coercibility.IMPLICIT);
+  private static final SqlCollation Utf8SqlCollation =
+      new SqlCollation("UTF-8$en_US$primary", SqlCollation.Coercibility.IMPLICIT);
+
   /**
    * Creates a RexBuilder.
    *
@@ -42,15 +46,12 @@ public class DremioRexBuilder extends RexBuilder {
     super(typeFactory);
   }
 
-  public RexNode makeAbstractCastIgnoreType(RelDataType type,
-                                            RexNode exp) {
+  public RexNode makeAbstractCastIgnoreType(RelDataType type, RexNode exp) {
     return super.makeAbstractCast(type, exp);
   }
 
   @Override
-  public RexNode makeAbstractCast(
-    RelDataType type,
-    RexNode exp) {
+  public RexNode makeAbstractCast(RelDataType type, RexNode exp) {
     if (exp.getType().equals(type)) {
       return exp;
     }
@@ -58,10 +59,7 @@ public class DremioRexBuilder extends RexBuilder {
   }
 
   @Override
-  public RexNode makeCast(
-    RelDataType type,
-    RexNode exp,
-    boolean matchNullability) {
+  public RexNode makeCast(RelDataType type, RexNode exp, boolean matchNullability) {
     // Special case: bypassing Calcite for interval types
     if (!(exp instanceof RexLiteral)
         && SqlTypeUtil.isExactNumeric(type)
@@ -73,8 +71,8 @@ public class DremioRexBuilder extends RexBuilder {
     // If we have a CAST(A, TYPE) and A is already of the same TYPE (including nullability),
     // then return just A.
     if (castRexNode instanceof RexCall
-      && castRexNode.getKind() == SqlKind.CAST
-      && castRexNode.getType().equals(((RexCall) castRexNode).getOperands().get(0).getType())) {
+        && castRexNode.getKind() == SqlKind.CAST
+        && castRexNode.getType().equals(((RexCall) castRexNode).getOperands().get(0).getType())) {
       return ((RexCall) castRexNode).getOperands().get(0);
     }
 
@@ -82,24 +80,23 @@ public class DremioRexBuilder extends RexBuilder {
   }
 
   @Override
-  protected RexLiteral makeLiteral(
-    Comparable o,
-    RelDataType type,
-    SqlTypeName typeName) {
+  protected RexLiteral makeLiteral(Comparable o, RelDataType type, SqlTypeName typeName) {
     // By default calcite encodes strings as Latin-1
     // We don't want to change the default, since that will impact previous users and the baselines
     // So we try to encode as Latin-1 and if there is an exception then we try as UTF-8
     try {
       return super.makeLiteral(o, type, typeName);
     } catch (CalciteException ce) {
-      if(typeName != SqlTypeName.CHAR) {
+      if (typeName != SqlTypeName.CHAR) {
         throw ce;
       }
 
       NlsString nlsString = (NlsString) o;
 
       NlsString utf8NlsString = new NlsString(nlsString.getValue(), "UTF-8", Utf8SqlCollation);
-      RelDataType utf8RelDataType = this.typeFactory.createTypeWithCharsetAndCollation(type, StandardCharsets.UTF_8, Utf8SqlCollation);
+      RelDataType utf8RelDataType =
+          this.typeFactory.createTypeWithCharsetAndCollation(
+              type, StandardCharsets.UTF_8, Utf8SqlCollation);
 
       return super.makeLiteral(utf8NlsString, utf8RelDataType, typeName);
     }

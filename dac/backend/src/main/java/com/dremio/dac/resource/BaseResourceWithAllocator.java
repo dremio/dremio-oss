@@ -15,25 +15,21 @@
  */
 package com.dremio.dac.resource;
 
-import javax.annotation.PreDestroy;
-
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.dac.server.BufferAllocatorFactory;
 import com.google.common.base.Preconditions;
+import javax.annotation.PreDestroy;
+import org.apache.arrow.memory.BufferAllocator;
 
-/**
- * Handles BufferAllocators for RestResources
- */
+/** Handles BufferAllocators for RestResources */
 public class BaseResourceWithAllocator {
   private final BufferAllocatorFactory allocatorFactory;
   private final boolean needToClose;
   private BufferAllocator requestAllocator;
 
-
   // Regular use constructor
   public BaseResourceWithAllocator(BufferAllocatorFactory allocatorFactory) {
-    this.allocatorFactory = Preconditions.checkNotNull(allocatorFactory, "BufferAllocatorFactory must be provided.");
+    this.allocatorFactory =
+        Preconditions.checkNotNull(allocatorFactory, "BufferAllocatorFactory must be provided.");
     this.needToClose = true;
   }
 

@@ -15,32 +15,29 @@
  */
 package com.dremio.exec.tablefunctions;
 
+import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.record.BatchSchema;
 import java.util.List;
 import java.util.function.Function;
-
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.schema.FunctionParameter;
 import org.apache.calcite.schema.TableMacro;
 import org.apache.calcite.schema.TranslatableTable;
 import org.apache.calcite.schema.impl.ReflectiveFunctionBase.ParameterListBuilder;
 
-import com.dremio.exec.catalog.StoragePluginId;
-import com.dremio.exec.record.BatchSchema;
-
-/**
- * TableMacro implementation for the external_query table function.
- */
+/** TableMacro implementation for the external_query table function. */
 public final class ExternalQuery implements TableMacro {
-  private static final List<FunctionParameter> FUNCTION_PARAMS = new ParameterListBuilder()
-    .add(String.class, "query").build();
+  private static final List<FunctionParameter> FUNCTION_PARAMS =
+      new ParameterListBuilder().add(String.class, "query").build();
 
   private final Function<String, BatchSchema> schemaBuilder;
   private final Function<BatchSchema, RelDataType> rowTypeBuilder;
   private final StoragePluginId pluginId;
 
-  public ExternalQuery(Function<String, BatchSchema> schemaBuilder,
-                       Function<BatchSchema, RelDataType> rowTypeBuilder,
-                       StoragePluginId pluginId) {
+  public ExternalQuery(
+      Function<String, BatchSchema> schemaBuilder,
+      Function<BatchSchema, RelDataType> rowTypeBuilder,
+      StoragePluginId pluginId) {
     this.schemaBuilder = schemaBuilder;
     this.rowTypeBuilder = rowTypeBuilder;
     this.pluginId = pluginId;
@@ -53,6 +50,7 @@ public final class ExternalQuery implements TableMacro {
 
   @Override
   public TranslatableTable apply(List<? extends Object> arguments) {
-    return ExternalQueryTranslatableTable.create(schemaBuilder, rowTypeBuilder, pluginId, (String) arguments.get(0));
+    return ExternalQueryTranslatableTable.create(
+        schemaBuilder, rowTypeBuilder, pluginId, (String) arguments.get(0));
   }
 }

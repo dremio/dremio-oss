@@ -27,9 +27,8 @@ public interface DocumentConverter<K, V> {
   IndexKey VERSION_INDEX_KEY = IndexKey.newBuilder("version", "version", Integer.class).build();
 
   /**
-   * Does the actual conversion after pre conversion step.
-   * Callers of conversion logic should call this method instead of
-   * {@link #convert(DocumentWriter, Object, Object)} convert}
+   * Does the actual conversion after pre conversion step. Callers of conversion logic should call
+   * this method instead of {@link #convert(DocumentWriter, Object, Object)} convert}
    *
    * @param writer the document writer.
    * @param key the key of the document.
@@ -41,9 +40,8 @@ public interface DocumentConverter<K, V> {
   }
 
   /**
-   * Convert the key/value pair using the providing writer. All
-   * implementations should implement convert and may not override
-   * {@link #doConvert(DocumentWriter, Object, Object)}
+   * Convert the key/value pair using the providing writer. All implementations should implement
+   * convert and may not override {@link #doConvert(DocumentWriter, Object, Object)}
    *
    * @param writer the document writer.
    * @param key the key of the document.

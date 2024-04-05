@@ -15,24 +15,19 @@
  */
 package com.dremio.exec.physical.base;
 
-import java.util.Iterator;
-import java.util.List;
-
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterators;
+import java.util.Iterator;
+import java.util.List;
 
-/**
- * Describes an operator that expects a single child operator as its input.
- */
+/** Describes an operator that expects a single child operator as its input. */
 public abstract class AbstractSingle extends AbstractBase {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AbstractSingle.class);
 
   protected final PhysicalOperator child;
 
-  public AbstractSingle(
-      OpProps props,
-      PhysicalOperator child) {
+  public AbstractSingle(OpProps props, PhysicalOperator child) {
     super(props);
     this.child = child;
   }
@@ -42,7 +37,7 @@ public abstract class AbstractSingle extends AbstractBase {
     return Iterators.singletonIterator(child);
   }
 
-  public PhysicalOperator getChild(){
+  public PhysicalOperator getChild() {
     return child;
   }
 
@@ -54,5 +49,4 @@ public abstract class AbstractSingle extends AbstractBase {
   }
 
   protected abstract PhysicalOperator getNewWithChild(PhysicalOperator child);
-
 }

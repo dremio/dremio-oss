@@ -25,23 +25,11 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.util.Arrays;
-import java.util.List;
-
-import org.apache.calcite.sql.SqlIdentifier;
-import org.apache.calcite.sql.parser.SqlParserPos;
-import org.junit.Rule;
-import org.junit.Test;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
-import org.mockito.quality.Strictness;
-
 import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.VersionedPlugin;
 import com.dremio.exec.planner.sql.handlers.direct.SimpleCommandResult;
 import com.dremio.exec.planner.sql.parser.ReferenceType;
 import com.dremio.exec.planner.sql.parser.SqlUseVersion;
@@ -55,10 +43,19 @@ import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.test.DremioTest;
+import java.util.Arrays;
+import java.util.List;
+import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.parser.SqlParserPos;
+import org.junit.Rule;
+import org.junit.Test;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
+import org.mockito.quality.Strictness;
 
-/**
- * Tests for USE VERSION SQL.
- */
+/** Tests for USE VERSION SQL. */
 public class TestUseVersionHandler extends DremioTest {
 
   private static final String DEFAULT_SOURCE_NAME = "dataplane_source_1";
@@ -67,37 +64,40 @@ public class TestUseVersionHandler extends DremioTest {
   private static final String DEFAULT_BRANCH_NAME = "branchName";
   private static final String DEFAULT_COMMIT_HASH = "0123456789abcdeff";
   private static final VersionContext DEFAULT_VERSION =
-    VersionContext.ofBranch(DEFAULT_BRANCH_NAME);
-  private static final VersionContext COMMIT_VERSION =
-    VersionContext.ofCommit(DEFAULT_COMMIT_HASH);
-  private static final SqlUseVersion DEFAULT_INPUT = new SqlUseVersion(
-    SqlParserPos.ZERO,
-    ReferenceType.BRANCH,
-    new SqlIdentifier(DEFAULT_BRANCH_NAME, SqlParserPos.ZERO),
-    null,
-    new SqlIdentifier(DEFAULT_SOURCE_NAME, SqlParserPos.ZERO));
-  private static final SqlUseVersion NO_SOURCE_INPUT = new SqlUseVersion(
-    SqlParserPos.ZERO,
-    ReferenceType.BRANCH,
-    new SqlIdentifier(DEFAULT_BRANCH_NAME, SqlParserPos.ZERO),
-    null,
-    null);
-  private static final SqlUseVersion NON_EXISTENT_SOURCE_INPUT = new SqlUseVersion(
-    SqlParserPos.ZERO,
-    ReferenceType.BRANCH,
-    new SqlIdentifier(DEFAULT_BRANCH_NAME, SqlParserPos.ZERO),
-    null,
-    new SqlIdentifier(NON_EXISTENT_SOURCE_NAME, SqlParserPos.ZERO));
-  private static final SqlUseVersion COMMIT_INPUT = new SqlUseVersion(
-    SqlParserPos.ZERO,
-    ReferenceType.COMMIT,
-    new SqlIdentifier(DEFAULT_COMMIT_HASH, SqlParserPos.ZERO),
-    null,
-    new SqlIdentifier(DEFAULT_SOURCE_NAME, SqlParserPos.ZERO));
+      VersionContext.ofBranch(DEFAULT_BRANCH_NAME);
+  private static final VersionContext COMMIT_VERSION = VersionContext.ofCommit(DEFAULT_COMMIT_HASH);
+  private static final SqlUseVersion DEFAULT_INPUT =
+      new SqlUseVersion(
+          SqlParserPos.ZERO,
+          ReferenceType.BRANCH,
+          new SqlIdentifier(DEFAULT_BRANCH_NAME, SqlParserPos.ZERO),
+          null,
+          new SqlIdentifier(DEFAULT_SOURCE_NAME, SqlParserPos.ZERO));
+  private static final SqlUseVersion NO_SOURCE_INPUT =
+      new SqlUseVersion(
+          SqlParserPos.ZERO,
+          ReferenceType.BRANCH,
+          new SqlIdentifier(DEFAULT_BRANCH_NAME, SqlParserPos.ZERO),
+          null,
+          null);
+  private static final SqlUseVersion NON_EXISTENT_SOURCE_INPUT =
+      new SqlUseVersion(
+          SqlParserPos.ZERO,
+          ReferenceType.BRANCH,
+          new SqlIdentifier(DEFAULT_BRANCH_NAME, SqlParserPos.ZERO),
+          null,
+          new SqlIdentifier(NON_EXISTENT_SOURCE_NAME, SqlParserPos.ZERO));
+  private static final SqlUseVersion COMMIT_INPUT =
+      new SqlUseVersion(
+          SqlParserPos.ZERO,
+          ReferenceType.COMMIT,
+          new SqlIdentifier(DEFAULT_COMMIT_HASH, SqlParserPos.ZERO),
+          null,
+          new SqlIdentifier(DEFAULT_SOURCE_NAME, SqlParserPos.ZERO));
   private static final ResolvedVersionContext DEFAULT_RESOLVED_VERSION =
-    ResolvedVersionContext.ofBranch("goldenfiles/expected", "ffedcba9876543210");
+      ResolvedVersionContext.ofBranch("goldenfiles/expected", "ffedcba9876543210");
   private static final ResolvedVersionContext RESOLVED_COMMIT =
-    ResolvedVersionContext.ofCommit(DEFAULT_COMMIT_HASH);
+      ResolvedVersionContext.ofCommit(DEFAULT_COMMIT_HASH);
 
   @Rule public MockitoRule rule = MockitoJUnit.rule().strictness(Strictness.STRICT_STUBS);
 
@@ -111,31 +111,31 @@ public class TestUseVersionHandler extends DremioTest {
   @Test
   public void useBranchSupportKeyDisabledThrows() {
     // Arrange
-    when(optionManager.getOption(ENABLE_USE_VERSION_SYNTAX))
-      .thenReturn(false);
+    when(optionManager.getOption(ENABLE_USE_VERSION_SYNTAX)).thenReturn(false);
 
     // Act + Assert
     assertThatThrownBy(() -> handler.toResult("", DEFAULT_INPUT))
-      .isInstanceOf(UserException.class)
-      .hasMessageContaining("USE BRANCH")
-      .hasMessageContaining("not supported");
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining("USE BRANCH")
+        .hasMessageContaining("not supported");
     verify(userSession, never()).setSessionVersionForSource(any(), any());
   }
 
   @Test
   public void useBranchNonExistentSource() {
     // Arrange
-    when(optionManager.getOption(ENABLE_USE_VERSION_SYNTAX))
-      .thenReturn(true);
+    when(optionManager.getOption(ENABLE_USE_VERSION_SYNTAX)).thenReturn(true);
     NamespaceNotFoundException notFoundException = new NamespaceNotFoundException("Cannot access");
-    UserException nonExistException = UserException.validationError(notFoundException)
-      .message("Tried to access non-existent source [%s].", NON_EXISTENT_SOURCE_NAME).build();
+    UserException nonExistException =
+        UserException.validationError(notFoundException)
+            .message("Tried to access non-existent source [%s].", NON_EXISTENT_SOURCE_NAME)
+            .build();
     when(catalog.getSource(NON_EXISTENT_SOURCE_NAME)).thenThrow(nonExistException);
 
     // Act + Assert
     assertThatThrownBy(() -> handler.toResult("", NON_EXISTENT_SOURCE_INPUT))
-      .isInstanceOf(UserException.class)
-      .hasMessageContaining("Tried to access non-existent source");
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining("Tried to access non-existent source");
   }
 
   @Test
@@ -143,7 +143,7 @@ public class TestUseVersionHandler extends DremioTest {
     // Arrange
     setUpSupportKeyAndPluginAndSessionContext();
     when(dataplanePlugin.resolveVersionContext(DEFAULT_VERSION))
-      .thenReturn(DEFAULT_RESOLVED_VERSION);
+        .thenReturn(DEFAULT_RESOLVED_VERSION);
 
     // Act
     List<SimpleCommandResult> result = handler.toResult("", NO_SOURCE_INPUT);
@@ -152,9 +152,9 @@ public class TestUseVersionHandler extends DremioTest {
     assertThat(result).isNotEmpty();
     assertThat(result.get(0).ok).isTrue();
     assertThat(result.get(0).summary)
-      .contains("set to")
-      .contains(DEFAULT_VERSION.toString())
-      .contains(SESSION_SOURCE_NAME);
+        .contains("set to")
+        .contains(DEFAULT_VERSION.toString())
+        .contains(SESSION_SOURCE_NAME);
     verify(userSession).setSessionVersionForSource(SESSION_SOURCE_NAME, DEFAULT_VERSION);
   }
 
@@ -163,7 +163,7 @@ public class TestUseVersionHandler extends DremioTest {
     // Arrange
     setUpSupportKeyAndPlugin();
     when(dataplanePlugin.resolveVersionContext(DEFAULT_VERSION))
-      .thenReturn(DEFAULT_RESOLVED_VERSION);
+        .thenReturn(DEFAULT_RESOLVED_VERSION);
 
     // Act
     List<SimpleCommandResult> result = handler.toResult("", DEFAULT_INPUT);
@@ -172,9 +172,9 @@ public class TestUseVersionHandler extends DremioTest {
     assertThat(result).isNotEmpty();
     assertThat(result.get(0).ok).isTrue();
     assertThat(result.get(0).summary)
-      .contains("set to")
-      .contains(DEFAULT_VERSION.toString())
-      .contains(DEFAULT_SOURCE_NAME);
+        .contains("set to")
+        .contains(DEFAULT_VERSION.toString())
+        .contains(DEFAULT_SOURCE_NAME);
     verify(userSession).setSessionVersionForSource(DEFAULT_SOURCE_NAME, DEFAULT_VERSION);
   }
 
@@ -182,18 +182,19 @@ public class TestUseVersionHandler extends DremioTest {
   public void useTagSucceeds() throws ForemanSetupException {
     // Constants
     final String tagName = "tagName";
-    final SqlUseVersion input = new SqlUseVersion(
-      SqlParserPos.ZERO,
-      ReferenceType.TAG,
-      new SqlIdentifier(tagName, SqlParserPos.ZERO),
-      null,
-      new SqlIdentifier(DEFAULT_SOURCE_NAME, SqlParserPos.ZERO));
+    final SqlUseVersion input =
+        new SqlUseVersion(
+            SqlParserPos.ZERO,
+            ReferenceType.TAG,
+            new SqlIdentifier(tagName, SqlParserPos.ZERO),
+            null,
+            new SqlIdentifier(DEFAULT_SOURCE_NAME, SqlParserPos.ZERO));
     final VersionContext version = VersionContext.ofTag(tagName);
 
     // Arrange
     setUpSupportKeyAndPlugin();
     when(dataplanePlugin.resolveVersionContext(version))
-      .thenReturn(ResolvedVersionContext.ofTag(tagName, DEFAULT_COMMIT_HASH));
+        .thenReturn(ResolvedVersionContext.ofTag(tagName, DEFAULT_COMMIT_HASH));
 
     // Act
     List<SimpleCommandResult> result = handler.toResult("", input);
@@ -202,9 +203,9 @@ public class TestUseVersionHandler extends DremioTest {
     assertThat(result).isNotEmpty();
     assertThat(result.get(0).ok).isTrue();
     assertThat(result.get(0).summary)
-      .contains("set to")
-      .contains(tagName)
-      .contains(DEFAULT_SOURCE_NAME);
+        .contains("set to")
+        .contains(tagName)
+        .contains(DEFAULT_SOURCE_NAME);
     verify(userSession).setSessionVersionForSource(DEFAULT_SOURCE_NAME, version);
   }
 
@@ -212,10 +213,8 @@ public class TestUseVersionHandler extends DremioTest {
   public void useCommitSucceeds() throws ForemanSetupException {
     // Arrange
     setUpSupportKeyAndPlugin();
-    when(dataplanePlugin.resolveVersionContext(COMMIT_VERSION))
-      .thenReturn(RESOLVED_COMMIT);
-    when(dataplanePlugin.commitExists(DEFAULT_COMMIT_HASH))
-      .thenReturn(true);
+    when(dataplanePlugin.resolveVersionContext(COMMIT_VERSION)).thenReturn(RESOLVED_COMMIT);
+    when(dataplanePlugin.commitExists(DEFAULT_COMMIT_HASH)).thenReturn(true);
 
     // Act
     List<SimpleCommandResult> result = handler.toResult("", COMMIT_INPUT);
@@ -224,9 +223,9 @@ public class TestUseVersionHandler extends DremioTest {
     assertThat(result).isNotEmpty();
     assertThat(result.get(0).ok).isTrue();
     assertThat(result.get(0).summary)
-      .contains("set to")
-      .contains(COMMIT_VERSION.toString())
-      .contains(DEFAULT_SOURCE_NAME);
+        .contains("set to")
+        .contains(COMMIT_VERSION.toString())
+        .contains(DEFAULT_SOURCE_NAME);
     verify(userSession).setSessionVersionForSource(DEFAULT_SOURCE_NAME, COMMIT_VERSION);
   }
 
@@ -234,17 +233,15 @@ public class TestUseVersionHandler extends DremioTest {
   public void useCommitNotFoundThrows() {
     // Arrange
     setUpSupportKeyAndPlugin();
-    when(dataplanePlugin.resolveVersionContext(COMMIT_VERSION))
-      .thenReturn(RESOLVED_COMMIT);
-    when(dataplanePlugin.commitExists(DEFAULT_COMMIT_HASH))
-      .thenReturn(false);
+    when(dataplanePlugin.resolveVersionContext(COMMIT_VERSION)).thenReturn(RESOLVED_COMMIT);
+    when(dataplanePlugin.commitExists(DEFAULT_COMMIT_HASH)).thenReturn(false);
 
     // Act + Assert
     assertThatThrownBy(() -> handler.toResult("", COMMIT_INPUT))
-      .isInstanceOf(UserException.class)
-      .hasMessageContaining("Commit")
-      .hasMessageContaining("not found")
-      .hasMessageContaining(DEFAULT_SOURCE_NAME);
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining("Commit")
+        .hasMessageContaining("not found")
+        .hasMessageContaining(DEFAULT_SOURCE_NAME);
     verify(userSession, never()).setSessionVersionForSource(any(), any());
   }
 
@@ -252,18 +249,18 @@ public class TestUseVersionHandler extends DremioTest {
   public void useReferenceSucceeds() throws ForemanSetupException {
     // Constants
     final String referenceName = "refName";
-    final SqlUseVersion input = new SqlUseVersion(
-      SqlParserPos.ZERO,
-      ReferenceType.REFERENCE,
-      new SqlIdentifier(referenceName, SqlParserPos.ZERO),
-      null,
-      new SqlIdentifier(DEFAULT_SOURCE_NAME, SqlParserPos.ZERO));
+    final SqlUseVersion input =
+        new SqlUseVersion(
+            SqlParserPos.ZERO,
+            ReferenceType.REFERENCE,
+            new SqlIdentifier(referenceName, SqlParserPos.ZERO),
+            null,
+            new SqlIdentifier(DEFAULT_SOURCE_NAME, SqlParserPos.ZERO));
     final VersionContext version = VersionContext.ofRef(referenceName);
 
     // Arrange
     setUpSupportKeyAndPlugin();
-    when(dataplanePlugin.resolveVersionContext(version))
-      .thenReturn(DEFAULT_RESOLVED_VERSION);
+    when(dataplanePlugin.resolveVersionContext(version)).thenReturn(DEFAULT_RESOLVED_VERSION);
 
     // Act
     List<SimpleCommandResult> result = handler.toResult("", input);
@@ -272,55 +269,53 @@ public class TestUseVersionHandler extends DremioTest {
     assertThat(result).isNotEmpty();
     assertThat(result.get(0).ok).isTrue();
     assertThat(result.get(0).summary)
-      .contains("set to")
-      .contains(referenceName)
-      .contains(DEFAULT_SOURCE_NAME);
+        .contains("set to")
+        .contains(referenceName)
+        .contains(DEFAULT_SOURCE_NAME);
     verify(userSession).setSessionVersionForSource(DEFAULT_SOURCE_NAME, version);
   }
 
   @Test
   public void useBranchWrongSourceThrows() {
     // Arrange
-    when(optionManager.getOption(ENABLE_USE_VERSION_SYNTAX))
-      .thenReturn(true);
-    when(catalog.getSource(DEFAULT_SOURCE_NAME))
-      .thenReturn(mock(StoragePlugin.class));
+    when(optionManager.getOption(ENABLE_USE_VERSION_SYNTAX)).thenReturn(true);
+    when(catalog.getSource(DEFAULT_SOURCE_NAME)).thenReturn(mock(StoragePlugin.class));
 
     // Act + Assert
     assertThatThrownBy(() -> handler.toResult("", DEFAULT_INPUT))
-      .isInstanceOf(UserException.class)
-      .hasMessageContaining("does not support")
-      .hasMessageContaining(DEFAULT_SOURCE_NAME);
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining("does not support")
+        .hasMessageContaining(DEFAULT_SOURCE_NAME);
     verify(userSession, never()).setSessionVersionForSource(any(), any());
   }
 
   @Test
   public void useBranchWrongSourceFromContextThrows() {
     // Arrange
-    setUpSupportKeyAndPluginAndSessionContext();
-    when(catalog.getSource(SESSION_SOURCE_NAME))
-      .thenReturn(mock(StoragePlugin.class));
+    when(optionManager.getOption(ENABLE_USE_VERSION_SYNTAX)).thenReturn(true);
+    when(catalog.getSource(SESSION_SOURCE_NAME)).thenReturn(dataplanePlugin);
+    when(userSession.getDefaultSchemaPath())
+        .thenReturn(new NamespaceKey(Arrays.asList(SESSION_SOURCE_NAME, "unusedFolder")));
+    when(catalog.getSource(SESSION_SOURCE_NAME)).thenReturn(mock(StoragePlugin.class));
 
     // Act + Assert
     assertThatThrownBy(() -> handler.toResult("", NO_SOURCE_INPUT))
-      .isInstanceOf(UserException.class)
-      .hasMessageContaining("does not support")
-      .hasMessageContaining(SESSION_SOURCE_NAME);
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining("does not support")
+        .hasMessageContaining(SESSION_SOURCE_NAME);
     verify(userSession, never()).setSessionVersionForSource(any(), any());
   }
 
   @Test
   public void useBranchNullSourceFromContextThrows() {
     // Arrange
-    when(optionManager.getOption(ENABLE_USE_VERSION_SYNTAX))
-      .thenReturn(true);
-    when(userSession.getDefaultSchemaPath())
-      .thenReturn(null);
+    when(optionManager.getOption(ENABLE_USE_VERSION_SYNTAX)).thenReturn(true);
+    when(userSession.getDefaultSchemaPath()).thenReturn(null);
 
     // Act + Assert
     assertThatThrownBy(() -> handler.toResult("", NO_SOURCE_INPUT))
-      .isInstanceOf(UserException.class)
-      .hasMessageContaining("was not specified");
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining("was not specified");
     verify(userSession, never()).setSessionVersionForSource(any(), any());
   }
 
@@ -329,15 +324,15 @@ public class TestUseVersionHandler extends DremioTest {
     // Arrange
     setUpSupportKeyAndPlugin();
     doThrow(ReferenceNotFoundException.class)
-      .when(dataplanePlugin)
-      .resolveVersionContext(DEFAULT_VERSION);
+        .when(dataplanePlugin)
+        .resolveVersionContext(DEFAULT_VERSION);
 
     // Act + Assert
     assertThatThrownBy(() -> handler.toResult("", DEFAULT_INPUT))
-      .isInstanceOf(UserException.class)
-      .hasMessageContaining("not found")
-      .hasMessageContaining(DEFAULT_VERSION.toString())
-      .hasMessageContaining(DEFAULT_SOURCE_NAME);
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining("not found")
+        .hasMessageContaining(DEFAULT_VERSION.toString())
+        .hasMessageContaining(DEFAULT_SOURCE_NAME);
     verify(userSession, never()).setSessionVersionForSource(any(), any());
   }
 
@@ -346,32 +341,31 @@ public class TestUseVersionHandler extends DremioTest {
     // Arrange
     setUpSupportKeyAndPlugin();
     doThrow(ReferenceTypeConflictException.class)
-      .when(dataplanePlugin)
-      .resolveVersionContext(DEFAULT_VERSION);
+        .when(dataplanePlugin)
+        .resolveVersionContext(DEFAULT_VERSION);
 
     // Act + Assert
     assertThatThrownBy(() -> handler.toResult("", DEFAULT_INPUT))
-      .isInstanceOf(UserException.class)
-      .hasMessageContaining("is not the requested type")
-      .hasMessageContaining(DEFAULT_VERSION.toString())
-      .hasMessageContaining(DEFAULT_SOURCE_NAME);
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining("is not the requested type")
+        .hasMessageContaining(DEFAULT_VERSION.toString())
+        .hasMessageContaining(DEFAULT_SOURCE_NAME);
     verify(userSession, never()).setSessionVersionForSource(any(), any());
   }
 
   private void setUpSupportKeyAndPlugin() {
-    when(optionManager.getOption(ENABLE_USE_VERSION_SYNTAX))
-      .thenReturn(true);
-    when(catalog.getSource(DEFAULT_SOURCE_NAME))
-      .thenReturn(dataplanePlugin);
+    when(optionManager.getOption(ENABLE_USE_VERSION_SYNTAX)).thenReturn(true);
+    when(catalog.getSource(DEFAULT_SOURCE_NAME)).thenReturn(dataplanePlugin);
+    when(dataplanePlugin.isWrapperFor(VersionedPlugin.class)).thenReturn(true);
+    when(dataplanePlugin.unwrap(VersionedPlugin.class)).thenReturn(dataplanePlugin);
   }
 
   private void setUpSupportKeyAndPluginAndSessionContext() {
-    when(optionManager.getOption(ENABLE_USE_VERSION_SYNTAX))
-      .thenReturn(true);
-    when(catalog.getSource(SESSION_SOURCE_NAME))
-      .thenReturn(dataplanePlugin);
+    when(optionManager.getOption(ENABLE_USE_VERSION_SYNTAX)).thenReturn(true);
+    when(catalog.getSource(SESSION_SOURCE_NAME)).thenReturn(dataplanePlugin);
+    when(dataplanePlugin.isWrapperFor(VersionedPlugin.class)).thenReturn(true);
+    when(dataplanePlugin.unwrap(VersionedPlugin.class)).thenReturn(dataplanePlugin);
     when(userSession.getDefaultSchemaPath())
-      .thenReturn(new NamespaceKey(Arrays.asList(SESSION_SOURCE_NAME, "unusedFolder")));
+        .thenReturn(new NamespaceKey(Arrays.asList(SESSION_SOURCE_NAME, "unusedFolder")));
   }
-
 }

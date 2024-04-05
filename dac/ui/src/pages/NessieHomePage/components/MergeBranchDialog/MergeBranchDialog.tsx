@@ -28,6 +28,7 @@ import { Reference } from "@app/types/nessie";
 import { Select } from "@mantine/core";
 import { useNessieContext } from "../../utils/context";
 import { addNotification } from "actions/notification";
+import localStorageUtils from "@app/utils/storageUtils/localStorageUtils";
 
 import "./MergeBranchDialog.less";
 
@@ -67,18 +68,23 @@ function MergeBranchDialog({
       const expectedHash = mergeTo ? mergeTo.hash : selectedRef?.hash;
       const fromRefName = mergeFrom.name;
       const fromHash = mergeFrom.hash as string;
+      const user = localStorageUtils?.getUserData?.();
+      const author = user?.email || user?.userName;
 
       await apiV2.mergeV2({
         branch: expectedHash ? `${branchName}@${expectedHash}` : branchName,
         merge: {
           fromRefName,
           fromHash,
+          ...(author && {
+            commitMeta: { authors: [author], message: "" },
+          }),
         },
       });
 
       if (setSuccessMessage) {
         setSuccessMessage(
-          <FormattedMessage id="BranchHistory.Dialog.MergeBranch.Success" />
+          <FormattedMessage id="BranchHistory.Dialog.MergeBranch.Success" />,
         );
       }
 
@@ -87,10 +93,10 @@ function MergeBranchDialog({
         addNotification(
           formatMessage(
             { id: "ArcticCatalog.Merge.Dialog.SuccessMessage" },
-            { branchName, fromRefName }
+            { branchName, fromRefName },
           ),
-          "success"
-        )
+          "success",
+        ),
       );
       closeDialog();
       setIsSending(false);
@@ -135,7 +141,7 @@ function MergeBranchDialog({
         .map((ref) => {
           return { label: ref.name, value: ref.name };
         }),
-    [allRefs, mergeFrom.name]
+    [allRefs, mergeFrom.name],
   );
 
   return (
@@ -167,7 +173,7 @@ function MergeBranchDialog({
               srcBranch: mergeFrom.name,
               dstBranch: mergeTo.name,
             }),
-          }
+          },
         )}
         actions={
           <>

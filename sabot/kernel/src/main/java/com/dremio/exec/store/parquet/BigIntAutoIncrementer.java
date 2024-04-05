@@ -15,18 +15,16 @@
  */
 package com.dremio.exec.store.parquet;
 
-import org.apache.arrow.vector.BigIntVector;
-import org.apache.arrow.vector.SimpleIntVector;
-
 import com.dremio.common.expression.CompleteType;
 import com.dremio.exec.store.dfs.implicit.AdditionalColumnsRecordReader;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.google.common.base.Preconditions;
+import org.apache.arrow.vector.BigIntVector;
+import org.apache.arrow.vector.SimpleIntVector;
 
-/**
- * Generate monotonically increasing integers
- */
-public class BigIntAutoIncrementer implements AdditionalColumnsRecordReader.Populator, AutoCloseable {
+/** Generate monotonically increasing integers */
+public class BigIntAutoIncrementer
+    implements AdditionalColumnsRecordReader.Populator, AutoCloseable {
 
   private static long INCREMENT = 1;
   private BigIntVector vector;
@@ -38,7 +36,7 @@ public class BigIntAutoIncrementer implements AdditionalColumnsRecordReader.Popu
 
   public BigIntAutoIncrementer(String columnName, int batchSize, SimpleIntVector deltas) {
     Preconditions.checkArgument(
-      columnName != null && !columnName.isEmpty(), "Column name is required");
+        columnName != null && !columnName.isEmpty(), "Column name is required");
     this.columnName = columnName;
     this.batchSize = batchSize;
     this.deltas = deltas;
@@ -50,7 +48,7 @@ public class BigIntAutoIncrementer implements AdditionalColumnsRecordReader.Popu
 
   @Override
   public void setup(OutputMutator output) {
-    vector = (BigIntVector)output.getVector(columnName);
+    vector = (BigIntVector) output.getVector(columnName);
     if (vector == null) {
       vector = output.addField(CompleteType.BIGINT.toField(columnName), BigIntVector.class);
     }
@@ -71,7 +69,7 @@ public class BigIntAutoIncrementer implements AdditionalColumnsRecordReader.Popu
       return;
     }
 
-    for(int i = 0; i < count; i++) {
+    for (int i = 0; i < count; i++) {
       vector.setSafe(i, currentRowIndex + rowIndexBase);
       currentRowIndex += INCREMENT;
     }
@@ -80,7 +78,7 @@ public class BigIntAutoIncrementer implements AdditionalColumnsRecordReader.Popu
   }
 
   private void populateWithDeltas(final int count) {
-    for(int i = 0; i < count; i++) {
+    for (int i = 0; i < count; i++) {
       // Add filtered row count
       currentRowIndex += deltas.get(i);
       vector.setSafe(i, currentRowIndex + rowIndexBase);

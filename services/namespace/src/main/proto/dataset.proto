@@ -123,6 +123,9 @@ message AccelerationSettings {
   optional string tag = 9;
   // if the incremental refresh is snapshot based
   optional bool snapshotBased = 10 [default = false];
+  // active refresh policy type
+  optional RefreshPolicyType refreshPolicyType = 11 [default = PERIOD];
+  optional string refreshSchedule = 12;
 }
 
 enum RefreshMethod {

@@ -19,7 +19,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.stream.Collectors;
-
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlCall;
@@ -32,13 +31,13 @@ import org.apache.calcite.sql2rel.SqlRexConvertlet;
 
 public class HiveMaskConvertlets {
 
-  public static final class HiveMaskHashConvertlet implements  SqlRexConvertlet {
+  public static final class HiveMaskHashConvertlet implements SqlRexConvertlet {
     public static final SqlRexConvertlet INSTANCE = new HiveMaskHashConvertlet();
+
     @Override
-    public RexNode convertCall (SqlRexContext cx, SqlCall call){
+    public RexNode convertCall(SqlRexContext cx, SqlCall call) {
       final RexBuilder rexBuilder = cx.getRexBuilder();
-      final RexNode operand0 =
-        cx.convertExpression(call.getOperandList().get(0));
+      final RexNode operand0 = cx.convertExpression(call.getOperandList().get(0));
       if (operand0.getType().getFamily() == SqlTypeFamily.CHARACTER) {
         return rexBuilder.makeCall(DremioSqlOperatorTable.HASHSHA256, operand0);
       } else {
@@ -57,19 +56,22 @@ public class HiveMaskConvertlets {
   private static final int MASKED_MONTH = 0;
   private static final int MASKED_YEAR = 0;
 
-  public static final class HiveMaskConvertlet implements  SqlRexConvertlet {
+  public static final class HiveMaskConvertlet implements SqlRexConvertlet {
     public static final SqlRexConvertlet INSTANCE = new HiveMaskConvertlet();
+
     @Override
-    public RexNode convertCall (SqlRexContext cx, SqlCall call){
+    public RexNode convertCall(SqlRexContext cx, SqlCall call) {
       final RexBuilder rexBuilder = cx.getRexBuilder();
       final List<SqlNode> operandList = call.getOperandList();
-      final List<RexNode> operands = new ArrayList<>(operandList.stream().map(cx::convertExpression).collect(Collectors.toList()));
+      final List<RexNode> operands =
+          new ArrayList<>(
+              operandList.stream().map(cx::convertExpression).collect(Collectors.toList()));
 
       final RexNode operand0 = operands.get(0);
 
       if ((operand0.getType().getFamily() != SqlTypeFamily.CHARACTER)
-        && (operand0.getType().getSqlTypeName() != SqlTypeName.DATE)
-        && (!SqlTypeName.INT_TYPES.contains(operand0.getType().getSqlTypeName()))) {
+          && (operand0.getType().getSqlTypeName() != SqlTypeName.DATE)
+          && (!SqlTypeName.INT_TYPES.contains(operand0.getType().getSqlTypeName()))) {
         return rexBuilder.makeNullLiteral(operand0.getType());
       }
 
@@ -89,19 +91,27 @@ public class HiveMaskConvertlets {
         return addModeAndCharCountAndBuild(cx, operands.subList(0, 5), "FULL");
       }
       if (operands.size() < 6) {
-        operands.add(rexBuilder.makeLiteral(MASKED_NUMBER,cx.getTypeFactory().createSqlType(SqlTypeName.INTEGER)));
+        operands.add(
+            rexBuilder.makeLiteral(
+                MASKED_NUMBER, cx.getTypeFactory().createSqlType(SqlTypeName.INTEGER)));
       }
       if (SqlTypeName.INT_TYPES.contains(operand0.getType().getSqlTypeName())) {
         return addModeAndCharCountAndBuild(cx, operands.subList(0, 6), "FULL");
       }
       if (operands.size() < 7) {
-        operands.add(rexBuilder.makeLiteral(MASKED_DAY,cx.getTypeFactory().createSqlType(SqlTypeName.INTEGER)));
+        operands.add(
+            rexBuilder.makeLiteral(
+                MASKED_DAY, cx.getTypeFactory().createSqlType(SqlTypeName.INTEGER)));
       }
       if (operands.size() < 8) {
-        operands.add(rexBuilder.makeLiteral(MASKED_MONTH,cx.getTypeFactory().createSqlType(SqlTypeName.INTEGER)));
+        operands.add(
+            rexBuilder.makeLiteral(
+                MASKED_MONTH, cx.getTypeFactory().createSqlType(SqlTypeName.INTEGER)));
       }
       if (operands.size() < 9) {
-        operands.add(rexBuilder.makeLiteral(MASKED_YEAR,cx.getTypeFactory().createSqlType(SqlTypeName.INTEGER)));
+        operands.add(
+            rexBuilder.makeLiteral(
+                MASKED_YEAR, cx.getTypeFactory().createSqlType(SqlTypeName.INTEGER)));
       }
       if (operand0.getType().getFamily() == SqlTypeFamily.DATE) {
         return addModeAndCharCountAndBuild(cx, operands.subList(0, 9), "FULL");
@@ -110,31 +120,42 @@ public class HiveMaskConvertlets {
     }
   }
 
-  private static RexNode addModeAndCharCountAndBuild(SqlRexContext cx, List<RexNode> operands, String mode) {
+  private static RexNode addModeAndCharCountAndBuild(
+      SqlRexContext cx, List<RexNode> operands, String mode) {
     RexNode m = cx.getRexBuilder().makeLiteral(mode);
     List<RexNode> ops = new ArrayList<>(operands);
-    RexNode charCount = cx.getRexBuilder().makeLiteral(-1, cx.getTypeFactory().createSqlType(SqlTypeName.INTEGER), true);
+    RexNode charCount =
+        cx.getRexBuilder()
+            .makeLiteral(-1, cx.getTypeFactory().createSqlType(SqlTypeName.INTEGER), true);
     ops.add(1, m);
     ops.add(2, charCount);
     return cx.getRexBuilder().makeCall(DremioSqlOperatorTable.HIVE_MASK_INTERNAL, ops);
   }
-  public static final class HiveMaskFirstLastConvertlet implements  SqlRexConvertlet {
+
+  public static final class HiveMaskFirstLastConvertlet implements SqlRexConvertlet {
     public static final SqlRexConvertlet INSTANCE = new HiveMaskFirstLastConvertlet();
+
     @Override
-    public RexNode convertCall (SqlRexContext cx, SqlCall call){
+    public RexNode convertCall(SqlRexContext cx, SqlCall call) {
       final RexBuilder rexBuilder = cx.getRexBuilder();
-      final List<RexNode> operands = new ArrayList<>(call.getOperandList().stream().map(cx::convertExpression).collect(Collectors.toList()));
+      final List<RexNode> operands =
+          new ArrayList<>(
+              call.getOperandList().stream()
+                  .map(cx::convertExpression)
+                  .collect(Collectors.toList()));
 
       final RexNode operand0 = operands.get(0);
 
       if ((operand0.getType().getFamily() != SqlTypeFamily.CHARACTER)
-        && (operand0.getType().getSqlTypeName() != SqlTypeName.DATE)
-        && (!SqlTypeName.INT_TYPES.contains(operand0.getType().getSqlTypeName()))) {
+          && (operand0.getType().getSqlTypeName() != SqlTypeName.DATE)
+          && (!SqlTypeName.INT_TYPES.contains(operand0.getType().getSqlTypeName()))) {
         return rexBuilder.makeNullLiteral(operand0.getType());
       }
 
       if (operands.size() < 2) {
-        operands.add(rexBuilder.makeLiteral(CHAR_COUNT, cx.getTypeFactory().createSqlType(SqlTypeName.INTEGER), true));
+        operands.add(
+            rexBuilder.makeLiteral(
+                CHAR_COUNT, cx.getTypeFactory().createSqlType(SqlTypeName.INTEGER), true));
       }
       if (operands.size() < 3) {
         operands.add(rexBuilder.makeLiteral(MASKED_UPPERCASE));
@@ -152,19 +173,27 @@ public class HiveMaskConvertlets {
         return addModeAndBuild(cx, operands.subList(0, 6), getMode(call.getOperator()));
       }
       if (operands.size() < 7) {
-        operands.add(rexBuilder.makeLiteral(MASKED_NUMBER,cx.getTypeFactory().createSqlType(SqlTypeName.INTEGER)));
+        operands.add(
+            rexBuilder.makeLiteral(
+                MASKED_NUMBER, cx.getTypeFactory().createSqlType(SqlTypeName.INTEGER)));
       }
       if (SqlTypeName.INT_TYPES.contains(operand0.getType().getSqlTypeName())) {
         return addModeAndBuild(cx, operands.subList(0, 7), getMode(call.getOperator()));
       }
       if (operands.size() < 8) {
-        operands.add(rexBuilder.makeLiteral(MASKED_DAY,cx.getTypeFactory().createSqlType(SqlTypeName.INTEGER)));
+        operands.add(
+            rexBuilder.makeLiteral(
+                MASKED_DAY, cx.getTypeFactory().createSqlType(SqlTypeName.INTEGER)));
       }
       if (operands.size() < 9) {
-        operands.add(rexBuilder.makeLiteral(MASKED_MONTH,cx.getTypeFactory().createSqlType(SqlTypeName.INTEGER)));
+        operands.add(
+            rexBuilder.makeLiteral(
+                MASKED_MONTH, cx.getTypeFactory().createSqlType(SqlTypeName.INTEGER)));
       }
       if (operands.size() < 10) {
-        operands.add(rexBuilder.makeLiteral(MASKED_YEAR,cx.getTypeFactory().createSqlType(SqlTypeName.INTEGER)));
+        operands.add(
+            rexBuilder.makeLiteral(
+                MASKED_YEAR, cx.getTypeFactory().createSqlType(SqlTypeName.INTEGER)));
       }
       if (operand0.getType().getFamily() == SqlTypeFamily.DATE) {
         return addModeAndBuild(cx, operands.subList(0, 10), getMode(call.getOperator()));
@@ -178,7 +207,6 @@ public class HiveMaskConvertlets {
       ops.add(1, m);
       return cx.getRexBuilder().makeCall(DremioSqlOperatorTable.HIVE_MASK_INTERNAL, ops);
     }
-
   }
 
   private static String getMode(SqlOperator op) {

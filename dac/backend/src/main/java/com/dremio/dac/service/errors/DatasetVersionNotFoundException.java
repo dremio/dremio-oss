@@ -19,23 +19,27 @@ import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.explore.model.DatasetVersionResourcePath;
 import com.dremio.service.namespace.dataset.DatasetVersion;
 
-/**
- * Thrown when a version is not found for a given dataset
- */
+/** Thrown when a version is not found for a given dataset */
 public class DatasetVersionNotFoundException extends NotFoundException {
   private static final long serialVersionUID = 1L;
 
   private final DatasetPath datasetPath;
   private final DatasetVersion version;
 
-  public DatasetVersionNotFoundException(DatasetPath datasetPath, DatasetVersion version, Exception error) {
-    super(new DatasetVersionResourcePath(datasetPath, version), "dataset " + datasetPath.toPathString() + " version " + version, error);
+  public DatasetVersionNotFoundException(
+      DatasetPath datasetPath, DatasetVersion version, Exception error) {
+    super(
+        new DatasetVersionResourcePath(datasetPath, version),
+        "dataset " + datasetPath.toPathString() + " version " + version,
+        error);
     this.datasetPath = datasetPath;
     this.version = version;
   }
 
-  public DatasetVersionNotFoundException(DatasetPath datasetPath, DatasetVersion version)  {
-    super(new DatasetVersionResourcePath(datasetPath, version), "dataset " + datasetPath.toPathString() + " version " + version);
+  public DatasetVersionNotFoundException(DatasetPath datasetPath, DatasetVersion version) {
+    super(
+        new DatasetVersionResourcePath(datasetPath, version),
+        "dataset " + datasetPath.toPathString() + " version " + version);
     this.datasetPath = datasetPath;
     this.version = version;
   }

@@ -15,6 +15,7 @@
  */
 package com.dremio.provision.yarn;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -30,20 +31,18 @@ import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
-import com.google.common.annotations.VisibleForTesting;
-
 /**
  * Watches another process (PID passed in as an argument), and if this process stops responding to
- * requests from this process, kills it.
- * This is intended to be run in a separate process that only runs this class. Complicating this separate
- * process (for example, by running several things in it) increases the chances of the watchdog itself
- * going wrong, and the main process dying as a consequence.
+ * requests from this process, kills it. This is intended to be run in a separate process that only
+ * runs this class. Complicating this separate process (for example, by running several things in
+ * it) increases the chances of the watchdog itself going wrong, and the main process dying as a
+ * consequence.
  *
- * When run, the watcher itself spawns two separate threads:
- * - one thread (the PollingLoop) polls the watched process, in an infinite loop
- * - the second thread (the ParentWatcher) watches for EOF on an input stream passed in by the parent process
- * The watcher terminates when either of these two threads terminate (i.e., the parent process is either unhealthy,
- * causing the polling loop thread to exit; or the parent process exited, causing the parent watcher thread to exit)
+ * <p>When run, the watcher itself spawns two separate threads: - one thread (the PollingLoop) polls
+ * the watched process, in an infinite loop - the second thread (the ParentWatcher) watches for EOF
+ * on an input stream passed in by the parent process The watcher terminates when either of these
+ * two threads terminate (i.e., the parent process is either unhealthy, causing the polling loop
+ * thread to exit; or the parent process exited, causing the parent watcher thread to exit)
  */
 public class YarnWatchdog {
   private static final Logger logger = Logger.getLogger(YarnWatchdog.class.getName());
@@ -54,24 +53,32 @@ public class YarnWatchdog {
 
   /**
    * Initializes a new YarnWatchdog instance.
-   * @param watchedPID  watched process PID
+   *
+   * @param watchedPID watched process PID
    * @param inputStream stream from watched process
-   * @param livenessPort  listen socket port number of liveness
+   * @param livenessPort listen socket port number of liveness
    * @param pollTimeoutMs poll timeout, in milliseconds
-   * @param pollIntervalMs  poll interval, in milliseconds
+   * @param pollIntervalMs poll interval, in milliseconds
    * @param missedPollsBeforeKill missed polls before kill
    * @param maxKillAttempts max attempts to kill the watched process
-   * @param killReattemptIntervalMs  kill reattempt interval, in milliseconds
+   * @param killReattemptIntervalMs kill reattempt interval, in milliseconds
    */
-  public YarnWatchdog(final long watchedPID,
-                      final InputStream inputStream,
-                      final int livenessPort,
-                      final int pollTimeoutMs,
-                      final int pollIntervalMs,
-                      final int missedPollsBeforeKill,
-                      final int maxKillAttempts,
-                      final int killReattemptIntervalMs) {
-    this.pollingLoop = new PollingLoop(new LinuxWatchdogAction(watchedPID, livenessPort, pollTimeoutMs, maxKillAttempts, killReattemptIntervalMs), pollIntervalMs, pollTimeoutMs, missedPollsBeforeKill);
+  public YarnWatchdog(
+      final long watchedPID,
+      final InputStream inputStream,
+      final int livenessPort,
+      final int pollTimeoutMs,
+      final int pollIntervalMs,
+      final int missedPollsBeforeKill,
+      final int maxKillAttempts,
+      final int killReattemptIntervalMs) {
+    this.pollingLoop =
+        new PollingLoop(
+            new LinuxWatchdogAction(
+                watchedPID, livenessPort, pollTimeoutMs, maxKillAttempts, killReattemptIntervalMs),
+            pollIntervalMs,
+            pollTimeoutMs,
+            missedPollsBeforeKill);
     this.parentWatcher = new ParentWatcher(inputStream);
   }
 
@@ -83,26 +90,23 @@ public class YarnWatchdog {
     return parentWatcher;
   }
 
-  /**
-   * Poll & Kill actions performed by the watchdog
-   */
+  /** Poll & Kill actions performed by the watchdog */
   public interface WatchdogAction extends AutoCloseable {
     /**
      * Poll the watched process
+     *
      * @return true, if the poll succeeded; false if it failed
      */
     boolean doPoll();
 
-    /**
-     * Kill the watched process
-     */
+    /** Kill the watched process */
     void doKill();
   }
 
   /**
-   * Embodies the polling loop. Its {@link #doWatch()} method will keep polling the watched process until either the
-   * polling loop is interrupted with {@link #stopWatching()}, or until the watched process fails to respond a given
-   * number of times
+   * Embodies the polling loop. Its {@link #doWatch()} method will keep polling the watched process
+   * until either the polling loop is interrupted with {@link #stopWatching()}, or until the watched
+   * process fails to respond a given number of times
    */
   static class PollingLoop {
     private final WatchdogAction watchdogAction;
@@ -115,11 +119,15 @@ public class YarnWatchdog {
     private int numFailedPolls;
 
     /**
-     * @param pollIntervalMs         Time, in milliseconds, between two consecutive polls
-     * @param pollTimeoutMs          Time, in milliseconds, to wait for reply
-     * @param missedPollsBeforeKill  Number of missed polls before the watched process is killed
+     * @param pollIntervalMs Time, in milliseconds, between two consecutive polls
+     * @param pollTimeoutMs Time, in milliseconds, to wait for reply
+     * @param missedPollsBeforeKill Number of missed polls before the watched process is killed
      */
-    PollingLoop(final WatchdogAction watchdogAction, final int pollIntervalMs, final int pollTimeoutMs, final int missedPollsBeforeKill) {
+    PollingLoop(
+        final WatchdogAction watchdogAction,
+        final int pollIntervalMs,
+        final int pollTimeoutMs,
+        final int missedPollsBeforeKill) {
       this.watchdogAction = watchdogAction;
       this.pollIntervalMs = pollIntervalMs;
       this.pollTimeoutMs = pollTimeoutMs;
@@ -134,46 +142,63 @@ public class YarnWatchdog {
     }
 
     /**
-     * The main watchdog loop. Keeps polling the watched process until either:
-     * - the watched process stops responding, at which time the watched process is killed; or
-     * - the loop is interrupted by a call to {@link #stopWatching()}
+     * The main watchdog loop. Keeps polling the watched process until either: - the watched process
+     * stops responding, at which time the watched process is killed; or - the loop is interrupted
+     * by a call to {@link #stopWatching()}
      */
     public void doWatch() {
-      logger.log(Level.INFO,"Started watchdog");
+      logger.log(Level.INFO, "Started watchdog");
 
       long lastPollSucceedTime = System.currentTimeMillis();
       while (running) {
         if (watchdogAction.doPoll()) {
-          logger.log(Level.FINE,"Watchdog poll succeed.");
+          logger.log(Level.FINE, "Watchdog poll succeed.");
           numFailedPolls = 0;
           lastPollSucceedTime = System.currentTimeMillis();
         } else {
           ++numFailedPolls;
           if (numFailedPolls < missedPollsBeforeKill) {
-            logger.log(Level.INFO,"Watchdog poll failed. Number failed polls currently at {0}", numFailedPolls);
+            logger.log(
+                Level.INFO,
+                "Watchdog poll failed. Number failed polls currently at {0}",
+                numFailedPolls);
             long elapsedTime = System.currentTimeMillis() - lastPollSucceedTime;
             if (elapsedTime > (pollIntervalMs + pollTimeoutMs) * missedPollsBeforeKill) {
               /* Watchdog is expected to complete missedPollsBeforeKill polls, but actually it's not, because it might be
-                 slow down for the whole system is unhealthy. We should kill watched process, otherwise watchdog might not
-                 be able to get a chance to do next poll if the system become totally unhealthy.
-               */
-              logger.log(Level.SEVERE, "Watchdog is unhealthy, elapsedTime is {0}ms, numFailedPolls is {1}, pollIntervalMs is {2}, pollTimeoutMs is {3}, missedPollsBeforeKill is {4}. Issuing process kill",
-                new Object[] {elapsedTime, numFailedPolls, pollIntervalMs, pollTimeoutMs, missedPollsBeforeKill});
+                slow down for the whole system is unhealthy. We should kill watched process, otherwise watchdog might not
+                be able to get a chance to do next poll if the system become totally unhealthy.
+              */
+              logger.log(
+                  Level.SEVERE,
+                  "Watchdog is unhealthy, elapsedTime is {0}ms, numFailedPolls is {1}, pollIntervalMs is {2}, pollTimeoutMs is {3}, missedPollsBeforeKill is {4}. Issuing process kill",
+                  new Object[] {
+                    elapsedTime,
+                    numFailedPolls,
+                    pollIntervalMs,
+                    pollTimeoutMs,
+                    missedPollsBeforeKill
+                  });
               watchdogAction.doKill();
               running = false;
               break;
             }
           } else {
-            logger.log(Level.SEVERE,"Watchdog detected {0} failed polls. Issuing process kill", numFailedPolls);
+            logger.log(
+                Level.SEVERE,
+                "Watchdog detected {0} failed polls. Issuing process kill",
+                numFailedPolls);
             watchdogAction.doKill();
             running = false;
             break;
           }
         }
 
-        // Implementation note: An alternative to blindly sleeping 'pollIntervalMs' would have been to keep 'pollIntervalMs'
-        // milliseconds between the starts of consecutive polls. However, we expect the polling interval to be
-        // significantly larger than the timeout inside the poll itself (see LinuxWatchdogAction, below), therefore
+        // Implementation note: An alternative to blindly sleeping 'pollIntervalMs' would have been
+        // to keep 'pollIntervalMs'
+        // milliseconds between the starts of consecutive polls. However, we expect the polling
+        // interval to be
+        // significantly larger than the timeout inside the poll itself (see LinuxWatchdogAction,
+        // below), therefore
         // rendering this optimization pointless
         try {
           Thread.sleep(pollIntervalMs);
@@ -185,22 +210,18 @@ public class YarnWatchdog {
       try {
         watchdogAction.close();
       } catch (Exception e) {
-        logger.log(Level.SEVERE,"Closing the watchdog failed {0}", exceptionStacktraceToString(e));
+        logger.log(Level.SEVERE, "Closing the watchdog failed {0}", exceptionStacktraceToString(e));
       }
-      logger.log(Level.INFO,"Watchdog exiting normally");
+      logger.log(Level.INFO, "Watchdog exiting normally");
     }
 
-    /**
-     * Stops the (otherwise infinite) watchdog loop
-     */
+    /** Stops the (otherwise infinite) watchdog loop */
     public void stopWatching() {
       running = false;
     }
   }
 
-  /**
-   * Thread to run the polling loop.
-   */
+  /** Thread to run the polling loop. */
   static class PollingLoopThread extends Thread {
 
     private final PollingLoop pollingLoop;
@@ -212,13 +233,11 @@ public class YarnWatchdog {
     @Override
     public void run() {
       pollingLoop.doWatch();
-      logger.log(Level.INFO,"Watchdog thread exited");
+      logger.log(Level.INFO, "Watchdog thread exited");
     }
   }
 
-  /**
-   * Simply reads from the input stream and discards its inputs, until the input stream closes
-   */
+  /** Simply reads from the input stream and discards its inputs, until the input stream closes */
   static class ParentWatcher {
     private final InputStream inputStream;
     private volatile boolean running;
@@ -232,29 +251,28 @@ public class YarnWatchdog {
       return running;
     }
 
-    /**
-     * Watch for an EOF on the input stream
-     */
+    /** Watch for an EOF on the input stream */
     void watchInput() {
       try {
         // The only message ever received on STDIN will be an EOF. Consuming input just in case
         int val;
         while ((val = inputStream.read()) != -1) {
           // NB: no-op, but checkstyle requires at least one statement. Hence, debug message
-          logger.log(Level.FINE,"Received {0} at input", val);
+          logger.log(Level.FINE, "Received {0} at input", val);
         }
-        logger.log(Level.INFO,"EOF on watchdog input. Quitting");
+        logger.log(Level.INFO, "EOF on watchdog input. Quitting");
       } catch (IOException e) {
-        logger.log(Level.INFO,"I/O exception on watchdog input. Quitting {0}", exceptionStacktraceToString(e));
+        logger.log(
+            Level.INFO,
+            "I/O exception on watchdog input. Quitting {0}",
+            exceptionStacktraceToString(e));
       } finally {
         running = false;
       }
     }
   }
 
-  /**
-   * Default actions, on Linux. Uses system-specific commands used to kill the other process
-   */
+  /** Default actions, on Linux. Uses system-specific commands used to kill the other process */
   static class LinuxWatchdogAction implements WatchdogAction {
 
     private final long watchedPid;
@@ -263,11 +281,12 @@ public class YarnWatchdog {
     private final int maxKillTimes;
     private final int killReattemptIntervalMs;
 
-    public LinuxWatchdogAction(final long watchedPid,
-                               final int livenessPort,
-                               final int pollTimeoutMs,
-                               final int maxKillTimes,
-                               final int killReattemptIntervalMs) {
+    public LinuxWatchdogAction(
+        final long watchedPid,
+        final int livenessPort,
+        final int pollTimeoutMs,
+        final int maxKillTimes,
+        final int killReattemptIntervalMs) {
       this.watchedPid = watchedPid;
       this.urlToRead = String.format("http://localhost:%d/live", livenessPort);
       this.pollTimeoutMs = pollTimeoutMs;
@@ -311,11 +330,14 @@ public class YarnWatchdog {
             return;
           }
         } catch (IOException e) {
-          logger.log(Level.WARNING, "Failed to kill parent process (pid: {0}) for attempt {1}.", new Object[]{watchedPid, retryCount});
+          logger.log(
+              Level.WARNING,
+              "Failed to kill parent process (pid: {0}) for attempt {1}.",
+              new Object[] {watchedPid, retryCount});
         }
         try {
           Thread.sleep(killReattemptIntervalMs);
-        } catch (InterruptedException e){
+        } catch (InterruptedException e) {
           // ignore the exception
         }
         retryCount++;
@@ -324,7 +346,7 @@ public class YarnWatchdog {
 
     private boolean isProcessRunning(final long pid) {
       final String command = "ps -p " + pid;
-      logger.log(Level.FINE,"Check process command [{0}]", command);
+      logger.log(Level.FINE, "Check process command [{0}]", command);
       try {
         final Process process = Runtime.getRuntime().exec(command);
         final InputStreamReader inputStreamReader = new InputStreamReader(process.getInputStream());
@@ -332,42 +354,39 @@ public class YarnWatchdog {
         String strLine;
         while ((strLine = bufferedReader.readLine()) != null) {
           if (strLine.contains(" " + pid + " ") || strLine.startsWith(pid + " ")) {
-            logger.log(Level.FINE,"Process {0} is still running.", pid);
+            logger.log(Level.FINE, "Process {0} is still running.", pid);
             return true;
           }
         }
-        logger.log(Level.FINE,"Process {0} is not running.", pid);
+        logger.log(Level.FINE, "Process {0} is not running.", pid);
         return false;
       } catch (Exception e) {
-        logger.log(Level.WARNING, "Got exception using system command [{0}]. {1}", new Object[]{command, exceptionStacktraceToString(e)});
+        logger.log(
+            Level.WARNING,
+            "Got exception using system command [{0}]. {1}",
+            new Object[] {command, exceptionStacktraceToString(e)});
         return true;
       }
     }
 
     @Override
-    public void close() {
-
-    }
+    public void close() {}
   }
 
   private static void dumpUsage(String errorMessage) {
     logger.log(Level.SEVERE, errorMessage);
-    logger.log(Level.SEVERE, "Usage: YarnWatchdog <watchedPID> <livenessPort> <pollTimeoutMs> <pollIntervalMs> <missedPollsBeforeKill> <maxKillAttempts> <killReattemptIntervalMs>");
+    logger.log(
+        Level.SEVERE,
+        "Usage: YarnWatchdog <watchedPID> <livenessPort> <pollTimeoutMs> <pollIntervalMs> <missedPollsBeforeKill> <maxKillAttempts> <killReattemptIntervalMs>");
   }
 
-
   /**
-   * Main entry point of the watchdog process
-   *   - the program instantaneously quit when it receives an EOF on System.in
-   *   - the program polls the watched process. If a number of polls fail, the program kills the watched process
-   * Arguments:
-   *   [0] - watched process PID
-   *   [1] - listen socket port number of liveness
-   *   [2] - poll timeout, in milliseconds
-   *   [3] - poll interval, in milliseconds
-   *   [4] - missed polls before kill
-   *   [5] - max attempts to kill the watched process
-   *   [6] - kill reattempt interval, in milliseconds
+   * Main entry point of the watchdog process - the program instantaneously quit when it receives an
+   * EOF on System.in - the program polls the watched process. If a number of polls fail, the
+   * program kills the watched process Arguments: [0] - watched process PID [1] - listen socket port
+   * number of liveness [2] - poll timeout, in milliseconds [3] - poll interval, in milliseconds [4]
+   * - missed polls before kill [5] - max attempts to kill the watched process [6] - kill reattempt
+   * interval, in milliseconds
    */
   public static void main(final String[] args) throws Exception {
     setLogLevel();
@@ -385,7 +404,7 @@ public class YarnWatchdog {
     int killReattemptIntervalMs = 0;
 
     try {
-      watchedPID =  Long.parseLong(args[0]);
+      watchedPID = Long.parseLong(args[0]);
       livenessPort = Integer.parseInt(args[1]);
       pollTimeoutMs = Integer.parseInt(args[2]);
       pollIntervalMs = Integer.parseInt(args[3]);
@@ -397,22 +416,43 @@ public class YarnWatchdog {
       System.exit(3);
     }
 
-    logger.log(Level.INFO, "YarnWatchdog, watchedPID={0}, livenessPort={1}, pollTimeoutMs={2}, pollIntervalMs={3}, missedPollsBeforeKill={4}, maxKillAttempts={5}, killReattemptIntervalMs={6}",
-      new Object[]{watchedPID, livenessPort, pollTimeoutMs, pollIntervalMs, missedPollsBeforeKill, maxKillAttempts, killReattemptIntervalMs});
+    logger.log(
+        Level.INFO,
+        "YarnWatchdog, watchedPID={0}, livenessPort={1}, pollTimeoutMs={2}, pollIntervalMs={3}, missedPollsBeforeKill={4}, maxKillAttempts={5}, killReattemptIntervalMs={6}",
+        new Object[] {
+          watchedPID,
+          livenessPort,
+          pollTimeoutMs,
+          pollIntervalMs,
+          missedPollsBeforeKill,
+          maxKillAttempts,
+          killReattemptIntervalMs
+        });
 
-    YarnWatchdog yarnWatchdog = new YarnWatchdog(watchedPID, System.in, livenessPort, pollTimeoutMs, pollIntervalMs, missedPollsBeforeKill, maxKillAttempts, killReattemptIntervalMs);
+    YarnWatchdog yarnWatchdog =
+        new YarnWatchdog(
+            watchedPID,
+            System.in,
+            livenessPort,
+            pollTimeoutMs,
+            pollIntervalMs,
+            missedPollsBeforeKill,
+            maxKillAttempts,
+            killReattemptIntervalMs);
     // start polling loop thread
-    final PollingLoopThread pollingLoopThread = new PollingLoopThread(yarnWatchdog.getPollingLoop());
+    final PollingLoopThread pollingLoopThread =
+        new PollingLoopThread(yarnWatchdog.getPollingLoop());
     pollingLoopThread.start();
 
     // start parent watcher thread
-    final Thread parentWatcherThread = new Thread() {
-      @Override
-      public void run() {
-        yarnWatchdog.getParentWatcher().watchInput();
-        System.exit(0);
-      }
-    };
+    final Thread parentWatcherThread =
+        new Thread() {
+          @Override
+          public void run() {
+            yarnWatchdog.getParentWatcher().watchInput();
+            System.exit(0);
+          }
+        };
     parentWatcherThread.start();
 
     // wait until polling loop thread exit
@@ -433,9 +473,15 @@ public class YarnWatchdog {
 
     @Override
     public String format(LogRecord record) {
-      return String.format("%1$tF %1$tT,%1$tL [%2$s] %3$-7s %4$s - %5$s %n", new Object[]{new Date(record.getMillis()),
-        Thread.currentThread().getName(), record.getLevel(), record.getSourceClassName(),
-        formatMessage(record)});
+      return String.format(
+          "%1$tF %1$tT,%1$tL [%2$s] %3$-7s %4$s - %5$s %n",
+          new Object[] {
+            new Date(record.getMillis()),
+            Thread.currentThread().getName(),
+            record.getLevel(),
+            record.getSourceClassName(),
+            formatMessage(record)
+          });
     }
   }
 

@@ -18,9 +18,7 @@ package com.dremio.dac.service.errors;
 import com.dremio.dac.model.common.ResourcePath;
 import com.dremio.service.accelerator.proto.AccelerationId;
 
-/**
- * An exception thrown when an acceleration associated with the given id is not found.
- */
+/** An exception thrown when an acceleration associated with the given id is not found. */
 public class AccelerationNotFoundException extends NotFoundException {
   public AccelerationNotFoundException(final AccelerationId id) {
     super(ResourcePath.defaultImpl(String.format("id@%s", id.getId())), "acceleration");

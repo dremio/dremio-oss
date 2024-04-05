@@ -18,19 +18,6 @@ package com.dremio.dac.daemon;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-
-import org.glassfish.jersey.media.multipart.MultiPartFeature;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-
 import com.dremio.common.perf.Timer;
 import com.dremio.common.perf.Timer.TimedBlock;
 import com.dremio.config.DremioConfig;
@@ -39,10 +26,19 @@ import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.util.JSONUtil;
 import com.dremio.test.DremioTest;
 import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
+import javax.ws.rs.client.Client;
+import javax.ws.rs.client.ClientBuilder;
+import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+import org.glassfish.jersey.media.multipart.MultiPartFeature;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
-/**
- * tests for serving the UI
- */
+/** tests for serving the UI */
 public class TestUIServer {
 
   private static final MediaType JSON = MediaType.APPLICATION_JSON_TYPE;
@@ -51,26 +47,26 @@ public class TestUIServer {
   private static Client client;
   private static WebTarget rootTarget;
 
-  @ClassRule
-  public static final TemporaryFolder folder = new TemporaryFolder();
+  @ClassRule public static final TemporaryFolder folder = new TemporaryFolder();
 
   @BeforeClass
   public static void init() throws Exception {
     try (TimedBlock b = Timer.time("TestUIServer.@BeforeClass")) {
-      dremioDaemon = DACDaemon.newDremioDaemon(
-        DACConfig
-          .newDebugConfig(DremioTest.DEFAULT_SABOT_CONFIG)
-          .autoPort(true)
-          .allowTestApis(true)
-          .writePath(folder.getRoot().getAbsolutePath())
-          .with(DremioConfig.FLIGHT_SERVICE_ENABLED_BOOLEAN, false)
-          .clusterMode(ClusterMode.LOCAL)
-          .serveUI(true),
-          DremioTest.CLASSPATH_SCAN_RESULT);
+      dremioDaemon =
+          DACDaemon.newDremioDaemon(
+              DACConfig.newDebugConfig(DremioTest.DEFAULT_SABOT_CONFIG)
+                  .autoPort(true)
+                  .allowTestApis(true)
+                  .writePath(folder.getRoot().getAbsolutePath())
+                  .with(DremioConfig.FLIGHT_SERVICE_ENABLED_BOOLEAN, false)
+                  .clusterMode(ClusterMode.LOCAL)
+                  .serveUI(true),
+              DremioTest.CLASSPATH_SCAN_RESULT);
       dremioDaemon.init();
       JacksonJaxbJsonProvider provider = new JacksonJaxbJsonProvider();
       provider.setMapper(JSONUtil.prettyMapper());
-      client = ClientBuilder.newBuilder().register(provider).register(MultiPartFeature.class).build();
+      client =
+          ClientBuilder.newBuilder().register(provider).register(MultiPartFeature.class).build();
       rootTarget = client.target("http://localhost:" + dremioDaemon.getWebServer().getPort());
     }
   }
@@ -94,5 +90,4 @@ public class TestUIServer {
     assertEquals(body, 200, response.getStatus());
     assertTrue(body, body.contains("<title>Dremio</title>"));
   }
-
 }

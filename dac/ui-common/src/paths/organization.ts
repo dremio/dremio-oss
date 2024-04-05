@@ -29,7 +29,7 @@ export const projects = settings.extend(() => "projects");
 export const clouds = settings.extend(() => "clouds");
 export const billing = settings.extend(() => "billing");
 export const billingAccountId = billing.extend(
-  (params: BillingAccountIdParam) => `${params.billingAccountId}`
+  (params: BillingAccountIdParam) => `${params.billingAccountId}`,
 );
 export const usage = settings.extend(() => "usage");
 export const authentication = settings.extend(() => "authentication");
@@ -44,6 +44,6 @@ export const roleId = roles.extend((params: RoleIdParam) => `${params.roleId}`);
 export const errorHandling = settings.extend(() => "*");
 
 export const invite = defineRoute(
-  (params: InviteParam) => `/invite/${params.inviteId}`
+  (params: InviteParam) => `/invite/${params.inviteId}`,
 );
 export const returningUser = defineRoute(() => "/returning-user");

@@ -18,22 +18,24 @@ package com.dremio.service.jobs;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-/**
- * Represents a certain job type stats
- */
+/** Represents a certain job type stats */
 public class JobTypeStats {
-  /**
-   * Enum of all possible Job Types we collect stats for.
-   */
-  public enum Types { UI, EXTERNAL, ACCELERATION, DOWNLOAD, INTERNAL, DAILY_JOBS, USER_JOBS };
+  /** Enum of all possible Job Types we collect stats for. */
+  public enum Types {
+    UI,
+    EXTERNAL,
+    ACCELERATION,
+    DOWNLOAD,
+    INTERNAL,
+    DAILY_JOBS,
+    USER_JOBS
+  };
 
   private final Types type;
   private final int count;
 
   @JsonCreator
-  public JobTypeStats(
-      @JsonProperty("type") Types type,
-      @JsonProperty("count") int count) {
+  public JobTypeStats(@JsonProperty("type") Types type, @JsonProperty("count") int count) {
     this.type = type;
     this.count = count;
   }

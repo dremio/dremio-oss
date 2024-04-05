@@ -15,19 +15,19 @@
  */
 package com.dremio.authenticator;
 
+import com.dremio.service.Service;
 import org.jetbrains.annotations.NotNull;
 
-import com.dremio.service.Service;
-
 /**
- * This interface defines an API for authentication.
- * Implementations of this interface are responsible for performing authentication,
- * retrieving information about the authenticated user and auditing.
- * <p>
- * Authentication involves validating user credentials (e.g., username/password)
- * or verifying the authenticity of a token.
- * <p>
- * Example usage:
+ * This interface defines an API for authentication. Implementations of this interface are
+ * responsible for performing authentication, retrieving information about the authenticated user
+ * and auditing.
+ *
+ * <p>Authentication involves validating user credentials (e.g., username/password) or verifying the
+ * authenticity of a token.
+ *
+ * <p>Example usage:
+ *
  * <pre>
  *     Authenticator authenticator = new BasicAuthenticator();
  *     AuthRequest authRequest = AuthRequest.builder()
@@ -47,20 +47,15 @@ import com.dremio.service.Service;
 public interface Authenticator extends Service {
 
   /**
-   * Validates user credentials (e.g., username/password)
-   * or verifies the authenticity of a token.
+   * Validates user credentials (e.g., username/password) or verifies the authenticity of a token.
    *
-   * @param request contains
-   *                - a password or a token is required
-   *                - a username is required when a password is provided, optional otherwise
-   *                - token_type is optional but recommended
-   *                - resource type based on the client type is required
-   * @return Authenticate result
-   * - a valid userID is required
-   * - a valid username is required
-   * - the type of token validation that had successfully validated the credentials is required
-   * - expiry is optional
-   * @throws AuthException                 if the authentication failed.
+   * @param request contains - a password or a token is required - a username is required when a
+   *     password is provided, optional otherwise - token_type is optional but recommended -
+   *     resource type based on the client type is required
+   * @return Authenticate result - a valid userID is required - a valid username is required - the
+   *     type of token validation that had successfully validated the credentials is required -
+   *     expiry is optional
+   * @throws AuthException if the authentication failed.
    * @throws UnsupportedOperationException if requested operation is not supported.
    */
   @NotNull
@@ -68,14 +63,14 @@ public interface Authenticator extends Service {
 
   /**
    * Make sure all required {@link AuthProvider} and services are available.
-   * @throws RuntimeException if the required {@link AuthProvider} and services cannot be initialized.
+   *
+   * @throws RuntimeException if the required {@link AuthProvider} and services cannot be
+   *     initialized.
    */
   @Override
   void start();
 
-  /**
-   * NOOP
-   */
+  /** NOOP */
   @Override
   default void close() {}
 }

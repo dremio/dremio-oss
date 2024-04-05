@@ -15,23 +15,19 @@
  */
 package com.dremio.exec.store.iceberg;
 
+import com.dremio.BaseTestQuery;
+import com.google.common.io.Resources;
 import java.io.File;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import com.dremio.BaseTestQuery;
-import com.google.common.io.Resources;
-
-/**
- * Verify that iceberg tables don't treat columns named 'dir0' as anything special.
- */
+/** Verify that iceberg tables don't treat columns named 'dir0' as anything special. */
 public class TestDirColumns extends BaseTestQuery {
 
   private static FileSystem fs;
@@ -47,14 +43,16 @@ public class TestDirColumns extends BaseTestQuery {
 
   private void createDataFile(File dir, String fileName) throws Exception {
     File dataFile = new File(dir, fileName);
-    URI resource = Resources.getResource(
-      "iceberg/nation/data/00000-1-a9e8d979-a183-40c5-af3d-a338ab62be8b-00000.parquet").toURI();
+    URI resource =
+        Resources.getResource(
+                "iceberg/nation/data/00000-1-a9e8d979-a183-40c5-af3d-a338ab62be8b-00000.parquet")
+            .toURI();
     Files.copy(Paths.get(resource), dataFile.toPath());
   }
 
   @Test
   public void testDirs() throws Exception {
-    for (String testSchema: SCHEMAS_FOR_TEST) {
+    for (String testSchema : SCHEMAS_FOR_TEST) {
       String srcTableName = "testDirs_src";
       String dstTableName = "testDirs_dst";
 
@@ -66,31 +64,29 @@ public class TestDirColumns extends BaseTestQuery {
 
       try (AutoCloseable ac = enableIcebergTables()) {
         final String ctasQuery =
-          String.format(
-            "CREATE TABLE %s.%s  "
-              + " AS SELECT * from %s.%s",
-            testSchema,
-            dstTableName,
-            testSchema,
-            srcTableName);
+            String.format(
+                "CREATE TABLE %s.%s  " + " AS SELECT * from %s.%s",
+                testSchema, dstTableName, testSchema, srcTableName);
 
         test(ctasQuery);
 
         testBuilder()
-          .sqlQuery(String.format("select count(dir0) c from %s.%s", testSchema, dstTableName))
-          .unOrdered()
-          .baselineColumns("c")
-          .baselineValues(25L)
-          .build()
-          .run();
+            .sqlQuery(String.format("select count(dir0) c from %s.%s", testSchema, dstTableName))
+            .unOrdered()
+            .baselineColumns("c")
+            .baselineValues(25L)
+            .build()
+            .run();
 
         testBuilder()
-          .sqlQuery(String.format("select dir0 from %s.%s order by dir0 limit 1", testSchema, dstTableName))
-          .unOrdered()
-          .baselineColumns("dir0")
-          .baselineValues("d0")
-          .build()
-          .run();
+            .sqlQuery(
+                String.format(
+                    "select dir0 from %s.%s order by dir0 limit 1", testSchema, dstTableName))
+            .unOrdered()
+            .baselineColumns("dir0")
+            .baselineValues("d0")
+            .build()
+            .run();
 
       } finally {
         FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), srcTableName));
@@ -98,5 +94,4 @@ public class TestDirColumns extends BaseTestQuery {
       }
     }
   }
-
 }

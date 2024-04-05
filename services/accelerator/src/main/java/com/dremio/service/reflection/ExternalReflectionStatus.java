@@ -15,18 +15,14 @@
  */
 package com.dremio.service.reflection;
 
-/**
- * External reflection status
- */
+/** External reflection status */
 public class ExternalReflectionStatus {
 
-  /**
-   *
-   */
+  /** */
   public enum STATUS {
     OK,
-    INVALID,    // reflection definition is no longer valid
-    OUT_OF_SYNC  // something changed that may have caused this reflection to be invalid
+    INVALID, // reflection definition is no longer valid
+    OUT_OF_SYNC // something changed that may have caused this reflection to be invalid
   }
 
   private final STATUS configStatus;

@@ -17,14 +17,13 @@ package com.dremio.exec.store.metadatarefresh.committer;
 
 import com.dremio.service.catalog.DatasetCatalogServiceGrpc;
 
-/**
- * gRPC client to interact with dataset catalog service
- */
+/** gRPC client to interact with dataset catalog service */
 public class DatasetCatalogGrpcClient {
 
   private DatasetCatalogServiceGrpc.DatasetCatalogServiceBlockingStub catalogServiceBlockingStub;
 
-  public DatasetCatalogGrpcClient(DatasetCatalogServiceGrpc.DatasetCatalogServiceBlockingStub catalogServiceBlockingStub) {
+  public DatasetCatalogGrpcClient(
+      DatasetCatalogServiceGrpc.DatasetCatalogServiceBlockingStub catalogServiceBlockingStub) {
     this.catalogServiceBlockingStub = catalogServiceBlockingStub;
   }
 

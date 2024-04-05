@@ -18,21 +18,6 @@ package com.dremio.service.jobs.metadata;
 import static org.apache.calcite.sql.SqlKind.AS;
 import static org.apache.calcite.sql.SqlKind.IDENTIFIER;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeField;
-import org.apache.calcite.sql.SqlCall;
-import org.apache.calcite.sql.SqlIdentifier;
-import org.apache.calcite.sql.SqlKind;
-import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.sql.SqlNodeList;
-import org.apache.calcite.sql.SqlOperator;
-import org.apache.calcite.sql.SqlOrderBy;
-import org.apache.calcite.sql.SqlSelect;
-
 import com.dremio.exec.calcite.SqlNodes;
 import com.dremio.exec.planner.sql.BaseSqlVisitor;
 import com.dremio.service.jobs.metadata.proto.Column;
@@ -44,17 +29,33 @@ import com.dremio.service.jobs.metadata.proto.Order;
 import com.dremio.service.jobs.metadata.proto.Order.OrderDirection;
 import com.dremio.service.jobs.metadata.proto.VirtualDatasetState;
 import com.google.common.annotations.VisibleForTesting;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.calcite.sql.SqlCall;
+import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlNodeList;
+import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.sql.SqlOrderBy;
+import org.apache.calcite.sql.SqlSelect;
 
 /**
- * Allows us to convert user submitted queries into internal dataset state to provide better queries upon transformation.
+ * Allows us to convert user submitted queries into internal dataset state to provide better queries
+ * upon transformation.
  */
 public final class QuerySemantics {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(QuerySemantics.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(QuerySemantics.class);
 
   private QuerySemantics() {}
 
   /**
    * Will parse a sql query and return a Dataset state
+   *
    * @return the corresponding state
    */
   @VisibleForTesting
@@ -81,28 +82,27 @@ public final class QuerySemantics {
       state.addAllContext(metadata.getQueryContext());
     }
     return Optional.of(state.build());
-
   }
 
   private static VirtualDatasetState.Builder fallback(String message, SqlNode node, String sql) {
     return fallback(message, node, sql, null);
   }
 
-  private static VirtualDatasetState.Builder fallback(String message, SqlNode node, String sql, Throwable t) {
-    return fallback(message + (node == null ? "" : " on node:\n" + SqlNodes.toTreeString(node)), sql, t);
+  private static VirtualDatasetState.Builder fallback(
+      String message, SqlNode node, String sql, Throwable t) {
+    return fallback(
+        message + (node == null ? "" : " on node:\n" + SqlNodes.toTreeString(node)), sql, t);
   }
 
   protected static VirtualDatasetState.Builder fallback(String message, String sql, Throwable t) {
     // When we don't understand the query we just fall back to wrapping
     logger.debug(message + "\nfalling back to wrapping:\n" + sql, t);
     return VirtualDatasetState.newBuilder()
-      .setFrom(From.newBuilder()
-          .setType(FromType.SQL)
-          .setValue(sql)
-          .setAlias("nested_0"));
+        .setFrom(From.newBuilder().setType(FromType.SQL).setValue(sql).setAlias("nested_0"));
   }
 
-  private static VirtualDatasetState.Builder extract(String sql, SqlNode node, final RelDataType relDataType) {
+  private static VirtualDatasetState.Builder extract(
+      String sql, SqlNode node, final RelDataType relDataType) {
     final VirtualDatasetState.Builder state;
     switch (node.getKind()) {
       case SELECT:
@@ -118,24 +118,26 @@ public final class QuerySemantics {
     return state;
   }
 
-  private static void populateSemanticFields(RelDataType relDataType, VirtualDatasetState.Builder state){
+  private static void populateSemanticFields(
+      RelDataType relDataType, VirtualDatasetState.Builder state) {
     for (String colName : relDataType.getFieldNames()) {
       state.addColumns(
-        Column.newBuilder()
-          .setName(colName)
-          .setExpression(Expression.newBuilder()
-            .setType(ExpressionType.REFERENCE)
-            .setValue(colName)));
+          Column.newBuilder()
+              .setName(colName)
+              .setExpression(
+                  Expression.newBuilder().setType(ExpressionType.REFERENCE).setValue(colName)));
     }
   }
 
-  private static VirtualDatasetState.Builder extractOrderBy(String sql, SqlNode node, final RelDataType relDataType) {
-    SqlOrderBy orderBy = (SqlOrderBy)node;
+  private static VirtualDatasetState.Builder extractOrderBy(
+      String sql, SqlNode node, final RelDataType relDataType) {
+    SqlOrderBy orderBy = (SqlOrderBy) node;
     return extract(sql, orderBy.query, relDataType);
   }
 
-  private static VirtualDatasetState.Builder extractSelect(String sql, SqlNode node, final RelDataType relDataType) {
-    SqlSelect select = (SqlSelect)node;
+  private static VirtualDatasetState.Builder extractSelect(
+      String sql, SqlNode node, final RelDataType relDataType) {
+    SqlSelect select = (SqlSelect) node;
 
     // From table
     final SqlNode fromNode = select.getFrom();
@@ -173,9 +175,8 @@ public final class QuerySemantics {
     if (fetch != null) {
       return fallback("fetch is not supported yet", fetch, sql);
     }
-    From.Builder fromTable = From.newBuilder()
-      .setType(FromType.TABLE)
-      .setValue(from.getTableToString());
+    From.Builder fromTable =
+        From.newBuilder().setType(FromType.TABLE).setValue(from.getTableToString());
     if (from.alias != null) {
       fromTable.setAlias(from.getAliasToString());
     }
@@ -194,37 +195,46 @@ public final class QuerySemantics {
     List<Order> orders = new ArrayList<>();
     if (orderBy != null) {
       for (SqlNode sqlNode : orderBy.getList()) {
-        orders.add(sqlNode.accept(new BaseSqlVisitor<Order>() {
-          @Override
-          public Order visit(SqlIdentifier id) {
-            return Order.newBuilder()
-              .setName(idToRef(from, id))
-              .setDirection(OrderDirection.ASC)
-              .build();
-          }
-          @Override
-          public Order visit(SqlCall call) {
-            switch (call.getOperator().getKind()) {
-              // there's no ASCENDING. It always fall in the id case above
-              case DESCENDING:
-                List<SqlNode> operandList = call.getOperandList();
-                if (operandList.size() != 1) {
-                  throw new UnsupportedOperationException("Unexpected DESC operands in order clause:\n" + SqlNodes.toTreeString(call));
-                }
-                SqlNode operand = operandList.get(0);
-                if (operand.getKind() == IDENTIFIER) {
-                  return Order.newBuilder()
-                    .setName(idToRef(from, (SqlIdentifier)operand))
-                    .setDirection(OrderDirection.DESC)
-                    .build();
-                } else {
-                  throw new UnsupportedOperationException("Unexpected DESC operand in order clause:\n" + SqlNodes.toTreeString(call));
-                }
-              default:
-                throw new UnsupportedOperationException("Unexpected SqlOperatorImpl in order clause:\n" + SqlNodes.toTreeString(call));
-            }
-          }
-        }));
+        orders.add(
+            sqlNode.accept(
+                new BaseSqlVisitor<Order>() {
+                  @Override
+                  public Order visit(SqlIdentifier id) {
+                    return Order.newBuilder()
+                        .setName(idToRef(from, id))
+                        .setDirection(OrderDirection.ASC)
+                        .build();
+                  }
+
+                  @Override
+                  public Order visit(SqlCall call) {
+                    switch (call.getOperator().getKind()) {
+                        // there's no ASCENDING. It always fall in the id case above
+                      case DESCENDING:
+                        List<SqlNode> operandList = call.getOperandList();
+                        if (operandList.size() != 1) {
+                          throw new UnsupportedOperationException(
+                              "Unexpected DESC operands in order clause:\n"
+                                  + SqlNodes.toTreeString(call));
+                        }
+                        SqlNode operand = operandList.get(0);
+                        if (operand.getKind() == IDENTIFIER) {
+                          return Order.newBuilder()
+                              .setName(idToRef(from, (SqlIdentifier) operand))
+                              .setDirection(OrderDirection.DESC)
+                              .build();
+                        } else {
+                          throw new UnsupportedOperationException(
+                              "Unexpected DESC operand in order clause:\n"
+                                  + SqlNodes.toTreeString(call));
+                        }
+                      default:
+                        throw new UnsupportedOperationException(
+                            "Unexpected SqlOperatorImpl in order clause:\n"
+                                + SqlNodes.toTreeString(call));
+                    }
+                  }
+                }));
       }
     }
     if (orders.size() == 0) {
@@ -234,47 +244,58 @@ public final class QuerySemantics {
   }
 
   private static FromNode extractFrom(final SqlNode from) {
-    return from.accept(new BaseSqlVisitor<FromNode>() {
-      @Override
-      public FromNode visit(SqlIdentifier id) {
-        return new FromNode(null, id);
-      }
-      @Override
-      public FromNode visit(SqlCall call) {
-        SqlOperator operator = call.getOperator();
-        switch (operator.getKind()) {
-          case AS:
-            ASNode as = extractAS(call);
-            if (as.exp.getKind() == IDENTIFIER) {
-              SqlIdentifier ref = (SqlIdentifier)as.exp;
-              if (!as.alias.isSimple()) {
-                throw new UnsupportedOperationException("Table aliasing not supported:\n" + SqlNodes.toTreeString(call));
-              }
-              return new FromNode(as.alias, ref);
-            } else {
-              throw new UnsupportedOperationException("Unexpected AS:\n" + SqlNodes.toTreeString(call));
+    return from.accept(
+        new BaseSqlVisitor<FromNode>() {
+          @Override
+          public FromNode visit(SqlIdentifier id) {
+            return new FromNode(null, id);
+          }
+
+          @Override
+          public FromNode visit(SqlCall call) {
+            SqlOperator operator = call.getOperator();
+            switch (operator.getKind()) {
+              case AS:
+                ASNode as = extractAS(call);
+                if (as.exp.getKind() == IDENTIFIER) {
+                  SqlIdentifier ref = (SqlIdentifier) as.exp;
+                  if (!as.alias.isSimple()) {
+                    throw new UnsupportedOperationException(
+                        "Table aliasing not supported:\n" + SqlNodes.toTreeString(call));
+                  }
+                  return new FromNode(as.alias, ref);
+                } else {
+                  throw new UnsupportedOperationException(
+                      "Unexpected AS:\n" + SqlNodes.toTreeString(call));
+                }
+              default:
+                throw new UnsupportedOperationException(
+                    "Unexpected operator in call: "
+                        + operator.getKind()
+                        + "\n"
+                        + SqlNodes.toTreeString(call));
             }
-          default:
-            throw new UnsupportedOperationException("Unexpected operator in call: " + operator.getKind() + "\n" + SqlNodes.toTreeString(call));
-        }
-      }
-    });
+          }
+        });
   }
 
-  private static List<Column> extractColumns(final RelDataType relDataType, SqlSelect select, final FromNode from) {
+  private static List<Column> extractColumns(
+      final RelDataType relDataType, SqlSelect select, final FromNode from) {
     List<SqlNode> selectList = select.getSelectList().getList();
     // If the select list is * query, return null for column list
     if (selectList.size() == 1) {
       final SqlNode sqlNode = selectList.get(0);
-      if (sqlNode instanceof SqlIdentifier && ((SqlIdentifier)sqlNode).isStar()) {
+      if (sqlNode instanceof SqlIdentifier && ((SqlIdentifier) sqlNode).isStar()) {
         return null;
       }
     }
 
-    // If the select list contains a '*', we can't extract columns as the relDataType will have '*' expanded
-    for(SqlNode sqlNode : selectList) {
-      if (sqlNode instanceof SqlIdentifier && ((SqlIdentifier)sqlNode).isStar()) {
-        throw new UnsupportedOperationException("* with other fields\n" + SqlNodes.toTreeString(select.getSelectList()));
+    // If the select list contains a '*', we can't extract columns as the relDataType will have '*'
+    // expanded
+    for (SqlNode sqlNode : selectList) {
+      if (sqlNode instanceof SqlIdentifier && ((SqlIdentifier) sqlNode).isStar()) {
+        throw new UnsupportedOperationException(
+            "* with other fields\n" + SqlNodes.toTreeString(select.getSelectList()));
       }
     }
 
@@ -282,52 +303,67 @@ public final class QuerySemantics {
 
     List<RelDataTypeField> fieldList = relDataType.getFieldList();
     if (fieldList.size() != selectList.size()) {
-      throw new UnsupportedOperationException("col size mismatch with type: " + relDataType +"\n" +SqlNodes.toSQLString(select.getSelectList()));
+      throw new UnsupportedOperationException(
+          "col size mismatch with type: "
+              + relDataType
+              + "\n"
+              + SqlNodes.toSQLString(select.getSelectList()));
     }
     for (int i = 0; i < fieldList.size(); i++) {
       final RelDataTypeField field = fieldList.get(i);
       SqlNode sqlNode = selectList.get(i);
-      Column c = sqlNode.accept(new BaseSqlVisitor<Column>(){
-        @Override public Column visit(SqlIdentifier id) {
-          return Column.newBuilder()
-            .setName(field.getName())
-            .setExpression(Expression.newBuilder()
-              .setType(ExpressionType.REFERENCE)
-              .setValue(idToRef(from, id)))
-            .build();
-        }
+      Column c =
+          sqlNode.accept(
+              new BaseSqlVisitor<Column>() {
+                @Override
+                public Column visit(SqlIdentifier id) {
+                  return Column.newBuilder()
+                      .setName(field.getName())
+                      .setExpression(
+                          Expression.newBuilder()
+                              .setType(ExpressionType.REFERENCE)
+                              .setValue(idToRef(from, id)))
+                      .build();
+                }
 
-        @Override public Column visit(SqlCall call) {
-          final SqlOperator operator = call.getOperator();
-          if (operator.getKind() == AS) {
-            final ASNode as = extractAS(call);
-            if (!field.getName().equals(as.getAliasToString())) {
-              throw new UnsupportedOperationException(
-                "Unexpected AS field name in call: " + field.getName() + " != " + as.getAliasToString() + " \n" +
-                  SqlNodes.toTreeString(call));
-            }
-            Column.Builder column = Column.newBuilder()
-              .setName(field.getName());
-            if (as.exp.getKind() == IDENTIFIER) {
-              column.setExpression(Expression.newBuilder()
-                .setType(ExpressionType.REFERENCE)
-                .setValue(idToRef(from, (SqlIdentifier)as.exp)));
-            } else {
-              column.setExpression(Expression.newBuilder()
-                .setType(ExpressionType.CALCULATED)
-                .setValue(SqlNodes.toSQLString(as.exp)));
-            }
-            return column.build();
-          } else {
-            return Column.newBuilder()
-              .setName(field.getName())
-              .setExpression(Expression.newBuilder()
-                .setType(ExpressionType.CALCULATED)
-                .setValue(SqlNodes.toSQLString(call)))
-              .build();
-          }
-        }
-      });
+                @Override
+                public Column visit(SqlCall call) {
+                  final SqlOperator operator = call.getOperator();
+                  if (operator.getKind() == AS) {
+                    final ASNode as = extractAS(call);
+                    if (!field.getName().equals(as.getAliasToString())) {
+                      throw new UnsupportedOperationException(
+                          "Unexpected AS field name in call: "
+                              + field.getName()
+                              + " != "
+                              + as.getAliasToString()
+                              + " \n"
+                              + SqlNodes.toTreeString(call));
+                    }
+                    Column.Builder column = Column.newBuilder().setName(field.getName());
+                    if (as.exp.getKind() == IDENTIFIER) {
+                      column.setExpression(
+                          Expression.newBuilder()
+                              .setType(ExpressionType.REFERENCE)
+                              .setValue(idToRef(from, (SqlIdentifier) as.exp)));
+                    } else {
+                      column.setExpression(
+                          Expression.newBuilder()
+                              .setType(ExpressionType.CALCULATED)
+                              .setValue(SqlNodes.toSQLString(as.exp)));
+                    }
+                    return column.build();
+                  } else {
+                    return Column.newBuilder()
+                        .setName(field.getName())
+                        .setExpression(
+                            Expression.newBuilder()
+                                .setType(ExpressionType.CALCULATED)
+                                .setValue(SqlNodes.toSQLString(call)))
+                        .build();
+                  }
+                }
+              });
       columns.add(c);
     }
 
@@ -335,7 +371,7 @@ public final class QuerySemantics {
   }
 
   private static boolean isSimpleID(SqlNode node) {
-    return node.getKind() == IDENTIFIER && ((SqlIdentifier)node).isSimple();
+    return node.getKind() == IDENTIFIER && ((SqlIdentifier) node).isSimple();
   }
 
   private static String idToRef(FromNode from, SqlIdentifier id) {
@@ -360,7 +396,8 @@ public final class QuerySemantics {
         }
       }
       if (!finalId.isSimple()) {
-        throw new IllegalArgumentException("expected a simple type column name (directly or prefixed with table name/alias)");
+        throw new IllegalArgumentException(
+            "expected a simple type column name (directly or prefixed with table name/alias)");
       }
       return finalId.getSimple();
     }
@@ -369,6 +406,7 @@ public final class QuerySemantics {
   private static class FromNode {
     private final SqlIdentifier alias;
     private final SqlIdentifier table;
+
     FromNode(SqlIdentifier alias, SqlIdentifier table) {
       this.alias = alias;
       this.table = table;
@@ -376,9 +414,11 @@ public final class QuerySemantics {
         throw new IllegalArgumentException("alias must be a simple id: " + alias);
       }
     }
+
     String getTableToString() {
       return SqlNodes.toSQLString(table);
     }
+
     String getAliasToString() {
       return alias.getSimple();
     }
@@ -387,6 +427,7 @@ public final class QuerySemantics {
   private static class ASNode {
     private final SqlIdentifier alias;
     private final SqlNode exp;
+
     ASNode(SqlIdentifier alias, SqlNode exp) {
       this.alias = alias;
       this.exp = exp;
@@ -394,6 +435,7 @@ public final class QuerySemantics {
         throw new IllegalArgumentException("alias must be a simple id: " + alias);
       }
     }
+
     String getAliasToString() {
       return alias.getSimple();
     }
@@ -406,15 +448,16 @@ public final class QuerySemantics {
         SqlNode exp = operandList.get(0);
         SqlNode colID = operandList.get(1);
         if (isSimpleID(colID)) {
-          return new ASNode((SqlIdentifier)colID, exp);
+          return new ASNode((SqlIdentifier) colID, exp);
         } else {
-          throw new UnsupportedOperationException("Unexpected AS " + colID + "\n" + SqlNodes.toTreeString(call));
+          throw new UnsupportedOperationException(
+              "Unexpected AS " + colID + "\n" + SqlNodes.toTreeString(call));
         }
       } else {
-        throw new UnsupportedOperationException("Unexpected AS operands in field: \n" + SqlNodes.toTreeString(call));
+        throw new UnsupportedOperationException(
+            "Unexpected AS operands in field: \n" + SqlNodes.toTreeString(call));
       }
     }
     throw new UnsupportedOperationException("AS not understood: " + SqlNodes.toSQLString(call));
   }
-
 }

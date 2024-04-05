@@ -32,7 +32,8 @@ import com.dremio.sabot.op.spi.ProducerOperator;
 import com.google.common.base.Preconditions;
 
 public class UnorderedReceiverOperator implements ProducerOperator {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(UnorderedReceiverOperator.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(UnorderedReceiverOperator.class);
 
   private State state = State.NEEDS_SETUP;
   private final ArrowRecordBatchLoader batchLoader;
@@ -59,9 +60,13 @@ public class UnorderedReceiverOperator implements ProducerOperator {
     }
   }
 
-  public UnorderedReceiverOperator(final BatchStreamProvider streams, final OperatorContext context, final UnorderedReceiver config) {
+  public UnorderedReceiverOperator(
+      final BatchStreamProvider streams,
+      final OperatorContext context,
+      final UnorderedReceiver config) {
     if (config.getNumSenders() > 0) {
-      final RawFragmentBatchProvider[] buffers = streams.getBuffers(config.getSenderMajorFragmentId());
+      final RawFragmentBatchProvider[] buffers =
+          streams.getBuffers(config.getSenderMajorFragmentId());
       Preconditions.checkArgument(buffers.length == 1);
       this.fragProvider = buffers[0];
     } else {
@@ -74,8 +79,10 @@ public class UnorderedReceiverOperator implements ProducerOperator {
     this.stats.setLongStat(Metric.NUM_SENDERS, config.getNumSenders());
     this.outgoing = context.createOutputVectorContainer(config.getSchema());
 
-    // In normal case, batchLoader does not require an allocator. However, in case of splitAndTransfer of a value vector,
-    // we may need an allocator for the new offset vector. Therefore, here we pass the context's allocator to batchLoader.
+    // In normal case, batchLoader does not require an allocator. However, in case of
+    // splitAndTransfer of a value vector,
+    // we may need an allocator for the new offset vector. Therefore, here we pass the context's
+    // allocator to batchLoader.
     this.batchLoader = new ArrowRecordBatchLoader(outgoing);
   }
 
@@ -102,10 +109,10 @@ public class UnorderedReceiverOperator implements ProducerOperator {
 
     batchLoader.resetRecordCount();
 
-    try(final RawFragmentBatch batch = fragProvider.getNext()){
+    try (final RawFragmentBatch batch = fragProvider.getNext()) {
 
-      if(batch == null){
-        if(fragProvider.isStreamDone()){
+      if (batch == null) {
+        if (fragProvider.isStreamDone()) {
           state = State.DONE;
         } else {
           state = State.BLOCKED;
@@ -125,7 +132,8 @@ public class UnorderedReceiverOperator implements ProducerOperator {
   }
 
   @Override
-  public <OUT, IN, EXCEP extends Throwable> OUT accept(OperatorVisitor<OUT, IN, EXCEP> visitor, IN value) throws EXCEP {
+  public <OUT, IN, EXCEP extends Throwable> OUT accept(
+      OperatorVisitor<OUT, IN, EXCEP> visitor, IN value) throws EXCEP {
     return visitor.visitProducer(this, value);
   }
 
@@ -141,11 +149,11 @@ public class UnorderedReceiverOperator implements ProducerOperator {
   public static class Creator implements ReceiverCreator<UnorderedReceiver> {
 
     @Override
-    public ProducerOperator create(BatchStreamProvider streams, OperatorContext context, UnorderedReceiver config)
+    public ProducerOperator create(
+        BatchStreamProvider streams, OperatorContext context, UnorderedReceiver config)
         throws ExecutionSetupException {
 
       return new UnorderedReceiverOperator(streams, context, config);
     }
-
   }
 }

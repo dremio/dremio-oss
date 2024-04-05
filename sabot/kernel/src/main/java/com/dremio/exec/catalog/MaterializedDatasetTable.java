@@ -15,12 +15,24 @@
  */
 package com.dremio.exec.catalog;
 
+import com.dremio.catalog.model.dataset.TableVersionContext;
+import com.dremio.datastore.SearchTypes;
+import com.dremio.exec.calcite.logical.ScanCrel;
+import com.dremio.exec.planner.sql.CalciteArrowHelper;
+import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.store.NamespaceTable;
+import com.dremio.exec.store.NamespaceTable.StatisticImpl;
+import com.dremio.exec.store.TableMetadata;
+import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.PartitionChunk;
+import com.dremio.service.namespace.dataset.proto.ReadDefinition;
+import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.config.CalciteConnectionConfig;
 import org.apache.calcite.plan.Convention;
@@ -36,23 +48,7 @@ import org.apache.calcite.schema.Table;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlNode;
 
-import com.dremio.catalog.model.dataset.TableVersionContext;
-import com.dremio.datastore.SearchTypes;
-import com.dremio.exec.calcite.logical.ScanCrel;
-import com.dremio.exec.planner.sql.CalciteArrowHelper;
-import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.store.NamespaceTable;
-import com.dremio.exec.store.NamespaceTable.StatisticImpl;
-import com.dremio.exec.store.TableMetadata;
-import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.namespace.dataset.proto.DatasetConfig;
-import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.PartitionChunk;
-import com.dremio.service.namespace.dataset.proto.ReadDefinition;
-import com.google.common.collect.ImmutableList;
-
-/**
- * DatasetTable that is used for table with options.
- */
+/** DatasetTable that is used for table with options. */
 public class MaterializedDatasetTable implements DremioTable {
 
   private final NamespaceKey canonicalPath;
@@ -66,15 +62,14 @@ public class MaterializedDatasetTable implements DremioTable {
   private final List<RelDataTypeField> extendedFields;
 
   public MaterializedDatasetTable(
-    NamespaceKey canonicalPath,
-    StoragePluginId pluginId,
-    String user,
-    Supplier<DatasetConfig> datasetConfig,
-    Supplier<List<PartitionChunk>> partitionChunks,
-    boolean complexTypeSupport,
-    TableVersionContext versionContext,
-    List<RelDataTypeField> extendedFields
-  ) {
+      NamespaceKey canonicalPath,
+      StoragePluginId pluginId,
+      String user,
+      Supplier<DatasetConfig> datasetConfig,
+      Supplier<List<PartitionChunk>> partitionChunks,
+      boolean complexTypeSupport,
+      TableVersionContext versionContext,
+      List<RelDataTypeField> extendedFields) {
     this.canonicalPath = canonicalPath;
     this.pluginId = pluginId;
     this.datasetConfig = datasetConfig;
@@ -93,21 +88,25 @@ public class MaterializedDatasetTable implements DremioTable {
   @Override
   public RelNode toRel(RelOptTable.ToRelContext context, RelOptTable relOptTable) {
     return new ScanCrel(
-      context.getCluster(),
-      context.getCluster().traitSetOf(Convention.NONE),
-      pluginId,
-      new MaterializedTableMetadata(pluginId, datasetConfig.get(), user, partitionChunks.get(), versionContext),
-      null,
-      1.0d,
-      ImmutableList.of(),
-      true,
-      true);
+        context.getCluster(),
+        context.getCluster().traitSetOf(Convention.NONE),
+        pluginId,
+        new MaterializedTableMetadata(
+            pluginId, datasetConfig.get(), user, partitionChunks.get(), versionContext),
+        null,
+        1.0d,
+        ImmutableList.of(),
+        true,
+        true);
   }
 
   @Override
   public RelDataType getRowType(RelDataTypeFactory typeFactory) {
     return CalciteArrowHelper.wrap(CalciteArrowHelper.fromDataset(getDatasetConfig()))
-      .toCalciteRecordType(typeFactory, (Field f) -> !NamespaceTable.SYSTEM_COLUMNS.contains(f.getName()), complexTypeSupport);
+        .toCalciteRecordType(
+            typeFactory,
+            (Field f) -> !NamespaceTable.SYSTEM_COLUMNS.contains(f.getName()),
+            complexTypeSupport);
   }
 
   @Override
@@ -151,33 +150,41 @@ public class MaterializedDatasetTable implements DremioTable {
   }
 
   @Override
-  public boolean rolledUpColumnValidInsideAgg(String column, SqlCall call, SqlNode parent, CalciteConnectionConfig config) {
+  public boolean rolledUpColumnValidInsideAgg(
+      String column, SqlCall call, SqlNode parent, CalciteConnectionConfig config) {
     return true;
   }
 
   @Override
   public TableMetadata getDataset() {
-    return new MaterializedTableMetadata(pluginId, datasetConfig.get(), user, partitionChunks.get(), versionContext);
+    return new MaterializedTableMetadata(
+        pluginId, datasetConfig.get(), user, partitionChunks.get(), versionContext);
   }
 
   private static class MaterializedTableMetadata extends TableMetadataImpl {
 
     private final TableVersionContext versionContext;
 
-    public MaterializedTableMetadata(StoragePluginId plugin,
-                                     DatasetConfig config,
-                                     String user,
-                                     List<PartitionChunk> splits,
-                                     TableVersionContext versionContext) {
-      super(plugin, config, user, MaterializedSplitsPointer.oldObsoleteOf(getSplitVersion(config), splits, splits.size()), null);
+    public MaterializedTableMetadata(
+        StoragePluginId plugin,
+        DatasetConfig config,
+        String user,
+        List<PartitionChunk> splits,
+        TableVersionContext versionContext) {
+      super(
+          plugin,
+          config,
+          user,
+          MaterializedSplitsPointer.oldObsoleteOf(getSplitVersion(config), splits, splits.size()),
+          null);
       this.versionContext = versionContext;
     }
 
     private static long getSplitVersion(DatasetConfig datasetConfig) {
       return Optional.ofNullable(datasetConfig)
-        .map(DatasetConfig::getReadDefinition)
-        .map(ReadDefinition::getSplitVersion)
-        .orElse(0L);
+          .map(DatasetConfig::getReadDefinition)
+          .map(ReadDefinition::getSplitVersion)
+          .orElse(0L);
     }
 
     @Override
@@ -194,30 +201,41 @@ public class MaterializedDatasetTable implements DremioTable {
 
   @Override
   public Table extend(List<RelDataTypeField> fields) {
-    boolean tryingToExtendExistingField = getSchema().getFields().stream().anyMatch(
-      field -> fields.stream().anyMatch(
-        extendingField -> extendingField.getName().equals(field.getName())));
+    boolean tryingToExtendExistingField =
+        getSchema().getFields().stream()
+            .anyMatch(
+                field ->
+                    fields.stream()
+                        .anyMatch(
+                            extendingField -> extendingField.getName().equals(field.getName())));
     if (tryingToExtendExistingField) {
       return this;
     }
 
     return new MaterializedDatasetTable(
-      canonicalPath,
-      pluginId,
-      user,
-      datasetConfig,
-      partitionChunks,
-      complexTypeSupport,
-      versionContext,
-      fields
-    ) {
+        canonicalPath,
+        pluginId,
+        user,
+        datasetConfig,
+        partitionChunks,
+        complexTypeSupport,
+        versionContext,
+        fields) {
       private BatchSchema schema;
+
       @Override
       public DatasetConfig getDatasetConfig() {
         if (schema == null) {
-          schema = BatchSchema.deserialize((datasetConfig.get().getRecordSchema())).cloneWithFields(fields.stream().map(
-              field -> CalciteArrowHelper.fieldFromCalciteRowType(field.getName(), field.getType()).get())
-            .collect(ImmutableList.toImmutableList()));
+          schema =
+              BatchSchema.deserialize((datasetConfig.get().getRecordSchema()))
+                  .cloneWithFields(
+                      fields.stream()
+                          .map(
+                              field ->
+                                  CalciteArrowHelper.fieldFromCalciteRowType(
+                                          field.getName(), field.getType())
+                                      .get())
+                          .collect(ImmutableList.toImmutableList()));
           return datasetConfig.get().setRecordSchema(schema.toByteString());
         }
         return datasetConfig.get();
@@ -236,8 +254,11 @@ public class MaterializedDatasetTable implements DremioTable {
       return "";
     }
 
-    return String.format("EXTEND (%s)", extendedFields.stream().map(
-      field -> String.format("\"%s\" %s", field.getName(), field.getType())).collect(Collectors.joining(", ")));
+    return String.format(
+        "EXTEND (%s)",
+        extendedFields.stream()
+            .map(field -> String.format("\"%s\" %s", field.getName(), field.getType()))
+            .collect(Collectors.joining(", ")));
   }
 
   @Override

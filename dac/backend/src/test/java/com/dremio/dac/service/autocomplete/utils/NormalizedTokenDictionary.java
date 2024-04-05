@@ -15,15 +15,12 @@
  */
 package com.dremio.dac.service.autocomplete.utils;
 
+import com.dremio.exec.planner.sql.parser.impl.ParserImplConstants;
+import com.google.common.collect.ImmutableList;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.dremio.exec.planner.sql.parser.impl.ParserImplConstants;
-import com.google.common.collect.ImmutableList;
-
-/**
- * Dictionary for mapping token kinds to a normalized list of images.
- */
+/** Dictionary for mapping token kinds to a normalized list of images. */
 public final class NormalizedTokenDictionary {
   public static final NormalizedTokenDictionary INSTANCE = new NormalizedTokenDictionary();
 
@@ -34,9 +31,7 @@ public final class NormalizedTokenDictionary {
     Map<String, Integer> imageToIndexBuilder = new HashMap<>();
     for (int index = 0; index < ParserImplConstants.tokenImage.length; index++) {
       String image = ParserImplConstants.tokenImage[index];
-      String normalizedImage = image
-        .toUpperCase()
-        .replace("\"", "");
+      String normalizedImage = image.toUpperCase().replace("\"", "");
 
       imagesBuilder.add(normalizedImage);
 

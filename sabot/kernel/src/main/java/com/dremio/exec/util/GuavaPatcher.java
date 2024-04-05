@@ -15,10 +15,8 @@
  */
 package com.dremio.exec.util;
 
-import java.lang.reflect.Modifier;
-
 import com.dremio.common.SuppressForbidden;
-
+import java.lang.reflect.Modifier;
 import javassist.ClassPool;
 import javassist.CtClass;
 import javassist.CtConstructor;
@@ -51,6 +49,7 @@ public class GuavaPatcher {
 
   /**
    * Patch an existing classloader for Guava 13 compatibilty
+   *
    * @param cl
    * @throws Exception
    */
@@ -66,7 +65,8 @@ public class GuavaPatcher {
 
     stopwatchClass.defrost();
 
-    // Expose the constructor for Stopwatch for old libraries who use the pattern new Stopwatch().start().
+    // Expose the constructor for Stopwatch for old libraries who use the pattern new
+    // Stopwatch().start().
     for (CtConstructor c : stopwatchClass.getConstructors()) {
       if (!Modifier.isStatic(c.getModifiers())) {
         c.setModifiers(Modifier.PUBLIC);
@@ -74,8 +74,10 @@ public class GuavaPatcher {
     }
 
     // Add back the Stopwatch.elapsedMillis() method for old consumers.
-    CtMethod elapsedMethod = CtNewMethod.make(
-        "public long elapsedMillis() { return elapsed(java.util.concurrent.TimeUnit.MILLISECONDS); }", stopwatchClass);
+    CtMethod elapsedMethod =
+        CtNewMethod.make(
+            "public long elapsedMillis() { return elapsed(java.util.concurrent.TimeUnit.MILLISECONDS); }",
+            stopwatchClass);
     stopwatchClass.addMethod(elapsedMethod);
 
     // Load the modified class instead of the original.
@@ -88,9 +90,10 @@ public class GuavaPatcher {
     closeablesClass.defrost();
 
     // Add back the Closeables.closeQuietly() method for old consumers.
-    CtMethod closeQuietlyMethod = CtNewMethod.make(
-        "public static void closeQuietly(java.io.Closeable closeable) { try{closeable.close();}catch(Exception e){} }",
-        closeablesClass);
+    CtMethod closeQuietlyMethod =
+        CtNewMethod.make(
+            "public static void closeQuietly(java.io.Closeable closeable) { try{closeable.close();}catch(Exception e){} }",
+            closeablesClass);
     closeablesClass.addMethod(closeQuietlyMethod);
 
     // Load the modified class instead of the original.
@@ -98,5 +101,4 @@ public class GuavaPatcher {
 
     logger.debug("Google's Closeables patched for old HBase Guava version.");
   }
-
 }

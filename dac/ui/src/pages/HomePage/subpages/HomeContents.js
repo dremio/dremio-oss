@@ -30,6 +30,8 @@ import { CatalogPrivilegeSwitch } from "@app/exports/components/CatalogPrivilege
 import Message from "@app/components/Message";
 import { fetchArsFlag } from "@inject/utils/arsUtils";
 import { store } from "@app/store/store";
+import { isVersionedSource } from "@app/utils/sourceUtils";
+import { isDefaultReferenceLoading } from "@app/selectors/nessie/nessie";
 
 export const VIEW_ID = "HomeContents";
 
@@ -53,6 +55,7 @@ class HomeContents extends Component {
   };
 
   componentDidMount() {
+    if (this.props.nessieLoading) return; //Nessie references still fetching, wait
     this.load();
   }
 
@@ -60,6 +63,7 @@ class HomeContents extends Component {
     const invalidated = this.props.viewState.get("invalidated");
     const prevInvalidated = prevProps.viewState.get("invalidated");
     if (
+      (!!prevProps.nessieLoading && !this.props.nessieLoading) ||
       prevProps.location.pathname !== this.props.location.pathname ||
       (invalidated && invalidated !== prevInvalidated)
     ) {
@@ -80,7 +84,7 @@ class HomeContents extends Component {
       getContentUrl,
       entityType,
       VIEW_ID,
-      params
+      params,
     );
     this.prevLoad = abortController;
 
@@ -161,8 +165,14 @@ class HomeContents extends Component {
   }
 }
 
-function mapStateToProps(state) {
+function mapStateToProps(state, props) {
+  const versioned = props.source && isVersionedSource(props.source.get("type"));
+  const nessieLoading =
+    versioned &&
+    isDefaultReferenceLoading(state.nessie[props.source.get("name")]);
+
   return {
+    nessieLoading,
     rightTreeVisible: state.ui.get("rightTreeVisible"),
     entity: getHomeContents(state),
     viewState: getViewState(state, VIEW_ID),

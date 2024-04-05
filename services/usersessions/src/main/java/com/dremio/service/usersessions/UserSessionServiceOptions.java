@@ -18,14 +18,11 @@ package com.dremio.service.usersessions;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators;
 
-/**
- * Set of options for configuring the UserSessionService
- */
+/** Set of options for configuring the UserSessionService */
 @Options
 public interface UserSessionServiceOptions {
-  /**
-   * Allows users to configure UserSession lifetime (in seconds). Default to 120 minutes.
-   */
+  /** Allows users to configure UserSession lifetime (in seconds). Default to 120 minutes. */
   TypeValidators.AdminPositiveLongValidator SESSION_TTL =
-    new TypeValidators.AdminPositiveLongValidator("usersessions.ttl.seconds", Integer.MAX_VALUE, 120 * 60);
+      new TypeValidators.AdminPositiveLongValidator(
+          "usersessions.ttl.seconds", Integer.MAX_VALUE, 120 * 60);
 }

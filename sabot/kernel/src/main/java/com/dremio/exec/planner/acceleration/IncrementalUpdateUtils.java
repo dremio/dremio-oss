@@ -17,12 +17,22 @@ package com.dremio.exec.planner.acceleration;
 
 import static com.dremio.exec.planner.logical.RelBuilder.newCalciteRelBuilderWithoutContext;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.common.types.MinorType;
+import com.dremio.exec.calcite.logical.ScanCrel;
+import com.dremio.exec.ops.SnapshotDiffContext;
+import com.dremio.exec.planner.StatelessRelShuttleImpl;
+import com.dremio.proto.model.UpdateId;
+import com.dremio.service.Pointer;
+import com.google.common.base.Function;
+import com.google.common.base.Predicate;
+import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.core.TableScan;
@@ -45,27 +55,14 @@ import org.apache.calcite.util.ImmutableBitSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.common.types.MinorType;
-import com.dremio.exec.calcite.logical.ScanCrel;
-import com.dremio.exec.ops.SnapshotDiffContext;
-import com.dremio.exec.planner.StatelessRelShuttleImpl;
-import com.dremio.proto.model.UpdateId;
-import com.dremio.service.Pointer;
-import com.google.common.base.Function;
-import com.google.common.base.Predicate;
-import com.google.common.collect.FluentIterable;
-import com.google.common.collect.ImmutableList;
-
-/**
- * Contains various utilities for acceleration incremental updates
- */
+/** Contains various utilities for acceleration incremental updates */
 public class IncrementalUpdateUtils {
   private static final Logger logger = LoggerFactory.getLogger(IncrementalUpdateUtils.class);
 
   public static final String UPDATE_COLUMN = "$_dremio_$_update_$";
 
-  public static final SubstitutionShuttle FILE_BASED_SUBSTITUTION_SHUTTLE = new SubstitutionShuttle(UPDATE_COLUMN);
+  public static final SubstitutionShuttle FILE_BASED_SUBSTITUTION_SHUTTLE =
+      new SubstitutionShuttle(UPDATE_COLUMN);
 
   public abstract static class BaseShuttle extends StatelessRelShuttleImpl {
     private final String refreshColumn;
@@ -87,13 +84,15 @@ public class IncrementalUpdateUtils {
         newScan = scan.projectInvisibleColumn(refreshColumn);
         if (newScan == null) {
           throw UserException.dataReadError()
-              .message("Table does not include column identified for incremental update of name '%s'.", refreshColumn)
+              .message(
+                  "Table does not include column identified for incremental update of name '%s'.",
+                  refreshColumn)
               .build(logger);
         }
         refreshField = newScan.getRowType().getField(refreshColumn, false, false);
       }
 
-      switch(refreshField.getType().getSqlTypeName()) {
+      switch (refreshField.getType().getSqlTypeName()) {
         case INTEGER:
         case BIGINT:
         case FLOAT:
@@ -105,7 +104,9 @@ public class IncrementalUpdateUtils {
           break;
         default:
           throw UserException.dataReadError()
-              .message("Dremio only supports incremental column update on INTEGER, BIGINT, FLOAT, DOUBLE, VARCHAR, TIMESTAMP, DATE, and DECIMAL types. The identified column was of type %s.", refreshField.getType().getSqlTypeName())
+              .message(
+                  "Dremio only supports incremental column update on INTEGER, BIGINT, FLOAT, DOUBLE, VARCHAR, TIMESTAMP, DATE, and DECIMAL types. The identified column was of type %s.",
+                  refreshField.getType().getSqlTypeName())
               .build(logger);
       }
 
@@ -118,12 +119,17 @@ public class IncrementalUpdateUtils {
 
       relBuilder.push(newScan);
 
-      List<String> newFieldNames = ImmutableList.<String>builder().addAll(newScan.getRowType().getFieldNames()).add(UPDATE_COLUMN).build();
+      List<String> newFieldNames =
+          ImmutableList.<String>builder()
+              .addAll(newScan.getRowType().getFieldNames())
+              .add(UPDATE_COLUMN)
+              .build();
 
-      Iterable<RexNode> projects = Stream.concat(
-          scan.getRowType().getFieldNames().stream().map(relBuilder::field),
-          Stream.of(refreshRex(relBuilder)))
-          .collect(Collectors.toList());
+      Iterable<RexNode> projects =
+          Stream.concat(
+                  scan.getRowType().getFieldNames().stream().map(relBuilder::field),
+                  Stream.of(refreshRex(relBuilder)))
+              .collect(Collectors.toList());
       relBuilder.project(projects, newFieldNames);
 
       return relBuilder.build();
@@ -131,19 +137,23 @@ public class IncrementalUpdateUtils {
 
     protected abstract RexNode refreshRex(RelBuilder relBuilder);
 
-
     @Override
     public RelNode visit(final LogicalFilter filter) {
       final RelBuilder relBuilder = newCalciteRelBuilderWithoutContext(filter.getCluster());
       RelNode input = filter.getInput().accept(this);
       relBuilder.push(input);
 
-      RexNode newCondition = filter.getCondition().accept(new RexShuttle() {
-        @Override
-        public RexNode visitInputRef(RexInputRef inputRef) {
-          return relBuilder.field(filter.getRowType().getFieldNames().get(inputRef.getIndex()));
-        }
-      });
+      RexNode newCondition =
+          filter
+              .getCondition()
+              .accept(
+                  new RexShuttle() {
+                    @Override
+                    public RexNode visitInputRef(RexInputRef inputRef) {
+                      return relBuilder.field(
+                          filter.getRowType().getFieldNames().get(inputRef.getIndex()));
+                    }
+                  });
 
       relBuilder.filter(newCondition);
       return relBuilder.build();
@@ -158,27 +168,29 @@ public class IncrementalUpdateUtils {
       if (modField == null) {
         return project;
       }
-      newProjects = FluentIterable.from(project.getProjects())
-        .append(new RexInputRef(modField.getIndex(), modField.getType()))
-        .toList();
-      FieldInfoBuilder fieldInfoBuilder = new FieldInfoBuilder(project.getCluster().getTypeFactory());
+      newProjects =
+          FluentIterable.from(project.getProjects())
+              .append(new RexInputRef(modField.getIndex(), modField.getType()))
+              .toList();
+      FieldInfoBuilder fieldInfoBuilder =
+          new FieldInfoBuilder(project.getCluster().getTypeFactory());
       for (RelDataTypeField field : project.getRowType().getFieldList()) {
         fieldInfoBuilder.add(field);
       }
       fieldInfoBuilder.add(UPDATE_COLUMN, modField.getType());
       return new LogicalProject(
-        project.getCluster(),
-        project.getTraitSet(),
-        input,
-        newProjects,
-        fieldInfoBuilder.build()
-      );
+          project.getCluster(),
+          project.getTraitSet(),
+          input,
+          newProjects,
+          fieldInfoBuilder.build());
     }
   }
 
   /**
-   * Rewrites the plan associated with a materialization such that it contains the $updateId. For column based incremental updates,
-   * the updateId corresponds to an indicated column, which must be strictly increasing.
+   * Rewrites the plan associated with a materialization such that it contains the $updateId. For
+   * column based incremental updates, the updateId corresponds to an indicated column, which must
+   * be strictly increasing.
    */
   public static class SubstitutionShuttle extends BaseShuttle {
 
@@ -199,43 +211,54 @@ public class IncrementalUpdateUtils {
       // Create a new project with null UPDATE_COLUMN below aggregate
       final RelBuilder relBuilder = newCalciteRelBuilderWithoutContext(aggregate.getCluster());
       relBuilder.push(input);
-      List<RexNode> nodes = input.getRowType().getFieldList().stream().map(q -> {
-        if (UPDATE_COLUMN.equals(q.getName())) {
-          return relBuilder.getRexBuilder().makeNullLiteral(q.getType());
-        } else{
-          return relBuilder.getRexBuilder().makeInputRef(q.getType(), q.getIndex());
-        }
-      }).collect(Collectors.toList());
+      List<RexNode> nodes =
+          input.getRowType().getFieldList().stream()
+              .map(
+                  q -> {
+                    if (UPDATE_COLUMN.equals(q.getName())) {
+                      return relBuilder.getRexBuilder().makeNullLiteral(q.getType());
+                    } else {
+                      return relBuilder.getRexBuilder().makeInputRef(q.getType(), q.getIndex());
+                    }
+                  })
+              .collect(Collectors.toList());
       relBuilder.project(nodes, input.getRowType().getFieldNames());
 
       // create a new aggregate with null UPDATE_COLUMN in groupSet
       RelDataType incomingRowType = relBuilder.peek().getRowType();
       RelDataTypeField modField = incomingRowType.getField(UPDATE_COLUMN, false, false);
-      ImmutableBitSet newGroupSet = aggregate.getGroupSet().rebuild().set(modField.getIndex()).build();
+      ImmutableBitSet newGroupSet =
+          aggregate.getGroupSet().rebuild().set(modField.getIndex()).build();
       GroupKey groupKey = relBuilder.groupKey(newGroupSet, null);
 
       final int groupCount = aggregate.getGroupCount();
-      final Pointer<Integer> ind = new Pointer<>(groupCount-1);
+      final Pointer<Integer> ind = new Pointer<>(groupCount - 1);
       final List<String> fieldNames = aggregate.getRowType().getFieldNames();
-      final List<AggregateCall> aggCalls = aggregate.getAggCallList().stream().map(q -> {
-        ind.value++;
-        if (q.getName() == null) {
-          return q.rename(fieldNames.get(ind.value));
-        }
-        return q;
-      }).collect(Collectors.toList());
+      final List<AggregateCall> aggCalls =
+          aggregate.getAggCallList().stream()
+              .map(
+                  q -> {
+                    ind.value++;
+                    if (q.getName() == null) {
+                      return q.rename(fieldNames.get(ind.value));
+                    }
+                    return q;
+                  })
+              .collect(Collectors.toList());
 
       relBuilder.aggregate(groupKey, aggCalls);
 
       // create a new project on top to preserve rowType
-      Iterable<RexInputRef> projects = FluentIterable.from(aggregate.getRowType().getFieldNames())
-        .transform(new Function<String, RexInputRef>() {
-          @Override
-          public RexInputRef apply(String fieldName) {
-            return relBuilder.field(fieldName);
-          }
-        })
-        .append(relBuilder.field(UPDATE_COLUMN));
+      Iterable<RexInputRef> projects =
+          FluentIterable.from(aggregate.getRowType().getFieldNames())
+              .transform(
+                  new Function<String, RexInputRef>() {
+                    @Override
+                    public RexInputRef apply(String fieldName) {
+                      return relBuilder.field(fieldName);
+                    }
+                  })
+              .append(relBuilder.field(UPDATE_COLUMN));
 
       relBuilder.project(projects);
 
@@ -252,12 +275,12 @@ public class IncrementalUpdateUtils {
   }
 
   /**
-   * Abstract materialization implementation that updates an aggregate materialization plan to only add new data.
+   * Abstract materialization implementation that updates an aggregate materialization plan to only
+   * add new data.
    */
   public static class MaterializationShuttle extends BaseShuttle {
     private final UpdateId value;
     private final boolean isInitialRefresh;
-
 
     public MaterializationShuttle(String refreshColumn, boolean isInitialRefresh, UpdateId value) {
       super(refreshColumn);
@@ -265,7 +288,8 @@ public class IncrementalUpdateUtils {
       this.value = value;
     }
 
-    private Optional<RexNode> generateLiteral(RexBuilder rexBuilder, RelDataTypeFactory typeFactory, SqlTypeName type) {
+    private Optional<RexNode> generateLiteral(
+        RexBuilder rexBuilder, RelDataTypeFactory typeFactory, SqlTypeName type) {
       UpdateIdWrapper wrapper = new UpdateIdWrapper(value);
       MinorType minorType = UpdateIdWrapper.getMinorTypeFromSqlTypeName(type);
       wrapper.setType(minorType);
@@ -288,26 +312,39 @@ public class IncrementalUpdateUtils {
         return newScan;
       }
 
-      // For file-based datasets, perform direct pruning on in-memory splits if split modified times are not
+      // For file-based datasets, perform direct pruning on in-memory splits if split modified times
+      // are not
       // kept as partition values
-      if (value.getUpdateIdType() == UpdateId.IdType.MTIME && value.getType() == MinorType.BIGINT &&
-          newScan instanceof TableScan &&
-          FileBasedDatasetUpdateTimePruner.scanSupportsSplitUpdateTimePruning((TableScan) newScan)) {
+      if (value.getUpdateIdType() == UpdateId.IdType.MTIME
+          && value.getType() == MinorType.BIGINT
+          && newScan instanceof TableScan
+          && FileBasedDatasetUpdateTimePruner.scanSupportsSplitUpdateTimePruning(
+              (TableScan) newScan)) {
         return FileBasedDatasetUpdateTimePruner.prune((TableScan) newScan, value.getLongUpdateId());
       } else {
         // build new filter to apply refresh condition.
         final RexBuilder rexBuilder = tableScan.getCluster().getRexBuilder();
         RelDataTypeField field = newScan.getRowType().getField(UPDATE_COLUMN, false, false);
         final RexNode inputRef = rexBuilder.makeInputRef(newScan, field.getIndex());
-        final Optional<RexNode> literal = generateLiteral(rexBuilder, tableScan.getCluster().getTypeFactory(),
-            field.getType().getSqlTypeName());
+        final Optional<RexNode> literal =
+            generateLiteral(
+                rexBuilder,
+                tableScan.getCluster().getTypeFactory(),
+                field.getType().getSqlTypeName());
         RexNode condition;
         if (literal.isPresent()) {
-          condition = tableScan.getCluster().getRexBuilder()
-              .makeCall(SqlStdOperatorTable.GREATER_THAN, ImmutableList.of(inputRef, literal.get()));
+          condition =
+              tableScan
+                  .getCluster()
+                  .getRexBuilder()
+                  .makeCall(
+                      SqlStdOperatorTable.GREATER_THAN, ImmutableList.of(inputRef, literal.get()));
         } else {
-          condition = tableScan.getCluster().getRexBuilder()
-              .makeCall(SqlStdOperatorTable.IS_NOT_NULL, ImmutableList.of(inputRef));
+          condition =
+              tableScan
+                  .getCluster()
+                  .getRexBuilder()
+                  .makeCall(SqlStdOperatorTable.IS_NOT_NULL, ImmutableList.of(inputRef));
         }
         return LogicalFilter.create(newScan, condition);
       }
@@ -322,17 +359,18 @@ public class IncrementalUpdateUtils {
         return aggregate;
       }
 
-      final AggregateCall aggCall = AggregateCall.create(SqlStdOperatorTable.MAX, false, ImmutableList.of(modField.getIndex()), -1, modField.getType(), UPDATE_COLUMN);
-      final List<AggregateCall> aggCalls = FluentIterable.from(aggregate.getAggCallList())
-        .append(aggCall)
-        .toList();
+      final AggregateCall aggCall =
+          AggregateCall.create(
+              SqlStdOperatorTable.MAX,
+              false,
+              ImmutableList.of(modField.getIndex()),
+              -1,
+              modField.getType(),
+              UPDATE_COLUMN);
+      final List<AggregateCall> aggCalls =
+          FluentIterable.from(aggregate.getAggCallList()).append(aggCall).toList();
       return aggregate.copy(
-        aggregate.getTraitSet(),
-        input,
-        aggregate.getGroupSet(),
-        null,
-        aggCalls
-      );
+          aggregate.getTraitSet(), input, aggregate.getGroupSet(), null, aggCalls);
     }
 
     @Override
@@ -346,7 +384,7 @@ public class IncrementalUpdateUtils {
   public static class AddModTimeShuttle extends StatelessRelShuttleImpl {
     @Override
     public RelNode visit(TableScan tableScan) {
-      if(tableScan instanceof IncrementallyUpdateable){
+      if (tableScan instanceof IncrementallyUpdateable) {
         return ((IncrementallyUpdateable) tableScan).projectInvisibleColumn(UPDATE_COLUMN);
       }
 
@@ -355,12 +393,13 @@ public class IncrementalUpdateUtils {
   }
 
   /**
-   * For snapshot based incremental update, there is no UPDATE_COLUMN in plan. A DUMMY_COLUMN ($_dremio_$_dummy_$)
-   * needs to be added as a grouping key in aggregates.
-   * This is to ensure built-in substitution rules to add proper roll up aggregates.
+   * For snapshot based incremental update, there is no UPDATE_COLUMN in plan. A DUMMY_COLUMN
+   * ($_dremio_$_dummy_$) needs to be added as a grouping key in aggregates. This is to ensure
+   * built-in substitution rules to add proper roll up aggregates.
    */
   public static class AddDummyGroupingFieldShuttle extends StatelessRelShuttleImpl {
     private static final String DUMMY_COLUMN = "$_dremio_$_dummy_$";
+
     @Override
     public RelNode visit(LogicalAggregate aggregate) {
       RelNode input = aggregate.getInput();
@@ -368,49 +407,66 @@ public class IncrementalUpdateUtils {
       // Create a new project with null DUMMY_COLUMN below aggregate
       final RelBuilder relBuilder = newCalciteRelBuilderWithoutContext(aggregate.getCluster());
       relBuilder.push(input);
-      List<RexNode> nodes = input.getRowType().getFieldList().stream().map(q -> {
-        return relBuilder.getRexBuilder().makeInputRef(q.getType(), q.getIndex());
-      }).collect(Collectors.toList());
-      nodes.add(relBuilder.getRexBuilder().makeNullLiteral(aggregate.getCluster().getTypeFactory().createSqlType(SqlTypeName.NULL)));
-      List<String> projectFieldNames = FluentIterable
-        .from(input.getRowType().getFieldList())
-          .transform(new Function<RelDataTypeField, String>() {
-            @Override
-            public String apply(RelDataTypeField field) {
-              return field.getName();
-            }
-          })
-        .append(DUMMY_COLUMN)
-        .toList();
+      List<RexNode> nodes =
+          input.getRowType().getFieldList().stream()
+              .map(
+                  q -> {
+                    return relBuilder.getRexBuilder().makeInputRef(q.getType(), q.getIndex());
+                  })
+              .collect(Collectors.toList());
+      nodes.add(
+          relBuilder
+              .getRexBuilder()
+              .makeNullLiteral(
+                  aggregate.getCluster().getTypeFactory().createSqlType(SqlTypeName.NULL)));
+      List<String> projectFieldNames =
+          FluentIterable.from(input.getRowType().getFieldList())
+              .transform(
+                  new Function<RelDataTypeField, String>() {
+                    @Override
+                    public String apply(RelDataTypeField field) {
+                      return field.getName();
+                    }
+                  })
+              .append(DUMMY_COLUMN)
+              .toList();
       relBuilder.project(nodes, projectFieldNames);
 
       // create a new aggregate with null DUMMY_COLUMN in groupSet
       RelDataType incomingRowType = relBuilder.peek().getRowType();
-      RelDataTypeField modField = incomingRowType.getFieldList().get(incomingRowType.getFieldCount() - 1);
-      ImmutableBitSet newGroupSet = aggregate.getGroupSet().rebuild().set(modField.getIndex()).build();
+      RelDataTypeField modField =
+          incomingRowType.getFieldList().get(incomingRowType.getFieldCount() - 1);
+      ImmutableBitSet newGroupSet =
+          aggregate.getGroupSet().rebuild().set(modField.getIndex()).build();
       GroupKey groupKey = relBuilder.groupKey(newGroupSet, null);
 
       final int groupCount = aggregate.getGroupCount();
-      final Pointer<Integer> ind = new Pointer<>(groupCount-1);
+      final Pointer<Integer> ind = new Pointer<>(groupCount - 1);
       final List<String> fieldNames = aggregate.getRowType().getFieldNames();
-      final List<AggregateCall> aggCalls = aggregate.getAggCallList().stream().map(q -> {
-        ind.value++;
-        if (q.getName() == null) {
-          return q.rename(fieldNames.get(ind.value));
-        }
-        return q;
-      }).collect(Collectors.toList());
+      final List<AggregateCall> aggCalls =
+          aggregate.getAggCallList().stream()
+              .map(
+                  q -> {
+                    ind.value++;
+                    if (q.getName() == null) {
+                      return q.rename(fieldNames.get(ind.value));
+                    }
+                    return q;
+                  })
+              .collect(Collectors.toList());
 
       relBuilder.aggregate(groupKey, aggCalls);
 
       // create a new project on top to preserve rowType
-      Iterable<RexInputRef> projects = FluentIterable.from(aggregate.getRowType().getFieldNames())
-        .transform(new Function<String, RexInputRef>() {
-          @Override
-          public RexInputRef apply(String fieldName) {
-            return relBuilder.field(fieldName);
-          }
-        });
+      Iterable<RexInputRef> projects =
+          FluentIterable.from(aggregate.getRowType().getFieldNames())
+              .transform(
+                  new Function<String, RexInputRef>() {
+                    @Override
+                    public RexInputRef apply(String fieldName) {
+                      return relBuilder.field(fieldName);
+                    }
+                  });
 
       relBuilder.project(projects);
 
@@ -420,12 +476,15 @@ public class IncrementalUpdateUtils {
 
   public static class AddSnapshotDiffContextShuttle extends StatelessRelShuttleImpl {
     private final SnapshotDiffContext snapshotDiffContext;
+
     public AddSnapshotDiffContextShuttle(SnapshotDiffContext snapshotDiffContext) {
       this.snapshotDiffContext = snapshotDiffContext;
     }
+
     @Override
     public RelNode visit(TableScan tableScan) {
-     if(tableScan instanceof ScanCrel){
+      if (tableScan instanceof ScanCrel
+          && snapshotDiffContext.isForSameTable((ScanCrel) tableScan)) {
         return ((ScanCrel) tableScan).withSnapshotDiffContext(snapshotDiffContext);
       }
 
@@ -442,12 +501,15 @@ public class IncrementalUpdateUtils {
 
     @Override
     public RelNode visit(TableScan tableScan) {
-      if(tableScan instanceof IncrementallyUpdateable){
-        return ((IncrementallyUpdateable) tableScan).filterColumns(new Predicate<String>(){
-          @Override
-          public boolean apply(String field) {
-            return columns.contains(field);
-          }});
+      if (tableScan instanceof IncrementallyUpdateable) {
+        return ((IncrementallyUpdateable) tableScan)
+            .filterColumns(
+                new Predicate<String>() {
+                  @Override
+                  public boolean apply(String field) {
+                    return columns.contains(field);
+                  }
+                });
       }
       return tableScan;
     }

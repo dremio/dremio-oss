@@ -15,13 +15,13 @@
  */
 package com.dremio.exec.util;
 
+import io.grpc.stub.ServerCallStreamObserver;
 import java.util.function.Function;
 
-import io.grpc.stub.ServerCallStreamObserver;
-
 /**
- * ServerCallStreamObserver that gets the data from grpc api, do the conversion using converter, and send it to delegateServerCallStreamObserver.
- * Can be used in cases where we need to make a simple method call to a grpc api which is implementing flow control
+ * ServerCallStreamObserver that gets the data from grpc api, do the conversion using converter, and
+ * send it to delegateServerCallStreamObserver. Can be used in cases where we need to make a simple
+ * method call to a grpc api which is implementing flow control
  */
 public class AdaptingServerCallStreamObserver<T, V> extends ServerCallStreamObserver<T> {
   private final ServerCallStreamObserver<V> delegateServerCallStreamObserver;
@@ -31,7 +31,8 @@ public class AdaptingServerCallStreamObserver<T, V> extends ServerCallStreamObse
     return delegateServerCallStreamObserver;
   }
 
-  public AdaptingServerCallStreamObserver(ServerCallStreamObserver<V> delegateServerCallStreamObserver, Function<T, V> converter) {
+  public AdaptingServerCallStreamObserver(
+      ServerCallStreamObserver<V> delegateServerCallStreamObserver, Function<T, V> converter) {
     this.delegateServerCallStreamObserver = delegateServerCallStreamObserver;
     this.converter = converter;
   }

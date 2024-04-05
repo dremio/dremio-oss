@@ -15,69 +15,57 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
+import com.google.common.base.Preconditions;
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlNumericLiteral;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
+import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.ops.QueryContext;
-import com.dremio.exec.planner.sql.handlers.direct.SimpleDirectHandler;
-import com.google.common.base.Throwables;
+public class SqlCreatePipe extends SqlManagePipe {
 
-/**
- * Template implementation. To be extended as needed.
- */
-public class SqlCreatePipe extends SqlCall implements SimpleDirectHandler.Creator {
+  private final boolean ifNotExists;
 
-  private final SqlIdentifier pipeName;
-  private final SqlIdentifier notificationProvider;
-  private final SqlIdentifier notificationQueueRef;
-  private final SqlCopyIntoTable sqlCopyInto;
+  public static final SqlSpecialOperator OPERATOR =
+      new SqlSpecialOperator("CREATE_PIPE", SqlKind.OTHER) {
+        @Override
+        public SqlCall createCall(
+            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+          Preconditions.checkArgument(operands.length == 6);
+          return new SqlCreatePipe(
+              pos,
+              (SqlIdentifier) operands[0],
+              operands[1],
+              (SqlNumericLiteral) operands[2],
+              (SqlIdentifier) operands[3],
+              (SqlIdentifier) operands[4],
+              ((SqlLiteral) operands[5]).booleanValue());
+        }
+      };
 
-  public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("CREATE PIPE", SqlKind.OTHER) {
-    @Override
-    public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      return new SqlCreatePipe(pos,
-        (SqlIdentifier) operands[0],
-        operands[1],
-        (SqlIdentifier) operands[2],
-        (SqlIdentifier) operands[3]
-      );
-    }
-  };
-
-  public SqlCreatePipe(SqlParserPos pos, SqlIdentifier pipeName, SqlNode sqlCopyInto, SqlIdentifier notificationProvider, SqlIdentifier notificationQueueRef) {
-    super(pos);
-    this.pipeName = pipeName;
-    this.sqlCopyInto = (SqlCopyIntoTable) sqlCopyInto;
-    this.notificationProvider = notificationProvider;
-    this.notificationQueueRef = notificationQueueRef;
-  }
-
-  @Override
-  public SimpleDirectHandler toDirectHandler(QueryContext context) {
-    try {
-      final Class<?> cl = Class.forName("com.dremio.exec.planner.sql.handlers.CreatePipeHandler");
-      final Constructor<?> ctor = cl.getConstructor(QueryContext.class);
-      return (SimpleDirectHandler) ctor.newInstance(context);
-    } catch (ClassNotFoundException e) {
-      // Assume failure to find class means that we aren't running Enterprise Edition
-      throw UserException.unsupportedError(e)
-        .message("CREATE PIPE is only supported in the Enterprise Edition.")
-        .buildSilently();
-    } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
-      throw Throwables.propagate(e);
-    }
+  public SqlCreatePipe(
+      SqlParserPos pos,
+      SqlIdentifier pipeName,
+      SqlNode sqlCopyInto,
+      SqlNumericLiteral dedupLookbackPeriod,
+      SqlIdentifier notificationProvider,
+      SqlIdentifier notificationQueueRef,
+      boolean ifNotExists) {
+    super(
+        pos,
+        pipeName,
+        sqlCopyInto,
+        dedupLookbackPeriod,
+        notificationProvider,
+        notificationQueueRef);
+    this.ifNotExists = ifNotExists;
   }
 
   @Override
@@ -85,20 +73,8 @@ public class SqlCreatePipe extends SqlCall implements SimpleDirectHandler.Creato
     return OPERATOR;
   }
 
-  public SqlIdentifier getPipeName() {
-    return pipeName;
-  }
-
-  public SqlCopyIntoTable getSqlCopyInto() {
-    return sqlCopyInto;
-  }
-
-  public SqlIdentifier getNotificationProvider() {
-    return notificationProvider;
-  }
-
-  public SqlIdentifier getNotificationQueueRef() {
-    return notificationQueueRef;
+  public boolean hasIfNotExists() {
+    return ifNotExists;
   }
 
   @Override
@@ -106,8 +82,34 @@ public class SqlCreatePipe extends SqlCall implements SimpleDirectHandler.Creato
     List<SqlNode> operands = new ArrayList<>();
     operands.add(pipeName);
     operands.add(sqlCopyInto);
+    operands.add(dedupLookbackPeriod);
     operands.add(notificationProvider);
     operands.add(notificationQueueRef);
+    operands.add(SqlLiteral.createBoolean(ifNotExists, SqlParserPos.ZERO));
     return operands;
+  }
+
+  @Override
+  public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+    writer.keyword("CREATE");
+    writer.keyword("PIPE");
+    if (ifNotExists) {
+      writer.keyword("IF");
+      writer.keyword("NOT");
+      writer.keyword("EXISTS");
+    }
+    pipeName.unparse(writer, leftPrec, rightPrec);
+    if (dedupLookbackPeriod != null) {
+      writer.keyword("DEDUPE_LOOKBACK_PERIOD");
+      writer.keyword(dedupLookbackPeriod.toString());
+    }
+    if (notificationProvider != null) {
+      writer.keyword("NOTIFICATION_PROVIDER");
+      notificationProvider.unparse(writer, leftPrec, rightPrec);
+      writer.keyword("NOTIFICATION_QUEUE_REFERENCE");
+      notificationQueueRef.unparse(writer, leftPrec, rightPrec);
+    }
+    writer.keyword("AS");
+    sqlCopyInto.unparse(writer, leftPrec, rightPrec);
   }
 }

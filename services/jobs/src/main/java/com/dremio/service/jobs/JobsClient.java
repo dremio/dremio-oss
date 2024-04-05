@@ -1,4 +1,3 @@
-
 /*
  * Copyright (C) 2017-2019 Dremio Corporation
  *
@@ -16,14 +15,6 @@
  */
 package com.dremio.service.jobs;
 
-import javax.inject.Provider;
-
-import org.apache.arrow.flight.FlightClient;
-import org.apache.arrow.flight.FlightGrpcUtils;
-import org.apache.arrow.memory.BufferAllocator;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.service.Service;
@@ -32,14 +23,18 @@ import com.dremio.service.grpc.GrpcChannelBuilderFactory;
 import com.dremio.service.job.ChronicleGrpc;
 import com.dremio.service.job.JobsServiceGrpc;
 import com.google.common.base.Preconditions;
-
 import io.grpc.ManagedChannel;
-
+import javax.inject.Provider;
+import org.apache.arrow.flight.FlightClient;
+import org.apache.arrow.flight.FlightGrpcUtils;
+import org.apache.arrow.memory.BufferAllocator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * Client that maintains the lifecycle of a channel over which job RPC requests are made to the jobs service. After the
- * client is {@link #start started}, the {@link #getBlockingStub blocking stub} and {@link #getAsyncStub async stub}
- * are available.
+ * Client that maintains the lifecycle of a channel over which job RPC requests are made to the jobs
+ * service. After the client is {@link #start started}, the {@link #getBlockingStub blocking stub}
+ * and {@link #getAsyncStub async stub} are available.
  */
 public class JobsClient implements Service {
   private static final Logger logger = LoggerFactory.getLogger(JobsClient.class);
@@ -52,9 +47,12 @@ public class JobsClient implements Service {
   private volatile FlightClient flightClient;
   private volatile ManagedChannel prevChannel;
 
-  JobsClient(GrpcChannelBuilderFactory grpcFactory, Provider<BufferAllocator> allocator,
-             Provider<Integer> portProvider, final Provider<CoordinationProtos.NodeEndpoint> selfEndpoint,
-             ConduitProvider conduitProvider) {
+  JobsClient(
+      GrpcChannelBuilderFactory grpcFactory,
+      Provider<BufferAllocator> allocator,
+      Provider<Integer> portProvider,
+      final Provider<CoordinationProtos.NodeEndpoint> selfEndpoint,
+      ConduitProvider conduitProvider) {
     this.grpcFactory = grpcFactory;
     this.allocator = allocator.get().newChildAllocator(getClass().getName(), 0, Long.MAX_VALUE);
     this.portProvider = portProvider;
@@ -65,8 +63,7 @@ public class JobsClient implements Service {
   }
 
   @Override
-  public void start() { }
-
+  public void start() {}
 
   @Override
   public void close() throws Exception {
@@ -118,6 +115,7 @@ public class JobsClient implements Service {
 
   /**
    * Get the blocking stub to make RPC requests to Chronicle service
+   *
    * @return blocking stub
    */
   public ChronicleGrpc.ChronicleBlockingStub getChronicleBlockingStub() {

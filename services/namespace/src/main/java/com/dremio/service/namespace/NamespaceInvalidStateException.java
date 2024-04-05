@@ -15,9 +15,7 @@
  */
 package com.dremio.service.namespace;
 
-/**
- * Thrown when namespace is in invalid state.
- */
+/** Thrown when namespace is in invalid state. */
 public class NamespaceInvalidStateException extends NamespaceException {
   private static final long serialVersionUID = 1L;
 

@@ -15,11 +15,11 @@
  */
 package com.dremio.exec.planner.logical;
 
+import com.dremio.exec.planner.common.MoreRelOptUtil;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
-
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptRuleOperand;
@@ -38,9 +38,9 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.tools.RelBuilderFactory;
 
-import com.dremio.exec.planner.common.MoreRelOptUtil;
-
 /**
+ *
+ *
  * <pre>
  * Rule to push join filters that depend on only one side of join, past join into the project below, e.g if we have 10 fields below join, 5 on each side:
  * JoinRel(condition=[AND(=($1, $8), =($5, 10))]
@@ -60,8 +60,9 @@ import com.dremio.exec.planner.common.MoreRelOptUtil;
  */
 public class PushJoinFilterIntoProjectRule extends RelOptRule {
 
-  public static final RelOptRule INSTANCE = new PushJoinFilterIntoProjectRule(
-    operand(JoinRel.class, any()), DremioRelFactories.LOGICAL_BUILDER);
+  public static final RelOptRule INSTANCE =
+      new PushJoinFilterIntoProjectRule(
+          operand(JoinRel.class, any()), DremioRelFactories.LOGICAL_BUILDER);
 
   private final RelBuilderFactory factory;
 
@@ -87,7 +88,8 @@ public class PushJoinFilterIntoProjectRule extends RelOptRule {
       return;
     }
 
-    // If there are no true equi-join conditions, there is no point in using this rule, as we still can't use HJ
+    // If there are no true equi-join conditions, there is no point in using this rule, as we still
+    // can't use HJ
     if (joinInfo.keys().size() == 0) {
       return;
     }
@@ -101,11 +103,12 @@ public class PushJoinFilterIntoProjectRule extends RelOptRule {
     List<RexNode> leftConditions = new ArrayList<>();
     List<RexNode> rightConditions = new ArrayList<>();
 
-
     for (RexNode rexNode : remainingConditions) {
-      SingleSidedConditionFinder finder = new SingleSidedConditionFinder(join.getLeft().getRowType().getFieldCount());
+      SingleSidedConditionFinder finder =
+          new SingleSidedConditionFinder(join.getLeft().getRowType().getFieldCount());
       rexNode.accept(finder);
-      // if any conditions have both left and right components, we can't convert to equi-join, so no point in continuing
+      // if any conditions have both left and right components, we can't convert to equi-join, so no
+      // point in continuing
       if (finder.hasRight && finder.hasLeft) {
         return;
       }
@@ -118,16 +121,35 @@ public class PushJoinFilterIntoProjectRule extends RelOptRule {
 
     RelBuilder relBuilder = factory.create(join.getCluster(), null);
 
-    RelNode newJoin = createJoin(join, relBuilder, join.getLeft(), join.getRight(), joinInfo.leftKeys, joinInfo.rightKeys, leftConditions, rightConditions);
+    RelNode newJoin =
+        createJoin(
+            join,
+            relBuilder,
+            join.getLeft(),
+            join.getRight(),
+            joinInfo.leftKeys,
+            joinInfo.rightKeys,
+            leftConditions,
+            rightConditions);
     call.transformTo(newJoin);
   }
 
-  private RelNode createJoin(Join origJoin, RelBuilder relBuilder, RelNode left, RelNode right, List<Integer> leftKeys, List<Integer> rightKeys, List<RexNode> leftCond, List<RexNode> rightCond) {
+  private RelNode createJoin(
+      Join origJoin,
+      RelBuilder relBuilder,
+      RelNode left,
+      RelNode right,
+      List<Integer> leftKeys,
+      List<Integer> rightKeys,
+      List<RexNode> leftCond,
+      List<RexNode> rightCond) {
     final RexBuilder rexBuilder = left.getCluster().getRexBuilder();
     final RexNode one = rexBuilder.makeBigintLiteral(BigDecimal.ONE);
 
-    final List<RexNode> leftProjects = new ArrayList<>(MoreRelOptUtil.identityProjects(left.getRowType()));
-    final List<RexNode> rightProjects = new ArrayList<>(MoreRelOptUtil.identityProjects(right.getRowType()));
+    final List<RexNode> leftProjects =
+        new ArrayList<>(MoreRelOptUtil.identityProjects(left.getRowType()));
+    final List<RexNode> rightProjects =
+        new ArrayList<>(MoreRelOptUtil.identityProjects(right.getRowType()));
 
     final List<Integer> newLeftKeys = new ArrayList<>(leftKeys);
     final List<Integer> newRightKeys = new ArrayList<>(rightKeys);
@@ -145,7 +167,8 @@ public class PushJoinFilterIntoProjectRule extends RelOptRule {
     if (!rightCond.isEmpty()) {
       newLeftKeys.add(leftProjects.size());
       newRightKeys.add(rightProjects.size());
-      rightProjects.add(makeCase(rexBuilder, shift(rightCond, -1 * left.getRowType().getFieldCount(), right)));
+      rightProjects.add(
+          makeCase(rexBuilder, shift(rightCond, -1 * left.getRowType().getFieldCount(), right)));
       leftProjects.add(one);
       cnt++;
     }
@@ -153,25 +176,30 @@ public class PushJoinFilterIntoProjectRule extends RelOptRule {
     RelNode newLeft = relBuilder.push(left).project(leftProjects).build();
     RelNode newRight = relBuilder.push(right).project(rightProjects).build();
 
-    RexNode newEquiCondition = RelOptUtil.createEquiJoinCondition(newLeft, newLeftKeys, newRight, newRightKeys, left.getCluster().getRexBuilder());
+    RexNode newEquiCondition =
+        RelOptUtil.createEquiJoinCondition(
+            newLeft, newLeftKeys, newRight, newRightKeys, left.getCluster().getRexBuilder());
 
     int finalCnt = cnt;
-    List<RexNode> topProjects = MoreRelOptUtil.identityProjects(origJoin.getRowType())
-      .stream().map(p -> RexUtil.shift(p, left.getRowType().getFieldCount(), finalCnt)).collect(Collectors.toList());
+    List<RexNode> topProjects =
+        MoreRelOptUtil.identityProjects(origJoin.getRowType()).stream()
+            .map(p -> RexUtil.shift(p, left.getRowType().getFieldCount(), finalCnt))
+            .collect(Collectors.toList());
 
     return relBuilder
-      .push(newLeft)
-      .push(newRight)
-      .join(origJoin.getJoinType(), newEquiCondition)
-      .project(topProjects)
-      .build();
+        .push(newLeft)
+        .push(newRight)
+        .join(origJoin.getJoinType(), newEquiCondition)
+        .project(topProjects)
+        .build();
   }
 
   private RexNode makeCase(RexBuilder builder, Iterable<RexNode> conditions) {
     return builder.makeCall(
-      SqlStdOperatorTable.CASE,
-      RexUtil.composeConjunction(builder, conditions, false),
-      builder.makeBigintLiteral(BigDecimal.ONE), builder.makeBigintLiteral(BigDecimal.ZERO));
+        SqlStdOperatorTable.CASE,
+        RexUtil.composeConjunction(builder, conditions, false),
+        builder.makeBigintLiteral(BigDecimal.ONE),
+        builder.makeBigintLiteral(BigDecimal.ZERO));
   }
 
   private static class RexShiftShuttle extends RexShuttle {

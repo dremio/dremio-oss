@@ -24,6 +24,10 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 
+import com.dremio.datastore.RocksDBStore.RocksMetaManager;
+import com.dremio.datastore.api.Document;
+import com.dremio.datastore.api.options.ImmutableVersionOption;
+import com.dremio.datastore.api.options.VersionOption;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -41,7 +45,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -57,16 +60,10 @@ import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
 
-import com.dremio.datastore.RocksDBStore.RocksMetaManager;
-import com.dremio.datastore.api.Document;
-import com.dremio.datastore.api.options.ImmutableVersionOption;
-import com.dremio.datastore.api.options.VersionOption;
-
-/**
- * Some robustness tests for {@code RocksDBStore}
- */
+/** Some robustness tests for {@code RocksDBStore} */
 public class TestRocksDBStore {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestRocksDBStore.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(TestRocksDBStore.class);
 
   private static final long BLOB_FILTER_SIZE = 1024;
 
@@ -100,11 +97,9 @@ public class TestRocksDBStore {
     }
   }
 
-  @Rule
-  public final Timeout timeout = Timeout.seconds(90);
+  @Rule public final Timeout timeout = Timeout.seconds(90);
 
-  @Rule
-  public final RocksDBResource rocksDBResource = new RocksDBResource();
+  @Rule public final RocksDBResource rocksDBResource = new RocksDBResource();
 
   private RocksDBStore store;
 
@@ -113,12 +108,20 @@ public class TestRocksDBStore {
   @Before
   public void setUpStore() {
     ColumnFamilyHandle handle = rocksDBResource.get().getDefaultColumnFamily();
-    final RocksMetaManager blobManager = new RocksMetaManager(rocksDBResource.dbPath, "test", BLOB_FILTER_SIZE);
-    store = new RocksDBStore("test", new ColumnFamilyDescriptor("test".getBytes(UTF_8)), handle, rocksDBResource.get(), 4, blobManager);
+    final RocksMetaManager blobManager =
+        new RocksMetaManager(rocksDBResource.dbPath, "test", BLOB_FILTER_SIZE);
+    store =
+        new RocksDBStore(
+            "test",
+            new ColumnFamilyDescriptor("test".getBytes(UTF_8)),
+            handle,
+            rocksDBResource.get(),
+            4,
+            blobManager);
 
     // Making sure test is repeatable
     Random random = new Random(42);
-    for(int i = 0; i < 1 << 16; i++ ) {
+    for (int i = 0; i < 1 << 16; i++) {
       store.put(newRandomValue(random), newRandomValue(random));
     }
     store.put(specialKey, newRandomValue(random));
@@ -134,10 +137,19 @@ public class TestRocksDBStore {
     try {
       // Setup a new RocksDBStore with a new column family.
       String testColumnFamName = "testColumnFamName";
-      ColumnFamilyDescriptor columnFamilyDescriptor = new ColumnFamilyDescriptor(testColumnFamName.getBytes(UTF_8));
+      ColumnFamilyDescriptor columnFamilyDescriptor =
+          new ColumnFamilyDescriptor(testColumnFamName.getBytes(UTF_8));
       ColumnFamilyHandle handle = rocksDBResource.get().createColumnFamily(columnFamilyDescriptor);
-      final RocksMetaManager blobManager = new RocksMetaManager(rocksDBResource.getDbDir(), testColumnFamName, FILTER_SIZE_IN_BYTES);
-      RocksDBStore newStore = new RocksDBStore(testColumnFamName, columnFamilyDescriptor, handle, rocksDBResource.get(), 4, blobManager);
+      final RocksMetaManager blobManager =
+          new RocksMetaManager(rocksDBResource.getDbDir(), testColumnFamName, FILTER_SIZE_IN_BYTES);
+      RocksDBStore newStore =
+          new RocksDBStore(
+              testColumnFamName,
+              columnFamilyDescriptor,
+              handle,
+              rocksDBResource.get(),
+              4,
+              blobManager);
       File rocksDbDir = new File(rocksDBResource.getDbDir());
 
       // Add KV pair to ensure newStore is working.
@@ -183,8 +195,16 @@ public class TestRocksDBStore {
     } finally {
       // Reset the RocksDBStore for other tests.
       ColumnFamilyHandle handle = rocksDBResource.get().getDefaultColumnFamily();
-      final RocksMetaManager blobManager = new RocksMetaManager(rocksDBResource.getDbDir(), "test", FILTER_SIZE_IN_BYTES);
-      store = new RocksDBStore("test", new ColumnFamilyDescriptor("test".getBytes(UTF_8)), handle, rocksDBResource.get(), 4, blobManager);
+      final RocksMetaManager blobManager =
+          new RocksMetaManager(rocksDBResource.getDbDir(), "test", FILTER_SIZE_IN_BYTES);
+      store =
+          new RocksDBStore(
+              "test",
+              new ColumnFamilyDescriptor("test".getBytes(UTF_8)),
+              handle,
+              rocksDBResource.get(),
+              4,
+              blobManager);
     }
   }
 
@@ -198,15 +218,20 @@ public class TestRocksDBStore {
     r.nextBytes(randomValue1);
     r.nextBytes(randomValue2);
 
-    final Document<byte[], byte[]> document0 = store.put(randomKey, randomValue1, new ImmutableVersionOption.Builder().setTag("0").build());
+    final Document<byte[], byte[]> document0 =
+        store.put(
+            randomKey, randomValue1, new ImmutableVersionOption.Builder().setTag("0").build());
     final String tag0 = document0.getTag();
 
     Assert.assertArrayEquals(randomValue1, store.get(randomKey).getValue());
-    store.find().forEach(e -> {
-      if (Arrays.equals(randomKey, e.getKey())) {
-        Assert.assertArrayEquals(randomValue1, e.getValue());
-      }
-    });
+    store
+        .find()
+        .forEach(
+            e -> {
+              if (Arrays.equals(randomKey, e.getKey())) {
+                Assert.assertArrayEquals(randomValue1, e.getValue());
+              }
+            });
 
     String stats = store.getAdmin().getStats();
     assertThat(stats).contains("Estimated Blob Count: 1");
@@ -217,13 +242,15 @@ public class TestRocksDBStore {
     Assert.assertArrayEquals(randomValue1, store.get(randomKey).getValue());
 
     // actually put.
-    final Document<byte[], byte[]> document1 = store.validateAndPut(randomKey, randomValue2, new VersionOption.TagInfo(true, false, tag0));
+    final Document<byte[], byte[]> document1 =
+        store.validateAndPut(randomKey, randomValue2, new VersionOption.TagInfo(true, false, tag0));
     final String tag1 = document1.getTag();
 
     Assert.assertArrayEquals(randomValue2, store.get(randomKey).getValue());
 
     // check a validated delete.
-    assertEquals(true, store.validateAndDelete(randomKey, new VersionOption.TagInfo(true, false, tag1)));
+    assertEquals(
+        true, store.validateAndDelete(randomKey, new VersionOption.TagInfo(true, false, tag1)));
 
     // reinsert the record and check a non-validated delete
     store.put(randomKey, randomValue1);
@@ -250,30 +277,33 @@ public class TestRocksDBStore {
     ExecutorService executor = Executors.newFixedThreadPool(4);
     Future<?>[] futures = new Future[256];
     try {
-      for(int i = 0; i<futures.length; i++) {
-        futures[i] = executor.submit(new Callable<Integer>() {
-          @Override
-          public Integer call() {
-            int result = 0;
-            Iterable<Document<byte[], byte[]>> iterable = store.find();
-            for(@SuppressWarnings("unused") Document<byte[], byte[]> entry: iterable) {
-              // JVM might optimize aggressively no-op loop
-              result++;
-            }
-            return result;
-          }
-        });
+      for (int i = 0; i < futures.length; i++) {
+        futures[i] =
+            executor.submit(
+                new Callable<Integer>() {
+                  @Override
+                  public Integer call() {
+                    int result = 0;
+                    Iterable<Document<byte[], byte[]>> iterable = store.find();
+                    for (@SuppressWarnings("unused") Document<byte[], byte[]> entry : iterable) {
+                      // JVM might optimize aggressively no-op loop
+                      result++;
+                    }
+                    return result;
+                  }
+                });
       }
 
       // Join on the calls
       executor.shutdown();
       boolean terminated = executor.awaitTermination(60, TimeUnit.SECONDS);
       assertThat(terminated).as("All the tasks didn't complete in time").isTrue();
-      for(Future<?> future: futures) {
+      for (Future<?> future : futures) {
         future.get(); // Checking that the execution didn't fail
       }
 
-      // Try to force gc by pressuring memory. There should be no reference left to rocksdb iterators
+      // Try to force gc by pressuring memory. There should be no reference left to rocksdb
+      // iterators
       long[] dummy = new long[0];
       try {
         for (int j = 0; j < 10; j++) {
@@ -281,11 +311,12 @@ public class TestRocksDBStore {
             dummy = new long[1 << i];
           }
         }
-      } catch(OutOfMemoryError e) {
+      } catch (OutOfMemoryError e) {
         // ignore
       }
       assertNotNull(dummy);
-      System.gc(); System.gc();
+      System.gc();
+      System.gc();
       store.cleanReferences();
       assertThat(store.openedIterators()).isLessThanOrEqualTo(256L);
       assertThat(store.closedIterators()).isLessThanOrEqualTo(256L);
@@ -302,19 +333,21 @@ public class TestRocksDBStore {
     Future<?>[] futures = new Future[256];
 
     try {
-      for(int i = 0; i<futures.length; i++) {
-        futures[i] = executor.submit(new Callable<Integer>() {
-          @Override
-          public Integer call() {
-            int result = 0;
-            Iterable<Document<byte[], byte[]>> iterable = store.find();
-            for(@SuppressWarnings("unused") Document<byte[], byte[]> entry: iterable) {
-              // JVM might optimize aggressively no-op loop
-              result++;
-            }
-            return result;
-          }
-        });
+      for (int i = 0; i < futures.length; i++) {
+        futures[i] =
+            executor.submit(
+                new Callable<Integer>() {
+                  @Override
+                  public Integer call() {
+                    int result = 0;
+                    Iterable<Document<byte[], byte[]>> iterable = store.find();
+                    for (@SuppressWarnings("unused") Document<byte[], byte[]> entry : iterable) {
+                      // JVM might optimize aggressively no-op loop
+                      result++;
+                    }
+                    return result;
+                  }
+                });
       }
 
       // Join on the calls
@@ -322,7 +355,7 @@ public class TestRocksDBStore {
       boolean terminated = executor.awaitTermination(60, TimeUnit.SECONDS);
       store.close();
       assertThat(terminated).as("All the tasks didn't complete in time").isTrue();
-      for(Future<?> future: futures) {
+      for (Future<?> future : futures) {
         future.get(); // Checking that the execution didn't fail
       }
 
@@ -347,5 +380,4 @@ public class TestRocksDBStore {
     }
     return res;
   }
-
 }

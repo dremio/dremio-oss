@@ -15,18 +15,6 @@
  */
 package com.dremio.exec.store.iceberg.model;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-import org.apache.hadoop.conf.Configuration;
-import org.apache.iceberg.ManifestFile;
-import org.apache.iceberg.PartitionSpec;
-import org.apache.iceberg.Snapshot;
-import org.apache.iceberg.TableProperties;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.planner.common.ImmutableDremioFileAttrs;
@@ -40,17 +28,29 @@ import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.file.proto.FileType;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableMap;
 import com.google.protobuf.ByteString;
-
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.iceberg.ManifestFile;
+import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.Snapshot;
+import org.apache.iceberg.TableProperties;
 
 /**
- * Similar to {@link IcebergTableCreationCommitter}, additionally updates Dataset Catalog with
- * new Iceberg table metadata
+ * Similar to {@link IcebergTableCreationCommitter}, additionally updates Dataset Catalog with new
+ * Iceberg table metadata
  */
 public class FullMetadataRefreshCommitter extends IcebergTableCreationCommitter {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FullMetadataRefreshCommitter.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(FullMetadataRefreshCommitter.class);
   private final DatasetCatalogGrpcClient client;
   private final DatasetCatalogRequestBuilder datasetCatalogRequestBuilder;
   private final Configuration conf;
@@ -61,19 +61,42 @@ public class FullMetadataRefreshCommitter extends IcebergTableCreationCommitter 
   private final MutablePlugin plugin;
   private final FileType fileType;
 
-  public static final Map<String, String> internalIcebergTableProperties = Stream.of(new String[][] {
-          { TableProperties.COMMIT_NUM_RETRIES, "0" },
-          { TableProperties.METADATA_DELETE_AFTER_COMMIT_ENABLED, "true" },
-          { TableProperties.METADATA_PREVIOUS_VERSIONS_MAX, String.valueOf(TableProperties.METADATA_PREVIOUS_VERSIONS_MAX_DEFAULT) }
-          }).collect(Collectors.toMap(d->d[0], d->d[1]));
+  public static final Map<String, String> internalIcebergTableProperties =
+      Stream.of(
+              new String[][] {
+                {TableProperties.COMMIT_NUM_RETRIES, "0"},
+                {TableProperties.METADATA_DELETE_AFTER_COMMIT_ENABLED, "true"},
+                {
+                  TableProperties.METADATA_PREVIOUS_VERSIONS_MAX,
+                  String.valueOf(TableProperties.METADATA_PREVIOUS_VERSIONS_MAX_DEFAULT)
+                }
+              })
+          .collect(Collectors.toMap(d -> d[0], d -> d[1]));
 
-  public FullMetadataRefreshCommitter(String tableName, List<String> datasetPath, String tableLocation,
-                                      String tableUuid, BatchSchema batchSchema,
-                                      Configuration configuration, List<String> partitionColumnNames,
-                                      IcebergCommand icebergCommand, DatasetCatalogGrpcClient client,
-                                      DatasetConfig datasetConfig, OperatorStats operatorStats, PartitionSpec partitionSpec,
-                                      MutablePlugin plugin, FileType fileType) {
-    super(tableName, batchSchema, partitionColumnNames, icebergCommand, internalIcebergTableProperties, operatorStats, partitionSpec, null); // Full MetadataRefresh is the only way to create internal iceberg table
+  public FullMetadataRefreshCommitter(
+      String tableName,
+      List<String> datasetPath,
+      String tableLocation,
+      String tableUuid,
+      BatchSchema batchSchema,
+      Configuration configuration,
+      List<String> partitionColumnNames,
+      IcebergCommand icebergCommand,
+      DatasetCatalogGrpcClient client,
+      DatasetConfig datasetConfig,
+      OperatorStats operatorStats,
+      PartitionSpec partitionSpec,
+      MutablePlugin plugin,
+      FileType fileType) {
+    super(
+        tableName,
+        batchSchema,
+        partitionColumnNames,
+        icebergCommand,
+        internalIcebergTableProperties,
+        operatorStats,
+        partitionSpec,
+        null); // Full MetadataRefresh is the only way to create internal iceberg table
 
     Preconditions.checkNotNull(client, "Metadata requires DatasetCatalog service client");
     this.client = client;
@@ -83,54 +106,74 @@ public class FullMetadataRefreshCommitter extends IcebergTableCreationCommitter 
     this.isPartitioned = partitionColumnNames != null && !partitionColumnNames.isEmpty();
     this.datasetPath = datasetPath;
     this.fileType = fileType;
-    datasetCatalogRequestBuilder = DatasetCatalogRequestBuilder.forFullMetadataRefresh(datasetPath,
-      tableLocation,
-      batchSchema,
-      partitionColumnNames,
-      datasetConfig
-    );
+    datasetCatalogRequestBuilder =
+        DatasetCatalogRequestBuilder.forFullMetadataRefresh(
+            datasetPath, tableLocation, batchSchema, partitionColumnNames, datasetConfig);
     this.plugin = plugin;
   }
 
   @Override
   public Snapshot commit() {
     Snapshot snapshot = super.commit();
-
-    long numRecords = Long.parseLong(snapshot.summary().getOrDefault("total-records", "0"));
+    Map<String, String> summary =
+        Optional.ofNullable(snapshot).map(Snapshot::summary).orElseGet(ImmutableMap::of);
+    long numRecords = Long.parseLong(summary.getOrDefault("total-records", "0"));
     datasetCatalogRequestBuilder.setNumOfRecords(numRecords);
-    long numDataFiles = Long.parseLong(snapshot.summary().getOrDefault("total-data-files", "0"));
+    long numDataFiles = Long.parseLong(summary.getOrDefault("total-data-files", "0"));
     datasetCatalogRequestBuilder.setNumOfDataFiles(numDataFiles);
-    ImmutableDremioFileAttrs partitionStatsFileAttrs = IcebergUtils.getPartitionStatsFileAttrs(getRootPointer(), snapshot.snapshotId(),
-        icebergCommand.getFileIO());
-    datasetCatalogRequestBuilder.setIcebergMetadata(getRootPointer(), tableUuid, snapshot.snapshotId(),
-        getCurrentSpecMap(), getCurrentSchema(), partitionStatsFileAttrs.fileName(),
-        partitionStatsFileAttrs.fileLength(), fileType);
+    ImmutableDremioFileAttrs partitionStatsFileAttrs =
+        IcebergUtils.getPartitionStatsFileAttrs(
+            getRootPointer(), snapshot.snapshotId(), icebergCommand.getFileIO());
+    datasetCatalogRequestBuilder.setIcebergMetadata(
+        getRootPointer(),
+        tableUuid,
+        snapshot.snapshotId(),
+        getCurrentSpecMap(),
+        getCurrentSchema(),
+        partitionStatsFileAttrs.fileName(),
+        partitionStatsFileAttrs.fileLength(),
+        fileType);
 
     try {
       addOrUpdateDataSet();
     } catch (StatusRuntimeException sre) {
-      logger.warn("Unexpected behavior with status {} has been observed with Metadata refresh for Dataset: {} and TableLocation: {} ",
-        sre.getStatus().getCode() , Arrays.toString(datasetPath.toArray()), tableLocation);
+      logger.warn(
+          "Unexpected behavior with status {} has been observed with Metadata refresh for Dataset: {} and TableLocation: {} ",
+          sre.getStatus().getCode(),
+          Arrays.toString(datasetPath.toArray()),
+          tableLocation);
       try {
-        logger.debug("With failed Metadata refresh for Dataset: {} and TableLocation: {} , Cleanup task is going to happen with unwanted files.", Arrays.toString(datasetPath.toArray()), tableLocation);
+        logger.debug(
+            "With failed Metadata refresh for Dataset: {} and TableLocation: {} , Cleanup task is going to happen with unwanted files.",
+            Arrays.toString(datasetPath.toArray()),
+            tableLocation);
         icebergCommand.deleteTable();
-      } catch(Exception i){
+      } catch (Exception i) {
         logger.warn("Failure during cleaning up the unwanted files", i);
       }
       if (sre.getStatus().getCode() == Status.Code.ABORTED) {
-        logger.debug("Metadata Refresh has been ABORTED for Dataset: {} and TableLocation: {}. It's going to do validation for concurrent metadata refresh.", Arrays.toString(datasetPath.toArray()), tableLocation);
+        logger.debug(
+            "Metadata Refresh has been ABORTED for Dataset: {} and TableLocation: {}. It's going to do validation for concurrent metadata refresh.",
+            Arrays.toString(datasetPath.toArray()),
+            tableLocation);
         // Validate if metadata is available or not for current dataset before throwing CME.
         if (isMetadataAlreadyCreated()) {
-          logger.info("Concurrent refresh have been seen here, Metadata is already present for dataset {}. so not failing the query.", datasetPath);
+          logger.info(
+              "Concurrent refresh have been seen here, Metadata is already present for dataset {}. so not failing the query.",
+              datasetPath);
         } else {
-          logger.error("Irrespective of Concurrent Metadata refresh. It failed for Dataset: " + Arrays.toString(datasetPath.toArray())
-            + " and TableLocation: " + tableLocation, sre);
+          logger.error(
+              "Irrespective of Concurrent Metadata refresh. It failed for Dataset: "
+                  + Arrays.toString(datasetPath.toArray())
+                  + " and TableLocation: "
+                  + tableLocation,
+              sre);
           throw UserException.concurrentModificationError(sre)
-            .message(UserException.REFRESH_METADATA_FAILED_CONCURRENT_UPDATE_MSG)
-            .buildSilently();
+              .message(UserException.REFRESH_METADATA_FAILED_CONCURRENT_UPDATE_MSG)
+              .buildSilently();
         }
       } else {
-        //Throws non-handled RTE.
+        // Throws non-handled RTE.
         throw sre;
       }
     }
@@ -143,18 +186,19 @@ public class FullMetadataRefreshCommitter extends IcebergTableCreationCommitter 
   }
 
   /**
-   * @return in case of concurrent refreshes of datasets.
-   * if metadata presents in the catalog return true else false.
+   * @return in case of concurrent refreshes of datasets. if metadata presents in the catalog return
+   *     true else false.
    */
   @VisibleForTesting
   boolean isMetadataAlreadyCreated() {
     try {
-      UpdatableDatasetConfigFields previousMetadata = datasetCatalogRequestBuilder.getPreviousMetadata(client, datasetPath);
+      UpdatableDatasetConfigFields previousMetadata =
+          datasetCatalogRequestBuilder.getPreviousMetadata(client, datasetPath);
       return previousMetadata != null;
     } catch (UserException uex) {
       logger.warn("Failure during retrieving metadata for CME dataset. {}", uex.getMessage());
     }
-   return false;
+    return false;
   }
 
   @Override

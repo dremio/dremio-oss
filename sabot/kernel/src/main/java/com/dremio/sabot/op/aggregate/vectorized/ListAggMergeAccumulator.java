@@ -15,33 +15,56 @@
  */
 package com.dremio.sabot.op.aggregate.vectorized;
 
-
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BaseValueVector;
 import org.apache.arrow.vector.FieldVector;
-
 
 /*
  * This is the aggregator for LISTAGG_MERGE, similar to other aggregate accumulators.
  * This accumulator is used in the second phase of the HashAgg.
  */
 public class ListAggMergeAccumulator extends ListAggAccumulator {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ListAggMergeAccumulator.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ListAggMergeAccumulator.class);
   private final boolean outputToListVector;
 
-  public ListAggMergeAccumulator(ListAggAccumulator listAggAccumulator, FieldVector incomingValues,
-                                 int maxValuesPerBatch, BufferAllocator computationVectorAllocator, boolean outputToListVector) {
-    super(incomingValues, listAggAccumulator.getOutput(), maxValuesPerBatch, computationVectorAllocator,
-      new AccumulatorBuilder.ListAggParams(listAggAccumulator.getMaxListAggSize(), listAggAccumulator.getDistinct(), listAggAccumulator.getDelimiter(),
-        listAggAccumulator.getOrderBy(), listAggAccumulator.getAsc()),
-      listAggAccumulator.getTempAccumulator(), listAggAccumulator.getFirstAccumulator(), listAggAccumulator.getAccumStats());
+  public ListAggMergeAccumulator(
+      ListAggAccumulator listAggAccumulator,
+      FieldVector incomingValues,
+      int maxValuesPerBatch,
+      BufferAllocator computationVectorAllocator,
+      boolean outputToListVector) {
+    super(
+        incomingValues,
+        listAggAccumulator.getOutput(),
+        maxValuesPerBatch,
+        computationVectorAllocator,
+        new AccumulatorBuilder.ListAggParams(
+            listAggAccumulator.getMaxListAggSize(),
+            listAggAccumulator.getDistinct(),
+            listAggAccumulator.getDelimiter(),
+            listAggAccumulator.getOrderBy(),
+            listAggAccumulator.getAsc()),
+        listAggAccumulator.getTempAccumulator(),
+        listAggAccumulator.getFirstAccumulator(),
+        listAggAccumulator.getAccumStats());
     this.outputToListVector = outputToListVector;
   }
 
-  public ListAggMergeAccumulator(FieldVector incomingValues, FieldVector transferVector, int maxValuesPerBatch, BufferAllocator computationVectorAllocator,
-                                 AccumulatorBuilder.ListAggParams listAggParams, BaseValueVector tempAccumulator) {
-    super(incomingValues, transferVector, maxValuesPerBatch, computationVectorAllocator,
-      listAggParams, tempAccumulator);
+  public ListAggMergeAccumulator(
+      FieldVector incomingValues,
+      FieldVector transferVector,
+      int maxValuesPerBatch,
+      BufferAllocator computationVectorAllocator,
+      AccumulatorBuilder.ListAggParams listAggParams,
+      BaseValueVector tempAccumulator) {
+    super(
+        incomingValues,
+        transferVector,
+        maxValuesPerBatch,
+        computationVectorAllocator,
+        listAggParams,
+        tempAccumulator);
     this.outputToListVector = false;
   }
 
@@ -60,7 +83,8 @@ public class ListAggMergeAccumulator extends ListAggAccumulator {
   }
 
   @Override
-  public void accumulate(final long memoryAddr, final int count, final int bitsInChunk, final int chunkOffsetMask) {
+  public void accumulate(
+      final long memoryAddr, final int count, final int bitsInChunk, final int chunkOffsetMask) {
     accumulateFromListVector(memoryAddr, count, bitsInChunk, chunkOffsetMask);
   }
 }

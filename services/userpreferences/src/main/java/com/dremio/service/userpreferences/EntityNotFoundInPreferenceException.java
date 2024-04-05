@@ -16,9 +16,7 @@
 
 package com.dremio.service.userpreferences;
 
-/**
- * Exception when entity is not found in preference list.
- */
+/** Exception when entity is not found in preference list. */
 public class EntityNotFoundInPreferenceException extends Exception {
   public EntityNotFoundInPreferenceException(String entityId, String type) {
     super(String.format("entityId : %s not found in %s list.", entityId, type));

@@ -16,7 +16,7 @@
     limitations under the License.
 
 -->
-<configuration>
+<configuration scan="true" scanPeriod="30 seconds">
   <turboFilter class="com.dremio.common.logging.obfuscation.BlockLogLevelTurboFilter">
     <defaultLogLevelThreshold>INFO</defaultLogLevelThreshold>
     <packageLogLevel>com.dremio,DEBUG</packageLogLevel>

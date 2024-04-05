@@ -19,13 +19,10 @@ import com.dremio.dac.api.JsonISODateTime;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-/**
- * Description of version information.
- */
+/** Description of version information. */
 public class VersionInfo {
   private final String version;
-  @JsonISODateTime
-  private final long buildTime;
+  @JsonISODateTime private final long buildTime;
   private final CommitInfo commit;
   private final String clusterType;
 

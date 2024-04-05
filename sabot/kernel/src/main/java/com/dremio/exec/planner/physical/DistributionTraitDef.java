@@ -17,13 +17,12 @@ package com.dremio.exec.planner.physical;
 
 import static com.dremio.exec.ExecConstants.ADAPTIVE_HASH;
 
+import com.dremio.exec.planner.physical.DistributionTrait.DistributionType;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelTraitDef;
 import org.apache.calcite.rel.RelNode;
 
-import com.dremio.exec.planner.physical.DistributionTrait.DistributionType;
-
-public class DistributionTraitDef extends RelTraitDef<DistributionTrait>{
+public class DistributionTraitDef extends RelTraitDef<DistributionTrait> {
   public static final DistributionTraitDef INSTANCE = new DistributionTraitDef();
 
   private DistributionTraitDef() {
@@ -34,12 +33,12 @@ public class DistributionTraitDef extends RelTraitDef<DistributionTrait>{
   public boolean canConvert(
       RelOptPlanner planner, DistributionTrait fromTrait, DistributionTrait toTrait) {
     return fromTrait.equals(toTrait)
-      || fromTrait.getType() != DistributionType.BROADCAST_DISTRIBUTED
-      || toTrait.getType() != DistributionType.HASH_DISTRIBUTED;
+        || fromTrait.getType() != DistributionType.BROADCAST_DISTRIBUTED
+        || toTrait.getType() != DistributionType.HASH_DISTRIBUTED;
   }
 
   @Override
-  public Class<DistributionTrait> getTraitClass(){
+  public Class<DistributionTrait> getTraitClass() {
     return DistributionTrait.class;
   }
 
@@ -60,29 +59,44 @@ public class DistributionTraitDef extends RelTraitDef<DistributionTrait>{
       RelNode rel,
       DistributionTrait toDist,
       boolean allowInfiniteCostConverters) {
-    switch(toDist.getType()){
-      // UnionExchange, HashToRandomExchange, OrderedPartitionExchange and BroadcastExchange destroy the ordering property,
-      // therefore RelCollation is set to default, which is EMPTY.
+    switch (toDist.getType()) {
+        // UnionExchange, HashToRandomExchange, OrderedPartitionExchange and BroadcastExchange
+        // destroy the ordering property,
+        // therefore RelCollation is set to default, which is EMPTY.
       case SINGLETON:
-        return new UnionExchangePrel(rel.getCluster(), planner.emptyTraitSet().plus(Prel.PHYSICAL).plus(toDist), rel);
+        return new UnionExchangePrel(
+            rel.getCluster(), planner.emptyTraitSet().plus(Prel.PHYSICAL).plus(toDist), rel);
       case HASH_DISTRIBUTED:
-        return new HashToRandomExchangePrel(rel.getCluster(), planner.emptyTraitSet().plus(Prel.PHYSICAL).plus(toDist), rel,
-                                             toDist.getFields());
+        return new HashToRandomExchangePrel(
+            rel.getCluster(),
+            planner.emptyTraitSet().plus(Prel.PHYSICAL).plus(toDist),
+            rel,
+            toDist.getFields());
       case ADAPTIVE_HASH_DISTRIBUTED:
-        boolean supportAdaptiveHash = PrelUtil.getPlannerSettings(rel.getCluster()).getOptions().getOption(ADAPTIVE_HASH);
+        boolean supportAdaptiveHash =
+            PrelUtil.getPlannerSettings(rel.getCluster()).getOptions().getOption(ADAPTIVE_HASH);
         if (supportAdaptiveHash) {
-          return new AdaptiveHashExchangePrel(rel.getCluster(), planner.emptyTraitSet().plus(Prel.PHYSICAL).plus(toDist),
-            rel, toDist.getFields());
+          return new AdaptiveHashExchangePrel(
+              rel.getCluster(),
+              planner.emptyTraitSet().plus(Prel.PHYSICAL).plus(toDist),
+              rel,
+              toDist.getFields());
         } else {
-          return new HashToRandomExchangePrel(rel.getCluster(), planner.emptyTraitSet().plus(Prel.PHYSICAL).plus(toDist),
-            rel, toDist.getFields());
+          return new HashToRandomExchangePrel(
+              rel.getCluster(),
+              planner.emptyTraitSet().plus(Prel.PHYSICAL).plus(toDist),
+              rel,
+              toDist.getFields());
         }
       case RANGE_DISTRIBUTED:
-        return new OrderedPartitionExchangePrel(rel.getCluster(), planner.emptyTraitSet().plus(Prel.PHYSICAL).plus(toDist), rel);
+        return new OrderedPartitionExchangePrel(
+            rel.getCluster(), planner.emptyTraitSet().plus(Prel.PHYSICAL).plus(toDist), rel);
       case BROADCAST_DISTRIBUTED:
-        return new BroadcastExchangePrel(rel.getCluster(), planner.emptyTraitSet().plus(Prel.PHYSICAL).plus(toDist), rel);
+        return new BroadcastExchangePrel(
+            rel.getCluster(), planner.emptyTraitSet().plus(Prel.PHYSICAL).plus(toDist), rel);
       case ROUND_ROBIN_DISTRIBUTED:
-        return new RoundRobinExchangePrel(rel.getCluster(), planner.emptyTraitSet().plus(Prel.PHYSICAL).plus(toDist), rel);
+        return new RoundRobinExchangePrel(
+            rel.getCluster(), planner.emptyTraitSet().plus(Prel.PHYSICAL).plus(toDist), rel);
       case ANY:
         // If target is "any", any input would satisfy "any". Return input directly.
         return rel;
@@ -90,5 +104,4 @@ public class DistributionTraitDef extends RelTraitDef<DistributionTrait>{
         return null;
     }
   }
-
 }

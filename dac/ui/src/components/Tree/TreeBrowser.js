@@ -40,6 +40,7 @@ import { getHomeSource, getSortedSources } from "@app/selectors/home";
 import { useIsArsEnabled } from "@inject/utils/arsUtils";
 import { useMultiTabIsEnabled } from "../SQLScripts/useMultiTabIsEnabled";
 import { isTabbableUrl } from "@app/utils/explorePageTypeUtils";
+import { showNavCrumbs } from "@inject/components/NavCrumbs/NavCrumbs";
 
 export const TreeBrowser = (props) => {
   const {
@@ -93,7 +94,7 @@ export const TreeBrowser = (props) => {
     setCollapseText(
       sidebarCollapsed
         ? intl.formatMessage({ id: "Explore.Left.Panel.Collapse.Text.Close" })
-        : intl.formatMessage({ id: "Explore.Left.Panel.Collapse.Text.Open" })
+        : intl.formatMessage({ id: "Explore.Left.Panel.Collapse.Text.Open" }),
     );
   }, [sidebarCollapsed]);
 
@@ -261,6 +262,7 @@ export const TreeBrowser = (props) => {
     <div
       className={clsx("TreeBrowser", {
         "--withTabs": isTabsRendered,
+        "--withBreadcrumbs": showNavCrumbs,
       })}
     >
       <div

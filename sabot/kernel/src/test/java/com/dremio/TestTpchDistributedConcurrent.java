@@ -19,24 +19,22 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Random;
-import java.util.Set;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
-
-import org.junit.Ignore;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TestRule;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.TestTools;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.QueryResult.QueryState;
 import com.dremio.sabot.rpc.user.UserResultsListener;
 import com.google.common.collect.Sets;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Random;
+import java.util.Set;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
+import org.junit.Ignore;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TestRule;
 
 /*
  * Note that the real interest here is that the node doesn't become
@@ -45,7 +43,9 @@ import com.google.common.collect.Sets;
  */
 @Ignore
 public class TestTpchDistributedConcurrent extends BaseTestQuery {
-  @Rule public final TestRule timeoutRule = TestTools.getTimeoutRule(140, TimeUnit.SECONDS); // Longer timeout than usual.
+  @Rule
+  public final TestRule timeoutRule =
+      TestTools.getTimeoutRule(140, TimeUnit.SECONDS); // Longer timeout than usual.
 
   /*
    * Valid test names taken from TestTpchDistributed. Fuller path prefixes are
@@ -102,7 +102,7 @@ public class TestTpchDistributedConcurrent extends BaseTestQuery {
     final String query = QueryTestUtil.normalizeQuery(getFile(filename)).replace(';', ' ');
     final UserResultsListener listener = new ChainingSilentListener(query);
     client.runQuery(UserBitShared.QueryType.SQL, query, listener);
-    synchronized(this) {
+    synchronized (this) {
       listeners.add(listener);
     }
   }
@@ -119,7 +119,7 @@ public class TestTpchDistributedConcurrent extends BaseTestQuery {
       super.queryCompleted(state);
 
       completionSemaphore.release();
-      synchronized(TestTpchDistributedConcurrent.this) {
+      synchronized (TestTpchDistributedConcurrent.this) {
         final Object object = listeners.remove(this);
         assertNotNull("listener not found", object);
 
@@ -142,7 +142,7 @@ public class TestTpchDistributedConcurrent extends BaseTestQuery {
 
       completionSemaphore.release();
       System.out.println("submissionFailed for " + query + "\nwith " + uex);
-      synchronized(TestTpchDistributedConcurrent.this) {
+      synchronized (TestTpchDistributedConcurrent.this) {
         final Object object = listeners.remove(this);
         assertNotNull("listener not found", object);
         failedQueries.add(new FailedQuery(query, uex));
@@ -154,10 +154,10 @@ public class TestTpchDistributedConcurrent extends BaseTestQuery {
   private class QuerySubmitter extends Thread {
     @Override
     public void run() {
-      while(true) {
+      while (true) {
         try {
           submissionSemaphore.acquire();
-        } catch(InterruptedException e) {
+        } catch (InterruptedException e) {
           System.out.println("QuerySubmitter quitting.");
           return;
         }
@@ -182,13 +182,12 @@ public class TestTpchDistributedConcurrent extends BaseTestQuery {
     InterruptedException interruptedException = null;
     try {
       completionSemaphore.acquire(TOTAL_QUERIES);
-    } catch(InterruptedException e) {
+    } catch (InterruptedException e) {
       interruptedException = e;
 
       // List the failed queries.
-      for(final FailedQuery fq : failedQueries) {
-        System.err.println(String.format(
-            "%s failed with %s", fq.queryFile, fq.userEx));
+      for (final FailedQuery fq : failedQueries) {
+        System.err.println(String.format("%s failed with %s", fq.queryFile, fq.userEx));
       }
     }
 
@@ -198,12 +197,15 @@ public class TestTpchDistributedConcurrent extends BaseTestQuery {
     if (interruptedException != null) {
       final StackTraceElement[] ste = interruptedException.getStackTrace();
       final StringBuilder sb = new StringBuilder();
-      for(StackTraceElement s : ste) {
+      for (StackTraceElement s : ste) {
         sb.append(s.toString());
         sb.append('\n');
       }
-      System.out.println("interruptedException: " + interruptedException.getMessage() +
-          " from \n" + sb.toString());
+      System.out.println(
+          "interruptedException: "
+              + interruptedException.getMessage()
+              + " from \n"
+              + sb.toString());
     }
     assertNull("Query error caused interruption", interruptedException);
 

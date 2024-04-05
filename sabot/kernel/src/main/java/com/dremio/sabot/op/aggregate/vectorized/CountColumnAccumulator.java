@@ -19,35 +19,46 @@ import static com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggOperator
 import static com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggOperator.KEYINDEX_OFFSET;
 import static com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggOperator.PARTITIONINDEX_HTORDINAL_WIDTH;
 
+import io.netty.util.internal.PlatformDependent;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.FieldVector;
 
-import io.netty.util.internal.PlatformDependent;
-
 public class CountColumnAccumulator extends BaseSingleAccumulator {
 
-  public CountColumnAccumulator(FieldVector input, FieldVector output,
-                                FieldVector transferVector, int maxValuesPerBatch,
-                                BufferAllocator computationVectorAllocator) {
-    super(input, output, transferVector, AccumulatorBuilder.AccumulatorType.COUNT, maxValuesPerBatch,
-          computationVectorAllocator);
+  public CountColumnAccumulator(
+      FieldVector input,
+      FieldVector output,
+      FieldVector transferVector,
+      int maxValuesPerBatch,
+      BufferAllocator computationVectorAllocator) {
+    super(
+        input,
+        output,
+        transferVector,
+        AccumulatorBuilder.AccumulatorType.COUNT,
+        maxValuesPerBatch,
+        computationVectorAllocator);
   }
 
   @Override
-  public void accumulate(final long memoryAddr, final int count,
-                         final int bitsInChunk, final int chunkOffsetMask){
+  public void accumulate(
+      final long memoryAddr, final int count, final int bitsInChunk, final int chunkOffsetMask) {
     final long maxAddr = memoryAddr + count * PARTITIONINDEX_HTORDINAL_WIDTH;
     final long incomingBit = getInput().getValidityBufferAddress();
     final long[] valueAddresses = this.valueAddresses;
     final int maxValuesPerBatch = super.maxValuesPerBatch;
 
-    for (long partitionAndOrdinalAddr = memoryAddr; partitionAndOrdinalAddr < maxAddr; partitionAndOrdinalAddr += PARTITIONINDEX_HTORDINAL_WIDTH) {
+    for (long partitionAndOrdinalAddr = memoryAddr;
+        partitionAndOrdinalAddr < maxAddr;
+        partitionAndOrdinalAddr += PARTITIONINDEX_HTORDINAL_WIDTH) {
       /* get the hash table ordinal */
       final int tableIndex = PlatformDependent.getInt(partitionAndOrdinalAddr + HTORDINAL_OFFSET);
       /* get the index of data in input vector */
       final int incomingIndex = PlatformDependent.getInt(partitionAndOrdinalAddr + KEYINDEX_OFFSET);
       /* get the corresponding data from input vector -- source data for accumulation */
-      final int bitVal = (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3))) >>> (incomingIndex & 7)) & 1;
+      final int bitVal =
+          (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3))) >>> (incomingIndex & 7))
+              & 1;
       /* get the target addresses of accumulation vector */
       final int chunkIndex = tableIndex >>> bitsInChunk;
       final int chunkOffset = tableIndex & chunkOffsetMask;

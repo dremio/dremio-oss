@@ -45,7 +45,11 @@ import { typeToIconType } from "@app/constants/DataTypes";
 import { PartitionTransformations } from "dremio-ui-common/sonar/reflections/ReflectionDataTypes.js";
 import { ColumnTypeIcons } from "@app/exports/components/PartitionTransformation/PartitionTransformationUtils";
 import { getSupportFlags } from "@app/selectors/supportFlags";
-import { ALLOW_REFLECTION_PARTITION_TRANFORMS } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
+import {
+  ALLOW_REFLECTION_PARTITION_TRANFORMS,
+  ALLOW_REFLECTION_REFRESH,
+} from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
+import { refreshReflection } from "@app/exports/endpoints/ReflectionSummary/refreshReflection";
 
 import "@app/uiTheme/less/commonModifiers.less";
 import "@app/uiTheme/less/Acceleration/Acceleration.less";
@@ -53,6 +57,9 @@ import "@app/uiTheme/less/Acceleration/AccelerationGrid.less";
 import LayoutInfo from "../LayoutInfo";
 
 import "fixed-data-table-2/dist/fixed-data-table.css";
+import { getFeatureFlag } from "@app/selectors/featureFlagsSelector";
+import { REFLECTION_REFRESH_ENABLED } from "@inject/featureFlags/flags/REFLECTION_REFRESH_ENABLED";
+import { isNotSoftware } from "@app/utils/versionUtils";
 
 const HEADER_HEIGHT = 90;
 const COLUMN_WIDTH = 80;
@@ -78,6 +85,7 @@ export class AccelerationGrid extends Component {
     allowPartitionTransform: PropTypes.bool,
     recommendation: PropTypes.object,
     loadingRecommendations: PropTypes.bool,
+    allowReflectionRefresh: PropTypes.bool,
   };
 
   static defaultProps = {
@@ -92,6 +100,7 @@ export class AccelerationGrid extends Component {
   state = {
     tableWidth: 900,
     visibleLayoutExtraSettingsIndex: -1,
+    disabledRefresh: {},
   };
 
   focusedColumn = undefined;
@@ -100,6 +109,26 @@ export class AccelerationGrid extends Component {
     this.updateResizeTable();
     if (window.addEventListener) {
       window.addEventListener("resize", this.updateResizeTable);
+    }
+  }
+
+  componentDidUpdate(nextProps) {
+    const curDisabledKeys = Object.keys(this.state.disabledRefresh);
+    if (curDisabledKeys.length > 0) {
+      const reflections = nextProps.reflections?.toJS();
+      let removed = false;
+      const newDisabledRefresh = { ...this.state.disabledRefresh };
+      curDisabledKeys.forEach((key) => {
+        if (
+          reflections &&
+          (reflections[key].status.refresh === "PENDING" ||
+            reflections[key].status.refresh === "RUNNING")
+        ) {
+          removed = true;
+          delete newDisabledRefresh[key];
+        }
+      });
+      if (removed) this.setState({ disabledRefresh: newDisabledRefresh });
     }
   }
 
@@ -195,7 +224,7 @@ export class AccelerationGrid extends Component {
                 {
                   id: "Reflection.LostColumnsPreamble",
                 },
-                { columnNames: value }
+                { columnNames: value },
               )}
               <ul style={{ listStyle: "disc", margin: ".5em 0 1em 2em" }}>
                 {lostFields[fieldListName].map((field) => {
@@ -207,7 +236,7 @@ export class AccelerationGrid extends Component {
                   );
                 })}
               </ul>
-            </div>
+            </div>,
           );
         }
       }
@@ -276,7 +305,7 @@ export class AccelerationGrid extends Component {
         columnType: allColumns
           .find((column) => column.get("name") === partitionField.name)
           .getIn(["type", "name"]),
-      })
+      }),
     );
 
     return (
@@ -304,7 +333,7 @@ export class AccelerationGrid extends Component {
                 }`}
               />
               {`${partitionField.name} (${this.formatRecommendation(
-                partitionField.transform
+                partitionField.transform,
               )})`}
             </span>
           ))}
@@ -339,7 +368,7 @@ export class AccelerationGrid extends Component {
         // 3) the recommended transformation is TRUNCATE and the lengths do not match
 
         const recommendedPartition = partitionFields.find(
-          (partitionField) => partitionField.name === curPartitionValue.name
+          (partitionField) => partitionField.name === curPartitionValue.name,
         );
 
         const recommendedTransformation = recommendedPartition?.transform;
@@ -367,12 +396,24 @@ export class AccelerationGrid extends Component {
     });
   };
 
+  handleRefreshReflection = (reflectionId) => {
+    try {
+      refreshReflection({ reflectionId: reflectionId });
+      this.setState((state) => ({
+        disabledRefresh: { ...state.disabledRefresh, [reflectionId]: true },
+      }));
+    } catch (e) {
+      //
+    }
+  };
+
   renderHeaderCell = (rowIndex, columnIndex, shouldJumpTo = false) => {
     const {
       allowPartitionTransform,
       applyPartitionRecommendations,
       recommendation: { partitionFields } = {},
       loadingRecommendations,
+      allowReflectionRefresh,
     } = this.props;
 
     //todo: loc
@@ -396,6 +437,14 @@ export class AccelerationGrid extends Component {
       !loadingRecommendations &&
       !!partitionFields?.length &&
       !this.doCurrentPartitionsMatchRecommendations(columnIndex);
+
+    const reflectionId = fields.id.value;
+    const reflection = this.props.reflections.get(reflectionId);
+    const status = reflection?.getIn(["status", "refresh"]);
+    const disableRefreshIcon =
+      status === "PENDING" ||
+      status === "RUNNING" ||
+      !!this.state.disabledRefresh?.[reflectionId];
 
     return (
       <div
@@ -449,6 +498,26 @@ export class AccelerationGrid extends Component {
             )}
             {isAdminOrHasCanAlter && (
               <>
+                {allowReflectionRefresh && reflection?.get("enabled") && (
+                  <OldIconButton
+                    tooltip={
+                      !disableRefreshIcon
+                        ? "Refresh now"
+                        : `Reflection refresh ${
+                            status === "RUNNING" ? "running" : "pending"
+                          }`
+                    }
+                    tooltipPlacement="top"
+                    onClick={() => this.handleRefreshReflection(reflectionId)}
+                    className="AccelerationGrid__layoutHeaderRefreshButton"
+                    disabled={disableRefreshIcon}
+                  >
+                    <dremio-icon
+                      name="interface/refresh-clockwise"
+                      class={`AccelerationGrid__layoutHeaderDeleteButton__icon ${disableRefreshIcon ? "--disabled" : ""}`}
+                    />
+                  </OldIconButton>
+                )}
                 <IconButton
                   aria-label={shouldDelete ? "Add" : "Delete"}
                   onClick={() => fields.shouldDelete.onChange(!shouldDelete)}
@@ -678,10 +747,16 @@ const mapStateToProps = (state, ownProps) => {
   const { activeTab } = ownProps;
 
   const location = state.routing.locationBeforeTransitions;
+  const isReflectionSupportEnabled =
+    getSupportFlags(state)[ALLOW_REFLECTION_REFRESH];
 
   return {
     allowPartitionTransform:
       getSupportFlags(state)[ALLOW_REFLECTION_PARTITION_TRANFORMS],
+    allowReflectionRefresh: isNotSoftware()
+      ? getFeatureFlag(REFLECTION_REFRESH_ENABLED) === "ENABLED" &&
+        isReflectionSupportEnabled
+      : isReflectionSupportEnabled,
     location,
     recommendation:
       activeTab === "raw"

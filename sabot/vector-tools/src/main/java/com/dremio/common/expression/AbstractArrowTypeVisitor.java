@@ -108,7 +108,6 @@ public abstract class AbstractArrowTypeVisitor<T> implements ArrowTypeVisitor<T>
     return visitGeneric(type);
   }
 
-
   @Override
   public T visit(Interval type) {
     return visitGeneric(type);
@@ -150,5 +149,4 @@ public abstract class AbstractArrowTypeVisitor<T> implements ArrowTypeVisitor<T>
   public T visit(ArrowType.Map type) {
     return visitGeneric(type);
   }
-
 }

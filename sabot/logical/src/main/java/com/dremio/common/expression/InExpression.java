@@ -15,13 +15,21 @@
  */
 package com.dremio.common.expression;
 
+import com.carrotsearch.hppc.IntHashSet;
+import com.carrotsearch.hppc.LongHashSet;
+import com.dremio.common.expression.fn.impl.HashHelper;
+import com.dremio.common.expression.visitors.ExprVisitor;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableList;
+import com.sun.codemodel.JClass;
+import com.sun.codemodel.JCodeModel;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.util.ByteFunctionHelpers;
 import org.apache.arrow.vector.holders.NullableBigIntHolder;
@@ -32,26 +40,15 @@ import org.apache.arrow.vector.holders.NullableTimeStampMilliHolder;
 import org.apache.arrow.vector.holders.NullableVarBinaryHolder;
 import org.apache.arrow.vector.holders.NullableVarCharHolder;
 
-import com.carrotsearch.hppc.IntHashSet;
-import com.carrotsearch.hppc.LongHashSet;
-import com.dremio.common.expression.fn.impl.HashHelper;
-import com.dremio.common.expression.visitors.ExprVisitor;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Joiner;
-import com.google.common.collect.ImmutableList;
-import com.sun.codemodel.JClass;
-import com.sun.codemodel.JCodeModel;
-
 /**
  * A special expression used during compilation that is an optimization over a multi-or.
  *
- * Holds variable evaluation expression that will be checked against a set of constant value expression.
- * Basically the compilation equivalent of an IN expression holding only literals in SQL
+ * <p>Holds variable evaluation expression that will be checked against a set of constant value
+ * expression. Basically the compilation equivalent of an IN expression holding only literals in SQL
  */
 public class InExpression extends LogicalExpressionBase {
 
-  @VisibleForTesting
-  public static final AtomicLong COUNT = new AtomicLong();
+  @VisibleForTesting public static final AtomicLong COUNT = new AtomicLong();
 
   private final LogicalExpression eval;
   private final List<LogicalExpression> constants;
@@ -99,6 +96,7 @@ public class InExpression extends LogicalExpressionBase {
   public Iterator<LogicalExpression> iterator() {
     return new Iterator<LogicalExpression>() {
       private int currentExprIdx = 0;
+
       @Override
       public boolean hasNext() {
         return currentExprIdx < getSizeOfChildren();
@@ -107,34 +105,37 @@ public class InExpression extends LogicalExpressionBase {
       @Override
       public LogicalExpression next() {
         final int prev = currentExprIdx++;
-        return (prev == 0) ? eval : (prev > 0 && prev < getSizeOfChildren()) ? constants.get(prev - 1) : null;
+        return (prev == 0)
+            ? eval
+            : (prev > 0 && prev < getSizeOfChildren()) ? constants.get(prev - 1) : null;
       }
     };
   }
 
   @Override
   public int getSizeOfChildren() {
-    return constants.size()+1;
+    return constants.size() + 1;
   }
 
   public JClass getListType(JCodeModel model) {
     final CompleteType type = eval.getCompleteType();
-    if(CompleteType.BIGINT.equals(type)) {
+    if (CompleteType.BIGINT.equals(type)) {
       return model.ref(LongSet.class);
-    }else if(CompleteType.INT.equals(type)) {
+    } else if (CompleteType.INT.equals(type)) {
       return model.ref(IntSet.class);
-    }else if(CompleteType.DATE.equals(type)) {
+    } else if (CompleteType.DATE.equals(type)) {
       return model.ref(LongSet.class);
-    }else if(CompleteType.TIME.equals(type)) {
+    } else if (CompleteType.TIME.equals(type)) {
       return model.ref(IntSet.class);
-    }else if(CompleteType.TIMESTAMP.equals(type)) {
+    } else if (CompleteType.TIMESTAMP.equals(type)) {
       return model.ref(LongSet.class);
-    }else if(CompleteType.VARCHAR.equals(type)) {
+    } else if (CompleteType.VARCHAR.equals(type)) {
       return model.ref(BytesSet.class);
-    }else if(CompleteType.VARBINARY.equals(type)) {
+    } else if (CompleteType.VARBINARY.equals(type)) {
       return model.ref(BytesSet.class);
     } else {
-      throw new UnsupportedOperationException(type.toString() + " does not support in list optimizations.");
+      throw new UnsupportedOperationException(
+          type.toString() + " does not support in list optimizations.");
     }
   }
 
@@ -151,8 +152,8 @@ public class InExpression extends LogicalExpressionBase {
     private final LongHashSet longSet = new LongHashSet();
 
     public LongSet(NullableBigIntHolder[] holders) {
-      for(NullableBigIntHolder h : holders) {
-        if(h.isSet == 0) {
+      for (NullableBigIntHolder h : holders) {
+        if (h.isSet == 0) {
           // one null is never equal to another null.
           continue;
         }
@@ -162,8 +163,8 @@ public class InExpression extends LogicalExpressionBase {
     }
 
     public LongSet(NullableDateMilliHolder[] holders) {
-      for(NullableDateMilliHolder h : holders) {
-        if(h.isSet == 0) {
+      for (NullableDateMilliHolder h : holders) {
+        if (h.isSet == 0) {
           // one null is never equal to another null.
           continue;
         }
@@ -173,8 +174,8 @@ public class InExpression extends LogicalExpressionBase {
     }
 
     public LongSet(NullableTimeStampMilliHolder[] holders) {
-      for(NullableTimeStampMilliHolder h : holders) {
-        if(h.isSet == 0) {
+      for (NullableTimeStampMilliHolder h : holders) {
+        if (h.isSet == 0) {
           // one null is never equal to another null.
           continue;
         }
@@ -184,7 +185,7 @@ public class InExpression extends LogicalExpressionBase {
     }
 
     public int isContained(int isSet, long value) {
-      if(isSet == 0) {
+      if (isSet == 0) {
         return 0;
       }
 
@@ -196,8 +197,8 @@ public class InExpression extends LogicalExpressionBase {
     private final IntHashSet intSet = new IntHashSet();
 
     public IntSet(NullableIntHolder[] holders) {
-      for(NullableIntHolder h : holders) {
-        if(h.isSet == 0) {
+      for (NullableIntHolder h : holders) {
+        if (h.isSet == 0) {
           // one null is never equal to another null.
           continue;
         }
@@ -207,8 +208,8 @@ public class InExpression extends LogicalExpressionBase {
     }
 
     public IntSet(NullableTimeMilliHolder[] holders) {
-      for(NullableTimeMilliHolder h : holders) {
-        if(h.isSet == 0) {
+      for (NullableTimeMilliHolder h : holders) {
+        if (h.isSet == 0) {
           // one null is never equal to another null.
           continue;
         }
@@ -218,7 +219,7 @@ public class InExpression extends LogicalExpressionBase {
     }
 
     public int isContained(int isSet, int value) {
-      if(isSet == 0) {
+      if (isSet == 0) {
         return 0;
       }
 
@@ -251,22 +252,21 @@ public class InExpression extends LogicalExpressionBase {
       if (obj == null) {
         return false;
       }
-      if (! (obj instanceof BytesHolder) ) {
+      if (!(obj instanceof BytesHolder)) {
         return false;
       }
 
       BytesHolder other = (BytesHolder) obj;
       return ByteFunctionHelpers.equal(buf, start, end, other.buf, other.start, other.end) == 1;
     }
-
   }
 
   public static class BytesSet {
     private final Set<BytesHolder> byteArraySet = new HashSet<>();
 
     public BytesSet(NullableVarBinaryHolder[] holders) {
-      for(NullableVarBinaryHolder h : holders) {
-        if(h.isSet == 0) {
+      for (NullableVarBinaryHolder h : holders) {
+        if (h.isSet == 0) {
           // one null is never equal to another null.
           continue;
         }
@@ -275,8 +275,8 @@ public class InExpression extends LogicalExpressionBase {
     }
 
     public BytesSet(NullableVarCharHolder[] holders) {
-      for(NullableVarCharHolder h : holders) {
-        if(h.isSet == 0) {
+      for (NullableVarCharHolder h : holders) {
+        if (h.isSet == 0) {
           // one null is never equal to another null.
           continue;
         }
@@ -285,7 +285,7 @@ public class InExpression extends LogicalExpressionBase {
     }
 
     public int isContained(int isSet, int start, int end, ArrowBuf buf) {
-      if(isSet == 0) {
+      if (isSet == 0) {
         // one null is never equal to another null.
         return 0;
       }

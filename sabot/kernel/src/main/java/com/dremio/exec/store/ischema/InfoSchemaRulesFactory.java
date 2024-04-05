@@ -15,33 +15,31 @@
  */
 package com.dremio.exec.store.ischema;
 
-import java.util.Set;
-
-import org.apache.calcite.plan.RelOptRule;
-
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.ops.OptimizerRulesContext;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.store.StoragePluginRulesFactory.StoragePluginTypeRulesFactory;
 import com.google.common.collect.ImmutableSet;
+import java.util.Set;
+import org.apache.calcite.plan.RelOptRule;
 
 public class InfoSchemaRulesFactory extends StoragePluginTypeRulesFactory {
 
   @Override
-  public Set<RelOptRule> getRules(OptimizerRulesContext optimizerContext, PlannerPhase phase, SourceType pluginType) {
-    switch(phase) {
-    case LOGICAL:
-      return ImmutableSet.of(InfoSchemaScanDrule.INSTANCE);
+  public Set<RelOptRule> getRules(
+      OptimizerRulesContext optimizerContext, PlannerPhase phase, SourceType pluginType) {
+    switch (phase) {
+      case LOGICAL:
+        return ImmutableSet.of(InfoSchemaScanDrule.INSTANCE);
 
-    case PHYSICAL:
-      return ImmutableSet.of(
-          InfoSchemaScanPrule.INSTANCE,
-          InfoSchemaPushFilterIntoScan.IS_FILTER_ON_PROJECT,
-          InfoSchemaPushFilterIntoScan.IS_FILTER_ON_SCAN);
+      case PHYSICAL:
+        return ImmutableSet.of(
+            InfoSchemaScanPrule.INSTANCE,
+            InfoSchemaPushFilterIntoScan.IS_FILTER_ON_PROJECT,
+            InfoSchemaPushFilterIntoScan.IS_FILTER_ON_SCAN);
 
-    default:
-      return ImmutableSet.of();
+      default:
+        return ImmutableSet.of();
     }
   }
-
 }

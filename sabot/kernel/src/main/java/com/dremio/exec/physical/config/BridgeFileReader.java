@@ -15,10 +15,6 @@
  */
 package com.dremio.exec.physical.config;
 
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.physical.base.AbstractBase;
 import com.dremio.exec.physical.base.GroupScan;
@@ -32,6 +28,9 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
 
 public class BridgeFileReader extends AbstractBase implements SubScan {
   private final BatchSchema schema;
@@ -39,17 +38,17 @@ public class BridgeFileReader extends AbstractBase implements SubScan {
 
   @JsonCreator
   public BridgeFileReader(
-    @JsonProperty("props") OpProps props,
-    @JsonProperty("fullSchema") BatchSchema schema,
-    @JsonProperty("bridgeSetId") String bridgeSetId
-  ) {
+      @JsonProperty("props") OpProps props,
+      @JsonProperty("fullSchema") BatchSchema schema,
+      @JsonProperty("bridgeSetId") String bridgeSetId) {
     super(props);
     this.schema = schema;
     this.bridgeSetId = bridgeSetId;
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value) throws E {
+  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value)
+      throws E {
     return physicalVisitor.visitBridgeFileReader(this, value);
   }
 

@@ -20,14 +20,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.mockito.Mockito.mock;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.List;
-
-import org.junit.Before;
-import org.junit.Test;
-
 import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.DatasetSplit;
@@ -35,10 +27,14 @@ import com.dremio.connector.metadata.EntityPath;
 import com.dremio.connector.metadata.GetDatasetOption;
 import com.dremio.connector.metadata.PartitionChunk;
 import com.google.common.collect.Iterators;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.List;
+import org.junit.Before;
+import org.junit.Test;
 
-/**
- *Test class for SampleSourceMetadata
- */
+/** Test class for SampleSourceMetadata */
 public class SampleSourceMetadataTest {
   private SampleSourceMetadata metadataConnector;
 
@@ -76,7 +72,6 @@ public class SampleSourceMetadataTest {
     metadataConnector.addManyDatasets(allPaths);
 
     assertEquals(metadataConnector.getAllDatasetMetadata().size(), 2);
-
   }
 
   @Test
@@ -94,11 +89,9 @@ public class SampleSourceMetadataTest {
     List<String> pathA = Arrays.asList("a", "b");
     List<String> pathB = Arrays.asList("c", "d");
 
-    metadataConnector
-      .addSingleDataset(pathA);
+    metadataConnector.addSingleDataset(pathA);
 
-    metadataConnector
-      .addSingleDataset(pathB);
+    metadataConnector.addSingleDataset(pathB);
 
     assertEquals(metadataConnector.getAllDatasetMetadata().size(), 2);
 
@@ -116,11 +109,9 @@ public class SampleSourceMetadataTest {
     EntityPath pathA = new EntityPath(listA);
     EntityPath pathB = new EntityPath(listB);
 
-    metadataConnector
-      .addSingleDataset(listA);
+    metadataConnector.addSingleDataset(listA);
 
-    metadataConnector
-      .addSingleDataset(listB);
+    metadataConnector.addSingleDataset(listB);
 
     DatasetHandle handleA = metadataConnector.getAllDatasetHandles(option).get(0);
     DatasetHandle handleB = metadataConnector.getAllDatasetHandles(option).get(1);
@@ -247,8 +238,7 @@ public class SampleSourceMetadataTest {
 
   @Test
   public void testAddNAndAnother() {
-    metadataConnector
-      .addNDatasets(3, 0, 0);
+    metadataConnector.addNDatasets(3, 0, 0);
 
     assertEquals(metadataConnector.getAllDatasetMetadata().size(), 3);
 
@@ -273,7 +263,6 @@ public class SampleSourceMetadataTest {
   public void testAddingDataset() throws ConnectorException {
     metadataConnector.addNDatasets(1, 1, 1);
 
-
     assertEquals(metadataConnector.getAllDatasetHandles(null).size(), 1);
   }
 
@@ -284,7 +273,8 @@ public class SampleSourceMetadataTest {
     assertEquals(metadataConnector.getAllDatasetHandles(null).size(), 1);
     DatasetHandle datasetHandle = metadataConnector.getAllDatasetHandles(null).get(0);
 
-    Iterator<? extends PartitionChunk> partitionChunkIterator = metadataConnector.getPartitionChunks(datasetHandle);
+    Iterator<? extends PartitionChunk> partitionChunkIterator =
+        metadataConnector.getPartitionChunks(datasetHandle);
     assertEquals(Iterators.size(partitionChunkIterator), 1);
 
     while (partitionChunkIterator.hasNext()) {

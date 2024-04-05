@@ -16,9 +16,8 @@
 
 package com.dremio.exec.store;
 
-import org.junit.Test;
-
 import com.dremio.BaseTestQuery;
+import org.junit.Test;
 
 public class TestRefreshSourceStatus extends BaseTestQuery {
 
@@ -26,12 +25,12 @@ public class TestRefreshSourceStatus extends BaseTestQuery {
   public void testRefreshSourceStatus() throws Exception {
     test("USE dfs");
     testBuilder()
-      .sqlQuery("ALTER SOURCE dfs_test REFRESH STATUS")
-      .unOrdered()
-      .baselineColumns("ok", "summary")
-      .baselineValues(true, "Successfully refreshed status for source 'dfs_test'. New status is: Healthy")
-      .build()
-      .run();
+        .sqlQuery("ALTER SOURCE dfs_test REFRESH STATUS")
+        .unOrdered()
+        .baselineColumns("ok", "summary")
+        .baselineValues(
+            true, "Successfully refreshed status for source 'dfs_test'. New status is: Healthy")
+        .build()
+        .run();
   }
-
 }

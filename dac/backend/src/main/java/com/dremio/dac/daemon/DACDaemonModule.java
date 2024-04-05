@@ -21,29 +21,8 @@ import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static java.lang.Math.toIntExact;
 
-import java.io.IOException;
-import java.net.URI;
-import java.net.UnknownHostException;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.EnumSet;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
-import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
-
-import javax.inject.Provider;
-
-import org.apache.arrow.memory.BufferAllocator;
-import org.projectnessie.client.api.NessieApiV2;
-import org.projectnessie.client.http.HttpClientBuilder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.authenticator.Authenticator;
+import com.dremio.catalog.CatalogMaintenanceService;
 import com.dremio.common.concurrent.ContextMigratingExecutorService;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.logging.StructuredLogger;
@@ -65,8 +44,10 @@ import com.dremio.dac.server.NessieProxyRestServer;
 import com.dremio.dac.server.RestServerV2;
 import com.dremio.dac.server.WebServer;
 import com.dremio.dac.service.admin.KVStoreReportService;
+import com.dremio.dac.service.catalog.CatalogMaintenanceRunnableProvider;
 import com.dremio.dac.service.catalog.CatalogServiceHelper;
 import com.dremio.dac.service.collaboration.CollaborationHelper;
+import com.dremio.dac.service.credentials.CredentialsServiceGrpcImpl;
 import com.dremio.dac.service.datasets.DACViewCreatorFactory;
 import com.dremio.dac.service.datasets.DatasetVersionCleanupHelper;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
@@ -102,6 +83,7 @@ import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.catalog.CatalogServiceSynchronizer;
 import com.dremio.exec.catalog.ConnectionReader;
+import com.dremio.exec.catalog.ConnectionReaderDecorator;
 import com.dremio.exec.catalog.DatasetCatalogServiceImpl;
 import com.dremio.exec.catalog.InformationSchemaServiceImpl;
 import com.dremio.exec.catalog.MetadataRefreshInfoBroadcaster;
@@ -231,6 +213,7 @@ import com.dremio.service.coordinator.SoftwareAssumeRoleCredentialsProvider;
 import com.dremio.service.coordinator.SoftwareCoordinatorModeInfo;
 import com.dremio.service.coordinator.local.LocalClusterCoordinator;
 import com.dremio.service.coordinator.zk.ZKClusterCoordinator;
+import com.dremio.service.embedded.catalog.EmbeddedMetadataPointerService;
 import com.dremio.service.execselector.ExecutorSelectionService;
 import com.dremio.service.execselector.ExecutorSelectionServiceImpl;
 import com.dremio.service.execselector.ExecutorSelectorFactory;
@@ -262,6 +245,8 @@ import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.JobsServiceAdapter;
 import com.dremio.service.jobs.JobsStoreCreator;
 import com.dremio.service.jobs.LocalJobsService;
+import com.dremio.service.jobs.cleanup.JobsAndDependenciesCleaner;
+import com.dremio.service.jobs.cleanup.JobsAndDependenciesCleanerImpl;
 import com.dremio.service.jobtelemetry.JobTelemetryClient;
 import com.dremio.service.jobtelemetry.client.JobTelemetryExecutorClientFactory;
 import com.dremio.service.jobtelemetry.server.LocalJobTelemetryServer;
@@ -273,8 +258,8 @@ import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceServiceImpl;
 import com.dremio.service.namespace.SplitOrphansCleanerService;
 import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEvents;
+import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEventsImpl;
 import com.dremio.service.namespace.catalogstatusevents.events.DatasetDeletionCatalogStatusEvent;
-import com.dremio.service.nessie.NessieService;
 import com.dremio.service.orphanage.Orphanage;
 import com.dremio.service.orphanage.OrphanageImpl;
 import com.dremio.service.orphanagecleaner.OrphanageCleanerService;
@@ -333,6 +318,11 @@ import com.dremio.services.credentials.Cipher;
 import com.dremio.services.credentials.CredentialsService;
 import com.dremio.services.credentials.CredentialsServiceImpl;
 import com.dremio.services.credentials.NoopCipher;
+import com.dremio.services.credentials.NoopSecretsCreator;
+import com.dremio.services.credentials.RemoteSecretsCreatorImpl;
+import com.dremio.services.credentials.SecretsCreator;
+import com.dremio.services.credentials.SecretsCreatorGrpcImpl;
+import com.dremio.services.credentials.SecretsCreatorImpl;
 import com.dremio.services.credentials.SystemCipher;
 import com.dremio.services.credentials.proto.CredentialsServiceGrpc;
 import com.dremio.services.fabric.FabricServiceImpl;
@@ -346,13 +336,30 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Maps;
 import com.google.inject.util.Providers;
-
 import io.grpc.ManagedChannel;
 import io.opentracing.Tracer;
+import java.io.IOException;
+import java.net.URI;
+import java.net.UnknownHostException;
+import java.time.Clock;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
+import javax.inject.Provider;
+import org.apache.arrow.memory.BufferAllocator;
+import org.projectnessie.client.api.NessieApiV2;
+import org.projectnessie.client.http.HttpClientBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * DAC module to setup Dremio daemon
- */
+/** DAC module to setup Dremio daemon */
 public class DACDaemonModule implements DACModule {
   private static final Logger logger = LoggerFactory.getLogger(DACDaemonModule.class);
 
@@ -361,18 +368,25 @@ public class DACDaemonModule implements DACModule {
 
   public DACDaemonModule() {}
 
-
   @Override
-  public void bootstrap(final Runnable shutdownHook, final SingletonRegistry bootstrapRegistry, ScanResult scanResult, DACConfig dacConfig, boolean isMaster) {
+  public void bootstrap(
+      final Runnable shutdownHook,
+      final SingletonRegistry bootstrapRegistry,
+      ScanResult scanResult,
+      DACConfig dacConfig,
+      boolean isMaster) {
     final DremioConfig config = dacConfig.getConfig();
-    final boolean embeddedZookeeper = config.getBoolean(DremioConfig.EMBEDDED_MASTER_ZK_ENABLED_BOOL);
-    final BootStrapContext bootStrapContext = new BootStrapContext(config, scanResult, bootstrapRegistry);
+    final boolean embeddedZookeeper =
+        config.getBoolean(DremioConfig.EMBEDDED_MASTER_ZK_ENABLED_BOOL);
+    final BootStrapContext bootStrapContext =
+        new BootStrapContext(config, scanResult, bootstrapRegistry);
     boolean isMasterless = config.isMasterlessEnabled();
 
     bootstrapRegistry.bindSelf(bootStrapContext);
     bootstrapRegistry.bind(BufferAllocator.class, bootStrapContext.getAllocator());
 
-    // Start cluster coordinator before all other services so that non master nodes can poll for master status
+    // Start cluster coordinator before all other services so that non master nodes can poll for
+    // master status
     if (dacConfig.getClusterMode() == ClusterMode.LOCAL) {
       bootstrapRegistry.bind(ClusterCoordinator.class, new LocalClusterCoordinator());
     } else if (config.getBoolean(DremioConfig.NO_OP_CLUSTER_COORDINATOR_ENABLED)) {
@@ -384,17 +398,22 @@ public class DACDaemonModule implements DACModule {
       // is present, ClusterCoordinator won't start, so this service should be initialized first.
       final Provider<Integer> portProvider;
       if (isMaster && embeddedZookeeper) {
-        ZkServer zkServer = new ZkServer(
-            config.getString(DremioConfig.EMBEDDED_MASTER_ZK_ENABLED_PATH_STRING),
-            config.getInt(DremioConfig.EMBEDDED_MASTER_ZK_ENABLED_PORT_INT),
-            dacConfig.autoPort);
+        ZkServer zkServer =
+            new ZkServer(
+                config.getString(DremioConfig.EMBEDDED_MASTER_ZK_ENABLED_PATH_STRING),
+                config.getInt(DremioConfig.EMBEDDED_MASTER_ZK_ENABLED_PORT_INT),
+                dacConfig.autoPort);
         bootstrapRegistry.bindSelf(zkServer);
 
-        portProvider = dacConfig.autoPort ? new Provider<Integer>(){
-          @Override
-          public Integer get() {
-            return bootstrapRegistry.lookup(ZkServer.class).getPort();
-          }} : null;
+        portProvider =
+            dacConfig.autoPort
+                ? new Provider<Integer>() {
+                  @Override
+                  public Integer get() {
+                    return bootstrapRegistry.lookup(ZkServer.class).getPort();
+                  }
+                }
+                : null;
       } else {
         portProvider = null;
       }
@@ -410,18 +429,21 @@ public class DACDaemonModule implements DACModule {
 
     // Start master election
     if (isMaster && !config.getBoolean(DremioConfig.DEBUG_DISABLE_MASTER_ELECTION_SERVICE_BOOL)) {
-      bootstrapRegistry.bindSelf(new MasterElectionService(bootstrapRegistry.provider(ClusterCoordinator.class)));
+      bootstrapRegistry.bindSelf(
+          new MasterElectionService(bootstrapRegistry.provider(ClusterCoordinator.class)));
     }
 
     final MasterStatusListener masterStatusListener;
     final Provider<ClusterServiceSetManager> clusterServiceSetManagerProvider =
-      () -> bootstrapRegistry.provider(ClusterCoordinator.class).get();
+        () -> bootstrapRegistry.provider(ClusterCoordinator.class).get();
 
     if (!isMasterless) {
-      masterStatusListener = new MasterStatusListener(clusterServiceSetManagerProvider, config.getSabotConfig(), isMaster);
+      masterStatusListener =
+          new MasterStatusListener(
+              clusterServiceSetManagerProvider, config.getSabotConfig(), isMaster);
     } else {
       masterStatusListener =
-        new MasterlessStatusListener(clusterServiceSetManagerProvider, isMaster);
+          new MasterlessStatusListener(clusterServiceSetManagerProvider, isMaster);
     }
     // start master status listener
     bootstrapRegistry.bind(MasterStatusListener.class, masterStatusListener);
@@ -429,17 +451,20 @@ public class DACDaemonModule implements DACModule {
     bootstrapRegistry.bindProvider(SubEngineId.class, Providers.of(null));
 
     // Default request Context
-    bootstrapRegistry.bind(RequestContext.class,
-      RequestContext.empty()
-        .with(TenantContext.CTX_KEY, TenantContext.DEFAULT_SERVICE_CONTEXT)
-        .with(UserContext.CTX_KEY, UserContext.SYSTEM_USER_CONTEXT)
-    );
-
+    bootstrapRegistry.bind(
+        RequestContext.class,
+        RequestContext.empty()
+            .with(TenantContext.CTX_KEY, TenantContext.DEFAULT_SERVICE_CONTEXT)
+            .with(UserContext.CTX_KEY, UserContext.SYSTEM_USER_CONTEXT));
   }
 
   @Override
-  public void build(final SingletonRegistry bootstrapRegistry, final SingletonRegistry registry, ScanResult scanResult,
-      DACConfig dacConfig, boolean isMaster){
+  public void build(
+      final SingletonRegistry bootstrapRegistry,
+      final SingletonRegistry registry,
+      ScanResult scanResult,
+      DACConfig dacConfig,
+      boolean isMaster) {
     final DremioConfig config = dacConfig.getConfig();
     final SabotConfig sabotConfig = config.getSabotConfig();
     final BootStrapContext bootstrap = bootstrapRegistry.lookup(BootStrapContext.class);
@@ -449,22 +474,24 @@ public class DACDaemonModule implements DACModule {
     final boolean isExecutor = config.getBoolean(DremioConfig.ENABLE_EXECUTOR_BOOL);
     final boolean isDistributedCoordinator = isMasterless && isCoordinator;
     final boolean isDistributedMaster = isDistributedCoordinator || isMaster;
-    final Provider<NodeEndpoint> masterEndpoint = new Provider<NodeEndpoint>() {
-      private final Provider<MasterStatusListener> masterStatusListener =
-          registry.provider(MasterStatusListener.class);
+    final Provider<NodeEndpoint> masterEndpoint =
+        new Provider<NodeEndpoint>() {
+          private final Provider<MasterStatusListener> masterStatusListener =
+              registry.provider(MasterStatusListener.class);
 
-      @Override
-      public NodeEndpoint get() {
-        return masterStatusListener.get().getMasterNode();
-      }
-    };
+          @Override
+          public NodeEndpoint get() {
+            return masterStatusListener.get().getMasterNode();
+          }
+        };
 
     final Provider<SabotContext> sabotContextProvider = registry.provider(SabotContext.class);
     final Provider<NodeEndpoint> selfEndpoint = () -> sabotContextProvider.get().getEndpoint();
 
     registry.bind(java.util.concurrent.ExecutorService.class, bootstrap.getExecutor());
 
-    final BufferAllocatorFactory bufferAllocatorFactory = new BufferAllocatorFactory(bootstrap.getAllocator(), "WebServer");
+    final BufferAllocatorFactory bufferAllocatorFactory =
+        new BufferAllocatorFactory(bootstrap.getAllocator(), "WebServer");
     registry.bindSelf(bufferAllocatorFactory);
 
     EnumSet<ClusterCoordinator.Role> roles = EnumSet.noneOf(ClusterCoordinator.Role.class);
@@ -480,7 +507,11 @@ public class DACDaemonModule implements DACModule {
 
     registry.bindSelf(config);
 
-    registry.bind(ConnectionReader.class, ConnectionReader.of(scanResult, sabotConfig));
+    registry.bind(
+        ConnectionReader.class,
+        new ConnectionReaderDecorator(
+            ConnectionReader.of(scanResult, sabotConfig),
+            registry.provider(CredentialsService.class)));
 
     // register default providers.
 
@@ -490,14 +521,17 @@ public class DACDaemonModule implements DACModule {
     // copy bootstrap bindings to the main registry.
     bootstrapRegistry.copyBindings(registry);
 
-    registry.bind(GrpcChannelBuilderFactory.class,
-      new SingleTenantGrpcChannelBuilderFactory(
-        registry.lookup(Tracer.class),
-        registry.provider(RequestContext.class),
-        () -> { return Maps.newHashMap();}
-      )
-    );
-    registry.bind(GrpcServerBuilderFactory.class, new MultiTenantGrpcServerBuilderFactory(registry.lookup(Tracer.class)));
+    registry.bind(
+        GrpcChannelBuilderFactory.class,
+        new SingleTenantGrpcChannelBuilderFactory(
+            registry.lookup(Tracer.class),
+            registry.provider(RequestContext.class),
+            () -> {
+              return Maps.newHashMap();
+            }));
+    registry.bind(
+        GrpcServerBuilderFactory.class,
+        new MultiTenantGrpcServerBuilderFactory(registry.lookup(Tracer.class)));
 
     final String fabricAddress = getFabricAddress();
 
@@ -512,34 +546,47 @@ public class DACDaemonModule implements DACModule {
             config.getBytes(DremioConfig.FABRIC_MEMORY_RESERVATION),
             Long.MAX_VALUE,
             sabotConfig.getInt(RpcConstants.BIT_RPC_TIMEOUT),
-            bootstrap.getExecutor()
-        ));
-
-    // Bind Credentials Service, this will select between Simple and Executor Credentials
-    registry.bind(CredentialsService.class, CredentialsService.newInstance(config, registry, scanResult));
+            bootstrap.getExecutor()));
 
     if (isCoordinator && isMaster) {
       registry.bind(Cipher.class, SystemCipher.class);
-    } else {
-      // Non-master coordinator or Executors cannot encrypt secrets
+      registry.bind(SecretsCreator.class, new SecretsCreatorImpl(registry.provider(Cipher.class)));
+    } else if (isCoordinator) {
+      // Non-master coordinator(s) route calls to the master coordinator to encrypt secrets
       registry.bind(Cipher.class, NoopCipher.class);
+      registry.bind(
+          SecretsCreator.class,
+          new RemoteSecretsCreatorImpl(() -> getOrCreateChannelToMaster(registry)));
+    } else {
+      // Executor(s) are not allowed to encrypt secrets
+      registry.bind(Cipher.class, NoopCipher.class);
+      registry.bind(SecretsCreator.class, NoopSecretsCreator.class);
     }
+
+    registry.bind(
+        CredentialsService.class,
+        CredentialsServiceImpl.newInstance(
+            config,
+            scanResult,
+            registry.provider(OptionManager.class),
+            registry.provider(Cipher.class),
+            () -> getOrCreateChannelToMaster(registry)));
 
     DremioCredentialProviderFactory.configure(registry.provider(CredentialsService.class));
 
     final Optional<SSLEngineFactory> conduitSslEngineFactory;
     try {
       final SSLConfigurator conduitSslConfigurator =
-        new SSLConfigurator(
-          config,
-          registry.provider(CredentialsService.class),
-          ConduitUtils.CONDUIT_SSL_PREFIX,
-          "conduit"
-        );
+          new SSLConfigurator(
+              config,
+              registry.provider(CredentialsService.class),
+              ConduitUtils.CONDUIT_SSL_PREFIX,
+              "conduit");
 
-      // TODO DX-66220: Make AzureVaultCredentialsProvider available before resolving secret URIs in SSL config
-      conduitSslEngineFactory = SSLEngineFactory.create(
-        conduitSslConfigurator.getSSLConfig(false, fabricAddress));
+      // TODO DX-66220: Make AzureVaultCredentialsProvider available before resolving secret URIs in
+      // SSL config
+      conduitSslEngineFactory =
+          SSLEngineFactory.create(conduitSslConfigurator.getSSLConfig(false, fabricAddress));
     } catch (Exception e) {
       Throwables.throwIfUnchecked(e);
       throw new RuntimeException(e);
@@ -550,22 +597,24 @@ public class DACDaemonModule implements DACModule {
       conduitServiceRegistry = new ConduitServiceRegistryImpl();
       registry.bind(ConduitServiceRegistry.class, conduitServiceRegistry);
       final String inProcessServerName = UUID.randomUUID().toString();
-      registry.bind(ConduitServer.class,
-        new ConduitServer(
-          registry.provider(ConduitServiceRegistry.class),
-          config.getInt(DremioConfig.CONDUIT_PORT_INT),
-          conduitSslEngineFactory,
-          inProcessServerName
-        )
-      );
+      registry.bind(
+          ConduitServer.class,
+          new ConduitServer(
+              registry.provider(ConduitServiceRegistry.class),
+              config.getInt(DremioConfig.CONDUIT_PORT_INT),
+              conduitSslEngineFactory,
+              inProcessServerName));
       // should be after conduit server
-      final ConduitInProcessChannelProvider conduitInProcessChannelProvider = new ConduitInProcessChannelProvider(inProcessServerName,
-        registry.provider(RequestContext.class));
+      final ConduitInProcessChannelProvider conduitInProcessChannelProvider =
+          new ConduitInProcessChannelProvider(
+              inProcessServerName, registry.provider(RequestContext.class));
       registry.bind(ConduitInProcessChannelProvider.class, conduitInProcessChannelProvider);
     } else {
-      registry.bindProvider(ConduitServer.class, () -> {
-        return null;
-      });
+      registry.bindProvider(
+          ConduitServer.class,
+          () -> {
+            return null;
+          });
     }
 
     // for masterless case, this defaults to the local conduit server.
@@ -576,144 +625,143 @@ public class DACDaemonModule implements DACModule {
       conduitEndpoint = selfEndpoint;
     }
 
-    final ConduitProviderImpl conduitProvider = new ConduitProviderImpl(
-      conduitEndpoint,
-      conduitSslEngineFactory
-    );
+    final ConduitProviderImpl conduitProvider =
+        new ConduitProviderImpl(conduitEndpoint, conduitSslEngineFactory);
     registry.bind(ConduitProvider.class, conduitProvider);
     registry.bind(ConduitProviderImpl.class, conduitProvider); // this bind manages lifecycle
 
-    registry.bindProvider(InformationSchemaServiceBlockingStub.class,
-      () -> InformationSchemaServiceGrpc.newBlockingStub(getOrCreateChannelToMaster(registry)));
+    registry.bindProvider(
+        InformationSchemaServiceBlockingStub.class,
+        () -> InformationSchemaServiceGrpc.newBlockingStub(getOrCreateChannelToMaster(registry)));
 
-    registry.bindProvider(DatasetCatalogServiceBlockingStub.class,
-      () -> DatasetCatalogServiceGrpc.newBlockingStub(getOrCreateChannelToMaster(registry)));
+    registry.bindProvider(
+        DatasetCatalogServiceBlockingStub.class,
+        () -> DatasetCatalogServiceGrpc.newBlockingStub(getOrCreateChannelToMaster(registry)));
 
     registry.bindProvider(NessieApiV2.class, () -> createNessieApi(config, registry));
 
-    // Bind gRPC service for remote lookups
-    if (isCoordinator) {
-      conduitServiceRegistry.registerService(new CredentialsServiceImpl(
-        registry.provider(CredentialsService.class)));
+    // Bind gRPC service on master coordinator
+    if (isCoordinator && isMaster) {
+      // encrypt by system
+      conduitServiceRegistry.registerService(
+          new SecretsCreatorGrpcImpl(registry.provider(SecretsCreator.class)));
+      // decrypt
+      conduitServiceRegistry.registerService(
+          new CredentialsServiceGrpcImpl(registry.provider(CredentialsService.class)));
     }
-    // Bind gRPC stubs for remote lookups, only bind on executors, don't bind in c+e cases
-    if (isExecutor && !isCoordinator) {
-      registry.bindProvider(CredentialsServiceGrpc.CredentialsServiceBlockingStub.class,
+    // Make gRPC route available for all nodes
+    registry.bindProvider(
+        CredentialsServiceGrpc.CredentialsServiceBlockingStub.class,
         () -> CredentialsServiceGrpc.newBlockingStub(getOrCreateChannelToMaster(registry)));
-    }
 
     registry.bind(
-      KVStoreProvider.class,
-      KVStoreProviderHelper.newKVStoreProvider(
-        dacConfig,
-        bootstrap,
-        registry.provider(FabricService.class),
-        masterEndpoint,
-        bootstrapRegistry.lookup(Tracer.class)
-      )
-    );
+        KVStoreProvider.class,
+        KVStoreProviderHelper.newKVStoreProvider(
+            dacConfig,
+            bootstrap,
+            registry.provider(FabricService.class),
+            masterEndpoint,
+            bootstrapRegistry.lookup(Tracer.class)));
 
     // should be after the kv store
-    registry.bind(ProjectRoleInitializer.class, new ProjectRoleInitializer() {
-      @Override
-      public void start() throws Exception {
-        // NO-OP
-      }
+    registry.bind(
+        ProjectRoleInitializer.class,
+        new ProjectRoleInitializer() {
+          @Override
+          public void start() throws Exception {
+            // NO-OP
+          }
 
-      @Override
-      public void close() throws Exception {
-       // NO-OP
-      }
-    });
+          @Override
+          public void close() throws Exception {
+            // NO-OP
+          }
+        });
 
     registry.bind(
-      LegacyKVStoreProvider.class,
-      new LegacyKVStoreProviderAdapter(
-        registry.provider(KVStoreProvider.class).get())
-    );
+        LegacyKVStoreProvider.class,
+        new LegacyKVStoreProviderAdapter(registry.provider(KVStoreProvider.class).get()));
 
     registry.bind(
-      ViewCreatorFactory.class,
-      new DACViewCreatorFactory(
-        registry.provider(InitializerRegistry.class),
-        registry.provider(LegacyKVStoreProvider.class),
-        registry.provider(JobsService.class),
-        registry.provider(NamespaceService.Factory.class),
-        registry.provider(CatalogService.class),
-        registry.provider(ContextService.class),
-        () -> bootstrap.getAllocator()
-      )
-    );
+        ViewCreatorFactory.class,
+        new DACViewCreatorFactory(
+            registry.provider(LegacyKVStoreProvider.class),
+            registry.provider(JobsService.class),
+            registry.provider(NamespaceService.Factory.class),
+            registry.provider(CatalogService.class),
+            registry.provider(ContextService.class),
+            () -> bootstrap.getAllocator(),
+            registry.provider(OptionManager.class)));
 
     // RPC Endpoints.
 
     if (isCoordinator) {
-      registry.bindSelf(new LocalUsernamePasswordAuthProvider(registry.provider(SimpleUserService.class)));
-      registry.bind(Authenticator.class, new BasicAuthenticator(
-        registry.provider(LocalUsernamePasswordAuthProvider.class)
-      ));
       registry.bindSelf(
-        new UserServer(
-          config,
-          registry.provider(java.util.concurrent.ExecutorService.class),
-          registry.provider(BufferAllocator.class),
-          registry.provider(Authenticator.class),
-          registry.provider(UserService.class),
-          registry.provider(NodeEndpoint.class),
-          registry.provider(UserWorker.class),
-          dacConfig.autoPort,
-          bootstrapRegistry.lookup(Tracer.class),
-          registry.provider(OptionValidatorListing.class)
-        )
-      );
+          new LocalUsernamePasswordAuthProvider(registry.provider(SimpleUserService.class)));
+      registry.bind(
+          Authenticator.class,
+          new BasicAuthenticator(registry.provider(LocalUsernamePasswordAuthProvider.class)));
+      registry.bindSelf(
+          new UserServer(
+              config,
+              registry.provider(java.util.concurrent.ExecutorService.class),
+              registry.provider(BufferAllocator.class),
+              registry.provider(Authenticator.class),
+              registry.provider(UserService.class),
+              registry.provider(NodeEndpoint.class),
+              registry.provider(UserWorker.class),
+              dacConfig.autoPort,
+              bootstrapRegistry.lookup(Tracer.class),
+              registry.provider(OptionValidatorListing.class)));
     }
 
     // Context Service.
-    final ContextService contextService = new ContextService(
-      bootstrap,
-      registry.provider(ClusterCoordinator.class),
-      registry.provider(GroupResourceInformation.class),
-      registry.provider(WorkStats.class),
-      registry.provider(LegacyKVStoreProvider.class),
-      registry.provider(FabricService.class),
-      registry.provider(ConduitServer.class),
-      registry.provider(UserServer.class),
-      registry.provider(MaterializationDescriptorProvider.class),
-      registry.provider(QueryObserverFactory.class),
-      registry.provider(AccelerationManager.class),
-      registry.provider(AccelerationListManager.class),
-      registry.provider(NamespaceService.Factory.class),
-      registry.provider(Orphanage.Factory.class),
-      registry.provider(DatasetListingService.class),
-      registry.provider(UserService.class),
-      registry.provider(CatalogService.class),
-      registry.provider(ConduitProvider.class),
-      registry.provider(InformationSchemaServiceBlockingStub.class),
-      registry.provider(ViewCreatorFactory.class),
-      registry.provider(SpillService.class),
-      registry.provider(ConnectionReader.class),
-      registry.provider(CredentialsService.class),
-      registry.provider(JobResultInfoProvider.class),
-      registry.provider(OptionManager.class),
-      registry.provider(SystemOptionManager.class),
-      bootstrapRegistry.provider(EngineId.class),
-      bootstrapRegistry.provider(SubEngineId.class),
-      registry.provider(OptionValidatorListing.class),
-      roles,
-      () -> new SoftwareCoordinatorModeInfo(),
-      registry.provider(NessieApiV2.class),
-      registry.provider(StatisticsService.class),
-      registry.provider(StatisticsAdministrationService.Factory.class),
-      registry.provider(StatisticsListManager.class),
-      registry.provider(UserDefinedFunctionService.class),
-      registry.provider(RelMetadataQuerySupplier.class),
-      registry.provider(SimpleJobRunner.class),
-      registry.provider(DatasetCatalogServiceBlockingStub.class),
-      registry.provider(GlobalKeysService.class),
-      registry.provider(CredentialsService.class),
-      registry.provider(ConduitInProcessChannelProvider.class),
-      registry.provider(SysFlightChannelProvider.class),
-      registry.provider(SourceVerifier.class));
+    final ContextService contextService =
+        new ContextService(
+            bootstrap,
+            registry.provider(ClusterCoordinator.class),
+            registry.provider(GroupResourceInformation.class),
+            registry.provider(WorkStats.class),
+            registry.provider(LegacyKVStoreProvider.class),
+            registry.provider(FabricService.class),
+            registry.provider(ConduitServer.class),
+            registry.provider(UserServer.class),
+            registry.provider(MaterializationDescriptorProvider.class),
+            registry.provider(QueryObserverFactory.class),
+            registry.provider(AccelerationManager.class),
+            registry.provider(AccelerationListManager.class),
+            registry.provider(NamespaceService.Factory.class),
+            registry.provider(Orphanage.Factory.class),
+            registry.provider(DatasetListingService.class),
+            registry.provider(UserService.class),
+            registry.provider(CatalogService.class),
+            registry.provider(ConduitProvider.class),
+            registry.provider(InformationSchemaServiceBlockingStub.class),
+            registry.provider(ViewCreatorFactory.class),
+            registry.provider(SpillService.class),
+            registry.provider(ConnectionReader.class),
+            registry.provider(JobResultInfoProvider.class),
+            registry.provider(OptionManager.class),
+            registry.provider(SystemOptionManager.class),
+            bootstrapRegistry.provider(EngineId.class),
+            bootstrapRegistry.provider(SubEngineId.class),
+            registry.provider(OptionValidatorListing.class),
+            roles,
+            () -> new SoftwareCoordinatorModeInfo(),
+            registry.provider(NessieApiV2.class),
+            registry.provider(StatisticsService.class),
+            registry.provider(StatisticsAdministrationService.Factory.class),
+            registry.provider(StatisticsListManager.class),
+            registry.provider(UserDefinedFunctionService.class),
+            registry.provider(RelMetadataQuerySupplier.class),
+            registry.provider(SimpleJobRunner.class),
+            registry.provider(DatasetCatalogServiceBlockingStub.class),
+            registry.provider(GlobalKeysService.class),
+            registry.provider(CredentialsService.class),
+            registry.provider(ConduitInProcessChannelProvider.class),
+            registry.provider(SysFlightChannelProvider.class),
+            registry.provider(SourceVerifier.class),
+            registry.provider(SecretsCreator.class));
 
     registry.bind(SysFlightChannelProvider.class, SysFlightChannelProvider.NO_OP);
 
@@ -726,112 +774,148 @@ public class DACDaemonModule implements DACModule {
     registry.bindProvider(GlobalKeysService.class, () -> GlobalKeysService.NO_OP);
 
     final Provider<NodeEndpoint> currentEndPoint =
-      () -> registry.provider(SabotContext.class).get().getEndpoint();
+        () -> registry.provider(SabotContext.class).get().getEndpoint();
 
     final Provider<ClusterServiceSetManager> clusterServiceSetManagerProvider =
-      () -> registry.provider(ClusterCoordinator.class).get();
+        () -> registry.provider(ClusterCoordinator.class).get();
     final Provider<ClusterElectionManager> clusterElectionManagerProvider =
-      () -> registry.provider(ClusterCoordinator.class).get();
+        () -> registry.provider(ClusterCoordinator.class).get();
     final Provider<ClusterCoordinator> clusterCoordinatorProvider =
-      () -> registry.provider(ClusterCoordinator.class).get();
+        () -> registry.provider(ClusterCoordinator.class).get();
 
-    final boolean isInternalUGS = setupUserService(registry, dacConfig.getConfig(),
-        registry.provider(SabotContext.class), isMaster, isCoordinator);
+    final boolean isInternalUGS =
+        setupUserService(
+            registry,
+            dacConfig.getConfig(),
+            registry.provider(SabotContext.class),
+            isMaster,
+            isCoordinator);
     registry.bind(Orphanage.Factory.class, OrphanageImpl.Factory.class);
     registry.bind(NamespaceService.Factory.class, NamespaceServiceImpl.Factory.class);
     final DatasetListingService localListing;
     if (isDistributedMaster) {
-      localListing = new DatasetListingServiceImpl(registry.provider(NamespaceService.Factory.class));
+      localListing =
+          new DatasetListingServiceImpl(registry.provider(NamespaceService.Factory.class));
     } else {
       localListing = DatasetListingService.UNSUPPORTED;
     }
 
-    final Provider<NodeEndpoint> searchEndPoint = () -> {
-      // will return master endpoint if it's masterful mode
-      Optional<NodeEndpoint> serviceEndPoint =
-        registry.provider(SchedulerService.class).get().getCurrentTaskOwner(SearchServiceImpl.LOCAL_TASK_LEADER_NAME);
-      return serviceEndPoint.orElse(null);
-    };
+    final Provider<NodeEndpoint> searchEndPoint =
+        () -> {
+          // will return master endpoint if it's masterful mode
+          Optional<NodeEndpoint> serviceEndPoint =
+              registry
+                  .provider(SchedulerService.class)
+                  .get()
+                  .getCurrentTaskOwner(SearchServiceImpl.LOCAL_TASK_LEADER_NAME);
+          return serviceEndPoint.orElse(null);
+        };
 
     // this is the delegate service for localListing (calls start/close internally)
-    registry.bind(DatasetListingService.class,
+    registry.bind(
+        DatasetListingService.class,
         new DatasetListingInvoker(
-          isDistributedMaster,
-          searchEndPoint,
+            isDistributedMaster,
+            searchEndPoint,
             registry.provider(FabricService.class),
             bootstrap.getAllocator(),
             localListing));
 
-    registry.bindSelf(new CoordExecService(
-        bootstrap.getConfig(),
-        bootstrap.getAllocator(),
-        registry.provider(FabricService.class),
-        registry.provider(ExecutorService.class),
-        registry.provider(ExecToCoordResultsHandler.class),
-        registry.provider(ExecToCoordStatusHandler.class),
-        registry.provider(NodeEndpoint.class),
-        registry.provider(JobTelemetryClient.class)
-      ));
+    registry.bindSelf(
+        new CoordExecService(
+            bootstrap.getConfig(),
+            bootstrap.getAllocator(),
+            registry.provider(FabricService.class),
+            registry.provider(ExecutorService.class),
+            registry.provider(ExecToCoordResultsHandler.class),
+            registry.provider(ExecToCoordStatusHandler.class),
+            registry.provider(NodeEndpoint.class),
+            registry.provider(JobTelemetryClient.class)));
 
     registry.bind(HomeFileTool.HostNameProvider.class, config::getThisNode);
     registry.bindSelf(HomeFileTool.class);
 
     // Periodic task scheduler service
     final int capacity = config.getInt(DremioConfig.SCHEDULER_SERVICE_THREAD_COUNT);
-    final boolean isLeaderlessScheduler = config.getBoolean(DremioConfig.SCHEDULER_LEADERLESS_CLUSTERED_SINGLETON);
+    final boolean isLeaderlessScheduler =
+        config.getBoolean(DremioConfig.SCHEDULER_LEADERLESS_CLUSTERED_SINGLETON);
     if (isLeaderlessScheduler) {
-      final ScheduleTaskGroup defaultTaskGroup = ScheduleTaskGroup.create("clustered-singleton-default", capacity);
+      final ScheduleTaskGroup defaultTaskGroup =
+          ScheduleTaskGroup.create("clustered-singleton-default", capacity);
       ModifiableSchedulerService distributedSchedulerService = null;
       if (isDistributedCoordinator) {
-        distributedSchedulerService = new ClusteredSingletonTaskScheduler(defaultTaskGroup, getRootName(),
-          clusterCoordinatorProvider, currentEndPoint);
+        final boolean haltOnZkLost = config.getBoolean(DremioConfig.SCHEDULER_HALT_ON_ZK_LOST);
+        distributedSchedulerService =
+            new ClusteredSingletonTaskScheduler(
+                defaultTaskGroup,
+                getRootName(),
+                clusterCoordinatorProvider,
+                currentEndPoint,
+                haltOnZkLost);
       }
       final SchedulerService localSchedulerService = new SimpleLocalSchedulerService(capacity);
       ModifiableSchedulerService scheduler;
-      scheduler = new RoutingSchedulerService(clusterServiceSetManagerProvider, localSchedulerService,
-        distributedSchedulerService);
+      scheduler =
+          new RoutingSchedulerService(
+              clusterServiceSetManagerProvider, localSchedulerService, distributedSchedulerService);
       registry.bind(SchedulerService.class, scheduler);
       registry.bind(ModifiableSchedulerService.class, scheduler);
     } else {
-      registry.bind(SchedulerService.class, new LocalSchedulerService(
-        capacity, clusterServiceSetManagerProvider, clusterElectionManagerProvider, currentEndPoint,
-        isDistributedCoordinator));
+      registry.bind(
+          SchedulerService.class,
+          new LocalSchedulerService(
+              capacity,
+              clusterServiceSetManagerProvider,
+              clusterElectionManagerProvider,
+              currentEndPoint,
+              isDistributedCoordinator));
     }
     registry.bindProvider(UserSessionStoreProvider.class, UserSessionStoreProvider::new);
 
-    final OptionValidatorListing optionValidatorListing = new OptionValidatorListingImpl(scanResult);
-    final DefaultOptionManager defaultOptionManager = new DefaultOptionManager(optionValidatorListing);
+    final OptionValidatorListing optionValidatorListing =
+        new OptionValidatorListingImpl(scanResult);
+    final DefaultOptionManager defaultOptionManager =
+        new DefaultOptionManager(optionValidatorListing);
 
     final SystemOptionManager systemOptionManager;
     if (isCoordinator) {
       final OptionChangeBroadcaster systemOptionChangeBroadcaster =
-        new OptionChangeBroadcaster(
-          registry.provider(ConduitProvider.class),
-          () -> registry.provider(ClusterCoordinator.class)
-            .get()
-            .getServiceSet(ClusterCoordinator.Role.COORDINATOR)
-            .getAvailableEndpoints(),
-          currentEndPoint);
-      systemOptionManager = new SystemOptionManager(optionValidatorListing,
-        bootstrap.getLpPersistance(),
-        registry.provider(LegacyKVStoreProvider.class),
-        registry.provider(SchedulerService.class),
-        systemOptionChangeBroadcaster,
-        false);
-      conduitServiceRegistry.registerService(new OptionNotificationService(registry.provider(SystemOptionManager.class)));
+          new OptionChangeBroadcaster(
+              registry.provider(ConduitProvider.class),
+              () ->
+                  registry
+                      .provider(ClusterCoordinator.class)
+                      .get()
+                      .getServiceSet(ClusterCoordinator.Role.COORDINATOR)
+                      .getAvailableEndpoints(),
+              currentEndPoint);
+      systemOptionManager =
+          new SystemOptionManager(
+              optionValidatorListing,
+              bootstrap.getLpPersistance(),
+              registry.provider(LegacyKVStoreProvider.class),
+              registry.provider(SchedulerService.class),
+              systemOptionChangeBroadcaster,
+              false);
+      conduitServiceRegistry.registerService(
+          new OptionNotificationService(registry.provider(SystemOptionManager.class)));
     } else {
-      systemOptionManager = new SystemOptionManager(optionValidatorListing,
-        bootstrap.getLpPersistance(),
-        registry.provider(LegacyKVStoreProvider.class),
-        true);
+      systemOptionManager =
+          new SystemOptionManager(
+              optionValidatorListing,
+              bootstrap.getLpPersistance(),
+              registry.provider(LegacyKVStoreProvider.class),
+              true);
     }
 
-    final OptionManagerWrapper optionManagerWrapper = OptionManagerWrapper.Builder.newBuilder()
-      .withOptionValidatorProvider(optionValidatorListing)
-      .withOptionManager(defaultOptionManager)
-      .withOptionManager(systemOptionManager)
-      .build();
-    final ProjectOptionManagerWrapper projectOptionManagerWrapper = new ProjectOptionManagerWrapper(systemOptionManager, defaultOptionManager);
+    final OptionManagerWrapper optionManagerWrapper =
+        OptionManagerWrapper.Builder.newBuilder()
+            .withOptionValidatorProvider(optionValidatorListing)
+            .withOptionManager(defaultOptionManager)
+            .withOptionManager(systemOptionManager)
+            .build();
+    final ProjectOptionManagerWrapper projectOptionManagerWrapper =
+        new ProjectOptionManagerWrapper(systemOptionManager, defaultOptionManager);
 
     // SystemOptionManager must be bound because it must be #start'ed
     registry.bind(SystemOptionManager.class, systemOptionManager);
@@ -840,171 +924,232 @@ public class DACDaemonModule implements DACModule {
     registry.bind(OptionManager.class, optionManagerWrapper);
     registry.bind(ProjectOptionManager.class, projectOptionManagerWrapper);
 
-    Provider<Integer> ttlInSecondsProvider = () -> toIntExact(
-      registry.provider(OptionManager.class).get().getOption(UserSessionServiceOptions.SESSION_TTL));
+    Provider<Integer> ttlInSecondsProvider =
+        () ->
+            toIntExact(
+                registry
+                    .provider(OptionManager.class)
+                    .get()
+                    .getOption(UserSessionServiceOptions.SESSION_TTL));
 
-    registry.bind(UserSessionService.class, new UserSessionServiceImpl(registry.provider(UserSessionStoreProvider.class), ttlInSecondsProvider));
+    registry.bind(
+        UserSessionService.class,
+        new UserSessionServiceImpl(
+            registry.provider(UserSessionStoreProvider.class), ttlInSecondsProvider));
 
     if (isDistributedMaster) {
       // Companion service to clean split orphans
-      registry.bind(SplitOrphansCleanerService.class, new SplitOrphansCleanerService(
-        registry.provider(SchedulerService.class),
-        registry.provider(NamespaceService.Factory.class),
-        registry.provider(OptionManager.class)));
+      registry.bind(
+          SplitOrphansCleanerService.class,
+          new SplitOrphansCleanerService(
+              registry.provider(SchedulerService.class),
+              registry.provider(NamespaceService.Factory.class),
+              registry.provider(OptionManager.class)));
     }
 
-    final Provider<Iterable<NodeEndpoint>> executorsProvider = () -> sabotContextProvider.get().getExecutors();
-    if(isExecutor) {
-      registry.bind(SpillService.class, new SpillServiceImpl(
-          config,
-          new SpillServiceOptionsImpl(registry.provider(OptionManager.class)),
-          registry.provider(SchedulerService.class),
-          selfEndpoint,
-          (isMasterless) ? null : executorsProvider
-        )
-      );
+    final Provider<Iterable<NodeEndpoint>> executorsProvider =
+        () -> sabotContextProvider.get().getExecutors();
+    if (isExecutor) {
+      registry.bind(
+          SpillService.class,
+          new SpillServiceImpl(
+              config,
+              new SpillServiceOptionsImpl(registry.provider(OptionManager.class)),
+              registry.provider(SchedulerService.class),
+              selfEndpoint,
+              (isMasterless) ? null : executorsProvider));
     }
 
-    registry.bind(GroupResourceInformation.class,
-      new ClusterResourceInformation(registry.provider(ClusterCoordinator.class)));
+    registry.bind(
+        GroupResourceInformation.class,
+        new ClusterResourceInformation(registry.provider(ClusterCoordinator.class)));
 
     // PDFS depends on fabric.
-    registry.bind(PDFSService.class, new PDFSService(
-        registry.provider(FabricService.class),
-        selfEndpoint,
-        isCoordinator ? executorsProvider : () -> Collections.singleton(selfEndpoint.get()),
-        bootstrapRegistry.lookup(Tracer.class),
-        sabotConfig,
-        bootstrap.getAllocator(),
-        isExecutor ? PDFSMode.DATA : PDFSMode.CLIENT
-        ));
+    registry.bind(
+        PDFSService.class,
+        new PDFSService(
+            registry.provider(FabricService.class),
+            selfEndpoint,
+            isCoordinator ? executorsProvider : () -> Collections.singleton(selfEndpoint.get()),
+            sabotConfig,
+            bootstrap.getAllocator(),
+            isExecutor ? PDFSMode.DATA : PDFSMode.CLIENT));
 
     registry.bindSelf(new SystemTablePluginConfigProvider());
 
     registry.bind(SysFlightPluginConfigProvider.class, new SysFlightPluginConfigProvider());
 
     final MetadataRefreshInfoBroadcaster metadataRefreshInfoBroadcaster =
-      new MetadataRefreshInfoBroadcaster(
-        registry.provider(ConduitProvider.class),
-        () -> registry.provider(ClusterCoordinator.class)
-          .get()
-          .getServiceSet(ClusterCoordinator.Role.COORDINATOR)
-          .getAvailableEndpoints(),
-        () -> registry.provider(SabotContext.class).get().getEndpoint());
+        new MetadataRefreshInfoBroadcaster(
+            registry.provider(ConduitProvider.class),
+            () ->
+                registry
+                    .provider(ClusterCoordinator.class)
+                    .get()
+                    .getServiceSet(ClusterCoordinator.Role.COORDINATOR)
+                    .getAvailableEndpoints(),
+            () -> registry.provider(SabotContext.class).get().getEndpoint());
 
     registry.bindSelf(metadataRefreshInfoBroadcaster);
 
     if (isCoordinator) {
       registry.bind(ProjectConfigStore.class, ProjectConfigStore.NO_OP);
-      registry.bind(ProjectConfig.class, new ProjectConfigImpl(registry.provider(DremioConfig.class),
-        registry.provider(ProjectConfigStore.class)));
+      registry.bind(
+          ProjectConfig.class,
+          new ProjectConfigImpl(
+              registry.provider(DremioConfig.class), registry.provider(ProjectConfigStore.class)));
 
       // register a no-op assume role provider
-      final SoftwareAssumeRoleCredentialsProvider softwareAssumeRoleCredentialsProvider = new SoftwareAssumeRoleCredentialsProvider();
-      DremioAssumeRoleCredentialsProviderV2.setAssumeRoleProvider(() -> {
-        return softwareAssumeRoleCredentialsProvider;
-      });
+      final SoftwareAssumeRoleCredentialsProvider softwareAssumeRoleCredentialsProvider =
+          new SoftwareAssumeRoleCredentialsProvider();
+      DremioAssumeRoleCredentialsProviderV2.setAssumeRoleProvider(
+          () -> {
+            return softwareAssumeRoleCredentialsProvider;
+          });
 
-      DremioAssumeRoleCredentialsProviderV1.setAssumeRoleProvider(() -> {
-        return softwareAssumeRoleCredentialsProvider;
-      });
+      DremioAssumeRoleCredentialsProviderV1.setAssumeRoleProvider(
+          () -> {
+            return softwareAssumeRoleCredentialsProvider;
+          });
     }
 
     registry.bindSelf(VersionedDatasetAdapterFactory.class);
 
-    registry.bind(CatalogService.class, new CatalogServiceImpl(
-        registry.provider(SabotContext.class),
-        registry.provider(SchedulerService.class),
-        registry.provider(SystemTablePluginConfigProvider.class),
-        registry.provider(SysFlightPluginConfigProvider.class),
-        registry.provider(FabricService.class),
-        registry.provider(ConnectionReader.class),
-        registry.provider(BufferAllocator.class),
-        registry.provider(LegacyKVStoreProvider.class),
-        registry.provider(DatasetListingService.class),
-        registry.provider(OptionManager.class),
-        () -> metadataRefreshInfoBroadcaster,
-        config,
-        roles,
-        () -> getMetadataRefreshModifiableScheduler(registry, isDistributedCoordinator, isLeaderlessScheduler),
-        registry.provider(VersionedDatasetAdapterFactory.class)));
+    CatalogStatusEvents catalogStatusEvents = new CatalogStatusEventsImpl();
+    registry.bind(CatalogStatusEvents.class, catalogStatusEvents);
+
+    registry.bind(
+        CatalogService.class,
+        new CatalogServiceImpl(
+            registry.provider(SabotContext.class),
+            registry.provider(SchedulerService.class),
+            registry.provider(SystemTablePluginConfigProvider.class),
+            registry.provider(SysFlightPluginConfigProvider.class),
+            registry.provider(FabricService.class),
+            registry.provider(ConnectionReader.class),
+            registry.provider(BufferAllocator.class),
+            registry.provider(LegacyKVStoreProvider.class),
+            registry.provider(DatasetListingService.class),
+            registry.provider(OptionManager.class),
+            () -> metadataRefreshInfoBroadcaster,
+            config,
+            roles,
+            () ->
+                getMetadataRefreshModifiableScheduler(
+                    registry, isDistributedCoordinator, isLeaderlessScheduler),
+            registry.provider(VersionedDatasetAdapterFactory.class),
+            registry.provider(CatalogStatusEvents.class)));
+
     registry.bind(CatalogSupplier.class, CatalogFactory.class);
+
+    registerCatalogMaintenanceService(registry, isCoordinator);
 
     if (isCoordinator) {
       registerInformationSchemaService(conduitServiceRegistry, registry, bootstrap);
-      conduitServiceRegistry.registerService(new CatalogServiceSynchronizer(registry.provider(CatalogService.class)));
-      conduitServiceRegistry.registerService(new DatasetCatalogServiceImpl(
-        registry.provider(CatalogService.class), registry.provider(NamespaceService.Factory.class)));
+      conduitServiceRegistry.registerService(
+          new CatalogServiceSynchronizer(registry.provider(CatalogService.class)));
+      conduitServiceRegistry.registerService(
+          new DatasetCatalogServiceImpl(
+              registry.provider(CatalogService.class),
+              registry.provider(NamespaceService.Factory.class)));
     }
 
     // Run initializers only on coordinator.
     // Command pool is required only in the coordinator
     if (isCoordinator) {
-      registry.bindSelf(new InitializerRegistry(bootstrap.getClasspathScan(), registry.getBindingProvider()));
-      registry.bind(CommandPool.class, CommandPoolFactory.INSTANCE.newPool(config, bootstrapRegistry.lookup(Tracer.class)));
+      registry.bindSelf(
+          new InitializerRegistry(bootstrap.getClasspathScan(), registry.getBindingProvider()));
+      registry.bind(
+          CommandPool.class,
+          CommandPoolFactory.INSTANCE.newPool(config, bootstrapRegistry.lookup(Tracer.class)));
     }
 
-    final Provider<NamespaceService> namespaceServiceProvider = () -> sabotContextProvider.get().getNamespaceService(SYSTEM_USERNAME);
+    final Provider<NamespaceService> namespaceServiceProvider =
+        () -> sabotContextProvider.get().getNamespaceService(SYSTEM_USERNAME);
 
     if (isCoordinator) {
-      registry.bind(KVStoreReportService.class,
-        new KVStoreReportService(registry.provider(LegacyKVStoreProvider.class),
-        namespaceServiceProvider,
-        registry.provider(java.util.concurrent.ExecutorService.class)));
+      registry.bind(
+          KVStoreReportService.class,
+          new KVStoreReportService(
+              registry.provider(LegacyKVStoreProvider.class),
+              namespaceServiceProvider,
+              registry.provider(java.util.concurrent.ExecutorService.class)));
     }
 
-    registry.bind(JobTelemetryClient.class,
-      new JobTelemetryClient(registry.lookup(GrpcChannelBuilderFactory.class),
-        registry.provider(NodeEndpoint.class)));
+    registry.bind(
+        JobTelemetryClient.class,
+        new JobTelemetryClient(
+            registry.lookup(GrpcChannelBuilderFactory.class),
+            registry.provider(NodeEndpoint.class)));
 
-    registry.bind(JobCountsClient.class,
-      new JobCountsClient(registry.lookup(GrpcChannelBuilderFactory.class),
-        registry.provider(NodeEndpoint.class)));
+    registry.bind(
+        JobCountsClient.class,
+        new JobCountsClient(
+            registry.lookup(GrpcChannelBuilderFactory.class),
+            registry.provider(NodeEndpoint.class)));
 
     LocalJobsService localJobsService = null;
-    Provider<JobResultsStoreConfig> jobResultsStoreConfigProvider = getJobResultsStoreConfigProvider(registry);
+    Provider<JobResultsStoreConfig> jobResultsStoreConfigProvider =
+        getJobResultsStoreConfigProvider(registry);
     if (isCoordinator) {
-      Provider<LegacyKVStoreProvider> kvStoreProviderProvider = registry.provider(LegacyKVStoreProvider.class);
+      Provider<LegacyKVStoreProvider> kvStoreProviderProvider =
+          registry.provider(LegacyKVStoreProvider.class);
       BufferAllocator allocator = getChildBufferAllocator(bootstrap.getAllocator());
-      Provider<JobResultsStore> jobResultsStoreProvider = getJobResultsStoreProvider(jobResultsStoreConfigProvider,
-                                                                                     kvStoreProviderProvider,
-                                                                                     allocator);
+      Provider<JobResultsStore> jobResultsStoreProvider =
+          getJobResultsStoreProvider(
+              jobResultsStoreConfigProvider, kvStoreProviderProvider, allocator);
 
-      localJobsService = new LocalJobsService(
-        kvStoreProviderProvider,
-        allocator,
-        jobResultsStoreConfigProvider,
-        jobResultsStoreProvider,
-        registry.provider(LocalQueryExecutor.class),
-        registry.provider(CoordTunnelCreator.class),
-        registry.provider(ForemenTool.class),
-        registry.provider(NodeEndpoint.class),
-        () -> sabotContextProvider.get().getCoordinators(),
-        namespaceServiceProvider,
-        registry.provider(OptionManager.class),
-        registry.provider(AccelerationManager.class),
-        registry.provider(SchedulerService.class),
-        registry.provider(CommandPool.class),
-        registry.provider(JobTelemetryClient.class),
-        getJobResultLogger(registry),
-        isDistributedMaster,
-        registry.provider(ConduitProvider.class),
-        registry.provider(UserSessionService.class),
-        registry.provider(OptionValidatorListing.class),
-        registry.provider(CatalogService.class),
-        Collections.singletonList(DatasetVersionCleanupHelper.datasetVersionCleaner(kvStoreProviderProvider.get())),
-        registry.provider(JobCountsClient.class)
-      );
+      JobsAndDependenciesCleaner jobsAndDependenciesCleaner =
+          new JobsAndDependenciesCleanerImpl(
+              kvStoreProviderProvider,
+              registry.provider(OptionManager.class),
+              registry.provider(SchedulerService.class),
+              registry.provider(JobTelemetryClient.class),
+              Collections.singletonList(
+                  DatasetVersionCleanupHelper.datasetVersionCleaner(
+                      kvStoreProviderProvider.get())));
+      registry.bind(JobsAndDependenciesCleaner.class, jobsAndDependenciesCleaner);
+
+      localJobsService =
+          new LocalJobsService(
+              kvStoreProviderProvider,
+              allocator,
+              jobResultsStoreConfigProvider,
+              jobResultsStoreProvider,
+              registry.provider(LocalQueryExecutor.class),
+              registry.provider(CoordTunnelCreator.class),
+              registry.provider(ForemenTool.class),
+              registry.provider(NodeEndpoint.class),
+              () -> sabotContextProvider.get().getCoordinators(),
+              namespaceServiceProvider,
+              registry.provider(OptionManager.class),
+              registry.provider(AccelerationManager.class),
+              registry.provider(SchedulerService.class),
+              registry.provider(CommandPool.class),
+              registry.provider(JobTelemetryClient.class),
+              getJobResultLogger(registry),
+              isDistributedMaster,
+              registry.provider(ConduitProvider.class),
+              registry.provider(UserSessionService.class),
+              registry.provider(OptionValidatorListing.class),
+              registry.provider(CatalogService.class),
+              registry.provider(JobCountsClient.class),
+              registry.provider(JobsAndDependenciesCleaner.class),
+              config);
 
       registry.bind(LocalJobsService.class, localJobsService);
       registry.bind(SimpleJobRunner.class, localJobsService);
-      registry.replaceProvider(QueryObserverFactory.class, localJobsService::getQueryObserverFactory);
+      registry.replaceProvider(
+          QueryObserverFactory.class, localJobsService::getQueryObserverFactory);
 
-      HybridJobsService hybridJobsService = new HybridJobsService(
-        // for now, provide the coordinator service set
-        registry.lookup(GrpcChannelBuilderFactory.class),
-        () -> bootstrap.getAllocator(), registry.provider(NodeEndpoint.class), registry.lookup(ConduitProvider.class));
-        registry.bind(JobsService.class, hybridJobsService);
+      HybridJobsService hybridJobsService =
+          new HybridJobsService(
+              // for now, provide the coordinator service set
+              registry.lookup(GrpcChannelBuilderFactory.class),
+              () -> bootstrap.getAllocator(),
+              registry.provider(NodeEndpoint.class),
+              registry.lookup(ConduitProvider.class));
+      registry.bind(JobsService.class, hybridJobsService);
       registry.bind(HybridJobsService.class, hybridJobsService);
       registry.bind(JobResultInfoProvider.class, localJobsService);
     } else {
@@ -1013,92 +1158,111 @@ public class DACDaemonModule implements DACModule {
 
     if (isCoordinator) {
       // put provisioning service before resource allocator
-      final Provider<OptionManager> optionsProvider = () -> sabotContextProvider.get().getOptionManager();
-      final Provider<ClusterCoordinator> coordProvider = registry.provider(ClusterCoordinator.class);
-      final NodeProvider executionNodeProvider = new NodeProvider() {
-        @Override
-        public Collection<NodeEndpoint> getNodes() {
-          return coordProvider.get().getServiceSet(ClusterCoordinator.Role.EXECUTOR).getAvailableEndpoints();
-        }
-      };
+      final Provider<OptionManager> optionsProvider =
+          () -> sabotContextProvider.get().getOptionManager();
+      final Provider<ClusterCoordinator> coordProvider =
+          registry.provider(ClusterCoordinator.class);
+      final NodeProvider executionNodeProvider =
+          new NodeProvider() {
+            @Override
+            public Collection<NodeEndpoint> getNodes() {
+              return coordProvider
+                  .get()
+                  .getServiceSet(ClusterCoordinator.Role.EXECUTOR)
+                  .getAvailableEndpoints();
+            }
+          };
 
       EditionProvider editionProvider = new EditionProviderImpl();
       registry.bind(EditionProvider.class, editionProvider);
-      registry.bind(ProvisioningService.class, new ProvisioningServiceImpl(
-        config,
-        registry.provider(LegacyKVStoreProvider.class),
-        executionNodeProvider,
-        bootstrap.getClasspathScan(),
-        optionsProvider,
-        registry.provider(EditionProvider.class)
-      ));
+      registry.bind(
+          ProvisioningService.class,
+          new ProvisioningServiceImpl(
+              config,
+              registry.provider(LegacyKVStoreProvider.class),
+              executionNodeProvider,
+              bootstrap.getClasspathScan(),
+              optionsProvider,
+              registry.provider(EditionProvider.class)));
     }
 
-    registry.bind(ResourceAllocator.class, new BasicResourceAllocator(registry.provider(ClusterCoordinator
-      .class), registry.provider(GroupResourceInformation.class)));
-    if (isCoordinator){
-      final Provider<OptionManager> optionManagerProvider = () -> sabotContextProvider.get().getOptionManager();
+    registry.bind(
+        ResourceAllocator.class,
+        new BasicResourceAllocator(
+            registry.provider(ClusterCoordinator.class),
+            registry.provider(GroupResourceInformation.class)));
+    if (isCoordinator) {
+      final Provider<OptionManager> optionManagerProvider =
+          () -> sabotContextProvider.get().getOptionManager();
 
       registry.bind(ExecutorSelectorFactory.class, new ExecutorSelectorFactoryImpl());
       ExecutorSelectorProvider executorSelectorProvider = new ExecutorSelectorProvider();
       registry.bind(ExecutorSelectorProvider.class, executorSelectorProvider);
-      registry.bind(ExecutorSetService.class,
-                    new LocalExecutorSetService(registry.provider(ClusterCoordinator.class),
-                                                optionManagerProvider));
-      registry.bind(ExecutorSelectionService.class,
+      registry.bind(
+          ExecutorSetService.class,
+          new LocalExecutorSetService(
+              registry.provider(ClusterCoordinator.class), optionManagerProvider));
+      registry.bind(
+          ExecutorSelectionService.class,
           new ExecutorSelectionServiceImpl(
               registry.provider(ExecutorSetService.class),
               optionManagerProvider,
               registry.provider(ExecutorSelectorFactory.class),
-              executorSelectorProvider
-              )
-          );
+              executorSelectorProvider));
 
-      CoordToExecTunnelCreator tunnelCreator = new CoordToExecTunnelCreator(registry.provider
-              (FabricService.class));
-      registry.bind(ExecutorServiceClientFactory.class, new ExecutorServiceProductClientFactory
-              (tunnelCreator));
-
+      CoordToExecTunnelCreator tunnelCreator =
+          new CoordToExecTunnelCreator(registry.provider(FabricService.class));
+      registry.bind(
+          ExecutorServiceClientFactory.class,
+          new ExecutorServiceProductClientFactory(tunnelCreator));
 
       registry.bind(MaestroForwarder.class, new NoOpMaestroForwarder());
 
-      final MaestroService maestroServiceImpl = new MaestroServiceImpl(
-        registry.provider(ExecutorSetService.class),
-        registry.provider(FabricService.class),
-        registry.provider(SabotContext.class),
-        registry.provider(ResourceAllocator.class),
-        registry.provider(CommandPool.class),
-        registry.provider(ExecutorSelectionService.class),
-        registry.provider(ExecutorServiceClientFactory.class),
-        registry.provider(JobTelemetryClient.class),
-        registry.provider(MaestroForwarder.class)
-      );
+      final MaestroService maestroServiceImpl =
+          new MaestroServiceImpl(
+              registry.provider(ExecutorSetService.class),
+              registry.provider(SabotContext.class),
+              registry.provider(ResourceAllocator.class),
+              registry.provider(CommandPool.class),
+              registry.provider(ExecutorSelectionService.class),
+              registry.provider(ExecutorServiceClientFactory.class),
+              registry.provider(JobTelemetryClient.class),
+              registry.provider(MaestroForwarder.class));
       registry.bind(MaestroService.class, maestroServiceImpl);
-      registry.bindProvider(ExecToCoordStatusHandler.class, maestroServiceImpl::getExecStatusHandler);
+      registry.bindProvider(
+          ExecToCoordStatusHandler.class, maestroServiceImpl::getExecStatusHandler);
 
       registry.bind(RuleBasedEngineSelector.class, RuleBasedEngineSelector.NO_OP);
-      registry.bind(PartitionStatsCacheStoreProvider.class, new PartitionStatsCacheInMemoryStoreProvider());
+      registry.bind(
+          PartitionStatsCacheStoreProvider.class, new PartitionStatsCacheInMemoryStoreProvider());
 
-      final BufferAllocator jobResultsAllocator = bootstrap.getAllocator().newChildAllocator("JobResultsGrpcServer", 0, Long.MAX_VALUE);
-      final ForemenWorkManager foremenWorkManager = new ForemenWorkManager(
-        registry.provider(FabricService.class),
-        registry.provider(SabotContext.class),
-        registry.provider(CommandPool.class),
-        registry.provider(MaestroService.class),
-        registry.provider(JobTelemetryClient.class),
-        registry.provider(MaestroForwarder.class),
-        bootstrapRegistry.lookup(Tracer.class),
-        registry.provider(RuleBasedEngineSelector.class),
-        jobResultsAllocator,
-        registry.provider(RequestContext.class),
-        registry.provider(PartitionStatsCacheStoreProvider.class));
+      final BufferAllocator jobResultsAllocator =
+          bootstrap.getAllocator().newChildAllocator("JobResultsGrpcServer", 0, Long.MAX_VALUE);
+      final ForemenWorkManager foremenWorkManager =
+          new ForemenWorkManager(
+              registry.provider(FabricService.class),
+              registry.provider(SabotContext.class),
+              registry.provider(CommandPool.class),
+              registry.provider(MaestroService.class),
+              registry.provider(JobTelemetryClient.class),
+              registry.provider(MaestroForwarder.class),
+              registry.provider(RuleBasedEngineSelector.class),
+              jobResultsAllocator,
+              registry.provider(RequestContext.class),
+              registry.provider(PartitionStatsCacheStoreProvider.class));
 
       if (config.getBoolean(DremioConfig.JOBS_ENABLED_BOOL)) {
-        registerJobsServices(conduitServiceRegistry, registry, bootstrap, jobResultsAllocator, optionManagerProvider);
+        registerJobsServices(
+            conduitServiceRegistry,
+            registry,
+            bootstrap,
+            jobResultsAllocator,
+            optionManagerProvider);
       }
 
       registry.bindSelf(foremenWorkManager);
-      registry.bindProvider(ExecToCoordResultsHandler.class, foremenWorkManager::getExecToCoordResultsHandler);
+      registry.bindProvider(
+          ExecToCoordResultsHandler.class, foremenWorkManager::getExecToCoordResultsHandler);
 
       registry.replaceProvider(ForemenTool.class, foremenWorkManager::getForemenTool);
 
@@ -1118,51 +1282,58 @@ public class DACDaemonModule implements DACModule {
     }
 
     TaskPoolInitializer taskPoolInitializer = null;
-    if(isExecutor){
+    if (isExecutor) {
       registry.bindSelf(new ContextInformationFactory());
-      taskPoolInitializer = new TaskPoolInitializer(
-        registry.provider(OptionManager.class),
-        config);
+      taskPoolInitializer = new TaskPoolInitializer(registry.provider(OptionManager.class), config);
       registry.bindSelf(taskPoolInitializer);
       registry.bindProvider(TaskPool.class, taskPoolInitializer::getTaskPool);
 
-      final WorkloadTicketDepotService workloadTicketDepotService = new WorkloadTicketDepotService(
-        registry.provider(BufferAllocator.class),
-        registry.provider(TaskPool.class),
-        registry.provider(DremioConfig.class)
-      );
+      final WorkloadTicketDepotService workloadTicketDepotService =
+          new WorkloadTicketDepotService(
+              registry.provider(BufferAllocator.class),
+              registry.provider(TaskPool.class),
+              registry.provider(DremioConfig.class));
       registry.bindSelf(workloadTicketDepotService);
       registry.bindProvider(WorkloadTicketDepot.class, workloadTicketDepotService::getTicketDepot);
 
       ExecToCoordTunnelCreator execToCoordTunnelCreator =
-        new ExecToCoordTunnelCreator(registry.provider(FabricService.class));
+          new ExecToCoordTunnelCreator(registry.provider(FabricService.class));
 
-      registry.bind(MaestroClientFactory.class,
-        new MaestroSoftwareClientFactory(execToCoordTunnelCreator));
-      registry.bind(JobTelemetryExecutorClientFactory.class,
-        new JobTelemetrySoftwareClientFactory(execToCoordTunnelCreator));
-      registry.bind(JobResultsClientFactory.class,
-        new JobResultsSoftwareClientFactory(execToCoordTunnelCreator));
+      registry.bind(
+          MaestroClientFactory.class, new MaestroSoftwareClientFactory(execToCoordTunnelCreator));
+      registry.bind(
+          JobTelemetryExecutorClientFactory.class,
+          new JobTelemetrySoftwareClientFactory(execToCoordTunnelCreator));
+      registry.bind(
+          JobResultsClientFactory.class,
+          new JobResultsSoftwareClientFactory(execToCoordTunnelCreator));
 
-      final FragmentWorkManager fragmentWorkManager = new FragmentWorkManager(bootstrap,
-        config.getSabotConfig(),
-        registry.provider(NodeEndpoint.class),
-        registry.provider(SabotContext.class),
-        registry.provider(FabricService.class),
-        registry.provider(CatalogService.class),
-        registry.provider(ContextInformationFactory.class),
-        registry.provider(WorkloadTicketDepot.class),
-        registry.provider(TaskPool.class),
-        registry.provider(MaestroClientFactory.class),
-        registry.provider(JobTelemetryExecutorClientFactory.class),
-        registry.provider(JobResultsClientFactory.class));
+      final FragmentWorkManager fragmentWorkManager =
+          new FragmentWorkManager(
+              bootstrap,
+              config.getSabotConfig(),
+              registry.provider(NodeEndpoint.class),
+              registry.provider(SabotContext.class),
+              registry.provider(FabricService.class),
+              registry.provider(CatalogService.class),
+              registry.provider(ContextInformationFactory.class),
+              registry.provider(WorkloadTicketDepot.class),
+              registry.provider(TaskPool.class),
+              registry.provider(MaestroClientFactory.class),
+              registry.provider(JobTelemetryExecutorClientFactory.class),
+              registry.provider(JobResultsClientFactory.class));
 
       registry.bindSelf(fragmentWorkManager);
 
       registry.bindProvider(WorkStats.class, fragmentWorkManager::getWorkStats);
 
       registry.bindProvider(ExecutorService.class, fragmentWorkManager::getExecutorService);
-      registry.bind(ResultsCleanupService.class, new ResultsCleanupService(registry.provider(SchedulerService.class),jobResultsStoreConfigProvider,registry.provider(OptionManager.class)));
+      registry.bind(
+          ResultsCleanupService.class,
+          new ResultsCleanupService(
+              registry.provider(SchedulerService.class),
+              jobResultsStoreConfigProvider,
+              registry.provider(OptionManager.class)));
     } else {
       registry.bind(WorkStats.class, WorkStats.NO_OP);
     }
@@ -1172,148 +1343,171 @@ public class DACDaemonModule implements DACModule {
     registry.bind(RelMetadataQuerySupplier.class, DremioRelMetadataQuery.QUERY_SUPPLIER);
 
     if (isCoordinator) {
-      final ReflectionServiceImpl reflectionService = new ReflectionServiceImpl(
-        sabotConfig,
-        registry.provider(LegacyKVStoreProvider.class),
-        registry.provider(SchedulerService.class),
-        registry.provider(JobsService.class),
-        registry.provider(CatalogService.class),
-        registry.provider(SabotContext.class),
-        registry.provider(ReflectionStatusService.class),
-        bootstrap.getExecutor(),
-        registry.provider(ForemenWorkManager.class),
-        isDistributedMaster,
-        bootstrap.getAllocator(),
-        registry.provider(RequestContext.class));
+      final ReflectionServiceImpl reflectionService =
+          new ReflectionServiceImpl(
+              sabotConfig,
+              registry.provider(LegacyKVStoreProvider.class),
+              registry.provider(SchedulerService.class),
+              registry.provider(JobsService.class),
+              registry.provider(CatalogService.class),
+              registry.provider(SabotContext.class),
+              registry.provider(ReflectionStatusService.class),
+              bootstrap.getExecutor(),
+              registry.provider(ForemenWorkManager.class),
+              isDistributedMaster,
+              bootstrap.getAllocator(),
+              registry.provider(RequestContext.class));
 
       registry.bind(ReflectionService.class, reflectionService);
       registry.bind(ReflectionAdministrationService.Factory.class, (context) -> reflectionService);
-      registry.replaceProvider(MaterializationDescriptorProvider.class, reflectionService::getMaterializationDescriptor);
-      registry.replace(AccelerationManager.class, new AccelerationManagerImpl(
-        registry.provider(ReflectionService.class),
-        registry.provider(ReflectionAdministrationService.Factory.class),
-        registry.provider(CatalogService.class)));
+      registry.replaceProvider(
+          MaterializationDescriptorProvider.class, reflectionService::getMaterializationDescriptor);
+      registry.replace(
+          AccelerationManager.class,
+          new AccelerationManagerImpl(
+              registry.provider(ReflectionService.class),
+              registry.provider(ReflectionAdministrationService.Factory.class),
+              registry.provider(CatalogService.class)));
 
-      final StatisticsServiceImpl statisticsService = new StatisticsServiceImpl(
-        registry.provider(LegacyKVStoreProvider.class),
-        registry.provider(SchedulerService.class),
-        registry.provider(JobsService.class),
-        namespaceServiceProvider,
-        registry.provider(BufferAllocator.class),
-        registry.provider(SabotContext.class));
+      final StatisticsServiceImpl statisticsService =
+          new StatisticsServiceImpl(
+              registry.provider(LegacyKVStoreProvider.class),
+              registry.provider(SchedulerService.class),
+              registry.provider(JobsService.class),
+              namespaceServiceProvider,
+              registry.provider(BufferAllocator.class),
+              registry.provider(SabotContext.class));
       registry.replace(StatisticsService.class, statisticsService);
       registry.bind(StatisticsAdministrationService.Factory.class, (context) -> statisticsService);
-      registry.replace(RelMetadataQuerySupplier.class, DremioRelMetadataQuery.getSupplier(statisticsService));
+      registry.replace(
+          RelMetadataQuerySupplier.class, DremioRelMetadataQuery.getSupplier(statisticsService));
 
-      final Provider<Collection<NodeEndpoint>> nodeEndpointsProvider = () -> sabotContextProvider.get().getExecutors();
-      final Provider<OptionManager> optionsProvider = () -> sabotContextProvider.get().getOptionManager();
+      final Provider<Collection<NodeEndpoint>> nodeEndpointsProvider =
+          () -> sabotContextProvider.get().getExecutors();
+      final Provider<OptionManager> optionsProvider =
+          () -> sabotContextProvider.get().getOptionManager();
 
-      registry.bind(ReflectionStatusService.class, new ReflectionStatusServiceImpl(
-        nodeEndpointsProvider,
-        registry.provider(CatalogService.class),
-        registry.provider(LegacyKVStoreProvider.class),
-        reflectionService.getCacheViewerProvider(),
-        optionsProvider
-      ));
+      registry.bind(
+          ReflectionStatusService.class,
+          new ReflectionStatusServiceImpl(
+              nodeEndpointsProvider,
+              registry.provider(CatalogService.class),
+              registry.provider(JobsService.class),
+              registry.provider(LegacyKVStoreProvider.class),
+              reflectionService.getCacheViewerProvider(),
+              optionsProvider));
     } else {
-      registry.bind(ReflectionService.class,  new ExecutorOnlyReflectionService());
+      registry.bind(ReflectionService.class, new ExecutorOnlyReflectionService());
       registry.bind(ReflectionStatusService.class, ReflectionStatusService.NOOP);
     }
 
     final Provider<Optional<NodeEndpoint>> serviceLeaderProvider =
-      () -> registry.provider(SchedulerService.class).get().getCurrentTaskOwner(LOCAL_TASK_LEADER_NAME);
+        () ->
+            registry
+                .provider(SchedulerService.class)
+                .get()
+                .getCurrentTaskOwner(LOCAL_TASK_LEADER_NAME);
 
-    if(isCoordinator){
-      conduitServiceRegistry.registerService(new AccelerationListServiceImpl(registry.provider(ReflectionStatusService.class),
-        registry.provider(ReflectionService.class),
-        registry.provider(LegacyKVStoreProvider.class),
-        bootstrap::getExecutor));
+    if (isCoordinator) {
+      conduitServiceRegistry.registerService(
+          new AccelerationListServiceImpl(
+              registry.provider(ReflectionStatusService.class),
+              registry.provider(ReflectionService.class),
+              registry.provider(LegacyKVStoreProvider.class),
+              bootstrap::getExecutor));
     }
 
-    final AccelerationListManagerImpl accelerationListManager = new AccelerationListManagerImpl(
-      registry.provider(LegacyKVStoreProvider.class),
-      registry.provider(ReflectionStatusService.class),
-      registry.provider(ReflectionService.class),
-      () -> config,
-      isMaster,
-      isCoordinator,
-      serviceLeaderProvider,
-      registry.provider(ConduitProvider.class));
+    final AccelerationListManagerImpl accelerationListManager =
+        new AccelerationListManagerImpl(
+            registry.provider(LegacyKVStoreProvider.class),
+            registry.provider(ReflectionStatusService.class),
+            registry.provider(ReflectionService.class),
+            () -> config,
+            isMaster,
+            isCoordinator,
+            serviceLeaderProvider,
+            registry.provider(ConduitProvider.class));
     registry.bind(AccelerationListManager.class, accelerationListManager);
 
-    final StatisticsListManager statisticsListManager = new StatisticsListManagerImpl(
-      registry.provider(StatisticsService.class),
-      serviceLeaderProvider,
-      registry.provider(FabricService.class),
-      registry.provider(BufferAllocator.class),
-      () -> config,
-      isMaster,
-      isCoordinator);
+    final StatisticsListManager statisticsListManager =
+        new StatisticsListManagerImpl(
+            registry.provider(StatisticsService.class),
+            serviceLeaderProvider,
+            registry.provider(FabricService.class),
+            registry.provider(BufferAllocator.class),
+            () -> config,
+            isMaster,
+            isCoordinator);
     registry.bind(StatisticsListManager.class, statisticsListManager);
 
-    final UserDefinedFunctionService userDefinedFunctionListManager = new UserDefinedFunctionServiceImpl(
-      namespaceServiceProvider,
-      serviceLeaderProvider,
-      registry.provider(FabricService.class),
-      registry.provider(BufferAllocator.class),
-      () -> config,
-      isMaster,
-      isCoordinator);
+    final UserDefinedFunctionService userDefinedFunctionListManager =
+        new UserDefinedFunctionServiceImpl(
+            namespaceServiceProvider,
+            serviceLeaderProvider,
+            registry.provider(FabricService.class),
+            registry.provider(BufferAllocator.class),
+            () -> config,
+            isMaster,
+            isCoordinator);
     registry.bind(UserDefinedFunctionService.class, userDefinedFunctionListManager);
 
-    final Provider<OptionManager> optionsProvider = () -> sabotContextProvider.get().getOptionManager();
+    final Provider<OptionManager> optionsProvider =
+        () -> sabotContextProvider.get().getOptionManager();
 
-    if(isCoordinator) {
+    if (isCoordinator) {
       registry.bindSelf(new ServerHealthMonitor(registry.provider(MasterStatusListener.class)));
-      conduitServiceRegistry.registerService(new CoordinatorLogService(
-        sabotContextProvider,
-        registry.provider(SupportService.class)
-      ));
+      conduitServiceRegistry.registerService(
+          new CoordinatorLogService(sabotContextProvider, registry.provider(SupportService.class)));
     }
 
-    registry.bind(SupportService.class, new BasicSupportService(
-      dacConfig,
-      registry.provider(LegacyKVStoreProvider.class),
-      registry.provider(JobsService.class),
-      registry.provider(UserService.class),
-      registry.provider(ClusterCoordinator.class),
-      registry.provider(OptionManager.class),
-      namespaceServiceProvider,
-      registry.provider(CatalogService.class),
-      registry.provider(FabricService.class),
-      bootstrap.getAllocator()));
+    registry.bind(
+        SupportService.class,
+        new BasicSupportService(
+            dacConfig,
+            registry.provider(LegacyKVStoreProvider.class),
+            registry.provider(JobsService.class),
+            registry.provider(UserService.class),
+            registry.provider(ClusterCoordinator.class),
+            registry.provider(OptionManager.class),
+            namespaceServiceProvider,
+            registry.provider(CatalogService.class),
+            registry.provider(FabricService.class),
+            bootstrap.getAllocator()));
 
-    registry.bind(QueryLogBundleService.class, new BasicQueryLogBundleService(
-      bootstrap.getDremioConfig(),
-      bootstrap.getClasspathScan(),
-      sabotContextProvider,
-      registry.provider(ClusterCoordinator.class),
-      registry.provider(ProjectOptionManager.class),
-      registry.provider(SupportService.class),
-      registry.provider(JobsService.class),
-      registry.provider(ProvisioningService.class),
-      registry.provider(ConduitProvider.class),
-      () -> registry.provider(ClusterCoordinator.class)
-        .get()
-        .getServiceSet(ClusterCoordinator.Role.COORDINATOR)
-        .getAvailableEndpoints()
-    ));
+    registry.bind(
+        QueryLogBundleService.class,
+        new BasicQueryLogBundleService(
+            bootstrap.getDremioConfig(),
+            bootstrap.getClasspathScan(),
+            sabotContextProvider,
+            registry.provider(ClusterCoordinator.class),
+            registry.provider(ProjectOptionManager.class),
+            registry.provider(SupportService.class),
+            registry.provider(JobsService.class),
+            registry.provider(ProvisioningService.class),
+            registry.provider(ConduitProvider.class),
+            () ->
+                registry
+                    .provider(ClusterCoordinator.class)
+                    .get()
+                    .getServiceSet(ClusterCoordinator.Role.COORDINATOR)
+                    .getAvailableEndpoints()));
 
-    registry.bindSelf(new NodeRegistration(
-        registry.provider(NodeEndpoint.class),
-        registry.provider(FragmentWorkManager.class),
-        registry.provider(ForemenWorkManager.class),
-        registry.provider(ClusterCoordinator.class),
-        registry.provider(DremioConfig.class)
-        ));
+    registry.bindSelf(
+        new NodeRegistration(
+            registry.provider(NodeEndpoint.class),
+            registry.provider(FragmentWorkManager.class),
+            registry.provider(ForemenWorkManager.class),
+            registry.provider(ClusterCoordinator.class),
+            registry.provider(DremioConfig.class)));
 
-    if(isCoordinator){
-      registry.bind(SampleDataPopulatorService.class,
+    if (isCoordinator) {
+      registry.bind(
+          SampleDataPopulatorService.class,
           new SampleDataPopulatorService(
               registry.provider(SabotContext.class),
               registry.provider(LegacyKVStoreProvider.class),
               registry.provider(UserService.class),
-              registry.provider(InitializerRegistry.class),
               registry.provider(JobsService.class),
               registry.provider(CatalogService.class),
               registry.provider(ConnectionReader.class),
@@ -1326,37 +1520,44 @@ public class DACDaemonModule implements DACModule {
       // search
       final SearchService searchService;
       if (isDistributedMaster) {
-        searchService = new SearchServiceImpl(
-          namespaceServiceProvider,
-          registry.provider(OptionManager.class),
-          registry.provider(LegacyKVStoreProvider.class),
-          registry.provider(SchedulerService.class),
-          bootstrap.getExecutor()
-        );
+        searchService =
+            new SearchServiceImpl(
+                namespaceServiceProvider,
+                registry.provider(OptionManager.class),
+                registry.provider(LegacyKVStoreProvider.class),
+                registry.provider(SchedulerService.class),
+                bootstrap.getExecutor());
       } else {
         searchService = SearchService.UNSUPPORTED;
       }
 
-      final Provider<Optional<NodeEndpoint>> taskLeaderProvider = () -> registry.provider(SchedulerService.class)
-        .get().getCurrentTaskOwner(SearchServiceImpl.LOCAL_TASK_LEADER_NAME);
-      registry.bind(SearchService.class, new SearchServiceInvoker(
-        isDistributedMaster,
-        registry.provider(NodeEndpoint.class),
-        taskLeaderProvider,
-        registry.provider(FabricService.class),
-        bootstrap.getAllocator(),
-        searchService
-      ));
+      final Provider<Optional<NodeEndpoint>> taskLeaderProvider =
+          () ->
+              registry
+                  .provider(SchedulerService.class)
+                  .get()
+                  .getCurrentTaskOwner(SearchServiceImpl.LOCAL_TASK_LEADER_NAME);
+      registry.bind(
+          SearchService.class,
+          new SearchServiceInvoker(
+              isDistributedMaster,
+              registry.provider(NodeEndpoint.class),
+              taskLeaderProvider,
+              registry.provider(FabricService.class),
+              bootstrap.getAllocator(),
+              searchService));
 
       registry.bind(RestServerV2.class, new RestServerV2(bootstrap.getClasspathScan()));
       registry.bind(NessieProxyRestServer.class, new NessieProxyRestServer());
       registry.bind(APIServer.class, new APIServer(bootstrap.getClasspathScan()));
 
-      registry.bind(DremioServlet.class, new DremioServlet(dacConfig.getConfig(),
-        registry.provider(ServerHealthMonitor.class),
-        optionsProvider,
-        registry.provider(SupportService.class)
-      ));
+      registry.bind(
+          DremioServlet.class,
+          new DremioServlet(
+              dacConfig.getConfig(),
+              registry.provider(ServerHealthMonitor.class),
+              optionsProvider,
+              registry.provider(SupportService.class)));
     }
 
     LivenessService livenessService = new LivenessService(config);
@@ -1365,12 +1566,13 @@ public class DACDaemonModule implements DACModule {
       livenessService.addHealthMonitor(taskPoolInitializer);
     }
 
+    registry.bind(Clock.class, Clock.systemUTC());
     registry.bindSelf(SourceService.class);
     registry.bindSelf(DatasetVersionMutator.class);
     registry.bind(NamespaceService.class, NamespaceServiceImpl.class);
     registry.bindSelf(NamespaceServiceImpl.class);
 
-    registerCatalogStatusEvents(registry);
+    subscribeJobCountsDatasetDeletion(registry);
     registry.bindSelf(ReflectionServiceHelper.class);
     registry.bindSelf(CatalogServiceHelper.class);
     registry.bindSelf(CollaborationHelper.class);
@@ -1379,61 +1581,38 @@ public class DACDaemonModule implements DACModule {
     registry.bind(FirstLoginSetupService.class, OSSFirstLoginSetupService.NOOP_INSTANCE);
 
     if (isCoordinator && config.getBoolean(DremioConfig.JOBS_ENABLED_BOOL)) {
-      registry.bindSelf(new LocalJobTelemetryServer(
-        registry.lookup(GrpcServerBuilderFactory.class),
-        registry.provider(LegacyKVStoreProvider.class),
-        currentEndPoint,
-        bootstrapRegistry.lookup(GrpcTracerFacade.class),
-        new ContextMigratingExecutorService(new ThreadPoolExecutor(12, Integer.MAX_VALUE, 60L, TimeUnit.SECONDS, new SynchronousQueue<Runnable>())))
-      );
+      registry.bindSelf(
+          new LocalJobTelemetryServer(
+              registry.lookup(GrpcServerBuilderFactory.class),
+              registry.provider(LegacyKVStoreProvider.class),
+              currentEndPoint,
+              bootstrapRegistry.lookup(GrpcTracerFacade.class),
+              new ContextMigratingExecutorService(
+                  new ThreadPoolExecutor(
+                      12,
+                      Integer.MAX_VALUE,
+                      60L,
+                      TimeUnit.SECONDS,
+                      new SynchronousQueue<Runnable>()))));
 
-      registry.bindSelf(new LocalJobCountsServer(
-        registry.lookup(GrpcServerBuilderFactory.class),
-        registry.provider(KVStoreProvider.class),
-        currentEndPoint)
-      );
+      registry.bindSelf(
+          new LocalJobCountsServer(
+              registry.lookup(GrpcServerBuilderFactory.class),
+              registry.provider(KVStoreProvider.class),
+              currentEndPoint));
     }
 
     if (isExecutor) {
-      registry.bindSelf(new ExprCachePrewarmService(sabotContextProvider, optionsProvider, bootstrap.getAllocator()));
-    }
-
-    if (isCoordinator && config.getBoolean(DremioConfig.FLIGHT_SERVICE_ENABLED_BOOLEAN)) {
-      registry.bind(DremioFlightAuthProvider.class, new DremioFlightAuthProviderImpl(
-        registry.provider(DremioConfig.class),
-        registry.provider(UserService.class),
-        registry.provider(TokenManager.class)
-      ));
-      registry.bind(FlightRequestContextDecorator.class, FlightRequestContextDecorator.DEFAULT);
-
-      registry.bindSelf(new DremioFlightService(
-        registry.provider(DremioConfig.class),
-        registry.provider(BufferAllocator.class),
-        registry.provider(UserWorker.class),
-        registry.provider(SabotContext.class),
-        registry.provider(TokenManager.class),
-        registry.provider(OptionManager.class),
-        registry.provider(UserSessionService.class),
-        registry.provider(DremioFlightAuthProvider.class),
-        registry.provider(FlightRequestContextDecorator.class),
-        registry.provider(CredentialsService.class)
-      ));
-    } else {
-      logger.info("Not starting the flight service.");
+      registry.bindSelf(
+          new ExprCachePrewarmService(
+              sabotContextProvider, optionsProvider, bootstrap.getAllocator()));
     }
 
     if (isCoordinator && config.getBoolean(DremioConfig.NESSIE_SERVICE_ENABLED_BOOLEAN)) {
-      final boolean inMemoryBackend = config.getBoolean(DremioConfig.NESSIE_SERVICE_IN_MEMORY_BOOLEAN);
-
-      final NessieService nessieService = new NessieService(
-        registry.provider(KVStoreProvider.class),
-        registry.provider(OptionManager.class),
-        registry.provider(SchedulerService.class),
-        inMemoryBackend,
-        () -> isMaster
-      );
-      nessieService.getGrpcServices().forEach(conduitServiceRegistry::registerService);
-      registry.bindSelf(nessieService);
+      EmbeddedMetadataPointerService pointerService =
+          new EmbeddedMetadataPointerService(registry.provider(KVStoreProvider.class));
+      pointerService.getGrpcServices().forEach(conduitServiceRegistry::registerService);
+      registry.bindSelf(pointerService);
     }
 
     registry.bind(ScriptStore.class, new NoOpScriptStoreImpl());
@@ -1443,85 +1622,119 @@ public class DACDaemonModule implements DACModule {
       final ScriptStore scriptStore = new ScriptStoreImpl(registry.provider(KVStoreProvider.class));
       registry.replace(ScriptStore.class, scriptStore);
 
-      final ScriptService scriptService = new ScriptServiceImpl(registry.provider(ScriptStore.class),
-        registry.provider(UserSessionService.class));
+      final ScriptService scriptService =
+          new ScriptServiceImpl(
+              registry.provider(ScriptStore.class), registry.provider(UserSessionService.class));
       registry.replace(ScriptService.class, scriptService);
     }
 
     if (isCoordinator) {
       final UserPreferenceStore userPreferenceStore =
-        new UserPreferenceStoreImpl(registry.provider(KVStoreProvider.class));
+          new UserPreferenceStoreImpl(registry.provider(KVStoreProvider.class));
       registry.bind(UserPreferenceStore.class, userPreferenceStore);
 
       registry.bind(UserPreferenceService.class, UserPreferenceServiceImpl.class);
     }
 
-    if(isCoordinator) {
-      SystemTableManager systemTableManager = new SystemTableManagerImpl(
-        getSystemTableAllocator(bootstrap),
-        () -> getSysFlightTableProviders(registry));
+    if (isCoordinator) {
+      SystemTableManager systemTableManager =
+          new SystemTableManagerImpl(
+              getSystemTableAllocator(bootstrap), () -> getSysFlightTableProviders(registry));
       registry.bind(SystemTableManager.class, systemTableManager);
     }
 
     if (isCoordinator) {
       final SQLRunnerSessionStore sqlRunnerSessionStore =
-        new SQLRunnerSessionStoreImpl(registry.provider(KVStoreProvider.class));
+          new SQLRunnerSessionStoreImpl(registry.provider(KVStoreProvider.class));
       registry.bind(SQLRunnerSessionStore.class, sqlRunnerSessionStore);
 
-      final SQLRunnerSessionService sqlRunnerSessionService = new SQLRunnerSessionServiceImpl(
-        registry.provider(SQLRunnerSessionStore.class),
-        registry.provider(OptionManager.class),
-        registry.provider(ScriptService.class));
+      final SQLRunnerSessionService sqlRunnerSessionService =
+          new SQLRunnerSessionServiceImpl(
+              registry.provider(SQLRunnerSessionStore.class),
+              registry.provider(OptionManager.class),
+              registry.provider(ScriptService.class));
       registry.bind(SQLRunnerSessionService.class, sqlRunnerSessionService);
       registerUserServiceEvents(registry);
 
-      registry.bind(SQLRunnerSessionCleanerService.class, new SQLRunnerSessionCleanerService(
-        registry.provider(SchedulerService.class),
-        registry.provider(SQLRunnerSessionService.class)));
+      registry.bind(
+          SQLRunnerSessionCleanerService.class,
+          new SQLRunnerSessionCleanerService(
+              registry.provider(SchedulerService.class),
+              registry.provider(SQLRunnerSessionService.class)));
     }
 
     registerHeapMonitorManager(registry, isCoordinator);
 
-    registerActiveQueryListService(registry, isCoordinator, isDistributedMaster, conduitServiceRegistry);
+    registerActiveQueryListService(
+        registry, isCoordinator, isDistributedMaster, conduitServiceRegistry);
 
     registerOrphanageCleanerService(registry, isCoordinator, isDistributedMaster);
 
     registerSystemIcebergTablesCleaner(registry, isCoordinator);
+
+    if (isCoordinator && config.getBoolean(DremioConfig.FLIGHT_SERVICE_ENABLED_BOOLEAN)) {
+      registry.bind(
+          DremioFlightAuthProvider.class,
+          new DremioFlightAuthProviderImpl(
+              registry.provider(DremioConfig.class),
+              registry.provider(UserService.class),
+              registry.provider(TokenManager.class)));
+      registry.bind(FlightRequestContextDecorator.class, FlightRequestContextDecorator.DEFAULT);
+
+      registry.bindSelf(
+          new DremioFlightService(
+              registry.provider(DremioConfig.class),
+              registry.provider(BufferAllocator.class),
+              registry.provider(UserWorker.class),
+              registry.provider(SabotContext.class),
+              registry.provider(TokenManager.class),
+              registry.provider(OptionManager.class),
+              registry.provider(UserSessionService.class),
+              registry.provider(DremioFlightAuthProvider.class),
+              registry.provider(FlightRequestContextDecorator.class),
+              registry.provider(CredentialsService.class)));
+    } else {
+      logger.info("Not starting the flight service.");
+    }
 
     // NOTE : Should be last after all other services
     // used as health check to know when to start serving traffic.
     if (isCoordinator) {
       // if we have at least one user registered, disable firstTimeApi and checkNoUser
       // but for userGroupService is not started yet so we cannot check for now
-      registry.bind(WebServer.class, new WebServer(registry,
-        dacConfig,
-        registry.provider(CredentialsService.class),
-        registry.provider(RestServerV2.class),
-        registry.provider(APIServer.class),
-        registry.provider(NessieProxyRestServer.class),
-        registry.provider(DremioServer.class),
-        new DremioBinder(registry),
-        "ui",
-        isInternalUGS));
+      registry.bind(
+          WebServer.class,
+          new WebServer(
+              registry,
+              dacConfig,
+              registry.provider(CredentialsService.class),
+              registry.provider(RestServerV2.class),
+              registry.provider(APIServer.class),
+              registry.provider(NessieProxyRestServer.class),
+              registry.provider(DremioServer.class),
+              new DremioBinder(registry),
+              "ui",
+              isInternalUGS));
 
-      registry.bind(TokenManager.class, new TokenManagerImpl(
-        registry.provider(LegacyKVStoreProvider.class),
-        registry.provider(SchedulerService.class),
-        registry.provider(OptionManager.class),
-        isDistributedMaster,
-        config));
+      registry.bind(
+          TokenManager.class,
+          new TokenManagerImpl(
+              registry.provider(LegacyKVStoreProvider.class),
+              registry.provider(SchedulerService.class),
+              registry.provider(OptionManager.class),
+              isDistributedMaster,
+              config));
     }
   }
 
-  protected void registerCatalogStatusEvents(SingletonRegistry registry) {
-    registry.bind(CatalogStatusEvents.class, registry.provider(CatalogService.class).get());
-    subscribeJobCountsDatasetDeletion(registry);
-  }
-
   private static void subscribeJobCountsDatasetDeletion(SingletonRegistry registry) {
-    JobCountsDatasetDeletionSubscriber jobDeletionSubscriber = new JobCountsDatasetDeletionSubscriber(registry.provider(JobCountsClient.class));
+    JobCountsDatasetDeletionSubscriber jobDeletionSubscriber =
+        new JobCountsDatasetDeletionSubscriber(registry.provider(JobCountsClient.class));
     registry.bind(JobCountsDatasetDeletionSubscriber.class, jobDeletionSubscriber);
-    registry.provider(CatalogService.class).get().subscribe(DatasetDeletionCatalogStatusEvent.getEventTopic(), jobDeletionSubscriber);
+    registry
+        .provider(CatalogService.class)
+        .get()
+        .subscribe(DatasetDeletionCatalogStatusEvent.getEventTopic(), jobDeletionSubscriber);
   }
 
   protected void registerUserServiceEvents(SingletonRegistry registry) {
@@ -1530,9 +1743,14 @@ public class DACDaemonModule implements DACModule {
   }
 
   private static void subscribeSQLRunnerSessionUserDeletion(SingletonRegistry registry) {
-    SQLRunnerSessionUserDeletionSubscriber userDeletionSubscriber = new SQLRunnerSessionUserDeletionSubscriber(registry.provider(SQLRunnerSessionService.class));
+    SQLRunnerSessionUserDeletionSubscriber userDeletionSubscriber =
+        new SQLRunnerSessionUserDeletionSubscriber(
+            registry.provider(SQLRunnerSessionService.class));
     registry.bind(SQLRunnerSessionUserDeletionSubscriber.class, userDeletionSubscriber);
-    registry.provider(UserServiceEvents.class).get().subscribe(UserDeletionEvent.getEventTopic(), userDeletionSubscriber);
+    registry
+        .provider(UserServiceEvents.class)
+        .get()
+        .subscribe(UserDeletionEvent.getEventTopic(), userDeletionSubscriber);
   }
 
   private ManagedChannel getOrCreateChannelToMaster(SingletonRegistry registry) {
@@ -1543,27 +1761,45 @@ public class DACDaemonModule implements DACModule {
     return bootstrap.getAllocator().newChildAllocator("sysflight-producer", 0, Long.MAX_VALUE);
   }
 
-  private void registerActiveQueryListService(SingletonRegistry registry, boolean isCoordinator,
-                                              boolean isDistributedMaster, ConduitServiceRegistry conduitServiceRegistry) {
+  private void registerActiveQueryListService(
+      SingletonRegistry registry,
+      boolean isCoordinator,
+      boolean isDistributedMaster,
+      ConduitServiceRegistry conduitServiceRegistry) {
     if (isCoordinator) {
-      ActiveQueryListService activeQueryListService = new ActiveQueryListService(
-        registry.provider(SchedulerService.class),
-        registry.provider(ExecutorServiceClientFactory.class),
-        registry.provider(NodeEndpoint.class),
-        registry.provider(ExecutorSetService.class),
-        registry.provider(MaestroService.class),
-        registry.provider(SabotContext.class),
-        registry.provider(ConduitProvider.class),
-        registry.provider(OptionManager.class),
-        isDistributedMaster);
+      ActiveQueryListService activeQueryListService =
+          new ActiveQueryListService(
+              registry.provider(SchedulerService.class),
+              registry.provider(ExecutorServiceClientFactory.class),
+              registry.provider(NodeEndpoint.class),
+              registry.provider(ExecutorSetService.class),
+              registry.provider(MaestroService.class),
+              registry.provider(SabotContext.class),
+              registry.provider(ConduitProvider.class),
+              registry.provider(OptionManager.class),
+              isDistributedMaster);
 
       registry.bindSelf(activeQueryListService);
       conduitServiceRegistry.registerService(activeQueryListService);
     }
   }
 
+  private void registerCatalogMaintenanceService(
+      SingletonRegistry registry, boolean isCoordinator) {
+    if (isCoordinator) {
+      registry.bindSelf(
+          new CatalogMaintenanceService(
+              registry.provider(SchedulerService.class),
+              registry.provider(java.util.concurrent.ExecutorService.class),
+              new CatalogMaintenanceRunnableProvider(
+                      registry.provider(OptionManager.class),
+                      registry.provider(KVStoreProvider.class).get())
+                  .get(0)));
+    }
+  }
+
   protected String getRootName() {
-    return  Path.SEPARATOR + "dremio" + Path.SEPARATOR + "coordinator";
+    return Path.SEPARATOR + "dremio" + Path.SEPARATOR + "coordinator";
   }
 
   protected String getFabricAddress() {
@@ -1579,57 +1815,72 @@ public class DACDaemonModule implements DACModule {
 
   // Registering heap monitor manager as a service,
   // so that it can be closed cleanly when shutdown
-  private void registerHeapMonitorManager(SingletonRegistry registry, boolean isCoordinator){
+  private void registerHeapMonitorManager(SingletonRegistry registry, boolean isCoordinator) {
     if (isCoordinator) {
       Consumer<CancelQueryContext> cancelConsumer =
-        (cancelQueryContext) -> registry.provider(ForemenWorkManager.class).get()
-                                        .cancel(cancelQueryContext);
+          (cancelQueryContext) ->
+              registry.provider(ForemenWorkManager.class).get().cancel(cancelQueryContext);
 
       logger.info("Registering heap monitor manager in coordinator as a service.");
-      registry.bindSelf(new HeapMonitorManager(() -> registry.provider(SabotContext.class).get().getOptionManager(),
-                                               new CoordinatorHeapClawBackStrategy(cancelConsumer),
-                                               ClusterCoordinator.Role.COORDINATOR));
+      registry.bindSelf(
+          new HeapMonitorManager(
+              () -> registry.provider(SabotContext.class).get().getOptionManager(),
+              new CoordinatorHeapClawBackStrategy(cancelConsumer),
+              ClusterCoordinator.Role.COORDINATOR));
     }
   }
 
   protected BufferAllocator getChildBufferAllocator(BufferAllocator allocator) {
-    return checkNotNull(allocator).newChildAllocator("jobs-service",
-                                                     0,
-                                                     Long.MAX_VALUE);
+    return checkNotNull(allocator).newChildAllocator("jobs-service", 0, Long.MAX_VALUE);
   }
 
-  private void registerJobsServices(final ConduitServiceRegistry conduitServiceRegistry,
-                                    final SingletonRegistry registry,
-                                    final BootStrapContext bootstrap,
-                                    final BufferAllocator jobResultsAllocator,
-                                    final Provider<OptionManager> optionManagerProvider) {
+  private void registerJobsServices(
+      final ConduitServiceRegistry conduitServiceRegistry,
+      final SingletonRegistry registry,
+      final BootStrapContext bootstrap,
+      final BufferAllocator jobResultsAllocator,
+      final Provider<OptionManager> optionManagerProvider) {
     // 1. job adapter
-    conduitServiceRegistry.registerService(new JobsServiceAdapter(registry.provider(LocalJobsService.class)));
+    conduitServiceRegistry.registerService(
+        new JobsServiceAdapter(registry.provider(LocalJobsService.class)));
 
     // 2. chronicle
-    conduitServiceRegistry.registerService(new Chronicle(registry.provider(LocalJobsService.class), bootstrap::getExecutor));
+    conduitServiceRegistry.registerService(
+        new Chronicle(registry.provider(LocalJobsService.class), bootstrap::getExecutor));
 
-    // 3. jobs, sys flight producers registered together as CoordinatorFlightProducer, as individual binding is masking one of them
-    final BufferAllocator coordFlightAllocator = bootstrap.getAllocator().newChildAllocator(CoordinatorFlightProducer.class.getName(), 0, Long.MAX_VALUE);
-    final JobsFlightProducer jobsFlightProducer = new JobsFlightProducer(registry.provider(LocalJobsService.class), coordFlightAllocator);
-    final SysFlightProducer sysFlightProducer = new SysFlightProducer(registry.provider(SystemTableManager.class));
-    final CoordinatorFlightProducer coordFlightProducer = new CoordinatorFlightProducer(jobsFlightProducer, sysFlightProducer);
-    conduitServiceRegistry.registerService(new FlightCloseableBindableService(coordFlightAllocator, coordFlightProducer, null, null));
+    // 3. jobs, sys flight producers registered together as CoordinatorFlightProducer, as individual
+    // binding is masking one of them
+    final BufferAllocator coordFlightAllocator =
+        bootstrap
+            .getAllocator()
+            .newChildAllocator(CoordinatorFlightProducer.class.getName(), 0, Long.MAX_VALUE);
+    final JobsFlightProducer jobsFlightProducer =
+        new JobsFlightProducer(registry.provider(LocalJobsService.class), coordFlightAllocator);
+    final SysFlightProducer sysFlightProducer =
+        new SysFlightProducer(registry.provider(SystemTableManager.class));
+    final CoordinatorFlightProducer coordFlightProducer =
+        new CoordinatorFlightProducer(jobsFlightProducer, sysFlightProducer);
+    conduitServiceRegistry.registerService(
+        new FlightCloseableBindableService(coordFlightAllocator, coordFlightProducer, null, null));
 
-    //4. MaestroGrpcServerFacade
-    conduitServiceRegistry.registerService(new MaestroGrpcServerFacade(registry.provider(ExecToCoordStatusHandler.class)));
+    // 4. MaestroGrpcServerFacade
+    conduitServiceRegistry.registerService(
+        new MaestroGrpcServerFacade(registry.provider(ExecToCoordStatusHandler.class)));
 
-    //5. jobresults
-    JobResultsGrpcServerFacade jobResultsGrpcServerFacade = new JobResultsGrpcServerFacade(
-      registry.provider(ExecToCoordResultsHandler.class),
-      registry.provider(MaestroForwarder.class),
-      registry.lookup(Tracer.class));
+    // 5. jobresults
+    JobResultsGrpcServerFacade jobResultsGrpcServerFacade =
+        new JobResultsGrpcServerFacade(
+            registry.provider(ExecToCoordResultsHandler.class),
+            registry.provider(MaestroForwarder.class));
 
-    // Note: To take effect of the change in this option on coordinator side, coordinator needs to be restarted.
-    // But the change of option is propagated to executor without restarting executor. Its dynamic change on executor side.
+    // Note: To take effect of the change in this option on coordinator side, coordinator needs to
+    // be restarted.
+    // But the change of option is propagated to executor without restarting executor. Its dynamic
+    // change on executor side.
     if (avoidHeapCopy()) {
       logger.info("Using JobResultsBindableService");
-      conduitServiceRegistry.registerService(new JobResultsBindableService(jobResultsAllocator, jobResultsGrpcServerFacade));
+      conduitServiceRegistry.registerService(
+          new JobResultsBindableService(jobResultsAllocator, jobResultsGrpcServerFacade));
     } else {
       logger.info("Using JobResultsGrpcServerFacade");
       conduitServiceRegistry.registerService(jobResultsGrpcServerFacade);
@@ -1637,8 +1888,10 @@ public class DACDaemonModule implements DACModule {
   }
 
   private boolean avoidHeapCopy() {
-    String property = SystemOptionManager.SYSTEM_OPTION_PREFIX + JobResultsTunnel.AVOID_HEAP_COPY_IN_RESULTS_PATH_OPTION_NAME;
-    if(System.getProperty(property) != null) {
+    String property =
+        SystemOptionManager.SYSTEM_OPTION_PREFIX
+            + JobResultsTunnel.AVOID_HEAP_COPY_IN_RESULTS_PATH_OPTION_NAME;
+    if (System.getProperty(property) != null) {
       return Boolean.getBoolean(property);
     } else {
       // return the default option value.
@@ -1646,18 +1899,21 @@ public class DACDaemonModule implements DACModule {
     }
   }
 
-  protected LegacyIndexedStore<JobId, JobResult> getIndexedJobsStore(Provider<LegacyKVStoreProvider> kvStoreProviderProvider) {
+  protected LegacyIndexedStore<JobId, JobResult> getIndexedJobsStore(
+      Provider<LegacyKVStoreProvider> kvStoreProviderProvider) {
     return kvStoreProviderProvider.get().getStore(JobsStoreCreator.class);
   }
 
-  protected Provider<JobResultsStore> getJobResultsStoreProvider(Provider<JobResultsStoreConfig> jobResultsStoreConfigProvider,
-                                                                 Provider<LegacyKVStoreProvider> kvStoreProviderProvider,
-                                                                 BufferAllocator allocator) {
+  protected Provider<JobResultsStore> getJobResultsStoreProvider(
+      Provider<JobResultsStoreConfig> jobResultsStoreConfigProvider,
+      Provider<LegacyKVStoreProvider> kvStoreProviderProvider,
+      BufferAllocator allocator) {
     return () -> {
       try {
-        return new JobResultsStore(jobResultsStoreConfigProvider.get(),
-                                   getIndexedJobsStore(kvStoreProviderProvider),
-                                   allocator);
+        return new JobResultsStore(
+            jobResultsStoreConfigProvider.get(),
+            getIndexedJobsStore(kvStoreProviderProvider),
+            allocator);
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
@@ -1668,12 +1924,14 @@ public class DACDaemonModule implements DACModule {
     return LocalJobsService.createJobResultLogger();
   }
 
-  protected Provider<JobResultsStoreConfig> getJobResultsStoreConfigProvider(SingletonRegistry registry) {
+  protected Provider<JobResultsStoreConfig> getJobResultsStoreConfigProvider(
+      SingletonRegistry registry) {
     return () -> {
       try {
         final CatalogService storagePluginRegistry = registry.provider(CatalogService.class).get();
         final FileSystemPlugin<?> plugin = storagePluginRegistry.getSource(JOBS_STORAGEPLUGIN_NAME);
-        return new JobResultsStoreConfig(plugin.getName(), plugin.getConfig().getPath(), plugin.getSystemUserFS());
+        return new JobResultsStoreConfig(
+            plugin.getName(), plugin.getConfig().getPath(), plugin.getSystemUserFS());
       } catch (Exception e) {
         Throwables.throwIfUnchecked(e);
         throw new RuntimeException(e);
@@ -1683,14 +1941,15 @@ public class DACDaemonModule implements DACModule {
 
   /**
    * Set up the {@link UserService} in registry according to the config.
+   *
    * @return True if the internal user management is used.
    */
   protected boolean setupUserService(
-    final SingletonRegistry registry,
-    final DremioConfig config,
-    final Provider<SabotContext> sabotContext,
-    boolean isMaster,
-    boolean isCoordinator){
+      final SingletonRegistry registry,
+      final DremioConfig config,
+      final Provider<SabotContext> sabotContext,
+      boolean isMaster,
+      boolean isCoordinator) {
     if (!isCoordinator) {
       registry.bind(UserService.class, new ExecutorUserService());
       return false;
@@ -1699,42 +1958,62 @@ public class DACDaemonModule implements DACModule {
     final String authType = config.getString(WEB_AUTH_TYPE);
 
     if ("internal".equals(authType)) {
-      final SimpleUserService simpleUserService = new SimpleUserService(registry.provider(LegacyKVStoreProvider.class), isMaster);
+      final SimpleUserService simpleUserService =
+          new SimpleUserService(registry.provider(LegacyKVStoreProvider.class), isMaster);
       registry.bindProvider(UserService.class, () -> simpleUserService);
       registry.bindSelf(simpleUserService);
       logger.info("Internal user/group service is configured.");
       return true;
     }
 
-    logger.error("Unknown value '{}' set for {}. Accepted values are ['internal', 'ldap']", authType, WEB_AUTH_TYPE);
+    logger.error(
+        "Unknown value '{}' set for {}. Accepted values are ['internal', 'ldap']",
+        authType,
+        WEB_AUTH_TYPE);
     throw new RuntimeException(
         String.format("Unknown auth type '%s' set in config path '%s'", authType, WEB_AUTH_TYPE));
   }
 
-  protected Map<SystemTableManager.TABLES, SysFlightDataProvider> getSysFlightTableProviders(SingletonRegistry registry) {
+  protected Map<SystemTableManager.TABLES, SysFlightDataProvider> getSysFlightTableProviders(
+      SingletonRegistry registry) {
     ConduitProvider conduitProvider = registry.provider(ConduitProvider.class).get();
     Map<SystemTableManager.TABLES, SysFlightDataProvider> tablesMap = Maps.newHashMap();
-    ReflectionDescriptionServiceStub reflectionsStub = ReflectionDescriptionServiceGrpc.newStub(conduitProvider.getOrCreateChannelToMaster());
+    ReflectionDescriptionServiceStub reflectionsStub =
+        ReflectionDescriptionServiceGrpc.newStub(conduitProvider.getOrCreateChannelToMaster());
 
-    tablesMap.put(SystemTableManager.TABLES.JOBS, new JobsTable(() -> ChronicleGrpc.newStub(conduitProvider.getOrCreateChannelToMaster())));
-    tablesMap.put(SystemTableManager.TABLES.REFLECTIONS, new ReflectionsTable(() -> reflectionsStub));
-    tablesMap.put(SystemTableManager.TABLES.MATERIALIZATIONS, new MaterializationsTable(() -> reflectionsStub));
-    tablesMap.put(SystemTableManager.TABLES.REFLECTION_DEPENDENCIES, new ReflectionDependenciesTable(() -> reflectionsStub));
-    tablesMap.put(SystemTableManager.TABLES.JOBS_RECENT, new RecentJobsTable(() -> ChronicleGrpc.newStub(conduitProvider.getOrCreateChannelToMaster())));
+    tablesMap.put(
+        SystemTableManager.TABLES.JOBS,
+        new JobsTable(() -> ChronicleGrpc.newStub(conduitProvider.getOrCreateChannelToMaster())));
+    tablesMap.put(
+        SystemTableManager.TABLES.REFLECTIONS, new ReflectionsTable(() -> reflectionsStub));
+    tablesMap.put(
+        SystemTableManager.TABLES.MATERIALIZATIONS,
+        new MaterializationsTable(() -> reflectionsStub));
+    tablesMap.put(
+        SystemTableManager.TABLES.REFLECTION_DEPENDENCIES,
+        new ReflectionDependenciesTable(() -> reflectionsStub));
+    tablesMap.put(
+        SystemTableManager.TABLES.JOBS_RECENT,
+        new RecentJobsTable(
+            () -> ChronicleGrpc.newStub(conduitProvider.getOrCreateChannelToMaster())));
     return tablesMap;
   }
 
   private NessieApiV2 createNessieApi(DremioConfig config, SingletonRegistry registry) {
     String endpoint = config.getString(DremioConfig.NESSIE_SERVICE_REMOTE_URI);
     if (endpoint == null || endpoint.isEmpty()) {
-      return GrpcClientBuilder.builder().withChannel(getOrCreateChannelToMaster(registry)).build(NessieApiV2.class);
+      return GrpcClientBuilder.builder()
+          .withChannel(getOrCreateChannelToMaster(registry))
+          .build(NessieApiV2.class);
     }
     return HttpClientBuilder.builder().withUri(URI.create(endpoint)).build(NessieApiV2.class);
   }
 
-  private void registerOrphanageCleanerService(SingletonRegistry registry, boolean isCoordinator, boolean isDistributedMaster) {
+  private void registerOrphanageCleanerService(
+      SingletonRegistry registry, boolean isCoordinator, boolean isDistributedMaster) {
     if (isCoordinator) {
-      OrphanageCleanerService orphanageService = new OrphanageCleanerService(
+      OrphanageCleanerService orphanageService =
+          new OrphanageCleanerService(
               registry.provider(SchedulerService.class),
               registry.provider(OptionManager.class),
               registry.provider(Orphanage.Factory.class),
@@ -1745,38 +2024,40 @@ public class DACDaemonModule implements DACModule {
     }
   }
 
-  protected ModifiableSchedulerService getMetadataRefreshModifiableScheduler(SingletonRegistry registry,
-                                                                             boolean isDistributedCoordinator,
-                                                                             boolean isLeaderless) {
+  protected ModifiableSchedulerService getMetadataRefreshModifiableScheduler(
+      SingletonRegistry registry, boolean isDistributedCoordinator, boolean isLeaderless) {
     return new ModifiableWrappedSchedulerService(
-      ExecConstants.MAX_CONCURRENT_METADATA_REFRESHES.getDefault().getNumVal().intValue(),
-      isDistributedCoordinator,
-      "metadata-refresh-modifiable-scheduler-",
-      () -> registry.provider(ClusterCoordinator.class).get(),
-      () -> registry.provider(ClusterCoordinator.class).get(),
-      () -> registry.provider(SabotContext.class).get().getEndpoint(),
-      ExecConstants.MAX_CONCURRENT_METADATA_REFRESHES,
-      registry.provider(OptionManager.class),
-      () -> registry.provider(ModifiableSchedulerService.class).get(),
-      isLeaderless);
+        ExecConstants.MAX_CONCURRENT_METADATA_REFRESHES.getDefault().getNumVal().intValue(),
+        isDistributedCoordinator,
+        "metadata-refresh-modifiable-scheduler-",
+        () -> registry.provider(ClusterCoordinator.class).get(),
+        () -> registry.provider(ClusterCoordinator.class).get(),
+        () -> registry.provider(SabotContext.class).get().getEndpoint(),
+        ExecConstants.MAX_CONCURRENT_METADATA_REFRESHES,
+        registry.provider(OptionManager.class),
+        () -> registry.provider(ModifiableSchedulerService.class).get(),
+        isLeaderless);
   }
 
-  private void registerSystemIcebergTablesCleaner(SingletonRegistry registry, boolean isCoordinator) {
+  private void registerSystemIcebergTablesCleaner(
+      SingletonRegistry registry, boolean isCoordinator) {
     if (isCoordinator) {
-      SystemIcebergTablesCleaner systemIcebergTablesCleaner = new SystemIcebergTablesCleaner(
-        registry.provider(SchedulerService.class),
-        registry.provider(OptionManager.class),
-        registry.provider(SabotContext.class)
-      );
+      SystemIcebergTablesCleaner systemIcebergTablesCleaner =
+          new SystemIcebergTablesCleaner(
+              registry.provider(SchedulerService.class),
+              registry.provider(OptionManager.class),
+              registry.provider(SabotContext.class));
       registry.bindSelf(systemIcebergTablesCleaner);
     }
   }
 
-  protected void registerInformationSchemaService(ConduitServiceRegistry conduitServiceRegistry,
-                                                  SingletonRegistry registry,
-                                                  BootStrapContext bootstrap) {
-    InformationSchemaServiceImpl informationSchemaService = new InformationSchemaServiceImpl(registry.provider(CatalogService.class),
-      bootstrap::getExecutor);
+  protected void registerInformationSchemaService(
+      ConduitServiceRegistry conduitServiceRegistry,
+      SingletonRegistry registry,
+      BootStrapContext bootstrap) {
+    InformationSchemaServiceImpl informationSchemaService =
+        new InformationSchemaServiceImpl(
+            registry.provider(CatalogService.class), bootstrap::getExecutor);
     conduitServiceRegistry.registerService(informationSchemaService);
   }
 }

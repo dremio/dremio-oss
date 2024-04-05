@@ -15,18 +15,18 @@
  */
 package com.dremio.exec.store.ischema;
 
-import javax.inject.Provider;
-
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.server.SabotContext;
+import javax.inject.Provider;
 
 @SourceType(value = "INFORMATION_SCHEMA", configurable = false)
 public class InfoSchemaConf extends ConnectionConf<InfoSchemaConf, InfoSchemaStoragePlugin> {
 
   @Override
-  public InfoSchemaStoragePlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
+  public InfoSchemaStoragePlugin newPlugin(
+      SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
     return new InfoSchemaStoragePlugin(context, name);
   }
 

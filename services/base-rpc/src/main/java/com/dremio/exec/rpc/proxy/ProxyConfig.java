@@ -41,13 +41,14 @@ public final class ProxyConfig {
   private final InetSocketAddress proxyAddress;
 
   /**
-   * The {@code ProxyConfig} class represents the configuration for a proxy connection.
-   * It provides methods to access and validate proxy settings, as well as create a Socks5 proxy handler.
+   * The {@code ProxyConfig} class represents the configuration for a proxy connection. It provides
+   * methods to access and validate proxy settings, as well as create a Socks5 proxy handler.
    */
-  private ProxyConfig (Properties props) {
+  private ProxyConfig(Properties props) {
 
     this.socksProxyHost = getProxyProperty(SOCKS_PROXY_HOST, props);
-    this.socksProxyPort = Optional.ofNullable(getProxyProperty(SOCKS_PROXY_PORT, props)).orElse(DEFAULT_PORT);
+    this.socksProxyPort =
+        Optional.ofNullable(getProxyProperty(SOCKS_PROXY_PORT, props)).orElse(DEFAULT_PORT);
     this.socksProxyUsername = getOptionalProperty(SOCKS_PROXY_USERNAME, props);
     this.socksProxyPassword = getOptionalProperty(SOCKS_PROXY_PASSWORD, props);
     this.proxyAddress = new InetSocketAddress(socksProxyHost, Integer.parseInt(socksProxyPort));
@@ -69,15 +70,17 @@ public final class ProxyConfig {
    * Creates a Socks5 proxy handler based on the configured proxy settings.
    *
    * @return the Socks5 proxy handler
-   * @throws NoSuchElementException if the proxy requires authentication but the password is not provided
+   * @throws NoSuchElementException if the proxy requires authentication but the password is not
+   *     provided
    */
   public DremioSocks5ProxyHandler createProxyHandler() {
     try {
       return socksProxyUsername
-        .map(user -> new DremioSocks5ProxyHandler(proxyAddress, user, socksProxyPassword.get()))
-        .orElse(new DremioSocks5ProxyHandler(proxyAddress));
+          .map(user -> new DremioSocks5ProxyHandler(proxyAddress, user, socksProxyPassword.get()))
+          .orElse(new DremioSocks5ProxyHandler(proxyAddress));
     } catch (NoSuchElementException nse) {
-      throw new NoSuchElementException("Please provide both socksProxyUsername and socksProxyPassword if your proxy requires authentication");
+      throw new NoSuchElementException(
+          "Please provide both socksProxyUsername and socksProxyPassword if your proxy requires authentication");
     }
   }
 
@@ -86,9 +89,7 @@ public final class ProxyConfig {
     int port = validatePort(strPort);
     props.setProperty(SOCKS_PROXY_PORT, String.valueOf(port));
 
-    return Optional.of(props)
-      .filter(ProxyConfig::hasRequiredProperties)
-      .map(ProxyConfig::new);
+    return Optional.of(props).filter(ProxyConfig::hasRequiredProperties).map(ProxyConfig::new);
   }
 
   private static Integer validatePort(String strPort) {
@@ -96,11 +97,13 @@ public final class ProxyConfig {
     try {
       port = Integer.parseInt(strPort);
     } catch (NumberFormatException e) {
-      throw new IllegalArgumentException("Please provide a parseable integer value for socksProxyPort");
+      throw new IllegalArgumentException(
+          "Please provide a parseable integer value for socksProxyPort");
     }
 
     if (port <= 0 || port > 65535) {
-      throw new IllegalArgumentException("Please set socksProxyPort to a valid port number when socksProxyHost is set.");
+      throw new IllegalArgumentException(
+          "Please set socksProxyPort to a valid port number when socksProxyHost is set.");
     }
 
     return port;
@@ -109,5 +112,4 @@ public final class ProxyConfig {
   private static boolean hasRequiredProperties(Properties props) {
     return props.containsKey(SOCKS_PROXY_HOST);
   }
-
 }

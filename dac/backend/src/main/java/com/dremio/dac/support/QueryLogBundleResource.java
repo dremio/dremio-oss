@@ -17,12 +17,18 @@ package com.dremio.dac.support;
 
 import static com.dremio.dac.support.QueryLogBundleService.BUFFER_SIZE;
 
+import com.dremio.dac.annotations.APIResource;
+import com.dremio.dac.annotations.Secured;
+import com.dremio.dac.annotations.TemporaryAccess;
+import com.dremio.provision.service.ProvisioningHandlingException;
+import com.dremio.service.job.proto.JobId;
+import com.dremio.service.jobs.JobNotFoundException;
+import com.dremio.service.users.UserNotFoundException;
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-
 import javax.annotation.security.RolesAllowed;
 import javax.inject.Inject;
 import javax.ws.rs.Consumes;
@@ -35,42 +41,32 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.SecurityContext;
-
 import org.glassfish.jersey.server.ChunkedOutput;
 
-import com.dremio.dac.annotations.APIResource;
-import com.dremio.dac.annotations.Secured;
-import com.dremio.dac.annotations.TemporaryAccess;
-import com.dremio.provision.service.ProvisioningHandlingException;
-import com.dremio.service.job.proto.JobId;
-import com.dremio.service.jobs.JobNotFoundException;
-import com.dremio.service.users.UserNotFoundException;
-
-/**
- * Resource for downloading query log support bundle.
- */
+/** Resource for downloading query log support bundle. */
 @APIResource
 @Secured
 @RolesAllowed({"admin", "user"})
 @Path("/support-bundle/{jobId}")
 public class QueryLogBundleResource {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(QueryLogBundleResource.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(QueryLogBundleResource.class);
   private final QueryLogBundleService queryLogBundleService;
   private final SecurityContext context;
-  private static final ExecutorService executorService = Executors.newFixedThreadPool(
-    1,
-    r -> new Thread(r, "support-bundle-deliver"));
+  private static final ExecutorService executorService =
+      Executors.newFixedThreadPool(1, r -> new Thread(r, "support-bundle-deliver"));
 
   @Inject
-  public QueryLogBundleResource(QueryLogBundleService queryLogBundleService,  @Context SecurityContext context) {
+  public QueryLogBundleResource(
+      QueryLogBundleService queryLogBundleService, @Context SecurityContext context) {
     this.queryLogBundleService = queryLogBundleService;
     this.context = context;
   }
 
   /**
-   * Download logs relevant to the query in the cluster.
-   * Currently only support YARN cluster.
+   * Download logs relevant to the query in the cluster. Currently only support YARN cluster.
+   *
    * @return Response
    */
   @GET
@@ -81,13 +77,14 @@ public class QueryLogBundleResource {
 
     try {
       queryLogBundleService.validateUser(context.getUserPrincipal().getName());
-      final ChunkedOutput<byte[]> output = doDownload(jobId.getId(), context.getUserPrincipal().getName());
+      final ChunkedOutput<byte[]> output =
+          doDownload(jobId.getId(), context.getUserPrincipal().getName());
       String outputFilename = "query_bundle_" + jobId.getId() + ".tar.gz";
 
       return Response.ok(output, MediaType.APPLICATION_OCTET_STREAM)
-        .header("Content-Disposition", "attachment; filename=\""
-          + outputFilename + "\"")
-        .header("X-Content-Type-Options", "nosniff").build();
+          .header("Content-Disposition", "attachment; filename=\"" + outputFilename + "\"")
+          .header("X-Content-Type-Options", "nosniff")
+          .build();
     } catch (UserNotFoundException | JobNotFoundException | ProvisioningHandlingException e) {
       return Response.status(Status.FORBIDDEN).entity(e.getLocalizedMessage()).build();
     } catch (NotSupportedException e) {
@@ -98,26 +95,33 @@ public class QueryLogBundleResource {
   }
 
   protected ChunkedOutput<byte[]> doDownload(String jobId, String userName)
-    throws UserNotFoundException, JobNotFoundException, IOException, ProvisioningHandlingException, NotSupportedException {
+      throws UserNotFoundException,
+          JobNotFoundException,
+          IOException,
+          ProvisioningHandlingException,
+          NotSupportedException {
 
     final ChunkedOutput<byte[]> output = new ChunkedOutput<>(byte[].class);
-    BufferedInputStream pipeIs = new BufferedInputStream(queryLogBundleService.getClusterLog(jobId, userName));
+    BufferedInputStream pipeIs =
+        new BufferedInputStream(queryLogBundleService.getClusterLog(jobId, userName));
 
-    executorService.execute(() -> {
-      try (ChunkedOutput toClose = output; BufferedInputStream toClose2 = pipeIs) {
-        byte[] buf = new byte[BUFFER_SIZE];
-        int len;
-        while ((len = pipeIs.read(buf)) > -1) {
-          if (len < BUFFER_SIZE) {
-            output.write(Arrays.copyOf(buf, len));
-          } else {
-            output.write(buf);
+    executorService.execute(
+        () -> {
+          try (ChunkedOutput toClose = output;
+              BufferedInputStream toClose2 = pipeIs) {
+            byte[] buf = new byte[BUFFER_SIZE];
+            int len;
+            while ((len = pipeIs.read(buf)) > -1) {
+              if (len < BUFFER_SIZE) {
+                output.write(Arrays.copyOf(buf, len));
+              } else {
+                output.write(buf);
+              }
+            }
+          } catch (IOException e) {
+            logger.error("Failed to write to output.", e);
           }
-        }
-      } catch (IOException e) {
-        logger.error("Failed to write to output.", e);
-      }
-    });
+        });
 
     return output;
   }

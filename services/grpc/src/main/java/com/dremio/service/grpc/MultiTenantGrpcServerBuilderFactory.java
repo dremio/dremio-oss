@@ -22,20 +22,17 @@ import com.dremio.telemetry.utils.GrpcTracerFacade;
 import com.dremio.telemetry.utils.TracerFacade;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
-
 import io.grpc.ServerInterceptor;
 import io.opentracing.Tracer;
 
-/**
- * gRPC server factory with multi-tenancy support.
- */
+/** gRPC server factory with multi-tenancy support. */
 public final class MultiTenantGrpcServerBuilderFactory extends BaseGrpcServerBuilderFactory {
   private static final ServerInterceptor mtInterceptor =
-    new ContextualizedServerInterceptor(ImmutableList.of(
-      new TenantContext.Transformer(),
-      new UserContext.Transformer(),
-      new SupportContext.Transformer()
-    ));
+      new ContextualizedServerInterceptor(
+          ImmutableList.of(
+              new TenantContext.Transformer(),
+              new UserContext.Transformer(),
+              new SupportContext.Transformer()));
 
   public MultiTenantGrpcServerBuilderFactory(Tracer tracer) {
     super(new GrpcTracerFacade((TracerFacade) tracer), Sets.newHashSet(mtInterceptor));

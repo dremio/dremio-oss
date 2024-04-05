@@ -16,17 +16,10 @@
 package com.dremio.dac.explore.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-
 import io.protostuff.ByteString;
 
-/**
- *
- * Mixin class for ViewFieldType
- *
- */
+/** Mixin class for ViewFieldType */
 public abstract class ViewFieldTypeMixin {
 
-  @JsonIgnore
-  private ByteString serializedField;
-
+  @JsonIgnore private ByteString serializedField;
 }

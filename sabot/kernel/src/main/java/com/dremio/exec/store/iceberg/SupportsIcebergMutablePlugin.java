@@ -15,32 +15,27 @@
  */
 package com.dremio.exec.store.iceberg;
 
-
-import org.apache.hadoop.conf.Configuration;
-import org.apache.iceberg.io.FileIO;
-
 import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.store.dfs.IcebergTableProps;
 import com.dremio.exec.store.iceberg.model.IcebergModel;
 import com.dremio.sabot.exec.context.OperatorContext;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.iceberg.io.FileIO;
 
 public interface SupportsIcebergMutablePlugin extends MutablePlugin, SupportsIcebergRootPointer {
   /**
-   *
    * @param tableProps Iceberg table props
    * @param userName userName of current user
-   * @param context  Operator Context
+   * @param context Operator Context
    * @param fileIO FileIO instance for creating the Iceberg Model
    * @return IcebergModel which is used for performing Iceberg operations
    */
-  IcebergModel getIcebergModel(IcebergTableProps tableProps, String userName,
-                               OperatorContext context, FileIO fileIO);
+  IcebergModel getIcebergModel(
+      IcebergTableProps tableProps, String userName, OperatorContext context, FileIO fileIO);
 
   /**
-   *
    * @param tableProps
-   * @return root folder path for table
-   * For versioned plugin, root path where table will be created
+   * @return root folder path for table For versioned plugin, root path where table will be created
    */
   default String getTableLocation(IcebergTableProps tableProps) {
     return tableProps.getTableLocation();

@@ -15,6 +15,10 @@
  */
 package com.dremio.jdbc.test;
 
+import com.dremio.common.util.TestTools;
+import com.dremio.jdbc.Driver;
+import com.dremio.jdbc.JdbcWithServerTestBase;
+import com.google.common.base.Stopwatch;
 import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -22,41 +26,34 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.concurrent.TimeUnit;
-
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.rules.TestRule;
 import org.junit.rules.TestWatcher;
 import org.junit.runner.Description;
 
-import com.dremio.common.util.TestTools;
-import com.dremio.jdbc.Driver;
-import com.dremio.jdbc.JdbcWithServerTestBase;
-import com.google.common.base.Stopwatch;
-
 public class JdbcTestActionBase extends JdbcWithServerTestBase {
   // Set a timeout unless we're debugging.
-  @Rule
-  public final TestRule timeoutRule = TestTools.getTimeoutRule(40, TimeUnit.SECONDS);
+  @Rule public final TestRule timeoutRule = TestTools.getTimeoutRule(40, TimeUnit.SECONDS);
 
   protected static final String WORKING_PATH;
+
   static {
     Driver.load();
     WORKING_PATH = Paths.get("").toAbsolutePath().toString();
-
   }
 
   protected void testQuery(final String sql) throws Exception {
-    testAction(new JdbcAction() {
+    testAction(
+        new JdbcAction() {
 
-      @Override
-      public ResultSet getResult(Connection c) throws SQLException {
-        Statement s = c.createStatement();
-        ResultSet r = s.executeQuery(sql);
-        return r;
-      }
-
-    });
+          @Override
+          public ResultSet getResult(Connection c) throws SQLException {
+            Statement s = c.createStatement();
+            ResultSet r = s.executeQuery(sql);
+            return r;
+          }
+        });
   }
 
   protected void testAction(JdbcAction action) throws Exception {
@@ -87,14 +84,14 @@ public class JdbcTestActionBase extends JdbcWithServerTestBase {
       System.out.println();
     }
 
-    System.out.println(String.format("Query completed in %d millis.", watch.elapsed(TimeUnit.MILLISECONDS)));
+    System.out.println(
+        String.format("Query completed in %d millis.", watch.elapsed(TimeUnit.MILLISECONDS)));
 
     if (rowcount != -1) {
       Assert.assertEquals(rowcount, rows);
     }
 
     System.out.println("\n\n\n");
-
   }
 
   public static interface JdbcAction {
@@ -106,15 +103,15 @@ public class JdbcTestActionBase extends JdbcWithServerTestBase {
     JdbcWithServerTestBase.setUpConnection();
   }
 
-  public final TestRule resetWatcher = new TestWatcher() {
-    @Override
-    protected void failed(Throwable e, Description description) {
-      try {
-        resetConnection();
-      } catch (Exception e1) {
-        throw new RuntimeException("Failure while resetting client.", e1);
-      }
-    }
-  };
-
+  public final TestRule resetWatcher =
+      new TestWatcher() {
+        @Override
+        protected void failed(Throwable e, Description description) {
+          try {
+            resetConnection();
+          } catch (Exception e1) {
+            throw new RuntimeException("Failure while resetting client.", e1);
+          }
+        }
+      };
 }

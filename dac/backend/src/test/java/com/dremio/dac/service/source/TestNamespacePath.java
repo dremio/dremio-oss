@@ -17,18 +17,14 @@ package com.dremio.dac.service.source;
 
 import static org.junit.Assert.assertEquals;
 
-import java.util.Arrays;
-
-import org.junit.Test;
-
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.model.common.NamespacePath;
 import com.dremio.dac.model.spaces.SpacePath;
 import com.dremio.file.SourceFilePath;
+import java.util.Arrays;
+import org.junit.Test;
 
-/**
- * Tests NamespacePath
- */
+/** Tests NamespacePath */
 public class TestNamespacePath {
 
   @Test
@@ -51,18 +47,19 @@ public class TestNamespacePath {
   @Test
   public void testGetQueryUrlPath() {
     NamespacePath path;
-    path = new DatasetPath(Arrays.asList(new String[]{"@dremio", "my folder", "my-dataset"}));
+    path = new DatasetPath(Arrays.asList(new String[] {"@dremio", "my folder", "my-dataset"}));
     assertEquals("/home/%40dremio/%22my%20folder%22.%22my-dataset%22", path.getQueryUrlPath());
 
-    path = new DatasetPath(Arrays.asList(new String[]{"myspace", "+@#$%^&;?/\\=()"}));
-    assertEquals("/space/myspace/%22%2B%40%23%24%25%5E%26%3B%3F%2F%5C%3D()%22", path.getQueryUrlPath());
+    path = new DatasetPath(Arrays.asList(new String[] {"myspace", "+@#$%^&;?/\\=()"}));
+    assertEquals(
+        "/space/myspace/%22%2B%40%23%24%25%5E%26%3B%3F%2F%5C%3D()%22", path.getQueryUrlPath());
   }
 
   @Test
   public void testGetPreviewDataUrlPath() {
     NamespacePath path;
-    path = new DatasetPath(Arrays.asList(new String[]{"myspace", "myfolder", "my-dataset"}));
-    assertEquals("/dataset/myspace.myfolder.%22my-dataset%22/preview", path.getPreviewDataUrlPath());
+    path = new DatasetPath(Arrays.asList(new String[] {"myspace", "myfolder", "my-dataset"}));
+    assertEquals(
+        "/dataset/myspace.myfolder.%22my-dataset%22/preview", path.getPreviewDataUrlPath());
   }
-
 }

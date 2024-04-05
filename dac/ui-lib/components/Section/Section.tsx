@@ -43,5 +43,5 @@ export const Section = forwardRef<HTMLDivElement, SectionProps>(
         <div className="dremio-section__body">{children}</div>
       </section>
     );
-  }
+  },
 );

@@ -15,20 +15,18 @@
  */
 package com.dremio.sabot.memory;
 
+import com.dremio.sabot.op.spi.Operator;
 import java.util.Comparator;
 
-import com.dremio.sabot.op.spi.Operator;
-
-/**
- * A utility class tracking the memory task and the shrinkable operator
- */
+/** A utility class tracking the memory task and the shrinkable operator */
 public class MemoryTaskAndShrinkableOperator {
   private final MemoryArbiterTask memoryArbiterTask;
   private final Operator.ShrinkableOperator shrinkableOperator;
   private String stringToDisplay = null;
   private long currentShrinkableMemory = 0L;
 
-  public MemoryTaskAndShrinkableOperator(MemoryArbiterTask memoryArbiterTask, Operator.ShrinkableOperator shrinkableOperator) {
+  public MemoryTaskAndShrinkableOperator(
+      MemoryArbiterTask memoryArbiterTask, Operator.ShrinkableOperator shrinkableOperator) {
     this.memoryArbiterTask = memoryArbiterTask;
     this.shrinkableOperator = shrinkableOperator;
   }
@@ -59,8 +57,21 @@ public class MemoryTaskAndShrinkableOperator {
     return memoryArbiterTask.isOperatorShrinkingMemory(shrinkableOperator);
   }
 
+  public boolean canUseTooMuchMemoryInAPump() {
+    return this.shrinkableOperator.canUseTooMuchMemoryInAPump();
+  }
+
+  public void setLimit(long limit) {
+    this.shrinkableOperator.setLimit(limit);
+  }
+
+  public long getAllocatedMemory() {
+    return this.shrinkableOperator.getAllocatedMemory();
+  }
+
   public static Comparator<MemoryTaskAndShrinkableOperator> getComparator() {
-    return Comparator.comparingLong(MemoryTaskAndShrinkableOperator::getShrinkableMemory).reversed();
+    return Comparator.comparingLong(MemoryTaskAndShrinkableOperator::getShrinkableMemory)
+        .reversed();
   }
 
   @Override
@@ -68,11 +79,15 @@ public class MemoryTaskAndShrinkableOperator {
     if (stringToDisplay == null) {
       final StringBuffer buffer = new StringBuffer();
       buffer
-        .append(memoryArbiterTask.getTaskId())
-        .append(":")
-        .append(shrinkableOperator.getOperatorId())
-        .append("(shrinkable memory: ").append(shrinkableOperator.shrinkableMemory()).append(")")
-        .append("(operator state: ").append(shrinkableOperator.getOperatorStateToPrint()).append(")");
+          .append(memoryArbiterTask.getTaskId())
+          .append(":")
+          .append(shrinkableOperator.getOperatorId())
+          .append("(shrinkable memory: ")
+          .append(shrinkableOperator.shrinkableMemory())
+          .append(")")
+          .append("(operator state: ")
+          .append(shrinkableOperator.getOperatorStateToPrint())
+          .append(")");
       stringToDisplay = buffer.toString();
     }
 

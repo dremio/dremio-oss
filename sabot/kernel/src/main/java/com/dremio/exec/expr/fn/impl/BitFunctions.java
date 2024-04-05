@@ -15,9 +15,6 @@
  */
 package com.dremio.exec.expr.fn.impl;
 
-import org.apache.arrow.vector.holders.BitHolder;
-import org.apache.arrow.vector.holders.IntHolder;
-
 import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.FunctionTemplate.FunctionScope;
@@ -25,15 +22,14 @@ import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
 import com.dremio.exec.expr.annotations.Workspace;
+import org.apache.arrow.vector.holders.BitHolder;
+import org.apache.arrow.vector.holders.IntHolder;
 
 /**
- * Function templates for Bit/BOOLEAN functions other than comparison
- * functions.  (Bit/BOOLEAN comparison functions are generated in
- * ComparisonFunctions.java template.)
- *
+ * Function templates for Bit/BOOLEAN functions other than comparison functions. (Bit/BOOLEAN
+ * comparison functions are generated in ComparisonFunctions.java template.)
  */
 public class BitFunctions {
-
 
   @FunctionTemplate(name = "partitionBitCounter", nulls = NullHandling.NULL_IF_NULL)
   public static class BitCounter implements SimpleFunction {
@@ -51,10 +47,11 @@ public class BitFunctions {
       partitionNumber += input.value;
       out.value = partitionNumber;
     }
-
   }
-  @FunctionTemplate(names = {"booleanOr", "or", "||", "orNoShortCircuit"},
-                    nulls = NullHandling.NULL_IF_NULL)
+
+  @FunctionTemplate(
+      names = {"booleanOr", "or", "||", "orNoShortCircuit"},
+      nulls = NullHandling.NULL_IF_NULL)
   public static class BitOr implements SimpleFunction {
 
     @Param BitHolder left;
@@ -70,8 +67,9 @@ public class BitFunctions {
     }
   }
 
-  @FunctionTemplate(names = {"booleanAnd", "and", "&&"},
-                    nulls = NullHandling.NULL_IF_NULL)
+  @FunctionTemplate(
+      names = {"booleanAnd", "and", "&&"},
+      nulls = NullHandling.NULL_IF_NULL)
   public static class BitAnd implements SimpleFunction {
 
     @Param BitHolder left;
@@ -87,10 +85,10 @@ public class BitFunctions {
     }
   }
 
-
-  @FunctionTemplate(names = {"xor", "^"},
-                    scope = FunctionScope.SIMPLE,
-                    nulls = NullHandling.NULL_IF_NULL)
+  @FunctionTemplate(
+      names = {"xor", "^"},
+      scope = FunctionScope.SIMPLE,
+      nulls = NullHandling.NULL_IF_NULL)
   public static class IntXor implements SimpleFunction {
 
     @Param IntHolder left;
@@ -105,5 +103,4 @@ public class BitFunctions {
       out.value = left.value ^ right.value;
     }
   }
-
 }

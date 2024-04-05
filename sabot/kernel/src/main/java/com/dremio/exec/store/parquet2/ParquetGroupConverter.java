@@ -19,11 +19,22 @@ import static com.dremio.common.exceptions.FieldSizeLimitExceptionHelper.createF
 import static com.dremio.exec.store.parquet.ParquetReaderUtility.NanoTimeUtils.getDateTimeValueFromBinary;
 import static org.apache.parquet.schema.Type.Repetition.REPEATED;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.common.expression.PathSegment;
+import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.ExecConstants;
+import com.dremio.exec.store.parquet.ParquetColumnResolver;
+import com.dremio.exec.store.parquet.ParquetReaderUtility;
+import com.dremio.exec.store.parquet.SchemaDerivationHelper;
+import com.dremio.options.OptionManager;
+import com.dremio.sabot.op.scan.OutputMutator;
+import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.complex.impl.UnionListWriter;
 import org.apache.arrow.vector.complex.writer.BaseWriter.ListWriter;
@@ -65,30 +76,16 @@ import org.apache.parquet.schema.Type;
 import org.apache.parquet.schema.Type.Repetition;
 import org.joda.time.DateTimeConstants;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.common.expression.PathSegment;
-import com.dremio.common.expression.SchemaPath;
-import com.dremio.exec.ExecConstants;
-import com.dremio.exec.store.parquet.ParquetColumnResolver;
-import com.dremio.exec.store.parquet.ParquetReaderUtility;
-import com.dremio.exec.store.parquet.SchemaDerivationHelper;
-import com.dremio.exec.store.parquet.columnreaders.DeprecatedParquetVectorizedReader;
-import com.dremio.options.OptionManager;
-import com.dremio.sabot.op.scan.OutputMutator;
-import com.google.common.base.Function;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
-
-
 abstract class ParquetGroupConverter extends GroupConverter implements ParquetListElementConverter {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ParquetGroupConverter.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ParquetGroupConverter.class);
 
   protected final List<Converter> converters;
   private final List<ListWriter> listWriters = Lists.newArrayList();
   private final OutputMutator mutator;
   protected final OptionManager options;
-  //See DRILL-4203
+  // See DRILL-4203
   protected final SchemaDerivationHelper schemaHelper;
   protected boolean written = false;
 
@@ -99,10 +96,12 @@ abstract class ParquetGroupConverter extends GroupConverter implements ParquetLi
   private final ParquetColumnResolver columnResolver;
   private final int maxFieldSizeLimit;
 
-  // This function assumes that the fields in the schema parameter are in the same order as the fields in the columns parameter. The
+  // This function assumes that the fields in the schema parameter are in the same order as the
+  // fields in the columns parameter. The
   // columns parameter may have fields that are not present in the schema, though.
   ParquetGroupConverter(
-      ParquetColumnResolver columnResolver, OutputMutator mutator,
+      ParquetColumnResolver columnResolver,
+      OutputMutator mutator,
       GroupType schema,
       Collection<SchemaPath> columns,
       OptionManager options,
@@ -118,22 +117,28 @@ abstract class ParquetGroupConverter extends GroupConverter implements ParquetLi
     this.childNameResolver = childNameResolver;
     this.schemaHelper = schemaHelper;
     this.columnResolver = columnResolver;
-    this.maxFieldSizeLimit = Math.toIntExact(options.getOption(ExecConstants.LIMIT_FIELD_SIZE_BYTES));
+    this.maxFieldSizeLimit =
+        Math.toIntExact(options.getOption(ExecConstants.LIMIT_FIELD_SIZE_BYTES));
   }
 
   abstract WriterProvider getWriterProvider();
 
   void convertChildren(final String fieldName) {
 
-    Iterator<SchemaPath> colIterator=columns.iterator();
+    Iterator<SchemaPath> colIterator = columns.iterator();
 
     for (Type type : schema.getFields()) {
       addChildConverter(fieldName, mutator, arrowSchema, colIterator, type, childNameResolver);
     }
   }
 
-  protected void addChildConverter(String fieldName, OutputMutator mutator,
-      List<Field> arrowSchema, Iterator<SchemaPath> colIterator, Type type, Function<String, String> childNameResolver) {
+  protected void addChildConverter(
+      String fieldName,
+      OutputMutator mutator,
+      List<Field> arrowSchema,
+      Iterator<SchemaPath> colIterator,
+      Type type,
+      Function<String, String> childNameResolver) {
     // Match the name of the field in the schema definition to the name of the field in the query.
     String name = null;
     SchemaPath col;
@@ -167,19 +172,27 @@ abstract class ParquetGroupConverter extends GroupConverter implements ParquetLi
     }
 
     final String nameForChild = childNameResolver.apply(name);
-    final String fullChildName = fieldName.isEmpty() ? nameForChild : fieldName.concat(".").concat(nameForChild);
-    final Converter converter = type.isPrimitive() ?
-      getConverterForType(fullChildName, type.asPrimitiveType())
-      : groupConverter(fullChildName, mutator, arrowSchema, type.asGroupType(), colNextChild);
+    final String fullChildName =
+        fieldName.isEmpty() ? nameForChild : fieldName.concat(".").concat(nameForChild);
+    final Converter converter =
+        type.isPrimitive()
+            ? getConverterForType(fullChildName, type.asPrimitiveType())
+            : groupConverter(fullChildName, mutator, arrowSchema, type.asGroupType(), colNextChild);
     converters.add(converter);
   }
 
-  private Converter groupConverter(String fieldName, OutputMutator mutator,
-      List<Field> arrowSchema, GroupType groupType, PathSegment colNextChild) {
+  private Converter groupConverter(
+      String fieldName,
+      OutputMutator mutator,
+      List<Field> arrowSchema,
+      GroupType groupType,
+      PathSegment colNextChild) {
     Collection<SchemaPath> c = new ArrayList<>();
 
-    if (groupType.getOriginalType() == OriginalType.LIST && colNextChild != null &&
-    colNextChild.isNamed() && colNextChild.getNameSegment().getPath().equals("list")) {
+    if (groupType.getOriginalType() == OriginalType.LIST
+        && colNextChild != null
+        && colNextChild.isNamed()
+        && colNextChild.getNameSegment().getPath().equals("list")) {
       colNextChild = colNextChild.getChild();
     }
 
@@ -215,59 +228,76 @@ abstract class ParquetGroupConverter extends GroupConverter implements ParquetLi
     return fieldName.split("\\.");
   }
 
-  Converter groupConverterFromArrowSchema(String fieldName, String groupTypeName, GroupType groupType, Collection<SchemaPath> c) {
+  Converter groupConverterFromArrowSchema(
+      String fieldName, String groupTypeName, GroupType groupType, Collection<SchemaPath> c) {
     final String nameForChild = getNameForChild(fieldName);
     final Field arrowField = Schema.findField(arrowSchema, groupTypeName);
     final ArrowTypeID arrowTypeType = arrowField.getType().getTypeID();
     final List<Field> arrowChildren = arrowField.getChildren();
     if (arrowTypeType == ArrowTypeID.Union) {
       // if it's a union we will add the children directly to the parent
-      return new UnionGroupConverter(columnResolver, fieldName, mutator, getWriterProvider(), groupType, c, options, arrowChildren, nameForChild,
+      return new UnionGroupConverter(
+          columnResolver,
+          fieldName,
+          mutator,
+          getWriterProvider(),
+          groupType,
+          c,
+          options,
+          arrowChildren,
+          nameForChild,
           schemaHelper);
     } else if (arrowTypeType == ArrowTypeID.List) {
-      // make sure the parquet schema matches the arrow schema and delegate handling the logical list to defaultGroupConverter()
-      Preconditions.checkState(groupType.getOriginalType() == OriginalType.LIST, "parquet schema doesn't match the arrow schema for LIST " + nameForChild);
+      // make sure the parquet schema matches the arrow schema and delegate handling the logical
+      // list to defaultGroupConverter()
+      Preconditions.checkState(
+          groupType.getOriginalType() == OriginalType.LIST,
+          "parquet schema doesn't match the arrow schema for LIST " + nameForChild);
     }
 
     return defaultGroupConverter(fieldName, mutator, groupType, c, arrowChildren);
   }
 
-  Converter defaultGroupConverter(String fieldName, OutputMutator mutator, GroupType groupType,
-                                  Collection<SchemaPath> c, List<Field> arrowSchema) {
+  Converter defaultGroupConverter(
+      String fieldName,
+      OutputMutator mutator,
+      GroupType groupType,
+      Collection<SchemaPath> c,
+      List<Field> arrowSchema) {
 
-    if (groupType.getOriginalType() == OriginalType.LIST && LogicalListL1Converter.isSupportedSchema(groupType)) {
+    if (groupType.getOriginalType() == OriginalType.LIST
+        && LogicalListL1Converter.isSupportedSchema(groupType)) {
       return new LogicalListL1Converter(
-        columnResolver,
-        fieldName,
-        mutator,
-        getWriterProvider(),
-        groupType,
-        c,
-        options,
-        arrowSchema,
-        schemaHelper
-      );
+          columnResolver,
+          fieldName,
+          mutator,
+          getWriterProvider(),
+          groupType,
+          c,
+          options,
+          arrowSchema,
+          schemaHelper);
     }
 
     if (isEligibleForMapVectorConversion(groupType)) {
       return new MapGroupConverter(
-        columnResolver,
-        fieldName,
-        mutator,
-        getWriterProvider().map(getNameForChild(columnResolver.getBatchSchemaColumnName(fieldName))),
-        groupType,
-        c,
-        options,
-        arrowSchema,
-        schemaHelper
-      );
+          columnResolver,
+          fieldName,
+          mutator,
+          getWriterProvider()
+              .map(getNameForChild(columnResolver.getBatchSchemaColumnName(fieldName))),
+          groupType,
+          c,
+          options,
+          arrowSchema,
+          schemaHelper);
     }
 
     final String nameForChild = getNameForChild(columnResolver.getBatchSchemaColumnName(fieldName));
     final StructWriter struct;
     if (groupType.isRepetition(REPEATED)) {
       if (arrowSchema != null) {
-        //TODO assert this should never occur at this level
+        // TODO assert this should never occur at this level
         // only parquet writer that writes arrowSchema doesn't write repeated fields except
         // as part of a LOGICAL LIST, thus this scenario (repeated + arrow schema present) can
         // only happen in LogicalList converter
@@ -278,12 +308,24 @@ abstract class ParquetGroupConverter extends GroupConverter implements ParquetLi
       struct = getWriterProvider().struct(nameForChild);
     }
 
-    return new StructGroupConverter(columnResolver, fieldName, mutator, struct, groupType, c, options, arrowSchema, schemaHelper);
+    return new StructGroupConverter(
+        columnResolver,
+        fieldName,
+        mutator,
+        struct,
+        groupType,
+        c,
+        options,
+        arrowSchema,
+        schemaHelper);
   }
 
   private boolean isEligibleForMapVectorConversion(GroupType groupType) {
-    if (schemaHelper.isMapDataTypeEnabled() && groupType.getOriginalType()==OriginalType.MAP && groupType.getFieldCount() == 1
-      && groupType.getType(0).isRepetition(Repetition.REPEATED) && groupType.getType(0).asGroupType().getFieldCount() == 2) {
+    if (schemaHelper.isMapDataTypeEnabled()
+        && groupType.getOriginalType() == OriginalType.MAP
+        && groupType.getFieldCount() == 1
+        && groupType.getType(0).isRepetition(Repetition.REPEATED)
+        && groupType.getType(0).asGroupType().getFieldCount() == 2) {
       boolean isEligible = true;
       if (!groupType.getType(0).asGroupType().getType(0).isPrimitive()) {
         isEligible = false;
@@ -296,6 +338,7 @@ abstract class ParquetGroupConverter extends GroupConverter implements ParquetLi
 
   /**
    * Validates the list type as expected.
+   *
    * @param arrowSchema current arrow schema
    * @return child schema
    */
@@ -303,9 +346,12 @@ abstract class ParquetGroupConverter extends GroupConverter implements ParquetLi
     // validating that the list type is as expected
     if (arrowSchema.size() != 1 && !arrowSchema.get(0).getName().equals("$data$")) {
       UserException.dataReadError()
-              .message("invalid children. Expected a single child named $data$, was actually %s for repeated type %s. ", arrowSchema, groupType);
+          .message(
+              "invalid children. Expected a single child named $data$, was actually %s for repeated type %s. ",
+              arrowSchema, groupType);
     }
-    // in the case of list, we skip over the inner type (struct = list(nameForChild).struct() bellow)
+    // in the case of list, we skip over the inner type (struct = list(nameForChild).struct()
+    // bellow)
     return arrowSchema.get(0).getChildren();
   }
 
@@ -313,139 +359,210 @@ abstract class ParquetGroupConverter extends GroupConverter implements ParquetLi
     final boolean isRepeated = type.isRepetition(REPEATED);
     String schemaFieldName = columnResolver.getBatchSchemaColumnName(fieldName);
     final String name = getNameForChild(schemaFieldName);
-    switch(type.getPrimitiveTypeName()) {
-      case INT32: {
-        OriginalType originalType = type.getOriginalType();
-        if (originalType != null) {
-          switch (type.getOriginalType()) {
-          case DECIMAL: {
-            ParquetReaderUtility.checkDecimalTypeEnabled(options);
-            DecimalWriter writer = isRepeated ? list(name).decimal() :
-              getWriterProvider().decimal(name, type.getDecimalMetadata().getScale(), type.getDecimalMetadata().getPrecision());
-            return new Decimal9Converter(writer, type.getDecimalMetadata().getPrecision(), type.getDecimalMetadata().getScale(), mutator.getManagedBuffer());
-          }
-          case DATE: {
-            DateMilliWriter writer = isRepeated ? list(name).dateMilli() : getWriterProvider().date(name);
-            switch (schemaHelper.getDateCorruptionStatus()) {
-            case META_SHOWS_CORRUPTION:
-              return new CorruptedDateConverter(writer);
-            case META_SHOWS_NO_CORRUPTION:
-              return new DateConverter(writer);
-            case META_UNCLEAR_TEST_VALUES:
-              return new CorruptionDetectingDateConverter(writer);
-            default:
-              // See DRILL-4203
-              throw new RuntimeException(
-                String.format("Issue setting up parquet reader for date type, " +
-                    "unrecognized date corruption status %s.",
-                  schemaHelper.getDateCorruptionStatus()));
+    switch (type.getPrimitiveTypeName()) {
+      case INT32:
+        {
+          OriginalType originalType = type.getOriginalType();
+          if (originalType != null) {
+            switch (type.getOriginalType()) {
+              case DECIMAL:
+                {
+                  ParquetReaderUtility.checkDecimalTypeEnabled(options);
+                  DecimalWriter writer =
+                      isRepeated
+                          ? list(name).decimal()
+                          : getWriterProvider()
+                              .decimal(
+                                  name,
+                                  type.getDecimalMetadata().getScale(),
+                                  type.getDecimalMetadata().getPrecision());
+                  return new Decimal9Converter(
+                      writer,
+                      type.getDecimalMetadata().getPrecision(),
+                      type.getDecimalMetadata().getScale(),
+                      mutator.getManagedBuffer());
+                }
+              case DATE:
+                {
+                  DateMilliWriter writer =
+                      isRepeated ? list(name).dateMilli() : getWriterProvider().date(name);
+                  switch (schemaHelper.getDateCorruptionStatus()) {
+                    case META_SHOWS_CORRUPTION:
+                      return new CorruptedDateConverter(writer);
+                    case META_SHOWS_NO_CORRUPTION:
+                      return new DateConverter(writer);
+                    case META_UNCLEAR_TEST_VALUES:
+                      return new CorruptionDetectingDateConverter(writer);
+                    default:
+                      // See DRILL-4203
+                      throw new RuntimeException(
+                          String.format(
+                              "Issue setting up parquet reader for date type, "
+                                  + "unrecognized date corruption status %s.",
+                              schemaHelper.getDateCorruptionStatus()));
+                  }
+                }
+              case TIME_MILLIS:
+                {
+                  TimeMilliWriter writer =
+                      isRepeated ? list(name).timeMilli() : getWriterProvider().time(name);
+                  return new TimeConverter(writer);
+                }
+              default:
+                // fall back to primitive type
             }
           }
-          case TIME_MILLIS: {
-            TimeMilliWriter writer = isRepeated ? list(name).timeMilli() : getWriterProvider().time(name);
-            return new TimeConverter(writer);
+          IntWriter writer = isRepeated ? list(name).integer() : getWriterProvider().integer(name);
+          return new IntConverter(writer);
+        }
+      case INT64:
+        {
+          OriginalType originalType = type.getOriginalType();
+          if (originalType != null) {
+            switch (originalType) {
+              case DECIMAL:
+                {
+                  ParquetReaderUtility.checkDecimalTypeEnabled(options);
+                  DecimalMetadata metadata = type.getDecimalMetadata();
+                  DecimalWriter writer =
+                      isRepeated
+                          ? list(name).decimal()
+                          : getWriterProvider()
+                              .decimal(name, metadata.getScale(), metadata.getPrecision());
+                  return new Decimal18Converter(
+                      writer,
+                      type.getDecimalMetadata().getPrecision(),
+                      type.getDecimalMetadata().getScale(),
+                      mutator.getManagedBuffer());
+                }
+              case TIMESTAMP_MILLIS:
+                {
+                  TimeStampMilliWriter writer =
+                      isRepeated
+                          ? list(name).timeStampMilli()
+                          : getWriterProvider().timeStamp(name);
+                  return new TimeStampConverter(writer);
+                }
+              case TIMESTAMP_MICROS:
+                {
+                  TimeStampMilliWriter writer =
+                      isRepeated
+                          ? list(name).timeStampMilli()
+                          : getWriterProvider().timeStamp(name);
+                  return new TimeStampMicroConverter(writer);
+                }
+              case TIME_MICROS:
+                {
+                  TimeMilliWriter writer =
+                      isRepeated ? list(name).timeMilli() : getWriterProvider().time(name);
+                  return new TimeMicroConverter(writer);
+                }
+              default:
+                // fall back to primitive type
+            }
           }
-          default:
-            // fall back to primitive type
+          BigIntWriter writer = isRepeated ? list(name).bigInt() : getWriterProvider().bigInt(name);
+          return new BigIntConverter(writer);
+        }
+      case INT96:
+        {
+          // TODO: replace null with TIMESTAMP_NANOS once parquet support such type annotation.
+          if (schemaHelper.readInt96AsTimeStamp()) {
+            TimeStampMilliWriter writer =
+                type.getRepetition() == Repetition.REPEATED
+                    ? getWriterProvider().list(name).timeStampMilli()
+                    : getWriterProvider().timeStamp(name);
+            return new FixedBinaryToTimeStampConverter(writer);
+          } else {
+            VarBinaryWriter writer =
+                type.getRepetition() == Repetition.REPEATED
+                    ? getWriterProvider().list(name).varBinary()
+                    : getWriterProvider().varBinary(name);
+            return new FixedBinaryToVarbinaryConverter(
+                writer,
+                getTypeLengthInBits(type.getPrimitiveTypeName()) / 8,
+                mutator.getManagedBuffer());
           }
         }
-        IntWriter writer = isRepeated ? list(name).integer() : getWriterProvider().integer(name);
-        return new IntConverter(writer);
-      }
-      case INT64: {
-        OriginalType originalType = type.getOriginalType();
-        if (originalType != null) {
-          switch (originalType) {
-          case DECIMAL: {
-            ParquetReaderUtility.checkDecimalTypeEnabled(options);
-            DecimalMetadata metadata = type.getDecimalMetadata();
-            DecimalWriter writer = isRepeated ? list(name).decimal() :
-              getWriterProvider().decimal(name, metadata.getScale(), metadata.getPrecision());
-            return new Decimal18Converter(writer, type.getDecimalMetadata().getPrecision(), type.getDecimalMetadata().getScale(), mutator.getManagedBuffer());
-          }
-          case TIMESTAMP_MILLIS: {
-            TimeStampMilliWriter writer = isRepeated ? list(name).timeStampMilli() : getWriterProvider().timeStamp(name);
-            return new TimeStampConverter(writer);
-          }
-          case TIMESTAMP_MICROS: {
-              TimeStampMilliWriter writer = isRepeated ? list(name).timeStampMilli() : getWriterProvider().timeStamp(name);
-              return new TimeStampMicroConverter(writer);
-          }
-          case TIME_MICROS: {
-              TimeMilliWriter writer = isRepeated ? list(name).timeMilli() : getWriterProvider().time(name);
-              return new TimeMicroConverter(writer);
-          }
-          default:
-            // fall back to primitive type
-          }
+      case FLOAT:
+        {
+          Float4Writer writer = isRepeated ? list(name).float4() : getWriterProvider().float4(name);
+          return new Float4Converter(writer);
         }
-        BigIntWriter writer = isRepeated ? list(name).bigInt() : getWriterProvider().bigInt(name);
-        return new BigIntConverter(writer);
-      }
-      case INT96: {
-        // TODO: replace null with TIMESTAMP_NANOS once parquet support such type annotation.
-        if (schemaHelper.readInt96AsTimeStamp()) {
-          TimeStampMilliWriter writer = type.getRepetition() == Repetition.REPEATED ? getWriterProvider().list(name).timeStampMilli() : getWriterProvider().timeStamp(name);
-          return new FixedBinaryToTimeStampConverter(writer);
-        } else {
-          VarBinaryWriter writer = type.getRepetition() == Repetition.REPEATED ? getWriterProvider().list(name).varBinary() : getWriterProvider().varBinary(name);
-          return new FixedBinaryToVarbinaryConverter(writer, DeprecatedParquetVectorizedReader.getTypeLengthInBits(type.getPrimitiveTypeName()) / 8, mutator.getManagedBuffer());
+      case DOUBLE:
+        {
+          Float8Writer writer = isRepeated ? list(name).float8() : getWriterProvider().float8(name);
+          return new Float8Converter(writer);
         }
-      }
-      case FLOAT: {
-        Float4Writer writer = isRepeated ? list(name).float4() : getWriterProvider().float4(name);
-        return new Float4Converter(writer);
-      }
-      case DOUBLE: {
-        Float8Writer writer = isRepeated ? list(name).float8() : getWriterProvider().float8(name);
-        return new Float8Converter(writer);
-      }
-      case BOOLEAN: {
-        BitWriter writer = isRepeated ? list(name).bit() : getWriterProvider().bit(name);
-        return new BoolConverter(writer);
-      }
-      case BINARY: {
-        OriginalType originalType = type.getOriginalType();
-        if (originalType != null) {
-          switch (type.getOriginalType()) {
-          case UTF8: {
-            VarCharWriter writer = isRepeated ? list(name).varChar() : getWriterProvider().varChar(name);
+      case BOOLEAN:
+        {
+          BitWriter writer = isRepeated ? list(name).bit() : getWriterProvider().bit(name);
+          return new BoolConverter(writer);
+        }
+      case BINARY:
+        {
+          OriginalType originalType = type.getOriginalType();
+          if (originalType != null) {
+            switch (type.getOriginalType()) {
+              case UTF8:
+                {
+                  VarCharWriter writer =
+                      isRepeated ? list(name).varChar() : getWriterProvider().varChar(name);
+                  return new VarCharConverter(
+                      writer, mutator.getManagedBuffer(), maxFieldSizeLimit);
+                }
+                // TODO not sure if BINARY/DECIMAL is actually supported
+              case DECIMAL:
+                {
+                  ParquetReaderUtility.checkDecimalTypeEnabled(options);
+                  DecimalMetadata metadata = type.getDecimalMetadata();
+                  DecimalWriter writer =
+                      isRepeated
+                          ? list(name).decimal()
+                          : getWriterProvider()
+                              .decimal(name, metadata.getScale(), metadata.getPrecision());
+                  return new BinaryToDecimal28Converter(
+                      writer,
+                      metadata.getPrecision(),
+                      metadata.getScale(),
+                      mutator.getManagedBuffer());
+                }
+              default:
+                // fall back to primitive type
+            }
+          }
+
+          if (schemaHelper.isVarChar(SchemaPath.getSimplePath(name))) {
+            VarCharWriter writer =
+                isRepeated ? list(name).varChar() : getWriterProvider().varChar(name);
             return new VarCharConverter(writer, mutator.getManagedBuffer(), maxFieldSizeLimit);
           }
-          //TODO not sure if BINARY/DECIMAL is actually supported
-          case DECIMAL: {
-            ParquetReaderUtility.checkDecimalTypeEnabled(options);
-            DecimalMetadata metadata = type.getDecimalMetadata();
-            DecimalWriter writer = isRepeated ? list(name).decimal() : getWriterProvider().decimal(name, metadata.getScale(), metadata.getPrecision());
-            return new BinaryToDecimal28Converter(writer, metadata.getPrecision(), metadata.getScale(), mutator.getManagedBuffer());
-          }
-          default:
-            // fall back to primitive type
-          }
-        }
 
-        if (schemaHelper.isVarChar(SchemaPath.getSimplePath(name))) {
-          VarCharWriter writer = isRepeated ? list(name).varChar() : getWriterProvider().varChar(name);
-          return new VarCharConverter(writer, mutator.getManagedBuffer(), maxFieldSizeLimit);
+          VarBinaryWriter writer =
+              isRepeated ? list(name).varBinary() : getWriterProvider().varBinary(name);
+          return new VarBinaryConverter(writer, mutator.getManagedBuffer(), maxFieldSizeLimit);
         }
-
-        VarBinaryWriter writer = isRepeated ? list(name).varBinary() : getWriterProvider().varBinary(name);
-        return new VarBinaryConverter(writer, mutator.getManagedBuffer(), maxFieldSizeLimit);
-      }
       case FIXED_LEN_BYTE_ARRAY:
         if (type.getOriginalType() == OriginalType.DECIMAL) {
           ParquetReaderUtility.checkDecimalTypeEnabled(options);
           DecimalMetadata metadata = type.getDecimalMetadata();
-          DecimalWriter writer = isRepeated ? list(name).decimal() : getWriterProvider().decimal(name, metadata.getScale(), metadata.getPrecision());
-            return new BinaryToDecimal28Converter(writer, metadata.getPrecision(), metadata.getScale(), mutator.getManagedBuffer());
+          DecimalWriter writer =
+              isRepeated
+                  ? list(name).decimal()
+                  : getWriterProvider().decimal(name, metadata.getScale(), metadata.getPrecision());
+          return new BinaryToDecimal28Converter(
+              writer, metadata.getPrecision(), metadata.getScale(), mutator.getManagedBuffer());
         }
         if (schemaHelper.isVarChar(SchemaPath.getSimplePath(name))) {
-          VarCharWriter writer = isRepeated ? list(name).varChar() : getWriterProvider().varChar(name);
+          VarCharWriter writer =
+              isRepeated ? list(name).varChar() : getWriterProvider().varChar(name);
           return new VarCharConverter(writer, mutator.getManagedBuffer(), maxFieldSizeLimit);
         }
 
-        VarBinaryWriter writer = isRepeated ? list(name).varBinary() : getWriterProvider().varBinary(name);
-        return new FixedBinaryToVarbinaryConverter(writer, type.getTypeLength(), mutator.getManagedBuffer());
+        VarBinaryWriter writer =
+            isRepeated ? list(name).varBinary() : getWriterProvider().varBinary(name);
+        return new FixedBinaryToVarbinaryConverter(
+            writer, type.getTypeLength(), mutator.getManagedBuffer());
       default:
         throw new UnsupportedOperationException("Unsupported type: " + type.getPrimitiveTypeName());
     }
@@ -453,7 +570,7 @@ abstract class ParquetGroupConverter extends GroupConverter implements ParquetLi
 
   private ListWriter list(String name) {
     ListWriter writer = getWriterProvider().list(name);
-    //TODO should I just implement this logic in WriterProvider ?
+    // TODO should I just implement this logic in WriterProvider ?
     listWriters.add(writer);
     return writer;
   }
@@ -491,16 +608,13 @@ abstract class ParquetGroupConverter extends GroupConverter implements ParquetLi
   }
 
   @Override
-  public void writeNullListElement() {
+  public void writeNullListElement() {}
 
-  }
-
-
-  protected abstract static class ParquetPrimitiveConverter
-    extends PrimitiveConverter implements ParquetListElementConverter {
+  protected abstract static class ParquetPrimitiveConverter extends PrimitiveConverter
+      implements ParquetListElementConverter {
     protected boolean written = false;
-    ParquetPrimitiveConverter() {
-    }
+
+    ParquetPrimitiveConverter() {}
 
     protected void setWritten() {
       written = true;
@@ -521,6 +635,7 @@ abstract class ParquetGroupConverter extends GroupConverter implements ParquetLi
       written = false;
     }
   }
+
   protected static class IntConverter extends ParquetPrimitiveConverter {
     private IntWriter writer;
     private IntHolder holder = new IntHolder();
@@ -539,7 +654,7 @@ abstract class ParquetGroupConverter extends GroupConverter implements ParquetLi
 
     @Override
     public void writeNullListElement() {
-      ((UnionListWriter)writer).writeNull();
+      ((UnionListWriter) writer).writeNull();
     }
   }
 
@@ -574,7 +689,7 @@ abstract class ParquetGroupConverter extends GroupConverter implements ParquetLi
 
     @Override
     public void writeNullListElement() {
-      ((UnionListWriter)writer).writeNull();
+      ((UnionListWriter) writer).writeNull();
     }
   }
 
@@ -589,7 +704,9 @@ abstract class ParquetGroupConverter extends GroupConverter implements ParquetLi
     @Override
     public void addInt(int value) {
       if (value > ParquetReaderUtility.DATE_CORRUPTION_THRESHOLD) {
-        holder.value = (value - ParquetReaderUtility.CORRECT_CORRUPT_DATE_SHIFT) * DateTimeConstants.MILLIS_PER_DAY;
+        holder.value =
+            (value - ParquetReaderUtility.CORRECT_CORRUPT_DATE_SHIFT)
+                * DateTimeConstants.MILLIS_PER_DAY;
       } else {
         holder.value = value * (long) DateTimeConstants.MILLIS_PER_DAY;
       }
@@ -599,7 +716,7 @@ abstract class ParquetGroupConverter extends GroupConverter implements ParquetLi
 
     @Override
     public void writeNullListElement() {
-      ((UnionListWriter)writer).writeNull();
+      ((UnionListWriter) writer).writeNull();
     }
   }
 
@@ -613,14 +730,16 @@ abstract class ParquetGroupConverter extends GroupConverter implements ParquetLi
 
     @Override
     public void addInt(int value) {
-      holder.value = (value - ParquetReaderUtility.CORRECT_CORRUPT_DATE_SHIFT) * DateTimeConstants.MILLIS_PER_DAY;
+      holder.value =
+          (value - ParquetReaderUtility.CORRECT_CORRUPT_DATE_SHIFT)
+              * DateTimeConstants.MILLIS_PER_DAY;
       writer.write(holder);
       setWritten();
     }
 
     @Override
     public void writeNullListElement() {
-      ((UnionListWriter)writer).writeNull();
+      ((UnionListWriter) writer).writeNull();
     }
   }
 
@@ -641,7 +760,7 @@ abstract class ParquetGroupConverter extends GroupConverter implements ParquetLi
 
     @Override
     public void writeNullListElement() {
-      ((UnionListWriter)writer).writeNull();
+      ((UnionListWriter) writer).writeNull();
     }
   }
 
@@ -662,28 +781,32 @@ abstract class ParquetGroupConverter extends GroupConverter implements ParquetLi
 
     @Override
     public void writeNullListElement() {
-      ((UnionListWriter)writer).writeNull();
+      ((UnionListWriter) writer).writeNull();
     }
   }
 
   private static class TimeMicroConverter extends ParquetPrimitiveConverter {
     private TimeMilliWriter writer;
+
     private TimeMicroConverter(TimeMilliWriter writer) {
       this.writer = writer;
     }
+
     @Override
     public void addInt(int value) {
       writer.writeTimeMilli(value / 1000);
       setWritten();
     }
+
     @Override
     public void addLong(long value) {
-      writer.writeTimeMilli((int)(value / 1000));
+      writer.writeTimeMilli((int) (value / 1000));
       setWritten();
     }
+
     @Override
     public void writeNullListElement() {
-      ((UnionListWriter)writer).writeNull();
+      ((UnionListWriter) writer).writeNull();
     }
   }
 
@@ -704,7 +827,7 @@ abstract class ParquetGroupConverter extends GroupConverter implements ParquetLi
 
     @Override
     public void writeNullListElement() {
-      ((UnionListWriter)writer).writeNull();
+      ((UnionListWriter) writer).writeNull();
     }
   }
 
@@ -723,27 +846,32 @@ abstract class ParquetGroupConverter extends GroupConverter implements ParquetLi
 
     @Override
     public void writeNullListElement() {
-      ((UnionListWriter)writer).writeNull();
+      ((UnionListWriter) writer).writeNull();
     }
   }
+
   private static class TimeStampMicroConverter extends ParquetPrimitiveConverter {
     private TimeStampMilliWriter writer;
+
     private TimeStampMicroConverter(TimeStampMilliWriter writer) {
       this.writer = writer;
     }
+
     @Override
     public void addLong(long value) {
-      //value is microseconds since epoch. Truncate the microseconds
-      //to fit it into a millisecond range.
-      //ie 1674475994560123 / 1000 = 1674475994560
+      // value is microseconds since epoch. Truncate the microseconds
+      // to fit it into a millisecond range.
+      // ie 1674475994560123 / 1000 = 1674475994560
       writer.writeTimeStampMilli(value / 1000);
       setWritten();
     }
+
     @Override
     public void writeNullListElement() {
-      ((UnionListWriter)writer).writeNull();
+      ((UnionListWriter) writer).writeNull();
     }
   }
+
   private static class Decimal18Converter extends ParquetPrimitiveConverter {
     private DecimalWriter writer;
     private DecimalHolder holder = new DecimalHolder();
@@ -775,7 +903,7 @@ abstract class ParquetGroupConverter extends GroupConverter implements ParquetLi
 
     @Override
     public void writeNullListElement() {
-      ((UnionListWriter)writer).writeNull();
+      ((UnionListWriter) writer).writeNull();
     }
   }
 
@@ -796,7 +924,7 @@ abstract class ParquetGroupConverter extends GroupConverter implements ParquetLi
 
     @Override
     public void writeNullListElement() {
-      ((UnionListWriter)writer).writeNull();
+      ((UnionListWriter) writer).writeNull();
     }
   }
 
@@ -817,7 +945,7 @@ abstract class ParquetGroupConverter extends GroupConverter implements ParquetLi
 
     @Override
     public void writeNullListElement() {
-      ((UnionListWriter)writer).writeNull();
+      ((UnionListWriter) writer).writeNull();
     }
   }
 
@@ -836,7 +964,7 @@ abstract class ParquetGroupConverter extends GroupConverter implements ParquetLi
 
     @Override
     public void writeNullListElement() {
-      ((UnionListWriter)writer).writeNull();
+      ((UnionListWriter) writer).writeNull();
     }
   }
 
@@ -868,7 +996,7 @@ abstract class ParquetGroupConverter extends GroupConverter implements ParquetLi
 
     @Override
     public void writeNullListElement() {
-      ((UnionListWriter)writer).writeNull();
+      ((UnionListWriter) writer).writeNull();
     }
   }
 
@@ -878,7 +1006,7 @@ abstract class ParquetGroupConverter extends GroupConverter implements ParquetLi
     private ArrowBuf buf;
     private int varValueSizeLimit;
 
-    private VarCharConverter(VarCharWriter writer,  ArrowBuf buf, int varValueSizeLimit) {
+    private VarCharConverter(VarCharWriter writer, ArrowBuf buf, int varValueSizeLimit) {
       this.writer = writer;
       this.buf = buf;
       this.varValueSizeLimit = varValueSizeLimit;
@@ -900,7 +1028,7 @@ abstract class ParquetGroupConverter extends GroupConverter implements ParquetLi
 
     @Override
     public void writeNullListElement() {
-      ((UnionListWriter)writer).writeNull();
+      ((UnionListWriter) writer).writeNull();
     }
   }
 
@@ -909,7 +1037,8 @@ abstract class ParquetGroupConverter extends GroupConverter implements ParquetLi
     private DecimalHolder holder = new DecimalHolder();
     private ArrowBuf buffer;
 
-    private BinaryToDecimal28Converter(DecimalWriter writer, int precision, int scale,  ArrowBuf buffer) {
+    private BinaryToDecimal28Converter(
+        DecimalWriter writer, int precision, int scale, ArrowBuf buffer) {
       this.writer = writer;
       this.buffer = buffer.reallocIfNeeded(16);
       holder.precision = precision;
@@ -923,19 +1052,20 @@ abstract class ParquetGroupConverter extends GroupConverter implements ParquetLi
       /* set the bytes in LE format in the buffer of decimal vector, we will swap
        * the bytes while writing into the vector.
        */
-      writer.writeBigEndianBytesToDecimal(bytes, new ArrowType.Decimal(holder.precision, holder.scale, 128));
+      writer.writeBigEndianBytesToDecimal(
+          bytes, new ArrowType.Decimal(holder.precision, holder.scale, 128));
       setWritten();
     }
 
     @Override
     public void writeNullListElement() {
-      ((UnionListWriter)writer).writeNull();
+      ((UnionListWriter) writer).writeNull();
     }
   }
 
   /**
-   * Parquet currently supports a fixed binary type, which is not implemented in Dremio. For now this
-   * data will be read in a s varbinary and the same length will be recorded for each value.
+   * Parquet currently supports a fixed binary type, which is not implemented in Dremio. For now
+   * this data will be read in a s varbinary and the same length will be recorded for each value.
    */
   private static class FixedBinaryToVarbinaryConverter extends ParquetPrimitiveConverter {
     private VarBinaryWriter writer;
@@ -957,13 +1087,13 @@ abstract class ParquetGroupConverter extends GroupConverter implements ParquetLi
 
     @Override
     public void writeNullListElement() {
-      ((UnionListWriter)writer).writeNull();
+      ((UnionListWriter) writer).writeNull();
     }
   }
 
   /**
-   * Parquet currently supports a fixed binary type INT96 for storing hive, impala timestamp
-   * with nanoseconds precision.
+   * Parquet currently supports a fixed binary type INT96 for storing hive, impala timestamp with
+   * nanoseconds precision.
    */
   public static class FixedBinaryToTimeStampConverter extends ParquetPrimitiveConverter {
     private TimeStampMilliWriter writer;
@@ -982,7 +1112,31 @@ abstract class ParquetGroupConverter extends GroupConverter implements ParquetLi
 
     @Override
     public void writeNullListElement() {
-      ((UnionListWriter)writer).writeNull();
+      ((UnionListWriter) writer).writeNull();
+    }
+  }
+
+  /**
+   * @param type a fixed length type from the parquet library enum
+   * @return the length in pageDataByteArray of the type
+   */
+  private static int getTypeLengthInBits(PrimitiveType.PrimitiveTypeName type) {
+    switch (type) {
+      case INT64:
+        return 64;
+      case INT32:
+        return 32;
+      case BOOLEAN:
+        return 1;
+      case FLOAT:
+        return 32;
+      case DOUBLE:
+        return 64;
+      case INT96:
+        return 96;
+        // binary and fixed length byte array
+      default:
+        throw new IllegalStateException("Length cannot be determined for type " + type);
     }
   }
 }

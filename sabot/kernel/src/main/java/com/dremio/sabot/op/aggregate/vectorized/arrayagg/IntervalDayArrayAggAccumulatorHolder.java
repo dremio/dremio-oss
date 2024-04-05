@@ -20,10 +20,12 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.IntervalDayVector;
 import org.apache.arrow.vector.holders.NullableIntervalDayHolder;
 
-public final class IntervalDayArrayAggAccumulatorHolder extends
-  BaseArrayAggAccumulatorHolder<NullableIntervalDayHolder, IntervalDayVector> {
+public final class IntervalDayArrayAggAccumulatorHolder
+    extends BaseArrayAggAccumulatorHolder<NullableIntervalDayHolder, IntervalDayVector> {
   private final IntervalDayVector vector;
-  public IntervalDayArrayAggAccumulatorHolder(int maxValuesPerBatch, final BufferAllocator allocator) {
+
+  public IntervalDayArrayAggAccumulatorHolder(
+      int maxValuesPerBatch, final BufferAllocator allocator) {
     super(maxValuesPerBatch, allocator);
     vector = new IntervalDayVector("array_agg IntervalDayArrayAggAccumulatorHolder", allocator);
     vector.allocateNew(maxValuesPerBatch);
@@ -31,9 +33,9 @@ public final class IntervalDayArrayAggAccumulatorHolder extends
 
   @Override
   public long getSizeInBytes() {
-    return vector.getDataBuffer().getActualMemoryConsumed() +
-      vector.getValidityBuffer().getActualMemoryConsumed() +
-      super.getSizeInBytes();
+    return vector.getDataBuffer().getActualMemoryConsumed()
+        + vector.getValidityBuffer().getActualMemoryConsumed()
+        + super.getSizeInBytes();
   }
 
   @Override

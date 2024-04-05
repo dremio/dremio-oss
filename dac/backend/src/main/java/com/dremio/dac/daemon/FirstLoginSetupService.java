@@ -15,9 +15,7 @@
  */
 package com.dremio.dac.daemon;
 
-/**
- * Basic setup for creating a first user experience.
- */
+/** Basic setup for creating a first user experience. */
 public interface FirstLoginSetupService {
   void setup(String username);
 }

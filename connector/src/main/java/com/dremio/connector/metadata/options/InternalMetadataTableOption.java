@@ -15,18 +15,18 @@
  */
 package com.dremio.connector.metadata.options;
 
-import java.util.stream.Stream;
-
 import com.dremio.connector.metadata.GetDatasetOption;
 import com.dremio.connector.metadata.GetMetadataOption;
 import com.dremio.connector.metadata.ListPartitionChunkOption;
 import com.dremio.connector.metadata.MetadataOption;
+import java.util.stream.Stream;
 
 /**
- * Option that controls retrieving table metadata from the internal metadata table.
- * i.e. the iceberg metadata table created by Dremio for Unlimited Splits dataset.
+ * Option that controls retrieving table metadata from the internal metadata table. i.e. the iceberg
+ * metadata table created by Dremio for Unlimited Splits dataset.
  */
-public class InternalMetadataTableOption implements GetDatasetOption, GetMetadataOption, ListPartitionChunkOption {
+public class InternalMetadataTableOption
+    implements GetDatasetOption, GetMetadataOption, ListPartitionChunkOption {
   private final String internalMetadataTableName;
 
   public InternalMetadataTableOption(String internalMetadataTableName) {
@@ -40,10 +40,12 @@ public class InternalMetadataTableOption implements GetDatasetOption, GetMetadat
     return internalMetadataTableName;
   }
 
-  public static InternalMetadataTableOption getInternalMetadataTableOption(MetadataOption... options) {
-    return (InternalMetadataTableOption) Stream.of(options)
-      .filter(o -> o instanceof InternalMetadataTableOption)
-      .findFirst()
-      .orElse(null);
+  public static InternalMetadataTableOption getInternalMetadataTableOption(
+      MetadataOption... options) {
+    return (InternalMetadataTableOption)
+        Stream.of(options)
+            .filter(o -> o instanceof InternalMetadataTableOption)
+            .findFirst()
+            .orElse(null);
   }
 }

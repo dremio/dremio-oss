@@ -15,25 +15,22 @@
  */
 package com.dremio.exec.maestro;
 
-import java.util.LinkedList;
-import java.util.List;
-
 import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.AttemptEvent;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.work.QueryWorkUnit;
 import com.dremio.exec.work.foreman.ExecutionPlan;
 import com.dremio.resource.ResourceSchedulingDecisionInfo;
+import java.util.LinkedList;
+import java.util.List;
 
-/**
- * Maintains a list of observers & delivers notification to each of them
- */
+/** Maintains a list of observers & delivers notification to each of them */
 public class MaestroObservers implements MaestroObserver {
   private List<MaestroObserver> chain = new LinkedList<>();
 
-  //create object using 'of'
-  private MaestroObservers() {  }
-
+  // create object using 'of'
+  private MaestroObservers() {}
 
   @Override
   public void beginState(AttemptEvent event) {
@@ -57,9 +54,9 @@ public class MaestroObservers implements MaestroObserver {
   }
 
   @Override
-  public void planCompleted(final ExecutionPlan plan) {
+  public void planCompleted(final ExecutionPlan plan, final BatchSchema batchSchema) {
     for (final MaestroObserver observer : chain) {
-      observer.planCompleted(plan);
+      observer.planCompleted(plan, batchSchema);
     }
   }
 
@@ -70,14 +67,18 @@ public class MaestroObservers implements MaestroObserver {
     }
   }
 
-
   @Override
-  public void executorsSelected(long millisTaken, int idealNumFragments, int idealNumNodes, int numExecutors, String detailsText) {
+  public void executorsSelected(
+      long millisTaken,
+      int idealNumFragments,
+      int idealNumNodes,
+      int numExecutors,
+      String detailsText) {
     for (final MaestroObserver observer : chain) {
-      observer.executorsSelected(millisTaken, idealNumFragments, idealNumNodes, numExecutors, detailsText);
+      observer.executorsSelected(
+          millisTaken, idealNumFragments, idealNumNodes, numExecutors, detailsText);
     }
   }
-
 
   @Override
   public void planParallelStart() {
@@ -86,14 +87,12 @@ public class MaestroObservers implements MaestroObserver {
     }
   }
 
-
   @Override
   public void planParallelized(PlanningSet planningSet) {
     for (final MaestroObserver observer : chain) {
       observer.planParallelized(planningSet);
     }
   }
-
 
   @Override
   public void planAssignmentTime(long millisTaken) {
@@ -129,7 +128,6 @@ public class MaestroObservers implements MaestroObserver {
       observer.recordsOutput(recordCount);
     }
   }
-
 
   @Override
   public void fragmentsStarted(long millisTaken, UserBitShared.FragmentRpcSizeStats stats) {

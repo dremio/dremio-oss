@@ -25,27 +25,28 @@ import com.dremio.datastore.api.IndexedStoreCreationFunction;
 import com.dremio.datastore.api.StoreBuildingFactory;
 import com.dremio.datastore.format.Format;
 
-/**
- * StoreCreator for upgraded doughnut
- */
-public class UpgradedDoughnutStoreCreator implements IndexedStoreCreationFunction<String, Doughnut> {
-  //We will need to address how to exclude packages from class path scanning. Tracking tkt is DX49216
-  public static final String UPGRADED_DOUGHNUT_COLLECTION_NAME = "test-upgraded-doughnut-indexed-store";
+/** StoreCreator for upgraded doughnut */
+public class UpgradedDoughnutStoreCreator
+    implements IndexedStoreCreationFunction<String, Doughnut> {
+  // We will need to address how to exclude packages from class path scanning. Tracking tkt is
+  // DX49216
+  public static final String UPGRADED_DOUGHNUT_COLLECTION_NAME =
+      "test-upgraded-doughnut-indexed-store";
 
   @Override
   public IndexedStore<String, Doughnut> build(StoreBuildingFactory factory) {
-    return factory.<String, Doughnut>newStore()
-      .name(UPGRADED_DOUGHNUT_COLLECTION_NAME)
-      .keyFormat(Format.ofString())
-      .valueFormat(Format.wrapped(Doughnut.class, new DoughnutConverter(), Format.ofBytes()))
-      .buildIndexed(new UpgradedDoughnutDocumentConverter());
+    return factory
+        .<String, Doughnut>newStore()
+        .name(UPGRADED_DOUGHNUT_COLLECTION_NAME)
+        .keyFormat(Format.ofString())
+        .valueFormat(Format.wrapped(Doughnut.class, new DoughnutConverter(), Format.ofBytes()))
+        .buildIndexed(new UpgradedDoughnutDocumentConverter());
   }
 
-  /**
-   * DocumentConveter which removes index on flavor
-   */
+  /** DocumentConveter which removes index on flavor */
   public static class UpgradedDoughnutDocumentConverter extends DoughnutDocumentConverter {
     private Integer version = super.getVersion() + 1;
+
     // removed flavor
     @Override
     public void convert(DocumentWriter writer, String key, Doughnut record) {
@@ -53,10 +54,10 @@ public class UpgradedDoughnutStoreCreator implements IndexedStoreCreationFunctio
       writer.write(PRICE, record.getPrice());
       writer.write(THICKNESS, record.getThickness());
     }
+
     @Override
     public Integer getVersion() {
       return version;
     }
-
   }
 }

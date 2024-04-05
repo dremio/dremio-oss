@@ -15,14 +15,6 @@
  */
 package com.dremio.exec.planner;
 
-import java.util.function.Function;
-
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelOptTable;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.InvalidRelException;
-import org.apache.calcite.rel.RelNode;
-
 import com.dremio.exec.ops.OptimizerRulesContext;
 import com.dremio.exec.ops.SnapshotDiffContext;
 import com.dremio.exec.physical.config.ImmutableManifestScanFilters;
@@ -30,28 +22,44 @@ import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.iceberg.IcebergScanPlanBuilder;
+import java.util.function.Function;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptTable;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.InvalidRelException;
+import org.apache.calcite.rel.RelNode;
 
 /**
- * A class that generates a plan to delete files that are no longer needed from the reflection
- * when we do Incremental Refresh by Partition.
+ * A class that generates a plan to delete files that are no longer needed from the reflection when
+ * we do Incremental Refresh by Partition.
  */
 public class IncrementalRefreshByPartitionDeletePlanGenerator extends TableManagementPlanGenerator {
   private final IcebergScanPlanBuilder planBuilder;
   private final SnapshotDiffContext snapshotDiffContext;
-  public IncrementalRefreshByPartitionDeletePlanGenerator(final RelOptTable table, final RelOptCluster cluster, final RelTraitSet traitSet, final RelNode input, final  TableMetadata tableMetadata, final CreateTableEntry createTableEntry, final  OptimizerRulesContext context, final SnapshotDiffContext snapshotDiffContext) {
+
+  public IncrementalRefreshByPartitionDeletePlanGenerator(
+      final RelOptTable table,
+      final RelOptCluster cluster,
+      final RelTraitSet traitSet,
+      final RelNode input,
+      final TableMetadata tableMetadata,
+      final CreateTableEntry createTableEntry,
+      final OptimizerRulesContext context,
+      final SnapshotDiffContext snapshotDiffContext) {
     super(table, cluster, traitSet, input, tableMetadata, createTableEntry, context);
     this.snapshotDiffContext = snapshotDiffContext;
-    final ImmutableManifestScanFilters.Builder manifestScanFiltersBuilder =  new ImmutableManifestScanFilters.Builder();
-    this.planBuilder = new IcebergScanPlanBuilder (
-      cluster,
-      traitSet,
-      table,
-      tableMetadata,
-      null,
-      context,
-      manifestScanFiltersBuilder.build(),
-      null
-    );
+    final ImmutableManifestScanFilters.Builder manifestScanFiltersBuilder =
+        new ImmutableManifestScanFilters.Builder();
+    this.planBuilder =
+        new IcebergScanPlanBuilder(
+            cluster,
+            traitSet,
+            table,
+            tableMetadata,
+            null,
+            context,
+            manifestScanFiltersBuilder.build(),
+            null);
   }
 
   @Override
@@ -62,11 +70,11 @@ public class IncrementalRefreshByPartitionDeletePlanGenerator extends TableManag
   public Function<RelNode, Prel> getFinalizeFunc() {
     return manifestWriterPlan -> {
       try {
-        return getMetadataWriterPlan(deleteDataFilePlan(planBuilder,snapshotDiffContext) , manifestWriterPlan);
+        return getMetadataWriterPlan(
+            deleteDataFilePlan(planBuilder, snapshotDiffContext), manifestWriterPlan);
       } catch (final InvalidRelException e) {
         throw new RuntimeException(e);
       }
     };
   }
-
 }

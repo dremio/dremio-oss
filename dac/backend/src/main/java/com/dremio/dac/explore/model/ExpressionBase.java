@@ -34,15 +34,14 @@ import com.dremio.datastore.Converter;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.annotation.JsonTypeIdResolver;
 
-/**
- * Expression base class
- */
+/** Expression base class */
 @JsonTypeInfo(use = JsonTypeInfo.Id.CUSTOM, include = JsonTypeInfo.As.PROPERTY, property = "type")
 @JsonTypeIdResolver(EnumTypeIdResolver.class)
 @TypesEnum(types = ExpressionType.class, format = "com.dremio.dac.proto.model.dataset.Exp%s")
 public class ExpressionBase {
 
-  public static final Acceptor<ExpressionBase, ExpressionVisitor<?>, Expression> acceptor = new Acceptor<ExpressionBase, ExpressionVisitor<?>, Expression>(){};
+  public static final Acceptor<ExpressionBase, ExpressionVisitor<?>, Expression> acceptor =
+      new Acceptor<ExpressionBase, ExpressionVisitor<?>, Expression>() {};
 
   public final <T> T accept(ExpressionVisitor<T> visitor) throws VisitorException {
     return acceptor.accept(visitor, this);
@@ -66,21 +65,30 @@ public class ExpressionBase {
     public T visit(Expression e) {
       return unwrap(e).accept(this);
     }
+
     public abstract T visit(ExpColumnReference col) throws Exception;
+
     @Deprecated // use ExpFieldTransformation
     public abstract T visit(ExpConvertCase changeCase) throws Exception;
+
     @Deprecated // use ExpFieldTransformation
     public abstract T visit(ExpExtract extract) throws Exception;
+
     @Deprecated // use ExpFieldTransformation
     public abstract T visit(ExpTrim trim) throws Exception;
+
     public abstract T visit(ExpCalculatedField calculatedField) throws Exception;
+
     public abstract T visit(ExpFieldTransformation fieldTransformation) throws Exception;
+
     public abstract T visit(ExpConvertType convertType) throws Exception;
+
     public abstract T visit(ExpMeasure measure) throws Exception;
   }
 
   /**
    * Base visitor that traverses into expressions where possible.
+   *
    * @param <T> return type from the recursive visit of the expression tree
    */
   public abstract static class ExpressionVisitorBase<T> extends ExpressionVisitor<T> {

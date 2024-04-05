@@ -17,8 +17,10 @@ package com.dremio.exec.planner.logical;
 
 import static com.dremio.exec.planner.cost.DremioCost.BYTE_DISK_READ_COST;
 
+import com.dremio.exec.planner.cost.DremioCost;
+import com.dremio.exec.planner.cost.ScanCostFactor;
+import com.dremio.exec.planner.physical.PrelUtil;
 import java.util.List;
-
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptPlanner;
@@ -29,16 +31,16 @@ import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 
-import com.dremio.exec.planner.cost.DremioCost;
-import com.dremio.exec.planner.cost.ScanCostFactor;
-import com.dremio.exec.planner.physical.PrelUtil;
-
 public class BridgeReaderRel extends AbstractRelNode implements Rel {
   private final String bridgeSetId;
   private final double estimatedRowCount;
 
-  public BridgeReaderRel(RelOptCluster cluster, RelTraitSet traitSet, RelDataType rowType, double estimatedRowCount,
-                         String bridgeSetId) {
+  public BridgeReaderRel(
+      RelOptCluster cluster,
+      RelTraitSet traitSet,
+      RelDataType rowType,
+      double estimatedRowCount,
+      String bridgeSetId) {
     super(cluster, traitSet);
     this.rowType = rowType;
     this.estimatedRowCount = estimatedRowCount;
@@ -56,23 +58,29 @@ public class BridgeReaderRel extends AbstractRelNode implements Rel {
 
   @Override
   public RelWriter explainTerms(RelWriter pw) {
-    return super.explainTerms(pw)
-      .item("bridgeSetId", bridgeSetId);
+    return super.explainTerms(pw).item("bridgeSetId", bridgeSetId);
   }
 
   @Override
   public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
     final double rowCount = mq.getRowCount(this);
     final int fieldCount = getRowType().getFieldCount();
-    final DremioCost.Factory costFactory = (DremioCost.Factory)planner.getCostFactory();
+    final DremioCost.Factory costFactory = (DremioCost.Factory) planner.getCostFactory();
 
-    double adjustmentFactor = PrelUtil.getPlannerSettings(getCluster()).getCseCostAdjustmentFactor();
+    double adjustmentFactor =
+        PrelUtil.getPlannerSettings(getCluster()).getCseCostAdjustmentFactor();
     if (adjustmentFactor == Double.MAX_VALUE) {
       return costFactory.makeHugeCost();
     }
     double workCost = (rowCount * fieldCount * ScanCostFactor.ARROW.getFactor());
 
-    return costFactory.makeCost(estimatedRowCount, workCost * DremioCost.SCAN_CPU_COST_MULTIPLIER, workCost * BYTE_DISK_READ_COST, 0).multiplyBy(adjustmentFactor);
+    return costFactory
+        .makeCost(
+            estimatedRowCount,
+            workCost * DremioCost.SCAN_CPU_COST_MULTIPLIER,
+            workCost * BYTE_DISK_READ_COST,
+            0)
+        .multiplyBy(adjustmentFactor);
   }
 
   @Override

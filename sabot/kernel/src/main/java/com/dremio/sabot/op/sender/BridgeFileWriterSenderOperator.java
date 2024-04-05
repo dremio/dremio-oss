@@ -15,16 +15,6 @@
  */
 package com.dremio.sabot.op.sender;
 
-import java.util.List;
-import java.util.stream.Collectors;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.compression.NoCompressionCodec;
-import org.apache.arrow.vector.ipc.message.ArrowRecordBatch;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.ExecutionSetupException;
@@ -44,14 +34,22 @@ import com.dremio.sabot.exec.rpc.TunnelProvider;
 import com.dremio.sabot.op.sort.external.SpillManager;
 import com.dremio.sabot.op.spi.TerminalOperator;
 import com.dremio.service.spill.SpillService;
+import java.util.List;
+import java.util.stream.Collectors;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.compression.NoCompressionCodec;
+import org.apache.arrow.vector.ipc.message.ArrowRecordBatch;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * Impl for sender operator that writes to a file, instead of a socket.
- */
+/** Impl for sender operator that writes to a file, instead of a socket. */
 @Options
 public class BridgeFileWriterSenderOperator extends BaseSender {
-  private static final Logger logger = LoggerFactory.getLogger(BridgeFileWriterSenderOperator.class);
-  public static final PositiveLongValidator NUM_BATCHES_PER_FILE = new PositiveLongValidator("exec.op.sender.batches_per_file", 100_000, 2_000);
+  private static final Logger logger =
+      LoggerFactory.getLogger(BridgeFileWriterSenderOperator.class);
+  public static final PositiveLongValidator NUM_BATCHES_PER_FILE =
+      new PositiveLongValidator("exec.op.sender.batches_per_file", 100_000, 2_000);
   private final BridgeFileWriterSender config;
   private final ExecProtos.FragmentHandle handle;
   private final OperatorStats stats;
@@ -69,21 +67,24 @@ public class BridgeFileWriterSenderOperator extends BaseSender {
 
   public enum Metric implements MetricDef {
     BYTES_SENT;
+
     @Override
     public int metricId() {
       return ordinal();
     }
   }
 
-  public BridgeFileWriterSenderOperator(TunnelProvider tunnelProvider, OperatorContext context, BridgeFileWriterSender config) {
+  public BridgeFileWriterSenderOperator(
+      TunnelProvider tunnelProvider, OperatorContext context, BridgeFileWriterSender config) {
     super(config);
     this.tunnelProvider = tunnelProvider;
     this.config = config;
     this.allocator = context.getAllocator();
     this.handle = context.getFragmentHandle();
     this.stats = context.getStats();
-    this.uniqueId = BridgeFileWriterSender.computeUniqueId(handle.getQueryId(),
-      config.getBridgeSetId(), handle.getMinorFragmentId());
+    this.uniqueId =
+        BridgeFileWriterSender.computeUniqueId(
+            handle.getQueryId(), config.getBridgeSetId(), handle.getMinorFragmentId());
     this.options = context.getOptions();
     this.spillService = context.getSpillService();
     this.sabotConfig = context.getConfig();
@@ -92,7 +93,8 @@ public class BridgeFileWriterSenderOperator extends BaseSender {
   }
 
   @Override
-  public <OUT, IN, EXCEP extends Throwable> OUT accept(OperatorVisitor<OUT, IN, EXCEP> visitor, IN value) throws EXCEP {
+  public <OUT, IN, EXCEP extends Throwable> OUT accept(
+      OperatorVisitor<OUT, IN, EXCEP> visitor, IN value) throws EXCEP {
     return visitor.visitTerminalOperator(this, value);
   }
 
@@ -107,8 +109,11 @@ public class BridgeFileWriterSenderOperator extends BaseSender {
     this.incoming = incoming;
     checkSchema(incoming.getSchema());
 
-    this.spillManager = new SpillManager(sabotConfig, options, uniqueId, null, spillService, "cte bridge", null);
-    this.tunnel = tunnelProvider.getFileTunnel(new FileStreamManagerImpl(spillManager), (int)options.getOption(NUM_BATCHES_PER_FILE));
+    this.spillManager =
+        new SpillManager(sabotConfig, options, uniqueId, null, spillService, "cte bridge", null);
+    this.tunnel =
+        tunnelProvider.getFileTunnel(
+            new FileStreamManagerImpl(spillManager), (int) options.getOption(NUM_BATCHES_PER_FILE));
     state = State.CAN_CONSUME;
   }
 
@@ -117,24 +122,33 @@ public class BridgeFileWriterSenderOperator extends BaseSender {
     ArrowRecordBatch arrowRecordBatch = FragmentWritableBatch.getArrowRecordBatch(incoming);
     // transfer buffers to this operator's allocator.
     List<ArrowBuf> buffers = arrowRecordBatch.getBuffers();
-    buffers = buffers.stream().map(
-      buf -> {
-        long writerIndex = buf.writerIndex();
-        ArrowBuf newBuf = buf.getReferenceManager().transferOwnership(buf, allocator).getTransferredBuffer();
-        newBuf.writerIndex(writerIndex);
-        buf.getReferenceManager().release();
-        return newBuf;
-      }
-    ).collect(Collectors.toList());
+    buffers =
+        buffers.stream()
+            .map(
+                buf -> {
+                  long writerIndex = buf.writerIndex();
+                  ArrowBuf newBuf =
+                      buf.getReferenceManager()
+                          .transferOwnership(buf, allocator)
+                          .getTransferredBuffer();
+                  newBuf.writerIndex(writerIndex);
+                  buf.getReferenceManager().release();
+                  return newBuf;
+                })
+            .collect(Collectors.toList());
 
-    FragmentWritableBatch batch = new FragmentWritableBatch(
-      handle.getQueryId(),
-      handle.getMajorFragmentId(),
-      handle.getMinorFragmentId(),
-      config.getReceiverMajorFragmentId(),
-      new ArrowRecordBatch(arrowRecordBatch.getLength(), arrowRecordBatch.getNodes(), buffers,
-        NoCompressionCodec.DEFAULT_BODY_COMPRESSION, false)
-    );
+    FragmentWritableBatch batch =
+        new FragmentWritableBatch(
+            handle.getQueryId(),
+            handle.getMajorFragmentId(),
+            handle.getMinorFragmentId(),
+            config.getReceiverMajorFragmentId(),
+            new ArrowRecordBatch(
+                arrowRecordBatch.getLength(),
+                arrowRecordBatch.getNodes(),
+                buffers,
+                NoCompressionCodec.DEFAULT_BODY_COMPRESSION,
+                false));
 
     // write batch to the file tunnel.
     try (AutoCloseable ac = OperatorStats.getWaitRecorder(stats)) {
@@ -155,22 +169,25 @@ public class BridgeFileWriterSenderOperator extends BaseSender {
   }
 
   private void updateStats(FragmentWritableBatch writableBatch) {
-    stats.addLongStat(BridgeFileWriterSenderOperator.Metric.BYTES_SENT, writableBatch.getByteCount());
+    stats.addLongStat(
+        BridgeFileWriterSenderOperator.Metric.BYTES_SENT, writableBatch.getByteCount());
   }
 
   @Override
   public void receivingFragmentFinished(ExecProtos.FragmentHandle handle) throws Exception {
-    throw new UnsupportedOperationException("receivingFragmentFinished() not expected in this operator");
+    throw new UnsupportedOperationException(
+        "receivingFragmentFinished() not expected in this operator");
   }
 
   @Override
   public void noMoreToConsume() throws Exception {
     // write a "StreamComplete" msg to the file tunnel.
-    final ExecRPC.FragmentStreamComplete completion = ExecRPC.FragmentStreamComplete.newBuilder()
-      .setQueryId(handle.getQueryId())
-      .setSendingMajorFragmentId(handle.getMajorFragmentId())
-      .setSendingMinorFragmentId(handle.getMinorFragmentId())
-      .build();
+    final ExecRPC.FragmentStreamComplete completion =
+        ExecRPC.FragmentStreamComplete.newBuilder()
+            .setQueryId(handle.getQueryId())
+            .setSendingMajorFragmentId(handle.getMajorFragmentId())
+            .setSendingMinorFragmentId(handle.getMinorFragmentId())
+            .build();
     tunnel.sendStreamComplete(completion);
     state = State.DONE;
     logger.debug("switching to DONE state on invocation of noMoreToConsume()");
@@ -188,8 +205,9 @@ public class BridgeFileWriterSenderOperator extends BaseSender {
 
   public static class Creator implements TerminalOperator.Creator<BridgeFileWriterSender> {
     @Override
-    public TerminalOperator create(TunnelProvider tunnelProvider, OperatorContext context, BridgeFileWriterSender operator)
-      throws ExecutionSetupException {
+    public TerminalOperator create(
+        TunnelProvider tunnelProvider, OperatorContext context, BridgeFileWriterSender operator)
+        throws ExecutionSetupException {
       return new BridgeFileWriterSenderOperator(tunnelProvider, context, operator);
     }
   }

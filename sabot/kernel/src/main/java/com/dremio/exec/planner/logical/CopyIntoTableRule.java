@@ -15,11 +15,10 @@
  */
 package com.dremio.exec.planner.logical;
 
+import com.dremio.exec.calcite.logical.CopyIntoTableCrel;
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
-
-import com.dremio.exec.calcite.logical.CopyIntoTableCrel;
 
 public class CopyIntoTableRule extends RelOptRule {
 
@@ -33,11 +32,12 @@ public class CopyIntoTableRule extends RelOptRule {
   public void onMatch(RelOptRuleCall call) {
     final CopyIntoTableCrel copyIntoTableCrel = call.rel(0);
 
-    call.transformTo(new CopyIntoTableRel(
-      copyIntoTableCrel.getCluster(),
-      copyIntoTableCrel.getTraitSet().plus(Rel.LOGICAL),
-      copyIntoTableCrel.getTable(),
-      copyIntoTableCrel.getRowType(),
-      copyIntoTableCrel.getContext()));
+    call.transformTo(
+        new CopyIntoTableRel(
+            copyIntoTableCrel.getCluster(),
+            copyIntoTableCrel.getTraitSet().plus(Rel.LOGICAL),
+            copyIntoTableCrel.getTable(),
+            copyIntoTableCrel.getRowType(),
+            copyIntoTableCrel.getContext()));
   }
 }

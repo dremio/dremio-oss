@@ -28,9 +28,7 @@ import java.util.List;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-
 import javax.management.ObjectName;
-
 import org.junit.Test;
 
 public class TestSpillingOperatorHeapController {
@@ -68,8 +66,11 @@ public class TestSpillingOperatorHeapController {
     try (SpillingOperatorHeapController sut = new SpillingOperatorHeapController()) {
       List<CompletableFuture<Void>> allFutures = new ArrayList<>();
       for (int i = 0; i < 32; i++) {
-        allFutures.add(CompletableFuture.supplyAsync(() ->
-          generateAndRemove(100 + rand.nextInt(100), 1000 + rand.nextInt(1000), sut, false)));
+        allFutures.add(
+            CompletableFuture.supplyAsync(
+                () ->
+                    generateAndRemove(
+                        100 + rand.nextInt(100), 1000 + rand.nextInt(1000), sut, false)));
       }
       allFutures.forEach(CompletableFuture::join);
       assertEquals(0, sut.maxParticipantsPerSlot());
@@ -129,7 +130,8 @@ public class TestSpillingOperatorHeapController {
       sut.getLowMemListener().handleMemNotification(false, myPool);
       sut.getLowMemListener().changeLowMemOptions(50, 256);
       List<GeneratedParticipant> participants = generateParticipants(100, sut, 250);
-      participants.forEach((x) -> x.lowMemParticipant.addBatches(MemoryState.BORDER.getIndividualOverhead() + 10));
+      participants.forEach(
+          (x) -> x.lowMemParticipant.addBatches(MemoryState.BORDER.getIndividualOverhead() + 10));
       myPool.setUsage(new MemoryUsage(MB, 4 * GB + 2 * MB, 8 * GB, 8 * GB));
       sut.getLowMemListener().handleUsageCrossedNotification();
       for (GeneratedParticipant p : participants) {
@@ -158,13 +160,18 @@ public class TestSpillingOperatorHeapController {
       int maxVictims = MemoryState.BORDER.getMaxVictims(500);
       List<GeneratedParticipant> participants = generateParticipants(maxVictims, sut, 450);
       List<GeneratedParticipant> participants2 = generateParticipants(10, sut, 220);
-      List<GeneratedParticipant> participants3 = generateParticipants(500 - (maxVictims + 10), sut, 901);
-      participants.stream().filter((g) -> !g.participantId.contains("p:99:")).
-        forEach((x) -> x.lowMemParticipant.addBatches(MemoryState.BORDER.getIndividualOverhead() / 450));
+      List<GeneratedParticipant> participants3 =
+          generateParticipants(500 - (maxVictims + 10), sut, 901);
+      participants.stream()
+          .filter((g) -> !g.participantId.contains("p:99:"))
+          .forEach(
+              (x) ->
+                  x.lowMemParticipant.addBatches(MemoryState.BORDER.getIndividualOverhead() / 450));
       participants.forEach((x) -> x.lowMemParticipant.addBatches(2));
       participants.forEach((x) -> x.lowMemParticipant.addBatches(1));
-      participants.stream().filter((g) -> !g.participantId.contains("p:99:")).
-        forEach((x) -> x.lowMemParticipant.addBatches(100));
+      participants.stream()
+          .filter((g) -> !g.participantId.contains("p:99:"))
+          .forEach((x) -> x.lowMemParticipant.addBatches(100));
       participants2.forEach((x) -> x.lowMemParticipant.addBatches(2));
       participants3.forEach((x) -> x.lowMemParticipant.addBatches(2));
       myPool.setUsage(new MemoryUsage(MB, 4 * GB + 2 * MB, 8 * GB, 8 * GB));
@@ -177,7 +184,9 @@ public class TestSpillingOperatorHeapController {
           numVictims++;
         }
       }
-      assertTrue("Num victims expected to be less than 100 but was " + numVictims, numVictims < maxVictims);
+      assertTrue(
+          "Num victims expected to be less than 100 but was " + numVictims,
+          numVictims < maxVictims);
       List<GeneratedParticipant> allParticipants = new ArrayList<>(participants2);
       allParticipants.addAll(participants3);
       numVictims = 0;
@@ -208,10 +217,18 @@ public class TestSpillingOperatorHeapController {
       List<GeneratedParticipant> participants2 = generateParticipants(10, sut, 256);
       List<GeneratedParticipant> participants3 = generateParticipants(maxVictims + 10, sut, 220);
       List<GeneratedParticipant> participants4 = generateParticipants(100, sut, 901);
-      participants.stream().filter((g) -> !g.participantId.contains("p:99:")).
-        forEach((x) -> x.lowMemParticipant.addBatches((MemoryState.BORDER.getIndividualOverhead() / 450) + 100));
-      participants4.stream().filter((g) -> g.participantId.contains("p:99:")).
-        forEach((x) -> x.lowMemParticipant.addBatches((MemoryState.BORDER.getIndividualOverhead() / 901) + 100));
+      participants.stream()
+          .filter((g) -> !g.participantId.contains("p:99:"))
+          .forEach(
+              (x) ->
+                  x.lowMemParticipant.addBatches(
+                      (MemoryState.BORDER.getIndividualOverhead() / 450) + 100));
+      participants4.stream()
+          .filter((g) -> g.participantId.contains("p:99:"))
+          .forEach(
+              (x) ->
+                  x.lowMemParticipant.addBatches(
+                      (MemoryState.BORDER.getIndividualOverhead() / 901) + 100));
       participants2.forEach((x) -> x.lowMemParticipant.addBatches(2));
       participants3.forEach((x) -> x.lowMemParticipant.addBatches(200));
       myPool.setUsage(new MemoryUsage(MB, 4 * GB + 2 * MB, 8 * GB, 8 * GB));
@@ -224,8 +241,9 @@ public class TestSpillingOperatorHeapController {
           numVictims++;
         }
       }
-      assertTrue("Num victims expected to be less than " + maxVictims + " but was " + numVictims,
-        numVictims < maxVictims);
+      assertTrue(
+          "Num victims expected to be less than " + maxVictims + " but was " + numVictims,
+          numVictims < maxVictims);
       numVictims = 0;
       for (GeneratedParticipant p : participants4) {
         if (p.lowMemParticipant.isVictim()) {
@@ -288,17 +306,16 @@ public class TestSpillingOperatorHeapController {
     }
   }
 
-  private Void generateAndRemove(int participantCount, int loopCount, SpillingOperatorHeapController sut,
-                                 boolean single) {
-    final List<GeneratedParticipant> participants = generateAndAddBatches(participantCount, loopCount, sut, single);
+  private Void generateAndRemove(
+      int participantCount, int loopCount, SpillingOperatorHeapController sut, boolean single) {
+    final List<GeneratedParticipant> participants =
+        generateAndAddBatches(participantCount, loopCount, sut, single);
     participants.forEach(GeneratedParticipant::remove);
     return null;
   }
 
-  private List<GeneratedParticipant> generateAndAddBatches(int participantCount,
-                                                           int loopCount,
-                                                           SpillingOperatorHeapController sut,
-                                                           boolean single) {
+  private List<GeneratedParticipant> generateAndAddBatches(
+      int participantCount, int loopCount, SpillingOperatorHeapController sut, boolean single) {
     List<GeneratedParticipant> generatedParticipants = generateParticipants(participantCount, sut);
     if (single) {
       // if single threaded, check if participant count is spread
@@ -313,7 +330,8 @@ public class TestSpillingOperatorHeapController {
     return generatedParticipants;
   }
 
-  private List<GeneratedParticipant> generateParticipants(int participantCount, SpillingOperatorHeapController sut) {
+  private List<GeneratedParticipant> generateParticipants(
+      int participantCount, SpillingOperatorHeapController sut) {
     List<GeneratedParticipant> participants = new ArrayList<>();
     for (int i = 0; i < participantCount; i++) {
       participants.add(new GeneratedParticipant(i + 1, rand, sut));
@@ -321,8 +339,8 @@ public class TestSpillingOperatorHeapController {
     return participants;
   }
 
-  private List<GeneratedParticipant> generateParticipants(int participantCount, SpillingOperatorHeapController sut,
-                                                          int fieldOverhead) {
+  private List<GeneratedParticipant> generateParticipants(
+      int participantCount, SpillingOperatorHeapController sut, int fieldOverhead) {
     List<GeneratedParticipant> participants = new ArrayList<>();
     for (int i = 0; i < participantCount; i++) {
       participants.add(new GeneratedParticipant(i + 1, fieldOverhead, sut));
@@ -331,8 +349,8 @@ public class TestSpillingOperatorHeapController {
   }
 
   /**
-   * Mocking MemoryPool causes random issues in multi-threaded environment.
-   * Implement a Test memory pool to avoid this
+   * Mocking MemoryPool causes random issues in multi-threaded environment. Implement a Test memory
+   * pool to avoid this
    */
   private static final class TestMemoryPool implements MemoryPoolMXBean {
     private final String name;
@@ -367,9 +385,7 @@ public class TestSpillingOperatorHeapController {
     }
 
     @Override
-    public void resetPeakUsage() {
-
-    }
+    public void resetPeakUsage() {}
 
     @Override
     public boolean isValid() {
@@ -387,8 +403,7 @@ public class TestSpillingOperatorHeapController {
     }
 
     @Override
-    public void setUsageThreshold(long threshold) {
-    }
+    public void setUsageThreshold(long threshold) {}
 
     @Override
     public boolean isUsageThresholdExceeded() {
@@ -411,9 +426,7 @@ public class TestSpillingOperatorHeapController {
     }
 
     @Override
-    public void setCollectionUsageThreshold(long threshold) {
-
-    }
+    public void setCollectionUsageThreshold(long threshold) {}
 
     @Override
     public boolean isCollectionUsageThresholdExceeded() {

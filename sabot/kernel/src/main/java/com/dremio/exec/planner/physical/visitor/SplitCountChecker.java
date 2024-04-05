@@ -20,9 +20,7 @@ import com.dremio.exec.planner.physical.LeafPrel;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.ScanPrelBase;
 
-/**
- * Check the number of splits used by the scans in the query
- */
+/** Check the number of splits used by the scans in the query */
 public class SplitCountChecker extends BasePrelVisitor<Prel, Void, UserException> {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SplitCountChecker.class);
 
@@ -36,11 +34,12 @@ public class SplitCountChecker extends BasePrelVisitor<Prel, Void, UserException
   }
 
   /**
-   * Check the number of splits at both the query and dataset level
-   * If the number of splits is exceeded, throws a {@link UserException#unsupportedError()}
-   * @param root                   root of the query
-   * @param queryMaxSplitLimit     per-query split count limit
-   * @param datasetMaxSplitLimit   per-dataset split count limit
+   * Check the number of splits at both the query and dataset level If the number of splits is
+   * exceeded, throws a {@link UserException#unsupportedError()}
+   *
+   * @param root root of the query
+   * @param queryMaxSplitLimit per-query split count limit
+   * @param datasetMaxSplitLimit per-dataset split count limit
    * @return the transformed Prel node, always equal to 'root'
    */
   public static Prel checkNumSplits(Prel root, int queryMaxSplitLimit, int datasetMaxSplitLimit) {
@@ -48,9 +47,10 @@ public class SplitCountChecker extends BasePrelVisitor<Prel, Void, UserException
     Prel result = root.accept(splitCountChecker, null);
     if (splitCountChecker.querySplitCount > queryMaxSplitLimit) {
       throw UserException.unsupportedError()
-        .message("Number of splits in the query (%d) exceeds the query split limit of %d",
-          splitCountChecker.querySplitCount, queryMaxSplitLimit)
-        .build(logger);
+          .message(
+              "Number of splits in the query (%d) exceeds the query split limit of %d",
+              splitCountChecker.querySplitCount, queryMaxSplitLimit)
+          .build(logger);
     }
     return result;
   }
@@ -65,8 +65,11 @@ public class SplitCountChecker extends BasePrelVisitor<Prel, Void, UserException
     final int scanSplitCount = scan.getTableMetadata().getSplitCount();
     if (scanSplitCount > datasetMaxSplitLimit) {
       throw UserException.unsupportedError()
-          .message("Number of splits (%d) in dataset %s exceeds dataset split limit of %d",
-              scanSplitCount, String.join(".", scan.getTable().getQualifiedName()), datasetMaxSplitLimit)
+          .message(
+              "Number of splits (%d) in dataset %s exceeds dataset split limit of %d",
+              scanSplitCount,
+              String.join(".", scan.getTable().getQualifiedName()),
+              datasetMaxSplitLimit)
           .build(logger);
     }
     querySplitCount += scanSplitCount;

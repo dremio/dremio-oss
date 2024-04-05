@@ -15,14 +15,11 @@
  */
 package com.dremio.sabot.exec.cursors;
 
+import com.google.common.base.Preconditions;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.google.common.base.Preconditions;
-
-/**
- * Impl of FileCursorManager : uses a hash-map key-ed by the uniqueId.
- */
+/** Impl of FileCursorManager : uses a hash-map key-ed by the uniqueId. */
 public class FileCursorManagerFactoryImpl implements FileCursorManagerFactory {
   private final Map<String, FileCursorManager> map = new HashMap<>();
   private boolean allRegistrationsDone;

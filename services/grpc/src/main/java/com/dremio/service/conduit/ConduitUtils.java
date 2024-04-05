@@ -16,13 +16,10 @@
 
 package com.dremio.service.conduit;
 
-/**
- * Utilities related to Conduit.
- */
+/** Utilities related to Conduit. */
 public final class ConduitUtils {
 
   public static final String CONDUIT_SSL_PREFIX = "services.conduit.ssl.";
 
-  private ConduitUtils() {
-  }
+  private ConduitUtils() {}
 }

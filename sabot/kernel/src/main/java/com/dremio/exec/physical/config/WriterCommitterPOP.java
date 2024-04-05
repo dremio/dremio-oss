@@ -16,9 +16,6 @@
 
 package com.dremio.exec.physical.config;
 
-import java.util.Iterator;
-import java.util.Optional;
-
 import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.AbstractSingle;
@@ -40,6 +37,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterators;
+import java.util.Iterator;
+import java.util.Optional;
 
 @JsonTypeName("writer-committer")
 public class WriterCommitterPOP extends AbstractSingle {
@@ -70,8 +69,7 @@ public class WriterCommitterPOP extends AbstractSingle {
       @JsonProperty("isReadSignatureEnabled") boolean isReadSignatureEnabled,
       @JsonProperty("sourceTablePluginId") StoragePluginId sourceTablePluginId,
       @JsonProperty("tableFormatOptions") TableFormatWriterOptions tableFormatOptions,
-      @JacksonInject StoragePluginResolver storagePluginResolver
-  ) {
+      @JacksonInject StoragePluginResolver storagePluginResolver) {
     super(props, child);
     this.tempLocation = tempLocation;
     this.finalLocation = finalLocation;
@@ -83,7 +81,8 @@ public class WriterCommitterPOP extends AbstractSingle {
     this.readSignatureEnabled = isReadSignatureEnabled;
     this.sourceTablePluginId = sourceTablePluginId;
     this.tableFormatOptions = tableFormatOptions;
-    this.sourceTablePlugin = sourceTablePluginId != null ? storagePluginResolver.getSource(sourceTablePluginId) : null;
+    this.sourceTablePlugin =
+        sourceTablePluginId != null ? storagePluginResolver.getSource(sourceTablePluginId) : null;
   }
 
   public WriterCommitterPOP(
@@ -99,8 +98,7 @@ public class WriterCommitterPOP extends AbstractSingle {
       boolean isPartialRefresh,
       boolean isReadSignatureEnabled,
       TableFormatWriterOptions tableFormatOptions,
-      StoragePluginId sourceTablePluginId
-  ) {
+      StoragePluginId sourceTablePluginId) {
     super(props, child);
     this.tempLocation = tempLocation;
     this.finalLocation = finalLocation;
@@ -116,14 +114,27 @@ public class WriterCommitterPOP extends AbstractSingle {
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value) throws E {
-      return physicalVisitor.visitWriterCommiter(this, value);
+  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value)
+      throws E {
+    return physicalVisitor.visitWriterCommiter(this, value);
   }
 
   @Override
   protected PhysicalOperator getNewWithChild(PhysicalOperator child) {
-    return new WriterCommitterPOP(props, tempLocation, finalLocation, icebergTableProps, datasetPath, datasetConfig,
-        child, plugin, sourceTablePlugin, partialRefresh, readSignatureEnabled, tableFormatOptions, sourceTablePluginId);
+    return new WriterCommitterPOP(
+        props,
+        tempLocation,
+        finalLocation,
+        icebergTableProps,
+        datasetPath,
+        datasetConfig,
+        child,
+        plugin,
+        sourceTablePlugin,
+        partialRefresh,
+        readSignatureEnabled,
+        tableFormatOptions,
+        sourceTablePluginId);
   }
 
   public String getTempLocation() {
@@ -158,7 +169,7 @@ public class WriterCommitterPOP extends AbstractSingle {
 
   @Override
   public Iterator<PhysicalOperator> iterator() {
-      return Iterators.singletonIterator(child);
+    return Iterators.singletonIterator(child);
   }
 
   @Override

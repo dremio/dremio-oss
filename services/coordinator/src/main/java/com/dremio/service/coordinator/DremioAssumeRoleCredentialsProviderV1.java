@@ -15,31 +15,28 @@
  */
 package com.dremio.service.coordinator;
 
-import java.util.HashMap;
-import java.util.Map;
-
-import javax.inject.Provider;
-
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.AWSSessionCredentials;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.utils.AssumeRoleCredentialsProvider;
-
+import java.util.HashMap;
+import java.util.Map;
+import javax.inject.Provider;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 
-/**
- * Gives an aws sdk v1 compatible version.
- */
-public class DremioAssumeRoleCredentialsProviderV1 implements AWSCredentialsProvider,AutoCloseable {
+/** Gives an aws sdk v1 compatible version. */
+public class DremioAssumeRoleCredentialsProviderV1
+    implements AWSCredentialsProvider, AutoCloseable {
   public static final String ACCESS_KEY = "fs.s3a.access.key";
   public static final String SECRET_KEY = "fs.s3a.secret.key";
   public static final String SESSION_TOKEN = "session.token";
 
   private static Provider<AssumeRoleCredentialsProvider> credentialsProvider;
 
-  public static void setAssumeRoleProvider(Provider<AssumeRoleCredentialsProvider> credentialsProvider) {
+  public static void setAssumeRoleProvider(
+      Provider<AssumeRoleCredentialsProvider> credentialsProvider) {
     DremioAssumeRoleCredentialsProviderV1.credentialsProvider = credentialsProvider;
   }
 
@@ -63,7 +60,7 @@ public class DremioAssumeRoleCredentialsProviderV1 implements AWSCredentialsProv
       @Override
       public String getSessionToken() {
         if (awsCredentials instanceof AwsSessionCredentials) {
-          return ((AwsSessionCredentials)awsCredentials).sessionToken();
+          return ((AwsSessionCredentials) awsCredentials).sessionToken();
         }
         return "";
       }
@@ -86,6 +83,5 @@ public class DremioAssumeRoleCredentialsProviderV1 implements AWSCredentialsProv
   }
 
   @Override
-  public void refresh() {
-  }
+  public void refresh() {}
 }

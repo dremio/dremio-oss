@@ -15,28 +15,20 @@
  */
 package com.dremio.service.coordinator;
 
-/**
- * To listen on the events in TaskLeadershipService
- * and react to it
- * E.g. in SchedulerService
- */
+/** To listen on the events in TaskLeadershipService and react to it E.g. in SchedulerService */
 public interface TaskLeaderChangeListener {
 
-  /**
-   * In SchedulerService it would mean to start scheduling
-   */
+  /** In SchedulerService it would mean to start scheduling */
   void onLeadershipGained();
 
   /**
-   * in SchedulerService it would mean to stop scheduling
-   * and if task is running cancel this task
+   * in SchedulerService it would mean to stop scheduling and if task is running cancel this task
    */
   void onLeadershipLost();
 
   /**
-   * in SchedulerService it would mean to let current task to complete
-   * and then allow relinquishing to proceed
-   * This is blocking call
+   * in SchedulerService it would mean to let current task to complete and then allow relinquishing
+   * to proceed This is blocking call
    */
   void onLeadershipRelinquished();
 }

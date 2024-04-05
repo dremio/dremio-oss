@@ -15,6 +15,10 @@
  */
 package com.dremio.jdbc.impl;
 
+import com.dremio.common.types.TypeProtos.MajorType;
+import com.dremio.exec.vector.accessor.InvalidAccessException;
+import com.dremio.exec.vector.accessor.SqlAccessor;
+import com.dremio.jdbc.SQLConversionOverflowException;
 import java.io.InputStream;
 import java.io.Reader;
 import java.math.BigDecimal;
@@ -24,19 +28,14 @@ import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.Calendar;
 
-import com.dremio.common.types.TypeProtos.MajorType;
-import com.dremio.exec.vector.accessor.InvalidAccessException;
-import com.dremio.exec.vector.accessor.SqlAccessor;
-import com.dremio.jdbc.SQLConversionOverflowException;
-
 /**
- * SQL accessor implementing data type conversion for JDBC
- * {@link ResultSet}.get<i>Type</i>(<i>&lt;column ID></i>) column accessor methods.
+ * SQL accessor implementing data type conversion for JDBC {@link
+ * ResultSet}.get<i>Type</i>(<i>&lt;column ID></i>) column accessor methods.
  */
 class TypeConvertingSqlAccessor implements SqlAccessor {
   private final SqlAccessor innerAccessor;
 
-  public TypeConvertingSqlAccessor( SqlAccessor innerAccessor ) {
+  public TypeConvertingSqlAccessor(SqlAccessor innerAccessor) {
     this.innerAccessor = innerAccessor;
   }
 
@@ -51,8 +50,8 @@ class TypeConvertingSqlAccessor implements SqlAccessor {
   }
 
   @Override
-  public boolean isNull( int rowOffset ) {
-    return innerAccessor.isNull( rowOffset );
+  public boolean isNull(int rowOffset) {
+    return innerAccessor.isNull(rowOffset);
   }
 
   //////////////////////////////////////////////////////////////////////
@@ -202,27 +201,22 @@ class TypeConvertingSqlAccessor implements SqlAccessor {
   // - getSQLXML:
   //   - SQLXML SQLXML
 
-
   /**
-   * Creates SQLConversionOverflowException using given parameters to form
-   * exception message text.
+   * Creates SQLConversionOverflowException using given parameters to form exception message text.
    *
-   * @param  methodLabel  label for (string to use to identify) method that
-   *                      couldn't convert source value to target type
-   *                      (e.g., "getInt(...)")
-   * @param  valueTypeLabel  label for type of source value that couldn't be
-   *                         converted (e.g., "Java long / SQL BIGINT")
-   * @param  value  representation of source value that couldn't be converted;
-   *                object whose toString() shows (part of) value; not null
+   * @param methodLabel label for (string to use to identify) method that couldn't convert source
+   *     value to target type (e.g., "getInt(...)")
+   * @param valueTypeLabel label for type of source value that couldn't be converted (e.g., "Java
+   *     long / SQL BIGINT")
+   * @param value representation of source value that couldn't be converted; object whose toString()
+   *     shows (part of) value; not null
    * @return the created exception
    */
   private static SQLConversionOverflowException newOverflowException(
-      String methodLabel, String valueTypeLabel, Object value ) {
+      String methodLabel, String valueTypeLabel, Object value) {
     return new SQLConversionOverflowException(
-        methodLabel + " can't return " + valueTypeLabel + " value " + value
-        + " (too large) ");
+        methodLabel + " can't return " + valueTypeLabel + " value " + value + " (too large) ");
   }
-
 
   //////////////////////////////////////////////////////////////////////
   // Column accessor (getXxx(...)) methods, in same order as in JDBC 4.2 spec.
@@ -238,15 +232,15 @@ class TypeConvertingSqlAccessor implements SqlAccessor {
   //   - ROWID;
 
   /**
-   * Returns byte-sized integer value or throws SQLConversionOverflowException
-   * if given value doesn't fit in byte.
+   * Returns byte-sized integer value or throws SQLConversionOverflowException if given value
+   * doesn't fit in byte.
    */
-  private static byte getByteValueOrThrow( long value, String typeLabel )
+  private static byte getByteValueOrThrow(long value, String typeLabel)
       throws SQLConversionOverflowException {
-    if ( Byte.MIN_VALUE <= value && value <= Byte.MAX_VALUE ) {
+    if (Byte.MIN_VALUE <= value && value <= Byte.MAX_VALUE) {
       return (byte) value;
     } else {
-      throw newOverflowException( "getByte(...)", typeLabel, value );
+      throw newOverflowException("getByte(...)", typeLabel, value);
     }
   }
 
@@ -254,59 +248,59 @@ class TypeConvertingSqlAccessor implements SqlAccessor {
    * Returns byte-sized integer version of floating-point value or throws
    * SQLConversionOverflowException if given value doesn't fit in byte.
    */
-  private static byte getByteValueOrThrow( double value, String typeLabel )
+  private static byte getByteValueOrThrow(double value, String typeLabel)
       throws SQLConversionOverflowException {
-    if ( Byte.MIN_VALUE <= value && value <= Byte.MAX_VALUE ) {
+    if (Byte.MIN_VALUE <= value && value <= Byte.MAX_VALUE) {
       return (byte) value;
     } else {
-      throw newOverflowException( "getByte(...)", typeLabel, value );
+      throw newOverflowException("getByte(...)", typeLabel, value);
     }
   }
 
   /**
    * {@inheritDoc}
-   * <p>
-   *   This implementation implements type conversions for
-   *   {@link ResultSet#getByte(String)}/{@link ResultSet#getByte(int)}.
-   * </p>
+   *
+   * <p>This implementation implements type conversions for {@link ResultSet#getByte(String)}/{@link
+   * ResultSet#getByte(int)}.
    */
   @Override
-  public byte getByte( int rowOffset ) throws InvalidAccessException {
+  public byte getByte(int rowOffset) throws InvalidAccessException {
     final byte result;
-    switch ( getType().getMinorType() ) {
-      // 1. Regular type:
+    switch (getType().getMinorType()) {
+        // 1. Regular type:
       case TINYINT:
-        result = innerAccessor.getByte( rowOffset );
+        result = innerAccessor.getByte(rowOffset);
         break;
 
-      // 2. Converted-from types:
+        // 2. Converted-from types:
       case SMALLINT:
-        result = getByteValueOrThrow( innerAccessor.getShort( rowOffset ),
-                                      "Java short / SQL SMALLINT" );
+        result =
+            getByteValueOrThrow(innerAccessor.getShort(rowOffset), "Java short / SQL SMALLINT");
         break;
       case INT:
-        result = getByteValueOrThrow( innerAccessor.getInt( rowOffset ),
-                                      "Java int / SQL INTEGER" );
+        result = getByteValueOrThrow(innerAccessor.getInt(rowOffset), "Java int / SQL INTEGER");
         break;
       case BIGINT:
-        result = getByteValueOrThrow( innerAccessor.getLong( rowOffset ),
-                                      "Java long / SQL BIGINT" );
+        result = getByteValueOrThrow(innerAccessor.getLong(rowOffset), "Java long / SQL BIGINT");
         break;
       case FLOAT4:
-        result = getByteValueOrThrow( innerAccessor.getFloat( rowOffset ),
-                                      "Java float / SQL REAL/FLOAT" );
+        result =
+            getByteValueOrThrow(innerAccessor.getFloat(rowOffset), "Java float / SQL REAL/FLOAT");
         break;
       case FLOAT8:
-        result = getByteValueOrThrow( innerAccessor.getDouble( rowOffset ),
-                                      "Java double / SQL DOUBLE PRECISION" );
+        result =
+            getByteValueOrThrow(
+                innerAccessor.getDouble(rowOffset), "Java double / SQL DOUBLE PRECISION");
         break;
       case DECIMAL:
-        result = getByteValueOrThrow( innerAccessor.getBigDecimal( rowOffset ).doubleValue(),
-          "Java decimal / SQL DECIMAL PRECISION" );
+        result =
+            getByteValueOrThrow(
+                innerAccessor.getBigDecimal(rowOffset).doubleValue(),
+                "Java decimal / SQL DECIMAL PRECISION");
         break;
-      // 3. Not-yet-converted and unconvertible types:
+        // 3. Not-yet-converted and unconvertible types:
       default:
-        result = innerAccessor.getByte( rowOffset );
+        result = innerAccessor.getByte(rowOffset);
         break;
     }
     return result;
@@ -320,60 +314,61 @@ class TypeConvertingSqlAccessor implements SqlAccessor {
   //   - BIT, BOOLEAN;
   //   - CHAR, VARCHAR, LONGVARCHAR;
 
-  private static short getShortValueOrThrow( long value, String typeLabel )
+  private static short getShortValueOrThrow(long value, String typeLabel)
       throws SQLConversionOverflowException {
-    if ( Short.MIN_VALUE <= value && value <= Short.MAX_VALUE ) {
+    if (Short.MIN_VALUE <= value && value <= Short.MAX_VALUE) {
       return (short) value;
     } else {
-      throw newOverflowException( "getShort(...)", typeLabel, value );
+      throw newOverflowException("getShort(...)", typeLabel, value);
     }
   }
 
-  private static short getShortValueOrThrow( double value, String typeLabel )
+  private static short getShortValueOrThrow(double value, String typeLabel)
       throws SQLConversionOverflowException {
-    if ( Short.MIN_VALUE <= value && value <= Short.MAX_VALUE ) {
+    if (Short.MIN_VALUE <= value && value <= Short.MAX_VALUE) {
       return (short) value;
     } else {
-      throw newOverflowException( "getShort(...)", typeLabel, value );
+      throw newOverflowException("getShort(...)", typeLabel, value);
     }
   }
 
   @Override
-  public short getShort( int rowOffset ) throws InvalidAccessException {
+  public short getShort(int rowOffset) throws InvalidAccessException {
     final short result;
-    switch ( getType().getMinorType() ) {
-      // 1. Regular type:
+    switch (getType().getMinorType()) {
+        // 1. Regular type:
       case SMALLINT:
-        result = innerAccessor.getShort( rowOffset );
+        result = innerAccessor.getShort(rowOffset);
         break;
 
-      // 2. Converted-from types:
+        // 2. Converted-from types:
       case TINYINT:
-        result = innerAccessor.getByte( rowOffset );
+        result = innerAccessor.getByte(rowOffset);
         break;
       case INT:
-        result = getShortValueOrThrow( innerAccessor.getInt( rowOffset ),
-                                       "Java int / SQL INTEGER" );
+        result = getShortValueOrThrow(innerAccessor.getInt(rowOffset), "Java int / SQL INTEGER");
         break;
       case BIGINT:
-        result = getShortValueOrThrow( innerAccessor.getLong( rowOffset ),
-                                       "Java long / SQL BIGINT" );
+        result = getShortValueOrThrow(innerAccessor.getLong(rowOffset), "Java long / SQL BIGINT");
         break;
       case FLOAT4:
-        result = getShortValueOrThrow( innerAccessor.getFloat( rowOffset ),
-                                       "Java float / SQL REAL/FLOAT" );
+        result =
+            getShortValueOrThrow(innerAccessor.getFloat(rowOffset), "Java float / SQL REAL/FLOAT");
         break;
       case FLOAT8:
-        result = getShortValueOrThrow( innerAccessor.getDouble( rowOffset ),
-                                       "Java double / SQL DOUBLE PRECISION" );
+        result =
+            getShortValueOrThrow(
+                innerAccessor.getDouble(rowOffset), "Java double / SQL DOUBLE PRECISION");
         break;
       case DECIMAL:
-        result = getShortValueOrThrow( innerAccessor.getBigDecimal( rowOffset ).doubleValue(),
-          "Java decimal / SQL DECIMAL PRECISION" );
+        result =
+            getShortValueOrThrow(
+                innerAccessor.getBigDecimal(rowOffset).doubleValue(),
+                "Java decimal / SQL DECIMAL PRECISION");
         break;
-      // 3. Not-yet-converted and unconvertible types:
+        // 3. Not-yet-converted and unconvertible types:
       default:
-        result = innerAccessor.getByte( rowOffset );
+        result = innerAccessor.getByte(rowOffset);
         break;
     }
     return result;
@@ -387,59 +382,61 @@ class TypeConvertingSqlAccessor implements SqlAccessor {
   //   - BIT, BOOLEAN;
   //   - CHAR, VARCHAR, LONGVARCHAR;
 
-  private static int getIntValueOrThrow( long value, String typeLabel )
+  private static int getIntValueOrThrow(long value, String typeLabel)
       throws SQLConversionOverflowException {
-    if ( Integer.MIN_VALUE <= value && value <= Integer.MAX_VALUE ) {
+    if (Integer.MIN_VALUE <= value && value <= Integer.MAX_VALUE) {
       return (int) value;
     } else {
-      throw newOverflowException( "getInt(...)", typeLabel, value );
+      throw newOverflowException("getInt(...)", typeLabel, value);
     }
   }
 
-  private static int getIntValueOrThrow( double value, String typeLabel )
+  private static int getIntValueOrThrow(double value, String typeLabel)
       throws SQLConversionOverflowException {
-    if ( Integer.MIN_VALUE <= value && value <= Integer.MAX_VALUE ) {
+    if (Integer.MIN_VALUE <= value && value <= Integer.MAX_VALUE) {
       return (int) value;
     } else {
-      throw newOverflowException( "getInt(...)", typeLabel, value );
+      throw newOverflowException("getInt(...)", typeLabel, value);
     }
   }
 
   @Override
-  public int getInt( int rowOffset ) throws InvalidAccessException {
+  public int getInt(int rowOffset) throws InvalidAccessException {
     final int result;
-    switch ( getType().getMinorType() ) {
-      // 1. Regular type:
+    switch (getType().getMinorType()) {
+        // 1. Regular type:
       case INT:
-        result = innerAccessor.getInt( rowOffset );
+        result = innerAccessor.getInt(rowOffset);
         break;
 
-      // 2. Converted-from types:
+        // 2. Converted-from types:
       case TINYINT:
-        result = innerAccessor.getByte( rowOffset );
+        result = innerAccessor.getByte(rowOffset);
         break;
       case SMALLINT:
-        result = innerAccessor.getShort( rowOffset );
+        result = innerAccessor.getShort(rowOffset);
         break;
       case BIGINT:
-        result = getIntValueOrThrow( innerAccessor.getLong( rowOffset ),
-                                     "Java long / SQL BIGINT" );
+        result = getIntValueOrThrow(innerAccessor.getLong(rowOffset), "Java long / SQL BIGINT");
         break;
       case FLOAT4:
-        result = getIntValueOrThrow( innerAccessor.getFloat( rowOffset ),
-                                     "Java float / SQL REAL/FLOAT" );
+        result =
+            getIntValueOrThrow(innerAccessor.getFloat(rowOffset), "Java float / SQL REAL/FLOAT");
         break;
       case FLOAT8:
-        result = getIntValueOrThrow( innerAccessor.getDouble( rowOffset ),
-                                     "Java double / SQL DOUBLE PRECISION" );
+        result =
+            getIntValueOrThrow(
+                innerAccessor.getDouble(rowOffset), "Java double / SQL DOUBLE PRECISION");
         break;
       case DECIMAL:
-        result = getIntValueOrThrow( innerAccessor.getBigDecimal( rowOffset ).doubleValue(),
-          "Java decimal / SQL DECIMAL PRECISION" );
+        result =
+            getIntValueOrThrow(
+                innerAccessor.getBigDecimal(rowOffset).doubleValue(),
+                "Java decimal / SQL DECIMAL PRECISION");
         break;
-      // 3. Not-yet-converted and unconvertible types:
+        // 3. Not-yet-converted and unconvertible types:
       default:
-        result = innerAccessor.getInt( rowOffset );
+        result = innerAccessor.getInt(rowOffset);
         break;
     }
     return result;
@@ -453,54 +450,56 @@ class TypeConvertingSqlAccessor implements SqlAccessor {
   //   - BIT, BOOLEAN;
   //   - CHAR, VARCHAR, LONGVARCHAR;
 
-  private static long getLongValueOrThrow( double value, String typeLabel )
+  private static long getLongValueOrThrow(double value, String typeLabel)
       throws SQLConversionOverflowException {
-    if ( Long.MIN_VALUE <= value && value <= Long.MAX_VALUE ) {
+    if (Long.MIN_VALUE <= value && value <= Long.MAX_VALUE) {
       return (long) value;
     } else {
-      throw newOverflowException( "getLong(...)", typeLabel, value );
+      throw newOverflowException("getLong(...)", typeLabel, value);
     }
   }
 
   @Override
-  public long getLong( int rowOffset ) throws InvalidAccessException {
+  public long getLong(int rowOffset) throws InvalidAccessException {
     final long result;
-    switch ( getType().getMinorType() ) {
-      // 1. Regular type:
+    switch (getType().getMinorType()) {
+        // 1. Regular type:
       case BIGINT:
-        result = innerAccessor.getLong( rowOffset );
+        result = innerAccessor.getLong(rowOffset);
         break;
 
-      // 2. Converted-from types:
+        // 2. Converted-from types:
       case TINYINT:
-        result = innerAccessor.getByte( rowOffset );
+        result = innerAccessor.getByte(rowOffset);
         break;
       case SMALLINT:
-        result = innerAccessor.getShort( rowOffset );
+        result = innerAccessor.getShort(rowOffset);
         break;
       case INT:
-        result = innerAccessor.getInt( rowOffset );
+        result = innerAccessor.getInt(rowOffset);
         break;
       case FLOAT4:
-        result = getLongValueOrThrow( innerAccessor.getFloat( rowOffset ),
-                                      "Java float / SQL REAL/FLOAT" );
+        result =
+            getLongValueOrThrow(innerAccessor.getFloat(rowOffset), "Java float / SQL REAL/FLOAT");
         break;
       case FLOAT8:
-        result = getLongValueOrThrow( innerAccessor.getDouble( rowOffset ),
-                                      "Java double / SQL DOUBLE PRECISION" );
+        result =
+            getLongValueOrThrow(
+                innerAccessor.getDouble(rowOffset), "Java double / SQL DOUBLE PRECISION");
         break;
       case DECIMAL:
-        result = getLongValueOrThrow( innerAccessor.getBigDecimal( rowOffset ).doubleValue(),
-          "Java decimal / SQL DECIMAL PRECISION" );
+        result =
+            getLongValueOrThrow(
+                innerAccessor.getBigDecimal(rowOffset).doubleValue(),
+                "Java decimal / SQL DECIMAL PRECISION");
         break;
-      // 3. Not-yet-converted and unconvertible types:
+        // 3. Not-yet-converted and unconvertible types:
       default:
-        result = innerAccessor.getLong( rowOffset );
+        result = innerAccessor.getLong(rowOffset);
         break;
     }
     return result;
   }
-
 
   ////////////////////////////////////////
   // - getFloat:
@@ -511,45 +510,42 @@ class TypeConvertingSqlAccessor implements SqlAccessor {
   //   - CHAR, VARCHAR, LONGVARCHAR;
 
   @Override
-  public float getFloat( int rowOffset ) throws InvalidAccessException {
+  public float getFloat(int rowOffset) throws InvalidAccessException {
     final float result;
-    switch ( getType().getMinorType() ) {
-      // 1. Regular type:
+    switch (getType().getMinorType()) {
+        // 1. Regular type:
       case FLOAT4:
-        result = innerAccessor.getFloat( rowOffset );
+        result = innerAccessor.getFloat(rowOffset);
         break;
 
-      // 2. Converted-from types:
+        // 2. Converted-from types:
       case INT:
-        result = innerAccessor.getInt( rowOffset );
+        result = innerAccessor.getInt(rowOffset);
         break;
       case BIGINT:
-        result = innerAccessor.getLong( rowOffset );
+        result = innerAccessor.getLong(rowOffset);
         break;
       case FLOAT8:
-        final double value = innerAccessor.getDouble( rowOffset );
-        if ( Float.MIN_VALUE <= value && value <= Float.MAX_VALUE ) {
+        final double value = innerAccessor.getDouble(rowOffset);
+        if (Float.MIN_VALUE <= value && value <= Float.MAX_VALUE) {
           result = (float) value;
         } else {
-          throw newOverflowException( "getFloat(...)",
-                                      "Java double / SQL DOUBLE PRECISION",
-                                      value );
+          throw newOverflowException("getFloat(...)", "Java double / SQL DOUBLE PRECISION", value);
         }
         break;
       case DECIMAL:
-        final BigDecimal decimalValue = innerAccessor.getBigDecimal( rowOffset );
+        final BigDecimal decimalValue = innerAccessor.getBigDecimal(rowOffset);
         final float tempFloat = decimalValue.floatValue();
-        if ( Float.NEGATIVE_INFINITY == tempFloat || Float.POSITIVE_INFINITY == tempFloat) {
-          throw newOverflowException( "getFloat(...)",
-            "Java decimal / SQL DECIMAL PRECISION",
-            tempFloat );
+        if (Float.NEGATIVE_INFINITY == tempFloat || Float.POSITIVE_INFINITY == tempFloat) {
+          throw newOverflowException(
+              "getFloat(...)", "Java decimal / SQL DECIMAL PRECISION", tempFloat);
         } else {
           result = tempFloat;
         }
         break;
-      // 3. Not-yet-converted and unconvertible types:
+        // 3. Not-yet-converted and unconvertible types:
       default:
-        result = innerAccessor.getInt( rowOffset );
+        result = innerAccessor.getInt(rowOffset);
         break;
     }
     return result;
@@ -564,35 +560,34 @@ class TypeConvertingSqlAccessor implements SqlAccessor {
   //   - CHAR, VARCHAR, LONGVARCHAR;
 
   @Override
-  public double getDouble( int rowOffset ) throws InvalidAccessException {
+  public double getDouble(int rowOffset) throws InvalidAccessException {
     final double result;
-    switch ( getType().getMinorType() ) {
-      // 1. Regular type:
+    switch (getType().getMinorType()) {
+        // 1. Regular type:
       case FLOAT8:
-        result = innerAccessor.getDouble( rowOffset );
+        result = innerAccessor.getDouble(rowOffset);
         break;
 
-      // 2. Converted-from types:
+        // 2. Converted-from types:
       case INT:
-        result = innerAccessor.getInt( rowOffset );
+        result = innerAccessor.getInt(rowOffset);
         break;
       case BIGINT:
-        result = innerAccessor.getLong( rowOffset );
+        result = innerAccessor.getLong(rowOffset);
         break;
       case FLOAT4:
-        result = innerAccessor.getFloat( rowOffset );
+        result = innerAccessor.getFloat(rowOffset);
         break;
       case DECIMAL:
-        result = innerAccessor.getBigDecimal( rowOffset ).doubleValue();
+        result = innerAccessor.getBigDecimal(rowOffset).doubleValue();
         break;
-      // 3. Not-yet-converted and unconvertible types:
+        // 3. Not-yet-converted and unconvertible types:
       default:
-        result = innerAccessor.getLong( rowOffset );
-        //break;
+        result = innerAccessor.getLong(rowOffset);
+        // break;
     }
     return result;
   }
-
 
   ////////////////////////////////////////
   // - getBigDecimal:
@@ -603,41 +598,41 @@ class TypeConvertingSqlAccessor implements SqlAccessor {
   //   - CHAR, VARCHAR, LONGVARCHAR;
 
   @Override
-  public BigDecimal getBigDecimal( int rowOffset ) throws InvalidAccessException {
+  public BigDecimal getBigDecimal(int rowOffset) throws InvalidAccessException {
     final BigDecimal result;
-    switch ( getType().getMinorType() ) {
-      // 1. Regular type:
+    switch (getType().getMinorType()) {
+        // 1. Regular type:
       case DECIMAL9:
       case DECIMAL18:
       case DECIMAL28SPARSE:
       case DECIMAL38SPARSE:
-        result = innerAccessor.getBigDecimal( rowOffset );
+        result = innerAccessor.getBigDecimal(rowOffset);
         break;
 
-      // 2. Converted-from types:
+        // 2. Converted-from types:
       case TINYINT:
-        result = new BigDecimal( innerAccessor.getByte( rowOffset ) );
+        result = new BigDecimal(innerAccessor.getByte(rowOffset));
         break;
       case SMALLINT:
-        result = new BigDecimal( innerAccessor.getShort( rowOffset ) );
+        result = new BigDecimal(innerAccessor.getShort(rowOffset));
         break;
       case INT:
-        result = new BigDecimal( innerAccessor.getInt( rowOffset ) );
+        result = new BigDecimal(innerAccessor.getInt(rowOffset));
         break;
       case BIGINT:
-        result = BigDecimal.valueOf( innerAccessor.getLong( rowOffset ) );
+        result = BigDecimal.valueOf(innerAccessor.getLong(rowOffset));
         break;
       case FLOAT4:
-        result = BigDecimal.valueOf( innerAccessor.getFloat( rowOffset ) );
+        result = BigDecimal.valueOf(innerAccessor.getFloat(rowOffset));
         break;
       case FLOAT8:
-        result = BigDecimal.valueOf( innerAccessor.getDouble( rowOffset ) );
+        result = BigDecimal.valueOf(innerAccessor.getDouble(rowOffset));
         break;
 
-      // 3. Not-yet-converted and unconvertible types:
+        // 3. Not-yet-converted and unconvertible types:
       default:
-        result = innerAccessor.getBigDecimal( rowOffset );
-        //break;
+        result = innerAccessor.getBigDecimal(rowOffset);
+        // break;
     }
     return result;
   }
@@ -651,8 +646,8 @@ class TypeConvertingSqlAccessor implements SqlAccessor {
   //   - CHAR, VARCHAR, LONGVARCHAR;
 
   @Override
-  public boolean getBoolean( int rowOffset ) throws InvalidAccessException {
-    return innerAccessor.getBoolean( rowOffset );
+  public boolean getBoolean(int rowOffset) throws InvalidAccessException {
+    return innerAccessor.getBoolean(rowOffset);
   }
 
   ////////////////////////////////////////
@@ -668,8 +663,8 @@ class TypeConvertingSqlAccessor implements SqlAccessor {
   //   - DATALINK;
 
   @Override
-  public String getString( int rowOffset ) throws InvalidAccessException {
-    return innerAccessor.getString( rowOffset );
+  public String getString(int rowOffset) throws InvalidAccessException {
+    return innerAccessor.getString(rowOffset);
   }
 
   ////////////////////////////////////////
@@ -689,8 +684,8 @@ class TypeConvertingSqlAccessor implements SqlAccessor {
   //   - BINARY, VARBINARY, LONGVARBINARY;
 
   @Override
-  public byte[] getBytes( int rowOffset ) throws InvalidAccessException {
-    return innerAccessor.getBytes( rowOffset );
+  public byte[] getBytes(int rowOffset) throws InvalidAccessException {
+    return innerAccessor.getBytes(rowOffset);
   }
 
   ////////////////////////////////////////
@@ -699,8 +694,8 @@ class TypeConvertingSqlAccessor implements SqlAccessor {
   //   - DATE, TIMESTAMP;
 
   @Override
-  public Date getDate( int rowOffset, Calendar calendar ) throws InvalidAccessException {
-    return innerAccessor.getDate( rowOffset, calendar );
+  public Date getDate(int rowOffset, Calendar calendar) throws InvalidAccessException {
+    return innerAccessor.getDate(rowOffset, calendar);
   }
 
   ////////////////////////////////////////
@@ -709,8 +704,8 @@ class TypeConvertingSqlAccessor implements SqlAccessor {
   //   - TIME, TIMESTAMP;
 
   @Override
-  public Time getTime( int rowOffset, Calendar calendar ) throws InvalidAccessException {
-    return innerAccessor.getTime( rowOffset, calendar );
+  public Time getTime(int rowOffset, Calendar calendar) throws InvalidAccessException {
+    return innerAccessor.getTime(rowOffset, calendar);
   }
 
   ////////////////////////////////////////
@@ -719,8 +714,8 @@ class TypeConvertingSqlAccessor implements SqlAccessor {
   //   - DATE, TIME, TIMESTAMP;
 
   @Override
-  public Timestamp getTimestamp( int rowOffset, Calendar calendar ) throws InvalidAccessException {
-    return innerAccessor.getTimestamp( rowOffset, calendar );
+  public Timestamp getTimestamp(int rowOffset, Calendar calendar) throws InvalidAccessException {
+    return innerAccessor.getTimestamp(rowOffset, calendar);
   }
 
   ////////////////////////////////////////
@@ -814,10 +809,9 @@ class TypeConvertingSqlAccessor implements SqlAccessor {
   //   - JAVA_OBJECT;
 
   @Override
-  public Object getObject( int rowOffset ) throws InvalidAccessException {
-    return innerAccessor.getObject( rowOffset );
+  public Object getObject(int rowOffset) throws InvalidAccessException {
+    return innerAccessor.getObject(rowOffset);
   }
-
 
   ////////////////////////////////////////
   // - getRowId:
@@ -831,22 +825,20 @@ class TypeConvertingSqlAccessor implements SqlAccessor {
 
   // Not supported or not supported via SqlAccessor(?).
 
-
   // SqlAccessor getXxx(...) methods not corresponding by name with ResultSet methods:
 
   @Override
-  public char getChar( int rowOffset ) throws InvalidAccessException {
-    return innerAccessor.getChar( rowOffset );
+  public char getChar(int rowOffset) throws InvalidAccessException {
+    return innerAccessor.getChar(rowOffset);
   }
 
   @Override
-  public InputStream getStream( int rowOffset ) throws InvalidAccessException {
-    return innerAccessor.getStream( rowOffset );
+  public InputStream getStream(int rowOffset) throws InvalidAccessException {
+    return innerAccessor.getStream(rowOffset);
   }
 
   @Override
-  public Reader getReader( int rowOffset ) throws InvalidAccessException {
-    return innerAccessor.getReader( rowOffset );
+  public Reader getReader(int rowOffset) throws InvalidAccessException {
+    return innerAccessor.getReader(rowOffset);
   }
-
 }

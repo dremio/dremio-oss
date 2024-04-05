@@ -27,26 +27,27 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
-import org.junit.Before;
-import org.junit.Test;
-import org.mockito.ArgumentCaptor;
-
 import com.dremio.exec.proto.GeneralRPCProtos;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.service.flight.DremioFlightServiceOptions;
 import com.dremio.service.flight.impl.RunQueryResponseHandler.BackpressureHandlingResponseHandler;
+import org.junit.Before;
+import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 
-/**
- * Unit test class for BackpressureHandlingResponseHandler.
- */
+/** Unit test class for BackpressureHandlingResponseHandler. */
 public class TestBackpressureHandlingResponseHandler extends BaseTestRunQueryResponseHandler {
 
   @Override
   protected BackpressureHandlingResponseHandler createHandler() {
     return new BackpressureHandlingResponseHandler(
-      getExternalId(), getUserSession(), getWorkerProvider(),
-      getListener(), getAllocator(), () -> {});
+        getExternalId(),
+        getUserSession(),
+        getWorkerProvider(),
+        getListener(),
+        getAllocator(),
+        () -> {});
   }
 
   @Override
@@ -98,20 +99,24 @@ public class TestBackpressureHandlingResponseHandler extends BaseTestRunQueryRes
     // Assert
     ArgumentCaptor<RpcException> argument = ArgumentCaptor.forClass(RpcException.class);
     verify(outcomeListener, times(1)).failed(argument.capture());
-    assertEquals("Timeout while waiting for client to be in ready state.", argument.getValue().getMessage());
+    assertEquals(
+        "Timeout while waiting for client to be in ready state.", argument.getValue().getMessage());
     verifyNoMoreInteractions(outcomeListener);
   }
 
   @Test
   public void testOverridingClientReadinessTimeout() throws Exception {
     // Arrange
-    when(getOptionManager().getOption(DremioFlightServiceOptions.CLIENT_READINESS_TIMEOUT_MILLIS)).thenReturn(100L);
+    when(getOptionManager().getOption(DremioFlightServiceOptions.CLIENT_READINESS_TIMEOUT_MILLIS))
+        .thenReturn(100L);
     when(getListener().isCancelled()).thenReturn(false);
     when(getListener().isReady()).thenReturn(false);
     final long startTime = System.currentTimeMillis();
 
     // Act
     assertEquals(TIMEOUT, createHandler().clientIsReadyForData());
-    assertTrue(System.currentTimeMillis() < startTime + CLIENT_READINESS_TIMEOUT_MILLIS.getDefault().getNumVal());
+    assertTrue(
+        System.currentTimeMillis()
+            < startTime + CLIENT_READINESS_TIMEOUT_MILLIS.getDefault().getNumVal());
   }
 }

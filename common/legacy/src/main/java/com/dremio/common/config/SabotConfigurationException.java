@@ -20,8 +20,8 @@ public class SabotConfigurationException extends RuntimeException {
     super();
   }
 
-  public SabotConfigurationException(String message, Throwable cause, boolean enableSuppression,
-      boolean writableStackTrace) {
+  public SabotConfigurationException(
+      String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
     super(message, cause, enableSuppression, writableStackTrace);
   }
 
@@ -37,5 +37,6 @@ public class SabotConfigurationException extends RuntimeException {
     super(cause);
   }
 
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SabotConfigurationException.class);
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(SabotConfigurationException.class);
 }

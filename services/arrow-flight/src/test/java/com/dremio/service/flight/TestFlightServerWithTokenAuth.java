@@ -18,10 +18,12 @@ package com.dremio.service.flight;
 
 import static org.junit.Assert.assertEquals;
 
+import com.dremio.common.util.TestTools;
+import com.dremio.service.flight.FlightClientUtils.FlightClientWrapper;
+import com.dremio.service.flight.impl.FlightWorkManager;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.arrow.flight.CallOption;
 import org.apache.arrow.flight.FlightCallHeaders;
 import org.apache.arrow.flight.HeaderCallOption;
@@ -30,25 +32,18 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestRule;
 
-import com.dremio.common.util.TestTools;
-import com.dremio.service.flight.FlightClientUtils.FlightClientWrapper;
-import com.dremio.service.flight.impl.FlightWorkManager;
-
-/**
- * Test FlightServer with bearer token authentication.
- */
+/** Test FlightServer with bearer token authentication. */
 public class TestFlightServerWithTokenAuth extends AbstractTestFlightServer {
 
-  @Rule
-  public final TestRule timeoutRule = TestTools.getTimeoutRule(180, TimeUnit.SECONDS);
+  @Rule public final TestRule timeoutRule = TestTools.getTimeoutRule(180, TimeUnit.SECONDS);
 
   @BeforeClass
   public static void setup() throws Exception {
     setupBaseFlightQueryTest(
-      false,
-      true,
-      "flight.endpoint.port",
-      FlightWorkManager.RunQueryResponseHandlerFactory.DEFAULT);
+        false,
+        true,
+        "flight.endpoint.port",
+        FlightWorkManager.RunQueryResponseHandlerFactory.DEFAULT);
   }
 
   @Override
@@ -59,7 +54,9 @@ public class TestFlightServerWithTokenAuth extends AbstractTestFlightServer {
   @Test
   public void testSelectAfterUse() throws Exception {
     executeQueryWithStringResults(getFlightClientWrapper(), "USE cp");
-    final List<String> results = executeQueryWithStringResults(getFlightClientWrapper(), "SELECT * FROM \"10k_rows.parquet\" LIMIT 1");
+    final List<String> results =
+        executeQueryWithStringResults(
+            getFlightClientWrapper(), "SELECT * FROM \"10k_rows.parquet\" LIMIT 1");
     assertEquals(Collections.singletonList("val"), results);
   }
 
@@ -71,20 +68,21 @@ public class TestFlightServerWithTokenAuth extends AbstractTestFlightServer {
     final CallOption headerCallOption = new HeaderCallOption(flightCallHeaders);
 
     try (final FlightClientWrapper wrapper =
-           openFlightClientWrapperWithOptions(
-             DUMMY_USER,
-             DUMMY_PASSWORD,
-             getAuthMode(),
-             Collections.singletonList(headerCallOption))) {
+        openFlightClientWrapperWithOptions(
+            DUMMY_USER,
+            DUMMY_PASSWORD,
+            getAuthMode(),
+            Collections.singletonList(headerCallOption))) {
       // Use Flight SQL client to simulate a JDBC DatabaseMetadata call before statements
       wrapper.getSqlClient().getTables(null, null, null, null, true, wrapper.getOptions());
 
       // Execute statement
-      final List<String> results = executeQueryWithStringResults(wrapper, "SELECT * FROM \"10k_rows.parquet\" LIMIT 1");
+      final List<String> results =
+          executeQueryWithStringResults(wrapper, "SELECT * FROM \"10k_rows.parquet\" LIMIT 1");
 
       // Assert
       assertEquals(Collections.singletonList("val"), results);
-      }
+    }
   }
 
   @Override

@@ -20,7 +20,7 @@ const sendAppEventUrl = `/ui/event`;
 
 export const sendAppEvent = (
   eventId: string,
-  eventMetadata?: Record<string, string>
+  eventMetadata?: Record<string, string>,
 ): void => {
   getApiContext()
     .fetch(sendAppEventUrl, {

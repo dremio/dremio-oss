@@ -15,16 +15,13 @@
  */
 package com.dremio.datastore;
 
-import java.util.List;
-
 import com.dremio.datastore.SearchTypes.SearchQuery;
 import com.dremio.datastore.api.Document;
 import com.dremio.datastore.api.FindByCondition;
 import com.dremio.datastore.api.IndexedStore;
+import java.util.List;
 
-/**
- * Noop indexed store.
- */
+/** Noop indexed store. */
 public class NoopIndexedStore<K, V> extends NoopKVStore<K, V> implements IndexedStore<K, V> {
   private final Integer version;
 

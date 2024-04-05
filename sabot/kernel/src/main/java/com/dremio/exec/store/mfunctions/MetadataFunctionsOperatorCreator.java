@@ -24,13 +24,15 @@ import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.sabot.op.spi.ProducerOperator;
 
-public class MetadataFunctionsOperatorCreator implements ProducerOperator.Creator<MetadataFunctionsSubScan>{
+public class MetadataFunctionsOperatorCreator
+    implements ProducerOperator.Creator<MetadataFunctionsSubScan> {
 
   @Override
-  public ProducerOperator create(FragmentExecutionContext fec, OperatorContext context, MetadataFunctionsSubScan config) throws ExecutionSetupException {
+  public ProducerOperator create(
+      FragmentExecutionContext fec, OperatorContext context, MetadataFunctionsSubScan config)
+      throws ExecutionSetupException {
     final SupportsIcebergRootPointer plugin = fec.getStoragePlugin(config.getPluginId());
     final RecordReader reader = new IcebergMetadataFunctionsRecordReader(context, plugin, config);
-    return new ScanOperator(config, context, RecordReaderIterator.from(reader));
+    return new ScanOperator(fec, config, context, RecordReaderIterator.from(reader));
   }
-
 }

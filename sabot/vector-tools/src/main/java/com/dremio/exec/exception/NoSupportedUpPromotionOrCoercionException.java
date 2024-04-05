@@ -15,23 +15,21 @@
  */
 package com.dremio.exec.exception;
 
+import com.dremio.common.expression.CompleteType;
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 
-import com.dremio.common.expression.CompleteType;
-
-/**
- * Specific exception thrown in case no up promotion or coercion rules exist.
- */
+/** Specific exception thrown in case no up promotion or coercion rules exist. */
 public class NoSupportedUpPromotionOrCoercionException extends RuntimeException {
   private final CompleteType fileType;
   private final CompleteType tableType;
   private final List<String> columns;
+
   @SuppressWarnings("checkstyle:MutableException")
   private List<String> datasetPath;
+
   @SuppressWarnings("checkstyle:MutableException")
   private String filePath;
 
@@ -45,14 +43,16 @@ public class NoSupportedUpPromotionOrCoercionException extends RuntimeException 
   public String getMessage() {
     StringBuilder sb = new StringBuilder();
     if (checkForStructNMapCoercion(fileType, tableType)) {
-      sb.append("Map support is OFF. Enable support key \"dremio.data_types.map.enabled\" to use native map type " +
-        "or reformat the dataset to read map columns in the old format.");
+      sb.append(
+          "Map support is OFF. Enable support key \"dremio.data_types.map.enabled\" to use native map type "
+              + "or reformat the dataset to read map columns in the old format.");
       return sb.toString();
     } else if (checkForStructNMapCoercion(tableType, fileType)) {
-      sb.append("Map support is ON. Reformat the dataset to read map columns as native maps or " +
-        "disable support key \"dremio.data_types.map.enabled\" to use the old format.");
+      sb.append(
+          "Map support is ON. Reformat the dataset to read map columns as native maps or "
+              + "disable support key \"dremio.data_types.map.enabled\" to use the old format.");
       return sb.toString();
-      } else {
+    } else {
       sb.append("Unable to coerce from the file's data type \"");
       sb.append(fileType);
       sb.append("\" to the column's data type \"");
@@ -99,9 +99,9 @@ public class NoSupportedUpPromotionOrCoercionException extends RuntimeException 
 
   public boolean compareFieldsForStructMapEquivalence(Field a, Field b) {
     if (a.getType().getTypeID() == ArrowType.ArrowTypeID.Struct
-      && b.getType().getTypeID() == ArrowType.ArrowTypeID.Map) {
+        && b.getType().getTypeID() == ArrowType.ArrowTypeID.Map) {
       if ((a.getChildren().size() != 1)
-        || (a.getChildren().get(0).getType().getTypeID() != ArrowType.ArrowTypeID.List)) {
+          || (a.getChildren().get(0).getType().getTypeID() != ArrowType.ArrowTypeID.List)) {
         return false;
       } else {
         // a, b are set to point corresponding entries of struct and map
@@ -114,7 +114,7 @@ public class NoSupportedUpPromotionOrCoercionException extends RuntimeException 
       }
     } else {
       if (!(a.getName().equalsIgnoreCase(b.getName())
-        && a.getType().getTypeID() == b.getType().getTypeID())) {
+          && a.getType().getTypeID() == b.getType().getTypeID())) {
         return false;
       }
     }
@@ -123,7 +123,7 @@ public class NoSupportedUpPromotionOrCoercionException extends RuntimeException 
     if (aChildren.size() == bChildren.size()) {
       for (int i = 0; i < aChildren.size(); i++) {
         if (!(compareFieldsForStructMapEquivalence(aChildren.get(i), bChildren.get(i))
-          || compareFieldsForStructMapEquivalence(bChildren.get(i), aChildren.get(i)))) {
+            || compareFieldsForStructMapEquivalence(bChildren.get(i), aChildren.get(i)))) {
           return false;
         }
       }
@@ -133,6 +133,6 @@ public class NoSupportedUpPromotionOrCoercionException extends RuntimeException 
   }
 
   public boolean checkForStructNMapCoercion(CompleteType a, CompleteType b) {
-      return compareFieldsForStructMapEquivalence(a.toField(""), b.toField(""));
+    return compareFieldsForStructMapEquivalence(a.toField(""), b.toField(""));
   }
 }

@@ -19,8 +19,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.planner.sql.parser.SqlPartitionTransform;
+import com.dremio.exec.planner.types.SqlTypeFactoryImpl;
+import com.google.common.collect.ImmutableList;
 import java.util.List;
-
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.sql.SqlIdentifier;
@@ -30,33 +33,29 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Assert;
 import org.junit.Test;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.planner.sql.parser.SqlPartitionTransform;
-import com.dremio.exec.planner.types.SqlTypeFactoryImpl;
-import com.google.common.collect.ImmutableList;
-
 public class TestPartitionTransform {
 
   private static final RelDataTypeFactory TYPE_FACTORY = SqlTypeFactoryImpl.INSTANCE;
-  private static final RelDataType ROW_TYPE = TYPE_FACTORY.createStructType(
-    ImmutableList.of(
-      TYPE_FACTORY.createSqlType(SqlTypeName.INTEGER),
-      TYPE_FACTORY.createSqlType(SqlTypeName.VARCHAR),
-      TYPE_FACTORY.createSqlType(SqlTypeName.VARBINARY),
-      TYPE_FACTORY.createSqlType(SqlTypeName.DOUBLE),
-      TYPE_FACTORY.createSqlType(SqlTypeName.DECIMAL),
-      TYPE_FACTORY.createSqlType(SqlTypeName.DATE),
-      TYPE_FACTORY.createSqlType(SqlTypeName.TIME),
-      TYPE_FACTORY.createSqlType(SqlTypeName.TIMESTAMP)),
-    ImmutableList.of(
-      "int_col",
-      "varchar_col",
-      "varbinary_col",
-      "double_col",
-      "decimal_col",
-      "date_col",
-      "time_col",
-      "timestamp_col"));
+  private static final RelDataType ROW_TYPE =
+      TYPE_FACTORY.createStructType(
+          ImmutableList.of(
+              TYPE_FACTORY.createSqlType(SqlTypeName.INTEGER),
+              TYPE_FACTORY.createSqlType(SqlTypeName.VARCHAR),
+              TYPE_FACTORY.createSqlType(SqlTypeName.VARBINARY),
+              TYPE_FACTORY.createSqlType(SqlTypeName.DOUBLE),
+              TYPE_FACTORY.createSqlType(SqlTypeName.DECIMAL),
+              TYPE_FACTORY.createSqlType(SqlTypeName.DATE),
+              TYPE_FACTORY.createSqlType(SqlTypeName.TIME),
+              TYPE_FACTORY.createSqlType(SqlTypeName.TIMESTAMP)),
+          ImmutableList.of(
+              "int_col",
+              "varchar_col",
+              "varbinary_col",
+              "double_col",
+              "decimal_col",
+              "date_col",
+              "time_col",
+              "timestamp_col"));
 
   @Test
   public void testCreateIdentityTransform() {
@@ -68,10 +67,12 @@ public class TestPartitionTransform {
 
   @Test
   public void testCreateIdentityTransformFailsWithBadArgs() {
-    assertThatThrownBy(() -> PartitionTransform.from(
-      createSqlTransform("x", "identity", ImmutableList.of(createLiteral("foo")))))
-      .isInstanceOf(UserException.class)
-      .hasMessageContaining("Invalid arguments");
+    assertThatThrownBy(
+            () ->
+                PartitionTransform.from(
+                    createSqlTransform("x", "identity", ImmutableList.of(createLiteral("foo")))))
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining("Invalid arguments");
   }
 
   @Test
@@ -84,10 +85,12 @@ public class TestPartitionTransform {
 
   @Test
   public void testCreateYearTransformFailsWithBadArgs() {
-    assertThatThrownBy(() -> PartitionTransform.from(
-      createSqlTransform("x", "year", ImmutableList.of(createLiteral("foo")))))
-      .isInstanceOf(UserException.class)
-      .hasMessageContaining("Invalid arguments");
+    assertThatThrownBy(
+            () ->
+                PartitionTransform.from(
+                    createSqlTransform("x", "year", ImmutableList.of(createLiteral("foo")))))
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining("Invalid arguments");
   }
 
   @Test
@@ -100,10 +103,12 @@ public class TestPartitionTransform {
 
   @Test
   public void testCreateMonthTransformFailsWithBadArgs() {
-    assertThatThrownBy(() -> PartitionTransform.from(
-      createSqlTransform("x", "month", ImmutableList.of(createLiteral("foo")))))
-      .isInstanceOf(UserException.class)
-      .hasMessageContaining("Invalid arguments");
+    assertThatThrownBy(
+            () ->
+                PartitionTransform.from(
+                    createSqlTransform("x", "month", ImmutableList.of(createLiteral("foo")))))
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining("Invalid arguments");
   }
 
   @Test
@@ -116,10 +121,12 @@ public class TestPartitionTransform {
 
   @Test
   public void testCreateDayTransformFailsWithBadArgs() {
-    assertThatThrownBy(() -> PartitionTransform.from(
-      createSqlTransform("x", "day", ImmutableList.of(createLiteral("foo")))))
-      .isInstanceOf(UserException.class)
-      .hasMessageContaining("Invalid arguments");
+    assertThatThrownBy(
+            () ->
+                PartitionTransform.from(
+                    createSqlTransform("x", "day", ImmutableList.of(createLiteral("foo")))))
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining("Invalid arguments");
   }
 
   @Test
@@ -132,16 +139,19 @@ public class TestPartitionTransform {
 
   @Test
   public void testCreateHourTransformFailsWithBadArgs() {
-    assertThatThrownBy(() -> PartitionTransform.from(
-      createSqlTransform("x", "hour", ImmutableList.of(createLiteral("foo")))))
-      .isInstanceOf(UserException.class)
-      .hasMessageContaining("Invalid arguments");
+    assertThatThrownBy(
+            () ->
+                PartitionTransform.from(
+                    createSqlTransform("x", "hour", ImmutableList.of(createLiteral("foo")))))
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining("Invalid arguments");
   }
 
   @Test
   public void testCreateBucketTransform() {
-    PartitionTransform transform = PartitionTransform.from(createSqlTransform("x", "bucket",
-      ImmutableList.of(createLiteral(42))));
+    PartitionTransform transform =
+        PartitionTransform.from(
+            createSqlTransform("x", "bucket", ImmutableList.of(createLiteral(42))));
     Assert.assertEquals("BUCKET(42,x)", transform.toString());
     assertThat(PartitionTransform.Type.BUCKET).isEqualTo(transform.getType());
     assertThat("x").isEqualTo(transform.getColumnName());
@@ -150,25 +160,30 @@ public class TestPartitionTransform {
 
   @Test
   public void testCreateBucketTransformFailsWithBadArgs() {
-    assertThatThrownBy(() -> PartitionTransform.from(
-      createSqlTransform("x", "bucket", ImmutableList.of())))
-      .isInstanceOf(UserException.class)
-      .hasMessageContaining("Invalid arguments");
-    assertThatThrownBy(() -> PartitionTransform.from(
-      createSqlTransform("x", "bucket", ImmutableList.of(createLiteral("foo")))))
-          .isInstanceOf(UserException.class)
-      .hasMessageContaining("Invalid arguments");
-    assertThatThrownBy(() -> PartitionTransform.from(
-      createSqlTransform("x", "bucket",
-        ImmutableList.of(createLiteral(42), createLiteral("foo")))))
-      .isInstanceOf(UserException.class)
-      .hasMessageContaining("Invalid arguments");
+    assertThatThrownBy(
+            () -> PartitionTransform.from(createSqlTransform("x", "bucket", ImmutableList.of())))
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining("Invalid arguments");
+    assertThatThrownBy(
+            () ->
+                PartitionTransform.from(
+                    createSqlTransform("x", "bucket", ImmutableList.of(createLiteral("foo")))))
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining("Invalid arguments");
+    assertThatThrownBy(
+            () ->
+                PartitionTransform.from(
+                    createSqlTransform(
+                        "x", "bucket", ImmutableList.of(createLiteral(42), createLiteral("foo")))))
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining("Invalid arguments");
   }
 
   @Test
   public void testCreateTruncateTransform() {
-    PartitionTransform transform = PartitionTransform.from(createSqlTransform("x", "truncate",
-      ImmutableList.of(createLiteral(42))));
+    PartitionTransform transform =
+        PartitionTransform.from(
+            createSqlTransform("x", "truncate", ImmutableList.of(createLiteral(42))));
     Assert.assertEquals("TRUNCATE(42,x)", transform.toString());
     assertThat(PartitionTransform.Type.TRUNCATE).isEqualTo(transform.getType());
     assertThat("x").isEqualTo(transform.getColumnName());
@@ -177,19 +192,25 @@ public class TestPartitionTransform {
 
   @Test
   public void testCreateTruncateTransformFailsWithBadArgs() {
-    assertThatThrownBy(() -> PartitionTransform.from(
-      createSqlTransform("x", "truncate", ImmutableList.of())))
-      .isInstanceOf(UserException.class)
-      .hasMessageContaining("Invalid arguments");
-    assertThatThrownBy(() -> PartitionTransform.from(
-      createSqlTransform("x", "truncate", ImmutableList.of(createLiteral("foo")))))
-      .isInstanceOf(UserException.class)
-      .hasMessageContaining("Invalid arguments");
-    assertThatThrownBy(() -> PartitionTransform.from(
-      createSqlTransform("x", "truncate",
-        ImmutableList.of(createLiteral(42), createLiteral("foo")))))
-      .isInstanceOf(UserException.class)
-      .hasMessageContaining("Invalid arguments");
+    assertThatThrownBy(
+            () -> PartitionTransform.from(createSqlTransform("x", "truncate", ImmutableList.of())))
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining("Invalid arguments");
+    assertThatThrownBy(
+            () ->
+                PartitionTransform.from(
+                    createSqlTransform("x", "truncate", ImmutableList.of(createLiteral("foo")))))
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining("Invalid arguments");
+    assertThatThrownBy(
+            () ->
+                PartitionTransform.from(
+                    createSqlTransform(
+                        "x",
+                        "truncate",
+                        ImmutableList.of(createLiteral(42), createLiteral("foo")))))
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining("Invalid arguments");
   }
 
   @Test
@@ -202,8 +223,8 @@ public class TestPartitionTransform {
   @Test
   public void testUnknownTransformFails() {
     assertThatThrownBy(() -> PartitionTransform.from(createSqlTransform("x", "badtransform")))
-      .isInstanceOf(UserException.class)
-      .hasMessageContaining("Unknown partition transform");
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining("Unknown partition transform");
   }
 
   @Test
@@ -282,18 +303,19 @@ public class TestPartitionTransform {
 
   @Test
   public void testSchemaValidationWithNonexistentField() {
-    PartitionTransform transform = new PartitionTransform("does_not_exist", PartitionTransform.Type.YEAR);
+    PartitionTransform transform =
+        new PartitionTransform("does_not_exist", PartitionTransform.Type.YEAR);
     assertThatThrownBy(() -> transform.validateWithSchema(ROW_TYPE))
-      .isInstanceOf(UserException.class)
-      .hasMessageContaining("Invalid column name");
-
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining("Invalid column name");
   }
 
   private void assertValidColumnForTransform(String columnName, PartitionTransform.Type type) {
     assertValidColumnForTransform(columnName, type, ImmutableList.of());
   }
 
-  private void assertValidColumnForTransform(String columnName, PartitionTransform.Type type, List<Object> arguments) {
+  private void assertValidColumnForTransform(
+      String columnName, PartitionTransform.Type type, List<Object> arguments) {
     PartitionTransform transform = new PartitionTransform(columnName, type, arguments);
     assertThatNoException().isThrownBy(() -> transform.validateWithSchema(ROW_TYPE));
   }
@@ -302,25 +324,30 @@ public class TestPartitionTransform {
     assertInvalidColumnForTransform(columnName, type, ImmutableList.of());
   }
 
-  private void assertInvalidColumnForTransform(String columnName, PartitionTransform.Type type, List<Object> arguments) {
+  private void assertInvalidColumnForTransform(
+      String columnName, PartitionTransform.Type type, List<Object> arguments) {
     PartitionTransform transform = new PartitionTransform(columnName, type, arguments);
     assertThatThrownBy(() -> transform.validateWithSchema(ROW_TYPE))
-      .isInstanceOf(UserException.class)
-      .hasMessageContaining("Invalid column type for partition transform");
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining("Invalid column type for partition transform");
   }
 
-
   SqlPartitionTransform createSqlTransform(String columnName) {
-    return new SqlPartitionTransform(new SqlIdentifier(columnName, SqlParserPos.ZERO), SqlParserPos.ZERO);
+    return new SqlPartitionTransform(
+        new SqlIdentifier(columnName, SqlParserPos.ZERO), SqlParserPos.ZERO);
   }
 
   SqlPartitionTransform createSqlTransform(String columnName, String transformName) {
     return createSqlTransform(columnName, transformName, ImmutableList.of());
   }
 
-  SqlPartitionTransform createSqlTransform(String columnName, String transformName, List<SqlLiteral> args) {
-    return new SqlPartitionTransform(new SqlIdentifier(columnName, SqlParserPos.ZERO),
-      new SqlIdentifier(transformName, SqlParserPos.ZERO), args, SqlParserPos.ZERO);
+  SqlPartitionTransform createSqlTransform(
+      String columnName, String transformName, List<SqlLiteral> args) {
+    return new SqlPartitionTransform(
+        new SqlIdentifier(columnName, SqlParserPos.ZERO),
+        new SqlIdentifier(transformName, SqlParserPos.ZERO),
+        args,
+        SqlParserPos.ZERO);
   }
 
   SqlLiteral createLiteral(int value) {

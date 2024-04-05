@@ -18,20 +18,18 @@ package com.dremio.service.coordinator.zk;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 
-/**
- * A convenience class used to expedite zookeeper paths manipulations.
- */
+/** A convenience class used to expedite zookeeper paths manipulations. */
 public final class PathUtils {
 
   /**
    * Returns a normalized, combined path out of the given path segments.
    *
-   * @param parts  path segments to combine
+   * @param parts path segments to combine
    * @see #normalize(String)
    */
   public static final String join(final String... parts) {
     final StringBuilder sb = new StringBuilder();
-    for (final String part:parts) {
+    for (final String part : parts) {
       Preconditions.checkNotNull(part, "parts cannot contain null");
       if (!Strings.isNullOrEmpty(part)) {
         sb.append(part).append("/");
@@ -47,7 +45,7 @@ public final class PathUtils {
   /**
    * Normalizes the given path eliminating repeated forward slashes.
    *
-   * @return  normalized path
+   * @return normalized path
    */
   public static final String normalize(final String path) {
     if (Strings.isNullOrEmpty(Preconditions.checkNotNull(path))) {
@@ -57,7 +55,7 @@ public final class PathUtils {
     final StringBuilder builder = new StringBuilder();
     char last = path.charAt(0);
     builder.append(last);
-    for (int i=1; i<path.length(); i++) {
+    for (int i = 1; i < path.length(); i++) {
       char cur = path.charAt(i);
       if (last == '/' && cur == last) {
         continue;
@@ -67,5 +65,4 @@ public final class PathUtils {
     }
     return builder.toString();
   }
-
 }

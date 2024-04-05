@@ -15,19 +15,10 @@
  */
 package com.dremio.exec.store.iceberg;
 
-import java.io.IOException;
-import java.nio.file.DirectoryStream;
-import java.util.Iterator;
-import java.util.List;
-import java.util.function.Supplier;
-
-import org.apache.iceberg.Table;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.connector.metadata.options.TimeTravelOption;
-import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.MetadataObjectsUtils;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.server.SabotContext;
@@ -64,15 +55,22 @@ import com.dremio.service.namespace.file.proto.FileType;
 import com.google.common.base.Predicates;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.Iterables;
+import java.io.IOException;
+import java.nio.file.DirectoryStream;
+import java.util.Iterator;
+import java.util.List;
+import java.util.function.Supplier;
+import org.apache.iceberg.Table;
 
 public class IcebergFormatPlugin extends EasyFormatPlugin<IcebergFormatConfig> {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(IcebergFormatPlugin.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(IcebergFormatPlugin.class);
 
   private static final String DEFAULT_NAME = "iceberg";
   private static final boolean IS_COMPRESSIBLE = true;
   private static final String NOT_SUPPORT_METASTORE_TABLE_MSG =
-    "This folder does not contain a filesystem-based Iceberg table. If the table in this folder is managed via a catalog " +
-    "such as Hive, Glue, or Nessie, please use a data source configured for that catalog to connect to this table.";
+      "This folder does not contain a filesystem-based Iceberg table. If the table in this folder is managed via a catalog "
+          + "such as Hive, Glue, or Nessie, please use a data source configured for that catalog to connect to this table.";
 
   private final SabotContext context;
   private final IcebergFormatMatcher formatMatcher;
@@ -82,8 +80,22 @@ public class IcebergFormatPlugin extends EasyFormatPlugin<IcebergFormatConfig> {
   private FormatPlugin dataFormatPlugin;
   private final boolean isLayered;
 
-  public IcebergFormatPlugin(String name, SabotContext context, IcebergFormatConfig formatConfig, FileSystemPlugin<?> fsPlugin) {
-    super(name, context, formatConfig, true, false, false, IS_COMPRESSIBLE, formatConfig.getExtensions(), DEFAULT_NAME, fsPlugin);
+  public IcebergFormatPlugin(
+      String name,
+      SabotContext context,
+      IcebergFormatConfig formatConfig,
+      FileSystemPlugin<?> fsPlugin) {
+    super(
+        name,
+        context,
+        formatConfig,
+        true,
+        false,
+        false,
+        IS_COMPRESSIBLE,
+        formatConfig.getExtensions(),
+        DEFAULT_NAME,
+        fsPlugin);
     this.context = context;
     this.config = formatConfig;
     this.name = name == null ? DEFAULT_NAME : name;
@@ -96,9 +108,14 @@ public class IcebergFormatPlugin extends EasyFormatPlugin<IcebergFormatConfig> {
 
   public void initialize(IcebergFormatConfig formatConfig, SupportsIcebergRootPointer fsPlugin) {
     this.fsPlugin = fsPlugin;
-    if (formatConfig.getDataFormatType() == FileType.PARQUET && fsPlugin instanceof FileSystemPlugin) {
-      dataFormatPlugin = new ParquetFormatPlugin(name, context,
-              (ParquetFormatConfig) formatConfig.getDataFormatConfig(), (FileSystemPlugin<?>) fsPlugin);
+    if (formatConfig.getDataFormatType() == FileType.PARQUET
+        && fsPlugin instanceof FileSystemPlugin) {
+      dataFormatPlugin =
+          new ParquetFormatPlugin(
+              name,
+              context,
+              (ParquetFormatConfig) formatConfig.getDataFormatConfig(),
+              (FileSystemPlugin<?>) fsPlugin);
     }
   }
 
@@ -113,7 +130,9 @@ public class IcebergFormatPlugin extends EasyFormatPlugin<IcebergFormatConfig> {
   }
 
   @Override
-  public boolean isLayered() { return this.isLayered; }
+  public boolean isLayered() {
+    return this.isLayered;
+  }
 
   // TODO ravindra: should get the parquet file path by traversing the json file.
   @Override
@@ -128,12 +147,13 @@ public class IcebergFormatPlugin extends EasyFormatPlugin<IcebergFormatConfig> {
   }
 
   @Override
-  public FileSelectionProcessor getFileSelectionProcessor(FileSystem fs, FileSelection fileSelection) {
+  public FileSelectionProcessor getFileSelectionProcessor(
+      FileSystem fs, FileSelection fileSelection) {
     return new LayeredPluginFileSelectionProcessor(fs, fileSelection);
   }
 
   @Override
-  public String getName(){
+  public String getName() {
     return name;
   }
 
@@ -158,22 +178,25 @@ public class IcebergFormatPlugin extends EasyFormatPlugin<IcebergFormatConfig> {
   }
 
   @Override
-  public RecordReader getRecordReader(OperatorContext context,
-                                      FileSystem dfs,
-                                      EasyProtobuf.EasyDatasetSplitXAttr splitAttributes,
-                                      List<SchemaPath> columns) throws ExecutionSetupException {
+  public RecordReader getRecordReader(
+      OperatorContext context,
+      FileSystem dfs,
+      EasyProtobuf.EasyDatasetSplitXAttr splitAttributes,
+      List<SchemaPath> columns)
+      throws ExecutionSetupException {
     throw new UnsupportedOperationException("unimplemented method");
   }
 
   @Override
   public RecordReader getRecordReader(
-    OperatorContext context,
-    FileSystem dfs,
-    SplitAndPartitionInfo split,
-    EasyProtobuf.EasyDatasetSplitXAttr splitAttributes,
-    List<SchemaPath> columns,
-    FragmentExecutionContext fec,
-    EasySubScan config) throws ExecutionSetupException {
+      OperatorContext context,
+      FileSystem dfs,
+      SplitAndPartitionInfo split,
+      EasyProtobuf.EasyDatasetSplitXAttr splitAttributes,
+      List<SchemaPath> columns,
+      FragmentExecutionContext fec,
+      EasySubScan config)
+      throws ExecutionSetupException {
     throw new UnsupportedOperationException("Deprecated path");
   }
 
@@ -202,32 +225,37 @@ public class IcebergFormatPlugin extends EasyFormatPlugin<IcebergFormatConfig> {
       NamespaceKey tableSchemaPath,
       FileUpdateKey updateKey,
       int maxLeafColumns,
-      TimeTravelOption.TimeTravelRequest travelRequest
-  ) {
-    if (!context.getOptionManager().getOption(ExecConstants.ENABLE_ICEBERG)) {
-      throw new UnsupportedOperationException("Please contact customer support for steps to enable " +
-          "the iceberg tables feature.");
-    }
+      TimeTravelOption.TimeTravelRequest travelRequest) {
 
-    final Supplier<Table> tableSupplier = Suppliers.memoize(
-        () -> {
-          final IcebergModel icebergModel = fsPlugin.getIcebergModel();
-          final IcebergTableLoader icebergTableLoader = icebergModel.getIcebergTableLoader(
-              icebergModel.getTableIdentifier(fileSelection.getSelectionRoot()));
-          return icebergTableLoader.getIcebergTable();
-        }
-    );
+    final Supplier<Table> tableSupplier =
+        Suppliers.memoize(
+            () -> {
+              final IcebergModel icebergModel = fsPlugin.getIcebergModel();
+              final IcebergTableLoader icebergTableLoader =
+                  icebergModel.getIcebergTableLoader(
+                      icebergModel.getTableIdentifier(fileSelection.getSelectionRoot()));
+              return icebergTableLoader.getIcebergTable();
+            });
 
     final TableSnapshotProvider tableSnapshotProvider =
-        TimeTravelProcessors.getTableSnapshotProvider(tableSchemaPath.getPathComponents(), travelRequest);
+        TimeTravelProcessors.getTableSnapshotProvider(
+            tableSchemaPath.getPathComponents(), travelRequest);
     final TableSchemaProvider tableSchemaProvider =
         TimeTravelProcessors.getTableSchemaProvider(travelRequest);
-    return new IcebergExecutionDatasetAccessor(MetadataObjectsUtils.toEntityPath(tableSchemaPath),
-        tableSupplier, fsPlugin.getFsConfCopy(), this, fs, tableSnapshotProvider, fsPlugin, tableSchemaProvider);
+    return new IcebergExecutionDatasetAccessor(
+        MetadataObjectsUtils.toEntityPath(tableSchemaPath),
+        tableSupplier,
+        fsPlugin.getFsConfCopy(),
+        this,
+        fs,
+        tableSnapshotProvider,
+        fsPlugin,
+        tableSchemaProvider);
   }
 
   @Override
-  public RecordWriter getRecordWriter(OperatorContext context, EasyWriter writer) throws IOException {
+  public RecordWriter getRecordWriter(OperatorContext context, EasyWriter writer)
+      throws IOException {
     throw new UnsupportedOperationException("Deprecated path");
   }
 
@@ -244,40 +272,42 @@ public class IcebergFormatPlugin extends EasyFormatPlugin<IcebergFormatConfig> {
     }
 
     @Override
-    public void close() throws IOException {
-    }
+    public void close() throws IOException {}
   }
 
   @Override
   public DirectoryStream<FileAttributes> getFilesForSamples(
-    FileSystem fs, FileSystemPlugin<?> fsPlugin, Path path) throws IOException, FileCountTooLargeException {
+      FileSystem fs, FileSystemPlugin<?> fsPlugin, Path path)
+      throws IOException, FileCountTooLargeException {
     if (!formatMatcher.isFileSystemSupportedIcebergTable(fs, path.toString())) {
       throw UserException.unsupportedError()
-        .message(NOT_SUPPORT_METASTORE_TABLE_MSG)
-        .buildSilently();
+          .message(NOT_SUPPORT_METASTORE_TABLE_MSG)
+          .buildSilently();
     }
 
     final IcebergModel icebergModel = fsPlugin.getIcebergModel();
-    final IcebergTableLoader icebergTableLoader = icebergModel.getIcebergTableLoader(
-      icebergModel.getTableIdentifier(path.toString()));
+    final IcebergTableLoader icebergTableLoader =
+        icebergModel.getIcebergTableLoader(icebergModel.getTableIdentifier(path.toString()));
     Table table = icebergTableLoader.getIcebergTable();
 
     // Transform to lazy iteration and retrieve file attributes on demand
     final int maxFilesLimit = getMaxFilesLimit();
-    Iterable<FileAttributes> fileAttributesIterable = Iterables.filter(
-      Iterables.transform(
-        Iterables.limit(table.newScan().planFiles(), maxFilesLimit),
-        scanTask -> {
-          String dataFilePath = Path.getContainerSpecificRelativePath(Path.of(String.valueOf(scanTask.file().path())));
-          try {
-            return fs.getFileAttributes(Path.of(dataFilePath));
-          } catch (Exception e) {
-            logger.info("Failed to read file attributes: {}", dataFilePath, e);
-          }
-          return null;
-        }),
-      Predicates.notNull()
-    );
+    Iterable<FileAttributes> fileAttributesIterable =
+        Iterables.filter(
+            Iterables.transform(
+                Iterables.limit(table.newScan().planFiles(), maxFilesLimit),
+                scanTask -> {
+                  String dataFilePath =
+                      Path.getContainerSpecificRelativePath(
+                          Path.of(String.valueOf(scanTask.file().path())));
+                  try {
+                    return fs.getFileAttributes(Path.of(dataFilePath));
+                  } catch (Exception e) {
+                    logger.info("Failed to read file attributes: {}", dataFilePath, e);
+                  }
+                  return null;
+                }),
+            Predicates.notNull());
     return new DelegateDirectoryStream(fileAttributesIterable);
   }
 }

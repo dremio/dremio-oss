@@ -15,8 +15,6 @@
  */
 package com.dremio.service.grpc;
 
-import java.util.function.Supplier;
-
 import io.grpc.CallOptions;
 import io.grpc.ClientCall;
 import io.grpc.ManagedChannel;
@@ -24,6 +22,7 @@ import io.grpc.Metadata;
 import io.grpc.ServerCall;
 import io.grpc.ServerCallHandler;
 import io.grpc.Status;
+import java.util.function.Supplier;
 
 /**
  * A grpc-level proxy. GrpcProxy itself can be used unmodified to proxy any service for both unary
@@ -39,10 +38,9 @@ public class GrpcProxy<ReqT, RespT> implements ServerCallHandler<ReqT, RespT> {
   }
 
   @Override
-  public ServerCall.Listener<ReqT> startCall(
-    ServerCall<ReqT, RespT> serverCall, Metadata headers) {
-    ClientCall<ReqT, RespT> clientCall
-      = channelSupplier.get().newCall(serverCall.getMethodDescriptor(), CallOptions.DEFAULT);
+  public ServerCall.Listener<ReqT> startCall(ServerCall<ReqT, RespT> serverCall, Metadata headers) {
+    ClientCall<ReqT, RespT> clientCall =
+        channelSupplier.get().newCall(serverCall.getMethodDescriptor(), CallOptions.DEFAULT);
     CallProxy<ReqT, RespT> proxy = new CallProxy<>(serverCall, clientCall);
     clientCall.start(proxy.clientCallListener, headers);
     serverCall.request(1);

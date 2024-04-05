@@ -15,8 +15,6 @@
  */
 package com.dremio.service.namespace.file;
 
-import java.util.Map;
-
 import com.dremio.service.namespace.file.proto.ArrowFileConfig;
 import com.dremio.service.namespace.file.proto.AvroFileConfig;
 import com.dremio.service.namespace.file.proto.DeltalakeFileConfig;
@@ -30,12 +28,10 @@ import com.dremio.service.namespace.file.proto.TextFileConfig;
 import com.dremio.service.namespace.file.proto.UnknownFileConfig;
 import com.dremio.service.namespace.file.proto.XlsFileConfig;
 import com.google.common.collect.ImmutableMap;
-
 import io.protostuff.Schema;
+import java.util.Map;
 
-/**
- * FileFormats type/schema mappings.
- */
+/** FileFormats type/schema mappings. */
 public class FileFormatDefinitions {
   static final ImmutableMap<Class<? extends FileFormat>, FileType> FILE_TYPES;
   static final ImmutableMap<FileType, Class<? extends FileFormat>> CLASS_TYPES;
@@ -43,7 +39,8 @@ public class FileFormatDefinitions {
 
   static {
     ImmutableMap.Builder<Class<? extends FileFormat>, FileType> types = ImmutableMap.builder();
-    ImmutableMap.Builder<Class<? extends FileFormat>, Schema<? extends FileFormat>> schemas = ImmutableMap.builder();
+    ImmutableMap.Builder<Class<? extends FileFormat>, Schema<? extends FileFormat>> schemas =
+        ImmutableMap.builder();
 
     types.put(TextFileConfig.class, FileType.TEXT);
     schemas.put(TextFileConfig.class, TextFileConfig.getSchema());

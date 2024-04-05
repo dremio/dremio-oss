@@ -19,21 +19,6 @@ import static com.dremio.exec.store.iceberg.IcebergUtils.writeSplitIdentity;
 import static com.dremio.exec.store.iceberg.model.IcebergConstants.FILE_VERSION;
 import static com.dremio.exec.util.VectorUtil.getVectorFromSchemaPath;
 
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.vector.BigIntVector;
-import org.apache.arrow.vector.VarBinaryVector;
-import org.apache.arrow.vector.VarCharVector;
-import org.apache.arrow.vector.complex.StructVector;
-import org.apache.arrow.vector.complex.impl.NullableStructWriter;
-import org.apache.arrow.vector.util.TransferPair;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.expression.BasePath;
 import com.dremio.common.utils.PathUtils;
@@ -53,16 +38,26 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Streams;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.vector.BigIntVector;
+import org.apache.arrow.vector.VarBinaryVector;
+import org.apache.arrow.vector.VarCharVector;
+import org.apache.arrow.vector.complex.StructVector;
+import org.apache.arrow.vector.complex.impl.NullableStructWriter;
+import org.apache.arrow.vector.util.TransferPair;
 
-/**
- * Table function implementation which generates splits for input data files.
- */
+/** Table function implementation which generates splits for input data files. */
 public class IcebergSplitGenTableFunction extends AbstractTableFunction {
 
-  private static final Set<String> SPLIT_GEN_COLUMNS = ImmutableSet.of(
-      SystemSchemas.DATAFILE_PATH,
-      SystemSchemas.FILE_SIZE,
-      SystemSchemas.PARTITION_INFO);
+  private static final Set<String> SPLIT_GEN_COLUMNS =
+      ImmutableSet.of(
+          SystemSchemas.DATAFILE_PATH, SystemSchemas.FILE_SIZE, SystemSchemas.PARTITION_INFO);
 
   private final BlockBasedSplitGenerator splitGenerator;
 
@@ -80,35 +75,40 @@ public class IcebergSplitGenTableFunction extends AbstractTableFunction {
   private long currentDataFileOffset;
   private final FileType fileType;
 
-  public IcebergSplitGenTableFunction(FragmentExecutionContext fragmentExecutionContext, OperatorContext context,
+  public IcebergSplitGenTableFunction(
+      FragmentExecutionContext fragmentExecutionContext,
+      OperatorContext context,
       TableFunctionConfig functionConfig) {
     super(context, functionConfig);
     TableFunctionContext functionContext = functionConfig.getFunctionContext();
     fileType = getFileType(functionContext);
-    byte[] extendedProperty = functionContext.getExtendedProperty() != null ?
-        functionContext.getExtendedProperty().toByteArray() : null;
-    SupportsInternalIcebergTable plugin = IcebergUtils.getSupportsInternalIcebergTablePlugin(fragmentExecutionContext,
-        functionContext.getPluginId());
-    splitGenerator = new BlockBasedSplitGenerator(context, plugin, extendedProperty,
-        functionContext.isConvertedIcebergDataset());
+    byte[] extendedProperty =
+        functionContext.getExtendedProperty() != null
+            ? functionContext.getExtendedProperty().toByteArray()
+            : null;
+    SupportsInternalIcebergTable plugin =
+        IcebergUtils.getSupportsInternalIcebergTablePlugin(
+            fragmentExecutionContext, functionContext.getPluginId());
+    splitGenerator =
+        new BlockBasedSplitGenerator(
+            context, plugin, extendedProperty, functionContext.isConvertedIcebergDataset());
   }
 
   /**
-   * Extract file format from TableFunctionContext
-   * Special handle cases where it is missing or
-   * cases where it is FileType such as ICEBERG
+   * Extract file format from TableFunctionContext Special handle cases where it is missing or cases
+   * where it is FileType such as ICEBERG
    */
   @VisibleForTesting
   static FileType getFileType(TableFunctionContext functionContext) {
     FileType result = null;
-    if(functionContext.getFormatSettings() != null &&
-      functionContext.getFormatSettings().getType() != null) {
+    if (functionContext.getFormatSettings() != null
+        && functionContext.getFormatSettings().getType() != null) {
       result = functionContext.getFormatSettings().getType();
     }
-    //If missing we return the default which is PARQUET
-    //ICEBERG is not a file format that splitGenerator.getSplitAndPartitionInfo accepts
-    //We only support Parquet with ICEBERG, so we return Parquet here
-    if(result == null || FileType.ICEBERG.equals(result)){
+    // If missing we return the default which is PARQUET
+    // ICEBERG is not a file format that splitGenerator.getSplitAndPartitionInfo accepts
+    // We only support Parquet with ICEBERG, so we return Parquet here
+    if (result == null || FileType.ICEBERG.equals(result)) {
       result = FileType.PARQUET;
     }
     return result;
@@ -118,20 +118,33 @@ public class IcebergSplitGenTableFunction extends AbstractTableFunction {
   public VectorAccessible setup(VectorAccessible accessible) throws Exception {
     super.setup(accessible);
 
-    inputDataFilePath = (VarCharVector) getVectorFromSchemaPath(incoming, SystemSchemas.DATAFILE_PATH);
+    inputDataFilePath =
+        (VarCharVector) getVectorFromSchemaPath(incoming, SystemSchemas.DATAFILE_PATH);
     inputFileSize = (BigIntVector) getVectorFromSchemaPath(incoming, SystemSchemas.FILE_SIZE);
-    inputPartitionInfo = (VarBinaryVector) getVectorFromSchemaPath(incoming, SystemSchemas.PARTITION_INFO);
-    outputSplitIdentity = (StructVector) getVectorFromSchemaPath(outgoing, SystemSchemas.SPLIT_IDENTITY);
-    outputSplits = (VarBinaryVector) getVectorFromSchemaPath(outgoing, SystemSchemas.SPLIT_INFORMATION);
+    inputPartitionInfo =
+        (VarBinaryVector) getVectorFromSchemaPath(incoming, SystemSchemas.PARTITION_INFO);
+    outputSplitIdentity =
+        (StructVector) getVectorFromSchemaPath(outgoing, SystemSchemas.SPLIT_IDENTITY);
+    outputSplits =
+        (VarBinaryVector) getVectorFromSchemaPath(outgoing, SystemSchemas.SPLIT_INFORMATION);
     buf = context.getAllocator().buffer(4096);
 
     // create transfer pairs for any additional input columns
-    transfers = Streams.stream(incoming)
-        .filter(vw -> !SPLIT_GEN_COLUMNS.contains(vw.getValueVector().getName()) &&
-            outgoing.getSchema().getFieldId(BasePath.getSimple(vw.getValueVector().getName())) != null)
-        .map(vw -> vw.getValueVector().makeTransferPair(
-            getVectorFromSchemaPath(outgoing, vw.getValueVector().getName())))
-        .collect(Collectors.toList());
+    transfers =
+        Streams.stream(incoming)
+            .filter(
+                vw ->
+                    !SPLIT_GEN_COLUMNS.contains(vw.getValueVector().getName())
+                        && outgoing
+                                .getSchema()
+                                .getFieldId(BasePath.getSimple(vw.getValueVector().getName()))
+                            != null)
+            .map(
+                vw ->
+                    vw.getValueVector()
+                        .makeTransferPair(
+                            getVectorFromSchemaPath(outgoing, vw.getValueVector().getName())))
+            .collect(Collectors.toList());
 
     return outgoing;
   }
@@ -149,7 +162,8 @@ public class IcebergSplitGenTableFunction extends AbstractTableFunction {
     partitionInfo = IcebergSerDe.deserializeFromByteArray(inputPartitionInfo.get(row));
     if (partitionInfo == null) {
       // create an empty partitionInfo
-      partitionInfo = PartitionProtobuf.NormalizedPartitionInfo.newBuilder().setId(String.valueOf(1)).build();
+      partitionInfo =
+          PartitionProtobuf.NormalizedPartitionInfo.newBuilder().setId(String.valueOf(1)).build();
     }
   }
 
@@ -160,19 +174,32 @@ public class IcebergSplitGenTableFunction extends AbstractTableFunction {
     final List<SplitIdentity> splitsIdentity = new ArrayList<>();
     final String path = PathUtils.withoutQueryParams(dataFilePath);
 
-    List<SplitAndPartitionInfo> splits = splitGenerator.getSplitAndPartitionInfo(maxRecords, partitionInfo, path,
-        currentDataFileOffset, fileSize, version, fileType.toString(), splitsIdentity);
+    List<SplitAndPartitionInfo> splits =
+        splitGenerator.getSplitAndPartitionInfo(
+            maxRecords,
+            partitionInfo,
+            path,
+            currentDataFileOffset,
+            fileSize,
+            version,
+            fileType.toString(),
+            splitsIdentity);
     currentDataFileOffset = splitGenerator.getCurrentOffset();
-    Preconditions.checkState(splits.size() == splitsIdentity.size(),
+    Preconditions.checkState(
+        splits.size() == splitsIdentity.size(),
         "Splits count is not same as splits identity count");
     Iterator<SplitAndPartitionInfo> splitsIterator = splits.iterator();
     Iterator<SplitIdentity> splitIdentityIterator = splitsIdentity.iterator();
     NullableStructWriter splitsIdentityWriter = outputSplitIdentity.getWriter();
 
     while (splitsIterator.hasNext()) {
-      writeSplitIdentity(splitsIdentityWriter, startOutIndex + currentOutputCount,
-          splitIdentityIterator.next(), buf);
-      outputSplits.setSafe(startOutIndex + currentOutputCount,
+      writeSplitIdentity(
+          splitsIdentityWriter,
+          startOutIndex + currentOutputCount,
+          splitIdentityIterator.next(),
+          buf);
+      outputSplits.setSafe(
+          startOutIndex + currentOutputCount,
           IcebergSerDe.serializeToByteArray(splitsIterator.next()));
 
       for (TransferPair transfer : transfers) {

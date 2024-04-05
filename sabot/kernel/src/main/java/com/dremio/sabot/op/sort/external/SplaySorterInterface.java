@@ -15,9 +15,6 @@
  */
 package com.dremio.sabot.op.sort.external;
 
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.exec.compile.TemplateClassDefinition;
 import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.exec.record.ExpandableHyperContainer;
@@ -25,16 +22,25 @@ import com.dremio.exec.record.RecordBatchData;
 import com.dremio.exec.record.selection.SelectionVector2;
 import com.dremio.exec.record.selection.SelectionVector4;
 import com.dremio.sabot.exec.context.FunctionContext;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.BufferAllocator;
 
 public interface SplaySorterInterface extends AutoCloseable {
   static TemplateClassDefinition<SplaySorterInterface> TEMPLATE_DEFINITION =
-    new TemplateClassDefinition<SplaySorterInterface>(SplaySorterInterface.class, SplaySorterTemplate.class);
+      new TemplateClassDefinition<SplaySorterInterface>(
+          SplaySorterInterface.class, SplaySorterTemplate.class);
 
-  void init(FunctionContext context, ExpandableHyperContainer hyperContainer) throws SchemaChangeException;
+  void init(FunctionContext context, ExpandableHyperContainer hyperContainer)
+      throws SchemaChangeException;
+
   void add(final SelectionVector2 sv2, final RecordBatchData batch) throws SchemaChangeException;
+
   SelectionVector4 getFinalSort(BufferAllocator allocator, int targetBatchSize);
+
   ExpandableHyperContainer getHyperBatch();
+
   void setDataBuffer(ArrowBuf data);
+
   @Override
   void close() throws Exception;
 }

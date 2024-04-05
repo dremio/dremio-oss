@@ -47,7 +47,6 @@ import com.dremio.common.expression.ValueExpressions.TimeStampExpression;
 
 final class ConstantChecker implements ExprVisitor<Boolean, ErrorCollector, RuntimeException> {
 
-
   private static final ConstantChecker INSTANCE = new ConstantChecker();
 
   private ConstantChecker() {}
@@ -58,19 +57,22 @@ final class ConstantChecker implements ExprVisitor<Boolean, ErrorCollector, Runt
 
   @Override
   public Boolean visitFunctionCall(FunctionCall call, ErrorCollector errors) {
-    throw new UnsupportedOperationException("FunctionCall is not expected here. "
-        + "It should have been converted to FunctionHolderExpression in materialization");
+    throw new UnsupportedOperationException(
+        "FunctionCall is not expected here. "
+            + "It should have been converted to FunctionHolderExpression in materialization");
   }
 
   @Override
-  public Boolean visitFunctionHolderExpression(FunctionHolderExpression holder, ErrorCollector errors) {
+  public Boolean visitFunctionHolderExpression(
+      FunctionHolderExpression holder, ErrorCollector errors) {
     boolean allArgsAreConstant = true;
     for (int i = 0; i < holder.args.size(); i++) {
       boolean thisArgIsConstant = holder.args.get(i).accept(this, errors);
       if (!thisArgIsConstant) {
         allArgsAreConstant = false;
         if (holder.argConstantOnly(i)) {
-          errors.addGeneralError("Function %s expects constant input for argument number %d", holder.getName(), i);
+          errors.addGeneralError(
+              "Function %s expects constant input for argument number %d", holder.getName(), i);
         }
       }
     }
@@ -122,37 +124,38 @@ final class ConstantChecker implements ExprVisitor<Boolean, ErrorCollector, Runt
 
   @Override
   public Boolean visitDateConstant(DateExpression intExpr, ErrorCollector errors) {
-      return true;
+    return true;
   }
 
   @Override
   public Boolean visitInputReference(InputReference input, ErrorCollector errors) {
-      return input.getReference().accept(this, errors);
+    return input.getReference().accept(this, errors);
   }
 
   @Override
-  public Boolean visitCaseExpression(CaseExpression caseExpression, ErrorCollector value) throws RuntimeException {
+  public Boolean visitCaseExpression(CaseExpression caseExpression, ErrorCollector value)
+      throws RuntimeException {
     return false;
   }
 
   @Override
   public Boolean visitTimeConstant(TimeExpression intExpr, ErrorCollector errors) {
-      return true;
+    return true;
   }
 
   @Override
   public Boolean visitTimeStampConstant(TimeStampExpression intExpr, ErrorCollector errors) {
-      return true;
+    return true;
   }
 
   @Override
   public Boolean visitIntervalYearConstant(IntervalYearExpression intExpr, ErrorCollector errors) {
-      return true;
+    return true;
   }
 
   @Override
   public Boolean visitIntervalDayConstant(IntervalDayExpression intExpr, ErrorCollector errors) {
-      return true;
+    return true;
   }
 
   @Override
@@ -181,27 +184,32 @@ final class ConstantChecker implements ExprVisitor<Boolean, ErrorCollector, Runt
   }
 
   @Override
-  public Boolean visitCastExpression(CastExpression e, ErrorCollector value) throws RuntimeException {
+  public Boolean visitCastExpression(CastExpression e, ErrorCollector value)
+      throws RuntimeException {
     return e.getInput().accept(this, value);
   }
 
   @Override
-  public Boolean visitConvertExpression(ConvertExpression e, ErrorCollector value) throws RuntimeException {
+  public Boolean visitConvertExpression(ConvertExpression e, ErrorCollector value)
+      throws RuntimeException {
     return e.getInput().accept(this, value);
   }
 
   @Override
-  public Boolean visitNullConstant(TypedNullConstant e, ErrorCollector value) throws RuntimeException {
+  public Boolean visitNullConstant(TypedNullConstant e, ErrorCollector value)
+      throws RuntimeException {
     return true;
   }
 
   @Override
-  public Boolean visitNullExpression(NullExpression e, ErrorCollector value) throws RuntimeException {
+  public Boolean visitNullExpression(NullExpression e, ErrorCollector value)
+      throws RuntimeException {
     return true;
   }
 
   @Override
-  public Boolean visitListAggExpression(ListAggExpression e, ErrorCollector value) throws RuntimeException {
+  public Boolean visitListAggExpression(ListAggExpression e, ErrorCollector value)
+      throws RuntimeException {
     return false;
   }
 
@@ -211,7 +219,8 @@ final class ConstantChecker implements ExprVisitor<Boolean, ErrorCollector, Runt
   }
 
   @Override
-  public Boolean visitArrayLiteralExpression(ArrayLiteralExpression e, ErrorCollector value) throws RuntimeException {
+  public Boolean visitArrayLiteralExpression(ArrayLiteralExpression e, ErrorCollector value)
+      throws RuntimeException {
     return false;
   }
 }

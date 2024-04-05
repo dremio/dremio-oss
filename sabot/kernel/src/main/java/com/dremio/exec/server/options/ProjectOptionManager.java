@@ -17,9 +17,7 @@ package com.dremio.exec.server.options;
 
 import com.dremio.options.OptionManager;
 
-/**
- * Interface for options set at the project level affect the entire project.
- */
+/** Interface for options set at the project level affect the entire project. */
 public interface ProjectOptionManager extends OptionManager {
 
   /**

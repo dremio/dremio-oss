@@ -18,15 +18,14 @@ package com.dremio.common.utils;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * utilities to use with Protos generated code
- */
+/** utilities to use with Protos generated code */
 public final class Protos {
 
   private Protos() {}
 
   /**
    * empty list get read back as null
+   *
    * @param list got from a protos getter
    * @return the list or an immutable empty list if null
    */
@@ -38,8 +37,8 @@ public final class Protos {
   }
 
   /**
-   * empty lists get read back as null
-   * So there is no distinction between null and empty
+   * empty lists get read back as null So there is no distinction between null and empty
+   *
    * @param list got from a protos getter
    * @return whether the list is null or empty
    */
@@ -48,13 +47,12 @@ public final class Protos {
   }
 
   /**
-   * empty lists get read back as null
-   * So there is no distinction between null and empty
+   * empty lists get read back as null So there is no distinction between null and empty
+   *
    * @param list got from a protos getter
    * @return whether the list is null or empty
    */
   public static <T> boolean notEmpty(List<T> list) {
     return !isEmpty(list);
   }
-
 }

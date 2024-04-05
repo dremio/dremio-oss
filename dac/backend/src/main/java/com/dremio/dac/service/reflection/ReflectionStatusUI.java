@@ -23,10 +23,8 @@ import com.dremio.service.reflection.ReflectionStatus.CONFIG_STATUS;
 import com.dremio.service.reflection.ReflectionStatus.REFRESH_STATUS;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 
-/**
- * Reflection Status
- */
-@JsonAutoDetect(fieldVisibility=JsonAutoDetect.Visibility.ANY)
+/** Reflection Status */
+@JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY)
 public class ReflectionStatusUI {
 
   private CONFIG_STATUS config;
@@ -35,13 +33,11 @@ public class ReflectionStatusUI {
   private COMBINED_STATUS combinedStatus;
 
   private int failureCount;
-  @JsonISODateTime
-  private long lastDataFetch;
-  @JsonISODateTime
-  private long expiresAt;
+  private String lastFailureMessage;
+  @JsonISODateTime private long lastDataFetch;
+  @JsonISODateTime private long expiresAt;
 
-  public ReflectionStatusUI() {
-  }
+  public ReflectionStatusUI() {}
 
   public ReflectionStatusUI(ReflectionStatus status) {
     this.config = status.getConfigStatus();
@@ -49,17 +45,27 @@ public class ReflectionStatusUI {
     this.availability = status.getAvailabilityStatus();
     this.combinedStatus = status.getCombinedStatus();
     this.failureCount = status.getNumFailures();
+    this.lastFailureMessage =
+        status.getLastFailure() != null ? status.getLastFailure().getMessage() : null;
     this.lastDataFetch = status.getLastDataFetch();
     this.expiresAt = status.getExpiresAt();
   }
 
-  public ReflectionStatusUI(CONFIG_STATUS config, REFRESH_STATUS refresh, AVAILABILITY_STATUS availability,
-      COMBINED_STATUS combinedStatus, int failureCount, long lastDataFetch, long expiresAt) {
+  public ReflectionStatusUI(
+      CONFIG_STATUS config,
+      REFRESH_STATUS refresh,
+      AVAILABILITY_STATUS availability,
+      COMBINED_STATUS combinedStatus,
+      int failureCount,
+      String lastFailureMessage,
+      long lastDataFetch,
+      long expiresAt) {
     this.config = config;
     this.refresh = refresh;
     this.availability = availability;
     this.combinedStatus = combinedStatus;
     this.failureCount = failureCount;
+    this.lastFailureMessage = lastFailureMessage;
     this.lastDataFetch = lastDataFetch;
     this.expiresAt = expiresAt;
   }
@@ -82,5 +88,9 @@ public class ReflectionStatusUI {
 
   public int getFailureCount() {
     return failureCount;
+  }
+
+  public String getLastFailureMessage() {
+    return lastFailureMessage;
   }
 }

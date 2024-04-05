@@ -20,7 +20,7 @@ import { type MutableRefObject, useState, useLayoutEffect } from "react";
  * Tracks an element's DOMRect with a ResizeObserver
  */
 export const useElementRect = (
-  ref: MutableRefObject<Element>
+  ref: MutableRefObject<Element>,
 ): DOMRect | null => {
   const [rect, setRect] = useState<DOMRect | null>(null);
 

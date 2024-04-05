@@ -19,8 +19,8 @@ import static com.dremio.exec.planner.cost.janio.CodeGeneratorUtil.argList;
 import static com.dremio.exec.planner.cost.janio.CodeGeneratorUtil.dispatchMethodName;
 import static com.dremio.exec.planner.cost.janio.CodeGeneratorUtil.paramList;
 
+import com.google.common.collect.ImmutableList;
 import java.lang.reflect.Method;
-
 import org.apache.calcite.linq4j.Ord;
 import org.apache.calcite.linq4j.tree.Primitive;
 import org.apache.calcite.rel.RelNode;
@@ -30,15 +30,10 @@ import org.apache.calcite.rel.metadata.NullSentinel;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rex.RexNode;
 
-import com.google.common.collect.ImmutableList;
-
-/**
- * Generates caching code for janino backed metadata.
- */
+/** Generates caching code for janino backed metadata. */
 class CacheGenerator {
 
-  private CacheGenerator() {
-  }
+  private CacheGenerator() {}
 
   static void cacheProperties(StringBuilder buff, Method method, int methodIndex) {
     buff.append("  private final Object ");
@@ -65,14 +60,19 @@ class CacheGenerator {
         .append(" mq");
     paramList(buff, method, 2)
         .append(") {\n")
-        .append("    while (r instanceof ").append(delRelClass).append(") {\n")
-        .append("      r = ((").append(delRelClass).append(") r).getMetadataDelegateRel();\n")
+        .append("    while (r instanceof ")
+        .append(delRelClass)
+        .append(") {\n")
+        .append("      r = ((")
+        .append(delRelClass)
+        .append(") r).getMetadataDelegateRel();\n")
         .append("    }\n");
     buff.append("    final java.util.List key = ")
         .append(
             (method.getParameterTypes().length < 6
-                ? org.apache.calcite.runtime.FlatLists.class
-                : ImmutableList.class).getName())
+                    ? org.apache.calcite.runtime.FlatLists.class
+                    : ImmutableList.class)
+                .getName())
         .append(".of(");
     appendKeyName(buff, methodIndex);
     cacheKeyArgList(buff, method)
@@ -102,8 +102,7 @@ class CacheGenerator {
         .append("      final ")
         .append(method.getReturnType().getName())
         .append(" x = ");
-    dispatchMethodName(buff, method)
-        .append("(r, mq");
+    dispatchMethodName(buff, method).append("(r, mq");
     argList(buff, method, 2)
         .append(");\n")
         .append("      mq.cache.put(r, key, ")
@@ -120,18 +119,20 @@ class CacheGenerator {
         .append("\n");
   }
 
-
   /** Returns e.g. ", ignoreNulls". */
   private static StringBuilder cacheKeyArgList(StringBuilder buff, Method method) {
-    //We ignore the first 2 arguments, RelNode and MetadataQuery, since they are included other
-    //ways.
-    for (Ord<Class<?>> t : Ord.zip(method.getParameterTypes())
-        .subList(2, method.getParameterCount())) {
+    // We ignore the first 2 arguments, RelNode and MetadataQuery, since they are included other
+    // ways.
+    for (Ord<Class<?>> t :
+        Ord.zip(method.getParameterTypes()).subList(2, method.getParameterCount())) {
       if (Primitive.is(t.e) || RexNode.class.isAssignableFrom(t.e)) {
         buff.append(", a").append(t.i);
       } else {
-        buff.append(", ").append(NullSentinel.class.getName())
-            .append(".mask(a").append(t.i).append(")");
+        buff.append(", ")
+            .append(NullSentinel.class.getName())
+            .append(".mask(a")
+            .append(t.i)
+            .append(")");
       }
     }
     return buff;

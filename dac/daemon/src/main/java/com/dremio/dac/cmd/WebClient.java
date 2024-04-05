@@ -17,26 +17,6 @@ package com.dremio.dac.cmd;
 
 import static java.lang.String.format;
 
-import java.io.IOException;
-import java.security.GeneralSecurityException;
-import java.security.KeyStore;
-import java.util.Optional;
-
-import javax.inject.Provider;
-import javax.net.ssl.HostnameVerifier;
-import javax.net.ssl.SSLContext;
-import javax.ws.rs.ProcessingException;
-import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.Invocation;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-
-import org.eclipse.jetty.http.HttpHeader;
-import org.glassfish.jersey.media.multipart.MultiPartFeature;
-
 import com.dremio.config.DremioConfig;
 import com.dremio.dac.model.usergroup.UserLogin;
 import com.dremio.dac.model.usergroup.UserLoginSession;
@@ -48,10 +28,25 @@ import com.dremio.exec.rpc.ssl.SSLConfigurator;
 import com.dremio.services.credentials.CredentialsService;
 import com.dremio.ssl.SSLHelper;
 import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
+import java.io.IOException;
+import java.security.GeneralSecurityException;
+import java.security.KeyStore;
+import java.util.Optional;
+import javax.inject.Provider;
+import javax.net.ssl.HostnameVerifier;
+import javax.net.ssl.SSLContext;
+import javax.ws.rs.ProcessingException;
+import javax.ws.rs.client.Client;
+import javax.ws.rs.client.ClientBuilder;
+import javax.ws.rs.client.Entity;
+import javax.ws.rs.client.Invocation;
+import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+import org.eclipse.jetty.http.HttpHeader;
+import org.glassfish.jersey.media.multipart.MultiPartFeature;
 
-/**
- * A web client to access api v2
- */
+/** A web client to access api v2 */
 public class WebClient {
   private WebTarget target;
   private UserLoginSession userSession;
@@ -60,61 +55,74 @@ public class WebClient {
   private final boolean checkCertificates;
 
   public WebClient(
-    DACConfig dacConfig,
-    Provider<CredentialsService> credentialsServiceProvider,
-    String userName,
-    String password,
-    boolean checkCertificates
-  )
-    throws IOException, GeneralSecurityException {
+      DACConfig dacConfig,
+      Provider<CredentialsService> credentialsServiceProvider,
+      String userName,
+      String password,
+      boolean checkCertificates)
+      throws IOException, GeneralSecurityException {
     this.checkCertificates = checkCertificates;
     this.credentialsServiceProvider = credentialsServiceProvider;
 
     this.target = getWebClient(dacConfig);
-    this.userSession = buildPost(UserLoginSession.class, "/login", new UserLogin(userName, password), false);
+    this.userSession =
+        buildPost(UserLoginSession.class, "/login", new UserLogin(userName, password), false);
   }
 
-  public final <TResult, TRequest> TResult buildPost(Class<TResult> outputType, String path, TRequest requestBody)
-    throws IOException {
+  public final <TResult, TRequest> TResult buildPost(
+      Class<TResult> outputType, String path, TRequest requestBody) throws IOException {
     return buildPost(outputType, path, requestBody, true);
   }
 
-  private final <TResult, TRequest> TResult buildPost(Class<TResult> outputType, String path,
-    TRequest requestBody, boolean includeAuthToken) throws IOException {
-    Invocation.Builder builder =  target.path(path).request(MediaType.APPLICATION_JSON_TYPE);
+  private final <TResult, TRequest> TResult buildPost(
+      Class<TResult> outputType, String path, TRequest requestBody, boolean includeAuthToken)
+      throws IOException {
+    Invocation.Builder builder = target.path(path).request(MediaType.APPLICATION_JSON_TYPE);
 
     if (includeAuthToken) {
-      builder = builder.header(HttpHeader.AUTHORIZATION.toString(),
-        TokenUtils.AUTH_HEADER_PREFIX + userSession.getToken());
+      builder =
+          builder.header(
+              HttpHeader.AUTHORIZATION.toString(),
+              TokenUtils.AUTH_HEADER_PREFIX + userSession.getToken());
     }
 
     return readEntity(outputType, builder.buildPost(Entity.json(requestBody)));
   }
 
-  private WebTarget getWebClient(
-    DACConfig dacConfig) throws IOException, GeneralSecurityException {
+  private WebTarget getWebClient(DACConfig dacConfig) throws IOException, GeneralSecurityException {
     final JacksonJaxbJsonProvider provider = new JacksonJaxbJsonProvider();
     provider.setMapper(JSONUtil.prettyMapper());
-    ClientBuilder clientBuilder = ClientBuilder.newBuilder()
-      .register(provider)
-      .register(MultiPartFeature.class);
+    ClientBuilder clientBuilder =
+        ClientBuilder.newBuilder().register(provider).register(MultiPartFeature.class);
 
     if (dacConfig.webSSLEnabled()) {
       this.setTrustStore(clientBuilder, dacConfig);
     }
 
     final Client client = clientBuilder.build();
-    return client.target(format("%s://%s:%d", dacConfig.webSSLEnabled() ? "https" : "http", dacConfig.thisNode,
-      dacConfig.getHttpPort())).path("apiv2");
+    return client
+        .target(
+            format(
+                "%s://%s:%d",
+                dacConfig.webSSLEnabled() ? "https" : "http",
+                dacConfig.thisNode,
+                dacConfig.getHttpPort()))
+        .path("apiv2");
   }
 
   private void setTrustStore(ClientBuilder clientBuilder, DACConfig dacConfig)
-    throws IOException, GeneralSecurityException {
+      throws IOException, GeneralSecurityException {
     Optional<KeyStore> trustStore = Optional.empty();
 
     if (checkCertificates) {
       // if checkCertificates is false, credentialsServiceProvider.get() will be null
-      trustStore = new SSLConfigurator(dacConfig.getConfig(), credentialsServiceProvider, DremioConfig.WEB_SSL_PREFIX, "web").getTrustStore();
+      trustStore =
+          new SSLConfigurator(
+                  dacConfig.getConfig(),
+                  credentialsServiceProvider,
+                  DremioConfig.WEB_SSL_PREFIX,
+                  "web")
+              .getTrustStore();
       if (trustStore.isPresent()) {
         clientBuilder.trustStore(trustStore.get());
       }
@@ -135,22 +143,27 @@ public class WebClient {
           // Try to parse error message as generic error message JSON type
           try {
             GenericErrorMessage message = response.readEntity(GenericErrorMessage.class);
-            throw new IOException(format("Status %d (%s): %s (more info: %s)",
-              response.getStatus(),
-              response.getStatusInfo().getReasonPhrase(),
-              message.getErrorMessage(),
-              message.getMoreInfo()));
+            throw new IOException(
+                format(
+                    "Status %d (%s): %s (more info: %s)",
+                    response.getStatus(),
+                    response.getStatusInfo().getReasonPhrase(),
+                    message.getErrorMessage(),
+                    message.getMoreInfo()));
           } catch (ProcessingException e) {
             // Fallback to String if unparsing is unsuccessful
-            throw new IOException(format("Status %d (%s): %s",
-              response.getStatus(),
-              response.getStatusInfo().getReasonPhrase(),
-              response.readEntity(String.class)));
+            throw new IOException(
+                format(
+                    "Status %d (%s): %s",
+                    response.getStatus(),
+                    response.getStatusInfo().getReasonPhrase(),
+                    response.readEntity(String.class)));
           }
         }
-        throw new IOException(format("Status %d (%s)",
-          response.getStatus(),
-          response.getStatusInfo().getReasonPhrase()));
+        throw new IOException(
+            format(
+                "Status %d (%s)",
+                response.getStatus(), response.getStatusInfo().getReasonPhrase()));
       }
       return response.readEntity(entityClazz);
     } finally {

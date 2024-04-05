@@ -15,20 +15,6 @@
  */
 package com.dremio.exec.planner.serializer;
 
-import java.lang.reflect.Modifier;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Objects;
-import java.util.Set;
-import java.util.stream.Stream;
-
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.sql.SqlOperator;
-import org.apache.calcite.sql.SqlOperatorTable;
-import org.apache.calcite.sql.fun.SqlStdOperatorTable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.exec.catalog.udf.UserDefinedFunctionArgumentOperator;
 import com.dremio.exec.planner.sql.DremioSqlOperatorTable;
 import com.dremio.exec.planner.sql.SqlFunctionImpl;
@@ -38,10 +24,20 @@ import com.dremio.plan.serialization.PSqlOperator;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.ImmutableBiMap;
+import java.lang.reflect.Modifier;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Stream;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.sql.SqlOperatorTable;
+import org.apache.calcite.sql.fun.SqlStdOperatorTable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * Serialize TO <> FROM SqlOperator to Protobuf.
- */
+/** Serialize TO <> FROM SqlOperator to Protobuf. */
 public class LegacySqlOperatorSerde {
 
   private static final Logger logger = LoggerFactory.getLogger(LegacySqlOperatorSerde.class);
@@ -58,7 +54,7 @@ public class LegacySqlOperatorSerde {
   }
 
   public SqlOperator fromProto(PSqlOperator o) {
-    switch(o.getSqlOperatorTypeCase()) {
+    switch (o.getSqlOperatorTypeCase()) {
       case NAME:
         // DATETIME_MINUS is not available in calcite upstream.
         // It has been removed from dremio/calcite.
@@ -73,17 +69,20 @@ public class LegacySqlOperatorSerde {
         }
         return SQL_STD_OPERATORS.get(operatorName).value;
 
-    case DNAME:
-      SyEq <org.apache.calcite.sql.SqlOperator> op = operators.get(new FunctionKey(o.getDname(), o.getClassName(),
-        o.getMinOperands(), o.getMaxOperands()));
-      if (op != null) {
-        return op.value;
-      }
-      return SQL_STD_OPERATORS.get(o.getDname()).value;
+      case DNAME:
+        SyEq<org.apache.calcite.sql.SqlOperator> op =
+            operators.get(
+                new FunctionKey(
+                    o.getDname(), o.getClassName(), o.getMinOperands(), o.getMaxOperands()));
+        if (op != null) {
+          return op.value;
+        }
+        return SQL_STD_OPERATORS.get(o.getDname()).value;
 
       case SQLOPERATORTYPE_NOT_SET:
       default:
-        throw new UnsupportedOperationException(String.format("Unable to handle operator case %s.", o.getSqlOperatorTypeCase()));
+        throw new UnsupportedOperationException(
+            String.format("Unable to handle operator case %s.", o.getSqlOperatorTypeCase()));
     }
   }
 
@@ -109,34 +108,35 @@ public class LegacySqlOperatorSerde {
       maxOperands = o.getOperandTypeChecker().getOperandCountRange().getMax();
     }
 
-    builder
-      .setMinOperands(minOperands)
-      .setMaxOperands(maxOperands);
+    builder.setMinOperands(minOperands).setMaxOperands(maxOperands);
 
     if (operators.get(new FunctionKey(functionName, className, minOperands, maxOperands)) != null) {
       return builder.build();
     }
 
     if (o instanceof UserDefinedFunctionArgumentOperator.ArgumentOperator) {
-      UserDefinedFunctionArgumentOperator.ArgumentOperator argument = (UserDefinedFunctionArgumentOperator.ArgumentOperator) o;
+      UserDefinedFunctionArgumentOperator.ArgumentOperator argument =
+          (UserDefinedFunctionArgumentOperator.ArgumentOperator) o;
       int ordinal = argument.getOrdinal();
       String name = argument.getName();
       RelDataType type = argument.getReturnRelDataType();
 
       TypeSerde typeSerde = new TypeSerde(JavaTypeFactoryImpl.INSTANCE);
-      PFunctionParameter pFunctionParameter = PFunctionParameter.newBuilder()
-        .setOrdinal(ordinal)
-        .setName(name)
-        .setType(typeSerde.toProto(type))
-        .build();
+      PFunctionParameter pFunctionParameter =
+          PFunctionParameter.newBuilder()
+              .setOrdinal(ordinal)
+              .setName(name)
+              .setType(typeSerde.toProto(type))
+              .build();
 
-      return builder
-        .setFunctionParameter(pFunctionParameter)
-        .build();
+      return builder.setFunctionParameter(pFunctionParameter).build();
     }
 
     if (!(o instanceof SqlFunctionImpl)) {
-      throw new UnsupportedOperationException(String.format("Unable to serialize operator [%s] of type [%s]", o.getClass().getName(), o.getName()));
+      throw new UnsupportedOperationException(
+          String.format(
+              "Unable to serialize operator [%s] of type [%s]",
+              o.getClass().getName(), o.getName()));
     }
 
     throw new UnsupportedOperationException("Unable to support Dremio functions yet.");
@@ -146,29 +146,37 @@ public class LegacySqlOperatorSerde {
     ImmutableBiMap.Builder<String, SyEq<SqlOperator>> builder = ImmutableBiMap.builder();
     Set<String> names = new HashSet<>();
     Stream.concat(
-        Arrays.stream(DremioSqlOperatorTable.class.getDeclaredFields()),
-        Arrays.stream(SqlStdOperatorTable.class.getDeclaredFields()))
-      .filter(field -> {
-        final int modifiers = field.getModifiers();
-        final Class<?> type = field.getType();
-        return Modifier.isStatic(modifiers) && Modifier.isPublic(modifiers)
-          && SqlOperator.class.isAssignableFrom(type);
-      })
-      .filter(f -> names.add(f.getName())) //remove duplicates
-      .forEach(operatorField -> {
-        try {
+            Arrays.stream(DremioSqlOperatorTable.class.getDeclaredFields()),
+            Arrays.stream(SqlStdOperatorTable.class.getDeclaredFields()))
+        .filter(
+            field -> {
+              final int modifiers = field.getModifiers();
+              final Class<?> type = field.getType();
+              return Modifier.isStatic(modifiers)
+                  && Modifier.isPublic(modifiers)
+                  && SqlOperator.class.isAssignableFrom(type);
+            })
+        .filter(f -> names.add(f.getName())) // remove duplicates
+        .forEach(
+            operatorField -> {
+              try {
 
-          builder.put(operatorField.getName(), new SyEq<>((SqlOperator) operatorField.get(null)));
-        } catch (final IllegalAccessException ex) {
-          logger.warn("Unable to retrieve SqlOperator {} from table {}.", operatorField.getName(),
-            operatorField.getDeclaringClass(), ex);
-        }
-      });
+                builder.put(
+                    operatorField.getName(), new SyEq<>((SqlOperator) operatorField.get(null)));
+              } catch (final IllegalAccessException ex) {
+                logger.warn(
+                    "Unable to retrieve SqlOperator {} from table {}.",
+                    operatorField.getName(),
+                    operatorField.getDeclaringClass(),
+                    ex);
+              }
+            });
 
     return builder.build();
   }
 
-  private static BiMap<FunctionKey, SyEq<SqlOperator>> populate(final SqlOperatorTable operatorTable) {
+  private static BiMap<FunctionKey, SyEq<SqlOperator>> populate(
+      final SqlOperatorTable operatorTable) {
     ImmutableBiMap.Builder<FunctionKey, SyEq<SqlOperator>> builder = ImmutableBiMap.builder();
     Set<FunctionKey> keys = new HashSet<>();
 
@@ -179,7 +187,9 @@ public class LegacySqlOperatorSerde {
         minOperands = operator.getOperandTypeChecker().getOperandCountRange().getMin();
         maxOperands = operator.getOperandTypeChecker().getOperandCountRange().getMax();
       }
-      final FunctionKey key = new FunctionKey(operator.getName(), operator.getClass().getName(), minOperands, maxOperands);
+      final FunctionKey key =
+          new FunctionKey(
+              operator.getName(), operator.getClass().getName(), minOperands, maxOperands);
       keys.add(key);
       builder.put(key, new SyEq<>(operator));
     }
@@ -187,9 +197,7 @@ public class LegacySqlOperatorSerde {
     return builder.build();
   }
 
-  /**
-   * FunctionKey
-   */
+  /** FunctionKey */
   private static class FunctionKey {
     private String name;
     private String className;
@@ -205,15 +213,15 @@ public class LegacySqlOperatorSerde {
 
     @Override
     public boolean equals(Object obj) {
-      if (! (obj instanceof FunctionKey) ) {
+      if (!(obj instanceof FunctionKey)) {
         return false;
       }
 
       FunctionKey that = (FunctionKey) obj;
       return this.name.equals(that.name)
-        && this.className.equals(that.className)
-        && this.min == that.min
-        && this.max == that.max;
+          && this.className.equals(that.className)
+          && this.min == that.min
+          && this.max == that.max;
     }
 
     @Override
@@ -224,6 +232,7 @@ public class LegacySqlOperatorSerde {
 
   /**
    * A wrapper around a class that uses the object reference for hashing and checking for equality.
+   *
    * @param <T>
    */
   private static class SyEq<T> {
@@ -236,11 +245,11 @@ public class LegacySqlOperatorSerde {
 
     @Override
     public boolean equals(Object obj) {
-      if (! (obj instanceof SyEq) ) {
+      if (!(obj instanceof SyEq)) {
         return false;
       }
 
-      return value == ((SyEq<?>)obj).value;
+      return value == ((SyEq<?>) obj).value;
     }
 
     @Override

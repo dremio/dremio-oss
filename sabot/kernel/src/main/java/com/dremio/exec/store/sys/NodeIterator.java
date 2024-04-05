@@ -15,11 +15,10 @@
  */
 package com.dremio.exec.store.sys;
 
-import java.util.Iterator;
-
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.service.executor.ExecutorServiceImpl;
 import com.dremio.sabot.exec.context.OperatorContext;
+import java.util.Iterator;
 
 public class NodeIterator implements Iterator<Object> {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(NodeIterator.class);
@@ -45,7 +44,8 @@ public class NodeIterator implements Iterator<Object> {
     }
 
     beforeFirst = false;
-    return NodeInstance.fromStats(ExecutorServiceImpl.getNodeStatsFromContext(dbContext), dbContext.getEndpoint());
+    return NodeInstance.fromStats(
+        ExecutorServiceImpl.getNodeStatsFromContext(dbContext), dbContext.getEndpoint());
   }
 
   @Override

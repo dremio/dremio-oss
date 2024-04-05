@@ -19,9 +19,7 @@ import com.dremio.common.types.MinorType;
 import com.dremio.exec.proto.beans.SerializedField;
 import com.google.common.annotations.VisibleForTesting;
 
-/**
- * Utility class to validate the contents of an {@link ArrowFileMetadata}
- */
+/** Utility class to validate the contents of an {@link ArrowFileMetadata} */
 public final class ArrowFileMetadataValidator {
 
   /**
@@ -31,8 +29,9 @@ public final class ArrowFileMetadataValidator {
    */
   public static boolean hasInvalidUnions(ArrowFileMetadata metadata) {
     return !ArrowFileReader.fromBean(metadata).hasArrowMetadataVersion()
-      && metadata.getFooter().getFieldList() != null
-      && metadata.getFooter().getFieldList().stream().anyMatch(ArrowFileMetadataValidator::containsUnion);
+        && metadata.getFooter().getFieldList() != null
+        && metadata.getFooter().getFieldList().stream()
+            .anyMatch(ArrowFileMetadataValidator::containsUnion);
   }
 
   @VisibleForTesting
@@ -45,7 +44,7 @@ public final class ArrowFileMetadataValidator {
       return true;
     }
 
-    return field.getChildList() != null &&
-      field.getChildList().stream().anyMatch(ArrowFileMetadataValidator::containsUnion);
+    return field.getChildList() != null
+        && field.getChildList().stream().anyMatch(ArrowFileMetadataValidator::containsUnion);
   }
 }

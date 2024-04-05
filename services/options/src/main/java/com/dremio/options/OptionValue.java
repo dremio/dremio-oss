@@ -23,20 +23,20 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 
 /**
- * An {@link OptionValue option value} is used by an {@link OptionManager} to store a run-time setting. This setting,
- * for example, could affect a query in execution stage. Instances of this class are JSON serializable and can be stored
- * in a {@link PersistentStore persistent store} (see {@link SystemOptionManager#options}), or
- * in memory (see {@link InMemoryOptionManager#options}).
+ * An {@link OptionValue option value} is used by an {@link OptionManager} to store a run-time
+ * setting. This setting, for example, could affect a query in execution stage. Instances of this
+ * class are JSON serializable and can be stored in a {@link PersistentStore persistent store} (see
+ * {@link SystemOptionManager#options}), or in memory (see {@link InMemoryOptionManager#options}).
  */
 @JsonInclude(Include.NON_NULL)
 public final class OptionValue implements Comparable<OptionValue> {
 
-  /**
-   * Option Type
-   * Check order: QUERY > SESSION > SYSTEM > BOOT
-   */
+  /** Option Type Check order: QUERY > SESSION > SYSTEM > BOOT */
   public enum OptionType {
-    BOOT, SYSTEM, SESSION, QUERY
+    BOOT,
+    SYSTEM,
+    SESSION,
+    QUERY
   }
 
   @Override
@@ -52,11 +52,12 @@ public final class OptionValue implements Comparable<OptionValue> {
     return 0;
   }
 
-  /**
-   * Option kind
-   */
+  /** Option kind */
   public enum Kind {
-    BOOLEAN, LONG, STRING, DOUBLE
+    BOOLEAN,
+    LONG,
+    STRING,
+    DOUBLE
   }
 
   private final String name;
@@ -100,14 +101,16 @@ public final class OptionValue implements Comparable<OptionValue> {
   }
 
   @JsonCreator
-  public OptionValue(@JsonProperty("kind") Kind kind,
-                      @JsonProperty("type") OptionType type,
-                      @JsonProperty("name") String name,
-                      @JsonProperty("num_val") Long num_val,
-                      @JsonProperty("string_val") String string_val,
-                      @JsonProperty("bool_val") Boolean boolVal,
-                      @JsonProperty("float_val") Double floatVal) {
-    Preconditions.checkArgument(num_val != null || string_val != null || boolVal != null || floatVal != null);
+  public OptionValue(
+      @JsonProperty("kind") Kind kind,
+      @JsonProperty("type") OptionType type,
+      @JsonProperty("name") String name,
+      @JsonProperty("num_val") Long num_val,
+      @JsonProperty("string_val") String string_val,
+      @JsonProperty("bool_val") Boolean boolVal,
+      @JsonProperty("float_val") Double floatVal) {
+    Preconditions.checkArgument(
+        num_val != null || string_val != null || boolVal != null || floatVal != null);
     this.kind = kind;
     this.type = type;
     this.name = name;
@@ -165,7 +168,6 @@ public final class OptionValue implements Comparable<OptionValue> {
   public Double getFloatVal() {
     return floatVal;
   }
-
 
   @Override
   public int hashCode() {

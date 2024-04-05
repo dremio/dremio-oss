@@ -15,35 +15,35 @@
  */
 package com.dremio.exec.planner.logical;
 
-import org.junit.Test;
-
 import com.dremio.PlanTestBase;
+import org.junit.Test;
 
 public class TestRewriteConvertFunctionVisitor extends PlanTestBase {
   @Test
   public void testConvertFromRewrite() throws Exception {
-    final String convertFromQuery = String.format(
-      "SELECT account_id, convert_from(setting,'json') as setting1 \n" +
-        "FROM %s",
-      "cp.\"car-ownership.parquet\"");
+    final String convertFromQuery =
+        String.format(
+            "SELECT account_id, convert_from(setting,'json') as setting1 \n" + "FROM %s",
+            "cp.\"car-ownership.parquet\"");
 
     testPlanMatchingPatterns(
-      convertFromQuery,
-      new String[]{"ConvertFromJson\\(account_id=\\[\\$0], setting=\\[\\$1], " +
-        "CONVERT_FROM_JSON=\\[CONVERT\\(CONVERT_FROM_JSON\\)], " +
-        "conversions=\\[\\[originField='setting', inputField='CONVERT_FROM_JSON']]\\)"}
-    );
+        convertFromQuery,
+        new String[] {
+          "ConvertFromJson\\(account_id=\\[\\$0], setting=\\[\\$1], "
+              + "CONVERT_FROM_JSON=\\[CONVERT\\(CONVERT_FROM_JSON\\)], "
+              + "conversions=\\[\\[originField='setting', inputField='CONVERT_FROM_JSON']]\\)"
+        });
   }
 
   @Test
   public void testConvertToRewrite() throws Exception {
-    final String convertToQuery = String.format(
-      "SELECT CONVERT_TO('{\"name\":\"John\", \"age\":30, \"car\":null}','json')"
-    );
+    final String convertToQuery =
+        String.format("SELECT CONVERT_TO('{\"name\":\"John\", \"age\":30, \"car\":null}','json')");
     testPlanMatchingPatterns(
-      convertToQuery,
-      new String[]{"Project\\(EXPR\\$0\\=\\[CONVERT_TOJSON\\('\\{\"name\":\"John\", \"age\":30, \"car\":null\\}'" +
-        ":VARCHAR\\(37\\)\\)\\]\\)"}
-    );
+        convertToQuery,
+        new String[] {
+          "Project\\(EXPR\\$0\\=\\[CONVERT_TOJSON\\('\\{\"name\":\"John\", \"age\":30, \"car\":null\\}'"
+              + ":VARCHAR\\(37\\)\\)\\]\\)"
+        });
   }
 }

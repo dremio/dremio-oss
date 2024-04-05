@@ -1,4 +1,4 @@
-<?xml version="1.0"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!--
 
     Copyright (C) 2017-2019 Dremio Corporation
@@ -16,15 +16,14 @@
     limitations under the License.
 
 -->
-<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
-    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <parent>
     <groupId>com.dremio.plugins</groupId>
     <artifactId>dremio-hive2-plugin-parent</artifactId>
-    <version>24.3.2-202401241821100032-d2d8a497</version>
+    <version>25.0.0-202404051521110861-ed9515a8</version>
   </parent>
-  
+
   <artifactId>dremio-hive2-plugin-launcher</artifactId>
   <name>Storage Plugins - Hive 2.x Plugin Launcher</name>
 
@@ -32,49 +31,72 @@
     <src.dir>src/main/java</src.dir>
   </properties>
 
+  <dependencies>
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-common</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.sabot</groupId>
+      <artifactId>dremio-sabot-kernel</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.plugins</groupId>
+      <artifactId>dremio-plugin-common</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.plugins</groupId>
+      <artifactId>dremio-hive-plugin-common</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.pf4j</groupId>
+      <artifactId>pf4j</artifactId>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-checkstyle-plugin</artifactId>
+        <configuration>
+          <sourceDirectories combine.children="append">
+            <sourceDirectory>${project.basedir}/${src.dir}</sourceDirectory>
+          </sourceDirectories>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>com.diffplug.spotless</groupId>
+        <artifactId>spotless-maven-plugin</artifactId>
+        <configuration>
+          <!-- See https://github.com/diffplug/spotless/tree/main/plugin-maven#java -->
+          <java>
+            <includes combine.children="append">
+              <include>${src.dir}/**/*.java</include>
+            </includes>
+          </java>
+        </configuration>
+      </plugin>
+    </plugins>
+    <sourceDirectory>${src.dir}</sourceDirectory>
+  </build>
+
   <profiles>
     <profile>
-      <id>hive-universal</id>
+      <id>mapr</id>
       <activation>
-          <property>
-            <name>hive-universal</name>
-          </property>
-        </activation>
-        <properties>
-          <src.dir>src/compat/java</src.dir>
-        </properties>
-      </profile>
-    </profiles>
+        <property>
+          <name>mapr</name>
+        </property>
+      </activation>
+      <properties>
+        <src.dir>src/compat/java</src.dir>
+      </properties>
+    </profile>
+  </profiles>
 
-    <build>
-      <sourceDirectory>${src.dir}</sourceDirectory>
-    </build>
-
-    <dependencies>
-      <dependency>
-        <groupId>com.dremio</groupId>
-        <artifactId>dremio-common</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>com.dremio.sabot</groupId>
-        <artifactId>dremio-sabot-kernel</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>com.dremio.plugins</groupId>
-        <artifactId>dremio-plugin-common</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>com.dremio.plugins</groupId>
-        <artifactId>dremio-hive-plugin-common</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.pf4j</groupId>
-        <artifactId>pf4j</artifactId>
-      </dependency>
-    </dependencies>
-
-  </project>
+</project>

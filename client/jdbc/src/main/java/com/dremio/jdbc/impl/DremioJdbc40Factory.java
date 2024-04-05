@@ -16,8 +16,8 @@
 package com.dremio.jdbc.impl;
 
 /**
- * Implementation of {@link net.hydromatic.avatica.AvaticaFactory}
- * for Dremio and JDBC 4.0 (corresponds to JDK 1.6).
+ * Implementation of {@link net.hydromatic.avatica.AvaticaFactory} for Dremio and JDBC 4.0
+ * (corresponds to JDK 1.6).
  */
 // Note:  Must be public so net.hydromatic.avatica.UnregisteredDriver can
 // (reflectively) call no-args constructor.

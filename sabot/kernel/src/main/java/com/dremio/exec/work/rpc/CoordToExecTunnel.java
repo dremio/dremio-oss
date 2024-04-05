@@ -31,9 +31,7 @@ import com.dremio.services.fabric.ProxyConnection;
 import com.dremio.services.fabric.api.FabricCommandRunner;
 import com.google.protobuf.MessageLite;
 
-/**
- * Send messages from coordinator to executor.
- */
+/** Send messages from coordinator to executor. */
 public class CoordToExecTunnel {
 
   private final FabricCommandRunner manager;
@@ -44,29 +42,39 @@ public class CoordToExecTunnel {
     this.endpoint = endpoint;
   }
 
-  public void startFragments(RpcOutcomeListener<Ack> outcomeListener, InitializeFragments fragments){
+  public void startFragments(
+      RpcOutcomeListener<Ack> outcomeListener, InitializeFragments fragments) {
     SendFragment b = new SendFragment(outcomeListener, RpcType.REQ_START_FRAGMENTS, fragments);
     manager.runCommand(b);
   }
 
-  public void activateFragments(RpcOutcomeListener<Ack> outcomeListener, ActivateFragments fragments){
+  public void activateFragments(
+      RpcOutcomeListener<Ack> outcomeListener, ActivateFragments fragments) {
     SendFragment b = new SendFragment(outcomeListener, RpcType.REQ_ACTIVATE_FRAGMENTS, fragments);
     manager.runCommand(b);
   }
 
-  public void cancelFragments(RpcOutcomeListener<Ack> outcomeListener, CancelFragments fragments){
-    final SignalFragment b = new SignalFragment(outcomeListener, RpcType.REQ_CANCEL_FRAGMENTS, fragments);
+  public void cancelFragments(RpcOutcomeListener<Ack> outcomeListener, CancelFragments fragments) {
+    final SignalFragment b =
+        new SignalFragment(outcomeListener, RpcType.REQ_CANCEL_FRAGMENTS, fragments);
     manager.runCommand(b);
   }
 
-  public void reconcileActiveQueries(RpcOutcomeListener<Ack> outcomeListener, CoordExecRPC.ActiveQueryList activeQueryList) {
-    final SignalFragment b = new SignalFragment(outcomeListener, RpcType.REQ_RECONCILE_ACTIVE_QUERIES, activeQueryList);
+  public void reconcileActiveQueries(
+      RpcOutcomeListener<Ack> outcomeListener, CoordExecRPC.ActiveQueryList activeQueryList) {
+    final SignalFragment b =
+        new SignalFragment(outcomeListener, RpcType.REQ_RECONCILE_ACTIVE_QUERIES, activeQueryList);
     manager.runCommand(b);
   }
 
-  public void propagatePluginChange(RpcOutcomeListener<Ack> outcomeListener, CoordExecRPC.SourceWrapper sourceWrapper) {
-    CatalogRPC.RpcType rpcType = CatalogRPC.RpcType.valueOf(sourceWrapper.getPluginChangeNodeEndpoints().getRpcType().name());
-    final SignalFragment b = new SignalFragment(outcomeListener, CoordExecRPC.RpcType.valueOf(rpcType.name()), sourceWrapper);
+  public void propagatePluginChange(
+      RpcOutcomeListener<Ack> outcomeListener, CoordExecRPC.SourceWrapper sourceWrapper) {
+    CatalogRPC.RpcType rpcType =
+        CatalogRPC.RpcType.valueOf(
+            sourceWrapper.getPluginChangeNodeEndpoints().getRpcType().name());
+    final SignalFragment b =
+        new SignalFragment(
+            outcomeListener, CoordExecRPC.RpcType.valueOf(rpcType.name()), sourceWrapper);
     manager.runCommand(b);
   }
 
@@ -90,7 +98,6 @@ public class CoordToExecTunnel {
     public void doRpcCall(RpcOutcomeListener<Ack> outcomeListener, ProxyConnection connection) {
       connection.sendUnsafe(outcomeListener, type, message, Ack.class);
     }
-
   }
 
   private static class SendFragment extends ListeningCommand<Ack, ProxyConnection> {
@@ -107,20 +114,20 @@ public class CoordToExecTunnel {
     public void doRpcCall(RpcOutcomeListener<Ack> outcomeListener, ProxyConnection connection) {
       connection.send(outcomeListener, type, message, Ack.class);
     }
-
   }
 
   public static class RequestNodeStat extends ListeningCommand<NodeStatResp, ProxyConnection> {
     private final NodeStatReq nodeStatRequest;
 
-    public RequestNodeStat(NodeStatReq nodeStatRequest, RpcOutcomeListener<NodeStatResp> outcomeListener) {
+    public RequestNodeStat(
+        NodeStatReq nodeStatRequest, RpcOutcomeListener<NodeStatResp> outcomeListener) {
       super(outcomeListener);
       this.nodeStatRequest = nodeStatRequest;
     }
 
     @Override
-    public void doRpcCall(RpcOutcomeListener<NodeStatResp> outcomeListener, ProxyConnection
-      connection) {
+    public void doRpcCall(
+        RpcOutcomeListener<NodeStatResp> outcomeListener, ProxyConnection connection) {
       connection.send(outcomeListener, RpcType.REQ_NODE_STATS, nodeStatRequest, NodeStatResp.class);
     }
   }

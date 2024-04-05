@@ -15,19 +15,19 @@
  */
 package com.dremio.dac.daemon;
 
+import com.dremio.config.DremioConfig;
 import java.util.StringJoiner;
 
-import com.dremio.config.DremioConfig;
-
 /**
- * Small main method to determine the roles of a node
- * e.g. executor, coordinator, master, or any combination of the three.
+ * Small main method to determine the roles of a node e.g. executor, coordinator, master, or any
+ * combination of the three.
  *
- * returns
+ * <p>returns
  */
 public class GetRolesCommand {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(GetRolesCommand.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(GetRolesCommand.class);
 
   public static void main(String[] args) throws Exception {
     DremioConfig config = DremioConfig.create();

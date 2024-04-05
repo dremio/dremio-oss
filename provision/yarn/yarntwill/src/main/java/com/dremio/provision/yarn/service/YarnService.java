@@ -21,28 +21,6 @@ import static org.apache.hadoop.yarn.conf.YarnConfiguration.RM_HOSTNAME;
 import static org.apache.twill.api.Configs.Keys.HEAP_RESERVED_MIN_RATIO;
 import static org.apache.twill.api.Configs.Keys.JAVA_RESERVED_MEMORY_MB;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
-
-import org.apache.hadoop.yarn.conf.YarnConfiguration;
-import org.apache.twill.api.ResourceReport;
-import org.apache.twill.api.ServiceController;
-import org.apache.twill.api.TwillController;
-import org.apache.twill.api.TwillRunResources;
-import org.apache.twill.api.TwillRunnerService;
-import org.apache.twill.common.Threads;
-import org.apache.twill.internal.RunIds;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.nodes.NodeProvider;
 import com.dremio.config.DremioConfig;
 import com.dremio.edition.EditionProvider;
@@ -69,10 +47,28 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import org.apache.hadoop.yarn.conf.YarnConfiguration;
+import org.apache.twill.api.ResourceReport;
+import org.apache.twill.api.ServiceController;
+import org.apache.twill.api.TwillController;
+import org.apache.twill.api.TwillRunResources;
+import org.apache.twill.api.TwillRunnerService;
+import org.apache.twill.common.Threads;
+import org.apache.twill.internal.RunIds;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * YARN Provisioning Service
- */
+/** YARN Provisioning Service */
 public class YarnService implements ProvisioningServiceDelegate {
 
   private static final Logger logger = LoggerFactory.getLogger(YarnService.class);
@@ -81,24 +77,28 @@ public class YarnService implements ProvisioningServiceDelegate {
   private final NodeProvider executionNodeProvider;
   private final ProvisioningStateListener stateListener;
   private final ProvisioningDefaultsConfigurator defaultsConfigurator;
+
   @VisibleForTesting
   final ConcurrentMap<RunId, OnTerminatingRunnable> terminatingThreads = new ConcurrentHashMap<>();
 
-
   private static final ImmutableSet<String> EXCLUDED =
-    ImmutableSet.of(
-    FS_DEFAULT_NAME_KEY,
-    RM_HOSTNAME,
-    ProvisioningService.YARN_HEAP_SIZE_MB_PROPERTY
-    );
+      ImmutableSet.of(
+          FS_DEFAULT_NAME_KEY, RM_HOSTNAME, ProvisioningService.YARN_HEAP_SIZE_MB_PROPERTY);
 
-  public YarnService(DremioConfig config, ProvisioningStateListener stateListener, NodeProvider executionNodeProvider,
-                     OptionManager options, EditionProvider editionProvider) {
+  public YarnService(
+      DremioConfig config,
+      ProvisioningStateListener stateListener,
+      NodeProvider executionNodeProvider,
+      OptionManager options,
+      EditionProvider editionProvider) {
     this(stateListener, new YarnController(config), executionNodeProvider);
   }
 
   @VisibleForTesting
-  YarnService(ProvisioningStateListener stateListener, YarnController controller, NodeProvider executionNodeProvider) {
+  YarnService(
+      ProvisioningStateListener stateListener,
+      YarnController controller,
+      NodeProvider executionNodeProvider) {
     this.yarnController = controller;
     this.stateListener = stateListener;
     this.executionNodeProvider = executionNodeProvider;
@@ -110,21 +110,23 @@ public class YarnService implements ProvisioningServiceDelegate {
     return ClusterType.YARN;
   }
 
-
   @Override
   public ClusterEnriched startCluster(Cluster cluster) throws YarnProvisioningHandlingException {
     Preconditions.checkArgument(cluster.getState() != ClusterState.RUNNING);
     return startClusterAsync(cluster);
   }
 
-  private ClusterEnriched startClusterAsync(Cluster cluster) throws YarnProvisioningHandlingException {
+  private ClusterEnriched startClusterAsync(Cluster cluster)
+      throws YarnProvisioningHandlingException {
     YarnConfiguration yarnConfiguration = new YarnConfiguration();
     updateYarnConfiguration(cluster, yarnConfiguration);
 
     List<Property> props = cluster.getClusterConfig().getSubPropertyList();
     // only to show those props on UI/API
-    defaultsConfigurator.getDistroTypeDefaultsConfigurator(
-      cluster.getClusterConfig().getDistroType(), cluster.getClusterConfig().getIsSecure()).mergeProperties(props);
+    defaultsConfigurator
+        .getDistroTypeDefaultsConfigurator(
+            cluster.getClusterConfig().getDistroType(), cluster.getClusterConfig().getIsSecure())
+        .mergeProperties(props);
     List<Property> cleansedProperties = new ArrayList<>();
     for (Property prop : props) {
       if (!EXCLUDED.contains(prop.getKey())) {
@@ -134,7 +136,8 @@ public class YarnService implements ProvisioningServiceDelegate {
 
     // async call - unfortunately I can not add event handlers before start of TwillController
     // which means we can miss failures
-    TwillController twillController = yarnController.startCluster(yarnConfiguration, cleansedProperties);
+    TwillController twillController =
+        yarnController.startCluster(yarnConfiguration, cleansedProperties);
 
     String runId = twillController.getRunId().getId();
     RunId dRunId = new RunId(runId);
@@ -164,7 +167,8 @@ public class YarnService implements ProvisioningServiceDelegate {
     }
     if (controller == null) {
       if (cluster.getState() != ClusterState.STOPPED && cluster.getState() != ClusterState.FAILED) {
-        logger.warn("Either cluster is already stopped or YarnTwillRunnerService was not initialized yet. You may want to try again");
+        logger.warn(
+            "Either cluster is already stopped or YarnTwillRunnerService was not initialized yet. You may want to try again");
         cluster.setState(ClusterState.STOPPED);
         cluster.setStateChangeTime(System.currentTimeMillis());
       }
@@ -186,22 +190,25 @@ public class YarnService implements ProvisioningServiceDelegate {
     return resizeClusterAsync(cluster);
   }
 
-  private ClusterEnriched resizeClusterAsync(Cluster cluster) throws YarnProvisioningHandlingException {
-    int requestedContainerCount = cluster.getClusterConfig().getClusterSpec().getContainerCount().intValue();
+  private ClusterEnriched resizeClusterAsync(Cluster cluster)
+      throws YarnProvisioningHandlingException {
+    int requestedContainerCount =
+        cluster.getClusterConfig().getClusterSpec().getContainerCount().intValue();
     TwillController controller = getTwillControllerHelper(cluster);
     if (controller != null) {
       // async call
-      controller.changeInstances(DacDaemonYarnApplication.YARN_RUNNABLE_NAME, requestedContainerCount);
+      controller.changeInstances(
+          DacDaemonYarnApplication.YARN_RUNNABLE_NAME, requestedContainerCount);
       cluster.getClusterConfig().getClusterSpec().setContainerCount(requestedContainerCount);
       return getClusterInfo(cluster);
     }
-    throw new YarnProvisioningHandlingException("Can not find running application. Unable to resize. May be a " +
-      "temporary condition");
-
+    throw new YarnProvisioningHandlingException(
+        "Can not find running application. Unable to resize. May be a " + "temporary condition");
   }
 
   @Override
-  public ClusterEnriched getClusterInfo(final Cluster cluster) throws YarnProvisioningHandlingException {
+  public ClusterEnriched getClusterInfo(final Cluster cluster)
+      throws YarnProvisioningHandlingException {
     // get info about cluster
     // children should do the rest
     TwillController controller = getTwillControllerHelper(cluster);
@@ -211,11 +218,12 @@ public class YarnService implements ProvisioningServiceDelegate {
       if (report == null) {
         return clusterEnriched;
       }
-      Collection<TwillRunResources> runResources = report.getRunnableResources(DacDaemonYarnApplication.YARN_RUNNABLE_NAME);
+      Collection<TwillRunResources> runResources =
+          report.getRunnableResources(DacDaemonYarnApplication.YARN_RUNNABLE_NAME);
 
       Set<String> activeContainerIds = new HashSet<>();
-      for(NodeEndpoint ep : executionNodeProvider.getNodes()){
-        if(ep.hasProvisionId()){
+      for (NodeEndpoint ep : executionNodeProvider.getNodes()) {
+        if (ep.hasProvisionId()) {
           activeContainerIds.add(ep.getProvisionId());
         }
       }
@@ -226,23 +234,23 @@ public class YarnService implements ProvisioningServiceDelegate {
       List<Container> disconnectedList = new ArrayList<>();
 
       for (TwillRunResources runResource : runResources) {
-        Container container = Container.builder()
-            .setContainerId(runResource.getContainerId())
-            .setContainerPropertyList(
-                ImmutableList.<Property>of(
-                    new Property("host", runResource.getHost()),
-                    new Property("memoryMB", "" + runResource.getMemoryMB()),
-                    new Property("virtualCoreCount", "" + runResource.getVirtualCores())
-                    )
-                )
-            .build();
-        if(activeContainerIds.contains(runResource.getContainerId())) {
+        Container container =
+            Container.builder()
+                .setContainerId(runResource.getContainerId())
+                .setContainerPropertyList(
+                    ImmutableList.<Property>of(
+                        new Property("host", runResource.getHost()),
+                        new Property("memoryMB", "" + runResource.getMemoryMB()),
+                        new Property("virtualCoreCount", "" + runResource.getVirtualCores())))
+                .build();
+        if (activeContainerIds.contains(runResource.getContainerId())) {
           runningList.add(container);
         } else {
           disconnectedList.add(container);
         }
       }
-      int yarnDelta = (cluster.getClusterConfig().getClusterSpec().getContainerCount() - runResources.size());
+      int yarnDelta =
+          (cluster.getClusterConfig().getClusterSpec().getContainerCount() - runResources.size());
       if (yarnDelta > 0) {
 
         // pending
@@ -257,8 +265,6 @@ public class YarnService implements ProvisioningServiceDelegate {
       containers.setRunningList(runningList);
       containers.setDisconnectedList(disconnectedList);
       clusterEnriched.setRunTimeInfo(containers.build());
-
-
     }
     return clusterEnriched;
   }
@@ -269,7 +275,7 @@ public class YarnService implements ProvisioningServiceDelegate {
     // make sure we set defaults first - before we overwrite it with props from ClusterConfig
     setYarnDefaults(cluster, yarnConfiguration);
     List<Property> keyValues = cluster.getClusterConfig().getSubPropertyList();
-    if ( keyValues != null && !keyValues.isEmpty()) {
+    if (keyValues != null && !keyValues.isEmpty()) {
       for (Property property : keyValues) {
         yarnConfiguration.set(property.getKey(), property.getValue());
         if (RM_HOSTNAME.equalsIgnoreCase(property.getKey())) {
@@ -295,7 +301,8 @@ public class YarnService implements ProvisioningServiceDelegate {
 
     yarnConfiguration.setDouble(HEAP_RESERVED_MIN_RATIO, Math.min(heapToDirectMemRatio, 0.1D));
     yarnConfiguration.setInt(DacDaemonYarnApplication.YARN_MEMORY_ON_HEAP, memoryOnHeap.intValue());
-    yarnConfiguration.setInt(DacDaemonYarnApplication.YARN_MEMORY_OFF_HEAP, memoryOffHeap.intValue());
+    yarnConfiguration.setInt(
+        DacDaemonYarnApplication.YARN_MEMORY_OFF_HEAP, memoryOffHeap.intValue());
     yarnConfiguration.setInt(JAVA_RESERVED_MEMORY_MB, memoryOffHeap.intValue());
 
     Integer cpu = cluster.getClusterConfig().getClusterSpec().getVirtualCoreCount();
@@ -304,7 +311,8 @@ public class YarnService implements ProvisioningServiceDelegate {
     }
     Integer containerCount = cluster.getClusterConfig().getClusterSpec().getContainerCount();
     if (containerCount != null) {
-      yarnConfiguration.setInt(DacDaemonYarnApplication.YARN_CONTAINER_COUNT, containerCount.intValue());
+      yarnConfiguration.setInt(
+          DacDaemonYarnApplication.YARN_CONTAINER_COUNT, containerCount.intValue());
     }
     String clusterName = cluster.getClusterConfig().getName();
     if (clusterName != null) {
@@ -318,15 +326,19 @@ public class YarnService implements ProvisioningServiceDelegate {
   private void setYarnDefaults(Cluster cluster, YarnConfiguration yarnConfiguration) {
     DistroType dType = cluster.getClusterConfig().getDistroType();
     Map<String, String> additionalProps =
-      defaultsConfigurator.getDistroTypeDefaultsConfigurator(dType, cluster.getClusterConfig().getIsSecure()).getAllDefaults();
-    for (Map.Entry<String,String> entry : additionalProps.entrySet()) {
+        defaultsConfigurator
+            .getDistroTypeDefaultsConfigurator(dType, cluster.getClusterConfig().getIsSecure())
+            .getAllDefaults();
+    for (Map.Entry<String, String> entry : additionalProps.entrySet()) {
       yarnConfiguration.set(entry.getKey(), entry.getValue());
     }
-    // Fix for DX-12202: on hdp 2.8.3, timeline service might be enabled by default, hence disabling it here
+    // Fix for DX-12202: on hdp 2.8.3, timeline service might be enabled by default, hence disabling
+    // it here
     yarnConfiguration.setBoolean(YarnConfiguration.TIMELINE_SERVICE_ENABLED, false);
   }
 
-  private TwillController getTwillControllerHelper(Cluster cluster) throws YarnProvisioningHandlingException {
+  private TwillController getTwillControllerHelper(Cluster cluster)
+      throws YarnProvisioningHandlingException {
     RunId runId = cluster.getRunId();
     if (runId == null) {
       return null;
@@ -343,8 +355,9 @@ public class YarnService implements ProvisioningServiceDelegate {
       applicationName = DacDaemonYarnApplication.YARN_APPLICATION_NAME_DEFAULT;
     }
 
-    TwillController controller =  twillService.lookup(applicationName, RunIds.fromString(runId.getId()));
-    initOnTerminatingThread(cluster,controller);
+    TwillController controller =
+        twillService.lookup(applicationName, RunIds.fromString(runId.getId()));
+    initOnTerminatingThread(cluster, controller);
 
     return controller;
   }
@@ -369,9 +382,13 @@ public class YarnService implements ProvisioningServiceDelegate {
     // or we try to stop before start - unlikely though
     // create new one
     OnTerminatingRunnable onTerminating = new OnTerminatingRunnable(cluster, controller);
-    OnTerminatingRunnable onTerminatingPrev = terminatingThreads.putIfAbsent(cluster.getRunId(), onTerminating);
+    OnTerminatingRunnable onTerminatingPrev =
+        terminatingThreads.putIfAbsent(cluster.getRunId(), onTerminating);
     if (onTerminatingPrev == null) {
-      logger.info("Cluster with ID: {} is adding onTerminatingThread for runId: {}", cluster.getId(), cluster.getRunId());
+      logger.info(
+          "Cluster with ID: {} is adding onTerminatingThread for runId: {}",
+          cluster.getId(),
+          cluster.getRunId());
       controller.onTerminated(onTerminating, Threads.SAME_THREAD_EXECUTOR);
     }
   }
@@ -383,6 +400,7 @@ public class YarnService implements ProvisioningServiceDelegate {
     OnRunningRunnable(Cluster cluster) {
       this.cluster = cluster;
     }
+
     @Override
     public void run() {
       // may be no need to do it - just a confirmation that it is indeed running
@@ -416,7 +434,10 @@ public class YarnService implements ProvisioningServiceDelegate {
         futureController.get();
         ServiceController.TerminationStatus terminationStatus = controller.getTerminationStatus();
         if (terminationStatus != null) {
-          logger.info("Cluster with ID: {} is terminated in YARN with status: {}", cluster.getId(), terminationStatus);
+          logger.info(
+              "Cluster with ID: {} is terminated in YARN with status: {}",
+              cluster.getId(),
+              terminationStatus);
           switch (terminationStatus) {
             case SUCCEEDED:
             case KILLED:
@@ -440,7 +461,9 @@ public class YarnService implements ProvisioningServiceDelegate {
         }
       } catch (InterruptedException e) {
         // not much to do here
-        logger.error("InterruptedException is thrown while waiting to terminate cluster with ID: {}", cluster.getId());
+        logger.error(
+            "InterruptedException is thrown while waiting to terminate cluster with ID: {}",
+            cluster.getId());
       } catch (ExecutionException e) {
         logger.error("Exception caused cluster with ID: " + cluster.getId() + " termination", e);
         cluster.setError(e.getCause().getLocalizedMessage());
@@ -451,7 +474,8 @@ public class YarnService implements ProvisioningServiceDelegate {
         if (cluster.getRunId() != null) {
           terminatingThreads.remove(cluster.getRunId());
         } else {
-          logger.warn("Cluster with ID: {} does not have runId set upon termination", cluster.getId());
+          logger.warn(
+              "Cluster with ID: {} does not have runId set upon termination", cluster.getId());
         }
         cluster.setRunId(null);
         yarnController.invalidateTwillService(cluster.getId());

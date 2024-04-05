@@ -19,13 +19,12 @@ import com.dremio.exec.rpc.RpcCommand;
 import com.dremio.services.fabric.ProxyConnection;
 import com.google.protobuf.MessageLite;
 
-/**
- * Represents a way to run commands associated with a particular node-to-node connection.
- */
+/** Represents a way to run commands associated with a particular node-to-node connection. */
 public interface FabricCommandRunner {
 
   /**
    * Run an asynchronous RpcCommand on the channel associated with this runner.
+   *
    * @param cmd The command to be run.
    */
   public <R extends MessageLite, C extends RpcCommand<R, ProxyConnection>> void runCommand(C cmd);

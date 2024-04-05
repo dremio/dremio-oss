@@ -17,15 +17,11 @@ package com.dremio.connector.metadata;
 
 import java.nio.ByteBuffer;
 
-/**
- * Default implementations.
- */
+/** Default implementations. */
 final class PartitionValues {
   static final int PRIME = 31;
 
-  /**
-   * Abstract implementation.
-   */
+  /** Abstract implementation. */
   private static class AbstractPartitionValue implements PartitionValue {
     private final String name;
     private final PartitionValueType type;
@@ -65,14 +61,12 @@ final class PartitionValues {
         return false;
       }
 
-      AbstractPartitionValue other = (AbstractPartitionValue)obj;
+      AbstractPartitionValue other = (AbstractPartitionValue) obj;
       return type.equals(other.type) && name.equals(other.name);
     }
   }
 
-  /**
-   * No value implementation.
-   */
+  /** No value implementation. */
   static final class NoValueImpl extends AbstractPartitionValue {
 
     NoValueImpl(String name, PartitionValueType type) {
@@ -95,10 +89,9 @@ final class PartitionValues {
     }
   }
 
-  /**
-   * String implementation.
-   */
-  static final class StringImpl extends AbstractPartitionValue implements PartitionValue.StringPartitionValue {
+  /** String implementation. */
+  static final class StringImpl extends AbstractPartitionValue
+      implements PartitionValue.StringPartitionValue {
     private final String value;
 
     StringImpl(String name, PartitionValueType type, String value) {
@@ -121,15 +114,14 @@ final class PartitionValues {
       if (!super.equals(obj)) {
         return false;
       }
-      StringImpl other = (StringImpl)obj;
+      StringImpl other = (StringImpl) obj;
       return value == null ? other.value == null : value.equals(other.value);
     }
   }
 
-  /**
-   * Int implementation.
-   */
-  static final class IntImpl extends AbstractPartitionValue implements PartitionValue.IntPartitionValue {
+  /** Int implementation. */
+  static final class IntImpl extends AbstractPartitionValue
+      implements PartitionValue.IntPartitionValue {
     private final int value;
 
     IntImpl(String name, PartitionValueType type, int value) {
@@ -152,14 +144,13 @@ final class PartitionValues {
       if (!super.equals(obj)) {
         return false;
       }
-      return value == ((IntImpl)obj).value;
+      return value == ((IntImpl) obj).value;
     }
   }
 
-  /**
-   * Double implementation.
-   */
-  static final class DoubleImpl extends AbstractPartitionValue implements PartitionValue.DoublePartitionValue {
+  /** Double implementation. */
+  static final class DoubleImpl extends AbstractPartitionValue
+      implements PartitionValue.DoublePartitionValue {
     private final double value;
 
     DoubleImpl(String name, PartitionValueType type, double value) {
@@ -182,14 +173,13 @@ final class PartitionValues {
       if (!super.equals(obj)) {
         return false;
       }
-      return value == ((DoubleImpl)obj).value;
+      return value == ((DoubleImpl) obj).value;
     }
   }
 
-  /**
-   * Long implementation.
-   */
-  static final class LongImpl extends AbstractPartitionValue implements PartitionValue.LongPartitionValue {
+  /** Long implementation. */
+  static final class LongImpl extends AbstractPartitionValue
+      implements PartitionValue.LongPartitionValue {
     private final long value;
 
     LongImpl(String name, PartitionValueType type, long value) {
@@ -212,14 +202,13 @@ final class PartitionValues {
       if (!super.equals(obj)) {
         return false;
       }
-      return value == ((LongImpl)obj).value;
+      return value == ((LongImpl) obj).value;
     }
   }
 
-  /**
-   * Float implementation.
-   */
-  static final class FloatImpl extends AbstractPartitionValue implements PartitionValue.FloatPartitionValue {
+  /** Float implementation. */
+  static final class FloatImpl extends AbstractPartitionValue
+      implements PartitionValue.FloatPartitionValue {
     private final float value;
 
     FloatImpl(String name, PartitionValueType type, float value) {
@@ -242,14 +231,13 @@ final class PartitionValues {
       if (!super.equals(obj)) {
         return false;
       }
-      return value == ((FloatImpl)obj).value;
+      return value == ((FloatImpl) obj).value;
     }
   }
 
-  /**
-   * Boolean implementation.
-   */
-  static final class BooleanImpl extends AbstractPartitionValue implements PartitionValue.BooleanPartitionValue {
+  /** Boolean implementation. */
+  static final class BooleanImpl extends AbstractPartitionValue
+      implements PartitionValue.BooleanPartitionValue {
     private final boolean value;
 
     BooleanImpl(String name, PartitionValueType type, boolean value) {
@@ -272,14 +260,13 @@ final class PartitionValues {
       if (!super.equals(obj)) {
         return false;
       }
-      return value == ((BooleanImpl)obj).value;
+      return value == ((BooleanImpl) obj).value;
     }
   }
 
-  /**
-   * Binary implementation.
-   */
-  static final class BinaryImpl extends AbstractPartitionValue implements PartitionValue.BinaryPartitionValue {
+  /** Binary implementation. */
+  static final class BinaryImpl extends AbstractPartitionValue
+      implements PartitionValue.BinaryPartitionValue {
     private final ByteBuffer value;
 
     BinaryImpl(String name, PartitionValueType type, ByteBuffer value) {
@@ -303,12 +290,11 @@ final class PartitionValues {
         return false;
       }
 
-      BinaryImpl other = (BinaryImpl)obj;
+      BinaryImpl other = (BinaryImpl) obj;
       return value == null ? other.value == null : value.equals(other.value);
     }
   }
 
   // prevent instantiation
-  private PartitionValues() {
-  }
+  private PartitionValues() {}
 }

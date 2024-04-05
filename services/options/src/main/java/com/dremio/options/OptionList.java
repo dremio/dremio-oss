@@ -17,41 +17,38 @@ package com.dremio.options;
 
 import static com.dremio.options.OptionValue.OptionType.SYSTEM;
 
-import java.util.ArrayList;
-import java.util.Set;
-
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Sets;
+import java.util.ArrayList;
+import java.util.Set;
 
-/**
- * To encapsulate operations on list of Options
- */
-public class OptionList extends ArrayList<OptionValue>{
+/** To encapsulate operations on list of Options */
+public class OptionList extends ArrayList<OptionValue> {
 
-  public void merge(OptionList list){
+  public void merge(OptionList list) {
     this.addAll(list);
   }
 
-  private static final  Function<OptionValue, String> EXTRACT_OPTION_NAME = new Function<OptionValue, String>() {
-    @Override
-    public String apply(OptionValue input) {
-      return input.getName();
-    }
-  };
+  private static final Function<OptionValue, String> EXTRACT_OPTION_NAME =
+      new Function<OptionValue, String>() {
+        @Override
+        public String apply(OptionValue input) {
+          return input.getName();
+        }
+      };
 
-  private static final Predicate<OptionValue> IS_SYSTEM_OPTION = new Predicate<OptionValue>() {
-    @Override
-    public boolean apply(OptionValue option) {
-      return option.getType() == SYSTEM;
-    }
-  };
+  private static final Predicate<OptionValue> IS_SYSTEM_OPTION =
+      new Predicate<OptionValue>() {
+        @Override
+        public boolean apply(OptionValue option) {
+          return option.getType() == SYSTEM;
+        }
+      };
 
-  /**
-   * only merge options from list that are not already set locally
-   */
+  /** only merge options from list that are not already set locally */
   public void mergeIfNotPresent(OptionList list) {
     final Set<OptionValue> options = Sets.newTreeSet(this);
     for (OptionValue optionValue : list) {

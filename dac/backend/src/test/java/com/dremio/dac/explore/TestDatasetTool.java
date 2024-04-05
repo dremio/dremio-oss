@@ -20,21 +20,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.security.Principal;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-import javax.ws.rs.core.SecurityContext;
-
-import org.junit.Assert;
-import org.junit.Test;
-
 import com.dremio.catalog.model.VersionContext;
 import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.catalog.model.dataset.TableVersionType;
@@ -57,10 +42,20 @@ import com.dremio.exec.store.StoragePlugin;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.JobsVersionContext;
 import com.dremio.service.namespace.dataset.DatasetVersion;
+import java.security.Principal;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import javax.ws.rs.core.SecurityContext;
+import org.junit.Assert;
+import org.junit.Test;
 
-/**
- * Tests for DatasetTool
- */
+/** Tests for DatasetTool */
 public class TestDatasetTool {
   @Test
   public void testBrokenHistory() throws Exception {
@@ -76,7 +71,8 @@ public class TestDatasetTool {
     // the tip history request
     when(datasetVersionMutator.getVersion(datasetPath, tip)).thenReturn(tipDataset);
     when(datasetVersionMutator.get(any())).thenReturn(tipDataset);
-    when(datasetVersionMutator.getVersion(datasetPath, broken)).thenThrow(DatasetVersionNotFoundException.class);
+    when(datasetVersionMutator.getVersion(datasetPath, broken))
+        .thenThrow(DatasetVersionNotFoundException.class);
 
     final DatasetTool tool = buildDatasetTool(datasetVersionMutator);
 
@@ -99,7 +95,9 @@ public class TestDatasetTool {
     VirtualDatasetUI newTipDataset = buildDataset(newDatasetPath, tip, null);
     // Set previous version to null
     newTipDataset.setPreviousVersion(tipDataset.getPreviousVersion());
-    VirtualDatasetUI newHistory1Dataset = buildDataset(newDatasetPath, history1, history2.getVersion()); VirtualDatasetUI newHistory2Dataset = buildDataset(newDatasetPath, history2, null);
+    VirtualDatasetUI newHistory1Dataset =
+        buildDataset(newDatasetPath, history1, history2.getVersion());
+    VirtualDatasetUI newHistory2Dataset = buildDataset(newDatasetPath, history2, null);
 
     DatasetVersionMutator datasetVersionMutator = mock(DatasetVersionMutator.class);
     when(datasetVersionMutator.getVersion(datasetPath, tip)).thenReturn(tipDataset);
@@ -123,20 +121,37 @@ public class TestDatasetTool {
 
   @Test
   public void testSourceVersionMapping() {
-    final DatasetTool datasetTool = new DatasetTool(mock(DatasetVersionMutator.class), mock(JobsService.class),
-      mock(QueryExecutor.class), mock(SecurityContext.class));
+    final DatasetTool datasetTool =
+        new DatasetTool(
+            mock(DatasetVersionMutator.class),
+            mock(JobsService.class),
+            mock(QueryExecutor.class),
+            mock(SecurityContext.class));
     Map<String, VersionContextReq> references = new HashMap<>();
-    references.put("source1", new VersionContextReq(VersionContextReq.VersionContextType.BRANCH, "branch"));
-    references.put("source2", new VersionContextReq(VersionContextReq.VersionContextType.TAG, "tag"));
-    references.put("source3", new VersionContextReq(VersionContextReq.VersionContextType.COMMIT, "d0628f078890fec234b98b873f9e1f3cd140988a"));
+    references.put(
+        "source1", new VersionContextReq(VersionContextReq.VersionContextType.BRANCH, "branch"));
+    references.put(
+        "source2", new VersionContextReq(VersionContextReq.VersionContextType.TAG, "tag"));
+    references.put(
+        "source3",
+        new VersionContextReq(
+            VersionContextReq.VersionContextType.COMMIT,
+            "d0628f078890fec234b98b873f9e1f3cd140988a"));
 
     Map<String, JobsVersionContext> expectedSourceVersionMapping = new HashMap<>();
-    expectedSourceVersionMapping.put("source1", new JobsVersionContext(JobsVersionContext.VersionContextType.BRANCH, "branch"));
-    expectedSourceVersionMapping.put("source2", new JobsVersionContext(JobsVersionContext.VersionContextType.TAG, "tag"));
-    expectedSourceVersionMapping.put("source3", new JobsVersionContext(JobsVersionContext.VersionContextType.BARE_COMMIT,
-      "d0628f078890fec234b98b873f9e1f3cd140988a"));
+    expectedSourceVersionMapping.put(
+        "source1", new JobsVersionContext(JobsVersionContext.VersionContextType.BRANCH, "branch"));
+    expectedSourceVersionMapping.put(
+        "source2", new JobsVersionContext(JobsVersionContext.VersionContextType.TAG, "tag"));
+    expectedSourceVersionMapping.put(
+        "source3",
+        new JobsVersionContext(
+            JobsVersionContext.VersionContextType.BARE_COMMIT,
+            "d0628f078890fec234b98b873f9e1f3cd140988a"));
 
-    assertThat(datasetTool.createSourceVersionMapping(references)).usingRecursiveComparison().isEqualTo(expectedSourceVersionMapping);
+    assertThat(datasetTool.createSourceVersionMapping(references))
+        .usingRecursiveComparison()
+        .isEqualTo(expectedSourceVersionMapping);
   }
 
   @Test
@@ -163,6 +178,7 @@ public class TestDatasetTool {
             .build();
 
     when(catalog.getSource(sourceName)).thenReturn(plugin);
+    when(plugin.isWrapperFor(VersionedPlugin.class)).thenReturn(true);
     when(catalog.resolveCatalog(versionContextMapping)).thenReturn(catalog);
     when(catalog.getDatasetId(any())).thenReturn(versionedDatasetId.asString());
 
@@ -182,37 +198,39 @@ public class TestDatasetTool {
     when(jobsService.searchJobs(any())).thenReturn(Collections.emptyList());
     QueryExecutor executor = mock(QueryExecutor.class);
 
-    SecurityContext securityContext = new SecurityContext() {
-      @Override
-      public Principal getUserPrincipal() {
-        return new Principal() {
+    SecurityContext securityContext =
+        new SecurityContext() {
           @Override
-          public String getName() {
-            return "user";
+          public Principal getUserPrincipal() {
+            return new Principal() {
+              @Override
+              public String getName() {
+                return "user";
+              }
+            };
+          }
+
+          @Override
+          public boolean isUserInRole(String role) {
+            return false;
+          }
+
+          @Override
+          public boolean isSecure() {
+            return false;
+          }
+
+          @Override
+          public String getAuthenticationScheme() {
+            return null;
           }
         };
-      }
-
-      @Override
-      public boolean isUserInRole(String role) {
-        return false;
-      }
-
-      @Override
-      public boolean isSecure() {
-        return false;
-      }
-
-      @Override
-      public String getAuthenticationScheme() {
-        return null;
-      }
-    };
 
     return new DatasetTool(datasetVersionMutator, jobsService, executor, securityContext);
   }
 
-  private VirtualDatasetUI buildDataset(DatasetPath datasetPath, DatasetVersion version, String previousVersion) {
+  private VirtualDatasetUI buildDataset(
+      DatasetPath datasetPath, DatasetVersion version, String previousVersion) {
     VirtualDatasetUI dataset = new VirtualDatasetUI();
     dataset.setCreatedAt(0L);
     dataset.setFullPathList(datasetPath.toPathList());
@@ -220,9 +238,10 @@ public class TestDatasetTool {
     if (previousVersion == null) {
       dataset.setPreviousVersion(null);
     } else {
-      dataset.setPreviousVersion(new NameDatasetRef()
-        .setDatasetVersion(previousVersion)
-        .setDatasetPath(datasetPath.toString()));
+      dataset.setPreviousVersion(
+          new NameDatasetRef()
+              .setDatasetVersion(previousVersion)
+              .setDatasetPath(datasetPath.toString()));
     }
     Transform transform = new Transform(TransformType.updateSQL);
     transform.setUpdateSQL(new TransformUpdateSQL("sql"));
@@ -231,9 +250,6 @@ public class TestDatasetTool {
     return dataset;
   }
 
-  /**
-   * Fake Versioned Plugin interface for test
-   */
-  private interface FakeVersionedPlugin extends VersionedPlugin, StoragePlugin {
-  }
+  /** Fake Versioned Plugin interface for test */
+  private interface FakeVersionedPlugin extends VersionedPlugin, StoragePlugin {}
 }

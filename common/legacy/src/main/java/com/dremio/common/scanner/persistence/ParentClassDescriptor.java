@@ -17,14 +17,11 @@ package com.dremio.common.scanner.persistence;
 
 import static java.util.Collections.unmodifiableList;
 
-import java.util.List;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.List;
 
-/**
- * a parent class and its implementations that was specifically searched for during scanning
- */
+/** a parent class and its implementations that was specifically searched for during scanning */
 public final class ParentClassDescriptor {
   private final String name;
   private final List<ChildClassDescriptor> children;
@@ -44,9 +41,9 @@ public final class ParentClassDescriptor {
     return name;
   }
 
- /**
-  * @return the implementations
-  */
+  /**
+   * @return the implementations
+   */
   public List<ChildClassDescriptor> getChildren() {
     return children;
   }
@@ -55,5 +52,4 @@ public final class ParentClassDescriptor {
   public String toString() {
     return "ParentClassDescriptor [name=" + name + ", children=" + children + "]";
   }
-
 }

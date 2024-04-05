@@ -15,21 +15,23 @@
  */
 package com.dremio.service.reflection;
 
-import java.util.Set;
-
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSet;
+import java.util.Set;
 
-/**
- * Represents all dependencies extracted from a completed refresh job
- */
+/** Represents all dependencies extracted from a completed refresh job */
 public class ExtractedDependencies {
   private final Set<DependencyEntry> planDependencies;
   private final Set<DependencyEntry> decisionDependencies;
 
-  ExtractedDependencies(Set<DependencyEntry> planDependencies, Set<DependencyEntry> decisionDependencies) {
-    this.planDependencies = ImmutableSet.copyOf(Preconditions.checkNotNull(planDependencies, "plan dependencies required"));
-    this.decisionDependencies = ImmutableSet.copyOf(Preconditions.checkNotNull(decisionDependencies, "decision dependencies required"));
+  ExtractedDependencies(
+      Set<DependencyEntry> planDependencies, Set<DependencyEntry> decisionDependencies) {
+    this.planDependencies =
+        ImmutableSet.copyOf(
+            Preconditions.checkNotNull(planDependencies, "plan dependencies required"));
+    this.decisionDependencies =
+        ImmutableSet.copyOf(
+            Preconditions.checkNotNull(decisionDependencies, "decision dependencies required"));
   }
 
   public boolean isEmpty() {

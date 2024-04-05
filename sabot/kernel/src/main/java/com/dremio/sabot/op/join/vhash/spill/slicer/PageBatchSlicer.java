@@ -17,36 +17,32 @@ package com.dremio.sabot.op.join.vhash.spill.slicer;
 
 import static com.dremio.sabot.op.join.vhash.spill.slicer.Sizer.BYTE_SIZE_BITS;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.function.Supplier;
-import java.util.stream.StreamSupport;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.vector.BaseVariableWidthVector;
-import org.apache.arrow.vector.FieldVector;
-import org.apache.calcite.util.ImmutableBitSet;
-
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
-import com.dremio.exec.record.RecordBatchData;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorWrapper;
+import com.dremio.sabot.memory.FormattingUtils;
 import com.dremio.sabot.op.aggregate.vectorized.VariableLengthValidator;
 import com.dremio.sabot.op.join.vhash.spill.pool.Page;
 import com.dremio.sabot.op.join.vhash.spill.pool.PagePool;
 import com.dremio.sabot.op.join.vhash.spill.pool.PageSlice;
 import com.google.common.base.Preconditions;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Supplier;
+import java.util.stream.StreamSupport;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.vector.BaseVariableWidthVector;
+import org.apache.arrow.vector.FieldVector;
+import org.apache.calcite.util.ImmutableBitSet;
 
 /**
- * Accumulates a batch stream into a collection of pages, slicing and packing
- * the data as it arrives.
+ * Accumulates a batch stream into a collection of pages, slicing and packing the data as it
+ * arrives.
  */
 public class PageBatchSlicer {
   static final boolean TRACE = false;
 
-  /**
-   * The targeted number of values to step.
-   */
+  /** The targeted number of values to step. */
   private static final int STEP = 8;
 
   private final PagePool pool;
@@ -58,8 +54,10 @@ public class PageBatchSlicer {
     this(pool, sv2, incoming, null);
   }
 
-  public PageBatchSlicer(PagePool pool, ArrowBuf sv2, VectorAccessible incoming, ImmutableBitSet includedColumns) {
-    Preconditions.checkArgument(incoming.getSchema().getSelectionVectorMode() == SelectionVectorMode.NONE);
+  public PageBatchSlicer(
+      PagePool pool, ArrowBuf sv2, VectorAccessible incoming, ImmutableBitSet includedColumns) {
+    Preconditions.checkArgument(
+        incoming.getSchema().getSelectionVectorMode() == SelectionVectorMode.NONE);
     this.pool = pool;
     this.sv2 = sv2;
     List<Sizer> sizerList = new ArrayList<>();
@@ -77,8 +75,8 @@ public class PageBatchSlicer {
   /**
    * Attempt to add current batch to the internal list of batches.
    *
-   * TODO: we can make this more efficient by starting at an estimated midpoint
-   * and then moving backwards or forwards as necessary.
+   * <p>TODO: we can make this more efficient by starting at an estimated midpoint and then moving
+   * backwards or forwards as necessary.
    *
    * @return number of added records
    */
@@ -120,14 +118,23 @@ public class PageBatchSlicer {
 
   /**
    * Copy data from the SV2 to the page till it gets full.
+   *
    * @param page page to copy to
    * @param startIdx start index in sv2
    * @param maxIdx end index in sv2
    * @return RecordBatch of copied data
    */
-  public RecordBatchData copyToPageTillFull(Page page, int startIdx, int maxIdx) {
-    PageFitResult fitResult = countRecordsToFitInPage(page.getRemainingBytes() * BYTE_SIZE_BITS, sv2, startIdx, maxIdx - startIdx + 1);
-    PagePlan plan = new PagePlan(fitResult.sizeBits, sv2, startIdx, fitResult.recordCount, new SupplierWithCapacity(page));
+  public RecordBatchPage copyToPageTillFull(Page page, int startIdx, int maxIdx) {
+    PageFitResult fitResult =
+        countRecordsToFitInPage(
+            page.getRemainingBytes() * BYTE_SIZE_BITS, sv2, startIdx, maxIdx - startIdx + 1);
+    PagePlan plan =
+        new PagePlan(
+            fitResult.sizeBits,
+            sv2,
+            startIdx,
+            fitResult.recordCount,
+            new SupplierWithCapacity(page));
     return plan.copy();
   }
 
@@ -143,17 +150,24 @@ public class PageBatchSlicer {
 
       // target the lesser of either the estimated count or the actual record count.
       SupplierWithCapacity current = supplier.getNextPage();
-      PageFitResult fitResult = countRecordsToFitInPage(current.getRemainingBits(), sv2, startIdx, remaining);
+      PageFitResult fitResult =
+          countRecordsToFitInPage(current.getRemainingBits(), sv2, startIdx, remaining);
 
-      // if we haven't been able to add any data to this page and there is no data in the page, we have to fail..
+      // if we haven't been able to add any data to this page and there is no data in the page, we
+      // have to fail..
       if (fitResult.recordCount == 0 && !current.isPartial()) {
         int required = sizer.computeBitsNeeded(sv2, startIdx, 1);
-        throw new IllegalStateException(String.format("Even a single record will not fit in one page. Page size %d, size of 1 record %d.",
-          current.getRemainingBits(), required));
+        throw new IllegalStateException(
+            String.format(
+                "Individual record size (%s) is too large to fit into page size (%s). "
+                    + "Please increase the support option exec.op.join.spill.page_size accordingly.",
+                FormattingUtils.formatBytes(required / BYTE_SIZE_BITS),
+                FormattingUtils.formatBytes(current.getRemainingBits() / BYTE_SIZE_BITS)));
       }
 
       if (fitResult.recordCount != 0) {
-        // We added data until we filled up this page and have data remaining. Move to the rack and move to the next step.
+        // We added data until we filled up this page and have data remaining. Move to the rack and
+        // move to the next step.
         plans.add(new PagePlan(fitResult.sizeBits, sv2, startIdx, fitResult.recordCount, current));
       }
 
@@ -163,7 +177,8 @@ public class PageBatchSlicer {
     return plans;
   }
 
-  private PageFitResult countRecordsToFitInPage(int availableBits, ArrowBuf sv2, int startIdx, int remaining) {
+  private PageFitResult countRecordsToFitInPage(
+      int availableBits, ArrowBuf sv2, int startIdx, int remaining) {
     sizer.reset();
     int recordSize = sizer.getEstimatedRecordSizeInBits();
 
@@ -196,8 +211,8 @@ public class PageBatchSlicer {
   }
 
   /**
-   * The plan for copying a range of records from a one batch into a one page (may
-   * use all or part of the page).
+   * The plan for copying a range of records from a one batch into a one page (may use all or part
+   * of the page).
    */
   private class PagePlan {
     private final SupplierWithCapacity pageSupplier;
@@ -225,7 +240,11 @@ public class PageBatchSlicer {
       try (Page capped = new PageSlice(page, expectedBits / BYTE_SIZE_BITS)) {
         if (TRACE) {
           int beforeBytes = page.getRemainingBytes();
-          System.out.println("Expected bits: " + expectedBits + ", available bits: " + page.getRemainingBytes() * BYTE_SIZE_BITS);
+          System.out.println(
+              "Expected bits: "
+                  + expectedBits
+                  + ", available bits: "
+                  + page.getRemainingBytes() * BYTE_SIZE_BITS);
           copier.copy(capped);
           int actual = (beforeBytes - page.getRemainingBytes()) * BYTE_SIZE_BITS;
           if (actual > expectedBits) {
@@ -235,7 +254,11 @@ public class PageBatchSlicer {
           } else {
             System.out.print("< ");
           }
-          System.out.println("Expected bits: " + expectedBits + ", actual bits: " + (beforeBytes - page.getRemainingBytes()) * BYTE_SIZE_BITS);
+          System.out.println(
+              "Expected bits: "
+                  + expectedBits
+                  + ", actual bits: "
+                  + (beforeBytes - page.getRemainingBytes()) * BYTE_SIZE_BITS);
         } else {
           copier.copy(capped);
         }
@@ -246,9 +269,9 @@ public class PageBatchSlicer {
       // do validations
       RecordBatchPage data = new RecordBatchPage(count, output, page);
       StreamSupport.stream(data.getContainer().spliterator(), false)
-        .map(v -> ( (FieldVector) v.getValueVector()))
-        .filter(v -> (v instanceof BaseVariableWidthVector))
-        .forEach(v -> VariableLengthValidator.validateVariable(v, count));
+          .map(v -> ((FieldVector) v.getValueVector()))
+          .filter(v -> (v instanceof BaseVariableWidthVector))
+          .forEach(v -> VariableLengthValidator.validateVariable(v, count));
       // Useful for debugging, but has cost.
       // VectorValidator.validate(data.getContainer());
       return data;
@@ -261,10 +284,9 @@ public class PageBatchSlicer {
   }
 
   /**
-   * Produces page suppliers as they are needed but waits to do allocation until
-   * the end. There is minor complexity here since we're trying to avoid
-   * duplicating the evaluation of what to include in each copy but not doing any
-   * work unless we know we have enough space.
+   * Produces page suppliers as they are needed but waits to do allocation until the end. There is
+   * minor complexity here since we're trying to avoid duplicating the evaluation of what to include
+   * in each copy but not doing any work unless we know we have enough space.
    */
   private static class LatePageSupplier {
     private final Page partialPage;
@@ -291,8 +313,8 @@ public class PageBatchSlicer {
     }
 
     /**
-     * Attempt to allocate the pages requested. Either completes entirely or fails
-     * entirely (returns with no allocations done).
+     * Attempt to allocate the pages requested. Either completes entirely or fails entirely (returns
+     * with no allocations done).
      *
      * @return True if successful. False if allocation failed.
      */
@@ -310,16 +332,17 @@ public class PageBatchSlicer {
   }
 
   /**
-   * Holds a future reference to a page along with knowledge of the capacity of
-   * that future page.
+   * Holds a future reference to a page along with knowledge of the capacity of that future page.
    */
   private static class SupplierWithCapacity {
     private final Supplier<Page> supplier;
 
     private final int totalBits;
     private final int remainingBits;
+
     /**
      * Create supplier with an existing, partially used page.
+     *
      * @param existing page
      */
     public SupplierWithCapacity(Page existing) {
@@ -330,6 +353,7 @@ public class PageBatchSlicer {
 
     /**
      * Create with a supplier of the new page.
+     *
      * @param supplier page supplier
      * @param pageSize page size
      */

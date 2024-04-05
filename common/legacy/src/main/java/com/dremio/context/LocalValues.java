@@ -15,8 +15,5 @@
  */
 package com.dremio.context;
 
-/**
- * Represents all values set using LocalValue.  Used for saving/restoring.
- */
-public interface LocalValues {
-}
+/** Represents all values set using LocalValue. Used for saving/restoring. */
+public interface LocalValues {}

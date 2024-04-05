@@ -15,15 +15,12 @@
  */
 package com.dremio.context;
 
+import com.google.common.base.Preconditions;
 import java.util.Comparator;
 import java.util.Spliterator;
 import java.util.function.Consumer;
 
-import com.google.common.base.Preconditions;
-
-/**
- * This can be used to ensure Stream evaluation happens under a specific RequestContext
- */
+/** This can be used to ensure Stream evaluation happens under a specific RequestContext */
 final class RequestContextAwareSplitIterator<T> implements Spliterator<T> {
 
   private final RequestContext reqCtx;

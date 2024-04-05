@@ -16,13 +16,12 @@
 
 package com.dremio.exec;
 
+import com.dremio.BaseTestQuery;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.junit.BeforeClass;
 import org.junit.Test;
-
-import com.dremio.BaseTestQuery;
 
 public class TestRepeatedReaders extends BaseTestQuery {
 
@@ -49,32 +48,32 @@ public class TestRepeatedReaders extends BaseTestQuery {
 
   private void createAndQuery(String datafile) throws Exception {
     String query = String.format("select * from cp.\"parquet/%s\"", datafile);
-    String tableName = "test_repeated_readers_"+datafile;
+    String tableName = "test_repeated_readers_" + datafile;
 
     try {
       test("create table dfs_test.\"%s\" as %s", tableName, query);
 
       testBuilder()
-        .sqlQuery("select * from dfs_test.\"%s\" d", tableName)
-        .ordered()
-        .jsonBaselineFile("parquet/" + datafile)
-        .go();
+          .sqlQuery("select * from dfs_test.\"%s\" d", tableName)
+          .ordered()
+          .jsonBaselineFile("parquet/" + datafile)
+          .go();
     } finally {
       deleteTableIfExists(tableName);
     }
   }
 
-  @Test //DRILL-2292
+  @Test // DRILL-2292
   public void testNestedRepeatedMapInsideRepeatedMap() throws Exception {
     createAndQuery("2292.rm_rm.json");
   }
 
-  @Test //DRILL-2292
+  @Test // DRILL-2292
   public void testNestedRepeatedMapInsideMapInsideRepeatedMap() throws Exception {
     createAndQuery("2292.rm_m_rm.json");
   }
 
-  @Test //DRILL-2292
+  @Test // DRILL-2292
   public void testNestedRepeatedListInsideRepeatedMap() throws Exception {
     runSQL("alter session set \"store.format\" = 'json'");
 
@@ -85,7 +84,7 @@ public class TestRepeatedReaders extends BaseTestQuery {
     }
   }
 
-  @Test //DRILL-2292
+  @Test // DRILL-2292
   public void testNestedRepeatedMapInsideRepeatedList() throws Exception {
     runSQL("alter session set \"store.format\" = 'json'");
 
@@ -96,7 +95,7 @@ public class TestRepeatedReaders extends BaseTestQuery {
     }
   }
 
-  @Test //DRILL-2292
+  @Test // DRILL-2292
   public void testNestedRepeatedListInsideRepeatedList() throws Exception {
     runSQL("alter session set \"store.format\" = 'json'");
 

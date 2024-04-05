@@ -15,25 +15,23 @@
  */
 package com.dremio.service.functions.snippets;
 
-import java.io.IOException;
-
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
+import java.io.IOException;
 
 public final class SnippetDeserializer extends StdDeserializer<Snippet> {
   public SnippetDeserializer() {
     this(null);
   }
+
   public SnippetDeserializer(Class<Snippet> t) {
     super(t);
   }
 
   @Override
-  public Snippet deserialize(
-    JsonParser jp,
-    DeserializationContext ctxt) throws IOException {
+  public Snippet deserialize(JsonParser jp, DeserializationContext ctxt) throws IOException {
     JsonNode node = jp.getCodec().readTree(jp);
     String text = node.asText();
     return Snippet.tryParse(text).get();

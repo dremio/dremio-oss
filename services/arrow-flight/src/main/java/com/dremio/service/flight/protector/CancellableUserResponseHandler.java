@@ -15,17 +15,6 @@
  */
 package com.dremio.service.flight.protector;
 
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import java.util.function.Supplier;
-
-import javax.inject.Provider;
-
-import org.apache.arrow.flight.CallStatus;
-import org.apache.arrow.flight.FlightRuntimeException;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.exec.proto.GeneralRPCProtos;
@@ -36,10 +25,18 @@ import com.dremio.exec.work.protector.UserResult;
 import com.dremio.exec.work.protector.UserWorker;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.flight.error.mapping.DremioFlightErrorMapper;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.function.Supplier;
+import javax.inject.Provider;
+import org.apache.arrow.flight.CallStatus;
+import org.apache.arrow.flight.FlightRuntimeException;
 
 /**
- * A UserResponseHandler which can cancel the job. A cancellation from the request will automatically
- * cancel the job.
+ * A UserResponseHandler which can cancel the job. A cancellation from the request will
+ * automatically cancel the job.
  *
  * @param <T> The response type.
  */
@@ -51,11 +48,12 @@ public class CancellableUserResponseHandler<T> implements UserResponseHandler {
   private final Provider<UserWorker> workerProvider;
   private final Class<T> responseType;
 
-  public CancellableUserResponseHandler(UserBitShared.ExternalId externalId,
-                                        UserSession userSession,
-                                        Provider<UserWorker> workerProvider,
-                                        Supplier<Boolean> isRequestCancelled,
-                                        Class<T> responseType) {
+  public CancellableUserResponseHandler(
+      UserBitShared.ExternalId externalId,
+      UserSession userSession,
+      Provider<UserWorker> workerProvider,
+      Supplier<Boolean> isRequestCancelled,
+      Class<T> responseType) {
     this.externalId = externalId;
     this.userSession = userSession;
     this.workerProvider = workerProvider;
@@ -64,8 +62,10 @@ public class CancellableUserResponseHandler<T> implements UserResponseHandler {
   }
 
   @Override
-  public final void sendData(RpcOutcomeListener<GeneralRPCProtos.Ack> outcomeListener, QueryWritableBatch result) {
-    throw new UnsupportedOperationException("A response sender based implementation should send no data to end users.");
+  public final void sendData(
+      RpcOutcomeListener<GeneralRPCProtos.Ack> outcomeListener, QueryWritableBatch result) {
+    throw new UnsupportedOperationException(
+        "A response sender based implementation should send no data to end users.");
   }
 
   @Override
@@ -75,16 +75,18 @@ public class CancellableUserResponseHandler<T> implements UserResponseHandler {
         getCompletableFuture().complete(result.unwrap(responseType));
         break;
       case FAILED:
-        getCompletableFuture().completeExceptionally(
-          DremioFlightErrorMapper.toFlightRuntimeException(result.getException()));
+        getCompletableFuture()
+            .completeExceptionally(
+                DremioFlightErrorMapper.toFlightRuntimeException(result.getException()));
         break;
       case CANCELED:
         final Exception canceledException = result.getException();
-        getCompletableFuture().completeExceptionally(
-          CallStatus.CANCELLED
-            .withCause(canceledException)
-            .withDescription(canceledException.getMessage())
-            .toRuntimeException());
+        getCompletableFuture()
+            .completeExceptionally(
+                CallStatus.CANCELLED
+                    .withCause(canceledException)
+                    .withDescription(canceledException.getMessage())
+                    .toRuntimeException());
         break;
 
       case STARTING:
@@ -92,11 +94,12 @@ public class CancellableUserResponseHandler<T> implements UserResponseHandler {
       case NO_LONGER_USED_1:
       case ENQUEUED:
       default:
-        getCompletableFuture().completeExceptionally(
-          CallStatus.INTERNAL
-            .withCause(new IllegalStateException())
-            .withDescription("Internal Error: Invalid planning state.")
-            .toRuntimeException());
+        getCompletableFuture()
+            .completeExceptionally(
+                CallStatus.INTERNAL
+                    .withCause(new IllegalStateException())
+                    .withDescription("Internal Error: Invalid planning state.")
+                    .toRuntimeException());
         break;
     }
   }
@@ -114,16 +117,16 @@ public class CancellableUserResponseHandler<T> implements UserResponseHandler {
           throw DremioFlightErrorMapper.toFlightRuntimeException((UserException) cause);
         } else {
           throw CallStatus.INTERNAL
-            .withCause(cause)
-            .withDescription(cause.getLocalizedMessage())
-            .toRuntimeException();
+              .withCause(cause)
+              .withDescription(cause.getLocalizedMessage())
+              .toRuntimeException();
         }
       } catch (InterruptedException e) {
         handleClientCancel(e);
         throw CallStatus.INTERNAL
-          .withCause(UserException.parseError(e).buildSilently())
-          .withDescription(e.getLocalizedMessage())
-          .toRuntimeException();
+            .withCause(UserException.parseError(e).buildSilently())
+            .withDescription(e.getLocalizedMessage())
+            .toRuntimeException();
       } catch (TimeoutException e) {
         handleClientCancel(e);
         // Fallthrough to continue.
@@ -135,8 +138,8 @@ public class CancellableUserResponseHandler<T> implements UserResponseHandler {
     if (isRequestCancelled.get()) {
       cancelJob();
       throw CallStatus.CANCELLED
-        .withDescription("Call cancelled by client application.")
-        .toRuntimeException();
+          .withDescription("Call cancelled by client application.")
+          .toRuntimeException();
     }
   }
 

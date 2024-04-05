@@ -23,7 +23,7 @@ type path = paths["/scripts"]["post"];
 export type NewScript = path["requestBody"]["content"]["application/json"];
 
 export const createScript = async (
-  body: NewScript
+  body: NewScript,
 ): Promise<path["responses"]["200"]["content"]["application/json"]> => {
   return getApiContext()
     .fetch(createScriptUrl(), {

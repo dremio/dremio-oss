@@ -15,17 +15,14 @@
  */
 package com.dremio.test;
 
+import com.dremio.common.config.SabotConfig;
+import com.google.common.base.Preconditions;
+import com.typesafe.config.ConfigValueFactory;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocatorFactory;
 import org.junit.rules.ExternalResource;
 
-import com.dremio.common.config.SabotConfig;
-import com.google.common.base.Preconditions;
-import com.typesafe.config.ConfigValueFactory;
-
-/**
- * Allocator rule to automatically create a valid Dremio buffer allocator
- */
+/** Allocator rule to automatically create a valid Dremio buffer allocator */
 public final class AllocatorRule extends ExternalResource {
 
   private final SabotConfig config;
@@ -37,6 +34,7 @@ public final class AllocatorRule extends ExternalResource {
 
   /**
    * Creates a root allocator rule using default Sabot config
+   *
    * @return
    */
   public static AllocatorRule defaultAllocator() {
@@ -45,19 +43,20 @@ public final class AllocatorRule extends ExternalResource {
 
   /**
    * Creates a root allocator rule with the provided memory limit
+   *
    * @return
    */
   public static AllocatorRule withLimit(long limit) {
-    return new AllocatorRule(DremioTest.DEFAULT_SABOT_CONFIG.withValue(RootAllocatorFactory.TOP_LEVEL_MAX_ALLOC,
-        ConfigValueFactory.fromAnyRef(limit)));
+    return new AllocatorRule(
+        DremioTest.DEFAULT_SABOT_CONFIG.withValue(
+            RootAllocatorFactory.TOP_LEVEL_MAX_ALLOC, ConfigValueFactory.fromAnyRef(limit)));
   }
-
 
   public BufferAllocator newAllocator(String name, int initReservation, long maxAllocation) {
-    Preconditions.checkState(rootAllocator != null, "Trying to allocate buffer before test is started");
+    Preconditions.checkState(
+        rootAllocator != null, "Trying to allocate buffer before test is started");
     return rootAllocator.newChildAllocator(name, initReservation, maxAllocation);
   }
-
 
   @Override
   protected void before() throws Throwable {
@@ -72,5 +71,4 @@ public final class AllocatorRule extends ExternalResource {
       rootAllocator.close();
     }
   }
-
 }

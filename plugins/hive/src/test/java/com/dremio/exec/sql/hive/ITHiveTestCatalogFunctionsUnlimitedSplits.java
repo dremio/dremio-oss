@@ -42,6 +42,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.BaseTestQuery;
+import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.catalog.model.dataset.TableVersionType;
 import com.dremio.common.exceptions.UserException;
@@ -77,7 +78,6 @@ public class ITHiveTestCatalogFunctionsUnlimitedSplits extends LazyDataGeneratin
 
   private static FileSystem fs;
   protected static String finalIcebergMetadataLocation;
-  private static AutoCloseable enableUnlimitedSplitsSupportFlags;
 
   @Rule
   public final TestRule timeoutRule = TestTools.getTimeoutRule(250, TimeUnit.SECONDS);
@@ -88,13 +88,11 @@ public class ITHiveTestCatalogFunctionsUnlimitedSplits extends LazyDataGeneratin
     LazyDataGeneratingHiveTestBase.generateHiveWithoutData();
     finalIcebergMetadataLocation = getDfsTestTmpSchemaLocation();
     fs = setupLocalFS();
-    enableUnlimitedSplitsSupportFlags = enableUnlimitedSplitsSupportFlags();
     setSystemOption(REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL, "true");
   }
 
   @AfterClass
   public static void close() throws Exception {
-    enableUnlimitedSplitsSupportFlags.close();
     resetSystemOption(REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL.getOptionName());
   }
 
@@ -118,13 +116,15 @@ public class ITHiveTestCatalogFunctionsUnlimitedSplits extends LazyDataGeneratin
       Table icebergTable = getIcebergTable();
 
       EntityExplorer entityExplorer = CatalogUtil.getSystemCatalogForReflections(getSabotContext().getCatalogService());
-      NamespaceKey key = new NamespaceKey(ImmutableList.of("hive", tableName));
+
+      CatalogEntityKey catalogEntityKey = CatalogEntityKey.newBuilder()
+        .keyComponents(ImmutableList.of("hive", tableName))
+        .tableVersionContext(new TableVersionContext(
+          TableVersionType.SNAPSHOT_ID,
+          Long.toString(icebergTable.currentSnapshot().snapshotId())))
+        .build();
       assertThatThrownBy(() -> {
-        entityExplorer.getTableSnapshot(
-          key,
-          new TableVersionContext(
-            TableVersionType.SNAPSHOT_ID,
-            Long.toString(icebergTable.currentSnapshot().snapshotId())));
+        entityExplorer.getTableSnapshot(catalogEntityKey);
       }).isInstanceOf(UserException.class)
         .hasMessageContaining("Time travel is not supported on table");
     } finally {
@@ -161,12 +161,14 @@ public class ITHiveTestCatalogFunctionsUnlimitedSplits extends LazyDataGeneratin
         .setNeverPromote(true)
         .setUseInternalMetadataTable(true)
         .build());
-      NamespaceKey key = new NamespaceKey(ImmutableList.of("hive", tableName));
-      DremioTable table = entityExplorer.getTableSnapshot(
-        key,
-        new TableVersionContext(
+
+      CatalogEntityKey catalogEntityKey = CatalogEntityKey.newBuilder()
+        .keyComponents(ImmutableList.of("hive", tableName))
+        .tableVersionContext(new TableVersionContext(
           TableVersionType.SNAPSHOT_ID,
-          Long.toString(snapshot1.snapshotId())));
+          Long.toString(snapshot1.snapshotId())))
+        .build();
+      DremioTable table = entityExplorer.getTableSnapshot(catalogEntityKey);
 
       assertFalse(DatasetHelper.isIcebergDataset(table.getDatasetConfig()));
       assertTrue(DatasetHelper.isInternalIcebergTable(table.getDatasetConfig()));
@@ -211,7 +213,10 @@ public class ITHiveTestCatalogFunctionsUnlimitedSplits extends LazyDataGeneratin
       NamespaceKey key = new NamespaceKey(ImmutableList.of("hive", tableName));
 
       Optional<TableMetadataVerifyResult> result = entityExplorer.verifyTableMetadata(
-        key,
+        CatalogEntityKey.newBuilder()
+          .keyComponents(key.getPathComponents())
+          .tableVersionContext(TableVersionContext.NOT_SPECIFIED)
+          .build(),
         new TableMetadataVerifyAppendOnlyRequest(Long.toString(snapshot1.snapshotId()), Long.toString(snapshot2.snapshotId())));
 
       assertNotNull(result);
@@ -254,7 +259,10 @@ public class ITHiveTestCatalogFunctionsUnlimitedSplits extends LazyDataGeneratin
       NamespaceKey key = new NamespaceKey(ImmutableList.of("hive", tableName));
 
       Optional<TableMetadataVerifyResult> result = entityExplorer.verifyTableMetadata(
-        key,
+        CatalogEntityKey.newBuilder()
+          .keyComponents(key.getPathComponents())
+          .tableVersionContext(TableVersionContext.NOT_SPECIFIED)
+          .build(),
         new TableMetadataVerifyAppendOnlyRequest(Long.toString(snapshot1.snapshotId()), Long.toString(snapshot2.snapshotId())));
 
       assertNotNull(result);
@@ -313,7 +321,10 @@ public class ITHiveTestCatalogFunctionsUnlimitedSplits extends LazyDataGeneratin
 
       // Verify (snapshot1, snapshot2)
       Optional<TableMetadataVerifyResult> result = entityExplorer.verifyTableMetadata(
-        key,
+        CatalogEntityKey.newBuilder()
+          .keyComponents(key.getPathComponents())
+          .tableVersionContext(TableVersionContext.NOT_SPECIFIED)
+          .build(),
         new TableMetadataVerifyAppendOnlyRequest(Long.toString(snapshot1.snapshotId()), Long.toString(snapshot2.snapshotId())));
 
       assertNotNull(result);
@@ -326,7 +337,10 @@ public class ITHiveTestCatalogFunctionsUnlimitedSplits extends LazyDataGeneratin
 
       // Verify (snapshot1, snapshot3)
       result = entityExplorer.verifyTableMetadata(
-        key,
+        CatalogEntityKey.newBuilder()
+          .keyComponents(key.getPathComponents())
+          .tableVersionContext(TableVersionContext.NOT_SPECIFIED)
+          .build(),
         new TableMetadataVerifyAppendOnlyRequest(Long.toString(snapshot1.snapshotId()), Long.toString(snapshot3.snapshotId())));
 
       assertNotNull(result);
@@ -337,7 +351,10 @@ public class ITHiveTestCatalogFunctionsUnlimitedSplits extends LazyDataGeneratin
 
       // Verify (snapshot2, snapshot3)
       result = entityExplorer.verifyTableMetadata(
-        key,
+        CatalogEntityKey.newBuilder()
+          .keyComponents(key.getPathComponents())
+          .tableVersionContext(TableVersionContext.NOT_SPECIFIED)
+          .build(),
         new TableMetadataVerifyAppendOnlyRequest(Long.toString(snapshot2.snapshotId()), Long.toString(snapshot3.snapshotId())));
 
       assertNotNull(result);
@@ -345,6 +362,57 @@ public class ITHiveTestCatalogFunctionsUnlimitedSplits extends LazyDataGeneratin
       appendOnlyResult = (TableMetadataVerifyAppendOnlyResult) result.get();
       assertEquals(TableMetadataVerifyAppendOnlyResult.ResultCode.NOT_APPEND_ONLY, appendOnlyResult.getResultCode());
       assertEquals(0, appendOnlyResult.getSnapshotRanges().size());
+    } finally {
+      forgetMetadata(tableName);
+      dropTable(tableName);
+    }
+  }
+
+  /*
+   * Test verifyTableMetadata() with MetadataRequestOptions.useMetadataTable option as true, changes were data modifying.
+   */
+  @Test
+  public void testVerifyTableMetadataDataModifying() throws Exception {
+    final String tableName = "incrrefresh_v2_test_" + getFileFormatLowerCase();
+    try {
+      createTable(tableName, "(col1 INT, col2 STRING)");
+      final String insertCmd = "INSERT INTO " + tableName + " VALUES(1, 'a')";
+      dataGenerator.executeDDL(insertCmd);
+      runFullRefresh(tableName);
+
+      Table icebergTable = getIcebergTable();
+      Snapshot snapshot1 = icebergTable.currentSnapshot();
+
+      final String insertCmd2 = "INSERT INTO " + tableName + " VALUES(2, 'b')";
+      dataGenerator.executeDDL(insertCmd2);
+      runFullRefresh(tableName);
+
+      //Refresh the same iceberg table again
+      icebergTable.refresh();
+      Snapshot snapshot2 = icebergTable.currentSnapshot();
+
+      EntityExplorer entityExplorer = getSabotContext().getCatalogService().getCatalog(MetadataRequestOptions.newBuilder()
+        .setSchemaConfig(SchemaConfig.newBuilder(CatalogUser.from(SystemUser.SYSTEM_USERNAME)).build())
+        .setCheckValidity(false)
+        .setNeverPromote(true)
+        .setUseInternalMetadataTable(true)
+        .build());
+      NamespaceKey key = new NamespaceKey(ImmutableList.of("hive", tableName));
+
+      Optional<TableMetadataVerifyResult> result = entityExplorer.verifyTableMetadata(
+        CatalogEntityKey.newBuilder()
+          .keyComponents(key.getPathComponents())
+          .tableVersionContext(TableVersionContext.NOT_SPECIFIED)
+          .build(),
+        new TableMetadataVerifyAppendOnlyRequest(Long.toString(snapshot1.snapshotId()), Long.toString(snapshot2.snapshotId())));
+
+      assertNotNull(result);
+      assertTrue(result.isPresent());
+      TableMetadataVerifyAppendOnlyResult appendOnlyResult = (TableMetadataVerifyAppendOnlyResult) result.get();
+      assertEquals(TableMetadataVerifyAppendOnlyResult.ResultCode.APPEND_ONLY, appendOnlyResult.getResultCode());
+      assertEquals(1, appendOnlyResult.getSnapshotRanges().size());
+      assertEquals(Long.toString(snapshot1.snapshotId()), appendOnlyResult.getSnapshotRanges().get(0).getLeft());
+      assertEquals(Long.toString(snapshot2.snapshotId()), appendOnlyResult.getSnapshotRanges().get(0).getRight());
     } finally {
       forgetMetadata(tableName);
       dropTable(tableName);

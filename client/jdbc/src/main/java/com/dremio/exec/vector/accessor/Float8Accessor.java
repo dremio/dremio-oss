@@ -15,11 +15,10 @@
  */
 package com.dremio.exec.vector.accessor;
 
-import org.apache.arrow.vector.Float8Vector;
-
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.types.Types;
+import org.apache.arrow.vector.Float8Vector;
 
 public class Float8Accessor extends AbstractSqlAccessor {
 
@@ -58,5 +57,4 @@ public class Float8Accessor extends AbstractSqlAccessor {
   public double getDouble(int index) {
     return ac.get(index);
   }
-
 }

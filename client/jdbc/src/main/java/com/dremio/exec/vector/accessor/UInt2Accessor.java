@@ -15,11 +15,10 @@
  */
 package com.dremio.exec.vector.accessor;
 
-import org.apache.arrow.vector.UInt2Vector;
-
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.types.Types;
+import org.apache.arrow.vector.UInt2Vector;
 
 public class UInt2Accessor extends AbstractSqlAccessor {
 
@@ -58,5 +57,4 @@ public class UInt2Accessor extends AbstractSqlAccessor {
   public char getChar(int index) {
     return ac.get(index);
   }
-
 }

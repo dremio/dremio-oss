@@ -15,21 +15,16 @@
  */
 package com.dremio.exec.planner.sql.handlers.refresh;
 
-import java.io.IOException;
-
 import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.store.DatasetRetrievalOptions;
+import java.io.IOException;
 
-/**
- * Interface to be extended by plan builders for new metadata refresh flow.
- */
+/** Interface to be extended by plan builders for new metadata refresh flow. */
 public interface MetadataRefreshPlanBuilder {
 
-  /**
-   * Return the root prel node after building the Prel
-   */
+  /** Return the root prel node after building the Prel */
   Prel buildPlan();
 
   /**
@@ -38,9 +33,11 @@ public interface MetadataRefreshPlanBuilder {
    * @return listing of partition chunk handles, not null
    * @param retrievalOptions
    */
-  PartitionChunkListing listPartitionChunks(DatasetRetrievalOptions retrievalOptions) throws ConnectorException;
-  /**
-   * Setup all the metadata like schema, partitions which are needed to build the plan.
-   */
-  void setupMetadataForPlanning(PartitionChunkListing partitionChunkListing, DatasetRetrievalOptions retrievalOptions) throws IOException;
+  PartitionChunkListing listPartitionChunks(DatasetRetrievalOptions retrievalOptions)
+      throws ConnectorException;
+
+  /** Setup all the metadata like schema, partitions which are needed to build the plan. */
+  void setupMetadataForPlanning(
+      PartitionChunkListing partitionChunkListing, DatasetRetrievalOptions retrievalOptions)
+      throws IOException;
 }

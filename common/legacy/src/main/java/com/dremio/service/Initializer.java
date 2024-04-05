@@ -16,12 +16,12 @@
 package com.dremio.service;
 
 /**
- * Interface that defines initializers. Note that these are small tasks that should be done on startup.
+ * Interface that defines initializers. Note that these are small tasks that should be done on
+ * startup.
  *
  * @param <T> The return type for initialization.
  */
 public interface Initializer<T> {
 
   T initialize(BindingProvider provider) throws Exception;
-
 }

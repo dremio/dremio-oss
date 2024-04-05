@@ -15,28 +15,30 @@
  */
 package com.dremio.exec.ops;
 
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.sabot.exec.context.FunctionContext;
+import org.apache.arrow.memory.BufferAllocator;
 
 public interface OptimizerRulesContext extends FunctionContext {
   /**
    * Method returns the function registry
+   *
    * @return FunctionImplementationRegistry
    */
   public FunctionImplementationRegistry getFunctionRegistry();
 
   /**
    * Method returns the allocator
+   *
    * @return BufferAllocator
    */
   public BufferAllocator getAllocator();
 
   /**
    * Method returns the planner options
+   *
    * @return PlannerSettings
    */
   public PlannerSettings getPlannerSettings();

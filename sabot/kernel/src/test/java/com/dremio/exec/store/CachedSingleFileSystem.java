@@ -15,13 +15,15 @@
  */
 package com.dremio.exec.store;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufInputStream;
+import io.netty.buffer.UnpooledByteBufAllocator;
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
-
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
@@ -31,10 +33,6 @@ import org.apache.hadoop.fs.PositionedReadable;
 import org.apache.hadoop.fs.Seekable;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.util.Progressable;
-
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufInputStream;
-import io.netty.buffer.UnpooledByteBufAllocator;
 
 public class CachedSingleFileSystem extends FileSystem {
 
@@ -46,21 +44,22 @@ public class CachedSingleFileSystem extends FileSystem {
     File f = new File(path);
     long length = f.length();
     if (length > Integer.MAX_VALUE) {
-      throw new UnsupportedOperationException("Cached file system only supports files of less than 2GB.");
+      throw new UnsupportedOperationException(
+          "Cached file system only supports files of less than 2GB.");
     }
     System.out.println(length);
     try (InputStream is = new BufferedInputStream(new FileInputStream(path))) {
-      byte[] buffer = new byte[64*1024];
+      byte[] buffer = new byte[64 * 1024];
       this.file = UnpooledByteBufAllocator.DEFAULT.directBuffer((int) length);
       int read;
-      while ( (read = is.read(buffer)) > 0) {
+      while ((read = is.read(buffer)) > 0) {
         file.writeBytes(buffer, 0, read);
       }
     }
   }
 
   @Override
-  public void close() throws IOException{
+  public void close() throws IOException {
     file.release();
     super.close();
   }
@@ -71,8 +70,15 @@ public class CachedSingleFileSystem extends FileSystem {
   }
 
   @Override
-  public FSDataOutputStream create(Path arg0, FsPermission arg1, boolean arg2, int arg3, short arg4, long arg5,
-      Progressable arg6) throws IOException {
+  public FSDataOutputStream create(
+      Path arg0,
+      FsPermission arg1,
+      boolean arg2,
+      int arg3,
+      short arg4,
+      long arg5,
+      Progressable arg6)
+      throws IOException {
     throw new UnsupportedOperationException();
   }
 
@@ -114,7 +120,10 @@ public class CachedSingleFileSystem extends FileSystem {
   @Override
   public FSDataInputStream open(Path path, int arg1) throws IOException {
     if (!path.toString().equals(this.path)) {
-      throw new IOException(String.format("You requested file %s but this cached single file system only has the file %s.", path.toString(), this.path));
+      throw new IOException(
+          String.format(
+              "You requested file %s but this cached single file system only has the file %s.",
+              path.toString(), this.path));
     }
     return new FSDataInputStream(new CachedFSDataInputStream(file.slice()));
   }
@@ -129,13 +138,13 @@ public class CachedSingleFileSystem extends FileSystem {
     throw new UnsupportedOperationException();
   }
 
-
-  private class CachedFSDataInputStream extends ByteBufInputStream implements Seekable, PositionedReadable{
+  private class CachedFSDataInputStream extends ByteBufInputStream
+      implements Seekable, PositionedReadable {
     private ByteBuf buf;
+
     public CachedFSDataInputStream(ByteBuf buffer) {
       super(buffer);
       this.buf = buffer;
-
     }
 
     @Override
@@ -155,7 +164,7 @@ public class CachedSingleFileSystem extends FileSystem {
 
     @Override
     public int read(long pos, byte[] buffer, int offset, int length) throws IOException {
-      ByteBuf local = buf.slice( (int) pos, (int) Math.min( buf.capacity() - pos, length));
+      ByteBuf local = buf.slice((int) pos, (int) Math.min(buf.capacity() - pos, length));
       local.readBytes(buffer, offset, buf.capacity());
       return buf.capacity();
     }
@@ -173,5 +182,4 @@ public class CachedSingleFileSystem extends FileSystem {
       read(pos, buffer, offset, length);
     }
   }
-
 }

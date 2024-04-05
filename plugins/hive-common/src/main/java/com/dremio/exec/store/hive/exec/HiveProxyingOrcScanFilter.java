@@ -15,11 +15,6 @@
  */
 package com.dremio.exec.store.hive.exec;
 
-import java.util.Collections;
-import java.util.List;
-
-import org.apache.calcite.rex.RexNode;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.store.ScanFilter;
@@ -29,11 +24,11 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import java.util.Collections;
+import java.util.List;
+import org.apache.calcite.rex.RexNode;
 
-/**
- * Class which wraps a Hive OrcScanFilter in a separate ClassLoader and exposes
- * it to Dremio.
- */
+/** Class which wraps a Hive OrcScanFilter in a separate ClassLoader and exposes it to Dremio. */
 @JsonTypeName("hive-proxying-orc-scan-filter")
 @JsonDeserialize(using = HiveProxyingOrcScanFilterDeserializer.class)
 public class HiveProxyingOrcScanFilter implements ScanFilter {
@@ -47,8 +42,9 @@ public class HiveProxyingOrcScanFilter implements ScanFilter {
 
   @JsonCreator
   public HiveProxyingOrcScanFilter(
-    @JsonProperty(JSON_PROP_PLUGINID) StoragePluginId pluginId,
-    @JsonProperty(JSON_PROP_WRAPPEDHIVEORCSCANFILTER) HiveProxiedOrcScanFilter proxiedOrcScanFilter) {
+      @JsonProperty(JSON_PROP_PLUGINID) StoragePluginId pluginId,
+      @JsonProperty(JSON_PROP_WRAPPEDHIVEORCSCANFILTER)
+          HiveProxiedOrcScanFilter proxiedOrcScanFilter) {
     this.pluginId = pluginId;
     this.proxiedOrcScanFilter = proxiedOrcScanFilter;
   }
@@ -101,6 +97,4 @@ public class HiveProxyingOrcScanFilter implements ScanFilter {
     // No Exact definition for OrcScanFilter
     return getProxiedOrcScanFilter().getRexFilter();
   }
-
-
 }

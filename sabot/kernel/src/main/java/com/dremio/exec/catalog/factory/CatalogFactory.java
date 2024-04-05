@@ -17,18 +17,15 @@ package com.dremio.exec.catalog.factory;
 
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 
-import javax.inject.Inject;
-import javax.ws.rs.core.SecurityContext;
-
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogUser;
 import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.SchemaConfig;
+import javax.inject.Inject;
+import javax.ws.rs.core.SecurityContext;
 
-/**
- * Factory for Catalog creation.
- */
+/** Factory for Catalog creation. */
 public class CatalogFactory implements CatalogSupplier {
   private final CatalogService catalogService;
   private final SecurityContext context;
@@ -42,13 +39,16 @@ public class CatalogFactory implements CatalogSupplier {
 
   @Override
   public Catalog get() {
-    return catalogService.getCatalog(MetadataRequestOptions.of(
-      SchemaConfig.newBuilder(CatalogUser.from(context.getUserPrincipal().getName()))
-        .build()));
+    return catalogService.getCatalog(
+        MetadataRequestOptions.of(
+            SchemaConfig.newBuilder(CatalogUser.from(context.getUserPrincipal().getName()))
+                .build()));
   }
 
   @Override
   public Catalog getSystemCatalog() {
-    return catalogService.getCatalog(MetadataRequestOptions.of(SchemaConfig.newBuilder(CatalogUser.from(SYSTEM_USERNAME)).build()));
+    return catalogService.getCatalog(
+        MetadataRequestOptions.of(
+            SchemaConfig.newBuilder(CatalogUser.from(SYSTEM_USERNAME)).build()));
   }
 }

@@ -22,6 +22,8 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.dremio.test.DremioTest;
+import com.google.common.collect.ImmutableList;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -39,7 +41,6 @@ import java.util.List;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
-
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -49,9 +50,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.rocksdb.Checkpoint;
 import org.rocksdb.RocksDB;
-
-import com.dremio.test.DremioTest;
-import com.google.common.collect.ImmutableList;
 
 @RunWith(Enclosed.class)
 public class TestBackupSupport extends DremioTest {
@@ -64,12 +62,12 @@ public class TestBackupSupport extends DremioTest {
     @Parameterized.Parameters(name = "Date {0}")
     public static List<Param<LocalDateTime, String, Class<? extends Throwable>>> params() {
       return ImmutableList.of(
-        new Param<LocalDateTime, String, Class<? extends Throwable>>(null, NullPointerException.class),
-        new Param<LocalDateTime, String, Class<? extends Throwable>>(LocalDate.of(2022, 6, 8).atStartOfDay(),
-          formatDir("2022-06-08_00.00")),
-        new Param<LocalDateTime, String, Class<? extends Throwable>>(LocalDateTime.of(2022, 7, 9, 10, 20), formatDir(
-          "2022-07-09_10.20"))
-      );
+          new Param<LocalDateTime, String, Class<? extends Throwable>>(
+              null, NullPointerException.class),
+          new Param<LocalDateTime, String, Class<? extends Throwable>>(
+              LocalDate.of(2022, 6, 8).atStartOfDay(), formatDir("2022-06-08_00.00")),
+          new Param<LocalDateTime, String, Class<? extends Throwable>>(
+              LocalDateTime.of(2022, 7, 9, 10, 20), formatDir("2022-07-09_10.20")));
     }
 
     public BackupDirTests(Param<LocalDateTime, String, Class<? extends Throwable>> param) {
@@ -81,11 +79,10 @@ public class TestBackupSupport extends DremioTest {
       if (param.expectedValue != null) {
         assertEquals(param.expectedValue, BackupSupport.backupDestinationDirName(param.value));
       } else {
-        Assert.assertThrows(param.expectedException,
-          () -> BackupSupport.backupDestinationDirName(param.value));
+        Assert.assertThrows(
+            param.expectedException, () -> BackupSupport.backupDestinationDirName(param.value));
       }
     }
-
   }
 
   @RunWith(Parameterized.class)
@@ -96,22 +93,24 @@ public class TestBackupSupport extends DremioTest {
     @Parameterized.Parameters(name = "directory name = {0}")
     public static List<Param<String, LocalDateTime, Class<? extends Throwable>>> params() {
       return ImmutableList.of(
-        new Param<String, LocalDateTime, Class<? extends Throwable>>(null, DateTimeParseException.class),
-        new Param<String, LocalDateTime, Class<? extends Throwable>>("", DateTimeParseException.class),
-        new Param<String, LocalDateTime, Class<? extends Throwable>>("invalidValue", DateTimeParseException.class),
-        new Param<String, LocalDateTime, Class<? extends Throwable>>("invalidPrefix2022-06-08_00.00",
-          DateTimeParseException.class),
-        new Param<String, LocalDateTime, Class<? extends Throwable>>(formatDir("invalidSuffix"),
-          DateTimeParseException.class),
-        new Param<String, LocalDateTime, Class<? extends Throwable>>(formatDir("2022-06-08_00.00"),
-          LocalDateTime.of(2022, 6, 8, 0, 0)),
-        new Param<String, LocalDateTime, Class<? extends Throwable>>(formatDir("2022-07-09_10.20"),
-          LocalDateTime.of(2022, 7, 9, 10, 20))
-      );
+          new Param<String, LocalDateTime, Class<? extends Throwable>>(
+              null, DateTimeParseException.class),
+          new Param<String, LocalDateTime, Class<? extends Throwable>>(
+              "", DateTimeParseException.class),
+          new Param<String, LocalDateTime, Class<? extends Throwable>>(
+              "invalidValue", DateTimeParseException.class),
+          new Param<String, LocalDateTime, Class<? extends Throwable>>(
+              "invalidPrefix2022-06-08_00.00", DateTimeParseException.class),
+          new Param<String, LocalDateTime, Class<? extends Throwable>>(
+              formatDir("invalidSuffix"), DateTimeParseException.class),
+          new Param<String, LocalDateTime, Class<? extends Throwable>>(
+              formatDir("2022-06-08_00.00"), LocalDateTime.of(2022, 6, 8, 0, 0)),
+          new Param<String, LocalDateTime, Class<? extends Throwable>>(
+              formatDir("2022-07-09_10.20"), LocalDateTime.of(2022, 7, 9, 10, 20)));
     }
 
     public ExtractDateTimeFromSuffixTests(
-      Param<String, LocalDateTime, Class<? extends Throwable>> param) {
+        Param<String, LocalDateTime, Class<? extends Throwable>> param) {
       this.param = param;
     }
 
@@ -120,17 +119,15 @@ public class TestBackupSupport extends DremioTest {
       if (param.expectedValue != null) {
         assertEquals(param.expectedValue, BackupSupport.extractDateTimeFromSuffix(param.value));
       } else {
-        Assert.assertThrows(param.expectedException,
-          () -> BackupSupport.extractDateTimeFromSuffix(param.value));
+        Assert.assertThrows(
+            param.expectedException, () -> BackupSupport.extractDateTimeFromSuffix(param.value));
       }
     }
-
   }
 
   public static class NewCheckpointTests extends DremioTest {
 
-    @ClassRule
-    public static TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
+    @ClassRule public static TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
 
     private static final String BLOB_PATH = "blob";
     private static final String CATALOG_STORE_NAME = "catalog";
@@ -150,10 +147,11 @@ public class TestBackupSupport extends DremioTest {
       // let's assume RocksDB tested its own Checkpoint feature
       BackupSupport.checkpointCreator = rocksDB -> mock(Checkpoint.class);
 
-      CheckpointInfo checkpointInfo = BackupSupport.newCheckpoint(backupDir, baseDirectory, CATALOG_STORE_NAME,
-        BLOB_PATH, db);
+      CheckpointInfo checkpointInfo =
+          BackupSupport.newCheckpoint(backupDir, baseDirectory, CATALOG_STORE_NAME, BLOB_PATH, db);
 
-      assertEquals(baseDirectory + "/checkpoints/" + bkpName + "/", checkpointInfo.getCheckpointPath());
+      assertEquals(
+          baseDirectory + "/checkpoints/" + bkpName + "/", checkpointInfo.getCheckpointPath());
       Path checkpointBlobPath = Paths.get(checkpointInfo.getCheckpointPath()).resolve(BLOB_PATH);
       assertBlobHardLinks(origBlobPath, checkpointBlobPath);
     }
@@ -180,11 +178,13 @@ public class TestBackupSupport extends DremioTest {
       // let's assume RocksDB tested its own Checkpoint feature
       BackupSupport.checkpointCreator = rocksDB -> mock(Checkpoint.class);
 
-      CheckpointInfo checkpointInfo = BackupSupport.newCheckpoint(backupDir, baseDirectory, CATALOG_STORE_NAME,
-        BLOB_PATH, db);
+      CheckpointInfo checkpointInfo =
+          BackupSupport.newCheckpoint(backupDir, baseDirectory, CATALOG_STORE_NAME, BLOB_PATH, db);
 
       Path checkpointsDirPath = Paths.get(checkpointInfo.getCheckpointPath()).getParent();
-      assertFalse("Dangling dir should not exist", Files.exists(checkpointsDirPath.resolve(danglingDirName)));
+      assertFalse(
+          "Dangling dir should not exist",
+          Files.exists(checkpointsDirPath.resolve(danglingDirName)));
     }
 
     @Test
@@ -203,29 +203,35 @@ public class TestBackupSupport extends DremioTest {
       // let's assume RocksDB tested its own Checkpoint feature
       BackupSupport.checkpointCreator = rocksDB -> mock(Checkpoint.class);
 
-      BackupSupport.newCheckpoint(backupDir, baseDirectory, CATALOG_STORE_NAME,
-        BLOB_PATH, db);
+      BackupSupport.newCheckpoint(backupDir, baseDirectory, CATALOG_STORE_NAME, BLOB_PATH, db);
 
       assertTrue("Alien directory must be present", Files.exists(alienDir));
     }
 
     private Path createDanglingDir(String dirName, File baseDir) throws IOException {
-      Path checkpointsDir = Paths.get(baseDir.getAbsolutePath()).resolve("checkpoints").resolve(dirName);
+      Path checkpointsDir =
+          Paths.get(baseDir.getAbsolutePath()).resolve("checkpoints").resolve(dirName);
       return Files.createDirectories(checkpointsDir);
     }
 
-    private void assertBlobHardLinks(Path origBlobPath, Path checkpointBlobPath) throws IOException {
+    private void assertBlobHardLinks(Path origBlobPath, Path checkpointBlobPath)
+        throws IOException {
       try (DirectoryStream<Path> paths = Files.newDirectoryStream(origBlobPath)) {
         for (Path path : paths) {
           try (DirectoryStream<Path> blobs = Files.newDirectoryStream(path)) {
             for (Path blob : blobs) {
               Path blobGroupDir = blob.getParent().getFileName();
               Path blobOrigFileName = blob.getFileName();
-              Path checkpointBlob = checkpointBlobPath.resolve(blobGroupDir).resolve(blobOrigFileName);
-              assertFalse("Blob should not be a symbolic link", Files.getFileAttributeView(checkpointBlob,
-                PosixFileAttributeView.class).readAttributes().isSymbolicLink());
-              assertTrue("File content must mach", Arrays.equals(Files.readAllBytes(blob),
-                Files.readAllBytes(checkpointBlob)));
+              Path checkpointBlob =
+                  checkpointBlobPath.resolve(blobGroupDir).resolve(blobOrigFileName);
+              assertFalse(
+                  "Blob should not be a symbolic link",
+                  Files.getFileAttributeView(checkpointBlob, PosixFileAttributeView.class)
+                      .readAttributes()
+                      .isSymbolicLink());
+              assertTrue(
+                  "File content must mach",
+                  Arrays.equals(Files.readAllBytes(blob), Files.readAllBytes(checkpointBlob)));
             }
           }
         }
@@ -257,7 +263,6 @@ public class TestBackupSupport extends DremioTest {
         fileOS.write(data);
       }
     }
-
   }
 
   private static String formatDir(String date) {
@@ -287,7 +292,5 @@ public class TestBackupSupport extends DremioTest {
     public String toString() {
       return value != null ? value.toString() : "null";
     }
-
   }
-
 }

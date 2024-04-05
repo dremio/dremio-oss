@@ -89,7 +89,7 @@ export const LeaveContextProvider = (props: LeaveContextProviderProps) => {
       },
       leave,
     }),
-    [isOpen]
+    [isOpen],
   );
 
   return (

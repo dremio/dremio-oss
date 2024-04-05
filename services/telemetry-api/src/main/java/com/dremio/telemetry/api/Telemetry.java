@@ -15,15 +15,6 @@
  */
 package com.dremio.telemetry.api;
 
-import java.io.File;
-import java.io.IOException;
-import java.net.URL;
-import java.util.Collection;
-import java.util.ServiceLoader;
-import java.util.function.Consumer;
-
-import javax.inject.Provider;
-
 import com.dremio.telemetry.api.config.AutoRefreshConfigurator;
 import com.dremio.telemetry.api.config.AutoRefreshConfigurator.CompleteRefreshConfig;
 import com.dremio.telemetry.api.config.ConfigModule;
@@ -37,14 +28,18 @@ import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.Resources;
-
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentracing.Tracer;
 import io.opentracing.noop.NoopTracerFactory;
+import java.io.File;
+import java.io.IOException;
+import java.net.URL;
+import java.util.Collection;
+import java.util.ServiceLoader;
+import java.util.function.Consumer;
+import javax.inject.Provider;
 
-/**
- * Owner to all telemetry utilities.
- */
+/** Owner to all telemetry utilities. */
 public final class Telemetry {
   private static final String CONFIG_FILE = "dremio-telemetry.yaml";
   private static final String CONFIG_FILE_PROPERTY = "dremio.telemetry.configfile";
@@ -54,12 +49,13 @@ public final class Telemetry {
   private static InnerTelemetryConfigListener CONFIG_REFRESH_LISTENER;
 
   /** Sampling is forced if this Attribute exists in the Span */
-  public static final AttributeKey<Boolean> FORCE_SAMPLING_ATTRIBUTE = AttributeKey.booleanKey("dremio-sample");
+  public static final AttributeKey<Boolean> FORCE_SAMPLING_ATTRIBUTE =
+      AttributeKey.booleanKey("dremio-sample");
 
   /**
-   * Reads the telemetry config file and sets itself up to listen for changes.
-   * If telemetry is already available, the most up to date telemetry dependencies (e.g. tracer)
-   * will be added to the registry.
+   * Reads the telemetry config file and sets itself up to listen for changes. If telemetry is
+   * already available, the most up to date telemetry dependencies (e.g. tracer) will be added to
+   * the registry.
    */
   @SuppressWarnings("unchecked")
   public static void startTelemetry() {
@@ -83,47 +79,53 @@ public final class Telemetry {
     final ObjectReader reader = mapper.readerFor(TelemetryConfigurator.class);
 
     Provider<CompleteRefreshConfig<InnerTelemetryConf>> configurationProvider =
-      new Provider<CompleteRefreshConfig<InnerTelemetryConf>>() {
+        new Provider<CompleteRefreshConfig<InnerTelemetryConf>>() {
 
-        private final ExceptionWatcher exceptionWatcher =
-          new ExceptionWatcher((ex) -> logger.warn("Failure reading telemetry configuration. Leaving telemetry as is.", ex));
+          private final ExceptionWatcher exceptionWatcher =
+              new ExceptionWatcher(
+                  (ex) ->
+                      logger.warn(
+                          "Failure reading telemetry configuration. Leaving telemetry as is.", ex));
 
-        @Override
-        public CompleteRefreshConfig<InnerTelemetryConf> get() {
-          URL resource = null;
-          CompleteRefreshConfig<InnerTelemetryConf> ret = null;
-          try {
-            String configFilePath = System.getProperty(CONFIG_FILE_PROPERTY);
-            if (configFilePath!=null && !configFilePath.isEmpty()) {
-              File file = new File(configFilePath);
-              if (file.exists()) {
-                resource = file.toURI().toURL();
+          @Override
+          public CompleteRefreshConfig<InnerTelemetryConf> get() {
+            URL resource = null;
+            CompleteRefreshConfig<InnerTelemetryConf> ret = null;
+            try {
+              String configFilePath = System.getProperty(CONFIG_FILE_PROPERTY);
+              if (configFilePath != null && !configFilePath.isEmpty()) {
+                File file = new File(configFilePath);
+                if (file.exists()) {
+                  resource = file.toURI().toURL();
+                }
               }
+              if (resource == null) {
+                resource = Resources.getResource(CONFIG_FILE);
+              }
+
+              final TelemetryConfigurator fromConfig = reader.readValue(resource);
+
+              final InnerTelemetryConf telemConf =
+                  new InnerTelemetryConf(
+                      fromConfig.getMetricsConfigs(), fromConfig.getTracerConfig());
+
+              ret = new CompleteRefreshConfig<>(fromConfig.getRefreshConfig(), telemConf);
+              exceptionWatcher.reset();
+            } catch (IllegalArgumentException | IOException ex) {
+              exceptionWatcher.notify(ex);
             }
-            if (resource == null) {
-              resource = Resources.getResource(CONFIG_FILE);
-            }
-
-            final TelemetryConfigurator fromConfig = reader.readValue(resource);
-
-            final InnerTelemetryConf telemConf = new InnerTelemetryConf(fromConfig.getMetricsConfigs(), fromConfig.getTracerConfig());
-
-            ret = new CompleteRefreshConfig<>(fromConfig.getRefreshConfig(), telemConf);
-            exceptionWatcher.reset();
-          } catch (IllegalArgumentException | IOException ex) {
-            exceptionWatcher.notify(ex);
+            return ret;
           }
-          return ret;
-        }
-      };
+        };
 
     CONFIG_REFRESH_LISTENER = new InnerTelemetryConfigListener(TracerFacade.INSTANCE);
-    CONFIG_REFRESHER = new AutoRefreshConfigurator<>(configurationProvider, CONFIG_REFRESH_LISTENER);
-
+    CONFIG_REFRESHER =
+        new AutoRefreshConfigurator<>(configurationProvider, CONFIG_REFRESH_LISTENER);
   }
 
   /**
-   * Only invokes exceptionConsumer when the exception message is different than the previous message.
+   * Only invokes exceptionConsumer when the exception message is different than the previous
+   * message.
    */
   static class ExceptionWatcher {
     private final Consumer<Exception> consumer;
@@ -149,7 +151,8 @@ public final class Telemetry {
     private final Collection<MetricsConfigurator> metricsConf;
     private final TracerConfigurator tracerConf;
 
-    InnerTelemetryConf(Collection<MetricsConfigurator> metricsConfigurators, TracerConfigurator tracerConf) {
+    InnerTelemetryConf(
+        Collection<MetricsConfigurator> metricsConfigurators, TracerConfigurator tracerConf) {
       this.metricsConf = metricsConfigurators;
       this.tracerConf = tracerConf;
     }
@@ -164,27 +167,34 @@ public final class Telemetry {
   }
 
   /**
-   * Listens to changes on telemetry config. Does not receive updates regarding refresh setting changes.
+   * Listens to changes on telemetry config. Does not receive updates regarding refresh setting
+   * changes.
    */
   static class InnerTelemetryConfigListener implements Consumer<InnerTelemetryConf> {
-    private final AutoRefreshConfigurator.ValueChangeDetector<Collection<MetricsConfigurator>> rememberedMetrics;
+    private final AutoRefreshConfigurator.ValueChangeDetector<Collection<MetricsConfigurator>>
+        rememberedMetrics;
     private final AutoRefreshConfigurator.ValueChangeDetector<TracerConfigurator> rememberedTracer;
 
     InnerTelemetryConfigListener(TracerFacade tracerFacade) {
       rememberedMetrics = configChangeConsumer("metrics", Metrics::onChange);
-      rememberedTracer = configChangeConsumer("tracer",
-          (tracerConf) -> {
-            final Tracer newTracer = tracerConf == null ? NoopTracerFactory.create() : tracerConf.getTracer();
-            tracerFacade.setTracer(newTracer);
-          });
+      rememberedTracer =
+          configChangeConsumer(
+              "tracer",
+              (tracerConf) -> {
+                final Tracer newTracer =
+                    tracerConf == null ? NoopTracerFactory.create() : tracerConf.getTracer();
+                tracerFacade.setTracer(newTracer);
+              });
     }
 
-    private static <T> AutoRefreshConfigurator.ValueChangeDetector<T> configChangeConsumer(String type, Consumer<T> consumer) {
-      return new AutoRefreshConfigurator.ValueChangeDetector<>((t) -> {
-        logger.debug("Updating {} configuration", type);
-        consumer.accept(t);
-        logger.debug("Updated {} configuration", type);
-      });
+    private static <T> AutoRefreshConfigurator.ValueChangeDetector<T> configChangeConsumer(
+        String type, Consumer<T> consumer) {
+      return new AutoRefreshConfigurator.ValueChangeDetector<>(
+          (t) -> {
+            logger.debug("Updating {} configuration", type);
+            consumer.accept(t);
+            logger.debug("Updated {} configuration", type);
+          });
     }
 
     @Override

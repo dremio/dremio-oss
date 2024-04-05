@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.vector.accessor;
 
+import com.dremio.common.types.TypeProtos.MajorType;
 import java.io.InputStream;
 import java.io.Reader;
 import java.math.BigDecimal;
@@ -22,10 +23,7 @@ import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.Calendar;
-
 import org.apache.arrow.vector.ValueVector;
-
-import com.dremio.common.types.TypeProtos.MajorType;
 
 /**
  * A decorating accessor that returns null for indices that is beyond underlying vector's capacity.

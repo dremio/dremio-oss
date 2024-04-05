@@ -15,6 +15,13 @@
  */
 package com.dremio.exec.hadoop;
 
+import com.dremio.common.concurrent.NamedThreadFactory;
+import com.dremio.io.AsyncByteReader;
+import com.dremio.io.FSInputStream;
+import com.dremio.io.ReusableAsyncByteReader;
+import com.dremio.io.file.FileAttributes;
+import com.dremio.io.file.Path;
+import io.netty.buffer.ByteBuf;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -23,21 +30,12 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import com.dremio.common.concurrent.NamedThreadFactory;
-import com.dremio.io.AsyncByteReader;
-import com.dremio.io.FSInputStream;
-import com.dremio.io.ReusableAsyncByteReader;
-import com.dremio.io.file.FileAttributes;
-import com.dremio.io.file.Path;
-
-import io.netty.buffer.ByteBuf;
-
-/**
- * Async wrapper over the hadoop sync APIs.
- */
+/** Async wrapper over the hadoop sync APIs. */
 public class HadoopAsyncByteReader extends ReusableAsyncByteReader {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HadoopAsyncByteReader.class);
-  private static final ExecutorService threadPool = Executors.newCachedThreadPool(new NamedThreadFactory("hadoop-read-"));
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(HadoopAsyncByteReader.class);
+  private static final ExecutorService threadPool =
+      Executors.newCachedThreadPool(new NamedThreadFactory("hadoop-read-"));
 
   private final Path path;
   private final FSInputStream inputStream;
@@ -45,7 +43,8 @@ public class HadoopAsyncByteReader extends ReusableAsyncByteReader {
   private final HadoopFileSystem hadoopFileSystem;
   private volatile CompletableFuture<Void> versionFuture = null;
 
-  public HadoopAsyncByteReader(HadoopFileSystem hadoopFileSystem, final Path path, final FSInputStream inputStream) {
+  public HadoopAsyncByteReader(
+      HadoopFileSystem hadoopFileSystem, final Path path, final FSInputStream inputStream) {
     this.path = path;
     this.inputStream = inputStream;
     this.hadoopFileSystem = hadoopFileSystem;
@@ -55,15 +54,28 @@ public class HadoopAsyncByteReader extends ReusableAsyncByteReader {
   @Override
   public CompletableFuture<Void> readFully(long offset, ByteBuf dstBuf, int dstOffset, int len) {
 
-    return CompletableFuture.runAsync(() -> {
-      try {
-        readFully(inputStream, offset, dstBuf.nioBuffer(dstOffset, len));
-        logger.debug("[{}] Completed request for path {} for offset {} len {}", threadName, path, offset, len);
-      } catch (Exception e) {
-        logger.error("[{}] Failed request for path {} for offset {} len {}", threadName, path, offset, len, e);
-        throw new CompletionException(e);
-      }
-    }, threadPool);
+    return CompletableFuture.runAsync(
+        () -> {
+          try {
+            readFully(inputStream, offset, dstBuf.nioBuffer(dstOffset, len));
+            logger.debug(
+                "[{}] Completed request for path {} for offset {} len {}",
+                threadName,
+                path,
+                offset,
+                len);
+          } catch (Exception e) {
+            logger.error(
+                "[{}] Failed request for path {} for offset {} len {}",
+                threadName,
+                path,
+                offset,
+                len,
+                e);
+            throw new CompletionException(e);
+          }
+        },
+        threadPool);
   }
 
   @Override
@@ -81,21 +93,26 @@ public class HadoopAsyncByteReader extends ReusableAsyncByteReader {
 
     synchronized (this) {
       if (versionFuture == null) {
-        versionFuture = CompletableFuture.runAsync(() -> {
-          FileAttributes fileAttributes;
-          try {
-            fileAttributes = hadoopFileSystem.getFileAttributes(path);
-          } catch (IOException ioe) {
-            throw new CompletionException(ioe);
-          }
+        versionFuture =
+            CompletableFuture.runAsync(
+                () -> {
+                  FileAttributes fileAttributes;
+                  try {
+                    fileAttributes = hadoopFileSystem.getFileAttributes(path);
+                  } catch (IOException ioe) {
+                    throw new CompletionException(ioe);
+                  }
 
-          long lastModified = fileAttributes.lastModifiedTime().toMillis();
-          if (lastModified != expected) {
-            throw new CompletionException(new FileNotFoundException(String.format(
-                "File: %s has changed. Expected mtime to be %s, but found %s",
-                path, expected, lastModified)));
-          }
-        }, threadPool);
+                  long lastModified = fileAttributes.lastModifiedTime().toMillis();
+                  if (lastModified != expected) {
+                    throw new CompletionException(
+                        new FileNotFoundException(
+                            String.format(
+                                "File: %s has changed. Expected mtime to be %s, but found %s",
+                                path, expected, lastModified)));
+                  }
+                },
+                threadPool);
       }
     }
     return versionFuture;

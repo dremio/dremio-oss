@@ -31,6 +31,7 @@ import transformCardPreview from "./transformCardPreview";
 import resourceTree from "./resourceTree";
 import currentSql from "./currentSql";
 import scriptUpdates from "./scriptUpdates";
+import scriptJobs from "./scriptJobs";
 
 export default function* rootSaga() {
   yield all([
@@ -50,5 +51,6 @@ export default function* rootSaga() {
     fork(resourceTree),
     fork(currentSql),
     fork(scriptUpdates),
+    fork(scriptJobs),
   ]);
 }

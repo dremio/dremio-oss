@@ -15,15 +15,6 @@
  */
 package com.dremio.exec.store.parquet;
 
-import java.util.List;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-
-import org.apache.arrow.vector.ValueVector;
-import org.junit.Ignore;
-import org.junit.Test;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.ExecTest;
 import com.dremio.exec.client.DremioClient;
@@ -38,9 +29,17 @@ import com.dremio.sabot.rpc.user.UserResultsListener;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.local.LocalClusterCoordinator;
 import com.google.common.base.Stopwatch;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.apache.arrow.vector.ValueVector;
+import org.junit.Ignore;
+import org.junit.Test;
 
 public class TestParquetPhysicalPlan extends ExecTest {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestParquetPhysicalPlan.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(TestParquetPhysicalPlan.class);
 
   public String fileName = "parquet/parquet_scan_filter_union_screen_physical.json";
 
@@ -48,10 +47,15 @@ public class TestParquetPhysicalPlan extends ExecTest {
   @Ignore
   public void testParseParquetPhysicalPlan() throws Exception {
     try (ClusterCoordinator clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
-         SabotNode bit1 = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, true); DremioClient client = new DremioClient(DEFAULT_SABOT_CONFIG, clusterCoordinator)) {
+        SabotNode bit1 =
+            new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, true);
+        DremioClient client = new DremioClient(DEFAULT_SABOT_CONFIG, clusterCoordinator)) {
       bit1.run();
       client.connect();
-      List<QueryDataBatch> results = client.runQuery(com.dremio.exec.proto.UserBitShared.QueryType.PHYSICAL, readResourceAsString(fileName));
+      List<QueryDataBatch> results =
+          client.runQuery(
+              com.dremio.exec.proto.UserBitShared.QueryType.PHYSICAL,
+              readResourceAsString(fileName));
       RecordBatchLoader loader = new RecordBatchLoader(bit1.getContext().getAllocator());
       int count = 0;
       for (QueryDataBatch b : results) {
@@ -68,7 +72,7 @@ public class TestParquetPhysicalPlan extends ExecTest {
             } else {
               System.out.print(" [" + vv.getObject(i) + "]");
             }
-//            break;
+            //            break;
           }
           System.out.println();
         }
@@ -109,21 +113,25 @@ public class TestParquetPhysicalPlan extends ExecTest {
     }
 
     @Override
-    public void queryIdArrived(QueryId queryId) {
-    }
+    public void queryIdArrived(QueryId queryId) {}
   }
 
   @Test
   @Ignore
   public void testParseParquetPhysicalPlanRemote() throws Exception {
-    try(DremioClient client = new DremioClient(DEFAULT_SABOT_CONFIG);) {
+    try (DremioClient client = new DremioClient(DEFAULT_SABOT_CONFIG); ) {
       client.connect();
       ParquetResultsListener listener = new ParquetResultsListener();
       Stopwatch watch = Stopwatch.createStarted();
-      client.runQuery(com.dremio.exec.proto.UserBitShared.QueryType.PHYSICAL, readResourceAsString(fileName), listener);
-      System.out.println(String.format("Got %d total records in %d seconds", listener.await(), watch.elapsed(TimeUnit.SECONDS)));
+      client.runQuery(
+          com.dremio.exec.proto.UserBitShared.QueryType.PHYSICAL,
+          readResourceAsString(fileName),
+          listener);
+      System.out.println(
+          String.format(
+              "Got %d total records in %d seconds",
+              listener.await(), watch.elapsed(TimeUnit.SECONDS)));
       client.close();
     }
   }
-
 }

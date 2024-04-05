@@ -19,7 +19,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
-
 import org.apache.calcite.rel.type.DynamicRecordType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeFamily;
@@ -30,9 +29,7 @@ import org.apache.calcite.sql.type.SqlTypeExplicitPrecedenceList;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.Util;
 
-/**
- * A record type that add fields based on requests.
- */
+/** A record type that add fields based on requests. */
 public class ExpandingRecordType extends DynamicRecordType {
 
   private final RelDataTypeFactory typeFactory;
@@ -72,14 +69,17 @@ public class ExpandingRecordType extends DynamicRecordType {
     }
 
     /* This field does not exist in our field list add it */
-    final SqlTypeName typeName = DynamicRecordType.isDynamicStarColName(fieldName)
-        ? SqlTypeName.DYNAMIC_STAR : SqlTypeName.ANY;
+    final SqlTypeName typeName =
+        DynamicRecordType.isDynamicStarColName(fieldName)
+            ? SqlTypeName.DYNAMIC_STAR
+            : SqlTypeName.ANY;
 
     // This field does not exist in our field list add it
-    RelDataTypeField newField = new RelDataTypeFieldImpl(
-        fieldName,
-        fields.size(),
-        typeFactory.createTypeWithNullability(typeFactory.createSqlType(typeName), true));
+    RelDataTypeField newField =
+        new RelDataTypeFieldImpl(
+            fieldName,
+            fields.size(),
+            typeFactory.createTypeWithNullability(typeFactory.createSqlType(typeName), true));
 
     /* Add the name to our list of field names */
     fields.add(newField);
@@ -89,7 +89,7 @@ public class ExpandingRecordType extends DynamicRecordType {
 
   @Override
   public SqlTypeName getSqlTypeName() {
-      return SqlTypeName.ANY;
+    return SqlTypeName.ANY;
   }
 
   @Override

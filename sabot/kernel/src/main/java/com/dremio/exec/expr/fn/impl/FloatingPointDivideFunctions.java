@@ -15,11 +15,6 @@
  */
 package com.dremio.exec.expr.fn.impl;
 
-import javax.inject.Inject;
-
-import org.apache.arrow.vector.holders.Float4Holder;
-import org.apache.arrow.vector.holders.Float8Holder;
-
 import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.FunctionTemplate.FunctionScope;
@@ -27,17 +22,21 @@ import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
 import com.dremio.exec.expr.fn.FunctionErrorContext;
+import javax.inject.Inject;
+import org.apache.arrow.vector.holders.Float4Holder;
+import org.apache.arrow.vector.holders.Float8Holder;
 
 @SuppressWarnings("unused")
 
-/**
- * generated from MathFunctionTemplates.java
- */
+/** generated from MathFunctionTemplates.java */
 public class FloatingPointDivideFunctions {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FloatingPointDivideFunctions.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(FloatingPointDivideFunctions.class);
 
-
-  @FunctionTemplate(name = "divide", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+  @FunctionTemplate(
+      name = "divide",
+      scope = FunctionScope.SIMPLE,
+      nulls = NullHandling.NULL_IF_NULL)
   public static class Float4Float4Divide implements SimpleFunction {
 
     @Param Float4Holder in1;
@@ -45,24 +44,23 @@ public class FloatingPointDivideFunctions {
     @Output Float4Holder out;
     @Inject FunctionErrorContext errCtx;
 
-
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
     public void eval() {
-      if(in2.value == 0.0) {
-        throw errCtx.error()
-          .message("divide by zero")
-          .build();
+      if (in2.value == 0.0) {
+        throw errCtx.error().message("divide by zero").build();
       } else {
         out.value = in1.value / in2.value;
       }
     }
   }
 
-  @FunctionTemplate(name = "divide", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+  @FunctionTemplate(
+      name = "divide",
+      scope = FunctionScope.SIMPLE,
+      nulls = NullHandling.NULL_IF_NULL)
   public static class Float8Float8Divide implements SimpleFunction {
 
     @Param Float8Holder in1;
@@ -70,17 +68,13 @@ public class FloatingPointDivideFunctions {
     @Output Float8Holder out;
     @Inject FunctionErrorContext errCtx;
 
-
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
     public void eval() {
-      if(in2.value == 0.0) {
-        throw errCtx.error()
-          .message("divide by zero")
-          .build();
+      if (in2.value == 0.0) {
+        throw errCtx.error().message("divide by zero").build();
       } else {
         out.value = in1.value / in2.value;
       }

@@ -15,13 +15,13 @@
  */
 package com.dremio.options;
 
+import com.dremio.options.OptionValue.OptionType;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.dremio.options.OptionValue.OptionType;
-
 /**
- * Manager for Dremio {@link OptionValue options}. Implementations must be case-insensitive to the name of an option.
+ * Manager for Dremio {@link OptionValue options}. Implementations must be case-insensitive to the
+ * name of an option.
  */
 public interface OptionManager extends Iterable<OptionValue>, OptionResolver {
 
@@ -68,18 +68,20 @@ public interface OptionManager extends Iterable<OptionValue>, OptionResolver {
   /**
    * Gets the list of non-default options if this Option Manager contains it
    *
-   * @return the list of non-default options. Returns an empty list if there are no non-default options
+   * @return the list of non-default options. Returns an empty list if there are no non-default
+   *     options
    */
   OptionList getNonDefaultOptions();
 
-
   /**
    * Get the OptionValidatorProvider in this Option Manager.
+   *
    * @return the OptionValidatorProvider
    */
   OptionValidatorListing getOptionValidatorListing();
 
-  default void addOptionChangeListener(OptionChangeListener optionChangeListener) throws UnsupportedOperationException {
+  default void addOptionChangeListener(OptionChangeListener optionChangeListener)
+      throws UnsupportedOperationException {
     throw new UnsupportedOperationException("Adding option change listener not supported");
   }
 

@@ -24,17 +24,23 @@ import com.dremio.service.namespace.space.SpaceNamespaceService;
 import com.dremio.service.namespace.split.SplitNamespaceService;
 
 /**
- * Namespace operations from DAC.
- * For generic entity operations, use EntityNamespaceService.
- * For specific entity operations, use one of the specific entity interfaces like SourceNamespaceService.
+ * Namespace operations from DAC. For generic entity operations, use EntityNamespaceService. For
+ * specific entity operations, use one of the specific entity interfaces like
+ * SourceNamespaceService.
  */
-public interface NamespaceService extends EntityNamespaceService, SourceNamespaceService, SpaceNamespaceService,
-  FunctionNamespaceService, HomeNamespaceService, FolderNamespaceService, DatasetNamespaceService,
-  SplitNamespaceService {
+public interface NamespaceService
+    extends EntityNamespaceService,
+        SourceNamespaceService,
+        SpaceNamespaceService,
+        FunctionNamespaceService,
+        HomeNamespaceService,
+        FolderNamespaceService,
+        DatasetNamespaceService,
+        SplitNamespaceService {
   interface Factory {
     /**
-     * Return a namespace service for a given user. Note that this is for usernames
-     * and users only, if roles are to be supported, use #get(NamespaceIdentity) instead.
+     * Return a namespace service for a given user. Note that this is for usernames and users only,
+     * if roles are to be supported, use #get(NamespaceIdentity) instead.
      *
      * @param userName a valid user name
      * @return a namespace service instance
@@ -42,6 +48,7 @@ public interface NamespaceService extends EntityNamespaceService, SourceNamespac
      * @throws IllegalArgumentException if {@code userName} is invalid
      */
     NamespaceService get(String userName);
+
     NamespaceService get(NamespaceIdentity identity);
   }
 }

@@ -15,17 +15,14 @@
  */
 package com.dremio.dac.explore.model;
 
-import java.util.List;
-
 import com.dremio.dac.resource.JobResource;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.SessionId;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.List;
 
-/**
- * Initial run response when running run after previous transform.
- */
+/** Initial run response when running run after previous transform. */
 public class InitialUntitledRunResponse {
 
   private final List<String> datasetPath;
@@ -49,12 +46,15 @@ public class InitialUntitledRunResponse {
     this.sessionId = sessionId;
   }
 
-  public static InitialUntitledRunResponse of(List<String> datasetPath, String datasetVersion, JobId jobId, SessionId sessionId) {
-    return new InitialUntitledRunResponse(datasetPath, datasetVersion, JobResource.getPaginationURL(jobId), jobId, sessionId);
+  public static InitialUntitledRunResponse of(
+      List<String> datasetPath, String datasetVersion, JobId jobId, SessionId sessionId) {
+    return new InitialUntitledRunResponse(
+        datasetPath, datasetVersion, JobResource.getPaginationURL(jobId), jobId, sessionId);
   }
 
   /**
    * Minimal Dataset information.
+   *
    * @return
    */
   public List<String> getDatasetPath() {

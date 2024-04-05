@@ -82,7 +82,7 @@ export const WalkthroughMenuItem = (props: WalkthroughMenuItemProps) => {
                 visibility: visible;
               }
             }
-          `
+          `,
         )}
         style={
           props.disabled

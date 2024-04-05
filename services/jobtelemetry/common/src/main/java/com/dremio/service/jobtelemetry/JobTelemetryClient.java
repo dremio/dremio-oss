@@ -15,21 +15,18 @@
  */
 package com.dremio.service.jobtelemetry;
 
-import javax.inject.Provider;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.service.Service;
 import com.dremio.service.grpc.GrpcChannelBuilderFactory;
-
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import javax.inject.Provider;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * Client that redirects requests to either the local job service instance (software), or
- * the remote one (service).
+ * Client that redirects requests to either the local job service instance (software), or the remote
+ * one (service).
  */
 public class JobTelemetryClient implements Service {
   private static final Logger logger = LoggerFactory.getLogger(JobTelemetryClient.class);
@@ -42,8 +39,9 @@ public class JobTelemetryClient implements Service {
   private JobTelemetryServiceGrpc.JobTelemetryServiceStub asyncStub;
   private JobTelemetryServiceGrpc.JobTelemetryServiceFutureStub futureStub;
 
-  public JobTelemetryClient(GrpcChannelBuilderFactory grpcFactory,
-                            Provider<CoordinationProtos.NodeEndpoint> selfEndpoint) {
+  public JobTelemetryClient(
+      GrpcChannelBuilderFactory grpcFactory,
+      Provider<CoordinationProtos.NodeEndpoint> selfEndpoint) {
     this.grpcFactory = grpcFactory;
     this.selfEndpoint = selfEndpoint;
   }
@@ -53,18 +51,22 @@ public class JobTelemetryClient implements Service {
     ManagedChannelBuilder<?> builder;
 
     if (JobTelemetryRpcUtils.getJobTelemetryHostname() == null) {
-      builder = JobTelemetryRpcUtils.newLocalChannelBuilder(grpcFactory,
-        selfEndpoint.get().getFabricPort());
+      builder =
+          JobTelemetryRpcUtils.newLocalChannelBuilder(
+              grpcFactory, selfEndpoint.get().getFabricPort());
     } else {
-      builder = grpcFactory.newManagedChannelBuilder(
-        JobTelemetryRpcUtils.getJobTelemetryHostname(),
-        JobTelemetryRpcUtils.getJobTelemetryPort());
+      builder =
+          grpcFactory.newManagedChannelBuilder(
+              JobTelemetryRpcUtils.getJobTelemetryHostname(),
+              JobTelemetryRpcUtils.getJobTelemetryPort());
     }
 
-    channel = builder.maxInboundMetadataSize(Integer.MAX_VALUE)
-      .maxInboundMessageSize(Integer.MAX_VALUE)
-      .usePlaintext()
-      .build();
+    channel =
+        builder
+            .maxInboundMetadataSize(Integer.MAX_VALUE)
+            .maxInboundMessageSize(Integer.MAX_VALUE)
+            .usePlaintext()
+            .build();
 
     blockingStub = JobTelemetryServiceGrpc.newBlockingStub(channel);
     asyncStub = JobTelemetryServiceGrpc.newStub(channel);

@@ -24,10 +24,7 @@ import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.sql.pretty.SqlPrettyWriter;
 import org.junit.Test;
 
-
-/**
- * Tests for SHOW CREATE (VIEW | TABLE) syntax
- */
+/** Tests for SHOW CREATE (VIEW | TABLE) syntax */
 public class TestSqlShowCreate {
   private SqlPrettyWriter writer = new SqlPrettyWriter(DREMIO_DIALECT);
 
@@ -37,7 +34,8 @@ public class TestSqlShowCreate {
     testShowCreateBasicHelper("TABLE", false);
   }
 
-  private void testShowCreateBasicHelper(String datasetType, boolean isView) throws SqlParseException {
+  private void testShowCreateBasicHelper(String datasetType, boolean isView)
+      throws SqlParseException {
     SqlNode parsed = parse(String.format("SHOW CREATE %s x.y.z", datasetType));
     assertThat(parsed).isInstanceOf(SqlShowCreate.class);
 
@@ -49,7 +47,8 @@ public class TestSqlShowCreate {
 
     writer.reset();
     parsed.unparse(writer, 0, 0);
-    assertThat(writer.toString()).isEqualTo(String.format("SHOW CREATE %s \"x\".\"y\".\"z\"", datasetType));
+    assertThat(writer.toString())
+        .isEqualTo(String.format("SHOW CREATE %s \"x\".\"y\".\"z\"", datasetType));
   }
 
   @Test
@@ -58,7 +57,8 @@ public class TestSqlShowCreate {
     testShowCreateBasicHelper("TABLE", false);
   }
 
-  private void testShowCreateWithVersionContextHelper(String datasetType, boolean isView) throws SqlParseException {
+  private void testShowCreateWithVersionContextHelper(String datasetType, boolean isView)
+      throws SqlParseException {
     SqlNode parsed = parse(String.format("SHOW CREATE %s x.y.z AT BRANCH test", datasetType));
     assertThat(parsed).isInstanceOf(SqlShowCreate.class);
 
@@ -70,6 +70,8 @@ public class TestSqlShowCreate {
 
     writer.reset();
     parsed.unparse(writer, 0, 0);
-    assertThat(writer.toString()).isEqualTo(String.format("SHOW CREATE %s \"x\".\"y\".\"z\" AT BRANCH \"test\"", datasetType));
+    assertThat(writer.toString())
+        .isEqualTo(
+            String.format("SHOW CREATE %s \"x\".\"y\".\"z\" AT BRANCH \"test\"", datasetType));
   }
 }

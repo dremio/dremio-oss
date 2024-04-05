@@ -15,8 +15,10 @@
  */
 package com.dremio.exec.store.parquet;
 
+import com.dremio.common.expression.PathSegment;
+import com.dremio.common.expression.SchemaPath;
+import com.google.common.base.Preconditions;
 import java.util.List;
-
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.complex.StructVector;
@@ -24,13 +26,7 @@ import org.apache.arrow.vector.complex.UnionVector;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.schema.MessageType;
 
-import com.dremio.common.expression.PathSegment;
-import com.dremio.common.expression.SchemaPath;
-import com.google.common.base.Preconditions;
-
-/**
- * This class acts as no-op. This is used in parquet dataset path
- */
+/** This class acts as no-op. This is used in parquet dataset path */
 public class ParquetColumnDefaultResolver implements ParquetColumnResolver {
   private List<SchemaPath> projectedColumns;
 
@@ -92,7 +88,7 @@ public class ParquetColumnDefaultResolver implements ParquetColumnResolver {
     while (seg != null) {
       pathBuilder.append(".");
       if (seg.isArray() || isListChild) {
-        vector = ((ListVector)vector).getDataVector();
+        vector = ((ListVector) vector).getDataVector();
         pathBuilder.append("list.element");
         if (!seg.isArray()) {
           // planner doesn't always send index with list path segment
@@ -101,7 +97,7 @@ public class ParquetColumnDefaultResolver implements ParquetColumnResolver {
         }
       } else {
         if (vector instanceof StructVector) {
-          vector = ((StructVector)vector).getChild(seg.getNameSegment().getPath());
+          vector = ((StructVector) vector).getChild(seg.getNameSegment().getPath());
         } else if (vector instanceof UnionVector) {
           // child is a primitive type, and path won't have any child
           Preconditions.checkState(seg.getChild() == null, "Unexpected state");

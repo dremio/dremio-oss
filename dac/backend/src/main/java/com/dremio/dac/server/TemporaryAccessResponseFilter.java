@@ -15,24 +15,21 @@
  */
 package com.dremio.dac.server;
 
+import com.dremio.dac.annotations.APIResource;
+import com.dremio.dac.annotations.RestResource;
+import com.dremio.dac.annotations.TemporaryAccess;
 import java.io.IOException;
-
 import javax.ws.rs.container.ContainerRequestContext;
 import javax.ws.rs.container.ContainerResponseContext;
 import javax.ws.rs.container.ContainerResponseFilter;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.ext.Provider;
 
-import com.dremio.dac.annotations.APIResource;
-import com.dremio.dac.annotations.RestResource;
-import com.dremio.dac.annotations.TemporaryAccess;
-
 /**
- * Response filter designed to prevent referer header to be sent for subresources
- * fetched from the current resource as it might leak the authentication token to
- * 3rd parties.
+ * Response filter designed to prevent referer header to be sent for subresources fetched from the
+ * current resource as it might leak the authentication token to 3rd parties.
  *
- * This filter automatically registers itself with v2 and v3 API servers.
+ * <p>This filter automatically registers itself with v2 and v3 API servers.
  */
 @TemporaryAccess
 @RestResource
@@ -48,13 +45,16 @@ public class TemporaryAccessResponseFilter implements ContainerResponseFilter {
   /*
    * Some of the accepted policy for Referrer-Policy header
    */
-  private static final String STRICT_ORIGIN_WHEN_CROSS_ORIGIN_POLICY = "strict-origin-when-cross-origin";
+  private static final String STRICT_ORIGIN_WHEN_CROSS_ORIGIN_POLICY =
+      "strict-origin-when-cross-origin";
   private static final String NO_REFERRER_POLICY = "no-referrer";
 
   @Override
-  public void filter(ContainerRequestContext requestContext, ContainerResponseContext responseContext)
+  public void filter(
+      ContainerRequestContext requestContext, ContainerResponseContext responseContext)
       throws IOException {
     final MultivaluedMap<String, Object> headers = responseContext.getHeaders();
-    headers.addAll(REFERRER_POLICY_HEADER, NO_REFERRER_POLICY, STRICT_ORIGIN_WHEN_CROSS_ORIGIN_POLICY);
+    headers.addAll(
+        REFERRER_POLICY_HEADER, NO_REFERRER_POLICY, STRICT_ORIGIN_WHEN_CROSS_ORIGIN_POLICY);
   }
 }

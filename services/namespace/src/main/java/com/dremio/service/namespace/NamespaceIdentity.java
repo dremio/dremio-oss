@@ -15,10 +15,9 @@
  */
 package com.dremio.service.namespace;
 
-/**
- * Namespace Identity
- */
+/** Namespace Identity */
 public interface NamespaceIdentity {
   String getName();
+
   String getId();
 }

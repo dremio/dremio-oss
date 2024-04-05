@@ -1,4 +1,4 @@
-<?xml version="1.0"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!--
 
     Copyright (C) 2017-2019 Dremio Corporation
@@ -16,13 +16,12 @@
     limitations under the License.
 
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <parent>
     <groupId>com.dremio.services</groupId>
     <artifactId>dremio-services-parent</artifactId>
-    <version>24.3.2-202401241821100032-d2d8a497</version>
+    <version>25.0.0-202404051521110861-ed9515a8</version>
   </parent>
   <artifactId>dremio-services-jobs</artifactId>
   <name>Services - Jobs</name>
@@ -46,20 +45,20 @@
     <dependency>
       <groupId>com.dremio.services</groupId>
       <artifactId>dremio-services-namespace</artifactId>
-      <classifier>proto</classifier>
       <version>${project.version}</version>
+      <classifier>proto</classifier>
     </dependency>
     <dependency>
       <groupId>com.dremio</groupId>
       <artifactId>dremio-protocol</artifactId>
-      <classifier>proto</classifier>
       <version>${project.version}</version>
+      <classifier>proto</classifier>
     </dependency>
     <dependency>
       <groupId>com.dremio.sabot</groupId>
       <artifactId>dremio-sabot-kernel</artifactId>
-      <classifier>proto</classifier>
       <version>${project.version}</version>
+      <classifier>proto</classifier>
     </dependency>
     <dependency>
       <groupId>com.google.protobuf</groupId>
@@ -195,10 +194,10 @@
         <artifactId>exec-maven-plugin</artifactId>
         <executions>
           <execution>
-            <phase>process-classes</phase>
             <goals>
               <goal>java</goal>
             </goals>
+            <phase>process-classes</phase>
             <configuration>
               <mainClass>com.dremio.common.scanner.BuildTimeScan</mainClass>
               <arguments>
@@ -214,10 +213,10 @@
         <executions>
           <execution>
             <id>generate-proto</id>
-            <phase>generate-sources</phase>
             <goals>
               <goal>compile</goal>
             </goals>
+            <phase>generate-sources</phase>
             <configuration>
               <excludes>
                 <exclude>**/logged-query.proto</exclude>
@@ -226,11 +225,11 @@
           </execution>
           <execution>
             <id>generate-protobuf</id>
-            <phase>generate-sources</phase>
             <goals>
               <goal>compile</goal>
               <goal>compile-custom</goal>
             </goals>
+            <phase>generate-sources</phase>
             <configuration>
               <protoSourceRoot>${project.basedir}/src/main/protobuf</protoSourceRoot>
               <pluginId>grpc-java</pluginId>
@@ -271,10 +270,10 @@
         <executions>
           <execution>
             <id>generate-sources</id>
-            <phase>generate-sources</phase>
             <goals>
               <goal>compile</goal>
             </goals>
+            <phase>generate-sources</phase>
           </execution>
         </executions>
       </plugin>
@@ -284,10 +283,10 @@
         <executions>
           <execution>
             <id>proto-jar-resources</id>
-            <phase>package</phase>
             <goals>
               <goal>jar</goal>
             </goals>
+            <phase>package</phase>
             <configuration>
               <classesDirectory>${project.basedir}/src/main/proto</classesDirectory>
               <classifier>proto</classifier>

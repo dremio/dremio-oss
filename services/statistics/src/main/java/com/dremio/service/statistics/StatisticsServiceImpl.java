@@ -18,27 +18,6 @@ package com.dremio.service.statistics;
 import static com.dremio.service.statistics.StatisticsUtil.createRowCountStatisticId;
 import static com.dremio.service.statistics.StatisticsUtil.createStatisticId;
 
-import java.nio.ByteOrder;
-import java.sql.Timestamp;
-import java.util.ArrayList;
-import java.util.ConcurrentModificationException;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
-
-import javax.inject.Provider;
-
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.types.pojo.FieldType;
-import org.apache.calcite.sql.type.SqlTypeName;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.utils.PathUtils;
@@ -74,12 +53,29 @@ import com.dremio.service.statistics.store.StatisticStore;
 import com.dremio.service.users.SystemUser;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import java.nio.ByteOrder;
+import java.sql.Timestamp;
+import java.util.ArrayList;
+import java.util.ConcurrentModificationException;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
+import javax.inject.Provider;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
+import org.apache.calcite.sql.type.SqlTypeName;
 
-/**
- * Statistics service
- */
+/** Statistics service */
 public class StatisticsServiceImpl implements StatisticsService {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(StatisticsServiceImpl.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(StatisticsServiceImpl.class);
 
   private static final String TABLE_COLUMN_NAME = "TABLE_PATH";
   private static final long HEAVY_HITTERS_THRESHOLD = 3;
@@ -97,16 +93,17 @@ public class StatisticsServiceImpl implements StatisticsService {
   private Map<String, JobId> entries;
 
   public StatisticsServiceImpl(
-    Provider<LegacyKVStoreProvider> storeProvider,
-    Provider<SchedulerService> schedulerService,
-    Provider<JobsService> jobsService,
-    Provider<NamespaceService> namespaceService,
-    Provider<BufferAllocator> allocator,
-    Provider<SabotContext> sabotContext
-  ) {
-    this.schedulerService = Preconditions.checkNotNull(schedulerService, "scheduler service required");
+      Provider<LegacyKVStoreProvider> storeProvider,
+      Provider<SchedulerService> schedulerService,
+      Provider<JobsService> jobsService,
+      Provider<NamespaceService> namespaceService,
+      Provider<BufferAllocator> allocator,
+      Provider<SabotContext> sabotContext) {
+    this.schedulerService =
+        Preconditions.checkNotNull(schedulerService, "scheduler service required");
     this.jobsService = Preconditions.checkNotNull(jobsService, "jobs service required");
-    this.namespaceService = Preconditions.checkNotNull(namespaceService, "namespace service required");
+    this.namespaceService =
+        Preconditions.checkNotNull(namespaceService, "namespace service required");
     this.allocator = Preconditions.checkNotNull(allocator, "buffer allocator required");
     this.storeProvider = Preconditions.checkNotNull(storeProvider, "store provider required");
     this.sabotContext = Preconditions.checkNotNull(sabotContext, "sabot context required");
@@ -115,20 +112,29 @@ public class StatisticsServiceImpl implements StatisticsService {
   public void validateDataset(NamespaceKey key) {
     try {
       final DatasetConfig dataset = namespaceService.get().getDataset(key);
-      if(dataset == null) {
-        throw UserException.validationError().message("Unable to find requested dataset %s.", key).build(logger);
+      if (dataset == null) {
+        throw UserException.validationError()
+            .message("Unable to find requested dataset %s.", key)
+            .build(logger);
       } else if (!DatasetHelper.isPhysicalDataset(dataset.getType())) {
-        throw UserException.validationError().message("\"%s\" is not a physical dataset", key).build(logger);
+        throw UserException.validationError()
+            .message("\"%s\" is not a physical dataset", key)
+            .build(logger);
       }
-    } catch(Exception e) {
-      throw UserException.validationError(e).message("Unable to find requested dataset %s.", key).build(logger);
+    } catch (Exception e) {
+      throw UserException.validationError(e)
+          .message("Unable to find requested dataset %s.", key)
+          .build(logger);
     }
   }
 
-  private SqlTypeName getSqlTypeNameFromColumn(String column, BatchSchema schema) throws IllegalArgumentException {
+  private SqlTypeName getSqlTypeNameFromColumn(String column, BatchSchema schema)
+      throws IllegalArgumentException {
     Optional<Field> field = schema.findFieldIgnoreCase(column);
     if (!field.isPresent()) {
-      throw new IllegalArgumentException(String.format("Failed to find field, %s, from schema, %s.", field.toString(), schema.toString()));
+      throw new IllegalArgumentException(
+          String.format(
+              "Failed to find field, %s, from schema, %s.", field.toString(), schema.toString()));
     }
 
     CompleteType completeType = new CompleteType(field.get().getType(), new ArrayList<>());
@@ -139,53 +145,88 @@ public class StatisticsServiceImpl implements StatisticsService {
   public Iterable<StatisticsListManager.StatisticsInfo> getStatisticsInfos() {
     final Map<String, Long> rowCountMap = new HashMap<>();
     return StreamSupport.stream(statisticStore.getAll().spliterator(), false)
-      .map(e -> {
-        Timestamp createdAt = new Timestamp(e.getValue().getCreatedAt());
-        String column = e.getKey().getColumn();
-        String table = e.getKey().getTablePath();
-        Long ndv = e.getValue().getNdv();
-        Long rowCount;
-        if (rowCountMap.containsKey(table)) {
-          rowCount = rowCountMap.get(table);
-        } else {
-          rowCount = getRowCount(table);
-          rowCountMap.put(table, rowCount);
-        }
-        Long colRowCount = e.getValue().getColumnRowCount();
-        Long nullCount = rowCount != null && colRowCount != null ? rowCount - colRowCount : null;
-        String quantiles = null;
-        String heavyHitters = null;
-        if(e.getValue().getSerializedItemsSketch() != null) {
-          try {
-            List<String> pathComponents = PathUtils.parseFullPath(table);
-            BatchSchema actualSchema = BatchSchema.deserialize(namespaceService.get().getDataset(new NamespaceKey(pathComponents)).getRecordSchema().toByteArray());
-            Histogram histogram = new HistogramImpl(null, e.getValue().getSerializedItemsSketch().asReadOnlyByteBuffer().order(ByteOrder.nativeOrder()), getSqlTypeNameFromColumn(column, actualSchema));
-            Set<Object> freq = histogram.getFrequentItems(HEAVY_HITTERS_THRESHOLD);
-            heavyHitters = freq.toString();
-          } catch (Exception ex) {
-            logger.warn("ItemsSketch could not be retrieved from the store for table: {} , column: {}", table, column, ex);
-            heavyHitters = String.format("ItemsSketch could not be retrieved from the store for table: %s , column: %s: %s", table, column, ex.toString());
-          }
-        }
+        .map(
+            e -> {
+              Timestamp createdAt = new Timestamp(e.getValue().getCreatedAt());
+              String column = e.getKey().getColumn();
+              String table = e.getKey().getTablePath();
+              Long ndv = e.getValue().getNdv();
+              Long rowCount;
+              if (rowCountMap.containsKey(table)) {
+                rowCount = rowCountMap.get(table);
+              } else {
+                rowCount = getRowCount(table);
+                rowCountMap.put(table, rowCount);
+              }
+              Long colRowCount = e.getValue().getColumnRowCount();
+              Long nullCount =
+                  rowCount != null && colRowCount != null ? rowCount - colRowCount : null;
+              String quantiles = null;
+              String heavyHitters = null;
+              if (e.getValue().getSerializedItemsSketch() != null) {
+                try {
+                  List<String> pathComponents = PathUtils.parseFullPath(table);
+                  BatchSchema actualSchema =
+                      BatchSchema.deserialize(
+                          namespaceService
+                              .get()
+                              .getDataset(new NamespaceKey(pathComponents))
+                              .getRecordSchema()
+                              .toByteArray());
+                  Histogram histogram =
+                      new HistogramImpl(
+                          null,
+                          e.getValue()
+                              .getSerializedItemsSketch()
+                              .asReadOnlyByteBuffer()
+                              .order(ByteOrder.nativeOrder()),
+                          getSqlTypeNameFromColumn(column, actualSchema));
+                  Set<Object> freq = histogram.getFrequentItems(HEAVY_HITTERS_THRESHOLD);
+                  heavyHitters = freq.toString();
+                } catch (Exception ex) {
+                  logger.warn(
+                      "ItemsSketch could not be retrieved from the store for table: {} , column: {}",
+                      table,
+                      column,
+                      ex);
+                  heavyHitters =
+                      String.format(
+                          "ItemsSketch could not be retrieved from the store for table: %s , column: %s: %s",
+                          table, column, ex.toString());
+                }
+              }
 
-        if (e.getValue().getSerializedTdigest() != null) {
-          try {
-            Histogram histogram = new HistogramImpl(e.getValue().getSerializedTdigest().asReadOnlyByteBuffer(), null, null);
-            quantiles = "[" +
-              String.format("0: %.4f ,", histogram.quantile(0)) +
-              String.format("0.25: %.4f ,", histogram.quantile(0.25)) +
-              String.format("0.5: %.4f ,", histogram.quantile(0.5)) +
-              String.format("0.75: %.4f ,", histogram.quantile(0.75)) +
-              String.format("1: %.4f ", histogram.quantile(1)) +
-              "]";
-          } catch (Exception ex) {
-            logger.warn("T-Digest could not be retrieved from the store for table: {} , column: {}", table, column, ex);
-            quantiles = String.format("T-Digest could not be retrieved from the store for table: %s , column: %s: %s", table, column, ex.toString());
-          }
-        }
+              if (e.getValue().getSerializedTdigest() != null) {
+                try {
+                  Histogram histogram =
+                      new HistogramImpl(
+                          e.getValue().getSerializedTdigest().asReadOnlyByteBuffer(), null, null);
+                  quantiles =
+                      "["
+                          + String.format("0: %.4f ,", histogram.quantile(0))
+                          + String.format("0.25: %.4f ,", histogram.quantile(0.25))
+                          + String.format("0.5: %.4f ,", histogram.quantile(0.5))
+                          + String.format("0.75: %.4f ,", histogram.quantile(0.75))
+                          + String.format("1: %.4f ", histogram.quantile(1))
+                          + "]";
+                } catch (Exception ex) {
+                  logger.warn(
+                      "T-Digest could not be retrieved from the store for table: {} , column: {}",
+                      table,
+                      column,
+                      ex);
+                  quantiles =
+                      String.format(
+                          "T-Digest could not be retrieved from the store for table: %s , column: %s: %s",
+                          table, column, ex.toString());
+                }
+              }
 
-        return new StatisticsListManager.StatisticsInfo(table, column, createdAt, ndv, rowCount, nullCount, quantiles, heavyHitters);
-      }).filter(StatisticsListManager.StatisticsInfo::isValid).collect(Collectors.toList());
+              return new StatisticsListManager.StatisticsInfo(
+                  table, column, createdAt, ndv, rowCount, nullCount, quantiles, heavyHitters);
+            })
+        .filter(StatisticsListManager.StatisticsInfo::isValid)
+        .collect(Collectors.toList());
   }
 
   @Override
@@ -193,7 +234,10 @@ public class StatisticsServiceImpl implements StatisticsService {
     validateDataset(key);
     List<String> fail = new ArrayList<>();
     if (entries.containsKey(key.toString().toLowerCase())) {
-      throw new ConcurrentModificationException(String.format("Cannot delete statistics for dataset, %s, as compute statistics job is currently running", key));
+      throw new ConcurrentModificationException(
+          String.format(
+              "Cannot delete statistics for dataset, %s, as compute statistics job is currently running",
+              key));
     }
 
     for (String column : fields) {
@@ -215,7 +259,10 @@ public class StatisticsServiceImpl implements StatisticsService {
   public boolean deleteStatistic(String column, NamespaceKey key) {
     validateDataset(key);
     if (entries.containsKey(key.toString().toLowerCase())) {
-      throw new ConcurrentModificationException(String.format("Cannot delete statistics for dataset, %s, as compute statistics job is currently running", key));
+      throw new ConcurrentModificationException(
+          String.format(
+              "Cannot delete statistics for dataset, %s, as compute statistics job is currently running",
+              key));
     }
     final StatisticId statisticId = createStatisticId(column, key);
     if (statisticStore.get(statisticId) == null) {
@@ -232,7 +279,8 @@ public class StatisticsServiceImpl implements StatisticsService {
     StatisticId statisticId = createStatisticId(column, key);
     Statistic statistic = statisticStore.get(statisticId);
     if (statistic == null) {
-      logger.trace(String.format("NDV Statistic Not Found for column %s and dataset %s", column, key));
+      logger.trace(
+          String.format("NDV Statistic Not Found for column %s and dataset %s", column, key));
       return null;
     }
     return statistic.getNdv();
@@ -259,9 +307,10 @@ public class StatisticsServiceImpl implements StatisticsService {
     Statistic statistic = statisticStore.get(statisticId);
     Statistic rowCountStatistic = statisticStore.get(createRowCountStatisticId(key));
     if (statistic == null) {
-      logger.trace(String.format("NullCount Statistic Not Found for column %s and dataset %s",column, key));
+      logger.trace(
+          String.format("NullCount Statistic Not Found for column %s and dataset %s", column, key));
       return null;
-    }else if(rowCountStatistic == null){
+    } else if (rowCountStatistic == null) {
       logger.trace(String.format("RowCount Statistic Not Found for dataset %s", key));
       return null;
     }
@@ -275,7 +324,10 @@ public class StatisticsServiceImpl implements StatisticsService {
     StatisticId statisticId = createStatisticId(column, tableMetaData.getName().toString());
     Statistic statistic = statisticStore.get(statisticId);
     if (statistic == null) {
-      logger.trace(String.format("Histogram Statistic Not Found for column %s and dataset %s", column, tableMetaData.getName().toString()));
+      logger.trace(
+          String.format(
+              "Histogram Statistic Not Found for column %s and dataset %s",
+              column, tableMetaData.getName().toString()));
       return null;
     }
     return statistic.getHistogram(sqlTypeName);
@@ -283,11 +335,12 @@ public class StatisticsServiceImpl implements StatisticsService {
 
   @Override
   @VisibleForTesting
-  public Histogram getHistogram(String column,  NamespaceKey key,SqlTypeName sqlTypeName){
+  public Histogram getHistogram(String column, NamespaceKey key, SqlTypeName sqlTypeName) {
     StatisticId statisticId = createStatisticId(column, key);
     Statistic statistic = statisticStore.get(statisticId);
     if (statistic == null) {
-      logger.trace(String.format("Histogram Statistic Not Found for column %s and dataset %s", column, key));
+      logger.trace(
+          String.format("Histogram Statistic Not Found for column %s and dataset %s", column, key));
       return null;
     }
     return statistic.getHistogram(sqlTypeName);
@@ -297,9 +350,19 @@ public class StatisticsServiceImpl implements StatisticsService {
   public String requestStatistics(List<Field> fields, NamespaceKey key, Double samplingRate) {
     validateDataset(key);
     final JobSubmittedListener listener = new JobSubmittedListener();
-    final JobId jobId = jobsService.get().submitJob(SubmitJobRequest.newBuilder().setQueryType(QueryType.UI_INTERNAL_RUN).
-      setSqlQuery(com.dremio.service.job.SqlQuery.newBuilder().setSql(getSql(fields, key.toString(), samplingRate)).
-        setUsername(SystemUser.SYSTEM_USERNAME)).build(), listener).getJobId();
+    final JobId jobId =
+        jobsService
+            .get()
+            .submitJob(
+                SubmitJobRequest.newBuilder()
+                    .setQueryType(QueryType.UI_INTERNAL_RUN)
+                    .setSqlQuery(
+                        com.dremio.service.job.SqlQuery.newBuilder()
+                            .setSql(getSql(fields, key.toString(), samplingRate))
+                            .setUsername(SystemUser.SYSTEM_USERNAME))
+                    .build(),
+                listener)
+            .getJobId();
     statisticEntriesStore.save(key.toString().toLowerCase(), jobId);
     entries.put(key.toString().toLowerCase(), jobId);
     return jobId.getId();
@@ -317,7 +380,6 @@ public class StatisticsServiceImpl implements StatisticsService {
     validateDataset(key);
     updateStatistic(key.toString(), ROW_COUNT_IDENTIFIER, Statistic.StatisticType.RCOUNT, val);
   }
-
 
   private String getColumnName(Statistic.StatisticType type, String name) {
     return type + "_" + name;
@@ -341,8 +403,10 @@ public class StatisticsServiceImpl implements StatisticsService {
 
   private String getFromClause(List<Field> fields, String table, Double samplingRate) {
     StringBuilder sb = new StringBuilder("FROM (Select ");
-    for (int i = 0 ; i < fields.size() ; i++) {
-      sb.append(fields.get(i).getName()).append(" as ").append(getNonSampleColName(fields.get(i).getName()));
+    for (int i = 0; i < fields.size(); i++) {
+      sb.append(fields.get(i).getName())
+          .append(" as ")
+          .append(getNonSampleColName(fields.get(i).getName()));
       if (i != fields.size() - 1) {
         sb.append(", ");
       }
@@ -355,42 +419,52 @@ public class StatisticsServiceImpl implements StatisticsService {
     return sb.toString();
   }
 
-  private OptionManager getOptionManager(){
+  private OptionManager getOptionManager() {
     return sabotContext.get().getOptionManager();
   }
 
   private void populateNdvSql(StringBuilder stringBuilder, List<Field> fields) {
-    if(!getOptionManager().getOption(PlannerSettings.COMPUTE_NDV_STAT)){
+    if (!getOptionManager().getOption(PlannerSettings.COMPUTE_NDV_STAT)) {
       return;
     }
     for (Field field : fields) {
       String column = field.getName();
       stringBuilder.append(", ");
-      stringBuilder.append(String.format("ndv(%s) as \"%s\" ", getNonSampleColName(column), getColumnName(Statistic.StatisticType.NDV, column)));
+      stringBuilder.append(
+          String.format(
+              "ndv(%s) as \"%s\" ",
+              getNonSampleColName(column), getColumnName(Statistic.StatisticType.NDV, column)));
     }
   }
 
   private void populateCountStarSql(StringBuilder stringBuilder) {
-    if(!getOptionManager().getOption(PlannerSettings.COMPUTE_ROWCOUNT_STAT)){
+    if (!getOptionManager().getOption(PlannerSettings.COMPUTE_ROWCOUNT_STAT)) {
       return;
     }
     stringBuilder.append(", ");
-    stringBuilder.append(String.format("count(*) as \"%s\" ", getColumnName(Statistic.StatisticType.RCOUNT, ROW_COUNT_IDENTIFIER)));
+    stringBuilder.append(
+        String.format(
+            "count(*) as \"%s\" ",
+            getColumnName(Statistic.StatisticType.RCOUNT, ROW_COUNT_IDENTIFIER)));
   }
 
   private void populateCountColumnSql(StringBuilder stringBuilder, List<Field> fields) {
-    if(!getOptionManager().getOption(PlannerSettings.COMPUTE_COUNT_COL_STAT)){
+    if (!getOptionManager().getOption(PlannerSettings.COMPUTE_COUNT_COL_STAT)) {
       return;
     }
     for (Field field : fields) {
       String column = field.getName();
       stringBuilder.append(", ");
-      stringBuilder.append(String.format("count(%s) as \"%s\" ", getNonSampleColName(column), getColumnName(Statistic.StatisticType.COLRCOUNT, column)));
+      stringBuilder.append(
+          String.format(
+              "count(%s) as \"%s\" ",
+              getNonSampleColName(column),
+              getColumnName(Statistic.StatisticType.COLRCOUNT, column)));
     }
   }
 
   private void populateTDigestSql(StringBuilder stringBuilder, List<Field> fields, boolean sample) {
-    if(!getOptionManager().getOption(PlannerSettings.COMPUTE_TDIGEST_STAT)){
+    if (!getOptionManager().getOption(PlannerSettings.COMPUTE_TDIGEST_STAT)) {
       return;
     }
     for (Field field : fields) {
@@ -401,15 +475,24 @@ public class StatisticsServiceImpl implements StatisticsService {
       }
       stringBuilder.append(", ");
       if (sample) {
-        stringBuilder.append(String.format("tdigest(%s, %s) as \"%s\" ", getNonSampleColName(column), SAMPLE_COL_NAME, getColumnName(Statistic.StatisticType.TDIGEST, column)));
+        stringBuilder.append(
+            String.format(
+                "tdigest(%s, %s) as \"%s\" ",
+                getNonSampleColName(column),
+                SAMPLE_COL_NAME,
+                getColumnName(Statistic.StatisticType.TDIGEST, column)));
       } else {
-        stringBuilder.append(String.format("tdigest(%s, true) as \"%s\" ", getNonSampleColName(column), getColumnName(Statistic.StatisticType.TDIGEST, column)));
+        stringBuilder.append(
+            String.format(
+                "tdigest(%s, true) as \"%s\" ",
+                getNonSampleColName(column),
+                getColumnName(Statistic.StatisticType.TDIGEST, column)));
       }
     }
   }
 
   private void populateItemsSketchSql(StringBuilder stringBuilder, List<Field> fields) {
-    if(!getOptionManager().getOption(PlannerSettings.COMPUTE_ITEMSSKETCH_STAT)){
+    if (!getOptionManager().getOption(PlannerSettings.COMPUTE_ITEMSSKETCH_STAT)) {
       return;
     }
     for (Field field : fields) {
@@ -419,71 +502,82 @@ public class StatisticsServiceImpl implements StatisticsService {
         continue;
       }
       stringBuilder.append(", ");
-      stringBuilder.append(String.format("ITEMS_SKETCH(%s) as \"%s\" ", getNonSampleColName(column), getColumnName(Statistic.StatisticType.ITEMSSKETCH, column)));
+      stringBuilder.append(
+          String.format(
+              "ITEMS_SKETCH(%s) as \"%s\" ",
+              getNonSampleColName(column),
+              getColumnName(Statistic.StatisticType.ITEMSSKETCH, column)));
     }
   }
 
-
   private boolean isSupportedTypeForTDigest(FieldType fieldType) {
     switch (fieldType.getType().getTypeID()) {
-    case Struct:
-    case List:
-    case LargeList:
-    case FixedSizeList:
-    case Union:
-    case Map:
-    case Interval:
-    case Duration:
-    case Utf8:
-    case LargeBinary:
-    case Binary:
-    case FixedSizeBinary:
-      return false;
-    default:
-      return true;
+      case Struct:
+      case List:
+      case LargeList:
+      case FixedSizeList:
+      case Union:
+      case Map:
+      case Interval:
+      case Duration:
+      case Utf8:
+      case LargeBinary:
+      case Binary:
+      case FixedSizeBinary:
+        return false;
+      default:
+        return true;
     }
   }
 
   private boolean isSupportedTypeForItemsSketch(FieldType fieldType) {
     switch (fieldType.getType().getTypeID()) {
-    case Struct:
-    case List:
-    case LargeList:
-    case FixedSizeList:
-    case Union:
-    case Map:
-    case LargeBinary:
-    case Binary:
-    case FixedSizeBinary:
-      return false;
-    default:
-      return true;
+      case Struct:
+      case List:
+      case LargeList:
+      case FixedSizeList:
+      case Union:
+      case Map:
+      case LargeBinary:
+      case Binary:
+      case FixedSizeBinary:
+        return false;
+      default:
+        return true;
     }
   }
 
   @Override
   public void start() throws Exception {
     final DremioConfig dremioConfig = sabotContext.get().getDremioConfig();
-    this.statisticStore = new StatisticStore(storeProvider, dremioConfig.getLong(DremioConfig.STATISTICS_CACHE_MAX_ENTRIES), dremioConfig.getLong(DremioConfig.STATISTICS_CACHE_TIMEOUT_MINUTES));
+    this.statisticStore =
+        new StatisticStore(
+            storeProvider,
+            dremioConfig.getLong(DremioConfig.STATISTICS_CACHE_MAX_ENTRIES),
+            dremioConfig.getLong(DremioConfig.STATISTICS_CACHE_TIMEOUT_MINUTES));
     this.statisticEntriesStore = new StatisticEntriesStore(storeProvider);
     this.entries = new ConcurrentHashMap<>();
     for (Map.Entry<String, JobId> entry : statisticEntriesStore.getAll()) {
       entries.put(entry.getKey(), entry.getValue());
     }
-    schedulerService.get().schedule(Schedule.Builder.everySeconds(10).build(), new StatisticsUpdater());
+    schedulerService
+        .get()
+        .schedule(Schedule.Builder.everySeconds(10).build(), new StatisticsUpdater());
   }
 
-  private void updateStatistic(String table, String column, Statistic.StatisticType type, Object value) {
+  private void updateStatistic(
+      String table, String column, Statistic.StatisticType type, Object value) {
     StatisticId statisticId = createStatisticId(column, table);
-    Statistic statistic = (statisticStore.get(statisticId) != null) ? statisticStore.get(statisticId) : new Statistic();
+    Statistic statistic =
+        (statisticStore.get(statisticId) != null)
+            ? statisticStore.get(statisticId)
+            : new Statistic();
     Statistic.StatisticBuilder statisticBuilder = new Statistic.StatisticBuilder(statistic);
     statisticBuilder.update(type, value);
     statisticStore.save(statisticId, statisticBuilder.build());
   }
 
-  /**
-   * StatisticsUpdater
-   */
+  /** StatisticsUpdater */
   private final class StatisticsUpdater implements Runnable {
     @Override
     public void run() {
@@ -492,17 +586,25 @@ public class StatisticsServiceImpl implements StatisticsService {
           return;
         }
         Set<String> tablesToRemove = new HashSet<>();
-        for(Map.Entry<String, JobId> entry : entries.entrySet()) {
+        for (Map.Entry<String, JobId> entry : entries.entrySet()) {
           try {
             final JobId id = entry.getValue();
             JobProtobuf.JobId.Builder builder = JobProtobuf.JobId.newBuilder();
             builder.setId(id.getId());
-            JobDetails jobDetails = jobsService.get().getJobDetails(JobDetailsRequest.newBuilder().setJobId(builder.build()).setUserName(SystemUser.SYSTEM_USERNAME).build());
+            JobDetails jobDetails =
+                jobsService
+                    .get()
+                    .getJobDetails(
+                        JobDetailsRequest.newBuilder()
+                            .setJobId(builder.build())
+                            .setUserName(SystemUser.SYSTEM_USERNAME)
+                            .build());
             List<JobProtobuf.JobAttempt> attempts = jobDetails.getAttemptsList();
             JobProtobuf.JobAttempt lastAttempt = attempts.get(attempts.size() - 1);
             switch (lastAttempt.getState()) {
               case COMPLETED:
-                try (final JobDataFragment data = JobDataClientUtils.getJobData(jobsService.get(), allocator.get(), id, 0, 1)) {
+                try (final JobDataFragment data =
+                    JobDataClientUtils.getJobData(jobsService.get(), allocator.get(), id, 0, 1)) {
                   List<Field> fields = data.getSchema().getFields();
                   Preconditions.checkArgument(fields.get(0).getName().equals(TABLE_COLUMN_NAME));
                   String table = data.extractValue(fields.get(0).getName(), 0).toString();
@@ -515,7 +617,8 @@ public class StatisticsServiceImpl implements StatisticsService {
                     String columnName = names[1];
                     statisticsInputBuilder.updateStatistic(columnName, type, value);
                   }
-                  Map<StatisticId, Statistic> statisticIdStatisticHashMap = statisticsInputBuilder.build();
+                  Map<StatisticId, Statistic> statisticIdStatisticHashMap =
+                      statisticsInputBuilder.build();
                   statisticIdStatisticHashMap.forEach(statisticStore::save);
                 }
                 // fall through
@@ -532,10 +635,11 @@ public class StatisticsServiceImpl implements StatisticsService {
             tablesToRemove.add(entry.getKey());
           }
         }
-        tablesToRemove.forEach(key -> {
-          entries.remove(key.toLowerCase());
-          statisticEntriesStore.delete(key.toLowerCase());
-        });
+        tablesToRemove.forEach(
+            key -> {
+              entries.remove(key.toLowerCase());
+              statisticEntriesStore.delete(key.toLowerCase());
+            });
       } catch (Exception ex) {
         logger.warn("Failure while attempting to update statistics.", ex);
       }
@@ -543,12 +647,9 @@ public class StatisticsServiceImpl implements StatisticsService {
   }
 
   @Override
-  public void close() throws Exception {
-  }
+  public void close() throws Exception {}
 
-  /**
-   * Statistics Input Builder
-   */
+  /** Statistics Input Builder */
   public class StatisticsInputBuilder {
     private final String table;
     private final Map<StatisticId, Statistic.StatisticBuilder> builderMap;
@@ -568,13 +669,11 @@ public class StatisticsServiceImpl implements StatisticsService {
 
     public Map<StatisticId, Statistic> build() {
       Map<StatisticId, Statistic> statisticIdStatisticHashMap = new HashMap<>();
-      builderMap.forEach((k, v) -> {
-        statisticIdStatisticHashMap.put(k, v.build());
-      });
+      builderMap.forEach(
+          (k, v) -> {
+            statisticIdStatisticHashMap.put(k, v.build());
+          });
       return statisticIdStatisticHashMap;
     }
-
   }
-
-
 }

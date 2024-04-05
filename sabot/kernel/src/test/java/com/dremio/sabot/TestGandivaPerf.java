@@ -15,18 +15,6 @@
  */
 package com.dremio.sabot;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-
-import org.junit.Assert;
-import org.junit.Ignore;
-import org.junit.Test;
-
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.config.Filter;
@@ -37,8 +25,17 @@ import com.dremio.sabot.op.filter.FilterOperator;
 import com.dremio.sabot.op.project.ProjectOperator;
 import com.dremio.sabot.op.project.ProjectorStats.Metric;
 import com.dremio.sabot.op.spi.SingleInputOperator;
-
 import io.airlift.tpch.GenerationDefinition.TpchTable;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import org.junit.Assert;
+import org.junit.Ignore;
+import org.junit.Test;
 
 /*
  * Run the same test (simple expression) on both gandiva and java, and compare the perf.
@@ -73,19 +70,26 @@ public class TestGandivaPerf extends BaseTestOperator {
   /*
    * Returns total evaluation time.
    */
-  <T extends SingleInputOperator>
-  long runOne(String preference, String expr, TpchTable table, double scale,
-              PhysicalOperator operator, Class<T> clazz) throws Exception {
+  <T extends SingleInputOperator> long runOne(
+      String preference,
+      String expr,
+      TpchTable table,
+      double scale,
+      PhysicalOperator operator,
+      Class<T> clazz)
+      throws Exception {
     ExecutorService service = Executors.newFixedThreadPool(numThreads);
 
-    testContext.getOptions().setOption(OptionValue.createString(
-      OptionValue.OptionType.SYSTEM,
-      ExecConstants.QUERY_EXEC_OPTION_KEY,
-      preference));
+    testContext
+        .getOptions()
+        .setOption(
+            OptionValue.createString(
+                OptionValue.OptionType.SYSTEM, ExecConstants.QUERY_EXEC_OPTION_KEY, preference));
 
     List<Future<OperatorStats>> futures = new ArrayList<>();
     for (int i = 0; i < numThreads; ++i) {
-      Future<OperatorStats> ret = service.submit(new RunWithPreference(table, scale, operator, clazz));
+      Future<OperatorStats> ret =
+          service.submit(new RunWithPreference(table, scale, operator, clazz));
       futures.add(ret);
     }
 
@@ -98,26 +102,37 @@ public class TestGandivaPerf extends BaseTestOperator {
       gandivaCodegenEvalTime += stats.getLongStat(Metric.GANDIVA_EVALUATE_TIME);
     }
     totalEvalTime = javaCodegenEvalTime + gandivaCodegenEvalTime;
-    System.out.println("evaluate time with pref " + preference + " for [" + expr + "] is " +
-      " [" +
-      " eval  : " + (javaCodegenEvalTime + gandivaCodegenEvalTime) + "ms " +
-      " javaCodeGen : " + javaCodegenEvalTime + "ms " +
-      " gandivaCodeGen : " + gandivaCodegenEvalTime + "ms " +
-      "]");
+    System.out.println(
+        "evaluate time with pref "
+            + preference
+            + " for ["
+            + expr
+            + "] is "
+            + " ["
+            + " eval  : "
+            + (javaCodegenEvalTime + gandivaCodegenEvalTime)
+            + "ms "
+            + " javaCodeGen : "
+            + javaCodegenEvalTime
+            + "ms "
+            + " gandivaCodeGen : "
+            + gandivaCodegenEvalTime
+            + "ms "
+            + "]");
     return totalEvalTime;
   }
 
   /*
    * Returns delta of evaluation time as a %.
    */
-  <T extends SingleInputOperator>
-  int runBoth(String expr, TpchTable table, double scale, PhysicalOperator operator, Class clazz)
-    throws Exception {
+  <T extends SingleInputOperator> int runBoth(
+      String expr, TpchTable table, double scale, PhysicalOperator operator, Class clazz)
+      throws Exception {
 
     long javaTime = runOne(PREFER_JAVA, expr, table, scale, operator, clazz);
     long gandivaTime = runOne(PREFER_GANDIVA, expr, table, scale, operator, clazz);
 
-    int deltaPcnt = (int)(((javaTime - gandivaTime) * 100) / javaTime);
+    int deltaPcnt = (int) (((javaTime - gandivaTime) * 100) / javaTime);
 
     System.out.println("delta for [" + expr + "] is " + deltaPcnt + "%");
     return deltaPcnt;
@@ -179,10 +194,18 @@ public class TestGandivaPerf extends BaseTestOperator {
   public void testProjectConcat() throws Exception {
     int delta = compareProject(TpchTable.CUSTOMER, 6, "concat(c_name, c_mktsegment, c_comment)");
     Assert.assertTrue(delta > 0);
-    delta = compareProject(TpchTable.CUSTOMER, 6, "concat(c_name, c_mktsegment, c_name, c_address, c_comment, c_phone)");
+    delta =
+        compareProject(
+            TpchTable.CUSTOMER,
+            6,
+            "concat(c_name, c_mktsegment, c_name, c_address, c_comment, c_phone)");
     Assert.assertTrue(delta > 0);
-    delta = compareProject(TpchTable.CUSTOMER, 6, "concat(c_phone, c_name, c_comment, c_mktsegment, c_name, " +
-      "c_address, c_comment, c_phone, c_mktsegment, c_address)");
+    delta =
+        compareProject(
+            TpchTable.CUSTOMER,
+            6,
+            "concat(c_phone, c_name, c_comment, c_mktsegment, c_name, "
+                + "c_address, c_comment, c_phone, c_mktsegment, c_address)");
     Assert.assertTrue(delta > 0);
   }
 
@@ -197,5 +220,4 @@ public class TestGandivaPerf extends BaseTestOperator {
     int delta = compareFilter(TpchTable.CUSTOMER, 6, "like(c_name, '%PROMO%')");
     Assert.assertTrue(delta > 0);
   }
-
 }

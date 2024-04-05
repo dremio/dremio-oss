@@ -17,9 +17,7 @@ package com.dremio.exec.planner.physical;
 
 import com.dremio.exec.planner.fragment.DistributionAffinity;
 
-/**
- * Implement this interface if a Prel has distribution affinity requirements.
- */
+/** Implement this interface if a Prel has distribution affinity requirements. */
 public interface HasDistributionAffinity {
 
   DistributionAffinity getDistributionAffinity();

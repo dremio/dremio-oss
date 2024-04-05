@@ -18,9 +18,7 @@ package com.dremio.service.spill;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
-/**
- *
- */
+/** */
 public final class SpillDirectory {
   private final Path spillDirPath;
   private final FileSystem fileSystem;

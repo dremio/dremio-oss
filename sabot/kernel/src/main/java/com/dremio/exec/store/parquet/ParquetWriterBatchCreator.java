@@ -20,11 +20,13 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.spi.SingleInputOperator;
 import com.dremio.sabot.op.writer.WriterOperator;
 
-public class ParquetWriterBatchCreator implements SingleInputOperator.Creator<ParquetWriter>{
+public class ParquetWriterBatchCreator implements SingleInputOperator.Creator<ParquetWriter> {
 
   @Override
-  public SingleInputOperator create(OperatorContext context, ParquetWriter config) throws ExecutionSetupException {
-    ParquetRecordWriter writer = new ParquetRecordWriter(context, config, new ParquetFormatConfig());
+  public SingleInputOperator create(OperatorContext context, ParquetWriter config)
+      throws ExecutionSetupException {
+    ParquetRecordWriter writer =
+        new ParquetRecordWriter(context, config, new ParquetFormatConfig());
     return new WriterOperator(context, config.getOptions(), writer);
   }
 }

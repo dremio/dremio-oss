@@ -17,6 +17,7 @@ package com.dremio.service.users.events;
 
 public class UserServiceEventTopic {
   private final String topicName;
+
   public UserServiceEventTopic(String topicName) {
     this.topicName = topicName;
   }

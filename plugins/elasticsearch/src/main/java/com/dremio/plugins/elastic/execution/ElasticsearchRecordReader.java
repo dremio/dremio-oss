@@ -17,25 +17,6 @@ package com.dremio.plugins.elastic.execution;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.util.Collections;
-import java.util.List;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-
-import javax.ws.rs.client.InvocationCallback;
-import javax.ws.rs.core.Response;
-
-import org.apache.arrow.vector.complex.NonNullableStructVector;
-import org.apache.arrow.vector.complex.impl.SingleStructReaderImpl;
-import org.apache.arrow.vector.complex.impl.VectorContainerWriter;
-import org.apache.arrow.vector.complex.reader.FieldReader;
-import org.apache.calcite.util.Pair;
-import org.elasticsearch.index.query.QueryBuilders;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.InvalidMetadataErrorContext;
 import com.dremio.common.exceptions.UserException;
@@ -65,10 +46,24 @@ import com.fasterxml.jackson.core.JsonGenerationException;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.protobuf.InvalidProtocolBufferException;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import javax.ws.rs.client.InvocationCallback;
+import javax.ws.rs.core.Response;
+import org.apache.arrow.vector.complex.NonNullableStructVector;
+import org.apache.arrow.vector.complex.impl.SingleStructReaderImpl;
+import org.apache.arrow.vector.complex.impl.VectorContainerWriter;
+import org.apache.arrow.vector.complex.reader.FieldReader;
+import org.apache.calcite.util.Pair;
+import org.elasticsearch.index.query.QueryBuilders;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * Record reader for Elasticsearch.
- */
+/** Record reader for Elasticsearch. */
 public class ElasticsearchRecordReader extends AbstractRecordReader {
 
   private static final boolean PRINT_OUTPUT = false;
@@ -79,8 +74,12 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
   private static final int STREAM_COUNT_BREAK_MULTIPLIER = 3;
   private static final String TIMED_OUT = "\"timed_out\": true";
 
-  enum State {INIT, READ, DEPLETED, CLOSED};
-
+  enum State {
+    INIT,
+    READ,
+    DEPLETED,
+    CLOSED
+  };
 
   private final String query;
 
@@ -110,17 +109,18 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
   private final ElasticVersionBehaviorProvider elasticVersionBehaviorProvider;
 
   public ElasticsearchRecordReader(
-    ElasticsearchStoragePlugin plugin,
-    List<String> tableSchemaPath,
-    ElasticTableXattr tableAttributes,
-    OperatorContext context,
-    ElasticsearchScanSpec spec,
-    boolean useElasticProjection,
-    SplitAndPartitionInfo split,
-    ElasticConnection connection,
-    List<SchemaPath> columns,
-    FieldReadDefinition readDefinition,
-    ElasticsearchConf config) throws InvalidProtocolBufferException {
+      ElasticsearchStoragePlugin plugin,
+      List<String> tableSchemaPath,
+      ElasticTableXattr tableAttributes,
+      OperatorContext context,
+      ElasticsearchScanSpec spec,
+      boolean useElasticProjection,
+      SplitAndPartitionInfo split,
+      ElasticConnection connection,
+      List<SchemaPath> columns,
+      FieldReadDefinition readDefinition,
+      ElasticsearchConf config)
+      throws InvalidProtocolBufferException {
     super(context, columns);
     this.plugin = plugin;
     this.tableAttributes = tableAttributes;
@@ -133,18 +133,33 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
     this.query = query != null && query.length() > 0 ? query : MATCH_ALL_REQUEST;
     this.usingElasticProjection = useElasticProjection;
     this.config = config;
-    this.splitAttributes = split == null ? null : ElasticSplitXattr.parseFrom(split.getDatasetSplitInfo().getExtendedProperty());
+    this.splitAttributes =
+        split == null
+            ? null
+            : ElasticSplitXattr.parseFrom(split.getDatasetSplitInfo().getExtendedProperty());
     this.resource = split == null ? spec.getResource() : splitAttributes.getResource();
-    this.elasticVersionBehaviorProvider = new ElasticVersionBehaviorProvider(this.connection.getESVersionInCluster());
-    if(elasticVersionBehaviorProvider.isEnable7vFeatures()) {
+    this.elasticVersionBehaviorProvider =
+        new ElasticVersionBehaviorProvider(this.connection.getESVersionInCluster());
+    if (elasticVersionBehaviorProvider.isEnable7vFeatures()) {
       this.metaUIDSelected = false;
-      this.metaIDSelected = getColumns().contains(SchemaPath.getSimplePath(ElasticsearchConstants.ID)) || isStarQuery();
+      this.metaIDSelected =
+          getColumns().contains(SchemaPath.getSimplePath(ElasticsearchConstants.ID))
+              || isStarQuery();
     } else {
-      this.metaUIDSelected = getColumns().contains(SchemaPath.getSimplePath(ElasticsearchConstants.UID)) || isStarQuery();
-      this.metaIDSelected = config.isShowIdColumn() && (getColumns().contains(SchemaPath.getSimplePath(ElasticsearchConstants.ID)) || isStarQuery());
+      this.metaUIDSelected =
+          getColumns().contains(SchemaPath.getSimplePath(ElasticsearchConstants.UID))
+              || isStarQuery();
+      this.metaIDSelected =
+          config.isShowIdColumn()
+              && (getColumns().contains(SchemaPath.getSimplePath(ElasticsearchConstants.ID))
+                  || isStarQuery());
     }
-    this.metaTypeSelected = getColumns().contains(SchemaPath.getSimplePath(ElasticsearchConstants.TYPE)) || isStarQuery();
-    this.metaIndexSelected = getColumns().contains(SchemaPath.getSimplePath(ElasticsearchConstants.INDEX)) || isStarQuery();
+    this.metaTypeSelected =
+        getColumns().contains(SchemaPath.getSimplePath(ElasticsearchConstants.TYPE))
+            || isStarQuery();
+    this.metaIndexSelected =
+        getColumns().contains(SchemaPath.getSimplePath(ElasticsearchConstants.INDEX))
+            || isStarQuery();
 
     if (spec.getFetch() > 0) {
       this.numRowsPerBatch = Math.min(this.numRowsPerBatch, spec.getFetch());
@@ -155,25 +170,29 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
   public void setup(OutputMutator output) throws ExecutionSetupException {
     complexWriter = new VectorContainerWriter(output);
     if (getColumns().isEmpty()) {
-      jsonReader = elasticVersionBehaviorProvider.createCountingElasticSearchReader(context.getManagedBuffer(),
-        ImmutableList.copyOf(getColumns()),
-        resource,
-        readDefinition,
-        usingElasticProjection,
-        metaUIDSelected,
-        metaIDSelected,
-        metaTypeSelected,
-        metaIndexSelected);
+      jsonReader =
+          elasticVersionBehaviorProvider.createCountingElasticSearchReader(
+              context.getManagedBuffer(),
+              ImmutableList.copyOf(getColumns()),
+              resource,
+              readDefinition,
+              usingElasticProjection,
+              metaUIDSelected,
+              metaIDSelected,
+              metaTypeSelected,
+              metaIndexSelected);
     } else {
-      jsonReader = elasticVersionBehaviorProvider.createElasticSearchReader(context.getManagedBuffer(),
-        ImmutableList.copyOf(getColumns()),
-        resource,
-        readDefinition,
-        usingElasticProjection,
-        metaUIDSelected,
-        metaIDSelected,
-        metaTypeSelected,
-        metaIndexSelected);
+      jsonReader =
+          elasticVersionBehaviorProvider.createElasticSearchReader(
+              context.getManagedBuffer(),
+              ImmutableList.copyOf(getColumns()),
+              resource,
+              readDefinition,
+              usingElasticProjection,
+              metaUIDSelected,
+              metaIDSelected,
+              metaTypeSelected,
+              metaIndexSelected);
     }
   }
 
@@ -193,11 +212,12 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
     final Search<byte[]> search;
     final String newQuery;
     newQuery = elasticVersionBehaviorProvider.processElasticSearchQuery(query);
-    search = new SearchBytes()
-      .setQuery(newQuery)
-      .setResource(resource)
-      .setParameter("scroll", config.getScrollTimeoutFormatted())
-      .setParameter("size", Integer.toString(searchSize));
+    search =
+        new SearchBytes()
+            .setQuery(newQuery)
+            .setResource(resource)
+            .setParameter("scroll", config.getScrollTimeoutFormatted())
+            .setParameter("size", Integer.toString(searchSize));
 
     if (splitAttributes != null) {
       search.setParameter("preference", "_shards:" + splitAttributes.getShard());
@@ -214,9 +234,9 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
       if (e.getErrorType() == ErrorType.INVALID_DATASET_METADATA) {
         logger.trace("failed with invalid metadata, ", e);
         throw UserException.invalidMetadataError()
-          .setAdditionalExceptionContext(
-            new InvalidMetadataErrorContext(Collections.singletonList(tableSchemaPath)))
-          .build(logger);
+            .setAdditionalExceptionContext(
+                new InvalidMetadataErrorContext(Collections.singletonList(tableSchemaPath)))
+            .build(logger);
       }
 
       throw e;
@@ -233,15 +253,15 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
     } catch (IOException e) {
       String bestEffortMessage = bestEffortMessageForUnknownException(e.getCause());
       if (bestEffortMessage != null) {
-        throw UserException.ioExceptionError().message(bestEffortMessage).buildSilently();
+        throw UserException.ioExceptionError(e).message(bestEffortMessage).buildSilently();
       }
 
       throw UserException.dataReadError(e)
-        .message("Failure when initiating Elastic query.")
-        .addContext("Resource", resource)
-        .addContext("Shard %s", splitAttributes == null ? "all" : splitAttributes.getShard())
-        .addContext("Query", query)
-        .build(logger);
+          .message("Failure when initiating Elastic query.")
+          .addContext("Resource", resource)
+          .addContext("Shard %s", splitAttributes == null ? "all" : splitAttributes.getShard())
+          .addContext("Query", query)
+          .build(logger);
     }
 
     state = State.READ;
@@ -252,9 +272,10 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
       if (stats != null) {
         stats.startWait();
       }
-      SearchScroll searchScroll = new SearchScroll()
-        .setScrollId(scrollId)
-        .setScrollTimeout(config.getScrollTimeoutFormatted());
+      SearchScroll searchScroll =
+          new SearchScroll()
+              .setScrollId(scrollId)
+              .setScrollTimeout(config.getScrollTimeoutFormatted());
       return connection.execute(searchScroll, elasticVersionBehaviorProvider.geMajorVersion());
     } finally {
       if (stats != null) {
@@ -262,7 +283,6 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
       }
     }
   }
-
 
   @Override
   public int next() {
@@ -305,8 +325,11 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
         final byte[] bytes = getNextPage();
         pageCount++;
 
-        // if we're calling an ES server many times and isn't getting us the number of messages we expect, we should terminate the query to avoid a DOS attack
-        boolean badStreamBreak = pageCount > STREAM_COUNT_BREAK_MULTIPLIER * numRowsPerBatch / (1.0 * spec.getFetch()) && pageCount > 5;
+        // if we're calling an ES server many times and isn't getting us the number of messages we
+        // expect, we should terminate the query to avoid a DOS attack
+        boolean badStreamBreak =
+            pageCount > STREAM_COUNT_BREAK_MULTIPLIER * numRowsPerBatch / (1.0 * spec.getFetch())
+                && pageCount > 5;
 
         if (!badStreamBreak) {
           jsonReader.setSource(bytes);
@@ -319,7 +342,10 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
         final boolean timedOut = latest.contains(TIMED_OUT);
 
         if (!timedOut && config.isWarnOnRowCountMismatch()) {
-          logger.warn("Dremio didn't receive as many results from Elasticsearch as expected. Expected {}. Received: {}", totalSize, totalCount);
+          logger.warn(
+              "Dremio didn't receive as many results from Elasticsearch as expected. Expected {}. Received: {}",
+              totalSize,
+              totalCount);
           state = State.DEPLETED;
           break;
         }
@@ -328,7 +354,8 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
         if (timedOut) {
           builder.message("Elastic failed with scroll timed out.");
         } else {
-          builder.message("Elastic query terminated as Dremio didn't receive as many results as expected.");
+          builder.message(
+              "Elastic query terminated as Dremio didn't receive as many results as expected.");
           builder.addContext("Expected record count", totalSize);
           builder.addContext("Records received", totalCount);
         }
@@ -337,7 +364,6 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
         builder.addContext("Query", this.query);
         builder.addContext("Final Response", latest);
         throw builder.build(logger);
-
       }
 
       if (count > 0) {
@@ -356,7 +382,8 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
     return count;
   }
 
-  private void print(NonNullableStructVector structVector, int count) throws JsonGenerationException, IOException {
+  private void print(NonNullableStructVector structVector, int count)
+      throws JsonGenerationException, IOException {
     if (PRINT_OUTPUT) {
       ByteArrayOutputStream baos = new ByteArrayOutputStream();
       JsonWriter jsonWriter = new JsonWriter(baos, true, false);
@@ -381,24 +408,29 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
       return; // scroll id is not yet set
     }
 
-    // TODO(DX-10051): fix rare race condition: above block assumes scrollId is not set, but the fragment thread
-    // could be in #getFirstPage, right before setting scrollId. In this case, the scroll will never be deleted.
+    // TODO(DX-10051): fix rare race condition: above block assumes scrollId is not set, but the
+    // fragment thread
+    // could be in #getFirstPage, right before setting scrollId. In this case, the scroll will never
+    // be deleted.
 
     try {
       final DeleteScroll delete = new DeleteScroll(scrollId);
       final CountDownLatch countDownLatch = new CountDownLatch(1);
-      delete.delete(connection.getTarget(), new InvocationCallback<Response>() {
-        @Override
-        public void completed(Response response) {
-          countDownLatch.countDown();
-        }
+      delete.delete(
+          connection.getTarget(),
+          new InvocationCallback<Response>() {
+            @Override
+            public void completed(Response response) {
+              countDownLatch.countDown();
+            }
 
-        @Override
-        public void failed(Throwable throwable) {
-          logger.warn("Exception while deleting scroll", throwable);
-          countDownLatch.countDown();
-        }
-      }, connection.getESVersionInCluster().getMajor());
+            @Override
+            public void failed(Throwable throwable) {
+              logger.warn("Exception while deleting scroll", throwable);
+              countDownLatch.countDown();
+            }
+          },
+          connection.getESVersionInCluster().getMajor());
       try {
         countDownLatch.await(100, TimeUnit.MILLISECONDS);
       } catch (InterruptedException e) {

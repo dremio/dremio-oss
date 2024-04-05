@@ -15,26 +15,24 @@
  */
 package com.dremio.datastore.stores;
 
-import java.util.Arrays;
-import java.util.List;
-
 import com.dremio.datastore.TestStoreCreationFunction;
 import com.dremio.datastore.api.KVStore;
 import com.dremio.datastore.api.StoreBuildingFactory;
 import com.dremio.datastore.format.Format;
 import com.dremio.datastore.proto.Dummy;
+import java.util.Arrays;
+import java.util.List;
 
-/**
- * Test protobuf store that creates a DummyId key and DummyObj value KVStore.
- */
+/** Test protobuf store that creates a DummyId key and DummyObj value KVStore. */
 public class ProtobufStore implements TestStoreCreationFunction<Dummy.DummyId, Dummy.DummyObj> {
   @Override
   public KVStore<Dummy.DummyId, Dummy.DummyObj> build(StoreBuildingFactory factory) {
-    return factory.<Dummy.DummyId, Dummy.DummyObj>newStore()
-      .name("protobuf-store")
-      .keyFormat(getKeyFormat())
-      .valueFormat(Format.ofProtobuf(Dummy.DummyObj.class))
-      .build();
+    return factory
+        .<Dummy.DummyId, Dummy.DummyObj>newStore()
+        .name("protobuf-store")
+        .keyFormat(getKeyFormat())
+        .valueFormat(Format.ofProtobuf(Dummy.DummyObj.class))
+        .build();
   }
 
   @Override

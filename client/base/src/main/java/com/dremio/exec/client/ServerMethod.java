@@ -15,10 +15,6 @@
  */
 package com.dremio.exec.client;
 
-import java.util.Locale;
-import java.util.Map;
-import java.util.Set;
-
 import com.dremio.common.Version;
 import com.dremio.exec.proto.UserBitShared.RpcEndpointInfos;
 import com.dremio.exec.proto.UserProtos.RpcType;
@@ -27,62 +23,46 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * A enumeration of server methods, and the version they were introduced
  *
- * it allows to introduce new methods without changing the protocol, with client
- * being able to gracefully handle cases were method is not handled by the server.
+ * <p>it allows to introduce new methods without changing the protocol, with client being able to
+ * gracefully handle cases were method is not handled by the server.
  */
 public enum ServerMethod {
-  /**
-   * Submitting a query
-   */
+  /** Submitting a query */
   RUN_QUERY(RpcType.RUN_QUERY, Constants.DREMIO_0_0_0, Constants.DRILL_0_0_0),
 
-  /**
-   * Plan a query without executing it
-   */
+  /** Plan a query without executing it */
   PLAN_QUERY(RpcType.QUERY_PLAN_FRAGMENTS, Constants.DREMIO_0_0_0, Constants.DRILL_0_0_0),
 
-  /**
-   * Cancel an existing query
-   */
+  /** Cancel an existing query */
   CANCEL_QUERY(RpcType.CANCEL_QUERY, Constants.DREMIO_0_0_0, Constants.DRILL_0_0_0),
 
-  /**
-   * Resume a query
-   */
+  /** Resume a query */
   RESUME_PAUSED_QUERY(RpcType.RESUME_PAUSED_QUERY, Constants.DREMIO_0_0_0, Constants.DRILL_0_0_0),
 
-  /**
-   * Prepare a query for deferred execution
-   */
-  PREPARED_STATEMENT(RpcType.CREATE_PREPARED_STATEMENT, Constants.DREMIO_0_0_0, Constants.DRILL_1_8_0),
+  /** Prepare a query for deferred execution */
+  PREPARED_STATEMENT(
+      RpcType.CREATE_PREPARED_STATEMENT, Constants.DREMIO_0_0_0, Constants.DRILL_1_8_0),
 
-  /**
-   * Get catalog metadata
-   */
+  /** Get catalog metadata */
   GET_CATALOGS(RpcType.GET_CATALOGS, Constants.DREMIO_0_0_0, Constants.DRILL_1_8_0),
 
-  /**
-   * Get schemas metadata
-   */
+  /** Get schemas metadata */
   GET_SCHEMAS(RpcType.GET_SCHEMAS, Constants.DREMIO_0_0_0, Constants.DRILL_1_8_0),
 
-  /**
-   * Get tables metadata
-   */
+  /** Get tables metadata */
   GET_TABLES(RpcType.GET_TABLES, Constants.DREMIO_0_0_0, Constants.DRILL_1_8_0),
 
-  /**
-   * Get columns metadata
-   */
+  /** Get columns metadata */
   GET_COLUMNS(RpcType.GET_COLUMNS, Constants.DREMIO_0_0_0, Constants.DRILL_1_8_0),
 
-  /**
-   * Get server metadata
-   */
+  /** Get server metadata */
   GET_SERVER_META(RpcType.GET_SERVER_META, Constants.DREMIO_0_9_3, Constants.DRILL_1_10_0);
 
   private static final class Constants {
@@ -95,9 +75,10 @@ public enum ServerMethod {
   }
 
   private static final Map<RpcType, ServerMethod> REVERSE_MAPPING;
+
   static {
     ImmutableMap.Builder<RpcType, ServerMethod> builder = ImmutableMap.builder();
-    for(ServerMethod method: values()) {
+    for (ServerMethod method : values()) {
       builder.put(method.rpcType, method);
     }
     REVERSE_MAPPING = Maps.immutableEnumMap(builder.build());
@@ -106,7 +87,6 @@ public enum ServerMethod {
   private final RpcType rpcType;
   private final Version minVersion;
   private final Version minDrillVersion;
-
 
   private ServerMethod(RpcType rpcType, Version minVersion, Version minDrillVersion) {
     this.rpcType = rpcType;
@@ -128,11 +108,12 @@ public enum ServerMethod {
    * @param supported methods the list of supported rpc types
    * @return a immutable set of capabilities
    */
-  static final Set<ServerMethod> getSupportedMethods(Iterable<RpcType> supportedMethods, RpcEndpointInfos serverInfos) {
+  static final Set<ServerMethod> getSupportedMethods(
+      Iterable<RpcType> supportedMethods, RpcEndpointInfos serverInfos) {
     boolean supportedMethodsEmpty = true;
     ImmutableSet.Builder<ServerMethod> builder = ImmutableSet.builder();
 
-    for(RpcType supportedMethod: supportedMethods) {
+    for (RpcType supportedMethod : supportedMethods) {
       supportedMethodsEmpty = false;
       ServerMethod method = REVERSE_MAPPING.get(supportedMethod);
       if (method == null) {
@@ -159,7 +140,7 @@ public enum ServerMethod {
 
     // Fallback to version detection if version is below Dremio 0.9.2
     // or Drill 1.10
-    for(ServerMethod capability: ServerMethod.values()) {
+    for (ServerMethod capability : ServerMethod.values()) {
       Version minVersion = isDremio ? capability.getMinVersion() : capability.getMinDrillVersion();
       if (serverVersion.compareTo(minVersion) >= 0) {
         builder.add(capability);

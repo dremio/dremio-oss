@@ -18,11 +18,10 @@ package com.dremio.common.util;
 import java.util.Iterator;
 
 /**
- * This interface is used by iterators that use releasable resources during iteration.
- * The consumer of a CloseableIterator should ensure that the close() method is always called,
- * for example by putting such a call in a finally block.
+ * This interface is used by iterators that use releasable resources during iteration. The consumer
+ * of a CloseableIterator should ensure that the close() method is always called, for example by
+ * putting such a call in a finally block.
  *
  * @param <T>
  */
-public interface CloseableIterator<T> extends Iterator<T>, AutoCloseable {
-}
+public interface CloseableIterator<T> extends Iterator<T>, AutoCloseable {}

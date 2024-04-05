@@ -15,11 +15,6 @@
  */
 package com.dremio.exec.store.easy.arrow;
 
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.List;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.cache.VectorAccessibleFlatBufSerializable;
 import com.dremio.exec.record.BatchSchema;
@@ -30,31 +25,27 @@ import com.dremio.io.FSOutputStream;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.google.common.base.Preconditions;
 import com.google.flatbuffers.FlatBufferBuilder;
-
 import io.netty.util.internal.PlatformDependent;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * {@link RecordWriter} implementation for Arrow format files using flatbuffer serialization
  *
- * The format for the file is as follows:
- *    <MAGIC_STRING>
- *    Array<SerializedArrowRecordBatch>
- *    <Footer>
- *    <MAGIC_STRING>
+ * <p>The format for the file is as follows: <MAGIC_STRING> Array<SerializedArrowRecordBatch>
+ * <Footer> <MAGIC_STRING>
  *
- * SerializedArrowRecordBatch: described in {@link VectorAccessibleFlatBufSerializable}
+ * <p>SerializedArrowRecordBatch: described in {@link VectorAccessibleFlatBufSerializable}
  *
- * Footer:
- *    <4byte schema len>
- *    <serialized schema>
- *    <4 byte offset array len>
- *    Array<8 byte batch offsets>
- *    Array<4 byte batch counts>
- *    <8 byte footer start offset>
+ * <p>Footer: <4byte schema len> <serialized schema> <4 byte offset array len> Array<8 byte batch
+ * offsets> Array<4 byte batch counts> <8 byte footer start offset>
  */
 public class ArrowFlatBufRecordWriter implements RecordWriter {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ArrowFlatBufRecordWriter.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ArrowFlatBufRecordWriter.class);
   private static final String MAGIC_STRING = "DREMARROWFLATBUF";
 
   private final OperatorContext context;
@@ -71,14 +62,21 @@ public class ArrowFlatBufRecordWriter implements RecordWriter {
   private final List<Integer> batchSizes = new ArrayList<>();
   private boolean isClosed;
 
+  private VectorAccessibleFlatBufSerializable serializable;
+
   public ArrowFlatBufRecordWriter(OperatorContext context, FSOutputStream outputStream) {
     this.context = context;
     this.outputStream = outputStream;
+    this.serializable = new VectorAccessibleFlatBufSerializable();
   }
 
   @Override
-  public void setup(VectorAccessible incoming, OutputEntryListener listener, WriteStatsListener statsListener) throws IOException {
-    Preconditions.checkArgument(incoming.getSchema().getSelectionVectorMode() == BatchSchema.SelectionVectorMode.NONE, "SelectionVector remover is not supported.");
+  public void setup(
+      VectorAccessible incoming, OutputEntryListener listener, WriteStatsListener statsListener)
+      throws IOException {
+    Preconditions.checkArgument(
+        incoming.getSchema().getSelectionVectorMode() == BatchSchema.SelectionVectorMode.NONE,
+        "SelectionVector remover is not supported.");
 
     this.incoming = incoming;
     this.incomingSchema = incoming.getSchema();
@@ -91,15 +89,19 @@ public class ArrowFlatBufRecordWriter implements RecordWriter {
 
   @Override
   public void startPartition(WritePartition partition) throws Exception {
-    if(!partition.isSinglePartition()){
-      throw UserException.dataWriteError().message("ArrowFlatBufRecordWriter doesn't support data partitioning.").build(logger);
+    if (!partition.isSinglePartition()) {
+      throw UserException.dataWriteError()
+          .message("ArrowFlatBufRecordWriter doesn't support data partitioning.")
+          .build(logger);
     }
   }
 
   @Override
   public int writeBatch(int offset, int length) throws IOException {
-    if(offset != 0 || length != incoming.getRecordCount()){
-      throw UserException.dataWriteError().message("You cannot partition data written in Arrow format.").build(logger);
+    if (offset != 0 || length != incoming.getRecordCount()) {
+      throw UserException.dataWriteError()
+          .message("You cannot partition data written in Arrow format.")
+          .build(logger);
     }
     final int recordCount = incoming.getRecordCount();
     if (recordCount == 0) {
@@ -107,8 +109,8 @@ public class ArrowFlatBufRecordWriter implements RecordWriter {
     }
     final long startOffset = outputStream.getPosition();
 
-
-    final VectorAccessibleFlatBufSerializable serializable = new VectorAccessibleFlatBufSerializable(incoming, null);
+    serializable.clear();
+    serializable.setup(incoming, null);
     serializable.writeToStream(outputStream);
 
     this.recordCount += recordCount;
@@ -138,10 +140,13 @@ public class ArrowFlatBufRecordWriter implements RecordWriter {
       int schemaLen = schema.remaining();
 
       // footer size
-      int footersize = Integer.BYTES + schemaLen              // schema
-          + Integer.BYTES + batchOffsets.size() * Long.BYTES  // batch offsets
-          + batchSizes.size() * Integer.BYTES
-          + Long.BYTES;                                       // footer start offset
+      int footersize =
+          Integer.BYTES
+              + schemaLen // schema
+              + Integer.BYTES
+              + batchOffsets.size() * Long.BYTES // batch offsets
+              + batchSizes.size() * Integer.BYTES
+              + Long.BYTES; // footer start offset
       byte[] footer = new byte[footersize];
 
       int index = 0;
@@ -154,13 +159,13 @@ public class ArrowFlatBufRecordWriter implements RecordWriter {
       // write batchOffsets
       PlatformDependent.putInt(footer, index, batchOffsets.size());
       index += Integer.BYTES;
-      for (long offset: batchOffsets) {
+      for (long offset : batchOffsets) {
         PlatformDependent.putLong(footer, index, offset);
         index += Long.BYTES;
       }
 
       // write batch size information
-      for (int count: batchSizes) {
+      for (int count : batchSizes) {
         PlatformDependent.putInt(footer, index, count);
         index += Integer.BYTES;
       }
@@ -176,9 +181,9 @@ public class ArrowFlatBufRecordWriter implements RecordWriter {
 
       final long fileSize = outputStream.getPosition();
 
-      outputEntryListener.recordsWritten(recordCount, fileSize, null, null, null, null, null, null, null, null, 0L);
+      outputEntryListener.recordsWritten(
+          recordCount, fileSize, null, null, null, null, null, null, null, null, 0L);
       isClosed = true;
     }
   }
-
 }

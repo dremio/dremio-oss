@@ -15,9 +15,7 @@
  */
 package com.dremio.service.coordinator;
 
-/**
- * impl class for getting coordinator meta in software mode
- */
+/** impl class for getting coordinator meta in software mode */
 public class SoftwareCoordinatorModeInfo implements CoordinatorModeInfo {
   @Override
   public boolean isInSoftwareMode() {

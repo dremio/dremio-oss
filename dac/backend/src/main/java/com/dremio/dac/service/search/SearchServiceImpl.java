@@ -20,20 +20,6 @@ import static com.dremio.datastore.SearchQueryUtils.*;
 import static com.dremio.exec.ExecConstants.SEARCH_SERVICE_RELEASE_LEADERSHIP_MS;
 import static com.dremio.service.namespace.NamespaceServiceImpl.DAC_NAMESPACE;
 
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
-
-import javax.inject.Provider;
-
 import com.dremio.common.WakeupHandler;
 import com.dremio.dac.proto.model.collaboration.CollaborationTag;
 import com.dremio.dac.service.collaboration.CollaborationTagStore;
@@ -55,12 +41,23 @@ import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.scheduler.Schedule;
 import com.dremio.service.scheduler.SchedulerService;
 import com.dremio.services.configuration.ConfigurationStore;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
+import javax.inject.Provider;
 
-/**
- * Search Service - allows searching of namespace entities using a separate search index
- */
+/** Search Service - allows searching of namespace entities using a separate search index */
 public class SearchServiceImpl implements SearchService {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SearchServiceImpl.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(SearchServiceImpl.class);
 
   static final int MAX_SEARCH_RESULTS = 50;
 
@@ -79,12 +76,11 @@ public class SearchServiceImpl implements SearchService {
   private AuxiliaryIndex<String, NameSpaceContainer, SearchContainer> searchIndex;
 
   public SearchServiceImpl(
-    Provider<NamespaceService> namespaceServiceProvider,
-    Provider<OptionManager> optionManagerProvider,
-    Provider<LegacyKVStoreProvider> storeProvider,
-    Provider<SchedulerService> schedulerService,
-    ExecutorService executorService
-  ) {
+      Provider<NamespaceService> namespaceServiceProvider,
+      Provider<OptionManager> optionManagerProvider,
+      Provider<LegacyKVStoreProvider> storeProvider,
+      Provider<SchedulerService> schedulerService,
+      ExecutorService executorService) {
     this.namespaceServiceProvider = namespaceServiceProvider;
     this.optionManagerProvider = optionManagerProvider;
     this.storeProvider = storeProvider;
@@ -95,39 +91,50 @@ public class SearchServiceImpl implements SearchService {
   @Override
   public void start() throws Exception {
     LegacyKVStoreProvider kvStoreProvider = storeProvider.get();
-    final LocalKVStoreProvider localKVStoreProvider = kvStoreProvider.unwrap(LocalKVStoreProvider.class);
+    final LocalKVStoreProvider localKVStoreProvider =
+        kvStoreProvider.unwrap(LocalKVStoreProvider.class);
     // TODO DX-14433 - should have better way to deal with Local/Remote KVStore
     if (localKVStoreProvider == null) {
       logger.warn("Search search could not start as kv store is not local");
       return;
     }
 
-    searchIndex = localKVStoreProvider.getAuxiliaryIndex("catalog-search", DAC_NAMESPACE, SearchIndexManager.NamespaceSearchConverter.class);
+    searchIndex =
+        localKVStoreProvider.getAuxiliaryIndex(
+            "catalog-search", DAC_NAMESPACE, SearchIndexManager.NamespaceSearchConverter.class);
     collaborationTagStore = new CollaborationTagStore(storeProvider.get());
     configurationStore = new ConfigurationStore(storeProvider.get());
-    manager = new SearchIndexManager(namespaceServiceProvider, collaborationTagStore, configurationStore, searchIndex);
+    manager =
+        new SearchIndexManager(
+            namespaceServiceProvider, collaborationTagStore, configurationStore, searchIndex);
     wakeupHandler = new WakeupHandler(executorService, manager);
 
     // important to schedule once and schedule it back
     // since option value can change dynamically
-    schedulerService.get().schedule(Schedule.Builder
-        .singleShotChain()
-        .startingAt(getNextRefreshTimeInMillis())
-        .asClusteredSingleton(LOCAL_TASK_LEADER_NAME)
-        .releaseOwnershipAfter(getNextReleaseLeadership(), TimeUnit.MILLISECONDS)
-        .build(),
-      new Runnable() {
-        @Override
-        public void run() {
-          wakeupManager("periodic refresh");
-          schedulerService.get().schedule(Schedule.Builder
-              .singleShotChain()
-              .startingAt(getNextRefreshTimeInMillis())
-              .asClusteredSingleton(LOCAL_TASK_LEADER_NAME)
-              .releaseOwnershipAfter(getNextReleaseLeadership(), TimeUnit.MILLISECONDS)
-              .build(), this);
-        }
-      });
+    schedulerService
+        .get()
+        .schedule(
+            Schedule.Builder.singleShotChain()
+                .startingAt(getNextRefreshTimeInMillis())
+                .asClusteredSingleton(LOCAL_TASK_LEADER_NAME)
+                .releaseOwnershipAfter(getNextReleaseLeadership(), TimeUnit.MILLISECONDS)
+                .build(),
+            new Runnable() {
+              @Override
+              public void run() {
+                wakeupManager("periodic refresh");
+                schedulerService
+                    .get()
+                    .schedule(
+                        Schedule.Builder.singleShotChain()
+                            .startingAt(getNextRefreshTimeInMillis())
+                            .asClusteredSingleton(LOCAL_TASK_LEADER_NAME)
+                            .releaseOwnershipAfter(
+                                getNextReleaseLeadership(), TimeUnit.MILLISECONDS)
+                            .build(),
+                        this);
+              }
+            });
   }
 
   @Override
@@ -143,9 +150,13 @@ public class SearchServiceImpl implements SearchService {
    * @param namespaceResults list of namespace search results
    */
   List<SearchContainer> createSearchEntities(Stream<NameSpaceContainer> namespaceResults) {
-    final List<SearchContainer> results = namespaceResults.map(input -> {
-      return new SearchContainer(input, null);
-    }).collect(Collectors.toList());
+    final List<SearchContainer> results =
+        namespaceResults
+            .map(
+                input -> {
+                  return new SearchContainer(input, null);
+                })
+            .collect(Collectors.toList());
 
     fillCollaborationTags(results);
 
@@ -158,27 +169,37 @@ public class SearchServiceImpl implements SearchService {
    * @param results list of SearchContainer with no tags
    */
   private void fillCollaborationTags(List<SearchContainer> results) {
-    final LegacyIndexedStore.LegacyFindByCondition findByCondition = new LegacyIndexedStore.LegacyFindByCondition();
-    final List<SearchTypes.SearchQuery> searchQueries = StreamSupport.stream(results.spliterator(), false)
-      .map(input -> {
-        return newTermQuery(CollaborationTagStore.ENTITY_ID, NamespaceUtils.getIdOrNull(input.getNamespaceContainer()));
-      }).collect(Collectors.toList());
+    final LegacyIndexedStore.LegacyFindByCondition findByCondition =
+        new LegacyIndexedStore.LegacyFindByCondition();
+    final List<SearchTypes.SearchQuery> searchQueries =
+        StreamSupport.stream(results.spliterator(), false)
+            .map(
+                input -> {
+                  return newTermQuery(
+                      CollaborationTagStore.ENTITY_ID,
+                      NamespaceUtils.getIdOrNull(input.getNamespaceContainer()));
+                })
+            .collect(Collectors.toList());
 
     findByCondition.setCondition(or(searchQueries));
 
     final Map<String, CollaborationTag> hash = new HashMap<>();
 
-    collaborationTagStore.find(findByCondition).forEach(input -> {
-      hash.put(input.getKey(), input.getValue());
-    });
+    collaborationTagStore
+        .find(findByCondition)
+        .forEach(
+            input -> {
+              hash.put(input.getKey(), input.getValue());
+            });
 
     // fill in
-    results.forEach(input -> {
-      String id = NamespaceUtils.getIdOrNull(input.getNamespaceContainer());
-      if (hash.containsKey(id)) {
-        input.setCollaborationTag(hash.get(id));
-      }
-    });
+    results.forEach(
+        input -> {
+          String id = NamespaceUtils.getIdOrNull(input.getNamespaceContainer());
+          if (hash.containsKey(id)) {
+            input.setCollaborationTag(hash.get(id));
+          }
+        });
   }
 
   /**
@@ -189,26 +210,32 @@ public class SearchServiceImpl implements SearchService {
    */
   Stream<NameSpaceContainer> searchNamespace(String query) {
     // exact query matches are boosted 10 fold
-    final List<SearchTypes.SearchQuery> queries = new ArrayList<>(getQueriesForSearchTerm(query, 10));
+    final List<SearchTypes.SearchQuery> queries =
+        new ArrayList<>(getQueriesForSearchTerm(query, 10));
 
     if (query != null) {
       // split the trimmed query by space
-      Arrays.stream(query.trim().split(" ")).forEach(term -> {
-        queries.addAll(getQueriesForSearchTerm(term, 1));
-      });
+      Arrays.stream(query.trim().split(" "))
+          .forEach(
+              term -> {
+                queries.addAll(getQueriesForSearchTerm(term, 1));
+              });
     }
 
     final FindByCondition findByCondition = getFindByCondition(queries);
-    Iterable<Document<KVStoreTuple<String>, KVStoreTuple<NameSpaceContainer>>> entries = searchIndex.find(findByCondition);
+    Iterable<Document<KVStoreTuple<String>, KVStoreTuple<NameSpaceContainer>>> entries =
+        searchIndex.find(findByCondition);
 
-    return StreamSupport.stream(entries.spliterator(), false).map(input -> {
-      return input.getValue().getObject();
-    });
+    return StreamSupport.stream(entries.spliterator(), false)
+        .map(
+            input -> {
+              return input.getValue().getObject();
+            });
   }
 
   protected FindByCondition getFindByCondition(List<SearchTypes.SearchQuery> queries) {
-    final ImmutableFindByCondition.Builder builder = new ImmutableFindByCondition.Builder()
-      .setCondition(or(queries));
+    final ImmutableFindByCondition.Builder builder =
+        new ImmutableFindByCondition.Builder().setCondition(or(queries));
 
     // Note: Reproducing the behavior of the legacy version of FindByCondition, which sets the page
     // size to be the limit if the page size is smaller than the limit.
@@ -232,20 +259,30 @@ public class SearchServiceImpl implements SearchService {
     queries.add(newBoost(newTermQuery(TAGS_LC.getIndexFieldName(), lcTerm), 4 * boostMultiplier));
 
     // exact path segment matches
-    queries.add(newBoost(newTermQuery(PATH_UNQUOTED_LC.getIndexFieldName(), lcTerm), 3 * boostMultiplier));
+    queries.add(
+        newBoost(newTermQuery(PATH_UNQUOTED_LC.getIndexFieldName(), lcTerm), 3 * boostMultiplier));
 
     // wildcard searches
-    queries.add(newBoost(newWildcardQuery(PATH_UNQUOTED_LC.getIndexFieldName(), lcWildcardQuery), 2 * boostMultiplier));
-    queries.add(newBoost(newWildcardQuery(TAGS_LC.getIndexFieldName(), lcWildcardQuery), 2 * boostMultiplier));
+    queries.add(
+        newBoost(
+            newWildcardQuery(PATH_UNQUOTED_LC.getIndexFieldName(), lcWildcardQuery),
+            2 * boostMultiplier));
+    queries.add(
+        newBoost(
+            newWildcardQuery(TAGS_LC.getIndexFieldName(), lcWildcardQuery), 2 * boostMultiplier));
 
     // these are the least important boost wise
-    queries.add(newBoost(newWildcardQuery(DATASET_COLUMNS_LC.getIndexFieldName(), lcWildcardQuery), boostMultiplier));
+    queries.add(
+        newBoost(
+            newWildcardQuery(DATASET_COLUMNS_LC.getIndexFieldName(), lcWildcardQuery),
+            boostMultiplier));
 
     return queries;
   }
 
   private Instant getNextRefreshTimeInMillis() {
-    long option = optionManagerProvider.get().getOption(ExecConstants.SEARCH_MANAGER_REFRESH_MILLIS);
+    long option =
+        optionManagerProvider.get().getOption(ExecConstants.SEARCH_MANAGER_REFRESH_MILLIS);
     return Instant.ofEpochMilli(System.currentTimeMillis() + option);
   }
 
@@ -254,8 +291,7 @@ public class SearchServiceImpl implements SearchService {
   }
 
   @Override
-  public void close() throws Exception {
-  }
+  public void close() throws Exception {}
 
   @Override
   public void wakeupManager(String reason) {

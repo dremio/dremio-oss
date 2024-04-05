@@ -24,7 +24,7 @@ import java.util.List;
 /**
  * {@link CompoundKey} representation for 2 keys.
  *
- * There are multiple key elements per instance where K1 and K2 denote the key elements.
+ * <p>There are multiple key elements per instance where K1 and K2 denote the key elements.
  *
  * @param <K1> - The type of the first key.
  * @param <K2> - The type of the second key.
@@ -61,11 +61,13 @@ public final class KeyPair<K1, K2> extends AbstractList<Object> implements Compo
   @Override
   public Object get(int index) {
     checkElementIndex(index, size());
-    switch(index) {
-    case 0: return key1;
-    case 1: return key2;
-    default:
-      throw new AssertionError("unexpected index " + index);
+    switch (index) {
+      case 0:
+        return key1;
+      case 1:
+        return key2;
+      default:
+        throw new AssertionError("unexpected index " + index);
     }
   }
 
@@ -93,8 +95,7 @@ public final class KeyPair<K1, K2> extends AbstractList<Object> implements Compo
 
     final KeyPair<?, ?> keyPair = (KeyPair<?, ?>) o;
 
-    return KeyUtils.equals(key1, keyPair.key1) &&
-      KeyUtils.equals(key2, keyPair.key2);
+    return KeyUtils.equals(key1, keyPair.key1) && KeyUtils.equals(key2, keyPair.key2);
   }
 
   @Override
@@ -104,7 +105,6 @@ public final class KeyPair<K1, K2> extends AbstractList<Object> implements Compo
 
   @Override
   public String toString() {
-    return "KeyPair{ key1=" + KeyUtils.toString(key1) +
-      ", key2=" + KeyUtils.toString(key2) + '}';
+    return "KeyPair{ key1=" + KeyUtils.toString(key1) + ", key2=" + KeyUtils.toString(key2) + '}';
   }
 }

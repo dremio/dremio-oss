@@ -18,7 +18,6 @@ package com.dremio.exec.planner.sql.convertlet;
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.IS_NULL;
 
 import java.util.stream.Collectors;
-
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
@@ -32,12 +31,12 @@ public final class NullableArrayFunctionConvertlet extends NullableFunctionConve
 
   @Override
   public RexNode whenReturnNull(final RexBuilder rexBuilder, final RexCall originalCall) {
-    return RexUtil.composeDisjunction(rexBuilder, originalCall
-      .getOperands()
-      .stream()
-      .filter(operand -> operand.getType().getSqlTypeName() == SqlTypeName.ARRAY)
-      .filter(operand -> operand.getType().isNullable())
-      .map(operand -> rexBuilder.makeCall(IS_NULL, operand))
-      .collect(Collectors.toList()));
+    return RexUtil.composeDisjunction(
+        rexBuilder,
+        originalCall.getOperands().stream()
+            .filter(operand -> operand.getType().getSqlTypeName() == SqlTypeName.ARRAY)
+            .filter(operand -> operand.getType().isNullable())
+            .map(operand -> rexBuilder.makeCall(IS_NULL, operand))
+            .collect(Collectors.toList()));
   }
 }

@@ -15,16 +15,6 @@
  */
 package com.dremio.sabot.op.aggregate.vectorized.nospill;
 
-import java.util.ArrayList;
-import java.util.EnumSet;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.vector.FieldVector;
-import org.apache.arrow.vector.VarBinaryVector;
-import org.apache.arrow.vector.VarCharVector;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
@@ -51,11 +41,19 @@ import com.dremio.sabot.op.spi.SingleInputOperator;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableList;
 import com.koloboke.collect.hash.HashConfig;
-
 import io.netty.util.internal.PlatformDependent;
+import java.util.ArrayList;
+import java.util.EnumSet;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.VarBinaryVector;
+import org.apache.arrow.vector.VarCharVector;
 
 public class VectorizedHashAggOperatorNoSpill implements SingleInputOperator {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(VectorizedHashAggOperatorNoSpill.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(VectorizedHashAggOperatorNoSpill.class);
 
   private static final int INITIAL_VAR_FIELD_AVERAGE_SIZE = 10;
   private final OperatorContext context;
@@ -76,12 +74,12 @@ public class VectorizedHashAggOperatorNoSpill implements SingleInputOperator {
   private State state = State.NEEDS_SETUP;
   private final boolean decimalCompleteEnabled;
 
-  public VectorizedHashAggOperatorNoSpill(HashAggregate popConfig, OperatorContext context) throws ExecutionSetupException {
+  public VectorizedHashAggOperatorNoSpill(HashAggregate popConfig, OperatorContext context)
+      throws ExecutionSetupException {
     this.context = context;
     this.outgoing = new VectorContainer(context.getAllocator());
     this.popConfig = popConfig;
-    this.decimalCompleteEnabled = context.getOptions().getOption(PlannerSettings
-      .ENABLE_DECIMAL_V2);
+    this.decimalCompleteEnabled = context.getOptions().getOption(PlannerSettings.ENABLE_DECIMAL_V2);
   }
 
   @Override
@@ -89,39 +87,58 @@ public class VectorizedHashAggOperatorNoSpill implements SingleInputOperator {
     state.is(State.NEEDS_SETUP);
     this.incoming = accessible;
     this.pivot = createPivot();
-    this.accumulator = AccumulatorBuilderNoSpill.getAccumulator(
-      context.getAllocator(), context.getClassProducer(), popConfig.getAggrExprs(), incoming, outgoing,
-      decimalCompleteEnabled, context.getBufferManager(), context.getOptions().getOption(ExecConstants.ENABLE_NDV_REDUCE_HEAP));
+    this.accumulator =
+        AccumulatorBuilderNoSpill.getAccumulator(
+            context.getAllocator(),
+            context.getClassProducer(),
+            popConfig.getAggrExprs(),
+            incoming,
+            outgoing,
+            decimalCompleteEnabled,
+            context.getBufferManager(),
+            context.getOptions().getOption(ExecConstants.ENABLE_NDV_REDUCE_HEAP));
     this.outgoing.buildSchema();
-    this.table = new LBlockHashTableNoSpill(HashConfig.getDefault(), pivot, context.getAllocator(), (int)context.getOptions().getOption(ExecConstants.MIN_HASH_TABLE_SIZE), INITIAL_VAR_FIELD_AVERAGE_SIZE, accumulator);
+    this.table =
+        new LBlockHashTableNoSpill(
+            HashConfig.getDefault(),
+            pivot,
+            context.getAllocator(),
+            (int) context.getOptions().getOption(ExecConstants.MIN_HASH_TABLE_SIZE),
+            INITIAL_VAR_FIELD_AVERAGE_SIZE,
+            accumulator);
 
     state = State.CAN_CONSUME;
     return outgoing;
   }
 
-  private PivotDef createPivot(){
+  private PivotDef createPivot() {
     final List<NamedExpression> groupByExpressions = popConfig.getGroupByExprs();
     final ImmutableList.Builder<FieldVector> validationVectors = ImmutableList.builder();
 
     final List<FieldVectorPair> fvps = new ArrayList<>();
-    //final FieldVector[] readVectors = new FieldVector[]
+    // final FieldVector[] readVectors = new FieldVector[]
     for (int i = 0; i < groupByExpressions.size(); i++) {
       final NamedExpression ne = groupByExpressions.get(i);
       final LogicalExpression expr = context.getClassProducer().materialize(ne.getExpr(), incoming);
 
-      if(expr == null){
+      if (expr == null) {
         throw unsup("Unable to resolve group by expression: " + ne.getExpr().toString());
       }
-      if( !(expr instanceof ValueVectorReadExpression) ){
+      if (!(expr instanceof ValueVectorReadExpression)) {
         throw unsup("Group by expression is non-trivial: " + ne.getExpr().toString());
       }
 
       final ValueVectorReadExpression vvread = (ValueVectorReadExpression) expr;
-      final FieldVector inputVector = incoming.getValueAccessorById(FieldVector.class, vvread.getFieldId().getFieldIds()).getValueVector();
-      if(inputVector instanceof VarCharVector || inputVector instanceof VarBinaryVector){
+      final FieldVector inputVector =
+          incoming
+              .getValueAccessorById(FieldVector.class, vvread.getFieldId().getFieldIds())
+              .getValueVector();
+      if (inputVector instanceof VarCharVector || inputVector instanceof VarBinaryVector) {
         validationVectors.add(inputVector);
       }
-      final FieldVector outputVector = TypeHelper.getNewVector(expr.getCompleteType().toField(ne.getRef()), context.getAllocator());
+      final FieldVector outputVector =
+          TypeHelper.getNewVector(
+              expr.getCompleteType().toField(ne.getRef()), context.getAllocator());
       outgoing.add(outputVector);
       fvps.add(new FieldVectorPair(inputVector, outputVector));
     }
@@ -134,14 +151,16 @@ public class VectorizedHashAggOperatorNoSpill implements SingleInputOperator {
   public void consumeData(int records) throws Exception {
     state.is(State.CAN_CONSUME);
 
-    // ensure that none of the variable length vectors are corrupt so we can avoid doing bounds checking later.
-    for(FieldVector v : vectorsToValidate){
+    // ensure that none of the variable length vectors are corrupt so we can avoid doing bounds
+    // checking later.
+    for (FieldVector v : vectorsToValidate) {
       VariableLengthValidatorNoSpill.validateVariable(v, records);
     }
 
-    try(FixedBlockVector fbv = new FixedBlockVector(context.getAllocator(), pivot.getBlockWidth());
-        VariableBlockVector var = new VariableBlockVector(context.getAllocator(), pivot.getVariableCount());
-        ){
+    try (FixedBlockVector fbv =
+            new FixedBlockVector(context.getAllocator(), pivot.getBlockWidth());
+        VariableBlockVector var =
+            new VariableBlockVector(context.getAllocator(), pivot.getVariableCount()); ) {
       // first we pivot.
       pivotWatch.start();
       Pivots.pivot(pivot, records, fbv, var);
@@ -149,12 +168,12 @@ public class VectorizedHashAggOperatorNoSpill implements SingleInputOperator {
       final long keyFixedAddr = fbv.getMemoryAddress();
       final long keyVarAddr = var.getMemoryAddress();
 
-      try(ArrowBuf offsets = context.getAllocator().buffer(records * 4)){
+      try (ArrowBuf offsets = context.getAllocator().buffer(records * 4)) {
         long offsetAddr = offsets.memoryAddress();
 
         // then we add all values to table.
         insertWatch.start();
-        for(int i = 0; i < records; i++, offsetAddr += 4){
+        for (int i = 0; i < records; i++, offsetAddr += 4) {
           PlatformDependent.putInt(offsetAddr, table.add(keyFixedAddr, keyVarAddr, i));
         }
         insertWatch.stop();
@@ -164,18 +183,17 @@ public class VectorizedHashAggOperatorNoSpill implements SingleInputOperator {
         accumulator.accumulate(offsets.memoryAddress(), records);
         accumulateWatch.stop();
       }
-
     }
 
     updateStats();
   }
 
-  private void updateStats(){
+  private void updateStats() {
     final OperatorStats stats = context.getStats();
 
-    if(table != null){
+    if (table != null) {
       stats.setLongStat(Metric.NUM_ENTRIES, table.size());
-      stats.setLongStat(Metric.NUM_BUCKETS,  table.capacity());
+      stats.setLongStat(Metric.NUM_BUCKETS, table.capacity());
       stats.setLongStat(Metric.NUM_RESIZING, table.getRehashCount());
       stats.setLongStat(Metric.RESIZING_TIME, table.getRehashTime(TimeUnit.NANOSECONDS));
     }
@@ -192,12 +210,15 @@ public class VectorizedHashAggOperatorNoSpill implements SingleInputOperator {
   public int outputData() throws Exception {
     state.is(State.CAN_PRODUCE);
 
-    if(outputBatchCount ==  table.blocks()){
+    if (outputBatchCount == table.blocks()) {
       state = State.DONE;
       return 0;
     }
 
-    final int recordsInBatch = Math.min(LBlockHashTableNoSpill.MAX_VALUES_PER_BATCH, table.size() - (outputBatchCount * LBlockHashTableNoSpill.MAX_VALUES_PER_BATCH));
+    final int recordsInBatch =
+        Math.min(
+            LBlockHashTableNoSpill.MAX_VALUES_PER_BATCH,
+            table.size() - (outputBatchCount * LBlockHashTableNoSpill.MAX_VALUES_PER_BATCH));
 
     unpivotWatch.start();
     table.unpivot(outputBatchCount, recordsInBatch);
@@ -215,9 +236,9 @@ public class VectorizedHashAggOperatorNoSpill implements SingleInputOperator {
   public void noMoreToConsume() throws Exception {
     state.is(State.CAN_CONSUME);
 
-    if(table.size() == 0){
+    if (table.size() == 0) {
       state = State.DONE;
-    }else{
+    } else {
       state = State.CAN_PRODUCE;
     }
   }
@@ -228,7 +249,8 @@ public class VectorizedHashAggOperatorNoSpill implements SingleInputOperator {
   }
 
   @Override
-  public <OUT, IN, EXCEP extends Throwable> OUT accept(OperatorVisitor<OUT, IN, EXCEP> visitor, IN value) throws EXCEP {
+  public <OUT, IN, EXCEP extends Throwable> OUT accept(
+      OperatorVisitor<OUT, IN, EXCEP> visitor, IN value) throws EXCEP {
     return visitor.visitSingleInput(this, value);
   }
 
@@ -239,8 +261,9 @@ public class VectorizedHashAggOperatorNoSpill implements SingleInputOperator {
     AutoCloseables.close(table, accumulator, outgoing);
   }
 
-  private static UserException unsup(String msg){
-    throw UserException.unsupportedError().message("Aggregate not supported. %s", msg).build(logger);
+  private static UserException unsup(String msg) {
+    throw UserException.unsupportedError()
+        .message("Aggregate not supported. %s", msg)
+        .build(logger);
   }
-
 }

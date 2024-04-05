@@ -15,13 +15,16 @@
  */
 package com.dremio.exec.planner.physical.visitor;
 
+import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.planner.physical.Prel;
+import com.dremio.exec.planner.physical.ProjectPrel;
+import com.dremio.options.OptionManager;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
-
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
@@ -33,12 +36,9 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexShuttle;
 import org.apache.calcite.sql.SqlFunction;
 
-import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.planner.physical.Prel;
-import com.dremio.exec.planner.physical.ProjectPrel;
-import com.dremio.options.OptionManager;
-
 /**
+ *
+ *
  * <pre>
  * Expand nested functions and push them down to break the nested structure.
  * e.g. an expression like:
@@ -56,7 +56,8 @@ import com.dremio.options.OptionManager;
  *       ProjectPrel(r_regionkey=[$0], r_name=[$1], r_comment=[$2], $f3=[REPLACE($1, 'A':VARCHAR(1), 'B':VARCHAR(1))])
  * </pre>
  */
-public class ExpandNestedFunctionVisitor extends BasePrelVisitor<Prel, AtomicBoolean, RuntimeException> {
+public class ExpandNestedFunctionVisitor
+    extends BasePrelVisitor<Prel, AtomicBoolean, RuntimeException> {
   private static final String NESTED_EXPRS_PREFIX = "NESTED_EXPRS_";
   private final int maxFunctionDepth;
 
@@ -65,9 +66,10 @@ public class ExpandNestedFunctionVisitor extends BasePrelVisitor<Prel, AtomicBoo
   }
 
   public static Prel pushdownNestedFunctions(Prel prel, OptionManager options) {
-    return options.getOption(PlannerSettings.NESTED_FUNCTIONS_PUSHDOWN) ?
-      pushdownNestedFunctionsRecursive(prel, (int) options.getOption(PlannerSettings.MAX_FUNCTION_DEPTH)) :
-      prel;
+    return options.getOption(PlannerSettings.NESTED_FUNCTIONS_PUSHDOWN)
+        ? pushdownNestedFunctionsRecursive(
+            prel, (int) options.getOption(PlannerSettings.MAX_FUNCTION_DEPTH))
+        : prel;
   }
 
   private static Prel pushdownNestedFunctionsRecursive(Prel prel, int maxFunctionDepth) {
@@ -99,17 +101,17 @@ public class ExpandNestedFunctionVisitor extends BasePrelVisitor<Prel, AtomicBoo
     final RelDataType inputRowType = inputRel.getRowType();
     final List<RexNode> projects = new ArrayList<>();
     final List<RexNode> nestedNodes = new ArrayList<>();
-    final NestedFunctionFinder finder = new NestedFunctionFinder(
-      rexBuilder,
-      maxFunctionDepth,
-      inputRowType.getFieldCount());
+    final NestedFunctionFinder finder =
+        new NestedFunctionFinder(rexBuilder, maxFunctionDepth, inputRowType.getFieldCount());
 
     for (RexNode rexNode : prel.getProjects()) {
       projects.add(rexNode.accept(finder));
       if (finder.isNested()) {
         nestedNodes.addAll(finder.getPushedDownExprs());
       }
-      finder.reset(); // Reset so we can reuse the same instance which is keeping track of input count when an expression is pushed down.
+      finder
+          .reset(); // Reset so we can reuse the same instance which is keeping track of input count
+      // when an expression is pushed down.
     }
     if (nestedNodes.isEmpty()) {
       return super.visitProject(prel, value);
@@ -136,10 +138,13 @@ public class ExpandNestedFunctionVisitor extends BasePrelVisitor<Prel, AtomicBoo
     }
 
     final RelDataType bottomType = factory.createStructType(bottomProjectType, fieldNameList);
-    final ProjectPrel bottomProject = ProjectPrel.create(cluster, prel.getTraitSet(), inputRel, pushedDownNodes, bottomType);
+    final ProjectPrel bottomProject =
+        ProjectPrel.create(cluster, prel.getTraitSet(), inputRel, pushedDownNodes, bottomType);
 
-    final List<RelDataType> topProjectType = projects.stream().map(RexNode::getType).collect(Collectors.toList());
-    final RelDataType topType = factory.createStructType(topProjectType, prel.getRowType().getFieldNames());
+    final List<RelDataType> topProjectType =
+        projects.stream().map(RexNode::getType).collect(Collectors.toList());
+    final RelDataType topType =
+        factory.createStructType(topProjectType, prel.getRowType().getFieldNames());
     return ProjectPrel.create(cluster, prel.getTraitSet(), bottomProject, projects, topType);
   }
 
@@ -153,10 +158,12 @@ public class ExpandNestedFunctionVisitor extends BasePrelVisitor<Prel, AtomicBoo
     // We found nesting.
     private boolean isNested;
 
-    // Keep a list of nested function. There can be more than one like: replace(replace..) and replace(replace..)
+    // Keep a list of nested function. There can be more than one like: replace(replace..) and
+    // replace(replace..)
     private List<RexNode> pushedDownExprs;
 
-    // Use a map to keep track of duplicate expressions like: replace(replace(..)) or replace(replace(..))
+    // Use a map to keep track of duplicate expressions like: replace(replace(..)) or
+    // replace(replace(..))
     private Map<RexNode, RexNode> dupExprMap;
 
     private int functionDepth;
@@ -175,11 +182,14 @@ public class ExpandNestedFunctionVisitor extends BasePrelVisitor<Prel, AtomicBoo
         functionDepth++;
         final RexNode rexNode;
         if (functionDepth > maxFunctionDepth) {
-          // If we have reached the max function depth, break here and push the nested expression down
+          // If we have reached the max function depth, break here and push the nested expression
+          // down
           if (dupExprMap.containsKey(call)) {
             rexNode = dupExprMap.get(call);
           } else {
-            rexNode = rexBuilder.makeInputRef(call.getType(), inputSize++); // Make a reference of pushed down expression
+            rexNode =
+                rexBuilder.makeInputRef(
+                    call.getType(), inputSize++); // Make a reference of pushed down expression
             isNested = true;
             pushedDownExprs.add(call); // This expression is pushed down now
             dupExprMap.put(call, rexNode);

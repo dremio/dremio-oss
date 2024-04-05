@@ -19,17 +19,18 @@ import java.util.ConcurrentModificationException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/**
- * Resource Utils
- */
+/** Resource Utils */
 public class ResourceUtil {
 
-  public static ConcurrentModificationException correctBadVersionErrorMessage(ConcurrentModificationException e, String objectType, String objectName) {
+  public static ConcurrentModificationException correctBadVersionErrorMessage(
+      ConcurrentModificationException e, String objectType, String objectName) {
     final Pattern pattern = Pattern.compile("Cannot delete, expected tag (.*) but found tag (.*)");
     final Matcher matcher = pattern.matcher(e.getMessage());
     if (matcher.find()) {
-      return new ConcurrentModificationException(String.format("Cannot delete %s \"%s\", version provided \"%s\" is different from version found \"%s\"",
-        objectType, objectName, matcher.group(1), matcher.group(2)));
+      return new ConcurrentModificationException(
+          String.format(
+              "Cannot delete %s \"%s\", version provided \"%s\" is different from version found \"%s\"",
+              objectType, objectName, matcher.group(1), matcher.group(2)));
     } else {
       return e;
     }

@@ -15,7 +15,7 @@
  */
 package com.dremio.exec.compile;
 
-public abstract class ExampleTemplate implements ExampleExternalInterface{
+public abstract class ExampleTemplate implements ExampleExternalInterface {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ExampleTemplate.class);
 
   @Override
@@ -24,5 +24,4 @@ public abstract class ExampleTemplate implements ExampleExternalInterface{
   }
 
   abstract String getInternalData();
-
 }

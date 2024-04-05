@@ -20,16 +20,6 @@ import static com.dremio.exec.store.hive.GlueAWSCredentialsFactory.DREMIO_ASSUME
 import static com.dremio.exec.store.hive.GlueAWSCredentialsFactory.EC2_METADATA_PROVIDER;
 import static com.dremio.exec.store.hive.GlueAWSCredentialsFactory.GLUE_DREMIO_ASSUME_ROLE_PROVIDER;
 
-import java.io.Closeable;
-import java.io.IOException;
-import java.util.UUID;
-
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.s3a.Constants;
-import org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.InstanceProfileCredentialsProvider;
@@ -40,10 +30,16 @@ import com.dremio.common.FSConstants;
 import com.dremio.exec.store.hive.GlueDremioAssumeRoleCredentialsProviderV1;
 import com.dremio.service.coordinator.DremioAssumeRoleCredentialsProviderV1;
 import com.google.common.base.Preconditions;
+import java.io.Closeable;
+import java.io.IOException;
+import java.util.UUID;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.s3a.Constants;
+import org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * Assume role credential provider that supports aws sdk 1.11.X - used by hadoop-aws
- */
+/** Assume role credential provider that supports aws sdk 1.11.X - used by hadoop-aws */
 public class STSCredentialProviderV1 implements AWSCredentialsProvider, Closeable {
   private static final Logger logger = LoggerFactory.getLogger(STSCredentialProviderV1.class);
 
@@ -51,14 +47,13 @@ public class STSCredentialProviderV1 implements AWSCredentialsProvider, Closeabl
 
   public STSCredentialProviderV1(Configuration conf) {
     AWSCredentialsProvider awsCredentialsProvider = null;
-    //TODO: Leverage S3AUtils createAwsCredentialProvider
+    // TODO: Leverage S3AUtils createAwsCredentialProvider
 
     String assumeRoleProvider = conf.get(Constants.ASSUMED_ROLE_CREDENTIALS_PROVIDER);
     logger.debug("assumed_role_credentials_provider: {}", assumeRoleProvider);
 
-    switch(assumeRoleProvider) {
+    switch (assumeRoleProvider) {
       case ACCESS_KEY_PROVIDER:
-
         try {
           awsCredentialsProvider = new SimpleAWSCredentialsProvider(null, conf);
         } catch (IOException e) {
@@ -76,7 +71,8 @@ public class STSCredentialProviderV1 implements AWSCredentialsProvider, Closeabl
         awsCredentialsProvider = new GlueDremioAssumeRoleCredentialsProviderV1();
         break;
       default:
-        throw new IllegalArgumentException("Assumed role credentials provided " + assumeRoleProvider + " is not supported.");
+        throw new IllegalArgumentException(
+            "Assumed role credentials provided " + assumeRoleProvider + " is not supported.");
     }
 
     String region = conf.get(FSConstants.FS_S3A_REGION, "");
@@ -84,25 +80,27 @@ public class STSCredentialProviderV1 implements AWSCredentialsProvider, Closeabl
     Preconditions.checkState(!iamAssumedRole.isEmpty(), "Unexpected empty IAM assumed role");
     Preconditions.checkState(!region.isEmpty(), "Unexpected empty region");
 
-    AWSSecurityTokenServiceClientBuilder stsClientBuilder = AWSSecurityTokenServiceClientBuilder.standard()
-      .withCredentials(awsCredentialsProvider);
+    AWSSecurityTokenServiceClientBuilder stsClientBuilder =
+        AWSSecurityTokenServiceClientBuilder.standard().withCredentials(awsCredentialsProvider);
 
     /*
-      Support setting a custom STS endpoint. If the assume role STS endpoint
-      is not provided, then just fall back to setting region.
-     */
+     Support setting a custom STS endpoint. If the assume role STS endpoint
+     is not provided, then just fall back to setting region.
+    */
     String iamAssumedRoleEndpoint = conf.get(Constants.ASSUMED_ROLE_STS_ENDPOINT, "");
     if (!iamAssumedRoleEndpoint.isEmpty()) {
-      AwsClientBuilder.EndpointConfiguration ec = new AwsClientBuilder.EndpointConfiguration(iamAssumedRoleEndpoint, region);
+      AwsClientBuilder.EndpointConfiguration ec =
+          new AwsClientBuilder.EndpointConfiguration(iamAssumedRoleEndpoint, region);
       stsClientBuilder.withEndpointConfiguration(ec);
     } else {
       stsClientBuilder.withRegion(region);
     }
 
-    this.stsAssumeRoleSessionCredentialsProvider = new STSAssumeRoleSessionCredentialsProvider.Builder(
-      iamAssumedRole, UUID.randomUUID().toString())
-      .withStsClient(stsClientBuilder.build())
-      .build();
+    this.stsAssumeRoleSessionCredentialsProvider =
+        new STSAssumeRoleSessionCredentialsProvider.Builder(
+                iamAssumedRole, UUID.randomUUID().toString())
+            .withStsClient(stsClientBuilder.build())
+            .build();
   }
 
   @Override

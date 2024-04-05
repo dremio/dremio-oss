@@ -25,5 +25,4 @@ public class ParameterizedTestFailure extends Exception {
   public String getMessage() {
     return String.format("Test failed with the supplied parameter: %s", super.getMessage());
   }
-
 }

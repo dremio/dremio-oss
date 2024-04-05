@@ -15,18 +15,15 @@
  */
 package com.dremio.service.functions;
 
-import java.util.List;
-
 import com.dremio.service.functions.model.Function;
 import com.dremio.service.functions.model.FunctionCategory;
 import com.dremio.service.functions.model.FunctionSignature;
 import com.dremio.service.functions.model.Parameter;
 import com.dremio.service.functions.model.ParameterType;
 import com.dremio.service.functions.model.SampleCode;
+import java.util.List;
 
-/**
- * Visitor for the Function Object Model
- */
+/** Visitor for the Function Object Model */
 public abstract class FunctionVisitor {
   public void visitFunction(Function function) {
     onFunction(function);

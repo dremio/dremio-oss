@@ -17,8 +17,6 @@ package com.dremio.dac.model.job;
 
 import static com.dremio.service.accelerator.AccelerationDetailsUtils.deserialize;
 
-import java.util.Optional;
-
 import com.dremio.dac.util.JobUtil;
 import com.dremio.dac.util.TruncateString200Converter;
 import com.dremio.proto.model.attempts.RequestType;
@@ -36,11 +34,12 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import java.util.Optional;
 
-/**
- * Represents a socket update to one job in jobs list
- */
-@JsonIgnoreProperties(value={"isComplete"}, allowGetters=true)
+/** Represents a socket update to one job in jobs list */
+@JsonIgnoreProperties(
+    value = {"isComplete"},
+    allowGetters = true)
 public class PartialJobListItem {
   private final String id;
   private final JobState state;
@@ -101,18 +100,28 @@ public class PartialJobListItem {
 
     this.id = input.getJobId().getId();
     this.state = JobUtil.computeJobState(lastAttempt.getState(), input.isCompleted());
-    this.failureInfo = JobDetailsUI.toJobFailureInfo(lastAttempt.getInfo().getFailureInfo(), lastAttempt.getInfo().getDetailedFailureInfo());
-    this.cancellationInfo = JobDetailsUI.toJobCancellationInfo(lastAttempt.getState(), lastAttempt.getInfo().getCancellationInfo());
+    this.failureInfo =
+        JobDetailsUI.toJobFailureInfo(
+            lastAttempt.getInfo().getFailureInfo(), lastAttempt.getInfo().getDetailedFailureInfo());
+    this.cancellationInfo =
+        JobDetailsUI.toJobCancellationInfo(
+            lastAttempt.getState(), lastAttempt.getInfo().getCancellationInfo());
     this.user = firstAttempt.getInfo().getUser();
     this.startTime = firstAttempt.getInfo().getStartTime();
     this.endTime = lastAttempt.getInfo().getFinishTime();
-    this.description = JobsServiceUtil.getJobDescription(lastAttempt.getInfo().getRequestType(), lastAttempt.getInfo().getSql(), lastAttempt.getInfo().getDescription());
+    this.description =
+        JobsServiceUtil.getJobDescription(
+            lastAttempt.getInfo().getRequestType(),
+            lastAttempt.getInfo().getSql(),
+            lastAttempt.getInfo().getDescription());
     this.accelerated = lastAttempt.getInfo().getAcceleration() != null;
-    this.requestType =  firstAttempt.getInfo().getRequestType();
+    this.requestType = firstAttempt.getInfo().getRequestType();
     this.datasetVersion = firstAttempt.getInfo().getDatasetVersion();
     this.isComplete = isComplete(state);
-    final AccelerationDetails accelerationDetails = deserialize(lastAttempt.getAccelerationDetails());
-    this.snowflakeAccelerated = this.accelerated && JobDetailsUI.wasSnowflakeAccelerated(accelerationDetails);
+    final AccelerationDetails accelerationDetails =
+        deserialize(lastAttempt.getAccelerationDetails());
+    this.snowflakeAccelerated =
+        this.accelerated && JobDetailsUI.wasSnowflakeAccelerated(accelerationDetails);
     this.spilled = lastAttempt.getInfo().getSpillJobDetails() != null;
 
     final JobStats stats = lastAttempt.getStats();
@@ -122,15 +131,23 @@ public class PartialJobListItem {
 
   public PartialJobListItem(JobSummary input) {
     this.id = input.getJobId().getId();
-    this.state = JobUtil.computeJobState(JobsProtoUtil.toStuff(input.getJobState()), input.getJobCompleted());
-    this.failureInfo = JobDetailsUI.toJobFailureInfo(Strings.isNullOrEmpty(input.getFailureInfo()) ? null : input.getFailureInfo(),
-      JobsProtoUtil.toStuff(input.getDetailedJobFailureInfo()));
-    this.cancellationInfo = JobDetailsUI.toJobCancellationInfo(JobsProtoUtil.toStuff(input.getJobState()),
-      JobsProtoUtil.toStuff(input.getCancellationInfo()));
+    this.state =
+        JobUtil.computeJobState(
+            JobsProtoUtil.toStuff(input.getJobState()), input.getJobCompleted());
+    this.failureInfo =
+        JobDetailsUI.toJobFailureInfo(
+            Strings.isNullOrEmpty(input.getFailureInfo()) ? null : input.getFailureInfo(),
+            JobsProtoUtil.toStuff(input.getDetailedJobFailureInfo()));
+    this.cancellationInfo =
+        JobDetailsUI.toJobCancellationInfo(
+            JobsProtoUtil.toStuff(input.getJobState()),
+            JobsProtoUtil.toStuff(input.getCancellationInfo()));
     this.user = input.getUser();
     this.startTime = input.getStartTime() == 0 ? null : input.getStartTime();
     this.endTime = input.getEndTime() == 0 ? null : input.getEndTime();
-    this.description = JobsServiceUtil.getJobDescription(input.getRequestType(), input.getSql(), input.getDescription());
+    this.description =
+        JobsServiceUtil.getJobDescription(
+            input.getRequestType(), input.getSql(), input.getDescription());
     this.accelerated = input.getAccelerated();
     this.requestType = JobsProtoUtil.toStuff(input.getRequestType());
     this.datasetVersion = input.getDatasetVersion();
@@ -144,7 +161,7 @@ public class PartialJobListItem {
   private boolean isComplete(JobState state) {
     Preconditions.checkNotNull(state, "JobState must be set");
 
-    switch(state){
+    switch (state) {
       case CANCELLATION_REQUESTED:
       case ENQUEUED:
       case NOT_SUBMITTED:
@@ -165,7 +182,6 @@ public class PartialJobListItem {
         throw new UnsupportedOperationException();
     }
   }
-
 
   public String getId() {
     return id;

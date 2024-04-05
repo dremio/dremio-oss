@@ -22,34 +22,38 @@ import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.file.proto.FileType;
 
 /**
- * Metadata Functions TableMetadata interface. This is how a metadata functions table is exposed to the planning environment.
- * table_history,table_snapshot,table_manifests are metadata functions.
+ * Metadata Functions TableMetadata interface. This is how a metadata functions table is exposed to
+ * the planning environment. table_history,table_snapshot,table_manifests are metadata functions.
  * For query like : select * from table(table_history('call_center'))
  */
 public class MFunctionCatalogMetadata {
 
   private final BatchSchema batchSchema;
   private final NamespaceKey namespaceKey;
+
   /**
-   * Plugin of underlying table.
-   * In case of table_history('iceberg_table'). This plugin should be same as of iceberg_table.
+   * Plugin of underlying table. In case of table_history('iceberg_table'). This plugin should be
+   * same as of iceberg_table.
    */
   private StoragePluginId storagePluginId;
-  /**
-   * file type for from which metadata is being read. eg: JSON for iceberg history
-   */
+
+  /** file type for from which metadata is being read. eg: JSON for iceberg history */
   private final FileType fileType;
-  /**
-   * native table type eg: iceberg, deltalake
-   */
+
+  /** native table type eg: iceberg, deltalake */
   private final FileType underlyingTable;
+
   /**
-   * table function name such as
-   * TABLE_HISTORY,TABLE_MANIFESTS, TABLE_SNAPSHOT,TABLE_FILES, TABLE_PARTITIONS
+   * table function name such as TABLE_HISTORY,TABLE_MANIFESTS, TABLE_SNAPSHOT,TABLE_FILES,
+   * TABLE_PARTITIONS
    */
   private final MetadataFunctionsMacro.MacroName mFunctionName;
 
-  public MFunctionCatalogMetadata(BatchSchema batchSchema, NamespaceKey namespaceKey, StoragePluginId storagePluginId, MetadataFunctionsMacro.MacroName mFunctionName) {
+  public MFunctionCatalogMetadata(
+      BatchSchema batchSchema,
+      NamespaceKey namespaceKey,
+      StoragePluginId storagePluginId,
+      MetadataFunctionsMacro.MacroName mFunctionName) {
     this.batchSchema = batchSchema;
     this.namespaceKey = namespaceKey;
     this.storagePluginId = storagePluginId;
@@ -68,7 +72,8 @@ public class MFunctionCatalogMetadata {
       case TABLE_MANIFESTS:
         return FileType.AVRO;
       default:
-        throw new UnsupportedOperationException(mFunctionName + " is not supported for table: " + namespaceKey.getPathComponents());
+        throw new UnsupportedOperationException(
+            mFunctionName + " is not supported for table: " + namespaceKey.getPathComponents());
     }
   }
 

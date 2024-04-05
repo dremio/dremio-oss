@@ -18,15 +18,6 @@ package com.dremio.exec.physical.impl.xsort;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-
-import org.apache.arrow.vector.BigIntVector;
-import org.junit.Ignore;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TestRule;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.expression.SchemaPath;
@@ -40,17 +31,26 @@ import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.local.LocalClusterCoordinator;
 import com.dremio.test.DremioTest;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+import org.apache.arrow.vector.BigIntVector;
+import org.junit.Ignore;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TestRule;
 
 public class TestSimpleExternalSort extends BaseTestQuery {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestSimpleExternalSort.class);
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(TestSimpleExternalSort.class);
 
   @Rule public final TestRule timeoutRule = TestTools.getTimeoutRule(80, TimeUnit.SECONDS);
 
   @Test
   public void mergeSortWithSv2() throws Exception {
-    List<QueryDataBatch> results = testPhysicalFromFileWithResults("xsort/one_key_sort_descending_sv2.json");
+    List<QueryDataBatch> results =
+        testPhysicalFromFileWithResults("xsort/one_key_sort_descending_sv2.json");
     int count = 0;
-    for(QueryDataBatch b : results) {
+    for (QueryDataBatch b : results) {
       if (b.getHeader().getRowCount() != 0) {
         count += b.getHeader().getRowCount();
       }
@@ -68,14 +68,17 @@ public class TestSimpleExternalSort extends BaseTestQuery {
       }
       batchCount++;
       RecordBatchLoader loader = new RecordBatchLoader(allocator);
-      loader.load(b.getHeader().getDef(),b.getData());
-      BigIntVector c1 = loader.getValueAccessorById(BigIntVector.class,
-              loader.getValueVectorId(new SchemaPath("blue")).getFieldIds()).getValueVector();
+      loader.load(b.getHeader().getDef(), b.getData());
+      BigIntVector c1 =
+          loader
+              .getValueAccessorById(
+                  BigIntVector.class, loader.getValueVectorId(new SchemaPath("blue")).getFieldIds())
+              .getValueVector();
 
-
-      for (int i =0; i < c1.getValueCount(); i++) {
+      for (int i = 0; i < c1.getValueCount(); i++) {
         recordCount++;
-        assertTrue(String.format("%d > %d", previousBigInt, c1.get(i)), previousBigInt >= c1.get(i));
+        assertTrue(
+            String.format("%d > %d", previousBigInt, c1.get(i)), previousBigInt >= c1.get(i));
         previousBigInt = c1.get(i);
       }
       loader.clear();
@@ -86,8 +89,9 @@ public class TestSimpleExternalSort extends BaseTestQuery {
   }
 
   @Test
-  public void sortOneKeyDescendingMergeSort() throws Throwable{
-    List<QueryDataBatch> results = testPhysicalFromFileWithResults("xsort/one_key_sort_descending.json");
+  public void sortOneKeyDescendingMergeSort() throws Throwable {
+    List<QueryDataBatch> results =
+        testPhysicalFromFileWithResults("xsort/one_key_sort_descending.json");
     int count = 0;
     for (QueryDataBatch b : results) {
       if (b.getHeader().getRowCount() != 0) {
@@ -107,12 +111,17 @@ public class TestSimpleExternalSort extends BaseTestQuery {
       }
       batchCount++;
       RecordBatchLoader loader = new RecordBatchLoader(allocator);
-      loader.load(b.getHeader().getDef(),b.getData());
-      BigIntVector c1 = loader.getValueAccessorById(BigIntVector.class, loader.getValueVectorId(new SchemaPath("blue")).getFieldIds()).getValueVector();
+      loader.load(b.getHeader().getDef(), b.getData());
+      BigIntVector c1 =
+          loader
+              .getValueAccessorById(
+                  BigIntVector.class, loader.getValueVectorId(new SchemaPath("blue")).getFieldIds())
+              .getValueVector();
 
-      for (int i =0; i < c1.getValueCount(); i++) {
+      for (int i = 0; i < c1.getValueCount(); i++) {
         recordCount++;
-        assertTrue(String.format("%d > %d", previousBigInt, c1.get(i)), previousBigInt >= c1.get(i));
+        assertTrue(
+            String.format("%d > %d", previousBigInt, c1.get(i)), previousBigInt >= c1.get(i));
         previousBigInt = c1.get(i);
       }
       loader.clear();
@@ -122,24 +131,27 @@ public class TestSimpleExternalSort extends BaseTestQuery {
     System.out.println(String.format("Sorted %,d records in %d batches.", recordCount, batchCount));
   }
 
-  // TODO: this test does not need fixtures setup in BaseTestQuery, since SabotNode are started below. So move it.
+  // TODO: this test does not need fixtures setup in BaseTestQuery, since SabotNode are started
+  // below. So move it.
   @Ignore("DX-3872")
   @Test
-  public void sortOneKeyDescendingExternalSort() throws Throwable{
+  public void sortOneKeyDescendingExternalSort() throws Throwable {
 
     SabotConfig config = SabotConfig.create("dremio-external-sort.conf");
     ScanResult classpathScanResult = ClassPathScanner.fromPrescan(config);
 
     try (ClusterCoordinator clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
-         SabotNode bit1 = new SabotNode(config, clusterCoordinator, classpathScanResult, true);
-         SabotNode bit2 = new SabotNode(config, clusterCoordinator, classpathScanResult, false);
-         DremioClient client = new DremioClient(config, clusterCoordinator)) {
+        SabotNode bit1 = new SabotNode(config, clusterCoordinator, classpathScanResult, true);
+        SabotNode bit2 = new SabotNode(config, clusterCoordinator, classpathScanResult, false);
+        DremioClient client = new DremioClient(config, clusterCoordinator)) {
 
       bit1.run();
       bit2.run();
       client.connect();
-      List<QueryDataBatch> results = client.runQuery(com.dremio.exec.proto.UserBitShared.QueryType.PHYSICAL,
-        readResourceAsString("/xsort/one_key_sort_descending.json"));
+      List<QueryDataBatch> results =
+          client.runQuery(
+              com.dremio.exec.proto.UserBitShared.QueryType.PHYSICAL,
+              readResourceAsString("/xsort/one_key_sort_descending.json"));
       int count = 0;
       for (QueryDataBatch b : results) {
         if (b.getHeader().getRowCount() != 0) {
@@ -159,35 +171,45 @@ public class TestSimpleExternalSort extends BaseTestQuery {
         }
         batchCount++;
         RecordBatchLoader loader = new RecordBatchLoader(bit1.getContext().getAllocator());
-        loader.load(b.getHeader().getDef(),b.getData());
-        BigIntVector c1 = loader.getValueAccessorById(BigIntVector.class, loader.getValueVectorId(new SchemaPath("blue")).getFieldIds()).getValueVector();
+        loader.load(b.getHeader().getDef(), b.getData());
+        BigIntVector c1 =
+            loader
+                .getValueAccessorById(
+                    BigIntVector.class,
+                    loader.getValueVectorId(new SchemaPath("blue")).getFieldIds())
+                .getValueVector();
 
-        for (int i =0; i < c1.getValueCount(); i++) {
+        for (int i = 0; i < c1.getValueCount(); i++) {
           recordCount++;
-          assertTrue(String.format("%d < %d", previousBigInt, c1.get(i)), previousBigInt >= c1.get(i));
+          assertTrue(
+              String.format("%d < %d", previousBigInt, c1.get(i)), previousBigInt >= c1.get(i));
           previousBigInt = c1.get(i);
         }
         loader.clear();
         b.release();
       }
-      System.out.println(String.format("Sorted %,d records in %d batches.", recordCount, batchCount));
-
+      System.out.println(
+          String.format("Sorted %,d records in %d batches.", recordCount, batchCount));
     }
   }
 
-  // TODO: this test does not need fixtures setup in BaseTestQuery, since SabotNode are started below. So move it.
+  // TODO: this test does not need fixtures setup in BaseTestQuery, since SabotNode are started
+  // below. So move it.
   @Ignore("DX-9925")
   @Test
-  public void outOfMemoryExternalSort() throws Throwable{
+  public void outOfMemoryExternalSort() throws Throwable {
     SabotConfig config = SabotConfig.create("dremio-oom-xsort.conf");
 
     try (ClusterCoordinator clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
-         SabotNode bit1 = new SabotNode(config, clusterCoordinator, DremioTest.CLASSPATH_SCAN_RESULT, true);
-         DremioClient client = new DremioClient(config, clusterCoordinator)) {
+        SabotNode bit1 =
+            new SabotNode(config, clusterCoordinator, DremioTest.CLASSPATH_SCAN_RESULT, true);
+        DremioClient client = new DremioClient(config, clusterCoordinator)) {
       bit1.run();
       client.connect();
-      List<QueryDataBatch> results = client.runQuery(com.dremio.exec.proto.UserBitShared.QueryType.PHYSICAL,
-        readResourceAsString("/xsort/oom_sort_test.json"));
+      List<QueryDataBatch> results =
+          client.runQuery(
+              com.dremio.exec.proto.UserBitShared.QueryType.PHYSICAL,
+              readResourceAsString("/xsort/oom_sort_test.json"));
       int count = 0;
       for (QueryDataBatch b : results) {
         if (b.getHeader().getRowCount() != 0) {
@@ -207,33 +229,42 @@ public class TestSimpleExternalSort extends BaseTestQuery {
         }
         batchCount++;
         RecordBatchLoader loader = new RecordBatchLoader(bit1.getContext().getAllocator());
-        loader.load(b.getHeader().getDef(),b.getData());
-        BigIntVector c1 = loader.getValueAccessorById(BigIntVector.class, loader.getValueVectorId(new SchemaPath("blue")).getFieldIds()).getValueVector();
+        loader.load(b.getHeader().getDef(), b.getData());
+        BigIntVector c1 =
+            loader
+                .getValueAccessorById(
+                    BigIntVector.class,
+                    loader.getValueVectorId(new SchemaPath("blue")).getFieldIds())
+                .getValueVector();
 
-        for (int i =0; i < c1.getValueCount(); i++) {
+        for (int i = 0; i < c1.getValueCount(); i++) {
           recordCount++;
-          assertTrue(String.format("%d < %d", previousBigInt, c1.get(i)), previousBigInt >= c1.get(i));
+          assertTrue(
+              String.format("%d < %d", previousBigInt, c1.get(i)), previousBigInt >= c1.get(i));
           previousBigInt = c1.get(i);
         }
-        assertTrue(String.format("%d == %d", c1.get(0), c1.get(c1.getValueCount() - 1)), c1.get(0) != c1.get(c1.getValueCount() - 1));
+        assertTrue(
+            String.format("%d == %d", c1.get(0), c1.get(c1.getValueCount() - 1)),
+            c1.get(0) != c1.get(c1.getValueCount() - 1));
         loader.clear();
         b.release();
       }
-      System.out.println(String.format("Sorted %,d records in %d batches.", recordCount, batchCount));
-
+      System.out.println(
+          String.format("Sorted %,d records in %d batches.", recordCount, batchCount));
     }
   }
 
   /**
-   * Runs with just 10MB of memory for multiple rounds of spills.
-   * Input is in sv2 format.
+   * Runs with just 10MB of memory for multiple rounds of spills. Input is in sv2 format.
+   *
    * @throws Exception
    */
   @Test
   public void testExternalSortSpillingWithSv2() throws Exception {
-    List<QueryDataBatch> results = testPhysicalFromFileWithResults("xsort/one_key_sort_descending_with_spill_sv2.json");
+    List<QueryDataBatch> results =
+        testPhysicalFromFileWithResults("xsort/one_key_sort_descending_with_spill_sv2.json");
     int count = 0;
-    for(QueryDataBatch b : results) {
+    for (QueryDataBatch b : results) {
       if (b.getHeader().getRowCount() != 0) {
         count += b.getHeader().getRowCount();
       }
@@ -251,14 +282,17 @@ public class TestSimpleExternalSort extends BaseTestQuery {
       }
       batchCount++;
       RecordBatchLoader loader = new RecordBatchLoader(allocator);
-      loader.load(b.getHeader().getDef(),b.getData());
-      BigIntVector c1 = loader.getValueAccessorById(BigIntVector.class,
-        loader.getValueVectorId(new SchemaPath("blue")).getFieldIds()).getValueVector();
+      loader.load(b.getHeader().getDef(), b.getData());
+      BigIntVector c1 =
+          loader
+              .getValueAccessorById(
+                  BigIntVector.class, loader.getValueVectorId(new SchemaPath("blue")).getFieldIds())
+              .getValueVector();
 
-
-      for (int i =0; i < c1.getValueCount(); i++) {
+      for (int i = 0; i < c1.getValueCount(); i++) {
         recordCount++;
-        assertTrue(String.format("%d > %d", previousBigInt, c1.get(i)), previousBigInt >= c1.get(i));
+        assertTrue(
+            String.format("%d > %d", previousBigInt, c1.get(i)), previousBigInt >= c1.get(i));
         previousBigInt = c1.get(i);
       }
       loader.clear();
@@ -268,5 +302,4 @@ public class TestSimpleExternalSort extends BaseTestQuery {
     assertEquals(1000000, recordCount);
     logger.info("Sorted {} records in {} batches.", recordCount, batchCount);
   }
-
 }

@@ -16,16 +16,15 @@
 
 package com.dremio.exec.store.dfs;
 
-import java.io.IOException;
-
 import com.dremio.io.file.FileSystem;
 import com.dremio.options.OptionResolver;
 import com.dremio.sabot.exec.context.OperatorContext;
+import java.io.IOException;
 
 /**
- * A {@link FileSystemWrapper} implementation which wraps a {@link FileSystem} to enable logging of calls.
- * The wrapping is only done if WARN level logging is enabled for {@link LoggedFileSystem}.  See
- * {@link LoggedFileSystem} for details on tuning the amount of logging produced.
+ * A {@link FileSystemWrapper} implementation which wraps a {@link FileSystem} to enable logging of
+ * calls. The wrapping is only done if WARN level logging is enabled for {@link LoggedFileSystem}.
+ * See {@link LoggedFileSystem} for details on tuning the amount of logging produced.
  */
 public class LoggedFileSystemWrapper implements FileSystemWrapper {
 
@@ -38,21 +37,28 @@ public class LoggedFileSystemWrapper implements FileSystemWrapper {
   }
 
   @Override
-  public FileSystem wrap(FileSystem fs, String storageId, AsyncStreamConf conf, OperatorContext context,
-      boolean enableAsync, boolean isMetadataRefresh) throws IOException {
-    FileSystem wrappedFs = defaultWrapper.wrap(fs, storageId, conf, context, enableAsync, isMetadataRefresh);
+  public FileSystem wrap(
+      FileSystem fs,
+      String storageId,
+      AsyncStreamConf conf,
+      OperatorContext context,
+      boolean enableAsync,
+      boolean isMetadataRefresh)
+      throws IOException {
+    FileSystem wrappedFs =
+        defaultWrapper.wrap(fs, storageId, conf, context, enableAsync, isMetadataRefresh);
     if (LoggedFileSystem.isLoggingEnabled()) {
       // use options from the OperatorContext if available, otherwise fall back to global options
-      OptionResolver options = context != null && context.getOptions() != null ? context.getOptions() : globalOptions;
+      OptionResolver options =
+          context != null && context.getOptions() != null ? context.getOptions() : globalOptions;
       wrappedFs = new LoggedFileSystem(wrappedFs, options);
     }
     return wrappedFs;
   }
 
-
   /**
-   * Note this does not unwrap to a FileSystem instance, it supports unwrapping on the contained FileSystemWrapper.
-   * Naming is a bit confusing given unwrap is not the reverse of wrap.
+   * Note this does not unwrap to a FileSystem instance, it supports unwrapping on the contained
+   * FileSystemWrapper. Naming is a bit confusing given unwrap is not the reverse of wrap.
    */
   @Override
   public <T> T unwrap(Class<T> clazz) {

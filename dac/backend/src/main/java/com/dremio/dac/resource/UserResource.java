@@ -17,26 +17,6 @@ package com.dremio.dac.resource;
 
 import static java.lang.String.format;
 
-import java.io.IOException;
-import java.util.ConcurrentModificationException;
-
-import javax.annotation.security.RolesAllowed;
-import javax.inject.Inject;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.DELETE;
-import javax.ws.rs.GET;
-import javax.ws.rs.POST;
-import javax.ws.rs.PUT;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.Context;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.Status;
-import javax.ws.rs.core.SecurityContext;
-
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.model.common.DACUnauthorizedException;
@@ -56,15 +36,32 @@ import com.dremio.service.users.SimpleUser;
 import com.dremio.service.users.User;
 import com.dremio.service.users.UserNotFoundException;
 import com.dremio.service.users.UserService;
+import java.io.IOException;
+import java.util.ConcurrentModificationException;
+import javax.annotation.security.RolesAllowed;
+import javax.inject.Inject;
+import javax.ws.rs.Consumes;
+import javax.ws.rs.DELETE;
+import javax.ws.rs.GET;
+import javax.ws.rs.POST;
+import javax.ws.rs.PUT;
+import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
+import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
+import javax.ws.rs.core.Context;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.Status;
+import javax.ws.rs.core.SecurityContext;
 
-/**
- * Rest resource for users.
- */
+/** Rest resource for users. */
 @RestResource
 @Secured
 @Path("/user/{userName}")
 public class UserResource {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(UserResource.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(UserResource.class);
 
   private final UserService userService;
   private final NamespaceService namespaceService;
@@ -72,8 +69,11 @@ public class UserResource {
   private final SecurityContext securityContext;
 
   @Inject
-  public UserResource(UserService userService, NamespaceService namespaceService,
-                      UserServiceHelper userServiceHelper, @Context SecurityContext securityContext) {
+  public UserResource(
+      UserService userService,
+      NamespaceService namespaceService,
+      UserServiceHelper userServiceHelper,
+      @Context SecurityContext securityContext) {
     this.userService = userService;
     this.namespaceService = namespaceService;
     this.userServiceHelper = userServiceHelper;
@@ -81,18 +81,23 @@ public class UserResource {
   }
 
   private void checkUser(UserName userName, String action) throws DACUnauthorizedException {
-    if (!securityContext.isUserInRole("admin") && !securityContext.getUserPrincipal().getName().equals(userName.getName())) {
-      throw new DACUnauthorizedException(format("User %s is not allowed to %s user %s",
-        securityContext.getUserPrincipal().getName(), action, userName.getName()));
+    if (!securityContext.isUserInRole("admin")
+        && !securityContext.getUserPrincipal().getName().equals(userName.getName())) {
+      throw new DACUnauthorizedException(
+          format(
+              "User %s is not allowed to %s user %s",
+              securityContext.getUserPrincipal().getName(), action, userName.getName()));
     }
   }
 
   @RolesAllowed({"admin", "user"})
   @GET
   @Produces(MediaType.APPLICATION_JSON)
-  // This API is open for PUBLIC role as it's used by UI to search a user.Default behavior is to return minimum data about the user.
+  // This API is open for PUBLIC role as it's used by UI to search a user.Default behavior is to
+  // return minimum data about the user.
   // Use v3/user/{id} for a detailed response.
-  public UserUI getUser(@PathParam("userName") UserName userName) throws UserNotFoundException, DACUnauthorizedException {
+  public UserUI getUser(@PathParam("userName") UserName userName)
+      throws UserNotFoundException, DACUnauthorizedException {
     final User user = userService.getUser(userName.getName());
     UserLite userLite = UserUtil.toUserLite(user);
     return new UserUI(new UserResourcePath(userName), userName, userLite);
@@ -104,20 +109,27 @@ public class UserResource {
   @Consumes(MediaType.APPLICATION_JSON)
   @Deprecated
   public UserUI updateUser(UserForm userForm, @PathParam("userName") UserName userName)
-    throws IOException, IllegalArgumentException, NamespaceException, UserNotFoundException, DACUnauthorizedException {
+      throws IOException,
+          IllegalArgumentException,
+          NamespaceException,
+          UserNotFoundException,
+          DACUnauthorizedException {
     checkUser(userName, "update");
 
     User userConfig = userForm.getUserConfig();
-    if (userConfig != null && userConfig.getUserName() != null && !userConfig.getUserName().equals(userName.getName())) {
+    if (userConfig != null
+        && userConfig.getUserName() != null
+        && !userConfig.getUserName().equals(userName.getName())) {
       final UserName newUserName = new UserName(userForm.getUserConfig().getUserName());
-      userConfig = userService.updateUserName(userName.getName(),
-        newUserName.getName(),
-        userConfig, userForm.getPassword());
+      userConfig =
+          userService.updateUserName(
+              userName.getName(), newUserName.getName(), userConfig, userForm.getPassword());
       // TODO: rename home space and all uploaded files along with it
       // new username
       return new UserUI(new UserResourcePath(newUserName), newUserName, userConfig);
     } else {
-      User newUser = SimpleUser.newBuilder(userForm.getUserConfig()).setUserName(userName.getName()).build();
+      User newUser =
+          SimpleUser.newBuilder(userForm.getUserConfig()).setUserName(userName.getName()).build();
       newUser = userService.updateUser(newUser, userForm.getPassword());
       return new UserUI(new UserResourcePath(userName), userName, newUser);
     }
@@ -129,11 +141,16 @@ public class UserResource {
   @Consumes(MediaType.APPLICATION_JSON)
   @Deprecated
   public UserUI createUser(UserForm userForm, @PathParam("userName") UserName userName)
-    throws IOException, IllegalArgumentException, NamespaceException, DACUnauthorizedException {
+      throws IOException, IllegalArgumentException, NamespaceException, DACUnauthorizedException {
     checkUser(userName, "create");
     User activeUser = SimpleUser.newBuilder(userForm.getUserConfig()).setActive(true).build();
-    User newUser = com.dremio.dac.api.UserResource.addUser(activeUser, userForm.getPassword(),
-      userService, namespaceService, this.securityContext);
+    User newUser =
+        com.dremio.dac.api.UserResource.addUser(
+            activeUser,
+            userForm.getPassword(),
+            userService,
+            namespaceService,
+            this.securityContext);
 
     return new UserUI(new UserResourcePath(userName), userName, newUser);
   }
@@ -141,14 +158,19 @@ public class UserResource {
   @RolesAllowed("admin")
   @DELETE
   @Produces(MediaType.APPLICATION_JSON)
-  public Response deleteUser(@PathParam("userName") UserName userName, @QueryParam("version") String version) throws IOException, UserNotFoundException {
+  public Response deleteUser(
+      @PathParam("userName") UserName userName, @QueryParam("version") String version)
+      throws IOException, UserNotFoundException {
     if (version == null) {
       throw new ClientErrorException(GenericErrorMessage.MISSING_VERSION_PARAM_MSG);
     }
 
     if (securityContext.getUserPrincipal().getName().equals(userName.getName())) {
-      return Response.status(Status.FORBIDDEN).entity(
-          new GenericErrorMessage("Deletion of the user account of currently logged in user is not allowed.")).build();
+      return Response.status(Status.FORBIDDEN)
+          .entity(
+              new GenericErrorMessage(
+                  "Deletion of the user account of currently logged in user is not allowed."))
+          .build();
     }
 
     try {

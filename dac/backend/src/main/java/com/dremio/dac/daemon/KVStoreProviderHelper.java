@@ -15,15 +15,6 @@
  */
 package com.dremio.dac.daemon;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
-
-import javax.inject.Provider;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.scanner.ClassPathScanner;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.config.DremioConfig;
@@ -37,14 +28,19 @@ import com.dremio.datastore.api.KVStoreProvider;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.server.BootStrapContext;
 import com.dremio.services.fabric.api.FabricService;
-
 import io.opentracing.Tracer;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
+import javax.inject.Provider;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * KVStoreProvider helper class.
- * Selects appropriate KVStoreProvider depending on the datastore type defined in the dremio.conf.
- * If default or TestClusterDB, determines if the provider should be Local or Remote.
- * Otherwise, matches the datastore.type to the KVStoreProvider implementation that defined it.
+ * KVStoreProvider helper class. Selects appropriate KVStoreProvider depending on the datastore type
+ * defined in the dremio.conf. If default or TestClusterDB, determines if the provider should be
+ * Local or Remote. Otherwise, matches the datastore.type to the KVStoreProvider implementation that
+ * defined it.
  */
 public class KVStoreProviderHelper {
   private static final Logger logger = LoggerFactory.getLogger(KVStoreProviderHelper.class);
@@ -53,19 +49,22 @@ public class KVStoreProviderHelper {
   private static final String DEFAULT_DB = "default";
   private static final String TEST_CLUSTER_DB = "TestClusterDB";
 
-  public static KVStoreProvider newKVStoreProvider(DACConfig dacConfig,
-                                                   BootStrapContext bootstrap,
-                                                   Provider<FabricService> fabricService,
-                                                   Provider<NodeEndpoint> endPoint,
-                                                   Tracer tracer) {
+  public static KVStoreProvider newKVStoreProvider(
+      DACConfig dacConfig,
+      BootStrapContext bootstrap,
+      Provider<FabricService> fabricService,
+      Provider<NodeEndpoint> endPoint,
+      Tracer tracer) {
 
-    return new TracingKVStoreProvider(internalKVStoreProvider(dacConfig, bootstrap, fabricService, endPoint), tracer);
+    return new TracingKVStoreProvider(
+        internalKVStoreProvider(dacConfig, bootstrap, fabricService, endPoint), tracer);
   }
 
-  private static KVStoreProvider internalKVStoreProvider(DACConfig dacConfig,
-                                                               BootStrapContext bootstrap,
-                                                               Provider<FabricService> fabricService,
-                                                               Provider<NodeEndpoint> endPoint) {
+  private static KVStoreProvider internalKVStoreProvider(
+      DACConfig dacConfig,
+      BootStrapContext bootstrap,
+      Provider<FabricService> fabricService,
+      Provider<NodeEndpoint> endPoint) {
     DremioConfig dremioConfig = dacConfig.getConfig();
     Map<String, Object> config = new HashMap<>();
     String thisNode = dremioConfig.getThisNode();
@@ -73,7 +72,8 @@ public class KVStoreProviderHelper {
     // instantiate NoopKVStoreProvider on all non-coordinator nodes.
     boolean isCoordinator = dremioConfig.getBoolean(DremioConfig.ENABLE_COORDINATOR_BOOL);
     if (!isCoordinator) {
-      return new NoopKVStoreProvider(bootstrap.getClasspathScan(), fabricService, endPoint, bootstrap.getAllocator(), config);
+      return new NoopKVStoreProvider(
+          bootstrap.getClasspathScan(), fabricService, endPoint, bootstrap.getAllocator(), config);
     }
 
     // Configure the default KVStore
@@ -82,10 +82,16 @@ public class KVStoreProviderHelper {
     config.put(LocalKVStoreProvider.CONFIG_DISABLEOCC, "false");
     config.put(LocalKVStoreProvider.CONFIG_VALIDATEOCC, "true");
     config.put(LocalKVStoreProvider.CONFIG_TIMED, "true");
-    config.put(LocalKVStoreProvider.CONFIG_BASEDIRECTORY, dremioConfig.getString(DremioConfig.DB_PATH_STRING));
-    config.put(LocalKVStoreProvider.CONFIG_HOSTNAME, System.getProperty(KVSTORE_HOSTNAME_PROPERTY_NAME, thisNode));
+    config.put(
+        LocalKVStoreProvider.CONFIG_BASEDIRECTORY,
+        dremioConfig.getString(DremioConfig.DB_PATH_STRING));
+    config.put(
+        LocalKVStoreProvider.CONFIG_HOSTNAME,
+        System.getProperty(KVSTORE_HOSTNAME_PROPERTY_NAME, thisNode));
     config.put(RemoteKVStoreProvider.HOSTNAME, thisNode);
-    config.put(DremioConfig.REMOTE_DATASTORE_RPC_TIMEOUT_SECS, dremioConfig.getLong(DremioConfig.REMOTE_DATASTORE_RPC_TIMEOUT_SECS));
+    config.put(
+        DremioConfig.REMOTE_DATASTORE_RPC_TIMEOUT_SECS,
+        dremioConfig.getLong(DremioConfig.REMOTE_DATASTORE_RPC_TIMEOUT_SECS));
 
     // find the appropriate KVStoreProvider from path
     // first check for the default behavior (if services.datastore.type is set to "default")
@@ -94,17 +100,23 @@ public class KVStoreProviderHelper {
     switch (datastoreType) {
       case DEFAULT_DB:
         config.put(LocalKVStoreProvider.CONFIG_HOSTNAME, thisNode);
-       // fall through to TEST_CLUSTER_DB
+        // fall through to TEST_CLUSTER_DB
       case TEST_CLUSTER_DB:
         boolean isMasterless = dremioConfig.isMasterlessEnabled();
-        boolean isMaster = (!isMasterless && dremioConfig.getBoolean(DremioConfig.ENABLE_MASTER_BOOL));
-        boolean needsLocalKVStore = (isMasterless && thisNode.equals(config.get(LocalKVStoreProvider.CONFIG_HOSTNAME)));
-        cls = (isMaster || needsLocalKVStore)? LocalKVStoreProvider.class : RemoteKVStoreProvider.class;
+        boolean isMaster =
+            (!isMasterless && dremioConfig.getBoolean(DremioConfig.ENABLE_MASTER_BOOL));
+        boolean needsLocalKVStore =
+            (isMasterless && thisNode.equals(config.get(LocalKVStoreProvider.CONFIG_HOSTNAME)));
+        cls =
+            (isMaster || needsLocalKVStore)
+                ? LocalKVStoreProvider.class
+                : RemoteKVStoreProvider.class;
         break;
 
       default:
         final ScanResult results = ClassPathScanner.fromPrescan(dremioConfig.getSabotConfig());
-        final Set<Class<? extends KVStoreProvider>> classes = results.getImplementations(KVStoreProvider.class);
+        final Set<Class<? extends KVStoreProvider>> classes =
+            results.getImplementations(KVStoreProvider.class);
         for (Class<? extends KVStoreProvider> it : classes) {
           try {
             KVStoreProviderType anno = it.getAnnotation(KVStoreProviderType.class);
@@ -113,7 +125,10 @@ public class KVStoreProviderHelper {
               break;
             }
           } catch (Exception e) {
-            logger.info(String.format("Unable to find KVStoreProviderType annotation in %s during search, skipping", cls.getName()));
+            logger.info(
+                String.format(
+                    "Unable to find KVStoreProviderType annotation in %s during search, skipping",
+                    cls.getName()));
             continue;
           }
         }
@@ -125,6 +140,12 @@ public class KVStoreProviderHelper {
       throw new RuntimeException("Unable to find appropriate KVStoreProvider for " + datastoreType);
     }
 
-    return KVStoreProvider.newInstance(cls, bootstrap.getClasspathScan(), fabricService, endPoint, bootstrap.getAllocator(), config);
+    return KVStoreProvider.newInstance(
+        cls,
+        bootstrap.getClasspathScan(),
+        fabricService,
+        endPoint,
+        bootstrap.getAllocator(),
+        config);
   }
 }

@@ -15,9 +15,8 @@
  */
 package com.dremio.common.expression;
 
-import java.util.Iterator;
-
 import com.dremio.common.expression.visitors.ExprVisitor;
+import java.util.Iterator;
 
 /**
  * MajorTypeInLogicalExpression is a LogicalExpression, which wraps a given @{TypeProtos.MajorType}
@@ -29,7 +28,8 @@ public class CompleteTypeInLogicalExpression implements LogicalExpression {
   public CompleteTypeInLogicalExpression(CompleteType type) {
     this.type = type;
     this.evaluationType = new EvaluationType();
-    evaluationType.addEvaluationType(EvaluationType.ExecutionType.JAVA);  }
+    evaluationType.addEvaluationType(EvaluationType.ExecutionType.JAVA);
+  }
 
   @Override
   public CompleteType getCompleteType() {

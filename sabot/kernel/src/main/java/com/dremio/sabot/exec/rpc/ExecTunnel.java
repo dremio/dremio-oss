@@ -23,22 +23,25 @@ import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.sabot.exec.fragment.OutOfBandMessage;
 import com.google.common.base.Preconditions;
 
-/**
- * API for communication between executors.
- */
+/** API for communication between executors. */
 public interface ExecTunnel {
-  void sendStreamComplete(RpcOutcomeListener<GeneralRPCProtos.Ack> outcomeListener, ExecRPC.FragmentStreamComplete streamComplete);
+  void sendStreamComplete(
+      RpcOutcomeListener<GeneralRPCProtos.Ack> outcomeListener,
+      ExecRPC.FragmentStreamComplete streamComplete);
 
-  void sendRecordBatch(RpcOutcomeListener<GeneralRPCProtos.Ack> outcomeListener, FragmentWritableBatch batch);
+  void sendRecordBatch(
+      RpcOutcomeListener<GeneralRPCProtos.Ack> outcomeListener, FragmentWritableBatch batch);
 
-  void sendOOBMessage(RpcOutcomeListener<GeneralRPCProtos.Ack> outcomeListener, OutOfBandMessage message);
+  void sendOOBMessage(
+      RpcOutcomeListener<GeneralRPCProtos.Ack> outcomeListener, OutOfBandMessage message);
 
-  void informReceiverFinished(RpcOutcomeListener<GeneralRPCProtos.Ack> outcomeListener, ExecRPC.FinishedReceiver finishedReceiver);
+  void informReceiverFinished(
+      RpcOutcomeListener<GeneralRPCProtos.Ack> outcomeListener,
+      ExecRPC.FinishedReceiver finishedReceiver);
 
   static void checkFragmentHandle(ExecProtos.FragmentHandle handle) {
     Preconditions.checkState(handle.hasQueryId(), "must set query id");
     Preconditions.checkState(handle.hasMajorFragmentId(), "must set major fragment id");
     Preconditions.checkState(handle.hasMinorFragmentId(), "must set minor fragment id");
   }
-
 }

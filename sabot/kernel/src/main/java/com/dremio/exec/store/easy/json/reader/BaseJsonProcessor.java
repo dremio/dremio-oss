@@ -15,23 +15,23 @@
  */
 package com.dremio.exec.store.easy.json.reader;
 
-import java.io.IOException;
-import java.io.InputStream;
-
-import org.apache.calcite.util.Pair;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.store.easy.json.JsonProcessor;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.TreeTraversingParser;
+import java.io.IOException;
+import java.io.InputStream;
+import org.apache.arrow.vector.complex.writer.BaseWriter;
+import org.apache.calcite.util.Pair;
 
 public abstract class BaseJsonProcessor implements JsonProcessor {
 
-  private static final ObjectMapper MAPPER = new ObjectMapper()
-    .configure(JsonParser.Feature.ALLOW_COMMENTS, true)
-    .configure(JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES, true);
+  private static final ObjectMapper MAPPER =
+      new ObjectMapper()
+          .configure(JsonParser.Feature.ALLOW_COMMENTS, true)
+          .configure(JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES, true);
 
   protected JsonParser parser;
 
@@ -50,13 +50,14 @@ public abstract class BaseJsonProcessor implements JsonProcessor {
   }
 
   @Override
-  public UserException.Builder getExceptionWithContext(UserException.Builder exceptionBuilder,
-                                                       String field) {
-    if(field != null) {
+  public UserException.Builder getExceptionWithContext(
+      UserException.Builder exceptionBuilder, String field) {
+    if (field != null) {
       exceptionBuilder.pushContext("Field ", field);
     }
-    exceptionBuilder.pushContext("Column ", parser.getCurrentLocation().getColumnNr()+1)
-            .pushContext("Line ", parser.getCurrentLocation().getLineNr());
+    exceptionBuilder
+        .pushContext("Column ", parser.getCurrentLocation().getColumnNr() + 1)
+        .pushContext("Line ", parser.getCurrentLocation().getLineNr());
     return exceptionBuilder;
   }
 
@@ -77,5 +78,13 @@ public abstract class BaseJsonProcessor implements JsonProcessor {
   }
 
   @Override
-  public Pair<String, Long> getScrollAndTotalSizeThenSeekToHits() throws IOException { return new Pair<>("default", 0L); };
+  public Pair<String, Long> getScrollAndTotalSizeThenSeekToHits() throws IOException {
+    return new Pair<>("default", 0L);
+  }
+
+  @Override
+  public int writeSuccessfulParseEvent(BaseWriter.ComplexWriter writer) throws IOException {
+    // Do nothing
+    return 0;
+  }
 }

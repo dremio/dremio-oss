@@ -62,8 +62,8 @@
 }
 
 .dremio-card.disabled .dremio-card {
-  &__title,
-  &__body {
+  &__title *,
+  &__body * {
     opacity: 0.5;
   }
 }

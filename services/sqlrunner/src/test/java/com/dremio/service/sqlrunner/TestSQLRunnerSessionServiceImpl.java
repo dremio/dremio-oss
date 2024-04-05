@@ -23,12 +23,6 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.util.UUID;
-
-import org.junit.Before;
-import org.junit.Test;
-import org.mockito.Mockito;
-
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.scanner.ClassPathScanner;
 import com.dremio.common.scanner.persistence.ScanResult;
@@ -39,15 +33,17 @@ import com.dremio.service.script.proto.ScriptProto;
 import com.dremio.service.sqlrunner.store.SQLRunnerSessionStore;
 import com.dremio.service.sqlrunner.store.SQLRunnerSessionStoreImpl;
 import com.google.common.collect.Lists;
+import java.util.UUID;
+import org.junit.Before;
+import org.junit.Test;
+import org.mockito.Mockito;
 
-/**
- * Test class for SQLRunnerSessionServiceImpl.
- */
+/** Test class for SQLRunnerSessionServiceImpl. */
 public class TestSQLRunnerSessionServiceImpl {
 
   private static final SabotConfig DEFAULT_SABOT_CONFIG = SabotConfig.forClient();
-  private static final ScanResult
-    CLASSPATH_SCAN_RESULT = ClassPathScanner.fromPrescan(DEFAULT_SABOT_CONFIG);
+  private static final ScanResult CLASSPATH_SCAN_RESULT =
+      ClassPathScanner.fromPrescan(DEFAULT_SABOT_CONFIG);
   private static String USER_ID = UUID.randomUUID().toString();
 
   private LocalKVStoreProvider kvStoreProvider;
@@ -66,34 +62,38 @@ public class TestSQLRunnerSessionServiceImpl {
     when(mockOptionManager.getOption(SQLRunnerOptions.SQLRUNNER_TABS)).thenReturn(true);
 
     ScriptService scriptService = mock(ScriptService.class);
-    when(scriptService.getScripts(anyInt(), anyInt(), anyString(), anyString(), anyString(), any())).thenReturn(
-      Lists.newArrayList(
-        ScriptProto.Script.newBuilder().setScriptId("script_id1").build(),
-        ScriptProto.Script.newBuilder().setScriptId("script_id2").build(),
-        ScriptProto.Script.newBuilder().setScriptId("script_id3").build(),
-        ScriptProto.Script.newBuilder().setScriptId("script_id4").build())
-    );
+    when(scriptService.getScripts(anyInt(), anyInt(), anyString(), anyString(), anyString(), any()))
+        .thenReturn(
+            Lists.newArrayList(
+                ScriptProto.Script.newBuilder().setScriptId("script_id1").build(),
+                ScriptProto.Script.newBuilder().setScriptId("script_id2").build(),
+                ScriptProto.Script.newBuilder().setScriptId("script_id3").build(),
+                ScriptProto.Script.newBuilder().setScriptId("script_id4").build()));
 
-    sqlRunnerSessionService = new SQLRunnerSessionServiceImpl(() -> sqlRunnerSessionStore, () -> mockOptionManager, () -> scriptService);
+    sqlRunnerSessionService =
+        new SQLRunnerSessionServiceImpl(
+            () -> sqlRunnerSessionStore, () -> mockOptionManager, () -> scriptService);
   }
 
   @Test
   public void testUpdate() {
-    SQLRunnerSession session1 = new SQLRunnerSession(USER_ID, Lists.newArrayList("script_id1", "script_id2"),
-      "script_id1");
+    SQLRunnerSession session1 =
+        new SQLRunnerSession(USER_ID, Lists.newArrayList("script_id1", "script_id2"), "script_id1");
 
     sqlRunnerSessionService.updateSession(session1);
-    SQLRunnerSession session1a =  sqlRunnerSessionService.getSession(USER_ID);
+    SQLRunnerSession session1a = sqlRunnerSessionService.getSession(USER_ID);
     assertEquals(USER_ID, session1a.getUserId());
     assertEquals(2, session1a.getScriptIds().size());
     assertEquals("script_id1", session1a.getCurrentScriptId());
 
-    SQLRunnerSession session2 = new SQLRunnerSession(USER_ID,
-      Lists.newArrayList("script_id1", "script_id2", "script_id3", "script_id4"),
-      "script_id2");
+    SQLRunnerSession session2 =
+        new SQLRunnerSession(
+            USER_ID,
+            Lists.newArrayList("script_id1", "script_id2", "script_id3", "script_id4"),
+            "script_id2");
 
     sqlRunnerSessionService.updateSession(session2);
-    SQLRunnerSession session2a =  sqlRunnerSessionService.getSession(USER_ID);
+    SQLRunnerSession session2a = sqlRunnerSessionService.getSession(USER_ID);
     assertEquals(USER_ID, session2a.getUserId());
     assertEquals(4, session2a.getScriptIds().size());
     assertEquals("script_id2", session2a.getCurrentScriptId());
@@ -101,10 +101,8 @@ public class TestSQLRunnerSessionServiceImpl {
 
   @Test
   public void testDelete() {
-    SQLRunnerSession oldSession = new SQLRunnerSession(
-      USER_ID,
-      Lists.newArrayList("script_id1", "script_id2"),
-      "script_id1");
+    SQLRunnerSession oldSession =
+        new SQLRunnerSession(USER_ID, Lists.newArrayList("script_id1", "script_id2"), "script_id1");
 
     sqlRunnerSessionService.updateSession(oldSession);
     sqlRunnerSessionService.deleteSession(USER_ID);

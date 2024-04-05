@@ -16,14 +16,11 @@
 package com.dremio.sabot.op.join.vhash.spill.slicer;
 
 import java.util.List;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.FieldVector;
 
-/**
- * A sizer that adds an arbitrary constant overhead for each record.
- */
+/** A sizer that adds an arbitrary constant overhead for each record. */
 class ConstantExtraSizer implements Sizer {
 
   private final int sizeInBytes;
@@ -53,8 +50,12 @@ class ConstantExtraSizer implements Sizer {
   }
 
   @Override
-  public Copier getCopier(BufferAllocator allocator, ArrowBuf sv2, int startIdx, int count, List<FieldVector> vectorOutput) {
+  public Copier getCopier(
+      BufferAllocator allocator,
+      ArrowBuf sv2,
+      int startIdx,
+      int count,
+      List<FieldVector> vectorOutput) {
     return page -> page.deadSlice(count * sizeInBytes);
   }
-
 }

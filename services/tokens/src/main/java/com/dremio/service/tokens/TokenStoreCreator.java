@@ -21,19 +21,19 @@ import com.dremio.datastore.api.LegacyKVStoreCreationFunction;
 import com.dremio.datastore.api.LegacyStoreBuildingFactory;
 import com.dremio.datastore.format.Format;
 
-/**
- * Token store creator.
- */
-public final class TokenStoreCreator implements LegacyKVStoreCreationFunction<String, SessionState> {
+/** Token store creator. */
+public final class TokenStoreCreator
+    implements LegacyKVStoreCreationFunction<String, SessionState> {
 
   public static final String TOKENS_TABLE_NAME = "tokens";
 
   @Override
   public LegacyKVStore<String, SessionState> build(final LegacyStoreBuildingFactory factory) {
-    return factory.<String, SessionState>newStore()
-      .name(TOKENS_TABLE_NAME)
-      .keyFormat(Format.ofString())
-      .valueFormat(Format.ofProtostuff(SessionState.class))
-      .build();
+    return factory
+        .<String, SessionState>newStore()
+        .name(TOKENS_TABLE_NAME)
+        .keyFormat(Format.ofString())
+        .valueFormat(Format.ofProtostuff(SessionState.class))
+        .build();
   }
 }

@@ -49,15 +49,19 @@ import com.dremio.datastore.Converter;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.annotation.JsonTypeIdResolver;
 
-/**
- * Expression base class
- */
+/** Expression base class */
 @JsonTypeInfo(use = JsonTypeInfo.Id.CUSTOM, include = JsonTypeInfo.As.PROPERTY, property = "type")
 @JsonTypeIdResolver(EnumTypeIdResolver.class)
-@TypesEnum(types = FieldTransformationType.class, format = "com.dremio.dac.proto.model.dataset.Field%s")
+@TypesEnum(
+    types = FieldTransformationType.class,
+    format = "com.dremio.dac.proto.model.dataset.Field%s")
 public class FieldTransformationBase {
 
-  public static final Acceptor<FieldTransformationBase, FieldTransformationVisitor<?>, FieldTransformation> acceptor = new Acceptor<FieldTransformationBase, FieldTransformationVisitor<?>, FieldTransformation>(){};
+  public static final Acceptor<
+          FieldTransformationBase, FieldTransformationVisitor<?>, FieldTransformation>
+      acceptor =
+          new Acceptor<
+              FieldTransformationBase, FieldTransformationVisitor<?>, FieldTransformation>() {};
 
   public final <T> T accept(FieldTransformationVisitor<T> visitor) throws VisitorException {
     return acceptor.accept(visitor, this);
@@ -83,27 +87,50 @@ public class FieldTransformationBase {
     }
 
     public abstract T visit(FieldConvertCase convertCase) throws Exception;
+
     public abstract T visit(FieldTrim trim) throws Exception;
+
     public abstract T visit(FieldExtract extract) throws Exception;
+
     public abstract T visit(FieldConvertFloatToInteger floatToInt) throws Exception;
+
     public abstract T visit(FieldConvertFloatToDecimal floatToDec) throws Exception;
+
     public abstract T visit(FieldConvertDateToText dateToText) throws Exception;
+
     public abstract T visit(FieldConvertNumberToDate numberToDate) throws Exception;
+
     public abstract T visit(FieldConvertDateToNumber dateToNumber) throws Exception;
+
     public abstract T visit(FieldConvertTextToDate textToDate) throws Exception;
+
     public abstract T visit(FieldConvertListToText listToText) throws Exception;
+
     public abstract T visit(FieldConvertToJSON toJson) throws Exception;
+
     public abstract T visit(FieldUnnestList unnest) throws Exception;
+
     public abstract T visit(FieldReplacePattern replacePattern) throws Exception;
+
     public abstract T visit(FieldReplaceCustom replaceCustom) throws Exception;
+
     public abstract T visit(FieldReplaceValue replaceValue) throws Exception;
+
     public abstract T visit(FieldReplaceRange replaceRange) throws Exception;
+
     public abstract T visit(FieldExtractMap extract) throws Exception;
+
     public abstract T visit(FieldExtractList extract) throws Exception;
+
     public abstract T visit(FieldSplit split) throws Exception;
+
     public abstract T visit(FieldSimpleConvertToType toType) throws Exception;
+
     public abstract T visit(FieldConvertToTypeIfPossible toTypeIfPossible) throws Exception;
-    public abstract T visit(FieldConvertToTypeWithPatternIfPossible toTypeIfPossible) throws Exception;
+
+    public abstract T visit(FieldConvertToTypeWithPatternIfPossible toTypeIfPossible)
+        throws Exception;
+
     public abstract T visit(FieldConvertFromJSON fromJson) throws Exception;
   }
 
@@ -114,5 +141,4 @@ public class FieldTransformationBase {
   public static Converter<FieldTransformationBase, FieldTransformation> converter() {
     return acceptor.converter();
   }
-
 }

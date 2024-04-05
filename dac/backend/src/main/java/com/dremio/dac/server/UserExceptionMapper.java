@@ -20,23 +20,19 @@ import static javax.ws.rs.core.MediaType.APPLICATION_JSON_TYPE;
 import static javax.ws.rs.core.Response.Status.BAD_REQUEST;
 import static javax.ws.rs.core.Response.Status.CONFLICT;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.collect.Lists;
 import java.util.List;
-
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Request;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
 import javax.ws.rs.ext.ExceptionMapper;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.collect.Lists;
-
-/**
- * Map UserException to something the UI can understand.
- */
+/** Map UserException to something the UI can understand. */
 public class UserExceptionMapper implements ExceptionMapper<UserException> {
 
   private static final String RESPONSE_STATUS = "RESPONSE_STATUS";
@@ -48,38 +44,36 @@ public class UserExceptionMapper implements ExceptionMapper<UserException> {
     this.sendStackTrace = sendStackTrace;
   }
 
-  @Context
-  private UriInfo uriInfo;
+  @Context private UriInfo uriInfo;
 
-  @Context
-  private Request request;
+  @Context private Request request;
 
   @Override
   public Response toResponse(UserException exception) {
-    final String errorMessage = exception.getErrorType() == ErrorType.SYSTEM ?
-      SYSTEM_ERROR_MSG : exception.getOriginalMessage();
+    final String errorMessage =
+        exception.getErrorType() == ErrorType.SYSTEM
+            ? SYSTEM_ERROR_MSG
+            : exception.getOriginalMessage();
     return Response.status(getStatus(exception))
-        .entity(new ErrorMessageWithContext(
-            errorMessage,
-            removeStatus(exception.getContextStrings()),
-            sendStackTrace ? GenericErrorMessage.printStackTrace(exception): null
-                ))
+        .entity(
+            new ErrorMessageWithContext(
+                errorMessage,
+                removeStatus(exception.getContextStrings()),
+                sendStackTrace ? GenericErrorMessage.printStackTrace(exception) : null))
         .type(APPLICATION_JSON_TYPE)
         .build();
   }
 
-  /**
-   * An Error message that also has error context.
-   */
+  /** An Error message that also has error context. */
   public static class ErrorMessageWithContext extends GenericErrorMessage {
 
     private final String[] context;
 
     @JsonCreator
     public ErrorMessageWithContext(
-            @JsonProperty("errorMessage") String errorMessage,
-            @JsonProperty("context") String[] context,
-            @JsonProperty("stackTrace") String[] stackTrace) {
+        @JsonProperty("errorMessage") String errorMessage,
+        @JsonProperty("context") String[] context,
+        @JsonProperty("stackTrace") String[] stackTrace) {
       super(errorMessage, stackTrace);
       this.context = context;
     }
@@ -87,11 +81,11 @@ public class UserExceptionMapper implements ExceptionMapper<UserException> {
     public String[] getContext() {
       return context;
     }
-
   }
 
-  public static UserException.Builder withStatus(UserException.Builder builder, Response.Status status) {
-    return builder.addContext(RESPONSE_STATUS+":"+status.toString());
+  public static UserException.Builder withStatus(
+      UserException.Builder builder, Response.Status status) {
+    return builder.addContext(RESPONSE_STATUS + ":" + status.toString());
   }
 
   private static Response.Status getStatus(UserException uex) {
@@ -102,7 +96,8 @@ public class UserExceptionMapper implements ExceptionMapper<UserException> {
           String status = context.substring(RESPONSE_STATUS.length() + 1);
           return Response.Status.valueOf(status);
         } catch (Exception e) {
-          // should not happen unless someone is passing an invalid status. In that case, ignore the context
+          // should not happen unless someone is passing an invalid status. In that case, ignore the
+          // context
         }
       }
     }

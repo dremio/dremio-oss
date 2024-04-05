@@ -17,20 +17,19 @@ package com.dremio.exec;
 
 import static com.google.common.base.Throwables.propagate;
 
-import java.util.List;
-
-import org.slf4j.Logger;
-
 import com.dremio.exec.exception.NodeStartupException;
 import com.dremio.exec.server.SabotNode;
 import com.google.common.collect.ImmutableList;
+import java.util.List;
+import org.slf4j.Logger;
 
 /**
- * Base class for Dremio system tests.
- * Starts one or more SabotNodes, an embedded ZooKeeper cluster and provides a configured client for testing.
+ * Base class for Dremio system tests. Starts one or more SabotNodes, an embedded ZooKeeper cluster
+ * and provides a configured client for testing.
  */
 public class DremioSystemTestBase extends TestWithZookeeper {
-  private static final Logger logger = org.slf4j.LoggerFactory.getLogger(DremioSystemTestBase.class);
+  private static final Logger logger =
+      org.slf4j.LoggerFactory.getLogger(DremioSystemTestBase.class);
 
   private List<SabotNode> servers;
 
@@ -58,7 +57,7 @@ public class DremioSystemTestBase extends TestWithZookeeper {
     }
   }
 
-  public SabotNode getABit(){
+  public SabotNode getABit() {
     return this.servers.iterator().next();
   }
 }

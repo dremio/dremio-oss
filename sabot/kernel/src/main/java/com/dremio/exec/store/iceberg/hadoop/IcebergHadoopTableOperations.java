@@ -15,6 +15,10 @@
  */
 package com.dremio.exec.store.iceberg.hadoop;
 
+import com.dremio.exec.store.iceberg.DremioFileIO;
+import com.dremio.io.FSInputStream;
+import com.dremio.io.FSOutputStream;
+import com.dremio.io.file.FileAttributes;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
@@ -24,7 +28,6 @@ import java.nio.file.attribute.PosixFilePermissions;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -39,14 +42,7 @@ import org.apache.iceberg.hadoop.HadoopTableOperations;
 import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.util.LockManagers;
 
-import com.dremio.exec.store.iceberg.DremioFileIO;
-import com.dremio.io.FSInputStream;
-import com.dremio.io.FSOutputStream;
-import com.dremio.io.file.FileAttributes;
-
-/**
- * Hadoop based iceberg table operations
- */
+/** Hadoop based iceberg table operations */
 public class IcebergHadoopTableOperations extends HadoopTableOperations {
   private final Configuration conf;
   private final com.dremio.io.file.FileSystem fs;
@@ -62,9 +58,7 @@ public class IcebergHadoopTableOperations extends HadoopTableOperations {
     return new DremioToHadoopFileSystemProxy();
   }
 
-  /**
-   * Proxy class for exposing a Dremio FileSystem as a Hadoop FileSystem.
-   */
+  /** Proxy class for exposing a Dremio FileSystem as a Hadoop FileSystem. */
   private class DremioToHadoopFileSystemProxy extends FileSystem {
 
     @Override
@@ -84,20 +78,29 @@ public class IcebergHadoopTableOperations extends HadoopTableOperations {
     }
 
     @Override
-    public FSDataOutputStream create(Path f, FsPermission permission, boolean overwrite, int bufferSize,
-        short replication, long blockSize, Progressable progress) throws IOException {
+    public FSDataOutputStream create(
+        Path f,
+        FsPermission permission,
+        boolean overwrite,
+        int bufferSize,
+        short replication,
+        long blockSize,
+        Progressable progress)
+        throws IOException {
       FSOutputStream fsOutputStream = fs.create(com.dremio.io.file.Path.of(f.toUri()), overwrite);
       return new FSDataOutputStream(fsOutputStream, null);
     }
 
     @Override
-    public FSDataOutputStream append(Path f, int bufferSize, Progressable progress) throws IOException {
+    public FSDataOutputStream append(Path f, int bufferSize, Progressable progress)
+        throws IOException {
       throw new UnsupportedOperationException();
     }
 
     @Override
     public boolean rename(Path src, Path dst) throws IOException {
-      return fs.rename(com.dremio.io.file.Path.of(src.toUri()), com.dremio.io.file.Path.of(dst.toUri()));
+      return fs.rename(
+          com.dremio.io.file.Path.of(src.toUri()), com.dremio.io.file.Path.of(dst.toUri()));
     }
 
     @Override
@@ -111,7 +114,9 @@ public class IcebergHadoopTableOperations extends HadoopTableOperations {
       com.dremio.io.file.Path dremioPath = com.dremio.io.file.Path.of(f.toUri());
       DirectoryStream<FileAttributes> attributes = fs.list(dremioPath);
       long defaultBlockSize = fs.getDefaultBlockSize(dremioPath);
-      attributes.forEach(attribute -> fileStatusList.add(getFileStatusFromAttributes(attribute, defaultBlockSize)));
+      attributes.forEach(
+          attribute ->
+              fileStatusList.add(getFileStatusFromAttributes(attribute, defaultBlockSize)));
       return fileStatusList.toArray(new FileStatus[0]);
     }
 
@@ -142,9 +147,15 @@ public class IcebergHadoopTableOperations extends HadoopTableOperations {
       return getFileStatusFromAttributes(attributes, defaultBlockSize);
     }
 
-    private FileStatus getFileStatusFromAttributes(FileAttributes attributes, long defaultBlockSize) {
-      return new FileStatus(attributes.size(), attributes.isDirectory(), 1,
-          defaultBlockSize, attributes.lastModifiedTime().toMillis(), new Path(String.valueOf(attributes.getPath())));
+    private FileStatus getFileStatusFromAttributes(
+        FileAttributes attributes, long defaultBlockSize) {
+      return new FileStatus(
+          attributes.size(),
+          attributes.isDirectory(),
+          1,
+          defaultBlockSize,
+          attributes.lastModifiedTime().toMillis(),
+          new Path(String.valueOf(attributes.getPath())));
     }
 
     @Override

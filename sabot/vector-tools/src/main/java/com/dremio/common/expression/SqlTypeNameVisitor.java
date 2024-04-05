@@ -67,23 +67,32 @@ public class SqlTypeNameVisitor implements ArrowTypeVisitor<String> {
 
   @Override
   public String visit(Int paramInt) {
-    switch(paramInt.getBitWidth()){
-    case 8: return "TINYINT";
-    case 16: return "SMALLINT";
-    case 32: return "INTEGER";
-    case 64: return "BIGINT";
-    default:
-      throw new IllegalStateException("unable to report sql type for integer of width " + paramInt.getBitWidth());
+    switch (paramInt.getBitWidth()) {
+      case 8:
+        return "TINYINT";
+      case 16:
+        return "SMALLINT";
+      case 32:
+        return "INTEGER";
+      case 64:
+        return "BIGINT";
+      default:
+        throw new IllegalStateException(
+            "unable to report sql type for integer of width " + paramInt.getBitWidth());
     }
   }
 
   @Override
   public String visit(FloatingPoint paramFloatingPoint) {
-    switch(paramFloatingPoint.getPrecision()){
-    case SINGLE: return "FLOAT";
-    case DOUBLE: return "DOUBLE";
-    default:
-      throw new IllegalStateException("unable to report sql type for floating point of width " + paramFloatingPoint.getPrecision());
+    switch (paramFloatingPoint.getPrecision()) {
+      case SINGLE:
+        return "FLOAT";
+      case DOUBLE:
+        return "DOUBLE";
+      default:
+        throw new IllegalStateException(
+            "unable to report sql type for floating point of width "
+                + paramFloatingPoint.getPrecision());
     }
   }
 
@@ -124,11 +133,14 @@ public class SqlTypeNameVisitor implements ArrowTypeVisitor<String> {
 
   @Override
   public String visit(Interval paramInterval) {
-    switch(paramInterval.getUnit()){
-    case DAY_TIME: return "INTERVAL DAY TO SECOND";
-    case YEAR_MONTH: return "INTERVAL YEAR TO MONTH";
-    default:
-      throw new IllegalStateException("unable to determine sql type for interval with unit " + paramInterval.getUnit());
+    switch (paramInterval.getUnit()) {
+      case DAY_TIME:
+        return "INTERVAL DAY TO SECOND";
+      case YEAR_MONTH:
+        return "INTERVAL YEAR TO MONTH";
+      default:
+        throw new IllegalStateException(
+            "unable to determine sql type for interval with unit " + paramInterval.getUnit());
     }
   }
 

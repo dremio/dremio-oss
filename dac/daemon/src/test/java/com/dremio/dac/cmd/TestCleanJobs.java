@@ -17,13 +17,6 @@ package com.dremio.dac.cmd;
 
 import static org.junit.Assert.assertEquals;
 
-import java.io.IOException;
-import java.util.Optional;
-import java.util.concurrent.TimeUnit;
-
-import org.junit.Before;
-import org.junit.Test;
-
 import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.service.job.JobDetailsRequest;
 import com.dremio.service.job.proto.JobId;
@@ -34,6 +27,11 @@ import com.dremio.service.jobs.JobsProtoUtil;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.NamespaceException;
+import java.io.IOException;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+import org.junit.Before;
+import org.junit.Test;
 
 public class TestCleanJobs extends CleanBaseTest {
 
@@ -59,26 +57,47 @@ public class TestCleanJobs extends CleanBaseTest {
 
     String result = "";
     getCurrentDremioDaemon().close();
-    Optional<LocalKVStoreProvider> providerOptional = CmdUtils.getKVStoreProvider(getDACConfig().getConfig());
+    Optional<LocalKVStoreProvider> providerOptional =
+        CmdUtils.getKVStoreProvider(getDACConfig().getConfig());
     try (LocalKVStoreProvider provider = providerOptional.get()) {
       provider.start();
       long diffBeforeJob2 = System.currentTimeMillis() - beforeJob2TS;
-      result = Clean.deleteOldJobsAndProfiles(provider.asLegacy(), diffBeforeJob2, TimeUnit.MILLISECONDS);
+      result =
+          Clean.deleteOldJobsAndProfiles(
+              provider.asLegacy(), diffBeforeJob2, TimeUnit.MILLISECONDS);
     }
 
-    final String expectedReport = ""
-      + "Completed. Deleted " + totalJobs + " jobs."
-      + System.lineSeparator() + "\tJobAttempts: " + totalJobs + ", Attempts with failure: 0"
-      + System.lineSeparator() + "\t" + Clean.OfflineProfileCleaner.class.getSimpleName() + " executions: " + totalJobs + ", " + "failures: 0"
-      + System.lineSeparator() + "\t" + Clean.OfflineTmpDatasetVersionsCleaner.class.getSimpleName() + " executions: "
-      + totalJobs + ", failures: 0"
-      + System.lineSeparator();
+    final String expectedReport =
+        ""
+            + "Completed. Deleted "
+            + totalJobs
+            + " jobs."
+            + System.lineSeparator()
+            + "\tJobAttempts: "
+            + totalJobs
+            + ", Attempts with failure: 0"
+            + System.lineSeparator()
+            + "\t"
+            + Clean.OfflineProfileCleaner.class.getSimpleName()
+            + " executions: "
+            + totalJobs
+            + ", "
+            + "failures: 0"
+            + System.lineSeparator()
+            + "\t"
+            + Clean.OfflineTmpDatasetVersionsCleaner.class.getSimpleName()
+            + " executions: "
+            + totalJobs
+            + ", failures: 0"
+            + System.lineSeparator();
     assertEquals(expectedReport, result);
   }
 
-  private com.dremio.service.job.JobDetails getJobDetails(SqlQuery ctas) throws JobNotFoundException {
-    final JobId jobId = submitJobAndWaitUntilCompletion(JobRequest.newBuilder().setSqlQuery(ctas).build());
-    return jobsService.getJobDetails(JobDetailsRequest.newBuilder().setJobId(JobsProtoUtil.toBuf(jobId)).build());
+  private com.dremio.service.job.JobDetails getJobDetails(SqlQuery ctas)
+      throws JobNotFoundException {
+    final JobId jobId =
+        submitJobAndWaitUntilCompletion(JobRequest.newBuilder().setSqlQuery(ctas).build());
+    return jobsService.getJobDetails(
+        JobDetailsRequest.newBuilder().setJobId(JobsProtoUtil.toBuf(jobId)).build());
   }
-
 }

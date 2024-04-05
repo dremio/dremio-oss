@@ -15,9 +15,7 @@
  */
 package com.dremio.exec.store.metadatarefresh;
 
-/**
- * Holds objects related to refresh query.
- */
+/** Holds objects related to refresh query. */
 public class MetadataRefreshQuery {
   private final String querySQL;
   private final String user;

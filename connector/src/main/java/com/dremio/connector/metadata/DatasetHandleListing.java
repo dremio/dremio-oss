@@ -15,14 +15,14 @@
  */
 package com.dremio.connector.metadata;
 
+import com.dremio.connector.ConnectorException;
 import java.util.Iterator;
 
-import com.dremio.connector.ConnectorException;
-
 /**
- * Listing of {@link DatasetHandle dataset handles}. Implementations typically hold onto resources and state to be able
- * to provide the next {@link DatasetHandle}. When the listing is no longer used, the callers will invoke {@link #close}.
- * Implementations must release any held resources, and clear the internal state.
+ * Listing of {@link DatasetHandle dataset handles}. Implementations typically hold onto resources
+ * and state to be able to provide the next {@link DatasetHandle}. When the listing is no longer
+ * used, the callers will invoke {@link #close}. Implementations must release any held resources,
+ * and clear the internal state.
  */
 public interface DatasetHandleListing extends AutoCloseable {
 
@@ -33,11 +33,7 @@ public interface DatasetHandleListing extends AutoCloseable {
    */
   Iterator<? extends DatasetHandle> iterator() throws ConnectorException;
 
-  /**
-   * Release any resources; this listing will not be used after this call.
-   */
+  /** Release any resources; this listing will not be used after this call. */
   @Override
-  default void close() {
-  }
-
+  default void close() {}
 }

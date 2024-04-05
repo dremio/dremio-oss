@@ -20,8 +20,11 @@ import { $SqlRunnerSession } from "../resources/SqlRunnerSessionResource";
 
 export const useSqlRunnerCurrentTabId = () => {
   const [currentScriptId] = useBehaviorSubject<SQLRunnerSession | null>(
-    $SqlRunnerSession.$merged.pipe(map(sqlRunnerSession => sqlRunnerSession?.currentScriptId), distinctUntilChanged()) as any
+    $SqlRunnerSession.$merged.pipe(
+      map((sqlRunnerSession) => sqlRunnerSession?.currentScriptId),
+      distinctUntilChanged(),
+    ) as any,
   );
 
   return currentScriptId;
-}
+};

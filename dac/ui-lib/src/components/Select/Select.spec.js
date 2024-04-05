@@ -53,23 +53,23 @@ describe("Radio", () => {
     expect(wrapper.find(Label).props().value).toEqual(defaultProps.label);
     expect(wrapper.find(MuiSelect).exists()).toBe(true);
     expect(wrapper.find(MuiSelect).props().IconComponent).toEqual(
-      ExpandMoreIcon
+      ExpandMoreIcon,
     );
     expect(wrapper.find(MuiSelect).props().value).toEqual(defaultProps.value);
     expect(wrapper.find(MenuItem).at(0).text()).toEqual(
-      defaultProps.options[0].label
+      defaultProps.options[0].label,
     );
     expect(wrapper.find(MenuItem).at(0).props().value).toEqual(
-      defaultProps.options[0].value
+      defaultProps.options[0].value,
     );
   });
 
   it("adds the classes passed as props to respective elements", () => {
     expect(wrapper.find("div.selectRoot").props().className).toEqual(
-      expect.stringContaining("sample-root-class")
+      expect.stringContaining("sample-root-class"),
     );
     expect(wrapper.find(Label).props().className).toEqual(
-      expect.stringContaining("sample-label-class")
+      expect.stringContaining("sample-label-class"),
     );
   });
 

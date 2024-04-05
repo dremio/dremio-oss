@@ -15,40 +15,44 @@
  */
 package com.dremio.exec.catalog;
 
-import java.util.List;
-
 import com.dremio.service.Service;
 import com.dremio.service.namespace.NamespaceAttribute;
+import java.util.List;
 
-/**
- * Factory for creating View Creators
- */
+/** Factory for creating View Creators */
 public interface ViewCreatorFactory extends Service {
-  /**
-   * Used to create Views in a space
-   */
+  /** Used to create Views in a space */
   interface ViewCreator {
     /**
      * Creates a view
+     *
      * @param path
      * @param sql
      * @param sqlContext
      * @param isVersionedSource
      * @param attributes
      */
-    void createView(List<String> path, String sql, List<String> sqlContext, boolean isVersionedSource, NamespaceAttribute... attributes);
+    void createView(
+        List<String> path,
+        String sql,
+        List<String> sqlContext,
+        boolean isVersionedSource,
+        NamespaceAttribute... attributes);
 
     /**
      * Updates a view
+     *
      * @param path
      * @param sql
      * @param sqlContext
      * @param attributes
      */
-    void updateView(List<String> path, String sql, List<String> sqlContext, NamespaceAttribute... attributes);
+    void updateView(
+        List<String> path, String sql, List<String> sqlContext, NamespaceAttribute... attributes);
 
     /**
      * Drops a view
+     *
      * @param path
      */
     void dropView(List<String> path);
@@ -56,6 +60,7 @@ public interface ViewCreatorFactory extends Service {
 
   /**
    * get a ViewCreator for a particular user
+   *
    * @param userName
    * @return the ViewCreator
    */

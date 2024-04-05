@@ -20,8 +20,8 @@ import com.google.common.io.Resources;
 /**
  * Subject alternative names cert test.
  *
- *  san.jks has a single cert with owner set to foo.dremio.test and an SubjectAlternativeName set to
- *  DNSName: test.dremio.test
+ * <p>san.jks has a single cert with owner set to foo.dremio.test and an SubjectAlternativeName set
+ * to DNSName: test.dremio.test
  */
 public class TestSANCert extends BaseHttpsTestServer {
   @Override

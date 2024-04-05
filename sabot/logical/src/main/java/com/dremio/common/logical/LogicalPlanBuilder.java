@@ -22,9 +22,7 @@ import com.dremio.common.store.StoragePluginConfig;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
-/**
- * A programmatic builder for logical plans.
- */
+/** A programmatic builder for logical plans. */
 public class LogicalPlanBuilder {
   private PlanProperties planProperties;
   private ImmutableMap.Builder<String, StoragePluginConfig> storageEngines = ImmutableMap.builder();
@@ -35,8 +33,15 @@ public class LogicalPlanBuilder {
     return this;
   }
 
-  public LogicalPlanBuilder planProperties(PlanType type, int version, String generatorType, String generatorInfo, ResultMode mode){
-    this.planProperties = PlanProperties.builder().generator(generatorType, generatorInfo).type(type).version(version).resultMode(mode).build();
+  public LogicalPlanBuilder planProperties(
+      PlanType type, int version, String generatorType, String generatorInfo, ResultMode mode) {
+    this.planProperties =
+        PlanProperties.builder()
+            .generator(generatorType, generatorInfo)
+            .type(type)
+            .version(version)
+            .resultMode(mode)
+            .build();
     return this;
   }
 
@@ -44,11 +49,14 @@ public class LogicalPlanBuilder {
     this.storageEngines.put(name, config);
     return this;
   }
+
   public LogicalPlanBuilder addLogicalOperator(LogicalOperator operator) {
     this.operators.add(operator);
     return this;
   }
+
   public LogicalPlan build() {
-    return new LogicalPlan(this.planProperties, this.storageEngines.build(), this.operators.build());
+    return new LogicalPlan(
+        this.planProperties, this.storageEngines.build(), this.operators.build());
   }
 }

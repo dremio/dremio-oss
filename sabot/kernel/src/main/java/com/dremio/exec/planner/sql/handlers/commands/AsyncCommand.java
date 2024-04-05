@@ -17,13 +17,10 @@ package com.dremio.exec.planner.sql.handlers.commands;
 
 import com.dremio.exec.physical.PhysicalPlan;
 
-/**
- * Base class for Asynchronous queries.
- */
+/** Base class for Asynchronous queries. */
 public abstract class AsyncCommand implements CommandRunner<Void> {
 
-  public AsyncCommand() {
-  }
+  public AsyncCommand() {}
 
   @Override
   public CommandType getCommandType() {
@@ -32,16 +29,14 @@ public abstract class AsyncCommand implements CommandRunner<Void> {
 
   public abstract PhysicalPlan getPhysicalPlan();
 
-  public void executionStarted() {
-  }
+  public void executionStarted() {}
 
   @Override
   public Void execute() {
-    //TODO (DX-16022) refactor the code to no longer require this
+    // TODO (DX-16022) refactor the code to no longer require this
     throw new IllegalStateException("Should never be called");
   }
 
   @Override
-  public void close() throws Exception {
-  }
+  public void close() throws Exception {}
 }

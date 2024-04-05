@@ -26,33 +26,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.IntVector;
-import org.apache.arrow.vector.VarBinaryVector;
-import org.apache.arrow.vector.complex.ListVector;
-import org.apache.arrow.vector.complex.impl.UnionListWriter;
-import org.apache.iceberg.DataFile;
-import org.apache.iceberg.DataFiles;
-import org.apache.iceberg.DeleteFile;
-import org.apache.iceberg.FileFormat;
-import org.apache.iceberg.FileMetadata;
-import org.apache.iceberg.PartitionField;
-import org.apache.iceberg.PartitionKey;
-import org.apache.iceberg.PartitionSpec;
-import org.apache.iceberg.Schema;
-import org.apache.iceberg.types.Types;
-import org.junit.Before;
-import org.junit.Test;
-
 import com.dremio.exec.physical.config.WriterCommitterPOP;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.store.OperationType;
@@ -77,6 +50,31 @@ import com.dremio.service.namespace.dataset.proto.ReadDefinition;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.protobuf.ByteString;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.VarBinaryVector;
+import org.apache.arrow.vector.complex.ListVector;
+import org.apache.arrow.vector.complex.impl.UnionListWriter;
+import org.apache.iceberg.DataFile;
+import org.apache.iceberg.DataFiles;
+import org.apache.iceberg.DeleteFile;
+import org.apache.iceberg.FileFormat;
+import org.apache.iceberg.FileMetadata;
+import org.apache.iceberg.PartitionField;
+import org.apache.iceberg.PartitionKey;
+import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.Schema;
+import org.apache.iceberg.types.Types;
+import org.junit.Before;
+import org.junit.Test;
 
 public class TestIcebergCommitOpHelper extends BaseTestOperator {
 
@@ -86,20 +84,20 @@ public class TestIcebergCommitOpHelper extends BaseTestOperator {
   private static final String SOURCE_TABLE_ROOT = "/mock/path/to/table";
   private static final String METADATA_ROOT = "/mock/path/to/metadata";
 
-  private static final Schema SCHEMA = new Schema(
-      Types.NestedField.optional(1, "col1", Types.IntegerType.get()),
-      Types.NestedField.optional(2, "col2", Types.IntegerType.get()),
-      Types.NestedField.optional(3, "part1", Types.IntegerType.get()),
-      Types.NestedField.optional(4, "part2", Types.StringType.get()));
+  private static final Schema SCHEMA =
+      new Schema(
+          Types.NestedField.optional(1, "col1", Types.IntegerType.get()),
+          Types.NestedField.optional(2, "col2", Types.IntegerType.get()),
+          Types.NestedField.optional(3, "part1", Types.IntegerType.get()),
+          Types.NestedField.optional(4, "part2", Types.StringType.get()));
 
-  private static final PartitionSpec SPEC = PartitionSpec.builderFor(SCHEMA)
-      .identity("part1")
-      .identity("part2")
-      .build();
+  private static final PartitionSpec SPEC =
+      PartitionSpec.builderFor(SCHEMA).identity("part1").identity("part2").build();
 
-  private static final Schema UNPARTITIONED_SCHEMA = new Schema(
-      Types.NestedField.optional(1, "col1", Types.IntegerType.get()),
-      Types.NestedField.optional(2, "col2", Types.IntegerType.get()));
+  private static final Schema UNPARTITIONED_SCHEMA =
+      new Schema(
+          Types.NestedField.optional(1, "col1", Types.IntegerType.get()),
+          Types.NestedField.optional(2, "col2", Types.IntegerType.get()));
 
   private static final PartitionSpec UNPARTITIONED_SPEC = PartitionSpec.builderFor(SCHEMA).build();
 
@@ -125,49 +123,89 @@ public class TestIcebergCommitOpHelper extends BaseTestOperator {
 
     metadataPlugin = mock(FileSystemPlugin.class, RETURNS_DEEP_STUBS);
     metadataFileSystem = mock(FileSystem.class);
-    sourceTablePlugin = mock(StoragePlugin.class,
-        withSettings().defaultAnswer(RETURNS_DEEP_STUBS).extraInterfaces(SupportsInternalIcebergTable.class));
+    sourceTablePlugin =
+        mock(
+            StoragePlugin.class,
+            withSettings()
+                .defaultAnswer(RETURNS_DEEP_STUBS)
+                .extraInterfaces(SupportsInternalIcebergTable.class));
     sourceTableFileSystem = mock(FileSystem.class);
-    SupportsInternalIcebergTable supportsInternalIcebergTable = (SupportsInternalIcebergTable) sourceTablePlugin;
-    when(supportsInternalIcebergTable.createFS(any(), any(), any())).thenReturn(sourceTableFileSystem);
-    when(supportsInternalIcebergTable.createReadSignatureProvider(any(), any(), anyLong(), any(), any(), anyBoolean(),
-        anyBoolean()))
-        .thenAnswer(invocation ->
-            new MockReadSignatureProvider(invocation.getArgument(3), invocation.getArgument(4)));
+    SupportsInternalIcebergTable supportsInternalIcebergTable =
+        (SupportsInternalIcebergTable) sourceTablePlugin;
+    when(supportsInternalIcebergTable.createFS(any(), any(), any()))
+        .thenReturn(sourceTableFileSystem);
+    when(supportsInternalIcebergTable.createReadSignatureProvider(
+            any(), any(), anyLong(), any(), any(), anyBoolean(), anyBoolean()))
+        .thenAnswer(
+            invocation ->
+                new MockReadSignatureProvider(
+                    invocation.getArgument(3), invocation.getArgument(4)));
   }
 
   @Test
   public void testIncrementalRefreshPartitionPathExistenceChecks() throws Exception {
-    List<String> partitionPaths = ImmutableList.of(
-        partitionPath(PARTITION_1A),
-        partitionPath(PARTITION_1B),
-        partitionPath(PARTITION_1C),
-        partitionPath(PARTITION_2A));
-    IcebergCommitOpHelper helper = createCommitOpHelper(IcebergCommandType.INCREMENTAL_METADATA_REFRESH,
-        partitionPaths, SCHEMA, SPEC);
+    List<String> partitionPaths =
+        ImmutableList.of(
+            partitionPath(PARTITION_1A),
+            partitionPath(PARTITION_1B),
+            partitionPath(PARTITION_1C),
+            partitionPath(PARTITION_2A));
+    IcebergCommitOpHelper helper =
+        createCommitOpHelper(
+            IcebergCommandType.INCREMENTAL_METADATA_REFRESH, partitionPaths, SCHEMA, SPEC);
 
     VectorContainer input = createInputContainer();
-    addInputRow(input, createDataFile("delete1", SPEC, PARTITION_1C), OperationType.DELETE_DATAFILE,
-        SPEC, ImmutableList.of(PARTITION_1C));
-    addInputRow(input, createDataFile("delete2", SPEC, PARTITION_1C), OperationType.DELETE_DATAFILE,
-        SPEC, ImmutableList.of(PARTITION_1C));
-    addInputRow(input, createDataFile("subdir/delete3", SPEC, PARTITION_2A), OperationType.DELETE_DATAFILE,
-        SPEC, ImmutableList.of(PARTITION_2A));
-    addInputRow(input, createDataFile("no_partition_path_match", SPEC, PARTITION_2B),
-        OperationType.DELETE_DATAFILE, SPEC, ImmutableList.of(PARTITION_2B));
-    addInputRow(input, createDeleteFile("posDelete1", SPEC, PARTITION_1C), OperationType.DELETE_DELETEFILE,
-        SPEC, ImmutableList.of(PARTITION_1C));
-    addInputRow(input, createDeleteFile("subdir/posDelete2", SPEC, PARTITION_2A), OperationType.DELETE_DELETEFILE,
-      SPEC, ImmutableList.of(PARTITION_2A));
-    addInputRow(input, createDeleteFile("no_partition_path_match_pos_delete", SPEC, PARTITION_2B),
-        OperationType.DELETE_DELETEFILE, SPEC, ImmutableList.of(PARTITION_2B));
+    addInputRow(
+        input,
+        createDataFile("delete1", SPEC, PARTITION_1C),
+        OperationType.DELETE_DATAFILE,
+        SPEC,
+        ImmutableList.of(PARTITION_1C));
+    addInputRow(
+        input,
+        createDataFile("delete2", SPEC, PARTITION_1C),
+        OperationType.DELETE_DATAFILE,
+        SPEC,
+        ImmutableList.of(PARTITION_1C));
+    addInputRow(
+        input,
+        createDataFile("subdir/delete3", SPEC, PARTITION_2A),
+        OperationType.DELETE_DATAFILE,
+        SPEC,
+        ImmutableList.of(PARTITION_2A));
+    addInputRow(
+        input,
+        createDataFile("no_partition_path_match", SPEC, PARTITION_2B),
+        OperationType.DELETE_DATAFILE,
+        SPEC,
+        ImmutableList.of(PARTITION_2B));
+    addInputRow(
+        input,
+        createDeleteFile("posDelete1", SPEC, PARTITION_1C),
+        OperationType.DELETE_DELETEFILE,
+        SPEC,
+        ImmutableList.of(PARTITION_1C));
+    addInputRow(
+        input,
+        createDeleteFile("subdir/posDelete2", SPEC, PARTITION_2A),
+        OperationType.DELETE_DELETEFILE,
+        SPEC,
+        ImmutableList.of(PARTITION_2A));
+    addInputRow(
+        input,
+        createDeleteFile("no_partition_path_match_pos_delete", SPEC, PARTITION_2B),
+        OperationType.DELETE_DELETEFILE,
+        SPEC,
+        ImmutableList.of(PARTITION_2B));
 
     helper.setup(input);
     helper.consumeData(input.getRecordCount());
     helper.commit(null);
 
-    // Verify that partition existence checks are only done for PARTITION_1C and PARTITION_2A.  The 4th file delete
-    // with PARTITION_2B should not trigger an existence check either as it does not exist in the partition path
+    // Verify that partition existence checks are only done for PARTITION_1C and PARTITION_2A.  The
+    // 4th file delete
+    // with PARTITION_2B should not trigger an existence check either as it does not exist in the
+    // partition path
     // list passed to IcebergCommitOpHelper.
     verify(sourceTableFileSystem, times(2)).exists(any());
     verify(sourceTableFileSystem, never()).exists(Path.of(partitionPath(PARTITION_1A)));
@@ -179,13 +217,15 @@ public class TestIcebergCommitOpHelper extends BaseTestOperator {
 
   @Test
   public void testFullRefreshPartitionPathExistenceChecks() throws Exception {
-    List<String> partitionPaths = ImmutableList.of(
-        partitionPath(PARTITION_1A),
-        partitionPath(PARTITION_1B),
-        partitionPath(PARTITION_1C),
-        partitionPath(PARTITION_2A));
-    IcebergCommitOpHelper helper = createCommitOpHelper(IcebergCommandType.FULL_METADATA_REFRESH,
-        partitionPaths, SCHEMA, SPEC);
+    List<String> partitionPaths =
+        ImmutableList.of(
+            partitionPath(PARTITION_1A),
+            partitionPath(PARTITION_1B),
+            partitionPath(PARTITION_1C),
+            partitionPath(PARTITION_2A));
+    IcebergCommitOpHelper helper =
+        createCommitOpHelper(
+            IcebergCommandType.FULL_METADATA_REFRESH, partitionPaths, SCHEMA, SPEC);
 
     // existence checks are independent of added manifests - skip adding any for simplicity
     VectorContainer input = createInputContainer();
@@ -194,7 +234,8 @@ public class TestIcebergCommitOpHelper extends BaseTestOperator {
     helper.consumeData(input.getRecordCount());
     helper.commit(null);
 
-    // Verify that partition existence checks are done for all 4 partitions in the partitionsPath list.
+    // Verify that partition existence checks are done for all 4 partitions in the partitionsPath
+    // list.
     verify(sourceTableFileSystem, times(4)).exists(any());
     verify(sourceTableFileSystem, times(1)).exists(Path.of(partitionPath(PARTITION_1A)));
     verify(sourceTableFileSystem, times(1)).exists(Path.of(partitionPath(PARTITION_1B)));
@@ -205,18 +246,38 @@ public class TestIcebergCommitOpHelper extends BaseTestOperator {
   @Test
   public void testIncrementalRefreshUnpartitionedExistenceChecks() throws Exception {
     List<String> partitionPaths = ImmutableList.of();
-    IcebergCommitOpHelper helper = createCommitOpHelper(IcebergCommandType.INCREMENTAL_METADATA_REFRESH,
-        partitionPaths, UNPARTITIONED_SCHEMA, UNPARTITIONED_SPEC);
+    IcebergCommitOpHelper helper =
+        createCommitOpHelper(
+            IcebergCommandType.INCREMENTAL_METADATA_REFRESH,
+            partitionPaths,
+            UNPARTITIONED_SCHEMA,
+            UNPARTITIONED_SPEC);
 
     VectorContainer input = createInputContainer();
-    addInputRow(input, createDataFile("delete1", UNPARTITIONED_SPEC), OperationType.DELETE_DATAFILE,
-        UNPARTITIONED_SPEC, ImmutableList.of());
-    addInputRow(input, createDataFile("delete2", UNPARTITIONED_SPEC), OperationType.DELETE_DATAFILE,
-        UNPARTITIONED_SPEC, ImmutableList.of());
-    addInputRow(input, createDeleteFile("posDelete1", UNPARTITIONED_SPEC), OperationType.DELETE_DELETEFILE,
-        UNPARTITIONED_SPEC, ImmutableList.of());
-    addInputRow(input, createDeleteFile("posDelete2", UNPARTITIONED_SPEC), OperationType.DELETE_DELETEFILE,
-        UNPARTITIONED_SPEC, ImmutableList.of());
+    addInputRow(
+        input,
+        createDataFile("delete1", UNPARTITIONED_SPEC),
+        OperationType.DELETE_DATAFILE,
+        UNPARTITIONED_SPEC,
+        ImmutableList.of());
+    addInputRow(
+        input,
+        createDataFile("delete2", UNPARTITIONED_SPEC),
+        OperationType.DELETE_DATAFILE,
+        UNPARTITIONED_SPEC,
+        ImmutableList.of());
+    addInputRow(
+        input,
+        createDeleteFile("posDelete1", UNPARTITIONED_SPEC),
+        OperationType.DELETE_DELETEFILE,
+        UNPARTITIONED_SPEC,
+        ImmutableList.of());
+    addInputRow(
+        input,
+        createDeleteFile("posDelete2", UNPARTITIONED_SPEC),
+        OperationType.DELETE_DELETEFILE,
+        UNPARTITIONED_SPEC,
+        ImmutableList.of());
 
     helper.setup(input);
     helper.consumeData(input.getRecordCount());
@@ -227,13 +288,18 @@ public class TestIcebergCommitOpHelper extends BaseTestOperator {
     verify(sourceTableFileSystem, times(1)).exists(Path.of(SOURCE_TABLE_ROOT));
   }
 
-  private IcebergCommitOpHelper createCommitOpHelper(IcebergCommandType type, List<String> partitionPaths,
-      Schema schema, PartitionSpec spec)
-    throws Exception {
+  private IcebergCommitOpHelper createCommitOpHelper(
+      IcebergCommandType type, List<String> partitionPaths, Schema schema, PartitionSpec spec)
+      throws Exception {
     WriterCommitterPOP pop = getPop(type, schema, spec, partitionPaths);
-    BufferAllocator allocator = getTestAllocator().newChildAllocator("operatorContext",
-        getTestAllocator().getInitReservation(), getTestAllocator().getLimit());
-    final OperatorContextImpl context = testContext.getNewOperatorContext(allocator, pop, BATCH_SIZE, null);
+    BufferAllocator allocator =
+        getTestAllocator()
+            .newChildAllocator(
+                "operatorContext",
+                getTestAllocator().getInitReservation(),
+                getTestAllocator().getLimit());
+    final OperatorContextImpl context =
+        testContext.getNewOperatorContext(allocator, pop, BATCH_SIZE, null);
     testCloseables.add(context);
 
     return new IcebergCommitOpHelper(context, pop, metadataFileSystem);
@@ -249,8 +315,13 @@ public class TestIcebergCommitOpHelper extends BaseTestOperator {
     return container;
   }
 
-  private void addInputRow(VectorContainer container, Object icebergFile, OperationType operationType,
-      PartitionSpec spec, List<PartitionKey> partitionKeys) throws Exception {
+  private void addInputRow(
+      VectorContainer container,
+      Object icebergFile,
+      OperationType operationType,
+      PartitionSpec spec,
+      List<PartitionKey> partitionKeys)
+      throws Exception {
     VarBinaryVector icebergMetadataVector = container.addOrGet(RecordWriter.ICEBERG_METADATA);
     IntVector operationTypeVector = container.addOrGet(RecordWriter.OPERATION_TYPE);
     ListVector partitionDataVector = container.addOrGet(RecordWriter.PARTITION_DATA);
@@ -278,12 +349,13 @@ public class TestIcebergCommitOpHelper extends BaseTestOperator {
     container.setAllCount(container.getRecordCount() + 1);
   }
 
-  private WriterCommitterPOP getPop(IcebergCommandType type, Schema schema, PartitionSpec spec,
-      List<String> partitionPaths) {
+  private WriterCommitterPOP getPop(
+      IcebergCommandType type, Schema schema, PartitionSpec spec, List<String> partitionPaths) {
 
-    DatasetConfig datasetConfig = new DatasetConfig()
-        .setReadDefinition(new ReadDefinition()
-            .setReadSignature(io.protostuff.ByteString.EMPTY));
+    DatasetConfig datasetConfig =
+        new DatasetConfig()
+            .setReadDefinition(
+                new ReadDefinition().setReadSignature(io.protostuff.ByteString.EMPTY));
     return new WriterCommitterPOP(
         PROPS,
         null,
@@ -300,30 +372,32 @@ public class TestIcebergCommitOpHelper extends BaseTestOperator {
         null);
   }
 
-  private IcebergTableProps getIcebergTableProps(IcebergCommandType type, Schema schema, PartitionSpec spec,
-      List<String> partitionPaths) {
-    IcebergTableProps props = new IcebergTableProps(
-        "/path/to/metadata",
-        UUID.randomUUID().toString(),
-        SCHEMA_CONVERTER.fromIceberg(schema),
-        spec.fields().stream().map(PartitionField::name).collect(Collectors.toList()),
-        type,
-        "test_db",
-        "test_table",
-        SOURCE_TABLE_ROOT,
-        null,
-        io.protostuff.ByteString.copyFrom(IcebergSerDe.serializePartitionSpec(spec)),
-        IcebergSerDe.serializedSchemaAsJson(schema),
-        null,
-      null,
-      Collections.emptyMap(),
-        null);
+  private IcebergTableProps getIcebergTableProps(
+      IcebergCommandType type, Schema schema, PartitionSpec spec, List<String> partitionPaths) {
+    IcebergTableProps props =
+        new IcebergTableProps(
+            "/path/to/metadata",
+            UUID.randomUUID().toString(),
+            SCHEMA_CONVERTER.fromIceberg(schema),
+            spec.fields().stream().map(PartitionField::name).collect(Collectors.toList()),
+            type,
+            "test_db",
+            "test_table",
+            SOURCE_TABLE_ROOT,
+            null,
+            io.protostuff.ByteString.copyFrom(IcebergSerDe.serializePartitionSpec(spec)),
+            IcebergSerDe.serializedSchemaAsJson(schema),
+            null,
+            null,
+            Collections.emptyMap(),
+            null);
     props.setPartitionPaths(partitionPaths);
 
     return props;
   }
 
-  private static PartitionKey createPartitionKey(Schema schema, PartitionSpec spec, Object... values) {
+  private static PartitionKey createPartitionKey(
+      Schema schema, PartitionSpec spec, Object... values) {
     Preconditions.checkArgument(values.length == spec.fields().size());
     PartitionKey key = new PartitionKey(spec, schema);
     for (int i = 0; i < values.length; i++) {
@@ -337,7 +411,8 @@ public class TestIcebergCommitOpHelper extends BaseTestOperator {
     return SOURCE_TABLE_ROOT + "/" + partitionKey.toPath();
   }
 
-  private static DataFile createDataFile(String name, PartitionSpec spec, PartitionKey partitionKey) {
+  private static DataFile createDataFile(
+      String name, PartitionSpec spec, PartitionKey partitionKey) {
     return DataFiles.builder(spec)
         .withPath(partitionPath(partitionKey) + "/" + name)
         .withFormat(FileFormat.PARQUET)
@@ -356,7 +431,8 @@ public class TestIcebergCommitOpHelper extends BaseTestOperator {
         .build();
   }
 
-  private static DeleteFile createDeleteFile(String name, PartitionSpec spec, PartitionKey partitionKey) {
+  private static DeleteFile createDeleteFile(
+      String name, PartitionSpec spec, PartitionKey partitionKey) {
     return FileMetadata.deleteFileBuilder(spec)
         .ofPositionDeletes()
         .withPath(partitionPath(partitionKey) + "/" + name)
@@ -378,8 +454,8 @@ public class TestIcebergCommitOpHelper extends BaseTestOperator {
   }
 
   /**
-   * A mock ReadSignatureProvider implementation which simply will call the partitionExists predicate for each
-   * partition directory.
+   * A mock ReadSignatureProvider implementation which simply will call the partitionExists
+   * predicate for each partition directory.
    */
   private static class MockReadSignatureProvider implements ReadSignatureProvider {
 
@@ -392,8 +468,8 @@ public class TestIcebergCommitOpHelper extends BaseTestOperator {
     }
 
     @Override
-    public ByteString compute(Set<IcebergPartitionData> addedPartitions,
-        Set<IcebergPartitionData> deletedPartitions) {
+    public ByteString compute(
+        Set<IcebergPartitionData> addedPartitions, Set<IcebergPartitionData> deletedPartitions) {
 
       if (partitionPaths.isEmpty()) {
         boolean ignore = partitionExists.test(SOURCE_TABLE_ROOT);

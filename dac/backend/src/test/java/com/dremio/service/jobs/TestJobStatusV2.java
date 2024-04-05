@@ -19,20 +19,6 @@ import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.Test;
-
 import com.dremio.BaseTestQuery.QueryIdCapturingListener;
 import com.dremio.QueryTestUtil;
 import com.dremio.common.exceptions.UserRemoteException;
@@ -60,16 +46,24 @@ import com.dremio.service.job.JobsServiceGrpc;
 import com.dremio.service.job.JobsServiceGrpc.JobsServiceStub;
 import com.dremio.service.job.proto.JobId;
 import com.google.common.base.Preconditions;
-
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import org.junit.AfterClass;
+import org.junit.Assert;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
-
-/**
- * Tests for JobStatusV2
- */
+/** Tests for JobStatusV2 */
 public class TestJobStatusV2 extends BaseTestServer {
   protected static final String DEFAULT_USERNAME = SampleDataPopulator.DEFAULT_USER_NAME;
   private static String query;
@@ -82,16 +76,17 @@ public class TestJobStatusV2 extends BaseTestServer {
   @BeforeClass
   public static void setUp() throws Exception {
     final String name = InProcessServerBuilder.generateName();
-    server = InProcessServerBuilder.forName(name)
-      .directExecutor()
-      .addService(new JobsServiceAdapter(p(LocalJobsService.class)))
-      .addService(new Chronicle(p(LocalJobsService.class), () -> getSabotContext().getExecutorService()))
-      .build();
+    server =
+        InProcessServerBuilder.forName(name)
+            .directExecutor()
+            .addService(new JobsServiceAdapter(p(LocalJobsService.class)))
+            .addService(
+                new Chronicle(
+                    p(LocalJobsService.class), () -> getSabotContext().getExecutorService()))
+            .build();
     server.start();
 
-    channel = InProcessChannelBuilder.forName(name)
-      .directExecutor()
-      .build();
+    channel = InProcessChannelBuilder.forName(name).directExecutor().build();
     asyncStub = JobsServiceGrpc.newStub(channel);
     chronicleStub = ChronicleGrpc.newBlockingStub(channel);
 
@@ -109,7 +104,6 @@ public class TestJobStatusV2 extends BaseTestServer {
       channel.shutdown();
     }
   }
-
 
   private static class StateProgressListener implements ExternalStatusListener {
 
@@ -138,20 +132,22 @@ public class TestJobStatusV2 extends BaseTestServer {
       if (jobSummary.getStateListCount() == 0) {
         return;
       }
-      AttemptEvent.State newState = jobSummary.getStateList(jobSummary.getStateListCount()-1).getState();
+      AttemptEvent.State newState =
+          jobSummary.getStateList(jobSummary.getStateListCount() - 1).getState();
       AttemptEvent.State prevState;
       if (stateList.size() > 0) {
-        prevState = stateList.get(stateList.size()-1);
+        prevState = stateList.get(stateList.size() - 1);
         Preconditions.checkArgument(!isTerminal(prevState), "The state is terminal already.");
 
         if (isTerminal(newState)) {
-          // Terminal state can be reached from previous running state or newState is failed or cancelled.
+          // Terminal state can be reached from previous running state or newState is failed or
+          // cancelled.
           // Otherwise throw exception.
           if (!isFailed(newState) && !isCancelled(newState) && prevState != State.RUNNING) {
             throw new RuntimeException("Wrong query progression order.");
           }
         } else if (progressionOrder.get(newState) < progressionOrder.get(prevState)) {
-            throw new RuntimeException("Wrong query progression order.");
+          throw new RuntimeException("Wrong query progression order.");
         }
       }
       stateList.add(newState);
@@ -163,24 +159,25 @@ public class TestJobStatusV2 extends BaseTestServer {
 
     @Override
     public void queryCompleted(JobSummary jobSummary) {
-      stateList.add(jobSummary.getStateList(jobSummary.getStateListCount()-1).getState());
+      stateList.add(jobSummary.getStateList(jobSummary.getStateListCount() - 1).getState());
     }
 
     private void toStateDurations(List<AttemptEvent> events) {
       events.sort(Comparator.comparingLong(AttemptEvent::getStartTime));
 
       long timeSpent;
-      for (int i=0; i < events.size(); i++) {
+      for (int i = 0; i < events.size(); i++) {
         if (isTerminal(events.get(i).getState())) {
           break;
         }
-        if (i == events.size()-1) {
+        if (i == events.size() - 1) {
           timeSpent = System.currentTimeMillis() - events.get(i).getStartTime();
         } else {
-          timeSpent = events.get(i+1).getStartTime() - events.get(i).getStartTime();
+          timeSpent = events.get(i + 1).getStartTime() - events.get(i).getStartTime();
         }
         long finalTimeSpent = timeSpent;
-        stateDurations.compute(events.get(i).getState(), (k,v) -> (v==null) ? finalTimeSpent : v + finalTimeSpent);
+        stateDurations.compute(
+            events.get(i).getState(), (k, v) -> (v == null) ? finalTimeSpent : v + finalTimeSpent);
       }
     }
 
@@ -211,7 +208,7 @@ public class TestJobStatusV2 extends BaseTestServer {
       if (stateList.size() == 0) {
         return State.INVALID_STATE;
       }
-      return stateList.get(stateList.size()-1);
+      return stateList.get(stateList.size() - 1);
     }
   }
 
@@ -222,10 +219,10 @@ public class TestJobStatusV2 extends BaseTestServer {
       try {
         Thread.sleep(50);
         chronicleStub.getJobSummary(
-          JobSummaryRequest.newBuilder()
-            .setJobId(JobsProtoUtil.toBuf(jobId))
-            .setUserName(DEFAULT_USERNAME)
-            .build());
+            JobSummaryRequest.newBuilder()
+                .setJobId(JobsProtoUtil.toBuf(jobId))
+                .setUserName(DEFAULT_USERNAME)
+                .build());
         break;
       } catch (Exception e) {
         // ignore
@@ -236,10 +233,8 @@ public class TestJobStatusV2 extends BaseTestServer {
 
   private Job getJob(JobId jobId) throws Exception {
     try {
-      GetJobRequest getJobRequest = GetJobRequest.newBuilder()
-        .setJobId(jobId)
-        .setUserName(SYSTEM_USERNAME)
-        .build();
+      GetJobRequest getJobRequest =
+          GetJobRequest.newBuilder().setJobId(jobId).setUserName(SYSTEM_USERNAME).build();
       return l(LocalJobsService.class).getJob(getJobRequest);
     } catch (JobNotFoundException e) {
       return null;
@@ -247,13 +242,12 @@ public class TestJobStatusV2 extends BaseTestServer {
   }
 
   private void pauseAndResume(Class clazz, String descriptor, State state) throws Exception {
-    final String controls = Controls.newBuilder()
-      .addPause(clazz, descriptor)
-      .build();
+    final String controls = Controls.newBuilder().addPause(clazz, descriptor).build();
 
     ControlsInjectionUtil.setControls(getRpcClient(), controls);
     QueryIdCapturingListener capturingListener = new QueryIdCapturingListener();
-    final AwaitableUserResultsListener listener = new AwaitableUserResultsListener(capturingListener);
+    final AwaitableUserResultsListener listener =
+        new AwaitableUserResultsListener(capturingListener);
     QueryTestUtil.testWithListener(getRpcClient(), UserBitShared.QueryType.SQL, query, listener);
 
     // wait till we have a queryId
@@ -288,7 +282,7 @@ public class TestJobStatusV2 extends BaseTestServer {
     }
 
     assertEquals(QueryState.COMPLETED, queryState);
-    assertEquals(State.COMPLETED, stateListener.stateList.get(stateListener.stateList.size()-1));
+    assertEquals(State.COMPLETED, stateListener.stateList.get(stateListener.stateList.size() - 1));
   }
 
   @Test
@@ -296,14 +290,14 @@ public class TestJobStatusV2 extends BaseTestServer {
     pauseAndResume(AttemptManager.class, AttemptManager.INJECTOR_PLAN_PAUSE, State.PLANNING);
   }
 
-  private void pauseResumeAndCheckDuration(Class clazz, String descriptor, State state) throws Exception {
-    final String controls = Controls.newBuilder()
-      .addPause(clazz, descriptor)
-      .build();
+  private void pauseResumeAndCheckDuration(Class clazz, String descriptor, State state)
+      throws Exception {
+    final String controls = Controls.newBuilder().addPause(clazz, descriptor).build();
 
     ControlsInjectionUtil.setControls(getRpcClient(), controls);
     QueryIdCapturingListener capturingListener = new QueryIdCapturingListener();
-    final AwaitableUserResultsListener listener = new AwaitableUserResultsListener(capturingListener);
+    final AwaitableUserResultsListener listener =
+        new AwaitableUserResultsListener(capturingListener);
     QueryTestUtil.testWithListener(getRpcClient(), UserBitShared.QueryType.SQL, query, listener);
 
     // wait till we have a queryId
@@ -338,48 +332,57 @@ public class TestJobStatusV2 extends BaseTestServer {
     }
 
     assertEquals(QueryState.COMPLETED, queryState);
-    assertEquals(State.COMPLETED, stateListener.stateList.get(stateListener.stateList.size()-1));
+    assertEquals(State.COMPLETED, stateListener.stateList.get(stateListener.stateList.size() - 1));
     assertTrue(stateListener.getDuration(state) >= 500L);
   }
 
   @Test
   public void testPendingStateDuration() throws Exception {
-    pauseResumeAndCheckDuration(AttemptManager.class, AttemptManager.INJECTOR_PENDING_PAUSE, State.PENDING);
+    pauseResumeAndCheckDuration(
+        AttemptManager.class, AttemptManager.INJECTOR_PENDING_PAUSE, State.PENDING);
   }
 
   @Test
   public void testMetadataRetrievalStateDuration() throws Exception {
-    pauseResumeAndCheckDuration(AttemptManager.class, AttemptManager.INJECTOR_METADATA_RETRIEVAL_PAUSE, State.METADATA_RETRIEVAL);
+    pauseResumeAndCheckDuration(
+        AttemptManager.class,
+        AttemptManager.INJECTOR_METADATA_RETRIEVAL_PAUSE,
+        State.METADATA_RETRIEVAL);
   }
 
   @Test
   public void testPlanningStateDuration() throws Exception {
-    pauseResumeAndCheckDuration(AttemptManager.class, AttemptManager.INJECTOR_PLAN_PAUSE, State.PLANNING);
+    pauseResumeAndCheckDuration(
+        AttemptManager.class, AttemptManager.INJECTOR_PLAN_PAUSE, State.PLANNING);
   }
 
   @Test
   public void testQueuedStateDuration() throws Exception {
-    pauseResumeAndCheckDuration(ResourceTracker.class, ResourceTracker.INJECTOR_QUEUED_PAUSE, State.QUEUED);
+    pauseResumeAndCheckDuration(
+        ResourceTracker.class, ResourceTracker.INJECTOR_QUEUED_PAUSE, State.QUEUED);
   }
 
   @Test
   public void testExecutionPlanningStateDuration() throws Exception {
-    pauseResumeAndCheckDuration(QueryTrackerImpl.class, QueryTrackerImpl.INJECTOR_EXECUTION_PLANNING_PAUSE, State.EXECUTION_PLANNING);
+    pauseResumeAndCheckDuration(
+        QueryTrackerImpl.class,
+        QueryTrackerImpl.INJECTOR_EXECUTION_PLANNING_PAUSE,
+        State.EXECUTION_PLANNING);
   }
 
   @Test
   public void testStartingStateDuration() throws Exception {
-    pauseResumeAndCheckDuration(QueryTrackerImpl.class, QueryTrackerImpl.INJECTOR_STARTING_PAUSE, State.STARTING);
+    pauseResumeAndCheckDuration(
+        QueryTrackerImpl.class, QueryTrackerImpl.INJECTOR_STARTING_PAUSE, State.STARTING);
   }
 
   private void pauseCancelAndResume(Class clazz, String descriptor, State state) throws Exception {
-    final String controls = Controls.newBuilder()
-      .addPause(clazz, descriptor)
-      .build();
+    final String controls = Controls.newBuilder().addPause(clazz, descriptor).build();
 
     ControlsInjectionUtil.setControls(getRpcClient(), controls);
     QueryIdCapturingListener capturingListener = new QueryIdCapturingListener();
-    final AwaitableUserResultsListener listener = new AwaitableUserResultsListener(capturingListener);
+    final AwaitableUserResultsListener listener =
+        new AwaitableUserResultsListener(capturingListener);
     QueryTestUtil.testWithListener(getRpcClient(), UserBitShared.QueryType.SQL, query, listener);
 
     // wait till we have a queryId
@@ -417,7 +420,7 @@ public class TestJobStatusV2 extends BaseTestServer {
     }
 
     assertEquals(UserBitShared.QueryResult.QueryState.CANCELED, queryState);
-    assertEquals(State.CANCELED, stateListener.stateList.get(stateListener.stateList.size()-1));
+    assertEquals(State.CANCELED, stateListener.stateList.get(stateListener.stateList.size() - 1));
   }
 
   @Test
@@ -429,7 +432,8 @@ public class TestJobStatusV2 extends BaseTestServer {
     try {
       ControlsInjectionUtil.setControls(getRpcClient(), controls);
       QueryIdCapturingListener capturingListener = new QueryIdCapturingListener();
-      final AwaitableUserResultsListener listener = new AwaitableUserResultsListener(capturingListener);
+      final AwaitableUserResultsListener listener =
+          new AwaitableUserResultsListener(capturingListener);
       QueryTestUtil.testWithListener(getRpcClient(), QueryType.SQL, query, listener);
 
       // wait till we have a queryId
@@ -455,7 +459,7 @@ public class TestJobStatusV2 extends BaseTestServer {
         Thread.sleep(10);
       }
       assertEquals(QueryState.FAILED, queryState);
-      assertEquals(State.FAILED, stateListener.stateList.get(stateListener.stateList.size()-1));
+      assertEquals(State.FAILED, stateListener.stateList.get(stateListener.stateList.size() - 1));
     } catch (UserRemoteException e) {
       assertTrue(e.getMessage().contains(expectedDesc));
     }
@@ -463,10 +467,11 @@ public class TestJobStatusV2 extends BaseTestServer {
 
   @Test
   public void testFailedState() throws Exception {
-    final String controls = Controls.newBuilder()
-      .addException(AttemptManager.class, AttemptManager.INJECTOR_PLAN_ERROR,
-        ForemanException.class)
-      .build();
+    final String controls =
+        Controls.newBuilder()
+            .addException(
+                AttemptManager.class, AttemptManager.INJECTOR_PLAN_ERROR, ForemanException.class)
+            .build();
 
     injectException(controls, AttemptManager.INJECTOR_PLAN_ERROR);
   }
@@ -475,7 +480,11 @@ public class TestJobStatusV2 extends BaseTestServer {
     Assert.assertSame(jobSummary.getJobState(), JobState.FAILED);
     Assert.assertNotNull(jobSummary.getFailureInfo());
     Assert.assertTrue(jobSummary.getEndTime() > jobSummary.getStartTime());
-    Assert.assertTrue(jobSummary.getFailureInfo().contains("Query failed due to kvstore or network errors. Details and profile information for this job may be partial or missing."));
+    Assert.assertTrue(
+        jobSummary
+            .getFailureInfo()
+            .contains(
+                "Query failed due to kvstore or network errors. Details and profile information for this job may be partial or missing."));
   }
 
   private void injectProfileException(String controls, String expectedDesc) throws Exception {
@@ -483,7 +492,8 @@ public class TestJobStatusV2 extends BaseTestServer {
     try {
       ControlsInjectionUtil.setControls(getRpcClient(), controls);
       QueryIdCapturingListener capturingListener = new QueryIdCapturingListener();
-      final AwaitableUserResultsListener listener = new AwaitableUserResultsListener(capturingListener);
+      final AwaitableUserResultsListener listener =
+          new AwaitableUserResultsListener(capturingListener);
       QueryTestUtil.testWithListener(getRpcClient(), QueryType.SQL, query, listener);
 
       // wait till we have a queryId
@@ -500,22 +510,27 @@ public class TestJobStatusV2 extends BaseTestServer {
 
     Assert.assertNotNull(jobId);
 
-    JobSummary jobSummary = chronicleStub.getJobSummary(
-      JobSummaryRequest.newBuilder()
-        .setJobId(JobsProtoUtil.toBuf(jobId))
-        .setUserName(DEFAULT_USERNAME)
-        .build());
+    JobSummary jobSummary =
+        chronicleStub.getJobSummary(
+            JobSummaryRequest.newBuilder()
+                .setJobId(JobsProtoUtil.toBuf(jobId))
+                .setUserName(DEFAULT_USERNAME)
+                .build());
 
     validateFailedJob(jobSummary);
-    Assert.assertEquals(JobsServiceUtil.getLastEventState(jobSummary), AttemptEvent.State.COMPLETED);
+    Assert.assertEquals(
+        JobsServiceUtil.getLastEventState(jobSummary), AttemptEvent.State.COMPLETED);
   }
 
   @Test
   public void testTailProfileFailedState() throws Exception {
-    final String controls = Controls.newBuilder()
-      .addException(AttemptManager.class, AttemptManager.INJECTOR_TAIL_PROFLE_ERROR,
-        RuntimeException.class)
-      .build();
+    final String controls =
+        Controls.newBuilder()
+            .addException(
+                AttemptManager.class,
+                AttemptManager.INJECTOR_TAIL_PROFLE_ERROR,
+                RuntimeException.class)
+            .build();
 
     injectProfileException(controls, AttemptManager.INJECTOR_TAIL_PROFLE_ERROR);
   }
@@ -524,7 +539,8 @@ public class TestJobStatusV2 extends BaseTestServer {
     JobId jobId = null;
     ControlsInjectionUtil.setControls(getRpcClient(), controls);
     QueryIdCapturingListener capturingListener = new QueryIdCapturingListener();
-    final AwaitableUserResultsListener listener = new AwaitableUserResultsListener(capturingListener);
+    final AwaitableUserResultsListener listener =
+        new AwaitableUserResultsListener(capturingListener);
     QueryTestUtil.testWithListener(getRpcClient(), QueryType.SQL, query, listener);
 
     // wait till we have a queryId
@@ -539,14 +555,16 @@ public class TestJobStatusV2 extends BaseTestServer {
     Assert.assertNotNull(jobId);
 
     while (true) {
-      JobSummary jobSummary = chronicleStub.getJobSummary(
-        JobSummaryRequest.newBuilder()
-          .setJobId(JobsProtoUtil.toBuf(jobId))
-          .setUserName(DEFAULT_USERNAME)
-          .build());
-      if(jobSummary.getJobState() == JobState.FAILED) {
+      JobSummary jobSummary =
+          chronicleStub.getJobSummary(
+              JobSummaryRequest.newBuilder()
+                  .setJobId(JobsProtoUtil.toBuf(jobId))
+                  .setUserName(DEFAULT_USERNAME)
+                  .build());
+      if (jobSummary.getJobState() == JobState.FAILED) {
         validateFailedJob(jobSummary);
-        Assert.assertEquals(JobsServiceUtil.getLastEventState(jobSummary), AttemptEvent.State.FAILED);
+        Assert.assertEquals(
+            JobsServiceUtil.getLastEventState(jobSummary), AttemptEvent.State.FAILED);
         break;
       }
       Thread.sleep(50);
@@ -555,33 +573,41 @@ public class TestJobStatusV2 extends BaseTestServer {
 
   @Test
   public void testAttemptCompletionFailedState() throws Exception {
-    final String controls = Controls.newBuilder()
-      .addException(LocalJobsService.class, LocalJobsService.INJECTOR_ATTEMPT_COMPLETION_ERROR,
-        IOException.class)
-      .build();
+    final String controls =
+        Controls.newBuilder()
+            .addException(
+                LocalJobsService.class,
+                LocalJobsService.INJECTOR_ATTEMPT_COMPLETION_ERROR,
+                IOException.class)
+            .build();
 
     injectAttemptCompletionException(controls);
   }
 
   @Test
   public void testAttemptCompletionKVFailedState() throws Exception {
-    final String controls = Controls.newBuilder()
-      .addException(LocalJobsService.class, LocalJobsService.INJECTOR_ATTEMPT_COMPLETION_KV_ERROR,
-        DatastoreException.class)
-      .build();
+    final String controls =
+        Controls.newBuilder()
+            .addException(
+                LocalJobsService.class,
+                LocalJobsService.INJECTOR_ATTEMPT_COMPLETION_KV_ERROR,
+                DatastoreException.class)
+            .build();
 
     injectAttemptCompletionException(controls);
   }
 
   private void injectAttemptCompletionExceptionMulti(String controls) throws Exception {
-    final String controls1 = Controls.newBuilder()
-      .addPause(AttemptManager.class, AttemptManager.INJECTOR_PLAN_PAUSE)
-      .build();
+    final String controls1 =
+        Controls.newBuilder()
+            .addPause(AttemptManager.class, AttemptManager.INJECTOR_PLAN_PAUSE)
+            .build();
 
     JobId jobId1 = null;
     ControlsInjectionUtil.setControls(getRpcClient(), controls1);
     QueryIdCapturingListener capturingListener1 = new QueryIdCapturingListener();
-    final AwaitableUserResultsListener listener1 = new AwaitableUserResultsListener(capturingListener1);
+    final AwaitableUserResultsListener listener1 =
+        new AwaitableUserResultsListener(capturingListener1);
     QueryTestUtil.testWithListener(getRpcClient(), QueryType.SQL, query, listener1);
 
     // wait till we have a queryId
@@ -592,11 +618,12 @@ public class TestJobStatusV2 extends BaseTestServer {
     jobId1 = new JobId(new UUID(queryId1.getPart1(), queryId1.getPart2()).toString());
 
     while (true) {
-      JobSummary jobSummary = chronicleStub.getJobSummary(
-        JobSummaryRequest.newBuilder()
-          .setJobId(JobsProtoUtil.toBuf(jobId1))
-          .setUserName(DEFAULT_USERNAME)
-          .build());
+      JobSummary jobSummary =
+          chronicleStub.getJobSummary(
+              JobSummaryRequest.newBuilder()
+                  .setJobId(JobsProtoUtil.toBuf(jobId1))
+                  .setUserName(DEFAULT_USERNAME)
+                  .build());
       JobState jobState = jobSummary.getJobState();
       // wait for the pause to be hit
       if (jobState == JobState.PLANNING) {
@@ -620,20 +647,26 @@ public class TestJobStatusV2 extends BaseTestServer {
     }
 
     assertEquals(QueryState.COMPLETED, queryState);
-    JobState jobState = chronicleStub.getJobSummary(
-      JobSummaryRequest.newBuilder()
-        .setJobId(JobsProtoUtil.toBuf(jobId1))
-        .setUserName(DEFAULT_USERNAME)
-        .build()).getJobState();
+    JobState jobState =
+        chronicleStub
+            .getJobSummary(
+                JobSummaryRequest.newBuilder()
+                    .setJobId(JobsProtoUtil.toBuf(jobId1))
+                    .setUserName(DEFAULT_USERNAME)
+                    .build())
+            .getJobState();
     Assert.assertTrue(jobState == JobState.COMPLETED);
   }
 
   @Test
   public void testAttemptCompletionFailedStateMultipleJobs() throws Exception {
-    final String controls = Controls.newBuilder()
-      .addException(LocalJobsService.class, LocalJobsService.INJECTOR_ATTEMPT_COMPLETION_ERROR,
-        IOException.class)
-      .build();
+    final String controls =
+        Controls.newBuilder()
+            .addException(
+                LocalJobsService.class,
+                LocalJobsService.INJECTOR_ATTEMPT_COMPLETION_ERROR,
+                IOException.class)
+            .build();
 
     injectAttemptCompletionExceptionMulti(controls);
   }

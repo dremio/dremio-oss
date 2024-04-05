@@ -17,8 +17,8 @@ package com.dremio.exec.expr.fn.impl;
 
 import static org.apache.calcite.util.Static.RESOURCE;
 
+import com.google.common.collect.ImmutableList;
 import java.util.stream.Collectors;
-
 import org.apache.calcite.linq4j.Ord;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlCallBinding;
@@ -31,11 +31,9 @@ import org.apache.calcite.sql.type.SqlSingleOperandTypeChecker;
 import org.apache.calcite.sql.type.SqlTypeFamily;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-import com.google.common.collect.ImmutableList;
-
 /**
- * Check the calcite arguments to determine whether the function arguments are valid. Simliar/inspired by
- * FamilyOperandTypeChecker but more generic.
+ * Check the calcite arguments to determine whether the function arguments are valid.
+ * Simliar/inspired by FamilyOperandTypeChecker but more generic.
  */
 public class DremioArgChecker implements SqlSingleOperandTypeChecker {
 
@@ -45,7 +43,10 @@ public class DremioArgChecker implements SqlSingleOperandTypeChecker {
 
   public DremioArgChecker(boolean allowAny, Checker... checkers) {
     this.checkers = ImmutableList.copyOf(checkers);
-    this.signature = "%s(" + this.checkers.stream().map(c -> c.signature()).collect(Collectors.joining(", ")) + ")";
+    this.signature =
+        "%s("
+            + this.checkers.stream().map(c -> c.signature()).collect(Collectors.joining(", "))
+            + ")";
     this.allowAny = allowAny;
   }
 
@@ -56,10 +57,7 @@ public class DremioArgChecker implements SqlSingleOperandTypeChecker {
 
   @Override
   public boolean checkSingleOperandType(
-      SqlCallBinding callBinding,
-      SqlNode node,
-      int iFormalOperand,
-      boolean throwOnFailure) {
+      SqlCallBinding callBinding, SqlNode node, int iFormalOperand, boolean throwOnFailure) {
     Checker checker = checkers.get(iFormalOperand);
     return checkOp(checker, callBinding, node, iFormalOperand, throwOnFailure);
   }
@@ -76,10 +74,8 @@ public class DremioArgChecker implements SqlSingleOperandTypeChecker {
       public String signature() {
         return argName + " <FLOAT>";
       }
-
     };
   }
-
 
   public static Checker ofDouble(String argName) {
     return new Checker() {
@@ -93,22 +89,25 @@ public class DremioArgChecker implements SqlSingleOperandTypeChecker {
       public String signature() {
         return argName + " <DOUBLE>";
       }
-
     };
   }
 
   public static interface Checker {
     boolean check(RelDataType type);
+
     String signature();
   }
 
-  private boolean checkOp(Checker checker, SqlCallBinding callBinding, SqlNode node, int iFormalOperand,
+  private boolean checkOp(
+      Checker checker,
+      SqlCallBinding callBinding,
+      SqlNode node,
+      int iFormalOperand,
       boolean throwOnFailure) {
 
     if (SqlUtil.isNullLiteral(node, false)) {
       if (throwOnFailure) {
-        throw callBinding.getValidator().newValidationError(node,
-            RESOURCE.nullIllegal());
+        throw callBinding.getValidator().newValidationError(node, RESOURCE.nullIllegal());
       } else {
         return false;
       }
@@ -139,11 +138,7 @@ public class DremioArgChecker implements SqlSingleOperandTypeChecker {
     }
 
     for (Ord<SqlNode> op : Ord.zip(callBinding.operands())) {
-      if (!checkSingleOperandType(
-          callBinding,
-          op.e,
-          op.i,
-          throwOnFailure)) {
+      if (!checkSingleOperandType(callBinding, op.e, op.i, throwOnFailure)) {
         return false;
       }
     }

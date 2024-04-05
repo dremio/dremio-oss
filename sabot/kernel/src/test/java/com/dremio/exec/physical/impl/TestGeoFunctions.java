@@ -15,41 +15,41 @@
  */
 package com.dremio.exec.physical.impl;
 
+import com.dremio.sabot.BaseTestFunction;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import com.dremio.sabot.BaseTestFunction;
-
-/**
- * Test for Geo Functions
- */
+/** Test for Geo Functions */
 public class TestGeoFunctions extends BaseTestFunction {
 
   @Ignore
   @Test
   public void distance() {
-    testFunctions(new Object[][]{
-      {"geo_distance(c0,c1,c2,c3)", 0f,0f,0f,1f, 111194.9266445d},
-    });
+    testFunctions(
+        new Object[][] {
+          {"geo_distance(c0,c1,c2,c3)", 0f, 0f, 0f, 1f, 111194.9266445d},
+        });
   }
 
   @Ignore
   @Test
-  public void nearby(){
-    testFunctions(new Object[][]{
-      {"geo_nearby(c0,c1,c2,c3,112000d)", 0f,0f,0f,1f, true},
-      {"geo_nearby(c0,c1,c2,c3,110000d)", 0f,0f,0f,1f, false},
-      {"geo_nearby(c0,c1,c2,c3,10000d)", 90f,0f,90f,1f, true},
-    });
+  public void nearby() {
+    testFunctions(
+        new Object[][] {
+          {"geo_nearby(c0,c1,c2,c3,112000d)", 0f, 0f, 0f, 1f, true},
+          {"geo_nearby(c0,c1,c2,c3,110000d)", 0f, 0f, 0f, 1f, false},
+          {"geo_nearby(c0,c1,c2,c3,10000d)", 90f, 0f, 90f, 1f, true},
+        });
   }
 
   @Ignore
   @Test
-  public void beyond(){
-    testFunctions(new Object[][]{
-      {"geo_beyond(c0,c1,c2,c3,110000d)", 0f,0f,0f,1f, true},
-      {"geo_beyond(c0,c1,c2,c3,112000d)", 0f,0f,0f,1f, false},
-      {"geo_beyond(c0,c1,c2,c3,10000d)", 90f,0f,90f,1f, false},
-    });
+  public void beyond() {
+    testFunctions(
+        new Object[][] {
+          {"geo_beyond(c0,c1,c2,c3,110000d)", 0f, 0f, 0f, 1f, true},
+          {"geo_beyond(c0,c1,c2,c3,112000d)", 0f, 0f, 0f, 1f, false},
+          {"geo_beyond(c0,c1,c2,c3,10000d)", 90f, 0f, 90f, 1f, false},
+        });
   }
 }

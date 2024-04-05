@@ -15,6 +15,10 @@
  */
 package com.dremio.jdbc.test;
 
+import com.dremio.common.util.TestTools;
+import com.dremio.jdbc.JdbcWithServerTestBase;
+import com.google.common.base.Stopwatch;
+import com.google.common.collect.Lists;
 import java.nio.file.Paths;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
@@ -22,18 +26,12 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestRule;
-
-import com.dremio.common.util.TestTools;
-import com.dremio.jdbc.JdbcWithServerTestBase;
-import com.google.common.base.Stopwatch;
-import com.google.common.collect.Lists;
 
 public class TestJdbcDistQuery extends JdbcWithServerTestBase {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestJdbcDistQuery.class);
@@ -42,15 +40,22 @@ public class TestJdbcDistQuery extends JdbcWithServerTestBase {
   @Rule public final TestRule timeoutRule = TestTools.getTimeoutRule(50, TimeUnit.SECONDS);
 
   private static final String SAMPLE_DATA_PATH;
+
   static {
-    SAMPLE_DATA_PATH = Paths.get(TestTools.getWorkingPath()).getParent().getParent().resolve("sample-data").toAbsolutePath().toString();
+    SAMPLE_DATA_PATH =
+        Paths.get(TestTools.getWorkingPath())
+            .getParent()
+            .getParent()
+            .resolve("sample-data")
+            .toAbsolutePath()
+            .toString();
   }
 
   // TODO:  Purge nextUntilEnd(...) and calls when remaining fragment race
   // conditions are fixed (not just DRILL-2245 fixes).
   /**
-   * Calls {@link ResultSet#next} on given {@code ResultSet} until it returns
-   * false.  (For TEMPORARY workaround for query cancelation race condition.)
+   * Calls {@link ResultSet#next} on given {@code ResultSet} until it returns false. (For TEMPORARY
+   * workaround for query cancelation race condition.)
    */
   private static void nextUntilEnd(final ResultSet resultSet) throws SQLException {
     while (resultSet.next()) {
@@ -60,141 +65,172 @@ public class TestJdbcDistQuery extends JdbcWithServerTestBase {
 
   @BeforeClass
   public static void initRefresh() throws Exception {
-    //Refresh Dataset for support of unlimited splits
-    testQuery(String.format("REFRESH DATASET "
-            + "dfs_root.\"%s/regionsSF/\"", SAMPLE_DATA_PATH));
-    testQuery(String.format("REFRESH DATASET "
-            + "dfs_root.\"%s/regionsMF/\"", SAMPLE_DATA_PATH));
+    // Refresh Dataset for support of unlimited splits
+    testQuery(String.format("REFRESH DATASET " + "dfs_root.\"%s/regionsSF/\"", SAMPLE_DATA_PATH));
+    testQuery(String.format("REFRESH DATASET " + "dfs_root.\"%s/regionsMF/\"", SAMPLE_DATA_PATH));
   }
 
   @Test
-  public void testSimpleQuerySingleFile() throws Exception{
-    testQuery(String.format("select R_REGIONKEY, R_NAME "
-        + "from dfs_root.\"%s/regionsSF/\"", SAMPLE_DATA_PATH));
+  public void testSimpleQuerySingleFile() throws Exception {
+    testQuery(
+        String.format(
+            "select R_REGIONKEY, R_NAME " + "from dfs_root.\"%s/regionsSF/\"", SAMPLE_DATA_PATH));
   }
 
   @Test
-  public void testSimpleQueryMultiFile() throws Exception{
-    testQuery(String.format("select R_REGIONKEY, R_NAME "
-        + "from dfs_root.\"%s/regionsMF/\"", SAMPLE_DATA_PATH));
+  public void testSimpleQueryMultiFile() throws Exception {
+    testQuery(
+        String.format(
+            "select R_REGIONKEY, R_NAME " + "from dfs_root.\"%s/regionsMF/\"", SAMPLE_DATA_PATH));
   }
 
   @Test
-  public void testWhereOverSFile() throws Exception{
-    testQuery(String.format("select R_REGIONKEY, R_NAME "
-        + "from dfs_root.\"%s/regionsSF/\" "
-        + "WHERE R_REGIONKEY = 1", SAMPLE_DATA_PATH));
+  public void testWhereOverSFile() throws Exception {
+    testQuery(
+        String.format(
+            "select R_REGIONKEY, R_NAME "
+                + "from dfs_root.\"%s/regionsSF/\" "
+                + "WHERE R_REGIONKEY = 1",
+            SAMPLE_DATA_PATH));
   }
 
   @Test
-  public void testWhereOverMFile() throws Exception{
-    testQuery(String.format("select R_REGIONKEY, R_NAME "
-        + "from dfs_root.\"%s/regionsMF/\" "
-        + "WHERE R_REGIONKEY = 1", SAMPLE_DATA_PATH));
-  }
-
-
-  @Test
-  public void testAggSingleFile() throws Exception{
-    testQuery(String.format("select R_REGIONKEY "
-        + "from dfs_root.\"%s/regionsSF/\" "
-        + "group by R_REGIONKEY", SAMPLE_DATA_PATH));
+  public void testWhereOverMFile() throws Exception {
+    testQuery(
+        String.format(
+            "select R_REGIONKEY, R_NAME "
+                + "from dfs_root.\"%s/regionsMF/\" "
+                + "WHERE R_REGIONKEY = 1",
+            SAMPLE_DATA_PATH));
   }
 
   @Test
-  public void testAggMultiFile() throws Exception{
-    testQuery(String.format("select R_REGIONKEY "
-        + "from dfs_root.\"%s/regionsMF/\" "
-        + "group by R_REGIONKEY", SAMPLE_DATA_PATH));
+  public void testAggSingleFile() throws Exception {
+    testQuery(
+        String.format(
+            "select R_REGIONKEY " + "from dfs_root.\"%s/regionsSF/\" " + "group by R_REGIONKEY",
+            SAMPLE_DATA_PATH));
   }
 
   @Test
-  public void testAggOrderByDiffGKeyMultiFile() throws Exception{
-    testQuery(String.format("select R_REGIONKEY, SUM(cast(R_REGIONKEY AS int)) As S "
-        + "from dfs_root.\"%s/regionsMF/\" "
-        + "group by R_REGIONKEY ORDER BY S", SAMPLE_DATA_PATH));
+  public void testAggMultiFile() throws Exception {
+    testQuery(
+        String.format(
+            "select R_REGIONKEY " + "from dfs_root.\"%s/regionsMF/\" " + "group by R_REGIONKEY",
+            SAMPLE_DATA_PATH));
   }
 
   @Test
-  public void testAggOrderBySameGKeyMultiFile() throws Exception{
-    testQuery(String.format("select R_REGIONKEY, SUM(cast(R_REGIONKEY AS int)) As S "
-        + "from dfs_root.\"%s/regionsMF/\" "
-        + "group by R_REGIONKEY "
-        + "ORDER BY R_REGIONKEY", SAMPLE_DATA_PATH));
+  public void testAggOrderByDiffGKeyMultiFile() throws Exception {
+    testQuery(
+        String.format(
+            "select R_REGIONKEY, SUM(cast(R_REGIONKEY AS int)) As S "
+                + "from dfs_root.\"%s/regionsMF/\" "
+                + "group by R_REGIONKEY ORDER BY S",
+            SAMPLE_DATA_PATH));
+  }
+
+  @Test
+  public void testAggOrderBySameGKeyMultiFile() throws Exception {
+    testQuery(
+        String.format(
+            "select R_REGIONKEY, SUM(cast(R_REGIONKEY AS int)) As S "
+                + "from dfs_root.\"%s/regionsMF/\" "
+                + "group by R_REGIONKEY "
+                + "ORDER BY R_REGIONKEY",
+            SAMPLE_DATA_PATH));
   }
 
   @Ignore
   @Test
-  public void testJoinSingleFile() throws Exception{
-    testQuery(String.format("select T1.R_REGIONKEY "
-        + "from dfs_root.\"%s/regionsSF/\" as T1 "
-        + "join dfs_root.\"%s/nationsSF/\" as T2 "
-        + "on T1.R_REGIONKEY = T2.N_REGIONKEY", SAMPLE_DATA_PATH, SAMPLE_DATA_PATH));
+  public void testJoinSingleFile() throws Exception {
+    testQuery(
+        String.format(
+            "select T1.R_REGIONKEY "
+                + "from dfs_root.\"%s/regionsSF/\" as T1 "
+                + "join dfs_root.\"%s/nationsSF/\" as T2 "
+                + "on T1.R_REGIONKEY = T2.N_REGIONKEY",
+            SAMPLE_DATA_PATH, SAMPLE_DATA_PATH));
   }
 
   @Ignore
   @Test
-  public void testJoinMultiFile() throws Exception{
-    testQuery(String.format("select T1.R_REGIONKEY "
-        + "from dfs_root.\"%s/regionsMF/\" as T1 "
-        + "join dfs_root.\"%s/nationsMF/\" as T2 "
-        + "on T1.R_REGIONKEY = T2.N_REGIONKEY", SAMPLE_DATA_PATH, SAMPLE_DATA_PATH));
+  public void testJoinMultiFile() throws Exception {
+    testQuery(
+        String.format(
+            "select T1.R_REGIONKEY "
+                + "from dfs_root.\"%s/regionsMF/\" as T1 "
+                + "join dfs_root.\"%s/nationsMF/\" as T2 "
+                + "on T1.R_REGIONKEY = T2.N_REGIONKEY",
+            SAMPLE_DATA_PATH, SAMPLE_DATA_PATH));
   }
 
   @Ignore
   @Test
-  public void testJoinMFileWhere() throws Exception{
-    testQuery(String.format("select T1.R_REGIONKEY, T1.R_NAME "
-        + "from dfs_root.\"%s/regionsMF/\" as T1 "
-        + "join dfs_root.\"%s/nationsMF/\" as T2 "
-        + "on T1.R_REGIONKEY = T2.N_REGIONKEY "
-        + "WHERE T1.R_REGIONKEY  = 3 ", SAMPLE_DATA_PATH, SAMPLE_DATA_PATH));
+  public void testJoinMFileWhere() throws Exception {
+    testQuery(
+        String.format(
+            "select T1.R_REGIONKEY, T1.R_NAME "
+                + "from dfs_root.\"%s/regionsMF/\" as T1 "
+                + "join dfs_root.\"%s/nationsMF/\" as T2 "
+                + "on T1.R_REGIONKEY = T2.N_REGIONKEY "
+                + "WHERE T1.R_REGIONKEY  = 3 ",
+            SAMPLE_DATA_PATH, SAMPLE_DATA_PATH));
   }
 
   @Test
-  //NPE at ExternalSortBatch.java : 151
-  public void testSortSingleFile() throws Exception{
-    testQuery(String.format("select R_REGIONKEY "
-        + "from dfs_root.\"%s/regionsSF/\" "
-        + "order by R_REGIONKEY", SAMPLE_DATA_PATH));
+  // NPE at ExternalSortBatch.java : 151
+  public void testSortSingleFile() throws Exception {
+    testQuery(
+        String.format(
+            "select R_REGIONKEY " + "from dfs_root.\"%s/regionsSF/\" " + "order by R_REGIONKEY",
+            SAMPLE_DATA_PATH));
   }
 
   @Test
-  //NPE at ExternalSortBatch.java : 151
-  public void testSortMultiFile() throws Exception{
-    testQuery(String.format("select R_REGIONKEY "
-        + "from dfs_root.\"%s/regionsMF/\" "
-        + "order by R_REGIONKEY", SAMPLE_DATA_PATH));
+  // NPE at ExternalSortBatch.java : 151
+  public void testSortMultiFile() throws Exception {
+    testQuery(
+        String.format(
+            "select R_REGIONKEY " + "from dfs_root.\"%s/regionsMF/\" " + "order by R_REGIONKEY",
+            SAMPLE_DATA_PATH));
   }
 
   @Test
-  public void testSortMFileWhere() throws Exception{
-    testQuery(String.format("select R_REGIONKEY "
-        + "from dfs_root.\"%s/regionsMF/\" "
-        + "WHERE R_REGIONKEY = 1 "
-        + "order by R_REGIONKEY ", SAMPLE_DATA_PATH));
+  public void testSortMFileWhere() throws Exception {
+    testQuery(
+        String.format(
+            "select R_REGIONKEY "
+                + "from dfs_root.\"%s/regionsMF/\" "
+                + "WHERE R_REGIONKEY = 1 "
+                + "order by R_REGIONKEY ",
+            SAMPLE_DATA_PATH));
   }
 
   @Ignore
   @Test
-  public void testJoinAggSortWhere() throws Exception{
-    testQuery(String.format("select T1.R_REGIONKEY, COUNT(1) as CNT "
-        + "from dfs_root.\"%s/regionsMF/\" as T1 "
-        + "join dfs_root.\"%s/nationsMF/\" as T2 "
-        + "on T1.R_REGIONKEY = T2.N_REGIONKEY "
-        + "WHERE T1.R_REGIONKEY  = 3 "
-        + "GROUP BY T1.R_REGIONKEY "
-        + "ORDER BY T1.R_REGIONKEY", SAMPLE_DATA_PATH, SAMPLE_DATA_PATH));
+  public void testJoinAggSortWhere() throws Exception {
+    testQuery(
+        String.format(
+            "select T1.R_REGIONKEY, COUNT(1) as CNT "
+                + "from dfs_root.\"%s/regionsMF/\" as T1 "
+                + "join dfs_root.\"%s/nationsMF/\" as T2 "
+                + "on T1.R_REGIONKEY = T2.N_REGIONKEY "
+                + "WHERE T1.R_REGIONKEY  = 3 "
+                + "GROUP BY T1.R_REGIONKEY "
+                + "ORDER BY T1.R_REGIONKEY",
+            SAMPLE_DATA_PATH, SAMPLE_DATA_PATH));
   }
 
   @Test
-  public void testSelectLimit() throws Exception{
-    testQuery(String.format("select R_REGIONKEY, R_NAME "
-        + "from dfs_root.\"%s/regionsMF/\" "
-        + "limit 2", SAMPLE_DATA_PATH));
+  public void testSelectLimit() throws Exception {
+    testQuery(
+        String.format(
+            "select R_REGIONKEY, R_NAME " + "from dfs_root.\"%s/regionsMF/\" " + "limit 2",
+            SAMPLE_DATA_PATH));
   }
 
- private static void testQuery(String sql) throws Exception{
+  private static void testQuery(String sql) throws Exception {
     boolean success = false;
     try {
       // ???? TODO:  What is this currently redundant one-time loop for?  (If
@@ -225,7 +261,8 @@ public class TestJdbcDistQuery extends JdbcWithServerTestBase {
           System.out.println();
         }
 
-        System.out.println(String.format("Query completed in %d millis.", watch.elapsed(TimeUnit.MILLISECONDS)));
+        System.out.println(
+            String.format("Query completed in %d millis.", watch.elapsed(TimeUnit.MILLISECONDS)));
       }
 
       System.out.println("\n\n\n");
@@ -256,5 +293,4 @@ public class TestJdbcDistQuery extends JdbcWithServerTestBase {
     // conditions are fixed (not just DRILL-2245 fixes).
     nextUntilEnd(r);
   }
-
 }

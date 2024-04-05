@@ -23,7 +23,11 @@ import * as sqlPaths from "dremio-ui-common/paths/sqlEditor.js";
 import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
 import { nameToInitials } from "@app/exports/utilities/nameToInitials";
 import { useSqlRunnerSession } from "dremio-ui-common/sonar/SqlRunnerSession/providers/useSqlRunnerSession.js";
-import { pollScriptJobs, setTabView } from "@app/actions/resources/scripts";
+import {
+  loadScriptJobs,
+  pollScriptJobs,
+  setTabView,
+} from "@app/actions/resources/scripts";
 import { store } from "@app/store/store";
 import { getExploreState, selectTabDataset } from "@app/selectors/explore";
 import { ScriptsResource } from "dremio-ui-common/sonar/scripts/resources/ScriptsResource.js";
@@ -33,13 +37,14 @@ import {
 } from "dremio-ui-common/sonar/SqlRunnerSession/resources/SqlRunnerSessionResource.js";
 import { getLocation } from "@app/selectors/routing";
 import { isTabbableUrl } from "@app/utils/explorePageTypeUtils";
+import { deleteQuerySelectionsFromStorage } from "@app/sagas/utils/querySelections";
 
 export const ALL_MINE_SCRIPTS_TABS = {
   all: "All",
   mine: "Mine",
 };
 
-export const MAX_MINE_SCRIPTS_ALLOWANCE = 100;
+export const MAX_MINE_SCRIPTS_ALLOWANCE = 1000;
 export const INITIAL_CALL_VALUE = 1000;
 export const SEARCH_CALL_VALUE = 500;
 
@@ -49,7 +54,7 @@ export const fetchAllAndMineScripts = (
     searchTerm: string | null;
     createdBy: string | null;
   }) => Promise<any>,
-  search: string
+  search: string,
 ) => {
   const userId = localStorageUtils?.getUserId();
   fetchCall({
@@ -62,7 +67,7 @@ export const fetchAllAndMineScripts = (
     if (failedErrorLog) {
       console.error(
         "An error has occurred while making a call in SQLscripts to All:",
-        error
+        error,
       );
     }
   });
@@ -76,7 +81,7 @@ export const fetchAllAndMineScripts = (
     if (failedErrorLog) {
       console.error(
         "An error has occurred while making a call in SQLscripts to Mine:",
-        error
+        error,
       );
     }
   });
@@ -191,7 +196,7 @@ export const handleDeleteScript = (
   userId: string,
   searchTerm: string,
   openNextScript: any,
-  isMultiTabsEnabled: boolean
+  isMultiTabsEnabled: boolean,
 ): void => {
   const projectId = getSonarContext()?.getSelectedProjectId?.();
   const { intl, activeScript } = renderedProps;
@@ -199,6 +204,7 @@ export const handleDeleteScript = (
     renderedProps
       .deleteScript(script.id)
       .then(() => {
+        deleteQuerySelectionsFromStorage(script.id);
         fetchAllAndMineScripts(renderedProps.fetchSQLScripts, searchTerm);
         ScriptsResource.fetch();
         closeTab(script.id);
@@ -228,7 +234,7 @@ export const handleDeleteScript = (
         if (failedErrorLog) {
           console.error(
             "An error has occurred while making a call in SQLscripts to delete:",
-            error
+            error,
           ); //specifically for instances of logErrorsToSentry & outsideCommunicationDisabled not allowing a sentry error log to be created
         }
       });
@@ -276,7 +282,7 @@ function doScriptSelect(
   router: any,
   script: any,
   selectTabFunction: any,
-  newQueryStatuses?: any
+  newQueryStatuses?: any,
 ) {
   const dataset = selectTabDataset(store.getState(), script.id);
   const prevScript = selectActiveScript(store.getState());
@@ -312,6 +318,11 @@ function doScriptSelect(
     }),
     state: { discard: true },
   });
+
+  // load a script's saved jobs when changing tabs if they aren't loaded already
+  if (!dataset) {
+    store.dispatch(loadScriptJobs(script));
+  }
 }
 
 export const handleOpenTabScript =

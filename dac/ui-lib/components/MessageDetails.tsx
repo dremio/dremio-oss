@@ -21,7 +21,7 @@ import clsx from "clsx";
 type Props = {
   renderButton?: (
     show: boolean,
-    setShow: (newVal: boolean) => void
+    setShow: (newVal: boolean) => void,
   ) => JSX.Element;
   message: JSX.Element | string;
   details?: JSX.Element | string;
@@ -90,5 +90,5 @@ export const MessageDetails = forwardRef<HTMLDivElement, Props>(
         </div>
       </div>
     );
-  }
+  },
 );

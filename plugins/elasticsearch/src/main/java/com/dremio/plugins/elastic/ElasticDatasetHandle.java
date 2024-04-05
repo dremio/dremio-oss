@@ -15,16 +15,14 @@
  */
 package com.dremio.plugins.elastic;
 
-import java.util.List;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.EntityPath;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.plugins.elastic.ElasticConnectionPool.ElasticConnection;
 import com.dremio.plugins.elastic.mapping.ElasticMappingSet.ElasticMapping;
+import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ElasticDatasetHandle implements DatasetHandle {
   private static final Logger logger = LoggerFactory.getLogger(ElasticDatasetHandle.class);
@@ -38,15 +36,15 @@ public class ElasticDatasetHandle implements DatasetHandle {
   private final boolean alias;
 
   public ElasticDatasetHandle(
-    EntityPath name,
-    ElasticConnection connection,
-    SabotContext context,
-    ElasticsearchConf config,
-    ElasticMapping mapping,
-    List<String> aliasIndices,
-    boolean alias
-    ) {
-    logger.debug("Create dataset handle for {}, mapping {}, alias indices {}", name, mapping, aliasIndices);
+      EntityPath name,
+      ElasticConnection connection,
+      SabotContext context,
+      ElasticsearchConf config,
+      ElasticMapping mapping,
+      List<String> aliasIndices,
+      boolean alias) {
+    logger.debug(
+        "Create dataset handle for {}, mapping {}, alias indices {}", name, mapping, aliasIndices);
     this.name = name;
     this.connection = connection;
     this.context = context;
@@ -84,5 +82,4 @@ public class ElasticDatasetHandle implements DatasetHandle {
   public EntityPath getDatasetPath() {
     return name;
   }
-
 }

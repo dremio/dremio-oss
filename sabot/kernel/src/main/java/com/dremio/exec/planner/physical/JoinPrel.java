@@ -16,12 +16,20 @@
 
 package com.dremio.exec.planner.physical;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.common.expression.FieldReference;
+import com.dremio.common.expression.LogicalExpression;
+import com.dremio.common.logical.data.JoinCondition;
+import com.dremio.exec.planner.common.JoinRelBase;
+import com.dremio.exec.planner.logical.ParseContext;
+import com.dremio.exec.planner.logical.RexToExpr;
+import com.dremio.exec.planner.physical.visitor.PrelVisitor;
+import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.IntFunction;
-
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.RelTraitSet;
@@ -34,40 +42,45 @@ import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.util.Pair;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.common.expression.FieldReference;
-import com.dremio.common.expression.LogicalExpression;
-import com.dremio.common.logical.data.JoinCondition;
-import com.dremio.exec.planner.common.JoinRelBase;
-import com.dremio.exec.planner.logical.ParseContext;
-import com.dremio.exec.planner.logical.RexToExpr;
-import com.dremio.exec.planner.physical.visitor.PrelVisitor;
-import com.google.common.collect.Lists;
-
-/**
- *
- * Base class for MergeJoinPrel, HashJoinPrel, and NestedLoopJoinPrel
- *
- */
+/** Base class for MergeJoinPrel, HashJoinPrel, and NestedLoopJoinPrel */
 public abstract class JoinPrel extends JoinRelBase implements Prel {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(JoinPrel.class);
 
-  protected JoinPrel(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, RexNode condition,
-      JoinRelType joinType) {
+  /**
+   * We only want to collect Join stats for joins that are part of the original user query. The join
+   * stats are used for StarFlake reflections, and it does not make sense to consider Dremio
+   * internal joins for StarFlake. Example of Dremio internal joins are incremental reflections
+   * related joins, DML related joins, Merge On Read related joins, etc.
+   */
+  private final boolean ignoreForJoinAnalysis;
+
+  protected JoinPrel(
+      RelOptCluster cluster,
+      RelTraitSet traits,
+      RelNode left,
+      RelNode right,
+      RexNode condition,
+      JoinRelType joinType,
+      boolean ignoreForJoinAnalysis) {
     super(cluster, traits, left, right, condition, joinType, false);
+    this.ignoreForJoinAnalysis = ignoreForJoinAnalysis;
+  }
+
+  public boolean getIgnoreForJoinAnalysis() {
+    return ignoreForJoinAnalysis;
   }
 
   protected static RelTraitSet adjustTraits(RelTraitSet traits) {
     // Join operators do not preserve distribution
-    return JoinRelBase
-        .adjustTraits(traits)
+    return JoinRelBase.adjustTraits(traits)
         .replaceIf(DistributionTraitDef.INSTANCE, () -> DistributionTrait.ANY);
   }
 
   public abstract RexNode getExtraCondition();
 
   @Override
-  public <T, X, E extends Throwable> T accept(PrelVisitor<T, X, E> logicalVisitor, X value) throws E {
+  public <T, X, E extends Throwable> T accept(PrelVisitor<T, X, E> logicalVisitor, X value)
+      throws E {
     return logicalVisitor.visitJoin(this, value);
   }
 
@@ -77,7 +90,9 @@ public abstract class JoinPrel extends JoinRelBase implements Prel {
   }
 
   /**
-   * Check to make sure that the fields of the inputs are the same as the output field names.  If not, insert a project renaming them.
+   * Check to make sure that the fields of the inputs are the same as the output field names. If
+   * not, insert a project renaming them.
+   *
    * @param offset
    * @param input
    * @return
@@ -99,17 +114,21 @@ public abstract class JoinPrel extends JoinRelBase implements Prel {
     }
   }
 
-  private RelNode rename(RelNode input, List<RelDataTypeField> inputFields, List<String> outputFieldNames) {
+  private RelNode rename(
+      RelNode input, List<RelDataTypeField> inputFields, List<String> outputFieldNames) {
     List<RexNode> exprs = Lists.newArrayList();
 
     for (RelDataTypeField field : inputFields) {
-      RexNode expr = input.getCluster().getRexBuilder().makeInputRef(field.getType(), field.getIndex());
+      RexNode expr =
+          input.getCluster().getRexBuilder().makeInputRef(field.getType(), field.getIndex());
       exprs.add(expr);
     }
 
-    RelDataType rowType = RexUtil.createStructType(input.getCluster().getTypeFactory(), exprs, outputFieldNames);
+    RelDataType rowType =
+        RexUtil.createStructType(input.getCluster().getTypeFactory(), exprs, outputFieldNames);
 
-    ProjectPrel proj = ProjectPrel.create(input.getCluster(), input.getTraitSet(), input, exprs, rowType);
+    ProjectPrel proj =
+        ProjectPrel.create(input.getCluster(), input.getTraitSet(), input, exprs, rowType);
 
     return proj;
   }
@@ -120,11 +139,11 @@ public abstract class JoinPrel extends JoinRelBase implements Prel {
   }
 
   /**
-   * Build the list of join conditions for this join.
-   * A join condition is built only for equality and IS NOT DISTINCT FROM comparisons. The difference is:
-   * null == null is FALSE whereas null IS NOT DISTINCT FROM null is TRUE
-   * For a use case of the IS NOT DISTINCT FROM comparison, see
+   * Build the list of join conditions for this join. A join condition is built only for equality
+   * and IS NOT DISTINCT FROM comparisons. The difference is: null == null is FALSE whereas null IS
+   * NOT DISTINCT FROM null is TRUE For a use case of the IS NOT DISTINCT FROM comparison, see
    * {@link org.apache.calcite.rel.rules.RemoveDistinctAggregateRule}
+   *
    * @param leftFields join fields from the left input
    * @param rightFields join fields from the right input
    * @return conditions populated list of join conditions
@@ -136,28 +155,28 @@ public abstract class JoinPrel extends JoinRelBase implements Prel {
       List<Integer> rightKeys) {
     final List<JoinCondition> conditions = new ArrayList<>();
     List<RexNode> conjuncts = RelOptUtil.conjunctions(this.getCondition());
-    short i=0;
+    short i = 0;
 
     for (Pair<Integer, Integer> pair : Pair.zip(leftKeys, rightKeys)) {
       final RexNode conditionExpr = conjuncts.get(i++);
-      final SqlKind kind  = conditionExpr.getKind();
+      final SqlKind kind = conditionExpr.getKind();
       if (kind != SqlKind.EQUALS && kind != SqlKind.IS_NOT_DISTINCT_FROM) {
         throw UserException.unsupportedError()
             .message("Unsupported comparator in join condition %s", conditionExpr)
             .build(logger);
       }
 
-      conditions.add(new JoinCondition(kind.toString(),
-          FieldReference.getWithQuotedRef(leftFields.get(pair.left)),
-          FieldReference.getWithQuotedRef(rightFields.get(pair.right))));
+      conditions.add(
+          new JoinCondition(
+              kind.toString(),
+              FieldReference.getWithQuotedRef(leftFields.get(pair.left)),
+              FieldReference.getWithQuotedRef(rightFields.get(pair.right))));
     }
 
     return conditions;
   }
 
-  /**
-   * Build extra join condition for this join for inequality expressions.
-   */
+  /** Build extra join condition for this join for inequality expressions. */
   protected LogicalExpression buildExtraJoinCondition(boolean vectorize) {
     RexNode extraCondition = this.getExtraCondition();
     if (vectorize && extraCondition != null && !extraCondition.isAlwaysTrue()) {
@@ -165,24 +184,26 @@ public abstract class JoinPrel extends JoinRelBase implements Prel {
       final int leftCount = left.getRowType().getFieldCount();
       final int rightCount = leftCount + right.getRowType().getFieldCount();
 
-      // map the fields to the correct input so that RexToExpr can generate appropriate InputReferences
-      IntFunction<Optional<Integer>> fieldIndexToInput = i -> {
-        if (i < leftCount) {
-          return Optional.of(0);
-        } else if (i < rightCount) {
-          return Optional.of(1);
-        } else {
-          throw new IllegalArgumentException("Unable to handle input number: " + i);
-        }
-      };
+      // map the fields to the correct input so that RexToExpr can generate appropriate
+      // InputReferences
+      IntFunction<Optional<Integer>> fieldIndexToInput =
+          i -> {
+            if (i < leftCount) {
+              return Optional.of(0);
+            } else if (i < rightCount) {
+              return Optional.of(1);
+            } else {
+              throw new IllegalArgumentException("Unable to handle input number: " + i);
+            }
+          };
 
       return RexToExpr.toExpr(
-        new ParseContext(settings),
-        getRowType(),
-        getCluster().getRexBuilder(),
-        extraCondition,
-        true,
-        fieldIndexToInput);
+          new ParseContext(settings),
+          getRowType(),
+          getCluster().getRexBuilder(),
+          extraCondition,
+          true,
+          fieldIndexToInput);
     }
     return null;
   }

@@ -15,17 +15,16 @@
  */
 package com.dremio.exec.store;
 
-import java.util.List;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.proto.ExecProtos;
 import com.dremio.exec.util.BloomFilter;
 import com.dremio.exec.util.ValueListFilter;
 import com.google.common.base.Preconditions;
+import java.util.List;
 
 /**
- * A POJO helper class for the protbuf struct CompositeColumnFilter.
- * It holds the deserialzied bloom filter which is not present in the generated pojo
+ * A POJO helper class for the protbuf struct CompositeColumnFilter. It holds the deserialzied bloom
+ * filter which is not present in the generated pojo
  */
 public class CompositeColumnFilter implements AutoCloseable {
 
@@ -65,13 +64,13 @@ public class CompositeColumnFilter implements AutoCloseable {
 
   @Override
   public String toString() {
-    return "CompositeColumnFilter{" +
-            "filterType=" + filterType +
-            ", columnsList=" + columnsList +
-            '}';
+    return "CompositeColumnFilter{"
+        + "filterType="
+        + filterType
+        + ", columnsList="
+        + columnsList
+        + '}';
   }
-
-
 
   public static class Builder {
 
@@ -104,10 +103,17 @@ public class CompositeColumnFilter implements AutoCloseable {
     }
 
     public CompositeColumnFilter build() {
-      Preconditions.checkArgument(compositeColumnFilter.columnsList != null && !compositeColumnFilter.columnsList.isEmpty(), "The columnsList is empty");
-      Preconditions.checkArgument(compositeColumnFilter.filterType != null, "The filterType is empty");
-      Preconditions.checkArgument((compositeColumnFilter.filterType == RuntimeFilterType.BLOOM_FILTER && compositeColumnFilter.bloomFilter != null) ||
-        (compositeColumnFilter.filterType == RuntimeFilterType.VALUE_LIST && compositeColumnFilter.valueList != null), "The filter is empty");
+      Preconditions.checkArgument(
+          compositeColumnFilter.columnsList != null && !compositeColumnFilter.columnsList.isEmpty(),
+          "The columnsList is empty");
+      Preconditions.checkArgument(
+          compositeColumnFilter.filterType != null, "The filterType is empty");
+      Preconditions.checkArgument(
+          (compositeColumnFilter.filterType == RuntimeFilterType.BLOOM_FILTER
+                  && compositeColumnFilter.bloomFilter != null)
+              || (compositeColumnFilter.filterType == RuntimeFilterType.VALUE_LIST
+                  && compositeColumnFilter.valueList != null),
+          "The filter is empty");
       return compositeColumnFilter;
     }
   }

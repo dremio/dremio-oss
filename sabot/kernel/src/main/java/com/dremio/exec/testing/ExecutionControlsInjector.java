@@ -15,25 +15,25 @@
  */
 package com.dremio.exec.testing;
 
+import com.google.common.base.Preconditions;
 import org.slf4j.Logger;
 
-import com.google.common.base.Preconditions;
-
 /**
- * Injects exceptions and pauses at execution time for testing. Any class that wants to simulate exceptions
- * or inject pauses for testing should have it's own private static instance of an injector (similar to the use
- * of loggers). Injection site either use {@link com.dremio.sabot.exec.fragment.FragmentContext} or
- * {@link com.dremio.exec.ops.QueryContext}. See {@link com.dremio.exec.testing.TestExceptionInjection} and
- * {@link com.dremio.exec.testing.TestPauseInjection} for examples of use.
- * See {@link ControlsInjector} for documentation.
+ * Injects exceptions and pauses at execution time for testing. Any class that wants to simulate
+ * exceptions or inject pauses for testing should have it's own private static instance of an
+ * injector (similar to the use of loggers). Injection site either use {@link
+ * com.dremio.sabot.exec.fragment.FragmentContext} or {@link com.dremio.exec.ops.QueryContext}. See
+ * {@link com.dremio.exec.testing.TestExceptionInjection} and {@link
+ * com.dremio.exec.testing.TestPauseInjection} for examples of use. See {@link ControlsInjector} for
+ * documentation.
  */
 public class ExecutionControlsInjector implements ControlsInjector {
 
   private final Class<?> clazz; // the class that owns this injector
 
   /**
-   * Constructor. Classes should use the static {@link ControlsInjectorFactory#getInjector} method to obtain their
-   * injector.
+   * Constructor. Classes should use the static {@link ControlsInjectorFactory#getInjector} method
+   * to obtain their injector.
    *
    * @param clazz the owning class
    */
@@ -49,28 +49,30 @@ public class ExecutionControlsInjector implements ControlsInjector {
   @Override
   public void injectUnchecked(final ExecutionControls executionControls, final String desc) {
     Preconditions.checkNotNull(executionControls);
-    final ExceptionInjection exceptionInjection = executionControls.lookupExceptionInjection(this, desc);
+    final ExceptionInjection exceptionInjection =
+        executionControls.lookupExceptionInjection(this, desc);
     if (exceptionInjection != null) {
       exceptionInjection.throwUnchecked();
     }
   }
 
-
   @Override
-  public <T extends Throwable> void injectChecked(final ExecutionControls executionControls, final String desc,
-                                                  final Class<T> exceptionClass) throws T {
+  public <T extends Throwable> void injectChecked(
+      final ExecutionControls executionControls, final String desc, final Class<T> exceptionClass)
+      throws T {
     Preconditions.checkNotNull(executionControls);
-    final ExceptionInjection exceptionInjection = executionControls.lookupExceptionInjection(this, desc);
+    final ExceptionInjection exceptionInjection =
+        executionControls.lookupExceptionInjection(this, desc);
     if (exceptionInjection != null) {
       exceptionInjection.throwChecked(exceptionClass);
     }
   }
 
   @Override
-  public void injectPause(final ExecutionControls executionControls, final String desc, final Logger logger) {
+  public void injectPause(
+      final ExecutionControls executionControls, final String desc, final Logger logger) {
     Preconditions.checkNotNull(executionControls);
-    final PauseInjection pauseInjection =
-      executionControls.lookupPauseInjection(this, desc);
+    final PauseInjection pauseInjection = executionControls.lookupPauseInjection(this, desc);
 
     if (pauseInjection != null) {
       logger.debug("Pausing at {}", desc);
@@ -80,8 +82,9 @@ public class ExecutionControlsInjector implements ControlsInjector {
   }
 
   @Override
-  public void injectInterruptiblePause(final ExecutionControls executionControls, final String desc,
-      final Logger logger) throws InterruptedException {
+  public void injectInterruptiblePause(
+      final ExecutionControls executionControls, final String desc, final Logger logger)
+      throws InterruptedException {
     Preconditions.checkNotNull(executionControls);
     final PauseInjection pauseInjection = executionControls.lookupPauseInjection(this, desc);
 
@@ -98,7 +101,8 @@ public class ExecutionControlsInjector implements ControlsInjector {
   }
 
   @Override
-  public CountDownLatchInjection getLatch(final ExecutionControls executionControls, final String desc) {
+  public CountDownLatchInjection getLatch(
+      final ExecutionControls executionControls, final String desc) {
     Preconditions.checkNotNull(executionControls);
     return executionControls.lookupCountDownLatchInjection(this, desc);
   }

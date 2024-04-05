@@ -15,81 +15,69 @@
  */
 package com.dremio.exec.expr.fn.impl;
 
-import org.junit.Test;
-
 import com.dremio.BaseTestQuery;
+import org.junit.Test;
 
 public class TestIsListFunction extends BaseTestQuery {
 
   @Test
   public void testIsListOnArrayColumn() throws Exception {
     testBuilder()
-      .unOrdered()
-      .sqlQuery("SELECT " +
-        "IS_LIST(intList) l1 " +
-        "FROM cp.\"array.json\"")
-      .baselineColumns("l1")
-      .baselineValues(true)
-      .go();
+        .unOrdered()
+        .sqlQuery("SELECT " + "IS_LIST(intList) l1 " + "FROM cp.\"array.json\"")
+        .baselineColumns("l1")
+        .baselineValues(true)
+        .go();
   }
 
   @Test
   public void testIsListOnIntColumn() throws Exception {
     testBuilder()
-      .unOrdered()
-      .sqlQuery("SELECT " +
-        "IS_LIST(intValue) l1 " +
-        "FROM cp.\"array.json\"")
-      .baselineColumns("l1")
-      .baselineValues(false)
-      .go();
+        .unOrdered()
+        .sqlQuery("SELECT " + "IS_LIST(intValue) l1 " + "FROM cp.\"array.json\"")
+        .baselineColumns("l1")
+        .baselineValues(false)
+        .go();
   }
 
   @Test
   public void testIsListForConvertFrom() throws Exception {
     testBuilder()
-      .unOrdered()
-      .sqlQuery("SELECT " +
-        "IS_LIST(CONVERT_FROM('[\"foo\",\"bar\",\"qux\"]', 'JSON')) l1 ")
-      .baselineColumns("l1")
-      .baselineValues(true)
-      .go();
+        .unOrdered()
+        .sqlQuery("SELECT " + "IS_LIST(CONVERT_FROM('[\"foo\",\"bar\",\"qux\"]', 'JSON')) l1 ")
+        .baselineColumns("l1")
+        .baselineValues(true)
+        .go();
   }
 
   @Test
-  public void  testIsListEmptyList() throws Exception {
+  public void testIsListEmptyList() throws Exception {
     testBuilder()
-      .unOrdered()
-      .sqlQuery("SELECT " +
-        "IS_LIST(col3) l1 " +
-        "FROM cp.\"nulllistsForArray.parquet\"")
-      .baselineColumns("l1")
-      .baselineValues(true)
-      .go();
+        .unOrdered()
+        .sqlQuery("SELECT " + "IS_LIST(col3) l1 " + "FROM cp.\"nulllistsForArray.parquet\"")
+        .baselineColumns("l1")
+        .baselineValues(true)
+        .go();
   }
 
-  //null is in the list and value searched is not in the list
+  // null is in the list and value searched is not in the list
   @Test
   public void testIsListForNullInList() throws Exception {
     testBuilder()
-      .unOrdered()
-      .sqlQuery("SELECT " +
-        "IS_LIST(col1) l1 " +
-        "FROM cp.\"nulllistsForArray.parquet\"")
-      .baselineColumns("l1")
-      .baselineValues(true)
-      .go();
+        .unOrdered()
+        .sqlQuery("SELECT " + "IS_LIST(col1) l1 " + "FROM cp.\"nulllistsForArray.parquet\"")
+        .baselineColumns("l1")
+        .baselineValues(true)
+        .go();
   }
 
   @Test
   public void testIsListForListOfNulls() throws Exception {
     testBuilder()
-      .unOrdered()
-      .sqlQuery("SELECT " +
-        "IS_LIST(col2) l1 " +
-        "FROM cp.\"nulllistsForArray.parquet\"")
-      .baselineColumns("l1")
-      .baselineValues(true)
-      .go();
+        .unOrdered()
+        .sqlQuery("SELECT " + "IS_LIST(col2) l1 " + "FROM cp.\"nulllistsForArray.parquet\"")
+        .baselineColumns("l1")
+        .baselineValues(true)
+        .go();
   }
 }

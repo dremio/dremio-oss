@@ -18,19 +18,17 @@ package com.dremio.exec.expr.fn;
 import com.dremio.common.exceptions.UserException;
 import com.google.errorprone.annotations.FormatMethod;
 
-/**
- * Implementation of the FunctionErrorContext interface
- */
+/** Implementation of the FunctionErrorContext interface */
 public class FunctionErrorContextImpl implements FunctionErrorContext {
-  public static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FunctionErrorContextImpl.class);
+  public static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(FunctionErrorContextImpl.class);
 
-  private int id;  // ID by which the error context is registered within a FunctionContext. -1 == unassigned
+  private int
+      id; // ID by which the error context is registered within a FunctionContext. -1 == unassigned
 
-  /**
-   * Creation only exposed through {@link FunctionErrorContextBuilder}
-   */
+  /** Creation only exposed through {@link FunctionErrorContextBuilder} */
   FunctionErrorContextImpl() {
-    this.id = -1;  // Meaning; unassigned
+    this.id = -1; // Meaning; unassigned
   }
 
   @Override
@@ -101,9 +99,7 @@ public class FunctionErrorContextImpl implements FunctionErrorContext {
       return this;
     }
 
-    /**
-     * Builds an exception that can be thrown by the caller
-     */
+    /** Builds an exception that can be thrown by the caller */
     @Override
     public RuntimeException build() {
       return b.build(logger);

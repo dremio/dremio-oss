@@ -16,7 +16,6 @@
 package com.dremio.exec.planner.sql.convertlet;
 
 import java.util.Collections;
-
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.CorrelationId;
 import org.apache.calcite.rex.RexBuilder;
@@ -33,9 +32,7 @@ public final class CorrelatedUnnestQueryBuilder {
   private final RexBuilder rexBuilder;
 
   public CorrelatedUnnestQueryBuilder(
-    RexCorrelVariable rexCorrelVariable,
-    RelBuilder relBuilder,
-    RexBuilder rexBuilder) {
+      RexCorrelVariable rexCorrelVariable, RelBuilder relBuilder, RexBuilder rexBuilder) {
     this.rexCorrelVariable = rexCorrelVariable;
     this.relBuilder = relBuilder;
     this.rexBuilder = rexBuilder;
@@ -43,13 +40,12 @@ public final class CorrelatedUnnestQueryBuilder {
 
   public static CorrelatedUnnestQueryBuilder create(ConvertletContext context) {
     return new CorrelatedUnnestQueryBuilder(
-      context.getRexCorrelVariable(),
-      context.getRelBuilder(),
-      context.getRexBuilder());
+        context.getRexCorrelVariable(), context.getRelBuilder(), context.getRexBuilder());
   }
 
   /**
    * UNNESTS the array expression and handles correlation.
+   *
    * @param arrayExpression
    * @return The next builder state.
    */
@@ -57,30 +53,31 @@ public final class CorrelatedUnnestQueryBuilder {
     return unnest(arrayExpression, rexCorrelVariable);
   }
 
-  public AfterCorrelatedUnnest unnest(RexNode arrayExpression, RexCorrelVariable rexCorrelVariable) {
+  public AfterCorrelatedUnnest unnest(
+      RexNode arrayExpression, RexCorrelVariable rexCorrelVariable) {
     // The outer RelNode will define the source.
-    relBuilder.values(new String[]{"ZERO"}, 0);
+    relBuilder.values(new String[] {"ZERO"}, 0);
 
     // Replace InputRefs with Correlated Variable
-    RexNode rewrittenArrayExpression = RexInputRefToFieldAccess.rewrite(
-      arrayExpression,
-      rexBuilder,
-      rexCorrelVariable);
+    RexNode rewrittenArrayExpression =
+        RexInputRefToFieldAccess.rewrite(arrayExpression, rexBuilder, rexCorrelVariable);
 
     // We only want the correlationId in the outermost RexSubQuery
-    Pair<CorrelationId, RexNode> removeResult = CorrelationIdRemover.remove(rewrittenArrayExpression);
+    Pair<CorrelationId, RexNode> removeResult =
+        CorrelationIdRemover.remove(rewrittenArrayExpression);
     rewrittenArrayExpression = removeResult.right;
 
     // If a rewrite happen, then we need to introduce a CorrelationID
     boolean correlationIdNeeded = arrayExpression != rewrittenArrayExpression;
     CorrelationId correlationId = correlationIdNeeded ? rexCorrelVariable.id : null;
 
-    RelNode unnest = relBuilder
-      .project(rewrittenArrayExpression)
-      .uncollect(Collections.EMPTY_LIST, false)
-      .build();
+    RelNode unnest =
+        relBuilder
+            .project(rewrittenArrayExpression)
+            .uncollect(Collections.EMPTY_LIST, false)
+            .build();
 
-    return new AfterCorrelatedUnnest(relBuilder,  unnest, correlationId);
+    return new AfterCorrelatedUnnest(relBuilder, unnest, correlationId);
   }
 
   private static final class RexInputRefToFieldAccess extends RexShuttle {
@@ -94,15 +91,15 @@ public final class CorrelatedUnnestQueryBuilder {
 
     @Override
     public RexNode visitInputRef(RexInputRef inputRef) {
-      RexNode correlatedFieldAccess = rexBuilder.makeFieldAccess(rexCorrelVariable, inputRef.getIndex());
+      RexNode correlatedFieldAccess =
+          rexBuilder.makeFieldAccess(rexCorrelVariable, inputRef.getIndex());
       return correlatedFieldAccess;
     }
 
     public static RexNode rewrite(
-      RexNode node,
-      RexBuilder rexBuilder,
-      RexCorrelVariable rexCorrelVariable) {
-      RexInputRefToFieldAccess visitor = new RexInputRefToFieldAccess(rexBuilder, rexCorrelVariable);
+        RexNode node, RexBuilder rexBuilder, RexCorrelVariable rexCorrelVariable) {
+      RexInputRefToFieldAccess visitor =
+          new RexInputRefToFieldAccess(rexBuilder, rexCorrelVariable);
       return node.accept(visitor);
     }
   }

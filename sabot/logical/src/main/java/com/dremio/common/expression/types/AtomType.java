@@ -15,7 +15,6 @@
  */
 package com.dremio.common.expression.types;
 
-
 public class AtomType extends DataType {
   private String name;
   private Comparability comparability;
@@ -28,12 +27,10 @@ public class AtomType extends DataType {
     this.isNumericType = isNumericType;
   }
 
-
   @Override
   public boolean isNumericType() {
     return isNumericType;
   }
-
 
   @Override
   public String getName() {
@@ -59,8 +56,4 @@ public class AtomType extends DataType {
   public Comparability getComparability() {
     return comparability;
   }
-
-
-
-
 }

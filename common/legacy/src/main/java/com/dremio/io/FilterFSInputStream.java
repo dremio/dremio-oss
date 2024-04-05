@@ -144,7 +144,4 @@ public class FilterFSInputStream extends FSInputStream {
   public boolean markSupported() {
     return in.markSupported();
   }
-
-
-
 }

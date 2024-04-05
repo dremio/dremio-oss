@@ -15,17 +15,17 @@
  */
 package com.dremio.exec.expr;
 
-import java.util.Iterator;
-
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.EvaluationType;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.visitors.ExprVisitor;
 import com.dremio.exec.record.TypedFieldId;
 import com.google.common.collect.Iterators;
+import java.util.Iterator;
 
 public class ValueVectorWriteExpression implements LogicalExpression {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ValueVectorWriteExpression.class);
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ValueVectorWriteExpression.class);
 
   private final TypedFieldId fieldId;
   private final LogicalExpression child;
@@ -33,11 +33,11 @@ public class ValueVectorWriteExpression implements LogicalExpression {
   // was pushed in 3.0 have to retain this so that serde does not break.
   private final EvaluationType evaluationType;
 
-  public ValueVectorWriteExpression(TypedFieldId fieldId, LogicalExpression child){
+  public ValueVectorWriteExpression(TypedFieldId fieldId, LogicalExpression child) {
     this(fieldId, child, false);
   }
 
-  public ValueVectorWriteExpression(TypedFieldId fieldId, LogicalExpression child, boolean safe){
+  public ValueVectorWriteExpression(TypedFieldId fieldId, LogicalExpression child, boolean safe) {
     this.fieldId = fieldId;
     this.child = child;
     this.safe = safe;
@@ -79,13 +79,11 @@ public class ValueVectorWriteExpression implements LogicalExpression {
 
   @Override
   public int getSelfCost() {
-    return 0;  // TODO
+    return 0; // TODO
   }
 
   @Override
   public int getCumulativeCost() {
     return 0; // TODO
   }
-
-
 }

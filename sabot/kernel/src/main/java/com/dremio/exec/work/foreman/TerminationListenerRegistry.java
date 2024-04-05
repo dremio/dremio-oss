@@ -24,29 +24,28 @@ public interface TerminationListenerRegistry {
 
   /**
    * Add a listener that will be informed when this connection is terminated.
+   *
    * @param listener
    */
   void addTerminationListener(GenericFutureListener<? extends Future<? super Void>> listener);
 
   /**
    * Remove a previously registered listener.
+   *
    * @param listener Listener to remove.
    */
   void removeTerminationListener(GenericFutureListener<? extends Future<? super Void>> listener);
 
+  public class NoOpTerminationListenerRegistry implements TerminationListenerRegistry {
 
-
-  public class NoOpTerminationListenerRegistry implements TerminationListenerRegistry{
-
-    private NoOpTerminationListenerRegistry(){}
+    private NoOpTerminationListenerRegistry() {}
 
     @Override
-    public void addTerminationListener(GenericFutureListener<? extends Future<? super Void>> listener) {
-    }
+    public void addTerminationListener(
+        GenericFutureListener<? extends Future<? super Void>> listener) {}
 
     @Override
-    public void removeTerminationListener(GenericFutureListener<? extends Future<? super Void>> listener) {
-    }
-
+    public void removeTerminationListener(
+        GenericFutureListener<? extends Future<? super Void>> listener) {}
   }
 }

@@ -19,9 +19,7 @@ import static org.junit.Assert.assertEquals;
 
 import javax.ws.rs.core.Response;
 
-/**
- * Expectation for a given status code
- */
+/** Expectation for a given status code */
 public final class StatusExpectation implements ResponseExpectation {
 
   private final Response.StatusType status;
@@ -32,6 +30,9 @@ public final class StatusExpectation implements ResponseExpectation {
 
   @Override
   public void validate(Response response) {
-    assertEquals(status + " != " + response.getStatusInfo(), status.getStatusCode(), response.getStatusInfo().getStatusCode());
+    assertEquals(
+        status + " != " + response.getStatusInfo(),
+        status.getStatusCode(),
+        response.getStatusInfo().getStatusCode());
   }
 }

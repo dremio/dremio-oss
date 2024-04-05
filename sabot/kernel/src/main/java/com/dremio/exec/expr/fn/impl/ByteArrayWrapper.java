@@ -16,8 +16,8 @@
 package com.dremio.exec.expr.fn.impl;
 
 /**
- * Thin wrapper around byte array. This class is used by aggregate functions which
- * consume decimal, variable width vectors as inputs.
+ * Thin wrapper around byte array. This class is used by aggregate functions which consume decimal,
+ * variable width vectors as inputs.
  */
 public class ByteArrayWrapper {
   private byte[] bytes;

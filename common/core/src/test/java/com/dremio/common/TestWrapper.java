@@ -40,20 +40,24 @@ class TestWrapper {
 
   @Test
   void unwrapInterface() {
-    SomeClassImplementingInterface someClassImplementingInterface = new SomeClassImplementingInterface();
-    assertThat(someClassImplementingInterface.unwrap(SomeInterface.class)).isInstanceOf(SomeInterface.class);
+    SomeClassImplementingInterface someClassImplementingInterface =
+        new SomeClassImplementingInterface();
+    assertThat(someClassImplementingInterface.unwrap(SomeInterface.class))
+        .isInstanceOf(SomeInterface.class);
   }
 
   @Test
   void isWrapperForInterface() {
-    SomeClassImplementingInterface someClassImplementingInterface = new SomeClassImplementingInterface();
+    SomeClassImplementingInterface someClassImplementingInterface =
+        new SomeClassImplementingInterface();
     assertThat(someClassImplementingInterface.isWrapperFor(SomeInterface.class)).isTrue();
   }
 
   @Test
   void unwrapBaseClass() {
     SomeClassExtendingBaseClass someClassExtendingBaseClass = new SomeClassExtendingBaseClass();
-    assertThat(someClassExtendingBaseClass.unwrap(SomeBaseClass.class)).isInstanceOf(SomeBaseClass.class);
+    assertThat(someClassExtendingBaseClass.unwrap(SomeBaseClass.class))
+        .isInstanceOf(SomeBaseClass.class);
   }
 
   @Test
@@ -66,11 +70,11 @@ class TestWrapper {
   void unwrapNotImplementing() {
     SomeSimpleWrapperClass someClass = new SomeSimpleWrapperClass();
     assertThatThrownBy(() -> someClass.unwrap(SomeInterface.class))
-      .isInstanceOf(IllegalArgumentException.class)
-      .hasMessageContainingAll(
-        SomeSimpleWrapperClass.class.getSimpleName(),
-        "cannot be unwrapped into",
-        SomeInterface.class.getSimpleName());
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContainingAll(
+            SomeSimpleWrapperClass.class.getSimpleName(),
+            "cannot be unwrapped into",
+            SomeInterface.class.getSimpleName());
   }
 
   @Test
@@ -83,11 +87,11 @@ class TestWrapper {
   void unwrapNotExtending() {
     SomeSimpleWrapperClass someClass = new SomeSimpleWrapperClass();
     assertThatThrownBy(() -> someClass.unwrap(SomeBaseClass.class))
-      .isInstanceOf(IllegalArgumentException.class)
-      .hasMessageContainingAll(
-        SomeSimpleWrapperClass.class.getSimpleName(),
-        "cannot be unwrapped into",
-        SomeBaseClass.class.getSimpleName());
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContainingAll(
+            SomeSimpleWrapperClass.class.getSimpleName(),
+            "cannot be unwrapped into",
+            SomeBaseClass.class.getSimpleName());
   }
 
   @Test

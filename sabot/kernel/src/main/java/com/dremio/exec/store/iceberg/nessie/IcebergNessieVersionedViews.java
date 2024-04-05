@@ -17,38 +17,33 @@ package com.dremio.exec.store.iceberg.nessie;
 
 import static java.util.Objects.requireNonNull;
 
-import java.util.List;
-import java.util.Map;
-import java.util.function.Function;
-
-import javax.annotation.Nullable;
-
-import org.apache.hadoop.conf.Configuration;
-import org.apache.iceberg.viewdepoc.BaseMetastoreViewOperations;
-import org.apache.iceberg.viewdepoc.BaseView;
-import org.apache.iceberg.viewdepoc.DDLOperations;
-import org.apache.iceberg.viewdepoc.View;
-import org.apache.iceberg.viewdepoc.ViewDefinition;
-import org.apache.iceberg.viewdepoc.ViewOperations;
-import org.apache.iceberg.viewdepoc.ViewUtils;
-import org.apache.iceberg.viewdepoc.ViewVersionMetadata;
-import org.projectnessie.error.NessieReferenceConflictException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.Retryer;
 import com.dremio.common.util.Retryer.OperationFailedAfterRetriesException;
 import com.dremio.exec.store.iceberg.SupportsIcebergMutablePlugin;
 import com.dremio.exec.store.iceberg.model.IcebergCommitOrigin;
+import com.dremio.exec.store.iceberg.viewdepoc.BaseMetastoreViewOperations;
+import com.dremio.exec.store.iceberg.viewdepoc.BaseView;
+import com.dremio.exec.store.iceberg.viewdepoc.DDLOperations;
+import com.dremio.exec.store.iceberg.viewdepoc.View;
+import com.dremio.exec.store.iceberg.viewdepoc.ViewDefinition;
+import com.dremio.exec.store.iceberg.viewdepoc.ViewOperations;
+import com.dremio.exec.store.iceberg.viewdepoc.ViewUtils;
+import com.dremio.exec.store.iceberg.viewdepoc.ViewVersionMetadata;
 import com.dremio.plugins.NessieClient;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import javax.annotation.Nullable;
+import org.apache.hadoop.conf.Configuration;
+import org.projectnessie.error.NessieReferenceConflictException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * Generic class to operate on different views.
- */
+/** Generic class to operate on different views. */
 public class IcebergNessieVersionedViews implements IcebergVersionedViews {
   private static final Logger logger = LoggerFactory.getLogger(IcebergNessieVersionedViews.class);
 
@@ -81,10 +76,11 @@ public class IcebergNessieVersionedViews implements IcebergVersionedViews {
     this.plugin = plugin;
     this.userName = userName;
     this.metadataLoader = metadataLoader;
-    this.retryer = Retryer.newBuilder()
-      .retryOnExceptionFunc(IcebergNessieVersionedViews::isRetriable)
-      .setMaxRetries(RETRY_MAX)
-      .build();
+    this.retryer =
+        Retryer.newBuilder()
+            .retryOnExceptionFunc(IcebergNessieVersionedViews::isRetriable)
+            .setMaxRetries(RETRY_MAX)
+            .build();
   }
 
   protected String defaultWarehouseLocation(List<String> viewKey) {
@@ -129,13 +125,17 @@ public class IcebergNessieVersionedViews implements IcebergVersionedViews {
     try {
       retryer.run(() -> replaceView(viewKey, viewDefinition, properties, version));
     } catch (OperationFailedAfterRetriesException e) {
-      //This exception is for retryer
+      // This exception is for retryer
       logger.info("Max retries reached, replace view query failed", e);
       throw new RuntimeException(e);
     }
   }
 
-  private void replaceView(List<String> viewKey, ViewDefinition viewDefinition, Map<String, String> properties, ResolvedVersionContext version) {
+  private void replaceView(
+      List<String> viewKey,
+      ViewDefinition viewDefinition,
+      Map<String, String> properties,
+      ResolvedVersionContext version) {
     ViewOperations ops = newViewOps(viewKey, version, IcebergCommitOrigin.ALTER_VIEW);
 
     if (ops.current() == null) {
@@ -202,17 +202,11 @@ public class IcebergNessieVersionedViews implements IcebergVersionedViews {
   }
 
   protected BaseMetastoreViewOperations newViewOps(
-    List<String> viewKey,
-    ResolvedVersionContext version,
-    @Nullable IcebergCommitOrigin commitOrigin
-  ) {
+      List<String> viewKey,
+      ResolvedVersionContext version,
+      @Nullable IcebergCommitOrigin commitOrigin) {
     return new IcebergNessieVersionedViewOperations(
-        plugin.createIcebergFileIO(
-            plugin.getSystemUserFS(),
-            null,
-            null,
-            null,
-            null),
+        plugin.createIcebergFileIO(plugin.getSystemUserFS(), null, null, null, null),
         nessieClient,
         viewKey,
         commitOrigin,

@@ -15,11 +15,6 @@
  */
 package com.dremio.exec.store.hive;
 
-import java.io.IOException;
-import java.util.Map;
-
-import org.apache.hadoop.conf.Configuration;
-
 import com.dremio.common.logical.FormatPluginConfig;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.server.SabotContext;
@@ -33,13 +28,14 @@ import com.dremio.exec.store.iceberg.SupportsIcebergRootPointer;
 import com.dremio.io.file.FileSystem;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.context.OperatorContext;
+import java.io.IOException;
+import java.util.Map;
+import org.apache.hadoop.conf.Configuration;
 
-/**
- * Base class which all hive storage plugins extend
- */
+/** Base class which all hive storage plugins extend */
 public abstract class BaseHiveStoragePlugin implements SupportsIcebergRootPointer {
 
-  //Advanced option to set default ctas format
+  // Advanced option to set default ctas format
   public static final String HIVE_DEFAULT_CTAS_FORMAT = "hive.default.ctas.format";
 
   private final SabotContext sabotContext;
@@ -58,19 +54,29 @@ public abstract class BaseHiveStoragePlugin implements SupportsIcebergRootPointe
     return sabotContext;
   }
 
-  public FileSystem createFS(FileSystem fs, OperatorContext operatorContext, AsyncStreamConf cacheAndAsyncConf) throws IOException {
-    return this.sabotContext.getFileSystemWrapper().wrap(fs, this.getName(), cacheAndAsyncConf,
-        operatorContext, cacheAndAsyncConf.isAsyncEnabled(), false);
+  public FileSystem createFS(
+      FileSystem fs, OperatorContext operatorContext, AsyncStreamConf cacheAndAsyncConf)
+      throws IOException {
+    return this.sabotContext
+        .getFileSystemWrapper()
+        .wrap(
+            fs,
+            this.getName(),
+            cacheAndAsyncConf,
+            operatorContext,
+            cacheAndAsyncConf.isAsyncEnabled(),
+            false);
   }
 
-  protected final void runQuery(final String query, final String userName, final String queryType) throws Exception {
+  protected final void runQuery(final String query, final String userName, final String queryType)
+      throws Exception {
     sabotContext.getJobsRunner().get().runQueryAsJob(query, userName, queryType, null);
   }
 
   @Override
   public Configuration getFsConfCopy() {
     Configuration conf = new Configuration();
-    for (Map.Entry<String, String> property: getConfigProperties()) {
+    for (Map.Entry<String, String> property : getConfigProperties()) {
       conf.set(property.getKey(), property.getValue());
     }
     return conf;
@@ -79,30 +85,41 @@ public abstract class BaseHiveStoragePlugin implements SupportsIcebergRootPointe
   public abstract String getConfEntry(String key, String defaultValue);
 
   @Override
-  public boolean isMetadataValidityCheckRecentEnough(Long lastMetadataValidityCheckTime, Long currentTime, OptionManager optionManager) {
-    final long metadataAggressiveExpiryTime = Long.parseLong(getConfEntry(PlannerSettings.METADATA_EXPIRY_CHECK_INTERVAL_SECS.getOptionName(),
-      String.valueOf(optionManager.getOption(PlannerSettings.METADATA_EXPIRY_CHECK_INTERVAL_SECS)))) * 1000;
-    return (lastMetadataValidityCheckTime != null && (lastMetadataValidityCheckTime + metadataAggressiveExpiryTime >= currentTime)); // dataset metadata validity was checked too long ago (or never)
+  public boolean isMetadataValidityCheckRecentEnough(
+      Long lastMetadataValidityCheckTime, Long currentTime, OptionManager optionManager) {
+    final long metadataAggressiveExpiryTime =
+        Long.parseLong(
+                getConfEntry(
+                    PlannerSettings.METADATA_EXPIRY_CHECK_INTERVAL_SECS.getOptionName(),
+                    String.valueOf(
+                        optionManager.getOption(
+                            PlannerSettings.METADATA_EXPIRY_CHECK_INTERVAL_SECS))))
+            * 1000;
+    return (lastMetadataValidityCheckTime != null
+        && (lastMetadataValidityCheckTime + metadataAggressiveExpiryTime
+            >= currentTime)); // dataset metadata validity was checked too long ago (or never)
   }
 
   @Override
   public FormatPlugin getFormatPlugin(FormatPluginConfig formatConfig) {
     if (formatConfig instanceof IcebergFormatConfig) {
-      IcebergFormatPlugin icebergFormatPlugin = new IcebergFormatPlugin("iceberg", sabotContext, (IcebergFormatConfig) formatConfig, null);
+      IcebergFormatPlugin icebergFormatPlugin =
+          new IcebergFormatPlugin(
+              "iceberg", sabotContext, (IcebergFormatConfig) formatConfig, null);
       icebergFormatPlugin.initialize((IcebergFormatConfig) formatConfig, this);
       return icebergFormatPlugin;
     }
     if (formatConfig instanceof DeltaLakeFormatConfig) {
-      return new DeltaLakeFormatPlugin("delta", sabotContext, (DeltaLakeFormatConfig) formatConfig, null);
+      return new DeltaLakeFormatPlugin(
+          "delta", sabotContext, (DeltaLakeFormatConfig) formatConfig, null);
     }
-    throw new UnsupportedOperationException("Format plugins for non iceberg use cases are not supported.");
+    throw new UnsupportedOperationException(
+        "Format plugins for non iceberg use cases are not supported.");
   }
 
   public abstract Iterable<Map.Entry<String, String>> getConfigProperties();
 
-
   public String getDefaultCtasFormat() {
     return getConfEntry(HIVE_DEFAULT_CTAS_FORMAT, null);
   }
-
 }

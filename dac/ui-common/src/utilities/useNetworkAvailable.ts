@@ -60,7 +60,7 @@ export const waitForNetworkAvailable = (): Promise<void> => {
       () => {
         resolve();
       },
-      { once: true }
+      { once: true },
     );
   });
 };

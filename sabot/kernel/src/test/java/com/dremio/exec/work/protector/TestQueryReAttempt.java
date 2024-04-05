@@ -19,24 +19,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Set;
-
-import org.apache.arrow.memory.OutOfMemoryException;
-import org.apache.arrow.vector.BitVector;
-import org.apache.arrow.vector.IntVector;
-import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.complex.NonNullableStructVector;
-import org.apache.arrow.vector.complex.impl.ComplexWriterImpl;
-import org.apache.arrow.vector.complex.writer.BaseWriter;
-import org.apache.arrow.vector.types.pojo.ArrowType;
-import org.apache.arrow.vector.types.pojo.FieldType;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
-import org.mockito.Mockito;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.protos.AttemptId;
@@ -60,8 +42,23 @@ import com.dremio.proto.model.attempts.AttemptReason;
 import com.dremio.sabot.op.aggregate.hash.HashAggOperator;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.google.common.collect.Sets;
-
 import io.netty.buffer.ByteBuf;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Set;
+import org.apache.arrow.memory.OutOfMemoryException;
+import org.apache.arrow.vector.BitVector;
+import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.complex.NonNullableStructVector;
+import org.apache.arrow.vector.complex.impl.ComplexWriterImpl;
+import org.apache.arrow.vector.complex.writer.BaseWriter;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.FieldType;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.Test;
+import org.mockito.Mockito;
 
 public class TestQueryReAttempt extends BaseTestQuery {
 
@@ -81,13 +78,17 @@ public class TestQueryReAttempt extends BaseTestQuery {
   }
 
   private NonNullableStructVector structVector(String name) {
-    NonNullableStructVector vector = new NonNullableStructVector(name, allocator, new FieldType(false, ArrowType.Struct.INSTANCE, null), null);
+    NonNullableStructVector vector =
+        new NonNullableStructVector(
+            name, allocator, new FieldType(false, ArrowType.Struct.INSTANCE, null), null);
 
     ComplexWriterImpl structWriter = new ComplexWriterImpl("colMap", vector);
 
     // colMap contains the following records:
-    // { bigint: 23, nVarCharCol: 'value', nListCol: [1970-01-01, 1970-01-03, 1969-12-31], nUnionCol: 2 }
-    // { bigint: 223, nVarCharCol: 'long long value', nListCol: [1969-12-29, 1969-12-29], nUnionCol: 'long long value' }
+    // { bigint: 23, nVarCharCol: 'value', nListCol: [1970-01-01, 1970-01-03, 1969-12-31],
+    // nUnionCol: 2 }
+    // { bigint: 223, nVarCharCol: 'long long value', nListCol: [1969-12-29, 1969-12-29], nUnionCol:
+    // 'long long value' }
     // { bigint: 54645, nMap: { a: 1 } }
     // { }
     // { bigint: 234543 }
@@ -161,13 +162,15 @@ public class TestQueryReAttempt extends BaseTestQuery {
     resetSessionOption(PlannerSettings.QUERY_PLAN_CACHE_ENABLED.getOptionName());
   }
 
-  /**
-   * Injects an OOM in HashAgg and confirm that the query succeeds anyway
-   */
+  /** Injects an OOM in HashAgg and confirm that the query succeeds anyway */
   @Test
   public void testOOMExceptionReAttempt() throws Exception {
-    final String controls = Controls.newBuilder()
-            .addException(HashAggOperator.class, HashAggOperator.INJECTOR_DO_WORK_OOM, OutOfMemoryException.class)
+    final String controls =
+        Controls.newBuilder()
+            .addException(
+                HashAggOperator.class,
+                HashAggOperator.INJECTOR_DO_WORK_OOM,
+                OutOfMemoryException.class)
             .build();
     ControlsInjectionUtil.setControls(client, controls);
     test(getFile("queries/tpch/01.sql"));
@@ -175,9 +178,13 @@ public class TestQueryReAttempt extends BaseTestQuery {
 
   @Test
   public void testOOMErrorReAttempt() throws Exception {
-    final String controls = Controls.newBuilder()
-      .addException(HashAggOperator.class, HashAggOperator.INJECTOR_DO_WORK_OOM_ERROR, InjectedOutOfMemoryError.class)
-      .build();
+    final String controls =
+        Controls.newBuilder()
+            .addException(
+                HashAggOperator.class,
+                HashAggOperator.INJECTOR_DO_WORK_OOM_ERROR,
+                InjectedOutOfMemoryError.class)
+            .build();
     ControlsInjectionUtil.setControls(client, controls);
     test(getFile("queries/tpch/01.sql"));
   }
@@ -186,8 +193,10 @@ public class TestQueryReAttempt extends BaseTestQuery {
   public void testSupportedSchemaChange() throws Exception {
     // original schema [field1=bit, field2=int]
     // new schema [field1=bit, field3=map, field2=int]
-    List<ValueVector> original = Arrays.<ValueVector>asList(bitVector("field1"), intVector("field2"));
-    List<ValueVector> updated = Arrays.asList(bitVector("field1"), structVector("field3"), intVector("field2"));
+    List<ValueVector> original =
+        Arrays.<ValueVector>asList(bitVector("field1"), intVector("field2"));
+    List<ValueVector> updated =
+        Arrays.asList(bitVector("field1"), structVector("field3"), intVector("field2"));
     checkSchemaChange(original, updated);
   }
 
@@ -196,8 +205,10 @@ public class TestQueryReAttempt extends BaseTestQuery {
     // field2 changes from int to map
     // original schema [field1=bit, field2=int]
     // new schema [field1=bit, field2=map, field3=int]
-    List<ValueVector> original = Arrays.<ValueVector>asList(bitVector("field1"), intVector("field2"));
-    List<ValueVector> updated = Arrays.asList(bitVector("field1"), structVector("field2"), intVector("field3"));
+    List<ValueVector> original =
+        Arrays.<ValueVector>asList(bitVector("field1"), intVector("field2"));
+    List<ValueVector> updated =
+        Arrays.asList(bitVector("field1"), structVector("field2"), intVector("field3"));
 
     try {
       checkSchemaChange(original, updated);
@@ -213,7 +224,8 @@ public class TestQueryReAttempt extends BaseTestQuery {
     return new QueryWritableBatch(header, batch.getBuffers());
   }
 
-  private void checkSchemaChange(List<ValueVector> first, List<ValueVector> second) throws Exception {
+  private void checkSchemaChange(List<ValueVector> first, List<ValueVector> second)
+      throws Exception {
     OptionManager options = Mockito.mock(OptionManager.class);
     ReAttemptHandler attemptHandler = new ExternalAttemptHandler(options);
 
@@ -253,14 +265,17 @@ public class TestQueryReAttempt extends BaseTestQuery {
     ReAttemptHandler attemptHandler = new ExternalAttemptHandler(options);
     AttemptId id = new AttemptId();
     final UserException userException = UserException.memoryError(null).buildSilently();
-    assertEquals(AttemptReason.NONE, attemptHandler.isRecoverable(new ReAttemptContext(id, userException, false, true)));
+    assertEquals(
+        AttemptReason.NONE,
+        attemptHandler.isRecoverable(new ReAttemptContext(id, userException, false, true)));
   }
 
-  private void assertBatchCanBeLoaded(QueryWritableBatch batch, List<ValueVector> original) throws Exception {
+  private void assertBatchCanBeLoaded(QueryWritableBatch batch, List<ValueVector> original)
+      throws Exception {
     RpcOutcomeListener<GeneralRPCProtos.Ack> listener = Mockito.mock(RpcOutcomeListener.class);
 
     try (QueryDataBatch dataBatch = LocalUserUtil.acquireData(allocator, listener, batch);
-         RecordBatchLoader loader = new RecordBatchLoader(allocator)) {
+        RecordBatchLoader loader = new RecordBatchLoader(allocator)) {
       loader.load(dataBatch.getHeader().getDef(), dataBatch.getData());
 
       try (RecordBatchData loadedBatch = new RecordBatchData(loader, allocator)) {
@@ -291,7 +306,9 @@ public class TestQueryReAttempt extends BaseTestQuery {
 
     for (ValueVector vv : original) {
       final String fieldName = vv.getField().getName();
-      assertTrue("original field '" + fieldName + "' is not part of the new schema", fields.contains(fieldName));
+      assertTrue(
+          "original field '" + fieldName + "' is not part of the new schema",
+          fields.contains(fieldName));
     }
   }
 

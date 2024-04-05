@@ -19,9 +19,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Objects;
 
-/**
- * KVStore tuple of (value, serialized value and version) These are lazily loaded and cached.
- */
+/** KVStore tuple of (value, serialized value and version) These are lazily loaded and cached. */
 public class KVStoreTuple<T> {
 
   private T object;
@@ -58,7 +56,8 @@ public class KVStoreTuple<T> {
 
   public KVStoreTuple<T> setTag(String tag) {
     if (!serializedBytesLoaded && !objectLoaded) {
-      throw new IllegalArgumentException("Can not set version in KVStoreTuple without setting actual value or serialized value first.");
+      throw new IllegalArgumentException(
+          "Can not set version in KVStoreTuple without setting actual value or serialized value first.");
     }
     this.tag = tag;
     return this;
@@ -107,9 +106,9 @@ public class KVStoreTuple<T> {
     }
     KVStoreTuple<?> other = (KVStoreTuple<?>) o;
 
-    return Objects.equals(tag, other.tag) &&
-      Arrays.equals(serializedBytes, other.serializedBytes) &&
-      Objects.deepEquals(object, other.object);
+    return Objects.equals(tag, other.tag)
+        && Arrays.equals(serializedBytes, other.serializedBytes)
+        && Objects.deepEquals(object, other.object);
   }
 
   @Override

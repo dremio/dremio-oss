@@ -17,12 +17,11 @@ package com.dremio.exec.store.dfs;
 
 import com.dremio.exec.catalog.DatasetMetadataTooLargeException;
 
-/**
- * Thrown when getting metadata for a directory being promoted to a dataset has too many files.
- */
+/** Thrown when getting metadata for a directory being promoted to a dataset has too many files. */
 public class FileCountTooLargeException extends DatasetMetadataTooLargeException {
 
-  public static final String MESSAGE = "Number of files in dataset '%s' contained %d files which exceeds the maximum number of files of %d";
+  public static final String MESSAGE =
+      "Number of files in dataset '%s' contained %d files which exceeds the maximum number of files of %d";
   private static final long serialVersionUID = -5486531057168594562L;
 
   public FileCountTooLargeException(String datasetName, int actual, int limit) {

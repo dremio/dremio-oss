@@ -18,24 +18,20 @@ package com.dremio.dac.resource;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
+import com.dremio.dac.server.WebServer;
+import com.dremio.options.TypeValidators;
 import javax.ws.rs.core.Response;
-
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import com.dremio.dac.server.WebServer;
-import com.dremio.options.TypeValidators;
-
-/**
- * Tests for class {@link BaseBIToolResource}
- */
+/** Tests for class {@link BaseBIToolResource} */
 @RunWith(Parameterized.class)
 public class TestBaseBIToolResource {
-  @Parameterized.Parameters(name="{0}")
+  @Parameterized.Parameters(name = "{0}")
   public static Object[] getTestCases() {
-    return new Object[]{
+    return new Object[] {
       new String[] {"nullHost", null, null},
       new String[] {"localHost", "localhost", "localhost"},
       new String[] {"localHostWithPort", "localhost:9047", "localhost"},
@@ -55,12 +51,13 @@ public class TestBaseBIToolResource {
 
   @Before
   public void setUp() {
-    resource = new BaseBIToolResource(null, null, "a/b", null, null) {
-      @Override
-      protected TypeValidators.BooleanValidator getClientToolOption() {
-        return null;
-      }
-    };
+    resource =
+        new BaseBIToolResource(null, null, "a/b", null, null) {
+          @Override
+          protected TypeValidators.BooleanValidator getClientToolOption() {
+            return null;
+          }
+        };
   }
 
   @Test

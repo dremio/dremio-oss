@@ -15,9 +15,6 @@
  */
 package com.dremio.service.nessie.upgrade.version040;
 
-import java.io.IOException;
-import java.io.StringReader;
-
 import com.dremio.datastore.api.KVStore;
 import com.dremio.datastore.api.KVStoreCreationFunction;
 import com.dremio.datastore.api.StoreBuildingFactory;
@@ -25,25 +22,27 @@ import com.dremio.datastore.format.Format;
 import com.dremio.service.nessie.upgrade.version040.model.NessieCommit;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
+import java.io.IOException;
+import java.io.StringReader;
 
-/**
- * Creates the KV store for Nessie.
- */
+/** Creates the KV store for Nessie. */
 public class NessieCommitKVStoreBuilder implements KVStoreCreationFunction<String, NessieCommit> {
   static final String TABLE_NAME = "nessieCommit";
   private static final ObjectMapper objectMapper = new ObjectMapper();
 
   @Override
   public KVStore<String, NessieCommit> build(StoreBuildingFactory factory) {
-    return factory.<String, NessieCommit>newStore()
-      .name(TABLE_NAME)
-      .keyFormat(Format.ofString())
-      .valueFormat(Format.wrapped(
-        NessieCommit.class,
-        c -> null, // Not used
-        NessieCommitKVStoreBuilder::stringToCommit,
-        Format.ofString()))
-      .build();
+    return factory
+        .<String, NessieCommit>newStore()
+        .name(TABLE_NAME)
+        .keyFormat(Format.ofString())
+        .valueFormat(
+            Format.wrapped(
+                NessieCommit.class,
+                c -> null, // Not used
+                NessieCommitKVStoreBuilder::stringToCommit,
+                Format.ofString()))
+        .build();
   }
 
   @VisibleForTesting

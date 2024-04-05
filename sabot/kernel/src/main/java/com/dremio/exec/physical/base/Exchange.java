@@ -15,9 +15,6 @@
  */
 package com.dremio.exec.physical.base;
 
-import java.util.Collection;
-import java.util.List;
-
 import com.dremio.exec.physical.EndpointAffinity;
 import com.dremio.exec.physical.PhysicalOperatorSetupException;
 import com.dremio.exec.planner.fragment.EndpointsIndex;
@@ -25,92 +22,96 @@ import com.dremio.exec.planner.fragment.ParallelizationInfo;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.base.Supplier;
+import java.util.Collection;
+import java.util.List;
 
 public interface Exchange extends PhysicalOperator {
 
   /**
-   * Exchanges are fragment boundaries in physical operator tree. It is divided into two parts. First part is Sender
-   * which becomes part of the sending fragment. Second part is Receiver which becomes part of the fragment that
-   * receives the data.
+   * Exchanges are fragment boundaries in physical operator tree. It is divided into two parts.
+   * First part is Sender which becomes part of the sending fragment. Second part is Receiver which
+   * becomes part of the fragment that receives the data.
    *
-   * Assignment dependency describes whether sender fragments depend on receiver fragment's endpoint assignment for
-   * determining its parallelization and endpoint assignment and vice versa.
+   * <p>Assignment dependency describes whether sender fragments depend on receiver fragment's
+   * endpoint assignment for determining its parallelization and endpoint assignment and vice versa.
    */
   enum ParallelizationDependency {
-    SENDER_DEPENDS_ON_RECEIVER, // Sending fragment depends on receiving fragment for parallelization
-    RECEIVER_DEPENDS_ON_SENDER, // Receiving fragment depends on sending fragment for parallelization (default value).
-    RECEIVER_MUST_MATCH_SENDER, // Receiving fragment must have the exact same parallelization as sender.
+    SENDER_DEPENDS_ON_RECEIVER, // Sending fragment depends on receiving fragment for
+    // parallelization
+    RECEIVER_DEPENDS_ON_SENDER, // Receiving fragment depends on sending fragment for
+    // parallelization (default value).
+    RECEIVER_MUST_MATCH_SENDER, // Receiving fragment must have the exact same parallelization as
+    // sender.
   }
 
   /**
-   * Inform this Exchange node about its sender locations. This list should be index-ordered the same as the expected
-   * minorFragmentIds for each sender.
+   * Inform this Exchange node about its sender locations. This list should be index-ordered the
+   * same as the expected minorFragmentIds for each sender.
    *
    * @param senderLocations
    */
-  void setupSenders(int majorFragmentId, List<NodeEndpoint> senderLocations) throws PhysicalOperatorSetupException;
+  void setupSenders(int majorFragmentId, List<NodeEndpoint> senderLocations)
+      throws PhysicalOperatorSetupException;
 
   /**
-   * Inform this Exchange node about its receiver locations. This list should be index-ordered the same as the expected
-   * minorFragmentIds for each receiver.
+   * Inform this Exchange node about its receiver locations. This list should be index-ordered the
+   * same as the expected minorFragmentIds for each receiver.
    *
    * @param receiverLocations
    */
-  void setupReceivers(int majorFragmentId, List<NodeEndpoint> receiverLocations) throws PhysicalOperatorSetupException;
+  void setupReceivers(int majorFragmentId, List<NodeEndpoint> receiverLocations)
+      throws PhysicalOperatorSetupException;
 
   /**
-   * Get the Sender associated with the given minorFragmentId. Cannot be called until after setupSenders() and
-   * setupReceivers() have been called.
+   * Get the Sender associated with the given minorFragmentId. Cannot be called until after
+   * setupSenders() and setupReceivers() have been called.
    *
-   * @param minorFragmentId
-   *          The minor fragment id, must be in the range [0, fragment.width).
-   * @param child
-   *          The feeding node for the requested sender.
-   * @param builder
-   *          The index builder.
+   * @param minorFragmentId The minor fragment id, must be in the range [0, fragment.width).
+   * @param child The feeding node for the requested sender.
+   * @param builder The index builder.
    * @return The materialized sender for the given arguments.
    */
-  Sender getSender(int minorFragmentId, PhysicalOperator child, EndpointsIndex.Builder builder) throws PhysicalOperatorSetupException;
+  Sender getSender(int minorFragmentId, PhysicalOperator child, EndpointsIndex.Builder builder)
+      throws PhysicalOperatorSetupException;
 
   /**
-   * Get the Receiver associated with the given minorFragmentId. Cannot be called until after setupSenders() and
-   * setupReceivers() have been called.
+   * Get the Receiver associated with the given minorFragmentId. Cannot be called until after
+   * setupSenders() and setupReceivers() have been called.
    *
-   * @param minorFragmentId
-   *          The minor fragment id, must be in the range [0, fragment.width).
-   * @param builder
-   *          The index builder.
+   * @param minorFragmentId The minor fragment id, must be in the range [0, fragment.width).
+   * @param builder The index builder.
    * @return The materialized recevier for the given arguments.
    */
   Receiver getReceiver(int minorFragmentId, EndpointsIndex.Builder builder);
 
-  /**
-   * Provide a width constraint for the sender side of the exchange
-   */
+  /** Provide a width constraint for the sender side of the exchange */
   @JsonIgnore
   ParallelizationInfo.WidthConstraint getSenderParallelizationWidthConstraint();
 
   /**
-   * Provide the endpoint affinity for the sender side of the exchange, given the receiver's endpoints (if available)
-   * @param receiverFragmentEndpointsSupplier Supplier for the endpoints assigned to the receiver fragment if available,
-   *                                          otherwise an empty list.
+   * Provide the endpoint affinity for the sender side of the exchange, given the receiver's
+   * endpoints (if available)
+   *
+   * @param receiverFragmentEndpointsSupplier Supplier for the endpoints assigned to the receiver
+   *     fragment if available, otherwise an empty list.
    */
   @JsonIgnore
-  Supplier<Collection<EndpointAffinity>> getSenderEndpointffinity(Supplier<Collection<NodeEndpoint>> receiverFragmentEndpointsSupplier);
+  Supplier<Collection<EndpointAffinity>> getSenderEndpointffinity(
+      Supplier<Collection<NodeEndpoint>> receiverFragmentEndpointsSupplier);
 
-  /**
-   * Provide a width constraint for the receiver side of the exchange
-   */
+  /** Provide a width constraint for the receiver side of the exchange */
   @JsonIgnore
   ParallelizationInfo.WidthConstraint getReceiverParallelizationWidthConstraint();
 
   /**
    * Provide the endpoint affinity for the receiver side of the exchange
-   * @param senderFragmentEndpointsSupplier Supplier for the endpoints assigned to the sender fragment if available,
-   *                                        otherwise an empty list.
+   *
+   * @param senderFragmentEndpointsSupplier Supplier for the endpoints assigned to the sender
+   *     fragment if available, otherwise an empty list.
    */
   @JsonIgnore
-  Supplier<Collection<EndpointAffinity>> getReceiverEndpointAffinity(Supplier<Collection<NodeEndpoint>> senderFragmentEndpointsSupplier);
+  Supplier<Collection<EndpointAffinity>> getReceiverEndpointAffinity(
+      Supplier<Collection<NodeEndpoint>> senderFragmentEndpointsSupplier);
 
   /**
    * Return the feeding child of this operator node.
@@ -119,9 +120,7 @@ public interface Exchange extends PhysicalOperator {
    */
   PhysicalOperator getChild();
 
-  /**
-   * Get the parallelization dependency of the Exchange.
-   */
+  /** Get the parallelization dependency of the Exchange. */
   @JsonIgnore
   ParallelizationDependency getParallelizationDependency();
 }

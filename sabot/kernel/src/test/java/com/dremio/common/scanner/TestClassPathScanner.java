@@ -21,19 +21,6 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import java.lang.annotation.Annotation;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-
-import org.junit.Assert;
-import org.junit.Test;
-
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.scanner.persistence.AnnotatedClassDescriptor;
 import com.dremio.common.scanner.persistence.AnnotationDescriptor;
@@ -43,11 +30,23 @@ import com.dremio.exec.expr.Function;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.fn.impl.testing.GeneratorFunctions.RandomBigIntGauss;
 import com.dremio.exec.physical.base.PhysicalOperator;
+import java.lang.annotation.Annotation;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import org.junit.Assert;
+import org.junit.Test;
 
 public class TestClassPathScanner {
 
   @SafeVarargs
-  private final <T extends Comparable<? super T>> void assertListEqualsUnordered(Collection<T> list, T... expected) {
+  private final <T extends Comparable<? super T>> void assertListEqualsUnordered(
+      Collection<T> list, T... expected) {
     List<T> expectedList = asList(expected);
     sort(expectedList);
     List<T> gotList = new ArrayList<>(list);
@@ -59,25 +58,26 @@ public class TestClassPathScanner {
   public void test() throws Exception {
     ScanResult result = ClassPathScanner.fromPrescan(SabotConfig.create());
     // if the build has run properly. BuildTimeScan.REGISTRY_FILE was created with a prescan
-//    assertListEqualsUnordered(result.getPrescannedPackages(),
-//      "com.dremio.common.logical",
-//      "com.dremio.exec.expr",
-//      "com.dremio.exec.physical.base",
-//      "com.dremio.exec.expr.fn.impl",
-//      "com.dremio.exec.physical.impl",
-//      "com.dremio.exec.rpc.user.security",
-//      "com.dremio.exec.store",
-//      "com.dremio.exec.store.mock",
-//      "com.dremio.exec.physical.config",
-//      "com.dremio.storage"
-//    );
-//    // this is added in the unit test folder that was not scanned so far
-//    assertListEqualsUnordered(result.getScannedPackages(),
-//      "com.dremio.exec.testing",
-//      "com.dremio.exec.fn.impl.testing",
-//      "com.dremio.exec.rpc.user.security.testing"
-//    );
-    List<AnnotatedClassDescriptor> functions = result.getAnnotatedClasses(FunctionTemplate.class.getName());
+    //    assertListEqualsUnordered(result.getPrescannedPackages(),
+    //      "com.dremio.common.logical",
+    //      "com.dremio.exec.expr",
+    //      "com.dremio.exec.physical.base",
+    //      "com.dremio.exec.expr.fn.impl",
+    //      "com.dremio.exec.physical.impl",
+    //      "com.dremio.exec.rpc.user.security",
+    //      "com.dremio.exec.store",
+    //      "com.dremio.exec.store.mock",
+    //      "com.dremio.exec.physical.config",
+    //      "com.dremio.storage"
+    //    );
+    //    // this is added in the unit test folder that was not scanned so far
+    //    assertListEqualsUnordered(result.getScannedPackages(),
+    //      "com.dremio.exec.testing",
+    //      "com.dremio.exec.fn.impl.testing",
+    //      "com.dremio.exec.rpc.user.security.testing"
+    //    );
+    List<AnnotatedClassDescriptor> functions =
+        result.getAnnotatedClasses(FunctionTemplate.class.getName());
     Set<String> scanned = new HashSet<>();
     AnnotatedClassDescriptor functionRandomBigIntGauss = null;
     for (AnnotatedClassDescriptor function : functions) {
@@ -106,8 +106,12 @@ public class TestClassPathScanner {
         fieldCount++;
 
         assertEquals(
-            "Class fields:\n" + Arrays.toString(fields) + "\n != \nDescriptor fields:\n" + function.getFields(),
-            field.getName(), fieldDescriptor.getName());
+            "Class fields:\n"
+                + Arrays.toString(fields)
+                + "\n != \nDescriptor fields:\n"
+                + function.getFields(),
+            field.getName(),
+            fieldDescriptor.getName());
         verifyAnnotations(field.getDeclaredAnnotations(), fieldDescriptor.getAnnotations());
         assertEquals(field.getType(), fieldDescriptor.getFieldClass());
       }
@@ -122,7 +126,8 @@ public class TestClassPathScanner {
       assertArrayEquals(reflectionAnnotation.names(), bytecodeAnnotation.names());
       assertEquals(reflectionAnnotation.scope(), bytecodeAnnotation.scope());
       assertEquals(reflectionAnnotation.nulls(), bytecodeAnnotation.nulls());
-      assertEquals(reflectionAnnotation.isBinaryCommutative(), bytecodeAnnotation.isBinaryCommutative());
+      assertEquals(
+          reflectionAnnotation.isBinaryCommutative(), bytecodeAnnotation.isBinaryCommutative());
       assertEquals(reflectionAnnotation.desc(), bytecodeAnnotation.desc());
       assertEquals(reflectionAnnotation.costCategory(), bytecodeAnnotation.costCategory());
     }
@@ -138,7 +143,7 @@ public class TestClassPathScanner {
       return;
     }
     @SuppressWarnings("unchecked")
-    Class<T> baseClass = (Class<T>)Class.forName(baseType);
+    Class<T> baseClass = (Class<T>) Class.forName(baseType);
     Set<Class<? extends T>> impls = result.getImplementations(baseClass);
     if (impls != null) {
       for (Class<? extends T> impl : impls) {
@@ -147,15 +152,19 @@ public class TestClassPathScanner {
     }
   }
 
-  private void verifyAnnotations(Annotation[] annotations, List<AnnotationDescriptor> scannedAnnotations) throws Exception {
-    assertEquals(Arrays.toString(annotations) + " expected but got " + scannedAnnotations, annotations.length, scannedAnnotations.size());
+  private void verifyAnnotations(
+      Annotation[] annotations, List<AnnotationDescriptor> scannedAnnotations) throws Exception {
+    assertEquals(
+        Arrays.toString(annotations) + " expected but got " + scannedAnnotations,
+        annotations.length,
+        scannedAnnotations.size());
     for (int i = 0; i < annotations.length; i++) {
       Annotation annotation = annotations[i];
       AnnotationDescriptor scannedAnnotation = scannedAnnotations.get(i);
       Class<? extends Annotation> annotationType = annotation.annotationType();
       assertEquals(annotationType.getName(), scannedAnnotation.getAnnotationType());
       if (annotation instanceof FunctionTemplate) {
-        FunctionTemplate ft = (FunctionTemplate)annotation;
+        FunctionTemplate ft = (FunctionTemplate) annotation;
         if (ft.name() != null && !ft.name().equals("")) {
           assertEquals(ft.name(), scannedAnnotation.getSingleValue("name"));
         }
@@ -169,7 +178,7 @@ public class TestClassPathScanner {
           Object byteCodeValue = method.invoke(proxy);
           String message = annotationType.getSimpleName() + "." + method.getName();
           if (method.getReturnType().isArray()) {
-            assertArrayEquals(message, (Object[])reflectValue, (Object[])byteCodeValue);
+            assertArrayEquals(message, (Object[]) reflectValue, (Object[]) byteCodeValue);
           } else {
             assertEquals(message, reflectValue, byteCodeValue);
           }
@@ -177,5 +186,4 @@ public class TestClassPathScanner {
       }
     }
   }
-
 }

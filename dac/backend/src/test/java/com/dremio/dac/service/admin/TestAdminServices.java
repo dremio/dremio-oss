@@ -18,15 +18,6 @@ package com.dremio.dac.service.admin;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Set;
-
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.core.Response;
-
-import org.junit.Test;
-
 import com.dremio.dac.resource.ExportProfilesParams;
 import com.dremio.dac.resource.ExportProfilesParams.ExportFormatType;
 import com.dremio.dac.resource.ExportProfilesParams.WriteFileMode;
@@ -37,17 +28,22 @@ import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.service.admin.Setting.TextSetting;
 import com.dremio.dac.service.admin.SettingsResource.SettingsWrapperObject;
 import com.dremio.exec.ExecConstants;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
+import javax.ws.rs.client.Entity;
+import javax.ws.rs.core.Response;
+import org.junit.Test;
 
-/**
- * Test admin services.
- */
+/** Test admin services. */
 public class TestAdminServices extends BaseTestServer {
 
   @Test
   public void getSettingList() {
     final String settingKeyToCheck = ExecConstants.OUTPUT_FORMAT_OPTION;
-    final Set<String> list = new HashSet(Arrays.asList(ExecConstants.PARQUET_BLOCK_SIZE,
-      ExecConstants.PARQUET_DICT_PAGE_SIZE));
+    final Set<String> list =
+        new HashSet(
+            Arrays.asList(ExecConstants.PARQUET_BLOCK_SIZE, ExecConstants.PARQUET_DICT_PAGE_SIZE));
 
     // check that required settings are returned
     SettingsWrapperObject settings = getSettings(list, false);
@@ -55,18 +51,23 @@ public class TestAdminServices extends BaseTestServer {
 
     // check that set settings are returned in case if includeSetSettings = true
 
-    //check that chosen {@code} settingKeyToCheck was not set initially
+    // check that chosen {@code} settingKeyToCheck was not set initially
     TextSetting setting = getSetting(settingKeyToCheck); // save current value
 
     deleteSetting(settingKeyToCheck, Response.Status.OK);
     settings = getSettings(list, true);
-    assertEquals("Setting should not be returned after deletion", false, hasSetting(settings, settingKeyToCheck));
+    assertEquals(
+        "Setting should not be returned after deletion",
+        false,
+        hasSetting(settings, settingKeyToCheck));
 
     addOrUpdateSetting(new TextSetting(settingKeyToCheck, "csv"));
     settings = getSettings(list, true);
-    assertEquals("Setting should be returned if it was set and respective flag is provided to API method",
-      true, hasSetting(settings, settingKeyToCheck));
-    //revert setting to original state
+    assertEquals(
+        "Setting should be returned if it was set and respective flag is provided to API method",
+        true,
+        hasSetting(settings, settingKeyToCheck));
+    // revert setting to original state
     addOrUpdateSetting(setting);
   }
 
@@ -74,47 +75,76 @@ public class TestAdminServices extends BaseTestServer {
   public void getAndSetSetting() {
     TextSetting setting = getSetting(ExecConstants.OUTPUT_FORMAT_OPTION);
     addOrUpdateSetting(new TextSetting(setting.getId(), "csv"));
-    //revert setting to original state
+    // revert setting to original state
     addOrUpdateSetting(setting);
   }
 
   @Test
   public void profiles() {
-    ExportProfilesStats stats = expectSuccess(getBuilder(getAPIv2().path("export-profiles"))
-        .buildPost(Entity.entity(new ExportProfilesParams("/tmp/profiles", WriteFileMode.SKIP, null, null, ExportFormatType.JSON, 1), JSON)), ExportProfilesStats.class);
+    ExportProfilesStats stats =
+        expectSuccess(
+            getBuilder(getAPIv2().path("export-profiles"))
+                .buildPost(
+                    Entity.entity(
+                        new ExportProfilesParams(
+                            "/tmp/profiles",
+                            WriteFileMode.SKIP,
+                            null,
+                            null,
+                            ExportFormatType.JSON,
+                            1),
+                        JSON)),
+            ExportProfilesStats.class);
   }
 
   @Test
   public void testBiToolSettingsAreListed() {
-    final SettingsWrapperObject settings = getSettings(
-      new HashSet<>(Arrays.asList(TableauResource.CLIENT_TOOLS_TABLEAU.getOptionName(),
-        PowerBIResource.CLIENT_TOOLS_POWERBI.getOptionName())), true);
+    final SettingsWrapperObject settings =
+        getSettings(
+            new HashSet<>(
+                Arrays.asList(
+                    TableauResource.CLIENT_TOOLS_TABLEAU.getOptionName(),
+                    PowerBIResource.CLIENT_TOOLS_POWERBI.getOptionName())),
+            true);
 
     assertFalse(settings.getSettings().isEmpty());
   }
 
   @Test
   public void testTableauSettingNonDeletable() {
-    deleteSetting(TableauResource.CLIENT_TOOLS_TABLEAU.getOptionName(), Response.Status.BAD_REQUEST);
+    deleteSetting(
+        TableauResource.CLIENT_TOOLS_TABLEAU.getOptionName(), Response.Status.BAD_REQUEST);
   }
 
   @Test
   public void testPowerBiSettingNonDeletable() {
-    deleteSetting(PowerBIResource.CLIENT_TOOLS_POWERBI.getOptionName(), Response.Status.BAD_REQUEST);
+    deleteSetting(
+        PowerBIResource.CLIENT_TOOLS_POWERBI.getOptionName(), Response.Status.BAD_REQUEST);
   }
 
-  private SettingsWrapperObject getSettings(Set<String> requiredSettings, boolean includeSetSettings) {
-    return expectSuccess(getBuilder(getAPIv2().path("settings"))
-      .buildPost(Entity.entity(new SettingsResource.SettingsRequest(requiredSettings, includeSetSettings), JSON)),
+  private SettingsWrapperObject getSettings(
+      Set<String> requiredSettings, boolean includeSetSettings) {
+    return expectSuccess(
+        getBuilder(getAPIv2().path("settings"))
+            .buildPost(
+                Entity.entity(
+                    new SettingsResource.SettingsRequest(requiredSettings, includeSetSettings),
+                    JSON)),
         SettingsWrapperObject.class);
   }
 
   private TextSetting getSetting(String settingId) {
-    return (TextSetting)expectSuccess(getBuilder(getAPIv2().path("settings").path(settingId)).buildGet(), Setting.class);
+    return (TextSetting)
+        expectSuccess(
+            getBuilder(getAPIv2().path("settings").path(settingId)).buildGet(), Setting.class);
   }
 
   private void addOrUpdateSetting(TextSetting update) {
-    TextSetting updatedSetting = expectSuccess(getBuilder(getAPIv2().path("settings").path(update.getId())).buildPut(Entity.entity(update, JSON)), Setting.TextSetting.class);
+    TextSetting updatedSetting =
+        expectSuccess(
+            getBuilder(getAPIv2().path("settings").path(update.getId()))
+                .buildPut(Entity.entity(update, JSON)),
+            Setting.TextSetting.class);
     assertEquals(update.getValue(), updatedSetting.getValue());
   }
 

@@ -18,8 +18,11 @@ package com.dremio.exec.planner;
 import static com.dremio.exec.planner.common.MoreRelOptUtil.isNegative;
 import static com.dremio.exec.planner.common.MoreRelOptUtil.op;
 
+import com.dremio.exec.planner.logical.RexRewriter;
+import com.dremio.exec.planner.logical.RexRewriter.RewriteRule;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import java.util.List;
-
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.rel.logical.LogicalFilter;
@@ -32,11 +35,6 @@ import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 
-import com.dremio.exec.planner.logical.RexRewriter;
-import com.dremio.exec.planner.logical.RexRewriter.RewriteRule;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
-
 public class ReduceTrigFunctionsRule extends RelOptRule {
 
   public static final ReduceTrigFunctionsRule INSTANCE = new ReduceTrigFunctionsRule();
@@ -48,20 +46,18 @@ public class ReduceTrigFunctionsRule extends RelOptRule {
   @Override
   public void onMatch(RelOptRuleCall call) {
     LogicalFilter filter = (LogicalFilter) call.rels[0];
-    RexNode newCondition = RexRewriter.rewrite(filter.getCondition(), getRules(filter.getCluster().getRexBuilder()));
+    RexNode newCondition =
+        RexRewriter.rewrite(filter.getCondition(), getRules(filter.getCluster().getRexBuilder()));
     if (newCondition != filter.getCondition()) {
       call.transformTo(LogicalFilter.create(filter.getInput(), newCondition));
     }
   }
 
   private List<RewriteRule> getRules(RexBuilder rexBuilder) {
-    return ImmutableList.of(
-      new SimpleArithmeticRule(rexBuilder),
-      new InverseTrigRule(rexBuilder)
-    );
+    return ImmutableList.of(new SimpleArithmeticRule(rexBuilder), new InverseTrigRule(rexBuilder));
   }
 
-  private static class SimpleArithmeticRule extends RewriteRule {
+  public static class SimpleArithmeticRule extends RewriteRule {
     public SimpleArithmeticRule(RexBuilder builder) {
       super(builder);
     }
@@ -72,7 +68,8 @@ public class ReduceTrigFunctionsRule extends RelOptRule {
         return null;
       }
 
-      if (RexUtil.isConstant(call.getOperands().get(0)) && !RexUtil.isConstant(call.getOperands().get(1))) {
+      if (RexUtil.isConstant(call.getOperands().get(0))
+          && !RexUtil.isConstant(call.getOperands().get(1))) {
         RexNode inverted = RexUtil.invert(builder, call);
         if (!(inverted instanceof RexCall)) {
           return null;
@@ -92,7 +89,8 @@ public class ReduceTrigFunctionsRule extends RelOptRule {
       RexNode op1 = call.getOperands().get(1);
       switch (op0.getKind()) {
         case TIMES:
-          if (RexUtil.isConstant(op0.getOperands().get(0)) && !RexUtil.isConstant(op0.getOperands().get(1))) {
+          if (RexUtil.isConstant(op0.getOperands().get(0))
+              && !RexUtil.isConstant(op0.getOperands().get(1))) {
             RexNode reversed = builder.makeCall(op0.getOperator(), Lists.reverse(op0.operands));
             if (!(reversed instanceof RexCall)) {
               return null;
@@ -101,12 +99,19 @@ public class ReduceTrigFunctionsRule extends RelOptRule {
           }
           RexNode rightNode = op0.getOperands().get(0);
           if (rightNode instanceof RexLiteral) {
-            SqlOperator comparison = isNegative(((RexLiteral) rightNode)) ? op(call.getKind().reverse()) : call.getOperator();
-            return builder.makeCall(comparison, op0.getOperands().get(0), builder.makeCall(SqlStdOperatorTable.DIVIDE, op1, op0.getOperands().get(1)));
+            SqlOperator comparison =
+                isNegative(((RexLiteral) rightNode))
+                    ? op(call.getKind().reverse())
+                    : call.getOperator();
+            return builder.makeCall(
+                comparison,
+                op0.getOperands().get(0),
+                builder.makeCall(SqlStdOperatorTable.DIVIDE, op1, op0.getOperands().get(1)));
           }
           break;
         case PLUS:
-          if (RexUtil.isConstant(op0.getOperands().get(0)) && !RexUtil.isConstant(op0.getOperands().get(1))) {
+          if (RexUtil.isConstant(op0.getOperands().get(0))
+              && !RexUtil.isConstant(op0.getOperands().get(1))) {
             RexNode reversed = builder.makeCall(op0.getOperator(), Lists.reverse(op0.operands));
             if (!(reversed instanceof RexCall)) {
               return null;
@@ -114,11 +119,15 @@ public class ReduceTrigFunctionsRule extends RelOptRule {
             op0 = (RexCall) reversed;
           }
           if (RexUtil.isConstant(op0.getOperands().get(1))) {
-            return builder.makeCall(call.getOperator(), op0.getOperands().get(0), builder.makeCall(SqlStdOperatorTable.MINUS, op1, op0.getOperands().get(1)));
+            return builder.makeCall(
+                call.getOperator(),
+                op0.getOperands().get(0),
+                builder.makeCall(SqlStdOperatorTable.MINUS, op1, op0.getOperands().get(1)));
           }
           break;
         case MINUS:
-          if (RexUtil.isConstant(op0.getOperands().get(0)) && !RexUtil.isConstant(op0.getOperands().get(1))) {
+          if (RexUtil.isConstant(op0.getOperands().get(0))
+              && !RexUtil.isConstant(op0.getOperands().get(1))) {
             RexNode reversed = builder.makeCall(op0.getOperator(), Lists.reverse(op0.operands));
             if (!(reversed instanceof RexCall)) {
               return null;
@@ -126,7 +135,10 @@ public class ReduceTrigFunctionsRule extends RelOptRule {
             op0 = (RexCall) reversed;
           }
           if (RexUtil.isConstant(op0.getOperands().get(1))) {
-            return builder.makeCall(call.getOperator(), op0.getOperands().get(0), builder.makeCall(SqlStdOperatorTable.PLUS, op1, op0.getOperands().get(1)));
+            return builder.makeCall(
+                call.getOperator(),
+                op0.getOperands().get(0),
+                builder.makeCall(SqlStdOperatorTable.PLUS, op1, op0.getOperands().get(1)));
           }
           break;
         default:
@@ -136,7 +148,7 @@ public class ReduceTrigFunctionsRule extends RelOptRule {
     }
   }
 
-  private static class InverseTrigRule extends RewriteRule {
+  public static class InverseTrigRule extends RewriteRule {
 
     public InverseTrigRule(RexBuilder builder) {
       super(builder);
@@ -148,7 +160,8 @@ public class ReduceTrigFunctionsRule extends RelOptRule {
         return null;
       }
 
-      if (RexUtil.isConstant(call.getOperands().get(0)) && !RexUtil.isConstant(call.getOperands().get(1))) {
+      if (RexUtil.isConstant(call.getOperands().get(0))
+          && !RexUtil.isConstant(call.getOperands().get(1))) {
         RexNode inverted = RexUtil.invert(builder, call);
         if (!(inverted instanceof RexCall)) {
           return null;
@@ -181,7 +194,8 @@ public class ReduceTrigFunctionsRule extends RelOptRule {
           return null;
       }
       RexNode newCall = builder.makeCall(op, call.getOperands().get(1));
-      return builder.makeCall(call.getOperator(), ((RexCall) call.getOperands().get(0)).getOperands().get(0), newCall);
+      return builder.makeCall(
+          call.getOperator(), ((RexCall) call.getOperands().get(0)).getOperands().get(0), newCall);
     }
   }
 }

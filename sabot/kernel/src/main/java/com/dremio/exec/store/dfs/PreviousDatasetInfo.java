@@ -15,16 +15,12 @@
  */
 package com.dremio.exec.store.dfs;
 
-import java.util.List;
-
-import org.apache.arrow.vector.types.pojo.Field;
-
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.namespace.file.proto.FileConfig;
+import java.util.List;
+import org.apache.arrow.vector.types.pojo.Field;
 
-/**
- * Describes previous state of dataset.
- */
+/** Describes previous state of dataset. */
 public class PreviousDatasetInfo {
   private final FileConfig fileConfig;
   private final BatchSchema schema;
@@ -33,7 +29,13 @@ public class PreviousDatasetInfo {
   private final List<Field> modifiedColumns;
   private final boolean isSchemaLearningEnabled;
 
-  public PreviousDatasetInfo(FileConfig fileConfig, BatchSchema schema, List<String> sortColumns, List<Field> droppedColumns, List<Field> modifiedColumns, boolean isSchemaLearningEnabled) {
+  public PreviousDatasetInfo(
+      FileConfig fileConfig,
+      BatchSchema schema,
+      List<String> sortColumns,
+      List<Field> droppedColumns,
+      List<Field> modifiedColumns,
+      boolean isSchemaLearningEnabled) {
     super();
     this.fileConfig = fileConfig;
     this.schema = schema;

@@ -21,15 +21,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import java.util.List;
-import java.util.Random;
-
-import org.apache.calcite.sql.SqlNode;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.exec.ExecTest;
 import com.dremio.exec.PassthroughQueryObserver;
 import com.dremio.exec.ops.QueryContext;
@@ -46,6 +37,13 @@ import com.dremio.exec.rpc.user.security.testing.UserServiceTestImpl;
 import com.dremio.exec.server.options.SessionOptionManagerImpl;
 import com.dremio.plugins.elastic.planning.ElasticsearchGroupScan;
 import com.dremio.sabot.rpc.user.UserSession;
+import java.util.List;
+import java.util.Random;
+import org.apache.calcite.sql.SqlNode;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ElasticPredicatePushdownBase extends ElasticBaseTestQuery {
   private static final Logger logger = LoggerFactory.getLogger(ElasticPredicatePushdownBase.class);
@@ -67,9 +65,9 @@ public class ElasticPredicatePushdownBase extends ElasticBaseTestQuery {
   public void before() throws Exception {
     super.before();
     elastic.populate(schema, table, 1);
-    elasticVersionBehaviorProvider =  new ElasticVersionBehaviorProvider(elastic.getMinVersionInCluster());
+    elasticVersionBehaviorProvider =
+        new ElasticVersionBehaviorProvider(elastic.getMinVersionInCluster());
   }
-
 
   // can not produce self-contradicting expression as they would be optimized out
   // WHERE a = 0 and a = 1 is turned into LIMIT 0
@@ -97,10 +95,10 @@ public class ElasticPredicatePushdownBase extends ElasticBaseTestQuery {
    */
   protected void assertPushDownContains(String sql, String fragment) throws Exception {
     ElasticsearchGroupScan scan = generate(sql);
-    String query = elasticVersionBehaviorProvider.processElasticSearchQuery(scan.getScanSpec().getQuery());
+    String query =
+        elasticVersionBehaviorProvider.processElasticSearchQuery(scan.getScanSpec().getQuery());
     compareJson(fragment, query);
   }
-
 
   private String combine(String predicate1, String predicate2) {
     return "(" + predicate1 + " " + binary[random.nextInt(1)] + " " + predicate2 + ")";
@@ -126,45 +124,45 @@ public class ElasticPredicatePushdownBase extends ElasticBaseTestQuery {
 
   private String fieldName(ElasticsearchType type) {
     switch (type) {
-    case TEXT:
-      return "text_field";
-    case INTEGER:
-      return "integer_field";
-    case LONG:
-      return "long_field";
-    case FLOAT:
-      return "float_field";
-    case DOUBLE:
-      return "double_field";
-    case BOOLEAN:
-      return "boolean_field";
-    default:
-      fail(format("Unexpected type in predicate test: %s", type));
-      return null;
+      case TEXT:
+        return "text_field";
+      case INTEGER:
+        return "integer_field";
+      case LONG:
+        return "long_field";
+      case FLOAT:
+        return "float_field";
+      case DOUBLE:
+        return "double_field";
+      case BOOLEAN:
+        return "boolean_field";
+      default:
+        fail(format("Unexpected type in predicate test: %s", type));
+        return null;
     }
   }
 
   private String randomValue(ElasticsearchType type) {
     switch (type) {
-    case TEXT:
-      StringBuilder randomAsciiBuilder = new StringBuilder();
-      for (int i = 0; i < 11; i++) {
-        randomAsciiBuilder.append((char)(random.nextInt(26) + 'a'));
-      }
-      return randomAsciiBuilder.toString();
-    case INTEGER:
-      return String.valueOf(random.nextInt());
-    case LONG:
-      return String.valueOf(random.nextLong());
-    case FLOAT:
-      return String.valueOf(random.nextFloat());
-    case DOUBLE:
-      return String.valueOf(random.nextDouble());
-    case BOOLEAN:
-      return String.valueOf(random.nextBoolean());
-    default:
-      fail(format("Unexpected type in predicate test: %s", type));
-      return null;
+      case TEXT:
+        StringBuilder randomAsciiBuilder = new StringBuilder();
+        for (int i = 0; i < 11; i++) {
+          randomAsciiBuilder.append((char) (random.nextInt(26) + 'a'));
+        }
+        return randomAsciiBuilder.toString();
+      case INTEGER:
+        return String.valueOf(random.nextInt());
+      case LONG:
+        return String.valueOf(random.nextLong());
+      case FLOAT:
+        return String.valueOf(random.nextFloat());
+      case DOUBLE:
+        return String.valueOf(random.nextDouble());
+      case BOOLEAN:
+        return String.valueOf(random.nextBoolean());
+      default:
+        fail(format("Unexpected type in predicate test: %s", type));
+        return null;
     }
   }
 
@@ -186,11 +184,21 @@ public class ElasticPredicatePushdownBase extends ElasticBaseTestQuery {
   }
 
   protected ElasticsearchGroupScan generate(String sql) throws Exception {
-    AttemptObserver observer = new PassthroughQueryObserver(ExecTest.mockUserClientConnection(null));
-    SqlConverter converter = new SqlConverter(context.getPlannerSettings(),
-      context.getOperatorTable(), context, context.getMaterializationProvider(), context.getFunctionRegistry(),
-      context.getSession(), observer, context.getSubstitutionProviderFactory(), context.getConfig(),
-      context.getScanResult(), context.getRelMetadataQuerySupplier());
+    AttemptObserver observer =
+        new PassthroughQueryObserver(ExecTest.mockUserClientConnection(null));
+    SqlConverter converter =
+        new SqlConverter(
+            context.getPlannerSettings(),
+            context.getOperatorTable(),
+            context,
+            context.getMaterializationProvider(),
+            context.getFunctionRegistry(),
+            context.getSession(),
+            observer,
+            context.getSubstitutionProviderFactory(),
+            context.getConfig(),
+            context.getScanResult(),
+            context.getRelMetadataQuerySupplier());
     SqlNode node = converter.parse(sql);
     SqlHandlerConfig config = new SqlHandlerConfig(context, converter, observer, null);
     NormalHandler handler = new NormalHandler();
@@ -203,12 +211,16 @@ public class ElasticPredicatePushdownBase extends ElasticBaseTestQuery {
 
   public static UserSession session() {
     return UserSession.Builder.newBuilder()
-      .withSessionOptionManager(new SessionOptionManagerImpl(getSabotContext().getOptionValidatorListing()),
-        getSabotContext().getOptionManager())
-      .withUserProperties(UserProtos.UserProperties.getDefaultInstance())
-      .withCredentials(UserBitShared.UserCredentials.newBuilder().setUserName(UserServiceTestImpl.TEST_USER_1).build())
-      .setSupportComplexTypes(true)
-      .build();
+        .withSessionOptionManager(
+            new SessionOptionManagerImpl(getSabotContext().getOptionValidatorListing()),
+            getSabotContext().getOptionManager())
+        .withUserProperties(UserProtos.UserProperties.getDefaultInstance())
+        .withCredentials(
+            UserBitShared.UserCredentials.newBuilder()
+                .setUserName(UserServiceTestImpl.TEST_USER_1)
+                .build())
+        .setSupportComplexTypes(true)
+        .build();
   }
 
   private ElasticsearchGroupScan find(List<PhysicalOperator> operators) {

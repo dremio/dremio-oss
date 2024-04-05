@@ -15,14 +15,10 @@
  */
 package com.dremio.service.orphanage;
 
-
 import com.dremio.service.orphanage.proto.OrphanEntry;
 
-/**
- * Orphan entry handler used to perform any processing as required for the orphan entry
- */
+/** Orphan entry handler used to perform any processing as required for the orphan entry */
 public interface OrphanageEntryHandler {
 
-  boolean process(OrphanEntry.OrphanId key ,OrphanEntry.Orphan val);
-
+  boolean process(OrphanEntry.OrphanId key, OrphanEntry.Orphan val);
 }

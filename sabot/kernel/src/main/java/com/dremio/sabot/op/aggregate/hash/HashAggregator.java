@@ -15,11 +15,6 @@
  */
 package com.dremio.sabot.op.aggregate.hash;
 
-import java.io.IOException;
-import java.util.List;
-
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.exec.compile.TemplateClassDefinition;
 import com.dremio.exec.exception.ClassTransformationException;
@@ -32,6 +27,9 @@ import com.dremio.exec.record.VectorContainer;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.common.hashtable.HashTableConfig;
+import java.io.IOException;
+import java.util.List;
+import org.apache.arrow.memory.BufferAllocator;
 
 public interface HashAggregator extends AutoCloseable {
 
@@ -39,18 +37,18 @@ public interface HashAggregator extends AutoCloseable {
       new TemplateClassDefinition<HashAggregator>(HashAggregator.class, HashAggTemplate.class);
 
   void setup(
-    HashAggregate hashAggrConfig,
-    HashTableConfig htConfig,
-    ClassProducer producer,
-    OperatorStats stats,
-    BufferAllocator allocator,
-    VectorAccessible incoming,
-    LogicalExpression[] valueExprs,
-    List<TypedFieldId> valueFieldIds,
-    TypedFieldId[] groupByOutFieldIds,
-    VectorContainer outContainer,
-    OptionManager optionManager) throws SchemaChangeException, ClassTransformationException,
-    IOException;
+      HashAggregate hashAggrConfig,
+      HashTableConfig htConfig,
+      ClassProducer producer,
+      OperatorStats stats,
+      BufferAllocator allocator,
+      VectorAccessible incoming,
+      LogicalExpression[] valueExprs,
+      List<TypedFieldId> valueFieldIds,
+      TypedFieldId[] groupByOutFieldIds,
+      VectorContainer outContainer,
+      OptionManager optionManager)
+      throws SchemaChangeException, ClassTransformationException, IOException;
 
   void addBatch(int records);
 

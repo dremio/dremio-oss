@@ -16,9 +16,9 @@
 /**
  * Internal configuration state definitions.
  *
- * Overall structure allows for configurations to be nested within one another
- * to provide hierarchical organization of configuration options. Sabot configurations
- * are stored in a JSON format in files named sabot-override.conf available on the classpath.
- * See the SabotConfig class for more information on config file loading.
+ * <p>Overall structure allows for configurations to be nested within one another to provide
+ * hierarchical organization of configuration options. Sabot configurations are stored in a JSON
+ * format in files named sabot-override.conf available on the classpath. See the SabotConfig class
+ * for more information on config file loading.
  */
 package com.dremio.common.config;

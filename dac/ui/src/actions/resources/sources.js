@@ -39,7 +39,7 @@ export const ADD_NEW_SOURCE_FAILURE = "ADD_NEW_SOURCE_FAILURE";
 function postCreateSource(
   sourceModel,
   meta,
-  _shouldShowFailureNotification = false
+  _shouldShowFailureNotification = false,
 ) {
   meta = {
     ...meta,
@@ -63,7 +63,7 @@ function postCreateSource(
         schemaUtils.getSuccessActionTypeWithSchema(
           ADD_NEW_SOURCE_SUCCESS,
           sourceSchema,
-          meta
+          meta,
         ),
         { type: ADD_NEW_SOURCE_FAILURE, meta: failureMeta },
       ],
@@ -89,7 +89,7 @@ export function createSource(data, sourceType, source) {
   const userControls = (
     grantLength > 0
       ? data.accessControlList.grants.filter(
-          (g) => g.granteeType.toLowerCase() === "user"
+          (g) => g.granteeType.toLowerCase() === "user",
         )
       : []
   ).map((u) => ({
@@ -99,7 +99,7 @@ export function createSource(data, sourceType, source) {
   const roleControls = (
     grantLength > 0
       ? data.accessControlList.grants.filter(
-          (g) => g.granteeType.toLowerCase() === "role"
+          (g) => g.granteeType.toLowerCase() === "role",
         )
       : []
   ).map((r) => ({
@@ -140,6 +140,8 @@ export function createSampleDbSource(meta) {
       name,
       accelerationNeverRefresh: false,
       accelerationNeverExpire: false,
+      accelerationActivePolicyType: "PERIOD",
+      accelerationRefreshSchedule: "0 0 8 * * *",
       metadataPolicy: {
         updateMode: "PREFETCH",
         namesRefreshMillis: 60000,
@@ -183,6 +185,10 @@ export function createSampleSource(meta) {
         DataFreshnessSection.defaultFormValueGracePeriod(),
       accelerationNeverRefresh: true,
       accelerationNeverExpire: true,
+      accelerationActivePolicyType:
+        DataFreshnessSection.defaultFormValuePolicyType(),
+      accelerationRefreshSchedule:
+        DataFreshnessSection.defaultFormValueRefreshSchedule(),
       type: isAzureProject ? AZURE_SAMPLE_SOURCE : "S3",
     };
     return dispatch(postCreateSource(sourceModel, meta, true));
@@ -224,7 +230,7 @@ function fetchSourceListData(includeDatasetCount = false) {
           undefined,
           undefined,
           undefined,
-          sourceSchema._key
+          sourceSchema._key,
         ),
         { type: SOURCES_LIST_LOAD_FAILURE, meta },
       ],
@@ -237,7 +243,7 @@ function fetchSourceListData(includeDatasetCount = false) {
 export function loadSourceListData() {
   return (dispatch) => {
     return dispatch(fetchSourceListData()).then(
-      dispatch(fetchSourceListData(true))
+      dispatch(fetchSourceListData(true)),
     );
   };
 }

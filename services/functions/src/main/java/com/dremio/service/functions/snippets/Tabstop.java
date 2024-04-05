@@ -20,9 +20,9 @@ import java.util.Optional;
 /**
  * A tabstop in the VSCode Snippet:
  *
- * https://code.visualstudio.com/docs/editor/userdefinedsnippets#_tabstops
+ * <p>https://code.visualstudio.com/docs/editor/userdefinedsnippets#_tabstops
  *
- * tabstop     ::= '$' int
+ * <p>tabstop ::= '$' int
  */
 public final class Tabstop extends SnippetElement {
   private final int index;

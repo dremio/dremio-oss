@@ -15,6 +15,9 @@
  */
 package com.dremio.dac.server;
 
+import com.dremio.dac.annotations.Bootstrap;
+import com.dremio.dac.resource.BootstrapResource;
+import com.dremio.dac.server.test.NoUserTestFilter;
 import javax.ws.rs.container.ContainerRequestFilter;
 import javax.ws.rs.container.DynamicFeature;
 import javax.ws.rs.container.ResourceInfo;
@@ -22,20 +25,15 @@ import javax.ws.rs.core.Configuration;
 import javax.ws.rs.core.Feature;
 import javax.ws.rs.core.FeatureContext;
 
-import com.dremio.dac.annotations.Bootstrap;
-import com.dremio.dac.resource.BootstrapResource;
-import com.dremio.dac.server.test.NoUserTestFilter;
-
-/**
- * DAC Feature for first time API
- */
+/** DAC Feature for first time API */
 public class FirstTimeFeature implements Feature {
 
   @Override
   public boolean configure(FeatureContext context) {
     Configuration configuration = context.getConfiguration();
     Boolean enabled = PropertyHelper.getProperty(configuration, RestServerV2.FIRST_TIME_API_ENABLE);
-    Boolean testApiEnabled = PropertyHelper.getProperty(configuration, RestServerV2.TEST_API_ENABLE);
+    Boolean testApiEnabled =
+        PropertyHelper.getProperty(configuration, RestServerV2.TEST_API_ENABLE);
 
     // Default is not enabled
     if (enabled == null || !enabled) {
@@ -50,18 +48,19 @@ public class FirstTimeFeature implements Feature {
 
     // Registering a dynamic feature to only add filter to resources NOT annotated with
     // @Bootstrap
-    final Class<? extends ContainerRequestFilter> filter = allowTestApis ? NoUserTestFilter.class : NoUserFilter.class;
-    context.register(new DynamicFeature() {
-      @Override
-      public void configure(ResourceInfo resourceInfo, FeatureContext context) {
-        if (resourceInfo.getResourceClass().isAnnotationPresent(Bootstrap.class) ||
-            resourceInfo.getResourceMethod().isAnnotationPresent(Bootstrap.class)) {
-          return;
-        }
-        context.register(filter);
-      }
-    });
-
+    final Class<? extends ContainerRequestFilter> filter =
+        allowTestApis ? NoUserTestFilter.class : NoUserFilter.class;
+    context.register(
+        new DynamicFeature() {
+          @Override
+          public void configure(ResourceInfo resourceInfo, FeatureContext context) {
+            if (resourceInfo.getResourceClass().isAnnotationPresent(Bootstrap.class)
+                || resourceInfo.getResourceMethod().isAnnotationPresent(Bootstrap.class)) {
+              return;
+            }
+            context.register(filter);
+          }
+        });
 
     return true;
   }

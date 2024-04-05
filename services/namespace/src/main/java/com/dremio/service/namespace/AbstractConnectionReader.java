@@ -17,9 +17,7 @@ package com.dremio.service.namespace;
 
 import io.protostuff.ByteString;
 
-/**
- * Base connection reader implementation.
- */
+/** Base connection reader implementation. */
 public interface AbstractConnectionReader {
 
   public <T extends AbstractConnectionConf> T getConnectionConf(String typeName, ByteString bytes);

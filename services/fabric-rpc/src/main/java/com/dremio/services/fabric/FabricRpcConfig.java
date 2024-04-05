@@ -15,21 +15,19 @@
  */
 package com.dremio.services.fabric;
 
-import java.util.Optional;
-import java.util.concurrent.Executor;
-
 import com.dremio.exec.rpc.RpcConfig;
 import com.dremio.services.fabric.proto.FabricProto.FabricHandshake;
 import com.dremio.services.fabric.proto.FabricProto.FabricMessage;
 import com.dremio.services.fabric.proto.FabricProto.RpcType;
 import com.dremio.ssl.SSLConfig;
+import java.util.Optional;
+import java.util.concurrent.Executor;
 
-/**
- * Describes the wire level protocol for the Fabric.
- */
+/** Describes the wire level protocol for the Fabric. */
 class FabricRpcConfig {
 
-  public static RpcConfig getMapping(int rpcTimeout, Executor executor, Optional<SSLConfig> sslConfig) {
+  public static RpcConfig getMapping(
+      int rpcTimeout, Executor executor, Optional<SSLConfig> sslConfig) {
     return RpcConfig.newBuilder()
         .name("FABRIC")
         .executor(executor)

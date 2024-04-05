@@ -15,9 +15,6 @@
  */
 package com.dremio.exec.expr.fn.impl;
 
-import org.apache.arrow.vector.holders.BigIntHolder;
-import org.apache.arrow.vector.holders.DateMilliHolder;
-
 import com.dremio.common.expression.ExpressionStringBuilder;
 import com.dremio.common.expression.ValueExpressions.DateExpression;
 import com.dremio.exec.expr.SimpleFunction;
@@ -25,24 +22,26 @@ import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
+import org.apache.arrow.vector.holders.BigIntHolder;
+import org.apache.arrow.vector.holders.DateMilliHolder;
 
 /**
- * Casting a long to DATE. SQL standard doesn't allow this, but we need this because we store the date constant as
- * bigint and during fragment construction in
- * {@link ExpressionStringBuilder#visitDateConstant(DateExpression, StringBuilder)}
+ * Casting a long to DATE. SQL standard doesn't allow this, but we need this because we store the
+ * date constant as bigint and during fragment construction in {@link
+ * ExpressionStringBuilder#visitDateConstant(DateExpression, StringBuilder)}
  */
 @SuppressWarnings("unused")
-@FunctionTemplate(names = {"castDATE"}, scope = FunctionTemplate.FunctionScope.SIMPLE, nulls= NullHandling.NULL_IF_NULL)
+@FunctionTemplate(
+    names = {"castDATE"},
+    scope = FunctionTemplate.FunctionScope.SIMPLE,
+    nulls = NullHandling.NULL_IF_NULL)
 public class CastBigIntDate implements SimpleFunction {
 
-  @Param
-  BigIntHolder in;
-  @Output
-  DateMilliHolder out;
+  @Param BigIntHolder in;
+  @Output DateMilliHolder out;
 
   @Override
-  public void setup() {
-  }
+  public void setup() {}
 
   @Override
   public void eval() {

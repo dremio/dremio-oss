@@ -15,45 +15,51 @@
  */
 package com.dremio.exec.store.hive.exec.dfs;
 
-import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.util.Objects;
-
-import org.apache.hadoop.fs.FSDataInputStream;
-
 import com.dremio.exec.store.dfs.FSInputStreamWithStatsWrapper;
 import com.dremio.sabot.exec.context.MetricDef;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.scan.ScanOperator;
+import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.Objects;
+import org.apache.hadoop.fs.FSDataInputStream;
 
-/**
- * Wrapper for Hadoop {@code FSDataInputStream} which captures some extra stats
- */
+/** Wrapper for Hadoop {@code FSDataInputStream} which captures some extra stats */
 public final class FSDataInputStreamWithStatsWrapper extends FSInputStreamWithStatsWrapper {
-  private static final Class<?> HDFS_DATA_INPUT_STREAM_CLASS = getClass("org.apache.hadoop.hdfs.client.HdfsDataInputStream");
-  private static final Class<?> DFS_INPUT_STREAM_CLASS = getClass("org.apache.hadoop.hdfs.DFSInputStream");
-  private static final Class<?> READ_STATISTICS_CLASS = getClass("org.apache.hadoop.hdfs.ReadStatistics");
+  private static final Class<?> HDFS_DATA_INPUT_STREAM_CLASS =
+      getClass("org.apache.hadoop.hdfs.client.HdfsDataInputStream");
+  private static final Class<?> DFS_INPUT_STREAM_CLASS =
+      getClass("org.apache.hadoop.hdfs.DFSInputStream");
+  private static final Class<?> READ_STATISTICS_CLASS =
+      getClass("org.apache.hadoop.hdfs.ReadStatistics");
 
-  private static final Method HDFS_DATA_INPUT_STREAM_READ_STATISTICS_METHOD = getClassMethod(HDFS_DATA_INPUT_STREAM_CLASS, "getReadStatistics");
-  private static final Method DFS_INPUT_STREAM_READ_STATISTICS_METHOD = getClassMethod(DFS_INPUT_STREAM_CLASS, "getReadStatistics");
+  private static final Method HDFS_DATA_INPUT_STREAM_READ_STATISTICS_METHOD =
+      getClassMethod(HDFS_DATA_INPUT_STREAM_CLASS, "getReadStatistics");
+  private static final Method DFS_INPUT_STREAM_READ_STATISTICS_METHOD =
+      getClassMethod(DFS_INPUT_STREAM_CLASS, "getReadStatistics");
 
-  private static final Method GET_TOTAL_BYTES_READ_METHOD = getClassMethod(READ_STATISTICS_CLASS,"getTotalBytesRead");
-  private static final Method GET_TOTAL_LOCAL_BYTES_READ_METHOD = getClassMethod(READ_STATISTICS_CLASS,"getTotalLocalBytesRead");
-  private static final Method GET_TOTAL_SHORT_CIRCUIT_BYTES_READ_METHOD = getClassMethod(READ_STATISTICS_CLASS,"getTotalShortCircuitBytesRead");
+  private static final Method GET_TOTAL_BYTES_READ_METHOD =
+      getClassMethod(READ_STATISTICS_CLASS, "getTotalBytesRead");
+  private static final Method GET_TOTAL_LOCAL_BYTES_READ_METHOD =
+      getClassMethod(READ_STATISTICS_CLASS, "getTotalLocalBytesRead");
+  private static final Method GET_TOTAL_SHORT_CIRCUIT_BYTES_READ_METHOD =
+      getClassMethod(READ_STATISTICS_CLASS, "getTotalShortCircuitBytesRead");
 
   private final FSDataInputStream is;
   private final OperatorStats operatorStats;
 
-  private FSDataInputStreamWithStatsWrapper(FSDataInputStream is, OperatorStats operatorStats, boolean recordWaitTime, String filePath)
+  private FSDataInputStreamWithStatsWrapper(
+      FSDataInputStream is, OperatorStats operatorStats, boolean recordWaitTime, String filePath)
       throws IOException {
     super(FSDataInputStreamWrapper.of(is), operatorStats, recordWaitTime, filePath);
     this.is = Objects.requireNonNull(is);
     this.operatorStats = Objects.requireNonNull(operatorStats);
-
   }
 
-  public static FSDataInputStreamWithStatsWrapper of(FSDataInputStream is, OperatorStats operatorStats, boolean recordWaitTime, String filePath) throws IOException {
+  public static FSDataInputStreamWithStatsWrapper of(
+      FSDataInputStream is, OperatorStats operatorStats, boolean recordWaitTime, String filePath)
+      throws IOException {
     return new FSDataInputStreamWithStatsWrapper(is, operatorStats, recordWaitTime, filePath);
   }
 
@@ -83,9 +89,16 @@ public final class FSDataInputStreamWithStatsWrapper extends FSInputStreamWithSt
       try {
         Object readStatistics = readStatsMethod.invoke(inputStream);
 
-        addLongStat(ScanOperator.Metric.TOTAL_BYTES_READ, readStatistics, GET_TOTAL_BYTES_READ_METHOD);
-        addLongStat(ScanOperator.Metric.LOCAL_BYTES_READ, readStatistics, GET_TOTAL_LOCAL_BYTES_READ_METHOD);
-        addLongStat(ScanOperator.Metric.SHORT_CIRCUIT_BYTES_READ, readStatistics, GET_TOTAL_SHORT_CIRCUIT_BYTES_READ_METHOD);
+        addLongStat(
+            ScanOperator.Metric.TOTAL_BYTES_READ, readStatistics, GET_TOTAL_BYTES_READ_METHOD);
+        addLongStat(
+            ScanOperator.Metric.LOCAL_BYTES_READ,
+            readStatistics,
+            GET_TOTAL_LOCAL_BYTES_READ_METHOD);
+        addLongStat(
+            ScanOperator.Metric.SHORT_CIRCUIT_BYTES_READ,
+            readStatistics,
+            GET_TOTAL_SHORT_CIRCUIT_BYTES_READ_METHOD);
       } catch (IllegalAccessException | InvocationTargetException e) {
         // suppress and continue with other streams
       }
@@ -94,7 +107,8 @@ public final class FSDataInputStreamWithStatsWrapper extends FSInputStreamWithSt
     }
   }
 
-  private void addLongStat(MetricDef metric, Object readStatistics, Method method) throws IllegalAccessException, InvocationTargetException {
+  private void addLongStat(MetricDef metric, Object readStatistics, Method method)
+      throws IllegalAccessException, InvocationTargetException {
     if (readStatistics == null || method == null) {
       return;
     }

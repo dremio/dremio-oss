@@ -17,6 +17,13 @@ package com.dremio.dac.api;
 
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
+import com.dremio.dac.annotations.RestResource;
+import com.dremio.dac.annotations.Secured;
+import com.dremio.edition.EditionProvider;
+import com.dremio.exec.ExecConstants;
+import com.dremio.options.OptionManager;
+import com.dremio.service.job.JobAndUserStatsRequest;
+import com.dremio.service.jobs.JobsService;
 import javax.inject.Inject;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DefaultValue;
@@ -27,17 +34,7 @@ import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 
-import com.dremio.dac.annotations.RestResource;
-import com.dremio.dac.annotations.Secured;
-import com.dremio.edition.EditionProvider;
-import com.dremio.exec.ExecConstants;
-import com.dremio.options.OptionManager;
-import com.dremio.service.job.JobAndUserStatsRequest;
-import com.dremio.service.jobs.JobsService;
-
-/**
- * Resource that provides information about job and user activity.
- */
+/** Resource that provides information about job and user activity. */
 @RestResource
 @Secured
 @Path("/stats/jobsandusers")
@@ -50,28 +47,32 @@ public class JobAndUserStatsResource {
   private final OptionManager optionManager;
 
   @Inject
-  public JobAndUserStatsResource(JobsService jobsService, EditionProvider editionProvider, OptionManager optionManager) {
+  public JobAndUserStatsResource(
+      JobsService jobsService, EditionProvider editionProvider, OptionManager optionManager) {
     this.jobsService = jobsService;
     this.edition = editionProvider.getEdition();
     this.optionManager = optionManager;
   }
 
   @GET
-  public JobAndUserStatsResponse getJobAndUserStats(@QueryParam("numDaysBack") @DefaultValue("7") int numberOfDaysBack,
-                                                    @QueryParam("detailedStats") @DefaultValue("false") boolean detailedStats) {
+  public JobAndUserStatsResponse getJobAndUserStats(
+      @QueryParam("numDaysBack") @DefaultValue("7") int numberOfDaysBack,
+      @QueryParam("detailedStats") @DefaultValue("false") boolean detailedStats) {
     if (!optionManager.getOption(ExecConstants.ENABLE_JOBS_USER_STATS_API)) {
       throw new NotFoundException("/stats/jobsandusers is not supported");
     }
     com.dremio.service.job.JobAndUserStats jobAndUserStats;
     try {
-      jobAndUserStats = jobsService.getJobAndUserStats(JobAndUserStatsRequest.newBuilder()
-        .setNumDaysBack(numberOfDaysBack)
-        .setDetailedStats(detailedStats)
-        .build());
+      jobAndUserStats =
+          jobsService.getJobAndUserStats(
+              JobAndUserStatsRequest.newBuilder()
+                  .setNumDaysBack(numberOfDaysBack)
+                  .setDetailedStats(detailedStats)
+                  .build());
     } catch (Exception e) {
       throw new InternalServerErrorException(e.getMessage());
     }
-    return JobAndUserStatsResponse.createJobAndUserStatsResource(jobAndUserStats, edition, detailedStats);
+    return JobAndUserStatsResponse.createJobAndUserStatsResource(
+        jobAndUserStats, edition, detailedStats);
   }
-
 }

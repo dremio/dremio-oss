@@ -15,17 +15,17 @@
  */
 package com.dremio.exec.expr;
 
+import com.google.common.base.Preconditions;
+import com.sun.codemodel.CodeWriter;
+import com.sun.codemodel.JPackage;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.StringWriter;
 import java.io.Writer;
 
-import com.google.common.base.Preconditions;
-import com.sun.codemodel.CodeWriter;
-import com.sun.codemodel.JPackage;
-
-public class SingleClassStringWriter extends CodeWriter{
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SingleClassStringWriter.class);
+public class SingleClassStringWriter extends CodeWriter {
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(SingleClassStringWriter.class);
 
   private boolean used;
   private StringWriter writer = new StringWriter();
@@ -35,21 +35,18 @@ public class SingleClassStringWriter extends CodeWriter{
     throw new UnsupportedOperationException();
   }
 
-
   @Override
   public Writer openSource(JPackage pkg, String fileName) throws IOException {
-    Preconditions.checkArgument(!used, "The SingleClassStringWriter can only output once src file.");
+    Preconditions.checkArgument(
+        !used, "The SingleClassStringWriter can only output once src file.");
     used = true;
     return writer;
   }
 
   @Override
-  public void close() throws IOException {
-  }
+  public void close() throws IOException {}
 
-  public StringBuffer getCode(){
+  public StringBuffer getCode() {
     return writer.getBuffer();
   }
-
-
 }

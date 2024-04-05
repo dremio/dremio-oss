@@ -27,11 +27,9 @@ import JobsContentMixin, {
   SEPARATOR_WIDTH,
 } from "@app/pages/JobPage/components/JobsContentMixin";
 import { additionalColumnName } from "@inject/pages/JobPageNew/AdditionalJobPageColumns";
-// import JobTable from '@app/pages/JobPage/components/JobsTable/JobTable';
 import JobsFilters from "@app/pages/JobPage/components/JobsFilters/JobsFilters";
 import timeUtils from "utils/timeUtils";
-import jobsUtils, { getFilteredSqlJobList } from "utils/jobsUtils";
-import { renderJobStatus } from "utils/jobsUtils";
+import jobsUtils, { renderJobStatus } from "@app/utils/jobsUtils";
 import localStorageUtils from "utils/storageUtils/localStorageUtils";
 import { TableColumns } from "@app/constants/Constants";
 import { getFormatMessageIdForQueryType } from "@app/pages/JobDetailsPageNew/utils";
@@ -45,6 +43,7 @@ import NavCrumbs from "@inject/components/NavCrumbs/NavCrumbs";
 import { SonarSideNav } from "@app/exports/components/SideNav/SonarSideNav";
 import { Popover } from "@app/components/Popover";
 import JobContextMenu from "./JobContextMenu/JobContextMenu";
+import { getExplorePageTableData } from "./exploreJobsContentUtils";
 
 import "react-virtualized/styles.css";
 
@@ -55,7 +54,9 @@ export { SEPARATOR_WIDTH, MIN_LEFT_PANEL_WIDTH };
 export class JobsContent extends PureComponent {
   static propTypes = {
     jobId: PropTypes.string,
-    jobs: PropTypes.instanceOf(Immutable.List).isRequired,
+    jobs: PropTypes.instanceOf(Immutable.List),
+    jobSummaries: PropTypes.object,
+    allJobDetails: PropTypes.object,
     queryState: PropTypes.instanceOf(Immutable.Map).isRequired,
     next: PropTypes.string,
     onUpdateQueryState: PropTypes.func.isRequired,
@@ -124,15 +125,15 @@ export class JobsContent extends PureComponent {
       (item) =>
         (columnsObject[item.key] = columnsObject[item.key]
           ? columnsObject[item.key] + 1
-          : 1)
+          : 1),
     );
     const existingColumns = Object.keys(columnsObject).filter(
-      (col) => columnsObject[col] > 1
+      (col) => columnsObject[col] > 1,
     );
     if (existingColumns.length === TableColumns.length) {
       //for 18.1.0 release only need to be changed in the next update Ticket Number DX-37189
       const reflectionIndex = localStorageColumns.findIndex(
-        (item) => item.key === "reflection"
+        (item) => item.key === "reflection",
       );
       if (reflectionIndex >= 0) {
         localStorageColumns[reflectionIndex].isSelected = true;
@@ -183,10 +184,12 @@ export class JobsContent extends PureComponent {
   }
 
   UNSAFE_componentWillReceiveProps(nextProps) {
-    const { jobs, jobId } = this.props;
-    if (nextProps.jobs !== jobs) {
+    const { isFromExplorePage, jobs, jobId } = this.props;
+
+    // avoid opening socket / polling through jobDetails on the explore page
+    if (!isFromExplorePage && nextProps.jobs !== jobs) {
       this.runActionForJobs(nextProps.jobs, false, (jobIdForCallback) =>
-        socket.startListenToQVJobProgress(jobIdForCallback)
+        socket.startListenToQVJobProgress(jobIdForCallback),
       );
     }
     if (nextProps.jobId !== jobId) {
@@ -199,7 +202,7 @@ export class JobsContent extends PureComponent {
   componentWillUnmount() {
     $(window).off("mouseup", this.handleMouseReleaseOutOfBrowser);
     this.runActionForJobs(this.props.jobs, true, (jobId) =>
-      socket.stoptListenToQVJobProgress(jobId)
+      socket.stoptListenToQVJobProgress(jobId),
     );
   }
 
@@ -222,9 +225,8 @@ export class JobsContent extends PureComponent {
     }
   }
 
-  getTableData = () => {
-    const { jobs, isFromExplorePage, intl, renderButtons, queryFilter } =
-      this.props;
+  getJobsTableData = () => {
+    const { jobs, intl, renderButtons } = this.props;
     const { contextMenu } = this.state;
     const renderColumn = (data, isNumeric, className) => (
       <ColumnCell data={data} isNumeric={isNumeric} className={className} />
@@ -244,30 +246,24 @@ export class JobsContent extends PureComponent {
       duration,
       durationDetails,
       isAcceleration,
-      isSpilled
+      isSpilled,
     ) => (
       <DurationCell
         durationDetails={durationDetails}
         isAcceleration={isAcceleration}
-        isFromExplorePage={isFromExplorePage}
         duration={duration}
         isSpilled={isSpilled}
       />
     );
 
-    const curJobs =
-      queryFilter && isFromExplorePage
-        ? getFilteredSqlJobList(jobs, queryFilter)
-        : jobs;
-
-    return curJobs.map((job, index) => {
+    return jobs.map((job, index) => {
       const durationDetails = job.get("durationDetails") || new List();
       const jobDuration = jobsUtils.formatJobDuration(
         job.get("duration"),
-        true
+        true,
       );
       const planningTimeObject = durationDetails.find(
-        (duration) => duration.get("phaseName") === "PLANNING"
+        (duration) => duration.get("phaseName") === "PLANNING",
       );
       const planningTime =
         planningTimeObject && Number(planningTimeObject.get("phaseDuration"));
@@ -277,13 +273,13 @@ export class JobsContent extends PureComponent {
           ? "<1s"
           : timeUtils.formatTimeDiff(planningTime, "HH:mm:ss"));
       const formattedCost = jobsUtils.getFormattedNumber(
-        job.get("plannerEstimatedCost")
+        job.get("plannerEstimatedCost"),
       );
       const formattedRowsScanned = jobsUtils.getFormattedNumber(
-        job.get("rowsScanned")
+        job.get("rowsScanned"),
       );
       const formattedRowsReturned = jobsUtils.getFormattedNumber(
-        job.get("outputRecords")
+        job.get("outputRecords"),
       );
       const getColumnName = additionalColumnName(job);
       const sqlText = job.get("queryText");
@@ -317,7 +313,7 @@ export class JobsContent extends PureComponent {
               renderColumn(
                 intl.formatMessage({ id: getFormatMessageIdForQueryType(job) }),
                 false,
-                "fullHeight"
+                "fullHeight",
               ),
             value: job.get("queryType"),
           },
@@ -327,7 +323,7 @@ export class JobsContent extends PureComponent {
               renderColumn(
                 timeUtils.formatTime(job.get("startTime")),
                 true,
-                "leftAlign"
+                "leftAlign",
               ),
             value: timeUtils.formatTime(job.get("startTime")),
           },
@@ -337,7 +333,7 @@ export class JobsContent extends PureComponent {
                 jobDuration,
                 durationDetails,
                 job.get("accelerated"),
-                job.get("spilled")
+                job.get("spilled"),
               ),
             value: {
               jobDuration,
@@ -349,9 +345,6 @@ export class JobsContent extends PureComponent {
           sql: {
             node: () => renderSQL(sqlText),
             value: sqlText,
-            ...(isFromExplorePage && {
-              tabIndex: this.getExploreJobIndex(index, job),
-            }),
           },
           cost: {
             node: () =>
@@ -372,7 +365,7 @@ export class JobsContent extends PureComponent {
               renderColumn(
                 formattedRowsReturned.toString(),
                 true,
-                "fullHeight"
+                "fullHeight",
               ),
             value: formattedRowsReturned.toString(),
           },
@@ -381,12 +374,37 @@ export class JobsContent extends PureComponent {
               renderButtons(
                 job.get("state"),
                 jobIdForMap,
-                job.get("attemptDetails")?.size
+                job.get("attemptDetails")?.size,
               ),
           },
         },
       };
     });
+  };
+
+  getTableData = () => {
+    const {
+      jobSummaries,
+      allJobDetails,
+      isFromExplorePage,
+      intl,
+      renderButtons,
+      queryFilter,
+      exploreJobIdList,
+    } = this.props;
+
+    if (isFromExplorePage) {
+      return getExplorePageTableData(
+        jobSummaries,
+        allJobDetails,
+        exploreJobIdList,
+        queryFilter,
+        renderButtons,
+        intl,
+      );
+    }
+
+    return this.getJobsTableData();
   };
 
   handleRightClick = (e, context) => {
@@ -428,7 +446,7 @@ export class JobsContent extends PureComponent {
           .filter((item) => item.isSelected)
           .map((label) => label.key)
       : TableColumns.filter((item) => item.isSelected).map(
-          (label) => label.key
+          (label) => label.key,
         );
     const getCheckedItems = Immutable.List(columnCheckedItems);
     const styles = this.styles || {};
@@ -444,7 +462,7 @@ export class JobsContent extends PureComponent {
               className={classNames(
                 "jobs-content",
                 flexColumnContainer,
-                className
+                className,
               )}
               style={{ ...styles.base, ...resizeStyle }}
             >

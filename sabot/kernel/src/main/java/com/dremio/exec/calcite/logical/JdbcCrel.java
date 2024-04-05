@@ -15,8 +15,10 @@
  */
 package com.dremio.exec.calcite.logical;
 
+import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.planner.common.MoreRelOptUtil;
+import com.dremio.exec.planner.logical.Rel;
 import java.util.List;
-
 import org.apache.calcite.plan.CopyWithCluster;
 import org.apache.calcite.plan.CopyWithCluster.CopyToCluster;
 import org.apache.calcite.plan.RelOptCluster;
@@ -28,18 +30,13 @@ import org.apache.calcite.rel.RelShuttle;
 import org.apache.calcite.rel.SingleRel;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
-import com.dremio.exec.catalog.StoragePluginId;
-import com.dremio.exec.planner.common.MoreRelOptUtil;
-import com.dremio.exec.planner.logical.Rel;
-
-/**
- * Jdbc rel node on top of jdbc subtree during calcite's planning (convention NONE).
- */
+/** Jdbc rel node on top of jdbc subtree during calcite's planning (convention NONE). */
 public class JdbcCrel extends SingleRel implements CopyToCluster, Rel {
 
   private StoragePluginId pluginId;
 
-  public JdbcCrel(RelOptCluster cluster, RelTraitSet traitSet, RelNode input, StoragePluginId pluginId) {
+  public JdbcCrel(
+      RelOptCluster cluster, RelTraitSet traitSet, RelNode input, StoragePluginId pluginId) {
     super(cluster, traitSet, input);
     this.pluginId = pluginId;
   }
@@ -51,11 +48,16 @@ public class JdbcCrel extends SingleRel implements CopyToCluster, Rel {
 
   @Override
   public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
-    // Make the cost inversely proportional to the height of the rel tree under this node.  We want to maximize the
-    // height of the tree because we want to pushdown as much as possible to the jdbc source.  The main problem here is the
-    // Projects.  ProjectRelBase.computeSelfCost() generally returns a cost of "tiny" (which is 1).  So, even if we
-    // match LogicalProject to two different options with the same cost (one with Project on top of JdbcRel, and another with
-    // JdbcProject below JdbcRel), we may choose the one with Project on top of JdbcRel.  This is because if the costs
+    // Make the cost inversely proportional to the height of the rel tree under this node.  We want
+    // to maximize the
+    // height of the tree because we want to pushdown as much as possible to the jdbc source.  The
+    // main problem here is the
+    // Projects.  ProjectRelBase.computeSelfCost() generally returns a cost of "tiny" (which is 1).
+    // So, even if we
+    // match LogicalProject to two different options with the same cost (one with Project on top of
+    // JdbcRel, and another with
+    // JdbcProject below JdbcRel), we may choose the one with Project on top of JdbcRel.  This is
+    // because if the costs
     // are the same, calcite will choose the first plan option it generated.
 
     // Compute the height of the tree.
@@ -64,18 +66,16 @@ public class JdbcCrel extends SingleRel implements CopyToCluster, Rel {
       return planner.getCostFactory().makeInfiniteCost();
     }
 
-    return planner.getCostFactory().makeCost(Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE).multiplyBy(1.0/minDepth);
+    return planner
+        .getCostFactory()
+        .makeCost(Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE)
+        .multiplyBy(1.0 / minDepth);
   }
 
   @Override
   public RelNode copyWith(CopyWithCluster copier) {
     final RelNode input = getInput().accept(copier);
-    return new JdbcCrel(
-      copier.getCluster(),
-      getTraitSet(),
-      input,
-      pluginId
-    );
+    return new JdbcCrel(copier.getCluster(), getTraitSet(), input, pluginId);
   }
 
   public StoragePluginId getPluginId() {

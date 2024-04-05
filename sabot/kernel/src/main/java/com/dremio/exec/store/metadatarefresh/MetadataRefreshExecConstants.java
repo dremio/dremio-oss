@@ -15,13 +15,12 @@
  */
 package com.dremio.exec.store.metadatarefresh;
 
-import org.apache.arrow.vector.types.pojo.Field;
-
 import com.dremio.common.types.TypeProtos;
 import com.dremio.common.types.Types;
 import com.dremio.common.util.MajorTypeHelper;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.RecordWriter;
+import org.apache.arrow.vector.types.pojo.Field;
 
 public class MetadataRefreshExecConstants {
 
@@ -34,13 +33,22 @@ public class MetadataRefreshExecConstants {
       public static String MODIFICATION_TIME = "modificationtime";
       public static String PARTITION_INFO = "partitioninfo";
 
-      public static BatchSchema BATCH_SCHEMA = BatchSchema.newBuilder()
-        .addField(MajorTypeHelper.getFieldForNameAndMajorType(FILE_PATH, Types.optional(TypeProtos.MinorType.VARCHAR)))
-        .addField(MajorTypeHelper.getFieldForNameAndMajorType(FILE_SIZE, Types.optional(TypeProtos.MinorType.BIGINT)))
-        .addField(MajorTypeHelper.getFieldForNameAndMajorType(MODIFICATION_TIME, Types.optional(TypeProtos.MinorType.BIGINT)))
-        .addField(MajorTypeHelper.getFieldForNameAndMajorType(PARTITION_INFO, Types.optional(TypeProtos.MinorType.VARBINARY)))
-        .setSelectionVectorMode(BatchSchema.SelectionVectorMode.NONE)
-        .build();
+      public static BatchSchema BATCH_SCHEMA =
+          BatchSchema.newBuilder()
+              .addField(
+                  MajorTypeHelper.getFieldForNameAndMajorType(
+                      FILE_PATH, Types.optional(TypeProtos.MinorType.VARCHAR)))
+              .addField(
+                  MajorTypeHelper.getFieldForNameAndMajorType(
+                      FILE_SIZE, Types.optional(TypeProtos.MinorType.BIGINT)))
+              .addField(
+                  MajorTypeHelper.getFieldForNameAndMajorType(
+                      MODIFICATION_TIME, Types.optional(TypeProtos.MinorType.BIGINT)))
+              .addField(
+                  MajorTypeHelper.getFieldForNameAndMajorType(
+                      PARTITION_INFO, Types.optional(TypeProtos.MinorType.VARBINARY)))
+              .setSelectionVectorMode(BatchSchema.SelectionVectorMode.NONE)
+              .build();
     }
   }
 
@@ -51,13 +59,22 @@ public class MetadataRefreshExecConstants {
       public static final String MODIFICATION_TIME = "modificationtime";
       public static final String FILE_SCHEMA = "fileschema";
 
-      public static BatchSchema BATCH_SCHEMA = BatchSchema.newBuilder()
-        .addField(MajorTypeHelper.getFieldForNameAndMajorType(DATA_FILE, Types.optional(TypeProtos.MinorType.VARBINARY)))
-        .addField(MajorTypeHelper.getFieldForNameAndMajorType(OPERATION_TYPE, Types.optional(TypeProtos.MinorType.INT)))
-        .addField(MajorTypeHelper.getFieldForNameAndMajorType(MODIFICATION_TIME, Types.optional(TypeProtos.MinorType.BIGINT)))
-        .addField(MajorTypeHelper.getFieldForNameAndMajorType(FILE_SCHEMA, Types.optional(TypeProtos.MinorType.VARBINARY)))
-        .setSelectionVectorMode(BatchSchema.SelectionVectorMode.NONE)
-        .build();
+      public static BatchSchema BATCH_SCHEMA =
+          BatchSchema.newBuilder()
+              .addField(
+                  MajorTypeHelper.getFieldForNameAndMajorType(
+                      DATA_FILE, Types.optional(TypeProtos.MinorType.VARBINARY)))
+              .addField(
+                  MajorTypeHelper.getFieldForNameAndMajorType(
+                      OPERATION_TYPE, Types.optional(TypeProtos.MinorType.INT)))
+              .addField(
+                  MajorTypeHelper.getFieldForNameAndMajorType(
+                      MODIFICATION_TIME, Types.optional(TypeProtos.MinorType.BIGINT)))
+              .addField(
+                  MajorTypeHelper.getFieldForNameAndMajorType(
+                      FILE_SCHEMA, Types.optional(TypeProtos.MinorType.VARBINARY)))
+              .setSelectionVectorMode(BatchSchema.SelectionVectorMode.NONE)
+              .build();
     }
   }
 
@@ -72,15 +89,21 @@ public class MetadataRefreshExecConstants {
       public static String DATAFILE_PATH = "datafilePath";
       public static String PARTITION_DATA_PATH = "existingpartitioninfo";
 
-      public static BatchSchema BATCH_SCHEMA = BatchSchema.newBuilder()
-        .addField(Field.nullable(DATAFILE_PATH, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()))
-        .addField(Field.nullable(PARTITION_DATA_PATH, org.apache.arrow.vector.types.Types.MinorType.VARBINARY.getType()))
-        .setSelectionVectorMode(BatchSchema.SelectionVectorMode.NONE)
-        .build();
+      public static BatchSchema BATCH_SCHEMA =
+          BatchSchema.newBuilder()
+              .addField(
+                  Field.nullable(
+                      DATAFILE_PATH,
+                      org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()))
+              .addField(
+                  Field.nullable(
+                      PARTITION_DATA_PATH,
+                      org.apache.arrow.vector.types.Types.MinorType.VARBINARY.getType()))
+              .setSelectionVectorMode(BatchSchema.SelectionVectorMode.NONE)
+              .build();
     }
   }
 
   public static final String IS_DELETED_FILE = "isDeleted";
   public static final String PARTITION_INFO = DirList.OUTPUT_SCHEMA.PARTITION_INFO;
-
 }

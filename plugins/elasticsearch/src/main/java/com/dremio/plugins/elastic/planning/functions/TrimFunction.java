@@ -24,7 +24,7 @@ class TrimFunction extends ElasticFunction {
 
   private static final String TRIM_CHAR = "' '";
 
-  public TrimFunction(){
+  public TrimFunction() {
     super("trim", "trim");
   }
 

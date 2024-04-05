@@ -25,6 +25,8 @@ import org.apache.calcite.util.DateString;
 import org.apache.calcite.util.TimestampString;
 
 /**
+ *
+ *
  * <pre>
  * Extract each component of a filter expr with SARGableStandardForm for
  * - EXTRACT(time_unit KEYWORD, date_time_expression DATE, TIME, TIMESTAMP)
@@ -33,9 +35,8 @@ import org.apache.calcite.util.TimestampString;
  */
 public class ExtractAndDatePartRangeTransformer extends RangeTransformer {
 
-  public ExtractAndDatePartRangeTransformer(RelOptCluster relOptCluster,
-                                            StandardForm stdForm,
-                                            SqlOperator sqlOperator) {
+  public ExtractAndDatePartRangeTransformer(
+      RelOptCluster relOptCluster, StandardForm stdForm, SqlOperator sqlOperator) {
     super(relOptCluster, stdForm, sqlOperator);
   }
 
@@ -54,10 +55,10 @@ public class ExtractAndDatePartRangeTransformer extends RangeTransformer {
     RexNode rhs = super.getRhsNode();
     if (getColumn().getType().getSqlTypeName().equals(SqlTypeName.DATE)) {
       return rexBuilder.makeDateLiteral(
-        new DateString(((RexLiteral) rhs).getValue2().toString() + "-01-01"));
+          new DateString(((RexLiteral) rhs).getValue2().toString() + "-01-01"));
     } else {
       return rexBuilder.makeTimestampLiteral(
-        new TimestampString(((RexLiteral) rhs).getValue2().toString() + "-01-01 00:00:00"), 0);
+          new TimestampString(((RexLiteral) rhs).getValue2().toString() + "-01-01 00:00:00"), 0);
     }
   }
 

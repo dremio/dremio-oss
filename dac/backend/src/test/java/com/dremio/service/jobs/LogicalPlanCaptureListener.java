@@ -15,22 +15,20 @@
  */
 package com.dremio.service.jobs;
 
+import com.dremio.exec.planner.PlannerPhase;
+import com.google.common.base.Strings;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.sql.SqlExplainFormat;
 import org.apache.calcite.sql.SqlExplainLevel;
 
-import com.dremio.exec.planner.PlannerPhase;
-import com.google.common.base.Strings;
-
-/**
- * {@link JobStatusListener} that keeps reference to the logical plan if available.
- */
+/** {@link JobStatusListener} that keeps reference to the logical plan if available. */
 public class LogicalPlanCaptureListener implements PlanTransformationListener {
   private volatile String plan;
 
   @Override
-  public void onPhaseCompletion(final PlannerPhase phase, final RelNode before, final RelNode after, final long millisTaken) {
+  public void onPhaseCompletion(
+      final PlannerPhase phase, final RelNode before, final RelNode after, final long millisTaken) {
     if (!Strings.isNullOrEmpty(plan)) {
       return;
     }

@@ -15,18 +15,14 @@
  */
 package com.dremio.exec.planner.sql;
 
-
+import com.google.common.base.Preconditions;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql2rel.SqlRexContext;
 import org.apache.calcite.sql2rel.SqlRexConvertlet;
 
-import com.google.common.base.Preconditions;
-
-/**
- * Convertlet to rewrite SPACE(n) as REPEAT(' ',n)
- */
+/** Convertlet to rewrite SPACE(n) as REPEAT(' ',n) */
 public final class SpaceConvertlet implements SqlRexConvertlet {
   public static final SpaceConvertlet INSTANCE = new SpaceConvertlet();
 
@@ -39,6 +35,6 @@ public final class SpaceConvertlet implements SqlRexConvertlet {
     RexBuilder rexBuilder = sqlRexContext.getRexBuilder();
     RexNode value = sqlRexContext.convertExpression(sqlCall.getOperandList().get(0));
     RexNode space = rexBuilder.makeLiteral(" ");
-    return  rexBuilder.makeCall(DremioSqlOperatorTable.REPEAT, space, value);
+    return rexBuilder.makeCall(DremioSqlOperatorTable.REPEAT, space, value);
   }
 }

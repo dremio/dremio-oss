@@ -34,12 +34,12 @@ import { virtualDatasetTokens } from "./tableAnalyzer";
 const genericContainerRuleAnalyzers: CompositeRuleAnalyzers = {
   [Parser.RULE_sqlShowTables]: includeIf([
     child(Parser.RULE_compoundIdentifier, (priorToken: Token | undefined) =>
-      isTokenOfType(priorToken, [Parser.FROM, Parser.IN])
+      isTokenOfType(priorToken, [Parser.FROM, Parser.IN]),
     ),
   ]),
   [Parser.RULE_sqlShowViews]: includeIf([
     child(Parser.RULE_compoundIdentifier, (priorToken: Token | undefined) =>
-      isTokenOfType(priorToken, [Parser.FROM, Parser.IN])
+      isTokenOfType(priorToken, [Parser.FROM, Parser.IN]),
     ),
   ]),
   [Parser.RULE_sqlCreateOrReplace]: includeIf([
@@ -49,7 +49,7 @@ const genericContainerRuleAnalyzers: CompositeRuleAnalyzers = {
       (priorToken: Token | undefined, ruleContext: RuleContext) =>
         isTokenOfType(priorToken, virtualDatasetTokens) &&
         ruleContext instanceof SqlCreateOrReplaceContext &&
-        !ruleContext.REPLACE()
+        !ruleContext.REPLACE(),
     ),
   ]),
   [Parser.RULE_sqlCreateTable]: includeIf([
@@ -59,7 +59,7 @@ const genericContainerRuleAnalyzers: CompositeRuleAnalyzers = {
       (priorToken: Token | undefined, ruleContext: RuleContext) =>
         isTokenOfType(priorToken, virtualDatasetTokens) &&
         ruleContext instanceof SqlCreateOrReplaceContext &&
-        !ruleContext.REPLACE()
+        !ruleContext.REPLACE(),
     ),
   ]),
 };
@@ -70,7 +70,7 @@ const genericContainerRuleAnalyzers: CompositeRuleAnalyzers = {
  */
 export function isGenericContainer(
   priorTerminals: TerminalNode[],
-  identifierCandidate: IdentifierCandidate
+  identifierCandidate: IdentifierCandidate,
 ): boolean {
   if (priorTerminals.length == 0) {
     return false;
@@ -79,6 +79,6 @@ export function isGenericContainer(
   return validateCompositeRules(
     identifierCandidate,
     genericContainerRuleAnalyzers,
-    priorTerminal
+    priorTerminal,
   );
 }

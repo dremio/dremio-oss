@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.compile;
 
+import com.google.common.collect.Maps;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -23,10 +24,7 @@ import java.io.StringReader;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Map;
-
 import javax.tools.SimpleJavaFileObject;
-
-import com.google.common.collect.Maps;
 
 final class DremioJavaFileObject extends SimpleJavaFileObject {
   private final String sourceCode;
@@ -60,8 +58,9 @@ final class DremioJavaFileObject extends SimpleJavaFileObject {
     } else {
       int index = 0;
       ClassBytes[] byteCode = new ClassBytes[outputFiles.size()];
-      for(DremioJavaFileObject outputFile : outputFiles.values()) {
-        byteCode[index++] = new ClassBytes(outputFile.className, outputFile.outputStream.toByteArray());
+      for (DremioJavaFileObject outputFile : outputFiles.values()) {
+        byteCode[index++] =
+            new ClassBytes(outputFile.className, outputFile.outputStream.toByteArray());
       }
       return byteCode;
     }
@@ -84,7 +83,8 @@ final class DremioJavaFileObject extends SimpleJavaFileObject {
   @Override
   public CharSequence getCharContent(final boolean ignoreEncodingErrors) throws IOException {
     if (sourceCode == null) {
-      throw new UnsupportedOperationException("This instance of DremioJavaFileObject is not an input object.");
+      throw new UnsupportedOperationException(
+          "This instance of DremioJavaFileObject is not an input object.");
     }
     return sourceCode;
   }
@@ -92,19 +92,20 @@ final class DremioJavaFileObject extends SimpleJavaFileObject {
   @Override
   public OutputStream openOutputStream() {
     if (outputStream == null) {
-      throw new UnsupportedOperationException("This instance of DremioJavaFileObject is not an output object.");
+      throw new UnsupportedOperationException(
+          "This instance of DremioJavaFileObject is not an output object.");
     }
     return outputStream;
   }
 
   private static URI makeURI(final String canonicalClassName) {
     final int dotPos = canonicalClassName.lastIndexOf('.');
-    final String simpleClassName = dotPos == -1 ? canonicalClassName : canonicalClassName.substring(dotPos + 1);
+    final String simpleClassName =
+        dotPos == -1 ? canonicalClassName : canonicalClassName.substring(dotPos + 1);
     try {
       return new URI(simpleClassName + Kind.SOURCE.extension);
     } catch (URISyntaxException e) {
       throw new RuntimeException(e);
     }
   }
-
 }

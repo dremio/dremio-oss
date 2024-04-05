@@ -15,13 +15,6 @@
  */
 package com.dremio.exec.service.executor;
 
-import java.net.InetAddress;
-import java.net.UnknownHostException;
-import java.util.List;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.util.DremioVersionInfo;
 import com.dremio.exec.proto.CatalogRPC;
 import com.dremio.exec.proto.CoordExecRPC;
@@ -34,8 +27,12 @@ import com.dremio.exec.work.WorkStats;
 import com.dremio.sabot.exec.FragmentExecutors;
 import com.dremio.sabot.exec.fragment.FragmentExecutorBuilder;
 import com.dremio.service.namespace.source.proto.SourceConfig;
-
 import io.protostuff.ProtobufIOUtil;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ExecutorServiceImpl extends ExecutorService {
   private static final Logger logger = LoggerFactory.getLogger(ExecutorServiceImpl.class);
@@ -44,61 +41,75 @@ public class ExecutorServiceImpl extends ExecutorService {
   private final SabotContext context;
   private final FragmentExecutorBuilder builder;
 
-  public ExecutorServiceImpl(FragmentExecutors fragmentExecutors, SabotContext context, FragmentExecutorBuilder builder) {
+  public ExecutorServiceImpl(
+      FragmentExecutors fragmentExecutors, SabotContext context, FragmentExecutorBuilder builder) {
     this.fragmentExecutors = fragmentExecutors;
     this.context = context;
     this.builder = builder;
   }
 
   @Override
-  public void startFragments(com.dremio.exec.proto.CoordExecRPC.InitializeFragments request,
-                             io.grpc.stub.StreamObserver<com.google.protobuf.Empty> responseObserver) {
+  public void startFragments(
+      com.dremio.exec.proto.CoordExecRPC.InitializeFragments request,
+      io.grpc.stub.StreamObserver<com.google.protobuf.Empty> responseObserver) {
     fragmentExecutors.startFragments(request, builder, responseObserver, context.getEndpoint());
   }
 
   @Override
-  public void activateFragment(com.dremio.exec.proto.CoordExecRPC.ActivateFragments request,
-                               io.grpc.stub.StreamObserver<com.google.protobuf.Empty> responseObserver) {
+  public void activateFragment(
+      com.dremio.exec.proto.CoordExecRPC.ActivateFragments request,
+      io.grpc.stub.StreamObserver<com.google.protobuf.Empty> responseObserver) {
     fragmentExecutors.activateFragments(request.getQueryId(), builder.getClerk());
     responseObserver.onCompleted();
   }
 
   @Override
-  public void cancelFragments(com.dremio.exec.proto.CoordExecRPC.CancelFragments request,
-                              io.grpc.stub.StreamObserver<com.google.protobuf.Empty> responseObserver) {
+  public void cancelFragments(
+      com.dremio.exec.proto.CoordExecRPC.CancelFragments request,
+      io.grpc.stub.StreamObserver<com.google.protobuf.Empty> responseObserver) {
     fragmentExecutors.cancelFragments(request.getQueryId(), builder.getClerk());
     responseObserver.onCompleted();
   }
 
   @Override
-  public void reconcileActiveQueries(com.dremio.exec.proto.CoordExecRPC.ActiveQueryList request,
-                                     io.grpc.stub.StreamObserver<com.google.protobuf.Empty> responseObserver) {
+  public void reconcileActiveQueries(
+      com.dremio.exec.proto.CoordExecRPC.ActiveQueryList request,
+      io.grpc.stub.StreamObserver<com.google.protobuf.Empty> responseObserver) {
     fragmentExecutors.reconcileActiveQueries(request, builder.getClerk());
     responseObserver.onCompleted();
   }
 
   @Override
-  public void propagatePluginChange(com.dremio.exec.proto.CoordExecRPC.SourceWrapper request,
-                                     io.grpc.stub.StreamObserver<com.google.protobuf.Empty> responseObserver) {
+  public void propagatePluginChange(
+      com.dremio.exec.proto.CoordExecRPC.SourceWrapper request,
+      io.grpc.stub.StreamObserver<com.google.protobuf.Empty> responseObserver) {
     SourceConfig config = new SourceConfig();
     ProtobufIOUtil.mergeFrom(request.getBytes().toByteArray(), config, SourceConfig.getSchema());
-    List<CoordinationProtos.NodeEndpoint> nodeEndpointList = request.getPluginChangeNodeEndpoints().getEndpointsIndexList();
-    CatalogRPC.RpcType rpcType = CatalogRPC.RpcType.valueOf(request.getPluginChangeNodeEndpoints().getRpcType().name());
+    List<CoordinationProtos.NodeEndpoint> nodeEndpointList =
+        request.getPluginChangeNodeEndpoints().getEndpointsIndexList();
+    CatalogRPC.RpcType rpcType =
+        CatalogRPC.RpcType.valueOf(request.getPluginChangeNodeEndpoints().getRpcType().name());
 
-    logger.info("Propagate plugin change with rpc type {} to node endpoint list: {}", rpcType, nodeEndpointList);
+    logger.info(
+        "Propagate plugin change with rpc type {} to node endpoint list: {}",
+        rpcType,
+        nodeEndpointList);
     context.getCatalogService().communicateChangeToExecutors(nodeEndpointList, config, rpcType);
     responseObserver.onCompleted();
   }
 
-
   @Override
   @SuppressWarnings("DremioGRPCStreamObserverOnError")
-  public void getNodeStats(com.google.protobuf.Empty request,
-                           io.grpc.stub.StreamObserver<com.dremio.exec.proto.CoordExecRPC.NodeStatResp> responseObserver) {
+  public void getNodeStats(
+      com.google.protobuf.Empty request,
+      io.grpc.stub.StreamObserver<com.dremio.exec.proto.CoordExecRPC.NodeStatResp>
+          responseObserver) {
     try {
-      CoordExecRPC.NodeStatResp resp = CoordExecRPC.NodeStatResp.newBuilder()
+      CoordExecRPC.NodeStatResp resp =
+          CoordExecRPC.NodeStatResp.newBuilder()
               .setNodeStats(getNodeStats())
-              .setEndpoint(context.getEndpoint()).build();
+              .setEndpoint(context.getEndpoint())
+              .build();
       responseObserver.onNext(resp);
       responseObserver.onCompleted();
     } catch (Exception e) {
@@ -116,14 +127,18 @@ public class ExecutorServiceImpl extends ExecutorService {
     final WorkStats stats = context.getWorkStatsProvider().get();
     final CoordinationProtos.NodeEndpoint ep = context.getEndpoint();
     final double load = stats.getClusterLoad();
-    final int configuredMaxWidth = (int) context.getClusterResourceInformation().getAverageExecutorCores(context.getOptionManager());
+    final int configuredMaxWidth =
+        (int)
+            context
+                .getClusterResourceInformation()
+                .getAverageExecutorCores(context.getOptionManager());
     final int actualMaxWidth = (int) Math.max(1, configuredMaxWidth * stats.getMaxWidthFactor());
 
     double memory = 0;
     double cpu = 0;
 
     // get cpu
-    while(threads.hasNext()) {
+    while (threads.hasNext()) {
       ThreadsIterator.ThreadSummary summary = (ThreadsIterator.ThreadSummary) threads.next();
       double cpuTime = summary.cpu_time == null ? 0 : summary.cpu_time;
       double numCores = summary.cores;
@@ -131,12 +146,12 @@ public class ExecutorServiceImpl extends ExecutorService {
     }
 
     // get memory
-    if(memoryIterator.hasNext()) {
+    if (memoryIterator.hasNext()) {
       MemoryIterator.MemoryInfo memoryInfo = ((MemoryIterator.MemoryInfo) memoryIterator.next());
       memory = memoryInfo.direct_current * 100.0 / memoryInfo.direct_max;
     }
 
-    String ip =  null;
+    String ip = null;
     try {
       ip = InetAddress.getLocalHost().getHostAddress();
     } catch (UnknownHostException e) {
@@ -144,73 +159,79 @@ public class ExecutorServiceImpl extends ExecutorService {
     }
 
     return CoordExecRPC.NodeStats.newBuilder()
-            .setCpu(cpu)
-            .setMemory(memory)
-            .setVersion(DremioVersionInfo.getVersion())
-            .setPort(ep.getFabricPort())
-            .setName(ep.getAddress())
-            .setIp(ip)
-            .setStatus("green")
-            .setLoad(load)
-            .setConfiguredMaxWidth(configuredMaxWidth)
-            .setActualMaxWith(actualMaxWidth)
-            .setCurrent(false)
-            .build();
+        .setCpu(cpu)
+        .setMemory(memory)
+        .setVersion(DremioVersionInfo.getVersion())
+        .setPort(ep.getFabricPort())
+        .setName(ep.getAddress())
+        .setIp(ip)
+        .setStatus("green")
+        .setLoad(load)
+        .setConfiguredMaxWidth(configuredMaxWidth)
+        .setActualMaxWith(actualMaxWidth)
+        .setCurrent(false)
+        .build();
   }
 
   /**
-   * Handler class to reject calls in two cases
-   * 1. till the rpc layer is initialized.
-   * 2. in coordinator since protocol is the same
+   * Handler class to reject calls in two cases 1. till the rpc layer is initialized. 2. in
+   * coordinator since protocol is the same
    */
   public static final class NoExecutorService extends ExecutorService {
 
     @Override
     @SuppressWarnings("DremioGRPCStreamObserverOnError")
-    public void startFragments(com.dremio.exec.proto.CoordExecRPC.InitializeFragments request,
-                               io.grpc.stub.StreamObserver<com.google.protobuf.Empty> responseObserver) {
-      responseObserver.onError(new RpcException("This daemon doesn't support execution " +
-              "operations."));
+    public void startFragments(
+        com.dremio.exec.proto.CoordExecRPC.InitializeFragments request,
+        io.grpc.stub.StreamObserver<com.google.protobuf.Empty> responseObserver) {
+      responseObserver.onError(
+          new RpcException("This daemon doesn't support execution " + "operations."));
     }
 
     @Override
     @SuppressWarnings("DremioGRPCStreamObserverOnError")
-    public void activateFragment(com.dremio.exec.proto.CoordExecRPC.ActivateFragments request,
-                                 io.grpc.stub.StreamObserver<com.google.protobuf.Empty> responseObserver) {
-      responseObserver.onError(new RpcException("This daemon doesn't support execution " +
-              "operations."));
+    public void activateFragment(
+        com.dremio.exec.proto.CoordExecRPC.ActivateFragments request,
+        io.grpc.stub.StreamObserver<com.google.protobuf.Empty> responseObserver) {
+      responseObserver.onError(
+          new RpcException("This daemon doesn't support execution " + "operations."));
     }
 
     @Override
     @SuppressWarnings("DremioGRPCStreamObserverOnError")
-    public void cancelFragments(com.dremio.exec.proto.CoordExecRPC.CancelFragments request,
-                                io.grpc.stub.StreamObserver<com.google.protobuf.Empty> responseObserver) {
-      responseObserver.onError(new RpcException("This daemon doesn't support execution " +
-              "operations."));
+    public void cancelFragments(
+        com.dremio.exec.proto.CoordExecRPC.CancelFragments request,
+        io.grpc.stub.StreamObserver<com.google.protobuf.Empty> responseObserver) {
+      responseObserver.onError(
+          new RpcException("This daemon doesn't support execution " + "operations."));
     }
 
     @Override
     @SuppressWarnings("DremioGRPCStreamObserverOnError")
-    public void reconcileActiveQueries(com.dremio.exec.proto.CoordExecRPC.ActiveQueryList request,
-                                       io.grpc.stub.StreamObserver<com.google.protobuf.Empty> responseObserver) {
-      responseObserver.onError(new RpcException("This daemon doesn't support execution " +
-              "operations."));
+    public void reconcileActiveQueries(
+        com.dremio.exec.proto.CoordExecRPC.ActiveQueryList request,
+        io.grpc.stub.StreamObserver<com.google.protobuf.Empty> responseObserver) {
+      responseObserver.onError(
+          new RpcException("This daemon doesn't support execution " + "operations."));
     }
 
     @Override
     @SuppressWarnings("DremioGRPCStreamObserverOnError")
-    public void propagatePluginChange(com.dremio.exec.proto.CoordExecRPC.SourceWrapper request,
-                                       io.grpc.stub.StreamObserver<com.google.protobuf.Empty> responseObserver) {
-      responseObserver.onError(new RpcException("This daemon doesn't support execution " +
-        "operations."));
+    public void propagatePluginChange(
+        com.dremio.exec.proto.CoordExecRPC.SourceWrapper request,
+        io.grpc.stub.StreamObserver<com.google.protobuf.Empty> responseObserver) {
+      responseObserver.onError(
+          new RpcException("This daemon doesn't support execution " + "operations."));
     }
 
     @Override
     @SuppressWarnings("DremioGRPCStreamObserverOnError")
-    public void getNodeStats(com.google.protobuf.Empty request,
-                             io.grpc.stub.StreamObserver<com.dremio.exec.proto.CoordExecRPC.NodeStatResp> responseObserver) {
-      responseObserver.onError(new RpcException("This daemon doesn't support execution " +
-              "operations."));
+    public void getNodeStats(
+        com.google.protobuf.Empty request,
+        io.grpc.stub.StreamObserver<com.dremio.exec.proto.CoordExecRPC.NodeStatResp>
+            responseObserver) {
+      responseObserver.onError(
+          new RpcException("This daemon doesn't support execution " + "operations."));
     }
   }
 }

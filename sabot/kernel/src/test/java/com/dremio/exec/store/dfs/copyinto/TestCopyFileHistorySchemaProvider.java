@@ -50,7 +50,9 @@ public class TestCopyFileHistorySchemaProvider {
   @ParameterizedTest
   @ValueSource(ints = {2})
   public void testGetUnsupportedVersion(int unsupportedSchemaVersion) {
-    assertThrows("Unsupported copy_file_history table schema version. Currently supported schema version are: 1",
-      UnsupportedOperationException.class, () -> CopyFileHistoryTableSchemaProvider.getSchema(unsupportedSchemaVersion));
+    assertThrows(
+        "Unsupported copy_file_history table schema version. Currently supported schema version are: 1",
+        UnsupportedOperationException.class,
+        () -> CopyFileHistoryTableSchemaProvider.getSchema(unsupportedSchemaVersion));
   }
 }

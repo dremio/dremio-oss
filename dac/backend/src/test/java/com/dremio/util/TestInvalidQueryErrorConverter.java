@@ -17,18 +17,16 @@ package com.dremio.util;
 
 import static org.junit.Assert.assertEquals;
 
+import com.dremio.dac.util.InvalidQueryErrorConverter;
 import org.junit.Test;
 
-import com.dremio.dac.util.InvalidQueryErrorConverter;
-
-/**
- * InvalidQueryErrorConverter tests
- */
+/** InvalidQueryErrorConverter tests */
 public class TestInvalidQueryErrorConverter {
   @Test
   public void convertNullTypeError() throws Exception {
     String actual = InvalidQueryErrorConverter.convert("Illegal use of 'NULL'");
-    String expected = "We do not support NULL as a return data type in SELECT. Cast it to a different type.";
+    String expected =
+        "We do not support NULL as a return data type in SELECT. Cast it to a different type.";
     assertEquals(expected, actual);
   }
 

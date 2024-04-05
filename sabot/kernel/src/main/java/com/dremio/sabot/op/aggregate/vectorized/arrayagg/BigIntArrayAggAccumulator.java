@@ -16,6 +16,7 @@
 
 package com.dremio.sabot.op.aggregate.vectorized.arrayagg;
 
+import io.netty.util.internal.PlatformDependent;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BaseValueVector;
@@ -23,14 +24,14 @@ import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.complex.impl.UnionListWriter;
 
-import io.netty.util.internal.PlatformDependent;
-
-/**
- * Accumulator for ARRAY_AGG for BIGINT type
- */
+/** Accumulator for ARRAY_AGG for BIGINT type */
 public final class BigIntArrayAggAccumulator extends BaseArrayAggAccumulator<Long, BigIntVector> {
-  public BigIntArrayAggAccumulator(FieldVector input, FieldVector transferVector, int maxValuesPerBatch,
-                                   BaseValueVector tempAccumulatorHolder, BufferAllocator allocator) {
+  public BigIntArrayAggAccumulator(
+      FieldVector input,
+      FieldVector transferVector,
+      int maxValuesPerBatch,
+      BaseValueVector tempAccumulatorHolder,
+      BufferAllocator allocator) {
     super(input, transferVector, maxValuesPerBatch, tempAccumulatorHolder, allocator);
   }
 
@@ -46,12 +47,13 @@ public final class BigIntArrayAggAccumulator extends BaseArrayAggAccumulator<Lon
 
   @Override
   protected BaseArrayAggAccumulatorHolder<Long, BigIntVector> getAccumulatorHolder(
-    int maxValuesPerBatch, BufferAllocator allocator) {
+      int maxValuesPerBatch, BufferAllocator allocator) {
     return new BigIntArrayAggAccumulatorHolder(maxValuesPerBatch, allocator);
   }
 
   @Override
-  protected Long getElement(long baseAddress, int itemIndex, ArrowBuf dataBuffer, ArrowBuf offsetBuffer) {
+  protected Long getElement(
+      long baseAddress, int itemIndex, ArrowBuf dataBuffer, ArrowBuf offsetBuffer) {
     long offHeapMemoryAddress = getOffHeapAddressForFixedWidthTypes(baseAddress, itemIndex);
     return PlatformDependent.getLong(offHeapMemoryAddress);
   }

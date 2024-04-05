@@ -15,17 +15,18 @@
  */
 package com.dremio.exec.planner.normalizer;
 
-import org.apache.calcite.plan.RelOptCostFactory;
-import org.apache.calcite.sql.SqlOperatorTable;
-
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
+import com.dremio.exec.ops.PlannerCatalog;
 import com.dremio.exec.ops.UserDefinedFunctionExpander;
 import com.dremio.exec.planner.HepPlannerRunner;
+import com.dremio.exec.planner.events.PlannerEventBus;
 import com.dremio.exec.planner.logical.ConstExecutor;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.SqlConverter;
 import com.dremio.sabot.exec.context.FunctionContext;
+import org.apache.calcite.plan.RelOptCostFactory;
+import org.apache.calcite.sql.SqlOperatorTable;
 
 public class PlannerBaseComponentImpl implements PlannerBaseComponent {
 
@@ -36,6 +37,8 @@ public class PlannerBaseComponentImpl implements PlannerBaseComponent {
   private final SqlConverter sqlConverter;
   private final HepPlannerRunner hepPlannerRunner;
   private final UserDefinedFunctionExpander userDefinedFunctionExpander;
+  private final PlannerCatalog plannerCatalog;
+  private final PlannerEventBus plannerEventBus;
 
   public PlannerBaseComponentImpl(
       PlannerSettings plannerSettings,
@@ -44,7 +47,9 @@ public class PlannerBaseComponentImpl implements PlannerBaseComponent {
       SqlOperatorTable sqlOperatorTable,
       SqlConverter sqlConverter,
       HepPlannerRunner hepPlannerRunner,
-      UserDefinedFunctionExpander userDefinedFunctionExpander) {
+      UserDefinedFunctionExpander userDefinedFunctionExpander,
+      PlannerCatalog plannerCatalog,
+      PlannerEventBus plannerEventBus) {
     this.plannerSettings = plannerSettings;
     this.functionImplementationRegistry = functionImplementationRegistry;
     this.functionContext = functionContext;
@@ -52,6 +57,8 @@ public class PlannerBaseComponentImpl implements PlannerBaseComponent {
     this.sqlConverter = sqlConverter;
     this.hepPlannerRunner = hepPlannerRunner;
     this.userDefinedFunctionExpander = userDefinedFunctionExpander;
+    this.plannerCatalog = plannerCatalog;
+    this.plannerEventBus = plannerEventBus;
   }
 
   @Override
@@ -79,7 +86,6 @@ public class PlannerBaseComponentImpl implements PlannerBaseComponent {
     return sqlOperatorTable;
   }
 
-
   @Override
   public HepPlannerRunner getHepPlannerRunner() {
     return hepPlannerRunner;
@@ -90,6 +96,16 @@ public class PlannerBaseComponentImpl implements PlannerBaseComponent {
     return userDefinedFunctionExpander;
   }
 
+  @Override
+  public PlannerEventBus getPlannerEventBus() {
+    return plannerEventBus;
+  }
+
+  @Override
+  public PlannerCatalog getPlannerCatalog() {
+    return plannerCatalog;
+  }
+
   public static PlannerBaseComponent build(
       PlannerBaseModule plannerBaseModule,
       PlannerSettings plannerSettings,
@@ -97,31 +113,33 @@ public class PlannerBaseComponentImpl implements PlannerBaseComponent {
       FunctionContext functionContext,
       SqlOperatorTable sqlOperatorTable,
       SqlConverter sqlConverter,
-      AttemptObserver attemptObserver) {
+      AttemptObserver attemptObserver,
+      PlannerEventBus plannerEventBus) {
     ConstExecutor constExecutor =
-      plannerBaseModule.buildConstExecutor(
-        plannerSettings,
-        functionImplementationRegistry,
-        functionContext);
+        plannerBaseModule.buildConstExecutor(
+            plannerSettings, functionImplementationRegistry, functionContext);
     RelOptCostFactory relOptCostFactory = plannerBaseModule.buildRelOptCostFactory(plannerSettings);
     HepPlannerRunner.PlannerStatsReporter plannerStatsReporter =
-      plannerBaseModule.buildPlannerStatsReporter(attemptObserver);
+        plannerBaseModule.buildPlannerStatsReporter(attemptObserver);
 
-    HepPlannerRunner hepPlannerRunner = plannerBaseModule.buildHepPlannerRunner(
-      plannerSettings,
-      constExecutor,
-      relOptCostFactory,
-      plannerStatsReporter);
+    HepPlannerRunner hepPlannerRunner =
+        plannerBaseModule.buildHepPlannerRunner(
+            plannerSettings,
+            plannerSettings.getOptions(),
+            constExecutor,
+            relOptCostFactory,
+            plannerStatsReporter);
     UserDefinedFunctionExpander userDefinedFunctionExpander =
-      plannerBaseModule.buildUserDefinedFunctionExpander(sqlConverter);
+        plannerBaseModule.buildUserDefinedFunctionExpander(sqlConverter);
     return new PlannerBaseComponentImpl(
-      plannerSettings,
-      functionImplementationRegistry,
-      functionContext,
-      sqlOperatorTable,
-      sqlConverter,
-      hepPlannerRunner,
-      userDefinedFunctionExpander);
+        plannerSettings,
+        functionImplementationRegistry,
+        functionContext,
+        sqlOperatorTable,
+        sqlConverter,
+        hepPlannerRunner,
+        userDefinedFunctionExpander,
+        sqlConverter.getPlannerCatalog(),
+        plannerEventBus);
   }
-
 }

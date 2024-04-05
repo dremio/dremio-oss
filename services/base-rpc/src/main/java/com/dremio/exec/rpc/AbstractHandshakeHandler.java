@@ -15,17 +15,17 @@
  */
 package com.dremio.exec.rpc;
 
-import java.util.List;
-
 import com.google.protobuf.Internal.EnumLite;
 import com.google.protobuf.MessageLite;
 import com.google.protobuf.Parser;
-
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.MessageToMessageDecoder;
+import java.util.List;
 
-public abstract class AbstractHandshakeHandler<T extends MessageLite> extends MessageToMessageDecoder<InboundRpcMessage> {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AbstractHandshakeHandler.class);
+public abstract class AbstractHandshakeHandler<T extends MessageLite>
+    extends MessageToMessageDecoder<InboundRpcMessage> {
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(AbstractHandshakeHandler.class);
 
   protected final EnumLite handshakeType;
   protected final Parser<T> parser;
@@ -37,7 +37,8 @@ public abstract class AbstractHandshakeHandler<T extends MessageLite> extends Me
   }
 
   @Override
-  protected void decode(ChannelHandlerContext ctx, InboundRpcMessage inbound, List<Object> outputs) throws Exception {
+  protected void decode(ChannelHandlerContext ctx, InboundRpcMessage inbound, List<Object> outputs)
+      throws Exception {
     try {
       if (RpcConstants.EXTRA_DEBUGGING) {
         logger.debug("Received handshake {}", inbound);
@@ -45,14 +46,17 @@ public abstract class AbstractHandshakeHandler<T extends MessageLite> extends Me
       this.coordinationId = inbound.coordinationId;
       ctx.channel().pipeline().remove(this);
       if (inbound.rpcType != handshakeType.getNumber()) {
-        throw new RpcException(String.format("Handshake failure.  Expected %s[%d] but received number [%d]",
-            handshakeType, handshakeType.getNumber(), inbound.rpcType));
+        throw new RpcException(
+            String.format(
+                "Handshake failure.  Expected %s[%d] but received number [%d]",
+                handshakeType, handshakeType.getNumber(), inbound.rpcType));
       }
 
       T msg = parser.parseFrom(inbound.getProtobufBodyAsIS());
       consumeHandshake(ctx, msg);
     } finally {
-      // Consuming a handshake may result in exceptions, so make sure to release the message buffers.
+      // Consuming a handshake may result in exceptions, so make sure to release the message
+      // buffers.
       if (inbound.dBody != null) {
         inbound.dBody.release();
       }
@@ -60,5 +64,4 @@ public abstract class AbstractHandshakeHandler<T extends MessageLite> extends Me
   }
 
   protected abstract void consumeHandshake(ChannelHandlerContext ctx, T msg) throws Exception;
-
 }

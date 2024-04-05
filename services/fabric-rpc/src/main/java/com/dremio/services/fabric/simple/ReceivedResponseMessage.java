@@ -15,14 +15,12 @@
  */
 package com.dremio.services.fabric.simple;
 
+import com.google.protobuf.MessageLite;
 import org.apache.arrow.memory.ArrowBuf;
 
-import com.google.protobuf.MessageLite;
-
 /**
- * A response on the reception side. Note that this is similar to a response on
- * the sending side except that only holds a single buffer since all sent
- * buffers are concatenating when being sent.
+ * A response on the reception side. Note that this is similar to a response on the sending side
+ * except that only holds a single buffer since all sent buffers are concatenating when being sent.
  *
  * @param <RESPONSE>
  */
@@ -44,5 +42,4 @@ public class ReceivedResponseMessage<RESPONSE extends MessageLite> {
   public ArrowBuf getBuffer() {
     return buffer;
   }
-
 }

@@ -17,9 +17,7 @@ package com.dremio.connector.metadata;
 
 import java.util.Iterator;
 
-/**
- * Listing of partition chunks.
- */
+/** Listing of partition chunks. */
 public interface PartitionChunkListing extends Unwrappable {
 
   /**
@@ -28,5 +26,4 @@ public interface PartitionChunkListing extends Unwrappable {
    * @return iterator of partition chunks
    */
   Iterator<? extends PartitionChunk> iterator();
-
 }

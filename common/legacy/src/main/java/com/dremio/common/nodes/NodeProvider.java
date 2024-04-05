@@ -15,17 +15,15 @@
  */
 package com.dremio.common.nodes;
 
+import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import java.util.Collection;
 
-import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
-
-/**
- * Interface that returns a list of Dremio nodes.
- */
+/** Interface that returns a list of Dremio nodes. */
 public interface NodeProvider {
 
   /**
    * Get a list of nodes.
+   *
    * @return The list of nodes associated with this NodeProvider.
    */
   Collection<NodeEndpoint> getNodes();

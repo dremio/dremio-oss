@@ -22,6 +22,11 @@ import static com.dremio.config.DremioConfig.SSL_TRUST_STORE_PASSWORD;
 import static com.dremio.config.DremioConfig.SSL_TRUST_STORE_PATH;
 import static com.dremio.config.DremioConfig.WEB_SSL_PREFIX;
 
+import com.dremio.common.AutoCloseables;
+import com.dremio.config.DremioConfig;
+import com.dremio.dac.daemon.DACDaemon;
+import com.dremio.test.DremioTest;
+import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -33,7 +38,6 @@ import java.net.SocketAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.nio.channels.SocketChannel;
-
 import javax.net.ssl.HandshakeCompletedListener;
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.HttpsURLConnection;
@@ -45,7 +49,6 @@ import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
-
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.HttpUrlConnectorProvider;
 import org.glassfish.jersey.client.JerseyClient;
@@ -61,18 +64,9 @@ import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import com.dremio.common.AutoCloseables;
-import com.dremio.config.DremioConfig;
-import com.dremio.dac.daemon.DACDaemon;
-import com.dremio.test.DremioTest;
-import com.google.common.base.Preconditions;
-
-/**
- * Base HTTPS Test
- */
+/** Base HTTPS Test */
 public class BaseHttpsTestServer extends BaseClientUtils {
-  @ClassRule
-  public static final TemporaryFolder tempFolder = new TemporaryFolder();
+  @ClassRule public static final TemporaryFolder tempFolder = new TemporaryFolder();
 
   private DACDaemon currentDremioDaemon;
   private Client client;
@@ -83,25 +77,24 @@ public class BaseHttpsTestServer extends BaseClientUtils {
     // hostname doesn't matter as we redirect all requests to localhost
     final String hostname = "test.dremio.test";
     final String localWritePathString = tempFolder.getRoot().getAbsolutePath();
-    currentDremioDaemon = DACDaemon.newDremioDaemon(
-      DACConfig
-        .newDebugConfig(DremioTest.DEFAULT_SABOT_CONFIG)
-        .autoPort(true)
-        .allowTestApis(true)
-        .serveUI(false)
-        .webSSLEnabled(true)
-        .with(WEB_SSL_PREFIX + SSL_AUTO_GENERATED_CERTIFICATE, false)
-        .with(WEB_SSL_PREFIX + SSL_KEY_STORE_PATH, getJKSFile())
-        .with(WEB_SSL_PREFIX + SSL_KEY_STORE_PASSWORD, "changeme")
-        .with(WEB_SSL_PREFIX + SSL_TRUST_STORE_PATH, getJKSFile())
-        .with(WEB_SSL_PREFIX + SSL_TRUST_STORE_PASSWORD, "changeme")
-        .inMemoryStorage(true)
-        .addDefaultUser(true)
-        .writePath(localWritePathString)
-        .with(DremioConfig.FLIGHT_SERVICE_ENABLED_BOOLEAN, false)
-        .clusterMode(DACDaemon.ClusterMode.LOCAL),
-      DremioTest.CLASSPATH_SCAN_RESULT
-    );
+    currentDremioDaemon =
+        DACDaemon.newDremioDaemon(
+            DACConfig.newDebugConfig(DremioTest.DEFAULT_SABOT_CONFIG)
+                .autoPort(true)
+                .allowTestApis(true)
+                .serveUI(false)
+                .webSSLEnabled(true)
+                .with(WEB_SSL_PREFIX + SSL_AUTO_GENERATED_CERTIFICATE, false)
+                .with(WEB_SSL_PREFIX + SSL_KEY_STORE_PATH, getJKSFile())
+                .with(WEB_SSL_PREFIX + SSL_KEY_STORE_PASSWORD, "changeme")
+                .with(WEB_SSL_PREFIX + SSL_TRUST_STORE_PATH, getJKSFile())
+                .with(WEB_SSL_PREFIX + SSL_TRUST_STORE_PASSWORD, "changeme")
+                .inMemoryStorage(true)
+                .addDefaultUser(true)
+                .writePath(localWritePathString)
+                .with(DremioConfig.FLIGHT_SERVICE_ENABLED_BOOLEAN, false)
+                .clusterMode(DACDaemon.ClusterMode.LOCAL),
+            DremioTest.CLASSPATH_SCAN_RESULT);
 
     currentDremioDaemon.init();
     initClient(hostname);
@@ -112,56 +105,65 @@ public class BaseHttpsTestServer extends BaseClientUtils {
   }
 
   protected void initClient(final String hostname) {
-    // Use our own Jersey connector provider so that any requests to any hosts are made against local ip.
-    final HttpUrlConnectorProvider provider = new HttpUrlConnectorProvider() {
-      private final LazyValue<SSLSocketFactory> sslSocketFactory = Values.lazy(new Value<SSLSocketFactory>() {
-        @Override
-        public SSLSocketFactory get() {
-          return new LocalOnlySSLSocketFactory(client.getSslContext().getSocketFactory());
-        }
-      });
+    // Use our own Jersey connector provider so that any requests to any hosts are made against
+    // local ip.
+    final HttpUrlConnectorProvider provider =
+        new HttpUrlConnectorProvider() {
+          private final LazyValue<SSLSocketFactory> sslSocketFactory =
+              Values.lazy(
+                  new Value<SSLSocketFactory>() {
+                    @Override
+                    public SSLSocketFactory get() {
+                      return new LocalOnlySSLSocketFactory(
+                          client.getSslContext().getSocketFactory());
+                    }
+                  });
 
-      @Override
-      protected Connector createHttpUrlConnector(Client client, ConnectionFactory connectionFactory, int chunkSize,
-                                                 boolean fixLengthStreaming, boolean setMethodWorkaround) {
-        return new HttpUrlConnector(
-          client,
-          connectionFactory,
-          chunkSize,
-          fixLengthStreaming,
-          setMethodWorkaround) {
           @Override
-          protected void secureConnection(JerseyClient client, HttpURLConnection uc) {
-            if (uc instanceof HttpsURLConnection) {
-              HttpsURLConnection suc = (HttpsURLConnection) uc;
+          protected Connector createHttpUrlConnector(
+              Client client,
+              ConnectionFactory connectionFactory,
+              int chunkSize,
+              boolean fixLengthStreaming,
+              boolean setMethodWorkaround) {
+            return new HttpUrlConnector(
+                client, connectionFactory, chunkSize, fixLengthStreaming, setMethodWorkaround) {
+              @Override
+              protected void secureConnection(JerseyClient client, HttpURLConnection uc) {
+                if (uc instanceof HttpsURLConnection) {
+                  HttpsURLConnection suc = (HttpsURLConnection) uc;
 
-              final HostnameVerifier verifier = client.getHostnameVerifier();
-              if (verifier != null) {
-                suc.setHostnameVerifier(verifier);
-              }
+                  final HostnameVerifier verifier = client.getHostnameVerifier();
+                  if (verifier != null) {
+                    suc.setHostnameVerifier(verifier);
+                  }
 
-              if (HttpsURLConnection.getDefaultSSLSocketFactory() == suc.getSSLSocketFactory()) {
-                // indicates that the custom socket factory was not set
-                suc.setSSLSocketFactory(sslSocketFactory.get());
+                  if (HttpsURLConnection.getDefaultSSLSocketFactory()
+                      == suc.getSSLSocketFactory()) {
+                    // indicates that the custom socket factory was not set
+                    suc.setSSLSocketFactory(sslSocketFactory.get());
+                  }
+                }
               }
-            }
+            };
           }
         };
-      }
-    };
 
-    final ClientConfig config = new ClientConfig()
-      .connectorProvider(provider);
+    final ClientConfig config = new ClientConfig().connectorProvider(provider);
 
-    client = ClientBuilder.newBuilder()
-      .withConfig(config)
-      .trustStore(currentDremioDaemon.getWebServer().getTrustStore())
-      .register(MultiPartFeature.class)
-      .build();
+    client =
+        ClientBuilder.newBuilder()
+            .withConfig(config)
+            .trustStore(currentDremioDaemon.getWebServer().getTrustStore())
+            .register(MultiPartFeature.class)
+            .build();
 
-    apiV2 = client
-      .target(String.format("https://%s:%d", hostname, currentDremioDaemon.getWebServer().getPort()))
-      .path("apiv2");
+    apiV2 =
+        client
+            .target(
+                String.format(
+                    "https://%s:%d", hostname, currentDremioDaemon.getWebServer().getPort()))
+            .path("apiv2");
   }
 
   @Test
@@ -171,28 +173,24 @@ public class BaseHttpsTestServer extends BaseClientUtils {
 
   @Test
   public void ensureServerIsAwareSSLIsEnabled() throws Exception {
-    expectSuccess(apiV2.path("test").path("isSecure").request(MediaType.APPLICATION_JSON_TYPE).buildGet());
+    expectSuccess(
+        apiV2.path("test").path("isSecure").request(MediaType.APPLICATION_JSON_TYPE).buildGet());
   }
 
   @After
   public void shutdown() throws Exception {
     AutoCloseables.close(
-      () -> {
-        if (client != null) {
-          client.close();
-        }
-      },
-      currentDremioDaemon
-    );
+        () -> {
+          if (client != null) {
+            client.close();
+          }
+        },
+        currentDremioDaemon);
   }
 
-  /**
-   *  Points all sockets to the local hostname.
-   */
+  /** Points all sockets to the local hostname. */
   private static class LocalOnlySSLSocketFactory extends SSLSocketFactory {
-    /**
-     * SSLSocketWrapper
-     */
+    /** SSLSocketWrapper */
     private static final class SSLSocketWrapper extends SSLSocket {
       private final SSLSocket delegate;
       private volatile InetSocketAddress address;
@@ -217,7 +215,9 @@ public class BaseHttpsTestServer extends BaseClientUtils {
         this.address = (InetSocketAddress) endpoint;
 
         // Prevent address resolution by using the local ip.
-        InetAddress fakeAddress = InetAddress.getByAddress(this.address.getHostName(), InetAddress.getLocalHost().getAddress());
+        InetAddress fakeAddress =
+            InetAddress.getByAddress(
+                this.address.getHostName(), InetAddress.getLocalHost().getAddress());
         InetSocketAddress newEndpoint = new InetSocketAddress(fakeAddress, this.address.getPort());
         delegate.connect(newEndpoint, timeout);
       }
@@ -516,9 +516,8 @@ public class BaseHttpsTestServer extends BaseClientUtils {
       public void startHandshake() throws IOException {
         delegate.startHandshake();
       }
-
-
     }
+
     private final SSLSocketFactory delegate;
 
     public LocalOnlySSLSocketFactory(SSLSocketFactory delegate) {
@@ -531,8 +530,8 @@ public class BaseHttpsTestServer extends BaseClientUtils {
     }
 
     @Override
-    public Socket createSocket(InetAddress address, int port, InetAddress localAddress, int localPort)
-      throws IOException {
+    public Socket createSocket(
+        InetAddress address, int port, InetAddress localAddress, int localPort) throws IOException {
       Socket socket = createSocket();
       socket.bind(new InetSocketAddress(localAddress, localPort));
       socket.connect(new InetSocketAddress(address, port));
@@ -548,7 +547,7 @@ public class BaseHttpsTestServer extends BaseClientUtils {
 
     @Override
     public Socket createSocket(String host, int port, InetAddress localHost, int localPort)
-      throws IOException, UnknownHostException {
+        throws IOException, UnknownHostException {
       Socket socket = createSocket();
       socket.connect(new InetSocketAddress(host, port));
       return socket;
@@ -562,12 +561,14 @@ public class BaseHttpsTestServer extends BaseClientUtils {
     }
 
     @Override
-    public Socket createSocket(Socket s, InputStream consumed, boolean autoClose) throws IOException {
+    public Socket createSocket(Socket s, InputStream consumed, boolean autoClose)
+        throws IOException {
       return delegate.createSocket(s, consumed, autoClose);
     }
 
     @Override
-    public Socket createSocket(Socket s, String host, int port, boolean autoClose) throws IOException {
+    public Socket createSocket(Socket s, String host, int port, boolean autoClose)
+        throws IOException {
       return delegate.createSocket(s, host, port, autoClose);
     }
 

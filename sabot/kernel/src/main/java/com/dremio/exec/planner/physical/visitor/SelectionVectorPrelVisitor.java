@@ -15,17 +15,14 @@
  */
 package com.dremio.exec.planner.physical.visitor;
 
-import java.util.List;
-
-import org.apache.calcite.rel.RelNode;
-
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.SelectionVectorRemoverPrel;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.google.common.collect.Lists;
+import java.util.List;
+import org.apache.calcite.rel.RelNode;
 
-
-public class SelectionVectorPrelVisitor extends BasePrelVisitor<Prel, Void, RuntimeException>{
+public class SelectionVectorPrelVisitor extends BasePrelVisitor<Prel, Void, RuntimeException> {
 
   private static SelectionVectorPrelVisitor INSTANCE = new SelectionVectorPrelVisitor();
 
@@ -53,5 +50,4 @@ public class SelectionVectorPrelVisitor extends BasePrelVisitor<Prel, Void, Runt
     }
     return new SelectionVectorRemoverPrel(prel);
   }
-
 }

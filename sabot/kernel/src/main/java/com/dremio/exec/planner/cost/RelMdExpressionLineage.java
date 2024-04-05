@@ -15,11 +15,13 @@
  */
 package com.dremio.exec.planner.cost;
 
+import com.dremio.exec.planner.physical.SelectionVectorRemoverPrel;
+import com.dremio.exec.planner.physical.TableFunctionPrel;
+import com.google.common.collect.ImmutableSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
-
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.metadata.ReflectiveRelMetadataProvider;
 import org.apache.calcite.rel.metadata.RelMetadataProvider;
@@ -32,27 +34,22 @@ import org.apache.calcite.rex.RexTableInputRef;
 import org.apache.calcite.util.BuiltInMethod;
 import org.apache.calcite.util.ImmutableBitSet;
 
-import com.dremio.exec.planner.physical.SelectionVectorRemoverPrel;
-import com.dremio.exec.planner.physical.TableFunctionPrel;
-import com.google.common.collect.ImmutableSet;
-
-/**
- * Override {@link RelMdExpressionLineage}
- */
+/** Override {@link RelMdExpressionLineage} */
 public class RelMdExpressionLineage extends org.apache.calcite.rel.metadata.RelMdExpressionLineage {
 
   private static final RelMdExpressionLineage INSTANCE = new RelMdExpressionLineage();
 
-  public static final RelMetadataProvider SOURCE = ReflectiveRelMetadataProvider.reflectiveSource(BuiltInMethod.EXPRESSION_LINEAGE.method, INSTANCE);
+  public static final RelMetadataProvider SOURCE =
+      ReflectiveRelMetadataProvider.reflectiveSource(
+          BuiltInMethod.EXPRESSION_LINEAGE.method, INSTANCE);
 
-
-  public Set<RexNode> getExpressionLineage(SelectionVectorRemoverPrel rel,
-    RelMetadataQuery mq, RexNode outputExpression) {
+  public Set<RexNode> getExpressionLineage(
+      SelectionVectorRemoverPrel rel, RelMetadataQuery mq, RexNode outputExpression) {
     return mq.getExpressionLineage(rel.getInput(), outputExpression);
   }
 
-  public Set<RexNode> getExpressionLineage(TableFunctionPrel rel,
-    RelMetadataQuery mq, RexNode outputExpression) {
+  public Set<RexNode> getExpressionLineage(
+      TableFunctionPrel rel, RelMetadataQuery mq, RexNode outputExpression) {
 
     final RexBuilder rexBuilder = rel.getCluster().getRexBuilder();
 
@@ -62,9 +59,10 @@ public class RelMdExpressionLineage extends org.apache.calcite.rel.metadata.RelM
     // Infer column origin expressions for given references
     final Map<RexInputRef, Set<RexNode>> mapping = new LinkedHashMap<>();
     for (int idx : inputFieldsUsed) {
-      final RexNode inputRef = RexTableInputRef.of(
-        RexTableInputRef.RelTableRef.of(rel.getTable(), 0),
-        RexInputRef.of(idx, rel.getRowType().getFieldList()));
+      final RexNode inputRef =
+          RexTableInputRef.of(
+              RexTableInputRef.RelTableRef.of(rel.getTable(), 0),
+              RexInputRef.of(idx, rel.getRowType().getFieldList()));
       final RexInputRef ref = RexInputRef.of(idx, rel.getRowType().getFieldList());
       mapping.put(ref, ImmutableSet.of(inputRef));
     }
@@ -78,6 +76,4 @@ public class RelMdExpressionLineage extends org.apache.calcite.rel.metadata.RelM
     expr.accept(inputFinder);
     return inputFinder.build();
   }
-
-
 }

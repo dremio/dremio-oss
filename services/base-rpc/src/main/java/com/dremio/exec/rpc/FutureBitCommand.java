@@ -17,10 +17,10 @@ package com.dremio.exec.rpc;
 
 import com.google.common.util.concurrent.SettableFuture;
 import com.google.protobuf.MessageLite;
-
 import io.netty.buffer.ByteBuf;
 
-public abstract class FutureBitCommand<T extends MessageLite, C extends RemoteConnection> implements RpcCommand<T,C> {
+public abstract class FutureBitCommand<T extends MessageLite, C extends RemoteConnection>
+    implements RpcCommand<T, C> {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FutureBitCommand.class);
 
   protected final SettableFuture<T> settableFuture;
@@ -72,8 +72,11 @@ public abstract class FutureBitCommand<T extends MessageLite, C extends RemoteCo
   @Override
   public void connectionFailed(FailureType type, Throwable t) {
     settableFuture.setException(
-      ConnectionFailedException.mapException(RpcException.mapException(
-        String.format("Command failed while establishing connection.  Failure type %s.", type), t), type));
+        ConnectionFailedException.mapException(
+            RpcException.mapException(
+                String.format(
+                    "Command failed while establishing connection.  Failure type %s.", type),
+                t),
+            type));
   }
-
 }

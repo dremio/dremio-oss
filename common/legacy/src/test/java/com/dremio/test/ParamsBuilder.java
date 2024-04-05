@@ -19,8 +19,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Builder class to help generating {@code Object[][]} for parameterized tests. No error handling is implemented since
- * JUnit will do it anyway.
+ * Builder class to help generating {@code Object[][]} for parameterized tests. No error handling is
+ * implemented since JUnit will do it anyway.
  *
  * @see org.junit.runners.Parameterized.Parameters
  */
@@ -28,23 +28,19 @@ public class ParamsBuilder {
 
   private final List<List<Object>> vectors = new ArrayList<>();
 
-  /**
-   * Creates a builder with the specified values as separate parameter vectors.
-   */
+  /** Creates a builder with the specified values as separate parameter vectors. */
   public static ParamsBuilder ofDimension(Object... values) {
     return new ParamsBuilder().addDimension(values);
   }
 
-  /**
-   * Creates a builder with the specified parameters as the only one parameter vector.
-   */
+  /** Creates a builder with the specified parameters as the only one parameter vector. */
   public static ParamsBuilder ofVector(Object... params) {
     return new ParamsBuilder().addVector(params);
   }
 
   /**
-   * Adds a new dimension to the existing parameter vectors by creating the Cartesian product of the vectors with the
-   * specified values;
+   * Adds a new dimension to the existing parameter vectors by creating the Cartesian product of the
+   * vectors with the specified values;
    */
   public ParamsBuilder addDimension(Object... values) {
     int origSize = vectors.size();
@@ -68,9 +64,7 @@ public class ParamsBuilder {
     return this;
   }
 
-  /**
-   * Adds a parameter vector to the existing ones.
-   */
+  /** Adds a parameter vector to the existing ones. */
   public ParamsBuilder addVector(Object... params) {
     List<Object> vector = new ArrayList<>();
     for (Object param : params) {
@@ -80,17 +74,13 @@ public class ParamsBuilder {
     return this;
   }
 
-  /**
-   * Adds the current content of the specified builder to this builder
-   */
+  /** Adds the current content of the specified builder to this builder */
   public ParamsBuilder addBuilder(ParamsBuilder builder) {
     vectors.addAll(builder.vectors);
     return this;
   }
 
-  /**
-   * Builds the array of parameter arrays.
-   */
+  /** Builds the array of parameter arrays. */
   public Object[][] build() {
     Object[][] out = new Object[vectors.size()][];
     for (int i = 0; i < out.length; ++i) {

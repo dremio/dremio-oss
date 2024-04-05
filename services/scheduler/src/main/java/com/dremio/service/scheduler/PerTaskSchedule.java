@@ -15,9 +15,7 @@
  */
 package com.dremio.service.scheduler;
 
-/**
- * An interface that exposes the latest schedule for the given task
- */
+/** An interface that exposes the latest schedule for the given task */
 public interface PerTaskSchedule {
   /**
    * Gets the latest schedule for this task.

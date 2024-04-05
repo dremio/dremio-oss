@@ -20,28 +20,26 @@ import java.util.List;
 /**
  * Exposes partition information for a particular schema.
  *
- * For a more explanation of the current use of this interface see
- * the documentation in {@link PartitionExplorer}.
+ * <p>For a more explanation of the current use of this interface see the documentation in {@link
+ * PartitionExplorer}.
  */
 public interface SchemaPartitionExplorer {
 
   /**
-   * Get a list of sub-partitions of a particular table and the partitions
-   * specified by partition columns and values. Individual storage
-   * plugins will assign specific meaning to the parameters and return
-   * values.
+   * Get a list of sub-partitions of a particular table and the partitions specified by partition
+   * columns and values. Individual storage plugins will assign specific meaning to the parameters
+   * and return values.
    *
-   * For more info see docs in {@link PartitionExplorer}.
+   * <p>For more info see docs in {@link PartitionExplorer}.
    *
    * @param partitionColumns a list of partitions to match
-   * @param partitionValues list of values of each partition (corresponding
-   *                        to the partition column list)
-   * @return list of sub-partitions, will be empty if a there is no further
-   *         level of sub-partitioning below, i.e. hit a leaf partition
-   * @throws PartitionNotFoundException when the partition does not exist in
-   *          the given workspace
+   * @param partitionValues list of values of each partition (corresponding to the partition column
+   *     list)
+   * @return list of sub-partitions, will be empty if a there is no further level of
+   *     sub-partitioning below, i.e. hit a leaf partition
+   * @throws PartitionNotFoundException when the partition does not exist in the given workspace
    */
-  Iterable<String> getSubPartitions(String table,
-                                    List<String> partitionColumns,
-                                    List<String> partitionValues) throws PartitionNotFoundException;
+  Iterable<String> getSubPartitions(
+      String table, List<String> partitionColumns, List<String> partitionValues)
+      throws PartitionNotFoundException;
 }

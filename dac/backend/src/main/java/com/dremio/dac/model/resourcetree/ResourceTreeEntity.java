@@ -17,11 +17,6 @@ package com.dremio.dac.model.resourcetree;
 
 import static java.lang.String.format;
 
-import java.io.UnsupportedEncodingException;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
-
 import com.dremio.dac.model.spaces.HomeName;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
@@ -34,10 +29,12 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.io.UnsupportedEncodingException;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
 
-/**
- * Container object for dataset/folder
- */
+/** Container object for dataset/folder */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class ResourceTreeEntity {
   private final String id;
@@ -75,7 +72,8 @@ public class ResourceTreeEntity {
     this.rootType = ResourceType.HOME;
   }
 
-  public ResourceTreeEntity(FolderConfig folderConfig, ResourceType rootType) throws UnsupportedEncodingException {
+  public ResourceTreeEntity(FolderConfig folderConfig, ResourceType rootType)
+      throws UnsupportedEncodingException {
     this.type = ResourceType.FOLDER;
     this.name = folderConfig.getName();
     this.fullPath = folderConfig.getFullPathList();
@@ -84,7 +82,8 @@ public class ResourceTreeEntity {
     this.rootType = rootType;
   }
 
-  public ResourceTreeEntity(DatasetConfig datasetConfig, ResourceType rootType) throws UnsupportedEncodingException {
+  public ResourceTreeEntity(DatasetConfig datasetConfig, ResourceType rootType)
+      throws UnsupportedEncodingException {
     // TODO File system folder datasets can further be explored.
     this.type = getResourceType(datasetConfig.getType());
     this.name = datasetConfig.getName();
@@ -96,13 +95,13 @@ public class ResourceTreeEntity {
 
   @JsonCreator
   public ResourceTreeEntity(
-    @JsonProperty("type") ResourceType type,
-    @JsonProperty("name") String name,
-    @JsonProperty("fullPath") List<String> fullPath,
-    @JsonProperty("url") String url,
-    @JsonProperty("resources") List<ResourceTreeEntity> resources,
-    @JsonProperty("id") String id,
-    @JsonProperty("rootType") ResourceType rootType) {
+      @JsonProperty("type") ResourceType type,
+      @JsonProperty("name") String name,
+      @JsonProperty("fullPath") List<String> fullPath,
+      @JsonProperty("url") String url,
+      @JsonProperty("resources") List<ResourceTreeEntity> resources,
+      @JsonProperty("id") String id,
+      @JsonProperty("rootType") ResourceType rootType) {
     this.type = type;
     this.name = name;
     this.fullPath = fullPath;
@@ -167,10 +166,10 @@ public class ResourceTreeEntity {
       return false;
     }
     if (obj instanceof ResourceTreeEntity) {
-      ResourceTreeEntity other = (ResourceTreeEntity)obj;
-      return Objects.equals(fullPath, other.fullPath) &&
-        Objects.equals(type, other.type) &&
-        Objects.equals(name, other.name);
+      ResourceTreeEntity other = (ResourceTreeEntity) obj;
+      return Objects.equals(fullPath, other.fullPath)
+          && Objects.equals(type, other.type)
+          && Objects.equals(name, other.name);
     }
     return false;
   }
@@ -180,9 +179,7 @@ public class ResourceTreeEntity {
     return Objects.hash(fullPath, name, type);
   }
 
-  /**
-   * Merging top level namespace types with dataset type
-   */
+  /** Merging top level namespace types with dataset type */
   public enum ResourceType {
     SOURCE, // always at the top of tree
     SPACE, // always at the top of tree
@@ -202,7 +199,10 @@ public class ResourceTreeEntity {
 
   @JsonIgnore
   public boolean isListable() {
-    return (type == ResourceType.SOURCE || type == ResourceType.SPACE || type == ResourceType.HOME || type == ResourceType.FOLDER);
+    return (type == ResourceType.SOURCE
+        || type == ResourceType.SPACE
+        || type == ResourceType.HOME
+        || type == ResourceType.FOLDER);
   }
 
   public void expand(List<ResourceTreeEntity> resourceList) {

@@ -15,10 +15,15 @@
  */
 package com.dremio.exec.store.iceberg;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.common.expression.CompleteType;
+import com.dremio.exec.planner.physical.WriterPrel;
+import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.store.iceberg.FieldIdBroker.UnboundedFieldIdBroker;
+import com.google.common.collect.Lists;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
-
 import org.apache.arrow.vector.complex.MapVector;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeVisitor;
@@ -69,16 +74,7 @@ import org.apache.iceberg.types.Types.StructType;
 import org.apache.iceberg.types.Types.TimeType;
 import org.apache.iceberg.types.Types.TimestampType;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.common.expression.CompleteType;
-import com.dremio.exec.planner.physical.WriterPrel;
-import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.store.iceberg.FieldIdBroker.UnboundedFieldIdBroker;
-import com.google.common.collect.Lists;
-
-/**
- * Converter for iceberg schema to BatchSchema, and vice-versa.
- */
+/** Converter for iceberg schema to BatchSchema, and vice-versa. */
 public final class SchemaConverter {
 
   private final String tableName;
@@ -95,24 +91,20 @@ public final class SchemaConverter {
 
   public BatchSchema fromIceberg(Schema icebergSchema) {
 
-    return new BatchSchema(icebergSchema
-      .columns()
-      .stream()
-      .map(this::fromIcebergColumn)
-      .filter(Objects::nonNull)
-      .collect(Collectors.toList()));
+    return new BatchSchema(
+        icebergSchema.columns().stream()
+            .map(this::fromIcebergColumn)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toList()));
   }
 
   public List<String> getPartitionColumns(Table table) {
-    return table
-      .spec()
-      .fields()
-      .stream()
-      .filter(partitionField -> !partitionField.transform().equals(Transforms.alwaysNull()))
-      .map(PartitionField::sourceId)
-      .map(table.schema()::findColumnName) // column name from schema
-      .distinct()
-      .collect(Collectors.toList());
+    return table.spec().fields().stream()
+        .filter(partitionField -> !partitionField.transform().equals(Transforms.alwaysNull()))
+        .map(PartitionField::sourceId)
+        .map(table.schema()::findColumnName) // column name from schema
+        .distinct()
+        .collect(Collectors.toList());
   }
 
   public Field fromIcebergColumn(NestedField field) {
@@ -124,25 +116,22 @@ public final class SchemaConverter {
       if (tableName != null) {
         msg = msg + " in table " + tableName;
       }
-      throw UserException.unsupportedError(e)
-        .message(msg)
-        .buildSilently();
+      throw UserException.unsupportedError(e).message(msg).buildSilently();
     }
   }
 
   public Field fromIcebergColumnRetainNullable(NestedField field) {
-    // Currently nullability retention is only used for Map Fields. Every field should be retaining nullability.
+    // Currently nullability retention is only used for Map Fields. Every field should be retaining
+    // nullability.
     try {
       CompleteType fieldType = fromIcebergType(field.type());
       return fieldType == null ? null : fieldType.toField(field.name(), field.isOptional());
     } catch (UnsupportedOperationException | UserException e) {
       String msg = "Type conversion error for column " + field.name();
       if (tableName != null) {
-          msg = msg + " in table " + tableName;
+        msg = msg + " in table " + tableName;
       }
-      throw UserException.unsupportedError(e)
-        .message(msg)
-        .buildSilently();
+      throw UserException.unsupportedError(e).message(msg).buildSilently();
     }
   }
 
@@ -178,7 +167,9 @@ public final class SchemaConverter {
           }
           keyValueFields.add(field);
         }
-        return new CompleteType(CompleteType.MAP.getType(), CompleteType.struct(keyValueFields).toField(MapVector.DATA_VECTOR_NAME, false));
+        return new CompleteType(
+            CompleteType.MAP.getType(),
+            CompleteType.struct(keyValueFields).toField(MapVector.DATA_VECTOR_NAME, false));
       } else {
         // drop all other unknown iceberg column types
         return null;
@@ -187,7 +178,9 @@ public final class SchemaConverter {
   }
 
   private boolean isEligibleForMapVector(NestedType nestedType) {
-    return isMapTypeEnabled && nestedType.isMapType() && nestedType.asMapType().keyType().isPrimitiveType();
+    return isMapTypeEnabled
+        && nestedType.isMapType()
+        && nestedType.asMapType().keyType().isPrimitiveType();
   }
 
   public CompleteType fromIcebergPrimitiveType(PrimitiveType type) {
@@ -229,8 +222,8 @@ public final class SchemaConverter {
   public List<NestedField> toIcebergFields(List<Field> fields) {
     UnboundedFieldIdBroker fieldIdBroker = new UnboundedFieldIdBroker();
     return fields.stream()
-      .map(field -> toIcebergColumn(field, fieldIdBroker))
-      .collect(Collectors.toList());
+        .map(field -> toIcebergColumn(field, fieldIdBroker))
+        .collect(Collectors.toList());
   }
 
   public Schema toIcebergSchema(BatchSchema schema) {
@@ -238,26 +231,27 @@ public final class SchemaConverter {
   }
 
   public Schema toIcebergSchema(BatchSchema batchSchema, FieldIdBroker fieldIdBroker) {
-    return new Schema(batchSchema
-      .getFields()
-      .stream()
-      .filter(field -> !field.getName().equalsIgnoreCase(WriterPrel.PARTITION_COMPARATOR_FIELD))
-      .map(field -> toIcebergColumn(field, fieldIdBroker))
-      .collect(Collectors.toList()));
+    return new Schema(
+        batchSchema.getFields().stream()
+            .filter(
+                field -> !field.getName().equalsIgnoreCase(WriterPrel.PARTITION_COMPARATOR_FIELD))
+            .map(field -> toIcebergColumn(field, fieldIdBroker))
+            .collect(Collectors.toList()));
   }
 
   public NestedField changeIcebergColumn(Field field, NestedField icebergField) {
     try {
-      Type type = icebergField.type().isPrimitiveType() ? toIcebergType(CompleteType.fromField(field), null, new UnboundedFieldIdBroker()) : icebergField.type();
+      Type type =
+          icebergField.type().isPrimitiveType()
+              ? toIcebergType(CompleteType.fromField(field), null, new UnboundedFieldIdBroker())
+              : icebergField.type();
       return NestedField.optional(icebergField.fieldId(), field.getName(), type);
     } catch (Exception e) {
       String msg = "Type conversion error for column " + field.getName();
       if (tableName != null) {
         msg = msg + " in table " + tableName;
       }
-      throw UserException.unsupportedError(e)
-        .message(msg)
-        .buildSilently();
+      throw UserException.unsupportedError(e).message(msg).buildSilently();
     }
   }
 
@@ -271,153 +265,160 @@ public final class SchemaConverter {
         fullName = field.getName();
       }
       int columnId = fieldIdBroker.get(fullName);
-      return NestedField.optional(columnId, field.getName(), toIcebergType(CompleteType.fromField(field), fullName, fieldIdBroker));
+      return NestedField.optional(
+          columnId,
+          field.getName(),
+          toIcebergType(CompleteType.fromField(field), fullName, fieldIdBroker));
     } catch (Exception e) {
       String msg = "Type conversion error for column " + field.getName();
       if (tableName != null) {
         msg = msg + " in table " + tableName;
       }
-      throw UserException.unsupportedError(e)
-        .message(msg)
-        .buildSilently();
+      throw UserException.unsupportedError(e).message(msg).buildSilently();
     }
   }
 
-  public Type toIcebergType(CompleteType completeType, String fullName, FieldIdBroker fieldIdBroker) {
+  public Type toIcebergType(
+      CompleteType completeType, String fullName, FieldIdBroker fieldIdBroker) {
     ArrowType arrowType = completeType.getType();
-    return arrowType.accept(new ArrowTypeVisitor<Type>() {
-      @Override
-      public Type visit(Null aNull) {
-        throw new UnsupportedOperationException("Unsupported arrow type : " + arrowType);
-      }
-
-      @Override
-      public Type visit(Struct struct) {
-        List<NestedField> children = completeType
-          .getChildren()
-          .stream()
-          .map(field -> toIcebergColumn(field, fieldIdBroker, fullName + "." + field.getName()))
-          .collect(Collectors.toList());
-        return StructType.of(children);
-      }
-
-      @Override
-      public Type visit(ArrowType.List list) {
-        NestedField inner = toIcebergColumn(completeType.getOnlyChild(), fieldIdBroker, fullName + ".list.element");
-        return ListType.ofOptional(inner.fieldId(), inner.type());
-      }
-
-      @Override
-      public Type visit(FixedSizeList fixedSizeList) {
-        throw new UnsupportedOperationException("Unsupported arrow type : " + arrowType);
-      }
-
-      @Override
-      public Type visit(Union union) {
-        throw new UnsupportedOperationException("Unsupported arrow type : " + arrowType);
-      }
-
-      @Override
-      public Type visit(Map map) {
-        // Map is assumed to be struct of {key,value}
-        Field struct = completeType.getChildren().get(0);
-        Field keyField = struct.getChildren().get(0);
-        NestedField key = toIcebergColumn(keyField, fieldIdBroker, fullName + "." + keyField.getName());
-        Field valueField = struct.getChildren().get(1);
-        NestedField value = toIcebergColumn(valueField, fieldIdBroker, fullName + "." + valueField.getName());
-        return MapType.ofOptional(key.fieldId(), value.fieldId(), key.type(), value.type());
-      }
-
-      @Override
-      public Type visit(Int anInt) {
-        return anInt.getBitWidth() == 32 ? IntegerType.get() : LongType.get();
-      }
-
-      @Override
-      public Type visit(FloatingPoint floatingPoint) {
-        switch (floatingPoint.getPrecision()) {
-          case SINGLE:
-            return FloatType.get();
-          case DOUBLE:
-            return DoubleType.get();
-          default:
+    return arrowType.accept(
+        new ArrowTypeVisitor<Type>() {
+          @Override
+          public Type visit(Null aNull) {
             throw new UnsupportedOperationException("Unsupported arrow type : " + arrowType);
-        }
-      }
+          }
 
-      @Override
-      public Type visit(Utf8 utf8) {
-        return StringType.get();
-      }
+          @Override
+          public Type visit(Struct struct) {
+            List<NestedField> children =
+                completeType.getChildren().stream()
+                    .map(
+                        field ->
+                            toIcebergColumn(field, fieldIdBroker, fullName + "." + field.getName()))
+                    .collect(Collectors.toList());
+            return StructType.of(children);
+          }
 
-      @Override
-      public Type visit(Binary binary) {
-        return BinaryType.get();
-      }
+          @Override
+          public Type visit(ArrowType.List list) {
+            NestedField inner =
+                toIcebergColumn(
+                    completeType.getOnlyChild(), fieldIdBroker, fullName + ".list.element");
+            return ListType.ofOptional(inner.fieldId(), inner.type());
+          }
 
-      @Override
-      public Type visit(FixedSizeBinary fixedSizeBinary) {
-        return FixedType.ofLength(fixedSizeBinary.getByteWidth());
-      }
+          @Override
+          public Type visit(FixedSizeList fixedSizeList) {
+            throw new UnsupportedOperationException("Unsupported arrow type : " + arrowType);
+          }
 
-      @Override
-      public Type visit(LargeBinary largeBinary) {
-        throw new UnsupportedOperationException("Unsupported arrow type : " + arrowType);
-      }
+          @Override
+          public Type visit(Union union) {
+            throw new UnsupportedOperationException("Unsupported arrow type : " + arrowType);
+          }
 
-      @Override
-      public Type visit(LargeList largeList) {
-        throw new UnsupportedOperationException("Unsupported arrow type : " + arrowType);
-      }
+          @Override
+          public Type visit(Map map) {
+            // Map is assumed to be struct of {key,value}
+            Field struct = completeType.getChildren().get(0);
+            Field keyField = struct.getChildren().get(0);
+            NestedField key =
+                toIcebergColumn(keyField, fieldIdBroker, fullName + "." + keyField.getName());
+            Field valueField = struct.getChildren().get(1);
+            NestedField value =
+                toIcebergColumn(valueField, fieldIdBroker, fullName + "." + valueField.getName());
+            return MapType.ofOptional(key.fieldId(), value.fieldId(), key.type(), value.type());
+          }
 
-      @Override
-      public Type visit(LargeUtf8 largeUtf8) {
-        throw new UnsupportedOperationException("Unsupported arrow type : " + arrowType);
-      }
+          @Override
+          public Type visit(Int anInt) {
+            return anInt.getBitWidth() == 32 ? IntegerType.get() : LongType.get();
+          }
 
-      @Override
-      public Type visit(Bool bool) {
-        return BooleanType.get();
-      }
+          @Override
+          public Type visit(FloatingPoint floatingPoint) {
+            switch (floatingPoint.getPrecision()) {
+              case SINGLE:
+                return FloatType.get();
+              case DOUBLE:
+                return DoubleType.get();
+              default:
+                throw new UnsupportedOperationException("Unsupported arrow type : " + arrowType);
+            }
+          }
 
-      @Override
-      public Type visit(Decimal decimal) {
-        return DecimalType.of(decimal.getPrecision(), decimal.getScale());
-      }
+          @Override
+          public Type visit(Utf8 utf8) {
+            return StringType.get();
+          }
 
-      @Override
-      public Type visit(Date date) {
-        return DateType.get();
-      }
+          @Override
+          public Type visit(Binary binary) {
+            return BinaryType.get();
+          }
 
-      @Override
-      public Type visit(Time time) {
-        return TimeType.get();
-      }
+          @Override
+          public Type visit(FixedSizeBinary fixedSizeBinary) {
+            return FixedType.ofLength(fixedSizeBinary.getByteWidth());
+          }
 
-      @Override
-      public Type visit(Timestamp timestamp) {
-        return TimestampType.withZone();
-      }
+          @Override
+          public Type visit(LargeBinary largeBinary) {
+            throw new UnsupportedOperationException("Unsupported arrow type : " + arrowType);
+          }
 
-      @Override
-      public Type visit(Interval interval) {
-        throw new UnsupportedOperationException("Unsupported arrow type : " + arrowType);
-      }
+          @Override
+          public Type visit(LargeList largeList) {
+            throw new UnsupportedOperationException("Unsupported arrow type : " + arrowType);
+          }
 
-      @Override
-      public Type visit(Duration duration) {
-        throw new UnsupportedOperationException("Unsupported arrow type : " + arrowType);
-      }
-    });
+          @Override
+          public Type visit(LargeUtf8 largeUtf8) {
+            throw new UnsupportedOperationException("Unsupported arrow type : " + arrowType);
+          }
+
+          @Override
+          public Type visit(Bool bool) {
+            return BooleanType.get();
+          }
+
+          @Override
+          public Type visit(Decimal decimal) {
+            return DecimalType.of(decimal.getPrecision(), decimal.getScale());
+          }
+
+          @Override
+          public Type visit(Date date) {
+            return DateType.get();
+          }
+
+          @Override
+          public Type visit(Time time) {
+            return TimeType.get();
+          }
+
+          @Override
+          public Type visit(Timestamp timestamp) {
+            return TimestampType.withZone();
+          }
+
+          @Override
+          public Type visit(Interval interval) {
+            throw new UnsupportedOperationException("Unsupported arrow type : " + arrowType);
+          }
+
+          @Override
+          public Type visit(Duration duration) {
+            throw new UnsupportedOperationException("Unsupported arrow type : " + arrowType);
+          }
+        });
   }
 
   public static final class Builder {
     private String tableName;
     private boolean isMapTypeEnabled;
 
-    private Builder() {
-    }
+    private Builder() {}
 
     public Builder setTableName(String tableName) {
       this.tableName = tableName;

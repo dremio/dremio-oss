@@ -15,24 +15,23 @@
  */
 package com.dremio.exec.store.parquet;
 
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
-
-import org.apache.arrow.vector.types.pojo.Schema;
-
 import com.dremio.common.arrow.DremioArrowSchema;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.expr.TypeHelper;
 import com.dremio.sabot.op.scan.OutputMutator;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+import org.apache.arrow.vector.types.pojo.Schema;
 
-/**
- * Provides utility functions for {@link OutputMutator}.
- */
+/** Provides utility functions for {@link OutputMutator}. */
 public class OutputMutatorHelper {
-  public static void addFooterFieldsToOutputMutator(OutputMutator outputMutator, SchemaDerivationHelper schemaHelper,
-                                                    MutableParquetMetadata footer, List<SchemaPath> columnsToRead) {
+  public static void addFooterFieldsToOutputMutator(
+      OutputMutator outputMutator,
+      SchemaDerivationHelper schemaHelper,
+      MutableParquetMetadata footer,
+      List<SchemaPath> columnsToRead) {
     Schema arrowSchema;
     try {
       arrowSchema = DremioArrowSchema.fromMetaData(footer.getFileMetaData().getKeyValueMetaData());
@@ -40,21 +39,22 @@ public class OutputMutatorHelper {
       arrowSchema = null;
     }
 
-    final Set<String> columnsToReadSet = columnsToRead.stream()
-      .map(col -> col.getRootSegment().getNameSegment().getPath().toLowerCase())
-      .collect(Collectors.toSet());
+    final Set<String> columnsToReadSet =
+        columnsToRead.stream()
+            .map(col -> col.getRootSegment().getNameSegment().getPath().toLowerCase())
+            .collect(Collectors.toSet());
 
     if (arrowSchema == null) {
       footer.getFileMetaData().getSchema().getFields().stream()
-              .filter(field -> columnsToReadSet.contains(field.getName().toLowerCase()))
-              .map(field -> ParquetTypeHelper.toField(field, schemaHelper))
-              .filter(Optional::isPresent)
-              .map(Optional::get)
-              .forEach(field -> outputMutator.addField(field, TypeHelper.getValueVectorClass(field)));
+          .filter(field -> columnsToReadSet.contains(field.getName().toLowerCase()))
+          .map(field -> ParquetTypeHelper.toField(field, schemaHelper))
+          .filter(Optional::isPresent)
+          .map(Optional::get)
+          .forEach(field -> outputMutator.addField(field, TypeHelper.getValueVectorClass(field)));
     } else {
       arrowSchema.getFields().stream()
-              .filter(field -> columnsToReadSet.contains(field.getName().toLowerCase()))
-              .forEach(field -> outputMutator.addField(field, TypeHelper.getValueVectorClass(field)));
+          .filter(field -> columnsToReadSet.contains(field.getName().toLowerCase()))
+          .forEach(field -> outputMutator.addField(field, TypeHelper.getValueVectorClass(field)));
     }
 
     outputMutator.getContainer().buildSchema();

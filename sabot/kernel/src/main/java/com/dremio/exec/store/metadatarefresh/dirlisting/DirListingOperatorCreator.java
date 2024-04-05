@@ -23,8 +23,16 @@ import com.dremio.sabot.op.spi.ProducerOperator;
 
 public class DirListingOperatorCreator implements ProducerOperator.Creator<DirListingSubScan> {
   @Override
-  public ProducerOperator create(FragmentExecutionContext fragmentExecContext, OperatorContext context, DirListingSubScan config) throws ExecutionSetupException {
-      // TODO : Create an record reader for each partition directory
-    return new ScanOperator(config, context, new DirListingRecordReaderIterator(context, fragmentExecContext, config));
+  public ProducerOperator create(
+      FragmentExecutionContext fragmentExecContext,
+      OperatorContext context,
+      DirListingSubScan config)
+      throws ExecutionSetupException {
+    // TODO : Create an record reader for each partition directory
+    return new ScanOperator(
+        fragmentExecContext,
+        config,
+        context,
+        new DirListingRecordReaderIterator(context, fragmentExecContext, config));
   }
 }

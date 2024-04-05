@@ -22,9 +22,7 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.store.easy.proto.EasyProtobuf;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
 
-/**
- * Creates Easy Split and partition info
- */
+/** Creates Easy Split and partition info */
 public class EasySplitCreator implements BlockBasedSplitGenerator.SplitCreator {
   private final OperatorContext context;
 
@@ -33,19 +31,25 @@ public class EasySplitCreator implements BlockBasedSplitGenerator.SplitCreator {
   }
 
   @Override
-  public SplitAndPartitionInfo createSplit(PartitionProtobuf.NormalizedPartitionInfo filePartitionInfo, SplitIdentity splitIdentity,
-                                           String fileFormat, long fileSize, long currentModTime) {
+  public SplitAndPartitionInfo createSplit(
+      PartitionProtobuf.NormalizedPartitionInfo filePartitionInfo,
+      SplitIdentity splitIdentity,
+      String fileFormat,
+      long fileSize,
+      long currentModTime) {
 
-    EasyProtobuf.EasyDatasetSplitXAttr splitExtended = EasyProtobuf.EasyDatasetSplitXAttr.newBuilder()
-      .setPath(splitIdentity.getPath())
-      .setStart(splitIdentity.getOffset())
-      .setLength(splitIdentity.getLength())
-      .setLength(fileSize)
-      .build();
+    EasyProtobuf.EasyDatasetSplitXAttr splitExtended =
+        EasyProtobuf.EasyDatasetSplitXAttr.newBuilder()
+            .setPath(splitIdentity.getPath())
+            .setStart(splitIdentity.getOffset())
+            .setLength(splitIdentity.getLength())
+            .setLength(fileSize)
+            .build();
 
-    PartitionProtobuf.NormalizedDatasetSplitInfo.Builder splitInfo = PartitionProtobuf.NormalizedDatasetSplitInfo.newBuilder()
-      .setPartitionId(filePartitionInfo.getId())
-      .setExtendedProperty(splitExtended.toByteString());
+    PartitionProtobuf.NormalizedDatasetSplitInfo.Builder splitInfo =
+        PartitionProtobuf.NormalizedDatasetSplitInfo.newBuilder()
+            .setPartitionId(filePartitionInfo.getId())
+            .setExtendedProperty(splitExtended.toByteString());
 
     return new SplitAndPartitionInfo(filePartitionInfo, splitInfo.build());
   }

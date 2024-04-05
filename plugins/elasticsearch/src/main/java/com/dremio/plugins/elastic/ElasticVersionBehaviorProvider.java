@@ -15,11 +15,6 @@
  */
 package com.dremio.plugins.elastic;
 
-import java.util.List;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.vector.complex.reader.FieldReader;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.store.easy.json.reader.BaseJsonProcessor;
 import com.dremio.plugins.Version;
@@ -32,6 +27,9 @@ import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
 import com.google.gson.JsonObject;
 import com.google.gson.internal.LazilyParsedNumber;
+import java.util.List;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.vector.complex.reader.FieldReader;
 
 public class ElasticVersionBehaviorProvider {
 
@@ -43,46 +41,37 @@ public class ElasticVersionBehaviorProvider {
 
   public ElasticVersionBehaviorProvider(Version esVersionInCluster) {
     es5Version = esVersionInCluster.compareTo(ElasticsearchConstants.ELASTICSEARCH_VERSION_5X) >= 0;
-    enable7vFeatures = esVersionInCluster.compareTo(ElasticsearchConstants.ELASTICSEARCH_VERSION_7_0_X) >= 0;
-    es68Version = esVersionInCluster.compareTo(ElasticsearchConstants.ELASTICSEARCH_VERSION_6_8_X) >= 0;
+    enable7vFeatures =
+        esVersionInCluster.compareTo(ElasticsearchConstants.ELASTICSEARCH_VERSION_7_0_X) >= 0;
+    es68Version =
+        esVersionInCluster.compareTo(ElasticsearchConstants.ELASTICSEARCH_VERSION_6_8_X) >= 0;
     elasticMajorVersion = esVersionInCluster.getMajor();
   }
 
-  public BaseJsonProcessor createCountingElasticSearchReader(ArrowBuf managedBuf, List<SchemaPath> columns, String resource,
-                                                             FieldReadDefinition readDefinition, boolean usingElasticProjection, boolean metaUIDSelected, boolean metaIDSelected,
-                                                             boolean metaTypeSelected, boolean metaIndexSelected) {
+  public BaseJsonProcessor createCountingElasticSearchReader(
+      ArrowBuf managedBuf,
+      List<SchemaPath> columns,
+      String resource,
+      FieldReadDefinition readDefinition,
+      boolean usingElasticProjection,
+      boolean metaUIDSelected,
+      boolean metaIDSelected,
+      boolean metaTypeSelected,
+      boolean metaIndexSelected) {
     if (enable7vFeatures) {
       return new CountingElasticSearch7JsonReader(
-        managedBuf,
-        columns,
-        resource,
-        readDefinition,
-        usingElasticProjection,
-        metaUIDSelected,
-        metaIDSelected,
-        metaTypeSelected,
-        metaIndexSelected
-      );
+          managedBuf,
+          columns,
+          resource,
+          readDefinition,
+          usingElasticProjection,
+          metaUIDSelected,
+          metaIDSelected,
+          metaTypeSelected,
+          metaIndexSelected);
     }
 
     return new CountingElasticsearchJsonReader(
-      managedBuf,
-      columns,
-      resource,
-      readDefinition,
-      usingElasticProjection,
-      metaUIDSelected,
-      metaIDSelected,
-      metaTypeSelected,
-      metaIndexSelected
-    );
-  }
-
-  public BaseJsonProcessor createElasticSearchReader(ArrowBuf managedBuf, List<SchemaPath> columns, String resource,
-                                                     FieldReadDefinition readDefinition, boolean usingElasticProjection, boolean metaUIDSelected, boolean metaIDSelected,
-                                                     boolean metaTypeSelected, boolean metaIndexSelected) {
-    if (enable7vFeatures) {
-      return new ElasticSearch7JsonReader(
         managedBuf,
         columns,
         resource,
@@ -91,21 +80,42 @@ public class ElasticVersionBehaviorProvider {
         metaUIDSelected,
         metaIDSelected,
         metaTypeSelected,
-        metaIndexSelected
-      );
+        metaIndexSelected);
+  }
+
+  public BaseJsonProcessor createElasticSearchReader(
+      ArrowBuf managedBuf,
+      List<SchemaPath> columns,
+      String resource,
+      FieldReadDefinition readDefinition,
+      boolean usingElasticProjection,
+      boolean metaUIDSelected,
+      boolean metaIDSelected,
+      boolean metaTypeSelected,
+      boolean metaIndexSelected) {
+    if (enable7vFeatures) {
+      return new ElasticSearch7JsonReader(
+          managedBuf,
+          columns,
+          resource,
+          readDefinition,
+          usingElasticProjection,
+          metaUIDSelected,
+          metaIDSelected,
+          metaTypeSelected,
+          metaIndexSelected);
     }
 
     return new ElasticsearchJsonReader(
-      managedBuf,
-      columns,
-      resource,
-      readDefinition,
-      usingElasticProjection,
-      metaUIDSelected,
-      metaIDSelected,
-      metaTypeSelected,
-      metaIndexSelected
-    );
+        managedBuf,
+        columns,
+        resource,
+        readDefinition,
+        usingElasticProjection,
+        metaUIDSelected,
+        metaIDSelected,
+        metaTypeSelected,
+        metaIndexSelected);
   }
 
   public String processElasticSearchQuery(String query) {
@@ -120,7 +130,8 @@ public class ElasticVersionBehaviorProvider {
 
   public DateFormats.AbstractFormatterAndType[] getWriteHolderForVersion(List<String> formats) {
     if (enable7vFeatures) {
-      return getFormatterTypeArr(formats, DateFormats.FormatterAndTypeJavaTime::getFormatterAndType);
+      return getFormatterTypeArr(
+          formats, DateFormats.FormatterAndTypeJavaTime::getFormatterAndType);
     } else if (es68Version) {
       return getFormatterTypeArr(formats, DateFormats.FormatterAndTypeMix::getFormatterAndType);
     } else {
@@ -168,7 +179,8 @@ public class ElasticVersionBehaviorProvider {
     if (!enable7vFeatures) {
       return readAsInt(totalResultReader.reader("hits").reader("total").readText().toString());
     }
-    return readAsInt(totalResultReader.reader("hits").reader("total").reader("value").readText().toString());
+    return readAsInt(
+        totalResultReader.reader("hits").reader("total").reader("value").readText().toString());
   }
 
   public int getSearchResults(JsonObject hits) {
@@ -178,17 +190,24 @@ public class ElasticVersionBehaviorProvider {
     return hits.get("total").getAsJsonObject().get("value").getAsInt();
   }
 
-  public byte[] getSearchBytes(ElasticConnectionPool.ElasticConnection connection, ElasticActions.Search<byte[]> search) {
-      return connection.execute(search, elasticMajorVersion);
+  public byte[] getSearchBytes(
+      ElasticConnectionPool.ElasticConnection connection, ElasticActions.Search<byte[]> search) {
+    return connection.execute(search, elasticMajorVersion);
   }
 
-  public <T> T executeMapping(ElasticConnectionPool.ElasticConnection connection, ElasticActions.ElasticAction2<T> putMapping) {
-      return connection.execute(putMapping, elasticMajorVersion);
+  public <T> T executeMapping(
+      ElasticConnectionPool.ElasticConnection connection,
+      ElasticActions.ElasticAction2<T> putMapping) {
+    return connection.execute(putMapping, elasticMajorVersion);
   }
 
-  private static DateFormats.AbstractFormatterAndType[] getFormatterTypeArr(List<String> formats, Function<String, DateFormats.AbstractFormatterAndType> formatterFunction) {
+  private static DateFormats.AbstractFormatterAndType[] getFormatterTypeArr(
+      List<String> formats,
+      Function<String, DateFormats.AbstractFormatterAndType> formatterFunction) {
     if (formats != null && !formats.isEmpty()) {
-      return FluentIterable.from(formats).transform(formatterFunction).toArray(DateFormats.AbstractFormatterAndType.class);
+      return FluentIterable.from(formats)
+          .transform(formatterFunction)
+          .toArray(DateFormats.AbstractFormatterAndType.class);
     }
     return DateFormats.AbstractFormatterAndType.DEFAULT_FORMATTERS;
   }

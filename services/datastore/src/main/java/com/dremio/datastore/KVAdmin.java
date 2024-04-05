@@ -17,15 +17,14 @@ package com.dremio.datastore;
 
 import java.io.IOException;
 
-/**
- * Administrative interface for kvstores.
- */
+/** Administrative interface for kvstores. */
 public abstract class KVAdmin {
 
   private static final char INDENT = '\t';
 
   /**
    * Reindex this store (if it is an index store).
+   *
    * @return Number of records indexed.
    * @throws IOException
    */
@@ -36,28 +35,29 @@ public abstract class KVAdmin {
 
   /**
    * Compact the keys/values within this store.
+   *
    * @throws IOException
    */
   @Deprecated
-  public void compactKeyValues() throws IOException {
-  }
+  public void compactKeyValues() throws IOException {}
 
   /**
    * Return a string representation of stats associated with this kvstore.
+   *
    * @return A stats string
    */
   public abstract String getStats();
 
-
   /**
    * Indent a value a given number of positions.
+   *
    * @param indent The number of indentations to do.
    * @param value The value to use as the basis for the string.
    * @return An indented string value.
    */
   static String indent(int indent, Object value) {
     String replacement = "";
-    for(int i =0 ; i < indent; i++) {
+    for (int i = 0; i < indent; i++) {
       replacement += INDENT;
     }
     return value.toString().replaceAll("(?m)^", replacement);

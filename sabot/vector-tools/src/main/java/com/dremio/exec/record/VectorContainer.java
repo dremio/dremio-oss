@@ -18,21 +18,6 @@ package com.dremio.exec.record;
 import static com.dremio.common.util.MajorTypeHelper.getArrowMinorType;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import java.lang.reflect.Array;
-import java.util.Iterator;
-import java.util.List;
-
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.FieldVector;
-import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.VectorSchemaRoot;
-import org.apache.arrow.vector.complex.FieldIdUtil2;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.types.pojo.FieldType;
-import org.apache.arrow.vector.types.pojo.Schema;
-import org.apache.arrow.vector.util.CallBack;
-import org.apache.arrow.vector.util.TransferPair;
-
 import com.dremio.common.expression.BasePath;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.types.TypeProtos.MajorType;
@@ -44,13 +29,27 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Lists;
+import java.lang.reflect.Array;
+import java.util.Iterator;
+import java.util.List;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.VectorSchemaRoot;
+import org.apache.arrow.vector.complex.FieldIdUtil2;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
+import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.arrow.vector.util.TransferPair;
 
-public class VectorContainer implements Iterable<VectorWrapper<?>>, VectorAccessible, AutoCloseable {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(VectorContainer.class);
+public class VectorContainer
+    implements Iterable<VectorWrapper<?>>, VectorAccessible, AutoCloseable {
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(VectorContainer.class);
 
-  private final Resetter resetter = new Resetter();
   @SuppressWarnings("checkstyle:VisibilityModifier")
   protected final List<VectorWrapper<?>> wrappers = Lists.newArrayList();
+
   private final BufferAllocator allocator;
 
   private BatchSchema schema;
@@ -67,9 +66,12 @@ public class VectorContainer implements Iterable<VectorWrapper<?>>, VectorAccess
   @Override
   public String toString() {
     return super.toString()
-        + "[recordCount = " + recordCount
-        + ", schema = " + schema
-        + ", wrappers = " + wrappers
+        + "[recordCount = "
+        + recordCount
+        + ", schema = "
+        + schema
+        + ", wrappers = "
+        + wrappers
         + ", ...]";
   }
 
@@ -77,7 +79,7 @@ public class VectorContainer implements Iterable<VectorWrapper<?>>, VectorAccess
     addHyperList(vectors, true);
   }
 
-  private void clearSchema(){
+  private void clearSchema() {
     schema = null;
   }
 
@@ -90,26 +92,14 @@ public class VectorContainer implements Iterable<VectorWrapper<?>>, VectorAccess
     add(vv, releasable);
   }
 
-  /**
-   * Transfer vectors from containerIn to this.
-   */
-  void transferIn(VectorContainer containerIn) {
-    Preconditions.checkArgument(this.wrappers.size() == containerIn.wrappers.size());
-    for (int i = 0; i < this.wrappers.size(); ++i) {
-      containerIn.wrappers.get(i).transfer(this.wrappers.get(i));
-    }
-  }
-
-  public void addSchema(Schema schema){
+  public void addSchema(Schema schema) {
     clearSchema();
-    for(Field f : schema.getFields()) {
+    for (Field f : schema.getFields()) {
       addOrGet(f);
     }
   }
 
-  /**
-   * Transfer vectors from this to containerOut
-   */
+  /** Transfer vectors from this to containerOut */
   public void transferOut(VectorContainer containerOut) {
     Preconditions.checkArgument(this.wrappers.size() == containerOut.wrappers.size());
     for (int i = 0; i < this.wrappers.size(); ++i) {
@@ -117,79 +107,83 @@ public class VectorContainer implements Iterable<VectorWrapper<?>>, VectorAccess
     }
   }
 
-  private final class Resetter implements CallBack {
-    @Override
-    public void doWork() {
-      clearSchema();
-    }
-  }
-
   public void addIfMissing(Field field, boolean isHyper) {
-    final TypedFieldId id = FieldIdUtil2.getFieldId(getPartialSchema(), BasePath.getSimple(field.getName()));
-    if(id == null){
-      if(isHyper){
+    final TypedFieldId id =
+        FieldIdUtil2.getFieldId(getPartialSchema(), BasePath.getSimple(field.getName()));
+    if (id == null) {
+      if (isHyper) {
         addEmptyHyper(field);
-      }else{
-        ValueVector vector = TypeHelper.getNewVector(field, allocator, resetter);
+      } else {
+        ValueVector vector = TypeHelper.getNewVector(field, allocator, () -> clearSchema());
         add(vector);
       }
     }
   }
 
-  public boolean isNewSchema(){
+  public boolean isNewSchema() {
     return schema == null;
   }
 
   @SuppressWarnings("unchecked")
   public <T extends ValueVector> T addOrGet(final Field field) {
-    final TypedFieldId id = FieldIdUtil2.getFieldId(getPartialSchema(), BasePath.getSimple(field.getName()));
+    final TypedFieldId id =
+        FieldIdUtil2.getFieldId(getPartialSchema(), BasePath.getSimple(field.getName()));
     final ValueVector vector;
     if (id != null) {
       final Class<?> clazz = CompleteType.fromField(field).getValueVectorClass();
       vector = getValueAccessorById(id.getFieldIds()).getValueVector();
-      if (id.getFieldIds().length == 1 && clazz != null && !clazz.isAssignableFrom(vector.getClass())) {
-        final ValueVector newVector = TypeHelper.getNewVector(field, allocator, resetter);
+      if (id.getFieldIds().length == 1
+          && clazz != null
+          && !clazz.isAssignableFrom(vector.getClass())) {
+        final ValueVector newVector =
+            TypeHelper.getNewVector(field, allocator, () -> clearSchema());
         replace(vector, newVector);
         return (T) newVector;
       }
     } else {
-      vector = TypeHelper.getNewVector(field, allocator, resetter);
+      vector = TypeHelper.getNewVector(field, allocator, () -> clearSchema());
       add(vector);
     }
     return (T) vector;
   }
 
   public <T extends ValueVector> T addOrGet(String name, MajorType type, Class<T> clazz) {
-    Field field = new Field(name, new FieldType(true, getArrowMinorType(type.getMinorType()).getType(), null), null);
+    Field field =
+        new Field(
+            name,
+            new FieldType(true, getArrowMinorType(type.getMinorType()).getType(), null),
+            null);
     return addOrGet(field);
   }
 
   /**
-   * Get a set of transferred clones of this container. Note that this guarantees that the vectors in the cloned
-   * container have the same TypedFieldIds as the existing container, allowing interchangeability in generated code. In
-   * the case of hyper vectors, this container actually doesn't do a full transfer, rather creating a clone vector
-   * wrapper only.
+   * Get a set of transferred clones of this container. Note that this guarantees that the vectors
+   * in the cloned container have the same TypedFieldIds as the existing container, allowing
+   * interchangeability in generated code. In the case of hyper vectors, this container actually
+   * doesn't do a full transfer, rather creating a clone vector wrapper only.
    *
-   * @param incoming
-   *          The RecordBatch iterator the contains the batch we should take over.
+   * @param incoming The RecordBatch iterator the contains the batch we should take over.
    * @return A cloned vector container.
    */
   @SuppressWarnings("rawtypes")
-  public static VectorContainer getTransferClone(VectorAccessible incoming, BufferAllocator allocator) {
+  public static VectorContainer getTransferClone(
+      VectorAccessible incoming, BufferAllocator allocator) {
     final VectorContainer vc = new VectorContainer(allocator);
+    vc.clearSchema();
     for (VectorWrapper<?> w : incoming) {
-      vc.cloneAndTransfer(w);
+      vc.cloneAndTransfer(w, allocator);
     }
     vc.setRecordCount(incoming.getRecordCount());
     vc.buildSchema(SelectionVectorMode.NONE);
     return vc;
   }
 
-  public static void transferFromRoot(VectorSchemaRoot root, VectorContainer container, BufferAllocator allocator) {
+  public static void transferFromRoot(
+      VectorSchemaRoot root, VectorContainer container, BufferAllocator allocator) {
     container.clear();
     // iterate over and transfer columns
     for (FieldVector fv : root.getFieldVectors()) {
-      final TransferPair tp = fv.getTransferPair(allocator);
+      final TransferPair tp = fv.getTransferPair(fv.getField(), allocator);
       tp.transfer();
       container.add(tp.getTo());
     }
@@ -199,7 +193,19 @@ public class VectorContainer implements Iterable<VectorWrapper<?>>, VectorAccess
     container.buildSchema();
   }
 
-  public static VectorContainer create(BufferAllocator allocator, Schema schema){
+  /*
+   * Transfer vectors and schema from the incoming vector
+   */
+  public void transferFrom(VectorAccessible incoming, BufferAllocator allocator) {
+    BufferAllocator tmp = (this.allocator == null) ? allocator : this.allocator;
+    for (VectorWrapper<?> w : incoming) {
+      cloneAndTransfer(w, tmp);
+    }
+    setRecordCount(incoming.getRecordCount());
+    this.schema = incoming.getSchema();
+  }
+
+  public static VectorContainer create(BufferAllocator allocator, Schema schema) {
     VectorContainer container = new VectorContainer(allocator);
     for (Field field : schema.getFields()) {
       container.addOrGet(field);
@@ -208,8 +214,8 @@ public class VectorContainer implements Iterable<VectorWrapper<?>>, VectorAccess
     return container;
   }
 
-  private void cloneAndTransfer(VectorWrapper<?> wrapper) {
-    wrappers.add(wrapper.cloneAndTransfer(allocator, resetter));
+  private void cloneAndTransfer(VectorWrapper<?> wrapper, BufferAllocator allocator) {
+    wrappers.add(wrapper.cloneAndTransfer(allocator, null));
   }
 
   public void addCollection(Iterable<ValueVector> vectors) {
@@ -250,7 +256,7 @@ public class VectorContainer implements Iterable<VectorWrapper<?>>, VectorAccess
 
   public void remove(ValueVector v) {
     clearSchema();
-    for (Iterator<VectorWrapper<?>> iter = wrappers.iterator(); iter.hasNext();) {
+    for (Iterator<VectorWrapper<?>> iter = wrappers.iterator(); iter.hasNext(); ) {
       VectorWrapper<?> w = iter.next();
       if (!w.isHyper() && v == w.getValueVector()) {
         w.clear();
@@ -264,10 +270,11 @@ public class VectorContainer implements Iterable<VectorWrapper<?>>, VectorAccess
   public void replace(ValueVector old, ValueVector newVector) {
     clearSchema();
     int i = 0;
-    for (VectorWrapper<?> w : wrappers){
+    SimpleVectorWrapper newVectorWrapper = new SimpleVectorWrapper<ValueVector>(newVector);
+    for (VectorWrapper<?> w : wrappers) {
       if (!w.isHyper() && old == w.getValueVector()) {
         w.clear();
-        wrappers.set(i, new SimpleVectorWrapper<ValueVector>(newVector));
+        wrappers.set(i, newVectorWrapper);
         return;
       }
       i++;
@@ -282,7 +289,8 @@ public class VectorContainer implements Iterable<VectorWrapper<?>>, VectorAccess
 
   @SuppressWarnings("unchecked")
   @Override
-  public <T extends ValueVector> VectorWrapper<T> getValueAccessorById(Class<T> clazz, int... fieldIds) {
+  public <T extends ValueVector> VectorWrapper<T> getValueAccessorById(
+      Class<T> clazz, int... fieldIds) {
     Preconditions.checkArgument(fieldIds.length >= 1);
     VectorWrapper<?> va = wrappers.get(fieldIds[0]);
 
@@ -290,21 +298,24 @@ public class VectorContainer implements Iterable<VectorWrapper<?>>, VectorAccess
       return null;
     }
 
-    if (fieldIds.length == 1 && clazz != null && !clazz.isAssignableFrom(va.getVectorClass()) && isNotNullVector(clazz.getSimpleName(), va.getVectorClass().getSimpleName())) {
-      throw new IllegalStateException(String.format(
-          "Failure while reading vector.  Expected vector class of %s but was holding vector class %s, field= %s ",
-          clazz.getCanonicalName(), va.getVectorClass().getCanonicalName(), va.getField()));
+    if (fieldIds.length == 1
+        && clazz != null
+        && !clazz.isAssignableFrom(va.getVectorClass())
+        && isNotNullVector(clazz.getSimpleName(), va.getVectorClass().getSimpleName())) {
+      throw new IllegalStateException(
+          String.format(
+              "Failure while reading vector.  Expected vector class of %s but was holding vector class %s, field= %s ",
+              clazz.getCanonicalName(), va.getVectorClass().getCanonicalName(), va.getField()));
     }
 
     return (VectorWrapper<T>) va.getChildWrapper(fieldIds);
-
   }
 
   private boolean isNotNullVector(String clazz, String vectorClass) {
     /*An empty array list is considered as NullVector instead of ZeroVector.
     This is a new change in Arrow. Earlier it was considered as ZeroVector. Also created a task to remove usage of
     ZeroVector for such scenarios*/
-    //TODO DX-34589 Use NullVector instead of ZeroVector for empty lists.
+    // TODO DX-34589 Use NullVector instead of ZeroVector for empty lists.
     return !("ZeroVector".equals(clazz) && "NullVector".equals(vectorClass));
   }
 
@@ -323,8 +334,9 @@ public class VectorContainer implements Iterable<VectorWrapper<?>>, VectorAccess
   }
 
   private BatchSchema getPartialSchema() {
-    if(schema == null){
-      SchemaBuilder bldr = BatchSchema.newBuilder().setSelectionVectorMode(SelectionVectorMode.NONE);
+    if (schema == null) {
+      SchemaBuilder bldr =
+          BatchSchema.newBuilder().setSelectionVectorMode(SelectionVectorMode.NONE);
       for (VectorWrapper<?> v : wrappers) {
         bldr.addField(v.getField());
       }
@@ -340,13 +352,15 @@ public class VectorContainer implements Iterable<VectorWrapper<?>>, VectorAccess
 
   @Override
   public BatchSchema getSchema() {
-    // throws if buildSchema(...) was not called before this call, which happens if the caller did not
+    // throws if buildSchema(...) was not called before this call, which happens if the caller did
+    // not
     // build the schema in the first place, or the schema was cleared using clearSchema(...)
-    checkNotNull(schema, "Container schema is not set. Either schema was not built, or schema was cleared.");
+    checkNotNull(
+        schema, "Container schema is not set. Either schema was not built, or schema was cleared.");
     return schema;
   }
 
-  public void buildSchema(){
+  public void buildSchema() {
     buildSchema(SelectionVectorMode.NONE);
   }
 
@@ -368,7 +382,7 @@ public class VectorContainer implements Iterable<VectorWrapper<?>>, VectorAccess
   }
 
   @Override
-  public void close(){
+  public void close() {
     clearSchema();
     zeroVectors();
     wrappers.clear();
@@ -394,9 +408,7 @@ public class VectorContainer implements Iterable<VectorWrapper<?>>, VectorAccess
     throw new UnsupportedOperationException();
   }
 
-  /**
-   * Clears the contained vectors.  (See {@link ValueVector#clear}).
-   */
+  /** Clears the contained vectors. (See {@link ValueVector#clear}). */
   public void zeroVectors() {
     for (VectorWrapper<?> w : wrappers) {
       w.clear();
@@ -420,9 +432,9 @@ public class VectorContainer implements Iterable<VectorWrapper<?>>, VectorAccess
     }
   }
 
-  public int setAllCount(int records){
-    if(records != 0){
-      for(VectorWrapper<?> w : this){
+  public int setAllCount(int records) {
+    if (records != 0) {
+      for (VectorWrapper<?> w : this) {
         w.getValueVector().setValueCount(records);
       }
     }
@@ -430,23 +442,27 @@ public class VectorContainer implements Iterable<VectorWrapper<?>>, VectorAccess
     return records;
   }
 
-  public static List<FieldVector[]> getHyperFieldVectors(VectorAccessible a){
+  public static List<FieldVector[]> getHyperFieldVectors(VectorAccessible a) {
     return FluentIterable.from(a).transform(HYPER_WRAPPER_TO_FIELD).toList();
   }
 
-  public static List<FieldVector> getFieldVectors(VectorAccessible a){
+  public static List<FieldVector> getFieldVectors(VectorAccessible a) {
     return FluentIterable.from(a).transform(WRAPPER_TO_FIELD).toList();
   }
 
-  public static final Function<VectorWrapper<?>, FieldVector>  WRAPPER_TO_FIELD = new Function<VectorWrapper<?>, FieldVector>(){
-    @Override
-    public FieldVector apply(VectorWrapper<?> input) {
-      return (FieldVector) input.getValueVector();
-    }};
+  public static final Function<VectorWrapper<?>, FieldVector> WRAPPER_TO_FIELD =
+      new Function<VectorWrapper<?>, FieldVector>() {
+        @Override
+        public FieldVector apply(VectorWrapper<?> input) {
+          return (FieldVector) input.getValueVector();
+        }
+      };
 
-  public static final Function<VectorWrapper<?>, FieldVector[]>  HYPER_WRAPPER_TO_FIELD = new Function<VectorWrapper<?>, FieldVector[]>(){
-    @Override
-    public FieldVector[] apply(VectorWrapper<?> input) {
-      return (FieldVector[]) input.getValueVectors();
-    }};
+  public static final Function<VectorWrapper<?>, FieldVector[]> HYPER_WRAPPER_TO_FIELD =
+      new Function<VectorWrapper<?>, FieldVector[]>() {
+        @Override
+        public FieldVector[] apply(VectorWrapper<?> input) {
+          return (FieldVector[]) input.getValueVectors();
+        }
+      };
 }

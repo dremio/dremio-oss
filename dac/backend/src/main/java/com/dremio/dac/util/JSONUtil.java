@@ -17,11 +17,6 @@ package com.dremio.dac.util;
 
 import static java.util.Arrays.asList;
 
-import java.io.IOException;
-import java.io.OutputStream;
-import java.util.List;
-import java.util.Set;
-
 import com.dremio.common.SentinelSecure;
 import com.dremio.common.logical.FormatPluginConfigBase;
 import com.dremio.common.logical.StoragePluginConfigBase;
@@ -58,18 +53,22 @@ import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.MappingJsonFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.ser.impl.SimpleFilterProvider;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.util.List;
+import java.util.Set;
 
-/**
- * turn stuff into pretty JSON
- */
+/** turn stuff into pretty JSON */
 public class JSONUtil {
 
   /**
-   * default indent output represents arrays on one line
-   * so we want more than just mapper.enable(SerializationFeature.INDENT_OUTPUT);
+   * default indent output represents arrays on one line so we want more than just
+   * mapper.enable(SerializationFeature.INDENT_OUTPUT);
    */
   private static final class PrettyPrintMappingJsonFactory extends MappingJsonFactory {
     private final DefaultPrettyPrinter pp;
@@ -93,27 +92,33 @@ public class JSONUtil {
     }
   }
 
-  private static final ObjectMapper PRETTY_MAPPER = new ObjectMapper(new PrettyPrintMappingJsonFactory());
+  private static final ObjectMapper PRETTY_MAPPER =
+      new ObjectMapper(new PrettyPrintMappingJsonFactory());
   private static final ObjectMapper INLINE_MAPPER = new ObjectMapper();
 
   static {
     for (ObjectMapper m : asList(INLINE_MAPPER, PRETTY_MAPPER)) {
       // omit fields when they are null
-      m.setFilterProvider(new SimpleFilterProvider().addFilter(SentinelSecure.FILTER_NAME, SentinelSecureFilter.SECURE));
+      m.setFilterProvider(
+          new SimpleFilterProvider()
+              .addFilter(SentinelSecure.FILTER_NAME, SentinelSecureFilter.SECURE));
       m.setSerializationInclusion(Include.NON_NULL);
       m.registerSubtypes(SocketMessage.getImplClasses());
       m.registerModule(new SimpleModule().addAbstractTypeMapping(User.class, SimpleUser.class));
       // Turns out you can annotate generated classes using mixins!
       m.addMixIn(TransformConvertCase.class, TransformConvertCaseMixin.class);
       m.addMixIn(TransformSorts.class, TransformSortsMixin.class);
-      //m.addMixIn(UnknownConfig.class, UnknownConfigMixIn.class);
+      // m.addMixIn(UnknownConfig.class, UnknownConfigMixIn.class);
+      m.registerModule(new JavaTimeModule());
+      m.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+      // DateTime is expected to be serialised to Date format instead of timestamp
       Acceptor<?, ?, ?>[] acceptors = {
-          ExpressionBase.acceptor,
-          ExtractListRuleBase.acceptor,
-          FieldTransformationBase.acceptor,
-          FilterBase.acceptor,
-          FromBase.acceptor,
-          TransformBase.acceptor
+        ExpressionBase.acceptor,
+        ExtractListRuleBase.acceptor,
+        FieldTransformationBase.acceptor,
+        FilterBase.acceptor,
+        FromBase.acceptor,
+        TransformBase.acceptor
       };
       for (Acceptor<?, ?, ?> acceptor : acceptors) {
         m.registerModule(newWrappingModule(acceptor));
@@ -122,32 +127,42 @@ public class JSONUtil {
   }
 
   private static <C, W> SimpleModule newWrappingModule(Acceptor<C, ?, W> acceptor) {
-    return newWrappingModule(acceptor.getBaseType(), acceptor.getWrapperType(), acceptor.converter());
+    return newWrappingModule(
+        acceptor.getBaseType(), acceptor.getWrapperType(), acceptor.converter());
   }
 
-  private static <T1, T2> SimpleModule newWrappingModule(final Class<T1> wrapped, final Class<T2> wrapper, final Converter<T1, T2> converter) {
+  private static <T1, T2> SimpleModule newWrappingModule(
+      final Class<T1> wrapped, final Class<T2> wrapper, final Converter<T1, T2> converter) {
     SimpleModule module = new SimpleModule();
-    module.addDeserializer(wrapper, new JsonDeserializer<T2>() {
-      @Override
-      public T2 deserialize(JsonParser p, DeserializationContext ctxt) throws IOException, JsonProcessingException {
-        return converter.convert(ctxt.readValue(p, wrapped));
-      }
-    });
-    module.addSerializer(wrapper, new JsonSerializer<T2>() {
-      @Override
-      public void serialize(T2 value, JsonGenerator gen, SerializerProvider serializers) throws IOException, JsonProcessingException {
-        serializers.defaultSerializeValue(converter.revert(value), gen);
-      }
-    });
+    module.addDeserializer(
+        wrapper,
+        new JsonDeserializer<T2>() {
+          @Override
+          public T2 deserialize(JsonParser p, DeserializationContext ctxt)
+              throws IOException, JsonProcessingException {
+            return converter.convert(ctxt.readValue(p, wrapped));
+          }
+        });
+    module.addSerializer(
+        wrapper,
+        new JsonSerializer<T2>() {
+          @Override
+          public void serialize(T2 value, JsonGenerator gen, SerializerProvider serializers)
+              throws IOException, JsonProcessingException {
+            serializers.defaultSerializeValue(converter.revert(value), gen);
+          }
+        });
     return module;
   }
 
   private interface TransformConvertCaseMixin {
-    @JsonProperty("case") String getConvertCase();
+    @JsonProperty("case")
+    String getConvertCase();
   }
 
   private interface TransformSortsMixin {
-    @JsonProperty("columns") List<Order> getColumnsList();
+    @JsonProperty("columns")
+    List<Order> getColumnsList();
   }
 
   public static ObjectMapper prettyMapper() {
@@ -158,7 +173,8 @@ public class JSONUtil {
     return INLINE_MAPPER.copy();
   }
 
-  public static ObjectMapper registerStorageTypes(ObjectMapper mapper, ScanResult scanResult, ConnectionReader connectionReader) {
+  public static ObjectMapper registerStorageTypes(
+      ObjectMapper mapper, ScanResult scanResult, ConnectionReader connectionReader) {
     registerSubtypes(mapper, LogicalOperatorBase.getSubTypes(scanResult));
     registerSubtypes(mapper, StoragePluginConfigBase.getSubTypes(scanResult));
     registerSubtypes(mapper, FormatPluginConfigBase.getSubTypes(scanResult));

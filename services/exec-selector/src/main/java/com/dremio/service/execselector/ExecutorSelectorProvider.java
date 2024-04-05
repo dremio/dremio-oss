@@ -17,9 +17,7 @@ package com.dremio.service.execselector;
 
 import javax.inject.Provider;
 
-/**
- * Exposes the currently active {@link ExecutorSelector}
- */
+/** Exposes the currently active {@link ExecutorSelector} */
 public class ExecutorSelectorProvider implements Provider<ExecutorSelector> {
   private volatile ExecutorSelector currentSelector;
 

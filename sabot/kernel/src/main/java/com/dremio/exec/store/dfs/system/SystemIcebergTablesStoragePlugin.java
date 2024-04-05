@@ -15,18 +15,6 @@
  */
 package com.dremio.exec.store.dfs.system;
 
-
-import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
-
-import javax.inject.Provider;
-
-import org.apache.iceberg.Table;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.DatasetHandle;
@@ -57,59 +45,86 @@ import com.dremio.service.users.SystemUser;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+import javax.inject.Provider;
+import org.apache.iceberg.Table;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * A custom implementation of a storage plugin used for system iceberg tables
- */
-public class SystemIcebergTablesStoragePlugin extends MayBeDistFileSystemPlugin<SystemIcebergTablesStoragePluginConfig> {
+/** A custom implementation of a storage plugin used for system iceberg tables */
+public class SystemIcebergTablesStoragePlugin
+    extends MayBeDistFileSystemPlugin<SystemIcebergTablesStoragePluginConfig> {
 
-  private static final Logger logger = LoggerFactory.getLogger(SystemIcebergTablesStoragePlugin.class);
+  private static final Logger logger =
+      LoggerFactory.getLogger(SystemIcebergTablesStoragePlugin.class);
   private final Lock createSystemTablesLock = new ReentrantLock();
 
   /**
-   * Constructs a new SystemIcebergTablesStoragePlugin instance with the given configuration, context, name, and ID provider.
+   * Constructs a new SystemIcebergTablesStoragePlugin instance with the given configuration,
+   * context, name, and ID provider.
    *
-   * @param config      The configuration for the storage plugin.
-   * @param context     The SabotContext associated with this storage plugin.
-   * @param name        The name of the storage plugin.
-   * @param idProvider  The provider for the StoragePluginId.
+   * @param config The configuration for the storage plugin.
+   * @param context The SabotContext associated with this storage plugin.
+   * @param name The name of the storage plugin.
+   * @param idProvider The provider for the StoragePluginId.
    */
-  public SystemIcebergTablesStoragePlugin(SystemIcebergTablesStoragePluginConfig config, SabotContext context, String name, Provider<StoragePluginId> idProvider) {
+  public SystemIcebergTablesStoragePlugin(
+      SystemIcebergTablesStoragePluginConfig config,
+      SabotContext context,
+      String name,
+      Provider<StoragePluginId> idProvider) {
     super(config, context, name, idProvider);
   }
 
   @Override
-  public Optional<DatasetHandle> getDatasetHandle(EntityPath datasetPath, GetDatasetOption... options) throws ConnectorException {
-     List<String> components = datasetPath.getComponents();
+  public Optional<DatasetHandle> getDatasetHandle(
+      EntityPath datasetPath, GetDatasetOption... options) throws ConnectorException {
+    List<String> components = datasetPath.getComponents();
     SystemIcebergTableMetadata tableMetadata = getTableMetadata(datasetPath.getComponents());
     if (components == null || components.isEmpty()) {
       return Optional.empty();
     }
     Preconditions.checkState(components.size() == 2, "Unexpected number of components in path");
-    Preconditions.checkState(components.get(0).equals(SystemIcebergTablesStoragePluginConfig.SYSTEM_ICEBERG_TABLES_PLUGIN_NAME)
-      && components.get(1).equals(tableMetadata.getTableName()));
+    Preconditions.checkState(
+        components
+                .get(0)
+                .equals(SystemIcebergTablesStoragePluginConfig.SYSTEM_ICEBERG_TABLES_PLUGIN_NAME)
+            && components.get(1).equals(tableMetadata.getTableName()));
 
-    SystemIcebergTablesExecutionDatasetAccessor datasetHandle = new SystemIcebergTablesExecutionDatasetAccessor(datasetPath,
-      Suppliers.ofInstance(getTable(tableMetadata.getTableLocation())), getFsConfCopy(), Table::currentSnapshot,
-      this, (t, s) -> t.schema(), getContext().getOptionManager());
+    SystemIcebergTablesExecutionDatasetAccessor datasetHandle =
+        new SystemIcebergTablesExecutionDatasetAccessor(
+            datasetPath,
+            Suppliers.ofInstance(getTable(tableMetadata.getTableLocation())),
+            getFsConfCopy(),
+            Table::currentSnapshot,
+            this,
+            (t, s) -> t.schema(),
+            getContext().getOptionManager());
 
     return Optional.of(datasetHandle);
   }
 
   @Override
-  public DatasetMetadata getDatasetMetadata(DatasetHandle datasetHandle, PartitionChunkListing chunkListing, GetMetadataOption... options) throws ConnectorException {
-    SystemIcebergTablesExecutionDatasetAccessor metadataProvider = datasetHandle.unwrap(SystemIcebergTablesExecutionDatasetAccessor.class);
+  public DatasetMetadata getDatasetMetadata(
+      DatasetHandle datasetHandle, PartitionChunkListing chunkListing, GetMetadataOption... options)
+      throws ConnectorException {
+    SystemIcebergTablesExecutionDatasetAccessor metadataProvider =
+        datasetHandle.unwrap(SystemIcebergTablesExecutionDatasetAccessor.class);
     return metadataProvider.getDatasetMetadata(options);
   }
 
   /**
    * Retrieves a view table representing the table. This method constructs a view table based on the
-   * provided table schema path and user name. The view table is constructed to display data from the table with
-   * customized field types and filtering criteria.
+   * provided table schema path and user name. The view table is constructed to display data from
+   * the table with customized field types and filtering criteria.
    *
    * @param tableSchemaPath The list of strings representing the table schema path.
-   * @param userName        The user name for which to filter the view.
-   * @return The constructed ViewTable representing the given table with customized field types and filtering.
+   * @param userName The user name for which to filter the view.
+   * @return The constructed ViewTable representing the given table with customized field types and
+   *     filtering.
    */
   public ViewTable getViewTable(List<String> tableSchemaPath, String userName) {
     BatchSchema batchSchema;
@@ -125,16 +140,25 @@ public class SystemIcebergTablesStoragePlugin extends MayBeDistFileSystemPlugin<
       tableName = tableMetadata.getTableName();
     }
 
-    View view = Views.fieldTypesToView(tableName, prepareViewQuery(tableSchemaPath, userName),
-      ViewFieldsHelper.getBatchSchemaFields(batchSchema), null);
-    return new ViewTable(new NamespaceKey(tableSchemaPath), view, CatalogUser.from(SystemUser.SYSTEM_USERNAME), batchSchema);
+    View view =
+        Views.fieldTypesToView(
+            tableName,
+            prepareViewQuery(tableSchemaPath, userName),
+            ViewFieldsHelper.getBatchSchemaFields(batchSchema),
+            null);
+    return new ViewTable(
+        new NamespaceKey(tableSchemaPath),
+        view,
+        CatalogUser.from(SystemUser.SYSTEM_USERNAME),
+        batchSchema);
   }
 
   /**
-   * Prepares a SQL query string for constructing a view based on the provided table metadata and user name.
+   * Prepares a SQL query string for constructing a view based on the provided table metadata and
+   * user name.
    *
    * @param tableSchemaPath The list of strings representing the table schema path.
-   * @param userName      The user name for which to filter the view.
+   * @param userName The user name for which to filter the view.
    * @return The prepared SQL query string.
    */
   private String prepareViewQuery(List<String> tableSchemaPath, String userName) {
@@ -175,38 +199,46 @@ public class SystemIcebergTablesStoragePlugin extends MayBeDistFileSystemPlugin<
 
   /**
    * Retrieves the table metadata.
+   *
    * @return An object describing the iceberg table.
    */
   public SystemIcebergTableMetadata getTableMetadata(List<String> tableSchemaPath) {
-    return SystemIcebergTableMetadataFactory.getTableMetadata(getName(), getConfig().getPath().toString(),
-      getContext().getOptionManager(), tableSchemaPath);
+    return SystemIcebergTableMetadataFactory.getTableMetadata(
+        getName(),
+        getConfig().getPath().toString(),
+        getContext().getOptionManager(),
+        tableSchemaPath);
   }
 
   /**
-   * Checks if a view specified by the given schema path is supported. A view is considered supported if it corresponds to either a supported table or view.
+   * Checks if a view specified by the given schema path is supported. A view is considered
+   * supported if it corresponds to either a supported table or view.
    *
    * @param tableSchemaPath A list of strings representing the schema path for the view.
    * @return {@code true} if the view is supported, {@code false} otherwise.
    */
   public boolean isSupportedTablePath(List<String> tableSchemaPath) {
-    return tableSchemaPath.size() == 2 && (SystemIcebergTableMetadataFactory.isSupportedTablePath(tableSchemaPath) ||
-      SystemIcebergViewMetadataFactory.isSupportedViewPath(tableSchemaPath));
+    return SystemIcebergTableMetadataFactory.isSupportedTablePath(tableSchemaPath)
+        || SystemIcebergViewMetadataFactory.isSupportedViewPath(tableSchemaPath);
   }
+
   /**
    * Retrieves the view metadata for a given view schema path using the context's option manager.
    *
    * @param viewSchemaPath A list of strings representing the schema path for the view.
-   * @return The {@link SystemIcebergViewMetadata} object representing the metadata for the specified view.
+   * @return The {@link SystemIcebergViewMetadata} object representing the metadata for the
+   *     specified view.
    */
   private SystemIcebergViewMetadata getViewMetadata(List<String> viewSchemaPath) {
-    return SystemIcebergViewMetadataFactory.getViewMetadata(getContext().getOptionManager(), viewSchemaPath);
+    return SystemIcebergViewMetadataFactory.getViewMetadata(
+        getContext().getOptionManager(), viewSchemaPath);
   }
 
   /**
-   * Refreshes the dataset associated with the systemIcebergTable within {@link SystemIcebergTablesStoragePlugin}.
-   * This method triggers the refresh of metadata information for the dataset to ensure it is up-to-date and accurately
-   * reflects the current state.The refresh process may involve fetching updates from the underlying data source and
-   * updating the metadata.
+   * Refreshes the dataset associated with the systemIcebergTable within {@link
+   * SystemIcebergTablesStoragePlugin}. This method triggers the refresh of metadata information for
+   * the dataset to ensure it is up-to-date and accurately reflects the current state.The refresh
+   * process may involve fetching updates from the underlying data source and updating the metadata.
    */
   public void refreshDataset(List<String> tableSchemaPath) {
 
@@ -219,27 +251,30 @@ public class SystemIcebergTablesStoragePlugin extends MayBeDistFileSystemPlugin<
     NamespaceKey tableNamespaceKey = metadata.getNamespaceKey();
 
     // Build dataset retrieval options with desired settings
-    DatasetRetrievalOptions options = DatasetRetrievalOptions.newBuilder()
-        .setAutoPromote(false)
-        .setForceUpdate(true)
-        .build()
-        .withFallback(DatasetRetrievalOptions.DEFAULT);
+    DatasetRetrievalOptions options =
+        DatasetRetrievalOptions.newBuilder()
+            .setAutoPromote(false)
+            .setForceUpdate(true)
+            .build()
+            .withFallback(DatasetRetrievalOptions.DEFAULT);
 
     // Get the plugin's context and catalog service
-    CatalogService catalogService = getContext()
-        .getCatalogService();
+    CatalogService catalogService = getContext().getCatalogService();
 
     // Retrieve the catalog with a specified schema configuration
-    Catalog catalog = catalogService.getCatalog(MetadataRequestOptions.of(SchemaConfig.newBuilder(CatalogUser.from(SystemUser.SYSTEM_USERNAME)).build()));
+    Catalog catalog =
+        catalogService.getCatalog(
+            MetadataRequestOptions.of(
+                SchemaConfig.newBuilder(CatalogUser.from(SystemUser.SYSTEM_USERNAME)).build()));
 
     // Refresh the dataset metadata using the configured options
     catalog.refreshDataset(tableNamespaceKey, options);
   }
 
   /**
-   * Creates empty Iceberg tables for all supported system tables if they do not already exist.
-   * The method iterates through the list of supported system tables and calls
-   * {@link #createEmptySystemIcebergTableIfNotExists(List)} for each table.
+   * Creates empty Iceberg tables for all supported system tables if they do not already exist. The
+   * method iterates through the list of supported system tables and calls {@link
+   * #createEmptySystemIcebergTableIfNotExists(List)} for each table.
    *
    * @see #createEmptySystemIcebergTableIfNotExists(List)
    */
@@ -250,11 +285,13 @@ public class SystemIcebergTablesStoragePlugin extends MayBeDistFileSystemPlugin<
   }
 
   /**
-   * Creates an empty Iceberg table for the specified system table if it does not already exist.
-   * The method checks for the existence of the table and creates an empty table if it is not found.
-   * It uses a lock to ensure thread safety, preventing multiple threads from attempting to create the table simultaneously.
+   * Creates an empty Iceberg table for the specified system table if it does not already exist. The
+   * method checks for the existence of the table and creates an empty table if it is not found. It
+   * uses a lock to ensure thread safety, preventing multiple threads from attempting to create the
+   * table simultaneously.
    *
-   * @param tableSchemaPath The schema path of the system table for which to create an empty Iceberg table.
+   * @param tableSchemaPath The schema path of the system table for which to create an empty Iceberg
+   *     table.
    */
   private void createEmptySystemIcebergTableIfNotExists(List<String> tableSchemaPath) {
     SystemIcebergTableMetadata tableMetadata = getTableMetadata(tableSchemaPath);
@@ -262,16 +299,40 @@ public class SystemIcebergTablesStoragePlugin extends MayBeDistFileSystemPlugin<
       createSystemTablesLock.lock();
       try {
         if (!isTableExists(tableMetadata.getTableLocation())) {
-          logger.debug("Iceberg table at location {} does not exists. Creating empty system iceberg table", tableMetadata.getTableLocation());
-          ImmutableIcebergWriterOptions icebergWriterOptions = new ImmutableIcebergWriterOptions.Builder()
-            .setIcebergTableProps(tableMetadata.getIcebergTablePropsForCreate()).build();
-          ImmutableTableFormatWriterOptions tableFormatWriterOptions = new ImmutableTableFormatWriterOptions.Builder()
-            .setIcebergSpecificOptions(icebergWriterOptions).build();
-          SchemaConfig schemaConfig = SchemaConfig.newBuilder(CatalogUser.from(SystemUser.SYSTEM_USERNAME)).build();
-          WriterOptions writerOptions = new WriterOptions(null, null, null, null,
-            null, false, Long.MAX_VALUE, tableFormatWriterOptions, null, false);
-          createEmptyTable(tableMetadata.getNamespaceKey(), schemaConfig, tableMetadata.getBatchSchema(), writerOptions);
-          logger.debug("Iceberg table {} created at location {}", tableMetadata.getNamespaceKey(), tableMetadata.getTableLocation());
+          logger.debug(
+              "Iceberg table at location {} does not exists. Creating empty system iceberg table",
+              tableMetadata.getTableLocation());
+          ImmutableIcebergWriterOptions icebergWriterOptions =
+              new ImmutableIcebergWriterOptions.Builder()
+                  .setIcebergTableProps(tableMetadata.getIcebergTablePropsForCreate())
+                  .build();
+          ImmutableTableFormatWriterOptions tableFormatWriterOptions =
+              new ImmutableTableFormatWriterOptions.Builder()
+                  .setIcebergSpecificOptions(icebergWriterOptions)
+                  .build();
+          SchemaConfig schemaConfig =
+              SchemaConfig.newBuilder(CatalogUser.from(SystemUser.SYSTEM_USERNAME)).build();
+          WriterOptions writerOptions =
+              new WriterOptions(
+                  null,
+                  null,
+                  null,
+                  null,
+                  null,
+                  false,
+                  Long.MAX_VALUE,
+                  tableFormatWriterOptions,
+                  null,
+                  false);
+          createEmptyTable(
+              tableMetadata.getNamespaceKey(),
+              schemaConfig,
+              tableMetadata.getBatchSchema(),
+              writerOptions);
+          logger.debug(
+              "Iceberg table {} created at location {}",
+              tableMetadata.getNamespaceKey(),
+              tableMetadata.getTableLocation());
         }
       } finally {
         createSystemTablesLock.unlock();

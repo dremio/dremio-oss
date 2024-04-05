@@ -16,36 +16,32 @@
 package com.dremio.authenticator;
 
 import java.util.Date;
-
 import org.immutables.value.Value;
 
-/**
- * Result of Authentication.
- */
+/** Result of Authentication. */
 @Value.Immutable
 public interface AuthResult {
 
   /**
    * @return a username. Non-empty when returned by {@link Authenticator#authenticate(AuthRequest)}.
-   * This maybe null or empty when returned by {@link AuthProvider#validate(AuthRequest)}.
+   *     This maybe null or empty when returned by {@link AuthProvider#validate(AuthRequest)}.
    */
   String getUserName();
 
   /**
-   * @return expiry of the session. This may be null depending on the token type. If
-   * null, up to the caller to decide expiry of the session.
+   * @return expiry of the session. This may be null depending on the token type. If null, up to the
+   *     caller to decide expiry of the session.
    */
   Date getExpiresAt();
 
   /**
    * @return a userID. Non-empty when returned by {@link Authenticator#authenticate(AuthRequest)}.
-   * This maybe null or empty when returned by {@link AuthProvider#validate(AuthRequest)}.
+   *     This maybe null or empty when returned by {@link AuthProvider#validate(AuthRequest)}.
    */
   String getUserId();
 
   /**
-   * @return (required) a validation mechanism that has successfully validated
-   * the token.
+   * @return (required) a validation mechanism that has successfully validated the token.
    */
   String getTokenType();
 

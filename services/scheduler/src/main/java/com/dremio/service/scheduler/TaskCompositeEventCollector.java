@@ -15,13 +15,12 @@
  */
 package com.dremio.service.scheduler;
 
+import com.dremio.exec.proto.CoordinationProtos;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
-
-import com.dremio.exec.proto.CoordinationProtos;
 
 class TaskCompositeEventCollector implements SchedulerEvents {
   private final List<SchedulerEvents> eventSinks;
@@ -38,11 +37,20 @@ class TaskCompositeEventCollector implements SchedulerEvents {
 
   @Override
   public PerTaskEvents addTask(PerTaskSchedule schedule) {
-    return allTasks.computeIfAbsent(schedule.getTaskName(), (k) -> {
-      final List<PerTaskEvents> perTaskEvents = eventSinks.stream().map((sink) -> sink.addTask(schedule))
-        .collect(Collectors.toList());
-      return new PerTaskEventCollector(perTaskEvents);
-    });
+    return allTasks.computeIfAbsent(
+        schedule.getTaskName(),
+        (k) -> {
+          final List<PerTaskEvents> perTaskEvents =
+              eventSinks.stream()
+                  .map((sink) -> sink.addTask(schedule))
+                  .collect(Collectors.toList());
+          return new PerTaskEventCollector(perTaskEvents);
+        });
+  }
+
+  @Override
+  public void hitUnexpectedError() {
+    eventSinks.forEach(SchedulerEvents::hitUnexpectedError);
   }
 
   @Override
@@ -72,9 +80,11 @@ class TaskCompositeEventCollector implements SchedulerEvents {
 
   private static final class PerTaskEventCollector implements SchedulerEvents.PerTaskEvents {
     private final List<PerTaskEvents> perTaskEventsSinks;
+
     private PerTaskEventCollector(List<PerTaskEvents> perTaskEvents) {
       this.perTaskEventsSinks = perTaskEvents;
     }
+
     @Override
     public void bookingAttempted() {
       perTaskEventsSinks.forEach(PerTaskMainEvents::bookingAttempted);
@@ -180,5 +190,4 @@ class TaskCompositeEventCollector implements SchedulerEvents {
       perTaskEventsSinks.forEach(PerTaskRecoveryEvents::failedToRunOnDeath);
     }
   }
-
 }

@@ -51,6 +51,7 @@ export const Default: StoryFn<typeof Tag> = () => {
         <Tag className="border border-solid border-mint-300">
           border-mint-300
         </Tag>
+        <Tag className="bg-danger-subtle-border">bg-danger-subtle-border</Tag>
       </div>
       <div className="flex gap-05">
         <Tag className="bg-neutral-50">

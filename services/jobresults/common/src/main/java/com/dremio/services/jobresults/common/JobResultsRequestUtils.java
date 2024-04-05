@@ -17,34 +17,35 @@ package com.dremio.services.jobresults.common;
 
 import static io.grpc.MethodDescriptor.generateFullMethodName;
 
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.service.jobresults.JobResultsResponse;
 import com.dremio.service.jobresults.JobResultsServiceGrpc;
-
 import io.grpc.MethodDescriptor;
+import org.apache.arrow.memory.BufferAllocator;
 
 /**
- * Utils class for customize handling of serializing/deserializing JobResultsRequest on-to/from wire grpc stream.
+ * Utils class for customize handling of serializing/deserializing JobResultsRequest on-to/from wire
+ * grpc stream.
  */
 public class JobResultsRequestUtils {
   private static final String methodName = "jobResults";
 
-  public static MethodDescriptor<JobResultsRequestWrapper, JobResultsResponse> getJobResultsMethod(BufferAllocator allocator) {
+  public static MethodDescriptor<JobResultsRequestWrapper, JobResultsResponse> getJobResultsMethod(
+      BufferAllocator allocator) {
     return MethodDescriptor.<JobResultsRequestWrapper, JobResultsResponse>newBuilder()
-              .setType(MethodDescriptor.MethodType.BIDI_STREAMING)
-              .setFullMethodName(generateFullMethodName(JobResultsServiceGrpc.SERVICE_NAME, methodName))
-              .setSampledToLocalTracing(true)
-              .setRequestMarshaller(getJobResultsRequestMarshaller(allocator))
-              .setResponseMarshaller(getJobResultsResponseMarshaller())
-              .build();
+        .setType(MethodDescriptor.MethodType.BIDI_STREAMING)
+        .setFullMethodName(generateFullMethodName(JobResultsServiceGrpc.SERVICE_NAME, methodName))
+        .setSampledToLocalTracing(true)
+        .setRequestMarshaller(getJobResultsRequestMarshaller(allocator))
+        .setResponseMarshaller(getJobResultsResponseMarshaller())
+        .build();
   }
 
   private static MethodDescriptor.Marshaller<JobResultsResponse> getJobResultsResponseMarshaller() {
     return io.grpc.protobuf.ProtoUtils.marshaller(JobResultsResponse.getDefaultInstance());
   }
 
-  private static MethodDescriptor.Marshaller<JobResultsRequestWrapper> getJobResultsRequestMarshaller(BufferAllocator allocator) {
+  private static MethodDescriptor.Marshaller<JobResultsRequestWrapper>
+      getJobResultsRequestMarshaller(BufferAllocator allocator) {
     return new JobResultsRequestWrapperMarshaller(allocator);
   }
 }

@@ -18,20 +18,18 @@ package com.dremio.service.reflection;
 import com.dremio.exec.planner.acceleration.MaterializationDescriptor;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.service.reflection.proto.Materialization;
+import com.dremio.service.reflection.proto.MaterializationPlan;
 import com.dremio.service.reflection.proto.ReflectionEntry;
 import com.dremio.service.reflection.proto.ReflectionGoal;
 
-/**
- * A factory to create {@code MaterializationDescriptor} instances
- */
+/** A factory to create {@code MaterializationDescriptor} instances */
 public interface MaterializationDescriptorFactory {
-  /**
-   * Create a new materialization descriptor
-   */
+  /** Create a new materialization descriptor */
   MaterializationDescriptor getMaterializationDescriptor(
       final ReflectionGoal reflectionGoal,
       final ReflectionEntry reflectionEntry,
       final Materialization materialization,
+      final MaterializationPlan plan,
       double originalCost,
       final CatalogService catalogService);
 }

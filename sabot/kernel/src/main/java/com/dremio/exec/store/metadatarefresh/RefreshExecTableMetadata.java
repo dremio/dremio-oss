@@ -15,32 +15,37 @@
  */
 package com.dremio.exec.store.metadatarefresh;
 
-import java.util.List;
-
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.TableMetadataImpl;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.SplitsPointer;
 import com.dremio.exec.store.metadatarefresh.MetadataRefreshExecConstants.DirList;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import java.util.List;
 
 public class RefreshExecTableMetadata extends TableMetadataImpl {
-    // This is the actual table schema, this maybe null while initializing
-    // if the plugin doesn't support fetching schema in the coordinator
-    private final BatchSchema tableSchema;
+  // This is the actual table schema, this maybe null while initializing
+  // if the plugin doesn't support fetching schema in the coordinator
+  private final BatchSchema tableSchema;
 
-    public RefreshExecTableMetadata(StoragePluginId plugin, DatasetConfig config, String user, SplitsPointer splits, BatchSchema tableSchema, List<String> primaryKeys) {
-        super(plugin, config, user, splits, primaryKeys);
-        this.tableSchema = tableSchema;
-    }
+  public RefreshExecTableMetadata(
+      StoragePluginId plugin,
+      DatasetConfig config,
+      String user,
+      SplitsPointer splits,
+      BatchSchema tableSchema,
+      List<String> primaryKeys) {
+    super(plugin, config, user, splits, primaryKeys);
+    this.tableSchema = tableSchema;
+  }
 
-    @Override
-    public BatchSchema getSchema() {
-        return DirList.OUTPUT_SCHEMA.BATCH_SCHEMA;
-        // Schema for the leaf scan operators
-    }
+  @Override
+  public BatchSchema getSchema() {
+    return DirList.OUTPUT_SCHEMA.BATCH_SCHEMA;
+    // Schema for the leaf scan operators
+  }
 
-    public BatchSchema getTableSchema() {
-      return tableSchema;
-    }
+  public BatchSchema getTableSchema() {
+    return tableSchema;
+  }
 }

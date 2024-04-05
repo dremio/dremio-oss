@@ -17,18 +17,16 @@ package com.dremio.io;
 
 import java.io.IOException;
 
-/**
- * Compression codec interface
- */
+/** Compression codec interface */
 public interface CompressionCodec {
 
   /**
    * Creates a new input stream to deflate data
+   *
    * @param is the input stream to read compressed data from
    * @return a input stream which deflates data on the fly
    * @throws IOException
    * @throws {@link NullPointerException} if {@code is} is null
    */
   CompressedFSInputStream newInputStream(FSInputStream is) throws IOException;
-
 }

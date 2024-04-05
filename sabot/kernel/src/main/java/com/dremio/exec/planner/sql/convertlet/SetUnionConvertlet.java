@@ -24,7 +24,8 @@ import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 
 public final class SetUnionConvertlet implements FunctionConvertlet {
-  public static final FunctionConvertlet INSTANCE = new NullableArrayFunctionConvertlet(new SetUnionConvertlet());
+  public static final FunctionConvertlet INSTANCE =
+      new NullableArrayFunctionConvertlet(new SetUnionConvertlet());
 
   private SetUnionConvertlet() {}
 

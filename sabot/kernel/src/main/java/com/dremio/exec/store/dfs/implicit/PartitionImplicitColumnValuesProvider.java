@@ -16,28 +16,30 @@
 
 package com.dremio.exec.store.dfs.implicit;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.types.pojo.Field;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.Describer;
 import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.options.OptionResolver;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.types.pojo.Field;
 
 public class PartitionImplicitColumnValuesProvider implements ImplicitColumnValuesProvider {
 
   @Override
-  public List<NameValuePair<?>> getImplicitColumnValues(BufferAllocator allocator, SplitAndPartitionInfo splitInfo,
-      Map<String, Field> implicitColumns, OptionResolver options) {
+  public List<NameValuePair<?>> getImplicitColumnValues(
+      BufferAllocator allocator,
+      SplitAndPartitionInfo splitInfo,
+      Map<String, Field> implicitColumns,
+      OptionResolver options) {
     List<NameValuePair<?>> nameValuePairs = new ArrayList<>();
     List<PartitionProtobuf.PartitionValue> values = splitInfo.getPartitionInfo().getValuesList();
-    try (AutoCloseables.RollbackCloseable rollbackCloseable = new AutoCloseables.RollbackCloseable()) {
+    try (AutoCloseables.RollbackCloseable rollbackCloseable =
+        new AutoCloseables.RollbackCloseable()) {
       for (PartitionProtobuf.PartitionValue v : values) {
         Field field = implicitColumns.get(v.getColumn());
         if (field != null) {
@@ -55,34 +57,44 @@ public class PartitionImplicitColumnValuesProvider implements ImplicitColumnValu
   }
 
   public static NameValuePair<?> getNameValuePair(
-      BufferAllocator allocator, Field field, PartitionProtobuf.PartitionValue partitionValue){
+      BufferAllocator allocator, Field field, PartitionProtobuf.PartitionValue partitionValue) {
     final CompleteType type = CompleteType.fromField(field);
-    switch(type.toMinorType()){
+    switch (type.toMinorType()) {
       case BIGINT:
-        return new ConstantColumnPopulators.BigIntNameValuePair(field.getName(), getLong(partitionValue));
+        return new ConstantColumnPopulators.BigIntNameValuePair(
+            field.getName(), getLong(partitionValue));
       case BIT:
-        return new ConstantColumnPopulators.BitNameValuePair(field.getName(), getBit(partitionValue));
+        return new ConstantColumnPopulators.BitNameValuePair(
+            field.getName(), getBit(partitionValue));
       case DATE:
-        return new ConstantColumnPopulators.DateMilliNameValuePair(field.getName(), getLong(partitionValue));
+        return new ConstantColumnPopulators.DateMilliNameValuePair(
+            field.getName(), getLong(partitionValue));
       case FLOAT4:
-        return new ConstantColumnPopulators.Float4NameValuePair(field.getName(), getFloat(partitionValue));
+        return new ConstantColumnPopulators.Float4NameValuePair(
+            field.getName(), getFloat(partitionValue));
       case FLOAT8:
-        return new ConstantColumnPopulators.Float8NameValuePair(field.getName(), getDouble(partitionValue));
+        return new ConstantColumnPopulators.Float8NameValuePair(
+            field.getName(), getDouble(partitionValue));
       case INT:
-        return new ConstantColumnPopulators.IntNameValuePair(field.getName(), getInt(partitionValue));
+        return new ConstantColumnPopulators.IntNameValuePair(
+            field.getName(), getInt(partitionValue));
       case TIME:
-        return new ConstantColumnPopulators.TimeMilliNameValuePair(field.getName(), getInt(partitionValue));
+        return new ConstantColumnPopulators.TimeMilliNameValuePair(
+            field.getName(), getInt(partitionValue));
       case TIMESTAMP:
-        return new ConstantColumnPopulators.TimeStampMilliNameValuePair(field.getName(), getLong(partitionValue));
+        return new ConstantColumnPopulators.TimeStampMilliNameValuePair(
+            field.getName(), getLong(partitionValue));
       case DECIMAL:
         return new TwosComplementValuePair(allocator, field, getByteArray(partitionValue));
       case VARBINARY:
-        return new ConstantColumnPopulators.VarBinaryNameValuePair(field.getName(), getByteArray(partitionValue));
+        return new ConstantColumnPopulators.VarBinaryNameValuePair(
+            field.getName(), getByteArray(partitionValue));
       case VARCHAR:
-        return new ConstantColumnPopulators.VarCharNameValuePair(field.getName(), getString(partitionValue));
+        return new ConstantColumnPopulators.VarCharNameValuePair(
+            field.getName(), getString(partitionValue));
       default:
-        throw new UnsupportedOperationException("Unable to return partition field: "  + Describer.describe(field));
-
+        throw new UnsupportedOperationException(
+            "Unable to return partition field: " + Describer.describe(field));
     }
   }
 
@@ -103,7 +115,7 @@ public class PartitionImplicitColumnValuesProvider implements ImplicitColumnValu
   }
 
   private static Integer getInt(PartitionProtobuf.PartitionValue partitionValue) {
-    return partitionValue.hasIntValue()? partitionValue.getIntValue() : null;
+    return partitionValue.hasIntValue() ? partitionValue.getIntValue() : null;
   }
 
   private static Long getLong(PartitionProtobuf.PartitionValue partitionValue) {

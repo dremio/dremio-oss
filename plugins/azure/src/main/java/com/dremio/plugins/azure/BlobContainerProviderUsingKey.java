@@ -15,19 +15,17 @@
  */
 package com.dremio.plugins.azure;
 
+import com.google.common.base.Suppliers;
+import com.microsoft.azure.storage.blob.CloudBlobClient;
 import java.net.URI;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Suppliers;
-import com.microsoft.azure.storage.blob.CloudBlobClient;
-
 /**
- * BlobContainerProvider that manages lifecycle of the client to Microsoft Azure Blob service. The client
- * is refreshed every time on every lookup.
+ * BlobContainerProvider that manages lifecycle of the client to Microsoft Azure Blob service. The
+ * client is refreshed every time on every lookup.
  */
 public class BlobContainerProviderUsingKey extends BaseBlobContainerProvider {
   private static final Logger logger = LoggerFactory.getLogger(BlobContainerProviderUsingKey.class);
@@ -37,24 +35,27 @@ public class BlobContainerProviderUsingKey extends BaseBlobContainerProvider {
   private volatile Supplier<CloudBlobClient> cloudBlobClient;
 
   public BlobContainerProviderUsingKey(
-    AzureStorageFileSystem parent,
-    URI connection,
-    String account,
-    String[] containers,
-    AzureStorageCredentials credentials
-  ) {
+      AzureStorageFileSystem parent,
+      URI connection,
+      String account,
+      String[] containers,
+      AzureStorageCredentials credentials) {
     super(parent, connection, account, containers);
     this.credentials = credentials;
   }
 
   @Override
   protected CloudBlobClient getCloudBlobClient() {
-    if (credentials.checkAndUpdateToken()) { //TODO (DX-68245): make resilient from multiple consumers using these credentials
-      logger.debug("Storage V1 - Access Key is expired or is about to expire, client has been updated");
-      cloudBlobClient = Suppliers.memoizeWithExpiration(
-        () -> new CloudBlobClient(getConnection(),
-          credentials.exportToStorageCredentials()),
-        30, TimeUnit.MINUTES);
+    if (credentials
+        .checkAndUpdateToken()) { // TODO (DX-68245): make resilient from multiple consumers using
+      // these credentials
+      logger.debug(
+          "Storage V1 - Access Key is expired or is about to expire, client has been updated");
+      cloudBlobClient =
+          Suppliers.memoizeWithExpiration(
+              () -> new CloudBlobClient(getConnection(), credentials.exportToStorageCredentials()),
+              30,
+              TimeUnit.MINUTES);
     }
 
     return cloudBlobClient.get();

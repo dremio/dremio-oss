@@ -15,11 +15,10 @@
  */
 package com.dremio.datastore.api;
 
+import com.dremio.datastore.KVAdmin;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-
-import com.dremio.datastore.KVAdmin;
 
 /**
  * A sorted key value store abstraction
@@ -38,22 +37,20 @@ public interface LegacyKVStore<K, V> {
    */
   V get(K key);
 
-
   /**
-   * Get a list of values for each of the keys provided. List is in same order
-   * as original request. Possibly more efficient that looping over the keys in
-   * application code depending on the underlying storage system.
+   * Get a list of values for each of the keys provided. List is in same order as original request.
+   * Possibly more efficient that looping over the keys in application code depending on the
+   * underlying storage system.
    *
-   * @param keys
-   *          Keys to retrieve.
-   * @return list of values with parallel indices to the keys requested. If
-   *         value is not found, the list has a null.
+   * @param keys Keys to retrieve.
+   * @return list of values with parallel indices to the keys requested. If value is not found, the
+   *     list has a null.
    */
   List<V> get(List<K> keys);
 
   /**
-   * Save the provided value under the key. If the store already contains a value
-   * associated with the key, the old value is discarded and replaced by the new value.
+   * Save the provided value under the key. If the store already contains a value associated with
+   * the key, the old value is discarded and replaced by the new value.
    *
    * @param key the key to save the value under
    * @param v the value to save, can not be null.
@@ -62,8 +59,8 @@ public interface LegacyKVStore<K, V> {
   void put(K key, V v);
 
   /**
-   * Indicate if the store contains an entry associated with the key. Return {@code true}
-   * if such a key exist, {@code false} otherwise.
+   * Indicate if the store contains an entry associated with the key. Return {@code true} if such a
+   * key exist, {@code false} otherwise.
    *
    * @param key the key to look for
    * @return true if present, false otherwise
@@ -71,26 +68,24 @@ public interface LegacyKVStore<K, V> {
   boolean contains(K key);
 
   /**
-   * Remove the key, and the associated value from the store. If no such key exist, this
-   * method does nothing.
+   * Remove the key, and the associated value from the store. If no such key exist, this method does
+   * nothing.
    *
    * @param key the key to remove.
    */
   void delete(K key);
 
-
   /**
    * Return a iterable of keys & values for any key within the provided Range
    *
-   * <p>
-   * This function returns a map of key/value present in the store for key comprised
-   * between start and end. Both start and end are not inclusive.
-   * <p>
-   * Although the returned type is not {@code java.util.SortedMap}, keys are returned in the
-   * same order as the store.
-   * <p>
-   * The returned map is independent of the store, so changes to the returned map will not
-   * be reflected into the store.
+   * <p>This function returns a map of key/value present in the store for key comprised between
+   * start and end. Both start and end are not inclusive.
+   *
+   * <p>Although the returned type is not {@code java.util.SortedMap}, keys are returned in the same
+   * order as the store.
+   *
+   * <p>The returned map is independent of the store, so changes to the returned map will not be
+   * reflected into the store.
    *
    * @param start the start key
    * @param includeStart include rows matching start key
@@ -101,16 +96,16 @@ public interface LegacyKVStore<K, V> {
   Iterable<Map.Entry<K, V>> find(LegacyFindByRange<K> find);
 
   /**
-   * Returns all the entries stored in the store. Iterators returned from this
-   * iterable are unmodifiable.
+   * Returns all the entries stored in the store. Iterators returned from this iterable are
+   * unmodifiable.
    *
    * @return a iterable containing all the store entries
    */
   Iterable<Map.Entry<K, V>> find();
 
-
   /**
-   * Delete a key with a particular version. Throw ConccurentModificationException if failure occurs.
+   * Delete a key with a particular version. Throw ConccurentModificationException if failure
+   * occurs.
    *
    * @param key Key to delete.
    * @param previousVersion Previous version to be deleted.
@@ -128,12 +123,14 @@ public interface LegacyKVStore<K, V> {
 
   /**
    * Get an administrative interface for this store.
+   *
    * @return Admin interface.
    */
   KVAdmin getAdmin();
 
   /**
    * Returns the name of the table. Used by the tracing decorator.
+   *
    * @return Name of the underlying table.
    */
   String getName();
@@ -206,9 +203,5 @@ public interface LegacyKVStore<K, V> {
           && Objects.equals(this.start, that.start)
           && Objects.equals(this.end, that.end);
     }
-
-
-
   }
-
 }

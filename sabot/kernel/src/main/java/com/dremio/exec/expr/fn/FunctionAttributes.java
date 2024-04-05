@@ -22,10 +22,7 @@ import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
 import com.dremio.exec.expr.fn.BaseFunctionHolder.ValueReference;
 import com.dremio.exec.expr.fn.BaseFunctionHolder.WorkspaceReference;
 
-/**
- * Attributes of a function
- * Those are used in code generation and optimization.
- */
+/** Attributes of a function Those are used in code generation and optimization. */
 public class FunctionAttributes {
   private final FunctionScope scope;
   private final NullHandling nullHandling;
@@ -40,10 +37,19 @@ public class FunctionAttributes {
   private final FunctionCostCategory costCategory;
   private final OutputDerivation derivation;
 
-  public FunctionAttributes(FunctionScope scope, NullHandling nullHandling, boolean isBinaryCommutative,
-      boolean isDeterministic, boolean isDynamic, FunctionSyntax syntax, String[] registeredNames,
-      ValueReference[] parameters, ValueReference returnValue, WorkspaceReference[] workspaceVars,
-      FunctionCostCategory costCategory, OutputDerivation derivation) {
+  public FunctionAttributes(
+      FunctionScope scope,
+      NullHandling nullHandling,
+      boolean isBinaryCommutative,
+      boolean isDeterministic,
+      boolean isDynamic,
+      FunctionSyntax syntax,
+      String[] registeredNames,
+      ValueReference[] parameters,
+      ValueReference returnValue,
+      WorkspaceReference[] workspaceVars,
+      FunctionCostCategory costCategory,
+      OutputDerivation derivation) {
     super();
     this.scope = scope;
     this.nullHandling = nullHandling;
@@ -111,6 +117,4 @@ public class FunctionAttributes {
   public FunctionCostCategory getCostCategory() {
     return costCategory;
   }
-
-
 }

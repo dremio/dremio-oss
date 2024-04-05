@@ -19,7 +19,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 public enum IcebergFileType {
-  DATA(0),              // Data file
+  DATA(0), // Data file
   POSITION_DELETES(1),
   EQUALITY_DELETES(2),
   MANIFEST(3),
@@ -28,7 +28,6 @@ public enum IcebergFileType {
   METADATA_JSON(6),
   OTHER(7);
 
-
   public final Integer id;
 
   IcebergFileType(Integer id) {
@@ -36,6 +35,7 @@ public enum IcebergFileType {
   }
 
   private static final Map<Integer, IcebergFileType> IDS = new HashMap<>();
+
   static {
     for (IcebergFileType type : values()) {
       IDS.put(type.id, type);
@@ -43,6 +43,7 @@ public enum IcebergFileType {
   }
 
   private static final Map<String, IcebergFileType> NAMES = new HashMap<>();
+
   static {
     for (IcebergFileType type : values()) {
       NAMES.put(type.name().toLowerCase(), type);

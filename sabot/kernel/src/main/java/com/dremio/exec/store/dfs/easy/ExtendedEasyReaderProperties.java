@@ -17,9 +17,7 @@ package com.dremio.exec.store.dfs.easy;
 
 import com.dremio.exec.physical.config.ExtendedFormatOptions;
 
-/**
- * Holds extra properties require to construct RecordReaders
- */
+/** Holds extra properties require to construct RecordReaders */
 public final class ExtendedEasyReaderProperties {
   private final boolean schemaImposed;
   private final ExtendedFormatOptions extendedFormatOptions;

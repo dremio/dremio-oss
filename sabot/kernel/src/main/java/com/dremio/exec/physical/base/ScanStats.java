@@ -17,9 +17,11 @@ package com.dremio.exec.physical.base;
 
 public class ScanStats {
 
-  public static final ScanStats TRIVIAL_TABLE = new ScanStats(GroupScanProperty.NO_EXACT_ROW_COUNT, 20, 1, 1);
+  public static final ScanStats TRIVIAL_TABLE =
+      new ScanStats(GroupScanProperty.NO_EXACT_ROW_COUNT, 20, 1, 1);
 
-  public static final ScanStats ZERO_RECORD_TABLE = new ScanStats(GroupScanProperty.EXACT_ROW_COUNT, 0, 1, 1);
+  public static final ScanStats ZERO_RECORD_TABLE =
+      new ScanStats(GroupScanProperty.EXACT_ROW_COUNT, 0, 1, 1);
 
   private final long recordCount;
   private final float cpuCost;
@@ -47,23 +49,20 @@ public class ScanStats {
   }
 
   /**
-   * Return if GroupScan knows the exact row count in the result of getSize() call.
-   * By default, groupscan does not know the exact row count, before it scans every rows.
-   * Currently, parquet group scan will return the exact row count.
+   * Return if GroupScan knows the exact row count in the result of getSize() call. By default,
+   * groupscan does not know the exact row count, before it scans every rows. Currently, parquet
+   * group scan will return the exact row count.
    */
   public GroupScanProperty getGroupScanProperty() {
     return property;
   }
 
-
-
   public static enum GroupScanProperty {
     NO_EXACT_ROW_COUNT(false, false),
     EXACT_ROW_COUNT(true, true);
-
     private boolean hasExactRowCount, hasExactColumnValueCount;
 
-    GroupScanProperty (boolean hasExactRowCount, boolean hasExactColumnValueCount) {
+    GroupScanProperty(boolean hasExactRowCount, boolean hasExactColumnValueCount) {
       this.hasExactRowCount = hasExactRowCount;
       this.hasExactColumnValueCount = hasExactColumnValueCount;
     }

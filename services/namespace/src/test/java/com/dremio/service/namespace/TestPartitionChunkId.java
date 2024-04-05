@@ -18,27 +18,31 @@ package com.dremio.service.namespace;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
-import org.junit.Test;
-
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.PartitionChunk;
 import com.dremio.service.namespace.dataset.proto.ReadDefinition;
 import com.dremio.service.namespace.proto.EntityId;
+import org.junit.Test;
 
-/**
- * Test for split id
- */
+/** Test for split id */
 public class TestPartitionChunkId {
 
   @Test
   public void testIdFromConfig() throws Exception {
-    DatasetConfig datasetConfig = new DatasetConfig()
-      .setId(new EntityId().setId("ds1"))
-      .setReadDefinition(new ReadDefinition().setSplitVersion(0L));
+    DatasetConfig datasetConfig =
+        new DatasetConfig()
+            .setId(new EntityId().setId("ds1"))
+            .setReadDefinition(new ReadDefinition().setSplitVersion(0L));
 
-    PartitionChunkId split1 = PartitionChunkId.of(datasetConfig, PartitionChunk.newBuilder().setSplitKey("s1").build(), 0L);
-    PartitionChunkId split2 = PartitionChunkId.of(datasetConfig, PartitionChunk.newBuilder().setSplitKey("s2").build(), 0L);
-    PartitionChunkId split3 = PartitionChunkId.of(datasetConfig, PartitionChunk.newBuilder().setSplitKey("s3").build(), 0L);
+    PartitionChunkId split1 =
+        PartitionChunkId.of(
+            datasetConfig, PartitionChunk.newBuilder().setSplitKey("s1").build(), 0L);
+    PartitionChunkId split2 =
+        PartitionChunkId.of(
+            datasetConfig, PartitionChunk.newBuilder().setSplitKey("s2").build(), 0L);
+    PartitionChunkId split3 =
+        PartitionChunkId.of(
+            datasetConfig, PartitionChunk.newBuilder().setSplitKey("s3").build(), 0L);
 
     assertEquals("ds1_0_s1", split1.getSplitId());
     assertEquals("ds1_0_s2", split2.getSplitId());
@@ -47,13 +51,20 @@ public class TestPartitionChunkId {
 
   @Test
   public void testIdWithUnderscoreFromConfig() throws Exception {
-    DatasetConfig datasetConfig = new DatasetConfig()
-      .setId(new EntityId().setId("ds1_test"))
-      .setReadDefinition(new ReadDefinition().setSplitVersion(0L));
+    DatasetConfig datasetConfig =
+        new DatasetConfig()
+            .setId(new EntityId().setId("ds1_test"))
+            .setReadDefinition(new ReadDefinition().setSplitVersion(0L));
 
-    PartitionChunkId split1 = PartitionChunkId.of(datasetConfig, PartitionChunk.newBuilder().setSplitKey("s1").build(), 0L);
-    PartitionChunkId split2 = PartitionChunkId.of(datasetConfig, PartitionChunk.newBuilder().setSplitKey("s2").build(), 0L);
-    PartitionChunkId split3 = PartitionChunkId.of(datasetConfig, PartitionChunk.newBuilder().setSplitKey("s3").build(), 0L);
+    PartitionChunkId split1 =
+        PartitionChunkId.of(
+            datasetConfig, PartitionChunk.newBuilder().setSplitKey("s1").build(), 0L);
+    PartitionChunkId split2 =
+        PartitionChunkId.of(
+            datasetConfig, PartitionChunk.newBuilder().setSplitKey("s2").build(), 0L);
+    PartitionChunkId split3 =
+        PartitionChunkId.of(
+            datasetConfig, PartitionChunk.newBuilder().setSplitKey("s3").build(), 0L);
 
     assertEquals("ds1%5Ftest_0_s1", split1.getSplitId());
     assertEquals("ds1%5Ftest_0_s2", split2.getSplitId());
@@ -62,13 +73,20 @@ public class TestPartitionChunkId {
 
   @Test
   public void testIdWithPercentageFromConfig() throws Exception {
-    DatasetConfig datasetConfig = new DatasetConfig()
-      .setId(new EntityId().setId("ds1%test"))
-      .setReadDefinition(new ReadDefinition().setSplitVersion(0L));
+    DatasetConfig datasetConfig =
+        new DatasetConfig()
+            .setId(new EntityId().setId("ds1%test"))
+            .setReadDefinition(new ReadDefinition().setSplitVersion(0L));
 
-    PartitionChunkId split1 = PartitionChunkId.of(datasetConfig, PartitionChunk.newBuilder().setSplitKey("s1").build(), 0L);
-    PartitionChunkId split2 = PartitionChunkId.of(datasetConfig, PartitionChunk.newBuilder().setSplitKey("s2").build(), 0L);
-    PartitionChunkId split3 = PartitionChunkId.of(datasetConfig, PartitionChunk.newBuilder().setSplitKey("s3").build(), 0L);
+    PartitionChunkId split1 =
+        PartitionChunkId.of(
+            datasetConfig, PartitionChunk.newBuilder().setSplitKey("s1").build(), 0L);
+    PartitionChunkId split2 =
+        PartitionChunkId.of(
+            datasetConfig, PartitionChunk.newBuilder().setSplitKey("s2").build(), 0L);
+    PartitionChunkId split3 =
+        PartitionChunkId.of(
+            datasetConfig, PartitionChunk.newBuilder().setSplitKey("s3").build(), 0L);
 
     assertEquals("ds1%25test_0_s1", split1.getSplitId());
     assertEquals("ds1%25test_0_s2", split2.getSplitId());
@@ -112,5 +130,4 @@ public class TestPartitionChunkId {
     } catch (IllegalArgumentException e) {
     }
   }
-
 }

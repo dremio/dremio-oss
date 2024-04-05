@@ -15,12 +15,10 @@
  */
 package com.dremio.sabot.op.receiver;
 
-import java.util.concurrent.atomic.AtomicBoolean;
-
-import org.apache.arrow.memory.ArrowBuf;
-
 import com.dremio.exec.proto.ExecRPC.FragmentRecordBatch;
 import com.dremio.sabot.exec.rpc.AckSender;
+import java.util.concurrent.atomic.AtomicBoolean;
+import org.apache.arrow.memory.ArrowBuf;
 
 public class RawFragmentBatch implements AutoCloseable {
 

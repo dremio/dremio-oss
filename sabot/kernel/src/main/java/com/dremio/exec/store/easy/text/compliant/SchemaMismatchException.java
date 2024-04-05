@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 package com.dremio.exec.store.easy.text.compliant;
+
 class SchemaMismatchException extends RuntimeException {
 
   public SchemaMismatchException(String message) {

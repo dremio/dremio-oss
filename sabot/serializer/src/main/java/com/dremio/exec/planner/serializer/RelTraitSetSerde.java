@@ -15,23 +15,19 @@
  */
 package com.dremio.exec.planner.serializer;
 
+import com.dremio.plan.serialization.PRelTraitSet;
+import com.google.common.base.Preconditions;
 import java.util.List;
 import java.util.stream.Collectors;
-
 import org.apache.calcite.plan.RelTrait;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelCollation;
 import org.apache.calcite.rel.RelCollations;
 import org.apache.calcite.rel.RelFieldCollation;
 
-import com.dremio.plan.serialization.PRelTraitSet;
-import com.google.common.base.Preconditions;
-
-/**
- * Serde for RelTraitSet
- */
+/** Serde for RelTraitSet */
 public final class RelTraitSetSerde {
-  private RelTraitSetSerde() { }
+  private RelTraitSetSerde() {}
 
   public static RelTraitSet fromProto(PRelTraitSet pRelTraitSet) {
     Preconditions.checkNotNull(pRelTraitSet);
@@ -40,19 +36,17 @@ public final class RelTraitSetSerde {
     boolean isNewFormat = pRelTraitSet.getTraitsCount() != 0;
     if (isNewFormat) {
       assert pRelTraitSet.getLegacyCollationCount() == 0;
-      List<RelTrait> relTraits = pRelTraitSet
-        .getTraitsList()
-        .stream()
-        .map(RelTraitSerde::fromProto)
-        .collect(Collectors.toList());
+      List<RelTrait> relTraits =
+          pRelTraitSet.getTraitsList().stream()
+              .map(RelTraitSerde::fromProto)
+              .collect(Collectors.toList());
       assert relTraitSet.addAll(relTraits);
     } else {
       assert pRelTraitSet.getTraitsCount() == 0;
-      List<RelFieldCollation> relFieldCollations = pRelTraitSet
-        .getLegacyCollationList()
-        .stream()
-        .map(RelFieldCollationSerde::fromProto)
-        .collect(Collectors.toList());
+      List<RelFieldCollation> relFieldCollations =
+          pRelTraitSet.getLegacyCollationList().stream()
+              .map(RelFieldCollationSerde::fromProto)
+              .collect(Collectors.toList());
 
       RelCollation relCollation = RelCollations.of(relFieldCollations);
       assert relTraitSet.add(relCollation);
@@ -65,10 +59,8 @@ public final class RelTraitSetSerde {
     Preconditions.checkNotNull(relTraitSet);
     PRelTraitSet.Builder builder = PRelTraitSet.newBuilder();
     if (relTraitSet.size() != 0) {
-      builder.addAllTraits(relTraitSet
-        .stream()
-        .map(RelTraitSerde::toProto)
-        .collect(Collectors.toList()));
+      builder.addAllTraits(
+          relTraitSet.stream().map(RelTraitSerde::toProto).collect(Collectors.toList()));
     }
 
     return builder.build();

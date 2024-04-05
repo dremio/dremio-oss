@@ -19,91 +19,98 @@ import static com.dremio.plugins.elastic.ElasticsearchType.KEYWORD;
 import static com.dremio.plugins.elastic.ElasticsearchType.TEXT;
 import static org.junit.Assume.assumeFalse;
 
+import com.dremio.common.util.TestTools;
+import com.dremio.plugins.elastic.ElasticBaseTestQuery.AllowPushdownNormalizedOrAnalyzedFields;
+import com.google.common.collect.ImmutableMap;
 import java.util.concurrent.TimeUnit;
-
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestRule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.common.util.TestTools;
-import com.dremio.plugins.elastic.ElasticBaseTestQuery.AllowPushdownNormalizedOrAnalyzedFields;
-import com.google.common.collect.ImmutableMap;
-
 @AllowPushdownNormalizedOrAnalyzedFields(enabled = true)
 public class ITTestPushdownNormalized extends ElasticBaseTestQuery {
 
   private static final Logger logger = LoggerFactory.getLogger(ITTestPushdownNormalized.class);
 
-  @Rule
-  public final TestRule timeoutRule = TestTools.getTimeoutRule(120, TimeUnit.SECONDS);
+  @Rule public final TestRule timeoutRule = TestTools.getTimeoutRule(120, TimeUnit.SECONDS);
 
   @Test
   public void testLikeOnAnalyzedText() throws Exception {
-    ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
-        new ElasticsearchCluster.ColumnData("city_analyzed", TEXT,
-            new Object[][]{
-                {"cambridge"},
-                {"San Francisco"},
-                {"San Diego"},
-                {"Cambridge"},
-                {"San Francisco"}
-            })
-    };
+    ElasticsearchCluster.ColumnData[] data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "city_analyzed",
+              TEXT,
+              new Object[][] {
+                {"cambridge"}, {"San Francisco"}, {"San Diego"}, {"Cambridge"}, {"San Francisco"}
+              })
+        };
 
     elastic.load(schema, table, data);
 
-    String sql = String.format("select city_analyzed from elasticsearch.%s.%s where city_analyzed like '%%Cambridge%%' ", schema, table);
+    String sql =
+        String.format(
+            "select city_analyzed from elasticsearch.%s.%s where city_analyzed like '%%Cambridge%%' ",
+            schema, table);
     testBuilder()
-            .sqlQuery(sql)
-            .unOrdered()
-            .baselineColumns("city_analyzed")
-            .expectsEmptyResultSet()
-            .go();
+        .sqlQuery(sql)
+        .unOrdered()
+        .baselineColumns("city_analyzed")
+        .expectsEmptyResultSet()
+        .go();
 
-    sql = String.format("select city_analyzed from elasticsearch.%s.%s where city_analyzed like '%%cambridge%%' ", schema, table);
+    sql =
+        String.format(
+            "select city_analyzed from elasticsearch.%s.%s where city_analyzed like '%%cambridge%%' ",
+            schema, table);
     testBuilder()
-            .sqlQuery(sql)
-            .unOrdered()
-            .baselineColumns("city_analyzed")
-            .baselineValues("cambridge")
-            .baselineValues("Cambridge")
-            .go();
+        .sqlQuery(sql)
+        .unOrdered()
+        .baselineColumns("city_analyzed")
+        .baselineValues("cambridge")
+        .baselineValues("Cambridge")
+        .go();
   }
 
   @Test
   public void testMatchOnAnalyzedText() throws Exception {
-    ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
-        new ElasticsearchCluster.ColumnData("city_analyzed", TEXT,
-            new Object[][]{
-                {"cambridge"},
-                {"San Francisco"},
-                {"San Diego"},
-                {"Cambridge"},
-                {"San Francisco"}
-            })
-    };
+    ElasticsearchCluster.ColumnData[] data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "city_analyzed",
+              TEXT,
+              new Object[][] {
+                {"cambridge"}, {"San Francisco"}, {"San Diego"}, {"Cambridge"}, {"San Francisco"}
+              })
+        };
 
     elastic.load(schema, table, data);
 
-    String sql = String.format("select city_analyzed from elasticsearch.%s.%s where city_analyzed = 'Cambridge' ", schema, table);
+    String sql =
+        String.format(
+            "select city_analyzed from elasticsearch.%s.%s where city_analyzed = 'Cambridge' ",
+            schema, table);
     testBuilder()
-            .sqlQuery(sql)
-            .unOrdered()
-            .baselineColumns("city_analyzed")
-            .baselineValues("Cambridge")
-            .baselineValues("Cambridge")
-            .go();
+        .sqlQuery(sql)
+        .unOrdered()
+        .baselineColumns("city_analyzed")
+        .baselineValues("Cambridge")
+        .baselineValues("Cambridge")
+        .go();
 
-    sql = String.format("select city_analyzed from elasticsearch.%s.%s where city_analyzed = 'cambridge' ", schema, table);
+    sql =
+        String.format(
+            "select city_analyzed from elasticsearch.%s.%s where city_analyzed = 'cambridge' ",
+            schema, table);
     testBuilder()
-            .sqlQuery(sql)
-            .unOrdered()
-            .baselineColumns("city_analyzed")
-            .baselineValues("cambridge")
-            .baselineValues("cambridge")
-            .go();
+        .sqlQuery(sql)
+        .unOrdered()
+        .baselineColumns("city_analyzed")
+        .baselineValues("cambridge")
+        .baselineValues("cambridge")
+        .go();
   }
 
   @Test
@@ -113,37 +120,42 @@ public class ITTestPushdownNormalized extends ElasticBaseTestQuery {
       assumeFalse(elastic.getMinVersionInCluster().getMinor() <= 2);
     }
 
-    ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
-        new ElasticsearchCluster.ColumnData("city_normalized", KEYWORD,
-            ImmutableMap.of("normalizer", "lowercase_normalizer"),
-            new Object[][]{
-                {"cambridge"},
-                {"San Francisco"},
-                {"San Diego"},
-                {"Cambridge"},
-                {"San Francisco"}
-            })
-    };
+    ElasticsearchCluster.ColumnData[] data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "city_normalized",
+              KEYWORD,
+              ImmutableMap.of("normalizer", "lowercase_normalizer"),
+              new Object[][] {
+                {"cambridge"}, {"San Francisco"}, {"San Diego"}, {"Cambridge"}, {"San Francisco"}
+              })
+        };
 
     elastic.load(schema, table, data);
 
-    String sql = String.format("select city_normalized from elasticsearch.%s.%s where city_normalized like '%%Cambridge%%' ", schema, table);
+    String sql =
+        String.format(
+            "select city_normalized from elasticsearch.%s.%s where city_normalized like '%%Cambridge%%' ",
+            schema, table);
     testBuilder()
-            .sqlQuery(sql)
-            .unOrdered()
-            .baselineColumns("city_normalized")
-            .baselineValues("Cambridge")
-            .baselineValues("cambridge")
-            .go();
+        .sqlQuery(sql)
+        .unOrdered()
+        .baselineColumns("city_normalized")
+        .baselineValues("Cambridge")
+        .baselineValues("cambridge")
+        .go();
 
-    sql = String.format("select city_normalized from elasticsearch.%s.%s where city_normalized like '%%cambridge%%' ", schema, table);
+    sql =
+        String.format(
+            "select city_normalized from elasticsearch.%s.%s where city_normalized like '%%cambridge%%' ",
+            schema, table);
     testBuilder()
-            .sqlQuery(sql)
-            .unOrdered()
-            .baselineColumns("city_normalized")
-            .baselineValues("cambridge")
-            .baselineValues("Cambridge")
-            .go();
+        .sqlQuery(sql)
+        .unOrdered()
+        .baselineColumns("city_normalized")
+        .baselineValues("cambridge")
+        .baselineValues("Cambridge")
+        .go();
   }
 
   @Test
@@ -153,36 +165,41 @@ public class ITTestPushdownNormalized extends ElasticBaseTestQuery {
       assumeFalse(elastic.getMinVersionInCluster().getMinor() <= 2);
     }
 
-    ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
-        new ElasticsearchCluster.ColumnData("city_normalized", KEYWORD,
-            ImmutableMap.of("normalizer", "lowercase_normalizer"),
-            new Object[][]{
-                {"cambridge"},
-                {"San Francisco"},
-                {"San Diego"},
-                {"Cambridge"},
-                {"San Francisco"}
-            })
-    };
+    ElasticsearchCluster.ColumnData[] data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "city_normalized",
+              KEYWORD,
+              ImmutableMap.of("normalizer", "lowercase_normalizer"),
+              new Object[][] {
+                {"cambridge"}, {"San Francisco"}, {"San Diego"}, {"Cambridge"}, {"San Francisco"}
+              })
+        };
 
     elastic.load(schema, table, data);
 
-    String sql = String.format("select city_normalized from elasticsearch.%s.%s where city_normalized = 'Cambridge' ", schema, table);
+    String sql =
+        String.format(
+            "select city_normalized from elasticsearch.%s.%s where city_normalized = 'Cambridge' ",
+            schema, table);
     testBuilder()
-            .sqlQuery(sql)
-            .unOrdered()
-            .baselineColumns("city_normalized")
-            .baselineValues("Cambridge")
-            .baselineValues("Cambridge")
-            .go();
+        .sqlQuery(sql)
+        .unOrdered()
+        .baselineColumns("city_normalized")
+        .baselineValues("Cambridge")
+        .baselineValues("Cambridge")
+        .go();
 
-    sql = String.format("select city_normalized from elasticsearch.%s.%s where city_normalized = 'cambridge' ", schema, table);
+    sql =
+        String.format(
+            "select city_normalized from elasticsearch.%s.%s where city_normalized = 'cambridge' ",
+            schema, table);
     testBuilder()
-            .sqlQuery(sql)
-            .unOrdered()
-            .baselineColumns("city_normalized")
-            .baselineValues("cambridge")
-            .baselineValues("cambridge")
-            .go();
+        .sqlQuery(sql)
+        .unOrdered()
+        .baselineColumns("city_normalized")
+        .baselineValues("cambridge")
+        .baselineValues("cambridge")
+        .go();
   }
 }

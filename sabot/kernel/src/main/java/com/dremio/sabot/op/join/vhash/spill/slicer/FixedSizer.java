@@ -15,19 +15,17 @@
  */
 package com.dremio.sabot.op.join.vhash.spill.slicer;
 
+import com.dremio.exec.expr.TypeHelper;
+import com.dremio.exec.util.RoundUtil;
+import com.dremio.sabot.op.copier.FieldBufferPreAllocedCopier;
+import com.google.common.collect.ImmutableList;
 import java.util.List;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BaseFixedWidthVector;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.ipc.message.ArrowFieldNode;
 import org.apache.arrow.vector.types.Types.MinorType;
-
-import com.dremio.exec.expr.TypeHelper;
-import com.dremio.exec.util.RoundUtil;
-import com.dremio.sabot.op.copier.FieldBufferPreAllocedCopier;
-import com.google.common.collect.ImmutableList;
 
 class FixedSizer implements Sizer {
   private final BaseFixedWidthVector incoming;
@@ -55,47 +53,59 @@ class FixedSizer implements Sizer {
 
   @Override
   public int computeBitsNeeded(ArrowBuf sv2, int startIdx, int len) {
-    return dataSizeInBits == 1 ? 2 * RoundUtil.round64up(len) : RoundUtil.round64up(dataSizeInBits * len) + RoundUtil.round64up(len);
+    return dataSizeInBits == 1
+        ? 2 * RoundUtil.round64up(len)
+        : RoundUtil.round64up(dataSizeInBits * len) + RoundUtil.round64up(len);
   }
 
   @Override
-  public int getSizeInBitsStartingFromOrdinal(final int ordinal, final int numberOfRecords){
-    if (dataSizeInBits == 1 ){
-      //numberOfRecords number of bits to store data buffer + numberOfRecords number of bits to store validity bitmap buffer
+  public int getSizeInBitsStartingFromOrdinal(final int ordinal, final int numberOfRecords) {
+    if (dataSizeInBits == 1) {
+      // numberOfRecords number of bits to store data buffer + numberOfRecords number of bits to
+      // store validity bitmap buffer
       return 2 * RoundUtil.round64up(numberOfRecords);
     } else {
-      final int dataBits = RoundUtil.round64up(dataSizeInBits * numberOfRecords); //data buffer
-      final int validityBits = Sizer.getValidityBufferSizeInBits(numberOfRecords);//validity buffer
+      final int dataBits = RoundUtil.round64up(dataSizeInBits * numberOfRecords); // data buffer
+      final int validityBits =
+          Sizer.getValidityBufferSizeInBits(numberOfRecords); // validity buffer
 
       return dataBits + validityBits;
     }
   }
 
   @Override
-  public Copier getCopier(BufferAllocator allocator, ArrowBuf sv2, int startIdx, int count, List<FieldVector> vectorOutput) {
-    final FieldVector outgoing = (FieldVector) incoming.getTransferPair(allocator).getTo();
+  public Copier getCopier(
+      BufferAllocator allocator,
+      ArrowBuf sv2,
+      int startIdx,
+      int count,
+      List<FieldVector> vectorOutput) {
+    final FieldVector outgoing =
+        (FieldVector) incoming.getTransferPair(incoming.getField(), allocator).getTo();
     vectorOutput.add(outgoing);
     sv2.checkBytes(startIdx * SV2_SIZE_BYTES, (startIdx + count) * SV2_SIZE_BYTES);
-    return  page -> {
+    return page -> {
       int totalSize = computeBitsNeeded(sv2, startIdx, count) / BYTE_SIZE_BITS;
 
       final int validityLen = RoundUtil.round64up(count) / BYTE_SIZE_BITS;
       final int dataLen = totalSize - validityLen;
 
       try (final ArrowBuf validityBuf = page.sliceAligned(validityLen);
-           final ArrowBuf dataBuf = page.sliceAligned(dataLen)) {
-        // The bit copiers do ORs to set the bits, and expect that the buffer is zero-filled to begin with.
+          final ArrowBuf dataBuf = page.sliceAligned(dataLen)) {
+        // The bit copiers do ORs to set the bits, and expect that the buffer is zero-filled to
+        // begin with.
         validityBuf.setZero(0, validityLen);
         if (dataSizeInBits == 1) {
           dataBuf.setZero(0, dataLen);
         }
 
-        outgoing.loadFieldBuffers(new ArrowFieldNode(count, -1),
-          ImmutableList.of(validityBuf, dataBuf));
+        outgoing.loadFieldBuffers(
+            new ArrowFieldNode(count, -1), ImmutableList.of(validityBuf, dataBuf));
 
         // copy data.
-        FieldBufferPreAllocedCopier.getCopiers(ImmutableList.of(incoming), ImmutableList.of(outgoing))
-          .forEach(copier -> copier.copy(sv2.memoryAddress() + startIdx * SV2_SIZE_BYTES, count));
+        FieldBufferPreAllocedCopier.getCopiers(
+                ImmutableList.of(incoming), ImmutableList.of(outgoing))
+            .forEach(copier -> copier.copy(sv2.memoryAddress() + startIdx * SV2_SIZE_BYTES, count));
 
         assert outgoing.getValidityBufferAddress() == validityBuf.memoryAddress();
         assert outgoing.getDataBufferAddress() == dataBuf.memoryAddress();

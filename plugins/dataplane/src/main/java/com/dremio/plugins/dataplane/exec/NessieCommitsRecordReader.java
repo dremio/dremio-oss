@@ -19,24 +19,6 @@ import static com.dremio.exec.store.IcebergExpiryMetric.NUM_ACCESS_DENIED;
 import static com.dremio.exec.store.IcebergExpiryMetric.NUM_NOT_FOUND;
 import static com.dremio.exec.store.IcebergExpiryMetric.NUM_PARTIAL_FAILURES;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-
-import org.apache.arrow.vector.BigIntVector;
-import org.apache.arrow.vector.VarCharVector;
-import org.apache.iceberg.Snapshot;
-import org.apache.iceberg.TableMetadataParser;
-import org.apache.iceberg.exceptions.NotFoundException;
-import org.apache.iceberg.io.FileIO;
-import org.projectnessie.gc.contents.ContentReference;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.proto.UserBitShared;
@@ -50,10 +32,24 @@ import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Stopwatch;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.apache.arrow.vector.BigIntVector;
+import org.apache.arrow.vector.VarCharVector;
+import org.apache.iceberg.Snapshot;
+import org.apache.iceberg.TableMetadataParser;
+import org.apache.iceberg.exceptions.NotFoundException;
+import org.apache.iceberg.io.FileIO;
+import org.projectnessie.gc.contents.ContentReference;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * Scans all live Nessie contents, and outputs the metadata locations for each one of them.
- */
+/** Scans all live Nessie contents, and outputs the metadata locations for each one of them. */
 public class NessieCommitsRecordReader extends AbstractNessieCommitRecordsReader {
   private static final Logger LOGGER = LoggerFactory.getLogger(NessieCommitsRecordReader.class);
 
@@ -63,9 +59,8 @@ public class NessieCommitsRecordReader extends AbstractNessieCommitRecordsReader
   private FileIO io = null;
   private final ExecutorService opExecService;
 
-  public NessieCommitsRecordReader(FragmentExecutionContext fec,
-                                   OperatorContext context,
-                                   NessieCommitsSubScan config) {
+  public NessieCommitsRecordReader(
+      FragmentExecutionContext fec, OperatorContext context, NessieCommitsSubScan config) {
     super(fec, context, config);
     opExecService = context.getExecutor();
   }
@@ -80,18 +75,23 @@ public class NessieCommitsRecordReader extends AbstractNessieCommitRecordsReader
   }
 
   @Override
-  protected CompletableFuture<Optional<SnapshotEntry>> getEntries(AtomicInteger idx, ContentReference contentReference) {
+  protected CompletableFuture<Optional<SnapshotEntry>> getEntries(
+      AtomicInteger idx, ContentReference contentReference) {
     return CompletableFuture.supplyAsync(
-      () -> tryLoadSnapshot(contentReference).map(s -> new SnapshotEntry(contentReference.metadataLocation(), s)),
-      opExecService);
+        () ->
+            tryLoadSnapshot(contentReference)
+                .map(s -> new SnapshotEntry(contentReference.metadataLocation(), s)),
+        opExecService);
   }
 
   @Override
   protected void populateOutputVectors(AtomicInteger idx, SnapshotEntry snapshot) {
     final int idxVal = idx.getAndIncrement();
-    metadataFilePathOutVector.setSafe(idxVal, snapshot.getMetadataJsonPath().getBytes(StandardCharsets.UTF_8));
+    metadataFilePathOutVector.setSafe(
+        idxVal, snapshot.getMetadataJsonPath().getBytes(StandardCharsets.UTF_8));
     snapshotIdOutVector.setSafe(idxVal, snapshot.getSnapshotId());
-    manifestListPathOutVector.setSafe(idxVal, snapshot.getManifestListPath().getBytes(StandardCharsets.UTF_8));
+    manifestListPathOutVector.setSafe(
+        idxVal, snapshot.getManifestListPath().getBytes(StandardCharsets.UTF_8));
   }
 
   @Override
@@ -105,18 +105,32 @@ public class NessieCommitsRecordReader extends AbstractNessieCommitRecordsReader
     if (contentReference.snapshotId() == null || contentReference.snapshotId() == -1) {
       return Optional.empty();
     }
-    String tableId = String.format("%s@%d AT %s", contentReference.contentKey(), contentReference.snapshotId(), contentReference.commitId());
+    String tableId =
+        String.format(
+            "%s@%d AT %s",
+            contentReference.contentKey(),
+            contentReference.snapshotId(),
+            contentReference.commitId());
     Stopwatch loadTime = Stopwatch.createStarted();
     try {
-      return Optional.of(loadSnapshot(contentReference.metadataLocation(), contentReference.snapshotId()));
+      return Optional.of(
+          loadSnapshot(contentReference.metadataLocation(), contentReference.snapshotId()));
     } catch (NotFoundException nfe) {
-      LOGGER.warn(String.format("Skipping table [%s] since table metadata is not found [metadata=%s]", tableId, contentReference.metadataLocation()), nfe);
+      LOGGER.warn(
+          String.format(
+              "Skipping table [%s] since table metadata is not found [metadata=%s]",
+              tableId, contentReference.metadataLocation()),
+          nfe);
       getContext().getStats().addLongStat(NUM_PARTIAL_FAILURES, 1L);
       getContext().getStats().addLongStat(NUM_NOT_FOUND, 1L);
       return Optional.empty();
     } catch (UserException e) {
       if (UserBitShared.DremioPBError.ErrorType.PERMISSION.equals(e.getErrorType())) {
-        LOGGER.warn(String.format("Skipping table [%s] since access to table metadata is denied [metadata=%s]", tableId, contentReference.metadataLocation()), e);
+        LOGGER.warn(
+            String.format(
+                "Skipping table [%s] since access to table metadata is denied [metadata=%s]",
+                tableId, contentReference.metadataLocation()),
+            e);
         getContext().getStats().addLongStat(NUM_PARTIAL_FAILURES, 1L);
         getContext().getStats().addLongStat(NUM_ACCESS_DENIED, 1L);
         return Optional.empty();
@@ -124,11 +138,19 @@ public class NessieCommitsRecordReader extends AbstractNessieCommitRecordsReader
 
       throw e;
     } catch (IOException ioe) {
-      throw UserException.ioExceptionError(ioe).message("Error while loading the snapshot %d from table %s on commit %s",
-        contentReference.snapshotId(), contentReference.contentKey(), contentReference.commitId()).build();
+      throw UserException.ioExceptionError(ioe)
+          .message(
+              "Error while loading the snapshot %d from table %s on commit %s",
+              contentReference.snapshotId(),
+              contentReference.contentKey(),
+              contentReference.commitId())
+          .build();
     } finally {
       LOGGER.debug("{} load time {}ms", tableId, loadTime.elapsed(TimeUnit.MILLISECONDS));
-      getContext().getStats().addLongStat(IcebergExpiryMetric.SNAPSHOT_LOAD_TIME, loadTime.elapsed(TimeUnit.MILLISECONDS));
+      getContext()
+          .getStats()
+          .addLongStat(
+              IcebergExpiryMetric.SNAPSHOT_LOAD_TIME, loadTime.elapsed(TimeUnit.MILLISECONDS));
     }
   }
 
@@ -139,9 +161,14 @@ public class NessieCommitsRecordReader extends AbstractNessieCommitRecordsReader
 
   private FileIO io(String metadataLocation) throws IOException {
     if (io == null) {
-      FileSystem fs = getPlugin().createFSWithAsyncOptions(metadataLocation, getConfig().getProps().getUserName(),
-        getContext());
-      io = getPlugin().createIcebergFileIO(fs, getContext(), null, getConfig().getPluginId().getName(), null);
+      FileSystem fs =
+          getPlugin()
+              .createFSWithAsyncOptions(
+                  metadataLocation, getConfig().getProps().getUserName(), getContext());
+      io =
+          getPlugin()
+              .createIcebergFileIO(
+                  fs, getContext(), null, getConfig().getPluginId().getName(), null);
     }
     return io;
   }

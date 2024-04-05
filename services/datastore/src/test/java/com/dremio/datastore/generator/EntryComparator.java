@@ -33,8 +33,8 @@ public class EntryComparator<K, V> implements Comparator<Map.Entry<K, V>> {
 
   @Override
   public int compare(Map.Entry<K, V> o1, Map.Entry<K, V> o2) {
-    return (formatComparator == null)?
-      ((Comparable) o1.getKey()).compareTo(o2.getKey()) :
-      formatComparator.compare(o1.getKey(), o2.getKey());
+    return (formatComparator == null)
+        ? ((Comparable) o1.getKey()).compareTo(o2.getKey())
+        : formatComparator.compare(o1.getKey(), o2.getKey());
   }
 }

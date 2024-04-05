@@ -15,9 +15,11 @@
  */
 import Immutable from "immutable";
 import { Component } from "react";
+import { compose } from "redux";
 import { connect } from "react-redux";
+import Message from "@app/components/Message";
 import PropTypes from "prop-types";
-
+import { getActiveScriptPermissions } from "selectors/scripts";
 import {
   setResizeProgressState,
   updateSqlPartSize,
@@ -25,6 +27,8 @@ import {
 } from "./../../../actions/explore/ui";
 import { showNavCrumbs } from "@inject/components/NavCrumbs/NavCrumbs";
 import SqlEditorController from "./SqlEditor/SqlEditorController";
+import { withIsMultiTabEnabled } from "@app/components/SQLScripts/useMultiTabIsEnabled";
+import { intl } from "@app/utils/intl";
 import "./TopSplitterContent.less";
 
 const MIN_SQL_HEIGHT = 80;
@@ -159,11 +163,24 @@ export class TopSplitterContent extends Component {
       sqlState,
       sqlSize,
       sidebarCollapsed,
+      activeScriptPermissions,
+      isMultiTabEnabled,
     } = this.props;
-
     return (
       <div className="topContent">
         <>
+          {isMultiTabEnabled &&
+            activeScriptPermissions &&
+            !activeScriptPermissions.includes("MODIFY") && (
+              <Message
+                message={intl.formatMessage({
+                  id: "Script.ReadOnly.Warning.Message",
+                })}
+                messageType="warning"
+                isDismissable={false}
+                className="warning-message"
+              />
+            )}
           <SqlEditorController
             dataset={dataset}
             dragType={dragType}
@@ -202,14 +219,22 @@ export class TopSplitterContent extends Component {
     );
   }
 }
+const mapStateToProps = (state) => {
+  return {
+    activeScriptPermissions: getActiveScriptPermissions(state),
+  };
+};
 
-export default connect(
-  null,
-  {
-    updateSqlPartSize,
-    setResizeProgressState,
-    toggleExploreSql,
-  },
-  null,
-  { forwardRef: true }
+export default compose(
+  connect(
+    mapStateToProps,
+    {
+      updateSqlPartSize,
+      setResizeProgressState,
+      toggleExploreSql,
+    },
+    null,
+    { forwardRef: true }
+  ),
+  withIsMultiTabEnabled
 )(TopSplitterContent);

@@ -15,16 +15,13 @@
  */
 package com.dremio.exec.planner.sql;
 
+import com.dremio.BaseTestQuery;
+import com.dremio.exec.ExecConstants;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import com.dremio.BaseTestQuery;
-import com.dremio.exec.ExecConstants;
-
-/**
- * Test OPTIMIZE TABLE scenarios for Iceberg V2 tables with row-level-delete files
- */
+/** Test OPTIMIZE TABLE scenarios for Iceberg V2 tables with row-level-delete files */
 public class ITOptimizeV2TableWithPositionalDeletes extends BaseTestQuery {
 
   @BeforeClass
@@ -37,8 +34,9 @@ public class ITOptimizeV2TableWithPositionalDeletes extends BaseTestQuery {
 
   @AfterClass
   public static void tearDown() throws Exception {
-    setSystemOption(ExecConstants.PARQUET_READER_VECTORIZE,
-      ExecConstants.PARQUET_READER_VECTORIZE.getDefault().getBoolVal().toString());
+    setSystemOption(
+        ExecConstants.PARQUET_READER_VECTORIZE,
+        ExecConstants.PARQUET_READER_VECTORIZE.getDefault().getBoolVal().toString());
   }
 
   @Test

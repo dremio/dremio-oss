@@ -22,18 +22,18 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.sabot.op.spi.ProducerOperator;
 
-/**
- * Creates operators from scans that are in a separate ClassLoader.
- */
+/** Creates operators from scans that are in a separate ClassLoader. */
 public class HiveProxyingScanBatchCreator implements ProducerOperator.Creator<HiveProxyingSubScan> {
 
   @Override
-  public ProducerOperator create(FragmentExecutionContext fragmentExecContext, OperatorContext context,
-                                 HiveProxyingSubScan config) throws ExecutionSetupException {
+  public ProducerOperator create(
+      FragmentExecutionContext fragmentExecContext,
+      OperatorContext context,
+      HiveProxyingSubScan config)
+      throws ExecutionSetupException {
     final SupportsPF4JStoragePlugin pf4JStoragePlugin =
-      fragmentExecContext.getStoragePlugin(config.getPluginId());
-    final StoragePluginCreator.PF4JStoragePlugin plugin =
-      pf4JStoragePlugin.getPF4JStoragePlugin();
+        fragmentExecContext.getStoragePlugin(config.getPluginId());
+    final StoragePluginCreator.PF4JStoragePlugin plugin = pf4JStoragePlugin.getPF4JStoragePlugin();
 
     return plugin.createScanBatchCreator(fragmentExecContext, context, config).create();
   }

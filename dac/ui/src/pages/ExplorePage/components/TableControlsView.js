@@ -21,7 +21,7 @@ import Immutable from "immutable";
 import { injectIntl } from "react-intl";
 
 import ExploreTableColumnFilter from "pages/ExplorePage/components/ExploreTable/ExploreTableColumnFilter";
-import { Button, Tooltip } from "dremio-ui-lib";
+import { Button, Tooltip } from "dremio-ui-lib/components";
 import ExploreCopyTableButton from "@app/pages/ExplorePage/components/ExploreTable/ExploreCopyTableButton";
 import modelUtils from "@app/utils/modelUtils";
 import { isSqlChanged } from "@app/sagas/utils";
@@ -31,7 +31,6 @@ import DropdownMenu from "@app/components/Menus/DropdownMenu";
 import { PHYSICAL_DATASET_TYPES } from "@app/constants/datasetTypes";
 import { getSupportFlag } from "@app/exports/endpoints/SupportFlags/getSupportFlag";
 
-import "./TableControls.less";
 import { memoOne } from "@app/utils/memoUtils";
 import {
   columnFilterWrapper,
@@ -42,8 +41,9 @@ import { formatMessage } from "@app/utils/locale";
 import ExploreTableJobStatus from "../components/ExploreTable/ExploreTableJobStatus";
 import { ALLOW_DOWNLOAD } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
 import { getExploreState } from "@app/selectors/explore";
-import { getCurrentSessionJobList } from "@app/selectors/jobs";
+import { getJobSummaries } from "@app/selectors/exploreJobs";
 import Message from "@app/components/Message";
+import "./TableControls.less";
 
 const HIDE_MESSAGE_KEY = "output-limited";
 
@@ -91,7 +91,7 @@ export class TableControlsView extends PureComponent {
     columnFilter: PropTypes.any,
     queryFilter: PropTypes.string,
     isQuerySuccess: PropTypes.bool,
-    jobDetails: PropTypes.object,
+    jobSummary: PropTypes.object,
   };
 
   constructor(props) {
@@ -173,7 +173,7 @@ export class TableControlsView extends PureComponent {
     navigateToExploreDefaultIfNecessary(
       pageType,
       location,
-      this.context.router
+      this.context.router,
     );
   }
 
@@ -256,6 +256,7 @@ export class TableControlsView extends PureComponent {
           color: "#505862",
           paddingLeft: "2px",
         }}
+        selectClass="select-view-wrapper"
         menu={
           <CombinedActionMenu
             dataset={dataset}
@@ -283,9 +284,9 @@ export class TableControlsView extends PureComponent {
   };
 
   renderOutputLimitedMessage() {
-    const { intl, jobDetails } = this.props;
+    const { intl, jobSummary } = this.props;
 
-    if (!jobDetails?.stats?.isOutputLimited) {
+    if (!jobSummary?.outputLimited) {
       return;
     }
 
@@ -296,8 +297,8 @@ export class TableControlsView extends PureComponent {
             id: "Explore.Run.NewWarning",
           },
           {
-            rows: jobDetails.outputRecords?.toLocaleString() ?? "-",
-          }
+            rows: jobSummary.outputRecords.toLocaleString(),
+          },
         )}
         messageType="warning"
         isDismissable
@@ -325,7 +326,6 @@ export class TableControlsView extends PureComponent {
       jobsCount,
       filterQueries,
       isQuerySuccess,
-      jobDetails,
     } = this.props;
 
     return (
@@ -351,17 +351,14 @@ export class TableControlsView extends PureComponent {
                 <>
                   <Button
                     className="controls-addField"
-                    variant="outlined"
-                    color="primary"
-                    size="medium"
+                    variant="secondary"
                     onClick={addField}
-                    disableRipple
                     disabled={disableButtons}
                   >
-                    <Tooltip title="Add Field">
+                    <Tooltip content="Add Column">
                       <dremio-icon
                         name="sql-editor/add-field"
-                        alt="Add Field"
+                        alt="Add Column"
                         class={
                           disableButtons
                             ? "controls-addField-icon--disabled"
@@ -375,14 +372,11 @@ export class TableControlsView extends PureComponent {
                   </Button>
                   <Button
                     className="controls-groupBy"
-                    variant="outlined"
-                    color="primary"
-                    size="medium"
+                    variant="secondary"
                     onClick={groupBy}
-                    disableRipple
                     disabled={disableButtons}
                   >
-                    <Tooltip title="Group By">
+                    <Tooltip content="Group By">
                       <dremio-icon
                         name="sql-editor/group-by"
                         alt="Group By"
@@ -399,14 +393,11 @@ export class TableControlsView extends PureComponent {
                   </Button>
                   <Button
                     className="controls-join"
-                    variant="outlined"
-                    color="primary"
-                    size="small"
+                    variant="secondary"
                     onClick={join}
-                    disableRipple
                     disabled={disableButtons}
                   >
-                    <Tooltip title="Join">
+                    <Tooltip content="Join">
                       <dremio-icon
                         name="sql-editor/join"
                         alt="Join"
@@ -444,7 +435,6 @@ export class TableControlsView extends PureComponent {
                 <ExploreTableJobStatus
                   approximate={approximate}
                   version={version}
-                  jobDetails={jobDetails}
                 />
                 {this.state.allowDownload ? this.renderSavedButton() : ""}
                 {this.state.allowDownload ? this.renderCopyToClipboard() : ""}
@@ -476,10 +466,10 @@ function mapStateToProps(state) {
   const queryStatuses = explorePageState.view.queryStatuses;
   const queryTabNumber = explorePageState.view.queryTabNumber;
   const jobId = queryStatuses[queryTabNumber - 1]?.jobId;
-  const jobDetails = getCurrentSessionJobList(state)?.toJS();
+  const jobSummaries = getJobSummaries(state);
 
   return {
-    jobDetails: jobDetails?.[jobId],
+    jobSummary: jobSummaries[jobId],
   };
 }
 

@@ -17,33 +17,35 @@ package com.dremio.exec.util;
 
 import static com.dremio.common.util.SchemaPathDeserializer.deserializeSchemaPath;
 
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
-
 import com.dremio.common.expression.SchemaPath;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 
-/**
- * Map entry deserializer, specific to the SchemaPath entries.
- */
+/** Map entry deserializer, specific to the SchemaPath entries. */
 public class SchemaPathMapDeserializer extends StdDeserializer<Map<SchemaPath, SchemaPath>> {
   public SchemaPathMapDeserializer() {
     super(Map.class);
   }
 
   @Override
-  public Map<SchemaPath, SchemaPath> deserialize(JsonParser jsonParser, DeserializationContext deserializationContext) throws IOException {
+  public Map<SchemaPath, SchemaPath> deserialize(
+      JsonParser jsonParser, DeserializationContext deserializationContext) throws IOException {
     JsonNode node = jsonParser.getCodec().readTree(jsonParser);
     if (node == null) {
       return null;
     }
     Map<SchemaPath, SchemaPath> deserialized = new HashMap<>();
-    node.fields().forEachRemaining(mapEntry ->
-      deserialized.put(deserializeSchemaPath(mapEntry.getKey()), deserializeSchemaPath(mapEntry.getValue().asText())));
+    node.fields()
+        .forEachRemaining(
+            mapEntry ->
+                deserialized.put(
+                    deserializeSchemaPath(mapEntry.getKey()),
+                    deserializeSchemaPath(mapEntry.getValue().asText())));
     return deserialized;
   }
 }

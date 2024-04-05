@@ -15,16 +15,17 @@
  */
 package com.dremio.common.util;
 
-import java.math.BigDecimal;
-
 import com.dremio.common.types.TypeProtos;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 
 public class CoreDecimalUtility {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CoreDecimalUtility.class);
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(CoreDecimalUtility.class);
 
   public static long getDecimal18FromBigDecimal(BigDecimal input, int scale, int precision) {
     // Truncate or pad to set the input to the correct scale
-    input = input.setScale(scale, BigDecimal.ROUND_HALF_UP);
+    input = input.setScale(scale, RoundingMode.HALF_UP);
 
     return (input.unscaledValue().longValue());
   }
@@ -65,9 +66,10 @@ public class CoreDecimalUtility {
   public static int getPrecisionRange(int precision) {
     return getMaxPrecision(getDecimalDataType(precision));
   }
+
   public static int getDecimal9FromBigDecimal(BigDecimal input, int scale, int precision) {
     // Truncate/ or pad to set the input to the correct scale
-    input = input.setScale(scale, BigDecimal.ROUND_HALF_UP);
+    input = input.setScale(scale, RoundingMode.HALF_UP);
 
     return (input.unscaledValue().intValue());
   }
@@ -80,8 +82,11 @@ public class CoreDecimalUtility {
   }
 
   public static boolean isDecimalType(TypeProtos.MinorType minorType) {
-    if (minorType == TypeProtos.MinorType.DECIMAL || minorType == TypeProtos.MinorType.DECIMAL9 || minorType == TypeProtos.MinorType.DECIMAL18 ||
-        minorType == TypeProtos.MinorType.DECIMAL28SPARSE || minorType == TypeProtos.MinorType.DECIMAL38SPARSE) {
+    if (minorType == TypeProtos.MinorType.DECIMAL
+        || minorType == TypeProtos.MinorType.DECIMAL9
+        || minorType == TypeProtos.MinorType.DECIMAL18
+        || minorType == TypeProtos.MinorType.DECIMAL28SPARSE
+        || minorType == TypeProtos.MinorType.DECIMAL38SPARSE) {
       return true;
     }
     return false;

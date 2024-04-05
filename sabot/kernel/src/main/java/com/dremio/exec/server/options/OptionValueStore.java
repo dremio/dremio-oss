@@ -15,13 +15,6 @@
  */
 package com.dremio.exec.server.options;
 
-import java.io.IOException;
-import java.util.AbstractMap;
-import java.util.Map;
-
-import javax.annotation.Nullable;
-import javax.inject.Provider;
-
 import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.datastore.api.LegacyKVStoreCreationFunction;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
@@ -30,10 +23,13 @@ import com.dremio.options.OptionValue;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
+import java.io.IOException;
+import java.util.AbstractMap;
+import java.util.Map;
+import javax.annotation.Nullable;
+import javax.inject.Provider;
 
-/**
- * KVStore wrapper for handling Jackson serialized OptionValue
- */
+/** KVStore wrapper for handling Jackson serialized OptionValue */
 @Deprecated
 class OptionValueStore {
 
@@ -44,11 +40,13 @@ class OptionValueStore {
   private final InstanceSerializer<OptionValue> serializer;
   private LegacyKVStore<String, byte[]> store;
 
-  public OptionValueStore(final Provider<LegacyKVStoreProvider> storeProvider,
-                          final Class<? extends OptionValueStoreCreator> storeCreatorClass,
-                          final InstanceSerializer<OptionValue> serializer) {
+  public OptionValueStore(
+      final Provider<LegacyKVStoreProvider> storeProvider,
+      final Class<? extends OptionValueStoreCreator> storeCreatorClass,
+      final InstanceSerializer<OptionValue> serializer) {
     this.kvStoreProvider = Preconditions.checkNotNull(storeProvider, "store provider is required");
-    this.storeCreatorClass = Preconditions.checkNotNull(storeCreatorClass, "store creator is required");
+    this.storeCreatorClass =
+        Preconditions.checkNotNull(storeCreatorClass, "store creator is required");
     this.serializer = serializer;
   }
 
@@ -88,11 +86,13 @@ class OptionValueStore {
   }
 
   public Iterable<Map.Entry<String, OptionValue>> getAll() {
-    return Iterables.transform(store.find(), new Function<Map.Entry<String, byte[]>, Map.Entry<String, OptionValue>>() {
-      @Override
-      public Map.Entry<String, OptionValue> apply(@Nullable Map.Entry<String, byte[]> input) {
-        return new AbstractMap.SimpleEntry<>(input.getKey(), deserialize(input.getValue()));
-      }
-    });
+    return Iterables.transform(
+        store.find(),
+        new Function<Map.Entry<String, byte[]>, Map.Entry<String, OptionValue>>() {
+          @Override
+          public Map.Entry<String, OptionValue> apply(@Nullable Map.Entry<String, byte[]> input) {
+            return new AbstractMap.SimpleEntry<>(input.getKey(), deserialize(input.getValue()));
+          }
+        });
   }
 }

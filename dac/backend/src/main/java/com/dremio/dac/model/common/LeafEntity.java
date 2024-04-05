@@ -15,14 +15,9 @@
  */
 package com.dremio.dac.model.common;
 
-
-/**
- *  Base class for names of files, datasets, physical datasets or folders.
- */
+/** Base class for names of files, datasets, physical datasets or folders. */
 public abstract class LeafEntity extends Name {
-  /**
-   * Leaf type
-   */
+  /** Leaf type */
   public enum LeafType {
     FOLDER,
     FILE,

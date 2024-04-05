@@ -20,25 +20,22 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import com.dremio.service.users.SystemUser;
 import org.junit.Test;
 
-import com.dremio.service.users.SystemUser;
-
-/**
- * Tests for ImpersonationUtil
- */
-public class TestImpersonationUtil  {
+/** Tests for ImpersonationUtil */
+public class TestImpersonationUtil {
 
   @Test
   public void testNullUser() {
     assertThatThrownBy(() -> ImpersonationUtil.createProxyUgi(null))
-      .isInstanceOf(IllegalArgumentException.class);
+        .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test
   public void testEmptyUser() {
     assertThatThrownBy(() -> ImpersonationUtil.createProxyUgi(""))
-      .isInstanceOf(IllegalArgumentException.class);
+        .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test

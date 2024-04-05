@@ -15,16 +15,6 @@
  */
 package com.dremio.exec.catalog;
 
-import java.util.ArrayList;
-import java.util.ConcurrentModificationException;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
-
 import com.dremio.common.collections.Tuple;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.connector.ConnectorException;
@@ -40,7 +30,6 @@ import com.dremio.connector.metadata.extensions.SupportsListingDatasets;
 import com.dremio.connector.metadata.extensions.SupportsReadSignature;
 import com.dremio.connector.metadata.extensions.SupportsReadSignature.MetadataValidity;
 import com.dremio.exec.store.DatasetRetrievalOptions;
-import com.dremio.exec.store.metadatarefresh.MetadataRefreshUtils;
 import com.dremio.exec.store.metadatarefresh.SupportsUnlimitedSplits;
 import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.NamespaceException;
@@ -56,14 +45,21 @@ import com.dremio.service.users.SystemUser;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Sets;
-
 import io.protostuff.ByteString;
+import java.util.ArrayList;
+import java.util.ConcurrentModificationException;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.NoSuchElementException;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
-/**
- * Synchronizes metadata from the connector to the namespace.
- */
+/** Synchronizes metadata from the connector to the namespace. */
 public class MetadataSynchronizer {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MetadataSynchronizer.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(MetadataSynchronizer.class);
 
   private static final int NUM_RETRIES = 1;
   private final SyncStatus syncStatus = new SyncStatus(true);
@@ -90,8 +86,7 @@ public class MetadataSynchronizer {
       MetadataPolicy metadataPolicy,
       DatasetSaver saver,
       DatasetRetrievalOptions options,
-      OptionManager optionManager
-  ) {
+      OptionManager optionManager) {
     this.systemNamespace = Preconditions.checkNotNull(systemNamespace);
     this.sourceKey = Preconditions.checkNotNull(sourceKey);
     this.bridge = Preconditions.checkNotNull(bridge);
@@ -106,14 +101,14 @@ public class MetadataSynchronizer {
     this.orphanage = bridge.getOrphanage();
   }
 
-  /**
-   * Set up the synchronizer.
-   */
+  /** Set up the synchronizer. */
   public void setup() throws NamespaceException {
-    Preconditions.checkState(updateMode == UpdateMode.PREFETCH || updateMode == UpdateMode.PREFETCH_QUERIED,
+    Preconditions.checkState(
+        updateMode == UpdateMode.PREFETCH || updateMode == UpdateMode.PREFETCH_QUERIED,
         "only PREFETCH and PREFETCH_QUERIED are supported");
 
-    // Initially we assume all datasets are orphaned, until we discover they still exist in the source
+    // Initially we assume all datasets are orphaned, until we discover they still exist in the
+    // source
     orphanedDatasets = Sets.newHashSet(systemNamespace.getAllDatasets(sourceKey));
     ancestorsToKeep.add(sourceKey);
 
@@ -144,30 +139,35 @@ public class MetadataSynchronizer {
       deleteOrphanedDatasets();
     } catch (ManagedStoragePlugin.StoragePluginChanging e) {
       syncStatus.setInterrupted(true);
-      logger.info("Source '{}' sync aborted due to plugin changing during the sync. Will try again later", sourceKey);
+      logger.info(
+          "Source '{}' sync aborted due to plugin changing during the sync. Will try again later",
+          sourceKey);
     } catch (Exception e) {
       logger.warn("Source '{}' sync failed unexpectedly. Will try again later", sourceKey, e);
     } finally {
       if (!failedDatasets.isEmpty()) {
-        logger.warn("Source '{}' sync failed for {} datasets. Few failed datasets and reasons:\n{}",
+        logger.warn(
+            "Source '{}' sync failed for {} datasets. Few failed datasets and reasons:\n{}",
             sourceKey,
             failedDatasets.size(),
             failedDatasets.stream()
                 .map(tuple -> "\t" + tuple.first + ": " + tuple.second)
                 .limit(10)
-                .collect(Collectors.joining("\n"))
-        );
+                .collect(Collectors.joining("\n")));
       }
       if (logger.isDebugEnabled()) {
-        logger.debug("Source '{}' sync ended. Took {} milliseconds",
-            sourceKey, stopwatch.elapsed(TimeUnit.MILLISECONDS));
+        logger.debug(
+            "Source '{}' sync ended. Took {} milliseconds",
+            sourceKey,
+            stopwatch.elapsed(TimeUnit.MILLISECONDS));
       }
     }
 
     return syncStatus;
   }
 
-  private DatasetHandleListing getDatasetHandleListing(GetDatasetOption... options) throws ConnectorException {
+  private DatasetHandleListing getDatasetHandleListing(GetDatasetOption... options)
+      throws ConnectorException {
     if (sourceMetadata instanceof SupportsListingDatasets) {
       return ((SupportsListingDatasets) sourceMetadata).listDatasetHandles(options);
     }
@@ -176,16 +176,19 @@ public class MetadataSynchronizer {
   }
 
   /**
-   * Brings the namespace up to date by gathering metadata from the source about existing and new datasets.
+   * Brings the namespace up to date by gathering metadata from the source about existing and new
+   * datasets.
    *
    * @throws NamespaceException if it cannot be handled due to namespace error
    * @throws ConnectorException if it cannot be handled due to an error in the source connection
    */
   private void synchronizeDatasets() throws NamespaceException, ConnectorException {
     logger.debug("Source '{}' syncing datasets", sourceKey);
-    try (DatasetHandleListing datasetListing = getDatasetHandleListing(options.asGetDatasetOptions(null))) {
+    try (DatasetHandleListing datasetListing =
+        getDatasetHandleListing(options.asGetDatasetOptions(null))) {
       if (datasetListing instanceof UnsupportedDatasetHandleListing) {
-        logger.debug("Source '{}' does not support listing datasets, assuming all are valid", sourceKey);
+        logger.debug(
+            "Source '{}' does not support listing datasets, assuming all are valid", sourceKey);
         orphanedDatasets.clear();
         return;
       }
@@ -193,18 +196,23 @@ public class MetadataSynchronizer {
       long entityCount = 0L;
       do {
         try {
-          // DX-60601, the current theory is that iterator exit earlier while we still have datasets not refreshed yet.
-          // Hence, it causes them to be deleted following this method. Let's log them for now specifically in
-          // handleExistingDataset when something bad happened to see if we still have datasets to be refreshed.
+          // DX-60601, the current theory is that iterator exit earlier while we still have datasets
+          // not refreshed yet.
+          // Hence, it causes them to be deleted following this method. Let's log them for now
+          // specifically in
+          // handleExistingDataset when something bad happened to see if we still have datasets to
+          // be refreshed.
           if (!iterator.hasNext()) {
             break;
           }
           ++entityCount;
           final DatasetHandle handle = iterator.next();
-          final NamespaceKey datasetKey = MetadataObjectsUtils.toNamespaceKey(handle.getDatasetPath());
+          final NamespaceKey datasetKey =
+              MetadataObjectsUtils.toNamespaceKey(handle.getDatasetPath());
           final boolean existing = orphanedDatasets.remove(datasetKey);
           if (logger.isTraceEnabled()) {
-            logger.trace("Dataset '{}' sync started ({})", datasetKey, existing ? "existing" : "new");
+            logger.trace(
+                "Dataset '{}' sync started ({})", datasetKey, existing ? "existing" : "new");
           }
           if (existing) {
             addAncestors(datasetKey, ancestorsToKeep);
@@ -213,8 +221,12 @@ public class MetadataSynchronizer {
             handleNewDataset(datasetKey, handle);
           }
         } catch (DatasetMetadataTooLargeException e) {
-          final boolean existing = orphanedDatasets.remove(new NamespaceKey(PathUtils.parseFullPath(e.getMessage())));
-          logger.error("Dataset {} sync failed ({}) due to Metadata too large. Please check.", e.getMessage(), existing ? "existing" : "new");
+          final boolean existing =
+              orphanedDatasets.remove(new NamespaceKey(PathUtils.parseFullPath(e.getMessage())));
+          logger.error(
+              "Dataset {} sync failed ({}) due to Metadata too large. Please check.",
+              e.getMessage(),
+              existing ? "existing" : "new");
         }
       } while (true);
       logger.info("Source '{}' iterated through {} entities", sourceKey, entityCount);
@@ -226,14 +238,18 @@ public class MetadataSynchronizer {
    * Handle metadata sync for the given existing dataset.
    *
    * @param datasetKey dataset key
-   * @param handle     dataset handle
-   * @param iterator   dataset handle iterator
+   * @param handle dataset handle
+   * @param iterator dataset handle iterator
    */
-  private void handleExistingDataset(NamespaceKey datasetKey, DatasetHandle handle, Iterator<? extends DatasetHandle> iterator) {
+  private void handleExistingDataset(
+      NamespaceKey datasetKey, DatasetHandle handle, Iterator<? extends DatasetHandle> iterator) {
     int tryCount = 0;
     while (true) {
       if (tryCount++ > NUM_RETRIES) {
-        logger.debug("Dataset '{}' sync failed {} times (CME). Will retry next sync", datasetKey, NUM_RETRIES);
+        logger.debug(
+            "Dataset '{}' sync failed {} times (CME). Will retry next sync",
+            datasetKey,
+            NUM_RETRIES);
         break;
       }
 
@@ -246,21 +262,32 @@ public class MetadataSynchronizer {
         // continue;
       } catch (DatasetNotFoundException | NamespaceNotFoundException e) {
         // race condition: metadata will be removed from catalog in next sync
-        logger.debug("Dataset '{}' is no longer valid, skipping sync. Has next? {}", datasetKey, iterator.hasNext(), e);
+        logger.debug(
+            "Dataset '{}' is no longer valid, skipping sync. Has next? {}",
+            datasetKey,
+            iterator.hasNext(),
+            e);
         failedDatasets.add(Tuple.of(datasetKey.getSchemaPath(), e.getMessage()));
         syncStatus.incrementExtendedUnreadable();
         break;
       } catch (Exception e) {
-        // TODO: this should not be an Exception. Once exception handling is defined, change this. This is unfortunately
+        // TODO: this should not be an Exception. Once exception handling is defined, change this.
+        // This is unfortunately
         //  the current behavior.
-        logger.debug("Dataset '{}' sync failed unexpectedly. Will retry next sync. Has next? {}", datasetKey, iterator.hasNext(), e);
+        logger.debug(
+            "Dataset '{}' sync failed unexpectedly. Will retry next sync. Has next? {}",
+            datasetKey,
+            iterator.hasNext(),
+            e);
         failedDatasets.add(Tuple.of(datasetKey.getSchemaPath(), e.getMessage()));
         syncStatus.incrementExtendedUnreadable();
         break;
       } finally {
         if (logger.isDebugEnabled()) {
-          logger.debug("Dataset '{}' sync took {} milliseconds",
-              datasetKey, stopwatch.elapsed(TimeUnit.MILLISECONDS));
+          logger.debug(
+              "Dataset '{}' sync took {} milliseconds",
+              datasetKey,
+              stopwatch.elapsed(TimeUnit.MILLISECONDS));
         }
       }
     }
@@ -269,13 +296,14 @@ public class MetadataSynchronizer {
   /**
    * Try handling metadata sync for the given existing dataset.
    *
-   * @param datasetKey    dataset key
+   * @param datasetKey dataset key
    * @param datasetHandle dataset handle
    * @throws NamespaceException if it cannot be handled
    */
   private void tryHandleExistingDataset(NamespaceKey datasetKey, DatasetHandle datasetHandle)
       throws NamespaceException, ConnectorException {
-    // invariant: only metadata attributes of currentConfig are overwritten, and then the same currentConfig is saved,
+    // invariant: only metadata attributes of currentConfig are overwritten, and then the same
+    // currentConfig is saved,
     // so the rest of the attributes are as is; so CME is handled by retrying this entire block
 
     final DatasetConfig currentConfig = systemNamespace.getDataset(datasetKey);
@@ -294,21 +322,28 @@ public class MetadataSynchronizer {
       if (options.datasetRefreshQuery().isPresent()) {
         user = options.datasetRefreshQuery().get().getUser();
       }
-      boolean supportsIcebergMetadata = (sourceMetadata instanceof SupportsUnlimitedSplits) &&
-              ((SupportsUnlimitedSplits) sourceMetadata).allowUnlimitedSplits(datasetHandle, currentConfig, user);
-      final boolean isIcebergMetadata = currentConfig.getPhysicalDataset() != null &&
-              Boolean.TRUE.equals(currentConfig.getPhysicalDataset().getIcebergMetadataEnabled());
-      final boolean unlimitedSplitsSupportEnabled = MetadataRefreshUtils.unlimitedSplitsSupportEnabled(optionManager);
-      final boolean forceUpdateNotRequired = !supportsIcebergMetadata || isIcebergMetadata || !unlimitedSplitsSupportEnabled;
+      boolean supportsIcebergMetadata =
+          (sourceMetadata instanceof SupportsUnlimitedSplits)
+              && ((SupportsUnlimitedSplits) sourceMetadata)
+                  .allowUnlimitedSplits(datasetHandle, currentConfig, user);
+      final boolean isIcebergMetadata =
+          currentConfig.getPhysicalDataset() != null
+              && Boolean.TRUE.equals(
+                  currentConfig.getPhysicalDataset().getIcebergMetadataEnabled());
+      final boolean forceUpdateNotRequired = !supportsIcebergMetadata || isIcebergMetadata;
 
       if (forceUpdateNotRequired) {
         final SupportsReadSignature supportsReadSignature = (SupportsReadSignature) sourceMetadata;
         final DatasetMetadata currentExtended = new DatasetMetadataAdapter(currentConfig);
         final ByteString readSignature = currentConfig.getReadDefinition().getReadSignature();
-        final MetadataValidity metadataValidity = supportsReadSignature.validateMetadata(
-                readSignature==null || readSignature.size() == 0 ? BytesOutput.NONE:os -> ByteString.writeTo(os, readSignature),
-                datasetHandle, currentExtended);
-        if (metadataValidity==MetadataValidity.VALID) {
+        final MetadataValidity metadataValidity =
+            supportsReadSignature.validateMetadata(
+                readSignature == null || readSignature.size() == 0
+                    ? BytesOutput.NONE
+                    : os -> ByteString.writeTo(os, readSignature),
+                datasetHandle,
+                currentExtended);
+        if (metadataValidity == MetadataValidity.VALID) {
           logger.trace("Dataset '{}' metadata is valid, skipping", datasetKey);
           syncStatus.incrementExtendedUnchanged();
           return;
@@ -326,40 +361,37 @@ public class MetadataSynchronizer {
    * Handle new dataset based on the metadata policy.
    *
    * @param datasetKey dataset key
-   * @param handle     dataset handle
+   * @param handle dataset handle
    * @throws NamespaceException if it cannot be handled
    */
   private void handleNewDataset(NamespaceKey datasetKey, DatasetHandle handle)
       throws NamespaceException {
     switch (updateMode) {
+      case PREFETCH:
+        // this mode will soon be deprecated, for now save, perform name sync
 
-    case PREFETCH:
-      // this mode will soon be deprecated, for now save, perform name sync
+        // fall-through
 
-      // fall-through
+      case PREFETCH_QUERIED:
+        {
+          final DatasetConfig newConfig = MetadataObjectsUtils.newShallowConfig(handle);
+          try {
+            systemNamespace.addOrUpdateDataset(datasetKey, newConfig);
+            syncStatus.setRefreshed();
+            syncStatus.incrementShallowAdded();
+          } catch (ConcurrentModificationException ignored) {
+            // race condition
+            logger.debug("Dataset '{}' add failed (CME)", datasetKey);
+          }
+          return;
+        }
 
-    case PREFETCH_QUERIED: {
-      final DatasetConfig newConfig = MetadataObjectsUtils.newShallowConfig(handle);
-      try {
-        systemNamespace.addOrUpdateDataset(datasetKey, newConfig);
-        syncStatus.setRefreshed();
-        syncStatus.incrementShallowAdded();
-      } catch (ConcurrentModificationException ignored) {
-        // race condition
-        logger.debug("Dataset '{}' add failed (CME)", datasetKey);
-      }
-      return;
-    }
-
-    default:
-      throw new IllegalStateException("unknown dataset update mode: " + updateMode);
+      default:
+        throw new IllegalStateException("unknown dataset update mode: " + updateMode);
     }
   }
 
-  /**
-   * Delete orphan folders. These are folders that are no longer contain datasets.
-   *
-   */
+  /** Delete orphan folders. These are folders that are no longer contain datasets. */
   private void deleteOrphanFolders() {
     /*
     if (!options.deleteUnavailableDatasets()) {
@@ -395,20 +427,27 @@ public class MetadataSynchronizer {
     }
   }
 
-  /**
-   * Deleted orphan datasets. These are datasets that are no longer present in the source.
-   *
-   */
+  /** Deleted orphan datasets. These are datasets that are no longer present in the source. */
   private void deleteOrphanedDatasets() {
     if (!options.deleteUnavailableDatasets()) {
-      logger.debug("Source '{}' in state {} has {} unavailable datasets, but not deleted: {}",
-        sourceKey, bridge.getState(), orphanedDatasets.size(), orphanedDatasets);
+      logger.debug(
+          "Source '{}' in state {} has {} unavailable datasets, but not deleted: {}",
+          sourceKey,
+          bridge.getState(),
+          orphanedDatasets.size(),
+          orphanedDatasets);
       return;
     }
 
     if (orphanedDatasets.size() > 0) {
-      logger.info("Source '{}' in state {} has {} unavailable datasets to be deleted: {}",
-        sourceKey, bridge.getState(), orphanedDatasets.size(), orphanedDatasets.stream().limit(Math.min(orphanedDatasets.size(),100)).collect(Collectors.toSet()));
+      logger.info(
+          "Source '{}' in state {} has {} unavailable datasets to be deleted: {}",
+          sourceKey,
+          bridge.getState(),
+          orphanedDatasets.size(),
+          orphanedDatasets.stream()
+              .limit(Math.min(orphanedDatasets.size(), 100))
+              .collect(Collectors.toSet()));
     }
 
     for (NamespaceKey toBeDeleted : orphanedDatasets) {
@@ -428,7 +467,8 @@ public class MetadataSynchronizer {
         }
         logger.trace("Dataset '{}' deleted", toBeDeleted);
       } catch (NamespaceNotFoundException ignored) {
-        // race condition - this is expected if the dataset was contained in an orphaned folder recursively deleted
+        // race condition - this is expected if the dataset was contained in an orphaned folder
+        // recursively deleted
         logger.debug("Dataset '{}' not found", toBeDeleted);
         // continue;
       } catch (NamespaceException e) {

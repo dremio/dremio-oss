@@ -20,7 +20,7 @@ import FormValidationMessage from "./FormValidationMessage";
 
 const getShallowWrapper = (children, props = {}) => {
   return shallow(
-    <FormValidationMessage {...props}>{children}</FormValidationMessage>
+    <FormValidationMessage {...props}>{children}</FormValidationMessage>,
   );
 };
 
@@ -44,14 +44,14 @@ describe("Form Validation Message", () => {
       "Message 2",
     ]);
     expect(multipleMesssageWrapper.find("div.validationError").exists()).toBe(
-      true
+      true,
     );
     expect(multipleMesssageWrapper.find("div").length).toEqual(3);
     expect(multipleMesssageWrapper.find("div").at(1).text()).toEqual(
-      "Message 1"
+      "Message 1",
     );
     expect(multipleMesssageWrapper.find("div").at(2).text()).toEqual(
-      "Message 2"
+      "Message 2",
     );
   });
 });

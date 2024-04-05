@@ -15,6 +15,7 @@
  */
 package com.dremio.service.grpc;
 
+import com.google.common.collect.Maps;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -22,16 +23,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.google.common.collect.Maps;
-
 /**
- * Used to construct service configuration.
- * Follows the configuration mentioned@ https://github.com/grpc/proposal/blob/master/A6-client-retries.md#retry-policy
+ * Used to construct service configuration. Follows the configuration mentioned@
+ * https://github.com/grpc/proposal/blob/master/A6-client-retries.md#retry-policy
  */
 public class DefaultGrpcServiceConfigProvider {
 
   /**
    * Gets the default service configuration for given list of service names
+   *
    * @param serviceNames
    * @return
    */
@@ -41,21 +41,25 @@ public class DefaultGrpcServiceConfigProvider {
 
   /**
    * Gets the service configuration updated with given properties for given list of service names
+   *
    * @param serviceNames
    * @param retryPropertiesMap
    * @return
    */
-  public static Map<String, Object> getGrpcServiceConfig(List<String> serviceNames, Map<String, Object> retryPropertiesMap) {
+  public static Map<String, Object> getGrpcServiceConfig(
+      List<String> serviceNames, Map<String, Object> retryPropertiesMap) {
     return setGrpcServiceConfig(serviceNames, retryPropertiesMap);
   }
 
   /**
    * Sets the given service configuration for given list of service names
+   *
    * @param serviceNames
    * @param retryPropertiesMap
    * @return
    */
-  private static Map<String, Object> setGrpcServiceConfig(List<String> serviceNames, Map<String, Object> retryPropertiesMap) {
+  private static Map<String, Object> setGrpcServiceConfig(
+      List<String> serviceNames, Map<String, Object> retryPropertiesMap) {
     Map<String, Object> serviceConfig = Maps.newHashMap();
     List<Map<String, Object>> serviceConfigs = new ArrayList<>();
     for (String serviceName : serviceNames) {

@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.planner.cost;
 
+import com.google.common.collect.ImmutableList;
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.volcano.RelSubset;
 import org.apache.calcite.rel.RelNode;
@@ -27,21 +28,15 @@ import org.apache.calcite.rel.metadata.RelMetadataProvider;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.util.BuiltInMethod;
 
-import com.google.common.collect.ImmutableList;
-
-/**
- * a metadata handler for projectable aggregates.
- */
+/** a metadata handler for projectable aggregates. */
 public class RelMdCost implements MetadataHandler<Metadata> {
-  private static final RelMdCost INSTANCE =
-      new RelMdCost();
+  private static final RelMdCost INSTANCE = new RelMdCost();
 
   public static final RelMetadataProvider SOURCE =
       ChainedRelMetadataProvider.of(
           ImmutableList.of(
               ReflectiveRelMetadataProvider.reflectiveSource(
                   BuiltInMethod.CUMULATIVE_COST.method, INSTANCE),
-
               ReflectiveRelMetadataProvider.reflectiveSource(
                   BuiltInMethod.NON_CUMULATIVE_COST.method, INSTANCE)));
 

@@ -18,19 +18,15 @@ package com.dremio.dac.cmd.upgrade;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Maps;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-
 import org.junit.Test;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Maps;
-
-/**
- * To test dependency based sort
- */
+/** To test dependency based sort */
 public class UpgradeTaskDependencyResolverTest {
 
   @Test
@@ -40,12 +36,13 @@ public class UpgradeTaskDependencyResolverTest {
     // depends on 1
     UpgradeTask2 upgradeTask2 = new UpgradeTask2(ImmutableList.of(upgradeTask1.getTaskUUID()));
     // depends on 1 and 2
-    UpgradeTask3 upgradeTask3 = new UpgradeTask3(ImmutableList.of(upgradeTask1.getTaskUUID(), upgradeTask2.getTaskUUID()));
+    UpgradeTask3 upgradeTask3 =
+        new UpgradeTask3(ImmutableList.of(upgradeTask1.getTaskUUID(), upgradeTask2.getTaskUUID()));
     // depends on 3
     UpgradeTask4 upgradeTask4 = new UpgradeTask4(ImmutableList.of(upgradeTask3.getTaskUUID()));
-    UpgradeTaskDependencyResolver upgradeTaskDependencyResolver = new UpgradeTaskDependencyResolver(
-      ImmutableList.of(upgradeTask1, upgradeTask2, upgradeTask3, upgradeTask4)
-    );
+    UpgradeTaskDependencyResolver upgradeTaskDependencyResolver =
+        new UpgradeTaskDependencyResolver(
+            ImmutableList.of(upgradeTask1, upgradeTask2, upgradeTask3, upgradeTask4));
 
     List<UpgradeTask> sortedUpgradeTasks = upgradeTaskDependencyResolver.topologicalTasksSort();
 
@@ -59,19 +56,31 @@ public class UpgradeTaskDependencyResolverTest {
   @Test
   public void testDependencySortLargeTasksNumber() throws Exception {
 
-    UpgradeTaskAny upgradeTaskAny1 = new UpgradeTaskAny("upgradeTaskAny1","5", ImmutableList.of());
+    UpgradeTaskAny upgradeTaskAny1 = new UpgradeTaskAny("upgradeTaskAny1", "5", ImmutableList.of());
     UpgradeTaskAny upgradeTaskAny2 = new UpgradeTaskAny("upgradeTaskAny2", "7", ImmutableList.of());
-    UpgradeTaskAny upgradeTaskAny3 = new UpgradeTaskAny("upgradeTaskAny3","3", ImmutableList.of());
-    UpgradeTaskAny upgradeTaskAny4 = new UpgradeTaskAny("upgradeTaskAny4", "11",
-      ImmutableList.of(upgradeTaskAny1.getTaskUUID(), upgradeTaskAny2.getTaskUUID()));
-    UpgradeTaskAny upgradeTaskAny5 = new UpgradeTaskAny("upgradeTaskAny5", "8",
-      ImmutableList.of(upgradeTaskAny2.getTaskUUID(), upgradeTaskAny3.getTaskUUID()));
-    UpgradeTaskAny upgradeTaskAny6 = new UpgradeTaskAny("upgradeTaskAny6","2", ImmutableList.of
-      (upgradeTaskAny4.getTaskUUID()));
-    UpgradeTaskAny upgradeTaskAny7 = new UpgradeTaskAny("upgradeTaskAny7","9",
-      ImmutableList.of(upgradeTaskAny4.getTaskUUID(), upgradeTaskAny5.getTaskUUID()));
-    UpgradeTaskAny upgradeTaskAny8 = new UpgradeTaskAny("upgradeTaskAny8", "10",
-      ImmutableList.of(upgradeTaskAny4.getTaskUUID(), upgradeTaskAny3.getTaskUUID()));
+    UpgradeTaskAny upgradeTaskAny3 = new UpgradeTaskAny("upgradeTaskAny3", "3", ImmutableList.of());
+    UpgradeTaskAny upgradeTaskAny4 =
+        new UpgradeTaskAny(
+            "upgradeTaskAny4",
+            "11",
+            ImmutableList.of(upgradeTaskAny1.getTaskUUID(), upgradeTaskAny2.getTaskUUID()));
+    UpgradeTaskAny upgradeTaskAny5 =
+        new UpgradeTaskAny(
+            "upgradeTaskAny5",
+            "8",
+            ImmutableList.of(upgradeTaskAny2.getTaskUUID(), upgradeTaskAny3.getTaskUUID()));
+    UpgradeTaskAny upgradeTaskAny6 =
+        new UpgradeTaskAny("upgradeTaskAny6", "2", ImmutableList.of(upgradeTaskAny4.getTaskUUID()));
+    UpgradeTaskAny upgradeTaskAny7 =
+        new UpgradeTaskAny(
+            "upgradeTaskAny7",
+            "9",
+            ImmutableList.of(upgradeTaskAny4.getTaskUUID(), upgradeTaskAny5.getTaskUUID()));
+    UpgradeTaskAny upgradeTaskAny8 =
+        new UpgradeTaskAny(
+            "upgradeTaskAny8",
+            "10",
+            ImmutableList.of(upgradeTaskAny4.getTaskUUID(), upgradeTaskAny3.getTaskUUID()));
     List<UpgradeTask> upgradeTasks = new ArrayList<>();
     upgradeTasks.add(upgradeTaskAny1);
     upgradeTasks.add(upgradeTaskAny2);
@@ -84,7 +93,8 @@ public class UpgradeTaskDependencyResolverTest {
 
     // to make sure they are not in order
     Collections.shuffle(upgradeTasks);
-    UpgradeTaskDependencyResolver upgradeTaskDependencyResolver = new UpgradeTaskDependencyResolver(upgradeTasks);
+    UpgradeTaskDependencyResolver upgradeTaskDependencyResolver =
+        new UpgradeTaskDependencyResolver(upgradeTasks);
 
     List<UpgradeTask> sortedUpgradeTasks = upgradeTaskDependencyResolver.topologicalTasksSort();
     Map<String, Integer> nameToIndexMap = Maps.newHashMap();
@@ -94,15 +104,24 @@ public class UpgradeTaskDependencyResolverTest {
       i++;
     }
     // make sure dependencies are met
-    assertThat(nameToIndexMap.get("upgradeTaskAny8")).isGreaterThan(nameToIndexMap.get("upgradeTaskAny4"));
-    assertThat(nameToIndexMap.get("upgradeTaskAny8")).isGreaterThan(nameToIndexMap.get("upgradeTaskAny3"));
-    assertThat(nameToIndexMap.get("upgradeTaskAny7")).isGreaterThan(nameToIndexMap.get("upgradeTaskAny4"));
-    assertThat(nameToIndexMap.get("upgradeTaskAny7")).isGreaterThan(nameToIndexMap.get("upgradeTaskAny5"));
-    assertThat(nameToIndexMap.get("upgradeTaskAny5")).isGreaterThan(nameToIndexMap.get("upgradeTaskAny2"));
-    assertThat(nameToIndexMap.get("upgradeTaskAny5")).isGreaterThan(nameToIndexMap.get("upgradeTaskAny3"));
-    assertThat(nameToIndexMap.get("upgradeTaskAny6")).isGreaterThan(nameToIndexMap.get("upgradeTaskAny4"));
-    assertThat(nameToIndexMap.get("upgradeTaskAny4")).isGreaterThan(nameToIndexMap.get("upgradeTaskAny1"));
-    assertThat(nameToIndexMap.get("upgradeTaskAny4")).isGreaterThan(nameToIndexMap.get("upgradeTaskAny2"));
+    assertThat(nameToIndexMap.get("upgradeTaskAny8"))
+        .isGreaterThan(nameToIndexMap.get("upgradeTaskAny4"));
+    assertThat(nameToIndexMap.get("upgradeTaskAny8"))
+        .isGreaterThan(nameToIndexMap.get("upgradeTaskAny3"));
+    assertThat(nameToIndexMap.get("upgradeTaskAny7"))
+        .isGreaterThan(nameToIndexMap.get("upgradeTaskAny4"));
+    assertThat(nameToIndexMap.get("upgradeTaskAny7"))
+        .isGreaterThan(nameToIndexMap.get("upgradeTaskAny5"));
+    assertThat(nameToIndexMap.get("upgradeTaskAny5"))
+        .isGreaterThan(nameToIndexMap.get("upgradeTaskAny2"));
+    assertThat(nameToIndexMap.get("upgradeTaskAny5"))
+        .isGreaterThan(nameToIndexMap.get("upgradeTaskAny3"));
+    assertThat(nameToIndexMap.get("upgradeTaskAny6"))
+        .isGreaterThan(nameToIndexMap.get("upgradeTaskAny4"));
+    assertThat(nameToIndexMap.get("upgradeTaskAny4"))
+        .isGreaterThan(nameToIndexMap.get("upgradeTaskAny1"));
+    assertThat(nameToIndexMap.get("upgradeTaskAny4"))
+        .isGreaterThan(nameToIndexMap.get("upgradeTaskAny2"));
   }
 
   @Test
@@ -112,16 +131,17 @@ public class UpgradeTaskDependencyResolverTest {
     // depends on task 4
     UpgradeTask2 upgradeTask2 = new UpgradeTask2(ImmutableList.of("UpgradeTask4"));
     // depends on 1 and 2
-    UpgradeTask3 upgradeTask3 = new UpgradeTask3(ImmutableList.of(upgradeTask1.getTaskUUID(), upgradeTask2.getTaskUUID()));
+    UpgradeTask3 upgradeTask3 =
+        new UpgradeTask3(ImmutableList.of(upgradeTask1.getTaskUUID(), upgradeTask2.getTaskUUID()));
     // depends on 3
     UpgradeTask4 upgradeTask4 = new UpgradeTask4(ImmutableList.of(upgradeTask3.getTaskUUID()));
-    UpgradeTaskDependencyResolver upgradeTaskDependencyResolver = new UpgradeTaskDependencyResolver(
-      ImmutableList.of(upgradeTask1, upgradeTask2, upgradeTask3, upgradeTask4)
-    );
+    UpgradeTaskDependencyResolver upgradeTaskDependencyResolver =
+        new UpgradeTaskDependencyResolver(
+            ImmutableList.of(upgradeTask1, upgradeTask2, upgradeTask3, upgradeTask4));
 
     assertThatThrownBy(upgradeTaskDependencyResolver::topologicalTasksSort)
-      .isInstanceOf(IllegalStateException.class)
-      .hasMessageContaining("Dependencies loop detected: UpgradeTask2");
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("Dependencies loop detected: UpgradeTask2");
   }
 
   private static class UpgradeTask1 extends UpgradeTask {
@@ -136,9 +156,7 @@ public class UpgradeTaskDependencyResolverTest {
     }
 
     @Override
-    public void upgrade(UpgradeContext context) throws Exception {
-
-    }
+    public void upgrade(UpgradeContext context) throws Exception {}
   }
 
   private static class UpgradeTask2 extends UpgradeTask {
@@ -153,9 +171,7 @@ public class UpgradeTaskDependencyResolverTest {
     }
 
     @Override
-    public void upgrade(UpgradeContext context) throws Exception {
-
-    }
+    public void upgrade(UpgradeContext context) throws Exception {}
   }
 
   private static class UpgradeTask3 extends UpgradeTask {
@@ -170,9 +186,7 @@ public class UpgradeTaskDependencyResolverTest {
     }
 
     @Override
-    public void upgrade(UpgradeContext context) throws Exception {
-
-    }
+    public void upgrade(UpgradeContext context) throws Exception {}
   }
 
   private static class UpgradeTask4 extends UpgradeTask {
@@ -187,14 +201,13 @@ public class UpgradeTaskDependencyResolverTest {
     }
 
     @Override
-    public void upgrade(UpgradeContext context) throws Exception {
-
-    }
+    public void upgrade(UpgradeContext context) throws Exception {}
   }
 
   private static class UpgradeTaskAny extends UpgradeTask {
 
     private String uuid;
+
     protected UpgradeTaskAny(String name, String uuid, List<String> dependencies) {
       super(name, dependencies);
       this.uuid = uuid;
@@ -206,9 +219,6 @@ public class UpgradeTaskDependencyResolverTest {
     }
 
     @Override
-    public void upgrade(UpgradeContext context) throws Exception {
-
-    }
+    public void upgrade(UpgradeContext context) throws Exception {}
   }
-
 }

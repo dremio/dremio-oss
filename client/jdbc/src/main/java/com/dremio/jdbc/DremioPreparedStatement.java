@@ -17,18 +17,12 @@ package com.dremio.jdbc;
 
 import java.sql.PreparedStatement;
 
-
 /**
  * Dremio-specific {@link PreparedStatement}.
  *
- * <p>
- *   <strong>Dremio</strong>:
- *   Setting parameters is not supported; parameter-setting methods such as
- *   {@link #setString(int, String)} throw
- *   {@link SQLFeatureNotSupportedException}.
- * </p>
+ * <p><strong>Dremio</strong>: Setting parameters is not supported; parameter-setting methods such
+ * as {@link #setString(int, String)} throw {@link SQLFeatureNotSupportedException}.
+ *
  * @see #unwrap
  */
-public interface DremioPreparedStatement extends PreparedStatement, DremioStatement {
-
-}
+public interface DremioPreparedStatement extends PreparedStatement, DremioStatement {}

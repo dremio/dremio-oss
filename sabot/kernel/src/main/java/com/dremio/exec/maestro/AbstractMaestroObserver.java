@@ -19,84 +19,68 @@ import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.proto.UserBitShared.AttemptEvent;
 import com.dremio.exec.proto.UserBitShared.FragmentRpcSizeStats;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.work.QueryWorkUnit;
 import com.dremio.exec.work.foreman.ExecutionPlan;
 import com.dremio.resource.ResourceSchedulingDecisionInfo;
 
 public abstract class AbstractMaestroObserver implements MaestroObserver {
 
-  public static final AbstractMaestroObserver NOOP = new AbstractMaestroObserver() {
-  };
+  public static final AbstractMaestroObserver NOOP = new AbstractMaestroObserver() {};
 
   @Override
-  public void beginState(AttemptEvent event) {
-  }
+  public void beginState(AttemptEvent event) {}
 
   @Override
-  public void planParallelStart() {
-  }
+  public void planParallelStart() {}
 
   @Override
-  public void planParallelized(PlanningSet planningSet) {
-  }
-
+  public void planParallelized(PlanningSet planningSet) {}
 
   @Override
-  public void recordExtraInfo(String name, byte[] bytes) {
-  }
-
+  public void recordExtraInfo(String name, byte[] bytes) {}
 
   @Override
-  public void planCompleted(final ExecutionPlan plan) {
-  }
-
+  public void planCompleted(final ExecutionPlan plan, final BatchSchema batchSchema) {}
 
   @Override
-  public void plansDistributionComplete(QueryWorkUnit unit) {
-  }
+  public void plansDistributionComplete(QueryWorkUnit unit) {}
 
   @Override
-  public void commandPoolWait(long waitInMillis) {
-  }
+  public void commandPoolWait(long waitInMillis) {}
 
   @Override
-  public void execStarted(QueryProfile profile) {
-  }
-
+  public void execStarted(QueryProfile profile) {}
 
   @Override
-  public void executorsSelected(long millisTaken, int idealNumFragments, int idealNumNodes, int numExecutors, String detailsText) {
-  }
+  public void executorsSelected(
+      long millisTaken,
+      int idealNumFragments,
+      int idealNumNodes,
+      int numExecutors,
+      String detailsText) {}
 
   @Override
-  public void recordsProcessed(long recordCount) {
-  }
+  public void recordsProcessed(long recordCount) {}
 
   @Override
-  public void recordsOutput(long recordCount) {
-  }
+  public void recordsOutput(long recordCount) {}
 
   @Override
-  public void planGenerationTime(long millisTaken) {
-  }
+  public void planGenerationTime(long millisTaken) {}
 
   @Override
-  public void planAssignmentTime(long millisTaken) {
-  }
+  public void planAssignmentTime(long millisTaken) {}
 
   @Override
-  public void fragmentsStarted(long millisTaken, FragmentRpcSizeStats stats) {
-  }
+  public void fragmentsStarted(long millisTaken, FragmentRpcSizeStats stats) {}
 
   @Override
-  public void fragmentsActivated(long millisTaken) {
-  }
+  public void fragmentsActivated(long millisTaken) {}
 
   @Override
-  public void activateFragmentFailed(Exception ex) {
-  }
+  public void activateFragmentFailed(Exception ex) {}
 
   @Override
-  public void resourcesScheduled(ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo) {
-  }
+  public void resourcesScheduled(ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo) {}
 }

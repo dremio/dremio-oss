@@ -15,20 +15,15 @@
  */
 package com.dremio.service.functions.model;
 
-import java.util.List;
-
-import javax.annotation.Nullable;
-
-import org.immutables.value.Value;
-
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.google.common.collect.ImmutableList;
+import java.util.List;
+import javax.annotation.Nullable;
+import org.immutables.value.Value;
 
-/**
- * The specification of a function.
- */
+/** The specification of a function. */
 @Value.Immutable
 @Value.Style(stagedBuilder = true)
 @JsonSerialize(as = ImmutableFunction.class)
@@ -36,11 +31,15 @@ import com.google.common.collect.ImmutableList;
 @JsonInclude(JsonInclude.Include.NON_ABSENT)
 public abstract class Function {
   public abstract String getName();
+
   public abstract ImmutableList<FunctionSignature> getSignatures();
+
   @Nullable
   public abstract String getDremioVersion();
+
   @Nullable
   public abstract List<FunctionCategory> getFunctionCategories();
+
   @Nullable
   public abstract String getDescription();
 

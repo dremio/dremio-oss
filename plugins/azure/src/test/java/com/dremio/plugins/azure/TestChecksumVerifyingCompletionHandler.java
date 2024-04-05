@@ -21,24 +21,22 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import io.netty.buffer.Unpooled;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Base64;
-
 import org.apache.commons.codec.digest.DigestUtils;
 import org.asynchttpclient.HttpResponseBodyPart;
 import org.asynchttpclient.HttpResponseStatus;
 import org.asynchttpclient.Response;
 import org.junit.jupiter.api.Test;
 
-import io.netty.buffer.Unpooled;
-
 class TestChecksumVerifyingCompletionHandler {
 
   @Test
   void failedRequestIgnoresMD5() throws Exception {
     ChecksumVerifyingCompletionHandler handler =
-      new ChecksumVerifyingCompletionHandler(Unpooled.buffer(32), 0);
+        new ChecksumVerifyingCompletionHandler(Unpooled.buffer(32), 0);
     HttpResponseStatus status = mock(HttpResponseStatus.class);
     String responseBody = "some error message";
     when(status.getStatusCode()).thenReturn(500);
@@ -47,8 +45,8 @@ class TestChecksumVerifyingCompletionHandler {
     when(response.getResponseBody()).thenReturn(responseBody);
     when(response.getHeader(CHECKSUM_RESPONSE_HEADER)).thenReturn("0");
     assertThatThrownBy(() -> handler.onCompleted(response))
-      .isInstanceOf(RuntimeException.class)
-      .hasMessage(responseBody);
+        .isInstanceOf(RuntimeException.class)
+        .hasMessage(responseBody);
   }
 
   @Test
@@ -65,12 +63,12 @@ class TestChecksumVerifyingCompletionHandler {
     when(response.getHeader(CHECKSUM_RESPONSE_HEADER)).thenReturn("invalid");
 
     ChecksumVerifyingCompletionHandler handler =
-      new ChecksumVerifyingCompletionHandler(Unpooled.buffer(32), 0);
+        new ChecksumVerifyingCompletionHandler(Unpooled.buffer(32), 0);
     handler.onStatusReceived(status);
 
     assertThatThrownBy(() -> handler.onCompleted(response))
-      .isInstanceOf(IOException.class)
-      .hasMessage("mismatched MD5 checksum: got 1B2M2Y8AsgTpgAmY7PhCfg==, expected invalid");
+        .isInstanceOf(IOException.class)
+        .hasMessage("mismatched MD5 checksum: got 1B2M2Y8AsgTpgAmY7PhCfg==, expected invalid");
   }
 
   @Test
@@ -86,12 +84,12 @@ class TestChecksumVerifyingCompletionHandler {
     when(response.getResponseBody()).thenReturn(responseBody);
 
     ChecksumVerifyingCompletionHandler handler =
-      new ChecksumVerifyingCompletionHandler(Unpooled.buffer(32), 0);
+        new ChecksumVerifyingCompletionHandler(Unpooled.buffer(32), 0);
     handler.onStatusReceived(status);
 
     assertThatThrownBy(() -> handler.onCompleted(response))
-      .isInstanceOf(IOException.class)
-      .hasMessage("MD5 checksum requested, but response header missing");
+        .isInstanceOf(IOException.class)
+        .hasMessage("MD5 checksum requested, but response header missing");
   }
 
   @Test
@@ -106,19 +104,20 @@ class TestChecksumVerifyingCompletionHandler {
     String secondTryBodyBytes = "some bytes we do want to see    ";
 
     HttpResponseBodyPart initialResponsePart = mock(HttpResponseBodyPart.class);
-    when(initialResponsePart.getBodyByteBuffer()).thenReturn(
-      ByteBuffer.wrap(initialBodyBytes.getBytes()));
+    when(initialResponsePart.getBodyByteBuffer())
+        .thenReturn(ByteBuffer.wrap(initialBodyBytes.getBytes()));
 
     HttpResponseBodyPart secondTryResponsePart = mock(HttpResponseBodyPart.class);
-    when(secondTryResponsePart.getBodyByteBuffer()).thenReturn(
-      ByteBuffer.wrap(secondTryBodyBytes.getBytes()));
+    when(secondTryResponsePart.getBodyByteBuffer())
+        .thenReturn(ByteBuffer.wrap(secondTryBodyBytes.getBytes()));
 
     Response response = mock(Response.class);
-    when(response.getHeader(CHECKSUM_RESPONSE_HEADER)).thenReturn(
-      Base64.getEncoder().encodeToString(DigestUtils.md5(secondTryBodyBytes.getBytes())));
+    when(response.getHeader(CHECKSUM_RESPONSE_HEADER))
+        .thenReturn(
+            Base64.getEncoder().encodeToString(DigestUtils.md5(secondTryBodyBytes.getBytes())));
 
     ChecksumVerifyingCompletionHandler handler =
-      new ChecksumVerifyingCompletionHandler(Unpooled.buffer(32), 0);
+        new ChecksumVerifyingCompletionHandler(Unpooled.buffer(32), 0);
     handler.onBodyPartReceived(initialResponsePart);
     handler.onStatusReceived(initialStatus);
     handler.reset();
@@ -126,5 +125,4 @@ class TestChecksumVerifyingCompletionHandler {
     handler.onBodyPartReceived(secondTryResponsePart);
     handler.onCompleted(response);
   }
-
 }

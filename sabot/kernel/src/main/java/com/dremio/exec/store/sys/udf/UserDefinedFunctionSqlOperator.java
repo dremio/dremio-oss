@@ -15,32 +15,33 @@
  */
 package com.dremio.exec.store.sys.udf;
 
-import java.util.stream.Collectors;
-
-import org.apache.calcite.sql.SqlOperator;
-import org.apache.calcite.sql.type.SqlTypeName;
-
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.planner.sql.SqlOperand;
 import com.dremio.exec.planner.sql.SqlOperatorBuilder;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.google.common.collect.ImmutableSet;
+import java.util.stream.Collectors;
+import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.sql.type.SqlTypeName;
 
-public final class UserDefinedFunctionSqlOperator  {
+public final class UserDefinedFunctionSqlOperator {
   public static SqlOperator create(UserDefinedFunction userDefinedFunction) {
-    return SqlOperatorBuilder
-      .name(userDefinedFunction.getName())
-      .returnType(CalciteArrowHelper
-        .wrap(userDefinedFunction.getReturnType())
-        .toCalciteType(JavaTypeFactoryImpl.INSTANCE, true))
-      .operandTypes(userDefinedFunction.getFunctionArgsList().stream().map(arg -> {
-        String name = arg.getName();
-        SqlTypeName sqlTypeName = CalciteArrowHelper
-          .wrap(arg.getDataType())
-          .toCalciteType(JavaTypeFactoryImpl.INSTANCE, true)
-          .getSqlTypeName();
-        return SqlOperand.regular(ImmutableSet.of(sqlTypeName));
-      }).collect(Collectors.toList()))
-      .build();
+    return SqlOperatorBuilder.name(userDefinedFunction.getName())
+        .returnType(
+            CalciteArrowHelper.wrap(userDefinedFunction.getReturnType())
+                .toCalciteType(JavaTypeFactoryImpl.INSTANCE, true))
+        .operandTypes(
+            userDefinedFunction.getFunctionArgsList().stream()
+                .map(
+                    arg -> {
+                      String name = arg.getName();
+                      SqlTypeName sqlTypeName =
+                          CalciteArrowHelper.wrap(arg.getDataType())
+                              .toCalciteType(JavaTypeFactoryImpl.INSTANCE, true)
+                              .getSqlTypeName();
+                      return SqlOperand.regular(ImmutableSet.of(sqlTypeName));
+                    })
+                .collect(Collectors.toList()))
+        .build();
   }
 }

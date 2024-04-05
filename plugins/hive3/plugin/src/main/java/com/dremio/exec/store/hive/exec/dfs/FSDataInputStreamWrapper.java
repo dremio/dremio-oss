@@ -15,27 +15,19 @@
  */
 package com.dremio.exec.store.hive.exec.dfs;
 
+import com.dremio.io.FSInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicBoolean;
-
 import javax.annotation.concurrent.NotThreadSafe;
-
 import org.apache.hadoop.fs.ByteBufferReadable;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSError;
 
-import com.dremio.io.FSInputStream;
-
-
-/**
- * Wrapper around FSDataInputStream to capture {@code FSError}.
- */
+/** Wrapper around FSDataInputStream to capture {@code FSError}. */
 @NotThreadSafe
 public class FSDataInputStreamWrapper extends FSInputStream {
-  /**
-   * Wrapper when {@code FSDataInputStream#read(ByteBuffer)} is not supported
-   */
+  /** Wrapper when {@code FSDataInputStream#read(ByteBuffer)} is not supported */
   private static final class ByteArrayFSInputStream extends FSDataInputStreamWrapper {
     private final byte[] temp = new byte[8192];
 
@@ -88,12 +80,11 @@ public class FSDataInputStreamWrapper extends FSInputStream {
     return new ByteArrayFSInputStream(in);
   }
 
-
   @Override
   public int read() throws IOException {
     try {
       return underlyingIs.read();
-    } catch(FSError e) {
+    } catch (FSError e) {
       throw DremioHadoopFileSystemWrapper.propagateFSError(e);
     }
   }
@@ -102,7 +93,7 @@ public class FSDataInputStreamWrapper extends FSInputStream {
   public int read(byte[] b) throws IOException {
     try {
       return underlyingIs.read(b);
-    } catch(FSError e) {
+    } catch (FSError e) {
       throw DremioHadoopFileSystemWrapper.propagateFSError(e);
     }
   }
@@ -111,7 +102,7 @@ public class FSDataInputStreamWrapper extends FSInputStream {
   public int read(byte[] b, int off, int len) throws IOException {
     try {
       return underlyingIs.read(b, off, len);
-    } catch(FSError e) {
+    } catch (FSError e) {
       throw DremioHadoopFileSystemWrapper.propagateFSError(e);
     }
   }
@@ -120,7 +111,7 @@ public class FSDataInputStreamWrapper extends FSInputStream {
   public int read(ByteBuffer dst) throws IOException {
     try {
       return underlyingIs.read(dst);
-    } catch(FSError e) {
+    } catch (FSError e) {
       throw DremioHadoopFileSystemWrapper.propagateFSError(e);
     }
   }
@@ -129,7 +120,7 @@ public class FSDataInputStreamWrapper extends FSInputStream {
   public int read(long position, ByteBuffer dst) throws IOException {
     try {
       return underlyingIs.read(position, dst);
-    } catch(FSError e) {
+    } catch (FSError e) {
       throw DremioHadoopFileSystemWrapper.propagateFSError(e);
     }
   }
@@ -138,7 +129,7 @@ public class FSDataInputStreamWrapper extends FSInputStream {
   public long getPosition() throws IOException {
     try {
       return underlyingIs.getPos();
-    } catch(FSError e) {
+    } catch (FSError e) {
       throw DremioHadoopFileSystemWrapper.propagateFSError(e);
     }
   }
@@ -147,7 +138,7 @@ public class FSDataInputStreamWrapper extends FSInputStream {
   public void setPosition(long position) throws IOException {
     try {
       underlyingIs.seek(position);
-    } catch(FSError e) {
+    } catch (FSError e) {
       throw DremioHadoopFileSystemWrapper.propagateFSError(e);
     }
   }
@@ -156,7 +147,7 @@ public class FSDataInputStreamWrapper extends FSInputStream {
   public long skip(long n) throws IOException {
     try {
       return underlyingIs.skip(n);
-    } catch(FSError e) {
+    } catch (FSError e) {
       throw DremioHadoopFileSystemWrapper.propagateFSError(e);
     }
   }
@@ -165,7 +156,7 @@ public class FSDataInputStreamWrapper extends FSInputStream {
   public int available() throws IOException {
     try {
       return underlyingIs.available();
-    } catch(FSError e) {
+    } catch (FSError e) {
       throw DremioHadoopFileSystemWrapper.propagateFSError(e);
     }
   }
@@ -178,7 +169,7 @@ public class FSDataInputStreamWrapper extends FSInputStream {
 
     try {
       underlyingIs.close();
-    } catch(FSError e) {
+    } catch (FSError e) {
       throw DremioHadoopFileSystemWrapper.propagateFSError(e);
     }
   }
@@ -192,7 +183,7 @@ public class FSDataInputStreamWrapper extends FSInputStream {
   public void reset() throws IOException {
     try {
       underlyingIs.reset();
-    } catch(FSError e) {
+    } catch (FSError e) {
       throw DremioHadoopFileSystemWrapper.propagateFSError(e);
     }
   }

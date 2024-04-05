@@ -28,17 +28,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import javax.inject.Provider;
-
-import org.apache.arrow.flight.CallHeaders;
-import org.apache.arrow.flight.ErrorFlightMetadata;
-import org.apache.arrow.flight.FlightRuntimeException;
-import org.apache.arrow.flight.FlightStatusCode;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserProtos;
@@ -50,10 +39,17 @@ import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.flight.client.properties.DremioFlightClientProperties;
 import com.dremio.service.tokens.TokenDetails;
 import com.dremio.service.tokens.TokenManager;
+import javax.inject.Provider;
+import org.apache.arrow.flight.CallHeaders;
+import org.apache.arrow.flight.ErrorFlightMetadata;
+import org.apache.arrow.flight.FlightRuntimeException;
+import org.apache.arrow.flight.FlightStatusCode;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
 
-/**
- * Unit tests for DremioFlightSessionsManager
- */
+/** Unit tests for DremioFlightSessionsManager */
 public class TestTokenCacheFlightSessionManager {
   private static final String TOKEN1 = "TOKEN_1";
   private static final String TOKEN2 = "TOKEN_2";
@@ -63,12 +59,16 @@ public class TestTokenCacheFlightSessionManager {
   private static final boolean DEFAULT_SUPPORT_COMPLEX_TYPES = true;
   private static final String DEFAULT_RPC_ENDPOINT_INFO_NAME = "Arrow Flight";
 
-  private static final UserSession USER1_SESSION = UserSession.Builder.newBuilder()
-    .withCredentials(UserBitShared.UserCredentials.newBuilder().setUserName(USERNAME1).build())
-    .build();
-  private static final UserSession USER2_SESSION = UserSession.Builder.newBuilder()
-    .withCredentials(UserBitShared.UserCredentials.newBuilder().setUserName(USERNAME2).build())
-    .build();
+  private static final UserSession USER1_SESSION =
+      UserSession.Builder.newBuilder()
+          .withCredentials(
+              UserBitShared.UserCredentials.newBuilder().setUserName(USERNAME1).build())
+          .build();
+  private static final UserSession USER2_SESSION =
+      UserSession.Builder.newBuilder()
+          .withCredentials(
+              UserBitShared.UserCredentials.newBuilder().setUserName(USERNAME2).build())
+          .build();
 
   private static final long TOKEN_EXPIRATION_MINS = 60L;
   private static final long MAX_NUMBER_OF_SESSIONS = 2L;
@@ -87,25 +87,28 @@ public class TestTokenCacheFlightSessionManager {
 
     when(mockSabotContextProvider.get()).thenReturn(mockSabotContext);
     when(mockSabotContextProvider.get().getOptionManager()).thenReturn(mockOptionManager);
-    when(mockSabotContextProvider.get().getOptionManager().getOption(SESSION_EXPIRATION_TIME_MINUTES))
-      .thenReturn(TOKEN_EXPIRATION_MINS);
+    when(mockSabotContextProvider
+            .get()
+            .getOptionManager()
+            .getOption(SESSION_EXPIRATION_TIME_MINUTES))
+        .thenReturn(TOKEN_EXPIRATION_MINS);
     when(mockTokenManagerProvider.get()).thenReturn(mockTokenManager);
     when(mockSabotContextProvider.get().getOptionValidatorListing())
-      .thenReturn(mock(OptionValidatorListing.class));
+        .thenReturn(mock(OptionValidatorListing.class));
     when(mockOptionManager.getOption("client.max_metadata_count"))
-      .thenReturn(OptionValue.createLong(OptionValue.OptionType.SESSION, "dummy", 0L));
+        .thenReturn(OptionValue.createLong(OptionValue.OptionType.SESSION, "dummy", 0L));
     when(mockOptionManager.getOption(MAX_SESSIONS)).thenReturn(MAX_NUMBER_OF_SESSIONS);
     dremioFlightSessionsManager =
-      new TokenCacheFlightSessionManager(mockSabotContextProvider, mockTokenManagerProvider);
-    when(mockTokenManager.validateToken(TOKEN1)).thenReturn(TokenDetails.of(TOKEN1, USERNAME1, System.currentTimeMillis() + 1000L));
-    when(mockTokenManager.validateToken(TOKEN2)).thenReturn(TokenDetails.of(TOKEN2, USERNAME2, System.currentTimeMillis() + 1000L));
+        new TokenCacheFlightSessionManager(mockSabotContextProvider, mockTokenManagerProvider);
+    when(mockTokenManager.validateToken(TOKEN1))
+        .thenReturn(TokenDetails.of(TOKEN1, USERNAME1, System.currentTimeMillis() + 1000L));
+    when(mockTokenManager.validateToken(TOKEN2))
+        .thenReturn(TokenDetails.of(TOKEN2, USERNAME2, System.currentTimeMillis() + 1000L));
     spyDremioFlightSessionsManager = spy(dremioFlightSessionsManager);
 
-    doReturn(USER1_SESSION)
-      .when(spyDremioFlightSessionsManager).buildUserSession(USERNAME1, null);
+    doReturn(USER1_SESSION).when(spyDremioFlightSessionsManager).buildUserSession(USERNAME1, null);
 
-    doReturn(USER2_SESSION)
-      .when(spyDremioFlightSessionsManager).buildUserSession(USERNAME2, null);
+    doReturn(USER2_SESSION).when(spyDremioFlightSessionsManager).buildUserSession(USERNAME2, null);
   }
 
   @After
@@ -174,8 +177,10 @@ public class TestTokenCacheFlightSessionManager {
     spyDremioFlightSessionsManager.createUserSession(TOKEN2, null);
 
     // Act
-    final UserSession actualUser1 = spyDremioFlightSessionsManager.getUserSession(TOKEN1, null).getSession();
-    final UserSession actualUser2 = spyDremioFlightSessionsManager.getUserSession(TOKEN2, null).getSession();
+    final UserSession actualUser1 =
+        spyDremioFlightSessionsManager.getUserSession(TOKEN1, null).getSession();
+    final UserSession actualUser2 =
+        spyDremioFlightSessionsManager.getUserSession(TOKEN2, null).getSession();
 
     // Assert
     assertEquals(USER1_SESSION, actualUser1);
@@ -185,10 +190,13 @@ public class TestTokenCacheFlightSessionManager {
   @Test
   public void invalidateTokenAfterExpiration() throws Exception {
     // Arrange
-    doAnswer(invocationOnMock -> {
-      assertEquals(TOKEN1, invocationOnMock.getArguments()[0]);
-      return null;
-    }).when(mockTokenManager).invalidateToken(TOKEN1);
+    doAnswer(
+            invocationOnMock -> {
+              assertEquals(TOKEN1, invocationOnMock.getArguments()[0]);
+              return null;
+            })
+        .when(mockTokenManager)
+        .invalidateToken(TOKEN1);
 
     // Test
     try {
@@ -215,7 +223,8 @@ public class TestTokenCacheFlightSessionManager {
     callheaders.insert(UserSession.ROUTING_QUEUE, testRoutingQueue);
 
     // Act
-    final UserSession actual = spyDremioFlightSessionsManager.buildUserSession(username, callheaders);
+    final UserSession actual =
+        spyDremioFlightSessionsManager.buildUserSession(username, callheaders);
 
     // Verify
     assertEquals(testSchema, String.join(".", actual.getDefaultSchemaPath().getPathComponents()));
@@ -243,14 +252,21 @@ public class TestTokenCacheFlightSessionManager {
     final String testSchema = "test.catalog.table";
     final String testRoutingTag = "test-tag";
     final String testRoutingQueue = "test-queue-name";
-    final UserSession userSession = UserSession.Builder.newBuilder()
-      .withUserProperties(
-        UserProtos.UserProperties.newBuilder()
-          .addProperties(DremioFlightClientProperties.createUserProperty(UserSession.SCHEMA, testSchema))
-          .addProperties(DremioFlightClientProperties.createUserProperty(UserSession.ROUTING_TAG, testRoutingTag))
-          .addProperties(DremioFlightClientProperties.createUserProperty(UserSession.ROUTING_QUEUE, testRoutingQueue))
-          .build())
-      .build();
+    final UserSession userSession =
+        UserSession.Builder.newBuilder()
+            .withUserProperties(
+                UserProtos.UserProperties.newBuilder()
+                    .addProperties(
+                        DremioFlightClientProperties.createUserProperty(
+                            UserSession.SCHEMA, testSchema))
+                    .addProperties(
+                        DremioFlightClientProperties.createUserProperty(
+                            UserSession.ROUTING_TAG, testRoutingTag))
+                    .addProperties(
+                        DremioFlightClientProperties.createUserProperty(
+                            UserSession.ROUTING_QUEUE, testRoutingQueue))
+                    .build())
+            .build();
 
     final String testPeerIdentity = "tempToken";
     final String newSchema = "new.catalog.table";
@@ -258,13 +274,17 @@ public class TestTokenCacheFlightSessionManager {
     callHeaders.insert(UserSession.SCHEMA, newSchema);
 
     doReturn(userSession)
-      .when(spyDremioFlightSessionsManager).buildUserSession(testUser, callHeaders);
+        .when(spyDremioFlightSessionsManager)
+        .buildUserSession(testUser, callHeaders);
 
-    when(mockTokenManager.validateToken(testPeerIdentity)).thenReturn(TokenDetails.of(testPeerIdentity, testUser, System.currentTimeMillis() + 1000L));
+    when(mockTokenManager.validateToken(testPeerIdentity))
+        .thenReturn(
+            TokenDetails.of(testPeerIdentity, testUser, System.currentTimeMillis() + 1000L));
 
     // Act
     spyDremioFlightSessionsManager.createUserSession(testPeerIdentity, callHeaders);
-    final UserSession actual = spyDremioFlightSessionsManager.getUserSession(testPeerIdentity, callHeaders).getSession();
+    final UserSession actual =
+        spyDremioFlightSessionsManager.getUserSession(testPeerIdentity, callHeaders).getSession();
 
     // Verify
     assertEquals(newSchema, String.join(".", actual.getDefaultSchemaPath().getPathComponents()));
@@ -279,25 +299,34 @@ public class TestTokenCacheFlightSessionManager {
     final String testSchema = "test.catalog.table";
     final String testRoutingTag = "test-tag";
     final String testRoutingQueue = "test-queue-name";
-    final UserSession userSession = UserSession.Builder.newBuilder()
-      .withUserProperties(
-        UserProtos.UserProperties.newBuilder()
-          .addProperties(DremioFlightClientProperties.createUserProperty(UserSession.SCHEMA, testSchema))
-          .addProperties(DremioFlightClientProperties.createUserProperty(UserSession.ROUTING_TAG, testRoutingTag))
-          .addProperties(DremioFlightClientProperties.createUserProperty(UserSession.ROUTING_QUEUE, testRoutingQueue))
-          .build())
-      .build();
+    final UserSession userSession =
+        UserSession.Builder.newBuilder()
+            .withUserProperties(
+                UserProtos.UserProperties.newBuilder()
+                    .addProperties(
+                        DremioFlightClientProperties.createUserProperty(
+                            UserSession.SCHEMA, testSchema))
+                    .addProperties(
+                        DremioFlightClientProperties.createUserProperty(
+                            UserSession.ROUTING_TAG, testRoutingTag))
+                    .addProperties(
+                        DremioFlightClientProperties.createUserProperty(
+                            UserSession.ROUTING_QUEUE, testRoutingQueue))
+                    .build())
+            .build();
 
-    doReturn(userSession)
-      .when(spyDremioFlightSessionsManager).buildUserSession(testUser, null);
+    doReturn(userSession).when(spyDremioFlightSessionsManager).buildUserSession(testUser, null);
 
     final String testPeerIdentity = "tempToken";
 
-    when(mockTokenManager.validateToken(testPeerIdentity)).thenReturn(TokenDetails.of(testPeerIdentity, testUser, System.currentTimeMillis() + 1000L));
+    when(mockTokenManager.validateToken(testPeerIdentity))
+        .thenReturn(
+            TokenDetails.of(testPeerIdentity, testUser, System.currentTimeMillis() + 1000L));
 
     // Act
     spyDremioFlightSessionsManager.createUserSession(testPeerIdentity, null);
-    final UserSession actual = spyDremioFlightSessionsManager.getUserSession(testPeerIdentity, null).getSession();
+    final UserSession actual =
+        spyDremioFlightSessionsManager.getUserSession(testPeerIdentity, null).getSession();
 
     // Verify
     assertEquals(testSchema, String.join(".", actual.getDefaultSchemaPath().getPathComponents()));

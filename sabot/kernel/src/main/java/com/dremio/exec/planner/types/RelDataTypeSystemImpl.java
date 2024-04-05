@@ -16,6 +16,8 @@
 
 package com.dremio.exec.planner.types;
 
+import com.dremio.common.expression.CompleteType;
+import com.dremio.exec.expr.fn.OutputDerivation;
 import org.apache.arrow.gandiva.evaluator.DecimalTypeUtil;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.calcite.rel.type.RelDataType;
@@ -23,9 +25,6 @@ import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeSystem;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.type.SqlTypeUtil;
-
-import com.dremio.common.expression.CompleteType;
-import com.dremio.exec.expr.fn.OutputDerivation;
 
 public class RelDataTypeSystemImpl extends org.apache.calcite.rel.type.RelDataTypeSystemImpl {
 
@@ -37,8 +36,7 @@ public class RelDataTypeSystemImpl extends org.apache.calcite.rel.type.RelDataTy
 
   public static final RelDataTypeSystem REL_DATA_TYPE_SYSTEM = new RelDataTypeSystemImpl();
 
-  private RelDataTypeSystemImpl() {
-  }
+  private RelDataTypeSystemImpl() {}
 
   @Override
   public int getDefaultPrecision(SqlTypeName typeName) {
@@ -60,12 +58,12 @@ public class RelDataTypeSystemImpl extends org.apache.calcite.rel.type.RelDataTy
 
   @Override
   public int getMaxPrecision(SqlTypeName typeName) {
-    switch(typeName) {
-    case TIME:
-    case TIMESTAMP:
-      return SUPPORTED_DATETIME_PRECISION;
-    default:
-      return super.getMaxPrecision(typeName);
+    switch (typeName) {
+      case TIME:
+      case TIMESTAMP:
+        return SUPPORTED_DATETIME_PRECISION;
+      default:
+        return super.getMaxPrecision(typeName);
     }
   }
 
@@ -79,111 +77,124 @@ public class RelDataTypeSystemImpl extends org.apache.calcite.rel.type.RelDataTy
     return MAX_NUMERIC_PRECISION;
   }
 
-
   @Override
-  public RelDataType deriveSumType(
-      RelDataTypeFactory typeFactory, RelDataType argumentType) {
+  public RelDataType deriveSumType(RelDataTypeFactory typeFactory, RelDataType argumentType) {
     SqlTypeName sqlTypeName = argumentType.getSqlTypeName();
     switch (sqlTypeName) {
       case TINYINT:
       case SMALLINT:
       case INTEGER:
       case BIGINT:
-        return typeFactory.createTypeWithNullability(typeFactory.createSqlType(SqlTypeName.BIGINT), argumentType.isNullable());
+        return typeFactory.createTypeWithNullability(
+            typeFactory.createSqlType(SqlTypeName.BIGINT), argumentType.isNullable());
       case FLOAT:
       case DOUBLE:
-        return typeFactory.createTypeWithNullability(typeFactory.createSqlType(SqlTypeName.DOUBLE), argumentType.isNullable());
+        return typeFactory.createTypeWithNullability(
+            typeFactory.createSqlType(SqlTypeName.DOUBLE), argumentType.isNullable());
       case DECIMAL:
-        return typeFactory.createTypeWithNullability(typeFactory.createSqlType(SqlTypeName
-            .DECIMAL, MAX_NUMERIC_PRECISION, argumentType.getScale()), argumentType.isNullable());
+        return typeFactory.createTypeWithNullability(
+            typeFactory.createSqlType(
+                SqlTypeName.DECIMAL, MAX_NUMERIC_PRECISION, argumentType.getScale()),
+            argumentType.isNullable());
     }
     return argumentType;
   }
 
   @Override
   public RelDataType deriveAvgAggType(RelDataTypeFactory typeFactory, RelDataType argumentType) {
-    return typeFactory.createTypeWithNullability(typeFactory.createSqlType(SqlTypeName.DOUBLE), true);
+    return typeFactory.createTypeWithNullability(
+        typeFactory.createSqlType(SqlTypeName.DOUBLE), true);
   }
 
   @Override
   public RelDataType deriveFractionalRankType(RelDataTypeFactory typeFactory) {
-    return typeFactory.createTypeWithNullability(typeFactory.createSqlType(SqlTypeName.DOUBLE), false);
+    return typeFactory.createTypeWithNullability(
+        typeFactory.createSqlType(SqlTypeName.DOUBLE), false);
   }
 
   @Override
   public RelDataType deriveRankType(RelDataTypeFactory typeFactory) {
-    return typeFactory.createTypeWithNullability(typeFactory.createSqlType(SqlTypeName.BIGINT), false);
+    return typeFactory.createTypeWithNullability(
+        typeFactory.createSqlType(SqlTypeName.BIGINT), false);
   }
 
   @Override
-  public RelDataType deriveCovarType(RelDataTypeFactory typeFactory, RelDataType arg0Type, RelDataType arg1Type) {
-    return typeFactory.createTypeWithNullability(typeFactory.createSqlType(SqlTypeName.DOUBLE), true);
+  public RelDataType deriveCovarType(
+      RelDataTypeFactory typeFactory, RelDataType arg0Type, RelDataType arg1Type) {
+    return typeFactory.createTypeWithNullability(
+        typeFactory.createSqlType(SqlTypeName.DOUBLE), true);
   }
 
   @Override
-  public RelDataType deriveDecimalMultiplyType(RelDataTypeFactory typeFactory, RelDataType type1,
-                                               RelDataType type2) {
-    return getDecimalReturnType(typeFactory, type1, type2, DecimalTypeUtil
-      .OperationType.MULTIPLY);
+  public RelDataType deriveDecimalMultiplyType(
+      RelDataTypeFactory typeFactory, RelDataType type1, RelDataType type2) {
+    return getDecimalReturnType(typeFactory, type1, type2, DecimalTypeUtil.OperationType.MULTIPLY);
   }
 
   @Override
-  public RelDataType deriveDecimalDivideType(RelDataTypeFactory typeFactory, RelDataType type1, RelDataType type2) {
-    return getDecimalReturnType(typeFactory, type1, type2, DecimalTypeUtil
-      .OperationType.DIVIDE);
+  public RelDataType deriveDecimalDivideType(
+      RelDataTypeFactory typeFactory, RelDataType type1, RelDataType type2) {
+    return getDecimalReturnType(typeFactory, type1, type2, DecimalTypeUtil.OperationType.DIVIDE);
   }
 
   @Override
-  public RelDataType deriveDecimalPlusType(RelDataTypeFactory typeFactory, RelDataType type1,
-                                        RelDataType type2) {
-    return getDecimalReturnType(typeFactory, type1, type2, DecimalTypeUtil
-      .OperationType.ADD);
+  public RelDataType deriveDecimalPlusType(
+      RelDataTypeFactory typeFactory, RelDataType type1, RelDataType type2) {
+    return getDecimalReturnType(typeFactory, type1, type2, DecimalTypeUtil.OperationType.ADD);
   }
 
   @Override
-  public RelDataType deriveDecimalModType(RelDataTypeFactory typeFactory, RelDataType type1,
-                                          RelDataType type2) {
-    return getDecimalReturnType(typeFactory, type1, type2, DecimalTypeUtil
-      .OperationType.MOD);
+  public RelDataType deriveDecimalModType(
+      RelDataTypeFactory typeFactory, RelDataType type1, RelDataType type2) {
+    return getDecimalReturnType(typeFactory, type1, type2, DecimalTypeUtil.OperationType.MOD);
   }
 
-  public RelDataType deriveDecimalTruncateType(RelDataTypeFactory typeFactory, RelDataType type1,
-    Integer scale2) {
+  public RelDataType deriveDecimalTruncateType(
+      RelDataTypeFactory typeFactory, RelDataType type1, Integer scale2) {
     if (!SqlTypeUtil.isExactNumeric(type1) || !SqlTypeUtil.isDecimal(type1)) {
       return null;
     }
 
-    ArrowType.Decimal finalPrecisionScale = OutputDerivation.getDecimalOutputTypeForTruncate(type1.getPrecision(),
-      type1.getScale(), scale2);
+    ArrowType.Decimal finalPrecisionScale =
+        OutputDerivation.getDecimalOutputTypeForTruncate(
+            type1.getPrecision(), type1.getScale(), scale2);
 
-    return typeFactory.createSqlType(SqlTypeName.DECIMAL, finalPrecisionScale.getPrecision(),
-      finalPrecisionScale.getScale());
+    return typeFactory.createSqlType(
+        SqlTypeName.DECIMAL, finalPrecisionScale.getPrecision(), finalPrecisionScale.getScale());
   }
 
-  public RelDataType deriveDecimalRoundType(RelDataTypeFactory typeFactory, RelDataType type1,
-    Integer scale2) {
+  public RelDataType deriveDecimalRoundType(
+      RelDataTypeFactory typeFactory, RelDataType type1, Integer scale2) {
     if (!SqlTypeUtil.isExactNumeric(type1) || !SqlTypeUtil.isDecimal(type1)) {
       return null;
     }
 
-    ArrowType.Decimal finalPrecisionScale = OutputDerivation.getDecimalOutputTypeForRound(type1.getPrecision(),
-      type1.getScale(), scale2);
+    ArrowType.Decimal finalPrecisionScale =
+        OutputDerivation.getDecimalOutputTypeForRound(
+            type1.getPrecision(), type1.getScale(), scale2);
 
-    return typeFactory.createSqlType(SqlTypeName.DECIMAL, finalPrecisionScale.getPrecision(),
-      finalPrecisionScale.getScale());
+    return typeFactory.createSqlType(
+        SqlTypeName.DECIMAL, finalPrecisionScale.getPrecision(), finalPrecisionScale.getScale());
   }
 
-  private RelDataType getDecimalReturnType(RelDataTypeFactory typeFactory, RelDataType type1, RelDataType type2, DecimalTypeUtil
-    .OperationType operationType) {
-    if (!SqlTypeUtil.isExactNumeric(type1) || !SqlTypeUtil.isExactNumeric(type2) || (!SqlTypeUtil
-      .isDecimal(type1) && !SqlTypeUtil.isDecimal(type2))) {
+  private RelDataType getDecimalReturnType(
+      RelDataTypeFactory typeFactory,
+      RelDataType type1,
+      RelDataType type2,
+      DecimalTypeUtil.OperationType operationType) {
+    if (!SqlTypeUtil.isExactNumeric(type1)
+        || !SqlTypeUtil.isExactNumeric(type2)
+        || (!SqlTypeUtil.isDecimal(type1) && !SqlTypeUtil.isDecimal(type2))) {
       return null;
     } else {
-      ArrowType.Decimal operand1 = new ArrowType.Decimal(type1.getPrecision(), type1.getScale(), 128);
-      ArrowType.Decimal operand2 = new ArrowType.Decimal(type2.getPrecision(), type2.getScale(), 128);
-      ArrowType.Decimal output = DecimalTypeUtil.getResultTypeForOperation(operationType, operand1,
-        operand2);
-      return typeFactory.createSqlType(SqlTypeName.DECIMAL, output.getPrecision(), output.getScale());
+      ArrowType.Decimal operand1 =
+          new ArrowType.Decimal(type1.getPrecision(), type1.getScale(), 128);
+      ArrowType.Decimal operand2 =
+          new ArrowType.Decimal(type2.getPrecision(), type2.getScale(), 128);
+      ArrowType.Decimal output =
+          DecimalTypeUtil.getResultTypeForOperation(operationType, operand1, operand2);
+      return typeFactory.createSqlType(
+          SqlTypeName.DECIMAL, output.getPrecision(), output.getScale());
     }
   }
 

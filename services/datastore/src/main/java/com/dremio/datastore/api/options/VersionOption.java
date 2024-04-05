@@ -16,8 +16,6 @@
 
 package com.dremio.datastore.api.options;
 
-import org.immutables.value.Value;
-
 import com.dremio.datastore.RemoteDataStoreProtobuf.PutOptionInfo;
 import com.dremio.datastore.RemoteDataStoreProtobuf.PutOptionType;
 import com.dremio.datastore.api.Document;
@@ -25,6 +23,7 @@ import com.dremio.datastore.api.KVStore;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import org.immutables.value.Value;
 
 /**
  * VersionOption for specifying version tag for optimistic concurrency control. It is used as an
@@ -37,16 +36,14 @@ public interface VersionOption extends KVStore.PutOption, KVStore.DeleteOption {
 
   /**
    * Gets the version tag.
+   *
    * @return the version tag associated with this option object.
    */
   String getTag();
 
   @Override
   default PutOptionInfo getPutOptionInfo() {
-    return PutOptionInfo.newBuilder()
-      .setType(PutOptionType.VERSION)
-      .setParameter(getTag())
-      .build();
+    return PutOptionInfo.newBuilder().setType(PutOptionType.VERSION).setParameter(getTag()).build();
   }
 
   static VersionOption from(Document<?, ?> doc) {
@@ -58,14 +55,15 @@ public interface VersionOption extends KVStore.PutOption, KVStore.DeleteOption {
     return new KVStore.PutOption() {
       @Override
       public PutOptionInfo getPutOptionInfo() {
-        return PutOptionInfo.newBuilder().setType(PutOptionType.TTL).setTimeoutSec(timeout_sec).build();
+        return PutOptionInfo.newBuilder()
+            .setType(PutOptionType.TTL)
+            .setTimeoutSec(timeout_sec)
+            .build();
       }
     };
   }
 
-  /**
-   * Stores information about the VersionOption parsed from an array of KVStoreOptions.
-   */
+  /** Stores information about the VersionOption parsed from an array of KVStoreOptions. */
   class TagInfo {
     private final boolean hasVersionOption;
     private final boolean hasCreateOption;
@@ -91,9 +89,7 @@ public interface VersionOption extends KVStore.PutOption, KVStore.DeleteOption {
     }
   }
 
-  /**
-   * Retrieve the version option.
-   */
+  /** Retrieve the version option. */
   static TagInfo getTagInfo(KVStore.KVStoreOption... options) {
     KVStoreOptionUtility.validateOptions(options);
 
@@ -101,12 +97,14 @@ public interface VersionOption extends KVStore.PutOption, KVStore.DeleteOption {
       return new TagInfo(false, false, null);
     }
 
-    for (KVStore.KVStoreOption option: options) {
+    for (KVStore.KVStoreOption option : options) {
       if (option instanceof VersionOption) {
         return new TagInfo(true, false, ((VersionOption) option).getTag());
       } else if (option == CREATE) {
-        // XXX: This is kinda gross. Create is not a version option, yet we collapse it down to this piece of information.
-        // We should work to deprecate/eliminate this class, or at the very least stop making it represent a Create.
+        // XXX: This is kinda gross. Create is not a version option, yet we collapse it down to this
+        // piece of information.
+        // We should work to deprecate/eliminate this class, or at the very least stop making it
+        // represent a Create.
         return new TagInfo(true, true, null);
       }
     }

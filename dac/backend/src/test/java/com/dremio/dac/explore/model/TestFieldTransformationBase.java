@@ -18,10 +18,6 @@ package com.dremio.dac.explore.model;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
 
-import java.io.IOException;
-
-import org.junit.Test;
-
 import com.dremio.dac.proto.model.dataset.FieldConvertCase;
 import com.dremio.dac.proto.model.dataset.FieldConvertDateToNumber;
 import com.dremio.dac.proto.model.dataset.FieldConvertDateToText;
@@ -50,10 +46,10 @@ import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
+import org.junit.Test;
 
-/**
- * Tests the acceptor mapping
- */
+/** Tests the acceptor mapping */
 public class TestFieldTransformationBase {
   @Test
   public void test() throws Exception {
@@ -71,102 +67,125 @@ public class TestFieldTransformationBase {
   @Test
   public void testVisitor() {
     FieldTransformationBase exp = new FieldConvertToJSON();
-    String name = exp.accept(new FieldTransformationBase.FieldTransformationVisitor<String>() {
-      @Override
-      public String visit(FieldConvertCase col) throws Exception {
-        throw new UnsupportedOperationException("NYI");
-      }
-      @Override
-      public String visit(FieldTrim changeCase) throws Exception {
-        throw new UnsupportedOperationException("NYI");
-      }
-      @Override
-      public String visit(FieldExtract extract) throws Exception {
-        throw new UnsupportedOperationException("NYI");
-      }
-      @Override
-      public String visit(FieldConvertFloatToInteger trim) throws Exception {
-        throw new UnsupportedOperationException("NYI");
-      }
-      @Override
-      public String visit(FieldConvertFloatToDecimal calculatedField) throws Exception {
-        throw new UnsupportedOperationException("NYI");
-      }
-      @Override
-      public String visit(FieldConvertDateToText fieldTransformation) throws Exception {
-        throw new UnsupportedOperationException("NYI");
-      }
-      @Override
-      public String visit(FieldConvertNumberToDate numberToDate) throws Exception {
-        throw new UnsupportedOperationException("NYI");
-      }
-      @Override
-      public String visit(FieldConvertDateToNumber dateToNumber) throws Exception {
-        throw new UnsupportedOperationException("NYI");
-      }
-      @Override
-      public String visit(FieldConvertTextToDate textToDate) throws Exception {
-        throw new UnsupportedOperationException("NYI");
-      }
-      @Override
-      public String visit(FieldConvertListToText fieldTransformation) throws Exception {
-        throw new UnsupportedOperationException("NYI");
-      }
-      @Override
-      public String visit(FieldConvertToJSON fieldTransformation) throws Exception {
-        return "json";
-      }
-      @Override
-      public String visit(FieldUnnestList unnest) throws Exception {
-        throw new UnsupportedOperationException("NYI");
-      }
-      @Override
-      public String visit(FieldReplacePattern replacePattern) throws Exception {
-        throw new UnsupportedOperationException("NYI");
-      }
-      @Override
-      public String visit(FieldReplaceCustom replacePattern) throws Exception {
-        throw new UnsupportedOperationException("NYI");
-      }
-      @Override
-      public String visit(FieldReplaceValue replacePattern) throws Exception {
-        throw new UnsupportedOperationException("NYI");
-      }
-      @Override
-      public String visit(FieldReplaceRange replaceRange) throws Exception {
-        throw new UnsupportedOperationException("NYI");
-      }
-      @Override
-      public String visit(FieldExtractMap extract) throws Exception {
-        throw new UnsupportedOperationException("NYI");
-      }
-      @Override
-      public String visit(FieldExtractList extract) throws Exception {
-        throw new UnsupportedOperationException("NYI");
-      }
-      @Override
-      public String visit(FieldSplit split) throws Exception {
-        throw new UnsupportedOperationException("NYI");
-      }
-      @Override
-      public String visit(FieldSimpleConvertToType toType) throws Exception {
-        throw new UnsupportedOperationException("NYI");
-      }
-      @Override
-      public String visit(FieldConvertToTypeIfPossible toTypeIfPossible) throws Exception {
-        throw new UnsupportedOperationException("NYI");
-      }
+    String name =
+        exp.accept(
+            new FieldTransformationBase.FieldTransformationVisitor<String>() {
+              @Override
+              public String visit(FieldConvertCase col) throws Exception {
+                throw new UnsupportedOperationException("NYI");
+              }
 
-      @Override
-      public String visit(FieldConvertToTypeWithPatternIfPossible toTypeIfPossible) throws Exception {
-        throw new UnsupportedOperationException("NYI");
-      }
+              @Override
+              public String visit(FieldTrim changeCase) throws Exception {
+                throw new UnsupportedOperationException("NYI");
+              }
 
-      @Override
-      public String visit(FieldConvertFromJSON fromJson) throws Exception {
-        throw new UnsupportedOperationException("NYI");
-      }
-    });
+              @Override
+              public String visit(FieldExtract extract) throws Exception {
+                throw new UnsupportedOperationException("NYI");
+              }
+
+              @Override
+              public String visit(FieldConvertFloatToInteger trim) throws Exception {
+                throw new UnsupportedOperationException("NYI");
+              }
+
+              @Override
+              public String visit(FieldConvertFloatToDecimal calculatedField) throws Exception {
+                throw new UnsupportedOperationException("NYI");
+              }
+
+              @Override
+              public String visit(FieldConvertDateToText fieldTransformation) throws Exception {
+                throw new UnsupportedOperationException("NYI");
+              }
+
+              @Override
+              public String visit(FieldConvertNumberToDate numberToDate) throws Exception {
+                throw new UnsupportedOperationException("NYI");
+              }
+
+              @Override
+              public String visit(FieldConvertDateToNumber dateToNumber) throws Exception {
+                throw new UnsupportedOperationException("NYI");
+              }
+
+              @Override
+              public String visit(FieldConvertTextToDate textToDate) throws Exception {
+                throw new UnsupportedOperationException("NYI");
+              }
+
+              @Override
+              public String visit(FieldConvertListToText fieldTransformation) throws Exception {
+                throw new UnsupportedOperationException("NYI");
+              }
+
+              @Override
+              public String visit(FieldConvertToJSON fieldTransformation) throws Exception {
+                return "json";
+              }
+
+              @Override
+              public String visit(FieldUnnestList unnest) throws Exception {
+                throw new UnsupportedOperationException("NYI");
+              }
+
+              @Override
+              public String visit(FieldReplacePattern replacePattern) throws Exception {
+                throw new UnsupportedOperationException("NYI");
+              }
+
+              @Override
+              public String visit(FieldReplaceCustom replacePattern) throws Exception {
+                throw new UnsupportedOperationException("NYI");
+              }
+
+              @Override
+              public String visit(FieldReplaceValue replacePattern) throws Exception {
+                throw new UnsupportedOperationException("NYI");
+              }
+
+              @Override
+              public String visit(FieldReplaceRange replaceRange) throws Exception {
+                throw new UnsupportedOperationException("NYI");
+              }
+
+              @Override
+              public String visit(FieldExtractMap extract) throws Exception {
+                throw new UnsupportedOperationException("NYI");
+              }
+
+              @Override
+              public String visit(FieldExtractList extract) throws Exception {
+                throw new UnsupportedOperationException("NYI");
+              }
+
+              @Override
+              public String visit(FieldSplit split) throws Exception {
+                throw new UnsupportedOperationException("NYI");
+              }
+
+              @Override
+              public String visit(FieldSimpleConvertToType toType) throws Exception {
+                throw new UnsupportedOperationException("NYI");
+              }
+
+              @Override
+              public String visit(FieldConvertToTypeIfPossible toTypeIfPossible) throws Exception {
+                throw new UnsupportedOperationException("NYI");
+              }
+
+              @Override
+              public String visit(FieldConvertToTypeWithPatternIfPossible toTypeIfPossible)
+                  throws Exception {
+                throw new UnsupportedOperationException("NYI");
+              }
+
+              @Override
+              public String visit(FieldConvertFromJSON fromJson) throws Exception {
+                throw new UnsupportedOperationException("NYI");
+              }
+            });
     assertEquals("json", name);
   }
 

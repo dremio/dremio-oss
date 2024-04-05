@@ -15,15 +15,12 @@
  */
 package com.dremio.service.jobcounts.server.store;
 
-import java.util.List;
-
 import com.dremio.service.Service;
 import com.dremio.service.jobcounts.JobCountType;
 import com.dremio.service.jobcounts.JobCountUpdate;
+import java.util.List;
 
-/**
- * Jobs count store interface.
- */
+/** Jobs count store interface. */
 public interface JobCountStore extends Service {
 
   int getCount(String id, JobCountType type, int jobCountAgeInDays);

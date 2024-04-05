@@ -28,11 +28,10 @@ export const userId = users.extend((params: UserIdParam) => `${params.userId}`);
 export const advanced = admin.extend(() => "advanced");
 export const engines = admin.extend(
   (params: EngineIdParam) =>
-    `engines${
-      params?.engineId
-        ? "?engineId=" + encodeURIComponent(params.engineId!)
-        : ""
-    }`
+    `engines${params?.engineId
+      ? "?engineId=" + encodeURIComponent(params.engineId!)
+      : ""
+    }`,
 );
 export const activation = admin.extend(() => "activation");
 export const support = admin.extend(() => "support");
@@ -44,4 +43,10 @@ export const biApplications = admin.extend(() => "bi-applications");
 export const externalTokens = admin.extend(() => "external-tokens");
 export const preferences = admin.extend(() => "preferences");
 export const general = admin.extend(() => "general");
+export const projectStorage = admin.extend(() => "project-storage");
+export const monitor = admin.extend(() => "monitor");
+export const monitorCatalogUsage = monitor.extend(() => "catalog-usage");
+export const monitorJobs = monitor.extend(() => "jobs");
+export const monitorReflections = monitor.extend(() => "reflections");
+export const monitorResources = monitor.extend(() => "resource-usage");
 export const errorHandling = admin.extend(() => "*");

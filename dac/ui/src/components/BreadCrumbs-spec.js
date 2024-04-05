@@ -36,9 +36,12 @@ describe("BreadCrumbs", () => {
   describe("render", () => {
     it("should render dots", () => {
       const wrapper = shallow(<BreadCrumbs {...commonProps} />);
-      expect(wrapper.children().first().text()).to.eql("<BreadCrumbItem />");
+      console.log("wrapper: ", wrapper);
+      expect(wrapper.children().first().children().first().text()).to.eql(
+        "<BreadCrumbItem />"
+      );
 
-      expect(wrapper.children().at(1).text()).to.eql(".");
+      expect(wrapper.children().first().children().at(1).text()).to.eql(".");
     });
 
     it("should not render last item when hideLastItem is true", () => {
@@ -47,9 +50,11 @@ describe("BreadCrumbs", () => {
         fullPath: Immutable.List(["foo", "bar", "baz"]),
         hideLastItem: true,
       });
-      expect(wrapper.children()).to.have.length(4);
-      expect(wrapper.children().first().text()).to.eql("<BreadCrumbItem />");
-      expect(wrapper.children().at(1).text()).to.eql(".");
+      expect(wrapper.children().first().children()).to.have.length(4);
+      expect(wrapper.children().first().children().first().text()).to.eql(
+        "<BreadCrumbItem />"
+      );
+      expect(wrapper.children().first().children().at(1).text()).to.eql(".");
     });
 
     it("should render the copy button when showCopyButton is true", () => {
@@ -59,9 +64,9 @@ describe("BreadCrumbs", () => {
         hideLastItem: true,
         showCopyButton: true,
       });
-      expect(wrapper.children()).to.have.length(5);
-      // expect(wrapper.childAt(3).text()).to.eql("<Connect(CopyButton) />");
-      expect(wrapper.children().at(1).text()).to.eql(".");
+      expect(wrapper.children()).to.have.length(2);
+      expect(wrapper.children().last().text()).to.eql("<CopyButton />");
+      expect(wrapper.children().first().children().at(1).text()).to.eql(".");
     });
   });
 

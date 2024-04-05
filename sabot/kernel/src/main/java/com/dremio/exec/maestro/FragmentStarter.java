@@ -15,18 +15,6 @@
  */
 package com.dremio.exec.maestro;
 
-
-import java.io.IOException;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Set;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-
 import com.dremio.common.concurrent.ExtendedLatch;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.ExecConstants;
@@ -57,57 +45,63 @@ import com.google.common.collect.Sets;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Empty;
 import com.google.protobuf.MessageLite;
-
 import io.grpc.stub.StreamObserver;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
+import java.io.IOException;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
-/**
- * Class used to start remote fragment execution.
- */
+/** Class used to start remote fragment execution. */
 class FragmentStarter {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FragmentStarter.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(FragmentStarter.class);
   private static long RPC_WAIT_IN_MSECS_PER_FRAGMENT = 5000L;
   private static final long RPC_MIN_WAIT_IN_MSECS = 30000L;
   private static final ControlsInjector injector =
-    ControlsInjectorFactory.getInjector(FragmentStarter.class);
+      ControlsInjectorFactory.getInjector(FragmentStarter.class);
   public OptionManager optionManager;
 
   @VisibleForTesting
-  public static final String INJECTOR_BEFORE_START_FRAGMENTS_ERROR =
-    "beforeStartFragmentsError";
+  public static final String INJECTOR_BEFORE_START_FRAGMENTS_ERROR = "beforeStartFragmentsError";
 
   @VisibleForTesting
-  public static final String INJECTOR_AFTER_START_FRAGMENTS_ERROR =
-    "afterStartFragmentsError";
+  public static final String INJECTOR_AFTER_START_FRAGMENTS_ERROR = "afterStartFragmentsError";
 
   @VisibleForTesting
-  public static final String INJECTOR_BEFORE_START_FRAGMENTS_PAUSE =
-    "beforeStartFragmentsPause";
+  public static final String INJECTOR_BEFORE_START_FRAGMENTS_PAUSE = "beforeStartFragmentsPause";
 
   @VisibleForTesting
   public static final String INJECTOR_BEFORE_ACTIVATE_FRAGMENTS_ERROR =
-    "beforeActivateFragmentsError";
+      "beforeActivateFragmentsError";
 
   @VisibleForTesting
   public static final String INJECTOR_AFTER_ACTIVATE_FRAGMENTS_ERROR =
-    "afterActivateFragmentsError";
+      "afterActivateFragmentsError";
 
   @VisibleForTesting
   public static final String INJECTOR_BEFORE_ACTIVATE_FRAGMENTS_PAUSE =
-    "beforeActivateFragmentsPause";
+      "beforeActivateFragmentsPause";
 
   @VisibleForTesting
-  public static final String INJECTOR_AFTER_ON_COMPLETED_PAUSE =
-    "afterOnCompletedPause";
+  public static final String INJECTOR_AFTER_ON_COMPLETED_PAUSE = "afterOnCompletedPause";
 
   private final ExecutorServiceClientFactory executorServiceClientFactory;
   private final ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo;
   private final ExecutionControls executionControls;
   private MaestroObserver observer = null;
 
-  public FragmentStarter(ExecutorServiceClientFactory executorServiceClientFactory,
-                         ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo,
-                         ExecutionControls executionControls,OptionManager optionManager) {
+  public FragmentStarter(
+      ExecutorServiceClientFactory executorServiceClientFactory,
+      ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo,
+      ExecutionControls executionControls,
+      OptionManager optionManager) {
     this.executorServiceClientFactory = executorServiceClientFactory;
     this.resourceSchedulingDecisionInfo = resourceSchedulingDecisionInfo;
     this.executionControls = executionControls;
@@ -120,8 +114,8 @@ class FragmentStarter {
   }
 
   /**
-   * Set up the fragments for execution. Some may be local, and some may be remote.
-   * Messages are sent immediately, so they may start returning data even before we complete this.
+   * Set up the fragments for execution. Some may be local, and some may be remote. Messages are
+   * sent immediately, so they may start returning data even before we complete this.
    *
    * @param plan the execution plan
    */
@@ -132,8 +126,8 @@ class FragmentStarter {
       return;
     }
 
-    injector.injectChecked(executionControls, INJECTOR_BEFORE_START_FRAGMENTS_ERROR,
-      IllegalStateException.class);
+    injector.injectChecked(
+        executionControls, INJECTOR_BEFORE_START_FRAGMENTS_ERROR, IllegalStateException.class);
     injector.injectPause(executionControls, INJECTOR_BEFORE_START_FRAGMENTS_PAUSE, logger);
 
     /*
@@ -155,7 +149,8 @@ class FragmentStarter {
       if (logger.isTraceEnabled()) {
         // major.getFragmentJson() might be costly (internal ByteString <-> String conversion)
         try {
-          logger.trace("Tracking remote node {} with data {}",
+          logger.trace(
+              "Tracking remote node {} with data {}",
               fragmentFull.getAssignment(),
               PhysicalPlanReader.toString(major.getFragmentJson(), major.getFragmentCodec()));
         } catch (IOException e) {
@@ -175,8 +170,8 @@ class FragmentStarter {
 
     stopwatch.reset();
 
-    injector.injectChecked(executionControls, INJECTOR_AFTER_START_FRAGMENTS_ERROR,
-      IllegalStateException.class);
+    injector.injectChecked(
+        executionControls, INJECTOR_AFTER_START_FRAGMENTS_ERROR, IllegalStateException.class);
 
     this.observer = observer;
     stopwatch.start();
@@ -186,15 +181,18 @@ class FragmentStarter {
 
     stopwatch.stop();
 
-    injector.injectChecked(executionControls, INJECTOR_AFTER_ACTIVATE_FRAGMENTS_ERROR,
-      IllegalStateException.class);
+    injector.injectChecked(
+        executionControls, INJECTOR_AFTER_ACTIVATE_FRAGMENTS_ERROR, IllegalStateException.class);
 
     // No waiting on acks of sent activate fragment rpcs; so this number is not reliable
     observer.fragmentsActivated(stopwatch.elapsed(TimeUnit.MILLISECONDS));
   }
 
   @WithSpan("send-start-fragments")
-  private void sendStartFragmentMessages(ExecutionPlan plan, Multimap<NodeEndpoint, PlanFragmentFull> fragmentMap, PlanFragmentStats stats) {
+  private void sendStartFragmentMessages(
+      ExecutionPlan plan,
+      Multimap<NodeEndpoint, PlanFragmentFull> fragmentMap,
+      PlanFragmentStats stats) {
     final int numFragments = fragmentMap.keySet().size();
     /*
      * We need to wait for the start rpcs to be sent before sending the activate rpcs. We'll use
@@ -207,24 +205,37 @@ class FragmentStarter {
     final ExtendedLatch endpointLatch = new ExtendedLatch(numFragments);
     final FragmentSubmitFailures fragmentSubmitFailures = new FragmentSubmitFailures();
     final FragmentSubmitSuccess fragmentSubmitSuccess = new FragmentSubmitSuccess();
-    final List<NodeEndpoint> endpointsIndex = plan.getIndexBuilder().getEndpointsIndexBuilder().getAllEndpoints();
+    final List<NodeEndpoint> endpointsIndex =
+        plan.getIndexBuilder().getEndpointsIndexBuilder().getAllEndpoints();
 
     // send rpcs to start fragments
     for (final NodeEndpoint ep : fragmentMap.keySet()) {
       final List<MinorAttr> sharedAttrs =
-        plan.getIndexBuilder().getSharedAttrsIndexBuilder(ep).getAllAttrs();
-      sendStartFragments(ep, fragmentMap.get(ep), endpointsIndex, sharedAttrs,
-        endpointLatch, fragmentSubmitFailures, stats, fragmentSubmitSuccess);
+          plan.getIndexBuilder().getSharedAttrsIndexBuilder(ep).getAllAttrs();
+      sendStartFragments(
+          ep,
+          fragmentMap.get(ep),
+          endpointsIndex,
+          sharedAttrs,
+          endpointLatch,
+          fragmentSubmitFailures,
+          stats,
+          fragmentSubmitSuccess);
     }
 
-    final long timeout = Long.max(RPC_WAIT_IN_MSECS_PER_FRAGMENT * numFragments, Long.max(RPC_MIN_WAIT_IN_MSECS, optionManager.getOption(ExecConstants.FRAGMENT_STARTER_TIMEOUT)));
-    if (numFragments > 0 && !endpointLatch.awaitUninterruptibly(timeout)){
+    final long timeout =
+        Long.max(
+            RPC_WAIT_IN_MSECS_PER_FRAGMENT * numFragments,
+            Long.max(
+                RPC_MIN_WAIT_IN_MSECS,
+                optionManager.getOption(ExecConstants.FRAGMENT_STARTER_TIMEOUT)));
+    if (numFragments > 0 && !endpointLatch.awaitUninterruptibly(timeout)) {
       long numberRemaining = endpointLatch.getCount();
       StringBuilder sb = new StringBuilder();
       boolean first = true;
-      for (final NodeEndpoint ep: endpointsIndex) {
-        if (!fragmentSubmitSuccess.submissionSuccesses.contains(ep) &&
-          !fragmentSubmitFailures.listContains(ep)) {
+      for (final NodeEndpoint ep : endpointsIndex) {
+        if (!fragmentSubmitSuccess.submissionSuccesses.contains(ep)
+            && !fragmentSubmitFailures.listContains(ep)) {
           // The fragment sent to this endPoint timed out.
           if (first) {
             first = false;
@@ -235,22 +246,24 @@ class FragmentStarter {
         }
       }
       throw UserException.connectionError()
-        .message(
-          "Exceeded timeout (%d) while waiting after sending work fragments to remote nodes. " +
-            "Sent %d and only heard response back from %d nodes",
-          timeout, numFragments, numFragments - numberRemaining)
-        .addContext("Node(s) that did not respond", sb.toString())
-        .build(logger);
+          .message(
+              "Exceeded timeout (%d) while waiting after sending work fragments to remote nodes. "
+                  + "Sent %d and only heard response back from %d nodes",
+              timeout, numFragments, numFragments - numberRemaining)
+          .addContext("Node(s) that did not respond", sb.toString())
+          .build(logger);
     }
 
     // if any of the fragment submissions failed, fail the query
-    final List<FragmentSubmitFailures.SubmissionException> submissionExceptions = fragmentSubmitFailures.submissionExceptions;
+    final List<FragmentSubmitFailures.SubmissionException> submissionExceptions =
+        fragmentSubmitFailures.submissionExceptions;
     if (submissionExceptions.size() > 0) {
       Set<NodeEndpoint> endpoints = Sets.newHashSet();
       StringBuilder sb = new StringBuilder();
       boolean first = true;
 
-      for (FragmentSubmitFailures.SubmissionException e : fragmentSubmitFailures.submissionExceptions) {
+      for (FragmentSubmitFailures.SubmissionException e :
+          fragmentSubmitFailures.submissionExceptions) {
         NodeEndpoint endpoint = e.nodeEndpoint;
         if (endpoints.add(endpoint)) {
           if (first) {
@@ -262,22 +275,21 @@ class FragmentStarter {
         }
       }
       throw UserException.connectionError(submissionExceptions.get(0).rpcException)
-        .message("Error setting up remote fragment execution")
-        .addContext("Nodes with failures", sb.toString())
-        .build(logger);
+          .message("Error setting up remote fragment execution")
+          .addContext("Nodes with failures", sb.toString())
+          .build(logger);
     }
   }
 
   @WithSpan("send-activate-fragments")
-  private void sendActivateFragmentMessages(ExecutionPlan plan, Multimap<NodeEndpoint, PlanFragmentFull> fragmentMap) {
+  private void sendActivateFragmentMessages(
+      ExecutionPlan plan, Multimap<NodeEndpoint, PlanFragmentFull> fragmentMap) {
     /*
      * Send the activate fragment rpcs; we don't wait for these. Any problems will come in through
      * the regular sendListener event delivery.
      */
-    final ActivateFragments activateFragments = ActivateFragments
-      .newBuilder()
-      .setQueryId(plan.getQueryId())
-      .build();
+    final ActivateFragments activateFragments =
+        ActivateFragments.newBuilder().setQueryId(plan.getQueryId()).build();
     for (final NodeEndpoint ep : fragmentMap.keySet()) {
       sendActivateFragments(ep, activateFragments);
     }
@@ -289,18 +301,25 @@ class FragmentStarter {
    * @param assignment the node assigned to these fragments
    * @param fullFragments the set of fragments
    * @param latch the countdown latch used to track the requests to all endpoints
-   * @param fragmentSubmitFailures the submission failure counter used to track the requests to all endpoints
+   * @param fragmentSubmitFailures the submission failure counter used to track the requests to all
+   *     endpoints
    */
-  private void sendStartFragments(final NodeEndpoint assignment, final Collection<PlanFragmentFull> fullFragments,
-      List<NodeEndpoint> endpointsIndex, List<MinorAttr> sharedAttrs,
-      final CountDownLatch latch, final FragmentSubmitFailures fragmentSubmitFailures,
-      PlanFragmentStats planFragmentStats, final FragmentSubmitSuccess fragmentSubmitSuccess) {
+  private void sendStartFragments(
+      final NodeEndpoint assignment,
+      final Collection<PlanFragmentFull> fullFragments,
+      List<NodeEndpoint> endpointsIndex,
+      List<MinorAttr> sharedAttrs,
+      final CountDownLatch latch,
+      final FragmentSubmitFailures fragmentSubmitFailures,
+      PlanFragmentStats planFragmentStats,
+      final FragmentSubmitSuccess fragmentSubmitSuccess) {
 
-    final InitializeFragments.Builder fb = InitializeFragments.newBuilder().setQuerySentTime(System.currentTimeMillis());
+    final InitializeFragments.Builder fb =
+        InitializeFragments.newBuilder().setQuerySentTime(System.currentTimeMillis());
     final PlanFragmentSet.Builder setb = fb.getFragmentSetBuilder();
 
     Set<Integer> majorsAddedSet = new HashSet<>();
-    for(final PlanFragmentFull fullFragment : fullFragments) {
+    for (final PlanFragmentFull fullFragment : fullFragments) {
       final PlanFragmentMajor major = fullFragment.getMajor();
 
       // add major info to the msg only once.
@@ -314,14 +333,17 @@ class FragmentStarter {
       setb.addMinor(fullFragment.getMinor());
     }
 
-    if (resourceSchedulingDecisionInfo != null && resourceSchedulingDecisionInfo.getQueueId() != null) {
+    if (resourceSchedulingDecisionInfo != null
+        && resourceSchedulingDecisionInfo.getQueueId() != null) {
       CoordExecRPC.SchedulingInfo.Builder schedulingInfo =
-        CoordExecRPC.SchedulingInfo.newBuilder().setQueueId(resourceSchedulingDecisionInfo.getQueueId());
+          CoordExecRPC.SchedulingInfo.newBuilder()
+              .setQueueId(resourceSchedulingDecisionInfo.getQueueId());
       if (resourceSchedulingDecisionInfo.getWorkloadClass() != null) {
         schedulingInfo.setWorkloadClass(resourceSchedulingDecisionInfo.getWorkloadClass());
       }
       if (resourceSchedulingDecisionInfo.getExtraInfo() != null) {
-        schedulingInfo.setAdditionalInfo(ByteString.copyFrom(resourceSchedulingDecisionInfo.getExtraInfo()));
+        schedulingInfo.setAdditionalInfo(
+            ByteString.copyFrom(resourceSchedulingDecisionInfo.getExtraInfo()));
       }
       fb.setSchedulingInfo(schedulingInfo);
     }
@@ -332,51 +354,57 @@ class FragmentStarter {
 
     logger.debug("Sending remote fragments to \nNode:\n{} \n\nData:\n{}", assignment, initFrags);
     final FragmentSubmitListener listener =
-        new FragmentSubmitListener(assignment, initFrags, latch, fragmentSubmitFailures, fragmentSubmitSuccess);
+        new FragmentSubmitListener(
+            assignment, initFrags, latch, fragmentSubmitFailures, fragmentSubmitSuccess);
 
-    executorServiceClientFactory.getClientForEndpoint(assignment).startFragments(initFrags, listener);
+    executorServiceClientFactory
+        .getClientForEndpoint(assignment)
+        .startFragments(initFrags, listener);
   }
 
   @SuppressWarnings("DremioGRPCStreamObserverOnError")
-  private void sendActivateFragments(final NodeEndpoint assignment, ActivateFragments activateFragments) {
-    logger.debug("Sending activate for remote fragments to \nNode:\n{} \n\nData:\n{}", assignment, activateFragments);
+  private void sendActivateFragments(
+      final NodeEndpoint assignment, ActivateFragments activateFragments) {
+    logger.debug(
+        "Sending activate for remote fragments to \nNode:\n{} \n\nData:\n{}",
+        assignment,
+        activateFragments);
     final FragmentSubmitListener listener =
-      new FragmentSubmitListener(assignment, activateFragments, null, null, null);
+        new FragmentSubmitListener(assignment, activateFragments, null, null, null);
 
     try {
-      injector.injectChecked(executionControls, INJECTOR_BEFORE_ACTIVATE_FRAGMENTS_ERROR,
-        IllegalStateException.class);
+      injector.injectChecked(
+          executionControls, INJECTOR_BEFORE_ACTIVATE_FRAGMENTS_ERROR, IllegalStateException.class);
     } catch (IllegalStateException ex) {
       listener.onError(ex);
       return;
     }
-    executorServiceClientFactory.getClientForEndpoint(assignment).activateFragments(activateFragments, listener);
+    executorServiceClientFactory
+        .getClientForEndpoint(assignment)
+        .activateFragments(activateFragments, listener);
   }
 
-  /**
-   * Used by {@link FragmentSubmitListener} to track the number of submission failures.
-   */
+  /** Used by {@link FragmentSubmitListener} to track the number of submission failures. */
   private static class FragmentSubmitFailures {
     static class SubmissionException {
       final NodeEndpoint nodeEndpoint;
       final RpcException rpcException;
 
-      SubmissionException(
-          final NodeEndpoint nodeEndpoint,
-          final RpcException rpcException) {
+      SubmissionException(final NodeEndpoint nodeEndpoint, final RpcException rpcException) {
         this.nodeEndpoint = nodeEndpoint;
         this.rpcException = rpcException;
       }
     }
 
-    final List<SubmissionException> submissionExceptions = Collections.synchronizedList(new LinkedList<>());
+    final List<SubmissionException> submissionExceptions =
+        Collections.synchronizedList(new LinkedList<>());
 
     void addFailure(final NodeEndpoint nodeEndpoint, final RpcException rpcException) {
       submissionExceptions.add(new SubmissionException(nodeEndpoint, rpcException));
     }
 
     boolean listContains(final NodeEndpoint nodeEndpoint) {
-      for (SubmissionException se: submissionExceptions) {
+      for (SubmissionException se : submissionExceptions) {
         if (se.nodeEndpoint.equals(nodeEndpoint)) {
           return true;
         }
@@ -406,10 +434,14 @@ class FragmentStarter {
      * @param endpoint the endpoint for the submission
      * @param value the initialize fragments message
      * @param latch the latch to count down when the status is known; may be null
-     * @param fragmentSubmitFailures the counter to use for failures; must be non-null iff latch is non-null
+     * @param fragmentSubmitFailures the counter to use for failures; must be non-null iff latch is
+     *     non-null
      */
-    public FragmentSubmitListener(final NodeEndpoint endpoint, final MessageLite value,
-        final CountDownLatch latch, final FragmentSubmitFailures fragmentSubmitFailures,
+    public FragmentSubmitListener(
+        final NodeEndpoint endpoint,
+        final MessageLite value,
+        final CountDownLatch latch,
+        final FragmentSubmitFailures fragmentSubmitFailures,
         final FragmentSubmitSuccess fragmentSubmitSuccess) {
       Preconditions.checkState((latch == null) == (fragmentSubmitFailures == null));
       this.latch = latch;
@@ -426,13 +458,18 @@ class FragmentStarter {
 
     @Override
     public void onError(Throwable throwable) {
-      if (latch != null && done.compareAndSet(false, true)) { // this block only applies to start rpcs.
+      if (latch != null
+          && done.compareAndSet(false, true)) { // this block only applies to start rpcs.
         RpcException ex = RpcException.mapException(throwable);
         fragmentSubmitFailures.addFailure(endpoint, ex);
         latch.countDown();
       } else { // this block only applies to activate rpcs.
-        observer.activateFragmentFailed(new RpcException(String.format("Failure sending activate " +
-          "rpc for fragments to %s:%d.", endpoint.getAddress(), endpoint.getFabricPort()), throwable));
+        observer.activateFragmentFailed(
+            new RpcException(
+                String.format(
+                    "Failure sending activate " + "rpc for fragments to %s:%d.",
+                    endpoint.getAddress(), endpoint.getFabricPort()),
+                throwable));
       }
     }
 

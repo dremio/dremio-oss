@@ -15,14 +15,6 @@
  */
 package com.dremio.exec.store.easy.text;
 
-import java.io.IOException;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
-
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.mapred.FileSplit;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.logical.FormatPluginConfig;
@@ -34,6 +26,7 @@ import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.store.dfs.CompleteFileWork;
+import com.dremio.exec.store.dfs.FileDatasetHandle;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.easy.EasyFormatPlugin;
 import com.dremio.exec.store.dfs.easy.EasyGroupScanUtils;
@@ -50,43 +43,97 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.ImmutableList;
-
 import io.protostuff.ByteString;
+import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.mapred.FileSplit;
 
 public class TextFormatPlugin extends EasyFormatPlugin<TextFormatPlugin.TextFormatConfig> {
   private static final String DEFAULT_NAME = "text";
 
   public TextFormatPlugin(String name, SabotContext context, FileSystemPlugin<?> fsPlugin) {
-    super(name, context, new TextFormatConfig(), true, false, true, true,
-        Collections.<String>emptyList(), DEFAULT_NAME, fsPlugin);
+    super(
+        name,
+        context,
+        new TextFormatConfig(),
+        true,
+        false,
+        true,
+        true,
+        Collections.<String>emptyList(),
+        DEFAULT_NAME,
+        fsPlugin);
   }
 
-  public TextFormatPlugin(String name, SabotContext context, TextFormatConfig formatPluginConfig, FileSystemPlugin<?> fsPlugin) {
-    super(name, context, formatPluginConfig, true, false, true, true,
-        formatPluginConfig.getExtensions(), DEFAULT_NAME, fsPlugin);
+  public TextFormatPlugin(
+      String name,
+      SabotContext context,
+      TextFormatConfig formatPluginConfig,
+      FileSystemPlugin<?> fsPlugin) {
+    super(
+        name,
+        context,
+        formatPluginConfig,
+        true,
+        false,
+        true,
+        true,
+        formatPluginConfig.getExtensions(),
+        DEFAULT_NAME,
+        fsPlugin);
   }
 
   @Override
-  public RecordReader getRecordReader(OperatorContext context, FileSystem dfs, EasyDatasetSplitXAttr splitAttributes,
-                                      List<SchemaPath> columns) throws ExecutionSetupException {
-    Path path = new Path(dfs.makeQualified(com.dremio.io.file.Path.of(splitAttributes.getPath())).toURI());
-    FileSplit split = new FileSplit(path, splitAttributes.getStart(), splitAttributes.getLength(), new String[]{""});
-    TextParsingSettings settings = new TextParsingSettings();
-    settings.set((TextFormatConfig)formatConfig);
-    return new CompliantTextRecordReader(split, getFsPlugin().getCompressionCodecFactory(), dfs, context, settings, columns);
-  }
-
-  @Override
-  public RecordReader getRecordReader(OperatorContext context, FileSystem dfs, EasyDatasetSplitXAttr splitAttributes, List<SchemaPath> columns, ExtendedEasyReaderProperties properties, ByteString extendedProperties) throws ExecutionSetupException {
-    Path path = new Path(dfs.makeQualified(com.dremio.io.file.Path.of(splitAttributes.getPath())).toURI());
-    FileSplit split = new FileSplit(path, splitAttributes.getStart(), splitAttributes.getLength(), new String[]{""});
+  public RecordReader getRecordReader(
+      OperatorContext context,
+      FileSystem dfs,
+      EasyDatasetSplitXAttr splitAttributes,
+      List<SchemaPath> columns)
+      throws ExecutionSetupException {
+    Path path =
+        new Path(dfs.makeQualified(com.dremio.io.file.Path.of(splitAttributes.getPath())).toURI());
+    FileSplit split =
+        new FileSplit(
+            path, splitAttributes.getStart(), splitAttributes.getLength(), new String[] {""});
     TextParsingSettings settings = new TextParsingSettings();
     settings.set((TextFormatConfig) formatConfig);
-    if (properties.getExtendedFormatOptions() != null && properties.getExtendedFormatOptions().getTrimSpace() != null) {
+    return new CompliantTextRecordReader(
+        split, getFsPlugin().getCompressionCodecFactory(), dfs, context, settings, columns);
+  }
+
+  @Override
+  public RecordReader getRecordReader(
+      OperatorContext context,
+      FileSystem dfs,
+      EasyDatasetSplitXAttr splitAttributes,
+      List<SchemaPath> columns,
+      ExtendedEasyReaderProperties properties,
+      ByteString extendedProperties)
+      throws ExecutionSetupException {
+    Path path =
+        new Path(dfs.makeQualified(com.dremio.io.file.Path.of(splitAttributes.getPath())).toURI());
+    FileSplit split =
+        new FileSplit(
+            path, splitAttributes.getStart(), splitAttributes.getLength(), new String[] {""});
+    TextParsingSettings settings = new TextParsingSettings();
+    settings.set((TextFormatConfig) formatConfig);
+    if (properties.getExtendedFormatOptions() != null
+        && properties.getExtendedFormatOptions().getTrimSpace() != null) {
       settings.setIgnoreTrailingWhitespaces(properties.getExtendedFormatOptions().getTrimSpace());
       settings.setIgnoreLeadingWhitespaces(properties.getExtendedFormatOptions().getTrimSpace());
     }
-    return new CompliantTextRecordReader(split, getFsPlugin().getCompressionCodecFactory(), dfs, context, settings, columns, properties, extendedProperties);
+    return new CompliantTextRecordReader(
+        split,
+        getFsPlugin().getCompressionCodecFactory(),
+        dfs,
+        context,
+        settings,
+        columns,
+        properties,
+        extendedProperties);
   }
 
   @Override
@@ -95,18 +142,22 @@ public class TextFormatPlugin extends EasyFormatPlugin<TextFormatPlugin.TextForm
     for (final CompleteFileWork work : scan.getWorkIterable()) {
       data += work.getTotalBytes();
     }
-    final double estimatedRowSize = getContext().getOptionManager().getOption(ExecConstants.TEXT_ESTIMATED_ROW_SIZE);
+    final double estimatedRowSize =
+        getContext().getOptionManager().getOption(ExecConstants.TEXT_ESTIMATED_ROW_SIZE);
     final double estRowCount = data / estimatedRowSize;
-    return new ScanStats(GroupScanProperty.NO_EXACT_ROW_COUNT, (long) estRowCount, (float) estRowCount, data);
+    return new ScanStats(
+        GroupScanProperty.NO_EXACT_ROW_COUNT, (long) estRowCount, (float) estRowCount, data);
   }
 
   @Override
-  public RecordWriter getRecordWriter(final OperatorContext context, final EasyWriter writer) throws IOException {
-    final TextFormatConfig textConfig = ((TextFormatConfig)getConfig());
+  public RecordWriter getRecordWriter(final OperatorContext context, final EasyWriter writer)
+      throws IOException {
+    final TextFormatConfig textConfig = ((TextFormatConfig) getConfig());
     return new TextRecordWriter(context, writer, textConfig);
   }
 
-  @JsonTypeName("text") @JsonInclude(Include.NON_DEFAULT)
+  @JsonTypeName("text")
+  @JsonInclude(Include.NON_DEFAULT)
   public static class TextFormatConfig implements FormatPluginConfig {
 
     public List<String> extensions = ImmutableList.of("txt");
@@ -122,9 +173,7 @@ public class TextFormatPlugin extends EasyFormatPlugin<TextFormatPlugin.TextForm
 
     public int skipLines = 0;
 
-    /**
-     * Extension of files written out with config as part of CTAS.
-     */
+    /** Extension of files written out with config as part of CTAS. */
     public String outputExtension = "txt";
 
     public List<String> getExtensions() {
@@ -162,7 +211,7 @@ public class TextFormatPlugin extends EasyFormatPlugin<TextFormatPlugin.TextForm
 
     @Deprecated
     @JsonProperty("delimiter")
-    public void setFieldDelimiter(String delimiter){
+    public void setFieldDelimiter(String delimiter) {
       this.fieldDelimiter = delimiter;
     }
 
@@ -191,10 +240,10 @@ public class TextFormatPlugin extends EasyFormatPlugin<TextFormatPlugin.TextForm
       result = prime * result + ((lineDelimiter == null) ? 0 : lineDelimiter.hashCode());
       result = prime * result + ((quote == null) ? 0 : quote.hashCode());
       result = prime * result + (skipFirstLine ? 1231 : 1237);
-      result = prime * result + (extractHeader? 1231 : 1237);
+      result = prime * result + (extractHeader ? 1231 : 1237);
       result = prime * result + (autoGenerateColumnNames ? 1231 : 1237);
       result = prime * result + ((outputExtension == null) ? 0 : outputExtension.hashCode());
-      result = prime * result + (trimHeader? 1231 : 1237);
+      result = prime * result + (trimHeader ? 1231 : 1237);
       result = prime * result + skipLines;
       return result;
     }
@@ -271,4 +320,9 @@ public class TextFormatPlugin extends EasyFormatPlugin<TextFormatPlugin.TextForm
     return true;
   }
 
+  @Override
+  public int getMaxFilesLimit() {
+    return Math.toIntExact(
+        getContext().getOptionManager().getOption(FileDatasetHandle.DFS_MAX_TEXT_FILES));
+  }
 }

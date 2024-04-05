@@ -15,10 +15,6 @@
  */
 package com.dremio.exec.planner.serialization.kryo.serializers;
 
-
-import java.util.ArrayList;
-import java.util.List;
-
 import com.dremio.exec.catalog.DremioPrepareTable;
 import com.dremio.exec.ops.DremioCatalogReader;
 import com.esotericsoftware.kryo.Kryo;
@@ -26,6 +22,8 @@ import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import com.google.common.base.Preconditions;
+import java.util.ArrayList;
+import java.util.List;
 
 public class RelOptTableImplSerializer extends Serializer<DremioPrepareTable> {
 
@@ -42,7 +40,8 @@ public class RelOptTableImplSerializer extends Serializer<DremioPrepareTable> {
   }
 
   @Override
-  public DremioPrepareTable read(final Kryo kryo, final Input input, final Class<DremioPrepareTable> type) {
+  public DremioPrepareTable read(
+      final Kryo kryo, final Input input, final Class<DremioPrepareTable> type) {
     final List<String> path = kryo.readObject(input, ArrayList.class);
     return catalog.getTable(path);
   }

@@ -20,7 +20,7 @@ export class RiverLeftAlignFormatter extends CommandRiverFormatter {
   protected formatCommandLine(
     line: string,
     commandLength: number,
-    maxCommandLength: number
+    maxCommandLength: number,
   ): string {
     return line + " ".repeat(maxCommandLength - commandLength);
   }

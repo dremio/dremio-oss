@@ -18,16 +18,15 @@ package com.dremio.dac.explore.bi;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators;
 
-/**
- * Final class containing constants for BI tools message body generators.
- */
+/** Final class containing constants for BI tools message body generators. */
 @Options
 public final class BIToolsConstants {
   private BIToolsConstants() {}
 
   /**
-   * Option to override the hostname used in the exported messages. Empty to indicate there is no override.
+   * Option to override the hostname used in the exported messages. Empty to indicate there is no
+   * override.
    */
   public static final TypeValidators.StringValidator EXPORT_HOSTNAME =
-    new TypeValidators.StringValidator("export.bi.hostname", "");
+      new TypeValidators.StringValidator("export.bi.hostname", "");
 }

@@ -15,14 +15,6 @@
  */
 package com.dremio.exec.store.dfs;
 
-
-import java.io.IOException;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.concurrent.TimeUnit;
-
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.store.TimedRunnable;
 import com.dremio.exec.store.dfs.easy.FileWork;
@@ -45,17 +37,28 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Range;
 import com.google.common.net.HostAndPort;
+import java.io.IOException;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.concurrent.TimeUnit;
 
 public class BlockMapBuilder {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BlockMapBuilder.class);
-  private static final Timer BLOCK_MAP_BUILD_TIMER = Metrics.newTimer(Metrics.join(BlockMapBuilder.class.getName(), "blockMapBuilderTimer"), ResetType.NEVER);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(BlockMapBuilder.class);
+  private static final Timer BLOCK_MAP_BUILD_TIMER =
+      Metrics.newTimer(
+          Metrics.join(BlockMapBuilder.class.getName(), "blockMapBuilderTimer"), ResetType.NEVER);
 
-  private final Map<Path,ImmutableRangeMap<Long,FileBlockLocation>> blockMapMap = Maps.newConcurrentMap();
+  private final Map<Path, ImmutableRangeMap<Long, FileBlockLocation>> blockMapMap =
+      Maps.newConcurrentMap();
   private final CompressionCodecFactory codecFactory;
   private final FileSystem fs;
-  private final ImmutableMap<String,NodeEndpoint> endPointMap;
+  private final ImmutableMap<String, NodeEndpoint> endPointMap;
 
-  public BlockMapBuilder(CompressionCodecFactory codecFactory, FileSystem fs, Collection<NodeEndpoint> endpoints) {
+  public BlockMapBuilder(
+      CompressionCodecFactory codecFactory, FileSystem fs, Collection<NodeEndpoint> endpoints) {
     this.codecFactory = codecFactory;
     this.fs = fs;
     this.endPointMap = buildEndpointMap(endpoints);
@@ -65,20 +68,20 @@ public class BlockMapBuilder {
     return codecFactory.getCodec(fileAttributes.getPath()) != null;
   }
 
-  public List<CompleteFileWork> generateFileWork(List<FileAttributes> files, boolean blockify) throws IOException {
+  public List<CompleteFileWork> generateFileWork(List<FileAttributes> files, boolean blockify)
+      throws IOException {
 
     List<TimedRunnable<List<CompleteFileWork>>> readers = Lists.newArrayList();
-    for(FileAttributes status : files){
+    for (FileAttributes status : files) {
       readers.add(new BlockMapReader(status, blockify));
     }
     List<List<CompleteFileWork>> work = TimedRunnable.run("Get block maps", logger, readers, 16);
     List<CompleteFileWork> singleList = Lists.newArrayList();
-    for(List<CompleteFileWork> innerWorkList : work){
+    for (List<CompleteFileWork> innerWorkList : work) {
       singleList.addAll(innerWorkList);
     }
 
     return singleList;
-
   }
 
   private final class BlockMapReader extends TimedRunnable<List<CompleteFileWork>> {
@@ -88,7 +91,8 @@ public class BlockMapBuilder {
     // For examples, for CSV, it is set as true
     // because each row in a CSV file can be considered as an independent record;
     // for json, it is set as false
-    // because each row in a json file cannot be determined as a record or not simply by that row alone
+    // because each row in a json file cannot be determined as a record or not simply by that row
+    // alone
     private final boolean blockify;
 
     private BlockMapReader(FileAttributes attributes, boolean blockify) {
@@ -96,7 +100,6 @@ public class BlockMapBuilder {
       this.attributes = attributes;
       this.blockify = blockify;
     }
-
 
     @Override
     protected List<CompleteFileWork> runInner() throws Exception {
@@ -106,8 +109,14 @@ public class BlockMapBuilder {
         try {
           ImmutableRangeMap<Long, FileBlockLocation> rangeMap = getBlockMap(attributes);
           for (Entry<Range<Long>, FileBlockLocation> l : rangeMap.asMapOfRanges().entrySet()) {
-            work.add(new CompleteFileWork(getEndpointByteMap(new FileAttributesWork(attributes, l.getValue().getOffset(), l.getValue().getSize())),
-                    l.getValue().getOffset(), l.getValue().getSize(), attributes));
+            work.add(
+                new CompleteFileWork(
+                    getEndpointByteMap(
+                        new FileAttributesWork(
+                            attributes, l.getValue().getOffset(), l.getValue().getSize())),
+                    l.getValue().getOffset(),
+                    l.getValue().getSize(),
+                    attributes));
           }
         } catch (IOException e) {
           logger.warn("failure while generating file work.", e);
@@ -115,28 +124,33 @@ public class BlockMapBuilder {
         }
       }
 
-
       if (!blockify || error || compressed(attributes)) {
-        work.add(new CompleteFileWork(getEndpointByteMap(new FileAttributesWork(attributes)), 0, attributes.size(), attributes));
+        work.add(
+            new CompleteFileWork(
+                getEndpointByteMap(new FileAttributesWork(attributes)),
+                0,
+                attributes.size(),
+                attributes));
       }
 
       // This if-condition is specific for empty CSV file
       // For CSV files, the global variable blockify is set as true
       // And if this CSV file is empty, rangeMap would be empty also
       // Therefore, at the point before this if-condition, work would not be populated
-      if(work.isEmpty()) {
-        work.add(new CompleteFileWork(getEndpointByteMap(new FileAttributesWork(attributes)), 0, 0, attributes));
+      if (work.isEmpty()) {
+        work.add(
+            new CompleteFileWork(
+                getEndpointByteMap(new FileAttributesWork(attributes)), 0, 0, attributes));
       }
 
       return work;
     }
 
-
     @Override
     protected IOException convertToIOException(Exception e) {
-      return new IOException("Failure while trying to get block map for " + attributes.getPath(), e);
+      return new IOException(
+          "Failure while trying to get block map for " + attributes.getPath(), e);
     }
-
   }
 
   private static final class FileAttributesWork implements FileWork {
@@ -149,7 +163,8 @@ public class BlockMapBuilder {
     }
 
     public FileAttributesWork(FileAttributes status, long start, long length) {
-      Preconditions.checkArgument(!status.isDirectory(), "FileStatus work only works with files, not directories.");
+      Preconditions.checkArgument(
+          !status.isDirectory(), "FileStatus work only works with files, not directories.");
       this.status = status;
       this.start = start;
       this.length = length;
@@ -171,15 +186,15 @@ public class BlockMapBuilder {
     }
   }
 
-  /**
-   * Builds a mapping of block locations to file byte range
-   */
-  private ImmutableRangeMap<Long,FileBlockLocation> buildBlockMap(FileAttributes attributes) throws IOException {
+  /** Builds a mapping of block locations to file byte range */
+  private ImmutableRangeMap<Long, FileBlockLocation> buildBlockMap(FileAttributes attributes)
+      throws IOException {
     try (final TimerContext context = BLOCK_MAP_BUILD_TIMER.start()) {
       Iterable<FileBlockLocation> blocks;
-      ImmutableRangeMap<Long,FileBlockLocation> blockMap;
-      blocks = fs.getFileBlockLocations(attributes, 0 , attributes.size());
-      ImmutableRangeMap.Builder<Long, FileBlockLocation> blockMapBuilder = new ImmutableRangeMap.Builder<>();
+      ImmutableRangeMap<Long, FileBlockLocation> blockMap;
+      blocks = fs.getFileBlockLocations(attributes, 0, attributes.size());
+      ImmutableRangeMap.Builder<Long, FileBlockLocation> blockMapBuilder =
+          new ImmutableRangeMap.Builder<>();
       for (FileBlockLocation block : blocks) {
         long start = block.getOffset();
         long end = start + block.getSize();
@@ -192,14 +207,14 @@ public class BlockMapBuilder {
     }
   }
 
-  private ImmutableRangeMap<Long,FileBlockLocation> getBlockMap(FileAttributes attributes) throws IOException{
-    ImmutableRangeMap<Long,FileBlockLocation> blockMap  = blockMapMap.get(attributes.getPath());
+  private ImmutableRangeMap<Long, FileBlockLocation> getBlockMap(FileAttributes attributes)
+      throws IOException {
+    ImmutableRangeMap<Long, FileBlockLocation> blockMap = blockMapMap.get(attributes.getPath());
     if (blockMap == null) {
       blockMap = buildBlockMap(attributes);
     }
     return blockMap;
   }
-
 
   /**
    * For a given FileWork, calculate how many bytes are available on each on node endpoint
@@ -210,34 +225,41 @@ public class BlockMapBuilder {
   public EndpointByteMap getEndpointByteMap(FileWork work) throws IOException {
     Stopwatch watch = Stopwatch.createStarted();
 
-    ImmutableRangeMap<Long,FileBlockLocation> blockMap = getBlockMap(work.getFileAttributes());
+    ImmutableRangeMap<Long, FileBlockLocation> blockMap = getBlockMap(work.getFileAttributes());
     EndpointByteMapImpl endpointByteMap = new EndpointByteMapImpl();
     long start = work.getStart();
     long end = start + work.getLength();
     Range<Long> rowGroupRange = Range.closedOpen(start, end);
 
     // Find submap of ranges that intersect with the rowGroup
-    ImmutableRangeMap<Long,FileBlockLocation> subRangeMap = blockMap.subRangeMap(rowGroupRange);
+    ImmutableRangeMap<Long, FileBlockLocation> subRangeMap = blockMap.subRangeMap(rowGroupRange);
 
     // Iterate through each block in this submap and get the host for the block location
-    for (Map.Entry<Range<Long>,FileBlockLocation> block : subRangeMap.asMapOfRanges().entrySet()) {
+    for (Map.Entry<Range<Long>, FileBlockLocation> block : subRangeMap.asMapOfRanges().entrySet()) {
       List<String> hosts = block.getValue().getHosts();
       Range<Long> blockRange = block.getKey();
       Range<Long> intersection = rowGroupRange.intersection(blockRange);
       long bytes = intersection.upperEndpoint() - intersection.lowerEndpoint();
 
-      // For each host in the current block location, add the intersecting bytes to the corresponding endpoint
+      // For each host in the current block location, add the intersecting bytes to the
+      // corresponding endpoint
       for (String host : hosts) {
         NodeEndpoint endpoint = getNodeEndpoint(host);
         if (endpoint != null) {
           endpointByteMap.add(HostAndPort.fromHost(endpoint.getAddress()), bytes);
         } else {
-          logger.debug("Failure finding SabotNode running on host {}.  Skipping affinity to that host.", host);
+          logger.debug(
+              "Failure finding SabotNode running on host {}.  Skipping affinity to that host.",
+              host);
         }
       }
     }
 
-    logger.debug("FileWork group ({},{}) max bytes {}", work.getFileAttributes().getPath(), work.getStart(), endpointByteMap.getMaxBytes());
+    logger.debug(
+        "FileWork group ({},{}) max bytes {}",
+        work.getFileAttributes().getPath(),
+        work.getStart(),
+        endpointByteMap.getMaxBytes());
 
     logger.debug("Took {} ms to set endpoint bytes", watch.stop().elapsed(TimeUnit.MILLISECONDS));
     return endpointByteMap;
@@ -247,10 +269,9 @@ public class BlockMapBuilder {
     return endPointMap.get(hostName);
   }
 
-  /**
-   * Builds a mapping of SabotNode endpoints to hostnames
-   */
-  private static ImmutableMap<String, NodeEndpoint> buildEndpointMap(Collection<NodeEndpoint> endpoints) {
+  /** Builds a mapping of SabotNode endpoints to hostnames */
+  private static ImmutableMap<String, NodeEndpoint> buildEndpointMap(
+      Collection<NodeEndpoint> endpoints) {
     Stopwatch watch = Stopwatch.createStarted();
     Map<String, NodeEndpoint> endpointMap = Maps.newHashMap();
     for (NodeEndpoint d : endpoints) {
@@ -261,5 +282,4 @@ public class BlockMapBuilder {
     logger.debug("Took {} ms to build endpoint map", watch.elapsed(TimeUnit.MILLISECONDS));
     return ImmutableMap.copyOf(endpointMap);
   }
-
 }

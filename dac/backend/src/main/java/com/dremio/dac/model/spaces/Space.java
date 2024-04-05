@@ -19,12 +19,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static java.lang.String.format;
 
-import java.util.List;
-import java.util.Map;
-
-import javax.validation.constraints.Pattern;
-import javax.ws.rs.DefaultValue;
-
 import com.dremio.dac.model.namespace.DatasetContainer;
 import com.dremio.dac.model.namespace.NamespaceTree;
 import com.dremio.dac.util.JSONUtil;
@@ -35,13 +29,16 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import java.util.List;
+import java.util.Map;
+import javax.validation.constraints.Pattern;
+import javax.ws.rs.DefaultValue;
 
-/**
- * Space model.
- */
-
+/** Space model. */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, defaultImpl = Space.class)
-@JsonIgnoreProperties(value={ "links", "fullPathList"}, allowGetters=true)
+@JsonIgnoreProperties(
+    value = {"links", "fullPathList"},
+    allowGetters = true)
 public class Space implements DatasetContainer {
   private final String id;
   private final String name;
@@ -53,14 +50,13 @@ public class Space implements DatasetContainer {
 
   @JsonCreator
   public Space(
-    @JsonProperty("id") @DefaultValue("null") String id, // default is null for new spaces
-    @JsonProperty("name") String name,
-    @JsonProperty("description") String description,
-    @JsonProperty("version") String version,
-    @JsonProperty("contents") NamespaceTree contents,
-    @JsonProperty("datasetCount") int datasetCount,
-    @JsonProperty("ctime") Long ctime
-  ) {
+      @JsonProperty("id") @DefaultValue("null") String id, // default is null for new spaces
+      @JsonProperty("name") String name,
+      @JsonProperty("description") String description,
+      @JsonProperty("version") String version,
+      @JsonProperty("contents") NamespaceTree contents,
+      @JsonProperty("datasetCount") int datasetCount,
+      @JsonProperty("ctime") Long ctime) {
     checkArgument(!isNullOrEmpty(name), "space name can not be empty");
     this.id = id;
     this.name = name;
@@ -95,12 +91,18 @@ public class Space implements DatasetContainer {
   public Map<String, String> getLinks() {
     final SpacePath spacePath = new SpacePath(new SpaceName(name));
     final String resourcePath = spacePath.toUrlPath();
-    return ImmutableMap.of("self", resourcePath,
-      "jobs", format("/jobs?filter=(*=contains=%s);(qt==UI,qt==EXTERNAL)", spacePath.getSpaceName()),
-      "rename", resourcePath + "/rename");
+    return ImmutableMap.of(
+        "self",
+        resourcePath,
+        "jobs",
+        format("/jobs?filter=(*=contains=%s);(qt==UI,qt==EXTERNAL)", spacePath.getSpaceName()),
+        "rename",
+        resourcePath + "/rename");
   }
 
-  @Pattern(regexp = "^[^.\"@]+$", message = "Space name can not contain periods, double quotes or @.")
+  @Pattern(
+      regexp = "^[^.\"@]+$",
+      message = "Space name can not contain periods, double quotes or @.")
   @Override
   public String getName() {
     return name;
@@ -120,8 +122,16 @@ public class Space implements DatasetContainer {
     return version;
   }
 
-  public static Space newInstance(SpaceConfig spaceConfig, NamespaceTree contents, int datasetCount) {
+  public static Space newInstance(
+      SpaceConfig spaceConfig, NamespaceTree contents, int datasetCount) {
     String id = spaceConfig.getId() != null ? spaceConfig.getId().getId() : null;
-    return new Space(id, spaceConfig.getName(), spaceConfig.getDescription(), spaceConfig.getTag(), contents, datasetCount, spaceConfig.getCtime());
+    return new Space(
+        id,
+        spaceConfig.getName(),
+        spaceConfig.getDescription(),
+        spaceConfig.getTag(),
+        contents,
+        datasetCount,
+        spaceConfig.getCtime());
   }
 }

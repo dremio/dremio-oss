@@ -19,25 +19,25 @@ import com.dremio.datastore.SearchTypes;
 import com.dremio.datastore.SearchTypes.SearchFieldSorting;
 import com.dremio.datastore.format.Format;
 
-/**
- * Contains objects which are helpful to Format tests.
- */
+/** Contains objects which are helpful to Format tests. */
 public class FormatTestArtifacts {
 
   protected static final String TEST_STRING = "yabaD@baD0o";
 
-  protected static final SearchFieldSorting PROTOBUFF_ORIGINAL_STRING = SearchFieldSorting.newBuilder()
-    .setType(SearchFieldSorting.FieldType.STRING)
-    .setField(TEST_STRING)
-    .setOrder(SearchTypes.SortOrder.ASCENDING)
-    .build();
+  protected static final SearchFieldSorting PROTOBUFF_ORIGINAL_STRING =
+      SearchFieldSorting.newBuilder()
+          .setType(SearchFieldSorting.FieldType.STRING)
+          .setField(TEST_STRING)
+          .setOrder(SearchTypes.SortOrder.ASCENDING)
+          .build();
 
-  protected static final SearchFieldSorting PROTOBUFF_ORIGINAL_DOUBLE = SearchFieldSorting.newBuilder()
-    .setType(SearchFieldSorting.FieldType.DOUBLE)
-    .setField(TEST_STRING)
-    .setOrder(SearchTypes.SortOrder.ASCENDING)
-    .build();
+  protected static final SearchFieldSorting PROTOBUFF_ORIGINAL_DOUBLE =
+      SearchFieldSorting.newBuilder()
+          .setType(SearchFieldSorting.FieldType.DOUBLE)
+          .setField(TEST_STRING)
+          .setOrder(SearchTypes.SortOrder.ASCENDING)
+          .build();
 
-  protected static final Format<SearchFieldSorting> PROTOBUFF_FORMAT = Format.ofProtobuf(SearchFieldSorting.class);
-
+  protected static final Format<SearchFieldSorting> PROTOBUFF_FORMAT =
+      Format.ofProtobuf(SearchFieldSorting.class);
 }

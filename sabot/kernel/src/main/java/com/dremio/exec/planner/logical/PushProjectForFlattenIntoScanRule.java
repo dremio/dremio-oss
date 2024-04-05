@@ -15,18 +15,6 @@
  */
 package com.dremio.exec.planner.logical;
 
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-import java.util.stream.Stream;
-
-import org.apache.calcite.plan.RelOptRule;
-import org.apache.calcite.plan.RelOptRuleCall;
-import org.apache.calcite.rel.rules.ProjectRemoveRule;
-import org.apache.calcite.rex.RexBuilder;
-import org.apache.calcite.rex.RexNode;
-
 import com.dremio.exec.planner.common.ScanRelBase;
 import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.exec.planner.physical.PrelUtil.ProjectPushInfo;
@@ -35,12 +23,24 @@ import com.dremio.exec.store.dfs.FilterableScan;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
+import org.apache.calcite.plan.RelOptRule;
+import org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.calcite.rel.rules.ProjectRemoveRule;
+import org.apache.calcite.rex.RexBuilder;
+import org.apache.calcite.rex.RexNode;
 
-public class PushProjectForFlattenIntoScanRule extends RelOptRule{
+public class PushProjectForFlattenIntoScanRule extends RelOptRule {
   public static final RelOptRule INSTANCE = new PushProjectForFlattenIntoScanRule();
 
   private PushProjectForFlattenIntoScanRule() {
-    super(RelOptHelper.some(ProjectForFlattenRel.class, RelOptHelper.any(ScanRelBase.class)), "NewPushProjectForFlattenIntoScanRule");
+    super(
+        RelOptHelper.some(ProjectForFlattenRel.class, RelOptHelper.any(ScanRelBase.class)),
+        "NewPushProjectForFlattenIntoScanRule");
   }
 
   @Override
@@ -54,9 +54,11 @@ public class PushProjectForFlattenIntoScanRule extends RelOptRule{
     final ScanRelBase scan = call.rel(1);
 
     try {
-      List<RexNode> projects = Stream.concat(proj.getStructuredColumnExprs().stream(),
-        getPartitionColumns(scan, call.builder().getRexBuilder()).stream())
-        .collect(ImmutableList.toImmutableList());
+      List<RexNode> projects =
+          Stream.concat(
+                  proj.getStructuredColumnExprs().stream(),
+                  getPartitionColumns(scan, call.builder().getRexBuilder()).stream())
+              .collect(ImmutableList.toImmutableList());
       final ProjectPushInfo columnInfoItemsExprs = PrelUtil.getColumns(scan.getRowType(), projects);
       if (columnInfoItemsExprs == null || columnInfoItemsExprs.isStarQuery()) {
         return;
@@ -64,13 +66,15 @@ public class PushProjectForFlattenIntoScanRule extends RelOptRule{
 
       ScanRelBase newScan;
       if (scan instanceof FilterableScan) {
-        newScan = (ScanRelBase) ((FilterableScan) scan).cloneWithProject(columnInfoItemsExprs.columns, true);
+        newScan =
+            (ScanRelBase)
+                ((FilterableScan) scan).cloneWithProject(columnInfoItemsExprs.columns, true);
       } else {
         newScan = scan.cloneWithProject(columnInfoItemsExprs.columns);
       }
 
       // if the scan is the same as this one (no change in projections), no need to push down.
-      if(newScan.getProjectedColumns().equals(scan.getProjectedColumns())){
+      if (newScan.getProjectedColumns().equals(scan.getProjectedColumns())) {
         return;
       }
 
@@ -80,11 +84,12 @@ public class PushProjectForFlattenIntoScanRule extends RelOptRule{
       }
 
       final ProjectRel newProj =
-              ProjectRel.create(proj.getCluster(),
-                      proj.getTraitSet().plus(Rel.LOGICAL),
-                      newScan,
-                      newProjects,
-                      proj.getRowType());
+          ProjectRel.create(
+              proj.getCluster(),
+              proj.getTraitSet().plus(Rel.LOGICAL),
+              newScan,
+              newProjects,
+              proj.getRowType());
 
       if (ProjectRemoveRule.isTrivial(newProj)) {
         call.transformTo(newScan);
@@ -100,17 +105,19 @@ public class PushProjectForFlattenIntoScanRule extends RelOptRule{
     if (scan instanceof FilterableScan) {
       FilterableScan filterableScan = (FilterableScan) scan;
       TableMetadata tableMetadata = filterableScan.getTableMetadata();
-      if (tableMetadata.getReadDefinition() != null &&
-         tableMetadata.getReadDefinition().getPartitionColumnsList() != null) {
-        final List<String> partitionColumns = tableMetadata.getReadDefinition().getPartitionColumnsList();
+      if (tableMetadata.getReadDefinition() != null
+          && tableMetadata.getReadDefinition().getPartitionColumnsList() != null) {
+        final List<String> partitionColumns =
+            tableMetadata.getReadDefinition().getPartitionColumnsList();
         final List<String> fieldNames = filterableScan.getRowType().getFieldNames();
-        final Map<String, Integer> fieldMap = IntStream.range(0, fieldNames.size())
-          .boxed()
-          .collect(Collectors.toMap(fieldNames::get, i -> i));
+        final Map<String, Integer> fieldMap =
+            IntStream.range(0, fieldNames.size())
+                .boxed()
+                .collect(Collectors.toMap(fieldNames::get, i -> i));
         return partitionColumns.stream()
-          .filter(fieldMap::containsKey)
-          .map(f -> rexBuilder.makeInputRef(filterableScan, fieldMap.get(f)))
-          .collect(ImmutableList.toImmutableList());
+            .filter(fieldMap::containsKey)
+            .map(f -> rexBuilder.makeInputRef(filterableScan, fieldMap.get(f)))
+            .collect(ImmutableList.toImmutableList());
       }
     }
     return ImmutableList.of();

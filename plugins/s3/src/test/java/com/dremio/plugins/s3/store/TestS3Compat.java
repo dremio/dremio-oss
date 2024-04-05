@@ -18,9 +18,16 @@ package com.dremio.plugins.s3.store;
 import static com.dremio.common.TestProfileHelper.assumeNonMaprProfile;
 import static org.junit.Assert.assertEquals;
 
+import com.dremio.BaseTestQuery;
+import com.dremio.common.util.TestTools;
+import com.dremio.exec.catalog.conf.AWSAuthenticationType;
+import com.dremio.exec.catalog.conf.Property;
+import com.dremio.exec.server.SabotContext;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
+import io.findify.s3mock.S3Mock;
 import java.net.URI;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -31,31 +38,22 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestRule;
 
-import com.dremio.BaseTestQuery;
-import com.dremio.common.util.TestTools;
-import com.dremio.exec.catalog.conf.AWSAuthenticationType;
-import com.dremio.exec.catalog.conf.Property;
-import com.dremio.exec.server.SabotContext;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
-
-import io.findify.s3mock.S3Mock;
-
-/**
- * Check that Dremio works with S3 compatible systems via S3Mock.
- */
+/** Check that Dremio works with S3 compatible systems via S3Mock. */
 public class TestS3Compat extends BaseTestQuery {
 
   private S3Mock api;
   private int port;
 
-  @Rule
-  public final TestRule timeoutRule = TestTools.getTimeoutRule(120, TimeUnit.SECONDS);
+  @Rule public final TestRule timeoutRule = TestTools.getTimeoutRule(120, TimeUnit.SECONDS);
 
   @Before
   public void setup() {
     Preconditions.checkState(api == null);
-    api = new S3Mock.Builder().withPort(0).withFileBackend(TestTools.getWorkingPath() + "/src/test/resources/s3compat").build();
+    api =
+        new S3Mock.Builder()
+            .withPort(0)
+            .withFileBackend(TestTools.getWorkingPath() + "/src/test/resources/s3compat")
+            .build();
     port = api.start().localAddress().getPort();
   }
 
@@ -70,23 +68,23 @@ public class TestS3Compat extends BaseTestQuery {
   @Test
   public void s3Compat() throws Exception {
     assumeNonMaprProfile();
-    try(FileSystem fs = new S3FileSystem()){
+    try (FileSystem fs = new S3FileSystem()) {
       Configuration config = new Configuration();
       S3PluginConfig s3 = new S3PluginConfig();
 
       s3.compatibilityMode = true;
       s3.credentialType = AWSAuthenticationType.ACCESS_KEY;
       s3.accessKey = "foo";
-      s3.accessSecret = "bar";
+      s3.accessSecret = () -> "bar";
       s3.secure = false;
-      s3.propertyList = ImmutableList.of(
-          new Property("fs.s3a.endpoint", "localhost:" + port),
-          new Property("fs.s3a.path.style.access", "true")
-          );
+      s3.propertyList =
+          ImmutableList.of(
+              new Property("fs.s3a.endpoint", "localhost:" + port),
+              new Property("fs.s3a.path.style.access", "true"));
 
       SabotContext context = getSabotContext();
       S3StoragePlugin plugin = s3.newPlugin(context, "test-plugin", null);
-      for(Property e : plugin.getProperties()){
+      for (Property e : plugin.getProperties()) {
         config.set(e.name, e.value);
       }
       fs.initialize(new URI("dremioS3:///"), config);

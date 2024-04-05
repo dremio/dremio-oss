@@ -15,19 +15,19 @@
  */
 package com.dremio.exec.tablefunctions.copyerrors;
 
-
+import com.dremio.exec.planner.sql.handlers.query.CopyErrorContext;
 import java.util.List;
-
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 
-import com.dremio.exec.planner.sql.handlers.query.CopyErrorContext;
-
 public final class CopyErrorsCrel extends CopyErrorsRelBase {
 
-  public CopyErrorsCrel(RelOptCluster cluster, RelTraitSet traitSet, CopyErrorContext context,
-                        CopyErrorsCatalogMetadata metadata) {
+  public CopyErrorsCrel(
+      RelOptCluster cluster,
+      RelTraitSet traitSet,
+      CopyErrorContext context,
+      CopyErrorsCatalogMetadata metadata) {
     super(cluster, traitSet, context, metadata);
   }
 

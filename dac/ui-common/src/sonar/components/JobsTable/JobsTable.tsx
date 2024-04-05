@@ -50,7 +50,7 @@ export const JobsTable = ({
 
   const sortedColumns = useExternalStoreState(
     jobsListingTable.store,
-    (state: any) => state.sortedColumns
+    (state: any) => state.sortedColumns,
   );
 
   useEffect(() => {

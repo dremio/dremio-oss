@@ -18,9 +18,7 @@ package com.dremio.exec.store;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 
-/**
- * Configuration for job results store.
- */
+/** Configuration for job results store. */
 public final class JobResultsStoreConfig {
 
   private final String storageName;

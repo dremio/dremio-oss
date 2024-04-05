@@ -19,6 +19,9 @@ import static com.dremio.service.namespace.NamespaceInternalKeyDumpUtil.extractK
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 
+import com.dremio.common.utils.PathUtils;
+import com.google.common.collect.ImmutableList;
+import com.google.common.primitives.UnsignedBytes;
 import java.nio.charset.StandardCharsets;
 import java.util.AbstractMap;
 import java.util.ArrayList;
@@ -27,75 +30,64 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import com.dremio.common.utils.PathUtils;
-import com.google.common.collect.ImmutableList;
-import com.google.common.primitives.UnsignedBytes;
-
 /**
- * Tests sort order of NamespaceInternalKey.
- *    - Sort order of String keys.
- *    - Sort order of keys encoded in legacy format and current format for backwards compatibility.
+ * Tests sort order of NamespaceInternalKey. - Sort order of String keys. - Sort order of keys
+ * encoded in legacy format and current format for backwards compatibility.
  */
 @RunWith(Parameterized.class)
 public class TestNamespaceInternalKeySortOrder {
-  private static List<String> PATHS = ImmutableList.of(
-    "a.foo.ds2",
-    "0",
-    "c.foo.ds1",
-    "a.foo.ds1",
-    "a.foo.bar1.bar3.ds6",
-    "a.foo.bar2.ds4",
-    "c.bar",
-    "a.ds0",
-    "a.foo.bar1.ds3",
-    "a.foo.bar1.bar3.ds5",
-    "a"
-  );
+  private static List<String> PATHS =
+      ImmutableList.of(
+          "a.foo.ds2",
+          "0",
+          "c.foo.ds1",
+          "a.foo.ds1",
+          "a.foo.bar1.bar3.ds6",
+          "a.foo.bar2.ds4",
+          "c.bar",
+          "a.ds0",
+          "a.foo.bar1.ds3",
+          "a.foo.bar1.bar3.ds5",
+          "a");
 
-  private static List<String> NUMBERED_PATHS = ImmutableList.of(
-    "a.b.c",
-    "a0",
-    "0.1.23.50",
-    "0.2",
-    "0.1",
-    "0.1.22.33.4",
-    "0.1.3",
-    "0.1.3.4.5",
-    "0.1.23.34",
-    "0.1.22.33",
-    "0.1.2",
-    "0"
-  );
+  private static List<String> NUMBERED_PATHS =
+      ImmutableList.of(
+          "a.b.c",
+          "a0",
+          "0.1.23.50",
+          "0.2",
+          "0.1",
+          "0.1.22.33.4",
+          "0.1.3",
+          "0.1.3.4.5",
+          "0.1.23.34",
+          "0.1.22.33",
+          "0.1.2",
+          "0");
 
-  private static List<String> MIXED_CASING_PATHS = ImmutableList.of(
-    "0A",
-    "A.FOo.dS2",
-    "0a",
-    "c.Foo.ds1",
-    "A",
-    "A.foo.ds1",
-    "a.foo.bar2.ds4",
-    "C.bAr",
-    "a.DS0",
-    "A.Foo.Bar1.bar3.ds6",
-    "a.foo.bar1.ds3",
-    "A.Foo.BAR1.bar3.DS5",
-    "a"
-  );
-
+  private static List<String> MIXED_CASING_PATHS =
+      ImmutableList.of(
+          "0A",
+          "A.FOo.dS2",
+          "0a",
+          "c.Foo.ds1",
+          "A",
+          "A.foo.ds1",
+          "a.foo.bar2.ds4",
+          "C.bAr",
+          "a.DS0",
+          "A.Foo.Bar1.bar3.ds6",
+          "a.foo.bar1.ds3",
+          "A.Foo.BAR1.bar3.DS5",
+          "a");
 
   @Parameterized.Parameters
   public static Collection<Object[]> input() {
-    return Arrays.asList(new Object[][]{
-      {PATHS},
-      {NUMBERED_PATHS},
-      {MIXED_CASING_PATHS}
-    });
+    return Arrays.asList(new Object[][] {{PATHS}, {NUMBERED_PATHS}, {MIXED_CASING_PATHS}});
   }
 
   private final List<String> input;
@@ -120,8 +112,10 @@ public class TestNamespaceInternalKeySortOrder {
     int count = 0;
     for (int i = 0; i < input.size(); i++) {
       final String path = input.get(i);
-      actual.add((count % 2 == 0)? newLegacyKey(path).getKey() :
-        newKey(path).getKey().getBytes(StandardCharsets.UTF_8));
+      actual.add(
+          (count % 2 == 0)
+              ? newLegacyKey(path).getKey()
+              : newKey(path).getKey().getBytes(StandardCharsets.UTF_8));
       count++;
     }
     actual.sort(UnsignedBytes.lexicographicalComparator());
@@ -131,7 +125,8 @@ public class TestNamespaceInternalKeySortOrder {
   @Test
   public void testSortOrderLegacyKeysAsString() {
     final List<String> actual = new ArrayList<>();
-    input.forEach(path -> actual.add(new String(newLegacyKey(path).getKey(), StandardCharsets.UTF_8)));
+    input.forEach(
+        path -> actual.add(new String(newLegacyKey(path).getKey(), StandardCharsets.UTF_8)));
     actual.sort(Comparator.naturalOrder());
     assertSortOrderEqualStrings(actual);
   }
@@ -142,28 +137,29 @@ public class TestNamespaceInternalKeySortOrder {
     int count = 0;
     for (int i = 0; i < input.size(); i++) {
       final String path = input.get(i);
-      actual.add((count % 2 == 0)? new String(newLegacyKey(path).getKey(), StandardCharsets.UTF_8) :
-        newKey(path).getKey());
+      actual.add(
+          (count % 2 == 0)
+              ? new String(newLegacyKey(path).getKey(), StandardCharsets.UTF_8)
+              : newKey(path).getKey());
       count++;
     }
     actual.sort(Comparator.naturalOrder());
     assertSortOrderEqualStrings(actual);
   }
 
-  /**
-   * Comparator for sorting expected results.
-   */
-  private static final class KeyMapComparator implements Comparator<Map.Entry<String, NamespaceInternalKey>> {
+  /** Comparator for sorting expected results. */
+  private static final class KeyMapComparator
+      implements Comparator<Map.Entry<String, NamespaceInternalKey>> {
     @Override
-    public int compare(Map.Entry<String, NamespaceInternalKey> o1, Map.Entry<String, NamespaceInternalKey> o2) {
+    public int compare(
+        Map.Entry<String, NamespaceInternalKey> o1, Map.Entry<String, NamespaceInternalKey> o2) {
       return Comparator.<String>naturalOrder().compare(o1.getKey(), o2.getKey());
     }
   }
 
-  /**
-   * Comparator for sorting actual results.
-   */
-  private static final class NamespaceInternalKeyComparator implements Comparator<NamespaceInternalKey> {
+  /** Comparator for sorting actual results. */
+  private static final class NamespaceInternalKeyComparator
+      implements Comparator<NamespaceInternalKey> {
     @Override
     public int compare(NamespaceInternalKey o1, NamespaceInternalKey o2) {
       return o1.getKey().compareTo(o2.getKey());
@@ -171,20 +167,22 @@ public class TestNamespaceInternalKeySortOrder {
   }
 
   /**
-   * Generates a list of map entries representing the expected result.
-   *     - The key of each entry is the extracted String key with prefixes encoded.
-   *     - The value of each entry is the NamespaceInternalKey corresponding to each extracted key String.
-   * The expected results are sorted by its extracted String key with prefixes levels encoded.
+   * Generates a list of map entries representing the expected result. - The key of each entry is
+   * the extracted String key with prefixes encoded. - The value of each entry is the
+   * NamespaceInternalKey corresponding to each extracted key String. The expected results are
+   * sorted by its extracted String key with prefixes levels encoded.
    *
    * @return a list of entries as the expected result.
    */
   private List<Map.Entry<String, NamespaceInternalKey>> generateExpectedResults() {
     final ArrayList<Map.Entry<String, NamespaceInternalKey>> expected = new ArrayList<>();
-    input.forEach(path -> {
-      final NamespaceInternalKey key = newKey(path);
-      final String keyWithPrefix = extractKey(key.getKey().getBytes(StandardCharsets.UTF_8), true);
-      expected.add(new AbstractMap.SimpleEntry<>(keyWithPrefix, key));
-    });
+    input.forEach(
+        path -> {
+          final NamespaceInternalKey key = newKey(path);
+          final String keyWithPrefix =
+              extractKey(key.getKey().getBytes(StandardCharsets.UTF_8), true);
+          expected.add(new AbstractMap.SimpleEntry<>(keyWithPrefix, key));
+        });
     expected.sort(new KeyMapComparator());
     return expected;
   }
@@ -242,7 +240,7 @@ public class TestNamespaceInternalKeySortOrder {
     assertEquals(expected.size(), actual.size());
     for (int i = 0; i < expected.size(); i++) {
       assertThat(actual.get(i))
-        .isEqualTo(expected.get(i).getValue().getKey().getBytes(StandardCharsets.UTF_8));
+          .isEqualTo(expected.get(i).getValue().getKey().getBytes(StandardCharsets.UTF_8));
     }
   }
 }

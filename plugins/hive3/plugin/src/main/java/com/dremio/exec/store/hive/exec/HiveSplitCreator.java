@@ -20,13 +20,6 @@ import static org.apache.hadoop.hive.ql.io.IOConstants.AVRO;
 import static org.apache.hadoop.hive.ql.io.IOConstants.ORC;
 import static org.apache.hadoop.hive.ql.io.IOConstants.PARQUET;
 
-import java.util.Collections;
-
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hive.ql.io.orc.OrcSplit;
-import org.apache.hadoop.mapred.FileSplit;
-import org.apache.hadoop.mapred.InputSplit;
-
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.store.BlockBasedSplitGenerator;
 import com.dremio.exec.store.SplitAndPartitionInfo;
@@ -39,10 +32,13 @@ import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
 import com.google.common.base.Preconditions;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
+import java.util.Collections;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hive.ql.io.orc.OrcSplit;
+import org.apache.hadoop.mapred.FileSplit;
+import org.apache.hadoop.mapred.InputSplit;
 
-/**
- * Creates hive input split and Partition Info for different file formats
- */
+/** Creates hive input split and Partition Info for different file formats */
 public class HiveSplitCreator implements BlockBasedSplitGenerator.SplitCreator {
 
   private final ByteString partitionXattrBytes;
@@ -56,41 +52,73 @@ public class HiveSplitCreator implements BlockBasedSplitGenerator.SplitCreator {
     } catch (InvalidProtocolBufferException e) {
       throw new RuntimeException("Cannot read Hive table XAttr", e);
     }
-    HiveReaderProto.PartitionXattr partitionXattr = HiveMetadataUtils.getTablePartitionProperty(hiveTableXattr.toBuilder());
+    HiveReaderProto.PartitionXattr partitionXattr =
+        HiveMetadataUtils.getTablePartitionProperty(hiveTableXattr.toBuilder());
     partitionXattrBytes = partitionXattr.toByteString();
   }
 
   @Override
-  public SplitAndPartitionInfo createSplit(PartitionProtobuf.NormalizedPartitionInfo filePartitionInfo, SplitIdentity splitIdentity, String fileFormat, long fileSize, long currentModTime) throws InvalidProtocolBufferException {
+  public SplitAndPartitionInfo createSplit(
+      PartitionProtobuf.NormalizedPartitionInfo filePartitionInfo,
+      SplitIdentity splitIdentity,
+      String fileFormat,
+      long fileSize,
+      long currentModTime)
+      throws InvalidProtocolBufferException {
     InputSplit inputSplit;
     switch (fileFormat) {
       case PARQUET:
-        inputSplit = new ParquetInputFormat.ParquetSplit(new Path(splitIdentity.getPath()), splitIdentity.getOffset(), splitIdentity.getLength(), null, fileSize, currentModTime);
+        inputSplit =
+            new ParquetInputFormat.ParquetSplit(
+                new Path(splitIdentity.getPath()),
+                splitIdentity.getOffset(),
+                splitIdentity.getLength(),
+                null,
+                fileSize,
+                currentModTime);
         break;
       case ORC:
         Path path = new Path(splitIdentity.getPath());
         Path dir = path.getParent();
         Preconditions.checkArgument(dir != null, "Split path should not be root directory");
-        inputSplit = new OrcSplit(new Path(splitIdentity.getPath()), null, splitIdentity.getOffset(),
-          splitIdentity.getLength(), null, null, true, false,
-          Collections.emptyList(), -1, fileSize, dir);
+        inputSplit =
+            new OrcSplit(
+                new Path(splitIdentity.getPath()),
+                null,
+                splitIdentity.getOffset(),
+                splitIdentity.getLength(),
+                null,
+                null,
+                true,
+                false,
+                Collections.emptyList(),
+                -1,
+                fileSize,
+                dir);
         break;
       case AVRO:
-        inputSplit = new FileSplit(new Path(splitIdentity.getPath()), splitIdentity.getOffset(), splitIdentity.getLength(), (String[])null);
+        inputSplit =
+            new FileSplit(
+                new Path(splitIdentity.getPath()),
+                splitIdentity.getOffset(),
+                splitIdentity.getLength(),
+                (String[]) null);
         break;
       default:
         throw new UnsupportedOperationException("Unsupported data file format type " + fileFormat);
     }
 
-    HiveReaderProto.HiveSplitXattr splitExtended = buildHiveSplitXAttr(Integer.valueOf(filePartitionInfo.getId()), inputSplit);
+    HiveReaderProto.HiveSplitXattr splitExtended =
+        buildHiveSplitXAttr(Integer.valueOf(filePartitionInfo.getId()), inputSplit);
 
-    PartitionProtobuf.NormalizedDatasetSplitInfo.Builder splitInfo = PartitionProtobuf.NormalizedDatasetSplitInfo.newBuilder()
-      .setPartitionId(filePartitionInfo.getId())
-      .setExtendedProperty(splitExtended.toByteString());
-    PartitionProtobuf.NormalizedPartitionInfo.Builder partitionInfoBuilder = filePartitionInfo.toBuilder().setExtendedProperty(partitionXattrBytes);
+    PartitionProtobuf.NormalizedDatasetSplitInfo.Builder splitInfo =
+        PartitionProtobuf.NormalizedDatasetSplitInfo.newBuilder()
+            .setPartitionId(filePartitionInfo.getId())
+            .setExtendedProperty(splitExtended.toByteString());
+    PartitionProtobuf.NormalizedPartitionInfo.Builder partitionInfoBuilder =
+        filePartitionInfo.toBuilder().setExtendedProperty(partitionXattrBytes);
     return new SplitAndPartitionInfo(partitionInfoBuilder.build(), splitInfo.build());
   }
-
 
   @Override
   public long getTargetSplitSize(String fileFormat) {

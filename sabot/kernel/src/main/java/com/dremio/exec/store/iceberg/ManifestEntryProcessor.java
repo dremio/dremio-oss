@@ -15,25 +15,24 @@
  */
 package com.dremio.exec.store.iceberg;
 
+import com.dremio.exec.record.VectorAccessible;
 import java.io.IOException;
-
 import org.apache.iceberg.ContentFile;
 import org.apache.iceberg.DremioManifestReaderUtils.ManifestEntryWrapper;
 import org.apache.iceberg.PartitionSpec;
 
-import com.dremio.exec.record.VectorAccessible;
-
-/**
- * Interface for specifying behaviors for processing Iceberg data files
- */
+/** Interface for specifying behaviors for processing Iceberg data files */
 public interface ManifestEntryProcessor extends AutoCloseable {
 
   void setup(VectorAccessible incoming, VectorAccessible outgoing);
 
   default void initialise(PartitionSpec partitionSpec, int row) {}
 
-  int processManifestEntry(ManifestEntryWrapper<? extends ContentFile<?>> manifestEntry, int startOutIndex, int currentOutputCount) throws IOException;
+  int processManifestEntry(
+      ManifestEntryWrapper<? extends ContentFile<?>> manifestEntry,
+      int startOutIndex,
+      int currentOutputCount)
+      throws IOException;
 
   void closeManifestEntry();
-
 }

@@ -15,13 +15,6 @@
  */
 package com.dremio.sabot.join.hash;
 
-import java.util.List;
-
-import org.apache.calcite.rel.core.JoinRelType;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-
 import com.dremio.common.logical.data.JoinCondition;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.physical.config.HashJoinPOP;
@@ -31,6 +24,11 @@ import com.dremio.options.OptionValue.OptionType;
 import com.dremio.sabot.join.BaseTestJoin;
 import com.dremio.sabot.op.join.hash.HashJoinOperator;
 import com.dremio.sabot.op.join.vhash.spill.VectorizedSpillingHashJoinOperator;
+import java.util.List;
+import org.apache.calcite.rel.core.JoinRelType;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
 public class TestVHashJoinSpill extends BaseTestJoin {
   private final OptionManager options = testContext.getOptions();
@@ -38,8 +36,12 @@ public class TestVHashJoinSpill extends BaseTestJoin {
 
   @Before
   public void before() {
-    options.setOption(OptionValue.createBoolean(OptionType.SYSTEM, HashJoinOperator.ENABLE_SPILL.getOptionName(), true));
-    options.setOption(OptionValue.createLong(OptionType.SYSTEM, ExecConstants.TARGET_BATCH_RECORDS_MAX.getOptionName(), 65535));
+    options.setOption(
+        OptionValue.createBoolean(
+            OptionType.SYSTEM, HashJoinOperator.ENABLE_SPILL.getOptionName(), true));
+    options.setOption(
+        OptionValue.createLong(
+            OptionType.SYSTEM, ExecConstants.TARGET_BATCH_RECORDS_MAX.getOptionName(), 65535));
     VectorizedSpillingHashJoinOperator.MIN_RESERVE = 9 * 1024 * 1024;
   }
 
@@ -52,7 +54,9 @@ public class TestVHashJoinSpill extends BaseTestJoin {
 
   @Override
   protected JoinInfo getJoinInfo(List<JoinCondition> conditions, JoinRelType type) {
-    return new JoinInfo(VectorizedSpillingHashJoinOperator.class, new HashJoinPOP(PROPS, null, null, conditions, null, type, true, null));
+    return new JoinInfo(
+        VectorizedSpillingHashJoinOperator.class,
+        new HashJoinPOP(PROPS, null, null, conditions, null, type, true, true, null));
   }
 
   @Test

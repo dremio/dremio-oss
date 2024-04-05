@@ -15,10 +15,7 @@
  */
 package com.dremio.dac.api;
 
-import java.util.List;
-
-import javax.validation.Valid;
-
+import com.dremio.dac.explore.DatasetResourceUtils;
 import com.dremio.dac.server.InputValidation;
 import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.catalog.conf.ConnectionConf;
@@ -26,18 +23,23 @@ import com.dremio.exec.store.CatalogService;
 import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
 import com.dremio.service.namespace.proto.EntityId;
+import com.dremio.service.namespace.proto.RefreshPolicyType;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.base.Strings;
+import java.util.List;
+import javax.validation.Valid;
 
-/**
- * Source model for the public REST API.
- */
+/** Source model for the public REST API. */
 public class Source implements CatalogEntity {
-  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.EXTERNAL_PROPERTY, property = "type")
+  @JsonTypeInfo(
+      use = JsonTypeInfo.Id.NAME,
+      include = JsonTypeInfo.As.EXTERNAL_PROPERTY,
+      property = "type")
   @Valid
   private ConnectionConf<?, ?> config;
+
   private SourceConfig sourceConfig;
   private AccelerationSettings settings;
   private ConnectionReader reader;
@@ -48,11 +50,12 @@ public class Source implements CatalogEntity {
   private String type;
   private String name;
   private String description;
-  @JsonISODateTime
-  private long createdAt;
+  @JsonISODateTime private long createdAt;
   private MetadataPolicy metadataPolicy;
   private long accelerationGracePeriodMs;
   private long accelerationRefreshPeriodMs;
+  private String accelerationRefreshSchedule;
+  private RefreshPolicyType accelerationActivePolicyType;
   private Boolean accelerationNeverExpire;
   private Boolean accelerationNeverRefresh;
   private List<CatalogItem> children;
@@ -61,17 +64,21 @@ public class Source implements CatalogEntity {
 
   private static final InputValidation validator = new InputValidation();
 
-  public Source() {
-  }
+  public Source() {}
 
-  public Source(SourceConfig config, AccelerationSettings settings, ConnectionReader reader, List<CatalogItem> children) {
+  public Source(
+      SourceConfig config,
+      AccelerationSettings settings,
+      ConnectionReader reader,
+      List<CatalogItem> children) {
     this.sourceConfig = config;
     this.settings = settings;
     this.reader = reader;
     this.children = children;
     this.id = config.getId().getId();
     this.tag = config.getTag();
-    this.type = config.getType() == null ? config.getLegacySourceTypeEnum().name() : config.getType();
+    this.type =
+        config.getType() == null ? config.getLegacySourceTypeEnum().name() : config.getType();
     this.name = config.getName();
     this.description = config.getDescription();
     this.allowCrossSourceSelection = config.getAllowCrossSourceSelection();
@@ -81,7 +88,8 @@ public class Source implements CatalogEntity {
       this.createdAt = config.getCtime();
     }
 
-    com.dremio.service.namespace.source.proto.MetadataPolicy configMetadataPolicy = config.getMetadataPolicy();
+    com.dremio.service.namespace.source.proto.MetadataPolicy configMetadataPolicy =
+        config.getMetadataPolicy();
     if (configMetadataPolicy == null) {
       this.metadataPolicy = new MetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY);
     } else {
@@ -92,6 +100,8 @@ public class Source implements CatalogEntity {
 
     this.accelerationGracePeriodMs = settings.getGracePeriod();
     this.accelerationRefreshPeriodMs = settings.getRefreshPeriod();
+    this.accelerationRefreshSchedule = settings.getRefreshSchedule();
+    this.accelerationActivePolicyType = settings.getRefreshPolicyType();
     this.accelerationNeverExpire = settings.getNeverExpire();
     this.accelerationNeverRefresh = settings.getNeverRefresh();
 
@@ -147,19 +157,25 @@ public class Source implements CatalogEntity {
     this.tag = tag;
   }
 
-  public String getType() { return this.type; }
+  public String getType() {
+    return this.type;
+  }
 
   public void setType(String type) {
     this.type = type;
   }
 
-  public String getName() { return this.name; }
+  public String getName() {
+    return this.name;
+  }
 
   public void setName(String name) {
     this.name = name;
   }
 
-  public String getDescription() { return this.description; }
+  public String getDescription() {
+    return this.description;
+  }
 
   public void setDescription(String description) {
     this.description = description;
@@ -178,7 +194,8 @@ public class Source implements CatalogEntity {
   }
 
   public void setConfig(ConnectionConf<?, ?> config) {
-    // We do NOT want to clear secrets here as this is called when receiving a REST API call which will include the
+    // We do NOT want to clear secrets here as this is called when receiving a REST API call which
+    // will include the
     // password during creation.
     this.config = config;
   }
@@ -213,9 +230,31 @@ public class Source implements CatalogEntity {
     this.accelerationRefreshPeriodMs = accelerationRefreshPeriodMs;
   }
 
+  public String getAccelerationRefreshSchedule() {
+    return this.accelerationRefreshSchedule;
+  }
+
+  public void setAccelerationRefreshSchedule(String refreshSchedule) {
+    if (refreshSchedule != null && !DatasetResourceUtils.validateInputSchedule(refreshSchedule)) {
+      throw new IllegalArgumentException(
+          "refreshSchedule must be a cron expression only specifying one time and days of week");
+    }
+    this.accelerationRefreshSchedule = refreshSchedule;
+  }
+
+  public RefreshPolicyType getAccelerationActivePolicyType() {
+    return this.accelerationActivePolicyType;
+  }
+
+  public void setAccelerationActivePolicyType(RefreshPolicyType policyType) {
+    this.accelerationActivePolicyType = policyType;
+  }
+
   public Boolean isAccelerationNeverExpire() {
-    // Ensure that we always return true/false in case the setting is not passed in via the API (and thus null).
-    // SourceConfig defaults to false and we want to match that behavior and not return null when the user doesn't pass
+    // Ensure that we always return true/false in case the setting is not passed in via the API (and
+    // thus null).
+    // SourceConfig defaults to false and we want to match that behavior and not return null when
+    // the user doesn't pass
     // in the value.
     return Boolean.TRUE.equals(accelerationNeverExpire);
   }
@@ -233,8 +272,10 @@ public class Source implements CatalogEntity {
   }
 
   public Boolean isAllowCrossSourceSelection() {
-    // Ensure that we always return true/false in case the setting is not passed in via the API (and thus null).
-    // SourceConfig defaults to false and we want to match that behavior and not return null when the user doesn't pass
+    // Ensure that we always return true/false in case the setting is not passed in via the API (and
+    // thus null).
+    // SourceConfig defaults to false and we want to match that behavior and not return null when
+    // the user doesn't pass
     // in the value.
     return Boolean.TRUE.equals(allowCrossSourceSelection);
   }
@@ -244,8 +285,10 @@ public class Source implements CatalogEntity {
   }
 
   public Boolean isDisableMetadataValidityCheck() {
-    // Ensure that we always return true/false in case the setting is not passed in via the API (and thus null).
-    // SourceConfig defaults to false and we want to match that behavior and not return null when the user doesn't pass
+    // Ensure that we always return true/false in case the setting is not passed in via the API (and
+    // thus null).
+    // SourceConfig defaults to false and we want to match that behavior and not return null when
+    // the user doesn't pass
     // in the value.
     return Boolean.TRUE.equals(disableMetadataValidityCheck);
   }
@@ -273,6 +316,10 @@ public class Source implements CatalogEntity {
     if (tag != null) {
       sourceConfig.setTag(tag);
     }
+    RefreshPolicyType refreshPolicyType = getAccelerationActivePolicyType();
+    if (refreshPolicyType != null) {
+      sourceConfig.setAccelerationActivePolicyType(refreshPolicyType);
+    }
 
     sourceConfig.setType(getConfig().getType());
     sourceConfig.setConfig(getConfig().toBytesString());
@@ -282,6 +329,7 @@ public class Source implements CatalogEntity {
     sourceConfig.setMetadataPolicy(getMetadataPolicy().toMetadataPolicy());
     sourceConfig.setAccelerationGracePeriod(getAccelerationGracePeriodMs());
     sourceConfig.setAccelerationRefreshPeriod(getAccelerationRefreshPeriodMs());
+    sourceConfig.setAccelerationRefreshSchedule(getAccelerationRefreshSchedule());
     sourceConfig.setAccelerationNeverExpire(isAccelerationNeverExpire());
     sourceConfig.setAccelerationNeverRefresh(isAccelerationNeverRefresh());
     sourceConfig.setAllowCrossSourceSelection(isAllowCrossSourceSelection());

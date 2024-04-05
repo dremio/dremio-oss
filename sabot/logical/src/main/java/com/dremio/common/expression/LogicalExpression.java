@@ -15,16 +15,6 @@
  */
 package com.dremio.common.expression;
 
-import java.io.IOException;
-import java.util.Collections;
-import java.util.Iterator;
-
-import org.antlr.runtime.ANTLRStringStream;
-import org.antlr.runtime.CommonTokenStream;
-import org.antlr.runtime.RecognitionException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.expression.parser.ExprLexer;
 import com.dremio.common.expression.parser.ExprParser;
 import com.dremio.common.expression.parser.ExprParser.parse_return;
@@ -38,10 +28,19 @@ import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
+import java.io.IOException;
+import java.util.Collections;
+import java.util.Iterator;
+import org.antlr.runtime.ANTLRStringStream;
+import org.antlr.runtime.CommonTokenStream;
+import org.antlr.runtime.RecognitionException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-//@JsonDeserialize(using = LogicalExpression.De.class)  // Excluded as we need to register this with the SabotConfig.
+// @JsonDeserialize(using = LogicalExpression.De.class)  // Excluded as we need to register this
+// with the SabotConfig.
 @JsonSerialize(using = LogicalExpression.Se.class)
-public interface LogicalExpression extends Iterable<LogicalExpression>{
+public interface LogicalExpression extends Iterable<LogicalExpression> {
   static final Logger logger = LoggerFactory.getLogger(LogicalExpression.class);
 
   abstract CompleteType getCompleteType();
@@ -58,6 +57,7 @@ public interface LogicalExpression extends Iterable<LogicalExpression>{
   }
 
   int getSelfCost();
+
   int getCumulativeCost();
 
   public static class De extends StdDeserializer<LogicalExpression> {
@@ -66,8 +66,8 @@ public interface LogicalExpression extends Iterable<LogicalExpression>{
     }
 
     @Override
-    public LogicalExpression deserialize(JsonParser jp, DeserializationContext ctxt) throws IOException,
-        JsonProcessingException {
+    public LogicalExpression deserialize(JsonParser jp, DeserializationContext ctxt)
+        throws IOException, JsonProcessingException {
       String expr = jp.getText();
 
       if (expr == null || expr.isEmpty()) {
@@ -86,7 +86,6 @@ public interface LogicalExpression extends Iterable<LogicalExpression>{
         throw new RuntimeException(e);
       }
     }
-
   }
 
   public static class Se extends StdSerializer<LogicalExpression> {
@@ -96,14 +95,12 @@ public interface LogicalExpression extends Iterable<LogicalExpression>{
     }
 
     @Override
-    public void serialize(LogicalExpression value, JsonGenerator jgen, SerializerProvider provider) throws IOException,
-        JsonGenerationException {
+    public void serialize(LogicalExpression value, JsonGenerator jgen, SerializerProvider provider)
+        throws IOException, JsonGenerationException {
       StringBuilder sb = new StringBuilder();
       ExpressionStringBuilder esb = new ExpressionStringBuilder();
       value.accept(esb, sb);
       jgen.writeString(sb.toString());
     }
-
   }
-
 }

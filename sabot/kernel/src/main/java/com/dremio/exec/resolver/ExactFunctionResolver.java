@@ -15,13 +15,12 @@
  */
 package com.dremio.exec.resolver;
 
-import java.util.List;
-
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.FunctionCall;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.exec.expr.fn.AbstractFunctionHolder;
 import com.google.common.collect.Lists;
+import java.util.List;
 
 public class ExactFunctionResolver implements FunctionResolver {
 
@@ -32,7 +31,8 @@ public class ExactFunctionResolver implements FunctionResolver {
    * cast
    */
   @Override
-  public AbstractFunctionHolder getBestMatch(List<AbstractFunctionHolder> methods, FunctionCall call) {
+  public AbstractFunctionHolder getBestMatch(
+      List<AbstractFunctionHolder> methods, FunctionCall call) {
 
     int currcost;
 
@@ -44,7 +44,7 @@ public class ExactFunctionResolver implements FunctionResolver {
       currcost = TypeCastRules.getCost(argumentTypes, h);
 
       // Return if we found a function that has an exact match with the input arguments
-      if (currcost  == 0){
+      if (currcost == 0) {
         return h;
       }
     }

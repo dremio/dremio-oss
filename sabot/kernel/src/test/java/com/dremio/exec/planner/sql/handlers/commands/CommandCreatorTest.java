@@ -29,26 +29,24 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-
 import com.dremio.exec.ops.QueryContext;
-import com.dremio.exec.planner.observer.AttemptObserver;
+import com.dremio.exec.planner.observer.AttemptObservers;
 import com.dremio.exec.proto.ExecProtos.ServerPreparedStatementState;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.testing.ExecutionControls;
 import com.dremio.exec.work.foreman.ForemanException;
 import com.dremio.exec.work.protector.UserRequest;
 import com.dremio.options.OptionManager;
+import com.dremio.proto.model.attempts.AttemptReason;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.Pointer;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
-/**
- * CommandCreator tests.
- */
+/** CommandCreator tests. */
 public class CommandCreatorTest {
 
   private static final String USERNAME1 = "testuser1";
@@ -56,27 +54,29 @@ public class CommandCreatorTest {
   private static final String QUERY = "q";
   private final CommandRunner expectedCommand = mock(CommandRunner.class);
 
-  private final ServerPreparedStatementState serverPreparedStatementState = ServerPreparedStatementState.newBuilder()
-    .setHandle(1)
-    .setSqlQuery(QUERY)
-    .build();
+  private final ServerPreparedStatementState serverPreparedStatementState =
+      ServerPreparedStatementState.newBuilder().setHandle(1).setSqlQuery(QUERY).build();
 
-  private final PreparedStatementHandle preparedStatementHandle = PreparedStatementHandle.newBuilder()
-    .setServerInfo(serverPreparedStatementState.toByteString())
-    .build();
+  private final PreparedStatementHandle preparedStatementHandle =
+      PreparedStatementHandle.newBuilder()
+          .setServerInfo(serverPreparedStatementState.toByteString())
+          .build();
 
-  private final RunQuery runQueryRequest = RunQuery.newBuilder()
-    .setType(UserBitShared.QueryType.PREPARED_STATEMENT)
-    .setPreparedStatementHandle(preparedStatementHandle)
-    .build();
+  private final RunQuery runQueryRequest =
+      RunQuery.newBuilder()
+          .setType(UserBitShared.QueryType.PREPARED_STATEMENT)
+          .setPreparedStatementHandle(preparedStatementHandle)
+          .build();
 
   private final UserRequest request = new UserRequest(RpcType.RUN_QUERY, runQueryRequest);
 
-  private final UserBitShared.QueryId prepareId = UserBitShared.QueryId.newBuilder().setPart1(1).setPart2(1).build();
+  private final UserBitShared.QueryId prepareId =
+      UserBitShared.QueryId.newBuilder().setPart1(1).setPart2(1).build();
   private final UserSession userSession = mock(UserSession.class);
   private final QueryContext queryContext = mock(QueryContext.class);
   private final OptionManager optionManager = mock(OptionManager.class);
-  private final AttemptObserver attemptObserver = mock(AttemptObserver.class);
+  private final AttemptObservers attemptObserver = mock(AttemptObservers.class);
+
   @SuppressWarnings("NoGuavaCacheUsage") // TODO: fix as part of DX-51884
   private final Cache<Long, PreparedPlan> plans = CacheBuilder.newBuilder().build();
 
@@ -97,7 +97,8 @@ public class CommandCreatorTest {
     // Arrange
     setSessionUser1();
     final CommandCreator commandCreator = spy(buildCommandCreator(0));
-    // Override getSqlCommand, expecting that permissions checking of the underlying source would happen as normal
+    // Override getSqlCommand, expecting that permissions checking of the underlying source would
+    // happen as normal
     doReturn(expectedCommand).when(commandCreator).getSqlCommand(any(), any());
 
     // Act
@@ -113,10 +114,12 @@ public class CommandCreatorTest {
     setSessionUser1();
     setReusePreparedHandles();
 
-    final PreparedPlan preparedPlan = new PreparedPlan(prepareId, USERNAME1, false, QUERY, null, null);
+    final PreparedPlan preparedPlan =
+        new PreparedPlan(prepareId, USERNAME1, false, QUERY, null, null);
     plans.put(serverPreparedStatementState.getHandle(), preparedPlan);
 
-    final PrepareToExecution expectedCommand = new PrepareToExecution(preparedPlan, attemptObserver);
+    final PrepareToExecution expectedCommand =
+        new PrepareToExecution(preparedPlan, attemptObserver);
 
     final CommandCreator commandCreator = buildCommandCreator(0);
 
@@ -136,10 +139,12 @@ public class CommandCreatorTest {
     setSessionUser1();
     setNotReusePreparedHandles();
 
-    final PreparedPlan preparedPlan = new PreparedPlan(prepareId, USERNAME1, false, QUERY, null, null);
+    final PreparedPlan preparedPlan =
+        new PreparedPlan(prepareId, USERNAME1, false, QUERY, null, null);
     plans.put(serverPreparedStatementState.getHandle(), preparedPlan);
 
-    final PrepareToExecution expectedCommand = new PrepareToExecution(preparedPlan, attemptObserver);
+    final PrepareToExecution expectedCommand =
+        new PrepareToExecution(preparedPlan, attemptObserver);
 
     final CommandCreator commandCreator = buildCommandCreator(0);
 
@@ -159,13 +164,16 @@ public class CommandCreatorTest {
     setSessionUser1();
     setReusePreparedHandles();
 
-    final PreparedPlan preparedPlan = new PreparedPlan(prepareId, USERNAME1, false, QUERY, null, null);
+    final PreparedPlan preparedPlan =
+        new PreparedPlan(prepareId, USERNAME1, false, QUERY, null, null);
     plans.put(serverPreparedStatementState.getHandle(), preparedPlan);
 
-    final PrepareToExecution expectedCommand = new PrepareToExecution(preparedPlan, attemptObserver);
+    final PrepareToExecution expectedCommand =
+        new PrepareToExecution(preparedPlan, attemptObserver);
 
     final CommandCreator commandCreator = spy(buildCommandCreator(1));
-    // Override getSqlCommand, expecting that permissions checking of the underlying source would happen as normal
+    // Override getSqlCommand, expecting that permissions checking of the underlying source would
+    // happen as normal
     doReturn(expectedCommand).when(commandCreator).getSqlCommand(any(), any());
 
     // Act
@@ -181,11 +189,13 @@ public class CommandCreatorTest {
     setSessionUser2();
     setReusePreparedHandles();
 
-    final PreparedPlan preparedPlan = new PreparedPlan(prepareId, USERNAME1, false, QUERY, null, null);
+    final PreparedPlan preparedPlan =
+        new PreparedPlan(prepareId, USERNAME1, false, QUERY, null, null);
     plans.put(serverPreparedStatementState.getHandle(), preparedPlan);
 
     final CommandCreator commandCreator = spy(buildCommandCreator(0));
-    // Override getSqlCommand, expecting that permissions checking of the underlying source would happen as normal
+    // Override getSqlCommand, expecting that permissions checking of the underlying source would
+    // happen as normal
     doReturn(expectedCommand).when(commandCreator).getSqlCommand(any(), any());
 
     // Act
@@ -198,11 +208,13 @@ public class CommandCreatorTest {
     setSessionUser2();
     setNotReusePreparedHandles();
 
-    final PreparedPlan preparedPlan = new PreparedPlan(prepareId, USERNAME1, false, QUERY, null, null);
+    final PreparedPlan preparedPlan =
+        new PreparedPlan(prepareId, USERNAME1, false, QUERY, null, null);
     plans.put(serverPreparedStatementState.getHandle(), preparedPlan);
 
     final CommandCreator commandCreator = spy(buildCommandCreator(0));
-    // Override getSqlCommand, expecting that permissions checking of the underlying source would happen as normal
+    // Override getSqlCommand, expecting that permissions checking of the underlying source would
+    // happen as normal
     doReturn(expectedCommand).when(commandCreator).getSqlCommand(any(), any());
 
     // Act
@@ -210,13 +222,13 @@ public class CommandCreatorTest {
   }
 
   private void setSessionUser1() {
-    when(userSession.getCredentials()).thenReturn(
-      UserBitShared.UserCredentials.newBuilder().setUserName(USERNAME1).build());
+    when(userSession.getCredentials())
+        .thenReturn(UserBitShared.UserCredentials.newBuilder().setUserName(USERNAME1).build());
   }
 
   private void setSessionUser2() {
-    when(userSession.getCredentials()).thenReturn(
-      UserBitShared.UserCredentials.newBuilder().setUserName(USERNAME2).build());
+    when(userSession.getCredentials())
+        .thenReturn(UserBitShared.UserCredentials.newBuilder().setUserName(USERNAME2).build());
   }
 
   private void setReusePreparedHandles() {
@@ -229,13 +241,13 @@ public class CommandCreatorTest {
 
   private CommandCreator buildCommandCreator(int attemptNumber) {
     return new CommandCreator(
-      null,
-      queryContext,
-      request,
-      attemptObserver,
-      plans,
-      new Pointer<>(prepareId),
-      attemptNumber
-    );
+        null,
+        queryContext,
+        request,
+        attemptObserver,
+        plans,
+        new Pointer<>(prepareId),
+        attemptNumber,
+        AttemptReason.NONE);
   }
 }

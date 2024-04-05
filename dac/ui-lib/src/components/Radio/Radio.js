@@ -64,7 +64,7 @@ const Radio = (props) => {
           {options.map(
             (
               { label: labelText, optValue, disabled, ...otherProps },
-              index
+              index,
             ) => (
               <FormControlLabel
                 key={`${name}_radio_${index}`}
@@ -74,7 +74,7 @@ const Radio = (props) => {
                 label={labelText}
                 {...otherProps}
               />
-            )
+            ),
           )}
         </RadioGroup>
       </FormControl>
@@ -97,7 +97,7 @@ Radio.propTypes = {
     PropTypes.shape({
       label: PropTypes.string,
       value: PropTypes.string,
-    })
+    }),
   ).isRequired,
   value: PropTypes.string,
 };

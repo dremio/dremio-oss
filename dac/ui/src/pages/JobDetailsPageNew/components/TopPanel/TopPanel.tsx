@@ -18,8 +18,7 @@ import { Link, WithRouterProps, withRouter } from "react-router";
 import { useIntl } from "react-intl";
 import datasetPathUtils from "@app/utils/resourcePathUtils/dataset";
 import jobsUtils, { JobState } from "@app/utils/jobsUtils";
-import * as ButtonTypes from "@app/components/Buttons/ButtonTypes";
-import { Button } from "dremio-ui-lib";
+import { Button } from "dremio-ui-lib/components";
 import classNames from "clsx";
 import JobStateIcon from "@app/pages/JobPage/components/JobStateIcon";
 import CopyButton from "@app/components/Buttons/CopyButton";
@@ -62,12 +61,9 @@ export const TopPanel = (props: WithRouterProps & TopPanelProps) => {
       jobStatus === JobState.PLANNING
     ) {
       return (
-        <Button
-          color={ButtonTypes.UI_LIB_SECONDARY}
-          text={formatMessage({ id: "Common.Cancel" })}
-          onClick={() => cancelJob(jobId)}
-          disableMargin
-        />
+        <Button variant="secondary" onClick={() => cancelJob(jobId)}>
+          {formatMessage({ id: "Common.Cancel" })}
+        </Button>
       );
     }
 

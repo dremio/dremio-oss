@@ -27,11 +27,6 @@ import static com.dremio.dac.proto.model.dataset.OrderDirection.ASC;
 import static com.dremio.dac.proto.model.dataset.ReplaceType.VALUE;
 import static java.util.Arrays.asList;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.explore.model.ExpressionBase;
@@ -116,13 +111,18 @@ import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.jobs.metadata.proto.QueryMetadata;
 import com.dremio.service.namespace.dataset.proto.FieldOrigin;
 import com.dremio.service.namespace.dataset.proto.ParentDataset;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 /**
- * Abstract class that actually applies a single transformation. Uses a visitor
- * pattern to dispatch to correct TransformBase implementation.
+ * Abstract class that actually applies a single transformation. Uses a visitor pattern to dispatch
+ * to correct TransformBase implementation.
  */
 abstract class TransformActor implements TransformBase.TransformVisitor<TransformResult> {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TransformActor.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(TransformActor.class);
 
   private final DatasetStateMutator m;
   private final boolean preview;
@@ -130,10 +130,7 @@ abstract class TransformActor implements TransformBase.TransformVisitor<Transfor
   private final QueryExecutor executor;
 
   public TransformActor(
-      VirtualDatasetState initialState,
-      boolean preview,
-      String username,
-      QueryExecutor executor) {
+      VirtualDatasetState initialState, boolean preview, String username, QueryExecutor executor) {
     super();
     this.m = new DatasetStateMutator(username, copy(initialState), preview);
     this.preview = preview;
@@ -148,9 +145,16 @@ abstract class TransformActor implements TransformBase.TransformVisitor<Transfor
 
   @Override
   public TransformResult visit(TransformUpdateSQL updateSQL) throws Exception {
-    Map<String, JobsVersionContext> sourceVersionMapping = TransformerUtils.createSourceVersionMapping(updateSQL.getReferencesList());
-    final SqlQuery query = new SqlQuery(updateSQL.getSql(), updateSQL.getSqlContextList(), username, updateSQL.getEngineName(),
-      updateSQL.getSessionId(), sourceVersionMapping);
+    Map<String, JobsVersionContext> sourceVersionMapping =
+        TransformerUtils.createSourceVersionMapping(updateSQL.getReferencesList());
+    final SqlQuery query =
+        new SqlQuery(
+            updateSQL.getSql(),
+            updateSQL.getSqlContextList(),
+            username,
+            updateSQL.getEngineName(),
+            updateSQL.getSessionId(),
+            sourceVersionMapping);
     m.setSql(getMetadata(query));
     return m.result();
   }
@@ -174,10 +178,15 @@ abstract class TransformActor implements TransformBase.TransformVisitor<Transfor
     DatasetPath rightPath = new DatasetPath(join.getRightTableFullPathList());
     final String joinAlias = "join_" + rightPath.getLeaf().getName();
     m.nest();
-    //Sets the Reference for Right table. Need to override it for right table as the reference was copied from left table
+    // Sets the Reference for Right table. Need to override it for right table as the reference was
+    // copied from left table
     m.setVirtualDatasetStateReference(join.getReferencesList());
-    m.addJoin(new Join(preview ? JoinType.FullOuter : join.getJoinType(), rightPath.toPathString(), joinAlias)
-        .setJoinConditionsList(join.getJoinConditionsList()));
+    m.addJoin(
+        new Join(
+                preview ? JoinType.FullOuter : join.getJoinType(),
+                rightPath.toPathString(),
+                joinAlias)
+            .setJoinConditionsList(join.getJoinConditionsList()));
     m.updateColumnTables();
 
     List<String> columns = new ArrayList<>();
@@ -190,8 +199,12 @@ abstract class TransformActor implements TransformBase.TransformVisitor<Transfor
       columns.remove(columns.indexOf(jc.getRightColumn()));
       final String rightCol = m.uniqueColumnName(jc.getRightColumn());
       m.moveColumn(m.indexOfCol(jc.getLeftColumn()), edge);
-      m.addColumn(edge, new Column(rightCol, new Expression(ExpressionType.ColumnReference)
-          .setCol(new ExpColumnReference(jc.getRightColumn()).setTable(joinAlias))));
+      m.addColumn(
+          edge,
+          new Column(
+              rightCol,
+              new Expression(ExpressionType.ColumnReference)
+                  .setCol(new ExpColumnReference(jc.getRightColumn()).setTable(joinAlias))));
       allJoinedColumns.add(jc.getLeftColumn());
       allJoinedColumns.add(rightCol);
       if (preview) {
@@ -205,8 +218,11 @@ abstract class TransformActor implements TransformBase.TransformVisitor<Transfor
     }
 
     for (String column : columns) {
-      m.addColumn(new Column(m.uniqueColumnName(column),
-          new Expression(ExpressionType.ColumnReference).setCol(new ExpColumnReference(column).setTable(joinAlias))));
+      m.addColumn(
+          new Column(
+              m.uniqueColumnName(column),
+              new Expression(ExpressionType.ColumnReference)
+                  .setCol(new ExpColumnReference(column).setTable(joinAlias))));
     }
 
     if (preview && join.getJoinType() != JoinType.FullOuter) {
@@ -227,7 +243,9 @@ abstract class TransformActor implements TransformBase.TransformVisitor<Transfor
 
     flattenIfNeeded(sortedColumnName);
 
-    return new TransformSorts().setColumnsList(asList(new Order(sortedColumnName, order))).accept(this);
+    return new TransformSorts()
+        .setColumnsList(asList(new Order(sortedColumnName, order)))
+        .accept(this);
   }
 
   @Override
@@ -239,7 +257,9 @@ abstract class TransformActor implements TransformBase.TransformVisitor<Transfor
         needsNesting = true;
       }
     }
-    if (needsNesting) { m.nest(); }
+    if (needsNesting) {
+      m.nest();
+    }
     m.setOrdersList(columnsList);
     TransformResult r = m.result();
     for (Order order : columnsList) {
@@ -314,17 +334,21 @@ abstract class TransformActor implements TransformBase.TransformVisitor<Transfor
     if (oldCol == null) {
       throw new ClientErrorException("sourceColumnName is missing in field transformation");
     }
-    boolean dropSourceColumn = field.getDropSourceColumn() == null ? true : field.getDropSourceColumn();
+    boolean dropSourceColumn =
+        field.getDropSourceColumn() == null ? true : field.getDropSourceColumn();
     final String newCol = field.getNewColumnName() == null ? oldCol : field.getNewColumnName();
     if (newCol.equalsIgnoreCase(oldCol) && !dropSourceColumn) {
       throw UserException.validationError()
-        .message("You cannot use a column name that already exists in the table")
-        .build(logger);
+          .message("You cannot use a column name that already exists in the table")
+          .build(logger);
     }
     // validation and defaults go here
     class TransformFieldVisitor extends FieldTransformationVisitor<FieldTransformationBase> {
       private boolean nestApplied = false;
-      public boolean hasNestApplied() { return this.nestApplied; }
+
+      public boolean hasNestApplied() {
+        return this.nestApplied;
+      }
 
       @Override
       public FieldTransformationBase visit(FieldConvertCase convertCase) throws Exception {
@@ -372,7 +396,8 @@ abstract class TransformActor implements TransformBase.TransformVisitor<Transfor
       public FieldTransformationBase visit(FieldConvertTextToDate textToDate) throws Exception {
         textToDate.setDesiredType(checkDateTimeDesiredType(textToDate.getDesiredType()));
 
-        ActionForNonMatchingValue actionForNonMatchingValue = textToDate.getActionForNonMatchingValue();
+        ActionForNonMatchingValue actionForNonMatchingValue =
+            textToDate.getActionForNonMatchingValue();
 
         // we can exit early if no non-matching action was defined
         if (actionForNonMatchingValue == null) {
@@ -381,10 +406,17 @@ abstract class TransformActor implements TransformBase.TransformVisitor<Transfor
 
         if (actionForNonMatchingValue == ActionForNonMatchingValue.DELETE_RECORDS) {
           m.findColValueForModification(oldCol);
-          TransformActor.this.visit(new TransformFilter(oldCol, new FilterConvertibleDataWithPattern(textToDate.getDesiredType(), textToDate.getFormat()).wrap()));
+          TransformActor.this.visit(
+              new TransformFilter(
+                  oldCol,
+                  new FilterConvertibleDataWithPattern(
+                          textToDate.getDesiredType(), textToDate.getFormat())
+                      .wrap()));
         }
 
-        FieldConvertToTypeWithPatternIfPossible convert = new FieldConvertToTypeWithPatternIfPossible(textToDate.getDesiredType(), textToDate.getFormat(), actionForNonMatchingValue);
+        FieldConvertToTypeWithPatternIfPossible convert =
+            new FieldConvertToTypeWithPatternIfPossible(
+                textToDate.getDesiredType(), textToDate.getFormat(), actionForNonMatchingValue);
         return convert;
       }
 
@@ -428,7 +460,8 @@ abstract class TransformActor implements TransformBase.TransformVisitor<Transfor
           replaceValue.setReplacementType(TEXT);
         }
         if (!replaceValue.getReplaceNull()
-            && (replaceValue.getReplacedValuesList() == null || replaceValue.getReplacedValuesList().isEmpty())) {
+            && (replaceValue.getReplacedValuesList() == null
+                || replaceValue.getReplacedValuesList().isEmpty())) {
           throw new ClientErrorException("no value selected for replace");
         }
         return replaceValue;
@@ -482,74 +515,86 @@ abstract class TransformActor implements TransformBase.TransformVisitor<Transfor
       @Override
       public FieldTransformationBase visit(FieldSimpleConvertToType toType) throws Exception {
         switch (toType.getDataType()) {
-        case BOOLEAN:
-        case DECIMAL:
-        case GEO:
-        case INTEGER:
-        case LIST:
-        case MAP:
-        case STRUCT:
-        case MIXED:
-        case OTHER:
-          throw new IllegalArgumentException("Can't convert without parameters to type " + toType.getDataType());
-        case DATE:
-        case DATETIME:
-        case TIME:
-        case FLOAT:
-        case BINARY:
-          // valid under some conditions
-          // TODO: validate incoming type
-        case TEXT:
-          // valid
-          break;
-        default:
-          throw new UnsupportedOperationException("Unknown type " + toType.getDataType());
+          case BOOLEAN:
+          case DECIMAL:
+          case GEO:
+          case INTEGER:
+          case LIST:
+          case MAP:
+          case STRUCT:
+          case MIXED:
+          case OTHER:
+            throw new IllegalArgumentException(
+                "Can't convert without parameters to type " + toType.getDataType());
+          case DATE:
+          case DATETIME:
+          case TIME:
+          case FLOAT:
+          case BINARY:
+            // valid under some conditions
+            // TODO: validate incoming type
+          case TEXT:
+            // valid
+            break;
+          default:
+            throw new UnsupportedOperationException("Unknown type " + toType.getDataType());
         }
         return toType;
       }
 
       @Override
-      public FieldTransformationBase visit(FieldConvertToTypeIfPossible toTypeIfPossible) throws Exception {
+      public FieldTransformationBase visit(FieldConvertToTypeIfPossible toTypeIfPossible)
+          throws Exception {
         switch (toTypeIfPossible.getDesiredType()) {
-        case BOOLEAN:
-        case DECIMAL:
-        case GEO:
-        case LIST:
-        case STRUCT:
-        case MAP:
-        case MIXED:
-        case OTHER:
-          throw new IllegalArgumentException(
-              "Can't convert without parameters to type " + toTypeIfPossible.getDesiredType());
-        case DATE:
-        case DATETIME:
-        case TIME:
-        case BINARY:
-          return visit(new FieldSimpleConvertToType(toTypeIfPossible.getDesiredType()));
-        case TEXT:
-        case INTEGER:
-        case FLOAT:
-          if (toTypeIfPossible.getActionForNonMatchingValue() == ActionForNonMatchingValue.DELETE_RECORDS) {
-            // result ignored, this is used to nest in the case where the oldCol requires it. Below in the call
-            // to add the filter, this nesting will already have taken place. In some cases the column will not require
-            // nesting, but the adding the filter will. Example, we can nest flatten within a call to another function,
-            // but we cannot support it in the filter list. So this allows us to avoid the nesting in the convert
-            // type, after a flatten, converting non-matching values to null, but get nesting in the case with converting
-            // type and filtering out non-matching rows (when it is on a flattened column).
-            m.findColValueForModification(oldCol);
-            TransformActor.this.visit(new TransformFilter(oldCol, new FilterConvertibleData(toTypeIfPossible.getDesiredType()).wrap()));
-          }
-          // valid under some conditions
-          // TODO: validate incoming type
-          break;
-        default:
-          throw new UnsupportedOperationException("Unknown type " + toTypeIfPossible.getDesiredType());
+          case BOOLEAN:
+          case DECIMAL:
+          case GEO:
+          case LIST:
+          case STRUCT:
+          case MAP:
+          case MIXED:
+          case OTHER:
+            throw new IllegalArgumentException(
+                "Can't convert without parameters to type " + toTypeIfPossible.getDesiredType());
+          case DATE:
+          case DATETIME:
+          case TIME:
+          case BINARY:
+            return visit(new FieldSimpleConvertToType(toTypeIfPossible.getDesiredType()));
+          case TEXT:
+          case INTEGER:
+          case FLOAT:
+            if (toTypeIfPossible.getActionForNonMatchingValue()
+                == ActionForNonMatchingValue.DELETE_RECORDS) {
+              // result ignored, this is used to nest in the case where the oldCol requires it.
+              // Below in the call
+              // to add the filter, this nesting will already have taken place. In some cases the
+              // column will not require
+              // nesting, but the adding the filter will. Example, we can nest flatten within a call
+              // to another function,
+              // but we cannot support it in the filter list. So this allows us to avoid the nesting
+              // in the convert
+              // type, after a flatten, converting non-matching values to null, but get nesting in
+              // the case with converting
+              // type and filtering out non-matching rows (when it is on a flattened column).
+              m.findColValueForModification(oldCol);
+              TransformActor.this.visit(
+                  new TransformFilter(
+                      oldCol, new FilterConvertibleData(toTypeIfPossible.getDesiredType()).wrap()));
+            }
+            // valid under some conditions
+            // TODO: validate incoming type
+            break;
+          default:
+            throw new UnsupportedOperationException(
+                "Unknown type " + toTypeIfPossible.getDesiredType());
         }
         return toTypeIfPossible;
       }
 
       @Override
-      public FieldTransformationBase visit(FieldConvertToTypeWithPatternIfPossible toTypeIfPossible) throws Exception {
+      public FieldTransformationBase visit(FieldConvertToTypeWithPatternIfPossible toTypeIfPossible)
+          throws Exception {
         return toTypeIfPossible;
       }
 
@@ -558,14 +603,15 @@ abstract class TransformActor implements TransformBase.TransformVisitor<Transfor
         DataType result = desiredType;
         if (desiredType != null) {
           switch (desiredType) {
-          case DATE:
-          case DATETIME:
-          case TIME:
-            break;
-          default:
-            ValidationErrorMessages messages = new ValidationErrorMessages();
-            messages.addFieldError("desiredType", "should be one of DATE, TIME, DATETIME");
-            throw new ClientErrorException("desiredType should be one of DATE, TIME, DATETIME", messages);
+            case DATE:
+            case DATETIME:
+            case TIME:
+              break;
+            default:
+              ValidationErrorMessages messages = new ValidationErrorMessages();
+              messages.addFieldError("desiredType", "should be one of DATE, TIME, DATETIME");
+              throw new ClientErrorException(
+                  "desiredType should be one of DATE, TIME, DATETIME", messages);
           }
         } else {
           result = DATETIME;
@@ -576,13 +622,13 @@ abstract class TransformActor implements TransformBase.TransformVisitor<Transfor
       // todo: move this to validator
       private DataType checkNumberDesiredType(DataType desiredType) {
         switch (desiredType) {
-        case INTEGER:
-        case FLOAT:
-          break;
-        default:
-          ValidationErrorMessages messages = new ValidationErrorMessages();
-          messages.addFieldError("desiredType", "should be one of INTEGER, FLOAT");
-          throw new ClientErrorException("desiredType should be one of INTEGER, FLOAT", messages);
+          case INTEGER:
+          case FLOAT:
+            break;
+          default:
+            ValidationErrorMessages messages = new ValidationErrorMessages();
+            messages.addFieldError("desiredType", "should be one of INTEGER, FLOAT");
+            throw new ClientErrorException("desiredType should be one of INTEGER, FLOAT", messages);
         }
         return desiredType;
       }
@@ -610,29 +656,36 @@ abstract class TransformActor implements TransformBase.TransformVisitor<Transfor
     String oldCol = convertToSingleType.getSourceColumnName();
     String newCol = convertToSingleType.getNewColumnName();
     Expression p = m.findColValueForModification(oldCol);
-    ActionForNonMatchingValue actionForNonMatchingValue = convertToSingleType.getActionForNonMatchingValue();
+    ActionForNonMatchingValue actionForNonMatchingValue =
+        convertToSingleType.getActionForNonMatchingValue();
     switch (actionForNonMatchingValue) {
-    case DELETE_RECORDS:
-      m.addFilter(new Filter(p,
-          new FilterCleanData(convertToSingleType.getDesiredType(), convertToSingleType.getCastWhenPossible()).wrap()));
-      break;
-    case REPLACE_WITH_DEFAULT:
-      final String defaultValue = convertToSingleType.getDefaultValue();
-      if (defaultValue == null || defaultValue.isEmpty()) {
-        throw new IllegalArgumentException("default value required when " + REPLACE_WITH_DEFAULT);
-      }
-      break;
-    case REPLACE_WITH_NULL:
-      break;
-    default:
-      throw new UnsupportedOperationException(actionForNonMatchingValue.name());
+      case DELETE_RECORDS:
+        m.addFilter(
+            new Filter(
+                p,
+                new FilterCleanData(
+                        convertToSingleType.getDesiredType(),
+                        convertToSingleType.getCastWhenPossible())
+                    .wrap()));
+        break;
+      case REPLACE_WITH_DEFAULT:
+        final String defaultValue = convertToSingleType.getDefaultValue();
+        if (defaultValue == null || defaultValue.isEmpty()) {
+          throw new IllegalArgumentException("default value required when " + REPLACE_WITH_DEFAULT);
+        }
+        break;
+      case REPLACE_WITH_NULL:
+        break;
+      default:
+        throw new UnsupportedOperationException(actionForNonMatchingValue.name());
     }
-    ExpressionBase e = new ExpConvertType(
-        convertToSingleType.getDesiredType(),
-        convertToSingleType.getCastWhenPossible(),
-        actionForNonMatchingValue,
-        p)
-        .setDefaultValue(convertToSingleType.getDefaultValue());
+    ExpressionBase e =
+        new ExpConvertType(
+                convertToSingleType.getDesiredType(),
+                convertToSingleType.getCastWhenPossible(),
+                actionForNonMatchingValue,
+                p)
+            .setDefaultValue(convertToSingleType.getDefaultValue());
     return m.apply(oldCol, newCol, e, convertToSingleType.getDropSourceColumn());
   }
 
@@ -675,8 +728,8 @@ abstract class TransformActor implements TransformBase.TransformVisitor<Transfor
       FilterRange filterRange = filter.getFilter().getRange();
       if (filterRange.getLowerBound() == null && filterRange.getUpperBound() == null) {
         throw UserException.validationError()
-          .message("At least one bound should not be null.")
-          .build(logger);
+            .message("At least one bound should not be null.")
+            .build(logger);
       }
     } else if (filter.getFilter().getType() == FilterType.Custom) {
       // TODO - improve if we decide to parse the expression string to find the referenced columns
@@ -690,9 +743,8 @@ abstract class TransformActor implements TransformBase.TransformVisitor<Transfor
     final Expression p = m.findColValue(filter.getSourceColumnName());
     m.addFilter(
         new Filter(p, filter.getFilter())
-        .setExclude(filter.getExclude())
-        .setKeepNull(filter.getKeepNull())
-        );
+            .setExclude(filter.getExclude())
+            .setKeepNull(filter.getKeepNull()));
     return m.result();
   }
 
@@ -725,10 +777,10 @@ abstract class TransformActor implements TransformBase.TransformVisitor<Transfor
         p = null;
         nameSuffix = "";
       }
-      newColumns.add(new Column(
-          measure.getType().name() + nameSuffix,
-          new ExpMeasure(measure.getType()).setOperand(p).wrap()
-          ));
+      newColumns.add(
+          new Column(
+              measure.getType().name() + nameSuffix,
+              new ExpMeasure(measure.getType()).setOperand(p).wrap()));
     }
 
     m.groupedBy(newColumns, groupBys);
@@ -794,7 +846,9 @@ abstract class TransformActor implements TransformBase.TransformVisitor<Transfor
     }
   }
 
-  private boolean isFlattened(Expression p) { return new IsFlattenedVisitor().visit(p); }
+  private boolean isFlattened(Expression p) {
+    return new IsFlattenedVisitor().visit(p);
+  }
 
   private void flattenIfNeeded(String columnName) {
     if (isFlattened(m.findColValue(columnName))) {
@@ -802,7 +856,8 @@ abstract class TransformActor implements TransformBase.TransformVisitor<Transfor
     }
   }
 
-  // Filters are not allowed to operate directly over measure columns (SUM, etc.); as well as unnested columns
+  // Filters are not allowed to operate directly over measure columns (SUM, etc.); as well as
+  // unnested columns
   private static final class FindCannotFilterVisitor extends IsFlattenedVisitor {
     @Override
     public Boolean visit(ExpMeasure measure) throws Exception {
@@ -814,7 +869,8 @@ abstract class TransformActor implements TransformBase.TransformVisitor<Transfor
     return new FindCannotFilterVisitor().visit(p);
   }
 
-  private static final class FindUnsupportedInGroupByVisitor extends ExpressionBase.ExpressionVisitorBase<Boolean> {
+  private static final class FindUnsupportedInGroupByVisitor
+      extends ExpressionBase.ExpressionVisitorBase<Boolean> {
 
     @Override
     public Boolean visit(ExpColumnReference col) throws Exception {
@@ -838,7 +894,7 @@ abstract class TransformActor implements TransformBase.TransformVisitor<Transfor
 
     @Override
     public Boolean visit(ExpMeasure measure) throws Exception {
-      return true;// group by
+      return true; // group by
     }
   }
 
@@ -848,6 +904,7 @@ abstract class TransformActor implements TransformBase.TransformVisitor<Transfor
 
   @Override
   public TransformResult visit(TransformCreateFromParent createFromParent) {
-    throw new IllegalStateException("A transform create from parent should only be internally created");
+    throw new IllegalStateException(
+        "A transform create from parent should only be internally created");
   }
 }

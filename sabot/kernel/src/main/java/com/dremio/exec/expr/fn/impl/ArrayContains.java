@@ -15,31 +15,33 @@
  */
 package com.dremio.exec.expr.fn.impl;
 
-
-import javax.inject.Inject;
-
-import org.apache.arrow.vector.complex.reader.FieldReader;
-import org.apache.arrow.vector.holders.NullableBitHolder;
-
 import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
 import com.dremio.exec.expr.fn.FunctionErrorContext;
+import javax.inject.Inject;
+import org.apache.arrow.vector.complex.reader.FieldReader;
+import org.apache.arrow.vector.holders.NullableBitHolder;
 
 public class ArrayContains {
 
-  @FunctionTemplate(name = "array_contains", scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.INTERNAL)
+  @FunctionTemplate(
+      name = "array_contains",
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.INTERNAL)
   public static class ArrayContain implements SimpleFunction {
 
     @Param private FieldReader in;
-    @Param(constant = true) private FieldReader value;
+
+    @Param(constant = true)
+    private FieldReader value;
+
     @Output private NullableBitHolder out;
     @Inject private FunctionErrorContext errCtx;
 
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
     public void eval() {
@@ -52,27 +54,25 @@ public class ArrayContains {
 
       if (in.getMinorType() != org.apache.arrow.vector.types.Types.MinorType.LIST) {
         throw new UnsupportedOperationException(
-          String.format("First parameter to array_contains must be a LIST. Was given: %s",
-            in.getMinorType().toString()
-          )
-        );
+            String.format(
+                "First parameter to array_contains must be a LIST. Was given: %s",
+                in.getMinorType().toString()));
       }
-      if(!in.reader().getMinorType().equals(value.getMinorType())) {
+      if (!in.reader().getMinorType().equals(value.getMinorType())) {
         throw new UnsupportedOperationException(
-          String.format("List of %s is not comparable with %s" ,
-            in.reader().getMinorType().toString(), value.getMinorType().toString()
-          )
-        );
+            String.format(
+                "List of %s is not comparable with %s",
+                in.reader().getMinorType().toString(), value.getMinorType().toString()));
       }
       java.util.List<?> inputList = (java.util.List<?>) in.readObject();
 
-      if(inputList.contains(inputValue)) {
+      if (inputList.contains(inputValue)) {
         out.isSet = 1;
         out.value = 1;
         return;
       }
 
-      if(inputList.contains(null)) {
+      if (inputList.contains(null)) {
         out.isSet = 0;
         return;
       }

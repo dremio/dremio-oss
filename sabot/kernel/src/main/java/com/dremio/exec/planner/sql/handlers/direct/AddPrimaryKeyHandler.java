@@ -15,22 +15,18 @@
  */
 package com.dremio.exec.planner.sql.handlers.direct;
 
-import java.util.Collections;
-import java.util.List;
-
-import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.sql.SqlNodeList;
-
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.planner.sql.parser.SqlAlterTableAddPrimaryKey;
 import com.dremio.exec.planner.sql.parser.SqlGrant;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import java.util.Collections;
+import java.util.List;
+import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlNodeList;
 
-/**
- * Adds primary key info to the table metadata
- */
+/** Adds primary key info to the table metadata */
 public class AddPrimaryKeyHandler extends SimpleDirectHandler {
   private final Catalog catalog;
 
@@ -40,26 +36,30 @@ public class AddPrimaryKeyHandler extends SimpleDirectHandler {
 
   @Override
   public List<SimpleCommandResult> toResult(String sql, SqlNode sqlNode) throws Exception {
-    SqlAlterTableAddPrimaryKey sqlAddPrimaryKey = SqlNodeUtil.unwrap(sqlNode, SqlAlterTableAddPrimaryKey.class);
+    SqlAlterTableAddPrimaryKey sqlAddPrimaryKey =
+        SqlNodeUtil.unwrap(sqlNode, SqlAlterTableAddPrimaryKey.class);
 
     NamespaceKey path = catalog.resolveSingle(sqlAddPrimaryKey.getTable());
     catalog.validatePrivilege(path, SqlGrant.Privilege.ALTER);
 
     catalog.addPrimaryKey(
-      path,
-      toStrings(sqlAddPrimaryKey.getColumnList()),
-      sqlAddPrimaryKey.getSqlTableVersionSpec().getTableVersionSpec().getTableVersionContext().asVersionContext(),
-      catalog);
+        path,
+        toStrings(sqlAddPrimaryKey.getColumnList()),
+        sqlAddPrimaryKey
+            .getSqlTableVersionSpec()
+            .getTableVersionSpec()
+            .getTableVersionContext()
+            .asVersionContext());
 
     return Collections.singletonList(SimpleCommandResult.successful("Primary key added."));
   }
 
-  private List<String> toStrings(SqlNodeList list){
-    if(list == null){
+  private List<String> toStrings(SqlNodeList list) {
+    if (list == null) {
       return ImmutableList.of();
     }
     List<String> columnNames = Lists.newArrayList();
-    for(SqlNode node : list.getList()) {
+    for (SqlNode node : list.getList()) {
       columnNames.add(node.toString());
     }
     return columnNames;

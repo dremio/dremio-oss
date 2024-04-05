@@ -23,26 +23,24 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-/**
- * Test KeyTriple class.
- */
+/** Test KeyTriple class. */
 @RunWith(Parameterized.class)
 public class TestKeyTriple {
 
   @Parameterized.Parameters(name = "Values: {0}, Valid: {1}")
   public static Collection<Object[]> parameters() {
-    return Arrays.asList(new Object[][]{
-      {Collections.emptyList(), false},
-      {Collections.singletonList("value1"), false},
-      {Arrays.asList("value1", "value2"), false},
-      {Arrays.asList("value1", "value2", "value3", "value4"), false},
-      {Arrays.asList("value1", "value2", "value3"), true}
-    });
+    return Arrays.asList(
+        new Object[][] {
+          {Collections.emptyList(), false},
+          {Collections.singletonList("value1"), false},
+          {Arrays.asList("value1", "value2"), false},
+          {Arrays.asList("value1", "value2", "value3", "value4"), false},
+          {Arrays.asList("value1", "value2", "value3"), true}
+        });
   }
 
   private final List<Object> values;
@@ -56,8 +54,7 @@ public class TestKeyTriple {
   @Test
   public void testOf() {
     if (!valid) {
-      assertThatThrownBy(() -> KeyTriple.of(values))
-        .isInstanceOf(IllegalArgumentException.class);
+      assertThatThrownBy(() -> KeyTriple.of(values)).isInstanceOf(IllegalArgumentException.class);
     } else {
       final KeyTriple<String, String, String> keyPair = KeyTriple.of(values);
 

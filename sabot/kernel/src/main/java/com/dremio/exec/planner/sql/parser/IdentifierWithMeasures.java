@@ -15,19 +15,17 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.dremio.exec.planner.sql.handlers.direct.SqlNodeUtil;
+import com.dremio.exec.planner.sql.parser.SqlCreateReflection.MeasureType;
+import com.dremio.exec.work.foreman.ForemanSetupException;
+import com.google.common.base.Throwables;
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.parser.SqlParserPos;
-
-import com.dremio.exec.planner.sql.handlers.direct.SqlNodeUtil;
-import com.dremio.exec.planner.sql.parser.SqlCreateReflection.MeasureType;
-import com.dremio.exec.work.foreman.ForemanSetupException;
-import com.google.common.base.Throwables;
 
 public class IdentifierWithMeasures extends SqlIdentifier {
 
@@ -41,15 +39,14 @@ public class IdentifierWithMeasures extends SqlIdentifier {
   public final List<MeasureType> getMeasureTypes() {
     try {
       List<MeasureType> measures = new ArrayList<>();
-      for(SqlNode n : this.measures.getList()) {
+      for (SqlNode n : this.measures.getList()) {
         SqlLiteral l = SqlNodeUtil.unwrap(n, SqlLiteral.class);
         measures.add((MeasureType) l.getValue());
       }
 
       return measures;
-    } catch(ForemanSetupException e) {
+    } catch (ForemanSetupException e) {
       throw Throwables.propagate(e);
     }
   }
-
 }

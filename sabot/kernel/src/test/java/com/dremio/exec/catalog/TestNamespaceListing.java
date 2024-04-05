@@ -20,15 +20,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.Optional;
-
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-
 import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.EntityPath;
@@ -47,10 +38,15 @@ import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.test.DremioTest;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterators;
+import java.util.Collections;
+import java.util.List;
+import java.util.NoSuchElementException;
+import java.util.Optional;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
-/**
- * Test namespace listing.
- */
+/** Test namespace listing. */
 public class TestNamespaceListing {
 
   private LegacyKVStoreProvider kvStoreProvider;
@@ -58,8 +54,7 @@ public class TestNamespaceListing {
 
   @Before
   public void setup() throws Exception {
-    kvStoreProvider =
-        LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT);
+    kvStoreProvider = LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT);
     kvStoreProvider.start();
     namespaceService = new NamespaceServiceImpl(kvStoreProvider, new CatalogStatusEventsImpl());
   }
@@ -93,8 +88,9 @@ public class TestNamespaceListing {
     namespaceService.addOrUpdateSource(sourceKey, new SourceConfig());
     assertFalse(namespaceService.getAllDatasets(sourceKey).iterator().hasNext());
 
-    final NamespaceListing listing = new NamespaceListing(namespaceService, sourceKey, sourceMetadata,
-        DatasetRetrievalOptions.DEFAULT);
+    final NamespaceListing listing =
+        new NamespaceListing(
+            namespaceService, sourceKey, sourceMetadata, DatasetRetrievalOptions.DEFAULT);
 
     try {
       listing.newIterator(namespaceService.getAllDatasets(sourceKey).iterator()).next();
@@ -102,19 +98,23 @@ public class TestNamespaceListing {
     } catch (NoSuchElementException expected) {
     }
 
-    assertFalse(listing.newIterator(namespaceService.getAllDatasets(sourceKey).iterator()).hasNext());
+    assertFalse(
+        listing.newIterator(namespaceService.getAllDatasets(sourceKey).iterator()).hasNext());
   }
 
   @Test
   public void typicalFlow() throws NamespaceException, ConnectorException {
-    SampleSourceMetadata sourceMetadata = new SampleSourceMetadata() {
-      @Override
-      public Optional<DatasetHandle> getDatasetHandle(EntityPath datasetPath, GetDatasetOption... options) {
-        final EntityPath canonicalPath = new EntityPath(datasetPath.getComponents()
-            .subList(1, datasetPath.getComponents().size()));
-        return super.getDatasetHandle(canonicalPath, options);
-      }
-    };
+    SampleSourceMetadata sourceMetadata =
+        new SampleSourceMetadata() {
+          @Override
+          public Optional<DatasetHandle> getDatasetHandle(
+              EntityPath datasetPath, GetDatasetOption... options) {
+            final EntityPath canonicalPath =
+                new EntityPath(
+                    datasetPath.getComponents().subList(1, datasetPath.getComponents().size()));
+            return super.getDatasetHandle(canonicalPath, options);
+          }
+        };
 
     sourceMetadata.addNDatasets(10, 2, 2);
     assertTrue(sourceMetadata.listDatasetHandles().iterator().hasNext());
@@ -122,14 +122,16 @@ public class TestNamespaceListing {
     final NamespaceKey sourceKey = new NamespaceKey("empty");
     namespaceService.addOrUpdateSource(sourceKey, new SourceConfig());
 
-    sourceMetadata.listDatasetHandles()
+    sourceMetadata
+        .listDatasetHandles()
         .iterator()
         .forEachRemaining(
             datasetHandle -> {
-              final List<String> canonicalComponents = ImmutableList.<String>builder()
-                  .add(sourceKey.getRoot())
-                  .addAll(datasetHandle.getDatasetPath().getComponents())
-                  .build();
+              final List<String> canonicalComponents =
+                  ImmutableList.<String>builder()
+                      .add(sourceKey.getRoot())
+                      .addAll(datasetHandle.getDatasetPath().getComponents())
+                      .build();
               try {
                 DatasetConfig config = MetadataObjectsUtils.newShallowConfig(datasetHandle);
                 config.setFullPathList(canonicalComponents);
@@ -137,13 +139,15 @@ public class TestNamespaceListing {
               } catch (NamespaceException e) {
                 throw new RuntimeException(e);
               }
-            }
-        );
+            });
     assertTrue(namespaceService.getAllDatasets(sourceKey).iterator().hasNext());
 
-    final NamespaceListing listing = new NamespaceListing(namespaceService, sourceKey, sourceMetadata,
-        DatasetRetrievalOptions.DEFAULT);
+    final NamespaceListing listing =
+        new NamespaceListing(
+            namespaceService, sourceKey, sourceMetadata, DatasetRetrievalOptions.DEFAULT);
 
-    assertEquals(10, Iterators.size(listing.newIterator(namespaceService.getAllDatasets(sourceKey).iterator())));
+    assertEquals(
+        10,
+        Iterators.size(listing.newIterator(namespaceService.getAllDatasets(sourceKey).iterator())));
   }
 }

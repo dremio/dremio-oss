@@ -17,9 +17,7 @@ package com.dremio.datastore.generator.supplier.fixed;
 
 import java.nio.charset.StandardCharsets;
 
-/**
- * Supplier that generates fixed-length byte[].
- */
+/** Supplier that generates fixed-length byte[]. */
 public class FixedLengthRawBytesSupplier extends FixedLengthSupplier<byte[]> {
   public FixedLengthRawBytesSupplier(String prefix) {
     super(prefix);

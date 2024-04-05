@@ -49,7 +49,7 @@ export class TokenSuggestions {
     queryParseTree: ParserRuleContext,
     parser: LiveEditParser,
     caretQueryPosition: CursorQueryPosition,
-    sqlFunctions: SQLFunction[]
+    sqlFunctions: SQLFunction[],
   ) {
     this.queryParseTree = queryParseTree;
     this.parser = parser;
@@ -70,7 +70,7 @@ export class TokenSuggestions {
       this.parser,
       tokenIndex,
       priorTerminal,
-      this.queryParseTree
+      this.queryParseTree,
     );
 
     // Add keywords
@@ -90,7 +90,7 @@ export class TokenSuggestions {
     if (candidates.identifiers.isViable) {
       suggestions.identifiers = new IdentifierCandidate(
         candidates.identifiers.ruleIndex,
-        candidates.identifiers.ruleList
+        candidates.identifiers.ruleList,
       );
     }
 
@@ -99,7 +99,7 @@ export class TokenSuggestions {
 
   private shouldSuggestToken(
     tokenType: number,
-    validatePrefix: boolean
+    validatePrefix: boolean,
   ): boolean {
     const symbolicName = this.parser.vocabulary.getSymbolicName(tokenType);
     if (!symbolicName || !isKeyword(tokenType)) {
@@ -123,13 +123,13 @@ export class TokenSuggestions {
 
   private collectFunctionSuggestions(): SQLFunction[] {
     return this.sqlFunctions.filter((sqlFunction) =>
-      this.isViableCompletion(sqlFunction.name)
+      this.isViableCompletion(sqlFunction.name),
     );
   }
 
   private removeNonSuggestableSubsequence(tokenList: number[]): void {
     const firstNonSuggestableToken = tokenList.findIndex(
-      (tokenType) => !this.shouldSuggestToken(tokenType, false)
+      (tokenType) => !this.shouldSuggestToken(tokenType, false),
     );
     if (firstNonSuggestableToken != -1) {
       tokenList.splice(firstNonSuggestableToken);

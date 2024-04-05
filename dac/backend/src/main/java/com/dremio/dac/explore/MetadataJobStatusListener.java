@@ -15,8 +15,6 @@
  */
 package com.dremio.dac.explore;
 
-import java.util.concurrent.CountDownLatch;
-
 import com.dremio.dac.explore.model.FromBase;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
 import com.dremio.service.job.proto.JobId;
@@ -26,12 +24,11 @@ import com.dremio.service.jobs.metadata.proto.QueryMetadata;
 import com.dremio.service.namespace.NamespaceException;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
+import java.util.concurrent.CountDownLatch;
 
 class MetadataJobStatusListener implements JobStatusListener {
 
-  /**
-   * Need to wait for jobId being set and {@link #metadataCollected(QueryMetadata)}
-   */
+  /** Need to wait for jobId being set and {@link #metadataCollected(QueryMetadata)} */
   private final CountDownLatch latch = new CountDownLatch(2);
 
   private final DatasetTool datasetTool;
@@ -51,8 +48,8 @@ class MetadataJobStatusListener implements JobStatusListener {
   }
 
   /**
-   * Create a thread to wait for the job Id set and {@link #metadataCollected(QueryMetadata)}.
-   * Apply metadata and save the dataset one the wait it done.
+   * Create a thread to wait for the job Id set and {@link #metadataCollected(QueryMetadata)}. Apply
+   * metadata and save the dataset one the wait it done.
    */
   public void waitToApplyMetadataAndSaveDataset() {
     Thread t = new Thread(() -> applyMetadataAndSaveDataset());
@@ -61,9 +58,7 @@ class MetadataJobStatusListener implements JobStatusListener {
 
   private void applyMetadataAndSaveDataset() {
     try {
-      synchronized (latch) {
-        latch.await();
-      }
+      latch.await();
     } catch (final InterruptedException ex) {
       Throwables.propagate(ex);
     }
@@ -99,23 +94,26 @@ class MetadataJobStatusListener implements JobStatusListener {
   @Override
   public void jobFailed(Exception e) {
     error = e;
-    synchronized (latch) {
-      latch.notifyAll();
-    }
+    releaseLatch();
   }
 
   @Override
   public void jobCompleted() {
-    synchronized (latch) {
-      latch.notifyAll();
+    if (latch.getCount() > 0) {
+      error = new RuntimeException("Job completed before metadata collected is called.");
+      releaseLatch();
     }
   }
 
   @Override
   public void jobCancelled(String reason) {
     cancelled = true;
-    synchronized (latch) {
-      latch.notifyAll();
+    releaseLatch();
+  }
+
+  private void releaseLatch() {
+    while (latch.getCount() > 0) {
+      latch.countDown();
     }
   }
 }

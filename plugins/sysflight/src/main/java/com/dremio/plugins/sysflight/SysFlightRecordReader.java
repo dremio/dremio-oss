@@ -17,22 +17,6 @@ package com.dremio.plugins.sysflight;
 
 import static org.apache.arrow.vector.types.Types.getMinorTypeForArrowType;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
-
-import org.apache.arrow.flight.FlightClient;
-import org.apache.arrow.flight.FlightRuntimeException;
-import org.apache.arrow.flight.FlightStream;
-import org.apache.arrow.flight.Ticket;
-import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.VectorSchemaRoot;
-import org.apache.arrow.vector.types.pojo.Field;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
@@ -46,14 +30,26 @@ import com.dremio.sabot.op.scan.OutputMutator;
 import com.dremio.service.flightcommon.FlightRpcUtils;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
-
 import io.grpc.Context;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import org.apache.arrow.flight.FlightClient;
+import org.apache.arrow.flight.FlightRuntimeException;
+import org.apache.arrow.flight.FlightStream;
+import org.apache.arrow.flight.Ticket;
+import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.VectorSchemaRoot;
+import org.apache.arrow.vector.types.pojo.Field;
 
-/**
- * RecordReader for SysFlight
- */
+/** RecordReader for SysFlight */
 public class SysFlightRecordReader extends AbstractRecordReader {
-  private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(SysFlightRecordReader.class);
+  private static final org.slf4j.Logger LOGGER =
+      org.slf4j.LoggerFactory.getLogger(SysFlightRecordReader.class);
 
   private final BatchSchema schema;
   private final FlightClient client;
@@ -70,8 +66,12 @@ public class SysFlightRecordReader extends AbstractRecordReader {
   private boolean batchHolderIsEmpty = true;
   private int ptrToNextRecord = 0;
 
-  public SysFlightRecordReader(OperatorContext context, List<SchemaPath> columns,
-    BatchSchema schema, FlightClient client, Ticket ticket) {
+  public SysFlightRecordReader(
+      OperatorContext context,
+      List<SchemaPath> columns,
+      BatchSchema schema,
+      FlightClient client,
+      Ticket ticket) {
     super(context, columns);
     this.schema = schema;
     this.client = client;
@@ -85,17 +85,17 @@ public class SysFlightRecordReader extends AbstractRecordReader {
     cancellableContext = Context.current().fork().withCancellation();
 
     final Set<String> selectedColumns = new HashSet<>();
-    if(this.getColumns() != null){
-      for(SchemaPath path : getColumns()) {
+    if (this.getColumns() != null) {
+      for (SchemaPath path : getColumns()) {
         Preconditions.checkArgument(path.isSimplePath());
         selectedColumns.add(path.getAsUnescapedPath().toLowerCase());
       }
     }
     selectedFields = new ArrayList<>();
     for (Field field : schema.getFields()) {
-      if(getColumns() == null
-        || getColumns().equals(GroupScan.ALL_COLUMNS)
-        || selectedColumns.contains(field.getName().toLowerCase())) {
+      if (getColumns() == null
+          || getColumns().equals(GroupScan.ALL_COLUMNS)
+          || selectedColumns.contains(field.getName().toLowerCase())) {
         selectedFields.add(field);
       }
     }
@@ -103,34 +103,38 @@ public class SysFlightRecordReader extends AbstractRecordReader {
     valueVectors = new ValueVector[selectedFields.size()];
     int i = 0;
     for (Field field : selectedFields) {
-      final Class<? extends ValueVector> vvClass = (Class<? extends ValueVector>) TypeHelper.getValueVectorClass(getMinorTypeForArrowType(field.getType()));
+      final Class<? extends ValueVector> vvClass =
+          (Class<? extends ValueVector>)
+              TypeHelper.getValueVectorClass(getMinorTypeForArrowType(field.getType()));
       valueVectors[i] = output.addField(field, vvClass);
       i++;
     }
 
-    cancellableContext.run(() -> {
-      try{
-        stream = client.getStream(ticket);
-      } catch (FlightRuntimeException fre) {
-        Optional<UserException> ue = FlightRpcUtils.fromFlightRuntimeException(fre);
-        throw ue.isPresent() ? ue.get() : fre;
-      } catch (Exception e) {
-        Throwables.throwIfUnchecked(e);
-        throw new RuntimeException(e);
-      }
-    });
+    cancellableContext.run(
+        () -> {
+          try {
+            stream = client.getStream(ticket);
+          } catch (FlightRuntimeException fre) {
+            Optional<UserException> ue = FlightRpcUtils.fromFlightRuntimeException(fre);
+            throw ue.isPresent() ? ue.get() : fre;
+          } catch (Exception e) {
+            Throwables.throwIfUnchecked(e);
+            throw new RuntimeException(e);
+          }
+        });
   }
 
   @Override
   public int next() {
     int toRead = targetBatchSize;
 
-    while(toRead > 0){
+    while (toRead > 0) {
       try {
         if (batchHolderIsEmpty) {
           if (stream.next()) {
             batchHolder = stream.getRoot();
-            LOGGER.debug("Received recordBatch in SysFlight plugin stream {}", batchHolder.getRowCount());
+            LOGGER.debug(
+                "Received recordBatch in SysFlight plugin stream {}", batchHolder.getRowCount());
             batchHolderIsEmpty = false;
             ptrToNextRecord = 0;
           } else {
@@ -141,7 +145,7 @@ public class SysFlightRecordReader extends AbstractRecordReader {
         int currBatchSize = batchHolder.getRowCount();
 
         int i, k, j = 0;
-        for (Field f: selectedFields) {
+        for (Field f : selectedFields) {
           i = ptrToNextRecord;
           k = toRead;
           for (; i < currBatchSize && k > 0; i++, k--) {
@@ -173,17 +177,17 @@ public class SysFlightRecordReader extends AbstractRecordReader {
   }
 
   @Override
-  protected boolean supportsSkipAllQuery(){
+  protected boolean supportsSkipAllQuery() {
     return true;
   }
 
   @Override
   public void close() throws Exception {
-    Collection <AutoCloseable> autoCloseables = new ArrayList<>(Arrays.asList(stream, batchHolder));
-    if(valueVectors != null) {
+    Collection<AutoCloseable> autoCloseables = new ArrayList<>(Arrays.asList(stream, batchHolder));
+    if (valueVectors != null) {
       autoCloseables.addAll(Arrays.asList(valueVectors));
     }
-    if(cancellableContext != null){
+    if (cancellableContext != null) {
       autoCloseables.add(cancellableContext);
     }
     AutoCloseables.close(autoCloseables);

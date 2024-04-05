@@ -15,11 +15,10 @@
  */
 package com.dremio.sabot.op.join.nlje;
 
+import com.dremio.common.util.Closeable;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BitVectorHelper;
-
-import com.dremio.common.util.Closeable;
 
 class MatchedVector implements Closeable {
   private ArrowBuf buffer;
@@ -35,11 +34,14 @@ class MatchedVector implements Closeable {
 
   public int count() {
     // we'll use bit vector helper since we only set one bit per byte.
-    return BitVectorHelper.getNullCount(buffer, size * 8 /** hack so bit vector helper thinks we have an 8 times larger validity vector **/);
+    return BitVectorHelper.getNullCount(
+        buffer, size * 8
+        /** hack so bit vector helper thinks we have an 8 times larger validity vector * */
+        );
   }
 
   public void zero(int size) {
-    if(buffer.capacity() < size) {
+    if (buffer.capacity() < size) {
       this.buffer.getReferenceManager().release();
       this.buffer = buffer.getReferenceManager().getAllocator().buffer(size);
     }

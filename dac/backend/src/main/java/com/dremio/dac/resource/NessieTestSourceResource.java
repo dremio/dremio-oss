@@ -15,18 +15,13 @@
  */
 package com.dremio.dac.resource;
 
-import javax.inject.Inject;
-
-import org.projectnessie.client.api.NessieApiV2;
-
 import com.dremio.exec.store.CatalogService;
 import com.dremio.options.OptionManager;
 import com.dremio.services.nessie.proxy.ProxyV2TreeResource;
+import javax.inject.Inject;
+import org.projectnessie.client.api.NessieApiV2;
 
-/**
- * Resource for providing APIs for Nessie as a Source for Test.
- */
-
+/** Resource for providing APIs for Nessie as a Source for Test. */
 public class NessieTestSourceResource extends NessieSourceResource {
 
   @Inject

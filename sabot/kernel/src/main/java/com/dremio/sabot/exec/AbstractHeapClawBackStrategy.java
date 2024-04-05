@@ -16,22 +16,20 @@
 
 package com.dremio.sabot.exec;
 
+import com.dremio.exec.proto.UserBitShared.QueryId;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
-import com.dremio.exec.proto.UserBitShared.QueryId;
-
-/**
- * Abstract strategy for reducing heap usage.
- */
+/** Abstract strategy for reducing heap usage. */
 public abstract class AbstractHeapClawBackStrategy implements HeapClawBackStrategy {
   public static final String FAIL_CONTEXT = "Query canceled by executor heap monitor";
 
   protected FragmentExecutors fragmentExecutors;
   protected QueriesClerk queriesClerk;
 
-  public AbstractHeapClawBackStrategy(FragmentExecutors fragmentExecutors, QueriesClerk queriesClerk) {
+  public AbstractHeapClawBackStrategy(
+      FragmentExecutors fragmentExecutors, QueriesClerk queriesClerk) {
     this.queriesClerk = queriesClerk;
     this.fragmentExecutors = fragmentExecutors;
   }
@@ -48,6 +46,7 @@ public abstract class AbstractHeapClawBackStrategy implements HeapClawBackStrate
 
   /**
    * Get the list of active queries, sorted by the used memory.
+   *
    * @return list of active queries.
    */
   protected List<ActiveQuery> getSortedActiveQueries() {
@@ -55,8 +54,9 @@ public abstract class AbstractHeapClawBackStrategy implements HeapClawBackStrate
 
     for (final WorkloadTicket workloadTicket : queriesClerk.getWorkloadTickets()) {
       for (final QueryTicket queryTicket : workloadTicket.getActiveQueryTickets()) {
-        queryList.add(new ActiveQuery(queryTicket.getQueryId(),
-          queryTicket.getAllocator().getAllocatedMemory()));
+        queryList.add(
+            new ActiveQuery(
+                queryTicket.getQueryId(), queryTicket.getAllocator().getAllocatedMemory()));
       }
     }
 
@@ -67,11 +67,14 @@ public abstract class AbstractHeapClawBackStrategy implements HeapClawBackStrate
 
   /**
    * Fail the queries in the input list.
+   *
    * @param queries list of queries to be cancelled.
    */
-  protected void failQueries(List<QueryId> queries, Throwable throwable, String failContext) {
+  protected void failQueries(
+      List<QueryId> queries, Throwable throwable, String failContext, String extraDebugInfo) {
     for (QueryId queryId : queries) {
-      fragmentExecutors.failFragments(queryId, queriesClerk, throwable, failContext);
+      fragmentExecutors.failFragments(
+          queryId, queriesClerk, throwable, failContext, extraDebugInfo);
     }
   }
 }

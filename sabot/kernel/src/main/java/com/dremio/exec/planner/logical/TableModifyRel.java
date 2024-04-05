@@ -15,47 +15,76 @@
  */
 package com.dremio.exec.planner.logical;
 
+import com.dremio.exec.planner.common.TableModifyRelBase;
 import java.util.List;
-
+import java.util.Set;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.prepare.Prepare;
+import org.apache.calcite.prepare.Prepare.CatalogReader;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rex.RexNode;
-
-import com.dremio.exec.planner.common.TableModifyRelBase;
+import org.apache.iceberg.RowLevelOperationMode;
 
 /**
  * Relational expression that modifies a table in Dremio.
  *
- * It is similar to TableScan, but represents a request to modify a table rather than read from it.
- * It takes one child which produces the modified rows. Those rows are:
- *  for DELETE, the old values;
- *  for UPDATE, all old values plus updated new values;
- *  for MERGE, all old values plus updated new values and new values.
+ * <p>It is similar to TableScan, but represents a request to modify a table rather than read from
+ * it. It takes one child which produces the modified rows. Those rows are: for DELETE, the old
+ * values; for UPDATE, all old values plus updated new values; for MERGE, all old values plus
+ * updated new values and new values.
  */
 public class TableModifyRel extends TableModifyRelBase implements Rel {
 
-  protected TableModifyRel(RelOptCluster cluster,
-                           RelTraitSet traitSet,
-                           RelOptTable table,
-                           Prepare.CatalogReader catalogReader,
-                           RelNode input,
-                           Operation operation,
-                           List<String> updateColumnList,
-                           List<RexNode> sourceExpressionList,
-                           boolean flattened,
-                           CreateTableEntry createTableEntry,
-                           List<String> mergeUpdateColumnList,
-                           boolean hasSource) {
-    super(LOGICAL, cluster, traitSet, table, catalogReader, input, operation, updateColumnList, sourceExpressionList,
-      flattened, createTableEntry, mergeUpdateColumnList, hasSource);
+  protected TableModifyRel(
+      RelOptCluster cluster,
+      RelTraitSet traitSet,
+      RelOptTable table,
+      CatalogReader catalogReader,
+      RelNode input,
+      Operation operation,
+      List<String> updateColumnList,
+      List<RexNode> sourceExpressionList,
+      boolean flattened,
+      CreateTableEntry createTableEntry,
+      List<String> mergeUpdateColumnList,
+      boolean hasSource,
+      Set<String> outdatedTargetColumns,
+      RowLevelOperationMode dmlWriteMode) {
+    super(
+        LOGICAL,
+        cluster,
+        traitSet,
+        table,
+        catalogReader,
+        input,
+        operation,
+        updateColumnList,
+        sourceExpressionList,
+        flattened,
+        createTableEntry,
+        mergeUpdateColumnList,
+        hasSource,
+        outdatedTargetColumns,
+        dmlWriteMode);
   }
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new TableModifyRel(getCluster(), traitSet, getTable(),  getCatalogReader(), sole(inputs), getOperation(),
-      getUpdateColumnList(), getSourceExpressionList(), isFlattened(), getCreateTableEntry(), getMergeUpdateColumnList(), hasSource());
+    return new TableModifyRel(
+        getCluster(),
+        traitSet,
+        getTable(),
+        getCatalogReader(),
+        sole(inputs),
+        getOperation(),
+        getUpdateColumnList(),
+        getSourceExpressionList(),
+        isFlattened(),
+        getCreateTableEntry(),
+        getMergeUpdateColumnList(),
+        hasSource(),
+        getOutdatedTargetColumns(),
+        getDmlWriteMode());
   }
 }

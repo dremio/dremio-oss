@@ -31,12 +31,10 @@ import static org.apache.arrow.vector.types.pojo.ArrowType.Decimal.createDecimal
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.dremio.common.expression.CompleteType;
 import java.util.Optional;
 import java.util.function.Supplier;
-
 import org.junit.Test;
-
-import com.dremio.common.expression.CompleteType;
 
 public class TypeCoercionRulesTest {
   private static final CompleteType DEC_10_5 = new CompleteType(createDecimal(10, 5, null));
@@ -168,8 +166,8 @@ public class TypeCoercionRulesTest {
 
   private void expectException(Supplier<Optional<CompleteType>> supplier) {
     assertThatThrownBy(supplier::get)
-      .isInstanceOf(IllegalArgumentException.class)
-      .hasMessageContaining("Max supported precision is 38");
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("Max supported precision is 38");
   }
 
   private CompleteType getType(CompleteType fileType, CompleteType tableType) {

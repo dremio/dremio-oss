@@ -15,32 +15,45 @@
  */
 package com.dremio.exec.physical.config;
 
-import java.util.List;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.record.BatchSchema;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import java.util.List;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonTypeName("dir-listing")
-public class DirListingTableFunctionContext extends TableFunctionContext{
+public class DirListingTableFunctionContext extends TableFunctionContext {
   private final boolean allowRecursiveListing;
 
   // Extends URL with a version query parameter, based on the last modification time of the table
   private final boolean hasVersion;
 
   public DirListingTableFunctionContext(
-    @JsonProperty("schema") BatchSchema fullSchema,
-    @JsonProperty("tableschema") BatchSchema tableSchema,
-    @JsonProperty("pluginId") StoragePluginId pluginId,
-    @JsonProperty("columns") List<SchemaPath> columns,
-    @JsonProperty("allowRecursiveListing") boolean allowRecursiveListing,
-    @JsonProperty("hasVersion") boolean hasVersion) {
-    super(null, fullSchema, tableSchema, null, null, null, pluginId, null, columns, null, null,
-      null, false, false, false, null);
+      @JsonProperty("schema") BatchSchema fullSchema,
+      @JsonProperty("tableschema") BatchSchema tableSchema,
+      @JsonProperty("pluginId") StoragePluginId pluginId,
+      @JsonProperty("columns") List<SchemaPath> columns,
+      @JsonProperty("allowRecursiveListing") boolean allowRecursiveListing,
+      @JsonProperty("hasVersion") boolean hasVersion) {
+    super(
+        null,
+        fullSchema,
+        tableSchema,
+        null,
+        null,
+        null,
+        pluginId,
+        null,
+        columns,
+        null,
+        null,
+        false,
+        false,
+        false,
+        null);
     this.allowRecursiveListing = allowRecursiveListing;
     this.hasVersion = hasVersion;
   }

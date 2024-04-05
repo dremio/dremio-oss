@@ -15,47 +15,40 @@
  */
 package com.dremio.exec.util.rhash;
 
-import java.nio.charset.StandardCharsets;
-import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
-
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.io.file.Path;
 import com.dremio.service.coordinator.NodeStatusListener;
 import com.dremio.service.coordinator.ServiceSet;
 import com.google.common.hash.Hashing;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
-/**
- * Pick a set node for a path based on the collection of known nodes.
- */
+/** Pick a set node for a path based on the collection of known nodes. */
 public class RendezvousPageHasher {
 
   private static final int NUM_NODES = 3;
   private final MultiValuedRendezvousHash<PathOffset, NodeEntry> hasher;
 
   public RendezvousPageHasher(List<NodeEndpoint> nodeEndpointList) {
-    this.hasher = new MultiValuedRendezvousHash<PathOffset, NodeEntry>(
+    this.hasher =
+        new MultiValuedRendezvousHash<PathOffset, NodeEntry>(
             Hashing.murmur3_128(),
-            (k,f) -> f.putString(k.getPath(), StandardCharsets.UTF_8).putLong(k.getOffset()),
-            (n,f) -> f.putString(n.host, StandardCharsets.UTF_8).putInt(n.fabricPort),
-            nodeEndpointList
-                    .stream()
-                    .map(n -> new NodeEntry(n))
-                    .collect(Collectors.toList())
-    );
+            (k, f) -> f.putString(k.getPath(), StandardCharsets.UTF_8).putLong(k.getOffset()),
+            (n, f) -> f.putString(n.host, StandardCharsets.UTF_8).putInt(n.fabricPort),
+            nodeEndpointList.stream().map(n -> new NodeEntry(n)).collect(Collectors.toList()));
   }
 
   public RendezvousPageHasher(ServiceSet serviceSet) {
-    this.hasher = new MultiValuedRendezvousHash<PathOffset, NodeEntry>(
+    this.hasher =
+        new MultiValuedRendezvousHash<PathOffset, NodeEntry>(
             Hashing.murmur3_128(),
-        (k,f) -> f.putString(k.getPath(), StandardCharsets.UTF_8).putLong(k.getOffset()),
-        (n,f) -> f.putString(n.host, StandardCharsets.UTF_8).putInt(n.fabricPort),
-        serviceSet.getAvailableEndpoints()
-          .stream()
-          .map(n -> new NodeEntry(n))
-          .collect(Collectors.toList())
-        );
+            (k, f) -> f.putString(k.getPath(), StandardCharsets.UTF_8).putLong(k.getOffset()),
+            (n, f) -> f.putString(n.host, StandardCharsets.UTF_8).putInt(n.fabricPort),
+            serviceSet.getAvailableEndpoints().stream()
+                .map(n -> new NodeEntry(n))
+                .collect(Collectors.toList()));
 
     // listen to node coming and going.
     serviceSet.addNodeStatusListener(new Listener());
@@ -80,10 +73,7 @@ public class RendezvousPageHasher {
 
     @Override
     public String toString() {
-      return "PathOffset{" +
-        "path='" + path + '\'' +
-        ", offset=" + offset +
-        '}';
+      return "PathOffset{" + "path='" + path + '\'' + ", offset=" + offset + '}';
     }
   }
 
@@ -114,11 +104,11 @@ public class RendezvousPageHasher {
     public int compareTo(NodeEntry o) {
       int cmp = 0;
       cmp = Long.compare(this.createTime, o.createTime);
-      if(cmp != 0) {
+      if (cmp != 0) {
         return cmp;
       }
       cmp = host.compareTo(o.host);
-      if(cmp != 0) {
+      if (cmp != 0) {
         return cmp;
       }
       return Integer.compare(fabricPort, o.fabricPort);
@@ -141,6 +131,5 @@ public class RendezvousPageHasher {
     public void nodesUnregistered(Set<NodeEndpoint> nodes) {
       nodes.stream().map(NodeEntry::new).forEach(n -> hasher.remove(n));
     }
-
   }
 }

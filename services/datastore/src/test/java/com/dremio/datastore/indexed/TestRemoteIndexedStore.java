@@ -15,13 +15,6 @@
  */
 package com.dremio.datastore.indexed;
 
-import javax.inject.Provider;
-
-import org.apache.arrow.memory.BufferAllocator;
-import org.junit.Ignore;
-import org.junit.Rule;
-import org.junit.Test;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.concurrent.CloseableThreadPool;
 import com.dremio.datastore.LocalKVStoreProvider;
@@ -36,10 +29,13 @@ import com.dremio.services.fabric.FabricServiceImpl;
 import com.dremio.services.fabric.api.FabricService;
 import com.dremio.test.AllocatorRule;
 import com.dremio.test.DremioTest;
+import javax.inject.Provider;
+import org.apache.arrow.memory.BufferAllocator;
+import org.junit.Ignore;
+import org.junit.Rule;
+import org.junit.Test;
 
-/**
- * Tests for remote indexed store.
- */
+/** Tests for remote indexed store. */
 public class TestRemoteIndexedStore extends AbstractTestIndexedStore {
 
   private static final String HOSTNAME = "localhost";
@@ -55,34 +51,56 @@ public class TestRemoteIndexedStore extends AbstractTestIndexedStore {
   private BufferAllocator allocator;
   private CloseableThreadPool pool;
 
-  @Rule
-  public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
+  @Rule public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
 
   @Override
   protected KVStoreProvider createKVStoreProvider() throws Exception {
     allocator = allocatorRule.newAllocator("test-remote-indexed-store", 0, 20 * 1024 * 1024);
     pool = new CloseableThreadPool("test-remoteindexedkvstore");
-    localFabricService = new FabricServiceImpl(HOSTNAME, 45678, true, THREAD_COUNT, allocator, RESERVATION,
-        MAX_ALLOCATION, TIMEOUT, pool);
+    localFabricService =
+        new FabricServiceImpl(
+            HOSTNAME,
+            45678,
+            true,
+            THREAD_COUNT,
+            allocator,
+            RESERVATION,
+            MAX_ALLOCATION,
+            TIMEOUT,
+            pool);
     localFabricService.start();
     final Provider<FabricService> fab = () -> localFabricService;
 
-    remoteFabricService = new FabricServiceImpl(HOSTNAME, 45679, true, THREAD_COUNT, allocator, RESERVATION,
-        MAX_ALLOCATION, TIMEOUT, pool);
+    remoteFabricService =
+        new FabricServiceImpl(
+            HOSTNAME,
+            45679,
+            true,
+            THREAD_COUNT,
+            allocator,
+            RESERVATION,
+            MAX_ALLOCATION,
+            TIMEOUT,
+            pool);
     remoteFabricService.start();
 
     final Provider<FabricService> rfab = () -> remoteFabricService;
 
-    localKVStoreProvider = new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, fab, allocator,
-      HOSTNAME, null, true, true, false);
+    localKVStoreProvider =
+        new LocalKVStoreProvider(
+            DremioTest.CLASSPATH_SCAN_RESULT, fab, allocator, HOSTNAME, null, true, true, false);
     localKVStoreProvider.start();
-    remoteKVStoreProvider = new RemoteKVStoreProvider(
-        DremioTest.CLASSPATH_SCAN_RESULT,
-        DirectProvider.wrap(NodeEndpoint.newBuilder()
-          .setAddress(HOSTNAME)
-          .setFabricPort(localFabricService.getPort())
-          .build()),
-        rfab, allocator, HOSTNAME);
+    remoteKVStoreProvider =
+        new RemoteKVStoreProvider(
+            DremioTest.CLASSPATH_SCAN_RESULT,
+            DirectProvider.wrap(
+                NodeEndpoint.newBuilder()
+                    .setAddress(HOSTNAME)
+                    .setFabricPort(localFabricService.getPort())
+                    .build()),
+            rfab,
+            allocator,
+            HOSTNAME);
     remoteKVStoreProvider.start();
     return remoteKVStoreProvider;
   }
@@ -94,13 +112,17 @@ public class TestRemoteIndexedStore extends AbstractTestIndexedStore {
 
   @Override
   public void closeResources() throws Exception {
-    AutoCloseables.close(remoteKVStoreProvider, localKVStoreProvider, remoteFabricService, localFabricService, pool,
+    AutoCloseables.close(
+        remoteKVStoreProvider,
+        localKVStoreProvider,
+        remoteFabricService,
+        localFabricService,
+        pool,
         allocator);
   }
 
   @Ignore("[DX-9909] Not query doesn't work as expected for RocksDB.")
   @Test
   @Override
-  public void not() {
-  }
+  public void not() {}
 }

@@ -18,17 +18,14 @@ package com.dremio.exec.planner.sql.convertlet;
 import static com.dremio.exec.planner.sql.DremioSqlOperatorTable.CONVERT_FROM;
 import static com.dremio.exec.planner.sql.DremioSqlOperatorTable.CONVERT_REPLACEUTF8;
 
+import com.dremio.exec.planner.sql.ConvertFromOperators;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.util.NlsString;
 
-import com.dremio.exec.planner.sql.ConvertFromOperators;
-
-/**
- * Rewrites CONVERT_FROM(x, TYPE) to CONVERT_FROMTYPE(x)
- */
+/** Rewrites CONVERT_FROM(x, TYPE) to CONVERT_FROMTYPE(x) */
 public final class ConvertFromConvertlet implements FunctionConvertlet {
   public static final FunctionConvertlet INSTANCE = new ConvertFromConvertlet();
 
@@ -42,10 +39,9 @@ public final class ConvertFromConvertlet implements FunctionConvertlet {
   @Override
   public RexCall convertCall(ConvertletContext cx, RexCall call) {
     if (call.getOperands().size() == 3) {
-      return (RexCall) cx.getRexBuilder().makeCall(
-        CONVERT_REPLACEUTF8,
-        call.getOperands().get(0),
-        call.getOperands().get(2));
+      return (RexCall)
+          cx.getRexBuilder()
+              .makeCall(CONVERT_REPLACEUTF8, call.getOperands().get(0), call.getOperands().get(2));
     }
 
     RexNode typeNode = call.getOperands().get(1);

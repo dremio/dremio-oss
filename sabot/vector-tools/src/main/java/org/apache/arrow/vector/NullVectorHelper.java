@@ -15,11 +15,10 @@
  */
 package org.apache.arrow.vector;
 
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.vector.types.pojo.Field;
-
 import com.dremio.exec.proto.UserBitShared.SerializedField;
 import com.dremio.exec.proto.UserBitShared.SerializedField.Builder;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.vector.types.pojo.Field;
 
 public class NullVectorHelper implements ValueVectorHelper {
 
@@ -32,18 +31,20 @@ public class NullVectorHelper implements ValueVectorHelper {
   @Override
   public SerializedField getMetadata() {
     return SerializedField.newBuilder()
-        .setMajorType(com.dremio.common.types.Types.optional(com.dremio.common.types.TypeProtos.MinorType.NULL))
+        .setMajorType(
+            com.dremio.common.types.Types.optional(
+                com.dremio.common.types.TypeProtos.MinorType.NULL))
         .setBufferLength(0)
         .setValueCount(0)
         .build();
   }
 
   @Override
-  public void load(SerializedField metadata, ArrowBuf buffer) {
-  }
+  public void load(SerializedField metadata, ArrowBuf buffer) {}
 
   @Override
-  public void loadFromValidityAndDataBuffers(SerializedField metadata, ArrowBuf dataBuffer, ArrowBuf validityBuffer) {
+  public void loadFromValidityAndDataBuffers(
+      SerializedField metadata, ArrowBuf dataBuffer, ArrowBuf validityBuffer) {
     throw new UnsupportedOperationException();
   }
 

@@ -18,11 +18,10 @@ package com.dremio.common.concurrent;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-/**
- * An extended CountDownLatch which allows us to await uninterruptibly.
- */
+/** An extended CountDownLatch which allows us to await uninterruptibly. */
 public class ExtendedLatch extends CountDownLatch {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ExtendedLatch.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ExtendedLatch.class);
 
   public ExtendedLatch() {
     super(1);
@@ -34,8 +33,8 @@ public class ExtendedLatch extends CountDownLatch {
 
   /**
    * Await without interruption for a given time.
-   * @param waitMillis
-   *          Time in milliseconds to wait
+   *
+   * @param waitMillis Time in milliseconds to wait
    * @return Whether the countdown reached zero or not.
    */
   public boolean awaitUninterruptibly(long waitMillis) {

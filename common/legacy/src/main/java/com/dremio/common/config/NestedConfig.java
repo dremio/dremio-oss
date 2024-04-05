@@ -15,14 +15,6 @@
  */
 package com.dremio.common.config;
 
-import java.time.Duration;
-import java.time.Period;
-import java.time.temporal.TemporalAmount;
-import java.util.List;
-import java.util.Map.Entry;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
-
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigList;
 import com.typesafe.config.ConfigMemorySize;
@@ -31,6 +23,13 @@ import com.typesafe.config.ConfigObject;
 import com.typesafe.config.ConfigOrigin;
 import com.typesafe.config.ConfigResolveOptions;
 import com.typesafe.config.ConfigValue;
+import java.time.Duration;
+import java.time.Period;
+import java.time.temporal.TemporalAmount;
+import java.util.List;
+import java.util.Map.Entry;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 public abstract class NestedConfig implements Config {
 
@@ -40,7 +39,7 @@ public abstract class NestedConfig implements Config {
     this.config = config;
   }
 
-  protected Config getInnerConfig(){
+  protected Config getInnerConfig() {
     return config;
   }
 
@@ -320,6 +319,4 @@ public abstract class NestedConfig implements Config {
   public Config resolveWith(Config arg0) {
     return config.resolveWith(arg0);
   }
-
-
 }

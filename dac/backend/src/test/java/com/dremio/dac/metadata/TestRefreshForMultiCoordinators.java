@@ -22,11 +22,6 @@ import static java.util.concurrent.TimeUnit.MINUTES;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
 
-import org.junit.BeforeClass;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-
 import com.dremio.dac.model.sources.SourceUI;
 import com.dremio.dac.model.sources.UIMetadataPolicy;
 import com.dremio.dac.server.BaseTestServer;
@@ -40,11 +35,12 @@ import com.dremio.service.namespace.source.proto.MetadataPolicy;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.source.proto.UpdateMode;
 import com.google.common.base.Stopwatch;
+import org.junit.BeforeClass;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
-
-/**
- * Test last metadata refresh date is synced on multiple coordinators
- **/
+/** Test last metadata refresh date is synced on multiple coordinators */
 public class TestRefreshForMultiCoordinators extends BaseTestServer {
   private static final String PLUGIN_NAME = "testRefresh";
   private MetadataPolicy metadataPolicy;
@@ -52,8 +48,7 @@ public class TestRefreshForMultiCoordinators extends BaseTestServer {
   private static CatalogServiceImpl masterCatalogService;
   private static CatalogServiceImpl slaveCatalogService;
 
-  @Rule
-  public final TemporaryFolder temporaryFolder = new TemporaryFolder();
+  @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
   @BeforeClass
   public static void init() throws Exception {
@@ -61,22 +56,25 @@ public class TestRefreshForMultiCoordinators extends BaseTestServer {
     assumeTrue(isMultinode());
     BaseTestServer.init();
 
-    masterCatalogService = ((CatalogServiceImpl) getMasterDremioDaemon().getBindingProvider().lookup(CatalogService.class));
-    slaveCatalogService = ((CatalogServiceImpl) getCurrentDremioDaemon().getBindingProvider().lookup(CatalogService.class));
+    masterCatalogService =
+        ((CatalogServiceImpl)
+            getMasterDremioDaemon().getBindingProvider().lookup(CatalogService.class));
+    slaveCatalogService =
+        ((CatalogServiceImpl)
+            getCurrentDremioDaemon().getBindingProvider().lookup(CatalogService.class));
   }
 
-  /**
-   * Setup source config for create a source
-   **/
+  /** Setup source config for create a source */
   private void setUpForCreateSource() throws Exception {
-    metadataPolicy = new MetadataPolicy()
-      .setAuthTtlMs(MINUTES.toMillis(10))
-      .setDeleteUnavailableDatasets(true)
-      .setAutoPromoteDatasets(true)
-      .setDatasetUpdateMode(UpdateMode.PREFETCH_QUERIED)
-      .setNamesRefreshMs(HOURS.toMillis(2))
-      .setDatasetDefinitionRefreshAfterMs(HOURS.toMillis(3))
-      .setDatasetDefinitionExpireAfterMs(DAYS.toMillis(14));
+    metadataPolicy =
+        new MetadataPolicy()
+            .setAuthTtlMs(MINUTES.toMillis(10))
+            .setDeleteUnavailableDatasets(true)
+            .setAutoPromoteDatasets(true)
+            .setDatasetUpdateMode(UpdateMode.PREFETCH_QUERIED)
+            .setNamesRefreshMs(HOURS.toMillis(2))
+            .setDatasetDefinitionRefreshAfterMs(HOURS.toMillis(3))
+            .setDatasetDefinitionExpireAfterMs(DAYS.toMillis(14));
 
     final SourceUI source = new SourceUI();
     source.setName(PLUGIN_NAME);
@@ -87,24 +85,24 @@ public class TestRefreshForMultiCoordinators extends BaseTestServer {
     final NASConf config = new NASConf();
     config.path = temporaryFolder.getRoot().getAbsolutePath();
     source.setConfig(config);
-    sourceConfig  = source.asSourceConfig();
+    sourceConfig = source.asSourceConfig();
   }
 
   /**
-   * Add a source on master and perform a full refresh on master.
-   * (Note: adding a source will perform a name refresh)
-   * Checking the last refresh info on slave coordinator is synced
-   * up with master coordinator.
+   * Add a source on master and perform a full refresh on master. (Note: adding a source will
+   * perform a name refresh) Checking the last refresh info on slave coordinator is synced up with
+   * master coordinator.
    *
-   * Delete the source and add a source with the same name on slave
-   * coordinator, do the same check above on master coordinator.
-  **/
+   * <p>Delete the source and add a source with the same name on slave coordinator, do the same
+   * check above on master coordinator.
+   */
   @Test
   public void testLastRefreshSyncedOnMultiCoordinators() throws Exception {
     // master add a source and perform a full refresh
     setUpForCreateSource();
     masterCatalogService.createSourceIfMissingWithThrow(sourceConfig);
-    masterCatalogService.refreshSource(new NamespaceKey(PLUGIN_NAME), metadataPolicy, UpdateType.FULL);
+    masterCatalogService.refreshSource(
+        new NamespaceKey(PLUGIN_NAME), metadataPolicy, UpdateType.FULL);
     Thread.sleep(3_000);
 
     // retrieve the added plugin from slave coordinator's catalog service
@@ -124,18 +122,23 @@ public class TestRefreshForMultiCoordinators extends BaseTestServer {
     watch.stop();
     // if the plugin's last refresh date in master and slave is within 1 second apart
     // then consider coordinators are synced
-    //assertTrue(slavePlugin.isCompleteAndValid());
+    // assertTrue(slavePlugin.isCompleteAndValid());
     long masterLastFullRefresh = masterPlugin.getLastFullRefreshDateMs();
     long masterLastNameRefresh = masterPlugin.getLastNamesRefreshDateMs();
     long slaveLastFullRefresh = slavePlugin.getLastFullRefreshDateMs();
     long slaveLastNameRefresh = slavePlugin.getLastNamesRefreshDateMs();
-    assertTrue(String.format("Last full refresh date for plugin '%s' on slave coordinator is not synced: master Coordinator's" +
-        " last full refresh is at %d while slave coordinator's is at %d.", PLUGIN_NAME, masterLastFullRefresh, slaveLastFullRefresh),
-      abs(masterLastFullRefresh - slaveLastFullRefresh) < 1000);
-    assertTrue(String.format("Last name refresh date for plugin '%s' on slave coordinator is not synced: master Coordinator's" +
-        " last name refresh is at %d while slave coordinator's is at %d.", PLUGIN_NAME, masterLastNameRefresh, slaveLastNameRefresh),
-      abs(masterLastNameRefresh - slaveLastNameRefresh) < 1000);
-
+    assertTrue(
+        String.format(
+            "Last full refresh date for plugin '%s' on slave coordinator is not synced: master Coordinator's"
+                + " last full refresh is at %d while slave coordinator's is at %d.",
+            PLUGIN_NAME, masterLastFullRefresh, slaveLastFullRefresh),
+        abs(masterLastFullRefresh - slaveLastFullRefresh) < 1000);
+    assertTrue(
+        String.format(
+            "Last name refresh date for plugin '%s' on slave coordinator is not synced: master Coordinator's"
+                + " last name refresh is at %d while slave coordinator's is at %d.",
+            PLUGIN_NAME, masterLastNameRefresh, slaveLastNameRefresh),
+        abs(masterLastNameRefresh - slaveLastNameRefresh) < 1000);
 
     // delete the source
     masterCatalogService.deleteSource(PLUGIN_NAME);
@@ -144,7 +147,8 @@ public class TestRefreshForMultiCoordinators extends BaseTestServer {
     // slave add a source with the same name and perform a full refresh
     setUpForCreateSource();
     slaveCatalogService.createSourceIfMissingWithThrow(sourceConfig);
-    slaveCatalogService.refreshSource(new NamespaceKey(PLUGIN_NAME), metadataPolicy, UpdateType.FULL);
+    slaveCatalogService.refreshSource(
+        new NamespaceKey(PLUGIN_NAME), metadataPolicy, UpdateType.FULL);
     Thread.sleep(3_000);
 
     // retrieve the added plugin from master coordinator's catalog service
@@ -168,11 +172,17 @@ public class TestRefreshForMultiCoordinators extends BaseTestServer {
     masterLastNameRefresh = masterPlugin.getLastNamesRefreshDateMs();
     slaveLastFullRefresh = slavePlugin.getLastFullRefreshDateMs();
     slaveLastNameRefresh = slavePlugin.getLastNamesRefreshDateMs();
-    assertTrue(String.format("Last full refresh date for plugin '%s' on master coordinator is not synced: master Coordinator's" +
-        " last full refresh is at %d while slave coordinator's is at %d.", PLUGIN_NAME, masterLastFullRefresh, slaveLastFullRefresh),
-      abs(masterLastFullRefresh - slaveLastFullRefresh) < 1000);
-    assertTrue(String.format("Last name refresh date for plugin '%s' on master coordinator is not synced: master Coordinator's" +
-        " last name refresh is at %d while slave coordinator's is at %d.", PLUGIN_NAME, masterLastNameRefresh, slaveLastNameRefresh),
-      abs(masterLastNameRefresh - slaveLastNameRefresh) < 1000);
+    assertTrue(
+        String.format(
+            "Last full refresh date for plugin '%s' on master coordinator is not synced: master Coordinator's"
+                + " last full refresh is at %d while slave coordinator's is at %d.",
+            PLUGIN_NAME, masterLastFullRefresh, slaveLastFullRefresh),
+        abs(masterLastFullRefresh - slaveLastFullRefresh) < 1000);
+    assertTrue(
+        String.format(
+            "Last name refresh date for plugin '%s' on master coordinator is not synced: master Coordinator's"
+                + " last name refresh is at %d while slave coordinator's is at %d.",
+            PLUGIN_NAME, masterLastNameRefresh, slaveLastNameRefresh),
+        abs(masterLastNameRefresh - slaveLastNameRefresh) < 1000);
   }
 }

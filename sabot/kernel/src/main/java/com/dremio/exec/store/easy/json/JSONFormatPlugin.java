@@ -15,10 +15,6 @@
  */
 package com.dremio.exec.store.easy.json;
 
-import java.io.IOException;
-import java.util.List;
-import java.util.Objects;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.logical.FormatPluginConfig;
@@ -27,6 +23,7 @@ import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.EasyCoercionReader;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.RecordWriter;
+import com.dremio.exec.store.dfs.FileDatasetHandle;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.FormatMatcher;
 import com.dremio.exec.store.dfs.easy.EasyFormatPlugin;
@@ -41,8 +38,10 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
-
 import io.protostuff.ByteString;
+import java.io.IOException;
+import java.util.List;
+import java.util.Objects;
 
 public class JSONFormatPlugin extends EasyFormatPlugin<JSONFormatConfig> {
 
@@ -53,29 +52,81 @@ public class JSONFormatPlugin extends EasyFormatPlugin<JSONFormatConfig> {
     this(name, context, new JSONFormatConfig(), fsPlugin);
   }
 
-  public JSONFormatPlugin(String name, SabotContext context, JSONFormatConfig formatPluginConfig, FileSystemPlugin<?> fsPlugin) {
-    super(name, context, formatPluginConfig, true, false, false, IS_COMPRESSIBLE, formatPluginConfig.getExtensions(), DEFAULT_NAME, fsPlugin);
+  public JSONFormatPlugin(
+      String name,
+      SabotContext context,
+      JSONFormatConfig formatPluginConfig,
+      FileSystemPlugin<?> fsPlugin) {
+    super(
+        name,
+        context,
+        formatPluginConfig,
+        true,
+        false,
+        false,
+        IS_COMPRESSIBLE,
+        formatPluginConfig.getExtensions(),
+        DEFAULT_NAME,
+        fsPlugin);
   }
 
   @Override
-  public RecordReader getRecordReader(OperatorContext context, FileSystem dfs, EasyDatasetSplitXAttr splitAttributes, List<SchemaPath> columns) throws ExecutionSetupException {
-    return new JSONRecordReader(context, splitAttributes.getPath(), getFsPlugin().getCompressionCodecFactory(), dfs, columns);
+  public RecordReader getRecordReader(
+      OperatorContext context,
+      FileSystem dfs,
+      EasyDatasetSplitXAttr splitAttributes,
+      List<SchemaPath> columns)
+      throws ExecutionSetupException {
+    return new JSONRecordReader(
+        context,
+        splitAttributes.getPath(),
+        getFsPlugin().getCompressionCodecFactory(),
+        dfs,
+        columns);
   }
 
   @Override
-  public RecordReader getRecordReader(OperatorContext context, FileSystem dfs, EasyDatasetSplitXAttr splitAttributes, List<SchemaPath> columns, ExtendedEasyReaderProperties properties, ByteString extendedProperties) throws ExecutionSetupException {
-    return new JSONRecordReader(context, splitAttributes.getPath(), getFsPlugin().getCompressionCodecFactory(), dfs, columns, properties, extendedProperties);
+  public RecordReader getRecordReader(
+      OperatorContext context,
+      FileSystem dfs,
+      EasyDatasetSplitXAttr splitAttributes,
+      List<SchemaPath> columns,
+      ExtendedEasyReaderProperties properties,
+      ByteString extendedProperties)
+      throws ExecutionSetupException {
+    return new JSONRecordReader(
+        context,
+        splitAttributes.getPath(),
+        getFsPlugin().getCompressionCodecFactory(),
+        dfs,
+        columns,
+        properties,
+        extendedProperties);
   }
 
   @Override
-  public RecordReader getRecordReader(OperatorContext context, FileSystem dfs, EasyDatasetSplitXAttr splitAttributes, List<SchemaPath> columns, EasySubScan config) throws ExecutionSetupException {
+  public RecordReader getRecordReader(
+      OperatorContext context,
+      FileSystem dfs,
+      EasyDatasetSplitXAttr splitAttributes,
+      List<SchemaPath> columns,
+      EasySubScan config)
+      throws ExecutionSetupException {
     RecordReader inner = getRecordReader(context, dfs, splitAttributes, columns);
-    return new EasyCoercionReader(context, columns, inner, config.getFullSchema(), Iterables.getFirst(config.getReferencedTables(), null), config.getUserDefinedSchemaSettings());
+    return new EasyCoercionReader(
+        context,
+        columns,
+        inner,
+        config.getFullSchema(),
+        Iterables.getFirst(config.getReferencedTables(), null),
+        config.getUserDefinedSchemaSettings());
   }
 
   @Override
-  public RecordWriter getRecordWriter(OperatorContext context, EasyWriter writer) throws IOException {
-    RecordWriter recordWriter = new JsonRecordWriter(context, writer, (JSONFormatConfig) getConfig());
+  public RecordWriter getRecordWriter(OperatorContext context, EasyWriter writer)
+      throws IOException {
+    RecordWriter recordWriter =
+        new JsonRecordWriter(context, writer, (JSONFormatConfig) getConfig());
     return recordWriter;
   }
 
@@ -85,9 +136,7 @@ public class JSONFormatPlugin extends EasyFormatPlugin<JSONFormatConfig> {
     public List<String> extensions = ImmutableList.of("json");
     private static final List<String> DEFAULT_EXTS = ImmutableList.of("json");
 
-    /**
-     * Extension of files written out with config as part of CTAS.
-     */
+    /** Extension of files written out with config as part of CTAS. */
     public String outputExtension = "json";
 
     public boolean prettyPrint = true;
@@ -127,9 +176,9 @@ public class JSONFormatPlugin extends EasyFormatPlugin<JSONFormatConfig> {
       }
       JSONFormatConfig other = (JSONFormatConfig) obj;
 
-      return Objects.equals(extensions, other.extensions) &&
-          Objects.equals(outputExtension, other.outputExtension) &&
-          Objects.equals(prettyPrint, other.prettyPrint);
+      return Objects.equals(extensions, other.extensions)
+          && Objects.equals(outputExtension, other.outputExtension)
+          && Objects.equals(prettyPrint, other.prettyPrint);
     }
   }
 
@@ -153,4 +202,9 @@ public class JSONFormatPlugin extends EasyFormatPlugin<JSONFormatConfig> {
     return true;
   }
 
+  @Override
+  public int getMaxFilesLimit() {
+    return Math.toIntExact(
+        getContext().getOptionManager().getOption(FileDatasetHandle.DFS_MAX_JSON_FILES));
+  }
 }

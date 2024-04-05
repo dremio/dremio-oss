@@ -15,18 +15,17 @@
  */
 package com.dremio.exec.rpc;
 
+import com.dremio.exec.proto.GeneralRPCProtos.RpcMode;
+import io.netty.buffer.ByteBuf;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 
-import com.dremio.exec.proto.GeneralRPCProtos.RpcMode;
-
-import io.netty.buffer.ByteBuf;
-
-public class InboundRpcMessage extends RpcMessage{
+public class InboundRpcMessage extends RpcMessage {
   public byte[] pBody;
   public ByteBuf dBody;
 
-  public InboundRpcMessage(RpcMode mode, int rpcType, int coordinationId, byte[] pBody, ByteBuf dBody) {
+  public InboundRpcMessage(
+      RpcMode mode, int rpcType, int coordinationId, byte[] pBody, ByteBuf dBody) {
     super(mode, rpcType, coordinationId);
     this.pBody = pBody;
     this.dBody = dBody;
@@ -51,12 +50,20 @@ public class InboundRpcMessage extends RpcMessage{
   @SuppressWarnings("ArrayToString") // do not need pBody content to be printed out...
   @Override
   public String toString() {
-    return "InboundRpcMessage [pBody=" + pBody + ", mode=" + mode + ", rpcType=" + rpcType + ", coordinationId="
-        + coordinationId + ", dBody=" + dBody + "]";
+    return "InboundRpcMessage [pBody="
+        + pBody
+        + ", mode="
+        + mode
+        + ", rpcType="
+        + rpcType
+        + ", coordinationId="
+        + coordinationId
+        + ", dBody="
+        + dBody
+        + "]";
   }
 
   public InputStream getProtobufBodyAsIS() {
     return new ByteArrayInputStream(pBody);
   }
-
 }

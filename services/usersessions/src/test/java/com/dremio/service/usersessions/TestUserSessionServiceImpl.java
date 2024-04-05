@@ -18,14 +18,6 @@ package com.dremio.service.usersessions;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
-import java.util.ConcurrentModificationException;
-import java.util.List;
-import java.util.Map;
-
-import org.apache.calcite.avatica.util.Quoting;
-import org.junit.Before;
-import org.junit.Test;
-
 import com.dremio.catalog.model.VersionContext;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserProtos;
@@ -35,10 +27,14 @@ import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.usersessions.store.UserSessionStoreProvider;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import java.util.ConcurrentModificationException;
+import java.util.List;
+import java.util.Map;
+import org.apache.calcite.avatica.util.Quoting;
+import org.junit.Before;
+import org.junit.Test;
 
-/**
- * Test class for UserSessionStore.
- */
+/** Test class for UserSessionStore. */
 public class TestUserSessionServiceImpl {
 
   private UserSession session;
@@ -57,20 +53,20 @@ public class TestUserSessionServiceImpl {
     service.start();
   }
 
-  /**
-   * Test to ensure inserting a session works correctly
-   */
+  /** Test to ensure inserting a session works correctly */
   @Test
   public void testPut() {
     final UserSessionService.SessionIdAndVersion sessionIdAndVersion = service.putSession(session);
 
     // check that the sessionId returns the correct result
-    final UserSessionService.UserSessionAndVersion actualSession = service.getSession(sessionIdAndVersion.getId());
+    final UserSessionService.UserSessionAndVersion actualSession =
+        service.getSession(sessionIdAndVersion.getId());
     compareUserSessions(session, actualSession.getSession());
   }
 
   /**
-   * Test to ensure that updating a UserSession in the store respects the TTL and updates the provides the correct value on the next get.
+   * Test to ensure that updating a UserSession in the store respects the TTL and updates the
+   * provides the correct value on the next get.
    */
   @Test
   public void testUpdate() {
@@ -123,35 +119,57 @@ public class TestUserSessionServiceImpl {
 
   private void setupSession() {
     final List<String> defaultSchema = ImmutableList.of("schema", "table");
-    final UserProtos.UserProperties properties = UserProtos.UserProperties.newBuilder()
-      .addProperties(UserProtos.Property.newBuilder().setKey(UserSession.ROUTING_QUEUE).setValue("queue").build())
-      .addProperties(UserProtos.Property.newBuilder().setKey(UserSession.ROUTING_TAG).setValue("tag").build())
-      .addProperties(UserProtos.Property.newBuilder().setKey(UserSession.ROUTING_ENGINE).setValue("engine").build())
-      .addProperties(UserProtos.Property.newBuilder().setKey(UserSession.IMPERSONATION_TARGET).setValue("target").build())
-      .addProperties(UserProtos.Property.newBuilder().setKey(UserSession.TRACING_ENABLED).setValue("TRUE").build())
-      .build();
+    final UserProtos.UserProperties properties =
+        UserProtos.UserProperties.newBuilder()
+            .addProperties(
+                UserProtos.Property.newBuilder()
+                    .setKey(UserSession.ROUTING_QUEUE)
+                    .setValue("queue")
+                    .build())
+            .addProperties(
+                UserProtos.Property.newBuilder()
+                    .setKey(UserSession.ROUTING_TAG)
+                    .setValue("tag")
+                    .build())
+            .addProperties(
+                UserProtos.Property.newBuilder()
+                    .setKey(UserSession.ROUTING_ENGINE)
+                    .setValue("engine")
+                    .build())
+            .addProperties(
+                UserProtos.Property.newBuilder()
+                    .setKey(UserSession.IMPERSONATION_TARGET)
+                    .setValue("target")
+                    .build())
+            .addProperties(
+                UserProtos.Property.newBuilder()
+                    .setKey(UserSession.TRACING_ENABLED)
+                    .setValue("TRUE")
+                    .build())
+            .build();
 
-    final Map<String, VersionContext> sourceVersionMapping = ImmutableMap.of(
-        "test1", VersionContext.ofBranch("branch1"),
-        "test2", VersionContext.ofCommit("0123456789ABCDEFabcdef"),
-        "test3", VersionContext.ofRef("ref1"),
-        "test4", VersionContext.ofTag("tag")
-      );
+    final Map<String, VersionContext> sourceVersionMapping =
+        ImmutableMap.of(
+            "test1", VersionContext.ofBranch("branch1"),
+            "test2", VersionContext.ofCommit("0123456789ABCDEFabcdef"),
+            "test3", VersionContext.ofRef("ref1"),
+            "test4", VersionContext.ofTag("tag"));
 
-    session = UserSession.Builder.newBuilder()
-      .exposeInternalSources(true)
-      .withClientInfos(UserRpcUtils.getRpcEndpointInfos("Dremio Java local client"))
-      .withDefaultSchema(defaultSchema)
-      .withCredentials(UserBitShared.UserCredentials.newBuilder().setUserName("foo").build())
-      .withEngineName("First Engine")
-      .withInitialQuoting(Quoting.BRACKET)
-      .withFullyQualifiedProjectsSupport(true)
-      .withLegacyCatalog()
-      .withRecordBatchFormat(UserProtos.RecordBatchFormat.DREMIO_23_0)
-      .setSupportComplexTypes(true)
-      .withUserProperties(properties)
-      .withSourceVersionMapping(sourceVersionMapping)
-      .build();
+    session =
+        UserSession.Builder.newBuilder()
+            .exposeInternalSources(true)
+            .withClientInfos(UserRpcUtils.getRpcEndpointInfos("Dremio Java local client"))
+            .withDefaultSchema(defaultSchema)
+            .withCredentials(UserBitShared.UserCredentials.newBuilder().setUserName("foo").build())
+            .withEngineName("First Engine")
+            .withInitialQuoting(Quoting.BRACKET)
+            .withFullyQualifiedProjectsSupport(true)
+            .withLegacyCatalog()
+            .withRecordBatchFormat(UserProtos.RecordBatchFormat.DREMIO_23_0)
+            .setSupportComplexTypes(true)
+            .withUserProperties(properties)
+            .withSourceVersionMapping(sourceVersionMapping)
+            .build();
     session.setLastQueryId(UserBitShared.QueryId.newBuilder().setPart1(1).setPart2(2).build());
   }
 
@@ -171,23 +189,31 @@ public class TestUserSessionServiceImpl {
     assertEquals(session1.getRoutingEngine(), session2.getRoutingEngine());
     assertEquals(session1.getRoutingQueue(), session2.getRoutingQueue());
     assertEquals(session1.getRoutingTag(), session2.getRoutingTag());
-    assertEquals(session1.getSubstitutionSettings().getExclusions(), session2.getSubstitutionSettings().getExclusions());
-    assertEquals(session1.getSubstitutionSettings().getInclusions(), session2.getSubstitutionSettings().getInclusions());
+    assertEquals(
+        session1.getSubstitutionSettings().getExclusions(),
+        session2.getSubstitutionSettings().getExclusions());
+    assertEquals(
+        session1.getSubstitutionSettings().getInclusions(),
+        session2.getSubstitutionSettings().getInclusions());
     assertEquals(session1.getTargetUserName(), session2.getTargetUserName());
     assertEquals(session1.exposeInternalSources(), session2.exposeInternalSources());
     assertEquals(session1.isSupportComplexTypes(), session2.isSupportComplexTypes());
     assertEquals(session1.isTracingEnabled(), session2.isTracingEnabled());
-    assertEquals(session1.supportFullyQualifiedProjections(), session2.supportFullyQualifiedProjections());
+    assertEquals(
+        session1.supportFullyQualifiedProjections(), session2.supportFullyQualifiedProjections());
     assertEquals(session1.useLegacyCatalogName(), session2.useLegacyCatalogName());
 
-    assertEquals(session1.getSourceVersionMapping().size(), session2.getSourceVersionMapping().size());
+    assertEquals(
+        session1.getSourceVersionMapping().size(), session2.getSourceVersionMapping().size());
 
-    final Map<String, VersionContext> session2SourceVersionMapping = session2.getSourceVersionMapping();
-    session1.getSourceVersionMapping()
-      .forEach((key, value1) -> {
-        final VersionContext value2 = session2SourceVersionMapping.get(key);
-        assertEquals(value1, value2);
-      });
+    final Map<String, VersionContext> session2SourceVersionMapping =
+        session2.getSourceVersionMapping();
+    session1
+        .getSourceVersionMapping()
+        .forEach(
+            (key, value1) -> {
+              final VersionContext value2 = session2SourceVersionMapping.get(key);
+              assertEquals(value1, value2);
+            });
   }
-
 }

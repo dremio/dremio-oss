@@ -19,14 +19,13 @@ import static com.dremio.services.nessie.grpc.GrpcExceptionMapper.handle;
 import static com.dremio.services.nessie.grpc.ProtoUtil.fromProto;
 import static com.dremio.services.nessie.grpc.ProtoUtil.toProto;
 
+import com.dremio.services.nessie.grpc.api.TreeServiceGrpc.TreeServiceBlockingStub;
 import org.projectnessie.client.api.TransplantCommitsBuilder;
 import org.projectnessie.client.builder.BaseTransplantCommitsBuilder;
 import org.projectnessie.error.NessieConflictException;
 import org.projectnessie.error.NessieNotFoundException;
 import org.projectnessie.model.CommitMeta;
 import org.projectnessie.model.MergeResponse;
-
-import com.dremio.services.nessie.grpc.api.TreeServiceGrpc.TreeServiceBlockingStub;
 
 final class GrpcTransplantCommits extends BaseTransplantCommitsBuilder {
 
@@ -39,16 +38,26 @@ final class GrpcTransplantCommits extends BaseTransplantCommitsBuilder {
   @Override
   public TransplantCommitsBuilder commitMeta(CommitMeta commitMeta) {
     throw new UnsupportedOperationException(
-      "Setting CommitMeta overrides is not supported for transplants.");
+        "Setting CommitMeta overrides is not supported for transplants.");
   }
 
   @Override
   public MergeResponse transplant() throws NessieNotFoundException, NessieConflictException {
     return handle(
-      () -> fromProto(
-        stub.transplantCommitsIntoBranch(
-          toProto(branchName, hash, message, fromRefName, hashesToTransplant, keepIndividualCommits, dryRun,
-            returnConflictAsResult, fetchAdditionalInfo, defaultMergeMode,
-            mergeModes == null ? null : mergeModes.values()))));
+        () ->
+            fromProto(
+                stub.transplantCommitsIntoBranch(
+                    toProto(
+                        branchName,
+                        hash,
+                        message,
+                        fromRefName,
+                        hashesToTransplant,
+                        keepIndividualCommits,
+                        dryRun,
+                        returnConflictAsResult,
+                        fetchAdditionalInfo,
+                        defaultMergeMode,
+                        mergeModes == null ? null : mergeModes.values()))));
   }
 }

@@ -18,35 +18,33 @@ package com.dremio.exec.fn.impl;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
-import org.junit.Test;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
+import org.junit.Test;
 
-/**
- * Tests for IS_DATE, IS_TIMESTAMP, and IS_TIME
- */
+/** Tests for IS_DATE, IS_TIMESTAMP, and IS_TIME */
 public class TestIsDateFunctions extends BaseTestQuery {
 
   @Test
   public void testIsDate() throws Exception {
-    final String query = "SELECT " +
-      "IS_DATE(\"date\", 'MM.DD.YY') AS f1, " +
-      "IS_DATE(\"date\", 'MONTH DD, YYYY') AS f2, " +
-      "IS_DATE(\"date\", 'DY, MONTH DD, YYYY') AS f3, " +
-      "IS_DATE(\"date\", 'MM.DD.YY, HH24:MI:SS') AS f4 " +
-      "FROM cp.\"/is_date.json\"";
+    final String query =
+        "SELECT "
+            + "IS_DATE(\"date\", 'MM.DD.YY') AS f1, "
+            + "IS_DATE(\"date\", 'MONTH DD, YYYY') AS f2, "
+            + "IS_DATE(\"date\", 'DY, MONTH DD, YYYY') AS f3, "
+            + "IS_DATE(\"date\", 'MM.DD.YY, HH24:MI:SS') AS f4 "
+            + "FROM cp.\"/is_date.json\"";
     testBuilder()
-      .ordered()
-      .sqlQuery(query)
-      .baselineColumns("f1", "f2", "f3", "f4")
-      .baselineValues(true, false, false, false)
-      .baselineValues(false, true, false, false)
-      .baselineValues(false, false, true, false)
-      .baselineValues(false, false, false, true)
-      .baselineValues(false, false, false, false)
-      .go();
+        .ordered()
+        .sqlQuery(query)
+        .baselineColumns("f1", "f2", "f3", "f4")
+        .baselineValues(true, false, false, false)
+        .baselineValues(false, true, false, false)
+        .baselineValues(false, false, true, false)
+        .baselineValues(false, false, false, true)
+        .baselineValues(false, false, false, false)
+        .go();
   }
 
   @Test
@@ -56,7 +54,8 @@ public class TestIsDateFunctions extends BaseTestQuery {
       fail("Query expected to fail");
     } catch (UserException uex) {
       assertEquals(ErrorType.FUNCTION, uex.getErrorType());
-      assertEquals("Failure parsing the formatting string at column 1 of: yummy", uex.getOriginalMessage());
+      assertEquals(
+          "Failure parsing the formatting string at column 1 of: yummy", uex.getOriginalMessage());
     }
   }
 
@@ -67,7 +66,8 @@ public class TestIsDateFunctions extends BaseTestQuery {
       fail("Query expected to fail");
     } catch (UserException uex) {
       assertEquals(ErrorType.FUNCTION, uex.getErrorType());
-      assertEquals("Failure parsing the formatting string at column 1 of: yummy", uex.getOriginalMessage());
+      assertEquals(
+          "Failure parsing the formatting string at column 1 of: yummy", uex.getOriginalMessage());
     }
   }
 
@@ -78,43 +78,46 @@ public class TestIsDateFunctions extends BaseTestQuery {
       fail("Query expected to fail");
     } catch (UserException uex) {
       assertEquals(ErrorType.FUNCTION, uex.getErrorType());
-      assertEquals("Failure parsing the formatting string at column 1 of: yummy", uex.getOriginalMessage());
+      assertEquals(
+          "Failure parsing the formatting string at column 1 of: yummy", uex.getOriginalMessage());
     }
   }
 
   @Test
   public void testIsTime() throws Exception {
-    final String query = "SELECT " +
-      "IS_TIME(\"time\", 'HH:MI:SS') as f1, " +
-      "IS_TIME(\"time\", 'HH24:MI:SS.FFF') as f2, " +
-      "IS_TIME(\"time\", 'DD-MON-YY HH12.MI.SS.FFF AM') as f3 " +
-      "FROM cp.\"/is_time.json\"";
+    final String query =
+        "SELECT "
+            + "IS_TIME(\"time\", 'HH:MI:SS') as f1, "
+            + "IS_TIME(\"time\", 'HH24:MI:SS.FFF') as f2, "
+            + "IS_TIME(\"time\", 'DD-MON-YY HH12.MI.SS.FFF AM') as f3 "
+            + "FROM cp.\"/is_time.json\"";
     testBuilder()
-            .ordered()
-            .sqlQuery(query)
-            .baselineColumns("f1", "f2", "f3")
-            .baselineValues(true, false, false)
-            .baselineValues(false, true, false)
-            .baselineValues(false, false, true)
-            .baselineValues(false, false, false)
-            .go();
+        .ordered()
+        .sqlQuery(query)
+        .baselineColumns("f1", "f2", "f3")
+        .baselineValues(true, false, false)
+        .baselineValues(false, true, false)
+        .baselineValues(false, false, true)
+        .baselineValues(false, false, false)
+        .go();
   }
 
   @Test
   public void testIsTimestamp() throws Exception {
-    final String query = "SELECT " +
-            "IS_TIMESTAMP(\"time\", 'HH:MI:SS') as f1, " +
-            "IS_TIMESTAMP(\"time\", 'HH24:MI:SS.FFF') as f2, " +
-            "IS_TIMESTAMP(\"time\", 'DD-MON-YY HH12.MI.SS.FFF AM') as f3 " +
-            "FROM cp.\"/is_time.json\"";
+    final String query =
+        "SELECT "
+            + "IS_TIMESTAMP(\"time\", 'HH:MI:SS') as f1, "
+            + "IS_TIMESTAMP(\"time\", 'HH24:MI:SS.FFF') as f2, "
+            + "IS_TIMESTAMP(\"time\", 'DD-MON-YY HH12.MI.SS.FFF AM') as f3 "
+            + "FROM cp.\"/is_time.json\"";
     testBuilder()
-            .ordered()
-            .sqlQuery(query)
-            .baselineColumns("f1", "f2", "f3")
-            .baselineValues(true, false, false)
-            .baselineValues(false, true, false)
-            .baselineValues(false, false, true)
-            .baselineValues(false, false, false)
-            .go();
+        .ordered()
+        .sqlQuery(query)
+        .baselineColumns("f1", "f2", "f3")
+        .baselineValues(true, false, false)
+        .baselineValues(false, true, false)
+        .baselineValues(false, false, true)
+        .baselineValues(false, false, false)
+        .go();
   }
 }

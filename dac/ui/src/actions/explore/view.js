@@ -32,6 +32,7 @@ export const RESET_NEW_QUERY = "RESET_NEW_QUERY";
 export const RESET_QUERY_STATE = "RESET_QUERY_STATE";
 export const FOCUS_EDITOR = "FOCUS_SQL_EDITOR";
 export const RESET_TABLE_STATE = "RESET_TABLE_STATE";
+export const WAIT_FOR_JOB_RESULTS = "WAIT_FOR_JOB_RESULTS";
 
 /**
  * Used to initialize / reset the contents of the SQL runner
@@ -110,6 +111,10 @@ export function resetQueryState(obj = {}) {
 
 export function resetTableState(obj = {}) {
   return { type: RESET_TABLE_STATE, ...obj };
+}
+
+export function waitForJobResults({ jobId, tabId = "" }) {
+  return { type: WAIT_FOR_JOB_RESULTS, jobId, tabId };
 }
 
 export const UPDATE_COLUMN_FILTER = "UPDATE_COLUMN_FILTER";

@@ -15,9 +15,7 @@
  */
 package com.dremio.sabot.exec;
 
-/**
- * Exception for monitor detected "out of heap space".
- */
+/** Exception for monitor detected "out of heap space". */
 public class OutOfHeapMemoryException extends RuntimeException {
 
   public OutOfHeapMemoryException(String message) {

@@ -15,18 +15,17 @@
  */
 package com.dremio.exec.planner.types;
 
+import com.google.common.base.Preconditions;
 import java.util.AbstractList;
-
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelRecordType;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.type.SqlTypeUtil;
 
-import com.google.common.base.Preconditions;
-
 /**
- * Note that this class extends from {@link org.apache.calcite.sql.type.SqlTypeFactoryImpl} indirectly, via
- * {@link org.apache.calcite.jdbc.JavaTypeFactoryImpl}, and not from {@link SqlTypeFactoryImpl} (in this package).
+ * Note that this class extends from {@link org.apache.calcite.sql.type.SqlTypeFactoryImpl}
+ * indirectly, via {@link org.apache.calcite.jdbc.JavaTypeFactoryImpl}, and not from {@link
+ * SqlTypeFactoryImpl} (in this package).
  */
 public class JavaTypeFactoryImpl extends org.apache.calcite.jdbc.JavaTypeFactoryImpl {
 
@@ -39,13 +38,13 @@ public class JavaTypeFactoryImpl extends org.apache.calcite.jdbc.JavaTypeFactory
   @Override
   public RelDataType createSqlType(SqlTypeName typeName, int precision) {
     switch (typeName) {
-    case CHAR:
-      return super.createSqlType(SqlTypeName.VARCHAR, precision);
-    case TIME:
-    case TIMESTAMP:
-      return super.createSqlType(typeName, RelDataTypeSystemImpl.SUPPORTED_DATETIME_PRECISION);
-    default:
-      return super.createSqlType(typeName, precision);
+      case CHAR:
+        return super.createSqlType(SqlTypeName.VARCHAR, precision);
+      case TIME:
+      case TIMESTAMP:
+        return super.createSqlType(typeName, RelDataTypeSystemImpl.SUPPORTED_DATETIME_PRECISION);
+      default:
+        return super.createSqlType(typeName, precision);
     }
   }
 
@@ -57,39 +56,40 @@ public class JavaTypeFactoryImpl extends org.apache.calcite.jdbc.JavaTypeFactory
       SqlTypeName sqlTypeName = type.getSqlTypeName();
 
       if (SqlTypeUtil.isArray(type)) {
-        final RelDataType elementType = type.getComponentType() == null
-                                        // type.getJavaClass() is collection with erased generic type
-                                        ? this.createSqlType(SqlTypeName.ANY)
-                                        // elementType returned by JavaType is also of JavaType,
-                                        // and needs conversion using typeFactory
-                                        : toSql(this, type.getComponentType());
+        final RelDataType elementType =
+            type.getComponentType() == null
+                // type.getJavaClass() is collection with erased generic type
+                ? this.createSqlType(SqlTypeName.ANY)
+                // elementType returned by JavaType is also of JavaType,
+                // and needs conversion using typeFactory
+                : toSql(this, type.getComponentType());
         relDataType = this.createArrayType(elementType, -1);
       }
     }
     return toSql(this, relDataType);
   }
 
-
   public RelDataType createTypeWithMaxVarcharPrecision(RelDataType rowType) {
     Preconditions.checkState(rowType instanceof RelRecordType);
 
-    return createStructType(rowType.getStructKind(),
-      new AbstractList<RelDataType>() {
-        @Override public RelDataType get(int index) {
-          RelDataType fieldType =
-            rowType.getFieldList().get(index).getType();
-          if (fieldType.getSqlTypeName() == SqlTypeName.VARCHAR) {
-            return createSqlType(SqlTypeName.VARCHAR, 65536);
-          } else {
-            return fieldType;
+    return createStructType(
+        rowType.getStructKind(),
+        new AbstractList<RelDataType>() {
+          @Override
+          public RelDataType get(int index) {
+            RelDataType fieldType = rowType.getFieldList().get(index).getType();
+            if (fieldType.getSqlTypeName() == SqlTypeName.VARCHAR) {
+              return createSqlType(SqlTypeName.VARCHAR, 65536);
+            } else {
+              return fieldType;
+            }
           }
-        }
 
-        @Override public int size() {
-          return rowType.getFieldCount();
-        }
-      },
-      rowType.getFieldNames());
+          @Override
+          public int size() {
+            return rowType.getFieldCount();
+          }
+        },
+        rowType.getFieldNames());
   }
-
 }

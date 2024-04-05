@@ -17,25 +17,21 @@ package com.dremio.exec.planner.sql.handlers.direct;
 
 import static org.junit.Assert.assertTrue;
 
-import org.junit.Test;
-
 import com.dremio.PlanTestBase;
 import com.dremio.common.exceptions.UserException;
+import org.junit.Test;
 
-/**
- * Test reflection routing handler on CE
- */
+/** Test reflection routing handler on CE */
 public class TestReflectionRoutingHandler extends PlanTestBase {
 
-  /**
-   * Should fail since CE does not support reflection routing
-   */
+  /** Should fail since CE does not support reflection routing */
   @Test
   public void testRoutingNotSupportedEE() throws Exception {
     try {
       test("ALTER TABLE T1 ROUTE ALL REFLECTIONS TO QUEUE Q1");
     } catch (UserException e) {
-      assertTrue(e.getMessage().contains("This command is not supported in this edition of Dremio."));
+      assertTrue(
+          e.getMessage().contains("This command is not supported in this edition of Dremio."));
     }
   }
 
@@ -44,7 +40,8 @@ public class TestReflectionRoutingHandler extends PlanTestBase {
     try {
       test("ALTER TABLE T1 ROUTE ALL REFLECTIONS TO ENGINE E1");
     } catch (UserException e) {
-      assertTrue(e.getMessage().contains("This command is not supported in this edition of Dremio."));
+      assertTrue(
+          e.getMessage().contains("This command is not supported in this edition of Dremio."));
     }
   }
 }

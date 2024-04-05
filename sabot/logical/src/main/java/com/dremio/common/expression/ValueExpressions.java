@@ -17,54 +17,57 @@ package com.dremio.common.expression;
 
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.ZoneOffset;
-
-import org.apache.calcite.util.DateString;
-import org.apache.calcite.util.TimeString;
-import org.apache.calcite.util.TimestampString;
-
 import com.dremio.common.expression.visitors.ExprVisitor;
 import com.dremio.common.types.TypeProtos;
 import com.dremio.common.util.DateTimes;
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.ZoneOffset;
+import org.apache.calcite.util.DateString;
+import org.apache.calcite.util.TimeString;
+import org.apache.calcite.util.TimestampString;
 
 public class ValueExpressions {
 
-  public static LogicalExpression getBigInt(long l){
+  public static LogicalExpression getBigInt(long l) {
     return new LongExpression(l);
   }
 
-  public static LogicalExpression getInt(int i){
+  public static LogicalExpression getInt(int i) {
     return new IntExpression(i);
   }
 
-  public static LogicalExpression getFloat8(double d){
+  public static LogicalExpression getFloat8(double d) {
     return new DoubleExpression(d);
   }
-  public static LogicalExpression getFloat4(float f){
+
+  public static LogicalExpression getFloat4(float f) {
     return new FloatExpression(f);
   }
 
-  public static LogicalExpression getBit(boolean b){
+  public static LogicalExpression getBit(boolean b) {
     return new BooleanExpression(Boolean.toString(b));
   }
 
-  public static LogicalExpression getChar(String s){
+  public static LogicalExpression getChar(String s) {
     return new QuotedString(s);
   }
 
   public static LogicalExpression getDate(DateString date) {
     LocalDate localDate = LocalDate.parse(date.toString(), DateTimes.CALCITE_LOCAL_DATE_FORMATTER);
-    return new DateExpression(localDate.atTime(LocalTime.MIDNIGHT).toInstant(ZoneOffset.UTC).toEpochMilli());
+    return new DateExpression(
+        localDate.atTime(LocalTime.MIDNIGHT).toInstant(ZoneOffset.UTC).toEpochMilli());
   }
 
   /**
-   * we internally store date, time, timestamp as primitive types hence returns LongExpression instead of DateExpression
+   * we internally store date, time, timestamp as primitive types hence returns LongExpression
+   * instead of DateExpression
+   *
    * @param epoch
    * @return
    */
@@ -72,9 +75,7 @@ public class ValueExpressions {
     return getBigInt(epoch);
   }
 
-  /**
-   * Parse date given in format 'YYYY-MM-DD' to millis in UTC timezone
-   */
+  /** Parse date given in format 'YYYY-MM-DD' to millis in UTC timezone */
   public static long getDate(String date) {
     LocalDate localDate = LocalDate.parse(date, DateTimes.CALCITE_LOCAL_DATE_FORMATTER);
     return localDate.atTime(LocalTime.MIDNIGHT).toInstant(ZoneOffset.UTC).toEpochMilli();
@@ -86,7 +87,9 @@ public class ValueExpressions {
   }
 
   /**
-   * we internally store date, time, timestamp as primitive types hence returns IntExpression instead of TimeExpression
+   * we internally store date, time, timestamp as primitive types hence returns IntExpression
+   * instead of TimeExpression
+   *
    * @param millis
    * @return
    */
@@ -94,21 +97,22 @@ public class ValueExpressions {
     return getInt(millis);
   }
 
-  /**
-   * Parse time given in format 'hh:mm:ss' to millis in UTC timezone
-   */
+  /** Parse time given in format 'hh:mm:ss' to millis in UTC timezone */
   public static int getTime(String time) {
     LocalTime localTime = LocalTime.parse(time, DateTimes.CALCITE_LOCAL_TIME_FORMATTER);
     return Math.toIntExact(NANOSECONDS.toMillis(localTime.toNanoOfDay()));
   }
 
   public static LogicalExpression getTimeStamp(TimestampString timestamp) {
-    LocalDateTime localDateTime = LocalDateTime.parse(timestamp.toString(), DateTimes.CALCITE_LOCAL_DATETIME_FORMATTER);
+    LocalDateTime localDateTime =
+        LocalDateTime.parse(timestamp.toString(), DateTimes.CALCITE_LOCAL_DATETIME_FORMATTER);
     return new TimeStampExpression(localDateTime.toInstant(ZoneOffset.UTC).toEpochMilli());
   }
 
   /**
-   * we internally store date, time, timestamp as primitive types hence returns LongExpression instead of TimestampExpression
+   * we internally store date, time, timestamp as primitive types hence returns LongExpression
+   * instead of TimestampExpression
+   *
    * @param millis
    * @return
    */
@@ -116,11 +120,10 @@ public class ValueExpressions {
     return getBigInt(millis);
   }
 
-  /**
-   * Parse date given in format 'YYYY-MM-DD hh:mm:ss' to millis in UTC timezone
-   */
+  /** Parse date given in format 'YYYY-MM-DD hh:mm:ss' to millis in UTC timezone */
   public static long getTimeStamp(String timestamp) {
-    LocalDateTime localDateTime = LocalDateTime.parse(timestamp, DateTimes.CALCITE_LOCAL_DATETIME_FORMATTER);
+    LocalDateTime localDateTime =
+        LocalDateTime.parse(timestamp, DateTimes.CALCITE_LOCAL_DATETIME_FORMATTER);
     return localDateTime.toInstant(ZoneOffset.UTC).toEpochMilli();
   }
 
@@ -129,7 +132,7 @@ public class ValueExpressions {
   }
 
   public static LogicalExpression getIntervalDay(long intervalInMillis) {
-      return new IntervalDayExpression(intervalInMillis);
+    return new IntervalDayExpression(intervalInMillis);
   }
 
   public static LogicalExpression getDecimal(BigDecimal bigDecimal) {
@@ -141,32 +144,33 @@ public class ValueExpressions {
   }
 
   public static LogicalExpression getNumericExpression(String sign, String s) {
-    final String numStr = (sign == null) ? s : sign+s;
-    final char lastChar = s.charAt(s.length()-1);
+    final String numStr = (sign == null) ? s : sign + s;
+    final char lastChar = s.charAt(s.length() - 1);
 
-    if(lastChar == 'l'){
-      return new LongExpression(Long.parseLong(numStr.substring(0, numStr.length()-1)));
+    if (lastChar == 'l') {
+      return new LongExpression(Long.parseLong(numStr.substring(0, numStr.length() - 1)));
     }
 
-    if(lastChar == 'd'){
-      return new DoubleExpression(Double.parseDouble(numStr.substring(0, numStr.length()-1)));
+    if (lastChar == 'd') {
+      return new DoubleExpression(Double.parseDouble(numStr.substring(0, numStr.length() - 1)));
     }
 
-    if(lastChar == 'f') {
-      return new FloatExpression(Float.parseFloat(numStr.substring(0, numStr.length()-1)));
+    if (lastChar == 'f') {
+      return new FloatExpression(Float.parseFloat(numStr.substring(0, numStr.length() - 1)));
     }
 
-    if(lastChar == 'i') {
-      return new IntExpression(Integer.parseInt(numStr.substring(0, numStr.length()-1)));
+    if (lastChar == 'i') {
+      return new IntExpression(Integer.parseInt(numStr.substring(0, numStr.length() - 1)));
     }
 
-    if(lastChar == 'm') {
-      return ExpressionStringBuilder.deserializeDecimalConstant(numStr.substring(0, numStr.length()-1));
+    if (lastChar == 'm') {
+      return ExpressionStringBuilder.deserializeDecimalConstant(
+          numStr.substring(0, numStr.length() - 1));
     }
 
     try {
-        int a = Integer.parseInt(numStr);
-        return new IntExpression(a);
+      int a = Integer.parseInt(numStr);
+      return new IntExpression(a);
     } catch (Exception e) {
 
     }
@@ -191,15 +195,13 @@ public class ValueExpressions {
 
     }
 
-    throw new IllegalArgumentException(String.format("Unable to parse string %s as integer or floating point number.",
-        numStr));
-
+    throw new IllegalArgumentException(
+        String.format("Unable to parse string %s as integer or floating point number.", numStr));
   }
 
-  /**
-   *   This class represents all ConstantExpressions
-    */
-  public abstract static class ConstantExpression extends LogicalExpressionBase{};
+  /** This class represents all ConstantExpressions */
+  public abstract static class ConstantExpression extends LogicalExpressionBase {}
+  ;
 
   protected abstract static class ValueExpression<V> extends ConstantExpression {
     public final V value;
@@ -224,8 +226,6 @@ public class ValueExpressions {
     }
 
     protected abstract V parseValue(String s);
-
-
   }
 
   public static class BooleanExpression extends ValueExpression<Boolean> {
@@ -340,8 +340,6 @@ public class ValueExpressions {
     public int hashCode() {
       return Objects.hashCode(i);
     }
-
-
   }
 
   public static class DecimalExpression extends ConstantExpression {
@@ -350,17 +348,16 @@ public class ValueExpressions {
     private final int precision;
 
     public DecimalExpression(BigDecimal input, int precision, int scale) {
-      Preconditions.checkArgument(scale >= 0,
-        "invalid scale " + scale + ", must be >=0");
-      Preconditions.checkArgument(precision > 0,
-        "invalid precision " + precision + ", must be > 0");
-      Preconditions.checkArgument(precision >= scale,
-        "invalid precision " + precision + ", must be >= scale " + scale);
+      Preconditions.checkArgument(scale >= 0, "invalid scale " + scale + ", must be >=0");
+      Preconditions.checkArgument(
+          precision > 0, "invalid precision " + precision + ", must be > 0");
+      Preconditions.checkArgument(
+          precision >= scale, "invalid precision " + precision + ", must be >= scale " + scale);
       BigDecimal decimal;
-      decimal = input.setScale(scale, BigDecimal.ROUND_HALF_UP);
+      decimal = input.setScale(scale, RoundingMode.HALF_UP);
       // Decimal value will be 0 if there is precision overflow.
       // This is similar to DecimalFunctions:CastDecimalDecimal
-      if(decimal.precision() > precision) {
+      if (decimal.precision() > precision) {
         decimal = new BigDecimal("0.0");
       }
       this.decimal = decimal;
@@ -395,7 +392,8 @@ public class ValueExpressions {
         return false;
       }
       DecimalExpression castOther = (DecimalExpression) other;
-      return Objects.equal(decimal, castOther.decimal) && Objects.equal(precision, castOther.precision);
+      return Objects.equal(decimal, castOther.decimal)
+          && Objects.equal(precision, castOther.precision);
     }
 
     @Override
@@ -409,8 +407,12 @@ public class ValueExpressions {
     }
 
     public TypeProtos.MajorType getMajorType() {
-      return TypeProtos.MajorType.newBuilder().setMinorType(TypeProtos.MinorType.DECIMAL).setScale
-        (getScale()).setPrecision(getPrecision()).setMode(TypeProtos.DataMode.REQUIRED).build();
+      return TypeProtos.MajorType.newBuilder()
+          .setMinorType(TypeProtos.MinorType.DECIMAL)
+          .setScale(getScale())
+          .setPrecision(getPrecision())
+          .setMode(TypeProtos.DataMode.REQUIRED)
+          .build();
     }
   }
 
@@ -497,7 +499,6 @@ public class ValueExpressions {
     }
   }
 
-
   public static class DateExpression extends ConstantExpression {
 
     private final long dateInMillis;
@@ -538,9 +539,7 @@ public class ValueExpressions {
     public String toString() {
       return "ValueExpression[date=" + dateInMillis + "]";
     }
-
   }
-
 
   public static class TimeExpression extends ConstantExpression {
 
@@ -624,7 +623,6 @@ public class ValueExpressions {
     public String toString() {
       return "ValueExpression[timestamp=" + timeInMillis + "]";
     }
-
   }
 
   public static class IntervalYearExpression extends ConstantExpression {
@@ -667,7 +665,6 @@ public class ValueExpressions {
     public String toString() {
       return "ValueExpression[interval_year=" + months + "]";
     }
-
   }
 
   public static class IntervalDayExpression extends ConstantExpression {
@@ -681,7 +678,7 @@ public class ValueExpressions {
       this((int) (intervalInMillis / MILLIS_IN_DAY), (int) (intervalInMillis % MILLIS_IN_DAY));
     }
 
-      public IntervalDayExpression(int days, int millis) {
+    public IntervalDayExpression(int days, int millis) {
       this.days = days;
       this.millis = millis;
     }
@@ -691,7 +688,7 @@ public class ValueExpressions {
     }
 
     public int getIntervalMillis() {
-        return millis;
+      return millis;
     }
 
     @Override
@@ -754,5 +751,4 @@ public class ValueExpressions {
       return "ValueExpression[quoted_string=" + value + "]";
     }
   }
-
 }

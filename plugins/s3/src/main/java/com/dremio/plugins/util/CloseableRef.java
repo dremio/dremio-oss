@@ -15,53 +15,68 @@
  */
 package com.dremio.plugins.util;
 
+import com.google.common.base.Preconditions;
 import java.util.concurrent.atomic.AtomicInteger;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Preconditions;
-
 /**
- * This class helps in maintaining multiple references for a closeable object. The actual close happens only when all
- * refs have released.
+ * This class helps in maintaining multiple references for a closeable object. The actual close
+ * happens only when all refs have released.
+ *
  * @param <T>
  */
 public class CloseableRef<T extends AutoCloseable> implements AutoCloseable {
-    private static final Logger logger = LoggerFactory.getLogger(CloseableRef.class);
-    private AtomicInteger refCnt;
-    private T obj;
+  private static final Logger logger = LoggerFactory.getLogger(CloseableRef.class);
+  private AtomicInteger refCnt;
+  private T obj;
 
-    public CloseableRef(T obj) {
-        if (logger.isDebugEnabled()) {
-            logger.debug("Class {} acquired a new ref for {}:{}", getCallingClass(), obj.getClass().getSimpleName(), System.identityHashCode(obj));
-        }
-        this.obj = obj;
-        refCnt = new AtomicInteger(1);
+  public CloseableRef(T obj) {
+    if (logger.isDebugEnabled()) {
+      logger.debug(
+          "Class {} acquired a new ref for {}:{}",
+          getCallingClass(),
+          obj.getClass().getSimpleName(),
+          System.identityHashCode(obj));
     }
+    this.obj = obj;
+    refCnt = new AtomicInteger(1);
+  }
 
-    public T acquireRef() {
-        if (logger.isDebugEnabled()) {
-            logger.debug("Class {} acquired the ref for {}:{}", getCallingClass(), obj.getClass().getSimpleName(), System.identityHashCode(obj));
-        }
-        Preconditions.checkNotNull(this.obj);
-        refCnt.incrementAndGet();
-        return this.obj;
+  public T acquireRef() {
+    if (logger.isDebugEnabled()) {
+      logger.debug(
+          "Class {} acquired the ref for {}:{}",
+          getCallingClass(),
+          obj.getClass().getSimpleName(),
+          System.identityHashCode(obj));
     }
+    Preconditions.checkNotNull(this.obj);
+    refCnt.incrementAndGet();
+    return this.obj;
+  }
 
-    @Override
-    public void close() throws Exception {
-        if (logger.isDebugEnabled()) {
-            logger.debug("Class {} released the ref for {}:{}", getCallingClass(), obj.getClass().getSimpleName(), System.identityHashCode(obj));
-        }
-        if (refCnt.decrementAndGet() == 0 && obj != null) {
-            obj.close();
-            obj = null;
-        }
+  @Override
+  public void close() throws Exception {
+    if (logger.isDebugEnabled()) {
+      logger.debug(
+          "Class {} released the ref for {}:{}",
+          getCallingClass(),
+          obj.getClass().getSimpleName(),
+          System.identityHashCode(obj));
     }
+    if (refCnt.decrementAndGet() == 0 && obj != null) {
+      obj.close();
+      obj = null;
+    }
+  }
 
-    private String getCallingClass() {
-        final StackTraceElement traceElement = Thread.currentThread().getStackTrace()[3];
-        return traceElement.getClassName() + ":" + traceElement.getMethodName() + ":" + traceElement.getLineNumber();
-    }
+  private String getCallingClass() {
+    final StackTraceElement traceElement = Thread.currentThread().getStackTrace()[3];
+    return traceElement.getClassName()
+        + ":"
+        + traceElement.getMethodName()
+        + ":"
+        + traceElement.getLineNumber();
+  }
 }

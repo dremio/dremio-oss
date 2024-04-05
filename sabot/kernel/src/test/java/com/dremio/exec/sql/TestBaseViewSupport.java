@@ -15,17 +15,16 @@
  */
 package com.dremio.exec.sql;
 
-import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.TestBuilder;
 import com.dremio.common.utils.SqlUtils;
 import com.google.common.base.Strings;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Base class for view tests. It has utility methods which can be used when writing tests for views on tables
- * in different storage engines such as Hive, HBase etc.
+ * Base class for view tests. It has utility methods which can be used when writing tests for views
+ * on tables in different storage engines such as Hive, HBase etc.
  */
 public class TestBaseViewSupport extends BaseTestQuery {
   private static AtomicInteger viewSeqNum = new AtomicInteger(0);
@@ -33,63 +32,64 @@ public class TestBaseViewSupport extends BaseTestQuery {
   /**
    * Create view with given parameters.
    *
-   * Current default schema "dfs_test"
+   * <p>Current default schema "dfs_test"
    *
-   * CREATE VIEW tmp.viewName(f1, f2) AS SELECT * FROM cp.\"region.json\"
+   * <p>CREATE VIEW tmp.viewName(f1, f2) AS SELECT * FROM cp.\"region.json\"
    *
-   * For the above CREATE VIEW query, function parameters are:
-   *   viewSchema = "tmp"
-   *   viewName = "viewName"
-   *   finalSchema = "dfs_test.tmp"
-   *   viewFields = "(f1, f2)"
-   *   viewDef = "SELECT * FROM cp.\"region.json\""
+   * <p>For the above CREATE VIEW query, function parameters are: viewSchema = "tmp" viewName =
+   * "viewName" finalSchema = "dfs_test.tmp" viewFields = "(f1, f2)" viewDef = "SELECT * FROM
+   * cp.\"region.json\""
    *
    * @param viewSchema Schema name to prefix when referring to the view.
    * @param viewName Name of the view.
-   * @param finalSchema Absolute schema path where the view is created. Pameter <i>viewSchema</i> may refer the schema
-   *                    with respect the current default schema. Combining <i>viewSchema</i> with default schema
-   *                    gives the final schema.
+   * @param finalSchema Absolute schema path where the view is created. Pameter <i>viewSchema</i>
+   *     may refer the schema with respect the current default schema. Combining <i>viewSchema</i>
+   *     with default schema gives the final schema.
    * @param viewFields If the created view needs to specify the fields, otherwise null
    * @param viewDef Definition of the view.
    * @throws Exception
    */
-  protected void createViewHelper(final String viewSchema, final String viewName,
-      final String finalSchema, final String viewFields, final String viewDef) throws Exception {
+  protected void createViewHelper(
+      final String viewSchema,
+      final String viewName,
+      final String finalSchema,
+      final String viewFields,
+      final String viewDef)
+      throws Exception {
 
     String viewFullName = SqlUtils.quoteIdentifier(viewName);
     if (!Strings.isNullOrEmpty(viewSchema)) {
       viewFullName = viewSchema + "." + viewFullName;
     }
 
-    final String createViewSql = String.format("CREATE VIEW %s %s AS %s", viewFullName,
-        viewFields == null ? "" : viewFields, viewDef);
+    final String createViewSql =
+        String.format(
+            "CREATE VIEW %s %s AS %s", viewFullName, viewFields == null ? "" : viewFields, viewDef);
 
     testBuilder()
         .sqlQuery(createViewSql)
         .unOrdered()
         .baselineColumns("ok", "summary")
-        .baselineValues(true, String.format("View '%s.%s' created successfully", finalSchema, viewName))
+        .baselineValues(
+            true, String.format("View '%s.%s' created successfully", finalSchema, viewName))
         .go();
   }
 
   /**
    * Drop view with given parameters.
    *
-   * Current schema "dfs_test"
-   * DROP VIEW tmp.viewName
+   * <p>Current schema "dfs_test" DROP VIEW tmp.viewName
    *
-   * For the above DROP VIEW query, function parameters values are:
-   *  viewSchema = "tmp"
-   *  "viewName" = "viewName"
-   *  "finalSchema" = "dfs_test.tmp"
+   * <p>For the above DROP VIEW query, function parameters values are: viewSchema = "tmp" "viewName"
+   * = "viewName" "finalSchema" = "dfs_test.tmp"
    *
    * @param viewSchema
    * @param viewName
    * @param finalSchema
    * @throws Exception
    */
-  protected void dropViewHelper(final String viewSchema, final String viewName, final String finalSchema) throws
-      Exception{
+  protected void dropViewHelper(
+      final String viewSchema, final String viewName, final String finalSchema) throws Exception {
     String viewFullName = SqlUtils.quoteIdentifier(viewName);
     if (!Strings.isNullOrEmpty(viewSchema)) {
       viewFullName = viewSchema + "." + viewFullName;
@@ -99,21 +99,18 @@ public class TestBaseViewSupport extends BaseTestQuery {
         .sqlQuery(String.format("DROP VIEW %s", viewFullName))
         .unOrdered()
         .baselineColumns("ok", "summary")
-        .baselineValues(true, String.format("View [%s.%s] deleted successfully.", finalSchema, viewName))
+        .baselineValues(
+            true, String.format("View [%s.%s] deleted successfully.", finalSchema, viewName))
         .go();
   }
 
   /**
    * Drop view if exists with given parameters.
    *
-   * Current schema "dfs_test"
-   * DROP VIEW IF EXISTS tmp.viewName
+   * <p>Current schema "dfs_test" DROP VIEW IF EXISTS tmp.viewName
    *
-   * For the above DROP VIEW IF EXISTS query, function parameters values are:
-   *  viewSchema = "tmp"
-   *  "viewName" = "viewName"
-   *  "finalSchema" = "dfs_test.tmp"
-   *  "ifViewExists" = null
+   * <p>For the above DROP VIEW IF EXISTS query, function parameters values are: viewSchema = "tmp"
+   * "viewName" = "viewName" "finalSchema" = "dfs_test.tmp" "ifViewExists" = null
    *
    * @param viewSchema
    * @param viewName
@@ -121,21 +118,27 @@ public class TestBaseViewSupport extends BaseTestQuery {
    * @param ifViewExists Helps to check query result depending from the existing of the view.
    * @throws Exception
    */
-  protected void dropViewIfExistsHelper(final String viewSchema, final String viewName, final String finalSchema, Boolean ifViewExists) throws
-      Exception{
+  protected void dropViewIfExistsHelper(
+      final String viewSchema,
+      final String viewName,
+      final String finalSchema,
+      Boolean ifViewExists)
+      throws Exception {
     String viewFullName = SqlUtils.quoteIdentifier(viewName);
     if (!Strings.isNullOrEmpty(viewSchema)) {
       viewFullName = viewSchema + "." + viewFullName;
     }
     if (ifViewExists == null) {
-      // ifViewExists == null: we do not know whether the table exists. Just drop it if exists or skip dropping if doesn't exist
+      // ifViewExists == null: we do not know whether the table exists. Just drop it if exists or
+      // skip dropping if doesn't exist
       test(String.format("DROP VIEW IF EXISTS %s", viewFullName));
     } else if (ifViewExists) {
       testBuilder()
           .sqlQuery(String.format("DROP VIEW IF EXISTS %s", viewFullName))
           .unOrdered()
           .baselineColumns("ok", "summary")
-          .baselineValues(true, String.format("View [%s.%s] deleted successfully.", finalSchema, viewName))
+          .baselineValues(
+              true, String.format("View [%s.%s] deleted successfully.", finalSchema, viewName))
           .go();
     } else {
       testBuilder()
@@ -155,14 +158,13 @@ public class TestBaseViewSupport extends BaseTestQuery {
    * @param baselineValues
    * @throws Exception
    */
-  protected void queryViewHelper(final String query, final String[] baselineColumns,
-      final List<Object[]> baselineValues) throws Exception {
-    TestBuilder testBuilder = testBuilder()
-        .sqlQuery(query)
-        .unOrdered()
-        .baselineColumns(baselineColumns);
+  protected void queryViewHelper(
+      final String query, final String[] baselineColumns, final List<Object[]> baselineValues)
+      throws Exception {
+    TestBuilder testBuilder =
+        testBuilder().sqlQuery(query).unOrdered().baselineColumns(baselineColumns);
 
-    for(Object[] values : baselineValues) {
+    for (Object[] values : baselineValues) {
       testBuilder = testBuilder.baselineValues(values);
     }
 
@@ -179,20 +181,25 @@ public class TestBaseViewSupport extends BaseTestQuery {
   }
 
   /**
-   * Tests creating a view with given parameters, query the view and check against the provided baselines and finally
-   * drop the view.
+   * Tests creating a view with given parameters, query the view and check against the provided
+   * baselines and finally drop the view.
    *
    * @param finalSchema Absolute schema path where the view is going to be created.
    * @param viewFields If view has any field list
    * @param viewDef Definition of the view.
-   * @param queryOnView Query to run on created view. Refer to test view using "TEST_VIEW_NAME". Similarly schema
-   *                    using "TEST_SCHEMA".
+   * @param queryOnView Query to run on created view. Refer to test view using "TEST_VIEW_NAME".
+   *     Similarly schema using "TEST_SCHEMA".
    * @param expectedBaselineColumns Expected columns from querying the view.
    * @param expectedBaselineValues Expected row values from querying the view.
    * @throws Exception
    */
-  protected void testViewHelper(final String finalSchema, final String viewFields, final String viewDef,
-      String queryOnView, final String[] expectedBaselineColumns, final List<Object[]> expectedBaselineValues)
+  protected void testViewHelper(
+      final String finalSchema,
+      final String viewFields,
+      final String viewDef,
+      String queryOnView,
+      final String[] expectedBaselineColumns,
+      final List<Object[]> expectedBaselineValues)
       throws Exception {
     final String viewName = generateViewName();
     String viewFullName = SqlUtils.quoteIdentifier(viewName);
@@ -200,9 +207,8 @@ public class TestBaseViewSupport extends BaseTestQuery {
     try {
       createViewHelper(finalSchema, viewName, finalSchema, viewFields, viewDef);
 
-      queryOnView = queryOnView
-          .replace("TEST_VIEW_NAME", viewFullName)
-          .replace("TEST_SCHEMA", finalSchema);
+      queryOnView =
+          queryOnView.replace("TEST_VIEW_NAME", viewFullName).replace("TEST_SCHEMA", finalSchema);
 
       queryViewHelper(queryOnView, expectedBaselineColumns, expectedBaselineValues);
     } finally {

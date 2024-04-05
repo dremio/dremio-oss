@@ -20,19 +20,19 @@ import com.dremio.exec.planner.sql.handlers.direct.SqlDirectHandler;
 import com.dremio.exec.proto.ExecProtos.ServerPreparedStatementState;
 import com.dremio.exec.proto.UserProtos.CreatePreparedStatementArrowResp;
 
-/**
- * Take a sql node and return as a prepared statement response with arrow metadata.
- */
-public class HandlerToPrepareArrowDirect extends HandlerToPrepareDirectBase<CreatePreparedStatementArrowResp> {
+/** Take a sql node and return as a prepared statement response with arrow metadata. */
+public class HandlerToPrepareArrowDirect
+    extends HandlerToPrepareDirectBase<CreatePreparedStatementArrowResp> {
 
-  public HandlerToPrepareArrowDirect(String sql, QueryContext context, SqlDirectHandler<?> handler) {
+  public HandlerToPrepareArrowDirect(
+      String sql, QueryContext context, SqlDirectHandler<?> handler) {
     super(sql, context, handler);
   }
 
   @Override
   public CreatePreparedStatementArrowResp execute() throws Exception {
     final ServerPreparedStatementState state =
-      ServerPreparedStatementState.newBuilder().setHandle(-1).setSqlQuery(getSql()).build();
+        ServerPreparedStatementState.newBuilder().setHandle(-1).setSqlQuery(getSql()).build();
     final QueryContext context = getContext();
     return PreparedStatementProvider.buildArrow(getSchema(), state, context.getQueryId());
   }

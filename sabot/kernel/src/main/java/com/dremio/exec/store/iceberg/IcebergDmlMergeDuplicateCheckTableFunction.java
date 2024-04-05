@@ -17,9 +17,15 @@ package com.dremio.exec.store.iceberg;
 
 import static com.dremio.exec.util.VectorUtil.getVectorFromSchemaPath;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.physical.config.TableFunctionConfig;
+import com.dremio.exec.record.VectorAccessible;
+import com.dremio.exec.store.dfs.AbstractTableFunction;
+import com.dremio.exec.util.ColumnUtils;
+import com.dremio.exec.util.VectorUtil;
+import com.dremio.sabot.exec.context.OperatorContext;
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.util.ByteFunctionHelpers;
 import org.apache.arrow.vector.BigIntVector;
@@ -29,17 +35,9 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.util.BasicTypeHelper;
 import org.apache.arrow.vector.util.TransferPair;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.physical.config.TableFunctionConfig;
-import com.dremio.exec.record.VectorAccessible;
-import com.dremio.exec.store.dfs.AbstractTableFunction;
-import com.dremio.exec.util.ColumnUtils;
-import com.dremio.exec.util.VectorUtil;
-import com.dremio.sabot.exec.context.OperatorContext;
-
 /**
- * A table function that'll detect duplicate rows for the MERGE DML (using the file path and the row index).
- * Currently, this only impacts MERGE with UPDATEs.
+ * A table function that'll detect duplicate rows for the MERGE DML (using the file path and the row
+ * index). Currently, this only impacts MERGE with UPDATEs.
  */
 public class IcebergDmlMergeDuplicateCheckTableFunction extends AbstractTableFunction {
 
@@ -54,7 +52,8 @@ public class IcebergDmlMergeDuplicateCheckTableFunction extends AbstractTableFun
 
   private boolean doneWithRow;
 
-  public IcebergDmlMergeDuplicateCheckTableFunction(OperatorContext context, TableFunctionConfig functionConfig) {
+  public IcebergDmlMergeDuplicateCheckTableFunction(
+      OperatorContext context, TableFunctionConfig functionConfig) {
     super(context, functionConfig);
   }
 
@@ -65,20 +64,26 @@ public class IcebergDmlMergeDuplicateCheckTableFunction extends AbstractTableFun
     previousFilePathBuf = context.getManagedBuffer();
 
     for (Field field : incoming.getSchema()) {
-      transfers.add(getVectorFromSchemaPath(incoming, field.getName())
-        .makeTransferPair(getVectorFromSchemaPath(outgoing, field.getName())));
+      transfers.add(
+          getVectorFromSchemaPath(incoming, field.getName())
+              .makeTransferPair(getVectorFromSchemaPath(outgoing, field.getName())));
     }
 
     // Since we will transfer all data immediately, we'll get data from the outgoing vectors.
-    filePathVector = (VarCharVector) VectorUtil.getVectorFromSchemaPath(outgoing, ColumnUtils.FILE_PATH_COLUMN_NAME);
-    rowIndexVector = (BigIntVector) VectorUtil.getVectorFromSchemaPath(outgoing, ColumnUtils.ROW_INDEX_COLUMN_NAME);
+    filePathVector =
+        (VarCharVector)
+            VectorUtil.getVectorFromSchemaPath(outgoing, ColumnUtils.FILE_PATH_COLUMN_NAME);
+    rowIndexVector =
+        (BigIntVector)
+            VectorUtil.getVectorFromSchemaPath(outgoing, ColumnUtils.ROW_INDEX_COLUMN_NAME);
 
     return outgoing;
   }
 
   @Override
   public void startBatch(int records) {
-    // We immediately transfer all the input vectors to the output vectors because this table function is basically
+    // We immediately transfer all the input vectors to the output vectors because this table
+    // function is basically
     // a pass-through table function where we do a check amongst the consecutive rows.
     transfers.forEach(TransferPair::transfer);
     outgoing.setAllCount(records);
@@ -94,23 +99,40 @@ public class IcebergDmlMergeDuplicateCheckTableFunction extends AbstractTableFun
     if (doneWithRow) {
       return 0;
     } else {
-      // We only need to check the previous file path and the row index because everything is sequential!
+      // We only need to check the previous file path and the row index because everything is
+      // sequential!
       Long currentRowIndex = rowIndexVector.getObject(startOutIndex);
-      NullableVarCharHolder currentFilePathVectorHolder = (NullableVarCharHolder) BasicTypeHelper.getValue(filePathVector, startOutIndex);
-      int currentFilePathBufLength = currentFilePathVectorHolder.end - currentFilePathVectorHolder.start;
+      NullableVarCharHolder currentFilePathVectorHolder =
+          (NullableVarCharHolder) BasicTypeHelper.getValue(filePathVector, startOutIndex);
+      int currentFilePathBufLength =
+          currentFilePathVectorHolder.end - currentFilePathVectorHolder.start;
 
-      if (previousRowIndex != null && previousRowIndex.equals(currentRowIndex)
-        && previousFilePathBufLength > 0
-        && currentFilePathVectorHolder.isSet == 1
-        && previousFilePathBufLength == currentFilePathBufLength
-        && ByteFunctionHelpers.compare(currentFilePathVectorHolder.buffer, currentFilePathVectorHolder.start, currentFilePathVectorHolder.end, previousFilePathBuf, 0, previousFilePathBufLength) == 0) {
-            throw UserException.validationError().message("A target row matched more than once. Please update your query.").buildSilently();
+      if (previousRowIndex != null
+          && previousRowIndex.equals(currentRowIndex)
+          && previousFilePathBufLength > 0
+          && currentFilePathVectorHolder.isSet == 1
+          && previousFilePathBufLength == currentFilePathBufLength
+          && ByteFunctionHelpers.compare(
+                  currentFilePathVectorHolder.buffer,
+                  currentFilePathVectorHolder.start,
+                  currentFilePathVectorHolder.end,
+                  previousFilePathBuf,
+                  0,
+                  previousFilePathBufLength)
+              == 0) {
+        throw UserException.validationError()
+            .message("A target row matched more than once. Please update your query.")
+            .buildSilently();
       }
 
       if (currentFilePathVectorHolder.isSet == 1) {
         previousFilePathBufLength = currentFilePathBufLength;
         previousFilePathBuf = previousFilePathBuf.reallocIfNeeded(currentFilePathBufLength);
-        previousFilePathBuf.setBytes(0, currentFilePathVectorHolder.buffer, currentFilePathVectorHolder.start, previousFilePathBufLength);
+        previousFilePathBuf.setBytes(
+            0,
+            currentFilePathVectorHolder.buffer,
+            currentFilePathVectorHolder.start,
+            previousFilePathBufLength);
       } else {
         previousFilePathBufLength = 0;
       }
@@ -123,6 +145,5 @@ public class IcebergDmlMergeDuplicateCheckTableFunction extends AbstractTableFun
   }
 
   @Override
-  public void closeRow() throws Exception {
-  }
+  public void closeRow() throws Exception {}
 }

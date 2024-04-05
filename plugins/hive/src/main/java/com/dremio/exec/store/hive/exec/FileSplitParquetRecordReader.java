@@ -62,6 +62,7 @@ import com.dremio.exec.store.dfs.SplitReaderCreator;
 import com.dremio.exec.store.dfs.implicit.CompositeReaderConfig;
 import com.dremio.exec.store.hive.BaseHiveStoragePlugin;
 import com.dremio.exec.store.hive.HiveAsyncStreamConf;
+import com.dremio.exec.store.hive.HiveConfFactory;
 import com.dremio.exec.store.hive.HivePf4jPlugin;
 import com.dremio.exec.store.hive.exec.dfs.DremioHadoopFileSystemWrapper;
 import com.dremio.exec.store.parquet.InputStreamProvider;
@@ -241,8 +242,9 @@ public class FileSplitParquetRecordReader implements RecordReader {
       org.apache.hadoop.fs.Path finalPath  = new org.apache.hadoop.fs.Path(uri);
       boolean readColumnIndices = oContext.getOptions().getOption(READ_COLUMN_INDEXES);
       Preconditions.checkArgument(hiveStoragePlugin instanceof HadoopFsSupplierProviderPluginClassLoader, " plugin does not instance of HadoopFsSupplierProviderPluginClassLoader");
+      final boolean hdfsC3CacheEnabled = Boolean.parseBoolean(jobConf.get(HiveConfFactory.HIVE_ENABLE_CACHE_FOR_HDFS));
       final PrivilegedExceptionAction<FileSystem> getFsAction =
-        () -> hiveStoragePlugin.createFS(new DremioHadoopFileSystemWrapper(finalPath, jobConf, oContext.getStats(), cacheAndAsyncConf.isAsyncEnabled(), ((HadoopFsSupplierProviderPluginClassLoader)hiveStoragePlugin).getHadoopFsSupplierPluginClassLoader(finalPath.toString(), jobConf, readerUgi.getUserName()).get()),
+        () -> hiveStoragePlugin.createFS(new DremioHadoopFileSystemWrapper(finalPath, jobConf, oContext.getStats(), cacheAndAsyncConf.isAsyncEnabled(), ((HadoopFsSupplierProviderPluginClassLoader)hiveStoragePlugin).getHadoopFsSupplierPluginClassLoader(finalPath.toString(), jobConf, readerUgi.getUserName(), hdfsC3CacheEnabled).get()),
           oContext, cacheAndAsyncConf);
 
       fs = readerUgi.doAs(getFsAction);
@@ -602,14 +604,12 @@ public class FileSplitParquetRecordReader implements RecordReader {
             readerFactory,
             tableSchema,
             ParquetScanProjectedColumns.fromSchemaPaths(columnsToRead),
-            null,
             filters,
             readerFactory.newFilterCreator(oContext, ParquetReaderFactory.ManagedSchemaType.HIVE, managedSchema, oContext.getAllocator()),
             readerFactory.newDictionaryConvertor(ParquetReaderFactory.ManagedSchemaType.HIVE, managedSchema),
             splitXAttr,
             fs,
             footer,
-            null,
             schemaHelper,
             vectorize,
             enableDetailedTracing,

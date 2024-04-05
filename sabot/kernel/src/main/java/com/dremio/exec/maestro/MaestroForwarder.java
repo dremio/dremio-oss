@@ -22,9 +22,7 @@ import com.dremio.exec.rpc.ResponseSender;
 import com.dremio.service.jobresults.JobResultsRequest;
 import com.dremio.services.jobresults.common.JobResultsRequestWrapper;
 
-/**
- * forwards the request to target maestro server
- */
+/** forwards the request to target maestro server */
 public interface MaestroForwarder extends AutoCloseable {
 
   void screenCompleted(NodeQueryScreenCompletion completion);

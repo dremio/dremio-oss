@@ -21,6 +21,7 @@ import static com.dremio.dac.explore.model.VersionContextReq.VersionContextType.
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.dremio.dac.service.errors.ClientErrorException;
 import org.junit.Test;
 
 public class TestVersionContextReq {
@@ -36,66 +37,61 @@ public class TestVersionContextReq {
   public void tryParseBranch() {
     VersionContextReq actual = VersionContextReq.tryParse(BRANCH_TYPE, BRANCH_VALUE);
     VersionContextReq expected = new VersionContextReq(BRANCH, BRANCH_VALUE);
-    assertThat(expected)
-      .usingRecursiveComparison()
-      .isEqualTo(actual);
+    assertThat(expected).usingRecursiveComparison().isEqualTo(actual);
   }
 
   @Test
   public void tryParseTag() {
     VersionContextReq actual = VersionContextReq.tryParse(TAG_TYPE, TAG_VALUE);
     VersionContextReq expected = new VersionContextReq(TAG, TAG_VALUE);
-    assertThat(expected)
-      .usingRecursiveComparison()
-      .isEqualTo(actual);
+    assertThat(expected).usingRecursiveComparison().isEqualTo(actual);
   }
 
   @Test
   public void tryParseCommit() {
     VersionContextReq actual = VersionContextReq.tryParse(COMMIT_TYPE, COMMIT_VALUE);
     VersionContextReq expected = new VersionContextReq(COMMIT, COMMIT_VALUE);
-    assertThat(expected)
-      .usingRecursiveComparison()
-      .isEqualTo(actual);
+    assertThat(expected).usingRecursiveComparison().isEqualTo(actual);
   }
 
   @Test
   public void tryParseLowercase() {
     VersionContextReq actual = VersionContextReq.tryParse("branch", BRANCH_VALUE);
     VersionContextReq expected = new VersionContextReq(BRANCH, BRANCH_VALUE);
-    assertThat(expected)
-      .usingRecursiveComparison()
-      .isEqualTo(actual);
+    assertThat(expected).usingRecursiveComparison().isEqualTo(actual);
   }
 
   @Test
-  public void tryParseBadType(){
+  public void tryParseBadType() {
     assertThatThrownBy(() -> VersionContextReq.tryParse("BAD_TYPE", BRANCH_VALUE))
-      .isInstanceOf(IllegalArgumentException.class);
+        .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test
   public void tryParseNullType() {
-    VersionContextReq actual = VersionContextReq.tryParse(null, BRANCH_VALUE);
-    assertThat(actual).isNull();
+    assertThatThrownBy(() -> VersionContextReq.tryParse(null, BRANCH_VALUE))
+        .isInstanceOf(ClientErrorException.class)
+        .hasMessageContaining("Version type was null");
   }
 
   @Test
   public void tryParseEmptyType() {
-    VersionContextReq actual = VersionContextReq.tryParse("", BRANCH_VALUE);
-    assertThat(actual).isNull();
+    assertThatThrownBy(() -> VersionContextReq.tryParse("", BRANCH_VALUE))
+        .isInstanceOf(ClientErrorException.class)
+        .hasMessageContaining("Version type was null");
   }
 
   @Test
   public void tryParseNullValue() {
-    VersionContextReq actual = VersionContextReq.tryParse(BRANCH_TYPE, null);
-    assertThat(actual).isNull();
+    assertThatThrownBy(() -> VersionContextReq.tryParse(BRANCH_TYPE, null))
+        .isInstanceOf(ClientErrorException.class)
+        .hasMessageContaining("Version value was null");
   }
 
   @Test
   public void tryParseEmptyValue() {
-    VersionContextReq actual = VersionContextReq.tryParse(BRANCH_TYPE, "");
-    assertThat(actual).isNull();
+    assertThatThrownBy(() -> VersionContextReq.tryParse(BRANCH_TYPE, ""))
+        .isInstanceOf(ClientErrorException.class)
+        .hasMessageContaining("Version value was null");
   }
-
 }

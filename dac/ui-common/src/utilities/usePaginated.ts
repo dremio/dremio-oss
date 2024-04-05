@@ -42,7 +42,7 @@ type PageResult<T> =
 export const usePaginated = <T>(fetcher: (...args: any[]) => Promise<T>) => {
   const [pageTokens, setPageTokens] = useState<PageToken[]>([]);
   const [pageResults, setPageResults] = useState<Map<PageToken, PageResult<T>>>(
-    new Map()
+    new Map(),
   );
 
   const reset = (): void => {

@@ -16,7 +16,6 @@
 package com.dremio.jdbc.impl;
 
 import java.sql.SQLException;
-
 import org.apache.calcite.avatica.AvaticaConnection;
 import org.apache.calcite.avatica.AvaticaStatement;
 import org.apache.calcite.avatica.Handler;
@@ -25,8 +24,7 @@ class DremioHandler implements Handler {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DremioHandler.class);
 
   @Override
-  public void onConnectionInit(AvaticaConnection c) throws SQLException {
-  }
+  public void onConnectionInit(AvaticaConnection c) throws SQLException {}
 
   @Override
   public void onConnectionClose(AvaticaConnection c) throws RuntimeException {
@@ -35,9 +33,8 @@ class DremioHandler implements Handler {
   }
 
   @Override
-  public void onStatementExecute(AvaticaStatement statement,
-                                 ResultSink resultSink) throws RuntimeException {
-  }
+  public void onStatementExecute(AvaticaStatement statement, ResultSink resultSink)
+      throws RuntimeException {}
 
   @Override
   public void onStatementClose(AvaticaStatement statement) throws RuntimeException {

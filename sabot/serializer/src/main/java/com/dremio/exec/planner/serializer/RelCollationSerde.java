@@ -15,22 +15,18 @@
  */
 package com.dremio.exec.planner.serializer;
 
+import com.dremio.plan.serialization.PRelCollation;
+import com.dremio.plan.serialization.PRelCollationImpl;
+import com.dremio.plan.serialization.PRelFieldCollation;
+import com.google.common.base.Preconditions;
 import java.util.List;
 import java.util.stream.Collectors;
-
 import org.apache.calcite.rel.RelCollation;
 import org.apache.calcite.rel.RelCollations;
 import org.apache.calcite.rel.RelFieldCollation;
 import org.apache.commons.lang3.NotImplementedException;
 
-import com.dremio.plan.serialization.PRelCollation;
-import com.dremio.plan.serialization.PRelCollationImpl;
-import com.dremio.plan.serialization.PRelFieldCollation;
-import com.google.common.base.Preconditions;
-
-/**
- * Serde for RelCollation.
- */
+/** Serde for RelCollation. */
 public final class RelCollationSerde {
   private RelCollationSerde() {}
 
@@ -46,23 +42,22 @@ public final class RelCollationSerde {
 
   public static RelCollation fromProto(PRelCollationImpl pRelCollationImpl) {
     Preconditions.checkNotNull(pRelCollationImpl);
-    List<RelFieldCollation> fieldCollations = pRelCollationImpl
-      .getFieldCollationsList()
-      .stream()
-      .map(pRelFieldCollation -> RelFieldCollationSerde.fromProto(pRelFieldCollation))
-      .collect(Collectors.toList());
+    List<RelFieldCollation> fieldCollations =
+        pRelCollationImpl.getFieldCollationsList().stream()
+            .map(pRelFieldCollation -> RelFieldCollationSerde.fromProto(pRelFieldCollation))
+            .collect(Collectors.toList());
     return RelCollations.of(fieldCollations);
   }
 
   public static PRelCollation toProto(RelCollation relCollation) {
     Preconditions.checkNotNull(relCollation);
 
-    List<PRelFieldCollation> pRelFieldCollations = relCollation.getFieldCollations()
-      .stream()
-      .map(collation -> RelFieldCollationSerde.toProto(collation))
-      .collect(Collectors.toList());
+    List<PRelFieldCollation> pRelFieldCollations =
+        relCollation.getFieldCollations().stream()
+            .map(collation -> RelFieldCollationSerde.toProto(collation))
+            .collect(Collectors.toList());
     return PRelCollation.newBuilder()
-      .setImpl(PRelCollationImpl.newBuilder().addAllFieldCollations(pRelFieldCollations))
-      .build();
+        .setImpl(PRelCollationImpl.newBuilder().addAllFieldCollations(pRelFieldCollations))
+        .build();
   }
 }

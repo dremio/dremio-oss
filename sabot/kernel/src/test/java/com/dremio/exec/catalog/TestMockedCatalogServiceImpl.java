@@ -20,14 +20,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
-import java.util.Arrays;
-import java.util.EnumSet;
-
-import javax.inject.Provider;
-
-import org.apache.arrow.memory.BufferAllocator;
-import org.junit.Test;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.config.DremioConfig;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
@@ -39,30 +31,39 @@ import com.dremio.exec.server.SabotContext;
 import com.dremio.options.OptionManager;
 import com.dremio.service.listing.DatasetListingService;
 import com.dremio.service.namespace.SourceState;
+import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEvents;
 import com.dremio.service.scheduler.SchedulerService;
 import com.dremio.services.fabric.api.FabricService;
+import java.util.Arrays;
+import java.util.EnumSet;
+import javax.inject.Provider;
+import org.apache.arrow.memory.BufferAllocator;
+import org.junit.Test;
 
 public class TestMockedCatalogServiceImpl {
 
   @Test
   public void testGetStorageRulesWithPluginInBadState() throws Exception {
-    CatalogServiceImpl catalogService = spy(new CatalogServiceImpl(
-      () -> mock(SabotContext.class),
-      () -> mock(SchedulerService.class),
-      () -> () -> mock(ConnectionConf.class),
-      () -> () -> mock(ConnectionConf.class),
-      () -> mock(FabricService.class),
-      () -> mock(ConnectionReader.class),
-      () -> mock(BufferAllocator.class),
-      () -> mock(LegacyKVStoreProvider.class),
-      () -> mock(DatasetListingService.class),
-      () -> mock(OptionManager.class),
-      () -> mock(MetadataRefreshInfoBroadcaster.class),
-      mock(DremioConfig.class),
-      mock(EnumSet.class),
-      mock(CatalogServiceMonitor.class),
-      mock(Provider.class),
-      () -> mock(VersionedDatasetAdapterFactory.class)));
+    CatalogServiceImpl catalogService =
+        spy(
+            new CatalogServiceImpl(
+                () -> mock(SabotContext.class),
+                () -> mock(SchedulerService.class),
+                () -> () -> mock(ConnectionConf.class),
+                () -> () -> mock(ConnectionConf.class),
+                () -> mock(FabricService.class),
+                () -> mock(ConnectionReader.class),
+                () -> mock(BufferAllocator.class),
+                () -> mock(LegacyKVStoreProvider.class),
+                () -> mock(DatasetListingService.class),
+                () -> mock(OptionManager.class),
+                () -> mock(MetadataRefreshInfoBroadcaster.class),
+                mock(DremioConfig.class),
+                mock(EnumSet.class),
+                mock(CatalogServiceMonitor.class),
+                mock(Provider.class),
+                () -> mock(VersionedDatasetAdapterFactory.class),
+                () -> mock(CatalogStatusEvents.class)));
     QueryContext queryContext = mock(QueryContext.class);
     when(queryContext.getCatalogService()).thenReturn(catalogService);
 
@@ -70,9 +71,11 @@ public class TestMockedCatalogServiceImpl {
     PlannerPhase plannerPhase = mock(PlannerPhase.class);
 
     ManagedStoragePlugin plugin = mock(ManagedStoragePlugin.class);
-    when(plugin.getId()).thenThrow(UserException.sourceInBadState()
-      .message("Plugin in bad state was not ignored.")
-      .buildSilently());
+    when(plugin.getId())
+        .thenThrow(
+            UserException.sourceInBadState()
+                .message("Plugin in bad state was not ignored.")
+                .buildSilently());
 
     when(plugin.getState()).thenReturn(SourceState.GOOD);
 

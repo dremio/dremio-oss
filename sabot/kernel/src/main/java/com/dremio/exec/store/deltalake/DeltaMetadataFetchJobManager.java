@@ -16,6 +16,12 @@
 
 package com.dremio.exec.store.deltalake;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.connector.metadata.options.TimeTravelOption;
+import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.dfs.FileSelection;
+import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.Path;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -26,33 +32,26 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
-
 import javax.annotation.concurrent.NotThreadSafe;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.connector.metadata.options.TimeTravelOption;
-import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.store.dfs.FileSelection;
-import com.dremio.io.file.FileSystem;
-import com.dremio.io.file.Path;
-
 /**
- * This class is responsible for creating a list of {@link DeltaLogSnapshot} having metadata info like
- * schema, dataset size etc required for planning a query on a Delta dataset.
+ * This class is responsible for creating a list of {@link DeltaLogSnapshot} having metadata info
+ * like schema, dataset size etc required for planning a query on a Delta dataset.
  *
- * Creates and manages all the {@link DeltaMetadataFetchJob} each of which may create one {@link DeltaLogSnapshot}.
- * {@link DeltaMetadataFetchJob } are created in batches using {@link DeltaMetadataFetchJobProducer} and are submitted
- * to the thread pool {@link DeltaMetadataFetchPool} in batches. All the snapshots created in a batch are then collected
- * in a snapshots list.
+ * <p>Creates and manages all the {@link DeltaMetadataFetchJob} each of which may create one {@link
+ * DeltaLogSnapshot}. {@link DeltaMetadataFetchJob } are created in batches using {@link
+ * DeltaMetadataFetchJobProducer} and are submitted to the thread pool {@link
+ * DeltaMetadataFetchPool} in batches. All the snapshots created in a batch are then collected in a
+ * snapshots list.
  *
- * Final list returned by method getListOfSnapshots. Call to this method is blocks the calling thread until the fetch is complete.
+ * <p>Final list returned by method getListOfSnapshots. Call to this method is blocks the calling
+ * thread until the fetch is complete.
  *
- * Initialisations possible are:
- *  1) travelRequest == null then will return the list of snapshots required for reading the latest version of the delta table
- *  2) If a travelRequest is supplied then will return the list of snapshots required for reading that particular version.
+ * <p>Initialisations possible are: 1) travelRequest == null then will return the list of snapshots
+ * required for reading the latest version of the delta table 2) If a travelRequest is supplied then
+ * will return the list of snapshots required for reading that particular version.
  */
 @NotThreadSafe
 public class DeltaMetadataFetchJobManager {
@@ -71,22 +70,29 @@ public class DeltaMetadataFetchJobManager {
 
   private final BatchReader batchReader;
 
-  public DeltaMetadataFetchJobManager(SabotContext context, FileSystem fs, FileSelection fileSelection,
-                                      TimeTravelOption.TimeTravelRequest travelRequest) {
+  public DeltaMetadataFetchJobManager(
+      SabotContext context,
+      FileSystem fs,
+      FileSelection fileSelection,
+      TimeTravelOption.TimeTravelRequest travelRequest) {
     this(context, fs, fileSelection.getSelectionRoot(), travelRequest);
   }
 
-  public DeltaMetadataFetchJobManager(SabotContext context, FileSystem fs, String selectionRoot,
-                                      TimeTravelOption.TimeTravelRequest travelRequest) {
+  public DeltaMetadataFetchJobManager(
+      SabotContext context,
+      FileSystem fs,
+      String selectionRoot,
+      TimeTravelOption.TimeTravelRequest travelRequest) {
     this.fs = fs;
     this.context = context;
     this.selectionRoot = selectionRoot;
     this.metadataDir = Path.of(selectionRoot).resolve(DeltaConstants.DELTA_LOG_DIR);
 
-    DeltaVersionResolver resolver = new DeltaVersionResolver(context, fs, metadataDir);
+    DeltaVersionResolver resolver = new DeltaVersionResolver(fs, metadataDir);
     this.startVersion = resolver.resolve(travelRequest);
 
-    DeltaMetadataFetchJobProducer producer = new DeltaMetadataFetchJobProducer(context, fs, metadataDir, startVersion);
+    DeltaMetadataFetchJobProducer producer =
+        new DeltaMetadataFetchJobProducer(context, fs, metadataDir, startVersion);
     this.batchReader = new BatchReader(threadPool, producer);
   }
 
@@ -95,14 +101,20 @@ public class DeltaMetadataFetchJobManager {
       return snapshots;
     }
 
-    logger.debug("Starting metadata fetch for delta dataset {}. Manager State {}", selectionRoot, this.toString());
+    logger.debug(
+        "Starting metadata fetch for delta dataset {}. Manager State {}",
+        selectionRoot,
+        this.toString());
 
     while (batchReader.readNextBatch()) {
       List<DeltaLogSnapshot> batch = batchReader.readBatch();
       snapshots.addAll(batch);
     }
 
-    logger.debug("Finished metadata fetch for delta dataset {}. Manager State {}", selectionRoot, this.toString());
+    logger.debug(
+        "Finished metadata fetch for delta dataset {}. Manager State {}",
+        selectionRoot,
+        this.toString());
     fetchedMetadata = true;
 
     return snapshots;
@@ -122,15 +134,22 @@ public class DeltaMetadataFetchJobManager {
 
   @Override
   public String toString() {
-    return "DeltaMetadataFetchJobManager{" +
-      "fs=" + fs +
-      ", selectionRoot=" + selectionRoot +
-      ", startVersion=" + startVersion +
-      ", threadPool=" + threadPool +
-      ", snapshots=" + snapshots +
-      ", fetchedMetadata=" + fetchedMetadata +
-      ", metadataDir=" + metadataDir +
-      '}';
+    return "DeltaMetadataFetchJobManager{"
+        + "fs="
+        + fs
+        + ", selectionRoot="
+        + selectionRoot
+        + ", startVersion="
+        + startVersion
+        + ", threadPool="
+        + threadPool
+        + ", snapshots="
+        + snapshots
+        + ", fetchedMetadata="
+        + fetchedMetadata
+        + ", metadataDir="
+        + metadataDir
+        + '}';
   }
 
   private final class BatchReader {
@@ -139,7 +158,7 @@ public class DeltaMetadataFetchJobManager {
     private final DeltaMetadataFetchJobProducer producer;
 
     private int batchesRead = 0;
-    private final AtomicBoolean readNextBatch  = new AtomicBoolean(true);
+    private final AtomicBoolean readNextBatch = new AtomicBoolean(true);
     private int batchSize = 10;
 
     private BatchReader(ThreadPoolExecutor threadPool, DeltaMetadataFetchJobProducer producer) {
@@ -149,20 +168,34 @@ public class DeltaMetadataFetchJobManager {
 
     private List<DeltaLogSnapshot> readBatch() {
 
-      logger.debug("Reading batch {} of size {} of metadata data files for delta dataset at {}. Manager State {}", batchesRead, batchSize, selectionRoot, this.toString());
-      List<CompletableFuture<DeltaLogSnapshot>> futures  = startAsyncReads();
+      logger.debug(
+          "Reading batch {} of size {} of metadata data files for delta dataset at {}. Manager State {}",
+          batchesRead,
+          batchSize,
+          selectionRoot,
+          this.toString());
+      List<CompletableFuture<DeltaLogSnapshot>> futures = startAsyncReads();
 
       if (futures.isEmpty()) {
         return Collections.emptyList();
       }
 
-      //collect the results from all the futures.
-      List<DeltaLogSnapshot> snapshotList = futures.stream().map(x -> x.join()).filter(Objects::nonNull).collect(Collectors.toList());
+      // collect the results from all the futures.
+      List<DeltaLogSnapshot> snapshotList =
+          futures.stream().map(x -> x.join()).filter(Objects::nonNull).collect(Collectors.toList());
 
-      logger.debug("Batch {} of size {} of metadata data files for delta dataset at {} was read successfully. Manager State {}", batchesRead, batchSize, selectionRoot, this.toString());
+      logger.debug(
+          "Batch {} of size {} of metadata data files for delta dataset at {} was read successfully. Manager State {}",
+          batchesRead,
+          batchSize,
+          selectionRoot,
+          this.toString());
 
       if (!startVersion.isCheckpoint()) {
-        logger.debug("Stopping read of delta dataset at path {} as a checkpoint file was found. Manager State {}", selectionRoot, this.toString());
+        logger.debug(
+            "Stopping read of delta dataset at path {} as a checkpoint file was found. Manager State {}",
+            selectionRoot,
+            this.toString());
         stopIfCheckpointFound(snapshotList);
       }
 
@@ -189,30 +222,35 @@ public class DeltaMetadataFetchJobManager {
         stopRead();
       }
 
-      //submit the jobs to the pool and get a list of futures
+      // submit the jobs to the pool and get a list of futures
       return jobs.stream().map(job -> submit(job)).collect(Collectors.toList());
     }
 
     private CompletableFuture<DeltaLogSnapshot> submit(DeltaMetadataFetchJob job) {
-      return CompletableFuture.supplyAsync(job, threadPool).exceptionally(e -> {
+      return CompletableFuture.supplyAsync(job, threadPool)
+          .exceptionally(
+              e -> {
+                CompletionException exp = (CompletionException) e;
+                if (exp.getCause() instanceof DeltaMetadataFetchJob.InvalidFileException) {
+                  logger.debug(
+                      "Metadata read completed for Deltatable {}. Cause {}. Manager State {}",
+                      selectionRoot,
+                      exp.getCause().getMessage(),
+                      this.toString());
+                  stopRead();
+                  return null;
+                }
 
-        CompletionException exp = (CompletionException) e;
-        if (exp.getCause() instanceof DeltaMetadataFetchJob.InvalidFileException) {
-          logger.debug("Metadata read completed for Deltatable {}. Cause {}. Manager State {}", selectionRoot, exp.getCause().getMessage(), this.toString());
-          stopRead();
-          return null;
-        }
+                if (exp.getCause() instanceof IOException) {
+                  logger.error("Unexpected error occurred in DeltaMetadataFetchJob. Error", exp);
 
-        if (exp.getCause() instanceof IOException) {
-          logger.error("Unexpected error occurred in DeltaMetadataFetchJob. Error", exp);
+                  throw UserException.dataReadError(exp.getCause())
+                      .message("Failed to read metadata for delta dataset %s", selectionRoot)
+                      .build(logger);
+                }
 
-          throw UserException.dataReadError()
-            .message("Failed to read metadata for delta dataset %s", selectionRoot)
-            .build(logger);
-        }
-
-        return null;
-      });
+                return null;
+              });
     }
 
     private void stopRead() {

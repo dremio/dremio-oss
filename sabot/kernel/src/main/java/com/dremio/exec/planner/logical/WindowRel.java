@@ -16,15 +16,13 @@
 
 package com.dremio.exec.planner.logical;
 
+import com.dremio.exec.planner.common.WindowRelBase;
 import java.util.List;
-
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexLiteral;
-
-import com.dremio.exec.planner.common.WindowRelBase;
 
 public class WindowRel extends WindowRelBase implements Rel {
   /**
@@ -32,7 +30,7 @@ public class WindowRel extends WindowRelBase implements Rel {
    *
    * @param cluster Cluster
    * @param traits
-   * @param child   Input relational expression
+   * @param child Input relational expression
    * @param rowType Output row type
    * @param groups Windows
    */
@@ -46,7 +44,8 @@ public class WindowRel extends WindowRelBase implements Rel {
     super(cluster, traits, child, constants, rowType, groups);
   }
 
-  public static WindowRel create(RelOptCluster cluster,
+  public static WindowRel create(
+      RelOptCluster cluster,
       RelTraitSet traitSet,
       RelNode child,
       List<RexLiteral> constants,

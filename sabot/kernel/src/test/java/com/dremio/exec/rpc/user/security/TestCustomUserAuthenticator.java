@@ -21,13 +21,11 @@ import static com.dremio.exec.rpc.user.security.testing.UserServiceTestImpl.TEST
 import static com.dremio.exec.rpc.user.security.testing.UserServiceTestImpl.TEST_USER_2_PASSWORD;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.util.Properties;
-
-import org.junit.Test;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.sabot.rpc.user.UserSession;
+import java.util.Properties;
+import org.junit.Test;
 
 public class TestCustomUserAuthenticator extends BaseTestQuery {
   @Test
@@ -50,11 +48,12 @@ public class TestCustomUserAuthenticator extends BaseTestQuery {
     runTest(TEST_USER_2, TEST_USER_2_PASSWORD);
   }
 
-  private static void negativeAuthHelper(final String user, final String password) throws Exception {
+  private static void negativeAuthHelper(final String user, final String password)
+      throws Exception {
     assertThatThrownBy(() -> runTest(user, password))
-      .isInstanceOf(RpcException.class)
-      .hasMessageContaining("HANDSHAKE_VALIDATION : Status: AUTH_FAILED")
-      .hasMessageContaining("Invalid credentials");
+        .isInstanceOf(RpcException.class)
+        .hasMessageContaining("HANDSHAKE_VALIDATION : Status: AUTH_FAILED")
+        .hasMessageContaining("Invalid credentials");
   }
 
   private static void runTest(final String user, final String password) throws Exception {

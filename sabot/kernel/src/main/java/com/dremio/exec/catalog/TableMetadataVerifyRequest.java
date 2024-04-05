@@ -15,11 +15,10 @@
  */
 package com.dremio.exec.catalog;
 
-import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.catalog.model.CatalogEntityKey;
 
 /**
- * Marker interface for a metadata verify request that is passed to
- * {@link EntityExplorer#verifyTableMetadata(NamespaceKey, TableMetadataVerifyRequest)}.
+ * Marker interface for a metadata verify request that is passed to {@link
+ * EntityExplorer#verifyTableMetadata(CatalogEntityKey, TableMetadataVerifyRequest)}.
  */
-public interface TableMetadataVerifyRequest {
-}
+public interface TableMetadataVerifyRequest {}

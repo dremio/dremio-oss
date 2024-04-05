@@ -93,7 +93,7 @@ const ExpandableText = (props) => {
   const labelContainerClasses = clsx(
     "expandable-text-label-container",
     "noselect",
-    { [classes.labelContainer]: classes.labelContainer }
+    { [classes.labelContainer]: classes.labelContainer },
   );
   const labelClasses = clsx("expandable-text-label", classes.label, {
     [classes.label]: classes.label,
@@ -101,7 +101,7 @@ const ExpandableText = (props) => {
   const collapsableContainerClasses = clsx(
     "collapsable-container",
     { "indented-collapsable-container": indentChildren },
-    { [classes.collapsableContainer]: classes.collapsableContainer }
+    { [classes.collapsableContainer]: classes.collapsableContainer },
   );
 
   const Icon = expanded ? Collapse : Expand;

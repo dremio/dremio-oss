@@ -19,15 +19,6 @@ import static com.dremio.sabot.Fixtures.t;
 import static com.dremio.sabot.Fixtures.th;
 import static com.dremio.sabot.Fixtures.tr;
 
-import java.math.BigDecimal;
-import java.util.Arrays;
-import java.util.List;
-
-import org.apache.calcite.rel.core.JoinRelType;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-
 import com.dremio.common.logical.data.JoinCondition;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.physical.base.OpProps;
@@ -39,6 +30,13 @@ import com.dremio.sabot.Fixtures;
 import com.dremio.sabot.join.BaseTestJoin;
 import com.dremio.sabot.op.join.hash.HashJoinOperator;
 import com.dremio.sabot.op.join.vhash.spill.VectorizedSpillingHashJoinOperator;
+import java.math.BigDecimal;
+import java.util.Arrays;
+import java.util.List;
+import org.apache.calcite.rel.core.JoinRelType;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
 public class TestVHashJoinWithSpillBoundedPivots extends BaseTestOperator {
   private final OptionManager options = testContext.getOptions();
@@ -46,8 +44,14 @@ public class TestVHashJoinWithSpillBoundedPivots extends BaseTestOperator {
 
   @Before
   public void before() {
-    options.setOption(OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, HashJoinOperator.ENABLE_SPILL.getOptionName(), true));
-    options.setOption(OptionValue.createLong(OptionValue.OptionType.SYSTEM, ExecConstants.TARGET_BATCH_RECORDS_MAX.getOptionName(), 65535));
+    options.setOption(
+        OptionValue.createBoolean(
+            OptionValue.OptionType.SYSTEM, HashJoinOperator.ENABLE_SPILL.getOptionName(), true));
+    options.setOption(
+        OptionValue.createLong(
+            OptionValue.OptionType.SYSTEM,
+            ExecConstants.TARGET_BATCH_RECORDS_MAX.getOptionName(),
+            65535));
     VectorizedSpillingHashJoinOperator.MIN_RESERVE = 9 * 1024 * 1024;
   }
 
@@ -60,20 +64,20 @@ public class TestVHashJoinWithSpillBoundedPivots extends BaseTestOperator {
 
   @Test
   public void largePivotsWithFixedKeys() throws Exception {
-    BaseTestJoin.JoinInfo joinInfo = getJoinInfo(
-      Arrays.asList(
-        new JoinCondition("EQUALS", f("a0"), f("b0")),
-        new JoinCondition("EQUALS", f("a1"), f("b1")),
-        new JoinCondition("EQUALS", f("a2"), f("b2")),
-        new JoinCondition("EQUALS", f("a3"), f("b3")),
-        new JoinCondition("EQUALS", f("a4"), f("b4")),
-        new JoinCondition("EQUALS", f("a5"), f("b5")),
-        new JoinCondition("EQUALS", f("a6"), f("b6")),
-        new JoinCondition("EQUALS", f("a7"), f("b7")),
-        new JoinCondition("EQUALS", f("a8"), f("b8")),
-        new JoinCondition("EQUALS", f("a9"), f("b9"))
-      ),
-      JoinRelType.INNER);
+    BaseTestJoin.JoinInfo joinInfo =
+        getJoinInfo(
+            Arrays.asList(
+                new JoinCondition("EQUALS", f("a0"), f("b0")),
+                new JoinCondition("EQUALS", f("a1"), f("b1")),
+                new JoinCondition("EQUALS", f("a2"), f("b2")),
+                new JoinCondition("EQUALS", f("a3"), f("b3")),
+                new JoinCondition("EQUALS", f("a4"), f("b4")),
+                new JoinCondition("EQUALS", f("a5"), f("b5")),
+                new JoinCondition("EQUALS", f("a6"), f("b6")),
+                new JoinCondition("EQUALS", f("a7"), f("b7")),
+                new JoinCondition("EQUALS", f("a8"), f("b8")),
+                new JoinCondition("EQUALS", f("a9"), f("b9"))),
+            JoinRelType.INNER);
 
     // 2000 (batchSize) * 16*10 (size of 10 decimal keys) > 256K (page size)
     final int batchSize = 2000;
@@ -81,45 +85,87 @@ public class TestVHashJoinWithSpillBoundedPivots extends BaseTestOperator {
     final Fixtures.DataRow[] rightRows = new Fixtures.DataRow[batchSize];
     final Fixtures.DataRow[] expectedRows = new Fixtures.DataRow[batchSize];
     for (int i = 0; i < batchSize; i++) {
-      leftRows[i] = tr((long)i,
-        BigDecimal.valueOf(0), BigDecimal.valueOf(i), BigDecimal.valueOf(i*2), BigDecimal.valueOf(i*3),
-        BigDecimal.valueOf(i*4), BigDecimal.valueOf(i*5), BigDecimal.valueOf(i*6), BigDecimal.valueOf(i*7),
-        BigDecimal.valueOf(i*8), BigDecimal.valueOf(i*9));
-      rightRows[i] = tr((long)(i + 11),
-        BigDecimal.valueOf(0), BigDecimal.valueOf(i), BigDecimal.valueOf(i*2), BigDecimal.valueOf(i*3),
-        BigDecimal.valueOf(i*4), BigDecimal.valueOf(i*5), BigDecimal.valueOf(i*6), BigDecimal.valueOf(i*7),
-        BigDecimal.valueOf(i*8), BigDecimal.valueOf(i*9));
-      expectedRows[i] = tr((long)i+11,
-        BigDecimal.valueOf(0), BigDecimal.valueOf(i), BigDecimal.valueOf(i*2), BigDecimal.valueOf(i*3),
-        BigDecimal.valueOf(i*4), BigDecimal.valueOf(i*5), BigDecimal.valueOf(i*6), BigDecimal.valueOf(i*7),
-        BigDecimal.valueOf(i*8), BigDecimal.valueOf(i*9),
-        (long)i,
-        BigDecimal.valueOf(0), BigDecimal.valueOf(i), BigDecimal.valueOf(i*2), BigDecimal.valueOf(i*3),
-        BigDecimal.valueOf(i*4), BigDecimal.valueOf(i*5), BigDecimal.valueOf(i*6), BigDecimal.valueOf(i*7),
-        BigDecimal.valueOf(i*8), BigDecimal.valueOf(i*9)
-        );
+      leftRows[i] =
+          tr(
+              (long) i,
+              BigDecimal.valueOf(0),
+              BigDecimal.valueOf(i),
+              BigDecimal.valueOf(i * 2),
+              BigDecimal.valueOf(i * 3),
+              BigDecimal.valueOf(i * 4),
+              BigDecimal.valueOf(i * 5),
+              BigDecimal.valueOf(i * 6),
+              BigDecimal.valueOf(i * 7),
+              BigDecimal.valueOf(i * 8),
+              BigDecimal.valueOf(i * 9));
+      rightRows[i] =
+          tr(
+              (long) (i + 11),
+              BigDecimal.valueOf(0),
+              BigDecimal.valueOf(i),
+              BigDecimal.valueOf(i * 2),
+              BigDecimal.valueOf(i * 3),
+              BigDecimal.valueOf(i * 4),
+              BigDecimal.valueOf(i * 5),
+              BigDecimal.valueOf(i * 6),
+              BigDecimal.valueOf(i * 7),
+              BigDecimal.valueOf(i * 8),
+              BigDecimal.valueOf(i * 9));
+      expectedRows[i] =
+          tr(
+              (long) i + 11,
+              BigDecimal.valueOf(0),
+              BigDecimal.valueOf(i),
+              BigDecimal.valueOf(i * 2),
+              BigDecimal.valueOf(i * 3),
+              BigDecimal.valueOf(i * 4),
+              BigDecimal.valueOf(i * 5),
+              BigDecimal.valueOf(i * 6),
+              BigDecimal.valueOf(i * 7),
+              BigDecimal.valueOf(i * 8),
+              BigDecimal.valueOf(i * 9),
+              (long) i,
+              BigDecimal.valueOf(0),
+              BigDecimal.valueOf(i),
+              BigDecimal.valueOf(i * 2),
+              BigDecimal.valueOf(i * 3),
+              BigDecimal.valueOf(i * 4),
+              BigDecimal.valueOf(i * 5),
+              BigDecimal.valueOf(i * 6),
+              BigDecimal.valueOf(i * 7),
+              BigDecimal.valueOf(i * 8),
+              BigDecimal.valueOf(i * 9));
     }
 
-    final Fixtures.Table left = t(th("a", "a0", "a1", "a2", "a3", "a4", "a5", "a6", "a7", "a8", "a9"), leftRows);
-    final Fixtures.Table right = t(th("b", "b0", "b1", "b2", "b3", "b4", "b5", "b6", "b7", "b8", "b9"), rightRows);
-    final Fixtures.Table expected = t(th("b", "b0", "b1", "b2", "b3", "b4", "b5", "b6", "b7", "b8", "b9", "a", "a0", "a1", "a2", "a3", "a4", "a5", "a6", "a7", "a8", "a9"),
-      expectedRows).orderInsensitive();
+    final Fixtures.Table left =
+        t(th("a", "a0", "a1", "a2", "a3", "a4", "a5", "a6", "a7", "a8", "a9"), leftRows);
+    final Fixtures.Table right =
+        t(th("b", "b0", "b1", "b2", "b3", "b4", "b5", "b6", "b7", "b8", "b9"), rightRows);
+    final Fixtures.Table expected =
+        t(
+                th(
+                    "b", "b0", "b1", "b2", "b3", "b4", "b5", "b6", "b7", "b8", "b9", "a", "a0",
+                    "a1", "a2", "a3", "a4", "a5", "a6", "a7", "a8", "a9"),
+                expectedRows)
+            .orderInsensitive();
 
     validateDual(
-      joinInfo.operator, joinInfo.clazz,
-      left.toGenerator(getTestAllocator()),
-      right.toGenerator(getTestAllocator()),
-      batchSize, expected);
+        joinInfo.operator,
+        joinInfo.clazz,
+        left.toGenerator(getTestAllocator()),
+        right.toGenerator(getTestAllocator()),
+        batchSize,
+        expected);
   }
 
   @Test
   public void largePivotsWithVarKey() throws Exception {
-    BaseTestJoin.JoinInfo joinInfo = getJoinInfo(
-      Arrays.asList(
-        new JoinCondition("EQUALS", f("a"), f("b")),
-        new JoinCondition("EQUALS", f("aString"), f("bString"))
-      ),
-      JoinRelType.INNER);
+    BaseTestJoin.JoinInfo joinInfo =
+        getJoinInfo(
+            Arrays.asList(
+                new JoinCondition("EQUALS", f("a"), f("b")),
+                new JoinCondition("EQUALS", f("aString"), f("bString"))),
+            JoinRelType.INNER);
 
     // 1000 (batchSize) * 1000 (size of each string key) > 256K (bounded pivot size)
     final int batchSize = 1000;
@@ -128,25 +174,39 @@ public class TestVHashJoinWithSpillBoundedPivots extends BaseTestOperator {
     final Fixtures.DataRow[] expectedRows = new Fixtures.DataRow[batchSize];
     for (int i = 0; i < batchSize; i++) {
       String largePaddedStr = String.format("%1000d", i);
-      leftRows[i] = tr((long)i, i+1, largePaddedStr, BigDecimal.valueOf(i+3));
-      rightRows[i] = tr((long)i, i+11, largePaddedStr, BigDecimal.valueOf(i+13));
-      expectedRows[i] = tr((long)i, i+11, largePaddedStr, BigDecimal.valueOf(i+13),
-        (long)i, i+1, largePaddedStr, BigDecimal.valueOf(i+3));
+      leftRows[i] = tr((long) i, i + 1, largePaddedStr, BigDecimal.valueOf(i + 3));
+      rightRows[i] = tr((long) i, i + 11, largePaddedStr, BigDecimal.valueOf(i + 13));
+      expectedRows[i] =
+          tr(
+              (long) i,
+              i + 11,
+              largePaddedStr,
+              BigDecimal.valueOf(i + 13),
+              (long) i,
+              i + 1,
+              largePaddedStr,
+              BigDecimal.valueOf(i + 3));
     }
 
     final Fixtures.Table left = t(th("a", "aInt", "aString", "aDecimal"), leftRows);
     final Fixtures.Table right = t(th("b", "bInt", "bString", "bDecimal"), rightRows);
-    final Fixtures.Table expected = t(th("b", "bInt", "bString", "bDecimal", "a", "aInt", "aString", "aDecimal"), expectedRows).orderInsensitive();
+    final Fixtures.Table expected =
+        t(th("b", "bInt", "bString", "bDecimal", "a", "aInt", "aString", "aDecimal"), expectedRows)
+            .orderInsensitive();
 
     validateDual(
-      joinInfo.operator, joinInfo.clazz,
-      left.toGenerator(getTestAllocator()),
-      right.toGenerator(getTestAllocator()),
-      batchSize, expected);
+        joinInfo.operator,
+        joinInfo.clazz,
+        left.toGenerator(getTestAllocator()),
+        right.toGenerator(getTestAllocator()),
+        batchSize,
+        expected);
   }
 
   BaseTestJoin.JoinInfo getJoinInfo(List<JoinCondition> conditions, JoinRelType type) {
     OpProps propsWithLimit = OpProps.prototype();
-    return new BaseTestJoin.JoinInfo(VectorizedSpillingHashJoinOperator.class, new HashJoinPOP(propsWithLimit, null, null, conditions, null, type, true, null));
+    return new BaseTestJoin.JoinInfo(
+        VectorizedSpillingHashJoinOperator.class,
+        new HashJoinPOP(propsWithLimit, null, null, conditions, null, type, true, true, null));
   }
 }

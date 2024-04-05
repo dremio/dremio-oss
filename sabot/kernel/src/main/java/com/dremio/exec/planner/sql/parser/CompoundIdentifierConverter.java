@@ -15,11 +15,11 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
 import java.util.List;
 import java.util.Map;
-
 import org.apache.calcite.sql.SqlCall;
-import org.apache.calcite.sql.SqlDescribeTable;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlJoin;
 import org.apache.calcite.sql.SqlNode;
@@ -31,15 +31,12 @@ import org.apache.calcite.sql.SqlUnpivot;
 import org.apache.calcite.sql.util.SqlShuttle;
 import org.apache.calcite.sql.util.SqlVisitor;
 
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
-
 /**
- * Implementation of {@link SqlVisitor} that converts bracketed compound {@link SqlIdentifier} to bracket-less compound
- * {@link SqlIdentifier} (also known as {@link CompoundIdentifier}) to provide ease of use while querying complex
- * types.
- * <p/>
- * For example, this visitor converts {@code a['b'][4]['c']} to {@code a.b[4].c}
+ * Implementation of {@link SqlVisitor} that converts bracketed compound {@link SqlIdentifier} to
+ * bracket-less compound {@link SqlIdentifier} (also known as {@link CompoundIdentifier}) to provide
+ * ease of use while querying complex types.
+ *
+ * <p>For example, this visitor converts {@code a['b'][4]['c']} to {@code a.b[4].c}
  */
 public class CompoundIdentifierConverter extends SqlShuttle {
 
@@ -53,11 +50,11 @@ public class CompoundIdentifierConverter extends SqlShuttle {
 
   @Override
   public SqlNode visit(SqlIdentifier id) {
-    if(id instanceof CompoundIdentifier) {
-      if(enableComplex) {
+    if (id instanceof CompoundIdentifier) {
+      if (enableComplex) {
         return ((CompoundIdentifier) id).getAsSqlNode(withCalciteComplexTypeSupport);
       }
-        return ((CompoundIdentifier) id).getAsCompoundIdentifier();
+      return ((CompoundIdentifier) id).getAsCompoundIdentifier();
     } else {
       return id;
     }
@@ -65,7 +62,7 @@ public class CompoundIdentifierConverter extends SqlShuttle {
 
   @Override
   public SqlNode visit(final SqlCall call) {
-    if(call instanceof SqlPivot || call instanceof SqlUnpivot) {
+    if (call instanceof SqlPivot || call instanceof SqlUnpivot) {
       // This method incorrectly rewrites SqlPivot to a SqlBasicCall meaning
       // we end up calling into SqlBasicCall.unparse instead of SqlPivot.unparse.
       // This leads into an exception down the line.
@@ -81,8 +78,7 @@ public class CompoundIdentifierConverter extends SqlShuttle {
     return node;
   }
 
-
-  private class ComplexExpressionAware implements ArgHandler<SqlNode>  {
+  private class ComplexExpressionAware implements ArgHandler<SqlNode> {
     private final SqlNode[] clonedOperands;
     private final RewriteType[] rewriteTypes;
     private final SqlCall call;
@@ -99,7 +95,8 @@ public class CompoundIdentifierConverter extends SqlShuttle {
       // TODO: this check is reasonable, but there are regressions, so fix the rules and uncomment
       // if (rewriteTypes != null) {
       //   Preconditions.checkArgument(rewriteTypes.length == clonedOperands.length,
-      //       "Rewrite rule for %s is incomplete in CompoundIdentifierConverter#REWRITE_RULES (%s types and %s operands)",
+      //       "Rewrite rule for %s is incomplete in CompoundIdentifierConverter#REWRITE_RULES (%s
+      // types and %s operands)",
       //       call.getClass().getSimpleName(), rewriteTypes.length, clonedOperands.length);
       // }
     }
@@ -107,36 +104,30 @@ public class CompoundIdentifierConverter extends SqlShuttle {
     @Override
     public SqlNode result() {
       if (update) {
-        return call.getOperator().createCall(
-            call.getFunctionQuantifier(),
-            call.getParserPosition(),
-            clonedOperands);
+        return call.getOperator()
+            .createCall(call.getFunctionQuantifier(), call.getParserPosition(), clonedOperands);
       } else {
         return call;
       }
     }
 
     @Override
-    public SqlNode visitChild(
-        SqlVisitor<SqlNode> visitor,
-        SqlNode expr,
-        int i,
-        SqlNode operand) {
+    public SqlNode visitChild(SqlVisitor<SqlNode> visitor, SqlNode expr, int i, SqlNode operand) {
       if (operand == null) {
         return null;
       }
 
       boolean localEnableComplex = enableComplex;
-      if(rewriteTypes != null){
-        switch(rewriteTypes[i]){
-        case DISABLE:
-          enableComplex = false;
-          break;
-        case ENABLE:
-          enableComplex = true;
-          break;
-        default:
-          break;
+      if (rewriteTypes != null) {
+        switch (rewriteTypes[i]) {
+          case DISABLE:
+            enableComplex = false;
+            break;
+          case ENABLE:
+            enableComplex = true;
+            break;
+          default:
+            break;
         }
       }
       SqlNode newOperand = operand.accept(CompoundIdentifierConverter.this);
@@ -152,7 +143,9 @@ public class CompoundIdentifierConverter extends SqlShuttle {
   static final Map<Class<? extends SqlCall>, RewriteType[]> REWRITE_RULES;
 
   enum RewriteType {
-    UNCHANGED, DISABLE, ENABLE;
+    UNCHANGED,
+    DISABLE,
+    ENABLE;
   }
 
   static {
@@ -182,7 +175,7 @@ public class CompoundIdentifierConverter extends SqlShuttle {
     rules.put(SqlCreateTable.class, R(D, D, D, D, D, D, D, E, D, D, D, D, D, D, D, D));
     rules.put(SqlCreateEmptyTable.class, R(D, D, D, D, D, D, D, D, D, D, D, D, D, D, D));
     rules.put(SqlCreateView.class, R(D, E, E, D, D, D, D));
-    rules.put(SqlDescribeTable.class, R(D, D, E));
+    rules.put(SqlDescribeDremioTable.class, R(D, D, D, E));
     rules.put(SqlDropView.class, R(D, D, D, D));
     rules.put(SqlShowFiles.class, R(D));
     rules.put(SqlShowSchemas.class, R(D, D));
@@ -192,19 +185,19 @@ public class CompoundIdentifierConverter extends SqlShuttle {
     rules.put(SqlDropTable.class, R(D, D, D, D));
     rules.put(SqlTruncateTable.class, R(D, D, D, D, D));
     rules.put(SqlSetOption.class, R(D, D, D));
-    rules.put(SqlCreateReflection.class, R(D,D,D,D,D,D,D,D,D,D,D,D));
-    rules.put(SqlDropReflection.class, R(D,D,D));
-    rules.put(SqlAccelToggle.class, R(D,D,D,D));
+    rules.put(SqlCreateReflection.class, R(D, D, D, D, D, D, D, D, D, D, D, D));
+    rules.put(SqlDropReflection.class, R(D, D, D));
+    rules.put(SqlAccelToggle.class, R(D, D, D, D));
     rules.put(SqlForgetTable.class, R(D));
-    rules.put(SqlRefreshDataset.class, R(D,D,D,D,D,D,D,D,D,D));
-    rules.put(SqlRefreshTable.class, R(D,D,D,D,D,D,D,D,D,D));
-    rules.put(SqlAddExternalReflection.class, R(D,D,D));
+    rules.put(SqlRefreshDataset.class, R(D, D, D, D, D, D, D, D, D, D));
+    rules.put(SqlRefreshTable.class, R(D, D, D, D, D, D, D, D, D, D));
+    rules.put(SqlAddExternalReflection.class, R(D, D, D));
     rules.put(SqlRefreshSourceStatus.class, R(D));
-    rules.put(SqlRefreshReflection.class, R(D,D,D));
+    rules.put(SqlRefreshReflection.class, R(D, D, D));
     rules.put(SqlLoadMaterialization.class, R(D));
     rules.put(SqlSetApprox.class, R(D, D));
     rules.put(SqlCompactMaterialization.class, R(E, D));
-    rules.put(SqlExplainJson.class, R(D,D));
+    rules.put(SqlExplainJson.class, R(D, D));
     rules.put(SqlAlterTableDropColumn.class, R(D, D, D, D));
     rules.put(SqlAlterTableChangeColumn.class, R(D, D, D, D));
     rules.put(SqlAlterTableAddColumns.class, R(D, D, D));
@@ -220,8 +213,7 @@ public class CompoundIdentifierConverter extends SqlShuttle {
   // Each type in the input arguments refers to
   // each data field in the class
   @SuppressWarnings("checkstyle:MethodName")
-  private static RewriteType[] R(RewriteType... types){
+  private static RewriteType[] R(RewriteType... types) {
     return types;
   }
-
 }

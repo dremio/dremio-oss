@@ -15,43 +15,42 @@
  */
 package com.dremio.exec.planner.acceleration.substitution;
 
-import java.util.Optional;
-import java.util.Set;
-import java.util.function.Consumer;
-import java.util.stream.Stream;
-
-import org.apache.calcite.plan.RelOptPlanner;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.type.RelDataType;
-
 import com.dremio.catalog.model.dataset.TableVersionContext;
+import com.dremio.exec.ops.ViewExpansionContext;
 import com.dremio.exec.planner.acceleration.DremioMaterialization;
 import com.dremio.exec.planner.logical.ViewTable;
-import com.dremio.exec.planner.sql.SqlConverter;
 import com.dremio.exec.planner.sql.handlers.RelTransformer;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSet;
+import java.util.Optional;
+import java.util.Set;
+import java.util.function.Consumer;
+import java.util.stream.Stream;
+import org.apache.calcite.plan.RelOptPlanner;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.type.RelDataType;
 
 /**
  * An interface that suggests substitutions to {@link RelOptPlanner planner}.
  *
- * Given a set of materialized view definitions (Vs) and a query(Q), SubstitutionProvider is in
+ * <p>Given a set of materialized view definitions (Vs) and a query(Q), SubstitutionProvider is in
  * charge of finding R, a subset of Vs such that Q is satisfiable when rewritten in terms of R.
  */
 public interface SubstitutionProvider {
 
-  SubstitutionProvider NOOP = transformers -> {
-    throw new UnsupportedOperationException();
-  };
+  SubstitutionProvider NOOP =
+      transformers -> {
+        throw new UnsupportedOperationException();
+      };
 
   /**
-   * Computes and returns a set of possible substitutions for the given query.
-   * If the equivalent node for the substition is null, that means the substition should be considered
-   * equivalent to the originalRoot
+   * Computes and returns a set of possible substitutions for the given query. If the equivalent
+   * node for the substition is null, that means the substition should be considered equivalent to
+   * the originalRoot
    *
-   * @param query  query to rewrite in terms of materialized view definitions.
-   * @return  set of substitutions.
+   * @param query query to rewrite in terms of materialized view definitions.
+   * @return set of substitutions.
    */
   default SubstitutionStream findSubstitutions(final RelNode query) {
     return SubstitutionStream.empty();
@@ -62,7 +61,10 @@ public interface SubstitutionProvider {
     private final Runnable onSuccess;
     private final Consumer<Throwable> onFailure;
 
-    public SubstitutionStream(Stream<Substitution> substitutionStream, Runnable onSuccess, Consumer<Throwable> onFailure) {
+    public SubstitutionStream(
+        Stream<Substitution> substitutionStream,
+        Runnable onSuccess,
+        Consumer<Throwable> onFailure) {
       this.substitutionStream = substitutionStream;
       this.onSuccess = onSuccess;
       this.onFailure = onFailure;
@@ -81,24 +83,28 @@ public interface SubstitutionProvider {
     }
 
     public static SubstitutionStream empty() {
-      return new SubstitutionStream(Stream.empty(), () -> { }, t -> { });
+      return new SubstitutionStream(Stream.empty(), () -> {}, t -> {});
     }
   }
 
   /**
-   * Wraps the given RelNode within an ExpansionNode. If any default raw reflection is available for the given RelNode,
-   * replace the view with the reflection before wrapping.
+   * Wraps the given RelNode within an ExpansionNode. If any default raw reflection is available for
+   * the given RelNode, replace the view with the reflection before wrapping.
    *
-   * @param path             Path of the view
-   * @param query            RelNode to wrap
-   * @param materialization  Default raw materialization
-   * @param rowType          Row data type
-   * @param contextSensitive If the expansion node is context sensitive
-   * @param converter        SqlConverter
+   * @param path Path of the view
+   * @param query RelNode to wrap
+   * @param materialization Default raw materialization
+   * @param rowType Row data type
+   * @param viewExpansionContext SqlConverter
    * @return Wrapped RelNode
    */
-  default RelNode wrapDefaultExpansionNode(NamespaceKey path, final RelNode query, DremioMaterialization materialization, RelDataType rowType,
-                                    boolean contextSensitive, TableVersionContext versionContext, SqlConverter converter) {
+  default RelNode wrapDefaultExpansionNode(
+      final NamespaceKey path,
+      final RelNode query,
+      final DremioMaterialization materialization,
+      final RelDataType rowType,
+      final TableVersionContext versionContext,
+      final ViewExpansionContext viewExpansionContext) {
     throw new UnsupportedOperationException();
   }
 
@@ -116,13 +122,16 @@ public interface SubstitutionProvider {
 
   default void setCurrentPlan(RelNode relNode) {}
 
-  default Set<String> getMatchedReflections() { return ImmutableSet.of(); }
+  default Set<String> getMatchedReflections() {
+    return ImmutableSet.of();
+  }
 
   void setPostSubstitutionTransformer(RelTransformer transformer);
 
   /**
-   * A class that represents a substitution. This indicates that the {@link RelNode} replacement is equivalent to equivalent
-   * If equivalent is null, treat replacement as equivalent to the originalRoot
+   * A class that represents a substitution. This indicates that the {@link RelNode} replacement is
+   * equivalent to equivalent If equivalent is null, treat replacement as equivalent to the
+   * originalRoot
    */
   class Substitution {
     private final RelNode replacement;

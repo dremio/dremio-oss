@@ -17,9 +17,7 @@ package com.dremio.exec.catalog;
 
 import java.util.Objects;
 
-/**
- * Catalog User identity.
- */
+/** Catalog User identity. */
 public class CatalogUser implements CatalogIdentity {
   private final String userName;
 

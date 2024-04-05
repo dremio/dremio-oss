@@ -15,32 +15,32 @@
  */
 package com.dremio.exec.util;
 
+import com.google.common.primitives.UnsignedBytes;
 import org.apache.arrow.memory.ArrowBuf;
 
-import com.google.common.primitives.UnsignedBytes;
-
 /**
- * Comparator to be used while comparing {@link ValueListFilter} comprising of variable length data types.
+ * Comparator to be used while comparing {@link ValueListFilter} comprising of variable length data
+ * types.
  */
 public class ValueListVarWidthFilterComparator implements ArrowCrossBufComparator {
-    private final int blockSize;
+  private final int blockSize;
 
-    public ValueListVarWidthFilterComparator(int blockSize) {
-        this.blockSize = blockSize;
-    }
+  public ValueListVarWidthFilterComparator(int blockSize) {
+    this.blockSize = blockSize;
+  }
 
-    @Override
-    public int compare(ArrowBuf buf1, int idx1, ArrowBuf buf2, int idx2) {
-        // First byte in the block tells the length of value; remaining blocks tell the value.
-        idx1 *= blockSize;
-        idx2 *= blockSize;
+  @Override
+  public int compare(ArrowBuf buf1, int idx1, ArrowBuf buf2, int idx2) {
+    // First byte in the block tells the length of value; remaining blocks tell the value.
+    idx1 *= blockSize;
+    idx2 *= blockSize;
 
-        byte[] val1Bytes = new byte[buf1.getByte(idx1)];
-        byte[] val2Bytes = new byte[buf2.getByte(idx2)];
+    byte[] val1Bytes = new byte[buf1.getByte(idx1)];
+    byte[] val2Bytes = new byte[buf2.getByte(idx2)];
 
-        buf1.getBytes(idx1 + blockSize - val1Bytes.length, val1Bytes);
-        buf2.getBytes(idx2 + blockSize - val2Bytes.length, val2Bytes);
+    buf1.getBytes(idx1 + blockSize - val1Bytes.length, val1Bytes);
+    buf2.getBytes(idx2 + blockSize - val2Bytes.length, val2Bytes);
 
-        return UnsignedBytes.lexicographicalComparator().compare(val1Bytes, val2Bytes);
-    }
+    return UnsignedBytes.lexicographicalComparator().compare(val1Bytes, val2Bytes);
+  }
 }

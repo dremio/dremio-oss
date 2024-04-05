@@ -34,7 +34,7 @@ const defaultChildren = <span id="children">Children</span>;
 
 const getShallowWrapper = (
   props = defaultProps,
-  children = defaultChildren
+  children = defaultChildren,
 ) => {
   return shallow(<ExpandableText {...props}>{children}</ExpandableText>);
 };
@@ -44,7 +44,7 @@ describe("Expandable Text", () => {
     const wrapper = getShallowWrapper();
     expect(wrapper.find("ExpandableTextRoot").exists()).toBe(true);
     expect(wrapper.find(".expandable-text-label-container").exists()).toBe(
-      true
+      true,
     );
     expect(wrapper.find(".expandable-text-label").exists()).toBe(true);
     expect(wrapper.find(".collapsable-container").exists()).toBe(false);
@@ -54,13 +54,13 @@ describe("Expandable Text", () => {
   it("adds the classes passed as props to respective elements", () => {
     const wrapper = getShallowWrapper();
     expect(wrapper.find("ExpandableTextRoot").props().className).toEqual(
-      expect.stringContaining("sample-root-class")
+      expect.stringContaining("sample-root-class"),
     );
     expect(
-      wrapper.find(".expandable-text-label-container").props().className
+      wrapper.find(".expandable-text-label-container").props().className,
     ).toEqual(expect.stringContaining("sample-label-container-class"));
     expect(wrapper.find(".expandable-text-label").props().className).toEqual(
-      expect.stringContaining("sample-label-class")
+      expect.stringContaining("sample-label-class"),
     );
   });
 

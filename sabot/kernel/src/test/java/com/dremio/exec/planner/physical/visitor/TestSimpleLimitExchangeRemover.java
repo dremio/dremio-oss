@@ -20,24 +20,6 @@ import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.math.BigDecimal;
-import java.util.List;
-
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelOptTable;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.plan.volcano.VolcanoPlanner;
-import org.apache.calcite.rel.core.JoinRelType;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeFactory;
-import org.apache.calcite.rex.RexBuilder;
-import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.sql.type.SqlTypeName;
-import org.junit.Before;
-import org.junit.Test;
-import org.mockito.Mockito;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.planner.physical.HashJoinPrel;
@@ -65,6 +47,22 @@ import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import java.math.BigDecimal;
+import java.util.List;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptTable;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.plan.volcano.VolcanoPlanner;
+import org.apache.calcite.rel.core.JoinRelType;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.calcite.rex.RexBuilder;
+import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.sql.type.SqlTypeName;
+import org.junit.Before;
+import org.junit.Test;
+import org.mockito.Mockito;
 
 public class TestSimpleLimitExchangeRemover {
 
@@ -84,8 +82,9 @@ public class TestSimpleLimitExchangeRemover {
     clusterResourceInformation = mock(ClusterResourceInformation.class);
     when(clusterResourceInformation.getExecutorNodeCount()).thenReturn(1);
 
-    plannerSettings = new PlannerSettings(DremioTest.DEFAULT_SABOT_CONFIG,
-        optionResolver, () -> clusterResourceInformation);
+    plannerSettings =
+        new PlannerSettings(
+            DremioTest.DEFAULT_SABOT_CONFIG, optionResolver, () -> clusterResourceInformation);
     cluster = RelOptCluster.create(new VolcanoPlanner(plannerSettings), rexBuilder);
   }
 
@@ -93,14 +92,10 @@ public class TestSimpleLimitExchangeRemover {
   public void simpleSelectNoLimit() {
     Prel input =
         newScreen(
-            newProject(exprs(), rowType(),
-                newUnionExchange(
-                    newProject(exprs(), rowType(),
-                        newSoftScan(rowType())
-                    )
-                )
-            )
-        );
+            newProject(
+                exprs(),
+                rowType(),
+                newUnionExchange(newProject(exprs(), rowType(), newSoftScan(rowType())))));
 
     Prel output = SimpleLimitExchangeRemover.apply(plannerSettings, input);
     verifyOutput(output, "Screen", "Project", "UnionExchange", "Project", "SystemScan");
@@ -110,118 +105,112 @@ public class TestSimpleLimitExchangeRemover {
   public void simpleSelectWithLimitWithSoftScan() {
     Prel input =
         newScreen(
-            newLimit(0, 10,
-                newProject(exprs(), rowType(),
+            newLimit(
+                0,
+                10,
+                newProject(
+                    exprs(),
+                    rowType(),
                     newUnionExchange(
-                        newLimit(0, 10,
-                            newProject(exprs(), rowType(),
-                                newSoftScan(rowType())
-                            )
-                        )
-                    )
-                )
-            )
-        );
+                        newLimit(0, 10, newProject(exprs(), rowType(), newSoftScan(rowType())))))));
 
     Prel output = SimpleLimitExchangeRemover.apply(plannerSettings, input);
     verifyOutput(output, "Screen", "Limit", "Project", "Limit", "Project", "SystemScan");
   }
 
-
   @Test
   public void simpleSelectWithLimitWithSoftScanWithLeafLimitsEnabled() {
-    OptionValue optionEnabled = OptionValue.createBoolean(OptionValue.OptionType.QUERY, PlannerSettings.ENABLE_LEAF_LIMITS.getOptionName(), true);
-    optionResolver = OptionResolverSpecBuilder.build(new OptionResolverSpec()
-        .addOption(PlannerSettings.ENABLE_LEAF_LIMITS, optionEnabled.getBoolVal()));
-    plannerSettings = new PlannerSettings(DremioTest.DEFAULT_SABOT_CONFIG,
-        optionResolver, () -> clusterResourceInformation);
-
+    OptionValue optionEnabled =
+        OptionValue.createBoolean(
+            OptionValue.OptionType.QUERY, PlannerSettings.ENABLE_LEAF_LIMITS.getOptionName(), true);
+    optionResolver =
+        OptionResolverSpecBuilder.build(
+            new OptionResolverSpec()
+                .addOption(PlannerSettings.ENABLE_LEAF_LIMITS, optionEnabled.getBoolVal()));
+    plannerSettings =
+        new PlannerSettings(
+            DremioTest.DEFAULT_SABOT_CONFIG, optionResolver, () -> clusterResourceInformation);
 
     Prel input =
-      newScreen(
-        newLimit(0, 10,
-          newProject(exprs(), rowType(),
-            newUnionExchange(
-              newLimit(0, 10,
-                newProject(exprs(), rowType(),
-                  newSoftScan(rowType())
-                )
-              )
-            )
-          )
-        )
-      );
+        newScreen(
+            newLimit(
+                0,
+                10,
+                newProject(
+                    exprs(),
+                    rowType(),
+                    newUnionExchange(
+                        newLimit(0, 10, newProject(exprs(), rowType(), newSoftScan(rowType())))))));
 
     Prel output = SimpleLimitExchangeRemover.apply(plannerSettings, input);
-    verifyOutput(output, "Screen", "Limit", "Project", "UnionExchange", "Limit", "Project", "SystemScan");
+    verifyOutput(
+        output, "Screen", "Limit", "Project", "UnionExchange", "Limit", "Project", "SystemScan");
   }
 
   @Test
   public void simpleSelectWithLargeLimitWithSoftScan() {
     Prel input =
         newScreen(
-            newLimit(0, 200000,
-                newProject(exprs(), rowType(),
+            newLimit(
+                0,
+                200000,
+                newProject(
+                    exprs(),
+                    rowType(),
                     newUnionExchange(
-                        newLimit(0, 200000,
-                            newProject(exprs(), rowType(),
-                                newSoftScan(rowType())
-                            )
-                        )
-                    )
-                )
-            )
-        );
+                        newLimit(
+                            0, 200000, newProject(exprs(), rowType(), newSoftScan(rowType())))))));
 
     Prel output = SimpleLimitExchangeRemover.apply(plannerSettings, input);
-    verifyOutput(output,
-        "Screen", "Limit", "Project", "UnionExchange", "Limit", "Project", "SystemScan");
+    verifyOutput(
+        output, "Screen", "Limit", "Project", "UnionExchange", "Limit", "Project", "SystemScan");
   }
 
   @Test
   public void simpleSelectWithLimitWithHardScan() {
     Prel input =
         newScreen(
-            newLimit(0, 10,
-                newProject(exprs(), rowType(),
+            newLimit(
+                0,
+                10,
+                newProject(
+                    exprs(),
+                    rowType(),
                     newUnionExchange(
-                        newLimit(0, 10,
-                            newProject(exprs(), rowType(),
-                                newHardScan(rowType())
-                            )
-                        )
-                    )
-                )
-            )
-        );
+                        newLimit(0, 10, newProject(exprs(), rowType(), newHardScan(rowType())))))));
 
     Prel output = SimpleLimitExchangeRemover.apply(plannerSettings, input);
-    verifyOutput(output, "Screen", "Limit", "Project", "UnionExchange", "Limit", "Project", "SystemScan");
+    verifyOutput(
+        output, "Screen", "Limit", "Project", "UnionExchange", "Limit", "Project", "SystemScan");
   }
 
   @Test
   public void joinWithLimitWithSoftScan() {
     Prel input =
         newScreen(
-            newLimit(0, 10,
-                newProject(exprs(), rowType(),
+            newLimit(
+                0,
+                10,
+                newProject(
+                    exprs(),
+                    rowType(),
                     newUnionExchange(
                         newJoin(
-                            newProject(exprs(), rowType(),
-                                newSoftScan(rowType())
-                            ),
-                            newProject(exprs(), rowType(),
-                                newSoftScan(rowType())
-                            )
-                        )
-                    )
-                )
-            )
-        );
+                            newProject(exprs(), rowType(), newSoftScan(rowType())),
+                            newProject(exprs(), rowType(), newSoftScan(rowType())))))));
 
     Prel output = SimpleLimitExchangeRemover.apply(plannerSettings, input);
-    verifyOutput(output,
-        "Screen", "Limit", "Project", "UnionExchange", "HashJoin", "Project", "SystemScan", "Project", "SystemScan");
+    verifyOutput(
+        output,
+        "Screen",
+        "Limit",
+        "Project",
+        "UnionExchange",
+        "HashJoin",
+        "Project",
+        "SystemScan",
+        "Project",
+        "SystemScan");
   }
 
   private void verifyOutput(Prel output, String... expRels) {
@@ -233,7 +222,7 @@ public class TestSimpleLimitExchangeRemover {
   private void addRels(List<String> list, Prel input) {
     String descr = input.getDescription();
     list.add(descr.substring(0, descr.lastIndexOf("Prel")));
-    for(Prel child : input) {
+    for (Prel child : input) {
       addRels(list, child);
     }
   }
@@ -250,45 +239,79 @@ public class TestSimpleLimitExchangeRemover {
     TableMetadata metadata = Mockito.mock(TableMetadata.class);
     when(metadata.getName()).thenReturn(new NamespaceKey(ImmutableList.of("sys", "memory")));
     when(metadata.getSchema()).thenReturn(SystemTable.MEMORY.getRecordSchema());
-    StoragePluginId pluginId = new StoragePluginId(new SourceConfig().setConfig(new SystemPluginConf().toBytesString()), new SystemPluginConf(), SourceCapabilities.NONE);
+    StoragePluginId pluginId =
+        new StoragePluginId(
+            new SourceConfig().setConfig(new SystemPluginConf().toBytesString()),
+            new SystemPluginConf(),
+            SourceCapabilities.NONE);
     when(metadata.getStoragePluginId()).thenReturn(pluginId);
 
-    List<SchemaPath> columns = FluentIterable.from(SystemTable.MEMORY.getRecordSchema()).transform(new Function<Field, SchemaPath>(){
-      @Override
-      public SchemaPath apply(Field input) {
-        return SchemaPath.getSimplePath(input.getName());
-      }}).toList();
-    return new SystemScanPrel(cluster, traits, Mockito.mock(RelOptTable.class), metadata, columns, 1.0d,
-                              ImmutableList.of(), rowType, ImmutableList.of());
+    List<SchemaPath> columns =
+        FluentIterable.from(SystemTable.MEMORY.getRecordSchema())
+            .transform(
+                new Function<Field, SchemaPath>() {
+                  @Override
+                  public SchemaPath apply(Field input) {
+                    return SchemaPath.getSimplePath(input.getName());
+                  }
+                })
+            .toList();
+    return new SystemScanPrel(
+        cluster,
+        traits,
+        Mockito.mock(RelOptTable.class),
+        metadata,
+        columns,
+        1.0d,
+        ImmutableList.of(),
+        rowType,
+        ImmutableList.of());
   }
 
   private Prel newSoftScan(RelDataType rowType) {
     TableMetadata metadata = Mockito.mock(TableMetadata.class);
     when(metadata.getName()).thenReturn(new NamespaceKey(ImmutableList.of("sys", "version")));
     when(metadata.getSchema()).thenReturn(SystemTable.VERSION.getRecordSchema());
-    StoragePluginId pluginId = new StoragePluginId(new SourceConfig().setConfig(new SystemPluginConf().toBytesString()), new SystemPluginConf(), SourceCapabilities.NONE);
+    StoragePluginId pluginId =
+        new StoragePluginId(
+            new SourceConfig().setConfig(new SystemPluginConf().toBytesString()),
+            new SystemPluginConf(),
+            SourceCapabilities.NONE);
     when(metadata.getStoragePluginId()).thenReturn(pluginId);
-    List<SchemaPath> columns = FluentIterable.from(SystemTable.VERSION.getRecordSchema()).transform(new Function<Field, SchemaPath>(){
-      @Override
-      public SchemaPath apply(Field input) {
-        return SchemaPath.getSimplePath(input.getName());
-      }}).toList();
-    return new SystemScanPrel(cluster, traits, Mockito.mock(RelOptTable.class), metadata, columns, 1.0d,
-                              ImmutableList.of(), rowType, ImmutableList.of());
+    List<SchemaPath> columns =
+        FluentIterable.from(SystemTable.VERSION.getRecordSchema())
+            .transform(
+                new Function<Field, SchemaPath>() {
+                  @Override
+                  public SchemaPath apply(Field input) {
+                    return SchemaPath.getSimplePath(input.getName());
+                  }
+                })
+            .toList();
+    return new SystemScanPrel(
+        cluster,
+        traits,
+        Mockito.mock(RelOptTable.class),
+        metadata,
+        columns,
+        1.0d,
+        ImmutableList.of(),
+        rowType,
+        ImmutableList.of());
   }
 
   private RelDataType rowType() {
     return typeFactory.createStructType(
-        asList(typeFactory.createSqlType(SqlTypeName.INTEGER), typeFactory.createSqlType(SqlTypeName.DOUBLE)),
-        asList("intCol", "doubleCol")
-    );
+        asList(
+            typeFactory.createSqlType(SqlTypeName.INTEGER),
+            typeFactory.createSqlType(SqlTypeName.DOUBLE)),
+        asList("intCol", "doubleCol"));
   }
 
   private List<RexNode> exprs() {
     return ImmutableList.<RexNode>of(
         rexBuilder.makeExactLiteral(BigDecimal.ONE, typeFactory.createSqlType(SqlTypeName.INTEGER)),
-        rexBuilder.makeExactLiteral(BigDecimal.ONE, typeFactory.createSqlType(SqlTypeName.DOUBLE))
-    );
+        rexBuilder.makeExactLiteral(BigDecimal.ONE, typeFactory.createSqlType(SqlTypeName.DOUBLE)));
   }
 
   private Prel newUnionExchange(Prel child) {
@@ -296,13 +319,16 @@ public class TestSimpleLimitExchangeRemover {
   }
 
   private Prel newLimit(int offset, int fetch, Prel child) {
-    return new LimitPrel(cluster, traits, child,
+    return new LimitPrel(
+        cluster,
+        traits,
+        child,
         rexBuilder.makeBigintLiteral(new BigDecimal(offset)),
-        rexBuilder.makeBigintLiteral(new BigDecimal(fetch))
-    );
+        rexBuilder.makeBigintLiteral(new BigDecimal(fetch)));
   }
 
   private Prel newJoin(Prel left, Prel right) {
-    return HashJoinPrel.create(cluster, traits, left, right, rexBuilder.makeLiteral(true), null, JoinRelType.INNER);
+    return HashJoinPrel.create(
+        cluster, traits, left, right, rexBuilder.makeLiteral(true), null, JoinRelType.INNER, false);
   }
 }

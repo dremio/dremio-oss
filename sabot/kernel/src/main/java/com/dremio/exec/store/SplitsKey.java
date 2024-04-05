@@ -15,9 +15,7 @@
  */
 package com.dremio.exec.store;
 
-/**
- * Interface to simplify dataset splits comparison
- */
+/** Interface to simplify dataset splits comparison */
 public interface SplitsKey {
 
   @Override

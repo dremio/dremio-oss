@@ -23,7 +23,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class NodeClassLoader extends URLClassLoader {
-  private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(NodeClassLoader.class);
+  private static final org.slf4j.Logger LOGGER =
+      org.slf4j.LoggerFactory.getLogger(NodeClassLoader.class);
+
   public NodeClassLoader() {
     super(URLS);
   }
@@ -58,7 +60,7 @@ public class NodeClassLoader extends URLClassLoader {
   /**
    * Helper method to avoid StringTokenizer using.
    *
-   * Taken from Apache Harmony
+   * <p>Taken from Apache Harmony
    */
   private static String[] fracture(String str, String sep) {
     if (str.length() == 0) {
@@ -101,5 +103,4 @@ public class NodeClassLoader extends URLClassLoader {
   protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
     return super.loadClass(name, resolve);
   }
-
 }

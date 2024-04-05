@@ -28,12 +28,13 @@ import {
   getJobProgress,
   getRunStatus,
 } from "@app/selectors/explore";
-import { getJobList } from "@app/selectors/jobs";
+import { getAllJobDetails, getJobSummaries } from "@app/selectors/exploreJobs";
 import { intl } from "@app/utils/intl";
 // @ts-ignore
 import { Tooltip } from "dremio-ui-lib";
 import * as jobPaths from "dremio-ui-common/paths/jobs.js";
 import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
+import { JobSummary } from "@app/exports/types/JobSummary.type";
 
 import "./ExploreTableJobStatus.less";
 
@@ -99,19 +100,20 @@ const jobStatusNames = {
 
 type ExploreTableJobStatusProps = {
   approximate: boolean;
+  jobSummary: JobSummary | undefined;
+  version: string;
+
   //connected
-  jobDetails: any;
   jobProgress: any;
   jobId: string;
   haveRows: boolean;
-  version: string;
   jobAttempts: number;
   runStatus: string;
 };
 
 const ExploreTableJobStatus = (props: ExploreTableJobStatusProps) => {
   const {
-    jobDetails,
+    jobSummary,
     jobProgress,
     jobId,
     jobAttempts,
@@ -119,34 +121,29 @@ const ExploreTableJobStatus = (props: ExploreTableJobStatusProps) => {
     haveRows,
     runStatus,
   } = props;
+
   const projectId = getSonarContext()?.getSelectedProjectId?.();
   const isComplete = jobProgress?.status === JOB_STATUS.completed;
-  const jobProgressStatus = runStatus
+  const jobType = runStatus
     ? formatMessage({ id: "Explore.Run" })
     : formatMessage({ id: "Explore.Preview" });
-  const jobType =
-    jobDetails?.queryType === "UI_RUN"
-      ? formatMessage({ id: "Explore.Run" })
-      : jobDetails?.queryType === "UI_PREVIEW"
-      ? formatMessage({ id: "Explore.Preview" })
-      : jobProgressStatus;
 
   const showResultsWarning = useMemo(() => {
-    return isComplete && jobDetails?.stats?.isOutputLimited;
-  }, [isComplete, jobDetails?.stats?.isOutputLimited]);
+    return isComplete && jobSummary?.outputLimited;
+  }, [isComplete, jobSummary?.outputLimited]);
 
   const jobStatus = {
     label: formatMessage({
       id: `Explore.${isComplete ? "Rows" : "Status"}`,
     }),
     value: isComplete
-      ? !jobDetails?.outputRecords
+      ? !jobSummary?.outputRecords
         ? "-"
         : showResultsWarning
-        ? jobDetails.outputRecords > 100000
-          ? ">100K"
-          : "<100K"
-        : jobDetails?.outputRecords?.toLocaleString() ?? "-"
+          ? jobSummary.outputRecords > 100000
+            ? ">100K"
+            : "<100K"
+          : jobSummary.outputRecords.toLocaleString()
       : jobStatusNames[jobProgress?.status],
   };
 
@@ -160,9 +157,9 @@ const ExploreTableJobStatus = (props: ExploreTableJobStatusProps) => {
           formatter={jobsUtils.formatJobDuration}
         />
       );
-    } else if (jobDetails?.startTime && jobDetails?.endTime) {
+    } else if (jobSummary?.startTime && jobSummary.endTime) {
       return jobsUtils.formatJobDuration(
-        jobDetails.endTime - jobDetails.startTime
+        jobSummary.endTime - jobSummary.startTime,
       );
     } else {
       return null;
@@ -218,9 +215,8 @@ const ExploreTableJobStatus = (props: ExploreTableJobStatusProps) => {
                         id: "Explore.Run.NewWarning",
                       },
                       {
-                        rows:
-                          jobDetails?.outputRecords?.toLocaleString() ?? "-",
-                      }
+                        rows: jobSummary?.outputRecords.toLocaleString() ?? "-",
+                      },
                     )}
                   </p>
                 </>
@@ -246,7 +242,7 @@ const ExploreTableJobStatus = (props: ExploreTableJobStatusProps) => {
 
 function mapStateToProps(
   state: Record<string, any>,
-  props: ExploreTableJobStatusProps
+  props: ExploreTableJobStatusProps,
 ) {
   const { approximate, version } = props;
   const explorePageState = getExploreState(state);
@@ -255,14 +251,11 @@ function mapStateToProps(
   const jobId = queryStatuses[queryTabNumber - 1]?.jobId;
   const jobProgress = getJobProgress(state, version);
 
-  const jobList = getJobList(state);
-  const selectedJob = jobList.find((job: any) => job.get("id") === jobId);
-  let jobAttempts = 1;
-  if (selectedJob && selectedJob.get("totalAttempts")) {
-    jobAttempts = selectedJob.get("totalAttempts");
-  } else if (selectedJob && selectedJob.get("attemptDetails")) {
-    jobAttempts = selectedJob.get("attemptDetails").size;
-  }
+  const jobDetails = getAllJobDetails(state)[jobId];
+  const jobAttempts = jobDetails?.attemptDetails.length || 1;
+
+  const jobSummary = getJobSummaries(state)[jobId];
+
   const runStatus = getRunStatus(state).isRun;
 
   let haveRows = false;
@@ -275,16 +268,17 @@ function mapStateToProps(
 
   return {
     haveRows,
-    jobProgress,
-    jobId,
     jobAttempts,
+    jobId,
+    jobProgress,
+    jobSummary,
     runStatus,
   };
 }
 
 export default compose(
   connect(mapStateToProps),
-  withRouter
+  withRouter,
 )(ExploreTableJobStatus);
 
 export const styles = {

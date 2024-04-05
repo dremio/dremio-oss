@@ -15,9 +15,7 @@
  */
 package com.dremio.datastore.generator.supplier;
 
-/**
- * Enums for UniqueSupplier factories to distinguish different types of suppliers.
- */
+/** Enums for UniqueSupplier factories to distinguish different types of suppliers. */
 public enum UniqueSupplierOptions {
   VARIABLE_LENGTH,
   FIXED_LENGTH

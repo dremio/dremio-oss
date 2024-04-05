@@ -21,44 +21,54 @@ import static com.dremio.common.types.TypeProtos.MinorType.DECIMAL;
 import static com.dremio.common.types.TypeProtos.MinorType.LIST;
 import static com.dremio.common.types.TypeProtos.MinorType.MAP;
 
+import com.dremio.common.types.TypeProtos.DataMode;
+import com.dremio.common.types.TypeProtos.MinorType;
+import com.dremio.exec.proto.UserBitShared.SerializedField;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.NettyArrowBuf;
 import java.util.List;
-
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.DecimalVector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.common.types.TypeProtos.DataMode;
-import com.dremio.common.types.TypeProtos.MinorType;
-import com.dremio.exec.proto.UserBitShared.SerializedField;
-
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.NettyArrowBuf;
-
 /**
- * If Dremio client on the session is using record batch format older than 1.4,
- * we use this encoder to patch the decimal buffers sent by Dremio server to the client.
- * Dremio has moved to LE decimal format from version 1.4 onwards so this encoder
- * ensures backward compatibility with older clients.
+ * If Dremio client on the session is using record batch format older than 1.4, we use this encoder
+ * to patch the decimal buffers sent by Dremio server to the client. Dremio has moved to LE decimal
+ * format from version 1.4 onwards so this encoder ensures backward compatibility with older
+ * clients.
  */
 class Dremio09BackwardCompatibilityHandler extends BaseBackwardsCompatibilityHandler {
-  private static final Logger logger = LoggerFactory.getLogger(Dremio09BackwardCompatibilityHandler.class);
+  private static final Logger logger =
+      LoggerFactory.getLogger(Dremio09BackwardCompatibilityHandler.class);
 
-  Dremio09BackwardCompatibilityHandler (final BufferAllocator allocator) {
+  Dremio09BackwardCompatibilityHandler(final BufferAllocator allocator) {
     super(allocator);
   }
 
   /* patch the decimal buffers */
   @Override
-  public void patch(SerializedField.Builder field, ByteBuf[] buffers, int bufferStart,
-                    int buffersLength, String parentName, String indent) {
+  public void patch(
+      SerializedField.Builder field,
+      ByteBuf[] buffers,
+      int bufferStart,
+      int buffersLength,
+      String parentName,
+      String indent) {
     DataMode mode = field.getMajorType().getMode();
     MinorType minor = field.getMajorType().getMinorType();
     String name = field.getNamePart().getName();
     boolean changed = false;
     if (logger.isDebugEnabled()) {
-      logger.debug("{} BEFORE PATCH: buffers {} for field {}.{}: {} {} expecting {}", indent,
-        sizesString(buffers, bufferStart, buffersLength), parentName, name, mode, minor, field.getBufferLength());
+      logger.debug(
+          "{} BEFORE PATCH: buffers {} for field {}.{}: {} {} expecting {}",
+          indent,
+          sizesString(buffers, bufferStart, buffersLength),
+          parentName,
+          name,
+          mode,
+          minor,
+          field.getBufferLength());
     }
 
     List<SerializedField.Builder> children = field.getChildBuilderList();
@@ -79,9 +89,10 @@ class Dremio09BackwardCompatibilityHandler extends BaseBackwardsCompatibilityHan
           /* DecimalVector: {validityBuffer, dataBuffer} */
           final int decimalBufferIndex = 1;
           SerializedField.Builder decimalField = children.get(decimalBufferIndex);
-          final NettyArrowBuf decimalBuffer = (NettyArrowBuf)buffers[bufferStart + decimalBufferIndex];
+          final NettyArrowBuf decimalBuffer =
+              (NettyArrowBuf) buffers[bufferStart + decimalBufferIndex];
           if (decimalField.getMajorType().getMinorType() != DECIMAL
-            || decimalField.getMajorType().getMode() != REQUIRED) {
+              || decimalField.getMajorType().getMode() != REQUIRED) {
             throw new IllegalStateException("Found incorrect decimal field: " + field.build());
           }
           patchDecimal(decimalBuffer);
@@ -109,19 +120,27 @@ class Dremio09BackwardCompatibilityHandler extends BaseBackwardsCompatibilityHan
     }
 
     if (logger.isDebugEnabled() && changed) {
-      logger.debug("{} AFTER PATCH: buffers {} for field {}.{}: {} {} expecting {}", indent,
-        sizesString(buffers, bufferStart, buffersLength), parentName, name, mode, minor, field.getBufferLength());
+      logger.debug(
+          "{} AFTER PATCH: buffers {} for field {}.{}: {} {} expecting {}",
+          indent,
+          sizesString(buffers, bufferStart, buffersLength),
+          parentName,
+          name,
+          mode,
+          minor,
+          field.getBufferLength());
     }
   }
 
   /**
    * swap the bytes in place to get the BE byte order in NullableDecimalVector
+   *
    * @param dataBuffer data buffer of decimal vector
    */
   static void patchDecimal(final NettyArrowBuf dataBuffer) {
     final int decimalLength = DecimalVector.TYPE_WIDTH;
     int startPoint = dataBuffer.readerIndex();
-    final int valueCount = dataBuffer.readableBytes()/decimalLength;
+    final int valueCount = dataBuffer.readableBytes() / decimalLength;
     for (int i = 0; i < valueCount; i++) {
       for (int j = startPoint, k = startPoint + decimalLength - 1; j < k; j++, k--) {
         final byte firstByte = dataBuffer.getByte(j);

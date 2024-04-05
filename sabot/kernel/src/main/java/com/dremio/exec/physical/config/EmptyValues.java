@@ -15,10 +15,6 @@
  */
 package com.dremio.exec.physical.config;
 
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.physical.base.AbstractBase;
 import com.dremio.exec.physical.base.GroupScan;
@@ -32,6 +28,9 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
 
 public class EmptyValues extends AbstractBase implements SubScan {
 
@@ -39,15 +38,14 @@ public class EmptyValues extends AbstractBase implements SubScan {
 
   @JsonCreator
   public EmptyValues(
-      @JsonProperty("props") OpProps props,
-      @JsonProperty("fullSchema") BatchSchema schema
-      ) {
+      @JsonProperty("props") OpProps props, @JsonProperty("fullSchema") BatchSchema schema) {
     super(props);
     this.schema = schema;
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value) throws E {
+  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value)
+      throws E {
     return physicalVisitor.visitEmptyValues(this, value);
   }
 
@@ -79,7 +77,7 @@ public class EmptyValues extends AbstractBase implements SubScan {
   }
 
   @Override
-  public BatchSchema getFullSchema(){
+  public BatchSchema getFullSchema() {
     return schema;
   }
 

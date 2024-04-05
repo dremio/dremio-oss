@@ -15,28 +15,6 @@
  */
 package com.dremio.dac.daemon;
 
-import java.io.RandomAccessFile;
-import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Stream;
-
-import javax.inject.Provider;
-
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.util.TransferPair;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.carrotsearch.hppc.IntHashSet;
 import com.dremio.common.VM;
 import com.dremio.common.expression.LogicalExpression;
@@ -66,6 +44,25 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
+import java.io.RandomAccessFile;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Stream;
+import javax.inject.Provider;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.util.TransferPair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * ExprCachePrewarmService prewarms the compiled code cache on executor startup from serialized
@@ -82,7 +79,10 @@ public class ExprCachePrewarmService implements Service {
   private AtomicInteger numCached = new AtomicInteger(0);
   private List<Future<?>> projectSetupFutures = new ArrayList<>();
 
-  public ExprCachePrewarmService(Provider<SabotContext> sabotContextProvider, Provider<OptionManager> optionManagerProvider, BufferAllocator allocator) {
+  public ExprCachePrewarmService(
+      Provider<SabotContext> sabotContextProvider,
+      Provider<OptionManager> optionManagerProvider,
+      BufferAllocator allocator) {
     this.sabotContextProvider = sabotContextProvider;
     this.optionManagerProvider = optionManagerProvider;
     this.allocator = allocator;
@@ -90,7 +90,7 @@ public class ExprCachePrewarmService implements Service {
 
   @Override
   public void start() throws Exception {
-   String prewarmCache = System.getProperty(ExecConstants.CODE_CACHE_PREWARM_PROP);
+    String prewarmCache = System.getProperty(ExecConstants.CODE_CACHE_PREWARM_PROP);
     if (prewarmCache == null || !"true".equals(prewarmCache.toLowerCase())) {
       return;
     }
@@ -108,13 +108,16 @@ public class ExprCachePrewarmService implements Service {
     AtomicInteger numProjects = new AtomicInteger(0);
     try (Stream<Path> paths = Files.walk(Paths.get(location))) {
       paths
-        .filter(Files::isRegularFile)
-        .forEach(f -> {
-          projectSetupFutures.add(executorService.submit(() -> buildProjector(f)));
-          numProjects.addAndGet(1);
-        });
+          .filter(Files::isRegularFile)
+          .forEach(
+              f -> {
+                projectSetupFutures.add(executorService.submit(() -> buildProjector(f)));
+                numProjects.addAndGet(1);
+              });
     }
-    logger.info("Trying to build project expressions from {} files to prewarm the cache", numProjects.get());
+    logger.info(
+        "Trying to build project expressions from {} files to prewarm the cache",
+        numProjects.get());
   }
 
   @VisibleForTesting
@@ -153,7 +156,6 @@ public class ExprCachePrewarmService implements Service {
       int schemaLen = byteBuffer.getInt();
       size -= Integer.BYTES;
 
-
       if (size < schemaLen) {
         logger.warn("Invalid file {}. Failed to read the schema bytes", path.toString());
         return;
@@ -177,40 +179,48 @@ public class ExprCachePrewarmService implements Service {
       byteBuffer.get(exprsBytes);
 
       ObjectMapper objectMapper = new ObjectMapper();
-      objectMapper.registerModule(new SimpleModule().addDeserializer(LogicalExpression.class, new LogicalExpression.De()));
+      objectMapper.registerModule(
+          new SimpleModule().addDeserializer(LogicalExpression.class, new LogicalExpression.De()));
 
       BatchSchema schema = objectMapper.readValue(schemaBytes, BatchSchema.class);
-      List<NamedExpression> exprs = objectMapper.readValue(exprsBytes, new TypeReference<List<NamedExpression>>() {});
+      List<NamedExpression> exprs =
+          objectMapper.readValue(exprsBytes, new TypeReference<List<NamedExpression>>() {});
       Preconditions.checkArgument(exprs != null);
       Preconditions.checkArgument(schema != null);
 
-      try (BufferAllocator childAllocator = allocator.newChildAllocator("prewarm-cache-" + path.toString(), 0, Long.MAX_VALUE);
-           VectorContainer incoming = new VectorContainer(childAllocator);
-           VectorContainer output = new VectorContainer(childAllocator);
-           OperatorContextImpl context = getContext(childAllocator)) {
+      try (BufferAllocator childAllocator =
+              allocator.newChildAllocator("prewarm-cache-" + path.toString(), 0, Long.MAX_VALUE);
+          VectorContainer incoming = new VectorContainer(childAllocator);
+          VectorContainer output = new VectorContainer(childAllocator);
+          OperatorContextImpl context = getContext(childAllocator)) {
         incoming.addSchema(schema);
         incoming.buildSchema();
         //  build the projector
-        final ClassGenerator<Projector> cg = context.getClassProducer().createGenerator(Projector.TEMPLATE_DEFINITION).getRoot();
+        final ClassGenerator<Projector> cg =
+            context.getClassProducer().createGenerator(Projector.TEMPLATE_DEFINITION).getRoot();
         final IntHashSet transferFieldIds = new IntHashSet();
         final List<TransferPair> transfers = Lists.newArrayList();
 
         Stopwatch javaCodeGenWatch = Stopwatch.createUnstarted();
         Stopwatch gandivaCodeGenWatch = Stopwatch.createUnstarted();
-        try (ExpressionSplitter splitter = ProjectOperator.createSplitterWithExpressions(incoming, exprs, transfers, cg,
-          transferFieldIds, context, new ExpressionEvaluationOptions(context.getOptions()), output, null)){
+        try (ExpressionSplitter splitter =
+            ProjectOperator.createSplitterWithExpressions(
+                incoming,
+                exprs,
+                transfers,
+                cg,
+                transferFieldIds,
+                context,
+                new ExpressionEvaluationOptions(context.getOptions()),
+                output,
+                null)) {
           splitter.setupProjector(output, javaCodeGenWatch, gandivaCodeGenWatch);
         } catch (Exception e) {
           throw Throwables.propagate(e);
         }
         javaCodeGenWatch.start();
         Projector projector = cg.getCodeGenerator().getImplementationClass();
-        projector.setup(
-          context.getFunctionContext(),
-          incoming,
-          output,
-          transfers,
-          (name) -> null);
+        projector.setup(context.getFunctionContext(), incoming, output, transfers, (name) -> null);
         javaCodeGenWatch.stop();
 
         logger.info("Successfully built the project expressions from file {}", path.toString());
@@ -226,14 +236,37 @@ public class ExprCachePrewarmService implements Service {
     OptionManager optionManager = optionManagerProvider.get();
     SabotContext sabotContext = sabotContextProvider.get();
     CodeCompiler compiler = sabotContext.getCompiler();
-    FunctionLookupContext functionLookupContext = optionManager.getOption(PlannerSettings
-      .ENABLE_DECIMAL_V2)? sabotContext.getDecimalFunctionImplementationRegistry() : sabotContext
-      .getFunctionImplementationRegistry();
+    FunctionLookupContext functionLookupContext =
+        optionManager.getOption(PlannerSettings.ENABLE_DECIMAL_V2)
+            ? sabotContext.getDecimalFunctionImplementationRegistry()
+            : sabotContext.getFunctionImplementationRegistry();
     OperatorStats stats = new OperatorStats(new OpProfileDef(0, 0, 0), allocator);
-    return new OperatorContextImpl(null, null, null, null, allocator, allocator, compiler, stats,
-      null, null, null, functionLookupContext, null, optionManager,
-      null, null, 0, null, null, null, null, null, null,
-      sabotContext.getExpressionSplitCache(), null);
+    return new OperatorContextImpl(
+        null,
+        null,
+        null,
+        null,
+        allocator,
+        allocator,
+        compiler,
+        stats,
+        null,
+        null,
+        null,
+        functionLookupContext,
+        null,
+        optionManager,
+        null,
+        null,
+        0,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        sabotContext.getExpressionSplitCache(),
+        null);
   }
 
   @Override

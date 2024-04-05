@@ -15,6 +15,10 @@
  */
 package com.dremio.service.namespace;
 
+import com.google.common.base.Preconditions;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.collect.Iterables;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.HashSet;
@@ -26,23 +30,17 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 
-import com.google.common.base.Preconditions;
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.collect.Iterables;
-
-/**
- * Optimises for batch lookups. Not multi-thread safe.
- */
+/** Optimises for batch lookups. Not multi-thread safe. */
 public class BatchLookupOptimiser<K, V> {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BatchLookupOptimiser.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(BatchLookupOptimiser.class);
   private static final int BATCH_SIZE = 100;
   private final Set<K> keySet = new HashSet<>();
+
   @SuppressWarnings("NoGuavaCacheUsage") // TODO: fix as part of DX-51884
-  private final Cache<K, Optional<V>> cache = CacheBuilder.newBuilder()
-    .expireAfterWrite(Duration.ofSeconds(300))
-    .softValues()
-    .build();
+  private final Cache<K, Optional<V>> cache =
+      CacheBuilder.newBuilder().expireAfterWrite(Duration.ofSeconds(300)).softValues().build();
+
   private final Function<List<K>, List<V>> bulkGetter;
   private final AtomicLong numMisses = new AtomicLong();
   private volatile boolean fetchAllDone;
@@ -61,11 +59,15 @@ public class BatchLookupOptimiser<K, V> {
 
     // fetch from cache, or populate.
     try {
-      Optional<V> value = cache.get(key, () -> {
-        numMisses.getAndIncrement();
-        logger.debug("unexpected cache miss after batch lookup, the cache expiry interval may need to be increased");
-        return Optional.ofNullable(bulkGetter.apply(Collections.singletonList(key)).get(0));
-      });
+      Optional<V> value =
+          cache.get(
+              key,
+              () -> {
+                numMisses.getAndIncrement();
+                logger.debug(
+                    "unexpected cache miss after batch lookup, the cache expiry interval may need to be increased");
+                return Optional.ofNullable(bulkGetter.apply(Collections.singletonList(key)).get(0));
+              });
       return value.orElse(null);
     } catch (ExecutionException ex) {
       // not expected

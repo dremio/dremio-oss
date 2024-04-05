@@ -86,9 +86,14 @@ public class HadoopFsCacheWrapperPluginClassLoader implements HadoopFsSupplierPr
 
   @Override
   public Supplier<FileSystem> getHadoopFsSupplierPluginClassLoader(String path, Iterable<Map.Entry<String, String>> conf, String userName) {
+    return getHadoopFsSupplierPluginClassLoader(path, conf, userName, false);
+  }
+
+  @Override
+  public Supplier<FileSystem> getHadoopFsSupplierPluginClassLoader(String path, Iterable<Map.Entry<String, String>> conf, String userName, boolean hdfsC3CacheEnabled) {
     return () -> {
       try {
-        return  cache.get(new HadoopFsCacheKeyPluginClassLoader(new Path(path).toUri(), conf, userName));
+        return  cache.get(new HadoopFsCacheKeyPluginClassLoader(new Path(path).toUri(), conf, userName, hdfsC3CacheEnabled));
       } catch (ExecutionException e) {
         throw new RuntimeException(e);
       }

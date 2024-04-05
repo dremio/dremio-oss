@@ -15,13 +15,11 @@
  */
 package com.dremio.sabot.op.sort.external;
 
-import java.util.List;
-
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.common.exceptions.UserException;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
+import java.util.List;
+import org.apache.arrow.memory.BufferAllocator;
 
 public class ExternalSortTracer {
   private int targetBatchSizeInBytes;
@@ -49,7 +47,8 @@ public class ExternalSortTracer {
   /* Operator's allocator; passed to ExternalSortOperator as part of OperatorContext */
   private ExternalSortAllocatorState sortAllocatorState = new ExternalSortAllocatorState();
 
-  protected static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ExternalSortTracer.class);
+  protected static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ExternalSortTracer.class);
 
   public void setTargetBatchSizeInBytes(int targetBatchSizeInBytes) {
     this.targetBatchSizeInBytes = targetBatchSizeInBytes;
@@ -59,17 +58,18 @@ public class ExternalSortTracer {
     this.targetBatchSize = targetBatchSize;
   }
 
-  public void reserveMemoryForSpillOOMEvent(final long initReservation, final long maxAllocation,
-                                            BufferAllocator oldSpillCopyAllocator) {
+  public void reserveMemoryForSpillOOMEvent(
+      final long initReservation, final long maxAllocation, BufferAllocator oldSpillCopyAllocator) {
     ReserveMemoryForSpillOOMEvent reserveMemoryEvent =
-      new ReserveMemoryForSpillOOMEvent(initReservation, maxAllocation, oldSpillCopyAllocator);
+        new ReserveMemoryForSpillOOMEvent(initReservation, maxAllocation, oldSpillCopyAllocator);
     events.add(reserveMemoryEvent);
   }
 
-  public void reserveMemoryForDiskRunCopyOOMEvent(final long initReservation, final long maxAllocation,
-                                                  final long maxBatchSizeAllDiskRuns) {
+  public void reserveMemoryForDiskRunCopyOOMEvent(
+      final long initReservation, final long maxAllocation, final long maxBatchSizeAllDiskRuns) {
     ReserveMemoryForDiskRunCopyOOMEvent reserveMemoryEvent =
-      new ReserveMemoryForDiskRunCopyOOMEvent(initReservation, maxAllocation, maxBatchSizeAllDiskRuns);
+        new ReserveMemoryForDiskRunCopyOOMEvent(
+            initReservation, maxAllocation, maxBatchSizeAllDiskRuns);
     events.add(reserveMemoryEvent);
   }
 
@@ -101,8 +101,8 @@ public class ExternalSortTracer {
     this.maxBatchSizeSpilledInCurrentIteration = maxBatchSizeSpilled;
   }
 
-  public void setDiskRunState(int numDiskRuns, int spillCount, int mergeCount,
-                              int maxBatchSizeAllDiskRuns) {
+  public void setDiskRunState(
+      int numDiskRuns, int spillCount, int mergeCount, int maxBatchSizeAllDiskRuns) {
     this.numDiskRuns = numDiskRuns;
     this.spillCount = spillCount;
     this.mergeCount = mergeCount;
@@ -160,31 +160,45 @@ public class ExternalSortTracer {
     if (message != null) {
       exBuilder.addContext(message);
     }
-    //exBuilder.addContext("Detailed External Sort Error Tracing follows: \n\n" + toString() + Joiner.on("\n").join(events));
+    // exBuilder.addContext("Detailed External Sort Error Tracing follows: \n\n" + toString() +
+    // Joiner.on("\n").join(events));
     exBuilder.addContext("Target Batch Size (in bytes)", targetBatchSizeInBytes);
     exBuilder.addContext("Target Batch Size", targetBatchSize);
     exBuilder.addContext("Batches spilled in failed run", spilledBatchCount);
     exBuilder.addContext("Records spilled in failed run", totalRecordsSpilled);
-    exBuilder.addContext("Records to spill in current iteration of failed run", recordsToSpillInCurrentIteration);
-    exBuilder.addContext("Records spilled in current iteration of failed run", recordsSpilledInCurrentIteration);
-    exBuilder.addContext("Max batch size spilled in current iteration of failed run", maxBatchSizeSpilledInCurrentIteration);
+    exBuilder.addContext(
+        "Records to spill in current iteration of failed run", recordsToSpillInCurrentIteration);
+    exBuilder.addContext(
+        "Records spilled in current iteration of failed run", recordsSpilledInCurrentIteration);
+    exBuilder.addContext(
+        "Max batch size spilled in current iteration of failed run",
+        maxBatchSizeSpilledInCurrentIteration);
     exBuilder.addContext("Spilled Batch Schema of failed run", spilledBatchSchema);
-    exBuilder.addContext("Initial capacity for current iteration of failed run", initialCapacityForCurrentSpillIteration);
+    exBuilder.addContext(
+        "Initial capacity for current iteration of failed run",
+        initialCapacityForCurrentSpillIteration);
     exBuilder.addContext("Spill copy allocator-Name", spillCopyAllocatorState.name);
-    exBuilder.addContext("Spill copy allocator-Allocated memory", spillCopyAllocatorState.allocatedMemory);
+    exBuilder.addContext(
+        "Spill copy allocator-Allocated memory", spillCopyAllocatorState.allocatedMemory);
     exBuilder.addContext("Spill copy allocator-Max allowed", spillCopyAllocatorState.maxAllowed);
-    exBuilder.addContext("Spill copy allocator-Init Reservation", spillCopyAllocatorState.initReservation);
-    exBuilder.addContext("Spill copy allocator-Peak allocated", spillCopyAllocatorState.peakAllocation);
+    exBuilder.addContext(
+        "Spill copy allocator-Init Reservation", spillCopyAllocatorState.initReservation);
+    exBuilder.addContext(
+        "Spill copy allocator-Peak allocated", spillCopyAllocatorState.peakAllocation);
     exBuilder.addContext("Spill copy allocator-Head room", spillCopyAllocatorState.headRoom);
     exBuilder.addContext("Disk runs", numDiskRuns);
     exBuilder.addContext("Spill count", spillCount);
     exBuilder.addContext("Merge count", mergeCount);
     exBuilder.addContext("Max batch size amongst all disk runs", maxBatchSizeAllDiskRuns);
     exBuilder.addContext("Disk run copy allocator-Name", diskRunCopyAllocatorState.name);
-    exBuilder.addContext("Disk run copy allocator-Allocated memory", diskRunCopyAllocatorState.allocatedMemory);
-    exBuilder.addContext("Disk run copy allocator-Max allowed", diskRunCopyAllocatorState.maxAllowed);
-    exBuilder.addContext("Disk run copy allocator-Init Reservation", diskRunCopyAllocatorState.initReservation);
-    exBuilder.addContext("Disk run copy allocator-Peak allocated", diskRunCopyAllocatorState.peakAllocation);
+    exBuilder.addContext(
+        "Disk run copy allocator-Allocated memory", diskRunCopyAllocatorState.allocatedMemory);
+    exBuilder.addContext(
+        "Disk run copy allocator-Max allowed", diskRunCopyAllocatorState.maxAllowed);
+    exBuilder.addContext(
+        "Disk run copy allocator-Init Reservation", diskRunCopyAllocatorState.initReservation);
+    exBuilder.addContext(
+        "Disk run copy allocator-Peak allocated", diskRunCopyAllocatorState.peakAllocation);
     exBuilder.addContext("Disk run copy allocator-Head room", diskRunCopyAllocatorState.headRoom);
     exBuilder.addContext("Sort allocator-Name", sortAllocatorState.name);
     exBuilder.addContext("Sort allocator-Allocated memory", sortAllocatorState.allocatedMemory);
@@ -198,8 +212,7 @@ public class ExternalSortTracer {
   }
 
   private UserException.Builder getExceptionBuilder(final Exception ex, final String msg) {
-    final UserException.Builder exceptionBuilder =
-      UserException.memoryError(ex);
+    final UserException.Builder exceptionBuilder = UserException.memoryError(ex);
     return exceptionBuilder;
   }
 
@@ -215,17 +228,17 @@ public class ExternalSortTracer {
 
   private static class SpillCopyAllocatorState extends AllocatorState {
 
-    SpillCopyAllocatorState() { }
+    SpillCopyAllocatorState() {}
   }
 
   private static class DiskRunCopyAllocatorState extends AllocatorState {
 
-    DiskRunCopyAllocatorState() { }
+    DiskRunCopyAllocatorState() {}
   }
 
   private static class ExternalSortAllocatorState extends AllocatorState {
 
-    ExternalSortAllocatorState() { }
+    ExternalSortAllocatorState() {}
   }
 
   private static class ReserveMemoryForSpillOOMEvent {
@@ -239,8 +252,10 @@ public class ExternalSortTracer {
     private final long previousMaxAllocation;
     private final long previousInitReservation;
 
-    ReserveMemoryForSpillOOMEvent(final long initReservation, final long maxAllocation,
-                                  final BufferAllocator oldSpillCopyAllocator) {
+    ReserveMemoryForSpillOOMEvent(
+        final long initReservation,
+        final long maxAllocation,
+        final BufferAllocator oldSpillCopyAllocator) {
       this.failedInitReservation = initReservation;
       this.failedMaxAllocation = maxAllocation;
       if (oldSpillCopyAllocator != null) {
@@ -276,8 +291,8 @@ public class ExternalSortTracer {
     private final long failedMaxAllocation;
     private final long maxBatchSizeAllDiskRuns;
 
-    ReserveMemoryForDiskRunCopyOOMEvent(final long initReservation, final long maxAllocation,
-                                        final long maxBatchSizeAllDiskRuns) {
+    ReserveMemoryForDiskRunCopyOOMEvent(
+        final long initReservation, final long maxAllocation, final long maxBatchSizeAllDiskRuns) {
       this.failedInitReservation = initReservation;
       this.failedMaxAllocation = maxAllocation;
       this.maxBatchSizeAllDiskRuns = maxBatchSizeAllDiskRuns;

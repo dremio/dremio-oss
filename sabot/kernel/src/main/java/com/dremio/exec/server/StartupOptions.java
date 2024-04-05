@@ -15,28 +15,36 @@
  */
 package com.dremio.exec.server;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
+import java.util.ArrayList;
+import java.util.List;
 
 @Parameters(separators = "=")
 public class StartupOptions {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(StartupOptions.class);
 
-  @Parameter(names={"-h", "--help"}, description="Provide description of usage.", help=true)
+  @Parameter(
+      names = {"-h", "--help"},
+      description = "Provide description of usage.",
+      help = true)
   private boolean help = false;
 
-  @Parameter(names= {"-d", "--debug"}, description="Whether you want to run the program in debug mode.", required=false)
+  @Parameter(
+      names = {"-d", "--debug"},
+      description = "Whether you want to run the program in debug mode.",
+      required = false)
   private boolean debug = false;
 
-  @Parameter(names= {"-c", "--config"}, description="Configuration file you want to load.  Defaults to loading 'sabot-override.conf' from the classpath.", required=false)
+  @Parameter(
+      names = {"-c", "--config"},
+      description =
+          "Configuration file you want to load.  Defaults to loading 'sabot-override.conf' from the classpath.",
+      required = false)
   private String configLocation = null;
 
-  @Parameter
-  private List<String> exccess = new ArrayList<>();
+  @Parameter private List<String> exccess = new ArrayList<>();
 
   public boolean isDebug() {
     return debug;
@@ -54,11 +62,10 @@ public class StartupOptions {
     logger.debug("Parsing arguments.");
     StartupOptions args = new StartupOptions();
     JCommander jc = new JCommander(args, cliArgs);
-    if(args.help){
+    if (args.help) {
       jc.usage();
       System.exit(0);
     }
     return args;
   }
-
 }

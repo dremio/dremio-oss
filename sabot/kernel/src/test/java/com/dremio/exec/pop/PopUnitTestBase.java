@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.pop;
 
-import java.io.IOException;
-
 import com.dremio.exec.ExecTest;
 import com.dremio.exec.exception.FragmentSetupException;
 import com.dremio.exec.physical.PhysicalPlan;
@@ -26,6 +24,7 @@ import com.dremio.exec.planner.fragment.Fragment;
 import com.dremio.exec.planner.fragment.Fragment.ExchangeFragmentPair;
 import com.dremio.exec.planner.fragment.MakeFragmentsVisitor;
 import com.dremio.exec.work.foreman.ForemanSetupException;
+import java.io.IOException;
 
 public abstract class PopUnitTestBase extends ExecTest {
 
@@ -37,8 +36,8 @@ public abstract class PopUnitTestBase extends ExecTest {
     return i;
   }
 
-  public static Fragment getRootFragment(PhysicalPlanReader reader, String file) throws FragmentSetupException,
-      IOException, ForemanSetupException {
+  public static Fragment getRootFragment(PhysicalPlanReader reader, String file)
+      throws FragmentSetupException, IOException, ForemanSetupException {
     return getRootFragmentFromPlanString(reader, readResourceAsString(file));
   }
 

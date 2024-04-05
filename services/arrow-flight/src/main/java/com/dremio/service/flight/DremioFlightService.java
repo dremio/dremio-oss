@@ -17,30 +17,6 @@ package com.dremio.service.flight;
 
 import static com.dremio.config.DremioConfig.FLIGHT_USE_SESSION_SERVICE;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.StringWriter;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.security.GeneralSecurityException;
-import java.security.Key;
-import java.security.KeyStore;
-import java.security.cert.Certificate;
-import java.util.Enumeration;
-
-import javax.inject.Provider;
-
-import org.apache.arrow.flight.DremioFlightServer;
-import org.apache.arrow.flight.FlightServerMiddleware;
-import org.apache.arrow.flight.Location;
-import org.apache.arrow.memory.BufferAllocator;
-import org.bouncycastle.openssl.jcajce.JcaPEMWriter;
-import org.bouncycastle.util.io.pem.PemObject;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.config.DremioConfig;
 import com.dremio.exec.rpc.ssl.SSLConfigurator;
@@ -55,10 +31,30 @@ import com.dremio.services.credentials.CredentialsService;
 import com.dremio.ssl.SSLConfig;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.StringWriter;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.security.GeneralSecurityException;
+import java.security.Key;
+import java.security.KeyStore;
+import java.security.cert.Certificate;
+import java.util.Enumeration;
+import java.util.Optional;
+import javax.inject.Provider;
+import org.apache.arrow.flight.DremioFlightServer;
+import org.apache.arrow.flight.FlightServerMiddleware;
+import org.apache.arrow.flight.Location;
+import org.apache.arrow.memory.BufferAllocator;
+import org.bouncycastle.openssl.jcajce.JcaPEMWriter;
+import org.bouncycastle.util.io.pem.PemObject;
 
-/**
- * Service which manages a Flight endpoint.
- */
+/** Service which manages a Flight endpoint. */
 public class DremioFlightService implements Service {
   // Flight SSL configuration
   public static final String FLIGHT_SSL_PREFIX = "services.flight.ssl.";
@@ -71,10 +67,12 @@ public class DremioFlightService implements Service {
   public static final String FLIGHT_AUTH2_AUTH_MODE = "arrow.flight.auth2";
 
   public static final String FLIGHT_CLIENT_PROPERTIES_MIDDLEWARE = "client-properties-middleware";
-  public static final FlightServerMiddleware.Key<ServerCookieMiddleware> FLIGHT_CLIENT_PROPERTIES_MIDDLEWARE_KEY
-    = FlightServerMiddleware.Key.of(FLIGHT_CLIENT_PROPERTIES_MIDDLEWARE);
+  public static final FlightServerMiddleware.Key<ServerCookieMiddleware>
+      FLIGHT_CLIENT_PROPERTIES_MIDDLEWARE_KEY =
+          FlightServerMiddleware.Key.of(FLIGHT_CLIENT_PROPERTIES_MIDDLEWARE);
 
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DremioFlightService.class);
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(DremioFlightService.class);
 
   private final Provider<DremioConfig> configProvider;
   private final Provider<BufferAllocator> bufferAllocator;
@@ -93,35 +91,44 @@ public class DremioFlightService implements Service {
   private volatile DremioFlightServer server;
   private BufferAllocator allocator;
 
-  public DremioFlightService(Provider<DremioConfig> configProvider,
-                             Provider<BufferAllocator> bufferAllocator,
-                             Provider<UserWorker> userWorkerProvider,
-                             Provider<SabotContext> sabotContextProvider,
-                             Provider<TokenManager> tokenManagerProvider,
-                             Provider<OptionManager> optionManagerProvider,
-                             Provider<UserSessionService> userSessionServiceProvider,
-                             Provider<DremioFlightAuthProvider> authProvider,
-                             Provider<FlightRequestContextDecorator> requestContextDecoratorProvider,
-                             Provider<CredentialsService> credentialsServiceProvider) {
-    this(configProvider, bufferAllocator, userWorkerProvider,
-      sabotContextProvider, tokenManagerProvider, optionManagerProvider, userSessionServiceProvider,
-      authProvider, requestContextDecoratorProvider, credentialsServiceProvider,
-      RunQueryResponseHandlerFactory.DEFAULT);
+  public DremioFlightService(
+      Provider<DremioConfig> configProvider,
+      Provider<BufferAllocator> bufferAllocator,
+      Provider<UserWorker> userWorkerProvider,
+      Provider<SabotContext> sabotContextProvider,
+      Provider<TokenManager> tokenManagerProvider,
+      Provider<OptionManager> optionManagerProvider,
+      Provider<UserSessionService> userSessionServiceProvider,
+      Provider<DremioFlightAuthProvider> authProvider,
+      Provider<FlightRequestContextDecorator> requestContextDecoratorProvider,
+      Provider<CredentialsService> credentialsServiceProvider) {
+    this(
+        configProvider,
+        bufferAllocator,
+        userWorkerProvider,
+        sabotContextProvider,
+        tokenManagerProvider,
+        optionManagerProvider,
+        userSessionServiceProvider,
+        authProvider,
+        requestContextDecoratorProvider,
+        credentialsServiceProvider,
+        RunQueryResponseHandlerFactory.DEFAULT);
   }
 
   @VisibleForTesting
-  DremioFlightService(Provider<DremioConfig> configProvider,
-                      Provider<BufferAllocator> bufferAllocator,
-                      Provider<UserWorker> userWorkerProvider,
-                      Provider<SabotContext> sabotContextProvider,
-                      Provider<TokenManager> tokenManagerProvider,
-                      Provider<OptionManager> optionManagerProvider,
-                      Provider<UserSessionService> userSessionServiceProvider,
-                      Provider<DremioFlightAuthProvider> authProvider,
-                      Provider<FlightRequestContextDecorator> requestContextDecoratorProvider,
-                      Provider<CredentialsService> credentialsServiceProvider,
-                      RunQueryResponseHandlerFactory runQueryResponseHandlerFactory
-  ) {
+  DremioFlightService(
+      Provider<DremioConfig> configProvider,
+      Provider<BufferAllocator> bufferAllocator,
+      Provider<UserWorker> userWorkerProvider,
+      Provider<SabotContext> sabotContextProvider,
+      Provider<TokenManager> tokenManagerProvider,
+      Provider<OptionManager> optionManagerProvider,
+      Provider<UserSessionService> userSessionServiceProvider,
+      Provider<DremioFlightAuthProvider> authProvider,
+      Provider<FlightRequestContextDecorator> requestContextDecoratorProvider,
+      Provider<CredentialsService> credentialsServiceProvider,
+      RunQueryResponseHandlerFactory runQueryResponseHandlerFactory) {
     this.configProvider = configProvider;
     this.bufferAllocator = bufferAllocator;
     this.sabotContextProvider = sabotContextProvider;
@@ -137,16 +144,22 @@ public class DremioFlightService implements Service {
 
   @Override
   public void start() throws Exception {
-    Preconditions.checkArgument(server == null, "Flight Service should not be started more than once.");
+    Preconditions.checkArgument(
+        server == null, "Flight Service should not be started more than once.");
     logger.info("Starting Flight Service");
 
     final DremioConfig config = configProvider.get();
 
-    allocator = bufferAllocator.get().newChildAllocator("flight-service-allocator", 0, Long.MAX_VALUE);
-    if (config.hasPath(FLIGHT_USE_SESSION_SERVICE) && config.getBoolean(FLIGHT_USE_SESSION_SERVICE)) {
-      dremioFlightSessionsManager = new SessionServiceFlightSessionsManager(sabotContextProvider, tokenManagerProvider, userSessionServiceProvider);
+    allocator =
+        bufferAllocator.get().newChildAllocator("flight-service-allocator", 0, Long.MAX_VALUE);
+    if (config.hasPath(FLIGHT_USE_SESSION_SERVICE)
+        && config.getBoolean(FLIGHT_USE_SESSION_SERVICE)) {
+      dremioFlightSessionsManager =
+          new SessionServiceFlightSessionsManager(
+              sabotContextProvider, tokenManagerProvider, userSessionServiceProvider);
     } else {
-      dremioFlightSessionsManager = new TokenCacheFlightSessionManager(sabotContextProvider, tokenManagerProvider);
+      dremioFlightSessionsManager =
+          new TokenCacheFlightSessionManager(sabotContextProvider, tokenManagerProvider);
     }
 
     final int port = config.getInt(DremioConfig.FLIGHT_SERVICE_PORT_INT);
@@ -154,48 +167,66 @@ public class DremioFlightService implements Service {
     final String wildcardAddress = new InetSocketAddress(port).getHostName();
     final Location location = getLocation(wildcardAddress, port);
 
-    DremioFlightServer.Builder builder = DremioFlightServer.builder()
-      .location(location)
-      .allocator(allocator)
-      .automaticFlowControl(Boolean.getBoolean("dremio.services.arrow-flight.automatic-flow-control"))
-      .maxInboundMessageSize(Integer.getInteger("dremio.services.arrow-flight.max-message-size", Integer.MAX_VALUE))
-      .maxInboundMetadataSize(Integer.getInteger("dremio.services.arrow-flight.max-metadata-size", 0))
-      .keepAliveTime(Integer.getInteger("dremio.services.arrow-flight.keep-alive-time", 240))
-      .clientKeepAliveInterval(Integer.getInteger("dremio.services.arrow-flight.client-keep-alive-interval", 120))
-      .idleTimeout(Integer.getInteger("dremio.services.arrow-flight.idle-timeout", 30))
-      .maxConnectionAgeGrace(Integer.getInteger("dremio.services.arrow-flight.max-connection-age-grace", 0))
-      .maxConnectionAge(Integer.getInteger("dremio.services.arrow-flight.max-connection-age", 0))
-      .producer(new DremioFlightProducer(location, dremioFlightSessionsManager, userWorkerProvider,
-        optionManagerProvider, allocator, requestContextDecoratorProvider, runQueryResponseHandlerFactory));
+    DremioFlightServer.Builder builder =
+        DremioFlightServer.builder()
+            .location(location)
+            .allocator(allocator)
+            .automaticFlowControl(
+                Boolean.getBoolean("dremio.services.arrow-flight.automatic-flow-control"))
+            .maxInboundMessageSize(
+                Integer.getInteger(
+                    "dremio.services.arrow-flight.max-message-size", Integer.MAX_VALUE))
+            .maxInboundMetadataSize(
+                Integer.getInteger("dremio.services.arrow-flight.max-metadata-size", 0))
+            .keepAliveTime(Integer.getInteger("dremio.services.arrow-flight.keep-alive-time", 240))
+            .clientKeepAliveInterval(
+                Integer.getInteger("dremio.services.arrow-flight.client-keep-alive-interval", 120))
+            .idleTimeout(Integer.getInteger("dremio.services.arrow-flight.idle-timeout", 30))
+            .maxConnectionAgeGrace(
+                Integer.getInteger("dremio.services.arrow-flight.max-connection-age-grace", 0))
+            .maxConnectionAge(
+                Integer.getInteger("dremio.services.arrow-flight.max-connection-age", 0))
+            .producer(
+                new DremioFlightProducer(
+                    Optional.empty(),
+                    dremioFlightSessionsManager,
+                    userWorkerProvider,
+                    optionManagerProvider,
+                    allocator,
+                    requestContextDecoratorProvider,
+                    runQueryResponseHandlerFactory));
 
-    builder.middleware(FLIGHT_CLIENT_PROPERTIES_MIDDLEWARE_KEY,
-      new ServerCookieMiddleware.Factory());
+    builder.middleware(
+        FLIGHT_CLIENT_PROPERTIES_MIDDLEWARE_KEY, new ServerCookieMiddleware.Factory());
 
     authProvider.get().addAuthHandler(builder, dremioFlightSessionsManager);
 
     if (config.getBoolean(FLIGHT_SSL_ENABLED)) {
-      final SSLConfig sslConfig = getSSLConfig(config, new SSLConfigurator(config, credentialsServiceProvider, FLIGHT_SSL_PREFIX, "flight"));
+      final SSLConfig sslConfig =
+          getSSLConfig(
+              config,
+              new SSLConfigurator(config, credentialsServiceProvider, FLIGHT_SSL_PREFIX, "flight"));
       addTlsProperties(builder, sslConfig);
     }
 
     server = builder.build();
     server.start();
 
-    logger.info("Started Flight Service at {} on port {}.", config.getThisNode(), port);
+    logger.info("Flight Service started at {} on port {}.", config.getThisNode(), port);
   }
 
   @Override
   public void close() throws Exception {
     logger.info("Stopping Flight Service");
     AutoCloseables.close(server, allocator, dremioFlightSessionsManager);
-    logger.info("Stopped Flight Service");
+    logger.info("Flight Service stopped");
   }
 
   /**
    * Create the Flight Location to be used in the server builder.
    *
    * @param address The address.
-   * @param port  The port.
+   * @param port The port.
    * @return The Location
    */
   protected Location getLocation(String address, int port) {
@@ -212,16 +243,20 @@ public class DremioFlightService implements Service {
 
   /**
    * Create an SSL Configuration based on Dremio configuration settings.
-   * @param config  The Dremio configuration.
+   *
+   * @param config The Dremio configuration.
    * @param sslConfigurator The SSL Configurator used to build the SSL configuration from.
    * @return an SSLConfig
    */
   @VisibleForTesting
-  protected SSLConfig getSSLConfig(DremioConfig config, SSLConfigurator sslConfigurator)  {
+  protected SSLConfig getSSLConfig(DremioConfig config, SSLConfigurator sslConfigurator) {
     try {
-      // Disable peer validation for user-facing services, as we do with the web and client RPC SSL configurations.
-      return sslConfigurator.getSSLConfig(true,
-        config.getThisNode(), InetAddress.getLocalHost().getCanonicalHostName()).get();
+      // Disable peer validation for user-facing services, as we do with the web and client RPC SSL
+      // configurations.
+      return sslConfigurator
+          .getSSLConfig(
+              true, config.getThisNode(), InetAddress.getLocalHost().getCanonicalHostName())
+          .get();
     } catch (GeneralSecurityException | IOException ex) {
       throw new RuntimeException(ex);
     }
@@ -229,15 +264,17 @@ public class DremioFlightService implements Service {
 
   /**
    * Add TLS properties to the given builder and return the SSL Configuration used.
+   *
    * @param builder The server builder.
    * @param sslConfig The SSL configuration.
-   * @return  The SSL configuration. This is returned to make the SSLConfig accessible by
-   * unit tests while avoiding storing the SSLConfig on the service.
+   * @return The SSL configuration. This is returned to make the SSLConfig accessible by unit tests
+   *     while avoiding storing the SSLConfig on the service.
    */
   private void addTlsProperties(DremioFlightServer.Builder builder, SSLConfig sslConfig) {
     try {
       final KeyStore keyStore = KeyStore.getInstance(sslConfig.getKeyStoreType());
-      try (final InputStream keyStoreStream = Files.newInputStream(Paths.get(sslConfig.getKeyStorePath()))) {
+      try (final InputStream keyStoreStream =
+          Files.newInputStream(Paths.get(sslConfig.getKeyStorePath()))) {
         keyStore.load(keyStoreStream, sslConfig.getKeyStorePassword().toCharArray());
       }
 
@@ -263,7 +300,7 @@ public class DremioFlightService implements Service {
 
   private static InputStream toInputStream(Key key) throws IOException {
     try (final StringWriter writer = new StringWriter();
-         final JcaPEMWriter pemWriter = new JcaPEMWriter(writer)) {
+        final JcaPEMWriter pemWriter = new JcaPEMWriter(writer)) {
       pemWriter.writeObject(new PemObject("PRIVATE KEY", key.getEncoded()));
       pemWriter.flush();
       return new ByteArrayInputStream(writer.toString().getBytes(StandardCharsets.UTF_8));
@@ -272,7 +309,7 @@ public class DremioFlightService implements Service {
 
   private static InputStream toInputStream(Certificate[] certificates) throws IOException {
     try (final StringWriter writer = new StringWriter();
-         final JcaPEMWriter pemWriter = new JcaPEMWriter(writer)) {
+        final JcaPEMWriter pemWriter = new JcaPEMWriter(writer)) {
       for (Certificate certificate : certificates) {
         pemWriter.writeObject(certificate);
       }

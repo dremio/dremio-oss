@@ -15,10 +15,9 @@
  */
 package com.dremio.exec.store.schedule;
 
-import java.util.List;
-
 import com.dremio.exec.physical.EndpointAffinity;
 import com.google.common.collect.ImmutableList;
+import java.util.List;
 
 public class SimpleCompleteWork implements CompleteWork {
 
@@ -53,5 +52,4 @@ public class SimpleCompleteWork implements CompleteWork {
   public long getTotalBytes() {
     return size;
   }
-
 }

@@ -17,22 +17,22 @@ package com.dremio.exec.store.hive;
 
 import com.dremio.exec.catalog.conf.DisplayMetadata;
 import com.dremio.exec.store.StoragePlugin;
-
 import io.protostuff.Tag;
 
-/**
- * Configuration for the Hive storage plugin
- */
-public abstract class HiveStoragePluginConfig extends BaseHiveStoragePluginConfig<HiveStoragePluginConfig, StoragePlugin> {
-  /**
-   * Type of authorization used for this source
-   */
+/** Configuration for the Hive storage plugin */
+public abstract class HiveStoragePluginConfig
+    extends BaseHiveStoragePluginConfig<HiveStoragePluginConfig, StoragePlugin> {
+  /** Type of authorization used for this source */
   public enum AuthorizationType {
-    @Tag(1) @DisplayMetadata(label = "Storage Based with User Impersonation") STORAGE,
-    @Tag(2) @DisplayMetadata(label = "SQL Based") SQL,
+    @Tag(1)
+    @DisplayMetadata(label = "Storage Based with User Impersonation")
+    STORAGE,
+    @Tag(2)
+    @DisplayMetadata(label = "SQL Based")
+    SQL,
   }
 
-  //  Note: Tags 1-5, 11-14  come from BaseHiveStoragePluginConf
+  //  Note: the below come from BaseHiveStoragePluginConf
   //  optional string hostname = 1;
   //  optional int32 port = 2 [default = 9083];
   //  optional bool enableSasl = 3 [default = false];
@@ -42,6 +42,12 @@ public abstract class HiveStoragePluginConfig extends BaseHiveStoragePluginConfi
   //  optional bool isCachingEnabledForS3AndAzureStorage = 12;
   //  optional bool isCachingEnabledForHDFS = 13;
   //  optional int32 maxCacheSpacePct = 14;
+  //  optional DefaultCtasFormatSelection defaultCtasFormat = 15;
+  //  hiveMajorVersion = 16;
+  //  List<String> secretPropertyList = 20;
+  //  List<String> allowedDatabases = 21;
+  //
+  //  Note: the below come from this file
   //  optional bool authType = 6;
 
   /*

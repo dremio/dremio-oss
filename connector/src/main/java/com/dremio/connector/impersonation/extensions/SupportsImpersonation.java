@@ -15,9 +15,7 @@
  */
 package com.dremio.connector.impersonation.extensions;
 
-/**
- * This is an optional interface.  Used for sources that support impersonation.
- */
+/** This is an optional interface. Used for sources that support impersonation. */
 public interface SupportsImpersonation {
   boolean isImpersonationEnabled();
 }

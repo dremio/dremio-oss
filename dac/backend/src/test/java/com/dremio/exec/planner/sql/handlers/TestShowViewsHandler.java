@@ -21,28 +21,12 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.UUID;
-import java.util.stream.Stream;
-
-import org.apache.calcite.sql.SqlIdentifier;
-import org.apache.calcite.sql.SqlLiteral;
-import org.apache.calcite.sql.parser.SqlParserPos;
-import org.assertj.core.api.Assertions;
-import org.junit.Rule;
-import org.junit.Test;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
-import org.mockito.quality.Strictness;
-
+import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.catalog.model.VersionContext;
+import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.VersionedPlugin;
 import com.dremio.exec.planner.sql.handlers.direct.ShowViewsHandler;
 import com.dremio.exec.planner.sql.parser.ReferenceType;
 import com.dremio.exec.planner.sql.parser.SqlShowViews;
@@ -56,6 +40,24 @@ import com.dremio.plugins.dataplane.store.DataplanePlugin;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.collect.ImmutableList;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.Stream;
+import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlLiteral;
+import org.apache.calcite.sql.parser.SqlParserPos;
+import org.assertj.core.api.Assertions;
+import org.junit.Rule;
+import org.junit.Test;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
+import org.mockito.quality.Strictness;
 
 public class TestShowViewsHandler {
   private static final String STATEMENT_SOURCE_NAME = "source_name";
@@ -68,53 +70,63 @@ public class TestShowViewsHandler {
   private static final String STATEMENT_COMMIT_HASH = "DEADBEEFDEADBEEF";
   private static final String SESSION_BRANCH_NAME = "session_branch_name";
 
-  @Rule
-  public MockitoRule rule = MockitoJUnit.rule().strictness(Strictness.STRICT_STUBS);
+  @Rule public MockitoRule rule = MockitoJUnit.rule().strictness(Strictness.STRICT_STUBS);
 
-  @Mock
-  private OptionManager optionManager;
+  @Mock private OptionManager optionManager;
   @Mock private Catalog catalog;
   @Mock private UserSession userSession;
   @Mock private DataplanePlugin dataplanePlugin;
 
-  @InjectMocks
-  private ShowViewsHandler showViewsHandler;
+  @InjectMocks private ShowViewsHandler showViewsHandler;
 
   @Test // SHOW VIEWS
   public void showViewsSupportKeyDisabledThrows() {
     // Arrange
     // Note that it gets session source first to determine whether source is versioned or not.
-    setUpSessionSource();
-    when(optionManager.getOption(ENABLE_USE_VERSION_SYNTAX))
-      .thenReturn(false);
+    when(userSession.getSessionVersionForSource(SESSION_SOURCE_NAME))
+        .thenReturn(VersionContext.ofBranch(SESSION_BRANCH_NAME));
+    when(catalog.containerExists(
+            CatalogEntityKey.newBuilder()
+                .keyComponents(ImmutableList.of(SESSION_SOURCE_NAME))
+                .tableVersionContext(
+                    TableVersionContext.of(VersionContext.ofBranch(SESSION_BRANCH_NAME)))
+                .build()))
+        .thenReturn(true);
+    when(catalog.getSource(SESSION_SOURCE_NAME)).thenReturn(dataplanePlugin);
+    when(dataplanePlugin.isWrapperFor(VersionedPlugin.class)).thenReturn(true);
+    List<String> path = ImmutableList.of(SESSION_SOURCE_NAME);
+    when(userSession.getDefaultSchemaPath()).thenReturn(new NamespaceKey(path));
+    when(optionManager.getOption(ENABLE_USE_VERSION_SYNTAX)).thenReturn(false);
 
     SqlShowViews input = TestShowViewsHandler.SqlShowViewsBuilder.builder().build();
 
     // Act and Assert
     assertThatThrownBy(() -> showViewsHandler.toResult("", input))
-      .isInstanceOf(UserException.class)
-      .hasMessageContaining("SHOW VIEWS")
-      .hasMessageContaining("not supported");
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining("SHOW VIEWS")
+        .hasMessageContaining("not supported");
   }
 
   @Test
   public void showViewsNonExistentSource() {
     // Arrange
-    SqlShowViews input = TestShowViewsHandler.SqlShowViewsBuilder.builder()
-      .withReference(ReferenceType.REFERENCE, STATEMENT_REF_NAME)
-      .withSource(NON_EXISTENT_SOURCE_NAME)
-      .build();
-
+    SqlShowViews input =
+        TestShowViewsHandler.SqlShowViewsBuilder.builder()
+            .withReference(ReferenceType.REFERENCE, STATEMENT_REF_NAME)
+            .withSource(NON_EXISTENT_SOURCE_NAME)
+            .build();
+    when(userSession.getSessionVersionForSource(NON_EXISTENT_SOURCE_NAME))
+        .thenReturn(VersionContext.NOT_SPECIFIED);
     when(userSession.getDefaultSchemaPath())
-      .thenReturn(new NamespaceKey(Arrays.asList(SESSION_SOURCE_NAME, "unusedFolder")));
+        .thenReturn(new NamespaceKey(Arrays.asList(SESSION_SOURCE_NAME, "unusedFolder")));
 
     // Assert + Act
     Assertions.assertThatThrownBy(() -> showViewsHandler.toResult("", input))
-      .isInstanceOf(UserException.class)
-      .hasMessageContaining("does not exist");
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining("does not exist");
   }
 
-  @Test //SHOW VIEWS
+  @Test // SHOW VIEWS
   public void showViewsReturnsViewResult() throws Exception {
 
     // Arrange
@@ -126,17 +138,17 @@ public class TestShowViewsHandler {
     ExternalNamespaceEntry viewEntry2 = createRandomViewEntry();
 
     when(dataplanePlugin.listViewsIncludeNested(
-      Collections.emptyList(),
-      VersionContext.ofBranch(SESSION_BRANCH_NAME)))
-      .thenReturn(Stream.of(viewEntry1, viewEntry2));
+            Collections.emptyList(), VersionContext.ofBranch(SESSION_BRANCH_NAME)))
+        .thenReturn(Stream.of(viewEntry1, viewEntry2));
 
     SqlShowViews input = TestShowViewsHandler.SqlShowViewsBuilder.builder().build();
 
     // Act
- List<ShowViewsHandler.ShowViewResult> result = showViewsHandler.toResult("", input);
+    List<ShowViewsHandler.ShowViewResult> result = showViewsHandler.toResult("", input);
 
     // Assert
-    List<ShowViewsHandler.ShowViewResult> expectedViewInfoList = createExpectedShowViewResultList(SESSION_SOURCE_NAME, viewEntry1, viewEntry2);
+    List<ShowViewsHandler.ShowViewResult> expectedViewInfoList =
+        createExpectedShowViewResultList(SESSION_SOURCE_NAME, viewEntry1, viewEntry2);
     assertThat(result).hasSize(2);
     assertThat(result).isEqualTo(expectedViewInfoList);
   }
@@ -152,9 +164,8 @@ public class TestShowViewsHandler {
     ExternalNamespaceEntry viewEntry = createRandomViewEntry();
 
     when(dataplanePlugin.listViewsIncludeNested(
-      ImmutableList.of(nestedFolder),
-      VersionContext.ofBranch(SESSION_BRANCH_NAME)))
-      .thenReturn(Stream.of(viewEntry));
+            ImmutableList.of(nestedFolder), VersionContext.ofBranch(SESSION_BRANCH_NAME)))
+        .thenReturn(Stream.of(viewEntry));
 
     SqlShowViews input = TestShowViewsHandler.SqlShowViewsBuilder.builder().build();
 
@@ -162,7 +173,8 @@ public class TestShowViewsHandler {
     List<ShowViewsHandler.ShowViewResult> result = showViewsHandler.toResult("", input);
 
     // Assert
-    ShowViewsHandler.ShowViewResult  expectedViewInfo = createExpectedShowViewResult(SESSION_SOURCE_NAME, viewEntry);
+    ShowViewsHandler.ShowViewResult expectedViewInfo =
+        createExpectedShowViewResult(SESSION_SOURCE_NAME, viewEntry);
     assertThat(result).hasSize(1);
     assertThat(result.get(0)).isEqualTo(expectedViewInfo);
   }
@@ -174,13 +186,18 @@ public class TestShowViewsHandler {
     setUpStatementSource(nestedFolder);
     setUpStatementSourceVersion();
     setUpSupportKeys();
-
+    when(catalog.containerExists(
+            CatalogEntityKey.newBuilder()
+                .keyComponents(ImmutableList.of(STATEMENT_SOURCE_NAME, nestedFolder))
+                .tableVersionContext(
+                    TableVersionContext.of(VersionContext.ofBranch(SESSION_BRANCH_NAME)))
+                .build()))
+        .thenReturn(true);
     ExternalNamespaceEntry viewEntry = createRandomViewEntry();
 
     when(dataplanePlugin.listViewsIncludeNested(
-      ImmutableList.of(nestedFolder),
-      VersionContext.ofBranch(SESSION_BRANCH_NAME)))
-      .thenReturn(Stream.of(viewEntry));
+            ImmutableList.of(nestedFolder), VersionContext.ofBranch(SESSION_BRANCH_NAME)))
+        .thenReturn(Stream.of(viewEntry));
 
     SqlShowViews input = TestShowViewsHandler.SqlShowViewsBuilder.builder().build();
 
@@ -188,7 +205,8 @@ public class TestShowViewsHandler {
     List<ShowViewsHandler.ShowViewResult> result = showViewsHandler.toResult("", input);
 
     // Assert
-    ShowViewsHandler.ShowViewResult expectedViewInfo = createExpectedShowViewResult(STATEMENT_SOURCE_NAME, viewEntry);
+    ShowViewsHandler.ShowViewResult expectedViewInfo =
+        createExpectedShowViewResult(STATEMENT_SOURCE_NAME, viewEntry);
     assertThat(result).hasSize(1);
     assertThat(result.get(0)).isEqualTo(expectedViewInfo);
   }
@@ -201,27 +219,27 @@ public class TestShowViewsHandler {
     setUpSessionSourceVersion();
     setUpSupportKeys();
 
-    ExternalNamespaceEntry viewEntry1 = createRandomViewEntryWithSpecificPrefix("abc");
-    ExternalNamespaceEntry viewEntry2 = createRandomViewEntryWithSpecificPrefix("xyz");
+    ExternalNamespaceEntry viewEntry1 =
+        createRandomViewEntryWithSpecificPrefix(testPrefix() + "abc");
+    ExternalNamespaceEntry viewEntry2 =
+        createRandomViewEntryWithSpecificPrefix(testPrefix() + "xyz");
 
     when(dataplanePlugin.listViewsIncludeNested(
-      Collections.emptyList(),
-      VersionContext.ofBranch(SESSION_BRANCH_NAME)))
-      .thenReturn(Stream.of(viewEntry1, viewEntry2));
-
-    SqlShowViews input = TestShowViewsHandler.SqlShowViewsBuilder.builder()
-      .withLike("%ab%")
-      .build();
+            Collections.emptyList(), VersionContext.ofBranch(SESSION_BRANCH_NAME)))
+        .thenReturn(Stream.of(viewEntry1, viewEntry2));
+    String likePattern = "%" + testPrefix() + "ab" + "%";
+    SqlShowViews input =
+        TestShowViewsHandler.SqlShowViewsBuilder.builder().withLike(likePattern).build();
 
     // Act
     List<ShowViewsHandler.ShowViewResult> result = showViewsHandler.toResult("", input);
 
     // Assert
-    List<ShowViewsHandler.ShowViewResult> expectedTableInfoList = createExpectedShowViewResultList(SESSION_SOURCE_NAME, viewEntry1);
+    List<ShowViewsHandler.ShowViewResult> expectedTableInfoList =
+        createExpectedShowViewResultList(SESSION_SOURCE_NAME, viewEntry1);
     assertThat(result).hasSize(1);
     assertThat(result).isEqualTo(expectedTableInfoList);
   }
-
 
   @Test // SHOW VIEWS AT BRANCH<branch> IN <source>
   public void showViewsBranchReturnsViewInfo() throws Exception {
@@ -231,22 +249,29 @@ public class TestShowViewsHandler {
     setUpSupportKeys();
 
     ExternalNamespaceEntry viewEntry = createRandomViewEntry();
-
+    when(catalog.containerExists(
+            CatalogEntityKey.newBuilder()
+                .keyComponents(ImmutableList.of(STATEMENT_SOURCE_NAME))
+                .tableVersionContext(
+                    TableVersionContext.of(VersionContext.ofBranch(STATEMENT_BRANCH_NAME)))
+                .build()))
+        .thenReturn(true);
     when(dataplanePlugin.listViewsIncludeNested(
-      Collections.emptyList(),
-      VersionContext.ofBranch(STATEMENT_BRANCH_NAME)))
-      .thenReturn(Stream.of(viewEntry));
+            Collections.emptyList(), VersionContext.ofBranch(STATEMENT_BRANCH_NAME)))
+        .thenReturn(Stream.of(viewEntry));
 
-    SqlShowViews input = TestShowViewsHandler.SqlShowViewsBuilder.builder()
-      .withReference(ReferenceType.BRANCH, STATEMENT_BRANCH_NAME)
-      .withSource(STATEMENT_SOURCE_NAME)
-      .build();
+    SqlShowViews input =
+        TestShowViewsHandler.SqlShowViewsBuilder.builder()
+            .withReference(ReferenceType.BRANCH, STATEMENT_BRANCH_NAME)
+            .withSource(STATEMENT_SOURCE_NAME)
+            .build();
 
     // Act
     List<ShowViewsHandler.ShowViewResult> result = showViewsHandler.toResult("", input);
 
     // Assert
-    ShowViewsHandler.ShowViewResult expectedViewInfo = createExpectedShowViewResult(STATEMENT_SOURCE_NAME, viewEntry);
+    ShowViewsHandler.ShowViewResult expectedViewInfo =
+        createExpectedShowViewResult(STATEMENT_SOURCE_NAME, viewEntry);
     assertThat(result).hasSize(1);
     assertThat(result.get(0)).isEqualTo(expectedViewInfo);
   }
@@ -259,22 +284,29 @@ public class TestShowViewsHandler {
     setUpSupportKeys();
 
     ExternalNamespaceEntry viewEntry = createRandomViewEntry();
-
+    when(catalog.containerExists(
+            CatalogEntityKey.newBuilder()
+                .keyComponents(ImmutableList.of(STATEMENT_SOURCE_NAME))
+                .tableVersionContext(
+                    TableVersionContext.of(VersionContext.ofTag(STATEMENT_TAG_NAME)))
+                .build()))
+        .thenReturn(true);
     when(dataplanePlugin.listViewsIncludeNested(
-      Collections.emptyList(),
-      VersionContext.ofTag(STATEMENT_TAG_NAME)))
-      .thenReturn(Stream.of(viewEntry));
+            Collections.emptyList(), VersionContext.ofTag(STATEMENT_TAG_NAME)))
+        .thenReturn(Stream.of(viewEntry));
 
-    SqlShowViews input = TestShowViewsHandler.SqlShowViewsBuilder.builder()
-      .withReference(ReferenceType.TAG, STATEMENT_TAG_NAME)
-      .withSource(STATEMENT_SOURCE_NAME)
-      .build();
+    SqlShowViews input =
+        TestShowViewsHandler.SqlShowViewsBuilder.builder()
+            .withReference(ReferenceType.TAG, STATEMENT_TAG_NAME)
+            .withSource(STATEMENT_SOURCE_NAME)
+            .build();
 
     // Act
     List<ShowViewsHandler.ShowViewResult> result = showViewsHandler.toResult("", input);
 
     // Assert
-    ShowViewsHandler.ShowViewResult expectedViewInfo = createExpectedShowViewResult(STATEMENT_SOURCE_NAME, viewEntry);
+    ShowViewsHandler.ShowViewResult expectedViewInfo =
+        createExpectedShowViewResult(STATEMENT_SOURCE_NAME, viewEntry);
     assertThat(result).hasSize(1);
     assertThat(result.get(0)).isEqualTo(expectedViewInfo);
   }
@@ -282,40 +314,52 @@ public class TestShowViewsHandler {
   @Test // SHOW VIEWS AT REF <arbitrary ref>
   public void showViewsRefSessionSourceNonexistentThrows() {
     // Arrange
-    when(catalog.containerExists(new NamespaceKey(SESSION_SOURCE_NAME)))
-      .thenReturn(false);
+    when(catalog.containerExists(
+            CatalogEntityKey.fromNamespaceKey(new NamespaceKey(SESSION_SOURCE_NAME))))
+        .thenReturn(false);
+    when(userSession.getSessionVersionForSource(SESSION_SOURCE_NAME))
+        .thenReturn(VersionContext.ofRef(STATEMENT_REF_NAME));
     when(userSession.getDefaultSchemaPath())
-      .thenReturn(new NamespaceKey(ImmutableList.of((SESSION_SOURCE_NAME))));
+        .thenReturn(new NamespaceKey(ImmutableList.of((SESSION_SOURCE_NAME))));
 
-    SqlShowViews input = TestShowViewsHandler.SqlShowViewsBuilder.builder()
-      .withReference(ReferenceType.REFERENCE, STATEMENT_REF_NAME)
-      .build();
+    SqlShowViews input =
+        TestShowViewsHandler.SqlShowViewsBuilder.builder()
+            .withReference(ReferenceType.REFERENCE, STATEMENT_REF_NAME)
+            .build();
 
     // Act and Assert
     assertThatThrownBy(() -> showViewsHandler.toResult("", input))
-      .isInstanceOf(UserException.class)
-      .hasMessageContaining(SESSION_SOURCE_NAME)
-      .hasMessageContaining("does not exist");
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining(SESSION_SOURCE_NAME)
+        .hasMessageContaining("does not exist");
   }
 
   @Test // SHOW VIEWS AT REF <ref> (using non-nessie source)
   public void showViewsRefSessionSourceNonNessieThrows() {
     // Arrange
-    when(catalog.containerExists(new NamespaceKey(SESSION_SOURCE_NAME)))
-      .thenReturn(true);
+    when(userSession.getSessionVersionForSource(SESSION_SOURCE_NAME))
+        .thenReturn(VersionContext.NOT_SPECIFIED);
+    when(catalog.containerExists(
+            CatalogEntityKey.newBuilder()
+                .keyComponents(ImmutableList.of(SESSION_SOURCE_NAME, "unusedFolder"))
+                .tableVersionContext(
+                    TableVersionContext.of(VersionContext.ofRef(STATEMENT_REF_NAME)))
+                .build()))
+        .thenReturn(true);
     when(catalog.getSource(SESSION_SOURCE_NAME))
-      .thenReturn(mock(StoragePlugin.class)); // Non-nessie source
+        .thenReturn(mock(StoragePlugin.class)); // Non-nessie source
     when(userSession.getDefaultSchemaPath())
-      .thenReturn(new NamespaceKey(ImmutableList.of(SESSION_SOURCE_NAME, "unusedFolder")));
+        .thenReturn(new NamespaceKey(ImmutableList.of(SESSION_SOURCE_NAME, "unusedFolder")));
 
-    SqlShowViews input = TestShowViewsHandler.SqlShowViewsBuilder.builder()
-      .withReference(ReferenceType.REFERENCE, STATEMENT_REF_NAME)
-      .build();
+    SqlShowViews input =
+        TestShowViewsHandler.SqlShowViewsBuilder.builder()
+            .withReference(ReferenceType.REFERENCE, STATEMENT_REF_NAME)
+            .build();
 
     // Act and Assert
     assertThatThrownBy(() -> showViewsHandler.toResult("", input))
-      .isInstanceOf(UserException.class)
-      .hasMessageContaining("does not support show views");
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining("does not support show views");
   }
 
   @Test // SHOW VIEWS AT REF <non-existent ref> IN <arbitrary source>
@@ -324,23 +368,29 @@ public class TestShowViewsHandler {
     setUpStatementSource();
     setUpStatementSourceVersion();
     setUpSupportKeys();
-
+    when(catalog.containerExists(
+            CatalogEntityKey.newBuilder()
+                .keyComponents(ImmutableList.of(STATEMENT_SOURCE_NAME))
+                .tableVersionContext(
+                    TableVersionContext.of(VersionContext.ofRef(STATEMENT_REF_NAME)))
+                .build()))
+        .thenReturn(true);
     when(dataplanePlugin.listViewsIncludeNested(
-      Collections.emptyList(),
-      VersionContext.ofRef(STATEMENT_REF_NAME)))
-      .thenThrow(ReferenceNotFoundException.class);
+            Collections.emptyList(), VersionContext.ofRef(STATEMENT_REF_NAME)))
+        .thenThrow(ReferenceNotFoundException.class);
 
-    SqlShowViews input = TestShowViewsHandler.SqlShowViewsBuilder.builder()
-      .withReference(ReferenceType.REFERENCE, STATEMENT_REF_NAME)
-      .withSource(STATEMENT_SOURCE_NAME)
-      .build();
+    SqlShowViews input =
+        TestShowViewsHandler.SqlShowViewsBuilder.builder()
+            .withReference(ReferenceType.REFERENCE, STATEMENT_REF_NAME)
+            .withSource(STATEMENT_SOURCE_NAME)
+            .build();
 
     // Act and Assert
     assertThatThrownBy(() -> showViewsHandler.toResult("", input))
-      .isInstanceOf(UserException.class)
-      .hasMessageContaining("not found")
-      .hasMessageContaining(STATEMENT_SOURCE_NAME)
-      .hasMessageContaining(STATEMENT_REF_NAME);
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining("not found")
+        .hasMessageContaining(STATEMENT_SOURCE_NAME)
+        .hasMessageContaining(STATEMENT_REF_NAME);
   }
 
   @Test // SHOW VIEWS AT REF <ref conflict> IN <arbitrary source>
@@ -349,129 +399,137 @@ public class TestShowViewsHandler {
     setUpStatementSource();
     setUpStatementSourceVersion();
     setUpSupportKeys();
-
+    when(catalog.containerExists(
+            CatalogEntityKey.newBuilder()
+                .keyComponents(ImmutableList.of(STATEMENT_SOURCE_NAME))
+                .tableVersionContext(
+                    TableVersionContext.of(VersionContext.ofRef(STATEMENT_REF_NAME)))
+                .build()))
+        .thenReturn(true);
     when(dataplanePlugin.listViewsIncludeNested(
-      Collections.emptyList(),
-      VersionContext.ofRef(STATEMENT_REF_NAME)))
-      .thenThrow(ReferenceConflictException.class);
+            Collections.emptyList(), VersionContext.ofRef(STATEMENT_REF_NAME)))
+        .thenThrow(ReferenceConflictException.class);
 
-    SqlShowViews input = TestShowViewsHandler.SqlShowViewsBuilder.builder()
-      .withReference(ReferenceType.REFERENCE, STATEMENT_REF_NAME)
-      .withSource(STATEMENT_SOURCE_NAME)
-      .build();
+    SqlShowViews input =
+        TestShowViewsHandler.SqlShowViewsBuilder.builder()
+            .withReference(ReferenceType.REFERENCE, STATEMENT_REF_NAME)
+            .withSource(STATEMENT_SOURCE_NAME)
+            .build();
 
     // Act and Assert
     assertThatThrownBy(() -> showViewsHandler.toResult("", input))
-      .isInstanceOf(UserException.class)
-      .hasMessageContaining("has conflict")
-      .hasMessageContaining(STATEMENT_SOURCE_NAME)
-      .hasMessageContaining(STATEMENT_REF_NAME);
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining("has conflict")
+        .hasMessageContaining(STATEMENT_SOURCE_NAME)
+        .hasMessageContaining(STATEMENT_REF_NAME);
   }
 
   // Sets up to return the Session Source Version in user session (which shouldn't get
   // used if the statement has a source).
-  private void setUpStatementSourceVersion()
-  {
+  private void setUpStatementSourceVersion() {
     VersionContext sessionVersionContext = VersionContext.ofBranch(SESSION_BRANCH_NAME);
     when(userSession.getSessionVersionForSource(STATEMENT_SOURCE_NAME))
-      .thenReturn(sessionVersionContext);
+        .thenReturn(sessionVersionContext);
   }
 
   // Sets up to return the Session Source Version in user session (which gets used if
   // "AT <refType> <refValue>" is not specified in query).
-  private void setUpSessionSourceVersion()
-  {
+  private void setUpSessionSourceVersion() {
     VersionContext sessionVersionContext = VersionContext.ofBranch(SESSION_BRANCH_NAME);
     when(userSession.getSessionVersionForSource(SESSION_SOURCE_NAME))
-      .thenReturn(sessionVersionContext);
+        .thenReturn(sessionVersionContext);
   }
 
   // Sets up to return the Statement Source in catalog (which gets used if
   // "IN <source>" is specified in query).
-  private void setUpStatementSource()
-  {
+  private void setUpStatementSource() {
     setUpStatementSource(null);
   }
 
-  private void setUpStatementSource(String nestedFolder)
-  {
-    when(catalog.containerExists(new NamespaceKey(STATEMENT_SOURCE_NAME)))
-      .thenReturn(true);
-    when(catalog.getSource(STATEMENT_SOURCE_NAME))
-      .thenReturn(dataplanePlugin);
-    List<String> path = nestedFolder != null ?
-      ImmutableList.of(STATEMENT_SOURCE_NAME, nestedFolder) :
-      ImmutableList.of(STATEMENT_SOURCE_NAME);
-    when(userSession.getDefaultSchemaPath())
-      .thenReturn(new NamespaceKey(path));
-
+  private void setUpStatementSource(String nestedFolder) {
+    when(catalog.getSource(STATEMENT_SOURCE_NAME)).thenReturn(dataplanePlugin);
+    when(dataplanePlugin.isWrapperFor(VersionedPlugin.class)).thenReturn(true);
+    when(dataplanePlugin.unwrap(VersionedPlugin.class)).thenReturn(dataplanePlugin);
+    List<String> path =
+        nestedFolder != null
+            ? ImmutableList.of(STATEMENT_SOURCE_NAME, nestedFolder)
+            : ImmutableList.of(STATEMENT_SOURCE_NAME);
+    when(userSession.getDefaultSchemaPath()).thenReturn(new NamespaceKey(path));
   }
 
   // Sets up to enable SQL syntax in option manager.
-  private void setUpSupportKeys()
-  {
-    when(optionManager.getOption(ENABLE_USE_VERSION_SYNTAX))
-      .thenReturn(true);
+  private void setUpSupportKeys() {
+    when(optionManager.getOption(ENABLE_USE_VERSION_SYNTAX)).thenReturn(true);
   }
 
   // Sets up to return the Session Source in catalog (which gets used if
   // "IN <source>" is not specified in query).
-  private void setUpSessionSource()
-  {
+  private void setUpSessionSource() {
     setUpSessionSource(null);
   }
 
-  private void setUpSessionSource(String nestedFolder)
-  {
-    when(catalog.containerExists(new NamespaceKey(SESSION_SOURCE_NAME)))
-      .thenReturn(true);
-    when(catalog.getSource(SESSION_SOURCE_NAME))
-      .thenReturn(dataplanePlugin);
-    List<String> path = nestedFolder!= null ?
-      ImmutableList.of(SESSION_SOURCE_NAME, nestedFolder) :
-      ImmutableList.of(SESSION_SOURCE_NAME);
-    when(userSession.getDefaultSchemaPath())
-      .thenReturn(new NamespaceKey(path));
+  private void setUpSessionSource(String nestedFolder) {
+    when(userSession.getSessionVersionForSource(SESSION_SOURCE_NAME))
+        .thenReturn(VersionContext.ofBranch(SESSION_BRANCH_NAME));
+    when(catalog.containerExists(
+            CatalogEntityKey.newBuilder()
+                .keyComponents(
+                    nestedFolder != null
+                        ? ImmutableList.of(SESSION_SOURCE_NAME, nestedFolder)
+                        : ImmutableList.of(SESSION_SOURCE_NAME))
+                .tableVersionContext(
+                    TableVersionContext.of(VersionContext.ofBranch(SESSION_BRANCH_NAME)))
+                .build()))
+        .thenReturn(true);
+    when(catalog.getSource(SESSION_SOURCE_NAME)).thenReturn(dataplanePlugin);
+    when(dataplanePlugin.isWrapperFor(VersionedPlugin.class)).thenReturn(true);
+    when(dataplanePlugin.unwrap(VersionedPlugin.class)).thenReturn(dataplanePlugin);
+    List<String> path =
+        nestedFolder != null
+            ? ImmutableList.of(SESSION_SOURCE_NAME, nestedFolder)
+            : ImmutableList.of(SESSION_SOURCE_NAME);
+    when(userSession.getDefaultSchemaPath()).thenReturn(new NamespaceKey(path));
   }
 
-  private ExternalNamespaceEntry createRandomViewEntry()
-  {
+  private ExternalNamespaceEntry createRandomViewEntry() {
     String randomName = UUID.randomUUID().toString();
     return ExternalNamespaceEntry.of(Type.ICEBERG_VIEW, ImmutableList.of(randomName));
   }
 
-  private ExternalNamespaceEntry createRandomViewEntryWithSpecificPrefix(String prefix)
-  {
-    String randomName = prefix + UUID.randomUUID();
+  private ExternalNamespaceEntry createRandomViewEntryWithSpecificPrefix(String prefix) {
+    String randomName = prefix + randomInt();
     return ExternalNamespaceEntry.of(Type.ICEBERG_VIEW, ImmutableList.of(randomName));
   }
 
-  private ShowViewsHandler.ShowViewResult createExpectedShowViewResult(String sourceName, ExternalNamespaceEntry viewEntry)
-  {
-    String sourceNameAndNamespace = sourceName;
-    if(!viewEntry.getNamespace().isEmpty())
-    {
-      sourceNameAndNamespace = String.join(".", sourceName, String.join(".", viewEntry.getNamespace()));
-    }
-
-    return new ShowViewsHandler.ShowViewResult(
-      sourceNameAndNamespace,
-      viewEntry.getName());
+  private String testPrefix() {
+    return this.getClass().getSimpleName();
   }
 
-  private List<ShowViewsHandler.ShowViewResult> createExpectedShowViewResultList(String sourceName, ExternalNamespaceEntry... viewEntries) {
+  private ShowViewsHandler.ShowViewResult createExpectedShowViewResult(
+      String sourceName, ExternalNamespaceEntry viewEntry) {
+    String sourceNameAndNamespace = sourceName;
+    if (!viewEntry.getNamespace().isEmpty()) {
+      sourceNameAndNamespace =
+          String.join(".", sourceName, String.join(".", viewEntry.getNamespace()));
+    }
+
+    return new ShowViewsHandler.ShowViewResult(sourceNameAndNamespace, viewEntry.getName());
+  }
+
+  private List<ShowViewsHandler.ShowViewResult> createExpectedShowViewResultList(
+      String sourceName, ExternalNamespaceEntry... viewEntries) {
     String sourceNameAndNamespace = sourceName;
     List<ShowViewsHandler.ShowViewResult> returnList = new ArrayList<>();
     for (ExternalNamespaceEntry viewEntry : viewEntries) {
       if (!viewEntry.getNamespace().isEmpty()) {
-        sourceNameAndNamespace = String.join(".", sourceName, String.join(".", viewEntry.getNamespace()));
+        sourceNameAndNamespace =
+            String.join(".", sourceName, String.join(".", viewEntry.getNamespace()));
       }
-      returnList.add(new ShowViewsHandler.ShowViewResult(sourceNameAndNamespace, viewEntry.getName()));
+      returnList.add(
+          new ShowViewsHandler.ShowViewResult(sourceNameAndNamespace, viewEntry.getName()));
     }
     return returnList;
   }
-
-
 
   static class SqlShowViewsBuilder {
     private String sourceName;
@@ -488,7 +546,8 @@ public class TestShowViewsHandler {
       return this;
     }
 
-    TestShowViewsHandler.SqlShowViewsBuilder withReference(ReferenceType referenceType, String reference) {
+    TestShowViewsHandler.SqlShowViewsBuilder withReference(
+        ReferenceType referenceType, String reference) {
       this.referenceType = referenceType;
       this.reference = reference;
       return this;
@@ -500,16 +559,18 @@ public class TestShowViewsHandler {
     }
 
     // SHOW VIEWS [AT <refType> <refValue>] [IN <sourceName>]
-    SqlShowViews build()
-    {
+    SqlShowViews build() {
       return new SqlShowViews(
-        SqlParserPos.ZERO,
-        referenceType,
-        reference != null ? new SqlIdentifier(reference, SqlParserPos.ZERO) : null,
-        null,
-        sourceName != null ? new SqlIdentifier(sourceName, SqlParserPos.ZERO) : null,
-        likePattern != null ? SqlLiteral.createCharString(likePattern, SqlParserPos.ZERO) : null);
+          SqlParserPos.ZERO,
+          referenceType,
+          reference != null ? new SqlIdentifier(reference, SqlParserPos.ZERO) : null,
+          null,
+          sourceName != null ? new SqlIdentifier(sourceName, SqlParserPos.ZERO) : null,
+          likePattern != null ? SqlLiteral.createCharString(likePattern, SqlParserPos.ZERO) : null);
     }
   }
 
+  static int randomInt() {
+    return ThreadLocalRandom.current().nextInt(1, 100000);
+  }
 }

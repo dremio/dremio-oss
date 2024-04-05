@@ -18,9 +18,7 @@ package com.dremio.exec.store.hive;
 import com.dremio.options.OptionResolver;
 import com.dremio.options.TypeValidators;
 
-/**
- * Accessor for Hive2 plugin options.
- */
+/** Accessor for Hive2 plugin options. */
 public final class HiveSettings {
 
   private final OptionResolver options;
@@ -33,9 +31,8 @@ public final class HiveSettings {
   public HiveSettings(OptionResolver options, boolean unused) {
     this(options);
   }
-  /**
-   * Options to enable vectorized ORC reader and filter pushdown into vectorized ORC reader
-   */
+
+  /** Options to enable vectorized ORC reader and filter pushdown into vectorized ORC reader */
   public boolean vectorizeOrcReaders() {
     return options.getOption(HivePluginOptions.HIVE_ORC_READER_VECTORIZE);
   }
@@ -45,61 +42,46 @@ public final class HiveSettings {
   }
 
   /**
-   * Option tells whether to use the stats in Hive metastore for table (and partitions in table) row count.
-   * Default is false and we estimate the row count using the file size, record_size and type of file.
-   * If analyze queries are run on tables in Hive, then this option can be enabled.
+   * Option tells whether to use the stats in Hive metastore for table (and partitions in table) row
+   * count. Default is false and we estimate the row count using the file size, record_size and type
+   * of file. If analyze queries are run on tables in Hive, then this option can be enabled.
    */
   public boolean useStatsInMetastore() {
     return options.getOption(HivePluginOptions.HIVE_USE_STATS_IN_METASTORE);
   }
 
-  /**
-   * Compression factor override for estimating the row count for hive parquet tables
-   */
+  /** Compression factor override for estimating the row count for hive parquet tables */
   public double getParquetCompressionFactor() {
     return options.getOption(HivePluginOptions.HIVE_PARQUET_COMPRESSION_FACTOR_VALIDATOR);
   }
 
-  /**
-   * Partition batch size override, used mainly for testing.
-   */
+  /** Partition batch size override, used mainly for testing. */
   public long getPartitionBatchSize() {
     return options.getOption(HivePluginOptions.HIVE_PARTITION_BATCH_SIZE_VALIDATOR);
   }
 
-  /**
-   * Maximum number of input splits per partition override, used mainly for testing.
-   */
+  /** Maximum number of input splits per partition override, used mainly for testing. */
   public long getMaxInputSplitsPerPartition() {
     return options.getOption(HivePluginOptions.HIVE_MAX_INPUTSPLITS_PER_PARTITION_VALIDATOR);
   }
 
-  /**
-   * Option to use bytebuffers using direct memory while reading ORC files;
-   */
+  /** Option to use bytebuffers using direct memory while reading ORC files; */
   public boolean useDirectMemoryForOrcReaders() {
     return options.getOption(HivePluginOptions.HIVE_ORC_READER_USE_DIRECT_MEMORY);
   }
 
-  /**
-   * Option for tuning the number of bytes to reserve in Hive Scans.
-   */
+  /** Option for tuning the number of bytes to reserve in Hive Scans. */
   public TypeValidators.LongValidator getReserveValidator() {
     return HivePluginOptions.RESERVE;
   }
 
-  /**
-   * Option for tuning the number of bytes to limit in Hive Scans.
-   */
+  /** Option for tuning the number of bytes to limit in Hive Scans. */
   public TypeValidators.LongValidator getLimitValidator() {
     return HivePluginOptions.LIMIT;
   }
 
-  /**
-   * Retrieves regex option where table/partition property exclusions are specified.
-   */
+  /** Retrieves regex option where table/partition property exclusions are specified. */
   public String getPropertyExclusionRegex() {
     return options.getOption(HivePluginOptions.HIVE_PROPERTY_EXCLUSION_REGEX);
   }
-
 }

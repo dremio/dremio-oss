@@ -18,12 +18,11 @@ package com.dremio.dac.server;
 import org.glassfish.hk2.utilities.binding.AbstractBinder;
 import org.glassfish.jersey.server.spi.internal.ResourceMethodInvocationHandlerProvider;
 
-/**
- * Auth Binder
- */
+/** Auth Binder */
 public class AuthenticationBinder extends AbstractBinder {
   @Override
   protected void configure() {
-    bind(ContextualizedResourceMethodInvocationHandlerProvider.class).to(ResourceMethodInvocationHandlerProvider.class);
+    bind(ContextualizedResourceMethodInvocationHandlerProvider.class)
+        .to(ResourceMethodInvocationHandlerProvider.class);
   }
 }

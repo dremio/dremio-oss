@@ -20,13 +20,13 @@ import static org.junit.Assert.assertEquals;
 
 import org.junit.Test;
 
-/**
- * Tests for {@link AzureAsyncHttpClientUtils}
- */
+/** Tests for {@link AzureAsyncHttpClientUtils} */
 public class AzureAsyncHttpClientUtilsTest {
 
-    @Test
-    public void testEncodeUrlWithSpaces() {
-        assertEquals("dir%20with%20spaces%2Fexample.parquet", AzureAsyncHttpClientUtils.encodeUrl("dir with spaces/example.parquet"));
-    }
+  @Test
+  public void testEncodeUrlWithSpaces() {
+    assertEquals(
+        "dir%20with%20spaces%2Fexample.parquet",
+        AzureAsyncHttpClientUtils.encodeUrl("dir with spaces/example.parquet"));
+  }
 }

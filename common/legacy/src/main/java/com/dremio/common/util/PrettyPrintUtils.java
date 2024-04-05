@@ -17,16 +17,12 @@ package com.dremio.common.util;
 
 import java.text.DecimalFormat;
 
-/**
- * Utilities for generating strings that look nicely formatted
- */
+/** Utilities for generating strings that look nicely formatted */
 public class PrettyPrintUtils {
   private static final DecimalFormat dec = new DecimalFormat("0.00");
   private static final DecimalFormat intformat = new DecimalFormat("#,###");
 
-  /**
-   * Generate a string from a number representing a quantity of bytes
-   */
+  /** Generate a string from a number representing a quantity of bytes */
   public static String bytePrint(final long size, boolean displayTinyValues) {
     final double t = size / Math.pow(1024, 4);
     if (t > 1) {
@@ -54,5 +50,4 @@ public class PrettyPrintUtils {
     }
     return "-";
   }
-
 }

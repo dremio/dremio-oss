@@ -15,46 +15,43 @@
  */
 package com.dremio.exec.store.iceberg;
 
-import java.io.Serializable;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-
 import io.protostuff.ByteString;
+import java.io.Serializable;
 
 public class IcebergExtendedProp implements Serializable {
 
-    private final ByteString partitionSpecs;
-    private final byte[] icebergExpression;
-    private final long snapshotId;
-    private final String icebergSchema;
+  private final ByteString partitionSpecs;
+  private final byte[] icebergExpression;
+  private final long snapshotId;
+  private final String icebergSchema;
 
-    @JsonCreator
-    public IcebergExtendedProp(
-        @JsonProperty("partitionSpecs") ByteString partitionSpecs,
-        @JsonProperty("icebergExpression") byte[] icebergExpression,
-        @JsonProperty(value = "snapshotId", defaultValue = "-1") long snapshotId,
-        @JsonProperty("icebergSchema") String icebergSchema
-    ) {
-        this.partitionSpecs = partitionSpecs;
-        this.icebergExpression = icebergExpression;
-        this.snapshotId = snapshotId;
-        this.icebergSchema = icebergSchema;
-    }
+  @JsonCreator
+  public IcebergExtendedProp(
+      @JsonProperty("partitionSpecs") ByteString partitionSpecs,
+      @JsonProperty("icebergExpression") byte[] icebergExpression,
+      @JsonProperty(value = "snapshotId", defaultValue = "-1") long snapshotId,
+      @JsonProperty("icebergSchema") String icebergSchema) {
+    this.partitionSpecs = partitionSpecs;
+    this.icebergExpression = icebergExpression;
+    this.snapshotId = snapshotId;
+    this.icebergSchema = icebergSchema;
+  }
 
-    public ByteString getPartitionSpecs() {
-        return partitionSpecs;
-    }
+  public ByteString getPartitionSpecs() {
+    return partitionSpecs;
+  }
 
-    public byte[] getIcebergExpression() {
-        return icebergExpression;
-    }
+  public byte[] getIcebergExpression() {
+    return icebergExpression;
+  }
 
-    public long getSnapshotId() {
-        return snapshotId;
-    }
+  public long getSnapshotId() {
+    return snapshotId;
+  }
 
-    public String getIcebergSchema() {
-        return icebergSchema;
-    }
+  public String getIcebergSchema() {
+    return icebergSchema;
+  }
 }

@@ -18,15 +18,6 @@ package com.dremio.plugins.elastic;
 import static com.dremio.plugins.elastic.ElasticActions.APPLICATION_ES_JSON;
 import static com.dremio.plugins.elastic.ElasticActions.addHeader;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.Invocation;
-import javax.ws.rs.client.WebTarget;
-
 import com.dremio.plugins.elastic.ElasticActions.ContextListener;
 import com.dremio.plugins.elastic.ElasticActions.ElasticAction;
 import com.dremio.plugins.elastic.ElasticActions.ElasticAction2;
@@ -34,6 +25,13 @@ import com.dremio.plugins.elastic.ElasticActions.FailureResult;
 import com.dremio.plugins.elastic.ElasticActions.JsonResult;
 import com.dremio.plugins.elastic.ElasticActions.Result;
 import com.google.common.base.Joiner;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.client.Entity;
+import javax.ws.rs.client.Invocation;
+import javax.ws.rs.client.WebTarget;
 
 public class ElasticTestActions {
 
@@ -51,32 +49,38 @@ public class ElasticTestActions {
     @Override
     Result getResult(WebTarget target, int version) {
       String settingsString = toString();
-      return new JsonResult(target.path(index).request().buildPut(
-        version == 8 ? Entity.entity(settingsString, APPLICATION_ES_JSON) : Entity.json(settingsString)
-    ).invoke(byte[].class));
+      return new JsonResult(
+          target
+              .path(index)
+              .request()
+              .buildPut(
+                  version == 8
+                      ? Entity.entity(settingsString, APPLICATION_ES_JSON)
+                      : Entity.json(settingsString))
+              .invoke(byte[].class));
     }
 
     @Override
     public String toString() {
       String format =
-          "{\n" +
-          "  \"settings\": {\n" +
-          "    \"analysis\": {\n" +
-          "      \"normalizer\": {\n" +
-          "        \"lowercase_normalizer\": {\n" +
-          "          \"type\": \"custom\",\n" +
-          "          \"filter\": [\n" +
-          "            \"lowercase\"\n" +
-          "          ]\n" +
-          "        }\n" +
-          "      }\n" +
-          "    },\n" +
-          "    \"index\": {\n" +
-          "      \"number_of_shards\": %d,\n" +
-          "      \"number_of_replicas\": %d\n" +
-          "    }\n" +
-          "  }\n" +
-          "}";
+          "{\n"
+              + "  \"settings\": {\n"
+              + "    \"analysis\": {\n"
+              + "      \"normalizer\": {\n"
+              + "        \"lowercase_normalizer\": {\n"
+              + "          \"type\": \"custom\",\n"
+              + "          \"filter\": [\n"
+              + "            \"lowercase\"\n"
+              + "          ]\n"
+              + "        }\n"
+              + "      }\n"
+              + "    },\n"
+              + "    \"index\": {\n"
+              + "      \"number_of_shards\": %d,\n"
+              + "      \"number_of_replicas\": %d\n"
+              + "    }\n"
+              + "  }\n"
+              + "}";
       try {
         return String.format(format, shards, replicas);
       } catch (Exception e) {
@@ -106,7 +110,8 @@ public class ElasticTestActions {
     List<String> aliases = new ArrayList<>();
 
     public CreateAliases addAlias(String index, String alias) {
-      aliases.add(String.format("{ \"add\": {\"index\" : \"%s\", \"alias\": \"%s\" } }", index, alias));
+      aliases.add(
+          String.format("{ \"add\": {\"index\" : \"%s\", \"alias\": \"%s\" } }", index, alias));
       return this;
     }
 
@@ -115,7 +120,10 @@ public class ElasticTestActions {
       for (String index : indices) {
         quotedIndices.add(String.format("\"%s\"", index));
       }
-      aliases.add(String.format("{ \"add\": {\"indices\" : [%s], \"alias\": \"%s\" } }", Joiner.on(",").join(quotedIndices), alias));
+      aliases.add(
+          String.format(
+              "{ \"add\": {\"indices\" : [%s], \"alias\": \"%s\" } }",
+              Joiner.on(",").join(quotedIndices), alias));
       return this;
     }
 
@@ -124,25 +132,38 @@ public class ElasticTestActions {
       for (String index : indices) {
         quotedIndices.add(String.format("\"%s\"", index));
       }
-      aliases.add(String.format("{ \"add\": {\"indices\" : [%s], \"alias\": \"%s\", \"filter\": %s } }", Joiner.on(",").join(quotedIndices), alias, filter));
+      aliases.add(
+          String.format(
+              "{ \"add\": {\"indices\" : [%s], \"alias\": \"%s\", \"filter\": %s } }",
+              Joiner.on(",").join(quotedIndices), alias, filter));
       return this;
     }
 
     public CreateAliases removeAlias(String index, String alias) {
-      aliases.add(String.format("{ \"remove\": {\"index\" : \"%s\", \"alias\": \"%s\" } }", index, alias));
+      aliases.add(
+          String.format("{ \"remove\": {\"index\" : \"%s\", \"alias\": \"%s\" } }", index, alias));
       return this;
     }
 
     public CreateAliases addAlias(String index, String alias, String filter) {
-      aliases.add(String.format("{ \"add\": {\"index\" : \"%s\", \"alias\": \"%s\", \"filter\": %s } }", index, alias, filter));
+      aliases.add(
+          String.format(
+              "{ \"add\": {\"index\" : \"%s\", \"alias\": \"%s\", \"filter\": %s } }",
+              index, alias, filter));
       return this;
     }
 
     @Override
     public Result getResult(WebTarget target, int version) {
-      return new JsonResult(target.path("_aliases").request().buildPost(
-        version == 8 ? Entity.entity(toString(), APPLICATION_ES_JSON) : Entity.json(toString())
-      ).invoke(byte[].class));
+      return new JsonResult(
+          target
+              .path("_aliases")
+              .request()
+              .buildPost(
+                  version == 8
+                      ? Entity.entity(toString(), APPLICATION_ES_JSON)
+                      : Entity.json(toString()))
+              .invoke(byte[].class));
     }
 
     @Override
@@ -175,14 +196,16 @@ public class ElasticTestActions {
     Invocation buildRequest(WebTarget initial, ContextListener context, int version) {
       final WebTarget target;
       if (version >= 7) { // Extra parameter needed for ES V7 onwards
-        target = initial.path(index).path("_mapping").path(type).queryParam("include_type_name", true);
+        target =
+            initial.path(index).path("_mapping").path(type).queryParam("include_type_name", true);
       } else {
         target = initial.path(index).path("_mapping").path(type);
       }
       context.addContext(target);
 
       Invocation.Builder builder = addHeader(target.request(), version, false);
-      return builder.buildPut(version == 8 ? Entity.entity(mapping, APPLICATION_ES_JSON) : Entity.json(mapping));
+      return builder.buildPut(
+          version == 8 ? Entity.entity(mapping, APPLICATION_ES_JSON) : Entity.json(mapping));
     }
   }
 
@@ -198,11 +221,15 @@ public class ElasticTestActions {
     public Result getResult(WebTarget target, int version) {
       String bulkRequest = toString();
 
-      Invocation.Builder builder = addHeader(target.path("_bulk").queryParam("refresh", true).request(),
-        version,false);
-      return new JsonResult(builder.buildPost(
-          version == 8 ? Entity.entity(bulkRequest, APPLICATION_ES_JSON) : Entity.json(bulkRequest))
-        .invoke(byte[].class));
+      Invocation.Builder builder =
+          addHeader(target.path("_bulk").queryParam("refresh", true).request(), version, false);
+      return new JsonResult(
+          builder
+              .buildPost(
+                  version == 8
+                      ? Entity.entity(bulkRequest, APPLICATION_ES_JSON)
+                      : Entity.json(bulkRequest))
+              .invoke(byte[].class));
     }
 
     @Override

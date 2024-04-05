@@ -21,34 +21,39 @@ import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.dataset.proto.IcebergMetadata;
 import com.google.protobuf.InvalidProtocolBufferException;
 
-/**
- * Utility class to provide helper methods to read the partition stats file
- */
+/** Utility class to provide helper methods to read the partition stats file */
 public class PartitionStatsHelper {
   public static ImmutableDremioFileAttrs getPartitionStatsFileAttrs(ScanRelBase drel) {
     String fileName;
     Long fileLength;
 
-    if(DatasetHelper.isInternalIcebergTable(drel.getTableMetadata().getDatasetConfig())) {
-      IcebergMetadata icebergMetadata = drel.getTableMetadata().getDatasetConfig().getPhysicalDataset().getIcebergMetadata();
+    if (DatasetHelper.isInternalIcebergTable(drel.getTableMetadata().getDatasetConfig())) {
+      IcebergMetadata icebergMetadata =
+          drel.getTableMetadata().getDatasetConfig().getPhysicalDataset().getIcebergMetadata();
       fileName = icebergMetadata.getPartitionStatsFile();
       fileLength = icebergMetadata.getPartitionStatsFileSize();
     } else {
-      byte[] byteBuffer = drel.getTableMetadata().getReadDefinition().getExtendedProperty().toByteArray();
+      byte[] byteBuffer =
+          drel.getTableMetadata().getReadDefinition().getExtendedProperty().toByteArray();
 
       IcebergProtobuf.IcebergDatasetXAttr icebergDatasetXAttr;
       try {
-        icebergDatasetXAttr = LegacyProtobufSerializer.parseFrom(IcebergProtobuf.IcebergDatasetXAttr.PARSER, byteBuffer);
+        icebergDatasetXAttr =
+            LegacyProtobufSerializer.parseFrom(
+                IcebergProtobuf.IcebergDatasetXAttr.PARSER, byteBuffer);
       } catch (InvalidProtocolBufferException e) {
         throw new RuntimeException(e);
       }
       fileName = icebergDatasetXAttr.getPartitionStatsFile();
-      fileLength = (icebergDatasetXAttr.hasPartitionStatsFileSize()) ? icebergDatasetXAttr.getPartitionStatsFileSize() : null;
+      fileLength =
+          (icebergDatasetXAttr.hasPartitionStatsFileSize())
+              ? icebergDatasetXAttr.getPartitionStatsFileSize()
+              : null;
     }
 
     return new ImmutableDremioFileAttrs.Builder()
-      .setFileName(fileName)
-      .setFileLength(fileLength)
-      .build();
+        .setFileName(fileName)
+        .setFileLength(fileLength)
+        .build();
   }
 }

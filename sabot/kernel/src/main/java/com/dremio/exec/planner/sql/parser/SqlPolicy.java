@@ -15,9 +15,13 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.dremio.common.utils.PathUtils;
+import com.dremio.exec.catalog.Catalog;
+import com.dremio.service.namespace.NamespaceKey;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import java.util.List;
 import java.util.stream.Collectors;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -29,31 +33,23 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.dremio.common.utils.PathUtils;
-import com.dremio.exec.catalog.Catalog;
-import com.dremio.service.namespace.NamespaceKey;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
-
-/**
- * SqlPolicy
- */
+/** SqlPolicy */
 public class SqlPolicy extends SqlCall {
-  private static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("POLICY", SqlKind.OTHER)
-  {
-    @Override
-    public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 2, "SqlPolicy.createCall() has to get 2 operand!");
-      return new SqlPolicy(pos, (SqlIdentifier) operands[0], (SqlNodeList) operands[1]);
-    }
-  };
+  private static final SqlSpecialOperator OPERATOR =
+      new SqlSpecialOperator("POLICY", SqlKind.OTHER) {
+        @Override
+        public SqlCall createCall(
+            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+          Preconditions.checkArgument(
+              operands.length == 2, "SqlPolicy.createCall() has to get 2 operand!");
+          return new SqlPolicy(pos, (SqlIdentifier) operands[0], (SqlNodeList) operands[1]);
+        }
+      };
 
   private final SqlIdentifier name;
   private final SqlNodeList columns;
 
-  /**
-   * Creates a SqlPolicy.
-   */
+  /** Creates a SqlPolicy. */
   public SqlPolicy(SqlParserPos pos, SqlIdentifier name, SqlNodeList columns) {
     super(pos);
     this.name = name;
@@ -71,7 +67,7 @@ public class SqlPolicy extends SqlCall {
 
   public NamespaceKey getNamespaceKey(Catalog catalog) {
     return catalog.resolveSingle(
-      new NamespaceKey(PathUtils.parseFullPath(new NamespaceKey(name.names).toString())));
+        new NamespaceKey(PathUtils.parseFullPath(new NamespaceKey(name.names).toString())));
   }
 
   public SqlNodeList getColumns() {
@@ -84,7 +80,9 @@ public class SqlPolicy extends SqlCall {
   }
 
   public List<String> getArgs() {
-    return columns.getList().stream().map(c -> ((SqlIdentifier) c).getSimple()).collect(Collectors.toList());
+    return columns.getList().stream()
+        .map(c -> ((SqlIdentifier) c).getSimple())
+        .collect(Collectors.toList());
   }
 
   @Override

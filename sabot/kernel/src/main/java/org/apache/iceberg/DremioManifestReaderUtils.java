@@ -18,22 +18,22 @@ package org.apache.iceberg;
 import org.apache.avro.Schema;
 import org.apache.iceberg.io.CloseableIterable;
 
-/**
- * Utility functions for working with Iceberg ManifestReaders.
- */
+/** Utility functions for working with Iceberg ManifestReaders. */
 public class DremioManifestReaderUtils {
 
   public static class ManifestEntryWrapper<F extends ContentFile<F>> {
 
     private ManifestEntry<F> entry;
 
-    ManifestEntryWrapper() {
-    }
+    ManifestEntryWrapper() {}
 
     public ManifestEntryWrapper(F file, long sequenceNumber) {
       // TODO: add a constructor with 'file sequence number'.
-      // This method is only used for test code simulation. Also, 'data sequence number' is always passed as 0.
-      this.entry = new GenericManifestEntry<F>((Schema) null).wrapExisting(0L, sequenceNumber, sequenceNumber, file);
+      // This method is only used for test code simulation. Also, 'data sequence number' is always
+      // passed as 0.
+      this.entry =
+          new GenericManifestEntry<F>((Schema) null)
+              .wrapExisting(0L, sequenceNumber, sequenceNumber, file);
     }
 
     public Long sequenceNumber() {
@@ -51,11 +51,12 @@ public class DremioManifestReaderUtils {
   }
 
   /**
-   * Provides public access to ManifestReader.liveEntries.  Callers are responsible for making defensive copies
-   * of ManifestEntryWrapper instances during iteration.
+   * Provides public access to ManifestReader.liveEntries. Callers are responsible for making
+   * defensive copies of ManifestEntryWrapper instances during iteration.
    */
-  public static <F extends ContentFile<F>> CloseableIterable<ManifestEntryWrapper<F>> liveManifestEntriesIterator(
-      ManifestReader<F> reader) {
+  public static <F extends ContentFile<F>>
+      CloseableIterable<ManifestEntryWrapper<F>> liveManifestEntriesIterator(
+          ManifestReader<F> reader) {
     ManifestEntryWrapper<F> wrapper = new ManifestEntryWrapper<>();
     return CloseableIterable.transform(reader.liveEntries(), wrapper::wrap);
   }

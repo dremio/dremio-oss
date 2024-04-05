@@ -15,9 +15,7 @@
  */
 package com.dremio.service.jobtelemetry.server.store;
 
-/**
- * Test for local profile store.
- */
+/** Test for local profile store. */
 public class TestLocalMetricsStore extends AbstractTestMetricsStore {
 
   @Override

@@ -23,7 +23,7 @@ export const devServer = {
       "connect-src 'self' api.segment.io cdn.segment.com *.sentry.io sentry.io https://*.intercom.io wss://*.intercom.io uploads.intercomcdn.com uploads.intercomcdn.eu uploads.intercomusercontent.com;" +
       "img-src 'self' blob: data: https:;" +
       "font-src 'self' js.intercomcdn.com fonts.intercomcdn.com;" +
-      "frame-src youtube.com https://www.youtube-nocookie.com;" +
+      "frame-src 'self' youtube.com https://www.youtube-nocookie.com;" +
       "media-src 'self' js.intercomcdn.com;" +
       "object-src 'none';" +
       "script-src 'self' 'unsafe-inline' 'unsafe-eval' www.googletagmanager.com cdn.segment.com app.intercom.io widget.intercom.io js.intercomcdn.com;" +

@@ -17,8 +17,10 @@ package com.dremio.exec.catalog;
 
 import static com.dremio.exec.catalog.DremioTable.UNSUPPORTED_EXTENDED_TABLE;
 
+import com.dremio.exec.ops.DremioCatalogReader;
+import com.google.common.base.Supplier;
+import com.google.common.collect.ImmutableList;
 import java.util.List;
-
 import org.apache.calcite.linq4j.tree.Expression;
 import org.apache.calcite.plan.RelOptSchema;
 import org.apache.calcite.plan.RelOptTable;
@@ -42,10 +44,6 @@ import org.apache.calcite.sql.validate.SqlValidatorTable;
 import org.apache.calcite.sql2rel.InitializerContext;
 import org.apache.calcite.util.ImmutableBitSet;
 
-import com.dremio.exec.ops.DremioCatalogReader;
-import com.google.common.base.Supplier;
-import com.google.common.collect.ImmutableList;
-
 /**
  * A DremioTable that has been localized to a particular DremioCatalogReader and RelDataTypeFactory
  * for the purposes of a particular planning session.
@@ -64,11 +62,13 @@ public class DremioPrepareTable implements RelOptTable, PreparingTable, SqlValid
     super();
     this.catalog = catalog;
     this.dataTypeFactory = dataTypeFactory;
-    this.rowType = new Supplier<RelDataType>(){
-      @Override
-      public RelDataType get() {
-        return table.getRowType(dataTypeFactory);
-      }};
+    this.rowType =
+        new Supplier<RelDataType>() {
+          @Override
+          public RelDataType get() {
+            return table.getRowType(dataTypeFactory);
+          }
+        };
     this.table = table;
   }
 
@@ -79,7 +79,15 @@ public class DremioPrepareTable implements RelOptTable, PreparingTable, SqlValid
 
   @Override
   public double getRowCount() {
-    return table.getStatistic().getRowCount();
+    Double statisticRowCount = table.getStatistic().getRowCount();
+    if (statisticRowCount == null) {
+      // This just a random number, so we don't get an NPE
+      // Ideally we table.getStatistic() returns a valid number, but it's an estimate.
+      // Basically the contract between DremioPrepareTable and Statistics are incompatible.
+      return 100;
+    }
+
+    return (double) statisticRowCount;
   }
 
   @Override
@@ -126,9 +134,11 @@ public class DremioPrepareTable implements RelOptTable, PreparingTable, SqlValid
 
   @Override
   public <T> T unwrap(Class<T> paramClass) {
-    if (paramClass == DremioPrepareTable.class || paramClass == SqlValidatorTable.class || paramClass == RelOptTable.class) {
+    if (paramClass == DremioPrepareTable.class
+        || paramClass == SqlValidatorTable.class
+        || paramClass == RelOptTable.class) {
       return paramClass.cast(this);
-    } else if(paramClass == DremioTable.class
+    } else if (paramClass == DremioTable.class
         || paramClass == table.getClass()
         || paramClass == Table.class) {
       return paramClass.cast(table);
@@ -147,7 +157,8 @@ public class DremioPrepareTable implements RelOptTable, PreparingTable, SqlValid
     Table extendedTable = table.extend(paramList);
     if (!(extendedTable instanceof DremioTable)) {
       // We only support extended tables that result in a DremioTable.
-      throw new UnsupportedOperationException(String.format(UNSUPPORTED_EXTENDED_TABLE, extendedTable.getClass().getName()));
+      throw new UnsupportedOperationException(
+          String.format(UNSUPPORTED_EXTENDED_TABLE, extendedTable.getClass().getName()));
     }
 
     return new DremioPrepareTable(catalog, dataTypeFactory, (DremioTable) extendedTable);
@@ -178,8 +189,12 @@ public class DremioPrepareTable implements RelOptTable, PreparingTable, SqlValid
     // populate RelOptTable ColumnStrategies with DremioTable's Null property
     // List<ColumnStrategy> is required not null when doing Merge query validation
     return table.getSchema().getFields().stream()
-      .map(f -> f.getFieldType().isNullable() ? ColumnStrategy.NULLABLE : ColumnStrategy.NOT_NULLABLE)
-      .collect(ImmutableList.toImmutableList());
+        .map(
+            f ->
+                f.getFieldType().isNullable()
+                    ? ColumnStrategy.NULLABLE
+                    : ColumnStrategy.NOT_NULLABLE)
+        .collect(ImmutableList.toImmutableList());
   }
 
   @Override
@@ -188,7 +203,8 @@ public class DremioPrepareTable implements RelOptTable, PreparingTable, SqlValid
   }
 
   @Override
-  public boolean columnHasDefaultValue(RelDataType rowType, int ordinal, InitializerContext initializerContext) {
+  public boolean columnHasDefaultValue(
+      RelDataType rowType, int ordinal, InitializerContext initializerContext) {
     return false;
   }
 

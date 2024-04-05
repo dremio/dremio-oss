@@ -18,42 +18,42 @@ package com.dremio.plugins.elastic;
 import static com.dremio.TestBuilder.listOf;
 import static com.dremio.plugins.elastic.ElasticsearchType.TEXT;
 
+import com.dremio.common.util.TestTools;
+import com.dremio.plugins.elastic.ElasticsearchCluster.ColumnData;
+import com.dremio.plugins.elastic.ElasticsearchCluster.SearchResults;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
-
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestRule;
 
-import com.dremio.common.util.TestTools;
-import com.dremio.plugins.elastic.ElasticsearchCluster.ColumnData;
-import com.dremio.plugins.elastic.ElasticsearchCluster.SearchResults;
-
-/**
- * Tests variation in data types within the same field.
- */
+/** Tests variation in data types within the same field. */
 public class ITTestListTypes extends ElasticBaseTestQuery {
 
-  @Rule
-  public final TestRule timeoutRule = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
+  @Rule public final TestRule timeoutRule = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
 
   @Test
   public void testStringListCoercion() throws Exception {
 
-    ColumnData[] data = new ColumnData[]{
-            new ColumnData("field_a", TEXT, new Object[][]{
-                    {Collections.<String>emptyList()},             // empty array
-                    {"test"}
-            })
-    };
+    ColumnData[] data =
+        new ColumnData[] {
+          new ColumnData(
+              "field_a",
+              TEXT,
+              new Object[][] {
+                {Collections.<String>emptyList()}, // empty array
+                {"test"}
+              })
+        };
 
     loadWithRetry(schema, table, data);
     SearchResults contents = elastic.search(schema, table);
 
-
     String sql = "select field_a from elasticsearch." + schema + "." + table;
 
-    testBuilder().sqlQuery(sql).unOrdered()
+    testBuilder()
+        .sqlQuery(sql)
+        .unOrdered()
         .baselineColumns("field_a")
         .baselineValues(Collections.<String>emptyList())
         .baselineValues(listOf("test"))

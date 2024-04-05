@@ -15,24 +15,23 @@
  */
 package com.dremio.exec.planner.acceleration;
 
+import com.dremio.common.types.MinorType;
+import com.dremio.datastore.ProtostuffSerializer;
+import com.dremio.datastore.Serializer;
+import com.dremio.proto.model.MultiDatasetUpdateId;
+import com.dremio.proto.model.SingleDatasetUpdateId;
+import com.dremio.proto.model.UpdateId;
 import java.math.BigDecimal;
-
+import java.util.stream.Collectors;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.common.types.MinorType;
-import com.dremio.datastore.ProtostuffSerializer;
-import com.dremio.datastore.Serializer;
-import com.dremio.proto.model.UpdateId;
-
-/**
- * Wrapper class for incremental refresh update id
- */
+/** Wrapper class for incremental refresh update id */
 public class UpdateIdWrapper {
   private static final Logger logger = LoggerFactory.getLogger(UpdateIdWrapper.class);
-  public static final Serializer<UpdateId, byte[]> UPDATE_ID_ABSTRACT_SERIALIZER = ProtostuffSerializer.of(UpdateId.getSchema());
-
+  public static final Serializer<UpdateId, byte[]> UPDATE_ID_ABSTRACT_SERIALIZER =
+      ProtostuffSerializer.of(UpdateId.getSchema());
 
   private UpdateId updateId;
 
@@ -70,7 +69,8 @@ public class UpdateIdWrapper {
   public void update(BigDecimal updateValue) {
     setType(MinorType.DECIMAL);
     if (updateValue != null) {
-      if (updateId.getStringUpdateId() == null || new BigDecimal(updateId.getStringUpdateId()).compareTo(updateValue) < 0) {
+      if (updateId.getStringUpdateId() == null
+          || new BigDecimal(updateId.getStringUpdateId()).compareTo(updateValue) < 0) {
         updateId.setStringUpdateId(updateValue.toString());
       }
     }
@@ -79,7 +79,8 @@ public class UpdateIdWrapper {
   public void update(String updateValue) {
     setType(MinorType.VARCHAR);
     if (updateValue != null) {
-      if ((updateId.getStringUpdateId() == null) || (updateId.getStringUpdateId().compareTo(updateValue) < 0)) {
+      if ((updateId.getStringUpdateId() == null)
+          || (updateId.getStringUpdateId().compareTo(updateValue) < 0)) {
         updateId.setStringUpdateId(updateValue);
       }
     }
@@ -150,7 +151,7 @@ public class UpdateIdWrapper {
 
   public void update(UpdateId updateValue) {
     setType(updateValue.getType());
-    switch(updateValue.getType()) {
+    switch (updateValue.getType()) {
       case FLOAT4:
         update(updateValue.getFloatUpdateId());
         break;
@@ -200,7 +201,41 @@ public class UpdateIdWrapper {
         default:
       }
     }
+    if (updateId.getUpdateIdType() == UpdateId.IdType.MULTI_DATASET) {
+      return toUpdateIdString(updateId.getMultiDatasetUpdateId());
+    }
     return "";
+  }
+
+  /**
+   * Generate a string to display in the UI for "select * from sys.refreshes" for a
+   * MultiDatasetUpdateId
+   */
+  private String toUpdateIdString(MultiDatasetUpdateId multiDatasetUpdateId) {
+    if (multiDatasetUpdateId != null
+        && multiDatasetUpdateId.getSingleDatasetUpdateIdList() != null) {
+      return updateId.getMultiDatasetUpdateId().getSingleDatasetUpdateIdList().stream()
+          .map(this::toUpdateIdString)
+          .collect(Collectors.joining(", "));
+    }
+    return "";
+  }
+
+  /**
+   * Generate a string to display in the UI for "select * from sys.refreshes" for a
+   * SingleDatasetUpdateId
+   */
+  private String toUpdateIdString(SingleDatasetUpdateId singleDatasetUpdateId) {
+    if (singleDatasetUpdateId == null) {
+      return "null";
+    }
+    return ((singleDatasetUpdateId.getDatasetId() != null
+            ? singleDatasetUpdateId.getDatasetId()
+            : "null")
+        + ":"
+        + (singleDatasetUpdateId.getSnapshotId() != null
+            ? singleDatasetUpdateId.getSnapshotId()
+            : "null"));
   }
 
   public byte[] serialize() {
@@ -212,7 +247,7 @@ public class UpdateIdWrapper {
   }
 
   public static MinorType getMinorTypeFromSqlTypeName(SqlTypeName type) {
-    switch(type) {
+    switch (type) {
       case FLOAT:
         return MinorType.FLOAT4;
       case DOUBLE:

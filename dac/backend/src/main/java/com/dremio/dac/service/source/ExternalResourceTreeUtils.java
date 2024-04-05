@@ -15,22 +15,19 @@
  */
 package com.dremio.dac.service.source;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
 import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.dac.model.resourcetree.ResourceTreeEntity;
 import com.dremio.dac.model.resourcetree.ResourceTreeEntity.ResourceType;
 import com.dremio.exec.catalog.VersionedDatasetId;
 import com.dremio.plugins.ExternalNamespaceEntry;
 import com.dremio.service.namespace.NamespaceKey;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
-/**
- * Helpers for making resource tree entity list from external catalogs (e.g. Nessie)
- */
+/** Helpers for making resource tree entity list from external catalogs (e.g. Nessie) */
 public final class ExternalResourceTreeUtils {
   private ExternalResourceTreeUtils() {}
 
@@ -66,7 +63,13 @@ public final class ExternalResourceTreeUtils {
               final String url = "/resourcetree/" + path.toUrlEncodedString();
               resources.add(
                   new ResourceTreeEntity(
-                      ResourceType.FOLDER, name, fullPathList, url, null, versionedDatasetId, rootType));
+                      ResourceType.FOLDER,
+                      name,
+                      fullPathList,
+                      url,
+                      null,
+                      versionedDatasetId,
+                      rootType));
               break;
             case ICEBERG_TABLE:
               resources.add(

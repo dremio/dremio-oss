@@ -16,16 +16,13 @@
 
 package com.dremio.datastore.api.options;
 
-import java.util.Arrays;
-import java.util.Optional;
-
 import com.dremio.datastore.RemoteDataStoreProtobuf;
 import com.dremio.datastore.api.KVStore;
 import com.dremio.datastore.indexed.IndexPutOption;
+import java.util.Arrays;
+import java.util.Optional;
 
-/**
- * Utility class to perform validation of {@link KVStore.KVStoreOption} values.
- */
+/** Utility class to perform validation of {@link KVStore.KVStoreOption} values. */
 public class KVStoreOptionUtility {
 
   /**
@@ -69,7 +66,8 @@ public class KVStoreOptionUtility {
    * @param options The array of options to search.
    * @return The found PutOption of type CREATE or VERSION or null if neither are found.
    */
-  public static Optional<KVStore.PutOption> getCreateOrVersionOption(KVStore.KVStoreOption... options) {
+  public static Optional<KVStore.PutOption> getCreateOrVersionOption(
+      KVStore.KVStoreOption... options) {
     validateOptions(options);
 
     if (null == options || options.length == 0) {
@@ -93,9 +91,10 @@ public class KVStoreOptionUtility {
     }
 
     for (KVStore.KVStoreOption option : options) {
-      if (option instanceof KVStore.PutOption &&
-        ((KVStore.PutOption) option).getPutOptionInfo().getType() == RemoteDataStoreProtobuf.PutOptionType.TTL) {
-        return Optional.of((KVStore.PutOption)option);
+      if (option instanceof KVStore.PutOption
+          && ((KVStore.PutOption) option).getPutOptionInfo().getType()
+              == RemoteDataStoreProtobuf.PutOptionType.TTL) {
+        return Optional.of((KVStore.PutOption) option);
       }
     }
 
@@ -142,9 +141,8 @@ public class KVStoreOptionUtility {
       return null;
     }
 
-    return Arrays
-      .stream(options)
-      .filter(option -> !(option instanceof IndexPutOption))
-      .toArray(KVStore.PutOption[]::new);
+    return Arrays.stream(options)
+        .filter(option -> !(option instanceof IndexPutOption))
+        .toArray(KVStore.PutOption[]::new);
   }
 }

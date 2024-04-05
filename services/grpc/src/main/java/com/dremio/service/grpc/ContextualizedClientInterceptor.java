@@ -15,17 +15,16 @@
  */
 package com.dremio.service.grpc;
 
-import javax.inject.Provider;
-
 import com.dremio.context.CatalogContext;
 import com.dremio.context.RequestContext;
 import com.dremio.context.SerializableContext;
 import com.dremio.context.SupportContext;
 import com.dremio.context.TenantContext;
 import com.dremio.context.UserContext;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-
 import io.grpc.CallOptions;
 import io.grpc.Channel;
 import io.grpc.ClientCall;
@@ -34,10 +33,11 @@ import io.grpc.ForwardingClientCall;
 import io.grpc.ForwardingClientCallListener;
 import io.grpc.Metadata;
 import io.grpc.MethodDescriptor;
+import java.util.Collection;
+import java.util.Collections;
+import javax.inject.Provider;
 
-/**
- * Interceptor that populates gRPC headers from RequestContext.
- */
+/** Interceptor that populates gRPC headers from RequestContext. */
 public class ContextualizedClientInterceptor implements ClientInterceptor {
   public static final class ContextTransferBehavior {
     private final RequestContext.Key<? extends SerializableContext> key;
@@ -46,15 +46,17 @@ public class ContextualizedClientInterceptor implements ClientInterceptor {
 
     /**
      * Describes how each context should be transferred:
+     *
      * @param key Key to the context within RequestContext being transferred
-     * @param required Whether this key must be present (will raise an exception if not present when required)
-     * @param fallback When the context is not present, this fallback can be used instead (null for no fallback)
+     * @param required Whether this key must be present (will raise an exception if not present when
+     *     required)
+     * @param fallback When the context is not present, this fallback can be used instead (null for
+     *     no fallback)
      */
     public ContextTransferBehavior(
-      RequestContext.Key<? extends SerializableContext> key,
-      boolean required,
-      Provider<SerializableContext> fallback)
-    {
+        RequestContext.Key<? extends SerializableContext> key,
+        boolean required,
+        Provider<SerializableContext> fallback) {
       this.key = key;
       this.required = required;
       this.fallback = fallback;
@@ -73,33 +75,63 @@ public class ContextualizedClientInterceptor implements ClientInterceptor {
     }
   }
 
-  public static ContextualizedClientInterceptor buildSingleTenantClientInterceptor()
-  {
-    return new ContextualizedClientInterceptor(ImmutableList.of(
-      new ContextTransferBehavior(TenantContext.CTX_KEY, false, null),
-      new ContextTransferBehavior(UserContext.CTX_KEY, false, null),
-      new ContextTransferBehavior(CatalogContext.CTX_KEY, false, null)
-      // TODO: Copy SupportContext too?
-    ));
+  public static ContextualizedClientInterceptor buildSingleTenantClientInterceptor() {
+    return new ContextualizedClientInterceptor(
+        ImmutableList.of(
+            new ContextTransferBehavior(TenantContext.CTX_KEY, false, null),
+            new ContextTransferBehavior(UserContext.CTX_KEY, false, null),
+            new ContextTransferBehavior(CatalogContext.CTX_KEY, false, null)
+            // TODO: Copy SupportContext too?
+            ));
   }
 
   public static ContextualizedClientInterceptor buildSingleTenantClientInterceptorWithDefaults(
-    Provider<RequestContext> defaultRequestContext)
-  {
-    return new ContextualizedClientInterceptor(ImmutableList.of(
-      new ContextTransferBehavior(TenantContext.CTX_KEY, false, () -> defaultRequestContext.get().get(TenantContext.CTX_KEY)),
-      new ContextTransferBehavior(UserContext.CTX_KEY, false, () -> defaultRequestContext.get().get(UserContext.CTX_KEY)),
-      new ContextTransferBehavior(CatalogContext.CTX_KEY, false, null)
-    ));
+      Provider<RequestContext> defaultRequestContext) {
+    return new ContextualizedClientInterceptor(
+        ImmutableList.of(
+            new ContextTransferBehavior(
+                TenantContext.CTX_KEY,
+                false,
+                () -> defaultRequestContext.get().get(TenantContext.CTX_KEY)),
+            new ContextTransferBehavior(
+                UserContext.CTX_KEY,
+                false,
+                () -> defaultRequestContext.get().get(UserContext.CTX_KEY)),
+            new ContextTransferBehavior(CatalogContext.CTX_KEY, false, null)));
   }
 
+  /**
+   * Adds the default context to the Interceptor
+   *
+   * @return ContextualizedClientInterceptor
+   */
   public static ContextualizedClientInterceptor buildMultiTenantClientInterceptor() {
-    return new ContextualizedClientInterceptor(ImmutableList.of(
-      new ContextTransferBehavior(TenantContext.CTX_KEY, true, null),
-      new ContextTransferBehavior(CatalogContext.CTX_KEY, false, null),
-      new ContextTransferBehavior(UserContext.CTX_KEY, true, null),
-      new ContextTransferBehavior(SupportContext.CTX_KEY, false, null)
-    ));
+    return new ContextualizedClientInterceptor(
+        addDefaultContextTransferBehavior(Collections.emptyList()));
+  }
+
+  /**
+   * Adds the default + additional contexts to the Interceptor
+   *
+   * @return ContextualizedClientInterceptor
+   */
+  public static ContextualizedClientInterceptor buildMultiTenantClientInterceptor(
+      Iterable<ContextTransferBehavior> extraBehaviors) {
+    return new ContextualizedClientInterceptor(addDefaultContextTransferBehavior(extraBehaviors));
+  }
+
+  private static ImmutableList<ContextTransferBehavior> addDefaultContextTransferBehavior(
+      Iterable<ContextTransferBehavior> extraBehaviors) {
+    Preconditions.checkNotNull(extraBehaviors);
+    ImmutableList.Builder<ContextTransferBehavior> contextTransferBehaviorBuilder =
+        ImmutableList.<ContextTransferBehavior>builder()
+            .add(new ContextTransferBehavior(TenantContext.CTX_KEY, true, null))
+            .add(new ContextTransferBehavior(CatalogContext.CTX_KEY, false, null))
+            .add(new ContextTransferBehavior(UserContext.CTX_KEY, true, null))
+            .add(new ContextTransferBehavior(SupportContext.CTX_KEY, false, null))
+            .addAll(extraBehaviors);
+
+    return contextTransferBehaviorBuilder.build();
   }
 
   private final ImmutableList<ContextTransferBehavior> actions;
@@ -109,8 +141,10 @@ public class ContextualizedClientInterceptor implements ClientInterceptor {
   }
 
   @Override
-  public <ReqT, RespT> ClientCall<ReqT, RespT> interceptCall(MethodDescriptor<ReqT, RespT> methodDescriptor, CallOptions callOptions, Channel channel) {
-    return new ForwardingClientCall.SimpleForwardingClientCall<ReqT, RespT>(channel.newCall(methodDescriptor, callOptions)) {
+  public <ReqT, RespT> ClientCall<ReqT, RespT> interceptCall(
+      MethodDescriptor<ReqT, RespT> methodDescriptor, CallOptions callOptions, Channel channel) {
+    return new ForwardingClientCall.SimpleForwardingClientCall<ReqT, RespT>(
+        channel.newCall(methodDescriptor, callOptions)) {
       @Override
       public void start(Listener<RespT> responseListener, Metadata headers) {
         final ImmutableMap.Builder<String, String> builder = ImmutableMap.builder();
@@ -121,20 +155,32 @@ public class ContextualizedClientInterceptor implements ClientInterceptor {
           } else if (action.getFallback() != null) {
             action.getFallback().get().serialize(builder);
           } else if (action.getRequired()) {
-            throw new RuntimeException("RequestContext for " + action.getKey().getName() + " is required but not present");
+            throw new RuntimeException(
+                "RequestContext for " + action.getKey().getName() + " is required but not present");
           }
         }
 
-        builder.build().forEach(
-          (key, value) -> headers.put(Metadata.Key.of(key, Metadata.ASCII_STRING_MARSHALLER), value));
+        builder
+            .build()
+            .forEach(
+                (key, value) ->
+                    headers.put(Metadata.Key.of(key, Metadata.ASCII_STRING_MARSHALLER), value));
 
-        super.start(new ForwardingClientCallListener.SimpleForwardingClientCallListener<RespT>(responseListener) {
-          @Override
-          public void onHeaders(Metadata headers) {
-            super.onHeaders(headers);
-          }
-        }, headers);
+        super.start(
+            new ForwardingClientCallListener.SimpleForwardingClientCallListener<RespT>(
+                responseListener) {
+              @Override
+              public void onHeaders(Metadata headers) {
+                super.onHeaders(headers);
+              }
+            },
+            headers);
       }
     };
+  }
+
+  @VisibleForTesting
+  Collection<ContextTransferBehavior> getActions() {
+    return actions;
   }
 }

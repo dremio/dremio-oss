@@ -15,11 +15,6 @@
  */
 package com.dremio.service.coordinator.zk;
 
-import java.io.IOException;
-import java.util.concurrent.ConcurrentMap;
-
-import javax.inject.Provider;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.ClusterElectionManager;
@@ -28,12 +23,15 @@ import com.dremio.service.coordinator.ElectionListener;
 import com.dremio.service.coordinator.ElectionRegistrationHandle;
 import com.dremio.service.coordinator.ServiceSet;
 import com.google.common.collect.Maps;
+import java.io.IOException;
+import java.util.concurrent.ConcurrentMap;
+import javax.inject.Provider;
 
-/**
- * ZK implementation for ClusterServiceSetManager
- */
-public class ZKClusterServiceSetManager implements ClusterServiceSetManager, ClusterElectionManager {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ZKClusterServiceSetManager.class);
+/** ZK implementation for ClusterServiceSetManager */
+public class ZKClusterServiceSetManager
+    implements ClusterServiceSetManager, ClusterElectionManager {
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ZKClusterServiceSetManager.class);
   private final ConcurrentMap<String, ZKServiceSet> serviceSets = Maps.newConcurrentMap();
 
   private final ZKClusterClient zkClient;
@@ -43,11 +41,16 @@ public class ZKClusterServiceSetManager implements ClusterServiceSetManager, Clu
   }
 
   public ZKClusterServiceSetManager(ZKClusterConfig config, String connect) throws IOException {
-    this.zkClient = new ZKClusterClient(config, connect);
+    this(new ZKClusterClient(config, connect));
   }
 
-  public ZKClusterServiceSetManager(ZKClusterConfig config, Provider<Integer> localPort) throws IOException {
-    this.zkClient = new ZKClusterClient(config, localPort);
+  public ZKClusterServiceSetManager(ZKClusterConfig config, Provider<Integer> localPort)
+      throws IOException {
+    this(new ZKClusterClient(config, localPort));
+  }
+
+  public ZKClusterServiceSetManager(ZKClusterClient clusterClient) {
+    this.zkClient = clusterClient;
   }
 
   @Override
@@ -62,16 +65,19 @@ public class ZKClusterServiceSetManager implements ClusterServiceSetManager, Clu
 
   @Override
   public ServiceSet getOrCreateServiceSet(String serviceName) {
-    return serviceSets.computeIfAbsent(serviceName, s -> {
-      final ZKServiceSet newServiceSet = zkClient.newServiceSet(serviceName);
-      try {
-        newServiceSet.start();
-        logger.info("Started zkServiceSet for service {}", serviceName);
-      } catch (Exception e) {
-        throw new RuntimeException(String.format("Unable to start %s service in Zookeeper", serviceName), e);
-      }
-      return newServiceSet;
-    });
+    return serviceSets.computeIfAbsent(
+        serviceName,
+        s -> {
+          final ZKServiceSet newServiceSet = zkClient.newServiceSet(serviceName);
+          try {
+            newServiceSet.start();
+            logger.info("Started zkServiceSet for service {}", serviceName);
+          } catch (Exception e) {
+            throw new RuntimeException(
+                String.format("Unable to start %s service in Zookeeper", serviceName), e);
+          }
+          return newServiceSet;
+        });
   }
 
   @Override
@@ -91,16 +97,19 @@ public class ZKClusterServiceSetManager implements ClusterServiceSetManager, Clu
   }
 
   public ServiceSet getOrCreateServiceSet(String role, String serviceName) {
-    return serviceSets.computeIfAbsent(role, s -> {
-      final ZKServiceSet newServiceSet = zkClient.newServiceSet(serviceName);
-      try {
-        newServiceSet.start();
-        logger.info("Started zkServiceSet for service {} and role {}", serviceName, role);
-      } catch (Exception e) {
-        throw new RuntimeException(String.format("Unable to start %s service in Zookeeper", serviceName), e);
-      }
-      return newServiceSet;
-    });
+    return serviceSets.computeIfAbsent(
+        role,
+        s -> {
+          final ZKServiceSet newServiceSet = zkClient.newServiceSet(serviceName);
+          try {
+            newServiceSet.start();
+            logger.info("Started zkServiceSet for service {} and role {}", serviceName, role);
+          } catch (Exception e) {
+            throw new RuntimeException(
+                String.format("Unable to start %s service in Zookeeper", serviceName), e);
+          }
+          return newServiceSet;
+        });
   }
 
   @Override

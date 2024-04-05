@@ -18,21 +18,20 @@ package com.dremio.exec.store.metadatarefresh;
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 
-/**
- *  Interface to be implemented by StoragePlugins which support unlimited splits
- */
+/** Interface to be implemented by StoragePlugins which support unlimited splits */
 public interface SupportsUnlimitedSplits {
 
   /**
-   * Whether the plugin allows unlimited splits for the given table.
-   * May not check if corresponding support options are enabled or not
+   * Whether the plugin allows unlimited splits for the given table. May not check if corresponding
+   * support options are enabled or not
    *
    * @param handle
    * @param datasetConfig
    * @param user
    * @return
    */
-  default boolean allowUnlimitedSplits(DatasetHandle handle, DatasetConfig datasetConfig, String user) {
+  default boolean allowUnlimitedSplits(
+      DatasetHandle handle, DatasetConfig datasetConfig, String user) {
     return false;
   }
 

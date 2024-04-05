@@ -16,8 +16,8 @@
 
 package com.dremio.exec.planner.sql.parser;
 
+import com.dremio.service.namespace.NamespaceKey;
 import java.util.List;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -29,20 +29,17 @@ import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.ImmutableNullableList;
 
-import com.dremio.service.namespace.NamespaceKey;
-
-/**
- * SQL node tree for <code>ALTER SOURCE source REFRESH STATUS </code>
- */
+/** SQL node tree for <code>ALTER SOURCE source REFRESH STATUS </code> */
 public class SqlRefreshSourceStatus extends SqlSystemCall {
 
   public static final SqlSpecialOperator OPERATOR =
-    new SqlSpecialOperator("REFRESH_SOURCE_STATUS", SqlKind.OTHER) {
-      @Override public SqlCall createCall(SqlLiteral functionQualifier,
-                                          SqlParserPos pos, SqlNode... operands) {
-        return new SqlRefreshSourceStatus(pos, (SqlIdentifier) operands[0]);
-      }
-    };
+      new SqlSpecialOperator("REFRESH_SOURCE_STATUS", SqlKind.OTHER) {
+        @Override
+        public SqlCall createCall(
+            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+          return new SqlRefreshSourceStatus(pos, (SqlIdentifier) operands[0]);
+        }
+      };
 
   private SqlIdentifier source;
 
@@ -52,7 +49,8 @@ public class SqlRefreshSourceStatus extends SqlSystemCall {
     this.source = source;
   }
 
-  @Override public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+  @Override
+  public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
     writer.keyword("ALTER");
     writer.keyword("SOURCE");
     source.unparse(writer, leftPrec, rightPrec);
@@ -60,7 +58,8 @@ public class SqlRefreshSourceStatus extends SqlSystemCall {
     writer.keyword("STATUS");
   }
 
-  @Override public void setOperand(int i, SqlNode operand) {
+  @Override
+  public void setOperand(int i, SqlNode operand) {
     switch (i) {
       case 0:
         source = (SqlIdentifier) operand;
@@ -70,11 +69,13 @@ public class SqlRefreshSourceStatus extends SqlSystemCall {
     }
   }
 
-  @Override public SqlOperator getOperator() {
+  @Override
+  public SqlOperator getOperator() {
     return OPERATOR;
   }
 
-  @Override public List<SqlNode> getOperandList() {
+  @Override
+  public List<SqlNode> getOperandList() {
     return ImmutableNullableList.<SqlNode>of(source);
   }
 
@@ -82,5 +83,7 @@ public class SqlRefreshSourceStatus extends SqlSystemCall {
     return new NamespaceKey(source.names);
   }
 
-  public SqlIdentifier getSource() { return source; }
+  public SqlIdentifier getSource() {
+    return source;
+  }
 }

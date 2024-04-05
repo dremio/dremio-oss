@@ -15,16 +15,6 @@
  */
 package com.dremio.service.jobtelemetry.server.store;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Stream;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.nodes.EndpointHelper;
 import com.dremio.common.utils.protos.AttemptId;
 import com.dremio.common.utils.protos.AttemptIdUtils;
@@ -39,10 +29,18 @@ import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.UserBitShared;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * Implementation of profile store, keeps all profiles except the full-profile in-memory.
- * The full profile goes to local kvstore.
+ * Implementation of profile store, keeps all profiles except the full-profile in-memory. The full
+ * profile goes to local kvstore.
  */
 public class LocalProfileStore implements ProfileStore {
   private static final Logger LOGGER = LoggerFactory.getLogger(LocalProfileStore.class);
@@ -52,10 +50,11 @@ public class LocalProfileStore implements ProfileStore {
 
   private final LegacyKVStoreProvider kvStoreProvider;
   private final Map<UserBitShared.QueryId, UserBitShared.QueryProfile> planningProfiles =
-    new HashMap<>();
-  private final Map<UserBitShared.QueryId, UserBitShared.QueryProfile> tailProfiles = new HashMap<>();
-  private final Map<UserBitShared.QueryId, Map<String, CoordExecRPC.ExecutorQueryProfile>> executorMap =
-    new HashMap<>();
+      new HashMap<>();
+  private final Map<UserBitShared.QueryId, UserBitShared.QueryProfile> tailProfiles =
+      new HashMap<>();
+  private final Map<UserBitShared.QueryId, Map<String, CoordExecRPC.ExecutorQueryProfile>>
+      executorMap = new HashMap<>();
   private LegacyKVStore<AttemptId, UserBitShared.QueryProfile> fullProfileStore;
 
   // To ensure we don't create sub-profiles after a query has terminated,
@@ -64,9 +63,8 @@ public class LocalProfileStore implements ProfileStore {
   // for 10 minutes after last access.
 
   @SuppressWarnings("NoGuavaCacheUsage") // TODO: fix as part of DX-51884
-  private Cache<UserBitShared.QueryId, Boolean> deletedQueryIds = CacheBuilder.newBuilder()
-    .expireAfterAccess(10, TimeUnit.MINUTES)
-    .build();
+  private Cache<UserBitShared.QueryId, Boolean> deletedQueryIds =
+      CacheBuilder.newBuilder().expireAfterAccess(10, TimeUnit.MINUTES).build();
 
   public LocalProfileStore(LegacyKVStoreProvider kvStoreProvider) {
     this.kvStoreProvider = kvStoreProvider;
@@ -78,8 +76,8 @@ public class LocalProfileStore implements ProfileStore {
   }
 
   @Override
-  public synchronized void putPlanningProfile(UserBitShared.QueryId queryId,
-                                              UserBitShared.QueryProfile profile) {
+  public synchronized void putPlanningProfile(
+      UserBitShared.QueryId queryId, UserBitShared.QueryProfile profile) {
     if (deletedQueryIds.asMap().containsKey(queryId)) {
       return;
     }
@@ -87,12 +85,14 @@ public class LocalProfileStore implements ProfileStore {
   }
 
   @Override
-  public synchronized Optional<UserBitShared.QueryProfile> getPlanningProfile(UserBitShared.QueryId queryId) {
+  public synchronized Optional<UserBitShared.QueryProfile> getPlanningProfile(
+      UserBitShared.QueryId queryId) {
     return Optional.ofNullable(planningProfiles.get(queryId));
   }
 
   @Override
-  public synchronized void putTailProfile(UserBitShared.QueryId queryId, UserBitShared.QueryProfile profile) {
+  public synchronized void putTailProfile(
+      UserBitShared.QueryId queryId, UserBitShared.QueryProfile profile) {
     if (deletedQueryIds.asMap().containsKey(queryId)) {
       return;
     }
@@ -100,13 +100,13 @@ public class LocalProfileStore implements ProfileStore {
   }
 
   @Override
-  public synchronized Optional<UserBitShared.QueryProfile> getTailProfile(UserBitShared.QueryId queryId) {
+  public synchronized Optional<UserBitShared.QueryProfile> getTailProfile(
+      UserBitShared.QueryId queryId) {
     return Optional.ofNullable(tailProfiles.get(queryId));
   }
 
   @Override
-  public void putFullProfile(UserBitShared.QueryId queryId,
-                             UserBitShared.QueryProfile profile) {
+  public void putFullProfile(UserBitShared.QueryId queryId, UserBitShared.QueryProfile profile) {
     fullProfileStore.put(AttemptId.of(queryId), profile);
   }
 
@@ -116,33 +116,35 @@ public class LocalProfileStore implements ProfileStore {
   }
 
   @Override
-  public synchronized void putExecutorProfile(UserBitShared.QueryId queryId,
-                                              CoordinationProtos.NodeEndpoint endpoint,
-                                              CoordExecRPC.ExecutorQueryProfile profile,
-                                              boolean isFinal) {
-    if(LOGGER.isDebugEnabled()) {
+  public synchronized void putExecutorProfile(
+      UserBitShared.QueryId queryId,
+      CoordinationProtos.NodeEndpoint endpoint,
+      CoordExecRPC.ExecutorQueryProfile profile,
+      boolean isFinal) {
+    if (LOGGER.isDebugEnabled()) {
       LOGGER.debug("Updating profile store for query id {}", QueryIdHelper.getQueryId(queryId));
     }
 
     if (deletedQueryIds.asMap().containsKey(queryId)) {
       return;
     }
-    executorMap.compute(queryId,
-      (key, value) -> {
-        if (value == null)  {
-          value = new HashMap<>();
-        }
-        value.put(EndpointHelper.getMinimalString(endpoint), profile);
-        return value;
-      });
+    executorMap.compute(
+        queryId,
+        (key, value) -> {
+          if (value == null) {
+            value = new HashMap<>();
+          }
+          value.put(EndpointHelper.getMinimalString(endpoint), profile);
+          return value;
+        });
   }
 
   @Override
-  public synchronized Stream<CoordExecRPC.ExecutorQueryProfile> getAllExecutorProfiles(UserBitShared.QueryId queryId) {
+  public synchronized Stream<CoordExecRPC.ExecutorQueryProfile> getAllExecutorProfiles(
+      UserBitShared.QueryId queryId) {
     Map<String, CoordExecRPC.ExecutorQueryProfile> innerMap = executorMap.get(queryId);
 
-    return innerMap == null ? Stream.empty() :
-      new ArrayList<>(innerMap.values()).stream();
+    return innerMap == null ? Stream.empty() : new ArrayList<>(innerMap.values()).stream();
   }
 
   @Override
@@ -160,38 +162,39 @@ public class LocalProfileStore implements ProfileStore {
   }
 
   @Override
-  public void close() {
-  }
+  public void close() {}
 
   /**
    * Delete specified old profile.
    *
-   * Exposed as static so that cleanup tasks can do this without needing to start a service
+   * <p>Exposed as static so that cleanup tasks can do this without needing to start a service
    *
    * @param provider kvStore provider.
    * @param attemptId attemptId
    */
-  public static void deleteOldProfile(LegacyKVStoreProvider provider,
-                                      AttemptId attemptId) {
+  public static void deleteOldProfile(LegacyKVStoreProvider provider, AttemptId attemptId) {
     LegacyKVStore<AttemptId, UserBitShared.QueryProfile> legacyProfileStore =
-      provider.getStore(KVProfileStoreCreator.class);
+        provider.getStore(KVProfileStoreCreator.class);
     legacyProfileStore.delete(attemptId);
   }
 
-  /**
-   * Creator for full profiles kvstore.
-   */
-  public static final class KVProfileStoreCreator implements LegacyKVStoreCreationFunction<AttemptId, UserBitShared.QueryProfile> {
+  /** Creator for full profiles kvstore. */
+  public static final class KVProfileStoreCreator
+      implements LegacyKVStoreCreationFunction<AttemptId, UserBitShared.QueryProfile> {
     @Override
-    public LegacyKVStore<AttemptId, UserBitShared.QueryProfile> build(LegacyStoreBuildingFactory factory) {
+    public LegacyKVStore<AttemptId, UserBitShared.QueryProfile> build(
+        LegacyStoreBuildingFactory factory) {
       return factory
-        .<AttemptId, UserBitShared.QueryProfile>newStore()
-        .name(PROFILES_NAME)
-        .keyFormat(Format.wrapped(AttemptId.class, AttemptIdUtils::toString,
-          AttemptIdUtils::fromString,
-          Format.ofString()))
-        .valueFormat(Format.ofProtobuf(UserBitShared.QueryProfile.class))
-        .build();
+          .<AttemptId, UserBitShared.QueryProfile>newStore()
+          .name(PROFILES_NAME)
+          .keyFormat(
+              Format.wrapped(
+                  AttemptId.class,
+                  AttemptIdUtils::toString,
+                  AttemptIdUtils::fromString,
+                  Format.ofString()))
+          .valueFormat(Format.ofProtobuf(UserBitShared.QueryProfile.class))
+          .build();
     }
   }
 }

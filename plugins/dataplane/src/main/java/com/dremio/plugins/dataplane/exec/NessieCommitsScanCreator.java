@@ -15,9 +15,6 @@
  */
 package com.dremio.plugins.dataplane.exec;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.iceberg.NessieCommitsSubScan;
@@ -28,30 +25,38 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.sabot.op.spi.ProducerOperator;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
- * NessieCommitsScan creator - creates a ScanOperator with a single {@link NessieCommitsRecordReader}
- * It scans commits for remove orphan as well as do the tree travers for all the tables.
+ * NessieCommitsScan creator - creates a ScanOperator with a single {@link
+ * NessieCommitsRecordReader} It scans commits for remove orphan as well as do the tree travers for
+ * all the tables.
  */
 public class NessieCommitsScanCreator implements ProducerOperator.Creator<NessieCommitsSubScan> {
 
   @Override
-  public ProducerOperator create(FragmentExecutionContext fec,
-                                 OperatorContext context,
-                                 NessieCommitsSubScan config) throws ExecutionSetupException {
+  public ProducerOperator create(
+      FragmentExecutionContext fec, OperatorContext context, NessieCommitsSubScan config)
+      throws ExecutionSetupException {
 
     List<RecordReader> recordReaders = new ArrayList<>();
     final SupportsIcebergMutablePlugin plugin = fec.getStoragePlugin(config.getPluginId());
     if (Mode.LIVE_SNAPSHOTS.equals(config.getSnapshotsScanOptions().getMode())) {
       // Expire the applicable snapshots and send live to next layer from branch heads
-      recordReaders.add(new NessieIcebergExpirySnapshotsReader(context, plugin, config.getProps(), config.getSnapshotsScanOptions()));
+      recordReaders.add(
+          new NessieIcebergExpirySnapshotsReader(
+              context, plugin, config.getProps(), config.getSnapshotsScanOptions()));
     }
 
     // Scan remaining commits for applicable snapshots
-    RecordReader nessieCommitsRecordReader = config.isLeanSchema() ?
-        new LeanNessieCommitsRecordReader(fec, context, config) : new NessieCommitsRecordReader(fec, context, config);
+    RecordReader nessieCommitsRecordReader =
+        config.isLeanSchema()
+            ? new LeanNessieCommitsRecordReader(fec, context, config)
+            : new NessieCommitsRecordReader(fec, context, config);
     recordReaders.add(nessieCommitsRecordReader);
 
-    return new ScanOperator(config, context, RecordReaderIterator.from(recordReaders.listIterator()));
+    return new ScanOperator(
+        fec, config, context, RecordReaderIterator.from(recordReaders.listIterator()));
   }
 }

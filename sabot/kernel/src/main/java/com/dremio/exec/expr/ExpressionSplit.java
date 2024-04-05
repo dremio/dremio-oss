@@ -15,15 +15,6 @@
  */
 package com.dremio.exec.expr;
 
-import java.io.Closeable;
-import java.io.IOException;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-
-import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.util.TransferPair;
-
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.SupportedEngines;
 import com.dremio.common.logical.data.NamedExpression;
@@ -31,12 +22,18 @@ import com.dremio.exec.record.TypedFieldId;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.llvm.ExpressionWorkEstimator;
 import com.google.common.collect.Lists;
+import java.io.Closeable;
+import java.io.IOException;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.util.TransferPair;
 
-/**
- * Class captures an expression that is split
- */
+/** Class captures an expression that is split */
 public class ExpressionSplit extends CachableExpressionSplit implements Closeable {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ExpressionSplit.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ExpressionSplit.class);
   // This vector captures the output when the split is executed
   // The data from this value vector has to be transferred to vvOut and to all
   // readers of the output of this split
@@ -74,21 +71,41 @@ public class ExpressionSplit extends CachableExpressionSplit implements Closeabl
   // ValueVectorReadExpression representing the output of this split
   private final CodeGenContext readExpressionContext;
 
-  ExpressionSplit(CachableExpressionSplit cachableExpressionSplit, ValueVector vvOut, NamedExpression namedExpression, TypedFieldId fieldId, CodeGenContext readExprContext) {
+  ExpressionSplit(
+      CachableExpressionSplit cachableExpressionSplit,
+      ValueVector vvOut,
+      NamedExpression namedExpression,
+      TypedFieldId fieldId,
+      CodeGenContext readExprContext) {
     super(cachableExpressionSplit);
-    LogicalExpression expression = CodeGenerationContextRemover.removeCodeGenContext(namedExpression.getExpr());
+    LogicalExpression expression =
+        CodeGenerationContextRemover.removeCodeGenContext(namedExpression.getExpr());
     this.vvOut = vvOut;
     this.namedExpression = new NamedExpression(expression, namedExpression.getRef());
     this.typedFieldId = fieldId;
     this.readExpressionContext = readExprContext;
   }
 
-
-  ExpressionSplit(NamedExpression namedExpression, SplitDependencyTracker helper, TypedFieldId fieldId,
-                  CodeGenContext readExprContext, ValueVector vvOut, boolean isOriginalExpression, SupportedEngines.Engine
-                    executionEngine, int numExtraIfExprs, OperatorContext operatorContext) {
-    super(namedExpression, isOriginalExpression, operatorContext, executionEngine, helper, numExtraIfExprs, fieldId);
-    LogicalExpression expression = CodeGenerationContextRemover.removeCodeGenContext(namedExpression.getExpr());
+  ExpressionSplit(
+      NamedExpression namedExpression,
+      SplitDependencyTracker helper,
+      TypedFieldId fieldId,
+      CodeGenContext readExprContext,
+      ValueVector vvOut,
+      boolean isOriginalExpression,
+      SupportedEngines.Engine executionEngine,
+      int numExtraIfExprs,
+      OperatorContext operatorContext) {
+    super(
+        namedExpression,
+        isOriginalExpression,
+        operatorContext,
+        executionEngine,
+        helper,
+        numExtraIfExprs,
+        fieldId);
+    LogicalExpression expression =
+        CodeGenerationContextRemover.removeCodeGenContext(namedExpression.getExpr());
     this.vvOut = vvOut;
     this.transfersIn.addAll(helper.getTransfersIn());
     this.namedExpression = new NamedExpression(expression, namedExpression.getRef());
@@ -102,8 +119,9 @@ public class ExpressionSplit extends CachableExpressionSplit implements Closeabl
   }
 
   @Override
-  public String getOutputName() { return namedExpression.getRef().getAsUnescapedPath(); }
-
+  public String getOutputName() {
+    return namedExpression.getRef().getAsUnescapedPath();
+  }
 
   public void setDependsOnSplits(Set<String> dependsOnSplits) {
     this.dependsOnSplits = dependsOnSplits;
@@ -117,22 +135,30 @@ public class ExpressionSplit extends CachableExpressionSplit implements Closeabl
     }
 
     String fieldIdStr = "null";
-    if ( typedFieldId != null) {
+    if (typedFieldId != null) {
       fieldIdStr = typedFieldId.toString();
     }
 
     StringBuilder sb = new StringBuilder();
-    sb.append("name: ").append(namedExpression.getRef())
-      .append(", fieldId: ").append(fieldIdStr)
-      .append(", readers: ").append(getTotalReadersOfOutput())
-      .append(", dependencies: ").append(dependsOn)
-      .append(", expr: ").append(namedExpression.getExpr());
+    sb.append("name: ")
+        .append(namedExpression.getRef())
+        .append(", fieldId: ")
+        .append(fieldIdStr)
+        .append(", readers: ")
+        .append(getTotalReadersOfOutput())
+        .append(", dependencies: ")
+        .append(dependsOn)
+        .append(", expr: ")
+        .append(namedExpression.getExpr());
 
     return sb.toString();
   }
 
   // All used by test code to verify correctness
-  public int getExecIteration() { return execIteration; }
+  public int getExecIteration() {
+    return execIteration;
+  }
+
   public List<String> getDependencies() {
     return Lists.newArrayList(getDependsOnSplits());
   }
@@ -145,14 +171,14 @@ public class ExpressionSplit extends CachableExpressionSplit implements Closeabl
   }
 
   void transferOut() {
-    for(TransferPair transferPair : transferPairList) {
+    for (TransferPair transferPair : transferPairList) {
       transferPair.transfer();
     }
   }
 
   // Mark output of pre-req splits as read
   void markOutputAsRead() {
-    for(ExpressionSplit split : transfersIn) {
+    for (ExpressionSplit split : transfersIn) {
       split.markAsRead();
     }
   }
@@ -182,12 +208,14 @@ public class ExpressionSplit extends CachableExpressionSplit implements Closeabl
   }
 
   // mark this split's output as being read
-   void markAsRead() {
+  void markAsRead() {
     this.numReadersOfOutput++;
-    if (getTotalReadersOfOutput()== this.numReadersOfOutput) {
+    if (getTotalReadersOfOutput() == this.numReadersOfOutput) {
       if (logger.isTraceEnabled()) {
-        logger.trace("Releasing output buffer for {}, fieldid {}", getOutputName(),
-          typedFieldId != null ? typedFieldId.toString() : "null");
+        logger.trace(
+            "Releasing output buffer for {}, fieldid {}",
+            getOutputName(),
+            typedFieldId != null ? typedFieldId.toString() : "null");
       }
       releaseOutputBuffer();
     }

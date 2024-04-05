@@ -383,8 +383,10 @@ export class SqlAutoComplete extends Component {
   updateCode() {
     if (this.props.onChange) {
       const value = this.getMonacoEditorInstance()?.getValue();
-      this.props.onChange(value);
-      this.getMonacoEditorInstance()?.pushUndoStop();
+      if (value != null) {
+        this.props.onChange(value);
+        this.getMonacoEditorInstance()?.pushUndoStop();
+      }
     }
   }
 

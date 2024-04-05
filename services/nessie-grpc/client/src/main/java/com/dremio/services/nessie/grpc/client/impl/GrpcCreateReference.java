@@ -19,13 +19,12 @@ import static com.dremio.services.nessie.grpc.GrpcExceptionMapper.handle;
 import static com.dremio.services.nessie.grpc.ProtoUtil.refFromProto;
 import static com.dremio.services.nessie.grpc.ProtoUtil.refToProto;
 
+import com.dremio.services.nessie.grpc.api.CreateReferenceRequest;
+import com.dremio.services.nessie.grpc.api.TreeServiceGrpc.TreeServiceBlockingStub;
 import org.projectnessie.client.builder.BaseCreateReferenceBuilder;
 import org.projectnessie.error.NessieConflictException;
 import org.projectnessie.error.NessieNotFoundException;
 import org.projectnessie.model.Reference;
-
-import com.dremio.services.nessie.grpc.api.CreateReferenceRequest;
-import com.dremio.services.nessie.grpc.api.TreeServiceGrpc.TreeServiceBlockingStub;
 
 final class GrpcCreateReference extends BaseCreateReferenceBuilder {
 
@@ -38,13 +37,13 @@ final class GrpcCreateReference extends BaseCreateReferenceBuilder {
   @Override
   public Reference create() throws NessieNotFoundException, NessieConflictException {
     return handle(
-      () -> {
-        CreateReferenceRequest.Builder builder =
-          CreateReferenceRequest.newBuilder().setReference(refToProto(reference));
-        if (null != sourceRefName) {
-          builder.setSourceRefName(sourceRefName);
-        }
-        return refFromProto(stub.createReference(builder.build()));
-      });
+        () -> {
+          CreateReferenceRequest.Builder builder =
+              CreateReferenceRequest.newBuilder().setReference(refToProto(reference));
+          if (null != sourceRefName) {
+            builder.setSourceRefName(sourceRefName);
+          }
+          return refFromProto(stub.createReference(builder.build()));
+        });
   }
 }

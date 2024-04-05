@@ -18,20 +18,18 @@ package com.dremio.datastore;
 import static java.lang.annotation.ElementType.TYPE;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
 
+import com.dremio.datastore.api.StoreCreationFunction;
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 
-import com.dremio.datastore.api.StoreCreationFunction;
-
-/**
- * Use to replace stores
- */
+/** Use to replace stores */
 @Retention(RUNTIME)
 @Target(TYPE)
 public @interface StoreReplacement {
   /**
    * The resource class to be replaced by this resource
+   *
    * @return
    */
-  Class<? extends  StoreCreationFunction> value();
+  Class<? extends StoreCreationFunction> value();
 }

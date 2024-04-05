@@ -15,23 +15,19 @@
  */
 package com.dremio.exec.store.iceberg;
 
-import java.util.List;
-import java.util.function.Predicate;
-
-import org.apache.iceberg.HasTableOperations;
-import org.apache.iceberg.HistoryEntry;
-import org.apache.iceberg.Snapshot;
-import org.apache.iceberg.Table;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.connector.metadata.options.TimeTravelOption.SnapshotIdRequest;
 import com.dremio.connector.metadata.options.TimeTravelOption.TimeTravelRequest;
 import com.dremio.connector.metadata.options.TimeTravelOption.TimestampRequest;
 import com.google.common.base.Preconditions;
+import java.util.List;
+import java.util.function.Predicate;
+import org.apache.iceberg.HasTableOperations;
+import org.apache.iceberg.HistoryEntry;
+import org.apache.iceberg.Snapshot;
+import org.apache.iceberg.Table;
 
-/**
- * Utilities related to time travel processors.
- */
+/** Utilities related to time travel processors. */
 public final class TimeTravelProcessors {
 
   private static List<HistoryEntry> getLogEntries(Table table) {
@@ -40,12 +36,11 @@ public final class TimeTravelProcessors {
   }
 
   private static TableSnapshotProvider getTimestampProcessor(
-      List<String> tablePath,
-      TimestampRequest timestampRequest
-  ) {
+      List<String> tablePath, TimestampRequest timestampRequest) {
     final long millis = timestampRequest.getTimestampMillis();
 
-    final Predicate<HistoryEntry> entryPredicate = historyEntry -> historyEntry.timestampMillis() <= millis;
+    final Predicate<HistoryEntry> entryPredicate =
+        historyEntry -> historyEntry.timestampMillis() <= millis;
     return table -> {
       Long lastSnapshotId = null;
       for (HistoryEntry logEntry : getLogEntries(table)) {
@@ -57,7 +52,8 @@ public final class TimeTravelProcessors {
       final Snapshot snapshot = lastSnapshotId != null ? table.snapshot(lastSnapshotId) : null;
       if (snapshot == null) {
         throw UserException.validationError()
-            .message("For table '%s', the provided time travel timestamp value '%d' is out of range",
+            .message(
+                "For table '%s', the provided time travel timestamp value '%d' is out of range",
                 tablePath, millis)
             .buildSilently();
       }
@@ -67,39 +63,33 @@ public final class TimeTravelProcessors {
   }
 
   private static TableSnapshotProvider getSnapshotIdProcessor(
-      List<String> tablePath,
-      SnapshotIdRequest snapshotIdRequest
-  ) {
+      List<String> tablePath, SnapshotIdRequest snapshotIdRequest) {
     final long snapshotId = Long.parseLong(snapshotIdRequest.getSnapshotId());
     return table -> getTableSnapshotAtId(tablePath, table, snapshotId);
   }
 
   private static Snapshot getTableSnapshotAtId(
-      List<String> tablePath,
-      Table table,
-      long snapshotId
-  ) {
+      List<String> tablePath, Table table, long snapshotId) {
     final Snapshot snapshot = table.snapshot(snapshotId);
     if (snapshot == null) {
       throw UserException.validationError()
-          .message("For table '%s', the provided snapshot ID '%d' is invalid", tablePath, snapshotId)
+          .message(
+              "For table '%s', the provided snapshot ID '%d' is invalid", tablePath, snapshotId)
           .buildSilently();
     }
     return snapshot;
   }
 
   /**
-   * Provide an appropriate {@link TableSnapshotProvider} given a {@link TimeTravelRequest}. If time travel request is
-   * null, return current snapshot provider.
+   * Provide an appropriate {@link TableSnapshotProvider} given a {@link TimeTravelRequest}. If time
+   * travel request is null, return current snapshot provider.
    *
-   * @param tablePath         table path
+   * @param tablePath table path
    * @param timeTravelRequest time travel request
    * @return table snapshot provider
    */
   public static TableSnapshotProvider getTableSnapshotProvider(
-      List<String> tablePath,
-      TimeTravelRequest timeTravelRequest
-  ) {
+      List<String> tablePath, TimeTravelRequest timeTravelRequest) {
     if (timeTravelRequest instanceof TimestampRequest) {
       return getTimestampProcessor(tablePath, (TimestampRequest) timeTravelRequest);
     } else if (timeTravelRequest instanceof SnapshotIdRequest) {
@@ -110,17 +100,16 @@ public final class TimeTravelProcessors {
   }
 
   /**
-   * Provide an appropriate {@link TableSchemaProvider} given a {@link TimeTravelRequest}. If time travel request is
-   * null, return current table schema provider.
+   * Provide an appropriate {@link TableSchemaProvider} given a {@link TimeTravelRequest}. If time
+   * travel request is null, return current table schema provider.
    *
    * @param timeTravelRequest time travel request
    * @return table schema provider
    */
-  public static TableSchemaProvider getTableSchemaProvider(
-          TimeTravelRequest timeTravelRequest
-  ) {
-    if (timeTravelRequest instanceof TimestampRequest || timeTravelRequest instanceof SnapshotIdRequest) {
-      return  (table, snapshot) -> {
+  public static TableSchemaProvider getTableSchemaProvider(TimeTravelRequest timeTravelRequest) {
+    if (timeTravelRequest instanceof TimestampRequest
+        || timeTravelRequest instanceof SnapshotIdRequest) {
+      return (table, snapshot) -> {
         final Integer schemaId = snapshot.schemaId();
         return schemaId != null ? table.schemas().get(schemaId) : table.schema();
       };
@@ -129,7 +118,5 @@ public final class TimeTravelProcessors {
     }
   }
 
-
-  private TimeTravelProcessors() {
-  }
+  private TimeTravelProcessors() {}
 }

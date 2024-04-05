@@ -15,12 +15,8 @@
  */
 package com.dremio.io;
 
-/**
- * Marker class for compressed input streams
- */
+/** Marker class for compressed input streams */
 public abstract class CompressedFSInputStream extends FSInputStream {
 
-  public CompressedFSInputStream() {
-  }
-
+  public CompressedFSInputStream() {}
 }

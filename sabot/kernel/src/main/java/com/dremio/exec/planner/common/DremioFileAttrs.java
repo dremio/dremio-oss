@@ -17,11 +17,10 @@ package com.dremio.exec.planner.common;
 
 import org.immutables.value.Value;
 
-/**
- * Utility class to return a sub-set of the file attributes
- */
+/** Utility class to return a sub-set of the file attributes */
 @Value.Immutable
 public abstract class DremioFileAttrs {
   public abstract String fileName();
+
   public abstract Long fileLength();
 }

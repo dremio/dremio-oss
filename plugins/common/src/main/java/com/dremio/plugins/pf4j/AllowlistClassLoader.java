@@ -15,6 +15,7 @@
  */
 package com.dremio.plugins.pf4j;
 
+import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
@@ -22,11 +23,9 @@ import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
 
-import com.google.common.collect.ImmutableList;
-
 /**
- * A classloader delegating to its parent if and only if a class or a resource
- * belongs to the allow list
+ * A classloader delegating to its parent if and only if a class or a resource belongs to the allow
+ * list
  */
 final class AllowlistClassLoader extends ClassLoader {
 
@@ -38,11 +37,12 @@ final class AllowlistClassLoader extends ClassLoader {
   }
 
   /**
-   * Wrap an existing classloader to only allow resources and classes present in the allowlist
-   * to be found
+   * Wrap an existing classloader to only allow resources and classes present in the allowlist to be
+   * found
    *
    * @param parent the parent classloader
-   * @param allowlist the allowed list of class/resource names prefixes. Prefixes should use '/' character as the delimiter
+   * @param allowlist the allowed list of class/resource names prefixes. Prefixes should use '/'
+   *     character as the delimiter
    * @return
    */
   public static ClassLoader of(ClassLoader parent, List<String> allowlist) {

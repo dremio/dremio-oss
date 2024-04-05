@@ -19,23 +19,22 @@ import static org.junit.Assert.assertEquals;
 
 import java.util.ArrayList;
 import java.util.List;
-
 import org.junit.Test;
 
 public class TestApproximateStringMatcher {
-    @Test
-    public void testStringMatcher() {
-        List<String> names = new ArrayList<>();
-        names.add("a");
-        names.add("little");
-        names.add("sql");
-        names.add("for");
-        names.add("your");
-        names.add("nosql");
+  @Test
+  public void testStringMatcher() {
+    List<String> names = new ArrayList<>();
+    names.add("a");
+    names.add("little");
+    names.add("sql");
+    names.add("for");
+    names.add("your");
+    names.add("nosql");
 
-        String name = "squeal";
-        String bestMatch = ApproximateStringMatcher.getBestMatch(names, name);
+    String name = "squeal";
+    String bestMatch = ApproximateStringMatcher.getBestMatch(names, name);
 
-        assertEquals("sql", bestMatch);
-    }
+    assertEquals("sql", bestMatch);
+  }
 }

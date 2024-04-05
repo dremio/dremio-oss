@@ -15,20 +15,23 @@
  */
 package com.dremio.exec.ops;
 
-import org.junit.Assert;
-import org.junit.Test;
-
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.sabot.op.tablefunction.TableFunctionOperator;
-
+import org.junit.Assert;
+import org.junit.Test;
 
 public class TestOperatorMetricRegistry {
 
   @Test
   public void testOperatorMetricRegistry() {
-    UserBitShared.CoreOperatorTypeMetricsMap map = OperatorMetricRegistry.getCoreOperatorTypeMetricsMap();
-    String firstMetricInTableFunction = map.getMetricsDef(UserBitShared.CoreOperatorType.TABLE_FUNCTION_VALUE).getMetricDef(ScanOperator.Metric.values().length).getName();
-    Assert.assertEquals(TableFunctionOperator.Metric.NUM_DATA_FILE.name(), firstMetricInTableFunction);
+    UserBitShared.CoreOperatorTypeMetricsMap map =
+        OperatorMetricRegistry.getCoreOperatorTypeMetricsMap();
+    String firstMetricInTableFunction =
+        map.getMetricsDef(UserBitShared.CoreOperatorType.TABLE_FUNCTION_VALUE)
+            .getMetricDef(ScanOperator.Metric.values().length)
+            .getName();
+    Assert.assertEquals(
+        TableFunctionOperator.Metric.NUM_DATA_FILE.name(), firstMetricInTableFunction);
   }
 }

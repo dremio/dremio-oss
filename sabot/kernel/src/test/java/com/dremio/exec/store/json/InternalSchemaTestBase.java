@@ -18,45 +18,36 @@ package com.dremio.exec.store.json;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.junit.Assert.assertTrue;
 
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.List;
-
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-
 import com.dremio.PlanTestBase;
 import com.dremio.TestBuilder;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.exceptions.UserRemoteException;
 import com.dremio.exec.ExecConstants;
-import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.List;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 
 public class InternalSchemaTestBase extends PlanTestBase {
 
   @BeforeClass
   public static void setUp() {
-    setSystemOption(PlannerSettings.UNLIMITED_SPLITS_SUPPORT, "true");
-    setSystemOption(ExecConstants.ENABLE_ICEBERG, "true");
     setSystemOption(ExecConstants.ENABLE_INTERNAL_SCHEMA, "true");
   }
 
   @AfterClass
   public static void cleanUp() {
-    setSystemOption(PlannerSettings.UNLIMITED_SPLITS_SUPPORT, PlannerSettings.UNLIMITED_SPLITS_SUPPORT.getDefault().getBoolVal().toString());
-    setSystemOption(ExecConstants.ENABLE_ICEBERG,
-      ExecConstants.ENABLE_ICEBERG.getDefault().getBoolVal().toString());
-    setSystemOption(ExecConstants.ENABLE_INTERNAL_SCHEMA, ExecConstants.ENABLE_INTERNAL_SCHEMA.getDefault().getBoolVal().toString());
+    setSystemOption(
+        ExecConstants.ENABLE_INTERNAL_SCHEMA,
+        ExecConstants.ENABLE_INTERNAL_SCHEMA.getDefault().getBoolVal().toString());
   }
 
   void verifyRecords(String dirName, String col, Object... values) throws Exception {
     String query = String.format("SELECT %s FROM dfs_test.\"%s\"", col, dirName);
-    TestBuilder testBuilder = testBuilder()
-      .sqlQuery(query)
-      .unOrdered()
-      .baselineColumns(col);
+    TestBuilder testBuilder = testBuilder().sqlQuery(query).unOrdered().baselineColumns(col);
     for (Object value : values) {
       testBuilder.baselineValues(value);
     }
@@ -64,17 +55,15 @@ public class InternalSchemaTestBase extends PlanTestBase {
   }
 
   void runMetadataRefresh(String dirName) throws Exception {
-    String query = String.format("alter table dfs_test.\"%s\" refresh metadata force update", dirName);
+    String query =
+        String.format("alter table dfs_test.\"%s\" refresh metadata force update", dirName);
     runSQL(query);
   }
 
   void verifyCountStar(String dirName, long result) throws Exception {
     String query = String.format("SELECT count(*) FROM dfs_test.\"%s\"", dirName);
-    TestBuilder testBuilder = testBuilder()
-      .sqlQuery(query)
-      .unOrdered()
-      .baselineColumns("EXPR$0")
-      .baselineValues(result);
+    TestBuilder testBuilder =
+        testBuilder().sqlQuery(query).unOrdered().baselineColumns("EXPR$0").baselineValues(result);
     testBuilder.go();
   }
 
@@ -106,7 +95,10 @@ public class InternalSchemaTestBase extends PlanTestBase {
   }
 
   void alterTableChangeColumn(String dirName, String columnName, String dataType) throws Exception {
-    String query = String.format("ALTER TABLE dfs_test.\"%s\" CHANGE COLUMN %s %s %s", dirName, columnName, columnName, dataType);
+    String query =
+        String.format(
+            "ALTER TABLE dfs_test.\"%s\" CHANGE COLUMN %s %s %s",
+            dirName, columnName, columnName, dataType);
     runSQL(query);
   }
 
@@ -133,10 +125,10 @@ public class InternalSchemaTestBase extends PlanTestBase {
   void triggerSchemaLearning(String dirName) {
     String query = String.format("SELECT * FROM dfs_test.\"%s\"", dirName);
     assertThatExceptionOfType(Exception.class)
-      .isThrownBy(() -> testRunAndReturn(UserBitShared.QueryType.SQL, query))
-      .havingCause()
-      .isInstanceOf(UserRemoteException.class)
-      .withMessageContaining("New schema found");
+        .isThrownBy(() -> testRunAndReturn(UserBitShared.QueryType.SQL, query))
+        .havingCause()
+        .isInstanceOf(UserRemoteException.class)
+        .withMessageContaining("New schema found");
   }
 
   void triggerOptionalSchemaLearning(String dirName) {
@@ -158,25 +150,26 @@ public class InternalSchemaTestBase extends PlanTestBase {
   void assertCoercionFailure(String dirName, String fileType, String tableType) {
     String query = String.format("SELECT * FROM dfs_test.\"%s\"", dirName);
     assertThatExceptionOfType(Exception.class)
-      .isThrownBy(() -> testRunAndReturn(UserBitShared.QueryType.SQL, query))
-      .havingCause()
-      .isInstanceOf(UserException.class)
-      .withMessageContaining("UNSUPPORTED_OPERATION ERROR: Unable to coerce from the file's data type")
-      .withMessageContaining(fileType)
-      .withMessageContaining("to the column's data type")
-      .withMessageContaining(tableType)
-      .withMessageContaining("in table")
-      .withMessageContaining(dirName)
-      .withMessageContaining("and file")
-      .withMessageContaining(".json");
+        .isThrownBy(() -> testRunAndReturn(UserBitShared.QueryType.SQL, query))
+        .havingCause()
+        .isInstanceOf(UserException.class)
+        .withMessageContaining(
+            "UNSUPPORTED_OPERATION ERROR: Unable to coerce from the file's data type")
+        .withMessageContaining(fileType)
+        .withMessageContaining("to the column's data type")
+        .withMessageContaining(tableType)
+        .withMessageContaining("in table")
+        .withMessageContaining(dirName)
+        .withMessageContaining("and file")
+        .withMessageContaining(".json");
   }
 
   void assertCastFailure(String dirName) {
     String query = String.format("SELECT * FROM dfs_test.\"%s\"", dirName);
     assertThatExceptionOfType(Exception.class)
-      .isThrownBy(() -> testRunAndReturn(UserBitShared.QueryType.SQL, query))
-      .havingCause()
-      .isInstanceOf(UserException.class)
-      .withMessageContaining("GandivaException: Failed to cast");
+        .isThrownBy(() -> testRunAndReturn(UserBitShared.QueryType.SQL, query))
+        .havingCause()
+        .isInstanceOf(UserException.class)
+        .withMessageContaining("GandivaException: Failed to cast");
   }
 }

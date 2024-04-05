@@ -15,11 +15,10 @@
  */
 package com.dremio.exec.physical.base;
 
-import java.util.Collections;
-import java.util.Set;
-
 import com.dremio.common.graph.GraphVisitor;
 import com.google.common.base.Preconditions;
+import java.util.Collections;
+import java.util.Set;
 
 public abstract class AbstractBase implements PhysicalOperator {
   protected final OpProps props;

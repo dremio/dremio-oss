@@ -15,10 +15,7 @@
  */
 package com.dremio.sabot.op.aggregate.vectorized;
 
-/**
- * A subset of {@link VectorizedHashAggOperator} stats used
- * for verification in unit tests.
- */
+/** A subset of {@link VectorizedHashAggOperator} stats used for verification in unit tests. */
 public class VectorizedHashAggSpillStats {
   private int spills;
   private int ooms;

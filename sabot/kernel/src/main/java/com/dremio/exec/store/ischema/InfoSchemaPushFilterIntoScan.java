@@ -16,31 +16,30 @@
 
 package com.dremio.exec.store.ischema;
 
-import org.apache.calcite.plan.RelOptRule;
-import org.apache.calcite.plan.RelOptRuleCall;
-import org.apache.calcite.plan.RelOptRuleOperand;
-import org.apache.calcite.rel.RelNode;
-
 import com.dremio.exec.planner.logical.RelOptHelper;
 import com.dremio.exec.planner.physical.FilterPrel;
 import com.dremio.exec.planner.physical.ProjectPrel;
 import com.dremio.exec.store.ischema.ExpressionConverter.PushdownResult;
 import com.google.common.collect.ImmutableList;
+import org.apache.calcite.plan.RelOptRule;
+import org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.calcite.plan.RelOptRuleOperand;
+import org.apache.calcite.rel.RelNode;
 
 public abstract class InfoSchemaPushFilterIntoScan extends RelOptRule {
 
   public static final RelOptRule IS_FILTER_ON_PROJECT =
       new InfoSchemaPushFilterIntoScan(
-          RelOptHelper.some(FilterPrel.class,
-              RelOptHelper.some(ProjectPrel.class,
-                  RelOptHelper.any(InfoSchemaScanPrel.class))),
+          RelOptHelper.some(
+              FilterPrel.class,
+              RelOptHelper.some(ProjectPrel.class, RelOptHelper.any(InfoSchemaScanPrel.class))),
           "InfoSchemaPushFilterIntoScan:Filter_On_Project") {
 
-    @Override
-    public boolean matches(RelOptRuleCall call) {
-      final InfoSchemaScanPrel scan = (InfoSchemaScanPrel) call.rel(2);
-      return !scan.hasFilter();
-    }
+        @Override
+        public boolean matches(RelOptRuleCall call) {
+          final InfoSchemaScanPrel scan = (InfoSchemaScanPrel) call.rel(2);
+          return !scan.hasFilter();
+        }
 
         @Override
         public void onMatch(RelOptRuleCall call) {
@@ -53,8 +52,7 @@ public abstract class InfoSchemaPushFilterIntoScan extends RelOptRule {
 
   public static final RelOptRule IS_FILTER_ON_SCAN =
       new InfoSchemaPushFilterIntoScan(
-          RelOptHelper.some(FilterPrel.class,
-              RelOptHelper.any(InfoSchemaScanPrel.class)),
+          RelOptHelper.some(FilterPrel.class, RelOptHelper.any(InfoSchemaScanPrel.class)),
           "InfoSchemaPushFilterIntoScan:Filter_On_Scan") {
 
         @Override
@@ -75,24 +73,35 @@ public abstract class InfoSchemaPushFilterIntoScan extends RelOptRule {
     super(operand, id);
   }
 
-  protected void doMatch(RelOptRuleCall call, InfoSchemaScanPrel scan, ProjectPrel project, FilterPrel filter) {
-    if(scan.hasFilter()) {
+  protected void doMatch(
+      RelOptRuleCall call, InfoSchemaScanPrel scan, ProjectPrel project, FilterPrel filter) {
+    if (scan.hasFilter()) {
       return;
     }
 
-    PushdownResult result = ExpressionConverter.pushdown(scan.getCluster().getRexBuilder(), scan.getRowType(), filter.getCondition());
+    PushdownResult result =
+        ExpressionConverter.pushdown(
+            scan.getCluster().getRexBuilder(), scan.getRowType(), filter.getCondition());
 
-    if(result.getQuery() == null) {
-      return; //no filter pushdown ==> No transformation.
+    if (result.getQuery() == null) {
+      return; // no filter pushdown ==> No transformation.
     }
 
-    RelNode input = new InfoSchemaScanPrel(scan.getCluster(), scan.getTraitSet(), scan.getTable(),
-                                           scan.getTableMetadata(), result.getQuery(), scan.getProjectedColumns(),
-                                           scan.getObservedRowcountAdjustment(), scan.getHints(),
-                                           scan.getRuntimeFilters());
+    RelNode input =
+        new InfoSchemaScanPrel(
+            scan.getCluster(),
+            scan.getTraitSet(),
+            scan.getTable(),
+            scan.getTableMetadata(),
+            result.getQuery(),
+            scan.getProjectedColumns(),
+            scan.getObservedRowcountAdjustment(),
+            scan.getHints(),
+            scan.getRuntimeFilters());
 
     if (project != null) {
-      input = project.copy(project.getTraitSet(), input, project.getProjects(), filter.getRowType());
+      input =
+          project.copy(project.getTraitSet(), input, project.getProjects(), filter.getRowType());
     }
 
     if (result.getRemainder() == null) {

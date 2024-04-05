@@ -15,22 +15,17 @@
  */
 package com.dremio.sabot.op.aggregate.vectorized;
 
+import com.dremio.exec.proto.UserBitShared;
+import com.dremio.sabot.op.common.ht2.LBlockHashTable;
+import com.google.common.base.Preconditions;
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.util.LargeMemoryUtil;
 import org.apache.arrow.vector.types.Types;
 
-import com.dremio.exec.proto.UserBitShared;
-import com.dremio.sabot.op.common.ht2.LBlockHashTable;
-import com.google.common.base.Preconditions;
-
-/**
- * Works like a SelectionVector/Iterator over HashAggPartition buffers
- */
+/** Works like a SelectionVector/Iterator over HashAggPartition buffers */
 public class HashAggPartitionWritableBatch {
-
   private final LBlockHashTable hashTable;
   private final List<ArrowBuf> fixedBlockBuffers;
   private final List<ArrowBuf> variableBlockBuffers;
@@ -53,9 +48,7 @@ public class HashAggPartitionWritableBatch {
    */
   private static final int NUM_BUFFERS_PER_FIXED_ACCUMULATOR_PERBATCH = 2;
 
-  /**
-   * Varlen and HLL accumulators has validity, offset & data
-   */
+  /** Varlen and HLL accumulators has validity, offset & data */
   private static final int NUM_BUFFERS_PER_VARLEN_ACCUMULATOR_PERBATCH = 3;
 
   /**
@@ -74,6 +67,7 @@ public class HashAggPartitionWritableBatch {
 
   /**
    * Returns the actual number of Arrow buffers required to spill an accumulator set.
+   *
    * @return
    */
   private final int GetNumWritableBuffers() {
@@ -86,9 +80,9 @@ public class HashAggPartitionWritableBatch {
        * ListVector however irrespective of it, the intermediate format that is written
        * to spill disk, is ListVector.
        */
-      if (accumulators[i].getType() == AccumulatorBuilder.AccumulatorType.LISTAGG ||
-          accumulators[i].getType() == AccumulatorBuilder.AccumulatorType.LOCAL_LISTAGG ||
-          accumulators[i].getType() == AccumulatorBuilder.AccumulatorType.LISTAGG_MERGE) {
+      if (accumulators[i].getType() == AccumulatorBuilder.AccumulatorType.LISTAGG
+          || accumulators[i].getType() == AccumulatorBuilder.AccumulatorType.LOCAL_LISTAGG
+          || accumulators[i].getType() == AccumulatorBuilder.AccumulatorType.LISTAGG_MERGE) {
         ++listaggAccum;
       } else {
         final Types.MinorType type = accumulators[i].getOutput().getMinorType();
@@ -108,13 +102,14 @@ public class HashAggPartitionWritableBatch {
     return totalBuffers;
   }
 
-  public HashAggPartitionWritableBatch(final LBlockHashTable hashTable,
-                                       final List<ArrowBuf> fixedBlockBuffers,
-                                       final List<ArrowBuf> variableBlockBuffers,
-                                       final int blockWidth,
-                                       final AccumulatorSet accumulator,
-                                       final int maxValuesPerBatch,
-                                       final int currentBatchIndex) {
+  public HashAggPartitionWritableBatch(
+      final LBlockHashTable hashTable,
+      final List<ArrowBuf> fixedBlockBuffers,
+      final List<ArrowBuf> variableBlockBuffers,
+      final int blockWidth,
+      final AccumulatorSet accumulator,
+      final int maxValuesPerBatch,
+      final int currentBatchIndex) {
     this.hashTable = hashTable;
     this.accumulators = accumulator.getChildren();
     checkAccumulatorsBatchSize(fixedBlockBuffers.size());
@@ -214,10 +209,14 @@ public class HashAggPartitionWritableBatch {
     /* get total length of buffers, this is why readerIndex and writerIndex are appropriately
      * set by LBlockHashTable when it writes to these buffers during insertion.
      */
-    final int fixedBufferLength = LargeMemoryUtil.checkedCastToInt(fixedBlockBuffer.readableBytes());
-    final int variableBufferLength = LargeMemoryUtil.checkedCastToInt(variableBlockBuffer.readableBytes());
+    final int fixedBufferLength =
+        LargeMemoryUtil.checkedCastToInt(fixedBlockBuffer.readableBytes());
+    final int variableBufferLength =
+        LargeMemoryUtil.checkedCastToInt(variableBlockBuffer.readableBytes());
     final int numRecordsInChunk = fixedBufferLength / blockWidth;
-    Preconditions.checkArgument(numRecordsInChunk <= maxValuesPerBatch, "Error: detected invalid number of records in batch");
+    Preconditions.checkArgument(
+        numRecordsInChunk <= maxValuesPerBatch,
+        "Error: detected invalid number of records in batch");
 
     buffers[0] = fixedBlockBuffer;
     buffers[1] = variableBlockBuffer;
@@ -234,7 +233,8 @@ public class HashAggPartitionWritableBatch {
        * If the order has changed or any additional changes in between (which is highly unlikely),
        * adjust the functions in variable length accumulators as well.
        */
-      List<ArrowBuf> accumulatorBuffers = accumulator.getBuffers(currentBatchIndex, numRecordsInChunk);
+      List<ArrowBuf> accumulatorBuffers =
+          accumulator.getBuffers(currentBatchIndex, numRecordsInChunk);
       metadata.add(accumulator.getSerializedField(currentBatchIndex, numRecordsInChunk));
       accumulatorTypes[i] = (byte) accumulator.getType().ordinal();
 
@@ -244,16 +244,22 @@ public class HashAggPartitionWritableBatch {
       }
     }
 
-    final UserBitShared.RecordBatchDef accumulatorBatchDef = UserBitShared.RecordBatchDef.newBuilder()
-      .addAllField(metadata)
-      .setRecordCount(numRecordsInChunk)
-      .setCarriesTwoByteSelectionVector(false)
-      .build();
+    final UserBitShared.RecordBatchDef accumulatorBatchDef =
+        UserBitShared.RecordBatchDef.newBuilder()
+            .addAllField(metadata)
+            .setRecordCount(numRecordsInChunk)
+            .setCarriesTwoByteSelectionVector(false)
+            .build();
 
     final int batchIdx = currentBatchIndex++;
 
-    return new HashAggPartitionBatchDefinition(fixedBufferLength, variableBufferLength, accumulators.length,
-      accumulatorTypes, accumulatorBatchDef, batchIdx);
+    return new HashAggPartitionBatchDefinition(
+        fixedBufferLength,
+        variableBufferLength,
+        accumulators.length,
+        accumulatorTypes,
+        accumulatorBatchDef,
+        batchIdx);
   }
 
   public ArrowBuf[] getBuffers() {
@@ -268,9 +274,13 @@ public class HashAggPartitionWritableBatch {
     final UserBitShared.RecordBatchDef accumulatorBatchDef;
     final int batchIdx;
 
-    public HashAggPartitionBatchDefinition(int fixedBufferLength, int variableBufferLength,
-                                           int numAccumulators, byte[] accumulatorTypes,
-                                           UserBitShared.RecordBatchDef accumulatorBatchDef, final int batchIdx) {
+    public HashAggPartitionBatchDefinition(
+        int fixedBufferLength,
+        int variableBufferLength,
+        int numAccumulators,
+        byte[] accumulatorTypes,
+        UserBitShared.RecordBatchDef accumulatorBatchDef,
+        final int batchIdx) {
       this.fixedBufferLength = fixedBufferLength;
       this.variableBufferLength = variableBufferLength;
       this.numAccumulators = numAccumulators;
@@ -279,8 +289,7 @@ public class HashAggPartitionWritableBatch {
       this.batchIdx = batchIdx;
     }
 
-    public int getCurrentBatchIndex()
-    {
+    public int getCurrentBatchIndex() {
       return batchIdx;
     }
   }

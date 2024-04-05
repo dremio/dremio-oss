@@ -21,9 +21,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
-/**
- * Utility to trace time spent in services
- */
+/** Utility to trace time spent in services */
 public final class Timer {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(Timer.class);
 
@@ -43,8 +41,7 @@ public final class Timer {
     return logger.isTraceEnabled();
   }
 
-  private Timer() {
-  }
+  private Timer() {}
 
   private static final AtomicLong nextAsyncId = new AtomicLong(0);
 
@@ -53,8 +50,7 @@ public final class Timer {
           "no-op-timed-block",
           new Ticker() {
             @Override
-            public void addID(String id) {
-            }
+            public void addID(String id) {}
 
             @Override
             public int nextId() {
@@ -62,24 +58,19 @@ public final class Timer {
             }
 
             @Override
-            public void tick(String name, int id) {
-            }
+            public void tick(String name, int id) {}
 
             @Override
-            public void tock(String name, int id) {
-            }
+            public void tock(String name, int id) {}
 
             @Override
-            public void log(long reqId, String message) {
-            }
+            public void log(long reqId, String message) {}
           }) {
         @Override
-        public void addID(String id) {
-        }
+        public void addID(String id) {}
 
         @Override
-        public void close() {
-        }
+        public void close() {}
       };
 
   public static TimedBlock time(final String name) {
@@ -102,9 +93,7 @@ public final class Timer {
     }
   }
 
-  /**
-   * To be used in 'try with resource' blocks to track time
-   */
+  /** To be used in 'try with resource' blocks to track time */
   public static class TimedBlock implements AutoCloseable {
     private final int id;
     private final String name;
@@ -127,9 +116,7 @@ public final class Timer {
     }
   }
 
-  /**
-   * a trace event
-   */
+  /** a trace event */
   private static final class Event {
     private final long t;
     private final String name;
@@ -144,9 +131,7 @@ public final class Timer {
     }
   }
 
-  /**
-   * to track trace events
-   */
+  /** to track trace events */
   @SuppressWarnings("checkstyle:FinalClass")
   public static class Ticker {
     private final List<Event> events = new ArrayList<>();
@@ -191,7 +176,7 @@ public final class Timer {
 
       StringBuilder sb = new StringBuilder();
       sb.append(reqId).append(": ");
-      sb.append((System.nanoTime() - start)/1000000).append("ms ");
+      sb.append((System.nanoTime() - start) / 1000000).append("ms ");
       sb.append(message);
       if (customIDs != null) {
         for (String customID : customIDs) {
@@ -211,16 +196,15 @@ public final class Timer {
           }
           sb.append("{ ");
           sb.append(e.name);
-          ++ indent;
-        } else if (
-            previous != null
+          ++indent;
+        } else if (previous != null
             && previous.tick
             && previous.name.equals(e.name)
             && previous.id == e.id) {
-          -- indent;
+          --indent;
           sb.append(" ").append(ts).append(" }");
         } else {
-          -- indent;
+          --indent;
           sb.append("\n");
           sb.append(pr);
           for (int i = pr.length(); i < indent; ++i) {

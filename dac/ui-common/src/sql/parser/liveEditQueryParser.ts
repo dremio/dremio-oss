@@ -71,7 +71,7 @@ export class LiveEditQueryParser extends BaseQueryParser<
         "SELECT",
         lexerErrorListener,
         parserErrorListener,
-        true
+        true,
       );
       queryParser.parse();
     }

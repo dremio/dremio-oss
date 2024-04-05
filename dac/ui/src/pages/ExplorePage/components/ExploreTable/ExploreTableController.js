@@ -17,7 +17,7 @@ import { PureComponent } from "react";
 import Immutable from "immutable";
 import { connect } from "react-redux";
 import { FormattedMessage } from "react-intl";
-
+import { intl } from "@app/utils/intl";
 import PropTypes from "prop-types";
 
 import exploreUtils from "utils/explore/exploreUtils";
@@ -34,7 +34,7 @@ import {
   getPaginationUrl,
   getExploreState,
   getColumnFilter,
-} from "selectors/explore";
+} from "@app/selectors/explore";
 import { getViewState } from "selectors/resources";
 import { resetViewState } from "actions/resources";
 import { accessEntity } from "actions/resources/lru";
@@ -64,20 +64,20 @@ import {
   getFilteredSqlList,
 } from "@app/utils/jobsUtils.js";
 import StatefulTableViewer from "@app/components/StatefulTableViewer";
-import { Button } from "dremio-ui-lib";
+import { Button, IconButton } from "dremio-ui-lib/components";
 
 import JobListingPage from "@app/pages/JobPageNew/JobListingPage";
 import { parseQueryState } from "utils/jobsQueryState";
 import { updateQueryState } from "actions/jobs/jobs";
-import { IconButton, Tooltip } from "dremio-ui-lib";
+import { Tooltip } from "dremio-ui-lib";
 import { cancelJobAndShowNotification } from "@app/actions/jobs/jobs";
 
-import "./ExploreTableController.less";
 import Message from "@app/components/Message";
 import apiUtils from "@app/utils/apiUtils/apiUtils";
 import DropdownForSelectedText from "./DropdownForSelectedText";
 import ExploreCellLargeOverlay from "./ExploreCellLargeOverlay";
 import ExploreTable from "./ExploreTable";
+import "./ExploreTableController.less";
 
 export class ExploreTableController extends PureComponent {
   static propTypes = {
@@ -193,7 +193,7 @@ export class ExploreTableController extends PureComponent {
     ) {
       this.getUpdatedTableHeights(
         prevProps.jobIdList.length !== jobIdList.length,
-        prevProps.sqlList.length !== sqlList.length
+        prevProps.sqlList.length !== sqlList.length,
       );
     }
 
@@ -275,7 +275,7 @@ export class ExploreTableController extends PureComponent {
     const content = exploreUtils.getSelectionForList(
       columnText,
       columnName,
-      selection
+      selection,
     );
     if (!content) {
       return;
@@ -427,7 +427,7 @@ export class ExploreTableController extends PureComponent {
     if (newColumnName !== oldColumnName) {
       this.makeTransform(
         { type: "RENAME", columnName: oldColumnName, newColumnName },
-        false
+        false,
       );
     }
   };
@@ -493,7 +493,9 @@ export class ExploreTableController extends PureComponent {
       <div className="sqlEditor__jobsTable__actionButtonContainer">
         {exploreUtils.getCancellable(status) ? (
           <IconButton
-            tooltip="Query.Table.Cancel"
+            tooltip={intl.formatMessage({ id: "Query.Table.Cancel" })}
+            tooltipPortal
+            tooltipPlacement="top"
             onClick={() => cancelJob(jobId)}
             className="sqlEditor__jobsTable__buttons"
           >
@@ -503,7 +505,9 @@ export class ExploreTableController extends PureComponent {
           <div className={"sqlEditor__jobsTable__buttons"}></div>
         )}
         <IconButton
-          tooltip="Job.Open.External"
+          tooltip={intl.formatMessage({ id: "Job.Open.External" })}
+          tooltipPortal
+          tooltipPlacement="top"
           onClick={() => {
             const jobTabPath = jobsUtils.isNewJobsPage()
               ? `${jobPaths.job.link({ jobId, projectId })}${
@@ -525,7 +529,9 @@ export class ExploreTableController extends PureComponent {
     return (
       <div className="sqlEditor__jobsTable__actionButtonContainer">
         <IconButton
-          tooltip="NewQuery.Remove"
+          tooltip={intl.formatMessage({ id: "NewQuery.Remove" })}
+          tooltipPortal
+          tooltipPlacement="top"
           onClick={() => cancelPendingSql(index)}
           className={"sqlEditor__jobsTable__buttons"}
         >
@@ -599,7 +605,7 @@ export class ExploreTableController extends PureComponent {
     const rows = tableData.get("rows");
     const columns = exploreUtils.getFilteredColumns(
       tableData.get("columns"),
-      this.props.columnFilter
+      this.props.columnFilter,
     );
     const {
       canSelect,
@@ -644,6 +650,7 @@ export class ExploreTableController extends PureComponent {
           </div>
           {currentTab.buttonFunc && (
             <Button
+              variant="secondary"
               className="sqlEditor__pendingTable__button"
               onClick={currentTab.buttonFunc}
               disabled={
@@ -714,8 +721,8 @@ export class ExploreTableController extends PureComponent {
             !showJobsTable
               ? "sqlEditor__jobsTable--hidden"
               : sqlList.length === 0
-              ? "sqlEditor__jobsTable--solo"
-              : "sqlEditor__jobsTable--withPendingTable"
+                ? "sqlEditor__jobsTable--solo"
+                : "sqlEditor__jobsTable--withPendingTable"
           }
         >
           {jobIdList.length > 0 && this.renderJobsListingTable(showJobsTable)}
@@ -760,6 +767,7 @@ function mapStateToProps(state, ownProps) {
   const exploreState = getExploreState(state);
   let explorePageProps = null;
   let queryStatuses;
+  let waitingForJobResults;
   if (exploreState) {
     explorePageProps = {
       currentSql: exploreState.view.currentSql,
@@ -772,6 +780,7 @@ function mapStateToProps(state, ownProps) {
       isMultiQueryRunning: exploreState.view.isMultiQueryRunning,
     };
     queryStatuses = exploreState.view.queryStatuses;
+    waitingForJobResults = exploreState.view.waitingForJobResults;
   }
 
   const SqlList = queryStatuses && getSqlList(queryStatuses);
@@ -786,8 +795,9 @@ function mapStateToProps(state, ownProps) {
     currentDataset && queryStatuses.length === 1
       ? location.query.version
       : currentDataset && queryStatuses.length > 1
-      ? currentDataset.version
-      : datasetVersion;
+        ? currentDataset.version
+        : datasetVersion;
+
   if (!ownProps.isDumbTable) {
     if (
       ownProps.pageType === PageTypes.default ||
@@ -800,8 +810,22 @@ function mapStateToProps(state, ownProps) {
     }
   }
 
+  const jobToWaitFor = queryStatuses?.find(
+    (queryStatus) => queryStatus.jobId === waitingForJobResults,
+  );
+
+  let hideResults = false;
+
+  // should only hide the results table when on the query tab of the currently running job
+  if (jobToWaitFor && currentDataset?.jobId === jobToWaitFor.jobId) {
+    hideResults = true;
+  }
+
   return {
-    tableData: tableData || Immutable.fromJS({ rows: null, columns: [] }),
+    tableData:
+      !hideResults && tableData
+        ? tableData
+        : Immutable.fromJS({ rows: null, columns: [] }),
     columnFilter: getColumnFilter(state, curDatasetVersion),
     previewVersion,
     paginationUrl,

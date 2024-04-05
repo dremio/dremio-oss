@@ -18,6 +18,7 @@ package com.dremio.exec.planner.cost.janio;
 import static com.dremio.exec.planner.cost.janio.CodeGeneratorUtil.argList;
 import static com.dremio.exec.planner.cost.janio.CodeGeneratorUtil.paramList;
 
+import com.google.common.collect.ImmutableSet;
 import java.lang.reflect.Method;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -28,17 +29,12 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-
 import org.apache.calcite.plan.hep.HepRelVertex;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.metadata.MetadataHandler;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
-import com.google.common.collect.ImmutableSet;
-
-/**
- * Generates the metadata dispatch to handlers.
- */
+/** Generates the metadata dispatch to handlers. */
 public class DispatchGenerator {
   private final Map<MetadataHandler<?>, String> metadataHandlerToName;
 
@@ -46,7 +42,9 @@ public class DispatchGenerator {
     this.metadataHandlerToName = metadataHandlerToName;
   }
 
-  public void dispatchMethod(StringBuilder buff, Method method,
+  public void dispatchMethod(
+      StringBuilder buff,
+      Method method,
       Collection<? extends MetadataHandler<?>> metadataHandlers) {
     String delegatingRelClass = HepRelVertex.class.getName();
     Map<MetadataHandler<?>, Set<Class<? extends RelNode>>> handlersToClasses =
@@ -54,17 +52,12 @@ public class DispatchGenerator {
             .distinct()
             .collect(
                 Collectors.toMap(
-                    Function.identity(),
-                    mh -> methodAndInstanceToImplementingClass(method, mh)));
+                    Function.identity(), mh -> methodAndInstanceToImplementingClass(method, mh)));
 
-    Set<Class<? extends RelNode>> delegateClassSet = handlersToClasses.values().stream()
-        .flatMap(Set::stream)
-        .collect(Collectors.toSet());
+    Set<Class<? extends RelNode>> delegateClassSet =
+        handlersToClasses.values().stream().flatMap(Set::stream).collect(Collectors.toSet());
     List<Class<? extends RelNode>> delegateClassList = topologicalSort(delegateClassSet);
-    buff
-        .append("  private ")
-        .append(method.getReturnType().getName())
-        .append(" ");
+    buff.append("  private ").append(method.getReturnType().getName()).append(" ");
     CodeGeneratorUtil.dispatchMethodName(buff, method)
         .append("(\n")
         .append("      ")
@@ -73,51 +66,54 @@ public class DispatchGenerator {
         .append("      ")
         .append(RelMetadataQuery.class.getName())
         .append(" mq");
-    paramList(buff, method, 2)
-        .append(") {\n");
+    paramList(buff, method, 2).append(") {\n");
     if (delegateClassList.isEmpty()) {
-      throwUnknown(buff.append("    "), method)
-          .append("  }\n");
+      throwUnknown(buff.append("    "), method).append("  }\n");
     } else {
 
-      buff
-          .append("    if (r instanceof ").append(delegatingRelClass).append(") {\n")
+      buff.append("    if (r instanceof ")
+          .append(delegatingRelClass)
+          .append(") {\n")
           .append("      do {\n")
-          .append("        r = ((").append(delegatingRelClass).append(") r).getCurrentRel();\n")
-          .append("      } while (r instanceof ").append(delegatingRelClass).append(");\n")
+          .append("        r = ((")
+          .append(delegatingRelClass)
+          .append(") r).getCurrentRel();\n")
+          .append("      } while (r instanceof ")
+          .append(delegatingRelClass)
+          .append(");\n")
           .append("      return ");
       dispatchedCall(buff, "this", method, RelNode.class);
       buff.append("    }\n");
 
-      buff
-          .append(
-              delegateClassList.stream()
-                  .map(clazz ->
-                      ifInstanceThenDispatch(method,
-                          metadataHandlers, handlersToClasses, clazz))
-                  .collect(
-                      Collectors.joining("    } else if ",
-                          "    if ", "    } else {\n")));
-      throwUnknown(buff.append("      "), method)
-          .append("    }\n")
-          .append("  }\n");
+      buff.append(
+          delegateClassList.stream()
+              .map(
+                  clazz ->
+                      ifInstanceThenDispatch(method, metadataHandlers, handlersToClasses, clazz))
+              .collect(Collectors.joining("    } else if ", "    if ", "    } else {\n")));
+      throwUnknown(buff.append("      "), method).append("    }\n").append("  }\n");
     }
   }
 
-  private StringBuilder ifInstanceThenDispatch(Method method,
+  private StringBuilder ifInstanceThenDispatch(
+      Method method,
       Collection<? extends MetadataHandler<?>> metadataHandlers,
       Map<MetadataHandler<?>, Set<Class<? extends RelNode>>> handlersToClasses,
       Class<? extends RelNode> clazz) {
     String handlerName = findProvider(metadataHandlers, handlersToClasses, clazz);
-    StringBuilder buff = new StringBuilder()
-        .append("(r instanceof ").append(clazz.getName()).append(") {\n")
-        .append("      return ");
+    StringBuilder buff =
+        new StringBuilder()
+            .append("(r instanceof ")
+            .append(clazz.getName())
+            .append(") {\n")
+            .append("      return ");
     dispatchedCall(buff, handlerName, method, clazz);
 
     return buff;
   }
 
-  private String findProvider(Collection<? extends MetadataHandler<?>> metadataHandlers,
+  private String findProvider(
+      Collection<? extends MetadataHandler<?>> metadataHandlers,
       Map<MetadataHandler<?>, Set<Class<? extends RelNode>>> handlerToClasses,
       Class<? extends RelNode> clazz) {
     for (MetadataHandler<?> mh : metadataHandlers) {
@@ -129,19 +125,23 @@ public class DispatchGenerator {
   }
 
   private static StringBuilder throwUnknown(StringBuilder buff, Method method) {
-    return buff
-        .append("      throw new ")
+    return buff.append("      throw new ")
         .append(IllegalArgumentException.class.getName())
-        .append("(\"No handler for method [").append(method)
+        .append("(\"No handler for method [")
+        .append(method)
         .append("] applied to argument of type [\" + r.getClass() + ")
         .append("\"]; we recommend you create a catch-all (RelNode) handler\"")
         .append(");\n");
   }
 
-  private static void dispatchedCall(StringBuilder buff, String handlerName, Method method,
-      Class<? extends RelNode> clazz) {
-    buff.append(handlerName).append(".").append(method.getName())
-        .append("((").append(clazz.getName()).append(") r, mq");
+  private static void dispatchedCall(
+      StringBuilder buff, String handlerName, Method method, Class<? extends RelNode> clazz) {
+    buff.append(handlerName)
+        .append(".")
+        .append(method.getName())
+        .append("((")
+        .append(clazz.getName())
+        .append(") r, mq");
     argList(buff, method, 2);
     buff.append(");\n");
   }
@@ -158,8 +158,7 @@ public class DispatchGenerator {
     return set;
   }
 
-  private static Class<? extends RelNode> toRelClass(Method superMethod,
-      Method candidate) {
+  private static Class<? extends RelNode> toRelClass(Method superMethod, Method candidate) {
     if (!superMethod.getName().equals(candidate.getName())
         || superMethod.getParameterCount() != candidate.getParameterCount()) {
       return null;

@@ -15,21 +15,28 @@
  */
 package com.dremio.sabot.op.project;
 
-import java.util.List;
-
-import org.apache.arrow.vector.complex.writer.BaseWriter.ComplexWriter;
-import org.apache.arrow.vector.util.TransferPair;
-
 import com.dremio.exec.compile.TemplateClassDefinition;
 import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.sabot.exec.context.FunctionContext;
+import java.util.List;
+import org.apache.arrow.vector.complex.writer.BaseWriter.ComplexWriter;
+import org.apache.arrow.vector.util.TransferPair;
 
 public interface Projector {
 
-  void setup(FunctionContext context, VectorAccessible incoming,  VectorAccessible outgoing, List<TransferPair> transfers, ComplexWriterCreator writerCreator)  throws SchemaChangeException;
+  void setup(
+      FunctionContext context,
+      VectorAccessible incoming,
+      VectorAccessible outgoing,
+      List<TransferPair> transfers,
+      ComplexWriterCreator writerCreator)
+      throws SchemaChangeException;
+
   void projectRecords(final int recordCount);
-  TemplateClassDefinition<Projector> TEMPLATE_DEFINITION = new TemplateClassDefinition<Projector>(Projector.class, ProjectorTemplate.class);
+
+  TemplateClassDefinition<Projector> TEMPLATE_DEFINITION =
+      new TemplateClassDefinition<Projector>(Projector.class, ProjectorTemplate.class);
 
   public interface ComplexWriterCreator {
     public ComplexWriter addComplexWriter(String name);

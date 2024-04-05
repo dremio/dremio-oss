@@ -19,28 +19,9 @@ import static com.dremio.sabot.op.writer.WriterCommitterOperator.SnapshotCommitS
 import static com.dremio.sabot.op.writer.WriterCommitterOperator.SnapshotCommitStatus.NONE;
 import static com.dremio.sabot.op.writer.WriterCommitterOperator.SnapshotCommitStatus.SKIPPED;
 
-import java.io.IOException;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
-
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.iceberg.DataFile;
-import org.apache.iceberg.DeleteFile;
-import org.apache.iceberg.ManifestFile;
-import org.apache.iceberg.PartitionSpec;
-import org.apache.iceberg.Schema;
-import org.apache.iceberg.Snapshot;
-import org.apache.iceberg.io.FileIO;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.OperationType;
-import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.store.dfs.IcebergTableProps;
 import com.dremio.exec.store.iceberg.IcebergOptimizeSingleFileTracker;
 import com.dremio.io.file.FileSystem;
@@ -55,13 +36,33 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableSet;
+import java.io.IOException;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import org.apache.iceberg.DataFile;
+import org.apache.iceberg.DeleteFile;
+import org.apache.iceberg.ManifestFile;
+import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.Schema;
+import org.apache.iceberg.Snapshot;
+import org.apache.iceberg.exceptions.CommitFailedException;
+import org.apache.iceberg.exceptions.CommitStateUnknownException;
+import org.apache.iceberg.exceptions.ValidationException;
+import org.apache.iceberg.io.FileIO;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * Class used to commit OPTIMIZE TABLE operation, which typically rewrites the data files in the optimal form.
+ * Class used to commit OPTIMIZE TABLE operation, which typically rewrites the data files in the
+ * optimal form.
  */
 public class IcebergOptimizeOperationCommitter implements IcebergOpCommitter {
-  private static final Logger LOGGER = LoggerFactory.getLogger(IcebergOptimizeOperationCommitter.class);
-  private static final Set<Field> WRITE_FIELDS = ImmutableSet.of(RecordWriter.RECORDS, RecordWriter.OPERATION_TYPE);
+  private static final Logger LOGGER =
+      LoggerFactory.getLogger(IcebergOptimizeOperationCommitter.class);
 
   private final Set<DataFile> addedDataFiles = new HashSet<>();
   private final Set<DataFile> removedDataFiles = new HashSet<>();
@@ -76,18 +77,21 @@ public class IcebergOptimizeOperationCommitter implements IcebergOpCommitter {
   private final FileSystem fs;
   private final Long startingSnapshotId;
 
-  public IcebergOptimizeOperationCommitter(IcebergCommand icebergCommand,
-                                           OperatorStats operatorStats,
-                                           DatasetConfig datasetConfig,
-                                           Long minInputFiles,
-                                           Long snapshotId,
-                                           IcebergTableProps tableProps,
-                                           FileSystem fs) {
+  public IcebergOptimizeOperationCommitter(
+      IcebergCommand icebergCommand,
+      OperatorStats operatorStats,
+      DatasetConfig datasetConfig,
+      Long minInputFiles,
+      Long snapshotId,
+      IcebergTableProps tableProps,
+      FileSystem fs) {
     Preconditions.checkState(icebergCommand != null, "Unexpected state");
-    Preconditions.checkNotNull(datasetConfig.getPhysicalDataset().getIcebergMetadata().getMetadataFileLocation());
+    Preconditions.checkNotNull(
+        datasetConfig.getPhysicalDataset().getIcebergMetadata().getMetadataFileLocation());
     this.operatorStats = operatorStats;
     this.icebergCommand = icebergCommand;
-    this.prevMetadataRootPointer = datasetConfig.getPhysicalDataset().getIcebergMetadata().getMetadataFileLocation();
+    this.prevMetadataRootPointer =
+        datasetConfig.getPhysicalDataset().getIcebergMetadata().getMetadataFileLocation();
     this.minInputFiles = Optional.ofNullable(minInputFiles);
     this.singleRewriteTracker = new IcebergOptimizeSingleFileTracker();
     this.tableProps = tableProps;
@@ -97,7 +101,8 @@ public class IcebergOptimizeOperationCommitter implements IcebergOpCommitter {
 
   @Override
   public Snapshot commit() {
-    throw new IllegalStateException(this.getClass().getName() + " requires access to outgoing vectors for writing the output");
+    throw new IllegalStateException(
+        this.getClass().getName() + " requires access to outgoing vectors for writing the output");
   }
 
   @Override
@@ -106,44 +111,86 @@ public class IcebergOptimizeOperationCommitter implements IcebergOpCommitter {
     Snapshot snapshot = null;
     WriterCommitterOperator.SnapshotCommitStatus commitStatus = NONE;
     try {
-      Set<String> skippedSingleRewrites = singleRewriteTracker.removeSingleFileChanges(addedDataFiles, removedDataFiles);
+      Set<String> skippedSingleRewrites =
+          singleRewriteTracker.removeSingleFileChanges(addedDataFiles, removedDataFiles);
       boolean shouldCommit = hasAnythingChanged() && hasMinInputFilesCriteriaPassed();
-      snapshot = shouldCommit ?
-        icebergCommand.rewriteFiles(removedDataFiles, removedDeleteFiles, addedDataFiles, Collections.EMPTY_SET, startingSnapshotId)
-        : icebergCommand.loadTable().currentSnapshot();
-      writeOutput(outputHandler, !shouldCommit, removedDataFiles.size(), removedDeleteFiles.size(), addedDataFiles.size());
+      snapshot =
+          shouldCommit
+              ? icebergCommand.rewriteFiles(
+                  removedDataFiles,
+                  removedDeleteFiles,
+                  addedDataFiles,
+                  Collections.EMPTY_SET,
+                  startingSnapshotId)
+              : icebergCommand.loadTable().currentSnapshot();
 
-      LOGGER.info("OPTIMIZE ACTION: Rewritten data files count - {}, Rewritten delete files count - {}, Added data files count - {}, Min input files - {}, Commit skipped {}",
-        removedDataFiles.size(), removedDeleteFiles.size(), addedDataFiles.size(), minInputFiles.map(String::valueOf).orElse("NONE"), !shouldCommit);
+      if (outputHandler != null) {
+        writeOutput(
+            outputHandler,
+            !shouldCommit,
+            removedDataFiles.size(),
+            removedDeleteFiles.size(),
+            addedDataFiles.size());
+      }
+
+      LOGGER.info(
+          "OPTIMIZE ACTION: Rewritten data files count - {}, Rewritten delete files count - {}, Added data files count - {}, Min input files - {}, Commit skipped {}",
+          removedDataFiles.size(),
+          removedDeleteFiles.size(),
+          addedDataFiles.size(),
+          minInputFiles.map(String::valueOf).orElse("NONE"),
+          !shouldCommit);
       clear(shouldCommit, skippedSingleRewrites);
       commitStatus = shouldCommit ? COMMITTED : SKIPPED;
 
       return snapshot;
+    } catch (ValidationException
+        | CommitFailedException
+        | CommitStateUnknownException
+        | IllegalStateException e) {
+      LOGGER.error(CONCURRENT_OPERATION_ERROR, e);
+      throw UserException.concurrentModificationError(e)
+          .message(CONCURRENT_OPERATION_ERROR)
+          .buildSilently();
     } finally {
       long totalCommitTime = stopwatch.elapsed(TimeUnit.MILLISECONDS);
-      operatorStats.addLongStat(WriterCommitterOperator.Metric.ICEBERG_COMMIT_TIME, totalCommitTime);
+      operatorStats.addLongStat(
+          WriterCommitterOperator.Metric.ICEBERG_COMMIT_TIME, totalCommitTime);
       IcebergOpCommitter.writeSnapshotStats(operatorStats, commitStatus, snapshot);
     }
   }
 
-  private void writeOutput(WriterCommitterOutputHandler outputHandler, boolean commitSkipped,
-                           long rewrittenFilesCount, long rewrittenDeleteFilesCount, long addedFilesCount) {
+  private void writeOutput(
+      WriterCommitterOutputHandler outputHandler,
+      boolean commitSkipped,
+      long rewrittenFilesCount,
+      long rewrittenDeleteFilesCount,
+      long addedFilesCount) {
     if (commitSkipped) {
       rewrittenFilesCount = 0L;
       rewrittenDeleteFilesCount = 0L;
       addedFilesCount = 0L;
     }
 
-    WriterCommitterRecord rewrittenFiles = new ImmutableWriterCommitterRecord.Builder()
-      .setOperationType(OperationType.DELETE_DATAFILE.value).setRecords(rewrittenFilesCount).build();
+    WriterCommitterRecord rewrittenFiles =
+        new ImmutableWriterCommitterRecord.Builder()
+            .setOperationType(OperationType.DELETE_DATAFILE.value)
+            .setRecords(rewrittenFilesCount)
+            .build();
     outputHandler.write(rewrittenFiles);
 
-    WriterCommitterRecord rewrittenDeleteFiles = new ImmutableWriterCommitterRecord.Builder()
-      .setOperationType(OperationType.DELETE_DELETEFILE.value).setRecords(rewrittenDeleteFilesCount).build();
+    WriterCommitterRecord rewrittenDeleteFiles =
+        new ImmutableWriterCommitterRecord.Builder()
+            .setOperationType(OperationType.DELETE_DELETEFILE.value)
+            .setRecords(rewrittenDeleteFilesCount)
+            .build();
     outputHandler.write(rewrittenDeleteFiles);
 
-    WriterCommitterRecord addedFiles = new ImmutableWriterCommitterRecord.Builder()
-      .setOperationType(OperationType.ADD_DATAFILE.value).setRecords(addedFilesCount).build();
+    WriterCommitterRecord addedFiles =
+        new ImmutableWriterCommitterRecord.Builder()
+            .setOperationType(OperationType.ADD_DATAFILE.value)
+            .setRecords(addedFilesCount)
+            .build();
     outputHandler.write(addedFiles);
   }
 
@@ -153,9 +200,9 @@ public class IcebergOptimizeOperationCommitter implements IcebergOpCommitter {
     skippedFiles.forEach(this::deleteOrphan);
     if (!isCommitted) {
       // Remove new files, as they're now orphan
-      addedDataFiles.forEach(file
-        -> deleteOrphan(file.path().toString()));
-      final String orphanDir = Path.of(tableProps.getTableLocation()).resolve(tableProps.getUuid()).toString();
+      addedDataFiles.forEach(file -> deleteOrphan(file.path().toString()));
+      final String orphanDir =
+          Path.of(tableProps.getTableLocation()).resolve(tableProps.getUuid()).toString();
       deleteOrphan(orphanDir);
     }
     removedDataFiles.clear();
@@ -172,7 +219,8 @@ public class IcebergOptimizeOperationCommitter implements IcebergOpCommitter {
       fs.delete(Path.of(path), true);
     } catch (IOException e) {
       LOGGER.warn("Unable to delete newly added files {}", path);
-      // Not an error condition if cleanup fails; VACUUM can be used to remove left-over orphan files.
+      // Not an error condition if cleanup fails; VACUUM can be used to remove left-over orphan
+      // files.
     }
   }
 
@@ -183,7 +231,8 @@ public class IcebergOptimizeOperationCommitter implements IcebergOpCommitter {
 
   @Override
   public void consumeManifestFile(ManifestFile icebergManifestFile) {
-    throw new UnsupportedOperationException("OPTIMIZE TABLE can't consume pre-prepared manifest files");
+    throw new UnsupportedOperationException(
+        "OPTIMIZE TABLE can't consume pre-prepared manifest files");
   }
 
   @Override
@@ -199,7 +248,8 @@ public class IcebergOptimizeOperationCommitter implements IcebergOpCommitter {
   }
 
   @Override
-  public void consumeDeleteDataFilePath(String icebergDeleteDatafilePath) throws UnsupportedOperationException {
+  public void consumeDeleteDataFilePath(String icebergDeleteDatafilePath)
+      throws UnsupportedOperationException {
     throw new UnsupportedOperationException("OPTIMIZE TABLE can't consume string paths");
   }
 
@@ -211,7 +261,8 @@ public class IcebergOptimizeOperationCommitter implements IcebergOpCommitter {
 
   @Override
   public void updateSchema(BatchSchema newSchema) {
-    throw new UnsupportedOperationException("Updating schema is not supported for OPTIMIZE TABLE transaction");
+    throw new UnsupportedOperationException(
+        "Updating schema is not supported for OPTIMIZE TABLE transaction");
   }
 
   @Override
@@ -232,7 +283,7 @@ public class IcebergOptimizeOperationCommitter implements IcebergOpCommitter {
   @Override
   public boolean isIcebergTableUpdated() {
     return !Path.getContainerSpecificRelativePath(Path.of(getRootPointer()))
-      .equals(Path.getContainerSpecificRelativePath(Path.of(prevMetadataRootPointer)));
+        .equals(Path.getContainerSpecificRelativePath(Path.of(prevMetadataRootPointer)));
   }
 
   private boolean hasAnythingChanged() {
@@ -240,11 +291,13 @@ public class IcebergOptimizeOperationCommitter implements IcebergOpCommitter {
   }
 
   /*
-  * MIN_INPUT_FILES is applied to a total of removed files (both data and delete files).
-  * e.g. 1 Data file with 4 Delete files linked to it would qualify the default MIN_INPUT_FILES criteria of 5.
+   * MIN_INPUT_FILES is applied to a total of removed files (both data and delete files).
+   * e.g. 1 Data file with 4 Delete files linked to it would qualify the default MIN_INPUT_FILES criteria of 5.
    */
   private boolean hasMinInputFilesCriteriaPassed() {
-    return minInputFiles.map(m -> m > 0 && (removedDataFiles.size() + removedDeleteFiles.size()) >= m).orElse(true);
+    return minInputFiles
+        .map(m -> m > 0 && (removedDataFiles.size() + removedDeleteFiles.size()) >= m)
+        .orElse(true);
   }
 
   @VisibleForTesting

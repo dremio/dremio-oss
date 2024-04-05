@@ -15,16 +15,6 @@
  */
 package com.dremio.exec.planner.physical;
 
-import java.io.IOException;
-import java.util.List;
-
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelOptCost;
-import org.apache.calcite.plan.RelOptPlanner;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.metadata.RelMetadataQuery;
-
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.config.UnionExchange;
@@ -35,14 +25,30 @@ import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators.LongValidator;
 import com.dremio.options.TypeValidators.PositiveLongValidator;
+import java.io.IOException;
+import java.util.List;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptCost;
+import org.apache.calcite.plan.RelOptPlanner;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
 @Options
 public class UnionExchangePrel extends ExchangePrel {
 
-  public static final LongValidator RECEIVER_RESERVE = new PositiveLongValidator("planner.op.receiver.unionexchange.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
-  public static final LongValidator RECEIVER_LIMIT = new PositiveLongValidator("planner.op.receiver.unionexchange.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
-  public static final LongValidator SENDER_RESERVE = new PositiveLongValidator("planner.op.sender.unionexchange.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
-  public static final LongValidator SENDER_LIMIT = new PositiveLongValidator("planner.op.sender.unionexchange.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
+  public static final LongValidator RECEIVER_RESERVE =
+      new PositiveLongValidator(
+          "planner.op.receiver.unionexchange.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
+  public static final LongValidator RECEIVER_LIMIT =
+      new PositiveLongValidator(
+          "planner.op.receiver.unionexchange.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
+  public static final LongValidator SENDER_RESERVE =
+      new PositiveLongValidator(
+          "planner.op.sender.unionexchange.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
+  public static final LongValidator SENDER_LIMIT =
+      new PositiveLongValidator(
+          "planner.op.sender.unionexchange.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
 
   public UnionExchangePrel(RelOptCluster cluster, RelTraitSet traitSet, RelNode input) {
     super(cluster, traitSet, input);
@@ -50,15 +56,11 @@ public class UnionExchangePrel extends ExchangePrel {
   }
 
   /**
-   * A UnionExchange processes a total of M rows coming from N senders and
-   * combines them into a single output stream.  Note that there is
-   * no sort or merge operation going on. For costing purposes, we can
-   * assume each sender is sending M/N rows to a single receiver.
-   * (See DremioCost for symbol notations)
-   * C =  CPU cost of SV remover for M/N rows
-   *      + Network cost of sending M/N rows to 1 destination.
-   * So, C = (s * M/N) + (w * M/N)
-   * Total cost = N * C
+   * A UnionExchange processes a total of M rows coming from N senders and combines them into a
+   * single output stream. Note that there is no sort or merge operation going on. For costing
+   * purposes, we can assume each sender is sending M/N rows to a single receiver. (See DremioCost
+   * for symbol notations) C = CPU cost of SV remover for M/N rows + Network cost of sending M/N
+   * rows to 1 destination. So, C = (s * M/N) + (w * M/N) Total cost = N * C
    */
   @Override
   public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
@@ -68,10 +70,10 @@ public class UnionExchangePrel extends ExchangePrel {
 
     RelNode child = this.getInput();
     double inputRows = mq.getRowCount(child);
-    int  rowWidth = child.getRowType().getFieldCount() * DremioCost.AVG_FIELD_WIDTH;
+    int rowWidth = child.getRowType().getFieldCount() * DremioCost.AVG_FIELD_WIDTH;
     double svrCpuCost = DremioCost.SVR_CPU_COST * inputRows;
     double networkCost = DremioCost.BYTE_NETWORK_COST * inputRows * rowWidth;
-    Factory costFactory = (Factory)planner.getCostFactory();
+    Factory costFactory = (Factory) planner.getCostFactory();
     return costFactory.makeCost(inputRows, svrCpuCost, 0, networkCost);
   }
 
@@ -88,23 +90,26 @@ public class UnionExchangePrel extends ExchangePrel {
 
     final BatchSchema schema = childPOP.getProps().getSchema();
     final OpProps props = creator.props(this, null, schema);
-    final int senderOperatorId = OpProps.buildOperatorId(childPOP.getProps().getMajorFragmentId(), 0);
-    final OpProps senderProps = creator.props(senderOperatorId, this, null, schema, SENDER_RESERVE, SENDER_LIMIT, props.getCost() * 0.01);
-    final OpProps receiverProps = creator.props(this, null, schema, RECEIVER_RESERVE, RECEIVER_LIMIT, props.getCost() * 0.01);
+    final int senderOperatorId =
+        OpProps.buildOperatorId(childPOP.getProps().getMajorFragmentId(), 0);
+    final OpProps senderProps =
+        creator.props(
+            senderOperatorId,
+            this,
+            null,
+            schema,
+            SENDER_RESERVE,
+            SENDER_LIMIT,
+            props.getCost() * 0.01);
+    final OpProps receiverProps =
+        creator.props(this, null, schema, RECEIVER_RESERVE, RECEIVER_LIMIT, props.getCost() * 0.01);
 
     return new UnionExchange(
-        props,
-        senderProps,
-        receiverProps,
-        props.getSchema(),
-        childPOP,
-        creator.getOptionManager()
-        );
+        props, senderProps, receiverProps, props.getSchema(), childPOP, creator.getOptionManager());
   }
 
   @Override
   public SelectionVectorMode getEncoding() {
     return SelectionVectorMode.NONE;
   }
-
 }

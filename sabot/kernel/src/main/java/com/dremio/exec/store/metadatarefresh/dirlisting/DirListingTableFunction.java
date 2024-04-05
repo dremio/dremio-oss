@@ -17,12 +17,6 @@ package com.dremio.exec.store.metadatarefresh.dirlisting;
 
 import static com.dremio.exec.util.VectorUtil.getVectorFromSchemaPath;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.util.Collections;
-
-import org.apache.arrow.vector.VarCharVector;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.physical.base.OpProps;
@@ -40,12 +34,15 @@ import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.sabot.op.scan.MutatorSchemaChangeCallBack;
 import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.service.namespace.dirlist.proto.DirListInputSplitProto;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.Collections;
+import org.apache.arrow.vector.VarCharVector;
 
-/**
- * Table function for Directory listing scan.
- */
+/** Table function for Directory listing scan. */
 public class DirListingTableFunction extends AbstractTableFunction {
-  private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(DirListingTableFunction.class);
+  private static final org.slf4j.Logger LOGGER =
+      org.slf4j.LoggerFactory.getLogger(DirListingTableFunction.class);
   private final DirListingTableFunctionContext dirListingContext;
   private final OpProps props;
 
@@ -55,17 +52,19 @@ public class DirListingTableFunction extends AbstractTableFunction {
   private ScanOperator.ScanMutator mutator;
   private MutatorSchemaChangeCallBack callBack = new MutatorSchemaChangeCallBack();
 
-
   public DirListingTableFunction(
-    FragmentExecutionContext fragmentExecutionContext,
-    OperatorContext context,
-    OpProps props,
-    TableFunctionConfig functionConfig) throws ExecutionSetupException {
+      FragmentExecutionContext fragmentExecutionContext,
+      OperatorContext context,
+      OpProps props,
+      TableFunctionConfig functionConfig)
+      throws ExecutionSetupException {
     super(context, functionConfig);
     this.props = props;
 
     dirListingContext = (DirListingTableFunctionContext) functionConfig.getFunctionContext();
-    plugin = fragmentExecutionContext.getStoragePlugin(functionConfig.getFunctionContext().getPluginId());
+    plugin =
+        fragmentExecutionContext.getStoragePlugin(
+            functionConfig.getFunctionContext().getPluginId());
   }
 
   @Override
@@ -86,12 +85,13 @@ public class DirListingTableFunction extends AbstractTableFunction {
     String pathWithScheme = new String(inputPath.get(row), StandardCharsets.UTF_8);
     String path = Path.getContainerSpecificRelativePath(Path.of(pathWithScheme));
 
-    DirListInputSplitProto.DirListInputSplit dirListInputSplit = DirListInputSplitProto.DirListInputSplit.newBuilder()
-      .setOperatingPath(path)
-      .setRootPath(path)
-      .setHasVersion(dirListingContext.hasVersion())
-      .setReadSignature(Long.MAX_VALUE)
-      .build();
+    DirListInputSplitProto.DirListInputSplit dirListInputSplit =
+        DirListInputSplitProto.DirListInputSplit.newBuilder()
+            .setOperatingPath(path)
+            .setRootPath(path)
+            .setHasVersion(dirListingContext.hasVersion())
+            .setReadSignature(Long.MAX_VALUE)
+            .build();
 
     FileSystem fs;
     try {
@@ -100,8 +100,14 @@ public class DirListingTableFunction extends AbstractTableFunction {
       throw UserException.ioExceptionError(e).buildSilently();
     }
 
-    dirListingRecordReader = plugin.createDirListRecordReader(context, fs, dirListInputSplit,
-      dirListingContext.allowRecursiveListing(), functionConfig.getTableSchema(), Collections.emptyList());
+    dirListingRecordReader =
+        plugin.createDirListRecordReader(
+            context,
+            fs,
+            dirListInputSplit,
+            dirListingContext.allowRecursiveListing(),
+            functionConfig.getTableSchema(),
+            Collections.emptyList());
 
     dirListingRecordReader.setup(mutator);
   }

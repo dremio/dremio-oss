@@ -71,8 +71,6 @@ export interface components {
     SQLRunnerSession: {
       /** Format: uuid */
       currentScriptId: string;
-      /** Format: date-time */
-      modifiedAt: string;
       scriptIds: string[];
       /** Format: uuid */
       userId: string;

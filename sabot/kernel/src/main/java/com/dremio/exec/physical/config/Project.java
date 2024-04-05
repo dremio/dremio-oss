@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.physical.config;
 
-import java.util.List;
-
 import com.dremio.common.logical.data.NamedExpression;
 import com.dremio.exec.physical.base.AbstractSingle;
 import com.dremio.exec.physical.base.OpProps;
@@ -27,6 +25,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.ImmutableList;
+import java.util.List;
 
 @JsonTypeName("project")
 public class Project extends AbstractSingle {
@@ -37,8 +36,7 @@ public class Project extends AbstractSingle {
   public Project(
       @JsonProperty("props") OpProps props,
       @JsonProperty("child") PhysicalOperator child,
-      @JsonProperty("exprs") List<NamedExpression> exprs
-      ) {
+      @JsonProperty("exprs") List<NamedExpression> exprs) {
     super(props, child);
     this.exprs = (exprs == null) ? null : ImmutableList.copyOf(exprs);
   }
@@ -51,7 +49,8 @@ public class Project extends AbstractSingle {
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value) throws E{
+  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value)
+      throws E {
     return physicalVisitor.visitProject(this, value);
   }
 

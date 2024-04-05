@@ -16,8 +16,7 @@
 package com.dremio.exec.physical.base;
 
 /**
- * A Physical SqlOperatorImpl that can be the leaf node of one particular execution fragment. Typically includes Receivers and
- * Scans
+ * A Physical SqlOperatorImpl that can be the leaf node of one particular execution fragment.
+ * Typically includes Receivers and Scans
  */
-public interface FragmentLeaf extends PhysicalOperator {
-}
+public interface FragmentLeaf extends PhysicalOperator {}

@@ -16,12 +16,6 @@
 
 package com.dremio.exec.planner.sql.handlers.direct;
 
-import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-import org.apache.calcite.sql.SqlNode;
-
 import com.dremio.exec.catalog.EntityExplorer;
 import com.dremio.exec.planner.sql.parser.SqlShowSchemas;
 import com.dremio.service.namespace.NamespaceKey;
@@ -29,10 +23,12 @@ import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import org.apache.calcite.sql.SqlNode;
 
-/**
- * Handles both SHOW DATABASES and SHOW SCHEMAS (synonyms).
- */
+/** Handles both SHOW DATABASES and SHOW SCHEMAS (synonyms). */
 public class ShowSchemasHandler implements SqlDirectHandler<ShowSchemasHandler.SchemaResult> {
 
   private final EntityExplorer entityExplorer;
@@ -48,18 +44,23 @@ public class ShowSchemasHandler implements SqlDirectHandler<ShowSchemasHandler.S
     final Pattern likePattern = SqlNodeUtil.getPattern(node.getLikePattern());
     final Matcher m = likePattern.matcher("");
 
-    return FluentIterable.from(entityExplorer.listSchemas(new NamespaceKey(ImmutableList.<String>of())))
-        .filter(new Predicate<String>() {
-          @Override
-          public boolean apply(String input) {
-            m.reset(input);
-            return m.matches();
-          }})
-        .transform(new Function<String, SchemaResult>() {
-          @Override
-          public SchemaResult apply(String input) {
-            return new SchemaResult(input);
-          }})
+    return FluentIterable.from(
+            entityExplorer.listSchemas(new NamespaceKey(ImmutableList.<String>of())))
+        .filter(
+            new Predicate<String>() {
+              @Override
+              public boolean apply(String input) {
+                m.reset(input);
+                return m.matches();
+              }
+            })
+        .transform(
+            new Function<String, SchemaResult>() {
+              @Override
+              public SchemaResult apply(String input) {
+                return new SchemaResult(input);
+              }
+            })
         .toList();
   }
 
@@ -75,7 +76,5 @@ public class ShowSchemasHandler implements SqlDirectHandler<ShowSchemasHandler.S
       super();
       SCHEMA_NAME = sCHEMA_NAME;
     }
-
   }
-
 }

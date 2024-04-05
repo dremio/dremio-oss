@@ -18,26 +18,27 @@ package com.dremio.dac.explore;
 import static com.dremio.common.utils.SqlUtils.quoteIdentifier;
 import static com.google.common.base.Preconditions.checkArgument;
 
-import java.util.Collections;
-import java.util.List;
-
 import com.dremio.dac.explore.JSONElementLocator.JsonPath;
 import com.dremio.dac.explore.JSONElementLocator.JsonPathElement;
 import com.dremio.dac.explore.model.extract.MapSelection;
 import com.dremio.dac.proto.model.dataset.DataType;
 import com.dremio.dac.proto.model.dataset.ExtractMapRule;
 import com.google.common.base.Joiner;
+import java.util.Collections;
+import java.util.List;
 
 /**
- * Extract map transformation recommendation suggestions and generating examples and number of matches in sample data
- * for each recommendation.
+ * Extract map transformation recommendation suggestions and generating examples and number of
+ * matches in sample data for each recommendation.
  */
 public class ExtractMapRecommender extends Recommender<ExtractMapRule, MapSelection> {
 
   @Override
   public List<ExtractMapRule> getRules(MapSelection selection, DataType selColType) {
-    checkArgument(selColType == DataType.STRUCT, "Extract map entries is supported only on MAP type columns");
-    return Collections.singletonList(new ExtractMapRule(Joiner.on(".").join(selection.getMapPathList())));
+    checkArgument(
+        selColType == DataType.STRUCT, "Extract map entries is supported only on MAP type columns");
+    return Collections.singletonList(
+        new ExtractMapRule(Joiner.on(".").join(selection.getMapPathList())));
   }
 
   @Override
@@ -66,7 +67,8 @@ public class ExtractMapRecommender extends Recommender<ExtractMapRule, MapSelect
 
     @Override
     public String getExampleFunctionExpr(String input) {
-      throw new UnsupportedOperationException("Example generation is not supported for extract map transform.");
+      throw new UnsupportedOperationException(
+          "Example generation is not supported for extract map transform.");
     }
 
     @Override

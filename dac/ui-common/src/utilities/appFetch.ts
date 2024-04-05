@@ -42,7 +42,7 @@ const isRetryableError = (error: HttpError) => {
 
 export const appFetch = (input: RequestInfo | URL, init?: RequestInit) => {
   const startFetch = (
-    triesRemaining: number
+    triesRemaining: number,
   ): ReturnType<typeof window.fetch> => {
     return fetch(input, init)
       .then(async (res) => {
@@ -50,7 +50,7 @@ export const appFetch = (input: RequestInfo | URL, init?: RequestInit) => {
           const error = await narrowHttpError(new HttpError(res));
           if (isRetryableError(error) && triesRemaining) {
             await new Promise((resolve) =>
-              setTimeout(resolve, getRetryDuration(error, triesRemaining))
+              setTimeout(resolve, getRetryDuration(error, triesRemaining)),
             );
             return startFetch(triesRemaining - 1);
           }
@@ -61,7 +61,7 @@ export const appFetch = (input: RequestInfo | URL, init?: RequestInit) => {
       .catch((err) => {
         if (err instanceof TypeError || err.message === "Failed to fetch") {
           return waitForServerReachable().then(() =>
-            startFetch(triesRemaining)
+            startFetch(triesRemaining),
           );
         }
 
@@ -83,10 +83,10 @@ export const appFetch = (input: RequestInfo | URL, init?: RequestInit) => {
  */
 export const appFetchWithoutErrorHandling = (
   input: RequestInfo | URL,
-  init?: RequestInit
+  init?: RequestInit,
 ) => {
   const startFetch = (
-    triesRemaining: number
+    triesRemaining: number,
   ): ReturnType<typeof window.fetch> => {
     return fetch(input, init)
       .then(async (res) => {
@@ -98,7 +98,7 @@ export const appFetchWithoutErrorHandling = (
       .catch((err) => {
         if (err instanceof TypeError || err.message === "Failed to fetch") {
           return waitForServerReachable().then(() =>
-            startFetch(triesRemaining)
+            startFetch(triesRemaining),
           );
         }
 

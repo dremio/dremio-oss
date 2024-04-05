@@ -17,11 +17,10 @@ package com.dremio.exec.rpc;
 
 import com.google.common.util.concurrent.AbstractFuture;
 import com.google.common.util.concurrent.ForwardingListenableFuture;
-
 import io.netty.buffer.ByteBuf;
 
 class RpcFutureImpl<V> extends ForwardingListenableFuture.SimpleForwardingListenableFuture<V>
-  implements RpcFuture<V>, RpcOutcomeListener<V>{
+    implements RpcFuture<V>, RpcOutcomeListener<V> {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(RpcFutureImpl.class);
 
   private volatile ByteBuf buffer;
@@ -45,19 +44,19 @@ class RpcFutureImpl<V> extends ForwardingListenableFuture.SimpleForwardingListen
 
   @Override
   public void failed(RpcException ex) {
-    ( (InnerFuture<V>)delegate()).setException(ex);
+    ((InnerFuture<V>) delegate()).setException(ex);
   }
 
   @Override
   public void success(V value, ByteBuf buffer) {
     this.buffer = buffer;
-    ( (InnerFuture<V>)delegate()).setValue(value);
+    ((InnerFuture<V>) delegate()).setValue(value);
   }
 
   @Override
   public void interrupted(final InterruptedException ex) {
     // Propagate the interrupt to inner future
-    ( (InnerFuture<V>)delegate()).cancel(true);
+    ((InnerFuture<V>) delegate()).cancel(true);
   }
 
   @Override
@@ -70,5 +69,4 @@ class RpcFutureImpl<V> extends ForwardingListenableFuture.SimpleForwardingListen
       buffer.release();
     }
   }
-
 }

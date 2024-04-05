@@ -15,29 +15,32 @@
  */
 package com.dremio.exec.store.iceberg.nessie;
 
-import org.apache.hadoop.conf.Configuration;
-
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.store.iceberg.model.IcebergBaseCommand;
 import com.dremio.exec.store.iceberg.model.IcebergTableIdentifier;
+import org.apache.hadoop.conf.Configuration;
 
 public class IcebergNessieVersionedCommand extends IcebergBaseCommand {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(IcebergNessieVersionedCommand.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(IcebergNessieVersionedCommand.class);
   private final IcebergNessieVersionedTableOperations versionedTableOperations;
 
-  public IcebergNessieVersionedCommand(IcebergTableIdentifier tableIdentifier,
-                                       Configuration configuration,
-                                       IcebergNessieVersionedTableOperations tableOperations,
-                                       UserBitShared.QueryId queryId) {
-    super(configuration, ((IcebergNessieVersionedTableIdentifier) tableIdentifier).getTableFolder(), tableOperations,
+  public IcebergNessieVersionedCommand(
+      IcebergTableIdentifier tableIdentifier,
+      Configuration configuration,
+      IcebergNessieVersionedTableOperations tableOperations,
+      UserBitShared.QueryId queryId) {
+    super(
+        configuration,
+        ((IcebergNessieVersionedTableIdentifier) tableIdentifier).getTableFolder(),
+        tableOperations,
         queryId);
     this.versionedTableOperations = tableOperations;
   }
 
   @Override
   public void deleteTable() {
-    //super.deleteTable(); // TODO Okay to only delete in Nessie?
+    // super.deleteTable(); // TODO Okay to only delete in Nessie?
     versionedTableOperations.deleteKey();
   }
-
 }

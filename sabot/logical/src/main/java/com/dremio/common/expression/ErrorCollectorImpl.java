@@ -15,9 +15,6 @@
  */
 package com.dremio.common.expression;
 
-import java.util.Arrays;
-import java.util.List;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.visitors.ExpressionValidationError;
 import com.dremio.common.types.TypeProtos.MajorType;
@@ -25,9 +22,12 @@ import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import com.google.errorprone.annotations.FormatMethod;
+import java.util.Arrays;
+import java.util.List;
 
 public class ErrorCollectorImpl implements ErrorCollector, AutoCloseable {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ErrorCollectorImpl.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ErrorCollectorImpl.class);
   private final List<ExpressionValidationError> errors;
 
   public ErrorCollectorImpl() {
@@ -46,8 +46,8 @@ public class ErrorCollectorImpl implements ErrorCollector, AutoCloseable {
   }
 
   @Override
-  public void addUnexpectedArgumentType(String name, MajorType actual, MajorType[] expected,
-      int argumentIndex) {
+  public void addUnexpectedArgumentType(
+      String name, MajorType actual, MajorType[] expected, int argumentIndex) {
     errors.add(
         new ExpressionValidationError(
             "Unexpected argument type. Index :%d Name: %s, Type: %s, Expected type(s): %s",
@@ -56,12 +56,18 @@ public class ErrorCollectorImpl implements ErrorCollector, AutoCloseable {
 
   @Override
   public void addUnexpectedArgumentCount(int actual, Range<Integer> expected) {
-    errors.add(new ExpressionValidationError("Unexpected argument count. Actual argument count: %d, Expected range: %s", actual, expected));
+    errors.add(
+        new ExpressionValidationError(
+            "Unexpected argument count. Actual argument count: %d, Expected range: %s",
+            actual, expected));
   }
 
   @Override
   public void addUnexpectedArgumentCount(int actual, int expected) {
-    errors.add(new ExpressionValidationError("Unexpected argument count. Actual argument count: %d, Expected count: %d", actual, expected));
+    errors.add(
+        new ExpressionValidationError(
+            "Unexpected argument count. Actual argument count: %d, Expected count: %d",
+            actual, expected));
   }
 
   @Override
@@ -71,12 +77,16 @@ public class ErrorCollectorImpl implements ErrorCollector, AutoCloseable {
 
   @Override
   public void addUnexpectedType(int index, MajorType actual) {
-    errors.add(new ExpressionValidationError("Unexpected argument type. Actual type: %s, Index: %d", actual, index));
+    errors.add(
+        new ExpressionValidationError(
+            "Unexpected argument type. Actual type: %s, Index: %d", actual, index));
   }
 
   @Override
   public void addExpectedConstantValue(int actual, String s) {
-    errors.add(new ExpressionValidationError("Unexpected constant value. Name: %s, Actual: %s", s, actual));
+    errors.add(
+        new ExpressionValidationError(
+            "Unexpected constant value. Name: %s, Actual: %s", s, actual));
   }
 
   @Override
@@ -95,15 +105,14 @@ public class ErrorCollectorImpl implements ErrorCollector, AutoCloseable {
   }
 
   @Override
-  public void close(){
-      if(!errors.isEmpty()){
-        throw UserException.functionError().message(Joiner.on("\n").join(errors)).build(logger);
-      }
+  public void close() {
+    if (!errors.isEmpty()) {
+      throw UserException.functionError().message(Joiner.on("\n").join(errors)).build(logger);
     }
+  }
 
   @Override
   public String toString() {
     return toErrorString();
   }
-
 }

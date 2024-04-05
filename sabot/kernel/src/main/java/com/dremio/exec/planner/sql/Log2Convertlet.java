@@ -15,18 +15,14 @@
  */
 package com.dremio.exec.planner.sql;
 
-
+import com.google.common.base.Preconditions;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql2rel.SqlRexContext;
 import org.apache.calcite.sql2rel.SqlRexConvertlet;
 
-import com.google.common.base.Preconditions;
-
-/**
- * Convertlet to rewrite LOG2(value) as LOG(2.0,value)
- */
+/** Convertlet to rewrite LOG2(value) as LOG(2.0,value) */
 public final class Log2Convertlet implements SqlRexConvertlet {
   public static final Log2Convertlet INSTANCE = new Log2Convertlet();
 

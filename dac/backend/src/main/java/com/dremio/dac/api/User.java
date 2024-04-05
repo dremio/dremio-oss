@@ -19,9 +19,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-/**
- * User
- */
+/** User */
 public class User {
   private final String id;
   private final String name;
@@ -31,24 +29,24 @@ public class User {
   private final String tag;
   private final String extra;
   private final Boolean active;
+
   /**
-   * A password. Used only when we going to update a user. So api consumer could send a password, but could not read it
-   * (A internal getter)
+   * A password. Used only when we going to update a user. So api consumer could send a password,
+   * but could not read it (A internal getter)
    */
   private final String password;
 
   @JsonCreator
   public User(
-    @JsonProperty("id") String id,
-    @JsonProperty("name") String name,
-    @JsonProperty("firstName") String firstName,
-    @JsonProperty("lastName") String lastName,
-    @JsonProperty("email") String email,
-    @JsonProperty("tag") String tag,
-    @JsonProperty("password") String password,
-    @JsonProperty("extra") String extra,
-    @JsonProperty("active") Boolean active
-  ) {
+      @JsonProperty("id") String id,
+      @JsonProperty("name") String name,
+      @JsonProperty("firstName") String firstName,
+      @JsonProperty("lastName") String lastName,
+      @JsonProperty("email") String email,
+      @JsonProperty("tag") String tag,
+      @JsonProperty("password") String password,
+      @JsonProperty("extra") String extra,
+      @JsonProperty("active") Boolean active) {
     this.id = id;
     this.name = name;
     this.firstName = firstName;
@@ -60,8 +58,15 @@ public class User {
     this.active = active == null || active;
   }
 
-  public User(String id, String name, String firstName, String lastName, String email, String tag,
-              String password, String extra) {
+  public User(
+      String id,
+      String name,
+      String firstName,
+      String lastName,
+      String email,
+      String tag,
+      String password,
+      String extra) {
     this(id, name, firstName, lastName, email, tag, password, extra, true);
   }
 
@@ -99,12 +104,19 @@ public class User {
   }
 
   public static User fromUser(com.dremio.service.users.User user) {
-    return new User(user.getUID().getId(), user.getUserName(), user.getFirstName(), user.getLastName(),
-      user.getEmail(), user.getVersion(), null, user.getExtra(), user.isActive()); // never send a password to a consumer
+    return new User(
+        user.getUID().getId(),
+        user.getUserName(),
+        user.getFirstName(),
+        user.getLastName(),
+        user.getEmail(),
+        user.getVersion(),
+        null,
+        user.getExtra(),
+        user.isActive()); // never send a password to a consumer
   }
 
   public Boolean isActive() {
     return active;
   }
-
 }

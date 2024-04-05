@@ -15,13 +15,13 @@
  */
 package com.dremio.common.expression;
 
-import java.util.Iterator;
-
 import com.dremio.common.expression.visitors.ExprVisitor;
 import com.dremio.common.types.Types;
 import com.google.common.collect.Iterators;
+import java.util.Iterator;
 
-public class ConvertExpression extends LogicalExpressionBase implements Iterable<LogicalExpression>{
+public class ConvertExpression extends LogicalExpressionBase
+    implements Iterable<LogicalExpression> {
 
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ConvertExpression.class);
 
@@ -40,9 +40,12 @@ public class ConvertExpression extends LogicalExpressionBase implements Iterable
    */
   public ConvertExpression(String convertFunction, String encodingType, LogicalExpression input) {
     this.input = input;
-    this.convertFunction = CONVERT_FROM.equals(convertFunction.toLowerCase()) ? CONVERT_FROM : CONVERT_TO;
+    this.convertFunction =
+        CONVERT_FROM.equals(convertFunction.toLowerCase()) ? CONVERT_FROM : CONVERT_TO;
     this.encodingType = encodingType.toUpperCase();
-    this.type = CompleteType.fromMinorType(Types.getMinorTypeFromName(encodingType.split("_", 2)[0].toLowerCase()));
+    this.type =
+        CompleteType.fromMinorType(
+            Types.getMinorTypeFromName(encodingType.split("_", 2)[0].toLowerCase()));
   }
 
   @Override
@@ -79,7 +82,14 @@ public class ConvertExpression extends LogicalExpressionBase implements Iterable
 
   @Override
   public String toString() {
-    return "ConvertExpression [input=" + input + ", type=" + type.toString() + ", convertFunction="
-        + convertFunction + ", conversionType=" + encodingType + "]";
+    return "ConvertExpression [input="
+        + input
+        + ", type="
+        + type.toString()
+        + ", convertFunction="
+        + convertFunction
+        + ", conversionType="
+        + encodingType
+        + "]";
   }
 }

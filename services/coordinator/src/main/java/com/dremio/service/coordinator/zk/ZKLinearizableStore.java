@@ -15,17 +15,23 @@
  */
 package com.dremio.service.coordinator.zk;
 
+import com.dremio.service.coordinator.LinearizableHierarchicalStore;
+import com.dremio.service.coordinator.LostConnectionObserver;
+import com.dremio.service.coordinator.exceptions.PathExistsException;
+import com.dremio.service.coordinator.exceptions.PathMissingException;
+import com.dremio.service.coordinator.exceptions.StoreFatalException;
+import com.google.common.base.Preconditions;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
-
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.api.CuratorWatcher;
 import org.apache.curator.framework.api.transaction.CuratorOp;
@@ -36,20 +42,15 @@ import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.data.Stat;
 
-import com.dremio.service.coordinator.LinearizableHierarchicalStore;
-import com.dremio.service.coordinator.exceptions.PathExistsException;
-import com.dremio.service.coordinator.exceptions.PathMissingException;
-import com.dremio.service.coordinator.exceptions.StoreFatalException;
-import com.google.common.base.Preconditions;
-
 /**
  * An implementation of {@code LinearizableHierarchicalStore} that uses zookeeper.
- * <p>
- * Zoo keeper provides linearizability guarantees for writes, and sequential consistency guarantees for reads.
- * </p>
+ *
+ * <p>Zoo keeper provides linearizability guarantees for writes, and sequential consistency
+ * guarantees for reads.
  */
-public class ZKLinearizableStore implements LinearizableHierarchicalStore {
-  private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(ZKLinearizableStore.class);
+public class ZKLinearizableStore implements LinearizableHierarchicalStore, LostConnectionObserver {
+  private static final org.slf4j.Logger LOGGER =
+      org.slf4j.LoggerFactory.getLogger(ZKLinearizableStore.class);
   private static final Map<CommandType, Function<ZKLinearizableStore, Op>> OP_LAB;
   private static final NoOp NO_OP_OBJ = new NoOp();
   private static final Function<ZKLinearizableStore, Op> NO_OP = (z) -> NO_OP_OBJ;
@@ -65,15 +66,40 @@ public class ZKLinearizableStore implements LinearizableHierarchicalStore {
   }
 
   private final CuratorFramework zkClient;
-  private final Set<ZKStoreOpWatcher> watcherSet;
+  private final Map<ZKStoreOpWatcher, CompletableFuture<Void>> watcherMap;
+  private final List<LostConnectionObserver> lostConnectionObservers;
+  private final String rootLatchPath;
 
-  ZKLinearizableStore(CuratorFramework zkClient) {
+  ZKLinearizableStore(CuratorFramework zkClient, String rootLatchPath) {
     this.zkClient = zkClient;
-    this.watcherSet = ConcurrentHashMap.newKeySet();
+    this.watcherMap = new ConcurrentHashMap<>();
+    this.lostConnectionObservers = new CopyOnWriteArrayList<>();
+    this.rootLatchPath = rootLatchPath;
+  }
+
+  // allows to check if the leader election mechanism for a given service no longer exists without
+  // having to
+  // join the election. Mainly useful during rolling upgrades. The assumption here is that during
+  // rolling upgrade,
+  // the old mechanism will never return back when we roll in the new mechanism.
+  @Override
+  public boolean electionPathExists(final String name) {
+    final String latchPath = rootLatchPath + name;
+    boolean leaderElectionOn = false;
+    try {
+      if (zkClient.checkExists().forPath(latchPath) != null) {
+        List<String> allChildren = zkClient.getChildren().forPath(latchPath);
+        leaderElectionOn = !allChildren.isEmpty();
+      }
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+    return leaderElectionOn;
   }
 
   @Override
-  public void executeMulti(PathCommand[] commands) throws PathMissingException, PathExistsException {
+  public void executeMulti(PathCommand[] commands)
+      throws PathMissingException, PathExistsException {
     Preconditions.checkArgument(commands.length >= 2, "Unexpected number of store commands");
     List<CuratorOp> curatorOps = new ArrayList<>();
     try {
@@ -136,22 +162,24 @@ public class ZKLinearizableStore implements LinearizableHierarchicalStore {
   public Stats getStats(String fullPath) {
     try {
       final Stat s = zkClient.checkExists().forPath(fullPath);
-      return s == null ? null : new Stats() {
-        @Override
-        public long getCreationTime() {
-          return s.getCtime();
-        }
+      return s == null
+          ? null
+          : new Stats() {
+            @Override
+            public long getCreationTime() {
+              return s.getCtime();
+            }
 
-        @Override
-        public long getLastModifiedTime() {
-          return s.getMtime();
-        }
+            @Override
+            public long getLastModifiedTime() {
+              return s.getMtime();
+            }
 
-        @Override
-        public int getNumChanges() {
-          return s.getVersion();
-        }
-      };
+            @Override
+            public int getNumChanges() {
+              return s.getVersion();
+            }
+          };
     } catch (Exception e) {
       throw new StoreFatalException(e);
     }
@@ -159,68 +187,113 @@ public class ZKLinearizableStore implements LinearizableHierarchicalStore {
 
   @Override
   public CompletableFuture<Void> whenDeleted(String fullPath) throws PathMissingException {
-    // use asserts here instead of pre-conditions as only trusted clients use this interface as of now
+    // use asserts here instead of pre-conditions as only trusted clients use this interface as of
+    // now
     assert fullPath != null;
     final CompletableFuture<Void> onPathDeletion = new CompletableFuture<>();
-    boolean exists;
-    try {
-      ZKStoreOpWatcher watcher = new ZKStoreOpWatcher(fullPath, onPathDeletion, Watcher.Event.EventType.NodeDeleted);
-      // record it for future recovery in case connection breaks
-      watcherSet.add(watcher);
-      exists = zkClient.checkExists().usingWatcher(watcher).forPath(fullPath) != null;
-    } catch (Exception e) {
-      throw new StoreFatalException(e);
-    }
-    if (!exists) {
+    CompletableFuture<Void> actual;
+    final ZKStoreOpWatcher watcher =
+        new ZKStoreOpWatcher(fullPath, onPathDeletion, Watcher.Event.EventType.NodeDeleted);
+    actual =
+        watcherMap.compute(
+            watcher,
+            (k, v) -> {
+              if (v == null) {
+                try {
+                  final boolean exists =
+                      (zkClient.checkExists().usingWatcher(watcher).forPath(fullPath) != null);
+                  return exists ? onPathDeletion : null;
+                } catch (Exception e) {
+                  throw new StoreFatalException(e);
+                }
+              } else {
+                return v;
+              }
+            });
+    if (actual == null) {
       throw new PathMissingException(fullPath);
     }
-    return onPathDeletion;
+    return actual;
   }
 
   @Override
   public CompletableFuture<Void> whenCreated(String fullPath) throws PathExistsException {
-    // use asserts here instead of pre-conditions as only trusted clients use this interface as of now
+    // use asserts here instead of pre-conditions as only trusted clients use this interface as of
+    // now
     assert fullPath != null;
     final CompletableFuture<Void> onPathCreation = new CompletableFuture<>();
-    boolean exists;
-    try {
-      ZKStoreOpWatcher watcher = new ZKStoreOpWatcher(fullPath, onPathCreation, Watcher.Event.EventType.NodeCreated);
-      // record it for future recovery in case connection breaks
-      watcherSet.add(watcher);
-      exists = zkClient.checkExists().usingWatcher(watcher).forPath(fullPath) != null;
-    } catch (Exception e) {
-      throw new StoreFatalException(e);
-    }
-    if (exists) {
+    CompletableFuture<Void> actual;
+    final ZKStoreOpWatcher watcher =
+        new ZKStoreOpWatcher(fullPath, onPathCreation, Watcher.Event.EventType.NodeCreated);
+    actual =
+        watcherMap.compute(
+            watcher,
+            (k, v) -> {
+              if (v == null) {
+                try {
+                  final boolean exists =
+                      (zkClient.checkExists().usingWatcher(watcher).forPath(fullPath) != null);
+                  return exists ? null : onPathCreation;
+                } catch (Exception e) {
+                  throw new StoreFatalException(e);
+                }
+              } else {
+                return v;
+              }
+            });
+    if (actual == null) {
       throw new PathExistsException(fullPath);
     }
-    return onPathCreation;
+    return actual;
   }
 
   @Override
   public List<String> getChildren(String fullPath, CompletableFuture<Void> onChildrenChanged)
-    throws PathMissingException {
+      throws PathMissingException {
     assert fullPath != null;
     try {
-      if (onChildrenChanged == null) {
-        return zkClient.getChildren().forPath(fullPath);
+      List<String> origChildren;
+      final ZKStoreOpWatcher watcher =
+          new ZKStoreOpWatcher(
+              fullPath, onChildrenChanged, Watcher.Event.EventType.NodeChildrenChanged);
+      if (onChildrenChanged == null || watcherMap.containsKey(watcher)) {
+        origChildren = zkClient.getChildren().forPath(fullPath);
       } else {
-        final ZKStoreOpWatcher watcher = new ZKStoreOpWatcher(fullPath, onChildrenChanged,
-          Watcher.Event.EventType.NodeChildrenChanged);
-        // record it for future recovery in case connection breaks
-        watcherSet.add(watcher);
-        return zkClient.getChildren().usingWatcher(watcher).forPath(fullPath);
+        watcherMap.put(watcher, onChildrenChanged);
+        origChildren = zkClient.getChildren().usingWatcher(watcher).forPath(fullPath);
+        watcher.setLastSeen(origChildren);
       }
+      return origChildren;
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
   }
 
+  @Override
+  public void registerLostConnectionObserver(LostConnectionObserver observer) {
+    LOGGER.info("Setting external connection lost observer");
+    lostConnectionObservers.add(observer);
+  }
+
   private void checkResults(List<CuratorTransactionResult> results) {
     for (CuratorTransactionResult result : results) {
-      Preconditions.checkArgument(result.getError() == KeeperException.Code.OK.intValue(),
-        "Unexpected failure result on Path " + result.getForPath());
+      Preconditions.checkArgument(
+          result.getError() == KeeperException.Code.OK.intValue(),
+          "Unexpected failure result on Path " + result.getForPath());
     }
+  }
+
+  @Override
+  public void notifyLostConnection() {
+    // session is lost, notify registered observers
+    LOGGER.info("Notifying connection lost to all external registered observers");
+    lostConnectionObservers.forEach(LostConnectionObserver::notifyLostConnection);
+  }
+
+  @Override
+  public void notifyConnectionRegainedAfterLost() {
+    LOGGER.info("Notifying Reconnection to all external registered observers");
+    lostConnectionObservers.forEach(LostConnectionObserver::notifyConnectionRegainedAfterLost);
   }
 
   private interface Op {
@@ -232,13 +305,19 @@ public class ZKLinearizableStore implements LinearizableHierarchicalStore {
   private final class CreateEphemeralOp implements Op {
     @Override
     public CuratorOp createOp(PathCommand cmd) throws Exception {
-      byte[] dataToSend = (cmd.getData() == null || cmd.getData().length == 0) ? null : cmd.getData();
-      return zkClient.transactionOp().create().withMode(CreateMode.EPHEMERAL).forPath(cmd.getFullPath(), dataToSend);
+      byte[] dataToSend =
+          (cmd.getData() == null || cmd.getData().length == 0) ? null : cmd.getData();
+      return zkClient
+          .transactionOp()
+          .create()
+          .withMode(CreateMode.EPHEMERAL)
+          .forPath(cmd.getFullPath(), dataToSend);
     }
 
     @Override
     public void doOp(PathCommand cmd) throws Exception {
-      byte[] dataToSend = (cmd.getData() == null || cmd.getData().length == 0) ? null : cmd.getData();
+      byte[] dataToSend =
+          (cmd.getData() == null || cmd.getData().length == 0) ? null : cmd.getData();
       zkClient.create().withMode(CreateMode.EPHEMERAL).forPath(cmd.getFullPath(), dataToSend);
     }
   }
@@ -246,29 +325,47 @@ public class ZKLinearizableStore implements LinearizableHierarchicalStore {
   private final class CreateEphemeralSequentialOp implements Op {
     @Override
     public CuratorOp createOp(PathCommand cmd) throws Exception {
-      byte[] dataToSend = (cmd.getData() == null || cmd.getData().length == 0) ? null : cmd.getData();
-      return zkClient.transactionOp().create().withMode(CreateMode.EPHEMERAL_SEQUENTIAL)
-        .forPath(cmd.getFullPath(), dataToSend);
+      byte[] dataToSend =
+          (cmd.getData() == null || cmd.getData().length == 0) ? null : cmd.getData();
+      return zkClient
+          .transactionOp()
+          .create()
+          .withMode(CreateMode.EPHEMERAL_SEQUENTIAL)
+          .forPath(cmd.getFullPath(), dataToSend);
     }
 
     @Override
     public void doOp(PathCommand cmd) throws Exception {
-      byte[] dataToSend = (cmd.getData() == null || cmd.getData().length == 0) ? null : cmd.getData();
-      zkClient.create().withMode(CreateMode.EPHEMERAL_SEQUENTIAL).forPath(cmd.getFullPath(), dataToSend);
+      byte[] dataToSend =
+          (cmd.getData() == null || cmd.getData().length == 0) ? null : cmd.getData();
+      zkClient
+          .create()
+          .withMode(CreateMode.EPHEMERAL_SEQUENTIAL)
+          .forPath(cmd.getFullPath(), dataToSend);
     }
   }
 
   private final class CreatePersistentOp implements Op {
     @Override
     public CuratorOp createOp(PathCommand cmd) throws Exception {
-      byte[] dataToSend = (cmd.getData() == null || cmd.getData().length == 0) ? null : cmd.getData();
-      return zkClient.transactionOp().create().withMode(CreateMode.PERSISTENT).forPath(cmd.getFullPath(), dataToSend);
+      byte[] dataToSend =
+          (cmd.getData() == null || cmd.getData().length == 0) ? null : cmd.getData();
+      return zkClient
+          .transactionOp()
+          .create()
+          .withMode(CreateMode.PERSISTENT)
+          .forPath(cmd.getFullPath(), dataToSend);
     }
 
     @Override
     public void doOp(PathCommand cmd) throws Exception {
-      byte[] dataToSend = (cmd.getData() == null || cmd.getData().length == 0) ? null : cmd.getData();
-      zkClient.create().creatingParentsIfNeeded().withMode(CreateMode.PERSISTENT).forPath(cmd.getFullPath(), dataToSend);
+      byte[] dataToSend =
+          (cmd.getData() == null || cmd.getData().length == 0) ? null : cmd.getData();
+      zkClient
+          .create()
+          .creatingParentsIfNeeded()
+          .withMode(CreateMode.PERSISTENT)
+          .forPath(cmd.getFullPath(), dataToSend);
     }
   }
 
@@ -301,12 +398,14 @@ public class ZKLinearizableStore implements LinearizableHierarchicalStore {
   private static final class NoOp implements Op {
     @Override
     public CuratorOp createOp(PathCommand cmd) {
-      throw new IllegalArgumentException("Unimplemented hierarchical store operation type " + cmd.getCommandType());
+      throw new IllegalArgumentException(
+          "Unimplemented hierarchical store operation type " + cmd.getCommandType());
     }
 
     @Override
     public void doOp(PathCommand cmd) {
-      throw new IllegalArgumentException("Unimplemented hierarchical store operation type " + cmd.getCommandType());
+      throw new IllegalArgumentException(
+          "Unimplemented hierarchical store operation type " + cmd.getCommandType());
     }
   }
 
@@ -314,21 +413,97 @@ public class ZKLinearizableStore implements LinearizableHierarchicalStore {
     private final String fullPath;
     private final CompletableFuture<Void> onOpComplete;
     private final Watcher.Event.EventType expectedEventType;
+    private final AtomicReference<List<String>> lastSeenChildren;
 
-    private ZKStoreOpWatcher(String fullPath, CompletableFuture<Void> onOpComplete, Watcher.Event.EventType eventType) {
+    private ZKStoreOpWatcher(
+        String fullPath, CompletableFuture<Void> onOpComplete, Watcher.Event.EventType eventType) {
       this.fullPath = fullPath;
       this.onOpComplete = onOpComplete;
       this.expectedEventType = eventType;
+      this.lastSeenChildren = new AtomicReference<>(null);
     }
 
     @Override
     public void process(WatchedEvent watchedEvent) {
-      LOGGER.info("Watcher Event {} triggered for path {}", watchedEvent.getType(), fullPath);
+      LOGGER.debug("Watcher Event {} triggered for path {}", watchedEvent.getType(), fullPath);
       if (watchedEvent.getType().equals(expectedEventType)) {
-        watcherSet.remove(this);
+        watcherMap.remove(this);
         onOpComplete.complete(null);
       } else {
-        LOGGER.warn("Unknown watcher event {} received for path {}", watchedEvent.getType(), fullPath);
+        if (Watcher.Event.EventType.None.equals(watchedEvent.getType())
+            && Watcher.Event.KeeperState.SyncConnected.equals(watchedEvent.getState())) {
+          LOGGER.info(
+              "Reconnect Event Received for watcher of type {} on path {}",
+              expectedEventType,
+              fullPath);
+          recover();
+        } else {
+          LOGGER.debug(
+              "Unknown watcher event {} received for path {}", watchedEvent.getType(), fullPath);
+        }
+      }
+    }
+
+    public void setLastSeen(List<String> origChildren) {
+      lastSeenChildren.set(origChildren);
+    }
+
+    private void recover() {
+      switch (expectedEventType) {
+        case NodeDeleted:
+          try {
+            final boolean exists =
+                (zkClient.checkExists().usingWatcher(this).forPath(fullPath) != null);
+            if (!exists) {
+              watcherMap.remove(this);
+              // node is found to be deleted on reconnection. Mark operation complete.
+              if (!onOpComplete.isDone()) {
+                onOpComplete.complete(null);
+              }
+            }
+          } catch (Exception e) {
+            LOGGER.warn(
+                "Internal Error: Unexpected exception while recovering deletion watcher for {}",
+                fullPath,
+                e);
+          }
+          break;
+        case NodeCreated:
+          try {
+            final boolean exists =
+                (zkClient.checkExists().usingWatcher(this).forPath(fullPath) != null);
+            if (exists) {
+              // node is found to be created on reconnection. Mark operation complete.
+              watcherMap.remove(this);
+              if (!onOpComplete.isDone()) {
+                onOpComplete.complete(null);
+              }
+            }
+          } catch (Exception e) {
+            LOGGER.warn(
+                "Internal Error: Unexpected exception while recovering creation watcher for {}",
+                fullPath,
+                e);
+          }
+          break;
+        case NodeChildrenChanged:
+          try {
+            final List<String> currentSeen =
+                zkClient.getChildren().usingWatcher(this).forPath(fullPath);
+            // assumption is that even a change in order denotes a difference
+            if (!currentSeen.equals(lastSeenChildren.get())) {
+              watcherMap.remove(this);
+              if (!onOpComplete.isDone()) {
+                onOpComplete.complete(null);
+              }
+            }
+          } catch (Exception e) {
+            LOGGER.warn("Internal Error: Unexpected exception while recovering watcher", e);
+          }
+          break;
+        default:
+          LOGGER.debug("Unknown event type {}", expectedEventType);
+          break;
       }
     }
 
@@ -341,13 +516,12 @@ public class ZKLinearizableStore implements LinearizableHierarchicalStore {
         return false;
       }
       ZKStoreOpWatcher that = (ZKStoreOpWatcher) o;
-      return fullPath.equals(that.fullPath) && onOpComplete.equals(that.onOpComplete)
-        && expectedEventType == that.expectedEventType;
+      return fullPath.equals(that.fullPath) && expectedEventType == that.expectedEventType;
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(fullPath, onOpComplete, expectedEventType);
+      return Objects.hash(fullPath, expectedEventType);
     }
   }
 }

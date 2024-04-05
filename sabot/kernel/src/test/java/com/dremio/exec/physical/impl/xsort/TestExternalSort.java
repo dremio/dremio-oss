@@ -15,28 +15,23 @@
  */
 package com.dremio.exec.physical.impl.xsort;
 
+import com.dremio.BaseTestQuery;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import java.math.BigDecimal;
-
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import com.dremio.BaseTestQuery;
-import com.dremio.exec.planner.physical.PlannerSettings;
-
 public class TestExternalSort extends BaseTestQuery {
 
-  @Rule
-  public TemporaryFolder tempFolder = new TemporaryFolder();
+  @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
 
   @Test
   public void testDecimalSortNullsFirst() throws Exception {
-    try(AutoCloseable decimal = withSystemOption(PlannerSettings.ENABLE_DECIMAL_DATA_TYPE, true);
-        AutoCloseable decimalNew = withSystemOption(PlannerSettings.ENABLE_DECIMAL_V2,
-          true);){
-      String query = "select * from cp.\"sort/sort-decimals.parquet\" " +
-        " order by a asc nulls first";
-      testBuilder().sqlQuery(query)
+    String query =
+        "select * from cp.\"sort/sort-decimals.parquet\" " + " order by a asc nulls first";
+    testBuilder()
+        .sqlQuery(query)
         .ordered()
         .baselineColumns("a", "b")
         .baselineValues(null, "null")
@@ -45,33 +40,30 @@ public class TestExternalSort extends BaseTestQuery {
         .baselineValues(new BigDecimal("1000000000000000000002.000000"), "second")
         .baselineValues(new BigDecimal("2000000000000000000001.000000"), "third")
         .go();
-    }
 
     // Test that without the v2 option also the new functions are fixed and sort is working as
     // expected.
-    try(AutoCloseable decimal = withSystemOption(PlannerSettings.ENABLE_DECIMAL_DATA_TYPE, true);){
-      String query = "select * from cp.\"sort/sort-decimals.parquet\" " +
-        " order by a asc nulls first";
-      testBuilder().sqlQuery(query)
-        .ordered()
-        .baselineColumns("a", "b")
-        .baselineValues(null, "null")
-        .baselineValues(new BigDecimal("900000000000000000001.000000"), "zero")
-        .baselineValues(new BigDecimal("1000000000000000000001.000000"), "first")
-        .baselineValues(new BigDecimal("1000000000000000000002.000000"), "second")
-        .baselineValues(new BigDecimal("2000000000000000000001.000000"), "third")
-        .go();
+    try (AutoCloseable ignored = withSystemOption(PlannerSettings.ENABLE_DECIMAL_V2, false)) {
+      query = "select * from cp.\"sort/sort-decimals.parquet\" " + " order by a asc nulls first";
+      testBuilder()
+          .sqlQuery(query)
+          .ordered()
+          .baselineColumns("a", "b")
+          .baselineValues(null, "null")
+          .baselineValues(new BigDecimal("900000000000000000001.000000"), "zero")
+          .baselineValues(new BigDecimal("1000000000000000000001.000000"), "first")
+          .baselineValues(new BigDecimal("1000000000000000000002.000000"), "second")
+          .baselineValues(new BigDecimal("2000000000000000000001.000000"), "third")
+          .go();
     }
   }
 
   @Test
   public void testDecimalSortNullsLast() throws Exception {
-    try(AutoCloseable decimal = withSystemOption(PlannerSettings.ENABLE_DECIMAL_DATA_TYPE, true);
-        AutoCloseable decimalNew = withSystemOption(PlannerSettings.ENABLE_DECIMAL_V2,
-          true);){
-      String query = "select * from cp.\"sort/sort-decimals.parquet\" " +
-        " order by a asc nulls last";
-      testBuilder().sqlQuery(query)
+    String query =
+        "select * from cp.\"sort/sort-decimals.parquet\" " + " order by a asc nulls last";
+    testBuilder()
+        .sqlQuery(query)
         .ordered()
         .baselineColumns("a", "b")
         .baselineValues(new BigDecimal("900000000000000000001.000000"), "zero")
@@ -80,33 +72,30 @@ public class TestExternalSort extends BaseTestQuery {
         .baselineValues(new BigDecimal("2000000000000000000001.000000"), "third")
         .baselineValues(null, "null")
         .go();
-    }
 
     // Test that without the v2 option also the new functions are fixed and sort is working as
     // expected.
-    try(AutoCloseable decimal = withSystemOption(PlannerSettings.ENABLE_DECIMAL_DATA_TYPE, true);){
-      String query = "select * from cp.\"sort/sort-decimals.parquet\" " +
-        " order by a asc nulls last";
-      testBuilder().sqlQuery(query)
-        .ordered()
-        .baselineColumns("a", "b")
-        .baselineValues(new BigDecimal("900000000000000000001.000000"), "zero")
-        .baselineValues(new BigDecimal("1000000000000000000001.000000"), "first")
-        .baselineValues(new BigDecimal("1000000000000000000002.000000"), "second")
-        .baselineValues(new BigDecimal("2000000000000000000001.000000"), "third")
-        .baselineValues(null, "null")
-        .go();
+    try (AutoCloseable ignored = withSystemOption(PlannerSettings.ENABLE_DECIMAL_V2, false)) {
+      query = "select * from cp.\"sort/sort-decimals.parquet\" " + " order by a asc nulls last";
+      testBuilder()
+          .sqlQuery(query)
+          .ordered()
+          .baselineColumns("a", "b")
+          .baselineValues(new BigDecimal("900000000000000000001.000000"), "zero")
+          .baselineValues(new BigDecimal("1000000000000000000001.000000"), "first")
+          .baselineValues(new BigDecimal("1000000000000000000002.000000"), "second")
+          .baselineValues(new BigDecimal("2000000000000000000001.000000"), "third")
+          .baselineValues(null, "null")
+          .go();
     }
   }
 
   @Test
   public void testDecimalSortDesc() throws Exception {
-    try (AutoCloseable decimal = withSystemOption(PlannerSettings.ENABLE_DECIMAL_DATA_TYPE, true);
-         AutoCloseable decimalNew = withSystemOption(PlannerSettings.ENABLE_DECIMAL_V2,
-           true);) {
-      String query = "select * from cp.\"sort/sort-decimals.parquet\" " +
-        " order by a desc nulls first";
-      testBuilder().sqlQuery(query)
+    String query =
+        "select * from cp.\"sort/sort-decimals.parquet\" " + " order by a desc nulls first";
+    testBuilder()
+        .sqlQuery(query)
         .ordered()
         .baselineColumns("a", "b")
         .baselineValues(null, "null")
@@ -115,14 +104,10 @@ public class TestExternalSort extends BaseTestQuery {
         .baselineValues(new BigDecimal("1000000000000000000001.000000"), "first")
         .baselineValues(new BigDecimal("900000000000000000001.000000"), "zero")
         .go();
-    }
 
-    try (AutoCloseable decimal = withSystemOption(PlannerSettings.ENABLE_DECIMAL_DATA_TYPE, true);
-         AutoCloseable decimalNew = withSystemOption(PlannerSettings.ENABLE_DECIMAL_V2,
-           true);) {
-      String query = "select * from cp.\"sort/sort-decimals.parquet\" " +
-        " order by a desc nulls last";
-      testBuilder().sqlQuery(query)
+    query = "select * from cp.\"sort/sort-decimals.parquet\" " + " order by a desc nulls last";
+    testBuilder()
+        .sqlQuery(query)
         .ordered()
         .baselineColumns("a", "b")
         .baselineValues(new BigDecimal("2000000000000000000001.000000"), "third")
@@ -131,46 +116,44 @@ public class TestExternalSort extends BaseTestQuery {
         .baselineValues(new BigDecimal("900000000000000000001.000000"), "zero")
         .baselineValues(null, "null")
         .go();
-    }
   }
 
   @Test
   public void testSortWithNaNValues() throws Exception {
     testBuilder()
-      .sqlQuery("select * from cp.\"sort/sort_with_nan_values.parquet\" order by y2 asc")
-      .ordered()
-      .baselineColumns("y2")
-      .baselineValues(Double.NEGATIVE_INFINITY)
-      .baselineValues(Double.NEGATIVE_INFINITY)
-      .baselineValues(0.0)
-      .baselineValues(0.0)
-      .baselineValues(3.141592653589793)
-      .baselineValues(3.141592653589793)
-      .baselineValues(Double.POSITIVE_INFINITY)
-      .baselineValues(Double.POSITIVE_INFINITY)
-      .baselineValues(Double.NaN)
-      .baselineValues(Double.NaN)
-      .baselineValues(null)
-      .baselineValues(null)
-      .go();
+        .sqlQuery("select * from cp.\"sort/sort_with_nan_values.parquet\" order by y2 asc")
+        .ordered()
+        .baselineColumns("y2")
+        .baselineValues(Double.NEGATIVE_INFINITY)
+        .baselineValues(Double.NEGATIVE_INFINITY)
+        .baselineValues(0.0)
+        .baselineValues(0.0)
+        .baselineValues(3.141592653589793)
+        .baselineValues(3.141592653589793)
+        .baselineValues(Double.POSITIVE_INFINITY)
+        .baselineValues(Double.POSITIVE_INFINITY)
+        .baselineValues(Double.NaN)
+        .baselineValues(Double.NaN)
+        .baselineValues(null)
+        .baselineValues(null)
+        .go();
 
     testBuilder()
-      .sqlQuery("select * from cp.\"sort/sort_with_nan_values.parquet\" order by y2 desc")
-      .ordered()
-      .baselineColumns("y2")
-      .baselineValues(null)
-      .baselineValues(null)
-      .baselineValues(Double.NaN)
-      .baselineValues(Double.NaN)
-      .baselineValues(Double.POSITIVE_INFINITY)
-      .baselineValues(Double.POSITIVE_INFINITY)
-      .baselineValues(3.141592653589793)
-      .baselineValues(3.141592653589793)
-      .baselineValues(0.0)
-      .baselineValues(0.0)
-      .baselineValues(Double.NEGATIVE_INFINITY)
-      .baselineValues(Double.NEGATIVE_INFINITY)
-      .go();
+        .sqlQuery("select * from cp.\"sort/sort_with_nan_values.parquet\" order by y2 desc")
+        .ordered()
+        .baselineColumns("y2")
+        .baselineValues(null)
+        .baselineValues(null)
+        .baselineValues(Double.NaN)
+        .baselineValues(Double.NaN)
+        .baselineValues(Double.POSITIVE_INFINITY)
+        .baselineValues(Double.POSITIVE_INFINITY)
+        .baselineValues(3.141592653589793)
+        .baselineValues(3.141592653589793)
+        .baselineValues(0.0)
+        .baselineValues(0.0)
+        .baselineValues(Double.NEGATIVE_INFINITY)
+        .baselineValues(Double.NEGATIVE_INFINITY)
+        .go();
   }
-
 }

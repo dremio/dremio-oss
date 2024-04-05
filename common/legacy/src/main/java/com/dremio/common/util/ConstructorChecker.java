@@ -18,7 +18,8 @@ package com.dremio.common.util;
 import java.lang.reflect.Constructor;
 
 public class ConstructorChecker {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ConstructorChecker.class);
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ConstructorChecker.class);
 
   private final String requirementString;
   private final Class<?>[] classes;
@@ -28,7 +29,7 @@ public class ConstructorChecker {
     this.classes = classes;
     StringBuffer sb = new StringBuffer();
     sb.append("The required constructor is (");
-    for (int i =0; i < classes.length; i++) {
+    for (int i = 0; i < classes.length; i++) {
       if (i != 0) {
         sb.append(", ");
       }
@@ -43,8 +44,8 @@ public class ConstructorChecker {
     if (params.length != classes.length) {
       return false;
     }
-    for (int i =0; i < classes.length; i++) {
-      if ( !classes[i].isAssignableFrom(params[i])) {
+    for (int i = 0; i < classes.length; i++) {
+      if (!classes[i].isAssignableFrom(params[i])) {
         return false;
       }
     }
@@ -55,5 +56,4 @@ public class ConstructorChecker {
   public String getRequirementString() {
     return requirementString;
   }
-
 }

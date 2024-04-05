@@ -17,11 +17,9 @@
 package com.dremio.service.conduit.server;
 
 import com.dremio.service.grpc.CloseableBindableService;
-
 import io.grpc.BindableService;
 import io.grpc.HandlerRegistry;
 import io.grpc.ServerServiceDefinition;
-
 
 /**
  * {@link BindableService Bindable services} that register with this registry will be added to the
@@ -38,6 +36,7 @@ public interface ConduitServiceRegistry {
 
   /**
    * Register a service that also Autocloseable
+   *
    * @param bindableService
    */
   void registerService(CloseableBindableService bindableService);
@@ -49,8 +48,6 @@ public interface ConduitServiceRegistry {
    */
   void registerServerService(ServerServiceDefinition serverServiceDefinition);
 
-  /**
-   * Used for proxying. Only one fallback handler can be used.
-   */
+  /** Used for proxying. Only one fallback handler can be used. */
   void registerFallbackHandler(HandlerRegistry handlerRegistry);
 }

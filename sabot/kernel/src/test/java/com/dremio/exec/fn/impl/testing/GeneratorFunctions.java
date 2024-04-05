@@ -15,18 +15,16 @@
  */
 package com.dremio.exec.fn.impl.testing;
 
-import java.util.Random;
-
-import org.apache.arrow.vector.holders.BigIntHolder;
-import org.apache.arrow.vector.holders.NullableBigIntHolder;
-import org.apache.arrow.vector.holders.NullableFloat8Holder;
-
 import com.dremio.exec.ExecTest;
 import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
 import com.dremio.exec.expr.annotations.Workspace;
+import java.util.Random;
+import org.apache.arrow.vector.holders.BigIntHolder;
+import org.apache.arrow.vector.holders.NullableBigIntHolder;
+import org.apache.arrow.vector.holders.NullableFloat8Holder;
 
 public class GeneratorFunctions extends ExecTest {
 
@@ -58,13 +56,15 @@ public class GeneratorFunctions extends ExecTest {
     @Output NullableBigIntHolder out;
 
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
     public void eval() {
       out.isSet = 1;
-      out.value = (long)(com.dremio.exec.fn.impl.testing.GeneratorFunctions.random.nextGaussian() * range.value);
+      out.value =
+          (long)
+              (com.dremio.exec.fn.impl.testing.GeneratorFunctions.random.nextGaussian()
+                  * range.value);
     }
   }
 
@@ -76,13 +76,16 @@ public class GeneratorFunctions extends ExecTest {
     @Output NullableBigIntHolder out;
 
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
     public void eval() {
       out.isSet = 1;
-      out.value = (long)(com.dremio.exec.fn.impl.testing.GeneratorFunctions.random.nextFloat() * (max.value - min.value) + min.value);
+      out.value =
+          (long)
+              (com.dremio.exec.fn.impl.testing.GeneratorFunctions.random.nextFloat()
+                      * (max.value - min.value)
+                  + min.value);
     }
   }
 
@@ -93,13 +96,13 @@ public class GeneratorFunctions extends ExecTest {
     @Output NullableFloat8Holder out;
 
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
     public void eval() {
       out.isSet = 1;
-      out.value = com.dremio.exec.fn.impl.testing.GeneratorFunctions.random.nextGaussian() * range.value;
+      out.value =
+          com.dremio.exec.fn.impl.testing.GeneratorFunctions.random.nextGaussian() * range.value;
     }
   }
 
@@ -111,13 +114,15 @@ public class GeneratorFunctions extends ExecTest {
     @Output NullableFloat8Holder out;
 
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
     public void eval() {
       out.isSet = 1;
-      out.value = com.dremio.exec.fn.impl.testing.GeneratorFunctions.random.nextFloat() * (max.value - min.value) + min.value;
+      out.value =
+          com.dremio.exec.fn.impl.testing.GeneratorFunctions.random.nextFloat()
+                  * (max.value - min.value)
+              + min.value;
     }
   }
 }

@@ -15,18 +15,20 @@
  */
 package com.dremio.exec.planner.sql.handlers.query;
 
-import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.sql.SqlOperator;
-
+import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.planner.sql.handlers.direct.SqlNodeUtil;
+import com.dremio.exec.planner.sql.parser.DmlUtils;
 import com.dremio.exec.planner.sql.parser.SqlGrant.Privilege;
 import com.dremio.exec.planner.sql.parser.SqlUpdateTable;
 import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.dataset.proto.TableProperties;
+import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlOperator;
+import org.apache.iceberg.RowLevelOperationMode;
 
-/**
- * Handles the UPDATE DML.
- */
+/** Handles the UPDATE DML. */
 public class UpdateHandler extends DmlHandler {
 
   @Override
@@ -40,8 +42,16 @@ public class UpdateHandler extends DmlHandler {
   }
 
   @Override
-  protected void validatePrivileges(Catalog catalog, NamespaceKey path, SqlNode sqlNode) {
-    catalog.validatePrivilege(path, Privilege.UPDATE);
-    catalog.validatePrivilege(path, Privilege.SELECT);
+  protected void validatePrivileges(Catalog catalog, CatalogEntityKey key, SqlNode sqlNode) {
+    NamespaceKey namespaceKey = key.toNamespaceKey();
+    catalog.validatePrivilege(namespaceKey, Privilege.UPDATE);
+    catalog.validatePrivilege(namespaceKey, Privilege.SELECT);
+  }
+
+  @Override
+  protected RowLevelOperationMode getRowLevelOperationMode(DremioTable table) {
+    TableProperties updateDmlWriteMode =
+        DmlUtils.getDmlWriteProp(table, org.apache.iceberg.TableProperties.UPDATE_MODE);
+    return DmlUtils.getDmlWriteMode(updateDmlWriteMode);
   }
 }

@@ -64,35 +64,50 @@ class WindowGenerator {
         final long rank = 1 + partition.subRunningCount(sub) - partition.getSubSize(sub);
         final long denseRank = partition.getSubIndex(sub) + 1;
         final double cumeDist = (double) partition.subRunningCount(sub) / partition.length;
-        final double percentRank = partition.length == 1 ? 0 : (double)(rank - 1)/(partition.length - 1);
+        final double percentRank =
+            partition.length == 1 ? 0 : (double) (rank - 1) / (partition.length - 1);
 
         if (withOrderBy) {
-          rows[idx] = tr(
-            p+1,                                    // position_id
-            sub,                                    // sub
-            partition.salary(idx),                  // salary
-            (long) partition.subRunningSum(sub),    // sum(salary)
-            (long) partition.subRunningCount(sub),  // count(position_id)
-            (long) (i + 1),                         // row_number()
-            rank,                                   // rank()
-            denseRank,                              // dense_rank()
-            cumeDist,                               // cume_dist()
-            percentRank                             // percent_rank()
-          );
+          rows[idx] =
+              tr(
+                  p + 1, // position_id
+                  sub, // sub
+                  partition.salary(idx), // salary
+                  (long) partition.subRunningSum(sub), // sum(salary)
+                  (long) partition.subRunningCount(sub), // count(position_id)
+                  (long) (i + 1), // row_number()
+                  rank, // rank()
+                  denseRank, // dense_rank()
+                  cumeDist, // cume_dist()
+                  percentRank // percent_rank()
+                  );
         } else {
-          rows[idx] = tr(
-            p+1,                                    // position_id
-            sub,                                    // sub
-            partition.salary(idx),                  // salary
-            (long) partition.totalSalary(),         // sum(salary)
-            (long) partition.length                 // count(position_id)
-          );
+          rows[idx] =
+              tr(
+                  p + 1, // position_id
+                  sub, // sub
+                  partition.salary(idx), // salary
+                  (long) partition.totalSalary(), // sum(salary)
+                  (long) partition.length // count(position_id)
+                  );
         }
       }
     }
 
     if (withOrderBy) {
-      return t(th("position_id", "sub", "salary", "sum", "count", "row_number", "rank", "dense_rank", "cume_dist", "percent_rank"), rows);
+      return t(
+          th(
+              "position_id",
+              "sub",
+              "salary",
+              "sum",
+              "count",
+              "row_number",
+              "rank",
+              "dense_rank",
+              "cume_dist",
+              "percent_rank"),
+          rows);
     } else {
       return t(th("position_id", "sub", "salary", "sum", "count"), rows);
     }
@@ -116,18 +131,18 @@ class WindowGenerator {
 
         final int sub = partition.getSubId(idx);
 
-        rows[idx] = tr(
-          p+1,                            // position_id
-          sub,                                    // sub
-          partition.salary(idx),                  // salary
-          (long) (idx + 1),                       // row_number()
-          rank                                    // rank()
-        );
+        rows[idx] =
+            tr(
+                p + 1, // position_id
+                sub, // sub
+                partition.salary(idx), // salary
+                (long) (idx + 1), // row_number()
+                rank // rank()
+                );
       }
       rank += partition.length;
     }
 
     return rows;
   }
-
 }

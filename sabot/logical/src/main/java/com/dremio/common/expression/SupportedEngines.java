@@ -24,9 +24,8 @@ import java.util.Set;
 import java.util.function.Function;
 
 /**
- * Class to capture the supported execution engines
- * for an expression.
- * Supported engines are Gandiva and Java.
+ * Class to capture the supported execution engines for an expression. Supported engines are Gandiva
+ * and Java.
  */
 public class SupportedEngines {
   public enum CodeGenOption {
@@ -46,7 +45,7 @@ public class SupportedEngines {
         return CodeGenOption.valueOf(optionName);
       } catch (Exception e) {
         // The optionName may be the lower case string (e.g. java)
-        for(CodeGenOption option : CodeGenOption.values()) {
+        for (CodeGenOption option : CodeGenOption.values()) {
           if (optionName.equalsIgnoreCase(option.toString())) {
             return option;
           }
@@ -63,8 +62,10 @@ public class SupportedEngines {
     GANDIVA
   }
 
-  // creating static engine set to avoid large number of duplicate set in a very large code gen tree.
-  private static final Set<Engine> BOTH_ENGINES = new HashSet<>(Arrays.asList(Engine.JAVA, Engine.GANDIVA));
+  // creating static engine set to avoid large number of duplicate set in a very large code gen
+  // tree.
+  private static final Set<Engine> BOTH_ENGINES =
+      new HashSet<>(Arrays.asList(Engine.JAVA, Engine.GANDIVA));
   private static final Set<Engine> JAVA_ENGINE_ONLY = Collections.singleton(Engine.JAVA);
   private static final Set<Engine> GANDIVA_ENGINE_ONLY = Collections.singleton(Engine.GANDIVA);
 
@@ -128,6 +129,7 @@ public class SupportedEngines {
 
   /**
    * Checks if an evaluation type is supported
+   *
    * @param engine Evaluation type to check
    * @return true if evaluation type is supported
    */
@@ -137,6 +139,7 @@ public class SupportedEngines {
 
   /**
    * Marks an execution engine as supported
+   *
    * @param engine Evaluation type to be added
    */
   public void add(Engine engine) {
@@ -145,15 +148,14 @@ public class SupportedEngines {
 
   /**
    * Removes an execution engine
+   *
    * @param engine Engine to be removed
    */
   public void remove(Engine engine) {
     currentEngineSet = currentEngineSet.onRemove(engine);
   }
 
-  /**
-   * Clears all supported engines.
-   */
+  /** Clears all supported engines. */
   public void clear() {
     currentEngineSet = EngineSet.EMPTY;
   }

@@ -15,8 +15,10 @@
  */
 package com.dremio.exec.planner.logical;
 
+import com.dremio.exec.planner.common.AggregateRelBase;
+import com.dremio.exec.planner.cost.DremioCost;
+import com.dremio.exec.planner.cost.DremioCost.Factory;
 import java.util.List;
-
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptPlanner;
@@ -29,29 +31,40 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.util.ImmutableBitSet;
 
-import com.dremio.exec.planner.common.AggregateRelBase;
-import com.dremio.exec.planner.cost.DremioCost;
-import com.dremio.exec.planner.cost.DremioCost.Factory;
-
-/**
- * Aggregation implemented in Dremio.
- */
+/** Aggregation implemented in Dremio. */
 public class AggregateRel extends AggregateRelBase implements Rel {
 
   /** Creates a AggregateRel. */
-  private AggregateRel(RelOptCluster cluster, RelTraitSet traits, RelNode child, ImmutableBitSet groupSet,
-      List<ImmutableBitSet> groupSets, List<AggregateCall> aggCalls) throws InvalidRelException {
+  private AggregateRel(
+      RelOptCluster cluster,
+      RelTraitSet traits,
+      RelNode child,
+      ImmutableBitSet groupSet,
+      List<ImmutableBitSet> groupSets,
+      List<AggregateCall> aggCalls)
+      throws InvalidRelException {
     super(cluster, traits, child, groupSet, groupSets, aggCalls);
   }
 
-  public static AggregateRel create(RelOptCluster cluster, RelTraitSet traits, RelNode child, ImmutableBitSet groupSet,
-  List<ImmutableBitSet> groupSets, List<AggregateCall> aggCalls) throws InvalidRelException {
+  public static AggregateRel create(
+      RelOptCluster cluster,
+      RelTraitSet traits,
+      RelNode child,
+      ImmutableBitSet groupSet,
+      List<ImmutableBitSet> groupSets,
+      List<AggregateCall> aggCalls)
+      throws InvalidRelException {
     final RelTraitSet adjustedTraits = adjustTraits(traits);
     return new AggregateRel(cluster, adjustedTraits, child, groupSet, groupSets, aggCalls);
   }
 
   @Override
-  public Aggregate copy(RelTraitSet traitSet, RelNode input, ImmutableBitSet groupSet, List<ImmutableBitSet> groupSets, List<AggregateCall> aggCalls) {
+  public Aggregate copy(
+      RelTraitSet traitSet,
+      RelNode input,
+      ImmutableBitSet groupSet,
+      List<ImmutableBitSet> groupSets,
+      List<AggregateCall> aggCalls) {
     try {
       return AggregateRel.create(getCluster(), traitSet, input, groupSet, groupSets, aggCalls);
     } catch (InvalidRelException e) {
@@ -64,9 +77,11 @@ public class AggregateRel extends AggregateRelBase implements Rel {
   @Override
   public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery relMetadataQuery) {
     for (AggregateCall aggCall : getAggCallList()) {
-      // For avg, stddev_pop, stddev_samp, var_pop and var_samp, the ReduceAggregatesRule is supposed
+      // For avg, stddev_pop, stddev_samp, var_pop and var_samp, the ReduceAggregatesRule is
+      // supposed
       // to convert them to use sum and count. Here, we make the cost of the original functions high
-      // enough such that the planner does not choose them and instead chooses the rewritten functions.
+      // enough such that the planner does not choose them and instead chooses the rewritten
+      // functions.
       if (aggCall.getAggregation().getKind() == SqlKind.AVG
           || aggCall.getAggregation().getKind() == SqlKind.STDDEV_SAMP
           || aggCall.getAggregation().getKind() == SqlKind.STDDEV_POP
@@ -80,6 +95,7 @@ public class AggregateRel extends AggregateRelBase implements Rel {
     final double childRowCount = relMetadataQuery.getRowCount(this.getInput());
     // Aggregates with more aggregate functions cost a bit more
     float multiplier = 1f + aggCalls.size() * 0.125f;
-    return ((Factory) planner.getCostFactory()).makeCost(rowCount,childRowCount * multiplier * DremioCost.FUNC_CPU_COST, 0, 0);
+    return ((Factory) planner.getCostFactory())
+        .makeCost(rowCount, childRowCount * multiplier * DremioCost.FUNC_CPU_COST, 0, 0);
   }
 }

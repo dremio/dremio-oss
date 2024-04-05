@@ -16,19 +16,6 @@
 
 package com.dremio.plugins;
 
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.Callable;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Stream;
-
-import javax.annotation.Nullable;
-
-import org.apache.iceberg.viewdepoc.ViewVersionMetadata;
-import org.projectnessie.client.api.NessieApiV2;
-import org.projectnessie.model.IcebergView;
-
 import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.catalog.model.VersionContext;
 import com.dremio.context.RequestContext;
@@ -38,6 +25,7 @@ import com.dremio.exec.catalog.VersionedPlugin;
 import com.dremio.exec.store.ChangeInfo;
 import com.dremio.exec.store.ReferenceInfo;
 import com.dremio.exec.store.iceberg.model.IcebergCommitOrigin;
+import com.dremio.exec.store.iceberg.viewdepoc.ViewVersionMetadata;
 import com.dremio.service.users.User;
 import com.dremio.service.users.UserNotFoundException;
 import com.dremio.service.users.UserService;
@@ -45,20 +33,29 @@ import com.dremio.service.users.proto.UID;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.google.common.base.Preconditions;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
+import javax.annotation.Nullable;
+import org.projectnessie.client.api.NessieApiV2;
+import org.projectnessie.model.IcebergView;
 
 /**
- * This class acts as a decorator and resolves the uuid to the corresponding username string.
- * The username string can be used by referencing the UsernameContext.
+ * This class acts as a decorator and resolves the uuid to the corresponding username string. The
+ * username string can be used by referencing the UsernameContext.
  *
- * TODO:
- * Once the ticket DX-64013 [Refactoring of "user_group_ctx_key"] is completed, this class is
- * unnecessary and should be removed in lieu of simply able to extract the context key directly
- * in createNamespace/ deleteNamespace methods where we need to pass the authorname only while committing to Nessie
- * Refer to the epic DX-64087: Remove UsernameAwareNessieClientImpl class
+ * <p>TODO: Once the ticket DX-64013 [Refactoring of "user_group_ctx_key"] is completed, this class
+ * is unnecessary and should be removed in lieu of simply able to extract the context key directly
+ * in createNamespace/ deleteNamespace methods where we need to pass the authorname only while
+ * committing to Nessie Refer to the epic DX-64087: Remove UsernameAwareNessieClientImpl class
  */
 public class UsernameAwareNessieClientImpl implements NessieClient {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(UsernameAwareNessieClientImpl.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(UsernameAwareNessieClientImpl.class);
   private final NessieClient nessieClient;
   private final UserService userService;
   private final LoadingCache<UID, String> userNameByUserIdCache;
@@ -66,10 +63,11 @@ public class UsernameAwareNessieClientImpl implements NessieClient {
   public UsernameAwareNessieClientImpl(NessieClient nessieClient, UserService userService) {
     this.nessieClient = Preconditions.checkNotNull(nessieClient);
     this.userService = Preconditions.checkNotNull(userService);
-    this.userNameByUserIdCache = Caffeine.newBuilder()
-      .maximumSize(300) // items
-      .expireAfterAccess(20, TimeUnit.MINUTES)
-      .build(this::fetchUserNameForUser);
+    this.userNameByUserIdCache =
+        Caffeine.newBuilder()
+            .maximumSize(300) // items
+            .expireAfterAccess(20, TimeUnit.MINUTES)
+            .build(this::fetchUserNameForUser);
   }
 
   private @Nullable String fetchUserNameForUser(UID userId) {
@@ -159,46 +157,51 @@ public class UsernameAwareNessieClientImpl implements NessieClient {
 
   @Override
   public Stream<ExternalNamespaceEntry> listEntries(
-    @Nullable List<String> catalogPath,
-    ResolvedVersionContext resolvedVersion,
-    NestingMode nestingMode,
-    ContentMode contentMode,
-    @Nullable Set<ExternalNamespaceEntry.Type> contentTypeFilter,
-    @Nullable String celFilter) {
-    return callStreamWithUsernameContext(() ->
-      nessieClient.listEntries(
-        catalogPath,
-        resolvedVersion,
-        nestingMode,
-        contentMode,
-        contentTypeFilter,
-        celFilter
-      ));
+      @Nullable List<String> catalogPath,
+      ResolvedVersionContext resolvedVersion,
+      NestingMode nestingMode,
+      ContentMode contentMode,
+      @Nullable Set<ExternalNamespaceEntry.Type> contentTypeFilter,
+      @Nullable String celFilter) {
+    return callStreamWithUsernameContext(
+        () ->
+            nessieClient.listEntries(
+                catalogPath,
+                resolvedVersion,
+                nestingMode,
+                contentMode,
+                contentTypeFilter,
+                celFilter));
   }
 
   @Override
   public void createNamespace(List<String> namespacePathList, VersionContext version) {
-    getRequestContextWithUsernameContext().run(() -> nessieClient.createNamespace(namespacePathList, version));
+    getRequestContextWithUsernameContext()
+        .run(() -> nessieClient.createNamespace(namespacePathList, version));
   }
 
   @Override
   public void deleteNamespace(List<String> namespacePathList, VersionContext version) {
-    getRequestContextWithUsernameContext().run(() -> nessieClient.deleteNamespace(namespacePathList, version));
+    getRequestContextWithUsernameContext()
+        .run(() -> nessieClient.deleteNamespace(namespacePathList, version));
   }
 
   @Override
   public void createBranch(String branchName, VersionContext sourceVersion) {
-    getRequestContextWithUsernameContext().run(() -> nessieClient.createBranch(branchName, sourceVersion));
+    getRequestContextWithUsernameContext()
+        .run(() -> nessieClient.createBranch(branchName, sourceVersion));
   }
 
   @Override
   public void createTag(String tagName, VersionContext sourceVersion) {
-    getRequestContextWithUsernameContext().run(() -> nessieClient.createTag(tagName, sourceVersion));
+    getRequestContextWithUsernameContext()
+        .run(() -> nessieClient.createTag(tagName, sourceVersion));
   }
 
   @Override
   public void dropBranch(String branchName, String branchHash) {
-    getRequestContextWithUsernameContext().run(() -> nessieClient.dropBranch(branchName, branchHash));
+    getRequestContextWithUsernameContext()
+        .run(() -> nessieClient.dropBranch(branchName, branchHash));
   }
 
   @Override
@@ -208,77 +211,85 @@ public class UsernameAwareNessieClientImpl implements NessieClient {
 
   @Override
   public void mergeBranch(String sourceBranchName, String targetBranchName) {
-    getRequestContextWithUsernameContext().run(() -> nessieClient.mergeBranch(sourceBranchName, targetBranchName));
+    getRequestContextWithUsernameContext()
+        .run(() -> nessieClient.mergeBranch(sourceBranchName, targetBranchName));
   }
 
   @Override
   public void assignBranch(String branchName, VersionContext sourceVersion) {
-    getRequestContextWithUsernameContext().run(() -> nessieClient.assignBranch(branchName, sourceVersion));
+    getRequestContextWithUsernameContext()
+        .run(() -> nessieClient.assignBranch(branchName, sourceVersion));
   }
 
   @Override
   public void assignTag(String tagName, VersionContext sourceVersion) {
-    getRequestContextWithUsernameContext().run(() -> nessieClient.assignTag(tagName, sourceVersion));
+    getRequestContextWithUsernameContext()
+        .run(() -> nessieClient.assignTag(tagName, sourceVersion));
   }
 
   @Override
-  public void commitTable(List<String> catalogKey,
-                          String newMetadataLocation,
-                          NessieClientTableMetadata nessieClientTableMetadata,
-                          ResolvedVersionContext version,
-                          String baseContentId,
-                          @Nullable IcebergCommitOrigin commitOrigin,
-                          String jobId,
-                          String userName) {
-    getRequestContextWithUsernameContext().run(() ->
-      nessieClient.commitTable(
-        catalogKey,
-        newMetadataLocation,
-        nessieClientTableMetadata,
-        version,
-        baseContentId,
-        commitOrigin,
-        jobId,
-        userName
-      ));
+  public void commitTable(
+      List<String> catalogKey,
+      String newMetadataLocation,
+      NessieClientTableMetadata nessieClientTableMetadata,
+      ResolvedVersionContext version,
+      String baseContentId,
+      @Nullable IcebergCommitOrigin commitOrigin,
+      String jobId,
+      String userName) {
+    getRequestContextWithUsernameContext()
+        .run(
+            () ->
+                nessieClient.commitTable(
+                    catalogKey,
+                    newMetadataLocation,
+                    nessieClientTableMetadata,
+                    version,
+                    baseContentId,
+                    commitOrigin,
+                    jobId,
+                    userName));
   }
 
   @Override
-  public void commitView(List<String> catalogKey,
-                         String newMetadataLocation,
-                         IcebergView icebergView,
-                         ViewVersionMetadata metadata,
-                         String dialect,
-                         ResolvedVersionContext version,
-                         String baseContentId,
-                         @Nullable IcebergCommitOrigin commitOrigin,
-                         String userName) {
-    getRequestContextWithUsernameContext().run(() ->
-      nessieClient.commitView(
-        catalogKey,
-        newMetadataLocation,
-        icebergView,
-        metadata,
-        dialect,
-        version,
-        baseContentId,
-        commitOrigin,
-        userName
-      ));
+  public void commitView(
+      List<String> catalogKey,
+      String newMetadataLocation,
+      IcebergView icebergView,
+      ViewVersionMetadata metadata,
+      String dialect,
+      ResolvedVersionContext version,
+      String baseContentId,
+      @Nullable IcebergCommitOrigin commitOrigin,
+      String userName) {
+    getRequestContextWithUsernameContext()
+        .run(
+            () ->
+                nessieClient.commitView(
+                    catalogKey,
+                    newMetadataLocation,
+                    icebergView,
+                    metadata,
+                    dialect,
+                    version,
+                    baseContentId,
+                    commitOrigin,
+                    userName));
   }
 
   @Override
   public void deleteCatalogEntry(
-    List<String> catalogKey,
-    VersionedPlugin.EntityType entityType,
-    ResolvedVersionContext version,
-    String userName
-  ) {
-    getRequestContextWithUsernameContext().run(() -> nessieClient.deleteCatalogEntry(catalogKey, entityType, version, userName));
+      List<String> catalogKey,
+      VersionedPlugin.EntityType entityType,
+      ResolvedVersionContext version,
+      String userName) {
+    getRequestContextWithUsernameContext()
+        .run(() -> nessieClient.deleteCatalogEntry(catalogKey, entityType, version, userName));
   }
 
   @Override
-  public Optional<NessieContent> getContent(List<String> catalogKey, ResolvedVersionContext version, String jobId) {
+  public Optional<NessieContent> getContent(
+      List<String> catalogKey, ResolvedVersionContext version, String jobId) {
     return callWithUsernameContext(() -> nessieClient.getContent(catalogKey, version, jobId));
   }
 

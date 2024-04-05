@@ -15,6 +15,8 @@
  */
 package org.apache.calcite.rel.rules;
 
+import com.dremio.exec.planner.cost.RelMdRowCount;
+import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.HashMap;
@@ -25,7 +27,6 @@ import java.util.Map;
 import java.util.NavigableSet;
 import java.util.Set;
 import java.util.TreeSet;
-
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptTable;
@@ -56,27 +57,21 @@ import org.apache.calcite.util.ImmutableIntList;
 import org.apache.calcite.util.Pair;
 import org.apache.calcite.util.mapping.IntPair;
 
-import com.dremio.exec.planner.cost.RelMdRowCount;
-import com.google.common.collect.Lists;
-
 /**
- * Coppied from Apache Calcite.  This version has been extended to support full outer joins and to
+ * Coppied from Apache Calcite. This version has been extended to support full outer joins and to
  * have findOnlyOneOrdering, which scan for a single different ordering instead of the default
  * behavior.
  *
- * Planner rule that implements the heuristic planner for determining optimal
- * join orderings.
+ * <p>Planner rule that implements the heuristic planner for determining optimal join orderings.
  *
- * <p>It is triggered by the pattern
- * {@link org.apache.calcite.rel.logical.LogicalProject}
- * ({@link MultiJoin}).
+ * <p>It is triggered by the pattern {@link org.apache.calcite.rel.logical.LogicalProject} ({@link
+ * MultiJoin}).
  */
 public class DremioLoptOptimizeJoinRule extends RelRule {
-  public static final DremioLoptOptimizeJoinRule INSTANCE =
-    Config.DEFAULT.toRule();
+  public static final DremioLoptOptimizeJoinRule INSTANCE = Config.DEFAULT.toRule();
 
   public static final DremioLoptOptimizeJoinRule UNOPTIMIZED =
-    Config.DEFAULT.withFindOnlyOneOrdering(true).toRule();
+      Config.DEFAULT.withFindOnlyOneOrdering(true).toRule();
 
   private final boolean findOnlyOneOrdering;
   private final boolean useCardinalityForNextFactor;
@@ -90,8 +85,7 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
     this.rotateFactors = config.rotateFactors();
   }
 
-
-  //~ Methods ----------------------------------------------------------------
+  // ~ Methods ----------------------------------------------------------------
 
   @Override
   public void onMatch(RelOptRuleCall call) {
@@ -103,7 +97,7 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
 
     final RexBuilder rexBuilder = multiJoinRel.getCluster().getRexBuilder();
     final LoptSemiJoinOptimizer semiJoinOpt =
-      new LoptSemiJoinOptimizer(call.getMetadataQuery(), multiJoin, rexBuilder);
+        new LoptSemiJoinOptimizer(call.getMetadataQuery(), multiJoin, rexBuilder);
 
     // determine all possible semijoins
     semiJoinOpt.makePossibleSemiJoins(multiJoin);
@@ -132,17 +126,15 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
   }
 
   /**
-   * Locates all null generating factors whose outer join can be removed. The
-   * outer join can be removed if the join keys corresponding to the null
-   * generating factor are unique and no columns are projected from it.
+   * Locates all null generating factors whose outer join can be removed. The outer join can be
+   * removed if the join keys corresponding to the null generating factor are unique and no columns
+   * are projected from it.
    *
    * @param multiJoin join factors being optimized
    */
   private void findRemovableOuterJoins(RelMetadataQuery mq, LoptMultiJoin multiJoin) {
     final List<Integer> removalCandidates = new ArrayList<>();
-    for (int factIdx = 0;
-         factIdx < multiJoin.getNumJoinFactors();
-         factIdx++) {
+    for (int factIdx = 0; factIdx < multiJoin.getNumJoinFactors(); factIdx++) {
       if (multiJoin.isNullGenerating(factIdx)) {
         removalCandidates.add(factIdx);
       }
@@ -167,10 +159,8 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
         final List<RexNode> ojFilters = new ArrayList<>();
         RelOptUtil.decomposeConjunction(outerJoinCond, ojFilters);
         int numFields = multiJoin.getNumFieldsInJoinFactor(factIdx);
-        final ImmutableBitSet.Builder joinKeyBuilder =
-          ImmutableBitSet.builder();
-        final ImmutableBitSet.Builder otherJoinKeyBuilder =
-          ImmutableBitSet.builder();
+        final ImmutableBitSet.Builder joinKeyBuilder = ImmutableBitSet.builder();
+        final ImmutableBitSet.Builder otherJoinKeyBuilder = ImmutableBitSet.builder();
         int firstFieldNum = multiJoin.getJoinStart(factIdx);
         int lastFieldNum = firstFieldNum + numFields;
         for (RexNode filter : ojFilters) {
@@ -179,24 +169,20 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
           }
           RexCall filterCall = (RexCall) filter;
           if ((filterCall.getOperator() != SqlStdOperatorTable.EQUALS)
-            || !(filterCall.getOperands().get(0)
-            instanceof RexInputRef)
-            || !(filterCall.getOperands().get(1)
-            instanceof RexInputRef)) {
+              || !(filterCall.getOperands().get(0) instanceof RexInputRef)
+              || !(filterCall.getOperands().get(1) instanceof RexInputRef)) {
             continue;
           }
-          int leftRef =
-            ((RexInputRef) filterCall.getOperands().get(0)).getIndex();
-          int rightRef =
-            ((RexInputRef) filterCall.getOperands().get(1)).getIndex();
+          int leftRef = ((RexInputRef) filterCall.getOperands().get(0)).getIndex();
+          int rightRef = ((RexInputRef) filterCall.getOperands().get(1)).getIndex();
           setJoinKey(
-            joinKeyBuilder,
-            otherJoinKeyBuilder,
-            leftRef,
-            rightRef,
-            firstFieldNum,
-            lastFieldNum,
-            true);
+              joinKeyBuilder,
+              otherJoinKeyBuilder,
+              leftRef,
+              rightRef,
+              firstFieldNum,
+              lastFieldNum,
+              true);
         }
 
         if (joinKeyBuilder.cardinality() == 0) {
@@ -206,11 +192,9 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
         // make sure the only join fields referenced are the ones in
         // the current outer join
         final ImmutableBitSet joinKeys = joinKeyBuilder.build();
-        int [] joinFieldRefCounts =
-          multiJoin.getJoinFieldRefCounts(factIdx);
+        int[] joinFieldRefCounts = multiJoin.getJoinFieldRefCounts(factIdx);
         for (int i = 0; i < joinFieldRefCounts.length; i++) {
-          if ((joinFieldRefCounts[i] > 1)
-            || (!joinKeys.get(i) && (joinFieldRefCounts[i] == 1))) {
+          if ((joinFieldRefCounts[i] > 1) || (!joinKeys.get(i) && (joinFieldRefCounts[i] == 1))) {
             continue outerForLoop;
           }
         }
@@ -219,8 +203,8 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
         // part of an equality join condition, nulls are filtered out
         // by the join.  So, it's ok if there are nulls in the join
         // keys.
-        if (RelMdUtil.areColumnsDefinitelyUniqueWhenNullsFiltered(mq,
-          multiJoin.getJoinFactor(factIdx), joinKeys)) {
+        if (RelMdUtil.areColumnsDefinitelyUniqueWhenNullsFiltered(
+            mq, multiJoin.getJoinFactor(factIdx), joinKeys)) {
           multiJoin.addRemovableOuterJoinFactor(factIdx);
 
           // Since we are no longer joining this factor,
@@ -234,8 +218,7 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
             if (multiJoin.isNullGenerating(otherFactor)) {
               retryCandidates.add(otherFactor);
             }
-            int [] otherJoinFieldRefCounts =
-              multiJoin.getJoinFieldRefCounts(otherFactor);
+            int[] otherJoinFieldRefCounts = multiJoin.getJoinFieldRefCounts(otherFactor);
             int offset = multiJoin.getJoinStart(otherFactor);
             --otherJoinFieldRefCounts[otherKey - offset];
           }
@@ -247,9 +230,8 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
   }
 
   /**
-   * Sets a join key if only one of the specified input references corresponds
-   * to a specified factor as determined by its field numbers. Also keeps
-   * track of the keys from the other factor.
+   * Sets a join key if only one of the specified input references corresponds to a specified factor
+   * as determined by its field numbers. Also keeps track of the keys from the other factor.
    *
    * @param joinKeys join keys to be set if a key is found
    * @param otherJoinKeys join keys for the other join factor
@@ -257,18 +239,17 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
    * @param ref2 second input reference
    * @param firstFieldNum first field number of the factor
    * @param lastFieldNum last field number + 1 of the factor
-   * @param swap if true, check for the desired input reference in the second
-   * input reference parameter if the first input reference isn't the correct
-   * one
+   * @param swap if true, check for the desired input reference in the second input reference
+   *     parameter if the first input reference isn't the correct one
    */
   private void setJoinKey(
-    ImmutableBitSet.Builder joinKeys,
-    ImmutableBitSet.Builder otherJoinKeys,
-    int ref1,
-    int ref2,
-    int firstFieldNum,
-    int lastFieldNum,
-    boolean swap) {
+      ImmutableBitSet.Builder joinKeys,
+      ImmutableBitSet.Builder otherJoinKeys,
+      int ref1,
+      int ref2,
+      int firstFieldNum,
+      int lastFieldNum,
+      boolean swap) {
     if ((ref1 >= firstFieldNum) && (ref1 < lastFieldNum)) {
       if (!((ref2 >= firstFieldNum) && (ref2 < lastFieldNum))) {
         joinKeys.set(ref1 - firstFieldNum);
@@ -277,21 +258,13 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
       return;
     }
     if (swap) {
-      setJoinKey(
-        joinKeys,
-        otherJoinKeys,
-        ref2,
-        ref1,
-        firstFieldNum,
-        lastFieldNum,
-        false);
+      setJoinKey(joinKeys, otherJoinKeys, ref2, ref1, firstFieldNum, lastFieldNum, false);
     }
   }
 
   /**
-   * Locates pairs of joins that are self-joins where the join can be removed
-   * because the join condition between the two factors is an equality join on
-   * unique keys.
+   * Locates pairs of joins that are self-joins where the join can be removed because the join
+   * condition between the two factors is an equality join on unique keys.
    *
    * @param multiJoin join factors being optimized
    */
@@ -306,8 +279,7 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
     final NavigableSet<Integer> sortedFactors = new TreeSet<>();
     sortedFactors.addAll(simpleFactors.keySet());
     final Map<Integer, Integer> selfJoinPairs = new HashMap<>();
-    Integer [] factors =
-      sortedFactors.toArray(new Integer[sortedFactors.size()]);
+    Integer[] factors = sortedFactors.toArray(new Integer[sortedFactors.size()]);
     for (int i = 0; i < factors.length; i++) {
       if (repeatedTables.contains(simpleFactors.get(factors[i]))) {
         continue;
@@ -315,8 +287,10 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
       for (int j = i + 1; j < factors.length; j++) {
         int leftFactor = factors[i];
         int rightFactor = factors[j];
-        if (simpleFactors.get(leftFactor).getQualifiedName().equals(
-          simpleFactors.get(rightFactor).getQualifiedName())) {
+        if (simpleFactors
+            .get(leftFactor)
+            .getQualifiedName()
+            .equals(simpleFactors.get(rightFactor).getQualifiedName())) {
           selfJoinPairs.put(leftFactor, rightFactor);
           repeatedTables.add(simpleFactors.get(leftFactor));
           break;
@@ -331,35 +305,26 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
       final int factor2 = selfJoinPairs.get(factor1);
       final List<RexNode> selfJoinFilters = new ArrayList<>();
       for (RexNode filter : multiJoin.getJoinFilters()) {
-        ImmutableBitSet joinFactors =
-          multiJoin.getFactorsRefByJoinFilter(filter);
+        ImmutableBitSet joinFactors = multiJoin.getFactorsRefByJoinFilter(filter);
         if ((joinFactors.cardinality() == 2)
-          && joinFactors.get(factor1)
-          && joinFactors.get(factor2)) {
+            && joinFactors.get(factor1)
+            && joinFactors.get(factor2)) {
           selfJoinFilters.add(filter);
         }
       }
       if ((selfJoinFilters.size() > 0)
-        && isSelfJoinFilterUnique(
-        mq,
-        multiJoin,
-        factor1,
-        factor2,
-        selfJoinFilters)) {
+          && isSelfJoinFilterUnique(mq, multiJoin, factor1, factor2, selfJoinFilters)) {
         multiJoin.addRemovableSelfJoinPair(factor1, factor2);
       }
     }
   }
 
   /**
-   * Retrieves join factors that correspond to simple table references. A
-   * simple table reference is a single table reference with no grouping or
-   * aggregation.
+   * Retrieves join factors that correspond to simple table references. A simple table reference is
+   * a single table reference with no grouping or aggregation.
    *
    * @param multiJoin join factors being optimized
-   *
-   * @return map consisting of the simple factors and the tables they
-   * correspond
+   * @return map consisting of the simple factors and the tables they correspond
    */
   private Map<Integer, RelOptTable> getSimpleFactors(RelMetadataQuery mq, LoptMultiJoin multiJoin) {
     final Map<Integer, RelOptTable> returnList = new HashMap<>();
@@ -373,7 +338,7 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
     }
     for (int factIdx = 0; factIdx < multiJoin.getNumJoinFactors(); factIdx++) {
       if (multiJoin.isNullGenerating(factIdx)
-        || (multiJoin.getJoinRemovalFactor(factIdx) != null)) {
+          || (multiJoin.getJoinRemovalFactor(factIdx) != null)) {
         continue;
       }
       final RelNode rel = multiJoin.getJoinFactor(factIdx);
@@ -387,33 +352,30 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
   }
 
   /**
-   * Determines if the equality join filters between two factors that map to
-   * the same table consist of unique, identical keys.
+   * Determines if the equality join filters between two factors that map to the same table consist
+   * of unique, identical keys.
    *
    * @param multiJoin join factors being optimized
    * @param leftFactor left factor in the join
    * @param rightFactor right factor in the join
    * @param joinFilterList list of join filters between the two factors
-   *
    * @return true if the criteria are met
    */
   private boolean isSelfJoinFilterUnique(
-    RelMetadataQuery mq,
-    LoptMultiJoin multiJoin,
-    int leftFactor,
-    int rightFactor,
-    List<RexNode> joinFilterList) {
-    RexBuilder rexBuilder =
-      multiJoin.getMultiJoinRel().getCluster().getRexBuilder();
+      RelMetadataQuery mq,
+      LoptMultiJoin multiJoin,
+      int leftFactor,
+      int rightFactor,
+      List<RexNode> joinFilterList) {
+    RexBuilder rexBuilder = multiJoin.getMultiJoinRel().getCluster().getRexBuilder();
     RelNode leftRel = multiJoin.getJoinFactor(leftFactor);
     RelNode rightRel = multiJoin.getJoinFactor(rightFactor);
-    RexNode joinFilters =
-      RexUtil.composeConjunction(rexBuilder, joinFilterList, true);
+    RexNode joinFilters = RexUtil.composeConjunction(rexBuilder, joinFilterList, true);
 
     // Adjust the offsets in the filter by shifting the left factor
     // to the left and shifting the right factor to the left and then back
     // to the right by the number of fields in the left
-    int [] adjustments = new int[multiJoin.getNumTotalFields()];
+    int[] adjustments = new int[multiJoin.getNumTotalFields()];
     int leftAdjust = multiJoin.getJoinStart(leftFactor);
     int nLeftFields = leftRel.getRowType().getFieldCount();
     for (int i = 0; i < nLeftFields; i++) {
@@ -424,35 +386,34 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
       adjustments[rightAdjust + i] = -rightAdjust + nLeftFields;
     }
     joinFilters =
-      joinFilters.accept(
-        new RelOptUtil.RexInputConverter(
-          rexBuilder,
-          multiJoin.getMultiJoinFields(),
-          leftRel.getRowType().getFieldList(),
-          rightRel.getRowType().getFieldList(),
-          adjustments));
+        joinFilters.accept(
+            new RelOptUtil.RexInputConverter(
+                rexBuilder,
+                multiJoin.getMultiJoinFields(),
+                leftRel.getRowType().getFieldList(),
+                rightRel.getRowType().getFieldList(),
+                adjustments));
 
     return areSelfJoinKeysUnique(mq, leftRel, rightRel, joinFilters);
   }
 
   /**
-   * Generates N optimal join orderings. Each ordering contains each factor as
-   * the first factor in the ordering.
+   * Generates N optimal join orderings. Each ordering contains each factor as the first factor in
+   * the ordering.
    *
    * @param multiJoin join factors being optimized
    * @param semiJoinOpt optimal semijoins for each factor
    * @param call RelOptRuleCall associated with this rule
    */
   private void findBestOrderings(
-    RelMetadataQuery mq,
-    RelBuilder relBuilder,
-    LoptMultiJoin multiJoin,
-    LoptSemiJoinOptimizer semiJoinOpt,
-    RelOptRuleCall call) {
+      RelMetadataQuery mq,
+      RelBuilder relBuilder,
+      LoptMultiJoin multiJoin,
+      LoptSemiJoinOptimizer semiJoinOpt,
+      RelOptRuleCall call) {
     final List<RelNode> plans = new ArrayList<>();
 
-    final List<String> fieldNames =
-      multiJoin.getMultiJoinRel().getRowType().getFieldNames();
+    final List<String> fieldNames = multiJoin.getMultiJoinRel().getRowType().getFieldNames();
 
     // generate the N join orderings
     for (int i = 0; i < multiJoin.getNumJoinFactors(); i++) {
@@ -460,19 +421,12 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
       if (multiJoin.isNullGenerating(i)) {
         continue;
       }
-      LoptJoinTree joinTree =
-        createOrdering(
-          mq,
-          relBuilder,
-          multiJoin,
-          semiJoinOpt,
-          i);
+      LoptJoinTree joinTree = createOrdering(mq, relBuilder, multiJoin, semiJoinOpt, i);
       if (joinTree == null) {
         continue;
       }
 
-      RelNode newProject =
-        createTopProject(call.builder(), multiJoin, joinTree, fieldNames);
+      RelNode newProject = createTopProject(call.builder(), multiJoin, joinTree, fieldNames);
       plans.add(newProject);
       if (findOnlyOneOrdering) {
         break;
@@ -490,24 +444,22 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
   }
 
   /**
-   * Creates the topmost projection that will sit on top of the selected join
-   * ordering. The projection needs to match the original join ordering. Also,
-   * places any post-join filters on top of the project.
+   * Creates the topmost projection that will sit on top of the selected join ordering. The
+   * projection needs to match the original join ordering. Also, places any post-join filters on top
+   * of the project.
    *
    * @param multiJoin join factors being optimized
    * @param joinTree selected join ordering
    * @param fieldNames field names corresponding to the projection expressions
-   *
    * @return created projection
    */
   private RelNode createTopProject(
-    RelBuilder relBuilder,
-    LoptMultiJoin multiJoin,
-    LoptJoinTree joinTree,
-    List<String> fieldNames) {
+      RelBuilder relBuilder,
+      LoptMultiJoin multiJoin,
+      LoptJoinTree joinTree,
+      List<String> fieldNames) {
     List<RexNode> newProjExprs = Lists.newArrayList();
-    RexBuilder rexBuilder =
-      multiJoin.getMultiJoinRel().getCluster().getRexBuilder();
+    RexBuilder rexBuilder = multiJoin.getMultiJoinRel().getCluster().getRexBuilder();
 
     // create a projection on top of the joins, matching the original
     // join order
@@ -520,8 +472,7 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
     final Map<Integer, Integer> factorToOffsetMap = new HashMap<>();
     for (int pos = 0, fieldStart = 0; pos < nJoinFactors; pos++) {
       factorToOffsetMap.put(newJoinOrder.get(pos), fieldStart);
-      fieldStart +=
-        multiJoin.getNumFieldsInJoinFactor(newJoinOrder.get(pos));
+      fieldStart += multiJoin.getNumFieldsInJoinFactor(newJoinOrder.get(pos));
     }
 
     for (int currFactor = 0; currFactor < nJoinFactors; currFactor++) {
@@ -533,21 +484,17 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
         leftFactor = multiJoin.getOtherSelfJoinFactor(currFactor);
       }
       for (int fieldPos = 0;
-           fieldPos < multiJoin.getNumFieldsInJoinFactor(currFactor);
-           fieldPos++) {
+          fieldPos < multiJoin.getNumFieldsInJoinFactor(currFactor);
+          fieldPos++) {
         int newOffset = factorToOffsetMap.get(currFactor) + fieldPos;
         if (leftFactor != null) {
-          Integer leftOffset =
-            multiJoin.getRightColumnMapping(currFactor, fieldPos);
+          Integer leftOffset = multiJoin.getRightColumnMapping(currFactor, fieldPos);
           if (leftOffset != null) {
-            newOffset =
-              factorToOffsetMap.get(leftFactor) + leftOffset;
+            newOffset = factorToOffsetMap.get(leftFactor) + leftOffset;
           }
         }
         newProjExprs.add(
-          rexBuilder.makeInputRef(
-            fields.get(newProjExprs.size()).getType(),
-            newOffset));
+            rexBuilder.makeInputRef(fields.get(newProjExprs.size()).getType(), newOffset));
       }
     }
 
@@ -556,8 +503,7 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
 
     // Place the post-join filter (if it exists) on top of the final
     // projection.
-    RexNode postJoinFilter =
-      multiJoin.getMultiJoinRel().getPostJoinFilter();
+    RexNode postJoinFilter = multiJoin.getMultiJoinRel().getPostJoinFilter();
     if (postJoinFilter != null) {
       relBuilder.filter(postJoinFilter);
     }
@@ -565,29 +511,25 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
   }
 
   /**
-   * Computes the cardinality of the join columns from a particular factor,
-   * when that factor is joined with another join tree.
+   * Computes the cardinality of the join columns from a particular factor, when that factor is
+   * joined with another join tree.
    *
    * @param multiJoin join factors being optimized
    * @param semiJoinOpt optimal semijoins chosen for each factor
    * @param joinTree the join tree that the factor is being joined with
    * @param filters possible join filters to select from
    * @param factor the factor being added
-   *
    * @return computed cardinality
    */
   private Double computeJoinCardinality(
-    RelMetadataQuery mq,
-    LoptMultiJoin multiJoin,
-    LoptSemiJoinOptimizer semiJoinOpt,
-    LoptJoinTree joinTree,
-    List<RexNode> filters,
-    int factor) {
+      RelMetadataQuery mq,
+      LoptMultiJoin multiJoin,
+      LoptSemiJoinOptimizer semiJoinOpt,
+      LoptJoinTree joinTree,
+      List<RexNode> filters,
+      int factor) {
     final ImmutableBitSet childFactors =
-      ImmutableBitSet.builder()
-        .addAll(joinTree.getTreeOrder())
-        .set(factor)
-        .build();
+        ImmutableBitSet.builder().addAll(joinTree.getTreeOrder()).set(factor).build();
 
     int factorStart = multiJoin.getJoinStart(factor);
     int nFields = multiJoin.getNumFieldsInJoinFactor(factor);
@@ -596,23 +538,17 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
     // first loop through the inner join filters, picking out the ones
     // that reference only the factors in either the join tree or the
     // factor that will be added
-    setFactorJoinKeys(
-      multiJoin,
-      filters,
-      childFactors,
-      factorStart,
-      nFields,
-      joinKeys);
+    setFactorJoinKeys(multiJoin, filters, childFactors, factorStart, nFields, joinKeys);
 
     // then loop through the outer join filters where the factor being
     // added is the null generating factor in the outer join
     setFactorJoinKeys(
-      multiJoin,
-      RelOptUtil.conjunctions(multiJoin.getOuterJoinCond(factor)),
-      childFactors,
-      factorStart,
-      nFields,
-      joinKeys);
+        multiJoin,
+        RelOptUtil.conjunctions(multiJoin.getOuterJoinCond(factor)),
+        childFactors,
+        factorStart,
+        nFields,
+        joinKeys);
 
     // if the join tree doesn't contain all the necessary factors in
     // any of the join filters, then joinKeys will be empty, so return
@@ -625,37 +561,33 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
         ImmutableBitSet jk = joinKeys.build();
         return RelMdRowCount.isKey(rel, jk, mq) ? 1.0 : 0;
       } else {
-        return mq.getDistinctRowCount(semiJoinOpt.getChosenSemiJoin(factor),
-          joinKeys.build(), null);
+        return mq.getDistinctRowCount(
+            semiJoinOpt.getChosenSemiJoin(factor), joinKeys.build(), null);
       }
     }
   }
 
   /**
-   * Locates from a list of filters those that correspond to a particular join
-   * tree. Then, for each of those filters, extracts the fields corresponding
-   * to a particular factor, setting them in a bitmap.
+   * Locates from a list of filters those that correspond to a particular join tree. Then, for each
+   * of those filters, extracts the fields corresponding to a particular factor, setting them in a
+   * bitmap.
    *
    * @param multiJoin join factors being optimized
    * @param filters list of join filters
-   * @param joinFactors bitmap containing the factors in a particular join
-   * tree
-   * @param factorStart the initial offset of the factor whose join keys will
-   * be extracted
-   * @param nFields the number of fields in the factor whose join keys will be
-   * extracted
+   * @param joinFactors bitmap containing the factors in a particular join tree
+   * @param factorStart the initial offset of the factor whose join keys will be extracted
+   * @param nFields the number of fields in the factor whose join keys will be extracted
    * @param joinKeys the bitmap that will be set with the join keys
    */
   private void setFactorJoinKeys(
-    LoptMultiJoin multiJoin,
-    List<RexNode> filters,
-    ImmutableBitSet joinFactors,
-    int factorStart,
-    int nFields,
-    ImmutableBitSet.Builder joinKeys) {
+      LoptMultiJoin multiJoin,
+      List<RexNode> filters,
+      ImmutableBitSet joinFactors,
+      int factorStart,
+      int nFields,
+      ImmutableBitSet.Builder joinKeys) {
     for (RexNode joinFilter : filters) {
-      ImmutableBitSet filterFactors =
-        multiJoin.getFactorsRefByJoinFilter(joinFilter);
+      ImmutableBitSet filterFactors = multiJoin.getFactorsRefByJoinFilter(joinFilter);
 
       // if all factors in the join filter are in the bitmap containing
       // the factors in a join tree, then from that filter, add the
@@ -663,12 +595,10 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
       // bitmap; in doing so, adjust the join keys so they start at
       // offset 0
       if (joinFactors.contains(filterFactors)) {
-        ImmutableBitSet joinFields =
-          multiJoin.getFieldsRefByJoinFilter(joinFilter);
+        ImmutableBitSet joinFields = multiJoin.getFieldsRefByJoinFilter(joinFilter);
         for (int field = joinFields.nextSetBit(factorStart);
-             (field >= 0)
-               && (field < (factorStart + nFields));
-             field = joinFields.nextSetBit(field + 1)) {
+            (field >= 0) && (field < (factorStart + nFields));
+            field = joinFields.nextSetBit(field + 1)) {
           joinKeys.set(field - factorStart);
         }
       }
@@ -676,28 +606,25 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
   }
 
   /**
-   * Generates a join tree with a specific factor as the first factor in the
-   * join tree
+   * Generates a join tree with a specific factor as the first factor in the join tree
    *
    * @param multiJoin join factors being optimized
    * @param semiJoinOpt optimal semijoins for each factor
    * @param firstFactor first factor in the tree
-   *
-   * @return constructed join tree or null if it is not possible for
-   * firstFactor to appear as the first factor in the join
+   * @return constructed join tree or null if it is not possible for firstFactor to appear as the
+   *     first factor in the join
    */
   private LoptJoinTree createOrdering(
-    RelMetadataQuery mq,
-    RelBuilder relBuilder,
-    LoptMultiJoin multiJoin,
-    LoptSemiJoinOptimizer semiJoinOpt,
-    int firstFactor) {
+      RelMetadataQuery mq,
+      RelBuilder relBuilder,
+      LoptMultiJoin multiJoin,
+      LoptSemiJoinOptimizer semiJoinOpt,
+      int firstFactor) {
     LoptJoinTree joinTree = null;
     final int nJoinFactors = multiJoin.getNumJoinFactors();
     final BitSet factorsToAdd = BitSets.range(0, nJoinFactors);
     final BitSet factorsAdded = new BitSet(nJoinFactors);
-    final List<RexNode> filtersToAdd =
-      new ArrayList<>(multiJoin.getJoinFilters());
+    final List<RexNode> filtersToAdd = new ArrayList<>(multiJoin.getJoinFilters());
 
     int prevFactor = -1;
     int iter = 0;
@@ -711,46 +638,43 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
         // and the other half of the self-join hasn't been added yet,
         // then add it next.  Otherwise, look for the optimal factor
         // to add next.
-        Integer selfJoinFactor =
-          multiJoin.getOtherSelfJoinFactor(prevFactor);
-        if ((selfJoinFactor != null)
-          && !factorsAdded.get(selfJoinFactor)) {
+        Integer selfJoinFactor = multiJoin.getOtherSelfJoinFactor(prevFactor);
+        if ((selfJoinFactor != null) && !factorsAdded.get(selfJoinFactor)) {
           nextFactor = selfJoinFactor;
           selfJoin = true;
         } else {
           nextFactor =
-            getBestNextFactor(
-              mq,
-              multiJoin,
-              factorsToAdd,
-              factorsAdded,
-              semiJoinOpt,
-              joinTree,
-              filtersToAdd,
-              iter++);
+              getBestNextFactor(
+                  mq,
+                  multiJoin,
+                  factorsToAdd,
+                  factorsAdded,
+                  semiJoinOpt,
+                  joinTree,
+                  filtersToAdd,
+                  iter++);
         }
       }
 
       // add the factor; pass in a bitmap representing the factors
       // this factor joins with that have already been added to
       // the tree
-      BitSet factorsNeeded =
-        multiJoin.getFactorsRefByFactor(nextFactor).toBitSet();
+      BitSet factorsNeeded = multiJoin.getFactorsRefByFactor(nextFactor).toBitSet();
       if (multiJoin.isNullGenerating(nextFactor)) {
         factorsNeeded.or(multiJoin.getOuterJoinFactors(nextFactor).toBitSet());
       }
       factorsNeeded.and(factorsAdded);
       joinTree =
-        addFactorToTree(
-          mq,
-          relBuilder,
-          multiJoin,
-          semiJoinOpt,
-          joinTree,
-          nextFactor,
-          factorsNeeded,
-          filtersToAdd,
-          selfJoin);
+          addFactorToTree(
+              mq,
+              relBuilder,
+              multiJoin,
+              semiJoinOpt,
+              joinTree,
+              nextFactor,
+              factorsNeeded,
+              filtersToAdd,
+              selfJoin);
       if (joinTree == null) {
         return null;
       }
@@ -772,24 +696,23 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
    * @param semiJoinOpt optimal semijoins for each factor
    * @param joinTree join tree constructed thus far
    * @param filtersToAdd remaining filters that need to be added
-   *
    * @return index of the best factor to add next
    */
   private int getBestNextFactor(
-    RelMetadataQuery mq,
-    LoptMultiJoin multiJoin,
-    BitSet factorsToAdd,
-    BitSet factorsAdded,
-    LoptSemiJoinOptimizer semiJoinOpt,
-    LoptJoinTree joinTree,
-    List<RexNode> filtersToAdd,
-    int iteration) {
+      RelMetadataQuery mq,
+      LoptMultiJoin multiJoin,
+      BitSet factorsToAdd,
+      BitSet factorsAdded,
+      LoptSemiJoinOptimizer semiJoinOpt,
+      LoptJoinTree joinTree,
+      List<RexNode> filtersToAdd,
+      int iteration) {
     // iterate through the remaining factors and determine the
     // best one to add next
     int nextFactor = -1;
     int bestWeight = 0;
     Double bestCardinality = null;
-    int [][] factorWeights = multiJoin.getFactorWeights();
+    int[][] factorWeights = multiJoin.getFactorWeights();
     List<Integer> factorList = BitSets.toList(factorsToAdd);
     List<Integer> rotatedList;
     if (rotateFactors) {
@@ -817,8 +740,7 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
       // can't add a null-generating factor if its dependent,
       // non-null generating factors haven't been added yet
       if (multiJoin.isNullGenerating(factor)
-        && !BitSets.contains(factorsAdded,
-        multiJoin.getOuterJoinFactors(factor))) {
+          && !BitSets.contains(factorsAdded, multiJoin.getOuterJoinFactors(factor))) {
         continue;
       }
 
@@ -836,32 +758,23 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
         return factor;
       }
 
-
       // only compute the join cardinality if we know that
       // this factor joins with some part of the current join
       // tree and is potentially better than other factors
       // already considered
       Double cardinality = null;
-      if ((dimWeight > 0)
-        && ((dimWeight > bestWeight) || (dimWeight == bestWeight))) {
+      if ((dimWeight > 0) && ((dimWeight > bestWeight) || (dimWeight == bestWeight))) {
         cardinality =
-          computeJoinCardinality(
-            mq,
-            multiJoin,
-            semiJoinOpt,
-            joinTree,
-            filtersToAdd,
-            factor);
+            computeJoinCardinality(mq, multiJoin, semiJoinOpt, joinTree, filtersToAdd, factor);
       }
 
       // if two factors have the same weight, pick the one
       // with the higher cardinality join key, relative to
       // the join being considered
       if ((dimWeight > bestWeight)
-        || ((dimWeight == bestWeight)
-        && ((bestCardinality == null)
-        || ((cardinality != null)
-        && (cardinality > bestCardinality))))) {
+          || ((dimWeight == bestWeight)
+              && ((bestCardinality == null)
+                  || ((cardinality != null) && (cardinality > bestCardinality))))) {
         nextFactor = factor;
         bestWeight = dimWeight;
         bestCardinality = cardinality;
@@ -872,55 +785,53 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
   }
 
   /**
-   * Returns whether a RelNode corresponds to a Join that wasn't one of the
-   * original MultiJoin input factors.
+   * Returns whether a RelNode corresponds to a Join that wasn't one of the original MultiJoin input
+   * factors.
    */
   private boolean isJoinTree(RelNode rel) {
     return rel instanceof Join;
   }
 
   /**
-   * Adds a new factor into the current join tree. The factor is either pushed
-   * down into one of the subtrees of the join recursively, or it is added to
-   * the top of the current tree, whichever yields a better ordering.
+   * Adds a new factor into the current join tree. The factor is either pushed down into one of the
+   * subtrees of the join recursively, or it is added to the top of the current tree, whichever
+   * yields a better ordering.
    *
    * @param multiJoin join factors being optimized
    * @param semiJoinOpt optimal semijoins for each factor
    * @param joinTree current join tree
    * @param factorToAdd new factor to be added
    * @param factorsNeeded factors that must precede the factor to be added
-   * @param filtersToAdd filters remaining to be added; filters added to the
-   * new join tree are removed from the list
-   * @param selfJoin true if the join being created is a self-join that's
-   * removable
-   *
-   * @return optimal join tree with the new factor added if it is possible to
-   * add the factor; otherwise, null is returned
+   * @param filtersToAdd filters remaining to be added; filters added to the new join tree are
+   *     removed from the list
+   * @param selfJoin true if the join being created is a self-join that's removable
+   * @return optimal join tree with the new factor added if it is possible to add the factor;
+   *     otherwise, null is returned
    */
   private LoptJoinTree addFactorToTree(
-    RelMetadataQuery mq,
-    RelBuilder relBuilder,
-    LoptMultiJoin multiJoin,
-    LoptSemiJoinOptimizer semiJoinOpt,
-    LoptJoinTree joinTree,
-    int factorToAdd,
-    BitSet factorsNeeded,
-    List<RexNode> filtersToAdd,
-    boolean selfJoin) {
+      RelMetadataQuery mq,
+      RelBuilder relBuilder,
+      LoptMultiJoin multiJoin,
+      LoptSemiJoinOptimizer semiJoinOpt,
+      LoptJoinTree joinTree,
+      int factorToAdd,
+      BitSet factorsNeeded,
+      List<RexNode> filtersToAdd,
+      boolean selfJoin) {
 
     // if the factor corresponds to the null generating factor in an outer
     // join that can be removed, then create a replacement join
     if (multiJoin.isRemovableOuterJoinFactor(factorToAdd)) {
       return createReplacementJoin(
-        relBuilder,
-        multiJoin,
-        semiJoinOpt,
-        joinTree,
-        -1,
-        factorToAdd,
-        ImmutableIntList.of(),
-        null,
-        filtersToAdd);
+          relBuilder,
+          multiJoin,
+          semiJoinOpt,
+          joinTree,
+          -1,
+          factorToAdd,
+          ImmutableIntList.of(),
+          null,
+          filtersToAdd);
     }
 
     // if the factor corresponds to a dimension table whose join we
@@ -928,20 +839,13 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
     // table is in the current join tree
     if (multiJoin.getJoinRemovalFactor(factorToAdd) != null) {
       return createReplacementSemiJoin(
-        relBuilder,
-        multiJoin,
-        semiJoinOpt,
-        joinTree,
-        factorToAdd,
-        filtersToAdd);
+          relBuilder, multiJoin, semiJoinOpt, joinTree, factorToAdd, filtersToAdd);
     }
 
     // if this is the first factor in the tree, create a join tree with
     // the single factor
     if (joinTree == null) {
-      return new LoptJoinTree(
-        semiJoinOpt.getChosenSemiJoin(factorToAdd),
-        factorToAdd);
+      return new LoptJoinTree(semiJoinOpt.getChosenSemiJoin(factorToAdd), factorToAdd);
     }
 
     // Create a temporary copy of the filter list as we may need the
@@ -951,27 +855,21 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
     // filters will still be removed from the list.
     final List<RexNode> tmpFilters = new ArrayList<>(filtersToAdd);
     LoptJoinTree topTree =
-      addToTop(
-        mq,
-        relBuilder,
-        multiJoin,
-        semiJoinOpt,
-        joinTree,
-        factorToAdd,
-        filtersToAdd,
-        selfJoin);
-    LoptJoinTree pushDownTree = findOnlyOneOrdering ? null
-      :
-      pushDownFactor(
-        mq,
-        relBuilder,
-        multiJoin,
-        semiJoinOpt,
-        joinTree,
-        factorToAdd,
-        factorsNeeded,
-        (topTree == null) ? filtersToAdd : tmpFilters,
-        selfJoin);
+        addToTop(
+            mq, relBuilder, multiJoin, semiJoinOpt, joinTree, factorToAdd, filtersToAdd, selfJoin);
+    LoptJoinTree pushDownTree =
+        findOnlyOneOrdering
+            ? null
+            : pushDownFactor(
+                mq,
+                relBuilder,
+                multiJoin,
+                semiJoinOpt,
+                joinTree,
+                factorToAdd,
+                factorsNeeded,
+                (topTree == null) ? filtersToAdd : tmpFilters,
+                selfJoin);
 
     // pick the lower cost option, and replace the join ordering with
     // the ordering associated with the best option
@@ -994,8 +892,7 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
         // if both plans cost the same (with an allowable round-off
         // margin of error), favor the one that passes
         // around the wider rows further up in the tree
-        if (rowWidthCost(pushDownTree.getJoinTree())
-          < rowWidthCost(topTree.getJoinTree())) {
+        if (rowWidthCost(pushDownTree.getJoinTree()) < rowWidthCost(topTree.getJoinTree())) {
           bestTree = pushDownTree;
         } else {
           bestTree = topTree;
@@ -1011,13 +908,11 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
   }
 
   /**
-   * Computes a cost for a join tree based on the row widths of the inputs
-   * into the join. Joins where the inputs have the fewest number of columns
-   * lower in the tree are better than equivalent joins where the inputs with
-   * the larger number of columns are lower in the tree.
+   * Computes a cost for a join tree based on the row widths of the inputs into the join. Joins
+   * where the inputs have the fewest number of columns lower in the tree are better than equivalent
+   * joins where the inputs with the larger number of columns are lower in the tree.
    *
    * @param tree a tree of RelNodes
-   *
    * @return the cost associated with the width of the tree
    */
   private int rowWidthCost(RelNode tree) {
@@ -1028,41 +923,36 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
     int width = tree.getRowType().getFieldCount();
     if (isJoinTree(tree)) {
       Join joinRel = (Join) tree;
-      width +=
-        rowWidthCost(joinRel.getLeft())
-          + rowWidthCost(joinRel.getRight());
+      width += rowWidthCost(joinRel.getLeft()) + rowWidthCost(joinRel.getRight());
     }
     return width;
   }
 
   /**
-   * Creates a join tree where the new factor is pushed down one of the
-   * operands of the current join tree
+   * Creates a join tree where the new factor is pushed down one of the operands of the current join
+   * tree
    *
    * @param multiJoin join factors being optimized
    * @param semiJoinOpt optimal semijoins for each factor
    * @param joinTree current join tree
    * @param factorToAdd new factor to be added
    * @param factorsNeeded factors that must precede the factor to be added
-   * @param filtersToAdd filters remaining to be added; filters that are added
-   * to the join tree are removed from the list
-   * @param selfJoin true if the factor being added is part of a removable
-   * self-join
-   *
-   * @return optimal join tree with the new factor pushed down the current
-   * join tree if it is possible to do the pushdown; otherwise, null is
-   * returned
+   * @param filtersToAdd filters remaining to be added; filters that are added to the join tree are
+   *     removed from the list
+   * @param selfJoin true if the factor being added is part of a removable self-join
+   * @return optimal join tree with the new factor pushed down the current join tree if it is
+   *     possible to do the pushdown; otherwise, null is returned
    */
   private LoptJoinTree pushDownFactor(
-    RelMetadataQuery mq,
-    RelBuilder relBuilder,
-    LoptMultiJoin multiJoin,
-    LoptSemiJoinOptimizer semiJoinOpt,
-    LoptJoinTree joinTree,
-    int factorToAdd,
-    BitSet factorsNeeded,
-    List<RexNode> filtersToAdd,
-    boolean selfJoin) {
+      RelMetadataQuery mq,
+      RelBuilder relBuilder,
+      LoptMultiJoin multiJoin,
+      LoptSemiJoinOptimizer semiJoinOpt,
+      LoptJoinTree joinTree,
+      int factorToAdd,
+      BitSet factorsNeeded,
+      List<RexNode> filtersToAdd,
+      boolean selfJoin) {
     // pushdown option only works if we already have a join tree
     if (!isJoinTree(joinTree.getJoinTree())) {
       return null;
@@ -1092,19 +982,15 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
         assert multiJoin.hasAllFactors(right, selfJoinFactor);
         childNo = 1;
       }
-    } else if (
-      (factorsNeeded.cardinality() == 0)
-        && !joinType.generatesNullsOnLeft()) {
+    } else if ((factorsNeeded.cardinality() == 0) && !joinType.generatesNullsOnLeft()) {
       childNo = 0;
     } else {
       // push to the left if the LHS contains all factors that the
       // current factor needs and that side is not null-generating;
       // same check for RHS
-      if (multiJoin.hasAllFactors(left, factorsNeeded)
-        && !joinType.generatesNullsOnLeft()) {
+      if (multiJoin.hasAllFactors(left, factorsNeeded) && !joinType.generatesNullsOnLeft()) {
         childNo = 0;
-      } else if (
-        multiJoin.hasAllFactors(right, factorsNeeded)
+      } else if (multiJoin.hasAllFactors(right, factorsNeeded)
           && !joinType.generatesNullsOnRight()) {
         childNo = 1;
       }
@@ -1123,16 +1009,16 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
     // recursively pushdown the factor
     LoptJoinTree subTree = (childNo == 0) ? left : right;
     subTree =
-      addFactorToTree(
-        mq,
-        relBuilder,
-        multiJoin,
-        semiJoinOpt,
-        subTree,
-        factorToAdd,
-        factorsNeeded,
-        filtersToAdd,
-        selfJoin);
+        addFactorToTree(
+            mq,
+            relBuilder,
+            multiJoin,
+            semiJoinOpt,
+            subTree,
+            factorToAdd,
+            factorsNeeded,
+            filtersToAdd,
+            selfJoin);
 
     if (childNo == 0) {
       left = subTree;
@@ -1143,52 +1029,30 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
     // adjust the join condition from the original join tree to reflect
     // pushdown of the new factor as well as any swapping that may have
     // been done during the pushdown
-    RexNode newCondition =
-      ((Join) joinTree.getJoinTree()).getCondition();
+    RexNode newCondition = ((Join) joinTree.getJoinTree()).getCondition();
     newCondition =
-      adjustFilter(
-        multiJoin,
-        left,
-        right,
-        newCondition,
-        factorToAdd,
-        origJoinOrder,
-        joinTree.getJoinTree().getRowType().getFieldList());
+        adjustFilter(
+            multiJoin,
+            left,
+            right,
+            newCondition,
+            factorToAdd,
+            origJoinOrder,
+            joinTree.getJoinTree().getRowType().getFieldList());
 
     // determine if additional filters apply as a result of adding the
     // new factor, provided this isn't a left or right outer join; for
     // those cases, the additional filters will be added on top of the
     // join in createJoinSubtree
     if ((joinType != JoinRelType.LEFT) && (joinType != JoinRelType.RIGHT)) {
-      RexNode condition =
-        addFilters(
-          multiJoin,
-          left,
-          -1,
-          right,
-          filtersToAdd,
-          true);
-      RexBuilder rexBuilder =
-        multiJoin.getMultiJoinRel().getCluster().getRexBuilder();
-      newCondition =
-        RelOptUtil.andJoinFilters(
-          rexBuilder,
-          newCondition,
-          condition);
+      RexNode condition = addFilters(multiJoin, left, -1, right, filtersToAdd, true);
+      RexBuilder rexBuilder = multiJoin.getMultiJoinRel().getCluster().getRexBuilder();
+      newCondition = RelOptUtil.andJoinFilters(rexBuilder, newCondition, condition);
     }
 
     // create the new join tree with the factor pushed down
     return createJoinSubtree(
-      mq,
-      relBuilder,
-      multiJoin,
-      left,
-      right,
-      newCondition,
-      joinType,
-      filtersToAdd,
-      false,
-      false);
+        mq, relBuilder, multiJoin, left, right, newCondition, joinType, filtersToAdd, false, false);
   }
 
   /**
@@ -1198,22 +1062,20 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
    * @param semiJoinOpt optimal semijoins for each factor
    * @param joinTree current join tree
    * @param factorToAdd new factor to be added
-   * @param filtersToAdd filters remaining to be added; modifies the list to
-   * remove filters that can be added to the join tree
-   * @param selfJoin true if the join being created is a self-join that's
-   * removable
-   *
+   * @param filtersToAdd filters remaining to be added; modifies the list to remove filters that can
+   *     be added to the join tree
+   * @param selfJoin true if the join being created is a self-join that's removable
    * @return new join tree
    */
   private LoptJoinTree addToTop(
-    RelMetadataQuery mq,
-    RelBuilder relBuilder,
-    LoptMultiJoin multiJoin,
-    LoptSemiJoinOptimizer semiJoinOpt,
-    LoptJoinTree joinTree,
-    int factorToAdd,
-    List<RexNode> filtersToAdd,
-    boolean selfJoin) {
+      RelMetadataQuery mq,
+      RelBuilder relBuilder,
+      LoptMultiJoin multiJoin,
+      LoptSemiJoinOptimizer semiJoinOpt,
+      LoptJoinTree joinTree,
+      int factorToAdd,
+      List<RexNode> filtersToAdd,
+      boolean selfJoin) {
     // self-joins can never be created at the top of an existing
     // join tree because it needs to be paired directly with the
     // other self-join factor
@@ -1237,9 +1099,7 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
     }
 
     LoptJoinTree rightTree =
-      new LoptJoinTree(
-        semiJoinOpt.getChosenSemiJoin(factorToAdd),
-        factorToAdd);
+        new LoptJoinTree(semiJoinOpt.getChosenSemiJoin(factorToAdd), factorToAdd);
 
     // in the case of a left or right outer join, use the specific
     // outer join condition
@@ -1247,61 +1107,48 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
     if ((joinType == JoinRelType.LEFT) || (joinType == JoinRelType.RIGHT)) {
       condition = multiJoin.getOuterJoinCond(factorToAdd);
     } else {
-      condition =
-        addFilters(
-          multiJoin,
-          joinTree,
-          -1,
-          rightTree,
-          filtersToAdd,
-          false);
+      condition = addFilters(multiJoin, joinTree, -1, rightTree, filtersToAdd, false);
     }
 
     return createJoinSubtree(
-      mq,
-      relBuilder,
-      multiJoin,
-      joinTree,
-      rightTree,
-      condition,
-      joinType,
-      filtersToAdd,
-      true,
-      selfJoin);
+        mq,
+        relBuilder,
+        multiJoin,
+        joinTree,
+        rightTree,
+        condition,
+        joinType,
+        filtersToAdd,
+        true,
+        selfJoin);
   }
 
   /**
-   * Determines which join filters can be added to the current join tree. Note
-   * that the join filter still reflects the original join ordering. It will
-   * only be adjusted to reflect the new join ordering if the "adjust"
-   * parameter is set to true.
+   * Determines which join filters can be added to the current join tree. Note that the join filter
+   * still reflects the original join ordering. It will only be adjusted to reflect the new join
+   * ordering if the "adjust" parameter is set to true.
    *
    * @param multiJoin join factors being optimized
    * @param leftTree left subtree of the join tree
-   * @param leftIdx if &ge; 0, only consider filters that reference leftIdx in
-   * leftTree; otherwise, consider all filters that reference any factor in
-   * leftTree
+   * @param leftIdx if &ge; 0, only consider filters that reference leftIdx in leftTree; otherwise,
+   *     consider all filters that reference any factor in leftTree
    * @param rightTree right subtree of the join tree
-   * @param filtersToAdd remaining join filters that need to be added; those
-   * that are added are removed from the list
+   * @param filtersToAdd remaining join filters that need to be added; those that are added are
+   *     removed from the list
    * @param adjust if true, adjust filter to reflect new join ordering
-   *
-   * @return AND'd expression of the join filters that can be added to the
-   * current join tree
+   * @return AND'd expression of the join filters that can be added to the current join tree
    */
   private RexNode addFilters(
-    LoptMultiJoin multiJoin,
-    LoptJoinTree leftTree,
-    int leftIdx,
-    LoptJoinTree rightTree,
-    List<RexNode> filtersToAdd,
-    boolean adjust) {
+      LoptMultiJoin multiJoin,
+      LoptJoinTree leftTree,
+      int leftIdx,
+      LoptJoinTree rightTree,
+      List<RexNode> filtersToAdd,
+      boolean adjust) {
     // loop through the remaining filters to be added and pick out the
     // ones that reference only the factors in the new join tree
-    final RexBuilder rexBuilder =
-      multiJoin.getMultiJoinRel().getCluster().getRexBuilder();
-    final ImmutableBitSet.Builder childFactorBuilder =
-      ImmutableBitSet.builder();
+    final RexBuilder rexBuilder = multiJoin.getMultiJoinRel().getCluster().getRexBuilder();
+    final ImmutableBitSet.Builder childFactorBuilder = ImmutableBitSet.builder();
     childFactorBuilder.addAll(rightTree.getTreeOrder());
     if (leftIdx >= 0) {
       childFactorBuilder.set(leftIdx);
@@ -1317,8 +1164,7 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
     final ListIterator<RexNode> filterIter = filtersToAdd.listIterator();
     while (filterIter.hasNext()) {
       RexNode joinFilter = filterIter.next();
-      ImmutableBitSet filterBitmap =
-        multiJoin.getFactorsRefByJoinFilter(joinFilter);
+      ImmutableBitSet filterBitmap = multiJoin.getFactorsRefByJoinFilter(joinFilter);
 
       // if all factors in the join filter are in the join tree,
       // AND the filter to the current join condition
@@ -1326,32 +1172,23 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
         if (condition == null) {
           condition = joinFilter;
         } else {
-          condition =
-            rexBuilder.makeCall(
-              SqlStdOperatorTable.AND,
-              condition,
-              joinFilter);
+          condition = rexBuilder.makeCall(SqlStdOperatorTable.AND, condition, joinFilter);
         }
         filterIter.remove();
       }
     }
 
     if (adjust && (condition != null)) {
-      int [] adjustments = new int[multiJoin.getNumTotalFields()];
-      if (needsAdjustment(
-        multiJoin,
-        adjustments,
-        leftTree,
-        rightTree,
-        false)) {
+      int[] adjustments = new int[multiJoin.getNumTotalFields()];
+      if (needsAdjustment(multiJoin, adjustments, leftTree, rightTree, false)) {
         condition =
-          condition.accept(
-            new RelOptUtil.RexInputConverter(
-              rexBuilder,
-              multiJoin.getMultiJoinFields(),
-              leftTree.getJoinTree().getRowType().getFieldList(),
-              rightTree.getJoinTree().getRowType().getFieldList(),
-              adjustments));
+            condition.accept(
+                new RelOptUtil.RexInputConverter(
+                    rexBuilder,
+                    multiJoin.getMultiJoinFields(),
+                    leftTree.getJoinTree().getRowType().getFieldList(),
+                    rightTree.getJoinTree().getRowType().getFieldList(),
+                    adjustments));
       }
     }
 
@@ -1363,38 +1200,34 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
   }
 
   /**
-   * Adjusts a filter to reflect a newly added factor in the middle of an
-   * existing join tree
+   * Adjusts a filter to reflect a newly added factor in the middle of an existing join tree
    *
    * @param multiJoin join factors being optimized
    * @param left left subtree of the join
    * @param right right subtree of the join
    * @param condition current join condition
    * @param factorAdded index corresponding to the newly added factor
-   * @param origJoinOrder original join order, before factor was pushed into
-   * the tree
-   * @param origFields fields from the original join before the factor was
-   * added
-   *
+   * @param origJoinOrder original join order, before factor was pushed into the tree
+   * @param origFields fields from the original join before the factor was added
    * @return modified join condition reflecting addition of the new factor
    */
   private RexNode adjustFilter(
-    LoptMultiJoin multiJoin,
-    LoptJoinTree left,
-    LoptJoinTree right,
-    RexNode condition,
-    int factorAdded,
-    List<Integer> origJoinOrder,
-    List<RelDataTypeField> origFields) {
+      LoptMultiJoin multiJoin,
+      LoptJoinTree left,
+      LoptJoinTree right,
+      RexNode condition,
+      int factorAdded,
+      List<Integer> origJoinOrder,
+      List<RelDataTypeField> origFields) {
     final List<Integer> newJoinOrder = new ArrayList<>();
     left.getTreeOrder(newJoinOrder);
     right.getTreeOrder(newJoinOrder);
 
     int totalFields =
-      left.getJoinTree().getRowType().getFieldCount()
-        + right.getJoinTree().getRowType().getFieldCount()
-        - multiJoin.getNumFieldsInJoinFactor(factorAdded);
-    int [] adjustments = new int[totalFields];
+        left.getJoinTree().getRowType().getFieldCount()
+            + right.getJoinTree().getRowType().getFieldCount()
+            - multiJoin.getNumFieldsInJoinFactor(factorAdded);
+    int[] adjustments = new int[totalFields];
 
     // go through each factor and adjust relative to the original
     // join order
@@ -1417,14 +1250,7 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
 
         // fill in the adjustment array for this factor
         if (remapJoinReferences(
-          multiJoin,
-          factor,
-          newJoinOrder,
-          newPos,
-          adjustments,
-          nFieldsOld,
-          nFieldsNew,
-          false)) {
+            multiJoin, factor, newJoinOrder, newPos, adjustments, nFieldsOld, nFieldsNew, false)) {
           needAdjust = true;
         }
       }
@@ -1432,89 +1258,76 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
     }
 
     if (needAdjust) {
-      RexBuilder rexBuilder =
-        multiJoin.getMultiJoinRel().getCluster().getRexBuilder();
+      RexBuilder rexBuilder = multiJoin.getMultiJoinRel().getCluster().getRexBuilder();
       condition =
-        condition.accept(
-          new RelOptUtil.RexInputConverter(
-            rexBuilder,
-            origFields,
-            left.getJoinTree().getRowType().getFieldList(),
-            right.getJoinTree().getRowType().getFieldList(),
-            adjustments));
+          condition.accept(
+              new RelOptUtil.RexInputConverter(
+                  rexBuilder,
+                  origFields,
+                  left.getJoinTree().getRowType().getFieldList(),
+                  right.getJoinTree().getRowType().getFieldList(),
+                  adjustments));
     }
 
     return condition;
   }
 
   /**
-   * Sets an adjustment array based on where column references for a
-   * particular factor end up as a result of a new join ordering.
+   * Sets an adjustment array based on where column references for a particular factor end up as a
+   * result of a new join ordering.
    *
-   * <p>If the factor is not the right factor in a removable self-join, then
-   * it needs to be adjusted as follows:
-   *
-   * <ul>
-   * <li>First subtract, based on where the factor was in the original join
-   * ordering.
-   * <li>Then add on the number of fields in the factors that now precede this
-   * factor in the new join ordering.
-   * </ul>
-   *
-   * <p>If the factor is the right factor in a removable self-join and its
-   * column reference can be mapped to the left factor in the self-join, then:
+   * <p>If the factor is not the right factor in a removable self-join, then it needs to be adjusted
+   * as follows:
    *
    * <ul>
-   * <li>First subtract, based on where the column reference is in the new
-   * join ordering.
-   * <li>Then, add on the number of fields up to the start of the left factor
-   * in the self-join in the new join ordering.
-   * <li>Then, finally add on the offset of the corresponding column from the
-   * left factor.
+   *   <li>First subtract, based on where the factor was in the original join ordering.
+   *   <li>Then add on the number of fields in the factors that now precede this factor in the new
+   *       join ordering.
    * </ul>
    *
-   * <p>Note that this only applies if both factors in the self-join are in the
-   * join ordering. If they are, then the left factor always precedes the
-   * right factor in the join ordering.
+   * <p>If the factor is the right factor in a removable self-join and its column reference can be
+   * mapped to the left factor in the self-join, then:
+   *
+   * <ul>
+   *   <li>First subtract, based on where the column reference is in the new join ordering.
+   *   <li>Then, add on the number of fields up to the start of the left factor in the self-join in
+   *       the new join ordering.
+   *   <li>Then, finally add on the offset of the corresponding column from the left factor.
+   * </ul>
+   *
+   * <p>Note that this only applies if both factors in the self-join are in the join ordering. If
+   * they are, then the left factor always precedes the right factor in the join ordering.
    *
    * @param multiJoin join factors being optimized
    * @param factor the factor whose references are being adjusted
    * @param newJoinOrder the new join ordering containing the factor
    * @param newPos the position of the factor in the new join ordering
    * @param adjustments the adjustments array that will be set
-   * @param offset the starting offset within the original join ordering for
-   * the columns of the factor being adjusted
-   * @param newOffset the new starting offset in the new join ordering for the
-   * columns of the factor being adjusted
-   * @param alwaysUseDefault always use the default adjustment value
-   * regardless of whether the factor is the right factor in a removable
-   * self-join
-   *
+   * @param offset the starting offset within the original join ordering for the columns of the
+   *     factor being adjusted
+   * @param newOffset the new starting offset in the new join ordering for the columns of the factor
+   *     being adjusted
+   * @param alwaysUseDefault always use the default adjustment value regardless of whether the
+   *     factor is the right factor in a removable self-join
    * @return true if at least one column from the factor requires adjustment
    */
   private boolean remapJoinReferences(
-    LoptMultiJoin multiJoin,
-    int factor,
-    List<Integer> newJoinOrder,
-    int newPos,
-    int [] adjustments,
-    int offset,
-    int newOffset,
-    boolean alwaysUseDefault) {
+      LoptMultiJoin multiJoin,
+      int factor,
+      List<Integer> newJoinOrder,
+      int newPos,
+      int[] adjustments,
+      int offset,
+      int newOffset,
+      boolean alwaysUseDefault) {
     boolean needAdjust = false;
     int defaultAdjustment = -offset + newOffset;
     if (!alwaysUseDefault
-      && multiJoin.isRightFactorInRemovableSelfJoin(factor)
-      && (newPos != 0)
-      && newJoinOrder.get(newPos - 1).equals(
-      multiJoin.getOtherSelfJoinFactor(factor))) {
-      int nLeftFields =
-        multiJoin.getNumFieldsInJoinFactor(
-          newJoinOrder.get(
-            newPos - 1));
-      for (int i = 0;
-           i < multiJoin.getNumFieldsInJoinFactor(factor);
-           i++) {
+        && multiJoin.isRightFactorInRemovableSelfJoin(factor)
+        && (newPos != 0)
+        && newJoinOrder.get(newPos - 1).equals(multiJoin.getOtherSelfJoinFactor(factor))) {
+      int nLeftFields = multiJoin.getNumFieldsInJoinFactor(newJoinOrder.get(newPos - 1));
+      for (int i = 0; i < multiJoin.getNumFieldsInJoinFactor(factor); i++) {
         Integer leftOffset = multiJoin.getRightColumnMapping(factor, i);
 
         // if the left factor doesn't reference the column, then
@@ -1522,9 +1335,7 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
         if (leftOffset == null) {
           adjustments[i + offset] = defaultAdjustment;
         } else {
-          adjustments[i + offset] =
-            -(offset + i) + (newOffset - nLeftFields)
-              + leftOffset;
+          adjustments[i + offset] = -(offset + i) + (newOffset - nLeftFields) + leftOffset;
         }
         if (adjustments[i + offset] != 0) {
           needAdjust = true;
@@ -1533,10 +1344,7 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
     } else {
       if (defaultAdjustment != 0) {
         needAdjust = true;
-        for (int i = 0;
-             i < multiJoin.getNumFieldsInJoinFactor(
-               newJoinOrder.get(newPos));
-             i++) {
+        for (int i = 0; i < multiJoin.getNumFieldsInJoinFactor(newJoinOrder.get(newPos)); i++) {
           adjustments[i + offset] = defaultAdjustment;
         }
       }
@@ -1546,35 +1354,31 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
   }
 
   /**
-   * In the event that a dimension table does not need to be joined because of
-   * a semijoin, this method creates a join tree that consists of a projection
-   * on top of an existing join tree. The existing join tree must contain the
-   * fact table in the semijoin that allows the dimension table to be removed.
+   * In the event that a dimension table does not need to be joined because of a semijoin, this
+   * method creates a join tree that consists of a projection on top of an existing join tree. The
+   * existing join tree must contain the fact table in the semijoin that allows the dimension table
+   * to be removed.
    *
-   * <p>The projection created on top of the join tree mimics a join of the
-   * fact and dimension tables. In order for the dimension table to have been
-   * removed, the only fields referenced from the dimension table are its
-   * dimension keys. Therefore, we can replace these dimension fields with the
-   * fields corresponding to the semijoin keys from the fact table in the
-   * projection.
+   * <p>The projection created on top of the join tree mimics a join of the fact and dimension
+   * tables. In order for the dimension table to have been removed, the only fields referenced from
+   * the dimension table are its dimension keys. Therefore, we can replace these dimension fields
+   * with the fields corresponding to the semijoin keys from the fact table in the projection.
    *
    * @param multiJoin join factors being optimized
    * @param semiJoinOpt optimal semijoins for each factor
    * @param factTree existing join tree containing the fact table
    * @param dimIdx dimension table factor id
-   * @param filtersToAdd filters remaining to be added; filters added to the
-   * new join tree are removed from the list
-   *
-   * @return created join tree or null if the corresponding fact table has not
-   * been joined in yet
+   * @param filtersToAdd filters remaining to be added; filters added to the new join tree are
+   *     removed from the list
+   * @return created join tree or null if the corresponding fact table has not been joined in yet
    */
   private LoptJoinTree createReplacementSemiJoin(
-    RelBuilder relBuilder,
-    LoptMultiJoin multiJoin,
-    LoptSemiJoinOptimizer semiJoinOpt,
-    LoptJoinTree factTree,
-    int dimIdx,
-    List<RexNode> filtersToAdd) {
+      RelBuilder relBuilder,
+      LoptMultiJoin multiJoin,
+      LoptSemiJoinOptimizer semiJoinOpt,
+      LoptJoinTree factTree,
+      int dimIdx,
+      List<RexNode> filtersToAdd) {
     // if the current join tree doesn't contain the fact table, then
     // don't bother trying to create the replacement join just yet
     if (factTree == null) {
@@ -1596,10 +1400,9 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
 
     // map the dimension keys to the corresponding keys from the fact
     // table, based on the fact table's position in the current jointree
-    List<RelDataTypeField> dimFields =
-      multiJoin.getJoinFactor(dimIdx).getRowType().getFieldList();
+    List<RelDataTypeField> dimFields = multiJoin.getJoinFactor(dimIdx).getRowType().getFieldList();
     int nDimFields = dimFields.size();
-    Integer [] replacementKeys = new Integer[nDimFields];
+    Integer[] replacementKeys = new Integer[nDimFields];
     LogicalJoin semiJoin = multiJoin.getJoinRemovalSemiJoin(dimIdx);
     ImmutableIntList dimKeys = semiJoin.analyzeCondition().leftKeys;
     ImmutableIntList factKeys = semiJoin.analyzeCondition().rightKeys;
@@ -1608,47 +1411,45 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
     }
 
     return createReplacementJoin(
-      relBuilder,
-      multiJoin,
-      semiJoinOpt,
-      factTree,
-      factIdx,
-      dimIdx,
-      dimKeys,
-      replacementKeys,
-      filtersToAdd);
+        relBuilder,
+        multiJoin,
+        semiJoinOpt,
+        factTree,
+        factIdx,
+        dimIdx,
+        dimKeys,
+        replacementKeys,
+        filtersToAdd);
   }
 
   /**
-   * Creates a replacement join, projecting either dummy columns or
-   * replacement keys from the factor that doesn't actually need to be joined.
+   * Creates a replacement join, projecting either dummy columns or replacement keys from the factor
+   * that doesn't actually need to be joined.
    *
    * @param multiJoin join factors being optimized
    * @param semiJoinOpt optimal semijoins for each factor
    * @param currJoinTree current join tree being added to
-   * @param leftIdx if &ge; 0, when creating the replacement join, only consider
-   * filters that reference leftIdx in currJoinTree; otherwise, consider all
-   * filters that reference any factor in currJoinTree
+   * @param leftIdx if &ge; 0, when creating the replacement join, only consider filters that
+   *     reference leftIdx in currJoinTree; otherwise, consider all filters that reference any
+   *     factor in currJoinTree
    * @param factorToAdd new factor whose join can be removed
    * @param newKeys join keys that need to be replaced
-   * @param replacementKeys the keys that replace the join keys; null if we're
-   * removing the null generating factor in an outer join
-   * @param filtersToAdd filters remaining to be added; filters added to the
-   * new join tree are removed from the list
-   *
-   * @return created join tree with an appropriate projection for the factor
-   * that can be removed
+   * @param replacementKeys the keys that replace the join keys; null if we're removing the null
+   *     generating factor in an outer join
+   * @param filtersToAdd filters remaining to be added; filters added to the new join tree are
+   *     removed from the list
+   * @return created join tree with an appropriate projection for the factor that can be removed
    */
   private LoptJoinTree createReplacementJoin(
-    RelBuilder relBuilder,
-    LoptMultiJoin multiJoin,
-    LoptSemiJoinOptimizer semiJoinOpt,
-    LoptJoinTree currJoinTree,
-    int leftIdx,
-    int factorToAdd,
-    ImmutableIntList newKeys,
-    Integer [] replacementKeys,
-    List<RexNode> filtersToAdd) {
+      RelBuilder relBuilder,
+      LoptMultiJoin multiJoin,
+      LoptSemiJoinOptimizer semiJoinOpt,
+      LoptJoinTree currJoinTree,
+      int leftIdx,
+      int factorToAdd,
+      ImmutableIntList newKeys,
+      Integer[] replacementKeys,
+      List<RexNode> filtersToAdd) {
     // create a projection, projecting the fields from the join tree
     // containing the current joinRel and the new factor; for fields
     // corresponding to join keys, replace them with the corresponding key
@@ -1662,7 +1463,7 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
     List<RelDataTypeField> currFields = currJoinRel.getRowType().getFieldList();
     final int nCurrFields = currFields.size();
     List<RelDataTypeField> newFields =
-      multiJoin.getJoinFactor(factorToAdd).getRowType().getFieldList();
+        multiJoin.getJoinFactor(factorToAdd).getRowType().getFieldList();
     final int nNewFields = newFields.size();
     List<Pair<RexNode, String>> projects = Lists.newArrayList();
     RexBuilder rexBuilder = currJoinRel.getCluster().getRexBuilder();
@@ -1670,9 +1471,9 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
 
     for (int i = 0; i < nCurrFields; i++) {
       projects.add(
-        Pair.of(
-          (RexNode) rexBuilder.makeInputRef(currFields.get(i).getType(), i),
-          currFields.get(i).getName()));
+          Pair.of(
+              (RexNode) rexBuilder.makeInputRef(currFields.get(i).getType(), i),
+              currFields.get(i).getName()));
     }
     for (int i = 0; i < nNewFields; i++) {
       RexNode projExpr;
@@ -1681,26 +1482,18 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
         if (replacementKeys == null) {
           // null generating factor in an outer join; so make the
           // type nullable
-          newType =
-            typeFactory.createTypeWithNullability(newType, true);
+          newType = typeFactory.createTypeWithNullability(newType, true);
         }
-        projExpr =
-          rexBuilder.makeCast(newType, rexBuilder.constantNull());
+        projExpr = rexBuilder.makeCast(newType, rexBuilder.constantNull());
       } else {
         RelDataTypeField mappedField = currFields.get(replacementKeys[i]);
-        RexNode mappedInput =
-          rexBuilder.makeInputRef(
-            mappedField.getType(),
-            replacementKeys[i]);
+        RexNode mappedInput = rexBuilder.makeInputRef(mappedField.getType(), replacementKeys[i]);
 
         // if the types aren't the same, create a cast
         if (mappedField.getType() == newType) {
           projExpr = mappedInput;
         } else {
-          projExpr =
-            rexBuilder.makeCast(
-              newFields.get(i).getType(),
-              mappedInput);
+          projExpr = rexBuilder.makeCast(newFields.get(i).getType(), mappedInput);
         }
       }
       projects.add(Pair.of(projExpr, newFields.get(i).getName()));
@@ -1713,27 +1506,14 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
     // we don't actually need to use them, but we need to remove them
     // from the list since they're no longer needed
     LoptJoinTree newTree =
-      new LoptJoinTree(
-        semiJoinOpt.getChosenSemiJoin(factorToAdd),
-        factorToAdd);
-    addFilters(
-      multiJoin,
-      currJoinTree,
-      leftIdx,
-      newTree,
-      filtersToAdd,
-      false);
+        new LoptJoinTree(semiJoinOpt.getChosenSemiJoin(factorToAdd), factorToAdd);
+    addFilters(multiJoin, currJoinTree, leftIdx, newTree, filtersToAdd, false);
 
     // Filters referencing factors other than leftIdx and factorToAdd
     // still do need to be applied.  So, add them into a separate
     // LogicalFilter placed on top off the projection created above.
     if (leftIdx >= 0) {
-      addAdditionalFilters(
-        relBuilder,
-        multiJoin,
-        currJoinTree,
-        newTree,
-        filtersToAdd);
+      addAdditionalFilters(relBuilder, multiJoin, currJoinTree, newTree, filtersToAdd);
     }
 
     // finally, create a join tree consisting of the current join's join
@@ -1742,44 +1522,38 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
     // though we really aren't; this is needed so we can map the columns
     // from the new factor as we go up in the join tree
     return new LoptJoinTree(
-      relBuilder.build(),
-      currJoinTree.getFactorTree(),
-      newTree.getFactorTree());
+        relBuilder.build(), currJoinTree.getFactorTree(), newTree.getFactorTree());
   }
 
   /**
-   * Creates a LogicalJoin given left and right operands and a join condition.
-   * Swaps the operands if beneficial.
+   * Creates a LogicalJoin given left and right operands and a join condition. Swaps the operands if
+   * beneficial.
    *
    * @param multiJoin join factors being optimized
    * @param left left operand
    * @param right right operand
    * @param condition join condition
    * @param joinType the join type
-   * @param fullAdjust true if the join condition reflects the original join
-   * ordering and therefore has not gone through any type of adjustment yet;
-   * otherwise, the condition has already been partially adjusted and only
-   * needs to be further adjusted if swapping is done
-   * @param filtersToAdd additional filters that may be added on top of the
-   * resulting LogicalJoin, if the join is a left or right outer join
-   * @param selfJoin true if the join being created is a self-join that's
-   * removable
-   *
+   * @param fullAdjust true if the join condition reflects the original join ordering and therefore
+   *     has not gone through any type of adjustment yet; otherwise, the condition has already been
+   *     partially adjusted and only needs to be further adjusted if swapping is done
+   * @param filtersToAdd additional filters that may be added on top of the resulting LogicalJoin,
+   *     if the join is a left or right outer join
+   * @param selfJoin true if the join being created is a self-join that's removable
    * @return created LogicalJoin
    */
   private LoptJoinTree createJoinSubtree(
-    RelMetadataQuery mq,
-    RelBuilder relBuilder,
-    LoptMultiJoin multiJoin,
-    LoptJoinTree left,
-    LoptJoinTree right,
-    RexNode condition,
-    JoinRelType joinType,
-    List<RexNode> filtersToAdd,
-    boolean fullAdjust,
-    boolean selfJoin) {
-    RexBuilder rexBuilder =
-      multiJoin.getMultiJoinRel().getCluster().getRexBuilder();
+      RelMetadataQuery mq,
+      RelBuilder relBuilder,
+      LoptMultiJoin multiJoin,
+      LoptJoinTree left,
+      LoptJoinTree right,
+      RexNode condition,
+      JoinRelType joinType,
+      List<RexNode> filtersToAdd,
+      boolean fullAdjust,
+      boolean selfJoin) {
+    RexBuilder rexBuilder = multiJoin.getMultiJoinRel().getCluster().getRexBuilder();
 
     // swap the inputs if beneficial
     if (swapInputs(mq, multiJoin, left, right, selfJoin)) {
@@ -1787,69 +1561,44 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
       right = left;
       left = tmp;
       if (!fullAdjust) {
-        condition =
-          swapFilter(
-            rexBuilder,
-            multiJoin,
-            right,
-            left,
-            condition);
+        condition = swapFilter(rexBuilder, multiJoin, right, left, condition);
       }
-      if ((joinType != JoinRelType.INNER)
-        && (joinType != JoinRelType.FULL)) {
-        joinType =
-          (joinType == JoinRelType.LEFT) ? JoinRelType.RIGHT
-            : JoinRelType.LEFT;
+      if ((joinType != JoinRelType.INNER) && (joinType != JoinRelType.FULL)) {
+        joinType = (joinType == JoinRelType.LEFT) ? JoinRelType.RIGHT : JoinRelType.LEFT;
       }
     }
 
     if (fullAdjust) {
-      int [] adjustments = new int[multiJoin.getNumTotalFields()];
-      if (needsAdjustment(
-        multiJoin,
-        adjustments,
-        left,
-        right,
-        selfJoin)) {
+      int[] adjustments = new int[multiJoin.getNumTotalFields()];
+      if (needsAdjustment(multiJoin, adjustments, left, right, selfJoin)) {
         condition =
-          condition.accept(
-            new RelOptUtil.RexInputConverter(
-              rexBuilder,
-              multiJoin.getMultiJoinFields(),
-              left.getJoinTree().getRowType().getFieldList(),
-              right.getJoinTree().getRowType().getFieldList(),
-              adjustments));
+            condition.accept(
+                new RelOptUtil.RexInputConverter(
+                    rexBuilder,
+                    multiJoin.getMultiJoinFields(),
+                    left.getJoinTree().getRowType().getFieldList(),
+                    right.getJoinTree().getRowType().getFieldList(),
+                    adjustments));
       }
     }
 
-    relBuilder.push(left.getJoinTree())
-      .push(right.getJoinTree())
-      .join(joinType, condition);
+    relBuilder.push(left.getJoinTree()).push(right.getJoinTree()).join(joinType, condition);
 
     // if this is a left or right outer join, and additional filters can
     // be applied to the resulting join, then they need to be applied
     // as a filter on top of the outer join result
     if ((joinType == JoinRelType.LEFT) || (joinType == JoinRelType.RIGHT)) {
       assert !selfJoin;
-      addAdditionalFilters(
-        relBuilder,
-        multiJoin,
-        left,
-        right,
-        filtersToAdd);
+      addAdditionalFilters(relBuilder, multiJoin, left, right, filtersToAdd);
     }
 
     return new LoptJoinTree(
-      relBuilder.build(),
-      left.getFactorTree(),
-      right.getFactorTree(),
-      selfJoin);
+        relBuilder.build(), left.getFactorTree(), right.getFactorTree(), selfJoin);
   }
 
   /**
-   * Determines whether any additional filters are applicable to a join tree.
-   * If there are any, creates a filter node on top of the join tree with the
-   * additional filters.
+   * Determines whether any additional filters are applicable to a join tree. If there are any,
+   * creates a filter node on top of the join tree with the additional filters.
    *
    * @param relBuilder Builder holding current join tree
    * @param multiJoin join factors being optimized
@@ -1858,49 +1607,46 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
    * @param filtersToAdd remaining filters
    */
   private void addAdditionalFilters(
-    RelBuilder relBuilder,
-    LoptMultiJoin multiJoin,
-    LoptJoinTree left,
-    LoptJoinTree right,
-    List<RexNode> filtersToAdd) {
-    RexNode filterCond =
-      addFilters(multiJoin, left, -1, right, filtersToAdd, false);
+      RelBuilder relBuilder,
+      LoptMultiJoin multiJoin,
+      LoptJoinTree left,
+      LoptJoinTree right,
+      List<RexNode> filtersToAdd) {
+    RexNode filterCond = addFilters(multiJoin, left, -1, right, filtersToAdd, false);
     if (!filterCond.isAlwaysTrue()) {
       // adjust the filter to reflect the outer join output
-      int [] adjustments = new int[multiJoin.getNumTotalFields()];
+      int[] adjustments = new int[multiJoin.getNumTotalFields()];
       if (needsAdjustment(multiJoin, adjustments, left, right, false)) {
-        RexBuilder rexBuilder =
-          multiJoin.getMultiJoinRel().getCluster().getRexBuilder();
+        RexBuilder rexBuilder = multiJoin.getMultiJoinRel().getCluster().getRexBuilder();
         filterCond =
-          filterCond.accept(
-            new RelOptUtil.RexInputConverter(
-              rexBuilder,
-              multiJoin.getMultiJoinFields(),
-              relBuilder.peek().getRowType().getFieldList(),
-              adjustments));
+            filterCond.accept(
+                new RelOptUtil.RexInputConverter(
+                    rexBuilder,
+                    multiJoin.getMultiJoinFields(),
+                    relBuilder.peek().getRowType().getFieldList(),
+                    adjustments));
         relBuilder.filter(filterCond);
       }
     }
   }
 
   /**
-   * Swaps the operands to a join, so the smaller input is on the right. Or,
-   * if this is a removable self-join, swap so the factor that should be
-   * preserved when the self-join is removed is put on the left.
+   * Swaps the operands to a join, so the smaller input is on the right. Or, if this is a removable
+   * self-join, swap so the factor that should be preserved when the self-join is removed is put on
+   * the left.
    *
    * @param multiJoin join factors being optimized
    * @param left left side of join tree
    * @param right right hand side of join tree
    * @param selfJoin true if the join is a removable self-join
-   *
    * @return true if swapping should be done
    */
   private boolean swapInputs(
-    RelMetadataQuery mq,
-    LoptMultiJoin multiJoin,
-    LoptJoinTree left,
-    LoptJoinTree right,
-    boolean selfJoin) {
+      RelMetadataQuery mq,
+      LoptMultiJoin multiJoin,
+      LoptJoinTree left,
+      LoptJoinTree right,
+      boolean selfJoin) {
     if (findOnlyOneOrdering) {
       return false;
     }
@@ -1909,7 +1655,7 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
 
     if (selfJoin) {
       return !multiJoin.isLeftFactorInRemovableSelfJoin(
-        ((LoptJoinTree.Leaf) left.getFactorTree()).getId());
+          ((LoptJoinTree.Leaf) left.getFactorTree()).getId());
     }
 
     final Double leftRowCount = mq.getRowCount(left.getJoinTree());
@@ -1919,12 +1665,10 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
     // or if it has the same number of rows as the right (excluding
     // roundoff), but fewer columns.
     if ((leftRowCount != null)
-      && (rightRowCount != null)
-      && ((leftRowCount < rightRowCount)
-      || ((Math.abs(leftRowCount - rightRowCount)
-      < RelOptUtil.EPSILON)
-      && (rowWidthCost(left.getJoinTree())
-      < rowWidthCost(right.getJoinTree()))))) {
+        && (rightRowCount != null)
+        && ((leftRowCount < rightRowCount)
+            || ((Math.abs(leftRowCount - rightRowCount) < RelOptUtil.EPSILON)
+                && (rowWidthCost(left.getJoinTree()) < rowWidthCost(right.getJoinTree()))))) {
       swap = true;
     }
     return swap;
@@ -1938,20 +1682,17 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
    * @param origLeft original LHS of the join tree (before swap)
    * @param origRight original RHS of the join tree (before swap)
    * @param condition original join condition
-   *
    * @return join condition reflect swap of join inputs
    */
   private RexNode swapFilter(
-    RexBuilder rexBuilder,
-    LoptMultiJoin multiJoin,
-    LoptJoinTree origLeft,
-    LoptJoinTree origRight,
-    RexNode condition) {
-    int nFieldsOnLeft =
-      origLeft.getJoinTree().getRowType().getFieldCount();
-    int nFieldsOnRight =
-      origRight.getJoinTree().getRowType().getFieldCount();
-    int [] adjustments = new int[nFieldsOnLeft + nFieldsOnRight];
+      RexBuilder rexBuilder,
+      LoptMultiJoin multiJoin,
+      LoptJoinTree origLeft,
+      LoptJoinTree origRight,
+      RexNode condition) {
+    int nFieldsOnLeft = origLeft.getJoinTree().getRowType().getFieldCount();
+    int nFieldsOnRight = origRight.getJoinTree().getRowType().getFieldCount();
+    int[] adjustments = new int[nFieldsOnLeft + nFieldsOnRight];
 
     for (int i = 0; i < nFieldsOnLeft; i++) {
       adjustments[i] = nFieldsOnRight;
@@ -1961,35 +1702,33 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
     }
 
     condition =
-      condition.accept(
-        new RelOptUtil.RexInputConverter(
-          rexBuilder,
-          multiJoin.getJoinFields(origLeft, origRight),
-          multiJoin.getJoinFields(origRight, origLeft),
-          adjustments));
+        condition.accept(
+            new RelOptUtil.RexInputConverter(
+                rexBuilder,
+                multiJoin.getJoinFields(origLeft, origRight),
+                multiJoin.getJoinFields(origRight, origLeft),
+                adjustments));
 
     return condition;
   }
 
   /**
-   * Sets an array indicating how much each factor in a join tree needs to be
-   * adjusted to reflect the tree's join ordering
+   * Sets an array indicating how much each factor in a join tree needs to be adjusted to reflect
+   * the tree's join ordering
    *
    * @param multiJoin join factors being optimized
    * @param adjustments array to be filled out
    * @param joinTree join tree
-   * @param otherTree null unless joinTree only represents the left side of
-   * the join tree
+   * @param otherTree null unless joinTree only represents the left side of the join tree
    * @param selfJoin true if no adjustments need to be made for self-joins
-   *
    * @return true if some adjustment is required; false otherwise
    */
   private boolean needsAdjustment(
-    LoptMultiJoin multiJoin,
-    int [] adjustments,
-    LoptJoinTree joinTree,
-    LoptJoinTree otherTree,
-    boolean selfJoin) {
+      LoptMultiJoin multiJoin,
+      int[] adjustments,
+      LoptJoinTree joinTree,
+      LoptJoinTree otherTree,
+      boolean selfJoin) {
     boolean needAdjustment = false;
 
     final List<Integer> joinOrder = new ArrayList<>();
@@ -2010,14 +1749,7 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
       // Otherwise, we have no way of later identifying that the join is
       // self-join.
       if (remapJoinReferences(
-        multiJoin,
-        origPos,
-        joinOrder,
-        newPos,
-        adjustments,
-        joinStart,
-        nFields,
-        selfJoin)) {
+          multiJoin, origPos, joinOrder, newPos, adjustments, joinStart, nFields, selfJoin)) {
         needAdjustment = true;
       }
       nFields += multiJoin.getNumFieldsInJoinFactor(origPos);
@@ -2027,12 +1759,11 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
   }
 
   /**
-   * Determines whether a join is a removable self-join. It is if it's an
-   * inner join between identical, simple factors and the equality portion of
-   * the join condition consists of the same set of unique keys.
+   * Determines whether a join is a removable self-join. It is if it's an inner join between
+   * identical, simple factors and the equality portion of the join condition consists of the same
+   * set of unique keys.
    *
    * @param joinRel the join
-   *
    * @return true if the join is removable
    */
   public static boolean isRemovableSelfJoin(Join joinRel) {
@@ -2062,35 +1793,31 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
   }
 
   /**
-   * Determines if the equality portion of a self-join condition is between
-   * identical keys that are unique.
+   * Determines if the equality portion of a self-join condition is between identical keys that are
+   * unique.
    *
    * @param mq Metadata query
    * @param leftRel left side of the join
    * @param rightRel right side of the join
    * @param joinFilters the join condition
-   *
    * @return true if the equality join keys are the same and unique
    */
-  private static boolean areSelfJoinKeysUnique(RelMetadataQuery mq,
-    RelNode leftRel, RelNode rightRel, RexNode joinFilters) {
+  private static boolean areSelfJoinKeysUnique(
+      RelMetadataQuery mq, RelNode leftRel, RelNode rightRel, RexNode joinFilters) {
     final JoinInfo joinInfo = JoinInfo.of(leftRel, rightRel, joinFilters);
 
     // Make sure each key on the left maps to the same simple column as the
     // corresponding key on the right
     for (IntPair pair : joinInfo.pairs()) {
-      final RelColumnOrigin leftOrigin =
-        mq.getColumnOrigin(leftRel, pair.source);
+      final RelColumnOrigin leftOrigin = mq.getColumnOrigin(leftRel, pair.source);
       if (leftOrigin == null) {
         return false;
       }
-      final RelColumnOrigin rightOrigin =
-        mq.getColumnOrigin(rightRel, pair.target);
+      final RelColumnOrigin rightOrigin = mq.getColumnOrigin(rightRel, pair.target);
       if (rightOrigin == null) {
         return false;
       }
-      if (leftOrigin.getOriginColumnOrdinal()
-        != rightOrigin.getOriginColumnOrdinal()) {
+      if (leftOrigin.getOriginColumnOrdinal() != rightOrigin.getOriginColumnOrdinal()) {
         return false;
       }
     }
@@ -2099,37 +1826,29 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
     // are unique.  When removing self-joins, if needed, we'll later add an
     // IS NOT NULL filter on the join keys that are nullable.  Therefore,
     // it's ok if there are nulls in the unique key.
-    return RelMdUtil.areColumnsDefinitelyUniqueWhenNullsFiltered(mq, leftRel,
-      joinInfo.leftSet());
+    return RelMdUtil.areColumnsDefinitelyUniqueWhenNullsFiltered(mq, leftRel, joinInfo.leftSet());
   }
 
   /** Rule configuration. */
   public interface Config extends RelRule.Config {
-    Config DEFAULT = EMPTY
-      .withOperandSupplier(b -> b.operand(MultiJoin.class).anyInputs())
-      .as(Config.class);
+    Config DEFAULT =
+        EMPTY.withOperandSupplier(b -> b.operand(MultiJoin.class).anyInputs()).as(Config.class);
 
-    /**
-     * Whether to only use the first ordering found
-     */
+    /** Whether to only use the first ordering found */
     @ImmutableBeans.Property
     @ImmutableBeans.BooleanDefault(false)
     boolean isFindOnlyOneOrdering();
 
     Config withFindOnlyOneOrdering(boolean findOnlyOneOrdering);
 
-    /**
-     * Whether to push down aggregate functions, default false.
-     */
+    /** Whether to push down aggregate functions, default false. */
     @ImmutableBeans.Property
     @ImmutableBeans.BooleanDefault(true)
     boolean useCardinalityForNextFactor();
 
     Config withUseCardinalityForNextFactor(boolean useCardinalityForNextFactor);
 
-    /**
-     * Whether to rotate the factors list before deciding next factor. default true
-     */
+    /** Whether to rotate the factors list before deciding next factor. default true */
     @ImmutableBeans.Property
     @ImmutableBeans.BooleanDefault(true)
     boolean rotateFactors();

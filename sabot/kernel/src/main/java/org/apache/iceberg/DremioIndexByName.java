@@ -15,23 +15,19 @@
  */
 package org.apache.iceberg;
 
-import java.util.Deque;
-import java.util.Map;
-import java.util.concurrent.Callable;
-import java.util.function.Supplier;
-
-import org.apache.iceberg.exceptions.ValidationException;
-import org.apache.iceberg.types.TypeUtil;
-import org.apache.iceberg.types.Types;
-
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import java.util.Deque;
+import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.function.Supplier;
+import org.apache.iceberg.exceptions.ValidationException;
+import org.apache.iceberg.types.TypeUtil;
+import org.apache.iceberg.types.Types;
 
-/**
- * Helper class to construct column name to column ID mapping from Iceberg schema
- */
+/** Helper class to construct column name to column ID mapping from Iceberg schema */
 public class DremioIndexByName extends TypeUtil.CustomOrderSchemaVisitor<Map<String, Integer>> {
   private static final Joiner DOT = Joiner.on(".");
 
@@ -44,21 +40,24 @@ public class DremioIndexByName extends TypeUtil.CustomOrderSchemaVisitor<Map<Str
   }
 
   @Override
-  public Map<String, Integer> struct(Types.StructType struct, Iterable<Map<String, Integer>> fieldResults) {
+  public Map<String, Integer> struct(
+      Types.StructType struct, Iterable<Map<String, Integer>> fieldResults) {
     // iterate through the fields to update the index for each one
     fieldResults.forEach(r -> {});
     return nameToId;
   }
 
   @Override
-  public Map<String, Integer> field(Types.NestedField field, Supplier<Map<String, Integer>> fieldResult) {
+  public Map<String, Integer> field(
+      Types.NestedField field, Supplier<Map<String, Integer>> fieldResult) {
     withName(field.name(), fieldResult::get);
     addField(field.name(), field.fieldId());
     return null;
   }
 
   @Override
-  public Map<String, Integer> list(Types.ListType list, Supplier<Map<String, Integer>> elementResult) {
+  public Map<String, Integer> list(
+      Types.ListType list, Supplier<Map<String, Integer>> elementResult) {
     // add element
     Preconditions.checkState(list.fields().size() == 1);
     addField("list.element", list.fields().get(0).fieldId());
@@ -69,9 +68,10 @@ public class DremioIndexByName extends TypeUtil.CustomOrderSchemaVisitor<Map<Str
   }
 
   @Override
-  public Map<String, Integer> map(Types.MapType map,
-                                  Supplier<Map<String, Integer>> keyResult,
-                                  Supplier<Map<String, Integer>> valueResult) {
+  public Map<String, Integer> map(
+      Types.MapType map,
+      Supplier<Map<String, Integer>> keyResult,
+      Supplier<Map<String, Integer>> valueResult) {
     withName("key", keyResult::get);
 
     // add key and value
@@ -104,7 +104,8 @@ public class DremioIndexByName extends TypeUtil.CustomOrderSchemaVisitor<Map<Str
     Integer existingFieldId = nameToId.put(fullName, fieldId);
     if (existingFieldId != null && !"list.element".equals(name) && !"value".equals(name)) {
       throw new ValidationException(
-        "Invalid schema: multiple fields for name %s: %s and %s", fullName, existingFieldId, fieldId);
+          "Invalid schema: multiple fields for name %s: %s and %s",
+          fullName, existingFieldId, fieldId);
     }
   }
 }

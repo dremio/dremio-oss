@@ -18,16 +18,6 @@ package com.dremio.exec.planner.sql.handlers.direct;
 import static com.dremio.exec.ExecConstants.SHOW_CREATE_ENABLED;
 import static org.mockito.Mockito.when;
 
-import java.util.Arrays;
-import java.util.List;
-
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeField;
-import org.apache.calcite.sql.SqlIdentifier;
-import org.apache.calcite.sql.parser.SqlParserPos;
-import org.junit.Before;
-import org.mockito.Mock;
-
 import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.catalog.model.VersionContext;
 import com.dremio.exec.catalog.Catalog;
@@ -38,65 +28,79 @@ import com.dremio.exec.planner.sql.parser.SqlShowCreate;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.namespace.NamespaceKey;
+import java.util.Arrays;
+import java.util.List;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.parser.SqlParserPos;
+import org.junit.Before;
+import org.mockito.Mock;
 
 public abstract class TestShowCreateHandlerBase {
-  protected static final String DEFAULT_BRANCH_NAME= "test";
+  protected static final String DEFAULT_BRANCH_NAME = "test";
   protected static final List<String> DEFAULT_VIEW_PATH = Arrays.asList("space", "view");
   protected static final NamespaceKey DEFAULT_VIEW_KEY = new NamespaceKey(DEFAULT_VIEW_PATH);
-  protected static final List<String> DEFAULT_VERSIONED_VIEW_PATH = Arrays.asList("arctic", "versioned_view");
-  protected static final NamespaceKey DEFAULT_VERSIONED_VIEW_KEY = new NamespaceKey(DEFAULT_VERSIONED_VIEW_PATH);
+  protected static final List<String> DEFAULT_VERSIONED_VIEW_PATH =
+      Arrays.asList("arctic", "versioned_view");
+  protected static final NamespaceKey DEFAULT_VERSIONED_VIEW_KEY =
+      new NamespaceKey(DEFAULT_VERSIONED_VIEW_PATH);
 
   protected static final List<String> DEFAULT_TABLE_PATH = Arrays.asList("space", "table");
   protected static final NamespaceKey DEFAULT_TABLE_KEY = new NamespaceKey(DEFAULT_TABLE_PATH);
-  protected static final List<String> DEFAULT_VERSIONED_TABLE_PATH = Arrays.asList("arctic", "versioned_table");
-  protected static final NamespaceKey DEFAULT_VERSIONED_TABLE_KEY = new NamespaceKey(DEFAULT_VERSIONED_TABLE_PATH);
-  protected static final List<String> DEFAULT_TABLE_IN_SCRATCH_PATH = Arrays.asList("$scratch", "table");
-  protected static final NamespaceKey DEFAULT_TABLE_IN_SCRATCH_KEY = new NamespaceKey(DEFAULT_TABLE_IN_SCRATCH_PATH);
-  protected static SqlShowCreate SHOW_CREATE_VIEW = new SqlShowCreate(
-    SqlParserPos.ZERO,
-    true,
-    new SqlIdentifier(DEFAULT_VIEW_PATH, SqlParserPos.ZERO),
-    null,
-    null
-  );
+  protected static final List<String> DEFAULT_VERSIONED_TABLE_PATH =
+      Arrays.asList("arctic", "versioned_table");
+  protected static final NamespaceKey DEFAULT_VERSIONED_TABLE_KEY =
+      new NamespaceKey(DEFAULT_VERSIONED_TABLE_PATH);
+  protected static final List<String> DEFAULT_TABLE_IN_SCRATCH_PATH =
+      Arrays.asList("$scratch", "table");
+  protected static final NamespaceKey DEFAULT_TABLE_IN_SCRATCH_KEY =
+      new NamespaceKey(DEFAULT_TABLE_IN_SCRATCH_PATH);
+  protected static final VersionContext sessionVersion = VersionContext.NOT_SPECIFIED;
+  protected static SqlShowCreate SHOW_CREATE_VIEW =
+      new SqlShowCreate(
+          SqlParserPos.ZERO,
+          true,
+          new SqlIdentifier(DEFAULT_VIEW_PATH, SqlParserPos.ZERO),
+          null,
+          null);
 
-  protected static SqlShowCreate SHOW_CREATE_VERSIONED_VIEW = new SqlShowCreate(
-    SqlParserPos.ZERO,
-    true,
-    new SqlIdentifier(DEFAULT_VERSIONED_VIEW_PATH, SqlParserPos.ZERO),
-    ReferenceType.BRANCH,
-    new SqlIdentifier(DEFAULT_BRANCH_NAME, SqlParserPos.ZERO)
-  );
+  protected static SqlShowCreate SHOW_CREATE_VERSIONED_VIEW =
+      new SqlShowCreate(
+          SqlParserPos.ZERO,
+          true,
+          new SqlIdentifier(DEFAULT_VERSIONED_VIEW_PATH, SqlParserPos.ZERO),
+          ReferenceType.BRANCH,
+          new SqlIdentifier(DEFAULT_BRANCH_NAME, SqlParserPos.ZERO));
 
-  protected static SqlShowCreate SHOW_CREATE_TABLE = new SqlShowCreate(
-    SqlParserPos.ZERO,
-    false,
-    new SqlIdentifier(DEFAULT_TABLE_PATH, SqlParserPos.ZERO),
-    null,
-    null
-  );
+  protected static SqlShowCreate SHOW_CREATE_TABLE =
+      new SqlShowCreate(
+          SqlParserPos.ZERO,
+          false,
+          new SqlIdentifier(DEFAULT_TABLE_PATH, SqlParserPos.ZERO),
+          null,
+          null);
 
-  protected static SqlShowCreate SHOW_CREATE_VERSIONED_TABLE = new SqlShowCreate(
-    SqlParserPos.ZERO,
-    false,
-    new SqlIdentifier(DEFAULT_VERSIONED_TABLE_PATH, SqlParserPos.ZERO),
-    ReferenceType.BRANCH,
-    new SqlIdentifier(DEFAULT_BRANCH_NAME, SqlParserPos.ZERO)
-  );
+  protected static SqlShowCreate SHOW_CREATE_VERSIONED_TABLE =
+      new SqlShowCreate(
+          SqlParserPos.ZERO,
+          false,
+          new SqlIdentifier(DEFAULT_VERSIONED_TABLE_PATH, SqlParserPos.ZERO),
+          ReferenceType.BRANCH,
+          new SqlIdentifier(DEFAULT_BRANCH_NAME, SqlParserPos.ZERO));
 
-  protected static SqlShowCreate SHOW_CREATE_TABLE_IN_SCRATCH = new SqlShowCreate(
-    SqlParserPos.ZERO,
-    false,
-    new SqlIdentifier(DEFAULT_TABLE_IN_SCRATCH_PATH, SqlParserPos.ZERO),
-    null,
-    null
-  );
+  protected static SqlShowCreate SHOW_CREATE_TABLE_IN_SCRATCH =
+      new SqlShowCreate(
+          SqlParserPos.ZERO,
+          false,
+          new SqlIdentifier(DEFAULT_TABLE_IN_SCRATCH_PATH, SqlParserPos.ZERO),
+          null,
+          null);
 
   @Mock protected Catalog catalog;
   @Mock protected QueryContext context;
   @Mock protected OptionManager optionManager;
   @Mock protected UserSession userSession;
-  @Mock protected VersionContext sessionVersion;
   @Mock protected ResolvedVersionContext resolvedVersionContext;
   @Mock protected DremioTable table;
   @Mock protected RelDataType type;

@@ -16,10 +16,15 @@
 
 package com.dremio.exec.planner.sql.parser;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.ops.QueryContext;
+import com.dremio.exec.planner.sql.handlers.direct.SimpleDirectHandler;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Throwables;
+import com.google.common.collect.Lists;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -28,13 +33,6 @@ import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.parser.SqlParserPos;
-
-import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.ops.QueryContext;
-import com.dremio.exec.planner.sql.handlers.direct.SimpleDirectHandler;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
-import com.google.common.collect.Lists;
 
 public class SqlGrantCatalogOwnership extends SqlCall implements SimpleDirectHandler.Creator {
   private final SqlIdentifier entity;
@@ -46,52 +44,59 @@ public class SqlGrantCatalogOwnership extends SqlCall implements SimpleDirectHan
     CATALOG
   }
 
-  public enum GranteeType{
+  public enum GranteeType {
     USER,
     ROLE
   }
 
-  public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("GRANT OWNERSHIP", SqlKind.OTHER) {
-    @Override
-    public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 4,
-        "SqlGrantCatalogOwnership.createCall() has to get 4 operands!");
-      return new SqlGrantCatalogOwnership(
-        pos,
-        (SqlIdentifier) operands[0],
-        (SqlLiteral) operands[1],
-        (SqlIdentifier) operands[2],
-        (SqlLiteral) operands[3]
-      );
-    }
-  };
+  public static final SqlSpecialOperator OPERATOR =
+      new SqlSpecialOperator("GRANT OWNERSHIP", SqlKind.OTHER) {
+        @Override
+        public SqlCall createCall(
+            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+          Preconditions.checkArgument(
+              operands.length == 4, "SqlGrantCatalogOwnership.createCall() has to get 4 operands!");
+          return new SqlGrantCatalogOwnership(
+              pos,
+              (SqlIdentifier) operands[0],
+              (SqlLiteral) operands[1],
+              (SqlIdentifier) operands[2],
+              (SqlLiteral) operands[3]);
+        }
+      };
 
-  public SqlGrantCatalogOwnership(SqlParserPos pos,
-                                  SqlIdentifier entity,
-                                  SqlLiteral entityType,
-                                  SqlIdentifier grantee,
-                                  SqlLiteral granteeType) {
+  public SqlGrantCatalogOwnership(
+      SqlParserPos pos,
+      SqlIdentifier entity,
+      SqlLiteral entityType,
+      SqlIdentifier grantee,
+      SqlLiteral granteeType) {
     super(pos);
     this.entity = entity;
     this.entityType = entityType;
     this.grantee = grantee;
     this.granteeType = granteeType;
   }
+
   @Override
   public SimpleDirectHandler toDirectHandler(QueryContext context) {
     try {
-      final Class<?> cl = Class.forName("com.dremio.exec.planner.sql.handlers.GrantCatalogOwnershipHandler");
+      final Class<?> cl =
+          Class.forName("com.dremio.exec.planner.sql.handlers.GrantCatalogOwnershipHandler");
       final Constructor<?> ctor = cl.getConstructor(QueryContext.class);
       return (SimpleDirectHandler) ctor.newInstance(context);
     } catch (ClassNotFoundException e) {
       throw UserException.unsupportedError(e)
-        .message("GRANT OWNERSHIP ON CATALOG action is not supported.")
-        .buildSilently();
-    } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
+          .message("GRANT OWNERSHIP ON CATALOG action is not supported.")
+          .buildSilently();
+    } catch (InstantiationException
+        | IllegalAccessException
+        | NoSuchMethodException
+        | InvocationTargetException e) {
       throw Throwables.propagate(e);
     }
-
   }
+
   @Override
   public SqlOperator getOperator() {
     return OPERATOR;

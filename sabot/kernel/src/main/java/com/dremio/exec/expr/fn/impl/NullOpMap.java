@@ -15,23 +15,25 @@
  */
 package com.dremio.exec.expr.fn.impl;
 
-import org.apache.arrow.vector.complex.reader.FieldReader;
-import org.apache.arrow.vector.holders.NullableBitHolder;
-
 import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
+import org.apache.arrow.vector.complex.reader.FieldReader;
+import org.apache.arrow.vector.holders.NullableBitHolder;
 
 public class NullOpMap {
-  @FunctionTemplate(names = {"isnull", "is null"}, scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.INTERNAL)
+  @FunctionTemplate(
+      names = {"isnull", "is null"},
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.INTERNAL)
   public static class IsNull implements SimpleFunction {
 
     @Param FieldReader fieldReader;
     @Output NullableBitHolder out;
 
     @Override
-    public void setup() { }
+    public void setup() {}
 
     @Override
     public void eval() {
@@ -40,14 +42,17 @@ public class NullOpMap {
     }
   }
 
-  @FunctionTemplate(names = {"isnotnull", "is not null"}, scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.INTERNAL)
+  @FunctionTemplate(
+      names = {"isnotnull", "is not null"},
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.INTERNAL)
   public static class IsNotNull implements SimpleFunction {
 
     @Param FieldReader fieldReader;
     @Output NullableBitHolder out;
 
     @Override
-    public void setup() { }
+    public void setup() {}
 
     @Override
     public void eval() {

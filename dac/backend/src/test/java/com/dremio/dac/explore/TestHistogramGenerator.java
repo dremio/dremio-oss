@@ -23,21 +23,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Set;
-
-import org.apache.arrow.memory.BufferAllocator;
-import org.joda.time.LocalDateTime;
-import org.joda.time.format.DateTimeFormatter;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
-import org.mockito.stubbing.Answer;
-
 import com.dremio.common.memory.DremioRootAllocator;
 import com.dremio.dac.explore.HistogramGenerator.TruncEvalEnum;
 import com.dremio.dac.explore.model.DatasetPath;
@@ -51,10 +36,21 @@ import com.dremio.service.jobs.JobStatusListener;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.google.common.collect.ImmutableSet;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
+import org.apache.arrow.memory.BufferAllocator;
+import org.joda.time.LocalDateTime;
+import org.joda.time.format.DateTimeFormatter;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
+import org.mockito.stubbing.Answer;
 
-/**
- * Test class for Histogram Generation
- */
+/** Test class for Histogram Generation */
 public class TestHistogramGenerator {
   private BufferAllocator allocator;
 
@@ -73,13 +69,15 @@ public class TestHistogramGenerator {
     HistogramGenerator hg = new HistogramGenerator(null);
 
     String myTimeStr = "2016-02-29 13:59:01";
-    DateTimeFormatter dtf = DateFunctionsUtils.getISOFormatterForFormatString("YYYY-MM-DD HH24:MI:SS");
+    DateTimeFormatter dtf =
+        DateFunctionsUtils.getISOFormatterForFormatString("YYYY-MM-DD HH24:MI:SS");
     LocalDateTime myTime = dtf.parseLocalDateTime(myTimeStr);
     System.out.println("Exact time: " + myTime + ", Month: " + myTime.getMonthOfYear());
-    for (HistogramGenerator.TruncEvalEnum value : HistogramGenerator.TruncEvalEnum.getSortedAscValues()) {
+    for (HistogramGenerator.TruncEvalEnum value :
+        HistogramGenerator.TruncEvalEnum.getSortedAscValues()) {
       LocalDateTime roundedDown = hg.roundTime(myTime, value, true);
       LocalDateTime roundedUp = hg.roundTime(myTime, value, false);
-      switch(value) {
+      switch (value) {
         case SECOND:
           assertEquals(myTime, roundedDown);
           assertEquals(myTime, roundedUp);
@@ -133,76 +131,110 @@ public class TestHistogramGenerator {
   @Test
   public void testProduceRanges() {
     List<Number> ranges = new ArrayList<>();
-    HistogramGenerator.produceRanges(ranges , new LocalDateTime(1970, 1, 1, 1, 0, 0), new LocalDateTime(1970, 1, 1, 11, 59, 0), TruncEvalEnum.HOUR);
+    HistogramGenerator.produceRanges(
+        ranges,
+        new LocalDateTime(1970, 1, 1, 1, 0, 0),
+        new LocalDateTime(1970, 1, 1, 11, 59, 0),
+        TruncEvalEnum.HOUR);
     List<Number> expected = new ArrayList<>();
     for (int i = 0; i < 13; i++) {
-      expected.add((i + 1 ) * 3600_000L);
+      expected.add((i + 1) * 3600_000L);
     }
     Assert.assertEquals(expected.size(), ranges.size());
     Assert.assertEquals(expected, ranges);
-
   }
 
   @Test
   public void testSelectionCount() {
     testSelectionCountHelper("colName = 'val1'", 1562383L, DataType.TEXT, ImmutableSet.of("val1"));
-    testSelectionCountHelper("colName = 'val1' OR colName = 'val2'", 1562L, DataType.TEXT, ImmutableSet.of("val1", "val2"));
+    testSelectionCountHelper(
+        "colName = 'val1' OR colName = 'val2'",
+        1562L,
+        DataType.TEXT,
+        ImmutableSet.of("val1", "val2"));
     Set<String> selectedValues = new LinkedHashSet<>(Arrays.asList("val1", null));
-    testSelectionCountHelper("colName = 'val1' OR colName IS NULL", 1562L, DataType.TEXT, selectedValues);
-    testSelectionCountHelper("colName = 1 OR colName = 2", 15432L, DataType.INTEGER, ImmutableSet.of("1", "2"));
-    testSelectionCountHelper("colName = DATE '2017-05-03' OR colName = DATE '2035-12-12'",
-        23L, DataType.DATE, ImmutableSet.of("2017-05-03", "2035-12-12"));
-    testSelectionCountHelper("colName = TIMESTAMP '2017-05-03 12:23:24' OR colName = TIMESTAMP '2035-12-12 05:23:23'",
-        2L, DataType.DATETIME, ImmutableSet.of("2017-05-03 12:23:24", "2035-12-12 05:23:23"));
-    testSelectionCountHelper("colName = TIME '12:23:24' OR colName = TIME '05:23:23'",
-        6L, DataType.TIME, ImmutableSet.of("12:23:24", "05:23:23"));
+    testSelectionCountHelper(
+        "colName = 'val1' OR colName IS NULL", 1562L, DataType.TEXT, selectedValues);
+    testSelectionCountHelper(
+        "colName = 1 OR colName = 2", 15432L, DataType.INTEGER, ImmutableSet.of("1", "2"));
+    testSelectionCountHelper(
+        "colName = DATE '2017-05-03' OR colName = DATE '2035-12-12'",
+        23L,
+        DataType.DATE,
+        ImmutableSet.of("2017-05-03", "2035-12-12"));
+    testSelectionCountHelper(
+        "colName = TIMESTAMP '2017-05-03 12:23:24' OR colName = TIMESTAMP '2035-12-12 05:23:23'",
+        2L,
+        DataType.DATETIME,
+        ImmutableSet.of("2017-05-03 12:23:24", "2035-12-12 05:23:23"));
+    testSelectionCountHelper(
+        "colName = TIME '12:23:24' OR colName = TIME '05:23:23'",
+        6L,
+        DataType.TIME,
+        ImmutableSet.of("12:23:24", "05:23:23"));
     testSelectionCountHelper("colName = ''", 1562383L, DataType.TEXT, ImmutableSet.of(""));
     testSelectionCountHelper(null, 0L, DataType.INTEGER, ImmutableSet.<String>of());
   }
 
-  private void testSelectionCountHelper(final String expFilter, final long expCount, DataType type, Set<String> selectedValues) {
-    final DatasetPath datasetPath = new DatasetPath(Arrays.asList("dfs", "parquet", "lineitem.parquet"));
+  private void testSelectionCountHelper(
+      final String expFilter, final long expCount, DataType type, Set<String> selectedValues) {
+    final DatasetPath datasetPath =
+        new DatasetPath(Arrays.asList("dfs", "parquet", "lineitem.parquet"));
     final DatasetVersion datasetVersion = DatasetVersion.newVersion();
 
     final QueryExecutor queryExecutor = mock(QueryExecutor.class);
-    when(queryExecutor.runQueryWithListener(any(SqlQuery.class), any(QueryType.class), any(DatasetPath.class), any(DatasetVersion.class), any(JobStatusListener.class)))
+    when(queryExecutor.runQueryWithListener(
+            any(SqlQuery.class),
+            any(QueryType.class),
+            any(DatasetPath.class),
+            any(DatasetVersion.class),
+            any(JobStatusListener.class)))
         .thenAnswer(
-          (Answer<JobData>) invocation -> {
-            final String query = invocation.getArgument(0, SqlQuery.class).getSql();
-            final JobStatusListener listener = invocation.getArgument(4, JobStatusListener.class);
-            JobData jobData = mock(JobDataWrapper.class);
+            (Answer<JobData>)
+                invocation -> {
+                  final String query = invocation.getArgument(0, SqlQuery.class).getSql();
+                  final JobStatusListener listener =
+                      invocation.getArgument(4, JobStatusListener.class);
+                  JobData jobData = mock(JobDataWrapper.class);
 
-            when(jobData.getJobResultsTable()).thenReturn("jobResults.previewJob");
+                  when(jobData.getJobResultsTable()).thenReturn("jobResults.previewJob");
 
-            listener.jobCompleted();
-            return jobData;
-          }
-        );
-    when(queryExecutor.runQueryAndWaitForCompletion(any(SqlQuery.class), any(QueryType.class), any(DatasetPath.class), any(DatasetVersion.class)))
-      .thenAnswer(
-        (Answer<JobData>) invocation -> {
-          final String query = invocation.getArgument(0, SqlQuery.class).getSql();
-          JobData jobData = mock(JobDataWrapper.class);
+                  listener.jobCompleted();
+                  return jobData;
+                });
+    when(queryExecutor.runQueryAndWaitForCompletion(
+            any(SqlQuery.class),
+            any(QueryType.class),
+            any(DatasetPath.class),
+            any(DatasetVersion.class)))
+        .thenAnswer(
+            (Answer<JobData>)
+                invocation -> {
+                  final String query = invocation.getArgument(0, SqlQuery.class).getSql();
+                  JobData jobData = mock(JobDataWrapper.class);
 
-          if (expFilter != null) {
-            assertTrue(query, query.contains(expFilter));
-          } else {
-            assertFalse(query, query.contains("WHERE"));
-          }
-          JobDataFragment fragment = mock(JobDataFragment.class);
-          when(jobData.truncate(allocator, 1)).thenReturn(fragment);
+                  if (expFilter != null) {
+                    assertTrue(query, query.contains(expFilter));
+                  } else {
+                    assertFalse(query, query.contains("WHERE"));
+                  }
+                  JobDataFragment fragment = mock(JobDataFragment.class);
+                  when(jobData.truncate(allocator, 1)).thenReturn(fragment);
 
-          when(fragment.extractValue("dremio_selection_count", 0)).thenReturn(expCount);
-          return jobData;
-        }
-      );
-
+                  when(fragment.extractValue("dremio_selection_count", 0)).thenReturn(expCount);
+                  return jobData;
+                });
 
     HistogramGenerator hg = new HistogramGenerator(queryExecutor);
-    long count = hg.getSelectionCount(datasetPath, datasetVersion,
-        new SqlQuery("SELECT * FROM dataset", "user"),
-        type, "colName", selectedValues, allocator
-    );
+    long count =
+        hg.getSelectionCount(
+            datasetPath,
+            datasetVersion,
+            new SqlQuery("SELECT * FROM dataset", "user"),
+            type,
+            "colName",
+            selectedValues,
+            allocator);
 
     assertEquals(expCount, count);
   }

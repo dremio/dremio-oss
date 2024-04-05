@@ -15,11 +15,12 @@
  */
 package com.dremio.exec.record;
 
+import com.dremio.common.expression.BasePath;
+import com.google.common.base.Preconditions;
 import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.complex.AbstractStructVector;
@@ -27,12 +28,9 @@ import org.apache.arrow.vector.complex.FieldIdUtil2;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.util.CallBack;
 
-import com.dremio.common.expression.BasePath;
-import com.google.common.base.Preconditions;
-
-
-public class HyperVectorWrapper<T extends ValueVector> implements VectorWrapper<T>{
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HyperVectorWrapper.class);
+public class HyperVectorWrapper<T extends ValueVector> implements VectorWrapper<T> {
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(HyperVectorWrapper.class);
 
   private List<T> vectors = new ArrayList<>();
   private T[] cachedVectors;
@@ -83,7 +81,7 @@ public class HyperVectorWrapper<T extends ValueVector> implements VectorWrapper<
   }
 
   @Override
-  public void close(){
+  public void close() {
     clear();
   }
 
@@ -129,47 +127,60 @@ public class HyperVectorWrapper<T extends ValueVector> implements VectorWrapper<
   @Override
   @SuppressWarnings("unchecked")
   public VectorWrapper<T> cloneAndTransfer(BufferAllocator allocator, CallBack callback) {
-    if(vectors.size() == 0){
-      return new HyperVectorWrapper<T>(field, (T[])vectors.toArray(), false);
-    }else {
+    if (vectors.size() == 0) {
+      return new HyperVectorWrapper<T>(field, (T[]) vectors.toArray(), false);
+    } else {
       T[] newVectors = (T[]) Array.newInstance(vectors.get(0).getClass(), vectors.size());
-      for(int i =0; i < vectors.size(); i++){
-        newVectors[i] = (T) vectors.get(i).getTransferPair(vectors.get(i).getField().getName(), allocator, callback).getTo();
+      for (int i = 0; i < vectors.size(); i++) {
+        newVectors[i] =
+            (T)
+                vectors
+                    .get(i)
+                    .getTransferPair(vectors.get(i).getField(), allocator, callback)
+                    .getTo();
       }
-      return new HyperVectorWrapper<T>(field, (T[])vectors.toArray(), false);
+      return new HyperVectorWrapper<T>(field, (T[]) vectors.toArray(), false);
     }
   }
 
-  public static <T extends ValueVector> HyperVectorWrapper<T> create(Field f, T[] v, boolean releasable) {
+  public static <T extends ValueVector> HyperVectorWrapper<T> create(
+      Field f, T[] v, boolean releasable) {
     return new HyperVectorWrapper<T>(f, v, releasable);
   }
 
   @SuppressWarnings("unchecked")
   public void addVector(ValueVector v) {
-    Preconditions.checkArgument(v.getClass() == this.getVectorClass(), "Cannot add vector type %s to hypervector type %s for field %s",
-      v.getClass(), this.getVectorClass(), v.getField());
-    vectors.add((T)v);
+    Preconditions.checkArgument(
+        v.getClass() == this.getVectorClass(),
+        "Cannot add vector type %s to hypervector type %s for field %s",
+        v.getClass(),
+        this.getVectorClass(),
+        v.getField());
+    vectors.add((T) v);
     cachedVectorsValid = false;
   }
 
   @SuppressWarnings("unchecked")
   public void addVectors(ValueVector[] vv) {
-    vectors.addAll(Arrays.asList((T[])vv));
+    vectors.addAll(Arrays.asList((T[]) vv));
     cachedVectorsValid = false;
   }
 
   /**
-   * Transfer vectors to destination HyperVectorWrapper.
-   * Both this and destination must be of same type and have same number of vectors.
+   * Transfer vectors to destination HyperVectorWrapper. Both this and destination must be of same
+   * type and have same number of vectors.
+   *
    * @param destination destination HyperVectorWrapper.
    */
   @Override
   public void transfer(VectorWrapper<?> destination) {
     Preconditions.checkArgument(destination instanceof HyperVectorWrapper);
     Preconditions.checkArgument(getField().getType().equals(destination.getField().getType()));
-    Preconditions.checkArgument(vectors.size() == ((HyperVectorWrapper<?>)destination).vectors.size());
+    Preconditions.checkArgument(
+        vectors.size() == ((HyperVectorWrapper<?>) destination).vectors.size());
 
-    List<ValueVector> destionationVectors = (List<ValueVector>)(((HyperVectorWrapper<?>)destination).vectors);
+    List<ValueVector> destionationVectors =
+        (List<ValueVector>) (((HyperVectorWrapper<?>) destination).vectors);
     for (int i = 0; i < vectors.size(); ++i) {
       vectors.get(i).makeTransferPair(destionationVectors.get(i)).transfer();
     }

@@ -22,43 +22,43 @@ import com.dremio.connector.metadata.DatasetMetadata;
 import com.dremio.connector.metadata.SourceMetadata;
 
 /**
- * This is an optional interface. When extended by an implementation of {@link SourceMetadata}, this is used to provide
- * and check read signatures. A read signature holds information about dataset metadata that can be quickly computed
- * to check metadata validity, rather than a full metadata comparison.
+ * This is an optional interface. When extended by an implementation of {@link SourceMetadata}, this
+ * is used to provide and check read signatures. A read signature holds information about dataset
+ * metadata that can be quickly computed to check metadata validity, rather than a full metadata
+ * comparison.
  */
 public interface SupportsReadSignature {
 
   /**
-   * Provide a read signature for the dataset. This is invoked only if dataset metadata is available for a
-   * dataset.
+   * Provide a read signature for the dataset. This is invoked only if dataset metadata is available
+   * for a dataset.
    *
    * @param datasetHandle dataset handle
-   * @param metadata      dataset metadata
+   * @param metadata dataset metadata
    * @return read signature, not null
    */
-  BytesOutput provideSignature(DatasetHandle datasetHandle, DatasetMetadata metadata) throws ConnectorException;
+  BytesOutput provideSignature(DatasetHandle datasetHandle, DatasetMetadata metadata)
+      throws ConnectorException;
 
   /**
-   * Based on the given signature, check if the given metadata is valid for the dataset according to the
-   * source. If the given metadata is still valid and the catalog need not be updated, return
+   * Based on the given signature, check if the given metadata is valid for the dataset according to
+   * the source. If the given metadata is still valid and the catalog need not be updated, return
    * {@link MetadataValidity#VALID}. If not, return {@link MetadataValidity#INVALID}.
    *
-   * @param signature     read signature
+   * @param signature read signature
    * @param datasetHandle dataset handle
-   * @param metadata      dataset metadata
-   * @param options       options
+   * @param metadata dataset metadata
+   * @param options options
    * @return state of metadata, not null
    */
   MetadataValidity validateMetadata(
       BytesOutput signature,
       DatasetHandle datasetHandle,
       DatasetMetadata metadata,
-      ValidateMetadataOption... options
-  ) throws ConnectorException;
+      ValidateMetadataOption... options)
+      throws ConnectorException;
 
-  /**
-   * State of metadata.
-   */
+  /** State of metadata. */
   enum MetadataValidity {
     VALID,
 

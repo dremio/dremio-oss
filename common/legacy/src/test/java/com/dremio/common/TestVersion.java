@@ -21,10 +21,7 @@ import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
-/**
- * Test class for {@code Version}
- *
- */
+/** Test class for {@code Version} */
 public class TestVersion {
 
   @Test
@@ -69,6 +66,7 @@ public class TestVersion {
   private final Version v4 = new Version("1.2.3-snapshot", 1, 2, 3, 0, "snapshot");
   private final Version v5 = new Version("1.2.3", 1, 2, 3, 0, "");
 
+  @SuppressWarnings("TruthSelfEquals")
   @Test
   public void testEquals() {
     assertEquals(v1, v1);

@@ -15,6 +15,10 @@
  */
 package com.dremio.exec.store.parquet;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.ExecConstants;
+import com.dremio.options.OptionManager;
+import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -24,20 +28,15 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
-
 import org.apache.calcite.util.Pair;
-
-import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.ExecConstants;
-import com.dremio.options.OptionManager;
-import com.google.common.collect.Lists;
 
 public class SplitsPathRowGroupsMap {
   private final Map<String, Set<Pair<Long, Long>>> pathRanges;
-  private  final int projectedColumnsLen;
+  private final int projectedColumnsLen;
   private long pageSizeBytes, totalHeapObjects;
 
-  SplitsPathRowGroupsMap(final List<ParquetBlockBasedSplit> splits, int projectedColumnsLen, OptionManager options) {
+  SplitsPathRowGroupsMap(
+      final List<ParquetBlockBasedSplit> splits, int projectedColumnsLen, OptionManager options) {
     pathRanges = new HashMap<>();
     this.projectedColumnsLen = Math.max(projectedColumnsLen, 1);
     this.totalHeapObjects = options.getOption(ExecConstants.TOTAL_HEAP_OBJ_SIZE);
@@ -55,20 +54,16 @@ public class SplitsPathRowGroupsMap {
   }
 
   // getMaxRowGroupsToRetain api return the rowgroups number based on the total heap object.
-  int getMaxRowGroupsToRetain(final MutableParquetMetadata footer){
+  int getMaxRowGroupsToRetain(final MutableParquetMetadata footer) {
     long blockSize = footer.getBlocks().get(0).getTotalByteSize();
-    long estimatedPageCount = 0;
-    if (footer.getBlocks().get(0).getColumns().get(0).getPageHeaders().size() != 0) {
-      estimatedPageCount = footer.getBlocks().get(0).getColumns().get(0).getPageHeaders().size();
-    } else {
-      estimatedPageCount = blockSize/(footer.getBlocks().get(0).getColumns().size()*this.pageSizeBytes);
-    }
+    long estimatedPageCount =
+        blockSize / (footer.getBlocks().get(0).getColumns().size() * this.pageSizeBytes);
     if (estimatedPageCount < 10) {
       estimatedPageCount = 10;
     }
 
     long heapObjectsPerRowGroup = this.projectedColumnsLen * estimatedPageCount;
-    int rowGroupsRequired  = (int) (this.totalHeapObjects /heapObjectsPerRowGroup);
+    int rowGroupsRequired = (int) (this.totalHeapObjects / heapObjectsPerRowGroup);
     // Read footer for a minimum 5 row groups at a time.
     if (rowGroupsRequired < 5) {
       rowGroupsRequired = 5;
@@ -76,20 +71,23 @@ public class SplitsPathRowGroupsMap {
     return rowGroupsRequired;
   }
 
-  Set<Integer> getPathRowGroups(final String path, final MutableParquetMetadata footer, int rowGroupIndexToStartFrom) {
+  Set<Integer> getPathRowGroups(
+      final String path, final MutableParquetMetadata footer, int rowGroupIndexToStartFrom) {
     final Set<Pair<Long, Long>> ranges = pathRanges.get(path);
     if (ranges == null) {
       return null;
     }
     List<Integer> rowGroups = Lists.newLinkedList();
-    ranges.stream().forEach(r -> {
-        try {
-          rowGroups.addAll(ParquetReaderUtility.getRowGroupNumbersFromFileSplit(r.left, r.right, footer));
-        } catch (IOException e) {
-          throw UserException.ioExceptionError(e).buildSilently();
-        }
-      }
-    );
+    ranges.stream()
+        .forEach(
+            r -> {
+              try {
+                rowGroups.addAll(
+                    ParquetReaderUtility.getRowGroupNumbersFromFileSplit(r.left, r.right, footer));
+              } catch (IOException e) {
+                throw UserException.ioExceptionError(e).buildSilently();
+              }
+            });
     int rowGroupSize = rowGroups.size();
     if (rowGroupSize < 5 || this.totalHeapObjects == 0) {
       pathRanges.remove(path);
@@ -100,14 +98,14 @@ public class SplitsPathRowGroupsMap {
     final Set<Integer> usedRowGroups = new HashSet<>();
     // Only keep rowgroups starting from rowGroupIndexToStartFrom till rowGroupsRequired
     Iterator<Integer> iterator = rowGroups.iterator();
-    if (rowGroupSize > rowGroupsRequired ) {
+    if (rowGroupSize > rowGroupsRequired) {
       int count = 0;
       while (iterator.hasNext()) {
         int currentRowGroup = iterator.next();
         if (currentRowGroup == rowGroupIndexToStartFrom) {
           usedRowGroups.add(currentRowGroup);
           count++;
-          while(count < rowGroupsRequired && iterator.hasNext()) {
+          while (count < rowGroupsRequired && iterator.hasNext()) {
             usedRowGroups.add(iterator.next());
             count++;
           }

@@ -15,9 +15,7 @@
  */
 package com.google.common.hash;
 
-/**
- * A hash function used for testing rendezvous hashing
- */
+/** A hash function used for testing rendezvous hashing */
 public class AlwaysOneHashFunction extends AbstractNonStreamingHashFunction {
   @Override
   public int bits() {

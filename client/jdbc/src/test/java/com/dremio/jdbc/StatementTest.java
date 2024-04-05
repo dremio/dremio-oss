@@ -18,24 +18,20 @@ package com.dremio.jdbc;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
-
-import org.junit.Test;
-
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.client.DremioClient;
 import com.dremio.exec.testing.Controls;
 import com.dremio.exec.work.foreman.AttemptManager;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import org.junit.Test;
 
-
-/**
- * Test for Dremio's implementation of Statement's methods (most).
- */
+/** Test for Dremio's implementation of Statement's methods (most). */
 public class StatementTest extends JdbcWithServerTestBase {
   private static final String SYS_VERSION_SQL = "select * from sys.version";
+
   ////////////////////////////////////////
   // Query timeout methods:
 
@@ -45,38 +41,35 @@ public class StatementTest extends JdbcWithServerTestBase {
   /** Tests that getQueryTimeout() indicates no timeout set. */
   @Test
   public void testGetQueryTimeoutSaysNoTimeout() throws SQLException {
-    try(Statement statement = getConnection().createStatement()) {
-      assertThat( statement.getQueryTimeout()).isEqualTo( 0 ) ;
+    try (Statement statement = getConnection().createStatement()) {
+      assertThat(statement.getQueryTimeout()).isEqualTo(0);
     }
   }
 
   //////////
   // setQueryTimeout(...):
 
-  /** Tests that setQueryTimeout(...) accepts (redundantly) setting to
-   *  no-timeout mode. */
+  /** Tests that setQueryTimeout(...) accepts (redundantly) setting to no-timeout mode. */
   @Test
   public void testSetQueryTimeoutAcceptsNotimeoutRequest() throws SQLException {
-    try(Statement statement = getConnection().createStatement()) {
-      statement.setQueryTimeout( 0 );
+    try (Statement statement = getConnection().createStatement()) {
+      statement.setQueryTimeout(0);
     }
   }
 
   @Test
   public void testSetQueryTimeoutRejectsBadTimeoutValue() throws SQLException {
-    try(Statement statement = getConnection().createStatement()) {
+    try (Statement statement = getConnection().createStatement()) {
       assertThatThrownBy(() -> statement.setQueryTimeout(-2))
-        .isInstanceOf(SQLException.class)
-        .satisfiesAnyOf(
-          e -> assertThat(e.getMessage()).contains("seconds"),
-          e -> assertThat(e.getMessage()).contains("timeout"),
-          e -> assertThat(e.getMessage()).contains("Timeout"));
+          .isInstanceOf(SQLException.class)
+          .satisfiesAnyOf(
+              e -> assertThat(e.getMessage()).contains("seconds"),
+              e -> assertThat(e.getMessage()).contains("timeout"),
+              e -> assertThat(e.getMessage()).contains("Timeout"));
     }
   }
 
-  /**
-   * Test setting a valid timeout
-   */
+  /** Test setting a valid timeout */
   @Test
   public void testValidSetQueryTimeout() throws SQLException {
     try (Statement statement = getConnection().createStatement()) {
@@ -86,31 +79,29 @@ public class StatementTest extends JdbcWithServerTestBase {
     }
   }
 
-  /**
-   * Test setting timeout for a query that actually times out
-   */
+  /** Test setting timeout for a query that actually times out */
   @Test(expected = SqlTimeoutException.class)
   public void testTriggeredQueryTimeout() throws SQLException {
     // Prevent the server to complete the query to trigger a timeout
-    final String controls = Controls.newBuilder()
-      .addPause(AttemptManager.class, "foreman-cleanup", 0)
-      .build();
+    final String controls =
+        Controls.newBuilder().addPause(AttemptManager.class, "foreman-cleanup", 0).build();
 
-    try(Statement statement = getConnection().createStatement()) {
+    try (Statement statement = getConnection().createStatement()) {
       assertThat(
-          statement.execute(String.format(
-              "ALTER session SET \"%s\" = '%s'",
-              ExecConstants.NODE_CONTROL_INJECTIONS,
-              controls))).isTrue();
+              statement.execute(
+                  String.format(
+                      "ALTER session SET \"%s\" = '%s'",
+                      ExecConstants.NODE_CONTROL_INJECTIONS, controls)))
+          .isTrue();
     }
     String queryId = null;
-    try(Statement statement = getConnection().createStatement()) {
+    try (Statement statement = getConnection().createStatement()) {
       int timeoutDuration = 3;
-      //Setting to a very low value (3sec)
+      // Setting to a very low value (3sec)
       statement.setQueryTimeout(timeoutDuration);
       ResultSet rs = statement.executeQuery(SYS_VERSION_SQL);
       queryId = ((DremioResultSet) rs).getQueryId();
-      //Fetch rows
+      // Fetch rows
       while (rs.next()) {
         rs.getBytes(1);
       }
@@ -126,5 +117,4 @@ public class StatementTest extends JdbcWithServerTestBase {
       }
     }
   }
-
 }

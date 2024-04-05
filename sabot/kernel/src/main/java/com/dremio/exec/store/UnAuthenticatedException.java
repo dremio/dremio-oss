@@ -18,7 +18,8 @@ package com.dremio.exec.store;
 import com.google.errorprone.annotations.FormatMethod;
 
 /**
- * Thrown if Nessie client is not authorized (one of the reason can be due to expired token or invalid token)
+ * Thrown if Nessie client is not authorized (one of the reason can be due to expired token or
+ * invalid token)
  */
 public class UnAuthenticatedException extends RuntimeException {
   private static final long serialVersionUID = 1L;

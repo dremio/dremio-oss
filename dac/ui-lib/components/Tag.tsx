@@ -32,5 +32,5 @@ export const Tag = forwardRef<HTMLSpanElement, PropsWithChildren<TagProps>>(
         {children}
       </span>
     );
-  }
+  },
 );

@@ -17,21 +17,16 @@ package com.dremio.exec.planner.fragment;
 
 import static org.junit.Assert.assertEquals;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import org.junit.Test;
-
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.proto.CoordExecRPC.HBaseSubScanSpec;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.store.mock.MockStorePOP;
+import java.util.ArrayList;
+import java.util.List;
+import org.junit.Test;
 
 public class TestMinorDataReader {
-  NodeEndpoint dummyEndpoint = NodeEndpoint
-    .newBuilder()
-    .setAddress("test")
-    .build();
+  NodeEndpoint dummyEndpoint = NodeEndpoint.newBuilder().setAddress("test").build();
 
   @Test
   public void multiAttrsInSamePOP() throws Exception {
@@ -42,10 +37,7 @@ public class TestMinorDataReader {
     MockStorePOP pop = new MockStorePOP(OpProps.prototype(1), null);
     List<HBaseSubScanSpec> specList = new ArrayList<>();
     for (int i = 0; i < 4; ++i) {
-      HBaseSubScanSpec spec = HBaseSubScanSpec
-        .newBuilder()
-        .setTableName("testTable" + i)
-        .build();
+      HBaseSubScanSpec spec = HBaseSubScanSpec.newBuilder().setTableName("testTable" + i).build();
       specList.add(spec);
 
       writer.writeProtoEntry(pop.getProps(), "testKey" + i, spec);
@@ -54,7 +46,8 @@ public class TestMinorDataReader {
     MinorAttrsMap minorAttrsMap = MinorAttrsMap.create(writer.getAllAttrs());
     MinorDataReader reader = new MinorDataReader(null, serDe, null, minorAttrsMap);
     for (int i = 0; i < 4; ++i) {
-      HBaseSubScanSpec spec = HBaseSubScanSpec.parseFrom(reader.readProtoEntry(pop.getProps(), "testKey" + i));
+      HBaseSubScanSpec spec =
+          HBaseSubScanSpec.parseFrom(reader.readProtoEntry(pop.getProps(), "testKey" + i));
       assertEquals(spec, specList.get(i));
     }
   }
@@ -70,10 +63,7 @@ public class TestMinorDataReader {
 
     List<HBaseSubScanSpec> specList = new ArrayList<>();
     for (int i = 0; i < 2; ++i) {
-      HBaseSubScanSpec spec = HBaseSubScanSpec
-        .newBuilder()
-        .setTableName("testTable" + i)
-        .build();
+      HBaseSubScanSpec spec = HBaseSubScanSpec.newBuilder().setTableName("testTable" + i).build();
       specList.add(spec);
 
       writer.writeProtoEntry(i == 0 ? pop1.getProps() : pop2.getProps(), "testKey", spec);
@@ -82,10 +72,12 @@ public class TestMinorDataReader {
     MinorAttrsMap minorAttrsMap = MinorAttrsMap.create(writer.getAllAttrs());
     MinorDataReader reader = new MinorDataReader(null, serDe, null, minorAttrsMap);
 
-    HBaseSubScanSpec spec1 = HBaseSubScanSpec.parseFrom(reader.readProtoEntry(pop1.getProps(), "testKey"));
+    HBaseSubScanSpec spec1 =
+        HBaseSubScanSpec.parseFrom(reader.readProtoEntry(pop1.getProps(), "testKey"));
     assertEquals(spec1, specList.get(0));
 
-    HBaseSubScanSpec spec2 = HBaseSubScanSpec.parseFrom(reader.readProtoEntry(pop2.getProps(), "testKey"));
+    HBaseSubScanSpec spec2 =
+        HBaseSubScanSpec.parseFrom(reader.readProtoEntry(pop2.getProps(), "testKey"));
     assertEquals(spec2, specList.get(1));
   }
 }

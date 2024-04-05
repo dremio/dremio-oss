@@ -15,22 +15,6 @@
  */
 package com.dremio.sabot.op.aggregate.vectorized;
 
-import java.io.EOFException;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.nio.ByteBuffer;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.util.LargeMemoryUtil;
-import org.apache.arrow.vector.BaseVariableWidthVector;
-import org.apache.arrow.vector.FieldVector;
-import org.apache.arrow.vector.complex.ListVector;
-import org.apache.arrow.vector.types.Types;
-import org.apache.arrow.vector.types.pojo.FieldType;
-
 import com.dremio.exec.cache.AbstractStreamSerializable;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.sabot.exec.context.OperatorStats;
@@ -39,31 +23,39 @@ import com.dremio.sabot.op.common.ht2.LBlockHashTable;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
-
 import io.netty.util.internal.PlatformDependent;
+import java.io.EOFException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.ByteBuffer;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.util.LargeMemoryUtil;
+import org.apache.arrow.vector.BaseVariableWidthVector;
+import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.complex.ListVector;
+import org.apache.arrow.vector.types.Types;
+import org.apache.arrow.vector.types.pojo.FieldType;
 
 /**
- * Implements Serialization and Deserialization for {@link VectorizedHashAggPartition}.
- * Provides support for reading and writing partition structures for
- * {@link VectorizedHashAggOperator}.
+ * Implements Serialization and Deserialization for {@link VectorizedHashAggPartition}. Provides
+ * support for reading and writing partition structures for {@link VectorizedHashAggOperator}.
  *
- * For consistency and ease of design, the semantics of this module are kept
- * same as for {@link com.dremio.exec.cache.VectorAccessibleSerializable} as and when applicable.
+ * <p>For consistency and ease of design, the semantics of this module are kept same as for {@link
+ * com.dremio.exec.cache.VectorAccessibleSerializable} as and when applicable.
  *
- * Partition Structures:
- * 1. LBlockHashTable
- *  -- fixed block vector(s)
- *  -- variable block vector(s)
- * 2. Accumulation vector(s)
- *  -- multiple accumulators
- *  -- each accumulator may have multiple accumulation vectors
- *     depending on number of batches inserted into hash table
+ * <p>Partition Structures: 1. LBlockHashTable -- fixed block vector(s) -- variable block vector(s)
+ * 2. Accumulation vector(s) -- multiple accumulators -- each accumulator may have multiple
+ * accumulation vectors depending on number of batches inserted into hash table
  *
- * This module only implements I/O functionality -- SerDe for partition structures.
- * The module should not have any knowledge of spill file, spill manager etc.
+ * <p>This module only implements I/O functionality -- SerDe for partition structures. The module
+ * should not have any knowledge of spill file, spill manager etc.
  */
 public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerializable {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(VectorizedHashAggPartitionSerializable.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(VectorizedHashAggPartitionSerializable.class);
   private VectorizedHashAggPartition hashAggPartition;
   private final PartitionToLoadSpilledData partitionToLoadSpilledData;
   private static final int IO_CHUNK_SIZE = 32 * 1024;
@@ -71,29 +63,30 @@ public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerial
   private long numBatchesSpilled;
   private long numRecordsSpilled;
   private long spilledDataSize;
-  private ByteBuffer intBuffer = ByteBuffer.allocate(Integer.SIZE / Byte.SIZE); //byte array of 4 bytes
+  private ByteBuffer intBuffer =
+      ByteBuffer.allocate(Integer.SIZE / Byte.SIZE); // byte array of 4 bytes
   private HashAggPartitionWritableBatch inProgressWritableBatch;
   private final OperatorStats operatorStats;
-  private final long warnMaxSpillTime; //in milliseconds
+  private final long warnMaxSpillTime; // in milliseconds
 
   /*
   Since we are also spilling in VectorizedHashAggOperator's OUTPUT_INMEMORY_PARTITIONS state,
   we only spill batches in the partition which are not yet processed in output.
    */
   private int spillStartIndex;
+
   /**
-   * Used to serialize a HashAggPartition to disk. Caller should use
-   * this constructor when they decide a particular partition
-   * should be spilled to disk.
+   * Used to serialize a HashAggPartition to disk. Caller should use this constructor when they
+   * decide a particular partition should be spilled to disk.
    *
    * @param hashAggPartition hash agg partition to serialize/spill
-   *
-   * the caller is expected to invoke writeToStream(output stream) method after
-   * instantiating VectorizedHashAggPartitionSerializable to serialize the
-   * partition to disk.
+   *     <p>the caller is expected to invoke writeToStream(output stream) method after instantiating
+   *     VectorizedHashAggPartitionSerializable to serialize the partition to disk.
    */
-  public VectorizedHashAggPartitionSerializable(final VectorizedHashAggPartition hashAggPartition, final OperatorStats stats,
-                                                final long warnMaxSpillTime) {
+  public VectorizedHashAggPartitionSerializable(
+      final VectorizedHashAggPartition hashAggPartition,
+      final OperatorStats stats,
+      final long warnMaxSpillTime) {
     this.hashAggPartition = hashAggPartition;
     this.partitionToLoadSpilledData = null;
     this.operatorStats = stats;
@@ -105,15 +98,18 @@ public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerial
   /**
    * Used to deserialize spilled partition data from disk.
    *
-   * @param partitionToLoadSpilledData extra partition (aka loading partition) used
-   *                                   to deserialize spilled batches.
-   *
-   * the caller is expected to invoke readFromStream(input stream) method after
-   * instantiating this object to read back a spilled partition.
+   * @param partitionToLoadSpilledData extra partition (aka loading partition) used to deserialize
+   *     spilled batches.
+   *     <p>the caller is expected to invoke readFromStream(input stream) method after instantiating
+   *     this object to read back a spilled partition.
    */
-  public VectorizedHashAggPartitionSerializable(final PartitionToLoadSpilledData partitionToLoadSpilledData, final OperatorStats stats,
-                                                final long warnMaxSpillTime) {
-    Preconditions.checkArgument(partitionToLoadSpilledData != null, "ERROR: Need a valid handle for loading partition for reading spilled batches");
+  public VectorizedHashAggPartitionSerializable(
+      final PartitionToLoadSpilledData partitionToLoadSpilledData,
+      final OperatorStats stats,
+      final long warnMaxSpillTime) {
+    Preconditions.checkArgument(
+        partitionToLoadSpilledData != null,
+        "ERROR: Need a valid handle for loading partition for reading spilled batches");
     this.hashAggPartition = null;
     this.partitionToLoadSpilledData = partitionToLoadSpilledData;
     this.operatorStats = stats;
@@ -128,14 +124,12 @@ public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerial
   }
 
   /**
-   * This function reads spilled hashagg partition data (a single batch)
-   * from disk.
+   * This function reads spilled hashagg partition data (a single batch) from disk.
    *
    * @param input input stream for the source spill file.
    * @throws IOException
-   *
-   * NOTE: Once this module is glued with the new spill service,
-   * few things are expected to change.
+   *     <p>NOTE: Once this module is glued with the new spill service, few things are expected to
+   *     change.
    */
   @Override
   public void readFromStream(final InputStream input) throws IOException {
@@ -143,9 +137,13 @@ public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerial
     int numBytesToRead = HashAggPartitionWritableBatch.BATCH_HEADER_LENGTH;
     while (numBytesToRead > 0) {
       int numBytesRead;
-      //track io time as wait time
+      // track io time as wait time
       try (OperatorStats.WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
-        numBytesRead = input.read(ioBuffer, HashAggPartitionWritableBatch.BATCH_HEADER_LENGTH - numBytesToRead, numBytesToRead);
+        numBytesRead =
+            input.read(
+                ioBuffer,
+                HashAggPartitionWritableBatch.BATCH_HEADER_LENGTH - numBytesToRead,
+                numBytesToRead);
       }
       if (numBytesRead == -1) {
         /* indicate detection of unexpected end of stream */
@@ -156,24 +154,30 @@ public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerial
     }
 
     /* STEP 2: parse header from the bytes read above */
-    final int fixedBufferLength = getLEIntFromByteArray(ioBuffer, HashAggPartitionWritableBatch.FIXED_BUFFER_LENGTH_OFFSET);
-    final int variableBufferLength = getLEIntFromByteArray(ioBuffer, HashAggPartitionWritableBatch.VARIABLE_BUFFER_LENGTH_OFFSET);
-    final int numAccumulators = getLEIntFromByteArray(ioBuffer, HashAggPartitionWritableBatch.NUM_ACCUMULATORS_OFFSET);
+    final int fixedBufferLength =
+        getLEIntFromByteArray(ioBuffer, HashAggPartitionWritableBatch.FIXED_BUFFER_LENGTH_OFFSET);
+    final int variableBufferLength =
+        getLEIntFromByteArray(
+            ioBuffer, HashAggPartitionWritableBatch.VARIABLE_BUFFER_LENGTH_OFFSET);
+    final int numAccumulators =
+        getLEIntFromByteArray(ioBuffer, HashAggPartitionWritableBatch.NUM_ACCUMULATORS_OFFSET);
 
     /* STEP 3: read info on types of accumulators -- sum, min, max etc */
     final byte[] accumulatorTypes = partitionToLoadSpilledData.getAccumulatorTypes();
-    Preconditions.checkArgument(input.read(accumulatorTypes, 0, numAccumulators) == numAccumulators,
-      "ERROR: read incorrect length of accumulator types");
+    Preconditions.checkArgument(
+        input.read(accumulatorTypes, 0, numAccumulators) == numAccumulators,
+        "ERROR: read incorrect length of accumulator types");
 
     /* STEP 4: read metadata for accumulator vectors */
     final UserBitShared.RecordBatchDef accumulatorBatchDef;
-    //track io time as wait time
+    // track io time as wait time
     try (OperatorStats.WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       accumulatorBatchDef = UserBitShared.RecordBatchDef.parseDelimitedFrom(input);
     }
     final int numRecordsInBatch = accumulatorBatchDef.getRecordCount();
-    Preconditions.checkArgument(numRecordsInBatch <= partitionToLoadSpilledData.getPreallocatedBatchSize(),
-      "Error: incorrect preallocated batch size for reading spilled batch");
+    Preconditions.checkArgument(
+        numRecordsInBatch <= partitionToLoadSpilledData.getPreallocatedBatchSize(),
+        "Error: incorrect preallocated batch size for reading spilled batch");
     partitionToLoadSpilledData.setRecordsInBatch(numRecordsInBatch);
 
     /* STEP 5: Get buffers to read the fixed and variable width pivoted key column data.
@@ -184,32 +188,41 @@ public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerial
      */
     final ArrowBuf fixedBlockBuffer = partitionToLoadSpilledData.getFixedKeyColPivotedData();
     final ArrowBuf variableBlockBuffer = partitionToLoadSpilledData.getVariableKeyColPivotedData();
-    Preconditions.checkArgument(fixedBufferLength <= fixedBlockBuffer.capacity(),
-      "Error: detected incorrect amount of provisioned memory for deserializing fixed width spilled data");
-    Preconditions.checkArgument(variableBufferLength <= variableBlockBuffer.capacity(),
-      "Error: detected  incorrect amount of provisioned memory for deserializing variable width spilled data");
+    Preconditions.checkArgument(
+        fixedBufferLength <= fixedBlockBuffer.capacity(),
+        "Error: detected incorrect amount of provisioned memory for deserializing fixed width spilled data");
+    Preconditions.checkArgument(
+        variableBufferLength <= variableBlockBuffer.capacity(),
+        "Error: detected  incorrect amount of provisioned memory for deserializing variable width spilled data");
 
     Stopwatch watch = Stopwatch.createStarted();
     try {
       /* STEP 6: read fixed width pivoted data from spilled chunk */
       readIntoArrowBuf(fixedBlockBuffer, fixedBufferLength, input);
-      Preconditions.checkArgument(fixedBlockBuffer.readableBytes() == fixedBufferLength,
-        "ERROR: read incorrect length of fixed width data from spilled chunk");
+      Preconditions.checkArgument(
+          fixedBlockBuffer.readableBytes() == fixedBufferLength,
+          "ERROR: read incorrect length of fixed width data from spilled chunk");
 
       /* STEP 7: read variable width pivoted data from spilled chunk */
       readIntoArrowBuf(variableBlockBuffer, variableBufferLength, input);
-      Preconditions.checkArgument(variableBlockBuffer.readableBytes() == variableBufferLength,
-        "ERROR: read incorrect length of variable width data from spilled chunk");
+      Preconditions.checkArgument(
+          variableBlockBuffer.readableBytes() == variableBufferLength,
+          "ERROR: read incorrect length of variable width data from spilled chunk");
 
       /* STEP 8: read data for accumulator vectors from spilled chunk */
       final long length = readAccumulators(accumulatorBatchDef, accumulatorTypes, input);
 
       final long elapsed = watch.elapsed(TimeUnit.MILLISECONDS);
       if (elapsed >= this.warnMaxSpillTime) {
-        logger.warn("DHL: Spill read of {} bytes too long: {} ms",
-          (fixedBufferLength + variableBufferLength + length), elapsed);
+        logger.warn(
+            "DHL: Spill read of {} bytes too long: {} ms",
+            (fixedBufferLength + variableBufferLength + length),
+            elapsed);
       } else {
-        logger.debug("Spill read of {} bytes took {} ms", (fixedBufferLength + variableBufferLength + length), elapsed);
+        logger.debug(
+            "Spill read of {} bytes took {} ms",
+            (fixedBufferLength + variableBufferLength + length),
+            elapsed);
       }
     } finally {
       watch.stop();
@@ -222,9 +235,9 @@ public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerial
     arrowBuf.writerIndex(0);
   }
 
-  private void readVariableWidthVector(UserBitShared.SerializedField metaData,
-                                       final FieldVector vector,
-                                       final InputStream input) throws IOException {
+  private void readVariableWidthVector(
+      UserBitShared.SerializedField metaData, final FieldVector vector, final InputStream input)
+      throws IOException {
     final UserBitShared.SerializedField bitsField = metaData.getChild(0);
     final ArrowBuf validityBuffer = vector.getValidityBuffer();
     readIntoArrowBuf(validityBuffer, bitsField.getBufferLength(), input);
@@ -236,15 +249,16 @@ public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerial
     final ArrowBuf offsetBuffer = vector.getOffsetBuffer();
     readIntoArrowBuf(offsetBuffer, offsetField.getBufferLength(), input);
 
-    readIntoArrowBuf(dataBuffer, (valuesField.getBufferLength() - offsetField.getBufferLength()), input);
+    readIntoArrowBuf(
+        dataBuffer, (valuesField.getBufferLength() - offsetField.getBufferLength()), input);
 
     ((BaseVariableWidthVector) vector).setLastSet(metaData.getValueCount() - 1);
     vector.setValueCount(metaData.getValueCount());
   }
 
-  private void readListVector(UserBitShared.SerializedField metaData,
-                             final FieldVector vector,
-                             final InputStream input) throws IOException {
+  private void readListVector(
+      UserBitShared.SerializedField metaData, final FieldVector vector, final InputStream input)
+      throws IOException {
     final UserBitShared.SerializedField offsetField = metaData.getChild(0);
     final ArrowBuf offsetBuffer = vector.getOffsetBuffer();
     readIntoArrowBuf(offsetBuffer, offsetField.getBufferLength(), input);
@@ -254,8 +268,11 @@ public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerial
     readIntoArrowBuf(validityBuffer, bitsField.getBufferLength(), input);
 
     final UserBitShared.SerializedField dataVectorField = metaData.getChild(2);
-    BaseVariableWidthVector dataVector = (BaseVariableWidthVector)((ListVector) vector).addOrGetVector(
-      FieldType.nullable(Types.MinorType.VARCHAR.getType())).getVector();
+    BaseVariableWidthVector dataVector =
+        (BaseVariableWidthVector)
+            ((ListVector) vector)
+                .addOrGetVector(FieldType.nullable(Types.MinorType.VARCHAR.getType()))
+                .getVector();
 
     readVariableWidthVector(dataVectorField, dataVector, input);
 
@@ -263,9 +280,9 @@ public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerial
     vector.setValueCount(metaData.getValueCount());
   }
 
-  private void readFixedWidthVector(UserBitShared.SerializedField metaData,
-                             final FieldVector vector,
-                             final InputStream input) throws IOException {
+  private void readFixedWidthVector(
+      UserBitShared.SerializedField metaData, final FieldVector vector, final InputStream input)
+      throws IOException {
     final UserBitShared.SerializedField bitsField = metaData.getChild(0);
     final ArrowBuf validityBuffer = vector.getValidityBuffer();
     readIntoArrowBuf(validityBuffer, bitsField.getBufferLength(), input);
@@ -286,12 +303,16 @@ public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerial
    * @param input input stream
    * @throws IOException
    */
-  private long readAccumulators(final UserBitShared.RecordBatchDef batchDef,
-                                final byte[] accumulatorTypes,
-                                final InputStream input) throws IOException {
+  private long readAccumulators(
+      final UserBitShared.RecordBatchDef batchDef,
+      final byte[] accumulatorTypes,
+      final InputStream input)
+      throws IOException {
     final FieldVector[] vectorList = partitionToLoadSpilledData.getPostSpillAccumulatorVectors();
     final List<UserBitShared.SerializedField> fieldList = batchDef.getFieldList();
-    Preconditions.checkArgument(fieldList.size() == vectorList.length, "Error: read incorrect number of accumulator vectors from spilled batch");
+    Preconditions.checkArgument(
+        fieldList.size() == vectorList.length,
+        "Error: read incorrect number of accumulator vectors from spilled batch");
     int count = 0;
     long length = 0;
 
@@ -300,13 +321,15 @@ public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerial
       final int rawDataLength = metaData.getBufferLength();
       length += rawDataLength;
 
-      final Types.MinorType type = org.apache.arrow.vector.types.Types.getMinorTypeForArrowType(vector.getField().getType());
+      final Types.MinorType type =
+          org.apache.arrow.vector.types.Types.getMinorTypeForArrowType(vector.getField().getType());
 
-      if (accumulatorTypes[count] == AccumulatorBuilder.AccumulatorType.LISTAGG.ordinal() ||
-          accumulatorTypes[count] == AccumulatorBuilder.AccumulatorType.LOCAL_LISTAGG.ordinal() ||
-          accumulatorTypes[count] == AccumulatorBuilder.AccumulatorType.LISTAGG_MERGE.ordinal()) {
+      if (accumulatorTypes[count] == AccumulatorBuilder.AccumulatorType.LISTAGG.ordinal()
+          || accumulatorTypes[count] == AccumulatorBuilder.AccumulatorType.LOCAL_LISTAGG.ordinal()
+          || accumulatorTypes[count]
+              == AccumulatorBuilder.AccumulatorType.LISTAGG_MERGE.ordinal()) {
         readListVector(metaData, vector, input);
-     } else if (type == Types.MinorType.VARCHAR || type == Types.MinorType.VARBINARY) {
+      } else if (type == Types.MinorType.VARCHAR || type == Types.MinorType.VARBINARY) {
         readVariableWidthVector(metaData, vector, input);
       } else {
         readFixedWidthVector(metaData, vector, input);
@@ -322,18 +345,17 @@ public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerial
    * @param buffer buffer to read
    * @param bufferLength length of buffer
    * @param input source input stream
-   *
    * @throws IOException
    */
-  private void readIntoArrowBuf(final ArrowBuf buffer, final int bufferLength,
-                                final InputStream input) throws IOException {
+  private void readIntoArrowBuf(
+      final ArrowBuf buffer, final int bufferLength, final InputStream input) throws IOException {
     resetArrowBufIndexes(buffer);
 
     int numBytesToRead = bufferLength;
     while (numBytesToRead > 0) {
       final int lenghtToRead = Math.min(ioBuffer.length, numBytesToRead);
       final int numBytesRead;
-      //track io time as wait time
+      // track io time as wait time
       try (OperatorStats.WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
         numBytesRead = input.read(ioBuffer, 0, lenghtToRead);
       }
@@ -349,13 +371,9 @@ public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerial
    * This function spills a partition to disk.
    *
    * @param output output stream for the target spill file
-   *
-   * The caller controls the output stream semantics. For example,
-   * caller uses the spill manager and provides a high performance
-   * output stream corresponding to a spill file.
-   *
-   * It goes over all batches in the partition and serializes one batch at
-   * a time.
+   *     <p>The caller controls the output stream semantics. For example, caller uses the spill
+   *     manager and provides a high performance output stream corresponding to a spill file.
+   *     <p>It goes over all batches in the partition and serializes one batch at a time.
    */
   @Override
   public void writeToStream(final OutputStream output) throws IOException {
@@ -365,12 +383,18 @@ public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerial
     }
     final List<ArrowBuf> fixedBlockBuffers = hashTable.getFixedBlockBuffers();
     final List<ArrowBuf> variableBlockBuffers = hashTable.getVariableBlockBuffers();
-    Preconditions.checkArgument((fixedBlockBuffers.size() == variableBlockBuffers.size()),
-                                "ERROR: inconsistent number of buffers in hash table");
+    Preconditions.checkArgument(
+        (fixedBlockBuffers.size() == variableBlockBuffers.size()),
+        "ERROR: inconsistent number of buffers in hash table");
     final HashAggPartitionWritableBatch hashTableWritableBatch =
-      new HashAggPartitionWritableBatch(hashTable, fixedBlockBuffers, variableBlockBuffers,
-                                        hashAggPartition.blockWidth, hashAggPartition.accumulator,
-                                        hashTable.getMaxValuesPerBatch(), hashAggPartition.getNextBatchToOutput());
+        new HashAggPartitionWritableBatch(
+            hashTable,
+            fixedBlockBuffers,
+            variableBlockBuffers,
+            hashAggPartition.blockWidth,
+            hashAggPartition.accumulator,
+            hashTable.getMaxValuesPerBatch(),
+            hashAggPartition.getNextBatchToOutput());
     HashAggPartitionBatchDefinition batchDefinition;
     /* spill entire partition -- one batch at a time */
     while ((batchDefinition = hashTableWritableBatch.getNextWritableBatch()) != null) {
@@ -379,22 +403,24 @@ public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerial
   }
 
   /**
-   * Writes a batch (comprising of one or more ArrowBufs) to the
-   * provided output stream
+   * Writes a batch (comprising of one or more ArrowBufs) to the provided output stream
+   *
    * @param output output stream handle for a spill file
    * @param writableBatch batch to spill
    * @param batchDefinition batch metadata
    * @throws IOException
    */
-  private void writeBatchToStreamHelper(final OutputStream output,
-                                        final HashAggPartitionWritableBatch writableBatch,
-                                        final HashAggPartitionBatchDefinition batchDefinition) throws IOException {
+  private void writeBatchToStreamHelper(
+      final OutputStream output,
+      final HashAggPartitionWritableBatch writableBatch,
+      final HashAggPartitionBatchDefinition batchDefinition)
+      throws IOException {
     /* write chunk metadata */
     writeBatchDefinition(batchDefinition, output);
     final ArrowBuf[] buffersToSpill = writableBatch.getBuffers();
     Stopwatch watch = Stopwatch.createStarted();
-      /* write chunk data */
-    for (ArrowBuf buffer: buffersToSpill) {
+    /* write chunk data */
+    for (ArrowBuf buffer : buffersToSpill) {
       spilledDataSize += buffer.readableBytes();
       writeArrowBuf(buffer, output);
     }
@@ -422,14 +448,22 @@ public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerial
       final LBlockHashTable hashTable = hashAggPartition.hashTable;
       final List<ArrowBuf> fixedBlockBuffers = hashTable.getFixedBlockBuffers();
       final List<ArrowBuf> variableBlockBuffers = hashTable.getVariableBlockBuffers();
-      Preconditions.checkArgument((fixedBlockBuffers.size() == variableBlockBuffers.size()),
-                                  "ERROR: inconsistent number of buffers in hash table");
-      inProgressWritableBatch = new HashAggPartitionWritableBatch(hashTable, fixedBlockBuffers, variableBlockBuffers,
-                                                                  hashAggPartition.blockWidth, hashAggPartition.accumulator,
-                                                                  hashTable.getMaxValuesPerBatch(), this.spillStartIndex);
+      Preconditions.checkArgument(
+          (fixedBlockBuffers.size() == variableBlockBuffers.size()),
+          "ERROR: inconsistent number of buffers in hash table");
+      inProgressWritableBatch =
+          new HashAggPartitionWritableBatch(
+              hashTable,
+              fixedBlockBuffers,
+              variableBlockBuffers,
+              hashAggPartition.blockWidth,
+              hashAggPartition.accumulator,
+              hashTable.getMaxValuesPerBatch(),
+              this.spillStartIndex);
     }
 
-    HashAggPartitionBatchDefinition batchDefinition = inProgressWritableBatch.getNextWritableBatch();
+    HashAggPartitionBatchDefinition batchDefinition =
+        inProgressWritableBatch.getNextWritableBatch();
 
     if (batchDefinition == null) {
       inProgressWritableBatch = null;
@@ -439,19 +473,21 @@ public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerial
     final int idx = batchDefinition.getCurrentBatchIndex();
     writeBatchToStreamHelper(output, inProgressWritableBatch, batchDefinition);
 
-    //release memory from this batch
+    // release memory from this batch
     hashAggPartition.hashTable.releaseBatch(idx);
     return false;
   }
 
   /**
    * Check if a partition is empty
+   *
    * @param partitionHashTable partition's hashtable
    * @return true if partition is empty (0 entries in hashtable), false otherwise
    */
   private boolean isPartitionEmpty(final LBlockHashTable partitionHashTable) {
     if (partitionHashTable.size() == 0) {
-      Preconditions.checkArgument(partitionHashTable.blocks() == 0, "Error: detected inconsistent hashtable state");
+      Preconditions.checkArgument(
+          partitionHashTable.blocks() == 0, "Error: detected inconsistent hashtable state");
       return true;
     }
 
@@ -460,6 +496,7 @@ public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerial
 
   /**
    * Get number of batches spilled
+   *
    * @return batches spilled
    */
   long getNumBatchesSpilled() {
@@ -468,6 +505,7 @@ public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerial
 
   /**
    * Get number of records spilled
+   *
    * @return records spilled
    */
   long getNumRecordsSpilled() {
@@ -476,6 +514,7 @@ public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerial
 
   /**
    * Get size (in bytes) of data spilled
+   *
    * @return size of spilled data
    */
   long getSpilledDataSize() {
@@ -489,18 +528,16 @@ public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerial
    * @param output output stream for the spill file
    * @throws IOException if IO fails
    */
-
   private void writeArrowBuf(final ArrowBuf buffer, final OutputStream output) throws IOException {
     final int bufferLength = LargeMemoryUtil.checkedCastToInt(buffer.readableBytes());
     for (int writePos = 0; writePos < bufferLength; writePos += ioBuffer.length) {
       final int lengthToWrite = Math.min(ioBuffer.length, bufferLength - writePos);
       buffer.getBytes(writePos, ioBuffer, 0, lengthToWrite);
-      //track io time as wait time
+      // track io time as wait time
       try (OperatorStats.WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
         output.write(ioBuffer, 0, lengthToWrite);
       }
-    } //for
-
+    } // for
   }
 
   /**
@@ -508,14 +545,17 @@ public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerial
    *
    * @param batchDefinition
    * @param output
-   *
    * @throws IOException
    */
-  private void writeBatchDefinition(final HashAggPartitionBatchDefinition batchDefinition,
-                                    final OutputStream output) throws IOException {
+  private void writeBatchDefinition(
+      final HashAggPartitionBatchDefinition batchDefinition, final OutputStream output)
+      throws IOException {
     try (OperatorStats.WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
-      output.write(getByteArrayFromInt(LargeMemoryUtil.checkedCastToInt(batchDefinition.fixedBufferLength)));
-      output.write(getByteArrayFromInt(LargeMemoryUtil.checkedCastToInt(batchDefinition.variableBufferLength)));
+      output.write(
+          getByteArrayFromInt(LargeMemoryUtil.checkedCastToInt(batchDefinition.fixedBufferLength)));
+      output.write(
+          getByteArrayFromInt(
+              LargeMemoryUtil.checkedCastToInt(batchDefinition.variableBufferLength)));
       output.write(getByteArrayFromInt(batchDefinition.numAccumulators));
       output.write(batchDefinition.accumulatorTypes);
       batchDefinition.accumulatorBatchDef.writeDelimitedTo(output);
@@ -523,11 +563,10 @@ public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerial
   }
 
   /**
-   * Returns the VectorizedHashAggPartition constructed after
-   * reading data from disk.
+   * Returns the VectorizedHashAggPartition constructed after reading data from disk.
    *
-   * Used only for test purposes to verify SerDe and that we
-   * are able to reconstruct in-memory structures as expected.
+   * <p>Used only for test purposes to verify SerDe and that we are able to reconstruct in-memory
+   * structures as expected.
    *
    * @return partition
    */

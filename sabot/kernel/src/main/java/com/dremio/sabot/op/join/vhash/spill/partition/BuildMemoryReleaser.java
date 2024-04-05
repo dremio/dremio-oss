@@ -18,14 +18,8 @@ package com.dremio.sabot.op.join.vhash.spill.partition;
 import static com.dremio.sabot.op.common.ht2.LBlockHashTable.VAR_LENGTH_SIZE;
 import static com.dremio.sabot.op.common.ht2.LBlockHashTable.VAR_OFFSET_SIZE;
 
-import java.util.List;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.record.ExpandableHyperContainer;
-import com.dremio.exec.record.RecordBatchData;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.selection.SelectionVector2;
 import com.dremio.sabot.op.join.vhash.spill.JoinSetupParams;
@@ -44,18 +38,20 @@ import com.dremio.sabot.op.sort.external.SpillManager;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import java.util.List;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.BufferAllocator;
 
 /**
  * Memory releaser for the in-memory hash-table, linked list & carry-overs.
  *
- * For each batch,
- *  - write the build batch to disk (pivoted & unpivoted)
- *  - release the memory used by the carry-over vectors for the batch
- * After all batches are spilled,
- *  - release memory in hash-table & linked list.
+ * <p>For each batch, - write the build batch to disk (pivoted & unpivoted) - release the memory
+ * used by the carry-over vectors for the batch After all batches are spilled, - release memory in
+ * hash-table & linked list.
  */
 public class BuildMemoryReleaser implements MemoryReleaser {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BuildMemoryReleaser.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(BuildMemoryReleaser.class);
   private static final int MAX_ENTRIES_PER_CHUNK = 4096;
   private final SpillFileDescriptor spillFile;
   private final PageListMultimap pageListMultimap;
@@ -73,14 +69,15 @@ public class BuildMemoryReleaser implements MemoryReleaser {
   private long recordsWritten;
   private long batchesWritten;
 
-  BuildMemoryReleaser(JoinSetupParams setupParams,
-                      SpillFileDescriptor spillFile,
-                      PageListMultimap pageListMultimap,
-                      JoinTable joinTable,
-                      ExpandableHyperContainer hyperContainer,
-                      List<RecordBatchPage> slicedBatchPages,
-                      BufferAllocator allocatorToRelease,
-                      List<AutoCloseable> closeables) {
+  BuildMemoryReleaser(
+      JoinSetupParams setupParams,
+      SpillFileDescriptor spillFile,
+      PageListMultimap pageListMultimap,
+      JoinTable joinTable,
+      ExpandableHyperContainer hyperContainer,
+      List<RecordBatchPage> slicedBatchPages,
+      BufferAllocator allocatorToRelease,
+      List<AutoCloseable> closeables) {
     this.spillFile = spillFile;
     this.pageListMultimap = pageListMultimap;
     this.joinTable = joinTable;
@@ -118,19 +115,30 @@ public class BuildMemoryReleaser implements MemoryReleaser {
     int curBatchId = PageListMultimap.getBatchIdFromLong(allEntries.getCarryAlongId(cursor));
     int recordsDone = 0;
     try (Page pivotedPage = spillPagePool.newPage();
-         Page unpivotedPage = spillPagePool.newPage();
-         MiscBuffers buffers = new MiscBuffers(spillPagePool.newPage())) {
-      int pickedRecords = pickMaxPivotedRecordsInBatch(curBatchId, pivotedPage.getPageSize(), buffers);
+        Page unpivotedPage = spillPagePool.newPage();
+        MiscBuffers buffers = new MiscBuffers(spillPagePool.newPage())) {
+      int pickedRecords =
+          pickMaxPivotedRecordsInBatch(curBatchId, pivotedPage.getPageSize(), buffers);
       Preconditions.checkState(pickedRecords > 0);
-      PageBatchSlicer slicer = new PageBatchSlicer(spillPagePool, buffers.getSv2(), listFromHyperContainer.get(curBatchId));
+      PageBatchSlicer slicer =
+          new PageBatchSlicer(
+              spillPagePool, buffers.getSv2(), listFromHyperContainer.get(curBatchId));
 
       // copy unpivoted records that will fit into a page.
-      try (RecordBatchData batchData = slicer.copyToPageTillFull(unpivotedPage, 0, pickedRecords - 1)) {
-        pickedRecords = batchData.getRecordCount(); // the slicer can pick lesser records than asked.
+      try (RecordBatchPage batchData =
+          slicer.copyToPageTillFull(unpivotedPage, 0, pickedRecords - 1)) {
+        pickedRecords =
+            batchData.getRecordCount(); // the slicer can pick lesser records than asked.
         Preconditions.checkState(pickedRecords > 0);
 
         ArrowBuf[] dstBufs = copyPivoted(pivotedPage, pickedRecords, buffers);
-        try (SpillChunk chunk = new SpillChunk(pickedRecords, dstBufs[0], dstBufs[1], batchData.getContainer(), ImmutableList.of())) {
+        try (SpillChunk chunk =
+            new SpillChunk(
+                pickedRecords,
+                dstBufs[0],
+                dstBufs[1],
+                batchData.getContainer(),
+                ImmutableList.of())) {
           serializable.writeChunkToStream(chunk, outputStream);
           recordsDone += batchData.getRecordCount();
           ++batchesWritten;
@@ -139,7 +147,9 @@ public class BuildMemoryReleaser implements MemoryReleaser {
       cursor += pickedRecords;
     }
     int nextBatchId =
-      cursor < allEntries.size() - 1 ? PageListMultimap.getBatchIdFromLong(allEntries.getCarryAlongId(cursor - 1)) : -1;
+        cursor < allEntries.size() - 1
+            ? PageListMultimap.getBatchIdFromLong(allEntries.getCarryAlongId(cursor - 1))
+            : -1;
     if (curBatchId != nextBatchId) {
       // if the batch is fully processed, release the corresponding memory.
       releaseMemoryForBatch(curBatchId);
@@ -147,7 +157,8 @@ public class BuildMemoryReleaser implements MemoryReleaser {
     return recordsDone;
   }
 
-  private int pickMaxPivotedRecordsInBatch(int targetBatchId, int maxCumulativeSize, MiscBuffers buffers) {
+  private int pickMaxPivotedRecordsInBatch(
+      int targetBatchId, int maxCumulativeSize, MiscBuffers buffers) {
     final ArrowBuf keyOrdinalsBuf = buffers.getKeyOrdinalsBuf();
     final ArrowBuf outKeyLengthsBuf = buffers.getOutKeyLengthsBuf();
     final ArrowBuf sv2 = buffers.getSv2();
@@ -169,8 +180,10 @@ public class BuildMemoryReleaser implements MemoryReleaser {
         break;
       }
 
-      SV2UnsignedUtil.writeAtOffset(sv2,  (numKeysInIteration) * SelectionVector2.RECORD_SIZE,
-        PageListMultimap.getRecordIndexFromLong(carryAlongId));
+      SV2UnsignedUtil.writeAtOffset(
+          sv2,
+          (numKeysInIteration) * SelectionVector2.RECORD_SIZE,
+          PageListMultimap.getRecordIndexFromLong(carryAlongId));
       keyOrdinalsBuf.setInt(numKeysInIteration * VAR_OFFSET_SIZE, tableOrdinal);
       ++numKeysInIteration;
       ++localCursor;
@@ -207,7 +220,7 @@ public class BuildMemoryReleaser implements MemoryReleaser {
     ArrowBuf dstVarBuf = dstPage.slice(cumulativeVarSize);
 
     joinTable.copyKeysToBuffer(keyOrdinalsBuf, numRecords, dstFixedBuf, dstVarBuf);
-    return new ArrowBuf[]{dstFixedBuf, dstVarBuf};
+    return new ArrowBuf[] {dstFixedBuf, dstVarBuf};
   }
 
   private void releaseMemoryForBatch(int batchIdx) {
@@ -229,10 +242,19 @@ public class BuildMemoryReleaser implements MemoryReleaser {
   public void close() throws Exception {
     if (outputStream != null) {
       spillFile.update(recordsWritten, outputStream.getWriteBytes());
-      logger.debug("spilled to {} records {} batches {} size {}", spillFile.getFile().getPath().getName(), recordsWritten, batchesWritten, outputStream.getWriteBytes());
+      logger.debug(
+          "spilled to {} records {} batches {} size {}",
+          spillFile.getFile().getPath().getName(),
+          recordsWritten,
+          batchesWritten,
+          outputStream.getWriteBytes());
     }
-    AutoCloseables.close(listFromHyperContainer, slicedBatchPages, Lists.newArrayList(joinTable, pageListMultimap, outputStream),
-      closeables, Lists.newArrayList(allocatorToRelease));
+    AutoCloseables.close(
+        listFromHyperContainer,
+        slicedBatchPages,
+        Lists.newArrayList(joinTable, pageListMultimap, outputStream),
+        closeables,
+        Lists.newArrayList(allocatorToRelease));
   }
 
   private static class MiscBuffers implements AutoCloseable {

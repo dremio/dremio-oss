@@ -120,7 +120,7 @@ ConfirmationModal.defaultProps = {
 };
 
 export default function openConfirmationModal(
-  renderProps: ConfirmationModalProps
+  renderProps: ConfirmationModalProps,
 ): void {
   const root = createRoot(document.querySelector(".conifrmation-container"));
   const confirmationModal = <ConfirmationModal {...renderProps} root={root} />;

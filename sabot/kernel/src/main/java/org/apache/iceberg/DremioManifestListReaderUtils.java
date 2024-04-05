@@ -16,13 +16,10 @@
 package org.apache.iceberg;
 
 import java.util.List;
-
 import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.io.InputFile;
 
-/**
- * Supporting class for directly reading manifest-lists given the path.
- */
+/** Supporting class for directly reading manifest-lists given the path. */
 public class DremioManifestListReaderUtils {
 
   private DremioManifestListReaderUtils() {

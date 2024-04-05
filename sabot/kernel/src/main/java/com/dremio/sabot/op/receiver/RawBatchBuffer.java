@@ -18,16 +18,15 @@ package com.dremio.sabot.op.receiver;
 import java.io.IOException;
 
 /**
- * A batch buffer is responsible for queuing incoming batches until a consumer is ready to receive them. It will also
- * inform upstream if the batch cannot be accepted.
+ * A batch buffer is responsible for queuing incoming batches until a consumer is ready to receive
+ * them. It will also inform upstream if the batch cannot be accepted.
  */
 public interface RawBatchBuffer extends RawFragmentBatchProvider {
 
   /**
    * Add the next new raw fragment batch to the buffer.
    *
-   * @param batch
-   *          Batch to enqueue
+   * @param batch Batch to enqueue
    * @throws IOException
    * @return Whether response should be returned.
    */
@@ -36,5 +35,4 @@ public interface RawBatchBuffer extends RawFragmentBatchProvider {
   default void init() {}
 
   void streamComplete();
-
 }

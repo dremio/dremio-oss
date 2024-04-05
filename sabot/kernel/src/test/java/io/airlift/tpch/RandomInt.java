@@ -28,17 +28,13 @@
  */
 package io.airlift.tpch;
 
-public class RandomInt
-        extends AbstractRandomInt
-{
-    public RandomInt(long seed, int expectedUsagePerRow)
-    {
-        super(seed, expectedUsagePerRow);
-    }
+public class RandomInt extends AbstractRandomInt {
+  public RandomInt(long seed, int expectedUsagePerRow) {
+    super(seed, expectedUsagePerRow);
+  }
 
-    @Override
-    public int nextInt(int lowValue, int highValue)
-    {
-        return super.nextInt(lowValue, highValue);
-    }
+  @Override
+  public int nextInt(int lowValue, int highValue) {
+    return super.nextInt(lowValue, highValue);
+  }
 }

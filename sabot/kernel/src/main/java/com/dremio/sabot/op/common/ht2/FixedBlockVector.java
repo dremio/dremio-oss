@@ -15,14 +15,12 @@
  */
 package com.dremio.sabot.op.common.ht2;
 
+import com.dremio.common.util.Numbers;
+import com.google.common.annotations.VisibleForTesting;
+import io.netty.util.internal.PlatformDependent;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.util.LargeMemoryUtil;
-
-import com.dremio.common.util.Numbers;
-import com.google.common.annotations.VisibleForTesting;
-
-import io.netty.util.internal.PlatformDependent;
 
 public class FixedBlockVector implements AutoCloseable {
 
@@ -36,7 +34,8 @@ public class FixedBlockVector implements AutoCloseable {
     this(allocator, blockWidth, 0, true);
   }
 
-  public FixedBlockVector(BufferAllocator allocator, int blockWidth, int initialCapacity, boolean allowExpansion) {
+  public FixedBlockVector(
+      BufferAllocator allocator, int blockWidth, int initialCapacity, boolean allowExpansion) {
     this.allocator = allocator;
     this.blockWidth = blockWidth;
     this.allowExpansion = allowExpansion;
@@ -50,7 +49,7 @@ public class FixedBlockVector implements AutoCloseable {
     return buf;
   }
 
-  public long getMemoryAddress(){
+  public long getMemoryAddress() {
     return buf.memoryAddress();
   }
 
@@ -58,11 +57,11 @@ public class FixedBlockVector implements AutoCloseable {
     return buf.memoryAddress() + buf.capacity();
   }
 
-  public int getBlockWidth(){
+  public int getBlockWidth() {
     return blockWidth;
   }
 
-  public void allocateNoClear(int count){
+  public void allocateNoClear(int count) {
     buf.close();
     buf = allocator.buffer(count * blockWidth);
     resetPositions();
@@ -89,9 +88,11 @@ public class FixedBlockVector implements AutoCloseable {
     buf = allocator.buffer(sizeInBytes);
     final int oldCapacity = this.capacity;
 
-    fillZeros(buf.memoryAddress() + oldCapacity * blockWidth, (newCapacity - oldCapacity) * blockWidth);
+    fillZeros(
+        buf.memoryAddress() + oldCapacity * blockWidth, (newCapacity - oldCapacity) * blockWidth);
 
-    PlatformDependent.copyMemory(oldBuf.memoryAddress(), buf.memoryAddress(), oldCapacity * blockWidth);
+    PlatformDependent.copyMemory(
+        oldBuf.memoryAddress(), buf.memoryAddress(), oldCapacity * blockWidth);
 
     buf.writerIndex(oldBuf.writerIndex());
     oldBuf.close();
@@ -101,15 +102,15 @@ public class FixedBlockVector implements AutoCloseable {
   private void fillZeros(long startAddr, int length) {
     long c = startAddr;
     final long endAddr = startAddr + length;
-    while(c < endAddr) {
+    while (c < endAddr) {
       PlatformDependent.putLong(c, 0);
       c += 8;
     }
 
     int remain = length % 8;
-    if(remain != 0){
-      for(int i = 0; i < remain ; i++) {
-        PlatformDependent.putByte(endAddr - i, (byte)0);
+    if (remain != 0) {
+      for (int i = 0; i < remain; i++) {
+        PlatformDependent.putByte(endAddr - i, (byte) 0);
       }
     }
   }
@@ -120,13 +121,13 @@ public class FixedBlockVector implements AutoCloseable {
   }
 
   @VisibleForTesting
-  ArrowBuf getUnderlying(){
+  ArrowBuf getUnderlying() {
     return buf;
   }
 
   @Override
   public synchronized void close() {
-    if(buf != null){
+    if (buf != null) {
       buf.close();
       buf = null;
     }

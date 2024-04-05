@@ -18,15 +18,16 @@ package com.dremio.datastore;
 import com.dremio.common.AutoCloseables;
 
 /**
- * Retrieves the version of an entity
- * (For Optimistic Concurrency Control)
+ * Retrieves the version of an entity (For Optimistic Concurrency Control)
+ *
  * @param <T> the entity type
  */
 public interface VersionExtractor<T> {
   /**
    * Called before committing the KV value to the store (and before incrementVersion is called).
    *
-   * In the case of an remote KV store, this is called before the version retrieved from the master is set.
+   * <p>In the case of an remote KV store, this is called before the version retrieved from the
+   * master is set.
    *
    * @param value that is being committed
    * @return a AutoClosable that is called if the commit fails

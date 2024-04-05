@@ -15,14 +15,14 @@
  */
 package com.dremio.common.exceptions;
 
-public class LogicalPlanParsingException extends RuntimeException{
+public class LogicalPlanParsingException extends RuntimeException {
 
   public LogicalPlanParsingException() {
     super();
   }
 
-  public LogicalPlanParsingException(String message, Throwable cause, boolean enableSuppression,
-      boolean writableStackTrace) {
+  public LogicalPlanParsingException(
+      String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
     super(message, cause, enableSuppression, writableStackTrace);
   }
 
@@ -37,5 +37,4 @@ public class LogicalPlanParsingException extends RuntimeException{
   public LogicalPlanParsingException(Throwable cause) {
     super(cause);
   }
-
 }

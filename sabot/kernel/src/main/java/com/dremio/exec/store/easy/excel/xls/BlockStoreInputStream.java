@@ -15,15 +15,14 @@
  */
 package com.dremio.exec.store.easy.excel.xls;
 
+import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.io.InputStream;
-
 import org.apache.poi.poifs.common.POIFSConstants;
 
-import com.google.common.base.Preconditions;
-
 /**
- * Very basic implementation of InputStream that uses a BlockStore to figure out which xls block it should read next.
+ * Very basic implementation of InputStream that uses a BlockStore to figure out which xls block it
+ * should read next.
  */
 class BlockStoreInputStream extends InputStream {
 
@@ -35,13 +34,15 @@ class BlockStoreInputStream extends InputStream {
   private int remainingBlocks;
   private int offsetInBlock; // read position in current block
 
-  BlockStoreInputStream(final XlsInputStream inputStream, final BlockStore blockStore, final int startBlock) {
+  BlockStoreInputStream(
+      final XlsInputStream inputStream, final BlockStore blockStore, final int startBlock) {
     this.inputStream = Preconditions.checkNotNull(inputStream, "input stream should not be null");
     this.blockStore = Preconditions.checkNotNull(blockStore, "block store should not be null");
     nextBlock = startBlock;
     blockSize = blockStore.getBlockSize();
 
-    Preconditions.checkState(startBlock != POIFSConstants.END_OF_CHAIN, "startBlock cannot be END_OF_CHAIN");
+    Preconditions.checkState(
+        startBlock != POIFSConstants.END_OF_CHAIN, "startBlock cannot be END_OF_CHAIN");
 
     // count number of blocks that are part of the stream chain, including current block!
     remainingBlocks = 0;

@@ -19,9 +19,7 @@ import com.dremio.dac.model.common.ResourcePath;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-/**
- * Exception message representation for {@link NotFoundException} exceptions
- */
+/** Exception message representation for {@link NotFoundException} exceptions */
 public class NotFoundErrorMessage extends GenericErrorMessage {
   private final ResourcePath resourcePath;
 
@@ -37,5 +35,4 @@ public class NotFoundErrorMessage extends GenericErrorMessage {
   public ResourcePath getResourcePath() {
     return resourcePath;
   }
-
 }

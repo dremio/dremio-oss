@@ -15,13 +15,6 @@
  */
 package com.dremio.exec.physical.config;
 
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-
-import org.apache.calcite.linq4j.Ord;
-
 import com.dremio.exec.physical.EndpointAffinity;
 import com.dremio.exec.physical.base.AbstractExchange;
 import com.dremio.exec.physical.base.OpProps;
@@ -40,21 +33,28 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import org.apache.calcite.linq4j.Ord;
 
 /**
- * Multiplexing Exchange (MuxExchange) is used when results from multiple minor fragments belonging to the same
- * major fragment running on a node need to be collected at one fragment on the same node before distributing the
- * results further. This helps when the sender that is distributing the results has overhead that is proportional to
- * the number of sender instances. An example of such sender is PartitionSender. Each instance of PartitionSender
- * allocates "r" buffers where "r" is the number of receivers.
+ * Multiplexing Exchange (MuxExchange) is used when results from multiple minor fragments belonging
+ * to the same major fragment running on a node need to be collected at one fragment on the same
+ * node before distributing the results further. This helps when the sender that is distributing the
+ * results has overhead that is proportional to the number of sender instances. An example of such
+ * sender is PartitionSender. Each instance of PartitionSender allocates "r" buffers where "r" is
+ * the number of receivers.
  *
- * Ex. SabotNode A is assigned 10 minor fragments belonging to the same major fragment. Each of these fragments
- * has a PartitionSender instance which is sending data to 300 receivers. Each PartitionSender needs 300 buffers,
- * so total of 10*300 buffers are needed. With MuxExchange, all 10 fragments send the data directly (without
- * partitioning) to MuxExchange which uses the PartitionSender to partition the incoming data and distribute
- * to receivers. MuxExchange has only one instance per SabotNode per major fragment which means only one instance of
- * PartitionSender per SabotNode per major fragment. With MuxExchange total number of buffers used by PartitionSender
- * for the 10 fragments is 300 instead of earlier number 10*300.
+ * <p>Ex. SabotNode A is assigned 10 minor fragments belonging to the same major fragment. Each of
+ * these fragments has a PartitionSender instance which is sending data to 300 receivers. Each
+ * PartitionSender needs 300 buffers, so total of 10*300 buffers are needed. With MuxExchange, all
+ * 10 fragments send the data directly (without partitioning) to MuxExchange which uses the
+ * PartitionSender to partition the incoming data and distribute to receivers. MuxExchange has only
+ * one instance per SabotNode per major fragment which means only one instance of PartitionSender
+ * per SabotNode per major fragment. With MuxExchange total number of buffers used by
+ * PartitionSender for the 10 fragments is 300 instead of earlier number 10*300.
  */
 public abstract class AbstractMuxExchange extends AbstractExchange {
 
@@ -64,8 +64,14 @@ public abstract class AbstractMuxExchange extends AbstractExchange {
   private boolean isSenderReceiverMappingCreated;
   protected final int fragmentsPerEndpoint;
 
-  public AbstractMuxExchange(OpProps props, OpProps senderProps, OpProps receiverProps, BatchSchema schema,
-                             PhysicalOperator child, OptionManager optionManager, int fragmentsPerEndpoint) {
+  public AbstractMuxExchange(
+      OpProps props,
+      OpProps senderProps,
+      OpProps receiverProps,
+      BatchSchema schema,
+      PhysicalOperator child,
+      OptionManager optionManager,
+      int fragmentsPerEndpoint) {
     super(props, senderProps, receiverProps, schema, child, optionManager);
     this.fragmentsPerEndpoint = fragmentsPerEndpoint;
   }
@@ -76,11 +82,13 @@ public abstract class AbstractMuxExchange extends AbstractExchange {
   }
 
   @Override
-  public Supplier<Collection<EndpointAffinity>> getReceiverEndpointAffinity(Supplier<Collection<NodeEndpoint>> senderFragmentEndpointsSupplier) {
+  public Supplier<Collection<EndpointAffinity>> getReceiverEndpointAffinity(
+      Supplier<Collection<NodeEndpoint>> senderFragmentEndpointsSupplier) {
     return () -> {
       Collection<NodeEndpoint> senderFragmentEndpoints = senderFragmentEndpointsSupplier.get();
-      Preconditions.checkArgument(senderFragmentEndpoints != null && senderFragmentEndpoints.size() > 0,
-        "Sender fragment endpoint list should not be empty");
+      Preconditions.checkArgument(
+          senderFragmentEndpoints != null && senderFragmentEndpoints.size() > 0,
+          "Sender fragment endpoint list should not be empty");
 
       // We want to run fragmentPerEndpoint mux receivers per SabotNode endpoint.
       // Identify the number of unique SabotNode endpoints in sender fragment endpoints.
@@ -98,12 +106,14 @@ public abstract class AbstractMuxExchange extends AbstractExchange {
   }
 
   @Override
-  public Sender getSender(int minorFragmentId, PhysicalOperator child, EndpointsIndex.Builder builder) {
+  public Sender getSender(
+      int minorFragmentId, PhysicalOperator child, EndpointsIndex.Builder builder) {
     createSenderReceiverMapping(builder);
 
     MinorFragmentIndexEndpoint receiver = senderToReceiverMapping.get(minorFragmentId);
     if (receiver == null) {
-      throw new IllegalStateException(String.format("Failed to find receiver for sender [%d]", minorFragmentId));
+      throw new IllegalStateException(
+          String.format("Failed to find receiver for sender [%d]", minorFragmentId));
     }
     return new SingleSender(senderProps, schema, child, receiverMajorFragmentId, receiver);
   }
@@ -128,18 +138,19 @@ public abstract class AbstractMuxExchange extends AbstractExchange {
       endpointReceiverListMap.put(ep.e, ep.i);
     }
 
-    for(NodeEndpoint receiverLocation : endpointReceiverListMap.keySet()) {
+    for (NodeEndpoint receiverLocation : endpointReceiverListMap.keySet()) {
       List<Integer> senderFragmentIds = endpointSenderListMap.get(receiverLocation);
       List<Integer> receiverFragmentIds = endpointReceiverListMap.get(receiverLocation);
 
       Iterator<Integer> iter = Iterators.cycle(receiverFragmentIds);
-      for(Integer senderId : senderFragmentIds) {
+      for (Integer senderId : senderFragmentIds) {
         int receiverFragmentId = iter.next();
-        senderToReceiverMapping.put(senderId,
-          indexBuilder.addFragmentEndpoint(receiverFragmentId, receiverLocation));
+        senderToReceiverMapping.put(
+            senderId, indexBuilder.addFragmentEndpoint(receiverFragmentId, receiverLocation));
 
-        receiverToSenderMapping.put(receiverFragmentId,
-          indexBuilder.addFragmentEndpoint(senderId, senderLocations.get(senderId)));
+        receiverToSenderMapping.put(
+            receiverFragmentId,
+            indexBuilder.addFragmentEndpoint(senderId, senderLocations.get(senderId)));
       }
     }
 

@@ -15,30 +15,27 @@
  */
 package com.dremio.catalog.model;
 
-import java.util.Objects;
-
-import org.immutables.value.Value;
-import org.projectnessie.model.Detached;
-
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.google.common.base.Preconditions;
+import java.util.Objects;
+import org.immutables.value.Value;
+import org.projectnessie.model.Detached;
 
 /**
- * Represents a version context that has been resolved with the underlying
- * versioned catalog server. Always refers to a specific, existing commit.
+ * Represents a version context that has been resolved with the underlying versioned catalog server.
+ * Always refers to a specific, existing commit.
  *
- * BRANCH refers to the commit that was at the head of the branch when it was
- * resolved.
+ * <p>BRANCH refers to the commit that was at the head of the branch when it was resolved.
  *
- * TAG refers to the commit that the tag pointed to when it was resolved.
+ * <p>TAG refers to the commit that the tag pointed to when it was resolved.
  *
- * COMMIT always points to a specific, immutable commit.
+ * <p>COMMIT always points to a specific, immutable commit.
  *
- * There is, however, a chance that the referenced commit (+ branch/tag) has
- * been modified or deleted after the call to resolve the context and before the
- * resolved context is used in another query.
+ * <p>There is, however, a chance that the referenced commit (+ branch/tag) has been modified or
+ * deleted after the call to resolve the context and before the resolved context is used in another
+ * query.
  */
 @Value.Immutable
 @Value.Style(visibility = Value.Style.ImplementationVisibility.PACKAGE)
@@ -54,31 +51,33 @@ public abstract class ResolvedVersionContext {
   public static final String DETACHED_REF_NAME = Detached.REF_NAME;
 
   public abstract Type getType();
+
   public abstract String getRefName();
+
   public abstract String getCommitHash();
 
   public static ResolvedVersionContext ofBranch(String branchName, String commitHash) {
     return ImmutableResolvedVersionContext.builder()
-      .type(Type.BRANCH)
-      .refName(branchName)
-      .commitHash(commitHash)
-      .build();
+        .type(Type.BRANCH)
+        .refName(branchName)
+        .commitHash(commitHash)
+        .build();
   }
 
   public static ResolvedVersionContext ofTag(String tagName, String commitHash) {
     return ImmutableResolvedVersionContext.builder()
-      .type(Type.TAG)
-      .refName(tagName)
-      .commitHash(commitHash)
-      .build();
+        .type(Type.TAG)
+        .refName(tagName)
+        .commitHash(commitHash)
+        .build();
   }
 
   public static ResolvedVersionContext ofCommit(String commitHash) {
     return ImmutableResolvedVersionContext.builder()
-      .type(Type.COMMIT)
-      .refName(DETACHED_REF_NAME)
-      .commitHash(commitHash)
-      .build();
+        .type(Type.COMMIT)
+        .refName(DETACHED_REF_NAME)
+        .commitHash(commitHash)
+        .build();
   }
 
   @Value.Check
@@ -103,7 +102,9 @@ public abstract class ResolvedVersionContext {
   }
 
   @JsonIgnore
-  public boolean isCommit() { return getType() == Type.COMMIT; }
+  public boolean isCommit() {
+    return getType() == Type.COMMIT;
+  }
 
   @JsonIgnore
   public static VersionContext convertToVersionContext(

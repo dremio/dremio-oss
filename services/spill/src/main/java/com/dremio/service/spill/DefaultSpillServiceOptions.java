@@ -18,17 +18,18 @@ package com.dremio.service.spill;
 import com.google.common.annotations.VisibleForTesting;
 
 /**
- * Default implementation of {@link SpillServiceOptions}.
- * Also carries the default values of the various parameters
- * Its instantiation should only be used in tests, as it's impossible to set the options returned by this class
+ * Default implementation of {@link SpillServiceOptions}. Also carries the default values of the
+ * various parameters Its instantiation should only be used in tests, as it's impossible to set the
+ * options returned by this class
  */
 public class DefaultSpillServiceOptions implements SpillServiceOptions {
   public static final boolean ENABLE_HEALTH_CHECK = true;
   public static final long MIN_DISK_SPACE_BYTES = 1024 * 1024 * 1024;
   public static final double MIN_DISK_SPACE_PCT = 1.0;
   public static final long HEALTH_CHECK_INTERVAL = 60 * 1000;
-  public static final long SPILL_SWEEP_INTERVAL = 60 * 60 * 1000;             // spill sweep once an hour
-  public static final long SPILL_SWEEP_THRESHOLD = 7L * 24 * 60 * 60 * 1000;  // remove spills older than one week
+  public static final long SPILL_SWEEP_INTERVAL = 60 * 60 * 1000; // spill sweep once an hour
+  public static final long SPILL_SWEEP_THRESHOLD =
+      7L * 24 * 60 * 60 * 1000; // remove spills older than one week
 
   @VisibleForTesting
   public DefaultSpillServiceOptions() {}

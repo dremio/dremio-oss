@@ -20,9 +20,9 @@ import SVGSpriter from "svg-sprite";
 //@ts-ignore
 import { generateIconManifest } from "./generateIconManifest";
 
-const OUTPUT_PATH = "dist-icons/dremio";
+const OUTPUT_PATH = "dist-icons";
 
-const icons = generateIconManifest();
+const icons = generateIconManifest().filter(icon => icon.theme === "sprite");
 
 const spriter = new SVGSpriter({
   transform: false,

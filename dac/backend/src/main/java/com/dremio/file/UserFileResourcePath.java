@@ -17,15 +17,12 @@ package com.dremio.file;
 
 import static java.util.Arrays.asList;
 
-import java.util.List;
-
 import com.dremio.dac.model.common.ResourcePath;
 import com.dremio.dac.model.common.RootEntity;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import java.util.List;
 
-/**
- * "/file/{@home}.[folder.]*name}"
- */
+/** "/file/{@home}.[folder.]*name}" */
 public class UserFileResourcePath extends ResourcePath {
 
   private final FilePath filePath;
@@ -38,7 +35,8 @@ public class UserFileResourcePath extends ResourcePath {
   public UserFileResourcePath(String filePath) {
     List<String> path = parse(filePath, "file");
     if (path.size() != 1) {
-      throw new IllegalArgumentException("path should be of form: /file/{filePath}, found " + filePath);
+      throw new IllegalArgumentException(
+          "path should be of form: /file/{filePath}, found " + filePath);
     }
     this.filePath = new FilePath(path.get(0));
     if (this.filePath.getRootType() != RootEntity.RootType.HOME) {

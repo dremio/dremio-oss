@@ -19,9 +19,7 @@ import com.dremio.sabot.exec.context.Flushable;
 import com.dremio.sabot.threads.SendingAccountor;
 import com.dremio.sabot.threads.sharedres.SharedResourceGroup;
 
-/**
- * Makes sending accountor non-blocking flushable via the shared resource manager.
- */
+/** Makes sending accountor non-blocking flushable via the shared resource manager. */
 public class FlushableSendingAccountor implements Flushable {
   private final SendingAccountor sendingAccountor = new SendingAccountor();
 
@@ -32,12 +30,16 @@ public class FlushableSendingAccountor implements Flushable {
     this.resourceGroup = resourceGroup;
   }
 
-  public SendingAccountor getAccountor(){
+  public SendingAccountor getAccountor() {
     return sendingAccountor;
   }
 
   @Override
   public boolean flushMessages() {
     return sendingAccountor.markBlockingWhenMessagesOutstanding(resourceGroup);
+  }
+
+  public int numMessagesToFlush() {
+    return sendingAccountor.numPendingMessages();
   }
 }

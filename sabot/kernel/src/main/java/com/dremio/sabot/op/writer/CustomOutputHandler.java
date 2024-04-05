@@ -15,19 +15,6 @@
  */
 package com.dremio.sabot.op.writer;
 
-import java.util.List;
-
-import org.apache.arrow.vector.BigIntVector;
-import org.apache.arrow.vector.IntVector;
-import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.VarBinaryVector;
-import org.apache.arrow.vector.VarCharVector;
-import org.apache.arrow.vector.complex.ListVector;
-import org.apache.arrow.vector.complex.impl.UnionListWriter;
-import org.apache.arrow.vector.holders.VarBinaryHolder;
-import org.apache.arrow.vector.holders.VarCharHolder;
-import org.apache.arrow.vector.types.pojo.Field;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.expression.BasePath;
 import com.dremio.exec.physical.config.WriterCommitterPOP;
@@ -40,12 +27,23 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.spi.SingleInputOperator;
 import com.google.common.base.Preconditions;
+import java.util.List;
+import org.apache.arrow.vector.BigIntVector;
+import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.VarBinaryVector;
+import org.apache.arrow.vector.VarCharVector;
+import org.apache.arrow.vector.complex.ListVector;
+import org.apache.arrow.vector.complex.impl.UnionListWriter;
+import org.apache.arrow.vector.holders.VarBinaryHolder;
+import org.apache.arrow.vector.holders.VarCharHolder;
+import org.apache.arrow.vector.types.pojo.Field;
 
 /**
  * This implementation does not perform any operation while consuming the data but initializes the
  * outgoing vectors to emit maximum one batch of the custom output records.
- * <p>
- * This can be used for writing summary records
+ *
+ * <p>This can be used for writing summary records
  */
 public class CustomOutputHandler implements WriterCommitterOutputHandler {
 
@@ -91,7 +89,7 @@ public class CustomOutputHandler implements WriterCommitterOutputHandler {
 
   @Override
   public void consumeData(int records) throws Exception {
-    //Do nothing
+    // Do nothing
   }
 
   @Override
@@ -169,8 +167,11 @@ public class CustomOutputHandler implements WriterCommitterOutputHandler {
   }
 
   private <T extends ValueVector> T getVV(Class<T> clazz, Field field) {
-    return outgoing.getValueAccessorById(clazz, outgoing.getSchema().getFieldId(BasePath.getSimple(field.getName()))
-      .getFieldIds()[0]).getValueVector();
+    return outgoing
+        .getValueAccessorById(
+            clazz,
+            outgoing.getSchema().getFieldId(BasePath.getSimple(field.getName())).getFieldIds()[0])
+        .getValueVector();
   }
 
   @Override

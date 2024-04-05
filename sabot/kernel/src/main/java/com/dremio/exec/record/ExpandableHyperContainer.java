@@ -15,15 +15,13 @@
  */
 package com.dremio.exec.record;
 
+import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import java.util.ArrayList;
 import java.util.BitSet;
-
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
-
-import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 
 public class ExpandableHyperContainer extends VectorContainer {
 
@@ -38,8 +36,8 @@ public class ExpandableHyperContainer extends VectorContainer {
     super(allocator);
     // Add all key fields for VECTORIZED_BIGINT mode
     this.isKeyBits = null;
-    int i=0;
-    for(Field f : schema.getFields()){
+    int i = 0;
+    for (Field f : schema.getFields()) {
       this.addEmptyHyper(f);
     }
     this.buildSchema(SelectionVectorMode.FOUR_BYTE);
@@ -48,20 +46,20 @@ public class ExpandableHyperContainer extends VectorContainer {
   public ExpandableHyperContainer(BufferAllocator allocator, Schema schema, BitSet isKeyBits) {
     super(allocator);
     this.isKeyBits = isKeyBits;
-    int i=0;
-    for(Field f : schema.getFields()){
+    int i = 0;
+    for (Field f : schema.getFields()) {
       /* If the bit is not set, the corresponding field will be added to hyper container,
        * otherwise the field will be ignored.
        */
       if (!this.isKeyBits.get(i)) {
         this.addEmptyHyper(f);
       }
-      i ++;
+      i++;
     }
     this.buildSchema(SelectionVectorMode.FOUR_BYTE);
   }
 
-  public void noReleaseClear(){
+  public void noReleaseClear() {
     wrappers.clear();
   }
 
@@ -122,8 +120,8 @@ public class ExpandableHyperContainer extends VectorContainer {
   }
 
   /**
-   * Break down the hyper container into individual containers (one for each batch).
-   * This is a destructive operation : the hyper container is cleared.
+   * Break down the hyper container into individual containers (one for each batch). This is a
+   * destructive operation : the hyper container is cleared.
    *
    * @return list of component containers.
    */
@@ -151,7 +149,7 @@ public class ExpandableHyperContainer extends VectorContainer {
     return containerList;
   }
 
-  public int size(){
+  public int size() {
     return size;
   }
 }

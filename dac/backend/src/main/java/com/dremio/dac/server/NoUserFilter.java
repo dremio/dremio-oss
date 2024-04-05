@@ -15,9 +15,9 @@
  */
 package com.dremio.dac.server;
 
+import com.dremio.service.users.UserService;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
-
 import javax.annotation.Priority;
 import javax.inject.Inject;
 import javax.ws.rs.Priorities;
@@ -25,14 +25,15 @@ import javax.ws.rs.container.ContainerRequestContext;
 import javax.ws.rs.container.ContainerRequestFilter;
 import javax.ws.rs.core.Response;
 
-import com.dremio.service.users.UserService;
-
 /**
- * Special filter that precedes all Jersey requests (except requests for bootstrap) and aborts if no user available
- * returning a 403 (FORBIDDEN) response status along with an entity with an errorMessage field as defined in
- * {@link GenericErrorMessage#NO_USER_MSG}.
+ * Special filter that precedes all Jersey requests (except requests for bootstrap) and aborts if no
+ * user available returning a 403 (FORBIDDEN) response status along with an entity with an
+ * errorMessage field as defined in {@link GenericErrorMessage#NO_USER_MSG}.
  */
-@Priority(Priorities.AUTHENTICATION - 1) //It's not the best way to do this, but we need to "force" this filter to run before the JerseyAuthFilter
+@Priority(
+    Priorities.AUTHENTICATION
+        - 1) // It's not the best way to do this, but we need to "force" this filter to run before
+// the JerseyAuthFilter
 public class NoUserFilter implements ContainerRequestFilter {
 
   private final AtomicBoolean hasAnyUser = new AtomicBoolean(false);
@@ -45,12 +46,13 @@ public class NoUserFilter implements ContainerRequestFilter {
 
   @Override
   public void filter(ContainerRequestContext requestContext) throws IOException {
-    // we cache in the local filter as we want to avoid expensive lookups. This means if we delete all data, we'll actually misreport has any user.
-    if(hasAnyUser.get()){
+    // we cache in the local filter as we want to avoid expensive lookups. This means if we delete
+    // all data, we'll actually misreport has any user.
+    if (hasAnyUser.get()) {
       return;
     }
 
-    if(userService.hasAnyUser()){
+    if (userService.hasAnyUser()) {
       hasAnyUser.set(true);
       return;
     }
@@ -59,8 +61,9 @@ public class NoUserFilter implements ContainerRequestFilter {
   }
 
   public static void handle(ContainerRequestContext requestContext) {
-    requestContext.abortWith(Response.status(Response.Status.FORBIDDEN)
-        .entity(new GenericErrorMessage(GenericErrorMessage.NO_USER_MSG))
-        .build());
+    requestContext.abortWith(
+        Response.status(Response.Status.FORBIDDEN)
+            .entity(new GenericErrorMessage(GenericErrorMessage.NO_USER_MSG))
+            .build());
   }
 }

@@ -17,12 +17,6 @@ package com.dremio.exec.catalog;
 
 import static com.dremio.exec.rpc.RpcBus.get;
 
-import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.common.SerializedExecutor;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.exec.catalog.CatalogServiceImpl.CatalogChangeListener;
@@ -42,16 +36,18 @@ import com.dremio.services.fabric.api.PhysicalConnection;
 import com.google.common.base.MoreObjects;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.MessageLite;
-
 import io.netty.buffer.ByteBuf;
 import io.protostuff.ProtobufIOUtil;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import org.apache.arrow.memory.BufferAllocator;
 
-/**
- * Protocol to communicate source changes between nodes.
- */
+/** Protocol to communicate source changes between nodes. */
 class CatalogProtocol implements FabricProtocol, AutoCloseable {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CatalogProtocol.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(CatalogProtocol.class);
 
   private static final Response OK = new Response(RpcType.ACK, Acks.OK);
 
@@ -61,7 +57,8 @@ class CatalogProtocol implements FabricProtocol, AutoCloseable {
   private final SExecutor serializedExecutor;
   private final ExecutorService executor;
 
-  public CatalogProtocol(BufferAllocator allocator, CatalogChangeListener listener, SabotConfig config) {
+  public CatalogProtocol(
+      BufferAllocator allocator, CatalogChangeListener listener, SabotConfig config) {
     this.listener = listener;
     this.allocator = allocator;
     this.config = config;
@@ -87,17 +84,17 @@ class CatalogProtocol implements FabricProtocol, AutoCloseable {
   @Override
   public MessageLite getResponseDefaultInstance(int rpcType) throws RpcException {
     switch (rpcType) {
-    case RpcType.ACK_VALUE:
-      return Ack.getDefaultInstance();
+      case RpcType.ACK_VALUE:
+        return Ack.getDefaultInstance();
 
-    case RpcType.REQ_SOURCE_CONFIG_VALUE:
-      return SourceWrapper.getDefaultInstance();
+      case RpcType.REQ_SOURCE_CONFIG_VALUE:
+        return SourceWrapper.getDefaultInstance();
 
-    case RpcType.REQ_DEL_SOURCE_VALUE:
-      return SourceWrapper.getDefaultInstance();
+      case RpcType.REQ_DEL_SOURCE_VALUE:
+        return SourceWrapper.getDefaultInstance();
 
-    default:
-      throw new UnsupportedOperationException();
+      default:
+        throw new UnsupportedOperationException();
     }
   }
 
@@ -112,24 +109,27 @@ class CatalogProtocol implements FabricProtocol, AutoCloseable {
       int rpcType,
       ByteString pBody,
       ByteBuf dBody,
-      ResponseSender sender) throws RpcException {
+      ResponseSender sender)
+      throws RpcException {
 
     switch (rpcType) {
+      case RpcType.REQ_SOURCE_CONFIG_VALUE:
+        {
+          final SourceWrapper wrapper = get(pBody, SourceWrapper.PARSER);
+          serializedExecutor.execute(new MessageHandler(wrapper, sender, true));
+          break;
+        }
 
-    case RpcType.REQ_SOURCE_CONFIG_VALUE: {
-      final SourceWrapper wrapper = get(pBody, SourceWrapper.PARSER);
-      serializedExecutor.execute(new MessageHandler(wrapper, sender, true));
-      break;
-    }
+      case RpcType.REQ_DEL_SOURCE_VALUE:
+        {
+          final SourceWrapper wrapper = get(pBody, SourceWrapper.PARSER);
+          serializedExecutor.execute(new MessageHandler(wrapper, sender, false));
+          break;
+        }
 
-    case RpcType.REQ_DEL_SOURCE_VALUE: {
-      final SourceWrapper wrapper = get(pBody, SourceWrapper.PARSER);
-      serializedExecutor.execute(new MessageHandler(wrapper, sender, false));
-      break;
-    }
-
-    default:
-      throw new RpcException("Message received that is not yet supported. Message type: " + rpcType);
+      default:
+        throw new RpcException(
+            "Message received that is not yet supported. Message type: " + rpcType);
     }
   }
 
@@ -158,8 +158,9 @@ class CatalogProtocol implements FabricProtocol, AutoCloseable {
     public void run() {
       try {
         SourceConfig config = new SourceConfig();
-        ProtobufIOUtil.mergeFrom(wrapper.getBytes().toByteArray(), config, SourceConfig.getSchema());
-        if(update) {
+        ProtobufIOUtil.mergeFrom(
+            wrapper.getBytes().toByteArray(), config, SourceConfig.getSchema());
+        if (update) {
           listener.sourceUpdate(config);
         } else {
           listener.sourceDelete(config);
@@ -178,20 +179,21 @@ class CatalogProtocol implements FabricProtocol, AutoCloseable {
           .add("update", update)
           .toString();
     }
-
-
   }
 
   private class SExecutor extends SerializedExecutor<MessageHandler> {
 
     SExecutor(Executor underlyingExecutor) {
-      super("source-synchronization-message-handler", underlyingExecutor, false /** events are quick and to string is complex **/);
+      super(
+          "source-synchronization-message-handler", underlyingExecutor, false
+          /** events are quick and to string is complex * */
+          );
     }
 
     @Override
     protected void runException(MessageHandler runnable, Throwable exception) {
-      logger.error("Exception occurred in catalog synchronization. Message {}", runnable, exception);
+      logger.error(
+          "Exception occurred in catalog synchronization. Message {}", runnable, exception);
     }
-
   }
 }

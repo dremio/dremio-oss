@@ -28,10 +28,14 @@ import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.METASTOREURIS;
 import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.METASTORE_EXECUTE_SET_UGI;
 import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.METASTORE_PRE_EVENT_LISTENERS;
 
+import com.dremio.common.util.TestTools;
+import com.dremio.config.DremioConfig;
+import com.dremio.test.TemporarySystemProperties;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Maps;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.hive.ql.Driver;
@@ -45,12 +49,6 @@ import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.rules.TestRule;
-
-import com.dremio.common.util.TestTools;
-import com.dremio.config.DremioConfig;
-import com.dremio.test.TemporarySystemProperties;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Maps;
 
 public class ITStorageBasedHiveAuthorization extends BaseTestHiveImpersonation {
 
@@ -92,28 +90,35 @@ public class ITStorageBasedHiveAuthorization extends BaseTestHiveImpersonation {
   // Create a view on "v_student_u0g0_750". View is owned by user1:group1 and has permissions 750
   private static final String v_student_u1g1_750 = "v_student_u1g1_750";
 
-  private static final String query_v_student_u0g0_750 = String.format(
-      "SELECT rownum FROM %s.%s ORDER BY rownum LIMIT 1", MINIDFS_STORAGE_PLUGIN_NAME, v_student_u0g0_750);
+  private static final String query_v_student_u0g0_750 =
+      String.format(
+          "SELECT rownum FROM %s.%s ORDER BY rownum LIMIT 1",
+          MINIDFS_STORAGE_PLUGIN_NAME, v_student_u0g0_750);
 
-  private static final String query_v_student_u1g1_750 = String.format(
-      "SELECT rownum FROM %s.%s ORDER BY rownum LIMIT 1", MINIDFS_STORAGE_PLUGIN_NAME, v_student_u1g1_750);
+  private static final String query_v_student_u1g1_750 =
+      String.format(
+          "SELECT rownum FROM %s.%s ORDER BY rownum LIMIT 1",
+          MINIDFS_STORAGE_PLUGIN_NAME, v_student_u1g1_750);
 
-  // Create a view on "partitioned_student_u0_700". View is owned by user0:group0 and has permissions 750
+  // Create a view on "partitioned_student_u0_700". View is owned by user0:group0 and has
+  // permissions 750
   private static final String v_partitioned_student_u0g0_750 = "v_partitioned_student_u0g0_750";
 
-  // Create a view on "v_partitioned_student_u0g0_750". View is owned by user1:group1 and has permissions 750
+  // Create a view on "v_partitioned_student_u0g0_750". View is owned by user1:group1 and has
+  // permissions 750
   private static final String v_partitioned_student_u1g1_750 = "v_partitioned_student_u1g1_750";
 
-  private static final String query_v_partitioned_student_u0g0_750 = String.format(
-      "SELECT rownum FROM %s.%s ORDER BY rownum LIMIT 1", MINIDFS_STORAGE_PLUGIN_NAME,
-      v_partitioned_student_u0g0_750);
+  private static final String query_v_partitioned_student_u0g0_750 =
+      String.format(
+          "SELECT rownum FROM %s.%s ORDER BY rownum LIMIT 1",
+          MINIDFS_STORAGE_PLUGIN_NAME, v_partitioned_student_u0g0_750);
 
-  private static final String query_v_partitioned_student_u1g1_750 = String.format(
-      "SELECT rownum FROM %s.%s ORDER BY rownum LIMIT 1", MINIDFS_STORAGE_PLUGIN_NAME,
-      v_partitioned_student_u1g1_750);
+  private static final String query_v_partitioned_student_u1g1_750 =
+      String.format(
+          "SELECT rownum FROM %s.%s ORDER BY rownum LIMIT 1",
+          MINIDFS_STORAGE_PLUGIN_NAME, v_partitioned_student_u1g1_750);
 
-  @ClassRule
-  public static TemporarySystemProperties properties = new TemporarySystemProperties();
+  @ClassRule public static TemporarySystemProperties properties = new TemporarySystemProperties();
 
   @BeforeClass
   public static void setup() throws Exception {
@@ -125,18 +130,18 @@ public class ITStorageBasedHiveAuthorization extends BaseTestHiveImpersonation {
     startHiveMetaStore();
     generateTestHiveData();
     addHiveStoragePlugin(getHivePluginConfig());
-    addMiniDfsBasedStorage( /*impersonationEnabled=*/true);
+    addMiniDfsBasedStorage(/* impersonationEnabled= */ true);
     generateTestData();
   }
 
   @AfterClass
   public static void shutdown() throws Exception {
     /*
-     JUnit assume() call results in AssumptionViolatedException, which is handled by JUnit with a goal to ignore
-     the test having the assume() call. Multiple assume() calls, or other exceptions coupled with a single assume()
-     call, result in multiple exceptions, which aren't handled by JUnit, leading to test deemed to be failed.
-     We thus use isMaprProfile() check instead of assumeNonMaprProfile() here.
-     */
+    JUnit assume() call results in AssumptionViolatedException, which is handled by JUnit with a goal to ignore
+    the test having the assume() call. Multiple assume() calls, or other exceptions coupled with a single assume()
+    call, result in multiple exceptions, which aren't handled by JUnit, leading to test deemed to be failed.
+    We thus use isMaprProfile() check instead of assumeNonMaprProfile() here.
+    */
     if (isMaprProfile()) {
       return;
     }
@@ -147,9 +152,14 @@ public class ITStorageBasedHiveAuthorization extends BaseTestHiveImpersonation {
 
   private static void setStorabaseBasedAuthorizationInHiveConf() {
     // Turn on metastore-side authorization
-    hiveConf.set(METASTORE_PRE_EVENT_LISTENERS.varname, AuthorizationPreEventListener.class.getName());
-    hiveConf.set(HIVE_METASTORE_AUTHENTICATOR_MANAGER.varname, HadoopDefaultMetastoreAuthenticator.class.getName());
-    hiveConf.set(HIVE_METASTORE_AUTHORIZATION_MANAGER.varname, StorageBasedAuthorizationProvider.class.getName());
+    hiveConf.set(
+        METASTORE_PRE_EVENT_LISTENERS.varname, AuthorizationPreEventListener.class.getName());
+    hiveConf.set(
+        HIVE_METASTORE_AUTHENTICATOR_MANAGER.varname,
+        HadoopDefaultMetastoreAuthenticator.class.getName());
+    hiveConf.set(
+        HIVE_METASTORE_AUTHORIZATION_MANAGER.varname,
+        StorageBasedAuthorizationProvider.class.getName());
     hiveConf.set(HIVE_METASTORE_AUTHORIZATION_AUTH_READS.varname, "true");
     hiveConf.set(METASTORE_EXECUTE_SET_UGI.varname, "true");
     hiveConf.set(DYNAMICPARTITIONINGMODE.varname, "nonstrict");
@@ -159,8 +169,10 @@ public class ITStorageBasedHiveAuthorization extends BaseTestHiveImpersonation {
     final Map<String, String> hiveConfig = Maps.newHashMap();
     hiveConfig.put(METASTOREURIS.varname, hiveConf.get(METASTOREURIS.varname));
     hiveConfig.put(FS_DEFAULT_NAME_KEY, dfsConf.get(FS_DEFAULT_NAME_KEY));
-    hiveConfig.put(HIVE_SERVER2_ENABLE_DOAS.varname, hiveConf.get(HIVE_SERVER2_ENABLE_DOAS.varname));
-    hiveConfig.put(METASTORE_EXECUTE_SET_UGI.varname, hiveConf.get(METASTORE_EXECUTE_SET_UGI.varname));
+    hiveConfig.put(
+        HIVE_SERVER2_ENABLE_DOAS.varname, hiveConf.get(HIVE_SERVER2_ENABLE_DOAS.varname));
+    hiveConfig.put(
+        METASTORE_EXECUTE_SET_UGI.varname, hiveConf.get(METASTORE_EXECUTE_SET_UGI.varname));
     return hiveConfig;
   }
 
@@ -172,68 +184,184 @@ public class ITStorageBasedHiveAuthorization extends BaseTestHiveImpersonation {
 
     executeQuery(driver, "CREATE DATABASE " + db_general);
 
-    createTable(driver,
-        db_general, g_student_u0_700, studentDef, studentData, org1Users[0], org1Groups[0], (short) 0700);
-    createTable(driver,
-        db_general, g_student_u0g0_750, studentDef, studentData, org1Users[0], org1Groups[0], (short) 0750);
-    createTable(driver,
-        db_general, g_student_all_755, studentDef, studentData, org1Users[2], org1Groups[2], (short) 0755);
-    createTable(driver,
-        db_general, g_voter_u1_700, voterDef, voterData, org1Users[1], org1Groups[1], (short) 0700);
-    createTable(driver,
-        db_general, g_voter_u2g1_750, voterDef, voterData, org1Users[2], org1Groups[1], (short) 0750);
-    createTable(driver,
-        db_general, g_voter_all_755, voterDef, voterData, org1Users[1], org1Groups[1], (short) 0755);
+    createTable(
+        driver,
+        db_general,
+        g_student_u0_700,
+        studentDef,
+        studentData,
+        org1Users[0],
+        org1Groups[0],
+        (short) 0700);
+    createTable(
+        driver,
+        db_general,
+        g_student_u0g0_750,
+        studentDef,
+        studentData,
+        org1Users[0],
+        org1Groups[0],
+        (short) 0750);
+    createTable(
+        driver,
+        db_general,
+        g_student_all_755,
+        studentDef,
+        studentData,
+        org1Users[2],
+        org1Groups[2],
+        (short) 0755);
+    createTable(
+        driver,
+        db_general,
+        g_voter_u1_700,
+        voterDef,
+        voterData,
+        org1Users[1],
+        org1Groups[1],
+        (short) 0700);
+    createTable(
+        driver,
+        db_general,
+        g_voter_u2g1_750,
+        voterDef,
+        voterData,
+        org1Users[2],
+        org1Groups[1],
+        (short) 0750);
+    createTable(
+        driver,
+        db_general,
+        g_voter_all_755,
+        voterDef,
+        voterData,
+        org1Users[1],
+        org1Groups[1],
+        (short) 0755);
 
-    createPartitionedTable(driver,
-        db_general, g_partitioned_student_u0_700, partitionStudentDef,
+    createPartitionedTable(
+        driver,
+        db_general,
+        g_partitioned_student_u0_700,
+        partitionStudentDef,
         "INSERT OVERWRITE TABLE %s.%s PARTITION(age) SELECT rownum, name, gpa, studentnum, age FROM %s.%s",
-        g_student_all_755, org1Users[0], org1Groups[0], (short) 0700);
+        g_student_all_755,
+        org1Users[0],
+        org1Groups[0],
+        (short) 0700);
 
     changeDBPermissions(db_general, (short) 0755, org1Users[0], org1Groups[0]);
 
     executeQuery(driver, "CREATE DATABASE " + db_u1g1_only);
 
-    createTable(driver,
-        db_u1g1_only, u1g1_student_all_755, studentDef, studentData, org1Users[1], org1Groups[1], (short) 0755);
-    createTable(driver,
-        db_u1g1_only, u1g1_student_u1_700, studentDef, studentData, org1Users[1], org1Groups[1], (short) 0700);
-    createTable(driver,
-        db_u1g1_only, u1g1_voter_all_755, voterDef, voterData, org1Users[1], org1Groups[1], (short) 0755);
-    createTable(driver,
-        db_u1g1_only, u1g1_voter_u1_700, voterDef, voterData, org1Users[1], org1Groups[1], (short) 0700);
+    createTable(
+        driver,
+        db_u1g1_only,
+        u1g1_student_all_755,
+        studentDef,
+        studentData,
+        org1Users[1],
+        org1Groups[1],
+        (short) 0755);
+    createTable(
+        driver,
+        db_u1g1_only,
+        u1g1_student_u1_700,
+        studentDef,
+        studentData,
+        org1Users[1],
+        org1Groups[1],
+        (short) 0700);
+    createTable(
+        driver,
+        db_u1g1_only,
+        u1g1_voter_all_755,
+        voterDef,
+        voterData,
+        org1Users[1],
+        org1Groups[1],
+        (short) 0755);
+    createTable(
+        driver,
+        db_u1g1_only,
+        u1g1_voter_u1_700,
+        voterDef,
+        voterData,
+        org1Users[1],
+        org1Groups[1],
+        (short) 0700);
 
     changeDBPermissions(db_u1g1_only, (short) 0750, org1Users[1], org1Groups[1]);
 
     executeQuery(driver, "CREATE DATABASE " + db_u0_only);
 
-    createTable(driver, db_u0_only, u0_student_all_755, studentDef, studentData, org1Users[0], org1Groups[0], (short) 0755);
-    createTable(driver, db_u0_only, u0_voter_all_755, voterDef, voterData, org1Users[0], org1Groups[0], (short) 0755);
+    createTable(
+        driver,
+        db_u0_only,
+        u0_student_all_755,
+        studentDef,
+        studentData,
+        org1Users[0],
+        org1Groups[0],
+        (short) 0755);
+    createTable(
+        driver,
+        db_u0_only,
+        u0_voter_all_755,
+        voterDef,
+        voterData,
+        org1Users[0],
+        org1Groups[0],
+        (short) 0755);
 
     changeDBPermissions(db_u0_only, (short) 0700, org1Users[0], org1Groups[0]);
   }
 
   private static void generateTestData() throws Exception {
-    createView(org1Users[0], org1Groups[0], v_student_u0g0_750,
-        String.format("SELECT rownum, name, age, studentnum FROM %s.%s.%s",
+    createView(
+        org1Users[0],
+        org1Groups[0],
+        v_student_u0g0_750,
+        String.format(
+            "SELECT rownum, name, age, studentnum FROM %s.%s.%s",
             hivePluginName, db_general, g_student_u0_700));
 
-    createView(org1Users[1], org1Groups[1], v_student_u1g1_750,
-        String.format("SELECT rownum, name, age FROM %s.%s",
+    createView(
+        org1Users[1],
+        org1Groups[1],
+        v_student_u1g1_750,
+        String.format(
+            "SELECT rownum, name, age FROM %s.%s",
             MINIDFS_STORAGE_PLUGIN_NAME, v_student_u0g0_750));
 
-    createView(org1Users[0], org1Groups[0], v_partitioned_student_u0g0_750,
-        String.format("SELECT rownum, name, age, studentnum FROM %s.%s.%s",
+    createView(
+        org1Users[0],
+        org1Groups[0],
+        v_partitioned_student_u0g0_750,
+        String.format(
+            "SELECT rownum, name, age, studentnum FROM %s.%s.%s",
             hivePluginName, db_general, g_partitioned_student_u0_700));
 
-    createView(org1Users[1], org1Groups[1], v_partitioned_student_u1g1_750,
-        String.format("SELECT rownum, name, age FROM %s.%s",
+    createView(
+        org1Users[1],
+        org1Groups[1],
+        v_partitioned_student_u1g1_750,
+        String.format(
+            "SELECT rownum, name, age FROM %s.%s",
             MINIDFS_STORAGE_PLUGIN_NAME, v_partitioned_student_u0g0_750));
   }
 
-  private static void createPartitionedTable(final Driver hiveDriver, final String db, final String tbl,
-      final String tblDef, final String loadTblDef, final String loadTbl, final String user, final String group,
-      final short permissions) throws Exception {
+  private static void createPartitionedTable(
+      final Driver hiveDriver,
+      final String db,
+      final String tbl,
+      final String tblDef,
+      final String loadTblDef,
+      final String loadTbl,
+      final String user,
+      final String group,
+      final short permissions)
+      throws Exception {
     executeQuery(hiveDriver, String.format(tblDef, db, tbl));
     executeQuery(hiveDriver, String.format(loadTblDef, db, tbl, db, loadTbl));
 
@@ -242,23 +370,34 @@ public class ITStorageBasedHiveAuthorization extends BaseTestHiveImpersonation {
     fs.setOwner(p, user, group);
   }
 
-  private static void createTable(final Driver hiveDriver, final String db, final String tbl, final String tblDef,
-      final String tblData, final String user, final String group, final short permissions) throws Exception {
+  private static void createTable(
+      final Driver hiveDriver,
+      final String db,
+      final String tbl,
+      final String tblDef,
+      final String tblData,
+      final String user,
+      final String group,
+      final short permissions)
+      throws Exception {
     executeQuery(hiveDriver, String.format(tblDef, db, tbl));
-    executeQuery(hiveDriver, String.format("LOAD DATA LOCAL INPATH '%s' INTO TABLE %s.%s", tblData, db, tbl));
+    executeQuery(
+        hiveDriver,
+        String.format("LOAD DATA LOCAL INPATH '%s' INTO TABLE %s.%s", tblData, db, tbl));
     final Path p = getWhPathForHiveObject(db, tbl);
     fs.setPermission(p, new FsPermission(permissions));
     fs.setOwner(p, user, group);
   }
 
-  private static void changeDBPermissions(final String db, final short perm, final String u, final String g)
-      throws Exception {
+  private static void changeDBPermissions(
+      final String db, final short perm, final String u, final String g) throws Exception {
     Path p = getWhPathForHiveObject(db, null);
     fs.setPermission(p, new FsPermission(perm));
     fs.setOwner(p, u, g);
   }
 
-  // Irrespective of each db permissions, all dbs show up in "SHOW SCHEMAS" - This doesn't seem to hold true
+  // Irrespective of each db permissions, all dbs show up in "SHOW SCHEMAS" - This doesn't seem to
+  // hold true
   @Ignore("DX-7652")
   @Test
   public void showSchemas() throws Exception {
@@ -269,14 +408,16 @@ public class ITStorageBasedHiveAuthorization extends BaseTestHiveImpersonation {
         .baselineValues("hive.db_general")
         .baselineValues("hive.db_u0_only")
         .baselineValues("hive.db_u1g1_only")
-        // .baselineValues("hive.default") "default" db has no tables, thats why it doesn't show up in namespace
+        // .baselineValues("hive.default") "default" db has no tables, thats why it doesn't show up
+        // in namespace
         .go();
   }
 
   /**
-   * "SHOW TABLE" output for a db, should only contain the tables that the user
-   * has access to read. If the user has no read access to the db, the list will be always empty even if the user has
+   * "SHOW TABLE" output for a db, should only contain the tables that the user has access to read.
+   * If the user has no read access to the db, the list will be always empty even if the user has
    * read access to the tables inside the db.
+   *
    * @throws Exception
    */
   @Test
@@ -284,20 +425,16 @@ public class ITStorageBasedHiveAuthorization extends BaseTestHiveImpersonation {
   public void showTablesUser0() throws Exception {
     updateClient(org1Users[0]);
 
-    showTablesHelper(db_general,
+    showTablesHelper(
+        db_general,
         ImmutableList.of(
             g_student_u0_700,
             g_student_u0g0_750,
             g_student_all_755,
             g_voter_all_755,
-            g_partitioned_student_u0_700
-        ));
+            g_partitioned_student_u0_700));
 
-    showTablesHelper(db_u0_only,
-        ImmutableList.of(
-            u0_student_all_755,
-            u0_voter_all_755
-        ));
+    showTablesHelper(db_u0_only, ImmutableList.of(u0_student_all_755, u0_voter_all_755));
 
     showTablesHelper(db_u1g1_only, Collections.<String>emptyList());
   }
@@ -307,22 +444,19 @@ public class ITStorageBasedHiveAuthorization extends BaseTestHiveImpersonation {
   public void showTablesUser1() throws Exception {
     updateClient(org1Users[1]);
 
-    showTablesHelper(db_general,
+    showTablesHelper(
+        db_general,
         ImmutableList.of(
             g_student_u0g0_750,
             g_student_all_755,
             g_voter_u1_700,
             g_voter_u2g1_750,
-            g_voter_all_755
-        ));
+            g_voter_all_755));
 
-    showTablesHelper(db_u1g1_only,
+    showTablesHelper(
+        db_u1g1_only,
         ImmutableList.of(
-            u1g1_student_all_755,
-            u1g1_student_u1_700,
-            u1g1_voter_all_755,
-            u1g1_voter_u1_700
-        ));
+            u1g1_student_all_755, u1g1_student_u1_700, u1g1_voter_all_755, u1g1_voter_u1_700));
 
     showTablesHelper(db_u0_only, Collections.<String>emptyList());
   }
@@ -332,18 +466,10 @@ public class ITStorageBasedHiveAuthorization extends BaseTestHiveImpersonation {
   public void showTablesUser2() throws Exception {
     updateClient(org1Users[2]);
 
-    showTablesHelper(db_general,
-        ImmutableList.of(
-            g_student_all_755,
-            g_voter_u2g1_750,
-            g_voter_all_755
-        ));
+    showTablesHelper(
+        db_general, ImmutableList.of(g_student_all_755, g_voter_u2g1_750, g_voter_all_755));
 
-    showTablesHelper(db_u1g1_only,
-        ImmutableList.of(
-            u1g1_student_all_755,
-            u1g1_voter_all_755
-        ));
+    showTablesHelper(db_u1g1_only, ImmutableList.of(u1g1_student_all_755, u1g1_voter_all_755));
 
     showTablesHelper(db_u0_only, Collections.<String>emptyList());
   }
@@ -353,11 +479,20 @@ public class ITStorageBasedHiveAuthorization extends BaseTestHiveImpersonation {
   public void selectUser0_db_general() throws Exception {
     updateClient(org1Users[0]);
 
-    test(String.format("SELECT * FROM hive.%s.%s ORDER BY gpa DESC LIMIT 2", db_general, g_student_u0_700));
-    test(String.format("SELECT * FROM hive.%s.%s ORDER BY gpa DESC LIMIT 2", db_general, g_student_all_755));
-    test(String.format("SELECT * FROM hive.%s.%s ORDER BY name DESC LIMIT 2", db_general, g_voter_all_755));
+    test(
+        String.format(
+            "SELECT * FROM hive.%s.%s ORDER BY gpa DESC LIMIT 2", db_general, g_student_u0_700));
+    test(
+        String.format(
+            "SELECT * FROM hive.%s.%s ORDER BY gpa DESC LIMIT 2", db_general, g_student_all_755));
+    test(
+        String.format(
+            "SELECT * FROM hive.%s.%s ORDER BY name DESC LIMIT 2", db_general, g_voter_all_755));
 
-    test(String.format("SELECT * FROM hive.%s.%s ORDER BY gpa DESC LIMIT 2", db_general, g_partitioned_student_u0_700));
+    test(
+        String.format(
+            "SELECT * FROM hive.%s.%s ORDER BY gpa DESC LIMIT 2",
+            db_general, g_partitioned_student_u0_700));
   }
 
   // Try to read the table that "user0" has access to read in db_u0_only
@@ -365,8 +500,12 @@ public class ITStorageBasedHiveAuthorization extends BaseTestHiveImpersonation {
   public void selectUser0_db_u0_only() throws Exception {
     updateClient(org1Users[0]);
 
-    test(String.format("SELECT * FROM hive.%s.%s ORDER BY gpa DESC LIMIT 2", db_u0_only, u0_student_all_755));
-    test(String.format("SELECT * FROM hive.%s.%s ORDER BY name DESC LIMIT 2", db_u0_only, u0_voter_all_755));
+    test(
+        String.format(
+            "SELECT * FROM hive.%s.%s ORDER BY gpa DESC LIMIT 2", db_u0_only, u0_student_all_755));
+    test(
+        String.format(
+            "SELECT * FROM hive.%s.%s ORDER BY name DESC LIMIT 2", db_u0_only, u0_voter_all_755));
   }
 
   // Try to read the tables "user0" has no access to read in db_u1g1_only
@@ -375,7 +514,9 @@ public class ITStorageBasedHiveAuthorization extends BaseTestHiveImpersonation {
     updateClient(org1Users[0]);
 
     errorMsgTestHelper(
-        String.format("SELECT * FROM hive.%s.%s ORDER BY gpa DESC LIMIT 2", db_u1g1_only, u1g1_student_all_755),
+        String.format(
+            "SELECT * FROM hive.%s.%s ORDER BY gpa DESC LIMIT 2",
+            db_u1g1_only, u1g1_student_all_755),
         "Permission denied: user=user0_1");
   }
 
@@ -384,9 +525,15 @@ public class ITStorageBasedHiveAuthorization extends BaseTestHiveImpersonation {
   public void selectUser1_db_general() throws Exception {
     updateClient(org1Users[1]);
 
-    test(String.format("SELECT * FROM hive.%s.%s ORDER BY gpa DESC LIMIT 2", db_general, g_student_u0g0_750));
-    test(String.format("SELECT * FROM hive.%s.%s ORDER BY gpa DESC LIMIT 2", db_general, g_student_all_755));
-    test(String.format("SELECT * FROM hive.%s.%s ORDER BY name DESC LIMIT 2", db_general, g_voter_u2g1_750));
+    test(
+        String.format(
+            "SELECT * FROM hive.%s.%s ORDER BY gpa DESC LIMIT 2", db_general, g_student_u0g0_750));
+    test(
+        String.format(
+            "SELECT * FROM hive.%s.%s ORDER BY gpa DESC LIMIT 2", db_general, g_student_all_755));
+    test(
+        String.format(
+            "SELECT * FROM hive.%s.%s ORDER BY name DESC LIMIT 2", db_general, g_voter_u2g1_750));
   }
 
   // Try to read the tables "user1" has no access to read in db_u0_only
@@ -396,18 +543,14 @@ public class ITStorageBasedHiveAuthorization extends BaseTestHiveImpersonation {
     updateClient(org1Users[1]);
 
     errorMsgTestHelper(
-        String.format("SELECT * FROM hive.%s.%s ORDER BY gpa DESC LIMIT 2", db_u0_only, u0_student_all_755),
+        String.format(
+            "SELECT * FROM hive.%s.%s ORDER BY gpa DESC LIMIT 2", db_u0_only, u0_student_all_755),
         String.format("Table 'hive.%s.%s' not found", db_u0_only, u0_student_all_755));
   }
 
   private void queryViewHelper(final String queryUser, final String query) throws Exception {
     updateClient(queryUser);
-    testBuilder()
-        .sqlQuery(query)
-        .unOrdered()
-        .baselineColumns("rownum")
-        .baselineValues(1)
-        .go();
+    testBuilder().sqlQuery(query).unOrdered().baselineColumns("rownum").baselineValues(1).go();
   }
 
   @Test
@@ -423,14 +566,16 @@ public class ITStorageBasedHiveAuthorization extends BaseTestHiveImpersonation {
   @Test
   public void selectUser2_v_student_u0g0_750() throws Exception {
     updateClient(org1Users[2]);
-    errorMsgTestHelper(query_v_student_u0g0_750,
+    errorMsgTestHelper(
+        query_v_student_u0g0_750,
         "Not authorized to read view [v_student_u0g0_750] in schema [miniDfsPlugin]");
   }
 
   @Test
   public void selectUser0_v_student_u1g1_750() throws Exception {
     updateClient(org1Users[0]);
-    errorMsgTestHelper(query_v_student_u1g1_750,
+    errorMsgTestHelper(
+        query_v_student_u1g1_750,
         "Not authorized to read view [v_student_u1g1_750] in schema [miniDfsPlugin]");
   }
 
@@ -457,14 +602,16 @@ public class ITStorageBasedHiveAuthorization extends BaseTestHiveImpersonation {
   @Test
   public void selectUser2_v_partitioned_student_u0g0_750() throws Exception {
     updateClient(org1Users[2]);
-    errorMsgTestHelper(query_v_partitioned_student_u0g0_750,
+    errorMsgTestHelper(
+        query_v_partitioned_student_u0g0_750,
         "Not authorized to read view [v_partitioned_student_u0g0_750] in schema [miniDfsPlugin]");
   }
 
   @Test
   public void selectUser0_v_partitioned_student_u1g1_750() throws Exception {
     updateClient(org1Users[0]);
-    errorMsgTestHelper(query_v_partitioned_student_u1g1_750,
+    errorMsgTestHelper(
+        query_v_partitioned_student_u1g1_750,
         "Not authorized to read view [v_partitioned_student_u1g1_750] in schema [miniDfsPlugin]");
   }
 

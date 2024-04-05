@@ -15,24 +15,23 @@
  */
 package com.dremio.service.reflection;
 
-import java.util.List;
-import java.util.Optional;
-
 import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.exec.ops.ReflectionContext;
 import com.dremio.service.reflection.proto.ExternalReflection;
 import com.dremio.service.reflection.proto.Materialization;
 import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.dremio.service.reflection.proto.ReflectionId;
+import java.util.List;
+import java.util.Optional;
 
-/**
- * Interface for administrating reflections.
- */
+/** Interface for administrating reflections. */
 public interface ReflectionAdministrationService {
   Iterable<ReflectionGoal> getAllReflections();
 
+  /** Returns all reflections on the given dataset, if it exists. */
   Iterable<ReflectionGoal> getReflectionsByDatasetPath(CatalogEntityKey path);
 
+  /** Returns all reflections on the given dataset, if it exists. */
   Iterable<ReflectionGoal> getReflectionsByDatasetId(String datasetId);
 
   ReflectionId create(ReflectionGoal goal);
@@ -47,7 +46,8 @@ public interface ReflectionAdministrationService {
 
   Optional<Materialization> getLastDoneMaterialization(ReflectionId reflectionId);
 
-  ReflectionId createExternalReflection(String name, List<String> datasetPath, List<String> targetDatasetPath);
+  ReflectionId createExternalReflection(
+      String name, List<String> datasetPath, List<String> targetDatasetPath);
 
   Iterable<ExternalReflection> getExternalReflectionByDatasetPath(List<String> datasetPath);
 
@@ -66,15 +66,15 @@ public interface ReflectionAdministrationService {
 
   void clearAll();
 
+  void retryUnavailable();
+
   void requestRefresh(String datasetId);
 
   int getEnabledReflectionCountForDataset(String datasetId);
 
   boolean isReflectionIncremental(ReflectionId reflectionId);
 
-  /**
-   * Factory for {@ReflectionAdministrationService}
-   */
+  /** Factory for {@ReflectionAdministrationService} */
   interface Factory {
     ReflectionAdministrationService get(ReflectionContext context);
   }

@@ -15,15 +15,6 @@
  */
 package com.dremio.exec.store.dfs.easy;
 
-import java.io.IOException;
-import java.util.List;
-
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelOptTable;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.hint.RelHint;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.PhysicalOperator;
@@ -35,21 +26,44 @@ import com.dremio.exec.store.TableMetadata;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators.LongValidator;
 import com.dremio.options.TypeValidators.PositiveLongValidator;
+import java.io.IOException;
+import java.util.List;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptTable;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.hint.RelHint;
 
-/**
- * Convert scan prel to easy group scan.
- */
+/** Convert scan prel to easy group scan. */
 @Options
 public class EasyScanPrel extends ScanPrelBase {
 
-  public static final LongValidator RESERVE = new PositiveLongValidator("planner.op.scan.easy.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
-  public static final LongValidator LIMIT = new PositiveLongValidator("planner.op.scan.easy.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
+  public static final LongValidator RESERVE =
+      new PositiveLongValidator(
+          "planner.op.scan.easy.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
+  public static final LongValidator LIMIT =
+      new PositiveLongValidator("planner.op.scan.easy.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
 
-  public EasyScanPrel(RelOptCluster cluster, RelTraitSet traitSet, RelOptTable table, StoragePluginId pluginId,
-                      TableMetadata dataset, List<SchemaPath> projectedColumns, double observedRowcountAdjustment,
-                      List<RelHint> hints, List<Info> runtimeFilters) {
-    super(cluster, traitSet, table, pluginId, dataset, projectedColumns, observedRowcountAdjustment, hints,
-          runtimeFilters);
+  public EasyScanPrel(
+      RelOptCluster cluster,
+      RelTraitSet traitSet,
+      RelOptTable table,
+      StoragePluginId pluginId,
+      TableMetadata dataset,
+      List<SchemaPath> projectedColumns,
+      double observedRowcountAdjustment,
+      List<RelHint> hints,
+      List<Info> runtimeFilters) {
+    super(
+        cluster,
+        traitSet,
+        table,
+        pluginId,
+        dataset,
+        projectedColumns,
+        observedRowcountAdjustment,
+        hints,
+        runtimeFilters);
   }
 
   @Override
@@ -63,14 +77,29 @@ public class EasyScanPrel extends ScanPrelBase {
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new EasyScanPrel(getCluster(), traitSet, getTable(), pluginId, tableMetadata, getProjectedColumns(),
-                            observedRowcountAdjustment, getHints(), getRuntimeFilters());
+    return new EasyScanPrel(
+        getCluster(),
+        traitSet,
+        getTable(),
+        pluginId,
+        tableMetadata,
+        getProjectedColumns(),
+        observedRowcountAdjustment,
+        getHints(),
+        getRuntimeFilters());
   }
 
   @Override
   public ScanRelBase cloneWithProject(List<SchemaPath> projection) {
-    return new EasyScanPrel(getCluster(), getTraitSet(), table, pluginId, tableMetadata, projection,
-                            observedRowcountAdjustment, getHints(), getRuntimeFilters());
+    return new EasyScanPrel(
+        getCluster(),
+        getTraitSet(),
+        table,
+        pluginId,
+        tableMetadata,
+        projection,
+        observedRowcountAdjustment,
+        getHints(),
+        getRuntimeFilters());
   }
-
 }

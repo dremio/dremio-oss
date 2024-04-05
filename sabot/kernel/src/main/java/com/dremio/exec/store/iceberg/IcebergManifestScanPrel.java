@@ -17,18 +17,6 @@ package com.dremio.exec.store.iceberg;
 
 import static com.dremio.exec.planner.physical.PlannerSettings.ICEBERG_MANIFEST_SCAN_RECORDS_PER_THREAD;
 
-import java.util.Collections;
-import java.util.List;
-
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelOptTable;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.RelWriter;
-import org.apache.calcite.rel.metadata.RelMetadataQuery;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.iceberg.expressions.Expression;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.config.ManifestScanFilters;
@@ -42,70 +30,90 @@ import com.dremio.exec.planner.physical.TableFunctionUtil;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.util.LongRange;
+import java.util.Collections;
+import java.util.List;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptTable;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.RelWriter;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.iceberg.expressions.Expression;
 
 /**
- * Prel for the Iceberg manifest scan table function.  This supports both data and delete manifest scans.
+ * Prel for the Iceberg manifest scan table function. This supports both data and delete manifest
+ * scans.
  */
 public class IcebergManifestScanPrel extends TableFunctionPrel {
 
-  //if includeIcebergPartitionInfo is set we will include some additional information from the Iceberg partition spec
+  // if includeIcebergPartitionInfo is set we will include some additional information from the
+  // Iceberg partition spec
   // such as the transform and the raw Iceberg value
   private boolean includeIcebergPartitionInfo;
 
   public IcebergManifestScanPrel(
-    RelOptCluster cluster,
-    RelTraitSet traitSet,
-    RelOptTable table,
-    RelNode child,
-    TableMetadata tableMetadata,
-    BatchSchema schema,
-    List<SchemaPath> projectedColumns,
-    ManifestScanFilters manifestScanFilters,
-    Long survivingRecords,
-    ManifestContentType manifestContentType,
-    String user,
-    final boolean includeIcebergPartitionInfo) {
+      RelOptCluster cluster,
+      RelTraitSet traitSet,
+      RelOptTable table,
+      RelNode child,
+      TableMetadata tableMetadata,
+      BatchSchema schema,
+      List<SchemaPath> projectedColumns,
+      ManifestScanFilters manifestScanFilters,
+      Long survivingRecords,
+      ManifestContentType manifestContentType,
+      String user,
+      final boolean includeIcebergPartitionInfo) {
     this(
-      cluster,
-      traitSet,
-      table,
-      child,
-      tableMetadata,
-      TableFunctionUtil.getManifestScanTableFunctionConfig(tableMetadata, projectedColumns, schema, null,
-        manifestContentType, manifestScanFilters, false,includeIcebergPartitionInfo),
-      ScanRelBase.getRowTypeFromProjectedColumns(projectedColumns, schema, cluster),
-      survivingRecords,
-      user,
-      includeIcebergPartitionInfo);
+        cluster,
+        traitSet,
+        table,
+        child,
+        tableMetadata,
+        TableFunctionUtil.getManifestScanTableFunctionConfig(
+            tableMetadata,
+            projectedColumns,
+            schema,
+            null,
+            manifestContentType,
+            manifestScanFilters,
+            false,
+            includeIcebergPartitionInfo),
+        ScanRelBase.getRowTypeFromProjectedColumns(projectedColumns, schema, cluster),
+        survivingRecords,
+        user,
+        includeIcebergPartitionInfo);
   }
 
   /**
-   * Table agnostic manifest reads doesn't publish partition values, or any other attribute that requires table
-   * configuration.
+   * Table agnostic manifest reads doesn't publish partition values, or any other attribute that
+   * requires table configuration.
    */
   public IcebergManifestScanPrel(
-    RelOptCluster cluster,
-    RelTraitSet traitSet,
-    RelNode child,
-    StoragePluginId storagePluginId,
-    StoragePluginId internalStoragePlugin,
-    List<SchemaPath> projectedCols,
-    BatchSchema schema,
-    RelDataType rowType,
-    Long survivingRecords,
-    String user,
-    boolean includeIcebergPartitionInfo) {
+      RelOptCluster cluster,
+      RelTraitSet traitSet,
+      RelNode child,
+      StoragePluginId storagePluginId,
+      StoragePluginId internalStoragePlugin,
+      List<SchemaPath> projectedCols,
+      BatchSchema schema,
+      RelDataType rowType,
+      Long survivingRecords,
+      String user,
+      boolean includeIcebergPartitionInfo) {
     this(
-      cluster,
-      traitSet,
-      null,
-      child,
-      null,
-      TableFunctionUtil.getTableAgnosticManifestScanFunctionConfig(storagePluginId, internalStoragePlugin, projectedCols, schema),
-      rowType,
-      survivingRecords,
-      user,
-      includeIcebergPartitionInfo);
+        cluster,
+        traitSet,
+        null,
+        child,
+        null,
+        TableFunctionUtil.getTableAgnosticManifestScanFunctionConfig(
+            storagePluginId, internalStoragePlugin, projectedCols, schema),
+        rowType,
+        survivingRecords,
+        user,
+        includeIcebergPartitionInfo);
   }
 
   public IcebergManifestScanPrel(
@@ -119,15 +127,34 @@ public class IcebergManifestScanPrel extends TableFunctionPrel {
       Long survivingRecords,
       String user,
       boolean includeIcebergPartitionInfo) {
-    super(cluster, traitSet, table, child, tableMetadata, functionConfig, rowType, null,
-      survivingRecords, Collections.emptyList(), user);
+    super(
+        cluster,
+        traitSet,
+        table,
+        child,
+        tableMetadata,
+        functionConfig,
+        rowType,
+        null,
+        survivingRecords,
+        Collections.emptyList(),
+        user);
     this.includeIcebergPartitionInfo = includeIcebergPartitionInfo;
   }
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new IcebergManifestScanPrel(getCluster(), getTraitSet(), getTable(), sole(inputs), getTableMetadata(),
-        getTableFunctionConfig(), getRowType(), getSurvivingRecords(), user,this.includeIcebergPartitionInfo);
+    return new IcebergManifestScanPrel(
+        getCluster(),
+        getTraitSet(),
+        getTable(),
+        sole(inputs),
+        getTableMetadata(),
+        getTableFunctionConfig(),
+        getRowType(),
+        getSurvivingRecords(),
+        user,
+        this.includeIcebergPartitionInfo);
   }
 
   @Override
@@ -137,7 +164,8 @@ public class IcebergManifestScanPrel extends TableFunctionPrel {
     ManifestScanFilters manifestScanFilters = context.getManifestScanFilters();
 
     if (manifestScanFilters.doesIcebergAnyColExpressionExists()) {
-      Expression icebergAnyColExpression = manifestScanFilters.getIcebergAnyColExpressionDeserialized();
+      Expression icebergAnyColExpression =
+          manifestScanFilters.getIcebergAnyColExpressionDeserialized();
       pw.item("ManifestFile Filter AnyColExpression", icebergAnyColExpression.toString());
     }
 
@@ -149,19 +177,24 @@ public class IcebergManifestScanPrel extends TableFunctionPrel {
       LongRange range = manifestScanFilters.getSkipDataFileSizeRange();
       pw.item("data_file.file_size_in_bytes between", range);
     }
-    //write as manifestContent (instead of manifestContentType) to not cause a regression for normal cases
+    // write as manifestContent (instead of manifestContentType) to not cause a regression for
+    // normal cases
     pw.item("manifestContent", context.getManifestContentType());
     return pw;
   }
 
   @Override
-  protected double defaultEstimateRowCount(TableFunctionConfig functionConfig, RelMetadataQuery mq) {
+  protected double defaultEstimateRowCount(
+      TableFunctionConfig functionConfig, RelMetadataQuery mq) {
     if (getSurvivingRecords() == null) {
-      // we should always have a surviving records count provided which would be based on the data file count from table
+      // we should always have a surviving records count provided which would be based on the data
+      // file count from table
       // metadata, but if not make a guess based on config
-      final PlannerSettings plannerSettings = PrelUtil.getPlannerSettings(getCluster().getPlanner());
-      double rowMultiplier = ((double) plannerSettings.getSliceTarget() /
-          plannerSettings.getOptions().getOption(ICEBERG_MANIFEST_SCAN_RECORDS_PER_THREAD));
+      final PlannerSettings plannerSettings =
+          PrelUtil.getPlannerSettings(getCluster().getPlanner());
+      double rowMultiplier =
+          ((double) plannerSettings.getSliceTarget()
+              / plannerSettings.getOptions().getOption(ICEBERG_MANIFEST_SCAN_RECORDS_PER_THREAD));
       return Math.max(mq.getRowCount(input) * rowMultiplier, 1);
     }
 

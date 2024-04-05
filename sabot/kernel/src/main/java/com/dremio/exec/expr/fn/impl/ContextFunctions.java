@@ -15,25 +15,28 @@
  */
 package com.dremio.exec.expr.fn.impl;
 
-import javax.inject.Inject;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.vector.holders.NullableVarCharHolder;
-
 import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.FunctionTemplate.FunctionSyntax;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Workspace;
 import com.dremio.sabot.exec.context.ContextInformation;
+import javax.inject.Inject;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.vector.holders.NullableVarCharHolder;
 
 @SuppressWarnings("unused")
 public class ContextFunctions {
 
   /**
-   * Implement "user", "session_user" or "system_user" function. Returns the username of the user connected to SabotNode.
+   * Implement "user", "session_user" or "system_user" function. Returns the username of the user
+   * connected to SabotNode.
    */
-  @FunctionTemplate(names = {"user", "session_user", "system_user"}, scope = FunctionTemplate.FunctionScope.SIMPLE, syntax = FunctionSyntax.FUNCTION_ID)
+  @FunctionTemplate(
+      names = {"user", "session_user", "system_user"},
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      syntax = FunctionSyntax.FUNCTION_ID,
+      isDynamic = true)
   public static class User implements SimpleFunction {
     @Output NullableVarCharHolder out;
     @Inject ContextInformation contextInfo;
@@ -42,7 +45,8 @@ public class ContextFunctions {
 
     @Override
     public void setup() {
-      final byte[] queryUserNameBytes = contextInfo.getQueryUser().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+      final byte[] queryUserNameBytes =
+          contextInfo.getQueryUser().getBytes(java.nio.charset.StandardCharsets.UTF_8);
       buffer = buffer.reallocIfNeeded(queryUserNameBytes.length);
       queryUserBytesLength = queryUserNameBytes.length;
       buffer.setBytes(0, queryUserNameBytes);
@@ -60,10 +64,13 @@ public class ContextFunctions {
   /**
    * Function that returns the name of the user currently executing the query.
    *
-   * Difference between {@link User} and this function is, the latter can be constant folded and the
-   * former cannot.
+   * <p>Difference between {@link User} and this function is, the latter can be constant folded and
+   * the former cannot.
    */
-  @FunctionTemplate(names = {"query_user"}, scope = FunctionTemplate.FunctionScope.SIMPLE, isDynamic = true)
+  @FunctionTemplate(
+      names = {"query_user"},
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      isDynamic = true)
   public static class QueryUserFunction implements SimpleFunction {
     @Output NullableVarCharHolder out;
     @Inject ContextInformation contextInfo;
@@ -72,7 +79,8 @@ public class ContextFunctions {
 
     @Override
     public void setup() {
-      final byte[] queryUserNameBytes = contextInfo.getQueryUser().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+      final byte[] queryUserNameBytes =
+          contextInfo.getQueryUser().getBytes(java.nio.charset.StandardCharsets.UTF_8);
       buffer = buffer.reallocIfNeeded(queryUserNameBytes.length);
       queryUserBytesLength = queryUserNameBytes.length;
       buffer.setBytes(0, queryUserNameBytes);
@@ -87,10 +95,12 @@ public class ContextFunctions {
     }
   }
 
-  /**
-   * Implement "current_schema" function. Returns the default schema in current session.
-   */
-  @FunctionTemplate(name = "current_schema", scope = FunctionTemplate.FunctionScope.SIMPLE, syntax = FunctionSyntax.FUNCTION_ID, isDynamic = true)
+  /** Implement "current_schema" function. Returns the default schema in current session. */
+  @FunctionTemplate(
+      name = "current_schema",
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      syntax = FunctionSyntax.FUNCTION_ID,
+      isDynamic = true)
   public static class CurrentSchema implements SimpleFunction {
     @Output NullableVarCharHolder out;
     @Inject ContextInformation contextInfo;
@@ -99,11 +109,10 @@ public class ContextFunctions {
 
     @Override
     public void setup() {
-      final byte[] currentSchemaBytes = contextInfo
-        .getCurrentDefaultSchema()
-        .getBytes(java.nio.charset.StandardCharsets.UTF_8);
+      final byte[] currentSchemaBytes =
+          contextInfo.getCurrentDefaultSchema().getBytes(java.nio.charset.StandardCharsets.UTF_8);
       buffer = buffer.reallocIfNeeded(currentSchemaBytes.length);
-      currentSchemaBytesLength= currentSchemaBytes.length;
+      currentSchemaBytesLength = currentSchemaBytes.length;
       buffer.setBytes(0, currentSchemaBytes);
     }
 
@@ -116,10 +125,12 @@ public class ContextFunctions {
     }
   }
 
-  /**
-   * Implement "last_query_id" function. Returns the last query id for the user.
-   */
-  @FunctionTemplate(name = "last_query_id", scope = FunctionTemplate.FunctionScope.SIMPLE, syntax = FunctionSyntax.FUNCTION_ID, isDynamic = true)
+  /** Implement "last_query_id" function. Returns the last query id for the user. */
+  @FunctionTemplate(
+      name = "last_query_id",
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      syntax = FunctionSyntax.FUNCTION_ID,
+      isDynamic = true)
   public static class LastQueryId implements SimpleFunction {
     @Output NullableVarCharHolder out;
     @Inject ContextInformation contextInfo;
@@ -146,6 +157,5 @@ public class ContextFunctions {
         out.buffer = buffer;
       }
     }
-
   }
 }

@@ -15,33 +15,37 @@
  */
 package com.dremio.sabot.op.join.vhash.spill.replay;
 
-import java.io.IOException;
-import java.util.LinkedList;
-import java.util.function.Function;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.sabot.op.join.vhash.spill.JoinSetupParams;
 import com.dremio.sabot.op.join.vhash.spill.YieldingRunnable;
 import com.dremio.sabot.op.join.vhash.spill.partition.Partition;
+import java.io.IOException;
+import java.util.LinkedList;
+import java.util.function.Function;
 
 /**
  * Recursive Re-player for join spilling.
  *
- * 1. Picks the first entry off the replay list, and replay both build & probe.
- * 2. As part of (1), more replay entries can get generated and appended to the replay list if there is spilling
- *    (so, it's recursive).
- * 3. Delete the just processed entry from the replay list. Back to step (1).
+ * <p>1. Picks the first entry off the replay list, and replay both build & probe. 2. As part of
+ * (1), more replay entries can get generated and appended to the replay list if there is spilling
+ * (so, it's recursive). 3. Delete the just processed entry from the replay list. Back to step (1).
  */
 public class JoinRecursiveReplayer implements YieldingRunnable {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(JoinRecursiveReplayer.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(JoinRecursiveReplayer.class);
   private final LinkedList<JoinReplayEntry> replayList;
   private final Function<JoinReplayEntry, JoinReplayer> joinReplayerFactory;
   private JoinReplayer currentReplayer;
 
-  public JoinRecursiveReplayer(JoinSetupParams setupParams, Partition partition, VectorContainer outgoing, int targetOutputSize) {
+  public JoinRecursiveReplayer(
+      JoinSetupParams setupParams,
+      Partition partition,
+      VectorContainer outgoing,
+      int targetOutputSize) {
     this.replayList = setupParams.getReplayEntries();
-    this.joinReplayerFactory = (entry) -> new JoinReplayer(entry, setupParams, partition, outgoing, targetOutputSize);
+    this.joinReplayerFactory =
+        (entry) -> new JoinReplayer(entry, setupParams, partition, outgoing, targetOutputSize);
   }
 
   @Override
@@ -62,7 +66,8 @@ public class JoinRecursiveReplayer implements YieldingRunnable {
       // for debug
       // dumpInfo();
 
-      // pick the entry with the smallest build size. That will have the highest probability of completing without spilling.
+      // pick the entry with the smallest build size. That will have the highest probability of
+      // completing without spilling.
       JoinReplayEntry victim = null;
       long victimSize = Long.MAX_VALUE;
       for (JoinReplayEntry entry : replayList) {
@@ -74,9 +79,12 @@ public class JoinRecursiveReplayer implements YieldingRunnable {
       assert victim != null;
       boolean removed = replayList.remove(victim);
       assert removed;
-      logger.debug("picked entry for replay build size {} records {} probe size {} records {}",
-        victim.getBuildSize(), victim.getBuildNumRecords(),
-        victim.getProbeSize(), victim.getProbeNumRecords());
+      logger.debug(
+          "picked entry for replay build size {} records {} probe size {} records {}",
+          victim.getBuildSize(),
+          victim.getBuildNumRecords(),
+          victim.getProbeSize(),
+          victim.getProbeNumRecords());
       currentReplayer = joinReplayerFactory.apply(victim);
     }
     return 0;
@@ -100,10 +108,15 @@ public class JoinRecursiveReplayer implements YieldingRunnable {
         probeSize += entry.getProbeSize();
         probeRecords += entry.getProbeNumRecords();
       }
-      logger.debug("spill has cumulative build size {} records {} probe size {} records {}, across {} replay entries",
-        buildSize, buildRecords, probeSize, probeRecords,
-        replayList.size());
-    } catch (IOException ignore) {}
+      logger.debug(
+          "spill has cumulative build size {} records {} probe size {} records {}, across {} replay entries",
+          buildSize,
+          buildRecords,
+          probeSize,
+          probeRecords,
+          replayList.size());
+    } catch (IOException ignore) {
+    }
   }
 
   @Override

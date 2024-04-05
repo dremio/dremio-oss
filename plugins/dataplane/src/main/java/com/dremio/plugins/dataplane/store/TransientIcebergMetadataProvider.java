@@ -15,11 +15,6 @@
  */
 package com.dremio.plugins.dataplane.store;
 
-import java.util.function.Supplier;
-
-import org.apache.hadoop.conf.Configuration;
-import org.apache.iceberg.Table;
-
 import com.dremio.connector.metadata.BytesOutput;
 import com.dremio.connector.metadata.DatasetMetadata;
 import com.dremio.connector.metadata.EntityPath;
@@ -35,14 +30,17 @@ import com.dremio.options.OptionResolver;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.dremio.service.namespace.file.proto.IcebergFileConfig;
 import com.dremio.service.namespace.file.proto.ParquetFileConfig;
-
 import io.opentelemetry.instrumentation.annotations.WithSpan;
+import java.util.function.Supplier;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.iceberg.Table;
 
 /**
- * Iceberg dataset accessor that provides metadata of an Iceberg table; the returned metadata should not be
- * persisted.
+ * Iceberg dataset accessor that provides metadata of an Iceberg table; the returned metadata should
+ * not be persisted.
  */
-public class TransientIcebergMetadataProvider extends BaseIcebergExecutionDatasetAccessor implements VersionedDatasetHandle {
+public class TransientIcebergMetadataProvider extends BaseIcebergExecutionDatasetAccessor
+    implements VersionedDatasetHandle {
 
   private final Supplier<Table> tableSupplier;
   private String contentId;
@@ -56,10 +54,19 @@ public class TransientIcebergMetadataProvider extends BaseIcebergExecutionDatase
       MutablePlugin plugin,
       TableSchemaProvider tableSchemaProvider,
       OptionResolver optionResolver,
-      String contentId, // This ContentId in the Nessie ContentId and applies to iceberg tables  with root pointers in nessie. In other cases can be null or a random string
+      String
+          contentId, // This ContentId in the Nessie ContentId and applies to iceberg tables  with
+      // root pointers in nessie. In other cases can be null or a random string
       String uniqueInstanceId // uuid extracted from the Iceberg metadata location
-  ) {
-    super(datasetPath, tableSupplier, configuration, tableSnapshotProvider, plugin, tableSchemaProvider, optionResolver);
+      ) {
+    super(
+        datasetPath,
+        tableSupplier,
+        configuration,
+        tableSnapshotProvider,
+        plugin,
+        tableSchemaProvider,
+        optionResolver);
     this.tableSupplier = tableSupplier;
     this.contentId = contentId;
     this.uniqueInstanceId = uniqueInstanceId;
@@ -68,9 +75,9 @@ public class TransientIcebergMetadataProvider extends BaseIcebergExecutionDatase
   @Override
   protected FileConfig getFileConfig() {
     return new IcebergFileConfig()
-      .setParquetDataFormat(new ParquetFileConfig())
-      .asFileConfig()
-      .setLocation(tableSupplier.get().location());
+        .setParquetDataFormat(new ParquetFileConfig())
+        .asFileConfig()
+        .setLocation(tableSupplier.get().location());
   }
 
   @Override
@@ -87,7 +94,7 @@ public class TransientIcebergMetadataProvider extends BaseIcebergExecutionDatase
   @WithSpan
   @Override
   public DremioTable translateToDremioTable(VersionedDatasetAdapter vda, String accesssUserName) {
-    return vda.translateIcebergTable(accesssUserName);
+    return vda.translateIcebergTable(accesssUserName, tableSupplier.get());
   }
 
   @Override

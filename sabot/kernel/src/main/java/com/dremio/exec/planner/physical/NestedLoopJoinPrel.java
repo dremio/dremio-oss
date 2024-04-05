@@ -15,25 +15,6 @@
  */
 package com.dremio.exec.planner.physical;
 
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
-import java.util.function.IntFunction;
-
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelOptCost;
-import org.apache.calcite.plan.RelOptPlanner;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.RelWriter;
-import org.apache.calcite.rel.core.Join;
-import org.apache.calcite.rel.core.JoinRelType;
-import org.apache.calcite.rel.metadata.RelMetadataQuery;
-import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.rex.RexUtil;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.logical.data.JoinCondition;
@@ -49,42 +30,84 @@ import com.dremio.options.Options;
 import com.dremio.options.TypeValidators.BooleanValidator;
 import com.dremio.options.TypeValidators.LongValidator;
 import com.dremio.options.TypeValidators.PositiveLongValidator;
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
+import java.util.function.IntFunction;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptCost;
+import org.apache.calcite.plan.RelOptPlanner;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.RelWriter;
+import org.apache.calcite.rel.core.Join;
+import org.apache.calcite.rel.core.JoinRelType;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexUtil;
 
 @Options
-public class NestedLoopJoinPrel  extends JoinPrel {
+public class NestedLoopJoinPrel extends JoinPrel {
 
-  public static final LongValidator RESERVE = new PositiveLongValidator("planner.op.nlj.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
-  public static final LongValidator LIMIT = new PositiveLongValidator("planner.op.nlj.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
-  public static final LongValidator OUTPUT_COUNT = new PositiveLongValidator("planner.op.nlj.output_count", Long.MAX_VALUE, 1048576L);
-  public static final BooleanValidator VECTORIZED = new BooleanValidator("planner.op.nlj.vectorized", true);
+  public static final LongValidator RESERVE =
+      new PositiveLongValidator("planner.op.nlj.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
+  public static final LongValidator LIMIT =
+      new PositiveLongValidator("planner.op.nlj.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
+  public static final LongValidator OUTPUT_COUNT =
+      new PositiveLongValidator("planner.op.nlj.output_count", Long.MAX_VALUE, 1048576L);
+  public static final BooleanValidator VECTORIZED =
+      new BooleanValidator("planner.op.nlj.vectorized", true);
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(NestedLoopJoinPrel.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(NestedLoopJoinPrel.class);
 
   private final RexNode vectorExpression;
 
-  private NestedLoopJoinPrel(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, JoinRelType joinType, RexNode condition, RexNode vectorExpression) {
-    super(cluster, traits, left, right, condition, joinType);
+  private NestedLoopJoinPrel(
+      RelOptCluster cluster,
+      RelTraitSet traits,
+      RelNode left,
+      RelNode right,
+      JoinRelType joinType,
+      RexNode condition,
+      RexNode vectorExpression) {
+    super(cluster, traits, left, right, condition, joinType, false);
     this.vectorExpression = vectorExpression;
   }
 
-
-  public static NestedLoopJoinPrel create(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, JoinRelType joinType, RexNode condition) {
+  public static NestedLoopJoinPrel create(
+      RelOptCluster cluster,
+      RelTraitSet traits,
+      RelNode left,
+      RelNode right,
+      JoinRelType joinType,
+      RexNode condition) {
     final RelTraitSet adjustedTraits = JoinPrel.adjustTraits(traits);
     return new NestedLoopJoinPrel(cluster, adjustedTraits, left, right, joinType, condition, null);
   }
 
   @Override
-  public Join copy(RelTraitSet traitSet, RexNode conditionExpr, RelNode left, RelNode right, JoinRelType joinType, boolean semiJoinDone) {
-    return new NestedLoopJoinPrel(this.getCluster(), traitSet, left, right, joinType, conditionExpr, vectorExpression);
+  public Join copy(
+      RelTraitSet traitSet,
+      RexNode conditionExpr,
+      RelNode left,
+      RelNode right,
+      JoinRelType joinType,
+      boolean semiJoinDone) {
+    return new NestedLoopJoinPrel(
+        this.getCluster(), traitSet, left, right, joinType, conditionExpr, vectorExpression);
   }
 
   public Join copy(RexNode condition, RexNode vectorExpression) {
-    return new NestedLoopJoinPrel(this.getCluster(), traitSet, left, right, joinType, condition, vectorExpression);
+    return new NestedLoopJoinPrel(
+        this.getCluster(), traitSet, left, right, joinType, condition, vectorExpression);
   }
 
   @Override
   public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
-    if(PrelUtil.getSettings(getCluster()).useDefaultCosting()) {
+    if (PrelUtil.getSettings(getCluster()).useDefaultCosting()) {
       return super.computeSelfCost(planner, mq).multiplyBy(.1);
     }
     double leftRowCount = mq.getRowCount(this.getLeft());
@@ -103,14 +126,15 @@ public class NestedLoopJoinPrel  extends JoinPrel {
   @Override
   public RelWriter explainTerms(RelWriter pw) {
     return super.explainTerms(pw)
-      .itemIf("vectorCondition", vectorExpression, vectorExpression != null);
+        .itemIf("vectorCondition", vectorExpression, vectorExpression != null);
   }
 
   public RexNode getCombinedCondition() {
-    if(vectorExpression == null){
+    if (vectorExpression == null) {
       return getCondition();
     }
-    return RexUtil.composeConjunction(getCluster().getRexBuilder(), Arrays.asList(vectorExpression, condition), false);
+    return RexUtil.composeConjunction(
+        getCluster().getRexBuilder(), Arrays.asList(vectorExpression, condition), false);
   }
 
   public boolean hasVectorExpression() {
@@ -121,8 +145,8 @@ public class NestedLoopJoinPrel  extends JoinPrel {
   public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
     assert isUnique(getRowType().getFieldNames());
 
-    final PhysicalOperator probePop = ((Prel)left).getPhysicalOperator(creator);
-    final PhysicalOperator buildPop = ((Prel)right).getPhysicalOperator(creator);
+    final PhysicalOperator probePop = ((Prel) left).getPhysicalOperator(creator);
+    final PhysicalOperator buildPop = ((Prel) right).getPhysicalOperator(creator);
     final PlannerSettings settings = PrelUtil.getSettings(getCluster());
     final boolean vectorized = settings.getOptions().getOption(VECTORIZED);
 
@@ -132,45 +156,53 @@ public class NestedLoopJoinPrel  extends JoinPrel {
       // the non-vectorized operation doesn't support conditions.
       final List<String> leftFields = left.getRowType().getFieldNames();
       final List<String> rightFields = right.getRowType().getFieldNames();
-      final List<JoinCondition> conditions = buildJoinConditions(leftFields, rightFields, leftKeys, rightKeys);
-      if(!conditions.isEmpty()) {
-        throw UserException.unsupportedError().message("NLJ doesn't support conditions yet. Conditions found %s.", conditions).build(logger);
+      final List<JoinCondition> conditions =
+          buildJoinConditions(leftFields, rightFields, leftKeys, rightKeys);
+      if (!conditions.isEmpty()) {
+        throw UserException.unsupportedError()
+            .message("NLJ doesn't support conditions yet. Conditions found %s.", conditions)
+            .build(logger);
       }
     } else {
       // vectorized supports conditions.
       final int leftCount = left.getRowType().getFieldCount();
       final int rightCount = leftCount + right.getRowType().getFieldCount();
 
-      // map the fields to the correct input so that RexToExpr can generate appropriate InputReferences
-      IntFunction<Optional<Integer>> fieldIndexToInput = i -> {
-        if(i < leftCount) {
-          return Optional.of(0);
-        } else if (i < rightCount) {
-          return Optional.of(1);
-        } else {
-          throw new IllegalArgumentException("Unable to handle input number: " + i);
-        }
-      };
+      // map the fields to the correct input so that RexToExpr can generate appropriate
+      // InputReferences
+      IntFunction<Optional<Integer>> fieldIndexToInput =
+          i -> {
+            if (i < leftCount) {
+              return Optional.of(0);
+            } else if (i < rightCount) {
+              return Optional.of(1);
+            } else {
+              throw new IllegalArgumentException("Unable to handle input number: " + i);
+            }
+          };
 
-      condition = RexToExpr.toExpr(
-          new ParseContext(settings),
-          getRowType(),
-          getCluster().getRexBuilder(),
-          getCondition(),
-          true,
-          fieldIndexToInput);
-      if(vectorExpression != null) {
-        vectorCondition = RexToExpr.toExpr(
-            new ParseContext(settings),
-            getRowType(),
-            getCluster().getRexBuilder(),
-            vectorExpression,
-            true,
-            fieldIndexToInput);
+      condition =
+          RexToExpr.toExpr(
+              new ParseContext(settings),
+              getRowType(),
+              getCluster().getRexBuilder(),
+              getCondition(),
+              true,
+              fieldIndexToInput);
+      if (vectorExpression != null) {
+        vectorCondition =
+            RexToExpr.toExpr(
+                new ParseContext(settings),
+                getRowType(),
+                getCluster().getRexBuilder(),
+                vectorExpression,
+                true,
+                fieldIndexToInput);
       }
     }
 
-    // generate the schema for execution. Yes, for some reason we put build first then probe (opposite of Calcite)
+    // generate the schema for execution. Yes, for some reason we put build first then probe
+    // (opposite of Calcite)
     final SchemaBuilder b = BatchSchema.newBuilder();
     for (Field f : buildPop.getProps().getSchema()) {
       b.addField(f);

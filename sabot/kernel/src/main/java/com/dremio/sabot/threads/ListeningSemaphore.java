@@ -15,6 +15,4 @@
  */
 package com.dremio.sabot.threads;
 
-public class ListeningSemaphore {
-
-}
+public class ListeningSemaphore {}

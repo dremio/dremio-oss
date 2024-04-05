@@ -23,22 +23,20 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.function.Supplier;
-import java.util.stream.Stream;
-
-import org.apache.arrow.vector.SimpleIntVector;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.ExecTest;
 import com.dremio.sabot.exec.context.OpProfileDef;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.google.common.collect.ImmutableList;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.function.Supplier;
+import java.util.stream.Stream;
+import org.apache.arrow.vector.SimpleIntVector;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
 public class TestPositionalDeleteFilter extends ExecTest {
 
@@ -64,9 +62,8 @@ public class TestPositionalDeleteFilter extends ExecTest {
   @Test
   public void testNoDeletes() {
     // [ ]
-    PositionalDeleteIterator input = fromIterator(Stream.iterate(0L, i -> i + 1)
-      .limit(0)
-      .iterator());
+    PositionalDeleteIterator input =
+        fromIterator(Stream.iterate(0L, i -> i + 1).limit(0).iterator());
 
     PositionalDeleteFilter filter = createFilter(input);
     closeables.add(filter);
@@ -81,9 +78,8 @@ public class TestPositionalDeleteFilter extends ExecTest {
   @Test
   public void testSingleContiguousRangeAtStart() {
     // [ 0 .. 99 ]
-    PositionalDeleteIterator input = fromIterator(Stream.iterate(0L, i -> i + 1)
-      .limit(100)
-      .iterator());
+    PositionalDeleteIterator input =
+        fromIterator(Stream.iterate(0L, i -> i + 1).limit(100).iterator());
 
     PositionalDeleteFilter filter = createFilter(input);
     closeables.add(filter);
@@ -97,9 +93,8 @@ public class TestPositionalDeleteFilter extends ExecTest {
   @Test
   public void testSingleContiguousRangeAtOffset() {
     // [ 8 .. 107 ]
-    PositionalDeleteIterator input = fromIterator(Stream.iterate(8L, i -> i + 1)
-      .limit(100)
-      .iterator());
+    PositionalDeleteIterator input =
+        fromIterator(Stream.iterate(8L, i -> i + 1).limit(100).iterator());
 
     PositionalDeleteFilter filter = createFilter(input);
     closeables.add(filter);
@@ -113,10 +108,8 @@ public class TestPositionalDeleteFilter extends ExecTest {
   @Test
   public void testAlternating() {
     // [ 0, 2, 4, 6, 8, 10, 12, 14 ]
-    PositionalDeleteIterator input = fromIterator(Stream.iterate(0L, i -> i + 1)
-      .limit(16)
-      .filter(i -> i % 2 == 0)
-      .iterator());
+    PositionalDeleteIterator input =
+        fromIterator(Stream.iterate(0L, i -> i + 1).limit(16).filter(i -> i % 2 == 0).iterator());
 
     PositionalDeleteFilter filter = createFilter(input);
     closeables.add(filter);
@@ -130,10 +123,8 @@ public class TestPositionalDeleteFilter extends ExecTest {
   @Test
   public void testOddAlternatingWithStartOffset() {
     // [ 3, 5, 7, 9, 11, 13, 15, 17 ]
-    PositionalDeleteIterator input = fromIterator(Stream.iterate(2L, i -> i + 1)
-      .limit(16)
-      .filter(i -> i % 2 == 1)
-      .iterator());
+    PositionalDeleteIterator input =
+        fromIterator(Stream.iterate(2L, i -> i + 1).limit(16).filter(i -> i % 2 == 1).iterator());
 
     PositionalDeleteFilter filter = createFilter(input);
     closeables.add(filter);
@@ -144,14 +135,11 @@ public class TestPositionalDeleteFilter extends ExecTest {
     verifyBatch(filter, ImmutableList.of(1, 0, 0, 0, 0), 8);
   }
 
-
   @Test
   public void testAlternatingRunsOfLength2() {
     // [ 0, 1, 4, 5, 8, 9, 12, 13 ]
-    PositionalDeleteIterator input = fromIterator(Stream.iterate(0L, i -> i + 1)
-      .limit(16)
-      .filter(i -> i % 4 < 2)
-      .iterator());
+    PositionalDeleteIterator input =
+        fromIterator(Stream.iterate(0L, i -> i + 1).limit(16).filter(i -> i % 4 < 2).iterator());
 
     PositionalDeleteFilter filter = createFilter(input);
     closeables.add(filter);
@@ -163,11 +151,11 @@ public class TestPositionalDeleteFilter extends ExecTest {
 
   @Test
   public void testAlternatingRunsOfLength7() {
-    // [ 0, 1, 2, 3, 4, 5, 6, 14, 15, 16, 17, 18, 19, 20, 28, 29, 30, 31, 32, 33, 34, 42, 43, 44, 45, 46, 47, 48 ]
-    PositionalDeleteIterator input = fromIterator(Stream.iterate(0L, i -> i + 1)
-      .limit(7 * 8)
-      .filter(i -> i % 14 < 7)
-      .iterator());
+    // [ 0, 1, 2, 3, 4, 5, 6, 14, 15, 16, 17, 18, 19, 20, 28, 29, 30, 31, 32, 33, 34, 42, 43, 44,
+    // 45, 46, 47, 48 ]
+    PositionalDeleteIterator input =
+        fromIterator(
+            Stream.iterate(0L, i -> i + 1).limit(7 * 8).filter(i -> i % 14 < 7).iterator());
 
     PositionalDeleteFilter filter = createFilter(input);
     closeables.add(filter);
@@ -184,9 +172,8 @@ public class TestPositionalDeleteFilter extends ExecTest {
   @Test
   public void testSparseDeletes() {
     // [ 8, 16, 24 ]
-    PositionalDeleteIterator input = fromIterator(Stream.iterate(8L, i -> i + 8)
-      .limit(3)
-      .iterator());
+    PositionalDeleteIterator input =
+        fromIterator(Stream.iterate(8L, i -> i + 8).limit(3).iterator());
 
     PositionalDeleteFilter filter = createFilter(input);
     closeables.add(filter);
@@ -224,15 +211,15 @@ public class TestPositionalDeleteFilter extends ExecTest {
 
     assertThatThrownBy(() -> filter.applyToDeltas(Integer.MAX_VALUE, BATCH_SIZE, deltas))
         .isInstanceOf(IllegalStateException.class)
-        .hasMessageContaining("Current row position should never be greater than next delete position");
+        .hasMessageContaining(
+            "Current row position should never be greater than next delete position");
   }
 
   @Test
   public void testEndRowLimitingWithNoDeletes() {
     // [ ]
-    PositionalDeleteIterator input = fromIterator(Stream.iterate(0L, i -> i + 1)
-        .limit(0)
-        .iterator());
+    PositionalDeleteIterator input =
+        fromIterator(Stream.iterate(0L, i -> i + 1).limit(0).iterator());
 
     PositionalDeleteFilter filter = createFilter(input);
     closeables.add(filter);
@@ -245,9 +232,8 @@ public class TestPositionalDeleteFilter extends ExecTest {
   @Test
   public void testSeek() {
     // [ 0 .. 99 ]
-    PositionalDeleteIterator input = fromIterator(Stream.iterate(0L, i -> i + 1)
-        .limit(100)
-        .iterator());
+    PositionalDeleteIterator input =
+        fromIterator(Stream.iterate(0L, i -> i + 1).limit(100).iterator());
 
     PositionalDeleteFilter filter = createFilter(input);
     closeables.add(filter);
@@ -277,10 +263,8 @@ public class TestPositionalDeleteFilter extends ExecTest {
   @Test
   public void testSeekAfterPartialIteration() {
     // [ 0, 2, 4, 6, 8, 10, 12, 14 ]
-    PositionalDeleteIterator input = fromIterator(Stream.iterate(0L, i -> i + 1)
-        .limit(16)
-        .filter(i -> i % 2 == 0)
-        .iterator());
+    PositionalDeleteIterator input =
+        fromIterator(Stream.iterate(0L, i -> i + 1).limit(16).filter(i -> i % 2 == 0).iterator());
 
     PositionalDeleteFilter filter = createFilter(input);
     closeables.add(filter);
@@ -291,11 +275,15 @@ public class TestPositionalDeleteFilter extends ExecTest {
     verifyBatch(filter, ImmutableList.of(0, 1, 1, 0, 0), 6);
   }
 
-  private void verifyBatch(PositionalDeleteFilter filter, List<Integer> expected, long expectedDeleteCount) {
+  private void verifyBatch(
+      PositionalDeleteFilter filter, List<Integer> expected, long expectedDeleteCount) {
     verifyBatch(filter, Integer.MAX_VALUE, expected, expectedDeleteCount);
   }
 
-  private void verifyBatch(PositionalDeleteFilter filter, long endRowPos, List<Integer> expected,
+  private void verifyBatch(
+      PositionalDeleteFilter filter,
+      long endRowPos,
+      List<Integer> expected,
       long expectedDeleteCount) {
     filter.applyToDeltas(endRowPos, BATCH_SIZE, deltas);
 
@@ -315,8 +303,7 @@ public class TestPositionalDeleteFilter extends ExecTest {
   private PositionalDeleteIterator fromIterator(Iterator<Long> iterator) {
     return new PositionalDeleteIterator() {
       @Override
-      public void close() throws Exception {
-      }
+      public void close() throws Exception {}
 
       @Override
       public boolean hasNext() {

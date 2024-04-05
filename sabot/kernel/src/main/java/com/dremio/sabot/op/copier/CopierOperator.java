@@ -15,14 +15,6 @@
  */
 package com.dremio.sabot.op.copier;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import org.apache.arrow.memory.OutOfMemoryException;
-import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.util.TransferPair;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.ExecConstants;
@@ -40,6 +32,12 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.spi.SingleInputOperator;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+import java.util.ArrayList;
+import java.util.List;
+import org.apache.arrow.memory.OutOfMemoryException;
+import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.util.TransferPair;
 
 public class CopierOperator implements SingleInputOperator {
 
@@ -59,7 +57,8 @@ public class CopierOperator implements SingleInputOperator {
   // if set to true, outputData() will use transfer instead of copy when no copy is needed
   private boolean checkForStraightCopy;
 
-  public CopierOperator(OperatorContext context, SelectionVectorRemover popConfig) throws OutOfMemoryException {
+  public CopierOperator(OperatorContext context, SelectionVectorRemover popConfig)
+      throws OutOfMemoryException {
     this.producer = context.getClassProducer();
     this.context = context;
   }
@@ -68,31 +67,31 @@ public class CopierOperator implements SingleInputOperator {
   public VectorAccessible setup(VectorAccessible incoming) {
     this.incoming = incoming;
 
-    for(VectorWrapper<?> w : incoming){
+    for (VectorWrapper<?> w : incoming) {
       randomVector = w.getValueVector();
       checkForStraightCopy = true;
     }
 
     output = context.createOutputVectorContainer(incoming.getSchema());
-    switch(incoming.getSchema().getSelectionVectorMode()){
-    case NONE:
-      this.copier = getStraightCopier();
-      checkForStraightCopy = false;
-      break;
-    case TWO_BYTE:
-      this.copier = getGenerated2Copier();
-      break;
-    case FOUR_BYTE:
-      this.copier = getGenerated4Copier();
-      break;
-    default:
-      throw new UnsupportedOperationException();
+    switch (incoming.getSchema().getSelectionVectorMode()) {
+      case NONE:
+        this.copier = getStraightCopier();
+        checkForStraightCopy = false;
+        break;
+      case TWO_BYTE:
+        this.copier = getGenerated2Copier();
+        break;
+      case FOUR_BYTE:
+        this.copier = getGenerated4Copier();
+        break;
+      default:
+        throw new UnsupportedOperationException();
     }
     output.buildSchema(SelectionVectorMode.NONE);
     state = State.CAN_CONSUME;
 
-    if(checkForStraightCopy){
-      for(VectorWrapper<?> vv : incoming){
+    if (checkForStraightCopy) {
+      for (VectorWrapper<?> vv : incoming) {
         TransferPair tp = vv.getValueVector().makeTransferPair(output.addOrGet(vv.getField()));
         transferPairs.add(tp);
       }
@@ -115,13 +114,12 @@ public class CopierOperator implements SingleInputOperator {
   public void consumeData(int targetRecords) {
     // do nothing.
     state = State.CAN_PRODUCE;
-
   }
 
   @Override
   public int outputData() {
-    if(checkForStraightCopy && incoming.getRecordCount() == randomVector.getValueCount()){
-      for(TransferPair tp : transferPairs){
+    if (checkForStraightCopy && incoming.getRecordCount() == randomVector.getValueCount()) {
+      for (TransferPair tp : transferPairs) {
         tp.transfer();
       }
       output.setRecordCount(incoming.getRecordCount());
@@ -131,15 +129,15 @@ public class CopierOperator implements SingleInputOperator {
 
     int recordCount = incoming.getRecordCount() - this.copyOffset;
     int copiedRecords = copier.copyRecords(copyOffset, recordCount);
-    if(copiedRecords < recordCount){
+    if (copiedRecords < recordCount) {
       copyOffset = copyOffset + copiedRecords;
-    }else{
+    } else {
       copyOffset = 0;
       state = State.CAN_CONSUME;
     }
 
-    if(copiedRecords > 0){
-      for(VectorWrapper<?> v : output){
+    if (copiedRecords > 0) {
+      for (VectorWrapper<?> v : output) {
         v.getValueVector().setValueCount(copiedRecords);
       }
     }
@@ -157,8 +155,9 @@ public class CopierOperator implements SingleInputOperator {
     private List<TransferPair> pairs = Lists.newArrayList();
 
     @Override
-    public void setupRemover(FunctionContext context, VectorAccessible incoming, VectorAccessible outgoing){
-      for(VectorWrapper<?> vv : incoming){
+    public void setupRemover(
+        FunctionContext context, VectorAccessible incoming, VectorAccessible outgoing) {
+      for (VectorWrapper<?> vv : incoming) {
         TransferPair tp = vv.getValueVector().makeTransferPair(output.addOrGet(vv.getField()));
         pairs.add(tp);
       }
@@ -166,39 +165,42 @@ public class CopierOperator implements SingleInputOperator {
 
     @Override
     public int copyRecords(int index, int recordCount) {
-      assert index == 0 && recordCount == incoming.getRecordCount() : "Straight copier cannot split batch";
-      for(TransferPair tp : pairs){
+      assert index == 0 && recordCount == incoming.getRecordCount()
+          : "Straight copier cannot split batch";
+      for (TransferPair tp : pairs) {
         tp.transfer();
       }
       return recordCount;
     }
 
     @Override
-    public void close() throws Exception {
-    }
-
+    public void close() throws Exception {}
   }
 
   @Override
-  public <OUT, IN, EXCEP extends Throwable> OUT accept(OperatorVisitor<OUT, IN, EXCEP> visitor, IN value) throws EXCEP {
+  public <OUT, IN, EXCEP extends Throwable> OUT accept(
+      OperatorVisitor<OUT, IN, EXCEP> visitor, IN value) throws EXCEP {
     return visitor.visitSingleInput(this, value);
   }
 
-  private Copier getStraightCopier(){
+  private Copier getStraightCopier() {
     StraightCopier copier = new StraightCopier();
     copier.setupRemover(producer.getFunctionContext(), incoming, output);
     return copier;
   }
 
-  private Copier getGenerated2Copier() throws SchemaChangeException{
+  private Copier getGenerated2Copier() throws SchemaChangeException {
     return getGenerated2Copier(producer, incoming, output);
   }
 
-  public static Copier getGenerated2Copier(ClassProducer producer, VectorAccessible incoming, VectorContainer output) throws SchemaChangeException{
-    Preconditions.checkArgument(incoming.getSchema().getSelectionVectorMode() == SelectionVectorMode.TWO_BYTE,
-      "getGenerated2Copier expects a TWO_BYTE selectionVectorMode");
+  public static Copier getGenerated2Copier(
+      ClassProducer producer, VectorAccessible incoming, VectorContainer output)
+      throws SchemaChangeException {
+    Preconditions.checkArgument(
+        incoming.getSchema().getSelectionVectorMode() == SelectionVectorMode.TWO_BYTE,
+        "getGenerated2Copier expects a TWO_BYTE selectionVectorMode");
 
-    for(VectorWrapper<?> vv : incoming){
+    for (VectorWrapper<?> vv : incoming) {
       vv.getValueVector().makeTransferPair(output.addOrGet(vv.getField()));
     }
 
@@ -211,13 +213,16 @@ public class CopierOperator implements SingleInputOperator {
   }
 
   private Copier getGenerated4Copier() throws SchemaChangeException {
-    Preconditions.checkArgument(incoming.getSchema().getSelectionVectorMode() == SelectionVectorMode.FOUR_BYTE);
+    Preconditions.checkArgument(
+        incoming.getSchema().getSelectionVectorMode() == SelectionVectorMode.FOUR_BYTE);
     return getGenerated4Copier(context.getClassProducer(), incoming, output);
   }
 
-  public static Copier getGenerated4Copier(ClassProducer producer, VectorAccessible incoming, VectorContainer outgoing) throws SchemaChangeException{
+  public static Copier getGenerated4Copier(
+      ClassProducer producer, VectorAccessible incoming, VectorContainer outgoing)
+      throws SchemaChangeException {
 
-    for(Field f : incoming.getSchema()){
+    for (Field f : incoming.getSchema()) {
       outgoing.addIfMissing(f, false);
     }
     final CodeGenerator<Copier> cg = producer.createGenerator(Copier.TEMPLATE_DEFINITION4);
@@ -232,13 +237,11 @@ public class CopierOperator implements SingleInputOperator {
     @Override
     public SingleInputOperator create(OperatorContext context, SelectionVectorRemover operator)
         throws ExecutionSetupException {
-      if(context.getOptions().getOption(ExecConstants.ENABLE_VECTORIZED_COPIER)){
+      if (context.getOptions().getOption(ExecConstants.ENABLE_VECTORIZED_COPIER)) {
         return new VectorizedCopyOperator(context, operator);
       } else {
         return new CopierOperator(context, operator);
       }
     }
   }
-
-
 }

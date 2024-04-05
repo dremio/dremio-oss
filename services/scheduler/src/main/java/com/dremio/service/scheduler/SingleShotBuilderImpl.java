@@ -23,9 +23,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 
-/**
- * Builder to create simple single shot {@code Schedule} instances
- */
+/** Builder to create simple single shot {@code Schedule} instances */
 final class SingleShotBuilderImpl implements SingleShotBuilder {
   private final Instant start;
   private ZoneId zoneId;
@@ -57,7 +55,7 @@ final class SingleShotBuilderImpl implements SingleShotBuilder {
   @Override
   public Schedule build() {
     // simple local schedules always have run only once
-    return new BaseSchedule(SingleShotType.RUN_ONCE_EVERY_UPGRADE, start, zoneId);
+    return new BaseSchedule(SingleShotType.RUN_EXACTLY_ONCE, start, zoneId);
   }
 
   void setZoneId(ZoneId zoneId) {

@@ -19,8 +19,6 @@ import static com.dremio.exec.ExecConstants.NODE_CONTROLS_VALIDATOR;
 import static com.dremio.exec.ExecConstants.NODE_CONTROL_INJECTIONS;
 import static org.junit.Assert.fail;
 
-import java.util.List;
-
 import com.dremio.exec.client.DremioClient;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.UserBitShared;
@@ -29,22 +27,20 @@ import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValue;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.dremio.sabot.rpc.user.UserSession;
+import java.util.List;
 
-/**
- * Static methods for constructing exception and pause injections for testing purposes.
- */
+/** Static methods for constructing exception and pause injections for testing purposes. */
 public class ControlsInjectionUtil {
-  /**
-   * Constructor. Prevent instantiation of static utility class.
-   */
-  private ControlsInjectionUtil() {
-  }
+  /** Constructor. Prevent instantiation of static utility class. */
+  private ControlsInjectionUtil() {}
 
-  public static void setSessionOption(final DremioClient dremioClient, final String option, final String value) {
+  public static void setSessionOption(
+      final DremioClient dremioClient, final String option, final String value) {
     try {
-      final List<QueryDataBatch> results = dremioClient.runQuery(
-        UserBitShared.QueryType.SQL, String.format("ALTER session SET \"%s\" = %s",
-          option, value));
+      final List<QueryDataBatch> results =
+          dremioClient.runQuery(
+              UserBitShared.QueryType.SQL,
+              String.format("ALTER session SET \"%s\" = %s", option, value));
       for (final QueryDataBatch data : results) {
         data.release();
       }
@@ -60,8 +56,8 @@ public class ControlsInjectionUtil {
 
   public static void setControls(final UserSession session, final String controls) {
     validateControlsString(controls);
-    final OptionValue opValue = OptionValue.createString(OptionValue.OptionType.SESSION,
-      NODE_CONTROL_INJECTIONS, controls);
+    final OptionValue opValue =
+        OptionValue.createString(OptionValue.OptionType.SESSION, NODE_CONTROL_INJECTIONS, controls);
 
     final OptionManager options = session.getOptions();
     try {
@@ -82,78 +78,128 @@ public class ControlsInjectionUtil {
   }
 
   /**
-   * Create a single exception injection. Note this format is not directly accepted by the injection mechanism. Use
-   * the {@link Controls} to build exceptions.
-   */
-  public static String createException(final Class<?> siteClass, final String desc, final int nSkip,
-                                       final int nFire, final Class<? extends Throwable> exceptionClass) {
-    final String siteClassName = siteClass.getName();
-    final String exceptionClassName = exceptionClass.getName();
-    return "{ \"type\":\"exception\","
-      + "\"siteClass\":\"" + siteClassName + "\","
-      + "\"desc\":\"" + desc + "\","
-      + "\"nSkip\":" + nSkip + ","
-      + "\"nFire\":" + nFire + ","
-      + "\"exceptionClass\":\"" + exceptionClassName + "\"}";
-  }
-
-  /**
-   * Create a single exception injection on a specific bit. Note this format is not directly accepted by the injection
+   * Create a single exception injection. Note this format is not directly accepted by the injection
    * mechanism. Use the {@link Controls} to build exceptions.
    */
-  public static String createExceptionOnNode(final Class<?> siteClass, final String desc, final int nSkip,
-                                            final int nFire, final Class<? extends Throwable> exceptionClass,
-                                            final NodeEndpoint endpoint) {
+  public static String createException(
+      final Class<?> siteClass,
+      final String desc,
+      final int nSkip,
+      final int nFire,
+      final Class<? extends Throwable> exceptionClass) {
     final String siteClassName = siteClass.getName();
     final String exceptionClassName = exceptionClass.getName();
     return "{ \"type\":\"exception\","
-      + "\"siteClass\":\"" + siteClassName + "\","
-      + "\"desc\":\"" + desc + "\","
-      + "\"nSkip\":" + nSkip + ","
-      + "\"nFire\":" + nFire + ","
-      + "\"exceptionClass\":\"" + exceptionClassName + "\","
-      + "\"address\":\"" + endpoint.getAddress() + "\","
-      + "\"port\":\"" + endpoint.getUserPort() + "\"}";
+        + "\"siteClass\":\""
+        + siteClassName
+        + "\","
+        + "\"desc\":\""
+        + desc
+        + "\","
+        + "\"nSkip\":"
+        + nSkip
+        + ","
+        + "\"nFire\":"
+        + nFire
+        + ","
+        + "\"exceptionClass\":\""
+        + exceptionClassName
+        + "\"}";
   }
 
   /**
-   * Create a pause injection. Note this format is not directly accepted by the injection mechanism. Use the
-   * {@link Controls} to build exceptions.
+   * Create a single exception injection on a specific bit. Note this format is not directly
+   * accepted by the injection mechanism. Use the {@link Controls} to build exceptions.
+   */
+  public static String createExceptionOnNode(
+      final Class<?> siteClass,
+      final String desc,
+      final int nSkip,
+      final int nFire,
+      final Class<? extends Throwable> exceptionClass,
+      final NodeEndpoint endpoint) {
+    final String siteClassName = siteClass.getName();
+    final String exceptionClassName = exceptionClass.getName();
+    return "{ \"type\":\"exception\","
+        + "\"siteClass\":\""
+        + siteClassName
+        + "\","
+        + "\"desc\":\""
+        + desc
+        + "\","
+        + "\"nSkip\":"
+        + nSkip
+        + ","
+        + "\"nFire\":"
+        + nFire
+        + ","
+        + "\"exceptionClass\":\""
+        + exceptionClassName
+        + "\","
+        + "\"address\":\""
+        + endpoint.getAddress()
+        + "\","
+        + "\"port\":\""
+        + endpoint.getUserPort()
+        + "\"}";
+  }
+
+  /**
+   * Create a pause injection. Note this format is not directly accepted by the injection mechanism.
+   * Use the {@link Controls} to build exceptions.
    */
   public static String createPause(final Class<?> siteClass, final String desc, final int nSkip) {
-    return "{ \"type\" : \"pause\"," +
-      "\"siteClass\" : \"" + siteClass.getName() + "\","
-      + "\"desc\" : \"" + desc + "\","
-      + "\"nSkip\" : " + nSkip + "}";
+    return "{ \"type\" : \"pause\","
+        + "\"siteClass\" : \""
+        + siteClass.getName()
+        + "\","
+        + "\"desc\" : \""
+        + desc
+        + "\","
+        + "\"nSkip\" : "
+        + nSkip
+        + "}";
   }
 
   /**
-   * Create a pause injection on a specific bit. Note this format is not directly accepted by the injection
-   * mechanism. Use the {@link Controls} to build exceptions.
+   * Create a pause injection on a specific bit. Note this format is not directly accepted by the
+   * injection mechanism. Use the {@link Controls} to build exceptions.
    */
-  public static String createPauseOnNode(final Class<?> siteClass, final String desc, final int nSkip,
-                                        final NodeEndpoint endpoint) {
-    return "{ \"type\" : \"pause\"," +
-      "\"siteClass\" : \"" + siteClass.getName() + "\","
-      + "\"desc\" : \"" + desc + "\","
-      + "\"nSkip\" : " + nSkip + ","
-      + "\"address\":\"" + endpoint.getAddress() + "\","
-      + "\"port\":\"" + endpoint.getUserPort() + "\"}";
+  public static String createPauseOnNode(
+      final Class<?> siteClass, final String desc, final int nSkip, final NodeEndpoint endpoint) {
+    return "{ \"type\" : \"pause\","
+        + "\"siteClass\" : \""
+        + siteClass.getName()
+        + "\","
+        + "\"desc\" : \""
+        + desc
+        + "\","
+        + "\"nSkip\" : "
+        + nSkip
+        + ","
+        + "\"address\":\""
+        + endpoint.getAddress()
+        + "\","
+        + "\"port\":\""
+        + endpoint.getUserPort()
+        + "\"}";
   }
 
   /**
-   * Create a latch injection. Note this format is not directly accepted by the injection mechanism. Use the
-   * {@link Controls} to build exceptions.
+   * Create a latch injection. Note this format is not directly accepted by the injection mechanism.
+   * Use the {@link Controls} to build exceptions.
    */
   public static String createLatch(final Class<?> siteClass, final String desc) {
-    return "{ \"type\":\"latch\"," +
-      "\"siteClass\":\"" + siteClass.getName() + "\","
-      + "\"desc\":\"" + desc + "\"}";
+    return "{ \"type\":\"latch\","
+        + "\"siteClass\":\""
+        + siteClass.getName()
+        + "\","
+        + "\"desc\":\""
+        + desc
+        + "\"}";
   }
 
-  /**
-   * Clears all the controls.
-   */
+  /** Clears all the controls. */
   public static void clearControls(final DremioClient client) {
     setControls(client, ExecutionControls.DEFAULT_CONTROLS);
   }

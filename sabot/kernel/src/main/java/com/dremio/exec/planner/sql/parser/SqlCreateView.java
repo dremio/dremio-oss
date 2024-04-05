@@ -15,9 +15,12 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.dremio.common.utils.PathUtils;
+import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
+import com.dremio.service.namespace.NamespaceKey;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import java.util.List;
-import java.util.stream.Collectors;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -29,27 +32,24 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
-import com.dremio.service.namespace.NamespaceKey;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
-
 public class SqlCreateView extends SqlCall {
   private static final SqlLiteral sqlLiteralNull = SqlLiteral.createNull(SqlParserPos.ZERO);
-  public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("CREATE_VIEW", SqlKind.CREATE_VIEW) {
-    @Override
-    public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      return new SqlCreateView(
-        pos,
-        (SqlIdentifier) operands[0],
-        (SqlNodeList) operands[1],
-        operands[2],
-        (SqlLiteral) operands[3],
-        (SqlPolicy) operands[4],
-        ((SqlLiteral) operands[5]).symbolValue(ReferenceType.class),
-        (SqlIdentifier) operands[6]);
-    }
-  };
+  public static final SqlSpecialOperator OPERATOR =
+      new SqlSpecialOperator("CREATE_VIEW", SqlKind.CREATE_VIEW) {
+        @Override
+        public SqlCall createCall(
+            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+          return new SqlCreateView(
+              pos,
+              (SqlIdentifier) operands[0],
+              (SqlNodeList) operands[1],
+              operands[2],
+              (SqlLiteral) operands[3],
+              (SqlPolicy) operands[4],
+              ((SqlLiteral) operands[5]).symbolValue(ReferenceType.class),
+              (SqlIdentifier) operands[6]);
+        }
+      };
 
   private SqlIdentifier viewName;
   private SqlNodeList fieldList;
@@ -59,29 +59,29 @@ public class SqlCreateView extends SqlCall {
   private ReferenceType refType;
   private SqlIdentifier refValue;
 
-
   public SqlCreateView(
-    SqlParserPos pos,
-    SqlIdentifier viewName,
-    SqlNodeList fieldList,
-    SqlNode query,
-    SqlLiteral replaceView,
-    SqlPolicy policy,
-    ReferenceType refType,
-    SqlIdentifier refValue) {
+      SqlParserPos pos,
+      SqlIdentifier viewName,
+      SqlNodeList fieldList,
+      SqlNode query,
+      SqlLiteral replaceView,
+      SqlPolicy policy,
+      ReferenceType refType,
+      SqlIdentifier refValue) {
     this(pos, viewName, fieldList, query, replaceView.booleanValue(), policy, refType, refValue);
   }
 
   public SqlCreateView(
-    SqlParserPos pos,
-    SqlIdentifier viewName,
-    SqlNodeList fieldList,
-    SqlNode query,
-    boolean replaceView,
-    SqlPolicy policy,
-    ReferenceType refType,
-    SqlIdentifier refValue) {
-    // For "CREATE VIEW ... AS ..." statement, pos is set to be the position of the `AS` token in the parser.
+      SqlParserPos pos,
+      SqlIdentifier viewName,
+      SqlNodeList fieldList,
+      SqlNode query,
+      boolean replaceView,
+      SqlPolicy policy,
+      ReferenceType refType,
+      SqlIdentifier refValue) {
+    // For "CREATE VIEW ... AS ..." statement, pos is set to be the position of the `AS` token in
+    // the parser.
     // This would help us to get the row or query expression, i.e. the definition of the view.
     // Note for other SQL statements, pos is usually set to be the beginning of the statement.
     super(pos);
@@ -107,7 +107,10 @@ public class SqlCreateView extends SqlCall {
     ops.add(query);
     ops.add(SqlLiteral.createBoolean(replaceView, SqlParserPos.ZERO));
     ops.add(policy);
-    ops.add(getRefType() == null ? sqlLiteralNull: SqlLiteral.createSymbol(getRefType(), SqlParserPos.ZERO));
+    ops.add(
+        getRefType() == null
+            ? sqlLiteralNull
+            : SqlLiteral.createSymbol(getRefType(), SqlParserPos.ZERO));
     ops.add(refValue);
     return ops;
   }
@@ -145,7 +148,7 @@ public class SqlCreateView extends SqlCall {
       return ImmutableList.of();
     }
 
-    return viewName.names.subList(0, viewName.names.size()-1);
+    return viewName.names.subList(0, viewName.names.size() - 1);
   }
 
   public String getName() {
@@ -156,11 +159,11 @@ public class SqlCreateView extends SqlCall {
     return viewName.names.get(viewName.names.size() - 1);
   }
 
-  public String getFullName(){
+  public String getFullName() {
     if (viewName.isSimple()) {
       return viewName.getSimple();
     }
-    return viewName.names.stream().collect(Collectors.joining("."));
+    return PathUtils.constructFullPath(viewName.names);
   }
 
   public NamespaceKey getPath() {
@@ -193,9 +196,13 @@ public class SqlCreateView extends SqlCall {
     return policy;
   }
 
-  public SqlNode getQuery() { return query; }
+  public SqlNode getQuery() {
+    return query;
+  }
 
-  public boolean getReplace() { return replaceView; }
+  public boolean getReplace() {
+    return replaceView;
+  }
 
   public ReferenceType getRefType() {
     return refType;

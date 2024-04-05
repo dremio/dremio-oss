@@ -19,11 +19,13 @@ import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.spi.SingleInputOperator;
 
-public class EasyWriterOperatorCreator implements SingleInputOperator.Creator<EasyWriter>{
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(EasyWriterOperatorCreator.class);
+public class EasyWriterOperatorCreator implements SingleInputOperator.Creator<EasyWriter> {
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(EasyWriterOperatorCreator.class);
 
   @Override
-  public SingleInputOperator create(OperatorContext context, EasyWriter operator) throws ExecutionSetupException {
+  public SingleInputOperator create(OperatorContext context, EasyWriter operator)
+      throws ExecutionSetupException {
     return operator.getFormatPlugin().getWriterBatch(context, operator);
   }
 }

@@ -15,16 +15,13 @@
  */
 package com.dremio.common.scanner.persistence;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
-
-/**
- * describe a class that was annotated with one of the configured annotations
- */
+/** describe a class that was annotated with one of the configured annotations */
 public final class AnnotatedClassDescriptor {
 
   private final String className;
@@ -32,7 +29,8 @@ public final class AnnotatedClassDescriptor {
   private final List<FieldDescriptor> fields;
   private final Map<String, AnnotationDescriptor> annotationMap;
 
-  @JsonCreator public AnnotatedClassDescriptor(
+  @JsonCreator
+  public AnnotatedClassDescriptor(
       @JsonProperty("className") String className,
       @JsonProperty("annotations") List<AnnotationDescriptor> annotations,
       @JsonProperty("fields") List<FieldDescriptor> fields) {
@@ -85,7 +83,12 @@ public final class AnnotatedClassDescriptor {
 
   @Override
   public String toString() {
-    return "Function [className=" + className + ", annotations=" + annotations
-        + ", fields=" + fields + "]";
+    return "Function [className="
+        + className
+        + ", annotations="
+        + annotations
+        + ", fields="
+        + fields
+        + "]";
   }
 }

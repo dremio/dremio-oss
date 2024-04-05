@@ -17,11 +17,11 @@ package com.dremio.exec.store.ischema;
 
 public final class InfoSchemaConstants {
   /** Prevents instantiation. */
-  private InfoSchemaConstants() {
-  }
+  private InfoSchemaConstants() {}
 
   /** Name of catalog containing information schema. */
   public static final String IS_CATALOG_NAME = "DREMIO";
+
   public static final String IS_LEGACY_CATALOG_NAME = "DRILL";
 
   /** Catalog description */
@@ -100,5 +100,4 @@ public final class InfoSchemaConstants {
   public static final String COLS_COL_INTERVAL_TYPE = "INTERVAL_TYPE";
   public static final String COLS_COL_INTERVAL_PRECISION = "INTERVAL_PRECISION";
   public static final String COLS_COL_COLUMN_SIZE = "COLUMN_SIZE";
-
 }

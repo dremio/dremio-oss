@@ -16,8 +16,8 @@
 package com.dremio.sabot.task;
 
 /**
- * Provides general information about the scheduler's TaskHandle.
- * Implementations of this interface should override toString()
+ * Provides general information about the scheduler's TaskHandle. Implementations of this interface
+ * should override toString()
  */
 public interface TaskDescriptor {
 

@@ -18,23 +18,6 @@ package com.dremio.exec.planner.physical;
 
 import static com.google.common.base.Preconditions.checkState;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelFieldCollation;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.core.AggregateCall;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeField;
-import org.apache.calcite.rex.RexLiteral;
-import org.apache.calcite.util.BitSets;
-
 import com.dremio.common.expression.ErrorCollector;
 import com.dremio.common.expression.ErrorCollectorImpl;
 import com.dremio.common.expression.FieldReference;
@@ -57,38 +40,72 @@ import com.dremio.options.TypeValidators.LongValidator;
 import com.dremio.options.TypeValidators.PositiveLongValidator;
 import com.dremio.sabot.op.windowframe.WindowFunction;
 import com.google.common.collect.Lists;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelFieldCollation;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.core.AggregateCall;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.calcite.rex.RexInputRef;
+import org.apache.calcite.rex.RexLiteral;
+import org.apache.calcite.rex.RexWindowBound;
+import org.apache.calcite.util.BitSets;
 
 @Options
 public class WindowPrel extends WindowRelBase implements Prel {
 
-  public static final LongValidator RESERVE = new PositiveLongValidator("planner.op.window.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
-  public static final LongValidator LIMIT = new PositiveLongValidator("planner.op.window.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
+  public static final LongValidator RESERVE =
+      new PositiveLongValidator("planner.op.window.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
+  public static final LongValidator LIMIT =
+      new PositiveLongValidator("planner.op.window.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
+  // The index of the first constant in the constants list. Needed to get the offset for the bound
+  private final Integer startConstantsIndex;
 
-  private WindowPrel(RelOptCluster cluster,
-                    RelTraitSet traits,
-                    RelNode child,
-                    List<RexLiteral> constants,
-                    RelDataType rowType,
-                    Group window) {
+  private WindowPrel(
+      RelOptCluster cluster,
+      RelTraitSet traits,
+      RelNode child,
+      List<RexLiteral> constants,
+      RelDataType rowType,
+      Group window,
+      Integer startConstantsIndex) {
     super(cluster, traits, child, constants, rowType, Collections.singletonList(window));
+    this.startConstantsIndex = startConstantsIndex;
   }
 
-  public static WindowPrel create(RelOptCluster cluster,
-                    RelTraitSet traitSet,
-                    RelNode child,
-                    List<RexLiteral> constants,
-                    RelDataType rowType,
-                    Group window) {
-    final RelTraitSet traits = adjustTraits(cluster, child, Collections.singletonList(window), traitSet)
-        // At first glance, Dremio window operator does not preserve distribution
-        .replaceIf(DistributionTraitDef.INSTANCE, () -> DistributionTrait.DEFAULT);
-    return new WindowPrel(cluster, traits, child, constants, rowType, window);
+  public static WindowPrel create(
+      RelOptCluster cluster,
+      RelTraitSet traitSet,
+      RelNode child,
+      List<RexLiteral> constants,
+      RelDataType rowType,
+      Group window,
+      Integer startConstantsIndex) {
+    final RelTraitSet traits =
+        adjustTraits(cluster, child, Collections.singletonList(window), traitSet)
+            // At first glance, Dremio window operator does not preserve distribution
+            .replaceIf(DistributionTraitDef.INSTANCE, () -> DistributionTrait.DEFAULT);
+    return new WindowPrel(cluster, traits, child, constants, rowType, window, startConstantsIndex);
   }
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
     final RelDataType copiedRowType = deriveCopiedRowTypeFromInput(sole(inputs));
-    return new WindowPrel(getCluster(), traitSet, sole(inputs), constants, copiedRowType, groups.get(0));
+    return new WindowPrel(
+        getCluster(),
+        traitSet,
+        sole(inputs),
+        constants,
+        copiedRowType,
+        groups.get(0),
+        startConstantsIndex);
   }
 
   @Override
@@ -119,20 +136,28 @@ public class WindowPrel extends WindowRelBase implements Prel {
     }
 
     for (RelFieldCollation fieldCollation : window.orderKeys.getFieldCollations()) {
-      orderings.add(new Order.Ordering(fieldCollation.getDirection(), new FieldReference(childFields.get(fieldCollation.getFieldIndex())), fieldCollation.nullDirection));
+      orderings.add(
+          new Order.Ordering(
+              fieldCollation.getDirection(),
+              new FieldReference(childFields.get(fieldCollation.getFieldIndex())),
+              fieldCollation.nullDirection));
     }
 
     final BatchSchema childSchema = childPOP.getProps().getSchema();
     List<NamedExpression> exprs = new ArrayList<>();
-    for(Field f : childSchema){
-      exprs.add(new NamedExpression(new FieldReference(f.getName()), new FieldReference(f.getName())));
+    for (Field f : childSchema) {
+      exprs.add(
+          new NamedExpression(new FieldReference(f.getName()), new FieldReference(f.getName())));
     }
-    SchemaBuilder schemaBuilder = ExpressionTreeMaterializer.materializeFields(exprs, childSchema, creator.getFunctionLookupContext())
+    SchemaBuilder schemaBuilder =
+        ExpressionTreeMaterializer.materializeFields(
+                exprs, childSchema, creator.getFunctionLookupContext())
             .setSelectionVectorMode(childSchema.getSelectionVectorMode());
     try (ErrorCollector collector = new ErrorCollectorImpl()) {
       for (NamedExpression expr : aggs) {
         WindowFunction func = WindowFunction.fromExpression(expr);
-        schemaBuilder.addField(func.materialize(expr, childSchema, collector, creator.getFunctionLookupContext()));
+        schemaBuilder.addField(
+            func.materialize(expr, childSchema, collector, creator.getFunctionLookupContext()));
       }
     }
     BatchSchema schema = schemaBuilder.build();
@@ -144,9 +169,8 @@ public class WindowPrel extends WindowRelBase implements Prel {
         aggs,
         orderings,
         window.isRows,
-        WindowPOP.newBound(window.lowerBound),
-        WindowPOP.newBound(window.upperBound)
-        );
+        getBound(window.lowerBound),
+        getBound(window.upperBound));
   }
 
   protected LogicalExpression toExpr(AggregateCall call, List<String> fn) {
@@ -159,7 +183,9 @@ public class WindowPrel extends WindowRelBase implements Prel {
         args.add(new FieldReference(fn.get(i)));
       } else {
         final RexLiteral constant = constants.get(indexInConstants);
-        LogicalExpression expr = RexToExpr.toExpr(context, getInput().getRowType(), getCluster().getRexBuilder(), constant);
+        LogicalExpression expr =
+            RexToExpr.toExpr(
+                context, getInput().getRowType(), getCluster().getRexBuilder(), constant);
         args.add(expr);
       }
     }
@@ -173,7 +199,8 @@ public class WindowPrel extends WindowRelBase implements Prel {
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(PrelVisitor<T, X, E> logicalVisitor, X value) throws E {
+  public <T, X, E extends Throwable> T accept(PrelVisitor<T, X, E> logicalVisitor, X value)
+      throws E {
     return logicalVisitor.visitPrel(this, value);
   }
 
@@ -198,9 +225,9 @@ public class WindowPrel extends WindowRelBase implements Prel {
   }
 
   /**
-   * Derive rowType for the copied WindowPrel based on input.
-   * When copy() is called, the input might be different from the current one's input.
-   * We have to use the new input's field in the copied WindowPrel.
+   * Derive rowType for the copied WindowPrel based on input. When copy() is called, the input might
+   * be different from the current one's input. We have to use the new input's field in the copied
+   * WindowPrel.
    */
   private RelDataType deriveCopiedRowTypeFromInput(final RelNode input) {
     final RelDataType inputRowType = input.getRowType();
@@ -214,9 +241,36 @@ public class WindowPrel extends WindowRelBase implements Prel {
       fieldList.add(windowRowType.getFieldList().get(i));
     }
 
-    final RelDataType rowType = this.getCluster().getRexBuilder().getTypeFactory().createStructType(fieldList);
+    final RelDataType rowType =
+        this.getCluster().getRexBuilder().getTypeFactory().createStructType(fieldList);
 
     return rowType;
   }
 
+  /**
+   * If bound is CURRENT_ROW, return 0. If bound is UNBOUNDED, return Integer.MAX_VALUE for
+   * FOLLOWING or Integer.MIN_VALUE for PRECEDING. If bound is a constant, return the value of the
+   * constant.
+   */
+  private int getOffsetForBound(RexWindowBound bound) {
+    if (bound.isCurrentRow()) {
+      return 0;
+    }
+    if (bound.isUnbounded()) {
+      if (bound.isPreceding()) {
+        return Integer.MIN_VALUE;
+      } else {
+        return Integer.MAX_VALUE;
+      }
+    }
+    RexInputRef offset = (RexInputRef) bound.getOffset();
+    if (offset != null && offset.getIndex() >= 0 && offset.getIndex() >= startConstantsIndex) {
+      return this.constants.get(offset.getIndex() - startConstantsIndex).getValueAs(Integer.class);
+    }
+    return 0;
+  }
+
+  private WindowPOP.Bound getBound(RexWindowBound bound) {
+    return WindowPOP.newBound(bound, getOffsetForBound(bound));
+  }
 }

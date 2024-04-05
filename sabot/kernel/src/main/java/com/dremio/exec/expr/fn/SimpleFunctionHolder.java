@@ -24,6 +24,7 @@ import com.dremio.exec.expr.ClassGenerator.BlockType;
 import com.dremio.exec.expr.ClassGenerator.HoldingContainer;
 import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
+import com.google.common.base.Throwables;
 import com.sun.codemodel.JBlock;
 import com.sun.codemodel.JConditional;
 import com.sun.codemodel.JExpr;
@@ -31,13 +32,16 @@ import com.sun.codemodel.JExpression;
 import com.sun.codemodel.JMod;
 import com.sun.codemodel.JOp;
 import com.sun.codemodel.JVar;
+import java.lang.reflect.InvocationTargetException;
 
 public class SimpleFunctionHolder extends BaseFunctionHolder {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SimpleFunctionHolder.class);
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(SimpleFunctionHolder.class);
 
   private final String functionClass;
 
-  public SimpleFunctionHolder(FunctionAttributes functionAttributes, FunctionInitializer initializer) {
+  public SimpleFunctionHolder(
+      FunctionAttributes functionAttributes, FunctionInitializer initializer) {
     super(functionAttributes, initializer);
     functionClass = checkNotNull(initializer.getClassName());
   }
@@ -45,12 +49,15 @@ public class SimpleFunctionHolder extends BaseFunctionHolder {
   private String setupBody() {
     return meth("setup", false);
   }
+
   private String evalBody() {
     return meth("eval");
   }
+
   private String resetBody() {
     return meth("reset", false);
   }
+
   private String cleanupBody() {
     return meth("cleanup", false);
   }
@@ -61,28 +68,52 @@ public class SimpleFunctionHolder extends BaseFunctionHolder {
   }
 
   public SimpleFunction createInterpreter() throws Exception {
-    return (SimpleFunction)Class.forName(functionClass).newInstance();
+    try {
+      return (SimpleFunction) Class.forName(functionClass).getDeclaredConstructor().newInstance();
+    } catch (InvocationTargetException e) {
+      Throwable cause = e.getCause();
+      Throwables.throwIfInstanceOf(cause, Exception.class);
+      Throwables.throwIfUnchecked(cause);
+      throw e;
+    }
   }
 
   @Override
-  public HoldingContainer renderEnd(ClassGenerator<?> g, CompleteType resolvedOutput, HoldingContainer[] inputVariables, JVar[]  workspaceJVars){
-    //If the function's annotation specifies a parameter has to be constant expression, but the HoldingContainer
-    //for the argument is not, then raise exception.
-    for (int i =0; i < inputVariables.length; i++) {
+  public HoldingContainer renderEnd(
+      ClassGenerator<?> g,
+      CompleteType resolvedOutput,
+      HoldingContainer[] inputVariables,
+      JVar[] workspaceJVars) {
+    // If the function's annotation specifies a parameter has to be constant expression, but the
+    // HoldingContainer
+    // for the argument is not, then raise exception.
+    for (int i = 0; i < inputVariables.length; i++) {
       if (parameters[i].isConstant() && !inputVariables[i].isConstant()) {
-        throw new IllegalArgumentException(String.format("The argument '%s' of Function '%s' has to be constant!", parameters[i].getName(), this.getRegisteredNames()[0]));
+        throw new IllegalArgumentException(
+            String.format(
+                "The argument '%s' of Function '%s' has to be constant!",
+                parameters[i].getName(), this.getRegisteredNames()[0]));
       }
     }
     generateBody(g, BlockType.SETUP, setupBody(), inputVariables, workspaceJVars, true);
-    HoldingContainer c = generateEvalBody(g, resolvedOutput, inputVariables, evalBody(), workspaceJVars);
+    HoldingContainer c =
+        generateEvalBody(g, resolvedOutput, inputVariables, evalBody(), workspaceJVars);
     generateBody(g, BlockType.RESET, resetBody(), null, workspaceJVars, false);
     generateBody(g, BlockType.CLEANUP, cleanupBody(), null, workspaceJVars, false);
     return c;
   }
 
-  protected HoldingContainer generateEvalBody(ClassGenerator<?> g, CompleteType resolvedOutput, HoldingContainer[] inputVariables, String body, JVar[] workspaceJVars) {
+  protected HoldingContainer generateEvalBody(
+      ClassGenerator<?> g,
+      CompleteType resolvedOutput,
+      HoldingContainer[] inputVariables,
+      String body,
+      JVar[] workspaceJVars) {
 
-    g.getEvalBlock().directStatement(String.format("//---- start of eval portion of %s function. ----//", registeredNames[0]));
+    g.getEvalBlock()
+        .directStatement(
+            String.format(
+                "//---- start of eval portion of %s function. ----//", registeredNames[0]));
 
     JBlock sub = new JBlock(true, true);
     JBlock topSub = sub;
@@ -130,16 +161,22 @@ public class SimpleFunctionHolder extends BaseFunctionHolder {
     // add the subblock after the out declaration.
     g.getEvalBlock().add(topSub);
 
-
-    JVar internalOutput = sub.decl(JMod.FINAL, CodeModelArrowHelper.getHolderType(resolvedOutput, g.getModel()), getReturnName(), JExpr._new(CodeModelArrowHelper.getHolderType(resolvedOutput, g.getModel())));
+    JVar internalOutput =
+        sub.decl(
+            JMod.FINAL,
+            CodeModelArrowHelper.getHolderType(resolvedOutput, g.getModel()),
+            getReturnName(),
+            JExpr._new(CodeModelArrowHelper.getHolderType(resolvedOutput, g.getModel())));
     addProtectedBlock(g, sub, body, inputVariables, workspaceJVars, false);
 
     if (sub != topSub || numVars == 0) {
-      sub.assign(internalOutput.ref("isSet"), JExpr.lit(1));// Assign null if NULL_IF_NULL mode
+      sub.assign(internalOutput.ref("isSet"), JExpr.lit(1)); // Assign null if NULL_IF_NULL mode
     }
     sub.assign(out.getHolder(), internalOutput);
 
-    g.getEvalBlock().directStatement(String.format("//---- end of eval portion of %s function. ----//", registeredNames[0]));
+    g.getEvalBlock()
+        .directStatement(
+            String.format("//---- end of eval portion of %s function. ----//", registeredNames[0]));
 
     return out;
   }

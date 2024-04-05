@@ -15,8 +15,9 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import java.util.List;
-
 import org.apache.calcite.sql.SqlAlter;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlKind;
@@ -27,22 +28,20 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
-
-/**
- * ALTER CLEAR PLAN CACHE
- */
+/** ALTER CLEAR PLAN CACHE */
 public class SqlAlterClearPlanCache extends SqlAlter {
 
-  public static final SqlSpecialOperator CLEAR_PLAN_CACHE_OPERATOR = new SqlSpecialOperator("CLEAR_PLAN_CACHE", SqlKind.OTHER) {
-    @Override
-    public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 0, "SqlAlterClearPlanCache.createCall() has to get 0 operands!");
-      final SqlNode scopeNode = operands[0];
-      return new SqlAlterClearPlanCache(pos, scopeNode == null ? null : scopeNode.toString());
-    }
-  };
+  public static final SqlSpecialOperator CLEAR_PLAN_CACHE_OPERATOR =
+      new SqlSpecialOperator("CLEAR_PLAN_CACHE", SqlKind.OTHER) {
+        @Override
+        public SqlCall createCall(
+            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+          Preconditions.checkArgument(
+              operands.length == 0, "SqlAlterClearPlanCache.createCall() has to get 0 operands!");
+          final SqlNode scopeNode = operands[0];
+          return new SqlAlterClearPlanCache(pos, scopeNode == null ? null : scopeNode.toString());
+        }
+      };
 
   protected final String scope;
 
@@ -51,18 +50,20 @@ public class SqlAlterClearPlanCache extends SqlAlter {
     this.scope = scope;
   }
 
-  @Override protected void unparseAlterOperation(SqlWriter writer, int leftPrec, int rightPrec) {
+  @Override
+  protected void unparseAlterOperation(SqlWriter writer, int leftPrec, int rightPrec) {
     writer.keyword("CLEAR PLAN CACHE");
-    final SqlWriter.Frame frame =
-      writer.startList(SqlWriter.FrameTypeEnum.SIMPLE);
+    final SqlWriter.Frame frame = writer.startList(SqlWriter.FrameTypeEnum.SIMPLE);
     writer.endList(frame);
   }
 
-  @Override public SqlOperator getOperator() {
+  @Override
+  public SqlOperator getOperator() {
     return CLEAR_PLAN_CACHE_OPERATOR;
   }
 
-  @Override public List<SqlNode> getOperandList() {
+  @Override
+  public List<SqlNode> getOperandList() {
     return Lists.newArrayList();
   }
 }

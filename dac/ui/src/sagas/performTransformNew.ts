@@ -35,8 +35,11 @@ import { initializeExploreJobProgress } from "@app/actions/explore/dataset/data"
 import { submitTransformationJob } from "@app/sagas/transformWatcherNew";
 import { setQueryStatuses } from "@app/actions/explore/view";
 import { getExploreState } from "@app/selectors/explore";
-import { loadJobDetails } from "@app/actions/jobs/jobs";
-import { JOB_DETAILS_VIEW_ID } from "@app/actions/joblist/jobList";
+import {
+  fetchJobDetails,
+  fetchJobSummary,
+} from "@app/actions/explore/exploreJobs";
+import { JobSummary } from "@app/exports/types/JobSummary.type";
 import { showFailedJobDialog } from "@app/sagas/performTransform";
 // @ts-ignore
 import { updateTransformData } from "@inject/actions/explore/dataset/updateLocation";
@@ -78,7 +81,7 @@ export function* newPerformTransformSingle({
         nextTable,
         finalTransformData,
         references,
-      }
+      },
     );
 
     let response;
@@ -124,7 +127,7 @@ export function* newGetFetchDatasetMetaAction({
         viewId,
         references,
         sessionId,
-        newVersion
+        newVersion,
       );
 
       navigateOptions = { changePathName: true };
@@ -138,7 +141,7 @@ export function* newGetFetchDatasetMetaAction({
         finalTransformData,
         viewId,
         sessionId,
-        newVersion
+        newVersion,
       );
     } else {
       apiAction = yield call(newRunDataset, dataset, viewId, sessionId);
@@ -154,7 +157,7 @@ export function* newGetFetchDatasetMetaAction({
         viewId,
         references,
         sessionId,
-        newVersion
+        newVersion,
       );
 
       navigateOptions = { changePathName: true };
@@ -166,7 +169,7 @@ export function* newGetFetchDatasetMetaAction({
         viewId,
         nextTable,
         sessionId,
-        newVersion
+        newVersion,
       );
     } else {
       apiAction = yield call(newLoadDataset, dataset, viewId, sessionId);
@@ -211,7 +214,7 @@ export function* handlePostNewQueryJobSuccess({
   } else {
     logger.debug(
       `handlePostNewQueryJobSuccess: Could not find curIndex '${curIndex}' in mostRecentStatuses. Nothing updated`,
-      mostRecentStatuses
+      mostRecentStatuses,
     );
   }
 
@@ -221,95 +224,81 @@ export function* handlePostNewQueryJobSuccess({
     yield put(setQueryStatuses({ statuses: mostRecentStatuses, tabId }));
   }
 
+  // fetch job details on job submissions for engine name and query type
+  // @ts-expect-error return type of fetchJobDetails is not an action
+  yield put(fetchJobDetails(jobId));
+
   return [dataset, datasetPath, versionToUse, jobId, paginationUrl, sessionId];
 }
 
 export function* fetchJobFailureInfo(
   jobId: string,
   curIndex: number,
-  callback: any
+  callback: any,
 ): any {
-  const exploreState: any = yield select(getExploreState);
+  const exploreState = yield select(getExploreState);
   const mostRecentStatuses = cloneDeep(exploreState?.view?.queryStatuses);
   const isLastQuery = mostRecentStatuses.length - 1 === curIndex;
 
-  // @ts-ignore
-  const jobDetails = yield put(loadJobDetails(jobId, JOB_DETAILS_VIEW_ID));
-  const jobDetailsResponse = yield jobDetails;
-  const failureInfo = jobDetailsResponse.payload.getIn([
-    "entities",
-    "jobDetails",
-    jobId,
-    "failureInfo",
-  ]);
+  try {
+    // need to fetch jobDetails on job failure to get the total job duration and attempt details
+    // @ts-expect-error return type of fetchJobDetails is not an action
+    yield put(fetchJobDetails(jobId));
 
-  const error = failureInfo.getIn(["errors", 0]);
+    // @ts-expect-error return type of fetchJobSummary is not an action
+    const summaryPromise = yield put(fetchJobSummary(jobId, 0));
+    const { cancellationInfo, failureInfo }: JobSummary = yield summaryPromise;
+    const error = failureInfo.errors.at(0); // used in case index doesn't exist
 
-  const cancellationInfo = jobDetailsResponse.payload.getIn([
-    "entities",
-    "jobDetails",
-    jobId,
-    "cancellationInfo",
-  ]);
+    let willProceed = true;
 
-  let willProceed = true;
+    if (!callback && !isLastQuery) {
+      // canceling a job throws a cancellation error, exit the multi-sql loop
+      if (!cancellationInfo) {
+        const isParseError = failureInfo.type === "PARSE";
 
-  if (!callback && !isLastQuery) {
-    // canceling a job throws a cancellation error, exit the multi-sql loop
-    if (!cancellationInfo) {
-      const isParseError = failureInfo.get("type") === "PARSE";
+        // Tabs: mostRecentStatuses[curIndex] is sometimes undefined
+        if (
+          mostRecentStatuses[curIndex] &&
+          //Prevent showing error dialog for cancelled queries (Switching tabs will cancel errored queries, see scriptUpdates)
+          !mostRecentStatuses[curIndex].cancelled
+        ) {
+          // if a job wasn't cancelled but still failed, show the dialog
+          willProceed = yield call(
+            showFailedJobDialog,
+            curIndex,
+            mostRecentStatuses[curIndex].sqlStatement,
+            isParseError ? undefined : error?.message ?? failureInfo.message,
+          );
+        }
+      }
+    } else if (callback) {
+      willProceed = false;
 
-      // Tabs: mostRecentStatuses[curIndex] is sometimes undefined
-      if (
-        mostRecentStatuses[curIndex] &&
-        //Prevent showing error dialog for cancelled queries (Switching tabs will cancel errored queries, see scriptUpdates)
-        !mostRecentStatuses[curIndex].cancelled
-      ) {
-        // if a job wasn't cancelled but still failed, show the dialog
-        willProceed = yield call(
-          showFailedJobDialog,
-          curIndex,
-          mostRecentStatuses[curIndex].sqlStatement,
-          isParseError
-            ? undefined
-            : error?.get("message") ?? failureInfo.get("message")
+      yield put(
+        addNotification(
+          apiUtils.getThrownErrorException(error ?? failureInfo),
+          "error",
+          10,
+        ),
+      );
+    }
+
+    if (!callback) {
+      if (cancellationInfo) {
+        mostRecentStatuses[curIndex].cancelled = true;
+      } else {
+        mostRecentStatuses[curIndex].error = Immutable.fromJS(
+          error ?? failureInfo,
         );
       }
-    }
-  } else if (callback) {
-    willProceed = false;
 
-    yield put(
-      addNotification(
-        apiUtils.getThrownErrorException(error ?? failureInfo),
-        "error",
-        10
-      )
-    );
-  }
-
-  if (!callback) {
-    const cancellationInfo = jobDetailsResponse.payload.getIn([
-      "entities",
-      "jobDetails",
-      jobId,
-      "cancellationInfo",
-    ]);
-
-    if (cancellationInfo) {
-      mostRecentStatuses[curIndex].cancelled = true;
-    } else if (
-      failureInfo.has("errors") &&
-      failureInfo.get("errors").size > 0
-    ) {
-      // @ts-ignore
-      mostRecentStatuses[curIndex].error = new Immutable.Map(error);
-    } else {
-      mostRecentStatuses[curIndex].error = failureInfo;
+      yield put(setQueryStatuses({ statuses: mostRecentStatuses }));
     }
 
-    yield put(setQueryStatuses({ statuses: mostRecentStatuses }));
+    return willProceed;
+  } catch (err: any) {
+    yield put(addNotification(err.responseBody.errorMessage, "error", 10));
+    return false;
   }
-
-  return willProceed;
 }

@@ -17,11 +17,10 @@ package com.dremio.context;
 
 import org.apache.commons.lang3.StringUtils;
 
-/**
- * User Identity
- */
+/** User Identity */
 public class UserIdentityContext {
-  public static final RequestContext.Key<UserIdentityContext> CTX_KEY = RequestContext.newKey("user_identity_ctx_key");
+  public static final RequestContext.Key<UserIdentityContext> CTX_KEY =
+      RequestContext.newKey("user_identity_ctx_key");
   private final String userId;
 
   public UserIdentityContext(String userId) {
@@ -37,7 +36,8 @@ public class UserIdentityContext {
   }
 
   public static boolean isSet() {
-    final UserIdentityContext userIdentity = RequestContext.current().get(UserIdentityContext.CTX_KEY);
+    final UserIdentityContext userIdentity =
+        RequestContext.current().get(UserIdentityContext.CTX_KEY);
     return userIdentity != null && !StringUtils.isEmpty(userIdentity.getUserId());
   }
 }

@@ -15,9 +15,7 @@
  */
 package com.dremio.dac.model.common;
 
-/**
- * Base class for dac caught exceptions
- */
+/** Base class for dac caught exceptions */
 public class DACException extends Exception {
   private static final long serialVersionUID = 1L;
 
@@ -32,5 +30,4 @@ public class DACException extends Exception {
   public DACException(Throwable cause) {
     super(cause);
   }
-
 }

@@ -15,13 +15,10 @@
  */
 package com.dremio.exec.service.cache;
 
-/**
- * Interface for Dremio Service
- */
+/** Interface for Dremio Service */
 public interface AuthorizationCacheService {
 
   static void deleteAllAuthorizationCache() throws AuthorizationCacheException {}
 
   static void deleteAuthorizationCache(Object key) throws AuthorizationCacheException {}
-
 }

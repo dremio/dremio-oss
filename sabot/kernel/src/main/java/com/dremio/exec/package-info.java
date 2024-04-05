@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 /**
- * Dremio execution engine, including: physical operators, runtime code
- * generation, planning, RPC layer, Value Vector data structures.
+ * Dremio execution engine, including: physical operators, runtime code generation, planning, RPC
+ * layer, Value Vector data structures.
  *
- * The Dremio execution engine is a distributed query system, designed primarily
- * for running interactive SQL queries on Big Data.
+ * <p>The Dremio execution engine is a distributed query system, designed primarily for running
+ * interactive SQL queries on Big Data.
  */
 package com.dremio.exec;

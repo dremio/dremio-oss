@@ -15,30 +15,28 @@
  */
 package com.dremio.sabot.op.join.merge;
 
-import org.apache.calcite.rel.core.JoinRelType;
-
 import com.dremio.exec.compile.TemplateClassDefinition;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.sabot.exec.context.FunctionContext;
 import com.dremio.sabot.op.join.merge.MergeJoinOperator.InternalState;
+import org.apache.calcite.rel.core.JoinRelType;
 
 /**
  * Interface for the merge join comparator
  *
- * State machine during inner join
+ * <p>State machine during inner join
  *
- * NEEDS_SETUP ---> OUT_OF_LOOPS (setup)
+ * <p>NEEDS_SETUP ---> OUT_OF_LOOPS (setup)
  *
- * OUT_OF_LOOPS --> OUT_OF_LOOPS (need data)
- * OUT_OF_LOOPS --> IN_INNER_LOOP (find match in continueJoin)
+ * <p>OUT_OF_LOOPS --> OUT_OF_LOOPS (need data) OUT_OF_LOOPS --> IN_INNER_LOOP (find match in
+ * continueJoin)
  *
- * IN_OUTER_LOOP --> IN_OUTER_LOOP (need data, left)
- * IN_OUTER_LOOP --> IN_INNER_LOOP (find match in continueJoin)
+ * <p>IN_OUTER_LOOP --> IN_OUTER_LOOP (need data, left) IN_OUTER_LOOP --> IN_INNER_LOOP (find match
+ * in continueJoin)
  *
- * IN_INNER_LOOP --> IN_OUTER_LOOP (does not match in continueJoin)
- * IN_INNER_LOOP --> IN_OUTER_LOOP (need data, right, reach end of right table)
- * IN_INNER_LOOP --> IN_OUTER_LOOP (need data, right, not the end)
- *
+ * <p>IN_INNER_LOOP --> IN_OUTER_LOOP (does not match in continueJoin) IN_INNER_LOOP -->
+ * IN_OUTER_LOOP (need data, right, reach end of right table) IN_INNER_LOOP --> IN_OUTER_LOOP (need
+ * data, right, not the end)
  */
 public interface MergeJoinComparator {
   public static final TemplateClassDefinition<MergeJoinComparator> TEMPLATE_DEFINITION =
@@ -46,6 +44,7 @@ public interface MergeJoinComparator {
 
   /**
    * setup comparator by providing left and right iterators where batch logic is included
+   *
    * @param functionContext
    * @param joinType
    * @param leftIterator
@@ -63,6 +62,7 @@ public interface MergeJoinComparator {
 
   /**
    * describe current location in the looping algorithm
+   *
    * @return internal state of the comparator
    */
   InternalState getInternalState();
@@ -73,20 +73,18 @@ public interface MergeJoinComparator {
   int getOutputSize();
 
   /**
-   * continue join until having enough data or reach the end of either batch
-   * it always start with the assumption that corresponding iterator's peek() will return the batch needed
+   * continue join until having enough data or reach the end of either batch it always start with
+   * the assumption that corresponding iterator's peek() will return the batch needed
    */
   void continueJoin();
 
   /**
    * used for non-inner joins
+   *
    * @return if we have finished processing all available non-matching records
    */
   boolean finishNonMatching();
 
-  /**
-   * reset output batch size counter
-   */
+  /** reset output batch size counter */
   void resetOutputCounter();
-
 }

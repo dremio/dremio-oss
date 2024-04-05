@@ -15,20 +15,17 @@
  */
 package com.dremio.dac.api;
 
+import com.dremio.exec.catalog.conf.SourceType;
+import com.dremio.test.DremioTest;
 import org.junit.Assert;
 import org.junit.Test;
 
-import com.dremio.exec.catalog.conf.SourceType;
-import com.dremio.test.DremioTest;
-
-/**
- * Test class for {@code SourcePropertyTemplat}
- */
+/** Test class for {@code SourcePropertyTemplat} */
 public class TestSourcePropertyTemplate {
   @Test
   public void testAllSourcesCanBeTemplated() throws Exception {
     // make sure each configurable source can be used as a SourceTypeTemplate
-    for(Class<?> input : DremioTest.CLASSPATH_SCAN_RESULT.getAnnotatedClasses(SourceType.class)) {
+    for (Class<?> input : DremioTest.CLASSPATH_SCAN_RESULT.getAnnotatedClasses(SourceType.class)) {
       com.dremio.exec.catalog.conf.SourceType type = input.getAnnotation(SourceType.class);
       if (type.configurable()) {
         SourceTypeTemplate sourceTypeTemplate = SourceTypeTemplate.fromSourceClass(input, true);
@@ -36,5 +33,4 @@ public class TestSourcePropertyTemplate {
       }
     }
   }
-
 }

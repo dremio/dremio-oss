@@ -80,7 +80,7 @@ function validate(values) {
       isRequired(MAPPED_FIELDS.nodeTag, laDeprecated("Engine Name")),
       isRequired(
         MAPPED_FIELDS.resourceManagerHost,
-        laDeprecated("Resource Manager")
+        laDeprecated("Resource Manager"),
       ),
       isRequired(MAPPED_FIELDS.namenodeHost, YarnForm.hostNameLabel(values)),
       isRequired("virtualCoreCount", laDeprecated("Cores per Worker")),
@@ -96,9 +96,9 @@ function validate(values) {
       values.spillDirectories.map((item, index) => {
         return isRequired(
           `${MAPPED_FIELDS.spillDirectories}.${index}`,
-          laDeprecated("Spill Directory")
+          laDeprecated("Spill Directory"),
         );
-      })
+      }),
     ),
     ...cacheValidators(values),
   };
@@ -119,7 +119,7 @@ export class YarnForm extends Component {
 
   static getPropsAsFields = (clusterType = DEFAULT_CLUSTER_TYPE) => {
     const cluster = PROVISION_MANAGERS.find(
-      (manager) => manager.clusterType === clusterType
+      (manager) => manager.clusterType === clusterType,
     );
     return cluster ? cluster.propsAsFields : [];
   };
@@ -140,7 +140,7 @@ export class YarnForm extends Component {
     const provisionObj = provision.toJS();
     // find sub props to fields config in PROVISION_MANAGERS for the current provision cluster type
     const propsAsFields = YarnForm.getPropsAsFields(
-      provision.get("clusterType")
+      provision.get("clusterType"),
     );
 
     // for each entry in provision
@@ -156,19 +156,19 @@ export class YarnForm extends Component {
                   subResult,
                   subValue,
                   propsAsFields,
-                  propertyList
+                  propertyList,
                 );
               } else if (subKey === "memoryMB") {
                 // add simple yarnProps value (memoryMB is shown in GB)
                 subResult[subKey] = NumberFormatUtils.roundNumberField(
-                  subValue / 1024
+                  subValue / 1024,
                 );
               } else {
                 subResult[subKey] = subValue;
               }
               return subResult; //accumulator in reduce
             },
-            result
+            result,
           );
         } else {
           // add simple provision value
@@ -176,7 +176,7 @@ export class YarnForm extends Component {
         }
         return result; //accumulator in reduce
       },
-      {}
+      {},
     );
     return {
       ...fields,
@@ -188,7 +188,7 @@ export class YarnForm extends Component {
     accumulator,
     subPropertyList,
     propsAsFields,
-    extraPropList
+    extraPropList,
   ) => {
     // mutates accumulator and possibly adds entries to extraPropList
     subPropertyList.forEach(({ key, value, type }) => {
@@ -248,7 +248,7 @@ export class YarnForm extends Component {
     );
   }
 
-  componentWillReceiveProps(nextProps) {
+  UNSAFE_componentWillReceiveProps(nextProps) {
     const oldDistroType = this.props.values.distroType;
     const newDistroType = nextProps.values.distroType;
     const distroChanged = oldDistroType !== newDistroType;
@@ -260,13 +260,13 @@ export class YarnForm extends Component {
         nextValues.spillDirectories[0]
       ) {
         nextProps.fields.spillDirectories[0].onChange(
-          YarnForm.distributionDirectory(newDistroType)
+          YarnForm.distributionDirectory(newDistroType),
         );
       }
       // update host name prefix if user didn't change its value
       if (YarnForm.hostNamePrefix(oldDistroType) === nextValues.namenodeHost) {
         nextProps.fields.namenodeHost.onChange(
-          YarnForm.hostNamePrefix(newDistroType)
+          YarnForm.hostNamePrefix(newDistroType),
         );
       }
     }
@@ -278,7 +278,7 @@ export class YarnForm extends Component {
   prepareSubPropertyForSave = (values) => {
     const { provision } = this.props;
     const propsAsFields = YarnForm.getPropsAsFields(
-      provision && provision.get("clusterType")
+      provision && provision.get("clusterType"),
     );
     const subProps = propsAsFields.map((prop) => {
       const value = values[prop.field];
@@ -341,7 +341,7 @@ export class YarnForm extends Component {
     const { provision, dirty } = this.props;
     return this.props.onFormSubmit(
       this.prepareValuesForSave(values),
-      isRestartRequired(provision, dirty)
+      isRestartRequired(provision, dirty),
     );
   };
 
@@ -550,7 +550,7 @@ export default connectComplexForm(
   },
   [],
   mapStateToProps,
-  null
+  null,
 )(YarnForm);
 
 const styles = {

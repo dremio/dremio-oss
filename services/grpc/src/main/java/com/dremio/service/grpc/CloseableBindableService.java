@@ -17,8 +17,5 @@ package com.dremio.service.grpc;
 
 import io.grpc.BindableService;
 
-/**
- * A grpc service that exposes methods & implements a close
- */
-public interface CloseableBindableService extends BindableService, AutoCloseable {
-}
+/** A grpc service that exposes methods & implements a close */
+public interface CloseableBindableService extends BindableService, AutoCloseable {}

@@ -17,15 +17,6 @@ package com.dremio.exec.store.dfs;
 
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 
-import java.io.IOException;
-import java.security.PrivilegedExceptionAction;
-import java.util.Objects;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.security.UserGroupInformation;
-
 import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.exec.service.cache.AuthorizationCacheException;
 import com.dremio.exec.service.cache.AuthorizationCacheService;
@@ -35,23 +26,31 @@ import com.google.common.base.Strings;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
+import java.io.IOException;
+import java.security.PrivilegedExceptionAction;
+import java.util.Objects;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.security.UserGroupInformation;
 
-/**
- * Utilities for impersonation purpose.
- */
+/** Utilities for impersonation purpose. */
 public final class ImpersonationUtil implements AuthorizationCacheService {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ImpersonationUtil.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ImpersonationUtil.class);
 
   @SuppressWarnings("NoGuavaCacheUsage") // TODO: fix as part of DX-51884
-  private static final LoadingCache<Key, UserGroupInformation> CACHE = CacheBuilder.newBuilder()
-      .maximumSize(100)
-      .expireAfterAccess(60, TimeUnit.MINUTES)
-      .build(new CacheLoader<Key, UserGroupInformation>(){
-        @Override
-        public UserGroupInformation load(Key key) throws Exception {
-          return UserGroupInformation.createProxyUser(key.proxyUserName, key.loginUser);
-        }
-      });
+  private static final LoadingCache<Key, UserGroupInformation> CACHE =
+      CacheBuilder.newBuilder()
+          .maximumSize(100)
+          .expireAfterAccess(60, TimeUnit.MINUTES)
+          .build(
+              new CacheLoader<Key, UserGroupInformation>() {
+                @Override
+                public UserGroupInformation load(Key key) throws Exception {
+                  return UserGroupInformation.createProxyUser(key.proxyUserName, key.loginUser);
+                }
+              });
 
   private static class Key {
     private final String proxyUserName;
@@ -73,15 +72,15 @@ public final class ImpersonationUtil implements AuthorizationCacheService {
         return false;
       }
       final Key that = (Key) obj;
-      return Objects.equals(this.proxyUserName,  that.proxyUserName)
+      return Objects.equals(this.proxyUserName, that.proxyUserName)
           && Objects.equals(this.loginUser, that.loginUser);
     }
-
   }
 
   /**
-   * If the given user is {@link SystemUser#SYSTEM_USERNAME}, return the current process user name. System user is
-   * an internal user, when communicating with external entities we use the process username.
+   * If the given user is {@link SystemUser#SYSTEM_USERNAME}, return the current process user name.
+   * System user is an internal user, when communicating with external entities we use the process
+   * username.
    *
    * @param username
    */
@@ -94,8 +93,8 @@ public final class ImpersonationUtil implements AuthorizationCacheService {
   }
 
   /**
-   * Create and return proxy user {@link org.apache.hadoop.security.UserGroupInformation} for the given user name.  If
-   * username is empty/null it throws a IllegalArgumentException.
+   * Create and return proxy user {@link org.apache.hadoop.security.UserGroupInformation} for the
+   * given user name. If username is empty/null it throws a IllegalArgumentException.
    *
    * @param proxyUserName Proxy user name (must be valid)
    * @return
@@ -106,14 +105,16 @@ public final class ImpersonationUtil implements AuthorizationCacheService {
         throw new IllegalArgumentException("Invalid value for proxy user name");
       }
 
-      // If the request proxy user is same as process user name or same as system user, return the process UGI.
+      // If the request proxy user is same as process user name or same as system user, return the
+      // process UGI.
       if (proxyUserName.equals(getProcessUserName()) || SYSTEM_USERNAME.equals(proxyUserName)) {
         return getProcessUserUGI();
       }
 
       return CACHE.get(new Key(proxyUserName, UserGroupInformation.getLoginUser()));
     } catch (IOException | ExecutionException e) {
-      final String errMsg = "Failed to create proxy user UserGroupInformation object: " + e.getMessage();
+      final String errMsg =
+          "Failed to create proxy user UserGroupInformation object: " + e.getMessage();
       logger.error(errMsg, e);
       throw new RuntimeException(errMsg, e);
     }
@@ -129,13 +130,14 @@ public final class ImpersonationUtil implements AuthorizationCacheService {
   }
 
   /**
-   * Invalidate the proxy user {@link org.apache.hadoop.security.UserGroupInformation} for the given user name.  If
-   * username is empty/null it throws a IllegalArgumentException.
+   * Invalidate the proxy user {@link org.apache.hadoop.security.UserGroupInformation} for the given
+   * user name. If username is empty/null it throws a IllegalArgumentException.
    *
    * @param proxyUserName Proxy user name (must be valid)
    * @return
    */
-  public static void deleteAuthorizationCache(String proxyUserName) throws AuthorizationCacheException {
+  public static void deleteAuthorizationCache(String proxyUserName)
+      throws AuthorizationCacheException {
     if (Strings.isNullOrEmpty(proxyUserName)) {
       throw new AuthorizationCacheException("Invalid value for proxy user name");
     }
@@ -147,17 +149,18 @@ public final class ImpersonationUtil implements AuthorizationCacheService {
     }
   }
 
-    /**
-     * Return the name of the user who is running the SabotNode.
-     *
-     * @return SabotNode process user.
-     */
+  /**
+   * Return the name of the user who is running the SabotNode.
+   *
+   * @return SabotNode process user.
+   */
   public static String getProcessUserName() {
     return getProcessUserUGI().getUserName();
   }
 
   /**
-   * Return the {@link org.apache.hadoop.security.UserGroupInformation} of user who is running the SabotNode.
+   * Return the {@link org.apache.hadoop.security.UserGroupInformation} of user who is running the
+   * SabotNode.
    *
    * @return SabotNode process user {@link org.apache.hadoop.security.UserGroupInformation}.
    */
@@ -174,7 +177,8 @@ public final class ImpersonationUtil implements AuthorizationCacheService {
   /**
    * Create FileSystemWrapper for given <i>proxyUserName</i> and configuration and path
    *
-   * @param proxyUserName Name of the user whom to impersonate while accessing the FileSystem contents.
+   * @param proxyUserName Name of the user whom to impersonate while accessing the FileSystem
+   *     contents.
    * @param fsConf FileSystem configuration.
    * @param path path for which fileystem is to be created
    * @return
@@ -183,17 +187,21 @@ public final class ImpersonationUtil implements AuthorizationCacheService {
     return createFileSystem(createProxyUgi(proxyUserName), fsConf, path);
   }
 
-  private static FileSystem createFileSystem(UserGroupInformation proxyUserUgi, final Configuration fsConf,
-                                             final Path path) {
+  private static FileSystem createFileSystem(
+      UserGroupInformation proxyUserUgi, final Configuration fsConf, final Path path) {
     FileSystem fs;
     try {
-      fs = proxyUserUgi.doAs(new PrivilegedExceptionAction<FileSystem>() {
-        @Override
-        public FileSystem run() throws Exception {
-          logger.trace("Creating FileSystemWrapper for proxy user: " + UserGroupInformation.getCurrentUser());
-          return HadoopFileSystem.get(path, fsConf);
-        }
-      });
+      fs =
+          proxyUserUgi.doAs(
+              new PrivilegedExceptionAction<FileSystem>() {
+                @Override
+                public FileSystem run() throws Exception {
+                  logger.trace(
+                      "Creating FileSystemWrapper for proxy user: "
+                          + UserGroupInformation.getCurrentUser());
+                  return HadoopFileSystem.get(path, fsConf);
+                }
+              });
     } catch (InterruptedException | IOException e) {
       final String errMsg = "Failed to create FileSystemWrapper for proxy user: " + e.getMessage();
       logger.error(errMsg, e);
@@ -204,6 +212,5 @@ public final class ImpersonationUtil implements AuthorizationCacheService {
   }
 
   // avoid instantiation
-  private ImpersonationUtil() {
-  }
+  private ImpersonationUtil() {}
 }

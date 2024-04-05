@@ -19,7 +19,8 @@ package com.dremio.exec.planner.sql;
 import org.junit.Test;
 
 public class ITExplainPlan extends ITDmlQueryBase {
-  // Defining SOURCE such that you can easily copy and paste the same test across other test variations
+  // Defining SOURCE such that you can easily copy and paste the same test across other test
+  // variations
   private static final String SOURCE = TEMP_SCHEMA_HADOOP;
 
   @Test
@@ -71,6 +72,7 @@ public class ITExplainPlan extends ITDmlQueryBase {
   public void testExplainPlanWithDetailLevelOnUpdate() throws Exception {
     ExplainPlanTests.testExplainPlanWithDetailLevelOnUpdate(SOURCE);
   }
+
   @Test
   public void testExplainLogicalPlanOnMerge() throws Exception {
     ExplainPlanTests.testExplainLogicalPlanOnMerge(SOURCE);

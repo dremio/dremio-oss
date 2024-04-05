@@ -26,7 +26,8 @@ import com.dremio.sabot.rpc.user.UserSession;
 public class RemoteQueryObserverFactory implements QueryObserverFactory {
 
   @Override
-  public QueryObserver createNewQueryObserver(ExternalId id, UserSession session, UserResponseHandler handler) {
+  public QueryObserver createNewQueryObserver(
+      ExternalId id, UserSession session, UserResponseHandler handler) {
     return new RemoteQueryObserver(id, handler);
   }
 

@@ -15,21 +15,21 @@
  */
 package com.dremio.exec.catalog;
 
-import javax.inject.Provider;
-
 import com.dremio.exec.catalog.CatalogInternalRPC.UpdateLastRefreshDateRequest;
 import com.dremio.exec.store.CatalogService;
 import com.google.protobuf.Empty;
-
 import io.grpc.stub.StreamObserver;
-
+import javax.inject.Provider;
 
 /**
- * CatalogServiceSynchronizer received a request from a coordinator after it performs a metadata refresh on a storage plugin
- * & updates last refresh date locally to avoid metadata refresh when it's unnecessary.
+ * CatalogServiceSynchronizer received a request from a coordinator after it performs a metadata
+ * refresh on a storage plugin & updates last refresh date locally to avoid metadata refresh when
+ * it's unnecessary.
  */
-public class CatalogServiceSynchronizer extends CatalogServiceSynchronizerGrpc.CatalogServiceSynchronizerImplBase {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CatalogServiceSynchronizer.class);
+public class CatalogServiceSynchronizer
+    extends CatalogServiceSynchronizerGrpc.CatalogServiceSynchronizerImplBase {
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(CatalogServiceSynchronizer.class);
 
   private final Provider<CatalogService> catalogServiceProvider;
 
@@ -39,11 +39,13 @@ public class CatalogServiceSynchronizer extends CatalogServiceSynchronizerGrpc.C
 
   @Override
   @SuppressWarnings("DremioGRPCStreamObserverOnError")
-  public void updateRefreshDate(UpdateLastRefreshDateRequest request, StreamObserver<Empty> responseObserver) {
+  public void updateRefreshDate(
+      UpdateLastRefreshDateRequest request, StreamObserver<Empty> responseObserver) {
     logger.debug("Request received: {}", request);
     try {
-      final ManagedStoragePlugin plugin = ((CatalogServiceImpl) catalogServiceProvider.get())
-        .getManagedSource(request.getPluginName());
+      final ManagedStoragePlugin plugin =
+          ((CatalogServiceImpl) catalogServiceProvider.get())
+              .getManagedSource(request.getPluginName());
       plugin.setMetadataSyncInfo(request);
     } catch (Exception e) {
       responseObserver.onError(e);

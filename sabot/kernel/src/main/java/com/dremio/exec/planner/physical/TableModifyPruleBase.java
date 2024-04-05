@@ -15,23 +15,22 @@
  */
 package com.dremio.exec.planner.physical;
 
+import com.dremio.exec.ExecConstants;
+import com.dremio.exec.ops.OptimizerRulesContext;
+import com.dremio.exec.planner.logical.TableModifyRel;
+import com.dremio.exec.store.TableMetadata;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptRuleOperand;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.TableModify;
 
-import com.dremio.exec.ops.OptimizerRulesContext;
-import com.dremio.exec.planner.logical.TableModifyRel;
-import com.dremio.exec.store.TableMetadata;
-
-/**
- * A base physical plan generator for a TableModifyRel
- */
+/** A base physical plan generator for a TableModifyRel */
 public abstract class TableModifyPruleBase extends Prule {
 
   private final OptimizerRulesContext context;
 
-  public TableModifyPruleBase(RelOptRuleOperand operand, String description, OptimizerRulesContext context) {
+  public TableModifyPruleBase(
+      RelOptRuleOperand operand, String description, OptimizerRulesContext context) {
     super(operand, description);
     this.context = context;
   }
@@ -44,21 +43,44 @@ public abstract class TableModifyPruleBase extends Prule {
   public void onMatch(RelOptRuleCall call, TableMetadata tableMetadata) {
     final TableModifyRel tableModify = call.rel(0);
     final RelNode input = call.rel(1);
+    PlannerSettings settings = PrelUtil.getPlannerSettings(call.getPlanner());
 
-    DmlPlanGenerator planGenerator = new DmlPlanGenerator(
-      tableModify.getTable(),
-      tableModify.getCluster(),
-      tableModify.getTraitSet().plus(Prel.PHYSICAL),
-      convert(input, input.getTraitSet().plus(Prel.PHYSICAL)),
-      tableMetadata,
-      tableModify.getCreateTableEntry(),
-      tableModify.getOperation(),
-      tableModify.getOperation() == TableModify.Operation.MERGE
-        ? tableModify.getMergeUpdateColumnList()
-        : tableModify.getUpdateColumnList(),
-      tableModify.hasSource(),
-      context);
+    if (settings.options.getOption(
+        ExecConstants.ENABLE_ICEBERG_MERGE_ON_READ_WRITER_WITH_POSITIONAL_DELETE)) {
+      // Merge On Read Dml Case
+      DmlPositionalMergeOnReadPlanGenerator planGenerator =
+          new DmlPositionalMergeOnReadPlanGenerator(
+              tableModify.getTable(),
+              tableModify.getCluster(),
+              tableModify.getTraitSet().plus(Prel.PHYSICAL),
+              convert(input, input.getTraitSet().plus(Prel.PHYSICAL)),
+              tableMetadata,
+              tableModify.getCreateTableEntry(),
+              tableModify.getOperation(),
+              tableModify.getOperation() == TableModify.Operation.MERGE
+                  ? tableModify.getMergeUpdateColumnList()
+                  : tableModify.getUpdateColumnList(),
+              tableModify.hasSource(),
+              context);
 
-    call.transformTo(planGenerator.getPlan());
+      call.transformTo(planGenerator.getPlan());
+    } else {
+      // Copy On Write Dml Case
+      DmlPlanGenerator planGenerator =
+          new DmlPlanGenerator(
+              tableModify.getTable(),
+              tableModify.getCluster(),
+              tableModify.getTraitSet().plus(Prel.PHYSICAL),
+              convert(input, input.getTraitSet().plus(Prel.PHYSICAL)),
+              tableMetadata,
+              tableModify.getCreateTableEntry(),
+              tableModify.getOperation(),
+              tableModify.getOperation() == TableModify.Operation.MERGE
+                  ? tableModify.getMergeUpdateColumnList()
+                  : tableModify.getUpdateColumnList(),
+              tableModify.hasSource(),
+              context);
+      call.transformTo(planGenerator.getPlan());
+    }
   }
 }

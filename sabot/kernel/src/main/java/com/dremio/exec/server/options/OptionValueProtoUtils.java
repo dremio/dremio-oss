@@ -17,26 +17,25 @@ package com.dremio.exec.server.options;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import java.util.Collection;
-
 import com.dremio.options.OptionValue;
 import com.dremio.options.OptionValueProto;
 import com.dremio.options.OptionValueProtoList;
+import java.util.Collection;
 
-/**
- * Utility class for {@link OptionValue}.
- */
+/** Utility class for {@link OptionValue}. */
 final class OptionValueProtoUtils {
-  private OptionValueProtoUtils(){
-  }
+  private OptionValueProtoUtils() {}
 
   public static OptionValueProto toOptionValueProto(OptionValue optionValue) {
-    checkArgument(optionValue.getType() == OptionValue.OptionType.SYSTEM,
-      String.format("Invalid OptionType. OptionType must be 'SYSTEM', was given '%s'", optionValue.getType()));
+    checkArgument(
+        optionValue.getType() == OptionValue.OptionType.SYSTEM,
+        String.format(
+            "Invalid OptionType. OptionType must be 'SYSTEM', was given '%s'",
+            optionValue.getType()));
 
     final OptionValue.Kind kind = optionValue.getKind();
-    final OptionValueProto.Builder builder = OptionValueProto.newBuilder()
-      .setName(optionValue.getName());
+    final OptionValueProto.Builder builder =
+        OptionValueProto.newBuilder().setName(optionValue.getName());
 
     switch (kind) {
       case BOOLEAN:
@@ -58,40 +57,27 @@ final class OptionValueProtoUtils {
   }
 
   public static OptionValue toOptionValue(OptionValueProto value) {
-   switch (value.getOptionValCase()) {
-     case NUM_VAL:
-       return OptionValue.createLong(
-         OptionValue.OptionType.SYSTEM,
-          value.getName(),
-          value.getNumVal()
-        );
-     case STRING_VAL:
-       return OptionValue.createString(
-         OptionValue.OptionType.SYSTEM,
-          value.getName(),
-          value.getStringVal()
-        );
-     case BOOL_VAL:
-       return OptionValue.createBoolean(
-         OptionValue.OptionType.SYSTEM,
-          value.getName(),
-          value.getBoolVal()
-        );
-     case FLOAT_VAL:
-       return OptionValue.createDouble(
-         OptionValue.OptionType.SYSTEM,
-          value.getName(),
-          value.getFloatVal()
-        );
-     case OPTIONVAL_NOT_SET:
-     default:
-       throw new IllegalArgumentException("Invalid OptionValue kind");
-   }
+    switch (value.getOptionValCase()) {
+      case NUM_VAL:
+        return OptionValue.createLong(
+            OptionValue.OptionType.SYSTEM, value.getName(), value.getNumVal());
+      case STRING_VAL:
+        return OptionValue.createString(
+            OptionValue.OptionType.SYSTEM, value.getName(), value.getStringVal());
+      case BOOL_VAL:
+        return OptionValue.createBoolean(
+            OptionValue.OptionType.SYSTEM, value.getName(), value.getBoolVal());
+      case FLOAT_VAL:
+        return OptionValue.createDouble(
+            OptionValue.OptionType.SYSTEM, value.getName(), value.getFloatVal());
+      case OPTIONVAL_NOT_SET:
+      default:
+        throw new IllegalArgumentException("Invalid OptionValue kind");
+    }
   }
 
-  public static OptionValueProtoList toOptionValueProtoList(Collection<OptionValueProto> optionValueProtos) {
-    return OptionValueProtoList.newBuilder()
-      .addAllOptions(optionValueProtos)
-      .build();
+  public static OptionValueProtoList toOptionValueProtoList(
+      Collection<OptionValueProto> optionValueProtos) {
+    return OptionValueProtoList.newBuilder().addAllOptions(optionValueProtos).build();
   }
 }

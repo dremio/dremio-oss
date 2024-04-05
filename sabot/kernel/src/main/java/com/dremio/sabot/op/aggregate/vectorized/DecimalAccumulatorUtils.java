@@ -15,22 +15,20 @@
  */
 package com.dremio.sabot.op.aggregate.vectorized;
 
+import io.netty.util.internal.PlatformDependent;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 
-import io.netty.util.internal.PlatformDependent;
-
-/**
- * Utilities for the accumulators that operate over decimal values
- */
+/** Utilities for the accumulators that operate over decimal values */
 public final class DecimalAccumulatorUtils {
-  public static final int DECIMAL_WIDTH = 16;  // Decimals stored as 16-byte values
+  public static final int DECIMAL_WIDTH = 16; // Decimals stored as 16-byte values
 
   private DecimalAccumulatorUtils() {}
 
   /**
-   * Read a Decimal value from direct memory at address 'srcAddr'.
-   * Requires a temporary buffer, of width DECIMAL_WIDTH
+   * Read a Decimal value from direct memory at address 'srcAddr'. Requires a temporary buffer, of
+   * width DECIMAL_WIDTH
+   *
    * @param srcAddr direct memory address where the Decimal value is located
    * @param buf temporary buffer of width DECIMAL_WIDTH
    * @return a java.math.BigDecimal built from the DECIMAL_WIDTH bytes at srcAddr

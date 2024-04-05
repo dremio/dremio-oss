@@ -15,40 +15,38 @@
  */
 package com.dremio.exec.planner;
 
+import com.dremio.exec.planner.physical.Prel;
+import com.dremio.exec.proto.UserBitShared.AccelerationProfile;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import com.dremio.exec.planner.physical.Prel;
-
 public class CachedPlan {
-  private final String queryText;
   private final Prel prel;
-  private final int estimatedSize;   //estimated size in byte
+  private final int estimatedSize; // estimated size in byte
   private AtomicInteger useCount;
   private final long creationTime;
-  private CachedAccelDetails accelDetails;
+  private AccelerationProfile accelerationProfile;
 
-  private CachedPlan(String query, Prel prel, String textPlan, int useCount, int estimatedSize) {
-    this.queryText = query;
+  private CachedPlan(Prel prel, int useCount, int estimatedSize) {
     this.prel = prel;
     this.useCount = new AtomicInteger(useCount);
     this.estimatedSize = estimatedSize;
     this.creationTime = System.currentTimeMillis();
   }
 
-  public static CachedPlan createCachedPlan(String query, Prel prel, String textPlan, int estimatedSize) {
-    return new CachedPlan(query, prel, textPlan, 0, estimatedSize);
+  public static CachedPlan createCachedPlan(Prel prel, int estimatedSize) {
+    return new CachedPlan(prel, 0, estimatedSize);
   }
 
   public Prel getPrel() {
     return prel;
   }
 
-  public void setAccelDetails(CachedAccelDetails accelDetails) {
-    this.accelDetails = accelDetails;
+  public AccelerationProfile getAccelerationProfile() {
+    return accelerationProfile;
   }
 
-  public CachedAccelDetails getAccelDetails() {
-    return accelDetails;
+  public void setAccelerationProfile(AccelerationProfile profile) {
+    this.accelerationProfile = profile;
   }
 
   public int updateUseCount() {

@@ -20,24 +20,19 @@ import static com.dremio.exec.planner.sql.SqlExceptionHelper.END_LINE_CONTEXT;
 import static com.dremio.exec.planner.sql.SqlExceptionHelper.START_COLUMN_CONTEXT;
 import static com.dremio.exec.planner.sql.SqlExceptionHelper.START_LINE_CONTEXT;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.proto.UserBitShared;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
-/**
- * A single query error
- */
+/** A single query error */
 public final class QueryError {
-  /**
-   * A text range
-   */
+  /** A text range */
   public static final class Range {
     private final int startLine;
     private final int startColumn;
@@ -55,10 +50,10 @@ public final class QueryError {
       }
 
       Range range = (Range) o;
-      return startLine == range.startLine &&
-          startColumn == range.startColumn &&
-          endLine == range.endLine &&
-          endColumn == range.endColumn;
+      return startLine == range.startLine
+          && startColumn == range.startColumn
+          && endLine == range.endLine
+          && endColumn == range.endColumn;
     }
 
     @Override
@@ -96,8 +91,15 @@ public final class QueryError {
 
     @Override
     public String toString() {
-      return "Range [startLine=" + startLine + ", startColumn=" + startColumn + ", endLine=" + endLine + ", endColumn="
-          + endColumn + "]";
+      return "Range [startLine="
+          + startLine
+          + ", startColumn="
+          + startColumn
+          + ", endLine="
+          + endLine
+          + ", endColumn="
+          + endColumn
+          + "]";
     }
   }
 
@@ -105,7 +107,8 @@ public final class QueryError {
   private final QueryError.Range range;
 
   @JsonCreator
-  public QueryError(@JsonProperty("message") String message, @JsonProperty("range") QueryError.Range range) {
+  public QueryError(
+      @JsonProperty("message") String message, @JsonProperty("range") QueryError.Range range) {
     this.message = message;
     this.range = range;
   }
@@ -142,11 +145,7 @@ public final class QueryError {
 
       // Providing the UI with the following convention:
       // Ranges are 1-based and inclusive.
-      return new Range(
-          startLine,
-          startColumn,
-          endLine,
-          endColumn);
+      return new Range(startLine, startColumn, endLine, endColumn);
 
     } catch (NullPointerException | NumberFormatException e) {
       return null;
@@ -166,12 +165,10 @@ public final class QueryError {
   }
 
   private static String getUnderlyingMessage(UserException e) {
-    UserBitShared.ExceptionWrapper originalException = e.getOrCreatePBError(false)
-        .getException();
+    UserBitShared.ExceptionWrapper originalException = e.getOrCreatePBError(false).getException();
     if (originalException == null) {
       return e.getMessage();
     }
     return originalException.getMessage();
   }
-
 }

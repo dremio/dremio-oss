@@ -15,9 +15,6 @@
  */
 package com.dremio.services.fabric;
 
-import org.apache.arrow.memory.ArrowByteBufAllocator;
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.exec.rpc.BasicServer;
 import com.dremio.exec.rpc.MessageDecoder;
 import com.dremio.exec.rpc.Response;
@@ -29,15 +26,14 @@ import com.dremio.services.fabric.proto.FabricProto.FabricIdentity;
 import com.dremio.services.fabric.proto.FabricProto.FabricMessage;
 import com.dremio.services.fabric.proto.FabricProto.RpcType;
 import com.google.protobuf.MessageLite;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
+import org.apache.arrow.memory.ArrowByteBufAllocator;
+import org.apache.arrow.memory.BufferAllocator;
 
-/**
- * Fabric server that accepts connection.
- */
-class FabricServer extends BasicServer<RpcType, FabricConnection>{
+/** Fabric server that accepts connection. */
+class FabricServer extends BasicServer<RpcType, FabricConnection> {
   private final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(this.getClass());
 
   private final FabricMessageHandler handler;
@@ -53,13 +49,8 @@ class FabricServer extends BasicServer<RpcType, FabricConnection>{
       RpcConfig config,
       BufferAllocator allocator,
       ConnectionManagerRegistry connectionRegistry,
-      EventLoopGroup eventLoopGroup
-      ) {
-    super(
-        config,
-        new ArrowByteBufAllocator(allocator),
-        eventLoopGroup
-        );
+      EventLoopGroup eventLoopGroup) {
+    super(config, new ArrowByteBufAllocator(allocator), eventLoopGroup);
     this.connectionRegistry = connectionRegistry;
     this.allocator = allocator;
     this.handler = handler;
@@ -79,13 +70,16 @@ class FabricServer extends BasicServer<RpcType, FabricConnection>{
   }
 
   @Override
-  protected void handle(FabricConnection connection, int rpcType, byte[] pBody, ByteBuf dBody, ResponseSender sender)
+  protected void handle(
+      FabricConnection connection, int rpcType, byte[] pBody, ByteBuf dBody, ResponseSender sender)
       throws RpcException {
-    handler.handle(connection.getIdentity(), localIdentity, connection, rpcType, pBody, dBody, sender);
+    handler.handle(
+        connection.getIdentity(), localIdentity, connection, rpcType, pBody, dBody, sender);
   }
 
   @Override
-  protected Response handle(FabricConnection connection, int rpcType, byte[] pBody, ByteBuf dBody) throws RpcException {
+  protected Response handle(FabricConnection connection, int rpcType, byte[] pBody, ByteBuf dBody)
+      throws RpcException {
     throw new UnsupportedOperationException();
   }
 
@@ -95,24 +89,36 @@ class FabricServer extends BasicServer<RpcType, FabricConnection>{
   }
 
   @Override
-  protected ServerHandshakeHandler<FabricHandshake> newHandshakeHandler(final FabricConnection connection) {
+  protected ServerHandshakeHandler<FabricHandshake> newHandshakeHandler(
+      final FabricConnection connection) {
     return new ServerHandshakeHandler<FabricHandshake>(RpcType.HANDSHAKE, FabricHandshake.PARSER) {
 
       @Override
       public MessageLite getHandshakeResponse(FabricHandshake inbound) throws Exception {
-//        logger.debug("Handling handshake from other bit. {}", inbound);
+        //        logger.debug("Handling handshake from other bit. {}", inbound);
         if (inbound.getRpcVersion() != FabricRpcConfig.RPC_VERSION) {
-          throw new RpcException(String.format("Invalid rpc version.  Expected %d, actual %d.", inbound.getRpcVersion(), FabricRpcConfig.RPC_VERSION));
+          throw new RpcException(
+              String.format(
+                  "Invalid rpc version.  Expected %d, actual %d.",
+                  inbound.getRpcVersion(), FabricRpcConfig.RPC_VERSION));
         }
-        if (!inbound.hasIdentity() || inbound.getIdentity().getAddress().isEmpty() || inbound.getIdentity().getPort() < 1) {
-          throw new RpcException(String.format("RPC didn't provide valid counter identity.  Received %s.", inbound.getIdentity()));
+        if (!inbound.hasIdentity()
+            || inbound.getIdentity().getAddress().isEmpty()
+            || inbound.getIdentity().getPort() < 1) {
+          throw new RpcException(
+              String.format(
+                  "RPC didn't provide valid counter identity.  Received %s.",
+                  inbound.getIdentity()));
         }
         connection.setIdentity(inbound.getIdentity());
 
-        final boolean isLoopback = inbound.getIdentity().getAddress().equals(address) && inbound.getIdentity().getPort() == port;
+        final boolean isLoopback =
+            inbound.getIdentity().getAddress().equals(address)
+                && inbound.getIdentity().getPort() == port;
 
         if (!isLoopback) {
-          FabricConnectionManager manager = connectionRegistry.getConnectionManager(inbound.getIdentity());
+          FabricConnectionManager manager =
+              connectionRegistry.getConnectionManager(inbound.getIdentity());
 
           // update the close handler.
           connection.wrapCloseHandler(manager.getCloseHandlerCreator());
@@ -127,7 +133,6 @@ class FabricServer extends BasicServer<RpcType, FabricConnection>{
 
         return FabricHandshake.newBuilder().setRpcVersion(FabricRpcConfig.RPC_VERSION).build();
       }
-
     };
   }
 
@@ -135,5 +140,4 @@ class FabricServer extends BasicServer<RpcType, FabricConnection>{
   protected MessageDecoder newDecoder(BufferAllocator allocator) {
     return new FabricProtobufLengthDecoder(allocator);
   }
-
 }

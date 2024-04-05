@@ -15,15 +15,12 @@
  */
 package com.dremio.dac.model.job;
 
-import java.util.List;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
+import java.util.List;
 
-/**
- * Expose job failure info
- */
+/** Expose job failure info */
 public class JobFailureInfo {
   private final String message;
   private final JobFailureType type;
@@ -36,7 +33,7 @@ public class JobFailureInfo {
       @JsonProperty("errors") List<QueryError> errors) {
     this.message = message;
     this.type = type;
-    this.errors = errors != null ? ImmutableList.copyOf(errors) : ImmutableList.<QueryError> of();
+    this.errors = errors != null ? ImmutableList.copyOf(errors) : ImmutableList.<QueryError>of();
   }
 
   public String getMessage() {

@@ -15,13 +15,13 @@
  */
 package com.dremio.services.nessie.grpc.client.impl;
 
+import com.dremio.services.nessie.grpc.api.TreeServiceGrpc.TreeServiceBlockingStub;
 import org.projectnessie.client.api.DeleteTagBuilder;
 import org.projectnessie.model.Reference;
 import org.projectnessie.model.Tag;
 
-import com.dremio.services.nessie.grpc.api.TreeServiceGrpc.TreeServiceBlockingStub;
-
-final class GrpcDeleteTag extends BaseGrpcDeleteReference<Tag, DeleteTagBuilder> implements DeleteTagBuilder {
+final class GrpcDeleteTag extends BaseGrpcDeleteReference<Tag, DeleteTagBuilder>
+    implements DeleteTagBuilder {
 
   public GrpcDeleteTag(TreeServiceBlockingStub stub) {
     super(stub);

@@ -30,9 +30,7 @@ import org.apache.calcite.rel.logical.LogicalSort;
 import org.apache.calcite.rel.logical.LogicalUnion;
 import org.apache.calcite.rel.logical.LogicalValues;
 
-/**
- * A StatelessRelShuttle that routes calls back to the generic visit(RelNode method)
- */
+/** A StatelessRelShuttle that routes calls back to the generic visit(RelNode method) */
 public abstract class RoutingShuttle extends StatelessRelShuttleImpl {
 
   @Override
@@ -104,5 +102,4 @@ public abstract class RoutingShuttle extends StatelessRelShuttleImpl {
   public RelNode visit(LogicalExchange exchange) {
     return visit((RelNode) exchange);
   }
-
 }

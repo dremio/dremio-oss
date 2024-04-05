@@ -1,4 +1,4 @@
-<?xml version="1.0"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!--
 
     Copyright (C) 2017-2019 Dremio Corporation
@@ -19,51 +19,24 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-
   <!-- This file doesn't use dremio parent to avoid circular dependencies -->
   <groupId>com.dremio.tools</groupId>
   <artifactId>dremio-build-tools</artifactId>
-  <version>24.3.2-202401241821100032-d2d8a497</version>
+  <version>25.0.0-202404051521110861-ed9515a8</version>
   <packaging>jar</packaging>
   <name>Tools - Build tools</name>
 
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+    <maven.compiler.release>11</maven.compiler.release>
+    <!-- Please keep versions in sync with oss parent pom.xml -->
+    <spotless.version>2.43.0</spotless.version>
+    <google-java-format.version>1.19.2</google-java-format.version>
+  </properties>
+
   <build>
-    <plugins>
-      <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>xml-maven-plugin</artifactId>
-        <executions>
-          <execution>
-            <goals>
-              <goal>validate</goal>
-            </goals>
-          </execution>
-        </executions>
-        <configuration>
-          <catalogHandling>strict</catalogHandling>
-          <validationSets>
-            <validationSet>
-              <dir>src/main/resources/dremio-owasp/</dir>
-              <systemId>https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd</systemId>
-              <excludes>
-                <exclude>hints.xml</exclude>
-              </excludes>
-            </validationSet>
-            <validationSet>
-              <dir>src/main/resources/dremio-owasp/</dir>
-              <systemId>https://jeremylong.github.io/DependencyCheck/dependency-hint.1.1.xsd</systemId>
-              <includes>
-                <include>hints.xml</include>
-              </includes>
-            </validationSet>
-          </validationSets>
-          <!-- Use of XML Catalog to avoid open resolution of entities -->
-          <catalogs>
-            <catalog>src/main/xmlcatalog/catalog.xml </catalog>
-          </catalogs>
-        </configuration>
-      </plugin>
-    </plugins>
+
     <pluginManagement>
       <plugins>
         <!-- Please keep in sync with top level pom.xml -->
@@ -93,8 +66,76 @@
           <artifactId>xml-maven-plugin</artifactId>
           <version>1.0.2</version>
         </plugin>
+        <plugin>
+          <groupId>com.diffplug.spotless</groupId>
+          <artifactId>spotless-maven-plugin</artifactId>
+          <version>${spotless.version}</version>
+        </plugin>
       </plugins>
     </pluginManagement>
+    <plugins>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>xml-maven-plugin</artifactId>
+        <configuration>
+          <catalogHandling>strict</catalogHandling>
+          <validationSets>
+            <validationSet>
+              <dir>src/main/resources/dremio-owasp/</dir>
+              <systemId>https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd</systemId>
+              <excludes>
+                <exclude>hints.xml</exclude>
+              </excludes>
+            </validationSet>
+            <validationSet>
+              <dir>src/main/resources/dremio-owasp/</dir>
+              <systemId>https://jeremylong.github.io/DependencyCheck/dependency-hint.1.1.xsd</systemId>
+              <includes>
+                <include>hints.xml</include>
+              </includes>
+            </validationSet>
+          </validationSets>
+          <!-- Use of XML Catalog to avoid open resolution of entities -->
+          <catalogs>
+            <catalog>src/main/xmlcatalog/catalog.xml</catalog>
+          </catalogs>
+        </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>validate</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <!-- See https://github.com/diffplug/spotless/tree/main/plugin-maven -->
+        <groupId>com.diffplug.spotless</groupId>
+        <artifactId>spotless-maven-plugin</artifactId>
+        <configuration>
+          <java>
+            <toggleOffOn/>
+            <googleJavaFormat>
+              <version>${google-java-format.version}</version>
+            </googleJavaFormat>
+          </java>
+          <pom>
+            <sortPom>
+              <expandEmptyElements>false</expandEmptyElements>
+              <sortModules>true</sortModules>
+            </sortPom>
+          </pom>
+        </configuration>
+        <executions>
+          <execution>
+            <id>spotless-check</id>
+            <goals>
+              <goal>check</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
   </build>
 
 </project>

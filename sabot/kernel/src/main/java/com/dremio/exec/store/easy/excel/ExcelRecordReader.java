@@ -17,15 +17,6 @@ package com.dremio.exec.store.easy.excel;
 
 import static java.util.stream.Collectors.toCollection;
 
-import java.io.InputStream;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.vector.complex.impl.VectorContainerWriter;
-import org.apache.poi.ooxml.POIXMLException;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
@@ -40,12 +31,19 @@ import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.scan.OutputMutator;
+import java.io.InputStream;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.vector.complex.impl.VectorContainerWriter;
+import org.apache.poi.ooxml.POIXMLException;
 
-/**
- * {@link RecordReader} implementation for reading a single sheet in an Excel file.
- */
-public class ExcelRecordReader extends AbstractRecordReader implements XlsInputStream.BufferManager {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ExcelRecordReader.class);
+/** {@link RecordReader} implementation for reading a single sheet in an Excel file. */
+public class ExcelRecordReader extends AbstractRecordReader
+    implements XlsInputStream.BufferManager {
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ExcelRecordReader.class);
 
   private final ExcelFormatPluginConfig pluginConfig;
   private final OperatorContext executionContext;
@@ -58,17 +56,25 @@ public class ExcelRecordReader extends AbstractRecordReader implements XlsInputS
   private long runningRecordCount;
   private ExcelParser parser;
 
-  public ExcelRecordReader(final OperatorContext executionContext, final FileSystem dfs, final Path path,
-                           final ExcelFormatPluginConfig pluginConfig, final List<SchemaPath> columns) {
+  public ExcelRecordReader(
+      final OperatorContext executionContext,
+      final FileSystem dfs,
+      final Path path,
+      final ExcelFormatPluginConfig pluginConfig,
+      final List<SchemaPath> columns) {
     super(executionContext, columns);
     this.executionContext = executionContext;
     this.dfs = dfs;
     this.path = path;
     this.pluginConfig = pluginConfig;
 
-    // Get the list of columns to project, build a lookup table and pass it to respective parsers for filtering the columns
+    // Get the list of columns to project, build a lookup table and pass it to respective parsers
+    // for filtering the columns
     if (!isStarQuery() && !isSkipQuery()) {
-      this.columnsToProject = getColumns().stream().map(sp -> sp.getAsNamePart().getName()).collect(toCollection(HashSet::new));
+      this.columnsToProject =
+          getColumns().stream()
+              .map(sp -> sp.getAsNamePart().getName())
+              .collect(toCollection(HashSet::new));
       logger.debug("Number of projected columns: {}", columnsToProject.size());
     }
   }
@@ -80,42 +86,62 @@ public class ExcelRecordReader extends AbstractRecordReader implements XlsInputS
 
   @Override
   public void setup(OutputMutator output) throws ExecutionSetupException {
-    // Reason for enabling the union by default is because Excel documents are highly likely to contain
+    // Reason for enabling the union by default is because Excel documents are highly likely to
+    // contain
     // mixed types and the sampling code doesn't take enable union by default.
     this.writer = new VectorContainerWriter(output);
     final ArrowBuf managedBuf = executionContext.getManagedBuffer();
 
     try {
       inputStream = dfs.open(path);
-      final int maxCellSize = Math.toIntExact(context.getOptions().getOption(ExecConstants.LIMIT_FIELD_SIZE_BYTES));
+      final int maxCellSize =
+          Math.toIntExact(context.getOptions().getOption(ExecConstants.LIMIT_FIELD_SIZE_BYTES));
 
       if (pluginConfig.xls) {
         // we don't need to close this stream, it will be closed by the parser
         final XlsInputStream xlsStream = new XlsInputStream(this, inputStream);
-        parser = new XlsRecordProcessor(xlsStream, pluginConfig, writer, managedBuf, columnsToProject, isSkipQuery(), maxCellSize);
+        parser =
+            new XlsRecordProcessor(
+                xlsStream,
+                pluginConfig,
+                writer,
+                managedBuf,
+                columnsToProject,
+                isSkipQuery(),
+                maxCellSize);
       } else {
-        parser = new StAXBasedParser(inputStream, pluginConfig, writer, managedBuf, columnsToProject, isSkipQuery(), maxCellSize);
+        parser =
+            new StAXBasedParser(
+                inputStream,
+                pluginConfig,
+                writer,
+                managedBuf,
+                columnsToProject,
+                isSkipQuery(),
+                maxCellSize);
       }
     } catch (final SheetNotFoundException e) {
       // This check will move to schema validation in planning after DX-2271
-      throw UserException.validationError()
-              .message("There is no sheet with given name '%s' in Excel document located at '%s'",
-                      pluginConfig.sheet, path)
-              .build(logger);
+      throw UserException.validationError(e)
+          .message(
+              "There is no sheet with given name '%s' in Excel document located at '%s'",
+              pluginConfig.sheet, path)
+          .build(logger);
     } catch (POIXMLException e) {
       // strict OOXML is not fully supported
       if (e.getMessage().contains("Strict OOXML")) {
         throw UserException.dataReadError(e)
-          .message("Strict OXMl is not supported. Please save %s in standard (.xlsx) format.", path)
-          .build(logger);
+            .message(
+                "Strict OXMl is not supported. Please save %s in standard (.xlsx) format.", path)
+            .build(logger);
       }
       throw UserException.dataReadError(e)
-        .message("OOXML file structure broken/invalid - no core document found!")
-        .build(logger);
+          .message("OOXML file structure broken/invalid - no core document found!")
+          .build(logger);
     } catch (Throwable e) {
       throw UserException.dataReadError(e)
-              .message("Failure creating parser for entry '%s'", path)
-              .build(logger);
+          .message("Failure creating parser for entry '%s'", path)
+          .build(logger);
     }
   }
 

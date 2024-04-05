@@ -15,17 +15,14 @@
  */
 package com.dremio.sabot.exec;
 
-/**
- * Placeholder to hold cancel related context used for killing queries by
- * heap monitor.
- */
+/** Placeholder to hold cancel related context used for killing queries by heap monitor. */
 public class CancelQueryContext {
   private final String cancelReason;
   private final String cancelContext;
   private final boolean isCancelledByHeapMonitor;
 
-  public CancelQueryContext(String cancelReason, String cancelContext,
-                            boolean isCancelledByHeapMonitor) {
+  public CancelQueryContext(
+      String cancelReason, String cancelContext, boolean isCancelledByHeapMonitor) {
     this.cancelReason = cancelReason;
     this.cancelContext = cancelContext;
     this.isCancelledByHeapMonitor = isCancelledByHeapMonitor;

@@ -15,19 +15,19 @@
  */
 package com.dremio.exec.catalog;
 
-import java.util.List;
-
 import com.dremio.exec.proto.UserBitShared.PlanPhaseProfile;
 import com.google.common.collect.Lists;
+import java.util.List;
 
 public class MetadataStatsCollector {
   private final List<PlanPhaseProfile> planPhaseProfiles = Lists.newArrayList();
 
   void addDatasetStat(String datasetPath, String type, long millisTaken) {
-    planPhaseProfiles.add(PlanPhaseProfile.newBuilder()
-      .setPhaseName(String.format("%s: %s", datasetPath, type))
-      .setDurationMillis(millisTaken)
-      .build());
+    planPhaseProfiles.add(
+        PlanPhaseProfile.newBuilder()
+            .setPhaseName(String.format("%s: %s", datasetPath, type))
+            .setDurationMillis(millisTaken)
+            .build());
   }
 
   public List<PlanPhaseProfile> getPlanPhaseProfiles() {

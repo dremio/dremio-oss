@@ -17,7 +17,6 @@ package com.dremio.exec.planner.logical;
 
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
@@ -29,7 +28,8 @@ import org.apache.calcite.util.trace.CalciteTrace;
 import org.slf4j.Logger;
 
 /**
- * Rule that converts a {@link LogicalUnion} to a {@link UnionRelBase}, implemented by a "union" operation.
+ * Rule that converts a {@link LogicalUnion} to a {@link UnionRelBase}, implemented by a "union"
+ * operation.
  */
 public class UnionAllRule extends RelOptRule {
   public static final RelOptRule INSTANCE = new UnionAllRule();
@@ -44,21 +44,27 @@ public class UnionAllRule extends RelOptRule {
     final LogicalUnion union = (LogicalUnion) call.rel(0);
 
     // This rule applies to Union-All only
-    if(!union.all) {
+    if (!union.all) {
       return;
     }
 
     final RelTraitSet traits = union.getTraitSet().plus(Rel.LOGICAL);
     final List<RelNode> convertedInputs = new ArrayList<>();
     for (RelNode input : union.getInputs()) {
-      final RelNode convertedInput = convert(input, input.getTraitSet().plus(Rel.LOGICAL).simplify());
+      final RelNode convertedInput =
+          convert(input, input.getTraitSet().plus(Rel.LOGICAL).simplify());
       convertedInputs.add(convertedInput);
     }
     try {
-      call.transformTo(new UnionRel(union.getCluster(), traits, convertedInputs, union.all,
-          true /* check compatibility */));
+      call.transformTo(
+          new UnionRel(
+              union.getCluster(),
+              traits,
+              convertedInputs,
+              union.all,
+              true /* check compatibility */));
     } catch (InvalidRelException e) {
-      tracer.warn(e.toString()) ;
+      tracer.warn(e.toString());
     }
   }
 }

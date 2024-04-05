@@ -19,7 +19,8 @@ import com.dremio.exec.context.AdditionalContext;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 
 /**
- * Provides query context information (such as query start time, query user, default schema etc.) for UDFs.
+ * Provides query context information (such as query start time, query user, default schema etc.)
+ * for UDFs.
  */
 public interface ContextInformation {
 
@@ -29,7 +30,8 @@ public interface ContextInformation {
   String getQueryUser();
 
   /**
-   * @return Get the current default schema in user session at the time of this particular query submission.
+   * @return Get the current default schema in user session at the time of this particular query
+   *     submission.
    */
   String getCurrentDefaultSchema();
 
@@ -51,7 +53,4 @@ public interface ContextInformation {
   void registerAdditionalInfo(AdditionalContext object);
 
   <T extends AdditionalContext> T getAdditionalInfo(Class<T> clazz);
-
-  boolean isPlanCacheable();
-  void setPlanCacheable(boolean isplancacheable);
 }

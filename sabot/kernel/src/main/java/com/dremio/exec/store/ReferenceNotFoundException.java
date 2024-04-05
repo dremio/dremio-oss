@@ -15,9 +15,7 @@
  */
 package com.dremio.exec.store;
 
-/**
- * Thrown if a reference is not found.
- */
+/** Thrown if a reference is not found. */
 public class ReferenceNotFoundException extends RuntimeException {
   private static final long serialVersionUID = 1L;
 

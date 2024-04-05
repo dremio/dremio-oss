@@ -15,14 +15,10 @@
  */
 package com.dremio.service.users;
 
-/**
- * Invalid user login exception with a status.
- */
+/** Invalid user login exception with a status. */
 public class StatusUserLoginException extends UserLoginException {
 
-  /**
-   * Login error status.
-   */
+  /** Login error status. */
   public enum Status {
     UNKNOWN,
     INVALID_CREDENTIAL,
@@ -38,7 +34,8 @@ public class StatusUserLoginException extends UserLoginException {
     this.errorStatus = Status.UNKNOWN;
   }
 
-  public StatusUserLoginException(final Status errorStatus, final String userName, final String error) {
+  public StatusUserLoginException(
+      final Status errorStatus, final String userName, final String error) {
     super(userName, error);
     this.errorStatus = errorStatus;
   }

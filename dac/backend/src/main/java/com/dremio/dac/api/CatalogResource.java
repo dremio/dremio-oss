@@ -17,11 +17,17 @@ package com.dremio.dac.api;
 
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
+import com.dremio.common.exceptions.ExecutionSetupException;
+import com.dremio.dac.annotations.APIResource;
+import com.dremio.dac.annotations.Secured;
+import com.dremio.dac.service.catalog.CatalogServiceHelper;
+import com.dremio.service.namespace.NamespaceException;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-
 import javax.annotation.security.RolesAllowed;
 import javax.inject.Inject;
 import javax.ws.rs.BadRequestException;
@@ -38,17 +44,7 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.PathSegment;
 
-import com.dremio.common.exceptions.ExecutionSetupException;
-import com.dremio.dac.annotations.APIResource;
-import com.dremio.dac.annotations.Secured;
-import com.dremio.dac.service.catalog.CatalogServiceHelper;
-import com.dremio.service.namespace.NamespaceException;
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
-
-/**
- * Catalog API resource.
- */
+/** Catalog API resource. */
 @APIResource
 @Secured
 @RolesAllowed({"user", "admin"})
@@ -64,16 +60,20 @@ public class CatalogResource {
   }
 
   @GET
-  public ResponseList<? extends CatalogItem> listTopLevelCatalog(@QueryParam("include") final List<String> include) {
+  public ResponseList<? extends CatalogItem> listTopLevelCatalog(
+      @QueryParam("include") final List<String> include) {
     return new ResponseList<>(catalogServiceHelper.getTopLevelCatalogItems(include));
   }
 
   @GET
   @Path("/{id}")
-  public CatalogEntity getCatalogItem(@PathParam("id") String id,
-                                      @QueryParam("include") final List<String> include,
-                                      @QueryParam("exclude") final List<String> exclude) throws NamespaceException {
-    Optional<CatalogEntity> entity = catalogServiceHelper.getCatalogEntityById(id, include, exclude);
+  public CatalogEntity getCatalogItem(
+      @PathParam("id") String id,
+      @QueryParam("include") final List<String> include,
+      @QueryParam("exclude") final List<String> exclude)
+      throws NamespaceException {
+    Optional<CatalogEntity> entity =
+        catalogServiceHelper.getCatalogEntityById(id, include, exclude);
 
     if (!entity.isPresent()) {
       throw new NotFoundException(String.format("Could not find entity with id [%s]", id));
@@ -84,7 +84,7 @@ public class CatalogResource {
 
   @POST
   public CatalogEntity createCatalogItem(CatalogEntity entity)
-    throws NamespaceException, BadRequestException {
+      throws NamespaceException, BadRequestException {
     try {
       return catalogServiceHelper.createCatalogItem(entity);
     } catch (UnsupportedOperationException e) {
@@ -96,7 +96,8 @@ public class CatalogResource {
 
   @POST
   @Path("/{id}")
-  public Dataset promoteToDataset(Dataset dataset, @PathParam("id") String id) throws NamespaceException, BadRequestException {
+  public Dataset promoteToDataset(Dataset dataset, @PathParam("id") String id)
+      throws NamespaceException, BadRequestException {
     try {
       return catalogServiceHelper.promoteToDataset(id, dataset);
     } catch (UnsupportedOperationException e) {
@@ -106,7 +107,8 @@ public class CatalogResource {
 
   @PUT
   @Path("/{id}")
-  public CatalogEntity updateCatalogItem(CatalogEntity entity, @PathParam("id") String id) throws NamespaceException, BadRequestException {
+  public CatalogEntity updateCatalogItem(CatalogEntity entity, @PathParam("id") String id)
+      throws NamespaceException, BadRequestException {
     try {
       return catalogServiceHelper.updateCatalogItem(entity, id);
     } catch (IllegalArgumentException e) {
@@ -120,7 +122,8 @@ public class CatalogResource {
 
   @DELETE
   @Path("/{id}")
-  public void deleteCatalogItem(@PathParam("id") String id, @QueryParam("tag") String tag) throws NamespaceException, BadRequestException {
+  public void deleteCatalogItem(@PathParam("id") String id, @QueryParam("tag") String tag)
+      throws NamespaceException, BadRequestException {
     try {
       catalogServiceHelper.deleteCatalogItem(id, tag);
     } catch (IllegalArgumentException e) {
@@ -173,22 +176,19 @@ public class CatalogResource {
 
   @GET
   @Path("/search")
-  public ResponseList<CatalogItem> search(@QueryParam("query") String query) throws NamespaceException {
+  public ResponseList<CatalogItem> search(@QueryParam("query") String query)
+      throws NamespaceException {
     return new ResponseList<>(catalogServiceHelper.search(query));
   }
 
-  /**
-   * MetadataRefreshResponse class
-   */
+  /** MetadataRefreshResponse class */
   public static class MetadataRefreshResponse {
     private final boolean changed;
     private final boolean deleted;
 
     @JsonCreator
     public MetadataRefreshResponse(
-      @JsonProperty("changed") boolean changed,
-      @JsonProperty("deleted") boolean deleted
-    ) {
+        @JsonProperty("changed") boolean changed, @JsonProperty("deleted") boolean deleted) {
       this.changed = changed;
       this.deleted = deleted;
     }

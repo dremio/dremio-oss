@@ -16,12 +16,9 @@
 package com.dremio.service.jobs.metadata;
 
 import java.util.List;
-
 import org.apache.calcite.rel.metadata.RelColumnOrigin;
 
-/**
- * To extract named info from a RelColumnOrigin
- */
+/** To extract named info from a RelColumnOrigin */
 public class Origins {
 
   /**
@@ -37,6 +34,10 @@ public class Origins {
    * @return the column name
    */
   public static String getColName(RelColumnOrigin origin) {
-    return origin.getOriginTable().getRowType().getFieldNames().get(origin.getOriginColumnOrdinal());
+    return origin
+        .getOriginTable()
+        .getRowType()
+        .getFieldNames()
+        .get(origin.getOriginColumnOrdinal());
   }
 }

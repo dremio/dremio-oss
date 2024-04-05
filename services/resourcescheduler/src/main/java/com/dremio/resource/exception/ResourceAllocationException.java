@@ -15,9 +15,7 @@
  */
 package com.dremio.resource.exception;
 
-/**
- * To encapsulate WorkloadManagement related exceptions
- */
+/** To encapsulate WorkloadManagement related exceptions */
 public class ResourceAllocationException extends Exception {
 
   public ResourceAllocationException(String msg) {

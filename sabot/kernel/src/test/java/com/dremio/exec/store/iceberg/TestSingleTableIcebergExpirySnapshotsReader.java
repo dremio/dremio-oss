@@ -27,6 +27,24 @@ import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.dremio.exec.expr.TypeHelper;
+import com.dremio.exec.hadoop.HadoopFileSystem;
+import com.dremio.exec.hadoop.HadoopFileSystemConfigurationAdapter;
+import com.dremio.exec.physical.base.OpProps;
+import com.dremio.exec.store.SystemSchemas;
+import com.dremio.exec.store.TestOutputMutator;
+import com.dremio.exec.store.dfs.IcebergTableProps;
+import com.dremio.exec.store.iceberg.hadoop.IcebergHadoopModel;
+import com.dremio.exec.store.iceberg.model.IcebergModel;
+import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.Path;
+import com.dremio.sabot.exec.context.MetricDef;
+import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.sabot.exec.context.OperatorStats;
+import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
+import com.dremio.sabot.op.scan.OutputMutator;
+import com.dremio.service.users.SystemUser;
+import com.google.common.collect.ImmutableList;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -40,7 +58,6 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
-
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.BigIntVector;
@@ -62,28 +79,7 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import com.dremio.exec.expr.TypeHelper;
-import com.dremio.exec.hadoop.HadoopFileSystem;
-import com.dremio.exec.hadoop.HadoopFileSystemConfigurationAdapter;
-import com.dremio.exec.physical.base.OpProps;
-import com.dremio.exec.store.SystemSchemas;
-import com.dremio.exec.store.TestOutputMutator;
-import com.dremio.exec.store.dfs.IcebergTableProps;
-import com.dremio.exec.store.iceberg.hadoop.IcebergHadoopModel;
-import com.dremio.exec.store.iceberg.model.IcebergModel;
-import com.dremio.io.file.FileSystem;
-import com.dremio.io.file.Path;
-import com.dremio.sabot.exec.context.MetricDef;
-import com.dremio.sabot.exec.context.OperatorContext;
-import com.dremio.sabot.exec.context.OperatorStats;
-import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
-import com.dremio.sabot.op.scan.OutputMutator;
-import com.dremio.service.users.SystemUser;
-import com.google.common.collect.ImmutableList;
-
-/**
- * Tests for {@link SingleTableIcebergExpirySnapshotsReader}
- */
+/** Tests for {@link SingleTableIcebergExpirySnapshotsReader} */
 public class TestSingleTableIcebergExpirySnapshotsReader {
 
   private static final HadoopTables hadoopTables = new HadoopTables(new Configuration());
@@ -115,9 +111,11 @@ public class TestSingleTableIcebergExpirySnapshotsReader {
   @Test
   public void testLiveSnapshotsEmptyTable() throws Exception {
     Table table = createTable(0);
-    SnapshotsScanOptions scanOptions = new SnapshotsScanOptions(LIVE_SNAPSHOTS, System.currentTimeMillis(), 1);
-    SingleTableIcebergExpirySnapshotsReader reader = new SingleTableIcebergExpirySnapshotsReader(operatorContext(),
-      toSplit(table), plugin(), props(), scanOptions);
+    SnapshotsScanOptions scanOptions =
+        new SnapshotsScanOptions(LIVE_SNAPSHOTS, System.currentTimeMillis(), 1);
+    SingleTableIcebergExpirySnapshotsReader reader =
+        new SingleTableIcebergExpirySnapshotsReader(
+            operatorContext(), toSplit(table), plugin(), props(), scanOptions);
     reader.setup(outputMutator());
     int recordCount = reader.next();
 
@@ -129,11 +127,13 @@ public class TestSingleTableIcebergExpirySnapshotsReader {
 
   @Test
   public void testLiveSnapshotsAllSurvived() throws Exception {
-    SnapshotsScanOptions scanOptions = new SnapshotsScanOptions(LIVE_SNAPSHOTS, System.currentTimeMillis(), 1);
+    SnapshotsScanOptions scanOptions =
+        new SnapshotsScanOptions(LIVE_SNAPSHOTS, System.currentTimeMillis(), 1);
 
     Table table = createTable(5);
-    SingleTableIcebergExpirySnapshotsReader reader = new SingleTableIcebergExpirySnapshotsReader(operatorContext(),
-      toSplit(table), plugin(), props(), scanOptions);
+    SingleTableIcebergExpirySnapshotsReader reader =
+        new SingleTableIcebergExpirySnapshotsReader(
+            operatorContext(), toSplit(table), plugin(), props(), scanOptions);
     OutputMutator outputMutator = outputMutator();
 
     reader.setup(outputMutator);
@@ -141,20 +141,26 @@ public class TestSingleTableIcebergExpirySnapshotsReader {
 
     assertThat(recordCount).isEqualTo(5);
 
-    String metaPath = String.format("file://%s", ((BaseTable) table).operations().current().metadataFileLocation());
-    List<SnapshotEntry> expectedSnapshots = StreamSupport.stream(table.snapshots().spliterator(), false)
-      .map(s -> new SnapshotEntry(metaPath, s)).collect(Collectors.toList());
+    String metaPath =
+        String.format(
+            "file://%s", ((BaseTable) table).operations().current().metadataFileLocation());
+    List<SnapshotEntry> expectedSnapshots =
+        StreamSupport.stream(table.snapshots().spliterator(), false)
+            .map(s -> new SnapshotEntry(metaPath, s))
+            .collect(Collectors.toList());
 
     validate(outputMutator, expectedSnapshots);
   }
 
   @Test
   public void testExpiredSnapshotsNoRecords() throws Exception {
-    SnapshotsScanOptions scanOptions = new SnapshotsScanOptions(EXPIRED_SNAPSHOTS, System.currentTimeMillis(), 1);
+    SnapshotsScanOptions scanOptions =
+        new SnapshotsScanOptions(EXPIRED_SNAPSHOTS, System.currentTimeMillis(), 1);
 
     Table table = createTable(5);
-    SingleTableIcebergExpirySnapshotsReader reader = new SingleTableIcebergExpirySnapshotsReader(operatorContext(),
-      toSplit(table), plugin(), props(), scanOptions);
+    SingleTableIcebergExpirySnapshotsReader reader =
+        new SingleTableIcebergExpirySnapshotsReader(
+            operatorContext(), toSplit(table), plugin(), props(), scanOptions);
     OutputMutator outputMutator = outputMutator();
 
     reader.setup(outputMutator);
@@ -166,10 +172,12 @@ public class TestSingleTableIcebergExpirySnapshotsReader {
   @Test
   public void testLiveSnapshotsOneSurvived() throws Exception {
     Table table = createTable(5);
-    SnapshotsScanOptions scanOptions = new SnapshotsScanOptions(LIVE_SNAPSHOTS, System.currentTimeMillis(), 1);
+    SnapshotsScanOptions scanOptions =
+        new SnapshotsScanOptions(LIVE_SNAPSHOTS, System.currentTimeMillis(), 1);
 
-    SingleTableIcebergExpirySnapshotsReader reader = new SingleTableIcebergExpirySnapshotsReader(operatorContext(),
-      toSplit(table), plugin(), props(), scanOptions);
+    SingleTableIcebergExpirySnapshotsReader reader =
+        new SingleTableIcebergExpirySnapshotsReader(
+            operatorContext(), toSplit(table), plugin(), props(), scanOptions);
     OutputMutator outputMutator = outputMutator();
 
     reader.setup(outputMutator);
@@ -178,8 +186,11 @@ public class TestSingleTableIcebergExpirySnapshotsReader {
     assertThat(recordCount).isEqualTo(1);
 
     table.refresh();
-    String metaPath = String.format("file://%s", ((BaseTable) table).operations().current().metadataFileLocation());
-    List<SnapshotEntry> expectedSnapshots = ImmutableList.of(new SnapshotEntry(metaPath, table.currentSnapshot()));
+    String metaPath =
+        String.format(
+            "file://%s", ((BaseTable) table).operations().current().metadataFileLocation());
+    List<SnapshotEntry> expectedSnapshots =
+        ImmutableList.of(new SnapshotEntry(metaPath, table.currentSnapshot()));
 
     validate(outputMutator, expectedSnapshots);
   }
@@ -187,10 +198,12 @@ public class TestSingleTableIcebergExpirySnapshotsReader {
   @Test
   public void testExpiredSnapshotsOneSurvived() throws Exception {
     Table table = createTable(5);
-    SnapshotsScanOptions scanOptions = new SnapshotsScanOptions(EXPIRED_SNAPSHOTS, System.currentTimeMillis(), 1);
+    SnapshotsScanOptions scanOptions =
+        new SnapshotsScanOptions(EXPIRED_SNAPSHOTS, System.currentTimeMillis(), 1);
 
-    SingleTableIcebergExpirySnapshotsReader reader = new SingleTableIcebergExpirySnapshotsReader(operatorContext(),
-      toSplit(table), plugin(), props(), scanOptions);
+    SingleTableIcebergExpirySnapshotsReader reader =
+        new SingleTableIcebergExpirySnapshotsReader(
+            operatorContext(), toSplit(table), plugin(), props(), scanOptions);
     OutputMutator outputMutator = outputMutator();
 
     reader.setup(outputMutator);
@@ -198,20 +211,26 @@ public class TestSingleTableIcebergExpirySnapshotsReader {
 
     assertThat(recordCount).isEqualTo(4);
 
-    String metaPath = String.format("file://%s", ((BaseTable) table).operations().current().metadataFileLocation());
-    List<SnapshotEntry> expectedSnapshots = StreamSupport.stream(table.snapshots().spliterator(), false)
-      .map(s -> new SnapshotEntry(metaPath, s)).filter(s -> s.getSnapshotId() != table.currentSnapshot().snapshotId())
-      .collect(Collectors.toList());
+    String metaPath =
+        String.format(
+            "file://%s", ((BaseTable) table).operations().current().metadataFileLocation());
+    List<SnapshotEntry> expectedSnapshots =
+        StreamSupport.stream(table.snapshots().spliterator(), false)
+            .map(s -> new SnapshotEntry(metaPath, s))
+            .filter(s -> s.getSnapshotId() != table.currentSnapshot().snapshotId())
+            .collect(Collectors.toList());
     validate(outputMutator, expectedSnapshots);
   }
 
   @Test
   public void testLiveSnapshotsExceedsBatchSize() throws Exception {
-    SnapshotsScanOptions scanOptions = new SnapshotsScanOptions(LIVE_SNAPSHOTS, System.currentTimeMillis(), 1);
+    SnapshotsScanOptions scanOptions =
+        new SnapshotsScanOptions(LIVE_SNAPSHOTS, System.currentTimeMillis(), 1);
     Table table = createTable(10);
 
-    SingleTableIcebergExpirySnapshotsReader reader = new SingleTableIcebergExpirySnapshotsReader(operatorContext(),
-      toSplit(table), plugin(), props(), scanOptions);
+    SingleTableIcebergExpirySnapshotsReader reader =
+        new SingleTableIcebergExpirySnapshotsReader(
+            operatorContext(), toSplit(table), plugin(), props(), scanOptions);
     OutputMutator outputMutator = outputMutator();
 
     reader.setup(outputMutator);
@@ -226,11 +245,17 @@ public class TestSingleTableIcebergExpirySnapshotsReader {
     assertThat(recordCount2).isEqualTo(5);
     List<SnapshotEntry> actualEntries2 = getActualEntries(outputMutator);
 
-    List<SnapshotEntry> actualEntriesAll = Stream.concat(actualEntries1.stream(), actualEntries2.stream()).collect(Collectors.toList());
+    List<SnapshotEntry> actualEntriesAll =
+        Stream.concat(actualEntries1.stream(), actualEntries2.stream())
+            .collect(Collectors.toList());
 
-    String metaPath = String.format("file://%s", ((BaseTable) table).operations().current().metadataFileLocation());
-    List<SnapshotEntry> expectedSnapshots = StreamSupport.stream(table.snapshots().spliterator(), false)
-      .map(s -> new SnapshotEntry(metaPath, s)).collect(Collectors.toList());
+    String metaPath =
+        String.format(
+            "file://%s", ((BaseTable) table).operations().current().metadataFileLocation());
+    List<SnapshotEntry> expectedSnapshots =
+        StreamSupport.stream(table.snapshots().spliterator(), false)
+            .map(s -> new SnapshotEntry(metaPath, s))
+            .collect(Collectors.toList());
 
     assertThat(actualEntriesAll).containsExactlyElementsOf(expectedSnapshots);
   }
@@ -241,24 +266,35 @@ public class TestSingleTableIcebergExpirySnapshotsReader {
   }
 
   private List<SnapshotEntry> getActualEntries(OutputMutator outputMutator) {
-    BigIntVector snapshotIdVector = (BigIntVector) outputMutator.getVector(SystemSchemas.SNAPSHOT_ID);
-    VarCharVector metadataVector = (VarCharVector) outputMutator.getVector(SystemSchemas.METADATA_FILE_PATH);
-    VarCharVector manifestListVector = (VarCharVector) outputMutator.getVector(SystemSchemas.MANIFEST_LIST_PATH);
+    BigIntVector snapshotIdVector =
+        (BigIntVector) outputMutator.getVector(SystemSchemas.SNAPSHOT_ID);
+    VarCharVector metadataVector =
+        (VarCharVector) outputMutator.getVector(SystemSchemas.METADATA_FILE_PATH);
+    VarCharVector manifestListVector =
+        (VarCharVector) outputMutator.getVector(SystemSchemas.MANIFEST_LIST_PATH);
 
     return IntStream.range(0, snapshotIdVector.getValueCount())
-      .mapToObj(i -> new SnapshotEntry(
-        new String(metadataVector.get(i), StandardCharsets.UTF_8),
-        snapshotIdVector.get(i),
-        new String(manifestListVector.get(i), StandardCharsets.UTF_8),
-        null))
-      .collect(Collectors.toList());
+        .mapToObj(
+            i ->
+                new SnapshotEntry(
+                    new String(metadataVector.get(i), StandardCharsets.UTF_8),
+                    snapshotIdVector.get(i),
+                    new String(manifestListVector.get(i), StandardCharsets.UTF_8),
+                    null))
+        .collect(Collectors.toList());
   }
 
   private OutputMutator outputMutator() {
     TestOutputMutator outputMutator = new TestOutputMutator(allocator);
-    FieldVector metaVector = TypeHelper.getNewVector(Field.nullable(SystemSchemas.METADATA_FILE_PATH, new ArrowType.Utf8()), allocator);
-    FieldVector snapshotVector = TypeHelper.getNewVector(Field.nullable(SystemSchemas.SNAPSHOT_ID, new ArrowType.Int(64, true)), allocator);
-    FieldVector manifestListVector = TypeHelper.getNewVector(Field.nullable(SystemSchemas.MANIFEST_LIST_PATH, new ArrowType.Utf8()), allocator);
+    FieldVector metaVector =
+        TypeHelper.getNewVector(
+            Field.nullable(SystemSchemas.METADATA_FILE_PATH, new ArrowType.Utf8()), allocator);
+    FieldVector snapshotVector =
+        TypeHelper.getNewVector(
+            Field.nullable(SystemSchemas.SNAPSHOT_ID, new ArrowType.Int(64, true)), allocator);
+    FieldVector manifestListVector =
+        TypeHelper.getNewVector(
+            Field.nullable(SystemSchemas.MANIFEST_LIST_PATH, new ArrowType.Utf8()), allocator);
     outputMutator.addField(metaVector);
     outputMutator.addField(snapshotVector);
     outputMutator.addField(manifestListVector);
@@ -267,25 +303,32 @@ public class TestSingleTableIcebergExpirySnapshotsReader {
 
   private IcebergProtobuf.IcebergDatasetSplitXAttr toSplit(Table table) {
     return IcebergProtobuf.IcebergDatasetSplitXAttr.newBuilder()
-      .setDbName("default")
-      .setPath(((BaseTable)table).operations().current().metadataFileLocation())
-      .setTableName(table.name())
-      .build();
+        .setDbName("default")
+        .setPath(((BaseTable) table).operations().current().metadataFileLocation())
+        .setTableName(table.name())
+        .build();
   }
 
   private SupportsIcebergMutablePlugin plugin() throws IOException {
     SupportsIcebergMutablePlugin plugin = mock(SupportsIcebergMutablePlugin.class);
     when(plugin.createFS(anyString(), anyString(), any(OperatorContext.class))).thenReturn(fs);
 
-    FileIO io = new DremioFileIO(fs, null, Collections.emptyList(), null, 100L,
-      new HadoopFileSystemConfigurationAdapter(CONF));
+    FileIO io =
+        new DremioFileIO(
+            fs,
+            null,
+            Collections.emptyList(),
+            null,
+            100L,
+            new HadoopFileSystemConfigurationAdapter(CONF));
     when(plugin.createIcebergFileIO(any(), any(), any(), any(), any())).thenReturn(io);
     when(plugin.getSystemUserFS()).thenReturn(fs);
     when(plugin.getFsConfCopy()).thenReturn(CONF);
 
     IcebergModel icebergModel = new IcebergHadoopModel(plugin);
-    when(plugin.getIcebergModel(any(IcebergTableProps.class), anyString(), any(OperatorContext.class), eq(io)))
-      .thenReturn(icebergModel);
+    when(plugin.getIcebergModel(
+            any(IcebergTableProps.class), anyString(), any(OperatorContext.class), eq(io)))
+        .thenReturn(icebergModel);
 
     return plugin;
   }
@@ -311,15 +354,22 @@ public class TestSingleTableIcebergExpirySnapshotsReader {
   }
 
   private Table createTable(int numberOfSnapshots) {
-    Schema icebergTableSchema = new Schema(ImmutableList.of(Types.NestedField.required(0, "id", new Types.IntegerType())));
-    Table table = hadoopTables.create(icebergTableSchema, baseFolder.getAbsolutePath() + "/" + generateUniqueTableName());
+    Schema icebergTableSchema =
+        new Schema(ImmutableList.of(Types.NestedField.required(0, "id", new Types.IntegerType())));
+    Table table =
+        hadoopTables.create(
+            icebergTableSchema, baseFolder.getAbsolutePath() + "/" + generateUniqueTableName());
     for (int i = 0; i < numberOfSnapshots; i++) {
-      table.newFastAppend().appendFile(DataFiles.builder(table.spec())
-        .withPath(String.format("%s/data/data-%d.parquet", table.location(), i))
-        .withFormat(FileFormat.PARQUET)
-        .withFileSizeInBytes(1024L)
-        .withRecordCount(100L)
-        .build()).commit();
+      table
+          .newFastAppend()
+          .appendFile(
+              DataFiles.builder(table.spec())
+                  .withPath(String.format("%s/data/data-%d.parquet", table.location(), i))
+                  .withFormat(FileFormat.PARQUET)
+                  .withFileSizeInBytes(1024L)
+                  .withRecordCount(100L)
+                  .build())
+          .commit();
     }
     return table;
   }

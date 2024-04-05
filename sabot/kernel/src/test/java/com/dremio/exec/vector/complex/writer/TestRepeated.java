@@ -17,8 +17,11 @@ package com.dremio.exec.vector.complex.writer;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import com.dremio.exec.ExecTest;
+import com.dremio.exec.vector.complex.fn.JsonWriter;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectWriter;
 import java.io.ByteArrayOutputStream;
-
 import org.apache.arrow.vector.complex.NonNullableStructVector;
 import org.apache.arrow.vector.complex.StructVector;
 import org.apache.arrow.vector.complex.impl.ComplexWriterImpl;
@@ -30,70 +33,65 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.junit.Test;
 
-import com.dremio.exec.ExecTest;
-import com.dremio.exec.vector.complex.fn.JsonWriter;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectWriter;
-
 public class TestRepeated extends ExecTest {
 
-//  @Test
-//  public void repeatedMap() {
-//
-//    /**
-//     * We're going to try to create an object that looks like:
-//     *
-//     *  {
-//     *    a: [
-//     *      {x: 1, y: 2}
-//     *      {x: 2, y: 1}
-//     *    ]
-//     *  }
-//     *
-//     */
-//    MapVector v = new MapVector("", allocator);
-//    ComplexWriter writer = new ComplexWriterImpl("col", v);
-//
-//    MapWriter map = writer.rootAsMap();
-//
-//    map.start();
-//    ListWriter list = map.list("a");
-//    MapWriter inner = list.map();
-//
-//    IntHolder holder = new IntHolder();
-//    IntWriter xCol = inner.integer("x");
-//    IntWriter yCol = inner.integer("y");
-//
-//    inner.start();
-//
-//    holder.value = 1;
-//    xCol.write(holder);
-//    holder.value = 2;
-//    yCol.write(holder);
-//
-//    inner.end();
-//
-//    inner.start();
-//
-//    holder.value = 2;
-//    xCol.write(holder);
-//    holder.value = 1;
-//    yCol.write(holder);
-//
-//    inner.end();
-//
-//    IntWriter numCol = map.integer("nums");
-//    holder.value = 14;
-//    numCol.write(holder);
-//
-//    map.end();
-//
-//
-//    assertTrue(writer.ok());
-//
-//    System.out.println(v.getAccessor().getObject(0));
-//
-//  }
+  //  @Test
+  //  public void repeatedMap() {
+  //
+  //    /**
+  //     * We're going to try to create an object that looks like:
+  //     *
+  //     *  {
+  //     *    a: [
+  //     *      {x: 1, y: 2}
+  //     *      {x: 2, y: 1}
+  //     *    ]
+  //     *  }
+  //     *
+  //     */
+  //    MapVector v = new MapVector("", allocator);
+  //    ComplexWriter writer = new ComplexWriterImpl("col", v);
+  //
+  //    MapWriter map = writer.rootAsMap();
+  //
+  //    map.start();
+  //    ListWriter list = map.list("a");
+  //    MapWriter inner = list.map();
+  //
+  //    IntHolder holder = new IntHolder();
+  //    IntWriter xCol = inner.integer("x");
+  //    IntWriter yCol = inner.integer("y");
+  //
+  //    inner.start();
+  //
+  //    holder.value = 1;
+  //    xCol.write(holder);
+  //    holder.value = 2;
+  //    yCol.write(holder);
+  //
+  //    inner.end();
+  //
+  //    inner.start();
+  //
+  //    holder.value = 2;
+  //    xCol.write(holder);
+  //    holder.value = 1;
+  //    yCol.write(holder);
+  //
+  //    inner.end();
+  //
+  //    IntWriter numCol = map.integer("nums");
+  //    holder.value = 14;
+  //    numCol.write(holder);
+  //
+  //    map.end();
+  //
+  //
+  //    assertTrue(writer.ok());
+  //
+  //    System.out.println(v.getAccessor().getObject(0));
+  //
+  //  }
 
   @Test
   public void listOfList() throws Exception {
@@ -101,34 +99,15 @@ public class TestRepeated extends ExecTest {
     /**
      * We're going to try to create 2 objects that looks like:
      *
-     *  {
-     *    "col" : {
-     *      "a" : [ [ 1, 2, 3], [4, 5 ] ],
-     *      "nums" : 14,
-     *      "b" : [ {
-     *        "c" : 1
-     *      }, {
-     *        "c" : 2,
-     *        "x" : 15
-     *      } ]
-     *    }
-     *  }
+     * <p>{ "col" : { "a" : [ [ 1, 2, 3], [4, 5 ] ], "nums" : 14, "b" : [ { "c" : 1 }, { "c" : 2,
+     * "x" : 15 } ] } }
      *
-     *  {
-     *    "col" : {
-     *      "a" : [ [ -1, -2, -3], [-4, -5 ] ],
-     *      "nums" : -28,
-     *      "b" : [ {
-     *        "c" : -1
-     *      }, {
-     *        "c" : -2,
-     *        "x" : -30
-     *      } ]
-     *    }
-     *  }
+     * <p>{ "col" : { "a" : [ [ -1, -2, -3], [-4, -5 ] ], "nums" : -28, "b" : [ { "c" : -1 }, { "c"
+     * : -2, "x" : -30 } ] } }
      */
-
-    final NonNullableStructVector structVector = new NonNullableStructVector("", allocator, new FieldType(false, ArrowType.Struct.INSTANCE, null, null), null);
+    final NonNullableStructVector structVector =
+        new NonNullableStructVector(
+            "", allocator, new FieldType(false, ArrowType.Struct.INSTANCE, null, null), null);
     final ComplexWriterImpl writer = new ComplexWriterImpl("col", structVector);
     final StructWriter struct = writer.rootAsStruct();
 

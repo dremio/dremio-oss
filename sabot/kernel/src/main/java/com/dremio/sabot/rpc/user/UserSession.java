@@ -15,12 +15,6 @@
  */
 package com.dremio.sabot.rpc.user;
 
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-
-import org.apache.calcite.avatica.util.Quoting;
-
 import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.map.CaseInsensitiveMap;
 import com.dremio.common.utils.SqlUtils;
@@ -42,20 +36,29 @@ import com.dremio.options.impl.OptionManagerWrapper;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import org.apache.calcite.avatica.util.Quoting;
 
 @Options
 public class UserSession {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(UserSession.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(UserSession.class);
 
   public static final String SCHEMA = PropertySetter.SCHEMA.toPropertyName();
   public static final String USER = PropertySetter.USER.toPropertyName();
   public static final String PASSWORD = PropertySetter.PASSWORD.toPropertyName();
-  public static final String CHECK_METADATA_VALIDITY = PropertySetter.CHECK_METADATA_VALIDITY.toPropertyName();
+  public static final String CHECK_METADATA_VALIDITY =
+      PropertySetter.CHECK_METADATA_VALIDITY.toPropertyName();
   public static final String NEVER_PROMOTE = PropertySetter.NEVER_PROMOTE.toPropertyName();
-  public static final String ERROR_ON_UNSPECIFIED_VERSION = PropertySetter.ERROR_ON_UNSPECIFIED_VERSION.toPropertyName();
-  public static final String IMPERSONATION_TARGET = PropertySetter.IMPERSONATION_TARGET.toPropertyName();
+  public static final String ERROR_ON_UNSPECIFIED_VERSION =
+      PropertySetter.ERROR_ON_UNSPECIFIED_VERSION.toPropertyName();
+  public static final String IMPERSONATION_TARGET =
+      PropertySetter.IMPERSONATION_TARGET.toPropertyName();
   public static final String QUOTING = PropertySetter.QUOTING.toPropertyName();
-  public static final String SUPPORTFULLYQUALIFIEDPROJECTS = PropertySetter.SUPPORTFULLYQUALIFIEDPROJECTS.toPropertyName();
+  public static final String SUPPORTFULLYQUALIFIEDPROJECTS =
+      PropertySetter.SUPPORTFULLYQUALIFIEDPROJECTS.toPropertyName();
   public static final String ROUTING_TAG = PropertySetter.ROUTING_TAG.toPropertyName();
   public static final String ROUTING_QUEUE = PropertySetter.ROUTING_QUEUE.toPropertyName();
   public static final String ROUTING_ENGINE = PropertySetter.ROUTING_ENGINE.toPropertyName();
@@ -63,12 +66,13 @@ public class UserSession {
   public static final String QUERY_LABEL = PropertySetter.QUERY_LABEL.toPropertyName();
 
   public static final BooleanValidator ENABLE_SESSION_IDS =
-    new BooleanValidator("user.session.enable_session_id", true);
+      new BooleanValidator("user.session.enable_session_id", true);
   public static final RangeLongValidator MAX_METADATA_COUNT =
       new RangeLongValidator("client.max_metadata_count", 0, Integer.MAX_VALUE, 0);
 
   private enum PropertySetter {
-    USER, PASSWORD,
+    USER,
+    PASSWORD,
 
     MAXMETADATACOUNT {
       @Override
@@ -86,22 +90,22 @@ public class UserSession {
           return;
         }
         final Quoting quoting;
-        switch(value.toUpperCase(Locale.ROOT)) {
-        case "BACK_TICK":
-          quoting = Quoting.BACK_TICK;
-          break;
+        switch (value.toUpperCase(Locale.ROOT)) {
+          case "BACK_TICK":
+            quoting = Quoting.BACK_TICK;
+            break;
 
-        case "DOUBLE_QUOTE":
-          quoting = Quoting.DOUBLE_QUOTE;
-          break;
+          case "DOUBLE_QUOTE":
+            quoting = Quoting.DOUBLE_QUOTE;
+            break;
 
-        case "BRACKET":
-          quoting = Quoting.BRACKET;
-          break;
+          case "BRACKET":
+            quoting = Quoting.BRACKET;
+            break;
 
-        default:
-          logger.warn("Ignoring message to use initial quoting of type {}.", value);
-          return;
+          default:
+            logger.warn("Ignoring message to use initial quoting of type {}.", value);
+            return;
         }
         session.initialQuoting = quoting;
       }
@@ -110,7 +114,8 @@ public class UserSession {
     SCHEMA {
       @Override
       public void setValue(UserSession session, String value) {
-        session.defaultSchemaPath = Strings.isNullOrEmpty(value) ? null : new NamespaceKey(SqlUtils.parseSchemaPath(value));
+        session.defaultSchemaPath =
+            Strings.isNullOrEmpty(value) ? null : new NamespaceKey(SqlUtils.parseSchemaPath(value));
       }
     },
 
@@ -193,6 +198,7 @@ public class UserSession {
 
     /**
      * Set the corresponding
+     *
      * @param session
      * @param value
      */
@@ -229,7 +235,8 @@ public class UserSession {
   private boolean checkMetadataValidity = true;
   private boolean neverPromote = false;
   private boolean errorOnUnspecifiedVersion = false;
-  private final CaseInsensitiveMap<VersionContext> sourceVersionMapping = CaseInsensitiveMap.newConcurrentMap();
+  private final CaseInsensitiveMap<VersionContext> sourceVersionMapping =
+      CaseInsensitiveMap.newConcurrentMap();
 
   public static class Builder {
     private UserSession userSession;
@@ -239,27 +246,29 @@ public class UserSession {
     }
 
     /**
-     * This newBuilder will assign the caller's session without making a copy
-     * !!Note!! that  this newBuilder could make modifications to the caller's session settings.
+     * This newBuilder will assign the caller's session without making a copy !!Note!! that this
+     * newBuilder could make modifications to the caller's session settings.
      */
     public static Builder newBuilder(UserSession session) {
       return new Builder(session, false);
     }
 
     /**
-     * This newBuilderWithCopy will make a fresh copy using the copy constructor so the caller's session
-     * remains unmodified
+     * This newBuilderWithCopy will make a fresh copy using the copy constructor so the caller's
+     * session remains unmodified
      */
     public static Builder newBuilderWithCopy(UserSession session) {
       return new Builder(session, true);
     }
 
-    public Builder withSessionOptionManager(SessionOptionManager sessionOptionManager, OptionManager fallback) {
+    public Builder withSessionOptionManager(
+        SessionOptionManager sessionOptionManager, OptionManager fallback) {
       userSession.sessionOptionManager = sessionOptionManager;
-      userSession.optionManager = OptionManagerWrapper.Builder.newBuilder()
-        .withOptionManager(fallback)
-        .withOptionManager(sessionOptionManager)
-        .build();
+      userSession.optionManager =
+          OptionManagerWrapper.Builder.newBuilder()
+              .withOptionManager(fallback)
+              .withOptionManager(sessionOptionManager)
+              .build();
       userSession.maxMetadataCount = (int) userSession.optionManager.getOption(MAX_METADATA_COUNT);
       return this;
     }
@@ -384,14 +393,14 @@ public class UserSession {
       if (newInstance) {
         userSession = new UserSession(session);
       } else {
-        //Note : This could potentially modify the passed in session since it does not make a new copy.
+        // Note : This could potentially modify the passed in session since it does not make a new
+        // copy.
         userSession = session;
       }
     }
   }
 
-  protected UserSession() {
-  }
+  protected UserSession() {}
 
   protected UserSession(UserSession userSession) {
     this.lastQueryId = userSession.lastQueryId;
@@ -407,14 +416,14 @@ public class UserSession {
     this.supportFullyQualifiedProjections = userSession.supportFullyQualifiedProjections;
     this.routingTag = userSession.routingTag;
     this.queryLabel = userSession.queryLabel;
-    this.routingQueue =  userSession.routingQueue;
+    this.routingQueue = userSession.routingQueue;
     this.routingEngine = userSession.routingEngine;
     this.recordBatchFormat = userSession.recordBatchFormat;
     this.exposeInternalSources = userSession.exposeInternalSources;
     this.tracingEnabled = userSession.tracingEnabled;
     this.substitutionSettings = new SubstitutionSettings(userSession.substitutionSettings);
     this.maxMetadataCount = userSession.maxMetadataCount;
-    this.checkMetadataValidity= userSession.checkMetadataValidity;
+    this.checkMetadataValidity = userSession.checkMetadataValidity;
     this.neverPromote = userSession.neverPromote;
     this.errorOnUnspecifiedVersion = userSession.errorOnUnspecifiedVersion;
     this.sourceVersionMapping.putAll(userSession.sourceVersionMapping);
@@ -428,12 +437,14 @@ public class UserSession {
     return optionManager;
   }
 
-  public void setSessionOptionManager(SessionOptionManager sessionOptionManager, OptionManager fallback) {
+  public void setSessionOptionManager(
+      SessionOptionManager sessionOptionManager, OptionManager fallback) {
     this.sessionOptionManager = sessionOptionManager;
-    this.optionManager = OptionManagerWrapper.Builder.newBuilder()
-      .withOptionManager(fallback)
-      .withOptionManager(sessionOptionManager)
-      .build();
+    this.optionManager =
+        OptionManagerWrapper.Builder.newBuilder()
+            .withOptionManager(fallback)
+            .withOptionManager(sessionOptionManager)
+            .build();
     this.maxMetadataCount = (int) this.optionManager.getOption(MAX_METADATA_COUNT);
   }
 
@@ -502,7 +513,9 @@ public class UserSession {
   }
 
   public String getCatalogName() {
-    return useLegacyCatalogName ? InfoSchemaConstants.IS_LEGACY_CATALOG_NAME : InfoSchemaConstants.IS_CATALOG_NAME;
+    return useLegacyCatalogName
+        ? InfoSchemaConstants.IS_LEGACY_CATALOG_NAME
+        : InfoSchemaConstants.IS_CATALOG_NAME;
   }
 
   public boolean useLegacyCatalogName() {
@@ -516,14 +529,11 @@ public class UserSession {
   /**
    * Does the client requires support for fully qualified column names in projections?
    *
-   * Ex:
-   *   SELECT
-   *       "elastic.yelp".business.city,
-   *       "elastic.yelp".business.stars
-   *   FROM
-   *       "elastic.yelp".business
+   * <p>Ex: SELECT "elastic.yelp".business.city, "elastic.yelp".business.stars FROM
+   * "elastic.yelp".business
    *
-   * Note: enabling this option disables complex field references in query (ex. mapCol.mapField, listCol[2])
+   * <p>Note: enabling this option disables complex field references in query (ex. mapCol.mapField,
+   * listCol[2])
    *
    * @return
    */
@@ -532,20 +542,24 @@ public class UserSession {
   }
 
   public static String getCatalogName(OptionManager options) {
-    return options.getOption(ExecConstants.USE_LEGACY_CATALOG_NAME) ? InfoSchemaConstants.IS_LEGACY_CATALOG_NAME : InfoSchemaConstants.IS_CATALOG_NAME;
+    return options.getOption(ExecConstants.USE_LEGACY_CATALOG_NAME)
+        ? InfoSchemaConstants.IS_LEGACY_CATALOG_NAME
+        : InfoSchemaConstants.IS_CATALOG_NAME;
   }
 
   /**
-   * Replace current user credentials with the given user's credentials. Meant to be called only by a
-   * {@link InboundImpersonationManager impersonation manager}.
+   * Replace current user credentials with the given user's credentials. Meant to be called only by
+   * a {@link InboundImpersonationManager impersonation manager}.
    *
    * @param impersonationManager impersonation manager making this call
    * @param newCredentials user credentials to change to
    */
-  public void replaceUserCredentials(final InboundImpersonationManager impersonationManager,
-                                     final UserCredentials newCredentials) {
-    Preconditions.checkNotNull(impersonationManager, "User credentials can only be replaced by an" +
-        " impersonation manager.");
+  public void replaceUserCredentials(
+      final InboundImpersonationManager impersonationManager,
+      final UserCredentials newCredentials) {
+    Preconditions.checkNotNull(
+        impersonationManager,
+        "User credentials can only be replaced by an" + " impersonation manager.");
     credentials = newCredentials;
   }
 
@@ -567,10 +581,12 @@ public class UserSession {
 
   /**
    * Set the schema path for the session.
+   *
    * @param newDefaultSchemaPath New default schema path to set. It should be an absolute schema
    */
   public void setDefaultSchemaPath(List<String> newDefaultSchemaPath) {
-    this.defaultSchemaPath = newDefaultSchemaPath != null ? new NamespaceKey(newDefaultSchemaPath) : null;
+    this.defaultSchemaPath =
+        newDefaultSchemaPath != null ? new NamespaceKey(newDefaultSchemaPath) : null;
   }
 
   /**
@@ -580,9 +596,13 @@ public class UserSession {
     return defaultSchemaPath;
   }
 
-  public QueryId getLastQueryId() { return lastQueryId; }
+  public QueryId getLastQueryId() {
+    return lastQueryId;
+  }
 
-  public void setLastQueryId(QueryId id) { lastQueryId = id; }
+  public void setLastQueryId(QueryId id) {
+    lastQueryId = id;
+  }
 
   public VersionContext getSessionVersionForSource(String sourceName) {
     if (sourceName == null) {

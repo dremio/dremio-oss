@@ -15,17 +15,16 @@
  */
 package com.dremio.plugins.elastic.planning.functions;
 
+import com.google.common.collect.ImmutableMap;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.Map;
-
 import org.apache.calcite.rex.RexCall;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.collect.ImmutableMap;
-
-@SuppressWarnings("unused") // sub-classes of ElasticFunction are registered in OPERATOR_MAP using reflection
+@SuppressWarnings(
+    "unused") // sub-classes of ElasticFunction are registered in OPERATOR_MAP using reflection
 public final class ElasticFunctions {
 
   private static final Logger logger = LoggerFactory.getLogger(ElasticFunctions.class);
@@ -54,7 +53,7 @@ public final class ElasticFunctions {
   // Datatype manipulation functions
   static ElasticFunction CAST = new CastFunction();
 
-  private ElasticFunctions(){}
+  private ElasticFunctions() {}
 
   // String Functions
   static ElasticFunction CHAR_LENGTH = new MethodFunction("char_length", "length");
@@ -92,25 +91,26 @@ public final class ElasticFunctions {
   // Date Functions
   static ElasticFunction EXTRACT = new ExtractFunction();
 
-
-  private static ElasticFunction unary(String calciteName, String elasticName){
+  private static ElasticFunction unary(String calciteName, String elasticName) {
     return new UnaryFunction(calciteName, elasticName);
   }
 
-  private static ElasticFunction binary(String commonName){
+  private static ElasticFunction binary(String commonName) {
     return new BinaryFunction(commonName);
   }
 
-  private static ElasticFunction binary(String calciteName, String elasticName){
+  private static ElasticFunction binary(String calciteName, String elasticName) {
     return new BinaryFunction(calciteName, elasticName);
   }
 
   private static final Map<String, ElasticFunction> OPERATOR_MAP;
 
   static {
-    ImmutableMap.Builder<String, ElasticFunction> builder = ImmutableMap.<String, ElasticFunction>builder();
+    ImmutableMap.Builder<String, ElasticFunction> builder =
+        ImmutableMap.<String, ElasticFunction>builder();
     for (Field field : ElasticFunctions.class.getDeclaredFields()) {
-      if(Modifier.isStatic(field.getModifiers()) && ElasticFunction.class.isAssignableFrom(field.getType())){
+      if (Modifier.isStatic(field.getModifiers())
+          && ElasticFunction.class.isAssignableFrom(field.getType())) {
         try {
           ElasticFunction function = ElasticFunction.class.cast(field.get(null));
           builder.put(function.getDremioName().toLowerCase(), function);
@@ -122,7 +122,7 @@ public final class ElasticFunctions {
     OPERATOR_MAP = builder.build();
   }
 
-  public static ElasticFunction getFunction(RexCall call){
+  public static ElasticFunction getFunction(RexCall call) {
     return OPERATOR_MAP.get(call.getOperator().getName().toLowerCase());
   }
 

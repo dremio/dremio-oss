@@ -15,15 +15,6 @@
  */
 package com.dremio.dac.resource;
 
-import java.io.IOException;
-
-import javax.inject.Inject;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.PUT;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.MediaType;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.annotations.Bootstrap;
 import com.dremio.dac.model.common.DACUnauthorizedException;
@@ -41,18 +32,27 @@ import com.dremio.service.users.SystemUser;
 import com.dremio.service.users.User;
 import com.dremio.service.users.UserNotFoundException;
 import com.dremio.service.users.UserService;
+import java.io.IOException;
+import javax.inject.Inject;
+import javax.ws.rs.Consumes;
+import javax.ws.rs.PUT;
+import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
+import javax.ws.rs.core.MediaType;
 
 /**
  * Bootstrap resource only available on master node when no user already exists
  *
- * Note: should not be automatically registered!
+ * <p>Note: should not be automatically registered!
  */
 @Bootstrap
 @Path("/bootstrap")
 public class BootstrapResource {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BootstrapResource.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(BootstrapResource.class);
 
-  public static final String ERROR_MSG = "First user can only be created when no user is already registered";
+  public static final String ERROR_MSG =
+      "First user can only be created when no user is already registered";
   private final SabotContext dContext;
   private final UserService userService;
 
@@ -67,8 +67,11 @@ public class BootstrapResource {
   @Consumes(MediaType.APPLICATION_JSON)
   @Path("firstuser")
   public UserUI createUser(UserForm userForm)
-    throws IOException, IllegalArgumentException, NamespaceException, DACUnauthorizedException,
-      UserNotFoundException {
+      throws IOException,
+          IllegalArgumentException,
+          NamespaceException,
+          DACUnauthorizedException,
+          UserNotFoundException {
 
     synchronized (this) {
       if (dContext.getUserService().hasAnyUser()) {
@@ -76,16 +79,17 @@ public class BootstrapResource {
       }
 
       final UserName userName = new UserName(userForm.getUserConfig().getUserName());
-      User newUser = SimpleUser.newBuilder(userForm.getUserConfig())
-        .setCreatedAt(System.currentTimeMillis())
-        .setActive(true)
-        .build();
+      User newUser =
+          SimpleUser.newBuilder(userForm.getUserConfig())
+              .setCreatedAt(System.currentTimeMillis())
+              .setActive(true)
+              .build();
       newUser = userService.createUser(newUser, userForm.getPassword());
-      dContext.getNamespaceService(SystemUser.SYSTEM_USERNAME)
+      dContext
+          .getNamespaceService(SystemUser.SYSTEM_USERNAME)
           .addOrUpdateHome(
               new HomePath(HomeName.getUserHomePath(userName.getName())).toNamespaceKey(),
-              new HomeConfig().setCtime(System.currentTimeMillis()).setOwner(userName.getName())
-          );
+              new HomeConfig().setCtime(System.currentTimeMillis()).setOwner(userName.getName()));
       return new UserUI(new UserResourcePath(userName), userName, newUser);
     }
   }

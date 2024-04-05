@@ -15,15 +15,14 @@
  */
 package com.dremio.exec.store.sys;
 
+import com.dremio.common.util.DremioVersionInfo;
+import com.google.common.io.Resources;
 import java.io.IOException;
 import java.net.URL;
 import java.util.Iterator;
 import java.util.Properties;
 
-import com.dremio.common.util.DremioVersionInfo;
-import com.google.common.io.Resources;
-
-public class VersionIterator implements Iterator<Object>{
+public class VersionIterator implements Iterator<Object> {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(VersionIterator.class);
 
   public boolean beforeFirst = true;
@@ -36,11 +35,11 @@ public class VersionIterator implements Iterator<Object>{
     public String build_email = "Unknown";
     public String build_time = "";
 
-    public VersionInfo(){
+    public VersionInfo() {
       try {
         version = DremioVersionInfo.getVersion(); // get dremio version (x.y.z)
         URL u = Resources.getResource("git.properties");
-        if(u != null){
+        if (u != null) {
           Properties p = new Properties();
           p.load(Resources.asByteSource(u).openStream());
           commit_id = p.getProperty("git.commit.id");
@@ -48,7 +47,6 @@ public class VersionIterator implements Iterator<Object>{
           commit_time = p.getProperty("git.commit.time");
           build_time = p.getProperty("git.build.time");
           commit_message = p.getProperty("git.commit.message.short");
-
         }
       } catch (IOException | IllegalArgumentException e) {
         logger.warn("Failure while trying to load \"git.properties\" file.", e);
@@ -63,7 +61,7 @@ public class VersionIterator implements Iterator<Object>{
 
   @Override
   public Object next() {
-    if(!beforeFirst){
+    if (!beforeFirst) {
       throw new IllegalStateException();
     }
     beforeFirst = false;
@@ -74,5 +72,4 @@ public class VersionIterator implements Iterator<Object>{
   public void remove() {
     throw new UnsupportedOperationException();
   }
-
 }

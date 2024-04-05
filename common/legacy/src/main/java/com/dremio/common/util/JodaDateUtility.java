@@ -16,12 +16,12 @@
 
 package com.dremio.common.util;
 
+import com.google.common.collect.ImmutableMap;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.joda.time.DateTimeZone;
 import org.joda.time.LocalDateTime;
@@ -32,8 +32,6 @@ import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.DateTimeFormatterBuilder;
 import org.joda.time.format.DateTimeParser;
 
-import com.google.common.collect.ImmutableMap;
-
 /* This file is a copy of arrow's DateUtility.java (prior to the java8 change)
  * This also has a few extra functions to replace Arrow Reader's calls
  * TODO: This file should be removed once we switch to java8
@@ -41,8 +39,8 @@ import com.google.common.collect.ImmutableMap;
 
 // Utility class for Date, DateTime, TimeStamp, Interval data types
 public class JodaDateUtility {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(JodaDateUtility.class);
-
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(JodaDateUtility.class);
 
   /* We have a hashmap that stores the timezone as the key and an index as the value
    * While storing the timezone in value vectors, holders we only use this index. As we
@@ -625,7 +623,8 @@ public class JodaDateUtility {
     "Universal",
     "W-SU",
     "WET",
-    "Zulu"};
+    "Zulu"
+  };
 
   static {
     Map<String, Integer> map = new HashMap<>();
@@ -636,8 +635,10 @@ public class JodaDateUtility {
   }
 
   public static final DateTimeFormatter formatDate = DateTimeFormat.forPattern("yyyy-MM-dd");
-  public static final DateTimeFormatter formatTimeStampMilli = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss.SSS");
-  public static final DateTimeFormatter formatTimeStampTZ = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss.SSS ZZZ");
+  public static final DateTimeFormatter formatTimeStampMilli =
+      DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss.SSS");
+  public static final DateTimeFormatter formatTimeStampTZ =
+      DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss.SSS ZZZ");
   public static final DateTimeFormatter formatTime = DateTimeFormat.forPattern("HH:mm:ss.SSS");
 
   private static DateTimeFormatter dateTimeTZFormat = null;
@@ -650,7 +651,6 @@ public class JodaDateUtility {
   public static final int monthToStandardDays = 30;
   public static final long monthsToMillis = 2592000000L; // 30 * 24 * 60 * 60 * 1000
   public static final int daysToStandardMillis = 24 * 60 * 60 * 1000;
-
 
   public static int getIndex(String timezone) {
     if (!timezoneMap.containsKey(timezone)) {
@@ -673,8 +673,13 @@ public class JodaDateUtility {
       DateTimeParser optionalSec = DateTimeFormat.forPattern(".SSS").getParser();
       DateTimeParser optionalZone = DateTimeFormat.forPattern(" ZZZ").getParser();
 
-      dateTimeTZFormat = new DateTimeFormatterBuilder().append(dateFormatter).appendOptional(optionalTime)
-        .appendOptional(optionalSec).appendOptional(optionalZone).toFormatter();
+      dateTimeTZFormat =
+          new DateTimeFormatterBuilder()
+              .append(dateFormatter)
+              .appendOptional(optionalTime)
+              .appendOptional(optionalSec)
+              .appendOptional(optionalZone)
+              .toFormatter();
     }
 
     return dateTimeTZFormat;
@@ -685,7 +690,11 @@ public class JodaDateUtility {
     if (timeFormat == null) {
       DateTimeFormatter timeFormatter = DateTimeFormat.forPattern("HH:mm:ss");
       DateTimeParser optionalSec = DateTimeFormat.forPattern(".SSS").getParser();
-      timeFormat = new DateTimeFormatterBuilder().append(timeFormatter).appendOptional(optionalSec).toFormatter();
+      timeFormat =
+          new DateTimeFormatterBuilder()
+              .append(timeFormatter)
+              .appendOptional(optionalSec)
+              .toFormatter();
     }
     return timeFormat;
   }
@@ -695,10 +704,10 @@ public class JodaDateUtility {
   }
 
   public static int millisFromPeriod(final Period period) {
-    return (period.getHours() * hoursToMillis) +
-      (period.getMinutes() * minutesToMillis) +
-      (period.getSeconds() * secondsToMillis) +
-      (period.getMillis());
+    return (period.getHours() * hoursToMillis)
+        + (period.getMinutes() * minutesToMillis)
+        + (period.getSeconds() * secondsToMillis)
+        + (period.getMillis());
   }
 
   public static long toMillis(LocalDateTime localDateTime) {
@@ -715,9 +724,9 @@ public class JodaDateUtility {
       return null;
     }
     if (object instanceof java.time.LocalDateTime) {
-      return javaToJodaLocalDateTime((java.time.LocalDateTime)object);
+      return javaToJodaLocalDateTime((java.time.LocalDateTime) object);
     } else {
-      return (org.joda.time.LocalDateTime)object;
+      return (org.joda.time.LocalDateTime) object;
     }
   }
 
@@ -727,9 +736,9 @@ public class JodaDateUtility {
       return null;
     }
     if (object instanceof java.time.Period) {
-      return javaToJodaPeriod((java.time.Period)object);
+      return javaToJodaPeriod((java.time.Period) object);
     } else {
-      return (org.joda.time.Period)object;
+      return (org.joda.time.Period) object;
     }
   }
 
@@ -739,9 +748,9 @@ public class JodaDateUtility {
       return null;
     }
     if (object instanceof java.time.Period) {
-      return javaPeriodToJodaPeriodInYears((java.time.Period)object);
+      return javaPeriodToJodaPeriodInYears((java.time.Period) object);
     } else {
-      return (org.joda.time.Period)object;
+      return (org.joda.time.Period) object;
     }
   }
 
@@ -751,7 +760,7 @@ public class JodaDateUtility {
     try {
       Method m = readerClass.getMethod("readDuration");
       retObject = m.invoke(reader);
-      return javaDurationToJodaPeriodInDays((java.time.Duration)retObject);
+      return javaDurationToJodaPeriodInDays((java.time.Duration) retObject);
     } catch (NoSuchMethodException nsme) {
       // readDuration method does not exist
     } catch (IllegalAccessException e) {
@@ -763,7 +772,7 @@ public class JodaDateUtility {
     try {
       Method m = readerClass.getMethod("readPeriod");
       retObject = m.invoke(reader);
-      return (org.joda.time.Period)retObject;
+      return (org.joda.time.Period) retObject;
     } catch (NoSuchMethodException nsme) {
       // readPeriod method does not exist
     } catch (IllegalAccessException e) {
@@ -775,46 +784,48 @@ public class JodaDateUtility {
     return null;
   }
 
-  public static org.joda.time.LocalDateTime javaToJodaLocalDateTime( java.time.LocalDateTime localDateTime ) {
+  public static org.joda.time.LocalDateTime javaToJodaLocalDateTime(
+      java.time.LocalDateTime localDateTime) {
     if (localDateTime == null) {
       return null;
     }
     return new org.joda.time.LocalDateTime(
-      localDateTime.getYear(),
-      localDateTime.getMonthValue(),
-      localDateTime.getDayOfMonth(),
-      localDateTime.getHour(),
-      localDateTime.getMinute(),
-      localDateTime.getSecond(),
-      (int)TimeUnit.NANOSECONDS.toMillis(localDateTime.getNano()));
+        localDateTime.getYear(),
+        localDateTime.getMonthValue(),
+        localDateTime.getDayOfMonth(),
+        localDateTime.getHour(),
+        localDateTime.getMinute(),
+        localDateTime.getSecond(),
+        (int) TimeUnit.NANOSECONDS.toMillis(localDateTime.getNano()));
   }
 
-  public static org.joda.time.Period javaToJodaPeriod( java.time.Period period ) {
+  public static org.joda.time.Period javaToJodaPeriod(java.time.Period period) {
     if (period == null) {
       return null;
     }
-    return new org.joda.time.Period( period.getYears(), period.getMonths(), 0, period.getDays(), 0, 0, 0, 0 );
+    return new org.joda.time.Period(
+        period.getYears(), period.getMonths(), 0, period.getDays(), 0, 0, 0, 0);
   }
 
-  public static org.joda.time.Period javaPeriodToJodaPeriodInYears( java.time.Period period ) {
+  public static org.joda.time.Period javaPeriodToJodaPeriodInYears(java.time.Period period) {
     if (period == null) {
       return null;
     }
     int years = period.getYears() + (period.getMonths() / 12);
     int months = (period.getMonths() % 12);
-    return new org.joda.time.Period(years , months, 0, period.getDays(), 0, 0, 0, 0 );
+    return new org.joda.time.Period(years, months, 0, period.getDays(), 0, 0, 0, 0);
   }
 
-  public static org.joda.time.Period javaDurationToJodaPeriodInDays( java.time.Duration duration ) {
+  public static org.joda.time.Period javaDurationToJodaPeriodInDays(java.time.Duration duration) {
     if (duration == null) {
       return null;
     }
     int secondsInADay = 86400;
     final Period p = new Period();
 
-    int days = (int)TimeUnit.SECONDS.toDays(duration.getSeconds());
+    int days = (int) TimeUnit.SECONDS.toDays(duration.getSeconds());
     int seconds = (int) (duration.getSeconds() % secondsInADay);
-    int milli = (int)TimeUnit.NANOSECONDS.toMillis(duration.getNano());
+    int milli = (int) TimeUnit.NANOSECONDS.toMillis(duration.getNano());
     return p.plusDays(days).plusSeconds(seconds).plusMillis(milli);
   }
 }

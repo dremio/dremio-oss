@@ -16,9 +16,8 @@
 
 package com.dremio.service.flight.utils;
 
-import java.io.InputStream;
-
 import com.dremio.service.flight.FlightClientUtils.FlightClientWrapper.FlightClientType;
+import java.io.InputStream;
 
 public class TestConnectionProperties {
   private final FlightClientType clientType;
@@ -28,8 +27,13 @@ public class TestConnectionProperties {
   private final String password;
   private final InputStream trustedCerts;
 
-  public TestConnectionProperties(FlightClientType clientType, String host, Integer port, String user, String password,
-                                  InputStream trustedCerts) {
+  public TestConnectionProperties(
+      FlightClientType clientType,
+      String host,
+      Integer port,
+      String user,
+      String password,
+      InputStream trustedCerts) {
     this.clientType = clientType;
     this.host = host;
     this.port = port;

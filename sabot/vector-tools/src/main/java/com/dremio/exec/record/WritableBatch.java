@@ -15,14 +15,6 @@
  */
 package com.dremio.exec.record;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.stream.Collectors;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.ValueVector;
-
 import com.dremio.common.util.Numbers;
 import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.proto.UserBitShared.RecordBatchDef;
@@ -30,12 +22,15 @@ import com.dremio.exec.proto.UserBitShared.SerializedField;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
-
 import io.netty.buffer.NettyArrowBuf;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.ValueVector;
 
-/**
- * A specialized version of record batch that can moves out buffers and preps them for writing.
- */
+/** A specialized version of record batch that can moves out buffers and preps them for writing. */
 public final class WritableBatch implements AutoCloseable {
 
   private final RecordBatchDef def;
@@ -57,7 +52,8 @@ public final class WritableBatch implements AutoCloseable {
     List<ArrowBuf> newBuffers = Lists.newArrayList();
     for (ArrowBuf buf : buffers) {
       long writerIndex = buf.writerIndex();
-      ArrowBuf newBuf = buf.getReferenceManager().transferOwnership(buf, allocator).getTransferredBuffer();
+      ArrowBuf newBuf =
+          buf.getReferenceManager().transferOwnership(buf, allocator).getTransferredBuffer();
       newBuf.writerIndex(writerIndex);
       newBuffers.add(newBuf);
     }
@@ -70,9 +66,11 @@ public final class WritableBatch implements AutoCloseable {
   }
 
   public NettyArrowBuf[] getBuffers() {
-    NettyArrowBuf [] nettyBuffers = new NettyArrowBuf[buffers.length];
-    return Arrays.stream(buffers).map(buf -> NettyArrowBuf.unwrapBuffer(buf))
-      .collect(Collectors.toList()).toArray(nettyBuffers);
+    NettyArrowBuf[] nettyBuffers = new NettyArrowBuf[buffers.length];
+    return Arrays.stream(buffers)
+        .map(buf -> NettyArrowBuf.unwrapBuffer(buf))
+        .collect(Collectors.toList())
+        .toArray(nettyBuffers);
   }
 
   /**
@@ -89,9 +87,11 @@ public final class WritableBatch implements AutoCloseable {
   }
 
   public void reconstructContainer(BufferAllocator allocator, VectorContainer container) {
-    Preconditions.checkState(!cleared,
+    Preconditions.checkState(
+        !cleared,
         "Attempted to reconstruct a container from a WritableBatch after it had been cleared");
-    if (buffers.length > 0) { /* If we have ArrowBuf's associated with value vectors */
+    if (buffers.length > 0) {
+      /* If we have ArrowBuf's associated with value vectors */
       int len = 0;
       for (ArrowBuf b : buffers) {
         len += b.capacity();
@@ -120,7 +120,7 @@ public final class WritableBatch implements AutoCloseable {
           SerializedField fmd = fields.get(vectorIndex);
           ValueVector v = vv.getValueVector();
           ArrowBuf bb = newBuf.slice(bufferOffset, fmd.getBufferLength());
-//        v.load(fmd, cbb.slice(bufferOffset, fmd.getBufferLength()));
+          //        v.load(fmd, cbb.slice(bufferOffset, fmd.getBufferLength()));
           TypeHelper.load(v, fmd, bb);
           vectorIndex++;
           bufferOffset += fmd.getBufferLength();
@@ -147,7 +147,7 @@ public final class WritableBatch implements AutoCloseable {
   }
 
   public void clear() {
-    if(cleared) {
+    if (cleared) {
       return;
     }
     for (ArrowBuf buf : buffers) {
@@ -156,7 +156,8 @@ public final class WritableBatch implements AutoCloseable {
     cleared = true;
   }
 
-  public static WritableBatch getBatchNoHVWrap(int recordCount, Iterable<VectorWrapper<?>> vws, boolean isSV2) {
+  public static WritableBatch getBatchNoHVWrap(
+      int recordCount, Iterable<VectorWrapper<?>> vws, boolean isSV2) {
     List<ValueVector> vectors = Lists.newArrayList();
     for (VectorWrapper<?> vw : vws) {
       Preconditions.checkArgument(!vw.isHyper());
@@ -165,14 +166,16 @@ public final class WritableBatch implements AutoCloseable {
     return getBatchNoHV(recordCount, vectors, isSV2);
   }
 
-  public static WritableBatch getBatchNoHV(int recordCount, Iterable<ValueVector> vectors, boolean isSV2) {
+  public static WritableBatch getBatchNoHV(
+      int recordCount, Iterable<ValueVector> vectors, boolean isSV2) {
     List<ArrowBuf> buffers = Lists.newArrayList();
     List<SerializedField> metadata = Lists.newArrayList();
 
     for (ValueVector vv : vectors) {
       metadata.add(TypeHelper.getMetadata(vv));
 
-      // don't try to get the buffers if we don't have any records. It is possible the buffers are dead buffers.
+      // don't try to get the buffers if we don't have any records. It is possible the buffers are
+      // dead buffers.
       if (recordCount == 0) {
         vv.clear();
         continue;
@@ -185,8 +188,12 @@ public final class WritableBatch implements AutoCloseable {
       vv.clear();
     }
 
-    RecordBatchDef batchDef = RecordBatchDef.newBuilder().addAllField(metadata).setRecordCount(recordCount)
-        .setCarriesTwoByteSelectionVector(isSV2).build();
+    RecordBatchDef batchDef =
+        RecordBatchDef.newBuilder()
+            .addAllField(metadata)
+            .setRecordCount(recordCount)
+            .setCarriesTwoByteSelectionVector(isSV2)
+            .build();
     WritableBatch b = new WritableBatch(batchDef, buffers);
     return b;
   }
@@ -203,8 +210,10 @@ public final class WritableBatch implements AutoCloseable {
   }
 
   public static WritableBatch get(VectorAccessible batch) {
-    if (batch.getSchema() != null && batch.getSchema().getSelectionVectorMode() == SelectionVectorMode.FOUR_BYTE) {
-      throw new UnsupportedOperationException("Only batches without hyper selections vectors are writable.");
+    if (batch.getSchema() != null
+        && batch.getSchema().getSelectionVectorMode() == SelectionVectorMode.FOUR_BYTE) {
+      throw new UnsupportedOperationException(
+          "Only batches without hyper selections vectors are writable.");
     }
 
     boolean sv2 = (batch.getSchema().getSelectionVectorMode() == SelectionVectorMode.TWO_BYTE);
@@ -219,8 +228,8 @@ public final class WritableBatch implements AutoCloseable {
 
   @Override
   public void close() {
-    // close may be closed more than once, clear() will make sure it will not release the buffers more than once
+    // close may be closed more than once, clear() will make sure it will not release the buffers
+    // more than once
     clear();
   }
-
 }

@@ -15,15 +15,14 @@
  */
 package com.dremio.dac.explore.model;
 
-
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 import java.util.Objects;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
-
 /**
- * A row in the data grid. This class is for testing purposes only to deserialize the result output from server.
+ * A row in the data grid. This class is for testing purposes only to deserialize the result output
+ * from server.
  */
 public class RowPOJO {
 

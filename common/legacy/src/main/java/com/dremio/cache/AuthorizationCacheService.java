@@ -15,13 +15,10 @@
  */
 package com.dremio.cache;
 
-/**
- * Interface for Dremio Service
- */
+/** Interface for Dremio Service */
 public interface AuthorizationCacheService {
 
   void clear() throws AuthorizationCacheException;
 
   void clear(String userOrGroup) throws AuthorizationCacheException;
-
 }

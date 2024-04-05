@@ -16,10 +16,14 @@
 
 package com.dremio.exec.planner.sql.parser;
 
+import com.dremio.exec.ops.QueryContext;
+import com.dremio.exec.planner.sql.handlers.direct.SimpleDirectHandler;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Throwables;
+import com.google.common.collect.Lists;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -31,12 +35,6 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.dremio.exec.ops.QueryContext;
-import com.dremio.exec.planner.sql.handlers.direct.SimpleDirectHandler;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
-import com.google.common.collect.Lists;
-
 public class SqlRevokeOnScript extends SqlCall implements SimpleDirectHandler.Creator {
 
   private final SqlNodeList privilegeList;
@@ -45,29 +43,28 @@ public class SqlRevokeOnScript extends SqlCall implements SimpleDirectHandler.Cr
   private final SqlIdentifier revokee;
 
   public static final SqlSpecialOperator OPERATOR =
-    new SqlSpecialOperator("REVOKE", SqlKind.OTHER) {
-      @Override
-      public SqlCall createCall(SqlLiteral functionQualifier,
-                                SqlParserPos pos,
-                                SqlNode... operands) {
-        Preconditions.checkArgument(operands.length == 5,
-                                    "SqlRevokeOnScript.createCall() has to get 5 operands!");
+      new SqlSpecialOperator("REVOKE", SqlKind.OTHER) {
+        @Override
+        public SqlCall createCall(
+            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+          Preconditions.checkArgument(
+              operands.length == 5, "SqlRevokeOnScript.createCall() has to get 5 operands!");
 
-        return new SqlRevokeOnScript(
-          pos,
-          (SqlNodeList) operands[0],
-          (SqlIdentifier) operands[2],
-          (SqlLiteral) operands[3],
-          (SqlIdentifier) operands[4]
-        );
-      }
-    };
+          return new SqlRevokeOnScript(
+              pos,
+              (SqlNodeList) operands[0],
+              (SqlIdentifier) operands[2],
+              (SqlLiteral) operands[3],
+              (SqlIdentifier) operands[4]);
+        }
+      };
 
-  public SqlRevokeOnScript(SqlParserPos pos,
-                           SqlNodeList privilegeList,
-                           SqlIdentifier script,
-                           SqlLiteral granteeType,
-                           SqlIdentifier grantee) {
+  public SqlRevokeOnScript(
+      SqlParserPos pos,
+      SqlNodeList privilegeList,
+      SqlIdentifier script,
+      SqlLiteral granteeType,
+      SqlIdentifier grantee) {
     super(pos);
 
     this.privilegeList = privilegeList;
@@ -84,11 +81,14 @@ public class SqlRevokeOnScript extends SqlCall implements SimpleDirectHandler.Cr
   @Override
   public SimpleDirectHandler toDirectHandler(QueryContext context) {
     try {
-      final Class<?> cl =
-        Class.forName("com.dremio.exec.planner.sql.handlers.ScriptRevokeHandler");
+      final Class<?> cl = Class.forName("com.dremio.exec.planner.sql.handlers.ScriptRevokeHandler");
       Constructor<?> ctor = cl.getConstructor(QueryContext.class);
       return (SimpleDirectHandler) ctor.newInstance(context);
-    } catch (InstantiationException | IllegalAccessException | ClassNotFoundException | NoSuchMethodException | InvocationTargetException e) {
+    } catch (InstantiationException
+        | IllegalAccessException
+        | ClassNotFoundException
+        | NoSuchMethodException
+        | InvocationTargetException e) {
       throw Throwables.propagate(e);
     }
   }

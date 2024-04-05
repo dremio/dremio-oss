@@ -48,11 +48,9 @@ public interface SingleInputOperator extends Operator.Producer, Operator.SingleC
   };
 
   /**
-   * Setups operator. Can only be called once. SqlOperatorImpl must be in NEEDS_SETUP
-   * state.
+   * Setups operator. Can only be called once. SqlOperatorImpl must be in NEEDS_SETUP state.
    *
-   * @param The
-   *          VectorAccessible to be used for consumption.
+   * @param The VectorAccessible to be used for consumption.
    * @return The VectorAccessible to be used for result return.
    */
   VectorAccessible setup(VectorAccessible accessible) throws Exception;
@@ -67,7 +65,10 @@ public interface SingleInputOperator extends Operator.Producer, Operator.SingleC
 
   interface Creator<T extends PhysicalOperator> {
     SingleInputOperator create(OperatorContext context, T operator) throws ExecutionSetupException;
-    default SingleInputOperator create(FragmentExecutionContext fec, OperatorContext context, T operator) throws ExecutionSetupException {
+
+    default SingleInputOperator create(
+        FragmentExecutionContext fec, OperatorContext context, T operator)
+        throws ExecutionSetupException {
       throw new UnsupportedFunctionException("Not implemented");
     }
   }

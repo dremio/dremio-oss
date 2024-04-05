@@ -17,29 +17,23 @@ package com.dremio.dac.service.support;
 
 import static org.junit.Assume.assumeTrue;
 
-import java.io.File;
-
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-
 import com.dremio.dac.proto.model.source.ClusterIdentity;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.support.SupportService;
 import com.dremio.test.TemporarySystemProperties;
 import com.google.common.io.Files;
 import com.google.common.io.Resources;
+import java.io.File;
+import org.junit.Assert;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
-
-/**
- * Test the support service
- */
+/** Test the support service */
 public class TestMultiNodeSupportService extends BaseTestServer {
 
-  @ClassRule
-  public static final TemporaryFolder temp = new TemporaryFolder();
+  @ClassRule public static final TemporaryFolder temp = new TemporaryFolder();
 
   @ClassRule
   public static final TemporarySystemProperties properties = new TemporarySystemProperties();
@@ -52,7 +46,9 @@ public class TestMultiNodeSupportService extends BaseTestServer {
     // set the log path so we can read logs and confirm that is working.
     final File jsonFolder = temp.newFolder("json");
     jsonFolder.mkdir();
-    Files.copy(new File(Resources.getResource("support/server.json").getPath()), new File(jsonFolder, "server.json"));
+    Files.copy(
+        new File(Resources.getResource("support/server.json").getPath()),
+        new File(jsonFolder, "server.json"));
     System.setProperty(SupportService.DREMIO_LOG_PATH_PROPERTY, temp.getRoot().toString());
 
     // now start server.
@@ -61,10 +57,12 @@ public class TestMultiNodeSupportService extends BaseTestServer {
 
   @Test
   public void getClusterIdOnExecutor() throws Exception {
-    SupportService masterSupport = getMasterDremioDaemon().getBindingProvider().lookup(SupportService.class);
+    SupportService masterSupport =
+        getMasterDremioDaemon().getBindingProvider().lookup(SupportService.class);
     ClusterIdentity masterId = masterSupport.getClusterId();
 
-    SupportService executorSupport = getExecutorDaemon().getBindingProvider().lookup(SupportService.class);
+    SupportService executorSupport =
+        getExecutorDaemon().getBindingProvider().lookup(SupportService.class);
     ClusterIdentity executorId = executorSupport.getClusterId();
 
     Assert.assertTrue(masterId.equals(executorId));

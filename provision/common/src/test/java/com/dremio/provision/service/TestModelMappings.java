@@ -15,23 +15,18 @@
  */
 package com.dremio.provision.service;
 
-import org.junit.Test;
-import org.modelmapper.ModelMapper;
-import org.modelmapper.protobuf.ProtobufModule;
-
 import com.dremio.provision.AwsProps;
 import com.dremio.provision.AwsPropsApi;
 import com.dremio.provision.ImmutableAwsPropsApi;
 import com.dremio.test.DremioTest;
+import org.junit.Test;
+import org.modelmapper.ModelMapper;
+import org.modelmapper.protobuf.ProtobufModule;
 
-/**
- * Test any model mappings used in provisioning.
- */
+/** Test any model mappings used in provisioning. */
 public class TestModelMappings extends DremioTest {
 
-  /**
-   * check to make sure both protobuf entities have same number of fields.
-   */
+  /** check to make sure both protobuf entities have same number of fields. */
   @Test
   public void ensure1to1onAwsProps() {
     ModelMapper mapper = new ModelMapper();
@@ -42,7 +37,7 @@ public class TestModelMappings extends DremioTest {
 
     AwsPropsApi api = AwsPropsApi.builder().build();
     @SuppressWarnings("unused")
-    ImmutableAwsPropsApi ignored = mapper.map(mapper.map(api, AwsProps.class), ImmutableAwsPropsApi.Builder.class).build();
-
+    ImmutableAwsPropsApi ignored =
+        mapper.map(mapper.map(api, AwsProps.class), ImmutableAwsPropsApi.Builder.class).build();
   }
 }

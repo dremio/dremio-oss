@@ -19,7 +19,6 @@ package com.dremio.exec.planner.logical;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptUtil;
@@ -32,17 +31,17 @@ import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.util.ImmutableBitSet;
 
 /**
- * Planner rule that pushes
- * a {@link org.apache.calcite.rel.logical.LogicalFilter}
- * past a {@link org.apache.calcite.rel.logical.LogicalWindow}
- * if the filter is in the PARTITION BY expression of the OVER clause.
+ * Planner rule that pushes a {@link org.apache.calcite.rel.logical.LogicalFilter} past a {@link
+ * org.apache.calcite.rel.logical.LogicalWindow} if the filter is in the PARTITION BY expression of
+ * the OVER clause.
  */
 public class FilterWindowTransposeRule extends RelOptRule {
   public static final RelOptRule INSTANCE = new FilterWindowTransposeRule();
 
   private FilterWindowTransposeRule() {
-    super(operand(LogicalFilter.class,
-        operand(LogicalWindow.class, any())), "FilterWindowTransposeRule");
+    super(
+        operand(LogicalFilter.class, operand(LogicalWindow.class, any())),
+        "FilterWindowTransposeRule");
   }
 
   @Override
@@ -58,11 +57,11 @@ public class FilterWindowTransposeRule extends RelOptRule {
 
     RelOptUtil.splitFilters(keys.build(), filter.getCondition(), pushable, notPushable);
 
-    //Do not push down filters with correlated variables because we will just pull them back up.
+    // Do not push down filters with correlated variables because we will just pull them back up.
     Iterator<RexNode> pushableIter = pushable.listIterator();
     while (pushableIter.hasNext()) {
       RexNode pushableRexNode = pushableIter.next();
-      if(RexUtil.containsCorrelation(pushableRexNode)) {
+      if (RexUtil.containsCorrelation(pushableRexNode)) {
         notPushable.add(pushableRexNode);
         pushableIter.remove();
       }
@@ -74,23 +73,29 @@ public class FilterWindowTransposeRule extends RelOptRule {
 
     RexBuilder rexBuilder = filter.getCluster().getRexBuilder();
     RexNode combinedPushableCondition = RexUtil.composeConjunction(rexBuilder, pushable, true);
-    final LogicalFilter filterBelowWindow = LogicalFilter.create(window.getInput(), combinedPushableCondition);
+    final LogicalFilter filterBelowWindow =
+        LogicalFilter.create(window.getInput(), combinedPushableCondition);
 
-    final RelDataTypeFactory.Builder outputBuilder =
-      window.getCluster().getTypeFactory().builder();
+    final RelDataTypeFactory.Builder outputBuilder = window.getCluster().getTypeFactory().builder();
     outputBuilder.addAll(window.getRowType().getFieldList());
 
     final LogicalWindow newLogicalWindow =
-      LogicalWindow.create(window.getTraitSet(), filterBelowWindow,
-        window.constants, outputBuilder.build(), window.groups);
+        LogicalWindow.create(
+            window.getTraitSet(),
+            filterBelowWindow,
+            window.constants,
+            outputBuilder.build(),
+            window.groups);
 
     if (notPushable.size() == 0) {
       call.transformTo(newLogicalWindow);
       return;
     }
 
-    RexNode combinedNotPushableCondition = RexUtil.composeConjunction(rexBuilder, notPushable, true);
-    final LogicalFilter filterAboveLogicalWindow = LogicalFilter.create(newLogicalWindow, combinedNotPushableCondition);
+    RexNode combinedNotPushableCondition =
+        RexUtil.composeConjunction(rexBuilder, notPushable, true);
+    final LogicalFilter filterAboveLogicalWindow =
+        LogicalFilter.create(newLogicalWindow, combinedNotPushableCondition);
 
     call.transformTo(filterAboveLogicalWindow);
   }

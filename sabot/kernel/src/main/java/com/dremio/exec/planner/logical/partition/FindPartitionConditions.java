@@ -15,11 +15,11 @@
  */
 package com.dremio.exec.planner.logical.partition;
 
+import com.google.common.collect.Lists;
 import java.util.ArrayDeque;
 import java.util.BitSet;
 import java.util.Deque;
 import java.util.List;
-
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexCorrelVariable;
@@ -38,43 +38,46 @@ import org.apache.calcite.sql.SqlSyntax;
 import org.apache.calcite.sql.fun.SqlRowOperator;
 import org.apache.calcite.util.Util;
 
-import com.google.common.collect.Lists;
-
-
 public class FindPartitionConditions extends RexVisitorImpl<Void> {
-  /** Whether an expression is a directory filter, and if so, whether
-   * it can be pushed into the scan.
+  /**
+   * Whether an expression is a directory filter, and if so, whether it can be pushed into the scan.
    */
   enum PushDirFilter {
-    NO_PUSH, PUSH, PARTIAL_PUSH
+    NO_PUSH,
+    PUSH,
+    PARTIAL_PUSH
   }
 
   /**
-   * During top-down traversal of the expression tree, keep track of the
-   * current operators that are directory filters. Children that are
-   * directory filters add themselves to their parent operators.
+   * During top-down traversal of the expression tree, keep track of the current operators that are
+   * directory filters. Children that are directory filters add themselves to their parent
+   * operators.
    *
-   * NOTE: this auxiliary class is necessary because RexNodes are immutable.
-   * If they were mutable, we could have easily added/dropped inputs as we
-   * encountered directory filters.
+   * <p>NOTE: this auxiliary class is necessary because RexNodes are immutable. If they were
+   * mutable, we could have easily added/dropped inputs as we encountered directory filters.
    */
   public class OpState {
     private SqlOperator sqlOperator;
     private List<RexNode> children = Lists.newArrayList();
+
     public OpState(SqlOperator op) {
       sqlOperator = op;
     }
+
     public SqlOperator getOp() {
       return sqlOperator;
     }
+
     public void addChild(RexNode n) {
       if (!children.contains(n)) {
         children.add(n);
       }
     }
+
     public List<RexNode> getChildren() {
       return children;
     }
+
     public void clear() {
       children.clear();
     }
@@ -82,7 +85,7 @@ public class FindPartitionConditions extends RexVisitorImpl<Void> {
 
   private final BitSet dirs;
 
-  private final List<PushDirFilter> pushStatusStack =  Lists.newArrayList();
+  private final List<PushDirFilter> pushStatusStack = Lists.newArrayList();
   private final Deque<OpState> opStack = new ArrayDeque<OpState>();
 
   /* While traversing the filter tree, some RexCalls need special handling where
@@ -208,8 +211,8 @@ public class FindPartitionConditions extends RexVisitorImpl<Void> {
       return true;
     }
 
-    if (call.getOperator().getSyntax() == SqlSyntax.SPECIAL ||
-        call.getOperator().getSyntax() == SqlSyntax.FUNCTION) {
+    if (call.getOperator().getSyntax() == SqlSyntax.SPECIAL
+        || call.getOperator().getSyntax() == SqlSyntax.FUNCTION) {
       return true;
     }
     return false;
@@ -217,10 +220,10 @@ public class FindPartitionConditions extends RexVisitorImpl<Void> {
 
   @Override
   public Void visitInputRef(RexInputRef inputRef) {
-    if(dirs.get(inputRef.getIndex())){
+    if (dirs.get(inputRef.getIndex())) {
       pushStatusStack.add(PushDirFilter.PUSH);
       addResult(inputRef);
-    }else{
+    } else {
       pushStatusStack.add(PushDirFilter.NO_PUSH);
     }
     return null;
@@ -299,7 +302,6 @@ public class FindPartitionConditions extends RexVisitorImpl<Void> {
       callPushDirFilter = PushDirFilter.NO_PUSH;
     }
 
-
     if (callPushDirFilter == PushDirFilter.NO_PUSH) {
       OpState currentOp = opStack.peek();
       if (currentOp != null) {
@@ -345,6 +347,4 @@ public class FindPartitionConditions extends RexVisitorImpl<Void> {
   public Void visitFieldAccess(RexFieldAccess fieldAccess) {
     return pushVariable();
   }
-
-
 }

@@ -55,26 +55,26 @@ describe("Radio", () => {
     expect(wrapper.find(FormControl).exists()).toBe(true);
     expect(wrapper.find(RadioGroup).exists()).toBe(true);
     expect(wrapper.find(FormControlLabel).length).toBe(
-      defaultProps.options.length
+      defaultProps.options.length,
     );
     expect(wrapper.find(FormControlLabel).at(0).props()).toEqual(
       expect.objectContaining({
         control: <MaterialRadio color="primary" />,
         label: defaultProps.options[0].label,
         value: defaultProps.options[0].value,
-      })
+      }),
     );
   });
 
   it("adds the classes passed as props to respective elements", () => {
     expect(wrapper.find("div.radio-root").props().className).toEqual(
-      expect.stringContaining("sample-root-class")
+      expect.stringContaining("sample-root-class"),
     );
     expect(wrapper.find(Label).props().className).toEqual(
-      expect.stringContaining("sample-label-class")
+      expect.stringContaining("sample-label-class"),
     );
     expect(wrapper.find(FormControl).props().classes.root).toEqual(
-      expect.stringContaining("sample-options-container-class")
+      expect.stringContaining("sample-options-container-class"),
     );
   });
 

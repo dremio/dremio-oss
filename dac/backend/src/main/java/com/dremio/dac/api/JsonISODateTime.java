@@ -15,19 +15,15 @@
  */
 package com.dremio.dac.api;
 
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-
 import com.fasterxml.jackson.annotation.JacksonAnnotationsInside;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 
-/**
- * Annotation for JSON serialization/deserialization of timestamps
- */
+/** Annotation for JSON serialization/deserialization of timestamps */
 @Retention(RetentionPolicy.RUNTIME)
 @JacksonAnnotationsInside
 @JsonSerialize(using = TimestampToISODateStringSerializer.class)
 @JsonDeserialize(using = ISODateStringToTimeStampDeserializer.class)
-public @interface JsonISODateTime {
-}
+public @interface JsonISODateTime {}

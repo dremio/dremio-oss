@@ -15,17 +15,16 @@
  */
 package com.dremio.exec.compile.sig;
 
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterators;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterators;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 
 public class SignatureHolder implements Iterable<CodeGeneratorMethod> {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SignatureHolder.class);
@@ -46,9 +45,9 @@ public class SignatureHolder implements Iterable<CodeGeneratorMethod> {
         innerClasses.add(h);
       }
     }
-    return new SignatureHolder(signature, innerClasses.toArray(new SignatureHolder[innerClasses.size()]));
+    return new SignatureHolder(
+        signature, innerClasses.toArray(new SignatureHolder[innerClasses.size()]));
   }
-
 
   private SignatureHolder(Class<?> signature, SignatureHolder[] childHolders) {
     this.childHolders = childHolders;
@@ -59,20 +58,23 @@ public class SignatureHolder implements Iterable<CodeGeneratorMethod> {
     Method[] reflectMethods = signature.getDeclaredMethods();
 
     for (Method m : reflectMethods) {
-      if ( (m.getModifiers() & Modifier.ABSTRACT) == 0 && m.getAnnotation(RuntimeOverridden.class) == null) {
+      if ((m.getModifiers() & Modifier.ABSTRACT) == 0
+          && m.getAnnotation(RuntimeOverridden.class) == null) {
         continue;
       }
       methodHolders.add(new CodeGeneratorMethod(m));
     }
 
-    methods = new CodeGeneratorMethod[methodHolders.size()+1];
-    for (int i =0; i < methodHolders.size(); i++) {
+    methods = new CodeGeneratorMethod[methodHolders.size() + 1];
+    for (int i = 0; i < methodHolders.size(); i++) {
       methods[i] = methodHolders.get(i);
       Integer old = newMap.put(methods[i].getMethodName(), i);
       if (old != null) {
-        throw new IllegalStateException(String.format("Attempting to add a method with name %s when there is already one method of that name in this class that is set to be runtime generated.", methods[i].getMethodName()));
+        throw new IllegalStateException(
+            String.format(
+                "Attempting to add a method with name %s when there is already one method of that name in this class that is set to be runtime generated.",
+                methods[i].getMethodName()));
       }
-
     }
     methods[methodHolders.size()] = INIT;
     newMap.put(INIT.getMethodName(), methodHolders.size());
@@ -97,15 +99,15 @@ public class SignatureHolder implements Iterable<CodeGeneratorMethod> {
     return methods.length;
   }
 
-
   public SignatureHolder[] getChildHolders() {
     return childHolders;
   }
 
   public int get(String method) {
-    Integer meth =  methodMap.get(method);
+    Integer meth = methodMap.get(method);
     if (meth == null) {
-      throw new IllegalStateException(String.format("Unknown method requested of name %s.", method));
+      throw new IllegalStateException(
+          String.format("Unknown method requested of name %s.", method));
     }
     return meth;
   }
@@ -114,7 +116,9 @@ public class SignatureHolder implements Iterable<CodeGeneratorMethod> {
   public String toString() {
     final int maxLen = 10;
     return "SignatureHolder [methods="
-        + (methods != null ? Arrays.asList(methods).subList(0, Math.min(methods.length, maxLen)) : null) + "]";
+        + (methods != null
+            ? Arrays.asList(methods).subList(0, Math.min(methods.length, maxLen))
+            : null)
+        + "]";
   }
-
 }

@@ -15,34 +15,34 @@
  */
 package com.dremio.sabot.op.spi;
 
-import java.util.EnumSet;
-
 import com.dremio.exec.proto.UserBitShared.MetricDef.DisplayType;
 import com.dremio.sabot.exec.context.MetricDef;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.OutOfBandMessage;
+import java.util.EnumSet;
 
 /**
- * The base unit of Execution. An operator is expected to consume one or more
- * streams of data input and output those. They are single threaded and designed
- * to do small amounts of work each time they consume data. There are number of
- * different operators types that have different states. However, all stats onto
- * a set of MasterStates that describe what the operators status is.
+ * The base unit of Execution. An operator is expected to consume one or more streams of data input
+ * and output those. They are single threaded and designed to do small amounts of work each time
+ * they consume data. There are number of different operators types that have different states.
+ * However, all stats onto a set of MasterStates that describe what the operators status is.
  *
- * There are four main operators types, that expose one of or both of two main operator subtypes. They are as follows:
+ * <p>There are four main operators types, that expose one of or both of two main operator subtypes.
+ * They are as follows:
  *
- * - DualInputOperator (Producer): Examples include HashJoinOperator, UnionOperator.
- * - SingleInputOperator (Producer, SingleConsumer): Examples include FilterOperator, SortOperator
- * - ProducerOperator (Producer): Examples include ScanOperator, UnorderedReceiverOperator
- * - TerminalOperator (SingleConsumer): Examples include SingleSenderOperator, ScreenOperator
+ * <p>- DualInputOperator (Producer): Examples include HashJoinOperator, UnionOperator. -
+ * SingleInputOperator (Producer, SingleConsumer): Examples include FilterOperator, SortOperator -
+ * ProducerOperator (Producer): Examples include ScanOperator, UnorderedReceiverOperator -
+ * TerminalOperator (SingleConsumer): Examples include SingleSenderOperator, ScreenOperator
  */
 public interface Operator extends AutoCloseable {
 
-  public static String ERROR_STRING = "SqlOperatorImpl should have been in state %s but was in state %s.";
+  public static String ERROR_STRING =
+      "SqlOperatorImpl should have been in state %s but was in state %s.";
 
   /**
-   * A union of all possible operator states. This allows some levels of code to
-   * work with operators independent of their specific state type.
+   * A union of all possible operator states. This allows some levels of code to work with operators
+   * independent of their specific state type.
    */
   public enum MasterState {
     NEEDS_SETUP,
@@ -56,73 +56,72 @@ public interface Operator extends AutoCloseable {
 
   interface OperatorState<T> {
     MasterState getMasterState();
+
     void is(T expected);
+
     String name();
   }
 
-  <OUT, IN, EXCEP extends Throwable> OUT accept(OperatorVisitor<OUT, IN, EXCEP> visitor, IN value) throws EXCEP;
+  <OUT, IN, EXCEP extends Throwable> OUT accept(OperatorVisitor<OUT, IN, EXCEP> visitor, IN value)
+      throws EXCEP;
 
   OperatorState<?> getState();
 
   /**
-   * Do work on an out of band message. This can be called as long as the operator is not in NEEDS_SETUP or
-   * DONE state. The default implementation is operator ignoring messages.
+   * Do work on an out of band message. This can be called as long as the operator is not in
+   * NEEDS_SETUP or DONE state. The default implementation is operator ignoring messages.
    *
    * @param message The message to work on.
    */
-  default void workOnOOB(OutOfBandMessage message) {
-  }
+  default void workOnOOB(OutOfBandMessage message) {}
 
-  /**
-   * A type of operator that can output data.
-   */
+  /** A type of operator that can output data. */
   interface Producer extends Operator {
 
     /**
      * Informs the operator to populate output data.
+     *
      * @return The number of records output.
      */
     int outputData() throws Exception;
   }
 
-  /**
-   * A type of operator that has a single stream of data as input.
-   */
+  /** A type of operator that has a single stream of data as input. */
   interface SingleConsumer extends Operator {
 
     /**
-     * Informs operator that no more data will arrive. After this point, operator
-     * must either expose CAN_POPULATE or DONE.
+     * Informs operator that no more data will arrive. After this point, operator must either expose
+     * CAN_POPULATE or DONE.
      */
     void noMoreToConsume() throws Exception;
 
     /**
-     * Informs the operator to consume the data currently available in the
-     * previously provided VectorAccessible. Will only be called once per data
-     * available. Can only be called if SqlOperatorImpl is in a CAN_CONSUME state.
+     * Informs the operator to consume the data currently available in the previously provided
+     * VectorAccessible. Will only be called once per data available. Can only be called if
+     * SqlOperatorImpl is in a CAN_CONSUME state.
      */
     void consumeData(int records) throws Exception;
-
   }
 
-  /**
-   * A type of operator that can shrink their memory usage on request
-   */
+  /** A type of operator that can shrink their memory usage on request */
   interface ShrinkableOperator {
     /**
      * Returns the id of the shrinkable operator
+     *
      * @return
      */
     int getOperatorId();
 
     /**
      * Report the maximum amount of memory that can potentially be shrunk
+     *
      * @return amount in bytes that can be shrunk
      */
     long shrinkableMemory();
 
     /**
      * Informs the operator to shrink its memory usage
+     *
      * @param size (bytes) - this is the amount of shrinkable memory reported by the operator
      * @return true if the operator is done spilling memory
      */
@@ -130,6 +129,16 @@ public interface Operator extends AutoCloseable {
 
     default String getOperatorStateToPrint() {
       return "";
+    }
+
+    default boolean canUseTooMuchMemoryInAPump() {
+      return false;
+    }
+
+    default void setLimit(long limit) {}
+
+    default long getAllocatedMemory() {
+      return 0;
     }
   }
 
@@ -142,16 +151,20 @@ public interface Operator extends AutoCloseable {
    */
   interface OperatorVisitor<RETURN, EXTRA, EXCEP extends Throwable> {
     RETURN visitDualInput(DualInputOperator op, EXTRA extra) throws EXCEP;
+
     RETURN visitSingleInput(SingleInputOperator op, EXTRA extra) throws EXCEP;
+
     RETURN visitProducer(ProducerOperator op, EXTRA extra) throws EXCEP;
+
     RETURN visitTerminalOperator(TerminalOperator op, EXTRA extra) throws EXCEP;
   }
 
-  default void addDisplayStatsWithZeroValue(OperatorContext context, EnumSet enumSet){
-    enumSet.forEach(stat -> {
-      if(((MetricDef) stat).getDisplayType() == DisplayType.DISPLAY_BY_DEFAULT) {
-        context.getStats().addLongStat((MetricDef)stat, 0);
-      }
-    });
+  default void addDisplayStatsWithZeroValue(OperatorContext context, EnumSet enumSet) {
+    enumSet.forEach(
+        stat -> {
+          if (((MetricDef) stat).getDisplayType() == DisplayType.DISPLAY_BY_DEFAULT) {
+            context.getStats().addLongStat((MetricDef) stat, 0);
+          }
+        });
   }
 }

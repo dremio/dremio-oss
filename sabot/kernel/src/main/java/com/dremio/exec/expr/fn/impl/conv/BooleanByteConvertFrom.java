@@ -15,11 +15,6 @@
  */
 package com.dremio.exec.expr.fn.impl.conv;
 
-import javax.inject.Inject;
-
-import org.apache.arrow.vector.holders.BitHolder;
-import org.apache.arrow.vector.holders.VarBinaryHolder;
-
 import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.FunctionTemplate.FunctionScope;
@@ -27,8 +22,14 @@ import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
 import com.dremio.exec.expr.fn.FunctionErrorContext;
+import javax.inject.Inject;
+import org.apache.arrow.vector.holders.BitHolder;
+import org.apache.arrow.vector.holders.VarBinaryHolder;
 
-@FunctionTemplate(name = "convert_fromBOOLEAN_BYTE", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+@FunctionTemplate(
+    name = "convert_fromBOOLEAN_BYTE",
+    scope = FunctionScope.SIMPLE,
+    nulls = NullHandling.NULL_IF_NULL)
 @SuppressWarnings("unused") // found through classpath search
 public class BooleanByteConvertFrom implements SimpleFunction {
 
@@ -37,13 +38,14 @@ public class BooleanByteConvertFrom implements SimpleFunction {
   @Inject FunctionErrorContext errorContext;
 
   @Override
-  public void setup() { }
+  public void setup() {}
 
   @Override
   public void eval() {
-    com.dremio.exec.util.ByteBufUtil.checkBufferLength(errorContext, in.buffer, in.start, in.end, 1);
+    com.dremio.exec.util.ByteBufUtil.checkBufferLength(
+        errorContext, in.buffer, in.start, in.end, 1);
 
     in.buffer.readerIndex(in.start);
-    out.value = in.buffer.readByte()==0 ? 0 : 1;
+    out.value = in.buffer.readByte() == 0 ? 0 : 1;
   }
 }

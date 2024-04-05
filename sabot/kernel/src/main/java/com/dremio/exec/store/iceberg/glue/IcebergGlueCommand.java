@@ -15,22 +15,19 @@
  */
 package com.dremio.exec.store.iceberg.glue;
 
+import com.dremio.exec.proto.UserBitShared;
+import com.dremio.exec.store.iceberg.model.IcebergBaseCommand;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.TableOperations;
 
-import com.dremio.exec.proto.UserBitShared;
-import com.dremio.exec.store.iceberg.model.IcebergBaseCommand;
-
-
-
-
-/**
- * Iceberg Glue Command for Glue Catalog
- */
+/** Iceberg Glue Command for Glue Catalog */
 public class IcebergGlueCommand extends IcebergBaseCommand {
 
-  public IcebergGlueCommand(Configuration configuration, String tableFolder, TableOperations tableOperations,
-                            UserBitShared.QueryId queryId) {
+  public IcebergGlueCommand(
+      Configuration configuration,
+      String tableFolder,
+      TableOperations tableOperations,
+      UserBitShared.QueryId queryId) {
     super(configuration, tableFolder, tableOperations, queryId);
   }
 

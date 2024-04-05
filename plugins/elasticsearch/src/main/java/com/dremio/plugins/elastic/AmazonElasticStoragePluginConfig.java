@@ -15,31 +15,34 @@
  */
 package com.dremio.plugins.elastic;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import javax.inject.Provider;
-import javax.validation.constraints.Max;
-import javax.validation.constraints.Min;
-import javax.validation.constraints.NotEmpty;
-
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.AWSAuthenticationType;
 import com.dremio.exec.catalog.conf.DisplayMetadata;
 import com.dremio.exec.catalog.conf.EncryptionValidationMode;
 import com.dremio.exec.catalog.conf.Host;
 import com.dremio.exec.catalog.conf.Secret;
+import com.dremio.exec.catalog.conf.SecretRef;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.server.SabotContext;
-
+import com.google.common.annotations.VisibleForTesting;
 import io.protostuff.Tag;
+import java.util.ArrayList;
+import java.util.List;
+import javax.inject.Provider;
+import javax.validation.constraints.Max;
+import javax.validation.constraints.Min;
+import javax.validation.constraints.NotEmpty;
+import org.apache.commons.lang3.function.Suppliers;
 
-/**
- * Configuration for Amazon OpenSearch (formerly Elasticsearch) Service storage plugin.
- */
+/** Configuration for Amazon OpenSearch (formerly Elasticsearch) Service storage plugin. */
 // Don't change the value of AMAZONELASTIC for backwards compat reasons.
-@SourceType(value = "AMAZONELASTIC", label = "Amazon OpenSearch Service", uiConfig = "amazon-elastic-storage-layout.json")
-public class AmazonElasticStoragePluginConfig extends BaseElasticStoragePluginConfig<AmazonElasticStoragePluginConfig, ElasticsearchStoragePlugin> {
+@SourceType(
+    value = "AMAZONELASTIC",
+    label = "Amazon OpenSearch Service",
+    uiConfig = "amazon-elastic-storage-layout.json")
+public class AmazonElasticStoragePluginConfig
+    extends BaseElasticStoragePluginConfig<
+        AmazonElasticStoragePluginConfig, ElasticsearchStoragePlugin> {
 
   //  optional string hostname = 1;
   //  optional integer port = 2; // default port should be 443
@@ -80,7 +83,7 @@ public class AmazonElasticStoragePluginConfig extends BaseElasticStoragePluginCo
   @Tag(7)
   @Secret
   @DisplayMetadata(label = "AWS Access Secret")
-  public String accessSecret = "";
+  public SecretRef accessSecret = SecretRef.EMPTY;
 
   @Tag(12)
   @DisplayMetadata(label = "Overwrite region")
@@ -94,14 +97,14 @@ public class AmazonElasticStoragePluginConfig extends BaseElasticStoragePluginCo
   @DisplayMetadata(label = "AWS Profile")
   public String awsProfile;
 
-  public AmazonElasticStoragePluginConfig() {
-  }
+  public AmazonElasticStoragePluginConfig() {}
 
-  public AmazonElasticStoragePluginConfig(
+  @VisibleForTesting
+  AmazonElasticStoragePluginConfig(
       String hostname,
       Integer port,
       String accessKey,
-      String accessSecret,
+      SecretRef accessSecret,
       boolean overwriteRegion,
       String regionName,
       String awsProfile,
@@ -116,9 +119,21 @@ public class AmazonElasticStoragePluginConfig extends BaseElasticStoragePluginCo
       boolean allowPushdownOnNormalizedOrAnalyzedFields,
       boolean pushdownWithKeyword,
       boolean warnOnRowCountMismatch,
-      EncryptionValidationMode encryptionValidationMode, boolean forceDoublePrecision) {
-    super(scriptsEnabled, showHiddenIndices, showIdColumn, readTimeoutMillis, scrollTimeoutMillis, usePainless,
-      scrollSize, allowPushdownOnNormalizedOrAnalyzedFields, pushdownWithKeyword, warnOnRowCountMismatch, encryptionValidationMode, forceDoublePrecision);
+      EncryptionValidationMode encryptionValidationMode,
+      boolean forceDoublePrecision) {
+    super(
+        scriptsEnabled,
+        showHiddenIndices,
+        showIdColumn,
+        readTimeoutMillis,
+        scrollTimeoutMillis,
+        usePainless,
+        scrollSize,
+        allowPushdownOnNormalizedOrAnalyzedFields,
+        pushdownWithKeyword,
+        warnOnRowCountMismatch,
+        encryptionValidationMode,
+        forceDoublePrecision);
     this.hostname = hostname;
     this.port = port;
     this.accessKey = accessKey;
@@ -130,16 +145,20 @@ public class AmazonElasticStoragePluginConfig extends BaseElasticStoragePluginCo
   }
 
   @Override
-  public ElasticsearchStoragePlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
+  public ElasticsearchStoragePlugin newPlugin(
+      SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
     return new ElasticsearchStoragePlugin(createElasticsearchConf(this), context, name);
   }
 
   /**
-   * Creates Elasticsearch configuration, shared by regular Elasticsearch and Amazon OpenSearch, from Amazon OpenSearch configuration.
+   * Creates Elasticsearch configuration, shared by regular Elasticsearch and Amazon OpenSearch,
+   * from Amazon OpenSearch configuration.
+   *
    * @param amazonOSStoragePluginConfig Amazon OpenSearch configuration
    * @return Elasticsearch configuration
    */
-  public static ElasticsearchConf createElasticsearchConf(AmazonElasticStoragePluginConfig amazonOSStoragePluginConfig) {
+  public static ElasticsearchConf createElasticsearchConf(
+      AmazonElasticStoragePluginConfig amazonOSStoragePluginConfig) {
     List<Host> hostList = new ArrayList<>();
     hostList.add(new Host(amazonOSStoragePluginConfig.hostname, amazonOSStoragePluginConfig.port));
     ElasticsearchConf.AuthenticationType authenticationType;
@@ -161,27 +180,27 @@ public class AmazonElasticStoragePluginConfig extends BaseElasticStoragePluginCo
         break;
     }
     return new ElasticsearchConf(
-      hostList,
-      "",
-      "",
-      amazonOSStoragePluginConfig.accessKey,
-      amazonOSStoragePluginConfig.accessSecret,
-      amazonOSStoragePluginConfig.overwriteRegion ? amazonOSStoragePluginConfig.regionName : "",
-      amazonOSStoragePluginConfig.awsProfile,
-      authenticationType,
-      amazonOSStoragePluginConfig.scriptsEnabled,
-      amazonOSStoragePluginConfig.showHiddenIndices,
-      true,
-      amazonOSStoragePluginConfig.showIdColumn,
-      amazonOSStoragePluginConfig.readTimeoutMillis,
-      amazonOSStoragePluginConfig.scrollTimeoutMillis,
-      amazonOSStoragePluginConfig.usePainless,
-      true,
-      amazonOSStoragePluginConfig.scrollSize,
-      amazonOSStoragePluginConfig.allowPushdownOnNormalizedOrAnalyzedFields,
-      amazonOSStoragePluginConfig.pushdownWithKeyword,
-      amazonOSStoragePluginConfig.warnOnRowCountMismatch,
-      amazonOSStoragePluginConfig.encryptionValidationMode,
-      false);
+        hostList,
+        "",
+        "",
+        amazonOSStoragePluginConfig.accessKey,
+        Suppliers.get(amazonOSStoragePluginConfig.accessSecret),
+        amazonOSStoragePluginConfig.overwriteRegion ? amazonOSStoragePluginConfig.regionName : "",
+        amazonOSStoragePluginConfig.awsProfile,
+        authenticationType,
+        amazonOSStoragePluginConfig.scriptsEnabled,
+        amazonOSStoragePluginConfig.showHiddenIndices,
+        true,
+        amazonOSStoragePluginConfig.showIdColumn,
+        amazonOSStoragePluginConfig.readTimeoutMillis,
+        amazonOSStoragePluginConfig.scrollTimeoutMillis,
+        amazonOSStoragePluginConfig.usePainless,
+        true,
+        amazonOSStoragePluginConfig.scrollSize,
+        amazonOSStoragePluginConfig.allowPushdownOnNormalizedOrAnalyzedFields,
+        amazonOSStoragePluginConfig.pushdownWithKeyword,
+        amazonOSStoragePluginConfig.warnOnRowCountMismatch,
+        amazonOSStoragePluginConfig.encryptionValidationMode,
+        false);
   }
 }

@@ -17,11 +17,23 @@ package com.dremio.exec.planner.sql.parser;
 
 import static com.dremio.exec.calcite.SqlNodes.DREMIO_DIALECT;
 
+import com.dremio.catalog.model.ResolvedVersionContext;
+import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.ExecConstants;
+import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.store.iceberg.IcebergSerDe;
+import com.dremio.exec.store.iceberg.IcebergUtils;
+import com.dremio.exec.store.iceberg.SchemaConverter;
+import com.dremio.options.OptionManager;
+import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.dataset.proto.IcebergMetadata;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
+import com.dremio.service.namespace.dataset.proto.TableProperties;
+import io.protostuff.ByteString;
 import java.util.Collections;
 import java.util.List;
-
 import javax.annotation.Nullable;
-
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.sql.SqlLiteral;
@@ -36,26 +48,12 @@ import org.apache.iceberg.Schema;
 import org.apache.iceberg.SortOrder;
 import org.apache.iceberg.transforms.Transform;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.ExecConstants;
-import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.store.iceberg.IcebergSerDe;
-import com.dremio.exec.store.iceberg.IcebergUtils;
-import com.dremio.exec.store.iceberg.SchemaConverter;
-import com.dremio.options.OptionManager;
-import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.namespace.dataset.proto.DatasetConfig;
-import com.dremio.service.namespace.dataset.proto.IcebergMetadata;
-import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
-import com.dremio.service.namespace.dataset.proto.TableProperties;
-
-import io.protostuff.ByteString;
-
 /*
  * Generating the table definition
  */
 public class TableDefinitionGenerator {
-  private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(TableDefinitionGenerator.class);
+  private static final org.slf4j.Logger LOGGER =
+      org.slf4j.LoggerFactory.getLogger(TableDefinitionGenerator.class);
   private static final String SCRATCH_DIR = "$scratch";
   final DatasetConfig datasetConfig;
   final NamespaceKey resolvedPath;
@@ -66,13 +64,13 @@ public class TableDefinitionGenerator {
   final OptionManager optionManager;
 
   public TableDefinitionGenerator(
-    DatasetConfig datasetConfig,
-    NamespaceKey resolvedPath,
-    List<RelDataTypeField> fields,
-    String refType,
-    String refValue,
-    boolean isVersioned,
-    OptionManager optionManager) {
+      DatasetConfig datasetConfig,
+      NamespaceKey resolvedPath,
+      List<RelDataTypeField> fields,
+      String refType,
+      String refValue,
+      boolean isVersioned,
+      OptionManager optionManager) {
     this.datasetConfig = datasetConfig;
     this.resolvedPath = resolvedPath;
     this.fields = fields;
@@ -90,14 +88,14 @@ public class TableDefinitionGenerator {
 
     if (CollectionUtils.isEmpty(fields)) {
       throw UserException.validationError()
-        .message("Table [%s] has no columns.", resolvedPath)
-        .build(LOGGER);
+          .message("Table [%s] has no columns.", resolvedPath)
+          .build(LOGGER);
     }
 
     if (datasetConfig.getPhysicalDataset() == null) {
       throw UserException.validationError()
-        .message("Table at [%s] is corrupted", resolvedPath)
-        .build(LOGGER);
+          .message("Table at [%s] is corrupted", resolvedPath)
+          .build(LOGGER);
     }
 
     SqlWriter writer = new SqlPrettyWriter(DREMIO_DIALECT);
@@ -118,7 +116,9 @@ public class TableDefinitionGenerator {
 
     generateFields(writer, fields);
 
-    if (refType != null && refValue != null) {
+    if (refType != null
+        && refValue != null
+        && refType.equalsIgnoreCase(ResolvedVersionContext.Type.BRANCH.name())) {
       writer.keyword("AT");
       writer.keyword(refType);
       writer.identifier(refValue);
@@ -162,8 +162,9 @@ public class TableDefinitionGenerator {
 
   private static void generatePartitionColumns(SqlWriter writer, DatasetConfig datasetConfig) {
     List<String> partitionColumns = datasetConfig.getReadDefinition().getPartitionColumnsList();
-    PartitionSpec partitionSpec = IcebergUtils.getCurrentPartitionSpec(datasetConfig.getPhysicalDataset());
-    List<PartitionField> partitionFields = partitionSpec.fields();
+    PartitionSpec partitionSpec =
+        IcebergUtils.getCurrentPartitionSpec(datasetConfig.getPhysicalDataset());
+    List<PartitionField> partitionFields = partitionSpec == null ? null : partitionSpec.fields();
     if (CollectionUtils.isEmpty(partitionFields)) {
       return;
     }
@@ -178,7 +179,8 @@ public class TableDefinitionGenerator {
     writer.keyword(")");
   }
 
-  private static void generateOnePartitionField(SqlWriter writer, PartitionField field, String fieldName) {
+  private static void generateOnePartitionField(
+      SqlWriter writer, PartitionField field, String fieldName) {
     Transform transform = field.transform();
     if (transform.isIdentity()) {
       writer.identifier(fieldName);
@@ -187,13 +189,20 @@ public class TableDefinitionGenerator {
     }
   }
 
-  private static void generateOneTransformedPartitionField(SqlWriter writer, Transform transform, String fieldName) {
-    if (transform.toString().toUpperCase().startsWith(PartitionProtobuf.IcebergTransformType.BUCKET.toString())) {
+  private static void generateOneTransformedPartitionField(
+      SqlWriter writer, Transform transform, String fieldName) {
+    if (transform
+        .toString()
+        .toUpperCase()
+        .startsWith(PartitionProtobuf.IcebergTransformType.BUCKET.toString())) {
       writer.literal(PartitionProtobuf.IcebergTransformType.BUCKET.toString().toLowerCase());
       writer.keyword("(");
       writer.print(getBucketNumber(transform.toString()));
       writer.keyword(",");
-    } else if (transform.toString().toUpperCase().startsWith(PartitionProtobuf.IcebergTransformType.TRUNCATE.toString())) {
+    } else if (transform
+        .toString()
+        .toUpperCase()
+        .startsWith(PartitionProtobuf.IcebergTransformType.TRUNCATE.toString())) {
       writer.literal(PartitionProtobuf.IcebergTransformType.TRUNCATE.toString().toLowerCase());
       writer.keyword("(");
       writer.print(getTruncateWidth(transform.toString()));
@@ -207,11 +216,17 @@ public class TableDefinitionGenerator {
   }
 
   private static int getBucketNumber(String bucket) {
-    return Integer.parseInt(bucket.substring(PartitionProtobuf.IcebergTransformType.BUCKET.toString().length()+1, bucket.length()-1));
+    return Integer.parseInt(
+        bucket.substring(
+            PartitionProtobuf.IcebergTransformType.BUCKET.toString().length() + 1,
+            bucket.length() - 1));
   }
 
   private static int getTruncateWidth(String truncate) {
-    return Integer.parseInt(truncate.substring(PartitionProtobuf.IcebergTransformType.TRUNCATE.toString().length()+1, truncate.length()-1));
+    return Integer.parseInt(
+        truncate.substring(
+            PartitionProtobuf.IcebergTransformType.TRUNCATE.toString().length() + 1,
+            truncate.length() - 1));
   }
 
   private void generateSortColumns(SqlWriter writer) {
@@ -242,12 +257,13 @@ public class TableDefinitionGenerator {
       return Collections.EMPTY_LIST;
     }
 
-    Schema icebergSchema = SchemaConverter
-      .getBuilder()
-      .build()
-      .toIcebergSchema(BatchSchema.deserialize(recordSchema.toByteArray()) );
+    Schema icebergSchema =
+        SchemaConverter.getBuilder()
+            .build()
+            .toIcebergSchema(BatchSchema.deserialize(recordSchema.toByteArray()));
 
-    SortOrder deserializedSortOrder = IcebergSerDe.deserializeSortOrderFromJson(icebergSchema, sortOrder);
+    SortOrder deserializedSortOrder =
+        IcebergSerDe.deserializeSortOrderFromJson(icebergSchema, sortOrder);
     return IcebergUtils.getColumnsFromSortOrder(deserializedSortOrder, optionManager);
   }
 
@@ -268,19 +284,25 @@ public class TableDefinitionGenerator {
 
     writer.keyword("TBLPROPERTIES");
     writer.keyword("(");
-    generateOneTableProperty(writer, tableProperties.get(0).getTablePropertyName(), tableProperties.get(0).getTablePropertyValue());
+    generateOneTableProperty(
+        writer,
+        tableProperties.get(0).getTablePropertyName(),
+        tableProperties.get(0).getTablePropertyValue());
 
     for (int i = 1; i < tableProperties.size(); ++i) {
       writer.keyword(",");
-      generateOneTableProperty(writer, tableProperties.get(i).getTablePropertyName(), tableProperties.get(i).getTablePropertyValue());
+      generateOneTableProperty(
+          writer,
+          tableProperties.get(i).getTablePropertyName(),
+          tableProperties.get(i).getTablePropertyValue());
     }
     writer.keyword(")");
   }
 
-  private void generateOneTableProperty(SqlWriter writer, String tablePropertyName, String tablePropertyValue) {
+  private void generateOneTableProperty(
+      SqlWriter writer, String tablePropertyName, String tablePropertyValue) {
     SqlLiteral.createCharString(tablePropertyName, SqlParserPos.ZERO).unparse(writer, 0, 0);
     writer.keyword("=");
     SqlLiteral.createCharString(tablePropertyValue, SqlParserPos.ZERO).unparse(writer, 0, 0);
   }
-
 }

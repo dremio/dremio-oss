@@ -15,21 +15,16 @@
  */
 package com.dremio.exec.planner.sql;
 
-import java.util.Optional;
-
-import org.apache.calcite.rel.type.RelDataTypeFactory;
-
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.collect.ImmutableList;
+import java.util.Optional;
+import org.apache.calcite.rel.type.RelDataTypeFactory;
 
-/**
- * An extension of MockCatalog that will create tables with expanding schemas on demand.
- */
+/** An extension of MockCatalog that will create tables with expanding schemas on demand. */
 public final class ExpandingMockCatalog extends MockCatalog {
   public ExpandingMockCatalog(
-    RelDataTypeFactory typeFactory,
-    ImmutableList<MockDremioTable> knownTables) {
+      RelDataTypeFactory typeFactory, ImmutableList<MockDremioTable> knownTables) {
     super(typeFactory, knownTables);
   }
 
@@ -40,9 +35,8 @@ public final class ExpandingMockCatalog extends MockCatalog {
       return tryGetTable.get();
     }
 
-    MockDremioTable expandingTable = MockDremioTableFactory.createExpandingTable(
-      key,
-      this.getTypeFactory());
+    MockDremioTable expandingTable =
+        MockDremioTableFactory.createExpandingTable(key, this.getTypeFactory());
     this.getTableSet().put(expandingTable);
     return expandingTable;
   }

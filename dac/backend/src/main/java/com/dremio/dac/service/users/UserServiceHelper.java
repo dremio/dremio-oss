@@ -15,13 +15,6 @@
  */
 package com.dremio.dac.service.users;
 
-import java.io.IOException;
-
-import javax.inject.Inject;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.dac.homefiles.HomeFileTool;
 import com.dremio.dac.model.spaces.HomeName;
 import com.dremio.dac.model.spaces.HomePath;
@@ -33,10 +26,12 @@ import com.dremio.service.namespace.space.proto.HomeConfig;
 import com.dremio.service.users.UserNotFoundException;
 import com.dremio.service.users.UserService;
 import com.dremio.service.users.proto.UID;
+import java.io.IOException;
+import javax.inject.Inject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * UserService Helper
- */
+/** UserService Helper */
 public class UserServiceHelper {
   private static final Logger logger = LoggerFactory.getLogger(UserServiceHelper.class);
 
@@ -45,7 +40,8 @@ public class UserServiceHelper {
   private final NamespaceService namespaceService;
 
   @Inject
-  public UserServiceHelper(UserService userService, HomeFileTool fileStore, NamespaceService namespaceService) {
+  public UserServiceHelper(
+      UserService userService, HomeFileTool fileStore, NamespaceService namespaceService) {
     this.userService = userService;
     this.fileStore = fileStore;
     this.namespaceService = namespaceService;
@@ -63,14 +59,16 @@ public class UserServiceHelper {
     return handleHomeSpace(userName);
   }
 
-  public boolean deleteUser(String userName, String version) throws IOException, UserNotFoundException {
+  public boolean deleteUser(String userName, String version)
+      throws IOException, UserNotFoundException {
     userService.deleteUser(userName, version);
     return handleHomeSpace(userName);
   }
 
   private boolean handleHomeSpace(String userName) {
     try {
-      final NamespaceKey homeKey = new HomePath(HomeName.getUserHomePath(userName)).toNamespaceKey();
+      final NamespaceKey homeKey =
+          new HomePath(HomeName.getUserHomePath(userName)).toNamespaceKey();
       final HomeConfig homeConfig = namespaceService.getHome(homeKey);
       namespaceService.deleteHome(homeKey, homeConfig.getTag());
     } catch (NamespaceNotFoundException ex) {

@@ -15,9 +15,13 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.ops.QueryContext;
+import com.dremio.exec.planner.sql.handlers.direct.SqlDirectHandler;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import java.lang.reflect.Constructor;
 import java.util.List;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -28,18 +32,10 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.ops.QueryContext;
-import com.dremio.exec.planner.sql.handlers.direct.SqlDirectHandler;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
-
 /**
  * Implements SQL ALTER TAG ASSIGN to assign a new reference to the given tag.
  *
- * ALTER TAG tagName ASSIGN
- * ( REF[ERENCE] | BRANCH | TAG | COMMIT ) refValue
- * [ AS OF timestamp ]
+ * <p>ALTER TAG tagName ASSIGN ( REF[ERENCE] | BRANCH | TAG | COMMIT ) refValue [ AS OF timestamp ]
  * [ IN sourceName ]
  */
 public final class SqlAssignTag extends SqlVersionSourceRefBase {

@@ -20,27 +20,24 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import com.dremio.common.util.TestTools;
+import com.dremio.test.AllocatorRule;
+import com.dremio.test.DremioTest;
+import com.google.common.base.Preconditions;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
 import java.util.Arrays;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.complex.impl.UnionListWriter;
-import org.apache.parquet.it.unimi.dsi.fastutil.ints.IntArrayList;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestRule;
-
-import com.dremio.common.util.TestTools;
-import com.dremio.test.AllocatorRule;
-import com.dremio.test.DremioTest;
-import com.google.common.base.Preconditions;
-
 
 public class TestFixedListVarcharVector extends DremioTest {
   private BufferAllocator testAllocator;
@@ -50,10 +47,8 @@ public class TestFixedListVarcharVector extends DremioTest {
   static final String DELIMITER = ";;";
   static final String OVERFLOW_STRING = "\u2026"; // Unicode for ellipsis '…'
 
-  @Rule
-  public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
-  @Rule
-  public final TestRule timeoutRule = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
+  @Rule public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
+  @Rule public final TestRule timeoutRule = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
 
   @Before
   public void setupBeforeTest() {
@@ -78,8 +73,17 @@ public class TestFixedListVarcharVector extends DremioTest {
   private void testBasic(boolean distinct, boolean orderby, boolean asc) {
     int batchSize = 100;
 
-    FixedListVarcharVector flv = new FixedListVarcharVector("TestCompactionThreshold", testAllocator,
-      batchSize, "", MAX_LIST_AGG_SIZE, distinct, orderby, asc, null);
+    FixedListVarcharVector flv =
+        new FixedListVarcharVector(
+            "TestCompactionThreshold",
+            testAllocator,
+            batchSize,
+            "",
+            MAX_LIST_AGG_SIZE,
+            distinct,
+            orderby,
+            asc,
+            null);
 
     int validitySize = FixedListVarcharVector.getValidityBufferSize(batchSize);
     int dataSize = FixedListVarcharVector.getDataBufferSize(batchSize);
@@ -117,11 +121,24 @@ public class TestFixedListVarcharVector extends DremioTest {
     // 2: "CC", "DDD"
     final int SMALL_MAX_VALUES_PER_BATCH = 25;
     final int SMALL_MAX_LIST_AGG_SIZE = 10;
-    final ListVector tempSpace =  FixedListVarcharVector.allocListVector(testAllocator, SMALL_MAX_VALUES_PER_BATCH);
-    final FixedListVarcharVector flv = makeFlv("test-distinct-basic", SMALL_MAX_VALUES_PER_BATCH, DELIMITER,
-      SMALL_MAX_LIST_AGG_SIZE, true, false, false,  tempSpace, testAllocator);
-    populateFixedListVarcharVector(flv, new int[] { 0, 1, 0, 1, 0, 1, 2, 2 },
-      new String[] { "AA", "AAA", "AA", "BBB", "BB", "AAA", "CC", "DDD" }, testAllocator);
+    final ListVector tempSpace =
+        FixedListVarcharVector.allocListVector(testAllocator, SMALL_MAX_VALUES_PER_BATCH);
+    final FixedListVarcharVector flv =
+        makeFlv(
+            "test-distinct-basic",
+            SMALL_MAX_VALUES_PER_BATCH,
+            DELIMITER,
+            SMALL_MAX_LIST_AGG_SIZE,
+            true,
+            false,
+            false,
+            tempSpace,
+            testAllocator);
+    populateFixedListVarcharVector(
+        flv,
+        new int[] {0, 1, 0, 1, 0, 1, 2, 2},
+        new String[] {"AA", "AAA", "AA", "BBB", "BB", "AAA", "CC", "DDD"},
+        testAllocator);
 
     // ACT
     final IntArrayList[] rowGroups = flv.extractRowGroups();
@@ -132,16 +149,17 @@ public class TestFixedListVarcharVector extends DremioTest {
     // 0: "AA", 0xFFFF, BB
     // 1: "AAA", "BBB", 0xFFFF
     // 2: "CC", "DDD"
-    final RowGroupValuePair[] expected = new RowGroupValuePair[] {
-      new RowGroupValuePair(0, "AA"),
-      new RowGroupValuePair(1, "AAA"),
-      new RowGroupValuePair(FixedListVarcharVector.DELETED_VALUE_ROW_GROUP, null),
-      new RowGroupValuePair(1, "BBB"),
-      new RowGroupValuePair(0, "BB"),
-      new RowGroupValuePair(FixedListVarcharVector.DELETED_VALUE_ROW_GROUP, null),
-      new RowGroupValuePair(2, "CC"),
-      new RowGroupValuePair(2, "DDD"),
-    };
+    final RowGroupValuePair[] expected =
+        new RowGroupValuePair[] {
+          new RowGroupValuePair(0, "AA"),
+          new RowGroupValuePair(1, "AAA"),
+          new RowGroupValuePair(FixedListVarcharVector.DELETED_VALUE_ROW_GROUP, null),
+          new RowGroupValuePair(1, "BBB"),
+          new RowGroupValuePair(0, "BB"),
+          new RowGroupValuePair(FixedListVarcharVector.DELETED_VALUE_ROW_GROUP, null),
+          new RowGroupValuePair(2, "CC"),
+          new RowGroupValuePair(2, "DDD"),
+        };
 
     assertFlv(expected, flv);
 
@@ -155,33 +173,64 @@ public class TestFixedListVarcharVector extends DremioTest {
     VarCharVector v1 = new VarCharVector("TestCopyOutVarchar", testAllocator);
     VarCharVector v2 = new VarCharVector("TestCopyOutVarchar", testAllocator);
     VarCharVector v3 = new VarCharVector("TestCopyOutVarchar", testAllocator);
-    final ListVector tempSpace = FixedListVarcharVector.allocListVector(testAllocator, MAX_VALUES_PER_BATCH);
-    FixedListVarcharVector flv = makeFlv("test-move-values-and-free-space", MAX_VALUES_PER_BATCH, DELIMITER,
-      MAX_LIST_AGG_SIZE, false, false, false, tempSpace, testAllocator);
-    FixedListVarcharVector newflv = makeFlv("test-move-values-and-free-space-new", MAX_VALUES_PER_BATCH, DELIMITER,
-      MAX_LIST_AGG_SIZE, false, false, false, tempSpace, testAllocator);
+    final ListVector tempSpace =
+        FixedListVarcharVector.allocListVector(testAllocator, MAX_VALUES_PER_BATCH);
+    FixedListVarcharVector flv =
+        makeFlv(
+            "test-move-values-and-free-space",
+            MAX_VALUES_PER_BATCH,
+            DELIMITER,
+            MAX_LIST_AGG_SIZE,
+            false,
+            false,
+            false,
+            tempSpace,
+            testAllocator);
+    FixedListVarcharVector newflv =
+        makeFlv(
+            "test-move-values-and-free-space-new",
+            MAX_VALUES_PER_BATCH,
+            DELIMITER,
+            MAX_LIST_AGG_SIZE,
+            false,
+            false,
+            false,
+            tempSpace,
+            testAllocator);
 
     try (ArrowBuf sampleDataBuf = testAllocator.buffer(512)) {
       final String insString1 = "aaaaa";
       final String insString2 = "ありがと";
       final String insString3 = "12345";
       final String outputString = insString1 + DELIMITER + insString2 + DELIMITER + insString3;
-      final String reverseOutputString = insString3 + DELIMITER + insString2 + DELIMITER + insString1;
+      final String reverseOutputString =
+          insString3 + DELIMITER + insString2 + DELIMITER + insString1;
 
       sampleDataBuf.setBytes(0, insString1.getBytes());
       sampleDataBuf.setBytes(insString1.length(), insString2.getBytes());
-      sampleDataBuf.setBytes(insString1.length() + insString2.getBytes().length, insString3.getBytes());
+      sampleDataBuf.setBytes(
+          insString1.length() + insString2.getBytes().length, insString3.getBytes());
 
       /** For rows 0 to TOTAL_ROWS/2 insert in the order string1, string2 and string3. */
-      for (int row = 0; row < TOTAL_ROWS/2; row++) {
+      for (int row = 0; row < TOTAL_ROWS / 2; row++) {
         flv.addValueToRowGroup(row, 0, insString1.length(), sampleDataBuf);
-        flv.addValueToRowGroup(row, insString1.length(),  insString2.getBytes().length, sampleDataBuf);
-        flv.addValueToRowGroup(row, insString1.length() + insString2.getBytes().length , insString3.length(), sampleDataBuf);
+        flv.addValueToRowGroup(
+            row, insString1.length(), insString2.getBytes().length, sampleDataBuf);
+        flv.addValueToRowGroup(
+            row,
+            insString1.length() + insString2.getBytes().length,
+            insString3.length(),
+            sampleDataBuf);
       }
       /** For rows TOTAL_ROWS/2 to TOTAL_ROWS insert in the order string3, string2 and string1. */
-      for (int row = TOTAL_ROWS/2; row < TOTAL_ROWS; row++) {
-        flv.addValueToRowGroup(row, insString1.length() + insString2.getBytes().length , insString3.length(), sampleDataBuf);
-        flv.addValueToRowGroup(row, insString3.length(),  insString2.getBytes().length, sampleDataBuf);
+      for (int row = TOTAL_ROWS / 2; row < TOTAL_ROWS; row++) {
+        flv.addValueToRowGroup(
+            row,
+            insString1.length() + insString2.getBytes().length,
+            insString3.length(),
+            sampleDataBuf);
+        flv.addValueToRowGroup(
+            row, insString3.length(), insString2.getBytes().length, sampleDataBuf);
         flv.addValueToRowGroup(row, 0, insString1.length(), sampleDataBuf);
       }
 
@@ -190,14 +239,15 @@ public class TestFixedListVarcharVector extends DremioTest {
 
       /** Before moving the records to the new object verify all TOTAL_ROWS are filled. */
       for (int row = 0; row < TOTAL_ROWS; row++) {
-        if (row < TOTAL_ROWS/2) {
+        if (row < TOTAL_ROWS / 2) {
           Assert.assertEquals(outputString /*expected*/, v1.getObject(row).toString() /*actual*/);
         } else {
-          Assert.assertEquals(reverseOutputString /*expected*/, v1.getObject(row).toString() /*actual*/);
+          Assert.assertEquals(
+              reverseOutputString /*expected*/, v1.getObject(row).toString() /*actual*/);
         }
       }
 
-      flv.moveValuesAndFreeSpace(TOTAL_ROWS/2, 0, TOTAL_ROWS / 2, newflv);
+      flv.moveValuesAndFreeSpace(TOTAL_ROWS / 2, 0, TOTAL_ROWS / 2, newflv);
 
       v2.allocateNew(flv.getRequiredByteCapacity(), TOTAL_ROWS / 2);
       v3.allocateNew(newflv.getRequiredByteCapacity(), TOTAL_ROWS / 2);
@@ -206,11 +256,12 @@ public class TestFixedListVarcharVector extends DremioTest {
       newflv.outputToVector(v3, 0, TOTAL_ROWS / 2);
 
       /** After moving the records both the objects will have TOTAL_ROWS/2 rows. */
-      for (int row = 0; row < TOTAL_ROWS/2; row++) {
+      for (int row = 0; row < TOTAL_ROWS / 2; row++) {
         Assert.assertEquals(outputString /*expected*/, v2.getObject(row).toString() /*actual*/);
       }
-      for (int row = 0; row < TOTAL_ROWS/2; row++) {
-        Assert.assertEquals(reverseOutputString /*expected*/, v3.getObject(row).toString() /*actual*/);
+      for (int row = 0; row < TOTAL_ROWS / 2; row++) {
+        Assert.assertEquals(
+            reverseOutputString /*expected*/, v3.getObject(row).toString() /*actual*/);
       }
 
     } finally {
@@ -222,6 +273,7 @@ public class TestFixedListVarcharVector extends DremioTest {
       tempSpace.close();
     }
   }
+
   private static void populateStringsInArrowBuf(final String[] content, final ArrowBuf buf) {
     for (final String s : content) {
       buf.setBytes(buf.writerIndex(), s.getBytes());
@@ -229,32 +281,46 @@ public class TestFixedListVarcharVector extends DremioTest {
     }
   }
 
-  private static void populateFixedListVarcharVector(final FixedListVarcharVector flv, final int[] groups, final String[] values,  final BufferAllocator allocator) {
+  private static void populateFixedListVarcharVector(
+      final FixedListVarcharVector flv,
+      final int[] groups,
+      final String[] values,
+      final BufferAllocator allocator) {
     assert groups.length == values.length;
 
     try (final ArrowBuf dataBuf = allocator.buffer(512)) {
-       populateStringsInArrowBuf(values, dataBuf);
+      populateStringsInArrowBuf(values, dataBuf);
 
-       int head = 0;
+      int head = 0;
 
-       for (int i = 0; i < values.length; i++) {
-         flv.addValueToRowGroup(groups[i], head, values[i].length(), dataBuf);
-         head += values[i].length();
-       }
+      for (int i = 0; i < values.length; i++) {
+        flv.addValueToRowGroup(groups[i], head, values[i].length(), dataBuf);
+        head += values[i].length();
+      }
     }
   }
 
-  private static FixedListVarcharVector makeFlv(final String name,
-                                                final int batchSize,
-                                                final String delimiter,
-                                                final int maxListAggSize,
-                                                final boolean distinct,
-                                                final boolean orderby,
-                                                final boolean asc,
-                                                final ListVector tempSpace,
-                                                final BufferAllocator allocator) {
-    final FixedListVarcharVector flv = new FixedListVarcharVector(name, allocator,
-      batchSize, delimiter,maxListAggSize, distinct, orderby, asc, tempSpace);
+  private static FixedListVarcharVector makeFlv(
+      final String name,
+      final int batchSize,
+      final String delimiter,
+      final int maxListAggSize,
+      final boolean distinct,
+      final boolean orderby,
+      final boolean asc,
+      final ListVector tempSpace,
+      final BufferAllocator allocator) {
+    final FixedListVarcharVector flv =
+        new FixedListVarcharVector(
+            name,
+            allocator,
+            batchSize,
+            delimiter,
+            maxListAggSize,
+            distinct,
+            orderby,
+            asc,
+            tempSpace);
     final int validitySize = FixedListVarcharVector.getValidityBufferSize(batchSize);
     final int dataSize = FixedListVarcharVector.getDataBufferSize(batchSize);
 
@@ -287,26 +353,37 @@ public class TestFixedListVarcharVector extends DremioTest {
     }
   }
 
-  private static void assertVarCharVector(final String[] expected, final VarCharVector varCharVector) {
+  private static void assertVarCharVector(
+      final String[] expected, final VarCharVector varCharVector) {
     assertEquals(expected.length, varCharVector.getLastSet() + 1);
 
     for (int i = 0; i < expected.length; i++) {
       if (expected[i] == null) {
         assertTrue(varCharVector.getObject(i) == null);
       } else {
-        assertEquals(String.format("Comparing value at index #%d", i), expected[i], varCharVector.getObject(i).toString());
+        assertEquals(
+            String.format("Comparing value at index #%d", i),
+            expected[i],
+            varCharVector.getObject(i).toString());
       }
     }
   }
 
-  private static void assertFlv(final RowGroupValuePair[] expected, final FixedListVarcharVector flv) {
+  private static void assertFlv(
+      final RowGroupValuePair[] expected, final FixedListVarcharVector flv) {
     assertEquals(expected.length, flv.size());
 
     for (int i = 0; i < expected.length; i++) {
-      assertEquals(String.format("Comparing row group at index #%d", i), expected[i].getRowGroup(), flv.getGroupIndex(i));
+      assertEquals(
+          String.format("Comparing row group at index #%d", i),
+          expected[i].getRowGroup(),
+          flv.getGroupIndex(i));
 
       if (expected[i].getValue() != null) {
-        assertEquals(String.format("Comparing value at index #%d", i), expected[i].getValue(), flv.getObject(i).toString());
+        assertEquals(
+            String.format("Comparing value at index #%d", i),
+            expected[i].getValue(),
+            flv.getObject(i).toString());
       }
     }
   }
@@ -315,15 +392,27 @@ public class TestFixedListVarcharVector extends DremioTest {
   public void testOrderItemsInRowGroupsAsc() {
     // ARRANGE
     final ListVector tempSpace = FixedListVarcharVector.allocListVector(testAllocator, 20);
-    final FixedListVarcharVector flv = makeFlv("test-order-items-in-row-groups-asc-flv", 64,
-      DELIMITER, 20, false, true, true, tempSpace, testAllocator);
-    populateFixedListVarcharVector(flv, new int[] { 0, 1, 0, 2, 1 },
-      new String[] { "AAA", "EE", "CCCC", "DDD", "BB" }, testAllocator);
+    final FixedListVarcharVector flv =
+        makeFlv(
+            "test-order-items-in-row-groups-asc-flv",
+            64,
+            DELIMITER,
+            20,
+            false,
+            true,
+            true,
+            tempSpace,
+            testAllocator);
+    populateFixedListVarcharVector(
+        flv,
+        new int[] {0, 1, 0, 2, 1},
+        new String[] {"AAA", "EE", "CCCC", "DDD", "BB"},
+        testAllocator);
 
     final IntArrayList[] rowGroups = new IntArrayList[3];
-    rowGroups[0] = new IntArrayList(new int[] { 0, 2 });
-    rowGroups[1] = new IntArrayList(new int[] { 1, 4 });
-    rowGroups[2] = new IntArrayList(new int[] { 3 });
+    rowGroups[0] = new IntArrayList(new int[] {0, 2});
+    rowGroups[1] = new IntArrayList(new int[] {1, 4});
+    rowGroups[2] = new IntArrayList(new int[] {3});
 
     // ACT
     flv.orderItemsInRowGroups(rowGroups);
@@ -332,9 +421,9 @@ public class TestFixedListVarcharVector extends DremioTest {
     final long nonEmptyItemCount = Arrays.stream(rowGroups).filter(Objects::nonNull).count();
 
     assertEquals(3, nonEmptyItemCount);
-    assertArrayEquals(new int[] { 0, 2 }, rowGroups[0].toIntArray());
-    assertArrayEquals(new int[] { 4, 1 }, rowGroups[1].toIntArray());
-    assertArrayEquals(new int[] { 3 }, rowGroups[2].toIntArray());
+    assertArrayEquals(new int[] {0, 2}, rowGroups[0].toIntArray());
+    assertArrayEquals(new int[] {4, 1}, rowGroups[1].toIntArray());
+    assertArrayEquals(new int[] {3}, rowGroups[2].toIntArray());
 
     // TEARDOWN
     flv.close();
@@ -345,12 +434,22 @@ public class TestFixedListVarcharVector extends DremioTest {
   public void testOrderItemsInRowGroupsDesc() {
     // ARRANGE
     final ListVector tempSpace = FixedListVarcharVector.allocListVector(testAllocator, 20);
-    final FixedListVarcharVector flv = makeFlv("test-order-items-in-row-groups-desc-flv", 64,
-      DELIMITER, 20, false, true, false, tempSpace, testAllocator);
-    populateFixedListVarcharVector(flv, new int[] { 0, 0 }, new String[] { "AAA", "BB" }, testAllocator);
+    final FixedListVarcharVector flv =
+        makeFlv(
+            "test-order-items-in-row-groups-desc-flv",
+            64,
+            DELIMITER,
+            20,
+            false,
+            true,
+            false,
+            tempSpace,
+            testAllocator);
+    populateFixedListVarcharVector(
+        flv, new int[] {0, 0}, new String[] {"AAA", "BB"}, testAllocator);
 
     final IntArrayList[] rowGroups = new IntArrayList[1];
-    rowGroups[0] = new IntArrayList(new int[] { 0, 1 });
+    rowGroups[0] = new IntArrayList(new int[] {0, 1});
 
     // ACT
     flv.orderItemsInRowGroups(rowGroups);
@@ -359,7 +458,7 @@ public class TestFixedListVarcharVector extends DremioTest {
     final long nonEmptyItemCount = Arrays.stream(rowGroups).filter(Objects::nonNull).count();
 
     assertEquals(1, nonEmptyItemCount);
-    assertArrayEquals(new int[] { 1, 0 }, rowGroups[0].toIntArray());
+    assertArrayEquals(new int[] {1, 0}, rowGroups[0].toIntArray());
 
     // TEARDOWN
     flv.close();
@@ -373,15 +472,27 @@ public class TestFixedListVarcharVector extends DremioTest {
     // 1: "AAAAAA", "BBB", "CCC"
     // 2: "CC", "DDD"
     final ListVector tempSpace = FixedListVarcharVector.allocListVector(testAllocator, 64);
-    final FixedListVarcharVector flv = makeFlv("test-delete-excess-items-in-groups-flv", 64,
-      DELIMITER, 12, false, true, true, tempSpace, testAllocator);
-    populateFixedListVarcharVector(flv, new int[] { 0, 1, 0, 1, 0, 1, 2, 2, 0 },
-      new String[] { "aaa", "AAAAAA", "bb", "BBB", "cc", "CCC", "DD", "DDD", "dd" }, testAllocator);
+    final FixedListVarcharVector flv =
+        makeFlv(
+            "test-delete-excess-items-in-groups-flv",
+            64,
+            DELIMITER,
+            12,
+            false,
+            true,
+            true,
+            tempSpace,
+            testAllocator);
+    populateFixedListVarcharVector(
+        flv,
+        new int[] {0, 1, 0, 1, 0, 1, 2, 2, 0},
+        new String[] {"aaa", "AAAAAA", "bb", "BBB", "cc", "CCC", "DD", "DDD", "dd"},
+        testAllocator);
 
     final IntArrayList[] rowGroups = new IntArrayList[3];
-    rowGroups[0] = new IntArrayList(new int[] { 0, 2, 4, 8});
-    rowGroups[1] = new IntArrayList(new int[] { 1, 3, 5 });
-    rowGroups[2] = new IntArrayList(new int[] { 6, 7 });
+    rowGroups[0] = new IntArrayList(new int[] {0, 2, 4, 8});
+    rowGroups[1] = new IntArrayList(new int[] {1, 3, 5});
+    rowGroups[2] = new IntArrayList(new int[] {6, 7});
 
     // ACT
     flv.deleteExcessItemsInGroups(rowGroups, 0);
@@ -400,9 +511,9 @@ public class TestFixedListVarcharVector extends DremioTest {
     assertTrue(flv.isOverflowSet(0));
     assertTrue(flv.isOverflowSet(1));
     assertFalse(flv.isOverflowSet(2));
-    assertArrayEquals(new int[] { 0, 2, 4 }, rowGroups[0].toIntArray());
-    assertArrayEquals(new int[] { 1, 3 }, rowGroups[1].toIntArray());
-    assertArrayEquals(new int[] { 6, 7 }, rowGroups[2].toIntArray());
+    assertArrayEquals(new int[] {0, 2, 4}, rowGroups[0].toIntArray());
+    assertArrayEquals(new int[] {1, 3}, rowGroups[1].toIntArray());
+    assertArrayEquals(new int[] {6, 7}, rowGroups[2].toIntArray());
 
     // TEARDOWN
     flv.close();
@@ -413,9 +524,22 @@ public class TestFixedListVarcharVector extends DremioTest {
   public void testExtractRowGroups() {
     // ARRANGE
     final ListVector tempSpace = FixedListVarcharVector.allocListVector(testAllocator, 64);
-    final FixedListVarcharVector flv = makeFlv("test-extract-row-groups-flv", 64,
-      DELIMITER, 20, false, true, true, tempSpace, testAllocator);
-    populateFixedListVarcharVector(flv, new int[] { 0, 1, 0, 2, 1 }, new String[] { "AAA", "EE", "CCCC", "DDD", "BB" }, testAllocator);
+    final FixedListVarcharVector flv =
+        makeFlv(
+            "test-extract-row-groups-flv",
+            64,
+            DELIMITER,
+            20,
+            false,
+            true,
+            true,
+            tempSpace,
+            testAllocator);
+    populateFixedListVarcharVector(
+        flv,
+        new int[] {0, 1, 0, 2, 1},
+        new String[] {"AAA", "EE", "CCCC", "DDD", "BB"},
+        testAllocator);
 
     // ACT
     final IntArrayList[] rowGroups = flv.extractRowGroups();
@@ -424,9 +548,9 @@ public class TestFixedListVarcharVector extends DremioTest {
     final long nonEmptyItemCount = Arrays.stream(rowGroups).filter(Objects::nonNull).count();
 
     assertEquals(3, nonEmptyItemCount);
-    assertArrayEquals(new int[] { 0, 2 }, rowGroups[0].toIntArray());
-    assertArrayEquals(new int[] { 1, 4 }, rowGroups[1].toIntArray());
-    assertArrayEquals(new int[] { 3 }, rowGroups[2].toIntArray());
+    assertArrayEquals(new int[] {0, 2}, rowGroups[0].toIntArray());
+    assertArrayEquals(new int[] {1, 4}, rowGroups[1].toIntArray());
+    assertArrayEquals(new int[] {3}, rowGroups[2].toIntArray());
 
     // TEARDOWN
     flv.close();
@@ -438,27 +562,41 @@ public class TestFixedListVarcharVector extends DremioTest {
     // ARRANGE
     final ListVector tempSpace = FixedListVarcharVector.allocListVector(testAllocator, 64);
 
-    final FixedListVarcharVector flv = makeFlv("test-physically-rearrange-values-flv", 64,
-      DELIMITER, 20, false, true, true, tempSpace, testAllocator);
-    populateFixedListVarcharVector(flv, new int[] { 0, 1, 0, 2, 1 }, new String[] { "AAA", "EE", "CCCC", "DDD", "BB" }, testAllocator);
+    final FixedListVarcharVector flv =
+        makeFlv(
+            "test-physically-rearrange-values-flv",
+            64,
+            DELIMITER,
+            20,
+            false,
+            true,
+            true,
+            tempSpace,
+            testAllocator);
+    populateFixedListVarcharVector(
+        flv,
+        new int[] {0, 1, 0, 2, 1},
+        new String[] {"AAA", "EE", "CCCC", "DDD", "BB"},
+        testAllocator);
 
     final IntArrayList[] rowGroups = new IntArrayList[3];
 
-    rowGroups[0] = new IntArrayList(new int[] { 2, 0 } );
-    rowGroups[1] = new IntArrayList(new int[] { 4, 1 } );
-    rowGroups[2] = new IntArrayList(new int[] { 3 } );
+    rowGroups[0] = new IntArrayList(new int[] {2, 0});
+    rowGroups[1] = new IntArrayList(new int[] {4, 1});
+    rowGroups[2] = new IntArrayList(new int[] {3});
 
     // ACT
     flv.physicallyRearrangeValues(rowGroups);
 
     // ASSERT
-    final RowGroupValuePair[] expected = new RowGroupValuePair[] {
-      new RowGroupValuePair(0, "CCCC"),
-      new RowGroupValuePair(0, "AAA"),
-      new RowGroupValuePair(1, "BB"),
-      new RowGroupValuePair(1, "EE"),
-      new RowGroupValuePair(2, "DDD"),
-    };
+    final RowGroupValuePair[] expected =
+        new RowGroupValuePair[] {
+          new RowGroupValuePair(0, "CCCC"),
+          new RowGroupValuePair(0, "AAA"),
+          new RowGroupValuePair(1, "BB"),
+          new RowGroupValuePair(1, "EE"),
+          new RowGroupValuePair(2, "DDD"),
+        };
 
     assertFlv(expected, flv);
 
@@ -475,25 +613,38 @@ public class TestFixedListVarcharVector extends DremioTest {
     // 1: "aa", "bbb", "ccc"
     // 2: "DD", "DDD"
     final ListVector tempSpace = FixedListVarcharVector.allocListVector(testAllocator, 10);
-    final FixedListVarcharVector flv = makeFlv("test-compact-with-order-by-and-limit-size",
-      64, DELIMITER, 12, false, true, true, tempSpace, testAllocator);
-    populateFixedListVarcharVector(flv, new int[] { 0, 1, 0, 1, 0, 1, 2, 2, 0 },
-      new String[] { "CC", "aa", "BB", "bbb", "AA", "ccc", "DD", "DDD", "DD" }, testAllocator);
+    final FixedListVarcharVector flv =
+        makeFlv(
+            "test-compact-with-order-by-and-limit-size",
+            64,
+            DELIMITER,
+            12,
+            false,
+            true,
+            true,
+            tempSpace,
+            testAllocator);
+    populateFixedListVarcharVector(
+        flv,
+        new int[] {0, 1, 0, 1, 0, 1, 2, 2, 0},
+        new String[] {"CC", "aa", "BB", "bbb", "AA", "ccc", "DD", "DDD", "DD"},
+        testAllocator);
 
     // ACT
     flv.compact();
 
     // ASSERT
-    final RowGroupValuePair[] expected = new RowGroupValuePair[] {
-      new RowGroupValuePair(0, "AA"),
-      new RowGroupValuePair(0, "BB"),
-      new RowGroupValuePair(0, "CC"),
-      new RowGroupValuePair(1, "aa"),
-      new RowGroupValuePair(1, "bbb"),
-      new RowGroupValuePair(1, "ccc"),
-      new RowGroupValuePair(2, "DD"),
-      new RowGroupValuePair(2, "DDD"),
-    };
+    final RowGroupValuePair[] expected =
+        new RowGroupValuePair[] {
+          new RowGroupValuePair(0, "AA"),
+          new RowGroupValuePair(0, "BB"),
+          new RowGroupValuePair(0, "CC"),
+          new RowGroupValuePair(1, "aa"),
+          new RowGroupValuePair(1, "bbb"),
+          new RowGroupValuePair(1, "ccc"),
+          new RowGroupValuePair(2, "DD"),
+          new RowGroupValuePair(2, "DDD"),
+        };
 
     assertFlv(expected, flv);
 
@@ -511,25 +662,38 @@ public class TestFixedListVarcharVector extends DremioTest {
     // 2: "DD", "DDD"
     // 3: "A", "A", "B"
     final ListVector tempSpace = FixedListVarcharVector.allocListVector(testAllocator, 20);
-    final FixedListVarcharVector flv = makeFlv("test-compact-with-distincy-orderby-limit-size-and-physical-rearrangement-asc",
-      64, DELIMITER, 20, true, true, true, tempSpace, testAllocator);
-    populateFixedListVarcharVector(flv, new int[] { 0, 1, 0, 1, 0, 1, 2, 2, 3, 3, 3 },
-      new String[] { "BB", "AAA", "BB", "BBB", "AA", "AAA", "DD", "DDD", "A", "A", "B" }, testAllocator);
+    final FixedListVarcharVector flv =
+        makeFlv(
+            "test-compact-with-distincy-orderby-limit-size-and-physical-rearrangement-asc",
+            64,
+            DELIMITER,
+            20,
+            true,
+            true,
+            true,
+            tempSpace,
+            testAllocator);
+    populateFixedListVarcharVector(
+        flv,
+        new int[] {0, 1, 0, 1, 0, 1, 2, 2, 3, 3, 3},
+        new String[] {"BB", "AAA", "BB", "BBB", "AA", "AAA", "DD", "DDD", "A", "A", "B"},
+        testAllocator);
 
     // ACT
     flv.compact();
 
     // ASSERT
-    final RowGroupValuePair[] expected = new RowGroupValuePair[] {
-      new RowGroupValuePair(0, "AA"),
-      new RowGroupValuePair(0, "BB"),
-      new RowGroupValuePair(1, "AAA"),
-      new RowGroupValuePair(1, "BBB"),
-      new RowGroupValuePair(2, "DD"),
-      new RowGroupValuePair(2, "DDD"),
-      new RowGroupValuePair(3, "A"),
-      new RowGroupValuePair(3, "B"),
-    };
+    final RowGroupValuePair[] expected =
+        new RowGroupValuePair[] {
+          new RowGroupValuePair(0, "AA"),
+          new RowGroupValuePair(0, "BB"),
+          new RowGroupValuePair(1, "AAA"),
+          new RowGroupValuePair(1, "BBB"),
+          new RowGroupValuePair(2, "DD"),
+          new RowGroupValuePair(2, "DDD"),
+          new RowGroupValuePair(3, "A"),
+          new RowGroupValuePair(3, "B"),
+        };
 
     assertFlv(expected, flv);
 
@@ -548,11 +712,24 @@ public class TestFixedListVarcharVector extends DremioTest {
     @SuppressWarnings("checkstyle:LocalFinalVariableName")
     final int SMALL_MAX_LIST_AGG_SIZE = 11;
     final String delimiter = ",";
-    final ListVector tempSpace = FixedListVarcharVector.allocListVector(testAllocator, SMALL_MAX_LIST_AGG_SIZE);
-    final FixedListVarcharVector flv = makeFlv("test-limit-size-basic", MAX_VALUES_PER_BATCH, delimiter,
-      SMALL_MAX_LIST_AGG_SIZE, false, false, false, tempSpace, testAllocator);
-    populateFixedListVarcharVector(flv, new int[] { 0, 1, 0, 1, 0, 1, 2, 2, 3, 3, 0 },
-      new String[] { "AA", "AAA", "AA", "BBB", "BB", "AAA", "CC", "DDD", "CCC", "DDDD", "CC" }, testAllocator);
+    final ListVector tempSpace =
+        FixedListVarcharVector.allocListVector(testAllocator, SMALL_MAX_LIST_AGG_SIZE);
+    final FixedListVarcharVector flv =
+        makeFlv(
+            "test-limit-size-basic",
+            MAX_VALUES_PER_BATCH,
+            delimiter,
+            SMALL_MAX_LIST_AGG_SIZE,
+            false,
+            false,
+            false,
+            tempSpace,
+            testAllocator);
+    populateFixedListVarcharVector(
+        flv,
+        new int[] {0, 1, 0, 1, 0, 1, 2, 2, 3, 3, 0},
+        new String[] {"AA", "AAA", "AA", "BBB", "BB", "AAA", "CC", "DDD", "CCC", "DDDD", "CC"},
+        testAllocator);
 
     // ACT
     final IntArrayList[] rowGroups = flv.extractRowGroups();
@@ -564,19 +741,20 @@ public class TestFixedListVarcharVector extends DremioTest {
     // 1: "AAA", "BBB", "AAA"
     // 2: "CC", "DDD"
     // 3: "CCC", "DDDD"
-    final RowGroupValuePair[] expected = new RowGroupValuePair[] {
-      new RowGroupValuePair(0, "AA"),
-      new RowGroupValuePair(1, "AAA"),
-      new RowGroupValuePair(0, "AA"),
-      new RowGroupValuePair(1, "BBB"),
-      new RowGroupValuePair(0, "BB"),
-      new RowGroupValuePair(1, "AAA"),
-      new RowGroupValuePair(2, "CC"),
-      new RowGroupValuePair(2, "DDD"),
-      new RowGroupValuePair(3, "CCC"),
-      new RowGroupValuePair(3, "DDDD"),
-      new RowGroupValuePair(FixedListVarcharVector.DELETED_VALUE_ROW_GROUP, null),
-    };
+    final RowGroupValuePair[] expected =
+        new RowGroupValuePair[] {
+          new RowGroupValuePair(0, "AA"),
+          new RowGroupValuePair(1, "AAA"),
+          new RowGroupValuePair(0, "AA"),
+          new RowGroupValuePair(1, "BBB"),
+          new RowGroupValuePair(0, "BB"),
+          new RowGroupValuePair(1, "AAA"),
+          new RowGroupValuePair(2, "CC"),
+          new RowGroupValuePair(2, "DDD"),
+          new RowGroupValuePair(3, "CCC"),
+          new RowGroupValuePair(3, "DDDD"),
+          new RowGroupValuePair(FixedListVarcharVector.DELETED_VALUE_ROW_GROUP, null),
+        };
 
     assertFlv(expected, flv);
 
@@ -596,12 +774,26 @@ public class TestFixedListVarcharVector extends DremioTest {
     final int SMALL_MAX_LIST_AGG_SIZE = 11;
     final int SMALL_MAX_VALUES_PER_BATCH = 64;
     final String delimiter = ",";
-    final ListVector tempSpace = FixedListVarcharVector.allocListVector(testAllocator, SMALL_MAX_VALUES_PER_BATCH);
-    final FixedListVarcharVector flv = makeFlv("test-compact-with-distinct-and-limit-size",
-      SMALL_MAX_VALUES_PER_BATCH, delimiter, SMALL_MAX_LIST_AGG_SIZE, true, false, false,
-      tempSpace, testAllocator);
-    populateFixedListVarcharVector(flv, new int[] { 0, 1, 0, 1, 0, 1, 2, 1, 2, 3, 3, 0, 0, 0 },
-      new String[] { "AA", "a", "AA", "b", "BB", "a", "CC", "b", "DDD", "CCC", "DDDD", "BB", "A", "B" }, testAllocator);
+    final ListVector tempSpace =
+        FixedListVarcharVector.allocListVector(testAllocator, SMALL_MAX_VALUES_PER_BATCH);
+    final FixedListVarcharVector flv =
+        makeFlv(
+            "test-compact-with-distinct-and-limit-size",
+            SMALL_MAX_VALUES_PER_BATCH,
+            delimiter,
+            SMALL_MAX_LIST_AGG_SIZE,
+            true,
+            false,
+            false,
+            tempSpace,
+            testAllocator);
+    populateFixedListVarcharVector(
+        flv,
+        new int[] {0, 1, 0, 1, 0, 1, 2, 1, 2, 3, 3, 0, 0, 0},
+        new String[] {
+          "AA", "a", "AA", "b", "BB", "a", "CC", "b", "DDD", "CCC", "DDDD", "BB", "A", "B"
+        },
+        testAllocator);
 
     // ACT
     flv.compact();
@@ -612,18 +804,19 @@ public class TestFixedListVarcharVector extends DremioTest {
     // 1: "a", "b"
     // 2: "CC", "DDD"
     // 3: "CCC", "DDDD"
-    final RowGroupValuePair[] expected = new RowGroupValuePair[] {
-      new RowGroupValuePair(0, "AA"),
-      new RowGroupValuePair(0, "BB"),
-      new RowGroupValuePair(0, "A"),
-      new RowGroupValuePair(0, "B"),
-      new RowGroupValuePair(1, "a"),
-      new RowGroupValuePair(1, "b"),
-      new RowGroupValuePair(2, "CC"),
-      new RowGroupValuePair(2, "DDD"),
-      new RowGroupValuePair(3, "CCC"),
-      new RowGroupValuePair(3, "DDDD"),
-    };
+    final RowGroupValuePair[] expected =
+        new RowGroupValuePair[] {
+          new RowGroupValuePair(0, "AA"),
+          new RowGroupValuePair(0, "BB"),
+          new RowGroupValuePair(0, "A"),
+          new RowGroupValuePair(0, "B"),
+          new RowGroupValuePair(1, "a"),
+          new RowGroupValuePair(1, "b"),
+          new RowGroupValuePair(2, "CC"),
+          new RowGroupValuePair(2, "DDD"),
+          new RowGroupValuePair(3, "CCC"),
+          new RowGroupValuePair(3, "DDDD"),
+        };
 
     assertFlv(expected, flv);
 
@@ -644,11 +837,24 @@ public class TestFixedListVarcharVector extends DremioTest {
     final int SMALL_MAX_LIST_AGG_SIZE = 11;
     final int SMALL_MAX_VALUES_PER_BATCH = 16;
     final String delimiter = ",";
-    final ListVector tempSpace = FixedListVarcharVector.allocListVector(testAllocator, SMALL_MAX_VALUES_PER_BATCH);
-    final FixedListVarcharVector flv = makeFlv("test-limit-size-basic", SMALL_MAX_VALUES_PER_BATCH,
-      delimiter, SMALL_MAX_LIST_AGG_SIZE, false, false, false, tempSpace, testAllocator);
-    populateFixedListVarcharVector(flv, new int[] { 0, 1, 0, 1, 0, 1, 2, 2, 3, 3 },
-      new String[] { "AA", "AAA", "AA", "BBB", "BB", "AAA", "CC", "DDD", "CCC", "DDDD" }, testAllocator);
+    final ListVector tempSpace =
+        FixedListVarcharVector.allocListVector(testAllocator, SMALL_MAX_VALUES_PER_BATCH);
+    final FixedListVarcharVector flv =
+        makeFlv(
+            "test-limit-size-basic",
+            SMALL_MAX_VALUES_PER_BATCH,
+            delimiter,
+            SMALL_MAX_LIST_AGG_SIZE,
+            false,
+            false,
+            false,
+            tempSpace,
+            testAllocator);
+    populateFixedListVarcharVector(
+        flv,
+        new int[] {0, 1, 0, 1, 0, 1, 2, 2, 3, 3},
+        new String[] {"AA", "AAA", "AA", "BBB", "BB", "AAA", "CC", "DDD", "CCC", "DDDD"},
+        testAllocator);
 
     // ACT
     flv.compact();
@@ -660,15 +866,17 @@ public class TestFixedListVarcharVector extends DremioTest {
     // 1: "AAA","BBB",...
     // 2: "CC","DDD"
     // 3: "CCC",...
-    String[] expected = new String[] {
-      "AA" + delimiter + "AA" + delimiter + OVERFLOW_STRING,
-      "AAA" + delimiter + "BBB" + delimiter + OVERFLOW_STRING,
-      "CC" + delimiter + "DDD",
-      "CCC" + delimiter + OVERFLOW_STRING,
-    };
+    String[] expected =
+        new String[] {
+          "AA" + delimiter + "AA" + delimiter + OVERFLOW_STRING,
+          "AAA" + delimiter + "BBB" + delimiter + OVERFLOW_STRING,
+          "CC" + delimiter + "DDD",
+          "CCC" + delimiter + OVERFLOW_STRING,
+        };
 
-    //assertTrue(flv.delimterAndOverflowSize() == (3 * delimiter.length() + 3 * flv.getOverflowReserveSpace()));
-    //assertTrue(flv.getRequiredByteCapacity() == v1.getEndOffset(v1.getLastSet()));
+    // assertTrue(flv.delimterAndOverflowSize() == (3 * delimiter.length() + 3 *
+    // flv.getOverflowReserveSpace()));
+    // assertTrue(flv.getRequiredByteCapacity() == v1.getEndOffset(v1.getLastSet()));
     assertVarCharVector(expected, v1);
 
     // TEARDOWN
@@ -686,11 +894,24 @@ public class TestFixedListVarcharVector extends DremioTest {
     final int SMALL_MAX_LIST_AGG_SIZE = 11;
     final int SMALL_MAX_VALUES_PER_BATCH = 4;
     final String delimiter = ",";
-    final ListVector tempSpace = FixedListVarcharVector.allocListVector(testAllocator, SMALL_MAX_VALUES_PER_BATCH);
-    final FixedListVarcharVector flv = makeFlv("test-limit-size-basic", SMALL_MAX_VALUES_PER_BATCH,
-      delimiter, SMALL_MAX_LIST_AGG_SIZE, false, false, false, tempSpace, testAllocator);
-    populateFixedListVarcharVector(flv, new int[] { 0, 1, 0, 1, 0, 1 },
-      new String[] { "AA", "aaaa", "AA", "bbbb", "BB", "aaaa" }, testAllocator);
+    final ListVector tempSpace =
+        FixedListVarcharVector.allocListVector(testAllocator, SMALL_MAX_VALUES_PER_BATCH);
+    final FixedListVarcharVector flv =
+        makeFlv(
+            "test-limit-size-basic",
+            SMALL_MAX_VALUES_PER_BATCH,
+            delimiter,
+            SMALL_MAX_LIST_AGG_SIZE,
+            false,
+            false,
+            false,
+            tempSpace,
+            testAllocator);
+    populateFixedListVarcharVector(
+        flv,
+        new int[] {0, 1, 0, 1, 0, 1},
+        new String[] {"AA", "aaaa", "AA", "bbbb", "BB", "aaaa"},
+        testAllocator);
 
     // ACT
     flv.compact();
@@ -699,13 +920,14 @@ public class TestFixedListVarcharVector extends DremioTest {
     // Expected output:
     // 0: "AA" ,"AA", "BB"
     // 1: "aaaa", "bbbb"
-    final RowGroupValuePair[] expectedAfterCompact = new RowGroupValuePair[] {
-      new RowGroupValuePair(0, "AA"),
-      new RowGroupValuePair(0, "AA"),
-      new RowGroupValuePair(0, "BB"),
-      new RowGroupValuePair(1, "aaaa"),
-      new RowGroupValuePair(1, "bbbb"),
-    };
+    final RowGroupValuePair[] expectedAfterCompact =
+        new RowGroupValuePair[] {
+          new RowGroupValuePair(0, "AA"),
+          new RowGroupValuePair(0, "AA"),
+          new RowGroupValuePair(0, "BB"),
+          new RowGroupValuePair(1, "aaaa"),
+          new RowGroupValuePair(1, "bbbb"),
+        };
 
     assertFlv(expectedAfterCompact, flv);
 
@@ -723,14 +945,15 @@ public class TestFixedListVarcharVector extends DremioTest {
     // Expected output:
     // 0: "AA" ,"AA", "BB", "A"
     // 1: "aaaa", "bbbb"
-    final RowGroupValuePair[] expected = new RowGroupValuePair[] {
-      new RowGroupValuePair(0, "AA"),
-      new RowGroupValuePair(0, "AA"),
-      new RowGroupValuePair(0, "BB"),
-      new RowGroupValuePair(1, "aaaa"),
-      new RowGroupValuePair(1, "bbbb"),
-      new RowGroupValuePair(0, "A"),
-    };
+    final RowGroupValuePair[] expected =
+        new RowGroupValuePair[] {
+          new RowGroupValuePair(0, "AA"),
+          new RowGroupValuePair(0, "AA"),
+          new RowGroupValuePair(0, "BB"),
+          new RowGroupValuePair(1, "aaaa"),
+          new RowGroupValuePair(1, "bbbb"),
+          new RowGroupValuePair(0, "A"),
+        };
 
     // As orderby is not present, once overflow is set, no new elements are accepted.
     assertTrue(expected.length == flv.size());
@@ -751,22 +974,36 @@ public class TestFixedListVarcharVector extends DremioTest {
     final int SMALL_MAX_LIST_AGG_SIZE = 11;
     final int SMALL_MAX_VALUES_PER_BATCH = 4;
     final String delimiter = ",";
-    final ListVector tempSpace = FixedListVarcharVector.allocListVector(testAllocator, SMALL_MAX_VALUES_PER_BATCH);
-    final FixedListVarcharVector flv = makeFlv("test-limit-size-basic", SMALL_MAX_VALUES_PER_BATCH,
-      delimiter, SMALL_MAX_LIST_AGG_SIZE, false, true, true, tempSpace, testAllocator);
-    populateFixedListVarcharVector(flv, new int[] { 0, 1, 0, 1, 0, 1 },
-      new String[] { "AA", "aaa", "BB", "bbb", "AA", "aaa" }, testAllocator);
+    final ListVector tempSpace =
+        FixedListVarcharVector.allocListVector(testAllocator, SMALL_MAX_VALUES_PER_BATCH);
+    final FixedListVarcharVector flv =
+        makeFlv(
+            "test-limit-size-basic",
+            SMALL_MAX_VALUES_PER_BATCH,
+            delimiter,
+            SMALL_MAX_LIST_AGG_SIZE,
+            false,
+            true,
+            true,
+            tempSpace,
+            testAllocator);
+    populateFixedListVarcharVector(
+        flv,
+        new int[] {0, 1, 0, 1, 0, 1},
+        new String[] {"AA", "aaa", "BB", "bbb", "AA", "aaa"},
+        testAllocator);
 
     flv.compact();
 
-    final RowGroupValuePair[] expectedAfterCompact = new RowGroupValuePair[] {
-      new RowGroupValuePair(0, "AA"),
-      new RowGroupValuePair(0, "AA"),
-      new RowGroupValuePair(0, "BB"),
-      new RowGroupValuePair(1, "aaa"),
-      new RowGroupValuePair(1, "aaa"),
-      new RowGroupValuePair(1, "bbb"),
-    };
+    final RowGroupValuePair[] expectedAfterCompact =
+        new RowGroupValuePair[] {
+          new RowGroupValuePair(0, "AA"),
+          new RowGroupValuePair(0, "AA"),
+          new RowGroupValuePair(0, "BB"),
+          new RowGroupValuePair(1, "aaa"),
+          new RowGroupValuePair(1, "aaa"),
+          new RowGroupValuePair(1, "bbb"),
+        };
     assertFlv(expectedAfterCompact, flv);
 
     // Add couple more values which should be accepted.
@@ -779,16 +1016,17 @@ public class TestFixedListVarcharVector extends DremioTest {
     flv.addValueToRowGroup(0, 0, insString1.length(), sampleDataBuf);
     flv.addValueToRowGroup(1, insString1.length(), insString2.length(), sampleDataBuf);
 
-    final RowGroupValuePair[] expectedBeforeSecondCompact = new RowGroupValuePair[] {
-      new RowGroupValuePair(0, "AA"),
-      new RowGroupValuePair(0, "AA"),
-      new RowGroupValuePair(0, "BB"),
-      new RowGroupValuePair(1, "aaa"),
-      new RowGroupValuePair(1, "aaa"),
-      new RowGroupValuePair(1, "bbb"),
-      new RowGroupValuePair(0, "A"),
-      new RowGroupValuePair(1, "a"),
-    };
+    final RowGroupValuePair[] expectedBeforeSecondCompact =
+        new RowGroupValuePair[] {
+          new RowGroupValuePair(0, "AA"),
+          new RowGroupValuePair(0, "AA"),
+          new RowGroupValuePair(0, "BB"),
+          new RowGroupValuePair(1, "aaa"),
+          new RowGroupValuePair(1, "aaa"),
+          new RowGroupValuePair(1, "bbb"),
+          new RowGroupValuePair(0, "A"),
+          new RowGroupValuePair(1, "a"),
+        };
 
     // As orderby is present, even after overflow is set, new values are accepted.
     assertTrue(expectedBeforeSecondCompact.length == flv.size());
@@ -801,15 +1039,16 @@ public class TestFixedListVarcharVector extends DremioTest {
     // Expected output:
     // 0: "A", "AA", "AA", "BB"
     // 1: "a" ,"aaa", "aaa"
-    final RowGroupValuePair[] expected = new RowGroupValuePair[] {
-      new RowGroupValuePair(0, "A"),
-      new RowGroupValuePair(0, "AA"),
-      new RowGroupValuePair(0, "AA"),
-      new RowGroupValuePair(0, "BB"),
-      new RowGroupValuePair(1, "a"),
-      new RowGroupValuePair(1, "aaa"),
-      new RowGroupValuePair(1, "aaa"),
-    };
+    final RowGroupValuePair[] expected =
+        new RowGroupValuePair[] {
+          new RowGroupValuePair(0, "A"),
+          new RowGroupValuePair(0, "AA"),
+          new RowGroupValuePair(0, "AA"),
+          new RowGroupValuePair(0, "BB"),
+          new RowGroupValuePair(1, "a"),
+          new RowGroupValuePair(1, "aaa"),
+          new RowGroupValuePair(1, "aaa"),
+        };
 
     // After second compact, only values that are required are arranged in order.
     assertTrue(expected.length == flv.size());
@@ -837,7 +1076,10 @@ public class TestFixedListVarcharVector extends DremioTest {
         if (i % 2 == 0) {
           writer.varChar().writeVarChar(0, insString1.length(), sampleDataBuf);
         } else {
-          writer.varChar().writeVarChar(insString1.length(), insString1.length() + insString2.length(), sampleDataBuf);
+          writer
+              .varChar()
+              .writeVarChar(
+                  insString1.length(), insString1.length() + insString2.length(), sampleDataBuf);
         }
       }
       writer.endList();
@@ -854,8 +1096,17 @@ public class TestFixedListVarcharVector extends DremioTest {
     final String delimiter = ",";
     VarCharVector v1 = new VarCharVector("TestCopyOutVarchar", testAllocator);
 
-    FixedListVarcharVector flv = new FixedListVarcharVector("TestCompactionThreshold", testAllocator,
-      batchSize, delimiter, MAX_LIST_AGG_SIZE, false, false, false, null);
+    FixedListVarcharVector flv =
+        new FixedListVarcharVector(
+            "TestCompactionThreshold",
+            testAllocator,
+            batchSize,
+            delimiter,
+            MAX_LIST_AGG_SIZE,
+            false,
+            false,
+            false,
+            null);
 
     int validitySize = FixedListVarcharVector.getValidityBufferSize(batchSize);
     int dataSize = FixedListVarcharVector.getDataBufferSize(batchSize);
@@ -875,10 +1126,10 @@ public class TestFixedListVarcharVector extends DremioTest {
 
     flv.outputToVector(v1, 0, 2);
 
-    String[] expected = new String[] {
-      "aaa" + delimiter + "aaa",
-      "bbb" + delimiter + "bbb",
-    };
+    String[] expected =
+        new String[] {
+          "aaa" + delimiter + "aaa", "bbb" + delimiter + "bbb",
+        };
 
     assertVarCharVector(expected, v1);
 
@@ -887,9 +1138,7 @@ public class TestFixedListVarcharVector extends DremioTest {
     v1.close();
   }
 
-  /**
-   * The vector may have missing entries, this function returns the number of present items
-   */
+  /** The vector may have missing entries, this function returns the number of present items */
   private static int countNonNullEntries(final ListVector vector) {
     int nonNullCount = 0;
 
@@ -906,17 +1155,24 @@ public class TestFixedListVarcharVector extends DremioTest {
     final int expectedNonNullCount = (int) Arrays.stream(expected).filter(Objects::nonNull).count();
     final int actualNonNullCount = countNonNullEntries(vector);
 
-    assertEquals("Counts of non-null lists in the ListVector", expectedNonNullCount, actualNonNullCount);
+    assertEquals(
+        "Counts of non-null lists in the ListVector", expectedNonNullCount, actualNonNullCount);
 
     for (int i = 0; i < expected.length; i++) {
       if (expected[i] == null) {
         continue;
       }
 
-      assertEquals(String.format("List length at position %d", i), expected[i].length, vector.getObject(i).size());
+      assertEquals(
+          String.format("List length at position %d", i),
+          expected[i].length,
+          vector.getObject(i).size());
 
       for (int j = 0; j < expected[i].length; j++) {
-        assertEquals(String.format("Comparing items in list %d at index %d", i, j), expected[i][j], vector.getObject(i).get(j).toString());
+        assertEquals(
+            String.format("Comparing items in list %d at index %d", i, j),
+            expected[i][j],
+            vector.getObject(i).get(j).toString());
       }
     }
   }
@@ -926,24 +1182,36 @@ public class TestFixedListVarcharVector extends DremioTest {
   public void testWriteRowGroupValues() {
     // ARRANGE
     final int VALUES_PER_BATCH = 64;
-    final int MAX_LIST_AGG_SIZE = 1024 * 1024; // A high limit because this test isn't concerned with overflow behavior
-    final ListVector tempSpace = FixedListVarcharVector.allocListVector(testAllocator, VALUES_PER_BATCH);
-    final FixedListVarcharVector flv = makeFlv("test-limit-size-basic", VALUES_PER_BATCH, DELIMITER,
-      MAX_LIST_AGG_SIZE, false, false, false, tempSpace, testAllocator);
-    populateFixedListVarcharVector(flv, new int[] { 0, 1, 0, 1, 0, 1, 5, 5, 3, 3 },
-      new String[] { "AA", "AAA", "AA", "BBB", "BB", "AAA", "CC", "DDD", "CCC", "DDDD" }, testAllocator);
+    final int MAX_LIST_AGG_SIZE =
+        1024 * 1024; // A high limit because this test isn't concerned with overflow behavior
+    final ListVector tempSpace =
+        FixedListVarcharVector.allocListVector(testAllocator, VALUES_PER_BATCH);
+    final FixedListVarcharVector flv =
+        makeFlv(
+            "test-limit-size-basic",
+            VALUES_PER_BATCH,
+            DELIMITER,
+            MAX_LIST_AGG_SIZE,
+            false,
+            false,
+            false,
+            tempSpace,
+            testAllocator);
+    populateFixedListVarcharVector(
+        flv,
+        new int[] {0, 1, 0, 1, 0, 1, 5, 5, 3, 3},
+        new String[] {"AA", "AAA", "AA", "BBB", "BB", "AAA", "CC", "DDD", "CCC", "DDDD"},
+        testAllocator);
     final ListVector outputVector = ListVector.empty("test-output-vector", testAllocator);
     final UnionListWriter writer = outputVector.getWriter();
-    final IntArrayList valueIndices = new IntArrayList(new int[]{ 0, 4, 6, 7 });
+    final IntArrayList valueIndices = new IntArrayList(new int[] {0, 4, 6, 7});
 
     // ACT
     flv.writeRowGroupValues(writer, valueIndices);
     outputVector.setValueCount(flv.size());
 
     // ASSERT
-    final String[][] expectedValues = {
-      { "AA", "BB", "CC", "DDD" }
-    };
+    final String[][] expectedValues = {{"AA", "BB", "CC", "DDD"}};
 
     assertListVector(expectedValues, outputVector);
 
@@ -958,13 +1226,28 @@ public class TestFixedListVarcharVector extends DremioTest {
   public void testOutputToListVector() {
     // ARRANGE
     final int VALUES_PER_BATCH = 64;
-    final int MAX_LIST_AGG_SIZE = 1024 * 1024; // A high limit because this test isn't concerned with overflow behavior
-    final ListVector tempSpace = FixedListVarcharVector.allocListVector(testAllocator, VALUES_PER_BATCH);
-    final FixedListVarcharVector flv = makeFlv("test-output-to-list-vector", VALUES_PER_BATCH,
-      DELIMITER, MAX_LIST_AGG_SIZE, false, false, false, tempSpace, testAllocator);
-    populateFixedListVarcharVector(flv, new int[] { 0, 1, 0, 1, 0, 1, 3, 3, 2, 2 },
-      new String[] { "AA", "AAA", "AA", "BBB", "BB", "AAA", "CC", "DDD", "CCC", "DDDD" }, testAllocator);
-    final BufferAllocator listVectorAllocator = testAllocator.newChildAllocator("test-output-vector-allocator", 0, Long.MAX_VALUE);
+    final int MAX_LIST_AGG_SIZE =
+        1024 * 1024; // A high limit because this test isn't concerned with overflow behavior
+    final ListVector tempSpace =
+        FixedListVarcharVector.allocListVector(testAllocator, VALUES_PER_BATCH);
+    final FixedListVarcharVector flv =
+        makeFlv(
+            "test-output-to-list-vector",
+            VALUES_PER_BATCH,
+            DELIMITER,
+            MAX_LIST_AGG_SIZE,
+            false,
+            false,
+            false,
+            tempSpace,
+            testAllocator);
+    populateFixedListVarcharVector(
+        flv,
+        new int[] {0, 1, 0, 1, 0, 1, 3, 3, 2, 2},
+        new String[] {"AA", "AAA", "AA", "BBB", "BB", "AAA", "CC", "DDD", "CCC", "DDDD"},
+        testAllocator);
+    final BufferAllocator listVectorAllocator =
+        testAllocator.newChildAllocator("test-output-vector-allocator", 0, Long.MAX_VALUE);
     final ListVector outputVector = ListVector.empty("test-output-vector", listVectorAllocator);
 
     // ACT
@@ -977,10 +1260,10 @@ public class TestFixedListVarcharVector extends DremioTest {
     // 2: CCC, DDDD
     // 3: CC, DDD
     final String[][] expectedValues = {
-      { "AA", "AA", "BB"},
-      { "AAA", "BBB", "AAA"},
-      { "CCC", "DDDD" },
-      { "CC", "DDD" }
+      {"AA", "AA", "BB"},
+      {"AAA", "BBB", "AAA"},
+      {"CCC", "DDDD"},
+      {"CC", "DDD"}
     };
 
     assertListVector(expectedValues, outputVector);
@@ -1003,12 +1286,11 @@ public class TestFixedListVarcharVector extends DremioTest {
   @Test
   public void testFlvWithAndWithoutAllowOneOverFlow() {
     /**
-     *  The test does the following.
-     *  1. Insert values into flv which has allowOneOverFlow set to true.
-     *  2. Compact and output to ListVector.
-     *  3. Verify the ListVector output which would have an extra value.
-     *  4. Use the ListVector as input to populate the contents of flv and compact. This flv would have allowOneOverFlow as false.
-     *  5. Verify the VarCharVector output which would have just the required values.
+     * The test does the following. 1. Insert values into flv which has allowOneOverFlow set to
+     * true. 2. Compact and output to ListVector. 3. Verify the ListVector output which would have
+     * an extra value. 4. Use the ListVector as input to populate the contents of flv and compact.
+     * This flv would have allowOneOverFlow as false. 5. Verify the VarCharVector output which would
+     * have just the required values.
      */
 
     // Input Provided:
@@ -1021,14 +1303,32 @@ public class TestFixedListVarcharVector extends DremioTest {
     @SuppressWarnings("checkstyle:LocalFinalVariableName")
     final int SMALL_MAX_LIST_AGG_SIZE = 11;
     final String delimiter = ",";
-    final ListVector tempSpace = FixedListVarcharVector.allocListVector(testAllocator, MAX_VALUES_PER_BATCH);
-    final BufferAllocator listVectorAllocator = testAllocator.newChildAllocator("test-flv-with-and-without-allow-one-over-flow-buffer-allocator",
-      0, Long.MAX_VALUE);
-    final ListVector listVector = ListVector.empty("test-flv-with-and-without-allow-one-over-flow-list-vector", listVectorAllocator);
-    final FixedListVarcharVector flv = makeFlv("test-flv-with-and-without-allow-one-over-flow-flv", MAX_VALUES_PER_BATCH, delimiter,
-      SMALL_MAX_LIST_AGG_SIZE, false, false, false, tempSpace, testAllocator);
-    populateFixedListVarcharVector(flv, new int[] { 0, 1, 0, 1, 0, 1, 2, 2, 3, 3, 0, 1 },
-      new String[] { "AA", "AAA", "AA", "BBB", "BB", "AAA", "CC", "DDD", "CCC", "DDDD", "EE", "BBB" }, testAllocator);
+    final ListVector tempSpace =
+        FixedListVarcharVector.allocListVector(testAllocator, MAX_VALUES_PER_BATCH);
+    final BufferAllocator listVectorAllocator =
+        testAllocator.newChildAllocator(
+            "test-flv-with-and-without-allow-one-over-flow-buffer-allocator", 0, Long.MAX_VALUE);
+    final ListVector listVector =
+        ListVector.empty(
+            "test-flv-with-and-without-allow-one-over-flow-list-vector", listVectorAllocator);
+    final FixedListVarcharVector flv =
+        makeFlv(
+            "test-flv-with-and-without-allow-one-over-flow-flv",
+            MAX_VALUES_PER_BATCH,
+            delimiter,
+            SMALL_MAX_LIST_AGG_SIZE,
+            false,
+            false,
+            false,
+            tempSpace,
+            testAllocator);
+    populateFixedListVarcharVector(
+        flv,
+        new int[] {0, 1, 0, 1, 0, 1, 2, 2, 3, 3, 0, 1},
+        new String[] {
+          "AA", "AAA", "AA", "BBB", "BB", "AAA", "CC", "DDD", "CCC", "DDDD", "EE", "BBB"
+        },
+        testAllocator);
 
     // ACT
     flv.compact();
@@ -1041,10 +1341,10 @@ public class TestFixedListVarcharVector extends DremioTest {
     // 2: "CC", "DDD"
     // 3: "CCC", "DDDD"
     final String[][] expectedValues = {
-      { "AA", "AA", "BB"},
-      { "AAA", "BBB", "AAA"},
-      { "CC", "DDD" },
-      { "CCC", "DDDD" }
+      {"AA", "AA", "BB"},
+      {"AAA", "BBB", "AAA"},
+      {"CC", "DDD"},
+      {"CCC", "DDDD"}
     };
 
     assertListVector(expectedValues, listVector);
@@ -1053,9 +1353,17 @@ public class TestFixedListVarcharVector extends DremioTest {
     assertFalse(flv.isOverflowSet(3));
     assertFalse(flv.isOverflowSet(5));
 
-    final FixedListVarcharVector newFlv = makeFlv("test-flv-with-and-without-allow-one-over-flow-newflv",
-      MAX_VALUES_PER_BATCH, delimiter, SMALL_MAX_LIST_AGG_SIZE, false, false,
-      false, tempSpace, testAllocator);
+    final FixedListVarcharVector newFlv =
+        makeFlv(
+            "test-flv-with-and-without-allow-one-over-flow-newflv",
+            MAX_VALUES_PER_BATCH,
+            delimiter,
+            SMALL_MAX_LIST_AGG_SIZE,
+            false,
+            false,
+            false,
+            tempSpace,
+            testAllocator);
     VarCharVector v1 = new VarCharVector("TestCopyOutVarchar", testAllocator);
     v1.allocateNew(flv.getRequiredByteCapacity(), TOTAL_ROWS);
 
@@ -1076,12 +1384,13 @@ public class TestFixedListVarcharVector extends DremioTest {
     // 1: "AAA","BBB",...
     // 2: "CC", "DDD"
     // 3: "CCC",...
-    String[] newExpected = new String[] {
-      "AA" + delimiter + "AA" + delimiter + OVERFLOW_STRING,
-      "AAA" + delimiter + "BBB" + delimiter + OVERFLOW_STRING,
-      "CC" + delimiter + "DDD",
-      "CCC" + delimiter + OVERFLOW_STRING
-    };
+    String[] newExpected =
+        new String[] {
+          "AA" + delimiter + "AA" + delimiter + OVERFLOW_STRING,
+          "AAA" + delimiter + "BBB" + delimiter + OVERFLOW_STRING,
+          "CC" + delimiter + "DDD",
+          "CCC" + delimiter + OVERFLOW_STRING
+        };
 
     assertVarCharVector(newExpected, v1);
     assertTrue(newFlv.isOverflowSet(0));
@@ -1105,15 +1414,36 @@ public class TestFixedListVarcharVector extends DremioTest {
     @SuppressWarnings("checkstyle:LocalFinalVariableName")
     final int SMALL_MAX_LIST_AGG_SIZE = 10;
     final String delimiter = ",";
-    final ListVector tempSpace = FixedListVarcharVector.allocListVector(testAllocator, SMALL_MAX_LIST_AGG_SIZE);
-    final BufferAllocator listVectorAllocator = testAllocator.newChildAllocator("test-adjust-max-listagg-size-allocator",
-      0, Long.MAX_VALUE);
-    final ListVector listVector = ListVector.empty("test-adjust-max-listagg-size-list-vector", listVectorAllocator);
-    final FixedListVarcharVector flv = makeFlv("test-large-input-value", MAX_VALUES_PER_BATCH, delimiter,
-      SMALL_MAX_LIST_AGG_SIZE, false, false, false, tempSpace, testAllocator);
-    populateFixedListVarcharVector(flv, new int[] { 0, 0, 0, 1, 1, 1 },
-      new String[] { "123456789012345", "123", "12345678901234567890123456789",
-        "123", "123456789012345", "12345678901234567890123456789" }, testAllocator);
+    final ListVector tempSpace =
+        FixedListVarcharVector.allocListVector(testAllocator, SMALL_MAX_LIST_AGG_SIZE);
+    final BufferAllocator listVectorAllocator =
+        testAllocator.newChildAllocator(
+            "test-adjust-max-listagg-size-allocator", 0, Long.MAX_VALUE);
+    final ListVector listVector =
+        ListVector.empty("test-adjust-max-listagg-size-list-vector", listVectorAllocator);
+    final FixedListVarcharVector flv =
+        makeFlv(
+            "test-large-input-value",
+            MAX_VALUES_PER_BATCH,
+            delimiter,
+            SMALL_MAX_LIST_AGG_SIZE,
+            false,
+            false,
+            false,
+            tempSpace,
+            testAllocator);
+    populateFixedListVarcharVector(
+        flv,
+        new int[] {0, 0, 0, 1, 1, 1},
+        new String[] {
+          "123456789012345",
+          "123",
+          "12345678901234567890123456789",
+          "123",
+          "123456789012345",
+          "12345678901234567890123456789"
+        },
+        testAllocator);
 
     // ACT
     flv.compact();
@@ -1123,9 +1453,9 @@ public class TestFixedListVarcharVector extends DremioTest {
     // Expected output:
     // 0: "123456789012345"
     // 1: "123"
-    String[][] expectedValues =  {
-      { "123456789012345", "123" },
-      { "123", "123456789012345" }
+    String[][] expectedValues = {
+      {"123456789012345", "123"},
+      {"123", "123456789012345"}
     };
 
     assertListVector(expectedValues, listVector);
@@ -1144,11 +1474,21 @@ public class TestFixedListVarcharVector extends DremioTest {
     @SuppressWarnings("checkstyle:LocalFinalVariableName")
     final int SMALL_MAX_LIST_AGG_SIZE = 25;
     final String delimiter = "";
-    final ListVector tempSpace = FixedListVarcharVector.allocListVector(testAllocator, SMALL_MAX_LIST_AGG_SIZE);
-    final FixedListVarcharVector flv = makeFlv("test-orderby-multiple-compacts", MAX_VALUES_PER_BATCH, delimiter,
-      SMALL_MAX_LIST_AGG_SIZE, false, true, true, tempSpace, testAllocator);
-    populateFixedListVarcharVector(flv, new int[] { 0, 0, 0},
-      new String[] { "12345678", "12345678", "12345678"}, testAllocator);
+    final ListVector tempSpace =
+        FixedListVarcharVector.allocListVector(testAllocator, SMALL_MAX_LIST_AGG_SIZE);
+    final FixedListVarcharVector flv =
+        makeFlv(
+            "test-orderby-multiple-compacts",
+            MAX_VALUES_PER_BATCH,
+            delimiter,
+            SMALL_MAX_LIST_AGG_SIZE,
+            false,
+            true,
+            true,
+            tempSpace,
+            testAllocator);
+    populateFixedListVarcharVector(
+        flv, new int[] {0, 0, 0}, new String[] {"12345678", "12345678", "12345678"}, testAllocator);
 
     // ACT
     flv.compact();
@@ -1159,16 +1499,14 @@ public class TestFixedListVarcharVector extends DremioTest {
     // ASSERT
     // Expected output:
     // 0: "1234567812345678..."
-    String[] expected =  new String[] {
-      "12345678" + delimiter + "12345678" + delimiter + OVERFLOW_STRING
-    };
+    String[] expected =
+        new String[] {"12345678" + delimiter + "12345678" + delimiter + OVERFLOW_STRING};
 
     assertVarCharVector(expected, v1);
 
     // Input Provided:
     // 0: "234"
-    populateFixedListVarcharVector(flv, new int[] { 0 },
-      new String[] { "234" }, testAllocator);
+    populateFixedListVarcharVector(flv, new int[] {0}, new String[] {"234"}, testAllocator);
 
     // ACT
     flv.compact();
@@ -1179,9 +1517,8 @@ public class TestFixedListVarcharVector extends DremioTest {
     // ASSERT
     // Expected output:
     // 0: "1234567812345678..."
-    String[] newExpected =  new String[] {
-      "12345678" + delimiter + "12345678" + delimiter + OVERFLOW_STRING
-    };
+    String[] newExpected =
+        new String[] {"12345678" + delimiter + "12345678" + delimiter + OVERFLOW_STRING};
 
     assertVarCharVector(newExpected, v2);
     // TEARDOWN
@@ -1199,11 +1536,24 @@ public class TestFixedListVarcharVector extends DremioTest {
     @SuppressWarnings("checkstyle:LocalFinalVariableName")
     final int SMALL_MAX_LIST_AGG_SIZE = 10;
     final String delimiter = "";
-    final ListVector tempSpace = FixedListVarcharVector.allocListVector(testAllocator, SMALL_MAX_LIST_AGG_SIZE);
-    final FixedListVarcharVector flv = makeFlv("test-output-to-vector", MAX_VALUES_PER_BATCH, delimiter,
-      SMALL_MAX_LIST_AGG_SIZE, false, true, true, tempSpace, testAllocator);
-    populateFixedListVarcharVector(flv, new int[] { 0, 1, 1},
-      new String[] { "01234567890123456789", "12345678", "12345678"}, testAllocator);
+    final ListVector tempSpace =
+        FixedListVarcharVector.allocListVector(testAllocator, SMALL_MAX_LIST_AGG_SIZE);
+    final FixedListVarcharVector flv =
+        makeFlv(
+            "test-output-to-vector",
+            MAX_VALUES_PER_BATCH,
+            delimiter,
+            SMALL_MAX_LIST_AGG_SIZE,
+            false,
+            true,
+            true,
+            tempSpace,
+            testAllocator);
+    populateFixedListVarcharVector(
+        flv,
+        new int[] {0, 1, 1},
+        new String[] {"01234567890123456789", "12345678", "12345678"},
+        testAllocator);
 
     // ACT
     flv.compact();
@@ -1215,10 +1565,8 @@ public class TestFixedListVarcharVector extends DremioTest {
     // Expected output:
     // 0: "01234567890123456789"
     // 1: "12345678..."
-    String[] expected =  new String[] {
-      "01234567890123456789",
-      "12345678" + delimiter + OVERFLOW_STRING
-    };
+    String[] expected =
+        new String[] {"01234567890123456789", "12345678" + delimiter + OVERFLOW_STRING};
 
     assertVarCharVector(expected, v1);
 

@@ -15,13 +15,12 @@
  */
 package com.dremio.exec.planner.physical;
 
+import com.dremio.exec.planner.logical.FlattenRel;
+import com.dremio.exec.planner.logical.RelOptHelper;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rex.RexNode;
-
-import com.dremio.exec.planner.logical.FlattenRel;
-import com.dremio.exec.planner.logical.RelOptHelper;
 
 public class FlattenPrule extends Prule {
 
@@ -39,7 +38,8 @@ public class FlattenPrule extends Prule {
 
     FlattenPrel toTransform = null;
     for (RexNode rex : flatten.getToFlatten()) {
-      toTransform = new FlattenPrel(flatten.getCluster(), convertedInput.getTraitSet(), convertedInput, rex);
+      toTransform =
+          new FlattenPrel(flatten.getCluster(), convertedInput.getTraitSet(), convertedInput, rex);
       convertedInput = toTransform;
     }
     call.transformTo(toTransform);

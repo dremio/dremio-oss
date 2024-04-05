@@ -15,21 +15,17 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
-import java.util.List;
-import java.util.Set;
-
-import org.apache.calcite.sql.SqlNode;
-
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.planner.sql.PartitionTransform;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+import java.util.List;
+import java.util.Set;
+import org.apache.calcite.sql.SqlNode;
 
-/**
- * Data addition commands (CTAS, INSERT) implement this interface
- */
+/** Data addition commands (CTAS, INSERT) implement this interface */
 public interface DataAdditionCmdCall {
 
   /**
@@ -37,7 +33,8 @@ public interface DataAdditionCmdCall {
    */
   default List<String> getPartitionColumns(DremioTable dremioTable) {
     Preconditions.checkNotNull(dremioTable);
-    List<String> columnNames =  dremioTable.getDatasetConfig().getReadDefinition().getPartitionColumnsList();
+    List<String> columnNames =
+        dremioTable.getDatasetConfig().getReadDefinition().getPartitionColumnsList();
     return columnNames != null ? columnNames : Lists.newArrayList();
   }
 
@@ -49,52 +46,50 @@ public interface DataAdditionCmdCall {
   List<String> getSortColumns();
 
   /**
-   *
    * @return
    */
   List<String> getDistributionColumns();
 
   /**
-   *
    * @return
    */
   default PartitionDistributionStrategy getPartitionDistributionStrategy(
-    SqlHandlerConfig config, List<String> partitionFieldNames, Set<String> fieldNames) {
+      SqlHandlerConfig config, List<String> partitionFieldNames, Set<String> fieldNames) {
     PartitionDistributionStrategy partitionDistributionStrategy =
-      PartitionDistributionStrategy.getPartitionDistributionStrategy(
-        config.getContext().getOptions().getOption(ExecConstants.WRITER_PARTITION_DISTRIBUTION_MODE));
+        PartitionDistributionStrategy.getPartitionDistributionStrategy(
+            config
+                .getContext()
+                .getOptions()
+                .getOption(ExecConstants.WRITER_PARTITION_DISTRIBUTION_MODE));
 
-      // DX-50375: when we use VALUES clause in INSERT command, the field names end up with using expr, e.g., "EXPR%$0",
-      // which are not the real underlying field names. Keep to use 'UNSPECIFIED' for this scenario.
-      for (String partitionFieldName : partitionFieldNames) {
-        if(!fieldNames.contains(partitionFieldName)) {
-          return PartitionDistributionStrategy.UNSPECIFIED;
-        }
+    // DX-50375: when we use VALUES clause in INSERT command, the field names end up with using
+    // expr, e.g., "EXPR%$0",
+    // which are not the real underlying field names. Keep to use 'UNSPECIFIED' for this scenario.
+    for (String partitionFieldName : partitionFieldNames) {
+      if (!fieldNames.contains(partitionFieldName)) {
+        return PartitionDistributionStrategy.UNSPECIFIED;
       }
+    }
 
-      return partitionDistributionStrategy;
+    return partitionDistributionStrategy;
   }
 
   /**
-   *
    * @return
    */
   boolean isSingleWriter();
 
   /**
-   *
    * @return
    */
   List<String> getFieldNames();
 
   /**
-   *
    * @return Query part of CTAS or INSERT command
    */
   SqlNode getQuery();
 
   /**
-   *
    * @return
    */
   default String getLocation() {

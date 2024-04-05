@@ -17,6 +17,16 @@ package com.dremio.datastore.indexed;
 
 import static java.lang.String.format;
 
+import com.dremio.datastore.CoreIndexedStore;
+import com.dremio.datastore.WarningTimer;
+import com.dremio.datastore.indexed.CommitWrapper.CommitCloser;
+import com.dremio.telemetry.api.metrics.Metrics;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Throwables;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.collect.ImmutableList;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -25,7 +35,6 @@ import java.util.List;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-
 import org.apache.lucene.analysis.core.KeywordAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.ConcurrentMergeScheduler;
@@ -48,87 +57,85 @@ import org.apache.lucene.store.RAMDirectory;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.InfoStream;
 
-import com.dremio.datastore.CoreIndexedStore;
-import com.dremio.datastore.WarningTimer;
-import com.dremio.datastore.indexed.CommitWrapper.CommitCloser;
-import com.dremio.telemetry.api.metrics.Metrics;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.collect.ImmutableList;
-
-/**
- * Local search index based on lucene.
- */
+/** Local search index based on lucene. */
 public class LuceneSearchIndex implements AutoCloseable {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(LuceneSearchIndex.class);
-
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(LuceneSearchIndex.class);
 
   /**
-   * Property name for configuring the amount of RAM (in MB) that may be used for buffering added documents
-   *  and deletions before they are flushed during normal processing
+   * Property name for configuring the amount of RAM (in MB) that may be used for buffering added
+   * documents and deletions before they are flushed during normal processing
    *
-   *  Default is 32MB
+   * <p>Default is 32MB
    */
   public static final String RAM_BUFFER_SIZE_MB_PROPERTY = "dremio.lucene.ram_buffer_size_mb";
 
   /**
-   * Property name for configuring the amount of RAM (in MB) that may be used for buffering added documents
-   *  and deletions before they are flushed during reindexing
+   * Property name for configuring the amount of RAM (in MB) that may be used for buffering added
+   * documents and deletions before they are flushed during reindexing
    *
-   *  Default is half the amount of JVM memory
+   * <p>Default is half the amount of JVM memory
    */
-  public static final String REINDEX_RAM_BUFFER_SIZE_MB_PROPERTY = "dremio.lucene.reindex.ram_buffer_size_mb";
+  public static final String REINDEX_RAM_BUFFER_SIZE_MB_PROPERTY =
+      "dremio.lucene.reindex.ram_buffer_size_mb";
 
   /**
    * Property name for configuring the ratio between the reindex ram buffer and the total JVM
    *
-   *  Default is 2
+   * <p>Default is 2
    */
-  public static final String REINDEX_RAM_BUFFER_SIZE_AUTO_RATIO_PROPERTY = "dremio.lucene.reindex.ram_buffer_size_auto_ratio";
+  public static final String REINDEX_RAM_BUFFER_SIZE_AUTO_RATIO_PROPERTY =
+      "dremio.lucene.reindex.ram_buffer_size_auto_ratio";
 
   /**
    * Property name for the frequency (period in millis) between two commits
    *
-   * Default is 1minute
+   * <p>Default is 1minute
    */
   public static final String COMMIT_FREQUENCY_MILLIS_PROPERTY = "dremio.lucene.commit_frequency";
 
   /**
    * Spinning disks override property
    *
-   * Set to true if spinning disk, false if ssd, and do not set if auto-detect (only works on linux)
+   * <p>Set to true if spinning disk, false if ssd, and do not set if auto-detect (only works on
+   * linux)
    */
   public static final String OVERRIDE_SPINS_PROPERTY = "dremio.lucene.override_spins";
 
-
   private static final String METRIC_PREFIX = "kvstore.lucene";
 
+  // delay between end of a commit and next commit
+  private static final long COMMIT_FREQUENCY =
+      Integer.getInteger(COMMIT_FREQUENCY_MILLIS_PROPERTY, 60_000);
 
-  //delay between end of a commit and next commit
-  private static final long COMMIT_FREQUENCY = Integer.getInteger(COMMIT_FREQUENCY_MILLIS_PROPERTY, 60_000);
-
-  // Amount of RAM that may be used for buffering added documents and deletions before they are flushed
+  // Amount of RAM that may be used for buffering added documents and deletions before they are
+  // flushed
   // during normal processing
   private static final int RAM_BUFFER_SIZE_MB = Integer.getInteger(RAM_BUFFER_SIZE_MB_PROPERTY, 32);
 
-  // Ratio to apply to JVM total memory for buffering added documents and deletions during reindexing
+  // Ratio to apply to JVM total memory for buffering added documents and deletions during
+  // reindexing
   // if not set
-  private static final int REINDEX_RAM_BUFFER_SIZE_AUTO_RATIO = Integer.getInteger(REINDEX_RAM_BUFFER_SIZE_AUTO_RATIO_PROPERTY, 2);
+  private static final int REINDEX_RAM_BUFFER_SIZE_AUTO_RATIO =
+      Integer.getInteger(REINDEX_RAM_BUFFER_SIZE_AUTO_RATIO_PROPERTY, 2);
 
-  // Amount of RAM that may be used for buffering added documents and deletions before they are flushed
+  // Amount of RAM that may be used for buffering added documents and deletions before they are
+  // flushed
   // during reindexing
-  private static final int REINDEX_RAM_BUFFER_SIZE_MB = Integer.getInteger(REINDEX_RAM_BUFFER_SIZE_MB_PROPERTY,
-      (int) (Runtime.getRuntime().totalMemory() / (1024 * 1024) / REINDEX_RAM_BUFFER_SIZE_AUTO_RATIO));
+  private static final int REINDEX_RAM_BUFFER_SIZE_MB =
+      Integer.getInteger(
+          REINDEX_RAM_BUFFER_SIZE_MB_PROPERTY,
+          (int)
+              (Runtime.getRuntime().totalMemory()
+                  / (1024 * 1024)
+                  / REINDEX_RAM_BUFFER_SIZE_AUTO_RATIO));
 
   // The searcher is saved in the cache for at least these many milli seconds after the last access.
   private static final int SEARCHER_CACHE_TTL_MILLIS = 3600 * 1000;
 
   /**
-   * Starts a thread that will commit the writer every 60s (by default), if any exception is thrown during commit it will
-   * be recorded and calling throwExceptionIfAny() will throw it back
+   * Starts a thread that will commit the writer every 60s (by default), if any exception is thrown
+   * during commit it will be recorded and calling throwExceptionIfAny() will throw it back
    */
   private final class CommitterThread implements AutoCloseable {
     private volatile Throwable commitException;
@@ -136,12 +143,14 @@ public class LuceneSearchIndex implements AutoCloseable {
     private volatile boolean closed;
 
     CommitterThread() {
-      commitThread = new Thread(new Runnable() {
-        @Override
-        public void run() {
-          commitLoop();
-        }
-      });
+      commitThread =
+          new Thread(
+              new Runnable() {
+                @Override
+                public void run() {
+                  commitLoop();
+                }
+              });
 
       commitThread.setName(format("LuceneSearchIndex:committer %s", name));
       commitThread.start();
@@ -156,7 +165,7 @@ public class LuceneSearchIndex implements AutoCloseable {
     private void commitLoop() {
       while (!closed) {
 
-        synchronized(this) {
+        synchronized (this) {
           try {
             this.wait(COMMIT_FREQUENCY);
             if (closed) {
@@ -188,9 +197,9 @@ public class LuceneSearchIndex implements AutoCloseable {
     public void close() {
       closed = true;
       /* Do not interrupt committer thread because it might be calling writer.commit(), ClosedByInterruptException might
-         be triggered and the locks will be invalidated inside writer.commit(), and then the next writer.commit() will
-         fail with AlreadyClosedException. Let the thread exit gracefully by calling notify().
-       */
+        be triggered and the locks will be invalidated inside writer.commit(), and then the next writer.commit() will
+        fail with AlreadyClosedException. Let the thread exit gracefully by calling notify().
+      */
       synchronized (this) {
         this.notify();
       }
@@ -218,21 +227,26 @@ public class LuceneSearchIndex implements AutoCloseable {
 
   private volatile boolean reindexing = false;
 
-  // the search version number is composed of 32-bit fixed random number and a 32-bit monotonic counter.
+  // the search version number is composed of 32-bit fixed random number and a 32-bit monotonic
+  // counter.
   private final int searchVersionBase = new Random().nextInt();
   private AtomicInteger searchVersionCounter = new AtomicInteger();
 
   // cache of searchers.
   private final Cache<Long, Searcher> searcherCache;
 
-
   public LuceneSearchIndex(
-    final File localStorageDir,
-    final String name,
-    final boolean inMemory,
-    final CommitWrapper commitWrapper
-  ) {
-    this(localStorageDir, name, inMemory, commitWrapper, SEARCHER_CACHE_TTL_MILLIS, new MergeSchedulerInfoStream(name));
+      final File localStorageDir,
+      final String name,
+      final boolean inMemory,
+      final CommitWrapper commitWrapper) {
+    this(
+        localStorageDir,
+        name,
+        inMemory,
+        commitWrapper,
+        SEARCHER_CACHE_TTL_MILLIS,
+        new MergeSchedulerInfoStream(name));
   }
 
   @SuppressWarnings("NoGuavaCacheUsage") // TODO: fix as part of DX-51884
@@ -243,8 +257,7 @@ public class LuceneSearchIndex implements AutoCloseable {
       final boolean inMemory,
       final CommitWrapper commitWrapper,
       final int searcherCacheTTLMillis,
-      final InfoStream infoStream
-  ) {
+      final InfoStream infoStream) {
     this.name = name;
     this.commitWrapper = commitWrapper;
 
@@ -253,29 +266,33 @@ public class LuceneSearchIndex implements AutoCloseable {
     if (overrideSpins != null) {
       cms.setDefaultMaxMergesAndThreads(Boolean.parseBoolean(overrideSpins));
     }
-    final IndexWriterConfig writerConfig = new IndexWriterConfig(new KeywordAnalyzer())
-        .setOpenMode(IndexWriterConfig.OpenMode.CREATE_OR_APPEND)
-        .setRAMBufferSizeMB(RAM_BUFFER_SIZE_MB)
-        .setInfoStream(infoStream)
-        .setMergeScheduler(cms);
+    final IndexWriterConfig writerConfig =
+        new IndexWriterConfig(new KeywordAnalyzer())
+            .setOpenMode(IndexWriterConfig.OpenMode.CREATE_OR_APPEND)
+            .setRAMBufferSizeMB(RAM_BUFFER_SIZE_MB)
+            .setInfoStream(infoStream)
+            .setMergeScheduler(cms);
 
     try {
 
-      if(!inMemory){
+      if (!inMemory) {
         final File rootDir = new File(localStorageDir, name);
         if (rootDir.exists()) {
           if (!rootDir.isDirectory()) {
-            throw new RuntimeException(String.format("Invalid path %s for local index, not a directory.",
-              rootDir.getAbsolutePath()));
+            throw new RuntimeException(
+                String.format(
+                    "Invalid path %s for local index, not a directory.",
+                    rootDir.getAbsolutePath()));
           }
         } else {
           if (!rootDir.mkdirs()) {
-            throw new RuntimeException(String.format("Failed to create directory %s for local index.",
-              rootDir.getAbsolutePath()));
+            throw new RuntimeException(
+                String.format(
+                    "Failed to create directory %s for local index.", rootDir.getAbsolutePath()));
           }
         }
         directory = MMapDirectory.open(new File(rootDir, "core").toPath());
-      }else{
+      } else {
         directory = new RAMDirectory();
       }
 
@@ -284,7 +301,7 @@ public class LuceneSearchIndex implements AutoCloseable {
       searcherManager = new SearcherManager(writer, true, true, null);
 
       committerThread = new CommitterThread();
-    } catch(IOException ex){
+    } catch (IOException ex) {
       throw Throwables.propagate(ex);
     }
 
@@ -293,18 +310,19 @@ public class LuceneSearchIndex implements AutoCloseable {
     Metrics.newGauge(liveRecordsMetricName, this::getLiveRecords);
     Metrics.newGauge(deletedRecordsMetricsName, this::getDeletedRecords);
 
-    searcherCache = CacheBuilder.newBuilder()
-      .removalListener(x -> ((Searcher)x.getValue()).close())
-      .expireAfterAccess(searcherCacheTTLMillis, TimeUnit.MILLISECONDS)
-      .build();
+    searcherCache =
+        CacheBuilder.newBuilder()
+            .removalListener(x -> ((Searcher) x.getValue()).close())
+            .expireAfterAccess(searcherCacheTTLMillis, TimeUnit.MILLISECONDS)
+            .build();
   }
 
   private void checkIfChanged() {
-    try{
+    try {
       if (!searcherManager.isSearcherCurrent()) {
         searcherManager.maybeRefreshBlocking();
       }
-    }catch(IOException ex){
+    } catch (IOException ex) {
       throw Throwables.propagate(ex);
     }
   }
@@ -322,20 +340,20 @@ public class LuceneSearchIndex implements AutoCloseable {
   public void add(Document document) {
     committerThread.throwExceptionIfAny();
     Preconditions.checkNotNull(document.getField(CoreIndexedStore.ID_FIELD_NAME));
-    try{
+    try {
       writer.addDocument(document);
-    } catch(IOException ex) {
+    } catch (IOException ex) {
       throw Throwables.propagate(ex);
     }
   }
 
   public void addMany(Document... documents) {
     committerThread.throwExceptionIfAny();
-    try{
-      for(Document d : documents){
+    try {
+      for (Document d : documents) {
         writer.addDocument(d);
       }
-    } catch(IOException ex) {
+    } catch (IOException ex) {
       throw Throwables.propagate(ex);
     }
   }
@@ -344,15 +362,15 @@ public class LuceneSearchIndex implements AutoCloseable {
     committerThread.throwExceptionIfAny();
     try {
       writer.updateDocument(term, document);
-    } catch(IOException ex) {
+    } catch (IOException ex) {
       throw Throwables.propagate(ex);
     }
   }
 
-  public int count(final Query query){
+  public int count(final Query query) {
     committerThread.throwExceptionIfAny();
     checkIfChanged();
-    try(Searcher searcher = acquireSearcher()) {
+    try (Searcher searcher = acquireSearcher()) {
       return searcher.count(query);
     }
   }
@@ -362,8 +380,8 @@ public class LuceneSearchIndex implements AutoCloseable {
     checkIfChanged();
     List<Integer> integers = new ArrayList<>(queries.size());
 
-    try(Searcher searcher = acquireSearcher()) {
-      for(Query q : queries){
+    try (Searcher searcher = acquireSearcher()) {
+      for (Query q : queries) {
         integers.add(searcher.count(q));
       }
       return integers;
@@ -373,18 +391,18 @@ public class LuceneSearchIndex implements AutoCloseable {
   private Searcher acquireSearcher() {
     try {
       return new Searcher(searcherManager.acquire());
-    } catch(IOException ex){
+    } catch (IOException ex) {
       throw Throwables.propagate(ex);
     }
   }
 
-  private List<Doc> toDocs(ScoreDoc[] hits, Searcher searcher) throws IOException{
+  private List<Doc> toDocs(ScoreDoc[] hits, Searcher searcher) throws IOException {
     List<Doc> documentList = new ArrayList<>();
     for (int i = 0; i < hits.length; ++i) {
       ScoreDoc scoreDoc = hits[i];
       Document doc = searcher.doc(scoreDoc.doc);
       IndexableField idField = doc.getField("_id");
-      if(idField == null){
+      if (idField == null) {
         // deleted between index hit and retrieval.
         continue;
       }
@@ -398,18 +416,18 @@ public class LuceneSearchIndex implements AutoCloseable {
   }
 
   @Deprecated
-  public List<Document> searchForDocuments(final Query query, int pageSize, Sort sort) throws IOException {
+  public List<Document> searchForDocuments(final Query query, int pageSize, Sort sort)
+      throws IOException {
     committerThread.throwExceptionIfAny();
     checkIfChanged();
-    try (Searcher searcher = acquireSearcher()){
+    try (Searcher searcher = acquireSearcher()) {
       final List<Document> documents = new ArrayList<>();
       TopDocs fieldDocs = searcher.search(query, pageSize, sort);
-      for(ScoreDoc d : fieldDocs.scoreDocs){
+      for (ScoreDoc d : fieldDocs.scoreDocs) {
         documents.add(searcher.doc(d.doc));
       }
       return documents;
     }
-
   }
 
   class SearchHandle implements AutoCloseable {
@@ -417,15 +435,15 @@ public class LuceneSearchIndex implements AutoCloseable {
 
     SearchHandle() {
       // a new version is generated at the beginning of each search.
-      version =
-        (((long)searchVersionBase) << 32) + searchVersionCounter.incrementAndGet();
+      version = (((long) searchVersionBase) << 32) + searchVersionCounter.incrementAndGet();
       searcherCache.put(version, acquireSearcher());
     }
 
     Searcher getCachedSearcher() {
       Preconditions.checkState(version != 0);
 
-      // Paginated search depends on the cursor (ScoreDoc). However, the cursors are not valid if the
+      // Paginated search depends on the cursor (ScoreDoc). However, the cursors are not valid if
+      // the
       // IndexSearcher changes (this can happen if there are a lot of updates to the index). Holding
       // on to the searcher in the iterator wrapper is not feasible with the remote indexed store
       // implementation (i.e search over rpc). So, we instead put the searcher in a cache and set a
@@ -445,11 +463,12 @@ public class LuceneSearchIndex implements AutoCloseable {
         version = 0;
       }
     }
-  };
+  }
+  ;
 
   /**
-   * Create a handle that can be used for subsequent search/searchAfter calls. The caller
-   * is expected to close the handle when the search is done.
+   * Create a handle that can be used for subsequent search/searchAfter calls. The caller is
+   * expected to close the handle when the search is done.
    *
    * @return search handle.
    */
@@ -460,8 +479,9 @@ public class LuceneSearchIndex implements AutoCloseable {
     return new SearchHandle();
   }
 
-  public List<Doc> search(final SearchHandle searchHandle, final Query query,
-                          int pageSize, Sort sort, int skip) throws IOException {
+  public List<Doc> search(
+      final SearchHandle searchHandle, final Query query, int pageSize, Sort sort, int skip)
+      throws IOException {
     committerThread.throwExceptionIfAny();
     checkIfChanged();
     Preconditions.checkArgument(skip > -1, "Skip must be zero or greater. Was %s.", skip);
@@ -488,13 +508,14 @@ public class LuceneSearchIndex implements AutoCloseable {
     }
   }
 
-  public List<Doc> searchAfter(final SearchHandle searchHandle, final Query query,
-                               int pageSize, Sort sort, Doc doc) throws IOException {
+  public List<Doc> searchAfter(
+      final SearchHandle searchHandle, final Query query, int pageSize, Sort sort, Doc doc)
+      throws IOException {
     committerThread.throwExceptionIfAny();
 
     Searcher searcher = searchHandle.getCachedSearcher();
     TopDocs fieldDocs = searcher.searchAfter(doc.doc, query, pageSize, sort);
-    if  (fieldDocs == null) {
+    if (fieldDocs == null) {
       return ImmutableList.of();
     }
     return toDocs(fieldDocs.scoreDocs, searcher);
@@ -523,7 +544,7 @@ public class LuceneSearchIndex implements AutoCloseable {
 
   public int getLiveRecords() {
     checkIfChanged();
-    try(Searcher searcher = acquireSearcher()) {
+    try (Searcher searcher = acquireSearcher()) {
       DirectoryReader reader = (DirectoryReader) searcher.searcher.getIndexReader();
       return reader.numDocs();
     }
@@ -531,7 +552,7 @@ public class LuceneSearchIndex implements AutoCloseable {
 
   public int getDeletedRecords() {
     checkIfChanged();
-    try(Searcher searcher = acquireSearcher()) {
+    try (Searcher searcher = acquireSearcher()) {
       DirectoryReader reader = (DirectoryReader) searcher.searcher.getIndexReader();
       return reader.numDeletedDocs();
     }
@@ -553,7 +574,7 @@ public class LuceneSearchIndex implements AutoCloseable {
       commit();
       // Forcing refresh of index so that open files are freed and deleted from disk
       checkIfChanged();
-    } catch(Exception ex){
+    } catch (Exception ex) {
       throw Throwables.propagate(ex);
     }
   }
@@ -578,9 +599,8 @@ public class LuceneSearchIndex implements AutoCloseable {
       reindexing = false;
     }
   }
-  /**
-   * Class that describes the relevant information to map index items to the KVStore.
-   */
+
+  /** Class that describes the relevant information to map index items to the KVStore. */
   public static final class Doc {
     private final ScoreDoc doc;
     private final byte[] key;
@@ -600,13 +620,12 @@ public class LuceneSearchIndex implements AutoCloseable {
     public long getVersion() {
       return version;
     }
-
   }
 
   /**
-   * InfoStream which will print status on merge indexes during Dremio shutdown.
-   * The merging step can take a lot of time, so the goal is to show display
-   * to avoid CTRL+C by the customer. See DX-66277.
+   * InfoStream which will print status on merge indexes during Dremio shutdown. The merging step
+   * can take a lot of time, so the goal is to show display to avoid CTRL+C by the customer. See
+   * DX-66277.
    */
   static class MergeSchedulerInfoStream extends InfoStream {
 
@@ -623,7 +642,9 @@ public class LuceneSearchIndex implements AutoCloseable {
     public synchronized void message(String component, String message) {
       // We just want to see that 'something' happens if the merge takes too much time.
       if (++nbMessages >= threshold) {
-        logger.info("Running Lucene MergeScheduler - We are currently reindexing '{}'. This operation could take a moment...", name);
+        logger.info(
+            "Running Lucene MergeScheduler - We are currently reindexing '{}'. This operation could take a moment...",
+            name);
         generateNextPrintThreshold();
       }
     }
@@ -647,14 +668,12 @@ public class LuceneSearchIndex implements AutoCloseable {
     }
 
     @Override
-    public void close() {
-    }
+    public void close() {}
   }
 
   /**
-   * Facade on top of IndexSearcher that propagates IOExceptions as
-   * RuntimeException and is AutoCloseable for managing opening/closing of
-   * IndexSearchers.
+   * Facade on top of IndexSearcher that propagates IOExceptions as RuntimeException and is
+   * AutoCloseable for managing opening/closing of IndexSearchers.
    */
   private class Searcher implements AutoCloseable {
 
@@ -668,10 +687,10 @@ public class LuceneSearchIndex implements AutoCloseable {
     public TopDocs searchAfter(final ScoreDoc after, Query query, int numHits, Sort order) {
       try {
         return searcher.searchAfter(after, query, numHits, order);
-      } catch(IllegalArgumentException ex) {
+      } catch (IllegalArgumentException ex) {
         // we got to end of index.
         return null;
-      } catch(IOException ex){
+      } catch (IOException ex) {
         throw Throwables.propagate(ex);
       }
     }
@@ -679,15 +698,15 @@ public class LuceneSearchIndex implements AutoCloseable {
     public TopDocs search(Query query, int numHits, Sort order) {
       try {
         return searcher.search(query, numHits, order);
-      } catch(IOException ex){
+      } catch (IOException ex) {
         throw Throwables.propagate(ex);
       }
     }
 
-    public Document doc(int docId){
+    public Document doc(int docId) {
       try {
         return searcher.doc(docId);
-      } catch(IOException ex){
+      } catch (IOException ex) {
         throw Throwables.propagate(ex);
       }
     }
@@ -695,7 +714,7 @@ public class LuceneSearchIndex implements AutoCloseable {
     public int count(Query q) {
       try {
         return searcher.count(q);
-      } catch(IOException ex){
+      } catch (IOException ex) {
         throw Throwables.propagate(ex);
       }
     }
@@ -704,14 +723,14 @@ public class LuceneSearchIndex implements AutoCloseable {
     public void close() {
       try {
         searcherManager.release(searcher);
-      } catch(IOException ex) {
+      } catch (IOException ex) {
         throw Throwables.propagate(ex);
       }
     }
   }
 
   @VisibleForTesting
-  public void deleteEverything() throws IOException{
+  public void deleteEverything() throws IOException {
     committerThread.throwExceptionIfAny();
     writer.deleteAll();
     commit();

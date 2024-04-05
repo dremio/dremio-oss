@@ -15,9 +15,7 @@
  */
 package com.dremio.dac.service.errors;
 
-/**
- * Reflection not found exception
- */
+/** Reflection not found exception */
 public class ReflectionNotFound extends NotFoundException {
   public ReflectionNotFound(String id) {
     super(id, "reflection");

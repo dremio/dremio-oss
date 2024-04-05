@@ -15,14 +15,10 @@
  */
 package com.dremio.exec.planner.sql.handlers.direct;
 
-import java.util.Collections;
-import java.util.List;
-
-import org.apache.calcite.sql.SqlNode;
-
 import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.catalog.model.VersionContext;
+import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.DremioTable;
@@ -35,9 +31,11 @@ import com.dremio.exec.planner.sql.parser.SqlAlterTableAddColumns;
 import com.dremio.exec.planner.sql.parser.SqlGrant;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.namespace.NamespaceKey;
-/**
- * Adds columns to the table specified using {@link SqlAlterTableAddColumns}
- */
+import java.util.Collections;
+import java.util.List;
+import org.apache.calcite.sql.SqlNode;
+
+/** Adds columns to the table specified using {@link SqlAlterTableAddColumns} */
 public class AddColumnsHandler extends SimpleDirectHandler {
   private final Catalog catalog;
   private final SqlHandlerConfig config;
@@ -49,41 +47,56 @@ public class AddColumnsHandler extends SimpleDirectHandler {
 
   @Override
   public List<SimpleCommandResult> toResult(String sql, SqlNode sqlNode) throws Exception {
-    SqlAlterTableAddColumns sqlAddColumns = SqlNodeUtil.unwrap(sqlNode, SqlAlterTableAddColumns.class);
+    SqlAlterTableAddColumns sqlAddColumns =
+        SqlNodeUtil.unwrap(sqlNode, SqlAlterTableAddColumns.class);
 
     NamespaceKey sqlPath = catalog.resolveSingle(sqlAddColumns.getTable());
     final String sourceName = sqlPath.getRoot();
-    VersionContext statementSourceVersion = sqlAddColumns.getSqlTableVersionSpec().getTableVersionSpec().getTableVersionContext().asVersionContext();
-    final VersionContext sessionVersion = config.getContext().getSession().getSessionVersionForSource(sourceName);
+    VersionContext statementSourceVersion =
+        sqlAddColumns
+            .getSqlTableVersionSpec()
+            .getTableVersionSpec()
+            .getTableVersionContext()
+            .asVersionContext();
+    final VersionContext sessionVersion =
+        config.getContext().getSession().getSessionVersionForSource(sourceName);
     VersionContext sourceVersion = statementSourceVersion.orElse(sessionVersion);
-    ResolvedVersionContext resolvedVersionContext = CatalogUtil.resolveVersionContext(catalog, sourceName, sourceVersion);
-    final CatalogEntityKey catalogEntityKey = CatalogUtil.getResolvedCatalogEntityKey(
-        catalog,
-        sqlPath,
-        resolvedVersionContext);
-    NamespaceKey path = new NamespaceKey(catalogEntityKey.getKeyComponents());
+    ResolvedVersionContext resolvedVersionContext =
+        CatalogUtil.resolveVersionContext(catalog, sourceName, sourceVersion);
+    NamespaceKey resolvedPath =
+        CatalogUtil.getResolvePathForTableManagement(
+            catalog, sqlPath, TableVersionContext.of(sourceVersion));
+    final CatalogEntityKey catalogEntityKey =
+        CatalogEntityKey.newBuilder()
+            .keyComponents(resolvedPath.getPathComponents())
+            .tableVersionContext(TableVersionContext.of(sourceVersion))
+            .build();
 
-    catalog.validatePrivilege(path, SqlGrant.Privilege.ALTER);
+    catalog.validatePrivilege(resolvedPath, SqlGrant.Privilege.ALTER);
 
-    DremioTable table = CatalogUtil.getTableNoResolve(catalogEntityKey, catalog);
+    DremioTable table = catalog.getTableNoResolve(catalogEntityKey);
 
-    SimpleCommandResult validate = SqlHandlerUtil.validateSupportForDDLOperations(catalog, config, path, table);
+    SimpleCommandResult validate =
+        SqlHandlerUtil.validateSupportForDDLOperations(catalog, config, resolvedPath, table);
     if (!validate.ok) {
       return Collections.singletonList(validate);
     }
 
-    List<DremioSqlColumnDeclaration> newColumns = SqlHandlerUtil.columnDeclarationsFromSqlNodes(sqlAddColumns.getColumnList(), sql);
+    List<DremioSqlColumnDeclaration> newColumns =
+        SqlHandlerUtil.columnDeclarationsFromSqlNodes(sqlAddColumns.getColumnList(), sql);
 
     SqlHandlerUtil.checkForDuplicateColumns(newColumns, table.getSchema(), sql);
     CatalogUtil.validateResolvedVersionIsBranch(resolvedVersionContext);
-    TableMutationOptions tableMutationOptions = TableMutationOptions.newBuilder()
-      .setResolvedVersionContext(resolvedVersionContext)
-      .build();
+    TableMutationOptions tableMutationOptions =
+        TableMutationOptions.newBuilder().setResolvedVersionContext(resolvedVersionContext).build();
     BatchSchema deltaSchema = SqlHandlerUtil.batchSchemaFromSqlSchemaSpec(config, newColumns, sql);
-    catalog.addColumns(path, table.getDatasetConfig(), deltaSchema.getFields(), tableMutationOptions);
+    catalog.addColumns(
+        resolvedPath, table.getDatasetConfig(), deltaSchema.getFields(), tableMutationOptions);
 
-    if (!CatalogUtil.isFSInternalIcebergTableOrJsonTableOrMongo(catalog, path, table.getDatasetConfig()) && !(CatalogUtil.requestedPluginSupportsVersionedTables(path, catalog))) {
-      DataAdditionCmdHandler.refreshDataset(catalog, path, false);
+    if (!CatalogUtil.isFSInternalIcebergTableOrJsonTableOrMongo(
+            catalog, resolvedPath, table.getDatasetConfig())
+        && !(CatalogUtil.requestedPluginSupportsVersionedTables(resolvedPath, catalog))) {
+      DataAdditionCmdHandler.refreshDataset(catalog, resolvedPath, false);
     }
     return Collections.singletonList(SimpleCommandResult.successful("New columns added."));
   }

@@ -23,15 +23,14 @@ import com.dremio.exec.store.parquet.ParquetReaderUtility.DateCorruptionStatus;
 import com.google.common.base.Preconditions;
 
 /**
- * Contains set of configuration properties and output schema based on original table schema to help interpret data
- * from an underlying parquet file.
+ * Contains set of configuration properties and output schema based on original table schema to help
+ * interpret data from an underlying parquet file.
  *
- * We have various reinterpretation of parquet data based on metadata outside of the parquet file.
- * Following are such metadata:
- *   1) Read INT96 as TIMESTAMP
- *   2) Read BINARY as VARCHAR if the type is stored as VARCHAR in Hive table metadata,
- *   but the parquet file has no logical type (this is a problem for files created in Impala)
- *   3) Date correction logic for incorrectly written date in older Drill versions
+ * <p>We have various reinterpretation of parquet data based on metadata outside of the parquet
+ * file. Following are such metadata: 1) Read INT96 as TIMESTAMP 2) Read BINARY as VARCHAR if the
+ * type is stored as VARCHAR in Hive table metadata, but the parquet file has no logical type (this
+ * is a problem for files created in Impala) 3) Date correction logic for incorrectly written date
+ * in older Drill versions
  */
 public class SchemaDerivationHelper {
   private final boolean readInt96AsTimeStamp;
@@ -55,6 +54,7 @@ public class SchemaDerivationHelper {
 
   /**
    * Tells the reader to interpret INT96 physical type as timestamp
+   *
    * @return
    */
   public boolean readInt96AsTimeStamp() {
@@ -62,8 +62,10 @@ public class SchemaDerivationHelper {
   }
 
   /**
-   * Drill had a bug where it incorrectly wrote DATE type values (see https://issues.apache.org/jira/browse/DRILL-4203)
-   * Returned value determines the status of corruption.
+   * Drill had a bug where it incorrectly wrote DATE type values (see
+   * https://issues.apache.org/jira/browse/DRILL-4203) Returned value determines the status of
+   * corruption.
+   *
    * @return
    */
   public DateCorruptionStatus getDateCorruptionStatus() {
@@ -71,9 +73,9 @@ public class SchemaDerivationHelper {
   }
 
   /**
-   * Is the given column which is of binary should be reinterpreted as UTF-8 encoded varchar? Impala writes varchars
-   * as binary without UTF-8 annotation.
-   * See https://issues.apache.org/jira/browse/IMPALA-2069 for details.
+   * Is the given column which is of binary should be reinterpreted as UTF-8 encoded varchar? Impala
+   * writes varchars as binary without UTF-8 annotation. See
+   * https://issues.apache.org/jira/browse/IMPALA-2069 for details.
    *
    * @param column
    * @return
@@ -87,7 +89,6 @@ public class SchemaDerivationHelper {
   }
 
   /**
-   *
    * @return returns true if reader is capable of handling mixed decimals
    */
   public boolean allowMixedDecimals() {
@@ -95,7 +96,6 @@ public class SchemaDerivationHelper {
   }
 
   /**
-   *
    * @return true if number of list items should be limited
    */
   public boolean isLimitListItems() {
@@ -103,7 +103,9 @@ public class SchemaDerivationHelper {
   }
 
   /**
-   * If enabled Map data types are read as Map<Struct<key,value>>, else will be read as struct<list<struct<key,value>>>
+   * If enabled Map data types are read as Map<Struct<key,value>>, else will be read as
+   * struct<list<struct<key,value>>>
+   *
    * @return true if support key for map data type is enabled
    */
   public boolean isMapDataTypeEnabled() {
@@ -112,6 +114,7 @@ public class SchemaDerivationHelper {
 
   /**
    * Get builder class
+   *
    * @return
    */
   public static Builder builder() {
@@ -120,6 +123,7 @@ public class SchemaDerivationHelper {
 
   /**
    * Schema handle for readers to handle precision and scale compatibility
+   *
    * @param filteredColumn
    * @return
    */
@@ -127,7 +131,9 @@ public class SchemaDerivationHelper {
     if (schemaFromTableMetadata == null) {
       return null;
     }
-    return schemaFromTableMetadata.getFieldId(SchemaPath.getCompoundPath(filteredColumn.split("\\."))).getFinalType();
+    return schemaFromTableMetadata
+        .getFieldId(SchemaPath.getCompoundPath(filteredColumn.split("\\.")))
+        .getFinalType();
   }
 
   public static class Builder {
@@ -139,7 +145,7 @@ public class SchemaDerivationHelper {
     private boolean limitListItems = false;
     private boolean mapDataTypeEnabled;
 
-    private Builder() { }
+    private Builder() {}
 
     public Builder readInt96AsTimeStamp(boolean readInt96AsTimeStamp) {
       this.readInt96AsTimeStamp = readInt96AsTimeStamp;
@@ -157,7 +163,8 @@ public class SchemaDerivationHelper {
     }
 
     public Builder noSchemaLearning(BatchSchema schemaFromTableMetadata) {
-      Preconditions.checkNotNull(schemaFromTableMetadata, "Expected a non-null schema from table metadata");
+      Preconditions.checkNotNull(
+          schemaFromTableMetadata, "Expected a non-null schema from table metadata");
       this.noSchemaLearning = true;
       this.schemaFromTableMetadata = schemaFromTableMetadata;
       return this;

@@ -18,39 +18,35 @@ package com.dremio.service.namespace;
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.common.utils.SqlUtils;
+import com.google.common.base.Strings;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.common.utils.SqlUtils;
-import com.google.common.base.Strings;
-
 /**
  * Namespace keys used to model space, folders, sources, datasets names into kvstore key.
  *
- * Namespace keys are designed so that we can list folders or sub folders.
- * In order to use range query on kvstore we encode depth inside namespace key.
- * /a/b/c is   ``2``a``1``b``0``c
- * /a/b is ``1``a``0``b
- * a is ``0``a
+ * <p>Namespace keys are designed so that we can list folders or sub folders. In order to use range
+ * query on kvstore we encode depth inside namespace key. /a/b/c is ``2``a``1``b``0``c /a/b is
+ * ``1``a``0``b a is ``0``a
  *
- * Range search or listing under a key
- * listing under / we will search for ``0``*
- * listing under /a we will search for ``1``a``0``*
- * listing under /a/b we will search for ``2``a``1``b``0``*
- * listing under /a/b/c we will search for ``3``a``2``b``1``c``0``*
+ * <p>Range search or listing under a key listing under / we will search for ``0``* listing under /a
+ * we will search for ``1``a``0``* listing under /a/b we will search for ``2``a``1``b``0``* listing
+ * under /a/b/c we will search for ``3``a``2``b``1``c``0``*
  *
- * Source entities(files, folders, physical datasets) are special since listing is always recursive and
- * there are no guarantees that all parents are in namespace.
- * Depth value for all source entities is set to zero.
- * Namespace doesn't check if parent exists for a GET operation on physical dataset like virtual dataset.
+ * <p>Source entities(files, folders, physical datasets) are special since listing is always
+ * recursive and there are no guarantees that all parents are in namespace. Depth value for all
+ * source entities is set to zero. Namespace doesn't check if parent exists for a GET operation on
+ * physical dataset like virtual dataset.
  *
- * Note: this is a package protected class. Never make it a public class.
- **/
+ * <p>Note: this is a package protected class. Never make it a public class.
+ */
 class NamespaceInternalKey {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(NamespaceInternalKey.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(NamespaceInternalKey.class);
 
   // TODO: make it independent of SQL
   // Back ticks are allowed to escape dot/keywords.
@@ -63,7 +59,7 @@ class NamespaceInternalKey {
 
   static final int PREFIX_BYTES_SIZE = 2;
   static final int DELIMITER_PREFIX_DELIMITER_BYTES_SIZE =
-    DELIMITER_BYTES.length + PREFIX_BYTES_SIZE + DELIMITER_BYTES.length;
+      DELIMITER_BYTES.length + PREFIX_BYTES_SIZE + DELIMITER_BYTES.length;
 
   // 2 bytes are allocated for encoding each prefix level.
   // The largest valid byte value in UTF-8 is 127.
@@ -78,20 +74,21 @@ class NamespaceInternalKey {
 
   // The largest value in Unicode Plane 0 aka Basic Multilingual Plane (BMP).
   // This value is used as a terminator for end range keys.
-  static final byte[] MAX_UTF8_VALUE = new byte[]{(byte) 0xef, (byte) 0xbf, (byte) 0xbf}; //U+FFFF
+  static final byte[] MAX_UTF8_VALUE = new byte[] {(byte) 0xef, (byte) 0xbf, (byte) 0xbf}; // U+FFFF
 
   // The smallest valid value in UTF-8. This value is used as a terminator for start range keys.
-  private static final byte[] MIN_UTF8_VALUE = new byte[]{(byte) 0x0};
+  private static final byte[] MIN_UTF8_VALUE = new byte[] {(byte) 0x0};
 
   // Root lookup keys for FindByRange searches.
   private static final String ROOT_LOOKUP_START_KEY = generateRootLookupStartKey();
   private static final String ROOT_LOOKUP_END_KEY = generateRootLookupEndKey();
 
   private static final String ERROR_MSG_EXPECTED_NAMESPACE_PATH_FORMAT =
-    "Namespace path should be of format <space>.<folder1>.<folder2>....<folderN>.<dataset/file>";
+      "Namespace path should be of format <space>.<folder1>.<folder2>....<folderN>.<dataset/file>";
 
   /**
    * Creates a root lookup start key.
+   *
    * @return root lookup start key.
    */
   private static String generateRootLookupStartKey() {
@@ -100,18 +97,19 @@ class NamespaceInternalKey {
 
   /**
    * Creates a root lookup end key.
+   *
    * @return root lookup end key.
    */
   private static String generateRootLookupEndKey() {
     return rootLookupKeyHelper(MAX_UTF8_VALUE);
   }
 
-
   private static final List<String> PREFIXES = generatePrefixes();
 
   /**
    * Generates a given number of PREFIXES. It only generates up to 0x7f since all values after this
    * is invalid in UTF-8.
+   *
    * @return an array of byte[] PREFIXES.
    */
   private static List<String> generatePrefixes() {
@@ -162,9 +160,8 @@ class NamespaceInternalKey {
   }
 
   /**
-   * Processes the provided NamespaceKey's path components.
-   * Converts each path component to lower case if {@param normalize} is true.
-   * Returns a list of path components.
+   * Processes the provided NamespaceKey's path components. Converts each path component to lower
+   * case if {@param normalize} is true. Returns a list of path components.
    *
    * @param path the NamespaceKey to process.
    * @return a list of path components.
@@ -173,20 +170,30 @@ class NamespaceInternalKey {
     final List<String> processedPathComponents = new ArrayList<>();
     final int numPathComponents = path.getPathComponents().size();
 
-    if(numPathComponents == 0) {
-      throw UserException.validationError().message("Invalid name space key. Given: %s, Expected format: %s",
-        path.getSchemaPath(), ERROR_MSG_EXPECTED_NAMESPACE_PATH_FORMAT).build(logger);
+    if (numPathComponents == 0) {
+      throw UserException.validationError()
+          .message(
+              "Invalid name space key. Given: %s, Expected format: %s",
+              path.getSchemaPath(), ERROR_MSG_EXPECTED_NAMESPACE_PATH_FORMAT)
+          .build(logger);
     } else if (numPathComponents > MAX_NUM_PATH_COMPONENTS) {
-      throw UserException.unsupportedError().message("Provided file path has too many components.")
-        .addContext("File Path: ", path.getSchemaPath()).build(logger);
+      throw UserException.unsupportedError()
+          .message("Provided file path has too many components.")
+          .addContext("File Path: ", path.getSchemaPath())
+          .build(logger);
     }
-    path.getPathComponents().forEach(component -> {
-      if(Strings.isNullOrEmpty(component)) {
-        throw UserException.validationError().message("Invalid name space key. Given: %s, Expected format: %s",
-          path.getSchemaPath(), ERROR_MSG_EXPECTED_NAMESPACE_PATH_FORMAT).build(logger);
-      }
-      processedPathComponents.add(component.toLowerCase(Locale.ROOT));
-    });
+    path.getPathComponents()
+        .forEach(
+            component -> {
+              if (Strings.isNullOrEmpty(component)) {
+                throw UserException.validationError()
+                    .message(
+                        "Invalid name space key. Given: %s, Expected format: %s",
+                        path.getSchemaPath(), ERROR_MSG_EXPECTED_NAMESPACE_PATH_FORMAT)
+                    .build(logger);
+              }
+              processedPathComponents.add(component.toLowerCase(Locale.ROOT));
+            });
 
     return processedPathComponents;
   }
@@ -202,8 +209,8 @@ class NamespaceInternalKey {
   }
 
   /**
-   * Builds the range start key provided a list of path components.
-   * Used in FindByRange as the start range key.
+   * Builds the range start key provided a list of path components. Used in FindByRange as the start
+   * range key.
    *
    * @param pathComponents a list of String path components.
    * @return range start key.
@@ -213,8 +220,8 @@ class NamespaceInternalKey {
   }
 
   /**
-   * Builds a range end key provided a rangeStartKey. Appends byte terminator to the end of rangeStartKey.
-   * Used in FindByRange as the end range key.
+   * Builds a range end key provided a rangeStartKey. Appends byte terminator to the end of
+   * rangeStartKey. Used in FindByRange as the end range key.
    *
    * @param rangeStartKey rangeStartKey.
    * @return range end key.
@@ -223,18 +230,18 @@ class NamespaceInternalKey {
     return rangeStartKey + new String(MAX_UTF8_VALUE, StandardCharsets.UTF_8);
   }
 
-
   /**
-   * Helper to build a String key given a list of path components.
-   * Either builds the key or a range key.
+   * Helper to build a String key given a list of path components. Either builds the key or a range
+   * key.
    *
    * @param pathComponents a list of String path components.
    * @param isRangeKey if true, builds a range key, otherwise builds the key.
    * @return a String key that is either the key or a range key.
    */
   private String buildKeyWithPrefixes(List<String> pathComponents, boolean isRangeKey) {
-    final StringBuilder keyBuilder = new StringBuilder(calculateKeyLength(pathComponents, isRangeKey));
-    int prefixIndex = pathComponents.size() - (isRangeKey ?  0 : 1);
+    final StringBuilder keyBuilder =
+        new StringBuilder(calculateKeyLength(pathComponents, isRangeKey));
+    int prefixIndex = pathComponents.size() - (isRangeKey ? 0 : 1);
     for (int i = 0; i < pathComponents.size(); i++) {
       keyBuilder.append(PREFIXES.get(prefixIndex));
       keyBuilder.append(pathComponents.get(i));
@@ -255,7 +262,7 @@ class NamespaceInternalKey {
    */
   private int calculateKeyLength(List<String> pathComponents, boolean isRangeKey) {
     int length = 0;
-    int prefixIndex = pathComponents.size() - (isRangeKey ?  0 : 1);
+    int prefixIndex = pathComponents.size() - (isRangeKey ? 0 : 1);
     for (int i = 0; i < pathComponents.size(); i++) {
       length += pathComponents.get(i).length();
       length += PREFIXES.get(prefixIndex).length();
@@ -278,8 +285,7 @@ class NamespaceInternalKey {
   }
 
   /**
-   * Creates a prefix byte sequence in the following format
-   * delimiter - prefix level - delimiter
+   * Creates a prefix byte sequence in the following format delimiter - prefix level - delimiter
    *
    * @param prefix the integer prefix
    * @return the prefix and delimiters byte sequence.
@@ -288,7 +294,12 @@ class NamespaceInternalKey {
     final byte[] bytes = new byte[DELIMITER_PREFIX_DELIMITER_BYTES_SIZE];
     System.arraycopy(DELIMITER_BYTES, 0, bytes, 0, DELIMITER_BYTES.length);
     writePrefixLevel(bytes, DELIMITER_BYTES.length, prefix);
-    System.arraycopy(DELIMITER_BYTES, 0, bytes, DELIMITER_BYTES.length + PREFIX_BYTES_SIZE, DELIMITER_BYTES.length);
+    System.arraycopy(
+        DELIMITER_BYTES,
+        0,
+        bytes,
+        DELIMITER_BYTES.length + PREFIX_BYTES_SIZE,
+        DELIMITER_BYTES.length);
     return bytes;
   }
 
@@ -302,7 +313,7 @@ class NamespaceInternalKey {
     final byte[] key = new byte[DELIMITER_PREFIX_DELIMITER_BYTES_SIZE + terminator.length];
     System.arraycopy(prefixWithDelimiters(0), 0, key, 0, DELIMITER_PREFIX_DELIMITER_BYTES_SIZE);
     System.arraycopy(terminator, 0, key, DELIMITER_PREFIX_DELIMITER_BYTES_SIZE, terminator.length);
-    return new String (key, StandardCharsets.UTF_8);
+    return new String(key, StandardCharsets.UTF_8);
   }
 
   @Override

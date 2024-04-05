@@ -18,10 +18,9 @@ package com.dremio.exec.util;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import org.apache.arrow.memory.ArrowBuf;
-
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.util.MajorTypeHelper;
+import org.apache.arrow.memory.ArrowBuf;
 
 public class ValueListWithBloomFilter extends ValueListFilter {
   protected ArrowBuf bloomFilterSlice;
@@ -30,8 +29,10 @@ public class ValueListWithBloomFilter extends ValueListFilter {
     super(fullBuffer);
     checkArgument(fullBuffer.capacity() >= META_SIZE + ValueListFilter.BLOOM_FILTER_SIZE);
 
-    //Override the value list slice
-    this.valueListSlice = fullBuffer.slice(META_SIZE + BLOOM_FILTER_SIZE, fullBuffer.capacity() - META_SIZE - BLOOM_FILTER_SIZE);
+    // Override the value list slice
+    this.valueListSlice =
+        fullBuffer.slice(
+            META_SIZE + BLOOM_FILTER_SIZE, fullBuffer.capacity() - META_SIZE - BLOOM_FILTER_SIZE);
     this.bloomFilterSlice = fullBuffer.slice(META_SIZE, BLOOM_FILTER_SIZE);
   }
 
@@ -58,22 +59,22 @@ public class ValueListWithBloomFilter extends ValueListFilter {
     long elements = 0, buffIndex = 0;
     Object value;
 
-    CompleteType type = CompleteType.fromMinorType(
-      MajorTypeHelper.getMinorTypeFromArrowMinorType(getFieldType()));
+    CompleteType type =
+        CompleteType.fromMinorType(MajorTypeHelper.getMinorTypeFromArrowMinorType(getFieldType()));
 
-    while(elements < valueCount) {
+    while (elements < valueCount) {
       switch (type.toMinorType()) {
         case DATE:
         case TIMESTAMP:
         case BIGINT:
           value = valueListSlice.getLong(buffIndex);
-          insertIntoBloomFilter((long)value);
+          insertIntoBloomFilter((long) value);
           buffIndex = buffIndex + 8;
           break;
         case TIME:
         case INT:
           value = valueListSlice.getInt(buffIndex);
-          insertIntoBloomFilter((int)value);
+          insertIntoBloomFilter((int) value);
           buffIndex = buffIndex + 4;
           break;
       }
@@ -82,7 +83,7 @@ public class ValueListWithBloomFilter extends ValueListFilter {
   }
 
   private void insertIntoBloomFilter(long val) {
-    int hashValue =  hashInt((int) (val ^ val >>> 32));
+    int hashValue = hashInt((int) (val ^ val >>> 32));
     setBit(hashValue);
   }
 

@@ -15,10 +15,10 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.google.common.collect.ImmutableList;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
-
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.sql.SqlIdentifier;
@@ -27,10 +27,9 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.Pair;
 
-import com.google.common.collect.ImmutableList;
-
 /**
  * Supports struct< x: bigint, y : bigint > type of struct schema
+ *
  * <p>We also support to add a [ NULL | NOT NULL ] suffix for every field type
  */
 public final class DremioSqlRowTypeSpec extends SqlTypeNameSpec {
@@ -41,14 +40,12 @@ public final class DremioSqlRowTypeSpec extends SqlTypeNameSpec {
   /**
    * Creates a row type specification.
    *
-   * @param pos        The parser position.
+   * @param pos The parser position.
    * @param fieldNames The field names.
    * @param fieldTypes The field data types.
    */
   public DremioSqlRowTypeSpec(
-    SqlParserPos pos,
-    List<SqlIdentifier> fieldNames,
-    List<SqlComplexDataTypeSpec> fieldTypes) {
+      SqlParserPos pos, List<SqlIdentifier> fieldNames, List<SqlComplexDataTypeSpec> fieldTypes) {
     super(SqlTypeName.ROW.getName(), pos);
     Objects.requireNonNull(fieldNames);
     Objects.requireNonNull(fieldTypes);
@@ -60,7 +57,8 @@ public final class DremioSqlRowTypeSpec extends SqlTypeNameSpec {
   public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
     writer.print(SqlTypeName.ROW.getName());
     SqlWriter.Frame frame = writer.startList(SqlWriter.FrameTypeEnum.FUN_CALL, "(", ")");
-    for (Pair<SqlIdentifier, SqlComplexDataTypeSpec> p : Pair.zip(this.fieldNames, this.fieldTypes)) {
+    for (Pair<SqlIdentifier, SqlComplexDataTypeSpec> p :
+        Pair.zip(this.fieldNames, this.fieldTypes)) {
       writer.sep(",", false);
       p.left.unparse(writer, 0, 0);
       p.right.unparse(writer, leftPrec, rightPrec);
@@ -74,12 +72,8 @@ public final class DremioSqlRowTypeSpec extends SqlTypeNameSpec {
   @Override
   public RelDataType deriveType(RelDataTypeFactory typeFactory) {
     return typeFactory.createStructType(
-      fieldTypes.stream()
-        .map(dt -> dt.deriveType(typeFactory))
-        .collect(Collectors.toList()),
-      fieldNames.stream()
-        .map(SqlIdentifier::toString)
-        .collect(Collectors.toList()));
+        fieldTypes.stream().map(dt -> dt.deriveType(typeFactory)).collect(Collectors.toList()),
+        fieldNames.stream().map(SqlIdentifier::toString).collect(Collectors.toList()));
   }
 
   public List<SqlIdentifier> getFieldNames() {

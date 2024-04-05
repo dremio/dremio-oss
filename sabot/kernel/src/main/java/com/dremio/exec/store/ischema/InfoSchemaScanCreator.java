@@ -25,21 +25,29 @@ import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.sabot.op.spi.ProducerOperator;
 
-public class InfoSchemaScanCreator implements ProducerOperator.Creator<InfoSchemaSubScan>{
+public class InfoSchemaScanCreator implements ProducerOperator.Creator<InfoSchemaSubScan> {
 
   @Override
-  public ProducerOperator create(FragmentExecutionContext fec, OperatorContext context, InfoSchemaSubScan config) throws ExecutionSetupException {
+  public ProducerOperator create(
+      FragmentExecutionContext fec, OperatorContext context, InfoSchemaSubScan config)
+      throws ExecutionSetupException {
     final InformationSchemaTable table = config.getTable();
     final InfoSchemaStoragePlugin plugin = fec.getStoragePlugin(config.getPluginId());
     final String catalogName =
         context.getOptions().getOption(ExecConstants.USE_LEGACY_CATALOG_NAME)
             ? InfoSchemaConstants.IS_LEGACY_CATALOG_NAME
             : InfoSchemaConstants.IS_CATALOG_NAME;
-    final RecordReader reader = new InformationSchemaRecordReader(context, config.getColumns(),
-        plugin.getSabotContext().getInformationSchemaServiceBlockingStub(), table,
-        catalogName, config.getProps().getUserName(), config.getQuery(), context.getOptions().getOption(PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT));
+    final RecordReader reader =
+        new InformationSchemaRecordReader(
+            context,
+            config.getColumns(),
+            plugin.getSabotContext().getInformationSchemaServiceBlockingStub(),
+            table,
+            catalogName,
+            config.getProps().getUserName(),
+            config.getQuery(),
+            context.getOptions().getOption(PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT));
 
-    return new ScanOperator(config, context, RecordReaderIterator.from(reader));
+    return new ScanOperator(fec, config, context, RecordReaderIterator.from(reader));
   }
-
 }

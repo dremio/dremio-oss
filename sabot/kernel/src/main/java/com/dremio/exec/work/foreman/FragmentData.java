@@ -31,19 +31,18 @@ public class FragmentData {
 
   public FragmentData(final FragmentHandle handle, final NodeEndpoint endpoint) {
     this.endpoint = endpoint;
-    final MinorFragmentProfile f = MinorFragmentProfile.newBuilder()
-        .setState(FragmentState.SENDING)
-        .setMinorFragmentId(handle.getMinorFragmentId())
-        .setEndpoint(endpoint)
-        .build();
-    status = FragmentStatus.newBuilder()
-        .setHandle(handle)
-        .setProfile(f)
-        .build();
+    final MinorFragmentProfile f =
+        MinorFragmentProfile.newBuilder()
+            .setState(FragmentState.SENDING)
+            .setMinorFragmentId(handle.getMinorFragmentId())
+            .setEndpoint(endpoint)
+            .build();
+    status = FragmentStatus.newBuilder().setHandle(handle).setProfile(f).build();
   }
 
   /**
    * Update the status for this fragment. Also records last update and last progress time.
+   *
    * @param newStatus Updated status
    */
   public void setStatus(final FragmentStatus newStatus) {
@@ -60,9 +59,7 @@ public class FragmentData {
   }
 
   public MinorFragmentProfile getProfile() {
-    return status
-        .getProfile()
-        .toBuilder()
+    return status.getProfile().toBuilder()
         .setLastUpdate(lastStatusUpdate)
         .setLastProgress(lastProgress)
         .build();
@@ -88,7 +85,7 @@ public class FragmentData {
       return true;
     }
 
-    for(int i =0; i < current.getOperatorProfileCount(); i++){
+    for (int i = 0; i < current.getOperatorProfileCount(); i++) {
       if (madeProgress(previous.getOperatorProfile(i), current.getOperatorProfile(i))) {
         return true;
       }
@@ -103,5 +100,4 @@ public class FragmentData {
         || prev.getMetricCount() != cur.getMetricCount()
         || !prev.getMetricList().equals(cur.getMetricList());
   }
-
 }

@@ -17,65 +17,47 @@ package com.dremio.dac.service.autocomplete.utils;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
+import com.google.common.io.Resources;
 import java.io.IOException;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
-import com.google.common.io.Resources;
-
 /**
  * Datastructure to store the frequency counts of the n-grams of tokens in a dataset of SQL queries.
  *
- * Suppose we add the following queries to frequency table where n = 2:
- * SELECT * FROM emp
- * SELECT name FROM emp
+ * <p>Suppose we add the following queries to frequency table where n = 2: SELECT * FROM emp SELECT
+ * name FROM emp
  *
- * Which when tokenized looks like so:
- * [SELECT] [STAR] [FROM] [IDENTIFIER]
- * [SELECT] [IDENTIFIER] [FROM] [IDENTIFIER]
+ * <p>Which when tokenized looks like so: [SELECT] [STAR] [FROM] [IDENTIFIER] [SELECT] [IDENTIFIER]
+ * [FROM] [IDENTIFIER]
  *
- * This gives us the following 2-grams of tokens:
- * ([SELECT], [STAR]), ([STAR], [FROM]), ([FROM], [IDENTIFIER])
- * ([SELECT], [IDENTIFIER]), ([IDENTIFIER], [FROM]), ([FROM], [IDENTIFIER])
+ * <p>This gives us the following 2-grams of tokens: ([SELECT], [STAR]), ([STAR], [FROM]), ([FROM],
+ * [IDENTIFIER]) ([SELECT], [IDENTIFIER]), ([IDENTIFIER], [FROM]), ([FROM], [IDENTIFIER])
  *
- * And we can create a frequency dictionary from one token to another:
+ * <p>And we can create a frequency dictionary from one token to another:
  *
- * {
- *   SELECT: {
- *     STAR: 1,
- *     IDENTIFIER: 1
- *   },
- *   STAR: {
- *     FROM: 1
- *   },
- *   FROM: {
- *     IDENTIFIER: 2
- *   },
- *   IDENTIFIER: {
- *     FROM: 1
- *   }
- * }
+ * <p>{ SELECT: { STAR: 1, IDENTIFIER: 1 }, STAR: { FROM: 1 }, FROM: { IDENTIFIER: 2 }, IDENTIFIER:
+ * { FROM: 1 } }
  *
- * Now let's say a user types "SELECT " and we need to come up with recommendations for the following tokens.
- * We can look into datastructure and see that tokens are likely to come after "SELECT":
+ * <p>Now let's say a user types "SELECT " and we need to come up with recommendations for the
+ * following tokens. We can look into datastructure and see that tokens are likely to come after
+ * "SELECT":
  *
- * SELECT: {
- *   STAR: 1,
- *   IDENTIFIER 1
- * }
+ * <p>SELECT: { STAR: 1, IDENTIFIER 1 }
  *
- * Which means in this scenario we would recommend STAR or an IDENTIFIER and all other tokens are lower precedence.
+ * <p>Which means in this scenario we would recommend STAR or an IDENTIFIER and all other tokens are
+ * lower precedence.
  *
- * Note that this is just when n = 2.
- * We can increase n to become more context aware (make better predictions based on previous tokens),
- * but we don't want to increase it too much,
- * since as n increases the chains become longer and less likely that we will have seen any particular chain of tokens before.
- * To mitigate the limitation of increasing n and not seeing a chain we can add more data to increase the odds that all
- * chains that are possible have been seen before (with appropriate frequency).
+ * <p>Note that this is just when n = 2. We can increase n to become more context aware (make better
+ * predictions based on previous tokens), but we don't want to increase it too much, since as n
+ * increases the chains become longer and less likely that we will have seen any particular chain of
+ * tokens before. To mitigate the limitation of increasing n and not seeing a chain we can add more
+ * data to increase the odds that all chains that are possible have been seen before (with
+ * appropriate frequency).
  */
 public final class DremioTokenNGramFrequencyTable {
   private final Map<ImmutableList<Integer>, Integer> frequencies;
@@ -102,10 +84,14 @@ public final class DremioTokenNGramFrequencyTable {
   }
 
   public void addQuery(String query) {
-    ImmutableList<Integer> tokens = ImmutableList.<Integer>builder()
-      .add(DremioToken.START_TOKEN.getKind())
-      .addAll(SqlQueryTokenizer.tokenize(query).stream().map(token -> token.getKind()).collect(Collectors.toList()))
-      .build();
+    ImmutableList<Integer> tokens =
+        ImmutableList.<Integer>builder()
+            .add(DremioToken.START_TOKEN.getKind())
+            .addAll(
+                SqlQueryTokenizer.tokenize(query).stream()
+                    .map(token -> token.getKind())
+                    .collect(Collectors.toList()))
+            .build();
     addTokens(tokens);
   }
 
@@ -129,14 +115,13 @@ public final class DremioTokenNGramFrequencyTable {
 
     String[] queries;
     try {
-      queries = Resources
-        .toString(url, UTF_8)
-        .split(System.lineSeparator());
+      queries = Resources.toString(url, UTF_8).split(System.lineSeparator());
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
 
-    DremioTokenNGramFrequencyTable dremioTokenNGramFrequencyTable = new DremioTokenNGramFrequencyTable(n);
+    DremioTokenNGramFrequencyTable dremioTokenNGramFrequencyTable =
+        new DremioTokenNGramFrequencyTable(n);
     for (String query : queries) {
       dremioTokenNGramFrequencyTable.addQuery(query);
     }

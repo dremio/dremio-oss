@@ -15,14 +15,12 @@
  */
 package com.dremio.sabot.op.common.ht2;
 
+import com.dremio.common.util.Numbers;
+import com.google.common.annotations.VisibleForTesting;
+import io.netty.util.internal.PlatformDependent;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.util.LargeMemoryUtil;
-
-import com.dremio.common.util.Numbers;
-import com.google.common.annotations.VisibleForTesting;
-
-import io.netty.util.internal.PlatformDependent;
 
 public class VariableBlockVector implements AutoCloseable {
 
@@ -35,7 +33,8 @@ public class VariableBlockVector implements AutoCloseable {
     this(allocator, fieldCount, 0, true);
   }
 
-  public VariableBlockVector(BufferAllocator allocator, int fieldCount, int initialSizeInBytes, boolean allowExpansion) {
+  public VariableBlockVector(
+      BufferAllocator allocator, int fieldCount, int initialSizeInBytes, boolean allowExpansion) {
     this.allocator = allocator;
     this.fieldCount = fieldCount;
     this.allowExpansion = allowExpansion;
@@ -48,24 +47,25 @@ public class VariableBlockVector implements AutoCloseable {
     return buf;
   }
 
-  public long getMemoryAddress(){
+  public long getMemoryAddress() {
     return buf.memoryAddress();
   }
 
-  public long getMaxMemoryAddress(){
+  public long getMaxMemoryAddress() {
     return buf.memoryAddress() + buf.capacity();
   }
 
-  public int getVariableFieldCount(){
+  public int getVariableFieldCount() {
     return fieldCount;
   }
 
   /**
    * Expand the buffer as necessary.
+   *
    * @param sizeInBytes
    * @return true if the buffer was expanded (meaning one needs to reread the memory address).
    */
-  public boolean ensureAvailableDataSpace(int sizeInBytes){
+  public boolean ensureAvailableDataSpace(int sizeInBytes) {
     if (buf.capacity() < sizeInBytes) {
       if (!allowExpansion) {
         throw new RuntimeException("This buffer has fixed capacity. Not allowed to expand");
@@ -93,13 +93,13 @@ public class VariableBlockVector implements AutoCloseable {
   }
 
   @VisibleForTesting
-  ArrowBuf getUnderlying(){
+  ArrowBuf getUnderlying() {
     return buf;
   }
 
   @Override
   public synchronized void close() {
-    if(buf != null){
+    if (buf != null) {
       buf.close();
       buf = null;
     }

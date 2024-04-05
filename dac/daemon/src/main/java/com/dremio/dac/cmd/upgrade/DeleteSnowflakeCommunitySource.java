@@ -25,12 +25,10 @@ import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEventsImpl;
  * The pre-23.1 Dremio users had to use Snowflake Community connector. Dremio 23.1 started to
  * include 1st-party Snowflake connector provided by Dremio. This connector has different ARP
  * definitions, so when a Snowflake source is created with a community connector — it can't be
- * deserialized with protobuf and fails with ProtobufException, and Dremio fails to start. For
- * more details see DX-59245.
- * DX-60529 is to improve the UX when the
- * <a href="https://docs.dremio.com/software/deployment/standalone/standalone-install-upgrade/#2310-upgrade-notes">
- * upgrade instruction</a> was not followed, and the removal of the source is done
- * programmatically.
+ * deserialized with protobuf and fails with ProtobufException, and Dremio fails to start. For more
+ * details see DX-59245. DX-60529 is to improve the UX when the <a
+ * href="https://docs.dremio.com/software/deployment/standalone/standalone-install-upgrade/#2310-upgrade-notes">
+ * upgrade instruction</a> was not followed, and the removal of the source is done programmatically.
  */
 public class DeleteSnowflakeCommunitySource extends UpgradeTask {
   public DeleteSnowflakeCommunitySource() {
@@ -41,41 +39,48 @@ public class DeleteSnowflakeCommunitySource extends UpgradeTask {
   private static final String ANSI_RED_BACKGROUND = "\u001B[41m";
   private static final String ANSI_WHITE_TEXT = "\u001B[37m";
   private static final String ANSI_RESET = "\u001B[0m";
-  private static final String ACTION_REQUIRED_MESSAGE = ANSI_RED_BACKGROUND + ANSI_WHITE_TEXT
-    + "[ACTION REQUIRED]\n\n"
-    + "It appears that you had a Snowflake source created by the Snowflake Community connector. "
-    + "The Community connector is not compatible with the Dremio Snowflake connector.\n"
-    + "The source created by the Community connector was removed.\n\n"
-    + "Please re-add your Snowflake source manually."
-    + ANSI_RESET + "\n\n";
+  private static final String ACTION_REQUIRED_MESSAGE =
+      ANSI_RED_BACKGROUND
+          + ANSI_WHITE_TEXT
+          + "[ACTION REQUIRED]\n\n"
+          + "It appears that you had a Snowflake source created by the Snowflake Community connector. "
+          + "The Community connector is not compatible with the Dremio Snowflake connector.\n"
+          + "The source created by the Community connector was removed.\n\n"
+          + "Please re-add your Snowflake source manually."
+          + ANSI_RESET
+          + "\n\n";
 
   @Override
-  public String getTaskUUID() { return taskUUID; }
+  public String getTaskUUID() {
+    return taskUUID;
+  }
 
   @Override
   public void upgrade(UpgradeContext context) throws Exception {
     NamespaceServiceImpl namespaceService =
-      new NamespaceServiceImpl(context.getLegacyKVStoreProvider(), new CatalogStatusEventsImpl());
+        new NamespaceServiceImpl(context.getLegacyKVStoreProvider(), new CatalogStatusEventsImpl());
 
     // Will detect incompatible Snowflake sources created with the community connector by catching
     // ProtobufException when attempting to read source configuration. Then we delete such
     // sources in the catch block.
     namespaceService.getSources().stream()
-      .filter(s -> "SNOWFLAKE".equals(s.getType()))
-      .forEach(snowflakeConfig -> {
-        //noinspection CatchMayIgnoreException
-        try {
-          context.getConnectionReader().getConnectionConf(snowflakeConfig);
-        } catch (Exception e) {
-          if (e.getCause() instanceof io.protostuff.ProtobufException) {
-            System.out.print(ACTION_REQUIRED_MESSAGE);
-            try {
-              namespaceService.deleteSource(snowflakeConfig.getKey(), snowflakeConfig.getTag());
-            } catch (NamespaceException ex) {
-              throw new RuntimeException(ex);
-            }
-          }
-        }
-      });
+        .filter(s -> "SNOWFLAKE".equals(s.getType()))
+        .forEach(
+            snowflakeConfig -> {
+              //noinspection CatchMayIgnoreException
+              try {
+                context.getConnectionReader().getConnectionConf(snowflakeConfig);
+              } catch (Exception e) {
+                if (e.getCause() instanceof io.protostuff.ProtobufException) {
+                  System.out.print(ACTION_REQUIRED_MESSAGE);
+                  try {
+                    namespaceService.deleteSource(
+                        snowflakeConfig.getKey(), snowflakeConfig.getTag());
+                  } catch (NamespaceException ex) {
+                    throw new RuntimeException(ex);
+                  }
+                }
+              }
+            });
   }
 }

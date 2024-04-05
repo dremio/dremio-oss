@@ -21,17 +21,14 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-
 import org.junit.Test;
-
 
 public class DremioResultSetTest extends JdbcWithServerTestBase {
 
   @Test
   public void test_next_blocksFurtherAccessAfterEnd() throws SQLException {
     Statement statement = getConnection().createStatement();
-    ResultSet resultSet =
-      statement.executeQuery("SELECT 1 AS x FROM cp.\"donuts.json\" LIMIT 2");
+    ResultSet resultSet = statement.executeQuery("SELECT 1 AS x FROM cp.\"donuts.json\" LIMIT 2");
 
     // Advance to first row; confirm can access data.
     assertThat(resultSet.next()).isTrue();
@@ -46,8 +43,8 @@ public class DremioResultSetTest extends JdbcWithServerTestBase {
 
     // Main check:  That row data access methods now throw SQLException.
     assertThatThrownBy(() -> resultSet.getInt(1))
-      .isInstanceOf(InvalidCursorStateSqlException.class)
-      .hasMessageContaining("past");
+        .isInstanceOf(InvalidCursorStateSqlException.class)
+        .hasMessageContaining("past");
 
     assertThat(resultSet.next()).isFalse();
 
@@ -58,7 +55,7 @@ public class DremioResultSetTest extends JdbcWithServerTestBase {
   public void test_next_blocksFurtherAccessWhenNoRows() throws Exception {
     Statement statement = getConnection().createStatement();
     ResultSet resultSet =
-      statement.executeQuery("SELECT 'Hi' AS x FROM cp.\"donuts.json\" WHERE false");
+        statement.executeQuery("SELECT 'Hi' AS x FROM cp.\"donuts.json\" WHERE false");
 
     // Do initial next(). (Advance from before results to next possible
     // position (after the set of zero rows).
@@ -67,9 +64,9 @@ public class DremioResultSetTest extends JdbcWithServerTestBase {
     // Main check:  That row data access methods throw SQLException.
     // "Result set cursor is already positioned past all rows."
     assertThatThrownBy(() -> resultSet.getString(1))
-      .isInstanceOf(InvalidCursorStateSqlException.class)
-      .hasMessageContaining("past")
-      .hasMessageContaining("rows");
+        .isInstanceOf(InvalidCursorStateSqlException.class)
+        .hasMessageContaining("past")
+        .hasMessageContaining("rows");
 
     assertThat(resultSet.next()).isFalse();
 
@@ -79,8 +76,7 @@ public class DremioResultSetTest extends JdbcWithServerTestBase {
   @Test
   public void test_getRow_isOneBased() throws Exception {
     Statement statement = getConnection().createStatement();
-    ResultSet resultSet =
-      statement.executeQuery("VALUES (1), (2)");
+    ResultSet resultSet = statement.executeQuery("VALUES (1), (2)");
 
     // Expect 0 when before first row:
     assertThat(resultSet.getRow()).isEqualTo(0);

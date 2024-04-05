@@ -17,14 +17,11 @@ package com.dremio.exec.store.easy.excel;
 
 import static org.apache.poi.ss.util.CellReference.convertColStringToIndex;
 
+import com.dremio.common.types.TypeProtos.MinorType;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.complex.writer.BaseWriter.StructWriter;
 
-import com.dremio.common.types.TypeProtos.MinorType;
-
-/**
- * Holder class to represent the merged cell boundaries and provide helpful methods to match.
- */
+/** Holder class to represent the merged cell boundaries and provide helpful methods to match. */
 class MergeCellRegion {
   final int colStart;
   final int colEnd; // inclusive
@@ -32,10 +29,11 @@ class MergeCellRegion {
   final int rowEnd; // inclusive
 
   /**
-   * Value writer and value for the merged region. These are set when the cell in top-left
-   * corner of the merged region is read from sheet data.
+   * Value writer and value for the merged region. These are set when the cell in top-left corner of
+   * the merged region is read from sheet data.
    */
   ValueWriter writer;
+
   Object value;
 
   private MergeCellRegion(int colStart, int colEnd, int rowStart, int rowEnd) {
@@ -84,8 +82,7 @@ class MergeCellRegion {
         convertColStringToIndex(startCell.substring(0, startCellIndex)),
         convertColStringToIndex(endCell.substring(0, endCellIndex)),
         Integer.parseInt(startCell.substring(startCellIndex)),
-        Integer.parseInt(endCell.substring(endCellIndex))
-    );
+        Integer.parseInt(endCell.substring(endCellIndex)));
   }
 
   interface ValueWriter {

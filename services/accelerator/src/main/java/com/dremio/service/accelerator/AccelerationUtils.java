@@ -15,17 +15,13 @@
  */
 package com.dremio.service.accelerator;
 
+import com.dremio.service.namespace.proto.TimePeriod;
+import com.google.common.collect.ImmutableList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
-import com.dremio.service.namespace.proto.TimePeriod;
-import com.google.common.collect.ImmutableList;
-
-/**
- * Collection of helper methods for the accelerator
- *
- */
+/** Collection of helper methods for the accelerator */
 public final class AccelerationUtils {
   private AccelerationUtils() {}
 
@@ -57,9 +53,7 @@ public final class AccelerationUtils {
     return stream;
   }
 
-  /**
-   * Returns the iterable as list if not null or an empty list.
-   */
+  /** Returns the iterable as list if not null or an empty list. */
   public static <T> List<T> selfOrEmpty(final List<T> iterable) {
     if (iterable == null) {
       return ImmutableList.of();

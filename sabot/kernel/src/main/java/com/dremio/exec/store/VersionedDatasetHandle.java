@@ -27,21 +27,24 @@ public interface VersionedDatasetHandle extends DatasetHandle {
   VersionedPlugin.EntityType getType();
 
   /**
-   * @param vda            Adapter that provides methods to translate from external versioned type to DremioTable
+   * @param vda Adapter that provides methods to translate from external versioned type to
+   *     DremioTable
    * @param accessUserName UserName used to access the table
    */
   DremioTable translateToDremioTable(VersionedDatasetAdapter vda, String accessUserName);
 
   /**
    * A unique ID that represents a unique snapshot of a versioned table or view
+   *
    * @return
    */
-  String getUniqueInstanceId() ;
+  String getUniqueInstanceId();
 
   /**
-   * A stable entity id that remains constant for the lifetime of a versioned object (until it is dropped)
+   * A stable entity id that remains constant for the lifetime of a versioned object (until it is
+   * dropped)
+   *
    * @return
    */
   String getContentId();
-
 }

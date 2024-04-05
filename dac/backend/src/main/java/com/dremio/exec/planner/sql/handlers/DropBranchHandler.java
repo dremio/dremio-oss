@@ -17,12 +17,6 @@ package com.dremio.exec.planner.sql.handlers;
 
 import static java.util.Objects.requireNonNull;
 
-import java.util.Collections;
-import java.util.List;
-
-import org.apache.calcite.sql.SqlIdentifier;
-import org.apache.calcite.sql.SqlNode;
-
 import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
@@ -35,19 +29,22 @@ import com.dremio.exec.store.ReferenceNotFoundException;
 import com.dremio.exec.work.foreman.ForemanSetupException;
 import com.dremio.options.OptionResolver;
 import com.dremio.sabot.rpc.user.UserSession;
+import java.util.Collections;
+import java.util.List;
+import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlNode;
 
 /**
  * Handler for dropping branch.
  *
- * DROP BRANCH [ IF EXISTS ] branchName
- * [ AT COMMIT commitHash | FORCE ]
- * [ IN sourceName ]
+ * <p>DROP BRANCH [ IF EXISTS ] branchName [ AT COMMIT commitHash | FORCE ] [ IN sourceName ]
  */
 public class DropBranchHandler extends BaseVersionHandler<SimpleCommandResult> {
 
   private final UserSession userSession;
 
-  public DropBranchHandler(Catalog catalog, OptionResolver optionResolver, UserSession userSession) {
+  public DropBranchHandler(
+      Catalog catalog, OptionResolver optionResolver, UserSession userSession) {
     super(catalog, optionResolver);
     this.userSession = requireNonNull(userSession);
   }
@@ -57,26 +54,29 @@ public class DropBranchHandler extends BaseVersionHandler<SimpleCommandResult> {
       throws ForemanSetupException {
     checkFeatureEnabled("DROP BRANCH syntax is not supported.");
 
-    final SqlDropBranch dropBranch = requireNonNull(SqlNodeUtil.unwrap(sqlNode, SqlDropBranch.class));
+    final SqlDropBranch dropBranch =
+        requireNonNull(SqlNodeUtil.unwrap(sqlNode, SqlDropBranch.class));
     final SqlIdentifier sourceIdentifier = dropBranch.getSourceName();
-    final String sourceName = VersionedHandlerUtils.resolveSourceName(
-      sourceIdentifier,
-      userSession.getDefaultSchemaPath());
+    final String sourceName =
+        VersionedHandlerUtils.resolveSourceName(
+            sourceIdentifier, userSession.getDefaultSchemaPath());
 
-    String commitHash = (dropBranch.getCommitHash() != null)
-      ? dropBranch.getCommitHash().toString()
-      : "";
+    String commitHash =
+        (dropBranch.getCommitHash() != null) ? dropBranch.getCommitHash().toString() : "";
     final String branchName = requireNonNull(dropBranch.getBranchName()).toString();
-    //This value is no longer being used. Leaving for reference.
+    // This value is no longer being used. Leaving for reference.
     final boolean forceDrop = dropBranch.getForceDrop().booleanValue();
-    final boolean shouldErrorIfBranchDoesNotExist = dropBranch.shouldErrorIfBranchDoesNotExist().booleanValue();
+    final boolean shouldErrorIfBranchDoesNotExist =
+        dropBranch.shouldErrorIfBranchDoesNotExist().booleanValue();
 
-    //Prevent dropping current branch
+    // Prevent dropping current branch
     VersionContext currentSessionVersion = userSession.getSessionVersionForSource(sourceName);
-    if (currentSessionVersion.isBranch() && currentSessionVersion.getValue().equals(branchName)){
+    if (currentSessionVersion.isBranch() && currentSessionVersion.getValue().equals(branchName)) {
       throw UserException.validationError()
-        .message("Cannot drop branch %s for source %s while it is set in the current session's reference context ", branchName, sourceName)
-        .buildSilently();
+          .message(
+              "Cannot drop branch %s for source %s while it is set in the current session's reference context ",
+              branchName, sourceName)
+          .buildSilently();
     }
 
     final VersionedPlugin versionedPlugin = getVersionedPlugin(sourceName);
@@ -95,8 +95,8 @@ public class DropBranchHandler extends BaseVersionHandler<SimpleCommandResult> {
       }
       // Return success, but still give message about not found
       return Collections.singletonList(
-        SimpleCommandResult.successful(
-          "Branch %s not found on source %s.", branchName, sourceName));
+          SimpleCommandResult.successful(
+              "Branch %s not found on source %s.", branchName, sourceName));
     }
 
     return Collections.singletonList(

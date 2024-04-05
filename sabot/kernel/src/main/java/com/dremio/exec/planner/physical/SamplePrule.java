@@ -15,17 +15,14 @@
  */
 package com.dremio.exec.planner.physical;
 
+import com.dremio.exec.planner.logical.Rel;
+import com.dremio.exec.planner.logical.RelOptHelper;
+import com.dremio.exec.planner.logical.SampleRel;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.rel.RelNode;
 
-import com.dremio.exec.planner.logical.Rel;
-import com.dremio.exec.planner.logical.RelOptHelper;
-import com.dremio.exec.planner.logical.SampleRel;
-
-/**
- * Rule to convert {@link SampleRel} to Dremio physical rel which is a {@link SamplePrel}.
- */
+/** Rule to convert {@link SampleRel} to Dremio physical rel which is a {@link SamplePrel}. */
 public class SamplePrule extends Prule {
   public static final RelOptRule INSTANCE = new SamplePrule();
 
@@ -40,7 +37,9 @@ public class SamplePrule extends Prule {
 
     final RelNode convertedInput = convert(input, input.getTraitSet().plus(Prel.PHYSICAL));
 
-    final SamplePrel samplePrel = new SamplePrel(sample.getCluster(), sample.getTraitSet().plus(Prel.PHYSICAL), convertedInput);
+    final SamplePrel samplePrel =
+        new SamplePrel(
+            sample.getCluster(), sample.getTraitSet().plus(Prel.PHYSICAL), convertedInput);
     call.transformTo(samplePrel);
   }
 }

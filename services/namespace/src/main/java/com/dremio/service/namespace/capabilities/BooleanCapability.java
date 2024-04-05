@@ -18,16 +18,12 @@ package com.dremio.service.namespace.capabilities;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-/**
- * A boolean capability.
- */
+/** A boolean capability. */
 public final class BooleanCapability extends Capability<Boolean> {
 
   @JsonCreator
   public BooleanCapability(
-      @JsonProperty("name") String name,
-      @JsonProperty("defaultValue") boolean defaultValue) {
+      @JsonProperty("name") String name, @JsonProperty("defaultValue") boolean defaultValue) {
     super(name, defaultValue);
   }
-
 }

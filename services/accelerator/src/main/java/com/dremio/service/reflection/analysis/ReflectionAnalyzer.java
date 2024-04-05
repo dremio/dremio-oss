@@ -17,20 +17,6 @@ package com.dremio.service.reflection.analysis;
 
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-
-import javax.annotation.Nullable;
-
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeFamily;
-import org.apache.calcite.rel.type.RelDataTypeField;
-import org.apache.calcite.sql.type.SqlTypeFamily;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.utils.SqlUtils;
 import com.dremio.exec.catalog.CatalogUser;
 import com.dremio.exec.catalog.DremioTable;
@@ -60,12 +46,23 @@ import com.google.common.collect.FluentIterable;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Multimap;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import javax.annotation.Nullable;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeFamily;
+import org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.calcite.sql.type.SqlTypeFamily;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * Analyzes a dataset by synchronously running a SQL statement to collect column statistics
- * and total row count.  Since stats are collected as a preview job which considers only
- * the first 10K rows (leaf level limit), the stats can be grossly inaccurate.
- * */
+ * Analyzes a dataset by synchronously running a SQL statement to collect column statistics and
+ * total row count. Since stats are collected as a preview job which considers only the first 10K
+ * rows (leaf level limit), the stats can be grossly inaccurate.
+ */
 public class ReflectionAnalyzer {
   private static final Logger logger = LoggerFactory.getLogger(ReflectionAnalyzer.class);
   private static final NamespaceKey NONE_PATH = new NamespaceKey(ImmutableList.of("__none"));
@@ -75,77 +72,80 @@ public class ReflectionAnalyzer {
   private static final String SELECT_COUNT_STAR = "COUNT(*) AS " + COUNT_COLUMN;
 
   static {
-    DIMENSIONS.putAll(SqlTypeFamily.CHARACTER, ImmutableList.of(
-      StatType.COUNT,
-      StatType.COUNT_DISTINCT,
-      StatType.MIN_LEN,
-      StatType.MAX_LEN,
-      StatType.AVG_LEN
-    ));
+    DIMENSIONS.putAll(
+        SqlTypeFamily.CHARACTER,
+        ImmutableList.of(
+            StatType.COUNT,
+            StatType.COUNT_DISTINCT,
+            StatType.MIN_LEN,
+            StatType.MAX_LEN,
+            StatType.AVG_LEN));
 
-    DIMENSIONS.putAll(SqlTypeFamily.NUMERIC, ImmutableList.of(
-      StatType.COUNT,
-      StatType.COUNT_DISTINCT,
-      StatType.MIN,
-      StatType.MAX,
-      StatType.AVG
-    ));
+    DIMENSIONS.putAll(
+        SqlTypeFamily.NUMERIC,
+        ImmutableList.of(
+            StatType.COUNT, StatType.COUNT_DISTINCT, StatType.MIN, StatType.MAX, StatType.AVG));
 
-    DIMENSIONS.putAll(SqlTypeFamily.TIMESTAMP, ImmutableList.of(
-      StatType.COUNT,
-      StatType.COUNT_DISTINCT_DATE
-    ));
+    DIMENSIONS.putAll(
+        SqlTypeFamily.TIMESTAMP, ImmutableList.of(StatType.COUNT, StatType.COUNT_DISTINCT_DATE));
 
-    DIMENSIONS.putAll(SqlTypeFamily.ANY, ImmutableList.of(
-      StatType.COUNT,
-      StatType.COUNT_DISTINCT
-    ));
-
+    DIMENSIONS.putAll(SqlTypeFamily.ANY, ImmutableList.of(StatType.COUNT, StatType.COUNT_DISTINCT));
   }
 
   private final JobsService jobsService;
   private final CatalogService catalogService;
   private final BufferAllocator bufferAllocator;
 
-  public ReflectionAnalyzer(final JobsService jobsService, final CatalogService catalogService, final BufferAllocator allocator) {
+  public ReflectionAnalyzer(
+      final JobsService jobsService,
+      final CatalogService catalogService,
+      final BufferAllocator allocator) {
     this.catalogService = Preconditions.checkNotNull(catalogService, "Catalog service is required");
     this.jobsService = Preconditions.checkNotNull(jobsService, "Jobs service is required");
     this.bufferAllocator = Preconditions.checkNotNull(allocator, "Buffer allocator is required");
   }
 
   public TableStats analyze(final String datasetId) {
-    final DremioTable table = catalogService.getCatalog(MetadataRequestOptions.of(
-        SchemaConfig.newBuilder(CatalogUser.from(SystemUser.SYSTEM_USERNAME)).build()))
-      .getTable(datasetId);
+    final DremioTable table =
+        catalogService
+            .getCatalog(
+                MetadataRequestOptions.of(
+                    SchemaConfig.newBuilder(CatalogUser.from(SystemUser.SYSTEM_USERNAME)).build()))
+            .getTable(datasetId);
     Preconditions.checkNotNull(table, "Unknown datasetId %s", datasetId);
     final RelDataType rowType = table.getRowType(JavaTypeFactoryImpl.INSTANCE);
 
-    final List<RelDataTypeField> fields = FluentIterable.from(rowType.getFieldList())
-      .filter(new Predicate<RelDataTypeField>() {
-        @Override
-        public boolean apply(@Nullable final RelDataTypeField input) {
-          final RField field = TypeUtils.fromCalciteField(input);
+    final List<RelDataTypeField> fields =
+        FluentIterable.from(rowType.getFieldList())
+            .filter(
+                new Predicate<RelDataTypeField>() {
+                  @Override
+                  public boolean apply(@Nullable final RelDataTypeField input) {
+                    final RField field = TypeUtils.fromCalciteField(input);
 
-          return TypeUtils.isBoolean(field)
-            || TypeUtils.isTemporal(field)
-            || TypeUtils.isText(field)
-            || TypeUtils.isNumeric(field);
-        }
-      })
-      .toList();
+                    return TypeUtils.isBoolean(field)
+                        || TypeUtils.isTemporal(field)
+                        || TypeUtils.isText(field)
+                        || TypeUtils.isNumeric(field);
+                  }
+                })
+            .toList();
 
     if (fields.isEmpty()) {
       return new TableStats().setColumns(Collections.<ColumnStats>emptyList()).setCount(0L);
     }
 
-    final Iterable<StatColumn> statColumns = FluentIterable.from(fields)
-      .transformAndConcat(new Function<RelDataTypeField, Iterable<? extends StatColumn>>() {
-        @Nullable
-        @Override
-        public Iterable<? extends StatColumn> apply(@Nullable final RelDataTypeField field) {
-          return getStatColumnsPerField(field);
-        }
-      });
+    final Iterable<StatColumn> statColumns =
+        FluentIterable.from(fields)
+            .transformAndConcat(
+                new Function<RelDataTypeField, Iterable<? extends StatColumn>>() {
+                  @Nullable
+                  @Override
+                  public Iterable<? extends StatColumn> apply(
+                      @Nullable final RelDataTypeField field) {
+                    return getStatColumnsPerField(field);
+                  }
+                });
 
     String pathString = table.getPath().getSchemaPath();
     // Append version context to dataset path if versioned
@@ -154,50 +154,62 @@ public class ReflectionAnalyzer {
       try {
         versionedDatasetId = VersionedDatasetId.fromString(datasetId);
       } catch (JsonProcessingException e) {
-        throw new IllegalStateException(String.format("Unable to parse versionedDatasetId %s", datasetId), e);
+        throw new IllegalStateException(
+            String.format("Unable to parse versionedDatasetId %s", datasetId), e);
       }
       pathString += " at " + versionedDatasetId.getVersionContext().toSql();
     }
 
-    final String selection = Joiner.on(", ").join(
-      FluentIterable.from(statColumns)
-      .transform(new Function<StatColumn, String>() {
-        @Override
-        public String apply(StatColumn input) {
-          return input.toString();
-        }
-      })
-      .append(SELECT_COUNT_STAR)
-    );
+    final String selection =
+        Joiner.on(", ")
+            .join(
+                FluentIterable.from(statColumns)
+                    .transform(
+                        new Function<StatColumn, String>() {
+                          @Override
+                          public String apply(StatColumn input) {
+                            return input.toString();
+                          }
+                        })
+                    .append(SELECT_COUNT_STAR));
 
     final String sql = String.format("select %s from %s", selection, pathString);
 
-    final SqlQuery query = SqlQuery.newBuilder()
-      .setSql(sql)
-      .addAllContext(Collections.<String>emptyList())
-      .setUsername(SYSTEM_USERNAME)
-      .build();
+    final SqlQuery query =
+        SqlQuery.newBuilder()
+            .setSql(sql)
+            .addAllContext(Collections.<String>emptyList())
+            .setUsername(SYSTEM_USERNAME)
+            .build();
 
     final CompletionListener completionListener = new CompletionListener();
-    final JobId jobId = jobsService.submitJob(
-      SubmitJobRequest.newBuilder()
-        .setSqlQuery(query)
-        .setQueryType(JobsProtoUtil.toBuf(QueryType.UI_INTERNAL_PREVIEW))
-        .setVersionedDataset(VersionedDatasetPath.newBuilder().addAllPath(NONE_PATH.getPathComponents()).build())
-        .build(),
-      completionListener
-    ).getJobId();
+    final JobId jobId =
+        jobsService
+            .submitJob(
+                SubmitJobRequest.newBuilder()
+                    .setSqlQuery(query)
+                    .setQueryType(JobsProtoUtil.toBuf(QueryType.UI_INTERNAL_PREVIEW))
+                    .setVersionedDataset(
+                        VersionedDatasetPath.newBuilder()
+                            .addAllPath(NONE_PATH.getPathComponents())
+                            .build())
+                    .build(),
+                completionListener)
+            .getJobId();
     completionListener.awaitUnchecked();
-    try (JobDataFragment data = JobDataClientUtils.getJobData(jobsService, bufferAllocator, jobId, 0, 1)) {
-      final List<ColumnStats> columns = FluentIterable.from(fields)
-        .transform(new Function<RelDataTypeField, ColumnStats>() {
-          @Nullable
-          @Override
-          public ColumnStats apply(@Nullable final RelDataTypeField input) {
-            return buildColumn(data, input);
-          }
-        })
-        .toList();
+    try (JobDataFragment data =
+        JobDataClientUtils.getJobData(jobsService, bufferAllocator, jobId, 0, 1)) {
+      final List<ColumnStats> columns =
+          FluentIterable.from(fields)
+              .transform(
+                  new Function<RelDataTypeField, ColumnStats>() {
+                    @Nullable
+                    @Override
+                    public ColumnStats apply(@Nullable final RelDataTypeField input) {
+                      return buildColumn(data, input);
+                    }
+                  })
+              .toList();
 
       Long count = getCount(data);
 
@@ -213,12 +225,13 @@ public class ReflectionAnalyzer {
     }
 
     return FluentIterable.from(dims)
-      .transform(new Function<StatType, StatColumn>() {
-        @Override
-        public StatColumn apply(final StatType type) {
-          return new StatColumn(type, field);
-        }
-      });
+        .transform(
+            new Function<StatType, StatColumn>() {
+              @Override
+              public StatColumn apply(final StatType type) {
+                return new StatColumn(type, field);
+              }
+            });
   }
 
   Long getCount(final JobDataFragment data) {
@@ -228,8 +241,7 @@ public class ReflectionAnalyzer {
   protected ColumnStats buildColumn(final JobDataFragment data, final RelDataTypeField field) {
     final Iterable<StatColumn> stats = getStatColumnsPerField(field);
     final RField rField = TypeUtils.fromCalciteField(field);
-    final ColumnStats column = new ColumnStats()
-      .setField(rField);
+    final ColumnStats column = new ColumnStats().setField(rField);
 
     if (TypeUtils.isBoolean(rField)) {
       column.setCardinality(2L);
@@ -241,38 +253,38 @@ public class ReflectionAnalyzer {
         continue;
       }
       switch (stat.getType()) {
-      case COUNT:
-        column.setCount(Long.valueOf(value.toString()));
-        break;
-      case COUNT_DISTINCT:
-      case COUNT_DISTINCT_DATE:
-        column.setCardinality(Long.valueOf(value.toString()));
-        break;
-      case AVG:
-        column.setAverageValue(Double.valueOf(value.toString()));
-        break;
-      case AVG_LEN:
-        column.setAverageLength(Double.valueOf(value.toString()));
-        break;
-      case MAX:
-        column.setMaxValue(Double.valueOf(value.toString()));
-        break;
-      case MAX_LEN:
-        column.setMaxLength(Long.valueOf(value.toString()));
-        break;
-      case MIN:
-        column.setMinValue(Double.valueOf(value.toString()));
-        break;
-      case MIN_LEN:
-        column.setMinLength(Long.valueOf(value.toString()));
-        break;
-      default:
-        throw new UnsupportedOperationException(String.format("unsupported stat type: %s", stat.getType()));
+        case COUNT:
+          column.setCount(Long.valueOf(value.toString()));
+          break;
+        case COUNT_DISTINCT:
+        case COUNT_DISTINCT_DATE:
+          column.setCardinality(Long.valueOf(value.toString()));
+          break;
+        case AVG:
+          column.setAverageValue(Double.valueOf(value.toString()));
+          break;
+        case AVG_LEN:
+          column.setAverageLength(Double.valueOf(value.toString()));
+          break;
+        case MAX:
+          column.setMaxValue(Double.valueOf(value.toString()));
+          break;
+        case MAX_LEN:
+          column.setMaxLength(Long.valueOf(value.toString()));
+          break;
+        case MIN:
+          column.setMinValue(Double.valueOf(value.toString()));
+          break;
+        case MIN_LEN:
+          column.setMinLength(Long.valueOf(value.toString()));
+          break;
+        default:
+          throw new UnsupportedOperationException(
+              String.format("unsupported stat type: %s", stat.getType()));
       }
     }
     return column;
   }
-
 
   // helper structs
 
@@ -303,9 +315,7 @@ public class ReflectionAnalyzer {
     }
   }
 
-  /**
-   * javadoc
-   */
+  /** javadoc */
   public static class TableStats {
     private List<ColumnStats> columns;
     private Long count;
@@ -329,9 +339,7 @@ public class ReflectionAnalyzer {
     }
   }
 
-  /**
-   * javadoc
-   */
+  /** javadoc */
   public static class RField {
     private String name;
     private String typeFamily;
@@ -355,9 +363,7 @@ public class ReflectionAnalyzer {
     }
   }
 
-  /**
-   * javadoc
-   */
+  /** javadoc */
   public static class ColumnStats {
     static final Long DEFAULT_CARDINALITY = -1L;
     static final Long DEFAULT_COUNT = -1L;
@@ -369,22 +375,14 @@ public class ReflectionAnalyzer {
     static final Double DEFAULT_MAX_VALUE = -1.0d;
 
     private RField field;
-    private Long
-      cardinality = DEFAULT_CARDINALITY;
-    private Long
-      count = DEFAULT_COUNT;
-    private Double
-      averageLength = DEFAULT_AVERAGE_LENGTH;
-    private Long
-      minLength = DEFAULT_MIN_LENGTH;
-    private Long
-      maxLength = DEFAULT_MAX_LENGTH;
-    private Double
-      averageValue = DEFAULT_AVERAGE_VALUE;
-    private Double
-      minValue = DEFAULT_MIN_VALUE;
-    private Double
-      maxValue = DEFAULT_MAX_VALUE;
+    private Long cardinality = DEFAULT_CARDINALITY;
+    private Long count = DEFAULT_COUNT;
+    private Double averageLength = DEFAULT_AVERAGE_LENGTH;
+    private Long minLength = DEFAULT_MIN_LENGTH;
+    private Long maxLength = DEFAULT_MAX_LENGTH;
+    private Double averageValue = DEFAULT_AVERAGE_VALUE;
+    private Double minValue = DEFAULT_MIN_VALUE;
+    private Double maxValue = DEFAULT_MAX_VALUE;
 
     public RField getField() {
       return field;
@@ -476,7 +474,9 @@ public class ReflectionAnalyzer {
 
     public StatColumn(final StatType type, final RelDataTypeField field) {
       this.type = type;
-      this.call = String.format(type.getFunctionPattern(), SqlUtils.QUOTE + field.getName() + SqlUtils.QUOTE);
+      this.call =
+          String.format(
+              type.getFunctionPattern(), SqlUtils.QUOTE + field.getName() + SqlUtils.QUOTE);
       this.alias = String.format(type.getAliasPattern(), field.getName());
     }
 

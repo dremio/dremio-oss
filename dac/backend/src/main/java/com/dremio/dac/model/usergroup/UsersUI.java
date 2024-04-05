@@ -15,14 +15,11 @@
  */
 package com.dremio.dac.model.usergroup;
 
+import com.dremio.dac.util.JSONUtil;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.dremio.dac.util.JSONUtil;
-
-/**
- * Users model.
- */
+/** Users model. */
 public class UsersUI {
   private List<UserUI> users;
 

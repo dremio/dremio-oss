@@ -21,10 +21,12 @@ import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 
-/**
- * Factory interface that creates table functions
- */
+/** Factory interface that creates table functions */
 public interface TableFunctionFactory {
-  TableFunction createTableFunction(FragmentExecutionContext fec, OperatorContext context,
-                                    OpProps props, TableFunctionConfig functionConfig) throws ExecutionSetupException;
+  TableFunction createTableFunction(
+      FragmentExecutionContext fec,
+      OperatorContext context,
+      OpProps props,
+      TableFunctionConfig functionConfig)
+      throws ExecutionSetupException;
 }

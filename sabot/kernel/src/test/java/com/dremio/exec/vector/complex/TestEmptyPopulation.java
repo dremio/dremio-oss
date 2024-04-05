@@ -18,6 +18,7 @@ package com.dremio.exec.vector.complex;
 import static com.dremio.TestBuilder.listOf;
 import static com.dremio.TestBuilder.mapOf;
 
+import com.dremio.BaseTestQuery;
 import org.apache.arrow.vector.UInt4Vector;
 import org.apache.arrow.vector.complex.EmptyValuePopulator;
 import org.junit.After;
@@ -26,8 +27,6 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.junit.MockitoJUnitRunner;
-
-import com.dremio.BaseTestQuery;
 
 @RunWith(MockitoJUnitRunner.class)
 public class TestEmptyPopulation extends BaseTestQuery {
@@ -75,7 +74,7 @@ public class TestEmptyPopulation extends BaseTestQuery {
     offsets.set(2, 20);
     populator.populate(5);
     Assert.assertEquals("offset must have valid size", 6, offsets.getValueCount());
-    for (int i=2; i<=5;i++) {
+    for (int i = 2; i <= 5; i++) {
       Assert.assertEquals(String.format("value at index[%s] must match", i), 20, offsets.get(i));
     }
 
@@ -167,7 +166,6 @@ public class TestEmptyPopulation extends BaseTestQuery {
         .baselineValues(listOf(listOf(2L)))
         .go();
   }
-
 
   @Test
   public void testRepeatedMapEmptyFirst() throws Exception {
@@ -283,7 +281,8 @@ public class TestEmptyPopulation extends BaseTestQuery {
 
   @Test
   public void testMultiLevelRepeatedListEmptyBetween() throws Exception {
-    final String query = "select * from cp.\"vector/complex/multi-repeated-list-empty-between.json\"";
+    final String query =
+        "select * from cp.\"vector/complex/multi-repeated-list-empty-between.json\"";
 
     testBuilder()
         .sqlQuery(query)
@@ -294,7 +293,6 @@ public class TestEmptyPopulation extends BaseTestQuery {
         .baselineValues(listOf(listOf(listOf(2L), listOf(4L))))
         .go();
   }
-
 
   @Test
   public void testMultiLevelRepeatedListWithMultipleEmpties() throws Exception {

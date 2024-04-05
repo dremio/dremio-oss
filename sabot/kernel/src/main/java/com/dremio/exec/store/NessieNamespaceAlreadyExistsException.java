@@ -15,9 +15,7 @@
  */
 package com.dremio.exec.store;
 
-/**
- * Thrown if a namespace already exists.
- */
+/** Thrown if a namespace already exists. */
 public class NessieNamespaceAlreadyExistsException extends RuntimeException {
   private static final long serialVersionUID = 1L;
 

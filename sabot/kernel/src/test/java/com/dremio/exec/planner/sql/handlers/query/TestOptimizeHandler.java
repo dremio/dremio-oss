@@ -18,12 +18,6 @@ package com.dremio.exec.planner.sql.handlers.query;
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import org.apache.calcite.avatica.util.Quoting;
-import org.apache.calcite.sql.parser.SqlParseException;
-import org.apache.calcite.sql.parser.SqlParser;
-import org.junit.BeforeClass;
-import org.junit.Test;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.ExecConstants;
@@ -44,6 +38,11 @@ import com.dremio.exec.store.iceberg.IcebergTestTables;
 import com.dremio.options.OptionValue;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.namespace.NamespaceKey;
+import org.apache.calcite.avatica.util.Quoting;
+import org.apache.calcite.sql.parser.SqlParseException;
+import org.apache.calcite.sql.parser.SqlParser;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
 public class TestOptimizeHandler extends BaseTestQuery {
 
@@ -54,31 +53,36 @@ public class TestOptimizeHandler extends BaseTestQuery {
   public static void setup() throws Exception {
     SabotContext context = getSabotContext();
 
-    UserSession session = UserSession.Builder.newBuilder()
-      .withSessionOptionManager(
-        new SessionOptionManagerImpl(getSabotContext().getOptionValidatorListing()),
-        getSabotContext().getOptionManager())
-      .withUserProperties(UserProtos.UserProperties.getDefaultInstance())
-      .withCredentials(UserBitShared.UserCredentials.newBuilder().setUserName(SYSTEM_USERNAME).build())
-      .setSupportComplexTypes(true)
-      .build();
+    UserSession session =
+        UserSession.Builder.newBuilder()
+            .withSessionOptionManager(
+                new SessionOptionManagerImpl(getSabotContext().getOptionValidatorListing()),
+                getSabotContext().getOptionManager())
+            .withUserProperties(UserProtos.UserProperties.getDefaultInstance())
+            .withCredentials(
+                UserBitShared.UserCredentials.newBuilder().setUserName(SYSTEM_USERNAME).build())
+            .setSupportComplexTypes(true)
+            .build();
 
-    final QueryContext queryContext = new QueryContext(session, context, UserBitShared.QueryId.getDefaultInstance());
+    final QueryContext queryContext =
+        new QueryContext(session, context, UserBitShared.QueryId.getDefaultInstance());
     queryContext.setGroupResourceInformation(context.getClusterResourceInformation());
-    final AttemptObserver observer = new PassthroughQueryObserver(ExecTest.mockUserClientConnection(null));
+    final AttemptObserver observer =
+        new PassthroughQueryObserver(ExecTest.mockUserClientConnection(null));
 
-    converter = new SqlConverter(
-      queryContext.getPlannerSettings(),
-      queryContext.getOperatorTable(),
-      queryContext,
-      queryContext.getMaterializationProvider(),
-      queryContext.getFunctionRegistry(),
-      queryContext.getSession(),
-      observer,
-      queryContext.getSubstitutionProviderFactory(),
-      queryContext.getConfig(),
-      queryContext.getScanResult(),
-      queryContext.getRelMetadataQuerySupplier());
+    converter =
+        new SqlConverter(
+            queryContext.getPlannerSettings(),
+            queryContext.getOperatorTable(),
+            queryContext,
+            queryContext.getMaterializationProvider(),
+            queryContext.getFunctionRegistry(),
+            queryContext.getSession(),
+            observer,
+            queryContext.getSubstitutionProviderFactory(),
+            queryContext.getConfig(),
+            queryContext.getScanResult(),
+            queryContext.getRelMetadataQuerySupplier());
 
     config = new SqlHandlerConfig(queryContext, converter, observer, null);
   }
@@ -89,28 +93,42 @@ public class TestOptimizeHandler extends BaseTestQuery {
     OptimizeHandler optimizeHandler = (OptimizeHandler) sqlOptimize.toPlanHandler();
 
     assertThatThrownBy(() -> optimizeHandler.getPlan(config, "OPTIMIZE TABLE a.b.c", sqlOptimize))
-      .isInstanceOf(UserException.class)
-      .hasMessage("Table [a.b.c] does not exist.");
+        .isInstanceOf(UserException.class)
+        .hasMessage("Table [a.b.c] does not exist.");
   }
 
   @Test
   public void testV2TableWithDeletes() throws Exception {
     IcebergTestTables.Table table = IcebergTestTables.PRODUCTS_WITH_EQ_DELETES.get();
-    config.getContext().getOptions().setOption(OptionValue.createBoolean(OptionValue.OptionType.SYSTEM,
-      ExecConstants.ENABLE_ICEBERG_MERGE_ON_READ_SCAN_WITH_EQUALITY_DELETE.getOptionName(), true));
+    config
+        .getContext()
+        .getOptions()
+        .setOption(
+            OptionValue.createBoolean(
+                OptionValue.OptionType.SYSTEM,
+                ExecConstants.ENABLE_ICEBERG_MERGE_ON_READ_SCAN_WITH_EQUALITY_DELETE
+                    .getOptionName(),
+                true));
     String query = String.format("OPTIMIZE TABLE %s", table.getTableName());
     SqlOptimize sqlOptimize = parseToSqlOptimizeNode(query);
     NamespaceKey path = sqlOptimize.getPath();
     OptimizeHandler optimizeHandler = (OptimizeHandler) sqlOptimize.toPlanHandler();
 
-    assertThatThrownBy(() -> optimizeHandler.checkValidations(config.getContext().getCatalog(), config, path, sqlOptimize))
-      .isInstanceOf(UserException.class)
-      .hasMessage("OPTIMIZE TABLE command does not support tables with equality delete files.");
+    assertThatThrownBy(
+            () ->
+                optimizeHandler.checkValidations(
+                    config.getContext().getCatalog(), config, path, sqlOptimize))
+        .isInstanceOf(UserException.class)
+        .hasMessage("OPTIMIZE TABLE command does not support tables with equality delete files.");
     table.close();
   }
 
   private static SqlOptimize parseToSqlOptimizeNode(String toParse) throws SqlParseException {
-    ParserConfig config = new ParserConfig(Quoting.DOUBLE_QUOTE, 255, PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
+    ParserConfig config =
+        new ParserConfig(
+            Quoting.DOUBLE_QUOTE,
+            255,
+            PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
     SqlParser parser = SqlParser.create(toParse, config);
     return (SqlOptimize) parser.parseStmt();
   }

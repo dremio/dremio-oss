@@ -92,6 +92,25 @@
      - "(INT) -> INT"
      - "(BIGINT) -> BIGINT"
  -
+  description: "$IN_FENNEL"
+  input: "$IN_FENNEL"
+  output:
+    name: "$IN_FENNEL"
+    signatures:
+     - "(BOOLEAN) -> BOOLEAN"
+     - "(ARRAY) -> ARRAY"
+     - "(MAP) -> MAP"
+     - "(BYTES) -> BYTES"
+     - "(CHARACTERS) -> CHARACTERS"
+     - "(FLOAT) -> FLOAT"
+     - "(DECIMAL) -> DECIMAL"
+     - "(DOUBLE) -> DOUBLE"
+     - "(INT) -> INT"
+     - "(BIGINT) -> BIGINT"
+     - "(DATE) -> DATE"
+     - "(TIME) -> TIME"
+     - "(TIMESTAMP) -> TIMESTAMP"
+ -
   description: "$SUM0"
   input: "$SUM0"
   output:
@@ -529,6 +548,12 @@
     name: "ARRAY_DISTINCT"
     signatures:
      - "(ARRAY) -> ARRAY"
+ -
+  description: "ARRAY_FREQUENCY"
+  input: "ARRAY_FREQUENCY"
+  output:
+    name: "ARRAY_FREQUENCY"
+    signatures: []
  -
   description: "ARRAY_GENERATE_RANGE"
   input: "ARRAY_GENERATE_RANGE"
@@ -2889,25 +2914,6 @@
      - "(BYTES, DATEANDTIME) -> ANY"
      - "(BYTES, CHARACTERS) -> ANY"
  -
-  description: "IN_FENNEL"
-  input: "IN_FENNEL"
-  output:
-    name: "IN_FENNEL"
-    signatures:
-     - "(BOOLEAN) -> BOOLEAN"
-     - "(ARRAY) -> ARRAY"
-     - "(MAP) -> MAP"
-     - "(BYTES) -> BYTES"
-     - "(CHARACTERS) -> CHARACTERS"
-     - "(FLOAT) -> FLOAT"
-     - "(DECIMAL) -> DECIMAL"
-     - "(DOUBLE) -> DOUBLE"
-     - "(INT) -> INT"
-     - "(BIGINT) -> BIGINT"
-     - "(DATE) -> DATE"
-     - "(TIME) -> TIME"
-     - "(TIMESTAMP) -> TIMESTAMP"
- -
   description: "IS DISTINCT FROM"
   input: "IS DISTINCT FROM"
   output:
@@ -3304,19 +3310,40 @@
     signatures:
      - "(ANY, ANY...) -> CHARACTERS"
  -
-  description: "JSON_ARRAYAGG"
-  input: "JSON_ARRAYAGG"
+  description: "JSON_ARRAYAGG_ABSENT_ON_NULL"
+  input: "JSON_ARRAYAGG_ABSENT_ON_NULL"
   output:
-    name: "JSON_ARRAYAGG"
+    name: "JSON_ARRAYAGG_ABSENT_ON_NULL"
     signatures:
      - "(ANY) -> CHARACTERS"
+ -
+  description: "JSON_DEPTH"
+  input: "JSON_DEPTH"
+  output:
+    name: "JSON_DEPTH"
+    signatures:
+     - "(ANY) -> INT"
  -
   description: "JSON_EXISTS"
   input: "JSON_EXISTS"
   output:
     name: "JSON_EXISTS"
     signatures:
-     - "(ANY, ANY?) -> BOOLEAN"
+     - "(ANY, CHARACTERS, ANY?) -> BOOLEAN"
+ -
+  description: "JSON_KEYS"
+  input: "JSON_KEYS"
+  output:
+    name: "JSON_KEYS"
+    signatures:
+     - "(ANY, CHARACTERS?) -> CHARACTERS"
+ -
+  description: "JSON_LENGTH"
+  input: "JSON_LENGTH"
+  output:
+    name: "JSON_LENGTH"
+    signatures:
+     - "(ANY, CHARACTERS?) -> INT"
  -
   description: "JSON_OBJECT"
   input: "JSON_OBJECT"
@@ -3325,18 +3352,46 @@
     signatures:
      - "(ANY) -> CHARACTERS"
  -
-  description: "JSON_OBJECTAGG"
-  input: "JSON_OBJECTAGG"
+  description: "JSON_OBJECTAGG_NULL_ON_NULL"
+  input: "JSON_OBJECTAGG_NULL_ON_NULL"
   output:
-    name: "JSON_OBJECTAGG"
+    name: "JSON_OBJECTAGG_NULL_ON_NULL"
     signatures:
      - "(CHARACTERS, ANY) -> CHARACTERS"
+ -
+  description: "JSON_PRETTY"
+  input: "JSON_PRETTY"
+  output:
+    name: "JSON_PRETTY"
+    signatures:
+     - "(ANY) -> CHARACTERS"
  -
   description: "JSON_QUERY"
   input: "JSON_QUERY"
   output:
     name: "JSON_QUERY"
     signatures: []
+ -
+  description: "JSON_REMOVE"
+  input: "JSON_REMOVE"
+  output:
+    name: "JSON_REMOVE"
+    signatures:
+     - "(ANY, CHARACTERS, CHARACTERS...) -> CHARACTERS"
+ -
+  description: "JSON_STORAGE_SIZE"
+  input: "JSON_STORAGE_SIZE"
+  output:
+    name: "JSON_STORAGE_SIZE"
+    signatures:
+     - "(ANY) -> INT"
+ -
+  description: "JSON_TYPE"
+  input: "JSON_TYPE"
+  output:
+    name: "JSON_TYPE"
+    signatures:
+     - "(ANY) -> CHARACTERS"
  -
   description: "JSON_VALUE"
   input: "JSON_VALUE"
@@ -3427,15 +3482,13 @@
   output:
     name: "LAST_DAY"
     signatures:
-     - "(DATE) -> DATE"
-     - "(TIMESTAMP) -> DATE"
+     - "(DATEANDTIME) -> DATE"
  -
   description: "LAST_MATCHING_MAP_ENTRY_FOR_KEY"
   input: "LAST_MATCHING_MAP_ENTRY_FOR_KEY"
   output:
     name: "LAST_MATCHING_MAP_ENTRY_FOR_KEY"
-    signatures:
-     - "(ANY, ANY) -> ANY"
+    signatures: []
  -
   description: "LAST_QUERY_ID"
   input: "LAST_QUERY_ID"

@@ -18,7 +18,8 @@ package com.dremio.sabot.op.join.vhash.spill.list;
 /**
  * Array-like view for all entries in the list.
  *
- * Since this is used in perf sensitive code paths, we avoid creating objects (and hence, avoid heap churn).
+ * <p>Since this is used in perf sensitive code paths, we avoid creating objects (and hence, avoid
+ * heap churn).
  */
 public interface ArrayOfEntriesView {
   // Get the first valid index.

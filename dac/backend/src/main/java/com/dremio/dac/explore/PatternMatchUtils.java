@@ -17,16 +17,13 @@ package com.dremio.dac.explore;
 
 import static java.lang.String.format;
 
+import com.dremio.dac.proto.model.dataset.IndexType;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.dremio.dac.proto.model.dataset.IndexType;
-
-/**
- * Contains utility classes and methods for pattern matching purposes.
- */
+/** Contains utility classes and methods for pattern matching purposes. */
 public class PatternMatchUtils {
 
   public static List<Match> findMatches(Matcher matcher, String matchee, IndexType type) {
@@ -57,7 +54,6 @@ public class PatternMatchUtils {
   }
 
   /**
-   *
    * @param matcher
    * @param i group index starting at 0
    * @return
@@ -93,26 +89,29 @@ public class PatternMatchUtils {
     }
   }
 
-  /**
-   * An extract match
-   */
+  /** An extract match */
   public static class Match {
     private final int start;
     private final int end;
+
     public Match(int start, int end) {
       super();
       this.start = start;
       this.end = end;
     }
+
     public int start() {
       return start;
     }
+
     public int end() {
       return end;
     }
+
     public int length() {
       return end - start;
     }
+
     @Override
     public String toString() {
       return format("Match(%s, %s)", start, end);

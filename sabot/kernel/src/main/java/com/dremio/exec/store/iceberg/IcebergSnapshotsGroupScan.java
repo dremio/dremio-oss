@@ -15,10 +15,6 @@
  */
 package com.dremio.exec.store.iceberg;
 
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
@@ -34,10 +30,11 @@ import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.store.SplitWork;
 import com.dremio.service.namespace.PartitionChunkMetadata;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
 
-/**
- * Iceberg snapshots group scan
- */
+/** Iceberg snapshots group scan */
 public class IcebergSnapshotsGroupScan extends AbstractBase implements GroupScan<SplitWork> {
   private final SnapshotsScanOptions snapshotsScanOptions;
   private final List<SchemaPath> columns;
@@ -45,9 +42,13 @@ public class IcebergSnapshotsGroupScan extends AbstractBase implements GroupScan
   private final Iterator<PartitionChunkMetadata> splits;
   private final int maxParallelizationWidth;
 
-  public IcebergSnapshotsGroupScan(OpProps props, StoragePluginId storagePluginId,
-                                   List<SchemaPath> columns, SnapshotsScanOptions snapshotsScanOptions,
-                                   Iterator<PartitionChunkMetadata> splits, int maxParallelizationWidth) {
+  public IcebergSnapshotsGroupScan(
+      OpProps props,
+      StoragePluginId storagePluginId,
+      List<SchemaPath> columns,
+      SnapshotsScanOptions snapshotsScanOptions,
+      Iterator<PartitionChunkMetadata> splits,
+      int maxParallelizationWidth) {
     super(props);
     this.snapshotsScanOptions = snapshotsScanOptions;
     this.columns = columns;
@@ -68,16 +69,22 @@ public class IcebergSnapshotsGroupScan extends AbstractBase implements GroupScan
 
   @Override
   public DistributionAffinity getDistributionAffinity() {
-    return storagePluginId.getCapabilities().getCapability(SourceCapabilities.REQUIRES_HARD_AFFINITY) ? DistributionAffinity.HARD : DistributionAffinity.SOFT;
+    return storagePluginId
+            .getCapabilities()
+            .getCapability(SourceCapabilities.REQUIRES_HARD_AFFINITY)
+        ? DistributionAffinity.HARD
+        : DistributionAffinity.SOFT;
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value) throws E {
+  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value)
+      throws E {
     return physicalVisitor.visitGroupScan(this, value);
   }
 
   @Override
-  public PhysicalOperator getNewWithChildren(List<PhysicalOperator> children) throws ExecutionSetupException {
+  public PhysicalOperator getNewWithChildren(List<PhysicalOperator> children)
+      throws ExecutionSetupException {
     return this;
   }
 
@@ -94,12 +101,7 @@ public class IcebergSnapshotsGroupScan extends AbstractBase implements GroupScan
   @Override
   public SubScan getSpecificScan(List<SplitWork> works) throws ExecutionSetupException {
     return new IcebergSnapshotsSubScan(
-      props,
-      props.getSchema(),
-      storagePluginId,
-      columns,
-      snapshotsScanOptions,
-      works);
+        props, props.getSchema(), storagePluginId, columns, snapshotsScanOptions, works);
   }
 
   @Override

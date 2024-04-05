@@ -15,9 +15,7 @@
  */
 package com.dremio.sabot.op.join.vhash.spill;
 
-/**
- * Releaser for memory that also yields frequently.
- */
+/** Releaser for memory that also yields frequently. */
 public interface MemoryReleaser extends YieldingRunnable {
   /**
    * Returns the currently held memory size in bytes.

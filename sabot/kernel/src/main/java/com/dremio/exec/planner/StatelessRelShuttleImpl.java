@@ -15,22 +15,20 @@
  */
 package com.dremio.exec.planner;
 
+import com.google.common.base.Predicate;
+import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
-
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelShuttleImpl;
 
-import com.google.common.base.Predicate;
-import com.google.common.collect.ImmutableList;
-
 /**
- * RelShuttleImpl that overrides the visitChild().  In Calcite, RelShuttleImpl has a stack, which
- * is used when visitChild() is called.  We do not want our RelShuttleImpl to be stateful as we want
+ * RelShuttleImpl that overrides the visitChild(). In Calcite, RelShuttleImpl has a stack, which is
+ * used when visitChild() is called. We do not want our RelShuttleImpl to be stateful as we want
  * static instances to be used.
  */
-@SuppressWarnings("checkstyle:regexpsinglelinejava")
+@SuppressWarnings("checkstyle:prefer-StatelessRelShuttleImpl")
 public class StatelessRelShuttleImpl extends RelShuttleImpl {
   @Override
   protected RelNode visitChild(RelNode parent, int i, RelNode child) {
@@ -45,17 +43,17 @@ public class StatelessRelShuttleImpl extends RelShuttleImpl {
 
   public static Stream<RelNode> find(RelNode target, Predicate<RelNode> predicate) {
     List<RelNode> items = new ArrayList<>();
-    target.accept(new StatelessRelShuttleImpl() {
+    target.accept(
+        new StatelessRelShuttleImpl() {
 
-      @Override
-      public RelNode visit(RelNode other) {
-        if(predicate.apply(other)) {
-          items.add(other);
-        }
-        return super.visit(other);
-      }
-
-    });
+          @Override
+          public RelNode visit(RelNode other) {
+            if (predicate.apply(other)) {
+              items.add(other);
+            }
+            return super.visit(other);
+          }
+        });
     return ImmutableList.copyOf(items).stream();
   }
 }

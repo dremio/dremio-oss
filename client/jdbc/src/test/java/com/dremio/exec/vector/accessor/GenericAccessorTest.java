@@ -23,15 +23,14 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.dremio.exec.expr.TypeHelper;
+import com.dremio.exec.proto.UserBitShared;
 import org.apache.arrow.vector.ValueVector;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-
-import com.dremio.exec.expr.TypeHelper;
-import com.dremio.exec.proto.UserBitShared;
 
 @Ignore("getMetadata method was removed, cannot mock")
 public class GenericAccessorTest {
@@ -45,33 +44,37 @@ public class GenericAccessorTest {
   @Before
   public void setUp() throws Exception {
     valueVector = mock(ValueVector.class);
-    when(valueVector.getObject(anyInt())).thenAnswer(new Answer<Object>() {
+    when(valueVector.getObject(anyInt()))
+        .thenAnswer(
+            new Answer<Object>() {
 
-      @Override
-      public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-        Object[] args = invocationOnMock.getArguments();
-        Integer index = (Integer) args[0];
-        if(index == 0) {
-          return NON_NULL_VALUE;
-        }
-        if(index == 1) {
-          return null;
-        }
-        throw new IndexOutOfBoundsException("Index out of bounds");
-      }
-    });
-    when(valueVector.isNull(anyInt())).thenAnswer(new Answer<Object>() {
+              @Override
+              public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+                Object[] args = invocationOnMock.getArguments();
+                Integer index = (Integer) args[0];
+                if (index == 0) {
+                  return NON_NULL_VALUE;
+                }
+                if (index == 1) {
+                  return null;
+                }
+                throw new IndexOutOfBoundsException("Index out of bounds");
+              }
+            });
+    when(valueVector.isNull(anyInt()))
+        .thenAnswer(
+            new Answer<Object>() {
 
-      @Override
-      public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-        Object[] args = invocationOnMock.getArguments();
-        Integer index = (Integer) args[0];
-        if(index == 0) {
-          return false;
-        }
-        return true;
-      }
-    });
+              @Override
+              public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+                Object[] args = invocationOnMock.getArguments();
+                Integer index = (Integer) args[0];
+                if (index == 0) {
+                  return false;
+                }
+                return true;
+              }
+            });
 
     metadata = UserBitShared.SerializedField.getDefaultInstance();
     when(TypeHelper.getMetadata(valueVector)).thenReturn(metadata);
@@ -91,13 +94,15 @@ public class GenericAccessorTest {
     assertNull(genericAccessor.getObject(1));
   }
 
-  @Test(expected=IndexOutOfBoundsException.class)
+  @Test(expected = IndexOutOfBoundsException.class)
   public void testGetObject_indexOutOfBounds() throws Exception {
     genericAccessor.getObject(2);
   }
 
   @Test
   public void testGetType() throws Exception {
-    assertEquals(UserBitShared.SerializedField.getDefaultInstance().getMajorType(), genericAccessor.getType());
+    assertEquals(
+        UserBitShared.SerializedField.getDefaultInstance().getMajorType(),
+        genericAccessor.getType());
   }
 }

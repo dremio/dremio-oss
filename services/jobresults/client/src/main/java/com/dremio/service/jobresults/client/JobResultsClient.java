@@ -17,9 +17,7 @@ package com.dremio.service.jobresults.client;
 
 import com.dremio.services.jobresults.common.JobResultsTunnel;
 
-/**
- * Client Interface to JobResults Service
- */
+/** Client Interface to JobResults Service */
 public interface JobResultsClient {
   JobResultsTunnel getTunnel();
 }

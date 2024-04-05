@@ -15,12 +15,11 @@
  */
 package com.dremio.exec.physical.base;
 
-import java.util.Collection;
-import java.util.List;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.record.BatchSchema;
 import com.google.common.collect.ImmutableList;
+import java.util.Collection;
+import java.util.List;
 
 public abstract class SubScanWithProjection extends AbstractSubScan {
   private List<SchemaPath> columns;
@@ -47,5 +46,4 @@ public abstract class SubScanWithProjection extends AbstractSubScan {
   public List<SchemaPath> getColumns() {
     return columns;
   }
-
 }

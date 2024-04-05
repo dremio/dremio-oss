@@ -15,11 +15,6 @@
  */
 package com.dremio.exec.catalog;
 
-
-import java.util.Iterator;
-import java.util.List;
-import java.util.Objects;
-
 import com.dremio.datastore.SearchTypes.SearchQuery;
 import com.dremio.exec.store.SplitsPointer;
 import com.dremio.service.namespace.LegacyPartitionChunkMetadata;
@@ -28,10 +23,11 @@ import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.PartitionChu
 import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Objects;
 
-/**
- * An immutable pointer to a set of splits. Already materialized
- */
+/** An immutable pointer to a set of splits. Already materialized */
 public final class MaterializedSplitsPointer extends AbstractSplitsPointer {
   private final long splitVersion;
   private final int totalSplitCount;
@@ -40,7 +36,8 @@ public final class MaterializedSplitsPointer extends AbstractSplitsPointer {
   // Caching hashcode because computation might be expensive
   private volatile Integer computedHashcode = null;
 
-  MaterializedSplitsPointer(long splitVersion, Iterable<PartitionChunkMetadata> partitionChunks, int totalSplitCount) {
+  MaterializedSplitsPointer(
+      long splitVersion, Iterable<PartitionChunkMetadata> partitionChunks, int totalSplitCount) {
     this.splitVersion = splitVersion;
     this.materializedPartitionChunks = ImmutableList.copyOf(partitionChunks);
     this.totalSplitCount = totalSplitCount;
@@ -48,25 +45,27 @@ public final class MaterializedSplitsPointer extends AbstractSplitsPointer {
 
   /**
    * Create a pointer to a fully materialized list of splits for the given table definition
+   *
    * @param config
    * @return
    */
-  public static SplitsPointer oldObsoleteOf(long splitVersion, Iterable<PartitionChunk> splits, int totalSplitCount) {
-    Iterable<PartitionChunkMetadata> partitionChunks = FluentIterable
-      .from(splits)
-      .transform(LegacyPartitionChunkMetadata::new);
+  public static SplitsPointer oldObsoleteOf(
+      long splitVersion, Iterable<PartitionChunk> splits, int totalSplitCount) {
+    Iterable<PartitionChunkMetadata> partitionChunks =
+        FluentIterable.from(splits).transform(LegacyPartitionChunkMetadata::new);
     return new MaterializedSplitsPointer(splitVersion, partitionChunks, totalSplitCount);
   }
 
-  public static SplitsPointer of(long splitVersion, Iterable<PartitionChunkMetadata> partitionChunks, int totalSplitCount) {
+  public static SplitsPointer of(
+      long splitVersion, Iterable<PartitionChunkMetadata> partitionChunks, int totalSplitCount) {
     return new MaterializedSplitsPointer(splitVersion, partitionChunks, totalSplitCount);
   }
 
-  /**
-   * Prune a pointer to a fully materialized list of splits for the given table definition
-   */
-  public static SplitsPointer prune(SplitsPointer pointer, Iterable<PartitionChunkMetadata> partitionChunks) {
-    return MaterializedSplitsPointer.of(pointer.getSplitVersion(), partitionChunks, pointer.getTotalSplitsCount());
+  /** Prune a pointer to a fully materialized list of splits for the given table definition */
+  public static SplitsPointer prune(
+      SplitsPointer pointer, Iterable<PartitionChunkMetadata> partitionChunks) {
+    return MaterializedSplitsPointer.of(
+        pointer.getSplitVersion(), partitionChunks, pointer.getTotalSplitsCount());
   }
 
   @Override
@@ -105,10 +104,11 @@ public final class MaterializedSplitsPointer extends AbstractSplitsPointer {
   @Override
   public int hashCode() {
     if (computedHashcode == null) {
-      computedHashcode = Long.hashCode(splitVersion) + 31 * (totalSplitCount + hashSplits(materializedPartitionChunks));
+      computedHashcode =
+          Long.hashCode(splitVersion)
+              + 31 * (totalSplitCount + hashSplits(materializedPartitionChunks));
     }
     return computedHashcode.intValue();
-
   }
 
   private static int hashSplits(List<PartitionChunkMetadata> partitionChunks) {
@@ -118,13 +118,16 @@ public final class MaterializedSplitsPointer extends AbstractSplitsPointer {
     // Note: splitVersion is not included in hash to not make code too complex
     // May create more collision but version only changes because of a concurrent refresh.
     for (PartitionChunkMetadata partitionChunk : partitionChunks) {
-      result = 31 * result + (partitionChunk == null ? 0 : Objects.hash(partitionChunk.getSplitKey()));
+      result =
+          31 * result + (partitionChunk == null ? 0 : Objects.hash(partitionChunk.getSplitKey()));
     }
 
     return result;
   }
 
-  private static boolean splitsEquals(List<PartitionChunkMetadata> thisPartitionChunks, List<PartitionChunkMetadata> thatPartitionChunks) {
+  private static boolean splitsEquals(
+      List<PartitionChunkMetadata> thisPartitionChunks,
+      List<PartitionChunkMetadata> thatPartitionChunks) {
     if (thisPartitionChunks.size() != thatPartitionChunks.size()) {
       return false;
     }
@@ -133,11 +136,12 @@ public final class MaterializedSplitsPointer extends AbstractSplitsPointer {
     Iterator<PartitionChunkMetadata> thatIterator = thatPartitionChunks.iterator();
 
     // Now assume that all splits have the same version for a given list.
-    while(thisIterator.hasNext() && thatIterator.hasNext()) {
+    while (thisIterator.hasNext() && thatIterator.hasNext()) {
       PartitionChunkMetadata thisPartitionChunk = thisIterator.next();
       PartitionChunkMetadata thatPartitionChunk = thatIterator.next();
 
-      boolean result = Objects.equals(thisPartitionChunk.getSplitKey(), thatPartitionChunk.getSplitKey());
+      boolean result =
+          Objects.equals(thisPartitionChunk.getSplitKey(), thatPartitionChunk.getSplitKey());
       if (!result) {
         // Exit early if not matching
         return false;

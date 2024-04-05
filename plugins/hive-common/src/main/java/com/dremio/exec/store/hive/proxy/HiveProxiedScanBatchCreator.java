@@ -15,18 +15,14 @@
  */
 package com.dremio.exec.store.hive.proxy;
 
-import java.util.List;
-
-import org.pf4j.ExtensionPoint;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.parquet.RecordReaderIterator;
 import com.dremio.sabot.op.spi.ProducerOperator;
+import java.util.List;
+import org.pf4j.ExtensionPoint;
 
-/**
- * Interface for creating ProducerOperators from a proxied Hive SubScan.
- */
+/** Interface for creating ProducerOperators from a proxied Hive SubScan. */
 @SuppressWarnings("unused")
 public interface HiveProxiedScanBatchCreator extends ExtensionPoint {
 

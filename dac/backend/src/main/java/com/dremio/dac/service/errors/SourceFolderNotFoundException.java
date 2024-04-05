@@ -19,16 +19,15 @@ import com.dremio.dac.model.folder.SourceFolderPath;
 import com.dremio.dac.model.folder.SourceFolderResourcePath;
 import com.dremio.dac.model.sources.SourceName;
 
-/**
- * Thrown when a file is not found in source.
- */
+/** Thrown when a file is not found in source. */
 public class SourceFolderNotFoundException extends NotFoundException {
   private static final long serialVersionUID = 1L;
 
   private final SourceFolderPath path;
   private final SourceName sourceName;
 
-  public SourceFolderNotFoundException(SourceName soureName, SourceFolderPath path, Exception error) {
+  public SourceFolderNotFoundException(
+      SourceName soureName, SourceFolderPath path, Exception error) {
     super(new SourceFolderResourcePath(soureName, path), "folder " + path.toPathString(), error);
     this.path = path;
     this.sourceName = soureName;

@@ -18,17 +18,7 @@ package com.dremio.exec.maestro;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import java.util.concurrent.TimeUnit;
-
-import org.apache.arrow.memory.OutOfMemoryException;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TestRule;
-
 import com.dremio.BaseTestQuery;
-import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserRemoteException;
 import com.dremio.common.util.TestTools;
@@ -44,29 +34,34 @@ import com.dremio.resource.basic.BasicResourceConstants;
 import com.dremio.resource.exception.ResourceUnavailableException;
 import com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggOperator;
 import com.dremio.sabot.rpc.user.AwaitableUserResultsListener;
+import java.util.concurrent.TimeUnit;
+import org.apache.arrow.memory.OutOfMemoryException;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.Ignore;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TestRule;
 
-/**
- * Tests failure scenarios in maestro and AttemptManager.
- */
+/** Tests failure scenarios in maestro and AttemptManager. */
+@Ignore(
+    "DX-87950: Tests should not rely on turning off dremio.execution.support_unlimited_split product keys")
 public class TestMaestroResiliency extends BaseTestQuery {
   private static final org.slf4j.Logger logger =
-    org.slf4j.LoggerFactory.getLogger(TestMaestroResiliency.class);
+      org.slf4j.LoggerFactory.getLogger(TestMaestroResiliency.class);
 
-  @Rule
-  public final TestRule timeoutRule = TestTools.getTimeoutRule(60, TimeUnit.SECONDS);
+  @Rule public final TestRule timeoutRule = TestTools.getTimeoutRule(60, TimeUnit.SECONDS);
 
   private static final int QUEUE_LIMIT = 2;
   private static final int NUM_NODES = 3;
   private static String query;
-  private static AutoCloseable disableUnlimitedSplits;
 
   @BeforeClass
   public static void setUp() throws Exception {
     updateTestCluster(NUM_NODES, null);
-    setSessionOption(BasicResourceConstants.SMALL_QUEUE_SIZE.getOptionName(),
-      Integer.toString(QUEUE_LIMIT));
+    setSessionOption(
+        BasicResourceConstants.SMALL_QUEUE_SIZE.getOptionName(), Integer.toString(QUEUE_LIMIT));
     setSessionOption("planner.slice_target", "10");
-    disableUnlimitedSplits = disableUnlimitedSplitsSupportFlags();
     query = getFile("queries/tpch/01.sql");
   }
 
@@ -74,7 +69,6 @@ public class TestMaestroResiliency extends BaseTestQuery {
   public static void tearDown() throws Exception {
     resetSessionOption("planner.slice_target");
     resetSessionOption(BasicResourceConstants.SMALL_QUEUE_SIZE.getOptionName());
-    AutoCloseables.close(disableUnlimitedSplits);
   }
 
   // Test with 1 more than the queue limit. If the semaphore isn't released correctly,
@@ -102,7 +96,11 @@ public class TestMaestroResiliency extends BaseTestQuery {
   }
 
   private long getForemenCount() {
-    return nodes[0].getBindingProvider().provider(ForemenWorkManager.class).get().getActiveQueryCount();
+    return nodes[0]
+        .getBindingProvider()
+        .provider(ForemenWorkManager.class)
+        .get()
+        .getActiveQueryCount();
   }
 
   private long getMaestroTrackerCount() {
@@ -111,80 +109,100 @@ public class TestMaestroResiliency extends BaseTestQuery {
 
   @Test
   public void testFailureInAttemptManagerConstructor() throws Exception {
-    final String controls = Controls.newBuilder()
-      .addException(AttemptManager.class, AttemptManager.INJECTOR_CONSTRUCTOR_ERROR,
-        RuntimeException.class)
-      .build();
+    final String controls =
+        Controls.newBuilder()
+            .addException(
+                AttemptManager.class,
+                AttemptManager.INJECTOR_CONSTRUCTOR_ERROR,
+                RuntimeException.class)
+            .build();
 
     runMultiple(controls, AttemptManager.INJECTOR_CONSTRUCTOR_ERROR);
   }
 
   @Test
   public void testFailureInAttemptManagerBegin() throws Exception {
-    final String controls = Controls.newBuilder()
-      .addException(AttemptManager.class, AttemptManager.INJECTOR_TRY_BEGINNING_ERROR,
-        ForemanException.class)
-      .build();
+    final String controls =
+        Controls.newBuilder()
+            .addException(
+                AttemptManager.class,
+                AttemptManager.INJECTOR_TRY_BEGINNING_ERROR,
+                ForemanException.class)
+            .build();
 
     runMultiple(controls, AttemptManager.INJECTOR_TRY_BEGINNING_ERROR);
   }
 
   @Test
   public void testFailureInAttemptManagerEnd() throws Exception {
-    final String controls = Controls.newBuilder()
-      .addException(AttemptManager.class, AttemptManager.INJECTOR_TRY_END_ERROR,
-        ForemanException.class)
-      .build();
+    final String controls =
+        Controls.newBuilder()
+            .addException(
+                AttemptManager.class, AttemptManager.INJECTOR_TRY_END_ERROR, ForemanException.class)
+            .build();
 
     runMultiple(controls, AttemptManager.INJECTOR_TRY_END_ERROR);
   }
 
   @Test
   public void testFailureInAttemptManagerPlanning() throws Exception {
-    final String controls = Controls.newBuilder()
-      .addException(AttemptManager.class, AttemptManager.INJECTOR_PLAN_ERROR,
-        ForemanException.class)
-      .build();
+    final String controls =
+        Controls.newBuilder()
+            .addException(
+                AttemptManager.class, AttemptManager.INJECTOR_PLAN_ERROR, ForemanException.class)
+            .build();
 
     runMultiple(controls, AttemptManager.INJECTOR_PLAN_ERROR);
   }
 
   @Test
   public void testFailureInMaestroQueryBegin() throws Exception {
-    final String controls = Controls.newBuilder()
-      .addException(MaestroServiceImpl.class, MaestroServiceImpl.INJECTOR_EXECUTE_QUERY_BEGIN_ERROR,
-        ExecutionSetupException.class)
-      .build();
+    final String controls =
+        Controls.newBuilder()
+            .addException(
+                MaestroServiceImpl.class,
+                MaestroServiceImpl.INJECTOR_EXECUTE_QUERY_BEGIN_ERROR,
+                ExecutionSetupException.class)
+            .build();
 
     runMultiple(controls, MaestroServiceImpl.INJECTOR_EXECUTE_QUERY_BEGIN_ERROR);
   }
 
   @Test
   public void testFailureInMaestroQueryEnd() throws Exception {
-    final String controls = Controls.newBuilder()
-      .addException(MaestroServiceImpl.class, MaestroServiceImpl.INJECTOR_EXECUTE_QUERY_END_ERROR,
-        ExecutionSetupException.class)
-      .build();
+    final String controls =
+        Controls.newBuilder()
+            .addException(
+                MaestroServiceImpl.class,
+                MaestroServiceImpl.INJECTOR_EXECUTE_QUERY_END_ERROR,
+                ExecutionSetupException.class)
+            .build();
 
     runMultiple(controls, MaestroServiceImpl.INJECTOR_EXECUTE_QUERY_END_ERROR);
   }
 
   @Test
   public void testFailureInMaestroCommandPoolSubmit() throws Exception {
-    final String controls = Controls.newBuilder()
-      .addException(MaestroServiceImpl.class, MaestroServiceImpl.INJECTOR_COMMAND_POOL_SUBMIT_ERROR,
-        ExecutionSetupException.class)
-      .build();
+    final String controls =
+        Controls.newBuilder()
+            .addException(
+                MaestroServiceImpl.class,
+                MaestroServiceImpl.INJECTOR_COMMAND_POOL_SUBMIT_ERROR,
+                ExecutionSetupException.class)
+            .build();
 
     runMultiple(controls, MaestroServiceImpl.INJECTOR_COMMAND_POOL_SUBMIT_ERROR);
   }
 
   @Test
   public void testFailureInResourceAllocation() throws Exception {
-    final String controls = Controls.newBuilder()
-      .addException(ResourceTracker.class, ResourceTracker.INJECTOR_RESOURCE_ALLOCATE_ERROR,
-        IllegalStateException.class)
-      .build();
+    final String controls =
+        Controls.newBuilder()
+            .addException(
+                ResourceTracker.class,
+                ResourceTracker.INJECTOR_RESOURCE_ALLOCATE_ERROR,
+                IllegalStateException.class)
+            .build();
 
     runMultiple(controls, ResourceTracker.INJECTOR_RESOURCE_ALLOCATE_ERROR);
   }
@@ -192,81 +210,97 @@ public class TestMaestroResiliency extends BaseTestQuery {
   // Same as testFailureInResourceAllocation, but different exception.
   @Test
   public void testUnavailableFailureInResourceAllocation() throws Exception {
-    final String controls = Controls.newBuilder()
-      .addException(ResourceTracker.class, ResourceTracker.INJECTOR_RESOURCE_ALLOCATE_UNAVAILABLE_ERROR,
-        ResourceUnavailableException.class)
-      .build();
+    final String controls =
+        Controls.newBuilder()
+            .addException(
+                ResourceTracker.class,
+                ResourceTracker.INJECTOR_RESOURCE_ALLOCATE_UNAVAILABLE_ERROR,
+                ResourceUnavailableException.class)
+            .build();
 
     runMultiple(controls, ResourceTracker.INJECTOR_RESOURCE_ALLOCATE_UNAVAILABLE_ERROR);
   }
 
   @Test
   public void testFailureInExecutionPlanning() throws Exception {
-    final String controls = Controls.newBuilder()
-      .addException(QueryTrackerImpl.class, QueryTrackerImpl.INJECTOR_EXECUTION_PLANNING_ERROR,
-        ExecutionSetupException.class)
-      .build();
+    final String controls =
+        Controls.newBuilder()
+            .addException(
+                QueryTrackerImpl.class,
+                QueryTrackerImpl.INJECTOR_EXECUTION_PLANNING_ERROR,
+                ExecutionSetupException.class)
+            .build();
 
     runMultiple(controls, QueryTrackerImpl.INJECTOR_EXECUTION_PLANNING_ERROR);
   }
 
   @Test
   public void testFailureBeforeStartFragments() throws Exception {
-    final String controls = Controls.newBuilder()
-      .addException(FragmentStarter.class,
-        FragmentStarter.INJECTOR_BEFORE_START_FRAGMENTS_ERROR,
-        IllegalStateException.class)
-      .build();
+    final String controls =
+        Controls.newBuilder()
+            .addException(
+                FragmentStarter.class,
+                FragmentStarter.INJECTOR_BEFORE_START_FRAGMENTS_ERROR,
+                IllegalStateException.class)
+            .build();
 
     runMultiple(controls, FragmentStarter.INJECTOR_BEFORE_START_FRAGMENTS_ERROR);
   }
 
   @Test
   public void testFailureAfterStartFragments() throws Exception {
-    final String controls = Controls.newBuilder()
-      .addException(FragmentStarter.class,
-        FragmentStarter.INJECTOR_AFTER_START_FRAGMENTS_ERROR,
-        IllegalStateException.class)
-      .build();
+    final String controls =
+        Controls.newBuilder()
+            .addException(
+                FragmentStarter.class,
+                FragmentStarter.INJECTOR_AFTER_START_FRAGMENTS_ERROR,
+                IllegalStateException.class)
+            .build();
 
     runMultiple(controls, FragmentStarter.INJECTOR_AFTER_START_FRAGMENTS_ERROR);
   }
 
   @Test
   public void testFailureBeforeActivateFragments() throws Exception {
-    final String controls = Controls.newBuilder()
-      .addException(FragmentStarter.class,
-        FragmentStarter.INJECTOR_BEFORE_ACTIVATE_FRAGMENTS_ERROR,
-        IllegalStateException.class)
-      .build();
+    final String controls =
+        Controls.newBuilder()
+            .addException(
+                FragmentStarter.class,
+                FragmentStarter.INJECTOR_BEFORE_ACTIVATE_FRAGMENTS_ERROR,
+                IllegalStateException.class)
+            .build();
 
     runMultiple(controls, FragmentStarter.INJECTOR_BEFORE_ACTIVATE_FRAGMENTS_ERROR);
   }
 
   @Test
   public void testFragmentStarterTimeout() throws Exception {
-    setSystemOption(ExecConstants.FRAGMENT_STARTER_TIMEOUT,"50000");
-    pauseAndResume(FragmentStarter.class,FragmentStarter.INJECTOR_AFTER_ON_COMPLETED_PAUSE,40000);
+    setSystemOption(ExecConstants.FRAGMENT_STARTER_TIMEOUT, "50000");
+    pauseAndResume(FragmentStarter.class, FragmentStarter.INJECTOR_AFTER_ON_COMPLETED_PAUSE, 40000);
   }
-
 
   @Test
   public void testFailureAfterActivateFragments() throws Exception {
-    final String controls = Controls.newBuilder()
-      .addException(FragmentStarter.class,
-        FragmentStarter.INJECTOR_AFTER_ACTIVATE_FRAGMENTS_ERROR,
-        IllegalStateException.class)
-      .build();
+    final String controls =
+        Controls.newBuilder()
+            .addException(
+                FragmentStarter.class,
+                FragmentStarter.INJECTOR_AFTER_ACTIVATE_FRAGMENTS_ERROR,
+                IllegalStateException.class)
+            .build();
 
     runMultiple(controls, FragmentStarter.INJECTOR_AFTER_ACTIVATE_FRAGMENTS_ERROR);
   }
 
   @Test
   public void testFailureInExecutor() throws Exception {
-    final String controls = Controls.newBuilder()
-      .addException(VectorizedHashAggOperator.class, VectorizedHashAggOperator.INJECTOR_SETUP_OOM_ERROR,
-        OutOfMemoryException.class)
-      .build();
+    final String controls =
+        Controls.newBuilder()
+            .addException(
+                VectorizedHashAggOperator.class,
+                VectorizedHashAggOperator.INJECTOR_SETUP_OOM_ERROR,
+                OutOfMemoryException.class)
+            .build();
 
     runMultiple(controls, VectorizedHashAggOperator.INJECTOR_SETUP_OOM_ERROR);
   }
@@ -274,10 +308,13 @@ public class TestMaestroResiliency extends BaseTestQuery {
   // the msg should be retried, and should succeed on retry.
   @Test
   public void testFailureInNodeCompletion() throws Exception {
-    final String controls = Controls.newBuilder()
-      .addException(QueryTrackerImpl.class, QueryTrackerImpl.INJECTOR_NODE_COMPLETION_ERROR,
-        RpcException.class)
-      .build();
+    final String controls =
+        Controls.newBuilder()
+            .addException(
+                QueryTrackerImpl.class,
+                QueryTrackerImpl.INJECTOR_NODE_COMPLETION_ERROR,
+                RpcException.class)
+            .build();
 
     for (int i = 0; i < QUEUE_LIMIT + 1; ++i) {
       ControlsInjectionUtil.setControls(client, controls);
@@ -288,13 +325,12 @@ public class TestMaestroResiliency extends BaseTestQuery {
 
   // pause the test using execution controls, cancel and resume it.
   void pauseCancelAndResume(Class clazz, String descriptor) throws Exception {
-    final String controls = Controls.newBuilder()
-      .addPause(clazz, descriptor)
-      .build();
+    final String controls = Controls.newBuilder().addPause(clazz, descriptor).build();
 
     ControlsInjectionUtil.setControls(client, controls);
     QueryIdCapturingListener capturingListener = new QueryIdCapturingListener();
-    final AwaitableUserResultsListener listener = new AwaitableUserResultsListener(capturingListener);
+    final AwaitableUserResultsListener listener =
+        new AwaitableUserResultsListener(capturingListener);
     testWithListener(UserBitShared.QueryType.SQL, query, listener);
 
     // wait till we have a queryId
@@ -323,13 +359,12 @@ public class TestMaestroResiliency extends BaseTestQuery {
   }
 
   void pauseAndResume(Class clazz, String descriptor, int delayInMilliSeconds) throws Exception {
-    final String controls = Controls.newBuilder()
-      .addPause(clazz, descriptor)
-      .build();
+    final String controls = Controls.newBuilder().addPause(clazz, descriptor).build();
 
     ControlsInjectionUtil.setControls(client, controls);
     QueryIdCapturingListener capturingListener = new QueryIdCapturingListener();
-    final AwaitableUserResultsListener listener = new AwaitableUserResultsListener(capturingListener);
+    final AwaitableUserResultsListener listener =
+        new AwaitableUserResultsListener(capturingListener);
     testWithListener(UserBitShared.QueryType.SQL, query, listener);
 
     // wait till we have a queryId
@@ -344,7 +379,6 @@ public class TestMaestroResiliency extends BaseTestQuery {
     client.resumeQuery(queryId);
 
     listener.await();
-
   }
 
   @Test
@@ -359,16 +393,19 @@ public class TestMaestroResiliency extends BaseTestQuery {
 
   @Test
   public void testCancelDuringExecutionPlanning() throws Exception {
-    pauseCancelAndResume(QueryTrackerImpl.class, QueryTrackerImpl.INJECTOR_EXECUTION_PLANNING_PAUSE);
+    pauseCancelAndResume(
+        QueryTrackerImpl.class, QueryTrackerImpl.INJECTOR_EXECUTION_PLANNING_PAUSE);
   }
 
   @Test
   public void testCancelDuringFragmentStart() throws Exception {
-    pauseCancelAndResume(FragmentStarter.class, FragmentStarter.INJECTOR_BEFORE_START_FRAGMENTS_PAUSE);
+    pauseCancelAndResume(
+        FragmentStarter.class, FragmentStarter.INJECTOR_BEFORE_START_FRAGMENTS_PAUSE);
   }
 
   @Test
   public void testCancelDuringFragmentActivate() throws Exception {
-    pauseCancelAndResume(FragmentStarter.class, FragmentStarter.INJECTOR_BEFORE_ACTIVATE_FRAGMENTS_PAUSE);
+    pauseCancelAndResume(
+        FragmentStarter.class, FragmentStarter.INJECTOR_BEFORE_ACTIVATE_FRAGMENTS_PAUSE);
   }
 }

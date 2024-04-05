@@ -15,49 +15,51 @@
  */
 package com.dremio.exec.sql;
 
+import com.dremio.BaseTestQuery;
 import org.junit.Ignore;
 import org.junit.Test;
-
-import com.dremio.BaseTestQuery;
 
 public class TestWithClause extends BaseTestQuery {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestWithClause.class);
 
   @Test
   public void withClause() throws Exception {
-    test("with alpha as (SELECT * FROM INFORMATION_SCHEMA.CATALOGS where CATALOG_NAME = 'DREMIO') \n" +
-        "\n" +
-        "select * from alpha");
+    test(
+        "with alpha as (SELECT * FROM INFORMATION_SCHEMA.CATALOGS where CATALOG_NAME = 'DREMIO') \n"
+            + "\n"
+            + "select * from alpha");
   }
 
   @Test
   @Ignore
   public void withClauseWithAliases() throws Exception {
-    test("with alpha (x,y) as (SELECT CATALOG_NAME, CATALOG_DESCRIPTION FROM INFORMATION_SCHEMA.CATALOGS where CATALOG_NAME = 'DREMIO') \n" +
-        "\n" +
-        "select x, y from alpha");
+    test(
+        "with alpha (x,y) as (SELECT CATALOG_NAME, CATALOG_DESCRIPTION FROM INFORMATION_SCHEMA.CATALOGS where CATALOG_NAME = 'DREMIO') \n"
+            + "\n"
+            + "select x, y from alpha");
   }
 
   @Test // DRILL-2318
   public void withClauseOrderBy() throws Exception {
-    String query = "WITH x \n" +
-        "AS (SELECT n_nationkey a1 \n" +
-        "FROM  cp.\"tpch/nation.parquet\") \n" +
-        "SELECT  x.a1 \n" +
-        "FROM  x \n" +
-        "ORDER BY x.a1 \n" +
-        "limit 5";
+    String query =
+        "WITH x \n"
+            + "AS (SELECT n_nationkey a1 \n"
+            + "FROM  cp.\"tpch/nation.parquet\") \n"
+            + "SELECT  x.a1 \n"
+            + "FROM  x \n"
+            + "ORDER BY x.a1 \n"
+            + "limit 5";
 
     testBuilder()
-      .sqlQuery(query)
-      .ordered()
-      .baselineColumns("a1")
-      .baselineValues(0)
-      .baselineValues(1)
-      .baselineValues(2)
-      .baselineValues(3)
-      .baselineValues(4)
-      .build()
-      .run();
+        .sqlQuery(query)
+        .ordered()
+        .baselineColumns("a1")
+        .baselineValues(0)
+        .baselineValues(1)
+        .baselineValues(2)
+        .baselineValues(3)
+        .baselineValues(4)
+        .build()
+        .run();
   }
 }

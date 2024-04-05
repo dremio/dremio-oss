@@ -15,30 +15,29 @@
  */
 package com.dremio.exec.store.metadatarefresh.dirlisting;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
-
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.iceberg.PartitionSpec;
-import org.apache.iceberg.Schema;
-
 import com.dremio.common.expression.CompleteType;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.iceberg.IcebergPartitionData;
 import com.dremio.exec.store.iceberg.SchemaConverter;
 import com.dremio.io.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.Schema;
 
 /**
- * Class responsible for parsing paths to valid partitions. When inferPartitions is false, implicit partition column
- * names like dir0, dir1 and so on are used in the partition data returned by this class.
-*/
+ * Class responsible for parsing paths to valid partitions. When inferPartitions is false, implicit
+ * partition column names like dir0, dir1 and so on are used in the partition data returned by this
+ * class.
+ */
 public class PartitionParser {
 
   protected final Path rootPath;
 
   public static PartitionParser getInstance(Path rootPath, boolean inferPartitions) {
-    if(inferPartitions) {
+    if (inferPartitions) {
       return new InferredPartitionParser(rootPath);
     }
     return new PartitionParser(rootPath);
@@ -49,25 +48,33 @@ public class PartitionParser {
   }
 
   public IcebergPartitionData parsePartitionToPath(Path path) {
-    String[] dirs = Path.withoutSchemeAndAuthority(rootPath).relativize(Path.withoutSchemeAndAuthority(path)).toString().split(Path.SEPARATOR);
+    String[] dirs =
+        Path.withoutSchemeAndAuthority(rootPath)
+            .relativize(Path.withoutSchemeAndAuthority(path))
+            .toString()
+            .split(Path.SEPARATOR);
     return buildIcebergPartitionData(dirs, new ArrayList<>(), new ArrayList<>());
   }
 
-  protected IcebergPartitionData buildIcebergPartitionData(String[] dirs, List<String> additionalNames, List<String> additionalValues) {
-    PartitionSpec.Builder partitionSpecBuilder = PartitionSpec
-      .builderFor(buildIcebergSchema(additionalNames, dirs.length - 1));
+  protected IcebergPartitionData buildIcebergPartitionData(
+      String[] dirs, List<String> additionalNames, List<String> additionalValues) {
+    PartitionSpec.Builder partitionSpecBuilder =
+        PartitionSpec.builderFor(buildIcebergSchema(additionalNames, dirs.length - 1));
 
     additionalNames.stream().forEach(x -> partitionSpecBuilder.identity(x));
-    for(int j = 0; j < dirs.length - 1; j++) {
+    for (int j = 0; j < dirs.length - 1; j++) {
       partitionSpecBuilder.identity("dir" + j);
     }
-    IcebergPartitionData icebergPartitionData = new IcebergPartitionData(partitionSpecBuilder.build().partitionType());
+    IcebergPartitionData icebergPartitionData =
+        new IcebergPartitionData(partitionSpecBuilder.build().partitionType());
 
     AtomicInteger i = new AtomicInteger();
-    additionalValues.stream().forEach(x -> {
-      icebergPartitionData.setString(i.getAndIncrement(), x);
-    });
-    for(int j = 0; j < dirs.length - 1; j++) {
+    additionalValues.stream()
+        .forEach(
+            x -> {
+              icebergPartitionData.setString(i.getAndIncrement(), x);
+            });
+    for (int j = 0; j < dirs.length - 1; j++) {
       icebergPartitionData.setString(i.get(), dirs[j]);
       i.incrementAndGet();
     }
@@ -79,12 +86,12 @@ public class PartitionParser {
     Field[] fields = new Field[names.size() + levels];
 
     int i = 0;
-    for(String name : names) {
+    for (String name : names) {
       fields[i] = CompleteType.VARCHAR.toField(name);
       i++;
     }
 
-    for(int j = 0; j < levels; j++) {
+    for (int j = 0; j < levels; j++) {
       fields[names.size() + j] = CompleteType.VARCHAR.toField("dir" + j);
     }
 

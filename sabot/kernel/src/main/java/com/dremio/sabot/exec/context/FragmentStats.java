@@ -17,13 +17,6 @@ package com.dremio.sabot.exec.context;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
-import java.util.Collections;
-import java.util.EnumMap;
-import java.util.List;
-import java.util.Map;
-
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.UserBitShared.BlockedResourceDuration;
@@ -31,10 +24,13 @@ import com.dremio.exec.proto.UserBitShared.MinorFragmentProfile;
 import com.dremio.sabot.threads.sharedres.SharedResourceType;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Lists;
+import java.util.Collections;
+import java.util.EnumMap;
+import java.util.List;
+import java.util.Map;
+import org.apache.arrow.memory.BufferAllocator;
 
-/**
- * Holds statistics of a particular (minor) fragment.
- */
+/** Holds statistics of a particular (minor) fragment. */
 public class FragmentStats {
   private static final long MIN_RUNTIME_THRESHOLD = MILLISECONDS.toNanos(20);
   private static final long MAX_RUNTIME_THRESHOLD = MILLISECONDS.toNanos(200);
@@ -58,6 +54,9 @@ public class FragmentStats {
   private long numShortSlices;
   private long numLongSlices;
   private long numInRunQ;
+  private long recentSliceStartTime;
+  private long lastSliceStartTime;
+  private long cancelStartTime;
 
   private final Stopwatch runWatch = Stopwatch.createUnstarted();
   private final Stopwatch setupWatch = Stopwatch.createUnstarted();
@@ -67,12 +66,18 @@ public class FragmentStats {
 
   private boolean notStartedYet = true;
 
-  public FragmentStats(BufferAllocator allocator, FragmentHandle handle, NodeEndpoint endpoint, long warnIOTimeThreshold) {
+  public FragmentStats(
+      BufferAllocator allocator,
+      FragmentHandle handle,
+      NodeEndpoint endpoint,
+      long warnIOTimeThreshold) {
     this.startTime = System.currentTimeMillis();
     this.handle = handle;
     this.endpoint = endpoint;
     this.allocator = allocator;
-    this.perResourceBlockedDurations = Collections.synchronizedMap(new EnumMap<SharedResourceType, Long>(SharedResourceType.class));
+    this.perResourceBlockedDurations =
+        Collections.synchronizedMap(
+            new EnumMap<SharedResourceType, Long>(SharedResourceType.class));
     this.warnIOTimeThreshold = warnIOTimeThreshold;
   }
 
@@ -87,26 +92,33 @@ public class FragmentStats {
       prfB.addOperatorProfile(o.getProfile(true));
     }
     prfB.setSleepingDuration(sleepingDuration);
-    prfB.setBlockedDuration(blockedOnUpstreamDuration + blockedOnDownstreamDuration + blockedOnSharedResourceDuration + blockedOnMemoryDuration);
+    prfB.setBlockedDuration(
+        blockedOnUpstreamDuration
+            + blockedOnDownstreamDuration
+            + blockedOnSharedResourceDuration
+            + blockedOnMemoryDuration);
     prfB.setBlockedOnUpstreamDuration(blockedOnUpstreamDuration);
     prfB.setBlockedOnDownstreamDuration(blockedOnDownstreamDuration);
     prfB.setBlockedOnSharedResourceDuration(blockedOnSharedResourceDuration);
     prfB.setBlockedOnMemoryDuration(blockedOnMemoryDuration);
     for (Map.Entry<SharedResourceType, Long> entry : perResourceBlockedDurations.entrySet()) {
-      BlockedResourceDuration duration = BlockedResourceDuration.newBuilder()
-        .setResource(entry.getKey().name())
-        .setCategory(entry.getKey().getCategory())
-        .setDuration(entry.getValue())
-        .build();
+      BlockedResourceDuration duration =
+          BlockedResourceDuration.newBuilder()
+              .setResource(entry.getKey().name())
+              .setCategory(entry.getKey().getCategory())
+              .setDuration(entry.getValue())
+              .build();
       prfB.addPerResourceBlockedDuration(duration);
     }
     if (prfB.getPerResourceBlockedDurationList().size() == 0) {
-      // add a dummy entry just to distinguish from older profiles that didn't have per-resource splits.
-      BlockedResourceDuration duration = BlockedResourceDuration.newBuilder()
-        .setResource(SharedResourceType.UNKNOWN.name())
-        .setCategory(SharedResourceType.UNKNOWN.getCategory())
-        .setDuration(0)
-        .build();
+      // add a dummy entry just to distinguish from older profiles that didn't have per-resource
+      // splits.
+      BlockedResourceDuration duration =
+          BlockedResourceDuration.newBuilder()
+              .setResource(SharedResourceType.UNKNOWN.name())
+              .setCategory(SharedResourceType.UNKNOWN.getCategory())
+              .setDuration(0)
+              .build();
       prfB.addPerResourceBlockedDuration(duration);
     }
     prfB.setRunDuration(runWatch.elapsed(MILLISECONDS));
@@ -117,6 +129,28 @@ public class FragmentStats {
     prfB.setNumSlices(numSlices);
     prfB.setNumLongSlices(numLongSlices);
     prfB.setNumShortSlices(numShortSlices);
+    prfB.setRecentSliceStartTime(recentSliceStartTime);
+    prfB.setCancelStartTime(cancelStartTime);
+  }
+
+  public long getNumSlices() {
+    return numSlices;
+  }
+
+  public long getNumRuns() {
+    return numRuns;
+  }
+
+  public long getLastSliceStartTime() {
+    return lastSliceStartTime;
+  }
+
+  public long getCancelStartTime() {
+    return this.cancelStartTime;
+  }
+
+  public void setCancelStartTime(final long cancelStartTime) {
+    this.cancelStartTime = cancelStartTime;
   }
 
   private long getMemoryUsedForIncoming() {
@@ -141,9 +175,10 @@ public class FragmentStats {
    * @param allocator the allocator being used
    * @return a new operator statistics holder
    */
-  public OperatorStats newOperatorStats(final OpProfileDef profileDef, final BufferAllocator allocator) {
+  public OperatorStats newOperatorStats(
+      final OpProfileDef profileDef, final BufferAllocator allocator) {
     final OperatorStats stats = new OperatorStats(profileDef, allocator, warnIOTimeThreshold);
-    if(profileDef.operatorType != -1) {
+    if (profileDef.operatorType != -1) {
       operators.add(stats);
     }
     return stats;
@@ -152,6 +187,8 @@ public class FragmentStats {
   public void sliceStarted(int runQLoad) {
     numSlices++;
     numInRunQ += runQLoad;
+    recentSliceStartTime = System.currentTimeMillis();
+    lastSliceStartTime = recentSliceStartTime;
   }
 
   public void runStarted() {
@@ -169,6 +206,11 @@ public class FragmentStats {
     } else if (runTimeNanos < MIN_RUNTIME_THRESHOLD) {
       numShortSlices++;
     }
+    recentSliceStartTime = 0;
+  }
+
+  public void sliceEndedForRetiredFragments() {
+    recentSliceStartTime = 0;
   }
 
   public void runEnded() {
@@ -208,7 +250,8 @@ public class FragmentStats {
     this.blockedOnMemoryDuration = blockedDuration;
   }
 
-  public void addBlockedOnSharedResourceDuration(SharedResourceType resource, long blockedDuration) {
+  public void addBlockedOnSharedResourceDuration(
+      SharedResourceType resource, long blockedDuration) {
     this.blockedOnSharedResourceDuration += blockedDuration;
 
     Long oldDuration = perResourceBlockedDurations.get(resource);
@@ -217,5 +260,4 @@ public class FragmentStats {
     }
     perResourceBlockedDurations.put(resource, blockedDuration);
   }
-
 }

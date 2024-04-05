@@ -20,9 +20,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Details of a token.
- */
+/** Details of a token. */
 public final class TokenDetails {
 
   public final String token;
@@ -39,7 +37,8 @@ public final class TokenDetails {
     this.scopes = null;
   }
 
-  private TokenDetails(String token, String username, long expiresAt, String clientId, List<String> scopes) {
+  private TokenDetails(
+      String token, String username, long expiresAt, String clientId, List<String> scopes) {
     this.token = checkNotNull(token);
     this.username = checkNotNull(username);
     this.expiresAt = expiresAt;
@@ -55,7 +54,8 @@ public final class TokenDetails {
     return new TokenDetails(token, username, expiresAt);
   }
 
-  public static TokenDetails of(String token, String username, long expiresAt, String clientId, List<String> scopes) {
+  public static TokenDetails of(
+      String token, String username, long expiresAt, String clientId, List<String> scopes) {
     return new TokenDetails(token, username, expiresAt, clientId, scopes);
   }
 }

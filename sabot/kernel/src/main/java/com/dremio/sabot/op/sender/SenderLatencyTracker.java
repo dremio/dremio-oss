@@ -15,16 +15,14 @@
  */
 package com.dremio.sabot.op.sender;
 
-import java.util.concurrent.atomic.AtomicLong;
-
 import com.dremio.sabot.exec.rpc.SenderLatencyObserver;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class SenderLatencyTracker {
   private final AtomicLong sumAckMillis = new AtomicLong();
   private final AtomicLong maxAckMillis = new AtomicLong();
 
-  public SenderLatencyTracker() {
-  }
+  public SenderLatencyTracker() {}
 
   public long getMaxAckMillis() {
     return maxAckMillis.get();

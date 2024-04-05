@@ -15,31 +15,6 @@
  */
 package com.dremio.test;
 
-import java.io.File;
-import java.io.IOException;
-import java.lang.reflect.Method;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.FileAlreadyExistsException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.function.Function;
-
-import org.apache.commons.lang3.tuple.Pair;
-import org.junit.Assert;
-import org.junit.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.yaml.snakeyaml.LoaderOptions;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -65,13 +40,36 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.Resources;
+import java.io.File;
+import java.io.IOException;
+import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.FileAlreadyExistsException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Base64;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import org.apache.commons.lang3.tuple.Pair;
+import org.junit.Assert;
+import org.junit.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.yaml.snakeyaml.LoaderOptions;
 
-/**
- * Class generating golden files used for baseline / data-driven testing
- */
+/** Class generating golden files used for baseline / data-driven testing */
 public final class GoldenFileTestBuilder<I, O, I_W> {
   private static final Logger LOGGER = LoggerFactory.getLogger(GoldenFileTestBuilder.class);
-  private static final Path LICENSE_HEADER_PATH = Paths.get(Resources.getResource("goldenfiles/header.txt").getPath());
+  private static final Path LICENSE_HEADER_PATH =
+      Paths.get(Resources.getResource("goldenfiles/header.txt").getPath());
   private static final ObjectMapper objectMapperForComparison = createObjectMapper();
   private static final ObjectMapper objectMapper = createObjectMapper();
 
@@ -87,15 +85,14 @@ public final class GoldenFileTestBuilder<I, O, I_W> {
   private final String parameterizedInputTag;
 
   public <X, Y> GoldenFileTestBuilder(
-    ThrowingFunction<I, O> executeTestFunction,
-    Function<I, I_W> inputSerializer) {
+      ThrowingFunction<I, O> executeTestFunction, Function<I, I_W> inputSerializer) {
     this(executeTestFunction, inputSerializer, null);
   }
 
   public <X, Y> GoldenFileTestBuilder(
-    ThrowingFunction<I, O> executeTestFunction,
-    Function<I, I_W> inputSerializer,
-    String parameterizedInputTag) {
+      ThrowingFunction<I, O> executeTestFunction,
+      Function<I, I_W> inputSerializer,
+      String parameterizedInputTag) {
     this.executeTestFunction = executeTestFunction;
     this.executeTestFunctionInputDeserializer = input -> input;
     this.inputSerializer = inputSerializer;
@@ -115,7 +112,8 @@ public final class GoldenFileTestBuilder<I, O, I_W> {
     return this;
   }
 
-  public <T> GoldenFileTestBuilder<I, O, I_W> addListByRule(List<T> list, Function<T, Pair<String, I>> rule) {
+  public <T> GoldenFileTestBuilder<I, O, I_W> addListByRule(
+      List<T> list, Function<T, Pair<String, I>> rule) {
     for (T item : list) {
       Pair<String, I> output = rule.apply(item);
       String description = output.getLeft();
@@ -126,29 +124,32 @@ public final class GoldenFileTestBuilder<I, O, I_W> {
     return this;
   }
 
-  public GoldenFileTestBuilder<I, O, I_W> setExceptionSerializer(Function<Throwable, String> exceptionSerializer) {
+  public GoldenFileTestBuilder<I, O, I_W> setExceptionSerializer(
+      Function<Throwable, String> exceptionSerializer) {
     this.exceptionSerializer = exceptionSerializer;
     return this;
   }
 
-  public GoldenFileTestBuilder<I, O, I_W> setExecuteTestFunctionInputDeserializer(Function<I, I> executeTestFunctionInputDeserializer) {
+  public GoldenFileTestBuilder<I, O, I_W> setExecuteTestFunctionInputDeserializer(
+      Function<I, I> executeTestFunctionInputDeserializer) {
     this.executeTestFunctionInputDeserializer = executeTestFunctionInputDeserializer;
     return this;
   }
 
-
-  public GoldenFileTestBuilder<I, O, I_W> setOutputSummarySerializer(Function<List<O>, String> outputSummarySerializer) {
+  public GoldenFileTestBuilder<I, O, I_W> setOutputSummarySerializer(
+      Function<List<O>, String> outputSummarySerializer) {
     this.outputSummarySerializer = outputSummarySerializer;
     return this;
   }
 
-
-  public GoldenFileTestBuilder<I, O, I_W> setOutputComparisonReplacements(Map<String, String> outputComparisonReplacements) {
+  public GoldenFileTestBuilder<I, O, I_W> setOutputComparisonReplacements(
+      Map<String, String> outputComparisonReplacements) {
     this.outputComparisonReplacements = outputComparisonReplacements;
     return this;
   }
 
-  public GoldenFileTestBuilder<I, O, I_W> setMapToOutputObject(Function<Map<String, Object>, O> mapToOutputObject) {
+  public GoldenFileTestBuilder<I, O, I_W> setMapToOutputObject(
+      Function<Map<String, Object>, O> mapToOutputObject) {
     this.mapToOutputObject = mapToOutputObject;
     return this;
   }
@@ -162,12 +163,13 @@ public final class GoldenFileTestBuilder<I, O, I_W> {
     return this;
   }
 
-  public  GoldenFileTestBuilder<I, O, I_W> ignoreOutputFieldsForComparison(Class<?> target, Class<?> mixinSource) {
+  public GoldenFileTestBuilder<I, O, I_W> ignoreOutputFieldsForComparison(
+      Class<?> target, Class<?> mixinSource) {
     objectMapperForComparison.addMixInAnnotations(target, mixinSource);
     return this;
   }
 
-  public  GoldenFileTestBuilder<I, O, I_W> disableSerializationOrderByKeys() {
+  public GoldenFileTestBuilder<I, O, I_W> disableSerializationOrderByKeys() {
     objectMapperForComparison.disable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS);
     return this;
   }
@@ -181,32 +183,36 @@ public final class GoldenFileTestBuilder<I, O, I_W> {
       for (DescriptionAndInput<I> descriptionAndInput : descriptionAndInputs) {
         InputAndOutput<I_W, O> inputAndOutput;
         I_W inputForSerialization = inputSerializer.apply(descriptionAndInput.input);
-        I inputForExecuteTestFunction = executeTestFunctionInputDeserializer.apply(descriptionAndInput.input);
+        I inputForExecuteTestFunction =
+            executeTestFunctionInputDeserializer.apply(descriptionAndInput.input);
 
         try {
-          inputAndOutput = InputAndOutput.createSuccess(
-              descriptionAndInput.description,
-              inputForSerialization,
-              executeTestFunction.apply(inputForExecuteTestFunction));
+          inputAndOutput =
+              InputAndOutput.createSuccess(
+                  descriptionAndInput.description,
+                  inputForSerialization,
+                  executeTestFunction.apply(inputForExecuteTestFunction));
         } catch (Throwable t) {
           if (exceptionSerializer == null) {
             throw new RuntimeException(descriptionAndInput.description, t);
           }
 
-          inputAndOutput = InputAndOutput.createFailure(
-              descriptionAndInput.description,
-              inputForSerialization,
-              t,
-              exceptionSerializer);
+          inputAndOutput =
+              InputAndOutput.createFailure(
+                  descriptionAndInput.description, inputForSerialization, t, exceptionSerializer);
         }
 
         actualInputAndOutputList.add(inputAndOutput);
         actualOutputList.add(inputAndOutput.output);
       }
 
-      // Write the actual values, so user's can diff with the expected and overwrite the golden file if the change is acceptable.
+      // Write the actual values, so user's can diff with the expected and overwrite the golden file
+      // if the change is acceptable.
       Path goldenFileActualPath = getGoldenFileActualPath();
-      writeActualGoldenFile(goldenFileActualPath, actualInputAndOutputList, outputSummarySerializer.apply(actualOutputList));
+      writeActualGoldenFile(
+          goldenFileActualPath,
+          actualInputAndOutputList,
+          outputSummarySerializer.apply(actualOutputList));
 
       List<InputAndOutput<I_W, O>> expectedInputAndOutputList = readExpectedFile();
 
@@ -220,9 +226,9 @@ public final class GoldenFileTestBuilder<I, O, I_W> {
   private List<InputAndOutput<I_W, O>> readExpectedFile() {
     String path = goldenFileResource();
     try {
-      List<InputAndOutput<I_W, O>> inputAndOutputs = objectMapper.readValue(
-          Resources.getResource(path),
-          new TypeReference<List<InputAndOutput<I_W, O>>>(){});
+      List<InputAndOutput<I_W, O>> inputAndOutputs =
+          objectMapper.readValue(
+              Resources.getResource(path), new TypeReference<List<InputAndOutput<I_W, O>>>() {});
 
       // objectMapper.readValue produces a map instead of an output object,
       // which is why mapToOutputObject is used here
@@ -235,16 +241,18 @@ public final class GoldenFileTestBuilder<I, O, I_W> {
         }
       }
       return inputAndOutputs;
-    } catch(IllegalArgumentException|IOException ex) {
+    } catch (IllegalArgumentException | IOException ex) {
       LOGGER.error("Exception while read expected file", ex);
-      return ImmutableList.of(); //Return empty list so file is generated for the first run.
+      return ImmutableList.of(); // Return empty list so file is generated for the first run.
     }
   }
 
   public String findFileName() {
     Pair<String, String> callingClassAndMethod = findCallingTestClassAndMethod();
-    return callingClassAndMethod.getLeft() + "." + callingClassAndMethod.getRight() +
-      ((parameterizedInputTag == null) ? "" : "." + parameterizedInputTag);
+    return callingClassAndMethod.getLeft()
+        + "."
+        + callingClassAndMethod.getRight()
+        + ((parameterizedInputTag == null) ? "" : "." + parameterizedInputTag);
   }
 
   private Pair<String, String> findCallingTestClassAndMethod() {
@@ -261,7 +269,8 @@ public final class GoldenFileTestBuilder<I, O, I_W> {
         Class<?> clazz = Class.forName(ste.getClassName());
         for (Method method : clazz.getMethods()) {
           if (method.getName().equals(ste.getMethodName())
-            && (method.getDeclaredAnnotation(Test.class) != null || method.getDeclaredAnnotation(ParameterizedTest.class) != null)) {
+              && (method.getDeclaredAnnotation(Test.class) != null
+                  || method.getDeclaredAnnotation(ParameterizedTest.class) != null)) {
             String[] classNamespaceTokens = ste.getClassName().split("\\.");
             String testClassName = classNamespaceTokens[classNamespaceTokens.length - 1];
             String methodName = ste.getMethodName();
@@ -277,7 +286,7 @@ public final class GoldenFileTestBuilder<I, O, I_W> {
   }
 
   private Path getGoldenFileActualPath() throws IOException {
-    return Paths.get("target","goldenfiles", "actual", findFileName() + ".yaml");
+    return Paths.get("target", "goldenfiles", "actual", findFileName() + ".yaml");
   }
 
   public String goldenFileResource() {
@@ -294,26 +303,37 @@ public final class GoldenFileTestBuilder<I, O, I_W> {
       String goldenPath = "src/test/resources/" + goldenFileResource();
       return ""
           + "To fix:\n"
-          + "\t`cp " + actualPath+ " " + goldenPath + "`\n"
+          + "\t`cp "
+          + actualPath
+          + " "
+          + goldenPath
+          + "`\n"
           + "To Diff:\n"
-          + "\t`sdiff " + actualPath+ " " + goldenPath + "`\n";
+          + "\t`sdiff "
+          + actualPath
+          + " "
+          + goldenPath
+          + "`\n";
     } catch (IOException exception) {
       return null;
     }
   }
 
-  public static <I, O> GoldenFileTestBuilder<I, O, I> create(ThrowingFunction<I, O> executeTestFunction) {
+  public static <I, O> GoldenFileTestBuilder<I, O, I> create(
+      ThrowingFunction<I, O> executeTestFunction) {
     return new GoldenFileTestBuilder<>(executeTestFunction, i -> i);
   }
 
   public static <I, O> GoldenFileTestBuilder<I, O, I> create(
-    ThrowingFunction<I, O> executeTestFunction, Function<I, I> inputSerializer) {
+      ThrowingFunction<I, O> executeTestFunction, Function<I, I> inputSerializer) {
     return new GoldenFileTestBuilder<>(executeTestFunction, inputSerializer);
   }
 
   private static <I, O> void writeActualGoldenFile(
-    Path goldenFileActualPath,
-    List<InputAndOutput<I, O>> actualInputAndOutputList, String outputSummary) throws IOException {
+      Path goldenFileActualPath,
+      List<InputAndOutput<I, O>> actualInputAndOutputList,
+      String outputSummary)
+      throws IOException {
     try {
       Files.createDirectories(goldenFileActualPath.getParent());
     } catch (FileAlreadyExistsException exception) {
@@ -327,8 +347,7 @@ public final class GoldenFileTestBuilder<I, O, I_W> {
     }
 
     objectMapper.writeValue(
-      new File(goldenFileActualPath.toUri().getPath()),
-      actualInputAndOutputList);
+        new File(goldenFileActualPath.toUri().getPath()), actualInputAndOutputList);
 
     // Prepend the license header
     String fileContent = new String(Files.readAllBytes(goldenFileActualPath));
@@ -337,7 +356,8 @@ public final class GoldenFileTestBuilder<I, O, I_W> {
       outputSummary = "";
     }
 
-    String fileContentWithLicence = licenseHeaderContent + '\n' + fileContent + '\n' + outputSummary;
+    String fileContentWithLicence =
+        licenseHeaderContent + '\n' + fileContent + '\n' + outputSummary;
     if (outputSummary == null) {
       outputSummary = "";
     }
@@ -346,10 +366,12 @@ public final class GoldenFileTestBuilder<I, O, I_W> {
   }
 
   private void assertGoldenFilesAreEqual(
-    List<InputAndOutput<I_W, O>> expectedInputAndOutputList,
-    List<InputAndOutput<I_W, O>> actualInputAndOutputList) throws JsonProcessingException {
+      List<InputAndOutput<I_W, O>> expectedInputAndOutputList,
+      List<InputAndOutput<I_W, O>> actualInputAndOutputList)
+      throws JsonProcessingException {
     String messageToFix = messageToFix();
-    Assert.assertEquals(messageToFix, expectedInputAndOutputList.size(), actualInputAndOutputList.size());
+    Assert.assertEquals(
+        messageToFix, expectedInputAndOutputList.size(), actualInputAndOutputList.size());
 
     for (int i = 0; i < expectedInputAndOutputList.size(); i++) {
       InputAndOutput expectedInputAndOutput = expectedInputAndOutputList.get(i);
@@ -358,36 +380,53 @@ public final class GoldenFileTestBuilder<I, O, I_W> {
 
       if (!descriptionAndInput.ignore) {
         Assert.assertEquals(
-          "Descriptions differ,\n" + messageToFix,
-          expectedInputAndOutput.description,
-          actualInputAndOutput.description);
-        String expectedInputString = objectMapperForComparison.writeValueAsString(expectedInputAndOutput.input);
-        String actualInputString = objectMapperForComparison.writeValueAsString(actualInputAndOutput.input);
+            "Descriptions differ,\n" + messageToFix,
+            expectedInputAndOutput.description,
+            actualInputAndOutput.description);
+        String expectedInputString =
+            objectMapperForComparison.writeValueAsString(expectedInputAndOutput.input);
+        String actualInputString =
+            objectMapperForComparison.writeValueAsString(actualInputAndOutput.input);
         Assert.assertEquals(
-          "Inputs for baseline differ,\n" + messageToFix,
-          expectedInputString,
-          actualInputString);
+            "Inputs for baseline differ,\n" + messageToFix, expectedInputString, actualInputString);
 
         Assert.assertEquals(
-          "Exception Message for baselines differ, \n" + messageToFix + " with input " + expectedInputString,
-          expectedInputAndOutput.exceptionMessage == null ? null : applyReplacements(expectedInputAndOutput.exceptionMessage.toString()),
-          actualInputAndOutput.exceptionMessage  == null ? null : applyReplacements(actualInputAndOutput.exceptionMessage.toString()));
+            "Exception Message for baselines differ, \n"
+                + messageToFix
+                + " with input "
+                + expectedInputString,
+            expectedInputAndOutput.exceptionMessage == null
+                ? null
+                : applyReplacements(expectedInputAndOutput.exceptionMessage.toString()),
+            actualInputAndOutput.exceptionMessage == null
+                ? null
+                : applyReplacements(actualInputAndOutput.exceptionMessage.toString()));
 
-        String expectedOutputString = applyReplacements(objectMapperForComparison.writeValueAsString(expectedInputAndOutput.output));
-        String actualOutputString = applyReplacements(objectMapperForComparison.writeValueAsString(actualInputAndOutput.output));
+        String expectedOutputString =
+            applyReplacements(
+                objectMapperForComparison.writeValueAsString(expectedInputAndOutput.output));
+        String actualOutputString =
+            applyReplacements(
+                objectMapperForComparison.writeValueAsString(actualInputAndOutput.output));
         if (!expectedOutputString.equals(actualOutputString)) {
           if (allowUnorderedMatch) {
             if (!isPermutation(expectedOutputString, actualOutputString)) {
               Assert.assertEquals(
-                "Outputs for baselines differ,\n" + messageToFix + " with input " + expectedInputString,
-                expectedOutputString,
-                actualOutputString);
+                  "Outputs for baselines differ,\n"
+                      + messageToFix
+                      + " with input "
+                      + expectedInputString,
+                  expectedOutputString,
+                  actualOutputString);
             }
           } else {
             Assert.assertEquals(
-              "Outputs for baselines differ,\n" + messageToFix + " with input " + expectedInputString,
-              expectedOutputString,
-              actualOutputString);
+                "Outputs for baselines differ,\n"
+                    + messageToFix
+                    + " with input "
+                    + expectedInputString,
+                expectedOutputString,
+                actualOutputString);
           }
         }
       }
@@ -427,19 +466,27 @@ public final class GoldenFileTestBuilder<I, O, I_W> {
   public static String redactedExceptionSerializer(Throwable throwable) {
     // We need to remove information from the exception message that changes from run to run:
     String exceptionMessage = throwable.getMessage();
-
+    if (exceptionMessage == null) {
+      exceptionMessage =
+          throwable.toString()
+              + Arrays.stream(throwable.getStackTrace())
+                  .map(x -> x.toString())
+                  .collect(Collectors.joining("\n"));
+    }
     // The query text could have a from clause with a path relative to the user name.
     int sqlQueryIndex = exceptionMessage.indexOf("SQL Query");
     if (sqlQueryIndex > 0) {
       int endOfQueryIndex = exceptionMessage.indexOf("[Error Id");
       if (endOfQueryIndex > 0) {
-        exceptionMessage = exceptionMessage.substring(0, sqlQueryIndex)
-                           + "[QUERY REDACTED FOR BASELINES]\n"
-                           + exceptionMessage.substring(endOfQueryIndex);
+        exceptionMessage =
+            exceptionMessage.substring(0, sqlQueryIndex)
+                + "[QUERY REDACTED FOR BASELINES]\n"
+                + exceptionMessage.substring(endOfQueryIndex);
       }
     }
 
-    // Some of the dremio exception messages dumps an entire stack trace with unique error id in the message
+    // Some of the dremio exception messages dumps an entire stack trace with unique error id in the
+    // message
     // Which can't go in the baseline, since it changes from run to run.
     int errorIdIndex = exceptionMessage.indexOf("[Error Id");
     if (errorIdIndex > 0) {
@@ -454,7 +501,7 @@ public final class GoldenFileTestBuilder<I, O, I_W> {
   }
 
   @FunctionalInterface
-  public interface ThrowingFunction<T,R> {
+  public interface ThrowingFunction<T, R> {
     R apply(T t) throws Exception;
   }
 
@@ -486,10 +533,10 @@ public final class GoldenFileTestBuilder<I, O, I_W> {
 
     @JsonCreator
     private InputAndOutput(
-      @JsonProperty("description") String description,
-      @JsonProperty("input") I input,
-      @JsonProperty("output") O output,
-      @JsonProperty("exceptionMessage") MultiLineString exceptionMessage) {
+        @JsonProperty("description") String description,
+        @JsonProperty("input") I input,
+        @JsonProperty("output") O output,
+        @JsonProperty("exceptionMessage") MultiLineString exceptionMessage) {
       this.description = description;
       this.input = input;
       this.output = output;
@@ -501,21 +548,21 @@ public final class GoldenFileTestBuilder<I, O, I_W> {
     }
 
     public static <I, O> InputAndOutput createFailure(
-      String description, I input,
-      Throwable throwable,
-      Function<Throwable, String> exceptionSerializer) {
+        String description,
+        I input,
+        Throwable throwable,
+        Function<Throwable, String> exceptionSerializer) {
       String exceptionMessage = exceptionSerializer.apply(throwable);
-      return new InputAndOutput(
-        description,
-        input,
-        null,
-        MultiLineString.create(exceptionMessage));
+      if (exceptionMessage == null) {
+        throw new RuntimeException(
+            "Failed to get exception message from exception serializer", throwable);
+      }
+
+      return new InputAndOutput(description, input, null, MultiLineString.create(exceptionMessage));
     }
   }
 
-  /**
-   * Serializes a byte array as a base64 string.
-   */
+  /** Serializes a byte array as a base64 string. */
   @JsonSerialize(using = Base64StringSerializer.class)
   @JsonDeserialize(using = Base64StringDeserializer.class)
   public static final class Base64String {
@@ -545,9 +592,8 @@ public final class GoldenFileTestBuilder<I, O, I_W> {
     }
 
     @Override
-    public void serialize(
-      Base64String value, JsonGenerator jgen, SerializerProvider provider)
-      throws IOException {
+    public void serialize(Base64String value, JsonGenerator jgen, SerializerProvider provider)
+        throws IOException {
       jgen.writeString(Base64.getEncoder().encodeToString(value.bytes));
     }
   }
@@ -562,8 +608,7 @@ public final class GoldenFileTestBuilder<I, O, I_W> {
     }
 
     @Override
-    public Base64String deserialize(JsonParser jp, DeserializationContext ctxt)
-      throws IOException {
+    public Base64String deserialize(JsonParser jp, DeserializationContext ctxt) throws IOException {
       JsonNode node = jp.getCodec().readTree(jp);
 
       assert node.isTextual();
@@ -573,8 +618,8 @@ public final class GoldenFileTestBuilder<I, O, I_W> {
   }
 
   /**
-   * Serializes a string with newlines as a array of strings (1 for each line),
-   * So that the yaml serializer is forced to display the results correctly
+   * Serializes a string with newlines as a array of strings (1 for each line), So that the yaml
+   * serializer is forced to display the results correctly
    */
   @JsonSerialize(using = MultiLineStringSerializer.class)
   @JsonDeserialize(using = MultiLineStringDeserializer.class)
@@ -590,7 +635,7 @@ public final class GoldenFileTestBuilder<I, O, I_W> {
     public MultiLineString(List<String> lineList) {
       Preconditions.checkNotNull(lineList);
       Preconditions.checkArgument(lineList.size() != 0);
-      this.lines = lineList.stream().toArray(String[] ::new);
+      this.lines = lineList.stream().toArray(String[]::new);
     }
 
     public static MultiLineString create(String value) {
@@ -633,9 +678,8 @@ public final class GoldenFileTestBuilder<I, O, I_W> {
     }
 
     @Override
-    public void serialize(
-      MultiLineString value, JsonGenerator jgen, SerializerProvider provider)
-      throws IOException {
+    public void serialize(MultiLineString value, JsonGenerator jgen, SerializerProvider provider)
+        throws IOException {
       if (value.lines.length == 1) {
         jgen.writeString(value.lines[0]);
       } else {
@@ -644,22 +688,23 @@ public final class GoldenFileTestBuilder<I, O, I_W> {
     }
   }
 
-  private static ObjectMapper createObjectMapper(){
+  private static ObjectMapper createObjectMapper() {
     LoaderOptions loaderOptions = new LoaderOptions();
-    loaderOptions.setCodePointLimit(10 * 1024 * 1024); // Set loader option to load a file as large as 10 MB
+    loaderOptions.setCodePointLimit(
+        10 * 1024 * 1024); // Set loader option to load a file as large as 10 MB
     return new ObjectMapper(
-      YAMLFactory.builder()
-        .loaderOptions(loaderOptions)
-        .disable(YAMLGenerator.Feature.SPLIT_LINES)
-        .disable(YAMLGenerator.Feature.CANONICAL_OUTPUT)
-        .enable(YAMLGenerator.Feature.INDENT_ARRAYS)
-        .build())
-      .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
-      .enable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
-      .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
-      .registerModule(new JavaTimeModule())
-      .registerModule(new GuavaModule())
-      .registerModule(new Jdk8Module());
+            YAMLFactory.builder()
+                .loaderOptions(loaderOptions)
+                .disable(YAMLGenerator.Feature.SPLIT_LINES)
+                .disable(YAMLGenerator.Feature.CANONICAL_OUTPUT)
+                .enable(YAMLGenerator.Feature.INDENT_ARRAYS)
+                .build())
+        .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
+        .enable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+        .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+        .registerModule(new JavaTimeModule())
+        .registerModule(new GuavaModule())
+        .registerModule(new Jdk8Module());
   }
 
   private static final class MultiLineStringDeserializer extends StdDeserializer<MultiLineString> {
@@ -673,12 +718,12 @@ public final class GoldenFileTestBuilder<I, O, I_W> {
 
     @Override
     public MultiLineString deserialize(JsonParser jp, DeserializationContext ctxt)
-      throws IOException {
+        throws IOException {
       JsonNode node = jp.getCodec().readTree(jp);
 
       MultiLineString multiLineString;
       if (node.isTextual()) {
-        multiLineString =  MultiLineString.create(node.asText());
+        multiLineString = MultiLineString.create(node.asText());
       } else if (node.isArray()) {
         List<String> lines = new ArrayList<>();
         Iterator<JsonNode> iterator = node.iterator();

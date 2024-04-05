@@ -15,30 +15,30 @@
  */
 package com.dremio.plugins.elastic.planning.functions;
 
+import com.google.common.base.Preconditions;
 import org.apache.calcite.rex.RexCall;
 
-import com.google.common.base.Preconditions;
-
-/**
- * A function which is invoked as an method invocation on the provided object.
- */
+/** A function which is invoked as an method invocation on the provided object. */
 class MethodFunction extends ElasticFunction {
 
-  public MethodFunction(String commonName){
+  public MethodFunction(String commonName) {
     super(commonName, commonName);
   }
 
-  public MethodFunction(String dremioName, String elasticName){
+  public MethodFunction(String dremioName, String elasticName) {
     super(dremioName, elasticName);
   }
 
   @Override
   public FunctionRender render(FunctionRenderer renderer, RexCall call) {
-    Preconditions.checkArgument(call.getOperands().size() == 1,
-        "Unary operation %s should only have one argument, but got %s.", dremioName, call.getOperands().size());
+    Preconditions.checkArgument(
+        call.getOperands().size() == 1,
+        "Unary operation %s should only have one argument, but got %s.",
+        dremioName,
+        call.getOperands().size());
 
     FunctionRender operand = call.getOperands().get(0).accept(renderer.getVisitor());
-    return new FunctionRender(String.format("%s.%s()", operand.getScript(), elasticName), operand.getNulls());
+    return new FunctionRender(
+        String.format("%s.%s()", operand.getScript(), elasticName), operand.getNulls());
   }
-
 }

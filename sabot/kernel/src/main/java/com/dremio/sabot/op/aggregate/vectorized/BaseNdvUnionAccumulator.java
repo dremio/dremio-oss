@@ -18,10 +18,13 @@ package com.dremio.sabot.op.aggregate.vectorized;
 import static com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggOperator.SKETCH_ACCURACY;
 import static com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggOperator.SKETCH_SIZE;
 
+import com.dremio.exec.expr.TypeHelper;
+import com.dremio.exec.proto.UserBitShared;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Throwables;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.List;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.util.MemoryUtil;
 import org.apache.arrow.vector.BaseValueVector;
@@ -31,16 +34,10 @@ import org.apache.datasketches.hll.HllSketch;
 import org.apache.datasketches.hll.Union;
 import org.apache.datasketches.memory.WritableMemory;
 
-import com.dremio.exec.expr.TypeHelper;
-import com.dremio.exec.proto.UserBitShared;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
-
-/**
- * A base accumulator for Union of HLL/NDV operator
- */
+/** A base accumulator for Union of HLL/NDV operator */
 public abstract class BaseNdvUnionAccumulator implements Accumulator {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BaseNdvUnionAccumulator.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(BaseNdvUnionAccumulator.class);
 
   private final int maxValuesPerBatch;
   private FieldVector input;
@@ -63,7 +60,7 @@ public abstract class BaseNdvUnionAccumulator implements Accumulator {
       Preconditions.checkArgument(dataBuf.capacity() >= (long) maxValuesPerBatch * SKETCH_SIZE);
       dataBuf.getReferenceManager().retain();
 
-      accumAddress = MemoryUtil.directBuffer(dataBuf.memoryAddress(), (int)dataBuf.capacity());
+      accumAddress = MemoryUtil.directBuffer(dataBuf.memoryAddress(), (int) dataBuf.capacity());
 
       int sketchOffset = 0;
       for (int i = 0; i < maxValuesPerBatch; ++i, sketchOffset += SKETCH_SIZE) {
@@ -81,7 +78,7 @@ public abstract class BaseNdvUnionAccumulator implements Accumulator {
       Preconditions.checkArgument(accumIndex < maxValuesPerBatch);
 
       final int sketchOffset = accumIndex * SKETCH_SIZE;
-      accumAddress.limit(sketchOffset  + SKETCH_SIZE);
+      accumAddress.limit(sketchOffset + SKETCH_SIZE);
       accumAddress.position(sketchOffset);
       ByteBuffer bb = accumAddress.slice();
       bb.order(ByteOrder.nativeOrder());
@@ -117,13 +114,18 @@ public abstract class BaseNdvUnionAccumulator implements Accumulator {
     unionSketch.update(hllSketch);
   }
 
-  public BaseNdvUnionAccumulator(FieldVector input, FieldVector transferVector, int maxValuesPerBatch,
-                                 BaseValueVector tempAccumulatorHolder, final ArrowBuf dataBuf) {
+  public BaseNdvUnionAccumulator(
+      FieldVector input,
+      FieldVector transferVector,
+      int maxValuesPerBatch,
+      BaseValueVector tempAccumulatorHolder,
+      final ArrowBuf dataBuf) {
     this.input = input;
     this.transferVector = transferVector;
-    this.tempAccumulatorHolder = (BaseVariableWidthVector)tempAccumulatorHolder;
+    this.tempAccumulatorHolder = (BaseVariableWidthVector) tempAccumulatorHolder;
     this.maxValuesPerBatch = maxValuesPerBatch;
-    Preconditions.checkArgument(this.tempAccumulatorHolder.getByteCapacity() >= maxValuesPerBatch * SKETCH_SIZE);
+    Preconditions.checkArgument(
+        this.tempAccumulatorHolder.getByteCapacity() >= maxValuesPerBatch * SKETCH_SIZE);
     if (dataBuf == null) {
       initArrs(0);
       batches = 0;
@@ -150,12 +152,12 @@ public abstract class BaseNdvUnionAccumulator implements Accumulator {
     this.input = input;
   }
 
-  private void initArrs(int size){
+  private void initArrs(int size) {
     this.accumBatches = new HllAccumHolder[size];
   }
+
   /**
-   * Get the target vector that stores the computed
-   * values for the accumulator.
+   * Get the target vector that stores the computed values for the accumulator.
    *
    * @return target vector
    */
@@ -180,22 +182,23 @@ public abstract class BaseNdvUnionAccumulator implements Accumulator {
   }
 
   /**
-   * HashTable and accumulator always run parallel -- when we add a block/batch to
-   * hashtable, we also add new block/batch to accumulators. This function is used
-   * to verify state is consistent across these data structures.
+   * HashTable and accumulator always run parallel -- when we add a block/batch to hashtable, we
+   * also add new block/batch to accumulators. This function is used to verify state is consistent
+   * across these data structures.
+   *
    * @param batches number of blocks/batches in hashtable
    */
   @Override
   public void verifyBatchCount(final int batches) {
-    Preconditions.checkArgument(batches == this.batches,
-      "Error: Detected incorrect batch count in accumulator");
+    Preconditions.checkArgument(
+        batches == this.batches, "Error: Detected incorrect batch count in accumulator");
   }
 
   /**
    * Used to get the size of target accumulator vector that stores the computed values.
    *
-   * We use this method when computing the size of {@link VectorizedHashAggPartition}
-   * as part of choosing a victim partition.
+   * <p>We use this method when computing the size of {@link VectorizedHashAggPartition} as part of
+   * choosing a victim partition.
    *
    * @return size of vector (in bytes)
    */
@@ -233,8 +236,11 @@ public abstract class BaseNdvUnionAccumulator implements Accumulator {
     return batches;
   }
 
-  private void prepareTransferVector(BaseVariableWidthVector transferVector,
-                                     final int batchIndex, final int numRecords, final int targetIndex) {
+  private void prepareTransferVector(
+      BaseVariableWidthVector transferVector,
+      final int batchIndex,
+      final int numRecords,
+      final int targetIndex) {
     for (int i = 0; i < numRecords; ++i) {
       Union sketch = accumBatches[batchIndex].getAccumSketch(i);
       byte[] ba = sketch.toCompactByteArray();
@@ -251,22 +257,19 @@ public abstract class BaseNdvUnionAccumulator implements Accumulator {
   }
 
   @Override
-  public void compact(final int batchIndex, final int nextRecSize) { }
+  public void compact(final int batchIndex, final int nextRecSize) {}
 
   /**
-   * Take the accumulator vector (the vector that stores computed values)
-   * for a particular batch (identified by batchIndex) and output its contents.
-   * Output is done by copying the contents from accumulator vector to its
-   * counterpart in outgoing container. Unlike fixed length accumulators, we
-   * cannot transfer the contents as backing MutableVarcharVector does not
-   * have the data stored in the index order. Even if requested to output multiple
-   * batches, the process is same.
+   * Take the accumulator vector (the vector that stores computed values) for a particular batch
+   * (identified by batchIndex) and output its contents. Output is done by copying the contents from
+   * accumulator vector to its counterpart in outgoing container. Unlike fixed length accumulators,
+   * we cannot transfer the contents as backing MutableVarcharVector does not have the data stored
+   * in the index order. Even if requested to output multiple batches, the process is same.
    *
-   * We still want the memory associated with allocator of source vector because
-   * of post-spill processing where this accumulator vector will still continue
-   * to store the computed values as we start treating spilled batches as new
-   * input into the operator. However we do this for a singe batch only as once
-   * we are done outputting a partition, we anyway get rid of all but 1 batch.
+   * <p>We still want the memory associated with allocator of source vector because of post-spill
+   * processing where this accumulator vector will still continue to store the computed values as we
+   * start treating spilled batches as new input into the operator. However we do this for a singe
+   * batch only as once we are done outputting a partition, we anyway get rid of all but 1 batch.
    */
   @Override
   public void output(int startBatchIndex, int[] recordsInBatches) {
@@ -280,13 +283,16 @@ public abstract class BaseNdvUnionAccumulator implements Accumulator {
       numRecords += recordsInBatches[i];
     }
 
-    ((BaseVariableWidthVector)transferVector).allocateNew(size, numRecords);
+    ((BaseVariableWidthVector) transferVector).allocateNew(size, numRecords);
     transferVector.reset();
 
     numRecords = 0;
     for (int i = 0; i < recordsInBatches.length; ++i) {
-      prepareTransferVector((BaseVariableWidthVector) transferVector,
-        startBatchIndex + i, recordsInBatches[i], numRecords);
+      prepareTransferVector(
+          (BaseVariableWidthVector) transferVector,
+          startBatchIndex + i,
+          recordsInBatches[i],
+          numRecords);
       numRecords += recordsInBatches[i];
       releaseBatch(startBatchIndex + i);
     }
@@ -364,12 +370,15 @@ public abstract class BaseNdvUnionAccumulator implements Accumulator {
   }
 
   @Override
-  public void moveValuesAndFreeSpace(int srcBatchIndex, int dstBatchIndex,
-                                     int srcStartIndex, int dstStartIndex, int numRecords) {
+  public void moveValuesAndFreeSpace(
+      int srcBatchIndex, int dstBatchIndex, int srcStartIndex, int dstStartIndex, int numRecords) {
     Preconditions.checkArgument(srcStartIndex + numRecords <= maxValuesPerBatch);
     /* setBytes take absolute byte address */
-    accumBatches[dstBatchIndex].dataBuf.setBytes(dstStartIndex * SKETCH_SIZE, accumBatches[srcBatchIndex].dataBuf,
-      srcStartIndex * SKETCH_SIZE, numRecords * SKETCH_SIZE);
+    accumBatches[dstBatchIndex].dataBuf.setBytes(
+        dstStartIndex * SKETCH_SIZE,
+        accumBatches[srcBatchIndex].dataBuf,
+        srcStartIndex * SKETCH_SIZE,
+        numRecords * SKETCH_SIZE);
 
     /* Reset the original sketches */
     accumBatches[srcBatchIndex].reset(srcStartIndex, numRecords);

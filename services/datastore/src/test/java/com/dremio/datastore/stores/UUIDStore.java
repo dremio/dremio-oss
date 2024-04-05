@@ -15,26 +15,24 @@
  */
 package com.dremio.datastore.stores;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.UUID;
-
 import com.dremio.datastore.TestStoreCreationFunction;
 import com.dremio.datastore.api.KVStore;
 import com.dremio.datastore.api.StoreBuildingFactory;
 import com.dremio.datastore.format.Format;
+import java.util.Arrays;
+import java.util.List;
+import java.util.UUID;
 
-/**
- * UUID store that creates a UUID key and string value KVStore.
- */
+/** UUID store that creates a UUID key and string value KVStore. */
 public class UUIDStore implements TestStoreCreationFunction<UUID, String> {
   @Override
   public KVStore<UUID, String> build(StoreBuildingFactory factory) {
-    return factory.<UUID, String>newStore()
-      .name("uuid-store")
-      .keyFormat(getKeyFormat())
-      .valueFormat(Format.ofString())
-      .build();
+    return factory
+        .<UUID, String>newStore()
+        .name("uuid-store")
+        .keyFormat(getKeyFormat())
+        .valueFormat(Format.ofString())
+        .build();
   }
 
   @Override

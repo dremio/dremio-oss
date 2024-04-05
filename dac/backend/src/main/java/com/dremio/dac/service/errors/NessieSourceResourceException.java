@@ -18,10 +18,7 @@ package com.dremio.dac.service.errors;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response;
 
-/**
- * Thrown when unhandled error is found in {@link com.dremio.dac.resource.NessieSourceResource}.
- */
-
+/** Thrown when unhandled error is found in {@link com.dremio.dac.resource.NessieSourceResource}. */
 public class NessieSourceResourceException extends WebApplicationException {
   public NessieSourceResourceException(Exception error, String msg, Response.Status status) {
     super(msg, error, status);

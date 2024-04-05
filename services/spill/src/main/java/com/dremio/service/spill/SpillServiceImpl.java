@@ -17,6 +17,16 @@ package com.dremio.service.spill;
 
 import static com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.common.io.DefaultTemporaryFolderManager;
+import com.dremio.common.io.ExecutorId;
+import com.dremio.common.io.TemporaryFolderManager;
+import com.dremio.config.DremioConfig;
+import com.dremio.exec.store.LocalSyncableFileSystem;
+import com.dremio.service.scheduler.Cancellable;
+import com.dremio.service.scheduler.Schedule;
+import com.dremio.service.scheduler.SchedulerService;
+import com.google.common.collect.Lists;
 import java.io.File;
 import java.io.IOException;
 import java.time.Instant;
@@ -28,9 +38,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
-
 import javax.inject.Provider;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocatedFileStatus;
@@ -39,22 +47,10 @@ import org.apache.hadoop.fs.RemoteIterator;
 import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.common.io.DefaultTemporaryFolderManager;
-import com.dremio.common.io.ExecutorId;
-import com.dremio.common.io.TemporaryFolderManager;
-import com.dremio.config.DremioConfig;
-import com.dremio.exec.store.LocalSyncableFileSystem;
-import com.dremio.service.scheduler.Cancellable;
-import com.dremio.service.scheduler.Schedule;
-import com.dremio.service.scheduler.SchedulerService;
-import com.google.common.collect.Lists;
-
-/**
- * Implementation of the {@link SpillService} API
- */
+/** Implementation of the {@link SpillService} API */
 public class SpillServiceImpl implements SpillService {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SpillServiceImpl.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(SpillServiceImpl.class);
   private static final String DREMIO_LOCAL_IMPL_STRING = "fs.dremio-local.impl";
   private static final String DREMIO_LOCAL_SCHEME = "dremio-local";
   private static final String LOCAL_SCHEME = "file";
@@ -64,7 +60,8 @@ public class SpillServiceImpl implements SpillService {
 
   private static final String TEMP_FOLDER_PURPOSE = "spilling";
 
-  private static final FsPermission PERMISSIONS = new FsPermission(FsAction.ALL, FsAction.NONE, FsAction.NONE);
+  private static final FsPermission PERMISSIONS =
+      new FsPermission(FsAction.ALL, FsAction.NONE, FsAction.NONE);
 
   private final ArrayList<String> spillDirs;
   private final SpillServiceOptions options;
@@ -86,20 +83,25 @@ public class SpillServiceImpl implements SpillService {
   private volatile ArrayList<String> healthySpillDirs;
   private Cancellable healthCheckTask;
 
-  public SpillServiceImpl(DremioConfig config, SpillServiceOptions options,
-                          final Provider<SchedulerService> schedulerService) {
+  public SpillServiceImpl(
+      DremioConfig config,
+      SpillServiceOptions options,
+      final Provider<SchedulerService> schedulerService) {
     this(config, options, schedulerService, null, null);
   }
 
   /**
    * Create the spill service
+   *
    * @param config Configuration for the spill service, containing items such as the spill path(s),
-   *               number of I/O completion threads, etc.
+   *     number of I/O completion threads, etc.
    */
-  public SpillServiceImpl(DremioConfig config, SpillServiceOptions options,
-                          final Provider<SchedulerService> schedulerService,
-                          final Provider<NodeEndpoint> identityProvider,
-                          final Provider<Iterable<NodeEndpoint>> nodesProvider) {
+  public SpillServiceImpl(
+      DremioConfig config,
+      SpillServiceOptions options,
+      final Provider<SchedulerService> schedulerService,
+      final Provider<NodeEndpoint> identityProvider,
+      final Provider<Iterable<NodeEndpoint>> nodesProvider) {
     this.spillDirs = new ArrayList<>(config.getStringList(DremioConfig.SPILLING_PATH_STRING));
     this.options = options;
     this.schedulerService = schedulerService;
@@ -143,19 +145,22 @@ public class SpillServiceImpl implements SpillService {
       try {
         final Path spillDirPath = new Path(spillDir);
         final FileSystem fileSystem = spillDirPath.getFileSystem(getSpillingConfig());
-        healthCheckEnabled = healthCheckEnabled || isHealthCheckEnabled(fileSystem.getUri().getScheme());
-      } catch (Exception ignored) {}
+        healthCheckEnabled =
+            healthCheckEnabled || isHealthCheckEnabled(fileSystem.getUri().getScheme());
+      } catch (Exception ignored) {
+      }
     }
 
     // healthySpillDirs set at start()
     this.healthySpillDirs = Lists.newArrayList();
     this.monitoredSpillDirectoryMap = new ConcurrentHashMap<>();
     final Supplier<Set<ExecutorId>> nodesConverter =
-      (nodesProvider == null) ? null : () -> convertEndpointsToId(nodesProvider);
+        (nodesProvider == null) ? null : () -> convertEndpointsToId(nodesProvider);
     final Supplier<ExecutorId> identityConverter =
-      (identityProvider == null) ? null : () -> convertEndpointToId(identityProvider);
-    this.folderManager = new DefaultTemporaryFolderManager(identityConverter, getSpillingConfig(), nodesConverter,
-      TEMP_FOLDER_PURPOSE);
+        (identityProvider == null) ? null : () -> convertEndpointToId(identityProvider);
+    this.folderManager =
+        new DefaultTemporaryFolderManager(
+            identityConverter, getSpillingConfig(), nodesConverter, TEMP_FOLDER_PURPOSE);
 
     minDiskSpace = options.minDiskSpace();
     minDiskSpacePercentage = options.minDiskSpacePercentage();
@@ -178,22 +183,27 @@ public class SpillServiceImpl implements SpillService {
             healthySpillDirs.add(spillDir);
           }
         } else {
-          logger.warn("Unable to find or create spill directory {} due to lack of permissions", spillDir);
+          logger.warn(
+              "Unable to find or create spill directory {} due to lack of permissions", spillDir);
         }
       } catch (Exception e) {
-        logger.info("Sub directory creation in spill directory {} hit a temporary error `{}` " +
-          "and is not added to healthy list. Will monitor periodically", spillDir, e.getMessage());
+        logger.info(
+            "Sub directory creation in spill directory {} hit a temporary error `{}` "
+                + "and is not added to healthy list. Will monitor periodically",
+            spillDir,
+            e.getMessage());
       }
     }
 
     if (healthCheckEnabled) {
-      healthCheckTask = schedulerService.get()
-        .schedule(Schedule.Builder
-            .everyMillis(healthCheckInterval)
-            .startingAt(Instant.now())
-            .build(),
-          new SpillHealthCheckTask()
-        );
+      healthCheckTask =
+          schedulerService
+              .get()
+              .schedule(
+                  Schedule.Builder.everyMillis(healthCheckInterval)
+                      .startingAt(Instant.now())
+                      .build(),
+                  new SpillHealthCheckTask());
     }
   }
 
@@ -204,7 +214,8 @@ public class SpillServiceImpl implements SpillService {
 
   @Override
   public void makeSpillSubdirs(String id) throws UserException {
-    //TODO: use only the healthy spill directories, once health checks implemented (shortly!). Reviewer: if you see this code, ask Vanco to fix it!
+    // TODO: use only the healthy spill directories, once health checks implemented (shortly!).
+    // Reviewer: if you see this code, ask Vanco to fix it!
     ArrayList<String> healthySpillDirs = this.healthySpillDirs;
 
     // Create spill directories for each disk.
@@ -215,19 +226,20 @@ public class SpillServiceImpl implements SpillService {
         final Path spillDirPath = new Path(tmpPath, id);
         FileSystem fileSystem = spillDirPath.getFileSystem(getSpillingConfig());
         if (!fileSystem.mkdirs(spillDirPath, PERMISSIONS)) {
-          //TODO: withContextParameters()
+          // TODO: withContextParameters()
           throw UserException.dataWriteError()
-            .message("Failed to create directory for spilling. Please check that the spill location is accessible and confirm read, write & execute permissions. " +
-              "If the query was ran on a reflection please ensure that arrow caching on the reflection is disabled when iceberg and unlimited splits are enabled.")
-            .addContext("Spill directory path", directory)
-            .build(logger);
+              .message(
+                  "Failed to create directory for spilling. Please check that the spill location is accessible and confirm read, write & execute permissions. "
+                      + "If the query was ran on a reflection please ensure that arrow caching on the reflection is disabled when iceberg and unlimited splits are enabled.")
+              .addContext("Spill directory path", directory)
+              .build(logger);
         }
       } catch (Exception e) {
-        //TODO: withContextParameters()
+        // TODO: withContextParameters()
         throw UserException.dataWriteError(e)
-          .message("Failed to create spill directory for id " + id)
-          .addContext("Spill directory path", directory)
-          .build(logger);
+            .message("Failed to create spill directory for id " + id)
+            .addContext("Spill directory path", directory)
+            .build(logger);
       }
     }
   }
@@ -246,7 +258,8 @@ public class SpillServiceImpl implements SpillService {
         FileSystem fileSystem = spillDirPath.getFileSystem(getSpillingConfig());
         fileSystem.delete(spillDirPath, true);
       } catch (Exception e) {
-        // Failed to delete the spill directory. Ignored -- this might be a directory that became healthy only
+        // Failed to delete the spill directory. Ignored -- this might be a directory that became
+        // healthy only
         // after makeSpillSubdirs() was called
       }
     }
@@ -277,23 +290,29 @@ public class SpillServiceImpl implements SpillService {
       final Path monitoredPath = monitoredSpillDirectoryMap.get(spillDir);
       if (isHealthy(spillDirPath) && monitoredPath != null) {
         try {
-          //TODO: track number of spills created in 'spillDir'
+          // TODO: track number of spills created in 'spillDir'
           FileSystem fileSystem = spillDirPath.getFileSystem(getSpillingConfig());
           final Path spillSubdir = new Path(monitoredPath, id);
           return new SpillDirectory(spillSubdir, fileSystem);
         } catch (IOException e) {
           // Ignore this 'spillDir'. Still consider the others
+          logger.warn(
+              "Spill directory {} hit disk issues after successful health check. Error was: {} ",
+              spillDir,
+              e.getMessage());
         }
       }
+      logger.info("Spill directory {} hit disk issues", spillDir);
+
       // Hm... 'spillDir' didn't work out. Let's consider the others
       currentSpillDirs.remove(index);
     }
     // TODO: withContextParameters()
     throw UserException.dataWriteError()
-      .message("Failed to spill to disk. Please check space availability")
-      .addContext("spill id", id)
-      .addContext("all spill locations", spillDirs.toString())
-      .build(logger);
+        .message("Failed to spill to disk. Please check space availability")
+        .addContext("spill id", id)
+        .addContext("all spill locations", spillDirs.toString())
+        .build(logger);
   }
 
   private boolean isHealthy(Path spillDirPath) {
@@ -302,11 +321,23 @@ public class SpillServiceImpl implements SpillService {
       final double totalSpace = (double) disk.getTotalSpace();
       minDiskSpace = options.minDiskSpace();
       minDiskSpacePercentage = options.minDiskSpacePercentage();
-      logger.debug("Check isHealthy for {} minDiskSpace: {} minDiskSpacePercentage: {}",
-        spillDirPath.getName(), minDiskSpace, minDiskSpacePercentage);
-      final long threshold = Math.max((long) ((totalSpace / 100.0) * minDiskSpacePercentage), minDiskSpace);
+      logger.debug(
+          "Check isHealthy for {} minDiskSpace: {} minDiskSpacePercentage: {}",
+          spillDirPath.getName(),
+          minDiskSpace,
+          minDiskSpacePercentage);
+      final long threshold =
+          Math.max((long) ((totalSpace / 100.0) * minDiskSpacePercentage), minDiskSpace);
       final long available = disk.getFreeSpace();
       if (available < threshold) {
+        logger.info(
+            "Check isHealthy available space {} is less than threshold {} for spillDirectory {} "
+                + "minDiskSpace {}, minDiskSpacePercentage {}",
+            available,
+            threshold,
+            spillDirPath.getName(),
+            minDiskSpace,
+            minDiskSpacePercentage);
         return false;
       }
     }
@@ -317,7 +348,8 @@ public class SpillServiceImpl implements SpillService {
     return DREMIO_LOCAL_SCHEME.equals(scheme) || LOCAL_SCHEME.equals(scheme);
   }
 
-  private static Set<ExecutorId> convertEndpointsToId(Provider<Iterable<NodeEndpoint>> nodesProvider) {
+  private static Set<ExecutorId> convertEndpointsToId(
+      Provider<Iterable<NodeEndpoint>> nodesProvider) {
     if (nodesProvider == null) {
       // to retain current behaviour
       return null;
@@ -325,8 +357,10 @@ public class SpillServiceImpl implements SpillService {
     final Iterable<NodeEndpoint> availableEndpoints = nodesProvider.get();
     if (availableEndpoints != null) {
       return StreamSupport.stream(availableEndpoints.spliterator(), false)
-        .map(nodeEndpoint -> new ExecutorId(nodeEndpoint.getAddress(), nodeEndpoint.getFabricPort()))
-        .collect(Collectors.toSet());
+          .map(
+              nodeEndpoint ->
+                  new ExecutorId(nodeEndpoint.getAddress(), nodeEndpoint.getFabricPort()))
+          .collect(Collectors.toSet());
     } else {
       return null;
     }
@@ -353,12 +387,14 @@ public class SpillServiceImpl implements SpillService {
           boolean healthy = true;
           if (!monitoredSpillDirectoryMap.containsKey(spillDir)) {
             try {
-              monitoredSpillDirectoryMap.put(spillDir, folderManager.createTmpDirectory(spillDirPath));
+              monitoredSpillDirectoryMap.put(
+                  spillDir, folderManager.createTmpDirectory(spillDirPath));
             } catch (IOException e) {
               // if we cannot create temp folder now, try again later
               healthy = false;
-              logger.warn("Spill directory hit disk issues immediately after successful health check. Error was: {} ",
-                e.getMessage());
+              logger.warn(
+                  "Spill directory hit disk issues immediately after successful health check. Error was: {} ",
+                  e.getMessage());
             }
           }
           if (healthy) {

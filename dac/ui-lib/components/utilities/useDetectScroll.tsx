@@ -20,7 +20,7 @@ type Direction = "left" | "top" | "bottom";
 
 export const elementIsScrolled = (
   direction: Direction,
-  el: HTMLElement
+  el: HTMLElement,
 ): boolean => {
   switch (direction) {
     case "top":
@@ -39,7 +39,7 @@ export const useDetectScroll = (directions: Direction[]): any => {
   directionsRef.current = directions;
 
   const [scrolledDirections, setScrolledDirections] = useState<Set<Direction>>(
-    new Set()
+    new Set(),
   );
   const scrollContainerRef = useRef<HTMLElement>(null);
 

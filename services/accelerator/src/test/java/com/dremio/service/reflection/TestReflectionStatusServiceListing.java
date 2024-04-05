@@ -17,20 +17,10 @@ package com.dremio.service.reflection;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.List;
-import java.util.UUID;
-
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnitRunner;
 
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.DremioTable;
@@ -40,10 +30,14 @@ import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.sys.accel.AccelerationListManager;
 import com.dremio.options.OptionManager;
 import com.dremio.service.DirectProvider;
+import com.dremio.service.job.JobCounts;
+import com.dremio.service.job.JobCountsRequest;
+import com.dremio.service.jobs.JobsService;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.proto.EntityId;
+import com.dremio.service.reflection.proto.MaterializationMetrics;
 import com.dremio.service.reflection.proto.ReflectionDetails;
 import com.dremio.service.reflection.proto.ReflectionEntry;
 import com.dremio.service.reflection.proto.ReflectionField;
@@ -52,43 +46,47 @@ import com.dremio.service.reflection.proto.ReflectionGoalState;
 import com.dremio.service.reflection.proto.ReflectionId;
 import com.dremio.service.reflection.proto.ReflectionState;
 import com.dremio.service.reflection.proto.ReflectionType;
+import com.dremio.service.reflection.proto.Refresh;
 import com.dremio.service.reflection.store.ExternalReflectionStore;
 import com.dremio.service.reflection.store.MaterializationStore;
 import com.dremio.service.reflection.store.ReflectionEntriesStore;
 import com.dremio.service.reflection.store.ReflectionGoalsStore;
+import com.google.common.collect.FluentIterable;
+import java.sql.Timestamp;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.List;
+import java.util.UUID;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.Mock;
+import org.mockito.junit.MockitoJUnitRunner;
 
 @RunWith(MockitoJUnitRunner.Silent.class)
 public class TestReflectionStatusServiceListing {
 
-  @Mock
-  private NamespaceService namespaceService;
+  @Mock private NamespaceService namespaceService;
 
-  @Mock
-  private SabotContext sabotContext;
+  @Mock private SabotContext sabotContext;
 
-  @Mock
-  private ReflectionGoalsStore goalsStore;
+  @Mock private ReflectionGoalsStore goalsStore;
 
-  @Mock
-  private ReflectionEntriesStore entriesStore;
+  @Mock private ReflectionEntriesStore entriesStore;
 
-  @Mock
-  private MaterializationStore materializationStore;
+  @Mock private MaterializationStore materializationStore;
 
-  @Mock
-  private ExternalReflectionStore externalReflectionStore;
+  @Mock private ExternalReflectionStore externalReflectionStore;
 
-  @Mock
-  private ReflectionValidator validator;
+  @Mock private ReflectionValidator validator;
 
-  @Mock
-  private CatalogService catalogService;
+  @Mock private CatalogService catalogService;
 
-  @Mock
-  private Catalog entityExplorer;
+  @Mock private JobsService jobsService;
 
-  @Mock
-  private OptionManager optionManager;
+  @Mock private Catalog entityExplorer;
+
+  @Mock private OptionManager optionManager;
 
   private String datasetId;
 
@@ -100,10 +98,11 @@ public class TestReflectionStatusServiceListing {
   public void setup() {
     datasetId = UUID.randomUUID().toString();
     final List<String> dataPath = Arrays.asList("source", "folder", "dataset");
-    final DatasetConfig dataset = new DatasetConfig()
-      .setId(new EntityId(datasetId))
-      .setFullPathList(dataPath)
-      .setType(DatasetType.VIRTUAL_DATASET);
+    final DatasetConfig dataset =
+        new DatasetConfig()
+            .setId(new EntityId(datasetId))
+            .setFullPathList(dataPath)
+            .setType(DatasetType.VIRTUAL_DATASET);
     final DremioTable table = mock(DremioTable.class);
     when(table.getDatasetConfig()).thenReturn(dataset);
     when(entityExplorer.getTable(datasetId)).thenReturn(table);
@@ -116,22 +115,22 @@ public class TestReflectionStatusServiceListing {
 
     when(namespaceService.findDatasetByUUID(datasetId)).thenReturn(dataset);
 
-    statusService = new ReflectionStatusServiceImpl(
-      sabotContext::getExecutors,
-      DirectProvider.<MaterializationCache.CacheViewer>wrap(new TestReflectionStatusService.ConstantCacheViewer(true)),
-      goalsStore,
-      entriesStore,
-      materializationStore,
-      externalReflectionStore,
-      validator,
-      DirectProvider.wrap(catalogService),
-      DirectProvider.wrap(optionManager)
-    );
+    statusService =
+        new ReflectionStatusServiceImpl(
+            sabotContext::getExecutors,
+            DirectProvider.<MaterializationCache.CacheViewer>wrap(
+                new TestReflectionStatusService.ConstantCacheViewer(true)),
+            goalsStore,
+            entriesStore,
+            materializationStore,
+            externalReflectionStore,
+            validator,
+            DirectProvider.wrap(catalogService),
+            DirectProvider.wrap(jobsService),
+            DirectProvider.wrap(optionManager));
   }
 
-  /**
-   * Verify that we can list reflections for the sys.reflections table
-   */
+  /** Verify that we can list reflections for the sys.reflections table */
   @Test
   public void testGetReflection() {
 
@@ -142,15 +141,26 @@ public class TestReflectionStatusServiceListing {
     final ReflectionDetails details = new ReflectionDetails();
     details.setDisplayFieldList(Arrays.asList(field, field2));
 
-    final ReflectionGoal goal = new ReflectionGoal()
-      .setId(reflectionId)
-      .setDatasetId(datasetId)
-      .setState(ReflectionGoalState.ENABLED)
-      .setCreatedAt(0L)
-      .setName("myReflection")
-      .setType(ReflectionType.RAW)
-      .setDetails(details);
+    long createAtMillis = 2L;
+    final ReflectionGoal goal =
+        new ReflectionGoal()
+            .setId(reflectionId)
+            .setDatasetId(datasetId)
+            .setState(ReflectionGoalState.ENABLED)
+            .setCreatedAt(createAtMillis)
+            .setModifiedAt(null)
+            .setName("myReflection")
+            .setType(ReflectionType.RAW)
+            .setDetails(details);
     when(goalsStore.getAllNotDeleted()).thenReturn(Arrays.asList(goal));
+    final Refresh refresh =
+        new Refresh().setMetrics(new MaterializationMetrics().setFootprint(99L));
+    when(materializationStore.getRefreshesByReflectionId(reflectionId))
+        .thenReturn(FluentIterable.from(Arrays.asList(refresh)));
+
+    JobCounts.Builder jobCounts = JobCounts.newBuilder();
+    jobCounts.addCount(0);
+    when(jobsService.getJobCounts(any(JobCountsRequest.class))).thenReturn(jobCounts.build());
 
     Iterator<AccelerationListManager.ReflectionInfo> reflections = statusService.getReflections();
     AccelerationListManager.ReflectionInfo info = reflections.next();
@@ -160,23 +170,36 @@ public class TestReflectionStatusServiceListing {
     assertEquals("myReflection", info.name);
     assertEquals("UNKNOWN", info.status);
     assertEquals("RAW", info.type);
+    assertEquals(new Timestamp(createAtMillis), info.createdAt);
+    assertNull(info.updatedAt);
+    assertEquals(-1, info.lastRefreshDurationMillis);
+    assertNull(info.lastRefreshFromTable);
+    assertEquals(99L, info.totalFootprintBytes);
+    assertEquals(
+        -1, info.consideredCount); // flag PlannerSettings.ENABLE_JOB_COUNT_CONSIDERED is off
+    assertEquals(-1, info.matchedCount); // flag PlannerSettings.ENABLE_JOB_COUNT_MATCHED is off
+    assertEquals(-1, info.acceleratedCount); // flag PlannerSettings.ENABLE_JOB_COUNT_CHOSEN is off
+
     assertFalse(reflections.hasNext());
   }
 
-  /**
-   * Verify that a missing dataset won't cause listing API to break
-   */
+  /** Verify that a missing dataset won't cause listing API to break */
   @Test
   public void testGetReflectionOnMissingDataset() {
 
-    final ReflectionGoal goal = new ReflectionGoal()
-      .setId(reflectionId)
-      .setDatasetId("foo")
-      .setState(ReflectionGoalState.ENABLED)
-      .setCreatedAt(0L)
-      .setName("myReflection")
-      .setType(ReflectionType.RAW);
+    final ReflectionGoal goal =
+        new ReflectionGoal()
+            .setId(reflectionId)
+            .setDatasetId("foo")
+            .setState(ReflectionGoalState.ENABLED)
+            .setCreatedAt(0L)
+            .setName("myReflection")
+            .setType(ReflectionType.RAW);
     when(goalsStore.getAllNotDeleted()).thenReturn(Arrays.asList(goal));
+
+    JobCounts.Builder jobCounts = JobCounts.newBuilder();
+    jobCounts.addCount(0);
+    when(jobsService.getJobCounts(any(JobCountsRequest.class))).thenReturn(jobCounts.build());
 
     Iterator<AccelerationListManager.ReflectionInfo> reflections = statusService.getReflections();
     assertFalse(reflections.hasNext());

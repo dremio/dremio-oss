@@ -17,9 +17,7 @@ package com.dremio.dac.cmd;
 
 import org.junit.Test;
 
-/**
- * Test for Clean command
- */
+/** Test for Clean command */
 public class TestClean extends CleanBaseTest {
 
   @Test
@@ -29,5 +27,4 @@ public class TestClean extends CleanBaseTest {
     Clean.go(new String[] {"-o", "-i", "-c", "-j=30", "-p"});
     Clean.go(new String[] {"-h"});
   }
-
 }

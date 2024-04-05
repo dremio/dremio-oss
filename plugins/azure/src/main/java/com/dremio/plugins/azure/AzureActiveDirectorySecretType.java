@@ -16,11 +16,9 @@
 package com.dremio.plugins.azure;
 
 import com.dremio.exec.catalog.conf.DisplayMetadata;
-
 import io.protostuff.Tag;
 
 public enum AzureActiveDirectorySecretType {
-
   @Tag(1)
   @DisplayMetadata(label = "Dremio")
   AZURE_ACTIVE_DIRECTORY_SECRET_KEY,

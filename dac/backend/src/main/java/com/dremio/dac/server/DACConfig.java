@@ -19,9 +19,7 @@ import com.dremio.common.config.SabotConfig;
 import com.dremio.config.DremioConfig;
 import com.dremio.dac.daemon.DACDaemon.ClusterMode;
 
-/**
- * Daemon configuration pojo facade. Look to replace with tscfg
- */
+/** Daemon configuration pojo facade. Look to replace with tscfg */
 public final class DACConfig {
 
   public final String thisNode;
@@ -48,45 +46,46 @@ public final class DACConfig {
   public DACConfig(DremioConfig config) {
     // default values
     this(
-      config.getThisNode(),
-      config.getBoolean(DremioConfig.DEBUG_AUTOPORT_BOOL),
-      config.getBoolean(DremioConfig.DEBUG_ENABLED_BOOL),
-      config.getBoolean(DremioConfig.DEBUG_ENABLED_BOOL),
-      config.getBoolean(DremioConfig.DEBUG_ENABLED_BOOL),
-      config.getBoolean(DremioConfig.DEBUG_ALLOW_TEST_APIS_BOOL),
-      config.getBoolean(DremioConfig.WEB_ENABLED_BOOL),
-      config.getBoolean(DremioConfig.WEB_SSL_PREFIX + DremioConfig.SSL_ENABLED),
-      config.getBoolean(DremioConfig.DEBUG_PREPOPULATE_BOOL),
-      config.getBoolean(DremioConfig.DEBUG_SINGLE_NODE_BOOL) ? ClusterMode.LOCAL : ClusterMode.DISTRIBUTED,
-      config.getInt(DremioConfig.SERVER_PORT_INT),
-      config.getBoolean(DremioConfig.DEBUG_USE_MEMORY_STRORAGE_BOOL),
-      config.getBoolean(DremioConfig.ENABLE_COORDINATOR_BOOL) && config.getBoolean(DremioConfig.ENABLE_MASTER_BOOL),
-      config.getBoolean(DremioConfig.DEBUG_FORCE_REMOTE_BOOL),
-      config.getBoolean(DremioConfig.DEBUG_ADD_DEFAULT_USER),
-      config.getBoolean(DremioConfig.DEBUG_ALLOW_NEWER_KVSTORE),
-      config
-     );
+        config.getThisNode(),
+        config.getBoolean(DremioConfig.DEBUG_AUTOPORT_BOOL),
+        config.getBoolean(DremioConfig.DEBUG_ENABLED_BOOL),
+        config.getBoolean(DremioConfig.DEBUG_ENABLED_BOOL),
+        config.getBoolean(DremioConfig.DEBUG_ENABLED_BOOL),
+        config.getBoolean(DremioConfig.DEBUG_ALLOW_TEST_APIS_BOOL),
+        config.getBoolean(DremioConfig.WEB_ENABLED_BOOL),
+        config.getBoolean(DremioConfig.WEB_SSL_PREFIX + DremioConfig.SSL_ENABLED),
+        config.getBoolean(DremioConfig.DEBUG_PREPOPULATE_BOOL),
+        config.getBoolean(DremioConfig.DEBUG_SINGLE_NODE_BOOL)
+            ? ClusterMode.LOCAL
+            : ClusterMode.DISTRIBUTED,
+        config.getInt(DremioConfig.SERVER_PORT_INT),
+        config.getBoolean(DremioConfig.DEBUG_USE_MEMORY_STRORAGE_BOOL),
+        config.getBoolean(DremioConfig.ENABLE_COORDINATOR_BOOL)
+            && config.getBoolean(DremioConfig.ENABLE_MASTER_BOOL),
+        config.getBoolean(DremioConfig.DEBUG_FORCE_REMOTE_BOOL),
+        config.getBoolean(DremioConfig.DEBUG_ADD_DEFAULT_USER),
+        config.getBoolean(DremioConfig.DEBUG_ALLOW_NEWER_KVSTORE),
+        config);
   }
 
   private DACConfig(
-    String thisNode,
-    boolean autoPort,
-    boolean sendStackTraceToClient,
-    boolean prettyPrintJSON,
-    boolean verboseAccessLog,
-    boolean allowTestApis,
-    boolean serveUI,
-    boolean webSSLEnabled,
-    boolean prepopulate,
-    ClusterMode clusterMode,
-    int localPort,
-    boolean inMemoryStorage,
-    boolean isMaster,
-    boolean forceRemote,
-    boolean addDefaultUser,
-    boolean allowNewerKVStore,
-    DremioConfig config
-  ) {
+      String thisNode,
+      boolean autoPort,
+      boolean sendStackTraceToClient,
+      boolean prettyPrintJSON,
+      boolean verboseAccessLog,
+      boolean allowTestApis,
+      boolean serveUI,
+      boolean webSSLEnabled,
+      boolean prepopulate,
+      ClusterMode clusterMode,
+      int localPort,
+      boolean inMemoryStorage,
+      boolean isMaster,
+      boolean forceRemote,
+      boolean addDefaultUser,
+      boolean allowNewerKVStore,
+      DremioConfig config) {
     super();
     this.thisNode = thisNode;
     this.autoPort = autoPort;
@@ -107,7 +106,7 @@ public final class DACConfig {
     this.allowNewerKVStore = allowNewerKVStore;
   }
 
-  public DACConfig with(String path, Object value){
+  public DACConfig with(String path, Object value) {
     return new DACConfig(config.withValue(path, value));
   }
 
@@ -127,7 +126,7 @@ public final class DACConfig {
     return with(DremioConfig.DEBUG_AUTOPORT_BOOL, autoPort);
   }
 
-  public int getHttpPort(){
+  public int getHttpPort() {
     return config.getInt(DremioConfig.WEB_PORT_INT);
   }
 
@@ -203,7 +202,7 @@ public final class DACConfig {
     return this.clusterMode;
   }
 
-  public DremioConfig getConfig(){
+  public DremioConfig getConfig() {
     return config;
   }
 
@@ -212,12 +211,11 @@ public final class DACConfig {
   }
 
   public static DACConfig newDebugConfig(SabotConfig config) {
-    return new DACConfig(
-        DremioConfig.create(null, config)
-        ).debug(true);
+    return new DACConfig(DremioConfig.create(null, config)).debug(true);
   }
 
   public boolean isMigrationEnabled() {
-    return config.hasPath(DremioConfig.MIGRATION_ENABLED) && config.getBoolean(DremioConfig.MIGRATION_ENABLED);
+    return config.hasPath(DremioConfig.MIGRATION_ENABLED)
+        && config.getBoolean(DremioConfig.MIGRATION_ENABLED);
   }
 }

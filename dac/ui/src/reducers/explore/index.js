@@ -25,15 +25,17 @@ import join from "./join";
 import ui from "./ui";
 import view from "./view";
 import { tabViewReducer } from "./tabViewReducer";
+import exploreJobs from "./exploreJobs";
+import { tabExploreJobsReducer } from "./tabExploreJobs";
 import { SET_TAB_VIEW } from "@app/actions/resources/scripts";
-import { cloneDeep, result } from "lodash";
-import { RESET_QUERY_STATE, resetQueryState } from "@app/actions/explore/view";
+import { cloneDeep } from "lodash";
+import { RESET_QUERY_STATE } from "@app/actions/explore/view";
 import exploreUtils from "@app/utils/explore/exploreUtils";
 
 // export for testing
 export const currentRouteState = extractValue(
   EXPLORE_PAGE_LOCATION_CHANGED,
-  "newRouteState"
+  "newRouteState",
 );
 
 export default function exploreReducer(curState, action) {
@@ -41,6 +43,13 @@ export default function exploreReducer(curState, action) {
     view,
     tabViews: (...args) => {
       return tabViewReducer({ view: view(curState?.view, action) })(...args);
+    },
+    exploreJobs,
+    // might later be able to consolidate with tabViews
+    tabExploreJobs: (...args) => {
+      return tabExploreJobsReducer({
+        exploreJobs: exploreJobs(curState?.exploreJobs, action),
+      })(...args);
     },
     sqlActions,
     ui,
@@ -73,6 +82,11 @@ export default function exploreReducer(curState, action) {
           isMultiQueryRunning: false,
           queryFilter: "",
         },
+        ...(state.tabExploreJobs[scriptId] && {
+          exploreJobs: {
+            ...cloneDeep(state.tabExploreJobs[scriptId]),
+          },
+        }),
       };
       return result;
     } else {
@@ -88,6 +102,7 @@ export default function exploreReducer(curState, action) {
           queryTabNumber: 1,
           queryContext: state.view.queryContext,
         },
+        exploreJobs: state.exploreJobs,
       };
 
       return result;

@@ -23,7 +23,8 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 @JsonTypeName("writer")
 public class Writer extends SingleInputOperator {
 
-  // TODO: Hack - Make the type generic until "common" and "java-exec" modules are merged (DRILL-507).
+  // TODO: Hack - Make the type generic until "common" and "java-exec" modules are merged
+  // (DRILL-507).
   private final Object createTableEntry;
 
   @JsonCreator
@@ -32,7 +33,8 @@ public class Writer extends SingleInputOperator {
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(LogicalVisitor<T, X, E> logicalVisitor, X value) throws E {
+  public <T, X, E extends Throwable> T accept(LogicalVisitor<T, X, E> logicalVisitor, X value)
+      throws E {
     return logicalVisitor.visitWriter(this, value);
   }
 
@@ -42,7 +44,8 @@ public class Writer extends SingleInputOperator {
 
   public static class Builder extends AbstractSingleBuilder<Writer, Builder> {
 
-    // TODO: Hack - Make the type generic until "common" and "java-exec" modules are merged (DRILL-507).
+    // TODO: Hack - Make the type generic until "common" and "java-exec" modules are merged
+    // (DRILL-507).
     private Object createTableEntry;
 
     public Builder setCreateTableEntry(Object createTableEntry) {

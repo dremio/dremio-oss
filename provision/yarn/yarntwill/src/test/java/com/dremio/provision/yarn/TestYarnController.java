@@ -15,7 +15,6 @@
  */
 package com.dremio.provision.yarn;
 
-
 import static com.dremio.common.TestProfileHelper.assumeNonMaprProfile;
 import static org.apache.hadoop.fs.CommonConfigurationKeysPublic.FS_DEFAULT_NAME_KEY;
 import static org.apache.hadoop.yarn.conf.YarnConfiguration.RM_HOSTNAME;
@@ -24,13 +23,18 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import com.dremio.common.VM;
+import com.dremio.config.DremioConfig;
+import com.dremio.provision.Property;
+import com.dremio.provision.PropertyType;
+import com.dremio.provision.yarn.service.YarnDefaultsConfigurator;
+import com.dremio.test.TemporarySystemProperties;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.twill.api.RuntimeSpecification;
 import org.apache.twill.api.TwillSpecification;
@@ -44,32 +48,25 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import com.dremio.common.VM;
-import com.dremio.config.DremioConfig;
-import com.dremio.provision.Property;
-import com.dremio.provision.PropertyType;
-import com.dremio.provision.yarn.service.YarnDefaultsConfigurator;
-import com.dremio.test.TemporarySystemProperties;
-
-/**
- * Test YarnController
- */
+/** Test YarnController */
 public class TestYarnController {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestYarnController.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(TestYarnController.class);
 
-  private static String LOG_STRING = "o.a.t.i.a.ApplicationMasterService - [my.cluster.com] " +
-    "ApplicationMasterService:addContainerRequests(ApplicationMasterService.java:125) - " +
-  "Confirmed 1 containers running for BundledJarRunnable\n" +
-  "java.lang.Throwable: logThrowable Exception\n" +
-  "Caused by: java.lang.Throwable: logThrowableChild Exception\n" +
-  "Caused by: java.lang.Throwable: logThrowableChild1 Exception\n" +
-  "Caused by: java.lang.Throwable: Initial Exception\n";
+  private static String LOG_STRING =
+      "o.a.t.i.a.ApplicationMasterService - [my.cluster.com] "
+          + "ApplicationMasterService:addContainerRequests(ApplicationMasterService.java:125) - "
+          + "Confirmed 1 containers running for BundledJarRunnable\n"
+          + "java.lang.Throwable: logThrowable Exception\n"
+          + "Caused by: java.lang.Throwable: logThrowableChild Exception\n"
+          + "Caused by: java.lang.Throwable: logThrowableChild1 Exception\n"
+          + "Caused by: java.lang.Throwable: Initial Exception\n";
 
-  private static final String SHIM_LOADER_NAME = "dremio-shimloader-0.9.2-201703030219530674-3d10a7e.jar";
+  private static final String SHIM_LOADER_NAME =
+      "dremio-shimloader-0.9.2-201703030219530674-3d10a7e.jar";
   private static final String SOME_JAR_TO_LOAD = "some-jar-to-load.jar";
 
-  @ClassRule
-  public static final TemporaryFolder tempDir = new TemporaryFolder();
+  @ClassRule public static final TemporaryFolder tempDir = new TemporaryFolder();
 
   public static final DremioConfig dremioConfig = DremioConfig.create();
 
@@ -101,14 +98,14 @@ public class TestYarnController {
     properties.set(DremioConfig.PLUGINS_ROOT_PATH_PROPERTY, "./plugins");
   }
 
-  @Rule
-  public TemporarySystemProperties properties = new TemporarySystemProperties();
+  @Rule public TemporarySystemProperties properties = new TemporarySystemProperties();
 
   @Test
   public void testYarnController() throws Exception {
     assumeNonMaprProfile();
     YarnController yarnController = new YarnController();
-    YarnConfiguration yarnConfiguration = createYarnConfig("resource-manager", "hdfs://name-node:8020");
+    YarnConfiguration yarnConfiguration =
+        createYarnConfig("resource-manager", "hdfs://name-node:8020");
     String jvmOptions = yarnController.prepareCommandOptions(yarnConfiguration, getProperties());
     logger.info("JVMOptions: {}", jvmOptions);
 
@@ -120,26 +117,32 @@ public class TestYarnController {
     // assertTrue(jvmOptions.contains(" -XX:+PrintClassHistogramAfterFullGC"));
     assertTrue(jvmOptions.contains(" -Xms4096m"));
     assertTrue(jvmOptions.contains(" -XX:ThreadStackSize=512"));
-    assertTrue(jvmOptions.contains(" -Dzookeeper.saslprovider=com.mapr.security.maprsasl.MaprSaslProvider"));
+    assertTrue(
+        jvmOptions.contains(
+            " -Dzookeeper.saslprovider=com.mapr.security.maprsasl.MaprSaslProvider"));
     assertTrue(jvmOptions.contains(" -Dzookeeper.client.sasl=false"));
     assertTrue(jvmOptions.contains(" -Dzookeeper.sasl.clientconfig=Client"));
-    assertTrue(jvmOptions.contains(" -Djava.security.auth.login.config=/opt/mapr/conf/mapr.login.conf"));
-    assertTrue(jvmOptions.contains(" -Dpaths.spilling=[maprfs:///var/mapr/local/${NM_HOST}/mapred/spill]"));
+    assertTrue(
+        jvmOptions.contains(" -Djava.security.auth.login.config=/opt/mapr/conf/mapr.login.conf"));
+    assertTrue(
+        jvmOptions.contains(
+            " -Dpaths.spilling=[maprfs:///var/mapr/local/${NM_HOST}/mapred/spill]"));
     assertFalse(jvmOptions.contains("JAVA_HOME"));
     assertTrue(jvmOptions.contains(" -DMAPR_IMPALA_RA_THROTTLE"));
     assertTrue(jvmOptions.contains(" -DMAPR_MAX_RA_STREAMS"));
     assertTrue(jvmOptions.contains(" -D" + DremioConfig.NETTY_REFLECTIONS_ACCESSIBLE + "=true"));
-    assertTrue(jvmOptions.contains(" -D"+VM.DREMIO_CPU_AVAILABLE_PROPERTY + "=2"));
+    assertTrue(jvmOptions.contains(" -D" + VM.DREMIO_CPU_AVAILABLE_PROPERTY + "=2"));
 
-    DacDaemonYarnApplication.Environment myEnv = new DacDaemonYarnApplication.Environment() {
-      @Override
-      public String getEnv(String name) {
-        return tempDir.getRoot().toString();
-      }
-    };
+    DacDaemonYarnApplication.Environment myEnv =
+        new DacDaemonYarnApplication.Environment() {
+          @Override
+          public String getEnv(String name) {
+            return tempDir.getRoot().toString();
+          }
+        };
 
-    DacDaemonYarnApplication dacDaemonApp = new DacDaemonYarnApplication(yarnController.dremioConfig,
-      yarnConfiguration, myEnv);
+    DacDaemonYarnApplication dacDaemonApp =
+        new DacDaemonYarnApplication(yarnController.dremioConfig, yarnConfiguration, myEnv);
     TwillSpecification twillSpec = dacDaemonApp.configure();
     assertEquals(DacDaemonYarnApplication.YARN_APPLICATION_NAME_DEFAULT, twillSpec.getName());
     Map<String, RuntimeSpecification> runnables = twillSpec.getRunnables();
@@ -159,30 +162,32 @@ public class TestYarnController {
   private List<Property> getProperties() {
     List<Property> propertyList = new ArrayList<>();
 
-    propertyList.add(new Property("java.security.auth.login.config", "/opt/mapr/conf/mapr.login.conf")
-      .setType(PropertyType.JAVA_PROP));
+    propertyList.add(
+        new Property("java.security.auth.login.config", "/opt/mapr/conf/mapr.login.conf")
+            .setType(PropertyType.JAVA_PROP));
     propertyList.add(new Property("zookeeper.client.sasl", "false"));
     propertyList.add(new Property("zookeeper.sasl.clientconfig", "Client"));
-    propertyList.add(new Property("zookeeper.saslprovider", "com.mapr.security.maprsasl.MaprSaslProvider"));
+    propertyList.add(
+        new Property("zookeeper.saslprovider", "com.mapr.security.maprsasl.MaprSaslProvider"));
     propertyList.add(new Property("-Xms4096m", "").setType(PropertyType.SYSTEM_PROP));
     propertyList.add(new Property("-XX:ThreadStackSize", "512").setType(PropertyType.SYSTEM_PROP));
-    propertyList.add(new Property("paths.spilling", "[maprfs:///var/mapr/local/${NM_HOST}/mapred/spill]"));
+    propertyList.add(
+        new Property("paths.spilling", "[maprfs:///var/mapr/local/${NM_HOST}/mapred/spill]"));
     propertyList.add(new Property("JAVA_HOME", "/abc/bcd").setType(PropertyType.ENV_VAR));
     return propertyList;
   }
 
   /**
-   * DREMIO_GC_OPTS,   Property added from UI,    Expected in JVM opts,  Should not be in JVM opts
-   * ----------------, ------------------------,  ---------------------, -------------------------
-   * empty               empty (i.e no GC option) empty                  -XX:+UseParallelGC or -XX:+UseG1GC
-   * empty               -XX:+UseG1GC             -XX:+UseG1GC           -XX:+UseParallelGC
-   * empty               -XX:+UseParallelGC       -XX:+UseParallelGC     -XX:+UseG1GC
-   * -XX:+UseG1GC        empty                    -XX:+UseG1GC           -XX:+UseParallelGC
-   * -XX:+UseG1GC        -XX:+UseG1GC             -XX:+UseG1GC           -XX:+UseParallelGC
-   * -XX:+UseG1GC        -XX:+UseParallelGC       -XX:+UseParallelGC     -XX:+UseG1GC
-   * -XX:+UseParallelGC  empty                    -XX:+UseParallelGC     -XX:+UseG1GC
-   * -XX:+UseParallelGC  -XX:+UseG1GC             -XX:+UseG1GC           -XX:+UseParallelGC
-   * -XX:+UseParallelGC  -XX:+UseParallelGC       -XX:+UseParallelGC     -XX:+UseG1GC
+   * DREMIO_GC_OPTS, Property added from UI, Expected in JVM opts, Should not be in JVM opts
+   * ----------------, ------------------------, ---------------------, -------------------------
+   * empty empty (i.e no GC option) empty -XX:+UseParallelGC or -XX:+UseG1GC empty -XX:+UseG1GC
+   * -XX:+UseG1GC -XX:+UseParallelGC empty -XX:+UseParallelGC -XX:+UseParallelGC -XX:+UseG1GC
+   * -XX:+UseG1GC empty -XX:+UseG1GC -XX:+UseParallelGC -XX:+UseG1GC -XX:+UseG1GC -XX:+UseG1GC
+   * -XX:+UseParallelGC -XX:+UseG1GC -XX:+UseParallelGC -XX:+UseParallelGC -XX:+UseG1GC
+   * -XX:+UseParallelGC empty -XX:+UseParallelGC -XX:+UseG1GC -XX:+UseParallelGC -XX:+UseG1GC
+   * -XX:+UseG1GC -XX:+UseParallelGC -XX:+UseParallelGC -XX:+UseParallelGC -XX:+UseParallelGC
+   * -XX:+UseG1GC
+   *
    * @throws Exception
    */
   @Test
@@ -192,26 +197,34 @@ public class TestYarnController {
     testDremioGCOptionsScenario("", "-XX:+UseG1GC", "-XX:+UseG1GC", "-XX:+UseParallelGC");
     testDremioGCOptionsScenario("", "-XX:+UseParallelGC", "-XX:+UseParallelGC", "-XX:+UseG1GC");
     testDremioGCOptionsScenario("-XX:+UseG1GC", "", "-XX:+UseG1GC", "-XX:+UseParallelGC");
-    testDremioGCOptionsScenario("-XX:+UseG1GC", "-XX:+UseG1GC", "-XX:+UseG1GC", "-XX:+UseParallelGC");
-    testDremioGCOptionsScenario("-XX:+UseG1GC", "-XX:+UseParallelGC", "-XX:+UseParallelGC", "-XX:+UseG1GC");
+    testDremioGCOptionsScenario(
+        "-XX:+UseG1GC", "-XX:+UseG1GC", "-XX:+UseG1GC", "-XX:+UseParallelGC");
+    testDremioGCOptionsScenario(
+        "-XX:+UseG1GC", "-XX:+UseParallelGC", "-XX:+UseParallelGC", "-XX:+UseG1GC");
     testDremioGCOptionsScenario("-XX:+UseParallelGC", "", "-XX:+UseParallelGC", "-XX:+UseG1GC");
-    testDremioGCOptionsScenario("-XX:+UseParallelGC", "-XX:+UseG1GC", "-XX:+UseG1GC", "-XX:+UseParallelGC");
-    testDremioGCOptionsScenario("-XX:+UseParallelGC", "-XX:+UseParallelGC", "-XX:+UseParallelGC", "-XX:+UseG1GC");
+    testDremioGCOptionsScenario(
+        "-XX:+UseParallelGC", "-XX:+UseG1GC", "-XX:+UseG1GC", "-XX:+UseParallelGC");
+    testDremioGCOptionsScenario(
+        "-XX:+UseParallelGC", "-XX:+UseParallelGC", "-XX:+UseParallelGC", "-XX:+UseG1GC");
   }
 
-  private void testDremioGCOptionsScenario(String dremioGCOpts,
-                                           String systemProperty,
-                                           String expectedInJvmOptions,
-                                           String shouldNotBeInJvmOptions) throws Exception {
+  private void testDremioGCOptionsScenario(
+      String dremioGCOpts,
+      String systemProperty,
+      String expectedInJvmOptions,
+      String shouldNotBeInJvmOptions)
+      throws Exception {
     assumeNonMaprProfile();
-    YarnController yarnController = new YarnController() {
-      @Override
-      protected String getDremioGCOpts() {
-        return dremioGCOpts;
-      }
-    };
+    YarnController yarnController =
+        new YarnController() {
+          @Override
+          protected String getDremioGCOpts() {
+            return dremioGCOpts;
+          }
+        };
 
-    YarnConfiguration yarnConfiguration = createYarnConfig("resource-manager", "hdfs://name-node:8020");
+    YarnConfiguration yarnConfiguration =
+        createYarnConfig("resource-manager", "hdfs://name-node:8020");
     List<Property> propertyList = getProperties();
     if (systemProperty != null && !systemProperty.isEmpty()) {
       propertyList.add(new Property(systemProperty, "").setType(PropertyType.SYSTEM_PROP));
@@ -229,71 +242,85 @@ public class TestYarnController {
   @Test
   public void testDeploymentPolicy() throws Exception {
     assumeNonMaprProfile();
-    YarnConfiguration yarnConfiguration = createYarnConfig("resource-manager", "hdfs://name-node:8020");
+    YarnConfiguration yarnConfiguration =
+        createYarnConfig("resource-manager", "hdfs://name-node:8020");
 
     yarnConfiguration.set(DacDaemonYarnApplication.DEPLOYMENT_POLICY, "default");
 
-    DacDaemonYarnApplication.Environment myEnv = new DacDaemonYarnApplication.Environment() {
-      @Override
-      public String getEnv(String name) {
-        return tempDir.getRoot().toString();
-      }
-    };
+    DacDaemonYarnApplication.Environment myEnv =
+        new DacDaemonYarnApplication.Environment() {
+          @Override
+          public String getEnv(String name) {
+            return tempDir.getRoot().toString();
+          }
+        };
 
-    DacDaemonYarnApplication dacDaemonApp = new DacDaemonYarnApplication(dremioConfig,
-      yarnConfiguration, myEnv);
+    DacDaemonYarnApplication dacDaemonApp =
+        new DacDaemonYarnApplication(dremioConfig, yarnConfiguration, myEnv);
     TwillSpecification twillSpec = dacDaemonApp.configure();
 
     assertEquals(1, twillSpec.getPlacementPolicies().size());
-    assertEquals(TwillSpecification.PlacementPolicy.Type.DEFAULT, twillSpec.getPlacementPolicies().get(0).getType());
+    assertEquals(
+        TwillSpecification.PlacementPolicy.Type.DEFAULT,
+        twillSpec.getPlacementPolicies().get(0).getType());
 
     yarnConfiguration = createYarnConfig("resource-manager", "hdfs://name-node:8020");
     yarnConfiguration.set(DacDaemonYarnApplication.DEPLOYMENT_POLICY, "distributed");
 
-    DacDaemonYarnApplication dacDaemonApp1 = new DacDaemonYarnApplication(dremioConfig,
-      yarnConfiguration, myEnv);
+    DacDaemonYarnApplication dacDaemonApp1 =
+        new DacDaemonYarnApplication(dremioConfig, yarnConfiguration, myEnv);
     TwillSpecification twillSpec1 = dacDaemonApp1.configure();
 
     assertEquals(1, twillSpec1.getPlacementPolicies().size());
-    assertEquals(TwillSpecification.PlacementPolicy.Type.DISTRIBUTED, twillSpec1.getPlacementPolicies().get(0).getType());
+    assertEquals(
+        TwillSpecification.PlacementPolicy.Type.DISTRIBUTED,
+        twillSpec1.getPlacementPolicies().get(0).getType());
 
     yarnConfiguration = createYarnConfig("resource-manager", "hdfs://name-node:8020");
     yarnConfiguration.set(DacDaemonYarnApplication.DEPLOYMENT_POLICY, "abcd");
 
-    DacDaemonYarnApplication dacDaemonApp2 = new DacDaemonYarnApplication(dremioConfig,
-      yarnConfiguration, myEnv);
+    DacDaemonYarnApplication dacDaemonApp2 =
+        new DacDaemonYarnApplication(dremioConfig, yarnConfiguration, myEnv);
     TwillSpecification twillSpec2 = dacDaemonApp2.configure();
 
     assertEquals(1, twillSpec2.getPlacementPolicies().size());
-    assertEquals(TwillSpecification.PlacementPolicy.Type.DISTRIBUTED, twillSpec2.getPlacementPolicies().get(0).getType());
+    assertEquals(
+        TwillSpecification.PlacementPolicy.Type.DISTRIBUTED,
+        twillSpec2.getPlacementPolicies().get(0).getType());
 
     yarnConfiguration = createYarnConfig("resource-manager", "hdfs://name-node:8020");
 
-    DacDaemonYarnApplication dacDaemonApp3 = new DacDaemonYarnApplication(dremioConfig,
-      yarnConfiguration, myEnv);
+    DacDaemonYarnApplication dacDaemonApp3 =
+        new DacDaemonYarnApplication(dremioConfig, yarnConfiguration, myEnv);
     TwillSpecification twillSpec3 = dacDaemonApp3.configure();
 
     assertEquals(1, twillSpec3.getPlacementPolicies().size());
-    assertEquals(TwillSpecification.PlacementPolicy.Type.DISTRIBUTED, twillSpec3.getPlacementPolicies().get(0).getType());
-
+    assertEquals(
+        TwillSpecification.PlacementPolicy.Type.DISTRIBUTED,
+        twillSpec3.getPlacementPolicies().get(0).getType());
   }
 
   @Test
   public void testRegexInPath() throws Exception {
     assumeNonMaprProfile();
-    DacDaemonYarnApplication.Environment myEnv = new DacDaemonYarnApplication.Environment() {
-      @Override
-      public String getEnv(String name) {
-        return tempDir.getRoot().toString();
-      }
-    };
+    DacDaemonYarnApplication.Environment myEnv =
+        new DacDaemonYarnApplication.Environment() {
+          @Override
+          public String getEnv(String name) {
+            return tempDir.getRoot().toString();
+          }
+        };
 
-    System.setProperty("provisioning.yarn.classpath", "["+ tempDir.getRoot().toString() +
-      "/jars/bundled/" + SOME_JAR_TO_LOAD + "]");
-    YarnConfiguration yarnConfiguration = createYarnConfig("resource-manager", "hdfs://name-node:8020");
-    yarnConfiguration.set(YarnDefaultsConfigurator.CLASSPATH_JARS, YarnDefaultsConfigurator.MapRYarnDefaults.getAppClassPath());
-    DacDaemonYarnApplication dacDaemonApp = new DacDaemonYarnApplication(DremioConfig.create(),
-      yarnConfiguration, myEnv);
+    System.setProperty(
+        "provisioning.yarn.classpath",
+        "[" + tempDir.getRoot().toString() + "/jars/bundled/" + SOME_JAR_TO_LOAD + "]");
+    YarnConfiguration yarnConfiguration =
+        createYarnConfig("resource-manager", "hdfs://name-node:8020");
+    yarnConfiguration.set(
+        YarnDefaultsConfigurator.CLASSPATH_JARS,
+        YarnDefaultsConfigurator.MapRYarnDefaults.getAppClassPath());
+    DacDaemonYarnApplication dacDaemonApp =
+        new DacDaemonYarnApplication(DremioConfig.create(), yarnConfiguration, myEnv);
 
     List<String> names = dacDaemonApp.getJarNames();
     assertFalse(names.isEmpty());
@@ -309,18 +336,21 @@ public class TestYarnController {
   @Test
   public void testRegexInPathNonMapR() throws Exception {
     assumeNonMaprProfile();
-    DacDaemonYarnApplication.Environment myEnv = new DacDaemonYarnApplication.Environment() {
-      @Override
-      public String getEnv(String name) {
-        return tempDir.getRoot().toString();
-      }
-    };
+    DacDaemonYarnApplication.Environment myEnv =
+        new DacDaemonYarnApplication.Environment() {
+          @Override
+          public String getEnv(String name) {
+            return tempDir.getRoot().toString();
+          }
+        };
 
-    System.setProperty("provisioning.yarn.classpath", "["+ tempDir.getRoot().toString() +
-      "/jars/bundled/" + SOME_JAR_TO_LOAD + "]");
-    YarnConfiguration yarnConfiguration = createYarnConfig("resource-manager", "hdfs://name-node:8020");
-    DacDaemonYarnApplication dacDaemonApp = new DacDaemonYarnApplication(DremioConfig.create(),
-      yarnConfiguration, myEnv);
+    System.setProperty(
+        "provisioning.yarn.classpath",
+        "[" + tempDir.getRoot().toString() + "/jars/bundled/" + SOME_JAR_TO_LOAD + "]");
+    YarnConfiguration yarnConfiguration =
+        createYarnConfig("resource-manager", "hdfs://name-node:8020");
+    DacDaemonYarnApplication dacDaemonApp =
+        new DacDaemonYarnApplication(DremioConfig.create(), yarnConfiguration, myEnv);
 
     List<String> names = dacDaemonApp.getJarNames();
     assertFalse(names.isEmpty());
@@ -334,17 +364,21 @@ public class TestYarnController {
   @Test
   public void testEmptyYarnClasspath() throws Exception {
     assumeNonMaprProfile();
-    DacDaemonYarnApplication.Environment myEnv = new DacDaemonYarnApplication.Environment() {
-      @Override
-      public String getEnv(String name) {
-        return tempDir.getRoot().toString();
-      }
-    };
+    DacDaemonYarnApplication.Environment myEnv =
+        new DacDaemonYarnApplication.Environment() {
+          @Override
+          public String getEnv(String name) {
+            return tempDir.getRoot().toString();
+          }
+        };
 
-    YarnConfiguration yarnConfiguration = createYarnConfig("resource-manager", "hdfs://name-node:8020");
-    yarnConfiguration.set(YarnDefaultsConfigurator.CLASSPATH_JARS, YarnDefaultsConfigurator.MapRYarnDefaults.getAppClassPath());
-    DacDaemonYarnApplication dacDaemonApp = new DacDaemonYarnApplication(DremioConfig.create(),
-      yarnConfiguration, myEnv);
+    YarnConfiguration yarnConfiguration =
+        createYarnConfig("resource-manager", "hdfs://name-node:8020");
+    yarnConfiguration.set(
+        YarnDefaultsConfigurator.CLASSPATH_JARS,
+        YarnDefaultsConfigurator.MapRYarnDefaults.getAppClassPath());
+    DacDaemonYarnApplication dacDaemonApp =
+        new DacDaemonYarnApplication(DremioConfig.create(), yarnConfiguration, myEnv);
 
     List<String> names = dacDaemonApp.getJarNames();
     assertFalse(names.isEmpty());
@@ -358,12 +392,13 @@ public class TestYarnController {
   @Test
   public void testNonMapRYarnClasspath() throws Exception {
     assumeNonMaprProfile();
-    DacDaemonYarnApplication.Environment myEnv = new DacDaemonYarnApplication.Environment() {
-      @Override
-      public String getEnv(String name) {
-        return tempDir.getRoot().toString();
-      }
-    };
+    DacDaemonYarnApplication.Environment myEnv =
+        new DacDaemonYarnApplication.Environment() {
+          @Override
+          public String getEnv(String name) {
+            return tempDir.getRoot().toString();
+          }
+        };
     File shimFilePath = new File(finalPath, SHIM_LOADER_NAME);
     File maprfsJar = new File(thirdrdPartyDir, "dremio-maprfs-shaded-5.1.0-mapr.jar");
 
@@ -371,9 +406,10 @@ public class TestYarnController {
       shimFilePath.delete();
       maprfsJar.delete();
 
-      YarnConfiguration yarnConfiguration = createYarnConfig("resource-manager", "hdfs://name-node:8020");
-      DacDaemonYarnApplication dacDaemonApp = new DacDaemonYarnApplication(DremioConfig.create(),
-        yarnConfiguration, myEnv);
+      YarnConfiguration yarnConfiguration =
+          createYarnConfig("resource-manager", "hdfs://name-node:8020");
+      DacDaemonYarnApplication dacDaemonApp =
+          new DacDaemonYarnApplication(DremioConfig.create(), yarnConfiguration, myEnv);
 
       List<String> names = dacDaemonApp.getJarNames();
       assertTrue(names.isEmpty());
@@ -388,160 +424,165 @@ public class TestYarnController {
     YarnTwillLogHandler logHandler = new YarnTwillLogHandler();
 
     final Throwable throwable = new Throwable("Initial Exception");
-    final LogThrowable logThrowableChild2 = new LogThrowable() {
-      @Override
-      public String getClassName() {
-        return throwable.getClass().getName();
-      }
+    final LogThrowable logThrowableChild2 =
+        new LogThrowable() {
+          @Override
+          public String getClassName() {
+            return throwable.getClass().getName();
+          }
 
-      @Override
-      public String getMessage() {
-        return throwable.getMessage();
-      }
+          @Override
+          public String getMessage() {
+            return throwable.getMessage();
+          }
 
-      @Override
-      public StackTraceElement[] getStackTraces() {
-        return throwable.getStackTrace();
-      }
+          @Override
+          public StackTraceElement[] getStackTraces() {
+            return throwable.getStackTrace();
+          }
 
-      @Override
-      public LogThrowable getCause() {
-        return null;
-      }
-    };
+          @Override
+          public LogThrowable getCause() {
+            return null;
+          }
+        };
 
-    final LogThrowable logThrowableChild1 = new LogThrowable() {
-      @Override
-      public String getClassName() {
-        return "ABCD";
-      }
+    final LogThrowable logThrowableChild1 =
+        new LogThrowable() {
+          @Override
+          public String getClassName() {
+            return "ABCD";
+          }
 
-      @Override
-      public String getMessage() {
-        return "logThrowableChild1 Exception";
-      }
+          @Override
+          public String getMessage() {
+            return "logThrowableChild1 Exception";
+          }
 
-      @Override
-      public StackTraceElement[] getStackTraces() {
-        return new StackTraceElement[0];
-      }
+          @Override
+          public StackTraceElement[] getStackTraces() {
+            return new StackTraceElement[0];
+          }
 
-      @Override
-      public LogThrowable getCause() {
-        return logThrowableChild2;
-      }
-    };
+          @Override
+          public LogThrowable getCause() {
+            return logThrowableChild2;
+          }
+        };
 
-    final LogThrowable logThrowableChild = new LogThrowable() {
-      @Override
-      public String getClassName() {
-        return "BCDEF";
-      }
+    final LogThrowable logThrowableChild =
+        new LogThrowable() {
+          @Override
+          public String getClassName() {
+            return "BCDEF";
+          }
 
-      @Override
-      public String getMessage() {
-        return "logThrowableChild Exception";
-      }
+          @Override
+          public String getMessage() {
+            return "logThrowableChild Exception";
+          }
 
-      @Override
-      public StackTraceElement[] getStackTraces() {
-        return new StackTraceElement[0];
-      }
+          @Override
+          public StackTraceElement[] getStackTraces() {
+            return new StackTraceElement[0];
+          }
 
-      @Override
-      public LogThrowable getCause() {
-        return logThrowableChild1;
-      }
-    };
+          @Override
+          public LogThrowable getCause() {
+            return logThrowableChild1;
+          }
+        };
 
-    final LogThrowable logThrowable = new LogThrowable() {
-      @Override
-      public String getClassName() {
-        return "CDEFG";
-      }
+    final LogThrowable logThrowable =
+        new LogThrowable() {
+          @Override
+          public String getClassName() {
+            return "CDEFG";
+          }
 
-      @Override
-      public String getMessage() {
-        return "logThrowable Exception";
-      }
+          @Override
+          public String getMessage() {
+            return "logThrowable Exception";
+          }
 
-      @Override
-      public StackTraceElement[] getStackTraces() {
-        return new StackTraceElement[0];
-      }
+          @Override
+          public StackTraceElement[] getStackTraces() {
+            return new StackTraceElement[0];
+          }
 
-      @Override
-      public LogThrowable getCause() {
-        return logThrowableChild;
-      }
-    };
+          @Override
+          public LogThrowable getCause() {
+            return logThrowableChild;
+          }
+        };
 
-    LogEntry logEntry = new LogEntry() {
-      @Override
-      public String getLoggerName() {
-        return "org.apache.twill.internal.appmaster.ApplicationMasterService";
-      }
+    LogEntry logEntry =
+        new LogEntry() {
+          @Override
+          public String getLoggerName() {
+            return "org.apache.twill.internal.appmaster.ApplicationMasterService";
+          }
 
-      @Override
-      public String getHost() {
-        return "my.cluster.com";
-      }
+          @Override
+          public String getHost() {
+            return "my.cluster.com";
+          }
 
-      @Override
-      public long getTimestamp() {
-        return System.currentTimeMillis() - 1000*3600*24;
-      }
+          @Override
+          public long getTimestamp() {
+            return System.currentTimeMillis() - 1000 * 3600 * 24;
+          }
 
-      @Override
-      public Level getLogLevel() {
-        return Level.INFO;
-      }
+          @Override
+          public Level getLogLevel() {
+            return Level.INFO;
+          }
 
-      @Override
-      public String getSourceClassName() {
-        return "ApplicationMasterService";
-      }
+          @Override
+          public String getSourceClassName() {
+            return "ApplicationMasterService";
+          }
 
-      @Override
-      public String getSourceMethodName() {
-        return "addContainerRequests";
-      }
+          @Override
+          public String getSourceMethodName() {
+            return "addContainerRequests";
+          }
 
-      @Override
-      public String getFileName() {
-        return "ApplicationMasterService.java";
-      }
+          @Override
+          public String getFileName() {
+            return "ApplicationMasterService.java";
+          }
 
-      @Override
-      public int getLineNumber() {
-        return 125;
-      }
+          @Override
+          public int getLineNumber() {
+            return 125;
+          }
 
-      @Override
-      public String getThreadName() {
-        return "run";
-      }
+          @Override
+          public String getThreadName() {
+            return "run";
+          }
 
-      @Override
-      public String getMessage() {
-        return "Confirmed 1 containers running for BundledJarRunnable";
-      }
+          @Override
+          public String getMessage() {
+            return "Confirmed 1 containers running for BundledJarRunnable";
+          }
 
-      @Override
-      public String getRunnableName() {
-        return null;
-      }
+          @Override
+          public String getRunnableName() {
+            return null;
+          }
 
-      @Override
-      public LogThrowable getThrowable() {
-        return logThrowable;
-      }
+          @Override
+          public LogThrowable getThrowable() {
+            return logThrowable;
+          }
 
-      @Override
-      public StackTraceElement[] getStackTraces() {
-        return new StackTraceElement[0];
-      }
-    };
+          @Override
+          public StackTraceElement[] getStackTraces() {
+            return new StackTraceElement[0];
+          }
+        };
 
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     PrintStream ps = new PrintStream(baos);

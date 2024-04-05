@@ -15,8 +15,9 @@
  */
 package com.dremio.exec.planner.logical.partition;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import java.util.List;
-
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
@@ -35,23 +36,21 @@ import org.apache.calcite.rex.RexVisitorImpl;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlOperator;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
-
 /**
  * Rewrites an expression tree, replacing chained OR and AND operators with a single N-ary operator
  *
- * e.g.
+ * <p>e.g.
  *
- * OR(A, OR(B, C)) ---> OR(A, B, C)
+ * <p>OR(A, OR(B, C)) ---> OR(A, B, C)
  */
- public class RewriteCombineBinaryOperators extends RexVisitorImpl<RexNode> {
+public class RewriteCombineBinaryOperators extends RexVisitorImpl<RexNode> {
 
   RexBuilder builder;
+
   public RewriteCombineBinaryOperators(boolean deep, RexBuilder builder) {
-       super(deep);
-       this.builder = builder;
-     }
+    super(deep);
+    this.builder = builder;
+  }
 
   @Override
   public RexNode visitInputRef(RexInputRef inputRef) {

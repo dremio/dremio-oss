@@ -20,21 +20,6 @@ import static com.dremio.exec.store.IcebergExpiryMetric.NUM_EXPIRED_SNAPSHOTS;
 import static com.dremio.exec.store.IcebergExpiryMetric.NUM_TABLE_EXPIRY;
 import static com.dremio.exec.store.IcebergExpiryMetric.NUM_TOTAL_SNAPSHOTS;
 
-import java.nio.charset.StandardCharsets;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-
-import org.apache.arrow.memory.OutOfMemoryException;
-import org.apache.arrow.vector.BigIntVector;
-import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.VarCharVector;
-import org.apache.iceberg.io.FileIO;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.store.IcebergExpiryMetric;
@@ -43,15 +28,29 @@ import com.dremio.exec.store.SystemSchemas;
 import com.dremio.io.file.FileSystem;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.scan.OutputMutator;
+import java.nio.charset.StandardCharsets;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import org.apache.arrow.memory.OutOfMemoryException;
+import org.apache.arrow.vector.BigIntVector;
+import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.VarCharVector;
+import org.apache.iceberg.io.FileIO;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * Responsible for expiring the snapshots for a given table, and identifying live/expired snapshots based on the
- * snapshot mode. Extending classes should implement the logic for setting up {@link IcebergExpiryAction} and make
- * noMoreActions to true when there's nothing more to produce.
+ * Responsible for expiring the snapshots for a given table, and identifying live/expired snapshots
+ * based on the snapshot mode. Extending classes should implement the logic for setting up {@link
+ * IcebergExpiryAction} and make noMoreActions to true when there's nothing more to produce.
  */
 public abstract class IcebergExpirySnapshotsReader implements RecordReader {
   private static final Logger LOGGER = LoggerFactory.getLogger(IcebergExpirySnapshotsReader.class);
-  private static final byte[] METADATA = IcebergFileType.METADATA_JSON.name().getBytes(StandardCharsets.UTF_8);
+  private static final byte[] METADATA =
+      IcebergFileType.METADATA_JSON.name().getBytes(StandardCharsets.UTF_8);
 
   private Iterator<SnapshotEntry> snapshotsIterator = Collections.emptyIterator();
   protected Iterator<String> metadataPathsToRetain = Collections.emptyIterator();
@@ -74,10 +73,11 @@ public abstract class IcebergExpirySnapshotsReader implements RecordReader {
   protected boolean noMoreActions;
   protected IcebergExpiryAction currentExpiryAction;
 
-  public IcebergExpirySnapshotsReader(OperatorContext context,
-                                      SupportsIcebergMutablePlugin icebergMutablePlugin,
-                                      OpProps props,
-                                      SnapshotsScanOptions snapshotsScanOptions) {
+  public IcebergExpirySnapshotsReader(
+      OperatorContext context,
+      SupportsIcebergMutablePlugin icebergMutablePlugin,
+      OpProps props,
+      SnapshotsScanOptions snapshotsScanOptions) {
     this.context = context;
     this.icebergMutablePlugin = icebergMutablePlugin;
     this.props = props;
@@ -123,14 +123,17 @@ public abstract class IcebergExpirySnapshotsReader implements RecordReader {
 
     while (snapshotsIterator.hasNext() && outIndex < maxOutIndex) {
       SnapshotEntry snapshot = snapshotsIterator.next();
-      metadataFilePathOutVector.setSafe(outIndex, snapshot.getMetadataJsonPath().getBytes(StandardCharsets.UTF_8));
+      metadataFilePathOutVector.setSafe(
+          outIndex, snapshot.getMetadataJsonPath().getBytes(StandardCharsets.UTF_8));
       snapshotIdOutVector.setSafe(outIndex, snapshot.getSnapshotId());
-      manifestListOutVector.setSafe(outIndex, snapshot.getManifestListPath().getBytes(StandardCharsets.UTF_8));
+      manifestListOutVector.setSafe(
+          outIndex, snapshot.getManifestListPath().getBytes(StandardCharsets.UTF_8));
       outIndex++;
     }
 
     while (metadataPathsToRetain.hasNext() && outIndex <= maxOutIndex) {
-      filePathVector.setSafe(outIndex, metadataPathsToRetain.next().getBytes(StandardCharsets.UTF_8));
+      filePathVector.setSafe(
+          outIndex, metadataPathsToRetain.next().getBytes(StandardCharsets.UTF_8));
       fileTypeVector.setSafe(outIndex, METADATA);
       outIndex++;
     }
@@ -187,8 +190,13 @@ public abstract class IcebergExpirySnapshotsReader implements RecordReader {
     addLongStat(ICEBERG_COMMIT_TIME, currentExpiryAction.getTimeElapsedForExpiry());
 
     if (LOGGER.isDebugEnabled()) {
-      LOGGER.debug("Mode {}, Table {}, Snapshot ids: [{}]", mode.name(), currentExpiryAction.getTableName(),
-        snapshots.stream().map(se -> String.valueOf(se.getSnapshotId())).collect(Collectors.joining(",")));
+      LOGGER.debug(
+          "Mode {}, Table {}, Snapshot ids: [{}]",
+          mode.name(),
+          currentExpiryAction.getTableName(),
+          snapshots.stream()
+              .map(se -> String.valueOf(se.getSnapshotId()))
+              .collect(Collectors.joining(",")));
     }
     snapshotsIterator = snapshots.iterator();
   }

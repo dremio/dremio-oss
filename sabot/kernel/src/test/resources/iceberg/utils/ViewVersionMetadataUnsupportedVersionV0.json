@@ -1,0 +1,62 @@
+{
+  "format-version" : 3,
+  "location" : "s3://datasets.dremio.com/sanfolder/vt1",
+  "current-version-id" : 2,
+  "properties" : { },
+  "versions" : [ {
+    "version-id" : 1,
+    "parent-version-id" : -1,
+    "timestamp-ms" : 1697667084350,
+    "summary" : {
+      "operation" : "create",
+      "genie_id" : "N/A",
+      "engine_version" : "N/A"
+    },
+    "view-definition" : {
+      "sql" : "select * from t1\n--drop view vt1;",
+      "schema" : {
+        "type" : "struct",
+        "schema-id" : 0,
+        "fields" : [ {
+          "id" : 1,
+          "name" : "c1",
+          "required" : false,
+          "type" : "int"
+        } ]
+      },
+      "sessionCatalog" : "arcticSource",
+      "sessionNamespace" : [ "arcticSource" ]
+    }
+  }, {
+    "version-id" : 2,
+    "parent-version-id" : 1,
+    "timestamp-ms" : 1697674342878,
+    "summary" : {
+      "operation" : "replace",
+      "genie_id" : "N/A",
+      "engine_version" : "N/A"
+    },
+    "view-definition" : {
+      "sql" : "select 1 from t1",
+      "schema" : {
+        "type" : "struct",
+        "schema-id" : 0,
+        "fields" : [ {
+          "id" : 1,
+          "name" : "EXPR$0",
+          "required" : false,
+          "type" : "int"
+        } ]
+      },
+      "sessionCatalog" : "arcticSource",
+      "sessionNamespace" : [ "arcticSource" ]
+    }
+  } ],
+  "version-log" : [ {
+    "timestamp-ms" : 1697667084350,
+    "version-id" : 1
+  }, {
+    "timestamp-ms" : 1697674342878,
+    "version-id" : 2
+  } ]
+}

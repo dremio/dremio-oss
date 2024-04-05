@@ -15,29 +15,22 @@
  */
 package com.dremio.service.tokens;
 
-import java.util.Date;
-
-import javax.inject.Provider;
-
-import org.jetbrains.annotations.NotNull;
-
 import com.dremio.authenticator.AuthException;
 import com.dremio.authenticator.AuthProvider;
 import com.dremio.authenticator.AuthRequest;
 import com.dremio.authenticator.AuthResult;
+import java.util.Date;
+import javax.inject.Provider;
+import org.jetbrains.annotations.NotNull;
 
-/**
- * Validates Dremio access token.
- */
+/** Validates Dremio access token. */
 public class DremioAccessTokenAuthProvider implements AuthProvider {
   public static final String TOKEN_TYPE = "access_token";
   private final Provider<TokenManager> tokenManagerProvider;
 
   private TokenManager tokenManager;
 
-  public DremioAccessTokenAuthProvider(
-    Provider<TokenManager> tokenManagerProvider
-  ) {
+  public DremioAccessTokenAuthProvider(Provider<TokenManager> tokenManagerProvider) {
     this.tokenManagerProvider = tokenManagerProvider;
   }
 
@@ -46,17 +39,13 @@ public class DremioAccessTokenAuthProvider implements AuthProvider {
     tokenManager = tokenManagerProvider.get();
   }
 
-  /**
-   * Returns true if token type is supported
-   */
+  /** Returns true if token type is supported */
   @Override
   public boolean isSupported(String tokenType) {
     return TOKEN_TYPE.equalsIgnoreCase(tokenType);
   }
 
-  /**
-   * Validates Dremio access token. (Currently only used by Tableau)
-   */
+  /** Validates Dremio access token. (Currently only used by Tableau) */
   @Override
   @NotNull
   public AuthResult validate(AuthRequest request) throws AuthException {
@@ -70,9 +59,9 @@ public class DremioAccessTokenAuthProvider implements AuthProvider {
       throw new AuthException(request, "Invalid scope.");
     }
     return AuthResult.builder()
-      .setUserName(tokenDetails.username)
-      .setExpiresAt(new Date(tokenDetails.expiresAt))
-      .setTokenType(TOKEN_TYPE)
-      .build();
+        .setUserName(tokenDetails.username)
+        .setExpiresAt(new Date(tokenDetails.expiresAt))
+        .setTokenType(TOKEN_TYPE)
+        .build();
   }
 }

@@ -15,21 +15,19 @@
  */
 package com.dremio.service.users;
 
+import com.dremio.datastore.SearchTypes;
 import java.security.NoSuchAlgorithmException;
 import java.util.regex.Pattern;
-
 import javax.crypto.SecretKeyFactory;
 
-import com.dremio.datastore.SearchTypes;
-
-/**
- * Common utilities for UserService
- */
+/** Common utilities for UserService */
 public class UserServiceUtils {
 
   public static final Pattern PASSWORD_MATCHER = Pattern.compile("(?=.*[0-9])(?=.*[a-zA-Z]).{8,}");
-  public static final SearchTypes.SearchFieldSorting DEFAULT_SORTER = UserIndexKeys.NAME.toSortField(SearchTypes.SortOrder.ASCENDING);
-  public static final String USER_AUTHENTICATION_ERROR_MESSAGE = "Login failed: Invalid username or password";
+  public static final SearchTypes.SearchFieldSorting DEFAULT_SORTER =
+      UserIndexKeys.NAME.toSortField(SearchTypes.SortOrder.ASCENDING);
+  public static final String USER_AUTHENTICATION_ERROR_MESSAGE =
+      "Login failed: Invalid username or password";
 
   public static SecretKeyFactory buildSecretKey() {
     try {
@@ -40,10 +38,12 @@ public class UserServiceUtils {
   }
 
   public static boolean validateUsername(String input) throws IllegalArgumentException {
-    // DX-8156: These two characters `":` currently cause trouble, particularly for constructing SQL queries.
-    return input != null && !input.isEmpty()
-      && !input.contains(String.valueOf('"'))
-      && !input.contains(":");
+    // DX-8156: These two characters `":` currently cause trouble, particularly for constructing SQL
+    // queries.
+    return input != null
+        && !input.isEmpty()
+        && !input.contains(String.valueOf('"'))
+        && !input.contains(":");
   }
 
   public static boolean validatePassword(String input) throws IllegalArgumentException {
@@ -52,7 +52,7 @@ public class UserServiceUtils {
 
   public static boolean slowEquals(byte[] a, byte[] b) {
     int diff = a.length ^ b.length;
-    for(int i = 0; i < a.length && i < b.length; i++) {
+    for (int i = 0; i < a.length && i < b.length; i++) {
       diff |= a[i] ^ b[i];
     }
     return diff == 0;

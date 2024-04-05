@@ -15,15 +15,6 @@
  */
 package com.dremio.exec.store.iceberg;
 
-import java.util.List;
-
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelOptTable;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.metadata.RelMetadataQuery;
-import org.apache.calcite.rel.type.RelDataType;
-
 import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.exec.planner.physical.TableFunctionPrel;
@@ -31,6 +22,13 @@ import com.dremio.exec.planner.physical.TableFunctionUtil;
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.store.SystemSchemas;
 import com.dremio.exec.store.TableMetadata;
+import java.util.List;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptTable;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.apache.calcite.rel.type.RelDataType;
 
 public class IcebergDeleteFileAggPrel extends TableFunctionPrel {
 
@@ -47,9 +45,11 @@ public class IcebergDeleteFileAggPrel extends TableFunctionPrel {
         table,
         child,
         tableMetadata,
-        TableFunctionUtil.getIcebergDeleteFileAggTableFunctionConfig(SystemSchemas.ICEBERG_DELETE_FILE_AGG_SCHEMA),
+        TableFunctionUtil.getIcebergDeleteFileAggTableFunctionConfig(
+            SystemSchemas.ICEBERG_DELETE_FILE_AGG_SCHEMA),
         CalciteArrowHelper.wrap(SystemSchemas.ICEBERG_DELETE_FILE_AGG_SCHEMA)
-            .toCalciteRecordType(cluster.getTypeFactory(),
+            .toCalciteRecordType(
+                cluster.getTypeFactory(),
                 PrelUtil.getPlannerSettings(cluster).isFullNestedSchemaSupport()),
         survivingRowCount);
   }
@@ -63,19 +63,29 @@ public class IcebergDeleteFileAggPrel extends TableFunctionPrel {
       TableFunctionConfig functionConfig,
       RelDataType rowType,
       Long survivingRowCount) {
-    super(cluster, traitSet, table, child, tableMetadata, functionConfig, rowType, survivingRowCount);
+    super(
+        cluster, traitSet, table, child, tableMetadata, functionConfig, rowType, survivingRowCount);
   }
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new IcebergDeleteFileAggPrel(getCluster(), getTraitSet(), getTable(), sole(inputs), getTableMetadata(),
-        getTableFunctionConfig(), getRowType(), getSurvivingRecords());
+    return new IcebergDeleteFileAggPrel(
+        getCluster(),
+        getTraitSet(),
+        getTable(),
+        sole(inputs),
+        getTableMetadata(),
+        getTableFunctionConfig(),
+        getRowType(),
+        getSurvivingRecords());
   }
 
   @Override
-  protected double defaultEstimateRowCount(TableFunctionConfig functionConfig, RelMetadataQuery mq) {
+  protected double defaultEstimateRowCount(
+      TableFunctionConfig functionConfig, RelMetadataQuery mq) {
     if (getSurvivingRecords() == null) {
-      // if an estimate isn't provided, assume we don't have many delete files to aggregate and use the row count
+      // if an estimate isn't provided, assume we don't have many delete files to aggregate and use
+      // the row count
       // of the input
       return mq.getRowCount(input);
     }

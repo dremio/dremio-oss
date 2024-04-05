@@ -18,20 +18,17 @@ package com.dremio.service.execselector;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.Set;
-
 import com.dremio.common.util.DremioVersionInfo;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.service.coordinator.NodeStatusListener;
 import com.dremio.service.coordinator.RegistrationHandle;
 import com.dremio.service.coordinator.ServiceSet;
 import com.google.common.collect.ImmutableSet;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Set;
 
-/**
- * Unit test helper: provides a service set that can be directly manipulated by the unit test
- */
+/** Unit test helper: provides a service set that can be directly manipulated by the unit test */
 public class TestServiceSet implements ServiceSet {
   private Set<CoordinationProtos.NodeEndpoint> endpoints = new HashSet<>();
   private NodeStatusListener listener;
@@ -63,10 +60,11 @@ public class TestServiceSet implements ServiceSet {
   }
 
   void testAddNodeWithDremioVersion(String address, String dremioVersion) {
-    CoordinationProtos.NodeEndpoint newNode = CoordinationProtos.NodeEndpoint.newBuilder()
-        .setAddress(address)
-        .setDremioVersion(dremioVersion)
-        .build();
+    CoordinationProtos.NodeEndpoint newNode =
+        CoordinationProtos.NodeEndpoint.newBuilder()
+            .setAddress(address)
+            .setDremioVersion(dremioVersion)
+            .build();
     endpoints.add(newNode);
     if (listener != null) {
       listener.nodesRegistered(ImmutableSet.of(newNode));
@@ -78,10 +76,11 @@ public class TestServiceSet implements ServiceSet {
   }
 
   void testRemoveNodeWithDremioVersion(String address, String dremioVersion) {
-    CoordinationProtos.NodeEndpoint removedNode = CoordinationProtos.NodeEndpoint.newBuilder()
-        .setAddress(address)
-        .setDremioVersion(dremioVersion)
-        .build();
+    CoordinationProtos.NodeEndpoint removedNode =
+        CoordinationProtos.NodeEndpoint.newBuilder()
+            .setAddress(address)
+            .setDremioVersion(dremioVersion)
+            .build();
     endpoints.remove(removedNode);
     if (listener != null) {
       listener.nodesUnregistered(ImmutableSet.of(removedNode));
@@ -89,11 +88,12 @@ public class TestServiceSet implements ServiceSet {
   }
 
   void testAddNode(String address, String tag) {
-    CoordinationProtos.NodeEndpoint newNode = CoordinationProtos.NodeEndpoint.newBuilder()
-        .setAddress(address)
-        .setNodeTag(tag)
-        .setDremioVersion(DremioVersionInfo.getVersion())
-        .build();
+    CoordinationProtos.NodeEndpoint newNode =
+        CoordinationProtos.NodeEndpoint.newBuilder()
+            .setAddress(address)
+            .setNodeTag(tag)
+            .setDremioVersion(DremioVersionInfo.getVersion())
+            .build();
     endpoints.add(newNode);
     if (listener != null) {
       listener.nodesRegistered(ImmutableSet.of(newNode));
@@ -101,12 +101,13 @@ public class TestServiceSet implements ServiceSet {
   }
 
   void testAddNode(String address, String tag, int port) {
-    CoordinationProtos.NodeEndpoint newNode = CoordinationProtos.NodeEndpoint.newBuilder()
-      .setAddress(address)
-      .setNodeTag(tag)
-      .setUserPort(port)
-      .setDremioVersion(DremioVersionInfo.getVersion())
-      .build();
+    CoordinationProtos.NodeEndpoint newNode =
+        CoordinationProtos.NodeEndpoint.newBuilder()
+            .setAddress(address)
+            .setNodeTag(tag)
+            .setUserPort(port)
+            .setDremioVersion(DremioVersionInfo.getVersion())
+            .build();
     endpoints.add(newNode);
     if (listener != null) {
       listener.nodesRegistered(ImmutableSet.of(newNode));
@@ -114,11 +115,12 @@ public class TestServiceSet implements ServiceSet {
   }
 
   void testRemoveNode(String address, String tag) {
-    CoordinationProtos.NodeEndpoint removedNode = CoordinationProtos.NodeEndpoint.newBuilder()
-        .setAddress(address)
-        .setNodeTag(tag)
-        .setDremioVersion(DremioVersionInfo.getVersion())
-        .build();
+    CoordinationProtos.NodeEndpoint removedNode =
+        CoordinationProtos.NodeEndpoint.newBuilder()
+            .setAddress(address)
+            .setNodeTag(tag)
+            .setDremioVersion(DremioVersionInfo.getVersion())
+            .build();
 
     endpoints.remove(removedNode);
     if (listener != null) {

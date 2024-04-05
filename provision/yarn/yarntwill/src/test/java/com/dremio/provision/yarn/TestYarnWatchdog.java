@@ -18,6 +18,7 @@ package com.dremio.provision.yarn;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 
+import com.dremio.common.SuppressForbidden;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PipedInputStream;
@@ -34,35 +35,34 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Formatter;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
-
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.servlet.ServletHandler;
 import org.junit.Test;
 
-import com.dremio.common.SuppressForbidden;
-
-/**
- * Tests for YarnWatchdog
- */
+/** Tests for YarnWatchdog */
 public class TestYarnWatchdog {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestYarnWatchdog.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(TestYarnWatchdog.class);
 
   /**
    * Responds with a series of pre-computed poll responses. Tracks when it was supposed to be killed
    */
   static class TestWatchdogAction implements YarnWatchdog.WatchdogAction {
     // Inputs:
-    private final int[] pollResponses;        // responses sent to every poll. Polls beyond the last precomputed poll will return success
-    private final int missedPollsBeforeKill;  // How many missed polls before watchdog kills us. Used to check for successful completion
-    private final int killTick;               // Tick at which we were expected to issue a kill
+    private final int[]
+        pollResponses; // responses sent to every poll. Polls beyond the last precomputed poll will
+    // return success
+    private final int
+        missedPollsBeforeKill; // How many missed polls before watchdog kills us. Used to check for
+    // successful completion
+    private final int killTick; // Tick at which we were expected to issue a kill
     // State:
-    private int currentTick;    // Index into 'pollResponses'
+    private int currentTick; // Index into 'pollResponses'
     private boolean killed;
 
     TestWatchdogAction(int[] pollResponses, int missedPollsBeforeKill, int killTick) {
@@ -80,7 +80,8 @@ public class TestYarnWatchdog {
       if (result) {
         assertThat(killTick == -1 || currentTick < killTick).isTrue();
       } else {
-        assertThat(killTick == -1 || currentTick <= killTick).isTrue();  // NB: we might be testing missing signals
+        assertThat(killTick == -1 || currentTick <= killTick)
+            .isTrue(); // NB: we might be testing missing signals
       }
       ++currentTick;
       return result;
@@ -113,18 +114,21 @@ public class TestYarnWatchdog {
   }
 
   /**
-   * Creates a watchdog, running in a separate thread. Runs until the action runs out of responses, or
-   * alternatively, until it fails.
+   * Creates a watchdog, running in a separate thread. Runs until the action runs out of responses,
+   * or alternatively, until it fails.
    */
   void doPollingTest(TestWatchdogAction action) throws Exception {
-    final YarnWatchdog.PollingLoop pollingLoop = new YarnWatchdog.PollingLoop(action, 1, 10_000, action.getMissedPollsBeforeKill());
-    Thread t = new Thread(new Runnable() {
-      @Override
-      public void run() {
-        pollingLoop.doWatch();
-        logger.info("Watchdog thread exited");
-      }
-    });
+    final YarnWatchdog.PollingLoop pollingLoop =
+        new YarnWatchdog.PollingLoop(action, 1, 10_000, action.getMissedPollsBeforeKill());
+    Thread t =
+        new Thread(
+            new Runnable() {
+              @Override
+              public void run() {
+                pollingLoop.doWatch();
+                logger.info("Watchdog thread exited");
+              }
+            });
     t.start();
     int count = 0;
     final int tooLong = action.getExpectedTicks() + 1_000; // 1s buffer
@@ -161,13 +165,15 @@ public class TestYarnWatchdog {
     final PipedOutputStream pOut = new PipedOutputStream();
     final PipedInputStream pIn = new PipedInputStream(pOut);
     final YarnWatchdog.ParentWatcher pw = new YarnWatchdog.ParentWatcher(pIn);
-    Thread t = new Thread(new Runnable() {
-      @Override
-      public void run() {
-        pw.watchInput();
-        logger.info("Parent watcher thread exited");
-      }
-    });
+    Thread t =
+        new Thread(
+            new Runnable() {
+              @Override
+              public void run() {
+                pw.watchInput();
+                logger.info("Parent watcher thread exited");
+              }
+            });
     t.start();
 
     t.join(1);
@@ -182,24 +188,21 @@ public class TestYarnWatchdog {
     assertThat(t.isAlive()).isFalse();
   }
 
-  // "process" tests: test the integration of the two watchdog threads: the watchdog loop and the parent watcher
+  // "process" tests: test the integration of the two watchdog threads: the watchdog loop and the
+  // parent watcher
 
-  /**
-   * Servlet used to respond to liveness requests. Simply returns a 'yes, I'm alive'
-   */
-  public static class TestLivenessServlet extends HttpServlet
-  {
+  /** Servlet used to respond to liveness requests. Simply returns a 'yes, I'm alive' */
+  public static class TestLivenessServlet extends HttpServlet {
     @Override
-    protected void doGet(HttpServletRequest request,
-                         HttpServletResponse response ) throws ServletException, IOException
-    {
+    protected void doGet(HttpServletRequest request, HttpServletResponse response)
+        throws ServletException, IOException {
       response.setStatus(HttpServletResponse.SC_OK);
     }
   }
 
   /**
-   * In Java9 there's native support for p.pid(). Until then, a workaround.
-   * WARNING: will throw on windows
+   * In Java9 there's native support for p.pid(). Until then, a workaround. WARNING: will throw on
+   * windows
    */
   @SuppressForbidden
   long getPid(Process p) throws Exception {
@@ -229,10 +232,12 @@ public class TestYarnWatchdog {
 
   /**
    * Wait for parent watcher to end, will exit after 30 seconds.
+   *
    * @param parentWatcher
    * @throws Exception
    */
-  private void waitForEndWithTimeout(final YarnWatchdog.ParentWatcher parentWatcher) throws Exception {
+  private void waitForEndWithTimeout(final YarnWatchdog.ParentWatcher parentWatcher)
+      throws Exception {
     int numAttempts = 0;
     while (parentWatcher.isRunning() && numAttempts < 30_000) {
       Thread.sleep(1);
@@ -242,6 +247,7 @@ public class TestYarnWatchdog {
 
   /**
    * Wait for polling loop to end, will exit after 30 seconds.
+   *
    * @param pollingLoop
    * @throws Exception
    */
@@ -254,22 +260,24 @@ public class TestYarnWatchdog {
   }
 
   /**
-   * Starts an HTTP server, a side process (using 'cat', since we need something that doesn't actually write anything)
-   * and then invokes the watchdog's main.
+   * Starts an HTTP server, a side process (using 'cat', since we need something that doesn't
+   * actually write anything) and then invokes the watchdog's main.
    *
-   * The test itself runs the http server (normally part of Dremio), as well as the watchdog (normally part of the
-   * YarnWatchdog). The watchdog needs a process that it watches for failures -- we spawn a process for that purpose.
+   * <p>The test itself runs the http server (normally part of Dremio), as well as the watchdog
+   * (normally part of the YarnWatchdog). The watchdog needs a process that it watches for failures
+   * -- we spawn a process for that purpose.
    *
-   * We expect the watchdog's main to keep running until we explicitly make things fail (either by failing the health
-   * check, or by killing the side process)
+   * <p>We expect the watchdog's main to keep running until we explicitly make things fail (either
+   * by failing the health check, or by killing the side process)
    *
-   * WARNING: only runs on Mac & Linux.
+   * <p>WARNING: only runs on Mac & Linux.
    */
-  private void doProcessTest(final ProcessTestMode processTestMode, final long millis) throws Exception {
+  private void doProcessTest(final ProcessTestMode processTestMode, final long millis)
+      throws Exception {
     final String loopbackInterface = "127.0.0.1";
     final Server embeddedServer = new Server();
     final ServerConnector serverConnector = new ServerConnector(embeddedServer);
-    serverConnector.setPort(0);  // autodetect
+    serverConnector.setPort(0); // autodetect
     serverConnector.setHost(loopbackInterface);
     embeddedServer.addConnector(serverConnector);
     ServletHandler handler = new ServletHandler();
@@ -280,22 +288,26 @@ public class TestYarnWatchdog {
 
     final ProcessBuilder pb = new ProcessBuilder("cat");
     Process sideProcess = pb.start();
-    InputStream sideProcessOutput = sideProcess.getInputStream();  // output of the side proces (== side process' inputStream)
+    InputStream sideProcessOutput =
+        sideProcess.getInputStream(); // output of the side proces (== side process' inputStream)
 
-    final YarnWatchdog yarnWatchdog = new YarnWatchdog(getPid(sideProcess), sideProcessOutput, livenessPort, 10_000, 1, 2, 10, 1);
+    final YarnWatchdog yarnWatchdog =
+        new YarnWatchdog(getPid(sideProcess), sideProcessOutput, livenessPort, 10_000, 1, 2, 10, 1);
     final YarnWatchdog.PollingLoop pollingLoop = yarnWatchdog.getPollingLoop();
     final YarnWatchdog.ParentWatcher parentWatcher = yarnWatchdog.getParentWatcher();
 
     // start polling loop thread
-    final YarnWatchdog.PollingLoopThread pollingLoopThread = new YarnWatchdog.PollingLoopThread(pollingLoop);
+    final YarnWatchdog.PollingLoopThread pollingLoopThread =
+        new YarnWatchdog.PollingLoopThread(pollingLoop);
     pollingLoopThread.start();
 
-    final Thread parentWatcherThread = new Thread() {
-      @Override
-      public void run() {
-        parentWatcher.watchInput();
-      }
-    };
+    final Thread parentWatcherThread =
+        new Thread() {
+          @Override
+          public void run() {
+            parentWatcher.watchInput();
+          }
+        };
     parentWatcherThread.start();
 
     Thread.sleep(millis);
@@ -327,12 +339,12 @@ public class TestYarnWatchdog {
     pollingLoopThread.join(TimeUnit.SECONDS.toMillis(60));
 
     assertThat(parentWatcherThread.isAlive() || pollingLoopThread.isAlive())
-      .describedAs("At least one thread did not exit cleanly: "
-        + "parent-watcher-thread alive: %s"
-        + " polling-loop-thread alive: %s",
-        parentWatcherThread.isAlive(),
-        pollingLoopThread.isAlive())
-      .isFalse();
+        .describedAs(
+            "At least one thread did not exit cleanly: "
+                + "parent-watcher-thread alive: %s"
+                + " polling-loop-thread alive: %s",
+            parentWatcherThread.isAlive(), pollingLoopThread.isAlive())
+        .isFalse();
   }
 
   // Test parent process health check succeed
@@ -360,22 +372,28 @@ public class TestYarnWatchdog {
   public void testLog() throws Exception {
     LogRecord record = new LogRecord(Level.INFO, "test message {0} {1} {2} {3}");
     record.setLoggerName("foo.bar");
-    record.setMillis(0); // epoch
+    record.setInstant(Instant.EPOCH);
     record.setParameters(new Object[] {"arg1", "arg2", "arg3", "arg4"});
     record.setSourceClassName(TestYarnWatchdog.class.getName());
     record.setSourceMethodName("testLog");
 
-    final FutureTask<String> task = new FutureTask<>(()-> {
-      Formatter formatter = new YarnWatchdog.YarnWatchdogFormatter();
-      return formatter.format(record);
-    });
+    final FutureTask<String> task =
+        new FutureTask<>(
+            () -> {
+              Formatter formatter = new YarnWatchdog.YarnWatchdogFormatter();
+              return formatter.format(record);
+            });
     Thread t = new Thread(task, "test-log-thread");
     t.start();
 
-    String result = task.get(60, TimeUnit.SECONDS);  // make sure to have some timeout
+    String result = task.get(60, TimeUnit.SECONDS); // make sure to have some timeout
     // Make sure TZ is set to UTC...
-    String timestamp = LocalDateTime.ofInstant(Instant.EPOCH, ZoneId.systemDefault()).format(
-      DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss,SSS", Locale.ENGLISH));
-    assertThat(result).isEqualTo(timestamp +" [test-log-thread] INFO    com.dremio.provision.yarn.TestYarnWatchdog - test message arg1 arg2 arg3 arg4 \n");
+    String timestamp =
+        LocalDateTime.ofInstant(Instant.EPOCH, ZoneId.systemDefault())
+            .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss,SSS", Locale.ENGLISH));
+    assertThat(result)
+        .isEqualTo(
+            timestamp
+                + " [test-log-thread] INFO    com.dremio.provision.yarn.TestYarnWatchdog - test message arg1 arg2 arg3 arg4 \n");
   }
 }

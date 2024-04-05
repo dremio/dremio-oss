@@ -16,9 +16,7 @@
 
 package org.apache.arrow.vector;
 
-/**
- * A set of comparison functions for different types
- */
+/** A set of comparison functions for different types */
 public class ComparisonUtils {
   public static int compareByteArrays(final byte[] o1, final byte[] o2) {
     if (o1 == o2) {

@@ -15,17 +15,17 @@
  */
 package com.dremio.telemetry.api.metrics;
 
-/**
- * Tool for monitoring count of something
- */
+/** Tool for monitoring count of something */
 public interface Counter {
   default void increment(String... tags) {
     increment(1);
   }
+
   default void decrement(String... tags) {
     decrement(1);
   }
 
   void increment(long value, String... tags);
+
   void decrement(long value, String... tags);
 }

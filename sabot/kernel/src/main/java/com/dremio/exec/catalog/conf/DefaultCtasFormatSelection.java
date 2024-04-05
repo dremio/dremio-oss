@@ -17,12 +17,14 @@ package com.dremio.exec.catalog.conf;
 
 import io.protostuff.Tag;
 
-/**
- * default ctas format
- */
+/** default ctas format */
 public enum DefaultCtasFormatSelection {
-  @Tag(1) @DisplayMetadata(label = "ICEBERG") ICEBERG("iceberg"),
-  @Tag(2) @DisplayMetadata(label = "PARQUET") PARQUET("parquet");
+  @Tag(1)
+  @DisplayMetadata(label = "ICEBERG")
+  ICEBERG("iceberg"),
+  @Tag(2)
+  @DisplayMetadata(label = "PARQUET")
+  PARQUET("parquet");
 
   private final String endPoint;
 

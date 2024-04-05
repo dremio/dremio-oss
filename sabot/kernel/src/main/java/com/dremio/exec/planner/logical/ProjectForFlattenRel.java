@@ -15,8 +15,8 @@
  */
 package com.dremio.exec.planner.logical;
 
+import com.google.common.base.Preconditions;
 import java.util.List;
-
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptPlanner;
@@ -28,19 +28,18 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
 
-import com.google.common.base.Preconditions;
-
 public class ProjectForFlattenRel extends SingleRel implements Rel {
 
   private final List<RexNode> structuredColumnExprs;
   private final List<RexNode> projExprs;
 
-  protected ProjectForFlattenRel(RelOptCluster cluster,
-                                      RelTraitSet traits,
-                                      RelNode child,
-                                      RelDataType rowType,
-                                      List<RexNode> projExprs,
-                                      List<RexNode> structuredColumnExprs) {
+  protected ProjectForFlattenRel(
+      RelOptCluster cluster,
+      RelTraitSet traits,
+      RelNode child,
+      RelDataType rowType,
+      List<RexNode> projExprs,
+      List<RexNode> structuredColumnExprs) {
     super(cluster, traits, child);
     this.projExprs = projExprs;
     this.structuredColumnExprs = structuredColumnExprs;
@@ -63,11 +62,19 @@ public class ProjectForFlattenRel extends SingleRel implements Rel {
 
   @Override
   public RelWriter explainTerms(RelWriter pw) {
-    return super.explainTerms(pw).item("projExprs", projExprs).item("structuredColumnExprs", this.structuredColumnExprs);
+    return super.explainTerms(pw)
+        .item("projExprs", projExprs)
+        .item("structuredColumnExprs", this.structuredColumnExprs);
   }
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new ProjectForFlattenRel(getCluster(), traitSet, sole(inputs), this.getRowType(), this.projExprs, this.structuredColumnExprs);
+    return new ProjectForFlattenRel(
+        getCluster(),
+        traitSet,
+        sole(inputs),
+        this.getRowType(),
+        this.projExprs,
+        this.structuredColumnExprs);
   }
 }

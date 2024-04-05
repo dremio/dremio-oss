@@ -15,12 +15,11 @@
  */
 package com.dremio.exec.planner.logical;
 
+import com.dremio.exec.calcite.logical.TableModifyCrel;
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.rel.RelNode;
-
-import com.dremio.exec.calcite.logical.TableModifyCrel;
 
 public class TableModifyRule extends RelOptRule {
   public static final RelOptRule INSTANCE = new TableModifyRule();
@@ -35,18 +34,21 @@ public class TableModifyRule extends RelOptRule {
     final RelNode input = tableModify.getInput();
 
     final RelNode convertedInput = convert(input, input.getTraitSet().plus(Rel.LOGICAL).simplify());
-    call.transformTo(new TableModifyRel(
-      tableModify.getCluster(),
-      tableModify.getTraitSet().plus(Rel.LOGICAL),
-      tableModify.getTable(),
-      tableModify.getCatalogReader(),
-      convertedInput,
-      tableModify.getOperation(),
-      tableModify.getUpdateColumnList(),
-      tableModify.getSourceExpressionList(),
-      tableModify.isFlattened(),
-      tableModify.getCreateTableEntry(),
-      tableModify.getMergeUpdateColumnList(),
-      tableModify.hasSource()));
+    call.transformTo(
+        new TableModifyRel(
+            tableModify.getCluster(),
+            tableModify.getTraitSet().plus(Rel.LOGICAL),
+            tableModify.getTable(),
+            tableModify.getCatalogReader(),
+            convertedInput,
+            tableModify.getOperation(),
+            tableModify.getUpdateColumnList(),
+            tableModify.getSourceExpressionList(),
+            tableModify.isFlattened(),
+            tableModify.getCreateTableEntry(),
+            tableModify.getMergeUpdateColumnList(),
+            tableModify.hasSource(),
+            tableModify.getOutdatedTargetColumns(),
+            tableModify.getDmlWriteMode()));
   }
 }

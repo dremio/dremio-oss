@@ -18,7 +18,6 @@ package com.dremio.exec.store.iceberg;
 import java.net.URI;
 import java.util.Map;
 import java.util.Objects;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.util.StringUtils;
 
@@ -63,14 +62,13 @@ public class HadoopFsCacheKey {
       return false;
     }
     HadoopFsCacheKey key = (HadoopFsCacheKey) o;
-    return
-      com.google.common.base.Objects.equal(scheme, key.scheme) &&
-        com.google.common.base.Objects.equal(authority, key.authority) &&
-          com.google.common.base.Objects.equal(userName, key.userName);
+    return com.google.common.base.Objects.equal(scheme, key.scheme)
+        && com.google.common.base.Objects.equal(authority, key.authority)
+        && com.google.common.base.Objects.equal(userName, key.userName);
   }
 
   @Override
   public String toString() {
-    return  userName + "@" + scheme + "://" + authority;
+    return userName + "@" + scheme + "://" + authority;
   }
 }

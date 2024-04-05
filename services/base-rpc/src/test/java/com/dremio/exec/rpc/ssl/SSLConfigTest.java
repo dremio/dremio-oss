@@ -19,17 +19,13 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import com.dremio.ssl.SSLConfig;
 import java.security.KeyStore;
 import java.util.Optional;
 import java.util.Properties;
-
 import org.junit.Test;
 
-import com.dremio.ssl.SSLConfig;
-
-/**
- * Tests {@link SSLConfig}.
- */
+/** Tests {@link SSLConfig}. */
 public class SSLConfigTest {
 
   private static void checkDefaultsForClient(SSLConfig sslConfig) {
@@ -65,9 +61,8 @@ public class SSLConfigTest {
   public void checkKeyPassword() {
     {
       final String implicit = "implicit";
-      final SSLConfig config = SSLConfig.newBuilderForClient()
-          .setKeyStorePassword(implicit)
-          .build();
+      final SSLConfig config =
+          SSLConfig.newBuilderForClient().setKeyStorePassword(implicit).build();
 
       assertEquals(implicit, config.getKeyStorePassword());
       assertEquals(implicit, config.getKeyPassword());
@@ -75,9 +70,7 @@ public class SSLConfigTest {
 
     {
       final String explicit = "explicit";
-      final SSLConfig config = SSLConfig.newBuilderForClient()
-          .setKeyPassword(explicit)
-          .build();
+      final SSLConfig config = SSLConfig.newBuilderForClient().setKeyPassword(explicit).build();
 
       assertEquals(SSLConfig.UNSPECIFIED, config.getKeyStorePassword());
       assertEquals(explicit, config.getKeyPassword());
@@ -91,20 +84,25 @@ public class SSLConfigTest {
     }
 
     {
-      assertFalse(SSLConfig.of(
-          new Properties() {{
-            setProperty(SSLConfig.TRUST_STORE_PATH, "not enabled");
-            setProperty(SSLConfig.TRUST_STORE_PASSWORD, "not enabled");
-          }}
-      ).isPresent());
+      assertFalse(
+          SSLConfig.of(
+                  new Properties() {
+                    {
+                      setProperty(SSLConfig.TRUST_STORE_PATH, "not enabled");
+                      setProperty(SSLConfig.TRUST_STORE_PASSWORD, "not enabled");
+                    }
+                  })
+              .isPresent());
     }
 
     {
-      final Optional<SSLConfig> config = SSLConfig.of(
-          new Properties() {{
-            setProperty(SSLConfig.ENABLE_SSL, "true");
-          }}
-      );
+      final Optional<SSLConfig> config =
+          SSLConfig.of(
+              new Properties() {
+                {
+                  setProperty(SSLConfig.ENABLE_SSL, "true");
+                }
+              });
 
       assertTrue(config.isPresent());
       assertTrue(config.get().useSystemTrustStore());
@@ -112,13 +110,15 @@ public class SSLConfigTest {
     }
 
     {
-      final Optional<SSLConfig> config = SSLConfig.of(
-          new Properties() {{
-            setProperty(SSLConfig.ENABLE_SSL, "false");
-            setProperty(SSLConfig.TRUST_STORE_PATH, "not enabled");
-            setProperty(SSLConfig.TRUST_STORE_PASSWORD, "not enabled");
-          }}
-      );
+      final Optional<SSLConfig> config =
+          SSLConfig.of(
+              new Properties() {
+                {
+                  setProperty(SSLConfig.ENABLE_SSL, "false");
+                  setProperty(SSLConfig.TRUST_STORE_PATH, "not enabled");
+                  setProperty(SSLConfig.TRUST_STORE_PASSWORD, "not enabled");
+                }
+              });
 
       assertFalse(config.isPresent());
     }
@@ -126,15 +126,17 @@ public class SSLConfigTest {
     {
       final String path = "path";
       final String password = "password";
-      final Optional<SSLConfig> config = SSLConfig.of(
-          new Properties() {{
-            setProperty(SSLConfig.ENABLE_SSL, "true");
-            setProperty(SSLConfig.TRUST_STORE_PATH, path);
-            setProperty(SSLConfig.TRUST_STORE_PASSWORD, password);
-            setProperty(SSLConfig.DISABLE_CERT_VERIFICATION, "true");
-            setProperty(SSLConfig.USE_SYSTEM_TRUST_STORE, "true");
-          }}
-      );
+      final Optional<SSLConfig> config =
+          SSLConfig.of(
+              new Properties() {
+                {
+                  setProperty(SSLConfig.ENABLE_SSL, "true");
+                  setProperty(SSLConfig.TRUST_STORE_PATH, path);
+                  setProperty(SSLConfig.TRUST_STORE_PASSWORD, password);
+                  setProperty(SSLConfig.DISABLE_CERT_VERIFICATION, "true");
+                  setProperty(SSLConfig.USE_SYSTEM_TRUST_STORE, "true");
+                }
+              });
 
       assertTrue(config.isPresent());
       assertEquals(path, config.get().getTrustStorePath());
@@ -147,15 +149,17 @@ public class SSLConfigTest {
     {
       final String path = "p4Th";
       final String password = "p4sSw0rd";
-      final Optional<SSLConfig> config = SSLConfig.of(
-          new Properties() {{
-            setProperty("SSL", "true");
-            setProperty("tRustSTore", path);
-            setProperty("TRUSTSTOREPASSWORD", password);
-            setProperty("disablehostverification", "true");
-            setProperty("useSystemTrustStore", "false");
-          }}
-      );
+      final Optional<SSLConfig> config =
+          SSLConfig.of(
+              new Properties() {
+                {
+                  setProperty("SSL", "true");
+                  setProperty("tRustSTore", path);
+                  setProperty("TRUSTSTOREPASSWORD", password);
+                  setProperty("disablehostverification", "true");
+                  setProperty("useSystemTrustStore", "false");
+                }
+              });
 
       assertTrue(config.isPresent());
       assertEquals(path, config.get().getTrustStorePath());

@@ -18,11 +18,6 @@ package com.dremio.exec.physical.config;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import java.net.URI;
-
-import org.junit.Test;
-import org.mockito.Mockito;
-
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.store.StoragePluginConfig;
 import com.dremio.exec.ExecTest;
@@ -40,19 +35,31 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
+import java.net.URI;
+import org.junit.Test;
+import org.mockito.Mockito;
 
 public class TestParsePhysicalPlan extends ExecTest {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestParsePhysicalPlan.class);
-
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(TestParsePhysicalPlan.class);
 
   @Test
-  public void parseSimplePlan() throws Exception{
-    LogicalPlanPersistence lpp = new LogicalPlanPersistence(DEFAULT_SABOT_CONFIG, CLASSPATH_SCAN_RESULT);
+  public void parseSimplePlan() throws Exception {
+    LogicalPlanPersistence lpp = new LogicalPlanPersistence(CLASSPATH_SCAN_RESULT);
     SabotContext sabotContext = Mockito.mock(SabotContext.class);
     Mockito.when(sabotContext.getConnectionReaderProvider())
-      .thenReturn(DirectProvider.wrap(ConnectionReader.of(DremioTest.CLASSPATH_SCAN_RESULT, DremioTest.DEFAULT_SABOT_CONFIG)));
+        .thenReturn(
+            DirectProvider.wrap(
+                ConnectionReader.of(
+                    DremioTest.CLASSPATH_SCAN_RESULT, DremioTest.DEFAULT_SABOT_CONFIG)));
 
-    PhysicalPlanReader reader = new PhysicalPlanReader(DEFAULT_SABOT_CONFIG, CLASSPATH_SCAN_RESULT, lpp, CoordinationProtos.NodeEndpoint.getDefaultInstance(), DirectProvider.wrap(Mockito.mock(CatalogService.class)), sabotContext);
+    PhysicalPlanReader reader =
+        new PhysicalPlanReader(
+            CLASSPATH_SCAN_RESULT,
+            lpp,
+            CoordinationProtos.NodeEndpoint.getDefaultInstance(),
+            DirectProvider.wrap(Mockito.mock(CatalogService.class)),
+            sabotContext);
     ObjectWriter writer = lpp.getMapper().writer();
     PhysicalPlan plan = reader.readPhysicalPlan(readResourceAsString("/physical_test1.json"));
     String unparse = plan.unparse(writer);
@@ -60,10 +67,16 @@ public class TestParsePhysicalPlan extends ExecTest {
 
   @Test
   public void ensureFilesystemIsType() throws Exception {
-    LogicalPlanPersistence lpp = new LogicalPlanPersistence(DEFAULT_SABOT_CONFIG, CLASSPATH_SCAN_RESULT);
+    LogicalPlanPersistence lpp = new LogicalPlanPersistence(CLASSPATH_SCAN_RESULT);
     ObjectMapper mapper = lpp.getMapper();
-    String val = mapper.writeValueAsString(new ExampleHolder(new FileSystemConfig(new URI("file:///"), SchemaMutability.ALL)));
-    assertTrue(String.format("Expected config to contain %s but did not. Actual value %s.", FileSystemConfig.NAME, val), val.contains(FileSystemConfig.NAME));
+    String val =
+        mapper.writeValueAsString(
+            new ExampleHolder(new FileSystemConfig(new URI("file:///"), SchemaMutability.ALL)));
+    assertTrue(
+        String.format(
+            "Expected config to contain %s but did not. Actual value %s.",
+            FileSystemConfig.NAME, val),
+        val.contains(FileSystemConfig.NAME));
   }
 
   public static class ExampleHolder {
@@ -78,18 +91,19 @@ public class TestParsePhysicalPlan extends ExecTest {
 
   @Test
   public void delegateReadDX7316() throws Exception {
-    LogicalPlanPersistence lpp = new LogicalPlanPersistence(DEFAULT_SABOT_CONFIG, CLASSPATH_SCAN_RESULT);
+    LogicalPlanPersistence lpp = new LogicalPlanPersistence(CLASSPATH_SCAN_RESULT);
     ObjectMapper mapper = lpp.getMapper();
-    ExampleHolder holder = mapper.readValue("{\"config\": {\"type\": \"__delegate\"}}}", ExampleHolder.class);
+    ExampleHolder holder =
+        mapper.readValue("{\"config\": {\"type\": \"__delegate\"}}}", ExampleHolder.class);
     assertEquals(FileSystemConfig.class, holder.config.getClass());
   }
 
   @Test
   public void pdfsReadDX7316() throws Exception {
-    LogicalPlanPersistence lpp = new LogicalPlanPersistence(DEFAULT_SABOT_CONFIG, CLASSPATH_SCAN_RESULT);
+    LogicalPlanPersistence lpp = new LogicalPlanPersistence(CLASSPATH_SCAN_RESULT);
     ObjectMapper mapper = lpp.getMapper();
-    ExampleHolder holder = mapper.readValue("{\"config\": {\"type\": \"pdfs\"}}}", ExampleHolder.class);
+    ExampleHolder holder =
+        mapper.readValue("{\"config\": {\"type\": \"pdfs\"}}}", ExampleHolder.class);
     assertEquals(FileSystemConfig.class, holder.config.getClass());
   }
-
 }

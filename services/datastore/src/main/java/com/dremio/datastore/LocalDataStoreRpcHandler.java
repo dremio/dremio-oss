@@ -15,9 +15,6 @@
  */
 package com.dremio.datastore;
 
-import java.util.ConcurrentModificationException;
-import java.util.List;
-
 import com.dremio.datastore.RemoteDataStoreProtobuf.ContainsRequest;
 import com.dremio.datastore.RemoteDataStoreProtobuf.ContainsResponse;
 import com.dremio.datastore.RemoteDataStoreProtobuf.DeleteRequest;
@@ -45,10 +42,10 @@ import com.google.common.base.Function;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.protobuf.ByteString;
+import java.util.ConcurrentModificationException;
+import java.util.List;
 
-/**
- * Handle requests from remote kvstores.
- */
+/** Handle requests from remote kvstores. */
 public class LocalDataStoreRpcHandler extends DefaultDataStoreRpcHandler {
 
   private final CoreStoreProviderRpcService coreStoreProvider;
@@ -65,18 +62,22 @@ public class LocalDataStoreRpcHandler extends DefaultDataStoreRpcHandler {
     final CoreKVStore store = coreStoreProvider.getStore(request.getStoreId());
     final GetResponse.Builder builder = GetResponse.newBuilder();
     if (request.getKeysCount() == 1) {
-      final Document<KVStoreTuple<?>, KVStoreTuple<?>> result = store.get(store.newKey().setSerializedBytes(request.getKeys(0).toByteArray()));
+      final Document<KVStoreTuple<?>, KVStoreTuple<?>> result =
+          store.get(store.newKey().setSerializedBytes(request.getKeys(0).toByteArray()));
       return builder.addDocuments(getDocumentResponse(result)).build();
     } else {
-      final List<KVStoreTuple<?>> keys = Lists.transform(request.getKeysList(), new Function<ByteString, KVStoreTuple<?>>() {
-        @Override
-        public KVStoreTuple<?> apply(ByteString input) {
-          return store.newKey().setSerializedBytes(input.toByteArray());
-        }
-      });
+      final List<KVStoreTuple<?>> keys =
+          Lists.transform(
+              request.getKeysList(),
+              new Function<ByteString, KVStoreTuple<?>>() {
+                @Override
+                public KVStoreTuple<?> apply(ByteString input) {
+                  return store.newKey().setSerializedBytes(input.toByteArray());
+                }
+              });
       final Iterable<Document<KVStoreTuple<?>, KVStoreTuple<?>>> results = store.get(keys);
       for (Document<KVStoreTuple<?>, KVStoreTuple<?>> result : results) {
-          builder.addDocuments(getDocumentResponse(result));
+        builder.addDocuments(getDocumentResponse(result));
       }
       return builder.build();
     }
@@ -88,14 +89,17 @@ public class LocalDataStoreRpcHandler extends DefaultDataStoreRpcHandler {
     final Iterable<Document<KVStoreTuple<?>, KVStoreTuple<?>>> results;
 
     if (request.hasEnd() || request.hasStart()) {
-      final ImmutableFindByRange.Builder rangeBuilder = new ImmutableFindByRange.Builder<KVStoreTuple<?>>();
+      final ImmutableFindByRange.Builder rangeBuilder =
+          new ImmutableFindByRange.Builder<KVStoreTuple<?>>();
       if (request.hasStart()) {
-        rangeBuilder.setIsStartInclusive(request.getIncludeStart())
-          .setStart(store.newKey().setSerializedBytes(request.getStart().toByteArray()));
+        rangeBuilder
+            .setIsStartInclusive(request.getIncludeStart())
+            .setStart(store.newKey().setSerializedBytes(request.getStart().toByteArray()));
       }
       if (request.hasEnd()) {
-        rangeBuilder.setIsEndInclusive(request.getIncludeEnd())
-          .setEnd(store.newKey().setSerializedBytes(request.getEnd().toByteArray()));
+        rangeBuilder
+            .setIsEndInclusive(request.getIncludeEnd())
+            .setEnd(store.newKey().setSerializedBytes(request.getEnd().toByteArray()));
       }
 
       results = store.find(rangeBuilder.build());
@@ -113,24 +117,28 @@ public class LocalDataStoreRpcHandler extends DefaultDataStoreRpcHandler {
   @Override
   public ContainsResponse contains(ContainsRequest request) {
     final CoreKVStore store = coreStoreProvider.getStore(request.getStoreId());
-    final boolean contains = store.contains(store.newKey().setSerializedBytes(request.getKey().toByteArray()));
+    final boolean contains =
+        store.contains(store.newKey().setSerializedBytes(request.getKey().toByteArray()));
     return ContainsResponse.newBuilder().setContains(contains).build();
   }
 
   @Override
   public SearchResponse search(SearchRequest request) {
-    final CoreIndexedStore store = (CoreIndexedStore<Object, Object>) coreStoreProvider.getStore(request.getStoreId());
-    final FindByCondition findByCondition = new ImmutableFindByCondition.Builder()
-      .setLimit(request.getLimit())
-      .setOffset(request.getOffset())
-      .setPageSize(request.getPageSize())
-      .setSort(request.getSortList())
-      .setCondition(request.getQuery())
-      .build();
+    final CoreIndexedStore store =
+        (CoreIndexedStore<Object, Object>) coreStoreProvider.getStore(request.getStoreId());
+    final FindByCondition findByCondition =
+        new ImmutableFindByCondition.Builder()
+            .setLimit(request.getLimit())
+            .setOffset(request.getOffset())
+            .setPageSize(request.getPageSize())
+            .setSort(request.getSortList())
+            .setCondition(request.getQuery())
+            .build();
 
     final SearchResponse.Builder searchResponseBuilder = SearchResponse.newBuilder();
-    final Iterable<Document<KVStoreTuple<?>, KVStoreTuple<?>>> results = store.find(findByCondition);
-    for (Document<KVStoreTuple<?>, KVStoreTuple<?>> result: results) {
+    final Iterable<Document<KVStoreTuple<?>, KVStoreTuple<?>>> results =
+        store.find(findByCondition);
+    for (Document<KVStoreTuple<?>, KVStoreTuple<?>> result : results) {
       searchResponseBuilder.addDocuments(getDocumentResponse(result));
     }
     return searchResponseBuilder.build();
@@ -138,9 +146,10 @@ public class LocalDataStoreRpcHandler extends DefaultDataStoreRpcHandler {
 
   @Override
   public GetCountsResponse getCounts(GetCountsRequest request) {
-    final CoreIndexedStore store = (CoreIndexedStore<Object, Object>) coreStoreProvider.getStore(request.getStoreId());
+    final CoreIndexedStore store =
+        (CoreIndexedStore<Object, Object>) coreStoreProvider.getStore(request.getStoreId());
     final SearchQuery[] queries = new SearchQuery[request.getQueriesCount()];
-    for (int i = 0; i < request.getQueriesCount(); ++i ) {
+    for (int i = 0; i < request.getQueriesCount(); ++i) {
       queries[i] = request.getQueries(i);
     }
     return GetCountsResponse.newBuilder().addAllCounts(store.getCounts(queries)).build();
@@ -156,8 +165,9 @@ public class LocalDataStoreRpcHandler extends DefaultDataStoreRpcHandler {
     final CoreKVStore store = coreStoreProvider.getStore(request.getStoreId());
     if (request.hasTag()) {
       try {
-        store.delete(store.newKey().setSerializedBytes(
-          request.getKey().toByteArray()), new ImmutableVersionOption.Builder().setTag(request.getTag()).build());
+        store.delete(
+            store.newKey().setSerializedBytes(request.getKey().toByteArray()),
+            new ImmutableVersionOption.Builder().setTag(request.getTag()).build());
       } catch (ConcurrentModificationException cme) {
         return DeleteResponse.newBuilder().setConcurrentModificationError(cme.getMessage()).build();
       }

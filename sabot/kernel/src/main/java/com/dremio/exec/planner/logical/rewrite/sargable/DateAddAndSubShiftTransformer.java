@@ -23,6 +23,8 @@ import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
+ *
+ *
  * <pre>
  * Extract each component of a filter expr with SARGableStandardForm for
  * - DATE_ADD(date_expression STRING|DATE|TIMESTAMP, interval INTEGER|LITERAL) = rhsNode
@@ -31,9 +33,8 @@ import org.apache.calcite.sql.type.SqlTypeName;
  */
 public class DateAddAndSubShiftTransformer extends ShiftTransformer {
 
-  DateAddAndSubShiftTransformer(RelOptCluster relOptCluster,
-                                StandardForm standardForm,
-                                SqlOperator sqlOperator) {
+  DateAddAndSubShiftTransformer(
+      RelOptCluster relOptCluster, StandardForm standardForm, SqlOperator sqlOperator) {
     super(relOptCluster, standardForm, sqlOperator);
   }
 
@@ -43,9 +44,7 @@ public class DateAddAndSubShiftTransformer extends ShiftTransformer {
     // Cast string date/time literal to date/time type
     if (SqlTypeName.CHAR_TYPES.contains(rhs.getType().getSqlTypeName())) {
       return rexBuilder.makeCast(
-        rexBuilder.getTypeFactory().createTypeWithNullability(getColumn().getType(), false),
-        rhs
-      );
+          rexBuilder.getTypeFactory().createTypeWithNullability(getColumn().getType(), false), rhs);
     }
     return rhs;
   }

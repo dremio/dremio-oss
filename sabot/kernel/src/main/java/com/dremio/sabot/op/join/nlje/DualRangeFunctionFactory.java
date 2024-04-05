@@ -15,18 +15,19 @@
  */
 package com.dremio.sabot.op.join.nlje;
 
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.exec.record.VectorAccessible;
+import org.apache.arrow.memory.BufferAllocator;
 
 public interface DualRangeFunctionFactory {
 
-  DualRange create(BufferAllocator allocator,
+  DualRange create(
+      BufferAllocator allocator,
       VectorAccessible left,
       VectorAccessible right,
       int targetOutputSize,
       int targetGeneratedAtOnce,
       int[] buildCounts,
-      LogicalExpression vectorExpression) throws Exception;
+      LogicalExpression vectorExpression)
+      throws Exception;
 }

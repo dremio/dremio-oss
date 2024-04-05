@@ -18,22 +18,18 @@ package com.dremio.exec.planner.sql.handlers.direct;
 import static com.dremio.exec.planner.sql.handlers.direct.SimpleCommandResult.successful;
 import static java.util.Collections.singletonList;
 
-import java.util.List;
-
-import org.apache.calcite.sql.SqlNode;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.SourceCatalog;
-import com.dremio.exec.planner.sql.parser.SqlGrant;
 import com.dremio.exec.planner.sql.parser.SqlRefreshSourceStatus;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.SourceState;
+import java.util.List;
+import org.apache.calcite.sql.SqlNode;
 
-/**
- * Handler for <code>SOURCE REFRESH STATUS</code> command.
- */
+/** Handler for <code>SOURCE REFRESH STATUS</code> command. */
 public class RefreshSourceStatusHandler extends SimpleDirectHandler {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(RefreshSourceStatusHandler.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(RefreshSourceStatusHandler.class);
 
   private final SourceCatalog sourceCatalog;
 
@@ -43,14 +39,10 @@ public class RefreshSourceStatusHandler extends SimpleDirectHandler {
 
   @Override
   public List<SimpleCommandResult> toResult(String sql, SqlNode sqlNode) throws Exception {
-    final SqlRefreshSourceStatus sqlRefreshSourceStatus = SqlNodeUtil.unwrap(sqlNode, SqlRefreshSourceStatus.class);
+    final SqlRefreshSourceStatus sqlRefreshSourceStatus =
+        SqlNodeUtil.unwrap(sqlNode, SqlRefreshSourceStatus.class);
     final NamespaceKey path = sqlRefreshSourceStatus.getPath();
-    sourceCatalog.validatePrivilege(path, SqlGrant.Privilege.ALTER);
-
-    String root = path.getRoot();
-    if (root.startsWith("@") || "sys".equalsIgnoreCase(root) || "INFORMATION_SCHEMA".equalsIgnoreCase(root)) {
-      throw UserException.parseError().message("Unable to find source %s.", path).build(logger);
-    }
+    validateSource(path);
 
     final String source = sqlRefreshSourceStatus.getSource().toString();
 
@@ -59,7 +51,7 @@ public class RefreshSourceStatusHandler extends SimpleDirectHandler {
 
     final String state = " New status is: " + sourceState.toString();
     String message;
-    switch(sourceStatus){
+    switch (sourceStatus) {
       case good:
         message = "Successfully refreshed status for source '%s'.";
         break;
@@ -74,5 +66,14 @@ public class RefreshSourceStatusHandler extends SimpleDirectHandler {
     }
     message += state;
     return singletonList(successful(String.format(message, source)));
+  }
+
+  protected void validateSource(NamespaceKey path) {
+    String root = path.getRoot();
+    if (root.startsWith("@")
+        || "sys".equalsIgnoreCase(root)
+        || "INFORMATION_SCHEMA".equalsIgnoreCase(root)) {
+      throw UserException.parseError().message("Unable to find source %s.", path).build(logger);
+    }
   }
 }

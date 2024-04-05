@@ -15,8 +15,6 @@
  */
 package com.dremio.sabot.op.screen;
 
-import org.apache.arrow.memory.OutOfMemoryException;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.exec.physical.config.Screen;
@@ -32,10 +30,13 @@ import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.exec.rpc.AccountingExecToCoordTunnel;
 import com.dremio.sabot.exec.rpc.TunnelProvider;
 import com.dremio.sabot.op.spi.TerminalOperator;
+import org.apache.arrow.memory.OutOfMemoryException;
 
 public class ScreenOperator implements TerminalOperator {
-  private static final ControlsInjector injector = ControlsInjectorFactory.getInjector(ScreenOperator.class);
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ScreenOperator.class);
+  private static final ControlsInjector injector =
+      ControlsInjectorFactory.getInjector(ScreenOperator.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ScreenOperator.class);
 
   private final OperatorContext context;
   private final OperatorStats stats;
@@ -56,7 +57,8 @@ public class ScreenOperator implements TerminalOperator {
     }
   }
 
-  public ScreenOperator(TunnelProvider tunnelProvider, OperatorContext context, Screen operator) throws OutOfMemoryException {
+  public ScreenOperator(TunnelProvider tunnelProvider, OperatorContext context, Screen operator)
+      throws OutOfMemoryException {
     this.execToCoord = tunnelProvider.getCoordTunnel();
     this.context = context;
     this.stats = context.getStats();
@@ -79,15 +81,16 @@ public class ScreenOperator implements TerminalOperator {
   public void noMoreToConsume() {
     state = State.DONE;
     // make sure we send a schema batch.
-    if(batchesSent == 0){
+    if (batchesSent == 0) {
 
       WritableBatch writable = WritableBatch.getBatchNoHVWrap(0, incoming, false);
 
-      final QueryData header = QueryData.newBuilder()
-        .setQueryId(context.getFragmentHandle().getQueryId())
-        .setRowCount(0)
-        .setDef(writable.getDef())
-        .build();
+      final QueryData header =
+          QueryData.newBuilder()
+              .setQueryId(context.getFragmentHandle().getQueryId())
+              .setRowCount(0)
+              .setDef(writable.getDef())
+              .build();
       writable.close();
       final QueryWritableBatch batch = new QueryWritableBatch(header);
 
@@ -121,22 +124,23 @@ public class ScreenOperator implements TerminalOperator {
   }
 
   @Override
-  public <OUT, IN, EXCEP extends Throwable> OUT accept(OperatorVisitor<OUT, IN, EXCEP> visitor, IN value) throws EXCEP {
+  public <OUT, IN, EXCEP extends Throwable> OUT accept(
+      OperatorVisitor<OUT, IN, EXCEP> visitor, IN value) throws EXCEP {
     return visitor.visitTerminalOperator(this, value);
   }
 
   @Override
-  public void close() throws Exception {
-  }
+  public void close() throws Exception {}
 
-  public static class Creator implements TerminalOperator.Creator<Screen>{
+  public static class Creator implements TerminalOperator.Creator<Screen> {
     @Override
-    public TerminalOperator create(TunnelProvider tunnelProvider, OperatorContext context, Screen operator) throws ExecutionSetupException {
+    public TerminalOperator create(
+        TunnelProvider tunnelProvider, OperatorContext context, Screen operator)
+        throws ExecutionSetupException {
       if (operator.getSilent()) {
         return new SilentScreenOperator();
       }
       return new ScreenOperator(tunnelProvider, context, operator);
     }
   }
-
 }

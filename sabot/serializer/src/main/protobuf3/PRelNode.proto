@@ -270,3 +270,10 @@ message PLogicalTableFunctionScan {
   PRelDataType rowType = 3;
   repeated PRelColumnMapping columnMappings = 4;
 }
+
+message PFlattenCrel {
+  int32 input = 1;
+  repeated PRexNode toFlatten = 2;
+  repeated string alias = 3;
+  int32 numProjects = 4;
+}

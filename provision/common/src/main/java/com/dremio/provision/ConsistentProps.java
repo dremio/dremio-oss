@@ -20,24 +20,21 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-
 import javax.validation.Constraint;
 import javax.validation.ConstraintValidator;
 import javax.validation.ConstraintValidatorContext;
 import javax.validation.Payload;
 
-/**
- * Validate correct provisioning type properties to cluster type.
- */
+/** Validate correct provisioning type properties to cluster type. */
 public interface ConsistentProps {
 
   ClusterType getClusterType();
+
   AwsPropsApi getAwsProps();
+
   YarnPropsApi getYarnProps();
 
-  /**
-   * Validator for provisioning
-   */
+  /** Validator for provisioning */
   public static class Validator implements ConstraintValidator<Annotation, ConsistentProps> {
 
     @Override
@@ -51,17 +48,17 @@ public interface ConsistentProps {
     }
   }
 
-  /**
-   * Annotation for validator
-   */
+  /** Annotation for validator */
   @Constraint(validatedBy = Validator.class)
-  @Target({ ElementType.TYPE })
+  @Target({ElementType.TYPE})
   @Retention(RetentionPolicy.RUNTIME)
   @Documented
   public @interface Annotation {
     Class<?>[] groups() default {};
-    String message() default "Type must be EC2 with AwsProps populated or YARN with YarnProps populated.";
+
+    String message() default
+        "Type must be EC2 with AwsProps populated or YARN with YarnProps populated.";
+
     Class<? extends Payload>[] payload() default {};
   }
-
 }

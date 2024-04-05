@@ -15,15 +15,13 @@
  */
 package com.dremio.exec.util;
 
-
+import com.google.common.base.Preconditions;
 import java.util.Arrays;
 
-import com.google.common.base.Preconditions;
-
 /**
- * Simple Map type data structure for storing entries of (int -> int) mappings where the max key value is below 2^16
- * to avoid hashing keys and use direct array index reference for retrieving the values. Not thread-safe. Keys and
- * values are expected to be >=0.
+ * Simple Map type data structure for storing entries of (int -> int) mappings where the max key
+ * value is below 2^16 to avoid hashing keys and use direct array index reference for retrieving the
+ * values. Not thread-safe. Keys and values are expected to be >=0.
  */
 public class ArrayWrappedIntIntMap {
   private static final int MAX_KEY_VALUE = 1 << 16 - 1;
@@ -36,9 +34,11 @@ public class ArrayWrappedIntIntMap {
   }
 
   public void put(final int key, final int value) {
-    Preconditions.checkArgument(key >= 0 && key <= MAX_KEY_VALUE,
+    Preconditions.checkArgument(
+        key >= 0 && key <= MAX_KEY_VALUE,
         String.format("Index should be in range [0, %d], given [%d].", MAX_KEY_VALUE, key));
-    Preconditions.checkArgument(value >= 0, String.format("Value must be non-negative, given [%d]", value));
+    Preconditions.checkArgument(
+        value >= 0, String.format("Value must be non-negative, given [%d]", value));
 
     // resize the values array if the index falls beyond the current size of the array
     if (values.length < key + 1) {
@@ -53,9 +53,9 @@ public class ArrayWrappedIntIntMap {
   }
 
   /**
-   * Returns the value pointed by the given index.
-   * If the value is not set through put() it either returns Integer.MIN_VALUE or throws ArrayIndexOutOfBounds
-   * exception. Error checking is not done for faster retrieval.
+   * Returns the value pointed by the given index. If the value is not set through put() it either
+   * returns Integer.MIN_VALUE or throws ArrayIndexOutOfBounds exception. Error checking is not done
+   * for faster retrieval.
    */
   public int get(int key) {
     return values[key];

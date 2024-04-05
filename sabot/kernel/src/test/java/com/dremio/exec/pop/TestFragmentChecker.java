@@ -17,11 +17,6 @@ package com.dremio.exec.pop;
 
 import static org.junit.Assert.assertEquals;
 
-import java.util.List;
-
-import org.junit.Ignore;
-import org.junit.Test;
-
 import com.dremio.exec.maestro.AbstractMaestroObserver;
 import com.dremio.exec.planner.PhysicalPlanReader;
 import com.dremio.exec.planner.PhysicalPlanReaderTestFactory;
@@ -37,46 +32,65 @@ import com.dremio.exec.util.Utilities;
 import com.dremio.options.OptionList;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.google.common.collect.Lists;
+import java.util.List;
+import org.junit.Ignore;
+import org.junit.Test;
 
 @Ignore("DX-3872")
-public class TestFragmentChecker extends PopUnitTestBase{
+public class TestFragmentChecker extends PopUnitTestBase {
 
   @Test
-  public void checkSimpleExchangePlan() throws Exception{
+  public void checkSimpleExchangePlan() throws Exception {
     print("/physical_double_exchange.json", 2, 3);
-
   }
 
-  private void print(String fragmentFile, int bitCount, int expectedFragmentCount) throws Exception{
-    System.out.println(String.format("=================Building plan fragments for [%s].  Allowing %d total Nodes.==================", fragmentFile, bitCount));
-    PhysicalPlanReader ppr = PhysicalPlanReaderTestFactory.defaultPhysicalPlanReader(DEFAULT_SABOT_CONFIG, CLASSPATH_SCAN_RESULT);
+  private void print(String fragmentFile, int bitCount, int expectedFragmentCount)
+      throws Exception {
+    System.out.println(
+        String.format(
+            "=================Building plan fragments for [%s].  Allowing %d total Nodes.==================",
+            fragmentFile, bitCount));
+    PhysicalPlanReader ppr =
+        PhysicalPlanReaderTestFactory.defaultPhysicalPlanReader(CLASSPATH_SCAN_RESULT);
     Fragment fragmentRoot = getRootFragment(ppr, fragmentFile);
-    SimpleParallelizer par = new SimpleParallelizer(1000*1000, 5, 10, 1.2, AbstractMaestroObserver.NOOP, true, 1.5d, false);
+    SimpleParallelizer par =
+        new SimpleParallelizer(
+            1000 * 1000, 5, 10, 1.2, AbstractMaestroObserver.NOOP, true, 1.5d, false);
     List<NodeEndpoint> endpoints = Lists.newArrayList();
     NodeEndpoint localBit = null;
-    for(int i =0; i < bitCount; i++) {
-      NodeEndpoint b1 = NodeEndpoint.newBuilder().setAddress("localhost").setFabricPort(1234+i).build();
+    for (int i = 0; i < bitCount; i++) {
+      NodeEndpoint b1 =
+          NodeEndpoint.newBuilder().setAddress("localhost").setFabricPort(1234 + i).build();
       if (i == 0) {
         localBit = b1;
       }
       endpoints.add(b1);
     }
 
-    final QueryContextInformation queryContextInfo = Utilities.createQueryContextInfo("dummySchemaName");
-    List<PlanFragmentFull> qwu = par.getFragments(new OptionList(), localBit, QueryId.getDefaultInstance(), ppr, fragmentRoot,
-        new PlanFragmentsIndex.Builder(),
-        UserSession.Builder.newBuilder().withCredentials(UserBitShared.UserCredentials.newBuilder().setUserName("foo").build()).build(),
-        queryContextInfo,
-        null);
+    final QueryContextInformation queryContextInfo =
+        Utilities.createQueryContextInfo("dummySchemaName");
+    List<PlanFragmentFull> qwu =
+        par.getFragments(
+            new OptionList(),
+            localBit,
+            QueryId.getDefaultInstance(),
+            ppr,
+            fragmentRoot,
+            new PlanFragmentsIndex.Builder(),
+            UserSession.Builder.newBuilder()
+                .withCredentials(
+                    UserBitShared.UserCredentials.newBuilder().setUserName("foo").build())
+                .build(),
+            queryContextInfo,
+            null);
 
-    assertEquals(expectedFragmentCount,
+    assertEquals(
+        expectedFragmentCount,
         qwu.size() + 1 /* root fragment is not part of the getFragments() list*/);
   }
 
   @Test
-  public void validateSingleExchangeFragment() throws Exception{
+  public void validateSingleExchangeFragment() throws Exception {
     print("/physical_single_exchange.json", 1, 2);
-
   }
-
 }

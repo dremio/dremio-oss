@@ -20,9 +20,7 @@ import com.dremio.datastore.VersionExtractor;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 
-/**
- * version extractor for namespace container.
- */
+/** version extractor for namespace container. */
 final class NameSpaceContainerVersionExtractor implements VersionExtractor<NameSpaceContainer> {
   @Override
   public String getTag(NameSpaceContainer value) {
@@ -78,7 +76,7 @@ final class NameSpaceContainerVersionExtractor implements VersionExtractor<NameS
 
     // for sources, we want to maintain a numeric version so we can distinguish chronological order
     SourceConfig source = value.getSource();
-    Long configOrdinal= source.getConfigOrdinal();
+    Long configOrdinal = source.getConfigOrdinal();
 
     value.getSource().setConfigOrdinal(configOrdinal == null ? 0 : configOrdinal + 1);
 

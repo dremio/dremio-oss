@@ -15,14 +15,6 @@
  */
 package com.dremio.exec.expr.fn.impl.array;
 
-import java.util.List;
-
-import org.apache.arrow.vector.complex.impl.UnionListReader;
-import org.apache.arrow.vector.complex.reader.FieldReader;
-import org.apache.arrow.vector.complex.writer.BaseWriter;
-import org.apache.arrow.vector.complex.writer.BaseWriter.ListWriter;
-import org.apache.arrow.vector.holders.NullableIntHolder;
-
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.exec.expr.SimpleFunction;
@@ -31,18 +23,24 @@ import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
 import com.dremio.exec.expr.fn.OutputDerivation;
 import com.google.common.base.Preconditions;
+import java.util.List;
+import org.apache.arrow.vector.complex.impl.UnionListReader;
+import org.apache.arrow.vector.complex.reader.FieldReader;
+import org.apache.arrow.vector.complex.writer.BaseWriter;
+import org.apache.arrow.vector.complex.writer.BaseWriter.ListWriter;
+import org.apache.arrow.vector.holders.NullableIntHolder;
 
 public class ArraySliceFunction {
-  @FunctionTemplate(name = "array_slice", scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.INTERNAL, derivation = SliceOutputDerivation.class)
+  @FunctionTemplate(
+      name = "array_slice",
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.INTERNAL,
+      derivation = SliceOutputDerivation.class)
   public static class ArraySliceFromTo implements SimpleFunction {
-    @Param
-    private FieldReader in;
-    @Param
-    private NullableIntHolder from;
-    @Param
-    private NullableIntHolder to;
-    @Output
-    private BaseWriter.ComplexWriter out;
+    @Param private FieldReader in;
+    @Param private NullableIntHolder from;
+    @Param private NullableIntHolder to;
+    @Output private BaseWriter.ComplexWriter out;
 
     @Override
     public void setup() {}
@@ -52,24 +50,29 @@ public class ArraySliceFunction {
       if (!in.isSet() || in.readObject() == null || from.isSet == 0 || to.isSet == 0) {
         return;
       }
-      org.apache.arrow.vector.complex.impl.UnionListReader listReader = (org.apache.arrow.vector.complex.impl.UnionListReader) in;
+      org.apache.arrow.vector.complex.impl.UnionListReader listReader =
+          (org.apache.arrow.vector.complex.impl.UnionListReader) in;
       final int size = listReader.size();
 
-      final int fromPosition = com.dremio.exec.expr.fn.impl.array.ArraySliceFunction.resolvePosition(from.value, size);
-      final int toPosition = com.dremio.exec.expr.fn.impl.array.ArraySliceFunction.resolvePosition(to.value, size);
+      final int fromPosition =
+          com.dremio.exec.expr.fn.impl.array.ArraySliceFunction.resolvePosition(from.value, size);
+      final int toPosition =
+          com.dremio.exec.expr.fn.impl.array.ArraySliceFunction.resolvePosition(to.value, size);
       org.apache.arrow.vector.complex.writer.BaseWriter.ListWriter listWriter = out.rootAsList();
-      com.dremio.exec.expr.fn.impl.array.ArraySliceFunction.sliceArray(fromPosition, toPosition, listReader, listWriter);
+      com.dremio.exec.expr.fn.impl.array.ArraySliceFunction.sliceArray(
+          fromPosition, toPosition, listReader, listWriter);
     }
   }
 
-  @FunctionTemplate(name = "array_slice", scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.INTERNAL, derivation = SliceOutputDerivation.class)
+  @FunctionTemplate(
+      name = "array_slice",
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.INTERNAL,
+      derivation = SliceOutputDerivation.class)
   public static class ArraySliceFrom implements SimpleFunction {
-    @Param
-    private FieldReader in;
-    @Param
-    private NullableIntHolder from;
-    @Output
-    private BaseWriter.ComplexWriter out;
+    @Param private FieldReader in;
+    @Param private NullableIntHolder from;
+    @Output private BaseWriter.ComplexWriter out;
 
     @Override
     public void setup() {}
@@ -79,21 +82,27 @@ public class ArraySliceFunction {
       if (!in.isSet() || in.readObject() == null || from.isSet == 0) {
         return;
       }
-      org.apache.arrow.vector.complex.impl.UnionListReader listReader = (org.apache.arrow.vector.complex.impl.UnionListReader) in;
+      org.apache.arrow.vector.complex.impl.UnionListReader listReader =
+          (org.apache.arrow.vector.complex.impl.UnionListReader) in;
       final int size = listReader.size();
 
-      final int fromPosition = com.dremio.exec.expr.fn.impl.array.ArraySliceFunction.resolvePosition(from.value, size);
+      final int fromPosition =
+          com.dremio.exec.expr.fn.impl.array.ArraySliceFunction.resolvePosition(from.value, size);
       org.apache.arrow.vector.complex.writer.BaseWriter.ListWriter listWriter = out.rootAsList();
-      com.dremio.exec.expr.fn.impl.array.ArraySliceFunction.sliceArray(fromPosition, size, listReader, listWriter);
+      com.dremio.exec.expr.fn.impl.array.ArraySliceFunction.sliceArray(
+          fromPosition, size, listReader, listWriter);
     }
   }
 
-  public static void sliceArray(int fromPosition, int toPosition,
-    UnionListReader listReader, ListWriter listWriter) {
+  public static void sliceArray(
+      int fromPosition, int toPosition, UnionListReader listReader, ListWriter listWriter) {
     final int size = listReader.size();
     listWriter.startList();
-    if (size == 0 || fromPosition < 0 || toPosition < 0 || fromPosition > toPosition
-      || toPosition > size) {
+    if (size == 0
+        || fromPosition < 0
+        || toPosition < 0
+        || fromPosition > toPosition
+        || toPosition > size) {
       // return empty list for invalid input
       listWriter.endList();
       return;
@@ -106,7 +115,8 @@ public class ArraySliceFunction {
     listWriter.endList();
   }
 
-  public static int getFirstPosition(org.apache.arrow.vector.complex.impl.UnionListReader listReader) {
+  public static int getFirstPosition(
+      org.apache.arrow.vector.complex.impl.UnionListReader listReader) {
     /*
      * Need call next() to move the reader to the first element for array column with several rows.
      * In this case values will be merged to one vector and need to get the first position for each row.

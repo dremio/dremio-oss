@@ -16,27 +16,23 @@
 package com.dremio.exec.server;
 
 import com.dremio.service.Service;
-
 import io.grpc.ManagedChannel;
 
 public interface ArcticProxyServiceChannelProvider extends Service {
   ManagedChannel get();
 
-  /**
-   * NO_OP implementation
-   */
-  public static final ArcticProxyServiceChannelProvider NO_OP = new ArcticProxyServiceChannelProvider() {
-    @Override
-    public void start() throws Exception {
-    }
+  /** NO_OP implementation */
+  public static final ArcticProxyServiceChannelProvider NO_OP =
+      new ArcticProxyServiceChannelProvider() {
+        @Override
+        public void start() throws Exception {}
 
-    @Override
-    public void close() throws Exception {
-    }
+        @Override
+        public void close() throws Exception {}
 
-    @Override
-    public ManagedChannel get() {
-      return null;
-    }
-  };
+        @Override
+        public ManagedChannel get() {
+          return null;
+        }
+      };
 }

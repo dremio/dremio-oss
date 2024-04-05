@@ -16,14 +16,12 @@
 package com.dremio.service.jobs;
 
 import com.dremio.service.job.JobEvent;
-
 import io.grpc.stub.StreamObserver;
 
-/**
- * Adapts {@link ExternalStatusListener} to {@link StreamObserver}
- */
+/** Adapts {@link ExternalStatusListener} to {@link StreamObserver} */
 public class ExternalListenerAdapter implements StreamObserver<JobEvent> {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ExternalListenerAdapter.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ExternalListenerAdapter.class);
   private final ExternalStatusListener externalStatusListener;
 
   ExternalListenerAdapter(ExternalStatusListener externalStatusListener) {
@@ -48,12 +46,8 @@ public class ExternalListenerAdapter implements StreamObserver<JobEvent> {
   }
 
   @Override
-  public void onError(Throwable t) {
-
-  }
+  public void onError(Throwable t) {}
 
   @Override
-  public void onCompleted() {
-
-  }
+  public void onCompleted() {}
 }

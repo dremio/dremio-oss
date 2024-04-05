@@ -15,10 +15,9 @@
  */
 package com.dremio.dac.service.autocomplete.model;
 
-import java.util.Arrays;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
+import java.util.Arrays;
 
 /**
  * Make sure these types are not conflict with ArrowType which is used for Dataset Field Types
@@ -57,7 +56,9 @@ public enum SuggestionEntityType {
         return entityType;
       }
     }
-    throw new IllegalArgumentException(String.format("Unknown enum type %s. Allowed values are %s.", type, Arrays.toString(values())));
+    throw new IllegalArgumentException(
+        String.format(
+            "Unknown enum type %s. Allowed values are %s.", type, Arrays.toString(values())));
   }
 
   @JsonValue

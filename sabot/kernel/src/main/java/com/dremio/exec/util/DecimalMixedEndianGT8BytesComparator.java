@@ -15,19 +15,17 @@
  */
 package com.dremio.exec.util;
 
-import java.util.Arrays;
-
-import org.apache.arrow.memory.ArrowBuf;
-
 import com.google.common.primitives.Longs;
+import java.util.Arrays;
+import org.apache.arrow.memory.ArrowBuf;
 
 public class DecimalMixedEndianGT8BytesComparator extends DecimalMixedEndianComparatorImpl {
 
   private byte[] bytesLow = new byte[8], bytesHigh = new byte[8];
 
   @Override
-  protected int compareInner(ArrowBuf left, int startIndexLeft, int valueLength,
-                             ArrowBuf right, int startIndexRight) {
+  protected int compareInner(
+      ArrowBuf left, int startIndexLeft, int valueLength, ArrowBuf right, int startIndexRight) {
     int highBytesLength = valueLength - 8;
     // sign extend
     byte padValue = isLeftValNegative() ? padNegative : padZero;
@@ -38,7 +36,7 @@ public class DecimalMixedEndianGT8BytesComparator extends DecimalMixedEndianComp
     left.getBytes(startIndexLeft + highBytesLength, bytesLow, 0, 8);
     long leftValLow = Longs.fromByteArray(bytesLow);
 
-    return DecimalUtils.compareDecimalsAsTwoLongs(leftValHigh, leftValLow, getRightValHigh(),
-      getRightValLow());
+    return DecimalUtils.compareDecimalsAsTwoLongs(
+        leftValHigh, leftValLow, getRightValHigh(), getRightValLow());
   }
 }

@@ -19,20 +19,6 @@ import static com.dremio.exec.ExecConstants.MAX_FOREMEN_PER_COORDINATOR;
 import static com.dremio.proto.model.PartitionStats.PartitionStatsKey;
 import static com.dremio.proto.model.PartitionStats.PartitionStatsValue;
 
-import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.Executor;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
-
-import javax.inject.Provider;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.BufferAllocator;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.concurrent.CloseableExecutorService;
 import com.dremio.common.concurrent.CloseableSchedulerThreadPool;
@@ -106,20 +92,28 @@ import com.google.common.collect.Multimaps;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.Empty;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.NettyArrowBuf;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
-import io.opentracing.Tracer;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import javax.inject.Provider;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.BufferAllocator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * Manages all work associated with query oversight and coordination.
- */
+/** Manages all work associated with query oversight and coordination. */
 public class ForemenWorkManager implements Service, SafeExit {
   private static final Logger logger = LoggerFactory.getLogger(ForemenWorkManager.class);
 
-  // Not making this a system/session option as we initialize this in the beginning of the node start and
+  // Not making this a system/session option as we initialize this in the beginning of the node
+  // start and
   // changing system/session option is not going to have any effect.
   private static final String PREPARE_HANDLE_TIMEOUT_MS = "dremio.prepare.handle.timeout_ms";
   private static final String PLAN_CACHE_TIMEOUT_S = "dremio.plan.cache.timeout_s";
@@ -130,7 +124,8 @@ public class ForemenWorkManager implements Service, SafeExit {
 
   // cache of prepared statement queries.
   @SuppressWarnings("NoGuavaCacheUsage") // TODO: fix as part of DX-51884
-  private final Cache<Long, PreparedPlan> preparedHandles = CacheBuilder.newBuilder()
+  private final Cache<Long, PreparedPlan> preparedHandles =
+      CacheBuilder.newBuilder()
           .maximumSize(1000)
           // Prepared statement handles are memory intensive. If there is memory pressure,
           // let GC release them as last resort before running OOM.
@@ -139,7 +134,8 @@ public class ForemenWorkManager implements Service, SafeExit {
           .build();
 
   // single map of currently running queries, mapped by their external ids.
-  private final ConcurrentMap<ExternalId, ManagedForeman> externalIdToForeman = Maps.newConcurrentMap();
+  private final ConcurrentMap<ExternalId, ManagedForeman> externalIdToForeman =
+      Maps.newConcurrentMap();
   private final Provider<SabotContext> dbContext;
   private final Provider<FabricService> fabric;
   private final Provider<CommandPool> commandPool;
@@ -150,7 +146,8 @@ public class ForemenWorkManager implements Service, SafeExit {
   private final QueryCancelTool queryCancelTool;
   private final BufferAllocator jobResultsAllocator;
 
-  private ExtendedLatch exitLatch = null; // This is used to wait to exit when things are still running
+  private ExtendedLatch exitLatch =
+      null; // This is used to wait to exit when things are still running
   private CloseableExecutorService pool;
   private Provider<RuleBasedEngineSelector> ruleBasedEngineSelector;
   private ExecToCoordResultsHandler execToCoordResultsHandler;
@@ -165,17 +162,16 @@ public class ForemenWorkManager implements Service, SafeExit {
   private PartitionStatsCache partitionStatsCache;
 
   public ForemenWorkManager(
-    final Provider<FabricService> fabric,
-    final Provider<SabotContext> dbContext,
-    final Provider<CommandPool> commandPool,
-    final Provider<MaestroService> maestroService,
-    final Provider<JobTelemetryClient> jobTelemetryClient,
-    final Provider<MaestroForwarder> forwarder,
-    final Tracer tracer,
-    final Provider<RuleBasedEngineSelector> ruleBasedEngineSelector,
-    final BufferAllocator jobResultsAllocator,
-    final Provider<RequestContext> requestContextProvider,
-    final Provider<PartitionStatsCacheStoreProvider> transientStoreProvider) {
+      final Provider<FabricService> fabric,
+      final Provider<SabotContext> dbContext,
+      final Provider<CommandPool> commandPool,
+      final Provider<MaestroService> maestroService,
+      final Provider<JobTelemetryClient> jobTelemetryClient,
+      final Provider<MaestroForwarder> forwarder,
+      final Provider<RuleBasedEngineSelector> ruleBasedEngineSelector,
+      final BufferAllocator jobResultsAllocator,
+      final Provider<RequestContext> requestContextProvider,
+      final Provider<PartitionStatsCacheStoreProvider> transientStoreProvider) {
     this.dbContext = dbContext;
     this.fabric = fabric;
     this.commandPool = commandPool;
@@ -225,43 +221,62 @@ public class ForemenWorkManager implements Service, SafeExit {
   @SuppressWarnings("NoGuavaCacheUsage") // TODO: fix as part of DX-51884
   @Override
   public void start() throws Exception {
-    Metrics.newGauge(Metrics.join("jobs","active"), () -> externalIdToForeman.size());
+    Metrics.newGauge(Metrics.join("jobs", "active"), () -> externalIdToForeman.size());
 
     execToCoordResultsHandler = new ExecToCoordResultsHandlerImpl();
 
-    final FabricRunnerFactory coordFactory = fabric.get()
-            .registerProtocol(new CoordProtocol(dbContext.get().getAllocator(), foremenTool, dbContext.get().getConfig()));
+    final FabricRunnerFactory coordFactory =
+        fabric
+            .get()
+            .registerProtocol(
+                new CoordProtocol(
+                    dbContext.get().getAllocator(), foremenTool, dbContext.get().getConfig()));
     this.coordTunnelCreator = new CoordTunnelCreator(coordFactory);
 
     this.userWorker = new UserWorkerImpl(dbContext.get().getOptionManager(), pool);
     this.localQueryExecutor = new LocalQueryExecutorImpl(dbContext.get().getOptionManager(), pool);
-    this.profileSender.scheduleWithFixedDelay(this::sendAllProfiles,
-      PROFILE_SEND_INTERVAL_SECONDS, PROFILE_SEND_INTERVAL_SECONDS, TimeUnit.SECONDS);
+    this.profileSender.scheduleWithFixedDelay(
+        this::sendAllProfiles,
+        PROFILE_SEND_INTERVAL_SECONDS,
+        PROFILE_SEND_INTERVAL_SECONDS,
+        TimeUnit.SECONDS);
 
     // cache for physical plans.
-    cachedPlans = CacheBuilder.newBuilder()
-      .maximumWeight(dbContext.get().getDremioConfig().getLong(DremioConfig.PLAN_CACHE_MAX_ENTRIES))
-      .weigher((Weigher<String, CachedPlan>) (key, cachedPlan) -> cachedPlan.getEstimatedSize())
-      // plan caches are memory intensive. If there is memory pressure,
-      // let GC release them as last resort before running OOM.
-      .softValues()
-      .removalListener(
-        new RemovalListener<String, CachedPlan>() {
-          @Override
-          public void onRemoval(RemovalNotification<String, CachedPlan> notification) {
-            PlanCache.clearDatasetMapOnCacheGC(notification.getKey());
-          }
-        }
-      )
-      .expireAfterAccess(dbContext.get().getDremioConfig().getLong(DremioConfig.PLAN_CACHE_TIMEOUT_MINUTES), TimeUnit.MINUTES)
-      .build();
+    cachedPlans =
+        CacheBuilder.newBuilder()
+            .maximumWeight(
+                dbContext.get().getDremioConfig().getLong(DremioConfig.PLAN_CACHE_MAX_ENTRIES))
+            .weigher(
+                (Weigher<String, CachedPlan>) (key, cachedPlan) -> cachedPlan.getEstimatedSize())
+            // plan caches are memory intensive. If there is memory pressure,
+            // let GC release them as last resort before running OOM.
+            .softValues()
+            .removalListener(
+                new RemovalListener<String, CachedPlan>() {
+                  @Override
+                  public void onRemoval(RemovalNotification<String, CachedPlan> notification) {
+                    PlanCache.clearDatasetMapOnCacheGC(notification.getKey());
+                  }
+                })
+            .expireAfterAccess(
+                dbContext.get().getDremioConfig().getLong(DremioConfig.PLAN_CACHE_TIMEOUT_MINUTES),
+                TimeUnit.MINUTES)
+            .build();
 
-    planCache = new PlanCache(cachedPlans, Multimaps.synchronizedListMultimap(ArrayListMultimap.create()));
+    planCache =
+        new PlanCache(cachedPlans, Multimaps.synchronizedListMultimap(ArrayListMultimap.create()));
 
-    partitionStatsCache = new PartitionStatsCache(this.transientStoreProvider.get().getStore(
-        Format.ofProtobuf(PartitionStatsKey.class),
-        Format.ofProtobuf(PartitionStatsValue.class),
-        dbContext.get().getDremioConfig().getInt(DremioConfig.PARTITION_STATS_CACHE_TTL)));
+    partitionStatsCache =
+        new PartitionStatsCache(
+            this.transientStoreProvider
+                .get()
+                .getStore(
+                    Format.ofProtobuf(PartitionStatsKey.class),
+                    Format.ofProtobuf(PartitionStatsValue.class),
+                    dbContext
+                        .get()
+                        .getDremioConfig()
+                        .getInt(DremioConfig.PARTITION_STATS_CACHE_TTL)));
   }
 
   @Override
@@ -275,60 +290,95 @@ public class ForemenWorkManager implements Service, SafeExit {
   }
 
   private boolean canAcceptWork() {
-    final long foremenLimit = dbContext.get().getOptionManager().getOption(MAX_FOREMEN_PER_COORDINATOR);
+    final long foremenLimit =
+        dbContext.get().getOptionManager().getOption(MAX_FOREMEN_PER_COORDINATOR);
     return externalIdToForeman.size() < foremenLimit;
   }
 
   public void submit(
-          final ExternalId externalId,
-          final QueryObserver observer,
-          final UserSession session,
-          final UserRequest request,
-          final TerminationListenerRegistry registry,
-          final OptionProvider config,
-          final ReAttemptHandler attemptHandler) {
+      final ExternalId externalId,
+      final QueryObserver observer,
+      final UserSession session,
+      final UserRequest request,
+      final TerminationListenerRegistry registry,
+      final OptionProvider config,
+      final ReAttemptHandler attemptHandler) {
 
     final DelegatingCompletionListener delegate = new DelegatingCompletionListener();
-    final Foreman foreman = newForeman(pool, commandPool.get(), delegate, externalId, observer, session, request,
-            config, attemptHandler, preparedHandles, planCache, partitionStatsCache);
+    final Foreman foreman =
+        newForeman(
+            pool,
+            commandPool.get(),
+            delegate,
+            externalId,
+            observer,
+            session,
+            request,
+            config,
+            attemptHandler,
+            preparedHandles,
+            planCache,
+            partitionStatsCache);
     final ManagedForeman managed = new ManagedForeman(registry, foreman);
     externalIdToForeman.put(foreman.getExternalId(), managed);
     delegate.setListener(managed);
     foreman.start();
   }
 
-  protected Foreman newForeman(Executor executor, CommandPool commandPool, CompletionListener listener, ExternalId externalId,
-                               QueryObserver observer, UserSession session, UserRequest request, OptionProvider config,
-                               ReAttemptHandler attemptHandler, Cache<Long, PreparedPlan> preparedPlans,
-                               PlanCache planCache, PartitionStatsCache partitionStatsCache) {
-    return new Foreman(dbContext.get(), executor, commandPool, listener, externalId, observer, session, request, config,
-            attemptHandler, preparedPlans, planCache, maestroService.get(), jobTelemetryClient.get(), ruleBasedEngineSelector.get(),
-            partitionStatsCache);
+  protected Foreman newForeman(
+      Executor executor,
+      CommandPool commandPool,
+      CompletionListener listener,
+      ExternalId externalId,
+      QueryObserver observer,
+      UserSession session,
+      UserRequest request,
+      OptionProvider config,
+      ReAttemptHandler attemptHandler,
+      Cache<Long, PreparedPlan> preparedPlans,
+      PlanCache planCache,
+      PartitionStatsCache partitionStatsCache) {
+    return new Foreman(
+        dbContext.get(),
+        executor,
+        commandPool,
+        listener,
+        externalId,
+        observer,
+        session,
+        request,
+        config,
+        attemptHandler,
+        preparedPlans,
+        planCache,
+        maestroService.get(),
+        jobTelemetryClient.get(),
+        ruleBasedEngineSelector.get(),
+        partitionStatsCache);
   }
 
-  /**
-   * Internal class that allows ForemanManager to indirectly reference its wrapper object.
-   */
+  /** Internal class that allows ForemanManager to indirectly reference its wrapper object. */
   private static class DelegatingCompletionListener implements CompletionListener {
 
     private CompletionListener listener;
 
-    public void setListener(CompletionListener listener){
+    public void setListener(CompletionListener listener) {
       this.listener = listener;
     }
 
     @Override
     public void completed() {
-      if(listener == null){
-        throw new NullPointerException("Completion listener was null when called. This should never happen.");
+      if (listener == null) {
+        throw new NullPointerException(
+            "Completion listener was null when called. This should never happen.");
       }
       listener.completed();
     }
-
   }
 
   /**
-   * A wrapper class that manages the lifecyle of foreman to ensure ForemanManager internal consistency.
+   * A wrapper class that manages the lifecyle of foreman to ensure ForemanManager internal
+   * consistency.
    */
   private final class ManagedForeman implements CompletionListener {
     private final ConnectionClosedListener closeListener = new ConnectionClosedListener();
@@ -371,13 +421,16 @@ public class ForemenWorkManager implements Service, SafeExit {
   /**
    * Cancel the query.
    *
-   * @param externalId      id of the query
-   * @param reason          description of the cancellation
-   * @param clientCancelled true if the client application explicitly issued a cancellation (via end user action), or
-   *                        false otherwise (i.e. when pushing the cancellation notification to the end user)
-   * @param runTimeExceeded true if the query is being cancelled because the max runtime has been exceeded
+   * @param externalId id of the query
+   * @param reason description of the cancellation
+   * @param clientCancelled true if the client application explicitly issued a cancellation (via end
+   *     user action), or false otherwise (i.e. when pushing the cancellation notification to the
+   *     end user)
+   * @param runTimeExceeded true if the query is being cancelled because the max runtime has been
+   *     exceeded
    */
-  public boolean cancel(ExternalId externalId, String reason, boolean clientCancelled, boolean runTimeExceeded) {
+  public boolean cancel(
+      ExternalId externalId, String reason, boolean clientCancelled, boolean runTimeExceeded) {
     final ManagedForeman managed = externalIdToForeman.get(externalId);
     if (managed != null) {
       managed.foreman.cancel(reason, clientCancelled, runTimeExceeded);
@@ -393,14 +446,16 @@ public class ForemenWorkManager implements Service, SafeExit {
    * @param cancelQueryContext
    */
   public void cancel(CancelQueryContext cancelQueryContext) {
-    externalIdToForeman.values()
-                       .stream()
-                       .filter(mf->mf.foreman.canCancelByHeapMonitor())
-                       .forEach(mf->mf.foreman.cancel(cancelQueryContext.getCancelReason(),
-                         false,
-                         cancelQueryContext.getCancelContext(),
-                         cancelQueryContext.isCancelledByHeapMonitor(),
-                         false));
+    externalIdToForeman.values().stream()
+        .filter(mf -> mf.foreman.canCancelByHeapMonitor())
+        .forEach(
+            mf ->
+                mf.foreman.cancel(
+                    cancelQueryContext.getCancelReason(),
+                    false,
+                    cancelQueryContext.getCancelContext(),
+                    cancelQueryContext.isCancelledByHeapMonitor(),
+                    false));
   }
 
   public boolean resume(ExternalId externalId) {
@@ -418,7 +473,8 @@ public class ForemenWorkManager implements Service, SafeExit {
     return externalIdToForeman.size();
   }
 
-  private ReAttemptHandler newInternalAttemptHandler(OptionManager options, boolean failIfNonEmpty) {
+  private ReAttemptHandler newInternalAttemptHandler(
+      OptionManager options, boolean failIfNonEmpty) {
     if (options.getOption(ExecConstants.ENABLE_REATTEMPTS)) {
       return new InternalAttemptHandler(options, failIfNonEmpty);
     } else {
@@ -445,7 +501,9 @@ public class ForemenWorkManager implements Service, SafeExit {
      *  b. else forwarding is done and request is used
      */
     @Override
-    public void dataArrived(QueryData header, ByteBuf data, JobResultsRequest request, ResponseSender sender) throws RpcException {
+    public void dataArrived(
+        QueryData header, ByteBuf data, JobResultsRequest request, ResponseSender sender)
+        throws RpcException {
       Preconditions.checkNotNull(header, "header parameter cannot be null");
 
       String queryId = QueryIdHelper.getQueryId(header.getQueryId());
@@ -470,16 +528,22 @@ public class ForemenWorkManager implements Service, SafeExit {
         forwarder.get().dataArrived(request, sender);
 
       } else {
-        logger.warn("User data arrived post query termination, dropping. Data was from QueryId: {}.", queryId);
+        logger.warn(
+            "User data arrived post query termination, dropping. Data was from QueryId: {}.",
+            queryId);
         //  Return a Failure in this case, the query is already terminated and it will be cancelled
         // on the Executor, either response will unblock the caller.
-        sender.sendFailure(new UserRpcException(dbContext.get().getEndpoint(),
-          "Query Already Terminated", new Throwable("Query Already Terminated")));
+        sender.sendFailure(
+            new UserRpcException(
+                dbContext.get().getEndpoint(),
+                "Query Already Terminated",
+                new Throwable("Query Already Terminated")));
       }
     }
 
     @Override
-    public boolean dataArrived(JobResultsRequestWrapper request, ResponseSender sender) throws RpcException {
+    public boolean dataArrived(JobResultsRequestWrapper request, ResponseSender sender)
+        throws RpcException {
       Preconditions.checkNotNull(request, "jobResultsRequestWrapper parameter cannot be null");
 
       QueryData header = request.getHeader();
@@ -510,16 +574,16 @@ public class ForemenWorkManager implements Service, SafeExit {
     // Actually read request.data into byteBuf.
     byteBuf.writeBytes(request.getData().toByteArray());
     return byteBuf;
-}
+  }
 
   /**
    * Waits until it is safe to exit. Blocks until all currently running fragments have completed.
    *
-   * <p>This is intended to be used by com.dremio.exec.server.SabotNode#close(). </p>
+   * <p>This is intended to be used by com.dremio.exec.server.SabotNode#close().
    */
   @Override
   public void waitToExit() {
-    synchronized(this) {
+    synchronized (this) {
       if (externalIdToForeman.isEmpty()) {
         return;
       }
@@ -528,8 +592,12 @@ public class ForemenWorkManager implements Service, SafeExit {
     }
 
     // Wait for at most the configured graceful timeout or until the latch is released.
-    exitLatch.awaitUninterruptibly(dbContext.get().getDremioConfig().getLong(
-      DremioConfig.DREMIO_TERMINATION_GRACE_PERIOD_SECONDS) * 1000);
+    exitLatch.awaitUninterruptibly(
+        dbContext
+                .get()
+                .getDremioConfig()
+                .getLong(DremioConfig.DREMIO_TERMINATION_GRACE_PERIOD_SECONDS)
+            * 1000);
   }
 
   /**
@@ -537,7 +605,7 @@ public class ForemenWorkManager implements Service, SafeExit {
    * unblock.
    */
   private void indicateIfSafeToExit() {
-    synchronized(this) {
+    synchronized (this) {
       if (exitLatch != null) {
         if (externalIdToForeman.isEmpty()) {
           exitLatch.countDown();
@@ -546,13 +614,10 @@ public class ForemenWorkManager implements Service, SafeExit {
     }
   }
 
-  /**
-   * Handler for in-process queries
-   */
+  /** Handler for in-process queries */
   private class LocalQueryExecutorImpl implements LocalQueryExecutor {
     private final OptionManager options;
     private final Executor executor;
-
 
     public LocalQueryExecutorImpl(OptionManager options, Executor executor) {
       super();
@@ -567,112 +632,148 @@ public class ForemenWorkManager implements Service, SafeExit {
 
     @Override
     public void submitLocalQuery(
-      ExternalId externalId,
-      QueryObserver observer,
-      Object query,
-      boolean prepare,
-      LocalExecutionConfig config,
-      boolean runInSameThread,
-      UserSession userSession) {
-      try{
+        ExternalId externalId,
+        QueryObserver observer,
+        Object query,
+        boolean prepare,
+        LocalExecutionConfig config,
+        boolean runInSameThread,
+        UserSession userSession) {
+      try {
         // make sure we keep a local observer out of band.
-        final QueryObserver oobJobObserver = new OutOfBandQueryObserver(observer, executor, requestContextProvider);
+        final QueryObserver oobJobObserver =
+            new OutOfBandQueryObserver(observer, executor, requestContextProvider);
 
         if (userSession == null) {
-          userSession = UserSession.Builder.newBuilder()
-            .withSessionOptionManager(new SessionOptionManagerImpl(options.getOptionValidatorListing()), options)
-            .setSupportComplexTypes(true)
-            .withCredentials(UserCredentials
-              .newBuilder()
-              .setUserName(config.getUsername())
-              .build())
-            .exposeInternalSources(config.isExposingInternalSources())
-            .withDefaultSchema(config.getSqlContext())
-            .withSubstitutionSettings(config.getSubstitutionSettings())
-            .withClientInfos(UserRpcUtils.getRpcEndpointInfos("Dremio Java local client"))
-            .withEngineName(config.getEngineName())
-            .withSourceVersionMapping(config.getSourceVersionMapping())
-            .build();
+          userSession =
+              UserSession.Builder.newBuilder()
+                  .withSessionOptionManager(
+                      new SessionOptionManagerImpl(options.getOptionValidatorListing()), options)
+                  .setSupportComplexTypes(true)
+                  .withCredentials(
+                      UserCredentials.newBuilder().setUserName(config.getUsername()).build())
+                  .exposeInternalSources(config.isExposingInternalSources())
+                  .withDefaultSchema(config.getSqlContext())
+                  .withSubstitutionSettings(config.getSubstitutionSettings())
+                  .withClientInfos(UserRpcUtils.getRpcEndpointInfos("Dremio Java local client"))
+                  .withEngineName(config.getEngineName())
+                  .withSourceVersionMapping(config.getSourceVersionMapping())
+                  .build();
         }
 
-        final ReAttemptHandler attemptHandler = newInternalAttemptHandler(options, config.isFailIfNonEmptySent());
-        final UserRequest userRequest = new UserRequest(prepare ? RpcType.CREATE_PREPARED_STATEMENT : RpcType.RUN_QUERY, query, runInSameThread);
-        submit(externalId, oobJobObserver, userSession, userRequest, TerminationListenerRegistry.NOOP, config, attemptHandler);
-      } catch(Exception ex){
+        final ReAttemptHandler attemptHandler =
+            newInternalAttemptHandler(options, config.isFailIfNonEmptySent());
+        final UserRequest userRequest =
+            new UserRequest(
+                prepare ? RpcType.CREATE_PREPARED_STATEMENT : RpcType.RUN_QUERY,
+                query,
+                runInSameThread);
+        submit(
+            externalId,
+            oobJobObserver,
+            userSession,
+            userRequest,
+            TerminationListenerRegistry.NOOP,
+            config,
+            attemptHandler);
+      } catch (Exception ex) {
         throw Throwables.propagate(ex);
       }
     }
   }
 
   @VisibleForTesting // package-protected for testing purposes. Don't make it public.
-  void submitWork(ExternalId externalId,
-                  UserSession session,
-                  UserResponseHandler responseHandler,
-                  UserRequest request,
-                  TerminationListenerRegistry registry,
-                  Executor executor) {
-    commandPool.get().<Void>submit(CommandPool.Priority.HIGH,
-      ExternalIdHelper.toString(externalId) + ":work-submission",
-      "work-submission",
-      (waitInMillis) -> submitWorkCommand(externalId, session, responseHandler, request, registry, executor, waitInMillis),
-      request.runInSameThread())
-      .whenComplete((o, e)-> {
-        if (e != null) {
-          QueryProfile profile = foremenTool.getProfile(externalId).isPresent() ?
-            foremenTool.getProfile(externalId).get() : null;
-          UserException exception = UserException.resourceError()
-            .message(e.getMessage() + ". Root cause: " + Throwables.getRootCause(e).getMessage())
-            .buildSilently();
-          UserResult result = new UserResult(null,
-            ExternalIdHelper.toQueryId(externalId),
-            UserBitShared.QueryResult.QueryState.FAILED,
-            profile,
-            exception,
-            null,
-            false,
-            false,
-            false);
-          responseHandler.completed(result);
-        }
-      });
+  void submitWork(
+      ExternalId externalId,
+      UserSession session,
+      UserResponseHandler responseHandler,
+      UserRequest request,
+      TerminationListenerRegistry registry,
+      Executor executor) {
+    commandPool
+        .get()
+        .<Void>submit(
+            CommandPool.Priority.HIGH,
+            ExternalIdHelper.toString(externalId) + ":work-submission",
+            "work-submission",
+            (waitInMillis) ->
+                submitWorkCommand(
+                    externalId,
+                    session,
+                    responseHandler,
+                    request,
+                    registry,
+                    executor,
+                    waitInMillis),
+            request.runInSameThread())
+        .whenComplete(
+            (o, e) -> {
+              if (e != null) {
+                QueryProfile profile =
+                    foremenTool.getProfile(externalId).isPresent()
+                        ? foremenTool.getProfile(externalId).get()
+                        : null;
+                UserException exception =
+                    UserException.resourceError()
+                        .message(
+                            e.getMessage()
+                                + ". Root cause: "
+                                + Throwables.getRootCause(e).getMessage())
+                        .buildSilently();
+                UserResult result =
+                    new UserResult(
+                        null,
+                        ExternalIdHelper.toQueryId(externalId),
+                        UserBitShared.QueryResult.QueryState.FAILED,
+                        profile,
+                        exception,
+                        null,
+                        false,
+                        false,
+                        false);
+                responseHandler.completed(result);
+              }
+            });
   }
 
   @VisibleForTesting // package-protected for testing purposes. Don't make it public.
-  Void submitWorkCommand(ExternalId externalId,
-                         UserSession session,
-                         UserResponseHandler responseHandler,
-                         UserRequest request,
-                         TerminationListenerRegistry registry,
-                         Executor executor,
-                         Long waitInMillis) {
+  Void submitWorkCommand(
+      ExternalId externalId,
+      UserSession session,
+      UserResponseHandler responseHandler,
+      UserRequest request,
+      TerminationListenerRegistry registry,
+      Executor executor,
+      Long waitInMillis) {
     if (!canAcceptWork()) {
-      throw UserException.resourceError()
-        .message(UserException.QUERY_REJECTED_MSG)
-        .buildSilently();
+      throw UserException.resourceError().message(UserException.QUERY_REJECTED_MSG).buildSilently();
     }
 
     if (waitInMillis > CommandPool.WARN_DELAY_MS) {
-      logger.warn("Work submission {} waited too long in the command pool: wait was {}ms",
-        ExternalIdHelper.toString(externalId), waitInMillis);
+      logger.warn(
+          "Work submission {} waited too long in the command pool: wait was {}ms",
+          ExternalIdHelper.toString(externalId),
+          waitInMillis);
     }
     session.incrementQueryCount();
-    final QueryObserver observer = dbContext.get().getQueryObserverFactory().get().createNewQueryObserver(
-      externalId, session, responseHandler);
-    final QueryObserver oobObserver = new OutOfBandQueryObserver(observer, executor, requestContextProvider);
+    final QueryObserver observer =
+        dbContext
+            .get()
+            .getQueryObserverFactory()
+            .get()
+            .createNewQueryObserver(externalId, session, responseHandler);
+    final QueryObserver oobObserver =
+        new OutOfBandQueryObserver(observer, executor, requestContextProvider);
     final ReAttemptHandler attemptHandler = newExternalAttemptHandler(session.getOptions());
     submit(externalId, oobObserver, session, request, registry, null, attemptHandler);
     return null;
   }
 
-
-  /**
-   * Worker for queries coming from user layer.
-   */
+  /** Worker for queries coming from user layer. */
   public class UserWorkerImpl implements UserWorker {
 
     private final OptionManager systemOptions;
     private final Executor executor;
-
 
     public UserWorkerImpl(OptionManager systemOptions, Executor executor) {
       super();
@@ -681,9 +782,14 @@ public class ForemenWorkManager implements Service, SafeExit {
     }
 
     @Override
-    public void submitWork(ExternalId externalId, UserSession session,
-                           UserResponseHandler responseHandler, UserRequest request, TerminationListenerRegistry registry) {
-      ForemenWorkManager.this.submitWork(externalId, session, responseHandler, request, registry, executor);
+    public void submitWork(
+        ExternalId externalId,
+        UserSession session,
+        UserResponseHandler responseHandler,
+        UserRequest request,
+        TerminationListenerRegistry registry) {
+      ForemenWorkManager.this.submitWork(
+          externalId, session, responseHandler, request, registry, executor);
     }
 
     @Override
@@ -702,7 +808,6 @@ public class ForemenWorkManager implements Service, SafeExit {
     public OptionManager getSystemOptions() {
       return systemOptions;
     }
-
   }
 
   private class ForemenToolImpl implements ForemenTool {
@@ -716,7 +821,7 @@ public class ForemenWorkManager implements Service, SafeExit {
     @Override
     public Optional<QueryProfile> getProfile(ExternalId id) {
       ManagedForeman managed = externalIdToForeman.get(id);
-      if(managed == null){
+      if (managed == null) {
         return Optional.empty();
       }
 
@@ -739,8 +844,7 @@ public class ForemenWorkManager implements Service, SafeExit {
 
     for (ManagedForeman managedForeman : externalIdToForeman.values()) {
       try {
-        Optional<ListenableFuture<Empty>> future =
-         managedForeman.foreman.sendPlanningProfile();
+        Optional<ListenableFuture<Empty>> future = managedForeman.foreman.sendPlanningProfile();
         future.ifPresent(futures::add);
       } catch (final Exception e) {
         // Exception ignored. Profile sender thread should not die due to a random
@@ -759,33 +863,29 @@ public class ForemenWorkManager implements Service, SafeExit {
   @VisibleForTesting
 
   /**
-   * DX-27692: In some cases, when the client connection closes abruptly,
-   *     the query gets canceled and before the cancel processing completes,
-   *     it switches to the FAILED state (ScreenShuttle::failed).
-   *     At this point, the screen operator on executor may still have
-   *     outstanding messages.  Once the FAILED state processing is complete,
-   *     the foreman is removed from the externalIdToForeman map.
-   *     Any new msgs to the coordinator for this query get dropped without an ack,
-   *     and so, the fragment is stuck forever.
-   *     The fix is to ack the message from screen operator with a failure in this case.
+   * DX-27692: In some cases, when the client connection closes abruptly, the query gets canceled
+   * and before the cancel processing completes, it switches to the FAILED state
+   * (ScreenShuttle::failed). At this point, the screen operator on executor may still have
+   * outstanding messages. Once the FAILED state processing is complete, the foreman is removed from
+   * the externalIdToForeman map. Any new msgs to the coordinator for this query get dropped without
+   * an ack, and so, the fragment is stuck forever. The fix is to ack the message from screen
+   * operator with a failure in this case.
    *
-   *     Simulate the scenario by removing externalId from the map.
+   * <p>Simulate the scenario by removing externalId from the map.
    */
   public void testMarkQueryFailed(ExternalId externalId) {
     final ManagedForeman managed = externalIdToForeman.remove(externalId);
     if (managed == null) {
       logger.warn("Couldn't find retiring Foreman for query " + externalId);
     }
-
   }
 
   @VisibleForTesting
   public List<QueryProfile> getActiveProfiles() {
-    return externalIdToForeman.values()
-      .stream()
-      .map(managed -> managed.foreman.getCurrentProfile())
-      .filter(Optional::isPresent)
-      .map(Optional::get)
-      .collect(Collectors.toList());
+    return externalIdToForeman.values().stream()
+        .map(managed -> managed.foreman.getCurrentProfile())
+        .filter(Optional::isPresent)
+        .map(Optional::get)
+        .collect(Collectors.toList());
   }
 }

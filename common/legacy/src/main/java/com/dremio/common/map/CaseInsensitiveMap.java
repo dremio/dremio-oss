@@ -15,26 +15,26 @@
  */
 package com.dremio.common.map;
 
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.Map;
 import java.util.Set;
 
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
-
 /**
- * A special type of {@link Map} with {@link String}s as keys, and the case of a key is ignored for operations involving
- * keys like {@link #put}, {@link #get}, etc. The keys are stored and retrieved in lower case. Use the static factory
- * methods to create instances of this class (e.g. {@link #newConcurrentMap}).
+ * A special type of {@link Map} with {@link String}s as keys, and the case of a key is ignored for
+ * operations involving keys like {@link #put}, {@link #get}, etc. The keys are stored and retrieved
+ * in lower case. Use the static factory methods to create instances of this class (e.g. {@link
+ * #newConcurrentMap}).
  *
  * @param <VALUE> the type of values to be stored in the map
  */
 public final class CaseInsensitiveMap<VALUE> implements Map<String, VALUE> {
 
   /**
-   * Returns a new instance of {@link java.util.concurrent.ConcurrentMap} with key case-insensitivity. See
-   * {@link java.util.concurrent.ConcurrentMap}.
+   * Returns a new instance of {@link java.util.concurrent.ConcurrentMap} with key
+   * case-insensitivity. See {@link java.util.concurrent.ConcurrentMap}.
    *
    * @param <VALUE> type of values to be stored in the map
    * @return key case-insensitive concurrent map
@@ -44,7 +44,8 @@ public final class CaseInsensitiveMap<VALUE> implements Map<String, VALUE> {
   }
 
   /**
-   * Returns a new instance of {@link java.util.HashMap} with key case-insensitivity. See {@link java.util.HashMap}.
+   * Returns a new instance of {@link java.util.HashMap} with key case-insensitivity. See {@link
+   * java.util.HashMap}.
    *
    * @param <VALUE> type of values to be stored in the map
    * @return key case-insensitive hash map
@@ -54,7 +55,8 @@ public final class CaseInsensitiveMap<VALUE> implements Map<String, VALUE> {
   }
 
   /**
-   * Returns a new instance of {@link java.util.TreeMap} with key case-insensitivity. See {@link java.util.TreeMap}.
+   * Returns a new instance of {@link java.util.TreeMap} with key case-insensitivity. See {@link
+   * java.util.TreeMap}.
    *
    * @param <VALUE> type of values to be stored in the map
    * @return key case-insensitive tree map
@@ -64,14 +66,15 @@ public final class CaseInsensitiveMap<VALUE> implements Map<String, VALUE> {
   }
 
   /**
-   * Returns a new instance of {@link ImmutableMap} with key case-insensitivity. This map is built from the given
-   * map. See {@link ImmutableMap}.
+   * Returns a new instance of {@link ImmutableMap} with key case-insensitivity. This map is built
+   * from the given map. See {@link ImmutableMap}.
    *
    * @param map map to copy from
    * @param <VALUE> type of values to be stored in the map
    * @return key case-insensitive immutable map
    */
-  public static <VALUE> CaseInsensitiveMap<VALUE> newImmutableMap(final Map<? extends String, ? extends VALUE> map) {
+  public static <VALUE> CaseInsensitiveMap<VALUE> newImmutableMap(
+      final Map<? extends String, ? extends VALUE> map) {
     final ImmutableMap.Builder<String, VALUE> builder = ImmutableMap.builder();
     for (final Entry<? extends String, ? extends VALUE> entry : map.entrySet()) {
       builder.put(entry.getKey().toLowerCase(), entry.getValue());
@@ -82,7 +85,8 @@ public final class CaseInsensitiveMap<VALUE> implements Map<String, VALUE> {
   private final Map<String, VALUE> underlyingMap;
 
   /**
-   * Use the static factory methods to create instances of this class (e.g. {@link #newConcurrentMap}).
+   * Use the static factory methods to create instances of this class (e.g. {@link
+   * #newConcurrentMap}).
    *
    * @param underlyingMap the underlying map
    */

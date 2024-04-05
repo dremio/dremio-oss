@@ -17,13 +17,14 @@ package com.dremio.exec.planner.logical.rewrite.sargable;
 
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.rex.RexExecutor;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlOperator;
 
 /**
+ *
+ *
  * <pre>
  * NEXT_DAY(col1, 'TU') = '2023-07-18' => col1 >= '2014-07-12' and col1 < '2014-07-19'
  * </pre>
@@ -31,11 +32,12 @@ import org.apache.calcite.sql.SqlOperator;
 public class NextDayTransformer extends RangeTransformer {
   private final int rhsDayOfWeekDiff;
 
-  NextDayTransformer(RelOptCluster relOptCluster,
-                     StandardForm standardForm,
-                     SqlOperator sqlOperator,
-                     boolean isTruncToBegin,
-                     int rhsDayOfWeekDiff) {
+  NextDayTransformer(
+      RelOptCluster relOptCluster,
+      StandardForm standardForm,
+      SqlOperator sqlOperator,
+      boolean isTruncToBegin,
+      int rhsDayOfWeekDiff) {
     super(relOptCluster, standardForm, sqlOperator, isTruncToBegin);
     this.rhsDayOfWeekDiff = rhsDayOfWeekDiff;
   }
@@ -57,7 +59,12 @@ public class NextDayTransformer extends RangeTransformer {
       end = super.getRhsNode();
       setRhsEqBegin(true);
     } else {
-      end = SARGableRexUtils.dateAdd(this.getRhsNode(), rexBuilder.makeLiteral(String.valueOf(rhsDayOfWeekDiff > 0 ? rhsDayOfWeekDiff : 7 + rhsDayOfWeekDiff)), rexBuilder);
+      end =
+          SARGableRexUtils.dateAdd(
+              this.getRhsNode(),
+              rexBuilder.makeLiteral(
+                  String.valueOf(rhsDayOfWeekDiff > 0 ? rhsDayOfWeekDiff : 7 + rhsDayOfWeekDiff)),
+              rexBuilder);
       setRhsEqBegin(false);
     }
     begin = SARGableRexUtils.dateAdd(end, rexBuilder.makeLiteral("-6"), rexBuilder);
@@ -74,12 +81,10 @@ public class NextDayTransformer extends RangeTransformer {
       reducedValues.clear();
       rexExecutor.reduce(rexBuilder, constExpNode, reducedValues);
 
-      if (reducedValues.size() == 2 &&
-        reducedValues.get(0) != null && reducedValues.get(1) != null) {
-        return new RexDateRange(
-          reducedValues.get(0),
-          reducedValues.get(1)
-        );
+      if (reducedValues.size() == 2
+          && reducedValues.get(0) != null
+          && reducedValues.get(1) != null) {
+        return new RexDateRange(reducedValues.get(0), reducedValues.get(1));
       }
     }
 

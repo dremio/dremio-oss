@@ -19,13 +19,6 @@ import static com.dremio.sabot.Fixtures.t;
 import static com.dremio.sabot.Fixtures.th;
 import static com.dremio.sabot.Fixtures.tr;
 
-import java.util.List;
-import java.util.Random;
-
-import org.junit.Assert;
-import org.junit.Ignore;
-import org.junit.Test;
-
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.exec.physical.config.Filter;
 import com.dremio.exec.proto.UserBitShared.ExpressionSplitInfo;
@@ -36,9 +29,13 @@ import com.dremio.sabot.Fixtures.Table;
 import com.dremio.sabot.Generator;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.filter.FilterOperator;
-
 import io.airlift.tpch.GenerationDefinition.TpchTable;
 import io.airlift.tpch.TpchGenerator;
+import java.util.List;
+import java.util.Random;
+import org.junit.Assert;
+import org.junit.Ignore;
+import org.junit.Test;
 
 public class TestSimpleFilter extends BaseTestOperator {
 
@@ -46,17 +43,9 @@ public class TestSimpleFilter extends BaseTestOperator {
   public void simpleFilter() throws Exception {
 
     Filter f = new Filter(PROPS, null, toExpr("c0 < 10"), 1f);
-    Table input = t(
-        th("c0"),
-        tr(35),
-        tr(8),
-        tr(22)
-        );
+    Table input = t(th("c0"), tr(35), tr(8), tr(22));
 
-    Table output = t(
-        th("c0"),
-        tr(8)
-        );
+    Table output = t(th("c0"), tr(8));
 
     validateSingle(f, FilterOperator.class, input, output);
   }
@@ -65,18 +54,9 @@ public class TestSimpleFilter extends BaseTestOperator {
   public void simpleFilter2() throws Exception {
 
     Filter f = new Filter(PROPS, null, toExpr("c0 < c1"), 1f);
-    Table input = t(
-      th("c0", "c1"),
-      tr(35, 45),
-      tr(8, 6),
-      tr(22, 23)
-    );
+    Table input = t(th("c0", "c1"), tr(35, 45), tr(8, 6), tr(22, 23));
 
-    Table output = t(
-      th("c0","c1"),
-      tr(35, 45),
-      tr(22, 23)
-    );
+    Table output = t(th("c0", "c1"), tr(35, 45), tr(22, 23));
 
     validateSingle(f, FilterOperator.class, input, output);
   }
@@ -109,16 +89,9 @@ public class TestSimpleFilter extends BaseTestOperator {
   public void varcharFilter() throws Exception {
 
     Filter f = new Filter(PROPS, null, toExpr("like(c0, 'hell%')"), 1f);
-    Table input = t(
-        th("c0"),
-        tr("hello"),
-        tr("bye")
-        );
+    Table input = t(th("c0"), tr("hello"), tr("bye"));
 
-    Table output = t(
-        th("c0"),
-        tr("hello")
-        );
+    Table output = t(th("c0"), tr("hello"));
 
     validateSingle(f, FilterOperator.class, input, output);
   }
@@ -127,19 +100,15 @@ public class TestSimpleFilter extends BaseTestOperator {
   public void strlenFilter() throws Exception {
     LogicalExpression expr = toExpr("(length(c0) + length(c1)) > 10");
     Filter f = new Filter(PROPS, null, expr, 1f);
-    Table input = t(
-      th("c0", "c1"),
-      tr("hello", "world"),
-      tr("good", "morning"),
-      tr("bye", "bye"),
-      tr("happy", "birthday")
-    );
+    Table input =
+        t(
+            th("c0", "c1"),
+            tr("hello", "world"),
+            tr("good", "morning"),
+            tr("bye", "bye"),
+            tr("happy", "birthday"));
 
-    Table output = t(
-      th("c0", "c1"),
-      tr("good", "morning"),
-      tr("happy", "birthday")
-    );
+    Table output = t(th("c0", "c1"), tr("good", "morning"), tr("happy", "birthday"));
 
     validateSingle(f, FilterOperator.class, input, output);
   }
@@ -149,21 +118,14 @@ public class TestSimpleFilter extends BaseTestOperator {
     // Small Filter
     LogicalExpression expr = toExpr("c0 = 1 or c1 = 2");
     Filter f = new Filter(PROPS, null, expr, 1f);
-    Table input = t(
-      th("c0", "c1"),
-      tr(1, 3),
-      tr(1, 2),
-      tr(5, 6),
-      tr(3, 4)
-    );
+    Table input = t(th("c0", "c1"), tr(1, 3), tr(1, 2), tr(5, 6), tr(3, 4));
 
-    Table output = t(
-      th("c0", "c1"),
-      tr(1, 3),
-      tr(1, 2)
-    );
-    OperatorStats stats = validateSingle(f, FilterOperator.class, input.toGenerator(getTestAllocator()), output, 4000);
-    List<ExpressionSplitInfo> splitInfoList = stats.getProfile(true).getDetails().getSplitInfosList();
+    Table output = t(th("c0", "c1"), tr(1, 3), tr(1, 2));
+    OperatorStats stats =
+        validateSingle(
+            f, FilterOperator.class, input.toGenerator(getTestAllocator()), output, 4000);
+    List<ExpressionSplitInfo> splitInfoList =
+        stats.getProfile(true).getDetails().getSplitInfosList();
 
     Assert.assertFalse(splitInfoList.isEmpty());
     Assert.assertTrue(splitInfoList.get(0).getOptimize());
@@ -178,17 +140,13 @@ public class TestSimpleFilter extends BaseTestOperator {
     }
     expr = toExpr(sb.toString());
     f = new Filter(PROPS, null, expr, 1f);
-    input = t(
-      th("c0"),
-      tr(1)
-    );
+    input = t(th("c0"), tr(1));
 
-    output = t(
-      th("c0"),
-      tr(1)
-    );
+    output = t(th("c0"), tr(1));
 
-    stats = validateSingle(f, FilterOperator.class, input.toGenerator(getTestAllocator()), output, 4095);
+    stats =
+        validateSingle(
+            f, FilterOperator.class, input.toGenerator(getTestAllocator()), output, 4095);
     splitInfoList = stats.getProfile(true).getDetails().getSplitInfosList();
 
     Assert.assertFalse(splitInfoList.isEmpty());

@@ -17,19 +17,17 @@ package com.dremio.exec.vector.complex.fn;
 
 import static com.dremio.common.util.MajorTypeHelper.getMinorTypeFromArrowMinorType;
 
-import java.io.IOException;
-import java.io.OutputStream;
-
-import org.apache.arrow.vector.complex.impl.UnionMapReader;
-import org.apache.arrow.vector.complex.reader.FieldReader;
-import org.apache.arrow.vector.holders.UnionHolder;
-
 import com.dremio.common.types.TypeProtos.DataMode;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.fasterxml.jackson.core.Base64Variants;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerationException;
 import com.fasterxml.jackson.core.JsonGenerator;
+import java.io.IOException;
+import java.io.OutputStream;
+import org.apache.arrow.vector.complex.impl.UnionMapReader;
+import org.apache.arrow.vector.complex.reader.FieldReader;
+import org.apache.arrow.vector.holders.UnionHolder;
 
 public class JsonWriter {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(JsonWriter.class);
@@ -37,141 +35,138 @@ public class JsonWriter {
   private final JsonFactory factory = new JsonFactory();
   private final JsonOutput gen;
 
-  public JsonWriter(OutputStream out, boolean pretty, boolean useExtendedOutput) throws IOException{
+  public JsonWriter(OutputStream out, boolean pretty, boolean useExtendedOutput)
+      throws IOException {
     JsonGenerator writer = factory.createJsonGenerator(out);
-    if(pretty){
+    if (pretty) {
       writer = writer.useDefaultPrettyPrinter();
     }
-    if(useExtendedOutput){
+    if (useExtendedOutput) {
       gen = new ExtendedJsonOutput(writer);
-    }else{
+    } else {
       gen = new BasicJsonOutput(writer);
     }
-
   }
 
   public JsonWriter(JsonOutput gen) {
     this.gen = gen;
   }
 
-  public void write(FieldReader reader) throws JsonGenerationException, IOException{
+  public void write(FieldReader reader) throws JsonGenerationException, IOException {
     writeValue(reader);
     gen.flush();
   }
 
-  public void write(UnionHolder holder) throws JsonGenerationException, IOException{
+  public void write(UnionHolder holder) throws JsonGenerationException, IOException {
     writeValue(holder.reader);
     gen.flush();
   }
 
-  private void writeValue(FieldReader reader) throws JsonGenerationException, IOException{
+  private void writeValue(FieldReader reader) throws JsonGenerationException, IOException {
     final DataMode m = DataMode.OPTIONAL;
     final MinorType mt = getMinorTypeFromArrowMinorType(reader.getMinorType());
 
-    switch(m){
-    case OPTIONAL:
-    case REQUIRED:
+    switch (m) {
+      case OPTIONAL:
+      case REQUIRED:
+        switch (mt) {
+          case FLOAT4:
+            gen.writeFloat(reader);
+            break;
+          case FLOAT8:
+            gen.writeDouble(reader);
+            break;
+          case INT:
+            gen.writeInt(reader);
+            break;
+          case SMALLINT:
+            gen.writeSmallInt(reader);
+            break;
+          case TINYINT:
+            gen.writeTinyInt(reader);
+            break;
+          case BIGINT:
+            gen.writeBigInt(reader);
+            break;
+          case BIT:
+            gen.writeBoolean(reader);
+            break;
 
+          case DATE:
+            gen.writeDate(reader);
+            break;
+          case TIME:
+            gen.writeTime(reader);
+            break;
+          case TIMESTAMP:
+            gen.writeTimestamp(reader);
+            break;
+          case INTERVALYEAR:
+          case INTERVALDAY:
+          case INTERVAL:
+            gen.writeInterval(reader);
+            break;
+          case DECIMAL28DENSE:
+          case DECIMAL28SPARSE:
+          case DECIMAL38DENSE:
+          case DECIMAL38SPARSE:
+          case DECIMAL9:
+          case DECIMAL18:
+          case DECIMAL:
+            gen.writeDecimal(reader);
+            break;
 
-      switch (mt) {
-      case FLOAT4:
-        gen.writeFloat(reader);
-        break;
-      case FLOAT8:
-        gen.writeDouble(reader);
-        break;
-      case INT:
-        gen.writeInt(reader);
-        break;
-      case SMALLINT:
-        gen.writeSmallInt(reader);
-        break;
-      case TINYINT:
-        gen.writeTinyInt(reader);
-        break;
-      case BIGINT:
-        gen.writeBigInt(reader);
-        break;
-      case BIT:
-        gen.writeBoolean(reader);
-        break;
-
-      case DATE:
-        gen.writeDate(reader);
-        break;
-      case TIME:
-        gen.writeTime(reader);
-        break;
-      case TIMESTAMP:
-        gen.writeTimestamp(reader);
-        break;
-      case INTERVALYEAR:
-      case INTERVALDAY:
-      case INTERVAL:
-        gen.writeInterval(reader);
-        break;
-      case DECIMAL28DENSE:
-      case DECIMAL28SPARSE:
-      case DECIMAL38DENSE:
-      case DECIMAL38SPARSE:
-      case DECIMAL9:
-      case DECIMAL18:
-      case DECIMAL:
-        gen.writeDecimal(reader);
-        break;
-
-      case LIST:
-        // this is a pseudo class, doesn't actually contain the real reader so we have to drop down.
-        gen.writeStartArray();
-        while (reader.next()) {
-          writeValue(reader.reader());
-        }
-        gen.writeEndArray();
-        break;
-      case STRUCT:
-        gen.writeStartObject();
-        if (reader.isSet()) {
-          for(String name : reader){
-            FieldReader childReader = reader.reader(name);
-            if(childReader.isSet()){
-              gen.writeFieldName(name);
-              writeValue(childReader);
+          case LIST:
+            // this is a pseudo class, doesn't actually contain the real reader so we have to drop
+            // down.
+            gen.writeStartArray();
+            while (reader.next()) {
+              writeValue(reader.reader());
             }
-          }
-        }
-        gen.writeEndObject();
-        break;
-      case MAP:
-        gen.writeStartObject();
-        if (reader.isSet()) {
-          UnionMapReader mapReader = (UnionMapReader) reader;
-          while (mapReader.next()) {
-            FieldReader keyReader = mapReader.key();
-            gen.writeFieldName(getFieldNameFromMapKey(keyReader));
-            writeValue(mapReader.value());
-          }
-        }
-        gen.writeEndObject();
-        break;
-      case NULL:
-      case LATE:
-        gen.writeUntypedNull();
-        break;
+            gen.writeEndArray();
+            break;
+          case STRUCT:
+            gen.writeStartObject();
+            if (reader.isSet()) {
+              for (String name : reader) {
+                FieldReader childReader = reader.reader(name);
+                if (childReader.isSet()) {
+                  gen.writeFieldName(name);
+                  writeValue(childReader);
+                }
+              }
+            }
+            gen.writeEndObject();
+            break;
+          case MAP:
+            gen.writeStartObject();
+            if (reader.isSet()) {
+              UnionMapReader mapReader = (UnionMapReader) reader;
+              while (mapReader.next()) {
+                FieldReader keyReader = mapReader.key();
+                gen.writeFieldName(getFieldNameFromMapKey(keyReader));
+                writeValue(mapReader.value());
+              }
+            }
+            gen.writeEndObject();
+            break;
+          case NULL:
+          case LATE:
+            gen.writeUntypedNull();
+            break;
 
-      case VAR16CHAR:
-        gen.writeVar16Char(reader);
+          case VAR16CHAR:
+            gen.writeVar16Char(reader);
+            break;
+          case VARBINARY:
+            gen.writeBinary(reader);
+            break;
+          case VARCHAR:
+            gen.writeVarChar(reader);
+            break;
+        }
         break;
-      case VARBINARY:
-        gen.writeBinary(reader);
-        break;
-      case VARCHAR:
-        gen.writeVarChar(reader);
-        break;
-
-      }
-      break;
     }
-
   }
 
   private String getFieldNameFromMapKey(FieldReader keyReader) {
@@ -207,5 +202,4 @@ public class JsonWriter {
         throw new UnsupportedOperationException("unsupported type for a map key " + mt.name());
     }
   }
-
 }

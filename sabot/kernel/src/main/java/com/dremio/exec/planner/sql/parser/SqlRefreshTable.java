@@ -15,9 +15,10 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.dremio.common.dialect.DremioSqlDialect;
+import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 import java.util.List;
 import java.util.stream.Collectors;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -30,29 +31,26 @@ import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.ImmutableNullableList;
 
-import com.dremio.common.dialect.DremioSqlDialect;
-import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
-
-/**
- * SQL node tree for <code>ALTER TABLE table_identifier REFRESH METADATA</code>
- */
+/** SQL node tree for <code>ALTER TABLE table_identifier REFRESH METADATA</code> */
 public class SqlRefreshTable extends SqlSystemCall {
 
   public static final SqlSpecialOperator OPERATOR =
       new SqlSpecialOperator("REFRESH_TABLE", SqlKind.OTHER) {
-        @Override public SqlCall createCall(SqlLiteral functionQualifier,
-            SqlParserPos pos, SqlNode... operands) {
-          return new SqlRefreshTable(pos,
-            (SqlIdentifier) operands[0],
-            (SqlLiteral) operands[1],
-            (SqlLiteral) operands[2],
-            (SqlLiteral) operands[3],
-            (SqlLiteral) operands[4],
-            (SqlLiteral) operands[5],
-            (SqlLiteral) operands[6],
-            (SqlLiteral) operands[7],
-            (SqlNodeList) operands[8],
-            (SqlNodeList) operands[9]);
+        @Override
+        public SqlCall createCall(
+            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+          return new SqlRefreshTable(
+              pos,
+              (SqlIdentifier) operands[0],
+              (SqlLiteral) operands[1],
+              (SqlLiteral) operands[2],
+              (SqlLiteral) operands[3],
+              (SqlLiteral) operands[4],
+              (SqlLiteral) operands[5],
+              (SqlLiteral) operands[6],
+              (SqlLiteral) operands[7],
+              (SqlNodeList) operands[8],
+              (SqlNodeList) operands[9]);
         }
       };
 
@@ -68,17 +66,18 @@ public class SqlRefreshTable extends SqlSystemCall {
   private SqlNodeList partitionList;
 
   /** Creates a SqlForgetTable. */
-  public SqlRefreshTable(SqlParserPos pos,
-                         SqlIdentifier table,
-                         SqlLiteral deleteUnavail,
-                         SqlLiteral forceUp,
-                         SqlLiteral promotion,
-                         SqlLiteral allFilesRefresh,
-                         SqlLiteral allPartitionsRefresh,
-                         SqlLiteral fileRefresh,
-                         SqlLiteral partitionRefresh,
-                         SqlNodeList filesList,
-                         SqlNodeList partitionList) {
+  public SqlRefreshTable(
+      SqlParserPos pos,
+      SqlIdentifier table,
+      SqlLiteral deleteUnavail,
+      SqlLiteral forceUp,
+      SqlLiteral promotion,
+      SqlLiteral allFilesRefresh,
+      SqlLiteral allPartitionsRefresh,
+      SqlLiteral fileRefresh,
+      SqlLiteral partitionRefresh,
+      SqlNodeList filesList,
+      SqlNodeList partitionList) {
     super(pos);
     this.table = table;
     this.deleteUnavail = deleteUnavail;
@@ -92,7 +91,8 @@ public class SqlRefreshTable extends SqlSystemCall {
     this.partitionList = partitionList;
   }
 
-  @Override public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+  @Override
+  public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
     writer.keyword("ALTER");
     writer.keyword("TABLE");
     table.unparse(writer, leftPrec, rightPrec);
@@ -131,12 +131,13 @@ public class SqlRefreshTable extends SqlSystemCall {
         writer.keyword("PARTITIONS");
         if (partitionList.size() > 0) {
           writer.keyword("(");
-          partitionList.forEach(node -> {
-            final SqlNodeList pair = (SqlNodeList) node;
-            pair.get(0).unparse(writer, leftPrec, rightPrec);
-            writer.keyword("=");
-            pair.get(1).unparse(writer, leftPrec, rightPrec);
-          });
+          partitionList.forEach(
+              node -> {
+                final SqlNodeList pair = (SqlNodeList) node;
+                pair.get(0).unparse(writer, leftPrec, rightPrec);
+                writer.keyword("=");
+                pair.get(1).unparse(writer, leftPrec, rightPrec);
+              });
           writer.keyword(")");
         }
       }
@@ -171,7 +172,8 @@ public class SqlRefreshTable extends SqlSystemCall {
     }
   }
 
-  @Override public void setOperand(int i, SqlNode operand) {
+  @Override
+  public void setOperand(int i, SqlNode operand) {
     switch (i) {
       case 0:
         table = (SqlIdentifier) operand;
@@ -208,33 +210,88 @@ public class SqlRefreshTable extends SqlSystemCall {
     }
   }
 
-  @Override public SqlOperator getOperator() {
+  @Override
+  public SqlOperator getOperator() {
     return OPERATOR;
   }
 
-  @Override public List<SqlNode> getOperandList() {
-    return ImmutableNullableList.<SqlNode>of(table,
-      deleteUnavail, forceUp, promotion, allFilesRefresh, allPartitionsRefresh, fileRefresh, partitionRefresh, filesList, partitionList);
+  @Override
+  public List<SqlNode> getOperandList() {
+    return ImmutableNullableList.<SqlNode>of(
+        table,
+        deleteUnavail,
+        forceUp,
+        promotion,
+        allFilesRefresh,
+        allPartitionsRefresh,
+        fileRefresh,
+        partitionRefresh,
+        filesList,
+        partitionList);
   }
 
-  public SqlIdentifier getTable() { return table; }
-  public SqlLiteral getDeleteUnavail() { return deleteUnavail; }
-  public SqlLiteral getForceUpdate() { return forceUp; }
-  public SqlLiteral getPromotion() { return promotion; }
-  public SqlLiteral getAllFilesRefresh() { return allFilesRefresh; }
-  public SqlLiteral getFileRefresh() { return fileRefresh; }
-  public SqlNodeList getFilesList() { return filesList; }
-  public SqlNodeList getPartitionList() { return partitionList; }
+  public SqlIdentifier getTable() {
+    return table;
+  }
+
+  public SqlLiteral getDeleteUnavail() {
+    return deleteUnavail;
+  }
+
+  public SqlLiteral getForceUpdate() {
+    return forceUp;
+  }
+
+  public SqlLiteral getPromotion() {
+    return promotion;
+  }
+
+  public SqlLiteral getAllFilesRefresh() {
+    return allFilesRefresh;
+  }
+
+  public SqlLiteral getFileRefresh() {
+    return fileRefresh;
+  }
+
+  public SqlNodeList getFilesList() {
+    return filesList;
+  }
+
+  public SqlNodeList getPartitionList() {
+    return partitionList;
+  }
 
   public List<String> getFileNames() {
-    List<String> fileNames = filesList.getList().stream().map(o -> ((SqlLiteral)o).getValueAs(String.class)).collect(Collectors.toList());
+    List<String> fileNames =
+        filesList.getList().stream()
+            .map(o -> ((SqlLiteral) o).getValueAs(String.class))
+            .collect(Collectors.toList());
     return fileNames;
   }
-  public SqlLiteral getAllPartitionsRefresh() { return allPartitionsRefresh; }
-  public SqlLiteral getPartitionRefresh() { return partitionRefresh; }
+
+  public SqlLiteral getAllPartitionsRefresh() {
+    return allPartitionsRefresh;
+  }
+
+  public SqlLiteral getPartitionRefresh() {
+    return partitionRefresh;
+  }
 
   public String toRefreshDatasetQuery(List<String> pathComponents) {
-    return new SqlRefreshDataset(pos, new SqlIdentifier(pathComponents, pos), deleteUnavail, forceUp, promotion, allFilesRefresh, allPartitionsRefresh,
-      fileRefresh, partitionRefresh, filesList, partitionList).toSqlString(DremioSqlDialect.CALCITE).getSql();
+    return new SqlRefreshDataset(
+            pos,
+            new SqlIdentifier(pathComponents, pos),
+            deleteUnavail,
+            forceUp,
+            promotion,
+            allFilesRefresh,
+            allPartitionsRefresh,
+            fileRefresh,
+            partitionRefresh,
+            filesList,
+            partitionList)
+        .toSqlString(DremioSqlDialect.CALCITE)
+        .getSql();
   }
 }

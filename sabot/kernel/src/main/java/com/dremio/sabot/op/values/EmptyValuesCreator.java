@@ -15,8 +15,6 @@
  */
 package com.dremio.sabot.op.values;
 
-import java.util.Collections;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.physical.config.EmptyValues;
@@ -27,12 +25,16 @@ import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.sabot.op.spi.ProducerOperator;
+import java.util.Collections;
 
 public class EmptyValuesCreator implements ProducerOperator.Creator<EmptyValues> {
 
   @Override
-  public ProducerOperator create(FragmentExecutionContext fec, OperatorContext context, EmptyValues config) throws ExecutionSetupException {
-    return new ScanOperator(config, context, RecordReaderIterator.from(new EmptyRecordReader(context)));
+  public ProducerOperator create(
+      FragmentExecutionContext fec, OperatorContext context, EmptyValues config)
+      throws ExecutionSetupException {
+    return new ScanOperator(
+        fec, config, context, RecordReaderIterator.from(new EmptyRecordReader(context)));
   }
 
   public static class EmptyRecordReader extends AbstractRecordReader {
@@ -42,8 +44,7 @@ public class EmptyValuesCreator implements ProducerOperator.Creator<EmptyValues>
     }
 
     @Override
-    public void setup(OutputMutator output) throws ExecutionSetupException {
-    }
+    public void setup(OutputMutator output) throws ExecutionSetupException {}
 
     @Override
     public int next() {
@@ -51,8 +52,6 @@ public class EmptyValuesCreator implements ProducerOperator.Creator<EmptyValues>
     }
 
     @Override
-    public void close() throws Exception {
-    }
-
+    public void close() throws Exception {}
   }
 }

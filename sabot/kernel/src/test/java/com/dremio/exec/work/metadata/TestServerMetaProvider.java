@@ -18,19 +18,17 @@ package com.dremio.exec.work.metadata;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
-import org.apache.calcite.avatica.util.Quoting;
-import org.junit.Test;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.exec.proto.UserProtos.GetServerMetaResp;
 import com.dremio.exec.proto.UserProtos.RequestStatus;
 import com.dremio.exec.proto.UserProtos.ServerMeta;
+import org.apache.calcite.avatica.util.Quoting;
+import org.junit.Test;
 
-/**
- * Tests for server metadata provider APIs.
- */
+/** Tests for server metadata provider APIs. */
 public class TestServerMetaProvider extends BaseTestQuery {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestServerMetaProvider.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(TestServerMetaProvider.class);
 
   @Test
   public void testServerMeta() throws Exception {

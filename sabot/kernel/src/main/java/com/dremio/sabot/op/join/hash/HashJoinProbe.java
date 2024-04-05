@@ -16,19 +16,18 @@
 
 package com.dremio.sabot.op.join.hash;
 
-import java.util.BitSet;
-import java.util.List;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.calcite.rel.core.JoinRelType;
-
 import com.dremio.exec.compile.TemplateClassDefinition;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.sabot.exec.context.FunctionContext;
 import com.dremio.sabot.op.common.hashtable.HashTable;
+import java.util.BitSet;
+import java.util.List;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.calcite.rel.core.JoinRelType;
 
 public interface HashJoinProbe {
-  public static TemplateClassDefinition<HashJoinProbe> TEMPLATE_DEFINITION = new TemplateClassDefinition<HashJoinProbe>(HashJoinProbe.class, HashJoinProbeTemplate.class);
+  public static TemplateClassDefinition<HashJoinProbe> TEMPLATE_DEFINITION =
+      new TemplateClassDefinition<HashJoinProbe>(HashJoinProbe.class, HashJoinProbeTemplate.class);
 
   /* The probe side of the hash join can be in the following two states
    * 1. PROBE_PROJECT: Inner join case, we probe our hash table to see if we have a
@@ -39,7 +38,9 @@ public interface HashJoinProbe {
    * 3. DONE: Once we have projected all possible records we are done
    */
   public static enum ProbeState {
-    PROBE_PROJECT, PROJECT_RIGHT, DONE
+    PROBE_PROJECT,
+    PROJECT_RIGHT,
+    DONE
   }
 
   void setupHashJoinProbe(
@@ -55,17 +56,19 @@ public interface HashJoinProbe {
       int maxHashTableIndex,
       int targetRecordsPerBatch);
 
-
   /**
-   * Project any remaining build items that were not matched. Only used when doing a FULL or RIGHT join.
-   * @return Negative output if records were output but batch wasn't completed. Postive output if batch was completed.
+   * Project any remaining build items that were not matched. Only used when doing a FULL or RIGHT
+   * join.
+   *
+   * @return Negative output if records were output but batch wasn't completed. Postive output if
+   *     batch was completed.
    */
   int projectBuildNonMatches();
 
   /**
    * Probe with current batch.
+   *
    * @return number of records matched. negative if we failed to output all records.
    */
   int probeBatch();
-
 }

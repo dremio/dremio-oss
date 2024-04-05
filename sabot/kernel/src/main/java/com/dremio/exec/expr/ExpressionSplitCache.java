@@ -15,10 +15,6 @@
  */
 package com.dremio.exec.expr;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.concurrent.ExecutionException;
-
 import com.dremio.common.config.SabotConfig;
 import com.dremio.exec.ExecConstants;
 import com.dremio.options.OptionManager;
@@ -26,9 +22,13 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableList;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.ExecutionException;
 
 public class ExpressionSplitCache {
-  private final LoadingCache<ExpAndCodeGenEngineHolder, ExpressionSplitsHolder> expressionSplitsCache;
+  private final LoadingCache<ExpAndCodeGenEngineHolder, ExpressionSplitsHolder>
+      expressionSplitsCache;
   private volatile boolean listenerAdded = false;
   private final OptionManager optionManager;
 
@@ -36,13 +36,15 @@ public class ExpressionSplitCache {
   public ExpressionSplitCache(final OptionManager optionManager, SabotConfig config) {
     final long cacheMaxSize = config.getInt(ExecConstants.MAX_SPLIT_CACHE_SIZE_CONFIG);
     this.optionManager = optionManager;
-    this.expressionSplitsCache = CacheBuilder.newBuilder()
-      .softValues()
-      .maximumSize(cacheMaxSize)
-      .build(new ExpToExpressionSplitsCacheLoader());
+    this.expressionSplitsCache =
+        CacheBuilder.newBuilder()
+            .softValues()
+            .maximumSize(cacheMaxSize)
+            .build(new ExpToExpressionSplitsCacheLoader());
   }
 
-  public ExpressionSplitsHolder getSplitsFromCache(ExpAndCodeGenEngineHolder expAndCodeGenEngineHolder) throws ExecutionException {
+  public ExpressionSplitsHolder getSplitsFromCache(
+      ExpAndCodeGenEngineHolder expAndCodeGenEngineHolder) throws ExecutionException {
     if (!listenerAdded) {
       addListener();
     }
@@ -50,17 +52,25 @@ public class ExpressionSplitCache {
   }
 
   private void addListener() {
-    optionManager.addOptionChangeListener(new ExpressionSplitterOptionsChangeListener(optionManager, this));
+    optionManager.addOptionChangeListener(
+        new ExpressionSplitterOptionsChangeListener(optionManager, this));
     listenerAdded = true;
   }
 
-  private static class ExpToExpressionSplitsCacheLoader extends CacheLoader<ExpAndCodeGenEngineHolder, ExpressionSplitsHolder> {
+  private static class ExpToExpressionSplitsCacheLoader
+      extends CacheLoader<ExpAndCodeGenEngineHolder, ExpressionSplitsHolder> {
     @Override
-    public ExpressionSplitsHolder load(final ExpAndCodeGenEngineHolder expAndCodeGenEngineHolder) throws Exception {
-      int initialOutPutFieldCounter = expAndCodeGenEngineHolder.getExpressionSplitter().getOutputFieldCounter();
+    public ExpressionSplitsHolder load(final ExpAndCodeGenEngineHolder expAndCodeGenEngineHolder)
+        throws Exception {
+      int initialOutPutFieldCounter =
+          expAndCodeGenEngineHolder.getExpressionSplitter().getOutputFieldCounter();
       ExpressionSplitter expressionSplitter = expAndCodeGenEngineHolder.getExpressionSplitter();
-      ExpressionSplitsHolder expressionSplitsHolder = expressionSplitter.splitExpressionWhenCacheIsEnabled(expAndCodeGenEngineHolder.getNamedExpression());
-      expAndCodeGenEngineHolder.getExpressionSplitter().setOutputFieldCounter(initialOutPutFieldCounter);
+      ExpressionSplitsHolder expressionSplitsHolder =
+          expressionSplitter.splitExpressionWhenCacheIsEnabled(
+              expAndCodeGenEngineHolder.getNamedExpression());
+      expAndCodeGenEngineHolder
+          .getExpressionSplitter()
+          .setOutputFieldCounter(initialOutPutFieldCounter);
       expAndCodeGenEngineHolder.setExpressionSplitter(null);
       return expressionSplitsHolder;
     }
@@ -71,7 +81,9 @@ public class ExpressionSplitCache {
   }
 
   static class ExpressionSplitsHolder {
-    public ExpressionSplitsHolder(CachableExpressionSplit finalExpressionSplit, List<CachableExpressionSplit> expressionSplits) {
+    public ExpressionSplitsHolder(
+        CachableExpressionSplit finalExpressionSplit,
+        List<CachableExpressionSplit> expressionSplits) {
       this.finalExpressionSplit = finalExpressionSplit;
       if (expressionSplits.isEmpty()) {
         this.expressionSplits = Collections.emptyList();

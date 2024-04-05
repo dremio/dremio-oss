@@ -15,8 +15,8 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.google.common.collect.Lists;
 import java.util.List;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlLiteral;
@@ -26,29 +26,21 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.google.common.collect.Lists;
-
-/**
- * Sql parse tree node to represent statement:
- * SHOW Functions
- * [ LIKE 'pattern']
- */
+/** Sql parse tree node to represent statement: SHOW Functions [ LIKE 'pattern'] */
 public class SqlShowFunctions extends SqlCall {
 
   private final SqlNode likePattern;
 
   public static final SqlSpecialOperator OPERATOR =
-    new SqlSpecialOperator("SHOW_FUNCTIONS", SqlKind.OTHER) {
-      @Override
-      public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos,
-        SqlNode... operands) {
-        return new SqlShowFunctions(pos,
-          operands[0]);
-      }
-    };
+      new SqlSpecialOperator("SHOW_FUNCTIONS", SqlKind.OTHER) {
+        @Override
+        public SqlCall createCall(
+            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+          return new SqlShowFunctions(pos, operands[0]);
+        }
+      };
 
-  public SqlShowFunctions(SqlParserPos pos,
-    SqlNode likePattern) {
+  public SqlShowFunctions(SqlParserPos pos, SqlNode likePattern) {
     super(pos);
     this.likePattern = likePattern;
   }
@@ -79,5 +71,4 @@ public class SqlShowFunctions extends SqlCall {
       likePattern.unparse(writer, leftPrec, rightPrec);
     }
   }
-
 }

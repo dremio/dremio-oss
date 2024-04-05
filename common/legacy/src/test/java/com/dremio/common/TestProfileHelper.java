@@ -17,14 +17,10 @@ package com.dremio.common;
 
 import org.junit.Assume;
 
-/**
- * Helper class to utilize build/test profiles specifics
- */
+/** Helper class to utilize build/test profiles specifics */
 public final class TestProfileHelper {
 
-  private TestProfileHelper() {
-
-  }
+  private TestProfileHelper() {}
 
   public static void assumeMaprProfile() {
     Assume.assumeTrue("mapr profile", isMaprProfile());
@@ -35,7 +31,6 @@ public final class TestProfileHelper {
   }
 
   public static boolean isMaprProfile() {
-    return System.getProperty("dremio.mapr.profile")!=null;
+    return System.getProperty("dremio.mapr.profile") != null;
   }
-
 }

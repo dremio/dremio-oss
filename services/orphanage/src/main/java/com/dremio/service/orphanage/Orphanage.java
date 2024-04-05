@@ -15,22 +15,16 @@
  */
 package com.dremio.service.orphanage;
 
-
 import com.dremio.datastore.api.Document;
 import com.dremio.service.orphanage.proto.OrphanEntry;
 
-/**
- * Orphanage is the store for storing the orphan entries
- */
+/** Orphanage is the store for storing the orphan entries */
 public interface Orphanage {
 
-  /**
-   *Factory for Orphanage
-   */
+  /** Factory for Orphanage */
   interface Factory {
 
-    Orphanage   get();
-
+    Orphanage get();
   }
 
   void deleteOrphan(OrphanEntry.OrphanId key);
@@ -42,6 +36,4 @@ public interface Orphanage {
   Document<OrphanEntry.OrphanId, OrphanEntry.Orphan> getOrphan(OrphanEntry.OrphanId key);
 
   Iterable<Document<OrphanEntry.OrphanId, OrphanEntry.Orphan>> getAllOrphans();
-
-
 }

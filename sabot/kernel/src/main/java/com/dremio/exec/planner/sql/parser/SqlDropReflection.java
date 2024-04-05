@@ -15,8 +15,9 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import java.util.List;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -26,24 +27,32 @@ import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
-
 public class SqlDropReflection extends SqlSystemCall {
 
-  public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("DROP_REFLECTION", SqlKind.OTHER_DDL) {
-    @Override
-    public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 3, "SqlDropReflection.createCall() has to get 3 operands!");
-      return new SqlDropReflection(pos, (SqlIdentifier) operands[0], (SqlIdentifier) operands[1], (SqlTableVersionSpec) operands[2]);
-    }
-  };
+  public static final SqlSpecialOperator OPERATOR =
+      new SqlSpecialOperator("DROP_REFLECTION", SqlKind.OTHER_DDL) {
+        @Override
+        public SqlCall createCall(
+            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+          Preconditions.checkArgument(
+              operands.length == 3, "SqlDropReflection.createCall() has to get 3 operands!");
+          return new SqlDropReflection(
+              pos,
+              (SqlIdentifier) operands[0],
+              (SqlIdentifier) operands[1],
+              (SqlTableVersionSpec) operands[2]);
+        }
+      };
 
   private final SqlIdentifier tblName;
   private final SqlIdentifier layoutId;
   private final SqlTableVersionSpec tableVersionSpec;
 
-  public SqlDropReflection(SqlParserPos pos, SqlIdentifier tblName, SqlIdentifier layoutId, SqlTableVersionSpec tableVersionSpec) {
+  public SqlDropReflection(
+      SqlParserPos pos,
+      SqlIdentifier tblName,
+      SqlIdentifier layoutId,
+      SqlTableVersionSpec tableVersionSpec) {
     super(pos);
     this.tblName = tblName;
     this.layoutId = layoutId;
@@ -71,5 +80,4 @@ public class SqlDropReflection extends SqlSystemCall {
   public List<SqlNode> getOperandList() {
     return ImmutableList.<SqlNode>of(tblName, layoutId, tableVersionSpec);
   }
-
 }

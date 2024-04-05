@@ -17,9 +17,8 @@ package com.dremio.exec.compile;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import org.junit.Test;
-
 import com.dremio.exec.expr.fn.FunctionInitializer;
+import org.junit.Test;
 
 public class TestMethodToLabel {
   private static final String TEST_CLAZZ_FQN_PREFIX = "com.dremio.exec.expr.fn.impl";

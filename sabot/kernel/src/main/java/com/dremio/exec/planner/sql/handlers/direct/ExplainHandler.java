@@ -15,16 +15,6 @@
  */
 package com.dremio.exec.planner.sql.handlers.direct;
 
-import java.util.Collections;
-import java.util.List;
-
-import org.apache.calcite.plan.RelOptUtil;
-import org.apache.calcite.sql.SqlExplain;
-import org.apache.calcite.sql.SqlExplainLevel;
-import org.apache.calcite.sql.SqlLiteral;
-import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.sql.dialect.CalciteSqlDialect;
-
 import com.dremio.common.logical.PlanProperties.Generator.ResultMode;
 import com.dremio.exec.planner.sql.SqlExceptionHelper;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
@@ -34,17 +24,29 @@ import com.dremio.exec.planner.sql.handlers.query.MergeHandler;
 import com.dremio.exec.planner.sql.handlers.query.NormalHandler;
 import com.dremio.exec.planner.sql.handlers.query.SqlToPlanHandler;
 import com.dremio.exec.planner.sql.handlers.query.UpdateHandler;
-
+import java.util.Collections;
+import java.util.List;
+import org.apache.calcite.plan.RelOptUtil;
+import org.apache.calcite.sql.SqlExplain;
+import org.apache.calcite.sql.SqlExplainLevel;
+import org.apache.calcite.sql.SqlLiteral;
+import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.dialect.CalciteSqlDialect;
 
 public class ExplainHandler implements SqlDirectHandler<ExplainHandler.Explain> {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ExplainHandler.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ExplainHandler.class);
 
   private final SqlHandlerConfig config;
 
   public ExplainHandler(SqlHandlerConfig config) {
     super();
-    this.config = new SqlHandlerConfig(config.getContext(), config.getConverter(), config.getObserver(),
-      config.getMaterializations().orElse(null));
+    this.config =
+        new SqlHandlerConfig(
+            config.getContext(),
+            config.getConverter(),
+            config.getObserver(),
+            config.getMaterializations().orElse(null));
   }
 
   @Override
@@ -54,9 +56,8 @@ public class ExplainHandler implements SqlDirectHandler<ExplainHandler.Explain> 
       final SqlLiteral op = node.operand(2);
       final SqlExplain.Depth depth = (SqlExplain.Depth) op.getValue();
 
-      final SqlExplainLevel level = node.getDetailLevel() != null
-        ? node.getDetailLevel()
-        : SqlExplainLevel.ALL_ATTRIBUTES;
+      final SqlExplainLevel level =
+          node.getDetailLevel() != null ? node.getDetailLevel() : SqlExplainLevel.ALL_ATTRIBUTES;
       final ResultMode mode;
       switch (depth) {
         case LOGICAL:
@@ -73,7 +74,7 @@ public class ExplainHandler implements SqlDirectHandler<ExplainHandler.Explain> 
       final SqlNode innerNode = node.operand(0);
       SqlToPlanHandler innerNodeHandler;
       switch (innerNode.getKind()) {
-        // We currently only support OrderedQueryOrExpr and Insert/Delete/Update/Merge
+          // We currently only support OrderedQueryOrExpr and Insert/Delete/Update/Merge
         case INSERT:
           innerNodeHandler = new InsertTableHandler();
           break;
@@ -86,16 +87,13 @@ public class ExplainHandler implements SqlDirectHandler<ExplainHandler.Explain> 
         case UPDATE:
           innerNodeHandler = new UpdateHandler();
           break;
-        // for OrderedQueryOrExpr such as select, use NormalHandler
+          // for OrderedQueryOrExpr such as select, use NormalHandler
         default:
           innerNodeHandler = new NormalHandler();
       }
 
-      innerNodeHandler
-        .getPlan(
-          config,
-          innerNode.toSqlString(CalciteSqlDialect.DEFAULT).getSql(),
-          innerNode);
+      innerNodeHandler.getPlan(
+          config, innerNode.toSqlString(CalciteSqlDialect.DEFAULT).getSql(), innerNode);
 
       String planAsText;
       if (mode == ResultMode.LOGICAL) {

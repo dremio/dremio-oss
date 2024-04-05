@@ -19,12 +19,16 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.when;
 
+import com.dremio.exec.store.TimedRunnable;
+import com.dremio.exec.store.hive.Hive3PluginOptions;
+import com.dremio.exec.store.hive.HiveConfFactory;
+import com.dremio.exec.store.hive.HivePluginOptions;
+import com.dremio.options.OptionManager;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 import java.util.Random;
 import java.util.stream.Collectors;
-
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.api.Table;
@@ -34,12 +38,6 @@ import org.apache.hadoop.mapred.InputSplit;
 import org.junit.Test;
 import org.mockito.Mockito;
 
-import com.dremio.exec.store.TimedRunnable;
-import com.dremio.exec.store.hive.Hive3PluginOptions;
-import com.dremio.exec.store.hive.HiveConfFactory;
-import com.dremio.exec.store.hive.HivePluginOptions;
-import com.dremio.options.OptionManager;
-
 public class TestHive3MetadataUtils {
   @Test
   public void testGetInputSplitSizesTimeoutCalculation() {
@@ -47,20 +45,20 @@ public class TestHive3MetadataUtils {
     Pair p1 = getTimeOutAndMaxDeltas(inputSplitList);
     inputSplitList = getInputSplitList(6, 61);
     Pair p2 = getTimeOutAndMaxDeltas(inputSplitList);
-    assertTrue((long)p1.getLeft() < (long)p2.getLeft());
-    assertTrue((long)p1.getRight() < (long)p2.getRight());
+    assertTrue((long) p1.getLeft() < (long) p2.getLeft());
+    assertTrue((long) p1.getRight() < (long) p2.getRight());
 
     inputSplitList = getInputSplitList(20, 20);
     p1 = getTimeOutAndMaxDeltas(inputSplitList);
     inputSplitList = getInputSplitList(2, 41);
     p2 = getTimeOutAndMaxDeltas(inputSplitList);
-    assertTrue((long)p1.getLeft() < (long)p2.getLeft());
-    assertTrue((long)p1.getRight() < (long)p2.getRight());
+    assertTrue((long) p1.getLeft() < (long) p2.getLeft());
+    assertTrue((long) p1.getRight() < (long) p2.getRight());
 
     inputSplitList = getNonOrcInputSplitList(12);
     p1 = getTimeOutAndMaxDeltas(inputSplitList);
-    assertEquals(1, (long)p1.getLeft());
-    assertEquals(2000L, (long)p1.getRight());
+    assertEquals(1, (long) p1.getLeft());
+    assertEquals(2000L, (long) p1.getRight());
   }
 
   @Test
@@ -70,11 +68,12 @@ public class TestHive3MetadataUtils {
     Table testTable = Mockito.mock(Table.class);
     when(testTable.getTableName()).thenReturn("test_table");
 
-    assertEquals("Top 3 property prefixes for test_table: " +
-        "1: impa count=3 examples=[impala_random_key2,impala_random_key3,impala_random_key1, ...], " +
-        "2: spar count=2 examples=[spark_key,spark_key2, ...], " +
-        "3: bar count=1 examples=[bar, ...]",
-      HiveMetadataUtils.printFrequentProperties(properties, testTable));
+    assertEquals(
+        "Top 3 property prefixes for test_table: "
+            + "1: impa count=3 examples=[impala_random_key2,impala_random_key3,impala_random_key1, ...], "
+            + "2: spar count=2 examples=[spark_key,spark_key2, ...], "
+            + "3: bar count=1 examples=[bar, ...]",
+        HiveMetadataUtils.printFrequentProperties(properties, testTable));
   }
 
   @Test
@@ -86,16 +85,19 @@ public class TestHive3MetadataUtils {
 
     // testing as Hive 3 source, filtering impala.* and spark.*
     Properties properties = getTestProperties();
-    when(optionManager.getOption(Hive3PluginOptions.HIVE_PROPERTY_EXCLUSION_REGEX)).thenReturn("impala|spark");
+    when(optionManager.getOption(Hive3PluginOptions.HIVE_PROPERTY_EXCLUSION_REGEX))
+        .thenReturn("impala|spark");
     HiveMetadataUtils.filterProperties(properties, testTable, optionManager, hiveConf);
-    List<String> filteredKeys = properties.entrySet().stream().map(e -> e.getKey().toString()).collect(Collectors.toList());
+    List<String> filteredKeys =
+        properties.entrySet().stream().map(e -> e.getKey().toString()).collect(Collectors.toList());
     assertEquals(2, filteredKeys.size());
     assertTrue(filteredKeys.contains("bar"));
     assertTrue(filteredKeys.contains("foo"));
 
     // test case for disabled filtering
     properties = getTestProperties();
-    when(optionManager.getOption(Hive3PluginOptions.HIVE_PROPERTY_EXCLUSION_REGEX)).thenReturn("(?!)");
+    when(optionManager.getOption(Hive3PluginOptions.HIVE_PROPERTY_EXCLUSION_REGEX))
+        .thenReturn("(?!)");
     HiveMetadataUtils.filterProperties(properties, testTable, optionManager, hiveConf);
     assertEquals(properties, getTestProperties());
 
@@ -103,9 +105,11 @@ public class TestHive3MetadataUtils {
     HiveConfFactory.setHive2SourceType(hiveConf);
     properties = getTestProperties();
     // note: we're setting the Hive2 version of the option below
-    when(optionManager.getOption(HivePluginOptions.HIVE_PROPERTY_EXCLUSION_REGEX)).thenReturn("impala");
+    when(optionManager.getOption(HivePluginOptions.HIVE_PROPERTY_EXCLUSION_REGEX))
+        .thenReturn("impala");
     HiveMetadataUtils.filterProperties(properties, testTable, optionManager, hiveConf);
-    filteredKeys = properties.entrySet().stream().map(e -> e.getKey().toString()).collect(Collectors.toList());
+    filteredKeys =
+        properties.entrySet().stream().map(e -> e.getKey().toString()).collect(Collectors.toList());
     assertEquals(4, filteredKeys.size());
     assertTrue(filteredKeys.contains("bar"));
     assertTrue(filteredKeys.contains("foo"));
@@ -125,9 +129,10 @@ public class TestHive3MetadataUtils {
     return properties;
   }
 
-  private Pair<Long,Long> getTimeOutAndMaxDeltas(List<InputSplit> inputSplitList) {
+  private Pair<Long, Long> getTimeOutAndMaxDeltas(List<InputSplit> inputSplitList) {
     List<TimedRunnable<Long>> jobs = new ArrayList<>();
-    long maxDeltas = HiveMetadataUtils.populateSplitJobAndGetMaxDeltas(null, null, inputSplitList, jobs);
+    long maxDeltas =
+        HiveMetadataUtils.populateSplitJobAndGetMaxDeltas(null, null, inputSplitList, jobs);
     long timeOut = HiveMetadataUtils.getMaxTimeoutPerCore(inputSplitList, maxDeltas);
     return Pair.of(maxDeltas, timeOut);
   }
@@ -147,7 +152,8 @@ public class TestHive3MetadataUtils {
         AcidInputFormat.DeltaMetaData delta = new AcidInputFormat.DeltaMetaData();
         deltaMetaDataList.add(delta);
       }
-      OrcSplit inputSplit = new OrcSplit(null,null,0,0,null, null, false,false, deltaMetaDataList,9,9,null);
+      OrcSplit inputSplit =
+          new OrcSplit(null, null, 0, 0, null, null, false, false, deltaMetaDataList, 9, 9, null);
 
       inputSplits.add(inputSplit);
     }

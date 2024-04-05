@@ -15,20 +15,16 @@
  */
 package com.dremio.sabot.exec.cursors;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.sabot.exec.rpc.FileStreamManager;
 import com.dremio.sabot.threads.sharedres.SharedResource;
 import com.google.common.base.Preconditions;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * Impl of cursor manager : tracks cursor for one writer and all readers.
- */
+/** Impl of cursor manager : tracks cursor for one writer and all readers. */
 public class FileCursorManagerImpl implements FileCursorManager {
   private static final Logger logger = LoggerFactory.getLogger(FileCursorManagerImpl.class);
   private static final long INVALID_CURSOR = -1;
@@ -46,7 +42,8 @@ public class FileCursorManagerImpl implements FileCursorManager {
   }
 
   @Override
-  public Observer registerWriter(FileStreamManager fileStreamManager, SharedResource resource, Runnable onAllReadersDone) {
+  public Observer registerWriter(
+      FileStreamManager fileStreamManager, SharedResource resource, Runnable onAllReadersDone) {
     Preconditions.checkState(this.fileStreamManager == null, "writer already registered");
     Preconditions.checkState(!allRegistrationsDone);
 
@@ -56,7 +53,7 @@ public class FileCursorManagerImpl implements FileCursorManager {
     return new Observer() {
       @Override
       public void updateCursor(int fileSeq, long cursor) {
-        //logger.debug("updating write cursor to {}", cursor);
+        // logger.debug("updating write cursor to {}", cursor);
         updateWriteCursorAndNotifyReaders(cursor);
       }
 
@@ -79,7 +76,7 @@ public class FileCursorManagerImpl implements FileCursorManager {
     return new Observer() {
       @Override
       public void updateCursor(int fileSeq, long cursor) {
-        //logger.debug("updating read cursor to {}", cursor);
+        // logger.debug("updating read cursor to {}", cursor);
         updateReadCursorAndNotifyWriter(readerMonitor, cursor);
         // TODO: use the fileSeq to delete no-longer-needed files.
       }
@@ -105,7 +102,8 @@ public class FileCursorManagerImpl implements FileCursorManager {
     checkAndFireWriterCallback();
     try {
       checkAndCleanup();
-    } catch (Exception ignore) {}
+    } catch (Exception ignore) {
+    }
   }
 
   @Override
@@ -127,7 +125,8 @@ public class FileCursorManagerImpl implements FileCursorManager {
     return id;
   }
 
-  private synchronized void setWriterMonitor(FileWriterMonitor writerMonitor, Runnable onAllReadersDone) {
+  private synchronized void setWriterMonitor(
+      FileWriterMonitor writerMonitor, Runnable onAllReadersDone) {
     this.writerMonitor = writerMonitor;
     this.onAllReadersDone = onAllReadersDone;
   }
@@ -181,9 +180,14 @@ public class FileCursorManagerImpl implements FileCursorManager {
     }
   }
 
-  private synchronized void updateReadCursorAndNotifyWriter(FileReaderMonitor readerMonitor, long cursor) {
-    Preconditions.checkArgument(cursor <= curWriteCursor,
-      "reader cannot be ahead of writer, read cursor " + cursor + " write cursor " + curWriteCursor);
+  private synchronized void updateReadCursorAndNotifyWriter(
+      FileReaderMonitor readerMonitor, long cursor) {
+    Preconditions.checkArgument(
+        cursor <= curWriteCursor,
+        "reader cannot be ahead of writer, read cursor "
+            + cursor
+            + " write cursor "
+            + curWriteCursor);
     readerMonitor.updateReadCursor(cursor);
 
     if (cursor > curMaxReadCursor) {
@@ -195,7 +199,10 @@ public class FileCursorManagerImpl implements FileCursorManager {
   }
 
   private synchronized void checkAndCleanup() throws IOException {
-    if (allRegistrationsDone && writerMonitor == null && allReaderMonitors.isEmpty() && fileStreamManager != null) {
+    if (allRegistrationsDone
+        && writerMonitor == null
+        && allReaderMonitors.isEmpty()
+        && fileStreamManager != null) {
       fileStreamManager.deleteAll();
     }
   }

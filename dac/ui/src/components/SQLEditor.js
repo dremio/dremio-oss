@@ -85,12 +85,12 @@ const staticPropTypes = {
 const checkHeightAndFitHeightToContentFlags = (
   props,
   propName,
-  componentName
+  componentName,
 ) => {
   if (props.fitHeightToContent) {
     if (props.height !== undefined) {
       return new Error(
-        "Height must not be provided if fitHeightToContent property set to true"
+        "Height must not be provided if fitHeightToContent property set to true",
       );
     }
   } else {
@@ -98,7 +98,7 @@ const checkHeightAndFitHeightToContentFlags = (
       staticPropTypes,
       props,
       propName,
-      componentName
+      componentName,
     ); // reuse standard prop types check
   }
 };
@@ -181,7 +181,7 @@ export class SQLEditor extends PureComponent {
         this.props.sqlFunctions,
         this.props.autoCompleteEnabled,
         this.props.liveSyntaxErrorDetectionFlagEnabled &&
-          !this.props.liveSyntaxErrorDetectionDisabled
+          !this.props.liveSyntaxErrorDetectionDisabled,
       );
     }
 
@@ -228,17 +228,17 @@ export class SQLEditor extends PureComponent {
           const oldValue = m.oldValue;
           const newValue = m.target.getAttribute(m.attributeName);
           const suggestedItems = document.querySelectorAll(
-            ".suggest-widget .monaco-list-rows .monaco-list-row"
+            ".suggest-widget .monaco-list-rows .monaco-list-row",
           );
 
           if (oldValue !== newValue && suggestedItems.length > 0) {
             const suggestedFocusItem = document.getElementsByClassName(
-              "monaco-list-row focused"
+              "monaco-list-row focused",
             )[0];
             const suggestedRows =
               document.getElementsByClassName("monaco-list-rows")[0];
             for (const row of suggestedRows.getElementsByClassName(
-              "monaco-list-row"
+              "monaco-list-row",
             )) {
               const isFunctionSuggestion =
                 row.getElementsByClassName("icon function")?.length === 1;
@@ -286,13 +286,13 @@ export class SQLEditor extends PureComponent {
 
             // Calculate to resize widget window size
             document.querySelectorAll(
-              ".editor-widget.suggest-widget .tree"
+              ".editor-widget.suggest-widget .tree",
             )[0].style.height = `${treeHeight + 20}px`;
             document.querySelectorAll(
-              ".editor-widget.suggest-widget .tree .scrollbar.vertical"
+              ".editor-widget.suggest-widget .tree .scrollbar.vertical",
             )[0].style.height = `${treeHeight}px`;
           }
-        }
+        },
       );
 
       this.setState({ treeUpdated: true });
@@ -332,7 +332,7 @@ export class SQLEditor extends PureComponent {
             // turned from being sorted.
             parent.appendChild(detatchedItem);
           }
-        }
+        },
       );
     }
   }
@@ -344,7 +344,7 @@ export class SQLEditor extends PureComponent {
         this.previousDecorations =
           this.monacoEditorComponent.editor.deltaDecorations(
             this.previousDecorations,
-            []
+            [],
           );
       }
 
@@ -401,7 +401,7 @@ export class SQLEditor extends PureComponent {
       this.previousDecorations =
         this.monacoEditorComponent.editor.deltaDecorations(
           this.previousDecorations,
-          []
+          [],
         );
       return;
     }
@@ -436,7 +436,7 @@ export class SQLEditor extends PureComponent {
         this.previousDecorations,
         serverSqlErrors?.length > 0
           ? serverSqlErrors.map(errorToDecoration)
-          : liveErrors.map(errorToDecoration)
+          : liveErrors.map(errorToDecoration),
       );
   }
 
@@ -480,7 +480,7 @@ export class SQLEditor extends PureComponent {
   setupSQLEditorExtension(
     sqlFunctions,
     autocompleteEnabled,
-    liveErrorDetectionEnabled
+    liveErrorDetectionEnabled,
   ) {
     const getSuggestionsURL = new APIV2Call()
       .paths("sql/autocomplete")
@@ -490,7 +490,7 @@ export class SQLEditor extends PureComponent {
       this.getSqlContext,
       authToken,
       getSuggestionsURL,
-      sqlFunctions
+      sqlFunctions,
     );
     this.setupAutocompletion(autocompleteEnabled);
     this.setupLiveErrorDetection(liveErrorDetectionEnabled);
@@ -505,8 +505,8 @@ export class SQLEditor extends PureComponent {
     this.autoCompleteDisposers.push(
       this.monaco.languages.registerCompletionItemProvider(
         language,
-        this.sqlEditorExtension.completionItemProvider
-      )
+        this.sqlEditorExtension.completionItemProvider,
+      ),
     );
 
     this.autoCompleteDisposers.push(
@@ -520,9 +520,9 @@ export class SQLEditor extends PureComponent {
         editor.trigger(
           "dremio autocomplete request",
           "editor.action.triggerSuggest",
-          {}
+          {},
         );
-      })
+      }),
     );
   }
 
@@ -543,7 +543,7 @@ export class SQLEditor extends PureComponent {
         const liveErrors =
           await this.sqlEditorExtension.errorDetectionProvider.getLiveErrors(
             this.editor.getModel(),
-            modelVersion
+            modelVersion,
           );
         if (modelVersion === getModelVersion()) {
           if (liveErrors.length === 0 && this.state.liveErrors.length === 0) {
@@ -552,7 +552,7 @@ export class SQLEditor extends PureComponent {
           // Update only if we are responding to the current model's live errors request
           this.setState({ liveErrors });
         }
-      })
+      }),
     );
   }
 
@@ -571,7 +571,7 @@ export class SQLEditor extends PureComponent {
     // It's not built to toggle the autocomplete on/off. Therefore, this fix will hide the widget
     // when the state is false and show when it's true.
     const suggestWidget = document.getElementsByClassName(
-      "editor-widget suggest-widget"
+      "editor-widget suggest-widget",
     )[0];
     if (suggestWidget !== undefined) {
       if (enabled) {
@@ -625,7 +625,7 @@ export class SQLEditor extends PureComponent {
     // Remove the built-in format document context menu item since it does not reflect our custom shortcut
     actions.MenuRegistry._menuItems[editorContextId] =
       actions.MenuRegistry._menuItems[editorContextId].filter(
-        (menu) => menu.command.id != "editor.action.formatDocument"
+        (menu) => menu.command.id != "editor.action.formatDocument",
       );
     this.monaco.languages.registerDocumentFormattingEditProvider(language, {
       provideDocumentFormattingEdits: (model) => [
@@ -654,7 +654,7 @@ export class SQLEditor extends PureComponent {
       return [
         [],
         [...RESERVED_WORDS].filter(
-          (word) => ![...RESERVED_TYPES].includes(word.toUpperCase())
+          (word) => ![...RESERVED_TYPES].includes(word.toUpperCase()),
         ),
       ];
     }
@@ -665,7 +665,7 @@ export class SQLEditor extends PureComponent {
     const sqlKeywords = [...RESERVED_WORDS].filter(
       (word) =>
         !sqlFunctionNames.includes(word.toUpperCase()) &&
-        ![...RESERVED_TYPES].includes(word.toUpperCase())
+        ![...RESERVED_TYPES].includes(word.toUpperCase()),
     );
     return [sqlFunctionNames, sqlKeywords];
   };
@@ -692,7 +692,7 @@ export class SQLEditor extends PureComponent {
 
       tokenProvider.tokenizer.comments.push([/\/\/+.*/, "comment"]);
       const notationRule = tokenProvider.tokenizer.root.find(
-        (rules) => String(rules[0]) === String(TOKEN_NOTATION_REGEX) // rule for regex notation cases
+        (rules) => String(rules[0]) === String(TOKEN_NOTATION_REGEX), // rule for regex notation cases
       );
       if (!notationRule) {
         tokenProvider.tokenizer.root.push([
@@ -710,7 +710,7 @@ export class SQLEditor extends PureComponent {
       this.registerFormattingProvider(language);
 
       SnippetController = window.require(
-        "vs/editor/contrib/snippet/browser/snippetController2"
+        "vs/editor/contrib/snippet/browser/snippetController2",
       ).SnippetController2;
 
       haveLoaded = true;
@@ -726,7 +726,7 @@ export class SQLEditor extends PureComponent {
       this.props.sqlFunctions,
       this.props.autoCompleteEnabled,
       this.props.liveSyntaxErrorDetectionFlagEnabled &&
-        !this.props.liveSyntaxErrorDetectionDisabled
+        !this.props.liveSyntaxErrorDetectionDisabled,
     );
 
     this.fitHeightToContent();
@@ -805,7 +805,7 @@ export class SQLEditor extends PureComponent {
     }
     // trigger autocomplete suggestWidget
     editor.addCommand(monaco.KeyMod.WinCtrl | monaco.KeyCode.Space, () =>
-      editor.trigger("", "editor.action.triggerSuggest")
+      editor.trigger("", "editor.action.triggerSuggest"),
     );
   };
 
@@ -838,7 +838,7 @@ export class SQLEditor extends PureComponent {
       this.props.addNotification(
         intl.formatMessage({ id: "SQL.Format.Error" }),
         "error",
-        MSG_CLEAR_DELAY_SEC
+        MSG_CLEAR_DELAY_SEC,
       );
       return query;
     }
@@ -846,7 +846,7 @@ export class SQLEditor extends PureComponent {
 
   insertSnippet() {
     SnippetController.get(this.monacoEditorComponent.editor).insert(
-      ...arguments
+      ...arguments,
     );
   }
 
@@ -922,5 +922,5 @@ export default connect(
     setActionState,
   },
   null,
-  { forwardRef: true }
+  { forwardRef: true },
 )(SqlEditorWithHooksProps);

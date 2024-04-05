@@ -15,9 +15,7 @@
  */
 package com.dremio.datastore.api;
 
-/**
- * Internal Interface for defining how to build a kv store.
- */
+/** Internal Interface for defining how to build a kv store. */
 public interface StoreBuildingFactory {
   /**
    * Create a new key-value store which preserves key ordering

@@ -15,9 +15,12 @@
  */
 package com.dremio.exec.vector.complex.fn;
 
+import com.dremio.common.util.DateTimes;
+import com.dremio.common.util.JodaDateUtility;
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.math.BigDecimal;
-
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.joda.time.LocalDateTime;
 import org.joda.time.Period;
@@ -25,14 +28,9 @@ import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.ISODateTimeFormat;
 import org.joda.time.format.ISOPeriodFormat;
 
-import com.dremio.common.util.DateTimes;
-import com.dremio.common.util.JodaDateUtility;
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.google.common.base.Preconditions;
-
 /**
- * A JSON output class that generates standard JSON. By default, literals are output such that they can be implicitly
- * cast.
+ * A JSON output class that generates standard JSON. By default, literals are output such that they
+ * can be implicitly cast.
  */
 public class BasicJsonOutput implements JsonOutput {
 
@@ -52,21 +50,24 @@ public class BasicJsonOutput implements JsonOutput {
     this.gen = gen;
 
     switch (dateOutput) {
-    case SQL: {
-      dateFormatter = JodaDateUtility.formatDate.withZoneUTC();
-      timeFormatter = JodaDateUtility.formatTime.withZoneUTC();
-      timestampFormatter = JodaDateUtility.formatTimeStampMilli.withZoneUTC();
-      break;
-    }
-    case ISO: {
-      dateFormatter = ISODateTimeFormat.date().withZoneUTC();
-      timeFormatter = ISODateTimeFormat.time().withZoneUTC();
-      timestampFormatter = ISODateTimeFormat.dateTime().withZoneUTC();
-      break;
-    }
+      case SQL:
+        {
+          dateFormatter = JodaDateUtility.formatDate.withZoneUTC();
+          timeFormatter = JodaDateUtility.formatTime.withZoneUTC();
+          timestampFormatter = JodaDateUtility.formatTimeStampMilli.withZoneUTC();
+          break;
+        }
+      case ISO:
+        {
+          dateFormatter = ISODateTimeFormat.date().withZoneUTC();
+          timeFormatter = ISODateTimeFormat.time().withZoneUTC();
+          timestampFormatter = ISODateTimeFormat.dateTime().withZoneUTC();
+          break;
+        }
 
-    default:
-      throw new UnsupportedOperationException(String.format("Unable to support date output of type %s.", dateOutput));
+      default:
+        throw new UnsupportedOperationException(
+            String.format("Unable to support date output of type %s.", dateOutput));
     }
   }
 
@@ -239,8 +240,6 @@ public class BasicJsonOutput implements JsonOutput {
       writeIntervalNull();
     }
   }
-
-
 
   @Override
   public void writeDecimal(BigDecimal value) throws IOException {

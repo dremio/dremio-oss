@@ -15,13 +15,6 @@
  */
 package com.dremio.plugins.elastic;
 
-import java.net.URLEncoder;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
-
 import com.dremio.connector.metadata.DatasetSplit;
 import com.dremio.connector.metadata.DatasetSplitAffinity;
 import com.dremio.connector.metadata.PartitionChunk;
@@ -37,14 +30,17 @@ import com.google.common.base.Preconditions;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import java.net.URLEncoder;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Set;
 
 /**
- *
  * Representation of PartitionChunkListing for the elastic plugin.
  *
- * Contains methods to build a list of partition chunks if it doesn't
- * already exist.
- *
+ * <p>Contains methods to build a list of partition chunks if it doesn't already exist.
  */
 class ElasticPartitionChunkListing implements PartitionChunkListing {
   private static final Joiner RESOURCE_JOINER = Joiner.on('/');
@@ -63,11 +59,11 @@ class ElasticPartitionChunkListing implements PartitionChunkListing {
     this.datasetHandle = datasetHandle;
 
     this.indexOrAlias = datasetHandle.getDatasetPath().getComponents().get(1);
-    //encode the typeName incase it has a slash or other special characters
+    // encode the typeName incase it has a slash or other special characters
     String temp = datasetHandle.getDatasetPath().getComponents().get(2);
     try {
       temp = URLEncoder.encode(datasetHandle.getDatasetPath().getComponents().get(2), "UTF-8");
-    } catch(Exception ignore) {
+    } catch (Exception ignore) {
     }
     this.typeName = temp;
   }
@@ -93,14 +89,28 @@ class ElasticPartitionChunkListing implements PartitionChunkListing {
     final List<PartitionChunk> partitionChunks = new ArrayList<>();
 
     NodesInfo nodesInfo = new NodesInfo();
-    Result nodesResult = datasetHandle.getConnection().executeAndHandleResponseCode(nodesInfo, true,
-      "Cannot gather Elasticsearch nodes information. Please make sure that the user has [cluster:monitor/nodes/info] privilege.");
+    Result nodesResult =
+        datasetHandle
+            .getConnection()
+            .executeAndHandleResponseCode(
+                nodesInfo,
+                true,
+                "Cannot gather Elasticsearch nodes information. Please make sure that the user has [cluster:monitor/nodes/info] privilege.");
 
     JsonObject nodes = nodesResult.getAsJsonObject().getAsJsonObject("nodes");
 
     SearchShards searchShards = new SearchShards().addIndex(indexOrAlias);
-    final Result result = datasetHandle.getConnection().executeAndHandleResponseCode(searchShards, true,
-      "Cannot get shards information for [" + indexOrAlias + "." + typeName + "]. Please make sure that the user has [indices:admin/shards/search_shards] privilege.");
+    final Result result =
+        datasetHandle
+            .getConnection()
+            .executeAndHandleResponseCode(
+                searchShards,
+                true,
+                "Cannot get shards information for ["
+                    + indexOrAlias
+                    + "."
+                    + typeName
+                    + "]. Please make sure that the user has [indices:admin/shards/search_shards] privilege.");
 
     JsonArray shards = result.getAsJsonObject().getAsJsonArray("shards");
 
@@ -119,26 +129,31 @@ class ElasticPartitionChunkListing implements PartitionChunkListing {
           hosts.add(host.getAsString());
         }
       }
-      Preconditions.checkArgument(shard.size() == 1, "Expected one shard, received %s.", shard.size());
-      Preconditions.checkArgument(index.size() == 1, "Expected one index, received %s.", index.size());
+      Preconditions.checkArgument(
+          shard.size() == 1, "Expected one shard, received %s.", shard.size());
+      Preconditions.checkArgument(
+          index.size() == 1, "Expected one index, received %s.", index.size());
 
       final String onlyIndex = index.iterator().next();
       final int onlyShard = shard.iterator().next();
 
       indexes.add(onlyIndex);
 
-      final ElasticSplitXattr splitAttributes = ElasticSplitXattr.newBuilder()
-        .setResource(RESOURCE_JOINER.join(onlyIndex, typeName))
-        .setShard(onlyShard)
-        .build();
+      final ElasticSplitXattr splitAttributes =
+          ElasticSplitXattr.newBuilder()
+              .setResource(RESOURCE_JOINER.join(onlyIndex, typeName))
+              .setShard(onlyShard)
+              .build();
 
       List<DatasetSplitAffinity> affinity = new ArrayList<>();
       for (String host : hosts) {
         affinity.add(DatasetSplitAffinity.of(host, SPLIT_DEFAULT_SIZE));
       }
 
-      partitionChunks.add(PartitionChunk.of(
-        DatasetSplit.of(affinity, (long) SPLIT_DEFAULT_SIZE, 0, os -> splitAttributes.writeTo(os))));
+      partitionChunks.add(
+          PartitionChunk.of(
+              DatasetSplit.of(
+                  affinity, (long) SPLIT_DEFAULT_SIZE, 0, os -> splitAttributes.writeTo(os))));
 
       partitionChunkList = partitionChunks;
     }
@@ -148,8 +163,18 @@ class ElasticPartitionChunkListing implements PartitionChunkListing {
       count.addIndex(index);
     }
     count.addType(typeName);
-    CountResult countResult = (CountResult) datasetHandle.getConnection().executeAndHandleResponseCode(count, true,
-      "Cannot get the number of records in [" + indexes + "." + typeName + "].  Please make sure that the user has [read] privilege.");
+    CountResult countResult =
+        (CountResult)
+            datasetHandle
+                .getConnection()
+                .executeAndHandleResponseCode(
+                    count,
+                    true,
+                    "Cannot get the number of records in ["
+                        + indexes
+                        + "."
+                        + typeName
+                        + "].  Please make sure that the user has [read] privilege.");
 
     rowCount = countResult.getAsLong();
 

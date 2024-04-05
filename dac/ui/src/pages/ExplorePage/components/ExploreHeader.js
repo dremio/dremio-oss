@@ -24,7 +24,6 @@ import { withRouter } from "react-router";
 import { Tooltip } from "dremio-ui-lib";
 
 import CopyButton from "@app/components/Buttons/CopyButton";
-import * as ButtonTypes from "@app/components/Buttons/ButtonTypes";
 
 import DropdownMenu from "@app/components/Menus/DropdownMenu";
 import EllipsedText from "components/EllipsedText";
@@ -62,15 +61,17 @@ import config from "dyn-load/utils/config";
 import { getAnalyzeToolsConfig } from "@app/utils/config";
 import exploreUtils from "@app/utils/explore/exploreUtils";
 import { VIEW_ID as SCRIPTS_VIEW_ID } from "@app/components/SQLScripts/SQLScripts";
-import { closeTab } from "dremio-ui-common/sonar/SqlRunnerSession/resources/SqlRunnerSessionResource.js";
+import {
+  closeTab,
+  newTab,
+} from "dremio-ui-common/sonar/SqlRunnerSession/resources/SqlRunnerSessionResource.js";
 import SaveMenu, {
   DOWNLOAD_TYPES,
 } from "components/Menus/ExplorePage/SaveMenu";
 import BreadCrumbs, { formatFullPath } from "components/BreadCrumbs";
-import FontIcon from "components/Icon/FontIcon";
 import DatasetItemLabel from "components/Dataset/DatasetItemLabel";
 import { getIconPath } from "@app/utils/getIconPath";
-import { Button } from "dremio-ui-lib";
+import { Button } from "dremio-ui-lib/components";
 import { showQuerySpinner } from "@inject/pages/ExplorePage/utils";
 import { getIconDataTypeFromDatasetType } from "utils/iconUtils";
 import { NoticeTag } from "dremio-ui-common/components/NoticeTag.js";
@@ -231,6 +232,13 @@ export class ExploreHeader extends PureComponent {
       : defaultName;
   }
 
+  closeAndCreateScript = async (id) => {
+    if (ScriptsResource.getResource().value.length < 2) {
+      await newTab();
+    }
+    closeTab(id);
+  };
+
   constructor(props) {
     super(props);
 
@@ -243,11 +251,11 @@ export class ExploreHeader extends PureComponent {
       isSQLScriptDeletedDialogOpen: false,
       SQLScriptDeletedDialogProps: {
         onCancel: async () => {
-          closeTab(this.props.activeScript.id);
+          await this.closeAndCreateScript(this.props.activeScript.id);
           await ScriptsResource.fetch();
           fetchAllAndMineScripts(this.props.fetchScripts, null);
           handleOpenTabScript(this.props.router)(
-            ScriptsResource.getResource().value[0]
+            ScriptsResource.getResource().value[0],
           );
           this.setState({
             isSQLScriptDeletedDialogOpen: false,
@@ -258,7 +266,7 @@ export class ExploreHeader extends PureComponent {
             isSaveAsModalOpen: true,
             isSQLScriptDeletedDialogOpen: false,
           });
-          closeTab(this.props.activeScript.id);
+          this.closeAndCreateScript(this.props.activeScript.id);
         },
       },
       supportFlags: {},
@@ -290,7 +298,6 @@ export class ExploreHeader extends PureComponent {
       case ExploreHeaderActions.SAVE:
         return this.handleSaveView();
       case ExploreHeaderActions.SAVE_AS:
-        setActionState({ actionState: ExploreHeaderActions.SAVE_AS });
         return this.handleSaveViewAs();
       case ExploreHeaderActions.SAVE_SCRIPT:
         return this.handleSaveScript();
@@ -379,7 +386,7 @@ export class ExploreHeader extends PureComponent {
     navigateToExploreDefaultIfNecessary(
       pageType,
       location,
-      this.context.router
+      this.context.router,
     );
   }
 
@@ -455,22 +462,25 @@ export class ExploreHeader extends PureComponent {
           return this.props.saveDataset(
             dataset,
             this.props.exploreViewState.get("viewId"),
-            nextAction
+            nextAction,
           );
         });
       },
       undefined,
-      true
+      true,
     );
   };
 
   handleSaveViewAs = () => {
+    const { setActionState } = this.props;
+    setActionState({ actionState: ExploreHeaderActions.SAVE_AS });
+
     const nextAction = this.state.nextAction;
     this.setState({ nextAction: undefined });
     this.transformIfNecessary(
       () => this.props.saveAsDataset(nextAction),
       undefined,
-      true
+      true,
     );
   };
 
@@ -490,7 +500,7 @@ export class ExploreHeader extends PureComponent {
           this.props.setActiveScript({ script: res.payload });
           this.props.addNotification(
             intl.formatMessage({ id: "NewQuery.ScriptSaved" }),
-            "success"
+            "success",
           );
           fetchAllAndMineScripts(this.props.fetchScripts, null);
         }
@@ -674,8 +684,8 @@ export class ExploreHeader extends PureComponent {
     const disabledTooltip = disableRunButton
       ? intl.formatMessage({ id: "Explore.RunPreview.Disabled.Support" })
       : disableButtons
-      ? intl.formatMessage({ id: "Explore.RunPreview.Disabled.Empty" })
-      : undefined;
+        ? intl.formatMessage({ id: "Explore.RunPreview.Disabled.Empty" })
+        : undefined;
 
     return (
       <>
@@ -683,29 +693,23 @@ export class ExploreHeader extends PureComponent {
           {isCancellable && jobId && actionState === ExploreHeaderActions.RUN
             ? this.wrapWithTooltip(
                 <Button
-                  color="secondary"
-                  type={ButtonTypes.SECONDARY}
+                  variant="secondary"
                   data-qa="qa-cancel"
                   onClick={() =>
                     this.doButtonAction(ExploreHeaderActions.CANCEL)
                   }
-                  style={{ width: 75, fontSize: 14 }}
-                  disableMargin
                 >
                   {cancelText}
                 </Button>,
-                cancelText
+                cancelText,
               )
             : this.wrapWithTooltip(
                 <Button
+                  variant="primary"
                   className="run-btn"
-                  color="primary"
-                  type={ButtonTypes.PRIMARY}
                   data-qa="qa-run"
                   onClick={() => this.doButtonAction(ExploreHeaderActions.RUN)}
-                  style={{ width: 75, fontSize: 14 }}
                   disabled={disableRunButton || disableButtons}
-                  disableMargin
                 >
                   <dremio-icon
                     name="sql-editor/run"
@@ -721,38 +725,33 @@ export class ExploreHeader extends PureComponent {
                 runText,
                 this.props.keyboardShortcuts.run,
                 disableRunButton || disableButtons,
-                disabledTooltip
+                disabledTooltip,
               )}
           {isCancellable &&
           jobId &&
           actionState === ExploreHeaderActions.PREVIEW
             ? this.wrapWithTooltip(
                 <Button
-                  color="secondary"
-                  type={ButtonTypes.SECONDARY}
+                  variant="secondary"
                   data-qa="qa-cancel"
                   onClick={() =>
                     this.doButtonAction(ExploreHeaderActions.CANCEL)
                   }
-                  style={{ width: 98, fontSize: 14 }}
-                  disableMargin
                 >
                   {cancelText}
                 </Button>,
-                cancelText
+                cancelText,
               )
             : this.wrapWithTooltip(
                 <Button
-                  color="primary"
+                  variant="secondary"
                   className="preview-btn"
-                  variant={ButtonTypes.OUTLINED}
                   data-qa="qa-preview"
+                  style={{ minWidth: "auto" }}
                   onClick={() =>
                     this.doButtonAction(ExploreHeaderActions.PREVIEW)
                   }
-                  style={{ width: 98, fontSize: 14 }}
                   disabled={disablePreviewButton || disableButtons}
-                  disableMargin
                 >
                   <dremio-icon
                     name="sql-editor/preview"
@@ -768,22 +767,20 @@ export class ExploreHeader extends PureComponent {
                 previewText,
                 this.props.keyboardShortcuts.preview,
                 disablePreviewButton || disableButtons,
-                disabledTooltip
+                disabledTooltip,
               )}
 
           {!this.props.isMultiTabEnabled &&
             exploreUtils.isSqlEditorTab(this.props.location) &&
             this.wrapWithTooltip(
               <Button
-                color="primary"
                 className="discard-btn"
-                variant={ButtonTypes.OUTLINED}
+                variant="secondary"
                 data-qa="qa-discard"
                 onClick={() =>
                   this.doButtonAction(ExploreHeaderActions.DISCARD)
                 }
-                style={{ width: 98, fontSize: 14 }}
-                disableMargin
+                style={{ minWidth: "auto" }}
                 disabled={isCancellable || disableButtons}
               >
                 <dremio-icon
@@ -799,7 +796,7 @@ export class ExploreHeader extends PureComponent {
               </Button>,
               discardText,
               undefined,
-              isCancellable || disableButtons
+              isCancellable || disableButtons,
             )}
 
           <ExploreActions
@@ -846,7 +843,7 @@ export class ExploreHeader extends PureComponent {
                   </>
                 }
                 inProgress={this.props.scriptsSyncPending.has(
-                  this.props.activeScript?.id
+                  this.props.activeScript?.id,
                 )}
                 hideDelay={2000}
               />
@@ -871,14 +868,12 @@ export class ExploreHeader extends PureComponent {
     const { dataset } = this.props;
     return this.wrapWithTooltip(
       <Button
-        variant="outlined"
-        color="primary"
-        size="medium"
+        variant="secondary"
         onClick={onclick}
         className={className}
         disabled={this.getExtraSaveDisable(dataset)}
-        disableRipple
-        disableMargin
+        aria-label={icon}
+        style={{ minWidth: "auto" }}
       >
         {icon === "corporate/tableau" ? (
           <dremio-icon
@@ -896,7 +891,7 @@ export class ExploreHeader extends PureComponent {
           />
         )}
       </Button>,
-      name
+      name,
     );
   };
 
@@ -996,7 +991,7 @@ export class ExploreHeader extends PureComponent {
             "corporate/tableau",
             this.openTableau,
             24,
-            "-noImgHover -noMinWidth"
+            "-noImgHover -noMinWidth",
           )}
         {showPowerBI &&
           this.renderAnalyzeButton(
@@ -1004,7 +999,7 @@ export class ExploreHeader extends PureComponent {
             "corporate/power-bi",
             this.openPowerBi,
             24,
-            "-noImgHover -noMinWidth"
+            "-noImgHover -noMinWidth",
           )}
       </Fragment>
     );
@@ -1139,19 +1134,6 @@ export class ExploreHeader extends PureComponent {
     );
   };
 
-  // this feature disabled for now
-  renderRightTreeToggler() {
-    return !this.props.rightTreeVisible ? (
-      <button
-        className="info-button toogler"
-        style={{ ...style.pullout }}
-        onClick={this.props.toggleRightTree}
-      >
-        <FontIcon type="Expand" />
-      </button>
-    ) : null;
-  }
-
   renderHeaders() {
     switch (this.props.pageType) {
       case PageTypes.graph:
@@ -1174,7 +1156,7 @@ export class ExploreHeader extends PureComponent {
       this.setState({ isSaveAsModalOpen: false });
       addNotification(
         intl.formatMessage({ id: "NewQuery.ScriptSaved" }),
-        "success"
+        "success",
       );
       handleOpenTabScript(router)(result);
 
@@ -1308,7 +1290,7 @@ export default compose(
     addNotification,
     resetTableState,
   }),
-  withDatasetChanges
+  withDatasetChanges,
 )(ExploreHeader);
 
 const style = {

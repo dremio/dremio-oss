@@ -15,13 +15,6 @@
  */
 package com.dremio.exec.physical.base;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.planner.fragment.DistributionAffinity;
@@ -36,10 +29,14 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Set;
 
-/**
- * GroupScan build on top of a Namespace-sourced SplitWork.
- */
+/** GroupScan build on top of a Namespace-sourced SplitWork. */
 public abstract class AbstractGroupScan extends AbstractBase implements GroupScan<SplitWork> {
 
   protected final TableMetadata dataset;
@@ -58,11 +55,7 @@ public abstract class AbstractGroupScan extends AbstractBase implements GroupSca
             }
           });
 
-
-  public AbstractGroupScan(
-      OpProps props,
-      TableMetadata dataset,
-      List<SchemaPath> columns) {
+  public AbstractGroupScan(OpProps props, TableMetadata dataset, List<SchemaPath> columns) {
     super(props);
     this.dataset = dataset;
     this.columns = columns;
@@ -74,16 +67,16 @@ public abstract class AbstractGroupScan extends AbstractBase implements GroupSca
 
   @Override
   public final int getMinParallelizationWidth() {
-    if(getDistributionAffinity() != DistributionAffinity.HARD){
+    if (getDistributionAffinity() != DistributionAffinity.HARD) {
       return 1;
     }
 
     final Set<String> nodes = new HashSet<>();
     Iterator<PartitionChunkMetadata> iter = dataset.getSplits();
-    while(iter.hasNext()){
+    while (iter.hasNext()) {
       PartitionChunkMetadata split = iter.next();
-      for(PartitionProtobuf.DatasetSplit datasetSplit : split.getDatasetSplits()){
-        for (PartitionProtobuf.Affinity a: datasetSplit.getAffinitiesList()) {
+      for (PartitionProtobuf.DatasetSplit datasetSplit : split.getDatasetSplits()) {
+        for (PartitionProtobuf.Affinity a : datasetSplit.getAffinitiesList()) {
           nodes.add(a.getHost());
         }
       }
@@ -94,7 +87,12 @@ public abstract class AbstractGroupScan extends AbstractBase implements GroupSca
 
   @Override
   public final DistributionAffinity getDistributionAffinity() {
-    return dataset.getStoragePluginId().getCapabilities().getCapability(SourceCapabilities.REQUIRES_HARD_AFFINITY) ? DistributionAffinity.HARD : DistributionAffinity.SOFT;
+    return dataset
+            .getStoragePluginId()
+            .getCapabilities()
+            .getCapability(SourceCapabilities.REQUIRES_HARD_AFFINITY)
+        ? DistributionAffinity.HARD
+        : DistributionAffinity.SOFT;
   }
 
   @Override
@@ -104,7 +102,7 @@ public abstract class AbstractGroupScan extends AbstractBase implements GroupSca
   }
 
   @JsonIgnore
-  protected TableMetadata getDataset(){
+  protected TableMetadata getDataset() {
     return dataset;
   }
 
@@ -114,13 +112,13 @@ public abstract class AbstractGroupScan extends AbstractBase implements GroupSca
   }
 
   @Override
-
   public Iterator<PhysicalOperator> iterator() {
     return Collections.emptyIterator();
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value) throws E{
+  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value)
+      throws E {
     return physicalVisitor.visitGroupScan(this, value);
   }
 
@@ -135,8 +133,8 @@ public abstract class AbstractGroupScan extends AbstractBase implements GroupSca
   }
 
   @Override
-  public PhysicalOperator getNewWithChildren(List<PhysicalOperator> children) throws ExecutionSetupException {
+  public PhysicalOperator getNewWithChildren(List<PhysicalOperator> children)
+      throws ExecutionSetupException {
     return this;
   }
-
 }

@@ -17,16 +17,17 @@ package com.dremio.exec.catalog;
 
 import java.util.stream.Stream;
 
-/**
- * Interface to expose plugin access to children of CatalogServiceImpl
- */
+/** Interface to expose plugin access to children of CatalogServiceImpl */
 interface PluginRetriever {
 
   /**
    * Find a plugin with the given name.
+   *
    * @param name The name to find.
-   * @param synchronizeIfMissing Whether or not to synchronize source metadata if we don't find a plugin.
-   * @return Return null if not found locally and !synchronizeIfMissing. Return found plugin or throw exception if using synchronizeOnMissing
+   * @param synchronizeIfMissing Whether or not to synchronize source metadata if we don't find a
+   *     plugin.
+   * @return Return null if not found locally and !synchronizeIfMissing. Return found plugin or
+   *     throw exception if using synchronizeOnMissing
    */
   ManagedStoragePlugin getPlugin(String name, boolean synchronizeIfMissing);
 

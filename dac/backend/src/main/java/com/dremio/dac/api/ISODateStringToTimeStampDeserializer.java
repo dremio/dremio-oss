@@ -15,21 +15,18 @@
  */
 package com.dremio.dac.api;
 
-import java.io.IOException;
-
-import org.joda.time.format.ISODateTimeFormat;
-
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
+import java.io.IOException;
+import org.joda.time.format.ISODateTimeFormat;
 
-/**
- * Deserialize a ISO Date string to a timestamp.
- */
+/** Deserialize a ISO Date string to a timestamp. */
 public class ISODateStringToTimeStampDeserializer extends JsonDeserializer<Long> {
   @Override
-  public Long deserialize(JsonParser jsonParser, DeserializationContext deserializationContext) throws IOException, JsonProcessingException {
+  public Long deserialize(JsonParser jsonParser, DeserializationContext deserializationContext)
+      throws IOException, JsonProcessingException {
     return ISODateTimeFormat.dateTime().parseDateTime(jsonParser.getValueAsString()).getMillis();
   }
 }

@@ -18,7 +18,6 @@ package com.dremio.dac.resource;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import javax.ws.rs.WebApplicationException;
-
 import org.junit.Test;
 
 public class TestV2TreeResource {
@@ -26,18 +25,18 @@ public class TestV2TreeResource {
   @Test
   public void testDisableAssignReference() {
     assertThatThrownBy(() -> new V2TreeResource(null).assignReference(null, "main", null))
-      .isInstanceOf(WebApplicationException.class);
+        .isInstanceOf(WebApplicationException.class);
   }
 
   @Test
   public void testDisableTransplantCommitsIntoBranch() {
     assertThatThrownBy(() -> new V2TreeResource(null).transplantCommitsIntoBranch("main", null))
-      .isInstanceOf(WebApplicationException.class);
+        .isInstanceOf(WebApplicationException.class);
   }
 
   @Test
   public void testDisableCommitMultipleOperations() {
     assertThatThrownBy(() -> new V2TreeResource(null).commitMultipleOperations("main", null))
-      .isInstanceOf(WebApplicationException.class);
+        .isInstanceOf(WebApplicationException.class);
   }
 }

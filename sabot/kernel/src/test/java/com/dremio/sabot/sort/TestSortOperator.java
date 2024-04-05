@@ -17,50 +17,51 @@ package com.dremio.sabot.sort;
 
 import static org.junit.Assert.assertEquals;
 
-import java.util.Collections;
-
-import org.apache.calcite.rel.RelFieldCollation.Direction;
-import org.apache.calcite.rel.RelFieldCollation.NullDirection;
-import org.junit.Test;
-
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.physical.config.ExternalSort;
 import com.dremio.sabot.BaseTestOperator;
 import com.dremio.sabot.op.sort.external.ExternalSortOperator;
 import com.dremio.sabot.op.spi.Operator.MasterState;
-
 import io.airlift.tpch.GenerationDefinition.TpchTable;
 import io.airlift.tpch.TpchGenerator;
+import java.util.Collections;
+import org.apache.calcite.rel.RelFieldCollation.Direction;
+import org.apache.calcite.rel.RelFieldCollation.NullDirection;
+import org.junit.Test;
 
 public class TestSortOperator extends BaseTestOperator {
 
   private static final TpchTable TABLE = TpchTable.CUSTOMER;
   private static final double SCALE = 1;
 
-  private ExternalSort getRegionSort(){
-    return new ExternalSort(PROPS, null, Collections.singletonList(ordering("c_custkey", Direction.ASCENDING, NullDirection.FIRST)), false);
+  private ExternalSort getRegionSort() {
+    return new ExternalSort(
+        PROPS,
+        null,
+        Collections.singletonList(ordering("c_custkey", Direction.ASCENDING, NullDirection.FIRST)),
+        false);
   }
 
   @Test
   public void lifecycle() throws Exception {
 
     /**
-     * We expect a lifecycle of:
-     * SETUP, setup() => CONSUME;
-     * CONSUME until noMoreConsume() called
-     * Then produce 1..N times
-     * Until number of records produced == number of records consumed.
-     * Then DONE
+     * We expect a lifecycle of: SETUP, setup() => CONSUME; CONSUME until noMoreConsume() called
+     * Then produce 1..N times Until number of records produced == number of records consumed. Then
+     * DONE
      */
     for (int sortOperatorType = 0; sortOperatorType < 2; sortOperatorType++) {
       // Test ExternalSort with both QuickSorter (default) and SplayTreeSorter:
       // EXTERNAL_SORT_ENABLE_SPLAY_SORT = false (default) when sortOperatorType = 0
       // EXTERNAL_SORT_ENABLE_SPLAY_SORT = true when sortOperatorType = 1
-      try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_SPLAY_SORT, sortOperatorType != 0)) {
-        final ExternalSortOperator o = newOperator(ExternalSortOperator.class, getRegionSort(), 4095);
+      try (AutoCloseable option =
+          with(ExecConstants.EXTERNAL_SORT_ENABLE_SPLAY_SORT, sortOperatorType != 0)) {
+        final ExternalSortOperator o =
+            newOperator(ExternalSortOperator.class, getRegionSort(), 4095);
 
         assertState(o, MasterState.NEEDS_SETUP);
-        try (TpchGenerator generator = TpchGenerator.singleGenerator(TABLE, SCALE, getTestAllocator())) {
+        try (TpchGenerator generator =
+            TpchGenerator.singleGenerator(TABLE, SCALE, getTestAllocator())) {
 
           o.setup(generator.getOutput());
 
@@ -98,7 +99,8 @@ public class TestSortOperator extends BaseTestOperator {
       // Test ExternalSort with both QuickSorter (default) and SplayTreeSorter:
       // EXTERNAL_SORT_ENABLE_SPLAY_SORT = false (default) when sortOperatorType = 0
       // EXTERNAL_SORT_ENABLE_SPLAY_SORT = true when sortOperatorType = 1
-      try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_SPLAY_SORT, sortOperatorType != 0)) {
+      try (AutoCloseable option =
+          with(ExecConstants.EXTERNAL_SORT_ENABLE_SPLAY_SORT, sortOperatorType != 0)) {
         newOperator(ExternalSortOperator.class, getRegionSort(), 4095);
       }
     }
@@ -110,10 +112,13 @@ public class TestSortOperator extends BaseTestOperator {
       // Test ExternalSort with both QuickSorter (default) and SplayTreeSorter:
       // EXTERNAL_SORT_ENABLE_SPLAY_SORT = false (default) when sortOperatorType = 0
       // EXTERNAL_SORT_ENABLE_SPLAY_SORT = true when sortOperatorType = 1
-      try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_SPLAY_SORT, sortOperatorType != 0)) {
-        ExternalSortOperator operator = newOperator(ExternalSortOperator.class, getRegionSort(), 4095);
+      try (AutoCloseable option =
+          with(ExecConstants.EXTERNAL_SORT_ENABLE_SPLAY_SORT, sortOperatorType != 0)) {
+        ExternalSortOperator operator =
+            newOperator(ExternalSortOperator.class, getRegionSort(), 4095);
         try (TpchGenerator g = TpchGenerator.singleGenerator(TABLE, SCALE, getTestAllocator())) {
-          // create schema on vector container but don't generate any records since we're only setting up.
+          // create schema on vector container but don't generate any records since we're only
+          // setting up.
           operator.setup(g.getOutput());
         }
       }
@@ -126,9 +131,12 @@ public class TestSortOperator extends BaseTestOperator {
       // Test ExternalSort with both QuickSorter (default) and SplayTreeSorter:
       // EXTERNAL_SORT_ENABLE_SPLAY_SORT = false (default) when sortOperatorType = 0
       // EXTERNAL_SORT_ENABLE_SPLAY_SORT = true when sortOperatorType = 1
-      try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_SPLAY_SORT, sortOperatorType != 0)) {
-        final ExternalSortOperator o = newOperator(ExternalSortOperator.class, getRegionSort(), 4095);
-        try (TpchGenerator generator = TpchGenerator.singleGenerator(TABLE, SCALE, getTestAllocator())) {
+      try (AutoCloseable option =
+          with(ExecConstants.EXTERNAL_SORT_ENABLE_SPLAY_SORT, sortOperatorType != 0)) {
+        final ExternalSortOperator o =
+            newOperator(ExternalSortOperator.class, getRegionSort(), 4095);
+        try (TpchGenerator generator =
+            TpchGenerator.singleGenerator(TABLE, SCALE, getTestAllocator())) {
           o.setup(generator.getOutput());
           int count = generator.next(4000);
           o.consumeData(count);

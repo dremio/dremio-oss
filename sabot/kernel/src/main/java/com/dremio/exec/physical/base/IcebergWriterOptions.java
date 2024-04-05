@@ -15,20 +15,15 @@
  */
 package com.dremio.exec.physical.base;
 
-
-import javax.annotation.Nullable;
-
-import org.immutables.value.Value;
-
 import com.dremio.exec.store.dfs.IcebergTableProps;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import javax.annotation.Nullable;
+import org.immutables.value.Value;
 
 @JsonDeserialize(builder = ImmutableIcebergWriterOptions.Builder.class)
 @Value.Immutable
 public interface IcebergWriterOptions {
-  /**
-   * Table properties
-   */
+  /** Table properties */
   @Nullable
   IcebergTableProps getIcebergTableProps();
 

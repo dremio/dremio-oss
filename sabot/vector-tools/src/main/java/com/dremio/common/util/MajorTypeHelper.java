@@ -17,10 +17,14 @@ package com.dremio.common.util;
 
 import static org.apache.arrow.vector.types.Types.getMinorTypeForArrowType;
 
+import com.dremio.common.expression.CompleteType;
+import com.dremio.common.types.TypeProtos;
+import com.dremio.common.types.TypeProtos.DataMode;
+import com.dremio.common.types.TypeProtos.MajorType;
+import com.dremio.common.types.Types;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-
 import org.apache.arrow.vector.types.TimeUnit;
 import org.apache.arrow.vector.types.Types.MinorType;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -30,26 +34,20 @@ import org.apache.arrow.vector.types.pojo.ArrowType.Timestamp;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 
-import com.dremio.common.expression.CompleteType;
-import com.dremio.common.types.TypeProtos;
-import com.dremio.common.types.TypeProtos.DataMode;
-import com.dremio.common.types.TypeProtos.MajorType;
-import com.dremio.common.types.Types;
-
 public final class MajorTypeHelper {
 
   public static MinorType getArrowMinorType(TypeProtos.MinorType minorType) {
     switch (minorType) {
-    case LATE:
-      return MinorType.NULL;
-    case TIMESTAMP:
-      return MinorType.TIMESTAMPMILLI;
-    case TIME:
-      return MinorType.TIMEMILLI;
-    case DATE:
-      return MinorType.DATEMILLI;
-    default:
-      return MinorType.valueOf(minorType.name());
+      case LATE:
+        return MinorType.NULL;
+      case TIMESTAMP:
+        return MinorType.TIMESTAMPMILLI;
+      case TIME:
+        return MinorType.TIMEMILLI;
+      case DATE:
+        return MinorType.DATEMILLI;
+      default:
+        return MinorType.valueOf(minorType.name());
     }
   }
 
@@ -61,13 +59,16 @@ public final class MajorTypeHelper {
   }
 
   public static MajorType getMajorTypeForArrowType(ArrowType arrowType, List<Field> children) {
-    MajorType.Builder builder = MajorType.newBuilder()
-      .setMinorType(getMinorTypeFromArrowMinorType(getMinorTypeForArrowType(arrowType)))
-      .setMode(DataMode.OPTIONAL);
+    MajorType.Builder builder =
+        MajorType.newBuilder()
+            .setMinorType(getMinorTypeFromArrowMinorType(getMinorTypeForArrowType(arrowType)))
+            .setMode(DataMode.OPTIONAL);
     ArrowTypeID fieldType = arrowType.getTypeID();
-    switch(fieldType) {
+    switch (fieldType) {
       case Decimal:
-        builder.setPrecision(((Decimal) arrowType).getPrecision()).setScale(((Decimal) arrowType).getScale());
+        builder
+            .setPrecision(((Decimal) arrowType).getPrecision())
+            .setScale(((Decimal) arrowType).getScale());
         break;
 
       case Utf8:
@@ -76,16 +77,19 @@ public final class MajorTypeHelper {
         break;
 
       case Timestamp:
-        builder.setPrecision(MajorTypeHelper.getPrecisionFromTimeUnit(((ArrowType.Timestamp) arrowType).getUnit()));
+        builder.setPrecision(
+            MajorTypeHelper.getPrecisionFromTimeUnit(((ArrowType.Timestamp) arrowType).getUnit()));
         break;
 
       case Time:
-        builder.setPrecision(MajorTypeHelper.getPrecisionFromTimeUnit(((ArrowType.Time) arrowType).getUnit()));
+        builder.setPrecision(
+            MajorTypeHelper.getPrecisionFromTimeUnit(((ArrowType.Time) arrowType).getUnit()));
         break;
 
       case Union:
         for (Field child : children) {
-          builder.addSubType(getMinorTypeFromArrowMinorType(getMinorTypeForArrowType(child.getType())));
+          builder.addSubType(
+              getMinorTypeFromArrowMinorType(getMinorTypeForArrowType(child.getType())));
         }
         break;
 
@@ -104,26 +108,26 @@ public final class MajorTypeHelper {
 
   public static Field getFieldForNameAndMajorType(String name, MajorType majorType) {
     try {
-    return new Field(
-            name,
-            new FieldType(true, getArrowTypeForMajorType(majorType), null),
-            getChildrenForMajorType(majorType)
-    );
+      return new Field(
+          name,
+          new FieldType(true, getArrowTypeForMajorType(majorType), null),
+          getChildrenForMajorType(majorType));
     } catch (IllegalArgumentException e) {
-      throw new IllegalArgumentException(String.format("Could not get field for name: %s, majorType:%s", name, majorType), e);
+      throw new IllegalArgumentException(
+          String.format("Could not get field for name: %s, majorType:%s", name, majorType), e);
     }
   }
 
   public static List<Field> getChildrenForMajorType(MajorType majorType) {
     List<Field> children = new ArrayList<>();
     switch (majorType.getMinorType()) {
-    case UNION:
-      for (TypeProtos.MinorType minorType : majorType.getSubTypeList()) {
-        children.add(Field.nullable("", getArrowMinorType(minorType).getType()));
-      }
-      return children;
-    default:
-      return Collections.emptyList();
+      case UNION:
+        for (TypeProtos.MinorType minorType : majorType.getSubTypeList()) {
+          children.add(Field.nullable("", getArrowMinorType(minorType).getType()));
+        }
+        return children;
+      default:
+        return Collections.emptyList();
     }
   }
 
@@ -146,22 +150,22 @@ public final class MajorTypeHelper {
    */
   public static TypeProtos.MinorType getMinorTypeFromArrowMinorType(MinorType arrowMinorType) {
     switch (arrowMinorType) {
-    case TIMESTAMPMILLI:
-      return TypeProtos.MinorType.TIMESTAMP;
-    case TIMESTAMPMILLITZ:
-      return TypeProtos.MinorType.TIMESTAMPTZ;
-    case TIMEMILLI:
-      return TypeProtos.MinorType.TIME;
-    case DATEMILLI:
-      return TypeProtos.MinorType.DATE;
-    default:
-      return TypeProtos.MinorType.valueOf(arrowMinorType.name());
+      case TIMESTAMPMILLI:
+        return TypeProtos.MinorType.TIMESTAMP;
+      case TIMESTAMPMILLITZ:
+        return TypeProtos.MinorType.TIMESTAMPTZ;
+      case TIMEMILLI:
+        return TypeProtos.MinorType.TIME;
+      case DATEMILLI:
+        return TypeProtos.MinorType.DATE;
+      default:
+        return TypeProtos.MinorType.valueOf(arrowMinorType.name());
     }
   }
 
   /**
-   * Return decimal precision required to represent values in the given TimeUnit.
-   * Note that Dremio currently only supports milliseconds for Date/Time types.
+   * Return decimal precision required to represent values in the given TimeUnit. Note that Dremio
+   * currently only supports milliseconds for Date/Time types.
    *
    * @param unit
    * @return The decimal precision required to represent values in the given TimeUnit.

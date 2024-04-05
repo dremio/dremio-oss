@@ -24,43 +24,37 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.util.Collections;
-
-import org.junit.Test;
-import org.mockito.Mockito;
-
 import com.dremio.service.reflection.ReflectionServiceImpl.PlanCacheInvalidationHelper;
 import com.dremio.service.reflection.proto.ReflectionEntry;
 import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.dremio.service.reflection.store.ReflectionEntriesStore;
 import com.dremio.service.reflection.store.ReflectionGoalsStore;
+import java.util.Collections;
+import org.junit.Test;
+import org.mockito.Mockito;
 
 public class PlanCacheSynchronizerTest {
   private static final long DAY_IN_MS = 24 * 60 * 60 * 1000;
 
   private ReflectionGoalsStore goals = Mockito.mock(ReflectionGoalsStore.class);
   private ReflectionEntriesStore entries = Mockito.mock(ReflectionEntriesStore.class);
-  private PlanCacheInvalidationHelper invalidationHelper = Mockito.mock(PlanCacheInvalidationHelper.class);
+  private PlanCacheInvalidationHelper invalidationHelper =
+      Mockito.mock(PlanCacheInvalidationHelper.class);
   private long yesterday = System.currentTimeMillis() - DAY_IN_MS;
   // when we return entries with this modified time, they should be part of the response
   private long tomorrow = System.currentTimeMillis() + DAY_IN_MS;
 
   @Test
   public void testChangedGoalsContributeToDatasetsProcessed() {
-    when(invalidationHelper.isPlanCacheEnabled())
-        .thenReturn(true);
+    when(invalidationHelper.isPlanCacheEnabled()).thenReturn(true);
 
-    when(entries.find())
-        .thenReturn(Collections.emptyList());
+    when(entries.find()).thenReturn(Collections.emptyList());
 
     when(goals.getModifiedOrCreatedSince(anyLong()))
-        .thenReturn(
-            asList(createGoal("a"),
-                createGoal("b"),
-                createGoal("c"))
-        );
+        .thenReturn(asList(createGoal("a"), createGoal("b"), createGoal("c")));
 
-    PlanCacheSynchronizer synchronizer = new PlanCacheSynchronizer(goals, entries, () -> invalidationHelper);
+    PlanCacheSynchronizer synchronizer =
+        new PlanCacheSynchronizer(goals, entries, () -> invalidationHelper);
     synchronizer.sync();
 
     verify(invalidationHelper, times(1)).invalidateReflectionAssociatedPlanCache("a");
@@ -71,22 +65,16 @@ public class PlanCacheSynchronizerTest {
 
   @Test
   public void testOnlyChangedEntriesContributeToDatasetsProcessed() {
-    when(invalidationHelper.isPlanCacheEnabled())
-        .thenReturn(true);
+    when(invalidationHelper.isPlanCacheEnabled()).thenReturn(true);
 
     when(entries.find())
-        .thenReturn(asList(
-            createEntry("one", tomorrow),
-            createEntry("two", tomorrow)
-        ));
+        .thenReturn(asList(createEntry("one", tomorrow), createEntry("two", tomorrow)));
 
     when(goals.getModifiedOrCreatedSince(anyLong()))
-        .thenReturn(
-            asList(createGoal("one"),
-                createGoal("three")
-        ));
+        .thenReturn(asList(createGoal("one"), createGoal("three")));
 
-    PlanCacheSynchronizer synchronizer = new PlanCacheSynchronizer(goals, entries, () -> invalidationHelper);
+    PlanCacheSynchronizer synchronizer =
+        new PlanCacheSynchronizer(goals, entries, () -> invalidationHelper);
     synchronizer.sync();
 
     verify(invalidationHelper, times(1)).invalidateReflectionAssociatedPlanCache("one");
@@ -97,21 +85,20 @@ public class PlanCacheSynchronizerTest {
 
   @Test
   public void testDatasetProcessedOnceIfBothGoalAndEntryChanged() {
-    when(invalidationHelper.isPlanCacheEnabled())
-        .thenReturn(true);
+    when(invalidationHelper.isPlanCacheEnabled()).thenReturn(true);
 
     when(entries.find())
-        .thenReturn(asList(
-            createEntry("a", yesterday),
-            createEntry("b", tomorrow),
-            createEntry("c", yesterday),
-            createEntry("d", tomorrow)
-        ));
+        .thenReturn(
+            asList(
+                createEntry("a", yesterday),
+                createEntry("b", tomorrow),
+                createEntry("c", yesterday),
+                createEntry("d", tomorrow)));
 
-    when(goals.getModifiedOrCreatedSince(anyLong()))
-        .thenReturn(Collections.emptyList());
+    when(goals.getModifiedOrCreatedSince(anyLong())).thenReturn(Collections.emptyList());
 
-    PlanCacheSynchronizer synchronizer = new PlanCacheSynchronizer(goals, entries, () -> invalidationHelper);
+    PlanCacheSynchronizer synchronizer =
+        new PlanCacheSynchronizer(goals, entries, () -> invalidationHelper);
     synchronizer.sync();
 
     verify(invalidationHelper, times(1)).invalidateReflectionAssociatedPlanCache("b");
@@ -121,10 +108,10 @@ public class PlanCacheSynchronizerTest {
 
   @Test
   public void testShouldNotSyncIfPlanCacheDisabled() {
-    when(invalidationHelper.isPlanCacheEnabled())
-        .thenReturn(false);
+    when(invalidationHelper.isPlanCacheEnabled()).thenReturn(false);
 
-    PlanCacheSynchronizer synchronizer = new PlanCacheSynchronizer(goals, entries, () -> invalidationHelper);
+    PlanCacheSynchronizer synchronizer =
+        new PlanCacheSynchronizer(goals, entries, () -> invalidationHelper);
     synchronizer.sync();
 
     verify(invalidationHelper, times(1)).invalidatePlanCache();
@@ -138,13 +125,12 @@ public class PlanCacheSynchronizerTest {
 
   @Test
   public void testFailuresDuringExecutionNotPropagated() {
-    when(invalidationHelper.isPlanCacheEnabled())
-        .thenReturn(true);
+    when(invalidationHelper.isPlanCacheEnabled()).thenReturn(true);
 
-    when(entries.find())
-        .thenThrow(new RuntimeException());
+    when(entries.find()).thenThrow(new RuntimeException());
 
-    PlanCacheSynchronizer synchronizer = new PlanCacheSynchronizer(goals, entries, () -> invalidationHelper);
+    PlanCacheSynchronizer synchronizer =
+        new PlanCacheSynchronizer(goals, entries, () -> invalidationHelper);
     synchronizer.sync();
 
     verify(invalidationHelper, never()).invalidateReflectionAssociatedPlanCache(anyString());
@@ -152,21 +138,18 @@ public class PlanCacheSynchronizerTest {
 
   @Test
   public void testIgnoreErrorsDuringInvalidation() {
-    when(invalidationHelper.isPlanCacheEnabled())
-        .thenReturn(true);
+    when(invalidationHelper.isPlanCacheEnabled()).thenReturn(true);
 
-    when(entries.find())
-        .thenReturn(asList(
-            createEntry("b", tomorrow),
-            createEntry("d", tomorrow)
-        ));
+    when(entries.find()).thenReturn(asList(createEntry("b", tomorrow), createEntry("d", tomorrow)));
 
-    when(goals.getModifiedOrCreatedSince(anyLong()))
-        .thenReturn(Collections.emptyList());
+    when(goals.getModifiedOrCreatedSince(anyLong())).thenReturn(Collections.emptyList());
 
-    doThrow(new RuntimeException()).when(invalidationHelper).invalidateReflectionAssociatedPlanCache("b");
+    doThrow(new RuntimeException())
+        .when(invalidationHelper)
+        .invalidateReflectionAssociatedPlanCache("b");
 
-    PlanCacheSynchronizer synchronizer = new PlanCacheSynchronizer(goals, entries, () -> invalidationHelper);
+    PlanCacheSynchronizer synchronizer =
+        new PlanCacheSynchronizer(goals, entries, () -> invalidationHelper);
     synchronizer.sync();
 
     verify(invalidationHelper, times(2)).invalidateReflectionAssociatedPlanCache(anyString());

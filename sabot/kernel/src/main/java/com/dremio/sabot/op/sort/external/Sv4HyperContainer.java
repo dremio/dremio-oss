@@ -15,11 +15,10 @@
  */
 package com.dremio.sabot.op.sort.external;
 
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.types.pojo.Schema;
-
 import com.dremio.exec.record.ExpandableHyperContainer;
 import com.dremio.exec.record.selection.SelectionVector4;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.types.pojo.Schema;
 
 public class Sv4HyperContainer extends ExpandableHyperContainer {
 
@@ -34,13 +33,13 @@ public class Sv4HyperContainer extends ExpandableHyperContainer {
     return sv4;
   }
 
-  public void setSelectionVector4(SelectionVector4 sv4){
+  public void setSelectionVector4(SelectionVector4 sv4) {
     this.sv4 = sv4;
   }
 
   @Override
   public void close() {
-    if(sv4 != null){
+    if (sv4 != null) {
       sv4.clear();
     }
     super.close();

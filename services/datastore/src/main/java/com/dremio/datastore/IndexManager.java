@@ -15,12 +15,6 @@
  */
 package com.dremio.datastore;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.Map.Entry;
-import java.util.Set;
-import java.util.concurrent.ExecutionException;
-
 import com.dremio.common.DeferredException;
 import com.dremio.datastore.indexed.CommitWrapper;
 import com.dremio.datastore.indexed.LuceneSearchIndex;
@@ -31,10 +25,13 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.cache.RemovalListener;
 import com.google.common.cache.RemovalNotification;
+import java.io.File;
+import java.io.IOException;
+import java.util.Map.Entry;
+import java.util.Set;
+import java.util.concurrent.ExecutionException;
 
-/**
- * Manages all existing indexes.
- */
+/** Manages all existing indexes. */
 class IndexManager implements AutoCloseable {
 
   private static final String INDEX_PATH_NAME = "search";
@@ -42,26 +39,29 @@ class IndexManager implements AutoCloseable {
   private final DeferredException closeException = new DeferredException();
 
   @SuppressWarnings("NoGuavaCacheUsage") // TODO: fix as part of DX-51884
-  private final LoadingCache<String, LuceneSearchIndex> indexes = CacheBuilder.newBuilder()
-      .removalListener(new RemovalListener<String, LuceneSearchIndex>() {
-        @Override
-        public void onRemoval(RemovalNotification<String, LuceneSearchIndex> notification) {
-          try {
-            notification.getValue().close();
-          } catch (Exception ex) {
-            closeException.addException(ex);
-          }
-        }
-      })
-      .build(new CacheLoader<String, LuceneSearchIndex>() {
-        @Override
-        public LuceneSearchIndex load(String name) throws IOException {
-          if (readOnly) {
-            return new ReadOnlyLuceneSearchIndex(indexDirectory, name, inMemory);
-          }
-          return new LuceneSearchIndex(indexDirectory, name, inMemory, commitWrapper);
-        }
-      });
+  private final LoadingCache<String, LuceneSearchIndex> indexes =
+      CacheBuilder.newBuilder()
+          .removalListener(
+              new RemovalListener<String, LuceneSearchIndex>() {
+                @Override
+                public void onRemoval(RemovalNotification<String, LuceneSearchIndex> notification) {
+                  try {
+                    notification.getValue().close();
+                  } catch (Exception ex) {
+                    closeException.addException(ex);
+                  }
+                }
+              })
+          .build(
+              new CacheLoader<String, LuceneSearchIndex>() {
+                @Override
+                public LuceneSearchIndex load(String name) throws IOException {
+                  if (readOnly) {
+                    return new ReadOnlyLuceneSearchIndex(indexDirectory, name, inMemory);
+                  }
+                  return new LuceneSearchIndex(indexDirectory, name, inMemory, commitWrapper);
+                }
+              });
 
   private final String baseDirectory;
   private final boolean inMemory;
@@ -70,7 +70,8 @@ class IndexManager implements AutoCloseable {
 
   private File indexDirectory;
 
-  IndexManager(String baseDirectory, boolean inMemory, boolean readOnly, CommitWrapper commitWrapper) {
+  IndexManager(
+      String baseDirectory, boolean inMemory, boolean readOnly, CommitWrapper commitWrapper) {
     this.baseDirectory = baseDirectory;
     this.inMemory = inMemory;
     this.commitWrapper = commitWrapper;
@@ -83,12 +84,16 @@ class IndexManager implements AutoCloseable {
     if (indexDirectory.exists()) {
       if (!indexDirectory.isDirectory()) {
         throw new DatastoreException(
-            String.format("Invalid path %s for local search db, not a directory.", indexDirectory.getAbsolutePath()));
+            String.format(
+                "Invalid path %s for local search db, not a directory.",
+                indexDirectory.getAbsolutePath()));
       }
     } else {
       if (!indexDirectory.mkdirs()) {
         throw new DatastoreException(
-            String.format("Failed to create directory %s for local search data.", indexDirectory.getAbsolutePath()));
+            String.format(
+                "Failed to create directory %s for local search data.",
+                indexDirectory.getAbsolutePath()));
       }
     }
   }
@@ -103,20 +108,20 @@ class IndexManager implements AutoCloseable {
 
   void deleteEverything(Set<String> skipNames) throws IOException {
     final DeferredException deleteException = new DeferredException();
-    for(Entry<String, LuceneSearchIndex> index : indexes.asMap().entrySet()){
+    for (Entry<String, LuceneSearchIndex> index : indexes.asMap().entrySet()) {
       if (!skipNames.contains(index.getKey())) {
-        try{
+        try {
           index.getValue().deleteEverything();
-        }catch(IOException e){
+        } catch (IOException e) {
           deleteException.addException(e);
         }
       }
     }
-    try{
+    try {
       deleteException.close();
-    }catch(IOException ex){
+    } catch (IOException ex) {
       throw ex;
-    }catch(Exception ex){
+    } catch (Exception ex) {
       throw new IOException("Failure deleting indeices.", ex);
     }
   }
@@ -127,5 +132,4 @@ class IndexManager implements AutoCloseable {
     indexes.cleanUp();
     closeException.close();
   }
-
 }

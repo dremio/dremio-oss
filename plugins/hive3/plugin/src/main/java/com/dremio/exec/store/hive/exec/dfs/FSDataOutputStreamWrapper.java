@@ -17,16 +17,12 @@ package com.dremio.exec.store.hive.exec.dfs;
 
 import static com.dremio.exec.store.hive.exec.dfs.DremioHadoopFileSystemWrapper.propagateFSError;
 
+import com.dremio.io.FSOutputStream;
 import java.io.IOException;
-
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FSError;
 
-import com.dremio.io.FSOutputStream;
-
-/**
- * Wrapper around FSDataOutputStream to catch {@code FSError}.
- */
+/** Wrapper around FSDataOutputStream to catch {@code FSError}. */
 public class FSDataOutputStreamWrapper extends FSOutputStream {
   private final FSDataOutputStream underlyingOS;
 
@@ -38,7 +34,7 @@ public class FSDataOutputStreamWrapper extends FSOutputStream {
   public void write(int b) throws IOException {
     try {
       underlyingOS.write(b);
-    } catch(FSError e) {
+    } catch (FSError e) {
       throw propagateFSError(e);
     }
   }
@@ -47,7 +43,7 @@ public class FSDataOutputStreamWrapper extends FSOutputStream {
   public void write(byte[] b) throws IOException {
     try {
       underlyingOS.write(b);
-    } catch(FSError e) {
+    } catch (FSError e) {
       throw propagateFSError(e);
     }
   }
@@ -56,7 +52,7 @@ public class FSDataOutputStreamWrapper extends FSOutputStream {
   public void write(byte[] b, int off, int len) throws IOException {
     try {
       underlyingOS.write(b, off, len);
-    } catch(FSError e) {
+    } catch (FSError e) {
       throw propagateFSError(e);
     }
   }
@@ -65,7 +61,7 @@ public class FSDataOutputStreamWrapper extends FSOutputStream {
   public long getPosition() throws IOException {
     try {
       return underlyingOS.getPos();
-    } catch(FSError e) {
+    } catch (FSError e) {
       throw propagateFSError(e);
     }
   }
@@ -74,7 +70,7 @@ public class FSDataOutputStreamWrapper extends FSOutputStream {
   public void flush() throws IOException {
     try {
       underlyingOS.flush();
-    } catch(FSError e) {
+    } catch (FSError e) {
       propagateFSError(e);
     }
   }
@@ -83,7 +79,7 @@ public class FSDataOutputStreamWrapper extends FSOutputStream {
   public void close() throws IOException {
     try {
       underlyingOS.close();
-    } catch(FSError e) {
+    } catch (FSError e) {
       throw propagateFSError(e);
     }
   }

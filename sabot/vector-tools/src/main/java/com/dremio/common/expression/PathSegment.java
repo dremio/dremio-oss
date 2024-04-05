@@ -15,9 +15,8 @@
  */
 package com.dremio.common.expression;
 
-import java.util.Optional;
-
 import com.dremio.common.expression.BasePath.SchemaPathVisitor;
+import java.util.Optional;
 
 public abstract class PathSegment {
 
@@ -39,7 +38,6 @@ public abstract class PathSegment {
 
   public abstract <IN, OUT> OUT accept(SchemaPathVisitor<IN, OUT> visitor, IN in);
 
-
   public static final class ArraySegment extends PathSegment {
     private final Optional<Integer> optionalIndex;
 
@@ -47,7 +45,8 @@ public abstract class PathSegment {
       super(child);
 
       if (optionalIndex.isPresent() && optionalIndex.get() < 0) {
-        throw new IllegalArgumentException("Expected a non negative index for array indexing. Got: " + optionalIndex.get());
+        throw new IllegalArgumentException(
+            "Expected a non negative index for array indexing. Got: " + optionalIndex.get());
       }
 
       this.optionalIndex = optionalIndex;
@@ -93,7 +92,7 @@ public abstract class PathSegment {
     }
 
     @Override
-    public <IN, OUT> OUT accept(SchemaPathVisitor<IN, OUT> visitor, IN in){
+    public <IN, OUT> OUT accept(SchemaPathVisitor<IN, OUT> visitor, IN in) {
       return visitor.visitArray(this, in);
     }
 
@@ -114,14 +113,17 @@ public abstract class PathSegment {
       } else if (obj == null) {
         return false;
       } else if (obj instanceof ArraySegment) {
-        return optionalIndex.equals(((ArraySegment)obj).optionalIndex);
+        return optionalIndex.equals(((ArraySegment) obj).optionalIndex);
       }
       return false;
     }
 
     @Override
     public PathSegment clone() {
-      PathSegment seg = !optionalIndex.isPresent() ? new ArraySegment(null) : new ArraySegment(optionalIndex.get());
+      PathSegment seg =
+          !optionalIndex.isPresent()
+              ? new ArraySegment(null)
+              : new ArraySegment(optionalIndex.get());
       if (child != null) {
         seg.setChild(child.clone());
       }
@@ -130,7 +132,10 @@ public abstract class PathSegment {
 
     @Override
     public ArraySegment cloneWithNewChild(PathSegment newChild) {
-      ArraySegment seg = !optionalIndex.isPresent() ? new ArraySegment(null) : new ArraySegment(optionalIndex.get());
+      ArraySegment seg =
+          !optionalIndex.isPresent()
+              ? new ArraySegment(null)
+              : new ArraySegment(optionalIndex.get());
       if (child != null) {
         seg.setChild(child.cloneWithNewChild(newChild));
       } else {
@@ -141,14 +146,13 @@ public abstract class PathSegment {
 
     @Override
     public PathSegment cloneWithoutChild() {
-      if(isLastPath()){
+      if (isLastPath()) {
         return null;
       }
 
       return new ArraySegment(optionalIndex, child.cloneWithoutChild());
     }
   }
-
 
   public static final class NameSegment extends PathSegment {
     private final String path;
@@ -168,7 +172,7 @@ public abstract class PathSegment {
 
     @Override
     public NameSegment cloneWithoutChild() {
-      if(isLastPath()){
+      if (isLastPath()) {
         return null;
       }
 
@@ -191,7 +195,7 @@ public abstract class PathSegment {
     }
 
     @Override
-    public <IN, OUT> OUT accept(SchemaPathVisitor<IN, OUT> visitor, IN in){
+    public <IN, OUT> OUT accept(SchemaPathVisitor<IN, OUT> visitor, IN in) {
       return visitor.visitName(this, in);
     }
 
@@ -241,7 +245,6 @@ public abstract class PathSegment {
       }
       return s;
     }
-
   }
 
   public NameSegment getNameSegment() {
@@ -253,6 +256,7 @@ public abstract class PathSegment {
   }
 
   public abstract boolean isArray();
+
   public abstract boolean isNamed();
 
   public boolean isLastPath() {
@@ -268,6 +272,7 @@ public abstract class PathSegment {
   }
 
   protected abstract int segmentHashCode();
+
   protected abstract boolean segmentEquals(PathSegment other);
 
   @Override
@@ -275,7 +280,7 @@ public abstract class PathSegment {
     int h = hash;
     if (h == 0) {
       h = segmentHashCode();
-      h = 31*h + ((child == null) ? 0 : child.hashCode());
+      h = 31 * h + ((child == null) ? 0 : child.hashCode());
       hash = h;
     }
     return h;
@@ -304,21 +309,19 @@ public abstract class PathSegment {
   }
 
   /**
-   * Check if another path is contained in this one. This is useful for 2 cases. The first
-   * is checking if the other is lower down in the tree, below this path. The other is if
-   * a path is actually contained above the current one.
+   * Check if another path is contained in this one. This is useful for 2 cases. The first is
+   * checking if the other is lower down in the tree, below this path. The other is if a path is
+   * actually contained above the current one.
    *
-   * Examples:
-   * [a] . contains( [a.b.c] ) returns true
-   * [a.b.c] . contains( [a] ) returns true
+   * <p>Examples: [a] . contains( [a.b.c] ) returns true [a.b.c] . contains( [a] ) returns true
    *
-   * This behavior is used for cases like scanning json in an event based fashion, when we arrive at
-   * a node in a complex type, we will know the complete path back to the root. This method can
-   * be used to determine if we need the data below. This is true in both the cases where the
-   * column requested from the user is below the current node (in which case we may ignore other nodes
-   * further down the tree, while keeping others). This is also the case if the requested path is further
-   * up the tree, if we know we are at position a.b.c and a.b was a requested column, we need to scan
-   * all of the data at and below the current a.b.c node.
+   * <p>This behavior is used for cases like scanning json in an event based fashion, when we arrive
+   * at a node in a complex type, we will know the complete path back to the root. This method can
+   * be used to determine if we need the data below. This is true in both the cases where the column
+   * requested from the user is below the current node (in which case we may ignore other nodes
+   * further down the tree, while keeping others). This is also the case if the requested path is
+   * further up the tree, if we know we are at position a.b.c and a.b was a requested column, we
+   * need to scan all of the data at and below the current a.b.c node.
    *
    * @param otherSeg - path segment to check if it is contained below this one.
    * @return - is this a match
@@ -332,7 +335,8 @@ public abstract class PathSegment {
     }
     // TODO - fix this in the future to match array segments are part of the path
     // the current behavior to always return true when we hit an array may be useful in some cases,
-    // but we can get better performance in the JSON reader if we avoid reading unwanted elements in arrays
+    // but we can get better performance in the JSON reader if we avoid reading unwanted elements in
+    // arrays
     if (otherSeg.isArray() || this.isArray()) {
       return true;
     }

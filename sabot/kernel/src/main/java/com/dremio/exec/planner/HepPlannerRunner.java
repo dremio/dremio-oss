@@ -15,9 +15,16 @@
  */
 package com.dremio.exec.planner;
 
-import java.util.Map;
+import com.dremio.exec.planner.common.MoreRelOptUtil;
+import com.dremio.exec.planner.logical.ConstExecutor;
+import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.proto.UserBitShared.PlannerPhaseRulesStats;
+import com.dremio.options.OptionResolver;
+import com.google.common.base.Stopwatch;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCostFactory;
 import org.apache.calcite.plan.hep.HepMatchOrder;
@@ -27,16 +34,9 @@ import org.apache.calcite.tools.RuleSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.exec.planner.common.MoreRelOptUtil;
-import com.dremio.exec.planner.logical.ConstExecutor;
-import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.options.OptionResolver;
-import com.google.common.base.Stopwatch;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
-
 /**
- * Responsible for handling configuration, instrumentation and logging each execution of the {@link DremioHepPlanner}.
+ * Responsible for handling configuration, instrumentation and logging each execution of the {@link
+ * DremioHepPlanner}.
  */
 public class HepPlannerRunner {
   public static final Logger LOGGER = LoggerFactory.getLogger(HepPlannerRunner.class);
@@ -48,11 +48,12 @@ public class HepPlannerRunner {
 
   public HepPlannerRunner(
       PlannerSettings plannerSettings,
+      OptionResolver optionResolver,
       ConstExecutor constExecutor,
       RelOptCostFactory relOptCostFactory,
       PlannerStatsReporter plannerStatsReporter) {
     this.plannerSettings = plannerSettings;
-    this.optionResolver = plannerSettings.getOptions();
+    this.optionResolver = optionResolver;
     this.constExecutor = constExecutor;
     this.relOptCostFactory = relOptCostFactory;
     this.plannerStatsReporter = plannerStatsReporter;
@@ -68,22 +69,23 @@ public class HepPlannerRunner {
 
     hepPgmBldr.addMatchLimit(matchLimit);
 
-    MatchCountListener matchCountListener = new MatchCountListener(
-      MoreRelOptUtil.countRelNodes(relNode),
-      Iterables.size(hepPlannerRunnerConfig.getRuleSet()),
-      matchLimit,
-      verbose,
-      Thread.currentThread().getName());
+    MatchCountListener matchCountListener =
+        new MatchCountListener(
+            MoreRelOptUtil.countRelNodes(relNode),
+            Iterables.size(hepPlannerRunnerConfig.getRuleSet()),
+            matchLimit,
+            Thread.currentThread().getName());
 
     hepPgmBldr.addMatchOrder(hepPlannerRunnerConfig.getHepMatchOrder());
     hepPgmBldr.addRuleCollection(Lists.newArrayList(hepPlannerRunnerConfig.getRuleSet()));
 
-    final DremioHepPlanner hepPlanner = new DremioHepPlanner(
-      hepPgmBldr.build(),
-      plannerSettings,
-      relOptCostFactory,
-      hepPlannerRunnerConfig.getPlannerPhase(), // planner_phase
-      matchCountListener);
+    final DremioHepPlanner hepPlanner =
+        new DremioHepPlanner(
+            hepPgmBldr.build(),
+            plannerSettings,
+            relOptCostFactory,
+            hepPlannerRunnerConfig.getPlannerPhase(), // planner_phase
+            matchCountListener);
     hepPlanner.setExecutor(constExecutor);
 
     // Modify RelMetaProvider for every RelNode in the SQL operator Rel tree.
@@ -95,7 +97,7 @@ public class HepPlannerRunner {
 
     RelNode transformedRelNode = hepPlanner.findBestExp();
 
-    Map<String, Long> timeBreakdownPerRule = matchCountListener.getRuleToTotalTime();
+    List<PlannerPhaseRulesStats> rulesBreakdownStats = matchCountListener.getRulesBreakdownStats();
     long millisTaken = stopwatch.elapsed(TimeUnit.MILLISECONDS);
     if (verbose) {
       LOGGER.debug("Phase: {}", hepPlannerRunnerConfig.plannerPhase);
@@ -104,21 +106,14 @@ public class HepPlannerRunner {
     }
 
     plannerStatsReporter.report(
-        hepPlannerRunnerConfig,
-        millisTaken,
-        relNode,
-        transformedRelNode,
-        timeBreakdownPerRule);
+        hepPlannerRunnerConfig, millisTaken, relNode, transformedRelNode, rulesBreakdownStats);
     return transformedRelNode;
   }
-
 
   public static class HepPlannerRunnerConfig {
     private HepMatchOrder hepMatchOrder = HepMatchOrder.ARBITRARY;
     private PlannerPhase plannerPhase = null;
     private RuleSet ruleSet = null;
-    public boolean emitToReporter = true;
-
 
     public HepPlannerRunnerConfig getHepMatchOrder(HepMatchOrder hepMatchOrder) {
       this.hepMatchOrder = hepMatchOrder;
@@ -146,24 +141,15 @@ public class HepPlannerRunner {
       this.ruleSet = ruleSet;
       return this;
     }
-
-    public boolean isEmitToReporter() {
-      return emitToReporter;
-    }
-
-    public HepPlannerRunnerConfig setEmitToReporter(boolean emitToReporter) {
-      this.emitToReporter = emitToReporter;
-      return this;
-    }
   }
 
   @FunctionalInterface
   public interface PlannerStatsReporter {
     void report(
-      HepPlannerRunner.HepPlannerRunnerConfig config,
-      long millisTaken,
-      RelNode input,
-      RelNode output,
-      Map<String, Long> ruleToCount);
+        HepPlannerRunnerConfig config,
+        long millisTaken,
+        RelNode input,
+        RelNode output,
+        List<PlannerPhaseRulesStats> rulesBreakdownStats);
   }
 }

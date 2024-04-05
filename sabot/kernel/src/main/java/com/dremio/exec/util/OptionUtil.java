@@ -15,12 +15,10 @@
  */
 package com.dremio.exec.util;
 
-/**
-* Utils functions to derive options from ExecConstants
-*/
+/** Utils functions to derive options from ExecConstants */
 public final class OptionUtil {
 
-  private OptionUtil() { }
+  private OptionUtil() {}
 
   public static int getJobCountsAgeInDays(long configuredValue) {
     // Limiting to max of 30, as the job counts are stored for last 30days only in new approach.

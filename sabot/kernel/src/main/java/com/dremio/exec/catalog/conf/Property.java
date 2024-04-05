@@ -15,15 +15,11 @@
  */
 package com.dremio.exec.catalog.conf;
 
+import com.google.common.base.Objects;
+import io.protostuff.Tag;
 import javax.validation.constraints.NotBlank;
 
-import com.google.common.base.Objects;
-
-import io.protostuff.Tag;
-
-/**
- * A generic string property associated with a source.
- */
+/** A generic string property associated with a source. */
 public class Property {
 
   @NotBlank
@@ -34,7 +30,7 @@ public class Property {
   @Tag(2)
   public String value;
 
-  public Property() { }
+  public Property() {}
 
   public Property(String name, String value) {
     this.name = name;
@@ -43,10 +39,7 @@ public class Property {
 
   @Override
   public String toString() {
-    return "Property{" +
-      "name='" + name + '\'' +
-      ", value='" + value + '\'' +
-      '}';
+    return "Property{" + "name='" + name + '\'' + ", value='" + value + '\'' + '}';
   }
 
   @Override

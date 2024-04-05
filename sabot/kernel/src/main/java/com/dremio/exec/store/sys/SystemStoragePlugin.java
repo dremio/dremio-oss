@@ -15,12 +15,6 @@
  */
 package com.dremio.exec.store.sys;
 
-import java.util.List;
-import java.util.Optional;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
 import com.dremio.common.utils.PathUtils;
 import com.dremio.connector.metadata.BytesOutput;
 import com.dremio.connector.metadata.DatasetHandle;
@@ -52,14 +46,23 @@ import com.dremio.service.users.SystemUser;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
+import java.util.List;
+import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
-public class SystemStoragePlugin implements StoragePlugin, SupportsReadSignature, SupportsListingDatasets {
+public class SystemStoragePlugin
+    implements StoragePlugin, SupportsReadSignature, SupportsListingDatasets {
   public static final String NAME = "sys";
 
   private static final ImmutableMap<EntityPath, SystemTable> DATASET_MAP =
-      ImmutableMap.copyOf(Stream.of(SystemTable.values())
-          .collect(Collectors.toMap(systemTable -> canonicalize(systemTable.getDatasetPath()),
-              Function.identity())));
+      ImmutableMap.copyOf(
+          Stream.of(SystemTable.values())
+              .collect(
+                  Collectors.toMap(
+                      systemTable -> canonicalize(systemTable.getDatasetPath()),
+                      Function.identity())));
 
   private static final String JOBS_STORAGE_PLUGIN_NAME = "__jobResultsStore";
 
@@ -94,15 +97,25 @@ public class SystemStoragePlugin implements StoragePlugin, SupportsReadSignature
 
     final String jobId = Iterables.getLast(tableSchemaPath);
     final Optional<JobResultInfoProvider.JobResultInfo> jobResultInfo =
-      jobResultInfoProvider.getJobResultInfo(jobId, schemaConfig.getUserName());
+        jobResultInfoProvider.getJobResultInfo(jobId, schemaConfig.getUserName());
 
-    return jobResultInfo.map(info -> {
-      final View view = Views.fieldTypesToView(jobId, getJobResultsQuery(info.getResultDatasetPath()),
-        ViewFieldsHelper.getBatchSchemaFields(info.getBatchSchema()), null);
+    return jobResultInfo
+        .map(
+            info -> {
+              final View view =
+                  Views.fieldTypesToView(
+                      jobId,
+                      getJobResultsQuery(info.getResultDatasetPath()),
+                      ViewFieldsHelper.getBatchSchemaFields(info.getBatchSchema()),
+                      null);
 
-      return new ViewTable(new NamespaceKey(tableSchemaPath), view, CatalogUser.from(SystemUser.SYSTEM_USERNAME),
-        info.getBatchSchema());
-    }).orElse(null);
+              return new ViewTable(
+                  new NamespaceKey(tableSchemaPath),
+                  view,
+                  CatalogUser.from(SystemUser.SYSTEM_USERNAME),
+                  info.getBatchSchema());
+            })
+        .orElse(null);
   }
 
   private static String getJobResultsQuery(List<String> resultDatasetPath) {
@@ -120,12 +133,10 @@ public class SystemStoragePlugin implements StoragePlugin, SupportsReadSignature
   }
 
   @Override
-  public void start() {
-  }
+  public void start() {}
 
   @Override
-  public void close() {
-  }
+  public void close() {}
 
   @Override
   public DatasetHandleListing listDatasetHandles(GetDatasetOption... options) {
@@ -133,7 +144,8 @@ public class SystemStoragePlugin implements StoragePlugin, SupportsReadSignature
   }
 
   @Override
-  public Optional<DatasetHandle> getDatasetHandle(EntityPath datasetPath, GetDatasetOption... options) {
+  public Optional<DatasetHandle> getDatasetHandle(
+      EntityPath datasetPath, GetDatasetOption... options) {
     //noinspection unchecked
     return (Optional<DatasetHandle>) (Object) getDataset(datasetPath);
   }
@@ -142,13 +154,13 @@ public class SystemStoragePlugin implements StoragePlugin, SupportsReadSignature
   public DatasetMetadata getDatasetMetadata(
       DatasetHandle datasetHandle,
       PartitionChunkListing chunkListing,
-      GetMetadataOption... options
-  ) {
+      GetMetadataOption... options) {
     return datasetHandle.unwrap(SystemTable.class);
   }
 
   @Override
-  public PartitionChunkListing listPartitionChunks(DatasetHandle datasetHandle, ListPartitionChunkOption... options) {
+  public PartitionChunkListing listPartitionChunks(
+      DatasetHandle datasetHandle, ListPartitionChunkOption... options) {
     return datasetHandle.unwrap(SystemTable.class);
   }
 
@@ -167,8 +179,7 @@ public class SystemStoragePlugin implements StoragePlugin, SupportsReadSignature
       BytesOutput signature,
       DatasetHandle datasetHandle,
       DatasetMetadata metadata,
-      ValidateMetadataOption... options
-  ) {
+      ValidateMetadataOption... options) {
     // returning INVALID allows us to refresh system source to apply schema updates.
     // system source is only refreshed once when CatalogService starts up
     // and won't be refreshed again since its refresh policy is NEVER_REFRESH_POLICY.
@@ -176,7 +187,8 @@ public class SystemStoragePlugin implements StoragePlugin, SupportsReadSignature
   }
 
   private static EntityPath canonicalize(EntityPath entityPath) {
-    return new EntityPath(entityPath.getComponents().stream().map(String::toLowerCase).collect(Collectors.toList()));
+    return new EntityPath(
+        entityPath.getComponents().stream().map(String::toLowerCase).collect(Collectors.toList()));
   }
 
   public static Optional<SystemTable> getDataset(EntityPath datasetPath) {

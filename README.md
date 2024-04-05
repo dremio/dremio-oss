@@ -19,7 +19,7 @@ Documentation is available at https://docs.dremio.com.
 ### (a) Prerequisites
 
 * JDK 11 ([OpenJDK](https://adoptium.net/temurin/releases/) or Oracle) as the default JDK (`JAVA_HOME` set to it)
-* JDK 8 ([OpenJDK](https://adoptium.net/temurin/releases/) or Oracle) in Maven toolchain, required to run certain integration tests
+* JDK 17 ([OpenJDK](https://adoptium.net/temurin/releases/) or Oracle) in Maven toolchain, required to run certain integration tests
 * (Optional) Maven 3.9.3 or later (using Homebrew: `brew install maven`)
 
 Run the following commands to verify that you have the correct versions of Maven and JDK installed:
@@ -27,21 +27,11 @@ Run the following commands to verify that you have the correct versions of Maven
     java -version
     mvn --version
 
-Add JDK 8 to the Maven toolchain, easiest to use `${HOME}/.m2/toolchains.xml`. Example:
+Add JDK 17 to the Maven toolchain, easiest to use `${HOME}/.m2/toolchains.xml`. Example:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <toolchains>
-  <toolchain>
-    <type>jdk</type>
-    <provides>
-      <version>1.8</version>
-      <vendor>sun</vendor>
-    </provides>
-    <configuration>
-      <jdkHome>FULL_PATH_TO_YOUR_JAVA_8_HOME</jdkHome>
-    </configuration>
-  </toolchain>
   <toolchain>
     <type>jdk</type>
     <provides>
@@ -50,6 +40,16 @@ Add JDK 8 to the Maven toolchain, easiest to use `${HOME}/.m2/toolchains.xml`. E
     </provides>
     <configuration>
       <jdkHome>FULL_PATH_TO_YOUR_JAVA_11_HOME</jdkHome>
+    </configuration>
+  </toolchain>
+  <toolchain>
+    <type>jdk</type>
+    <provides>
+      <version>17</version>
+      <vendor>sun</vendor>
+    </provides>
+    <configuration>
+      <jdkHome>FULL_PATH_TO_YOUR_JAVA_17_HOME</jdkHome>
     </configuration>
   </toolchain>
 </toolchains>

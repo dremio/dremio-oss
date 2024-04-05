@@ -20,9 +20,9 @@ import java.util.Optional;
 /**
  * A variable in the VSCode Snippet:
  *
- * https://code.visualstudio.com/docs/editor/userdefinedsnippets#_variables
+ * <p>https://code.visualstudio.com/docs/editor/userdefinedsnippets#_variables
  *
- * variable    ::= '$' var
+ * <p>variable ::= '$' var
  */
 public final class Variable extends SnippetElement {
   private final Type type;

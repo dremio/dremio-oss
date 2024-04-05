@@ -20,7 +20,7 @@ import { appFetch } from "dremio-ui-common/utilities/appFetch.js";
 
 const ctx = {
   fetch: (input: RequestInfo | URL, init: RequestInit = {}) => {
-    const sessionIdentifier = getSessionContext().getSessionIdentifier();
+    const sessionIdentifier = getSessionContext().getSessionIdentifier?.();
     if (!sessionIdentifier) {
       getSessionContext().handleInvalidSession();
       return new Promise(() => {});
@@ -29,7 +29,9 @@ const ctx = {
     return appFetch(input, {
       ...init,
       headers: {
-        Authorization: `Bearer ${sessionIdentifier}`,
+        ...(sessionIdentifier && {
+          Authorization: `Bearer ${sessionIdentifier}`,
+        }),
         ...init.headers,
       },
     });

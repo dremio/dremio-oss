@@ -17,6 +17,14 @@ package com.dremio.dac.explore.bi;
 
 import static com.dremio.dac.server.WebServer.MediaType.TEXT_PLAIN_QLIK_APP;
 
+import com.dremio.dac.annotations.RestResource;
+import com.dremio.dac.annotations.Secured;
+import com.dremio.dac.resource.BaseBIToolResource;
+import com.dremio.dac.service.errors.DatasetNotFoundException;
+import com.dremio.exec.catalog.DatasetCatalog;
+import com.dremio.exec.server.options.ProjectOptionManager;
+import com.dremio.options.Options;
+import com.dremio.options.TypeValidators;
 import javax.annotation.security.RolesAllowed;
 import javax.inject.Inject;
 import javax.ws.rs.GET;
@@ -28,19 +36,7 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.Response;
 
-import com.dremio.dac.annotations.RestResource;
-import com.dremio.dac.annotations.Secured;
-import com.dremio.dac.resource.BaseBIToolResource;
-import com.dremio.dac.service.errors.DatasetNotFoundException;
-import com.dremio.exec.catalog.DatasetCatalog;
-import com.dremio.exec.server.options.ProjectOptionManager;
-import com.dremio.options.Options;
-import com.dremio.options.TypeValidators;
-
-/**
- * Resource to create qlik load script for a given dataset
- *
- */
+/** Resource to create qlik load script for a given dataset */
 @RestResource
 @Secured
 @RolesAllowed({"admin", "user"})
@@ -48,26 +44,27 @@ import com.dremio.options.TypeValidators;
 @Options
 public class QlikResource extends BaseBIToolResource {
   // Special option for enabling the Qlik endpoint.
-  public static final TypeValidators.BooleanValidator CLIENT_TOOLS_QLIK
-    = new TypeValidators.BooleanValidator("client.tools.qlik", false);
-  public static final TypeValidators.BooleanValidator ALLOW_QLIK
-    = new TypeValidators.BooleanValidator("support.dac.qlik", false);
+  public static final TypeValidators.BooleanValidator CLIENT_TOOLS_QLIK =
+      new TypeValidators.BooleanValidator("client.tools.qlik", false);
+  public static final TypeValidators.BooleanValidator ALLOW_QLIK =
+      new TypeValidators.BooleanValidator("support.dac.qlik", false);
 
   private final ProjectOptionManager optionManager;
 
   @Inject
   public QlikResource(
-    ProjectOptionManager optionManager,
-    DatasetCatalog datasetCatalog,
-    @PathParam("path") String path,
-    @QueryParam("refType") String refType,
-    @QueryParam("refValue") String refValue) {
+      ProjectOptionManager optionManager,
+      DatasetCatalog datasetCatalog,
+      @PathParam("path") String path,
+      @QueryParam("refType") String refType,
+      @QueryParam("refValue") String refValue) {
     super(optionManager, datasetCatalog, path, refType, refValue);
     this.optionManager = optionManager;
   }
 
   /**
    * returns a Qlik load script for the dataset
+   *
    * @return
    * @throws DatasetNotFoundException
    */

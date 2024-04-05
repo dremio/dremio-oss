@@ -15,11 +15,19 @@
  */
 package com.dremio.exec.planner.sql.handlers;
 
+import com.dremio.exec.calcite.logical.JdbcCrel;
+import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.planner.PlannerPhase;
+import com.dremio.exec.planner.PlannerType;
+import com.dremio.exec.planner.StatelessRelShuttleImpl;
+import com.dremio.exec.planner.common.JdbcRelImpl;
+import com.dremio.exec.planner.common.ScanRelBase;
+import com.dremio.exec.planner.physical.DistributionTrait;
+import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelCollations;
 import org.apache.calcite.rel.RelNode;
@@ -30,28 +38,18 @@ import org.apache.calcite.rex.RexShuttle;
 import org.apache.calcite.rex.RexSubQuery;
 import org.apache.calcite.sql2rel.SqlToRelConverter;
 
-import com.dremio.exec.calcite.logical.JdbcCrel;
-import com.dremio.exec.catalog.StoragePluginId;
-import com.dremio.exec.planner.PlannerPhase;
-import com.dremio.exec.planner.PlannerType;
-import com.dremio.exec.planner.StatelessRelShuttleImpl;
-import com.dremio.exec.planner.common.JdbcRelImpl;
-import com.dremio.exec.planner.common.ScanRelBase;
-import com.dremio.exec.planner.physical.DistributionTrait;
-import com.dremio.service.namespace.capabilities.SourceCapabilities;
-
 public final class RexSubQueryUtils {
 
   private RexSubQueryUtils() {}
 
-  public static boolean containsSubQuery (RelNode relNode) {
+  public static boolean containsSubQuery(RelNode relNode) {
     RexSubQueryFinder rexSubQueryFinder = new RexSubQueryFinder();
     relNode.accept(rexSubQueryFinder);
-    if(rexSubQueryFinder.foundRexSubQuery) {
+    if (rexSubQueryFinder.foundRexSubQuery) {
       return true;
     }
-    for(RelNode sub: relNode.getInputs()) {
-      if(containsSubQuery(sub)){
+    for (RelNode sub : relNode.getInputs()) {
+      if (containsSubQuery(sub)) {
         return true;
       }
     }
@@ -64,7 +62,8 @@ public final class RexSubQueryUtils {
     return mapping;
   }
 
-  private static void fillCorrelateVariableMap(Map<RelNode, Set<RexFieldAccess>> mapping, RelNode node) {
+  private static void fillCorrelateVariableMap(
+      Map<RelNode, Set<RexFieldAccess>> mapping, RelNode node) {
     Set<RexFieldAccess> correlatedVariables = new HashSet<>();
     for (RelNode child : node.getInputs()) {
       fillCorrelateVariableMap(mapping, child);
@@ -132,9 +131,7 @@ public final class RexSubQueryUtils {
     }
   }
 
-  /**
-   * Calls the DefaultSqlHandler's transform() on each RexSubQuery's subtree.
-   */
+  /** Calls the DefaultSqlHandler's transform() on each RexSubQuery's subtree. */
   public static class RexSubQueryTransformer extends RexShuttle {
 
     private final SqlHandlerConfig config;
@@ -157,10 +154,18 @@ public final class RexSubQueryUtils {
     public RexNode visitSubQuery(RexSubQuery subQuery) {
       RelNode transformed;
       try {
-        transformed = PlannerUtil.transform(config, PlannerType.HEP_AC, PlannerPhase.JDBC_PUSHDOWN, subQuery.rel, traitSet, false);
+        transformed =
+            PlannerUtil.transform(
+                config,
+                PlannerType.HEP_AC,
+                PlannerPhase.JDBC_PUSHDOWN,
+                subQuery.rel,
+                traitSet,
+                false);
 
         // We may need to run the planner again on the sub-queries in the sub-tree this produced.
-        final RelsWithRexSubQueryTransformer nestedSubqueryTransformer = new RelsWithRexSubQueryTransformer(config);
+        final RelsWithRexSubQueryTransformer nestedSubqueryTransformer =
+            new RelsWithRexSubQueryTransformer(config);
         transformed = transformed.accept(nestedSubqueryTransformer);
         if (!(transformed instanceof JdbcCrel) || nestedSubqueryTransformer.failed()) {
           failed = true;
@@ -175,7 +180,8 @@ public final class RexSubQueryUtils {
   }
 
   /**
-   * Transforms a RelNode with RexSubQuery into JDBC convention.  Does so by using {@link RexSubQueryTransformer}.
+   * Transforms a RelNode with RexSubQuery into JDBC convention. Does so by using {@link
+   * RexSubQueryTransformer}.
    */
   public static class RelsWithRexSubQueryTransformer extends StatelessRelShuttleImpl {
 
@@ -193,16 +199,15 @@ public final class RexSubQueryUtils {
     protected RelNode visitChild(RelNode parent, int i, RelNode child) {
       RelNode newParent = parent;
       if (parent instanceof JdbcRelImpl) {
-        transformer.setTraitSet(parent.getTraitSet().plus(DistributionTrait.ANY).plus(RelCollations.EMPTY));
+        transformer.setTraitSet(
+            parent.getTraitSet().plus(DistributionTrait.ANY).plus(RelCollations.EMPTY));
         newParent = parent.accept(transformer);
       }
       return super.visitChild(newParent, i, newParent.getInput(i));
     }
   }
 
-  /**
-   * Calls the sqlToRelConverter's flattenTypes on each RexSubQuery's subtree.
-   */
+  /** Calls the sqlToRelConverter's flattenTypes on each RexSubQuery's subtree. */
   public static class RexSubQueryFlattener extends RexShuttle {
 
     private final SqlToRelConverter converter;
@@ -214,13 +219,15 @@ public final class RexSubQueryUtils {
     @Override
     public RexNode visitSubQuery(RexSubQuery subQuery) {
       final RelNode transformed = converter.flattenTypes(subQuery.rel, true);
-      final RelNode transformed2 = transformed.accept(new RelsWithRexSubQueryFlattener(converter)); //todo
+      final RelNode transformed2 =
+          transformed.accept(new RelsWithRexSubQueryFlattener(converter)); // todo
       return subQuery.clone(transformed2);
     }
   }
 
   /**
-   * Transforms a RelNode with RexSubQuery into JDBC convention.  Does so by using {@link RexSubQueryTransformer}.
+   * Transforms a RelNode with RexSubQuery into JDBC convention. Does so by using {@link
+   * RexSubQueryTransformer}.
    */
   public static class RelsWithRexSubQueryFlattener extends StatelessRelShuttleImpl {
 
@@ -237,10 +244,7 @@ public final class RexSubQueryUtils {
     }
   }
 
-
-  /**
-   * Finds relnodes that are not of JDBC convention that have RexSubQuery rexnodes
-   */
+  /** Finds relnodes that are not of JDBC convention that have RexSubQuery rexnodes */
   public static class FindNonJdbcConventionRexSubQuery {
 
     public boolean visit(final RelNode node) {
@@ -264,9 +268,7 @@ public final class RexSubQueryUtils {
     }
   }
 
-  /**
-   * Checks that the subquery is of JDBC convention.
-   */
+  /** Checks that the subquery is of JDBC convention. */
   public static class RexSubQueryPluginIdChecker extends RexShuttle {
     private StoragePluginId pluginId;
     private boolean canPushdownRexSubQuery = true;
@@ -285,7 +287,8 @@ public final class RexSubQueryUtils {
 
     @Override
     public RexNode visitSubQuery(RexSubQuery subQuery) {
-      RexSubQueryUtils.RexSubQueryPushdownChecker checker = new RexSubQueryUtils.RexSubQueryPushdownChecker(pluginId);
+      RexSubQueryUtils.RexSubQueryPushdownChecker checker =
+          new RexSubQueryUtils.RexSubQueryPushdownChecker(pluginId);
       checker.visit(subQuery.rel);
 
       if (!checker.canPushdownRexSubQuery()) {
@@ -300,15 +303,13 @@ public final class RexSubQueryUtils {
     }
   }
 
-
-
   /**
    * Checks for RexSubQuery rexnodes in the tree, and if there are any, ensures that the underlying
-   * table scans for these RexSubQuery nodes all either share one pluginId or have a null pluginId, and that the
-   * single unique Plugin ID is from a JDBC data source.
+   * table scans for these RexSubQuery nodes all either share one pluginId or have a null pluginId,
+   * and that the single unique Plugin ID is from a JDBC data source.
    *
-   * Two different non-null pluginIds indicate that the table scans are from different databases and thus the
-   * subquery cannot be pushed down.
+   * <p>Two different non-null pluginIds indicate that the table scans are from different databases
+   * and thus the subquery cannot be pushed down.
    */
   public static class RexSubQueryPushdownChecker {
 
@@ -333,8 +334,8 @@ public final class RexSubQueryUtils {
     }
 
     /**
-     * Inspect the sub-tree starting at this node to see if there is at most one non-null
-     * pluginId, and that pluginId supports subquery pushdown.
+     * Inspect the sub-tree starting at this node to see if there is at most one non-null pluginId,
+     * and that pluginId supports subquery pushdown.
      *
      * @param node The node to start visiting from.
      * @return True if the given node can be pushed down if it's in a sub-query.
@@ -357,16 +358,18 @@ public final class RexSubQueryUtils {
         return canPushdownRexSubQuery;
       }
 
-      if (subQueryFinder.foundCorrelVariable &&
-        !pluginId.getCapabilities().getCapability(SourceCapabilities.CORRELATED_SUBQUERY_PUSHDOWN)) {
-          return false;
+      if (subQueryFinder.foundCorrelVariable
+          && !pluginId
+              .getCapabilities()
+              .getCapability(SourceCapabilities.CORRELATED_SUBQUERY_PUSHDOWN)) {
+        return false;
       }
 
       foundRexSubQuery = true;
 
-
       // Check that the subquery has the same pluginId as well!
-      final RexSubQueryPluginIdChecker subQueryConventionChecker = new RexSubQueryPluginIdChecker(pluginId);
+      final RexSubQueryPluginIdChecker subQueryConventionChecker =
+          new RexSubQueryPluginIdChecker(pluginId);
       node.accept(subQueryConventionChecker);
       if (!subQueryConventionChecker.canPushdownRexSubQuery()) {
         canPushdownRexSubQuery = false;
@@ -377,8 +380,8 @@ public final class RexSubQueryUtils {
     }
 
     /**
-     * Checks if the given pluginId would allow for sub-query pushdown within the context
-     * of this tree.
+     * Checks if the given pluginId would allow for sub-query pushdown within the context of this
+     * tree.
      *
      * @param pluginId The pluginId to verify.
      * @return True if the pluginId would allow for sub-query pushdown.
@@ -398,8 +401,7 @@ public final class RexSubQueryUtils {
         }
       }
 
-      if (pluginId == null ||
-        pluginId.equals(this.pluginId)) {
+      if (pluginId == null || pluginId.equals(this.pluginId)) {
         return true;
       }
 

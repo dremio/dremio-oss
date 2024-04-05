@@ -15,9 +15,6 @@
  */
 package com.dremio.exec.expr.fn;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.Describer;
 import com.dremio.common.expression.FunctionCall;
@@ -32,6 +29,8 @@ import com.dremio.exec.expr.ClassGenerator.HoldingContainer;
 import com.dremio.exec.expr.ClassProducer;
 import com.dremio.exec.expr.HoldingContainerExpression;
 import com.google.common.collect.Lists;
+import java.util.ArrayList;
+import java.util.List;
 
 public final class FunctionGenerationHelper {
   private FunctionGenerationHelper() {
@@ -42,57 +41,55 @@ public final class FunctionGenerationHelper {
   public static final String COMPARE_TO_NULLS_LOW = "compare_to_nulls_low";
 
   /**
-   * Finds ordering comparator ("compare_to...") FunctionHolderExpression with
-   * a specified ordering for NULL (and considering NULLS <i>equal</i>).
-   * @param  null_high  whether NULL should compare as the lowest value (if
-   *                    {@code false}) or the highest value (if {@code true})
-   * @param  left  ...
-   * @param  right  ...
-   * @param  registry  ...
-   * @return
-   *     FunctionHolderExpression containing the found function implementation
+   * Finds ordering comparator ("compare_to...") FunctionHolderExpression with a specified ordering
+   * for NULL (and considering NULLS <i>equal</i>).
+   *
+   * @param null_high whether NULL should compare as the lowest value (if {@code false}) or the
+   *     highest value (if {@code true})
+   * @param left ...
+   * @param right ...
+   * @param registry ...
+   * @return FunctionHolderExpression containing the found function implementation
    */
   public static LogicalExpression getOrderingComparator(
-      boolean null_high,
-      HoldingContainer left,
-      HoldingContainer right,
-      ClassProducer producer) {
-    final String comparatorName =
-        null_high ? COMPARE_TO_NULLS_HIGH : COMPARE_TO_NULLS_LOW;
+      boolean null_high, HoldingContainer left, HoldingContainer right, ClassProducer producer) {
+    final String comparatorName = null_high ? COMPARE_TO_NULLS_HIGH : COMPARE_TO_NULLS_LOW;
 
-    if (!left.getCompleteType().isComparable() || ! right.getCompleteType().isComparable()){
-      throw new UnsupportedOperationException(formatCanNotCompareMsg(left.getCompleteType(), right.getCompleteType()));
+    if (!left.getCompleteType().isComparable() || !right.getCompleteType().isComparable()) {
+      throw new UnsupportedOperationException(
+          formatCanNotCompareMsg(left.getCompleteType(), right.getCompleteType()));
     }
-    LogicalExpression comparisonFunctionExpression = getFunctionExpression(comparatorName, Types.required(MinorType.INT),
-                                 left, right);
+    LogicalExpression comparisonFunctionExpression =
+        getFunctionExpression(comparatorName, Types.required(MinorType.INT), left, right);
 
     if (!left.getCompleteType().isUnion() && !right.getCompleteType().isUnion()) {
       return producer.materialize(comparisonFunctionExpression, null);
     } else {
-      LogicalExpression typeComparisonFunctionExpression = getTypeComparisonFunction(comparisonFunctionExpression, left, right);
+      LogicalExpression typeComparisonFunctionExpression =
+          getTypeComparisonFunction(comparisonFunctionExpression, left, right);
       return producer.materialize(typeComparisonFunctionExpression, null);
     }
   }
 
   /**
-   * Finds ordering comparator ("compare_to...") FunctionHolderExpression with
-   * a "NULL high" ordering (and considering NULLS <i>equal</i>).
-   * @param  left  ...
-   * @param  right  ...
-   * @param  registry  ...
+   * Finds ordering comparator ("compare_to...") FunctionHolderExpression with a "NULL high"
+   * ordering (and considering NULLS <i>equal</i>).
+   *
+   * @param left ...
+   * @param right ...
+   * @param registry ...
    * @return FunctionHolderExpression containing the function implementation
    */
   public static LogicalExpression getOrderingComparatorNullsHigh(
-      HoldingContainer left,
-      HoldingContainer right,
-      ClassProducer producer) {
+      HoldingContainer left, HoldingContainer right, ClassProducer producer) {
     return getOrderingComparator(true, left, right, producer);
   }
 
-  private static LogicalExpression getFunctionExpression(String name, MajorType returnType, HoldingContainer... args) {
+  private static LogicalExpression getFunctionExpression(
+      String name, MajorType returnType, HoldingContainer... args) {
     List<CompleteType> argTypes = new ArrayList<>(args.length);
     List<LogicalExpression> argExpressions = new ArrayList<LogicalExpression>(args.length);
-    for(HoldingContainer c : args) {
+    for (HoldingContainer c : args) {
       argTypes.add(c.getCompleteType());
       argExpressions.add(new HoldingContainerExpression(c));
     }
@@ -101,17 +98,18 @@ public final class FunctionGenerationHelper {
   }
 
   /**
-   * Wraps the comparison function in an If-statement which compares the types first, evaluating the comaprison function only
-   * if the types are equivialent
+   * Wraps the comparison function in an If-statement which compares the types first, evaluating the
+   * comaprison function only if the types are equivialent
    *
    * @param comparisonFunction
    * @param args
    * @return
    */
-  private static LogicalExpression getTypeComparisonFunction(LogicalExpression comparisonFunction, HoldingContainer... args) {
+  private static LogicalExpression getTypeComparisonFunction(
+      LogicalExpression comparisonFunction, HoldingContainer... args) {
     List<LogicalExpression> argExpressions = Lists.newArrayList();
     List<CompleteType> argTypes = Lists.newArrayList();
-    for(HoldingContainer c : args) {
+    for (HoldingContainer c : args) {
       argTypes.add(c.getCompleteType());
       argExpressions.add(new HoldingContainerExpression(c));
     }
@@ -123,13 +121,15 @@ public final class FunctionGenerationHelper {
     FunctionCall notEqual = new FunctionCall("not_equal", newArgs);
 
     IfExpression.IfCondition ifCondition = new IfCondition(notEqual, call);
-    IfExpression ifExpression = IfExpression.newBuilder().setIfCondition(ifCondition).setElse(comparisonFunction).build();
+    IfExpression ifExpression =
+        IfExpression.newBuilder().setIfCondition(ifCondition).setElse(comparisonFunction).build();
     return ifExpression;
   }
 
   private static String formatCanNotCompareMsg(CompleteType left, CompleteType right) {
     StringBuilder sb = new StringBuilder();
-    sb.append("Map, List and Union should not be used in group by, order by or in a comparison operator. Dremio does not support compare between ");
+    sb.append(
+        "Map, List and Union should not be used in group by, order by or in a comparison operator. Dremio does not support compare between ");
     sb.append(Describer.describe(left));
     sb.append(" and ");
     sb.append(Describer.describe(left));
@@ -137,5 +137,4 @@ public final class FunctionGenerationHelper {
 
     return sb.toString();
   }
-
 }

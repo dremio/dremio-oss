@@ -102,7 +102,20 @@ SqlNode SqlGrantPrivilege(SqlParserPos pos) :
         entity = CompoundIdentifier();
       }
       |
-      (<FOLDER> | <SCHEMA>) {
+      (
+        <FOLDER> {
+          grant = new SqlGrant.Grant(SqlLiteral.createSymbol(SqlGrant.GrantType.FOLDER, getPos()));
+          entity = CompoundIdentifier();
+        }
+        [
+          <AT> {
+            refType = ParseReferenceType();
+            refValue = SimpleIdentifier();
+          }
+        ]
+      )
+      |
+      <SCHEMA> {
         grant = new SqlGrant.Grant(SqlLiteral.createSymbol(SqlGrant.GrantType.FOLDER, getPos()));
         entity = CompoundIdentifier();
       }
@@ -124,7 +137,7 @@ SqlNode SqlGrantPrivilege(SqlParserPos pos) :
         isGrantOnCatalog = false;
       }
       |
-     <CATALOG> {
+      <CATALOG> {
         grantCatalog = new SqlGrantCatalog.Grant(SqlLiteral.createSymbol(SqlGrantCatalog.GrantType.CATALOG, getPos()));
         entity = SimpleIdentifier();
         isGrantCatalog = true;
@@ -292,6 +305,9 @@ void Privilege(List<SqlNode> list) :
     <SELECT>
     { list.add(SqlLiteral.createSymbol(SqlGrant.Privilege.SELECT, getPos())); }
     |
+    <READ> <METADATA>
+    { list.add(SqlLiteral.createSymbol(SqlGrant.Privilege.READ_METADATA, getPos())); }
+    |
     <VIEW> <REFLECTION>
     { list.add(SqlLiteral.createSymbol(SqlGrant.Privilege.VIEW_REFLECTION, getPos())); }
     |
@@ -306,6 +322,12 @@ void Privilege(List<SqlNode> list) :
     |
     <CREATE> <TABLE>
     { list.add(SqlLiteral.createSymbol(SqlGrant.Privilege.CREATE_TABLE, getPos())); }
+    |
+    <CREATE> <VIEW>
+    { list.add(SqlLiteral.createSymbol(SqlGrant.Privilege.CREATE_VIEW, getPos())); }
+    |
+    <CREATE> <FOLDER>
+    { list.add(SqlLiteral.createSymbol(SqlGrant.Privilege.CREATE_FOLDER, getPos())); }
     |
     <DROP>
     { list.add(SqlLiteral.createSymbol(SqlGrant.Privilege.DROP, getPos())); }
@@ -449,7 +471,20 @@ SqlNode SqlRevoke() :
         entity = CompoundIdentifier();
       }
       |
-      (<FOLDER> | <SCHEMA>) {
+      (
+        <FOLDER> {
+          grant = new SqlGrant.Grant(SqlLiteral.createSymbol(SqlGrant.GrantType.FOLDER, getPos()));
+          entity = CompoundIdentifier();
+        }
+        [
+          <AT> {
+            refType = ParseReferenceType();
+            refValue = SimpleIdentifier();
+          }
+        ]
+      )
+      |
+      <SCHEMA> {
         grant = new SqlGrant.Grant(SqlLiteral.createSymbol(SqlGrant.GrantType.FOLDER, getPos()));
         entity = CompoundIdentifier();
       }

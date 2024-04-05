@@ -25,6 +25,7 @@ import { ScriptsResource } from "../../scripts/resources/ScriptsResource";
 import { SQLRunnerSession } from "../SqlRunnerSession.type";
 import { sqlRunnerSessionLogger } from "../sqlRunnerSessionLogger";
 import { BadRequestError } from "../../../errors/BadRequestError";
+import { closeSqlRunnerSessionTabs } from "../endpoints/closeSqlRunnerSessionTabs";
 
 export const $SqlRunnerSession = createOptimisticResource(
   new SmartResource(async () => {
@@ -37,12 +38,12 @@ export const $SqlRunnerSession = createOptimisticResource(
 
     await newTab();
     return getSqlRunnerSession();
-  })
+  }),
 );
 
 const nextSelectedTab = (
   state: SQLRunnerSession,
-  closingTabId: SQLRunnerSession["currentScriptId"]
+  closingTabId: SQLRunnerSession["currentScriptId"],
 ): SQLRunnerSession["currentScriptId"] => {
   // Don't change selected tab if it's not the one being closed
   if (state.currentScriptId !== closingTabId) {
@@ -63,6 +64,50 @@ const nextSelectedTab = (
 
   // Otherwise return the last scriptId
   return state.scriptIds.at(-1)!;
+};
+
+// Get the new script ID after other SQLRunnerSession state has changed
+const updateCurrentScript = (state: SQLRunnerSession): SQLRunnerSession => {
+  // Don't change selected tab if it's still in the open tabs list
+  if (state.scriptIds.includes(state.currentScriptId)) {
+    return state;
+  }
+
+  // Return the last scriptId in the list
+  return {
+    ...state,
+    currentScriptId: state.scriptIds.at(-1)!,
+  };
+};
+
+export const closeTabs = async (ids: string[]) => {
+  sqlRunnerSessionLogger.debug(`Closing tab ids`, ids);
+
+  const simulateUpdatedState = (state: SQLRunnerSession) =>
+    updateCurrentScript({
+      ...state,
+      scriptIds: state.scriptIds.filter((scriptId) => !ids.includes(scriptId)),
+    });
+
+  const removeUpdate =
+    $SqlRunnerSession.addOptimisticUpdate(simulateUpdatedState);
+
+  try {
+    await closeSqlRunnerSessionTabs(ids);
+
+    // Merge the updated state
+    if (!$SqlRunnerSession.$source.value) {
+      await $SqlRunnerSession.resource.fetch();
+    } else {
+      $SqlRunnerSession.$source.next(
+        simulateUpdatedState($SqlRunnerSession.$source.value),
+      );
+    }
+  } catch (e) {
+    // TODO: show error
+  } finally {
+    removeUpdate();
+  }
 };
 
 export const closeTab = async (id: string) => {
@@ -86,7 +131,7 @@ export const closeTab = async (id: string) => {
       await $SqlRunnerSession.resource.fetch();
     } else {
       $SqlRunnerSession.$source.next(
-        simulateUpdatedState($SqlRunnerSession.$source.value)
+        simulateUpdatedState($SqlRunnerSession.$source.value),
       );
     }
   } catch (e) {
@@ -103,7 +148,7 @@ export const selectTab = async (id: string) => {
     id === $SqlRunnerSession.$merged.value.currentScriptId
   ) {
     sqlRunnerSessionLogger.debug(
-      `Tried to selectTab on a tab that's already selected: tab ${id}`
+      `Tried to selectTab on a tab that's already selected: tab ${id}`,
     );
     return;
   }
@@ -138,7 +183,7 @@ export const newTab = async () => {
   const id = uuidv4();
 
   sqlRunnerSessionLogger.debug(
-    `Rendering and selecting fake / temporary tab with id: ${id}`
+    `Rendering and selecting fake / temporary tab with id: ${id}`,
   );
 
   // Render a fake pending tab while we create the script and update the session in the background
@@ -171,13 +216,13 @@ export const newTab = async () => {
 };
 
 export const newPopulatedTab = async (
-  newScript: Omit<NewScript, "name"> | NewScript
+  newScript: Omit<NewScript, "name"> | NewScript,
 ) => {
   // Fake/temporary ID that we use to render a pending tab
   const id = uuidv4();
 
   sqlRunnerSessionLogger.debug(
-    `Rendering and selecting fake / temporary tab with id: ${id}`
+    `Rendering and selecting fake / temporary tab with id: ${id}`,
   );
 
   // Render a fake pending tab while we create the script and update the session in the background
@@ -209,7 +254,7 @@ export const newPopulatedTab = async (
     if (
       e instanceof BadRequestError &&
       e.responseBody.errorMessage.includes(
-        "Maximum scripts limit per user is reached."
+        "Maximum scripts limit per user is reached.",
       )
     ) {
       throw new BadRequestError(e.res, {

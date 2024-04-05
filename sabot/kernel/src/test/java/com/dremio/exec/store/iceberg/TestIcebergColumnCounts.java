@@ -17,12 +17,6 @@ package com.dremio.exec.store.iceberg;
 
 import static org.junit.Assert.assertEquals;
 
-import java.io.File;
-import java.util.List;
-
-import org.apache.commons.io.FileUtils;
-import org.junit.Test;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.connector.metadata.DatasetSplit;
 import com.dremio.connector.metadata.PartitionChunk;
@@ -31,6 +25,10 @@ import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf.ColumnValueCoun
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf.ParquetDatasetSplitXAttr;
 import com.dremio.service.namespace.MetadataProtoUtils;
 import com.google.common.collect.ImmutableList;
+import java.io.File;
+import java.util.List;
+import org.apache.commons.io.FileUtils;
+import org.junit.Test;
 
 public class TestIcebergColumnCounts extends BaseTestQuery {
 
@@ -39,25 +37,28 @@ public class TestIcebergColumnCounts extends BaseTestQuery {
     final String tableName = "column_counts";
     try (AutoCloseable ac = enableIcebergTables()) {
       final String ctasQuery =
-        String.format(
-          "CREATE TABLE %s.%s  "
-            + " AS SELECT * from cp.\"parquet/null_test_data.json\"",
-          TEMP_SCHEMA_HADOOP,
-          tableName);
+          String.format(
+              "CREATE TABLE %s.%s  " + " AS SELECT * from cp.\"parquet/null_test_data.json\"",
+              TEMP_SCHEMA_HADOOP, tableName);
 
       test(ctasQuery);
 
       File tableFolder = new File(getDfsTestTmpSchemaLocation(), tableName);
-      IcebergTableWrapper tableWrapper = new IcebergTableWrapper(getSabotContext(), localFs,
-        getIcebergModel(TEMP_SCHEMA_HADOOP), tableFolder.toPath().toString());
+      IcebergTableWrapper tableWrapper =
+          new IcebergTableWrapper(
+              getSabotContext(),
+              localFs,
+              getIcebergModel(TEMP_SCHEMA_HADOOP),
+              tableFolder.toPath().toString());
 
-      List<PartitionChunk> chunks = ImmutableList.copyOf(
-        tableWrapper.getTableInfo().getPartitionChunkListing().iterator());
+      List<PartitionChunk> chunks =
+          ImmutableList.copyOf(tableWrapper.getTableInfo().getPartitionChunkListing().iterator());
       assertEquals(1, chunks.size());
 
       DatasetSplit split = chunks.get(0).getSplits().iterator().next();
-      ParquetDatasetSplitXAttr xattr = LegacyProtobufSerializer
-        .parseFrom(ParquetDatasetSplitXAttr.PARSER, MetadataProtoUtils.toProtobuf(split.getExtraInfo()));
+      ParquetDatasetSplitXAttr xattr =
+          LegacyProtobufSerializer.parseFrom(
+              ParquetDatasetSplitXAttr.PARSER, MetadataProtoUtils.toProtobuf(split.getExtraInfo()));
       assertEquals(2, xattr.getColumnValueCountsCount());
 
       // both the columns have null values.
@@ -75,33 +76,36 @@ public class TestIcebergColumnCounts extends BaseTestQuery {
 
     try (AutoCloseable ac = enableIcebergTables()) {
       final String ctasQuery =
-        String.format(
-          "CREATE TABLE %s.%s "
-            + " AS SELECT * from cp.\"complex_student.json\"",
-          TEMP_SCHEMA_HADOOP,
-          tableName);
+          String.format(
+              "CREATE TABLE %s.%s " + " AS SELECT * from cp.\"complex_student.json\"",
+              TEMP_SCHEMA_HADOOP, tableName);
 
       test(ctasQuery);
 
       testBuilder()
-        .sqlQuery(String.format("select count(*) c from %s.%s", TEMP_SCHEMA_HADOOP, tableName))
-        .unOrdered()
-        .baselineColumns("c")
-        .baselineValues(10L)
-        .build()
-        .run();
+          .sqlQuery(String.format("select count(*) c from %s.%s", TEMP_SCHEMA_HADOOP, tableName))
+          .unOrdered()
+          .baselineColumns("c")
+          .baselineValues(10L)
+          .build()
+          .run();
 
       File tableFolder = new File(getDfsTestTmpSchemaLocation(), tableName);
-      IcebergTableWrapper tableWrapper = new IcebergTableWrapper(getSabotContext(), localFs,
-        getIcebergModel(TEMP_SCHEMA_HADOOP), tableFolder.toPath().toString());
+      IcebergTableWrapper tableWrapper =
+          new IcebergTableWrapper(
+              getSabotContext(),
+              localFs,
+              getIcebergModel(TEMP_SCHEMA_HADOOP),
+              tableFolder.toPath().toString());
 
       List<PartitionChunk> chunks =
-        ImmutableList.copyOf(tableWrapper.getTableInfo().getPartitionChunkListing().iterator());
+          ImmutableList.copyOf(tableWrapper.getTableInfo().getPartitionChunkListing().iterator());
       assertEquals(1, chunks.size());
 
       DatasetSplit split = chunks.get(0).getSplits().iterator().next();
-      ParquetDatasetSplitXAttr xattr = LegacyProtobufSerializer
-        .parseFrom(ParquetDatasetSplitXAttr.PARSER, MetadataProtoUtils.toProtobuf(split.getExtraInfo()));
+      ParquetDatasetSplitXAttr xattr =
+          LegacyProtobufSerializer.parseFrom(
+              ParquetDatasetSplitXAttr.PARSER, MetadataProtoUtils.toProtobuf(split.getExtraInfo()));
 
       assertEquals(10, tableWrapper.getTableInfo().getRecordCount());
       for (ColumnValueCount entry : xattr.getColumnValueCountsList()) {

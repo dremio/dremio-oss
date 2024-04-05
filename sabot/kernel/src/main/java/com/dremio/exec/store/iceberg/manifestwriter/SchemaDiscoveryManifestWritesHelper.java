@@ -17,18 +17,6 @@ package com.dremio.exec.store.iceberg.manifestwriter;
 
 import static com.dremio.exec.util.VectorUtil.getVectorFromSchemaPath;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.function.BiConsumer;
-
-import org.apache.arrow.vector.VarBinaryVector;
-import org.apache.iceberg.DataFile;
-import org.apache.iceberg.InternalIcebergUtil;
-import org.apache.iceberg.ManifestFile;
-import org.apache.iceberg.PartitionSpec;
-import org.apache.iceberg.Schema;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.types.SchemaUpPromotionRules;
 import com.dremio.common.types.SupportsTypeCoercionsAndUpPromotions;
@@ -45,12 +33,23 @@ import com.dremio.exec.store.iceberg.IcebergPartitionData;
 import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.exec.store.metadatarefresh.MetadataRefreshExecConstants;
 import com.dremio.sabot.exec.context.OperatorContext;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.BiConsumer;
+import org.apache.arrow.vector.VarBinaryVector;
+import org.apache.iceberg.DataFile;
+import org.apache.iceberg.InternalIcebergUtil;
+import org.apache.iceberg.ManifestFile;
+import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.Schema;
 
 /**
- * Uses the last non-null schema from the incoming vectors. In case schema gets changed, complete manifest gets
- * re-loaded at the time of flush.
+ * Uses the last non-null schema from the incoming vectors. In case schema gets changed, complete
+ * manifest gets re-loaded at the time of flush.
  */
-public class SchemaDiscoveryManifestWritesHelper extends ManifestWritesHelper implements SupportsTypeCoercionsAndUpPromotions {
+public class SchemaDiscoveryManifestWritesHelper extends ManifestWritesHelper
+    implements SupportsTypeCoercionsAndUpPromotions {
   private BatchSchema currentSchema = BatchSchema.EMPTY;
   private List<String> partitionColumns = new ArrayList<>();
   private boolean hasSchemaChanged = false;
@@ -61,16 +60,21 @@ public class SchemaDiscoveryManifestWritesHelper extends ManifestWritesHelper im
 
   private OperatorContext context;
 
-  public SchemaDiscoveryManifestWritesHelper(IcebergManifestWriterPOP writer, OperatorContext context) {
+  public SchemaDiscoveryManifestWritesHelper(
+      IcebergManifestWriterPOP writer, OperatorContext context) {
     super(writer);
-    this.columnLimit = (int) context.getOptions().getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX);
+    this.columnLimit =
+        (int) context.getOptions().getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX);
     this.context = context;
   }
 
   @Override
   public void setIncoming(VectorAccessible incoming) {
     super.setIncoming(incoming);
-    schemaVector = (VarBinaryVector) getVectorFromSchemaPath(incoming, MetadataRefreshExecConstants.FooterRead.OUTPUT_SCHEMA.FILE_SCHEMA);
+    schemaVector =
+        (VarBinaryVector)
+            getVectorFromSchemaPath(
+                incoming, MetadataRefreshExecConstants.FooterRead.OUTPUT_SCHEMA.FILE_SCHEMA);
     // TODO: Setup partition info vector
   }
 
@@ -114,7 +118,8 @@ public class SchemaDiscoveryManifestWritesHelper extends ManifestWritesHelper im
     manifestWriter.getInstance().add(dataFile);
     dataFiles.add(dataFile);
 
-    // File system partitions follow dremio-derived nomenclature - dir[idx]. Example - dir0, dir1.. and so on.
+    // File system partitions follow dremio-derived nomenclature - dir[idx]. Example - dir0, dir1..
+    // and so on.
     int existingPartitionDepth = partitionColumns.size();
     if (dataFile.partition().size() > existingPartitionDepth) {
       partitionColumns = InternalIcebergUtil.getPartitionNames(dataFile);
@@ -149,18 +154,23 @@ public class SchemaDiscoveryManifestWritesHelper extends ManifestWritesHelper im
   }
 
   @Override
-  public void write(ManifestFileRecordWriter.WritingContext context,
-                    BiConsumer<ManifestFile,
-                      ManifestFileRecordWriter.WritingContext> processGeneratedManifestFileCall) throws IOException {
+  public void write(
+      ManifestFileRecordWriter.WritingContext context,
+      BiConsumer<ManifestFile, ManifestFileRecordWriter.WritingContext>
+          processGeneratedManifestFileCall)
+      throws IOException {
     prepareWrite();
     super.write(context, processGeneratedManifestFileCall);
   }
 
   private void addPartitionData() {
     dataFiles.stream()
-      .map(DataFile::partition)
-      .map(partition -> IcebergPartitionData.fromStructLike(getPartitionSpec(writer.getOptions()), partition))
-      .forEach(ipd -> partitionDataInCurrentManifest().add(ipd));
+        .map(DataFile::partition)
+        .map(
+            partition ->
+                IcebergPartitionData.fromStructLike(
+                    getPartitionSpec(writer.getOptions()), partition))
+        .forEach(ipd -> partitionDataInCurrentManifest().add(ipd));
   }
 
   @Override
@@ -172,15 +182,22 @@ public class SchemaDiscoveryManifestWritesHelper extends ManifestWritesHelper im
   PartitionSpec getPartitionSpec(WriterOptions writerOptions) {
     Schema icebergSchema = null;
     if (writerOptions.getExtendedProperty() != null) {
-      icebergSchema = getIcebergSchema(writerOptions.getExtendedProperty(), currentSchema,
-        writerOptions.getTableFormatOptions().getIcebergSpecificOptions().getIcebergTableProps().getTableName());
+      icebergSchema =
+          getIcebergSchema(
+              writerOptions.getExtendedProperty(),
+              currentSchema,
+              writerOptions
+                  .getTableFormatOptions()
+                  .getIcebergSpecificOptions()
+                  .getIcebergTableProps()
+                  .getTableName());
     }
 
     return IcebergUtils.getIcebergPartitionSpec(currentSchema, partitionColumns, icebergSchema);
     /*
-     TODO: currently we don't support partition spec update for by default spec ID will be 0. in future if
-           we start supporting partition spec id. then Id must be inherited from data files(input to this writer)
-     */
+    TODO: currently we don't support partition spec update for by default spec ID will be 0. in future if
+          we start supporting partition spec id. then Id must be inherited from data files(input to this writer)
+    */
   }
 
   @Override

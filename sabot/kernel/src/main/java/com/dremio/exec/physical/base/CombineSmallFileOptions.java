@@ -16,25 +16,24 @@
 
 package com.dremio.exec.physical.base;
 
-import javax.annotation.Nullable;
-
-import org.immutables.value.Value;
-
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import javax.annotation.Nullable;
+import org.immutables.value.Value;
 
 @JsonDeserialize(builder = ImmutableCombineSmallFileOptions.Builder.class)
 @Value.Immutable
 public interface CombineSmallFileOptions {
 
   // the threshold to be defined as small files
-  @Nullable Long getSmallFileSize();
+  @Nullable
+  Long getSmallFileSize();
 
   /**
-   *   the target file size after combination.
-   *   Usually, it is the same as PARQUET_BLOCK_SIZE.
-   *   We define it here to let tests define customized target file size
+   * the target file size after combination. Usually, it is the same as PARQUET_BLOCK_SIZE. We
+   * define it here to let tests define customized target file size
    */
-  @Nullable Long getTargetFileSize();
+  @Nullable
+  Long getTargetFileSize();
 
   static ImmutableCombineSmallFileOptions.Builder builder() {
     return new ImmutableCombineSmallFileOptions.Builder();

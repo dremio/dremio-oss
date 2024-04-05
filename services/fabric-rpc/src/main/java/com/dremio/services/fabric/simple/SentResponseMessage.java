@@ -16,7 +16,6 @@
 package com.dremio.services.fabric.simple;
 
 import com.google.protobuf.MessageLite;
-
 import io.netty.buffer.ByteBuf;
 
 /**
@@ -42,5 +41,4 @@ public class SentResponseMessage<RESPONSE extends MessageLite> {
   public ByteBuf[] getBuffers() {
     return buffers;
   }
-
 }

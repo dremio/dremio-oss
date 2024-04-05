@@ -15,11 +15,16 @@
  */
 package com.dremio.exec.store.parquet;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.io.file.FileAttributes;
+import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.Path;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Stopwatch;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.parquet.bytes.BytesUtils;
 import org.apache.parquet.format.converter.ParquetMetadataConverter;
@@ -27,38 +32,35 @@ import org.apache.parquet.format.converter.ParquetMetadataConverter.MetadataFilt
 import org.apache.parquet.hadoop.ParquetFileWriter;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.io.file.FileAttributes;
-import com.dremio.io.file.FileSystem;
-import com.dremio.io.file.Path;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Stopwatch;
-
-/**
- * Single object cache that holds the parquet footer for last file.
- */
+/** Single object cache that holds the parquet footer for last file. */
 public class SingletonParquetFooterCache {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SingletonParquetFooterCache.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(SingletonParquetFooterCache.class);
 
-  private static final int DEFAULT_READ_SIZE = 64*1024;
+  private static final int DEFAULT_READ_SIZE = 64 * 1024;
   private static final int FOOTER_LENGTH_SIZE = 4;
-  private static final int FOOTER_METADATA_SIZE = FOOTER_LENGTH_SIZE + ParquetFileWriter.MAGIC.length;
+  private static final int FOOTER_METADATA_SIZE =
+      FOOTER_LENGTH_SIZE + ParquetFileWriter.MAGIC.length;
   private static final int MAGIC_LENGTH = ParquetFileWriter.MAGIC.length;
   private static final int MIN_FILE_SIZE = ParquetFileWriter.MAGIC.length + FOOTER_METADATA_SIZE;
 
   private ParquetMetadata footer;
   private String lastFile;
 
-  public ParquetMetadata getFooter(BulkInputStream is, String path, long fileLength, FileSystem fs, long maxFooterLen) {
+  public ParquetMetadata getFooter(
+      BulkInputStream is, String path, long fileLength, FileSystem fs, long maxFooterLen) {
     if (footer == null || !lastFile.equals(path)) {
       String non_Parquet_Error_Message = "not a parquet file";
       try {
         footer = readFooter(is, path, fileLength, fs, maxFooterLen);
       } catch (IOException ioe) {
-        if(ioe.getMessage() != null && ioe.getMessage().toLowerCase().contains(non_Parquet_Error_Message)){
-          throw UserException.dataReadError()
-            .message("The file %s is not in Parquet format. Please check the size and format of the files you are promoting and select the format from the dropdown box accordingly.", path)
-            .build(logger);
+        if (ioe.getMessage() != null
+            && ioe.getMessage().toLowerCase().contains(non_Parquet_Error_Message)) {
+          throw UserException.dataReadError(ioe)
+              .message(
+                  "The file %s is not in Parquet format. Please check the size and format of the files you are promoting and select the format from the dropdown box accordingly.",
+                  path)
+              .build(logger);
         }
         throw new RuntimeException("Failed to read parquet footer for file " + path, ioe);
       }
@@ -68,62 +70,92 @@ public class SingletonParquetFooterCache {
   }
 
   private static void checkMagicBytes(String path, byte[] data, int offset) throws IOException {
-    for(int i =0, v = offset; i < MAGIC_LENGTH; i++, v++){
-      if(ParquetFileWriter.MAGIC[i] != data[v]){
+    for (int i = 0, v = offset; i < MAGIC_LENGTH; i++, v++) {
+      if (ParquetFileWriter.MAGIC[i] != data[v]) {
         byte[] magic = ArrayUtils.subarray(data, offset, offset + MAGIC_LENGTH);
-        throw new IOException(path + " is not a Parquet file. expected magic number at tail " + Arrays.toString(ParquetFileWriter.MAGIC) + " but found " + Arrays.toString(magic));
+        throw new IOException(
+            path
+                + " is not a Parquet file. expected magic number at tail "
+                + Arrays.toString(ParquetFileWriter.MAGIC)
+                + " but found "
+                + Arrays.toString(magic));
       }
     }
   }
 
-  public static ParquetMetadata readFooter(final FileSystem fs, final Path file, ParquetMetadataConverter.MetadataFilter filter,
-                                           long maxFooterLen) throws IOException  {
+  public static ParquetMetadata readFooter(
+      final FileSystem fs,
+      final Path file,
+      ParquetMetadataConverter.MetadataFilter filter,
+      long maxFooterLen)
+      throws IOException {
     return readFooter(fs, fs.getFileAttributes(file), filter, maxFooterLen);
   }
 
   /**
-   * An updated footer reader that tries to read the entire footer without knowing the length.
-   * This should reduce the amount of seek/read roundtrips in most workloads.
+   * An updated footer reader that tries to read the entire footer without knowing the length. This
+   * should reduce the amount of seek/read roundtrips in most workloads.
+   *
    * @param fs
    * @param status
    * @return
    * @throws IOException
    */
   public static ParquetMetadata readFooter(
-    final FileSystem fs,
-    final FileAttributes attributes,
-    ParquetMetadataConverter.MetadataFilter filter,
-    long maxFooterLen) throws IOException {
-    try(BulkInputStream file = BulkInputStream.wrap(Streams.wrap(fs.open(attributes.getPath())))) {
-      return readFooter(file, attributes.getPath().toString(), attributes.size(), filter, fs, maxFooterLen);
+      final FileSystem fs,
+      final FileAttributes attributes,
+      ParquetMetadataConverter.MetadataFilter filter,
+      long maxFooterLen)
+      throws IOException {
+    try (BulkInputStream file = BulkInputStream.wrap(Streams.wrap(fs.open(attributes.getPath())))) {
+      return readFooter(
+          file, attributes.getPath().toString(), attributes.size(), filter, fs, maxFooterLen);
     }
   }
 
-  private ParquetMetadata readFooter(BulkInputStream file, String path, long fileLength, FileSystem fs, long maxFooterLen) throws IOException {
+  private ParquetMetadata readFooter(
+      BulkInputStream file, String path, long fileLength, FileSystem fs, long maxFooterLen)
+      throws IOException {
     return readFooter(file, path, fileLength, ParquetMetadataConverter.NO_FILTER, fs, maxFooterLen);
   }
 
-  private static ParquetMetadata readFooter(BulkInputStream file, String path, long fileLength, MetadataFilter filter, FileSystem fs,
-                                            long maxFooterLen) throws IOException {
-    Preconditions.checkArgument(fileLength >= MIN_FILE_SIZE || fileLength == -1, "%s is not a Parquet file (too small)", path);
+  private static ParquetMetadata readFooter(
+      BulkInputStream file,
+      String path,
+      long fileLength,
+      MetadataFilter filter,
+      FileSystem fs,
+      long maxFooterLen)
+      throws IOException {
+    Preconditions.checkArgument(
+        fileLength >= MIN_FILE_SIZE || fileLength == -1,
+        "%s is not a Parquet file (too small)",
+        path);
     Stopwatch w = Stopwatch.createStarted();
     if (fileLength == -1) {
       fileLength = fs.getFileAttributes(Path.of(path)).size();
     }
 
-    int len = (int) Math.min( fileLength, DEFAULT_READ_SIZE);
+    int len = (int) Math.min(fileLength, DEFAULT_READ_SIZE);
     byte[] footerBytes = new byte[len];
     file.seek(fileLength - len);
     file.readFully(footerBytes, 0, len);
 
     checkMagicBytes(path, footerBytes, footerBytes.length - ParquetFileWriter.MAGIC.length);
-    final int size = BytesUtils.readIntLittleEndian(footerBytes, footerBytes.length - FOOTER_METADATA_SIZE);
+    final int size =
+        BytesUtils.readIntLittleEndian(footerBytes, footerBytes.length - FOOTER_METADATA_SIZE);
 
     if (size > maxFooterLen) {
-      throw new IOException("Footer size of " + path + " is " + size + ". Max supported footer size is " + maxFooterLen);
+      throw new IOException(
+          "Footer size of "
+              + path
+              + " is "
+              + size
+              + ". Max supported footer size is "
+              + maxFooterLen);
     }
 
-    if(size > footerBytes.length - FOOTER_METADATA_SIZE){
+    if (size > footerBytes.length - FOOTER_METADATA_SIZE) {
       // if the footer is larger than our initial read, we need to read the rest.
       byte[] origFooterBytes = footerBytes;
       int origFooterRead = origFooterBytes.length - FOOTER_METADATA_SIZE;
@@ -133,11 +165,13 @@ public class SingletonParquetFooterCache {
       file.seek(fileLength - size - FOOTER_METADATA_SIZE);
       file.readFully(footerBytes, 0, size - origFooterRead);
       System.arraycopy(origFooterBytes, 0, footerBytes, size - origFooterRead, origFooterRead);
-    }else{
+    } else {
       int start = footerBytes.length - (size + FOOTER_METADATA_SIZE);
       footerBytes = ArrayUtils.subarray(footerBytes, start, start + size);
     }
-    logger.debug("Read footer of {} of length {} in {} ms ", path, size, w.elapsed(TimeUnit.MILLISECONDS));
-    return ParquetFormatPlugin.parquetMetadataConverter.readParquetMetadata(new ByteArrayInputStream(footerBytes), filter);
+    logger.debug(
+        "Read footer of {} of length {} in {} ms ", path, size, w.elapsed(TimeUnit.MILLISECONDS));
+    return ParquetFormatPlugin.parquetMetadataConverter.readParquetMetadata(
+        new ByteArrayInputStream(footerBytes), filter);
   }
 }

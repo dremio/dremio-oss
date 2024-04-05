@@ -19,28 +19,6 @@ package com.dremio.dac.api;
 import static com.dremio.dac.util.DateUtils.getStartOfLastMonth;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.function.Consumer;
-
-import javax.inject.Inject;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.DefaultValue;
-import javax.ws.rs.GET;
-import javax.ws.rs.InternalServerErrorException;
-import javax.ws.rs.NotFoundException;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.dac.annotations.APIResource;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.edition.EditionProvider;
@@ -51,10 +29,27 @@ import com.dremio.service.job.SearchJobsRequest;
 import com.dremio.service.job.UniqueUserStatsRequest;
 import com.dremio.service.jobs.JobsService;
 import com.google.protobuf.Timestamp;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Consumer;
+import javax.inject.Inject;
+import javax.ws.rs.Consumes;
+import javax.ws.rs.DefaultValue;
+import javax.ws.rs.GET;
+import javax.ws.rs.InternalServerErrorException;
+import javax.ws.rs.NotFoundException;
+import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * Resource that provides information about user activity.
- */
+/** Resource that provides information about user activity. */
 @APIResource
 @Secured
 @Path("/stats/user")
@@ -73,57 +68,66 @@ public class UserStatsResource {
   private final OptionManager optionManager;
 
   @Inject
-  public UserStatsResource(JobsService jobsService, EditionProvider editionProvider, OptionManager optionManager) {
+  public UserStatsResource(
+      JobsService jobsService, EditionProvider editionProvider, OptionManager optionManager) {
     this.jobsService = jobsService;
     this.edition = editionProvider.getEdition();
     this.optionManager = optionManager;
   }
 
   @GET
-  public UserStats getActiveUserStats(@QueryParam("start") @DefaultValue("0") long startEpoch ,
-                                      @QueryParam("end") @DefaultValue("0") long endEpoch,
-                                      @QueryParam("onlyUniqueUsersByDate") @DefaultValue("false") String onlyUniqueUsersByDate) {
+  public UserStats getActiveUserStats(
+      @QueryParam("start") @DefaultValue("0") long startEpoch,
+      @QueryParam("end") @DefaultValue("0") long endEpoch,
+      @QueryParam("onlyUniqueUsersByDate") @DefaultValue("false") String onlyUniqueUsersByDate) {
     if (!optionManager.getOption(ExecConstants.ENABLE_DEPRECATED_JOBS_USER_STATS_API)) {
       throw new NotFoundException("/stats/user is not supported");
     }
     if (Boolean.parseBoolean(onlyUniqueUsersByDate)) {
-      return getUniqueUsersByDate(startEpoch, endEpoch) ;
+      return getUniqueUsersByDate(startEpoch, endEpoch);
     }
     return getActiveUserStats(startEpoch, endEpoch);
   }
 
   private Timestamp convert(long epochInMilliSeconds) {
     return Timestamp.newBuilder()
-      .setSeconds(epochInMilliSeconds / 1000)
-      .setNanos((int)(epochInMilliSeconds % 1000) * 1_000_000)
-      .build();
+        .setSeconds(epochInMilliSeconds / 1000)
+        .setNanos((int) (epochInMilliSeconds % 1000) * 1_000_000)
+        .build();
   }
 
   private UserStats getUniqueUsersByDate(long startEpoch, long endEpoch) {
     List<Map<String, Object>> userStatsByDate = Collections.synchronizedList(new ArrayList<>());
 
     try {
-      Consumer<Long[]> consumer = (pair) -> {
-        long iterStartDate = pair[0];
-        long iterEndDate = pair[1];
-        logger.debug("StartTime: {}, EndTime:{}", sdf2.format(new Date(iterStartDate)), sdf2.format(new Date(iterEndDate)));
+      Consumer<Long[]> consumer =
+          (pair) -> {
+            long iterStartDate = pair[0];
+            long iterEndDate = pair[1];
+            logger.debug(
+                "StartTime: {}, EndTime:{}",
+                sdf2.format(new Date(iterStartDate)),
+                sdf2.format(new Date(iterEndDate)));
 
-        com.dremio.service.job.UniqueUserStats uniqueUserStats = jobsService.getUniqueUserStats(UniqueUserStatsRequest.newBuilder()
-          .setStartDate(convert(iterStartDate))
-          .setEndDate(convert(iterEndDate))
-          .build());
+            com.dremio.service.job.UniqueUserStats uniqueUserStats =
+                jobsService.getUniqueUserStats(
+                    UniqueUserStatsRequest.newBuilder()
+                        .setStartDate(convert(iterStartDate))
+                        .setEndDate(convert(iterEndDate))
+                        .build());
 
-        long total = uniqueUserStats.getUniqueUsers();
-        if (total > 0) {
-          Map<String, Object> countMap = new HashMap<>();
-          userStatsByDate.add(countMap);
-          countMap.put("date", sdf.format(new java.util.Date(iterStartDate)));
-          countMap.put("total", total);
-        }
-      };
+            long total = uniqueUserStats.getUniqueUsers();
+            if (total > 0) {
+              Map<String, Object> countMap = new HashMap<>();
+              userStatsByDate.add(countMap);
+              countMap.put("date", sdf.format(new java.util.Date(iterStartDate)));
+              countMap.put("total", total);
+            }
+          };
 
       StatsUtils.executeDateWise(startEpoch, endEpoch, consumer);
-      return UserStats.createUserStats(edition, userStatsByDate, new ArrayList<>(), new ArrayList<>());
+      return UserStats.createUserStats(
+          edition, userStatsByDate, new ArrayList<>(), new ArrayList<>());
 
     } catch (Exception err) {
       logger.error("UserStatsResource failed. ", err);
@@ -132,13 +136,12 @@ public class UserStatsResource {
   }
 
   private UserStats getActiveUserStats(long startEpoch, long endEpoch) {
-      try {
-        final UserStats.Builder activeUserStats = new UserStats.Builder();
+    try {
+      final UserStats.Builder activeUserStats = new UserStats.Builder();
       activeUserStats.setEdition(edition);
-      final String filter = createJobFilter(startEpoch,endEpoch);
-      final SearchJobsRequest request = SearchJobsRequest.newBuilder()
-        .setFilterString(filter)
-        .build();
+      final String filter = createJobFilter(startEpoch, endEpoch);
+      final SearchJobsRequest request =
+          SearchJobsRequest.newBuilder().setFilterString(filter).build();
       final Iterable<JobSummary> resultantJobs = jobsService.searchJobs(request);
       for (JobSummary job : resultantJobs) {
         activeUserStats.addUserStat(job.getStartTime(), job.getQueryType().name(), job.getUser());

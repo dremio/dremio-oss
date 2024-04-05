@@ -15,27 +15,6 @@
  */
 package com.dremio.dac.resource;
 
-import java.io.IOException;
-import java.security.AccessControlException;
-import java.util.Arrays;
-import java.util.ConcurrentModificationException;
-import java.util.Objects;
-
-import javax.annotation.security.RolesAllowed;
-import javax.inject.Inject;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.DELETE;
-import javax.ws.rs.DefaultValue;
-import javax.ws.rs.GET;
-import javax.ws.rs.POST;
-import javax.ws.rs.PUT;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.SecurityContext;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.dac.annotations.RestResource;
@@ -82,10 +61,27 @@ import com.dremio.service.namespace.file.proto.UnknownFileConfig;
 import com.dremio.service.namespace.physicaldataset.proto.PhysicalDatasetConfig;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.reflection.ReflectionAdministrationService;
+import java.io.IOException;
+import java.security.AccessControlException;
+import java.util.Arrays;
+import java.util.ConcurrentModificationException;
+import java.util.Objects;
+import javax.annotation.security.RolesAllowed;
+import javax.inject.Inject;
+import javax.ws.rs.Consumes;
+import javax.ws.rs.DELETE;
+import javax.ws.rs.DefaultValue;
+import javax.ws.rs.GET;
+import javax.ws.rs.POST;
+import javax.ws.rs.PUT;
+import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
+import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.SecurityContext;
 
-/**
- * Rest resource for sources.
- */
+/** Rest resource for sources. */
 @RestResource
 @Secured
 @RolesAllowed({"admin", "user"})
@@ -116,8 +112,8 @@ public class SourceResource extends BaseResourceWithAllocator {
       SourceCatalog sourceCatalog,
       FormatTools formatTools,
       ContextService context,
-      BufferAllocatorFactory allocatorFactory
-      ) throws SourceNotFoundException {
+      BufferAllocatorFactory allocatorFactory)
+      throws SourceNotFoundException {
     super(allocatorFactory);
     this.namespaceService = namespaceService;
     this.reflectionService = reflectionService;
@@ -139,38 +135,47 @@ public class SourceResource extends BaseResourceWithAllocator {
   @GET
   @Produces(MediaType.APPLICATION_JSON)
   public SourceUI getSource(
-    @QueryParam("includeContents") @DefaultValue("true") boolean includeContents,
-    @QueryParam("refType") String refType,
-    @QueryParam("refValue") String refValue)
+      @QueryParam("includeContents") @DefaultValue("true") boolean includeContents,
+      @QueryParam("refType") String refType,
+      @QueryParam("refValue") String refValue)
       throws Exception {
     try {
       final SourceConfig sourceConfig = namespaceService.getSource(sourcePath.toNamespaceKey());
-      final SourceState sourceState = sourceService.getSourceState(sourcePath.getSourceName().getName());
+      final SourceState sourceState =
+          sourceService.getSourceState(sourcePath.getSourceName().getName());
       if (sourceState == null) {
         throw new SourceNotFoundException(sourcePath.getSourceName().getName());
       }
 
-      final BoundedDatasetCount datasetCount = namespaceService.getDatasetCount(new NamespaceKey(sourceConfig.getName()),
-        BoundedDatasetCount.SEARCH_TIME_LIMIT_MS, BoundedDatasetCount.COUNT_LIMIT_TO_STOP_SEARCH);
-      final SourceUI source = newSource(sourceConfig)
-        .setNumberOfDatasets(datasetCount.getCount());
+      final BoundedDatasetCount datasetCount =
+          namespaceService.getDatasetCount(
+              new NamespaceKey(sourceConfig.getName()),
+              BoundedDatasetCount.SEARCH_TIME_LIMIT_MS,
+              BoundedDatasetCount.COUNT_LIMIT_TO_STOP_SEARCH);
+      final SourceUI source = newSource(sourceConfig).setNumberOfDatasets(datasetCount.getCount());
       source.setDatasetCountBounded(datasetCount.isCountBound() || datasetCount.isTimeBound());
 
       source.setState(sourceState);
 
-      final AccelerationSettings settings = reflectionService.get(ReflectionContext.SYSTEM_USER_CONTEXT).getReflectionSettings().getReflectionSettings(sourcePath.toNamespaceKey());
+      final AccelerationSettings settings =
+          reflectionService
+              .get(ReflectionContext.SYSTEM_USER_CONTEXT)
+              .getReflectionSettings()
+              .getReflectionSettings(sourcePath.toNamespaceKey());
       if (settings != null) {
         source.setAccelerationRefreshPeriod(settings.getRefreshPeriod());
         source.setAccelerationGracePeriod(settings.getGracePeriod());
+        source.setAccelerationRefreshSchedule(settings.getRefreshSchedule());
+        source.setAccelerationActivePolicyType(settings.getRefreshPolicyType());
       }
       if (includeContents) {
         source.setContents(
-          sourceService.listSource(
-            sourcePath.getSourceName(),
-            sourceConfig,
-            securityContext.getUserPrincipal().getName(),
-            refType,
-            refValue));
+            sourceService.listSource(
+                sourcePath.getSourceName(),
+                sourceConfig,
+                securityContext.getUserPrincipal().getName(),
+                refType,
+                refValue));
       }
       return source;
     } catch (NamespaceNotFoundException nfe) {
@@ -181,16 +186,19 @@ public class SourceResource extends BaseResourceWithAllocator {
   @RolesAllowed("admin")
   @DELETE
   @Produces(MediaType.APPLICATION_JSON)
-  public void deleteSource(@QueryParam("version") String version) throws NamespaceException, SourceNotFoundException {
+  public void deleteSource(@QueryParam("version") String version)
+      throws NamespaceException, SourceNotFoundException {
     if (version == null) {
       throw new ClientErrorException(GenericErrorMessage.MISSING_VERSION_PARAM_MSG);
     }
 
     try {
       SourceConfig config = namespaceService.getSource(new SourcePath(sourceName).toNamespaceKey());
-      if(!Objects.equals(config.getTag(), version)) {
-        throw new ConcurrentModificationException(String.format("Cannot delete source \"%s\", version provided \"%s\" is different from version found \"%s\"",
-          sourceName, version, config.getTag()));
+      if (!Objects.equals(config.getTag(), version)) {
+        throw new ConcurrentModificationException(
+            String.format(
+                "Cannot delete source \"%s\", version provided \"%s\" is different from version found \"%s\"",
+                sourceName, version, config.getTag()));
       }
       sourceCatalog.deleteSource(config);
     } catch (NamespaceNotFoundException nfe) {
@@ -208,24 +216,29 @@ public class SourceResource extends BaseResourceWithAllocator {
       @QueryParam("includeContents") @DefaultValue("true") boolean includeContents,
       @QueryParam("refType") String refType,
       @QueryParam("refValue") String refValue)
-      throws NamespaceException, IOException, SourceFolderNotFoundException, PhysicalDatasetNotFoundException, SourceNotFoundException {
+      throws NamespaceException,
+          IOException,
+          SourceFolderNotFoundException,
+          PhysicalDatasetNotFoundException,
+          SourceNotFoundException {
     sourceService.checkSourceExists(sourceName);
     SourceFolderPath folderPath = SourceFolderPath.fromURLPath(sourceName, path);
     return sourceService.getFolder(
-      sourceName,
-      folderPath,
-      includeContents,
-      securityContext.getUserPrincipal().getName(),
-      refType,
-      refValue);
+        sourceName,
+        folderPath,
+        includeContents,
+        securityContext.getUserPrincipal().getName(),
+        refType,
+        refValue);
   }
 
   @DELETE
   @Path("/folder/{path: .*}")
   @Produces(MediaType.APPLICATION_JSON)
-  public void deleteFolder(@PathParam("path") String path,
-                           @QueryParam("refType") String refType,
-                           @QueryParam("refValue") String refValue) {
+  public void deleteFolder(
+      @PathParam("path") String path,
+      @QueryParam("refType") String refType,
+      @QueryParam("refValue") String refValue) {
     try {
       SourceFolderPath folderPath = SourceFolderPath.fromURLPath(sourceName, path);
       sourceService.deleteFolder(folderPath, refType, refValue);
@@ -247,12 +260,8 @@ public class SourceResource extends BaseResourceWithAllocator {
     final SourceFolderPath folderPath = SourceFolderPath.fromURLPath(sourceName, fullPath);
 
     return sourceService.createFolder(
-      sourceName,
-      folderPath,
-      securityContext.getUserPrincipal().getName(),
-      refType,
-      refValue);
- }
+        sourceName, folderPath, securityContext.getUserPrincipal().getName(), refType, refValue);
+  }
 
   private boolean useFastPreview() {
     return context.get().getOptionManager().getOption(FormatTools.FAST_PREVIEW);
@@ -275,17 +284,20 @@ public class SourceResource extends BaseResourceWithAllocator {
 
   /**
    * Check if source exists then convert inner path plus source name to SourceFilePath.
+   *
    * @param path
    * @return
    * @throws SourceNotFoundException
    * @throws NamespaceException
    */
-  private SourceFolderPath asFolderPath(String path) throws SourceNotFoundException, NamespaceException {
+  private SourceFolderPath asFolderPath(String path)
+      throws SourceNotFoundException, NamespaceException {
     sourceService.checkSourceExists(sourceName);
     return SourceFolderPath.fromURLPath(sourceName, path);
   }
 
-  private SourceFilePath asFilePath(String path) throws SourceNotFoundException, NamespaceException {
+  private SourceFilePath asFilePath(String path)
+      throws SourceNotFoundException, NamespaceException {
     sourceService.checkSourceExists(sourceName);
     return SourceFilePath.fromURLPath(sourceName, path);
   }
@@ -295,25 +307,27 @@ public class SourceResource extends BaseResourceWithAllocator {
   @Path("/file_format/{path: .*}")
   @Produces(MediaType.APPLICATION_JSON)
   public FileFormatUI getFileFormatSettings(@PathParam("path") String path)
-      throws SourceNotFoundException, NamespaceException  {
+      throws SourceNotFoundException, NamespaceException {
 
     if (useFastPreview()) {
       SourceFilePath filePath = asFilePath(path);
-      return new FileFormatUI(formatTools.getOrDetectFormat(filePath, DatasetType.PHYSICAL_DATASET_SOURCE_FILE), filePath);
+      return new FileFormatUI(
+          formatTools.getOrDetectFormat(filePath, DatasetType.PHYSICAL_DATASET_SOURCE_FILE),
+          filePath);
     }
 
     sourceService.checkSourceExists(sourceName);
     SourceFilePath filePath = SourceFilePath.fromURLPath(sourceName, path);
     FileFormat fileFormat;
     try {
-      final PhysicalDatasetConfig physicalDatasetConfig = sourceService.getFilesystemPhysicalDataset(filePath);
+      final PhysicalDatasetConfig physicalDatasetConfig =
+          sourceService.getFilesystemPhysicalDataset(filePath);
       fileFormat = FileFormat.getForFile(physicalDatasetConfig.getFormatSettings());
       fileFormat.setVersion(physicalDatasetConfig.getTag());
     } catch (PhysicalDatasetNotFoundException nfe) {
       fileFormat = sourceService.getDefaultFileFormat(sourceName, filePath);
     }
     return new FileFormatUI(fileFormat, filePath);
-
   }
 
   @PUT
@@ -352,7 +366,7 @@ public class SourceResource extends BaseResourceWithAllocator {
   @Produces(MediaType.APPLICATION_JSON)
   @Consumes(MediaType.APPLICATION_JSON)
   public JobDataFragment previewFolderFormat(FileFormat format, @PathParam("path") String path)
-    throws SourceFileNotFoundException, SourceNotFoundException, NamespaceException {
+      throws SourceFileNotFoundException, SourceNotFoundException, NamespaceException {
     return previewFormat(format, asFolderPath(path));
   }
 
@@ -361,26 +375,30 @@ public class SourceResource extends BaseResourceWithAllocator {
       try {
         return formatTools.previewData(format, path, false);
       } catch (AccessControlException e) {
-        throw UserException.validationError()
-          .message(e.getMessage())
-          .buildSilently();
+        throw UserException.validationError().message(e.getMessage()).buildSilently();
       }
     }
     SourceFilePath filePath = SourceFilePath.fromURLPath(sourceName, path.toPathString());
-    return executor.previewPhysicalDataset(filePath.toString(), format, getOrCreateAllocator("previewFileFormat"));
+    return executor.previewPhysicalDataset(
+        filePath.toString(), format, getOrCreateAllocator("previewFileFormat"));
   }
 
   @DELETE
   @Path("/file_format/{path: .*}")
-  public void deleteFileFormat(@PathParam("path") String path,
-                               @QueryParam("version") String version) throws PhysicalDatasetNotFoundException {
+  public void deleteFileFormat(
+      @PathParam("path") String path, @QueryParam("version") String version)
+      throws PhysicalDatasetNotFoundException {
     SourceFilePath filePath = SourceFilePath.fromURLPath(sourceName, path);
     if (version == null) {
       throw new ClientErrorException(GenericErrorMessage.MISSING_VERSION_PARAM_MSG);
     }
 
     try {
-        sourceService.deletePhysicalDataset(sourceName, new PhysicalDatasetPath(filePath), version, CatalogUtil.getDeleteCallback(context.get().getOrphanageFactory().get()));
+      sourceService.deletePhysicalDataset(
+          sourceName,
+          new PhysicalDatasetPath(filePath),
+          version,
+          CatalogUtil.getDeleteCallback(context.get().getOrphanageFactory().get()));
     } catch (ConcurrentModificationException e) {
       throw ResourceUtil.correctBadVersionErrorMessage(e, "file format", path);
     }
@@ -391,10 +409,15 @@ public class SourceResource extends BaseResourceWithAllocator {
   @Path("/folder_format/{path: .*}")
   @Produces(MediaType.APPLICATION_JSON)
   public FileFormatUI getFolderFormat(@PathParam("path") String path)
-      throws PhysicalDatasetNotFoundException, NamespaceException, SourceNotFoundException, IOException {
+      throws PhysicalDatasetNotFoundException,
+          NamespaceException,
+          SourceNotFoundException,
+          IOException {
     if (useFastPreview()) {
       SourceFolderPath folderPath = asFolderPath(path);
-      return new FileFormatUI(formatTools.getOrDetectFormat(folderPath, DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER), folderPath);
+      return new FileFormatUI(
+          formatTools.getOrDetectFormat(folderPath, DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER),
+          folderPath);
     }
 
     SourceFolderPath folderPath = SourceFolderPath.fromURLPath(sourceName, path);
@@ -402,11 +425,14 @@ public class SourceResource extends BaseResourceWithAllocator {
 
     FileFormat fileFormat;
     try {
-      final PhysicalDatasetConfig physicalDatasetConfig = sourceService.getFilesystemPhysicalDataset(folderPath);
+      final PhysicalDatasetConfig physicalDatasetConfig =
+          sourceService.getFilesystemPhysicalDataset(folderPath);
       fileFormat = FileFormat.getForFolder(physicalDatasetConfig.getFormatSettings());
       fileFormat.setVersion(physicalDatasetConfig.getTag());
     } catch (PhysicalDatasetNotFoundException nfe) {
-      fileFormat = sourceService.getDefaultFileFormat(sourceName, folderPath, securityContext.getUserPrincipal().getName());
+      fileFormat =
+          sourceService.getDefaultFileFormat(
+              sourceName, folderPath, securityContext.getUserPrincipal().getName());
     }
     return new FileFormatUI(fileFormat, folderPath);
   }
@@ -436,15 +462,20 @@ public class SourceResource extends BaseResourceWithAllocator {
   @DELETE
   @Path("/folder_format/{path: .*}")
   @Produces(MediaType.APPLICATION_JSON)
-  public void deleteFolderFormat(@PathParam("path") String path,
-                                 @QueryParam("version") String version) throws PhysicalDatasetNotFoundException {
+  public void deleteFolderFormat(
+      @PathParam("path") String path, @QueryParam("version") String version)
+      throws PhysicalDatasetNotFoundException {
     if (version == null) {
       throw new ClientErrorException(GenericErrorMessage.MISSING_VERSION_PARAM_MSG);
     }
 
     try {
       SourceFolderPath folderPath = SourceFolderPath.fromURLPath(sourceName, path);
-      sourceService.deletePhysicalDataset(sourceName, new PhysicalDatasetPath(folderPath), version, CatalogUtil.getDeleteCallback(context.get().getOrphanageFactory().get()));
+      sourceService.deletePhysicalDataset(
+          sourceName,
+          new PhysicalDatasetPath(folderPath),
+          version,
+          CatalogUtil.getDeleteCallback(context.get().getOrphanageFactory().get()));
     } catch (ConcurrentModificationException e) {
       throw ResourceUtil.correctBadVersionErrorMessage(e, "folder format", path);
     }
@@ -452,6 +483,7 @@ public class SourceResource extends BaseResourceWithAllocator {
 
   /**
    * checks if format was set to UNKNOWN. If so, an error message is sent to the user
+   *
    * @param fileFormat: format configuration set by dropdown table when "save" was pressed
    * @throws ClientErrorException
    */
@@ -460,5 +492,4 @@ public class SourceResource extends BaseResourceWithAllocator {
       throw new ClientErrorException(GenericErrorMessage.UNKNOWN_FORMAT_MSG);
     }
   }
-
 }

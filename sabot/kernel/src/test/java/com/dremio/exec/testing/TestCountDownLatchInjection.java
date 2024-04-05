@@ -18,11 +18,6 @@ package com.dremio.exec.testing;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import java.util.concurrent.CountDownLatch;
-
-import org.junit.Ignore;
-import org.junit.Test;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.common.concurrent.ExtendedLatch;
 import com.dremio.exec.ops.QueryContext;
@@ -32,26 +27,29 @@ import com.dremio.exec.proto.UserProtos.UserProperties;
 import com.dremio.exec.server.options.SessionOptionManagerImpl;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.Pointer;
+import java.util.concurrent.CountDownLatch;
+import org.junit.Ignore;
+import org.junit.Test;
 
 public class TestCountDownLatchInjection extends BaseTestQuery {
 
-  private static final UserSession session = UserSession.Builder.newBuilder()
-    .withSessionOptionManager(
-      new SessionOptionManagerImpl(nodes[0].getContext().getOptionValidatorListing()),
-      nodes[0].getContext().getOptionManager())
-    .withCredentials(UserCredentials.newBuilder()
-      .setUserName("foo")
-      .build())
-    .withUserProperties(UserProperties.getDefaultInstance())
-    .build();
+  private static final UserSession session =
+      UserSession.Builder.newBuilder()
+          .withSessionOptionManager(
+              new SessionOptionManagerImpl(nodes[0].getContext().getOptionValidatorListing()),
+              nodes[0].getContext().getOptionManager())
+          .withCredentials(UserCredentials.newBuilder().setUserName("foo").build())
+          .withUserProperties(UserProperties.getDefaultInstance())
+          .build();
 
   /**
-   * Class whose methods we want to simulate count down latches at run-time for testing
-   * purposes. The class must have access to {@link com.dremio.exec.ops.QueryContext} or
-   * {@link com.dremio.sabot.exec.fragment.FragmentContext}.
+   * Class whose methods we want to simulate count down latches at run-time for testing purposes.
+   * The class must have access to {@link com.dremio.exec.ops.QueryContext} or {@link
+   * com.dremio.sabot.exec.fragment.FragmentContext}.
    */
   private static class DummyClass {
-    private static final ControlsInjector injector = ControlsInjectorFactory.getInjector(DummyClass.class);
+    private static final ControlsInjector injector =
+        ControlsInjectorFactory.getInjector(DummyClass.class);
 
     private final QueryContext context;
     private final CountDownLatch latch;
@@ -98,8 +96,11 @@ public class TestCountDownLatchInjection extends BaseTestQuery {
     private final int count;
     private final Pointer<Long> countingDownTime;
 
-    public ThreadCreator(final DummyClass dummyClass, final ExtendedLatch latch, final int count,
-                         final Pointer<Long> countingDownTime) {
+    public ThreadCreator(
+        final DummyClass dummyClass,
+        final ExtendedLatch latch,
+        final int count,
+        final Pointer<Long> countingDownTime) {
       this.dummyClass = dummyClass;
       this.latch = latch;
       this.count = count;
@@ -112,11 +113,12 @@ public class TestCountDownLatchInjection extends BaseTestQuery {
       final long startTime = System.currentTimeMillis();
       for (int i = 0; i < count; i++) {
         (new Thread() {
-          @Override
-          public void run() {
-            dummyClass.countDown();
-          }
-        }).start();
+              @Override
+              public void run() {
+                dummyClass.countDown();
+              }
+            })
+            .start();
       }
       final long endTime = System.currentTimeMillis();
       countingDownTime.value = (endTime - startTime);
@@ -124,20 +126,21 @@ public class TestCountDownLatchInjection extends BaseTestQuery {
   }
 
   @Ignore // TODO (DX-2152)
-  @Test // test would hang if the correct init, wait and countdowns did not happen, and the test timeout mechanism will
+  @Test // test would hang if the correct init, wait and countdowns did not happen, and the test
+  // timeout mechanism will
   // catch that case
   public void latchInjected() {
     final int threads = 10;
     final ExtendedLatch trigger = new ExtendedLatch(1);
     final Pointer<Long> countingDownTime = new Pointer<>();
 
-    final String controls = Controls.newBuilder()
-      .addLatch(DummyClass.class, DummyClass.LATCH_NAME)
-      .build();
+    final String controls =
+        Controls.newBuilder().addLatch(DummyClass.class, DummyClass.LATCH_NAME).build();
 
     ControlsInjectionUtil.setControls(session, controls);
 
-    final QueryContext queryContext = new QueryContext(session, nodes[0].getContext(), QueryId.getDefaultInstance());
+    final QueryContext queryContext =
+        new QueryContext(session, nodes[0].getContext(), QueryId.getDefaultInstance());
 
     final DummyClass dummyClass = new DummyClass(queryContext, trigger, threads);
     (new ThreadCreator(dummyClass, trigger, threads, countingDownTime)).start();

@@ -15,21 +15,21 @@
  */
 package com.dremio.exec.server.options;
 
+import com.dremio.options.OptionValidatorListing;
+import com.google.common.annotations.VisibleForTesting;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import com.dremio.options.OptionValidatorListing;
-import com.google.common.annotations.VisibleForTesting;
-
 /**
- * SessionOptionManagerFactory for software. Maintains a map of sessionIds to
- * associated SessionOptionManagers.
+ * SessionOptionManagerFactory for software. Maintains a map of sessionIds to associated
+ * SessionOptionManagers.
  *
- * Provides functionality to get the associated SessionOptionManager for the
- * provided session id if it exists in the map, else
+ * <p>Provides functionality to get the associated SessionOptionManager for the provided session id
+ * if it exists in the map, else
  */
 public class SessionOptionManagerFactoryImpl implements SessionOptionManagerFactory {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SessionOptionManagerFactoryImpl.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(SessionOptionManagerFactoryImpl.class);
 
   // map of session ids to session option managers
   private final Map<String, SessionOptionManager> sessionOptionManagers;
@@ -41,17 +41,16 @@ public class SessionOptionManagerFactoryImpl implements SessionOptionManagerFact
   }
 
   /**
-   * Attempt to retrieve the SessionOptionManager corresponding to the given
-   * sessionId. If it doesn't exist in the map, create a new SessionOptionManager
-   * and add it to the map.
+   * Attempt to retrieve the SessionOptionManager corresponding to the given sessionId. If it
+   * doesn't exist in the map, create a new SessionOptionManager and add it to the map.
    *
    * @param sessionId session Id
    * @return a SessionOptionManager for the current session
    */
   @Override
   public SessionOptionManager getOrCreate(String sessionId) {
-    return sessionOptionManagers.computeIfAbsent(sessionId, id ->
-      new SessionOptionManagerImpl(optionValidatorListing));
+    return sessionOptionManagers.computeIfAbsent(
+        sessionId, id -> new SessionOptionManagerImpl(optionValidatorListing));
   }
 
   /**

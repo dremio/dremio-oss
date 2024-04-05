@@ -65,7 +65,7 @@ describe("ErrorDetectionEngine", () => {
       testCases,
       testExpecteds as Expecteds,
       __filename,
-      generateTestResult
+      generateTestResult,
     );
   });
 });

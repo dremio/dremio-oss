@@ -23,10 +23,7 @@ import com.dremio.exec.store.ReferenceNotFoundException;
 
 public interface VersionContextResolver {
 
-  /**
-   * Resolves a version context with the underlying versioned catalog server.
-   */
+  /** Resolves a version context with the underlying versioned catalog server. */
   ResolvedVersionContext resolveVersionContext(String sourceName, VersionContext versionContext)
       throws ReferenceNotFoundException, NoDefaultBranchException, ReferenceConflictException;
-
 }

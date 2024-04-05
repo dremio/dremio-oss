@@ -18,16 +18,15 @@ package com.dremio.dac.model.usergroup;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-/**
- * User login info.
- */
+/** User login info. */
 public class UserLogin {
 
   private final String userName;
   private final String password;
 
   @JsonCreator
-  public UserLogin(@JsonProperty("userName") String userName, @JsonProperty("password") String password) {
+  public UserLogin(
+      @JsonProperty("userName") String userName, @JsonProperty("password") String password) {
     this.userName = userName;
     this.password = password;
   }

@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.store.deltalake;
 
-import java.util.Collections;
-
 import com.dremio.connector.metadata.DatasetSplit;
 import com.dremio.exec.catalog.MaterializedSplitsPointer;
 import com.dremio.exec.catalog.StoragePluginId;
@@ -27,27 +25,45 @@ import com.dremio.exec.store.MFunctionCatalogMetadata;
 import com.dremio.exec.store.PartitionChunkListingImpl;
 import com.dremio.exec.store.SplitsPointer;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import java.util.Collections;
 
 public class DeltaLakeHistoryScanTableMetadata extends TableMetadataImpl {
   private final BatchSchema schema;
   private final long rowCountEstimate;
 
-  public DeltaLakeHistoryScanTableMetadata(StoragePluginId plugin, DatasetConfig config, String user,
-                                           SplitsPointer splits, BatchSchema schema, long rowCountEstimate) {
+  public DeltaLakeHistoryScanTableMetadata(
+      StoragePluginId plugin,
+      DatasetConfig config,
+      String user,
+      SplitsPointer splits,
+      BatchSchema schema,
+      long rowCountEstimate) {
     super(plugin, config, user, splits, null);
     this.schema = schema;
     this.rowCountEstimate = rowCountEstimate;
   }
 
-  public static DeltaLakeHistoryScanTableMetadata create(MFunctionCatalogMetadata catalogMetadata, DatasetConfig config,
-                                                         String user, long rowCountEstimate) {
+  public static DeltaLakeHistoryScanTableMetadata create(
+      MFunctionCatalogMetadata catalogMetadata,
+      DatasetConfig config,
+      String user,
+      long rowCountEstimate) {
     PartitionChunkListingImpl chunkListing = new PartitionChunkListingImpl();
     chunkListing.put(Collections.emptyList(), DatasetSplit.of(1, 1));
     chunkListing.computePartitionChunks();
-    SplitsPointer splits = MaterializedSplitsPointer.of(0L, AbstractRefreshPlanBuilder.convertToPartitionChunkMetadata(chunkListing, config), 1);
+    SplitsPointer splits =
+        MaterializedSplitsPointer.of(
+            0L,
+            AbstractRefreshPlanBuilder.convertToPartitionChunkMetadata(chunkListing, config),
+            1);
 
-    return new DeltaLakeHistoryScanTableMetadata(catalogMetadata.getStoragePluginId(), config, user, splits,
-                                                 catalogMetadata.getBatchSchema(), rowCountEstimate);
+    return new DeltaLakeHistoryScanTableMetadata(
+        catalogMetadata.getStoragePluginId(),
+        config,
+        user,
+        splits,
+        catalogMetadata.getBatchSchema(),
+        rowCountEstimate);
   }
 
   @Override

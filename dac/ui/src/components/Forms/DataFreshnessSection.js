@@ -28,12 +28,27 @@ import Message from "components/Message";
 import { isCME, isNotSoftware } from "dyn-load/utils/versionUtils";
 import { intl } from "@app/utils/intl";
 import { getSupportFlag } from "@app/exports/endpoints/SupportFlags/getSupportFlag";
-import { SUBHOUR_ACCELERATION_POLICY } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
+import {
+  REFLECTION_SCHEDULER_POLICY,
+  SUBHOUR_ACCELERATION_POLICY,
+} from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
+import { getMaxDistanceOfDays } from "@app/utils/scheduleRefreshUtils";
+import ReflectionRefresh from "@app/components/Acceleration/ReflectionRefresh";
+import { isCommunity } from "dyn-load/utils/versionUtils";
+import { getSupportFlags } from "@app/selectors/supportFlags";
+import { fetchSupportFlags } from "@app/actions/supportFlags";
+import { connect } from "react-redux";
 
 const DURATION_ONE_HOUR = 3600000;
 window.subhourMinDuration = config.subhourAccelerationPoliciesEnabled
   ? 60 * 1000
   : DURATION_ONE_HOUR; // when changed, must update validation error text
+export const SCHEDULE_POLICIES = {
+  NEVER: "NEVER",
+  PERIOD: "PERIOD",
+  SCHEDULE: "SCHEDULE",
+};
+const defaultApplyToDays = 60 * 60 * 1000 * 24;
 
 class DataFreshnessSection extends Component {
   static propTypes = {
@@ -43,6 +58,7 @@ class DataFreshnessSection extends Component {
     datasetId: PropTypes.string,
     elementConfig: PropTypes.object,
     editing: PropTypes.bool,
+    isSchedulerEnabled: PropTypes.bool,
   };
 
   static defaultFormValueRefreshInterval() {
@@ -53,29 +69,38 @@ class DataFreshnessSection extends Component {
     return DURATION_ONE_HOUR * 3;
   }
 
+  static defaultFormValuePolicyType() {
+    return SCHEDULE_POLICIES.PERIOD;
+  }
+
+  static defaultFormValueRefreshSchedule() {
+    return "0 0 8 * * *";
+  }
+
   static getFields() {
     return [
       "accelerationRefreshPeriod",
       "accelerationGracePeriod",
       "accelerationNeverExpire",
       "accelerationNeverRefresh",
+      "accelerationActivePolicyType",
+      "accelerationRefreshSchedule",
     ];
   }
 
   static validate(values) {
     const errors = {};
-
     if (
       values.accelerationRefreshPeriod === 0 ||
       values.accelerationRefreshPeriod < window.subhourMinDuration
     ) {
       if (window.subhourMinDuration === DURATION_ONE_HOUR) {
         errors.accelerationRefreshPeriod = laDeprecated(
-          "Reflection refresh must be at least 1 hour."
+          "Reflection refresh must be at least 1 hour.",
         );
       } else {
         errors.accelerationRefreshPeriod = laDeprecated(
-          "Reflection refresh must be at least 1 minute."
+          "Reflection refresh must be at least 1 minute.",
         );
       }
     }
@@ -86,20 +111,35 @@ class DataFreshnessSection extends Component {
     ) {
       if (window.subhourMinDuration === DURATION_ONE_HOUR) {
         errors.accelerationGracePeriod = laDeprecated(
-          "Reflection expiry must be at least 1 hour."
+          "Reflection expiry must be at least 1 hour.",
         );
       } else {
         errors.accelerationGracePeriod = laDeprecated(
-          "Reflection expiry must be at least 1 minute."
+          "Reflection expiry must be at least 1 minute.",
         );
       }
     } else if (
+      !window.schedulerEnabled &&
       !values.accelerationNeverRefresh &&
       !values.accelerationNeverExpire &&
       values.accelerationRefreshPeriod > values.accelerationGracePeriod
     ) {
       errors.accelerationGracePeriod = laDeprecated(
-        "Reflections cannot be configured to expire faster than they refresh."
+        "Reflections cannot be configured to expire faster than they refresh.",
+      );
+    } else if (
+      window.schedulerEnabled &&
+      !values.accelerationNeverRefresh &&
+      !values.accelerationNeverExpire &&
+      ((values.accelerationActivePolicyType === "PERIOD" &&
+        values.accelerationRefreshPeriod > values.accelerationGracePeriod) ||
+        (values.accelerationActivePolicyType === "SCHEDULE" &&
+          getMaxDistanceOfDays(values.accelerationRefreshSchedule) *
+            defaultApplyToDays >
+            values.accelerationGracePeriod))
+    ) {
+      errors.accelerationGracePeriod = laDeprecated(
+        "Reflections cannot be configured to expire faster than they refresh.",
       );
     }
 
@@ -118,25 +158,35 @@ class DataFreshnessSection extends Component {
   async componentDidMount() {
     if (isNotSoftware?.()) {
       try {
-        const res = await getSupportFlag(SUBHOUR_ACCELERATION_POLICY);
+        const subHourRes = await getSupportFlag(SUBHOUR_ACCELERATION_POLICY);
         this.setState({
-          minDuration: res?.value ? 60 * 1000 : DURATION_ONE_HOUR,
+          minDuration: subHourRes?.value ? 60 * 1000 : DURATION_ONE_HOUR,
         });
-        window.subhourMinDuration = res?.value ? 60 * 1000 : DURATION_ONE_HOUR;
+        window.subhourMinDuration = subHourRes?.value
+          ? 60 * 1000
+          : DURATION_ONE_HOUR;
       } catch (e) {
         //
       }
     }
+
+    if (!isCommunity?.()) {
+      this.props.fetchSupportFlags(REFLECTION_SCHEDULER_POLICY);
+    }
+  }
+
+  componentDidUpdate() {
+    window.schedulerEnabled = this.props.isSchedulerEnabled;
   }
 
   refreshAll = () => {
     ApiUtils.fetch(
       `catalog/${encodeURIComponent(this.props.datasetId)}/refresh`,
-      { method: "POST" }
+      { method: "POST" },
     );
 
     const message = laDeprecated(
-      "All dependent reflections will be refreshed."
+      "All dependent reflections will be refreshed.",
     );
     const level = "success";
 
@@ -180,12 +230,13 @@ class DataFreshnessSection extends Component {
       fields: {
         accelerationRefreshPeriod,
         accelerationGracePeriod,
-        accelerationNeverRefresh,
         accelerationNeverExpire,
+        accelerationNeverRefresh,
       },
+      fields,
     } = this.props;
     const helpContent = laDeprecated(
-      "How often reflections are refreshed and how long data can be served before expiration."
+      "How often reflections are refreshed and how long data can be served before expiration.",
     );
 
     let message = null;
@@ -200,10 +251,9 @@ class DataFreshnessSection extends Component {
           entityType === "dataset"
             ? "this dataset"
             : " any affected physical datasets"
-        } for new configuration to take effect immediately.`
+        } for new configuration to take effect immediately.`,
       );
     }
-
     return (
       <div style={styles.container}>
         <NotificationSystem
@@ -214,88 +264,99 @@ class DataFreshnessSection extends Component {
         />
         <span style={styles.label}>{laDeprecated("Refresh Policy")}</span>
         <div style={styles.info}>{helpContent}</div>
-        <table>
-          <tbody>
-            <tr>
-              <td colSpan={2}>
-                <div style={styles.inputLabel}>
-                  <Checkbox
-                    {...accelerationNeverRefresh}
-                    label={laDeprecated("Never refresh")}
-                  />
-                </div>
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <div style={styles.inputLabel}>
-                  {laDeprecated("Refresh every")}
-                </div>
-              </td>
-              {/* todo: ax: <label> */}
-              <td>
-                <FieldWithError
-                  errorPlacement="right"
-                  {...accelerationRefreshPeriod}
-                >
-                  <div style={{ display: "flex" }}>
+        {this.props.isSchedulerEnabled ? (
+          <ReflectionRefresh
+            entityType={entityType}
+            refreshAll={this.refreshAll}
+            isRefreshAllowed={this.isRefreshAllowed()}
+            fields={fields}
+            minDuration={this.state.minDuration}
+            refreshingReflections={this.state.refreshingReflections}
+          />
+        ) : (
+          <table>
+            <tbody>
+              <tr>
+                <td colSpan={2}>
+                  <div style={styles.inputLabel}>
+                    <Checkbox
+                      {...accelerationNeverRefresh}
+                      label={laDeprecated("Never refresh")}
+                    />
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <div style={styles.inputLabel}>
+                    {laDeprecated("Refresh every")}
+                  </div>
+                </td>
+                {/* todo: ax: <label> */}
+                <td>
+                  <FieldWithError
+                    errorPlacement="right"
+                    {...accelerationRefreshPeriod}
+                  >
+                    <div style={{ display: "flex" }}>
+                      <DurationField
+                        {...accelerationRefreshPeriod}
+                        min={this.state.minDuration}
+                        style={styles.durationField}
+                        disabled={!!accelerationNeverRefresh.value}
+                      />
+                      {this.isRefreshAllowed() && entityType === "dataset" && (
+                        <Button
+                          disabled={this.state.refreshingReflections}
+                          onClick={this.refreshAll}
+                          variant="secondary"
+                          style={{
+                            marginLeft: 10,
+                          }}
+                        >
+                          {intl.formatMessage({
+                            id: "Reflection.Refresh.Now",
+                          })}
+                        </Button>
+                      )}
+                    </div>
+                  </FieldWithError>
+                </td>
+              </tr>
+              <tr>
+                <td colSpan={2}>
+                  <div style={styles.inputLabel}>
+                    <Checkbox
+                      {...accelerationNeverExpire}
+                      label={laDeprecated("Never expire")}
+                    />
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <div style={styles.inputLabel}>
+                    {laDeprecated("Expire after")}
+                  </div>{" "}
+                  {/* todo: ax: <label> */}
+                </td>
+                <td>
+                  <FieldWithError
+                    errorPlacement="right"
+                    {...accelerationGracePeriod}
+                  >
                     <DurationField
-                      {...accelerationRefreshPeriod}
+                      {...accelerationGracePeriod}
                       min={this.state.minDuration}
                       style={styles.durationField}
-                      disabled={!!accelerationNeverRefresh.value}
+                      disabled={!!accelerationNeverExpire.value}
                     />
-                    {this.isRefreshAllowed() && entityType === "dataset" && (
-                      <Button
-                        disabled={this.state.refreshingReflections}
-                        onClick={this.refreshAll}
-                        variant="secondary"
-                        style={{
-                          marginLeft: 10,
-                        }}
-                      >
-                        {intl.formatMessage({
-                          id: "Reflection.Refresh.Now",
-                        })}
-                      </Button>
-                    )}
-                  </div>
-                </FieldWithError>
-              </td>
-            </tr>
-            <tr>
-              <td colSpan={2}>
-                <div style={styles.inputLabel}>
-                  <Checkbox
-                    {...accelerationNeverExpire}
-                    label={laDeprecated("Never expire")}
-                  />
-                </div>
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <div style={styles.inputLabel}>
-                  {laDeprecated("Expire after")}
-                </div>{" "}
-                {/* todo: ax: <label> */}
-              </td>
-              <td>
-                <FieldWithError
-                  errorPlacement="right"
-                  {...accelerationGracePeriod}
-                >
-                  <DurationField
-                    {...accelerationGracePeriod}
-                    min={this.state.minDuration}
-                    style={styles.durationField}
-                    disabled={!!accelerationNeverExpire.value}
-                  />
-                </FieldWithError>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+                  </FieldWithError>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        )}
         {message && (
           <Message
             style={{ marginTop: 5 }}
@@ -307,6 +368,10 @@ class DataFreshnessSection extends Component {
     );
   }
 }
+
+const mapStateToProps = (state) => ({
+  isSchedulerEnabled: getSupportFlags(state)[REFLECTION_SCHEDULER_POLICY],
+});
 
 const styles = {
   container: {
@@ -367,4 +432,6 @@ const notificationStyles = {
     },
   },
 };
-export default DataFreshnessSection;
+export default connect(mapStateToProps, {
+  fetchSupportFlags: fetchSupportFlags,
+})(DataFreshnessSection);

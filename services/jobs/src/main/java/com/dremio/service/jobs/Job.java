@@ -18,10 +18,6 @@ package com.dremio.service.jobs;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static java.lang.String.format;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
-
 import com.dremio.common.utils.PathUtils;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.service.job.proto.JobAttempt;
@@ -31,10 +27,11 @@ import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.job.proto.SessionId;
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
-/**
- * Job represents details of a currently running or completed query on a dataset.
- */
+/** Job represents details of a currently running or completed query on a dataset. */
 public class Job {
 
   private final JobId jobId;
@@ -44,12 +41,15 @@ public class Job {
   private volatile long recordCount;
   private volatile boolean isInternal;
   private QueryProfile profile;
-  private boolean profileDetailsCapturedPostTermination; // indicates whether job profile details were fetched after job completed/failed/cancelled
+  private boolean
+      profileDetailsCapturedPostTermination; // indicates whether job profile details were fetched
+  // after job completed/failed/cancelled
 
   private JobData data;
+
   /**
-   * true when all attempts complete.
-   * This is necessary as we cant' just rely on the last attempt's state in case the query reattempts
+   * true when all attempts complete. This is necessary as we cant' just rely on the last attempt's
+   * state in case the query reattempts
    */
   private boolean completed;
 
@@ -58,7 +58,7 @@ public class Job {
     this.sessionId = sessionId;
     this.resultsStore = null;
     this.completed = false;
-    attempts.add( checkNotNull(jobAttempt, "jobAttempt is null"));
+    attempts.add(checkNotNull(jobAttempt, "jobAttempt is null"));
   }
 
   public Job(JobId jobId, JobResult jobResult) {
@@ -67,11 +67,13 @@ public class Job {
     this.resultsStore = null;
     this.completed = jobResult.getCompleted();
     attempts.addAll(jobResult.getAttemptsList());
-    this.profileDetailsCapturedPostTermination = jobResult.getProfileDetailsCapturedPostTermination();
+    this.profileDetailsCapturedPostTermination =
+        jobResult.getProfileDetailsCapturedPostTermination();
   }
 
   /**
    * Create an instance which loads the job results lazily.
+   *
    * @param jobId
    * @param jobResult
    * @param resultsStore
@@ -83,7 +85,8 @@ public class Job {
     this.attempts.addAll(jobResult.getAttemptsList());
     this.resultsStore = checkNotNull(resultsStore);
     this.completed = jobResult.getCompleted();
-    this.profileDetailsCapturedPostTermination = jobResult.getProfileDetailsCapturedPostTermination();
+    this.profileDetailsCapturedPostTermination =
+        jobResult.getProfileDetailsCapturedPostTermination();
   }
 
   void setRecordCount(long recordCount) {
@@ -103,13 +106,13 @@ public class Job {
   }
 
   public JobAttempt getJobAttempt() {
-    Preconditions.checkState(attempts.size() >=1, "There should be at least one attempt in Job");
+    Preconditions.checkState(attempts.size() >= 1, "There should be at least one attempt in Job");
     int lastAttempt = attempts.size() - 1;
     return attempts.get(lastAttempt);
   }
 
   public QueryType getQueryType() {
-    Preconditions.checkState(attempts.size() >=1, "There should be at least one attempt in Job");
+    Preconditions.checkState(attempts.size() >= 1, "There should be at least one attempt in Job");
     return attempts.get(0).getInfo().getQueryType();
   }
 
@@ -125,21 +128,25 @@ public class Job {
   public String toString() {
     final JobAttempt jobAttempt = getJobAttempt();
     final String sessionIdStr = sessionId == null ? null : sessionId.getId();
-    return format("{JobId: %s, SessionId: %s, SQL: %s, Dataset: %s, DatasetVersion: %s}",
-            jobId.getId(), sessionIdStr, jobAttempt.getInfo().getSql(),
-            PathUtils.constructFullPath(jobAttempt.getInfo().getDatasetPathList()),
-            jobAttempt.getInfo().getDatasetVersion()); //todo
+    return format(
+        "{JobId: %s, SessionId: %s, SQL: %s, Dataset: %s, DatasetVersion: %s}",
+        jobId.getId(),
+        sessionIdStr,
+        jobAttempt.getInfo().getSql(),
+        PathUtils.constructFullPath(jobAttempt.getInfo().getDatasetPathList()),
+        jobAttempt.getInfo().getDatasetVersion()); // todo
   }
 
-  public JobData getData(){
-    Preconditions.checkState(data != null || resultsStore != null, "not available from deserialized Job");
+  public JobData getData() {
+    Preconditions.checkState(
+        data != null || resultsStore != null, "not available from deserialized Job");
     if (data != null) {
       return data;
     }
     return resultsStore.get(getJobId(), getSessionId());
   }
 
-  void setData(JobData data){
+  void setData(JobData data) {
     Preconditions.checkArgument(this.data == null);
     this.data = data;
   }
@@ -153,8 +160,8 @@ public class Job {
   }
 
   /**
-   * Check if this Job has results. Job results may exist for FAILED jobs. Users
-   * should be aware and check JobState if necessary.
+   * Check if this Job has results. Job results may exist for FAILED jobs. Users should be aware and
+   * check JobState if necessary.
    */
   public boolean hasResults() {
     return resultsStore != null && resultsStore.jobOutputDirectoryExists(jobId);
@@ -178,19 +185,18 @@ public class Job {
     if (obj != null) {
       if (obj instanceof Job) {
         Job other = (Job) obj;
-        return Objects.equal(jobId, other.jobId) &&
-          Objects.equal(attempts, other.attempts) &&
-          Objects.equal(completed, other.completed) &&
-          Objects.equal(sessionId, other.sessionId);
+        return Objects.equal(jobId, other.jobId)
+            && Objects.equal(attempts, other.attempts)
+            && Objects.equal(completed, other.completed)
+            && Objects.equal(sessionId, other.sessionId);
       }
     }
     return false;
   }
 
   JobResult toJobResult(Job job) {
-    JobResult jobResult = new JobResult()
-      .setCompleted(completed)
-      .setAttemptsList(job.getAttempts());
+    JobResult jobResult =
+        new JobResult().setCompleted(completed).setAttemptsList(job.getAttempts());
     if (sessionId != null) {
       jobResult.setSessionId(sessionId);
     }
@@ -213,6 +219,4 @@ public class Job {
   public boolean profileDetailsCapturedPostTermination() {
     return this.profileDetailsCapturedPostTermination;
   }
-
-
 }

@@ -15,56 +15,62 @@
  */
 package com.dremio.exec.store.dfs;
 
-import java.nio.file.Paths;
-
-import org.junit.Ignore;
-import org.junit.Test;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.common.util.TestTools;
+import java.nio.file.Paths;
+import org.junit.Ignore;
+import org.junit.Test;
 
 @Ignore("revisit globbing")
 public class TestGlob extends BaseTestQuery {
 
-    String MULTILEVEL = Paths.get(TestTools.getWorkingPath()).getParent() + "/java-exec/src/test/resources/multilevel";
+  String MULTILEVEL =
+      Paths.get(TestTools.getWorkingPath()).getParent()
+          + "/java-exec/src/test/resources/multilevel";
 
-    @Test
-    public void testGlobSet() throws Exception {
-        testBuilder()
-            .sqlQuery(String.format("select count(*) from dfs_test.\"%s/parquet/{1994,1995}\"", MULTILEVEL))
-            .unOrdered()
-            .baselineColumns("EXPR$0")
-            .baselineValues(80L)
-            .build().run();
-    }
+  @Test
+  public void testGlobSet() throws Exception {
+    testBuilder()
+        .sqlQuery(
+            String.format("select count(*) from dfs_test.\"%s/parquet/{1994,1995}\"", MULTILEVEL))
+        .unOrdered()
+        .baselineColumns("EXPR$0")
+        .baselineValues(80L)
+        .build()
+        .run();
+  }
 
-    @Test
-    public void testGlobWildcard() throws Exception {
-        testBuilder()
-            .sqlQuery(String.format("select count(*) from dfs_test.\"%s/parquet/1994/*\"", MULTILEVEL))
-            .unOrdered()
-            .baselineColumns("EXPR$0")
-            .baselineValues(40L)
-            .build().run();
-    }
+  @Test
+  public void testGlobWildcard() throws Exception {
+    testBuilder()
+        .sqlQuery(String.format("select count(*) from dfs_test.\"%s/parquet/1994/*\"", MULTILEVEL))
+        .unOrdered()
+        .baselineColumns("EXPR$0")
+        .baselineValues(40L)
+        .build()
+        .run();
+  }
 
-    @Test
-    public void testGlobSingleCharacter() throws Exception {
-        testBuilder()
-            .sqlQuery(String.format("select count(*) from dfs_test.\"%s/parquet/199?/*\"", MULTILEVEL))
-            .unOrdered()
-            .baselineColumns("EXPR$0")
-            .baselineValues(120L)
-            .build().run();
-    }
+  @Test
+  public void testGlobSingleCharacter() throws Exception {
+    testBuilder()
+        .sqlQuery(String.format("select count(*) from dfs_test.\"%s/parquet/199?/*\"", MULTILEVEL))
+        .unOrdered()
+        .baselineColumns("EXPR$0")
+        .baselineValues(120L)
+        .build()
+        .run();
+  }
 
-    @Test
-    public void testGlobSingleCharacterRange() throws Exception {
-        testBuilder()
-            .sqlQuery(String.format("select count(*) from dfs_test.\"%s/parquet/199[4-5]/*\"", MULTILEVEL))
-            .unOrdered()
-            .baselineColumns("EXPR$0")
-            .baselineValues(80L)
-            .build().run();
-    }
+  @Test
+  public void testGlobSingleCharacterRange() throws Exception {
+    testBuilder()
+        .sqlQuery(
+            String.format("select count(*) from dfs_test.\"%s/parquet/199[4-5]/*\"", MULTILEVEL))
+        .unOrdered()
+        .baselineColumns("EXPR$0")
+        .baselineValues(80L)
+        .build()
+        .run();
+  }
 }

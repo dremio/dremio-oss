@@ -17,48 +17,49 @@ package com.dremio.service.jobresults.server;
 
 import static com.dremio.services.jobresults.common.JobResultsRequestUtils.getJobResultsMethod;
 
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.service.grpc.CloseableBindableService;
 import com.dremio.service.jobresults.JobResultsResponse;
 import com.dremio.service.jobresults.JobResultsServiceGrpc;
 import com.dremio.services.jobresults.common.JobResultsRequestWrapper;
-
 import io.grpc.ServerServiceDefinition;
 import io.grpc.stub.ServerCalls;
 import io.grpc.stub.StreamObserver;
+import org.apache.arrow.memory.BufferAllocator;
 
 /**
- * Overrides the default service with new method definitions that allow
- * us to customize request/response marshalling.
+ * Overrides the default service with new method definitions that allow us to customize
+ * request/response marshalling.
  */
 public class JobResultsBindableService implements CloseableBindableService {
   private final BufferAllocator allocator;
   private final JobResultsGrpcServerFacade jobResultsGrpcServerFacade;
 
-  public JobResultsBindableService(BufferAllocator allocator, JobResultsGrpcServerFacade jobResultsGrpcServerFacade) {
+  public JobResultsBindableService(
+      BufferAllocator allocator, JobResultsGrpcServerFacade jobResultsGrpcServerFacade) {
     this.allocator = allocator;
     this.jobResultsGrpcServerFacade = jobResultsGrpcServerFacade;
   }
 
   @Override
   public ServerServiceDefinition bindService() {
-    ServerServiceDefinition.Builder serviceBuilder = ServerServiceDefinition.builder(JobResultsServiceGrpc.SERVICE_NAME);
+    ServerServiceDefinition.Builder serviceBuilder =
+        ServerServiceDefinition.builder(JobResultsServiceGrpc.SERVICE_NAME);
 
-    serviceBuilder.addMethod(getJobResultsMethod(allocator),
-                             ServerCalls.asyncBidiStreamingCall(new JobResultsMethod()));
+    serviceBuilder.addMethod(
+        getJobResultsMethod(allocator), ServerCalls.asyncBidiStreamingCall(new JobResultsMethod()));
 
     return serviceBuilder.build();
   }
 
   @Override
-  public void close() throws Exception {
-  }
+  public void close() throws Exception {}
 
-  public class JobResultsMethod implements ServerCalls.BidiStreamingMethod<JobResultsRequestWrapper, JobResultsResponse> {
+  public class JobResultsMethod
+      implements ServerCalls.BidiStreamingMethod<JobResultsRequestWrapper, JobResultsResponse> {
 
     @Override
-    public StreamObserver<JobResultsRequestWrapper> invoke(StreamObserver<JobResultsResponse> responseObserver) {
+    public StreamObserver<JobResultsRequestWrapper> invoke(
+        StreamObserver<JobResultsResponse> responseObserver) {
       return jobResultsGrpcServerFacade.getRequestWrapperStreamObserver(responseObserver);
     }
   }

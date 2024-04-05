@@ -22,24 +22,23 @@ import static com.dremio.common.expression.CompleteType.FLOAT;
 import static com.dremio.common.expression.CompleteType.INT;
 import static com.dremio.common.expression.CompleteType.NULL;
 
+import com.dremio.common.expression.CompleteType;
 import java.util.Optional;
-
 import org.apache.arrow.vector.types.pojo.ArrowType;
 
-import com.dremio.common.expression.CompleteType;
-
 /**
- * Contains the list of the supported coercions between a filesystem source {@link CompleteType} and the destination
- * table {@link CompleteType}.
+ * Contains the list of the supported coercions between a filesystem source {@link CompleteType} and
+ * the destination table {@link CompleteType}.
  */
 public class TypeCoercionRules {
   /**
-   * Gets the coerced {@link CompleteType} from a table {@link CompleteType} and a file {@link CompleteType},
-   * based on a pre-defined set of supported rules.
+   * Gets the coerced {@link CompleteType} from a table {@link CompleteType} and a file {@link
+   * CompleteType}, based on a pre-defined set of supported rules.
    *
-   * @param fileType  {@link CompleteType} of the file
+   * @param fileType {@link CompleteType} of the file
    * @param tableType {@link CompleteType} of the table
-   * @return {@code Optional} of the resultant {@link CompleteType} if a match is found, {@code Optional.empty()} otherwise
+   * @return {@code Optional} of the resultant {@link CompleteType} if a match is found, {@code
+   *     Optional.empty()} otherwise
    */
   public Optional<CompleteType> getResultantType(CompleteType fileType, CompleteType tableType) {
     if (fileType.equals(NULL)) {

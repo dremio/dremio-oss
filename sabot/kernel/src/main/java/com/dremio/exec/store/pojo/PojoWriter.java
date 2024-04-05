@@ -18,10 +18,15 @@ package com.dremio.exec.store.pojo;
 import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.sabot.op.scan.OutputMutator;
 
-interface PojoWriter{
-  void writeField(Object pojo, int outboundIndex) throws IllegalArgumentException, IllegalAccessException ;
+interface PojoWriter {
+  void writeField(Object pojo, int outboundIndex)
+      throws IllegalArgumentException, IllegalAccessException;
+
   void init(OutputMutator output) throws SchemaChangeException;
+
   void allocate();
+
   void setValueCount(int i);
+
   void cleanup();
 }

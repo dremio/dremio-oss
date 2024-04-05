@@ -15,35 +15,36 @@
  */
 package com.dremio.sabot.exec;
 
+import com.google.common.collect.Sets;
 import org.junit.Assert;
 import org.junit.Test;
-
-import com.google.common.collect.Sets;
 
 public class TestThreadsStatsCollector {
 
   @Test
   public void testOldThreadsArePruned() throws InterruptedException {
 
-    Thread t = new Thread() {
-      @Override
-      public void run () {
-        try {
-          sleep(400L);
-        } catch (InterruptedException e) {
-        }
-      }
-    };
+    Thread t =
+        new Thread() {
+          @Override
+          public void run() {
+            try {
+              sleep(400L);
+            } catch (InterruptedException e) {
+            }
+          }
+        };
 
-    Thread t1 = new Thread() {
-      @Override
-      public void run () {
-        try {
-          sleep(400L);
-        } catch (InterruptedException e) {
-        }
-      }
-    };
+    Thread t1 =
+        new Thread() {
+          @Override
+          public void run() {
+            try {
+              sleep(400L);
+            } catch (InterruptedException e) {
+            }
+          }
+        };
 
     t.start();
     t1.start();

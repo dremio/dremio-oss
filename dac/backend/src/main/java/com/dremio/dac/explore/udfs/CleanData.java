@@ -18,13 +18,21 @@ package com.dremio.dac.explore.udfs;
 import static com.dremio.common.util.DateTimes.toMillis;
 import static com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8;
 
+import com.dremio.dac.proto.model.dataset.DataType;
+import com.dremio.exec.expr.SimpleFunction;
+import com.dremio.exec.expr.annotations.FunctionTemplate;
+import com.dremio.exec.expr.annotations.FunctionTemplate.FunctionScope;
+import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
+import com.dremio.exec.expr.annotations.Output;
+import com.dremio.exec.expr.annotations.Param;
+import com.dremio.exec.expr.annotations.Workspace;
+import com.dremio.exec.vector.complex.fn.JsonWriter;
+import com.google.common.annotations.VisibleForTesting;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.CharacterCodingException;
 import java.util.regex.Pattern;
-
 import javax.inject.Inject;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.holders.Float8Holder;
@@ -39,21 +47,7 @@ import org.joda.time.LocalDateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.dac.proto.model.dataset.DataType;
-import com.dremio.exec.expr.SimpleFunction;
-import com.dremio.exec.expr.annotations.FunctionTemplate;
-import com.dremio.exec.expr.annotations.FunctionTemplate.FunctionScope;
-import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
-import com.dremio.exec.expr.annotations.Output;
-import com.dremio.exec.expr.annotations.Param;
-import com.dremio.exec.expr.annotations.Workspace;
-import com.dremio.exec.vector.complex.fn.JsonWriter;
-import com.google.common.annotations.VisibleForTesting;
-
-/**
- * UDFs to clean data
- * TODO: more types
- */
+/** UDFs to clean data TODO: more types */
 public class CleanData {
   private static final Logger logger = LoggerFactory.getLogger(CleanData.class);
 
@@ -66,7 +60,7 @@ public class CleanData {
       ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
       JsonWriter jsonWriter = new JsonWriter(outputStream, true, false);
       jsonWriter.write(reader);
-      byte [] bytes = outputStream.toByteArray();
+      byte[] bytes = outputStream.toByteArray();
       return bytes;
     } catch (IOException e) {
       throw new RuntimeException(e);
@@ -75,6 +69,7 @@ public class CleanData {
 
   /**
    * See {@link Long#parseLong(String)}
+   *
    * @param s
    * @param holder
    * @return
@@ -102,7 +97,7 @@ public class CleanData {
           return false;
         }
 
-        if (len == 1) {// Cannot have lone "+" or "-"
+        if (len == 1) { // Cannot have lone "+" or "-"
           return false;
         }
         i++;
@@ -110,7 +105,7 @@ public class CleanData {
       multmin = limit / radix;
       while (i < len) {
         // Accumulating negatively avoids surprises near MAX_VALUE
-        digit = Character.digit(s.charAt(i++),radix);
+        digit = Character.digit(s.charAt(i++), radix);
         if (digit < 0) {
           return false;
         }
@@ -157,7 +152,7 @@ public class CleanData {
   }
 
   @VisibleForTesting
-  static Pattern PATTERN = Pattern.compile( "^([-+]?\\d*)\\.?\\d+([Ee][-+]?\\d+)?$" );
+  static Pattern PATTERN = Pattern.compile("^([-+]?\\d*)\\.?\\d+([Ee][-+]?\\d+)?$");
 
   public static boolean isNumeric(String value) {
     return value != null && PATTERN.matcher(value).matches();
@@ -208,12 +203,12 @@ public class CleanData {
     } else if (o instanceof Text) {
       try {
         String s = Text.decode(((Text) o).getBytes(), 0, ((Text) o).getLength());
-        if((s == null)
-          || (s.length() == 0)
-          || ("false".equalsIgnoreCase(s))
-          || ("f".equalsIgnoreCase(s))
-          || ("0".equals(s))
-          || ("0.0".equals(s))) {
+        if ((s == null)
+            || (s.length() == 0)
+            || ("false".equalsIgnoreCase(s))
+            || ("f".equalsIgnoreCase(s))
+            || ("0".equals(s))
+            || ("0.0".equals(s))) {
           out.value = 0;
           return true;
         } else {
@@ -229,16 +224,22 @@ public class CleanData {
     return false;
   }
 
-  /**
-   * Is clean data?
-   */
-  @FunctionTemplate(name = "is_clean_data", scope = FunctionScope.SIMPLE, nulls = NullHandling.INTERNAL)
+  /** Is clean data? */
+  @FunctionTemplate(
+      name = "is_clean_data",
+      scope = FunctionScope.SIMPLE,
+      nulls = NullHandling.INTERNAL)
   public static class IsCleanData implements SimpleFunction {
 
     // TODO: this should be a FieldReader. see DX-1256
     @Param private UnionHolder in;
-    @Param(constant=true) private NullableIntHolder castWhenPossibleHolder;
-    @Param(constant=true) private NullableVarCharHolder dataTypeHolder;
+
+    @Param(constant = true)
+    private NullableIntHolder castWhenPossibleHolder;
+
+    @Param(constant = true)
+    private NullableVarCharHolder dataTypeHolder;
+
     @Output private NullableBitHolder out;
     @Workspace private com.dremio.dac.proto.model.dataset.DataType expectedDataType;
     @Workspace private NullableBigIntHolder bigIntHolder;
@@ -260,15 +261,16 @@ public class CleanData {
       }
       final com.dremio.dac.proto.model.dataset.DataType dataType =
           com.dremio.dac.explore.DataTypeUtil.getDataType(in.reader.getMinorType());
-      if (dataType == expectedDataType
-          || castWhenPossibleHolder.value == 1) {
+      if (dataType == expectedDataType || castWhenPossibleHolder.value == 1) {
         if (expectedDataType == com.dremio.dac.proto.model.dataset.DataType.TEXT) {
           // for strings we can always cast
           out.value = 1;
         } else if (expectedDataType == com.dremio.dac.proto.model.dataset.DataType.INTEGER) {
-          out.value = com.dremio.dac.explore.udfs.CleanData.castToInteger(in.reader, bigIntHolder) ? 1 : 0;
+          out.value =
+              com.dremio.dac.explore.udfs.CleanData.castToInteger(in.reader, bigIntHolder) ? 1 : 0;
         } else if (expectedDataType == com.dremio.dac.proto.model.dataset.DataType.FLOAT) {
-          out.value = com.dremio.dac.explore.udfs.CleanData.castToFloat(in.reader, floatHolder) ? 1 : 0;
+          out.value =
+              com.dremio.dac.explore.udfs.CleanData.castToFloat(in.reader, floatHolder) ? 1 : 0;
         } else {
           // TODO: more types
           out.value = 0;
@@ -278,26 +280,32 @@ public class CleanData {
         out.value = 0;
       }
     }
-
   }
 
-  /**
-   * Clean data to TEXT
-   */
-  @FunctionTemplate(name = "clean_data_to_TEXT", scope = FunctionScope.SIMPLE, nulls = NullHandling.INTERNAL)
+  /** Clean data to TEXT */
+  @FunctionTemplate(
+      name = "clean_data_to_TEXT",
+      scope = FunctionScope.SIMPLE,
+      nulls = NullHandling.INTERNAL)
   public static class CleanDataText implements SimpleFunction {
 
     // TODO: this should be a FieldReader. see DX-1256
     @Param private UnionHolder in;
-    @Param(constant=true) private NullableIntHolder castWhenPossibleHolder;
-    @Param(constant=true) private NullableIntHolder replaceWithNullHolder;
-    @Param(constant=true) private NullableVarCharHolder defaultValueHolder;
+
+    @Param(constant = true)
+    private NullableIntHolder castWhenPossibleHolder;
+
+    @Param(constant = true)
+    private NullableIntHolder replaceWithNullHolder;
+
+    @Param(constant = true)
+    private NullableVarCharHolder defaultValueHolder;
+
     @Output private NullableVarCharHolder out;
     @Inject private ArrowBuf buffer;
 
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
     public void eval() {
@@ -309,8 +317,7 @@ public class CleanData {
           com.dremio.dac.proto.model.dataset.DataType.TEXT;
       final com.dremio.dac.proto.model.dataset.DataType dataType =
           com.dremio.dac.explore.DataTypeUtil.getDataType(in.reader.getMinorType());
-      if (dataType == text
-          || castWhenPossibleHolder.value == 1) {
+      if (dataType == text || castWhenPossibleHolder.value == 1) {
         // for strings we can always cast
         if (in.reader.getMinorType() == org.apache.arrow.vector.types.Types.MinorType.VARCHAR) {
           in.reader.read(out);
@@ -334,25 +341,31 @@ public class CleanData {
         }
       }
     }
-
   }
 
-  /**
-   * Clean data to INTEGER
-   */
-  @FunctionTemplate(name = "clean_data_to_INTEGER", scope = FunctionScope.SIMPLE, nulls = NullHandling.INTERNAL)
+  /** Clean data to INTEGER */
+  @FunctionTemplate(
+      name = "clean_data_to_INTEGER",
+      scope = FunctionScope.SIMPLE,
+      nulls = NullHandling.INTERNAL)
   public static class CleanDataInt implements SimpleFunction {
 
     // TODO: this should be a FieldReader. see DX-1256
     @Param private UnionHolder in;
-    @Param(constant=true) private NullableIntHolder castWhenPossibleHolder;
-    @Param(constant=true) private NullableIntHolder replaceWithNullHolder;
-    @Param(constant=true) private NullableBigIntHolder defaultValueHolder;
+
+    @Param(constant = true)
+    private NullableIntHolder castWhenPossibleHolder;
+
+    @Param(constant = true)
+    private NullableIntHolder replaceWithNullHolder;
+
+    @Param(constant = true)
+    private NullableBigIntHolder defaultValueHolder;
+
     @Output private NullableBigIntHolder out;
 
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
     public void eval() {
@@ -379,22 +392,29 @@ public class CleanData {
     }
   }
 
-  /**
-   * Clean data to FLOAT
-   */
-  @FunctionTemplate(name = "clean_data_to_FLOAT", scope = FunctionScope.SIMPLE, nulls = NullHandling.INTERNAL)
+  /** Clean data to FLOAT */
+  @FunctionTemplate(
+      name = "clean_data_to_FLOAT",
+      scope = FunctionScope.SIMPLE,
+      nulls = NullHandling.INTERNAL)
   public static class CleanDataFloat implements SimpleFunction {
 
     // TODO: this should be a FieldReader. see DX-1256
     @Param private UnionHolder in;
-    @Param(constant=true) private NullableIntHolder castWhenPossibleHolder;
-    @Param(constant=true) private NullableIntHolder replaceWithNullHolder;
-    @Param(constant=true) private NullableFloat8Holder defaultValueHolder;
+
+    @Param(constant = true)
+    private NullableIntHolder castWhenPossibleHolder;
+
+    @Param(constant = true)
+    private NullableIntHolder replaceWithNullHolder;
+
+    @Param(constant = true)
+    private NullableFloat8Holder defaultValueHolder;
+
     @Output private NullableFloat8Holder out;
 
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
     public void eval() {
@@ -420,21 +440,28 @@ public class CleanData {
     }
   }
 
-  /**
-   * Clean data to BOOLEAN
-   */
-  @FunctionTemplate(name = "clean_data_to_BOOLEAN", scope = FunctionScope.SIMPLE, nulls = NullHandling.INTERNAL)
+  /** Clean data to BOOLEAN */
+  @FunctionTemplate(
+      name = "clean_data_to_BOOLEAN",
+      scope = FunctionScope.SIMPLE,
+      nulls = NullHandling.INTERNAL)
   public static class CleanDataBoolean implements SimpleFunction {
 
     @Param private UnionHolder in;
-    @Param(constant=true) private NullableIntHolder castWhenPossibleHolder;
-    @Param(constant=true) private NullableIntHolder replaceWithNullHolder;
-    @Param(constant=true) private NullableBitHolder defaultValueHolder;
+
+    @Param(constant = true)
+    private NullableIntHolder castWhenPossibleHolder;
+
+    @Param(constant = true)
+    private NullableIntHolder replaceWithNullHolder;
+
+    @Param(constant = true)
+    private NullableBitHolder defaultValueHolder;
+
     @Output private NullableBitHolder out;
 
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
     public void eval() {
@@ -444,11 +471,11 @@ public class CleanData {
       }
 
       final com.dremio.dac.proto.model.dataset.DataType booleanType =
-        com.dremio.dac.proto.model.dataset.DataType.BOOLEAN;
+          com.dremio.dac.proto.model.dataset.DataType.BOOLEAN;
       final com.dremio.dac.proto.model.dataset.DataType dataType =
-        com.dremio.dac.explore.DataTypeUtil.getDataType(in.reader.getMinorType());
-      if (((dataType == booleanType) || castWhenPossibleHolder.value == 1) &&
-          com.dremio.dac.explore.udfs.CleanData.castToBoolean(in.reader, out)) {
+          com.dremio.dac.explore.DataTypeUtil.getDataType(in.reader.getMinorType());
+      if (((dataType == booleanType) || castWhenPossibleHolder.value == 1)
+          && com.dremio.dac.explore.udfs.CleanData.castToBoolean(in.reader, out)) {
         out.isSet = 1;
       } else {
         if (replaceWithNullHolder.value == 1) {
@@ -461,10 +488,11 @@ public class CleanData {
     }
   }
 
-  /**
-   * Get Dremio data type of expression
-   */
-  @FunctionTemplate(name = "dremio_type_of", scope = FunctionScope.SIMPLE, nulls = NullHandling.INTERNAL)
+  /** Get Dremio data type of expression */
+  @FunctionTemplate(
+      name = "dremio_type_of",
+      scope = FunctionScope.SIMPLE,
+      nulls = NullHandling.INTERNAL)
   public static class DremioTypeOf implements SimpleFunction {
     @Param private UnionHolder in;
     @Output private NullableVarCharHolder out;
@@ -472,9 +500,7 @@ public class CleanData {
     @Inject private ArrowBuf buffer;
 
     @Override
-    public void setup() {
-
-    }
+    public void setup() {}
 
     @Override
     public void eval() {
@@ -482,7 +508,10 @@ public class CleanData {
       if (out.isSet == 0) {
         return;
       }
-      byte[] result = com.dremio.dac.explore.DataTypeUtil.getDataType(in.reader.getMinorType()).toString().getBytes();
+      byte[] result =
+          com.dremio.dac.explore.DataTypeUtil.getDataType(in.reader.getMinorType())
+              .toString()
+              .getBytes();
       out.start = 0;
       buffer = buffer.reallocIfNeeded(result.length);
       out.buffer = buffer;
@@ -491,21 +520,28 @@ public class CleanData {
     }
   }
 
-  /**
-   * convert to INTEGER
-   */
-  @FunctionTemplate(name = "convert_to_INTEGER", scope = FunctionScope.SIMPLE, nulls = NullHandling.INTERNAL)
+  /** convert to INTEGER */
+  @FunctionTemplate(
+      name = "convert_to_INTEGER",
+      scope = FunctionScope.SIMPLE,
+      nulls = NullHandling.INTERNAL)
   public static class ConvertToInt implements SimpleFunction {
 
     @Param private FieldReader in;
-    @Param(constant=true) private NullableIntHolder castWhenPossibleHolder;
-    @Param(constant=true) private NullableIntHolder replaceWithNullHolder;
-    @Param(constant=true) private NullableBigIntHolder defaultValueHolder;
+
+    @Param(constant = true)
+    private NullableIntHolder castWhenPossibleHolder;
+
+    @Param(constant = true)
+    private NullableIntHolder replaceWithNullHolder;
+
+    @Param(constant = true)
+    private NullableBigIntHolder defaultValueHolder;
+
     @Output private NullableBigIntHolder out;
 
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
     public void eval() {
@@ -532,21 +568,28 @@ public class CleanData {
     }
   }
 
-  /**
-   * convert to FLOAT
-   */
-  @FunctionTemplate(name = "convert_to_FLOAT", scope = FunctionScope.SIMPLE, nulls = NullHandling.INTERNAL)
+  /** convert to FLOAT */
+  @FunctionTemplate(
+      name = "convert_to_FLOAT",
+      scope = FunctionScope.SIMPLE,
+      nulls = NullHandling.INTERNAL)
   public static class ConvertToFloat implements SimpleFunction {
 
     @Param private FieldReader in;
-    @Param(constant=true) private NullableIntHolder castWhenPossibleHolder;
-    @Param(constant=true) private NullableIntHolder replaceWithNullHolder;
-    @Param(constant=true) private Float8Holder defaultValueHolder;
+
+    @Param(constant = true)
+    private NullableIntHolder castWhenPossibleHolder;
+
+    @Param(constant = true)
+    private NullableIntHolder replaceWithNullHolder;
+
+    @Param(constant = true)
+    private Float8Holder defaultValueHolder;
+
     @Output private NullableFloat8Holder out;
 
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
     public void eval() {
@@ -572,16 +615,21 @@ public class CleanData {
     }
   }
 
-  /**
-   * Is convertible data?
-
-   */
-  @FunctionTemplate(name = "is_convertible_data", scope = FunctionScope.SIMPLE, nulls = NullHandling.INTERNAL)
+  /** Is convertible data? */
+  @FunctionTemplate(
+      name = "is_convertible_data",
+      scope = FunctionScope.SIMPLE,
+      nulls = NullHandling.INTERNAL)
   public static class IsConvertibleData implements SimpleFunction {
 
     @Param private FieldReader in;
-    @Param(constant=true) private NullableIntHolder castWhenPossibleHolder;
-    @Param(constant=true) private NullableVarCharHolder dataTypeHolder;
+
+    @Param(constant = true)
+    private NullableIntHolder castWhenPossibleHolder;
+
+    @Param(constant = true)
+    private NullableVarCharHolder dataTypeHolder;
+
     @Output private NullableBitHolder out;
     @Workspace private com.dremio.dac.proto.model.dataset.DataType expectedDataType;
     @Workspace private NullableBigIntHolder bigIntHolder;
@@ -596,32 +644,31 @@ public class CleanData {
 
     @Override
     public void eval() {
-        if (!in.isSet()) {
-          out.isSet = 0;
-          return;
-        }
-        out.isSet = 1;
-        final com.dremio.dac.proto.model.dataset.DataType dataType =
-            com.dremio.dac.explore.DataTypeUtil.getDataType(com.dremio.common.util.MajorTypeHelper.getMinorTypeFromArrowMinorType(in.getMinorType()));
-        if (dataType == expectedDataType
-            || castWhenPossibleHolder.value == 1) {
-          if (expectedDataType == com.dremio.dac.proto.model.dataset.DataType.TEXT) {
-            // for strings we can always cast
-            out.value = 1;
-          } else if (expectedDataType == com.dremio.dac.proto.model.dataset.DataType.INTEGER) {
-            out.value = com.dremio.dac.explore.udfs.CleanData.castToInteger(in, bigIntHolder) ? 1 : 0;
-          } else if (expectedDataType == com.dremio.dac.proto.model.dataset.DataType.FLOAT) {
-            out.value = com.dremio.dac.explore.udfs.CleanData.castToFloat(in, floatHolder) ? 1 : 0;
-          } else {
-            // TODO: more types
-            out.value = 0;
-          }
+      if (!in.isSet()) {
+        out.isSet = 0;
+        return;
+      }
+      out.isSet = 1;
+      final com.dremio.dac.proto.model.dataset.DataType dataType =
+          com.dremio.dac.explore.DataTypeUtil.getDataType(
+              com.dremio.common.util.MajorTypeHelper.getMinorTypeFromArrowMinorType(
+                  in.getMinorType()));
+      if (dataType == expectedDataType || castWhenPossibleHolder.value == 1) {
+        if (expectedDataType == com.dremio.dac.proto.model.dataset.DataType.TEXT) {
+          // for strings we can always cast
+          out.value = 1;
+        } else if (expectedDataType == com.dremio.dac.proto.model.dataset.DataType.INTEGER) {
+          out.value = com.dremio.dac.explore.udfs.CleanData.castToInteger(in, bigIntHolder) ? 1 : 0;
+        } else if (expectedDataType == com.dremio.dac.proto.model.dataset.DataType.FLOAT) {
+          out.value = com.dremio.dac.explore.udfs.CleanData.castToFloat(in, floatHolder) ? 1 : 0;
         } else {
           // TODO: more types
           out.value = 0;
         }
+      } else {
+        // TODO: more types
+        out.value = 0;
+      }
     }
-
   }
-
 }

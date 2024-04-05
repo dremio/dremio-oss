@@ -45,6 +45,7 @@ const SqlRunnerTab = (props: {
   tabId: string;
   getMenuItems?: () => JSX.Element | JSX.Element[];
 }) => {
+  const { t } = getIntlContext();
   const script = useScript(props.tabId);
   return (
     <TabListTab
@@ -54,6 +55,7 @@ const SqlRunnerTab = (props: {
       onClose={props.onTabClosed}
       onSelected={props.onTabSelected}
       getMenuItems={props.getMenuItems as any}
+      disabledCloseTooltip={t("Script.CloseTab.Disabled.Tooltip")}
     >
       {script?.name || <Skeleton width="22ch" />}
     </TabListTab>
@@ -88,7 +90,7 @@ export const SqlRunnerTabs = (props: SqlRunnerTabsProps) => {
           .catch((e) => {
             console.error(e);
           }),
-      1000
+      1000,
     );
   }, []);
 

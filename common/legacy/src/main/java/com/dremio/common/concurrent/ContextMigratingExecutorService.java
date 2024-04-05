@@ -15,6 +15,14 @@
  */
 package com.dremio.common.concurrent;
 
+import com.dremio.common.tracing.TracingUtils;
+import com.dremio.common.util.Closeable;
+import com.dremio.context.RequestContext;
+import com.google.common.base.Preconditions;
+import io.opentracing.Scope;
+import io.opentracing.Span;
+import io.opentracing.Tracer;
+import io.opentracing.noop.NoopTracerFactory;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -25,25 +33,14 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 
-import com.dremio.common.tracing.TracingUtils;
-import com.dremio.common.util.Closeable;
-import com.dremio.context.RequestContext;
-import com.google.common.base.Preconditions;
-
-import io.opentracing.Scope;
-import io.opentracing.Span;
-import io.opentracing.Tracer;
-import io.opentracing.noop.NoopTracerFactory;
-
 /**
- * Responsible for ensuring :
- * - the tracer active span is the same active span when the command is being run,
- *   even if the command is run in a different thread.
- * - the request context from the thread submitting the command is used, even if the
- *   command is run in a different thread. If the submitting thread does not have a
- *   request context, the default request context is used.
+ * Responsible for ensuring : - the tracer active span is the same active span when the command is
+ * being run, even if the command is run in a different thread. - the request context from the
+ * thread submitting the command is used, even if the command is run in a different thread. If the
+ * submitting thread does not have a request context, the default request context is used.
  *
- * We don't implement the invoke methods since we don't use them anywhere within the dremio code base.
+ * <p>We don't implement the invoke methods since we don't use them anywhere within the dremio code
+ * base.
  */
 public class ContextMigratingExecutorService<E extends ExecutorService> implements ExecutorService {
 
@@ -118,24 +115,27 @@ public class ContextMigratingExecutorService<E extends ExecutorService> implemen
   }
 
   @Override
-  public <T> List<Future<T>> invokeAll(Collection<? extends Callable<T>> tasks) throws InterruptedException {
+  public <T> List<Future<T>> invokeAll(Collection<? extends Callable<T>> tasks)
+      throws InterruptedException {
     throw new UnsupportedOperationException("ContextMigrator does not support invoke methods.");
   }
 
   @Override
-  public <T> List<Future<T>> invokeAll(Collection<? extends Callable<T>> tasks,
-                                       long timeout, TimeUnit unit) throws InterruptedException {
+  public <T> List<Future<T>> invokeAll(
+      Collection<? extends Callable<T>> tasks, long timeout, TimeUnit unit)
+      throws InterruptedException {
     throw new UnsupportedOperationException("ContextMigrator does not support invoke methods.");
   }
 
   @Override
-  public <T> T invokeAny(Collection<? extends Callable<T>> tasks) throws InterruptedException, ExecutionException {
+  public <T> T invokeAny(Collection<? extends Callable<T>> tasks)
+      throws InterruptedException, ExecutionException {
     throw new UnsupportedOperationException("ContextMigrator does not support invoke methods.");
   }
 
   @Override
   public <T> T invokeAny(Collection<? extends Callable<T>> tasks, long timeout, TimeUnit unit)
-    throws InterruptedException, ExecutionException, TimeoutException {
+      throws InterruptedException, ExecutionException, TimeoutException {
 
     throw new UnsupportedOperationException("ContextMigrator does not support invoke methods.");
   }
@@ -151,8 +151,11 @@ public class ContextMigratingExecutorService<E extends ExecutorService> implemen
     final RequestContext savedContext = RequestContext.current();
 
     // We only support plain callable types.
-    return  () -> {
-      final String childSpanName = (inner instanceof ContextMigratingTask) ? ((ContextMigratingTask) inner).getSpanName() : WORK_OPERATION_NAME;
+    return () -> {
+      final String childSpanName =
+          (inner instanceof ContextMigratingTask)
+              ? ((ContextMigratingTask) inner).getSpanName()
+              : WORK_OPERATION_NAME;
       final Span workSpan = atTaskStart(tracer, waitingSpan, parentSpan, childSpanName);
       try (Scope s = tracer.activateSpan(workSpan)) {
         return savedContext.call(inner);
@@ -165,22 +168,33 @@ public class ContextMigratingExecutorService<E extends ExecutorService> implemen
   // Use this method while creating a child span in the same thread
   public static Closeable getCloseableSpan(Tracer tracer, Span parentSpan, String spanName) {
     final Thread thisThread = Thread.currentThread();
-    Span childSpan = TracingUtils.childSpanBuilder(tracer, parentSpan, spanName,
-      "thread-group", thisThread.getThreadGroup().getName(),
-      "thread-name", thisThread.getName())
-      .start();
+    Span childSpan =
+        TracingUtils.childSpanBuilder(
+                tracer,
+                parentSpan,
+                spanName,
+                "thread-group",
+                thisThread.getThreadGroup().getName(),
+                "thread-name",
+                thisThread.getName())
+            .start();
 
     return () -> childSpan.finish();
   }
 
-  private static Span atTaskStart(Tracer tracer, Span waitingSpan, Span parentSpan, String spanName) {
+  private static Span atTaskStart(
+      Tracer tracer, Span waitingSpan, Span parentSpan, String spanName) {
     final Thread thisThread = Thread.currentThread();
     waitingSpan.finish();
-    return TracingUtils.childSpanBuilder(tracer, parentSpan, spanName,
-      "thread-group", thisThread.getThreadGroup().getName(),
-        "thread-name", thisThread.getName())
-      .asChildOf(parentSpan)
-      .start();
+    return TracingUtils.childSpanBuilder(
+            tracer,
+            parentSpan,
+            spanName,
+            "thread-group",
+            thisThread.getThreadGroup().getName(),
+            "thread-name",
+            thisThread.getName())
+        .start();
   }
 
   /**
@@ -191,7 +205,8 @@ public class ContextMigratingExecutorService<E extends ExecutorService> implemen
     private final Runnable work;
 
     ComparableRunnable(Runnable original, Runnable work) {
-      Preconditions.checkArgument(original instanceof Comparable, "The delegate must be comparable");
+      Preconditions.checkArgument(
+          original instanceof Comparable, "The delegate must be comparable");
       this.comparableDelegate = original;
       this.work = work;
     }
@@ -220,15 +235,19 @@ public class ContextMigratingExecutorService<E extends ExecutorService> implemen
     }
 
     final RequestContext savedContext = RequestContext.current();
-    return factory.apply(() -> {
-      final String childSpanName = (inner instanceof ContextMigratingTask) ? ((ContextMigratingTask) inner).getSpanName() : WORK_OPERATION_NAME;
-      final Span workSpan = atTaskStart(tracer, waitingSpan, parentSpan, childSpanName);
-      try (Scope s = tracer.activateSpan(workSpan)) {
-        savedContext.run(inner);
-      } finally {
-        workSpan.finish();
-      }
-    });
+    return factory.apply(
+        () -> {
+          final String childSpanName =
+              (inner instanceof ContextMigratingTask)
+                  ? ((ContextMigratingTask) inner).getSpanName()
+                  : WORK_OPERATION_NAME;
+          final Span workSpan = atTaskStart(tracer, waitingSpan, parentSpan, childSpanName);
+          try (Scope s = tracer.activateSpan(workSpan)) {
+            savedContext.run(inner);
+          } finally {
+            workSpan.finish();
+          }
+        });
   }
 
   public E getDelegate() {
@@ -236,11 +255,14 @@ public class ContextMigratingExecutorService<E extends ExecutorService> implemen
   }
 
   /**
-   * We commonly wrap closeable thread pools. Create a decorator that works for closeable executor services.
+   * We commonly wrap closeable thread pools. Create a decorator that works for closeable executor
+   * services.
+   *
    * @param <C> a closeableExecutorService
    */
-  public static class ContextMigratingCloseableExecutorService<C extends AutoCloseable & ExecutorService>
-    extends ContextMigratingExecutorService<C> implements CloseableExecutorService {
+  public static class ContextMigratingCloseableExecutorService<
+          C extends AutoCloseable & ExecutorService>
+      extends ContextMigratingExecutorService<C> implements CloseableExecutorService {
 
     private final C delegate;
 

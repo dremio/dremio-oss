@@ -17,7 +17,6 @@
 package com.dremio.exec.store.parquet;
 
 import java.util.Optional;
-
 import org.apache.arrow.memory.ArrowBuf;
 
 /**
@@ -26,14 +25,17 @@ import org.apache.arrow.memory.ArrowBuf;
 public interface ParquetDictionaryConvertor {
 
   /**
-   * The buffer is expected to have dictionary values. This method does re-arrangement within same buffer.
+   * The buffer is expected to have dictionary values. This method does re-arrangement within same
+   * buffer.
    *
    * @param dictionary
    * @param colName
    */
-  void convertDictionaryBuffer(final ArrowBuf dictionary, final int dictionarySize, final Optional<String> colName);
+  void convertDictionaryBuffer(
+      final ArrowBuf dictionary, final int dictionarySize, final Optional<String> colName);
 
-  ParquetDictionaryConvertor DEFAULT = (dictionary, dictionarySize, colName) -> {
-    // Do nothing by default
-  };
+  ParquetDictionaryConvertor DEFAULT =
+      (dictionary, dictionarySize, colName) -> {
+        // Do nothing by default
+      };
 }

@@ -17,6 +17,7 @@ package com.dremio.catalog.model;
 
 public class CatalogEntityId {
   private final String id;
+
   public CatalogEntityId(String id) {
     this.id = id;
   }
@@ -29,7 +30,6 @@ public class CatalogEntityId {
   public String toString() {
     return id;
   }
-
 
   @Override
   public final int hashCode() {

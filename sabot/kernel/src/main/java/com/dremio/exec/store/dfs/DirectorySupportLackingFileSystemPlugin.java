@@ -15,17 +15,18 @@
  */
 package com.dremio.exec.store.dfs;
 
-import javax.inject.Provider;
-
 import com.dremio.connector.metadata.BytesOutput;
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.DatasetMetadata;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.server.SabotContext;
+import javax.inject.Provider;
 
-public class DirectorySupportLackingFileSystemPlugin<C extends FileSystemConf<C, ?>> extends FileSystemPlugin<C> {
+public class DirectorySupportLackingFileSystemPlugin<C extends FileSystemConf<C, ?>>
+    extends FileSystemPlugin<C> {
 
-  public DirectorySupportLackingFileSystemPlugin(C config, SabotContext context, String name, Provider<StoragePluginId> idProvider) {
+  public DirectorySupportLackingFileSystemPlugin(
+      C config, SabotContext context, String name, Provider<StoragePluginId> idProvider) {
     super(config, context, name, idProvider);
   }
 
@@ -33,5 +34,4 @@ public class DirectorySupportLackingFileSystemPlugin<C extends FileSystemConf<C,
   public BytesOutput provideSignature(DatasetHandle datasetHandle, DatasetMetadata metadata) {
     return BytesOutput.NONE;
   }
-
 }

@@ -15,15 +15,15 @@
  */
 package com.dremio.common.expression;
 
-import org.apache.arrow.vector.types.pojo.ArrowType;
-
 import com.google.flatbuffers.FlatBufferBuilder;
+import org.apache.arrow.vector.types.pojo.ArrowType;
 
 public final class ArrowLateType extends ArrowType {
 
   public static final ArrowType INSTANCE = new ArrowLateType();
 
-  private ArrowLateType(){}
+  private ArrowLateType() {}
+
   @Override
   public ArrowTypeID getTypeID() {
     return null;

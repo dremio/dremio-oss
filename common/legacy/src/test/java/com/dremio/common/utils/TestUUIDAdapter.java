@@ -19,12 +19,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
 import java.util.UUID;
-
 import org.junit.Test;
 
-/**
- * Unit tests for UUIDAdapter
- */
+/** Unit tests for UUIDAdapter */
 public class TestUUIDAdapter {
 
   @Test

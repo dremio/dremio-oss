@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.physical.config;
 
-import java.util.List;
-
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.exec.physical.base.AbstractSender;
 import com.dremio.exec.physical.base.OpProps;
@@ -32,6 +30,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import java.util.List;
 
 @JsonTypeName("hash-partition-sender")
 public class HashPartitionSender extends AbstractSender implements OpWithMinorSpecificAttrs {
@@ -43,14 +42,13 @@ public class HashPartitionSender extends AbstractSender implements OpWithMinorSp
   private final boolean adaptiveHash;
 
   public HashPartitionSender(
-    OpProps props,
-    BatchSchema schema,
-    PhysicalOperator child,
-    int receiverMajorFragmentId,
-    List<MinorFragmentIndexEndpoint> destinations,
-    LogicalExpression expr,
-    boolean adaptiveHash
-  ) {
+      OpProps props,
+      BatchSchema schema,
+      PhysicalOperator child,
+      int receiverMajorFragmentId,
+      List<MinorFragmentIndexEndpoint> destinations,
+      LogicalExpression expr,
+      boolean adaptiveHash) {
     super(props, schema, child, receiverMajorFragmentId);
     this.destinations = destinations;
     this.expr = expr;
@@ -58,13 +56,12 @@ public class HashPartitionSender extends AbstractSender implements OpWithMinorSp
   }
 
   public HashPartitionSender(
-    OpProps props,
-    BatchSchema schema,
-    PhysicalOperator child,
-    int receiverMajorFragmentId,
-    List<MinorFragmentIndexEndpoint> destinations,
-    LogicalExpression expr
-  ) {
+      OpProps props,
+      BatchSchema schema,
+      PhysicalOperator child,
+      int receiverMajorFragmentId,
+      List<MinorFragmentIndexEndpoint> destinations,
+      LogicalExpression expr) {
     this(props, schema, child, receiverMajorFragmentId, destinations, expr, false);
   }
 
@@ -75,14 +72,14 @@ public class HashPartitionSender extends AbstractSender implements OpWithMinorSp
       @JsonProperty("child") PhysicalOperator child,
       @JsonProperty("receiverMajorFragmentId") int receiverMajorFragmentId,
       @JsonProperty("expr") LogicalExpression expr,
-      @JsonProperty("adaptiveHash") boolean adaptiveHash
-      ) {
+      @JsonProperty("adaptiveHash") boolean adaptiveHash) {
     this(props, schema, child, receiverMajorFragmentId, null, expr, adaptiveHash);
   }
 
   @Override
   protected PhysicalOperator getNewWithChild(PhysicalOperator child) {
-    return new HashPartitionSender(props, schema, child, receiverMajorFragmentId, destinations, expr, adaptiveHash);
+    return new HashPartitionSender(
+        props, schema, child, receiverMajorFragmentId, destinations, expr, adaptiveHash);
   }
 
   public LogicalExpression getExpr() {
@@ -94,7 +91,8 @@ public class HashPartitionSender extends AbstractSender implements OpWithMinorSp
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value) throws E {
+  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value)
+      throws E {
     return physicalVisitor.visitHashPartitionSender(this, value);
   }
 
@@ -116,6 +114,7 @@ public class HashPartitionSender extends AbstractSender implements OpWithMinorSp
 
   @Override
   public void populateMinorSpecificAttrs(MinorDataReader reader) throws Exception {
-    this.destinations = reader.readMinorFragmentIndexEndpoints(getProps(), DESTINATIONS_ATTRIBUTE_KEY);
+    this.destinations =
+        reader.readMinorFragmentIndexEndpoints(getProps(), DESTINATIONS_ATTRIBUTE_KEY);
   }
 }

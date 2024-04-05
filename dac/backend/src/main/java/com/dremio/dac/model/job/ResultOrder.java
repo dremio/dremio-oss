@@ -17,9 +17,7 @@ package com.dremio.dac.model.job;
 
 import com.dremio.service.job.SearchJobsRequest;
 
-/**
- * Result Order
- */
+/** Result Order */
 public enum ResultOrder {
   ASCENDING {
     @Override

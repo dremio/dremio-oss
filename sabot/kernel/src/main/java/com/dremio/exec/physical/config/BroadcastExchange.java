@@ -31,12 +31,12 @@ public class BroadcastExchange extends AbstractExchange {
   private final OptionManager optionManager;
 
   public BroadcastExchange(
-    OpProps props,
-    OpProps senderProps,
-    OpProps receiverProps,
-    BatchSchema schema,
-    PhysicalOperator child,
-    OptionManager optionManager) {
+      OpProps props,
+      OpProps senderProps,
+      OpProps receiverProps,
+      BatchSchema schema,
+      PhysicalOperator child,
+      OptionManager optionManager) {
     super(props, senderProps, receiverProps, schema, child, optionManager);
     this.optionManager = optionManager;
   }
@@ -47,13 +47,24 @@ public class BroadcastExchange extends AbstractExchange {
   }
 
   @Override
-  public Sender getSender(int minorFragmentId, PhysicalOperator child, EndpointsIndex.Builder builder) throws PhysicalOperatorSetupException {
-    return new BroadcastSender(senderProps, schema, child, receiverMajorFragmentId, PhysicalOperatorUtil.getIndexOrderedEndpoints(receiverLocations, builder));
+  public Sender getSender(
+      int minorFragmentId, PhysicalOperator child, EndpointsIndex.Builder builder)
+      throws PhysicalOperatorSetupException {
+    return new BroadcastSender(
+        senderProps,
+        schema,
+        child,
+        receiverMajorFragmentId,
+        PhysicalOperatorUtil.getIndexOrderedEndpoints(receiverLocations, builder));
   }
 
   @Override
   public Receiver getReceiver(int minorFragmentId, EndpointsIndex.Builder builder) {
-    return new UnorderedReceiver(receiverProps, schema, senderMajorFragmentId, PhysicalOperatorUtil.getIndexOrderedEndpoints(senderLocations, builder), false);
+    return new UnorderedReceiver(
+        receiverProps,
+        schema,
+        senderMajorFragmentId,
+        PhysicalOperatorUtil.getIndexOrderedEndpoints(senderLocations, builder),
+        false);
   }
-
 }

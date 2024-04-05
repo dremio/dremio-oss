@@ -15,19 +15,15 @@
  */
 package com.dremio.exec.planner.sql.handlers.commands;
 
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicLong;
-
 import com.dremio.common.DeferredException;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.rpc.RpcOutcomeListener;
-
 import io.netty.buffer.ByteBuf;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicLong;
 
-/**
- * Allows a set of rpc Ack responses to be collected and considered upon completion.
- */
+/** Allows a set of rpc Ack responses to be collected and considered upon completion. */
 class CollectingOutcomeListener implements RpcOutcomeListener<Ack> {
 
   // start with one to make sure to not prematurely fire count down latch.
@@ -69,5 +65,4 @@ class CollectingOutcomeListener implements RpcOutcomeListener<Ack> {
   public void interrupted(InterruptedException e) {
     decrement();
   }
-
 }

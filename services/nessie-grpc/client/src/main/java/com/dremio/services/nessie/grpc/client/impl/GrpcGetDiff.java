@@ -19,35 +19,42 @@ import static com.dremio.services.nessie.grpc.GrpcExceptionMapper.handleNessieNo
 import static com.dremio.services.nessie.grpc.ProtoUtil.fromProto;
 import static com.dremio.services.nessie.grpc.ProtoUtil.toProtoDiffRequest;
 
+import com.dremio.services.nessie.grpc.api.DiffRequest;
+import com.dremio.services.nessie.grpc.api.DiffServiceGrpc.DiffServiceBlockingStub;
 import org.projectnessie.client.builder.BaseGetDiffBuilder;
 import org.projectnessie.error.NessieNotFoundException;
 import org.projectnessie.model.DiffResponse;
 
-import com.dremio.services.nessie.grpc.api.DiffRequest;
-import com.dremio.services.nessie.grpc.api.DiffServiceGrpc.DiffServiceBlockingStub;
-
-/**
- * Returns the diff for two given references.
- */
+/** Returns the diff for two given references. */
 public class GrpcGetDiff extends BaseGetDiffBuilder<DiffRequest> {
 
   private final DiffServiceBlockingStub stub;
 
   public GrpcGetDiff(DiffServiceBlockingStub stub) {
-    super((request, pageToken) -> {
-      DiffRequest.Builder builder = request.toBuilder().clearPageToken();
-      if (pageToken != null) {
-        builder.setPageToken(pageToken);
-      }
-      return builder.build();
-    });
+    super(
+        (request, pageToken) -> {
+          DiffRequest.Builder builder = request.toBuilder().clearPageToken();
+          if (pageToken != null) {
+            builder.setPageToken(pageToken);
+          }
+          return builder.build();
+        });
     this.stub = stub;
   }
 
   @Override
   protected DiffRequest params() {
-    return toProtoDiffRequest(fromRefName, fromHashOnRef, toRefName, toHashOnRef, maxRecords, minKey, maxKey, prefixKey,
-      keys, filter);
+    return toProtoDiffRequest(
+        fromRefName,
+        fromHashOnRef,
+        toRefName,
+        toHashOnRef,
+        maxRecords,
+        minKey,
+        maxKey,
+        prefixKey,
+        keys,
+        filter);
   }
 
   @Override

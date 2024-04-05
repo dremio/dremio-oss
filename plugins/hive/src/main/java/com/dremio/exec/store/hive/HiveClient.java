@@ -41,6 +41,7 @@ import com.dremio.hive.thrift.TException;
  * credentials and higher level APIs to get the metadata in form that Dremio needs directly.
  */
 public interface HiveClient extends AutoCloseable {
+  void checkState(boolean ignoreAuthzErrors) throws TException;
   List<String> getDatabases(boolean ignoreAuthzErrors) throws TException;
 
   boolean databaseExists(final String dbName);

@@ -15,22 +15,32 @@
  */
 package com.dremio.exec.planner.normalizer;
 
-import org.apache.calcite.sql.SqlOperatorTable;
-
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
+import com.dremio.exec.ops.PlannerCatalog;
 import com.dremio.exec.ops.UserDefinedFunctionExpander;
 import com.dremio.exec.planner.HepPlannerRunner;
+import com.dremio.exec.planner.events.PlannerEventBus;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.SqlConverter;
 import com.dremio.sabot.exec.context.FunctionContext;
+import org.apache.calcite.sql.SqlOperatorTable;
 
 public interface PlannerBaseComponent {
   SqlConverter getSqlConverter();
+
   PlannerSettings getPlannerSettings();
+
   FunctionImplementationRegistry getFunctionImplementationRegistry();
+
   FunctionContext getFunctionContext();
+
   SqlOperatorTable getSqlOperatorTable();
+
   HepPlannerRunner getHepPlannerRunner();
 
   UserDefinedFunctionExpander getUserDefinedFunctionExpander();
+
+  PlannerCatalog getPlannerCatalog();
+
+  PlannerEventBus getPlannerEventBus();
 }

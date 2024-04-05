@@ -15,17 +15,16 @@
  */
 package com.dremio.dac.service.datasets;
 
-import java.util.LinkedList;
-import java.util.List;
-
 import com.dremio.dac.util.DatasetsUtil;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.service.job.proto.JobAttempt;
-import com.dremio.service.jobs.ExternalCleaner;
+import com.dremio.service.jobs.cleanup.ExternalCleaner;
+import java.util.LinkedList;
+import java.util.List;
 
 /**
- * Helper class to create the DatasetVersion cleanup that deletes dataset
- * versions associated to a {@link JobAttempt} (that was deleted).
+ * Helper class to create the DatasetVersion cleanup that deletes dataset versions associated to a
+ * {@link JobAttempt} (that was deleted).
  */
 public final class DatasetVersionCleanupHelper {
 
@@ -48,5 +47,4 @@ public final class DatasetVersionCleanupHelper {
       }
     };
   }
-
 }

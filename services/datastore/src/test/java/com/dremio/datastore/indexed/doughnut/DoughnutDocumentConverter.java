@@ -24,12 +24,10 @@ import static com.dremio.datastore.indexed.doughnut.DoughnutIndexKeys.THICKNESS;
 import com.dremio.datastore.api.DocumentConverter;
 import com.dremio.datastore.api.DocumentWriter;
 
-/**
- * Doughnut DocumentConverter implementation.
- * Used in IndexedStore tests.
- */
+/** Doughnut DocumentConverter implementation. Used in IndexedStore tests. */
 public class DoughnutDocumentConverter implements DocumentConverter<String, Doughnut> {
   private Integer version = 0;
+
   @Override
   public void convert(DocumentWriter writer, String key, Doughnut record) {
     writer.write(NAME, record.getName());
@@ -43,5 +41,4 @@ public class DoughnutDocumentConverter implements DocumentConverter<String, Doug
   public Integer getVersion() {
     return version;
   }
-
 }

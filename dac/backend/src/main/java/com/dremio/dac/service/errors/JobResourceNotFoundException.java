@@ -19,9 +19,7 @@ import com.dremio.dac.model.job.JobResourcePath;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.jobs.JobNotFoundException;
 
-/**
- * Thrown when a job is not found.
- */
+/** Thrown when a job is not found. */
 public class JobResourceNotFoundException extends NotFoundException {
   private static final long serialVersionUID = 1L;
 

@@ -42,7 +42,7 @@ function headerMiddleware() {
       ) {
         const { isFileUpload } = action;
         const defaultHeaders = {
-          Authorization: token,
+          ...(token && { Authorization: token }),
           // for file upload case leave headers empty and let a browser to set a content type
           ...(isFileUpload ? null : { "Content-Type": "application/json" }),
         };

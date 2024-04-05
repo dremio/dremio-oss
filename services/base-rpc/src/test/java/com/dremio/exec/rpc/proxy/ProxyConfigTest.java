@@ -25,7 +25,6 @@ import java.net.InetSocketAddress;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Properties;
-
 import org.junit.Test;
 
 public class ProxyConfigTest {
@@ -60,7 +59,8 @@ public class ProxyConfigTest {
     Optional<ProxyConfig> proxyConfig = ProxyConfig.of(properties);
     assertTrue(proxyConfig.isPresent());
 
-    InetSocketAddress expectedAddress = new InetSocketAddress(SOCKS_PROXY_HOST, Integer.parseInt(SOCKS_PROXY_PORT));
+    InetSocketAddress expectedAddress =
+        new InetSocketAddress(SOCKS_PROXY_HOST, Integer.parseInt(SOCKS_PROXY_PORT));
 
     {
       InetSocketAddress actualAddress = proxyConfig.map(ProxyConfig::getProxyAddress).orElse(null);
@@ -68,7 +68,8 @@ public class ProxyConfigTest {
     }
 
     {
-      DremioSocks5ProxyHandler actualHandler = proxyConfig.map(ProxyConfig::createProxyHandler).orElse(null);
+      DremioSocks5ProxyHandler actualHandler =
+          proxyConfig.map(ProxyConfig::createProxyHandler).orElse(null);
       assertNotNull(actualHandler);
       assertEquals("none", actualHandler.authScheme());
       assertEquals(expectedAddress, actualHandler.proxyAddress());
@@ -83,9 +84,11 @@ public class ProxyConfigTest {
     properties.setProperty(ProxyConfig.SOCKS_PROXY_PASSWORD, SOCKS_PROXY_PASSWORD);
 
     Optional<ProxyConfig> proxyConfig = ProxyConfig.of(properties);
-    InetSocketAddress expectedAddress = new InetSocketAddress(SOCKS_PROXY_HOST, Integer.parseInt(SOCKS_PROXY_PORT));
+    InetSocketAddress expectedAddress =
+        new InetSocketAddress(SOCKS_PROXY_HOST, Integer.parseInt(SOCKS_PROXY_PORT));
     {
-      DremioSocks5ProxyHandler actualHandler = proxyConfig.map(ProxyConfig::createProxyHandler).orElse(null);
+      DremioSocks5ProxyHandler actualHandler =
+          proxyConfig.map(ProxyConfig::createProxyHandler).orElse(null);
 
       assertNotNull(actualHandler);
       assertEquals("password", actualHandler.authScheme());
@@ -102,7 +105,9 @@ public class ProxyConfigTest {
 
     Optional<ProxyConfig> proxyConfig = ProxyConfig.of(properties);
     {
-      assertThrows(NoSuchElementException.class, () -> proxyConfig.ifPresent(ProxyConfig::createProxyHandler));
+      assertThrows(
+          NoSuchElementException.class,
+          () -> proxyConfig.ifPresent(ProxyConfig::createProxyHandler));
     }
   }
 
@@ -123,5 +128,4 @@ public class ProxyConfigTest {
 
     assertThrows(IllegalArgumentException.class, () -> ProxyConfig.of(properties));
   }
-
 }

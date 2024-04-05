@@ -15,14 +15,6 @@
  */
 package com.dremio.service.jobtelemetry.server.store;
 
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.proto.CoordExecRPC;
 import com.dremio.exec.proto.UserBitShared;
@@ -30,43 +22,45 @@ import com.dremio.service.Service;
 import com.dremio.service.jobtelemetry.QueryProgressMetricsMap;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * Implementation of metrics store, keeps all metrics in-memory.
- */
+/** Implementation of metrics store, keeps all metrics in-memory. */
 public class LocalMetricsStore implements MetricsStore, Service {
   private static final Logger LOGGER = LoggerFactory.getLogger(LocalMetricsStore.class);
   private Map<String, QueryProgressMetricsMap> map = new ConcurrentHashMap<>();
+
   @SuppressWarnings("NoGuavaCacheUsage") // TODO: fix as part of DX-51884
-  private Cache<UserBitShared.QueryId, Boolean> deletedQueryIds = CacheBuilder.newBuilder()
-    .expireAfterWrite(5, TimeUnit.MINUTES)
-    .build();
+  private Cache<UserBitShared.QueryId, Boolean> deletedQueryIds =
+      CacheBuilder.newBuilder().expireAfterWrite(5, TimeUnit.MINUTES).build();
 
-  public LocalMetricsStore() {
-  }
+  public LocalMetricsStore() {}
 
   @Override
-  public void start() throws Exception {
-  }
+  public void start() throws Exception {}
 
   @Override
-  public void close() throws Exception {
-  }
+  public void close() throws Exception {}
 
   @Override
   public synchronized void put(
-    UserBitShared.QueryId queryId, String nodeEndPoint,
-    CoordExecRPC.QueryProgressMetrics queryNodeProgressMetrics) {
+      UserBitShared.QueryId queryId,
+      String nodeEndPoint,
+      CoordExecRPC.QueryProgressMetrics queryNodeProgressMetrics) {
 
     if (deletedQueryIds.asMap().containsKey(queryId)) {
       return;
     }
 
     QueryProgressMetricsMap metrics =
-      QueryProgressMetricsMap.newBuilder()
-        .mergeFrom(get(queryId).orElse(QueryProgressMetricsMap.getDefaultInstance()))
-        .putMetricsMap(nodeEndPoint, queryNodeProgressMetrics)
-        .build();
+        QueryProgressMetricsMap.newBuilder()
+            .mergeFrom(get(queryId).orElse(QueryProgressMetricsMap.getDefaultInstance()))
+            .putMetricsMap(nodeEndPoint, queryNodeProgressMetrics)
+            .build();
     map.put(queryIdToString(queryId), metrics);
   }
 

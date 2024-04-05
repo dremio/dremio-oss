@@ -24,53 +24,6 @@ import static com.dremio.exec.store.metadatarefresh.MetadataRefreshUtils.metadat
 import static java.lang.Math.toIntExact;
 import static org.apache.hadoop.hive.metastore.api.hive_metastoreConstants.META_TABLE_STORAGE;
 
-import java.io.ByteArrayOutputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Properties;
-import java.util.UUID;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Predicate;
-import java.util.function.Supplier;
-
-import javax.annotation.Nonnull;
-import javax.inject.Provider;
-
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.exception.ExceptionUtils;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.LocatedFileStatus;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.RemoteIterator;
-import org.apache.hadoop.fs.permission.FsAction;
-import org.apache.hadoop.hive.conf.HiveConf;
-import org.apache.hadoop.hive.conf.HiveConf.ConfVars;
-import org.apache.hadoop.hive.metastore.api.MetaException;
-import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
-import org.apache.hadoop.hive.metastore.api.Table;
-import org.apache.hadoop.hive.metastore.api.UnknownTableException;
-import org.apache.hadoop.hive.ql.security.authorization.plugin.HivePrivilegeObject;
-import org.apache.hadoop.mapred.JobConf;
-import org.apache.hadoop.security.AccessControlException;
-import org.apache.hadoop.security.UserGroupInformation;
-import org.apache.iceberg.PartitionSpec;
-import org.apache.iceberg.TableOperations;
-import org.apache.iceberg.io.FileIO;
-import org.apache.orc.OrcConf;
-import org.pf4j.PluginManager;
-
 import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.ExecutionSetupException;
@@ -187,7 +140,6 @@ import com.dremio.exec.store.iceberg.model.IcebergCommandType;
 import com.dremio.exec.store.iceberg.model.IcebergModel;
 import com.dremio.exec.store.iceberg.model.IcebergOpCommitter;
 import com.dremio.exec.store.iceberg.model.IcebergTableIdentifier;
-import com.dremio.exec.store.metadatarefresh.MetadataRefreshUtils;
 import com.dremio.exec.store.metadatarefresh.committer.ReadSignatureProvider;
 import com.dremio.exec.store.metadatarefresh.dirlisting.DirListingRecordReader;
 import com.dremio.exec.store.metadatarefresh.footerread.FooterReadTableFunction;
@@ -233,14 +185,66 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.math.LongMath;
 import com.google.common.util.concurrent.UncheckedExecutionException;
 import com.google.protobuf.InvalidProtocolBufferException;
-
 import io.protostuff.ByteString;
+import java.io.ByteArrayOutputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Properties;
+import java.util.UUID;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
+import javax.annotation.Nonnull;
+import javax.inject.Provider;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.exception.ExceptionUtils;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.LocatedFileStatus;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.RemoteIterator;
+import org.apache.hadoop.fs.permission.FsAction;
+import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.conf.HiveConf.ConfVars;
+import org.apache.hadoop.hive.metastore.api.MetaException;
+import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
+import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.hadoop.hive.metastore.api.UnknownTableException;
+import org.apache.hadoop.hive.ql.security.authorization.plugin.HivePrivilegeObject;
+import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.security.AccessControlException;
+import org.apache.hadoop.security.UserGroupInformation;
+import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.TableOperations;
+import org.apache.iceberg.io.FileIO;
+import org.apache.orc.OrcConf;
+import org.pf4j.PluginManager;
 
-public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StoragePluginCreator.PF4JStoragePlugin,
-    MutablePlugin, SupportsReadSignature, SupportsListingDatasets, SupportsAlteringDatasetMetadata, SupportsPF4JStoragePlugin,
-    SupportsInternalIcebergTable, SupportsImpersonation, SupportsIcebergMutablePlugin, HadoopFsSupplierProviderPluginClassLoader,
-    SupportsMetadataVerify {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HiveStoragePlugin.class);
+public class HiveStoragePlugin extends BaseHiveStoragePlugin
+    implements StoragePluginCreator.PF4JStoragePlugin,
+        MutablePlugin,
+        SupportsReadSignature,
+        SupportsListingDatasets,
+        SupportsAlteringDatasetMetadata,
+        SupportsPF4JStoragePlugin,
+        SupportsInternalIcebergTable,
+        SupportsImpersonation,
+        SupportsIcebergMutablePlugin,
+        HadoopFsSupplierProviderPluginClassLoader,
+        SupportsMetadataVerify {
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(HiveStoragePlugin.class);
 
   private LoadingCache<String, HiveClient> clientsByUser;
   private final PluginManager pf4jManager;
@@ -264,14 +268,20 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
   private int signatureValidationParallelism = 16;
   private long signatureValidationTimeoutMS = 2_000L;
 
-  private final HadoopFsSupplierProviderPluginClassLoader hadoopFsSupplierProviderPluginClassLoader = new HadoopFsCacheWrapperPluginClassLoader();
+  private final HadoopFsSupplierProviderPluginClassLoader
+      hadoopFsSupplierProviderPluginClassLoader = new HadoopFsCacheWrapperPluginClassLoader();
 
   @VisibleForTesting
   public HiveStoragePlugin(HiveConf hiveConf, SabotContext context, String name) {
     this(hiveConf, null, context, name, null);
   }
 
-  public HiveStoragePlugin(HiveConf hiveConf, PluginManager pf4jManager, SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
+  public HiveStoragePlugin(
+      HiveConf hiveConf,
+      PluginManager pf4jManager,
+      SabotContext context,
+      String name,
+      Provider<StoragePluginId> pluginIdProvider) {
     super(context, name);
     this.isFirstPluginCreate.set(true);
     this.isCoordinator = context.isCoordinator();
@@ -282,24 +292,29 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
     this.optionManager = context.getOptionManager();
     this.dremioConfig = context.getDremioConfig();
     this.pluginIdProvider = pluginIdProvider;
-    this.context= context;
-    this.confUniqueIdentifier = name+UUID.randomUUID();
-    HiveConfFactory.setConf(hiveConf, HiveFsUtils.UNIQUE_CONF_IDENTIFIER_PROPERTY_NAME, confUniqueIdentifier);
+    this.context = context;
+    this.confUniqueIdentifier = name + UUID.randomUUID();
+    HiveConfFactory.setConf(
+        hiveConf, HiveFsUtils.UNIQUE_CONF_IDENTIFIER_PROPERTY_NAME, confUniqueIdentifier);
     storageImpersonationEnabled = hiveConf.getBoolVar(ConfVars.HIVE_SERVER2_ENABLE_DOAS);
 
     // Hive Metastore impersonation is enabled if:
     // - "hive.security.authorization.enabled" is set to true,
     // - "hive.metastore.execute.setugi" is set to true (in SASL disabled scenarios) or
-    // - "hive.metastore.sasl.enabled" is set to true in which case all metastore calls are impersonated as
+    // - "hive.metastore.sasl.enabled" is set to true in which case all metastore calls are
+    // impersonated as
     //     the authenticated user.
     this.metastoreImpersonationEnabled =
-      hiveConf.getBoolVar(ConfVars.HIVE_AUTHORIZATION_ENABLED) ||
-        hiveConf.getBoolVar(ConfVars.METASTORE_EXECUTE_SET_UGI) ||
-        hiveConf.getBoolVar(ConfVars.METASTORE_USE_THRIFT_SASL);
+        hiveConf.getBoolVar(ConfVars.HIVE_AUTHORIZATION_ENABLED)
+            || hiveConf.getBoolVar(ConfVars.METASTORE_EXECUTE_SET_UGI)
+            || hiveConf.getBoolVar(ConfVars.METASTORE_USE_THRIFT_SASL);
 
     if (optionManager != null) {
-      this.signatureValidationParallelism = Long.valueOf(optionManager.getOption(ExecConstants.HIVE_SIGNATURE_VALIDATION_PARALLELISM)).intValue();
-      this.signatureValidationTimeoutMS = optionManager.getOption(ExecConstants.HIVE_SIGNATURE_VALIDATION_TIMEOUT_MS);
+      this.signatureValidationParallelism =
+          Long.valueOf(optionManager.getOption(ExecConstants.HIVE_SIGNATURE_VALIDATION_PARALLELISM))
+              .intValue();
+      this.signatureValidationTimeoutMS =
+          optionManager.getOption(ExecConstants.HIVE_SIGNATURE_VALIDATION_TIMEOUT_MS);
     }
   }
 
@@ -308,37 +323,54 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
     return true;
   }
 
-  private FileSystem createFileSystem(String filePath, String userName, OperatorContext operatorContext,
-                                      boolean injectAsyncOptions, boolean disableHDFSCache) throws IOException {
+  private FileSystem createFileSystem(
+      String filePath,
+      String userName,
+      OperatorContext operatorContext,
+      boolean injectAsyncOptions,
+      boolean disableHDFSCache)
+      throws IOException {
     try (Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
       Path path = new Path(filePath);
       final JobConf jobConf = new JobConf(hiveConf);
-      AsyncStreamConf cacheAndAsyncConf = HiveAsyncStreamConf.from(path.toUri().getScheme(), jobConf, optionManager);
-      URI uri = injectAsyncOptions && cacheAndAsyncConf.isAsyncEnabled() ?
-              AsyncReaderUtils.injectDremioConfigForAsyncRead(path.toUri(), jobConf) :
-              path.toUri();
+      AsyncStreamConf cacheAndAsyncConf =
+          HiveAsyncStreamConf.from(path.toUri().getScheme(), jobConf, optionManager);
+      URI uri =
+          injectAsyncOptions && cacheAndAsyncConf.isAsyncEnabled()
+              ? AsyncReaderUtils.injectDremioConfigForAsyncRead(path.toUri(), jobConf)
+              : path.toUri();
       if (disableHDFSCache) {
         jobConf.setBoolean("fs.hdfs.impl.disable.cache", true);
       }
-      return createFS(new DremioHadoopFileSystemWrapper(new Path(uri), jobConf, operatorContext != null ? operatorContext.getStats() : null, cacheAndAsyncConf.isAsyncEnabled(), this.getHadoopFsSupplierPluginClassLoader(uri.toString(), jobConf, userName).get()),
-        operatorContext, cacheAndAsyncConf);
+      return createFS(
+          new DremioHadoopFileSystemWrapper(
+              new Path(uri),
+              jobConf,
+              operatorContext != null ? operatorContext.getStats() : null,
+              cacheAndAsyncConf.isAsyncEnabled(),
+              this.getHadoopFsSupplierPluginClassLoader(uri.toString(), jobConf, userName).get()),
+          operatorContext,
+          cacheAndAsyncConf);
     } catch (URISyntaxException e) {
       throw new RuntimeException(e);
     }
   }
 
   @Override
-  public FileSystem createFS(String filePath, String userName, OperatorContext operatorContext) throws IOException {
+  public FileSystem createFS(String filePath, String userName, OperatorContext operatorContext)
+      throws IOException {
     return createFileSystem(filePath, userName, operatorContext, false, false);
   }
 
   @Override
-  public FileSystem createFSWithAsyncOptions(String filePath, String userName, OperatorContext operatorContext) throws IOException {
+  public FileSystem createFSWithAsyncOptions(
+      String filePath, String userName, OperatorContext operatorContext) throws IOException {
     return createFileSystem(filePath, userName, operatorContext, true, false);
   }
 
   @Override
-  public FileSystem createFSWithoutHDFSCache(String filePath, String userName, OperatorContext operatorContext) throws IOException {
+  public FileSystem createFSWithoutHDFSCache(
+      String filePath, String userName, OperatorContext operatorContext) throws IOException {
     return createFileSystem(filePath, userName, operatorContext, false, true);
   }
 
@@ -355,25 +387,30 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
   }
 
   @Override
-  public boolean allowUnlimitedSplits(DatasetHandle handle, DatasetConfig datasetConfig, String user) {
-
-    if (!MetadataRefreshUtils.unlimitedSplitsSupportEnabled(optionManager)) {
-      logger.debug("Not using unlimited splits for {} since required support keys are not enabled", handle.getDatasetPath().toString());
-      return false;
-    }
+  public boolean allowUnlimitedSplits(
+      DatasetHandle handle, DatasetConfig datasetConfig, String user) {
 
     if (!metadataSourceAvailable(getSabotContext().getCatalogService())) {
-      logger.debug("Not using unlimited splits for {} since metadata source plugin is not available", handle.getDatasetPath().toString());
+      logger.debug(
+          "Not using unlimited splits for {} since metadata source plugin is not available",
+          handle.getDatasetPath().toString());
       return false;
     }
 
     try {
-      if (datasetConfig.getReadDefinition() != null && datasetConfig.getReadDefinition().getExtendedProperty() != null) {
-        HiveTableXattr tableXattr = HiveTableXattr.parseFrom(datasetConfig.getReadDefinition().getExtendedProperty().asReadOnlyByteBuffer());
-        boolean varcharTruncationEnabled = HiveDatasetOptions
-          .enforceVarcharWidth(HiveReaderProtoUtil.convertValuesToNonProtoAttributeValues(tableXattr.getDatasetOptionMap()));
+      if (datasetConfig.getReadDefinition() != null
+          && datasetConfig.getReadDefinition().getExtendedProperty() != null) {
+        HiveTableXattr tableXattr =
+            HiveTableXattr.parseFrom(
+                datasetConfig.getReadDefinition().getExtendedProperty().asReadOnlyByteBuffer());
+        boolean varcharTruncationEnabled =
+            HiveDatasetOptions.enforceVarcharWidth(
+                HiveReaderProtoUtil.convertValuesToNonProtoAttributeValues(
+                    tableXattr.getDatasetOptionMap()));
         if (varcharTruncationEnabled) {
-          logger.debug("Not using unlimited splits for {} as varchar truncation is enabled", handle.getDatasetPath().toString());
+          logger.debug(
+              "Not using unlimited splits for {} as varchar truncation is enabled",
+              handle.getDatasetPath().toString());
           return false;
         }
       }
@@ -382,14 +419,19 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
       try (Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
         final HiveClient client = getClient(SystemUser.SYSTEM_USERNAME);
         final HiveMetadataUtils.SchemaComponents schemaComponents =
-          HiveMetadataUtils.resolveSchemaComponents(tablePathComponents);
-        final Table table = client.getTable(schemaComponents.getDbName(), schemaComponents.getTableName(), true);
+            HiveMetadataUtils.resolveSchemaComponents(tablePathComponents);
+        final Table table =
+            client.getTable(schemaComponents.getDbName(), schemaComponents.getTableName(), true);
         if (table == null) {
-          throw new ConnectorException(String.format("Dataset path '%s', table not found.", tablePathComponents));
+          throw new ConnectorException(
+              String.format("Dataset path '%s', table not found.", tablePathComponents));
         }
-        boolean isSupportedFormat = HiveMetadataUtils.isValidInputFormatForIcebergExecution(table, hiveConf, this);
+        boolean isSupportedFormat =
+            HiveMetadataUtils.isValidInputFormatForIcebergExecution(table, hiveConf);
         if (!isSupportedFormat) {
-          logger.debug("Not using unlimited splits for {} since table format is not supported", handle.getDatasetPath().toString());
+          logger.debug(
+              "Not using unlimited splits for {} since table format is not supported",
+              handle.getDatasetPath().toString());
         }
         return isSupportedFormat;
       }
@@ -407,21 +449,26 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
   public boolean supportReadSignature(DatasetMetadata metadata, boolean isFileDataset) {
     final HiveDatasetMetadata hiveDatasetMetadata = metadata.unwrap(HiveDatasetMetadata.class);
     try (Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
-      HiveStorageCapabilities storageCapabilities = HiveMetadataUtils.getHiveStorageCapabilities(hiveDatasetMetadata.getMetadataAccumulator().getTableLocation());
+      HiveStorageCapabilities storageCapabilities =
+          HiveMetadataUtils.getHiveStorageCapabilities(
+              hiveDatasetMetadata.getMetadataAccumulator().getTableLocation());
       final JobConf job = new JobConf(hiveConf);
       job.setInputFormat(hiveDatasetMetadata.getMetadataAccumulator().getCurrentInputFormat());
-      return HiveMetadataUtils.shouldGenerateFileSystemUpdateKeys(storageCapabilities, job.getInputFormat());
+      return HiveMetadataUtils.shouldGenerateFileSystemUpdateKeys(
+          storageCapabilities, job.getInputFormat());
     }
   }
 
   @Override
   public List<String> resolveTableNameToValidPath(List<String> tableSchemaPath) {
-    final HiveMetadataUtils.SchemaComponents schemaComponents = HiveMetadataUtils.resolveSchemaComponents(tableSchemaPath);
+    final HiveMetadataUtils.SchemaComponents schemaComponents =
+        HiveMetadataUtils.resolveSchemaComponents(tableSchemaPath);
     return Arrays.asList(schemaComponents.getDbName(), schemaComponents.getTableName());
   }
 
   @Override
-  public BlockBasedSplitGenerator.SplitCreator createSplitCreator(OperatorContext context, byte[] extendedBytes, boolean isInternalIcebergTable) {
+  public BlockBasedSplitGenerator.SplitCreator createSplitCreator(
+      OperatorContext context, byte[] extendedBytes, boolean isInternalIcebergTable) {
     if (isInternalIcebergTable) {
       return new HiveSplitCreator(context, extendedBytes);
     } else {
@@ -430,8 +477,12 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
   }
 
   @Override
-  public ScanTableFunction createScanTableFunction(FragmentExecutionContext fec, OperatorContext context, OpProps props, TableFunctionConfig functionConfig) {
-    if(functionConfig.getFunctionContext().getInternalTablePluginId() != null) {
+  public ScanTableFunction createScanTableFunction(
+      FragmentExecutionContext fec,
+      OperatorContext context,
+      OpProps props,
+      TableFunctionConfig functionConfig) {
+    if (functionConfig.getFunctionContext().getInternalTablePluginId() != null) {
       return new HiveScanTableFunction(fec, context, props, functionConfig);
     } else {
       return new ParquetScanTableFunction(fec, context, props, functionConfig);
@@ -439,96 +490,137 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
   }
 
   @Override
-  public AbstractRefreshPlanBuilder createRefreshDatasetPlanBuilder(SqlHandlerConfig config, SqlRefreshDataset sqlRefreshDataset, UnlimitedSplitsMetadataProvider metadataProvider, boolean isFullRefresh) {
+  public AbstractRefreshPlanBuilder createRefreshDatasetPlanBuilder(
+      SqlHandlerConfig config,
+      SqlRefreshDataset sqlRefreshDataset,
+      UnlimitedSplitsMetadataProvider metadataProvider,
+      boolean isFullRefresh) {
     if (isFullRefresh) {
       return new HiveFullRefreshDatasetPlanBuilder(config, sqlRefreshDataset, metadataProvider);
     } else {
-      return new HiveIncrementalRefreshDatasetPlanBuilder(config, sqlRefreshDataset, metadataProvider);
+      return new HiveIncrementalRefreshDatasetPlanBuilder(
+          config, sqlRefreshDataset, metadataProvider);
     }
   }
 
-
   @Override
-  public DirListingRecordReader createDirListRecordReader(OperatorContext context,
-                                       FileSystem fs,
-                                       DirListInputSplitProto.DirListInputSplit dirListInputSplit,
-                                       boolean isRecursive,
-                                       BatchSchema tableSchema,
-                                       List<PartitionProtobuf.PartitionValue> partitionValues) {
-    return new HiveDirListingRecordReader(context, fs, dirListInputSplit, isRecursive, tableSchema, partitionValues, false);
+  public DirListingRecordReader createDirListRecordReader(
+      OperatorContext context,
+      FileSystem fs,
+      DirListInputSplitProto.DirListInputSplit dirListInputSplit,
+      boolean isRecursive,
+      BatchSchema tableSchema,
+      List<PartitionProtobuf.PartitionValue> partitionValues) {
+    return new HiveDirListingRecordReader(
+        context, fs, dirListInputSplit, isRecursive, tableSchema, partitionValues, false);
   }
 
   @Override
-  public ReadSignatureProvider createReadSignatureProvider(com.google.protobuf.ByteString existingReadSignature,
-                                                    final String dataTableRoot,
-                                                    final long queryStartTime,
-                                                    List<String> partitionPaths,
-                                                    Predicate<String> partitionExists,
-                                                    boolean isFullRefresh, boolean isPartialRefresh) {
+  public ReadSignatureProvider createReadSignatureProvider(
+      com.google.protobuf.ByteString existingReadSignature,
+      final String dataTableRoot,
+      final long queryStartTime,
+      List<String> partitionPaths,
+      Predicate<String> partitionExists,
+      boolean isFullRefresh,
+      boolean isPartialRefresh) {
     if (isFullRefresh) {
-      return new HiveFullRefreshReadSignatureProvider(dataTableRoot, queryStartTime, partitionPaths, partitionExists);
+      return new HiveFullRefreshReadSignatureProvider(
+          dataTableRoot, queryStartTime, partitionPaths, partitionExists);
     } else if (isPartialRefresh) {
-      return new HivePartialRefreshReadSignatureProvider(existingReadSignature, dataTableRoot, queryStartTime, partitionPaths, partitionExists);
+      return new HivePartialRefreshReadSignatureProvider(
+          existingReadSignature, dataTableRoot, queryStartTime, partitionPaths, partitionExists);
     } else {
-      return new HiveIncrementalRefreshReadSignatureProvider(existingReadSignature, dataTableRoot, queryStartTime, partitionPaths, partitionExists);
+      return new HiveIncrementalRefreshReadSignatureProvider(
+          existingReadSignature, dataTableRoot, queryStartTime, partitionPaths, partitionExists);
     }
   }
 
   @Override
-  public TableOperations createIcebergTableOperations(FileIO fileIO, String queryUserName, IcebergTableIdentifier tableIdentifier) {
+  public TableOperations createIcebergTableOperations(
+      FileIO fileIO, String queryUserName, IcebergTableIdentifier tableIdentifier) {
     try (Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
       IcebergHiveTableIdentifier hiveTableIdentifier = (IcebergHiveTableIdentifier) tableIdentifier;
       if (hiveConf.getBoolean(HiveConfFactory.ENABLE_DML_TESTS_WITHOUT_LOCKING, false)) {
-        return new NoOpHiveTableOperations(hiveConf, getClient(SystemUser.SYSTEM_USERNAME),
-          fileIO, IcebergHiveModel.HIVE, hiveTableIdentifier.getNamespace(), hiveTableIdentifier.getTableName());
+        return new NoOpHiveTableOperations(
+            hiveConf,
+            getClient(SystemUser.SYSTEM_USERNAME),
+            fileIO,
+            IcebergHiveModel.HIVE,
+            hiveTableIdentifier.getNamespace(),
+            hiveTableIdentifier.getTableName());
       }
-      return new HiveTableOperations(hiveConf, getClient(queryUserName),
-        fileIO, IcebergHiveModel.HIVE, hiveTableIdentifier.getNamespace(), hiveTableIdentifier.getTableName());
+      return new HiveTableOperations(
+          hiveConf,
+          getClient(queryUserName),
+          fileIO,
+          IcebergHiveModel.HIVE,
+          hiveTableIdentifier.getNamespace(),
+          hiveTableIdentifier.getTableName());
     }
   }
 
   @Override
-  public FileIO createIcebergFileIO(FileSystem fs, OperatorContext context, List<String> dataset,
-      String datasourcePluginUID, Long fileLength) {
-    return new DremioFileIO(fs, context, dataset, datasourcePluginUID, fileLength,
+  public FileIO createIcebergFileIO(
+      FileSystem fs,
+      OperatorContext context,
+      List<String> dataset,
+      String datasourcePluginUID,
+      Long fileLength) {
+    return new DremioFileIO(
+        fs,
+        context,
+        dataset,
+        datasourcePluginUID,
+        fileLength,
         new HiveFileSystemConfigurationAdapter(hiveConf));
   }
 
   @Override
   public boolean isIcebergMetadataValid(DatasetConfig config, NamespaceKey key) {
-    if (config.getPhysicalDataset().getIcebergMetadata() == null ||
-            config.getPhysicalDataset().getIcebergMetadata().getMetadataFileLocation() == null ||
-            config.getPhysicalDataset().getIcebergMetadata().getMetadataFileLocation().isEmpty()) {
+    if (config.getPhysicalDataset().getIcebergMetadata() == null
+        || config.getPhysicalDataset().getIcebergMetadata().getMetadataFileLocation() == null
+        || config.getPhysicalDataset().getIcebergMetadata().getMetadataFileLocation().isEmpty()) {
       return false;
     }
-    String existingRootPointer = config.getPhysicalDataset().getIcebergMetadata().getMetadataFileLocation();
+    String existingRootPointer =
+        config.getPhysicalDataset().getIcebergMetadata().getMetadataFileLocation();
     try {
-      final HiveMetadataUtils.SchemaComponents schemaComponents = HiveMetadataUtils.resolveSchemaComponents(key.getPathComponents());
+      final HiveMetadataUtils.SchemaComponents schemaComponents =
+          HiveMetadataUtils.resolveSchemaComponents(key.getPathComponents());
 
-      Table table = getClient(SystemUser.SYSTEM_USERNAME).getTable(schemaComponents.getDbName(), schemaComponents.getTableName(), true);
+      Table table =
+          getClient(SystemUser.SYSTEM_USERNAME)
+              .getTable(schemaComponents.getDbName(), schemaComponents.getTableName(), true);
       if (table == null) {
-        throw new ConnectorException(String.format("Dataset path '%s', table not found.", schemaComponents));
+        throw new ConnectorException(
+            String.format("Dataset path '%s', table not found.", schemaComponents));
       }
-      Preconditions.checkState(HiveMetadataUtils.isIcebergTable(table), String.format("Table %s is not an Iceberg table", schemaComponents));
+      Preconditions.checkState(
+          HiveMetadataUtils.isIcebergTable(table),
+          String.format("Table %s is not an Iceberg table", schemaComponents));
       String latestRootPointer = null;
       if (table.getParameters() != null) {
         latestRootPointer = table.getParameters().get(HiveMetadataUtils.METADATA_LOCATION);
       }
 
       if (!existingRootPointer.equals(latestRootPointer)) {
-        logger.debug("Iceberg Dataset {} metadata is not valid. Existing root pointer in catalog: {}. Latest Iceberg table root pointer: {}.",
-          key, existingRootPointer, latestRootPointer);
+        logger.debug(
+            "Iceberg Dataset {} metadata is not valid. Existing root pointer in catalog: {}. Latest Iceberg table root pointer: {}.",
+            key,
+            existingRootPointer,
+            latestRootPointer);
         return false;
       }
     } catch (TException | ConnectorException e) {
-        throw new RuntimeException(e);
+      throw new RuntimeException(e);
     }
     return true;
   }
 
   @Override
   public boolean containerExists(EntityPath key) {
-    if(key.size() != 2){
+    if (key.size() != 2) {
       return false;
     }
     return getClient(SystemUser.SYSTEM_USERNAME).databaseExists(key.getComponents().get(1));
@@ -544,9 +636,13 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
   }
 
   @Override
-  public CreateTableEntry createNewTable(NamespaceKey tableSchemaPath, SchemaConfig schemaConfig,
-                                         IcebergTableProps icebergTableProps, WriterOptions writerOptions,
-                                         Map<String, Object> storageOptions, boolean isResultsTable) {
+  public CreateTableEntry createNewTable(
+      NamespaceKey tableSchemaPath,
+      SchemaConfig schemaConfig,
+      IcebergTableProps icebergTableProps,
+      WriterOptions writerOptions,
+      Map<String, Object> storageOptions,
+      boolean isResultsTable) {
     Preconditions.checkArgument(icebergTableProps != null, "Iceberg properties are not provided");
     final HiveMetadataUtils.SchemaComponents schemaComponents =
         HiveMetadataUtils.resolveSchemaComponents(tableSchemaPath.getPathComponents());
@@ -557,11 +653,16 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
     try {
       switch (icebergTableProps.getIcebergOpType()) {
         case CREATE:
-          // do an early check for create privileges since the createTable call will only happen after all
+          // do an early check for create privileges since the createTable call will only happen
+          // after all
           // data files are written
-          client.checkCreateTablePrivileges(schemaComponents.getDbName(), schemaComponents.getTableName());
-          String tableLocation = resolveTableLocation(schemaComponents, schemaConfig, writerOptions);
-          tableFolderLocation = HiveMetadataUtils.resolveCreateTableLocation(hiveConf, schemaComponents, tableLocation);
+          client.checkCreateTablePrivileges(
+              schemaComponents.getDbName(), schemaComponents.getTableName());
+          String tableLocation =
+              resolveTableLocation(schemaComponents, schemaConfig, writerOptions);
+          tableFolderLocation =
+              HiveMetadataUtils.resolveCreateTableLocation(
+                  hiveConf, schemaComponents, tableLocation);
           break;
 
         case DELETE:
@@ -574,31 +675,47 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
               schemaComponents.getDbName(),
               schemaComponents.getTableName(),
               getPrivilegeActionTypesForIcebergDml(icebergTableProps.getIcebergOpType()));
-          tableFolderLocation = HiveMetadataUtils.getIcebergTableLocation(getClient(SystemUser.SYSTEM_USERNAME), schemaComponents);
+          tableFolderLocation =
+              HiveMetadataUtils.getIcebergTableLocation(
+                  getClient(SystemUser.SYSTEM_USERNAME), schemaComponents);
           break;
 
         default:
           break;
       }
     } catch (TException e) {
-      throw UserException.validationError(e).message("Failure to check if table already exists at path %s.", tableSchemaPath).build(logger);
+      throw UserException.validationError(e)
+          .message("Failure to check if table already exists at path %s.", tableSchemaPath)
+          .build(logger);
     }
 
-    Preconditions.checkArgument(tableFolderLocation != null, "Table folder location can not be null");
+    Preconditions.checkArgument(
+        tableFolderLocation != null, "Table folder location can not be null");
     tableFolderPath = com.dremio.io.file.Path.of(tableFolderLocation);
     icebergTableProps = new IcebergTableProps(icebergTableProps);
     icebergTableProps.setTableLocation(tableFolderPath.toString());
     icebergTableProps.setTableName(schemaComponents.getTableName());
     icebergTableProps.setDatabaseName(schemaComponents.getDbName());
-    Preconditions.checkState(icebergTableProps.getUuid() != null &&
-            !icebergTableProps.getUuid().isEmpty(),
-        String.format("Unexpected state. UUID must be set for DatabaseName: %s TableName %s", schemaComponents.getDbName(), schemaComponents.getTableName()));
+    Preconditions.checkState(
+        icebergTableProps.getUuid() != null && !icebergTableProps.getUuid().isEmpty(),
+        String.format(
+            "Unexpected state. UUID must be set for DatabaseName: %s TableName %s",
+            schemaComponents.getDbName(), schemaComponents.getTableName()));
     tableFolderPath = tableFolderPath.resolve(icebergTableProps.getUuid());
 
-    return new CreateParquetTableEntry(schemaConfig.getUserName(), this, tableFolderPath.toString(), icebergTableProps, writerOptions, tableSchemaPath);
+    return new CreateParquetTableEntry(
+        schemaConfig.getUserName(),
+        this,
+        tableFolderPath.toString(),
+        icebergTableProps,
+        writerOptions,
+        tableSchemaPath);
   }
 
-  String resolveTableLocation(HiveMetadataUtils.SchemaComponents schemaComponents, SchemaConfig schemaConfig, WriterOptions writerOptions) {
+  String resolveTableLocation(
+      HiveMetadataUtils.SchemaComponents schemaComponents,
+      SchemaConfig schemaConfig,
+      WriterOptions writerOptions) {
     if (StringUtils.isNotEmpty(writerOptions.getTableLocation())) {
       return writerOptions.getTableLocation();
     }
@@ -607,7 +724,8 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
       return null;
     }
 
-    String dbLocationUri = getClient(schemaConfig.getUserName()).getDatabaseLocationUri(schemaComponents.getDbName());
+    String dbLocationUri =
+        getClient(schemaConfig.getUserName()).getDatabaseLocationUri(schemaComponents.getDbName());
     if (StringUtils.isNotEmpty(dbLocationUri)) {
       return PathUtils.removeTrailingSlash(dbLocationUri) + '/' + schemaComponents.getTableName();
     }
@@ -616,21 +734,46 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
   }
 
   @Override
-  public void createEmptyTable(NamespaceKey tableSchemaPath, SchemaConfig schemaConfig, BatchSchema batchSchema, WriterOptions writerOptions) {
+  public void createEmptyTable(
+      NamespaceKey tableSchemaPath,
+      SchemaConfig schemaConfig,
+      BatchSchema batchSchema,
+      WriterOptions writerOptions) {
     final HiveMetadataUtils.SchemaComponents schemaComponents =
-      HiveMetadataUtils.resolveSchemaComponents(tableSchemaPath.getPathComponents());
+        HiveMetadataUtils.resolveSchemaComponents(tableSchemaPath.getPathComponents());
 
     String tableLocation = resolveTableLocation(schemaComponents, schemaConfig, writerOptions);
-    tableLocation = HiveMetadataUtils.resolveCreateTableLocation(hiveConf, schemaComponents, tableLocation);
-    IcebergModel icebergModel = getIcebergModel(tableLocation, schemaComponents, schemaConfig.getUserName());
+    tableLocation =
+        HiveMetadataUtils.resolveCreateTableLocation(hiveConf, schemaComponents, tableLocation);
+    IcebergModel icebergModel =
+        getIcebergModel(tableLocation, schemaComponents, schemaConfig.getUserName());
 
-    PartitionSpec partitionSpec = Optional.ofNullable(writerOptions.getTableFormatOptions().getIcebergSpecificOptions()
-      .getIcebergTableProps()).map(props -> props.getDeserializedPartitionSpec()).orElse(null);
-    Map<String, String> tableProperties = Optional.of(writerOptions.getTableFormatOptions().getIcebergSpecificOptions()
-      .getIcebergTableProps()).map(props -> props.getTableProperties()).orElse(Collections.emptyMap());
-    IcebergOpCommitter icebergOpCommitter = icebergModel.getCreateTableCommitter(schemaComponents.getTableName(),
-      icebergModel.getTableIdentifier(tableLocation), batchSchema, writerOptions.getPartitionColumns(),
-      null, partitionSpec, writerOptions.getDeserializedSortOrder(), tableProperties);
+    PartitionSpec partitionSpec =
+        Optional.ofNullable(
+                writerOptions
+                    .getTableFormatOptions()
+                    .getIcebergSpecificOptions()
+                    .getIcebergTableProps())
+            .map(props -> props.getDeserializedPartitionSpec())
+            .orElse(null);
+    Map<String, String> tableProperties =
+        Optional.of(
+                writerOptions
+                    .getTableFormatOptions()
+                    .getIcebergSpecificOptions()
+                    .getIcebergTableProps())
+            .map(props -> props.getTableProperties())
+            .orElse(Collections.emptyMap());
+    IcebergOpCommitter icebergOpCommitter =
+        icebergModel.getCreateTableCommitter(
+            schemaComponents.getTableName(),
+            icebergModel.getTableIdentifier(tableLocation),
+            batchSchema,
+            writerOptions.getPartitionColumns(),
+            null,
+            partitionSpec,
+            writerOptions.getDeserializedSortOrder(),
+            tableProperties);
     icebergOpCommitter.commit();
   }
 
@@ -639,287 +782,429 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
     return context.getCatalogService().getManagedSource(getName()).getId();
   }
 
-  public IcebergModel getIcebergModel(String location, HiveMetadataUtils.SchemaComponents schemaComponents, String userName) {
+  public IcebergModel getIcebergModel(
+      String location, HiveMetadataUtils.SchemaComponents schemaComponents, String userName) {
     FileIO fileIO = null;
     try {
       FileSystem fs = createFS(location, SystemUser.SYSTEM_USERNAME, null);
       fileIO = createIcebergFileIO(fs, null, null, null, null);
     } catch (IOException e) {
-      throw UserException.validationError(e).message("Failure creating File System instance for path %s", location).buildSilently();
+      throw UserException.validationError(e)
+          .message("Failure creating File System instance for path %s", location)
+          .buildSilently();
     }
-    return new IcebergHiveModel(schemaComponents.getDbName(), schemaComponents.getTableName(), fileIO, userName, null, this);
+    return new IcebergHiveModel(
+        schemaComponents.getDbName(),
+        schemaComponents.getTableName(),
+        fileIO,
+        userName,
+        null,
+        this);
   }
 
   @Override
-  public IcebergModel getIcebergModel(IcebergTableProps tableProps, String userName, OperatorContext context, FileIO fileIO) {
+  public IcebergModel getIcebergModel(
+      IcebergTableProps tableProps, String userName, OperatorContext context, FileIO fileIO) {
     if (fileIO == null) {
       try {
         FileSystem fs = createFS(tableProps.getTableLocation(), SystemUser.SYSTEM_USERNAME, null);
         fileIO = createIcebergFileIO(fs, null, null, null, null);
       } catch (IOException e) {
-        throw UserException.validationError(e).message("Failure creating File System instance for path %s", tableProps.getTableLocation()).buildSilently();
+        throw UserException.validationError(e)
+            .message(
+                "Failure creating File System instance for path %s", tableProps.getTableLocation())
+            .buildSilently();
       }
     }
-    return new IcebergHiveModel(tableProps.getDatabaseName(), tableProps.getTableName(), fileIO, userName, null, this);
+    return new IcebergHiveModel(
+        tableProps.getDatabaseName(), tableProps.getTableName(), fileIO, userName, null, this);
   }
 
   @Override
-  public void dropTable(NamespaceKey tableSchemaPath, SchemaConfig schemaConfig, TableMutationOptions tableMutationOptions) {
+  public void dropTable(
+      NamespaceKey tableSchemaPath,
+      SchemaConfig schemaConfig,
+      TableMutationOptions tableMutationOptions) {
 
     final HiveClient client = getClient(schemaConfig.getUserName());
-    final HiveMetadataUtils.SchemaComponents schemaComponents = HiveMetadataUtils.resolveSchemaComponents(tableSchemaPath.getPathComponents());
+    final HiveMetadataUtils.SchemaComponents schemaComponents =
+        HiveMetadataUtils.resolveSchemaComponents(tableSchemaPath.getPathComponents());
     try {
       client.dropTable(schemaComponents.getDbName(), schemaComponents.getTableName(), false);
     } catch (NoSuchObjectException | UnknownTableException e) {
-      String message = String.format("Table not found to drop for Source '%s', database '%s', tablename '%s'",
-        this.getName(), schemaComponents.getDbName(), schemaComponents.getTableName());
+      String message =
+          String.format(
+              "Table not found to drop for Source '%s', database '%s', tablename '%s'",
+              this.getName(), schemaComponents.getDbName(), schemaComponents.getTableName());
       logger.error(message, e);
       throw UserException.validationError(e).message(message).buildSilently();
     } catch (TException e) {
-      String message = String.format("Problem occured while dropping table for Source '%s', database '%s', tablename '%s'. Please check the log for details",
-        this.getName(), schemaComponents.getDbName(), schemaComponents.getTableName());
+      String message =
+          String.format(
+              "Problem occured while dropping table for Source '%s', database '%s', tablename '%s'. Please check the log for details",
+              this.getName(), schemaComponents.getDbName(), schemaComponents.getTableName());
       logger.error(message, e);
       throw new RuntimeException(message, e);
     }
   }
 
   @Override
-  public void alterTable(NamespaceKey tableSchemaPath, DatasetConfig datasetConfig, AlterTableOption alterTableOption,
-                          SchemaConfig schemaConfig, TableMutationOptions tableMutationOptions) {
+  public void alterTable(
+      NamespaceKey tableSchemaPath,
+      DatasetConfig datasetConfig,
+      AlterTableOption alterTableOption,
+      SchemaConfig schemaConfig,
+      TableMutationOptions tableMutationOptions) {
     HiveClient client = getClient(schemaConfig.getUserName());
     final HiveMetadataUtils.SchemaComponents schemaComponents =
         HiveMetadataUtils.resolveSchemaComponents(tableSchemaPath.getPathComponents());
     client.checkAlterTablePrivileges(schemaComponents.getDbName(), schemaComponents.getTableName());
 
-    SplitsPointer splits = DatasetSplitsPointer.of(context.getNamespaceService(schemaConfig.getUserName()), datasetConfig);
-    String metadataLocation = IcebergUtils.getMetadataLocation(datasetConfig, splits.getPartitionChunks().iterator());
-    IcebergModel icebergModel = getIcebergModel(metadataLocation, schemaComponents, schemaConfig.getUserName());
+    SplitsPointer splits =
+        DatasetSplitsPointer.of(
+            context.getNamespaceService(schemaConfig.getUserName()), datasetConfig);
+    String metadataLocation =
+        IcebergUtils.getMetadataLocation(datasetConfig, splits.getPartitionChunks().iterator());
+    IcebergModel icebergModel =
+        getIcebergModel(metadataLocation, schemaComponents, schemaConfig.getUserName());
     icebergModel.alterTable(icebergModel.getTableIdentifier(metadataLocation), alterTableOption);
   }
 
-
   @Override
-  public void truncateTable(NamespaceKey tableSchemaPath, SchemaConfig schemaConfig, TableMutationOptions tableMutationOptions) {
+  public void truncateTable(
+      NamespaceKey tableSchemaPath,
+      SchemaConfig schemaConfig,
+      TableMutationOptions tableMutationOptions) {
     HiveClient client = getClient(schemaConfig.getUserName());
     final HiveMetadataUtils.SchemaComponents schemaComponents =
-      HiveMetadataUtils.resolveSchemaComponents(tableSchemaPath.getPathComponents());
-    client.checkTruncateTablePrivileges(schemaComponents.getDbName(), schemaComponents.getTableName());
+        HiveMetadataUtils.resolveSchemaComponents(tableSchemaPath.getPathComponents());
+    client.checkTruncateTablePrivileges(
+        schemaComponents.getDbName(), schemaComponents.getTableName());
 
     DatasetConfig datasetConfig = null;
     try {
-      datasetConfig = context.getNamespaceService(schemaConfig.getUserName()).getDataset(tableSchemaPath);
+      datasetConfig =
+          context.getNamespaceService(schemaConfig.getUserName()).getDataset(tableSchemaPath);
     } catch (NamespaceException e) {
       logger.error("Unable to get datasetConfig for the table to truncate");
-      throw UserException.unsupportedError(e).message("Unable to get the table info from Dremio.Failed to truncate the table.Please check the logs").buildSilently();
+      throw UserException.unsupportedError(e)
+          .message(
+              "Unable to get the table info from Dremio.Failed to truncate the table.Please check the logs")
+          .buildSilently();
     }
-    SplitsPointer splits = DatasetSplitsPointer.of(context.getNamespaceService(schemaConfig.getUserName()), datasetConfig);
-    String metadataLocation = IcebergUtils.getMetadataLocation(datasetConfig, splits.getPartitionChunks().iterator());
-    IcebergModel icebergModel = getIcebergModel(metadataLocation, schemaComponents, schemaConfig.getUserName());
+    SplitsPointer splits =
+        DatasetSplitsPointer.of(
+            context.getNamespaceService(schemaConfig.getUserName()), datasetConfig);
+    String metadataLocation =
+        IcebergUtils.getMetadataLocation(datasetConfig, splits.getPartitionChunks().iterator());
+    IcebergModel icebergModel =
+        getIcebergModel(metadataLocation, schemaComponents, schemaConfig.getUserName());
     icebergModel.truncateTable(icebergModel.getTableIdentifier(metadataLocation));
   }
 
   @Override
-  public void rollbackTable(NamespaceKey tableSchemaPath,
-                            DatasetConfig datasetConfig,
-                            SchemaConfig schemaConfig,
-                            RollbackOption rollbackOption,
-                            TableMutationOptions tableMutationOptions) {
+  public void rollbackTable(
+      NamespaceKey tableSchemaPath,
+      DatasetConfig datasetConfig,
+      SchemaConfig schemaConfig,
+      RollbackOption rollbackOption,
+      TableMutationOptions tableMutationOptions) {
     HiveClient client = getClient(schemaConfig.getUserName());
     final HiveMetadataUtils.SchemaComponents schemaComponents =
-      HiveMetadataUtils.resolveSchemaComponents(tableSchemaPath.getPathComponents());
+        HiveMetadataUtils.resolveSchemaComponents(tableSchemaPath.getPathComponents());
     client.checkDmlPrivileges(
-      schemaComponents.getDbName(),
-      schemaComponents.getTableName(),
-      getPrivilegeActionTypesForIcebergDml(IcebergCommandType.ROLLBACK));
+        schemaComponents.getDbName(),
+        schemaComponents.getTableName(),
+        getPrivilegeActionTypesForIcebergDml(IcebergCommandType.ROLLBACK));
 
-    SplitsPointer splits = DatasetSplitsPointer.of(context.getNamespaceService(schemaConfig.getUserName()), datasetConfig);
-    String metadataLocation = IcebergUtils.getMetadataLocation(datasetConfig, splits.getPartitionChunks().iterator());
-    IcebergModel icebergModel = getIcebergModel(metadataLocation, schemaComponents, schemaConfig.getUserName());
+    SplitsPointer splits =
+        DatasetSplitsPointer.of(
+            context.getNamespaceService(schemaConfig.getUserName()), datasetConfig);
+    String metadataLocation =
+        IcebergUtils.getMetadataLocation(datasetConfig, splits.getPartitionChunks().iterator());
+    IcebergModel icebergModel =
+        getIcebergModel(metadataLocation, schemaComponents, schemaConfig.getUserName());
     icebergModel.rollbackTable(icebergModel.getTableIdentifier(metadataLocation), rollbackOption);
   }
 
   @Override
-  public void addColumns(NamespaceKey key,
-                         DatasetConfig datasetConfig,
-                         SchemaConfig schemaConfig,
-                         List<Field> columnsToAdd,
-                         TableMutationOptions tableMutationOptions) {
+  public void addColumns(
+      NamespaceKey key,
+      DatasetConfig datasetConfig,
+      SchemaConfig schemaConfig,
+      List<Field> columnsToAdd,
+      TableMutationOptions tableMutationOptions) {
     HiveClient client = getClient(schemaConfig.getUserName());
     final HiveMetadataUtils.SchemaComponents schemaComponents =
         HiveMetadataUtils.resolveSchemaComponents(key.getPathComponents());
     client.checkAlterTablePrivileges(schemaComponents.getDbName(), schemaComponents.getTableName());
 
-    SplitsPointer splits = DatasetSplitsPointer.of(context.getNamespaceService(schemaConfig.getUserName()), datasetConfig);
-    String metadataLocation = IcebergUtils.getMetadataLocation(datasetConfig, splits.getPartitionChunks().iterator());
-    AddColumn columnOperations = new AddColumn(key, context, datasetConfig, schemaConfig,
-      getIcebergModel(metadataLocation, schemaComponents, schemaConfig.getUserName()), com.dremio.io.file.Path.of(metadataLocation), this);
+    SplitsPointer splits =
+        DatasetSplitsPointer.of(
+            context.getNamespaceService(schemaConfig.getUserName()), datasetConfig);
+    String metadataLocation =
+        IcebergUtils.getMetadataLocation(datasetConfig, splits.getPartitionChunks().iterator());
+    AddColumn columnOperations =
+        new AddColumn(
+            key,
+            context,
+            datasetConfig,
+            schemaConfig,
+            getIcebergModel(metadataLocation, schemaComponents, schemaConfig.getUserName()),
+            com.dremio.io.file.Path.of(metadataLocation),
+            this);
     columnOperations.performOperation(columnsToAdd);
   }
 
   @Override
-  public void dropColumn(NamespaceKey key,
-                         DatasetConfig datasetConfig,
-                         SchemaConfig schemaConfig,
-                         String columnToDrop,
-                         TableMutationOptions tableMutationOptions) {
+  public void dropColumn(
+      NamespaceKey key,
+      DatasetConfig datasetConfig,
+      SchemaConfig schemaConfig,
+      String columnToDrop,
+      TableMutationOptions tableMutationOptions) {
     HiveClient client = getClient(schemaConfig.getUserName());
     final HiveMetadataUtils.SchemaComponents schemaComponents =
         HiveMetadataUtils.resolveSchemaComponents(key.getPathComponents());
     client.checkAlterTablePrivileges(schemaComponents.getDbName(), schemaComponents.getTableName());
 
-    SplitsPointer splits = DatasetSplitsPointer.of(context.getNamespaceService(schemaConfig.getUserName()), datasetConfig);
-    String metadataLocation = IcebergUtils.getMetadataLocation(datasetConfig, splits.getPartitionChunks().iterator());
-    DropColumn columnOperations = new DropColumn(key, context, datasetConfig, schemaConfig,
-      getIcebergModel(metadataLocation, schemaComponents, schemaConfig.getUserName()), com.dremio.io.file.Path.of(metadataLocation), this);
+    SplitsPointer splits =
+        DatasetSplitsPointer.of(
+            context.getNamespaceService(schemaConfig.getUserName()), datasetConfig);
+    String metadataLocation =
+        IcebergUtils.getMetadataLocation(datasetConfig, splits.getPartitionChunks().iterator());
+    DropColumn columnOperations =
+        new DropColumn(
+            key,
+            context,
+            datasetConfig,
+            schemaConfig,
+            getIcebergModel(metadataLocation, schemaComponents, schemaConfig.getUserName()),
+            com.dremio.io.file.Path.of(metadataLocation),
+            this);
     columnOperations.performOperation(columnToDrop);
   }
 
   @Override
-  public void changeColumn(NamespaceKey key,
-                           DatasetConfig datasetConfig,
-                           SchemaConfig schemaConfig,
-                           String columnToChange,
-                           Field fieldFromSql,
-                           TableMutationOptions tableMutationOptions) {
+  public void changeColumn(
+      NamespaceKey key,
+      DatasetConfig datasetConfig,
+      SchemaConfig schemaConfig,
+      String columnToChange,
+      Field fieldFromSql,
+      TableMutationOptions tableMutationOptions) {
     HiveClient client = getClient(schemaConfig.getUserName());
     final HiveMetadataUtils.SchemaComponents schemaComponents =
         HiveMetadataUtils.resolveSchemaComponents(key.getPathComponents());
     client.checkAlterTablePrivileges(schemaComponents.getDbName(), schemaComponents.getTableName());
 
-    SplitsPointer splits = DatasetSplitsPointer.of(context.getNamespaceService(schemaConfig.getUserName()), datasetConfig);
-    String metadataLocation = IcebergUtils.getMetadataLocation(datasetConfig, splits.getPartitionChunks().iterator());
-    ChangeColumn columnOperations = new ChangeColumn(key, context, datasetConfig, schemaConfig,
-      getIcebergModel(metadataLocation, schemaComponents, schemaConfig.getUserName()), com.dremio.io.file.Path.of(metadataLocation), this);
+    SplitsPointer splits =
+        DatasetSplitsPointer.of(
+            context.getNamespaceService(schemaConfig.getUserName()), datasetConfig);
+    String metadataLocation =
+        IcebergUtils.getMetadataLocation(datasetConfig, splits.getPartitionChunks().iterator());
+    ChangeColumn columnOperations =
+        new ChangeColumn(
+            key,
+            context,
+            datasetConfig,
+            schemaConfig,
+            getIcebergModel(metadataLocation, schemaComponents, schemaConfig.getUserName()),
+            com.dremio.io.file.Path.of(metadataLocation),
+            this);
     columnOperations.performOperation(columnToChange, fieldFromSql);
   }
 
   @Override
-  public void addPrimaryKey(NamespaceKey table,
-                            DatasetConfig datasetConfig,
-                            SchemaConfig schemaConfig,
-                            List<Field> columns,
-                            ResolvedVersionContext versionContext) {
+  public void addPrimaryKey(
+      NamespaceKey table,
+      DatasetConfig datasetConfig,
+      SchemaConfig schemaConfig,
+      List<Field> columns,
+      ResolvedVersionContext versionContext) {
     HiveClient client = getClient(schemaConfig.getUserName());
     final HiveMetadataUtils.SchemaComponents schemaComponents =
         HiveMetadataUtils.resolveSchemaComponents(table.getPathComponents());
     client.checkAlterTablePrivileges(schemaComponents.getDbName(), schemaComponents.getTableName());
 
-    SplitsPointer splits = DatasetSplitsPointer.of(context.getNamespaceService(schemaConfig.getUserName()), datasetConfig);
-    String metadataLocation = IcebergUtils.getMetadataLocation(datasetConfig, splits.getPartitionChunks().iterator());
-    AddPrimaryKey op = new AddPrimaryKey(table, context, datasetConfig, schemaConfig,
-      getIcebergModel(metadataLocation, schemaComponents, schemaConfig.getUserName()), com.dremio.io.file.Path.of(metadataLocation), this);
+    SplitsPointer splits =
+        DatasetSplitsPointer.of(
+            context.getNamespaceService(schemaConfig.getUserName()), datasetConfig);
+    String metadataLocation =
+        IcebergUtils.getMetadataLocation(datasetConfig, splits.getPartitionChunks().iterator());
+    AddPrimaryKey op =
+        new AddPrimaryKey(
+            table,
+            context,
+            datasetConfig,
+            schemaConfig,
+            getIcebergModel(metadataLocation, schemaComponents, schemaConfig.getUserName()),
+            com.dremio.io.file.Path.of(metadataLocation),
+            this);
     op.performOperation(columns);
   }
 
   @Override
-  public void dropPrimaryKey(NamespaceKey table,
-                             DatasetConfig datasetConfig,
-                             SchemaConfig schemaConfig,
-                             ResolvedVersionContext versionContext) {
+  public void dropPrimaryKey(
+      NamespaceKey table,
+      DatasetConfig datasetConfig,
+      SchemaConfig schemaConfig,
+      ResolvedVersionContext versionContext) {
     HiveClient client = getClient(schemaConfig.getUserName());
     final HiveMetadataUtils.SchemaComponents schemaComponents =
         HiveMetadataUtils.resolveSchemaComponents(table.getPathComponents());
     client.checkAlterTablePrivileges(schemaComponents.getDbName(), schemaComponents.getTableName());
 
-    SplitsPointer splits = DatasetSplitsPointer.of(context.getNamespaceService(schemaConfig.getUserName()), datasetConfig);
-    String metadataLocation = IcebergUtils.getMetadataLocation(datasetConfig, splits.getPartitionChunks().iterator());
-    DropPrimaryKey op = new DropPrimaryKey(table, context, datasetConfig, schemaConfig,
-      getIcebergModel(metadataLocation, schemaComponents, schemaConfig.getUserName()), com.dremio.io.file.Path.of(metadataLocation), this);
+    SplitsPointer splits =
+        DatasetSplitsPointer.of(
+            context.getNamespaceService(schemaConfig.getUserName()), datasetConfig);
+    String metadataLocation =
+        IcebergUtils.getMetadataLocation(datasetConfig, splits.getPartitionChunks().iterator());
+    DropPrimaryKey op =
+        new DropPrimaryKey(
+            table,
+            context,
+            datasetConfig,
+            schemaConfig,
+            getIcebergModel(metadataLocation, schemaComponents, schemaConfig.getUserName()),
+            com.dremio.io.file.Path.of(metadataLocation),
+            this);
     op.performOperation();
   }
 
   @Override
-  public List<String> getPrimaryKey(NamespaceKey table,
-                                    DatasetConfig datasetConfig,
-                                    SchemaConfig schemaConfig,
-                                    ResolvedVersionContext versionContext,
-                                    boolean saveInKvStore) {
+  public List<String> getPrimaryKey(
+      NamespaceKey table,
+      DatasetConfig datasetConfig,
+      SchemaConfig schemaConfig,
+      ResolvedVersionContext versionContext,
+      boolean saveInKvStore) {
     if (IcebergUtils.isPrimaryKeySupported(datasetConfig)) {
-      return IcebergUtils.validateAndGeneratePrimaryKey(this, context, table, datasetConfig, schemaConfig, versionContext, saveInKvStore);
+      return IcebergUtils.validateAndGeneratePrimaryKey(
+          this, context, table, datasetConfig, schemaConfig, versionContext, saveInKvStore);
     } else {
       return null;
     }
   }
 
   @Override
-  public List<String> getPrimaryKeyFromMetadata(NamespaceKey table,
-                                                DatasetConfig datasetConfig,
-                                                SchemaConfig schemaConfig,
-                                                ResolvedVersionContext versionContext,
-                                                boolean saveInKvStore) {
+  public List<String> getPrimaryKeyFromMetadata(
+      NamespaceKey table,
+      DatasetConfig datasetConfig,
+      SchemaConfig schemaConfig,
+      ResolvedVersionContext versionContext,
+      boolean saveInKvStore) {
     final String userName = schemaConfig.getUserName();
     HiveClient client = getClient(userName);
     final HiveMetadataUtils.SchemaComponents schemaComponents =
-      HiveMetadataUtils.resolveSchemaComponents(table.getPathComponents());
+        HiveMetadataUtils.resolveSchemaComponents(table.getPathComponents());
     client.checkAlterTablePrivileges(schemaComponents.getDbName(), schemaComponents.getTableName());
 
     final IcebergModel icebergModel;
     final String path;
     if (DatasetHelper.isInternalIcebergTable(datasetConfig)) {
-      final FileSystemPlugin<?> metaStoragePlugin = context.getCatalogService().getSource(METADATA_STORAGE_PLUGIN_NAME);
+      final FileSystemPlugin<?> metaStoragePlugin =
+          context.getCatalogService().getSource(METADATA_STORAGE_PLUGIN_NAME);
       icebergModel = metaStoragePlugin.getIcebergModel();
-      String metadataTableName = datasetConfig.getPhysicalDataset().getIcebergMetadata().getTableUuid();
+      String metadataTableName =
+          datasetConfig.getPhysicalDataset().getIcebergMetadata().getTableUuid();
       path = metaStoragePlugin.resolveTablePathToValidPath(metadataTableName).toString();
     } else if (DatasetHelper.isIcebergDataset(datasetConfig)) {
-      SplitsPointer splits = DatasetSplitsPointer.of(context.getNamespaceService(userName), datasetConfig);
-      path = IcebergUtils.getMetadataLocation(datasetConfig, splits.getPartitionChunks().iterator());
+      SplitsPointer splits =
+          DatasetSplitsPointer.of(context.getNamespaceService(userName), datasetConfig);
+      path =
+          IcebergUtils.getMetadataLocation(datasetConfig, splits.getPartitionChunks().iterator());
       icebergModel = getIcebergModel(path, schemaComponents, userName);
     } else {
       return null;
     }
 
-    return IcebergUtils.getPrimaryKey(icebergModel, path, table, datasetConfig, userName, this, context, saveInKvStore);
+    return IcebergUtils.getPrimaryKey(
+        icebergModel, path, table, datasetConfig, userName, this, context, saveInKvStore);
   }
 
   @Override
-  public Writer getWriter(PhysicalOperator child, String location, WriterOptions options, OpProps props)
-    throws IOException {
-    throw new UnsupportedOperationException("Hive2 plugin doesn't support table creation via CTAS.");
+  public Writer getWriter(
+      PhysicalOperator child, String location, WriterOptions options, OpProps props)
+      throws IOException {
+    throw new UnsupportedOperationException(
+        "Hive2 plugin doesn't support table creation via CTAS.");
   }
 
   @Override
-  public boolean toggleSchemaLearning(NamespaceKey table, SchemaConfig schemaConfig, boolean enableSchemaLearning) {
+  public boolean toggleSchemaLearning(
+      NamespaceKey table, SchemaConfig schemaConfig, boolean enableSchemaLearning) {
     throw new UnsupportedOperationException("Hive2 plugin doesn't support schema update.");
   }
 
   @Override
-  public void alterSortOrder(NamespaceKey table, DatasetConfig datasetConfig, BatchSchema batchSchema, SchemaConfig schemaConfig, List<String> sortOrderColumns, TableMutationOptions tableMutationOptions) {
+  public void alterSortOrder(
+      NamespaceKey table,
+      DatasetConfig datasetConfig,
+      BatchSchema batchSchema,
+      SchemaConfig schemaConfig,
+      List<String> sortOrderColumns,
+      TableMutationOptions tableMutationOptions) {
     HiveClient client = getClient(schemaConfig.getUserName());
     final HiveMetadataUtils.SchemaComponents schemaComponents =
-      HiveMetadataUtils.resolveSchemaComponents(table.getPathComponents());
+        HiveMetadataUtils.resolveSchemaComponents(table.getPathComponents());
 
-    SplitsPointer splits = DatasetSplitsPointer.of(context.getNamespaceService(schemaConfig.getUserName()), datasetConfig);
-    String metadataLocation = IcebergUtils.getMetadataLocation(datasetConfig, splits.getPartitionChunks().iterator());
-    IcebergModel icebergModel = getIcebergModel(metadataLocation, schemaComponents, schemaConfig.getUserName());
-    icebergModel.replaceSortOrder(icebergModel.getTableIdentifier(metadataLocation), sortOrderColumns);
+    SplitsPointer splits =
+        DatasetSplitsPointer.of(
+            context.getNamespaceService(schemaConfig.getUserName()), datasetConfig);
+    String metadataLocation =
+        IcebergUtils.getMetadataLocation(datasetConfig, splits.getPartitionChunks().iterator());
+    IcebergModel icebergModel =
+        getIcebergModel(metadataLocation, schemaComponents, schemaConfig.getUserName());
+    icebergModel.replaceSortOrder(
+        icebergModel.getTableIdentifier(metadataLocation), sortOrderColumns);
   }
 
   @Override
-  public void updateTableProperties(NamespaceKey table, DatasetConfig datasetConfig, BatchSchema schema, SchemaConfig schemaConfig, Map<String, String> tableProperties, TableMutationOptions tableMutationOptions, boolean isRemove) {
+  public void updateTableProperties(
+      NamespaceKey table,
+      DatasetConfig datasetConfig,
+      BatchSchema schema,
+      SchemaConfig schemaConfig,
+      Map<String, String> tableProperties,
+      TableMutationOptions tableMutationOptions,
+      boolean isRemove) {
     HiveClient client = getClient(schemaConfig.getUserName());
     final HiveMetadataUtils.SchemaComponents schemaComponents =
-      HiveMetadataUtils.resolveSchemaComponents(table.getPathComponents());
+        HiveMetadataUtils.resolveSchemaComponents(table.getPathComponents());
     client.checkAlterTablePrivileges(schemaComponents.getDbName(), schemaComponents.getTableName());
 
-    SplitsPointer splits = DatasetSplitsPointer.of(context.getNamespaceService(schemaConfig.getUserName()), datasetConfig);
-    String metadataLocation = IcebergUtils.getMetadataLocation(datasetConfig, splits.getPartitionChunks().iterator());
-    IcebergModel icebergModel = getIcebergModel(metadataLocation, schemaComponents, schemaConfig.getUserName());
+    SplitsPointer splits =
+        DatasetSplitsPointer.of(
+            context.getNamespaceService(schemaConfig.getUserName()), datasetConfig);
+    String metadataLocation =
+        IcebergUtils.getMetadataLocation(datasetConfig, splits.getPartitionChunks().iterator());
+    IcebergModel icebergModel =
+        getIcebergModel(metadataLocation, schemaComponents, schemaConfig.getUserName());
     if (isRemove) {
       List<String> propertyNameList = new ArrayList<>(tableProperties.keySet());
-      icebergModel.removeTableProperties(icebergModel.getTableIdentifier(metadataLocation), propertyNameList);
+      icebergModel.removeTableProperties(
+          icebergModel.getTableIdentifier(metadataLocation), propertyNameList);
     } else {
-      icebergModel.updateTableProperties(icebergModel.getTableIdentifier(metadataLocation), tableProperties);
+      icebergModel.updateTableProperties(
+          icebergModel.getTableIdentifier(metadataLocation), tableProperties);
     }
   }
 
   @Override
-  public boolean createOrUpdateView(NamespaceKey tableSchemaPath, SchemaConfig schemaConfig, View view, ViewOptions viewOptions) throws IOException {
-    throw new UnsupportedOperationException("Hive2 plugin doesn't support view creation via CREATE VIEW.");
+  public boolean createOrUpdateView(
+      NamespaceKey tableSchemaPath, SchemaConfig schemaConfig, View view, ViewOptions viewOptions)
+      throws IOException {
+    throw new UnsupportedOperationException(
+        "Hive2 plugin doesn't support view creation via CREATE VIEW.");
   }
 
   @Override
-  public void dropView(NamespaceKey tableSchemaPath, ViewOptions viewOptions, SchemaConfig schemaConfig) throws IOException {
-    throw new UnsupportedOperationException("Hive2 plugin doesn't support view drop via DROP VIEW.");
+  public void dropView(
+      NamespaceKey tableSchemaPath, ViewOptions viewOptions, SchemaConfig schemaConfig)
+      throws IOException {
+    throw new UnsupportedOperationException(
+        "Hive2 plugin doesn't support view drop via DROP VIEW.");
   }
 
   @Override
@@ -933,43 +1218,53 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
     }
 
     try {
-      final HiveMetadataUtils.SchemaComponents schemaComponents = HiveMetadataUtils.resolveSchemaComponents(key.getPathComponents());
-      final Table table = clientsByUser
-        .get(user).getTable(schemaComponents.getDbName(), schemaComponents.getTableName(), true);
+      final HiveMetadataUtils.SchemaComponents schemaComponents =
+          HiveMetadataUtils.resolveSchemaComponents(key.getPathComponents());
+      final Table table =
+          clientsByUser
+              .get(user)
+              .getTable(schemaComponents.getDbName(), schemaComponents.getTableName(), true);
       if (table == null) {
         return false;
       }
       if (storageImpersonationEnabled) {
-        if (datasetConfig.getReadDefinition() != null && datasetConfig.getReadDefinition().getReadSignature() != null) {
-          final HiveReadSignature readSignature = HiveReadSignature.parseFrom(datasetConfig.getReadDefinition().getReadSignature().toByteArray());
+        if (datasetConfig.getReadDefinition() != null
+            && datasetConfig.getReadDefinition().getReadSignature() != null) {
+          final HiveReadSignature readSignature =
+              HiveReadSignature.parseFrom(
+                  datasetConfig.getReadDefinition().getReadSignature().toByteArray());
           // for now we only support fs based read signatures
           if (readSignature.getType() == HiveReadSignatureType.FILESYSTEM) {
             // get list of partition properties from read definition
-            HiveTableXattr tableXattr = HiveTableXattr.parseFrom(datasetConfig.getReadDefinition().getExtendedProperty().asReadOnlyByteBuffer());
-            return hasFSPermission(getUsername(user), key, readSignature.getFsPartitionUpdateKeysList(), tableXattr);
+            HiveTableXattr tableXattr =
+                HiveTableXattr.parseFrom(
+                    datasetConfig.getReadDefinition().getExtendedProperty().asReadOnlyByteBuffer());
+            return hasFSPermission(
+                getUsername(user), key, readSignature.getFsPartitionUpdateKeysList(), tableXattr);
           }
         }
       }
       return true;
     } catch (TException e) {
       throw UserException.connectionError(e)
-        .message("Unable to connect to Hive metastore: %s", e.getMessage())
-        .build(logger);
+          .message("Unable to connect to Hive metastore: %s", e.getMessage())
+          .build(logger);
     } catch (ExecutionException | InvalidProtocolBufferException e) {
       throw new RuntimeException("Unable to connect to Hive metastore.", e);
     } catch (UncheckedExecutionException e) {
       Throwable rootCause = ExceptionUtils.getRootCause(e);
-      if(rootCause instanceof TException) {
+      if (rootCause instanceof TException) {
         throw UserException.connectionError(e)
-          .message("Unable to connect to Hive metastore: %s", rootCause.getMessage())
-          .build(logger);
+            .message("Unable to connect to Hive metastore: %s", rootCause.getMessage())
+            .build(logger);
       }
 
       Throwable cause = e.getCause();
       if (cause instanceof AuthorizerServiceException || cause instanceof RuntimeException) {
         throw e;
       }
-      logger.error("User: {} is trying to access Hive dataset with path: {}.", this.getName(), key, e);
+      logger.error(
+          "User: {} is trying to access Hive dataset with path: {}.", this.getName(), key, e);
     }
 
     return false;
@@ -977,12 +1272,14 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
 
   @Override
   public SourceCapabilities getSourceCapabilities() {
-    return new SourceCapabilities(new BooleanCapabilityValue(SourceCapabilities.VARCHARS_WITH_WIDTH, true));
+    return new SourceCapabilities(
+        new BooleanCapabilityValue(SourceCapabilities.VARCHARS_WITH_WIDTH, true));
   }
 
   @Override
   public Class<? extends StoragePluginRulesFactory> getRulesFactoryClass() {
-    // Do not use SabotConfig#getClass() here, since we need to search within the plugin's classloader.
+    // Do not use SabotConfig#getClass() here, since we need to search within the plugin's
+    // classloader.
     String rulesFactoryPath = "dremio.plugins.hive.rulesfactory";
     if (sabotConfig.hasPath(rulesFactoryPath)) {
       final String rulesFactoryClassName = sabotConfig.getString(rulesFactoryPath);
@@ -993,16 +1290,23 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
         return (Class<? extends StoragePluginRulesFactory>) clazz;
       } catch (ClassNotFoundException e) {
         throw UserException.unsupportedError(e)
-          .message("Failure while attempting to find implementation class %s for interface  %s. The sabot config key is %s ",
-            rulesFactoryClassName, StoragePluginRulesFactory.class.getName(), rulesFactoryClassName).build(logger);
+            .message(
+                "Failure while attempting to find implementation class %s for interface  %s. The sabot config key is %s ",
+                rulesFactoryClassName,
+                StoragePluginRulesFactory.class.getName(),
+                rulesFactoryClassName)
+            .build(logger);
       }
     }
 
     return HiveRulesFactory.class;
   }
 
-  private boolean hasFSPermission(String user, NamespaceKey key, List<FileSystemPartitionUpdateKey> updateKeys,
-                                  HiveTableXattr tableXattr) {
+  private boolean hasFSPermission(
+      String user,
+      NamespaceKey key,
+      List<FileSystemPartitionUpdateKey> updateKeys,
+      HiveTableXattr tableXattr) {
     try (Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
       List<TimedRunnable<Boolean>> permissionCheckers = new ArrayList<>();
       long totalChecks = 0, maxChecksInPartition = 0;
@@ -1016,15 +1320,28 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
         return true;
       }
 
-      final int effectiveParallelism = Math.min(signatureValidationParallelism,  permissionCheckers.size());
-      final long minimumTimeout = quietCheckedMultiply(signatureValidationTimeoutMS, maxChecksInPartition);
-      final long computedTimeout = quietCheckedMultiply((long) Math.ceil(totalChecks / effectiveParallelism), signatureValidationTimeoutMS);
+      final int effectiveParallelism =
+          Math.min(signatureValidationParallelism, permissionCheckers.size());
+      final long minimumTimeout =
+          quietCheckedMultiply(signatureValidationTimeoutMS, maxChecksInPartition);
+      final long computedTimeout =
+          quietCheckedMultiply(
+              (long) Math.ceil(totalChecks / effectiveParallelism), signatureValidationTimeoutMS);
       final long timeout = Math.max(computedTimeout, minimumTimeout);
 
       Stopwatch stopwatch = Stopwatch.createStarted();
-      final List<Boolean> accessPermissions = TimedRunnable.run("check access permission for " + key, logger, permissionCheckers, effectiveParallelism, timeout);
+      final List<Boolean> accessPermissions =
+          TimedRunnable.run(
+              "check access permission for " + key,
+              logger,
+              permissionCheckers,
+              effectiveParallelism,
+              timeout);
       stopwatch.stop();
-      logger.debug("Checking access permission for {} took {} ms", key, stopwatch.elapsed(TimeUnit.MILLISECONDS));
+      logger.debug(
+          "Checking access permission for {} took {} ms",
+          key,
+          stopwatch.elapsed(TimeUnit.MILLISECONDS));
       for (Boolean permission : accessPermissions) {
         if (!permission) {
           return false;
@@ -1033,10 +1350,10 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
     } catch (IOException ioe) {
       if (ioe instanceof FileNotFoundException) {
         throw UserException.invalidMetadataError(ioe)
-          .addContext(ioe.getMessage())
-          .setAdditionalExceptionContext(
-            new InvalidMetadataErrorContext(ImmutableList.of(key.getPathComponents()))
-          ).build(logger);
+            .addContext(ioe.getMessage())
+            .setAdditionalExceptionContext(
+                new InvalidMetadataErrorContext(ImmutableList.of(key.getPathComponents())))
+            .build(logger);
       }
       throw UserException.dataReadError(ioe).build(logger);
     }
@@ -1049,18 +1366,38 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
   }
 
   @Override
-  public Supplier<org.apache.hadoop.fs.FileSystem> getHadoopFsSupplierPluginClassLoader(String path, Iterable<Map.Entry<String, String>> conf, String userName) {
-    return hadoopFsSupplierProviderPluginClassLoader.getHadoopFsSupplierPluginClassLoader(path, conf, isImpersonationEnabled() ? userName: SystemUser.SYSTEM_USERNAME);
+  public Supplier<org.apache.hadoop.fs.FileSystem> getHadoopFsSupplierPluginClassLoader(
+      String path, Iterable<Map.Entry<String, String>> conf, String userName) {
+    return getHadoopFsSupplierPluginClassLoader(path, conf, userName, false);
+  }
+
+  @Override
+  public Supplier<org.apache.hadoop.fs.FileSystem> getHadoopFsSupplierPluginClassLoader(
+      String path,
+      Iterable<Map.Entry<String, String>> conf,
+      String userName,
+      boolean hdfsC3CacheEnabled) {
+    return hadoopFsSupplierProviderPluginClassLoader.getHadoopFsSupplierPluginClassLoader(
+        path,
+        conf,
+        isImpersonationEnabled() ? userName : SystemUser.SYSTEM_USERNAME,
+        hdfsC3CacheEnabled);
   }
 
   @Nonnull
   @Override
-  public Optional<DatasetMetadataVerifyResult> verifyMetadata(DatasetHandle datasetHandle, MetadataVerifyRequest metadataVerifyRequest) {
+  public Optional<DatasetMetadataVerifyResult> verifyMetadata(
+      DatasetHandle datasetHandle, MetadataVerifyRequest metadataVerifyRequest) {
     final HiveClient client = getClient(SystemUser.SYSTEM_USERNAME);
     HiveDatasetHandle hiveDatasetHandle = datasetHandle.unwrap(HiveDatasetHandle.class);
     try {
-      return HiveMetadataUtils.verifyMetadata(client, hiveDatasetHandle.getDatasetPath(),
-        hiveDatasetHandle.getInternalMetadataTableOption(), this, context, metadataVerifyRequest);
+      return HiveMetadataUtils.verifyMetadata(
+          client,
+          hiveDatasetHandle.getDatasetPath(),
+          hiveDatasetHandle.getInternalMetadataTableOption(),
+          this,
+          context,
+          metadataVerifyRequest);
     } catch (ConnectorException e) {
       throw UserException.validationError(e).buildSilently();
     }
@@ -1109,7 +1446,9 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
 
     private boolean checkAccessPermission() throws IOException {
       final JobConf jobConf = new JobConf(hiveConf);
-      Preconditions.checkArgument(updateKey.getCachedEntitiesCount() > 0, "hive partition update key should contain at least one path");
+      Preconditions.checkArgument(
+          updateKey.getCachedEntitiesCount() > 0,
+          "hive partition update key should contain at least one path");
 
       for (FileSystemCachedEntity cachedEntity : updateKey.getCachedEntitiesList()) {
         final Path cachedEntityPath;
@@ -1120,10 +1459,11 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
         }
         // Create filesystem for the given user and given path
         // TODO: DX-16001 - make async configurable for Hive.
-        final HadoopFileSystemWrapper userFS = HiveImpersonationUtil.createFileSystem(user, jobConf, cachedEntityPath);
+        final HadoopFileSystemWrapper userFS =
+            HiveImpersonationUtil.createFileSystem(user, jobConf, cachedEntityPath);
         try {
           if (cachedEntity.getIsDir()) {
-            //DX-7850 : remove once solution for maprfs is found
+            // DX-7850 : remove once solution for maprfs is found
             if (userFS.isMapRfs()) {
               userFS.access(cachedEntityPath, FsAction.READ);
             } else {
@@ -1141,10 +1481,13 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
 
     private boolean hasChanged() throws IOException {
       final JobConf jobConf = new JobConf(hiveConf);
-      Preconditions.checkArgument(updateKey.getCachedEntitiesCount() > 0, "hive partition update key should contain at least one path");
+      Preconditions.checkArgument(
+          updateKey.getCachedEntitiesCount() > 0,
+          "hive partition update key should contain at least one path");
 
       // create filesystem based on the first path which is root of the partition directory.
-      final HadoopFileSystemWrapper fs = new HadoopFileSystemWrapper(new Path(updateKey.getPartitionRootDir()), jobConf);
+      final HadoopFileSystemWrapper fs =
+          new HadoopFileSystemWrapper(new Path(updateKey.getPartitionRootDir()), jobConf);
       for (FileSystemCachedEntity cachedEntity : updateKey.getCachedEntitiesList()) {
         final Path cachedEntityPath;
         if (cachedEntity.getPath() == null || cachedEntity.getPath().isEmpty()) {
@@ -1156,28 +1499,32 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
           final FileStatus fileStatus = fs.getFileStatus(cachedEntityPath);
           if (cachedEntity.getLastModificationTime() < fileStatus.getModificationTime()) {
             logger.debug(
-              "Read signature validation - partition has been modified: {}: " +
-                " cached last modification time = {}, actual modified time = {}",
-              cachedEntityPath, cachedEntity.getLastModificationTime(), fileStatus.getModificationTime());
+                "Read signature validation - partition has been modified: {}: "
+                    + " cached last modification time = {}, actual modified time = {}",
+                cachedEntityPath,
+                cachedEntity.getLastModificationTime(),
+                fileStatus.getModificationTime());
             return true;
-          } else if (MetadataRefreshUtils.unlimitedSplitsSupportEnabled(optionManager) && optionManager.getOption(ExecConstants.HIVE_SIGNATURE_CHANGE_RECURSIVE_LISTING)
-            && (cachedEntity.getPath() == null || cachedEntity.getPath().isEmpty())) {
-            final RemoteIterator<LocatedFileStatus> statuses =  fs.listFiles(cachedEntityPath, true);
+          } else if (optionManager.getOption(ExecConstants.HIVE_SIGNATURE_CHANGE_RECURSIVE_LISTING)
+              && (cachedEntity.getPath() == null || cachedEntity.getPath().isEmpty())) {
+            final RemoteIterator<LocatedFileStatus> statuses = fs.listFiles(cachedEntityPath, true);
             while (statuses.hasNext()) {
               LocatedFileStatus attributes = statuses.next();
               if (cachedEntity.getLastModificationTime() < attributes.getModificationTime()) {
                 logger.debug(
-                  "Read signature validation - partition has been modified: {}: " +
-                    " cached last modification time = {}, actual modified time = {}",
-                  attributes.getPath(), cachedEntity.getLastModificationTime(), attributes.getModificationTime());
+                    "Read signature validation - partition has been modified: {}: "
+                        + " cached last modification time = {}, actual modified time = {}",
+                    attributes.getPath(),
+                    cachedEntity.getLastModificationTime(),
+                    attributes.getModificationTime());
                 return true;
               }
             }
           }
         } else {
           logger.debug(
-            "Read signature validation - partition has been modified: {}: directory does not exist",
-            cachedEntityPath);
+              "Read signature validation - partition has been modified: {}: directory does not exist",
+              cachedEntityPath);
           return true;
         }
       }
@@ -1186,12 +1533,19 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
   }
 
   @VisibleForTesting
-  MetadataValidity checkHiveMetadata(HiveTableXattr tableXattr, EntityPath datasetPath, BatchSchema tableSchema, final HiveReadSignature readSignature) throws TException {
+  MetadataValidity checkHiveMetadata(
+      HiveTableXattr tableXattr,
+      EntityPath datasetPath,
+      BatchSchema tableSchema,
+      final HiveReadSignature readSignature)
+      throws TException {
     final HiveClient client = getClient(SystemUser.SYSTEM_USERNAME);
 
-    final HiveMetadataUtils.SchemaComponents schemaComponents = HiveMetadataUtils.resolveSchemaComponents(datasetPath.getComponents());
+    final HiveMetadataUtils.SchemaComponents schemaComponents =
+        HiveMetadataUtils.resolveSchemaComponents(datasetPath.getComponents());
 
-    Table table = client.getTable(schemaComponents.getDbName(), schemaComponents.getTableName(), true);
+    Table table =
+        client.getTable(schemaComponents.getDbName(), schemaComponents.getTableName(), true);
 
     if (table == null) { // missing table?
       logger.debug("{}: metadata INVALID - table not found", datasetPath);
@@ -1203,43 +1557,61 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
         logger.debug("{}: metadata INVALID - read signature root pointer is null", datasetPath);
         return MetadataValidity.INVALID;
       }
-      if (!readSignature.getRootPointer().getPath().equals(table.getParameters().get(HiveMetadataUtils.METADATA_LOCATION))) {
-        logger.debug("{}: metadata INVALID - read signature root pointer has changed, cached: {}, actual: {}",
-          datasetPath, readSignature.getRootPointer().getPath(),
-          table.getParameters().get(HiveMetadataUtils.METADATA_LOCATION));
+      if (!readSignature
+          .getRootPointer()
+          .getPath()
+          .equals(table.getParameters().get(HiveMetadataUtils.METADATA_LOCATION))) {
+        logger.debug(
+            "{}: metadata INVALID - read signature root pointer has changed, cached: {}, actual: {}",
+            datasetPath,
+            readSignature.getRootPointer().getPath(),
+            table.getParameters().get(HiveMetadataUtils.METADATA_LOCATION));
         return MetadataValidity.INVALID;
       }
       // if the root pointer hasn't changed, no need to check for anything else and return Valid.
       return MetadataValidity.VALID;
     }
 
-    int tableHash = HiveMetadataUtils.getHash(table,
-      HiveDatasetOptions.enforceVarcharWidth(
-        HiveReaderProtoUtil.convertValuesToNonProtoAttributeValues(tableXattr.getDatasetOptionMap())), hiveConf, this);
+    int tableHash =
+        HiveMetadataUtils.getHash(
+            table,
+            HiveDatasetOptions.enforceVarcharWidth(
+                HiveReaderProtoUtil.convertValuesToNonProtoAttributeValues(
+                    tableXattr.getDatasetOptionMap())),
+            hiveConf);
     if (tableHash != tableXattr.getTableHash()) {
-      logger.debug("{}: metadata INVALID - table hash has changed, cached: {}, actual: {}", datasetPath,
-        tableXattr.getTableHash(), tableHash);
+      logger.debug(
+          "{}: metadata INVALID - table hash has changed, cached: {}, actual: {}",
+          datasetPath,
+          tableXattr.getTableHash(),
+          tableHash);
       return MetadataValidity.INVALID;
     }
 
     HiveSchemaTypeOptions typeOptions = new HiveSchemaTypeOptions(optionManager);
-    // cached schema may have $_dremio_update_$ column added, this should not be considered during schema comparisons
-    BatchSchema tableSchemaWithoutInternalCols = tableSchema.dropField(IncrementalUpdateUtils.UPDATE_COLUMN);
-    BatchSchema hiveSchema = HiveMetadataUtils.getBatchSchema(table, hiveConf, typeOptions, this);
+    // cached schema may have $_dremio_update_$ column added, this should not be considered during
+    // schema comparisons
+    BatchSchema tableSchemaWithoutInternalCols =
+        tableSchema.dropField(IncrementalUpdateUtils.UPDATE_COLUMN);
+    BatchSchema hiveSchema = HiveMetadataUtils.getBatchSchema(table, hiveConf, typeOptions);
     if (!hiveSchema.equalsTypesWithoutPositions(tableSchemaWithoutInternalCols)) {
       // refresh metadata if converted schema is not same as schema in kvstore
-      logger.debug("{}: metadata INVALID - schema has changed, cached: {}, actual: {}", datasetPath,
-        tableSchemaWithoutInternalCols, hiveSchema);
+      logger.debug(
+          "{}: metadata INVALID - schema has changed, cached: {}, actual: {}",
+          datasetPath,
+          tableSchemaWithoutInternalCols,
+          hiveSchema);
       return MetadataValidity.INVALID;
     }
 
     List<Integer> partitionHashes = new ArrayList<>();
-    PartitionIterator partitionIterator = PartitionIterator.newBuilder()
-      .client(client)
-      .dbName(schemaComponents.getDbName())
-      .tableName(schemaComponents.getTableName())
-      .partitionBatchSize(toIntExact(hiveSettings.getPartitionBatchSize()))
-      .build();
+    PartitionIterator partitionIterator =
+        PartitionIterator.newBuilder()
+            .client(client)
+            .dbName(schemaComponents.getDbName())
+            .tableName(schemaComponents.getTableName())
+            .partitionBatchSize(toIntExact(hiveSettings.getPartitionBatchSize()))
+            .build();
 
     while (partitionIterator.hasNext()) {
       partitionHashes.add(HiveMetadataUtils.getHash(partitionIterator.next()));
@@ -1266,70 +1638,99 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
   }
 
   @Override
-  public MetadataValidity validateMetadata(BytesOutput signature, DatasetHandle datasetHandle, DatasetMetadata metadata, ValidateMetadataOption... options) throws ConnectorException {
+  public MetadataValidity validateMetadata(
+      BytesOutput signature,
+      DatasetHandle datasetHandle,
+      DatasetMetadata metadata,
+      ValidateMetadataOption... options)
+      throws ConnectorException {
 
-    if (null == metadata || null == metadata.getExtraInfo() || BytesOutput.NONE == metadata.getExtraInfo() ||
-      null == signature || BytesOutput.NONE == signature) {
-      logger.debug("{}: metadata INVALID - metadata and/or signature is null/missing", datasetHandle.getDatasetPath().toString());
+    if (null == metadata
+        || null == metadata.getExtraInfo()
+        || BytesOutput.NONE == metadata.getExtraInfo()
+        || null == signature
+        || BytesOutput.NONE == signature) {
+      logger.debug(
+          "{}: metadata INVALID - metadata and/or signature is null/missing",
+          datasetHandle.getDatasetPath().toString());
       return MetadataValidity.INVALID;
     } else {
       try {
-        final HiveTableXattr tableXattr = HiveTableXattr.parseFrom(bytesOutputToByteArray(metadata.getExtraInfo()));
+        final HiveTableXattr tableXattr =
+            HiveTableXattr.parseFrom(bytesOutputToByteArray(metadata.getExtraInfo()));
         BatchSchema tableSchema = new BatchSchema(metadata.getRecordSchema().getFields());
-        final HiveReadSignature readSignature = HiveReadSignature.parseFrom(bytesOutputToByteArray(signature));
+        final HiveReadSignature readSignature =
+            HiveReadSignature.parseFrom(bytesOutputToByteArray(signature));
 
         // check for hive table and partition definition changes
-        MetadataValidity hiveTableStatus = checkHiveMetadata(tableXattr, datasetHandle.getDatasetPath(), tableSchema, readSignature);
+        MetadataValidity hiveTableStatus =
+            checkHiveMetadata(
+                tableXattr, datasetHandle.getDatasetPath(), tableSchema, readSignature);
 
         switch (hiveTableStatus) {
-          case VALID: {
-            if (readSignature.getType() == HiveReadSignatureType.FILESYSTEM) {
-              try (Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
-                // get list of partition properties from read definition
-                List<TimedRunnable<Boolean>> signatureValidators = new ArrayList<>();
-                int totalChecks = 0, maxChecksInPartition = 0;
-                for (FileSystemPartitionUpdateKey updateKey : readSignature.getFsPartitionUpdateKeysList()) {
-                  signatureValidators.add(new FsTask(SystemUser.SYSTEM_USERNAME, updateKey, TaskType.FS_VALIDATION));
-                  totalChecks += updateKey.getCachedEntitiesCount();
-                  maxChecksInPartition = Math.max(maxChecksInPartition, updateKey.getCachedEntitiesCount());
-                }
+          case VALID:
+            {
+              if (readSignature.getType() == HiveReadSignatureType.FILESYSTEM) {
+                try (Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
+                  // get list of partition properties from read definition
+                  List<TimedRunnable<Boolean>> signatureValidators = new ArrayList<>();
+                  int totalChecks = 0, maxChecksInPartition = 0;
+                  for (FileSystemPartitionUpdateKey updateKey :
+                      readSignature.getFsPartitionUpdateKeysList()) {
+                    signatureValidators.add(
+                        new FsTask(SystemUser.SYSTEM_USERNAME, updateKey, TaskType.FS_VALIDATION));
+                    totalChecks += updateKey.getCachedEntitiesCount();
+                    maxChecksInPartition =
+                        Math.max(maxChecksInPartition, updateKey.getCachedEntitiesCount());
+                  }
 
-                if (signatureValidators.isEmpty()) {
-                  return MetadataValidity.VALID;
-                }
+                  if (signatureValidators.isEmpty()) {
+                    return MetadataValidity.VALID;
+                  }
 
-                final int effectiveParallelism = Math.min(signatureValidationParallelism,  signatureValidators.size());
-                final long minimumTimeout = quietCheckedMultiply(signatureValidationTimeoutMS, maxChecksInPartition);
-                final long computedTimeout = quietCheckedMultiply((long) Math.ceil(totalChecks / effectiveParallelism), signatureValidationTimeoutMS);
-                final long timeout = Math.max(computedTimeout, minimumTimeout);
+                  final int effectiveParallelism =
+                      Math.min(signatureValidationParallelism, signatureValidators.size());
+                  final long minimumTimeout =
+                      quietCheckedMultiply(signatureValidationTimeoutMS, maxChecksInPartition);
+                  final long computedTimeout =
+                      quietCheckedMultiply(
+                          (long) Math.ceil(totalChecks / effectiveParallelism),
+                          signatureValidationTimeoutMS);
+                  final long timeout = Math.max(computedTimeout, minimumTimeout);
 
-                Stopwatch stopwatch = Stopwatch.createStarted();
-                final List<Boolean> validations = runValidations(datasetHandle, signatureValidators,
-                  effectiveParallelism, timeout);
-                stopwatch.stop();
-                logger.debug("Checking read signature for {} took {} ms",
-                  PathUtils.constructFullPath(datasetHandle.getDatasetPath().getComponents()),
-                  stopwatch.elapsed(TimeUnit.MILLISECONDS));
+                  Stopwatch stopwatch = Stopwatch.createStarted();
+                  final List<Boolean> validations =
+                      runValidations(
+                          datasetHandle, signatureValidators, effectiveParallelism, timeout);
+                  stopwatch.stop();
+                  logger.debug(
+                      "Checking read signature for {} took {} ms",
+                      PathUtils.constructFullPath(datasetHandle.getDatasetPath().getComponents()),
+                      stopwatch.elapsed(TimeUnit.MILLISECONDS));
 
-                for (Boolean hasChanged : validations) {
-                  if (hasChanged) {
-                    logger.debug("{}: metadata INVALID - read signature has changed",
-                      datasetHandle.getDatasetPath().toString());
-                    return MetadataValidity.INVALID;
+                  for (Boolean hasChanged : validations) {
+                    if (hasChanged) {
+                      logger.debug(
+                          "{}: metadata INVALID - read signature has changed",
+                          datasetHandle.getDatasetPath().toString());
+                      return MetadataValidity.INVALID;
+                    }
                   }
                 }
+                // fallback
               }
-              // fallback
             }
-          }
-          break;
+            break;
 
-          case INVALID: {
-            return MetadataValidity.INVALID;
-          }
+          case INVALID:
+            {
+              return MetadataValidity.INVALID;
+            }
 
           default:
-            throw UserException.unsupportedError(new IllegalArgumentException("Invalid hive table status " + hiveTableStatus)).build(logger);
+            throw UserException.unsupportedError(
+                    new IllegalArgumentException("Invalid hive table status " + hiveTableStatus))
+                .build(logger);
         }
       } catch (IOException | TException ioe) {
         throw new ConnectorException(ioe);
@@ -1339,12 +1740,19 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
   }
 
   @VisibleForTesting
-  List<Boolean> runValidations(DatasetHandle datasetHandle,
-                               List<TimedRunnable<Boolean>> signatureValidators,
-                               Integer effectiveParallelism, Long timeout) throws IOException {
-    return TimedRunnable.run("check read signature for " +
-        PathUtils.constructFullPath(datasetHandle.getDatasetPath().getComponents()),
-      logger, signatureValidators, effectiveParallelism, timeout);
+  List<Boolean> runValidations(
+      DatasetHandle datasetHandle,
+      List<TimedRunnable<Boolean>> signatureValidators,
+      Integer effectiveParallelism,
+      Long timeout)
+      throws IOException {
+    return TimedRunnable.run(
+        "check read signature for "
+            + PathUtils.constructFullPath(datasetHandle.getDatasetPath().getComponents()),
+        logger,
+        signatureValidators,
+        effectiveParallelism,
+        timeout);
   }
 
   private static long quietCheckedMultiply(long a, long b) {
@@ -1374,53 +1782,66 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
         hiveSettings.useStatsInMetastore(),
         toIntExact(optionManager.getOption(ExecConstants.BATCH_LIST_SIZE_ESTIMATE)),
         toIntExact(optionManager.getOption(ExecConstants.BATCH_VARIABLE_FIELD_SIZE_ESTIMATE)),
-        hiveSettings
-    );
+        hiveSettings);
   }
 
   @Override
-  public Optional<DatasetHandle> getDatasetHandle(EntityPath datasetPath, GetDatasetOption... options) throws ConnectorException {
+  public Optional<DatasetHandle> getDatasetHandle(
+      EntityPath datasetPath, GetDatasetOption... options) throws ConnectorException {
     final HiveClient client = getClient(SystemUser.SYSTEM_USERNAME);
     if (!HiveMetadataUtils.isValidPathSchema(datasetPath.getComponents())) {
       return Optional.empty();
     }
 
     final HiveMetadataUtils.SchemaComponents schemaComponents =
-      HiveMetadataUtils.resolveSchemaComponents(datasetPath.getComponents());
+        HiveMetadataUtils.resolveSchemaComponents(datasetPath.getComponents());
 
     final boolean tableExists;
     try {
-      tableExists = client.tableExists(schemaComponents.getDbName(), schemaComponents.getTableName());
+      tableExists =
+          client.tableExists(schemaComponents.getDbName(), schemaComponents.getTableName());
     } catch (TException e) {
-      String message = String.format("Plugin '%s', database '%s', table '%s', problem checking if table exists.",
-        this.getName(), schemaComponents.getDbName(), schemaComponents.getTableName());
+      String message =
+          String.format(
+              "Plugin '%s', database '%s', table '%s', problem checking if table exists.",
+              this.getName(), schemaComponents.getDbName(), schemaComponents.getTableName());
       logger.error(message, e);
       throw new ConnectorException(message, e);
     }
 
     if (tableExists) {
-      logger.debug("Plugin '{}', database '{}', table '{}', DatasetHandle returned.", this.getName(),
-        schemaComponents.getDbName(), schemaComponents.getTableName());
+      logger.debug(
+          "Plugin '{}', database '{}', table '{}', DatasetHandle returned.",
+          this.getName(),
+          schemaComponents.getDbName(),
+          schemaComponents.getTableName());
       return Optional.of(
-        HiveDatasetHandle
-          .newBuilder()
-          .datasetpath(new EntityPath(
-            ImmutableList.of(datasetPath.getComponents().get(0), schemaComponents.getDbName(), schemaComponents.getTableName())))
-          .internalMetadataTableOption(InternalMetadataTableOption.getInternalMetadataTableOption(options))
-          .build());
+          HiveDatasetHandle.newBuilder()
+              .datasetpath(
+                  new EntityPath(
+                      ImmutableList.of(
+                          datasetPath.getComponents().get(0),
+                          schemaComponents.getDbName(),
+                          schemaComponents.getTableName())))
+              .internalMetadataTableOption(
+                  InternalMetadataTableOption.getInternalMetadataTableOption(options))
+              .build());
     } else {
-      logger.warn("Plugin '{}', database '{}', table '{}', DatasetHandle empty, table not found.", this.getName(),
-        schemaComponents.getDbName(), schemaComponents.getTableName());
+      logger.warn(
+          "Plugin '{}', database '{}', table '{}', DatasetHandle empty, table not found.",
+          this.getName(),
+          schemaComponents.getDbName(),
+          schemaComponents.getTableName());
       return Optional.empty();
     }
   }
 
   protected HiveClient getClient(String user) {
-   if (!isOpen.get()) {
+    if (!isOpen.get()) {
       throw buildAlreadyClosedException();
     }
 
-    if(!metastoreImpersonationEnabled || SystemUser.SYSTEM_USERNAME.equals(user)){
+    if (!metastoreImpersonationEnabled || SystemUser.SYSTEM_USERNAME.equals(user)) {
       return processUserMetastoreClient;
     } else {
       try {
@@ -1433,109 +1854,130 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
   }
 
   @Override
-  public DatasetHandleListing listDatasetHandles(GetDatasetOption... options) throws ConnectorException {
+  public DatasetHandleListing listDatasetHandles(GetDatasetOption... options)
+      throws ConnectorException {
     final HiveClient client = getClient(SystemUser.SYSTEM_USERNAME);
 
     try {
-      return new HiveDatasetHandleListing(client, this.getName(), HiveMetadataUtils.isIgnoreAuthzErrors(options));
+      return new HiveDatasetHandleListing(
+          client, this.getName(), null, HiveMetadataUtils.isIgnoreAuthzErrors(options));
     } catch (TException e) {
-      throw new ConnectorException(String.format("Error listing dataset handles for source %s", this.getName()), e);
+      throw new ConnectorException(
+          String.format("Error listing dataset handles for source %s", this.getName()), e);
     }
   }
 
   @Override
-  public PartitionChunkListing listPartitionChunks(DatasetHandle datasetHandle, ListPartitionChunkOption... options) throws ConnectorException {
-    try(Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
+  public PartitionChunkListing listPartitionChunks(
+      DatasetHandle datasetHandle, ListPartitionChunkOption... options) throws ConnectorException {
+    try (Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
       boolean enforceVarcharWidth = false;
-      Optional<BytesOutput> extendedProperty = ExtendedPropertyOption.getExtendedPropertyFromListPartitionChunkOption(options);
+      Optional<BytesOutput> extendedProperty =
+          ExtendedPropertyOption.getExtendedPropertyFromListPartitionChunkOption(options);
       if (extendedProperty.isPresent()) {
         HiveTableXattr hiveTableXattrFromKVStore;
         try {
-          hiveTableXattrFromKVStore = HiveTableXattr.parseFrom(bytesOutputToByteArray(extendedProperty.get()));
+          hiveTableXattrFromKVStore =
+              HiveTableXattr.parseFrom(bytesOutputToByteArray(extendedProperty.get()));
         } catch (InvalidProtocolBufferException e) {
           throw UserException.parseError(e).buildSilently();
         }
-        enforceVarcharWidth = HiveDatasetOptions.enforceVarcharWidth(
-            HiveReaderProtoUtil.convertValuesToNonProtoAttributeValues(hiveTableXattrFromKVStore.getDatasetOptionMap()));
+        enforceVarcharWidth =
+            HiveDatasetOptions.enforceVarcharWidth(
+                HiveReaderProtoUtil.convertValuesToNonProtoAttributeValues(
+                    hiveTableXattrFromKVStore.getDatasetOptionMap()));
       }
 
-      final HivePartitionChunkListing.Builder builder = HivePartitionChunkListing
-        .newBuilder()
-        .hiveConf(hiveConf)
-        .storageImpersonationEnabled(storageImpersonationEnabled)
-        .statsParams(getStatsParams())
-        .enforceVarcharWidth(enforceVarcharWidth)
-        .maxInputSplitsPerPartition(toIntExact(hiveSettings.getMaxInputSplitsPerPartition()))
-        .optionManager(optionManager);
+      final HivePartitionChunkListing.Builder builder =
+          HivePartitionChunkListing.newBuilder()
+              .hiveConf(hiveConf)
+              .storageImpersonationEnabled(storageImpersonationEnabled)
+              .statsParams(getStatsParams())
+              .enforceVarcharWidth(enforceVarcharWidth)
+              .maxInputSplitsPerPartition(toIntExact(hiveSettings.getMaxInputSplitsPerPartition()))
+              .optionManager(optionManager);
 
       final HiveClient client = getClient(SystemUser.SYSTEM_USERNAME);
-      final TableMetadata tableMetadata = HiveMetadataUtils.getTableMetadata(
-        client,
-        datasetHandle.getDatasetPath(),
-        InternalMetadataTableOption.getInternalMetadataTableOption(options),
-        HiveMetadataUtils.isIgnoreAuthzErrors(options),
-        HiveMetadataUtils.getMaxLeafFieldCount(options),
-        HiveMetadataUtils.getMaxNestedFieldLevels(options),
-        TimeTravelOption.getTimeTravelOption(options),
-        new HiveSchemaTypeOptions(optionManager),
-        hiveConf,
-        this,
-        context);
+      final TableMetadata tableMetadata =
+          HiveMetadataUtils.getTableMetadata(
+              client,
+              datasetHandle.getDatasetPath(),
+              InternalMetadataTableOption.getInternalMetadataTableOption(options),
+              HiveMetadataUtils.isIgnoreAuthzErrors(options),
+              HiveMetadataUtils.getMaxLeafFieldCount(options),
+              HiveMetadataUtils.getMaxNestedFieldLevels(options),
+              TimeTravelOption.getTimeTravelOption(options),
+              new HiveSchemaTypeOptions(optionManager),
+              hiveConf,
+              this,
+              context);
 
       if (!tableMetadata.getPartitionColumns().isEmpty()) {
         try {
-          builder.partitions(PartitionIterator.newBuilder()
-            .client(client)
-            .dbName(tableMetadata.getTable().getDbName())
-            .tableName(tableMetadata.getTable().getTableName())
-            .filteredPartitionNames(HiveMetadataUtils.getFilteredPartitionNames(
-              // tableMetadata.getPartitionColumns() source of truth for partition cols ordering
-              tableMetadata.getPartitionColumns(), tableMetadata.getTable().getPartitionKeys(), options))
-            .partitionBatchSize(toIntExact(hiveSettings.getPartitionBatchSize()))
-            .build());
+          builder.partitions(
+              PartitionIterator.newBuilder()
+                  .client(client)
+                  .dbName(tableMetadata.getTable().getDbName())
+                  .tableName(tableMetadata.getTable().getTableName())
+                  .filteredPartitionNames(
+                      HiveMetadataUtils.getFilteredPartitionNames(
+                          // tableMetadata.getPartitionColumns() source of truth for partition cols
+                          // ordering
+                          tableMetadata.getPartitionColumns(),
+                          tableMetadata.getTable().getPartitionKeys(),
+                          options))
+                  .partitionBatchSize(toIntExact(hiveSettings.getPartitionBatchSize()))
+                  .build());
         } catch (TException | RuntimeException e) {
           throw new ConnectorException(e);
         }
       }
 
-      return buildSplits(builder, tableMetadata, options)
-        .tableMetadata(tableMetadata)
-        .build();
+      return buildSplits(builder, tableMetadata, options).tableMetadata(tableMetadata).build();
     }
   }
 
-  private HivePartitionChunkListing.Builder buildSplits(HivePartitionChunkListing.Builder builder, TableMetadata tableMetadata, ListPartitionChunkOption[] options) {
+  private HivePartitionChunkListing.Builder buildSplits(
+      HivePartitionChunkListing.Builder builder,
+      TableMetadata tableMetadata,
+      ListPartitionChunkOption[] options) {
     HivePartitionChunkListing.SplitType splitType = getSplitType(tableMetadata, options);
     builder.splitType(splitType);
     if (splitType == DELTA_COMMIT_LOGS) {
-      builder.deltaSplits(getDeltaSplits(tableMetadata, TimeTravelOption.getTimeTravelOption(options)));
+      builder.deltaSplits(
+          getDeltaSplits(tableMetadata, TimeTravelOption.getTimeTravelOption(options)));
     }
     return builder;
   }
 
-  private List<DatasetSplit> getDeltaSplits(TableMetadata tableMetadata, TimeTravelOption timeTravelOption) {
+  private List<DatasetSplit> getDeltaSplits(
+      TableMetadata tableMetadata, TimeTravelOption timeTravelOption) {
     try {
-      String tableLocation = DeltaHiveInputFormat.getLocation(tableMetadata.getTable(), optionManager);
+      String tableLocation = DeltaHiveInputFormat.getLocation(tableMetadata.getTable());
       FileSystem fs = createFS(tableLocation, SystemUser.SYSTEM_USERNAME, null);
-      TimeTravelOption.TimeTravelRequest timeTravelRequest = timeTravelOption != null ? timeTravelOption.getTimeTravelRequest() : null;
-      DeltaLakeTable deltaLakeTable = new DeltaLakeTable(getSabotContext(), fs, tableLocation, timeTravelRequest);
+      TimeTravelOption.TimeTravelRequest timeTravelRequest =
+          timeTravelOption != null ? timeTravelOption.getTimeTravelRequest() : null;
+      DeltaLakeTable deltaLakeTable =
+          new DeltaLakeTable(getSabotContext(), fs, tableLocation, timeTravelRequest);
       return deltaLakeTable.getAllSplits();
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
   }
 
-  private HivePartitionChunkListing.SplitType getSplitType(TableMetadata tableMetadata, ListPartitionChunkOption[] options) {
-    if (HiveMetadataUtils.isIcebergTable(tableMetadata.getTable())) {
+  private HivePartitionChunkListing.SplitType getSplitType(
+      TableMetadata tableMetadata, ListPartitionChunkOption[] options) {
+    if (HiveMetadataUtils.isIcebergTable(tableMetadata.getTable())
+        || InternalMetadataTableOption.getInternalMetadataTableOption(options) != null) {
       return ICEBERG_MANIFEST_SPLIT;
     }
 
-    if (DeltaHiveInputFormat.isDeltaTable(tableMetadata.getTable(), optionManager)) {
+    if (DeltaHiveInputFormat.isDeltaTable(tableMetadata.getTable())) {
       return DELTA_COMMIT_LOGS;
     }
 
     if (HiveMetadataUtils.isDirListInputSplitType(options)) {
-      return  DIR_LIST_INPUT_SPLIT;
+      return DIR_LIST_INPUT_SPLIT;
     }
 
     return INPUT_SPLIT;
@@ -1543,15 +1985,15 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
 
   @Override
   public DatasetMetadata getDatasetMetadata(
-      DatasetHandle datasetHandle,
-      PartitionChunkListing chunkListing,
-      GetMetadataOption... options
-  ) throws ConnectorException {
+      DatasetHandle datasetHandle, PartitionChunkListing chunkListing, GetMetadataOption... options)
+      throws ConnectorException {
 
-    final HivePartitionChunkListing hivePartitionChunkListing = chunkListing.unwrap(HivePartitionChunkListing.class);
+    final HivePartitionChunkListing hivePartitionChunkListing =
+        chunkListing.unwrap(HivePartitionChunkListing.class);
     final TableMetadata tableMetadata = hivePartitionChunkListing.getTableMetadata();
 
-    final MetadataAccumulator metadataAccumulator = hivePartitionChunkListing.getMetadataAccumulator();
+    final MetadataAccumulator metadataAccumulator =
+        hivePartitionChunkListing.getMetadataAccumulator();
     final Table table = tableMetadata.getTable();
     final Properties tableProperties = tableMetadata.getTableProperties();
 
@@ -1560,84 +2002,106 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
     accumulateTableMetadata(tableExtended, metadataAccumulator, table, tableProperties);
 
     boolean enforceVarcharWidth = false;
-    Optional<BytesOutput> extendedProperty = ExtendedPropertyOption.getExtendedPropertyFromMetadataOption(options);
+    Optional<BytesOutput> extendedProperty =
+        ExtendedPropertyOption.getExtendedPropertyFromMetadataOption(options);
     if (extendedProperty.isPresent()) {
       HiveTableXattr hiveTableXattrFromKVStore;
       try {
-        hiveTableXattrFromKVStore = HiveTableXattr.parseFrom(bytesOutputToByteArray(extendedProperty.get()));
+        hiveTableXattrFromKVStore =
+            HiveTableXattr.parseFrom(bytesOutputToByteArray(extendedProperty.get()));
       } catch (InvalidProtocolBufferException e) {
         throw UserException.parseError(e).buildSilently();
       }
-      enforceVarcharWidth = HiveDatasetOptions.enforceVarcharWidth(
-          HiveReaderProtoUtil.convertValuesToNonProtoAttributeValues(hiveTableXattrFromKVStore.getDatasetOptionMap()));
+      enforceVarcharWidth =
+          HiveDatasetOptions.enforceVarcharWidth(
+              HiveReaderProtoUtil.convertValuesToNonProtoAttributeValues(
+                  hiveTableXattrFromKVStore.getDatasetOptionMap()));
     }
 
-    tableExtended.setTableHash(HiveMetadataUtils.getHash(table, enforceVarcharWidth, hiveConf, this));
+    tableExtended.setTableHash(HiveMetadataUtils.getHash(table, enforceVarcharWidth, hiveConf));
     tableExtended.setPartitionHash(metadataAccumulator.getPartitionHash());
     tableExtended.setReaderType(metadataAccumulator.getReaderType());
     tableExtended.addAllColumnInfo(tableMetadata.getColumnInfos());
-    tableExtended.putDatasetOption(HiveDatasetOptions.HIVE_PARQUET_ENFORCE_VARCHAR_WIDTH,
+    tableExtended.putDatasetOption(
+        HiveDatasetOptions.HIVE_PARQUET_ENFORCE_VARCHAR_WIDTH,
         HiveReaderProtoUtil.toProtobuf(AttributeValue.of(enforceVarcharWidth)));
 
     tableExtended.addAllInputFormatDictionary(metadataAccumulator.buildInputFormatDictionary());
-    tableExtended.addAllSerializationLibDictionary(metadataAccumulator.buildSerializationLibDictionary());
-    tableExtended.addAllStorageHandlerDictionary(metadataAccumulator.buildStorageHandlerDictionary());
+    tableExtended.addAllSerializationLibDictionary(
+        metadataAccumulator.buildSerializationLibDictionary());
+    tableExtended.addAllStorageHandlerDictionary(
+        metadataAccumulator.buildStorageHandlerDictionary());
     tableExtended.addAllPropertyDictionary(metadataAccumulator.buildPropertyDictionary());
 
-    // this is used as an indicator on read to determine if dictionaries are used or if the metadata is from a prior version of Dremio.
+    // this is used as an indicator on read to determine if dictionaries are used or if the metadata
+    // is from a prior version of Dremio.
     tableExtended.setPropertyCollectionType(PropertyCollectionType.DICTIONARY);
 
     return HiveDatasetMetadata.newBuilder()
-      .schema(tableMetadata.getBatchSchema())
-      .partitionColumns(tableMetadata.getPartitionColumns())
-      .sortColumns(FluentIterable.from(table.getSd().getSortCols())
-        .transform(order -> order.getCol())
-        .toList())
-      .metadataAccumulator(metadataAccumulator)
-      .extraInfo(os -> os.write((tableExtended.build().toByteArray())))
-      .icebergMetadata(tableMetadata.getIcebergMetadata())
-      .manifestStats(tableMetadata.getManifestStats())
-      .build();
+        .schema(tableMetadata.getBatchSchema())
+        .partitionColumns(tableMetadata.getPartitionColumns())
+        .sortColumns(
+            FluentIterable.from(table.getSd().getSortCols())
+                .transform(order -> order.getCol())
+                .toList())
+        .metadataAccumulator(metadataAccumulator)
+        .extraInfo(os -> os.write((tableExtended.build().toByteArray())))
+        .icebergMetadata(tableMetadata.getIcebergMetadata())
+        .manifestStats(tableMetadata.getManifestStats())
+        .build();
   }
 
-  private void accumulateTableMetadata(HiveTableXattr.Builder tableExtended, MetadataAccumulator metadataAccumulator, Table table, Properties tableProperties) {
-    for(Prop prop: HiveMetadataUtils.fromProperties(tableProperties)) {
+  private void accumulateTableMetadata(
+      HiveTableXattr.Builder tableExtended,
+      MetadataAccumulator metadataAccumulator,
+      Table table,
+      Properties tableProperties) {
+    for (Prop prop : HiveMetadataUtils.fromProperties(tableProperties)) {
       tableExtended.addTablePropertySubscript(metadataAccumulator.getTablePropSubscript(prop));
     }
 
     if (table.getSd().getInputFormat() != null) {
-      tableExtended.setTableInputFormatSubscript(metadataAccumulator.getTableInputFormatSubscript(table.getSd().getInputFormat()));
+      tableExtended.setTableInputFormatSubscript(
+          metadataAccumulator.getTableInputFormatSubscript(table.getSd().getInputFormat()));
     }
 
     final String storageHandler = table.getParameters().get(META_TABLE_STORAGE);
     if (storageHandler != null) {
-      tableExtended.setTableStorageHandlerSubscript(metadataAccumulator.getTableStorageHandlerSubscript(storageHandler));
+      tableExtended.setTableStorageHandlerSubscript(
+          metadataAccumulator.getTableStorageHandlerSubscript(storageHandler));
     }
 
     tableExtended.setTableSerializationLibSubscript(
-      metadataAccumulator.getTableSerializationLibSubscript(table.getSd().getSerdeInfo().getSerializationLib()));
+        metadataAccumulator.getTableSerializationLibSubscript(
+            table.getSd().getSerdeInfo().getSerializationLib()));
   }
 
   @Override
-  public BytesOutput provideSignature(DatasetHandle datasetHandle, DatasetMetadata metadata) throws ConnectorException {
+  public BytesOutput provideSignature(DatasetHandle datasetHandle, DatasetMetadata metadata)
+      throws ConnectorException {
     final HiveDatasetMetadata hiveDatasetMetadata = metadata.unwrap(HiveDatasetMetadata.class);
 
     final MetadataAccumulator metadataAccumulator = hiveDatasetMetadata.getMetadataAccumulator();
 
-    if (metadataAccumulator.allFSBasedPartitions() && !metadataAccumulator.getFileSystemPartitionUpdateKeys().isEmpty()) {
-      return os -> os.write(
-        HiveReadSignature.newBuilder()
-          .setType(HiveReadSignatureType.FILESYSTEM)
-          .addAllFsPartitionUpdateKeys(metadataAccumulator.getFileSystemPartitionUpdateKeys())
-          .build()
-          .toByteArray());
-    } else if (!metadataAccumulator.allFSBasedPartitions() && metadataAccumulator.getRootPointer() != null) {
-      return os -> os.write(
-        HiveReadSignature.newBuilder()
-          .setType(HiveReadSignatureType.VERSION_BASED)
-          .setRootPointer(metadataAccumulator.getRootPointer())
-          .build()
-          .toByteArray());
+    if (metadataAccumulator.allFSBasedPartitions()
+        && !metadataAccumulator.getFileSystemPartitionUpdateKeys().isEmpty()) {
+      return os ->
+          os.write(
+              HiveReadSignature.newBuilder()
+                  .setType(HiveReadSignatureType.FILESYSTEM)
+                  .addAllFsPartitionUpdateKeys(
+                      metadataAccumulator.getFileSystemPartitionUpdateKeys())
+                  .build()
+                  .toByteArray());
+    } else if (!metadataAccumulator.allFSBasedPartitions()
+        && metadataAccumulator.getRootPointer() != null) {
+      return os ->
+          os.write(
+              HiveReadSignature.newBuilder()
+                  .setType(HiveReadSignatureType.VERSION_BASED)
+                  .setRootPointer(metadataAccumulator.getRootPointer())
+                  .build()
+                  .toByteArray());
     } else {
       return BytesOutput.NONE;
     }
@@ -1645,29 +2109,46 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
 
   @Override
   public SourceState getState() {
-    // Executors maintain no state about Hive; they do not communicate with the Hive meta store, so only tables can
+    // Executors maintain no state about Hive; they do not communicate with the Hive meta store, so
+    // only tables can
     // have a bad state, and not the source.
     if (!isCoordinator) {
       return SourceState.GOOD;
     }
 
     if (!isOpen.get()) {
-      logger.debug("Tried to get the state of a Hive plugin that is either not started or already closed: {}.", this.getName());
-      return new SourceState(SourceStatus.bad,
-        String.format("Could not connect to Hive source %s, check your Hive credentials and network settings.", this.getName()),
-        ImmutableList.of(new SourceState.Message(MessageLevel.ERROR,
-          String.format("Hive Metastore client on source %s was not started or already closed.", this.getName()))));
+      logger.debug(
+          "Tried to get the state of a Hive plugin that is either not started or already closed: {}.",
+          this.getName());
+      return new SourceState(
+          SourceStatus.bad,
+          String.format(
+              "Could not connect to Hive source %s, check your Hive credentials and network settings.",
+              this.getName()),
+          ImmutableList.of(
+              new SourceState.Message(
+                  MessageLevel.ERROR,
+                  String.format(
+                      "Hive Metastore client on source %s was not started or already closed.",
+                      this.getName()))));
     }
 
     try {
-      processUserMetastoreClient.getDatabases(false);
+      processUserMetastoreClient.checkState(false);
       return SourceState.GOOD;
     } catch (Exception ex) {
-      logger.debug("Caught exception while trying to get status of HIVE source {}, error: ", this.getName(), ex);
-      return new SourceState(SourceStatus.bad,
-          String.format("Could not connect to Hive source %s, check your Hive credentials and network settings.", this.getName()),
-          Collections.singletonList(new SourceState.Message(MessageLevel.ERROR,
-              "Failure connecting to source: " + ex.getMessage())));
+      logger.debug(
+          "Caught exception while trying to get status of HIVE source {}, error: ",
+          this.getName(),
+          ex);
+      return new SourceState(
+          SourceStatus.bad,
+          String.format(
+              "Could not connect to Hive source %s, check your Hive credentials and network settings.",
+              this.getName()),
+          Collections.singletonList(
+              new SourceState.Message(
+                  MessageLevel.ERROR, "Failure connecting to source: " + ex.getMessage())));
     }
   }
 
@@ -1697,7 +2178,7 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
       logger.warn("Failed to close hadoopFsSupplierProviderPluginClassLoader", e);
     }
 
-    if(HiveFsUtils.isFsPluginCacheEnabled(hiveConf)) {
+    if (HiveFsUtils.isFsPluginCacheEnabled(hiveConf)) {
       HadoopFsWrapperWithCachePluginClassLoader.cleanCache(confUniqueIdentifier);
     }
 
@@ -1716,11 +2197,13 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
       throw Throwables.propagate(e);
     }
 
-    if (isCoordinator || optionManager.getOption(ExecConstants.CREATE_HIVECLIENT_ON_EXECUTOR_NODES)) {
+    if (isCoordinator
+        || optionManager.getOption(ExecConstants.CREATE_HIVECLIENT_ON_EXECUTOR_NODES)) {
       try {
         if (hiveConf.getBoolVar(ConfVars.METASTORE_USE_THRIFT_SASL)) {
-          logger.info("Hive Metastore SASL enabled. Kerberos principal: " +
-              hiveConf.getVar(ConfVars.METASTORE_KERBEROS_PRINCIPAL));
+          logger.info(
+              "Hive Metastore SASL enabled. Kerberos principal: "
+                  + hiveConf.getVar(ConfVars.METASTORE_KERBEROS_PRINCIPAL));
         }
 
         processUserMetastoreClient = createConnectedClient();
@@ -1734,32 +2217,35 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
       boolean useZeroCopy = OrcConf.USE_ZEROCOPY.getBoolean(hiveConf);
       logger.info("ORC Zero-Copy {}.", useZeroCopy ? "enabled" : "disabled");
 
-      clientsByUser = CacheBuilder
-        .newBuilder()
-        .expireAfterAccess(10, TimeUnit.MINUTES)
-        .maximumSize(5) // Up to 5 clients for impersonation-enabled.
-        .removalListener(new RemovalListener<String, HiveClient>() {
-          @Override
-          public void onRemoval(RemovalNotification<String, HiveClient> notification) {
-            HiveClient client = notification.getValue();
-            client.close();
-          }
-        })
-        .build(new CacheLoader<String, HiveClient>() {
-          @Override
-          public HiveClient load(String userName) throws Exception {
-            final UserGroupInformation ugiForRpc;
+      clientsByUser =
+          CacheBuilder.newBuilder()
+              .expireAfterAccess(10, TimeUnit.MINUTES)
+              .maximumSize(5) // Up to 5 clients for impersonation-enabled.
+              .removalListener(
+                  new RemovalListener<String, HiveClient>() {
+                    @Override
+                    public void onRemoval(RemovalNotification<String, HiveClient> notification) {
+                      HiveClient client = notification.getValue();
+                      client.close();
+                    }
+                  })
+              .build(
+                  new CacheLoader<String, HiveClient>() {
+                    @Override
+                    public HiveClient load(String userName) throws Exception {
+                      final UserGroupInformation ugiForRpc;
 
-            if (!storageImpersonationEnabled) {
-              // If the user impersonation is disabled in Hive storage plugin, use the process user UGI credentials.
-              ugiForRpc = HiveImpersonationUtil.getProcessUserUGI();
-            } else {
-              ugiForRpc = HiveImpersonationUtil.createProxyUgi(getUsername(userName));
-            }
+                      if (!storageImpersonationEnabled) {
+                        // If the user impersonation is disabled in Hive storage plugin, use the
+                        // process user UGI credentials.
+                        ugiForRpc = HiveImpersonationUtil.getProcessUserUGI();
+                      } else {
+                        ugiForRpc = HiveImpersonationUtil.createProxyUgi(getUsername(userName));
+                      }
 
-            return createConnectedClientWithAuthz(userName, ugiForRpc);
-          }
-        });
+                      return createConnectedClientWithAuthz(userName, ugiForRpc);
+                    }
+                  });
     } else {
       processUserMetastoreClient = null;
       clientsByUser = null;
@@ -1767,9 +2253,11 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
   }
 
   /**
-   * Set up the current user in {@link UserGroupInformation} using the kerberos principal and keytab file path if
-   * present in config. If not present, this method call is a no-op. When communicating with the kerberos enabled
-   * Hadoop based filesystem credentials in {@link UserGroupInformation} will be used..
+   * Set up the current user in {@link UserGroupInformation} using the kerberos principal and keytab
+   * file path if present in config. If not present, this method call is a no-op. When communicating
+   * with the kerberos enabled Hadoop based filesystem credentials in {@link UserGroupInformation}
+   * will be used..
+   *
    * @throws IOException
    */
   private void setupHadoopUserUsingKerberosKeytab() throws IOException {
@@ -1782,8 +2270,10 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
 
     UserGroupInformation.loginUserFromKeytab(kerberosPrincipal, kerberosKeytab);
 
-    logger.info("Setup Hadoop user info using kerberos principal {} and keytab file {} successful.",
-      kerberosPrincipal, kerberosKeytab);
+    logger.info(
+        "Setup Hadoop user info using kerberos principal {} and keytab file {} successful.",
+        kerberosPrincipal,
+        kerberosKeytab);
   }
 
   public String getUsername(String name) {
@@ -1793,23 +2283,28 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
     return SystemUser.SYSTEM_USERNAME;
   }
 
-  /**
-   * Creates an instance of a class that was loaded by PF4J.
-   */
+  /** Creates an instance of a class that was loaded by PF4J. */
   @Override
   public Class<? extends HiveProxiedSubScan> getSubScanClass() {
     return HiveSubScan.class;
   }
 
   @Override
-  public HiveProxiedScanBatchCreator createScanBatchCreator(FragmentExecutionContext fragmentExecContext, OperatorContext context,
-                                                            HiveProxyingSubScan config) throws ExecutionSetupException {
+  public HiveProxiedScanBatchCreator createScanBatchCreator(
+      FragmentExecutionContext fragmentExecContext,
+      OperatorContext context,
+      HiveProxyingSubScan config)
+      throws ExecutionSetupException {
     return new HiveScanBatchCreator(fragmentExecContext, context, config);
   }
 
   @Override
-  public HiveProxiedScanBatchCreator createScanBatchCreator(FragmentExecutionContext fragmentExecContext, OperatorContext context,
-                                                            OpProps props, TableFunctionConfig tableFunctionConfig) throws ExecutionSetupException {
+  public HiveProxiedScanBatchCreator createScanBatchCreator(
+      FragmentExecutionContext fragmentExecContext,
+      OperatorContext context,
+      OpProps props,
+      TableFunctionConfig tableFunctionConfig)
+      throws ExecutionSetupException {
     return new HiveScanBatchCreator(fragmentExecContext, context, props, tableFunctionConfig);
   }
 
@@ -1819,12 +2314,17 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
   }
 
   @Override
-  public DatasetMetadata alterMetadata(final DatasetHandle datasetHandle, final DatasetMetadata oldDatasetMetadata,
-                                       final Map<String, AttributeValue> attributes, final AlterMetadataOption... options) throws ConnectorException {
+  public DatasetMetadata alterMetadata(
+      final DatasetHandle datasetHandle,
+      final DatasetMetadata oldDatasetMetadata,
+      final Map<String, AttributeValue> attributes,
+      final AlterMetadataOption... options)
+      throws ConnectorException {
 
     final HiveTableXattr hiveTableXattr;
     try {
-      hiveTableXattr = HiveTableXattr.parseFrom(bytesOutputToByteArray(oldDatasetMetadata.getExtraInfo()));
+      hiveTableXattr =
+          HiveTableXattr.parseFrom(bytesOutputToByteArray(oldDatasetMetadata.getExtraInfo()));
     } catch (InvalidProtocolBufferException e) {
       throw UserException.parseError(e).buildSilently();
     }
@@ -1843,17 +2343,23 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
       }
 
       if (!(newValue.getClass().equals(defaultValue.get().getClass()))) {
-        throw UserException.validationError().message("Option [%s] requires a value of type [%s]", key,
-            HiveReaderProtoUtil.getTypeName(defaultValue.get())).buildSilently();
+        throw UserException.validationError()
+            .message(
+                "Option [%s] requires a value of type [%s]",
+                key, HiveReaderProtoUtil.getTypeName(defaultValue.get()))
+            .buildSilently();
       }
 
-      AttributeValue currentValue = HiveReaderProtoUtil.convertValuesToNonProtoAttributeValues(newXattrsBuilder.getDatasetOptionMap())
-          .getOrDefault(key, defaultValue.get());
+      AttributeValue currentValue =
+          HiveReaderProtoUtil.convertValuesToNonProtoAttributeValues(
+                  newXattrsBuilder.getDatasetOptionMap())
+              .getOrDefault(key, defaultValue.get());
 
       boolean oldAndNewValueIsSame;
       if (currentValue instanceof AttributeValue.StringValue) {
-        oldAndNewValueIsSame = ((AttributeValue.StringValue) currentValue)
-            .equalsIgnoreCase((AttributeValue.StringValue) newValue);
+        oldAndNewValueIsSame =
+            ((AttributeValue.StringValue) currentValue)
+                .equalsIgnoreCase((AttributeValue.StringValue) newValue);
       } else {
         oldAndNewValueIsSame = currentValue.equals(newValue);
       }
@@ -1868,9 +2374,12 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
       return oldDatasetMetadata;
     }
 
-    return DatasetMetadata.of(oldDatasetMetadata.getDatasetStats(),
-        oldDatasetMetadata.getRecordSchema(), oldDatasetMetadata.getPartitionColumns(),
-        oldDatasetMetadata.getSortColumns(), os -> ByteString.writeTo(os, ByteString.copyFrom(newXattrsBuilder.build().toByteArray())));
+    return DatasetMetadata.of(
+        oldDatasetMetadata.getDatasetStats(),
+        oldDatasetMetadata.getRecordSchema(),
+        oldDatasetMetadata.getPartitionColumns(),
+        oldDatasetMetadata.getSortColumns(),
+        os -> ByteString.writeTo(os, ByteString.copyFrom(newXattrsBuilder.build().toByteArray())));
   }
 
   @VisibleForTesting
@@ -1879,17 +2388,18 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
   }
 
   @VisibleForTesting
-  HiveClient createConnectedClientWithAuthz(final String userName, final UserGroupInformation ugiForRpc)
-      throws MetaException {
+  HiveClient createConnectedClientWithAuthz(
+      final String userName, final UserGroupInformation ugiForRpc) throws MetaException {
     Preconditions.checkArgument(processUserMetastoreClient instanceof HiveClientImpl);
-    return HiveClientImpl.createConnectedClientWithAuthz(processUserMetastoreClient, hiveConf, userName, ugiForRpc);
+    return HiveClientImpl.createConnectedClientWithAuthz(
+        processUserMetastoreClient, hiveConf, userName, ugiForRpc);
   }
 
   private UserException buildAlreadyClosedException() {
     return UserException.sourceInBadState()
-      .message("The Hive source %s is either not started or already closed", this.getName())
-      .addContext("name", this.getName())
-      .buildSilently();
+        .message("The Hive source %s is either not started or already closed", this.getName())
+        .addContext("name", this.getName())
+        .buildSilently();
   }
 
   @Override
@@ -1898,13 +2408,18 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
   }
 
   @Override
-  public FooterReadTableFunction getFooterReaderTableFunction(FragmentExecutionContext fec, OperatorContext context, OpProps props, TableFunctionConfig functionConfig) {
+  public FooterReadTableFunction getFooterReaderTableFunction(
+      FragmentExecutionContext fec,
+      OperatorContext context,
+      OpProps props,
+      TableFunctionConfig functionConfig) {
     try (Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
       return new HiveFooterReaderTableFunction(fec, context, props, functionConfig);
     }
   }
 
-  protected List<HivePrivilegeObject.HivePrivObjectActionType> getPrivilegeActionTypesForIcebergDml(IcebergCommandType commandType) {
+  protected List<HivePrivilegeObject.HivePrivObjectActionType> getPrivilegeActionTypesForIcebergDml(
+      IcebergCommandType commandType) {
     switch (commandType) {
       case INSERT:
         return ImmutableList.of(HivePrivilegeObject.HivePrivObjectActionType.INSERT);
@@ -1917,7 +2432,9 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
         return ImmutableList.of(HivePrivilegeObject.HivePrivObjectActionType.UPDATE);
       case MERGE:
         return ImmutableList.of(
-            HivePrivilegeObject.HivePrivObjectActionType.INSERT, HivePrivilegeObject.HivePrivObjectActionType.DELETE, HivePrivilegeObject.HivePrivObjectActionType.UPDATE);
+            HivePrivilegeObject.HivePrivObjectActionType.INSERT,
+            HivePrivilegeObject.HivePrivObjectActionType.DELETE,
+            HivePrivilegeObject.HivePrivObjectActionType.UPDATE);
       default:
         throw new IllegalArgumentException(
             String.format("Unexpected command type %s - expected DML command type", commandType));

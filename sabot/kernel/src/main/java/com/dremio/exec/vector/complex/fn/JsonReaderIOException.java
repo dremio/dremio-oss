@@ -17,9 +17,7 @@ package com.dremio.exec.vector.complex.fn;
 
 import java.io.IOException;
 
-/**
- * Marker class for exceptions thrown by the {@link JsonReader}
- */
+/** Marker class for exceptions thrown by the {@link JsonReader} */
 public class JsonReaderIOException extends IOException {
 
   public JsonReaderIOException(Exception e) {

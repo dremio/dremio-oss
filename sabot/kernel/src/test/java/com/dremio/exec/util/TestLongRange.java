@@ -17,14 +17,11 @@ package com.dremio.exec.util;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import org.junit.Test;
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.Test;
 
-/**
- * Tests for {@link com.dremio.exec.util.LongRange}
- */
+/** Tests for {@link com.dremio.exec.util.LongRange} */
 public class TestLongRange {
 
   private static ObjectMapper OBJECT_MAPPER = new ObjectMapper();

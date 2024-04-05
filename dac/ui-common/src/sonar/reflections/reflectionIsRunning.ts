@@ -22,6 +22,8 @@ import {
 export const reflectionIsRunning = (reflection: ReflectionSummary) =>
   reflection.status.refreshStatus ===
     ReflectionSummaryStatus.RefreshStatusEnum.RUNNING ||
+    reflection.status.refreshStatus ===
+    ReflectionSummaryStatus.RefreshStatusEnum.PENDING ||
   (reflection.isEnabled &&
     reflection.status.configStatus ===
       ReflectionSummaryStatus.ConfigStatusEnum.OK &&

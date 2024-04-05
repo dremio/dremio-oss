@@ -15,25 +15,22 @@
  */
 package com.dremio.common.exceptions;
 
-import java.util.regex.Pattern;
-
-import org.apache.arrow.memory.OutOfMemoryException;
-
 import com.dremio.exec.proto.UserBitShared.ExceptionWrapper;
 import com.dremio.exec.proto.UserBitShared.StackTraceElementWrapper;
-
 import io.netty.util.internal.OutOfDirectMemoryError;
+import java.util.regex.Pattern;
+import org.apache.arrow.memory.OutOfMemoryException;
 
-/**
- * Utility class that handles error message generation.
- */
+/** Utility class that handles error message generation. */
 public class ErrorHelper {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ErrorHelper.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ErrorHelper.class);
 
   private static final Pattern IGNORE = Pattern.compile("^(sun|com\\.sun|java).*");
 
   /**
-   * Constructs the root error message in the form [root exception class name]: [root exception message]
+   * Constructs the root error message in the form [root exception class name]: [root exception
+   * message]
    *
    * @param cause exception we want the root message for
    * @return root error message or empty string if none found
@@ -58,17 +55,16 @@ public class ErrorHelper {
     return message;
   }
 
-
   static String buildCausesMessage(final Throwable t) {
 
     StringBuilder sb = new StringBuilder();
     Throwable ex = t;
     boolean cause = false;
-    while(ex != null){
+    while (ex != null) {
 
       sb.append("  ");
 
-      if(cause){
+      if (cause) {
         sb.append("Caused By ");
       }
 
@@ -78,7 +74,7 @@ public class ErrorHelper {
       sb.append(ex.getMessage());
       sb.append("\n");
 
-      for(StackTraceElement st : ex.getStackTrace()){
+      for (StackTraceElement st : ex.getStackTrace()) {
         sb.append("    ");
         sb.append(st.getClassName());
         sb.append('.');
@@ -89,7 +85,7 @@ public class ErrorHelper {
       }
       cause = true;
 
-      if(ex.getCause() != null && ex.getCause() != ex){
+      if (ex.getCause() != null && ex.getCause() != ex) {
         ex = ex.getCause();
       } else {
         ex = null;
@@ -109,29 +105,28 @@ public class ErrorHelper {
 
   private static ExceptionWrapper.Builder getWrapperBuilder(Throwable ex, boolean includeAllStack) {
     ExceptionWrapper.Builder ew = ExceptionWrapper.newBuilder();
-    if(ex.getMessage() != null) {
+    if (ex.getMessage() != null) {
       ew.setMessage(ex.getMessage());
     }
     ew.setExceptionClass(ex.getClass().getName());
     boolean isHidden = false;
     StackTraceElement[] stackTrace = ex.getStackTrace();
-    for(int i = 0; i < stackTrace.length; i++){
+    for (int i = 0; i < stackTrace.length; i++) {
       StackTraceElement ele = ex.getStackTrace()[i];
-      if(include(ele, includeAllStack)){
-        if(isHidden){
+      if (include(ele, includeAllStack)) {
+        if (isHidden) {
           isHidden = false;
         }
         ew.addStackTrace(getSTWrapper(ele));
-      }else{
-        if(!isHidden){
+      } else {
+        if (!isHidden) {
           isHidden = true;
           ew.addStackTrace(getEmptyST());
         }
       }
-
     }
 
-    if(ex.getCause() != null && ex.getCause() != ex){
+    if (ex.getCause() != null && ex.getCause() != ex) {
       ew.setCause(getWrapper(ex.getCause()));
     }
     return ew;
@@ -144,7 +139,7 @@ public class ErrorHelper {
   private static StackTraceElementWrapper.Builder getSTWrapper(StackTraceElement ele) {
     StackTraceElementWrapper.Builder w = StackTraceElementWrapper.newBuilder();
     w.setClassName(ele.getClassName());
-    if(ele.getFileName() != null) {
+    if (ele.getFileName() != null) {
       w.setFileName(ele.getFileName());
     }
     w.setIsNativeMethod(ele.isNativeMethod());
@@ -164,6 +159,7 @@ public class ErrorHelper {
 
   /**
    * searches for an exception of type T wrapped inside the exception
+   *
    * @param ex exception
    * @return null if exception is null or no UserException was found
    */
@@ -192,12 +188,14 @@ public class ErrorHelper {
       // from arrow
       return true;
     } else {
-      OutOfMemoryError oom =  findWrappedCause(ex, OutOfMemoryError.class);
-      return oom != null &&
-        // till java-13
-        (oom.getMessage().contains("Direct buffer memory") ||
-          // from java-13 & later
-          oom.getMessage().contains("direct buffer memory"));
+      OutOfMemoryError oom = findWrappedCause(ex, OutOfMemoryError.class);
+      return oom != null
+          &&
+          // till java-13
+          (oom.getMessage().contains("Direct buffer memory")
+              ||
+              // from java-13 & later
+              oom.getMessage().contains("direct buffer memory"));
     }
   }
 }

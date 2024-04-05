@@ -21,7 +21,8 @@ import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.tools.RelBuilder;
 
 public final class ArrayDistinctConvertlet implements FunctionConvertlet {
-  public static final FunctionConvertlet INSTANCE = new NullableArrayFunctionConvertlet(new ArrayDistinctConvertlet());
+  public static final FunctionConvertlet INSTANCE =
+      new NullableArrayFunctionConvertlet(new ArrayDistinctConvertlet());
 
   private ArrayDistinctConvertlet() {}
 
@@ -33,9 +34,10 @@ public final class ArrayDistinctConvertlet implements FunctionConvertlet {
   @Override
   public RexCall convertCall(ConvertletContext cx, RexCall call) {
     // ARRAY_DISTINCT(arr) -> ARRAY(SELECT DISTINCT item FROM UNNEST(arr) as t(item))
-    return new CorrelatedUnnestQueryBuilder(cx.getRexCorrelVariable(), cx.getRelBuilder(), cx.getRexBuilder())
-      .unnest(call.getOperands().get(0))
-      .transform(RelBuilder::distinct)
-      .array();
+    return new CorrelatedUnnestQueryBuilder(
+            cx.getRexCorrelVariable(), cx.getRelBuilder(), cx.getRexBuilder())
+        .unnest(call.getOperands().get(0))
+        .transform(RelBuilder::distinct)
+        .array();
   }
 }

@@ -19,9 +19,7 @@ import org.apache.calcite.rel.RelHomogeneousShuttle;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rex.RexShuttle;
 
-/**
- * Applies the rex shuttle to all RelNodes in the tree.
- */
+/** Applies the rex shuttle to all RelNodes in the tree. */
 public final class RexShuttleRelShuttle extends RelHomogeneousShuttle {
   private final RexShuttle rexShuttle;
 

@@ -16,12 +16,13 @@
 
 package com.dremio.service.script;
 
-/**
- * MaxScriptsException class
- */
+/** MaxScriptsException class */
 public class MaxScriptsLimitReachedException extends Exception {
-  public MaxScriptsLimitReachedException(Long maxNumberOfScriptsPerUser, Long countOfScriptsByCurrentUser) {
-    super(String.format("Maximum scripts limit per user is reached. Limit %s; Current %s.", maxNumberOfScriptsPerUser,
-      countOfScriptsByCurrentUser));
+  public MaxScriptsLimitReachedException(
+      Long maxNumberOfScriptsPerUser, Long countOfScriptsByCurrentUser) {
+    super(
+        String.format(
+            "Maximum scripts limit per user is reached. Limit %s; Current %s.",
+            maxNumberOfScriptsPerUser, countOfScriptsByCurrentUser));
   }
 }

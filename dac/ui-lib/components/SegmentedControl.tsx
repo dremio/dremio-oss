@@ -39,7 +39,7 @@ type SegmentedControlProps<T extends string = string> = {
 export const SegmentedControl = forwardRef(
   (
     props: SegmentedControlProps,
-    ref: React.ForwardedRef<HTMLDivElement>
+    ref: React.ForwardedRef<HTMLDivElement>,
   ): JSX.Element => {
     const { className, children, onChange, value, ...rest } = props;
     const handleOptionSelection = useCallback(
@@ -48,7 +48,7 @@ export const SegmentedControl = forwardRef(
           onChange(newValue);
         }
       },
-      [onChange, value]
+      [onChange, value],
     );
     return (
       <div
@@ -64,7 +64,7 @@ export const SegmentedControl = forwardRef(
         })}
       </div>
     );
-  }
+  },
 );
 
 SegmentedControl.displayName = "SegmentedControl";
@@ -86,14 +86,14 @@ const validateOptionProps = (props: SegmentedControlOptionProps) => {
 
   invariant(
     !!props.tooltip,
-    "SegmentedControlOption: The `tooltip` prop is required"
+    "SegmentedControlOption: The `tooltip` prop is required",
   );
 };
 
 export const SegmentedControlOption = forwardRef(
   (
     props: SegmentedControlOptionProps,
-    ref: React.ForwardedRef<HTMLButtonElement>
+    ref: React.ForwardedRef<HTMLButtonElement>,
   ): JSX.Element => {
     const {
       className,
@@ -128,7 +128,7 @@ export const SegmentedControlOption = forwardRef(
         )}
       </Tooltip>
     );
-  }
+  },
 );
 
 SegmentedControlOption.displayName = "SegmentedControlOption";

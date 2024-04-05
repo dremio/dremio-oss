@@ -15,9 +15,11 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import java.util.List;
 import java.util.stream.Collectors;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -29,27 +31,21 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
-
 public class SqlAlterTableSortOrder extends SqlAlterTable {
 
   public static final SqlSpecialOperator ALTER_SORT_ORDER =
-    new SqlSpecialOperator("ALTER_SORT_ORDER", SqlKind.ALTER_TABLE) {
+      new SqlSpecialOperator("ALTER_SORT_ORDER", SqlKind.ALTER_TABLE) {
 
-      @Override
-      public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-        Preconditions.checkArgument(operands.length == 2, "SqlAlterTableSortOrder.createCall()" +
-          "has to get 2 operands!");
-        return new SqlAlterTableSortOrder(
-          pos,
-          (SqlIdentifier) operands[0],
-          (SqlNodeList) operands[1]
-        );
-      }
-    };
-
+        @Override
+        public SqlCall createCall(
+            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+          Preconditions.checkArgument(
+              operands.length == 2,
+              "SqlAlterTableSortOrder.createCall()" + "has to get 2 operands!");
+          return new SqlAlterTableSortOrder(
+              pos, (SqlIdentifier) operands[0], (SqlNodeList) operands[1]);
+        }
+      };
 
   private final SqlNodeList sortList;
 
@@ -79,5 +75,4 @@ public class SqlAlterTableSortOrder extends SqlAlterTable {
   public List<String> getSortList() {
     return sortList.getList().stream().map(SqlNode::toString).collect(Collectors.toList());
   }
-
 }

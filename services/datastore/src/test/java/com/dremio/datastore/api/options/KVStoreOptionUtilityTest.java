@@ -19,20 +19,18 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
-import java.util.Optional;
-
-import org.junit.Test;
-
 import com.dremio.datastore.api.KVStore;
 import com.dremio.datastore.indexed.ImmutableIndexPutOption;
 import com.dremio.datastore.indexed.IndexPutOption;
+import java.util.Optional;
+import org.junit.Test;
 
-/**
- * Tests OptionUtility methods.
- */
+/** Tests OptionUtility methods. */
 public class KVStoreOptionUtilityTest {
-  private static final VersionOption versionOption = new ImmutableVersionOption.Builder().setTag("1").build();
-  private static final IndexPutOption indexPutOption = new ImmutableIndexPutOption.Builder().build();
+  private static final VersionOption versionOption =
+      new ImmutableVersionOption.Builder().setTag("1").build();
+  private static final IndexPutOption indexPutOption =
+      new ImmutableIndexPutOption.Builder().build();
   private static final KVStore.PutOption createOption = KVStore.PutOption.CREATE;
 
   @Test
@@ -42,67 +40,70 @@ public class KVStoreOptionUtilityTest {
 
   @Test
   public void testValidateOptionsEmpty() {
-    KVStoreOptionUtility.validateOptions(new KVStore.PutOption[]{});
+    KVStoreOptionUtility.validateOptions(new KVStore.PutOption[] {});
   }
 
   @Test
   public void testValidateOptionsSingleCreate() {
-    KVStoreOptionUtility.validateOptions(new KVStore.PutOption[]{createOption});
+    KVStoreOptionUtility.validateOptions(new KVStore.PutOption[] {createOption});
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void testValidateOptionsMultipleCreate() {
-    KVStoreOptionUtility.validateOptions(new KVStore.PutOption[]{createOption, createOption});
+    KVStoreOptionUtility.validateOptions(new KVStore.PutOption[] {createOption, createOption});
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void testValidateOptionsMultipleCreateWithIndex() {
-    KVStoreOptionUtility.validateOptions(new KVStore.PutOption[]{createOption, indexPutOption, createOption});
+    KVStoreOptionUtility.validateOptions(
+        new KVStore.PutOption[] {createOption, indexPutOption, createOption});
   }
 
   @Test
   public void testValidateOptionsCreateAndIndex() {
-    KVStoreOptionUtility.validateOptions(new KVStore.PutOption[]{createOption, indexPutOption});
+    KVStoreOptionUtility.validateOptions(new KVStore.PutOption[] {createOption, indexPutOption});
   }
 
   @Test
   public void testValidateOptionsIndexAndCreate() {
-    KVStoreOptionUtility.validateOptions(new KVStore.PutOption[]{indexPutOption, createOption});
+    KVStoreOptionUtility.validateOptions(new KVStore.PutOption[] {indexPutOption, createOption});
   }
 
   @Test
   public void testValidateOptionsSingleVersion() {
-    KVStoreOptionUtility.validateOptions(new KVStore.PutOption[]{versionOption});
+    KVStoreOptionUtility.validateOptions(new KVStore.PutOption[] {versionOption});
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void testValidateOptionsMultipleVersion() {
-    KVStoreOptionUtility.validateOptions(new KVStore.PutOption[]{versionOption, versionOption});
+    KVStoreOptionUtility.validateOptions(new KVStore.PutOption[] {versionOption, versionOption});
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void testValidateOptionsMultipleVersionWithIndex() {
-    KVStoreOptionUtility.validateOptions(new KVStore.PutOption[]{versionOption, indexPutOption, versionOption});
+    KVStoreOptionUtility.validateOptions(
+        new KVStore.PutOption[] {versionOption, indexPutOption, versionOption});
   }
 
   @Test
   public void testValidateOptionsVersionAndIndex() {
-    KVStoreOptionUtility.validateOptions(new KVStore.PutOption[]{versionOption, indexPutOption});
+    KVStoreOptionUtility.validateOptions(new KVStore.PutOption[] {versionOption, indexPutOption});
   }
 
   @Test
   public void testValidateOptionsIndexAndVersion() {
-    KVStoreOptionUtility.validateOptions(new KVStore.PutOption[]{indexPutOption, versionOption});
+    KVStoreOptionUtility.validateOptions(new KVStore.PutOption[] {indexPutOption, versionOption});
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void testValidateOptionsConflict() {
-    KVStoreOptionUtility.validateOptions(new KVStore.PutOption[]{createOption, versionOption});
+    KVStoreOptionUtility.validateOptions(new KVStore.PutOption[] {createOption, versionOption});
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void testValidateOptionsConflictWithIndex() {
-    KVStoreOptionUtility.validateOptions(new KVStore.PutOption[]{indexPutOption, createOption, versionOption});
+    KVStoreOptionUtility.validateOptions(
+        new KVStore.PutOption[] {indexPutOption, createOption, versionOption});
   }
 
   @Test
@@ -112,32 +113,34 @@ public class KVStoreOptionUtilityTest {
 
   @Test
   public void testIndexPutOptionNotSupportedEmpty() {
-    KVStoreOptionUtility.checkIndexPutOptionIsNotUsed(new KVStore.PutOption[]{});
+    KVStoreOptionUtility.checkIndexPutOptionIsNotUsed(new KVStore.PutOption[] {});
   }
 
   @Test
   public void testIndexPutOptionNotSupportedSingleCreate() {
-    KVStoreOptionUtility.checkIndexPutOptionIsNotUsed(new KVStore.PutOption[]{createOption});
+    KVStoreOptionUtility.checkIndexPutOptionIsNotUsed(new KVStore.PutOption[] {createOption});
   }
 
   @Test
   public void testIndexPutOptionNotSupportedSingleVersion() {
-    KVStoreOptionUtility.checkIndexPutOptionIsNotUsed(new KVStore.PutOption[]{versionOption});
+    KVStoreOptionUtility.checkIndexPutOptionIsNotUsed(new KVStore.PutOption[] {versionOption});
   }
 
   @Test
   public void testIndexPutOptionNotSupportedCreateAndVersion() {
-    KVStoreOptionUtility.checkIndexPutOptionIsNotUsed(new KVStore.PutOption[]{createOption, versionOption});
+    KVStoreOptionUtility.checkIndexPutOptionIsNotUsed(
+        new KVStore.PutOption[] {createOption, versionOption});
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void testIndexPutOptionNotSupportedIndexPutOptionFound() {
-    KVStoreOptionUtility.checkIndexPutOptionIsNotUsed(new KVStore.PutOption[]{indexPutOption});
+    KVStoreOptionUtility.checkIndexPutOptionIsNotUsed(new KVStore.PutOption[] {indexPutOption});
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void testIndexPutOptionNotSupportedIndexPutOptionFoundAmongMany() {
-    KVStoreOptionUtility.checkIndexPutOptionIsNotUsed(new KVStore.PutOption[]{createOption, indexPutOption, versionOption});
+    KVStoreOptionUtility.checkIndexPutOptionIsNotUsed(
+        new KVStore.PutOption[] {createOption, indexPutOption, versionOption});
   }
 
   @Test
@@ -152,7 +155,8 @@ public class KVStoreOptionUtilityTest {
   @Test
   public void testGetCreateOrVersionOptionEmpty() {
     // Act
-    final Optional<KVStore.PutOption> ret = KVStoreOptionUtility.getCreateOrVersionOption(new KVStore.PutOption[]{});
+    final Optional<KVStore.PutOption> ret =
+        KVStoreOptionUtility.getCreateOrVersionOption(new KVStore.PutOption[] {});
 
     // Assert
     assertFalse(ret.isPresent());
@@ -161,7 +165,8 @@ public class KVStoreOptionUtilityTest {
   @Test
   public void testGetCreateOrVersionOptionSingleCreate() {
     // Act
-    final Optional<KVStore.PutOption> ret = KVStoreOptionUtility.getCreateOrVersionOption(new KVStore.PutOption[]{createOption});
+    final Optional<KVStore.PutOption> ret =
+        KVStoreOptionUtility.getCreateOrVersionOption(new KVStore.PutOption[] {createOption});
 
     // Assert
     assertEquals(createOption, ret.get());
@@ -170,7 +175,8 @@ public class KVStoreOptionUtilityTest {
   @Test
   public void testGetCreateOrVersionOptionSingleVersion() {
     // Act
-    final Optional<KVStore.PutOption> ret = KVStoreOptionUtility.getCreateOrVersionOption(new KVStore.PutOption[]{versionOption});
+    final Optional<KVStore.PutOption> ret =
+        KVStoreOptionUtility.getCreateOrVersionOption(new KVStore.PutOption[] {versionOption});
 
     // Assert
     assertEquals(versionOption, ret.get());
@@ -179,13 +185,15 @@ public class KVStoreOptionUtilityTest {
   @Test(expected = IllegalArgumentException.class)
   public void testGetCreateOrVersionOptionCreateAndVersion() {
     // Act
-    KVStoreOptionUtility.getCreateOrVersionOption(new KVStore.PutOption[]{createOption, versionOption});
+    KVStoreOptionUtility.getCreateOrVersionOption(
+        new KVStore.PutOption[] {createOption, versionOption});
   }
 
   @Test
   public void testGetCreateOrVersionOptionIndexPutOptionFound() {
     // Act
-    final Optional<KVStore.PutOption> ret = KVStoreOptionUtility.getCreateOrVersionOption(new KVStore.PutOption[]{indexPutOption});
+    final Optional<KVStore.PutOption> ret =
+        KVStoreOptionUtility.getCreateOrVersionOption(new KVStore.PutOption[] {indexPutOption});
 
     // Assert
     assertFalse(ret.isPresent());
@@ -194,12 +202,15 @@ public class KVStoreOptionUtilityTest {
   @Test(expected = IllegalArgumentException.class)
   public void testGetCreateOrVersionOptionPutOptionFoundAmongMany() {
     // Act
-    KVStoreOptionUtility.getCreateOrVersionOption(new KVStore.PutOption[]{createOption, indexPutOption, versionOption});
+    KVStoreOptionUtility.getCreateOrVersionOption(
+        new KVStore.PutOption[] {createOption, indexPutOption, versionOption});
   }
 
-  public void testRemoveIndexPutOptions(KVStore.PutOption[] testPutOptions, KVStore.PutOption[] expectedPutOptions) {
+  public void testRemoveIndexPutOptions(
+      KVStore.PutOption[] testPutOptions, KVStore.PutOption[] expectedPutOptions) {
     // Act
-    final KVStore.PutOption[] actualPutOptions = KVStoreOptionUtility.removeIndexPutOption(testPutOptions);
+    final KVStore.PutOption[] actualPutOptions =
+        KVStoreOptionUtility.removeIndexPutOption(testPutOptions);
 
     // Assert
     assertArrayEquals(expectedPutOptions, actualPutOptions);
@@ -207,43 +218,37 @@ public class KVStoreOptionUtilityTest {
 
   @Test
   public void testRemoveIndexPutOptionNull() {
-    testRemoveIndexPutOptions(
-      null,
-      null);
+    testRemoveIndexPutOptions(null, null);
   }
 
   @Test
   public void testRemoveIndexPutOptionEmptyArray() {
-    testRemoveIndexPutOptions(
-      new KVStore.PutOption[]{},
-      new KVStore.PutOption[]{});
+    testRemoveIndexPutOptions(new KVStore.PutOption[] {}, new KVStore.PutOption[] {});
   }
 
   @Test
   public void testRemoveIndexPutOptionWithVersionOption() {
     testRemoveIndexPutOptions(
-      new KVStore.PutOption[]{indexPutOption, versionOption},
-      new KVStore.PutOption[]{versionOption});
+        new KVStore.PutOption[] {indexPutOption, versionOption},
+        new KVStore.PutOption[] {versionOption});
   }
 
   @Test
   public void testRemoveIndexPutOption() {
-    testRemoveIndexPutOptions(
-      new KVStore.PutOption[]{indexPutOption},
-      new KVStore.PutOption[]{});
+    testRemoveIndexPutOptions(new KVStore.PutOption[] {indexPutOption}, new KVStore.PutOption[] {});
   }
 
   @Test
   public void testRemoveIndexPutOptionWithCreateOption() {
     testRemoveIndexPutOptions(
-      new KVStore.PutOption[]{indexPutOption, createOption},
-      new KVStore.PutOption[]{createOption});
+        new KVStore.PutOption[] {indexPutOption, createOption},
+        new KVStore.PutOption[] {createOption});
   }
 
   @Test
   public void testRemoveIndexPutOptionWithCreateAndVersionOptions() {
     testRemoveIndexPutOptions(
-      new KVStore.PutOption[]{versionOption, indexPutOption, createOption},
-      new KVStore.PutOption[]{versionOption, createOption});
+        new KVStore.PutOption[] {versionOption, indexPutOption, createOption},
+        new KVStore.PutOption[] {versionOption, createOption});
   }
 }

@@ -18,11 +18,10 @@ package com.dremio.plugins.elastic;
 import static com.dremio.plugins.elastic.ElasticsearchType.INTEGER;
 import static com.dremio.plugins.elastic.ElasticsearchType.TEXT;
 
-import org.junit.Before;
-import org.junit.Test;
-
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.google.common.collect.ImmutableMap;
+import org.junit.Before;
+import org.junit.Test;
 
 public class ITTestNullColumns extends ElasticBaseTestQuery {
 
@@ -30,11 +29,13 @@ public class ITTestNullColumns extends ElasticBaseTestQuery {
 
   @Before
   public void setup() throws Exception {
-    ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
-      new ElasticsearchCluster.ColumnData("state", TEXT, ImmutableMap.of("index", "false"), null),
-      new ElasticsearchCluster.ColumnData("state_analyzed", TEXT, null),
-      new ElasticsearchCluster.ColumnData("nullint", INTEGER, null)
-    };
+    ElasticsearchCluster.ColumnData[] data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "state", TEXT, ImmutableMap.of("index", "false"), null),
+          new ElasticsearchCluster.ColumnData("state_analyzed", TEXT, null),
+          new ElasticsearchCluster.ColumnData("nullint", INTEGER, null)
+        };
     elastic.load(schema, table, data);
     elastic.dataFromFile(schema, table, NULL_COLUMN_FILE);
   }
@@ -43,69 +44,76 @@ public class ITTestNullColumns extends ElasticBaseTestQuery {
   public void testSelectAllColumns() throws Exception {
     // In this test, we are just running without checking the results since we have _uid here.
     // Also, note that in the pushdown query, we are not selecting any of null/unmapped fields!
-    // So, when we actually do read the json from elasticsearch, we will have several columns without any column definition.
-    //In ES7, as _uid is deprecated, we are using alias of '_type#_id' instead
+    // So, when we actually do read the json from elasticsearch, we will have several columns
+    // without any column definition.
+    // In ES7, as _uid is deprecated, we are using alias of '_type#_id' instead
     final int elasticVersion = elastic.getMinVersionInCluster().getMajor();
-    final String idOrBlank = elasticVersion == 7 ? " \"_id\",\n " : "" ;
-    final String blankOrUid = elasticVersion == 7 ? "" : " \"_uid\",\n " ;
+    final String idOrBlank = elasticVersion == 7 ? " \"_id\",\n " : "";
+    final String blankOrUid = elasticVersion == 7 ? "" : " \"_uid\",\n ";
     final String query = "select * from elasticsearch." + schema + "." + table;
-    verifyJsonInPlan(query, new String[] {
-      "[{\n" +
-      "  \"from\" : 0,\n" +
-      "  \"size\" : 4000,\n" +
-      "  \"query\" : {\n" +
-      "    \"match_all\" : {\n" +
-      "      \"boost\" : 1.0\n" +
-      "    }\n" +
-      "  },\n" +
-      "  \"_source\" : {\n" +
-      "    \"includes\" : [\n" +
-                 idOrBlank   +
-      "      \"_index\",\n" +
-      "      \"_type\",\n" +
-                blankOrUid   +
-      "      \"nullint\",\n" +
-      "      \"state\",\n" +
-      "      \"state_analyzed\"\n" +
-      "    ],\n" +
-      "    \"excludes\" : [ ]\n" +
-      "  }\n" +
-      "}]"} );
+    verifyJsonInPlan(
+        query,
+        new String[] {
+          "[{\n"
+              + "  \"from\" : 0,\n"
+              + "  \"size\" : 4000,\n"
+              + "  \"query\" : {\n"
+              + "    \"match_all\" : {\n"
+              + "      \"boost\" : 1.0\n"
+              + "    }\n"
+              + "  },\n"
+              + "  \"_source\" : {\n"
+              + "    \"includes\" : [\n"
+              + idOrBlank
+              + "      \"_index\",\n"
+              + "      \"_type\",\n"
+              + blankOrUid
+              + "      \"nullint\",\n"
+              + "      \"state\",\n"
+              + "      \"state_analyzed\"\n"
+              + "    ],\n"
+              + "    \"excludes\" : [ ]\n"
+              + "  }\n"
+              + "}]"
+        });
     test(query);
   }
 
   @Test
   public void testSelectNonNullColumn() throws Exception {
     final String query = "select state, state_analyzed from elasticsearch." + schema + "." + table;
-    verifyJsonInPlan(query, new String[] {
-      "[{\n" +
-      "  \"from\" : 0,\n" +
-      "  \"size\" : 4000,\n" +
-      "  \"query\" : {\n" +
-      "    \"match_all\" : {\n" +
-      "      \"boost\" : 1.0\n" +
-      "    }\n" +
-      "  },\n" +
-      "  \"_source\" : {\n" +
-      "    \"includes\" : [\n" +
-      "      \"state\",\n" +
-      "      \"state_analyzed\"\n" +
-      "    ],\n" +
-      "    \"excludes\" : [ ]\n" +
-      "  }\n" +
-      "}]"} );
+    verifyJsonInPlan(
+        query,
+        new String[] {
+          "[{\n"
+              + "  \"from\" : 0,\n"
+              + "  \"size\" : 4000,\n"
+              + "  \"query\" : {\n"
+              + "    \"match_all\" : {\n"
+              + "      \"boost\" : 1.0\n"
+              + "    }\n"
+              + "  },\n"
+              + "  \"_source\" : {\n"
+              + "    \"includes\" : [\n"
+              + "      \"state\",\n"
+              + "      \"state_analyzed\"\n"
+              + "    ],\n"
+              + "    \"excludes\" : [ ]\n"
+              + "  }\n"
+              + "}]"
+        });
     testBuilder()
-      .sqlQuery(query)
-      .unOrdered()
-      .baselineColumns("state", "state_analyzed")
-      .baselineValues("MA CA", "MA CA")
-      .go();
+        .sqlQuery(query)
+        .unOrdered()
+        .baselineColumns("state", "state_analyzed")
+        .baselineValues("MA CA", "MA CA")
+        .go();
   }
 
   @Test
   public void testSelectNullColumn() throws Exception {
     final String query = "select nullstring from elasticsearch." + schema + "." + table;
-    errorMsgWithTypeTestHelper(query, ErrorType.VALIDATION, "Column 'nullstring' not found in any table");
+    errorMsgWithTypeTestHelper(
+        query, ErrorType.VALIDATION, "Column 'nullstring' not found in any table");
   }
-
 }

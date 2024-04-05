@@ -27,8 +27,6 @@ import static com.dremio.sabot.Fixtures.t;
 import static com.dremio.sabot.Fixtures.th;
 import static com.dremio.sabot.Fixtures.tr;
 
-import org.junit.Test;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.physical.config.DeletedFilesMetadataTableFunctionContext;
 import com.dremio.exec.physical.config.TableFunctionConfig;
@@ -40,90 +38,115 @@ import com.dremio.sabot.BaseTestTableFunction;
 import com.dremio.sabot.Fixtures.Table;
 import com.dremio.sabot.op.tablefunction.TableFunctionOperator;
 import com.google.common.collect.ImmutableList;
+import org.junit.Test;
 
 public class TestDeletedFilesMetadataTableFunction extends BaseTestTableFunction {
 
-  // using a subset of fields here as any other fields are exposed as null columns, Fragment is included as
+  // using a subset of fields here as any other fields are exposed as null columns, Fragment is
+  // included as
   // a test of the null column handling
-  private static final BatchSchema TEST_SCHEMA = RecordWriter.SCHEMA.subset(
-      ImmutableList.of(FRAGMENT_COLUMN, RECORDS_COLUMN, PATH_COLUMN, OPERATION_TYPE_COLUMN, FILESIZE_COLUMN)).get();
+  private static final BatchSchema TEST_SCHEMA =
+      RecordWriter.SCHEMA
+          .subset(
+              ImmutableList.of(
+                  FRAGMENT_COLUMN,
+                  RECORDS_COLUMN,
+                  PATH_COLUMN,
+                  OPERATION_TYPE_COLUMN,
+                  FILESIZE_COLUMN))
+          .get();
 
-  private static final TableFunctionPOP TABLE_FUNCTION_POP = new TableFunctionPOP(
-      PROPS,
-      null,
-      new TableFunctionConfig(
-        TableFunctionConfig.FunctionType.DELETED_FILES_METADATA,
-        true,
-        new DeletedFilesMetadataTableFunctionContext(OperationType.DELETE_DATAFILE,
-            null,
-            TEST_SCHEMA,
-            null,
-            null,
-            null,
-            null,
-            null,
-            TEST_SCHEMA.getFields().stream()
-                .map(f -> SchemaPath.getSimplePath(f.getName()))
-                .collect(ImmutableList.toImmutableList()),
-            null,
-            null,
-            null,
-            false,
-            false,
-            true,
-            null)));
+  private static final TableFunctionPOP TABLE_FUNCTION_POP =
+      new TableFunctionPOP(
+          PROPS,
+          null,
+          new TableFunctionConfig(
+              TableFunctionConfig.FunctionType.DELETED_FILES_METADATA,
+              true,
+              new DeletedFilesMetadataTableFunctionContext(
+                  OperationType.DELETE_DATAFILE,
+                  null,
+                  TEST_SCHEMA,
+                  null,
+                  null,
+                  null,
+                  null,
+                  null,
+                  TEST_SCHEMA.getFields().stream()
+                      .map(f -> SchemaPath.getSimplePath(f.getName()))
+                      .collect(ImmutableList.toImmutableList()),
+                  null,
+                  null,
+                  false,
+                  false,
+                  true,
+                  null)));
 
-  private static final TableFunctionPOP DELETE_TABLE_FUNCTION_POP = new TableFunctionPOP(
-    PROPS,
-    null,
-    new TableFunctionConfig(
-      TableFunctionConfig.FunctionType.DELETED_FILES_METADATA,
-      true,
-      new DeletedFilesMetadataTableFunctionContext(OperationType.DELETE_DELETEFILE,
-        null,
-        TEST_SCHEMA,
-        null,
-        null,
-        null,
-        null,
-        null,
-        TEST_SCHEMA.getFields().stream()
-          .map(f -> SchemaPath.getSimplePath(f.getName()))
-          .collect(ImmutableList.toImmutableList()),
-        null,
-        null,
-        null,
-        false,
-        false,
-        true,
-        null)));
+  private static final TableFunctionPOP DELETE_TABLE_FUNCTION_POP =
+      new TableFunctionPOP(
+          PROPS,
+          null,
+          new TableFunctionConfig(
+              TableFunctionConfig.FunctionType.DELETED_FILES_METADATA,
+              true,
+              new DeletedFilesMetadataTableFunctionContext(
+                  OperationType.DELETE_DELETEFILE,
+                  null,
+                  TEST_SCHEMA,
+                  null,
+                  null,
+                  null,
+                  null,
+                  null,
+                  TEST_SCHEMA.getFields().stream()
+                      .map(f -> SchemaPath.getSimplePath(f.getName()))
+                      .collect(ImmutableList.toImmutableList()),
+                  null,
+                  null,
+                  false,
+                  false,
+                  true,
+                  null)));
 
   @Test
   public void testResults() throws Exception {
 
-    Table input = t(
-        th(FILE_PATH_COLUMN_NAME, ROW_COUNT_COLUMN_NAME),
-        tr("path1", 20L),
-        tr("path2", 5L),
-        tr("path3", 10L),
-        tr("path4", 3L),
-        tr("path5", 9L));
+    Table input =
+        t(
+            th(FILE_PATH_COLUMN_NAME, ROW_COUNT_COLUMN_NAME),
+            tr("path1", 20L),
+            tr("path2", 5L),
+            tr("path3", 10L),
+            tr("path4", 3L),
+            tr("path5", 9L));
 
-    Table output = t(
-        th(FRAGMENT_COLUMN, RECORDS_COLUMN, PATH_COLUMN, OPERATION_TYPE_COLUMN, FILESIZE_COLUMN),
-        tr(NULL_VARCHAR, 20L, "path1", OperationType.DELETE_DATAFILE.value, 0L),
-        tr(NULL_VARCHAR, 5L, "path2", OperationType.DELETE_DATAFILE.value, 0L),
-        tr(NULL_VARCHAR, 10L, "path3", OperationType.DELETE_DATAFILE.value, 0L),
-        tr(NULL_VARCHAR, 3L, "path4", OperationType.DELETE_DATAFILE.value, 0L),
-        tr(NULL_VARCHAR, 9L, "path5", OperationType.DELETE_DATAFILE.value, 0L));
+    Table output =
+        t(
+            th(
+                FRAGMENT_COLUMN,
+                RECORDS_COLUMN,
+                PATH_COLUMN,
+                OPERATION_TYPE_COLUMN,
+                FILESIZE_COLUMN),
+            tr(NULL_VARCHAR, 20L, "path1", OperationType.DELETE_DATAFILE.value, 0L),
+            tr(NULL_VARCHAR, 5L, "path2", OperationType.DELETE_DATAFILE.value, 0L),
+            tr(NULL_VARCHAR, 10L, "path3", OperationType.DELETE_DATAFILE.value, 0L),
+            tr(NULL_VARCHAR, 3L, "path4", OperationType.DELETE_DATAFILE.value, 0L),
+            tr(NULL_VARCHAR, 9L, "path5", OperationType.DELETE_DATAFILE.value, 0L));
 
-    Table deleteOutput = t(
-      th(FRAGMENT_COLUMN, RECORDS_COLUMN, PATH_COLUMN, OPERATION_TYPE_COLUMN, FILESIZE_COLUMN),
-      tr(NULL_VARCHAR, 20L, "path1", OperationType.DELETE_DELETEFILE.value, 0L),
-      tr(NULL_VARCHAR, 5L, "path2", OperationType.DELETE_DELETEFILE.value, 0L),
-      tr(NULL_VARCHAR, 10L, "path3", OperationType.DELETE_DELETEFILE.value, 0L),
-      tr(NULL_VARCHAR, 3L, "path4", OperationType.DELETE_DELETEFILE.value, 0L),
-      tr(NULL_VARCHAR, 9L, "path5", OperationType.DELETE_DELETEFILE.value, 0L));
+    Table deleteOutput =
+        t(
+            th(
+                FRAGMENT_COLUMN,
+                RECORDS_COLUMN,
+                PATH_COLUMN,
+                OPERATION_TYPE_COLUMN,
+                FILESIZE_COLUMN),
+            tr(NULL_VARCHAR, 20L, "path1", OperationType.DELETE_DELETEFILE.value, 0L),
+            tr(NULL_VARCHAR, 5L, "path2", OperationType.DELETE_DELETEFILE.value, 0L),
+            tr(NULL_VARCHAR, 10L, "path3", OperationType.DELETE_DELETEFILE.value, 0L),
+            tr(NULL_VARCHAR, 3L, "path4", OperationType.DELETE_DELETEFILE.value, 0L),
+            tr(NULL_VARCHAR, 9L, "path5", OperationType.DELETE_DELETEFILE.value, 0L));
 
     validateSingle(TABLE_FUNCTION_POP, TableFunctionOperator.class, input, output, 3);
     validateSingle(DELETE_TABLE_FUNCTION_POP, TableFunctionOperator.class, input, deleteOutput, 3);
@@ -132,13 +155,14 @@ public class TestDeletedFilesMetadataTableFunction extends BaseTestTableFunction
   @Test
   public void testOutputBufferNotReused() throws Exception {
 
-    Table input = t(
-        th(FILE_PATH_COLUMN_NAME, ROW_COUNT_COLUMN_NAME),
-        tr("path1", 20L),
-        tr("path2", 5L),
-        tr("path3", 10L),
-        tr("path4", 3L),
-        tr("path5", 9L));
+    Table input =
+        t(
+            th(FILE_PATH_COLUMN_NAME, ROW_COUNT_COLUMN_NAME),
+            tr("path1", 20L),
+            tr("path2", 5L),
+            tr("path3", 10L),
+            tr("path4", 3L),
+            tr("path5", 9L));
 
     validateOutputBufferNotReused(TABLE_FUNCTION_POP, input, 3);
     validateOutputBufferNotReused(DELETE_TABLE_FUNCTION_POP, input, 3);

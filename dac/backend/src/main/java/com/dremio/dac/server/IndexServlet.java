@@ -15,35 +15,30 @@
  */
 package com.dremio.dac.server;
 
+import com.dremio.dac.server.models.ServerData;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ImmutableMap;
+import freemarker.template.Configuration;
+import freemarker.template.Template;
+import freemarker.template.TemplateException;
+import freemarker.template.TemplateExceptionHandler;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.util.function.Supplier;
-
 import javax.servlet.Servlet;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
-
 import org.eclipse.jetty.util.resource.Resource;
-
-import com.dremio.dac.server.models.ServerData;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.ImmutableMap;
-
-import freemarker.template.Configuration;
-import freemarker.template.Template;
-import freemarker.template.TemplateException;
-import freemarker.template.TemplateExceptionHandler;
 
 /**
  * Simple servlet to always return the index.html page.
- * <p/>
- * As the application is written completely in javascript the web server returns
- * only data from the REST API, and static assets. To allow for page reloads,
- * the index page needs to be returned for any URL. See {@link WebServer} for
- * where this servlet is configured to resolve to anything that does not resolve
- * to a REST API or static asset. The correct page will be shown to the user
+ *
+ * <p>As the application is written completely in javascript the web server returns only data from
+ * the REST API, and static assets. To allow for page reloads, the index page needs to be returned
+ * for any URL. See {@link WebServer} for where this servlet is configured to resolve to anything
+ * that does not resolve to a REST API or static asset. The correct page will be shown to the user
  * based on client side routing and page loading.
  */
 public class IndexServlet implements Servlet {
@@ -65,7 +60,7 @@ public class IndexServlet implements Servlet {
   public void init(ServletConfig servletConfig) throws ServletException {
     this.servletConfig = servletConfig;
 
-    //templateCfg.setClassForTemplateLoading(getClass(), "/");
+    // templateCfg.setClassForTemplateLoading(getClass(), "/");
     Resource baseResource;
     try {
       baseResource = Resource.newResource(servletConfig.getInitParameter("resourceBase"));
@@ -88,7 +83,8 @@ public class IndexServlet implements Servlet {
   }
 
   @Override
-  public void service(ServletRequest servletRequest, ServletResponse response) throws ServletException, IOException {
+  public void service(ServletRequest servletRequest, ServletResponse response)
+      throws ServletException, IOException {
     Template tmp = templateCfg.getTemplate("/index.html");
     final ServerData data = dataProvider.get();
 
@@ -111,6 +107,5 @@ public class IndexServlet implements Servlet {
   }
 
   @Override
-  public void destroy() {
-  }
+  public void destroy() {}
 }

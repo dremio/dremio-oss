@@ -15,16 +15,6 @@
  */
 package com.dremio.exec.store.ischema;
 
-import java.io.IOException;
-import java.util.List;
-
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelOptTable;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.RelWriter;
-import org.apache.calcite.rel.hint.RelHint;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.PhysicalOperator;
@@ -34,10 +24,16 @@ import com.dremio.exec.planner.physical.ScanPrelBase;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.service.catalog.SearchQuery;
 import com.google.common.base.Preconditions;
+import java.io.IOException;
+import java.util.List;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptTable;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.RelWriter;
+import org.apache.calcite.rel.hint.RelHint;
 
-/**
- * Physical scan operator.
- */
+/** Physical scan operator. */
 public class InfoSchemaScanPrel extends ScanPrelBase {
 
   private final InformationSchemaTable table;
@@ -53,14 +49,23 @@ public class InfoSchemaScanPrel extends ScanPrelBase {
       List<SchemaPath> projectedColumns,
       double observedRowcountAdjustment,
       List<RelHint> hints,
-      List<Info> runtimeFilters
-      ) {
+      List<Info> runtimeFilters) {
 
-    super(cluster, traitSet, table, dataset.getStoragePluginId(), dataset, projectedColumns, observedRowcountAdjustment,
-          hints, runtimeFilters);
+    super(
+        cluster,
+        traitSet,
+        table,
+        dataset.getStoragePluginId(),
+        dataset,
+        projectedColumns,
+        observedRowcountAdjustment,
+        hints,
+        runtimeFilters);
     this.pluginId = dataset.getStoragePluginId();
-    this.table = Preconditions.checkNotNull(
-      InfoSchemaStoragePlugin.TABLE_MAP.get(dataset.getName().getName().toLowerCase()), "Unexpected system table.");
+    this.table =
+        Preconditions.checkNotNull(
+            InfoSchemaStoragePlugin.TABLE_MAP.get(dataset.getName().getName().toLowerCase()),
+            "Unexpected system table.");
     this.query = query;
   }
 
@@ -98,7 +103,10 @@ public class InfoSchemaScanPrel extends ScanPrelBase {
   @Override
   public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
     return new InfoSchemaGroupScan(
-        creator.props(this, getTableMetadata().getUser(), getTableMetadata().getSchema().maskAndReorder(getProjectedColumns())),
+        creator.props(
+            this,
+            getTableMetadata().getUser(),
+            getTableMetadata().getSchema().maskAndReorder(getProjectedColumns())),
         table,
         getProjectedColumns(),
         query,
@@ -108,14 +116,29 @@ public class InfoSchemaScanPrel extends ScanPrelBase {
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
     Preconditions.checkArgument(inputs == null || inputs.size() == 0);
-    return new InfoSchemaScanPrel(getCluster(), traitSet, getTable(), getTableMetadata(), query, getProjectedColumns(),
-                                  getCostAdjustmentFactor(), getHints(), getRuntimeFilters());
+    return new InfoSchemaScanPrel(
+        getCluster(),
+        traitSet,
+        getTable(),
+        getTableMetadata(),
+        query,
+        getProjectedColumns(),
+        getCostAdjustmentFactor(),
+        getHints(),
+        getRuntimeFilters());
   }
 
   @Override
   public InfoSchemaScanPrel cloneWithProject(List<SchemaPath> projection) {
-    return new InfoSchemaScanPrel(getCluster(), getTraitSet(), getTable(), getTableMetadata(), query, projection,
-                                  getCostAdjustmentFactor(), getHints(), getRuntimeFilters());
+    return new InfoSchemaScanPrel(
+        getCluster(),
+        getTraitSet(),
+        getTable(),
+        getTableMetadata(),
+        query,
+        projection,
+        getCostAdjustmentFactor(),
+        getHints(),
+        getRuntimeFilters());
   }
-
 }

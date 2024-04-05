@@ -15,8 +15,12 @@
  */
 package com.dremio.exec.planner.acceleration;
 
+import com.dremio.exec.planner.RoutingShuttle;
+import com.dremio.exec.planner.acceleration.substitution.SubstitutionUtils;
+import com.dremio.exec.planner.sql.SqlConverter;
+import com.dremio.exec.store.CatalogService;
+import com.google.common.base.Preconditions;
 import java.util.Set;
-
 import org.apache.calcite.plan.CopyWithCluster;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.rel.RelNode;
@@ -26,41 +30,39 @@ import org.apache.calcite.rex.RexShuttle;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.NlsString;
 
-import com.dremio.exec.planner.RoutingShuttle;
-import com.dremio.exec.planner.acceleration.substitution.SubstitutionUtils;
-import com.dremio.exec.planner.sql.SqlConverter;
-import com.dremio.exec.store.CatalogService;
-import com.google.common.base.Preconditions;
-
-/**
- * {@link MaterializationDescriptor} that caches the expanded {@link DremioMaterialization}
- */
+/** {@link MaterializationDescriptor} that caches the expanded {@link DremioMaterialization} */
 public class CachedMaterializationDescriptor extends MaterializationDescriptor {
 
   private final DremioMaterialization materialization;
 
-  public CachedMaterializationDescriptor(MaterializationDescriptor descriptor, DremioMaterialization materialization, CatalogService catalogService) {
-    super(descriptor.getLayoutInfo(),
-          descriptor.getMaterializationId(),
-          descriptor.getVersion(),
-          descriptor.getExpirationTimestamp(),
-          descriptor.getPlan(),
-          descriptor.getPath(),
-          descriptor.getOriginalCost(),
-          descriptor.getJobStart(),
-          descriptor.getPartition(),
-          descriptor.getIncrementalUpdateSettings(),
-          descriptor.getJoinDependencyProperties(),
-          descriptor.getStrippedPlanHash(),
-          materialization.getStripVersion(),
-          catalogService);
-    this.materialization = Preconditions.checkNotNull(materialization, "materialization is required");
+  public CachedMaterializationDescriptor(
+      MaterializationDescriptor descriptor,
+      DremioMaterialization materialization,
+      CatalogService catalogService) {
+    super(
+        descriptor.getLayoutInfo(),
+        descriptor.getMaterializationId(),
+        descriptor.getVersion(),
+        descriptor.getExpirationTimestamp(),
+        descriptor.getPlan(),
+        descriptor.getPath(),
+        descriptor.getOriginalCost(),
+        descriptor.getJobStart(),
+        descriptor.getPartition(),
+        descriptor.getIncrementalUpdateSettings(),
+        descriptor.getJoinDependencyProperties(),
+        materialization.getStripVersion(),
+        descriptor.isForceExpansion(),
+        catalogService);
+    this.materialization =
+        Preconditions.checkNotNull(materialization, "materialization is required");
   }
 
   @Override
   public DremioMaterialization getMaterializationFor(SqlConverter converter) {
     final CopyWithCluster copier = new CopyWithCluster(converter.getCluster());
-    final DremioMaterialization copied = materialization.accept(new FixCharTypeShuttle(converter.getCluster())).accept(copier);
+    final DremioMaterialization copied =
+        materialization.accept(new FixCharTypeShuttle(converter.getCluster())).accept(copier);
     copier.validate();
     return copied;
   }
@@ -83,9 +85,11 @@ public class CachedMaterializationDescriptor extends MaterializationDescriptor {
 
   public static class FixCharTypeShuttle extends RoutingShuttle {
     RelOptCluster cluster;
+
     FixCharTypeShuttle(RelOptCluster cluster) {
       this.cluster = cluster;
     }
+
     @Override
     public RelNode visit(RelNode relNode) {
       RelNode rel = super.visit(relNode);
@@ -98,14 +102,20 @@ public class CachedMaterializationDescriptor extends MaterializationDescriptor {
   }
 
   /**
-   * Returns true only if there is overlap between this materialization and the input tables, views and external queries.
+   * Returns true only if there is overlap between this materialization and the input tables, views
+   * and external queries.
+   *
    * @param queryTablesUsed
    * @param queryVdsUsed
    * @param externalQueries
    * @return
    */
   @Override
-  public boolean isApplicable(Set<SubstitutionUtils.VersionedPath> queryTablesUsed, Set<SubstitutionUtils.VersionedPath> queryVdsUsed, Set<SubstitutionUtils.ExternalQueryDescriptor> externalQueries) {
-    return SubstitutionUtils.usesTableOrVds(queryTablesUsed, queryVdsUsed, externalQueries, materialization.getQueryRel());
+  public boolean isApplicable(
+      Set<SubstitutionUtils.VersionedPath> queryTablesUsed,
+      Set<SubstitutionUtils.VersionedPath> queryVdsUsed,
+      Set<SubstitutionUtils.ExternalQueryDescriptor> externalQueries) {
+    return SubstitutionUtils.usesTableOrVds(
+        queryTablesUsed, queryVdsUsed, externalQueries, materialization.getQueryRel());
   }
 }

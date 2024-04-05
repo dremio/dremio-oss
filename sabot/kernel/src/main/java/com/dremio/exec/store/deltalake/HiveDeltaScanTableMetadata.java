@@ -27,8 +27,12 @@ public class HiveDeltaScanTableMetadata extends TableMetadataImpl {
   private final TableMetadata tableMetadata;
 
   public HiveDeltaScanTableMetadata(TableMetadata tableMetadata) {
-    super(tableMetadata.getStoragePluginId(), tableMetadata.getDatasetConfig(),
-      tableMetadata.getUser(), (SplitsPointer) tableMetadata.getSplitsKey(), tableMetadata.getPrimaryKey());
+    super(
+        tableMetadata.getStoragePluginId(),
+        tableMetadata.getDatasetConfig(),
+        tableMetadata.getUser(),
+        (SplitsPointer) tableMetadata.getSplitsKey(),
+        tableMetadata.getPrimaryKey());
     this.tableMetadata = tableMetadata;
   }
 

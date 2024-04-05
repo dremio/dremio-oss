@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.store.ischema;
 
-import java.util.Iterator;
-
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.DatasetMetadata;
 import com.dremio.connector.metadata.DatasetSplit;
@@ -28,12 +26,11 @@ import com.dremio.exec.planner.cost.ScanCostFactor;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.ischema.metadata.InformationSchemaMetadata;
 import com.google.common.collect.ImmutableList;
+import java.util.Iterator;
 
-/**
- * All metadata related to tables in "INFORMATION_SCHEMA" source.
- */
-public enum InformationSchemaTable implements DatasetHandle, DatasetMetadata, PartitionChunkListing {
-
+/** All metadata related to tables in "INFORMATION_SCHEMA" source. */
+public enum InformationSchemaTable
+    implements DatasetHandle, DatasetMetadata, PartitionChunkListing {
   CATALOGS(InformationSchemaMetadata.getCatalogsSchema()),
   SCHEMATA(InformationSchemaMetadata.getSchemataSchema()),
   TABLES(InformationSchemaMetadata.getTablesSchema()),
@@ -44,10 +41,10 @@ public enum InformationSchemaTable implements DatasetHandle, DatasetMetadata, Pa
   private static final long SIZE_IN_BYTES = 1000L;
 
   private static final DatasetStats DATASET_STATS =
-    DatasetStats.of(RECORD_COUNT, ScanCostFactor.OTHER.getFactor());
+      DatasetStats.of(RECORD_COUNT, ScanCostFactor.OTHER.getFactor());
 
   private static final ImmutableList<PartitionChunk> PARTITION_CHUNKS =
-    ImmutableList.of(PartitionChunk.of(DatasetSplit.of(SIZE_IN_BYTES, RECORD_COUNT)));
+      ImmutableList.of(PartitionChunk.of(DatasetSplit.of(SIZE_IN_BYTES, RECORD_COUNT)));
 
   private final BatchSchema recordSchema;
   private final EntityPath entityPath;

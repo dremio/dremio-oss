@@ -15,11 +15,10 @@
  */
 package com.dremio.dac.explore;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import com.dremio.service.jobs.JobStatusListener;
 import com.dremio.service.jobs.metadata.proto.QueryMetadata;
+import java.util.ArrayList;
+import java.util.List;
 
 class AsyncMetadataJobStatusListener implements JobStatusListener {
   private List<MetaDataListener> listeners;
@@ -39,11 +38,13 @@ class AsyncMetadataJobStatusListener implements JobStatusListener {
 
   @Override
   public void metadataCollected(QueryMetadata metadata) {
-    Thread t = new Thread(() -> {
-      for (MetaDataListener l: listeners) {
-        l.metadataCollected(metadata);
-      }
-    });
+    Thread t =
+        new Thread(
+            () -> {
+              for (MetaDataListener l : listeners) {
+                l.metadataCollected(metadata);
+              }
+            });
     t.start();
   }
 }

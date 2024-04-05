@@ -17,14 +17,11 @@ package com.dremio.sabot.op.join.vhash.spill.slicer;
 
 import com.dremio.sabot.op.join.vhash.spill.pool.Page;
 
-/**
- *
- */
+/** */
 interface Copier {
   /**
-   * Copies data to the provided target address, also filling in the previously
-   * provided vector output. If a rewrite is necessary to create a valid vector,
-   * this also does that rewrite.
+   * Copies data to the provided target address, also filling in the previously provided vector
+   * output. If a rewrite is necessary to create a valid vector, this also does that rewrite.
    *
    * @param page The memory to copy into
    */

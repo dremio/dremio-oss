@@ -15,13 +15,13 @@
  */
 package com.dremio.exec.planner.normalizer;
 
-import org.apache.calcite.plan.RelOptRule;
-import org.apache.calcite.tools.RuleSet;
-import org.apache.calcite.tools.RuleSets;
-
 import com.dremio.options.OptionResolver;
 import com.dremio.options.TypeValidators;
 import com.google.common.collect.ImmutableList;
+import java.util.List;
+import org.apache.calcite.plan.RelOptRule;
+import org.apache.calcite.tools.RuleSet;
+import org.apache.calcite.tools.RuleSets;
 
 public class DremioRuleSetBuilder {
   private final ImmutableList.Builder<RelOptRule> rules = ImmutableList.builder();
@@ -37,15 +37,24 @@ public class DremioRuleSetBuilder {
     return this;
   }
 
+  public DremioRuleSetBuilder addAll(List<RelOptRule> rules) {
+    for (RelOptRule rule : rules) {
+      this.add(rule);
+    }
+
+    return this;
+  }
+
   public DremioRuleSetBuilder add(RelOptRule rule, boolean needed) {
-    if(needed) {
+    if (needed) {
       rules.add(rule);
     }
     return this;
   }
 
-  public DremioRuleSetBuilder add(RelOptRule rule, TypeValidators.BooleanValidator booleanValidator) {
-    if(optionResolver.getOption(booleanValidator)) {
+  public DremioRuleSetBuilder add(
+      RelOptRule rule, TypeValidators.BooleanValidator booleanValidator) {
+    if (optionResolver.getOption(booleanValidator)) {
       rules.add(rule);
     }
     return this;

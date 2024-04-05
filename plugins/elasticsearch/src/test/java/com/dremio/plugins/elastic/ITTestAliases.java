@@ -26,20 +26,17 @@ import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeFalse;
 import static org.junit.Assume.assumeTrue;
 
+import com.dremio.common.util.TestTools;
+import com.google.common.collect.ImmutableMap;
 import java.util.concurrent.TimeUnit;
-
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestRule;
 
-import com.dremio.common.util.TestTools;
-import com.google.common.collect.ImmutableMap;
-
 public class ITTestAliases extends ElasticBaseTestQuery {
 
-  @Rule
-  public final TestRule timeoutRule = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
+  @Rule public final TestRule timeoutRule = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
 
   @Test
   public void testAlias() throws Exception {
@@ -49,36 +46,35 @@ public class ITTestAliases extends ElasticBaseTestQuery {
     }
 
     String schema1 = schema;
-    ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
-            new ElasticsearchCluster.ColumnData("location", TEXT, new Object[][]{
-                    {"San Francisco"},
-                    {"Oakland"},
-                    {"San Jose"}
-            })
-    };
+    ElasticsearchCluster.ColumnData[] data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "location", TEXT, new Object[][] {{"San Francisco"}, {"Oakland"}, {"San Jose"}})
+        };
 
     elastic.load(schema, table, data);
     schema = schemaName();
-    data = new ElasticsearchCluster.ColumnData[]{
-            new ElasticsearchCluster.ColumnData("location", TEXT, new Object[][]{
-                    {"New York"},
-                    {"Los Angeles"},
-                    {"Chicago"}
-            })
-    };
+    data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "location", TEXT, new Object[][] {{"New York"}, {"Los Angeles"}, {"Chicago"}})
+        };
 
     elastic.load(schema, table, data);
 
     elastic.alias("alias1", schema1, schema);
 
-    String sql = String.format("select location from elasticsearch.alias1.%s where contains(location:(Chicago OR Oakland))", table);
+    String sql =
+        String.format(
+            "select location from elasticsearch.alias1.%s where contains(location:(Chicago OR Oakland))",
+            table);
     testBuilder()
-            .sqlQuery(sql)
-            .unOrdered()
-            .baselineColumns("location")
-            .baselineValues("Chicago")
-            .baselineValues("Oakland")
-            .go();
+        .sqlQuery(sql)
+        .unOrdered()
+        .baselineColumns("location")
+        .baselineValues("Chicago")
+        .baselineValues("Oakland")
+        .go();
   }
 
   @Test
@@ -88,41 +84,39 @@ public class ITTestAliases extends ElasticBaseTestQuery {
     }
 
     String schema1 = schema;
-    ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
-      new ElasticsearchCluster.ColumnData("location", TEXT, new Object[][]{
-        {"San Francisco"},
-        {"Oakland"},
-        {"San Jose"}
-      })
-    };
+    ElasticsearchCluster.ColumnData[] data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "location", TEXT, new Object[][] {{"San Francisco"}, {"Oakland"}, {"San Jose"}})
+        };
 
     elastic.load(schema, table, data);
     schema = schemaName();
-    data = new ElasticsearchCluster.ColumnData[]{
-      new ElasticsearchCluster.ColumnData("location", TEXT, new Object[][]{
-        {"New York"},
-        {"Los Angeles"},
-        {"Chicago"}
-      }),
-      new ElasticsearchCluster.ColumnData("is_valid", ElasticsearchType.BOOLEAN, new Object[][]{
-        {false},
-        {true},
-        {true},
-      })
-    };
+    data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "location", TEXT, new Object[][] {{"New York"}, {"Los Angeles"}, {"Chicago"}}),
+          new ElasticsearchCluster.ColumnData(
+              "is_valid",
+              ElasticsearchType.BOOLEAN,
+              new Object[][] {
+                {false}, {true}, {true},
+              })
+        };
 
     elastic.load(schema, table, data);
 
     elastic.alias("alias1", schema1, schema);
 
-    String sql = String.format("select location from elasticsearch.alias1.%s where is_valid", table);
+    String sql =
+        String.format("select location from elasticsearch.alias1.%s where is_valid", table);
     testBuilder()
-      .sqlQuery(sql)
-      .unOrdered()
-      .baselineColumns("location")
-      .baselineValues("Los Angeles")
-      .baselineValues("Chicago")
-      .go();
+        .sqlQuery(sql)
+        .unOrdered()
+        .baselineColumns("location")
+        .baselineValues("Los Angeles")
+        .baselineValues("Chicago")
+        .go();
   }
 
   @Test
@@ -133,45 +127,42 @@ public class ITTestAliases extends ElasticBaseTestQuery {
     }
 
     String schema1 = schema;
-    ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
-            new ElasticsearchCluster.ColumnData("location", TEXT, new Object[][]{
-                    {"San Francisco"},
-                    {"Oakland"},
-                    {"San Jose"}
-            })
-    };
+    ElasticsearchCluster.ColumnData[] data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "location", TEXT, new Object[][] {{"San Francisco"}, {"Oakland"}, {"San Jose"}})
+        };
 
     elastic.load(schema, table, data);
     schema = schemaName();
-    data = new ElasticsearchCluster.ColumnData[]{
-            new ElasticsearchCluster.ColumnData("location", TEXT, new Object[][]{
-                    {"New York"},
-                    {"Los Angeles"},
-                    {"Chicago"}
-            })
-    };
+    data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "location", TEXT, new Object[][] {{"New York"}, {"Los Angeles"}, {"Chicago"}})
+        };
 
     elastic.load(schema, table, data);
 
     elastic.alias("alias1", schema1, schema);
 
-    String sql = String.format("select count(location) from elasticsearch.alias1.%s where contains(location:(Chicago OR Oakland))", table);
+    String sql =
+        String.format(
+            "select count(location) from elasticsearch.alias1.%s where contains(location:(Chicago OR Oakland))",
+            table);
 
-    testBuilder()
-            .sqlQuery(sql)
-            .unOrdered()
-            .baselineColumns("EXPR$0")
-            .baselineValues(2L)
-            .go();
+    testBuilder().sqlQuery(sql).unOrdered().baselineColumns("EXPR$0").baselineValues(2L).go();
   }
 
   @Test
   public void testAliasWithDateFormat() throws Exception {
-    ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
-      new ElasticsearchCluster.ColumnData("EventDate", DATE, ImmutableMap.of("format", "strict_date_optional_time"),new Object[][]{
-        {"1970-01-23T20:23:51.927"}
-      })
-    };
+    ElasticsearchCluster.ColumnData[] data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "EventDate",
+              DATE,
+              ImmutableMap.of("format", "strict_date_optional_time"),
+              new Object[][] {{"1970-01-23T20:23:51.927"}})
+        };
 
     elastic.load(schema, table, data);
     elastic.alias(alias, schema);
@@ -182,27 +173,28 @@ public class ITTestAliases extends ElasticBaseTestQuery {
 
   @Test
   public void q() throws Exception {
-    ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
-      new ElasticsearchCluster.ColumnData("location", TEXT, new Object[][]{
-        {"San Francisco"},
-        {"San Jose"},
-        {"Oakland"}
-      }),
-      new ElasticsearchCluster.ColumnData("id", ElasticsearchType.DOUBLE, new Object[][]{
-        {1.0},
-        {2.0},
-        {3.0},
-      })
-    };
+    ElasticsearchCluster.ColumnData[] data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "location", TEXT, new Object[][] {{"San Francisco"}, {"San Jose"}, {"Oakland"}}),
+          new ElasticsearchCluster.ColumnData(
+              "id",
+              ElasticsearchType.DOUBLE,
+              new Object[][] {
+                {1.0}, {2.0}, {3.0},
+              })
+        };
 
     elastic.load(schema, table, data);
 
-//    elastic.aliasWithFilter(alias, "{ \"range\": { \"id\" : { \"lt\" : 2.0 } } }", schema);
-//    elastic.aliasWithFilter(alias, "{ \"match\" : { \"id\": 1.0 } }", schema);
+    //    elastic.aliasWithFilter(alias, "{ \"range\": { \"id\" : { \"lt\" : 2.0 } } }", schema);
+    //    elastic.aliasWithFilter(alias, "{ \"match\" : { \"id\": 1.0 } }", schema);
     elastic.alias(alias, schema);
 
-//    test(String.format("describe elasticsearch.%s.%s", alias, table));
-    String sql = String.format("select cast(floor(id) as integer) as id from elasticsearch.%s.%s", alias, table);
+    //    test(String.format("describe elasticsearch.%s.%s", alias, table));
+    String sql =
+        String.format(
+            "select cast(floor(id) as integer) as id from elasticsearch.%s.%s", alias, table);
     test("explain plan for " + sql);
     test(sql);
   }
@@ -210,138 +202,138 @@ public class ITTestAliases extends ElasticBaseTestQuery {
   @Test
   public void testAliasWithFilterSort() throws Exception {
     String schema1 = schema;
-    ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
-      new ElasticsearchCluster.ColumnData("location", TEXT, new Object[][]{
-        {"San Francisco"},
-        {"San Jose"},
-        {"Oakland"}
-      }),
-      new ElasticsearchCluster.ColumnData("id", INTEGER, new Object[][]{
-        {1},
-        {2},
-        {3},
-      })
-    };
+    ElasticsearchCluster.ColumnData[] data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "location", TEXT, new Object[][] {{"San Francisco"}, {"San Jose"}, {"Oakland"}}),
+          new ElasticsearchCluster.ColumnData(
+              "id",
+              INTEGER,
+              new Object[][] {
+                {1}, {2}, {3},
+              })
+        };
 
     elastic.load(schema, table, data);
     schema = schemaName();
 
-    data = new ElasticsearchCluster.ColumnData[]{
-      new ElasticsearchCluster.ColumnData("location", TEXT, new Object[][]{
-        {"New York"},
-        {"Chicago"},
-        {"Los Angeles"}
-      }),
-      new ElasticsearchCluster.ColumnData("id", INTEGER, new Object[][]{
-        {1},
-        {2},
-        {3},
-      })
-    };
+    data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "location", TEXT, new Object[][] {{"New York"}, {"Chicago"}, {"Los Angeles"}}),
+          new ElasticsearchCluster.ColumnData(
+              "id",
+              INTEGER,
+              new Object[][] {
+                {1}, {2}, {3},
+              })
+        };
     elastic.load(schema, table, data);
 
     elastic.aliasWithFilter(alias, "{ \"range\": { \"id\" : { \"lte\" : 1 } } }", schema1, schema);
 
-    String sql = String.format("select location, id from elasticsearch.%s.%s order by id, location", alias, table);
+    String sql =
+        String.format(
+            "select location, id from elasticsearch.%s.%s order by id, location", alias, table);
     testBuilder()
-      .sqlQuery(sql)
-      .ordered()
-      .baselineColumns("location", "id")
-      .baselineValues("New York", 1)
-      .baselineValues("San Francisco",1)
-      .go();
+        .sqlQuery(sql)
+        .ordered()
+        .baselineColumns("location", "id")
+        .baselineValues("New York", 1)
+        .baselineValues("San Francisco", 1)
+        .go();
   }
 
   @Test
   public void testAliasWithFilterAggregation() throws Exception {
     String schema1 = schema;
-    ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
-      new ElasticsearchCluster.ColumnData("location", TEXT, new Object[][]{
-        {"San Francisco"},
-        {"San Jose"},
-        {"Oakland"}
-      }),
-      new ElasticsearchCluster.ColumnData("id", INTEGER, new Object[][]{
-        {1},
-        {2},
-        {3},
-      })
-    };
+    ElasticsearchCluster.ColumnData[] data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "location", TEXT, new Object[][] {{"San Francisco"}, {"San Jose"}, {"Oakland"}}),
+          new ElasticsearchCluster.ColumnData(
+              "id",
+              INTEGER,
+              new Object[][] {
+                {1}, {2}, {3},
+              })
+        };
 
     elastic.load(schema, table, data);
     schema = schemaName();
 
-    data = new ElasticsearchCluster.ColumnData[]{
-      new ElasticsearchCluster.ColumnData("location", TEXT, new Object[][]{
-        {"New York"},
-        {"Chicago"},
-        {"Los Angeles"}
-      }),
-      new ElasticsearchCluster.ColumnData("id", INTEGER, new Object[][]{
-        {1},
-        {2},
-        {3},
-      })
-    };
+    data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "location", TEXT, new Object[][] {{"New York"}, {"Chicago"}, {"Los Angeles"}}),
+          new ElasticsearchCluster.ColumnData(
+              "id",
+              INTEGER,
+              new Object[][] {
+                {1}, {2}, {3},
+              })
+        };
     elastic.load(schema, table, data);
 
     elastic.aliasWithFilter(alias, "{ \"range\": { \"id\" : { \"lte\" : 1 } } }", schema1, schema);
 
-    String sql = String.format("select location, count(*) cnt from elasticsearch.%s.%s group by location", alias, table);
+    String sql =
+        String.format(
+            "select location, count(*) cnt from elasticsearch.%s.%s group by location",
+            alias, table);
     testBuilder()
-      .sqlQuery(sql)
-      .unOrdered()
-      .baselineColumns("location", "cnt")
-      .baselineValues("San Francisco",1L)
-      .baselineValues("New York", 1L)
-      .go();
+        .sqlQuery(sql)
+        .unOrdered()
+        .baselineColumns("location", "cnt")
+        .baselineValues("San Francisco", 1L)
+        .baselineValues("New York", 1L)
+        .go();
   }
 
   @Test
   public void testAliasWithFilterNoWhereClause() throws Exception {
 
     String schema1 = schema;
-    ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
-      new ElasticsearchCluster.ColumnData("location", TEXT, new Object[][]{
-        {"San Francisco"},
-        {"San Jose"},
-        {"Oakland"}
-      }),
-      new ElasticsearchCluster.ColumnData("id", INTEGER, new Object[][]{
-        {1},
-        {2},
-        {3},
-      })
-    };
+    ElasticsearchCluster.ColumnData[] data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "location", TEXT, new Object[][] {{"San Francisco"}, {"San Jose"}, {"Oakland"}}),
+          new ElasticsearchCluster.ColumnData(
+              "id",
+              INTEGER,
+              new Object[][] {
+                {1}, {2}, {3},
+              })
+        };
 
     elastic.load(schema, table, data);
     schema = schemaName();
 
-    data = new ElasticsearchCluster.ColumnData[]{
-      new ElasticsearchCluster.ColumnData("location", TEXT, new Object[][]{
-        {"New York"},
-        {"Chicago"},
-        {"Los Angeles"}
-      }),
-      new ElasticsearchCluster.ColumnData("id", INTEGER, new Object[][]{
-        {1},
-        {2},
-        {3},
-      })
-    };
+    data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "location", TEXT, new Object[][] {{"New York"}, {"Chicago"}, {"Los Angeles"}}),
+          new ElasticsearchCluster.ColumnData(
+              "id",
+              INTEGER,
+              new Object[][] {
+                {1}, {2}, {3},
+              })
+        };
     elastic.load(schema, table, data);
 
     elastic.aliasWithFilter(alias, "{ \"range\": { \"id\" : { \"lte\" : 1 } } }", schema1, schema);
 
     String sql = String.format("select location from elasticsearch.%s.%s", alias, table);
     testBuilder()
-      .sqlQuery(sql)
-      .unOrdered()
-      .baselineColumns("location")
-      .baselineValues("San Francisco")
-      .baselineValues("New York")
-      .go();
+        .sqlQuery(sql)
+        .unOrdered()
+        .baselineColumns("location")
+        .baselineValues("San Francisco")
+        .baselineValues("New York")
+        .go();
   }
+
   @Test
   public void testAliasWithFilterAndWhereClause() throws Exception {
     // DX-12162: upstream typo when processing contains
@@ -350,79 +342,78 @@ public class ITTestAliases extends ElasticBaseTestQuery {
     }
 
     String schema1 = schema;
-    ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
-      new ElasticsearchCluster.ColumnData("location", TEXT, new Object[][]{
-        {"San Francisco"},
-        {"San Jose"},
-        {"Oakland"}
-      }),
-      new ElasticsearchCluster.ColumnData("id", INTEGER, new Object[][]{
-        {1},
-        {2},
-        {3},
-      })
-    };
+    ElasticsearchCluster.ColumnData[] data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "location", TEXT, new Object[][] {{"San Francisco"}, {"San Jose"}, {"Oakland"}}),
+          new ElasticsearchCluster.ColumnData(
+              "id",
+              INTEGER,
+              new Object[][] {
+                {1}, {2}, {3},
+              })
+        };
 
     elastic.load(schema, table, data);
     schema = schemaName();
 
-    data = new ElasticsearchCluster.ColumnData[]{
-      new ElasticsearchCluster.ColumnData("location", TEXT, new Object[][]{
-        {"New York"},
-        {"Chicago"},
-        {"Los Angeles"}
-      }),
-      new ElasticsearchCluster.ColumnData("id", INTEGER, new Object[][]{
-        {1},
-        {2},
-        {3},
-      })
-    };
+    data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "location", TEXT, new Object[][] {{"New York"}, {"Chicago"}, {"Los Angeles"}}),
+          new ElasticsearchCluster.ColumnData(
+              "id",
+              INTEGER,
+              new Object[][] {
+                {1}, {2}, {3},
+              })
+        };
     elastic.load(schema, table, data);
 
     elastic.aliasWithFilter(alias, "{ \"range\": { \"id\" : { \"lte\" : 1 } } }", schema1, schema);
 
-    String sql = String.format("select location from elasticsearch.%s.%s where contains(location:(Chicago OR \"San Francisco\"~))", alias, table);
+    String sql =
+        String.format(
+            "select location from elasticsearch.%s.%s where contains(location:(Chicago OR \"San Francisco\"~))",
+            alias, table);
     testBuilder()
-      .sqlQuery(sql)
-      .unOrdered()
-      .baselineColumns("location")
-      .baselineValues("San Francisco")
-      .go();
+        .sqlQuery(sql)
+        .unOrdered()
+        .baselineColumns("location")
+        .baselineValues("San Francisco")
+        .go();
   }
 
   @Test
   public void testAliasWildCardFail() throws Exception {
 
     String schema1 = schema;
-    ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
-            new ElasticsearchCluster.ColumnData("location", TEXT, new Object[][]{
-                    {"San Francisco"},
-                    {"San Jose"},
-                    {"Oakland"}
-            }),
-            new ElasticsearchCluster.ColumnData("id", INTEGER, new Object[][]{
-                    {1},
-                    {2},
-                    {3},
-            })
-    };
+    ElasticsearchCluster.ColumnData[] data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "location", TEXT, new Object[][] {{"San Francisco"}, {"San Jose"}, {"Oakland"}}),
+          new ElasticsearchCluster.ColumnData(
+              "id",
+              INTEGER,
+              new Object[][] {
+                {1}, {2}, {3},
+              })
+        };
 
     elastic.load(schema, table, data);
     schema = schemaName();
 
-    data = new ElasticsearchCluster.ColumnData[]{
-            new ElasticsearchCluster.ColumnData("location", TEXT, new Object[][]{
-                    {"New York"},
-                    {"Chicago"},
-                    {"Los Angeles"}
-            }),
-            new ElasticsearchCluster.ColumnData("id", INTEGER, new Object[][]{
-                    {1},
-                    {2},
-                    {3},
-            })
-    };
+    data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "location", TEXT, new Object[][] {{"New York"}, {"Chicago"}, {"Los Angeles"}}),
+          new ElasticsearchCluster.ColumnData(
+              "id",
+              INTEGER,
+              new Object[][] {
+                {1}, {2}, {3},
+              })
+        };
     elastic.load(schema, table, data);
 
     elastic.aliasWithFilter(alias, "{ \"range\": { \"id\" : { \"lte\" : 1 } } }", schema1, schema);
@@ -430,12 +421,18 @@ public class ITTestAliases extends ElasticBaseTestQuery {
     alias = aliasName();
     elastic.aliasWithFilter(alias, "{ \"range\": { \"id\" : { \"gt\" : 1 } } }", schema1, schema);
 
-    String sql = String.format("select location from elasticsearch.\"%s,%s\".%s where contains(location:(Chicago OR \"San Francisco\"~))", alias, alias1, table);
+    String sql =
+        String.format(
+            "select location from elasticsearch.\"%s,%s\".%s where contains(location:(Chicago OR \"San Francisco\"~))",
+            alias, alias1, table);
     try {
       test(sql);
       fail("Query should have failed");
     } catch (Exception e) {
-      assertTrue(e.getMessage(), e.getMessage().contains("Unable to access a collection of aliases with differing filters."));
+      assertTrue(
+          e.getMessage(),
+          e.getMessage()
+              .contains("Unable to access a collection of aliases with differing filters."));
     }
   }
 
@@ -447,45 +444,46 @@ public class ITTestAliases extends ElasticBaseTestQuery {
     }
 
     String schema1 = schema;
-    ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
-            new ElasticsearchCluster.ColumnData("location", TEXT, new Object[][]{
-                    {"San Francisco"},
-                    {"San Jose"},
-                    {"Oakland"}
-            }),
-            new ElasticsearchCluster.ColumnData("id", INTEGER, new Object[][]{
-                    {1},
-                    {2},
-                    {3},
-            })
-    };
+    ElasticsearchCluster.ColumnData[] data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "location", TEXT, new Object[][] {{"San Francisco"}, {"San Jose"}, {"Oakland"}}),
+          new ElasticsearchCluster.ColumnData(
+              "id",
+              INTEGER,
+              new Object[][] {
+                {1}, {2}, {3},
+              })
+        };
 
     elastic.load(schema, table, data);
     schema = schemaName();
 
-    data = new ElasticsearchCluster.ColumnData[]{
-            new ElasticsearchCluster.ColumnData("location", TEXT, new Object[][]{
-                    {"New York"},
-                    {"Chicago"},
-                    {"Los Angeles"}
-            }),
-            new ElasticsearchCluster.ColumnData("id", INTEGER, new Object[][]{
-                    {1},
-                    {2},
-                    {3},
-            })
-    };
+    data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "location", TEXT, new Object[][] {{"New York"}, {"Chicago"}, {"Los Angeles"}}),
+          new ElasticsearchCluster.ColumnData(
+              "id",
+              INTEGER,
+              new Object[][] {
+                {1}, {2}, {3},
+              })
+        };
     elastic.load(schema, table, data);
 
-    String sql = String.format("select location from elasticsearch.\"%s,%s\".%s where contains(location:(Chicago OR \"San Francisco\"~))", schema1, schema, table);
+    String sql =
+        String.format(
+            "select location from elasticsearch.\"%s,%s\".%s where contains(location:(Chicago OR \"San Francisco\"~))",
+            schema1, schema, table);
 
     testBuilder()
-            .sqlQuery(sql)
-            .unOrdered()
-            .baselineColumns("location")
-            .baselineValues("San Francisco")
-            .baselineValues("Chicago")
-            .go();
+        .sqlQuery(sql)
+        .unOrdered()
+        .baselineColumns("location")
+        .baselineValues("San Francisco")
+        .baselineValues("Chicago")
+        .go();
   }
 
   @Test
@@ -496,129 +494,130 @@ public class ITTestAliases extends ElasticBaseTestQuery {
     }
 
     String schema1 = schema;
-    ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
-            new ElasticsearchCluster.ColumnData("location", TEXT, new Object[][]{
-                    {"San Francisco"},
-                    {"San Jose"},
-                    {"Oakland"}
-            }),
-            new ElasticsearchCluster.ColumnData("id", INTEGER, new Object[][]{
-                    {1},
-                    {2},
-                    {3},
-            })
-    };
+    ElasticsearchCluster.ColumnData[] data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "location", TEXT, new Object[][] {{"San Francisco"}, {"San Jose"}, {"Oakland"}}),
+          new ElasticsearchCluster.ColumnData(
+              "id",
+              INTEGER,
+              new Object[][] {
+                {1}, {2}, {3},
+              })
+        };
 
     elastic.load(schema, table, data);
     schema = schemaName();
 
-    data = new ElasticsearchCluster.ColumnData[]{
-            new ElasticsearchCluster.ColumnData("location", TEXT, new Object[][]{
-                    {"New York"},
-                    {"Chicago"},
-                    {"Los Angeles"}
-            }),
-            new ElasticsearchCluster.ColumnData("id", INTEGER, new Object[][]{
-                    {1},
-                    {2},
-                    {3},
-            })
-    };
+    data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "location", TEXT, new Object[][] {{"New York"}, {"Chicago"}, {"Los Angeles"}}),
+          new ElasticsearchCluster.ColumnData(
+              "id",
+              INTEGER,
+              new Object[][] {
+                {1}, {2}, {3},
+              })
+        };
     elastic.load(schema, table, data);
 
-    String sql = String.format("select count(location), sum(id) from elasticsearch.\"%s,%s\".%s where contains(location:(Chicago OR \"San Francisco\"~))", schema1, schema, table);
+    String sql =
+        String.format(
+            "select count(location), sum(id) from elasticsearch.\"%s,%s\".%s where contains(location:(Chicago OR \"San Francisco\"~))",
+            schema1, schema, table);
 
     testBuilder()
-            .sqlQuery(sql)
-            .unOrdered()
-            .baselineColumns("EXPR$0", "EXPR$1")
-            .baselineValues(2L, 3L)
-            .go();
+        .sqlQuery(sql)
+        .unOrdered()
+        .baselineColumns("EXPR$0", "EXPR$1")
+        .baselineValues(2L, 3L)
+        .go();
   }
 
   @Test
   public void testWildcardIndex() throws Exception {
 
     String schema1 = "wildcard_schema_1";
-    ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
-            new ElasticsearchCluster.ColumnData("location", TEXT, new Object[][]{
-                    {"San Francisco"},
-                    {"San Jose"},
-                    {"Oakland"}
-            }),
-            new ElasticsearchCluster.ColumnData("id", INTEGER, new Object[][]{
-                    {1},
-                    {2},
-                    {3},
-            })
-    };
+    ElasticsearchCluster.ColumnData[] data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "location", TEXT, new Object[][] {{"San Francisco"}, {"San Jose"}, {"Oakland"}}),
+          new ElasticsearchCluster.ColumnData(
+              "id",
+              INTEGER,
+              new Object[][] {
+                {1}, {2}, {3},
+              })
+        };
 
     elastic.load(schema1, table, data);
 
     String schema2 = "wildcard_schema_2";
-    data = new ElasticsearchCluster.ColumnData[]{
-            new ElasticsearchCluster.ColumnData("location", TEXT, new Object[][]{
-                    {"New York"},
-                    {"Chicago"},
-                    {"Los Angeles"}
-            }),
-            new ElasticsearchCluster.ColumnData("id", INTEGER, new Object[][]{
-                    {1},
-                    {2},
-                    {3},
-            })
-    };
+    data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "location", TEXT, new Object[][] {{"New York"}, {"Chicago"}, {"Los Angeles"}}),
+          new ElasticsearchCluster.ColumnData(
+              "id",
+              INTEGER,
+              new Object[][] {
+                {1}, {2}, {3},
+              })
+        };
     elastic.load(schema2, table, data);
-    String sql = String.format("select location from elasticsearch.\"wildcard*\".%s where id < 2", table);
+    String sql =
+        String.format("select location from elasticsearch.\"wildcard*\".%s where id < 2", table);
     testBuilder()
-            .sqlQuery(sql)
-            .unOrdered()
-            .baselineColumns("location")
-            .baselineValues("San Francisco")
-            .baselineValues("New York")
-            .go();
+        .sqlQuery(sql)
+        .unOrdered()
+        .baselineColumns("location")
+        .baselineValues("San Francisco")
+        .baselineValues("New York")
+        .go();
   }
 
   @Test
   public void testWildcardIndexAggregation() throws Exception {
 
     String schema1 = "wildcard_schema_1";
-    ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
-            new ElasticsearchCluster.ColumnData("location", TEXT, new Object[][]{
-                    {"San Francisco"},
-                    {"San Jose"},
-                    {"Oakland"}
-            }),
-            new ElasticsearchCluster.ColumnData("id", INTEGER, new Object[][]{
-                    {1},
-                    {2},
-                    {3},
-            })
-    };
+    ElasticsearchCluster.ColumnData[] data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "location", TEXT, new Object[][] {{"San Francisco"}, {"San Jose"}, {"Oakland"}}),
+          new ElasticsearchCluster.ColumnData(
+              "id",
+              INTEGER,
+              new Object[][] {
+                {1}, {2}, {3},
+              })
+        };
 
     elastic.load(schema1, table, data);
 
     String schema2 = "wildcard_schema_2";
-    data = new ElasticsearchCluster.ColumnData[]{
-            new ElasticsearchCluster.ColumnData("location", TEXT, new Object[][]{
-                    {"New York"},
-                    {"Chicago"},
-                    {"Los Angeles"}
-            }),
-            new ElasticsearchCluster.ColumnData("id", INTEGER, new Object[][]{
-                    {1},
-                    {2},
-                    {3},
-            })
-    };
+    data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "location", TEXT, new Object[][] {{"New York"}, {"Chicago"}, {"Los Angeles"}}),
+          new ElasticsearchCluster.ColumnData(
+              "id",
+              INTEGER,
+              new Object[][] {
+                {1}, {2}, {3},
+              })
+        };
     elastic.load(schema2, table, data);
-    String sql = String.format("select count(location), sum(id) from elasticsearch.\"wildcard*\".%s where id < 2", table);
+    String sql =
+        String.format(
+            "select count(location), sum(id) from elasticsearch.\"wildcard*\".%s where id < 2",
+            table);
     testBuilder()
-            .sqlQuery(sql)
-            .unOrdered()
-            .baselineColumns("EXPR$0", "EXPR$1")
-            .baselineValues(2L, 2L)
-            .go();
+        .sqlQuery(sql)
+        .unOrdered()
+        .baselineColumns("EXPR$0", "EXPR$1")
+        .baselineValues(2L, 2L)
+        .go();
   }
 
   @Ignore("DX-660")
@@ -626,49 +625,49 @@ public class ITTestAliases extends ElasticBaseTestQuery {
   public void testIndexWithAliasFilterConflict() throws Exception {
 
     String schema1 = schema;
-    ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
-            new ElasticsearchCluster.ColumnData("location", TEXT, new Object[][]{
-                    {"San Francisco"},
-                    {"San Jose"},
-                    {"Oakland"}
-            }),
-            new ElasticsearchCluster.ColumnData("id", INTEGER, new Object[][]{
-                    {1},
-                    {3},
-                    {5},
-            })
-    };
+    ElasticsearchCluster.ColumnData[] data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "location", TEXT, new Object[][] {{"San Francisco"}, {"San Jose"}, {"Oakland"}}),
+          new ElasticsearchCluster.ColumnData(
+              "id",
+              INTEGER,
+              new Object[][] {
+                {1}, {3}, {5},
+              })
+        };
 
     elastic.load(schema1, table, data);
 
     String schema2 = schemaName();
     schema = schema2;
 
-    data = new ElasticsearchCluster.ColumnData[]{
-            new ElasticsearchCluster.ColumnData("location", TEXT, new Object[][]{
-                    {"New York"},
-                    {"Chicago"},
-                    {"Los Angeles"}
-            }),
-            new ElasticsearchCluster.ColumnData("id", INTEGER, new Object[][]{
-                    {2},
-                    {4},
-                    {6},
-            })
-    };
+    data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "location", TEXT, new Object[][] {{"New York"}, {"Chicago"}, {"Los Angeles"}}),
+          new ElasticsearchCluster.ColumnData(
+              "id",
+              INTEGER,
+              new Object[][] {
+                {2}, {4}, {6},
+              })
+        };
     elastic.load(schema2, table, data);
 
     elastic.aliasWithFilter(alias, "{ \"range\": { \"id\" : { \"lte\" : 4 } } }", schema1, schema2);
 
-    String sql = String.format("select location from elasticsearch.\"%s,%s\".%s where id > 2", alias, schema1, table);
+    String sql =
+        String.format(
+            "select location from elasticsearch.\"%s,%s\".%s where id > 2", alias, schema1, table);
     testBuilder()
-            .sqlQuery(sql)
-            .unOrdered()
-            .baselineColumns("location")
-            .baselineValues("San Jose")
-            .baselineValues("Oakland") // This is included because the explicit reference to schema1
-            .baselineValues("Chicago")
-            .go();
+        .sqlQuery(sql)
+        .unOrdered()
+        .baselineColumns("location")
+        .baselineValues("San Jose")
+        .baselineValues("Oakland") // This is included because the explicit reference to schema1
+        .baselineValues("Chicago")
+        .go();
   }
 
   @Test
@@ -678,44 +677,44 @@ public class ITTestAliases extends ElasticBaseTestQuery {
 
     String schema1 = schema;
     String table1 = table;
-    ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
-            new ElasticsearchCluster.ColumnData("location", TEXT, new Object[][]{
-                    {"San Francisco"},
-                    {"San Jose"},
-                    {"Oakland"}
-            }),
-            new ElasticsearchCluster.ColumnData("id", INTEGER, new Object[][]{
-                    {1},
-                    {3},
-                    {5},
-            })
-    };
+    ElasticsearchCluster.ColumnData[] data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "location", TEXT, new Object[][] {{"San Francisco"}, {"San Jose"}, {"Oakland"}}),
+          new ElasticsearchCluster.ColumnData(
+              "id",
+              INTEGER,
+              new Object[][] {
+                {1}, {3}, {5},
+              })
+        };
 
     elastic.load(schema1, table, data);
 
-    data = new ElasticsearchCluster.ColumnData[]{
-            new ElasticsearchCluster.ColumnData("location", TEXT, new Object[][]{
-                    {"New York"},
-                    {"Chicago"},
-                    {"Los Angeles"}
-            }),
-            new ElasticsearchCluster.ColumnData("id", INTEGER, new Object[][]{
-                    {2},
-                    {4},
-                    {6},
-            })
-    };
+    data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "location", TEXT, new Object[][] {{"New York"}, {"Chicago"}, {"Los Angeles"}}),
+          new ElasticsearchCluster.ColumnData(
+              "id",
+              INTEGER,
+              new Object[][] {
+                {2}, {4}, {6},
+              })
+        };
     table = tableName();
     elastic.load(schema1, table, data);
 
-    String sql = String.format("select location from elasticsearch.%s.\"%s,%s\" where id > 4", schema1, table1, table);
+    String sql =
+        String.format(
+            "select location from elasticsearch.%s.\"%s,%s\" where id > 4", schema1, table1, table);
     testBuilder()
-            .sqlQuery(sql)
-            .unOrdered()
-            .baselineColumns("location")
-            .baselineValues("Oakland")
-            .baselineValues("Los Angeles")
-            .go();
+        .sqlQuery(sql)
+        .unOrdered()
+        .baselineColumns("location")
+        .baselineValues("Oakland")
+        .baselineValues("Los Angeles")
+        .go();
   }
 
   @Test
@@ -725,43 +724,44 @@ public class ITTestAliases extends ElasticBaseTestQuery {
 
     String schema1 = schema;
     String table1 = table;
-    ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
-            new ElasticsearchCluster.ColumnData("location", TEXT, new Object[][]{
-                    {"San Francisco"},
-                    {"San Jose"},
-                    {"Oakland"}
-            }),
-            new ElasticsearchCluster.ColumnData("id", INTEGER, new Object[][]{
-                    {1},
-                    {3},
-                    {5},
-            })
-    };
+    ElasticsearchCluster.ColumnData[] data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "location", TEXT, new Object[][] {{"San Francisco"}, {"San Jose"}, {"Oakland"}}),
+          new ElasticsearchCluster.ColumnData(
+              "id",
+              INTEGER,
+              new Object[][] {
+                {1}, {3}, {5},
+              })
+        };
 
     elastic.load(schema1, table, data);
 
-    data = new ElasticsearchCluster.ColumnData[]{
-            new ElasticsearchCluster.ColumnData("location", TEXT, new Object[][]{
-                    {"New York"},
-                    {"Chicago"},
-                    {"Los Angeles"}
-            }),
-            new ElasticsearchCluster.ColumnData("id", INTEGER, new Object[][]{
-                    {2},
-                    {4},
-                    {6},
-            })
-    };
+    data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "location", TEXT, new Object[][] {{"New York"}, {"Chicago"}, {"Los Angeles"}}),
+          new ElasticsearchCluster.ColumnData(
+              "id",
+              INTEGER,
+              new Object[][] {
+                {2}, {4}, {6},
+              })
+        };
     table = tableName();
     elastic.load(schema1, table, data);
 
-    String sql = String.format("select count(location), sum(id) from elasticsearch.%s.\"%s,%s\" where id > 4", schema1, table1, table);
+    String sql =
+        String.format(
+            "select count(location), sum(id) from elasticsearch.%s.\"%s,%s\" where id > 4",
+            schema1, table1, table);
     testBuilder()
-            .sqlQuery(sql)
-            .unOrdered()
-            .baselineColumns("EXPR$0", "EXPR$1")
-            .baselineValues(2L, 11L)
-            .go();
+        .sqlQuery(sql)
+        .unOrdered()
+        .baselineColumns("EXPR$0", "EXPR$1")
+        .baselineValues(2L, 11L)
+        .go();
   }
 
   // In elasticsearch, wildcard in type names do not work.  We had it working as a
@@ -772,45 +772,44 @@ public class ITTestAliases extends ElasticBaseTestQuery {
 
     String schema1 = schema;
     String table1 = "wildcard_table_1";
-    ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
-            new ElasticsearchCluster.ColumnData("location", TEXT, new Object[][]{
-                    {"San Francisco"},
-                    {"San Jose"},
-                    {"Oakland"}
-            }),
-            new ElasticsearchCluster.ColumnData("id", INTEGER, new Object[][]{
-                    {1},
-                    {3},
-                    {5},
-            })
-    };
+    ElasticsearchCluster.ColumnData[] data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "location", TEXT, new Object[][] {{"San Francisco"}, {"San Jose"}, {"Oakland"}}),
+          new ElasticsearchCluster.ColumnData(
+              "id",
+              INTEGER,
+              new Object[][] {
+                {1}, {3}, {5},
+              })
+        };
 
     elastic.load(schema1, table1, data);
 
     String table2 = "wildcard_table_2";
-    data = new ElasticsearchCluster.ColumnData[]{
-            new ElasticsearchCluster.ColumnData("location", TEXT, new Object[][]{
-                    {"New York"},
-                    {"Chicago"},
-                    {"Los Angeles"}
-            }),
-            new ElasticsearchCluster.ColumnData("id", INTEGER, new Object[][]{
-                    {2},
-                    {4},
-                    {6},
-            })
-    };
+    data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "location", TEXT, new Object[][] {{"New York"}, {"Chicago"}, {"Los Angeles"}}),
+          new ElasticsearchCluster.ColumnData(
+              "id",
+              INTEGER,
+              new Object[][] {
+                {2}, {4}, {6},
+              })
+        };
     table = tableName();
     elastic.load(schema1, table2, data);
 
-    String sql = String.format("select location from elasticsearch.%s.\"wildcard*\" where id > 4", schema1);
+    String sql =
+        String.format("select location from elasticsearch.%s.\"wildcard*\" where id > 4", schema1);
     testBuilder()
-            .sqlQuery(sql)
-            .unOrdered()
-            .baselineColumns("location")
-            .baselineValues("Oakland")
-            .baselineValues("Los Angeles")
-            .go();
+        .sqlQuery(sql)
+        .unOrdered()
+        .baselineColumns("location")
+        .baselineValues("Oakland")
+        .baselineValues("Los Angeles")
+        .go();
   }
 
   @Test
@@ -820,45 +819,46 @@ public class ITTestAliases extends ElasticBaseTestQuery {
 
     String schema1 = schema;
     String table1 = table;
-    ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
-            new ElasticsearchCluster.ColumnData("location_1", TEXT, new Object[][]{
-                    {"San Francisco"},
-                    {"San Jose"},
-                    {"Oakland"}
-            }),
-            new ElasticsearchCluster.ColumnData("id", INTEGER, new Object[][]{
-                    {1},
-                    {3},
-                    {5},
-            })
-    };
+    ElasticsearchCluster.ColumnData[] data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "location_1", TEXT, new Object[][] {{"San Francisco"}, {"San Jose"}, {"Oakland"}}),
+          new ElasticsearchCluster.ColumnData(
+              "id",
+              INTEGER,
+              new Object[][] {
+                {1}, {3}, {5},
+              })
+        };
 
     elastic.load(schema1, table, data);
 
-    data = new ElasticsearchCluster.ColumnData[]{
-            new ElasticsearchCluster.ColumnData("location_2", TEXT, new Object[][]{
-                    {"New York"},
-                    {"Chicago"},
-                    {"Los Angeles"}
-            }),
-            new ElasticsearchCluster.ColumnData("id", INTEGER, new Object[][]{
-                    {2},
-                    {4},
-                    {6},
-            })
-    };
+    data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "location_2", TEXT, new Object[][] {{"New York"}, {"Chicago"}, {"Los Angeles"}}),
+          new ElasticsearchCluster.ColumnData(
+              "id",
+              INTEGER,
+              new Object[][] {
+                {2}, {4}, {6},
+              })
+        };
     table = tableName();
     elastic.load(schema1, table, data);
 
-    String sql = String.format("select location_1, location_2 from elasticsearch.%s.\"%s,%s\" where id > 4", schema1, table1, table);
+    String sql =
+        String.format(
+            "select location_1, location_2 from elasticsearch.%s.\"%s,%s\" where id > 4",
+            schema1, table1, table);
 
     testBuilder()
-      .sqlQuery(sql)
-      .unOrdered()
-      .baselineColumns("location_1", "location_2")
-      .baselineValues("Oakland", null)
-      .baselineValues(null, "Los Angeles")
-      .go();
+        .sqlQuery(sql)
+        .unOrdered()
+        .baselineColumns("location_1", "location_2")
+        .baselineValues("Oakland", null)
+        .baselineValues(null, "Los Angeles")
+        .go();
   }
 
   @Test
@@ -868,43 +868,44 @@ public class ITTestAliases extends ElasticBaseTestQuery {
 
     String schema1 = schema;
     String table1 = table;
-    ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
-            new ElasticsearchCluster.ColumnData("location_1", TEXT, new Object[][]{
-                    {"San Francisco"},
-                    {"San Jose"},
-                    {"Oakland"}
-            }),
-            new ElasticsearchCluster.ColumnData("id", INTEGER, new Object[][]{
-                    {1},
-                    {3},
-                    {5},
-            })
-    };
+    ElasticsearchCluster.ColumnData[] data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "location_1", TEXT, new Object[][] {{"San Francisco"}, {"San Jose"}, {"Oakland"}}),
+          new ElasticsearchCluster.ColumnData(
+              "id",
+              INTEGER,
+              new Object[][] {
+                {1}, {3}, {5},
+              })
+        };
 
     elastic.load(schema1, table, data);
 
-    data = new ElasticsearchCluster.ColumnData[]{
-            new ElasticsearchCluster.ColumnData("location_2", TEXT, new Object[][]{
-                    {"New York"},
-                    {"Chicago"},
-                    {"Los Angeles"}
-            }),
-            new ElasticsearchCluster.ColumnData("id", INTEGER, new Object[][]{
-                    {2},
-                    {4},
-                    {6},
-            })
-    };
+    data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "location_2", TEXT, new Object[][] {{"New York"}, {"Chicago"}, {"Los Angeles"}}),
+          new ElasticsearchCluster.ColumnData(
+              "id",
+              INTEGER,
+              new Object[][] {
+                {2}, {4}, {6},
+              })
+        };
     table = tableName();
     elastic.load(schema1, table, data);
 
-    String sql = String.format("select count(location_1) cnt1, count(location_2) as cnt2, sum(id) as total from elasticsearch.%s.\"%s,%s\" where id > 4", schema1, table1, table);
+    String sql =
+        String.format(
+            "select count(location_1) cnt1, count(location_2) as cnt2, sum(id) as total from elasticsearch.%s.\"%s,%s\" where id > 4",
+            schema1, table1, table);
     testBuilder()
-      .sqlQuery(sql)
-      .unOrdered()
-      .baselineColumns("cnt1", "cnt2", "total")
-      .baselineValues(1L, 1L, 11L)
-      .go();
+        .sqlQuery(sql)
+        .unOrdered()
+        .baselineColumns("cnt1", "cnt2", "total")
+        .baselineValues(1L, 1L, 11L)
+        .go();
   }
 
   @Ignore("elasticsearch 2.x checks for same field type across type names within an index")
@@ -913,44 +914,44 @@ public class ITTestAliases extends ElasticBaseTestQuery {
 
     String schema1 = schema;
     String table1 = table;
-    ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
-            new ElasticsearchCluster.ColumnData("location", TEXT, new Object[][]{
-                    {"San Francisco"},
-                    {"San Jose"},
-                    {"Oakland"}
-            }),
-            new ElasticsearchCluster.ColumnData("id", INTEGER, new Object[][]{
-                    {1},
-                    {3},
-                    {5},
-            })
-    };
+    ElasticsearchCluster.ColumnData[] data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "location", TEXT, new Object[][] {{"San Francisco"}, {"San Jose"}, {"Oakland"}}),
+          new ElasticsearchCluster.ColumnData(
+              "id",
+              INTEGER,
+              new Object[][] {
+                {1}, {3}, {5},
+              })
+        };
 
     elastic.load(schema1, table, data);
 
-    data = new ElasticsearchCluster.ColumnData[]{
-            new ElasticsearchCluster.ColumnData("location", INTEGER, new Object[][]{
-                    {10},
-                    {11},
-                    {12}
-            }),
-            new ElasticsearchCluster.ColumnData("id", INTEGER, new Object[][]{
-                    {2},
-                    {4},
-                    {6},
-            })
-    };
+    data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "location", INTEGER, new Object[][] {{10}, {11}, {12}}),
+          new ElasticsearchCluster.ColumnData(
+              "id",
+              INTEGER,
+              new Object[][] {
+                {2}, {4}, {6},
+              })
+        };
     table = tableName();
     elastic.load(schema1, table, data);
 
-    String sql = String.format("select location from elasticsearch.%s.\"%s,%s\" where id > 4", schema1, table1, table);
+    String sql =
+        String.format(
+            "select location from elasticsearch.%s.\"%s,%s\" where id > 4", schema1, table1, table);
     testBuilder()
-            .sqlQuery(sql)
-            .unOrdered()
-            .baselineColumns("location")
-            .baselineValues(12)
-            .baselineValues("Oakland")
-            .go();
+        .sqlQuery(sql)
+        .unOrdered()
+        .baselineColumns("location")
+        .baselineValues(12)
+        .baselineValues("Oakland")
+        .go();
   }
 
   private static final String NESTED_TYPE_MAPPING = "/json/nested-type/nested-type-mapping.json";

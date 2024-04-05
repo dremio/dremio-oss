@@ -16,9 +16,7 @@
 
 package com.dremio.plugins.azure;
 
-/**
- * Custom exception for azure storage
- */
+/** Custom exception for azure storage */
 public class AzureStoragePluginException extends RuntimeException {
   public AzureStoragePluginException(Exception e) {
     super(e);

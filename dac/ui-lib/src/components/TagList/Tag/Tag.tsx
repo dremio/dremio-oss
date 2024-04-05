@@ -30,7 +30,7 @@ const Tag = ({ text, daqa, onRef }: TagTypes) => {
 
   const onHoverSingleTag = (
     e: { currentTarget: { clientWidth: number; scrollWidth: number } },
-    text: string | number
+    text: string | number,
   ) => {
     if (
       e.currentTarget &&

@@ -17,13 +17,10 @@ package com.dremio.dac.model.usergroup;
 
 import static java.util.Arrays.asList;
 
+import com.dremio.dac.model.common.ResourcePath;
 import java.util.List;
 
-import com.dremio.dac.model.common.ResourcePath;
-
-/**
- * User resource path /user/{username}
- */
+/** User resource path /user/{username} */
 public class UserResourcePath extends ResourcePath {
 
   private final UserName userName;
@@ -35,7 +32,8 @@ public class UserResourcePath extends ResourcePath {
   public UserResourcePath(String userPath) {
     List<String> path = parse(userPath, "user");
     if (path.size() != 1) {
-      throw new IllegalArgumentException("path should be of form: /user/{userName}, found " + userPath);
+      throw new IllegalArgumentException(
+          "path should be of form: /user/{userName}, found " + userPath);
     }
     this.userName = new UserName(path.get(0));
   }

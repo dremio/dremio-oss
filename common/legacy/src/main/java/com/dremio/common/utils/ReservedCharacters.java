@@ -15,11 +15,9 @@
  */
 package com.dremio.common.utils;
 
-/**
- * Set of characters that Dremio reserves to use and considers illegal in identifiers
- */
+/** Set of characters that Dremio reserves to use and considers illegal in identifiers */
 public enum ReservedCharacters {
-  INFORMATION_SEPARATOR_ONE('\u001F'); //https://www.fileformat.info/info/unicode/char/1f/index.htm
+  INFORMATION_SEPARATOR_ONE('\u001F'); // https://www.fileformat.info/info/unicode/char/1f/index.htm
   private char reservedChar;
 
   ReservedCharacters(char c) {

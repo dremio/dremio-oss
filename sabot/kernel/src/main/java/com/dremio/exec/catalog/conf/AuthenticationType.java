@@ -18,7 +18,6 @@ package com.dremio.exec.catalog.conf;
 import io.protostuff.Tag;
 
 public enum AuthenticationType {
-
   @Tag(0)
   ANONYMOUS,
 
@@ -33,5 +32,4 @@ public enum AuthenticationType {
 
   @Tag(4)
   AWS_PROFILE,
-
 }

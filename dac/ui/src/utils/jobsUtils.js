@@ -20,7 +20,7 @@ import { Link } from "react-router";
 import config from "@inject/utils/config";
 import localStorageUtils from "@app/utils/storageUtils/localStorageUtils";
 import OverView from "@app/pages/JobDetailsPageNew/components/OverView/OverView.js";
-import SQL from "@app/pages/JobDetailsPageNew/components/SQLTab/SQLTab.js";
+import SQLTab from "@app/pages/JobDetailsPageNew/components/SQLTab/SQLTab";
 import JobStateIcon from "@app/pages/JobPage/components/JobStateIcon";
 import Profile from "@app/pages/JobDetailsPageNew/components/Profile/Profile.js";
 import timeUtils from "./timeUtils";
@@ -83,21 +83,10 @@ export function getSqlList(currentJobsMap = []) {
   return sqlList;
 }
 
-export function getFilteredSqlJobList(jobs, filter) {
-  return jobs.filter(
-    (j) =>
-      j.get("id").toLocaleLowerCase().includes(filter.toLocaleLowerCase()) ||
-      j
-        .get("queryText")
-        .toLocaleLowerCase()
-        .includes(filter.toLocaleLowerCase())
-  );
-}
-
 export function getFilteredSqlList(jobs, filter) {
   return jobs.filter(
     (sql) =>
-      sql[0] && sql[0].toLocaleLowerCase().includes(filter.toLocaleLowerCase())
+      sql[0] && sql[0].toLocaleLowerCase().includes(filter.toLocaleLowerCase()),
   );
 }
 
@@ -117,6 +106,7 @@ export function renderContent(contentPage, renderProps) {
     setIsContrast,
     jobDetailsFromStore,
     showJobIdProfile,
+    jobId,
     location,
   } = renderProps;
   switch (contentPage) {
@@ -138,12 +128,13 @@ export function renderContent(contentPage, renderProps) {
       );
     case "SQL":
       return (
-        <SQL
-          submittedSql={jobDetails.get("queryText")}
-          datasetGraph={jobDetails.get("datasetGraph")}
-          algebricMatch={jobDetails.get("algebraicReflectionsDataset")}
+        <SQLTab
+          algebraicMatch={jobDetails.get("algebraicReflectionsDataset")}
           isContrast={isContrast}
+          jobId={jobId}
+          isComplete={jobDetails.get("isComplete")}
           onClick={setIsContrast}
+          submittedSql={jobDetails.get("queryText")}
         />
       );
     case "Profile":
@@ -185,7 +176,7 @@ export class JobsUtils {
       return jobs.filter(
         (item) =>
           item.get("state") &&
-          item.get("state").toLowerCase() === JobState.RUNNING
+          item.get("state").toLowerCase() === JobState.RUNNING,
       ).size;
     }
     return 0;
@@ -193,7 +184,7 @@ export class JobsUtils {
 
   isJobRunning(jobState) {
     return ![JobState.FAILED, JobState.CANCELED, JobState.COMPLETED].includes(
-      jobState
+      jobState,
     );
   }
 
@@ -265,7 +256,7 @@ export class JobsUtils {
   formatJobDuration(duration, isNumberFormat) {
     return timeUtils.durationWithZero(
       moment.duration(duration, "ms"),
-      isNumberFormat
+      isNumberFormat,
     );
   }
 
@@ -352,13 +343,13 @@ export class JobsUtils {
         projectId,
         reflectionId: id,
       })}?filters=${encodeURIComponent(
-        JSON.stringify({ sql: ["*" + id + "*"], qt: ["ACCELERATION"] })
+        JSON.stringify({ sql: ["*" + id + "*"], qt: ["ACCELERATION"] }),
       )}`;
     } else {
       url = `${jobPaths.jobs.link({
         projectId,
       })}?filters=${encodeURIComponent(
-        JSON.stringify({ sql: ["*" + id + "*"], qt: ["ACCELERATION"] })
+        JSON.stringify({ sql: ["*" + id + "*"], qt: ["ACCELERATION"] }),
       )}`;
     }
     return createFullUrl ? window.location.origin + url : url;
@@ -379,7 +370,7 @@ export class JobsUtils {
       byRelationship[reflectionRelationship.relationship] =
         byRelationship[reflectionRelationship.relationship] || [];
       byRelationship[reflectionRelationship.relationship].push(
-        reflectionRelationship
+        reflectionRelationship,
       );
     }
     return byRelationship;
@@ -388,7 +379,7 @@ export class JobsUtils {
   formatJobDurationWithMS(duration, isNumberFormat) {
     return timeUtils.durationWithMS(
       moment.duration(duration, "ms"),
-      isNumberFormat
+      isNumberFormat,
     );
   }
 

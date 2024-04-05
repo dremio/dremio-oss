@@ -16,22 +16,18 @@
 
 package com.dremio.dac.server.admin.profile;
 
+import com.dremio.exec.proto.UserBitShared;
+import com.google.common.collect.HashBasedTable;
+import com.google.common.collect.Table;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.MathContext;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
-
 import org.apache.commons.lang3.tuple.ImmutablePair;
 
-import com.dremio.exec.proto.UserBitShared;
-import com.google.common.collect.HashBasedTable;
-import com.google.common.collect.Table;
-
-/**
- * Util class for computing Record processing rate at various levels.
- */
+/** Util class for computing Record processing rate at various levels. */
 public class HostProcessingRateUtil {
   private static final String TOTAL_MAX_RECORDS = "maxRecords";
   private static final String TOTAL_PROCESS_TIME = "processTime";
@@ -44,13 +40,14 @@ public class HostProcessingRateUtil {
    * @param processNanos
    * @return
    */
-  public static BigDecimal computeRecordProcessingRate(BigInteger maxRecords, BigInteger processNanos) {
+  public static BigDecimal computeRecordProcessingRate(
+      BigInteger maxRecords, BigInteger processNanos) {
     if (BigInteger.ZERO.equals(maxRecords) || BigInteger.ZERO.equals(processNanos)) {
       return BigDecimal.ZERO;
     }
     return new BigDecimal(maxRecords)
-              .multiply(BigDecimal.valueOf(1_000_000_000))
-              .divide(new BigDecimal(processNanos), MathContext.DECIMAL32);
+        .multiply(BigDecimal.valueOf(1_000_000_000))
+        .divide(new BigDecimal(processNanos), MathContext.DECIMAL32);
   }
 
   /**
@@ -61,15 +58,17 @@ public class HostProcessingRateUtil {
    * @param majorMinorHostTable
    * @return
    */
-  public static Set<HostProcessingRate> computeRecordProcRateAtPhaseOperatorHostLevel(int major,
-                                                                                      List<ImmutablePair<UserBitShared.OperatorProfile, Integer>> ops,
-                                                                                      Table<Integer, Integer, String> majorMinorHostTable) {
+  public static Set<HostProcessingRate> computeRecordProcRateAtPhaseOperatorHostLevel(
+      int major,
+      List<ImmutablePair<UserBitShared.OperatorProfile, Integer>> ops,
+      Table<Integer, Integer, String> majorMinorHostTable) {
     Table<String, String, BigInteger> hostToColumnToValueTable = HashBasedTable.create();
     buildOperatorHostMetrics(major, ops, majorMinorHostTable, hostToColumnToValueTable);
     return constructHostProcessingRateSet(major, hostToColumnToValueTable);
   }
 
-  private static Set<HostProcessingRate> constructHostProcessingRateSet(int major, Table<String, String, BigInteger> hostToColumnToValueTable) {
+  private static Set<HostProcessingRate> constructHostProcessingRateSet(
+      int major, Table<String, String, BigInteger> hostToColumnToValueTable) {
     // Using treeSet to sort elements in set.
     Set<HostProcessingRate> set = new TreeSet<>();
 
@@ -77,23 +76,24 @@ public class HostProcessingRateUtil {
       return set;
     }
 
-    for(String hostname: hostToColumnToValueTable.rowKeySet()) {
-      set.add(new HostProcessingRate(major,
-                                     hostname,
-                                     hostToColumnToValueTable.get(hostname, TOTAL_MAX_RECORDS),
-                                     hostToColumnToValueTable.get(hostname, TOTAL_PROCESS_TIME),
-                                     hostToColumnToValueTable.get(hostname, TOTAL_NUM_THREADS)));
+    for (String hostname : hostToColumnToValueTable.rowKeySet()) {
+      set.add(
+          new HostProcessingRate(
+              major,
+              hostname,
+              hostToColumnToValueTable.get(hostname, TOTAL_MAX_RECORDS),
+              hostToColumnToValueTable.get(hostname, TOTAL_PROCESS_TIME),
+              hostToColumnToValueTable.get(hostname, TOTAL_NUM_THREADS)));
     }
     return set;
   }
 
-  /**
-   * Build operator-host metrics in the input hostToColumnToValueTable.
-   */
-  private static void buildOperatorHostMetrics(int major,
-                                               List<ImmutablePair<UserBitShared.OperatorProfile, Integer>> ops,
-                                               Table<Integer, Integer, String> majorMinorHostTable,
-                                               Table<String, String, BigInteger> hostToColumnToValueTable) {
+  /** Build operator-host metrics in the input hostToColumnToValueTable. */
+  private static void buildOperatorHostMetrics(
+      int major,
+      List<ImmutablePair<UserBitShared.OperatorProfile, Integer>> ops,
+      Table<Integer, Integer, String> majorMinorHostTable,
+      Table<String, String, BigInteger> hostToColumnToValueTable) {
     for (ImmutablePair<UserBitShared.OperatorProfile, Integer> ip : ops) {
       int minor = ip.getRight();
       UserBitShared.OperatorProfile op = ip.getLeft();
@@ -104,24 +104,27 @@ public class HostProcessingRateUtil {
       }
 
       String hostname = majorMinorHostTable.get(major, minor);
-      aggregateHostMetrics(hostname,
-                           BigInteger.valueOf(maxRecords),
-                           BigInteger.valueOf(op.getProcessNanos()),
-                           BigInteger.ONE ,
-                           hostToColumnToValueTable);
+      aggregateHostMetrics(
+          hostname,
+          BigInteger.valueOf(maxRecords),
+          BigInteger.valueOf(op.getProcessNanos()),
+          BigInteger.ONE,
+          hostToColumnToValueTable);
     }
   }
 
-  /**
-   * Helper method to aggregate host metrics in the input hostToColumnToValueTable.
-   */
-  private static void aggregateHostMetrics(String hostname, BigInteger maxRecords, BigInteger processNanos, BigInteger numThreads,
-                                           Table<String, String, BigInteger> hostToColumnToValueTable) {
+  /** Helper method to aggregate host metrics in the input hostToColumnToValueTable. */
+  private static void aggregateHostMetrics(
+      String hostname,
+      BigInteger maxRecords,
+      BigInteger processNanos,
+      BigInteger numThreads,
+      Table<String, String, BigInteger> hostToColumnToValueTable) {
     BigInteger totalMaxRecords = BigInteger.ZERO;
     BigInteger totalProcessNanos = BigInteger.ZERO;
     BigInteger totalNumThreads = BigInteger.ZERO;
 
-    if(hostToColumnToValueTable.containsRow(hostname)) {
+    if (hostToColumnToValueTable.containsRow(hostname)) {
       totalMaxRecords = hostToColumnToValueTable.get(hostname, TOTAL_MAX_RECORDS);
       totalProcessNanos = hostToColumnToValueTable.get(hostname, TOTAL_PROCESS_TIME);
       totalNumThreads = hostToColumnToValueTable.get(hostname, TOTAL_NUM_THREADS);
@@ -139,10 +142,12 @@ public class HostProcessingRateUtil {
   /**
    * Compute record processing rate at phase(major)-host level.
    *
-   * @param hostProcessingRateSet  Set of HostProcessingRate of same phase(major). Multiple elements might have same host.
+   * @param hostProcessingRateSet Set of HostProcessingRate of same phase(major). Multiple elements
+   *     might have same host.
    * @return
    */
-  public static Set<HostProcessingRate> computeRecordProcRateAtPhaseHostLevel(int major, Set<HostProcessingRate> hostProcessingRateSet) {
+  public static Set<HostProcessingRate> computeRecordProcRateAtPhaseHostLevel(
+      int major, Set<HostProcessingRate> hostProcessingRateSet) {
     if (hostProcessingRateSet == null || hostProcessingRateSet.isEmpty()) {
       return new TreeSet<>();
     }
@@ -151,22 +156,22 @@ public class HostProcessingRateUtil {
     return constructHostProcessingRateSet(major, hostToColumnToValueTable);
   }
 
-  /**
-   * Build phase-host metrics in the input hostToColumnToValueTable.
-   */
-  private static void buildPhaseHostMetrics(int major,
-                                            Set<HostProcessingRate> hostProcessingRateSet,
-                                            Table<String, String, BigInteger> hostToColumnToValueTable) {
-    for (HostProcessingRate hpr: hostProcessingRateSet) {
+  /** Build phase-host metrics in the input hostToColumnToValueTable. */
+  private static void buildPhaseHostMetrics(
+      int major,
+      Set<HostProcessingRate> hostProcessingRateSet,
+      Table<String, String, BigInteger> hostToColumnToValueTable) {
+    for (HostProcessingRate hpr : hostProcessingRateSet) {
       if (major != hpr.getMajor()) {
         // skip elements in set which are not matching the major
         continue;
       }
-      aggregateHostMetrics(hpr.getHostname(),
-                       hpr.getNumRecords(),
-                       hpr.getProcessNanos(),
-                       hpr.getNumThreads(),
-                       hostToColumnToValueTable);
+      aggregateHostMetrics(
+          hpr.getHostname(),
+          hpr.getNumRecords(),
+          hpr.getProcessNanos(),
+          hpr.getNumThreads(),
+          hostToColumnToValueTable);
     }
   }
 }

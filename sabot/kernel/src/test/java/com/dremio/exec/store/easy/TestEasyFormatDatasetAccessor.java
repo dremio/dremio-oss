@@ -21,23 +21,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.nio.file.DirectoryStream;
-import java.nio.file.NotLinkException;
-import java.nio.file.attribute.FileTime;
-import java.nio.file.attribute.GroupPrincipal;
-import java.nio.file.attribute.PosixFilePermission;
-import java.nio.file.attribute.UserPrincipal;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
-import java.util.function.Predicate;
-
-import org.junit.Test;
-import org.mockito.Answers;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.connector.metadata.DatasetSplit;
 import com.dremio.connector.metadata.DatasetSplitListing;
@@ -69,6 +52,21 @@ import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.test.DremioTest;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.file.DirectoryStream;
+import java.nio.file.NotLinkException;
+import java.nio.file.attribute.FileTime;
+import java.nio.file.attribute.GroupPrincipal;
+import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.UserPrincipal;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Set;
+import java.util.function.Predicate;
+import org.junit.Test;
+import org.mockito.Answers;
 
 public class TestEasyFormatDatasetAccessor extends DremioTest {
 
@@ -81,13 +79,20 @@ public class TestEasyFormatDatasetAccessor extends DremioTest {
   private static final Path SUBPART_4 = Path.of("/root/part2/subpart4");
   private static final long MILLIS_PER_DAY = 1000 * 60 * 60 * 24;
 
-  private static final Directory PARTITIONED_DIR = new Directory(ROOT, ImmutableList.of(
-      new Directory(PART_1, ImmutableList.of(
-          new Directory(SUBPART_1, addFiles(SUBPART_1, 2)),
-          new Directory(SUBPART_2, addFiles(SUBPART_2, 3)))),
-      new Directory(PART_2, ImmutableList.of(
-          new Directory(SUBPART_3, addFiles(SUBPART_3, 4)),
-          new Directory(SUBPART_4, addFiles(SUBPART_4, 5))))));
+  private static final Directory PARTITIONED_DIR =
+      new Directory(
+          ROOT,
+          ImmutableList.of(
+              new Directory(
+                  PART_1,
+                  ImmutableList.of(
+                      new Directory(SUBPART_1, addFiles(SUBPART_1, 2)),
+                      new Directory(SUBPART_2, addFiles(SUBPART_2, 3)))),
+              new Directory(
+                  PART_2,
+                  ImmutableList.of(
+                      new Directory(SUBPART_3, addFiles(SUBPART_3, 4)),
+                      new Directory(SUBPART_4, addFiles(SUBPART_4, 5))))));
 
   private static final Directory UNPARTITIONED_DIR = new Directory(ROOT, addFiles(ROOT, 5));
 
@@ -117,7 +122,8 @@ public class TestEasyFormatDatasetAccessor extends DremioTest {
 
   @Test
   public void testPartitionedChunkGenerationWithLimit() throws IOException {
-    // SUBPART_1 and SUBPART_2 are in one chunk each, SUBPART_3 and SUBPART_4 are each split into two chunks
+    // SUBPART_1 and SUBPART_2 are in one chunk each, SUBPART_3 and SUBPART_4 are each split into
+    // two chunks
     validatePartitionChunks(PARTITIONED_DIR, true, 3L, 6);
   }
 
@@ -127,8 +133,11 @@ public class TestEasyFormatDatasetAccessor extends DremioTest {
     validatePartitionChunks(UNPARTITIONED_DIR, true, 3L, 2);
   }
 
-  private void validatePartitionChunks(Directory root, boolean enableOptimalChunks, Long maxChunkSize, int expectedChunks) throws IOException {
-    EasyFormatDatasetAccessor accessor = createDatasetAccessor(root, getOptions(enableOptimalChunks, maxChunkSize));
+  private void validatePartitionChunks(
+      Directory root, boolean enableOptimalChunks, Long maxChunkSize, int expectedChunks)
+      throws IOException {
+    EasyFormatDatasetAccessor accessor =
+        createDatasetAccessor(root, getOptions(enableOptimalChunks, maxChunkSize));
 
     // track sets of all files and files seen in chunks
     Set<String> allFiles = root.getFilePaths();
@@ -183,53 +192,71 @@ public class TestEasyFormatDatasetAccessor extends DremioTest {
     assertThat(seenFiles).containsExactlyInAnyOrderElementsOf(allFiles);
   }
 
-  private EasyFormatDatasetAccessor createDatasetAccessor(Directory root, OptionManager optionManager)
-      throws IOException {
+  private EasyFormatDatasetAccessor createDatasetAccessor(
+      Directory root, OptionManager optionManager) throws IOException {
     FileSystem fs = getFileSystem(root);
-    FileSelection selection = Preconditions.checkNotNull(FileSelection.create("root", fs, ROOT, 10_000)).minusDirectories();
+    FileSelection selection =
+        Preconditions.checkNotNull(FileSelection.create("root", fs, ROOT, 10_000))
+            .minusDirectories();
     SabotContext context = getContext(optionManager);
 
-    PreviousDatasetInfo previousDatasetInfo = new PreviousDatasetInfo(null, null, null, null, null, true);
-    return new EasyFormatDatasetAccessor(DatasetType.PHYSICAL_DATASET, fs, selection, getFileSystemPlugin(context, fs),
-        new NamespaceKey("table"), FileProtobuf.FileUpdateKey.newBuilder().build(), getFormatPlugin(context),
-        previousDatasetInfo, 100);
+    PreviousDatasetInfo previousDatasetInfo =
+        new PreviousDatasetInfo(null, null, null, null, null, true);
+    return new EasyFormatDatasetAccessor(
+        DatasetType.PHYSICAL_DATASET,
+        fs,
+        selection,
+        getFileSystemPlugin(context, fs),
+        new NamespaceKey("table"),
+        FileProtobuf.FileUpdateKey.newBuilder().build(),
+        getFormatPlugin(context),
+        previousDatasetInfo,
+        100);
   }
 
   private OptionManager getOptions(boolean enableChunking, Long maxChunkSize) {
-    OptionValidatorListingImpl validatorListing = new OptionValidatorListingImpl(CLASSPATH_SCAN_RESULT);
-    OptionManager options = OptionManagerWrapper.Builder.newBuilder()
-        .withOptionManager(new DefaultOptionManager(validatorListing))
-        .withOptionManager(new SessionOptionManagerImpl(validatorListing))
-        .build();
-    options.setOption(OptionValue.createBoolean(
-        OptionValue.OptionType.SESSION,
-        ExecConstants.ENABLE_OPTIMAL_FILE_PARTITION_CHUNKS.getOptionName(),
-        enableChunking));
+    OptionValidatorListingImpl validatorListing =
+        new OptionValidatorListingImpl(CLASSPATH_SCAN_RESULT);
+    OptionManager options =
+        OptionManagerWrapper.Builder.newBuilder()
+            .withOptionManager(new DefaultOptionManager(validatorListing))
+            .withOptionManager(new SessionOptionManagerImpl(validatorListing))
+            .build();
+    options.setOption(
+        OptionValue.createBoolean(
+            OptionValue.OptionType.SESSION,
+            ExecConstants.ENABLE_OPTIMAL_FILE_PARTITION_CHUNKS.getOptionName(),
+            enableChunking));
     if (maxChunkSize != null) {
-      options.setOption(OptionValue.createLong(
-          OptionValue.OptionType.SESSION,
-          ExecConstants.FILE_SPLITS_PER_PARTITION_CHUNK.getOptionName(),
-          maxChunkSize));
+      options.setOption(
+          OptionValue.createLong(
+              OptionValue.OptionType.SESSION,
+              ExecConstants.FILE_SPLITS_PER_PARTITION_CHUNK.getOptionName(),
+              maxChunkSize));
     }
     return options;
   }
 
   private FileSystem getFileSystem(Directory root) throws IOException {
     FileSystem fs = mock(FileSystem.class);
-    when(fs.list(any(), any())).thenAnswer(i -> {
-      Path path = i.getArgument(0);
-      Predicate<Path> filter = i.getArgument(1);
-      FileAttributes attrs = root.findFileOrDirectory(path);
-      Preconditions.checkState(attrs != null && attrs.isDirectory());
-      return ((Directory) attrs).getDirectoryStream(filter);
-    });
-    when(fs.glob(any(), any())).thenAnswer(i -> {
-      Path path = i.getArgument(0);
-      Predicate<Path> filter = i.getArgument(1);
-      FileAttributes attrs = root.findFileOrDirectory(path);
-      Preconditions.checkState(attrs != null && attrs.isDirectory());
-      return ((Directory) attrs).getDirectoryStream(filter);
-    });
+    when(fs.list(any(), any()))
+        .thenAnswer(
+            i -> {
+              Path path = i.getArgument(0);
+              Predicate<Path> filter = i.getArgument(1);
+              FileAttributes attrs = root.findFileOrDirectory(path);
+              Preconditions.checkState(attrs != null && attrs.isDirectory());
+              return ((Directory) attrs).getDirectoryStream(filter);
+            });
+    when(fs.glob(any(), any()))
+        .thenAnswer(
+            i -> {
+              Path path = i.getArgument(0);
+              Predicate<Path> filter = i.getArgument(1);
+              FileAttributes attrs = root.findFileOrDirectory(path);
+              Preconditions.checkState(attrs != null && attrs.isDirectory());
+              return ((Directory) attrs).getDirectoryStream(filter);
+            });
     return fs;
   }
 
@@ -239,7 +266,8 @@ public class TestEasyFormatDatasetAccessor extends DremioTest {
     return context;
   }
 
-  private FileSystemPlugin<?> getFileSystemPlugin(SabotContext context, FileSystem fs) throws IOException {
+  private FileSystemPlugin<?> getFileSystemPlugin(SabotContext context, FileSystem fs)
+      throws IOException {
     FileSystemPlugin<?> plugin = mock(FileSystemPlugin.class, Answers.RETURNS_DEEP_STUBS);
     when(plugin.getContext()).thenReturn(context);
     when(plugin.createFS(any())).thenReturn(fs);
@@ -249,13 +277,22 @@ public class TestEasyFormatDatasetAccessor extends DremioTest {
   private FormatPlugin getFormatPlugin(SabotContext context) throws IOException {
     EasyFormatPlugin<?> formatPlugin = mock(EasyFormatPlugin.class, Answers.RETURNS_DEEP_STUBS);
     when(formatPlugin.getContext()).thenReturn(context);
-    when(formatPlugin.getGroupScan(any(), any(), any(), any())).thenAnswer(i -> {
-      String userName = i.getArgument(0);
-      FileSystemPlugin<?> plugin = i.getArgument(1);
-      FileSelection selection = i.getArgument(2);
-      List<SchemaPath> columns = i.getArgument(3);
-      return new EasyGroupScanUtils(userName, selection, plugin, formatPlugin, columns, selection.getSelectionRoot(), false);
-    });
+    when(formatPlugin.getGroupScan(any(), any(), any(), any()))
+        .thenAnswer(
+            i -> {
+              String userName = i.getArgument(0);
+              FileSystemPlugin<?> plugin = i.getArgument(1);
+              FileSelection selection = i.getArgument(2);
+              List<SchemaPath> columns = i.getArgument(3);
+              return new EasyGroupScanUtils(
+                  userName,
+                  selection,
+                  plugin,
+                  formatPlugin,
+                  columns,
+                  selection.getSelectionRoot(),
+                  false);
+            });
     return formatPlugin;
   }
 
@@ -420,8 +457,7 @@ public class TestEasyFormatDatasetAccessor extends DremioTest {
         }
 
         @Override
-        public void close() {
-        }
+        public void close() {}
       };
     }
   }

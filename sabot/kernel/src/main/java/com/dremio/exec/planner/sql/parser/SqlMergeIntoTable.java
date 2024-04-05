@@ -15,8 +15,9 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import java.util.List;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlInsert;
@@ -28,14 +29,11 @@ import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlUpdate;
 import org.apache.calcite.sql.parser.SqlParserPos;
-
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
+import org.apache.iceberg.RowLevelOperationMode;
 
 /**
- * Extends Calcite's SqlMerge to add the ability to:
- *  1. extend the table columns with system columns.
- *  2. do custom parsing (like remove ALIAS, keywords).
+ * Extends Calcite's SqlMerge to add the ability to: 1. extend the table columns with system
+ * columns. 2. do custom parsing (like remove ALIAS, keywords).
  */
 public class SqlMergeIntoTable extends SqlMerge implements SqlDmlOperator {
 
@@ -45,30 +43,37 @@ public class SqlMergeIntoTable extends SqlMerge implements SqlDmlOperator {
 
   private final SqlTableVersionSpec sqlTableVersionSpec;
 
-  public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("MERGE", SqlKind.MERGE) {
-    @Override
-    public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 7, "SqlMergeIntoTable.createCall() has to get 7 operands!");
-      return new SqlMergeIntoTable(
-        pos,
-        operands[0],
-        operands[1],
-        operands[2],
-        (SqlUpdate)operands[3],
-        (SqlInsert)operands[4],
-        (SqlIdentifier)operands[5],
-        (SqlTableVersionSpec) operands[6]);
-    }
-  };
+  // Default Dml Write.Merge.Mode TableProperty in Dremio for now.
+  private RowLevelOperationMode dmlWriteMode = RowLevelOperationMode.COPY_ON_WRITE;
 
-  public SqlMergeIntoTable(SqlParserPos pos,
-                           SqlNode targetTable,
-                           SqlNode condition,
-                           SqlNode source,
-                           SqlUpdate updateCall,
-                           SqlInsert insertCall,
-                           SqlIdentifier alias,
-                           SqlTableVersionSpec sqlTableVersionSpec)  {
+  public static final SqlSpecialOperator OPERATOR =
+      new SqlSpecialOperator("MERGE", SqlKind.MERGE) {
+        @Override
+        public SqlCall createCall(
+            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+          Preconditions.checkArgument(
+              operands.length == 7, "SqlMergeIntoTable.createCall() has to get 7 operands!");
+          return new SqlMergeIntoTable(
+              pos,
+              operands[0],
+              operands[1],
+              operands[2],
+              (SqlUpdate) operands[3],
+              (SqlInsert) operands[4],
+              (SqlIdentifier) operands[5],
+              (SqlTableVersionSpec) operands[6]);
+        }
+      };
+
+  public SqlMergeIntoTable(
+      SqlParserPos pos,
+      SqlNode targetTable,
+      SqlNode condition,
+      SqlNode source,
+      SqlUpdate updateCall,
+      SqlInsert insertCall,
+      SqlIdentifier alias,
+      SqlTableVersionSpec sqlTableVersionSpec) {
     super(pos, targetTable, condition, source, updateCall, insertCall, null, alias);
     this.sqlTableVersionSpec = sqlTableVersionSpec;
   }
@@ -86,6 +91,11 @@ public class SqlMergeIntoTable extends SqlMerge implements SqlDmlOperator {
   }
 
   @Override
+  public SqlNode getTargetTableWithoutExtendedCols() {
+    return super.getTargetTable();
+  }
+
+  @Override
   public SqlOperator getOperator() {
     return OPERATOR;
   }
@@ -93,13 +103,13 @@ public class SqlMergeIntoTable extends SqlMerge implements SqlDmlOperator {
   @Override
   public List<SqlNode> getOperandList() {
     return Lists.newArrayList(
-      getTargetTable(),
-      getCondition(),
-      getSourceTableRef(),
-      getUpdateCall(),
-      getInsertCall(),
-      getAlias(),
-      getSqlTableVersionSpec());
+        getTargetTable(),
+        getCondition(),
+        getSourceTableRef(),
+        getUpdateCall(),
+        getInsertCall(),
+        getAlias(),
+        getSqlTableVersionSpec());
   }
 
   @Override
@@ -113,5 +123,15 @@ public class SqlMergeIntoTable extends SqlMerge implements SqlDmlOperator {
       return sqlTableVersionSpec.getTableVersionSpec();
     }
     return null;
+  }
+
+  @Override
+  public void setDmlWriteMode(RowLevelOperationMode dmlWriteMode) {
+    this.dmlWriteMode = dmlWriteMode;
+  }
+
+  @Override
+  public RowLevelOperationMode getDmlWriteMode() {
+    return dmlWriteMode;
   }
 }

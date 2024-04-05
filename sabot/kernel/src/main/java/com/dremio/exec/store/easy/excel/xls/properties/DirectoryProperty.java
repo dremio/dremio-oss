@@ -15,17 +15,14 @@
  */
 package com.dremio.exec.store.easy.excel.xls.properties;
 
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-
-/**
- * Simplified implementation of {@link org.apache.poi.poifs.property.DirectoryProperty}
- */
+/** Simplified implementation of {@link org.apache.poi.poifs.property.DirectoryProperty} */
 public class DirectoryProperty extends Property {
 
   /** List of Property instances */
@@ -34,7 +31,7 @@ public class DirectoryProperty extends Property {
   /** set of children's names */
   private Set<String> childrenNames = Sets.newHashSet();
 
-  public DirectoryProperty(final int index, final byte [] array) {
+  public DirectoryProperty(final int index, final byte[] array) {
     super(index, array);
   }
 
@@ -49,8 +46,7 @@ public class DirectoryProperty extends Property {
   }
 
   /**
-   * Get an iterator over the children of this Parent; all elements
-   * are instances of Property.
+   * Get an iterator over the children of this Parent; all elements are instances of Property.
    *
    * @return Iterator of children; may refer to an empty collection
    */
@@ -62,7 +58,6 @@ public class DirectoryProperty extends Property {
    * Add a new child to the collection of children
    *
    * @param property the new child to be added; must not be null
-   *
    * @exception IllegalStateException if we already have a child with the same name
    */
   public void addChild(final Property property) {

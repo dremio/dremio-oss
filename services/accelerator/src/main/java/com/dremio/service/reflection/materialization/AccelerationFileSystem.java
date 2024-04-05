@@ -15,32 +15,40 @@
  */
 package com.dremio.service.reflection.materialization;
 
-import java.io.IOException;
-import java.util.List;
-import java.util.Map;
-
 import com.dremio.io.AsyncByteReader;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.FilterFileSystem;
 import com.google.common.base.Preconditions;
+import java.io.IOException;
+import java.util.List;
+import java.util.Map;
 
-/**
- * A file system for accelerations
- */
+/** A file system for accelerations */
 class AccelerationFileSystem extends FilterFileSystem {
   public AccelerationFileSystem(FileSystem fs) {
     super(fs);
   }
 
   @Override
-  public AsyncByteReader getAsyncByteReader(AsyncByteReader.FileKey fileKey, Map<String, String> options) throws IOException {
+  public AsyncByteReader getAsyncByteReader(
+      AsyncByteReader.FileKey fileKey, Map<String, String> options) throws IOException {
     List<String> datasetKey = fileKey.getDatasetKey();
     if (datasetKey.size() == 2) {
       return super.getAsyncByteReader(fileKey, options);
     }
 
-    Preconditions.checkState(datasetKey.size() == 3, "dataset size is not 3 in acceleration filesystem: %s", datasetKey.size());
-    // The dataset used by accelerations should not include the materialization id. Strip the materialization id
-    return super.getAsyncByteReader(AsyncByteReader.FileKey.of(fileKey.getPath(), fileKey.getVersion(), fileKey.getFileType(), datasetKey.subList(0, 2)), options);
+    Preconditions.checkState(
+        datasetKey.size() == 3,
+        "dataset size is not 3 in acceleration filesystem: %s",
+        datasetKey.size());
+    // The dataset used by accelerations should not include the materialization id. Strip the
+    // materialization id
+    return super.getAsyncByteReader(
+        AsyncByteReader.FileKey.of(
+            fileKey.getPath(),
+            fileKey.getVersion(),
+            fileKey.getFileType(),
+            datasetKey.subList(0, 2)),
+        options);
   }
 }

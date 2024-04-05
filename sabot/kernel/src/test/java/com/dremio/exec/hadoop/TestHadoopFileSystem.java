@@ -17,16 +17,12 @@ package com.dremio.exec.hadoop;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.dremio.io.file.FileSystem;
 import java.io.IOException;
-
 import org.apache.hadoop.conf.Configuration;
 import org.junit.Test;
 
-import com.dremio.io.file.FileSystem;
-
-/**
- * Tests for {@code HadoopFileSystem}
- */
+/** Tests for {@code HadoopFileSystem} */
 public class TestHadoopFileSystem {
 
   // Sanity check to make sure that HadoopFileSystem#getLocal(Configuration) actually returns an
@@ -34,7 +30,8 @@ public class TestHadoopFileSystem {
   @Test
   public void testLocalFileSystem() throws IOException {
     FileSystem fs = HadoopFileSystem.getLocal(new Configuration());
-    org.apache.hadoop.fs.LocalFileSystem localFS = fs.unwrap(org.apache.hadoop.fs.LocalFileSystem.class);
+    org.apache.hadoop.fs.LocalFileSystem localFS =
+        fs.unwrap(org.apache.hadoop.fs.LocalFileSystem.class);
     assertThat(localFS).isNotNull();
   }
 
@@ -43,7 +40,8 @@ public class TestHadoopFileSystem {
   @Test
   public void tesRawLocalFileSystem() throws IOException {
     FileSystem fs = HadoopFileSystem.getRawLocal(new Configuration());
-    org.apache.hadoop.fs.RawLocalFileSystem localFS = fs.unwrap(org.apache.hadoop.fs.RawLocalFileSystem.class);
+    org.apache.hadoop.fs.RawLocalFileSystem localFS =
+        fs.unwrap(org.apache.hadoop.fs.RawLocalFileSystem.class);
     assertThat(localFS).isNotNull();
   }
 }

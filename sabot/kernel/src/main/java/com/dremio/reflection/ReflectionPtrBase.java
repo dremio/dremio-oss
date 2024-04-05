@@ -20,9 +20,7 @@ import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.SingleRel;
 
-/**
- * Base class for ReflectionPtr
- */
+/** Base class for ReflectionPtr */
 public class ReflectionPtrBase extends SingleRel {
   public ReflectionPtrBase(RelOptCluster cluster, RelTraitSet traitSet, RelNode input) {
     super(cluster, traitSet, input);

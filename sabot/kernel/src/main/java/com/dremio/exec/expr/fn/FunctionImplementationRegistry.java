@@ -15,14 +15,6 @@
  */
 package com.dremio.exec.expr.fn;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
-
-import org.apache.arrow.vector.types.pojo.ArrowType;
-import org.apache.calcite.sql.SqlOperator;
-
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.expression.FunctionCall;
 import com.dremio.common.expression.LogicalExpression;
@@ -41,20 +33,23 @@ import com.google.inject.ConfigurationException;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.ProvisionException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.calcite.sql.SqlOperator;
 
 /**
- * This class offers the registry for functions. Notably, in addition to Dremio its functions
- * (in {@link FunctionRegistry}), other PluggableFunctionRegistry (e.g., {com.dremio.exec.expr.fn.HiveFunctionRegistry})
- * is also registered in this class
+ * This class offers the registry for functions. Notably, in addition to Dremio its functions (in
+ * {@link FunctionRegistry}), other PluggableFunctionRegistry (e.g.,
+ * {com.dremio.exec.expr.fn.HiveFunctionRegistry}) is also registered in this class
  */
 public final class FunctionImplementationRegistry implements FunctionLookupContext {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FunctionImplementationRegistry.class);
-  private static final ImmutableSet<String> AGGREGATE_FUNCTION_NAMES = ImmutableSet.of(
-    "sum",
-    "$sum0",
-    "min",
-    "max",
-    "hll");
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(FunctionImplementationRegistry.class);
+  private static final ImmutableSet<String> AGGREGATE_FUNCTION_NAMES =
+      ImmutableSet.of("sum", "$sum0", "min", "max", "hll");
 
   private final ImmutableList<PrimaryFunctionRegistry> primaryFunctionRegistries;
   private final ImmutableList<PluggableFunctionRegistry> pluggableFuncRegistries;
@@ -62,10 +57,10 @@ public final class FunctionImplementationRegistry implements FunctionLookupConte
   private final boolean isDecimalV2Enabled;
 
   private FunctionImplementationRegistry(
-    ImmutableList<PrimaryFunctionRegistry> primaryFunctionRegistries,
-    ImmutableList<PluggableFunctionRegistry> pluggableFuncRegistries,
-    OptionManager optionManager,
-    boolean isDecimalV2Enabled) {
+      ImmutableList<PrimaryFunctionRegistry> primaryFunctionRegistries,
+      ImmutableList<PluggableFunctionRegistry> pluggableFuncRegistries,
+      OptionManager optionManager,
+      boolean isDecimalV2Enabled) {
     this.primaryFunctionRegistries = Preconditions.checkNotNull(primaryFunctionRegistries);
     this.pluggableFuncRegistries = Preconditions.checkNotNull(pluggableFuncRegistries);
     this.optionManager = optionManager;
@@ -73,77 +68,65 @@ public final class FunctionImplementationRegistry implements FunctionLookupConte
   }
 
   public static FunctionImplementationRegistry create(
-    SabotConfig config,
-    ScanResult classpathScan) {
+      SabotConfig config, ScanResult classpathScan) {
     return create(config, classpathScan, null);
   }
 
   public static FunctionImplementationRegistry create(
-    SabotConfig config,
-    ScanResult classpathScan,
-    OptionManager optionManager) {
+      SabotConfig config, ScanResult classpathScan, OptionManager optionManager) {
     return create(config, classpathScan, optionManager, false);
   }
 
   public static FunctionImplementationRegistry create(
-    SabotConfig config,
-    ScanResult classpathScan,
-    OptionManager optionManager,
-    boolean isDecimalV2Enabled) {
+      SabotConfig config,
+      ScanResult classpathScan,
+      OptionManager optionManager,
+      boolean isDecimalV2Enabled) {
     Stopwatch w = Stopwatch.createStarted();
 
     logger.debug("Generating function registry.");
 
-    ImmutableList<PrimaryFunctionRegistry> primaryFunctionRegistries = generatePrimaryFunctionRegistries(
-      classpathScan,
-      optionManager,
-      isDecimalV2Enabled);
-    ImmutableList<PluggableFunctionRegistry> pluggableFunctionRegistries = generatePluggableFunctionRegistries(
-      config,
-      classpathScan);
+    ImmutableList<PrimaryFunctionRegistry> primaryFunctionRegistries =
+        generatePrimaryFunctionRegistries(classpathScan, optionManager, isDecimalV2Enabled);
+    ImmutableList<PluggableFunctionRegistry> pluggableFunctionRegistries =
+        generatePluggableFunctionRegistries(config, classpathScan);
 
-    logger.info("Function registry loaded. Functions loaded in {} ms.", w.elapsed(TimeUnit
-      .MILLISECONDS));
+    logger.info(
+        "Function registry loaded. Functions loaded in {} ms.", w.elapsed(TimeUnit.MILLISECONDS));
 
     return new FunctionImplementationRegistry(
-      primaryFunctionRegistries,
-      pluggableFunctionRegistries,
-      optionManager,
-      isDecimalV2Enabled);
+        primaryFunctionRegistries, pluggableFunctionRegistries, optionManager, isDecimalV2Enabled);
   }
 
   private static ImmutableList<PrimaryFunctionRegistry> generatePrimaryFunctionRegistries(
-    ScanResult classpathScan,
-    OptionManager optionManager,
-    boolean isDecimalV2Enabled) {
+      ScanResult classpathScan, OptionManager optionManager, boolean isDecimalV2Enabled) {
     FunctionRegistry functionRegistry = new FunctionRegistry(classpathScan);
-    GandivaFunctionRegistry gandivaFunctionRegistry = new GandivaFunctionRegistry(
-      isDecimalV2Enabled,
-      optionManager);
+    GandivaFunctionRegistry gandivaFunctionRegistry =
+        new GandivaFunctionRegistry(isDecimalV2Enabled, optionManager);
     // Order matters.
     // First lookup java functions then gandiva functions.
     // If gandiva is preferred code generator, the function would be replaced later.
-    ImmutableList<PrimaryFunctionRegistry> primaryFunctionRegistries = ImmutableList.of(
-      functionRegistry,
-      gandivaFunctionRegistry);
+    ImmutableList<PrimaryFunctionRegistry> primaryFunctionRegistries =
+        ImmutableList.of(functionRegistry, gandivaFunctionRegistry);
 
     return primaryFunctionRegistries;
   }
 
   private static ImmutableList<PluggableFunctionRegistry> generatePluggableFunctionRegistries(
-    SabotConfig config,
-    ScanResult classpathScan) {
+      SabotConfig config, ScanResult classpathScan) {
     Set<Class<? extends PluggableFunctionRegistry>> registryClasses =
-      classpathScan.getImplementations(PluggableFunctionRegistry.class);
+        classpathScan.getImplementations(PluggableFunctionRegistry.class);
 
     // Create a small Guice module
-    final Injector injector = Guice.createInjector(new AbstractModule() {
-      @Override
-      protected void configure() {
-        bind(SabotConfig.class).toInstance(config);
-        bind(ScanResult.class).toInstance(classpathScan);
-      }
-    });
+    final Injector injector =
+        Guice.createInjector(
+            new AbstractModule() {
+              @Override
+              protected void configure() {
+                bind(SabotConfig.class).toInstance(config);
+                bind(ScanResult.class).toInstance(classpathScan);
+              }
+            });
 
     final ImmutableList.Builder<PluggableFunctionRegistry> registries = ImmutableList.builder();
     for (Class<? extends PluggableFunctionRegistry> clazz : registryClasses) {
@@ -151,7 +134,8 @@ public final class FunctionImplementationRegistry implements FunctionLookupConte
         PluggableFunctionRegistry registry = injector.getInstance(clazz);
         registries.add(registry);
       } catch (ProvisionException | ConfigurationException e) {
-        logger.warn("Unable to instantiate PluggableFunctionRegistry class '{}'. Skipping it.", clazz, e);
+        logger.warn(
+            "Unable to instantiate PluggableFunctionRegistry class '{}'. Skipping it.", clazz, e);
       }
     }
 
@@ -187,30 +171,20 @@ public final class FunctionImplementationRegistry implements FunctionLookupConte
    */
   @Override
   public AbstractFunctionHolder findExactFunction(
-    FunctionCall functionCall,
-    boolean allowGandivaFunctions) {
+      FunctionCall functionCall, boolean allowGandivaFunctions) {
     FunctionResolver functionResolver = FunctionResolverFactory.getExactResolver(functionCall);
-    return getMatchingFunctionHolder(
-      functionCall,
-      functionResolver,
-      allowGandivaFunctions);
+    return getMatchingFunctionHolder(functionCall, functionResolver, allowGandivaFunctions);
   }
 
   @Override
   public AbstractFunctionHolder findFunctionWithCast(
-    FunctionCall functionCall,
-    boolean allowGandivaFunctions) {
+      FunctionCall functionCall, boolean allowGandivaFunctions) {
     FunctionResolver functionResolver = FunctionResolverFactory.getResolver(functionCall);
-    return getMatchingFunctionHolder(
-      functionCall,
-      functionResolver,
-      allowGandivaFunctions);
+    return getMatchingFunctionHolder(functionCall, functionResolver, allowGandivaFunctions);
   }
 
   private AbstractFunctionHolder getMatchingFunctionHolder(
-    FunctionCall functionCall,
-    FunctionResolver functionResolver,
-    boolean allowGandivaFunctions) {
+      FunctionCall functionCall, FunctionResolver functionResolver, boolean allowGandivaFunctions) {
     FunctionCall functionCallToResolve = getDecimalV2NamesIfEnabled(functionCall);
     List<AbstractFunctionHolder> primaryFunctions = Lists.newArrayList();
     for (PrimaryFunctionRegistry registry : primaryFunctionRegistries) {
@@ -218,7 +192,8 @@ public final class FunctionImplementationRegistry implements FunctionLookupConte
         continue;
       }
 
-      List<AbstractFunctionHolder> methods = registry.lookupMethods(functionCallToResolve.getName());
+      List<AbstractFunctionHolder> methods =
+          registry.lookupMethods(functionCallToResolve.getName());
       primaryFunctions.addAll(methods);
     }
 
@@ -233,8 +208,8 @@ public final class FunctionImplementationRegistry implements FunctionLookupConte
       if (AGGREGATE_FUNCTION_NAMES.contains(functionCall.getName().toLowerCase())) {
         LogicalExpression aggrColumn = functionCall.args.get(0);
         if (aggrColumn.getCompleteType().getType().getTypeID() == ArrowType.ArrowTypeID.Decimal) {
-          functionCallToResolve = new FunctionCall(functionCall.getName() +
-            "_v2", functionCall.args);
+          functionCallToResolve =
+              new FunctionCall(functionCall.getName() + "_v2", functionCall.args);
         }
       }
     }
@@ -243,18 +218,18 @@ public final class FunctionImplementationRegistry implements FunctionLookupConte
   }
 
   /**
-   * Find function implementation for given <code>functionCall</code> in non-Dremio function registries such as Hive UDF
-   * registry.
+   * Find function implementation for given <code>functionCall</code> in non-Dremio function
+   * registries such as Hive UDF registry.
    *
-   * Note: Order of searching is same as order of {@link com.dremio.exec.expr.fn.PluggableFunctionRegistry}
-   * implementations found on classpath.
+   * <p>Note: Order of searching is same as order of {@link
+   * com.dremio.exec.expr.fn.PluggableFunctionRegistry} implementations found on classpath.
    *
    * @param functionCall a function call sub expression
    * @return transformed function expression, if found, null otherwise
    */
   @Override
   public AbstractFunctionHolder findNonFunction(FunctionCall functionCall) {
-    for(PluggableFunctionRegistry registry : pluggableFuncRegistries) {
+    for (PluggableFunctionRegistry registry : pluggableFuncRegistries) {
       AbstractFunctionHolder h = registry.findFunction(functionCall);
       if (h != null) {
         return h;
@@ -271,17 +246,23 @@ public final class FunctionImplementationRegistry implements FunctionLookupConte
 
   // Method to find if the output type of a dremio function if of complex type
   public boolean isFunctionComplexOutput(String name) {
-    List<AbstractFunctionHolder> methods = this.primaryFunctionRegistries.get(0).lookupMethods(name);
+    List<AbstractFunctionHolder> methods =
+        this.primaryFunctionRegistries.get(0).lookupMethods(name);
     for (AbstractFunctionHolder holder : methods) {
-      if (((BaseFunctionHolder)holder).getReturnValue().isComplexWriter()) {
+      if (((BaseFunctionHolder) holder).getReturnValue().isComplexWriter()) {
         return true;
       }
     }
     return false;
   }
 
-  public PrimaryFunctionRegistry getJavaFunctionRegistry() { return this.primaryFunctionRegistries.get(0); }
-  public PrimaryFunctionRegistry getGandivaFunctionRegistry() { return this.primaryFunctionRegistries.get(1); }
+  public PrimaryFunctionRegistry getJavaFunctionRegistry() {
+    return this.primaryFunctionRegistries.get(0);
+  }
+
+  public PrimaryFunctionRegistry getGandivaFunctionRegistry() {
+    return this.primaryFunctionRegistries.get(1);
+  }
 
   public FunctionRegistry getFunctionRegistry() {
     return (FunctionRegistry) this.primaryFunctionRegistries.get(0);

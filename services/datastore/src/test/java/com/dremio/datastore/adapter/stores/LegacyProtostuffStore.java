@@ -15,27 +15,25 @@
  */
 package com.dremio.datastore.adapter.stores;
 
-import java.util.Arrays;
-import java.util.List;
-
 import com.dremio.datastore.adapter.TestLegacyStoreCreationFunction;
 import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.datastore.api.LegacyStoreBuildingFactory;
 import com.dremio.datastore.format.Format;
 import com.dremio.datastore.proto.DummyId;
 import com.dremio.datastore.proto.DummyObj;
+import java.util.Arrays;
+import java.util.List;
 
-/**
- * Ensures legacy kv stores support protostuff.
- */
+/** Ensures legacy kv stores support protostuff. */
 public class LegacyProtostuffStore implements TestLegacyStoreCreationFunction<DummyId, DummyObj> {
   @Override
   public LegacyKVStore<DummyId, DummyObj> build(LegacyStoreBuildingFactory factory) {
-    return factory.<DummyId, DummyObj>newStore()
-      .name("legacy-protostuff-store")
-      .keyFormat(getKeyFormat())
-      .valueFormat(Format.ofProtostuff(DummyObj.class))
-      .build();
+    return factory
+        .<DummyId, DummyObj>newStore()
+        .name("legacy-protostuff-store")
+        .keyFormat(getKeyFormat())
+        .valueFormat(Format.ofProtostuff(DummyObj.class))
+        .build();
   }
 
   @Override

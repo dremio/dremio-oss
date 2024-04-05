@@ -17,6 +17,21 @@ package com.dremio.exec.store.dfs;
 
 import static java.lang.String.format;
 
+import com.dremio.common.exceptions.ErrorHelper;
+import com.dremio.exec.hadoop.PathCanonicalizer;
+import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
+import com.dremio.services.fabric.ProtocolNotRegisteredException;
+import com.dremio.services.fabric.api.FabricCommandRunner;
+import com.dremio.services.fabric.api.FabricRunnerFactory;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Objects;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Throwables;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
@@ -37,9 +52,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
-
 import javax.inject.Provider;
-
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.BlockLocation;
@@ -54,45 +67,33 @@ import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.security.AccessControlException;
 import org.apache.hadoop.util.Progressable;
 
-import com.dremio.common.exceptions.ErrorHelper;
-import com.dremio.exec.hadoop.PathCanonicalizer;
-import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
-import com.dremio.services.fabric.ProtocolNotRegisteredException;
-import com.dremio.services.fabric.api.FabricCommandRunner;
-import com.dremio.services.fabric.api.FabricRunnerFactory;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Objects;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
-
 /**
  * Pseudo-distributed filesystem implementation.
  *
- * Provides access to remote node local filesystem metadata.
+ * <p>Provides access to remote node local filesystem metadata.
  *
- * <em>FileSystem layout</em>
+ * <p><em>FileSystem layout</em>
+ *
  * <ul>
- * <li>Remote directories containing the same data are merged together</li>
- * <li>Files are prefixed with <code>@&lt;address&gt;</code> (if file is hidden, the hidden character is preserved)</li>
+ *   <li>Remote directories containing the same data are merged together
+ *   <li>Files are prefixed with <code>@&lt;address&gt;</code> (if file is hidden, the hidden
+ *       character is preserved)
  * </ul>
  *
  * <em>Operations</em>
- * <ul>
- * <li>Opening a file/Getting file status: if file starts with an address -> try to get it remotely. Otherwise throw FileNotFoundException</li>
- * <li>Getting directory status -> try to get it locally, otherwise, try to get it remotely.
- *     Permissions might have been to be merged</li>
- * <li>Listing directory content -> get all the directories content.
- * If a remote directory doesn't exist, ignore it (empty directory). If permission failure, throw back to the client.</li>
- * </ul>
  *
+ * <ul>
+ *   <li>Opening a file/Getting file status: if file starts with an address -> try to get it
+ *       remotely. Otherwise throw FileNotFoundException
+ *   <li>Getting directory status -> try to get it locally, otherwise, try to get it remotely.
+ *       Permissions might have been to be merged
+ *   <li>Listing directory content -> get all the directories content. If a remote directory doesn't
+ *       exist, ignore it (empty directory). If permission failure, throw back to the client.
+ * </ul>
  */
 public class PseudoDistributedFileSystem extends FileSystem implements PathCanonicalizer {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PseudoDistributedFileSystem.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(PseudoDistributedFileSystem.class);
   private static final Path ROOT_PATH = new Path(Path.SEPARATOR);
 
   private static PDFSConfig globalConfig;
@@ -113,16 +114,18 @@ public class PseudoDistributedFileSystem extends FileSystem implements PathCanon
   /**
    * Set global configuration that will be shared by all PDFS instances
    *
-   * @param config
-   *          the configuration to use
+   * @param config the configuration to use
    */
   public static synchronized void configure(PDFSConfig config) {
     PseudoDistributedFileSystem.globalConfig = Preconditions.checkNotNull(config);
   }
 
-  static FileSystem newLocalFileSystem(Configuration conf, boolean isLocalAccessAllowed) throws IOException {
-    // we'll grab our own local file system so append is supported (rather than the checksum local file system).
-    final FileSystem localFS = isLocalAccessAllowed ? new PDFSLocalFileSystem() : new NoopFileSystem();
+  static FileSystem newLocalFileSystem(Configuration conf, boolean isLocalAccessAllowed)
+      throws IOException {
+    // we'll grab our own local file system so append is supported (rather than the checksum local
+    // file system).
+    final FileSystem localFS =
+        isLocalAccessAllowed ? new PDFSLocalFileSystem() : new NoopFileSystem();
     localFS.initialize(localFS.getUri(), conf);
 
     return localFS;
@@ -140,12 +143,13 @@ public class PseudoDistributedFileSystem extends FileSystem implements PathCanon
       this.path = path;
     }
   }
+
   // CHECKSTYLE:ON
 
   /**
    * Returns true if a name is one of a hidden file.
    *
-   * By convention Hadoop hidden files start with . and _ characters
+   * <p>By convention Hadoop hidden files start with . and _ characters
    *
    * @param name
    * @return true if hidden
@@ -193,7 +197,9 @@ public class PseudoDistributedFileSystem extends FileSystem implements PathCanon
     final String remoteBasename = matcher.group(2);
     return new RemotePath(
         matcher.group(1),
-        new Path(Path.getPathWithoutSchemeAndAuthority(path.getParent()), hidden ? basename.charAt(0) + remoteBasename : remoteBasename));
+        new Path(
+            Path.getPathWithoutSchemeAndAuthority(path.getParent()),
+            hidden ? basename.charAt(0) + remoteBasename : remoteBasename));
   }
 
   public PseudoDistributedFileSystem() {
@@ -223,31 +229,36 @@ public class PseudoDistributedFileSystem extends FileSystem implements PathCanon
 
   @Override
   public void initialize(URI name, Configuration conf) throws IOException {
-    initialize(name, conf,  newLocalFileSystem(conf, config.isLocalAccessAllowed()));
+    initialize(name, conf, newLocalFileSystem(conf, config.isLocalAccessAllowed()));
   }
 
   // Keeping a cache of remote filesystem instances
   @SuppressWarnings("NoGuavaCacheUsage") // TODO: fix as part of DX-51884
-  private Cache<NodeEndpoint, FileSystem> remoteFileSystems = CacheBuilder.newBuilder().softValues().build();
+  private Cache<NodeEndpoint, FileSystem> remoteFileSystems =
+      CacheBuilder.newBuilder().softValues().build();
 
   /**
    * Creates a {@link RemoteNodeFileSystem} instance.
    *
-   * Only exposed for unit testing
+   * <p>Only exposed for unit testing
    */
   @VisibleForTesting
   FileSystem newRemoteFileSystem(final NodeEndpoint endpoint) throws IOException {
-    final FabricCommandRunner runner = runnerFactory.getCommandRunner(endpoint.getAddress(), endpoint.getFabricPort());
+    final FabricCommandRunner runner =
+        runnerFactory.getCommandRunner(endpoint.getAddress(), endpoint.getFabricPort());
     RemoteNodeFileSystem rdfs = new RemoteNodeFileSystem(runner, allocator);
-    rdfs.initialize(URI.create(format("sabot://%s:%d", endpoint.getAddress(), endpoint.getFabricPort())), getConf());
+    rdfs.initialize(
+        URI.create(format("sabot://%s:%d", endpoint.getAddress(), endpoint.getFabricPort())),
+        getConf());
 
     return rdfs;
   }
 
   private List<NodeEndpoint> getEndpoints(final String address) {
-    final List<NodeEndpoint> endpoints = StreamSupport.stream(getEndpoints().spliterator(), false)
-        .filter(input -> address.equals(input.getAddress()))
-        .collect(Collectors.toList());
+    final List<NodeEndpoint> endpoints =
+        StreamSupport.stream(getEndpoints().spliterator(), false)
+            .filter(input -> address.equals(input.getAddress()))
+            .collect(Collectors.toList());
 
     return endpoints;
   }
@@ -264,7 +275,7 @@ public class PseudoDistributedFileSystem extends FileSystem implements PathCanon
 
   private NodeEndpoint getRandomDelegate() throws IOException {
     List<NodeEndpoint> selectable = Lists.newArrayList(getEndpoints());
-    if(selectable.isEmpty()){
+    if (selectable.isEmpty()) {
       throw new UnsupportedOperationException("Unable to use pdfs when no executors are running.");
     }
     Collections.shuffle(selectable);
@@ -273,13 +284,15 @@ public class PseudoDistributedFileSystem extends FileSystem implements PathCanon
   }
 
   private final FileSystem getOrCreateRemote(final NodeEndpoint endpoint) throws IOException {
-    try{
-      return remoteFileSystems.get(endpoint, new Callable<FileSystem>() {
-        @Override
-        public FileSystem call() throws Exception {
-          return newRemoteFileSystem(endpoint);
-        }
-      });
+    try {
+      return remoteFileSystems.get(
+          endpoint,
+          new Callable<FileSystem>() {
+            @Override
+            public FileSystem call() throws Exception {
+              return newRemoteFileSystem(endpoint);
+            }
+          });
     } catch (ExecutionException e) {
       Throwables.propagateIfPossible(e.getCause(), IOException.class);
       // Code below is dead, but javac cannot deduce it
@@ -299,7 +312,8 @@ public class PseudoDistributedFileSystem extends FileSystem implements PathCanon
       throw new IllegalArgumentException("No remote address for address " + address);
     }
 
-    final NodeEndpoint endpoint = endpoints.get(ThreadLocalRandom.current().nextInt(endpoints.size()));
+    final NodeEndpoint endpoint =
+        endpoints.get(ThreadLocalRandom.current().nextInt(endpoints.size()));
     return getOrCreateRemote(endpoint);
   }
 
@@ -337,19 +351,27 @@ public class PseudoDistributedFileSystem extends FileSystem implements PathCanon
       FileSystem delegate = getDelegateFileSystem(remotePath.address);
       return delegate.open(remotePath.path, bufferSize);
     } catch (IllegalArgumentException e) {
-      throw (FileNotFoundException) (new FileNotFoundException("No file " + absolutePath).initCause(e));
+      throw (FileNotFoundException)
+          (new FileNotFoundException("No file " + absolutePath).initCause(e));
     }
   }
 
   /**
-   * Create a new file. Three possibilities:
-   *  - This is a data node and you're trying to create a unqualified file => write locally.
-   *  - This is a client node and you're trying to create unqualified file => pick a random data node and write there.
-   *  - The path you provide is qualified => write to that node.
+   * Create a new file. Three possibilities: - This is a data node and you're trying to create a
+   * unqualified file => write locally. - This is a client node and you're trying to create
+   * unqualified file => pick a random data node and write there. - The path you provide is
+   * qualified => write to that node.
    */
   @Override
-  public FSDataOutputStream create(Path f, FsPermission permission, boolean overwrite, int bufferSize,
-      short replication, long blockSize, Progressable progress) throws IOException {
+  public FSDataOutputStream create(
+      Path f,
+      FsPermission permission,
+      boolean overwrite,
+      int bufferSize,
+      short replication,
+      long blockSize,
+      Progressable progress)
+      throws IOException {
     final Path absolutePath = toAbsolutePath(f);
     checkPath(absolutePath);
 
@@ -358,7 +380,7 @@ public class PseudoDistributedFileSystem extends FileSystem implements PathCanon
       throw new AccessControlException("Cannot create " + f);
     }
 
-    if(!isRemoteFile(f)){
+    if (!isRemoteFile(f)) {
       if (isDirectory(absolutePath)) {
         throw new FileAlreadyExistsException("Directory already exists: " + f);
       }
@@ -369,21 +391,23 @@ public class PseudoDistributedFileSystem extends FileSystem implements PathCanon
 
     try {
       RemotePath remotePath = getRemotePath(absolutePath);
-      return getDelegateFileSystem(remotePath.address).create(remotePath.path, permission, overwrite, bufferSize, replication, blockSize, progress);
+      return getDelegateFileSystem(remotePath.address)
+          .create(
+              remotePath.path, permission, overwrite, bufferSize, replication, blockSize, progress);
     } catch (IllegalArgumentException e) {
       throw (IOException) (new IOException("Cannot create file " + absolutePath).initCause(e));
     }
   }
 
   /**
-   * Create a new file. Three possibilities:
-   *  - This is a data node and you're trying to append a unqualified file => write locally.
-   *  - The path you provide is qualified => write to that node.
+   * Create a new file. Three possibilities: - This is a data node and you're trying to append a
+   * unqualified file => write locally. - The path you provide is qualified => write to that node.
    *
-   *  If this is a client node and you try to write to a unqualified file, we'll throw
+   * <p>If this is a client node and you try to write to a unqualified file, we'll throw
    */
   @Override
-  public FSDataOutputStream append(Path f, int bufferSize, Progressable progress) throws IOException {
+  public FSDataOutputStream append(Path f, int bufferSize, Progressable progress)
+      throws IOException {
     Path absolutePath = toAbsolutePath(f);
     checkPath(absolutePath);
 
@@ -392,7 +416,7 @@ public class PseudoDistributedFileSystem extends FileSystem implements PathCanon
       throw new AccessControlException("Cannot open " + f);
     }
 
-    if(!isRemoteFile(f)){
+    if (!isRemoteFile(f)) {
       if (isDirectory(absolutePath)) {
         throw new FileAlreadyExistsException("Directory already exists: " + f);
       }
@@ -407,7 +431,8 @@ public class PseudoDistributedFileSystem extends FileSystem implements PathCanon
       FileSystem delegate = getDelegateFileSystem(remotePath.address);
       return delegate.append(remotePath.path, bufferSize, progress);
     } catch (IllegalArgumentException e) {
-      throw (FileNotFoundException) (new FileNotFoundException("No file " + absolutePath).initCause(e));
+      throw (FileNotFoundException)
+          (new FileNotFoundException("No file " + absolutePath).initCause(e));
     }
   }
 
@@ -440,7 +465,6 @@ public class PseudoDistributedFileSystem extends FileSystem implements PathCanon
       final String srcAddress = srcRemotePath.address;
       final Path srcPath = srcRemotePath.path;
 
-
       // Check destination
       if (isDstRemote) {
         RemotePath dstRemotePath = getRemotePath(absoluteDst);
@@ -448,7 +472,8 @@ public class PseudoDistributedFileSystem extends FileSystem implements PathCanon
         final Path dstPath = dstRemotePath.path;
 
         if (!Objects.equal(srcAddress, dstAddress)) {
-          throw new IOException("Cannot rename across endpoints: from " + absoluteSrc + " to " + absoluteDst);
+          throw new IOException(
+              "Cannot rename across endpoints: from " + absoluteSrc + " to " + absoluteDst);
         }
 
         FileSystem delegateFS = getDelegateFileSystem(dstAddress);
@@ -459,7 +484,8 @@ public class PseudoDistributedFileSystem extends FileSystem implements PathCanon
       // let's check if it exists
       boolean isDstDirectory = isDirectory(absoluteDst);
       if (!isDstDirectory) {
-        throw new IOException("Rename destination " + absoluteDst + " does not exist or is not a directory");
+        throw new IOException(
+            "Rename destination " + absoluteDst + " does not exist or is not a directory");
       }
 
       // just in case, let's check that the directory exists on the remote endpoint
@@ -467,9 +493,13 @@ public class PseudoDistributedFileSystem extends FileSystem implements PathCanon
       try {
         FileStatus status = delegateFS.getFileStatus(absoluteDst);
         if (!status.isDirectory()) {
-          throw new IOException("A remote file for path " + absoluteDst + " already exists on endpoint " + srcAddress);
+          throw new IOException(
+              "A remote file for path "
+                  + absoluteDst
+                  + " already exists on endpoint "
+                  + srcAddress);
         }
-      } catch(FileNotFoundException e) {
+      } catch (FileNotFoundException e) {
         delegateFS.mkdirs(absoluteDst);
       }
       return delegateFS.rename(srcPath, absoluteDst);
@@ -512,7 +542,8 @@ public class PseudoDistributedFileSystem extends FileSystem implements PathCanon
       FileSystem delegate = getDelegateFileSystem(remotePath.address);
       return delegate.delete(remotePath.path, recursive);
     } catch (IllegalArgumentException e) {
-      throw (FileNotFoundException) (new FileNotFoundException("No file " + absolutePath).initCause(e));
+      throw (FileNotFoundException)
+          (new FileNotFoundException("No file " + absolutePath).initCause(e));
     }
   }
 
@@ -533,7 +564,8 @@ public class PseudoDistributedFileSystem extends FileSystem implements PathCanon
     sb.append(endpoint).append('@');
     sb.append(hidden ? basename.substring(1) : basename);
 
-    return new PDFSFileStatus(makeQualified(new Path(remotePath.getParent(), sb.toString())), status);
+    return new PDFSFileStatus(
+        makeQualified(new Path(remotePath.getParent(), sb.toString())), status);
   }
 
   private static final class PDFSFileStatus extends FileStatus {
@@ -558,13 +590,15 @@ public class PseudoDistributedFileSystem extends FileSystem implements PathCanon
   }
 
   @Override
-  public RemoteIterator<FileStatus> listStatusIterator(Path f) throws FileNotFoundException, IOException {
+  public RemoteIterator<FileStatus> listStatusIterator(Path f)
+      throws FileNotFoundException, IOException {
     final Path absolutePath = toAbsolutePath(f);
     checkPath(absolutePath);
 
     if (isRemoteFile(absolutePath)) {
       return new RemoteIterator<FileStatus>() {
         private boolean hasNext = true;
+
         @Override
         public boolean hasNext() throws IOException {
           return hasNext;
@@ -635,12 +669,14 @@ public class PseudoDistributedFileSystem extends FileSystem implements PathCanon
 
       return fixFileStatus(remotePath.address, status);
     } catch (IllegalArgumentException e) {
-      throw (FileNotFoundException) (new FileNotFoundException("No file " + absolutePath).initCause(e));
+      throw (FileNotFoundException)
+          (new FileNotFoundException("No file " + absolutePath).initCause(e));
     }
   }
 
   @Override
-  public BlockLocation[] getFileBlockLocations(FileStatus file, long start, long len) throws IOException {
+  public BlockLocation[] getFileBlockLocations(FileStatus file, long start, long len)
+      throws IOException {
     Preconditions.checkArgument(start >= 0, "start should be positive");
     Preconditions.checkArgument(len >= 0, "len should be positive");
 
@@ -654,20 +690,24 @@ public class PseudoDistributedFileSystem extends FileSystem implements PathCanon
       final List<NodeEndpoint> endpoints = getEndpoints(remotePath.address);
 
       if (endpoints.isEmpty()) {
-        if (localAccessAllowed && localIdentity.getAddress().equals(remotePath.address)) { // best effort
-          return new BlockLocation[]{
-              new BlockLocation(
-                  new String[]{format("%s:%d", localIdentity.getAddress(), localIdentity.getFabricPort())},
-                  new String[]{localIdentity.getAddress()},
-                  0, file.getLen())
+        if (localAccessAllowed
+            && localIdentity.getAddress().equals(remotePath.address)) { // best effort
+          return new BlockLocation[] {
+            new BlockLocation(
+                new String[] {
+                  format("%s:%d", localIdentity.getAddress(), localIdentity.getFabricPort())
+                },
+                new String[] {localIdentity.getAddress()},
+                0,
+                file.getLen())
           };
         }
 
-        return new BlockLocation[]{};
+        return new BlockLocation[] {};
       }
 
       String address = endpoints.get(0).getAddress();
-      String[] hosts = new String[] { address };
+      String[] hosts = new String[] {address};
       String[] names = new String[endpoints.size()];
 
       int i = 0;
@@ -675,9 +715,10 @@ public class PseudoDistributedFileSystem extends FileSystem implements PathCanon
         names[i++] = format("%s:%d", address, endpoint.getFabricPort());
       }
 
-      return new BlockLocation[] { new BlockLocation(names, hosts, 0, file.getLen()) };
+      return new BlockLocation[] {new BlockLocation(names, hosts, 0, file.getLen())};
     } catch (IllegalArgumentException e) {
-      throw (FileNotFoundException) (new FileNotFoundException("No file " + file.getPath()).initCause(e));
+      throw (FileNotFoundException)
+          (new FileNotFoundException("No file " + file.getPath()).initCause(e));
     }
   }
 
@@ -706,22 +747,22 @@ public class PseudoDistributedFileSystem extends FileSystem implements PathCanon
 
   private Path createRemotePath(String address, Path path) {
     String basename = path.getName();
-    return new Path(path.getParent(),
+    return new Path(
+        path.getParent(),
         isHidden(basename)
-        ? String.format("%s%s@%s", basename.charAt(0), address, basename.substring(1))
-        : String.format("%s@%s", address, basename)
-    );
+            ? String.format("%s%s@%s", basename.charAt(0), address, basename.substring(1))
+            : String.format("%s@%s", address, basename));
   }
 
   // DX-5178
-  protected ExecutorService getExecutor(){
+  protected ExecutorService getExecutor() {
     // total hack. since our executor could have been shutdown in tests, we need
     // to also try to use the latest statically provided one just in case this
     // instance of pdfs is cached.
-    synchronized(executor){
-      if(executor.isShutdown()){
+    synchronized (executor) {
+      if (executor.isShutdown()) {
         return globalConfig.getExecutor();
-      }else {
+      } else {
         return executor;
       }
     }
@@ -729,11 +770,13 @@ public class PseudoDistributedFileSystem extends FileSystem implements PathCanon
 
   /**
    * Checks if a status for a file appears more than once.
+   *
    * @param newStatus The new status for a file.
    * @param oldStatuses Map of paths to previous file statuses.
    * @return True if the file has already appeared. False otherwise.
    */
-  private static boolean checkDuplicateFileStatus(FileStatus newStatus, Map<String, FileStatus> oldStatuses) {
+  private static boolean checkDuplicateFileStatus(
+      FileStatus newStatus, Map<String, FileStatus> oldStatuses) {
     final FileStatus previousStatus = oldStatuses.put(newStatus.getPath().getName(), newStatus);
     if (previousStatus != null) {
       // merge conflict
@@ -744,7 +787,8 @@ public class PseudoDistributedFileSystem extends FileSystem implements PathCanon
 
       if (previousStatus.isFile()) {
         // Trying to merge two files from different endpoints. Should not be possible either
-        throw new IllegalStateException("Attempting to merge two files for the same remote endpoint");
+        throw new IllegalStateException(
+            "Attempting to merge two files for the same remote endpoint");
       }
 
       // TODO: DX-11234 Identify the correct behavior when multiple nodes have the same directory.
@@ -764,13 +808,13 @@ public class PseudoDistributedFileSystem extends FileSystem implements PathCanon
           addresses = ImmutableSet.of();
         }
       } else {
-        addresses = StreamSupport.stream(endpoints.spliterator(), false)
-            .map(NodeEndpoint::getAddress)
-            .collect(Collectors.toSet());
-
+        addresses =
+            StreamSupport.stream(endpoints.spliterator(), false)
+                .map(NodeEndpoint::getAddress)
+                .collect(Collectors.toSet());
       }
       List<Future<V>> futures = new ArrayList<>();
-      for(String address: addresses) {
+      for (String address : addresses) {
         futures.add(getExecutor().submit(newMapTask(address)));
       }
       return futures;
@@ -798,7 +842,8 @@ public class PseudoDistributedFileSystem extends FileSystem implements PathCanon
     }
 
     @Override
-    protected Callable<RemoteIterator<FileStatus>> newMapTask(final String address) throws IOException {
+    protected Callable<RemoteIterator<FileStatus>> newMapTask(final String address)
+        throws IOException {
       return new Callable<RemoteIterator<FileStatus>>() {
         @Override
         public RemoteIterator<FileStatus> call() throws Exception {
@@ -825,9 +870,11 @@ public class PseudoDistributedFileSystem extends FileSystem implements PathCanon
     }
 
     @Override
-    protected RemoteIterator<FileStatus> reduce(final Iterable<Future<RemoteIterator<FileStatus>>> futures) throws IOException {
+    protected RemoteIterator<FileStatus> reduce(
+        final Iterable<Future<RemoteIterator<FileStatus>>> futures) throws IOException {
       return new RemoteIterator<FileStatus>() {
-        private final Iterator<Future<RemoteIterator<FileStatus>>> statusIteratorIterator = futures.iterator();
+        private final Iterator<Future<RemoteIterator<FileStatus>>> statusIteratorIterator =
+            futures.iterator();
         private RemoteIterator<FileStatus> currentRemoteIterator = null;
         private final Map<String, FileStatus> previousStatuses = new HashMap<>();
         private FileStatus nextAvailableStatus = null;
@@ -842,8 +889,7 @@ public class PseudoDistributedFileSystem extends FileSystem implements PathCanon
 
           // Loop until we get a RemoteIterator with data.
           while (true) {
-            while (currentRemoteIterator == null
-              || !currentRemoteIterator.hasNext()) {
+            while (currentRemoteIterator == null || !currentRemoteIterator.hasNext()) {
 
               // If there are no more Futures, stop.
               if (!statusIteratorIterator.hasNext()) {
@@ -920,7 +966,7 @@ public class PseudoDistributedFileSystem extends FileSystem implements PathCanon
     protected Boolean reduce(Iterable<Future<Boolean>> tasks) throws IOException {
       boolean result = false;
 
-      for(Future<Boolean> task: tasks) {
+      for (Future<Boolean> task : tasks) {
         boolean taskResult;
         try {
           taskResult = task.get();
@@ -933,7 +979,7 @@ public class PseudoDistributedFileSystem extends FileSystem implements PathCanon
           }
           Throwables.propagateIfPossible(e.getCause(), IOException.class);
           throw new RuntimeException(e);
-        } catch(InterruptedException e) {
+        } catch (InterruptedException e) {
           throw new RuntimeException(e);
         }
         result |= taskResult;
@@ -971,17 +1017,17 @@ public class PseudoDistributedFileSystem extends FileSystem implements PathCanon
     protected Boolean reduce(Iterable<Future<Boolean>> futures) throws IOException {
       boolean result = false;
       boolean found = false;
-      for(Future<Boolean> task: futures) {
+      for (Future<Boolean> task : futures) {
         try {
-           result |= task.get();
-        } catch(ExecutionException e) {
+          result |= task.get();
+        } catch (ExecutionException e) {
           if (e.getCause() instanceof FileNotFoundException) {
             // ignore
             continue;
           }
           Throwables.propagateIfPossible(e.getCause(), IOException.class);
           throw new RuntimeException(e);
-        } catch(InterruptedException e) {
+        } catch (InterruptedException e) {
           throw new RuntimeException(e);
         }
 
@@ -1023,17 +1069,17 @@ public class PseudoDistributedFileSystem extends FileSystem implements PathCanon
     protected Boolean reduce(Iterable<Future<Boolean>> futures) throws IOException {
       boolean result = false;
       boolean found = false;
-      for(Future<Boolean> task: futures) {
+      for (Future<Boolean> task : futures) {
         try {
-           result |= task.get();
-        } catch(ExecutionException e) {
+          result |= task.get();
+        } catch (ExecutionException e) {
           if (e.getCause() instanceof FileNotFoundException) {
             // ignore
             continue;
           }
           Throwables.propagateIfPossible(e.getCause(), IOException.class);
           throw new RuntimeException(e);
-        } catch(InterruptedException e) {
+        } catch (InterruptedException e) {
           throw new RuntimeException(e);
         }
 
@@ -1074,7 +1120,7 @@ public class PseudoDistributedFileSystem extends FileSystem implements PathCanon
       FileStatus fileStatus = null;
       long maxModificationTime = Long.MIN_VALUE;
       long maxAccessTime = Long.MIN_VALUE;
-      for(Future<FileStatus> f : futures) {
+      for (Future<FileStatus> f : futures) {
         try {
           fileStatus = f.get();
           maxModificationTime = Math.max(maxModificationTime, fileStatus.getModificationTime());
@@ -1083,14 +1129,15 @@ public class PseudoDistributedFileSystem extends FileSystem implements PathCanon
           if (e.getCause() instanceof FileNotFoundException) {
             // ignore
             continue;
-          } else if (ErrorHelper.findWrappedCause(e, ProtocolNotRegisteredException.class) != null) {
+          } else if (ErrorHelper.findWrappedCause(e, ProtocolNotRegisteredException.class)
+              != null) {
             // If protocol hasn't yet been registered with target Fabric,
             // treat it on par with FileNotFound, ignore the exception and continue
             continue;
           }
           Throwables.propagateIfPossible(e.getCause(), IOException.class);
           throw new RuntimeException(e);
-        } catch(InterruptedException e) {
+        } catch (InterruptedException e) {
           throw new RuntimeException(e);
         }
       }
@@ -1099,18 +1146,19 @@ public class PseudoDistributedFileSystem extends FileSystem implements PathCanon
         throw new FileNotFoundException("Directory not found:" + path);
       }
 
-      return fixFileStatus(null, new FileStatus(
-          fileStatus.getLen(),
-          fileStatus.isDirectory(),
-          fileStatus.getReplication(),
-          fileStatus.getBlockSize(),
-          maxModificationTime,
-          maxAccessTime,
-          fileStatus.getPermission(),
-          fileStatus.getOwner(),
-          fileStatus.getGroup(),
-          fileStatus.getPath()
-          ));
+      return fixFileStatus(
+          null,
+          new FileStatus(
+              fileStatus.getLen(),
+              fileStatus.isDirectory(),
+              fileStatus.getReplication(),
+              fileStatus.getBlockSize(),
+              maxModificationTime,
+              maxAccessTime,
+              fileStatus.getPermission(),
+              fileStatus.getOwner(),
+              fileStatus.getGroup(),
+              fileStatus.getPath()));
     }
   }
 }

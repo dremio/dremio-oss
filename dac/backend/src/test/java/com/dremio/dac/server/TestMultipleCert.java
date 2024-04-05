@@ -20,7 +20,7 @@ import com.google.common.io.Resources;
 /**
  * Multiple cert test.
  *
- * multiple.jks has two certs: test.dremio.test and foo.dremio.test
+ * <p>multiple.jks has two certs: test.dremio.test and foo.dremio.test
  */
 public class TestMultipleCert extends BaseHttpsTestServer {
   @Override

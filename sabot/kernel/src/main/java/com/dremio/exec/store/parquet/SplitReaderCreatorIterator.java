@@ -15,25 +15,27 @@
  */
 package com.dremio.exec.store.parquet;
 
+import com.dremio.exec.store.RuntimeFilter;
+import com.dremio.exec.store.dfs.SplitReaderCreator;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
-import com.dremio.exec.store.RuntimeFilter;
-import com.dremio.exec.store.dfs.SplitReaderCreator;
-
 /**
- * SplitReaderCreatorIterator is an iterator that is supplied to the prefetching iterator and creates the splitreadercreator
+ * SplitReaderCreatorIterator is an iterator that is supplied to the prefetching iterator and
+ * creates the splitreadercreator
  */
 public interface SplitReaderCreatorIterator extends Iterator<SplitReaderCreator>, AutoCloseable {
   /**
    * Add a runtime filter to the iterator
+   *
    * @param runtimeFilter
    */
   default void addRuntimeFilter(RuntimeFilter runtimeFilter) {}
 
   /**
    * Return all the runtimefilters added to the iterator
+   *
    * @return
    */
   default List<RuntimeFilter> getRuntimeFilters() {
@@ -42,6 +44,7 @@ public interface SplitReaderCreatorIterator extends Iterator<SplitReaderCreator>
 
   /**
    * Mark the iterator to produce from any buffered splits
+   *
    * @param toProduce
    */
   default void produceFromBufferedSplits(boolean toProduce) {}

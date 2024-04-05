@@ -15,21 +15,18 @@
  */
 package com.dremio.exec.store.dfs;
 
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.Map;
-import java.util.Objects;
-
 import com.dremio.common.logical.FormatPluginConfig;
 import com.dremio.common.store.StoragePluginConfig;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.ImmutableMap;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.Map;
+import java.util.Objects;
 
-/**
- * {@link StoragePluginConfig} for {@link FileSystemPlugin}
- */
+/** {@link StoragePluginConfig} for {@link FileSystemPlugin} */
 @JsonTypeName(FileSystemConfig.NAME)
 public class FileSystemConfig extends StoragePluginConfig {
   public static final String NAME = "file_default";
@@ -50,14 +47,16 @@ public class FileSystemConfig extends StoragePluginConfig {
       @JsonProperty("path") String path,
       @JsonProperty("config") Map<String, String> config,
       @JsonProperty("formats") Map<String, FormatPluginConfig> formats,
-      @JsonProperty(value = "impersonationEnabled", defaultValue = "false") boolean impersonationEnabled,
-      @JsonProperty(value = "schemaMutability", defaultValue = "ALL") SchemaMutability schemaMutability) {
+      @JsonProperty(value = "impersonationEnabled", defaultValue = "false")
+          boolean impersonationEnabled,
+      @JsonProperty(value = "schemaMutability", defaultValue = "ALL")
+          SchemaMutability schemaMutability) {
     this.connection = connection;
     this.path = path == null ? "/" : path;
     this.config = (config == null) ? null : ImmutableMap.copyOf(config);
     this.formats = (formats == null) ? null : ImmutableMap.copyOf(formats);
     this.impersonationEnabled = impersonationEnabled;
-    this.uri = connection == null? null: getURI(connection);
+    this.uri = connection == null ? null : getURI(connection);
     this.schemaMutability = schemaMutability == null ? SchemaMutability.ALL : schemaMutability;
   }
 
@@ -110,12 +109,12 @@ public class FileSystemConfig extends StoragePluginConfig {
       return false;
     }
     final FileSystemConfig that = (FileSystemConfig) o;
-    return impersonationEnabled == that.impersonationEnabled &&
-        Objects.equals(connection, that.connection) &&
-        Objects.equals(path, that.path) &&
-        Objects.equals(config, that.config) &&
-        Objects.equals(formats, that.formats) &&
-        Objects.equals(schemaMutability, that.schemaMutability);
+    return impersonationEnabled == that.impersonationEnabled
+        && Objects.equals(connection, that.connection)
+        && Objects.equals(path, that.path)
+        && Objects.equals(config, that.config)
+        && Objects.equals(formats, that.formats)
+        && Objects.equals(schemaMutability, that.schemaMutability);
   }
 
   @Override

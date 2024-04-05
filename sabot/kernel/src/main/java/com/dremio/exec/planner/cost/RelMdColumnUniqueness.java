@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.planner.cost;
 
+import com.dremio.exec.planner.logical.ProjectableSqlAggFunction;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.core.TableScan;
 import org.apache.calcite.rel.logical.LogicalAggregate;
@@ -28,11 +29,7 @@ import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.util.BuiltInMethod;
 import org.apache.calcite.util.ImmutableBitSet;
 
-import com.dremio.exec.planner.logical.ProjectableSqlAggFunction;
-
-/**
- * Override {@link RelMdColumnUniqueness}
- */
+/** Override {@link RelMdColumnUniqueness} */
 public class RelMdColumnUniqueness implements MetadataHandler<BuiltInMetadata.ColumnUniqueness> {
   private static final RelMdColumnUniqueness INSTANCE = new RelMdColumnUniqueness();
 
@@ -40,16 +37,17 @@ public class RelMdColumnUniqueness implements MetadataHandler<BuiltInMetadata.Co
       ReflectiveRelMetadataProvider.reflectiveSource(
           BuiltInMethod.COLUMN_UNIQUENESS.method, INSTANCE);
 
-
   @Override
   public MetadataDef<BuiltInMetadata.ColumnUniqueness> getDef() {
     return BuiltInMetadata.ColumnUniqueness.DEF;
   }
 
-  public Boolean areColumnsUnique(LogicalAggregate rel, RelMetadataQuery mq, ImmutableBitSet columns, boolean ignoreNulls) {
+  public Boolean areColumnsUnique(
+      LogicalAggregate rel, RelMetadataQuery mq, ImmutableBitSet columns, boolean ignoreNulls) {
     for (AggregateCall call : rel.getAggCallList()) {
       SqlAggFunction aggFunction = call.getAggregation();
-      if (aggFunction instanceof ProjectableSqlAggFunction && !((ProjectableSqlAggFunction) aggFunction).isUnique()) {
+      if (aggFunction instanceof ProjectableSqlAggFunction
+          && !((ProjectableSqlAggFunction) aggFunction).isUnique()) {
         return false;
       }
     }
@@ -58,7 +56,8 @@ public class RelMdColumnUniqueness implements MetadataHandler<BuiltInMetadata.Co
     return columns.contains(groupKey);
   }
 
-  public boolean areColumnsUnique(TableScan scan, RelMetadataQuery mq, ImmutableBitSet columns, boolean ignoreNulls) {
+  public boolean areColumnsUnique(
+      TableScan scan, RelMetadataQuery mq, ImmutableBitSet columns, boolean ignoreNulls) {
     return false;
   }
 }

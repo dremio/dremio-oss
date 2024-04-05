@@ -16,23 +16,23 @@
 package com.dremio.plugins.azure;
 
 import java.io.IOException;
-
 import org.apache.hadoop.fs.azurebfs.extensions.CustomTokenProviderAdaptee;
 
 /**
- * Token provider that issue Azure AD tokens, which can be used by calls to Azure via the hadoop-azure library,
- * and also async http calls to Azure.
+ * Token provider that issue Azure AD tokens, which can be used by calls to Azure via the
+ * hadoop-azure library, and also async http calls to Azure.
  */
-public interface ClientCredentialsBasedTokenProvider extends CustomTokenProviderAdaptee, AzureAuthTokenProvider {
+public interface ClientCredentialsBasedTokenProvider
+    extends CustomTokenProviderAdaptee, AzureAuthTokenProvider {
 
   /**
    * Obtain the access token that should be added to https connection's header.
-   * <p>
-   * Prefer this method over {@link #getAccessToken}, which is an internal contract with hadoop-azure library to load
-   * the token. Also, this method does not throw a checked {@link IOException}, expect runtime exceptions instead.
+   *
+   * <p>Prefer this method over {@link #getAccessToken}, which is an internal contract with
+   * hadoop-azure library to load the token. Also, this method does not throw a checked {@link
+   * IOException}, expect runtime exceptions instead.
    *
    * @return String containing the access token
    */
   String getAccessTokenUnchecked();
-
 }

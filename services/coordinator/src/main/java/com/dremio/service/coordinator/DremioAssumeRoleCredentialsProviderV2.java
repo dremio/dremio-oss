@@ -15,24 +15,23 @@
  */
 package com.dremio.service.coordinator;
 
-import javax.inject.Provider;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.utils.AssumeRoleCredentialsProvider;
-
+import javax.inject.Provider;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 
 /**
- * Wrapper around the credentials provider to be able to plugin to the hadoop
- * libraries.
- * Gives aws sdk2 compatible implementation.
+ * Wrapper around the credentials provider to be able to plugin to the hadoop libraries. Gives aws
+ * sdk2 compatible implementation.
  */
-public class DremioAssumeRoleCredentialsProviderV2 implements AwsCredentialsProvider, AutoCloseable {
+public class DremioAssumeRoleCredentialsProviderV2
+    implements AwsCredentialsProvider, AutoCloseable {
 
   private static Provider<AssumeRoleCredentialsProvider> credentialsProvider;
 
-  public static void setAssumeRoleProvider(Provider<AssumeRoleCredentialsProvider> credentialsProvider) {
+  public static void setAssumeRoleProvider(
+      Provider<AssumeRoleCredentialsProvider> credentialsProvider) {
     DremioAssumeRoleCredentialsProviderV2.credentialsProvider = credentialsProvider;
   }
 

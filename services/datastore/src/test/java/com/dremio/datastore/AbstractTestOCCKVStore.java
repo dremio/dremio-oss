@@ -15,16 +15,6 @@
  */
 package com.dremio.datastore;
 
-import java.util.Arrays;
-import java.util.Collection;
-
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameter;
-
 import com.dremio.datastore.api.KVStore;
 import com.dremio.datastore.api.KVStoreProvider;
 import com.dremio.datastore.api.StoreCreationFunction;
@@ -42,13 +32,20 @@ import com.dremio.datastore.stores.ProtostuffStore;
 import com.dremio.datastore.stores.RawByteStore;
 import com.dremio.datastore.stores.StringStore;
 import com.dremio.datastore.stores.UUIDStore;
+import java.util.Arrays;
+import java.util.Collection;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameter;
 
-/**
- * Tests OCCKVStore
- */
+/** Tests OCCKVStore */
 @RunWith(Parameterized.class)
 public abstract class AbstractTestOCCKVStore<K, V> {
-  private static final String TAG_ASSERT_FAILURE_MSG = "All documents should have a non-null, non-empty tag";
+  private static final String TAG_ASSERT_FAILURE_MSG =
+      "All documents should have a non-null, non-empty tag";
 
   private KVStore<K, V> kvStore;
   private KVStoreProvider provider;
@@ -61,24 +58,31 @@ public abstract class AbstractTestOCCKVStore<K, V> {
 
   @Parameterized.Parameters(name = "Table: {0}")
   public static Collection<Object[]> parameters() {
-    return Arrays.asList(new Object[][]{
-      {UUIDStore.class, new UUIDStoreGenerator()},
-      {ProtobufStore.class, new ProtobufStoreGenerator()},
-      {ProtostuffStore.class, new ProtostuffStoreGenerator()},
-      //Variable-length
-      {StringStore.class, new StringStoreGenerator(UniqueSupplierOptions.VARIABLE_LENGTH)},
-      {RawByteStore.class, new RawByteStoreGenerator(UniqueSupplierOptions.VARIABLE_LENGTH)},
-      {ByteContainerStore.class, new ByteContainerStoreGenerator(UniqueSupplierOptions.VARIABLE_LENGTH)},
-      //Fixed-length
-      {StringStore.class, new StringStoreGenerator(UniqueSupplierOptions.FIXED_LENGTH)},
-      {RawByteStore.class, new RawByteStoreGenerator(UniqueSupplierOptions.FIXED_LENGTH)},
-      {ByteContainerStore.class, new ByteContainerStoreGenerator(UniqueSupplierOptions.FIXED_LENGTH)}
-    });
+    return Arrays.asList(
+        new Object[][] {
+          {UUIDStore.class, new UUIDStoreGenerator()},
+          {ProtobufStore.class, new ProtobufStoreGenerator()},
+          {ProtostuffStore.class, new ProtostuffStoreGenerator()},
+          // Variable-length
+          {StringStore.class, new StringStoreGenerator(UniqueSupplierOptions.VARIABLE_LENGTH)},
+          {RawByteStore.class, new RawByteStoreGenerator(UniqueSupplierOptions.VARIABLE_LENGTH)},
+          {
+            ByteContainerStore.class,
+            new ByteContainerStoreGenerator(UniqueSupplierOptions.VARIABLE_LENGTH)
+          },
+          // Fixed-length
+          {StringStore.class, new StringStoreGenerator(UniqueSupplierOptions.FIXED_LENGTH)},
+          {RawByteStore.class, new RawByteStoreGenerator(UniqueSupplierOptions.FIXED_LENGTH)},
+          {
+            ByteContainerStore.class,
+            new ByteContainerStoreGenerator(UniqueSupplierOptions.FIXED_LENGTH)
+          }
+        });
   }
 
   protected abstract KVStoreProvider createKVStoreProvider() throws Exception;
-  protected void closeResources() throws Exception {
-  }
+
+  protected void closeResources() throws Exception {}
 
   @SuppressWarnings("resource")
   @Before

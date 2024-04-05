@@ -26,6 +26,7 @@ import org.apache.calcite.sql.util.SqlVisitor;
 
 /**
  * BaseVisitor that throws exceptions by default
+ *
  * @param <T> return type
  */
 public abstract class BaseSqlVisitor<T> implements SqlVisitor<T> {
@@ -33,26 +34,32 @@ public abstract class BaseSqlVisitor<T> implements SqlVisitor<T> {
   public T visit(SqlLiteral lit) {
     throw new UnsupportedOperationException("SqlLiteral " + lit);
   }
+
   @Override
   public T visit(SqlCall call) {
     throw new UnsupportedOperationException("SqlCall " + call);
   }
+
   @Override
   public T visit(SqlNodeList list) {
     throw new UnsupportedOperationException("SqlNodeList " + list);
   }
+
   @Override
   public T visit(SqlIdentifier id) {
     throw new UnsupportedOperationException("SqlIdentifier " + id);
   }
+
   @Override
   public T visit(SqlDataTypeSpec spec) {
     throw new UnsupportedOperationException("SqlDataTypeSpec " + spec);
   }
+
   @Override
   public T visit(SqlDynamicParam param) {
     throw new UnsupportedOperationException("SqlDynamicParam " + param);
   }
+
   @Override
   public T visit(SqlIntervalQualifier qualifier) {
     throw new UnsupportedOperationException("SqlIntervalQualifier " + qualifier);

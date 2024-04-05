@@ -40,14 +40,15 @@ import com.dremio.common.expression.ValueExpressions.TimeExpression;
 import com.dremio.common.expression.ValueExpressions.TimeStampExpression;
 import com.dremio.common.expression.visitors.AbstractExprVisitor;
 
-public class HashVisitor extends AbstractExprVisitor<Integer,Void,RuntimeException> {
+public class HashVisitor extends AbstractExprVisitor<Integer, Void, RuntimeException> {
   @Override
   public Integer visitFunctionCall(FunctionCall call, Void value) throws RuntimeException {
     return compute(call, 1);
   }
 
   @Override
-  public Integer visitFunctionHolderExpression(FunctionHolderExpression holder, Void value) throws RuntimeException {
+  public Integer visitFunctionHolderExpression(FunctionHolderExpression holder, Void value)
+      throws RuntimeException {
     return compute(holder, 2);
   }
 
@@ -81,9 +82,9 @@ public class HashVisitor extends AbstractExprVisitor<Integer,Void,RuntimeExcepti
     return compute(intExpr, 8);
   }
 
-
   @Override
-  public Integer visitDecimalConstant(DecimalExpression decExpr, Void value) throws RuntimeException {
+  public Integer visitDecimalConstant(DecimalExpression decExpr, Void value)
+      throws RuntimeException {
     return compute(decExpr, 9);
   }
 
@@ -98,17 +99,20 @@ public class HashVisitor extends AbstractExprVisitor<Integer,Void,RuntimeExcepti
   }
 
   @Override
-  public Integer visitTimeStampConstant(TimeStampExpression intExpr, Void value) throws RuntimeException {
+  public Integer visitTimeStampConstant(TimeStampExpression intExpr, Void value)
+      throws RuntimeException {
     return compute(intExpr, 15);
   }
 
   @Override
-  public Integer visitIntervalYearConstant(IntervalYearExpression intExpr, Void value) throws RuntimeException {
+  public Integer visitIntervalYearConstant(IntervalYearExpression intExpr, Void value)
+      throws RuntimeException {
     return compute(intExpr, 16);
   }
 
   @Override
-  public Integer visitIntervalDayConstant(IntervalDayExpression intExpr, Void value) throws RuntimeException {
+  public Integer visitIntervalDayConstant(IntervalDayExpression intExpr, Void value)
+      throws RuntimeException {
     return compute(intExpr, 17);
   }
 

@@ -15,10 +15,6 @@
  */
 package com.dremio.telemetry.api;
 
-import java.util.SortedMap;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
-
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Histogram;
@@ -29,10 +25,11 @@ import com.codahale.metrics.ScheduledReporter;
 import com.codahale.metrics.Timer;
 import com.dremio.telemetry.api.config.ReporterConfigurator;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import java.util.SortedMap;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
-/**
- * A configurator for test purposes.
- */
+/** A configurator for test purposes. */
 @JsonTypeName("test")
 public class TestReportConfigurator extends ReporterConfigurator {
 
@@ -67,11 +64,7 @@ public class TestReportConfigurator extends ReporterConfigurator {
 
     private AtomicLong count = new AtomicLong();
 
-    public TestReporter(
-        MetricRegistry registry,
-        String name,
-        MetricFilter filter
-        ) {
+    public TestReporter(MetricRegistry registry, String name, MetricFilter filter) {
       super(registry, name, filter, TimeUnit.SECONDS, TimeUnit.SECONDS);
     }
 

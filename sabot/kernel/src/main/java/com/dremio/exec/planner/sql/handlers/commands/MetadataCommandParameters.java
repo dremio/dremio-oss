@@ -16,13 +16,10 @@
 
 package com.dremio.exec.planner.sql.handlers.commands;
 
+import com.dremio.exec.proto.UserBitShared.QueryId;
 import org.immutables.value.Value;
 
-import com.dremio.exec.proto.UserBitShared.QueryId;
-
-/**
- * Parameters required for metadata commands.
- */
+/** Parameters required for metadata commands. */
 @Value.Immutable
 public interface MetadataCommandParameters {
 
@@ -33,5 +30,4 @@ public interface MetadataCommandParameters {
   int getMaxMetadataCount();
 
   QueryId getQueryId();
-
 }

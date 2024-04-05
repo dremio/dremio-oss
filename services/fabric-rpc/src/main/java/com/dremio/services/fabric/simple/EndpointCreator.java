@@ -15,14 +15,6 @@
  */
 package com.dremio.services.fabric.simple;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import java.util.stream.Collectors;
-
-import org.apache.arrow.memory.ArrowBuf;
-
 import com.dremio.common.util.concurrent.DremioFutures;
 import com.dremio.exec.rpc.FutureBitCommand;
 import com.dremio.exec.rpc.RpcException;
@@ -33,12 +25,17 @@ import com.dremio.services.fabric.api.FabricCommandRunner;
 import com.dremio.services.fabric.api.FabricRunnerFactory;
 import com.google.protobuf.Internal.EnumLite;
 import com.google.protobuf.MessageLite;
-
 import io.netty.buffer.NettyArrowBuf;
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
+import org.apache.arrow.memory.ArrowBuf;
 
 /**
- * Implementation class the provides endpoints using a FabricRunnerFactory,
- * abstracting away the asynchronous nature of the Fabric protocol system.
+ * Implementation class the provides endpoints using a FabricRunnerFactory, abstracting away the
+ * asynchronous nature of the Fabric protocol system.
  *
  * @param <REQUEST>
  * @param <RESPONSE>
@@ -51,7 +48,8 @@ class EndpointCreator<REQUEST extends MessageLite, RESPONSE extends MessageLite>
   private final Class<RESPONSE> responseClass;
   private final long timeout;
 
-  public EndpointCreator(FabricRunnerFactory factory, EnumLite num, Class<RESPONSE> responseClass, long timeout) {
+  public EndpointCreator(
+      FabricRunnerFactory factory, EnumLite num, Class<RESPONSE> responseClass, long timeout) {
     super();
     this.factory = factory;
     this.num = num;
@@ -64,9 +62,7 @@ class EndpointCreator<REQUEST extends MessageLite, RESPONSE extends MessageLite>
     return new RequestSender(factory.getCommandRunner(address, port));
   }
 
-  /**
-   * Class that is used to send requests by api consumers.
-   */
+  /** Class that is used to send requests by api consumers. */
   private class RequestSender implements SendEndpoint<REQUEST, RESPONSE> {
 
     private final FabricCommandRunner runner;
@@ -77,7 +73,8 @@ class EndpointCreator<REQUEST extends MessageLite, RESPONSE extends MessageLite>
     }
 
     @Override
-    public ReceivedResponseMessage<RESPONSE> send(REQUEST message, ArrowBuf... bufs) throws RpcException {
+    public ReceivedResponseMessage<RESPONSE> send(REQUEST message, ArrowBuf... bufs)
+        throws RpcException {
       Command c = new Command(message, bufs);
       runner.runCommand(c);
       RpcFuture<RESPONSE> future = c.getFuture();
@@ -85,22 +82,26 @@ class EndpointCreator<REQUEST extends MessageLite, RESPONSE extends MessageLite>
 
       if (timeout > 0) {
         try {
-          response = DremioFutures.getChecked(future, RpcException.class, timeout, TimeUnit.MILLISECONDS, RpcException::mapException);
+          response =
+              DremioFutures.getChecked(
+                  future,
+                  RpcException.class,
+                  timeout,
+                  TimeUnit.MILLISECONDS,
+                  RpcException::mapException);
         } catch (TimeoutException ex) {
           throw new RpcException(ex);
         }
       } else {
         response = DremioFutures.getChecked(future, RpcException.class, RpcException::mapException);
       }
-      final ArrowBuf body = future.getBuffer() != null ? ((NettyArrowBuf) future.getBuffer())
-        .arrowBuf() : null;
+      final ArrowBuf body =
+          future.getBuffer() != null ? ((NettyArrowBuf) future.getBuffer()).arrowBuf() : null;
 
       return new ReceivedResponseMessage<>(response, body);
     }
 
-    /**
-     * A nested command class that actually executes the Rpc operation.
-     */
+    /** A nested command class that actually executes the Rpc operation. */
     private class Command extends FutureBitCommand<RESPONSE, ProxyConnection> {
       private final REQUEST req;
       private final NettyArrowBuf[] bufs;
@@ -108,7 +109,10 @@ class EndpointCreator<REQUEST extends MessageLite, RESPONSE extends MessageLite>
       public Command(REQUEST req, ArrowBuf[] bufs) {
         super();
         this.req = req;
-        List<NettyArrowBuf> buffers = Arrays.stream(bufs).map(buf -> NettyArrowBuf.unwrapBuffer(buf)).collect(Collectors.toList());
+        List<NettyArrowBuf> buffers =
+            Arrays.stream(bufs)
+                .map(buf -> NettyArrowBuf.unwrapBuffer(buf))
+                .collect(Collectors.toList());
         this.bufs = new NettyArrowBuf[buffers.size()];
         int i = 0;
         for (NettyArrowBuf arrowBuf : buffers) {
@@ -118,11 +122,10 @@ class EndpointCreator<REQUEST extends MessageLite, RESPONSE extends MessageLite>
       }
 
       @Override
-      public void doRpcCall(RpcOutcomeListener<RESPONSE> outcomeListener, ProxyConnection connection) {
+      public void doRpcCall(
+          RpcOutcomeListener<RESPONSE> outcomeListener, ProxyConnection connection) {
         connection.send(outcomeListener, num, req, responseClass, bufs);
       }
-
     }
   }
-
 }

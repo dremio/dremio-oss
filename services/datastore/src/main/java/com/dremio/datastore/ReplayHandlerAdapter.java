@@ -15,23 +15,23 @@
  */
 package com.dremio.datastore;
 
+import com.google.common.collect.Sets;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
-
 import org.rocksdb.WriteBatch;
-
-import com.google.common.collect.Sets;
 
 /**
  * Adapts {@link ReplayHandler} to {@link WriteBatch.Handler}.
  *
- * Note to developers: the operation overrides in this adapter need to be in sync with the operations on the
- * {@link RocksDBStore#db underlying RocksDB's store} (and {@link ByteStoreManager#db}). Currently only {@link #put},
- * {@link #delete} and {@link #singleDelete} are supported.
+ * <p>Note to developers: the operation overrides in this adapter need to be in sync with the
+ * operations on the {@link RocksDBStore#db underlying RocksDB's store} (and {@link
+ * ByteStoreManager#db}). Currently only {@link #put}, {@link #delete} and {@link #singleDelete} are
+ * supported.
  */
 class ReplayHandlerAdapter extends WriteBatch.Handler {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ReplayHandlerAdapter.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ReplayHandlerAdapter.class);
 
   private final int defaultFamilyId;
   private final Map<Integer, String> familyIdToName;
@@ -39,7 +39,8 @@ class ReplayHandlerAdapter extends WriteBatch.Handler {
 
   private final Set<String> updatedStores = Sets.newHashSet();
 
-  ReplayHandlerAdapter(int defaultFamilyId, ReplayHandler replayHandler, Map<Integer, String> familyIdToName) {
+  ReplayHandlerAdapter(
+      int defaultFamilyId, ReplayHandler replayHandler, Map<Integer, String> familyIdToName) {
     this.defaultFamilyId = defaultFamilyId;
     this.replayHandler = replayHandler;
     this.familyIdToName = familyIdToName;
@@ -81,7 +82,7 @@ class ReplayHandlerAdapter extends WriteBatch.Handler {
   }
 
   @Override
-  public void delete(int columnFamilyId, byte[] key)  {
+  public void delete(int columnFamilyId, byte[] key) {
     if (defaultFamilyId == columnFamilyId) {
       return;
     }
@@ -129,7 +130,8 @@ class ReplayHandlerAdapter extends WriteBatch.Handler {
   @Override
   public void deleteRange(int columnFamilyId, byte[] beginKey, byte[] endKey) {
     if (logger.isWarnEnabled()) {
-      logger.warn("Ignoring delete range: {}:{}:{}", familyIdToName.get(columnFamilyId), beginKey, endKey);
+      logger.warn(
+          "Ignoring delete range: {}:{}:{}", familyIdToName.get(columnFamilyId), beginKey, endKey);
     }
   }
 

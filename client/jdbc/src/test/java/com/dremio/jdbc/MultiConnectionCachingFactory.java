@@ -15,17 +15,16 @@
  */
 package com.dremio.jdbc;
 
+import com.google.common.collect.Maps;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Map;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.collect.Maps;
-
 /**
- * A connection factory that caches connections based on given {@link com.dremio.jdbc.ConnectionInfo}.
+ * A connection factory that caches connections based on given {@link
+ * com.dremio.jdbc.ConnectionInfo}.
  */
 public class MultiConnectionCachingFactory implements CachingConnectionFactory {
   private static final Logger logger = LoggerFactory.getLogger(MultiConnectionCachingFactory.class);
@@ -40,8 +39,9 @@ public class MultiConnectionCachingFactory implements CachingConnectionFactory {
   /**
    * Creates a {@link com.dremio.jdbc.NonClosableConnection connection} and caches it.
    *
-   * The returned {@link com.dremio.jdbc.NonClosableConnection connection} does not support
-   * {@link java.sql.Connection#close()}. Consumer must call {#close} to close the cached connections.
+   * <p>The returned {@link com.dremio.jdbc.NonClosableConnection connection} does not support
+   * {@link java.sql.Connection#close()}. Consumer must call {#close} to close the cached
+   * connections.
    */
   @Override
   public Connection getConnection(ConnectionInfo info) throws Exception {
@@ -53,9 +53,7 @@ public class MultiConnectionCachingFactory implements CachingConnectionFactory {
     return new NonClosableConnection(conn);
   }
 
-  /**
-   * Closes all active connections in the cache.
-   */
+  /** Closes all active connections in the cache. */
   @Override
   public void closeConnections() throws SQLException {
     for (Connection conn : cache.values()) {

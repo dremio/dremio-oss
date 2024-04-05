@@ -15,20 +15,6 @@
  */
 package com.dremio.exec.planner.physical;
 
-import java.io.IOException;
-import java.util.List;
-
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelOptCost;
-import org.apache.calcite.plan.RelOptPlanner;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.core.Join;
-import org.apache.calcite.rel.core.JoinRelType;
-import org.apache.calcite.rel.metadata.RelMetadataQuery;
-import org.apache.calcite.rex.RexNode;
-
 import com.dremio.common.logical.data.JoinCondition;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.config.MergeJoinPOP;
@@ -41,44 +27,75 @@ import com.dremio.options.Options;
 import com.dremio.options.TypeValidators.LongValidator;
 import com.dremio.options.TypeValidators.PositiveLongValidator;
 import com.dremio.sabot.op.join.JoinUtils.JoinCategory;
+import java.io.IOException;
+import java.util.List;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptCost;
+import org.apache.calcite.plan.RelOptPlanner;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.core.Join;
+import org.apache.calcite.rel.core.JoinRelType;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.apache.calcite.rex.RexNode;
 
 @Options
-public class MergeJoinPrel  extends JoinPrel {
+public class MergeJoinPrel extends JoinPrel {
 
-  public static final LongValidator RESERVE = new PositiveLongValidator("planner.op.mergejoin.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
-  public static final LongValidator LIMIT = new PositiveLongValidator("planner.op.mergejoin.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
+  public static final LongValidator RESERVE =
+      new PositiveLongValidator(
+          "planner.op.mergejoin.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
+  public static final LongValidator LIMIT =
+      new PositiveLongValidator("planner.op.mergejoin.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
 
   /** Creates a MergeJoinPrel. */
-  private MergeJoinPrel(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, RexNode condition,
+  private MergeJoinPrel(
+      RelOptCluster cluster,
+      RelTraitSet traits,
+      RelNode left,
+      RelNode right,
+      RexNode condition,
       JoinRelType joinType) {
-    super(cluster, traits, left, right, condition, joinType);
+    super(cluster, traits, left, right, condition, joinType, false);
   }
 
-  public static MergeJoinPrel create(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, RexNode condition,
+  public static MergeJoinPrel create(
+      RelOptCluster cluster,
+      RelTraitSet traits,
+      RelNode left,
+      RelNode right,
+      RexNode condition,
       JoinRelType joinType) {
     final RelTraitSet adjustedTraits = JoinPrel.adjustTraits(traits);
     return new MergeJoinPrel(cluster, adjustedTraits, left, right, condition, joinType);
   }
 
   @Override
-  public Join copy(RelTraitSet traitSet, RexNode conditionExpr, RelNode left, RelNode right, JoinRelType joinType, boolean semiJoinDone) {
+  public Join copy(
+      RelTraitSet traitSet,
+      RexNode conditionExpr,
+      RelNode left,
+      RelNode right,
+      JoinRelType joinType,
+      boolean semiJoinDone) {
     return new MergeJoinPrel(this.getCluster(), traitSet, left, right, conditionExpr, joinType);
   }
 
   @Override
   public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
-    if(PrelUtil.getSettings(getCluster()).useDefaultCosting()) {
+    if (PrelUtil.getSettings(getCluster()).useDefaultCosting()) {
       return super.computeSelfCost(planner, mq).multiplyBy(.1);
     }
     if (joinCategory == JoinCategory.CARTESIAN || joinCategory == JoinCategory.INEQUALITY) {
-      return ((Factory)planner.getCostFactory()).makeInfiniteCost();
+      return ((Factory) planner.getCostFactory()).makeInfiniteCost();
     }
     double leftRowCount = mq.getRowCount(this.getLeft());
     double rightRowCount = mq.getRowCount(this.getRight());
     // cost of evaluating each leftkey=rightkey join condition
     double joinConditionCost = DremioCost.COMPARE_CPU_COST * this.getLeftKeys().size();
     double cpuCost = joinConditionCost * (leftRowCount + rightRowCount);
-    Factory costFactory = (Factory)planner.getCostFactory();
+    Factory costFactory = (Factory) planner.getCostFactory();
     return costFactory.makeCost(leftRowCount + rightRowCount, cpuCost, 0, 0);
   }
 
@@ -91,12 +108,13 @@ public class MergeJoinPrel  extends JoinPrel {
     final List<String> leftFields = fields.subList(0, leftCount);
     final List<String> rightFields = fields.subList(leftCount, fields.size());
 
-    PhysicalOperator leftPop = ((Prel)left).getPhysicalOperator(creator);
-    PhysicalOperator rightPop = ((Prel)right).getPhysicalOperator(creator);
+    PhysicalOperator leftPop = ((Prel) left).getPhysicalOperator(creator);
+    PhysicalOperator rightPop = ((Prel) right).getPhysicalOperator(creator);
 
     JoinRelType jtype = this.getJoinType();
 
-    final List<JoinCondition> conditions = buildJoinConditions(leftFields, rightFields, leftKeys, rightKeys);
+    final List<JoinCondition> conditions =
+        buildJoinConditions(leftFields, rightFields, leftKeys, rightKeys);
 
     SchemaBuilder b = BatchSchema.newBuilder();
     for (Field f : rightPop.getProps().getSchema()) {
@@ -108,12 +126,7 @@ public class MergeJoinPrel  extends JoinPrel {
     BatchSchema schema = b.build();
 
     return new MergeJoinPOP(
-        creator.props(this, null, schema, RESERVE, LIMIT),
-        leftPop,
-        rightPop,
-        conditions,
-        jtype
-        );
+        creator.props(this, null, schema, RESERVE, LIMIT), leftPop, rightPop, conditions, jtype);
   }
 
   @Override

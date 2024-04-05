@@ -17,9 +17,7 @@ package com.dremio.service.jobs;
 
 import com.dremio.service.job.JobSummary;
 
-/**
- * Informs an interested party about job events.
- */
+/** Informs an interested party about job events. */
 public interface ExternalStatusListener {
 
   /**
@@ -34,7 +32,7 @@ public interface ExternalStatusListener {
    *
    * @param jobSummary updated jobsummary
    */
-  default void queryProgressed(JobSummary jobSummary,boolean newJobsUi) {}
+  default void queryProgressed(JobSummary jobSummary, boolean newJobsUi) {}
 
   /**
    * Called when job is completed. Provides final job object.

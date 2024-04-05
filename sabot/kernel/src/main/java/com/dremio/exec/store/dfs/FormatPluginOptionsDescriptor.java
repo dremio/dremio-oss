@@ -17,15 +17,6 @@ package com.dremio.exec.store.dfs;
 
 import static java.util.Collections.unmodifiableMap;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-
-import org.slf4j.Logger;
-
 import com.dremio.common.SuppressForbidden;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.logical.FormatPluginConfig;
@@ -33,22 +24,28 @@ import com.dremio.service.namespace.TableInstance;
 import com.dremio.service.namespace.TableInstance.TableParamDef;
 import com.dremio.service.namespace.TableInstance.TableSignature;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import org.slf4j.Logger;
 
-/**
- * Describes the options for a format plugin
- * extracted from the FormatPluginConfig subclass
- */
+/** Describes the options for a format plugin extracted from the FormatPluginConfig subclass */
 final class FormatPluginOptionsDescriptor {
-  private static final Logger logger = org.slf4j.LoggerFactory.getLogger(FormatPluginOptionsDescriptor.class);
+  private static final Logger logger =
+      org.slf4j.LoggerFactory.getLogger(FormatPluginOptionsDescriptor.class);
 
   final Class<? extends FormatPluginConfig> pluginConfigClass;
   final String typeName;
   private final Map<String, TableParamDef> functionParamsByName;
 
   /**
-   * Uses reflection to extract options based on the fields of the provided config class
-   * ("List extensions" field is ignored, pending removal, Char is turned into String)
-   * The class must be annotated with {@code @JsonTypeName("type name")}
+   * Uses reflection to extract options based on the fields of the provided config class ("List
+   * extensions" field is ignored, pending removal, Char is turned into String) The class must be
+   * annotated with {@code @JsonTypeName("type name")}
+   *
    * @param pluginConfigClass the config class we want to extract options from through reflection
    */
   FormatPluginOptionsDescriptor(Class<? extends FormatPluginConfig> pluginConfigClass) {
@@ -79,6 +76,7 @@ final class FormatPluginOptionsDescriptor {
 
   /**
    * returns the table function signature for this format plugin config class
+   *
    * @param tableName the table for which we want a table function signature
    * @return the signature
    */
@@ -112,6 +110,7 @@ final class FormatPluginOptionsDescriptor {
 
   /**
    * creates an instance of the FormatPluginConfig based on the passed parameters
+   *
    * @param t the signature and the parameters passed to the table function
    * @return the corresponding config
    */
@@ -123,12 +122,11 @@ final class FormatPluginOptionsDescriptor {
     if (!typeParamDef.getName().equals("type")
         || typeParamDef.getType() != String.class
         || !(typeParam instanceof String)
-        || !typeName.equalsIgnoreCase((String)typeParam)) {
+        || !typeName.equalsIgnoreCase((String) typeParam)) {
       // if we reach here, there's a bug as all signatures generated start with a type parameter
       throw UserException.parseError()
           .message(
-              "This function signature is not supported: %s\n"
-              + "expecting %s",
+              "This function signature is not supported: %s\n" + "expecting %s",
               t.presentParams(), this.presentParams())
           .addContext("table", t.getSig().getName())
           .build(logger);
@@ -154,12 +152,12 @@ final class FormatPluginOptionsDescriptor {
       TableParamDef expectedParamDef = this.functionParamsByName.get(paramDef.getName());
       if (expectedParamDef == null || expectedParamDef.getType() != paramDef.getType()) {
         throw UserException.parseError()
-        .message(
-            "The parameters provided are not applicable to the type specified:\n"
-                + "provided: %s\nexpected: %s",
-            t.presentParams(), this.presentParams())
-        .addContext("table", t.getSig().getName())
-        .build(logger);
+            .message(
+                "The parameters provided are not applicable to the type specified:\n"
+                    + "provided: %s\nexpected: %s",
+                t.presentParams(), this.presentParams())
+            .addContext("table", t.getSig().getName())
+            .build(logger);
       }
       try {
         Field field = pluginConfigClass.getField(paramDef.getName());
@@ -168,17 +166,19 @@ final class FormatPluginOptionsDescriptor {
           String stringParam = (String) param;
           if (stringParam.length() != 1) {
             throw UserException.parseError()
-              .message("Expected single character but was String: %s", stringParam)
-              .addContext("table", t.getSig().getName())
-              .addContext("parameter", paramDef.getName())
-              .build(logger);
+                .message("Expected single character but was String: %s", stringParam)
+                .addContext("table", t.getSig().getName())
+                .addContext("parameter", paramDef.getName())
+                .build(logger);
           }
           param = stringParam.charAt(0);
         }
         field.set(config, param);
       } catch (IllegalAccessException | NoSuchFieldException | SecurityException e) {
         throw UserException.parseError(e)
-            .message("can not set value %s to parameter %s: %s", param, paramDef.getName(), paramDef.getType())
+            .message(
+                "can not set value %s to parameter %s: %s",
+                param, paramDef.getName(), paramDef.getType())
             .addContext("table", t.getSig().getName())
             .addContext("parameter", paramDef.getName())
             .build(logger);
@@ -189,7 +189,12 @@ final class FormatPluginOptionsDescriptor {
 
   @Override
   public String toString() {
-    return "OptionsDescriptor [pluginConfigClass=" + pluginConfigClass + ", typeName=" + typeName
-        + ", functionParamsByName=" + functionParamsByName + "]";
+    return "OptionsDescriptor [pluginConfigClass="
+        + pluginConfigClass
+        + ", typeName="
+        + typeName
+        + ", functionParamsByName="
+        + functionParamsByName
+        + "]";
   }
 }

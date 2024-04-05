@@ -19,16 +19,21 @@ import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.sabot.exec.store.easy.proto.EasyProtobuf;
 import com.google.protobuf.InvalidProtocolBufferException;
 
-public class EasySplit implements Comparable<EasySplit>{
+public class EasySplit implements Comparable<EasySplit> {
   private final SplitAndPartitionInfo splitAndPartitionInfo;
   private final EasyProtobuf.EasyDatasetSplitXAttr easySplitXAttr;
 
   EasySplit(SplitAndPartitionInfo splitAndPartitionInfo) {
     this.splitAndPartitionInfo = splitAndPartitionInfo;
     try {
-      this.easySplitXAttr = EasyProtobuf.EasyDatasetSplitXAttr.parseFrom(splitAndPartitionInfo.getDatasetSplitInfo().getExtendedProperty());
+      this.easySplitXAttr =
+          EasyProtobuf.EasyDatasetSplitXAttr.parseFrom(
+              splitAndPartitionInfo.getDatasetSplitInfo().getExtendedProperty());
     } catch (InvalidProtocolBufferException e) {
-      throw new RuntimeException("Failed to parse dataset split for " + splitAndPartitionInfo.getPartitionInfo().getSplitKey(), e);
+      throw new RuntimeException(
+          "Failed to parse dataset split for "
+              + splitAndPartitionInfo.getPartitionInfo().getSplitKey(),
+          e);
     }
   }
 

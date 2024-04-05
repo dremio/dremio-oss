@@ -20,7 +20,7 @@ import org.apache.calcite.rel.RelNode;
 /**
  * TODO This has already been upstreamed, remove when dremio/calcite has been updated.
  *
- * Interface for {@link RelNode} where the metadata is derived from another node.
+ * <p>Interface for {@link RelNode} where the metadata is derived from another node.
  */
 public interface DelegatingMetadataRel {
   RelNode getMetadataDelegateRel();

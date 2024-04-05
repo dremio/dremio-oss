@@ -17,6 +17,9 @@ package com.dremio.jdbc;
 
 import static org.junit.Assert.fail;
 
+import com.dremio.exec.ExecTest;
+import com.dremio.jdbc.test.JdbcAssert;
+import com.google.common.base.Strings;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
@@ -24,7 +27,6 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Properties;
-
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
@@ -34,41 +36,42 @@ import org.junit.rules.TestRule;
 import org.junit.rules.TestWatcher;
 import org.junit.runner.Description;
 
-import com.dremio.exec.ExecTest;
-import com.dremio.jdbc.test.JdbcAssert;
-import com.google.common.base.Strings;
-
 // TODO:  Document this, especially what writers of unit tests need to know
 //   (e.g., the reusing of connections, the automatic interception of test
 //   failures and resetting of connections, etc.).
 public class JdbcTestBase extends ExecTest {
   @SuppressWarnings("unused")
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(JdbcTestBase.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(JdbcTestBase.class);
 
   @Rule
-  public final TestRule watcher = new TestWatcher() {
-    @Override
-    protected void failed(Throwable e, Description description) {
-      reset();
-    }
-  };
+  public final TestRule watcher =
+      new TestWatcher() {
+        @Override
+        protected void failed(Throwable e, Description description) {
+          reset();
+        }
+      };
 
   private static CachingConnectionFactory factory;
 
   @BeforeClass
   public static void setUpTestCase() {
-    factory = new SingleConnectionCachingFactory(new ConnectionFactory() {
-      @Override
-      public Connection getConnection(ConnectionInfo info) throws Exception {
-        Class.forName("com.dremio.jdbc.Driver");
-        return DriverManager.getConnection(info.getUrl(), info.getParamsAsProperties());
-      }
-    });
+    factory =
+        new SingleConnectionCachingFactory(
+            new ConnectionFactory() {
+              @Override
+              public Connection getConnection(ConnectionInfo info) throws Exception {
+                Class.forName("com.dremio.jdbc.Driver");
+                return DriverManager.getConnection(info.getUrl(), info.getParamsAsProperties());
+              }
+            });
     JdbcAssert.setFactory(factory);
   }
 
   /**
    * Creates a {@link java.sql.Connection connection} using default parameters.
+   *
    * @param url connection URL
    * @throws Exception if connection fails
    */
@@ -76,9 +79,9 @@ public class JdbcTestBase extends ExecTest {
     return connect(url, JdbcAssert.getDefaultProperties());
   }
 
-
   /**
    * Creates a {@link java.sql.Connection connection} using the given parameters.
+   *
    * @param url connection URL
    * @param info connection info
    * @throws Exception if connection fails
@@ -90,8 +93,8 @@ public class JdbcTestBase extends ExecTest {
   }
 
   /**
-   * Changes schema of the given connection if the field "schema" is present in {@link java.util.Properties info}.
-   * Does nothing otherwise.
+   * Changes schema of the given connection if the field "schema" is present in {@link
+   * java.util.Properties info}. Does nothing otherwise.
    */
   protected static void changeSchemaIfSupplied(Connection conn, Properties info) {
     final String schema = info.getProperty("schema", null);
@@ -102,14 +105,14 @@ public class JdbcTestBase extends ExecTest {
 
   // TODO:  Purge nextUntilEnd(...) and calls when remaining fragment race
   // conditions are fixed (not just DRILL-2245 fixes).
-  ///**
+  /// **
   // * Calls {@link ResultSet#next} on given {@code ResultSet} until it returns
   // * false.  (For TEMPORARY workaround for query cancelation race condition.)
   // */
-  //private static void nextUntilEnd(final ResultSet resultSet) throws SQLException {
+  // private static void nextUntilEnd(final ResultSet resultSet) throws SQLException {
   //  while (resultSet.next()) {
   //  }
-  //}
+  // }
 
   protected static void changeSchema(Connection conn, String schema) {
     final String query = String.format("use %s", schema);
@@ -124,9 +127,7 @@ public class JdbcTestBase extends ExecTest {
     }
   }
 
-  /**
-   * Resets the factory closing all of the active connections.
-   */
+  /** Resets the factory closing all of the active connections. */
   protected static void reset() {
     try {
       factory.closeConnections();
@@ -141,11 +142,10 @@ public class JdbcTestBase extends ExecTest {
   }
 
   /**
-   * Test of whether tests that get connection from JdbcTest.connect(...)
-   * work with resetting of connections.  If enabling this (failing) test method
-   * causes other test methods to fail, something needs to be fixed.
-   * (Note:  Not a guaranteed test--depends on order in which test methods are
-   * run.)
+   * Test of whether tests that get connection from JdbcTest.connect(...) work with resetting of
+   * connections. If enabling this (failing) test method causes other test methods to fail,
+   * something needs to be fixed. (Note: Not a guaranteed test--depends on order in which test
+   * methods are run.)
    */
   @Ignore("Usually disabled; enable temporarily to check tests")
   @Test
@@ -153,9 +153,9 @@ public class JdbcTestBase extends ExecTest {
     fail("Intentional failure--did other test methods still run?");
   }
 
-
   /**
    * Prints all of resultset to std out.
+   *
    * @param rs ResultSet to print
    * @throws SQLException
    */
@@ -171,13 +171,13 @@ public class JdbcTestBase extends ExecTest {
     }
 
     while (rs.next()) {
-        for (int i = 1; i <= cnt; i++) {
-            if (i > 1) {
-              System.out.print(",  ");
-            }
-            System.out.print(rs.getString(i));
+      for (int i = 1; i <= cnt; i++) {
+        if (i > 1) {
+          System.out.print(",  ");
         }
-        System.out.println("");
+        System.out.print(rs.getString(i));
+      }
+      System.out.println("");
     }
   }
 }

@@ -16,16 +16,14 @@
 
 package com.dremio.exec.physical.config;
 
-import java.util.List;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.record.BatchSchema;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-
 import io.protostuff.ByteString;
+import java.util.List;
 
 /**
  * A TableFunctionContext used to pass information needed for IncrementalRefreshJoinKeyTableFunction
@@ -33,17 +31,33 @@ import io.protostuff.ByteString;
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonTypeName("incremental-refresh-join-key-table")
 public class IncrementalRefreshJoinKeyTableFunctionContext extends TableFunctionContext {
-  private final ByteString partitionSpec; //target partition spec to apply
-  private final String icebergSchema; //Iceberg schema of the data
-  private final String metadataLocation; //Location of the Iceberg Metadata for the table
+  private final ByteString partitionSpec; // target partition spec to apply
+  private final String icebergSchema; // Iceberg schema of the data
+  private final String metadataLocation; // Location of the Iceberg Metadata for the table
 
-  public IncrementalRefreshJoinKeyTableFunctionContext(@JsonProperty("partitionSpec") final ByteString partitionSpec,
-                                                       @JsonProperty("icebergSchema") final String icebergSchema,
-                                                       @JsonProperty("schema") final BatchSchema fullSchema,
-                                                       @JsonProperty("columns") final List<SchemaPath> columns,
-                                                       @JsonProperty("metadataLocation") final String metadataLocation,
-                                                       @JsonProperty("pluginId") final StoragePluginId pluginId) {
-    super(null, fullSchema, null, null, null, null, pluginId, null, columns, null, null, null, false, false, true, null);
+  public IncrementalRefreshJoinKeyTableFunctionContext(
+      @JsonProperty("partitionSpec") final ByteString partitionSpec,
+      @JsonProperty("icebergSchema") final String icebergSchema,
+      @JsonProperty("schema") final BatchSchema fullSchema,
+      @JsonProperty("columns") final List<SchemaPath> columns,
+      @JsonProperty("metadataLocation") final String metadataLocation,
+      @JsonProperty("pluginId") final StoragePluginId pluginId) {
+    super(
+        null,
+        fullSchema,
+        null,
+        null,
+        null,
+        null,
+        pluginId,
+        null,
+        columns,
+        null,
+        null,
+        false,
+        false,
+        true,
+        null);
     this.partitionSpec = partitionSpec;
     this.icebergSchema = icebergSchema;
     this.metadataLocation = metadataLocation;
@@ -57,7 +71,7 @@ public class IncrementalRefreshJoinKeyTableFunctionContext extends TableFunction
     return icebergSchema;
   }
 
-  public String getMetadataLocation(){
+  public String getMetadataLocation() {
     return metadataLocation;
   }
 }

@@ -15,21 +15,20 @@
  */
 package com.dremio.exec;
 
+import com.dremio.common.VM;
+import com.dremio.common.config.SabotConfig;
+import com.google.common.collect.Lists;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocatorFactory;
 
-import com.dremio.common.VM;
-import com.dremio.common.config.SabotConfig;
-import com.google.common.collect.Lists;
-
 public class TestMemoryRetention {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestMemoryRetention.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(TestMemoryRetention.class);
 
   private static final int SMALL_AVERAGE_BYTES = 1024 * 32;
   private static final int LARGE_BYTES = 32 * 1024 * 1024;
@@ -45,7 +44,8 @@ public class TestMemoryRetention {
     final long maxMemory = VM.getMaxDirectMemory();
     final long maxPerThread = maxMemory / PARALLEL_THREADS;
     final double smallCount = (maxPerThread * SMALL_ALLOCATION_MEM) / SMALL_AVERAGE_BYTES;
-    final double largeCount = (maxPerThread * (1 - SMALL_ALLOCATION_MEM - OVERHEAD_ALLOWANCE)) / LARGE_BYTES;
+    final double largeCount =
+        (maxPerThread * (1 - SMALL_ALLOCATION_MEM - OVERHEAD_ALLOWANCE)) / LARGE_BYTES;
     final List<Integer> allocations = Lists.newArrayList();
 
     for (int i = 0; i < smallCount; i++) {

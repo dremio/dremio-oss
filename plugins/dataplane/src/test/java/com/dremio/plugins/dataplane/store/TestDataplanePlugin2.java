@@ -27,38 +27,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
-import java.io.File;
-import java.io.IOException;
-import java.net.URI;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.api.io.TempDir;
-import org.projectnessie.client.api.NessieApiV2;
-import org.projectnessie.error.NessieNotFoundException;
-import org.projectnessie.model.Content;
-import org.projectnessie.model.ContentKey;
-import org.projectnessie.model.FetchOption;
-import org.projectnessie.model.IcebergTable;
-import org.projectnessie.model.LogResponse.LogEntry;
-import org.projectnessie.model.NessieConfiguration;
-import org.projectnessie.model.Operation;
-import org.projectnessie.tools.compatibility.api.NessieAPI;
-import org.projectnessie.tools.compatibility.api.NessieBaseUri;
-import org.projectnessie.tools.compatibility.api.NessieServerProperty;
-import org.projectnessie.tools.compatibility.internal.OlderNessieServersExtension;
-
 import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.AutoCloseables;
@@ -81,26 +49,52 @@ import com.dremio.plugins.NessieClient;
 import com.dremio.plugins.s3.store.S3FileSystem;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.users.UserService;
-import com.dremio.services.credentials.CredentialsService;
+import com.dremio.services.credentials.CredentialsServiceImpl;
 import com.google.common.base.Preconditions;
-
 import io.findify.s3mock.S3Mock;
+import java.io.File;
+import java.io.IOException;
+import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
+import org.projectnessie.client.api.NessieApiV2;
+import org.projectnessie.error.NessieNotFoundException;
+import org.projectnessie.model.Content;
+import org.projectnessie.model.ContentKey;
+import org.projectnessie.model.FetchOption;
+import org.projectnessie.model.IcebergTable;
+import org.projectnessie.model.LogResponse.LogEntry;
+import org.projectnessie.model.NessieConfiguration;
+import org.projectnessie.model.Operation;
+import org.projectnessie.tools.compatibility.api.NessieAPI;
+import org.projectnessie.tools.compatibility.api.NessieBaseUri;
+import org.projectnessie.tools.compatibility.api.NessieServerProperty;
+import org.projectnessie.tools.compatibility.internal.OlderNessieServersExtension;
 
 /**
  * Tests for DataplanePlugin
  *
- * TODO DX-54476: This was originally intended to be unit tests for
- *   DataplanePlugin, but it has expanded and become a little cluttered. These
- *   should be cleaned up and moved to TestDataplanePlugin or ITDataplanePlugin.
+ * <p>TODO DX-54476: This was originally intended to be unit tests for DataplanePlugin, but it has
+ * expanded and become a little cluttered. These should be cleaned up and moved to
+ * TestDataplanePlugin or ITDataplanePlugin.
  *
- * This class should be considered legacy, new tests should not be added here.
- * Instead, use one of:
- *  - {@link TestDataplanePlugin} for unit tests
- *  - ITDataplanePlugin for integration tests
+ * <p>This class should be considered legacy, new tests should not be added here. Instead, use one
+ * of: - {@link TestDataplanePlugin} for unit tests - ITDataplanePlugin for integration tests
  */
 @ExtendWith(OlderNessieServersExtension.class)
-@NessieServerProperty(name = "nessie.test.storage.kind", value = "PERSIST")  //PERSIST is the new model in Nessie Server
-@NessieServerProperty(name = "nessie.store.namespace-validation", value = "false")
+@NessieServerProperty(name = "nessie.test.storage.kind", value = "PERSIST")
 public class TestDataplanePlugin2 {
   // Constants
   private static final String S3_PREFIX = "s3://";
@@ -110,29 +104,24 @@ public class TestDataplanePlugin2 {
   private static final String DEFAULT_BRANCH_NAME = "main";
   private static final String USER_NAME = "dataplane-test-user";
   private static final List<String> DEFAULT_TABLE_COMPONENTS =
-    Arrays.asList("folderA", "folderB", "table1");
+      Arrays.asList("folderA", "folderB", "table1");
   private static final NamespaceKey DEFAULT_NAMESPACE_KEY =
-    new NamespaceKey(Stream.concat(
-      Stream.of(DATAPLANE_PLUGIN_NAME),
-      DEFAULT_TABLE_COMPONENTS.stream())
-      .collect(Collectors.toList()));
+      new NamespaceKey(
+          Stream.concat(Stream.of(DATAPLANE_PLUGIN_NAME), DEFAULT_TABLE_COMPONENTS.stream())
+              .collect(Collectors.toList()));
   private static final VersionContext DEFAULT_VERSION_CONTEXT =
-    VersionContext.ofBranch(DEFAULT_BRANCH_NAME);
-  private static final BatchSchema DEFAULT_BATCH_SCHEMA =
-    BatchSchema.newBuilder().build();
+      VersionContext.ofBranch(DEFAULT_BRANCH_NAME);
+  private static final BatchSchema DEFAULT_BATCH_SCHEMA = BatchSchema.newBuilder().build();
 
   private static S3Mock s3Mock;
   private static int S3_PORT;
-  @TempDir
-  static File temporaryDirectory;
+  @TempDir static File temporaryDirectory;
   private static Path bucketPath;
 
   // Nessie
   private static String nessieUri;
-  @NessieBaseUri
-  private static URI nessieBaseUri;
-  @NessieAPI
-  private static NessieApiV2 nessieClient;
+  @NessieBaseUri private static URI nessieBaseUri;
+  @NessieAPI private static NessieApiV2 nessieClient;
 
   // Dataplane Plugin
   private static DataplanePlugin dataplanePlugin;
@@ -141,8 +130,8 @@ public class TestDataplanePlugin2 {
 
   @BeforeAll
   public static void setUp() throws Exception {
-    DremioCredentialProviderFactory.configure(() ->
-      CredentialsService.newInstance(DEFAULT_DREMIO_CONFIG, CLASSPATH_SCAN_RESULT));
+    DremioCredentialProviderFactory.configure(
+        () -> CredentialsServiceImpl.newInstance(DEFAULT_DREMIO_CONFIG, CLASSPATH_SCAN_RESULT));
     setUpS3Mock();
     setUpNessie();
     setUpDataplanePlugin();
@@ -154,15 +143,16 @@ public class TestDataplanePlugin2 {
     Files.createDirectory(bucketPath);
 
     Preconditions.checkState(s3Mock == null);
-    s3Mock = new S3Mock.Builder()
-      .withPort(0)
-      .withFileBackend(temporaryDirectory.getAbsolutePath())
-      .build();
+    s3Mock =
+        new S3Mock.Builder()
+            .withPort(0)
+            .withFileBackend(temporaryDirectory.getAbsolutePath())
+            .build();
     S3_PORT = s3Mock.start().localAddress().getPort();
   }
 
   private static void setUpNessie() {
-    nessieUri = nessieBaseUri.resolve("v2").toString();
+    nessieUri = nessieBaseUri.resolve("api/v2").toString();
   }
 
   private static void setUpDataplanePluginNotAuthorized() {
@@ -171,7 +161,7 @@ public class TestDataplanePlugin2 {
     nessiePluginConfig.nessieAuthType = NessieAuthType.NONE;
     nessiePluginConfig.secure = false;
     nessiePluginConfig.awsAccessKey = "foo"; // Unused, just needs to be set
-    nessiePluginConfig.awsAccessSecret = "bar"; // Unused, just needs to be set
+    nessiePluginConfig.awsAccessSecret = () -> "bar"; // Unused, just needs to be set
     nessiePluginConfig.awsRootPath = BUCKET_NAME;
 
     SabotContext context = mock(SabotContext.class);
@@ -182,11 +172,11 @@ public class TestDataplanePlugin2 {
     when(context.getUserService()).thenReturn(userService);
 
     // S3Mock settings
-    nessiePluginConfig.propertyList = Arrays.asList(
-      new Property("fs.s3a.endpoint", "localhost:" + S3_PORT),
-      new Property("fs.s3a.path.style.access", "true"),
-      new Property(S3FileSystem.COMPATIBILITY_MODE, "true")
-    );
+    nessiePluginConfig.propertyList =
+        Arrays.asList(
+            new Property("fs.s3a.endpoint", "localhost:" + S3_PORT),
+            new Property("fs.s3a.path.style.access", "true"),
+            new Property(S3FileSystem.COMPATIBILITY_MODE, "true"));
 
     NessiePluginConfig mockNessiePluginConfig = spy(nessiePluginConfig);
     NessieClient nessieClient = mock(NessieClient.class);
@@ -196,12 +186,11 @@ public class TestDataplanePlugin2 {
     when(nessieApi.getConfig()).thenReturn(nessieConfiguration);
     when(nessieConfiguration.getSpecVersion()).thenReturn(MINIMUM_NESSIE_SPECIFICATION_VERSION);
     when(nessieClient.getDefaultBranch()).thenThrow(UnAuthenticatedException.class);
-    when(mockNessiePluginConfig.getNessieClient(DATAPLANE_PLUGIN_NAME, context)).thenReturn(nessieClient);
+    when(mockNessiePluginConfig.getNessieClient(DATAPLANE_PLUGIN_NAME, context))
+        .thenReturn(nessieClient);
 
-    dataplanePluginNotAuthorized = spy(mockNessiePluginConfig.newPlugin(
-      context,
-      DATAPLANE_PLUGIN_NAME,
-      null));
+    dataplanePluginNotAuthorized =
+        spy(mockNessiePluginConfig.newPlugin(context, DATAPLANE_PLUGIN_NAME, null));
   }
 
   private static void setUpDataplanePlugin() throws Exception {
@@ -210,7 +199,7 @@ public class TestDataplanePlugin2 {
     nessiePluginConfig.nessieAuthType = NessieAuthType.NONE;
     nessiePluginConfig.secure = false;
     nessiePluginConfig.awsAccessKey = "foo"; // Unused, just needs to be set
-    nessiePluginConfig.awsAccessSecret = "bar"; // Unused, just needs to be set
+    nessiePluginConfig.awsAccessSecret = () -> "bar"; // Unused, just needs to be set
     nessiePluginConfig.awsRootPath = BUCKET_NAME;
 
     SabotContext context = mock(SabotContext.class);
@@ -220,25 +209,27 @@ public class TestDataplanePlugin2 {
     when(context.getUserService()).thenReturn(userService);
     when(context.getOptionManager()).thenReturn(optionManager);
     when(context.getClasspathScan()).thenReturn(CLASSPATH_SCAN_RESULT);
-    when(context.getFileSystemWrapper()).thenReturn((fs, storageId, conf, operatorContext, enableAsync, isMetadataEnabled) -> fs);
+    when(context.getFileSystemWrapper())
+        .thenReturn((fs, storageId, conf, operatorContext, enableAsync, isMetadataEnabled) -> fs);
 
     // S3Mock settings
-    nessiePluginConfig.propertyList = Arrays.asList(
-      new Property("fs.s3a.endpoint", "localhost:" + S3_PORT),
-      new Property("fs.s3a.path.style.access", "true"),
-      new Property(S3FileSystem.COMPATIBILITY_MODE, "true")
-    );
+    nessiePluginConfig.propertyList =
+        Arrays.asList(
+            new Property("fs.s3a.endpoint", "localhost:" + S3_PORT),
+            new Property("fs.s3a.path.style.access", "true"),
+            new Property(S3FileSystem.COMPATIBILITY_MODE, "true"));
 
-    dataplanePlugin = nessiePluginConfig.newPlugin(
-      context,
-      DATAPLANE_PLUGIN_NAME,
-      null);
+    dataplanePlugin = nessiePluginConfig.newPlugin(context, DATAPLANE_PLUGIN_NAME, null);
     dataplanePlugin.start();
   }
 
   @AfterAll
   public static void tearDown() throws Exception {
-    AutoCloseables.close(dataplanePlugin, dataplanePluginNotAuthorized, dataplanePluginInvalidAWSBucket, nessieClient);
+    AutoCloseables.close(
+        dataplanePlugin,
+        dataplanePluginNotAuthorized,
+        dataplanePluginInvalidAWSBucket,
+        nessieClient);
     if (s3Mock != null) {
       s3Mock.shutdown();
       s3Mock = null;
@@ -248,23 +239,23 @@ public class TestDataplanePlugin2 {
   @Test
   public void testNessieWrongToken() throws Exception {
     // act+assert
-    assertThatThrownBy(()->dataplanePluginNotAuthorized.start())
-      .isInstanceOf(UserException.class)
-      .hasMessageContaining("Unable to authenticate to the Nessie server");
+    assertThatThrownBy(() -> dataplanePluginNotAuthorized.start())
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining("Unable to authenticate to the Nessie server");
   }
 
   @Test
   public void createEmptyTable()
-      throws NessieNotFoundException, ReferenceNotFoundException,
-        NoDefaultBranchException, ReferenceConflictException, IOException {
+      throws NessieNotFoundException,
+          ReferenceNotFoundException,
+          NoDefaultBranchException,
+          ReferenceConflictException,
+          IOException {
     // Arrange
 
     // Act
     dataplanePlugin.createEmptyTable(
-      DEFAULT_NAMESPACE_KEY,
-      getSchemaConfig(),
-      DEFAULT_BATCH_SCHEMA,
-      makeWriterOptions());
+        DEFAULT_NAMESPACE_KEY, getSchemaConfig(), DEFAULT_BATCH_SCHEMA, makeWriterOptions());
 
     // Assert
     assertNessieHasCommitForTable(DEFAULT_TABLE_COMPONENTS, Operation.Put.class);
@@ -275,20 +266,18 @@ public class TestDataplanePlugin2 {
   @Test
   public void createEmptyTableBadPluginName() {
     // Arrange
-    NamespaceKey tableKeyWithPluginName = new NamespaceKey(
-      Stream.concat(
-          Stream.of("bad" + DATAPLANE_PLUGIN_NAME),
-          DEFAULT_TABLE_COMPONENTS.stream())
-        .collect(Collectors.toList()));
+    NamespaceKey tableKeyWithPluginName =
+        new NamespaceKey(
+            Stream.concat(
+                    Stream.of("bad" + DATAPLANE_PLUGIN_NAME), DEFAULT_TABLE_COMPONENTS.stream())
+                .collect(Collectors.toList()));
 
     // Act + Assert
-    assertThatThrownBy(() ->
-      dataplanePlugin.createEmptyTable(
-        tableKeyWithPluginName,
-        null,
-        DEFAULT_BATCH_SCHEMA,
-        makeWriterOptions()))
-      .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(
+            () ->
+                dataplanePlugin.createEmptyTable(
+                    tableKeyWithPluginName, null, DEFAULT_BATCH_SCHEMA, makeWriterOptions()))
+        .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test
@@ -297,29 +286,27 @@ public class TestDataplanePlugin2 {
     NamespaceKey justPluginName = new NamespaceKey(DATAPLANE_PLUGIN_NAME);
 
     // Act + Assert
-    assertThatThrownBy(() ->
-      dataplanePlugin.createEmptyTable(
-        justPluginName,
-        getSchemaConfig(),
-        DEFAULT_BATCH_SCHEMA,
-        makeWriterOptions()))
-      .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(
+            () ->
+                dataplanePlugin.createEmptyTable(
+                    justPluginName, getSchemaConfig(), DEFAULT_BATCH_SCHEMA, makeWriterOptions()))
+        .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test
   public void createEmptyTableNoVersionContext() {
     // Arrange
-    WriterOptions noVersionContext = WriterOptions.DEFAULT
-      .withPartitionColumns(null);
+    WriterOptions noVersionContext = WriterOptions.DEFAULT.withPartitionColumns(null);
 
     // Act + Assert
-    assertThatThrownBy(() ->
-      dataplanePlugin.createEmptyTable(
-        DEFAULT_NAMESPACE_KEY,
-        getSchemaConfig(),
-        DEFAULT_BATCH_SCHEMA,
-        noVersionContext))
-      .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(
+            () ->
+                dataplanePlugin.createEmptyTable(
+                    DEFAULT_NAMESPACE_KEY,
+                    getSchemaConfig(),
+                    DEFAULT_BATCH_SCHEMA,
+                    noVersionContext))
+        .isInstanceOf(NullPointerException.class);
   }
 
   @Test
@@ -327,29 +314,25 @@ public class TestDataplanePlugin2 {
 
     // Arrange
     dataplanePlugin.createEmptyTable(
-      DEFAULT_NAMESPACE_KEY,
-      getSchemaConfig(),
-      DEFAULT_BATCH_SCHEMA,
-      makeWriterOptions());
+        DEFAULT_NAMESPACE_KEY, getSchemaConfig(), DEFAULT_BATCH_SCHEMA, makeWriterOptions());
 
     // Act
-    dataplanePlugin.dropTable(DEFAULT_NAMESPACE_KEY,
-      getSchemaConfig(),
-    defaultTableOption());
+    dataplanePlugin.dropTable(DEFAULT_NAMESPACE_KEY, getSchemaConfig(), defaultTableOption());
 
     // Assert
     assertNessieHasCommitForTable(DEFAULT_TABLE_COMPONENTS, Operation.Delete.class);
     assertNessieDoesNotHaveTable(DEFAULT_TABLE_COMPONENTS);
 
-    // TODO For now, we aren't doing filesystem cleanup, so this check is correct. Might change in the future.
+    // TODO For now, we aren't doing filesystem cleanup, so this check is correct. Might change in
+    // the future.
     assertIcebergTableExistsAtSubPath(DEFAULT_TABLE_COMPONENTS);
   }
 
   private WriterOptions makeWriterOptions()
       throws ReferenceNotFoundException, NoDefaultBranchException, ReferenceConflictException {
     return WriterOptions.DEFAULT
-      .withPartitionColumns(null)
-      .withVersion(dataplanePlugin.resolveVersionContext(DEFAULT_VERSION_CONTEXT));
+        .withPartitionColumns(null)
+        .withVersion(dataplanePlugin.resolveVersionContext(DEFAULT_VERSION_CONTEXT));
   }
 
   private SchemaConfig getSchemaConfig() {
@@ -357,25 +340,27 @@ public class TestDataplanePlugin2 {
   }
 
   private TableMutationOptions defaultTableOption()
-    throws ReferenceNotFoundException, NoDefaultBranchException, ReferenceConflictException {
-    ResolvedVersionContext resolvedVersionContext = dataplanePlugin.resolveVersionContext(DEFAULT_VERSION_CONTEXT);
+      throws ReferenceNotFoundException, NoDefaultBranchException, ReferenceConflictException {
+    ResolvedVersionContext resolvedVersionContext =
+        dataplanePlugin.resolveVersionContext(DEFAULT_VERSION_CONTEXT);
     return TableMutationOptions.newBuilder()
-      .setResolvedVersionContext(resolvedVersionContext)
-      .build();
+        .setResolvedVersionContext(resolvedVersionContext)
+        .build();
   }
 
   private void assertNessieHasCommitForTable(
-    List<String> tableSchemaComponents,
-    Class<? extends Operation> operationType)
+      List<String> tableSchemaComponents, Class<? extends Operation> operationType)
       throws NessieNotFoundException {
-    final List<LogEntry> logEntries = nessieClient
-      .getCommitLog()
-      .refName(DEFAULT_BRANCH_NAME)
-      .fetch(FetchOption.ALL) // Get extended data, including operations
-      .get()
-      .getLogEntries();
+    final List<LogEntry> logEntries =
+        nessieClient
+            .getCommitLog()
+            .refName(DEFAULT_BRANCH_NAME)
+            .fetch(FetchOption.ALL) // Get extended data, including operations
+            .get()
+            .getLogEntries();
     assertTrue(logEntries.size() >= 1);
-    final LogEntry mostRecentLogEntry = logEntries.get(0); // Commits are ordered most recent to earliest
+    final LogEntry mostRecentLogEntry =
+        logEntries.get(0); // Commits are ordered most recent to earliest
 
     assertThat(mostRecentLogEntry.getCommitMeta().getAuthor()).isEqualTo(USER_NAME);
 
@@ -391,42 +376,47 @@ public class TestDataplanePlugin2 {
 
   private void assertNessieHasTable(List<String> tableSchemaComponents)
       throws NessieNotFoundException {
-    Map<ContentKey, Content> contentsMap = nessieClient
-      .getContent()
-      .refName(DEFAULT_BRANCH_NAME)
-      .key(ContentKey.of(tableSchemaComponents))
-      .get();
+    Map<ContentKey, Content> contentsMap =
+        nessieClient
+            .getContent()
+            .refName(DEFAULT_BRANCH_NAME)
+            .key(ContentKey.of(tableSchemaComponents))
+            .get();
 
     ContentKey expectedContentsKey = ContentKey.of(tableSchemaComponents);
     assertTrue(contentsMap.containsKey(expectedContentsKey));
 
-    String expectedMetadataLocationPrefix = S3_PREFIX + BUCKET_NAME + "/" +
-      String.join("/", tableSchemaComponents) + "/" + METADATA_FOLDER;
-    Optional<IcebergTable> maybeIcebergTable = contentsMap
-      .get(expectedContentsKey)
-      .unwrap(IcebergTable.class);
+    String expectedMetadataLocationPrefix =
+        S3_PREFIX
+            + BUCKET_NAME
+            + "/"
+            + String.join("/", tableSchemaComponents)
+            + "/"
+            + METADATA_FOLDER;
+    Optional<IcebergTable> maybeIcebergTable =
+        contentsMap.get(expectedContentsKey).unwrap(IcebergTable.class);
     assertTrue(maybeIcebergTable.isPresent());
-    assertTrue(maybeIcebergTable.get()
-      .getMetadataLocation()
-      .startsWith(expectedMetadataLocationPrefix));
+    assertTrue(
+        maybeIcebergTable.get().getMetadataLocation().startsWith(expectedMetadataLocationPrefix));
   }
 
   private void assertNessieDoesNotHaveTable(List<String> tableSchemaComponents)
       throws NessieNotFoundException {
-    Map<ContentKey, Content> contentsMap = nessieClient
-      .getContent()
-      .refName(DEFAULT_BRANCH_NAME)
-      .key(ContentKey.of(tableSchemaComponents))
-      .get();
+    Map<ContentKey, Content> contentsMap =
+        nessieClient
+            .getContent()
+            .refName(DEFAULT_BRANCH_NAME)
+            .key(ContentKey.of(tableSchemaComponents))
+            .get();
 
     assertTrue(contentsMap.isEmpty());
   }
 
   private void assertIcebergTableExistsAtSubPath(List<String> subPath) {
-    // Iceberg tables on disk have a "metadata" folder in their root, check for "metadata" folder too
-    Path pathToMetadataFolder = bucketPath
-      .resolve(String.join("/", subPath))
-      .resolve(METADATA_FOLDER);
+    // Iceberg tables on disk have a "metadata" folder in their root, check for "metadata" folder
+    // too
+    Path pathToMetadataFolder =
+        bucketPath.resolve(String.join("/", subPath)).resolve(METADATA_FOLDER);
 
     assertTrue(Files.exists(pathToMetadataFolder));
   }

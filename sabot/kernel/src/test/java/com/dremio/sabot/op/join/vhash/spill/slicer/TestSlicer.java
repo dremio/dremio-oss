@@ -17,14 +17,6 @@ package com.dremio.sabot.op.join.vhash.spill.slicer;
 
 import static org.junit.Assert.assertTrue;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.calcite.util.ImmutableBitSet;
-import org.junit.Test;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.ExecTest;
 import com.dremio.exec.record.RecordBatchData;
@@ -33,10 +25,15 @@ import com.dremio.sabot.Fixtures.Table;
 import com.dremio.sabot.Generator;
 import com.dremio.sabot.op.join.vhash.spill.pool.PagePool;
 import com.google.common.base.Preconditions;
-
 import io.airlift.tpch.GenerationDefinition.TpchTable;
 import io.airlift.tpch.TpchGenerator;
 import io.netty.util.internal.PlatformDependent;
+import java.util.ArrayList;
+import java.util.List;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.calcite.util.ImmutableBitSet;
+import org.junit.Test;
 
 public class TestSlicer extends ExecTest {
 
@@ -57,6 +54,7 @@ public class TestSlicer extends ExecTest {
 
   /**
    * Test allocation of many pages per batch of list vectors.
+   *
    * @throws Exception
    */
   @Test
@@ -76,6 +74,7 @@ public class TestSlicer extends ExecTest {
 
   /**
    * Test allocation of one page for multiple batches of list vector
+   *
    * @throws Exception
    */
   @Test
@@ -85,6 +84,7 @@ public class TestSlicer extends ExecTest {
 
   /**
    * Test allocation of many pages per batch of varchar list vectors.
+   *
    * @throws Exception
    */
   @Test
@@ -94,6 +94,7 @@ public class TestSlicer extends ExecTest {
 
   /**
    * Test allocation of one page for multiple batches of varchar list vector
+   *
    * @throws Exception
    */
   @Test
@@ -103,6 +104,7 @@ public class TestSlicer extends ExecTest {
 
   /**
    * Test allocation of many pages per batch of struct vectors.
+   *
    * @throws Exception
    */
   @Test
@@ -112,6 +114,7 @@ public class TestSlicer extends ExecTest {
 
   /**
    * Test allocation of one page for multiple batches of struct vector
+   *
    * @throws Exception
    */
   @Test
@@ -119,23 +122,34 @@ public class TestSlicer extends ExecTest {
     assertTrue(check(TpchTable.MIXED_GROUPS, 0.1, 512_000, 200) < .5);
   }
 
-  private double check(TpchTable table, double scale, int pageSize, int batchSize, String... columns) throws Exception {
-    Table expected = TpchGenerator.singleGenerator(table, scale, getAllocator(), columns).toTable(batchSize);
-    return check(expected, pageSize, batchSize,
-      TpchGenerator.singleGenerator(table, scale, allocator, columns));
+  private double check(
+      TpchTable table, double scale, int pageSize, int batchSize, String... columns)
+      throws Exception {
+    Table expected =
+        TpchGenerator.singleGenerator(table, scale, getAllocator(), columns).toTable(batchSize);
+    return check(
+        expected,
+        pageSize,
+        batchSize,
+        TpchGenerator.singleGenerator(table, scale, allocator, columns));
   }
 
-  private double check(Table expected, int pageSize, int batchSize, Generator generator) throws Exception {
+  private double check(Table expected, int pageSize, int batchSize, Generator generator)
+      throws Exception {
     try (final PagePool pages = new PagePool(getAllocator(), pageSize, 0);
-         final ArrowBuf sv2Buf = getFilledSV2(getAllocator(), batchSize)) {
-      PageBatchSlicer slicer = new PageBatchSlicer(pages, sv2Buf,
-        generator.getOutput(), ImmutableBitSet.range(0, generator.getOutput().getSchema().getFieldCount()));
+        final ArrowBuf sv2Buf = getFilledSV2(getAllocator(), batchSize)) {
+      PageBatchSlicer slicer =
+          new PageBatchSlicer(
+              pages,
+              sv2Buf,
+              generator.getOutput(),
+              ImmutableBitSet.range(0, generator.getOutput().getSchema().getFieldCount()));
       List<RecordBatchData> actual = new ArrayList<>();
       int inputBatches = 0;
-      while(true) {
+      while (true) {
         int records = generator.next(batchSize);
         inputBatches++;
-        if(records == 0) {
+        if (records == 0) {
           break;
         }
         List<RecordBatchPage> data = new ArrayList<>();
@@ -150,7 +164,7 @@ public class TestSlicer extends ExecTest {
       if (PageBatchSlicer.TRACE) {
         System.out.println("Pages: " + poolSize + ", Input Batches: " + inputBatches);
       }
-      return poolSize * 1d/inputBatches;
+      return poolSize * 1d / inputBatches;
     } finally {
       generator.close();
     }
@@ -160,7 +174,7 @@ public class TestSlicer extends ExecTest {
     ArrowBuf buf = allocator.buffer(batchSize * SelectionVector2.RECORD_SIZE);
     long addr = buf.memoryAddress();
     for (int i = 0; i < batchSize; ++i) {
-      PlatformDependent.putShort(addr, (short)i);
+      PlatformDependent.putShort(addr, (short) i);
       addr += SelectionVector2.RECORD_SIZE;
     }
     return buf;

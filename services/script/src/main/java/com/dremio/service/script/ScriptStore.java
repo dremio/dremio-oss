@@ -16,17 +16,14 @@
 
 package com.dremio.service.script;
 
-import java.util.Optional;
-
 import com.dremio.datastore.SearchTypes;
 import com.dremio.datastore.api.Document;
 import com.dremio.datastore.api.FindByCondition;
 import com.dremio.service.Service;
 import com.dremio.service.script.proto.ScriptProto.Script;
+import java.util.Optional;
 
-/**
- * Store for Script
- */
+/** Store for Script */
 public interface ScriptStore extends Service {
   /**
    * get script by script id.
@@ -43,8 +40,7 @@ public interface ScriptStore extends Service {
    * @return
    * @throws ScriptNotFoundException
    */
-  Optional<Script> getByName(String name)
-    throws ScriptNotFoundException;
+  Optional<Script> getByName(String name) throws ScriptNotFoundException;
 
   /**
    * @param scriptId
@@ -60,8 +56,7 @@ public interface ScriptStore extends Service {
    * @param scriptId
    * @return
    */
-  Script update(String scriptId, Script script)
-    throws ScriptNotFoundException;
+  Script update(String scriptId, Script script) throws ScriptNotFoundException;
 
   /**
    * delete a script by scriptId

@@ -23,12 +23,9 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-
 import org.junit.Test;
 
-/**
- * Tests for {@link AsyncHttpClientProvider}
- */
+/** Tests for {@link AsyncHttpClientProvider} */
 public class AsyncHttpClientProviderTest {
 
   @Test
@@ -36,11 +33,12 @@ public class AsyncHttpClientProviderTest {
     ExecutorService ex = Executors.newFixedThreadPool(10);
     final Set<Integer> objectIdentities = new ConcurrentSkipListSet<>();
     CountDownLatch latch = new CountDownLatch(100);
-    for (int i=0; i<100; i++) {
-      ex.execute(() -> {
-        objectIdentities.add(System.identityHashCode(AsyncHttpClientProvider.getInstance()));
-        latch.countDown();
-      });
+    for (int i = 0; i < 100; i++) {
+      ex.execute(
+          () -> {
+            objectIdentities.add(System.identityHashCode(AsyncHttpClientProvider.getInstance()));
+            latch.countDown();
+          });
     }
     latch.await(5, TimeUnit.MINUTES);
     assertEquals(1, objectIdentities.size()); // same object returned every time

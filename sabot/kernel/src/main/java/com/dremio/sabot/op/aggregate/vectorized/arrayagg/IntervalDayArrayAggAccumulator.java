@@ -16,6 +16,7 @@
 
 package com.dremio.sabot.op.aggregate.vectorized.arrayagg;
 
+import io.netty.util.internal.PlatformDependent;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BaseValueVector;
@@ -24,11 +25,14 @@ import org.apache.arrow.vector.IntervalDayVector;
 import org.apache.arrow.vector.complex.impl.UnionListWriter;
 import org.apache.arrow.vector.holders.NullableIntervalDayHolder;
 
-import io.netty.util.internal.PlatformDependent;
-
-public final class IntervalDayArrayAggAccumulator extends BaseArrayAggAccumulator<NullableIntervalDayHolder, IntervalDayVector> {
-  public IntervalDayArrayAggAccumulator(FieldVector input, FieldVector transferVector, int maxValuesPerBatch,
-                                        BaseValueVector tempAccumulatorHolder, BufferAllocator allocator) {
+public final class IntervalDayArrayAggAccumulator
+    extends BaseArrayAggAccumulator<NullableIntervalDayHolder, IntervalDayVector> {
+  public IntervalDayArrayAggAccumulator(
+      FieldVector input,
+      FieldVector transferVector,
+      int maxValuesPerBatch,
+      BaseValueVector tempAccumulatorHolder,
+      BufferAllocator allocator) {
     super(input, transferVector, maxValuesPerBatch, tempAccumulatorHolder, allocator);
   }
 
@@ -43,22 +47,23 @@ public final class IntervalDayArrayAggAccumulator extends BaseArrayAggAccumulato
   }
 
   @Override
-  protected BaseArrayAggAccumulatorHolder<NullableIntervalDayHolder, IntervalDayVector> getAccumulatorHolder
-    (int maxValuesPerBatch, BufferAllocator allocator) {
+  protected BaseArrayAggAccumulatorHolder<NullableIntervalDayHolder, IntervalDayVector>
+      getAccumulatorHolder(int maxValuesPerBatch, BufferAllocator allocator) {
     return new IntervalDayArrayAggAccumulatorHolder(maxValuesPerBatch, allocator);
   }
 
   @Override
-  protected NullableIntervalDayHolder getElement(long baseAddress, int itemIndex, ArrowBuf dataBuffer, ArrowBuf offsetBuffer) {
+  protected NullableIntervalDayHolder getElement(
+      long baseAddress, int itemIndex, ArrowBuf dataBuffer, ArrowBuf offsetBuffer) {
     long offHeapMemoryAddress = getOffHeapAddressForFixedWidthTypes(baseAddress, itemIndex);
     long element = PlatformDependent.getLong(offHeapMemoryAddress);
     /* first 4 bytes are the number of days (in little endian, that's the bottom 32 bits)
-     second 4 bytes are the number of milliseconds (in little endian, that's the top 32 bits)
-     See com.dremio.sabot.op.aggregate.vectorized.MinAccumulators.IntervalDayMinAccumulator
-     */
+    second 4 bytes are the number of milliseconds (in little endian, that's the top 32 bits)
+    See com.dremio.sabot.op.aggregate.vectorized.MinAccumulators.IntervalDayMinAccumulator
+    */
     NullableIntervalDayHolder ret = new NullableIntervalDayHolder();
     ret.days = (int) element;
-    ret.milliseconds = (int)(element >>> 32);
+    ret.milliseconds = (int) (element >>> 32);
     ret.isSet = 1;
     return ret;
   }

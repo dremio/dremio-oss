@@ -15,9 +15,7 @@
  */
 package com.dremio.service.jobs;
 
-/**
- * Used by jobs service to transfer the Version Context references
- */
+/** Used by jobs service to transfer the Version Context references */
 public class JobsVersionContext {
   public enum VersionContextType {
     BRANCH,

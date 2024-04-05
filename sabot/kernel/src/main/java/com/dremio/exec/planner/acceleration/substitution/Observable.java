@@ -18,8 +18,8 @@ package com.dremio.exec.planner.acceleration.substitution;
 import com.dremio.exec.planner.observer.AttemptObserver;
 
 /**
- * Allows a {@code org.apache.calcite.plan.SubstitutionProvider} to accept a {@code com.dremio.exec.planner.observer.AttemptObserver}
- *
+ * Allows a {@code org.apache.calcite.plan.SubstitutionProvider} to accept a {@code
+ * com.dremio.exec.planner.observer.AttemptObserver}
  */
 public interface Observable {
   public void setObserver(AttemptObserver observer);

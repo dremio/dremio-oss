@@ -15,13 +15,12 @@
  */
 package com.dremio.exec.store.dfs;
 
-import java.io.IOException;
-import java.util.List;
-
 import com.dremio.exec.store.file.proto.FileProtobuf;
 import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
+import java.io.IOException;
+import java.util.List;
 
 public class DefaultFileSelectionProcessor implements FileSelectionProcessor {
 
@@ -40,12 +39,13 @@ public class DefaultFileSelectionProcessor implements FileSelectionProcessor {
 
   @Override
   public FileProtobuf.FileUpdateKey generateUpdateKey() throws IOException {
-    if(updateKey != null) {
+    if (updateKey != null) {
       return this.updateKey;
     }
 
     // Get subdirectories under file selection before pruning directories
-    final FileProtobuf.FileUpdateKey.Builder updateKeyBuilder = FileProtobuf.FileUpdateKey.newBuilder();
+    final FileProtobuf.FileUpdateKey.Builder updateKeyBuilder =
+        FileProtobuf.FileUpdateKey.newBuilder();
     final FileAttributes rootAttributes = fs.getFileAttributes(datasetRoot);
 
     if (rootAttributes.isDirectory()) {
@@ -53,16 +53,17 @@ public class DefaultFileSelectionProcessor implements FileSelectionProcessor {
       updateKeyBuilder.addCachedEntities(fromFileAttributes(rootAttributes));
     }
 
-    if(fileSelection.isNoDirs()) {
-      //If the selection has no dirs then create a new selection as dir attr are required for
-      //update key generation
-      throw new IllegalStateException("FileSelection object should be present and should contain subdirectory attributes to generate update key");
+    if (fileSelection.isNoDirs()) {
+      // If the selection has no dirs then create a new selection as dir attr are required for
+      // update key generation
+      throw new IllegalStateException(
+          "FileSelection object should be present and should contain subdirectory attributes to generate update key");
     }
 
     // fileSelection is expanded at this point of time - see normalizeForPlugin()
     final List<FileAttributes> fileAttributes = fileSelection.getFileAttributesList();
     for (FileAttributes attributes : fileAttributes) {
-      if(attributes.isDirectory()) {
+      if (attributes.isDirectory()) {
         updateKeyBuilder.addCachedEntities(fromFileAttributes(attributes));
       }
     }
@@ -80,8 +81,8 @@ public class DefaultFileSelectionProcessor implements FileSelectionProcessor {
 
   protected FileProtobuf.FileSystemCachedEntity fromFileAttributes(FileAttributes attributes) {
     return FileProtobuf.FileSystemCachedEntity.newBuilder()
-      .setPath(attributes.getPath().toString())
-      .setLastModificationTime(attributes.lastModifiedTime().toMillis())
-      .build();
+        .setPath(attributes.getPath().toString())
+        .setLastModificationTime(attributes.lastModifiedTime().toMillis())
+        .build();
   }
 }

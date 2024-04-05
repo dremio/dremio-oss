@@ -18,22 +18,18 @@ package com.dremio.datastore;
 import static org.junit.Assert.assertEquals;
 
 import java.util.function.Predicate;
-
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-/**
- * Test store metadata manager.
- */
+/** Test store metadata manager. */
 public class TestStoreMetadataManager {
 
   private static final Predicate<String> TRUE = s -> true;
 
   private static final Predicate<String> FALSE = s -> false;
 
-  @Rule
-  public final TemporaryFolder temporaryFolder = new TemporaryFolder();
+  @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
   @Test
   public void regularFlow() throws Exception {

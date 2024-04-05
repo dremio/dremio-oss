@@ -1,4 +1,4 @@
-<?xml version="1.0"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!--
 
     Copyright (C) 2017-2019 Dremio Corporation
@@ -21,15 +21,16 @@
   <parent>
     <groupId>com.dremio.distribution</groupId>
     <artifactId>dremio-distribution-parent</artifactId>
-    <version>24.3.2-202401241821100032-d2d8a497</version>
+    <version>25.0.0-202404051521110861-ed9515a8</version>
   </parent>
 
   <artifactId>dremio-jdbc-driver</artifactId>
   <name>Distribution - All-in-one JDBC JAR</name>
 
   <properties>
-    <!-- You will also need to increase the maxSize for the MapR version, under a profile in this file  -->
-    <dremio.distribution.jar.maxSize>40000000</dremio.distribution.jar.maxSize>
+    <!-- You will also need to increase the maxSize for the MapR version, under the mapr profile. -->
+    <!-- Search for "<id>mapr</id>" (without quotes) in this file and change the value of maxSize there. -->
+    <dremio.distribution.jar.maxSize>40600000</dremio.distribution.jar.maxSize>
   </properties>
 
   <dependencies>
@@ -45,64 +46,64 @@
       <version>${project.version}</version>
       <exclusions>
         <exclusion>
-          <artifactId>javassist</artifactId>
           <groupId>javassist</groupId>
+          <artifactId>javassist</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>hadoop-common</artifactId>
           <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-common</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>jersey-container-jetty-servlet</artifactId>
           <groupId>org.glassfish.jersey.containers</groupId>
+          <artifactId>jersey-container-jetty-servlet</artifactId>
         </exclusion>
         <exclusion>
+          <groupId>org.apache.lucene</groupId>
           <artifactId>lucene-core</artifactId>
-          <groupId>org.apache.lucene</groupId>
         </exclusion>
         <exclusion>
+          <groupId>org.apache.lucene</groupId>
           <artifactId>lucene-highlighter</artifactId>
-          <groupId>org.apache.lucene</groupId>
         </exclusion>
         <exclusion>
+          <groupId>org.apache.lucene</groupId>
           <artifactId>lucene-codecs</artifactId>
-          <groupId>org.apache.lucene</groupId>
         </exclusion>
         <exclusion>
+          <groupId>org.apache.lucene</groupId>
           <artifactId>lucene-analyzers-common</artifactId>
-          <groupId>org.apache.lucene</groupId>
         </exclusion>
         <exclusion>
+          <groupId>org.apache.lucene</groupId>
           <artifactId>lucene-queries</artifactId>
-          <groupId>org.apache.lucene</groupId>
         </exclusion>
         <exclusion>
-          <artifactId>slugify</artifactId>
           <groupId>com.github.slugify</groupId>
+          <artifactId>slugify</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>httpclient</artifactId>
           <groupId>org.apache.httpcomponents</groupId>
+          <artifactId>httpclient</artifactId>
         </exclusion>
         <exclusion>
+          <groupId>io.protostuff</groupId>
           <artifactId>protostuff-core</artifactId>
-          <groupId>io.protostuff</groupId>
         </exclusion>
         <exclusion>
+          <groupId>io.protostuff</groupId>
           <artifactId>protostuff-json</artifactId>
-          <groupId>io.protostuff</groupId>
         </exclusion>
         <exclusion>
-          <artifactId>guice-servlet</artifactId>
           <groupId>com.google.inject.extensions</groupId>
+          <artifactId>guice-servlet</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>guice</artifactId>
           <groupId>com.google.inject</groupId>
+          <artifactId>guice</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>*</artifactId>
           <groupId>software.amazon.awssdk</groupId>
+          <artifactId>*</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
@@ -138,12 +139,12 @@
           <artifactId>bcpkix-jdk15on</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>jersey-container-jetty-servlet</artifactId>
           <groupId>org.glassfish.jersey.containers</groupId>
+          <artifactId>jersey-container-jetty-servlet</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>jetty-server</artifactId>
           <groupId>org.eclipse.jetty</groupId>
+          <artifactId>jetty-server</artifactId>
         </exclusion>
         <exclusion>
           <groupId>org.apache.hadoop</groupId>
@@ -158,48 +159,48 @@
           <artifactId>avro-mapred</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>jersey-media-multipart</artifactId>
           <groupId>org.glassfish.jersey.media</groupId>
+          <artifactId>jersey-media-multipart</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>jersey-mvc-freemarker</artifactId>
           <groupId>org.glassfish.jersey.ext</groupId>
+          <artifactId>jersey-mvc-freemarker</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>jetty-servlet</artifactId>
           <groupId>org.eclipse.jetty</groupId>
+          <artifactId>jetty-servlet</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>*</artifactId>
           <groupId>org.apache.parquet</groupId>
+          <artifactId>*</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>*</artifactId>
           <groupId>org.infinispan</groupId>
-        </exclusion>
-        <exclusion>
           <artifactId>*</artifactId>
+        </exclusion>
+        <exclusion>
           <groupId>org.ow2.asm</groupId>
+          <artifactId>*</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>codemodel</artifactId>
           <groupId>com.sun.codemodel</groupId>
+          <artifactId>codemodel</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>jetty-util</artifactId>
           <groupId>org.mortbay.jetty</groupId>
+          <artifactId>jetty-util</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>freemarker</artifactId>
           <groupId>org.freemarker</groupId>
+          <artifactId>freemarker</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>hazelcast</artifactId>
           <groupId>com.hazelcast</groupId>
+          <artifactId>hazelcast</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>commons-compiler-jdk</artifactId>
           <groupId>org.codehaus.janino</groupId>
+          <artifactId>commons-compiler-jdk</artifactId>
         </exclusion>
         <exclusion>
           <groupId>org.apache.poi</groupId>
@@ -210,140 +211,140 @@
           <artifactId>poi-ooxml</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>rsql-parser</artifactId>
           <groupId>cz.jirutka.rsql</groupId>
+          <artifactId>rsql-parser</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>protostuff-core</artifactId>
           <groupId>io.protostuff</groupId>
+          <artifactId>protostuff-core</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>dremio-services-fabric-rpc</artifactId>
           <groupId>com.dremio.services</groupId>
+          <artifactId>dremio-services-fabric-rpc</artifactId>
         </exclusion>
         <exclusion>
+          <groupId>com.dremio.services</groupId>
           <artifactId>dremio-services-users</artifactId>
-          <groupId>com.dremio.services</groupId>
         </exclusion>
         <exclusion>
+          <groupId>com.dremio.services</groupId>
           <artifactId>dremio-services-scheduler</artifactId>
-          <groupId>com.dremio.services</groupId>
         </exclusion>
         <exclusion>
+          <groupId>com.dremio.services</groupId>
           <artifactId>dremio-services-resourcescheduler</artifactId>
-          <groupId>com.dremio.services</groupId>
         </exclusion>
         <exclusion>
+          <groupId>com.dremio.services</groupId>
           <artifactId>dremio-services-grpc</artifactId>
-          <groupId>com.dremio.services</groupId>
         </exclusion>
         <exclusion>
+          <groupId>com.dremio.services</groupId>
           <artifactId>dremio-services-fabric-rpc</artifactId>
-          <groupId>com.dremio.services</groupId>
         </exclusion>
         <exclusion>
+          <groupId>com.dremio.services</groupId>
           <artifactId>dremio-services-telemetry-impl</artifactId>
-          <groupId>com.dremio.services</groupId>
         </exclusion>
         <exclusion>
+          <groupId>com.dremio.services</groupId>
           <artifactId>dremio-services-jobtelemetry-common</artifactId>
-          <groupId>com.dremio.services</groupId>
         </exclusion>
         <exclusion>
+          <groupId>com.dremio.services</groupId>
           <artifactId>dremio-services-jobtelemetry-server</artifactId>
-          <groupId>com.dremio.services</groupId>
         </exclusion>
         <exclusion>
+          <groupId>com.dremio.services</groupId>
           <artifactId>dremio-services-jobtelemetry-client</artifactId>
-          <groupId>com.dremio.services</groupId>
         </exclusion>
         <exclusion>
-          <artifactId>asm-debug-all</artifactId>
           <groupId>org.ow2.asm</groupId>
+          <artifactId>asm-debug-all</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>dremio-connector</artifactId>
           <groupId>com.dremio</groupId>
+          <artifactId>dremio-connector</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>dremio-services-namespace</artifactId>
           <groupId>com.dremio.services</groupId>
+          <artifactId>dremio-services-namespace</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>univocity-parsers</artifactId>
           <groupId>com.univocity</groupId>
+          <artifactId>univocity-parsers</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>jackson-jaxrs-json-provider</artifactId>
           <groupId>com.fasterxml.jackson.jaxrs</groupId>
+          <artifactId>jackson-jaxrs-json-provider</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>mongodb-driver-sync</artifactId>
           <groupId>org.mongodb</groupId>
+          <artifactId>mongodb-driver-sync</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>paranamer</artifactId>
           <groupId>com.thoughtworks.paranamer</groupId>
+          <artifactId>paranamer</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>jackson-module-afterburner</artifactId>
           <groupId>com.fasterxml.jackson.module</groupId>
+          <artifactId>jackson-module-afterburner</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>objenesis</artifactId>
           <groupId>org.objenesis</groupId>
+          <artifactId>objenesis</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>kryo</artifactId>
           <groupId>com.esotericsoftware</groupId>
+          <artifactId>kryo</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>*</artifactId>
           <groupId>org.pentaho</groupId>
+          <artifactId>*</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>*</artifactId>
           <groupId>org.apache.calcite</groupId>
+          <artifactId>*</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>*</artifactId>
           <groupId>net.hydromatic</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>parquet-generator</artifactId>
-          <groupId>org.apache.parquet</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>msgpack</artifactId>
-          <groupId>org.msgpack</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>procyon-compilertools</artifactId>
-          <groupId>org.bitbucket.mstrobel</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>hibernate-validator</artifactId>
-          <groupId>org.hibernate.validator</groupId>
-        </exclusion>
-        <exclusion>
           <artifactId>*</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.parquet</groupId>
+          <artifactId>parquet-generator</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.msgpack</groupId>
+          <artifactId>msgpack</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.bitbucket.mstrobel</groupId>
+          <artifactId>procyon-compilertools</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.hibernate.validator</groupId>
+          <artifactId>hibernate-validator</artifactId>
+        </exclusion>
+        <exclusion>
           <groupId>software.amazon.awssdk</groupId>
+          <artifactId>*</artifactId>
         </exclusion>
         <exclusion>
           <groupId>com.amazonaws</groupId>
           <artifactId>*</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>jcommander</artifactId>
           <groupId>com.beust</groupId>
+          <artifactId>jcommander</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>*</artifactId>
           <groupId>org.apache.avro</groupId>
+          <artifactId>*</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>*</artifactId>
           <groupId>org.apache.iceberg</groupId>
+          <artifactId>*</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
@@ -353,20 +354,20 @@
       <version>${project.version}</version>
       <exclusions>
         <exclusion>
-          <artifactId>dremio-hive-plugin</artifactId>
           <groupId>com.dremio.plugins</groupId>
+          <artifactId>dremio-hive-plugin</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>foodmart-data-json</artifactId>
           <groupId>net.hydromatic</groupId>
+          <artifactId>foodmart-data-json</artifactId>
         </exclusion>
         <exclusion>
+          <groupId>org.apache.httpcomponents</groupId>
           <artifactId>httpclient</artifactId>
-          <groupId>org.apache.httpcomponents</groupId>
         </exclusion>
         <exclusion>
-          <artifactId>httpcore</artifactId>
           <groupId>org.apache.httpcomponents</groupId>
+          <artifactId>httpcore</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
@@ -382,14 +383,29 @@
     <dependency>
       <groupId>org.apache.zookeeper</groupId>
       <artifactId>zookeeper</artifactId>
+      <version>${zookeeper.version}</version>
       <exclusions>
+        <exclusion>
+          <groupId>jline</groupId>
+          <artifactId>jline</artifactId>
+        </exclusion>
         <exclusion>
           <groupId>org.slf4j</groupId>
           <artifactId>slf4j-log4j12</artifactId>
         </exclusion>
+        <!-- Required for MapR, ZooKeeper 3.5.x -->
         <exclusion>
           <groupId>log4j</groupId>
           <artifactId>log4j</artifactId>
+        </exclusion>
+        <!-- Required for ZooKeeper 3.8.0+ -->
+        <exclusion>
+          <groupId>ch.qos.logback</groupId>
+          <artifactId>logback-classic</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>ch.qos.logback</groupId>
+          <artifactId>logback-core</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
@@ -398,17 +414,17 @@
     <dependency>
       <groupId>com.dremio</groupId>
       <artifactId>dremio-common</artifactId>
+      <version>${project.version}</version>
       <classifier>tests</classifier>
       <type>test-jar</type>
-      <version>${project.version}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>com.dremio.sabot</groupId>
       <artifactId>dremio-sabot-kernel</artifactId>
+      <version>${project.version}</version>
       <classifier>tests</classifier>
       <type>test-jar</type>
-      <version>${project.version}</version>
       <scope>provided</scope>
     </dependency>
   </dependencies>
@@ -421,14 +437,14 @@
         <executions>
           <execution>
             <id>define-classpath</id>
-            <phase>integration-test</phase>
             <goals>
               <goal>run</goal>
             </goals>
+            <phase>integration-test</phase>
             <configuration>
               <exportAntProperties>true</exportAntProperties>
               <target>
-                <property name="app.class.path" refid="maven.test.classpath" />
+                <property name="app.class.path" refid="maven.test.classpath"/>
               </target>
             </configuration>
           </execution>
@@ -446,10 +462,10 @@
           </execution>
           <execution>
             <id>unpack-resources</id>
-            <phase>generate-resources</phase>
             <goals>
               <goal>unpack</goal>
             </goals>
+            <phase>generate-resources</phase>
             <configuration>
               <artifactItems>
                 <artifactItem>
@@ -469,10 +485,10 @@
         <executions>
           <execution>
             <id>copy-resources</id>
-            <phase>generate-resources</phase>
             <goals>
               <goal>copy-resources</goal>
             </goals>
+            <phase>generate-resources</phase>
             <configuration>
               <outputDirectory>${project.build.outputDirectory}/META-INF</outputDirectory>
               <resources>
@@ -536,31 +552,23 @@
           <!-- enable flattening -->
           <execution>
             <id>flatten</id>
-            <phase>process-resources</phase>
             <goals>
               <goal>flatten</goal>
             </goals>
+            <phase>process-resources</phase>
           </execution>
           <!-- ensure proper cleanup -->
           <execution>
             <id>flatten.clean</id>
-            <phase>clean</phase>
             <goals>
               <goal>clean</goal>
             </goals>
+            <phase>clean</phase>
           </execution>
         </executions>
       </plugin>
       <plugin>
         <artifactId>maven-shade-plugin</artifactId>
-        <executions>
-          <execution>
-            <phase>package</phase>
-            <goals>
-              <goal>shade</goal>
-            </goals>
-          </execution>
-        </executions>
         <configuration>
           <shadedArtifactAttached>false</shadedArtifactAttached>
           <createDependencyReducedPom>false</createDependencyReducedPom>
@@ -615,7 +623,6 @@
               <exclude>org.antlr:*</exclude>
               <exclude>org.hdrhistogram:HdrHistogram:*</exclude>
               <exclude>io.grpc:*</exclude>
-              <exclude>io.prometheus:*</exclude>
               <exclude>org.apache.yetus:audience-annotations</exclude>
             </excludes>
           </artifactSet>
@@ -637,23 +644,62 @@
             </relocation>
 
             <!-- Move dependencies out of path -->
-            <relocation><pattern>io.</pattern><shadedPattern>cdjd.io.</shadedPattern></relocation>
-            <relocation><pattern>javacc.</pattern><shadedPattern>cdjd.javacc.</shadedPattern></relocation>
-            <relocation><pattern>java_cup.</pattern><shadedPattern>cdjd.java_cup.</shadedPattern></relocation>
-            <relocation><pattern>javassist.</pattern><shadedPattern>cdjd.javassist.</shadedPattern></relocation>
-            <relocation><pattern>jline.</pattern><shadedPattern>cdjd.jline.</shadedPattern></relocation>
-            <relocation><pattern>license.</pattern><shadedPattern>cdjd.license.</shadedPattern></relocation>
-            <relocation><pattern>net.</pattern><shadedPattern>cdjd.net.</shadedPattern></relocation>
-            <relocation><pattern>parquet.</pattern><shadedPattern>cdjd.parquet.</shadedPattern></relocation>
-            <relocation><pattern>test.</pattern><shadedPattern>cdjd.test.</shadedPattern></relocation>
-            <relocation><pattern>trax.</pattern><shadedPattern>cdjd.trax.</shadedPattern></relocation>
+            <relocation>
+              <pattern>io.</pattern>
+              <shadedPattern>cdjd.io.</shadedPattern>
+            </relocation>
+            <relocation>
+              <pattern>javacc.</pattern>
+              <shadedPattern>cdjd.javacc.</shadedPattern>
+            </relocation>
+            <relocation>
+              <pattern>java_cup.</pattern>
+              <shadedPattern>cdjd.java_cup.</shadedPattern>
+            </relocation>
+            <relocation>
+              <pattern>javassist.</pattern>
+              <shadedPattern>cdjd.javassist.</shadedPattern>
+            </relocation>
+            <relocation>
+              <pattern>jline.</pattern>
+              <shadedPattern>cdjd.jline.</shadedPattern>
+            </relocation>
+            <relocation>
+              <pattern>license.</pattern>
+              <shadedPattern>cdjd.license.</shadedPattern>
+            </relocation>
+            <relocation>
+              <pattern>net.</pattern>
+              <shadedPattern>cdjd.net.</shadedPattern>
+            </relocation>
+            <relocation>
+              <pattern>parquet.</pattern>
+              <shadedPattern>cdjd.parquet.</shadedPattern>
+            </relocation>
+            <relocation>
+              <pattern>test.</pattern>
+              <shadedPattern>cdjd.test.</shadedPattern>
+            </relocation>
+            <relocation>
+              <pattern>trax.</pattern>
+              <shadedPattern>cdjd.trax.</shadedPattern>
+            </relocation>
 
             <!-- Entries to relocate netty native libraries  -->
-            <relocation><pattern>META-INF.native.libnetty_</pattern><shadedPattern>META-INF.native.libcdjd_netty_</shadedPattern></relocation>
-            <relocation><pattern>META-INF.native.netty_</pattern><shadedPattern>META-INF.native.cdjd_netty_</shadedPattern></relocation>
+            <relocation>
+              <pattern>META-INF.native.libnetty_</pattern>
+              <shadedPattern>META-INF.native.libcdjd_netty_</shadedPattern>
+            </relocation>
+            <relocation>
+              <pattern>META-INF.native.netty_</pattern>
+              <shadedPattern>META-INF.native.cdjd_netty_</shadedPattern>
+            </relocation>
 
             <!-- Entries to relocate log4j resource bundle -->
-            <relocation><pattern>Log4j-charsets</pattern><shadedPattern>CDJDLog4j-charsets</shadedPattern></relocation>
+            <relocation>
+              <pattern>Log4j-charsets</pattern>
+              <shadedPattern>CDJDLog4j-charsets</shadedPattern>
+            </relocation>
           </relocations>
           <transformers>
             <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
@@ -781,6 +827,14 @@
             </filter>
           </filters>
         </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+            <phase>package</phase>
+          </execution>
+        </executions>
       </plugin>
 
       <plugin>
@@ -795,13 +849,9 @@
             <configuration>
               <rules>
                 <requireFilesSize>
-                  <message>
+                  <message>The file dremio-jdbc-driver-${project.version}.jar is outside the expected size range.
 
-                    The file dremio-jdbc-driver-${project.version}.jar is outside the expected size range.
-
-                    This is likely due to you adding new dependencies to a sabot-kernel and not updating the excludes in this module. This is important as it minimizes the size of the dependency of Dremio application users.
-
-                  </message>
+                    This is likely due to you adding new dependencies to a sabot-kernel and not updating the excludes in this module. This is important as it minimizes the size of the dependency of Dremio application users.</message>
                   <maxsize>${dremio.distribution.jar.maxSize}</maxsize>
                   <minsize>15000000</minsize>
                   <files>
@@ -826,7 +876,7 @@
         </property>
       </activation>
       <properties>
-        <dremio.distribution.jar.maxSize>42500000</dremio.distribution.jar.maxSize>
+        <dremio.distribution.jar.maxSize>44000000</dremio.distribution.jar.maxSize>
       </properties>
     </profile>
   </profiles>

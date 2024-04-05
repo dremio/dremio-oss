@@ -15,11 +15,6 @@
  */
 package com.dremio.exec.store;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-
 import com.dremio.exec.physical.EndpointAffinity;
 import com.dremio.exec.planner.fragment.DistributionAffinity;
 import com.dremio.exec.planner.fragment.ExecutionNodeMap;
@@ -29,18 +24,24 @@ import com.dremio.exec.util.rhash.RendezvousPageHasher;
 import com.dremio.service.namespace.PartitionChunkMetadata;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.DatasetSplit;
 import com.google.common.collect.FluentIterable;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
 
-/**
- * Split work affinity is computed at run time in case its not provided
- */
+/** Split work affinity is computed at run time in case its not provided */
 public class SplitWorkWithRuntimeAffinity extends SplitWork {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SplitWorkWithRuntimeAffinity.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(SplitWorkWithRuntimeAffinity.class);
   private static final int MAX_AFFINITY_NODES = 3;
 
   private List<EndpointAffinity> runTimeAffinity = new ArrayList<>();
 
-  public SplitWorkWithRuntimeAffinity(PartitionChunkMetadata partitionChunk, DatasetSplit datasetSplit, ExecutionNodeMap nodeMap,
-                                      DistributionAffinity affinityType) {
+  public SplitWorkWithRuntimeAffinity(
+      PartitionChunkMetadata partitionChunk,
+      DatasetSplit datasetSplit,
+      ExecutionNodeMap nodeMap,
+      DistributionAffinity affinityType) {
     super(partitionChunk, datasetSplit, nodeMap, affinityType);
   }
 
@@ -63,30 +64,44 @@ public class SplitWorkWithRuntimeAffinity extends SplitWork {
 
     RendezvousPageHasher hasher = new RendezvousPageHasher(nodeMap.getExecutors());
 
-    //As path and offset is not available here
-    //Affinnity is computed on dataSplit, which contains size of split and data-slices
-    NodeEndpoint[] nodeEndPoints = hasher.getEndpoints(getDatasetSplit().getSplitExtendedProperty().toStringUtf8(),
+    // As path and offset is not available here
+    // Affinnity is computed on dataSplit, which contains size of split and data-slices
+    NodeEndpoint[] nodeEndPoints =
+        hasher.getEndpoints(
+            getDatasetSplit().getSplitExtendedProperty().toStringUtf8(),
             getDatasetSplit().getSize());
     double affinity = 1.0;
-    for(NodeEndpoint nodeEndpoint : nodeEndPoints) {
+    for (NodeEndpoint nodeEndpoint : nodeEndPoints) {
       runTimeAffinity.add(new EndpointAffinity(nodeEndpoint, affinity, false, Integer.MAX_VALUE));
       affinity = affinity / 2;
-      logger.debug("split {} affined to node {} with affinity {}", getDatasetSplit(), nodeEndpoint.getAddress(), affinity);
+      logger.debug(
+          "split {} affined to node {} with affinity {}",
+          getDatasetSplit(),
+          nodeEndpoint.getAddress(),
+          affinity);
     }
 
     return runTimeAffinity;
   }
 
-  public static Iterator<SplitWork> transform(Iterator<PartitionChunkMetadata> splits, final ExecutionNodeMap nodeMap, final DistributionAffinity affinityType) {
+  public static Iterator<SplitWork> transform(
+      Iterator<PartitionChunkMetadata> splits,
+      final ExecutionNodeMap nodeMap,
+      final DistributionAffinity affinityType) {
     return FluentIterable.from(() -> splits)
-      .transformAndConcat(partitionChunk -> FluentIterable.from(partitionChunk.getDatasetSplits())
-        .transform(datasetSplit -> (SplitWork) new SplitWorkWithRuntimeAffinity(partitionChunk, datasetSplit, nodeMap, affinityType)))
-      .iterator();
+        .transformAndConcat(
+            partitionChunk ->
+                FluentIterable.from(partitionChunk.getDatasetSplits())
+                    .transform(
+                        datasetSplit ->
+                            (SplitWork)
+                                new SplitWorkWithRuntimeAffinity(
+                                    partitionChunk, datasetSplit, nodeMap, affinityType)))
+        .iterator();
   }
 
-  public static Iterator<SplitWork> transform(final TableMetadata dataset, ExecutionNodeMap nodeMap, DistributionAffinity affinityType){
+  public static Iterator<SplitWork> transform(
+      final TableMetadata dataset, ExecutionNodeMap nodeMap, DistributionAffinity affinityType) {
     return transform(dataset.getSplits(), nodeMap, affinityType);
   }
-
-
 }

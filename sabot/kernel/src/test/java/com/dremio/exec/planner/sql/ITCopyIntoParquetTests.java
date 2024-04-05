@@ -23,22 +23,22 @@ public class ITCopyIntoParquetTests extends ITDmlQueryBase {
   private static final String SOURCE = TEMP_SCHEMA_HADOOP;
 
   @Test
-  public void testParquetMixedSchemas()  throws Exception {
+  public void testParquetMixedSchemas() throws Exception {
     CopyIntoParquetTests.testParquetMixedSchemas(allocator, SOURCE);
   }
 
   @Test
-  public void testParquetSingleFile()  throws Exception {
+  public void testParquetSingleFile() throws Exception {
     CopyIntoParquetTests.testParquetSingleFile(allocator, SOURCE);
   }
 
   @Test
-  public void testParquetBinaryToStringColumn()  throws Exception {
+  public void testParquetBinaryToStringColumn() throws Exception {
     CopyIntoParquetTests.testParquetBinaryToStringColumn(allocator, SOURCE);
   }
 
   @Test
-  public void testParquetMissingColumns()  throws Exception {
+  public void testParquetMissingColumns() throws Exception {
     CopyIntoParquetTests.testParquetMissingColumns(allocator, SOURCE);
   }
 

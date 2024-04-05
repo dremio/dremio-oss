@@ -27,10 +27,10 @@ export type Script = components["schemas"]["Script"];
 
 export const replaceScript = async (
   scriptId: string,
-  body: UpdatedScript
+  body: UpdatedScript,
 ): Promise<path["responses"]["200"]["content"]["application/json"]> => {
   scriptsLogger.debug(
-    `Syncing updating script ${body.name} with contents: ${body.content}`
+    `Syncing updating script ${body.name} with contents: ${body.content}`,
   );
   return getApiContext()
     .fetch(replaceScriptUrl(scriptId), {

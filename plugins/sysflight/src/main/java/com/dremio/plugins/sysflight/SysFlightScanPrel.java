@@ -15,17 +15,6 @@
  */
 package com.dremio.plugins.sysflight;
 
-import java.io.IOException;
-import java.util.List;
-
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelOptTable;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.RelWriter;
-import org.apache.calcite.rel.hint.RelHint;
-import org.apache.calcite.rel.type.RelDataType;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.connector.metadata.EntityPath;
 import com.dremio.exec.catalog.StoragePluginId;
@@ -38,10 +27,17 @@ import com.dremio.exec.proto.SearchProtos.SearchQuery;
 import com.dremio.exec.store.TableMetadata;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import java.io.IOException;
+import java.util.List;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptTable;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.RelWriter;
+import org.apache.calcite.rel.hint.RelHint;
+import org.apache.calcite.rel.type.RelDataType;
 
-/**
- * Physical scan operator.
- */
+/** Physical scan operator. */
 public class SysFlightScanPrel extends ScanPrelBase {
 
   private final SearchQuery query;
@@ -50,44 +46,64 @@ public class SysFlightScanPrel extends ScanPrelBase {
   private final boolean isDistributed;
   private final SysFlightStoragePlugin plugin;
 
-  public SysFlightScanPrel(RelOptCluster cluster,
-                           RelTraitSet traitSet,
-                           RelOptTable table,
-                           TableMetadata dataset,
-                           SearchQuery query,
-                           List<SchemaPath> projectedColumns,
-                           double observedRowcountAdjustment,
-                           List<RelHint> hints,
-                           SysFlightStoragePlugin plugin,
-                           List<Info> runtimeFilters) {
-    super(cluster, traitSet, table, dataset.getStoragePluginId(), dataset, projectedColumns, observedRowcountAdjustment,
-          hints, runtimeFilters);
+  public SysFlightScanPrel(
+      RelOptCluster cluster,
+      RelTraitSet traitSet,
+      RelOptTable table,
+      TableMetadata dataset,
+      SearchQuery query,
+      List<SchemaPath> projectedColumns,
+      double observedRowcountAdjustment,
+      List<RelHint> hints,
+      SysFlightStoragePlugin plugin,
+      List<Info> runtimeFilters) {
+    super(
+        cluster,
+        traitSet,
+        table,
+        dataset.getStoragePluginId(),
+        dataset,
+        projectedColumns,
+        observedRowcountAdjustment,
+        hints,
+        runtimeFilters);
 
     this.pluginId = dataset.getStoragePluginId();
     this.executorCount = PrelUtil.getPlannerSettings(cluster).getExecutorCount();
-    this.isDistributed = plugin.isDistributed(new EntityPath(dataset.getName().getPathComponents()));
+    this.isDistributed =
+        plugin.isDistributed(new EntityPath(dataset.getName().getPathComponents()));
     this.query = query;
     this.plugin = plugin;
   }
 
   @VisibleForTesting
-  public SysFlightScanPrel(RelOptCluster cluster,
-                           RelTraitSet traitSet,
-                           RelOptTable table,
-                           TableMetadata dataset,
-                           SearchQuery query,
-                           List<SchemaPath> projectedColumns,
-                           double observedRowcountAdjustment,
-                           List<RelHint> hints,
-                           RelDataType rowType,
-                           SysFlightStoragePlugin plugin,
-                           List<Info> runtimeFilters) {
-    super(cluster, traitSet, table, dataset.getStoragePluginId(), dataset, projectedColumns, observedRowcountAdjustment,
-          hints, runtimeFilters);
+  public SysFlightScanPrel(
+      RelOptCluster cluster,
+      RelTraitSet traitSet,
+      RelOptTable table,
+      TableMetadata dataset,
+      SearchQuery query,
+      List<SchemaPath> projectedColumns,
+      double observedRowcountAdjustment,
+      List<RelHint> hints,
+      RelDataType rowType,
+      SysFlightStoragePlugin plugin,
+      List<Info> runtimeFilters) {
+    super(
+        cluster,
+        traitSet,
+        table,
+        dataset.getStoragePluginId(),
+        dataset,
+        projectedColumns,
+        observedRowcountAdjustment,
+        hints,
+        runtimeFilters);
     this.rowType = rowType;
     this.pluginId = dataset.getStoragePluginId();
     this.executorCount = PrelUtil.getPlannerSettings(cluster).getExecutorCount();
-    this.isDistributed = plugin.isDistributed(new EntityPath(dataset.getName().getPathComponents()));
+    this.isDistributed =
+        plugin.isDistributed(new EntityPath(dataset.getName().getPathComponents()));
     this.query = query;
     this.plugin = plugin;
   }
@@ -130,7 +146,12 @@ public class SysFlightScanPrel extends ScanPrelBase {
   @Override
   public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
     return new SysFlightGroupScan(
-        creator.props(this, getTableMetadata().getUser(), getTableMetadata().getSchema().maskAndReorder(getProjectedColumns()), null, null),
+        creator.props(
+            this,
+            getTableMetadata().getUser(),
+            getTableMetadata().getSchema().maskAndReorder(getProjectedColumns()),
+            null,
+            null),
         getTableMetadata().getName().getPathComponents(),
         getTableMetadata().getSchema(),
         getProjectedColumns(),
@@ -143,13 +164,31 @@ public class SysFlightScanPrel extends ScanPrelBase {
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
     Preconditions.checkArgument(inputs == null || inputs.size() == 0);
-    return new SysFlightScanPrel(getCluster(), traitSet, getTable(), getTableMetadata(), query, getProjectedColumns(),
-                                 getCostAdjustmentFactor(), getHints(), plugin, getRuntimeFilters());
+    return new SysFlightScanPrel(
+        getCluster(),
+        traitSet,
+        getTable(),
+        getTableMetadata(),
+        query,
+        getProjectedColumns(),
+        getCostAdjustmentFactor(),
+        getHints(),
+        plugin,
+        getRuntimeFilters());
   }
 
   @Override
   public SysFlightScanPrel cloneWithProject(List<SchemaPath> projection) {
-    return new SysFlightScanPrel(getCluster(), getTraitSet(), getTable(), getTableMetadata(), query, projection,
-                                 getCostAdjustmentFactor(), getHints(), plugin, getRuntimeFilters());
+    return new SysFlightScanPrel(
+        getCluster(),
+        getTraitSet(),
+        getTable(),
+        getTableMetadata(),
+        query,
+        projection,
+        getCostAdjustmentFactor(),
+        getHints(),
+        plugin,
+        getRuntimeFilters());
   }
 }

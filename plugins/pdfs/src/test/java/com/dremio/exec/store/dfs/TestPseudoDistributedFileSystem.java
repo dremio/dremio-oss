@@ -26,15 +26,18 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 
+import com.dremio.exec.ExecTest;
+import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
+import com.dremio.exec.proto.CoordinationProtos.Roles;
+import com.dremio.service.DirectProvider;
+import com.google.common.util.concurrent.MoreExecutors;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
-
 import javax.inject.Provider;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.BlockLocation;
 import org.apache.hadoop.fs.FSDataInputStream;
@@ -52,32 +55,22 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
-import com.dremio.exec.ExecTest;
-import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
-import com.dremio.exec.proto.CoordinationProtos.Roles;
-import com.dremio.service.DirectProvider;
-import com.google.common.util.concurrent.MoreExecutors;
-
-/**
- * Test class for {@link PseudoDistributedFileSystem}
- *
- */
+/** Test class for {@link PseudoDistributedFileSystem} */
 public class TestPseudoDistributedFileSystem extends ExecTest {
   private static final NodeEndpoint REMOTE_ENDPOINT_1 = newNodeEndpoint("10.0.0.2", 1234);
   private static final NodeEndpoint REMOTE_ENDPOINT_2 = newNodeEndpoint("10.0.0.2", 5678);
   private static final NodeEndpoint REMOTE_ENDPOINT_3 = newNodeEndpoint("10.0.0.1", 9012);
   private static final NodeEndpoint LOCAL_ENDPOINT = newNodeEndpoint("10.0.0.1", 1234);
   private static final Provider<Iterable<NodeEndpoint>> ENDPOINTS_PROVIDER =
-      DirectProvider.<Iterable<NodeEndpoint>>wrap((Arrays.asList(LOCAL_ENDPOINT, REMOTE_ENDPOINT_1, REMOTE_ENDPOINT_2, REMOTE_ENDPOINT_3)));
+      DirectProvider.<Iterable<NodeEndpoint>>wrap(
+          (Arrays.asList(LOCAL_ENDPOINT, REMOTE_ENDPOINT_1, REMOTE_ENDPOINT_2, REMOTE_ENDPOINT_3)));
 
   private Configuration hadoopConf;
 
-  @Rule
-  public final MockitoRule mockitoRule = MockitoJUnit.rule();
+  @Rule public final MockitoRule mockitoRule = MockitoJUnit.rule();
 
   @Mock private FileSystem mockLocalFS;
   @Mock private FileSystem mockRemoteFS;
-
 
   private PseudoDistributedFileSystem fs;
 
@@ -101,26 +94,104 @@ public class TestPseudoDistributedFileSystem extends ExecTest {
 
   @Before
   public void setUp() throws IOException {
-    PDFSConfig config = new PDFSConfig(
-        MoreExecutors.newDirectExecutorService(),
-        null,
-        null,
-        ENDPOINTS_PROVIDER,
-        LOCAL_ENDPOINT,
-        true);
+    PDFSConfig config =
+        new PDFSConfig(
+            MoreExecutors.newDirectExecutorService(),
+            null,
+            null,
+            ENDPOINTS_PROVIDER,
+            LOCAL_ENDPOINT,
+            true);
     hadoopConf = new Configuration();
     fs = newPseudoDistributedFileSystem(config);
   }
 
   @Before
   public void setUpLocalFS() throws IOException {
-    final FileStatus rootStatus = new FileStatus(4096, true, 0, 0, 37, 42, FsPermission.createImmutable((short) 0555), "root", "wheel", new Path("sabot://10.0.0.1:1234/"));
-    final FileStatus fooStatus = new FileStatus(38214, true, 0, 0, 45, 67, FsPermission.createImmutable((short) 0755), "root", "wheel", new Path("sabot://10.0.0.1:1234/foo"));
-    final FileStatus fooProtocolFileStatus = new FileStatus(2048, true, 0, 0, 37, 42, FsPermission.createImmutable((short) 0755), "root", "wheel", new Path("sabot://10.0.0.1:1234/foo/protocolException"));
-    final FileStatus fooBarStatus = new FileStatus(67128, true, 1, 4096, 69, 68, FsPermission.createImmutable((short) 0644), "root", "wheel", new Path("sabot://10.0.0.1:1234/foo/bar"));
-    final FileStatus fooBarDirStatus = new FileStatus(47, true, 0, 0, 1234, 3645, FsPermission.createImmutable((short) 0755), "admin", "admin", new Path("sabot://10.0.0.1:1234/foo/bar/dir"));
-    final FileStatus fooBarFile1Status = new FileStatus(1024, false, 1, 4096, 37, 42, FsPermission.createImmutable((short) 0644), "root", "wheel", new Path("sabot://10.0.0.1:1234/foo/bar/file1"));
-    final FileStatus fooBarFile2Status = new FileStatus(2048, false, 1, 4096, 37, 42, FsPermission.createImmutable((short) 0644), "root", "wheel", new Path("sabot://10.0.0.1:1234/foo/bar/file2"));
+    final FileStatus rootStatus =
+        new FileStatus(
+            4096,
+            true,
+            0,
+            0,
+            37,
+            42,
+            FsPermission.createImmutable((short) 0555),
+            "root",
+            "wheel",
+            new Path("sabot://10.0.0.1:1234/"));
+    final FileStatus fooStatus =
+        new FileStatus(
+            38214,
+            true,
+            0,
+            0,
+            45,
+            67,
+            FsPermission.createImmutable((short) 0755),
+            "root",
+            "wheel",
+            new Path("sabot://10.0.0.1:1234/foo"));
+    final FileStatus fooProtocolFileStatus =
+        new FileStatus(
+            2048,
+            true,
+            0,
+            0,
+            37,
+            42,
+            FsPermission.createImmutable((short) 0755),
+            "root",
+            "wheel",
+            new Path("sabot://10.0.0.1:1234/foo/protocolException"));
+    final FileStatus fooBarStatus =
+        new FileStatus(
+            67128,
+            true,
+            1,
+            4096,
+            69,
+            68,
+            FsPermission.createImmutable((short) 0644),
+            "root",
+            "wheel",
+            new Path("sabot://10.0.0.1:1234/foo/bar"));
+    final FileStatus fooBarDirStatus =
+        new FileStatus(
+            47,
+            true,
+            0,
+            0,
+            1234,
+            3645,
+            FsPermission.createImmutable((short) 0755),
+            "admin",
+            "admin",
+            new Path("sabot://10.0.0.1:1234/foo/bar/dir"));
+    final FileStatus fooBarFile1Status =
+        new FileStatus(
+            1024,
+            false,
+            1,
+            4096,
+            37,
+            42,
+            FsPermission.createImmutable((short) 0644),
+            "root",
+            "wheel",
+            new Path("sabot://10.0.0.1:1234/foo/bar/file1"));
+    final FileStatus fooBarFile2Status =
+        new FileStatus(
+            2048,
+            false,
+            1,
+            4096,
+            37,
+            42,
+            FsPermission.createImmutable((short) 0644),
+            "root",
+            "wheel",
+            new Path("sabot://10.0.0.1:1234/foo/bar/file2"));
 
     doReturn(rootStatus).when(mockLocalFS).getFileStatus(new Path("/"));
     doThrow(new FileNotFoundException()).when(mockLocalFS).getFileStatus(any(Path.class));
@@ -128,38 +199,117 @@ public class TestPseudoDistributedFileSystem extends ExecTest {
     doReturn(fooBarFile1Status).when(mockLocalFS).getFileStatus(new Path("/foo/bar/file1"));
     doReturn(fooBarDirStatus).when(mockLocalFS).getFileStatus(new Path("/foo/bar/dir"));
     doReturn(fooBarStatus).when(mockLocalFS).getFileStatus(new Path("/foo/bar"));
-    doReturn(fooProtocolFileStatus).when(mockLocalFS).getFileStatus(new Path("/foo/protocolException"));
+    doReturn(fooProtocolFileStatus)
+        .when(mockLocalFS)
+        .getFileStatus(new Path("/foo/protocolException"));
     doReturn(fooStatus).when(mockLocalFS).getFileStatus(new Path("/foo"));
     doReturn(rootStatus).when(mockLocalFS).getFileStatus(new Path("/"));
 
-    final FileStatus[] fooBarStatusList = new FileStatus[] { fooBarDirStatus, fooBarFile1Status, fooBarFile2Status };
-    final FileStatus[] fooStatusList = new FileStatus[] { fooBarStatus };
-    final FileStatus[] fooProtocolExceptionList = new FileStatus[] { fooProtocolFileStatus };
-    final FileStatus[] rootStatusList = new FileStatus[] { fooStatus };
+    final FileStatus[] fooBarStatusList =
+        new FileStatus[] {fooBarDirStatus, fooBarFile1Status, fooBarFile2Status};
+    final FileStatus[] fooStatusList = new FileStatus[] {fooBarStatus};
+    final FileStatus[] fooProtocolExceptionList = new FileStatus[] {fooProtocolFileStatus};
+    final FileStatus[] rootStatusList = new FileStatus[] {fooStatus};
 
     // listStatusIterator mocks.
     doThrow(new FileNotFoundException()).when(mockLocalFS).listStatusIterator(any(Path.class));
-    doReturn(new MockRemoteStatusIterator(fooBarStatusList)).when(mockLocalFS).listStatusIterator(new Path("/foo/bar"));
-    doReturn(new MockRemoteStatusIterator(fooProtocolExceptionList)).when(mockLocalFS).listStatusIterator(new Path("/foo/protocolException"));
-    doReturn(new MockRemoteStatusIterator(fooStatusList)).when(mockLocalFS).listStatusIterator(new Path("/foo"));
-    doReturn(new MockRemoteStatusIterator(rootStatusList)).when(mockLocalFS).listStatusIterator(new Path("/"));
+    doReturn(new MockRemoteStatusIterator(fooBarStatusList))
+        .when(mockLocalFS)
+        .listStatusIterator(new Path("/foo/bar"));
+    doReturn(new MockRemoteStatusIterator(fooProtocolExceptionList))
+        .when(mockLocalFS)
+        .listStatusIterator(new Path("/foo/protocolException"));
+    doReturn(new MockRemoteStatusIterator(fooStatusList))
+        .when(mockLocalFS)
+        .listStatusIterator(new Path("/foo"));
+    doReturn(new MockRemoteStatusIterator(rootStatusList))
+        .when(mockLocalFS)
+        .listStatusIterator(new Path("/"));
 
     // listStatus mocks.
     doThrow(new FileNotFoundException()).when(mockLocalFS).listStatus(any(Path.class));
     doReturn(fooBarStatusList).when(mockLocalFS).listStatus(new Path("/foo/bar"));
-    doReturn(fooProtocolExceptionList).when(mockLocalFS).listStatus(new Path("/foo/protocolException"));
+    doReturn(fooProtocolExceptionList)
+        .when(mockLocalFS)
+        .listStatus(new Path("/foo/protocolException"));
     doReturn(fooStatusList).when(mockLocalFS).listStatus(new Path("/foo"));
     doReturn(rootStatusList).when(mockLocalFS).listStatus(new Path("/"));
   }
 
   @Before
   public void setUpRemoteFS() throws IOException {
-    final FileStatus rootStatus = new FileStatus(4096, true, 0, 0, 38, 43, FsPermission.createImmutable((short) 0555), "root", "wheel", new Path("sabot://10.0.0.2:1234/"));
-    final FileStatus fooStatus = new FileStatus(37126, true, 0, 0, 41, 87, FsPermission.createImmutable((short) 0755), "root", "wheel", new Path("sabot://10.0.0.2:1234/foo"));
-    final FileStatus fooBarStatus = new FileStatus(67128, true, 1, 4096, 54, 90, FsPermission.createImmutable((short) 0644), "root", "wheel", new Path("sabot://10.0.0.2:1234/foo/bar"));
-    final FileStatus fooBarDirStatus = new FileStatus(47, true, 0, 0, 1234, 3645, FsPermission.createImmutable((short) 0755), "admin", "admin", new Path("sabot://10.0.0.2:1234/foo/bar/dir"));
-    final FileStatus fooBarFile1Status = new FileStatus(1027, false, 1, 4096, 37, 42, FsPermission.createImmutable((short) 0644), "root", "wheel", new Path("sabot://10.0.0.2:1234/foo/bar/file1"));
-    final FileStatus fooBarFile2Status = new FileStatus(2049, false, 1, 4096, 37, 42, FsPermission.createImmutable((short) 0644), "root", "wheel", new Path("sabot://10.0.0.2:1234/foo/bar/file3"));
+    final FileStatus rootStatus =
+        new FileStatus(
+            4096,
+            true,
+            0,
+            0,
+            38,
+            43,
+            FsPermission.createImmutable((short) 0555),
+            "root",
+            "wheel",
+            new Path("sabot://10.0.0.2:1234/"));
+    final FileStatus fooStatus =
+        new FileStatus(
+            37126,
+            true,
+            0,
+            0,
+            41,
+            87,
+            FsPermission.createImmutable((short) 0755),
+            "root",
+            "wheel",
+            new Path("sabot://10.0.0.2:1234/foo"));
+    final FileStatus fooBarStatus =
+        new FileStatus(
+            67128,
+            true,
+            1,
+            4096,
+            54,
+            90,
+            FsPermission.createImmutable((short) 0644),
+            "root",
+            "wheel",
+            new Path("sabot://10.0.0.2:1234/foo/bar"));
+    final FileStatus fooBarDirStatus =
+        new FileStatus(
+            47,
+            true,
+            0,
+            0,
+            1234,
+            3645,
+            FsPermission.createImmutable((short) 0755),
+            "admin",
+            "admin",
+            new Path("sabot://10.0.0.2:1234/foo/bar/dir"));
+    final FileStatus fooBarFile1Status =
+        new FileStatus(
+            1027,
+            false,
+            1,
+            4096,
+            37,
+            42,
+            FsPermission.createImmutable((short) 0644),
+            "root",
+            "wheel",
+            new Path("sabot://10.0.0.2:1234/foo/bar/file1"));
+    final FileStatus fooBarFile2Status =
+        new FileStatus(
+            2049,
+            false,
+            1,
+            4096,
+            37,
+            42,
+            FsPermission.createImmutable((short) 0644),
+            "root",
+            "wheel",
+            new Path("sabot://10.0.0.2:1234/foo/bar/file3"));
 
     doThrow(new FileNotFoundException()).when(mockRemoteFS).getFileStatus(any(Path.class));
     doReturn(fooBarFile2Status).when(mockRemoteFS).getFileStatus(new Path("/foo/bar/file2"));
@@ -168,18 +318,28 @@ public class TestPseudoDistributedFileSystem extends ExecTest {
     doReturn(fooBarStatus).when(mockRemoteFS).getFileStatus(new Path("/foo/bar"));
     doReturn(fooStatus).when(mockRemoteFS).getFileStatus(new Path("/foo"));
     doReturn(rootStatus).when(mockRemoteFS).getFileStatus(new Path("/"));
-    com.dremio.services.fabric.ProtocolNotRegisteredException p = new com.dremio.services.fabric.ProtocolNotRegisteredException();
-    doThrow(new com.dremio.exec.rpc.RpcException(p.getExceptionMessage(), p)).when(mockRemoteFS).getFileStatus(new Path("/foo/protocolException"));
+    com.dremio.services.fabric.ProtocolNotRegisteredException p =
+        new com.dremio.services.fabric.ProtocolNotRegisteredException();
+    doThrow(new com.dremio.exec.rpc.RpcException(p.getExceptionMessage(), p))
+        .when(mockRemoteFS)
+        .getFileStatus(new Path("/foo/protocolException"));
 
-    final FileStatus[] fooBarStatusList = new FileStatus[] { fooBarDirStatus, fooBarFile1Status, fooBarFile2Status };
-    final FileStatus[] fooStatusList = new FileStatus[] { fooBarStatus };
-    final FileStatus[] rootStatusList = new FileStatus[] { fooStatus };
+    final FileStatus[] fooBarStatusList =
+        new FileStatus[] {fooBarDirStatus, fooBarFile1Status, fooBarFile2Status};
+    final FileStatus[] fooStatusList = new FileStatus[] {fooBarStatus};
+    final FileStatus[] rootStatusList = new FileStatus[] {fooStatus};
 
     // listStatusIterator mocks.
     doThrow(new FileNotFoundException()).when(mockRemoteFS).listStatusIterator(any(Path.class));
-    doReturn(new MockRemoteStatusIterator(fooBarStatusList)).when(mockRemoteFS).listStatusIterator(new Path("/foo/bar"));
-    doReturn(new MockRemoteStatusIterator(fooStatusList)).when(mockRemoteFS).listStatusIterator(new Path("/foo"));
-    doReturn(new MockRemoteStatusIterator(rootStatusList)).when(mockRemoteFS).listStatusIterator(new Path("/"));
+    doReturn(new MockRemoteStatusIterator(fooBarStatusList))
+        .when(mockRemoteFS)
+        .listStatusIterator(new Path("/foo/bar"));
+    doReturn(new MockRemoteStatusIterator(fooStatusList))
+        .when(mockRemoteFS)
+        .listStatusIterator(new Path("/foo"));
+    doReturn(new MockRemoteStatusIterator(rootStatusList))
+        .when(mockRemoteFS)
+        .listStatusIterator(new Path("/"));
 
     // listStatus mocks.
     doThrow(new FileNotFoundException()).when(mockRemoteFS).listStatus(any(Path.class));
@@ -195,15 +355,17 @@ public class TestPseudoDistributedFileSystem extends ExecTest {
    * @return
    * @throws IOException
    */
-  private PseudoDistributedFileSystem newPseudoDistributedFileSystem(PDFSConfig config) throws IOException {
-    PseudoDistributedFileSystem fs =  new PseudoDistributedFileSystem(config) {
-      @Override
-      FileSystem newRemoteFileSystem(NodeEndpoint endpoint) throws IOException {
-        assertEquals("10.0.0.2", endpoint.getAddress());
+  private PseudoDistributedFileSystem newPseudoDistributedFileSystem(PDFSConfig config)
+      throws IOException {
+    PseudoDistributedFileSystem fs =
+        new PseudoDistributedFileSystem(config) {
+          @Override
+          FileSystem newRemoteFileSystem(NodeEndpoint endpoint) throws IOException {
+            assertEquals("10.0.0.2", endpoint.getAddress());
 
-        return mockRemoteFS;
-      }
-    };
+            return mockRemoteFS;
+          }
+        };
     fs.setConf(hadoopConf);
     fs.initialize(URI.create("pdfs:///"), hadoopConf, mockLocalFS);
     return fs;
@@ -211,12 +373,17 @@ public class TestPseudoDistributedFileSystem extends ExecTest {
 
   /**
    * Create a {@link com.dremio.exec.proto.beans.NodeEndpoint}
+   *
    * @param address the address
    * @param port the control port
    * @return
    */
   private static NodeEndpoint newNodeEndpoint(String address, int port) {
-    return NodeEndpoint.newBuilder().setAddress(address).setFabricPort(port).setRoles(Roles.newBuilder().setJavaExecutor(true)).build();
+    return NodeEndpoint.newBuilder()
+        .setAddress(address)
+        .setFabricPort(port)
+        .setRoles(Roles.newBuilder().setJavaExecutor(true))
+        .build();
   }
 
   @Test
@@ -249,7 +416,6 @@ public class TestPseudoDistributedFileSystem extends ExecTest {
     assertEquals(90, status.getAccessTime());
   }
 
-
   @Test
   public void testGetFileStatusForUnaccessibleDirectory() throws IOException {
     doThrow(new AccessControlException()).when(mockRemoteFS).getFileStatus(new Path("/foo/baz"));
@@ -258,15 +424,27 @@ public class TestPseudoDistributedFileSystem extends ExecTest {
     try {
       fs.getFileStatus(path);
       fail("Expected some IOException");
-    } catch(AccessControlException e) {
+    } catch (AccessControlException e) {
       // ignore
     }
   }
 
   @Test
   public void testGetFileStatusWithValidRemotePath() throws IOException {
-    doReturn(new FileStatus(1024, false, 1, 4096, 37, 42, FsPermission.createImmutable((short) 0644), "root", "wheel", new Path("sabot://10.0.0.2:1234/tmp/file")))
-    .when(mockRemoteFS).getFileStatus(new Path("/tmp/file"));
+    doReturn(
+            new FileStatus(
+                1024,
+                false,
+                1,
+                4096,
+                37,
+                42,
+                FsPermission.createImmutable((short) 0644),
+                "root",
+                "wheel",
+                new Path("sabot://10.0.0.2:1234/tmp/file")))
+        .when(mockRemoteFS)
+        .getFileStatus(new Path("/tmp/file"));
 
     Path path = new Path("/tmp/10.0.0.2@file");
     FileStatus status = fs.getFileStatus(path);
@@ -287,7 +465,20 @@ public class TestPseudoDistributedFileSystem extends ExecTest {
   @Test
   public void testGetFileStatusWithValidLocalPath() throws IOException {
     Path tmpPath = new Path("/tmp/file");
-    doReturn(new FileStatus(1024, false, 1, 4096, 37, 42,  FsPermission.createImmutable((short) 0644), "root", "wheel", tmpPath)).when(mockLocalFS).getFileStatus(tmpPath);
+    doReturn(
+            new FileStatus(
+                1024,
+                false,
+                1,
+                4096,
+                37,
+                42,
+                FsPermission.createImmutable((short) 0644),
+                "root",
+                "wheel",
+                tmpPath))
+        .when(mockLocalFS)
+        .getFileStatus(tmpPath);
 
     Path path = new Path("/tmp/10.0.0.1@file");
     FileStatus status = fs.getFileStatus(path);
@@ -353,7 +544,8 @@ public class TestPseudoDistributedFileSystem extends ExecTest {
     final FileStatus searchKeyStatus = new FileStatus();
     searchKeyStatus.setPath(new Path("pdfs:/foo/bar/10.0.0.1@file1"));
     int testIndex = Arrays.binarySearch(statuses, searchKeyStatus);
-    assertTrue("Status for path " + searchKeyStatus.getPath().toString() + " not found", testIndex >= 0);
+    assertTrue(
+        "Status for path " + searchKeyStatus.getPath().toString() + " not found", testIndex >= 0);
     assertEquals(new Path("pdfs:/foo/bar/10.0.0.1@file1"), statuses[testIndex].getPath());
     assertFalse(statuses[testIndex].isDirectory());
     assertEquals(1024, statuses[testIndex].getLen());
@@ -365,10 +557,10 @@ public class TestPseudoDistributedFileSystem extends ExecTest {
     assertEquals("wheel", statuses[testIndex].getGroup());
     assertEquals(0644, statuses[testIndex].getPermission().toExtendedShort());
 
-
     searchKeyStatus.setPath(new Path("pdfs:/foo/bar/10.0.0.1@file2"));
     testIndex = Arrays.binarySearch(statuses, searchKeyStatus);
-    assertTrue("Status for path " + searchKeyStatus.getPath().toString() + " not found", testIndex >= 0);
+    assertTrue(
+        "Status for path " + searchKeyStatus.getPath().toString() + " not found", testIndex >= 0);
     assertEquals(new Path("pdfs:/foo/bar/10.0.0.1@file2"), statuses[testIndex].getPath());
     assertFalse(statuses[1].isDirectory());
     assertEquals(2048, statuses[testIndex].getLen());
@@ -380,10 +572,10 @@ public class TestPseudoDistributedFileSystem extends ExecTest {
     assertEquals("wheel", statuses[testIndex].getGroup());
     assertEquals(0644, statuses[testIndex].getPermission().toExtendedShort());
 
-
     searchKeyStatus.setPath(new Path("pdfs:/foo/bar/10.0.0.2@file1"));
     testIndex = Arrays.binarySearch(statuses, searchKeyStatus);
-    assertTrue("Status for path " + searchKeyStatus.getPath().toString() + " not found", testIndex >= 0);
+    assertTrue(
+        "Status for path " + searchKeyStatus.getPath().toString() + " not found", testIndex >= 0);
     assertEquals(new Path("pdfs:/foo/bar/10.0.0.2@file1"), statuses[testIndex].getPath());
     assertFalse(statuses[testIndex].isDirectory());
     assertEquals(1027, statuses[testIndex].getLen());
@@ -395,10 +587,10 @@ public class TestPseudoDistributedFileSystem extends ExecTest {
     assertEquals("wheel", statuses[testIndex].getGroup());
     assertEquals(0644, statuses[testIndex].getPermission().toExtendedShort());
 
-
     searchKeyStatus.setPath(new Path("pdfs:/foo/bar/10.0.0.2@file3"));
     testIndex = Arrays.binarySearch(statuses, searchKeyStatus);
-    assertTrue("Status for path " + searchKeyStatus.getPath().toString() + " not found", testIndex >= 0);
+    assertTrue(
+        "Status for path " + searchKeyStatus.getPath().toString() + " not found", testIndex >= 0);
     assertEquals(new Path("pdfs:/foo/bar/10.0.0.2@file3"), statuses[testIndex].getPath());
     assertFalse(statuses[testIndex].isDirectory());
     assertEquals(2049, statuses[testIndex].getLen());
@@ -410,10 +602,10 @@ public class TestPseudoDistributedFileSystem extends ExecTest {
     assertEquals("wheel", statuses[testIndex].getGroup());
     assertEquals(0644, statuses[testIndex].getPermission().toExtendedShort());
 
-
     searchKeyStatus.setPath(new Path("pdfs:/foo/bar/dir"));
     testIndex = Arrays.binarySearch(statuses, searchKeyStatus);
-    assertTrue("Status for path " + searchKeyStatus.getPath().toString() + " not found", testIndex >= 0);
+    assertTrue(
+        "Status for path " + searchKeyStatus.getPath().toString() + " not found", testIndex >= 0);
     assertEquals(new Path("pdfs:/foo/bar/dir"), statuses[testIndex].getPath());
     assertTrue(statuses[testIndex].isDirectory());
     assertEquals(47, statuses[testIndex].getLen());
@@ -448,7 +640,8 @@ public class TestPseudoDistributedFileSystem extends ExecTest {
 
     try {
       statusIter.next();
-      fail("NoSuchElementException should be throw when next() is called when there are no elements remaining.");
+      fail(
+          "NoSuchElementException should be throw when next() is called when there are no elements remaining.");
     } catch (NoSuchElementException ex) {
       // OK.
     }
@@ -516,16 +709,20 @@ public class TestPseudoDistributedFileSystem extends ExecTest {
   @Test
   public void testCreateFile() throws IOException {
     FSDataOutputStream mockFDOS = mock(FSDataOutputStream.class);
-    doReturn(mockFDOS).when(mockLocalFS).create(
+    doReturn(mockFDOS)
+        .when(mockLocalFS)
+        .create(
             new Path("/foo/bar/file"),
             FsPermission.getFileDefault(),
             true,
             0,
             (short) 1,
-            4096L,null);
+            4096L,
+            null);
 
     Path path = new Path("/foo/bar/10.0.0.1@file");
-    FSDataOutputStream fdos = fs.create(path, FsPermission.getFileDefault(), true, 0, (short) 1, 4096, null);
+    FSDataOutputStream fdos =
+        fs.create(path, FsPermission.getFileDefault(), true, 0, (short) 1, 4096, null);
     assertNotNull(fdos);
   }
 
@@ -534,7 +731,8 @@ public class TestPseudoDistributedFileSystem extends ExecTest {
     try {
       Path path = new Path("foo/bar/file");
       @SuppressWarnings("unused")
-      FSDataOutputStream fdos = fs.create(path, FsPermission.getFileDefault(), true, 0, (short) 1, 4096, null);
+      FSDataOutputStream fdos =
+          fs.create(path, FsPermission.getFileDefault(), true, 0, (short) 1, 4096, null);
       fail("Expected create call to throw an exception");
     } catch (IOException e) {
       // ok
@@ -555,10 +753,7 @@ public class TestPseudoDistributedFileSystem extends ExecTest {
   @Test
   public void testAppendFile() throws IOException {
     FSDataOutputStream mockFDOS = mock(FSDataOutputStream.class);
-    doReturn(mockFDOS).when(mockRemoteFS).append(
-            new Path("/foo/bar/file"),
-            4096,
-            null);
+    doReturn(mockFDOS).when(mockRemoteFS).append(new Path("/foo/bar/file"), 4096, null);
 
     Path path = new Path("/foo/bar/10.0.0.2@file");
     FSDataOutputStream fdos = fs.append(path, 4096, null);
@@ -601,9 +796,7 @@ public class TestPseudoDistributedFileSystem extends ExecTest {
 
   @Test
   public void testDeleteFile() throws IOException {
-    doReturn(true).when(mockRemoteFS).delete(
-        new Path("/foo/bar"),
-        false);
+    doReturn(true).when(mockRemoteFS).delete(new Path("/foo/bar"), false);
 
     Path path = new Path("/foo/10.0.0.2@bar");
     assertTrue(fs.delete(path, false));
@@ -611,30 +804,26 @@ public class TestPseudoDistributedFileSystem extends ExecTest {
 
   @Test
   public void testDeleteUnknownLocalFile() throws IOException {
-    doThrow(FileNotFoundException.class).when(mockLocalFS).delete(
-        new Path("/foo/unknown"),
-        false);
+    doThrow(FileNotFoundException.class).when(mockLocalFS).delete(new Path("/foo/unknown"), false);
 
     Path path = new Path("/foo/10.0.0.1@unknown");
-    try{
+    try {
       fs.delete(path, false);
       fail("Expecting FileNotFoundException");
-    } catch(FileNotFoundException e) {
+    } catch (FileNotFoundException e) {
       // nothing
     }
   }
 
   @Test
   public void testDeleteUnknownRemoteFile() throws IOException {
-    doThrow(FileNotFoundException.class).when(mockRemoteFS).delete(
-        new Path("/foo/unknown"),
-        false);
+    doThrow(FileNotFoundException.class).when(mockRemoteFS).delete(new Path("/foo/unknown"), false);
 
     Path path = new Path("/foo/10.0.0.2@unknown");
-    try{
+    try {
       fs.delete(path, false);
       fail("Expecting FileNotFoundException");
-    } catch(FileNotFoundException e) {
+    } catch (FileNotFoundException e) {
       // nothing
     }
   }
@@ -648,12 +837,12 @@ public class TestPseudoDistributedFileSystem extends ExecTest {
 
   @Test
   public void testMkdirsRemoteFile() throws IOException {
-    doReturn(true).when(mockLocalFS).mkdirs(
-        new Path("/foo/bar/dir2"),
-        FsPermission.getFileDefault());
-    doReturn(true).when(mockRemoteFS).mkdirs(
-        new Path("/foo/bar/dir2"),
-        FsPermission.getFileDefault());
+    doReturn(true)
+        .when(mockLocalFS)
+        .mkdirs(new Path("/foo/bar/dir2"), FsPermission.getFileDefault());
+    doReturn(true)
+        .when(mockRemoteFS)
+        .mkdirs(new Path("/foo/bar/dir2"), FsPermission.getFileDefault());
 
     Path path = new Path("/foo/bar/dir2");
     assertTrue(fs.mkdirs(path, FsPermission.getFileDefault()));
@@ -667,7 +856,7 @@ public class TestPseudoDistributedFileSystem extends ExecTest {
     try {
       fs.rename(root, dst);
       fail("Expected rename to throw an exception");
-    } catch(IOException e) {
+    } catch (IOException e) {
       // ok
     }
   }
@@ -680,16 +869,14 @@ public class TestPseudoDistributedFileSystem extends ExecTest {
     try {
       fs.rename(src, root);
       fail("Expected rename to throw an exception");
-    } catch(IOException e) {
+    } catch (IOException e) {
       // ok
     }
   }
 
   @Test
   public void testRenameFileSameEndpoint() throws IOException {
-    doReturn(true).when(mockLocalFS).rename(
-        new Path("/foo/bar/file1"),
-        new Path("/foo/bar/file3"));
+    doReturn(true).when(mockLocalFS).rename(new Path("/foo/bar/file1"), new Path("/foo/bar/file3"));
 
     Path src = new Path("/foo/bar/10.0.0.1@file1");
     Path dst = new Path("/foo/bar/10.0.0.1@file3");
@@ -703,19 +890,15 @@ public class TestPseudoDistributedFileSystem extends ExecTest {
     try {
       fs.rename(src, dst);
       fail("Expected rename across endpoints to fail");
-    } catch(IOException e) {
+    } catch (IOException e) {
       // ok
     }
   }
 
   @Test
   public void testRenameDirectories() throws IOException {
-    doReturn(true).when(mockLocalFS).rename(
-        new Path("/foo/bar"),
-        new Path("/foo/baz"));
-    doReturn(true).when(mockRemoteFS).rename(
-        new Path("/foo/bar"),
-        new Path("/foo/baz"));
+    doReturn(true).when(mockLocalFS).rename(new Path("/foo/bar"), new Path("/foo/baz"));
+    doReturn(true).when(mockRemoteFS).rename(new Path("/foo/bar"), new Path("/foo/baz"));
 
     Path src = new Path("/foo/bar");
     Path dst = new Path("/foo/baz");
@@ -726,13 +909,14 @@ public class TestPseudoDistributedFileSystem extends ExecTest {
   public void testGetFileBlockLocations() throws IOException {
     Path path = new Path("/foo/10.0.0.1@bar");
 
-    BlockLocation[] locations = fs.getFileBlockLocations(new FileStatus(1027, false, 1, 4096, 123456, path), 7, 1024);
+    BlockLocation[] locations =
+        fs.getFileBlockLocations(new FileStatus(1027, false, 1, 4096, 123456, path), 7, 1024);
     assertEquals(1, locations.length);
 
     // BlockLocation has no good equals method
     BlockLocation location = locations[0];
-    assertArrayEquals(new String[] { "10.0.0.1:1234", "10.0.0.1:9012" }, location.getNames());
-    assertArrayEquals(new String[] { "10.0.0.1" }, location.getHosts());
+    assertArrayEquals(new String[] {"10.0.0.1:1234", "10.0.0.1:9012"}, location.getNames());
+    assertArrayEquals(new String[] {"10.0.0.1"}, location.getHosts());
     // Block covers the whole file
     assertEquals(0, location.getOffset());
     assertEquals(1027, location.getLength());
@@ -742,7 +926,9 @@ public class TestPseudoDistributedFileSystem extends ExecTest {
   public void testGetFileBlockLocationsStartGreaterThanLen() throws IOException {
     Path path = new Path("/foo/10.0.0.1@bar");
 
-    assertArrayEquals(new BlockLocation[]{}, fs.getFileBlockLocations(new FileStatus(1024, false, 1,4096, 123456, path), 4096, 8192));
+    assertArrayEquals(
+        new BlockLocation[] {},
+        fs.getFileBlockLocations(new FileStatus(1024, false, 1, 4096, 123456, path), 4096, 8192));
   }
 
   @Test
@@ -750,7 +936,7 @@ public class TestPseudoDistributedFileSystem extends ExecTest {
     Path path = new Path("/foo/10.0.0.1@bar");
 
     try {
-      fs.getFileBlockLocations(new FileStatus(1024, false, 1,4096, 123456, path), -22, 8192);
+      fs.getFileBlockLocations(new FileStatus(1024, false, 1, 4096, 123456, path), -22, 8192);
       fail("Expected getFileBlockLocation to throw an exception");
     } catch (IllegalArgumentException e) {
       // ok
@@ -762,7 +948,7 @@ public class TestPseudoDistributedFileSystem extends ExecTest {
     Path path = new Path("/foo/10.0.0.1@bar");
 
     try {
-      fs.getFileBlockLocations(new FileStatus(1024, false, 1,4096, 123456, path), 18, -2);
+      fs.getFileBlockLocations(new FileStatus(1024, false, 1, 4096, 123456, path), 18, -2);
       fail("Expected getFileBlockLocation to throw an exception");
     } catch (IllegalArgumentException e) {
       // ok
@@ -776,7 +962,6 @@ public class TestPseudoDistributedFileSystem extends ExecTest {
     FileStatus[] statuses = fs.globStatus(path);
 
     assertEquals(1, statuses.length);
-
   }
 
   @Test
@@ -806,8 +991,16 @@ public class TestPseudoDistributedFileSystem extends ExecTest {
   @Test
   public void testCanonicalizeLocalFileIfNoLocalAccess() throws IOException {
     Provider<Iterable<NodeEndpoint>> endpointsProvider =
-        DirectProvider.<Iterable<NodeEndpoint>>wrap((Arrays.asList(REMOTE_ENDPOINT_1, REMOTE_ENDPOINT_2)));
-    PDFSConfig pdfsConfig = new PDFSConfig(MoreExecutors.newDirectExecutorService(), null, null, endpointsProvider, LOCAL_ENDPOINT, false);
+        DirectProvider.<Iterable<NodeEndpoint>>wrap(
+            (Arrays.asList(REMOTE_ENDPOINT_1, REMOTE_ENDPOINT_2)));
+    PDFSConfig pdfsConfig =
+        new PDFSConfig(
+            MoreExecutors.newDirectExecutorService(),
+            null,
+            null,
+            endpointsProvider,
+            LOCAL_ENDPOINT,
+            false);
     PseudoDistributedFileSystem pdfs = newPseudoDistributedFileSystem(pdfsConfig);
     Path path = new Path("/foo/bar/file");
 
@@ -816,8 +1009,8 @@ public class TestPseudoDistributedFileSystem extends ExecTest {
   }
 
   /**
-   * Test ProtocolNotRegistered Exception. When PDFS encounteres this exception,
-   * exception needs to be ignore and a user shouldn't see the error.
+   * Test ProtocolNotRegistered Exception. When PDFS encounteres this exception, exception needs to
+   * be ignore and a user shouldn't see the error.
    */
   @Test
   public void testFabricProtocolNotRegisteredException() throws IOException {

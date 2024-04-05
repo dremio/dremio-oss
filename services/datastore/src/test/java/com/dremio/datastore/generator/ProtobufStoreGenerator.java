@@ -15,22 +15,18 @@
  */
 package com.dremio.datastore.generator;
 
-import java.util.Comparator;
-
 import com.dremio.datastore.proto.Dummy;
 import com.dremio.datastore.proto.Dummy.DummyId;
 import com.dremio.datastore.proto.Dummy.DummyObj;
 import com.google.common.collect.ImmutableList;
+import java.util.Comparator;
 
-/**
- * Generates random, non-null protobuf values.
- */
-public class ProtobufStoreGenerator extends ProtoGeneratorMixin implements DataGenerator<DummyId, DummyObj> {
+/** Generates random, non-null protobuf values. */
+public class ProtobufStoreGenerator extends ProtoGeneratorMixin
+    implements DataGenerator<DummyId, DummyObj> {
 
   private DummyId newDummyId() {
-    return DummyId.newBuilder()
-      .setId(getString())
-      .build();
+    return DummyId.newBuilder().setId(getString()).build();
   }
 
   @Override
@@ -41,17 +37,17 @@ public class ProtobufStoreGenerator extends ProtoGeneratorMixin implements DataG
   @Override
   public DummyObj newVal() {
     return DummyObj.newBuilder()
-      .setId(newDummyId())
-      .addAllIdList(ImmutableList.of(newDummyId(), newDummyId(), newDummyId()))
-      .addAllInt32Seq(getInt32List())
-      .addAllInt64Seq(getInt64List())
-      .addAllUint32Seq(getInt32List())
-      .addAllUint64Seq(getInt64List())
-      .addAllFloatSeq(getFloatList())
-      .addAllDoubleSeq(getDoubleList())
-      .setType(getBool() ? Dummy.enumType.ZERO : Dummy.enumType.ONE)
-      .setFlag(getBool())
-      .build();
+        .setId(newDummyId())
+        .addAllIdList(ImmutableList.of(newDummyId(), newDummyId(), newDummyId()))
+        .addAllInt32Seq(getInt32List())
+        .addAllInt64Seq(getInt64List())
+        .addAllUint32Seq(getInt32List())
+        .addAllUint64Seq(getInt64List())
+        .addAllFloatSeq(getFloatList())
+        .addAllDoubleSeq(getDoubleList())
+        .setType(getBool() ? Dummy.enumType.ZERO : Dummy.enumType.ONE)
+        .setFlag(getBool())
+        .build();
   }
 
   @Override
@@ -64,9 +60,7 @@ public class ProtobufStoreGenerator extends ProtoGeneratorMixin implements DataG
     return new DummyIdProtobufComparator();
   }
 
-  /**
-   * Comparator class that compares protobuf DummyId objects.
-   */
+  /** Comparator class that compares protobuf DummyId objects. */
   private static final class DummyIdProtobufComparator implements Comparator<DummyId> {
     @Override
     public int compare(DummyId o1, DummyId o2) {

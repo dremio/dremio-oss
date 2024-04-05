@@ -20,22 +20,17 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
-
 import org.junit.Test;
 
-/**
- * Test admin command runner.
- */
+/** Test admin command runner. */
 public class AdminCommandRunnerTest {
 
-  /**
-   * Test command.
-   */
+  /** Test command. */
   private static final class TestCommand {
 
     private static boolean invokedCorrectly = false;
 
-    public static void main(String[] args) throws Exception{
+    public static void main(String[] args) throws Exception {
       if (args.length == 2 && args[0].equals("arg0") && args[1].equals("arg1")) {
         invokedCorrectly = true;
       } else if (args.length == 3) {
@@ -47,16 +42,18 @@ public class AdminCommandRunnerTest {
   @Test
   public void runCommand() throws Exception {
     assertFalse(TestCommand.invokedCorrectly);
-    AdminCommandRunner.runCommand("test-command", TestCommand.class, new String[]{"arg0", "arg1"});
+    AdminCommandRunner.runCommand("test-command", TestCommand.class, new String[] {"arg0", "arg1"});
     assertTrue(TestCommand.invokedCorrectly);
   }
 
   @Test
   public void runCommandExceptionMessage() {
     String errorMessage = "cannot run command";
-    assertThatThrownBy(() -> AdminCommandRunner.runCommand("test-command", TestCommand.class, new String[]{"arg0", "arg1", errorMessage}))
-      .isInstanceOf(IOException.class)
-      .hasMessageContaining(errorMessage);
+    assertThatThrownBy(
+            () ->
+                AdminCommandRunner.runCommand(
+                    "test-command", TestCommand.class, new String[] {"arg0", "arg1", errorMessage}))
+        .isInstanceOf(IOException.class)
+        .hasMessageContaining(errorMessage);
   }
-
 }

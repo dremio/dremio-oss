@@ -15,49 +15,47 @@
  */
 package com.dremio.common.tracing;
 
-import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.function.Supplier;
-
 import com.google.common.base.Preconditions;
-
 import io.opentracing.Scope;
 import io.opentracing.Span;
 import io.opentracing.Tracer;
 import io.opentracing.noop.NoopSpan;
 import io.opentracing.noop.NoopSpanBuilder;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
-/**
- * Common functions for tracing.
- */
+/** Common functions for tracing. */
 public final class TracingUtils {
 
-  private TracingUtils() {
-
-  }
+  private TracingUtils() {}
 
   /**
    * Creates a builder for a child span with spanName and tags.
+   *
    * @param tracer current tracer
    * @param spanName the desired name of the child span
    * @param tags an even length list of tags on the span.
    * @return A noop builder if there is no traced active span. Otherwise, a real span builder.
    */
-  public static Tracer.SpanBuilder childSpanBuilder(Tracer tracer, String spanName, String... tags) {
+  public static Tracer.SpanBuilder childSpanBuilder(
+      Tracer tracer, String spanName, String... tags) {
     return childSpanBuilder(tracer, tracer.activeSpan(), spanName, tags);
   }
 
   /**
    * Creates a span builder for a tracer with some parent.
+   *
    * @param tracer current tracer
-   * @param parent parent span the span will eventually attach to. Note: we don't create asChildOf relationship
-   *               because we don't want to create an additional child relationship in the case where the parent
-   *               span is equivalent to the active span.
+   * @param parent parent span the span will eventually attach to. Note: we don't create asChildOf
+   *     relationship because we don't want to create an additional child relationship in the case
+   *     where the parent span is equivalent to the active span.
    * @param spanName name to be given to span
    * @param tags tags given to span builder
    * @return noop if parent is noop or null. Otherwise, a real span builder.
    */
-  public static Tracer.SpanBuilder childSpanBuilder(Tracer tracer, Span parent, String spanName, String... tags) {
+  public static Tracer.SpanBuilder childSpanBuilder(
+      Tracer tracer, Span parent, String spanName, String... tags) {
     Preconditions.checkArgument(tags.length % 2 == 0);
     if (parent == null || parent.equals(NoopSpan.INSTANCE)) {
       return NoopSpanBuilder.INSTANCE;
@@ -71,9 +69,9 @@ public final class TracingUtils {
     return builder;
   }
 
-
   /**
    * Builds a real span if the operation is being traced. Otherwise, noop.
+   *
    * @param tracer current tracer
    * @param spanName the desired name of the child span
    * @param tags an even length list of tags on the span.
@@ -84,8 +82,9 @@ public final class TracingUtils {
   }
 
   /**
-   * Creates a child span with operation name and tags.
-   * Child span is active and lasts as long as the work.
+   * Creates a child span with operation name and tags. Child span is active and lasts as long as
+   * the work.
+   *
    * @param <R> - return type.
    * @param work - Some user function. Accepts the child span.
    * @param tracer - tracer
@@ -93,7 +92,8 @@ public final class TracingUtils {
    * @param tags - an even length list of tags.
    * @return - whatever the user function "work" returns.
    */
-  public static <R> R trace(Function<Span, R> work, Tracer tracer, String operation, String... tags) {
+  public static <R> R trace(
+      Function<Span, R> work, Tracer tracer, String operation, String... tags) {
     Span span = TracingUtils.buildChildSpan(tracer, operation, tags);
     try (Scope s = tracer.activateSpan(span)) {
       return work.apply(span);
@@ -104,6 +104,7 @@ public final class TracingUtils {
 
   /**
    * Map supplier to function to use a single implementation of trace.
+   *
    * @param work - Work that returns some R
    * @param tracer - The tracer
    * @param operation - operation name
@@ -112,13 +113,18 @@ public final class TracingUtils {
    * @return work.get()
    */
   public static <R> R trace(Supplier<R> work, Tracer tracer, String operation, String... tags) {
-    return trace((span) -> {
-      return work.get();
-    }, tracer, operation, tags);
+    return trace(
+        (span) -> {
+          return work.get();
+        },
+        tracer,
+        operation,
+        tags);
   }
 
   /**
    * Map Consumer to Function trace impl.
+   *
    * @param work - operation to be traced
    * @param tracer - tracer
    * @param operation - operation name
@@ -126,17 +132,18 @@ public final class TracingUtils {
    */
   public static void trace(Consumer<Span> work, Tracer tracer, String operation, String... tags) {
     trace(
-      (span) -> {
-        work.accept(span);
-        return null;
-      },
-      tracer,
-      operation,
-      tags);
+        (span) -> {
+          work.accept(span);
+          return null;
+        },
+        tracer,
+        operation,
+        tags);
   }
 
   /**
    * Map runnable to function trace implementation.
+   *
    * @param work runnable to be traced
    * @param tracer tracer
    * @param operation operation name
@@ -144,12 +151,12 @@ public final class TracingUtils {
    */
   public static void trace(Runnable work, Tracer tracer, String operation, String... tags) {
     trace(
-      (span) -> {
-        work.run();
-        return null;
-      },
-      tracer,
-      operation,
-      tags);
+        (span) -> {
+          work.run();
+          return null;
+        },
+        tracer,
+        operation,
+        tags);
   }
 }

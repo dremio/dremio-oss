@@ -75,7 +75,8 @@ public class JodaDateValidator {
     List<String> matches = new ArrayList<>();
 
     for (String mapping : toJodaMappings.keySet()) {
-      if (mapping.startsWith(lowercasePattern) && (!exactMatch || (mapping.length() == pattern.length()))) {
+      if (mapping.startsWith(lowercasePattern)
+          && (!exactMatch || (mapping.length() == pattern.length()))) {
         matches.add(mapping);
       }
     }
@@ -122,7 +123,8 @@ public class JodaDateValidator {
         } else {
           if (buffer.length() > 0) {
             // if we have content in the buffer and hit a quote, we have an parse error
-            throw new ParseException("Invalid date format string '"+format+"' at position " + i, i);
+            throw new ParseException(
+                "Invalid date format string '" + format + "' at position " + i, i);
           }
 
           isInQuotedText = true;
@@ -130,7 +132,8 @@ public class JodaDateValidator {
         }
       }
 
-      // handle special characters we want to simply pass through, but only if not in quoted and the buffer is empty
+      // handle special characters we want to simply pass through, but only if not in quoted and the
+      // buffer is empty
       if (!isInQuotedText && buffer.length() == 0 && ("*-/,.;: ".indexOf(currentChar) != -1)) {
         builder.append(currentChar);
         continue;
@@ -155,15 +158,19 @@ public class JodaDateValidator {
           builder.append(toJodaMappings.get(potentialList[0]));
           buffer.setLength(0);
         } else {
-          // Some patterns (like MON, MONTH) can cause ambiguity, such as "MON:".  "MON" will have two potential
-          // matches, but "MON:" will match nothing, so we want to look ahead when we match "MON" and check if adding
-          // the next char leads to 0 potentials.  If it does, we go ahead and treat the buffer as matched (if a
+          // Some patterns (like MON, MONTH) can cause ambiguity, such as "MON:".  "MON" will have
+          // two potential
+          // matches, but "MON:" will match nothing, so we want to look ahead when we match "MON"
+          // and check if adding
+          // the next char leads to 0 potentials.  If it does, we go ahead and treat the buffer as
+          // matched (if a
           // potential match exists that matches the buffer)
           if (format.length() - 1 > i) {
-            String lookAheadPattern = (buffer.toString() + format.charAt(i+1)).toLowerCase();
+            String lookAheadPattern = (buffer.toString() + format.charAt(i + 1)).toLowerCase();
             boolean lookAheadMatched = false;
 
-            // we can query potentialList to see if it has anything that matches the lookahead pattern
+            // we can query potentialList to see if it has anything that matches the lookahead
+            // pattern
             for (String potential : potentialList) {
               if (potential.startsWith(lookAheadPattern)) {
                 lookAheadMatched = true;
@@ -172,7 +179,8 @@ public class JodaDateValidator {
             }
 
             if (!lookAheadMatched) {
-              // check if any of the potential matches are the same length as our buffer, we do not want to match "MO:"
+              // check if any of the potential matches are the same length as our buffer, we do not
+              // want to match "MO:"
               boolean matched = false;
               for (String potential : potentialList) {
                 if (potential.length() == buffer.length()) {
@@ -191,12 +199,13 @@ public class JodaDateValidator {
         }
       } else {
         // no potential matches found
-        throw new ParseException("Invalid date format string '"+format+"' at position " + i, i);
+        throw new ParseException("Invalid date format string '" + format + "' at position " + i, i);
       }
     }
 
     if (buffer.length() > 0) {
-      // Some patterns (like MON, MONTH) can cause us to reach this point with a valid buffer value as MON has 2 valid
+      // Some patterns (like MON, MONTH) can cause us to reach this point with a valid buffer value
+      // as MON has 2 valid
       // potential matches, so double check here
       String[] exactMatches = getExactMatches(buffer.toString());
       if (exactMatches.length == 1 && exactMatches[0].length() == buffer.length()) {
@@ -204,7 +213,8 @@ public class JodaDateValidator {
       } else {
         // we didn't successfully parse the entire string
         int pos = format.length() - buffer.length();
-        throw new ParseException("Invalid date format string '"+format+"' at position " + pos, pos);
+        throw new ParseException(
+            "Invalid date format string '" + format + "' at position " + pos, pos);
       }
     }
 

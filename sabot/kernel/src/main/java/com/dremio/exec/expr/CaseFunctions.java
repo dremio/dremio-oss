@@ -15,10 +15,6 @@
  */
 package com.dremio.exec.expr;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
 import com.dremio.common.expression.BooleanOperator;
 import com.dremio.common.expression.CaseExpression;
 import com.dremio.common.expression.FunctionCall;
@@ -30,12 +26,14 @@ import com.dremio.common.expression.visitors.AbstractExprVisitor;
 import com.dremio.exec.expr.fn.AbstractFunctionHolder;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.sabot.exec.context.OperatorContext;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * Wrapper class that extracts functions used by the {@code CaseExpressionSplitter} for splits.
- * <p>
- * Use a singleton here to avoid loading the function. This class is made immutable.
- * </p>
+ *
+ * <p>Use a singleton here to avoid loading the function. This class is made immutable.
  */
 public class CaseFunctions {
   private static final String EQUAL_FUNCTION_NAME = "equal";
@@ -48,8 +46,10 @@ public class CaseFunctions {
   private final AbstractFunctionHolder gtFnHolder;
   private final AbstractFunctionHolder ltFnHolder;
 
-  private CaseFunctions(AbstractFunctionHolder eqFnHolder, AbstractFunctionHolder gtFnHolder,
-                        AbstractFunctionHolder ltFnHolder) {
+  private CaseFunctions(
+      AbstractFunctionHolder eqFnHolder,
+      AbstractFunctionHolder gtFnHolder,
+      AbstractFunctionHolder ltFnHolder) {
     this.eqFnHolder = eqFnHolder;
     this.gtFnHolder = gtFnHolder;
     this.ltFnHolder = ltFnHolder;
@@ -72,8 +72,9 @@ public class CaseFunctions {
   }
 
   public static boolean isCommonToAllEngines(String fnName) {
-    return fnName.equalsIgnoreCase(EQUAL_FUNCTION_NAME) || fnName.equalsIgnoreCase(GT_FUNCTION_NAME) ||
-      fnName.equalsIgnoreCase(LT_FUNCTION_NAME);
+    return fnName.equalsIgnoreCase(EQUAL_FUNCTION_NAME)
+        || fnName.equalsIgnoreCase(GT_FUNCTION_NAME)
+        || fnName.equalsIgnoreCase(LT_FUNCTION_NAME);
   }
 
   public static void loadInstance(OperatorContext context) {
@@ -88,7 +89,8 @@ public class CaseFunctions {
           if (eqFnHolder != null && gtFnHolder != null && ltFnHolder != null) {
             INSTANCE = new CaseFunctions(eqFnHolder, gtFnHolder, ltFnHolder);
           } else {
-            throw new RuntimeException("Unable to load/find basic functions from registry. Should never happen");
+            throw new RuntimeException(
+                "Unable to load/find basic functions from registry. Should never happen");
           }
         }
       }
@@ -97,9 +99,9 @@ public class CaseFunctions {
 
   /**
    * Convert a case expression codegen context to an if expression codegen context.
-   * <p>
-   * Only done for nested case expressions inside "when" clauses.
-   * </p>
+   *
+   * <p>Only done for nested case expressions inside "when" clauses.
+   *
    * @param expr original expression (e.g "when" expression)
    * @return expression that has all its case transformed to nested if/else.
    */
@@ -112,11 +114,9 @@ public class CaseFunctions {
     return child.accept(new CaseConditionChecker(), null);
   }
 
-  /**
-   * Convert cases in this sub expression to If. Used for "when" expressions before splitting.
-   */
-  private static class CaseConditionConverter extends AbstractExprVisitor<CodeGenContext, CodeGenContext,
-    RuntimeException> {
+  /** Convert cases in this sub expression to If. Used for "when" expressions before splitting. */
+  private static class CaseConditionConverter
+      extends AbstractExprVisitor<CodeGenContext, CodeGenContext, RuntimeException> {
 
     public CodeGenContext visitCodegenContext(CodeGenContext context) {
       if (!caseEmbedded(context.getChild())) {
@@ -127,15 +127,20 @@ public class CaseFunctions {
     }
 
     @Override
-    public CodeGenContext visitCaseExpression(CaseExpression caseExpression, CodeGenContext context) {
-      LogicalExpression elseExpression = visitCodegenContext((CodeGenContext) caseExpression.elseExpr);
+    public CodeGenContext visitCaseExpression(
+        CaseExpression caseExpression, CodeGenContext context) {
+      LogicalExpression elseExpression =
+          visitCodegenContext((CodeGenContext) caseExpression.elseExpr);
       for (int i = caseExpression.caseConditions.size() - 1; i >= 0; i--) {
         final CaseExpression.CaseConditionNode node = caseExpression.caseConditions.get(i);
         final LogicalExpression whenExpr = visitCodegenContext((CodeGenContext) node.whenExpr);
         final LogicalExpression thenExpr = visitCodegenContext((CodeGenContext) node.thenExpr);
-        elseExpression = CodeGenContext.buildOnSubExpression(IfExpression.newBuilder()
-          .setElse(elseExpression)
-          .setIfCondition(new IfExpression.IfCondition(whenExpr, thenExpr)).build());
+        elseExpression =
+            CodeGenContext.buildOnSubExpression(
+                IfExpression.newBuilder()
+                    .setElse(elseExpression)
+                    .setIfCondition(new IfExpression.IfCondition(whenExpr, thenExpr))
+                    .build());
       }
       return CodeGenContext.buildWithCurrentCodegen(context, elseExpression);
     }
@@ -146,17 +151,20 @@ public class CaseFunctions {
       for (int i = 0; i < op.args.size(); ++i) {
         args.add(visitCodegenContext((CodeGenContext) op.args.get(i)));
       }
-      return CodeGenContext.buildWithCurrentCodegen(context, new BooleanOperator(op.getName(), args));
+      return CodeGenContext.buildWithCurrentCodegen(
+          context, new BooleanOperator(op.getName(), args));
     }
 
     @Override
-    public CodeGenContext visitFunctionHolderExpression(FunctionHolderExpression holderExpr, CodeGenContext context) {
+    public CodeGenContext visitFunctionHolderExpression(
+        FunctionHolderExpression holderExpr, CodeGenContext context) {
       final List<LogicalExpression> args = new ArrayList<>();
       for (int i = 0; i < holderExpr.args.size(); i++) {
         args.add(visitCodegenContext((CodeGenContext) holderExpr.args.get(i)));
       }
-      return CodeGenContext.buildWithCurrentCodegen(context,
-        ((AbstractFunctionHolder) holderExpr.getHolder()).getExpr(holderExpr.nameUsed, args));
+      return CodeGenContext.buildWithCurrentCodegen(
+          context,
+          ((AbstractFunctionHolder) holderExpr.getHolder()).getExpr(holderExpr.nameUsed, args));
     }
 
     @Override
@@ -165,16 +173,17 @@ public class CaseFunctions {
     }
   }
 
-  /**
-   * Check if case exists in the given expression subtree
-   */
-  private static class CaseConditionChecker extends AbstractExprVisitor<Boolean, Void, RuntimeException> {
+  /** Check if case exists in the given expression subtree */
+  private static class CaseConditionChecker
+      extends AbstractExprVisitor<Boolean, Void, RuntimeException> {
     @Override
     public Boolean visitUnknown(LogicalExpression e, Void value) {
       if (e instanceof CaseExpression) {
         return true;
       }
-      if (e instanceof FunctionHolderExpression || e instanceof FunctionCall || e instanceof IfExpression) {
+      if (e instanceof FunctionHolderExpression
+          || e instanceof FunctionCall
+          || e instanceof IfExpression) {
         return checkChildren(e);
       }
       return false;
@@ -193,9 +202,11 @@ public class CaseFunctions {
   }
 
   private static AbstractFunctionHolder lookupIntFunction(String fnName, OperatorContext context) {
-    List<LogicalExpression> args = Arrays.asList(ValueExpressions.getInt(0), ValueExpressions.getInt(0));
+    List<LogicalExpression> args =
+        Arrays.asList(ValueExpressions.getInt(0), ValueExpressions.getInt(0));
     final FunctionCall call = new FunctionCall(fnName, args);
-    final FunctionLookupContext lookupContext = context.getClassProducer().getFunctionLookupContext();
+    final FunctionLookupContext lookupContext =
+        context.getClassProducer().getFunctionLookupContext();
     return lookupContext.findExactFunction(call, true);
   }
 }

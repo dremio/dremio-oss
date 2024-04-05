@@ -15,9 +15,10 @@
  */
 package com.dremio.exec.planner.sql;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import java.util.List;
 import java.util.Set;
-
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeFamily;
@@ -27,12 +28,7 @@ import org.apache.calcite.sql.type.SqlTypeFamily;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.type.SqlTypeUtil;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-
-/**
- * Utility class that contains methods for coercing operands to consistent type
- */
+/** Utility class that contains methods for coercing operands to consistent type */
 public class ConsistentTypeUtil {
 
   private static final int MAX_PRECISION = 38;
@@ -45,7 +41,8 @@ public class ConsistentTypeUtil {
     return types.stream().anyMatch(t -> t.getSqlTypeName() == SqlTypeName.DECIMAL);
   }
 
-  public static RelDataType consistentDecimalType(RelDataTypeFactory factory, List<RelDataType> type) {
+  public static RelDataType consistentDecimalType(
+      RelDataTypeFactory factory, List<RelDataType> type) {
     final int scale = type.stream().mapToInt(RelDataType::getScale).max().orElse(0);
     final int maxPrecision = type.stream().mapToInt(RelDataType::getPrecision).max().orElse(0);
 
@@ -54,12 +51,13 @@ public class ConsistentTypeUtil {
     return factory.createSqlType(SqlTypeName.DECIMAL, precision, scale);
   }
 
-  public static RelDataType consistentType(RelDataTypeFactory typeFactory,
-                                           SqlOperandTypeChecker.Consistency consistency, List<RelDataType> types) {
+  public static RelDataType consistentType(
+      RelDataTypeFactory typeFactory,
+      SqlOperandTypeChecker.Consistency consistency,
+      List<RelDataType> types) {
     switch (consistency) {
       case COMPARE:
-        final Set<RelDataTypeFamily> families =
-          Sets.newHashSet(RexUtil.families(types));
+        final Set<RelDataTypeFamily> families = Sets.newHashSet(RexUtil.families(types));
         if (families.size() < 2) {
           // All arguments are of same family. No need for explicit casts.
           return null;
@@ -74,16 +72,14 @@ public class ConsistentTypeUtil {
           final int typeCount = types.size();
           types = nonCharacterTypes;
           if (nonCharacterTypes.size() < typeCount) {
-            final RelDataTypeFamily family =
-              nonCharacterTypes.get(0).getFamily();
+            final RelDataTypeFamily family = nonCharacterTypes.get(0).getFamily();
             if (family instanceof SqlTypeFamily) {
               // The character arguments might be larger than the numeric
               // argument. Give ourselves some headroom.
               switch ((SqlTypeFamily) family) {
                 case INTEGER:
                 case NUMERIC:
-                  nonCharacterTypes.add(
-                    typeFactory.createSqlType(SqlTypeName.BIGINT));
+                  nonCharacterTypes.add(typeFactory.createSqlType(SqlTypeName.BIGINT));
               }
             }
           }

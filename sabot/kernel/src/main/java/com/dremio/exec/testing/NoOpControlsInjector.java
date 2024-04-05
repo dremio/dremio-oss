@@ -18,16 +18,16 @@ package com.dremio.exec.testing;
 import org.slf4j.Logger;
 
 /**
- * An injector that does not inject any controls, useful when not testing (i.e. assertions are not enabled).
- * See {@link ControlsInjector} for documentation.
+ * An injector that does not inject any controls, useful when not testing (i.e. assertions are not
+ * enabled). See {@link ControlsInjector} for documentation.
  */
 public final class NoOpControlsInjector implements ControlsInjector {
 
   private final Class<?> clazz;
 
   /**
-   * Constructor. Classes should use the static {@link ControlsInjectorFactory#getInjector} method to obtain their
-   * injector.
+   * Constructor. Classes should use the static {@link ControlsInjectorFactory#getInjector} method
+   * to obtain their injector.
    *
    * @param clazz the owning class
    */
@@ -41,51 +41,44 @@ public final class NoOpControlsInjector implements ControlsInjector {
   }
 
   @Override
-  public void injectUnchecked(final ExecutionControls executionControls, final String desc) {
-  }
-
+  public void injectUnchecked(final ExecutionControls executionControls, final String desc) {}
 
   @Override
   public <T extends Throwable> void injectChecked(
-    final ExecutionControls executionControls, final String desc, final Class<T> exceptionClass) throws T {
-  }
+      final ExecutionControls executionControls, final String desc, final Class<T> exceptionClass)
+      throws T {}
 
   @Override
-  public void injectPause(final ExecutionControls executionControls, final String desc, final Logger logger) {
-  }
+  public void injectPause(
+      final ExecutionControls executionControls, final String desc, final Logger logger) {}
 
   @Override
-  public void injectInterruptiblePause(final ExecutionControls executionControls, final String desc,
-                                       final Logger logger) throws InterruptedException {
-  }
+  public void injectInterruptiblePause(
+      final ExecutionControls executionControls, final String desc, final Logger logger)
+      throws InterruptedException {}
 
-  /**
-   * When assertions are not enabled, this count down latch that does nothing is injected.
-   */
-  public static final CountDownLatchInjection LATCH = new CountDownLatchInjection() {
-    @Override
-    public void initialize(int count) {
-    }
+  /** When assertions are not enabled, this count down latch that does nothing is injected. */
+  public static final CountDownLatchInjection LATCH =
+      new CountDownLatchInjection() {
+        @Override
+        public void initialize(int count) {}
 
-    @Override
-    public void await() {
-    }
+        @Override
+        public void await() {}
 
-    @Override
-    public void awaitUninterruptibly() {
-    }
+        @Override
+        public void awaitUninterruptibly() {}
 
-    @Override
-    public void countDown() {
-    }
+        @Override
+        public void countDown() {}
 
-    @Override
-    public void close() {
-    }
-  };
+        @Override
+        public void close() {}
+      };
 
   @Override
-  public CountDownLatchInjection getLatch(final ExecutionControls executionControls, final String desc) {
+  public CountDownLatchInjection getLatch(
+      final ExecutionControls executionControls, final String desc) {
     return LATCH;
   }
 }

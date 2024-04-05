@@ -27,9 +27,32 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.dremio.exec.hadoop.HadoopFileSystem;
+import com.dremio.exec.physical.base.OpProps;
+import com.dremio.exec.proto.ExecProtos.FragmentHandle;
+import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
+import com.dremio.exec.record.RecordBatchHolder;
+import com.dremio.exec.record.VectorAccessible;
+import com.dremio.exec.record.VectorContainer;
+import com.dremio.exec.record.VectorWrapper;
+import com.dremio.exec.store.RecordWriter.OutputEntryListener;
+import com.dremio.exec.store.RecordWriter.WriteStatsListener;
+import com.dremio.exec.store.dfs.FileSystemPlugin;
+import com.dremio.exec.store.dfs.easy.EasyFormatPlugin;
+import com.dremio.exec.store.dfs.easy.EasyWriter;
+import com.dremio.exec.store.easy.arrow.ArrowFileFormat;
+import com.dremio.exec.store.easy.arrow.ArrowFileMetadata;
+import com.dremio.exec.store.easy.arrow.ArrowFileReader;
+import com.dremio.exec.store.easy.arrow.ArrowFormatPluginConfig;
+import com.dremio.exec.store.easy.arrow.ArrowRecordWriter;
+import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.test.AllocatorRule;
+import com.dremio.test.DremioTest;
+import com.google.common.collect.Iterators;
+import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BitVector;
 import org.apache.arrow.vector.NullVector;
@@ -54,36 +77,9 @@ import org.junit.rules.TemporaryFolder;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
-import com.dremio.exec.hadoop.HadoopFileSystem;
-import com.dremio.exec.physical.base.OpProps;
-import com.dremio.exec.proto.ExecProtos.FragmentHandle;
-import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
-import com.dremio.exec.record.RecordBatchHolder;
-import com.dremio.exec.record.VectorContainer;
-import com.dremio.exec.record.VectorWrapper;
-import com.dremio.exec.store.RecordWriter.OutputEntryListener;
-import com.dremio.exec.store.RecordWriter.WriteStatsListener;
-import com.dremio.exec.store.dfs.FileSystemPlugin;
-import com.dremio.exec.store.dfs.easy.EasyFormatPlugin;
-import com.dremio.exec.store.dfs.easy.EasyWriter;
-import com.dremio.exec.store.easy.arrow.ArrowFileFormat;
-import com.dremio.exec.store.easy.arrow.ArrowFileMetadata;
-import com.dremio.exec.store.easy.arrow.ArrowFileReader;
-import com.dremio.exec.store.easy.arrow.ArrowFormatPluginConfig;
-import com.dremio.exec.store.easy.arrow.ArrowRecordWriter;
-import com.dremio.sabot.exec.context.OperatorContext;
-import com.dremio.test.AllocatorRule;
-import com.dremio.test.DremioTest;
-import com.google.common.collect.Iterators;
-import com.google.common.collect.Lists;
-
-/**
- * Unit tests for {@link ArrowFileReader}
- */
+/** Unit tests for {@link ArrowFileReader} */
 public class TestArrowFileReader extends DremioTest {
-  @Rule
-  public TemporaryFolder dateGenFolder = new TemporaryFolder();
+  @Rule public TemporaryFolder dateGenFolder = new TemporaryFolder();
 
   private static final Configuration FS_CONF = new Configuration();
 
@@ -98,59 +94,77 @@ public class TestArrowFileReader extends DremioTest {
     TEST_BIT_VALUES.add(true);
 
     TEST_VARCHAR_VALUES.add("value1");
-    TEST_VARCHAR_VALUES.add("long long long long long long long long long long long long long long long long value");
+    TEST_VARCHAR_VALUES.add(
+        "long long long long long long long long long long long long long long long long value");
     TEST_VARCHAR_VALUES.add("long long long long value");
     TEST_VARCHAR_VALUES.add(null);
     TEST_VARCHAR_VALUES.add("l");
 
-    // to accommodate MapR profile that sets default FS to maprfs, while we use local FS for testing here
-    FS_CONF.set("fs.default.name","file:///");
+    // to accommodate MapR profile that sets default FS to maprfs, while we use local FS for testing
+    // here
+    FS_CONF.set("fs.default.name", "file:///");
   }
 
-  @Rule
-  public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
+  @Rule public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
 
   /**
-   * Test reading a arrow file that contains just a single empty record batch (possible when the query/fragment returns
-   * no results).
+   * Test reading a arrow file that contains just a single empty record batch (possible when the
+   * query/fragment returns no results).
+   *
    * @throws Exception
    */
   @Test
   public void readingZeroRecordFile() throws Exception {
     VectorContainer batchData = null;
-    try (final BufferAllocator allocator = allocatorRule.newAllocator("test-arrow-file-reader", 0, Long.MAX_VALUE)) {
+    try (final BufferAllocator allocator =
+        allocatorRule.newAllocator("test-arrow-file-reader", 0, Long.MAX_VALUE)) {
       // generate a test file with just the empty record batch
       Path basePath = new Path(dateGenFolder.getRoot().getPath());
 
-      batchData = createBatch(0,
-          new BitVector("colBit", allocator),
-          new VarCharVector("colVarChar", allocator),
-          testEmptyListVector(allocator),
-          testEmptyUnionVector(allocator));
+      batchData =
+          createBatch(
+              0,
+              new BitVector("colBit", allocator),
+              new VarCharVector("colVarChar", allocator),
+              testEmptyListVector(allocator),
+              testEmptyUnionVector(allocator));
       ArrowFileMetadata metadata = writeArrowFile(batchData);
-      try(ArrowFileReader reader = new ArrowFileReader(HadoopFileSystem.getLocal(FS_CONF), com.dremio.io.file.Path.of(basePath.toUri()), metadata, allocator)) {
+      try (ArrowFileReader reader =
+          new ArrowFileReader(
+              HadoopFileSystem.getLocal(FS_CONF),
+              com.dremio.io.file.Path.of(basePath.toUri()),
+              metadata,
+              allocator)) {
         {
           List<RecordBatchHolder> batchHolders = getRecords(reader, 0, 0, allocator);
           assertEquals(1, batchHolders.size());
 
-          //verifyBatchHolder(batchHolders.get(0), 0, 0);
+          // verifyBatchHolder(batchHolders.get(0), 0, 0);
 
-          BatchSchema schema = batchHolders.get(0).getData().getContainer().getSchema();
+          BatchSchema schema = batchHolders.get(0).getData().getSchema();
           assertEquals(4, schema.getFieldCount());
 
           assertEquals("colBit", schema.getColumn(0).getName());
-          assertEquals(MinorType.BIT, Types.getMinorTypeForArrowType(schema.getColumn(0).getType()));
+          assertEquals(
+              MinorType.BIT, Types.getMinorTypeForArrowType(schema.getColumn(0).getType()));
 
           assertEquals("colVarChar", schema.getColumn(1).getName());
-          assertEquals(MinorType.VARCHAR, Types.getMinorTypeForArrowType(schema.getColumn(1).getType()));
+          assertEquals(
+              MinorType.VARCHAR, Types.getMinorTypeForArrowType(schema.getColumn(1).getType()));
 
           assertEquals("emptyListVector", schema.getColumn(2).getName());
-          assertEquals(MinorType.LIST, Types.getMinorTypeForArrowType(schema.getColumn(2).getType()));
+          assertEquals(
+              MinorType.LIST, Types.getMinorTypeForArrowType(schema.getColumn(2).getType()));
 
           assertEquals("unionVector", schema.getColumn(3).getName());
-          assertEquals(MinorType.UNION, Types.getMinorTypeForArrowType(schema.getColumn(3).getType()));
-          assertEquals(MinorType.INT, Types.getMinorTypeForArrowType(schema.getColumn(3).getChildren().get(0).getType()));
-          assertEquals(MinorType.DECIMAL, Types.getMinorTypeForArrowType(schema.getColumn(3).getChildren().get(1).getType()));
+          assertEquals(
+              MinorType.UNION, Types.getMinorTypeForArrowType(schema.getColumn(3).getType()));
+          assertEquals(
+              MinorType.INT,
+              Types.getMinorTypeForArrowType(schema.getColumn(3).getChildren().get(0).getType()));
+          assertEquals(
+              MinorType.DECIMAL,
+              Types.getMinorTypeForArrowType(schema.getColumn(3).getChildren().get(1).getType()));
 
           releaseBatches(batchHolders);
         }
@@ -159,7 +173,9 @@ public class TestArrowFileReader extends DremioTest {
             reader.read(0, 1);
             fail("shouldn't be here");
           } catch (IllegalArgumentException e) {
-            assertEquals("Invalid start index (0) and limit (1) combination. Record count in file (0)", e.getMessage());
+            assertEquals(
+                "Invalid start index (0) and limit (1) combination. Record count in file (0)",
+                e.getMessage());
           }
         }
         {
@@ -181,13 +197,19 @@ public class TestArrowFileReader extends DremioTest {
   @Test
   public void readingSingleBatchFile() throws Exception {
     VectorContainer batchData = null;
-    try (final BufferAllocator allocator = allocatorRule.newAllocator("test-arrow-file-reader", 0, Long.MAX_VALUE)) {
+    try (final BufferAllocator allocator =
+        allocatorRule.newAllocator("test-arrow-file-reader", 0, Long.MAX_VALUE)) {
       Path basePath = new Path(dateGenFolder.getRoot().getPath());
       // generate a test file with just a single batch with 5 records.
       batchData = createBatch(5, testBitVector(allocator), testVarCharVector(allocator));
 
       ArrowFileMetadata metadata = writeArrowFile(batchData);
-      try(ArrowFileReader reader = new ArrowFileReader(HadoopFileSystem.getLocal(FS_CONF), com.dremio.io.file.Path.of(basePath.toUri()), metadata, allocator)) {
+      try (ArrowFileReader reader =
+          new ArrowFileReader(
+              HadoopFileSystem.getLocal(FS_CONF),
+              com.dremio.io.file.Path.of(basePath.toUri()),
+              metadata,
+              allocator)) {
         {
           // Get everything
           List<RecordBatchHolder> batchHolders = getRecords(reader, 0, 5, allocator);
@@ -195,7 +217,7 @@ public class TestArrowFileReader extends DremioTest {
 
           verifyBatchHolder(batchHolders.get(0), 0, 5);
 
-          VectorContainer batchContainer = batchHolders.get(0).getData().getContainer();
+          VectorAccessible batchContainer = batchHolders.get(0).getData().getVectorAccessible();
           assertEquals(TEST_BIT_VALUES, getBitValues(batchContainer, 0, 5));
           assertEquals(TEST_VARCHAR_VALUES, getVarCharValues(batchContainer, 0, 5));
           releaseBatches(batchHolders);
@@ -207,19 +229,19 @@ public class TestArrowFileReader extends DremioTest {
 
           verifyBatchHolder(batchHolders.get(0), 0, 2);
 
-          VectorContainer batchContainer = batchHolders.get(0).getData().getContainer();
+          VectorAccessible batchContainer = batchHolders.get(0).getData().getVectorAccessible();
           assertEquals(TEST_BIT_VALUES.subList(0, 2), getBitValues(batchContainer, 0, 2));
           assertEquals(TEST_VARCHAR_VALUES.subList(0, 2), getVarCharValues(batchContainer, 0, 2));
           releaseBatches(batchHolders);
         }
         {
           // Get a part of the batch starting from the middle of the batch to end of the batch
-          List<RecordBatchHolder> batchHolders = getRecords(reader, 2,2, allocator);
+          List<RecordBatchHolder> batchHolders = getRecords(reader, 2, 2, allocator);
           assertEquals(1, batchHolders.size());
 
           verifyBatchHolder(batchHolders.get(0), 2, 4);
 
-          VectorContainer batchContainer = batchHolders.get(0).getData().getContainer();
+          VectorAccessible batchContainer = batchHolders.get(0).getData().getVectorAccessible();
           assertEquals(TEST_BIT_VALUES.subList(2, 4), getBitValues(batchContainer, 2, 4));
           assertEquals(TEST_VARCHAR_VALUES.subList(2, 4), getVarCharValues(batchContainer, 2, 4));
           releaseBatches(batchHolders);
@@ -252,7 +274,8 @@ public class TestArrowFileReader extends DremioTest {
   @Test
   public void readingMultiBatchFile() throws Exception {
     List<VectorContainer> containers = Lists.newArrayList();
-    try (final BufferAllocator allocator = allocatorRule.newAllocator("test-arrow-file-reader", 0, Long.MAX_VALUE)) {
+    try (final BufferAllocator allocator =
+        allocatorRule.newAllocator("test-arrow-file-reader", 0, Long.MAX_VALUE)) {
       // generate a test file with multiple record batches each containing 5 records.
       containers.add(createBatch(5, testBitVector(allocator), testVarCharVector(allocator)));
       containers.add(createBatch(5, testBitVector(allocator), testVarCharVector(allocator)));
@@ -260,16 +283,21 @@ public class TestArrowFileReader extends DremioTest {
 
       Path basePath = new Path(dateGenFolder.getRoot().getPath());
       ArrowFileMetadata metadata = writeArrowFile(containers.toArray(new VectorContainer[3]));
-      try(ArrowFileReader reader = new ArrowFileReader(HadoopFileSystem.getLocal(FS_CONF), com.dremio.io.file.Path.of(basePath.toUri()), metadata, allocator)) {
+      try (ArrowFileReader reader =
+          new ArrowFileReader(
+              HadoopFileSystem.getLocal(FS_CONF),
+              com.dremio.io.file.Path.of(basePath.toUri()),
+              metadata,
+              allocator)) {
         {
           // Get everything
           List<RecordBatchHolder> batchHolders = getRecords(reader, 0, 15, allocator);
           assertEquals(3, batchHolders.size());
 
-          for(int i=0; i<3; i++) {
+          for (int i = 0; i < 3; i++) {
             verifyBatchHolder(batchHolders.get(i), 0, 5);
 
-            VectorContainer batchContainer = batchHolders.get(i).getData().getContainer();
+            VectorAccessible batchContainer = batchHolders.get(i).getData().getVectorAccessible();
             assertEquals(TEST_BIT_VALUES, getBitValues(batchContainer, 0, 5));
             assertEquals(TEST_VARCHAR_VALUES, getVarCharValues(batchContainer, 0, 5));
           }
@@ -283,52 +311,54 @@ public class TestArrowFileReader extends DremioTest {
 
           verifyBatchHolder(batchHolders.get(0), 0, 5);
 
-          VectorContainer batchContainer = batchHolders.get(0).getData().getContainer();
+          VectorAccessible batchContainer = batchHolders.get(0).getData().getVectorAccessible();
           assertEquals(TEST_BIT_VALUES, getBitValues(batchContainer, 0, 5));
           assertEquals(TEST_VARCHAR_VALUES, getVarCharValues(batchContainer, 0, 5));
 
           verifyBatchHolder(batchHolders.get(1), 0, 2);
 
-          batchContainer = batchHolders.get(1).getData().getContainer();
+          batchContainer = batchHolders.get(1).getData().getVectorAccessible();
           assertEquals(TEST_BIT_VALUES.subList(0, 2), getBitValues(batchContainer, 0, 2));
           assertEquals(TEST_VARCHAR_VALUES.subList(0, 2), getVarCharValues(batchContainer, 0, 2));
 
           releaseBatches(batchHolders);
         }
         {
-          // Get a part of the batch starting from the middle of the first batch to middle of the third batch
+          // Get a part of the batch starting from the middle of the first batch to middle of the
+          // third batch
           List<RecordBatchHolder> batchHolders = getRecords(reader, 2, 11, allocator);
           assertEquals(3, batchHolders.size());
 
           verifyBatchHolder(batchHolders.get(0), 2, 5);
-          VectorContainer batchContainer = batchHolders.get(0).getData().getContainer();
+          VectorAccessible batchContainer = batchHolders.get(0).getData().getVectorAccessible();
           assertEquals(TEST_BIT_VALUES.subList(2, 5), getBitValues(batchContainer, 2, 5));
           assertEquals(TEST_VARCHAR_VALUES.subList(2, 5), getVarCharValues(batchContainer, 2, 5));
 
           verifyBatchHolder(batchHolders.get(1), 0, 5);
-          batchContainer = batchHolders.get(1).getData().getContainer();
+          batchContainer = batchHolders.get(1).getData().getVectorAccessible();
           assertEquals(TEST_BIT_VALUES, getBitValues(batchContainer, 0, 5));
           assertEquals(TEST_VARCHAR_VALUES, getVarCharValues(batchContainer, 0, 5));
 
           verifyBatchHolder(batchHolders.get(2), 0, 3);
-          batchContainer = batchHolders.get(2).getData().getContainer();
+          batchContainer = batchHolders.get(2).getData().getVectorAccessible();
           assertEquals(TEST_BIT_VALUES.subList(0, 3), getBitValues(batchContainer, 0, 3));
           assertEquals(TEST_VARCHAR_VALUES.subList(0, 3), getVarCharValues(batchContainer, 0, 3));
 
           releaseBatches(batchHolders);
         }
         {
-          // Get a part of the batch starting from the middle of the second batch to middle of thrid batch
+          // Get a part of the batch starting from the middle of the second batch to middle of thrid
+          // batch
           List<RecordBatchHolder> batchHolders = getRecords(reader, 7, 5, allocator);
           assertEquals(2, batchHolders.size());
 
           verifyBatchHolder(batchHolders.get(0), 2, 5);
-          VectorContainer batchContainer = batchHolders.get(0).getData().getContainer();
+          VectorAccessible batchContainer = batchHolders.get(0).getData().getVectorAccessible();
           assertEquals(TEST_BIT_VALUES.subList(2, 5), getBitValues(batchContainer, 2, 5));
           assertEquals(TEST_VARCHAR_VALUES.subList(2, 5), getVarCharValues(batchContainer, 2, 5));
 
           verifyBatchHolder(batchHolders.get(1), 0, 2);
-          batchContainer = batchHolders.get(1).getData().getContainer();
+          batchContainer = batchHolders.get(1).getData().getVectorAccessible();
           assertEquals(TEST_BIT_VALUES.subList(0, 2), getBitValues(batchContainer, 0, 2));
           assertEquals(TEST_VARCHAR_VALUES.subList(0, 2), getVarCharValues(batchContainer, 0, 2));
 
@@ -336,7 +366,7 @@ public class TestArrowFileReader extends DremioTest {
         }
       }
     } finally {
-      for(VectorContainer container : containers) {
+      for (VectorContainer container : containers) {
         if (container != null) {
           container.clear();
         }
@@ -346,13 +376,18 @@ public class TestArrowFileReader extends DremioTest {
 
   @Test
   public void writeAndReadEmptyListVectors() throws Exception {
-    try (final BufferAllocator allocator = allocatorRule.newAllocator("test-arrow-file-reader", 0, Long.MAX_VALUE);
-         final VectorContainer batchData = createBatch(1, testEmptyListVector(allocator))) {
+    try (final BufferAllocator allocator =
+            allocatorRule.newAllocator("test-arrow-file-reader", 0, Long.MAX_VALUE);
+        final VectorContainer batchData = createBatch(1, testEmptyListVector(allocator))) {
 
       final Path basePath = new Path(dateGenFolder.getRoot().getPath());
       final ArrowFileMetadata metadata = writeArrowFile(batchData);
       try (final ArrowFileReader reader =
-               new ArrowFileReader(HadoopFileSystem.getLocal(FS_CONF), com.dremio.io.file.Path.of(basePath.toUri()), metadata, allocator)) {
+          new ArrowFileReader(
+              HadoopFileSystem.getLocal(FS_CONF),
+              com.dremio.io.file.Path.of(basePath.toUri()),
+              metadata,
+              allocator)) {
 
         final List<RecordBatchHolder> batchHolders = reader.read(0, 1);
         assertEquals(1, batchHolders.size());
@@ -360,16 +395,17 @@ public class TestArrowFileReader extends DremioTest {
         assertEquals(0, batchHolders.get(0).getStart());
         assertEquals(1, batchHolders.get(0).getEnd());
 
-        final BatchSchema schema = batchHolders.get(0).getData().getContainer().getSchema();
+        final BatchSchema schema = batchHolders.get(0).getData().getSchema();
         assertEquals(1, schema.getFieldCount());
         assertEquals("emptyListVector", schema.getColumn(0).getName());
         assertEquals(MinorType.LIST, Types.getMinorTypeForArrowType(schema.getColumn(0).getType()));
 
-        final VectorContainer batchContainer = batchHolders.get(0).getData().getContainer();
+        final VectorAccessible batchContainer = batchHolders.get(0).getData().getVectorAccessible();
         assertTrue(Iterators.size(batchContainer.iterator()) == 1);
         for (final VectorWrapper<?> wrapper : batchContainer) {
           assertTrue(wrapper.getValueVector() instanceof ListVector);
-          assertTrue(((ListVector) (wrapper.getValueVector())).getDataVector() instanceof NullVector);
+          assertTrue(
+              ((ListVector) (wrapper.getValueVector())).getDataVector() instanceof NullVector);
         }
 
         releaseBatches(batchHolders);
@@ -381,7 +417,7 @@ public class TestArrowFileReader extends DremioTest {
   private static BitVector testBitVector(BufferAllocator allocator) {
     BitVector colBitV = new BitVector("colBit", allocator);
     colBitV.allocateNew(5);
-    for(int i=0; i<TEST_BIT_VALUES.size(); i++) {
+    for (int i = 0; i < TEST_BIT_VALUES.size(); i++) {
       if (TEST_BIT_VALUES.get(i) == null) {
         colBitV.setNull(i);
       } else {
@@ -396,7 +432,7 @@ public class TestArrowFileReader extends DremioTest {
   private static VarCharVector testVarCharVector(BufferAllocator allocator) {
     VarCharVector colVarCharV = new VarCharVector("colVarChar", allocator);
     colVarCharV.allocateNew(500, 5);
-    for(int i=0; i<TEST_VARCHAR_VALUES.size(); i++) {
+    for (int i = 0; i < TEST_VARCHAR_VALUES.size(); i++) {
       if (TEST_VARCHAR_VALUES.get(i) == null) {
         colVarCharV.setNull(i);
       } else {
@@ -410,7 +446,8 @@ public class TestArrowFileReader extends DremioTest {
   /** Helper method which creates a empty list vector */
   private static ListVector testEmptyListVector(BufferAllocator allocator) {
     final ListVector vector =
-        new ListVector("emptyListVector", allocator, FieldType.nullable(ArrowType.Null.INSTANCE), null);
+        new ListVector(
+            "emptyListVector", allocator, FieldType.nullable(ArrowType.Null.INSTANCE), null);
     vector.allocateNew();
     return vector;
   }
@@ -421,19 +458,18 @@ public class TestArrowFileReader extends DremioTest {
     unionVector.initializeChildrenFromFields(
         asList(
             Field.nullable("intType", new ArrowType.Int(32, true)),
-            Field.nullable("decimalType", new ArrowType.Decimal(4, 10, 128))
-        )
-    );
+            Field.nullable("decimalType", new ArrowType.Decimal(4, 10, 128))));
 
     return unionVector;
   }
 
   /** Helper method to get the values in given range in colBit vector used in this test class. */
-  private static List<Boolean> getBitValues(VectorContainer container, int start, int end) {
-    FieldReader reader = container.getValueAccessorById(BitVector.class, 0).getValueVector().getReader();
+  private static List<Boolean> getBitValues(VectorAccessible container, int start, int end) {
+    FieldReader reader =
+        container.getValueAccessorById(BitVector.class, 0).getValueVector().getReader();
 
     List<Boolean> values = Lists.newArrayList();
-    for(int i=start; i<end; i++) {
+    for (int i = start; i < end; i++) {
       reader.setPosition(i);
       if (reader.isSet()) {
         values.add(reader.readBoolean());
@@ -445,12 +481,15 @@ public class TestArrowFileReader extends DremioTest {
     return values;
   }
 
-  /** Helper method to get the values in given range in colVarChar vector used in this test class. */
-  private static List<String> getVarCharValues(VectorContainer container, int start, int end) {
-    FieldReader reader = container.getValueAccessorById(VarCharVector.class, 1).getValueVector().getReader();
+  /**
+   * Helper method to get the values in given range in colVarChar vector used in this test class.
+   */
+  private static List<String> getVarCharValues(VectorAccessible container, int start, int end) {
+    FieldReader reader =
+        container.getValueAccessorById(VarCharVector.class, 1).getValueVector().getReader();
 
     List<String> values = Lists.newArrayList();
-    for(int i=start; i<end; i++) {
+    for (int i = start; i < end; i++) {
       reader.setPosition(i);
       if (reader.isSet()) {
         final Text val = reader.readText();
@@ -464,8 +503,8 @@ public class TestArrowFileReader extends DremioTest {
   }
 
   /**
-   * Helper method to verify that the batch holder contains valid data including the standard two columns
-   * (colBit - BIT, colVarChar - VARCHAR) used in this test class.
+   * Helper method to verify that the batch holder contains valid data including the standard two
+   * columns (colBit - BIT, colVarChar - VARCHAR) used in this test class.
    */
   private static void verifyBatchHolder(RecordBatchHolder holder, int expStart, int expEnd) {
     assertNotNull(holder);
@@ -474,7 +513,7 @@ public class TestArrowFileReader extends DremioTest {
     assertEquals(expEnd, holder.getEnd());
 
     // verify schema
-    BatchSchema schema = holder.getData().getContainer().getSchema();
+    BatchSchema schema = holder.getData().getSchema();
     assertEquals(2, schema.getFieldCount());
 
     assertEquals("colBit", schema.getColumn(0).getName());
@@ -485,7 +524,7 @@ public class TestArrowFileReader extends DremioTest {
   }
 
   protected static void releaseBatches(List<RecordBatchHolder> holders) throws Exception {
-    for(RecordBatchHolder holder : holders) {
+    for (RecordBatchHolder holder : holders) {
       holder.getData().close();
     }
   }
@@ -508,10 +547,18 @@ public class TestArrowFileReader extends DremioTest {
     return Mockito.mock(OperatorContext.class);
   }
 
-  /** Helper method that write the given batches to a file with given name and returns the file metadata */
+  /**
+   * Helper method that write the given batches to a file with given name and returns the file
+   * metadata
+   */
   private ArrowFileMetadata writeArrowFile(VectorContainer... batches) throws Exception {
     OperatorContext opContext = getOperatorContext();
-    when(opContext.getFragmentHandle()).thenReturn(FragmentHandle.newBuilder().setMajorFragmentId(2323).setMinorFragmentId(234234).build());
+    when(opContext.getFragmentHandle())
+        .thenReturn(
+            FragmentHandle.newBuilder()
+                .setMajorFragmentId(2323)
+                .setMinorFragmentId(234234)
+                .build());
 
     final EasyWriter writerConf = mock(EasyWriter.class);
     when(writerConf.getLocation()).thenReturn(dateGenFolder.getRoot().toString());
@@ -523,10 +570,8 @@ public class TestArrowFileReader extends DremioTest {
     when(formatPlugin.getFsPlugin()).thenReturn(fsPlugin);
     when(fsPlugin.createFS(notNull(), notNull())).thenReturn(HadoopFileSystem.getLocal(FS_CONF));
 
-    ArrowRecordWriter writer = new ArrowRecordWriter(
-        opContext,
-        writerConf,
-        new ArrowFormatPluginConfig());
+    ArrowRecordWriter writer =
+        new ArrowRecordWriter(opContext, writerConf, new ArrowFormatPluginConfig());
 
     OutputEntryListener outputEntryListener = Mockito.mock(OutputEntryListener.class);
     WriteStatsListener writeStatsListener = Mockito.mock(WriteStatsListener.class);
@@ -543,9 +588,9 @@ public class TestArrowFileReader extends DremioTest {
     writer.setup(incoming, outputEntryListener, writeStatsListener);
     writer.writeBatch(0, incoming.getRecordCount());
 
-    for(int i=1; i<batches.length; i++) {
+    for (int i = 1; i < batches.length; i++) {
       incoming.clear();
-      for(VectorWrapper<?> vw : batches[i]) {
+      for (VectorWrapper<?> vw : batches[i]) {
         incoming.add(vw.getValueVector());
       }
       writer.writeBatch(0, incoming.getRecordCount());
@@ -554,10 +599,19 @@ public class TestArrowFileReader extends DremioTest {
 
     writer.close();
 
-    verify(outputEntryListener, times(1)).recordsWritten(recordWrittenCaptor.capture(),
-      fileSizeCaptor.capture(), pathCaptor.capture(), metadataCaptor.capture(),
-      partitionCaptor.capture(), icebergMetadataCaptor.capture(), any(), any(), any(), any(),
-      rejectedRecordCaptor.capture());
+    verify(outputEntryListener, times(1))
+        .recordsWritten(
+            recordWrittenCaptor.capture(),
+            fileSizeCaptor.capture(),
+            pathCaptor.capture(),
+            metadataCaptor.capture(),
+            partitionCaptor.capture(),
+            icebergMetadataCaptor.capture(),
+            any(),
+            any(),
+            any(),
+            any(),
+            rejectedRecordCaptor.capture());
     verify(writeStatsListener, times(batches.length)).bytesWritten(bytesWrittenCaptor.capture());
 
     Path path = new Path(dateGenFolder.getRoot().getPath());
@@ -567,17 +621,19 @@ public class TestArrowFileReader extends DremioTest {
     }
 
     ArrowFileMetadata arrowFileMetadata =
-      ArrowFileReader.toBean(ArrowFileFormat.ArrowFileMetadata.parseFrom(metadataCaptor.getValue()));
+        ArrowFileReader.toBean(
+            ArrowFileFormat.ArrowFileMetadata.parseFrom(metadataCaptor.getValue()));
 
     assertArrowFileMetadata(arrowFileMetadata);
     return arrowFileMetadata;
   }
 
   public void assertArrowFileMetadata(ArrowFileMetadata arrowFileMetadata) {
-     // no-op. This is overridden in derived class.
+    // no-op. This is overridden in derived class.
   }
 
-  public List<RecordBatchHolder> getRecords(ArrowFileReader reader, long start, long limit, BufferAllocator allocator) throws Exception {
+  public List<RecordBatchHolder> getRecords(
+      ArrowFileReader reader, long start, long limit, BufferAllocator allocator) throws Exception {
     return reader.read(start, limit);
   }
 }

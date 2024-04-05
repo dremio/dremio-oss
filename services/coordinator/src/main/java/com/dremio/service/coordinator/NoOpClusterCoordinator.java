@@ -15,17 +15,14 @@
  */
 package com.dremio.service.coordinator;
 
+import com.dremio.exec.proto.CoordinationProtos;
 import java.util.Collection;
 import java.util.Collections;
 
-import com.dremio.exec.proto.CoordinationProtos;
-
-/**
- * A {@code ClusterCoordinator} no-op implementation for executor nodes in DCS.
- */
+/** A {@code ClusterCoordinator} no-op implementation for executor nodes in DCS. */
 public class NoOpClusterCoordinator extends ClusterCoordinator {
   private static final org.slf4j.Logger logger =
-    org.slf4j.LoggerFactory.getLogger(NoOpClusterCoordinator.class);
+      org.slf4j.LoggerFactory.getLogger(NoOpClusterCoordinator.class);
   private static final NoOpServiceSet NO_OP_SERVICE_SET = new NoOpServiceSet();
 
   public NoOpClusterCoordinator() {
@@ -33,8 +30,7 @@ public class NoOpClusterCoordinator extends ClusterCoordinator {
   }
 
   @Override
-  public void start() throws Exception {
-  }
+  public void start() throws Exception {}
 
   @Override
   public ServiceSet getServiceSet(Role role) {
@@ -58,21 +54,21 @@ public class NoOpClusterCoordinator extends ClusterCoordinator {
 
   @Override
   public DistributedSemaphore getSemaphore(String name, int maximumLeases) {
-    throw new UnsupportedOperationException("getSemaphore not implemented in " +
-      "NoOpClusterCoordinator");
+    throw new UnsupportedOperationException(
+        "getSemaphore not implemented in " + "NoOpClusterCoordinator");
   }
 
   @Override
   public ElectionRegistrationHandle joinElection(String name, ElectionListener listener) {
-    throw new UnsupportedOperationException("joinElection not implemented in " +
-      "NoOpClusterCoordinator");
+    throw new UnsupportedOperationException(
+        "joinElection not implemented in " + "NoOpClusterCoordinator");
   }
 
   @Override
   public LinearizableHierarchicalStore getHierarchicalStore() {
-    throw new UnsupportedOperationException("Hierarchical Store is not supported in NoOpClusterCoordinator");
+    throw new UnsupportedOperationException(
+        "Hierarchical Store is not supported in NoOpClusterCoordinator");
   }
-
 
   @Override
   public void close() throws Exception {
@@ -91,7 +87,7 @@ public class NoOpClusterCoordinator extends ClusterCoordinator {
     }
 
     @Override
-    public void close() {
-    }
-  };
+    public void close() {}
+  }
+  ;
 }

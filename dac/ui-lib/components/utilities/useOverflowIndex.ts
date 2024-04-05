@@ -24,13 +24,13 @@ import { useMutationObserver } from "./useMutationObserver";
  * and a reference to the first hidden element to help position an overflow menu trigger.
  */
 export const useOverflowIndex = (
-  ref: MutableRefObject<Element>
+  ref: MutableRefObject<Element>,
 ): [number, Element] | [undefined, null] => {
   const [overflowIndex, setOverflowIndex] = useState<number | undefined>(
-    undefined
+    undefined,
   );
   const [overflowedElement, setOverflowedElement] = useState<Element | null>(
-    null
+    null,
   );
 
   // Track how many times the children have been modified
@@ -38,9 +38,12 @@ export const useOverflowIndex = (
 
   const parentRect = useElementRect(ref);
 
-  useMutationObserver(ref, useCallback(() => {
-    setChildrenVersion(x => x + 1)
-  }, []))
+  useMutationObserver(
+    ref,
+    useCallback(() => {
+      setChildrenVersion((x) => x + 1);
+    }, []),
+  );
 
   // Every time the parentRect changes, recalculate which (if any) children have overflowed
   useEffect(() => {

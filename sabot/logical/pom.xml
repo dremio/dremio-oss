@@ -1,4 +1,4 @@
-<?xml version="1.0"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!--
 
     Copyright (C) 2017-2019 Dremio Corporation
@@ -18,11 +18,11 @@
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
-  
+
   <parent>
     <groupId>com.dremio.sabot</groupId>
     <artifactId>dremio-sabot-parent</artifactId>
-    <version>24.3.2-202401241821100032-d2d8a497</version>
+    <version>25.0.0-202404051521110861-ed9515a8</version>
   </parent>
 
   <artifactId>dremio-sabot-logical</artifactId>
@@ -119,8 +119,8 @@
     </dependency>
 
     <dependency>
-        <groupId>joda-time</groupId>
-        <artifactId>joda-time</artifactId>
+      <groupId>joda-time</groupId>
+      <artifactId>joda-time</artifactId>
     </dependency>
   </dependencies>
 
@@ -133,9 +133,17 @@
           <configLocation>dremio-checkstyle/legacy-config.xml</configLocation>
         </configuration>
       </plugin>
-      <plugin> <!-- classpath scanning --> 
+      <plugin>
+        <!-- classpath scanning -->
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>exec-maven-plugin</artifactId>
+        <configuration>
+          <mainClass>com.dremio.common.scanner.BuildTimeScan</mainClass>
+          <includePluginDependencies>true</includePluginDependencies>
+          <arguments>
+            <argument>${project.build.outputDirectory}</argument>
+          </arguments>
+        </configuration>
         <dependencies>
           <dependency>
             <groupId>com.dremio</groupId>
@@ -147,17 +155,12 @@
         </dependencies>
         <executions>
           <execution>
+            <goals>
+              <goal>java</goal>
+            </goals>
             <phase>process-classes</phase>
-            <goals><goal>java</goal></goals>
           </execution>
         </executions>
-        <configuration>
-          <mainClass>com.dremio.common.scanner.BuildTimeScan</mainClass>
-          <includePluginDependencies>true</includePluginDependencies>
-          <arguments>
-            <argument>${project.build.outputDirectory}</argument>
-          </arguments>
-        </configuration>
       </plugin>
       <plugin>
         <artifactId>maven-surefire-plugin</artifactId>

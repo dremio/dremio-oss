@@ -15,11 +15,9 @@
  */
 package com.dremio.resource.common;
 
-/**
- * Properties to decide on Resource Allocations
- */
+/** Properties to decide on Resource Allocations */
 public enum ResourceSchedulingType {
-  USER ("User"),
+  USER("User"),
   USER_INFO("User Info"),
   QUERY_COST("Query Cost"),
   CLIENT_TYPE("Client"),
@@ -37,4 +35,4 @@ public enum ResourceSchedulingType {
   public String getDisplayName() {
     return displayName;
   }
- }
+}

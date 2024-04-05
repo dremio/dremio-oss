@@ -15,19 +15,15 @@
  */
 package com.dremio.plugins;
 
-/**
- * Holds the required parameters from TableMetadata
- */
+/** Holds the required parameters from TableMetadata */
 public class NessieClientTableMetadata {
   private final long snapshotId;
   private final int currentSchemaId;
   private final int defaultSpecId;
   private final int sortOrderId;
 
-  public NessieClientTableMetadata(long snapshotId,
-                                   int currentSchemaId,
-                                   int defaultSpecId,
-                                   int sortOrderId) {
+  public NessieClientTableMetadata(
+      long snapshotId, int currentSchemaId, int defaultSpecId, int sortOrderId) {
     this.snapshotId = snapshotId;
     this.currentSchemaId = currentSchemaId;
     this.defaultSpecId = defaultSpecId;

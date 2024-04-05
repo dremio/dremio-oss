@@ -19,15 +19,14 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import java.text.ParseException;
-
-import org.junit.Test;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.common.expression.fn.JodaDateValidator;
+import java.text.ParseException;
+import org.junit.Test;
 
 /**
- * Tests for {@link com.dremio.common.expression.fn.JodaDateValidator#toJodaFormat(String)} (String)}
+ * Tests for {@link com.dremio.common.expression.fn.JodaDateValidator#toJodaFormat(String)}
+ * (String)}
  */
 public class TestJodaDateValidator extends BaseTestQuery {
 
@@ -43,17 +42,22 @@ public class TestJodaDateValidator extends BaseTestQuery {
 
   @Test
   public void testToJodaQuoted() throws Exception {
-    assertEquals("'anything can live here, AD BC or here PA mayber here?!'", JodaDateValidator.toJodaFormat("\"anything can live here, AD BC or here PA mayber here?!\""));
-    assertEquals("G'some text'a'more text'", JodaDateValidator.toJodaFormat("AD\"some text\"PM\"more text\""));
+    assertEquals(
+        "'anything can live here, AD BC or here PA mayber here?!'",
+        JodaDateValidator.toJodaFormat(
+            "\"anything can live here, AD BC or here PA mayber here?!\""));
+    assertEquals(
+        "G'some text'a'more text'",
+        JodaDateValidator.toJodaFormat("AD\"some text\"PM\"more text\""));
 
     assertThatThrownBy(() -> JodaDateValidator.toJodaFormat("P\"a string\""))
-      .isInstanceOf(ParseException.class);
+        .isInstanceOf(ParseException.class);
   }
 
   @Test
   public void testToJodaQuotedNonTerminating() throws Exception {
     assertThatThrownBy(() -> JodaDateValidator.toJodaFormat("\"a string"))
-      .isInstanceOf(ParseException.class);
+        .isInstanceOf(ParseException.class);
   }
 
   @Test
@@ -61,7 +65,7 @@ public class TestJodaDateValidator extends BaseTestQuery {
     assertEquals("-G/,.;:G", JodaDateValidator.toJodaFormat("-AD/,.;:AD"));
 
     assertThatThrownBy(() -> JodaDateValidator.toJodaFormat("P:M"))
-      .isInstanceOf(ParseException.class);
+        .isInstanceOf(ParseException.class);
   }
 
   @Test
@@ -71,7 +75,7 @@ public class TestJodaDateValidator extends BaseTestQuery {
     assertEquals("MMM:", JodaDateValidator.toJodaFormat("MON:"));
 
     assertThatThrownBy(() -> JodaDateValidator.toJodaFormat("MO:"))
-      .isInstanceOf(ParseException.class);
+        .isInstanceOf(ParseException.class);
   }
 
   @Test
@@ -81,7 +85,7 @@ public class TestJodaDateValidator extends BaseTestQuery {
     assertEquals("ZZ", JodaDateValidator.toJodaFormat("TZH:TZM"));
 
     assertThatThrownBy(() -> JodaDateValidator.toJodaFormat("TZH:TZ"))
-      .isInstanceOf(ParseException.class);
+        .isInstanceOf(ParseException.class);
   }
 
   @Test
@@ -93,8 +97,11 @@ public class TestJodaDateValidator extends BaseTestQuery {
 
   @Test
   public void testToJodaAll() throws Exception {
-    assertEquals("yyyy-MM-dd HH:mm:ss.SS z", JodaDateValidator.toJodaFormat("YYYY-MM-DD HH24:MI:SS.FF TZD"));
-    assertEquals("G a C.ww yy DDD MMM hh ZZ", JodaDateValidator.toJodaFormat("AD AM CC.WW YY DDD MON HH TZO"));
+    assertEquals(
+        "yyyy-MM-dd HH:mm:ss.SS z", JodaDateValidator.toJodaFormat("YYYY-MM-DD HH24:MI:SS.FF TZD"));
+    assertEquals(
+        "G a C.ww yy DDD MMM hh ZZ",
+        JodaDateValidator.toJodaFormat("AD AM CC.WW YY DDD MON HH TZO"));
     assertEquals("G a MMMM hh ZZ", JodaDateValidator.toJodaFormat("BC PM MONTH HH12 TZH:TZM"));
 
     // bunch of invalid patterns
@@ -111,8 +118,11 @@ public class TestJodaDateValidator extends BaseTestQuery {
 
   @Test
   public void testToJodaLowercase() throws Exception {
-    assertEquals("yyyy-MM-dd HH:mm:ss.SS z", JodaDateValidator.toJodaFormat("yyyy-mm-dd hh24:mi:ss.ff tzd"));
-    assertEquals("G a C.ww yy DDD MMM hh ZZ", JodaDateValidator.toJodaFormat("ad am cc.ww yy ddd mon hh tzo"));
+    assertEquals(
+        "yyyy-MM-dd HH:mm:ss.SS z", JodaDateValidator.toJodaFormat("yyyy-mm-dd hh24:mi:ss.ff tzd"));
+    assertEquals(
+        "G a C.ww yy DDD MMM hh ZZ",
+        JodaDateValidator.toJodaFormat("ad am cc.ww yy ddd mon hh tzo"));
     assertEquals("G a MMMM hh ZZ", JodaDateValidator.toJodaFormat("bc pm month hh12 tzh:tzm"));
 
     // bunch of invalid patterns

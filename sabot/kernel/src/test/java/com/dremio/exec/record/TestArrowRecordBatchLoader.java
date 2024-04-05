@@ -15,6 +15,11 @@
  */
 package com.dremio.exec.record;
 
+import com.dremio.exec.proto.UserBitShared.QueryId;
+import com.dremio.sabot.op.receiver.RawFragmentBatch;
+import com.dremio.test.AllocatorRule;
+import com.dremio.test.DremioTest;
+import io.netty.buffer.ByteBuf;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.complex.ListVector;
@@ -25,20 +30,15 @@ import org.apache.arrow.vector.types.pojo.FieldType;
 import org.junit.Rule;
 import org.junit.Test;
 
-import com.dremio.exec.proto.UserBitShared.QueryId;
-import com.dremio.sabot.op.receiver.RawFragmentBatch;
-import com.dremio.test.AllocatorRule;
-import com.dremio.test.DremioTest;
-
-import io.netty.buffer.ByteBuf;
-
 public class TestArrowRecordBatchLoader extends DremioTest {
-  @Rule
-  public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
+  @Rule public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
 
   @Test
   public void list() throws InterruptedException {
-    try (BufferAllocator allocator = allocatorRule.newAllocator("test-arrow-record-batch-loader", 0, Long.MAX_VALUE); ListVector inVector = new ListVector("input", allocator, FieldType.nullable(ArrowType.List.INSTANCE), null)) {
+    try (BufferAllocator allocator =
+            allocatorRule.newAllocator("test-arrow-record-batch-loader", 0, Long.MAX_VALUE);
+        ListVector inVector =
+            new ListVector("input", allocator, FieldType.nullable(ArrowType.List.INSTANCE), null)) {
       UnionListWriter writer = inVector.getWriter();
       writer.allocate();
       writer.setPosition(0);
@@ -52,7 +52,8 @@ public class TestArrowRecordBatchLoader extends DremioTest {
       container.setAllCount(1);
       container.buildSchema();
 
-      FragmentWritableBatch fragmentWritableBatch = FragmentWritableBatch.create(QueryId.getDefaultInstance(), 0, 0, 0, container, 0);
+      FragmentWritableBatch fragmentWritableBatch =
+          FragmentWritableBatch.create(QueryId.getDefaultInstance(), 0, 0, 0, container, 0);
 
       ByteBuf[] buffers = fragmentWritableBatch.getBuffers();
       container.zeroVectors();
@@ -68,10 +69,10 @@ public class TestArrowRecordBatchLoader extends DremioTest {
       }
 
       ArrowRecordBatchLoader loader = new ArrowRecordBatchLoader(container);
-      RawFragmentBatch rawFragmentBatch = new RawFragmentBatch(fragmentWritableBatch.getHeader(), buffer, null);
+      RawFragmentBatch rawFragmentBatch =
+          new RawFragmentBatch(fragmentWritableBatch.getHeader(), buffer, null);
       buffer.close();
       loader.load(rawFragmentBatch);
-
 
       container.close();
       loader.close();
@@ -82,17 +83,20 @@ public class TestArrowRecordBatchLoader extends DremioTest {
 
   @Test
   public void testNullBatchBuffer() throws InterruptedException {
-    try (BufferAllocator allocator = allocatorRule.newAllocator("test-arrow-record-batch-loader", 0, Long.MAX_VALUE)) {
+    try (BufferAllocator allocator =
+        allocatorRule.newAllocator("test-arrow-record-batch-loader", 0, Long.MAX_VALUE)) {
       VectorContainer container = new VectorContainer(allocator);
       container.setRecordCount(5);
       container.buildSchema();
 
-      FragmentWritableBatch fragmentWritableBatch = FragmentWritableBatch.create(QueryId.getDefaultInstance(), 0, 0, 0, container, 0);
+      FragmentWritableBatch fragmentWritableBatch =
+          FragmentWritableBatch.create(QueryId.getDefaultInstance(), 0, 0, 0, container, 0);
       container.zeroVectors();
       ArrowBuf buffer = null;
 
       ArrowRecordBatchLoader loader = new ArrowRecordBatchLoader(container);
-      RawFragmentBatch rawFragmentBatch = new RawFragmentBatch(fragmentWritableBatch.getHeader(), buffer, null);
+      RawFragmentBatch rawFragmentBatch =
+          new RawFragmentBatch(fragmentWritableBatch.getHeader(), buffer, null);
       loader.load(rawFragmentBatch);
 
       container.close();

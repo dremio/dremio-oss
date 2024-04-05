@@ -15,8 +15,6 @@
  */
 package com.dremio.sabot.op.join.vhash.spill.io;
 
-import java.io.IOException;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.util.CloseableIterator;
 import com.dremio.exec.record.BatchSchema;
@@ -24,10 +22,11 @@ import com.dremio.sabot.op.join.vhash.spill.pool.PageSupplier;
 import com.dremio.sabot.op.sort.external.SpillManager.SpillFile;
 import com.dremio.sabot.op.sort.external.SpillManager.SpillInputStream;
 import com.google.common.base.Preconditions;
+import java.io.IOException;
 
 /**
- * Reader for spilled file, returns an iterator of chunks.
- * Each chunk has both pivoted and unpivoted data.
+ * Reader for spilled file, returns an iterator of chunks. Each chunk has both pivoted and unpivoted
+ * data.
  */
 public class SpillReader implements CloseableIterator<SpillChunk> {
   private final SpillFile spillFile;
@@ -37,10 +36,11 @@ public class SpillReader implements CloseableIterator<SpillChunk> {
   private SpillChunk prefetchedChunk = null;
   private SpillInputStream inputStream;
 
-  public SpillReader(SpillFile spillFile,
-                     SpillSerializable serializable,
-                     PageSupplier pageSupplier,
-                     BatchSchema unpivotedColumnsSchema) {
+  public SpillReader(
+      SpillFile spillFile,
+      SpillSerializable serializable,
+      PageSupplier pageSupplier,
+      BatchSchema unpivotedColumnsSchema) {
     this.spillFile = spillFile;
     this.serializable = serializable;
     this.pageSupplier = pageSupplier;
@@ -74,7 +74,8 @@ public class SpillReader implements CloseableIterator<SpillChunk> {
       if (inputStream == null) {
         inputStream = spillFile.open(true);
       }
-      prefetchedChunk = serializable.readChunkFromStream(pageSupplier, unpivotedColumnsSchema, inputStream);
+      prefetchedChunk =
+          serializable.readChunkFromStream(pageSupplier, unpivotedColumnsSchema, inputStream);
     } catch (IOException ex) {
       throw new RuntimeException(ex);
     }

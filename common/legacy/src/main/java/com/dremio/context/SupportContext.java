@@ -15,16 +15,14 @@
  */
 package com.dremio.context;
 
+import com.google.common.collect.ImmutableMap;
 import java.util.Arrays;
 import java.util.Map;
 
-import com.google.common.collect.ImmutableMap;
-
-/**
- * Support context.
- */
+/** Support context. */
 public class SupportContext implements SerializableContext {
-  public static final RequestContext.Key<SupportContext> CTX_KEY = RequestContext.newKey("support_ctx_key");
+  public static final RequestContext.Key<SupportContext> CTX_KEY =
+      RequestContext.newKey("support_ctx_key");
 
   private static final String ROLES_DELIMITER = ",";
 
@@ -43,7 +41,8 @@ public class SupportContext implements SerializableContext {
     BILLING_ROLE("billing"),
     ORG_DELETE_ROLE("org-delete"),
     CONSISTENCY_FIXER_ROLE("consistency-fixer"),
-    DEBUG_ROLE("debug-role");
+    DEBUG_ROLE("debug-role"),
+    SUPPORT_KEY_MANAGEMENT_ROLE("support-key-management");
 
     private final String value;
 
@@ -91,6 +90,10 @@ public class SupportContext implements SerializableContext {
     return isSupportUser() && isSupportUserHasRole(SupportRole.BASIC_SUPPORT_ROLE);
   }
 
+  public static boolean isSupportUserWithSupportKeyManagementRole() {
+    return isSupportUser() && isSupportUserHasRole(SupportRole.SUPPORT_KEY_MANAGEMENT_ROLE);
+  }
+
   public static boolean isSupportUserWithBillingRole() {
     return isSupportUser() && isSupportUserHasRole(SupportRole.BILLING_ROLE);
   }
@@ -108,16 +111,18 @@ public class SupportContext implements SerializableContext {
   }
 
   public static boolean doesSupportUserHaveRole(SupportContext supportContext, SupportRole role) {
-    return supportContext.roles.length > 0 && Arrays.stream(supportContext.roles).anyMatch(r -> r.equals(role.value));
+    return supportContext.roles.length > 0
+        && Arrays.stream(supportContext.roles).anyMatch(r -> r.equals(role.value));
   }
 
   public static boolean isSupportUser() {
     return RequestContext.current().get(SupportContext.CTX_KEY) != null
-      && RequestContext.current().get(UserContext.CTX_KEY) != null
-      && SupportContext.SUPPORT_USER_ID.equals(RequestContext.current().get(UserContext.CTX_KEY).getUserId());
+        && RequestContext.current().get(UserContext.CTX_KEY) != null
+        && SupportContext.SUPPORT_USER_ID.equals(
+            RequestContext.current().get(UserContext.CTX_KEY).getUserId());
   }
 
-  private static boolean isSupportUserHasRole(SupportRole role) {
+  public static boolean isSupportUserHasRole(SupportRole role) {
     // assumes that the user is support user
     return doesSupportUserHaveRole(RequestContext.current().get(SupportContext.CTX_KEY), role);
   }
@@ -137,15 +142,14 @@ public class SupportContext implements SerializableContext {
     @Override
     public RequestContext deserialize(final Map<String, String> headers, RequestContext builder) {
       if (headers.containsKey(SUPPORT_TICKET_HEADER_KEY)
-        && headers.containsKey(SUPPORT_EMAIL_HEADER_KEY)
-        && headers.containsKey(SUPPORT_ROLES_HEADER_KEY))
-      {
+          && headers.containsKey(SUPPORT_EMAIL_HEADER_KEY)
+          && headers.containsKey(SUPPORT_ROLES_HEADER_KEY)) {
         return builder.with(
-          SupportContext.CTX_KEY,
-          new SupportContext(
-            headers.get(SUPPORT_TICKET_HEADER_KEY),
-            headers.get(SUPPORT_EMAIL_HEADER_KEY),
-            deserializeSupportRoles(headers.get(SUPPORT_ROLES_HEADER_KEY))));
+            SupportContext.CTX_KEY,
+            new SupportContext(
+                headers.get(SUPPORT_TICKET_HEADER_KEY),
+                headers.get(SUPPORT_EMAIL_HEADER_KEY),
+                deserializeSupportRoles(headers.get(SUPPORT_ROLES_HEADER_KEY))));
       }
 
       return builder;

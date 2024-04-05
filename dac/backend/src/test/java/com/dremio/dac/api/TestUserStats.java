@@ -16,24 +16,19 @@
 
 package com.dremio.dac.api;
 
-
 import static com.dremio.dac.util.DateUtils.getLastSundayDate;
 import static com.dremio.dac.util.DateUtils.getMonthStartDate;
 import static org.junit.Assert.assertEquals;
 
+import com.dremio.common.util.DremioVersionInfo;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
-
 import org.junit.Test;
 
-import com.dremio.common.util.DremioVersionInfo;
-
-/**
- * Tests for {@link UserStats}
- */
+/** Tests for {@link UserStats} */
 public class TestUserStats {
 
   @Test
@@ -67,7 +62,8 @@ public class TestUserStats {
     List<Map<String, Object>> statsByDate = stats.getUserStatsByDate();
     assertEquals(2, statsByDate.size());
 
-    Map<String, Object> firstDateEntry = fetchDateEntry("date", now.minusDays(9).toString(), statsByDate);
+    Map<String, Object> firstDateEntry =
+        fetchDateEntry("date", now.minusDays(9).toString(), statsByDate);
     assertEquals(1, firstDateEntry.get("UI"));
     assertEquals(2, firstDateEntry.get("ODBC"));
     assertEquals(2, firstDateEntry.get("total"));
@@ -101,12 +97,14 @@ public class TestUserStats {
     List<Map<String, Object>> statsByDate = stats.getUserStatsByWeek();
     assertEquals(2, statsByDate.size());
 
-    Map<String, Object> firstDateEntry = fetchDateEntry("week", getLastSundayDate(now.minusWeeks(1)).toString(), statsByDate);
+    Map<String, Object> firstDateEntry =
+        fetchDateEntry("week", getLastSundayDate(now.minusWeeks(1)).toString(), statsByDate);
     assertEquals(1, firstDateEntry.get("UI"));
     assertEquals(2, firstDateEntry.get("ODBC"));
     assertEquals(2, firstDateEntry.get("total"));
 
-    Map<String, Object> secondDateEntry = fetchDateEntry("week", getLastSundayDate(now).toString(), statsByDate);
+    Map<String, Object> secondDateEntry =
+        fetchDateEntry("week", getLastSundayDate(now).toString(), statsByDate);
     assertEquals(1, secondDateEntry.get("UI"));
     assertEquals(2, secondDateEntry.get("ODBC"));
     assertEquals(2, secondDateEntry.get("total"));
@@ -131,18 +129,21 @@ public class TestUserStats {
     List<Map<String, Object>> statsByDate = statsBuilder.build().getUserStatsByMonth();
     assertEquals(2, statsByDate.size());
 
-    Map<String, Object> firstDateEntry = fetchDateEntry("month", getMonthStartDate(now.minusMonths(1)).toString(), statsByDate);
+    Map<String, Object> firstDateEntry =
+        fetchDateEntry("month", getMonthStartDate(now.minusMonths(1)).toString(), statsByDate);
     assertEquals(1, firstDateEntry.get("UI"));
     assertEquals(2, firstDateEntry.get("ODBC"));
     assertEquals(2, firstDateEntry.get("total"));
 
-    Map<String, Object> secondDateEntry = fetchDateEntry("month", getMonthStartDate(now).toString(), statsByDate);
+    Map<String, Object> secondDateEntry =
+        fetchDateEntry("month", getMonthStartDate(now).toString(), statsByDate);
     assertEquals(1, secondDateEntry.get("UI"));
     assertEquals(2, secondDateEntry.get("ODBC"));
     assertEquals(2, secondDateEntry.get("total"));
   }
 
-  public static Map<String, Object> fetchDateEntry(String entryKey, String entryVal, List<Map<String, Object>> stats) {
+  public static Map<String, Object> fetchDateEntry(
+      String entryKey, String entryVal, List<Map<String, Object>> stats) {
     for (Map<String, Object> dateStats : stats) {
       outerLoop:
       for (Map.Entry<String, Object> stat : dateStats.entrySet()) {

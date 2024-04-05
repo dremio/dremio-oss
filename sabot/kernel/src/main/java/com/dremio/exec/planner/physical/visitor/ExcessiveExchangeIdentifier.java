@@ -15,12 +15,6 @@
  */
 package com.dremio.exec.planner.physical.visitor;
 
-import java.util.Collections;
-import java.util.List;
-
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelNode;
-
 import com.dremio.exec.planner.fragment.DistributionAffinity;
 import com.dremio.exec.planner.physical.BridgeExchangePrel;
 import com.dremio.exec.planner.physical.BridgeReaderPrel;
@@ -30,9 +24,15 @@ import com.dremio.exec.planner.physical.LeafPrel;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.ScreenPrel;
 import com.google.common.collect.Lists;
+import java.util.Collections;
+import java.util.List;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelNode;
 
-public class ExcessiveExchangeIdentifier extends BasePrelVisitor<Prel, ExcessiveExchangeIdentifier.MajorFragmentStat, RuntimeException> {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ExcessiveExchangeIdentifier.class);
+public class ExcessiveExchangeIdentifier
+    extends BasePrelVisitor<Prel, ExcessiveExchangeIdentifier.MajorFragmentStat, RuntimeException> {
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ExcessiveExchangeIdentifier.class);
 
   private final long targetSliceSize;
 
@@ -51,12 +51,14 @@ public class ExcessiveExchangeIdentifier extends BasePrelVisitor<Prel, Excessive
     MajorFragmentStat newFrag = new MajorFragmentStat();
     Prel newChild = ((Prel) prel.getInput()).accept(this, newFrag);
 
-    if (!(prel instanceof BridgeExchangePrel) &&
-        newFrag.isSingular() && parent.isSingular() &&
+    if (!(prel instanceof BridgeExchangePrel)
+        && newFrag.isSingular()
+        && parent.isSingular()
+        &&
         // if both of them have soft distribution, we can remove the exchange
         (!newFrag.isDistributionStrict() && !parent.isDistributionStrict())) {
       parent.merge(newFrag);
-      //after merge, change to single stream
+      // after merge, change to single stream
       RelTraitSet relTraits = newChild.getTraitSet().replace(DistributionTrait.SINGLETON);
       RelNode newSingletonChild = newChild.copy(relTraits, newChild.getInputs());
       return (Prel) newSingletonChild;
@@ -68,7 +70,7 @@ public class ExcessiveExchangeIdentifier extends BasePrelVisitor<Prel, Excessive
   @Override
   public Prel visitScreen(ScreenPrel prel, MajorFragmentStat s) throws RuntimeException {
     s.addScreen(prel);
-    RelNode child = ((Prel)prel.getInput()).accept(this, s);
+    RelNode child = ((Prel) prel.getInput()).accept(this, s);
     return (Prel) prel.copy(prel.getTraitSet(), Collections.singletonList(child));
   }
 
@@ -78,27 +80,30 @@ public class ExcessiveExchangeIdentifier extends BasePrelVisitor<Prel, Excessive
     return prel;
   }
 
-  public Prel visitBridgeReaderPrel(BridgeReaderPrel prel, MajorFragmentStat s) throws RuntimeException {
+  public Prel visitBridgeReaderPrel(BridgeReaderPrel prel, MajorFragmentStat s)
+      throws RuntimeException {
     return (Prel) prel.copy(prel.getTraitSet(), prel.getInputs());
   }
 
   @Override
   public Prel visitPrel(Prel prel, MajorFragmentStat s) throws RuntimeException {
     if (prel instanceof BridgeReaderPrel) {
-      return visitBridgeReaderPrel((BridgeReaderPrel)prel, s);
+      return visitBridgeReaderPrel((BridgeReaderPrel) prel, s);
     }
     List<RelNode> children = Lists.newArrayList();
     s.add(prel);
 
     // Add all children to MajorFragmentStat, before we visit each child.
-    // Since MajorFramentStat keeps track of maxCost of Prels in MajorFrag, it's fine to add prel multiple times.
-    // Doing this will ensure MajorFragmentStat is same when visit each individual child, in order to make
+    // Since MajorFramentStat keeps track of maxCost of Prels in MajorFrag, it's fine to add prel
+    // multiple times.
+    // Doing this will ensure MajorFragmentStat is same when visit each individual child, in order
+    // to make
     // consistent decision.
     for (Prel p : prel) {
       s.add(p);
     }
 
-    for(Prel p : prel) {
+    for (Prel p : prel) {
       children.add(p.accept(this, s));
     }
     return (Prel) prel.copy(prel.getTraitSet(), children);
@@ -136,7 +141,7 @@ public class ExcessiveExchangeIdentifier extends BasePrelVisitor<Prel, Excessive
         return false;
       }
 
-      int suggestedWidth = (int) Math.ceil((maxCost +1)/targetSliceSize);
+      int suggestedWidth = (int) Math.ceil((maxCost + 1) / targetSliceSize);
 
       int w = Math.min(maxWidth, suggestedWidth);
       if (w < 1) {
@@ -157,5 +162,4 @@ public class ExcessiveExchangeIdentifier extends BasePrelVisitor<Prel, Excessive
       }
     }
   }
-
 }

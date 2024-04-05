@@ -15,8 +15,5 @@
  */
 package com.dremio.reflection.hints.features;
 
-/**
- * A reason why a reflection rewrite rules does not match a reflection.
- */
-public interface HintFeature {
-}
+/** A reason why a reflection rewrite rules does not match a reflection. */
+public interface HintFeature {}

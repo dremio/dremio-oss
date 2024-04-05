@@ -15,30 +15,27 @@
  */
 package com.dremio.dac.explore.udfs;
 
-import java.util.List;
-
-import org.apache.arrow.vector.complex.ListVector;
-import org.apache.arrow.vector.complex.writer.BaseWriter.ComplexWriter;
-import org.apache.arrow.vector.types.pojo.ArrowType;
-
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.dac.proto.model.dataset.CardExamplePosition;
 import com.dremio.exec.expr.fn.OutputDerivation;
+import java.util.List;
+import org.apache.arrow.vector.complex.ListVector;
+import org.apache.arrow.vector.complex.writer.BaseWriter.ComplexWriter;
+import org.apache.arrow.vector.types.pojo.ArrowType;
 
-/**
- * common utilities for UDFS in Dremio
- */
+/** common utilities for UDFS in Dremio */
 public class DremioUDFUtils {
   private static final String OFFSET_FIELD = "offset";
   private static final String LENGTH_FIELD = "length";
 
-
   public static void writeCardExample(ComplexWriter writer, CardExamplePosition... positions) {
-    org.apache.arrow.vector.complex.writer.BaseWriter.StructWriter.ListWriter list = writer.rootAsList();
+    org.apache.arrow.vector.complex.writer.BaseWriter.StructWriter.ListWriter list =
+        writer.rootAsList();
     list.startList();
     for (CardExamplePosition position : positions) {
-      org.apache.arrow.vector.complex.writer.BaseWriter.StructWriter.StructWriter positionWriter = list.struct();
+      org.apache.arrow.vector.complex.writer.BaseWriter.StructWriter.StructWriter positionWriter =
+          list.struct();
       positionWriter.start();
       positionWriter.integer(OFFSET_FIELD).writeInt(position.getOffset());
       positionWriter.integer(LENGTH_FIELD).writeInt(position.getLength());
@@ -47,9 +44,7 @@ public class DremioUDFUtils {
     list.endList();
   }
 
-  /**
-   * {@link OutputDerivation} for example position generation UDFs in Dremio
-   */
+  /** {@link OutputDerivation} for example position generation UDFs in Dremio */
   public static final class ExampleUDFOutputDerivation implements OutputDerivation {
 
     @Override
@@ -57,11 +52,10 @@ public class DremioUDFUtils {
       return new CompleteType(
           ArrowType.List.INSTANCE,
           new CompleteType(
-              ArrowType.Struct.INSTANCE,
-              CompleteType.INT.toField(OFFSET_FIELD),
-              CompleteType.INT.toField(LENGTH_FIELD)
-          ).toField(ListVector.DATA_VECTOR_NAME)
-      );
+                  ArrowType.Struct.INSTANCE,
+                  CompleteType.INT.toField(OFFSET_FIELD),
+                  CompleteType.INT.toField(LENGTH_FIELD))
+              .toField(ListVector.DATA_VECTOR_NAME));
     }
   }
 }

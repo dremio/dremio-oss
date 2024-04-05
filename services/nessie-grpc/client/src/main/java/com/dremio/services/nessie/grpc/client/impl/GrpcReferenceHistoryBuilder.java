@@ -19,12 +19,11 @@ import static com.dremio.services.nessie.grpc.GrpcExceptionMapper.handleNessieNo
 import static com.dremio.services.nessie.grpc.ProtoUtil.fromProto;
 import static com.dremio.services.nessie.grpc.ProtoUtil.toProtoReferenceHistoryRequest;
 
+import com.dremio.services.nessie.grpc.api.TreeServiceGrpc.TreeServiceBlockingStub;
 import org.jetbrains.annotations.Nullable;
 import org.projectnessie.client.api.ReferenceHistoryBuilder;
 import org.projectnessie.error.NessieNotFoundException;
 import org.projectnessie.model.ReferenceHistoryResponse;
-
-import com.dremio.services.nessie.grpc.api.TreeServiceGrpc.TreeServiceBlockingStub;
 
 public class GrpcReferenceHistoryBuilder implements ReferenceHistoryBuilder {
 
@@ -33,7 +32,7 @@ public class GrpcReferenceHistoryBuilder implements ReferenceHistoryBuilder {
   private Integer headCommitsToScan;
 
   public GrpcReferenceHistoryBuilder(TreeServiceBlockingStub stub) {
-      this.stub = stub;
+    this.stub = stub;
   }
 
   @Override
@@ -51,8 +50,8 @@ public class GrpcReferenceHistoryBuilder implements ReferenceHistoryBuilder {
   @Override
   public ReferenceHistoryResponse get() throws NessieNotFoundException {
     return handleNessieNotFoundEx(
-      () ->
-        fromProto(
-          stub.referenceHistory(toProtoReferenceHistoryRequest(refName, headCommitsToScan))));
+        () ->
+            fromProto(
+                stub.referenceHistory(toProtoReferenceHistoryRequest(refName, headCommitsToScan))));
   }
 }

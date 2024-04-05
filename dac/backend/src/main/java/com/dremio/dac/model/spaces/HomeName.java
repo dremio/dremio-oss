@@ -18,9 +18,7 @@ package com.dremio.dac.model.spaces;
 import com.dremio.dac.model.common.RootEntity;
 import com.fasterxml.jackson.annotation.JsonCreator;
 
-/**
- * Home space names start with a reserved letter @followed by user name.
- */
+/** Home space names start with a reserved letter @followed by user name. */
 public final class HomeName extends RootEntity {
 
   public static final String HOME_PREFIX = "@";

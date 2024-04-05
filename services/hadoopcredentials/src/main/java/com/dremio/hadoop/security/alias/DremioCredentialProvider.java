@@ -15,26 +15,24 @@
  */
 package com.dremio.hadoop.security.alias;
 
+import com.dremio.services.credentials.CredentialsException;
+import com.dremio.services.credentials.CredentialsService;
+import com.dremio.services.credentials.CredentialsServiceUtils;
+import com.google.common.base.Strings;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.security.alias.CredentialProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.services.credentials.CredentialsException;
-import com.dremio.services.credentials.CredentialsService;
-import com.dremio.services.credentials.CredentialsServiceUtils;
-import com.google.common.base.Strings;
-
 /**
- * A Dremio provider for credentials such as secret vault URIs, encrypted passwords,
- * passwords in plain text (not recommended) set in core-site.xml, which will be
- * resolved by the credentials providers accessible by Dremio.
+ * A Dremio provider for credentials such as secret vault URIs, encrypted passwords, passwords in
+ * plain text (not recommended) set in core-site.xml, which will be resolved by the credentials
+ * providers accessible by Dremio.
  */
 public class DremioCredentialProvider extends CredentialProvider {
 
@@ -53,10 +51,11 @@ public class DremioCredentialProvider extends CredentialProvider {
 
   @Override
   public void flush() {
-    throw new UnsupportedOperationException("Flush is not available in Dremio Credential Provider.");
+    throw new UnsupportedOperationException(
+        "Flush is not available in Dremio Credential Provider.");
   }
 
-   /**
+  /**
    * @param alias the name of a specific credential
    * @return a pair of the credential name and its resolved secret.
    * @throws IOException if secret resolution fails.
@@ -68,7 +67,8 @@ public class DremioCredentialProvider extends CredentialProvider {
       return null;
     }
 
-    // Trim prefix "dremio+". If the prefix does not exist, return null. This implies the input is invalid here.
+    // Trim prefix "dremio+". If the prefix does not exist, return null. This implies the input is
+    // invalid here.
     if (!pattern.toLowerCase(Locale.ROOT).startsWith(DREMIO_SCHEME_PREFIX)) {
       return null;
     }
@@ -112,17 +112,19 @@ public class DremioCredentialProvider extends CredentialProvider {
 
   @Override
   public CredentialEntry createCredentialEntry(String name, char[] credential) throws IOException {
-    throw new UnsupportedOperationException("Credential creation is not available in Dremio Credential Provider.");
+    throw new UnsupportedOperationException(
+        "Credential creation is not available in Dremio Credential Provider.");
   }
 
   @Override
   public void deleteCredentialEntry(String name) throws IOException {
-    throw new UnsupportedOperationException("Credential deletion is not available in Dremio Credential Provider.");
+    throw new UnsupportedOperationException(
+        "Credential deletion is not available in Dremio Credential Provider.");
   }
 
   /**
-   * Dremio representation of a resolved credential entry, containing the name
-   * of the key and the resolved secret in byte array.
+   * Dremio representation of a resolved credential entry, containing the name of the key and the
+   * resolved secret in byte array.
    */
   public static class DremioCredentialEntry extends CredentialEntry {
     protected DremioCredentialEntry(String alias, char[] credential) {

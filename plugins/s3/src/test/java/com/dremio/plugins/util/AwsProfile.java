@@ -19,8 +19,8 @@ import java.io.IOException;
 import java.io.Writer;
 
 /**
- * Struct-like object for an AwsProfile. Use write() to output a format
- * suitable for an AWS Credentials file.
+ * Struct-like object for an AwsProfile. Use write() to output a format suitable for an AWS
+ * Credentials file.
  */
 public final class AwsProfile {
   private final String profileName;
@@ -52,10 +52,8 @@ public final class AwsProfile {
    * @throws IOException if write files.
    */
   public void write(Writer writer) throws IOException {
-    final String formatString = "[%s]\n" +
-      "aws_access_key_id = %s\n" +
-      "aws_secret_access_key = %s\n" +
-      "\n";
+    final String formatString =
+        "[%s]\n" + "aws_access_key_id = %s\n" + "aws_secret_access_key = %s\n" + "\n";
     writer.write(String.format(formatString, profileName, awsAccessKeyId, awsSecretKey));
   }
 }

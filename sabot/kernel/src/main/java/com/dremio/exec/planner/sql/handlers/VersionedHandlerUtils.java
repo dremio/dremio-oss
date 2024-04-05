@@ -15,22 +15,22 @@
  */
 package com.dremio.exec.planner.sql.handlers;
 
-import org.apache.calcite.sql.SqlIdentifier;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.service.namespace.NamespaceKey;
+import org.apache.calcite.sql.SqlIdentifier;
 
 public class VersionedHandlerUtils {
 
-  private VersionedHandlerUtils() {
-  }
+  private VersionedHandlerUtils() {}
 
-  public static NamespaceKey resolveSourceNameAsNamespaceKey(SqlIdentifier sourceIdentifier, NamespaceKey defaultSchemaPath) {
+  public static NamespaceKey resolveSourceNameAsNamespaceKey(
+      SqlIdentifier sourceIdentifier, NamespaceKey defaultSchemaPath) {
     if (sourceIdentifier == null) {
       if (defaultSchemaPath == null) {
         throw UserException.validationError()
-          .message("Unable to choose a source. \"[ IN sourceName ]\" was not specified and current context was not found.")
-          .buildSilently();
+            .message(
+                "Unable to choose a source. \"[ IN sourceName ]\" was not specified and current context was not found.")
+            .buildSilently();
       }
       return defaultSchemaPath;
     }
@@ -38,17 +38,18 @@ public class VersionedHandlerUtils {
     return new NamespaceKey(sourceIdentifier.names);
   }
 
-  public static String resolveSourceName(SqlIdentifier sourceIdentifier, NamespaceKey defaultSchemaPath) {
+  public static String resolveSourceName(
+      SqlIdentifier sourceIdentifier, NamespaceKey defaultSchemaPath) {
     if (sourceIdentifier == null) {
       if (defaultSchemaPath == null) {
         throw UserException.validationError()
-          .message("Unable to choose a source. \"[ IN sourceName ]\" was not specified and current context was not found.")
-          .buildSilently();
+            .message(
+                "Unable to choose a source. \"[ IN sourceName ]\" was not specified and current context was not found.")
+            .buildSilently();
       }
       return defaultSchemaPath.getRoot();
     }
 
     return sourceIdentifier.toString();
   }
-
 }

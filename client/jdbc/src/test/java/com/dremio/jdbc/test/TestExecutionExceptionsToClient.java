@@ -18,18 +18,15 @@ package com.dremio.jdbc.test;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
-import java.sql.SQLException;
-import java.sql.Statement;
-
-import org.assertj.core.api.InstanceOfAssertFactories;
-import org.junit.BeforeClass;
-import org.junit.Test;
-
 import com.dremio.common.exceptions.UserRemoteException;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.dremio.jdbc.JdbcWithServerTestBase;
-
+import java.sql.SQLException;
+import java.sql.Statement;
+import org.assertj.core.api.InstanceOfAssertFactories;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
 public class TestExecutionExceptionsToClient extends JdbcWithServerTestBase {
 
@@ -37,8 +34,9 @@ public class TestExecutionExceptionsToClient extends JdbcWithServerTestBase {
   public static void setUpConnection() throws SQLException {
     JdbcWithServerTestBase.setUpConnection();
     try (Statement stmt = getConnection().createStatement()) {
-      stmt.execute(String.format("alter session set \"%s\" = false",
-        ExecConstants.ENABLE_REATTEMPTS.getOptionName()));
+      stmt.execute(
+          String.format(
+              "alter session set \"%s\" = false", ExecConstants.ENABLE_REATTEMPTS.getOptionName()));
     }
   }
 
@@ -46,77 +44,83 @@ public class TestExecutionExceptionsToClient extends JdbcWithServerTestBase {
   public void testExecuteQueryThrowsRight1() throws Exception {
     final Statement statement = getConnection().createStatement();
     assertThatExceptionOfType(SQLException.class)
-      .isThrownBy(() -> statement.executeQuery("SELECT one case of syntax error"))
-      .havingCause()
-      .isInstanceOf(UserRemoteException.class)
-      .asInstanceOf(InstanceOfAssertFactories.type(UserRemoteException.class))
-      .extracting(UserRemoteException::getErrorType)
-      .satisfiesAnyOf(t -> assertThat(t).isEqualTo(ErrorType.SYSTEM),
-        t -> assertThat(t).isEqualTo(ErrorType.PARSE));
+        .isThrownBy(() -> statement.executeQuery("SELECT one case of syntax error"))
+        .havingCause()
+        .isInstanceOf(UserRemoteException.class)
+        .asInstanceOf(InstanceOfAssertFactories.type(UserRemoteException.class))
+        .extracting(UserRemoteException::getErrorType)
+        .satisfiesAnyOf(
+            t -> assertThat(t).isEqualTo(ErrorType.SYSTEM),
+            t -> assertThat(t).isEqualTo(ErrorType.PARSE));
   }
 
   @Test
   public void testExecuteThrowsRight1() throws Exception {
     final Statement statement = getConnection().createStatement();
     assertThatExceptionOfType(SQLException.class)
-      .isThrownBy(() -> statement.execute("SELECT one case of syntax error"))
-      .havingCause()
-      .isInstanceOf(UserRemoteException.class)
-      .asInstanceOf(InstanceOfAssertFactories.type(UserRemoteException.class))
-      .extracting(UserRemoteException::getErrorType)
-      .satisfiesAnyOf(t -> assertThat(t).isEqualTo(ErrorType.SYSTEM),
-        t -> assertThat(t).isEqualTo(ErrorType.PARSE));
+        .isThrownBy(() -> statement.execute("SELECT one case of syntax error"))
+        .havingCause()
+        .isInstanceOf(UserRemoteException.class)
+        .asInstanceOf(InstanceOfAssertFactories.type(UserRemoteException.class))
+        .extracting(UserRemoteException::getErrorType)
+        .satisfiesAnyOf(
+            t -> assertThat(t).isEqualTo(ErrorType.SYSTEM),
+            t -> assertThat(t).isEqualTo(ErrorType.PARSE));
   }
 
   @Test
   public void testExecuteUpdateThrowsRight1() throws Exception {
     final Statement statement = getConnection().createStatement();
     assertThatExceptionOfType(SQLException.class)
-      .isThrownBy(() -> statement.executeUpdate("SELECT one case of syntax error"))
-      .havingCause()
-      .isInstanceOf(UserRemoteException.class)
-      .asInstanceOf(InstanceOfAssertFactories.type(UserRemoteException.class))
-      .extracting(UserRemoteException::getErrorType)
-      .satisfiesAnyOf(t -> assertThat(t).isEqualTo(ErrorType.SYSTEM),
-        t -> assertThat(t).isEqualTo(ErrorType.PARSE));
+        .isThrownBy(() -> statement.executeUpdate("SELECT one case of syntax error"))
+        .havingCause()
+        .isInstanceOf(UserRemoteException.class)
+        .asInstanceOf(InstanceOfAssertFactories.type(UserRemoteException.class))
+        .extracting(UserRemoteException::getErrorType)
+        .satisfiesAnyOf(
+            t -> assertThat(t).isEqualTo(ErrorType.SYSTEM),
+            t -> assertThat(t).isEqualTo(ErrorType.PARSE));
   }
 
   @Test
   public void testExecuteQueryThrowsRight2() throws Exception {
     final Statement statement = getConnection().createStatement();
     assertThatExceptionOfType(SQLException.class)
-      .isThrownBy(() -> statement.executeQuery("BAD QUERY 1"))
-      .havingCause()
-      .isInstanceOf(UserRemoteException.class)
-      .asInstanceOf(InstanceOfAssertFactories.type(UserRemoteException.class))
-      .extracting(UserRemoteException::getErrorType)
-      .satisfiesAnyOf(t -> assertThat(t).isEqualTo(ErrorType.SYSTEM),
-        t -> assertThat(t).isEqualTo(ErrorType.PARSE));
+        .isThrownBy(() -> statement.executeQuery("BAD QUERY 1"))
+        .havingCause()
+        .isInstanceOf(UserRemoteException.class)
+        .asInstanceOf(InstanceOfAssertFactories.type(UserRemoteException.class))
+        .extracting(UserRemoteException::getErrorType)
+        .satisfiesAnyOf(
+            t -> assertThat(t).isEqualTo(ErrorType.SYSTEM),
+            t -> assertThat(t).isEqualTo(ErrorType.PARSE));
   }
 
   @Test
   public void testExecuteThrowsRight2() throws Exception {
     final Statement statement = getConnection().createStatement();
     assertThatExceptionOfType(SQLException.class)
-      .isThrownBy(() -> statement.execute("worse query 2"))
-      .havingCause()
-      .isInstanceOf(UserRemoteException.class)
-      .asInstanceOf(InstanceOfAssertFactories.type(UserRemoteException.class))
-      .extracting(UserRemoteException::getErrorType)
-      .satisfiesAnyOf(t -> assertThat(t).isEqualTo(ErrorType.SYSTEM),
-        t -> assertThat(t).isEqualTo(ErrorType.PARSE));
+        .isThrownBy(() -> statement.execute("worse query 2"))
+        .havingCause()
+        .isInstanceOf(UserRemoteException.class)
+        .asInstanceOf(InstanceOfAssertFactories.type(UserRemoteException.class))
+        .extracting(UserRemoteException::getErrorType)
+        .satisfiesAnyOf(
+            t -> assertThat(t).isEqualTo(ErrorType.SYSTEM),
+            t -> assertThat(t).isEqualTo(ErrorType.PARSE));
   }
 
   @Test
   public void testExecuteUpdateThrowsRight2() throws Exception {
     final Statement statement = getConnection().createStatement();
     assertThatExceptionOfType(SQLException.class)
-      .isThrownBy(() -> statement.executeUpdate("naughty, naughty query 3"))
-      .havingCause()
-      .isInstanceOf(UserRemoteException.class)
-      .asInstanceOf(InstanceOfAssertFactories.type(UserRemoteException.class))
-      .extracting(UserRemoteException::getErrorType)
-      .satisfiesAnyOf(t -> assertThat(t).isEqualTo(ErrorType.SYSTEM),
-        t -> assertThat(t).isEqualTo(ErrorType.PARSE));
+        .isThrownBy(() -> statement.executeUpdate("naughty, naughty query 3"))
+        .havingCause()
+        .isInstanceOf(UserRemoteException.class)
+        .asInstanceOf(InstanceOfAssertFactories.type(UserRemoteException.class))
+        .extracting(UserRemoteException::getErrorType)
+        .satisfiesAnyOf(
+            t -> assertThat(t).isEqualTo(ErrorType.SYSTEM),
+            t -> assertThat(t).isEqualTo(ErrorType.PARSE));
   }
 }

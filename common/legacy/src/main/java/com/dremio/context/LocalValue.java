@@ -15,19 +15,18 @@
  */
 package com.dremio.context;
 
+import com.google.common.base.Preconditions;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import com.google.common.base.Preconditions;
 
 /**
  * Thread local values that are tracked and can be easily transferred to other threads and restored.
  *
- * Values should be immutable since the same instance can exist in multiple threads (transferring them to another
- * thread for example).  All values are stored in one ThreadLocal as an {@link LocalValues}, which can be saved and
- * restored cheaply.
+ * <p>Values should be immutable since the same instance can exist in multiple threads (transferring
+ * them to another thread for example). All values are stored in one ThreadLocal as an {@link
+ * LocalValues}, which can be saved and restored cheaply.
  *
- * @param <T> The type of the value being stored.  The type should be immutable.
+ * @param <T> The type of the value being stored. The type should be immutable.
  */
 public class LocalValue<T> {
   /*
@@ -79,15 +78,13 @@ public class LocalValue<T> {
     VALUES.set(newValues);
   }
 
-  /**
-   * Clears out the value.
-   */
+  /** Clears out the value. */
   public void clear() {
     doSet(null);
   }
 
   /**
-   * Returns the currently stored values as a LocalValues.  Used to restore a previous state.
+   * Returns the currently stored values as a LocalValues. Used to restore a previous state.
    *
    * @return the stored LocalValues
    */
@@ -110,9 +107,7 @@ public class LocalValue<T> {
     VALUES.set((LocalValuesImpl) localValues);
   }
 
-  /**
-   * Local Values Implementation
-   */
+  /** Local Values Implementation */
   protected static final class LocalValuesImpl implements LocalValues {
     private final Object[] values;
 

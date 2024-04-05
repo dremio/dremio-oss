@@ -17,13 +17,11 @@ package com.dremio.common;
 
 import java.util.Arrays;
 import java.util.LinkedList;
-
 import org.slf4j.Logger;
 
 /**
- * Utility class that can be used to log activity within a class
- * for later logging and debugging. Supports recording events and
- * recording the stack at the time they occur.
+ * Utility class that can be used to log activity within a class for later logging and debugging.
+ * Supports recording events and recording the stack at the time they occur.
  */
 public class HistoricalLog {
   private static class Event {
@@ -44,12 +42,12 @@ public class HistoricalLog {
   private final int limit; // the limit on the number of events kept
 
   /**
-   * Constructor. The format string will be formatted and have its arguments
-   * substituted at the time this is called.
+   * Constructor. The format string will be formatted and have its arguments substituted at the time
+   * this is called.
    *
-   * @param idStringFormat {@link String#format} format string that can be used
-   *     to identify this object in a log. Including some kind of unique identifier
-   *     that can be associated with the object instance is best.
+   * @param idStringFormat {@link String#format} format string that can be used to identify this
+   *     object in a log. Including some kind of unique identifier that can be associated with the
+   *     object instance is best.
    * @param args for the format string, or nothing if none are required
    */
   public HistoricalLog(final String idStringFormat, Object... args) {
@@ -57,22 +55,20 @@ public class HistoricalLog {
   }
 
   /**
-   * Constructor. The format string will be formatted and have its arguments
-   * substituted at the time this is called.
+   * Constructor. The format string will be formatted and have its arguments substituted at the time
+   * this is called.
    *
-   * <p>This form supports the specification of a limit that will limit the
-   * number of historical entries kept (which keeps down the amount of memory
-   * used). With the limit, the first entry made is always kept (under the
-   * assumption that this is the creation site of the object, which is usually
-   * interesting), and then up to the limit number of entries are kept after that.
-   * Each time a new entry is made, the oldest that is not the first is dropped.
-   * </p>
+   * <p>This form supports the specification of a limit that will limit the number of historical
+   * entries kept (which keeps down the amount of memory used). With the limit, the first entry made
+   * is always kept (under the assumption that this is the creation site of the object, which is
+   * usually interesting), and then up to the limit number of entries are kept after that. Each time
+   * a new entry is made, the oldest that is not the first is dropped.
    *
-   * @param limit the maximum number of historical entries that will be kept,
-   *   not including the first entry made
-   * @param idStringFormat {@link String#format} format string that can be used
-   *     to identify this object in a log. Including some kind of unique identifier
-   *     that can be associated with the object instance is best.
+   * @param limit the maximum number of historical entries that will be kept, not including the
+   *     first entry made
+   * @param idStringFormat {@link String#format} format string that can be used to identify this
+   *     object in a log. Including some kind of unique identifier that can be associated with the
+   *     object instance is best.
    * @param args for the format string, or nothing if none are required
    */
   public HistoricalLog(final int limit, final String idStringFormat, Object... args) {
@@ -81,9 +77,8 @@ public class HistoricalLog {
   }
 
   /**
-   * Record an event. Automatically captures the stack trace at the time this is
-   * called. The format string will be formatted and have its arguments substituted
-   * at the time this is called.
+   * Record an event. Automatically captures the stack trace at the time this is called. The format
+   * string will be formatted and have its arguments substituted at the time this is called.
    *
    * @param noteFormat {@link String#format} format string that describes the event
    * @param args for the format string, or nothing if none are required
@@ -101,9 +96,9 @@ public class HistoricalLog {
   }
 
   /**
-   * Write the history of this object to the given {@link StringBuilder}. The history
-   * includes the identifying string provided at construction time, and all the recorded
-   * events with their stack traces.
+   * Write the history of this object to the given {@link StringBuilder}. The history includes the
+   * identifying string provided at construction time, and all the recorded events with their stack
+   * traces.
    *
    * @param sb {@link StringBuilder} to write to
    */
@@ -112,32 +107,28 @@ public class HistoricalLog {
   }
 
   /**
-   * Write the history of this object to the given {@link StringBuilder}. The history
-   * includes the identifying string provided at construction time, and all the recorded
-   * events with their stack traces.
+   * Write the history of this object to the given {@link StringBuilder}. The history includes the
+   * identifying string provided at construction time, and all the recorded events with their stack
+   * traces.
    *
    * @param sb {@link StringBuilder} to write to
-   * @param additional an extra string that will be written between the identifying
-   *     information and the history; often used for a current piece of state
+   * @param additional an extra string that will be written between the identifying information and
+   *     the history; often used for a current piece of state
    */
 
   /**
-   *
    * @param sb
    * @param indexLevel
    * @param includeStackTrace
    */
-  public synchronized void buildHistory(final StringBuilder sb, int indent, boolean includeStackTrace) {
+  public synchronized void buildHistory(
+      final StringBuilder sb, int indent, boolean includeStackTrace) {
     final char[] indentation = new char[indent];
     final char[] innerIndentation = new char[indent + 2];
     Arrays.fill(indentation, ' ');
     Arrays.fill(innerIndentation, ' ');
 
-    sb.append(indentation)
-        .append("event log for: ")
-        .append(idString)
-        .append('\n');
-
+    sb.append(indentation).append("event log for: ").append(idString).append('\n');
 
     if (firstEvent != null) {
       sb.append(innerIndentation)
@@ -149,7 +140,7 @@ public class HistoricalLog {
         firstEvent.stackTrace.writeToBuilder(sb, indent + 2);
       }
 
-      for(final Event event : history) {
+      for (final Event event : history) {
         if (event == firstEvent) {
           continue;
         }
@@ -169,9 +160,9 @@ public class HistoricalLog {
   }
 
   /**
-   * Write the history of this object to the given {@link Logger}. The history
-   * includes the identifying string provided at construction time, and all the recorded
-   * events with their stack traces.
+   * Write the history of this object to the given {@link Logger}. The history includes the
+   * identifying string provided at construction time, and all the recorded events with their stack
+   * traces.
    *
    * @param logger {@link Logger} to write to
    */

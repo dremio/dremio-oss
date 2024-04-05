@@ -15,13 +15,11 @@
  */
 package com.dremio.exec.planner.physical.visitor;
 
-import java.util.Collections;
-
-import org.apache.calcite.rel.RelNode;
-
 import com.dremio.exec.planner.physical.ComplexToJsonPrel;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.ScreenPrel;
+import java.util.Collections;
+import org.apache.calcite.rel.RelNode;
 
 public class ComplexToJsonPrelVisitor extends BasePrelVisitor<Prel, Void, RuntimeException> {
 
@@ -33,7 +31,8 @@ public class ComplexToJsonPrelVisitor extends BasePrelVisitor<Prel, Void, Runtim
 
   @Override
   public Prel visitScreen(ScreenPrel prel, Void value) throws RuntimeException {
-    return prel.copy(prel.getTraitSet(), Collections.singletonList((RelNode)new ComplexToJsonPrel((Prel)prel.getInput())));
+    return prel.copy(
+        prel.getTraitSet(),
+        Collections.singletonList((RelNode) new ComplexToJsonPrel((Prel) prel.getInput())));
   }
-
 }

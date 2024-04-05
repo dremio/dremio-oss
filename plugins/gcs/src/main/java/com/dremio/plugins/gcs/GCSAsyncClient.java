@@ -15,23 +15,18 @@
  */
 package com.dremio.plugins.gcs;
 
-import java.io.Closeable;
-import java.io.IOException;
-import java.util.Collections;
-
-import org.apache.hadoop.fs.Path;
-import org.asynchttpclient.AsyncHttpClient;
-
 import com.dremio.http.AsyncHttpClientProvider;
 import com.dremio.io.AsyncByteReader;
 import com.google.auth.oauth2.GoogleCredentials;
+import java.io.Closeable;
+import java.io.IOException;
+import java.util.Collections;
+import org.apache.hadoop.fs.Path;
+import org.asynchttpclient.AsyncHttpClient;
 
-/**
- * Helper class for constructor and maintaining AsyncHttpClients.
- */
+/** Helper class for constructor and maintaining AsyncHttpClients. */
 class GCSAsyncClient implements Closeable {
   private static final String SCOPE = "https://www.googleapis.com/auth/devstorage.full_control";
-
 
   private final AsyncHttpClient asyncHttpClient;
   private final GoogleCredentials credentials;
@@ -46,7 +41,5 @@ class GCSAsyncClient implements Closeable {
   }
 
   @Override
-  public void close() throws IOException {
-  }
-
+  public void close() throws IOException {}
 }

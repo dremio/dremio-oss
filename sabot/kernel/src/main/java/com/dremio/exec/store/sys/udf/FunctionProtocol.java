@@ -18,13 +18,6 @@ package com.dremio.exec.store.sys.udf;
 import static com.dremio.exec.rpc.RpcConstants.BIT_RPC_TIMEOUT;
 import static com.dremio.sabot.rpc.Protocols.UDF_EXEC_TO_CORD;
 
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
-
-import javax.inject.Provider;
-
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.common.config.SabotConfig;
 import com.dremio.exec.proto.FunctionRPC;
 import com.dremio.exec.proto.GeneralRPCProtos;
@@ -38,18 +31,25 @@ import com.dremio.services.fabric.api.FabricProtocol;
 import com.dremio.services.fabric.api.PhysicalConnection;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.MessageLite;
-
 import io.netty.buffer.ByteBuf;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
+import javax.inject.Provider;
+import org.apache.arrow.memory.BufferAllocator;
 
 public class FunctionProtocol implements FabricProtocol {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FunctionProtocol.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(FunctionProtocol.class);
 
   private final BufferAllocator allocator;
   private final RpcConfig config;
   private final Provider<NamespaceService> namespaceServiceProvider;
 
-  public FunctionProtocol(BufferAllocator allocator, SabotConfig config, Provider<NamespaceService> namespaceServiceProvider) {
+  public FunctionProtocol(
+      BufferAllocator allocator,
+      SabotConfig config,
+      Provider<NamespaceService> namespaceServiceProvider) {
     this.allocator = allocator;
     this.config = getMapping(config);
     this.namespaceServiceProvider = namespaceServiceProvider;
@@ -73,44 +73,59 @@ public class FunctionProtocol implements FabricProtocol {
   @Override
   public MessageLite getResponseDefaultInstance(int rpcType) throws RpcException {
     switch (rpcType) {
-    case FunctionRPC.RpcType.ACK_VALUE:
-      return GeneralRPCProtos.Ack.getDefaultInstance();
-    case FunctionRPC.RpcType.RESP_FUNCTION_INFO_VALUE:
-      return FunctionRPC.FunctionInfoResp.getDefaultInstance();
-    default:
-      throw new UnsupportedOperationException();
+      case FunctionRPC.RpcType.ACK_VALUE:
+        return GeneralRPCProtos.Ack.getDefaultInstance();
+      case FunctionRPC.RpcType.RESP_FUNCTION_INFO_VALUE:
+        return FunctionRPC.FunctionInfoResp.getDefaultInstance();
+      default:
+        throw new UnsupportedOperationException();
     }
   }
 
   @Override
-  public void handle(PhysicalConnection connection, int rpcType, ByteString pBody, ByteBuf dBody, ResponseSender sender) throws RpcException {
+  public void handle(
+      PhysicalConnection connection,
+      int rpcType,
+      ByteString pBody,
+      ByteBuf dBody,
+      ResponseSender sender)
+      throws RpcException {
     if (RpcConstants.EXTRA_DEBUGGING) {
       logger.debug("Received exec > coord message of type {}", rpcType);
     }
 
     switch (rpcType) {
-    case FunctionRPC.RpcType.REQ_FUNCTION_INFO_VALUE: {
-      Iterable<UserDefinedFunctionService.FunctionInfo> FunctionInfos = namespaceServiceProvider.get().getFunctions().
-        stream().map(UserDefinedFunctionService::getFunctionInfoFromConfig).collect(Collectors.toList());
-      FunctionRPC.FunctionInfoResp resp = FunctionRPC.FunctionInfoResp.newBuilder().addAllFunctionInfo(
-          StreamSupport.stream(FunctionInfos.spliterator(), false)
-            .map(UserDefinedFunctionService.FunctionInfo::toProto)
-            .collect(Collectors.toList()))
-        .build();
-      sender.send(new Response(FunctionRPC.RpcType.RESP_FUNCTION_INFO, resp));
-      break;
-    }
-    default:
-      throw new RpcException("Message received that is not yet supported. Message type: " + rpcType);
+      case FunctionRPC.RpcType.REQ_FUNCTION_INFO_VALUE:
+        {
+          Iterable<UserDefinedFunctionService.FunctionInfo> FunctionInfos =
+              namespaceServiceProvider.get().getFunctions().stream()
+                  .map(UserDefinedFunctionService::getFunctionInfoFromConfig)
+                  .collect(Collectors.toList());
+          FunctionRPC.FunctionInfoResp resp =
+              FunctionRPC.FunctionInfoResp.newBuilder()
+                  .addAllFunctionInfo(
+                      StreamSupport.stream(FunctionInfos.spliterator(), false)
+                          .map(UserDefinedFunctionService.FunctionInfo::toProto)
+                          .collect(Collectors.toList()))
+                  .build();
+          sender.send(new Response(FunctionRPC.RpcType.RESP_FUNCTION_INFO, resp));
+          break;
+        }
+      default:
+        throw new RpcException(
+            "Message received that is not yet supported. Message type: " + rpcType);
     }
   }
 
   private static RpcConfig getMapping(SabotConfig config) {
     return RpcConfig.newBuilder()
-      .name("UdfExecToCoord")
-      .timeout(config.getInt(BIT_RPC_TIMEOUT))
-      .add(FunctionRPC.RpcType.REQ_FUNCTION_INFO, FunctionRPC.FunctionInfoReq.class,
-        FunctionRPC.RpcType.RESP_FUNCTION_INFO, FunctionRPC.FunctionInfoResp.class)
-      .build();
+        .name("UdfExecToCoord")
+        .timeout(config.getInt(BIT_RPC_TIMEOUT))
+        .add(
+            FunctionRPC.RpcType.REQ_FUNCTION_INFO,
+            FunctionRPC.FunctionInfoReq.class,
+            FunctionRPC.RpcType.RESP_FUNCTION_INFO,
+            FunctionRPC.FunctionInfoResp.class)
+        .build();
   }
 }

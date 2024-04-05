@@ -17,6 +17,6 @@ package com.dremio.plugins.dataplane;
 
 public final class NessiePluginConfigConstants {
   public static final String MINIMUM_NESSIE_SPECIFICATION_VERSION = "2.0.0";
-  private NessiePluginConfigConstants() {}
 
+  private NessiePluginConfigConstants() {}
 }

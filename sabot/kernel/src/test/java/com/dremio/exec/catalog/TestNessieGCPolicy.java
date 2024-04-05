@@ -24,11 +24,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.dremio.common.exceptions.UserException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
-
 import org.assertj.core.data.Percentage;
 import org.junit.Test;
 import org.projectnessie.client.api.GetRepositoryConfigBuilder;
@@ -41,11 +41,7 @@ import org.projectnessie.model.ImmutableGarbageCollectorConfig;
 import org.projectnessie.model.RepositoryConfig;
 import org.projectnessie.model.RepositoryConfigResponse;
 
-import com.dremio.common.exceptions.UserException;
-
-/**
- * Test NessieGCPolicy for Vacuum Catalog command.
- */
+/** Test NessieGCPolicy for Vacuum Catalog command. */
 public class TestNessieGCPolicy {
 
   @Test
@@ -54,13 +50,19 @@ public class TestNessieGCPolicy {
     GetRepositoryConfigBuilder getRepositoryConfigBuilder = mock(GetRepositoryConfigBuilder.class);
     RepositoryConfigResponse repositoryConfigResponse = mock(RepositoryConfigResponse.class);
     when(nessieApiV2.getRepositoryConfig()).thenReturn(getRepositoryConfigBuilder);
-    when(getRepositoryConfigBuilder.type(RepositoryConfig.Type.GARBAGE_COLLECTOR)).thenReturn(getRepositoryConfigBuilder);
+    when(getRepositoryConfigBuilder.type(RepositoryConfig.Type.GARBAGE_COLLECTOR))
+        .thenReturn(getRepositoryConfigBuilder);
     when(getRepositoryConfigBuilder.get()).thenReturn(repositoryConfigResponse);
-    ImmutableGarbageCollectorConfig gcConfig = ImmutableGarbageCollectorConfig.builder().defaultCutoffPolicy("PT10S").newFilesGracePeriod(Duration.ofDays(1)).build();
+    ImmutableGarbageCollectorConfig gcConfig =
+        ImmutableGarbageCollectorConfig.builder()
+            .defaultCutoffPolicy("PT10S")
+            .newFilesGracePeriod(Duration.ofDays(1))
+            .build();
     when(repositoryConfigResponse.getConfigs()).thenReturn(Collections.singletonList(gcConfig));
     NessieGCPolicy nessieGCPolicy = new NessieGCPolicy(nessieApiV2, 0);
-    assertThat(nessieGCPolicy.getOlderThanInMillis()).isCloseTo(System.currentTimeMillis()-10_000, Percentage.withPercentage(10));
-    assertThat(nessieGCPolicy.getGracePeriodInMillis()).isEqualTo(24*60*60*1000L);
+    assertThat(nessieGCPolicy.getOlderThanInMillis())
+        .isCloseTo(System.currentTimeMillis() - 10_000, Percentage.withPercentage(10));
+    assertThat(nessieGCPolicy.getGracePeriodInMillis()).isEqualTo(24 * 60 * 60 * 1000L);
     assertThat(nessieGCPolicy.getRetainLast()).isEqualTo(1);
   }
 
@@ -70,10 +72,14 @@ public class TestNessieGCPolicy {
     GetRepositoryConfigBuilder getRepositoryConfigBuilder = mock(GetRepositoryConfigBuilder.class);
     RepositoryConfigResponse repositoryConfigResponse = mock(RepositoryConfigResponse.class);
     when(nessieApiV2.getRepositoryConfig()).thenReturn(getRepositoryConfigBuilder);
-    when(getRepositoryConfigBuilder.type(RepositoryConfig.Type.GARBAGE_COLLECTOR)).thenReturn(getRepositoryConfigBuilder);
+    when(getRepositoryConfigBuilder.type(RepositoryConfig.Type.GARBAGE_COLLECTOR))
+        .thenReturn(getRepositoryConfigBuilder);
     when(getRepositoryConfigBuilder.get()).thenReturn(repositoryConfigResponse);
     Instant instantTime = Instant.now();
-    ImmutableGarbageCollectorConfig gcConfig = ImmutableGarbageCollectorConfig.builder().defaultCutoffPolicy(instantTime.toString()).build();
+    ImmutableGarbageCollectorConfig gcConfig =
+        ImmutableGarbageCollectorConfig.builder()
+            .defaultCutoffPolicy(instantTime.toString())
+            .build();
     when(repositoryConfigResponse.getConfigs()).thenReturn(Collections.singletonList(gcConfig));
     NessieGCPolicy nessieGCPolicy = new NessieGCPolicy(nessieApiV2, 0);
     assertThat(nessieGCPolicy.getOlderThanInMillis()).isEqualTo(instantTime.toEpochMilli());
@@ -85,11 +91,15 @@ public class TestNessieGCPolicy {
     GetRepositoryConfigBuilder getRepositoryConfigBuilder = mock(GetRepositoryConfigBuilder.class);
     RepositoryConfigResponse repositoryConfigResponse = mock(RepositoryConfigResponse.class);
     when(nessieApiV2.getRepositoryConfig()).thenReturn(getRepositoryConfigBuilder);
-    when(getRepositoryConfigBuilder.type(RepositoryConfig.Type.GARBAGE_COLLECTOR)).thenReturn(getRepositoryConfigBuilder);
+    when(getRepositoryConfigBuilder.type(RepositoryConfig.Type.GARBAGE_COLLECTOR))
+        .thenReturn(getRepositoryConfigBuilder);
     when(getRepositoryConfigBuilder.get()).thenReturn(repositoryConfigResponse);
     when(repositoryConfigResponse.getConfigs()).thenReturn(Collections.emptyList());
     NessieGCPolicy nessieGCPolicy = new NessieGCPolicy(nessieApiV2, 2L);
-    assertThat(nessieGCPolicy.getOlderThanInMillis()).isCloseTo(System.currentTimeMillis() - TimeUnit.MINUTES.toMillis(2L), Percentage.withPercentage(10));
+    assertThat(nessieGCPolicy.getOlderThanInMillis())
+        .isCloseTo(
+            System.currentTimeMillis() - TimeUnit.MINUTES.toMillis(2L),
+            Percentage.withPercentage(10));
     assertThat(nessieGCPolicy.getRetainLast()).isEqualTo(1);
   }
 
@@ -99,12 +109,15 @@ public class TestNessieGCPolicy {
     GetRepositoryConfigBuilder getRepositoryConfigBuilder = mock(GetRepositoryConfigBuilder.class);
     RepositoryConfigResponse repositoryConfigResponse = mock(RepositoryConfigResponse.class);
     when(nessieApiV2.getRepositoryConfig()).thenReturn(getRepositoryConfigBuilder);
-    when(getRepositoryConfigBuilder.type(RepositoryConfig.Type.GARBAGE_COLLECTOR)).thenReturn(getRepositoryConfigBuilder);
+    when(getRepositoryConfigBuilder.type(RepositoryConfig.Type.GARBAGE_COLLECTOR))
+        .thenReturn(getRepositoryConfigBuilder);
     when(getRepositoryConfigBuilder.get()).thenReturn(repositoryConfigResponse);
-    ImmutableGarbageCollectorConfig gcConfig = ImmutableGarbageCollectorConfig.builder().defaultCutoffPolicy("30").build();
+    ImmutableGarbageCollectorConfig gcConfig =
+        ImmutableGarbageCollectorConfig.builder().defaultCutoffPolicy("30").build();
     when(repositoryConfigResponse.getConfigs()).thenReturn(Collections.singletonList(gcConfig));
-    assertThatThrownBy(() -> new NessieGCPolicy(nessieApiV2, 0)).isInstanceOf(UserException.class)
-      .hasMessageContaining(DEFAULT_CUTOFF_POLICY_WITH_COMMITS_ERROR_MESSAGE);
+    assertThatThrownBy(() -> new NessieGCPolicy(nessieApiV2, 0))
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining(DEFAULT_CUTOFF_POLICY_WITH_COMMITS_ERROR_MESSAGE);
   }
 
   @Test
@@ -113,9 +126,11 @@ public class TestNessieGCPolicy {
     GetRepositoryConfigBuilder getRepositoryConfigBuilder = mock(GetRepositoryConfigBuilder.class);
     RepositoryConfigResponse repositoryConfigResponse = mock(RepositoryConfigResponse.class);
     when(nessieApiV2.getRepositoryConfig()).thenReturn(getRepositoryConfigBuilder);
-    when(getRepositoryConfigBuilder.type(RepositoryConfig.Type.GARBAGE_COLLECTOR)).thenReturn(getRepositoryConfigBuilder);
+    when(getRepositoryConfigBuilder.type(RepositoryConfig.Type.GARBAGE_COLLECTOR))
+        .thenReturn(getRepositoryConfigBuilder);
     when(getRepositoryConfigBuilder.get()).thenReturn(repositoryConfigResponse);
-    ImmutableGarbageCollectorConfig gcConfig = ImmutableGarbageCollectorConfig.builder().defaultCutoffPolicy("NONE").build();
+    ImmutableGarbageCollectorConfig gcConfig =
+        ImmutableGarbageCollectorConfig.builder().defaultCutoffPolicy("NONE").build();
     when(repositoryConfigResponse.getConfigs()).thenReturn(Collections.singletonList(gcConfig));
     NessieGCPolicy nessieGCPolicy = new NessieGCPolicy(nessieApiV2, 0);
     assertThat(nessieGCPolicy.getOlderThanInMillis()).isEqualTo(0L);
@@ -127,14 +142,21 @@ public class TestNessieGCPolicy {
     GetRepositoryConfigBuilder getRepositoryConfigBuilder = mock(GetRepositoryConfigBuilder.class);
     RepositoryConfigResponse repositoryConfigResponse = mock(RepositoryConfigResponse.class);
     when(nessieApiV2.getRepositoryConfig()).thenReturn(getRepositoryConfigBuilder);
-    when(getRepositoryConfigBuilder.type(RepositoryConfig.Type.GARBAGE_COLLECTOR)).thenReturn(getRepositoryConfigBuilder);
+    when(getRepositoryConfigBuilder.type(RepositoryConfig.Type.GARBAGE_COLLECTOR))
+        .thenReturn(getRepositoryConfigBuilder);
     when(getRepositoryConfigBuilder.get()).thenReturn(repositoryConfigResponse);
-    ImmutableGarbageCollectorConfig gcConfig = ImmutableGarbageCollectorConfig.builder().defaultCutoffPolicy("30").newFilesGracePeriod(Duration.ofMinutes(10)).build();
+    ImmutableGarbageCollectorConfig gcConfig =
+        ImmutableGarbageCollectorConfig.builder()
+            .defaultCutoffPolicy("30")
+            .newFilesGracePeriod(Duration.ofMinutes(10))
+            .build();
     when(repositoryConfigResponse.getConfigs()).thenReturn(Collections.singletonList(gcConfig));
-    assertThatThrownBy(() -> new NessieGCPolicy(nessieApiV2, 0)).isInstanceOf(UserException.class)
-      .hasMessageContaining(DEFAULT_CUTOFF_POLICY_WITH_COMMITS_ERROR_MESSAGE);
-    assertThatThrownBy(() -> new NessieGCPolicy(nessieApiV2, 0)).isInstanceOf(UserException.class)
-      .hasMessageContaining(NEW_FILES_GRACE_PERIOD);
+    assertThatThrownBy(() -> new NessieGCPolicy(nessieApiV2, 0))
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining(DEFAULT_CUTOFF_POLICY_WITH_COMMITS_ERROR_MESSAGE);
+    assertThatThrownBy(() -> new NessieGCPolicy(nessieApiV2, 0))
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining(NEW_FILES_GRACE_PERIOD);
   }
 
   @Test
@@ -143,13 +165,20 @@ public class TestNessieGCPolicy {
     GetRepositoryConfigBuilder getRepositoryConfigBuilder = mock(GetRepositoryConfigBuilder.class);
     RepositoryConfigResponse repositoryConfigResponse = mock(RepositoryConfigResponse.class);
     when(nessieApiV2.getRepositoryConfig()).thenReturn(getRepositoryConfigBuilder);
-    when(getRepositoryConfigBuilder.type(RepositoryConfig.Type.GARBAGE_COLLECTOR)).thenReturn(getRepositoryConfigBuilder);
+    when(getRepositoryConfigBuilder.type(RepositoryConfig.Type.GARBAGE_COLLECTOR))
+        .thenReturn(getRepositoryConfigBuilder);
     when(getRepositoryConfigBuilder.get()).thenReturn(repositoryConfigResponse);
-    ImmutableGarbageCollectorConfig gcConfig = ImmutableGarbageCollectorConfig.builder().defaultCutoffPolicy("PT0S")
-      .perRefCutoffPolicies(Collections.singletonList(GarbageCollectorConfig.ReferenceCutoffPolicy.referenceCutoffPolicy("", "")))
-      .build();
+    ImmutableGarbageCollectorConfig gcConfig =
+        ImmutableGarbageCollectorConfig.builder()
+            .defaultCutoffPolicy("PT0S")
+            .perRefCutoffPolicies(
+                Collections.singletonList(
+                    GarbageCollectorConfig.ReferenceCutoffPolicy.referenceCutoffPolicy("", "")))
+            .build();
     when(repositoryConfigResponse.getConfigs()).thenReturn(Collections.singletonList(gcConfig));
-    assertThatThrownBy(() -> new NessieGCPolicy(nessieApiV2, 0)).isInstanceOf(UserException.class).hasMessageContaining(PER_REF_CUTOFF_POLICIES_ERROR_MESSAGE);
+    assertThatThrownBy(() -> new NessieGCPolicy(nessieApiV2, 0))
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining(PER_REF_CUTOFF_POLICIES_ERROR_MESSAGE);
   }
 
   @Test
@@ -158,12 +187,13 @@ public class TestNessieGCPolicy {
     GetRepositoryConfigBuilder getRepositoryConfigBuilder = mock(GetRepositoryConfigBuilder.class);
     RepositoryConfigResponse repositoryConfigResponse = mock(RepositoryConfigResponse.class);
     when(nessieApiV2.getRepositoryConfig()).thenReturn(getRepositoryConfigBuilder);
-    when(getRepositoryConfigBuilder.type(RepositoryConfig.Type.GARBAGE_COLLECTOR)).thenReturn(getRepositoryConfigBuilder);
+    when(getRepositoryConfigBuilder.type(RepositoryConfig.Type.GARBAGE_COLLECTOR))
+        .thenReturn(getRepositoryConfigBuilder);
     when(getRepositoryConfigBuilder.get()).thenReturn(repositoryConfigResponse);
-    ImmutableGarbageCollectorConfig gcConfig = ImmutableGarbageCollectorConfig.builder()
-      .build();
+    ImmutableGarbageCollectorConfig gcConfig = ImmutableGarbageCollectorConfig.builder().build();
     when(repositoryConfigResponse.getConfigs()).thenReturn(Collections.singletonList(gcConfig));
-    assertThatThrownBy(() -> new NessieGCPolicy(nessieApiV2, 0)).hasMessageContaining(DEFAULT_CUTOFF_POLICY_EMPTY_ERROR_MESSAGE);
+    assertThatThrownBy(() -> new NessieGCPolicy(nessieApiV2, 0))
+        .hasMessageContaining(DEFAULT_CUTOFF_POLICY_EMPTY_ERROR_MESSAGE);
   }
 
   @Test
@@ -171,10 +201,21 @@ public class TestNessieGCPolicy {
     final NessieApiV2 nessieApiV2 = mock(NessieApiV2.class);
     GetRepositoryConfigBuilder getRepositoryConfigBuilder = mock(GetRepositoryConfigBuilder.class);
     when(nessieApiV2.getRepositoryConfig()).thenReturn(getRepositoryConfigBuilder);
-    when(getRepositoryConfigBuilder.type(RepositoryConfig.Type.GARBAGE_COLLECTOR)).thenReturn(getRepositoryConfigBuilder);
-    when(getRepositoryConfigBuilder.get()).thenThrow(new NessieServiceException(ImmutableNessieError.builder().status(404).reason("Not Found").message("Not Found (HTTP/404)").build()));
+    when(getRepositoryConfigBuilder.type(RepositoryConfig.Type.GARBAGE_COLLECTOR))
+        .thenReturn(getRepositoryConfigBuilder);
+    when(getRepositoryConfigBuilder.get())
+        .thenThrow(
+            new NessieServiceException(
+                ImmutableNessieError.builder()
+                    .status(404)
+                    .reason("Not Found")
+                    .message("Not Found (HTTP/404)")
+                    .build()));
     NessieGCPolicy nessieGCPolicy = new NessieGCPolicy(nessieApiV2, 2L);
-    assertThat(nessieGCPolicy.getOlderThanInMillis()).isCloseTo(System.currentTimeMillis() - TimeUnit.MINUTES.toMillis(2L), Percentage.withPercentage(10));
+    assertThat(nessieGCPolicy.getOlderThanInMillis())
+        .isCloseTo(
+            System.currentTimeMillis() - TimeUnit.MINUTES.toMillis(2L),
+            Percentage.withPercentage(10));
   }
 
   @Test
@@ -182,10 +223,22 @@ public class TestNessieGCPolicy {
     final NessieApiV2 nessieApiV2 = mock(NessieApiV2.class);
     GetRepositoryConfigBuilder getRepositoryConfigBuilder = mock(GetRepositoryConfigBuilder.class);
     when(nessieApiV2.getRepositoryConfig()).thenReturn(getRepositoryConfigBuilder);
-    when(getRepositoryConfigBuilder.type(RepositoryConfig.Type.GARBAGE_COLLECTOR)).thenReturn(getRepositoryConfigBuilder);
-    when(getRepositoryConfigBuilder.get()).thenThrow(new NessieBadRequestException(ImmutableNessieError.builder().status(400).reason("Bad Request").message("Bad Request (HTTP/400): Old database model does not support repository config objects").build()));
+    when(getRepositoryConfigBuilder.type(RepositoryConfig.Type.GARBAGE_COLLECTOR))
+        .thenReturn(getRepositoryConfigBuilder);
+    when(getRepositoryConfigBuilder.get())
+        .thenThrow(
+            new NessieBadRequestException(
+                ImmutableNessieError.builder()
+                    .status(400)
+                    .reason("Bad Request")
+                    .message(
+                        "Bad Request (HTTP/400): Old database model does not support repository config objects")
+                    .build()));
     NessieGCPolicy nessieGCPolicy = new NessieGCPolicy(nessieApiV2, 2L);
-    assertThat(nessieGCPolicy.getOlderThanInMillis()).isCloseTo(System.currentTimeMillis() - TimeUnit.MINUTES.toMillis(2L), Percentage.withPercentage(10));
+    assertThat(nessieGCPolicy.getOlderThanInMillis())
+        .isCloseTo(
+            System.currentTimeMillis() - TimeUnit.MINUTES.toMillis(2L),
+            Percentage.withPercentage(10));
   }
 
   @Test
@@ -193,9 +246,11 @@ public class TestNessieGCPolicy {
     final NessieApiV2 nessieApiV2 = mock(NessieApiV2.class);
     GetRepositoryConfigBuilder getRepositoryConfigBuilder = mock(GetRepositoryConfigBuilder.class);
     when(nessieApiV2.getRepositoryConfig()).thenReturn(getRepositoryConfigBuilder);
-    when(getRepositoryConfigBuilder.type(RepositoryConfig.Type.GARBAGE_COLLECTOR)).thenReturn(getRepositoryConfigBuilder);
-    when(getRepositoryConfigBuilder.get()).thenThrow(new IllegalArgumentException("Throwable Exception"));
-    assertThatThrownBy(() -> new NessieGCPolicy(nessieApiV2, 0)).hasMessageContaining("Throwable Exception");
+    when(getRepositoryConfigBuilder.type(RepositoryConfig.Type.GARBAGE_COLLECTOR))
+        .thenReturn(getRepositoryConfigBuilder);
+    when(getRepositoryConfigBuilder.get())
+        .thenThrow(new IllegalArgumentException("Throwable Exception"));
+    assertThatThrownBy(() -> new NessieGCPolicy(nessieApiV2, 0))
+        .hasMessageContaining("Throwable Exception");
   }
-
 }

@@ -17,30 +17,18 @@ package com.dremio.exec.store.metadatarefresh;
 
 import static com.dremio.exec.store.metadatarefresh.MetadataRefreshExecConstants.METADATA_STORAGE_PLUGIN_NAME;
 
-import com.dremio.exec.ExecConstants;
-import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
-import com.dremio.options.OptionManager;
 
-/**
- * Metadata refresh utils
- */
+/** Metadata refresh utils */
 public final class MetadataRefreshUtils {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MetadataRefreshUtils.class);
-  /**
-   * checks if unlimited splits is enabled
-   * @param options
-   * @return
-   */
-  public static boolean unlimitedSplitsSupportEnabled(final OptionManager options) {
-    return options.getOption(ExecConstants.ENABLE_ICEBERG) &&
-      options.getOption(PlannerSettings.UNLIMITED_SPLITS_SUPPORT);
-  }
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(MetadataRefreshUtils.class);
 
   /**
    * checks if metadata source is available and supports iceberg
+   *
    * @return
    */
   public static boolean metadataSourceAvailable(final CatalogService catalogService) {
@@ -48,7 +36,10 @@ public final class MetadataRefreshUtils {
     try {
       metadataPlugin = catalogService.getSource(METADATA_STORAGE_PLUGIN_NAME);
     } catch (Exception e) {
-      logger.debug("Exception while getting the plugin for the source [{}].", METADATA_STORAGE_PLUGIN_NAME, e);
+      logger.debug(
+          "Exception while getting the plugin for the source [{}].",
+          METADATA_STORAGE_PLUGIN_NAME,
+          e);
       return false;
     }
     if (metadataPlugin == null) {

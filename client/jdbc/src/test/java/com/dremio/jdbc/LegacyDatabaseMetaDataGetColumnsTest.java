@@ -17,19 +17,15 @@ package com.dremio.jdbc;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.dremio.jdbc.test.JdbcAssert;
 import java.sql.SQLException;
 import java.sql.Types;
 import java.util.Properties;
-
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import com.dremio.jdbc.test.JdbcAssert;
-
-/**
- * Test compatibility with older versions of the server
- */
+/** Test compatibility with older versions of the server */
 @Ignore("DX-2490")
 public class LegacyDatabaseMetaDataGetColumnsTest extends DatabaseMetaDataGetColumnsTest {
 

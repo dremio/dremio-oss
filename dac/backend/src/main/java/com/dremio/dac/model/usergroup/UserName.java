@@ -19,17 +19,17 @@ import com.dremio.common.utils.SqlUtils;
 import com.dremio.dac.model.common.Name;
 import com.fasterxml.jackson.annotation.JsonCreator;
 
-/**
- * User name.
- */
+/** User name. */
 public class UserName extends Name {
   @JsonCreator
   public UserName(String name) {
     super(name);
-    // DX-8156 - " and : currently cause trouble.  @Pattern doesn't work here, probably because the JSON is deserialized
+    // DX-8156 - " and : currently cause trouble.  @Pattern doesn't work here, probably because the
+    // JSON is deserialized
     // to a UserForm.
     if (name.contains(String.valueOf(SqlUtils.QUOTE)) || name.contains(":")) {
-      throw new IllegalArgumentException(String.format("Username “%s” can not contain quotes or colons.", name));
+      throw new IllegalArgumentException(
+          String.format("Username “%s” can not contain quotes or colons.", name));
     }
   }
 }

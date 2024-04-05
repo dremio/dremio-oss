@@ -15,8 +15,9 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import java.util.List;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -28,35 +29,34 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
-
 public class SqlCreateTable extends SqlCreateEmptyTable {
 
-  public static final SqlSpecialOperator CREATE_TABLE_OPERATOR = new SqlSpecialOperator("CREATE_TABLE", SqlKind.CREATE_TABLE) {
-    @Override
-    public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 16, "SqlCreateTable.createCall() has to get 16 operands!");
-      return new SqlCreateTable(
-        pos,
-        (SqlIdentifier) operands[0],
-        (SqlNodeList) operands[1],
-        ((SqlLiteral) operands[9]).booleanValue(),
-        ((SqlLiteral) operands[2]).symbolValue(PartitionDistributionStrategy.class),
-        (SqlNodeList) operands[3],
-        (SqlNodeList) operands[4],
-        (SqlNode) operands[5],
-        (SqlLiteral) operands[6],
-        (SqlNodeList) operands[7],
-        (SqlNodeList) operands[8],
-        (SqlPolicy) operands[10],
-        operands[15],
-        (SqlNodeList) operands[11],
-        (SqlNodeList) operands[12],
-        ((SqlLiteral) operands[13]).symbolValue(ReferenceType.class),
-        (SqlIdentifier) operands[14]);
-    }
-  };
+  public static final SqlSpecialOperator CREATE_TABLE_OPERATOR =
+      new SqlSpecialOperator("CREATE_TABLE", SqlKind.CREATE_TABLE) {
+        @Override
+        public SqlCall createCall(
+            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+          Preconditions.checkArgument(
+              operands.length == 15, "SqlCreateTable.createCall() has to get 15 operands!");
+          return new SqlCreateTable(
+              pos,
+              (SqlIdentifier) operands[0],
+              (SqlNodeList) operands[1],
+              ((SqlLiteral) operands[9]).booleanValue(),
+              ((SqlLiteral) operands[2]).symbolValue(PartitionDistributionStrategy.class),
+              (SqlNodeList) operands[3],
+              (SqlNodeList) operands[4],
+              (SqlNode) operands[5],
+              (SqlLiteral) operands[6],
+              (SqlNodeList) operands[7],
+              (SqlNodeList) operands[8],
+              (SqlPolicy) operands[10],
+              operands[14],
+              (SqlNodeList) operands[11],
+              (SqlNodeList) operands[12],
+              (SqlTableVersionSpec) operands[13]);
+        }
+      };
 
   private final SqlNode query;
 
@@ -74,12 +74,25 @@ public class SqlCreateTable extends SqlCreateEmptyTable {
       SqlNodeList distributionColumns,
       SqlPolicy policy,
       SqlNode query,
-      SqlNodeList  tablePropertyNameList,
-      SqlNodeList  tablePropertyValueList,
-      ReferenceType refType,
-      SqlIdentifier refValue) {
-    super(pos, tblName, fieldList, ifNotExists, partitionDistributionStrategy, partitionColumns, formatOptions, location, singleWriter,
-      sortFieldList, distributionColumns, policy, tablePropertyNameList, tablePropertyValueList, refType, refValue);
+      SqlNodeList tablePropertyNameList,
+      SqlNodeList tablePropertyValueList,
+      SqlTableVersionSpec sqlTableVersionSpec) {
+    super(
+        pos,
+        tblName,
+        fieldList,
+        ifNotExists,
+        partitionDistributionStrategy,
+        partitionColumns,
+        formatOptions,
+        location,
+        singleWriter,
+        sortFieldList,
+        distributionColumns,
+        policy,
+        tablePropertyNameList,
+        tablePropertyValueList,
+        sqlTableVersionSpec);
     this.query = query;
   }
 
@@ -107,5 +120,4 @@ public class SqlCreateTable extends SqlCreateEmptyTable {
   public SqlNode getQuery() {
     return query;
   }
-
 }

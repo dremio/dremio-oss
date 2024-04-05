@@ -15,10 +15,14 @@
  */
 package com.dremio.sabot.op.llvm;
 
+import com.dremio.common.expression.LogicalExpression;
+import com.dremio.exec.record.VectorAccessible;
+import com.dremio.sabot.exec.context.FunctionContext;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-
 import org.apache.arrow.gandiva.evaluator.ConfigurationBuilder;
 import org.apache.arrow.gandiva.evaluator.Projector;
 import org.apache.arrow.gandiva.exceptions.GandivaException;
@@ -30,12 +34,6 @@ import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Schema;
-
-import com.dremio.common.expression.LogicalExpression;
-import com.dremio.exec.record.VectorAccessible;
-import com.dremio.sabot.exec.context.FunctionContext;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 
 public class NativeProjector implements AutoCloseable {
   private final VectorAccessible incoming;
@@ -51,8 +49,14 @@ public class NativeProjector implements AutoCloseable {
   private double exprComplexity;
   private final double exprComplexityThreshold;
 
-  NativeProjector(VectorAccessible incoming, Schema schema, FunctionContext functionContext, boolean optimize, boolean targetHostCPU,
-                  GandivaSecondaryCacheWithStats secondaryCache, double exprComplexityThreshold) {
+  NativeProjector(
+      VectorAccessible incoming,
+      Schema schema,
+      FunctionContext functionContext,
+      boolean optimize,
+      boolean targetHostCPU,
+      GandivaSecondaryCacheWithStats secondaryCache,
+      double exprComplexityThreshold) {
     this.incoming = incoming;
     this.schema = schema;
     this.functionContext = functionContext;
@@ -66,8 +70,9 @@ public class NativeProjector implements AutoCloseable {
   }
 
   public void add(LogicalExpression expr, FieldVector outputVector) {
-    final ExpressionTree tree = GandivaExpressionBuilder.serializeExpr(incoming, expr,
-      outputVector, referencedFields, functionContext);
+    final ExpressionTree tree =
+        GandivaExpressionBuilder.serializeExpr(
+            incoming, expr, outputVector, referencedFields, functionContext);
     columnExprList.add(tree);
 
     // only use secondary cache if expression is sufficiently complex
@@ -78,9 +83,10 @@ public class NativeProjector implements AutoCloseable {
 
   public void build() throws GandivaException {
     root = GandivaUtils.getSchemaRoot(incoming, referencedFields);
-    ConfigurationBuilder.ConfigOptions configOptions = (new ConfigurationBuilder.ConfigOptions())
-      .withOptimize(optimize)
-      .withTargetCPU(targetHostCPU);
+    ConfigurationBuilder.ConfigOptions configOptions =
+        (new ConfigurationBuilder.ConfigOptions())
+            .withOptimize(optimize)
+            .withTargetCPU(targetHostCPU);
     referencedFields.clear();
     if (secondaryCache != null && exprComplexity >= exprComplexityThreshold) {
       // enable the secondary cache

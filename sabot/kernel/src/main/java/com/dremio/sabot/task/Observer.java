@@ -15,9 +15,7 @@
  */
 package com.dremio.sabot.task;
 
-/**
- * Observer on the manager's primary events
- */
+/** Observer on the manager's primary events */
 public interface Observer<T extends Task> {
   enum Type {
     DUMMY,
@@ -28,16 +26,17 @@ public interface Observer<T extends Task> {
   /**
    * Called whenever a new task is added to the manager or to a {@link SchedulingGroup}
    *
-   * @param task   new task
+   * @param task new task
    * @param thread thread the task was added to
    */
   void addTask(TaskManager.TaskHandle<T> task, int thread);
 
   /**
-   * Called whenever a runnable task is context switched out for a new and more eligible runnable task.
+   * Called whenever a runnable task is context switched out for a new and more eligible runnable
+   * task.
    *
-   * @param from   Currently running task
-   * @param to     New task
+   * @param from Currently running task
+   * @param to New task
    * @param thread thread on which the task was switched
    */
   void switchTask(TaskManager.TaskHandle<T> from, TaskManager.TaskHandle<T> to, int thread);
@@ -45,7 +44,7 @@ public interface Observer<T extends Task> {
   /**
    * Called whenever a task is dequeued from the run queue as it is blocked.
    *
-   * @param task   blocked task
+   * @param task blocked task
    * @param thread thread on which it was running when blocked
    */
   void dequeueTask(TaskManager.TaskHandle<T> task, int thread);
@@ -53,7 +52,7 @@ public interface Observer<T extends Task> {
   /**
    * Called whenever a task is unblocked and is ready to be put back in the run queue.
    *
-   * @param task      runnable task
+   * @param task runnable task
    * @param oldThread old thread where it was running when last blocked
    * @param newThread new thread where it will run now
    */
@@ -62,7 +61,7 @@ public interface Observer<T extends Task> {
   /**
    * Called whenever a runnable task is migrated from one thread to another on steal requests.
    *
-   * @param task      migrated task
+   * @param task migrated task
    * @param srcThread source thread of migration
    * @param dstThread destination thread of migration
    */

@@ -15,16 +15,13 @@
  */
 package com.dremio.resource.common;
 
-import java.util.Collection;
-
 import com.dremio.exec.proto.CoordExecRPC;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.options.OptionManager;
+import java.util.Collection;
 
-/**
- * To provide resource scheduling context interface
- */
+/** To provide resource scheduling context interface */
 public interface ResourceSchedulingContext {
 
   CoordExecRPC.QueryContextInformation getQueryContextInfo();

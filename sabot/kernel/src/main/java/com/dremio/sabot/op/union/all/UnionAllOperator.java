@@ -15,14 +15,6 @@
  */
 package com.dremio.sabot.op.union.all;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-
-import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.util.TransferPair;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.physical.config.UnionAll;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
@@ -33,10 +25,17 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.spi.DualInputOperator;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.util.TransferPair;
 
 public class UnionAllOperator implements DualInputOperator {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(UnionAllOperator.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(UnionAllOperator.class);
 
   private State state = State.NEEDS_SETUP;
   private ImmutableList<TransferPair> leftTransfers;
@@ -61,21 +60,29 @@ public class UnionAllOperator implements DualInputOperator {
     List<Field> leftFields = left.getSchema().getFields();
     List<Field> rightFields = right.getSchema().getFields();
 
-    Preconditions.checkArgument(leftFields.size() == rightFields.size(), "Field counts don't match. Left: \n%s\nRight:\n%s", left.getSchema(), right.getSchema());
+    Preconditions.checkArgument(
+        leftFields.size() == rightFields.size(),
+        "Field counts don't match. Left: \n%s\nRight:\n%s",
+        left.getSchema(),
+        right.getSchema());
 
-    for(int i =0; i < leftFields.size(); i++){
+    for (int i = 0; i < leftFields.size(); i++) {
       Field leftField = leftFields.get(i);
       Field rightField = rightFields.get(i);
-      Preconditions.checkArgument(leftField.getType().equals(rightField.getType()), "Field types don't match. Left: \n%s\nRight:\n%s", left.getSchema(), right.getSchema());
+      Preconditions.checkArgument(
+          leftField.getType().equals(rightField.getType()),
+          "Field types don't match. Left: \n%s\nRight:\n%s",
+          left.getSchema(),
+          right.getSchema());
     }
 
     List<TransferPair> leftTransfers = new ArrayList<>();
     List<TransferPair> rightTransfers = new ArrayList<>();
 
     final Iterator<VectorWrapper<?>> rightIter = right.iterator();
-    for(VectorWrapper<?> leftWrapper : left){
+    for (VectorWrapper<?> leftWrapper : left) {
       ValueVector vector = leftWrapper.getValueVector();
-      TransferPair pair = vector.getTransferPair(context.getAllocator());
+      TransferPair pair = vector.getTransferPair(vector.getField(), context.getAllocator());
       leftTransfers.add(pair);
       outgoing.add(pair.getTo());
 
@@ -99,7 +106,7 @@ public class UnionAllOperator implements DualInputOperator {
   @Override
   public void consumeDataLeft(int records) throws Exception {
     state.is(State.CAN_CONSUME_L);
-    for(TransferPair p : leftTransfers){
+    for (TransferPair p : leftTransfers) {
       p.transfer();
     }
     recordCount = records;
@@ -116,7 +123,7 @@ public class UnionAllOperator implements DualInputOperator {
   @Override
   public void consumeDataRight(int records) throws Exception {
     state.is(State.CAN_CONSUME_R);
-    for(TransferPair p : rightTransfers){
+    for (TransferPair p : rightTransfers) {
       p.transfer();
     }
     recordCount = records;
@@ -139,7 +146,8 @@ public class UnionAllOperator implements DualInputOperator {
   }
 
   @Override
-  public <OUT, IN, EXCEP extends Throwable> OUT accept(OperatorVisitor<OUT, IN, EXCEP> visitor, IN value) throws EXCEP {
+  public <OUT, IN, EXCEP extends Throwable> OUT accept(
+      OperatorVisitor<OUT, IN, EXCEP> visitor, IN value) throws EXCEP {
     return visitor.visitDualInput(this, value);
   }
 
@@ -148,12 +156,12 @@ public class UnionAllOperator implements DualInputOperator {
     outgoing.close();
   }
 
-  public static class Creator implements DualInputOperator.Creator<UnionAll>{
+  public static class Creator implements DualInputOperator.Creator<UnionAll> {
 
     @Override
-    public DualInputOperator create(OperatorContext context, UnionAll config) throws ExecutionSetupException {
+    public DualInputOperator create(OperatorContext context, UnionAll config)
+        throws ExecutionSetupException {
       return new UnionAllOperator(context, config);
     }
-
   }
 }

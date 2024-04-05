@@ -15,6 +15,9 @@
  */
 package com.dremio.common.expression;
 
+import com.sun.codemodel.JClass;
+import com.sun.codemodel.JCodeModel;
+import com.sun.codemodel.JType;
 import org.apache.arrow.vector.holders.BigIntHolder;
 import org.apache.arrow.vector.holders.BitHolder;
 import org.apache.arrow.vector.holders.ComplexHolder;
@@ -59,10 +62,6 @@ import org.apache.arrow.vector.holders.UnionHolder;
 import org.apache.arrow.vector.holders.VarBinaryHolder;
 import org.apache.arrow.vector.holders.VarCharHolder;
 
-import com.sun.codemodel.JClass;
-import com.sun.codemodel.JCodeModel;
-import com.sun.codemodel.JType;
-
 public final class CodeModelArrowHelper {
 
   private CodeModelArrowHelper() {
@@ -73,223 +72,228 @@ public final class CodeModelArrowHelper {
     return model.ref(type.getHolderClass());
   }
 
-  public static JType getHolderType(JCodeModel model, com.dremio.common.types.TypeProtos.MinorType type,
+  public static JType getHolderType(
+      JCodeModel model,
+      com.dremio.common.types.TypeProtos.MinorType type,
       com.dremio.common.types.TypeProtos.DataMode mode) {
     switch (type) {
-    case UNION:
-      return model._ref(UnionHolder.class);
-    case STRUCT:
-    case LIST:
-    case MAP:
-      return model._ref(ComplexHolder.class);
+      case UNION:
+        return model._ref(UnionHolder.class);
+      case STRUCT:
+      case LIST:
+      case MAP:
+        return model._ref(ComplexHolder.class);
 
-    case TINYINT:
-      switch (mode) {
-      case REQUIRED:
-        return model._ref(TinyIntHolder.class);
-      case OPTIONAL:
-        return model._ref(NullableTinyIntHolder.class);
+      case TINYINT:
+        switch (mode) {
+          case REQUIRED:
+            return model._ref(TinyIntHolder.class);
+          case OPTIONAL:
+            return model._ref(NullableTinyIntHolder.class);
+          default:
+            break;
+        }
+        break;
+      case UINT1:
+        switch (mode) {
+          case REQUIRED:
+            return model._ref(UInt1Holder.class);
+          case OPTIONAL:
+            return model._ref(NullableUInt1Holder.class);
+          default:
+            break;
+        }
+        break;
+      case UINT2:
+        switch (mode) {
+          case REQUIRED:
+            return model._ref(UInt2Holder.class);
+          case OPTIONAL:
+            return model._ref(NullableUInt2Holder.class);
+          default:
+            break;
+        }
+        break;
+      case SMALLINT:
+        switch (mode) {
+          case REQUIRED:
+            return model._ref(SmallIntHolder.class);
+          case OPTIONAL:
+            return model._ref(NullableSmallIntHolder.class);
+          default:
+            break;
+        }
+        break;
+      case INT:
+        switch (mode) {
+          case REQUIRED:
+            return model._ref(IntHolder.class);
+          case OPTIONAL:
+            return model._ref(NullableIntHolder.class);
+          default:
+            break;
+        }
+        break;
+      case UINT4:
+        switch (mode) {
+          case REQUIRED:
+            return model._ref(UInt4Holder.class);
+          case OPTIONAL:
+            return model._ref(NullableUInt4Holder.class);
+          default:
+            break;
+        }
+        break;
+      case FLOAT4:
+        switch (mode) {
+          case REQUIRED:
+            return model._ref(Float4Holder.class);
+          case OPTIONAL:
+            return model._ref(NullableFloat4Holder.class);
+          default:
+            break;
+        }
+        break;
+      case INTERVALYEAR:
+        switch (mode) {
+          case REQUIRED:
+            return model._ref(IntervalYearHolder.class);
+          case OPTIONAL:
+            return model._ref(NullableIntervalYearHolder.class);
+          default:
+            break;
+        }
+        break;
+      case TIME:
+        switch (mode) {
+          case REQUIRED:
+            return model._ref(TimeMilliHolder.class);
+          case OPTIONAL:
+            return model._ref(NullableTimeMilliHolder.class);
+          default:
+            break;
+        }
+        break;
+      case BIGINT:
+        switch (mode) {
+          case REQUIRED:
+            return model._ref(BigIntHolder.class);
+          case OPTIONAL:
+            return model._ref(NullableBigIntHolder.class);
+          default:
+            break;
+        }
+        break;
+      case UINT8:
+        switch (mode) {
+          case REQUIRED:
+            return model._ref(UInt8Holder.class);
+          case OPTIONAL:
+            return model._ref(NullableUInt8Holder.class);
+          default:
+            break;
+        }
+        break;
+      case FLOAT8:
+        switch (mode) {
+          case REQUIRED:
+            return model._ref(Float8Holder.class);
+          case OPTIONAL:
+            return model._ref(NullableFloat8Holder.class);
+          default:
+            break;
+        }
+        break;
+      case DATE:
+        switch (mode) {
+          case REQUIRED:
+            return model._ref(DateMilliHolder.class);
+          case OPTIONAL:
+            return model._ref(NullableDateMilliHolder.class);
+          default:
+            break;
+        }
+        break;
+      case TIMESTAMP:
+        switch (mode) {
+          case REQUIRED:
+            return model._ref(TimeStampMilliHolder.class);
+          case OPTIONAL:
+            return model._ref(NullableTimeStampMilliHolder.class);
+          default:
+            break;
+        }
+        break;
+      case INTERVALDAY:
+        switch (mode) {
+          case REQUIRED:
+            return model._ref(IntervalDayHolder.class);
+          case OPTIONAL:
+            return model._ref(NullableIntervalDayHolder.class);
+          default:
+            break;
+        }
+        break;
+      case DECIMAL:
+        switch (mode) {
+          case REQUIRED:
+            return model._ref(DecimalHolder.class);
+          case OPTIONAL:
+            return model._ref(NullableDecimalHolder.class);
+          default:
+            break;
+        }
+        break;
+      case FIXEDSIZEBINARY:
+        switch (mode) {
+          case REQUIRED:
+            return model._ref(FixedSizeBinaryHolder.class);
+          case OPTIONAL:
+            return model._ref(NullableFixedSizeBinaryHolder.class);
+          default:
+            break;
+        }
+        break;
+      case VARBINARY:
+        switch (mode) {
+          case REQUIRED:
+            return model._ref(VarBinaryHolder.class);
+          case OPTIONAL:
+            return model._ref(NullableVarBinaryHolder.class);
+          default:
+            break;
+        }
+        break;
+      case VARCHAR:
+        switch (mode) {
+          case REQUIRED:
+            return model._ref(VarCharHolder.class);
+          case OPTIONAL:
+            return model._ref(NullableVarCharHolder.class);
+          default:
+            break;
+        }
+        break;
+      case BIT:
+        switch (mode) {
+          case REQUIRED:
+            return model._ref(BitHolder.class);
+          case OPTIONAL:
+            return model._ref(NullableBitHolder.class);
+          default:
+            break;
+        }
+        break;
+      case GENERIC_OBJECT:
+        {
+          return model._ref(ObjectHolder.class);
+        }
       default:
         break;
-      }
-      break;
-    case UINT1:
-      switch (mode) {
-      case REQUIRED:
-        return model._ref(UInt1Holder.class);
-      case OPTIONAL:
-        return model._ref(NullableUInt1Holder.class);
-      default:
-        break;
-      }
-      break;
-    case UINT2:
-      switch (mode) {
-      case REQUIRED:
-        return model._ref(UInt2Holder.class);
-      case OPTIONAL:
-        return model._ref(NullableUInt2Holder.class);
-      default:
-        break;
-      }
-      break;
-    case SMALLINT:
-      switch (mode) {
-      case REQUIRED:
-        return model._ref(SmallIntHolder.class);
-      case OPTIONAL:
-        return model._ref(NullableSmallIntHolder.class);
-      default:
-        break;
-      }
-      break;
-    case INT:
-      switch (mode) {
-      case REQUIRED:
-        return model._ref(IntHolder.class);
-      case OPTIONAL:
-        return model._ref(NullableIntHolder.class);
-      default:
-        break;
-      }
-      break;
-    case UINT4:
-      switch (mode) {
-      case REQUIRED:
-        return model._ref(UInt4Holder.class);
-      case OPTIONAL:
-        return model._ref(NullableUInt4Holder.class);
-      default:
-        break;
-      }
-      break;
-    case FLOAT4:
-      switch (mode) {
-      case REQUIRED:
-        return model._ref(Float4Holder.class);
-      case OPTIONAL:
-        return model._ref(NullableFloat4Holder.class);
-      default:
-        break;
-      }
-      break;
-    case INTERVALYEAR:
-      switch (mode) {
-      case REQUIRED:
-        return model._ref(IntervalYearHolder.class);
-      case OPTIONAL:
-        return model._ref(NullableIntervalYearHolder.class);
-      default:
-        break;
-      }
-      break;
-    case TIME:
-      switch (mode) {
-      case REQUIRED:
-        return model._ref(TimeMilliHolder.class);
-      case OPTIONAL:
-        return model._ref(NullableTimeMilliHolder.class);
-      default:
-        break;
-      }
-      break;
-    case BIGINT:
-      switch (mode) {
-      case REQUIRED:
-        return model._ref(BigIntHolder.class);
-      case OPTIONAL:
-        return model._ref(NullableBigIntHolder.class);
-      default:
-        break;
-      }
-      break;
-    case UINT8:
-      switch (mode) {
-      case REQUIRED:
-        return model._ref(UInt8Holder.class);
-      case OPTIONAL:
-        return model._ref(NullableUInt8Holder.class);
-      default:
-        break;
-      }
-      break;
-    case FLOAT8:
-      switch (mode) {
-      case REQUIRED:
-        return model._ref(Float8Holder.class);
-      case OPTIONAL:
-        return model._ref(NullableFloat8Holder.class);
-      default:
-        break;
-      }
-      break;
-    case DATE:
-      switch (mode) {
-      case REQUIRED:
-        return model._ref(DateMilliHolder.class);
-      case OPTIONAL:
-        return model._ref(NullableDateMilliHolder.class);
-      default:
-        break;
-      }
-      break;
-    case TIMESTAMP:
-      switch (mode) {
-      case REQUIRED:
-        return model._ref(TimeStampMilliHolder.class);
-      case OPTIONAL:
-        return model._ref(NullableTimeStampMilliHolder.class);
-      default:
-        break;
-      }
-      break;
-    case INTERVALDAY:
-      switch (mode) {
-      case REQUIRED:
-        return model._ref(IntervalDayHolder.class);
-      case OPTIONAL:
-        return model._ref(NullableIntervalDayHolder.class);
-      default:
-        break;
-      }
-      break;
-    case DECIMAL:
-      switch (mode) {
-      case REQUIRED:
-        return model._ref(DecimalHolder.class);
-      case OPTIONAL:
-        return model._ref(NullableDecimalHolder.class);
-      default:
-        break;
-      }
-      break;
-    case FIXEDSIZEBINARY:
-      switch (mode) {
-      case REQUIRED:
-        return model._ref(FixedSizeBinaryHolder.class);
-      case OPTIONAL:
-        return model._ref(NullableFixedSizeBinaryHolder.class);
-      default:
-        break;
-      }
-      break;
-    case VARBINARY:
-      switch (mode) {
-      case REQUIRED:
-        return model._ref(VarBinaryHolder.class);
-      case OPTIONAL:
-        return model._ref(NullableVarBinaryHolder.class);
-      default:
-        break;
-      }
-      break;
-    case VARCHAR:
-      switch (mode) {
-      case REQUIRED:
-        return model._ref(VarCharHolder.class);
-      case OPTIONAL:
-        return model._ref(NullableVarCharHolder.class);
-      default:
-        break;
-      }
-      break;
-    case BIT:
-      switch (mode) {
-      case REQUIRED:
-        return model._ref(BitHolder.class);
-      case OPTIONAL:
-        return model._ref(NullableBitHolder.class);
-      default:
-        break;
-      }
-      break;
-    case GENERIC_OBJECT: {
-      return model._ref(ObjectHolder.class);
     }
-    default:
-      break;
-    }
-    throw new UnsupportedOperationException(String.format("Unable to get holder type for minor type [%s]",
-        com.dremio.common.util.MajorTypeHelper.getArrowMinorType(type)));
+    throw new UnsupportedOperationException(
+        String.format(
+            "Unable to get holder type for minor type [%s]",
+            com.dremio.common.util.MajorTypeHelper.getArrowMinorType(type)));
   }
 }

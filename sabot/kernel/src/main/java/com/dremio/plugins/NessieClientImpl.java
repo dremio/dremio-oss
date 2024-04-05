@@ -16,63 +16,9 @@
 
 package com.dremio.plugins;
 
+import static com.dremio.plugins.NessieClientOptions.BYPASS_CONTENT_CACHE;
 import static com.dremio.plugins.NessieClientOptions.NESSIE_CONTENT_CACHE_SIZE_ITEMS;
 import static com.dremio.plugins.NessieClientOptions.NESSIE_CONTENT_CACHE_TTL_MINUTES;
-
-import java.net.ConnectException;
-import java.sql.Timestamp;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.Callable;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
-
-import javax.annotation.Nullable;
-
-import org.apache.commons.lang3.tuple.ImmutableTriple;
-import org.apache.iceberg.exceptions.CommitFailedException;
-import org.apache.iceberg.viewdepoc.ViewVersionMetadata;
-import org.projectnessie.client.api.GetAllReferencesBuilder;
-import org.projectnessie.client.api.GetEntriesBuilder;
-import org.projectnessie.client.api.NessieApiV2;
-import org.projectnessie.client.http.HttpClientException;
-import org.projectnessie.client.rest.NessieNotAuthorizedException;
-import org.projectnessie.error.ErrorCode;
-import org.projectnessie.error.NessieBadRequestException;
-import org.projectnessie.error.NessieConflictException;
-import org.projectnessie.error.NessieNotFoundException;
-import org.projectnessie.error.NessieReferenceAlreadyExistsException;
-import org.projectnessie.error.NessieReferenceConflictException;
-import org.projectnessie.error.NessieReferenceNotFoundException;
-import org.projectnessie.model.Branch;
-import org.projectnessie.model.CommitMeta;
-import org.projectnessie.model.Conflict;
-import org.projectnessie.model.Content;
-import org.projectnessie.model.ContentKey;
-import org.projectnessie.model.Detached;
-import org.projectnessie.model.EntriesResponse.Entry;
-import org.projectnessie.model.FetchOption;
-import org.projectnessie.model.IcebergTable;
-import org.projectnessie.model.IcebergView;
-import org.projectnessie.model.ImmutableIcebergTable;
-import org.projectnessie.model.ImmutableIcebergView;
-import org.projectnessie.model.LogResponse.LogEntry;
-import org.projectnessie.model.Namespace;
-import org.projectnessie.model.Operation;
-import org.projectnessie.model.Reference;
-import org.projectnessie.model.Reference.ReferenceType;
-import org.projectnessie.model.Tag;
-import org.projectnessie.model.Validation;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.catalog.model.VersionContext;
@@ -99,24 +45,73 @@ import com.dremio.exec.store.ReferenceNotFoundException;
 import com.dremio.exec.store.ReferenceTypeConflictException;
 import com.dremio.exec.store.UnAuthenticatedException;
 import com.dremio.exec.store.iceberg.model.IcebergCommitOrigin;
+import com.dremio.exec.store.iceberg.viewdepoc.ViewVersionMetadata;
+import com.dremio.nessiemetadata.cache.NessieContentLoader;
+import com.dremio.nessiemetadata.cache.NessieMetadataCacheWrapper;
+import com.dremio.nessiemetadata.storeprovider.NessieMetadataCacheStoreProvider;
+import com.dremio.nessiemetadata.storeprovider.NessieMetadataInMemoryCacheProvider;
 import com.dremio.options.OptionManager;
 import com.dremio.plugins.ExternalNamespaceEntry.Type;
 import com.dremio.telemetry.api.metrics.MetricsInstrumenter;
-import com.github.benmanes.caffeine.cache.CacheLoader;
-import com.github.benmanes.caffeine.cache.Caffeine;
-import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-
 import io.opentelemetry.instrumentation.annotations.WithSpan;
+import java.net.ConnectException;
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
+import javax.annotation.Nullable;
+import org.apache.commons.lang3.tuple.ImmutableTriple;
+import org.apache.iceberg.exceptions.CommitFailedException;
+import org.projectnessie.client.api.GetAllReferencesBuilder;
+import org.projectnessie.client.api.GetEntriesBuilder;
+import org.projectnessie.client.api.NessieApiV2;
+import org.projectnessie.client.http.HttpClientException;
+import org.projectnessie.client.rest.NessieNotAuthorizedException;
+import org.projectnessie.error.NessieBadRequestException;
+import org.projectnessie.error.NessieConflictException;
+import org.projectnessie.error.NessieNotFoundException;
+import org.projectnessie.error.NessieReferenceAlreadyExistsException;
+import org.projectnessie.error.NessieReferenceConflictException;
+import org.projectnessie.error.NessieReferenceNotFoundException;
+import org.projectnessie.model.Branch;
+import org.projectnessie.model.CommitMeta;
+import org.projectnessie.model.Conflict;
+import org.projectnessie.model.Content;
+import org.projectnessie.model.ContentKey;
+import org.projectnessie.model.Detached;
+import org.projectnessie.model.EntriesResponse.Entry;
+import org.projectnessie.model.FetchOption;
+import org.projectnessie.model.IcebergView;
+import org.projectnessie.model.ImmutableIcebergTable;
+import org.projectnessie.model.ImmutableIcebergView;
+import org.projectnessie.model.LogResponse.LogEntry;
+import org.projectnessie.model.Namespace;
+import org.projectnessie.model.Operation;
+import org.projectnessie.model.Reference;
+import org.projectnessie.model.Reference.ReferenceType;
+import org.projectnessie.model.Tag;
+import org.projectnessie.model.Validation;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * Implementation of the NessieClient interface for REST.
- */
+/** Implementation of the NessieClient interface for REST. */
 public class NessieClientImpl implements NessieClient {
-
   private static final Logger logger = LoggerFactory.getLogger(NessieClientImpl.class);
+
+  @SuppressWarnings("checkstyle:ConstantName")
   private static final MetricsInstrumenter metrics = new MetricsInstrumenter(NessieClient.class);
+
   private static final String SQL_TEXT = "N/A";
 
   static final String BRANCH_REFERENCE = "Branch";
@@ -124,34 +119,45 @@ public class NessieClientImpl implements NessieClient {
 
   private final NessieApiV2 nessieApi;
   private final boolean produceImplicitNamespaces;
-  private final LoadingCache<ImmutableTriple<ContentKey, ResolvedVersionContext, String>, Content> nessieContentCache;
   private boolean apiClosed = false;
   private String apiCloseStacktrace;
+
+  private NessieMetadataCacheWrapper nessieMetadataCache;
 
   public NessieClientImpl(NessieApiV2 nessieApi, OptionManager optionManager) {
     this(nessieApi, optionManager, true);
   }
 
-  public NessieClientImpl(NessieApiV2 nessieApi, OptionManager optionManager, boolean produceImplicitNamespaces) {
+  public NessieClientImpl(
+      NessieApiV2 nessieApi, OptionManager optionManager, boolean produceImplicitNamespaces) {
     this.nessieApi = nessieApi;
     this.produceImplicitNamespaces = produceImplicitNamespaces;
-    this.nessieContentCache = Caffeine
-      .newBuilder()
-      .maximumSize(optionManager.getOption(NESSIE_CONTENT_CACHE_SIZE_ITEMS))
-      .softValues()
-      .expireAfterWrite(optionManager.getOption(NESSIE_CONTENT_CACHE_TTL_MINUTES), TimeUnit.MINUTES)
-      .build(new NessieContentCacheLoader());
+
+    NessieMetadataCacheStoreProvider nessieMetadataCacheStoreProvider =
+        new NessieMetadataInMemoryCacheProvider();
+    nessieMetadataCache =
+        new NessieMetadataCacheWrapper(
+            nessieMetadataCacheStoreProvider,
+            nessieApi,
+            optionManager.getOption(NESSIE_CONTENT_CACHE_SIZE_ITEMS),
+            optionManager.getOption(NESSIE_CONTENT_CACHE_TTL_MINUTES),
+            optionManager.getOption(BYPASS_CONTENT_CACHE));
   }
 
-  private class NessieContentCacheLoader implements CacheLoader<ImmutableTriple<ContentKey, ResolvedVersionContext, String>, Content> {
-    @Override
-    public Content load(ImmutableTriple<ContentKey, ResolvedVersionContext, String> triple) throws Exception {
-      ContentKey contentKey = triple.left;
-      ResolvedVersionContext resolvedVersionContext = triple.middle;
-      String userId = triple.right; // Unused because RequestContext is already set. However, required for the cache key so that entries are unique per user.
-      Preconditions.checkArgument(userId.equals(RequestContext.current().get(UserContext.CTX_KEY).getUserId())); // Defensive check only
-      return loadNessieContent(contentKey, resolvedVersionContext).orElse(null);
-    }
+  public NessieClientImpl(NessieApiV2 nessieApi) {
+    this.nessieApi = nessieApi;
+    this.produceImplicitNamespaces = true;
+
+    NessieMetadataCacheStoreProvider nessieMetadataCacheStoreProvider =
+        new NessieMetadataInMemoryCacheProvider();
+    nessieMetadataCache =
+        new NessieMetadataCacheWrapper(
+            nessieMetadataCacheStoreProvider,
+            nessieApi,
+            0,
+            0,
+            true // Nessie Client with no cache, so above values are irrelevant, so just set to 0
+            );
   }
 
   @Nullable
@@ -163,14 +169,15 @@ public class NessieClientImpl implements NessieClient {
   private Content getContentHelper(ContentKey contentKey, ResolvedVersionContext version) {
     UserContext userContext = RequestContext.current().get(UserContext.CTX_KEY);
 
-    // If UserContext is not set, unsafe to share with other instances that also don't have UserContext set. Bypass the
+    // If UserContext is not set, unsafe to share with other instances that also don't have
+    // UserContext set. Bypass the
     // cache instead.
     if (userContext == null) {
       return loadNessieContent(contentKey, version).orElse(null);
     }
-
     String userId = userContext.getUserId();
-    return nessieContentCache.get(ImmutableTriple.of(contentKey, version, userId));
+
+    return nessieMetadataCache.get(ImmutableTriple.of(contentKey, version, userId)).orElse(null);
   }
 
   @Override
@@ -182,11 +189,14 @@ public class NessieClientImpl implements NessieClient {
     } catch (NessieNotFoundException e) {
       throw new NoDefaultBranchException(e);
     } catch (NessieNotAuthorizedException e) {
-      throw new UnAuthenticatedException(e, "Unable to authenticate to the Nessie server. Make sure that the token is valid and not expired");
+      throw new UnAuthenticatedException(
+          e,
+          "Unable to authenticate to the Nessie server. Make sure that the token is valid and not expired");
     } catch (HttpClientException e) {
       logger.error("Unable to get the default branch from the Nessie", e);
       if (e.getCause() instanceof ConnectException) {
-        throw new ConnectionRefusedException(e, "Connection refused while connecting to the Nessie Server.");
+        throw new ConnectionRefusedException(
+            e, "Connection refused while connecting to the Nessie Server.");
       }
 
       throw new HttpClientRequestException(e, "Failed to get the default branch from Nessie");
@@ -215,22 +225,23 @@ public class NessieClientImpl implements NessieClient {
           return ResolvedVersionContext.ofCommit(versionContext.getValue());
         }
         Reference ref = getReference(versionContext);
-        if (ref instanceof Branch){
+        if (ref instanceof Branch) {
           return ResolvedVersionContext.ofBranch(ref.getName(), ref.getHash());
         }
-        if (ref instanceof Tag){
+        if (ref instanceof Tag) {
           return ResolvedVersionContext.ofTag(ref.getName(), ref.getHash());
         }
-        throw new IllegalStateException(String.format("Reference type %s is not supported", ref.getClass().getName()));
+        throw new IllegalStateException(
+            String.format("Reference type %s is not supported", ref.getClass().getName()));
       case BRANCH:
         Reference branch = getReference(versionContext);
-        if (!(branch instanceof Branch)){
+        if (!(branch instanceof Branch)) {
           throw new ReferenceTypeConflictException();
         }
         return ResolvedVersionContext.ofBranch(branch.getName(), branch.getHash());
       case TAG:
         Reference tag = getReference(versionContext);
-        if (!(tag instanceof Tag)){
+        if (!(tag instanceof Tag)) {
           throw new ReferenceTypeConflictException();
         }
         return ResolvedVersionContext.ofTag(tag.getName(), tag.getHash());
@@ -238,7 +249,9 @@ public class NessieClientImpl implements NessieClient {
         return ResolvedVersionContext.ofCommit(versionContext.getValue());
       case REF_AS_OF_TIMESTAMP:
         if (matchesCommitPattern(versionContext.getValue())) {
-          throw UserException.validationError().message("AS OF <timestamp> syntax is not supported for COMMITs.").buildSilently();
+          throw UserException.validationError()
+              .message("AS OF <timestamp> syntax is not supported for COMMITs.")
+              .buildSilently();
         }
         return ResolvedVersionContext.ofCommit(getHashAtTimestamp(versionContext));
       case BRANCH_AS_OF_TIMESTAMP: // Intentional fallthrough
@@ -266,11 +279,12 @@ public class NessieClientImpl implements NessieClient {
   @WithSpan
   public boolean commitExists(String commitHash) {
     try {
-      nessieApi.getCommitLog()
-        .reference(Detached.of(commitHash))
-        .fetch(FetchOption.MINIMAL) // Might be slightly faster
-        .maxRecords(1) // Might be slightly faster
-        .get();
+      nessieApi
+          .getCommitLog()
+          .reference(Detached.of(commitHash))
+          .fetch(FetchOption.MINIMAL) // Might be slightly faster
+          .maxRecords(1) // Might be slightly faster
+          .get();
 
       return true;
     } catch (NessieNotFoundException e) {
@@ -302,15 +316,13 @@ public class NessieClientImpl implements NessieClient {
       // i.e. refType == 'BRANCH'
       builder.filter(String.format("refType == '%s'", typeFilter.name()));
     }
-    return builder.get().getReferences()
-      .stream()
-      .map(ref -> toReferenceInfo(ref, typeFilter));
+    return builder.get().getReferences().stream().map(ref -> toReferenceInfo(ref, typeFilter));
   }
 
   private static ReferenceInfo toReferenceInfo(Reference ref, @Nullable ReferenceType typeFilter) {
     if (typeFilter != null && ref.getType() != typeFilter) {
-      throw new IllegalStateException("Nessie responded with wrong reference type: " +
-        ref + " expected: " + typeFilter);
+      throw new IllegalStateException(
+          "Nessie responded with wrong reference type: " + ref + " expected: " + typeFilter);
     }
     String type = ref.getType() == ReferenceType.BRANCH ? BRANCH_REFERENCE : TAG_REFERENCE;
     return new ReferenceInfo(type, ref.getName(), ref.getHash());
@@ -321,12 +333,13 @@ public class NessieClientImpl implements NessieClient {
   public Stream<ChangeInfo> listChanges(VersionContext version) {
     try {
       ResolvedVersionContext resolvedVersion = resolveVersionContext(version);
-      return nessieApi.getCommitLog()
-        .reference(toRef(resolvedVersion))
-        .get()
-        .getLogEntries()
-        .stream()
-        .map(NessieClientImpl::toChangeInfo);
+      return nessieApi
+          .getCommitLog()
+          .reference(toRef(resolvedVersion))
+          .get()
+          .getLogEntries()
+          .stream()
+          .map(NessieClientImpl::toChangeInfo);
     } catch (NessieNotFoundException e) {
       throw new ReferenceNotFoundException(e);
     }
@@ -334,47 +347,38 @@ public class NessieClientImpl implements NessieClient {
 
   private static ChangeInfo toChangeInfo(LogEntry log) {
     CommitMeta commitMeta = log.getCommitMeta();
-    String authorTime = commitMeta.getAuthorTime() != null
-      ? commitMeta.getAuthorTime().toString()
-      : "";
+    String authorTime =
+        commitMeta.getAuthorTime() != null ? commitMeta.getAuthorTime().toString() : "";
     return new ChangeInfo(
-      commitMeta.getHash(),
-      commitMeta.getAuthor(),
-      authorTime,
-      commitMeta.getMessage()
-    );
+        commitMeta.getHash(), commitMeta.getAuthor(), authorTime, commitMeta.getMessage());
   }
 
   @Override
   @WithSpan
   public Stream<ExternalNamespaceEntry> listEntries(
-    @Nullable List<String> catalogPath,
-    ResolvedVersionContext version,
-    NestingMode nestingMode,
-    ContentMode contentMode,
-    @Nullable Set<ExternalNamespaceEntry.Type> contentTypeFilter,
-    @Nullable String celFilter) {
-    return metrics.log("listEntries",
-      () -> listEntriesHelper(
-        catalogPath,
-        version,
-        nestingMode,
-        contentMode,
-        contentTypeFilter,
-        celFilter
-      ));
+      @Nullable List<String> catalogPath,
+      ResolvedVersionContext version,
+      NestingMode nestingMode,
+      ContentMode contentMode,
+      @Nullable Set<ExternalNamespaceEntry.Type> contentTypeFilter,
+      @Nullable String celFilter) {
+    return metrics.log(
+        "listEntries",
+        () ->
+            listEntriesHelper(
+                catalogPath, version, nestingMode, contentMode, contentTypeFilter, celFilter));
   }
 
   private Stream<ExternalNamespaceEntry> listEntriesHelper(
-    @Nullable List<String> catalogPath,
-    ResolvedVersionContext resolvedVersion,
-    NestingMode nestingMode,
-    ContentMode contentMode,
-    @Nullable Set<ExternalNamespaceEntry.Type> contentTypeFilter,
-    @Nullable String celFilter) {
+      @Nullable List<String> catalogPath,
+      ResolvedVersionContext resolvedVersion,
+      NestingMode nestingMode,
+      ContentMode contentMode,
+      @Nullable Set<ExternalNamespaceEntry.Type> contentTypeFilter,
+      @Nullable String celFilter) {
     try {
-      final GetEntriesBuilder requestBuilder = nessieApi.getEntries()
-        .reference(toRef(resolvedVersion));
+      final GetEntriesBuilder requestBuilder =
+          nessieApi.getEntries().reference(toRef(resolvedVersion));
 
       final boolean isContentRequested = contentMode == ContentMode.ENTRY_WITH_CONTENT;
       if (isContentRequested) {
@@ -386,7 +390,9 @@ public class NessieClientImpl implements NessieClient {
       if (catalogPath != null) {
         depth += catalogPath.size();
         if (depth > 1) {
-          filterTerms.add(String.format("entry.encodedKey.startsWith('%s.')", Namespace.of(catalogPath).name()));
+          filterTerms.add(
+              String.format(
+                  "entry.encodedKey.startsWith('%s.')", Namespace.of(catalogPath).name()));
         }
       }
       boolean createVirtualImplicitNamespaces = false;
@@ -398,20 +404,22 @@ public class NessieClientImpl implements NessieClient {
       }
       if (contentTypeFilter != null && !contentTypeFilter.isEmpty()) {
         // build filter string i.e. entry.contentType in ['ICEBERG_TABLE', 'DELTA_LAKE_TABLE']
-        String setElements = contentTypeFilter.stream()
-          .map(ExternalNamespaceEntry.Type::toNessieContentType)
-          .map(Content.Type::name)
-          .map(typeName -> String.format("'%s'", typeName))
-          .collect(Collectors.joining(", "));
+        String setElements =
+            contentTypeFilter.stream()
+                .map(ExternalNamespaceEntry.Type::toNessieContentType)
+                .map(Content.Type::name)
+                .map(typeName -> String.format("'%s'", typeName))
+                .collect(Collectors.joining(", "));
         filterTerms.add(String.format("entry.contentType in [%s]", setElements));
       }
       if (celFilter != null) {
         filterTerms.add(celFilter);
       }
       if (!filterTerms.isEmpty()) {
-        String combinedFilter = filterTerms.stream()
-          .map(term -> String.format("(%s)", term))
-          .collect(Collectors.joining(" && "));
+        String combinedFilter =
+            filterTerms.stream()
+                .map(term -> String.format("(%s)", term))
+                .collect(Collectors.joining(" && "));
         requestBuilder.filter(combinedFilter);
       }
 
@@ -422,24 +430,32 @@ public class NessieClientImpl implements NessieClient {
         // https://github.com/projectnessie/nessie/blob/2661599305cda2a2dfda05d7e56db92adb97817f/servers/services/src/main/java/org/projectnessie/services/impl/TreeApiImpl.java#L863-L891
         final int targetDepth = depth;
         Map<ContentKey, Entry> namespaces = new HashMap<>();
-        Stream<Entry> realEntities = entryStream
-          // real entries deeper than targetDepth get truncated to a namespace entry at targetDepth
-          .map(e -> maybeTruncateToVirtualNamespace(e, targetDepth))
-          // Since the above may produce duplicate namespace entries, we have to condense them.
-          // First collect all namespaces into a map on the side and filter them out from the main stream,
-          // then append deduplicated namespace entries to the end of the stream.
-          .filter(e -> collectNamespaces(e, namespaces));
+        Stream<Entry> realEntities =
+            entryStream
+                // real entries deeper than targetDepth get truncated to a namespace entry at
+                // targetDepth
+                .map(e -> maybeTruncateToVirtualNamespace(e, targetDepth))
+                // Since the above may produce duplicate namespace entries, we have to condense
+                // them.
+                // First collect all namespaces into a map on the side and filter them out from the
+                // main stream,
+                // then append deduplicated namespace entries to the end of the stream.
+                .filter(e -> collectNamespaces(e, namespaces));
 
-        // Use a lazy Spliterator supplier plus .flatMap() to allow the original stream to be iterated out before
+        // Use a lazy Spliterator supplier plus .flatMap() to allow the original stream to be
+        // iterated out before
         // the namespaces stream is constructed.
-        // Note: Using Stream.concat(a, b) materializes `b` by requesting its size estimate at construction time.
-        // Note: the number of namespaces is expected to be much smaller than the number of "real" entries.
-        Stream<Entry> namespacesStream = StreamSupport.stream(() -> namespaces.values().spliterator(), 0, false);
+        // Note: Using Stream.concat(a, b) materializes `b` by requesting its size estimate at
+        // construction time.
+        // Note: the number of namespaces is expected to be much smaller than the number of "real"
+        // entries.
+        Stream<Entry> namespacesStream =
+            StreamSupport.stream(() -> namespaces.values().spliterator(), 0, false);
 
         entryStream = Stream.of(realEntities, namespacesStream).flatMap(Function.identity());
       }
-      return entryStream
-        .map(entry -> toExternalNamespaceEntry(entry, resolvedVersion, isContentRequested));
+      return entryStream.map(
+          entry -> toExternalNamespaceEntry(entry, resolvedVersion, isContentRequested));
     } catch (NessieNotFoundException e) {
       throw UserException.dataReadError(e).buildSilently();
     }
@@ -450,24 +466,26 @@ public class NessieClientImpl implements NessieClient {
       return true;
     }
 
-    bag.compute(entry.getName(), (key, old) -> {
-      if (old == null) {
-        return entry;
-      }
+    bag.compute(
+        entry.getName(),
+        (key, old) -> {
+          if (old == null) {
+            return entry;
+          }
 
-      // Prefer entries with full content data
-      // Note: Having content, but no ID would be a bug in the Nessie Server.
-      if (entry.getContent() != null && old.getContent() == null) {
-        return entry;
-      }
+          // Prefer entries with full content data
+          // Note: Having content, but no ID would be a bug in the Nessie Server.
+          if (entry.getContent() != null && old.getContent() == null) {
+            return entry;
+          }
 
-      // Prefer entries with IDs (relevant when content is not requested).
-      if (entry.getContentId() != null && old.getContentId() == null) {
-        return entry;
-      }
+          // Prefer entries with IDs (relevant when content is not requested).
+          if (entry.getContentId() != null && old.getContentId() == null) {
+            return entry;
+          }
 
-      return old;
-    });
+          return old;
+        });
 
     return false;
   }
@@ -484,18 +502,17 @@ public class NessieClientImpl implements NessieClient {
   }
 
   private ExternalNamespaceEntry toExternalNamespaceEntry(
-    Entry entry,
-    ResolvedVersionContext resolvedVersion,
-    boolean wasContentRequested
-  ) {
+      Entry entry, ResolvedVersionContext resolvedVersion, boolean wasContentRequested) {
     boolean typeHasContent = !Content.Type.NAMESPACE.equals(entry.getType());
     List<String> catalogKey = entry.getName().getElements();
     ContentKey contentKey = ContentKey.of(catalogKey);
 
     Content content = entry.getContent();
     if (content == null && typeHasContent && wasContentRequested) {
-      logger.warn("listEntries content was requested but missing (catalogKey: {}, version: {})",
-        catalogKey, resolvedVersion);
+      logger.warn(
+          "listEntries content was requested but missing (catalogKey: {}, version: {})",
+          catalogKey,
+          resolvedVersion);
     }
 
     String contentId = entry.getContentId();
@@ -510,8 +527,11 @@ public class NessieClientImpl implements NessieClient {
           if (content != null) {
             contentInfo = content.getType() + " - " + content.getId();
           }
-          logger.warn("Slow nessie listEntries content load (catalogKey: {}, version: {}): {}",
-            catalogKey, resolvedVersion, contentInfo);
+          logger.warn(
+              "Slow nessie listEntries content load (catalogKey: {}, version: {}): {}",
+              catalogKey,
+              resolvedVersion,
+              contentInfo);
         }
       }
       if (content != null) {
@@ -522,17 +542,21 @@ public class NessieClientImpl implements NessieClient {
     Content.Type nessieType = entry.getType();
     Type dremioType = Type.fromNessieContentType(nessieType);
     if (contentId == null) {
-      logger.warn("Nessie listEntries returned empty contentId (catalogKey: {}, version: {}): {}",
-        catalogKey, resolvedVersion, nessieType);
+      logger.warn(
+          "Nessie listEntries returned empty contentId (catalogKey: {}, version: {}): {}",
+          catalogKey,
+          resolvedVersion,
+          nessieType);
       return ExternalNamespaceEntry.of(dremioType, catalogKey);
     }
     TableVersionContext tableVersionContext = TableVersionContext.of(resolvedVersion);
     @Nullable Optional<NessieContent> nessieContent = null;
     if (wasContentRequested) {
-      nessieContent = Optional.ofNullable(content)
-        .map(c -> NessieContent.buildFromRawContent(catalogKey, c));
+      nessieContent =
+          Optional.ofNullable(content).map(c -> NessieContent.buildFromRawContent(catalogKey, c));
     }
-    return ExternalNamespaceEntry.of(dremioType, catalogKey, contentId, tableVersionContext, nessieContent);
+    return ExternalNamespaceEntry.of(
+        dremioType, catalogKey, contentId, tableVersionContext, nessieContent);
   }
 
   @Override
@@ -542,46 +566,36 @@ public class NessieClientImpl implements NessieClient {
   }
 
   private void createNamespaceHelper(List<String> namespacePathList, VersionContext version) {
-    try {
-      ResolvedVersionContext resolvedVersion = resolveVersionContext(version);
-      if (!resolvedVersion.isBranch()) {
-        throw UserException.validationError()
+    ResolvedVersionContext resolvedVersion = resolveVersionContext(version);
+    ContentKey contentKey = ContentKey.of(namespacePathList);
+    final UsernameContext usernameContext = RequestContext.current().get(UsernameContext.CTX_KEY);
+    final String authorName = usernameContext != null ? usernameContext.getUserName() : null;
+    CommitMeta commitMeta =
+        CommitMeta.builder().author(authorName).message("CREATE FOLDER " + contentKey).build();
+    if (!resolvedVersion.isBranch()) {
+      throw UserException.validationError()
           .message("Cannot create folders for non-branch references.")
           .buildSilently();
-      }
-      final UsernameContext usernameContext = RequestContext.current().get(UsernameContext.CTX_KEY);
-      final String authorName = usernameContext != null ? usernameContext.getUserName() : null;
+    }
 
-      // we are checking if the namespace already exists in nessie.
-      // if we already have the content, we are creating duplicate namespace so we are throwing an error.
-      ContentKey contentKey = ContentKey.of(namespacePathList);
-      Content content = getContent(contentKey, resolvedVersion);
-      if (content != null) {
-        throw new NessieNamespaceAlreadyExistsException(String.format("Folder %s already exists", contentKey.toPathString()));
-      }
-      nessieApi
-        .commitMultipleOperations()
-        .branch((Branch) toRef(resolvedVersion))
-        .operation(Operation.Put.of(contentKey, Namespace.of(namespacePathList)))
-        .commitMeta(CommitMeta.builder()
-          .author(authorName)
-          .message("CREATE FOLDER " + contentKey)
-          .build())
-        .commit();
-    } catch (org.projectnessie.error.NessieNamespaceAlreadyExistsException e) {
-      logger.error("Failed to create namespace as Namespace already exists", e);
-      throw new NessieNamespaceAlreadyExistsException(e);
-    } catch (NessieReferenceNotFoundException e) {
-      logger.error("Failed to create namespace due to Reference not found", e);
-      throw new ReferenceNotFoundException(e);
+    // we are checking if the namespace already exists in nessie.
+    // if we already have the content, we are creating duplicate namespace so we are throwing an
+    // error.
+    Content content = getContent(contentKey, resolvedVersion);
+    if (content != null) {
+      throw new NessieNamespaceAlreadyExistsException(
+          String.format("Folder %s already exists", contentKey.toPathString()));
+    }
+    RetriableCommitWithNamespaces retriableCommitWithNamespaces =
+        new RetriableCommitWithNamespaces(
+            nessieApi,
+            (Branch) toRef(resolvedVersion),
+            commitMeta,
+            Operation.Put.of(contentKey, Namespace.of(namespacePathList)));
+    try {
+      retriableCommitWithNamespaces.commit();
     } catch (NessieConflictException e) {
-      if (e instanceof NessieReferenceConflictException) {
-        throw UserException.validationError().message(e.getMessage()).buildSilently();
-      }
-      logger.error("Failed to create namespace due to Nessie conflict", e);
-      throw new RuntimeException(e);
-    } catch (NessieNotFoundException e) {
-      logger.error("Failed to create namespace due to Nessie not found", e);
+      // Throw new RuntimeException(e) in order to preserve original behavior.
       throw new RuntimeException(e);
     }
   }
@@ -598,45 +612,51 @@ public class NessieClientImpl implements NessieClient {
       ResolvedVersionContext resolvedVersion = resolveVersionContext(version);
       if (!resolvedVersion.isBranch()) {
         throw UserException.validationError()
-          .message("Cannot delete folders for non-branch references.")
-          .buildSilently();
+            .message("Cannot delete folders for non-branch references.")
+            .buildSilently();
       }
       final UsernameContext usernameContext = RequestContext.current().get(UsernameContext.CTX_KEY);
       final String authorName = usernameContext != null ? usernameContext.getUserName() : null;
 
-      boolean isNamespaceNotEmpty = listEntries(
-        namespacePathList,
-        resolvedVersion,
-        // nested children not needed but allows the nessie server to read + transmit a single page
-        NestingMode.INCLUDE_NESTED_CHILDREN,
-        ContentMode.ENTRY_METADATA_ONLY, // content not needed for namespace empty check
-        null,
-        null)
-        .findAny().isPresent();
+      boolean isNamespaceNotEmpty =
+          listEntries(
+                  namespacePathList,
+                  resolvedVersion,
+                  // nested children not needed but allows the nessie server to read + transmit a
+                  // single page
+                  NestingMode.INCLUDE_NESTED_CHILDREN,
+                  ContentMode.ENTRY_METADATA_ONLY, // content not needed for namespace empty check
+                  null,
+                  null)
+              .findAny()
+              .isPresent();
 
-      // This check is needed to support Nessie with namespace validation turned off via config; without it, Nessie
-      // would delete the folder but leave all contents, essentially converting the folder to an implicit namespace
+      // This check is needed to support Nessie with namespace validation turned off via config;
+      // without it, Nessie
+      // would delete the folder but leave all contents, essentially converting the folder to an
+      // implicit namespace
       // that is still shown in the catalog UI (i.e. deletion would silently do nothing)
       if (isNamespaceNotEmpty) {
         throw new NessieNamespaceNotEmptyException(contentKey.toPathString());
       }
 
       nessieApi
-        .commitMultipleOperations()
-        .branch((Branch) toRef(resolvedVersion))
-        .operation(Operation.Delete.of(contentKey))
-        .commitMeta(CommitMeta.builder()
-          .author(authorName)
-          .message("DROP FOLDER " + contentKey)
-          .build())
-        .commit();
+          .commitMultipleOperations()
+          .branch((Branch) toRef(resolvedVersion))
+          .operation(Operation.Delete.of(contentKey))
+          .commitMeta(
+              CommitMeta.builder().author(authorName).message("DROP FOLDER " + contentKey).build())
+          .commit();
     } catch (NessieReferenceNotFoundException e) {
       logger.error("Failed to delete namespace as Reference not found", e);
       throw new ReferenceNotFoundException(e);
     } catch (NessieConflictException e) {
-      if (e instanceof NessieReferenceConflictException &&
-        ((NessieReferenceConflictException) e).getErrorDetails().conflicts().stream().allMatch(
-          (Conflict conflict) -> conflict.conflictType() == Conflict.ConflictType.NAMESPACE_NOT_EMPTY)) {
+      if (e instanceof NessieReferenceConflictException
+          && ((NessieReferenceConflictException) e)
+              .getErrorDetails().conflicts().stream()
+                  .allMatch(
+                      (Conflict conflict) ->
+                          conflict.conflictType() == Conflict.ConflictType.NAMESPACE_NOT_EMPTY)) {
         logger.error("Failed to delete namespace as Namespace not empty", e);
         throw new NessieNamespaceNotEmptyException(contentKey.toPathString(), e);
       } else {
@@ -661,8 +681,9 @@ public class NessieClientImpl implements NessieClient {
     try {
       return Branch.of(branchName, resolvedSourceVersion.getCommitHash());
     } catch (IllegalArgumentException e) {
-      throw UserException.validationError().message("Invalid branch name: %s. %s", branchName, e.getMessage())
-        .buildSilently();
+      throw UserException.validationError()
+          .message("Invalid branch name: %s. %s", branchName, e.getMessage())
+          .buildSilently();
     }
   }
 
@@ -678,31 +699,29 @@ public class NessieClientImpl implements NessieClient {
     try {
       return Tag.of(tagName, resolvedSourceVersion.getCommitHash());
     } catch (IllegalArgumentException e) {
-      throw UserException.validationError().message("Invalid tag name: %s. %s", tagName, e.getMessage())
-        .buildSilently();
+      throw UserException.validationError()
+          .message("Invalid tag name: %s. %s", tagName, e.getMessage())
+          .buildSilently();
     }
   }
 
   /**
    * Note: Nessie's createReference Java API is currently quite confusing.
    *
-   * @param reference
-   *   - reference.name -> Name of reference to be created
-   *   - reference.commitHash -> Hash to create reference at (optional, but always used here)
-   *   - reference type defines whether Branch or Tag is created
-   * @param sourceRefName Name of source reference to create new reference from
-   *                      Use "DETACHED" here for BARE_COMMIT
+   * @param reference - reference.name -> Name of reference to be created - reference.commitHash ->
+   *     Hash to create reference at (optional, but always used here) - reference type defines
+   *     whether Branch or Tag is created
+   * @param sourceRefName Name of source reference to create new reference from Use "DETACHED" here
+   *     for BARE_COMMIT
    */
   private void createReferenceHelper(Reference reference, String sourceRefName) {
     try {
-      nessieApi.createReference()
-        .reference(reference)
-        .sourceRefName(sourceRefName)
-        .create();
+      nessieApi.createReference().reference(reference).sourceRefName(sourceRefName).create();
     } catch (NessieReferenceAlreadyExistsException e) {
       throw new ReferenceAlreadyExistsException(e);
     } catch (NessieConflictException e) {
-      // The only NessieConflictException expected here is NessieReferenceAlreadyExistsException caught above
+      // The only NessieConflictException expected here is NessieReferenceAlreadyExistsException
+      // caught above
       throw new IllegalStateException(e);
     } catch (NessieNotFoundException e) {
       throw new ReferenceNotFoundException(e);
@@ -718,23 +737,18 @@ public class NessieClientImpl implements NessieClient {
     try {
       // Empty branchHash implies force drop, look up current hash
       if (branchHash.isEmpty()) {
-        branchHash = nessieApi.getReference()
-          .refName(branchName)
-          .get()
-          .getHash();
+        branchHash = nessieApi.getReference().refName(branchName).get().getHash();
       }
 
-      nessieApi.deleteBranch()
-        .branchName(branchName)
-        .hash(branchHash)
-        .delete();
+      nessieApi.deleteBranch().branchName(branchName).hash(branchHash).delete();
     } catch (NessieConflictException e) {
       throw new ReferenceConflictException(e);
     } catch (NessieNotFoundException e) {
       throw new ReferenceNotFoundException(e);
     } catch (NessieBadRequestException e) {
-      throw UserException.validationError().message("Cannot drop the branch '%s'. %s", branchName, e.getMessage())
-        .buildSilently();
+      throw UserException.validationError()
+          .message("Cannot drop the branch '%s'. %s", branchName, e.getMessage())
+          .buildSilently();
     }
   }
 
@@ -747,16 +761,10 @@ public class NessieClientImpl implements NessieClient {
     try {
       // Empty tagHash implies force drop, look up current hash
       if (tagHash.isEmpty()) {
-        tagHash = nessieApi.getReference()
-          .refName(tagName)
-          .get()
-          .getHash();
+        tagHash = nessieApi.getReference().refName(tagName).get().getHash();
       }
 
-      nessieApi.deleteTag()
-        .tagName(tagName)
-        .hash(tagHash)
-        .delete();
+      nessieApi.deleteTag().tagName(tagName).hash(tagHash).delete();
     } catch (NessieConflictException e) {
       throw new ReferenceConflictException(e);
     } catch (NessieNotFoundException e) {
@@ -771,12 +779,13 @@ public class NessieClientImpl implements NessieClient {
       final String targetHash = nessieApi.getReference().refName(targetBranchName).get().getHash();
       final String sourceHash = nessieApi.getReference().refName(sourceBranchName).get().getHash();
 
-      nessieApi.mergeRefIntoBranch()
-        .branchName(targetBranchName)
-        .hash(targetHash)
-        .fromRefName(sourceBranchName)
-        .fromHash(sourceHash)
-        .merge();
+      nessieApi
+          .mergeRefIntoBranch()
+          .branchName(targetBranchName)
+          .hash(targetHash)
+          .fromRefName(sourceBranchName)
+          .fromHash(sourceHash)
+          .merge();
     } catch (NessieConflictException e) {
       throw new ReferenceConflictException(e);
     } catch (NessieNotFoundException e) {
@@ -791,11 +800,11 @@ public class NessieClientImpl implements NessieClient {
       final String branchHash = nessieApi.getReference().refName(branchName).get().getHash();
       ResolvedVersionContext resolvedVersion = resolveVersionContext(sourceContext);
       nessieApi
-        .assignBranch()
-        .branchName(branchName)
-        .hash(branchHash)
-        .assignTo(toRef(resolvedVersion))
-        .assign();
+          .assignBranch()
+          .branchName(branchName)
+          .hash(branchHash)
+          .assignTo(toRef(resolvedVersion))
+          .assign();
     } catch (NessieConflictException e) {
       throw new ReferenceConflictException(e);
     } catch (NessieNotFoundException | ReferenceNotFoundException e) {
@@ -810,11 +819,11 @@ public class NessieClientImpl implements NessieClient {
       final String tagHash = nessieApi.getReference().refName(tagName).get().getHash();
       ResolvedVersionContext resolvedVersion = resolveVersionContext(sourceVersion);
       nessieApi
-        .assignTag()
-        .tagName(tagName)
-        .hash(tagHash)
-        .assignTo(toRef(resolvedVersion))
-        .assign();
+          .assignTag()
+          .tagName(tagName)
+          .hash(tagHash)
+          .assignTo(toRef(resolvedVersion))
+          .assign();
     } catch (NessieConflictException e) {
       throw new ReferenceConflictException(e);
     } catch (NessieNotFoundException | ReferenceNotFoundException e) {
@@ -823,120 +832,90 @@ public class NessieClientImpl implements NessieClient {
   }
 
   @WithSpan
-  private Optional<Content> loadNessieContent(ContentKey contentKey, ResolvedVersionContext version) {
+  private Optional<Content> loadNessieContent(
+      ContentKey contentKey, ResolvedVersionContext version) {
     return metrics.log("loadNessieContent", () -> loadNessieContentHelper(contentKey, version));
   }
 
-  private Optional<Content> loadNessieContentHelper(ContentKey contentKey, ResolvedVersionContext version) {
-    String logPrefix = String.format("Load of Nessie content (key: %s, version: %s)",
-      contentKey, version);
-    Content content;
-    try {
-      content = nessieApi.getContent()
-        .key(contentKey)
-        .reference(toRef(version))
-        .get()
-        .get(contentKey);
-    } catch (NessieNotFoundException e) {
-      if (e.getErrorCode() == ErrorCode.CONTENT_NOT_FOUND) {
-        logger.warn("{} returned CONTENT_NOT_FOUND", logPrefix);
-        return Optional.empty();
-      }
-      logger.error("{} failed", logPrefix, e);
-      throw UserException.dataReadError(e).buildSilently();
-    }
-    if (content == null) {
-      logger.debug("{} returned null", logPrefix);
-      return Optional.empty();
-    }
-    logger.debug("{} returned content type: {}, content: {}",
-      logPrefix, content.getType(), content);
-    if (!(content instanceof IcebergTable
-      || content instanceof IcebergView
-      || content instanceof Namespace)) {
-      logger.warn("{} returned unexpected content type: {} ", logPrefix, content.getType());
-    }
-    return Optional.of(content);
+  private Optional<Content> loadNessieContentHelper(
+      ContentKey contentKey, ResolvedVersionContext version) {
+    return NessieContentLoader.loadNessieContent(nessieApi, contentKey, version);
   }
 
   private void ensureOperationOnBranch(ResolvedVersionContext version) {
     if (!version.isBranch()) {
       throw new IllegalArgumentException(
-        "Requested operation is not supported for non-branch reference: " + version);
+          "Requested operation is not supported for non-branch reference: " + version);
     }
   }
 
   @Override
   @WithSpan
   public void commitTable(
-    List<String> catalogKey,
-    String newMetadataLocation,
-    NessieClientTableMetadata nessieClientTableMetadata,
-    ResolvedVersionContext version,
-    String baseContentId,
-    @Nullable IcebergCommitOrigin commitOrigin,
-    String jobId,
-    String userName) {
+      List<String> catalogKey,
+      String newMetadataLocation,
+      NessieClientTableMetadata nessieClientTableMetadata,
+      ResolvedVersionContext version,
+      String baseContentId,
+      @Nullable IcebergCommitOrigin commitOrigin,
+      String jobId,
+      String userName) {
     metrics.log(
-      "commitTable",
-      () -> commitTableHelper(
-        catalogKey,
-        newMetadataLocation,
-        nessieClientTableMetadata,
-        version,
-        baseContentId,
-        commitOrigin,
-        userName
-      ));
+        "commitTable",
+        () ->
+            commitTableHelper(
+                catalogKey,
+                newMetadataLocation,
+                nessieClientTableMetadata,
+                version,
+                baseContentId,
+                commitOrigin,
+                userName));
   }
 
   private void commitTableHelper(
-    List<String> catalogKey,
-    String newMetadataLocation,
-    NessieClientTableMetadata nessieClientTableMetadata,
-    ResolvedVersionContext version,
-    String baseContentId,
-    @Nullable IcebergCommitOrigin commitOrigin,
-    String userName) {
+      List<String> catalogKey,
+      String newMetadataLocation,
+      NessieClientTableMetadata nessieClientTableMetadata,
+      ResolvedVersionContext version,
+      String baseContentId,
+      @Nullable IcebergCommitOrigin commitOrigin,
+      String userName) {
     ensureOperationOnBranch(version);
     ContentKey contentKey = ContentKey.of(catalogKey);
 
-    logger.debug("Committing new metadatalocation {} snapshotId {} currentSchemaId {} defaultSpecId {} sortOrder {} for key {} and id {}",
-      newMetadataLocation,
-      nessieClientTableMetadata.getSnapshotId(),
-      nessieClientTableMetadata.getCurrentSchemaId(),
-      nessieClientTableMetadata.getDefaultSpecId(),
-      nessieClientTableMetadata.getSortOrderId(),
-      catalogKey,
-      ((baseContentId == null) ? "new object (null id) " : baseContentId));
+    logger.debug(
+        "Committing new metadatalocation {} snapshotId {} currentSchemaId {} defaultSpecId {} sortOrder {} for key {} and id {}",
+        newMetadataLocation,
+        nessieClientTableMetadata.getSnapshotId(),
+        nessieClientTableMetadata.getCurrentSchemaId(),
+        nessieClientTableMetadata.getDefaultSpecId(),
+        nessieClientTableMetadata.getSortOrderId(),
+        catalogKey,
+        ((baseContentId == null) ? "new object (null id) " : baseContentId));
 
-    ImmutableIcebergTable.Builder newTableBuilder = ImmutableIcebergTable.builder()
-      .metadataLocation(newMetadataLocation)
-      .snapshotId(nessieClientTableMetadata.getSnapshotId())
-      .schemaId(nessieClientTableMetadata.getCurrentSchemaId())
-      .specId(nessieClientTableMetadata.getDefaultSpecId())
-      .sortOrderId(nessieClientTableMetadata.getSortOrderId());
+    ImmutableIcebergTable.Builder newTableBuilder =
+        ImmutableIcebergTable.builder()
+            .metadataLocation(newMetadataLocation)
+            .snapshotId(nessieClientTableMetadata.getSnapshotId())
+            .schemaId(nessieClientTableMetadata.getCurrentSchemaId())
+            .specId(nessieClientTableMetadata.getDefaultSpecId())
+            .sortOrderId(nessieClientTableMetadata.getSortOrderId());
     if (baseContentId != null) {
       newTableBuilder.id(baseContentId);
     }
-    commitOperationHelper(
-      contentKey,
-      newTableBuilder.build(),
-      version,
-      commitOrigin,
-      userName
-    );
+    commitOperationHelper(contentKey, newTableBuilder.build(), version, commitOrigin, userName);
   }
 
   private void commitOperationHelper(
-    ContentKey contentKey,
-    Content content,
-    ResolvedVersionContext version,
-    @Nullable IcebergCommitOrigin commitOrigin,
-    String userName
-  ) {
+      ContentKey contentKey,
+      Content content,
+      ResolvedVersionContext version,
+      @Nullable IcebergCommitOrigin commitOrigin,
+      String userName) {
 
-    //TODO (DX-59840): Remove the UsernameContext and get the info from userName in DCS after testing there
+    // TODO (DX-59840): Remove the UsernameContext and get the info from userName in DCS after
+    // testing there
     final UsernameContext usernameContext = RequestContext.current().get(UsernameContext.CTX_KEY);
     final String authorName = usernameContext != null ? usernameContext.getUserName() : userName;
 
@@ -945,86 +924,77 @@ public class NessieClientImpl implements NessieClient {
       // fallback logic
       String createOrUpdate = content.getId() == null ? "CREATE" : "UPDATE on";
       String contentType = Content.Type.ICEBERG_TABLE.equals(content.getType()) ? "TABLE" : "VIEW";
-      commitMessage = String.join(" ",
-        createOrUpdate, contentType, contentKey.toString());
+      commitMessage = String.join(" ", createOrUpdate, contentType, contentKey.toString());
     } else {
       if (commitOrigin == IcebergCommitOrigin.READ_ONLY) {
         throw new IllegalArgumentException("Unable to commit a READ_ONLY origin!");
       }
-      VersionedPlugin.EntityType entityType = Content.Type.ICEBERG_TABLE.equals(content.getType()) ?
-        EntityType.ICEBERG_TABLE : EntityType.ICEBERG_VIEW;
+      VersionedPlugin.EntityType entityType =
+          Content.Type.ICEBERG_TABLE.equals(content.getType())
+              ? EntityType.ICEBERG_TABLE
+              : EntityType.ICEBERG_VIEW;
       commitMessage = commitOrigin.createCommitMessage(contentKey.toString(), entityType);
     }
-
+    CommitMeta commitMeta = CommitMeta.builder().author(authorName).message(commitMessage).build();
+    RetriableCommitWithNamespaces retriableCommitWithNamespaces =
+        new RetriableCommitWithNamespaces(
+            nessieApi, (Branch) toRef(version), commitMeta, Operation.Put.of(contentKey, content));
     try {
-      nessieApi
-        .commitMultipleOperations()
-        .branch((Branch) toRef(version))
-        .operation(Operation.Put.of(contentKey, content))
-        .commitMeta(CommitMeta.builder()
-          .author(authorName)
-          .message(commitMessage)
-          .build())
-        .commit();
+      retriableCommitWithNamespaces.commit();
     } catch (NessieConflictException e) {
-      //Converting to CommitFailedException. Iceberg will retry the operation automatically 4 times when a  CommitFailedException is thrown.
-      //Take a look in org.apache.iceberg.BaseTransaction#commitSimpleTransaction where commit and retry (exponentially)  happens
       logger.error("Commit operation failed", e);
       throw new CommitFailedException(e, "Failed to commit operation due to %s", e.getMessage());
-    } catch (NessieNotFoundException e) {
-      throw UserException.dataReadError(e).buildSilently();
     }
   }
 
   @Override
   @WithSpan
   public void commitView(
-    List<String> catalogKey,
-    String newMetadataLocation,
-    IcebergView icebergView,
-    ViewVersionMetadata metadata,
-    String dialect,
-    ResolvedVersionContext version,
-    String baseContentId,
-    @Nullable IcebergCommitOrigin commitOrigin,
-    String userName) {
+      List<String> catalogKey,
+      String newMetadataLocation,
+      IcebergView icebergView,
+      ViewVersionMetadata metadata,
+      String dialect,
+      ResolvedVersionContext version,
+      String baseContentId,
+      @Nullable IcebergCommitOrigin commitOrigin,
+      String userName) {
     metrics.log(
-      "commitView",
-      () ->
-        commitViewHelper(
-          catalogKey,
-          newMetadataLocation,
-          icebergView,
-          metadata,
-          dialect,
-          version,
-          baseContentId,
-          commitOrigin,
-          userName
-        ));
+        "commitView",
+        () ->
+            commitViewHelper(
+                catalogKey,
+                newMetadataLocation,
+                icebergView,
+                metadata,
+                dialect,
+                version,
+                baseContentId,
+                commitOrigin,
+                userName));
   }
 
   private void commitViewHelper(
-    List<String> catalogKey,
-    String newMetadataLocation,
-    IcebergView icebergView,
-    ViewVersionMetadata metadata,
-    String dialect,
-    ResolvedVersionContext version,
-    String baseContentId,
-    @Nullable IcebergCommitOrigin commitOrigin,
-    String userName) {
+      List<String> catalogKey,
+      String newMetadataLocation,
+      IcebergView icebergView,
+      ViewVersionMetadata metadata,
+      String dialect,
+      ResolvedVersionContext version,
+      String baseContentId,
+      @Nullable IcebergCommitOrigin commitOrigin,
+      String userName) {
     ensureOperationOnBranch(version);
     ContentKey contentKey = ContentKey.of(catalogKey);
     logger.debug(
-      "Committing new metadatalocation {} versionId {} schemaId {} dialect {} sqlText {} for key {} id {}",
-      newMetadataLocation,
-      metadata.currentVersionId(),
-      metadata.definition().schema().schemaId(),
-      dialect,
-      metadata.definition().sql(),
-      catalogKey,
-      ((baseContentId == null) ? "new object (null id) " : baseContentId));
+        "Committing new metadatalocation {} versionId {} schemaId {} dialect {} sqlText {} for key {} id {}",
+        newMetadataLocation,
+        metadata.currentVersionId(),
+        metadata.definition().schema().schemaId(),
+        dialect,
+        metadata.definition().sql(),
+        catalogKey,
+        ((baseContentId == null) ? "new object (null id) " : baseContentId));
 
     ImmutableIcebergView.Builder viewBuilder = ImmutableIcebergView.builder();
     if (icebergView != null && icebergView.getId() != null) {
@@ -1032,42 +1002,36 @@ public class NessieClientImpl implements NessieClient {
       logger.debug("The view id {} for key {}", icebergView.getId(), contentKey);
     }
 
-    ImmutableIcebergView.Builder newViewBuilder = viewBuilder
-      .metadataLocation(newMetadataLocation)
-      .versionId(metadata.currentVersionId())
-      .schemaId(metadata.definition().schema().schemaId())
-      .dialect(dialect)
-      .sqlText(SQL_TEXT);
+    ImmutableIcebergView.Builder newViewBuilder =
+        viewBuilder
+            .metadataLocation(newMetadataLocation)
+            .versionId(metadata.currentVersionId())
+            .schemaId(metadata.definition().schema().schemaId())
+            .dialect(dialect)
+            .sqlText(SQL_TEXT);
     if (baseContentId != null) {
       newViewBuilder.id(baseContentId);
     }
-    commitOperationHelper(
-      contentKey,
-      newViewBuilder.build(),
-      version,
-      commitOrigin,
-      userName
-    );
+    commitOperationHelper(contentKey, newViewBuilder.build(), version, commitOrigin, userName);
   }
 
   @Override
   @WithSpan
   public void deleteCatalogEntry(
-    List<String> catalogKey,
-    VersionedPlugin.EntityType entityType,
-    ResolvedVersionContext version,
-    String userName
-  ) {
-    metrics.log("deleteCatalogEntry",
-      () -> deleteCatalogEntryHelper(catalogKey, entityType, version, userName));
+      List<String> catalogKey,
+      VersionedPlugin.EntityType entityType,
+      ResolvedVersionContext version,
+      String userName) {
+    metrics.log(
+        "deleteCatalogEntry",
+        () -> deleteCatalogEntryHelper(catalogKey, entityType, version, userName));
   }
 
   private void deleteCatalogEntryHelper(
-    List<String> catalogKey,
-    VersionedPlugin.EntityType entityType,
-    ResolvedVersionContext version,
-    String userName
-  ) {
+      List<String> catalogKey,
+      VersionedPlugin.EntityType entityType,
+      ResolvedVersionContext version,
+      String userName) {
     ensureOperationOnBranch(version);
     final Reference versionRef = toRef(version);
     final ContentKey contentKey = ContentKey.of(catalogKey);
@@ -1077,46 +1041,45 @@ public class NessieClientImpl implements NessieClient {
     if (content == null) {
       logger.debug("Tried to delete key : {} but it was not found in nessie ", catalogKey);
       throw UserException.validationError()
-        .message(String.format("Key not found in nessie for  %s", catalogKey))
-        .buildSilently();
+          .message(String.format("Key not found in nessie for  %s", catalogKey))
+          .buildSilently();
     }
     NessieContent nessieContent = NessieContent.buildFromRawContent(catalogKey, content);
     VersionedPlugin.EntityType actualEntityType = nessieContent.getEntityType();
     if (entityType != null && actualEntityType != entityType) {
       throw UserException.validationError()
-        .message(String.format("Key %s has type %s but expected %s", catalogKey, actualEntityType, entityType))
-        .buildSilently();
+          .message(
+              String.format(
+                  "Key %s has type %s but expected %s", catalogKey, actualEntityType, entityType))
+          .buildSilently();
     }
     String entityTypeName = toCommitMsgTypeName(actualEntityType);
 
-    //TODO (DX-59840): Remove the UsernameContext and get the info from userName in DCS after testing there
+    // TODO (DX-59840): Remove the UsernameContext and get the info from userName in DCS after
+    // testing there
     final UsernameContext usernameContext = RequestContext.current().get(UsernameContext.CTX_KEY);
     final String authorName = usernameContext != null ? usernameContext.getUserName() : userName;
 
-    String commitMessage = String.join(" ",
-      "DROP", entityTypeName, contentKey.toString());
+    String commitMessage = String.join(" ", "DROP", entityTypeName, contentKey.toString());
 
     try {
       nessieApi
-        .commitMultipleOperations()
-        .branchName(versionRef.getName())
-        .hash(versionRef.getHash())
-        .operation(Operation.Delete.of(contentKey))
-        .commitMeta(CommitMeta.builder()
-          .author(authorName)
-          .message(commitMessage)
-          .build())
-        .commit();
+          .commitMultipleOperations()
+          .branchName(versionRef.getName())
+          .hash(versionRef.getHash())
+          .operation(Operation.Delete.of(contentKey))
+          .commitMeta(CommitMeta.builder().author(authorName).message(commitMessage).build())
+          .commit();
     } catch (NessieNotFoundException e) {
       logger.debug("Tried to delete key : {} but it was not found in nessie ", catalogKey);
       throw UserException.validationError(e)
-        .message(String.format("Version reference not found in nessie for %s", catalogKey))
-        .buildSilently();
+          .message(String.format("Version reference not found in nessie for %s", catalogKey))
+          .buildSilently();
     } catch (NessieConflictException e) {
       logger.debug("The catalog entry {} could not be removed from Nessie", catalogKey);
       throw UserException.concurrentModificationError(e)
-        .message(String.format("Failed to drop catalog entry %s", catalogKey))
-        .buildSilently();
+          .message(String.format("Failed to drop catalog entry %s", catalogKey))
+          .buildSilently();
     }
   }
 
@@ -1140,9 +1103,7 @@ public class NessieClientImpl implements NessieClient {
     Preconditions.checkState(versionContext.getTimestamp() == null);
 
     try {
-      return nessieApi.getReference()
-        .refName(referenceName)
-        .get();
+      return nessieApi.getReference().refName(referenceName).get();
     } catch (NessieNotFoundException e) {
       String error = versionContext.toStringFirstLetterCapitalized() + " is not found";
       logger.error(error, e);
@@ -1158,25 +1119,24 @@ public class NessieClientImpl implements NessieClient {
     final String referenceTimestampLookup = "*" + timestamp.toEpochMilli();
 
     try {
-      List<LogEntry> logEntries = nessieApi.getCommitLog()
-        .refName(referenceName)
-        .hashOnRef(referenceTimestampLookup)
-        .fetch(FetchOption.MINIMAL)
-        .maxRecords(1)
-        .get()
-        .getLogEntries();
+      List<LogEntry> logEntries =
+          nessieApi
+              .getCommitLog()
+              .refName(referenceName)
+              .hashOnRef(referenceTimestampLookup)
+              .fetch(FetchOption.MINIMAL)
+              .maxRecords(1)
+              .get()
+              .getLogEntries();
       if (logEntries.isEmpty()) {
-        String error = String.format(
-          "There are no commits at or before timestamp '%s' in reference '%s'. Please specify another timestamp",
-          Timestamp.from(timestamp),
-          referenceName);
+        String error =
+            String.format(
+                "There are no commits at or before timestamp '%s' in reference '%s'. Please specify another timestamp",
+                Timestamp.from(timestamp), referenceName);
         logger.error(error);
         throw new ReferenceNotFoundByTimestampException(error);
       }
-      String hash = logEntries
-        .get(0)
-        .getCommitMeta()
-        .getHash();
+      String hash = logEntries.get(0).getCommitMeta().getHash();
 
       if (hash == null) {
         String error = versionContext.toStringFirstLetterCapitalized() + " is not found";
@@ -1195,7 +1155,8 @@ public class NessieClientImpl implements NessieClient {
     Preconditions.checkNotNull(resolvedVersionContext);
     switch (resolvedVersionContext.getType()) {
       case BRANCH:
-        return Branch.of(resolvedVersionContext.getRefName(), resolvedVersionContext.getCommitHash());
+        return Branch.of(
+            resolvedVersionContext.getRefName(), resolvedVersionContext.getCommitHash());
       case TAG:
         return Tag.of(resolvedVersionContext.getRefName(), resolvedVersionContext.getCommitHash());
       case COMMIT:
@@ -1206,10 +1167,12 @@ public class NessieClientImpl implements NessieClient {
   }
 
   @Override
-  public Optional<NessieContent> getContent(List<String> catalogKey, ResolvedVersionContext version, String jobId) {
+  @WithSpan
+  public Optional<NessieContent> getContent(
+      List<String> catalogKey, ResolvedVersionContext version, String jobId) {
     Content rawContent = getContent(ContentKey.of(catalogKey), version);
     return Optional.ofNullable(rawContent)
-      .map(con -> NessieContent.buildFromRawContent(catalogKey, con));
+        .map(con -> NessieContent.buildFromRawContent(catalogKey, con));
   }
 
   @Override
@@ -1229,6 +1192,12 @@ public class NessieClientImpl implements NessieClient {
       throw new IllegalStateException("nessieApi already closed:\n" + apiCloseStacktrace);
     }
     nessieApi.close();
+
+    try {
+      nessieMetadataCache.close();
+    } catch (Exception e) {
+      logger.error("Failed to close nessie metadata cache resources");
+    }
 
     apiClosed = true;
     if (VM.areAssertsEnabled()) {

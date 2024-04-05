@@ -16,11 +16,10 @@
 
 package com.dremio.exec.vector.accessor;
 
-import org.apache.arrow.vector.BigIntVector;
-
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.types.Types;
+import org.apache.arrow.vector.BigIntVector;
 
 public class BigIntAccessor extends AbstractSqlAccessor {
 
@@ -59,5 +58,4 @@ public class BigIntAccessor extends AbstractSqlAccessor {
   public long getLong(int index) {
     return ac.get(index);
   }
-
 }

@@ -22,8 +22,20 @@ import static org.apache.calcite.rel.RelFieldCollation.NullDirection.FIRST;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import com.dremio.common.AutoCloseables;
+import com.dremio.common.exceptions.UserException;
+import com.dremio.common.util.TestTools;
+import com.dremio.exec.ExecConstants;
+import com.dremio.exec.expr.ClassProducer;
+import com.dremio.exec.physical.config.ExternalSort;
+import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValue;
+import com.dremio.sabot.BaseTestOperator;
+import com.dremio.sabot.CustomGenerator;
+import com.dremio.sabot.Fixtures;
+import com.dremio.sabot.exec.context.BufferManagerImpl;
+import com.dremio.sabot.exec.context.OperatorStats;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.BufferManager;
 import org.junit.After;
@@ -32,18 +44,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestRule;
 
-import com.dremio.common.AutoCloseables;
-import com.dremio.common.exceptions.UserException;
-import com.dremio.common.util.TestTools;
-import com.dremio.exec.ExecConstants;
-import com.dremio.exec.expr.ClassProducer;
-import com.dremio.exec.physical.config.ExternalSort;
-import com.dremio.sabot.BaseTestOperator;
-import com.dremio.sabot.CustomGenerator;
-import com.dremio.sabot.Fixtures;
-import com.dremio.sabot.exec.context.BufferManagerImpl;
-import com.dremio.sabot.exec.context.OperatorStats;
-
 public class TestSortOp extends BaseTestOperator {
 
   private BufferAllocator allocator;
@@ -51,8 +51,8 @@ public class TestSortOp extends BaseTestOperator {
   private CustomGenerator generator;
   private ClassProducer producer;
 
-  @Rule
-  public final TestRule timeoutRule = TestTools.getTimeoutRule(400, TimeUnit.SECONDS);
+  @Rule public final TestRule timeoutRule = TestTools.getTimeoutRule(400, TimeUnit.SECONDS);
+  private final OptionManager options = testContext.getOptions();
 
   @Before
   public void prepare() {
@@ -60,6 +60,11 @@ public class TestSortOp extends BaseTestOperator {
     bufferManager = new BufferManagerImpl(allocator);
     producer = testContext.newClassProducer(bufferManager);
     generator = new CustomGenerator(20000, getTestAllocator());
+    options.setOption(
+        OptionValue.createLong(
+            OptionValue.OptionType.SYSTEM,
+            ExecConstants.EXTERNAL_SORT_BATCHSIZE_MULTIPLIER.getOptionName(),
+            2));
   }
 
   @After
@@ -70,12 +75,19 @@ public class TestSortOp extends BaseTestOperator {
   @Test
   public void testQuickSorterSpillSortWithUserException1() throws Exception {
     try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_SPLAY_SORT, false)) {
-      ExternalSort sort = new ExternalSort(PROPS.cloneWithNewReserve(1_000_000), null, singletonList(ordering(ID.getName(), ASCENDING, FIRST)), false);
+      ExternalSort sort =
+          new ExternalSort(
+              PROPS.cloneWithNewReserve(1_000_000),
+              null,
+              singletonList(ordering(ID.getName(), ASCENDING, FIRST)),
+              false);
       sort.getProps().setMemLimit(2_000_000); // this can't go below sort's initialAllocation (20K)
       Fixtures.Table table = generator.getExpectedSortedTable();
       validateSingle(sort, ExternalSortOperator.class, generator, table, 4000);
     } catch (UserException uex) {
-      assertEquals("DiskRunManager: Unable to secure enough memory to merge spilled sort data.", uex.getContextStrings().get(1));
+      assertEquals(
+          "DiskRunManager: Unable to secure enough memory to merge spilled sort data.",
+          uex.getContextStrings().get(1));
       assertEquals("Target Batch Size (in bytes) 236000", uex.getContextStrings().get(2));
       assertEquals("Target Batch Size 4000", uex.getContextStrings().get(3));
       assertEquals(34, uex.getContextStrings().size());
@@ -85,13 +97,20 @@ public class TestSortOp extends BaseTestOperator {
   @Test
   public void testQuickSorterSpillSortWithUserException1WithDirectWriteOff() throws Exception {
     try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_SPLAY_SORT, false);
-         AutoCloseable directWriteOff = with(ExecConstants.EXTERNAL_SORT_DIRECT_WRITE, false)) {
-      ExternalSort sort = new ExternalSort(PROPS.cloneWithNewReserve(1_000_000), null, singletonList(ordering(ID.getName(), ASCENDING, FIRST)), false);
+        AutoCloseable directWriteOff = with(ExecConstants.EXTERNAL_SORT_DIRECT_WRITE, false)) {
+      ExternalSort sort =
+          new ExternalSort(
+              PROPS.cloneWithNewReserve(1_000_000),
+              null,
+              singletonList(ordering(ID.getName(), ASCENDING, FIRST)),
+              false);
       sort.getProps().setMemLimit(2_000_000); // this can't go below sort's initialAllocation (20K)
       Fixtures.Table table = generator.getExpectedSortedTable();
       validateSingle(sort, ExternalSortOperator.class, generator, table, 4000);
     } catch (UserException uex) {
-      assertEquals("DiskRunManager: Unable to secure enough memory to merge spilled sort data.", uex.getContextStrings().get(1));
+      assertEquals(
+          "DiskRunManager: Unable to secure enough memory to merge spilled sort data.",
+          uex.getContextStrings().get(1));
       assertEquals("Target Batch Size (in bytes) 236000", uex.getContextStrings().get(2));
       assertEquals("Target Batch Size 4000", uex.getContextStrings().get(3));
       assertEquals(34, uex.getContextStrings().size());
@@ -101,13 +120,20 @@ public class TestSortOp extends BaseTestOperator {
   @Test
   public void testQuickSorterSpillSortWithUserException1WithLegacyEncoding() throws Exception {
     try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_SPLAY_SORT, false);
-         AutoCloseable legacyEncoding = with(ExecConstants.EXTERNAL_SORT_ARROW_ENCODING, false)) {
-      ExternalSort sort = new ExternalSort(PROPS.cloneWithNewReserve(1_000_000), null, singletonList(ordering(ID.getName(), ASCENDING, FIRST)), false);
+        AutoCloseable legacyEncoding = with(ExecConstants.EXTERNAL_SORT_ARROW_ENCODING, false)) {
+      ExternalSort sort =
+          new ExternalSort(
+              PROPS.cloneWithNewReserve(1_000_000),
+              null,
+              singletonList(ordering(ID.getName(), ASCENDING, FIRST)),
+              false);
       sort.getProps().setMemLimit(2_000_000); // this can't go below sort's initialAllocation (20K)
       Fixtures.Table table = generator.getExpectedSortedTable();
       validateSingle(sort, ExternalSortOperator.class, generator, table, 4000);
     } catch (UserException uex) {
-      assertEquals("DiskRunManager: Unable to secure enough memory to merge spilled sort data.", uex.getContextStrings().get(1));
+      assertEquals(
+          "DiskRunManager: Unable to secure enough memory to merge spilled sort data.",
+          uex.getContextStrings().get(1));
       assertEquals("Target Batch Size (in bytes) 236000", uex.getContextStrings().get(2));
       assertEquals("Target Batch Size 4000", uex.getContextStrings().get(3));
       assertEquals(34, uex.getContextStrings().size());
@@ -117,12 +143,19 @@ public class TestSortOp extends BaseTestOperator {
   @Test
   public void testQuickSorterSpillSortWithUserException2() throws Exception {
     try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_SPLAY_SORT, false)) {
-      ExternalSort sort = new ExternalSort(PROPS.cloneWithNewReserve(1_000_000), null, singletonList(ordering(ID.getName(), ASCENDING, FIRST)), false);
+      ExternalSort sort =
+          new ExternalSort(
+              PROPS.cloneWithNewReserve(1_000_000),
+              null,
+              singletonList(ordering(ID.getName(), ASCENDING, FIRST)),
+              false);
       sort.getProps().setMemLimit(1_000_000); // this can't go below sort's initialAllocation (20K)
       Fixtures.Table table = generator.getExpectedSortedTable();
       validateSingle(sort, ExternalSortOperator.class, generator, table, 10000);
     } catch (UserException uex) {
-      assertEquals("Memory failed due to not enough memory to sort even one batch of records.", uex.getContextStrings().get(0));
+      assertEquals(
+          "Memory failed due to not enough memory to sort even one batch of records.",
+          uex.getContextStrings().get(0));
       assertEquals("Target Batch Size (in bytes) 590000", uex.getContextStrings().get(1));
       assertEquals("Target Batch Size 10000", uex.getContextStrings().get(2));
       assertEquals(33, uex.getContextStrings().size());
@@ -132,13 +165,20 @@ public class TestSortOp extends BaseTestOperator {
   @Test
   public void testQuickSorterSpillSortWithUserException2WithDirectWriteOff() throws Exception {
     try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_SPLAY_SORT, false);
-         AutoCloseable directWriteOff = with(ExecConstants.EXTERNAL_SORT_DIRECT_WRITE, false)) {
-      ExternalSort sort = new ExternalSort(PROPS.cloneWithNewReserve(1_000_000), null, singletonList(ordering(ID.getName(), ASCENDING, FIRST)), false);
+        AutoCloseable directWriteOff = with(ExecConstants.EXTERNAL_SORT_DIRECT_WRITE, false)) {
+      ExternalSort sort =
+          new ExternalSort(
+              PROPS.cloneWithNewReserve(1_000_000),
+              null,
+              singletonList(ordering(ID.getName(), ASCENDING, FIRST)),
+              false);
       sort.getProps().setMemLimit(1_000_000); // this can't go below sort's initialAllocation (20K)
       Fixtures.Table table = generator.getExpectedSortedTable();
       validateSingle(sort, ExternalSortOperator.class, generator, table, 10000);
     } catch (UserException uex) {
-      assertEquals("Memory failed due to not enough memory to sort even one batch of records.", uex.getContextStrings().get(0));
+      assertEquals(
+          "Memory failed due to not enough memory to sort even one batch of records.",
+          uex.getContextStrings().get(0));
       assertEquals("Target Batch Size (in bytes) 590000", uex.getContextStrings().get(1));
       assertEquals("Target Batch Size 10000", uex.getContextStrings().get(2));
       assertEquals(33, uex.getContextStrings().size());
@@ -148,13 +188,20 @@ public class TestSortOp extends BaseTestOperator {
   @Test
   public void testQuickSorterSpillSortWithUserException2WithLegacyEncoding() throws Exception {
     try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_SPLAY_SORT, false);
-         AutoCloseable legacyEncoding = with(ExecConstants.EXTERNAL_SORT_ARROW_ENCODING, false)) {
-      ExternalSort sort = new ExternalSort(PROPS.cloneWithNewReserve(1_000_000), null, singletonList(ordering(ID.getName(), ASCENDING, FIRST)), false);
+        AutoCloseable legacyEncoding = with(ExecConstants.EXTERNAL_SORT_ARROW_ENCODING, false)) {
+      ExternalSort sort =
+          new ExternalSort(
+              PROPS.cloneWithNewReserve(1_000_000),
+              null,
+              singletonList(ordering(ID.getName(), ASCENDING, FIRST)),
+              false);
       sort.getProps().setMemLimit(1_000_000); // this can't go below sort's initialAllocation (20K)
       Fixtures.Table table = generator.getExpectedSortedTable();
       validateSingle(sort, ExternalSortOperator.class, generator, table, 10000);
     } catch (UserException uex) {
-      assertEquals("Memory failed due to not enough memory to sort even one batch of records.", uex.getContextStrings().get(0));
+      assertEquals(
+          "Memory failed due to not enough memory to sort even one batch of records.",
+          uex.getContextStrings().get(0));
       assertEquals("Target Batch Size (in bytes) 590000", uex.getContextStrings().get(1));
       assertEquals("Target Batch Size 10000", uex.getContextStrings().get(2));
       assertEquals(33, uex.getContextStrings().size());
@@ -164,7 +211,12 @@ public class TestSortOp extends BaseTestOperator {
   @Test
   public void testQuickSorterSpillSort() throws Exception {
     try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_SPLAY_SORT, false)) {
-      ExternalSort sort = new ExternalSort(PROPS.cloneWithNewReserve(1_000_000), null, singletonList(ordering(ID.getName(), ASCENDING, FIRST)), false);
+      ExternalSort sort =
+          new ExternalSort(
+              PROPS.cloneWithNewReserve(1_000_000),
+              null,
+              singletonList(ordering(ID.getName(), ASCENDING, FIRST)),
+              false);
       sort.getProps().setMemLimit(2_000_000); // this can't go below sort's initialAllocation (20K)
       Fixtures.Table table = generator.getExpectedSortedTable();
       validateSingle(sort, ExternalSortOperator.class, generator, table, 1000);
@@ -174,8 +226,13 @@ public class TestSortOp extends BaseTestOperator {
   @Test
   public void testQuickSorterSpillSortWithDirectWriteOff() throws Exception {
     try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_SPLAY_SORT, false);
-         AutoCloseable directWriteOff = with(ExecConstants.EXTERNAL_SORT_DIRECT_WRITE, false)) {
-      ExternalSort sort = new ExternalSort(PROPS.cloneWithNewReserve(1_000_000), null, singletonList(ordering(ID.getName(), ASCENDING, FIRST)), false);
+        AutoCloseable directWriteOff = with(ExecConstants.EXTERNAL_SORT_DIRECT_WRITE, false)) {
+      ExternalSort sort =
+          new ExternalSort(
+              PROPS.cloneWithNewReserve(1_000_000),
+              null,
+              singletonList(ordering(ID.getName(), ASCENDING, FIRST)),
+              false);
       sort.getProps().setMemLimit(2_000_000); // this can't go below sort's initialAllocation (20K)
       Fixtures.Table table = generator.getExpectedSortedTable();
       validateSingle(sort, ExternalSortOperator.class, generator, table, 1000);
@@ -185,8 +242,13 @@ public class TestSortOp extends BaseTestOperator {
   @Test
   public void testQuickSorterSpillSortWithLegacyEncoding() throws Exception {
     try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_SPLAY_SORT, false);
-         AutoCloseable legacyEncoding = with(ExecConstants.EXTERNAL_SORT_ARROW_ENCODING, false)) {
-      ExternalSort sort = new ExternalSort(PROPS.cloneWithNewReserve(1_000_000), null, singletonList(ordering(ID.getName(), ASCENDING, FIRST)), false);
+        AutoCloseable legacyEncoding = with(ExecConstants.EXTERNAL_SORT_ARROW_ENCODING, false)) {
+      ExternalSort sort =
+          new ExternalSort(
+              PROPS.cloneWithNewReserve(1_000_000),
+              null,
+              singletonList(ordering(ID.getName(), ASCENDING, FIRST)),
+              false);
       sort.getProps().setMemLimit(2_000_000); // this can't go below sort's initialAllocation (20K)
       Fixtures.Table table = generator.getExpectedSortedTable();
       validateSingle(sort, ExternalSortOperator.class, generator, table, 1000);
@@ -196,24 +258,33 @@ public class TestSortOp extends BaseTestOperator {
   @Test
   public void testMicroSpillBatches() throws Exception {
     try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_MICRO_SPILL, true)) {
-      ExternalSort sort = new ExternalSort(PROPS.cloneWithNewReserve(1_000_000), null, singletonList(ordering(ID.getName(), ASCENDING, FIRST)), false);
+      ExternalSort sort =
+          new ExternalSort(
+              PROPS.cloneWithNewReserve(1_000_000),
+              null,
+              singletonList(ordering(ID.getName(), ASCENDING, FIRST)),
+              false);
       sort.getProps().setMemLimit(2_000_000); // this can't go below sort's initialAllocation (20K)
 
       final int numRows = 20_000;
       final int targetBatchSize = 1000;
       final CustomGenerator localGen = new CustomGenerator(numRows, getTestAllocator());
       Fixtures.Table table = localGen.getExpectedSortedTable();
-      OperatorStats stats = validateSingle(sort, ExternalSortOperator.class, localGen, table, targetBatchSize);
+      OperatorStats stats =
+          validateSingle(sort, ExternalSortOperator.class, localGen, table, targetBatchSize);
 
       final long batchesSpilled = stats.getLongStat(ExternalSortStats.Metric.BATCHES_SPILLED);
       final long spillFiles = stats.getLongStat(ExternalSortStats.Metric.SPILL_COUNT);
       final long spilledData = stats.getLongStat(ExternalSortStats.Metric.TOTAL_SPILLED_DATA_SIZE);
-      final long uncompressedBytesRead = stats.getLongStat(ExternalSortStats.Metric.UNCOMPRESSED_BYTES_READ);
-      final long uncompressedBytesWritten = stats.getLongStat(ExternalSortStats.Metric.UNCOMPRESSED_BYTES_READ);
+      final long uncompressedBytesRead =
+          stats.getLongStat(ExternalSortStats.Metric.UNCOMPRESSED_BYTES_READ);
+      final long uncompressedBytesWritten =
+          stats.getLongStat(ExternalSortStats.Metric.UNCOMPRESSED_BYTES_READ);
       final long ioBytesRead = stats.getLongStat(ExternalSortStats.Metric.IO_BYTES_READ);
       final long ioBytesWritten = stats.getLongStat(ExternalSortStats.Metric.IO_BYTES_WRITTEN);
       final long compressionTime = stats.getLongStat(ExternalSortStats.Metric.COMPRESSION_NANOS);
-      final long decompressionTime = stats.getLongStat(ExternalSortStats.Metric.DECOMPRESSION_NANOS);
+      final long decompressionTime =
+          stats.getLongStat(ExternalSortStats.Metric.DECOMPRESSION_NANOS);
       final long readIOWaitTime = stats.getLongStat(ExternalSortStats.Metric.IO_READ_WAIT_NANOS);
       final long writeIOWaitTime = stats.getLongStat(ExternalSortStats.Metric.IO_WRITE_WAIT_NANOS);
       final long spillCopyTime = stats.getLongStat(ExternalSortStats.Metric.SPILL_COPY_NANOS);
@@ -236,25 +307,34 @@ public class TestSortOp extends BaseTestOperator {
   @Test
   public void testMicroSpillBatchesWithDirectWriteOff() throws Exception {
     try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_MICRO_SPILL, true);
-         AutoCloseable directWriteOff = with(ExecConstants.EXTERNAL_SORT_DIRECT_WRITE, false)) {
-      ExternalSort sort = new ExternalSort(PROPS.cloneWithNewReserve(1_000_000), null, singletonList(ordering(ID.getName(), ASCENDING, FIRST)), false);
+        AutoCloseable directWriteOff = with(ExecConstants.EXTERNAL_SORT_DIRECT_WRITE, false)) {
+      ExternalSort sort =
+          new ExternalSort(
+              PROPS.cloneWithNewReserve(1_000_000),
+              null,
+              singletonList(ordering(ID.getName(), ASCENDING, FIRST)),
+              false);
       sort.getProps().setMemLimit(2_000_000); // this can't go below sort's initialAllocation (20K)
 
       final int numRows = 20_000;
       final int targetBatchSize = 1000;
       final CustomGenerator localGen = new CustomGenerator(numRows, getTestAllocator());
       Fixtures.Table table = localGen.getExpectedSortedTable();
-      OperatorStats stats = validateSingle(sort, ExternalSortOperator.class, localGen, table, targetBatchSize);
+      OperatorStats stats =
+          validateSingle(sort, ExternalSortOperator.class, localGen, table, targetBatchSize);
 
       final long batchesSpilled = stats.getLongStat(ExternalSortStats.Metric.BATCHES_SPILLED);
       final long spillFiles = stats.getLongStat(ExternalSortStats.Metric.SPILL_COUNT);
       final long spilledData = stats.getLongStat(ExternalSortStats.Metric.TOTAL_SPILLED_DATA_SIZE);
-      final long uncompressedBytesRead = stats.getLongStat(ExternalSortStats.Metric.UNCOMPRESSED_BYTES_READ);
-      final long uncompressedBytesWritten = stats.getLongStat(ExternalSortStats.Metric.UNCOMPRESSED_BYTES_READ);
+      final long uncompressedBytesRead =
+          stats.getLongStat(ExternalSortStats.Metric.UNCOMPRESSED_BYTES_READ);
+      final long uncompressedBytesWritten =
+          stats.getLongStat(ExternalSortStats.Metric.UNCOMPRESSED_BYTES_READ);
       final long ioBytesRead = stats.getLongStat(ExternalSortStats.Metric.IO_BYTES_READ);
       final long ioBytesWritten = stats.getLongStat(ExternalSortStats.Metric.IO_BYTES_WRITTEN);
       final long compressionTime = stats.getLongStat(ExternalSortStats.Metric.COMPRESSION_NANOS);
-      final long decompressionTime = stats.getLongStat(ExternalSortStats.Metric.DECOMPRESSION_NANOS);
+      final long decompressionTime =
+          stats.getLongStat(ExternalSortStats.Metric.DECOMPRESSION_NANOS);
       final long readIOWaitTime = stats.getLongStat(ExternalSortStats.Metric.IO_READ_WAIT_NANOS);
       final long writeIOWaitTime = stats.getLongStat(ExternalSortStats.Metric.IO_WRITE_WAIT_NANOS);
       final long spillCopyTime = stats.getLongStat(ExternalSortStats.Metric.SPILL_COPY_NANOS);
@@ -277,25 +357,34 @@ public class TestSortOp extends BaseTestOperator {
   @Test
   public void testMicroSpillBatchesWithLegacyEncoding() throws Exception {
     try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_MICRO_SPILL, true);
-         AutoCloseable legacyEncoding = with(ExecConstants.EXTERNAL_SORT_ARROW_ENCODING, false)) {
-      ExternalSort sort = new ExternalSort(PROPS.cloneWithNewReserve(1_000_000), null, singletonList(ordering(ID.getName(), ASCENDING, FIRST)), false);
+        AutoCloseable legacyEncoding = with(ExecConstants.EXTERNAL_SORT_ARROW_ENCODING, false)) {
+      ExternalSort sort =
+          new ExternalSort(
+              PROPS.cloneWithNewReserve(1_000_000),
+              null,
+              singletonList(ordering(ID.getName(), ASCENDING, FIRST)),
+              false);
       sort.getProps().setMemLimit(2_000_000); // this can't go below sort's initialAllocation (20K)
 
       final int numRows = 20_000;
       final int targetBatchSize = 1000;
       final CustomGenerator localGen = new CustomGenerator(numRows, getTestAllocator());
       Fixtures.Table table = localGen.getExpectedSortedTable();
-      OperatorStats stats =  validateSingle(sort, ExternalSortOperator.class, localGen, table, targetBatchSize);
+      OperatorStats stats =
+          validateSingle(sort, ExternalSortOperator.class, localGen, table, targetBatchSize);
 
       final long batchesSpilled = stats.getLongStat(ExternalSortStats.Metric.BATCHES_SPILLED);
       final long spillFiles = stats.getLongStat(ExternalSortStats.Metric.SPILL_COUNT);
       final long spilledData = stats.getLongStat(ExternalSortStats.Metric.TOTAL_SPILLED_DATA_SIZE);
-      final long uncompressedBytesRead = stats.getLongStat(ExternalSortStats.Metric.UNCOMPRESSED_BYTES_READ);
-      final long uncompressedBytesWritten = stats.getLongStat(ExternalSortStats.Metric.UNCOMPRESSED_BYTES_READ);
+      final long uncompressedBytesRead =
+          stats.getLongStat(ExternalSortStats.Metric.UNCOMPRESSED_BYTES_READ);
+      final long uncompressedBytesWritten =
+          stats.getLongStat(ExternalSortStats.Metric.UNCOMPRESSED_BYTES_READ);
       final long ioBytesRead = stats.getLongStat(ExternalSortStats.Metric.IO_BYTES_READ);
       final long ioBytesWritten = stats.getLongStat(ExternalSortStats.Metric.IO_BYTES_WRITTEN);
       final long compressionTime = stats.getLongStat(ExternalSortStats.Metric.COMPRESSION_NANOS);
-      final long decompressionTime = stats.getLongStat(ExternalSortStats.Metric.DECOMPRESSION_NANOS);
+      final long decompressionTime =
+          stats.getLongStat(ExternalSortStats.Metric.DECOMPRESSION_NANOS);
       final long readIOWaitTime = stats.getLongStat(ExternalSortStats.Metric.IO_READ_WAIT_NANOS);
       final long writeIOWaitTime = stats.getLongStat(ExternalSortStats.Metric.IO_WRITE_WAIT_NANOS);
       final long spillCopyTime = stats.getLongStat(ExternalSortStats.Metric.SPILL_COPY_NANOS);
@@ -318,25 +407,34 @@ public class TestSortOp extends BaseTestOperator {
   @Test
   public void testMicroSpillBatchesWithGeneratedCopier() throws Exception {
     try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_MICRO_SPILL, true);
-         AutoCloseable generatedCopier = with(ExecConstants.EXTERNAL_SORT_VECTOR_COPIER, false)) {
-      ExternalSort sort = new ExternalSort(PROPS.cloneWithNewReserve(1_000_000), null, singletonList(ordering(ID.getName(), ASCENDING, FIRST)), false);
+        AutoCloseable generatedCopier = with(ExecConstants.EXTERNAL_SORT_VECTOR_COPIER, false)) {
+      ExternalSort sort =
+          new ExternalSort(
+              PROPS.cloneWithNewReserve(1_000_000),
+              null,
+              singletonList(ordering(ID.getName(), ASCENDING, FIRST)),
+              false);
       sort.getProps().setMemLimit(2_000_000); // this can't go below sort's initialAllocation (20K)
 
       final int numRows = 20_000;
       final int targetBatchSize = 1000;
       final CustomGenerator localGen = new CustomGenerator(numRows, getTestAllocator());
       Fixtures.Table table = localGen.getExpectedSortedTable();
-      OperatorStats stats =  validateSingle(sort, ExternalSortOperator.class, localGen, table, targetBatchSize);
+      OperatorStats stats =
+          validateSingle(sort, ExternalSortOperator.class, localGen, table, targetBatchSize);
 
       final long batchesSpilled = stats.getLongStat(ExternalSortStats.Metric.BATCHES_SPILLED);
       final long spillFiles = stats.getLongStat(ExternalSortStats.Metric.SPILL_COUNT);
       final long spilledData = stats.getLongStat(ExternalSortStats.Metric.TOTAL_SPILLED_DATA_SIZE);
-      final long uncompressedBytesRead = stats.getLongStat(ExternalSortStats.Metric.UNCOMPRESSED_BYTES_READ);
-      final long uncompressedBytesWritten = stats.getLongStat(ExternalSortStats.Metric.UNCOMPRESSED_BYTES_READ);
+      final long uncompressedBytesRead =
+          stats.getLongStat(ExternalSortStats.Metric.UNCOMPRESSED_BYTES_READ);
+      final long uncompressedBytesWritten =
+          stats.getLongStat(ExternalSortStats.Metric.UNCOMPRESSED_BYTES_READ);
       final long ioBytesRead = stats.getLongStat(ExternalSortStats.Metric.IO_BYTES_READ);
       final long ioBytesWritten = stats.getLongStat(ExternalSortStats.Metric.IO_BYTES_WRITTEN);
       final long compressionTime = stats.getLongStat(ExternalSortStats.Metric.COMPRESSION_NANOS);
-      final long decompressionTime = stats.getLongStat(ExternalSortStats.Metric.DECOMPRESSION_NANOS);
+      final long decompressionTime =
+          stats.getLongStat(ExternalSortStats.Metric.DECOMPRESSION_NANOS);
       final long readIOWaitTime = stats.getLongStat(ExternalSortStats.Metric.IO_READ_WAIT_NANOS);
       final long writeIOWaitTime = stats.getLongStat(ExternalSortStats.Metric.IO_WRITE_WAIT_NANOS);
       final long spillCopyTime = stats.getLongStat(ExternalSortStats.Metric.SPILL_COPY_NANOS);
@@ -359,24 +457,33 @@ public class TestSortOp extends BaseTestOperator {
   @Test
   public void testMicroSpillDisabled() throws Exception {
     try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_MICRO_SPILL, false)) {
-      ExternalSort sort = new ExternalSort(PROPS.cloneWithNewReserve(1_000_000), null, singletonList(ordering(ID.getName(), ASCENDING, FIRST)), false);
+      ExternalSort sort =
+          new ExternalSort(
+              PROPS.cloneWithNewReserve(1_000_000),
+              null,
+              singletonList(ordering(ID.getName(), ASCENDING, FIRST)),
+              false);
       sort.getProps().setMemLimit(2_000_000); // this can't go below sort's initialAllocation (20K)
 
       final int numRows = 20_000;
       final int targetBatchSize = 1000;
       final CustomGenerator localGen = new CustomGenerator(numRows, getTestAllocator());
       Fixtures.Table table = localGen.getExpectedSortedTable();
-      OperatorStats stats = validateSingle(sort, ExternalSortOperator.class, localGen, table, targetBatchSize);
+      OperatorStats stats =
+          validateSingle(sort, ExternalSortOperator.class, localGen, table, targetBatchSize);
 
       final long batchesSpilled = stats.getLongStat(ExternalSortStats.Metric.BATCHES_SPILLED);
       final long spillFiles = stats.getLongStat(ExternalSortStats.Metric.SPILL_COUNT);
       final long spilledData = stats.getLongStat(ExternalSortStats.Metric.TOTAL_SPILLED_DATA_SIZE);
-      final long uncompressedBytesRead = stats.getLongStat(ExternalSortStats.Metric.UNCOMPRESSED_BYTES_READ);
-      final long uncompressedBytesWritten = stats.getLongStat(ExternalSortStats.Metric.UNCOMPRESSED_BYTES_READ);
+      final long uncompressedBytesRead =
+          stats.getLongStat(ExternalSortStats.Metric.UNCOMPRESSED_BYTES_READ);
+      final long uncompressedBytesWritten =
+          stats.getLongStat(ExternalSortStats.Metric.UNCOMPRESSED_BYTES_READ);
       final long ioBytesRead = stats.getLongStat(ExternalSortStats.Metric.IO_BYTES_READ);
       final long ioBytesWritten = stats.getLongStat(ExternalSortStats.Metric.IO_BYTES_WRITTEN);
       final long compressionTime = stats.getLongStat(ExternalSortStats.Metric.COMPRESSION_NANOS);
-      final long decompressionTime = stats.getLongStat(ExternalSortStats.Metric.DECOMPRESSION_NANOS);
+      final long decompressionTime =
+          stats.getLongStat(ExternalSortStats.Metric.DECOMPRESSION_NANOS);
       final long readIOWaitTime = stats.getLongStat(ExternalSortStats.Metric.IO_READ_WAIT_NANOS);
       final long writeIOWaitTime = stats.getLongStat(ExternalSortStats.Metric.IO_WRITE_WAIT_NANOS);
       final long spillCopyTime = stats.getLongStat(ExternalSortStats.Metric.SPILL_COPY_NANOS);
@@ -399,25 +506,34 @@ public class TestSortOp extends BaseTestOperator {
   @Test
   public void testMicroSpillDisabledWithDirectWriteOff() throws Exception {
     try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_MICRO_SPILL, false);
-         AutoCloseable directWriteOff = with(ExecConstants.EXTERNAL_SORT_DIRECT_WRITE, false)) {
-      ExternalSort sort = new ExternalSort(PROPS.cloneWithNewReserve(1_000_000), null, singletonList(ordering(ID.getName(), ASCENDING, FIRST)), false);
+        AutoCloseable directWriteOff = with(ExecConstants.EXTERNAL_SORT_DIRECT_WRITE, false)) {
+      ExternalSort sort =
+          new ExternalSort(
+              PROPS.cloneWithNewReserve(1_000_000),
+              null,
+              singletonList(ordering(ID.getName(), ASCENDING, FIRST)),
+              false);
       sort.getProps().setMemLimit(2_000_000); // this can't go below sort's initialAllocation (20K)
 
       final int numRows = 20_000;
       final int targetBatchSize = 1000;
       final CustomGenerator localGen = new CustomGenerator(numRows, getTestAllocator());
       Fixtures.Table table = localGen.getExpectedSortedTable();
-      OperatorStats stats = validateSingle(sort, ExternalSortOperator.class, localGen, table, targetBatchSize);
+      OperatorStats stats =
+          validateSingle(sort, ExternalSortOperator.class, localGen, table, targetBatchSize);
 
       final long batchesSpilled = stats.getLongStat(ExternalSortStats.Metric.BATCHES_SPILLED);
       final long spillFiles = stats.getLongStat(ExternalSortStats.Metric.SPILL_COUNT);
       final long spilledData = stats.getLongStat(ExternalSortStats.Metric.TOTAL_SPILLED_DATA_SIZE);
-      final long uncompressedBytesRead = stats.getLongStat(ExternalSortStats.Metric.UNCOMPRESSED_BYTES_READ);
-      final long uncompressedBytesWritten = stats.getLongStat(ExternalSortStats.Metric.UNCOMPRESSED_BYTES_READ);
+      final long uncompressedBytesRead =
+          stats.getLongStat(ExternalSortStats.Metric.UNCOMPRESSED_BYTES_READ);
+      final long uncompressedBytesWritten =
+          stats.getLongStat(ExternalSortStats.Metric.UNCOMPRESSED_BYTES_READ);
       final long ioBytesRead = stats.getLongStat(ExternalSortStats.Metric.IO_BYTES_READ);
       final long ioBytesWritten = stats.getLongStat(ExternalSortStats.Metric.IO_BYTES_WRITTEN);
       final long compressionTime = stats.getLongStat(ExternalSortStats.Metric.COMPRESSION_NANOS);
-      final long decompressionTime = stats.getLongStat(ExternalSortStats.Metric.DECOMPRESSION_NANOS);
+      final long decompressionTime =
+          stats.getLongStat(ExternalSortStats.Metric.DECOMPRESSION_NANOS);
       final long readIOWaitTime = stats.getLongStat(ExternalSortStats.Metric.IO_READ_WAIT_NANOS);
       final long writeIOWaitTime = stats.getLongStat(ExternalSortStats.Metric.IO_WRITE_WAIT_NANOS);
       final long spillCopyTime = stats.getLongStat(ExternalSortStats.Metric.SPILL_COPY_NANOS);
@@ -440,25 +556,34 @@ public class TestSortOp extends BaseTestOperator {
   @Test
   public void testMicroSpillDisabledWithLegacyEncoding() throws Exception {
     try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_MICRO_SPILL, false);
-         AutoCloseable legacyEncoding = with(ExecConstants.EXTERNAL_SORT_ARROW_ENCODING, false)) {
-      ExternalSort sort = new ExternalSort(PROPS.cloneWithNewReserve(1_000_000), null, singletonList(ordering(ID.getName(), ASCENDING, FIRST)), false);
+        AutoCloseable legacyEncoding = with(ExecConstants.EXTERNAL_SORT_ARROW_ENCODING, false)) {
+      ExternalSort sort =
+          new ExternalSort(
+              PROPS.cloneWithNewReserve(1_000_000),
+              null,
+              singletonList(ordering(ID.getName(), ASCENDING, FIRST)),
+              false);
       sort.getProps().setMemLimit(2_000_000); // this can't go below sort's initialAllocation (20K)
 
       final int numRows = 20_000;
       final int targetBatchSize = 1000;
       final CustomGenerator localGen = new CustomGenerator(numRows, getTestAllocator());
       Fixtures.Table table = localGen.getExpectedSortedTable();
-      OperatorStats stats =  validateSingle(sort, ExternalSortOperator.class, localGen, table, targetBatchSize);
+      OperatorStats stats =
+          validateSingle(sort, ExternalSortOperator.class, localGen, table, targetBatchSize);
 
       final long batchesSpilled = stats.getLongStat(ExternalSortStats.Metric.BATCHES_SPILLED);
       final long spillFiles = stats.getLongStat(ExternalSortStats.Metric.SPILL_COUNT);
       final long spilledData = stats.getLongStat(ExternalSortStats.Metric.TOTAL_SPILLED_DATA_SIZE);
-      final long uncompressedBytesRead = stats.getLongStat(ExternalSortStats.Metric.UNCOMPRESSED_BYTES_READ);
-      final long uncompressedBytesWritten = stats.getLongStat(ExternalSortStats.Metric.UNCOMPRESSED_BYTES_READ);
+      final long uncompressedBytesRead =
+          stats.getLongStat(ExternalSortStats.Metric.UNCOMPRESSED_BYTES_READ);
+      final long uncompressedBytesWritten =
+          stats.getLongStat(ExternalSortStats.Metric.UNCOMPRESSED_BYTES_READ);
       final long ioBytesRead = stats.getLongStat(ExternalSortStats.Metric.IO_BYTES_READ);
       final long ioBytesWritten = stats.getLongStat(ExternalSortStats.Metric.IO_BYTES_WRITTEN);
       final long compressionTime = stats.getLongStat(ExternalSortStats.Metric.COMPRESSION_NANOS);
-      final long decompressionTime = stats.getLongStat(ExternalSortStats.Metric.DECOMPRESSION_NANOS);
+      final long decompressionTime =
+          stats.getLongStat(ExternalSortStats.Metric.DECOMPRESSION_NANOS);
       final long readIOWaitTime = stats.getLongStat(ExternalSortStats.Metric.IO_READ_WAIT_NANOS);
       final long writeIOWaitTime = stats.getLongStat(ExternalSortStats.Metric.IO_WRITE_WAIT_NANOS);
       final long spillCopyTime = stats.getLongStat(ExternalSortStats.Metric.SPILL_COPY_NANOS);
@@ -481,25 +606,34 @@ public class TestSortOp extends BaseTestOperator {
   @Test
   public void testMicroSpillDisabledWithGeneratedCopier() throws Exception {
     try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_MICRO_SPILL, false);
-         AutoCloseable generatedCopier = with(ExecConstants.EXTERNAL_SORT_VECTOR_COPIER, false)) {
-      ExternalSort sort = new ExternalSort(PROPS.cloneWithNewReserve(1_000_000), null, singletonList(ordering(ID.getName(), ASCENDING, FIRST)), false);
+        AutoCloseable generatedCopier = with(ExecConstants.EXTERNAL_SORT_VECTOR_COPIER, false)) {
+      ExternalSort sort =
+          new ExternalSort(
+              PROPS.cloneWithNewReserve(1_000_000),
+              null,
+              singletonList(ordering(ID.getName(), ASCENDING, FIRST)),
+              false);
       sort.getProps().setMemLimit(2_000_000); // this can't go below sort's initialAllocation (20K)
 
       final int numRows = 20_000;
       final int targetBatchSize = 1000;
       final CustomGenerator localGen = new CustomGenerator(numRows, getTestAllocator());
       Fixtures.Table table = localGen.getExpectedSortedTable();
-      OperatorStats stats =  validateSingle(sort, ExternalSortOperator.class, localGen, table, targetBatchSize);
+      OperatorStats stats =
+          validateSingle(sort, ExternalSortOperator.class, localGen, table, targetBatchSize);
 
       final long batchesSpilled = stats.getLongStat(ExternalSortStats.Metric.BATCHES_SPILLED);
       final long spillFiles = stats.getLongStat(ExternalSortStats.Metric.SPILL_COUNT);
       final long spilledData = stats.getLongStat(ExternalSortStats.Metric.TOTAL_SPILLED_DATA_SIZE);
-      final long uncompressedBytesRead = stats.getLongStat(ExternalSortStats.Metric.UNCOMPRESSED_BYTES_READ);
-      final long uncompressedBytesWritten = stats.getLongStat(ExternalSortStats.Metric.UNCOMPRESSED_BYTES_READ);
+      final long uncompressedBytesRead =
+          stats.getLongStat(ExternalSortStats.Metric.UNCOMPRESSED_BYTES_READ);
+      final long uncompressedBytesWritten =
+          stats.getLongStat(ExternalSortStats.Metric.UNCOMPRESSED_BYTES_READ);
       final long ioBytesRead = stats.getLongStat(ExternalSortStats.Metric.IO_BYTES_READ);
       final long ioBytesWritten = stats.getLongStat(ExternalSortStats.Metric.IO_BYTES_WRITTEN);
       final long compressionTime = stats.getLongStat(ExternalSortStats.Metric.COMPRESSION_NANOS);
-      final long decompressionTime = stats.getLongStat(ExternalSortStats.Metric.DECOMPRESSION_NANOS);
+      final long decompressionTime =
+          stats.getLongStat(ExternalSortStats.Metric.DECOMPRESSION_NANOS);
       final long readIOWaitTime = stats.getLongStat(ExternalSortStats.Metric.IO_READ_WAIT_NANOS);
       final long writeIOWaitTime = stats.getLongStat(ExternalSortStats.Metric.IO_WRITE_WAIT_NANOS);
       final long spillCopyTime = stats.getLongStat(ExternalSortStats.Metric.SPILL_COPY_NANOS);
@@ -522,12 +656,19 @@ public class TestSortOp extends BaseTestOperator {
   @Test
   public void testSplayTreeSpillSortWithUserException1() throws Exception {
     try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_SPLAY_SORT, true)) {
-      ExternalSort sort = new ExternalSort(PROPS.cloneWithNewReserve(1_000_000), null, singletonList(ordering(ID.getName(), ASCENDING, FIRST)), false);
+      ExternalSort sort =
+          new ExternalSort(
+              PROPS.cloneWithNewReserve(1_000_000),
+              null,
+              singletonList(ordering(ID.getName(), ASCENDING, FIRST)),
+              false);
       sort.getProps().setMemLimit(1_500_000); // this can't go below sort's initialAllocation (20K)
       Fixtures.Table table = generator.getExpectedSortedTable();
       validateSingle(sort, ExternalSortOperator.class, generator, table, 4000);
     } catch (UserException uex) {
-      assertEquals("DiskRunManager: Unable to secure enough memory to merge spilled sort data.", uex.getContextStrings().get(1));
+      assertEquals(
+          "DiskRunManager: Unable to secure enough memory to merge spilled sort data.",
+          uex.getContextStrings().get(1));
       assertEquals("Target Batch Size (in bytes) 236000", uex.getContextStrings().get(2));
       assertEquals("Target Batch Size 4000", uex.getContextStrings().get(3));
       assertEquals(34, uex.getContextStrings().size());
@@ -537,13 +678,20 @@ public class TestSortOp extends BaseTestOperator {
   @Test
   public void testSplayTreeSpillSortWithUserException1WithDirectWriteOff() throws Exception {
     try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_SPLAY_SORT, true);
-         AutoCloseable directWriteOff = with(ExecConstants.EXTERNAL_SORT_DIRECT_WRITE, false)) {
-      ExternalSort sort = new ExternalSort(PROPS.cloneWithNewReserve(1_000_000), null, singletonList(ordering(ID.getName(), ASCENDING, FIRST)), false);
+        AutoCloseable directWriteOff = with(ExecConstants.EXTERNAL_SORT_DIRECT_WRITE, false)) {
+      ExternalSort sort =
+          new ExternalSort(
+              PROPS.cloneWithNewReserve(1_000_000),
+              null,
+              singletonList(ordering(ID.getName(), ASCENDING, FIRST)),
+              false);
       sort.getProps().setMemLimit(1_500_000); // this can't go below sort's initialAllocation (20K)
       Fixtures.Table table = generator.getExpectedSortedTable();
       validateSingle(sort, ExternalSortOperator.class, generator, table, 4000);
     } catch (UserException uex) {
-      assertEquals("DiskRunManager: Unable to secure enough memory to merge spilled sort data.", uex.getContextStrings().get(1));
+      assertEquals(
+          "DiskRunManager: Unable to secure enough memory to merge spilled sort data.",
+          uex.getContextStrings().get(1));
       assertEquals("Target Batch Size (in bytes) 236000", uex.getContextStrings().get(2));
       assertEquals("Target Batch Size 4000", uex.getContextStrings().get(3));
       assertEquals(34, uex.getContextStrings().size());
@@ -553,13 +701,20 @@ public class TestSortOp extends BaseTestOperator {
   @Test
   public void testSplayTreeSpillSortWithUserException1WithLegacyEncoding() throws Exception {
     try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_SPLAY_SORT, true);
-         AutoCloseable legacyEncoding = with(ExecConstants.EXTERNAL_SORT_ARROW_ENCODING, false)) {
-      ExternalSort sort = new ExternalSort(PROPS.cloneWithNewReserve(1_000_000), null, singletonList(ordering(ID.getName(), ASCENDING, FIRST)), false);
+        AutoCloseable legacyEncoding = with(ExecConstants.EXTERNAL_SORT_ARROW_ENCODING, false)) {
+      ExternalSort sort =
+          new ExternalSort(
+              PROPS.cloneWithNewReserve(1_000_000),
+              null,
+              singletonList(ordering(ID.getName(), ASCENDING, FIRST)),
+              false);
       sort.getProps().setMemLimit(1_500_000); // this can't go below sort's initialAllocation (20K)
       Fixtures.Table table = generator.getExpectedSortedTable();
       validateSingle(sort, ExternalSortOperator.class, generator, table, 4000);
     } catch (UserException uex) {
-      assertEquals("DiskRunManager: Unable to secure enough memory to merge spilled sort data.", uex.getContextStrings().get(1));
+      assertEquals(
+          "DiskRunManager: Unable to secure enough memory to merge spilled sort data.",
+          uex.getContextStrings().get(1));
       assertEquals("Target Batch Size (in bytes) 236000", uex.getContextStrings().get(2));
       assertEquals("Target Batch Size 4000", uex.getContextStrings().get(3));
       assertEquals(34, uex.getContextStrings().size());
@@ -569,12 +724,19 @@ public class TestSortOp extends BaseTestOperator {
   @Test
   public void testSplayTreeSpillSortWithUserException2() throws Exception {
     try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_SPLAY_SORT, true)) {
-      ExternalSort sort = new ExternalSort(PROPS.cloneWithNewReserve(1_000_000), null, singletonList(ordering(ID.getName(), ASCENDING, FIRST)), false);
+      ExternalSort sort =
+          new ExternalSort(
+              PROPS.cloneWithNewReserve(1_000_000),
+              null,
+              singletonList(ordering(ID.getName(), ASCENDING, FIRST)),
+              false);
       sort.getProps().setMemLimit(1_000_000); // this can't go below sort's initialAllocation (20K)
       Fixtures.Table table = generator.getExpectedSortedTable();
       validateSingle(sort, ExternalSortOperator.class, generator, table, 10000);
     } catch (UserException uex) {
-      assertEquals("Memory failed due to not enough memory to sort even one batch of records.", uex.getContextStrings().get(0));
+      assertEquals(
+          "Memory failed due to not enough memory to sort even one batch of records.",
+          uex.getContextStrings().get(0));
       assertEquals("Target Batch Size (in bytes) 590000", uex.getContextStrings().get(1));
       assertEquals("Target Batch Size 10000", uex.getContextStrings().get(2));
       assertEquals(33, uex.getContextStrings().size());
@@ -584,13 +746,20 @@ public class TestSortOp extends BaseTestOperator {
   @Test
   public void testSplayTreeSpillSortWithUserException2WithDirectWriteOff() throws Exception {
     try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_SPLAY_SORT, true);
-         AutoCloseable directWriteOff = with(ExecConstants.EXTERNAL_SORT_DIRECT_WRITE, false)) {
-      ExternalSort sort = new ExternalSort(PROPS.cloneWithNewReserve(1_000_000), null, singletonList(ordering(ID.getName(), ASCENDING, FIRST)), false);
+        AutoCloseable directWriteOff = with(ExecConstants.EXTERNAL_SORT_DIRECT_WRITE, false)) {
+      ExternalSort sort =
+          new ExternalSort(
+              PROPS.cloneWithNewReserve(1_000_000),
+              null,
+              singletonList(ordering(ID.getName(), ASCENDING, FIRST)),
+              false);
       sort.getProps().setMemLimit(1_000_000); // this can't go below sort's initialAllocation (20K)
       Fixtures.Table table = generator.getExpectedSortedTable();
       validateSingle(sort, ExternalSortOperator.class, generator, table, 10000);
     } catch (UserException uex) {
-      assertEquals("Memory failed due to not enough memory to sort even one batch of records.", uex.getContextStrings().get(0));
+      assertEquals(
+          "Memory failed due to not enough memory to sort even one batch of records.",
+          uex.getContextStrings().get(0));
       assertEquals("Target Batch Size (in bytes) 590000", uex.getContextStrings().get(1));
       assertEquals("Target Batch Size 10000", uex.getContextStrings().get(2));
       assertEquals(33, uex.getContextStrings().size());
@@ -600,13 +769,20 @@ public class TestSortOp extends BaseTestOperator {
   @Test
   public void testSplayTreeSpillSortWithUserException2WithLegacyEncoding() throws Exception {
     try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_SPLAY_SORT, true);
-         AutoCloseable legacyEncoding = with(ExecConstants.EXTERNAL_SORT_ARROW_ENCODING, false)) {
-      ExternalSort sort = new ExternalSort(PROPS.cloneWithNewReserve(1_000_000), null, singletonList(ordering(ID.getName(), ASCENDING, FIRST)), false);
+        AutoCloseable legacyEncoding = with(ExecConstants.EXTERNAL_SORT_ARROW_ENCODING, false)) {
+      ExternalSort sort =
+          new ExternalSort(
+              PROPS.cloneWithNewReserve(1_000_000),
+              null,
+              singletonList(ordering(ID.getName(), ASCENDING, FIRST)),
+              false);
       sort.getProps().setMemLimit(1_000_000); // this can't go below sort's initialAllocation (20K)
       Fixtures.Table table = generator.getExpectedSortedTable();
       validateSingle(sort, ExternalSortOperator.class, generator, table, 10000);
     } catch (UserException uex) {
-      assertEquals("Memory failed due to not enough memory to sort even one batch of records.", uex.getContextStrings().get(0));
+      assertEquals(
+          "Memory failed due to not enough memory to sort even one batch of records.",
+          uex.getContextStrings().get(0));
       assertEquals("Target Batch Size (in bytes) 590000", uex.getContextStrings().get(1));
       assertEquals("Target Batch Size 10000", uex.getContextStrings().get(2));
       assertEquals(33, uex.getContextStrings().size());
@@ -616,7 +792,12 @@ public class TestSortOp extends BaseTestOperator {
   @Test
   public void testSplayTreeSpillSort() throws Exception {
     try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_SPLAY_SORT, true)) {
-      ExternalSort sort = new ExternalSort(PROPS.cloneWithNewReserve(1_000_000), null, singletonList(ordering(ID.getName(), ASCENDING, FIRST)), false);
+      ExternalSort sort =
+          new ExternalSort(
+              PROPS.cloneWithNewReserve(1_000_000),
+              null,
+              singletonList(ordering(ID.getName(), ASCENDING, FIRST)),
+              false);
       sort.getProps().setMemLimit(2_000_000); // this can't go below sort's initialAllocation (20K)
       Fixtures.Table table = generator.getExpectedSortedTable();
       validateSingle(sort, ExternalSortOperator.class, generator, table, 1000);
@@ -626,8 +807,13 @@ public class TestSortOp extends BaseTestOperator {
   @Test
   public void testSplayTreeSpillSortWithDirectWriteOff() throws Exception {
     try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_SPLAY_SORT, true);
-         AutoCloseable directWriteOff = with(ExecConstants.EXTERNAL_SORT_DIRECT_WRITE, false)) {
-      ExternalSort sort = new ExternalSort(PROPS.cloneWithNewReserve(1_000_000), null, singletonList(ordering(ID.getName(), ASCENDING, FIRST)), false);
+        AutoCloseable directWriteOff = with(ExecConstants.EXTERNAL_SORT_DIRECT_WRITE, false)) {
+      ExternalSort sort =
+          new ExternalSort(
+              PROPS.cloneWithNewReserve(1_000_000),
+              null,
+              singletonList(ordering(ID.getName(), ASCENDING, FIRST)),
+              false);
       sort.getProps().setMemLimit(2_000_000); // this can't go below sort's initialAllocation (20K)
       Fixtures.Table table = generator.getExpectedSortedTable();
       validateSingle(sort, ExternalSortOperator.class, generator, table, 1000);
@@ -637,8 +823,13 @@ public class TestSortOp extends BaseTestOperator {
   @Test
   public void testSplayTreeSpillSortWithLegacyEncoding() throws Exception {
     try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_SPLAY_SORT, true);
-         AutoCloseable legacyEncoding = with(ExecConstants.EXTERNAL_SORT_ARROW_ENCODING, false)) {
-      ExternalSort sort = new ExternalSort(PROPS.cloneWithNewReserve(1_000_000), null, singletonList(ordering(ID.getName(), ASCENDING, FIRST)), false);
+        AutoCloseable legacyEncoding = with(ExecConstants.EXTERNAL_SORT_ARROW_ENCODING, false)) {
+      ExternalSort sort =
+          new ExternalSort(
+              PROPS.cloneWithNewReserve(1_000_000),
+              null,
+              singletonList(ordering(ID.getName(), ASCENDING, FIRST)),
+              false);
       sort.getProps().setMemLimit(2_000_000); // this can't go below sort's initialAllocation (20K)
       Fixtures.Table table = generator.getExpectedSortedTable();
       validateSingle(sort, ExternalSortOperator.class, generator, table, 1000);

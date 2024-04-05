@@ -21,15 +21,6 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.util.Set;
-import java.util.concurrent.ExecutorService;
-
-import javax.inject.Provider;
-
-import org.apache.arrow.memory.OutOfMemoryException;
-import org.junit.Assert;
-import org.junit.Test;
-
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.config.DremioConfig;
@@ -58,6 +49,12 @@ import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.spill.SpillService;
 import com.dremio.test.DremioTest;
+import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import javax.inject.Provider;
+import org.apache.arrow.memory.OutOfMemoryException;
+import org.junit.Assert;
+import org.junit.Test;
 
 public class TestFragmentExecutorBuilder extends DremioTest {
 
@@ -66,26 +63,64 @@ public class TestFragmentExecutorBuilder extends DremioTest {
     QueriesClerk queriesClerk = mock(QueriesClerk.class);
     FragmentTicket fragmentTicket = mock(FragmentTicket.class);
     when(queriesClerk.newFragmentTicket(any(), any(), any())).thenReturn(fragmentTicket);
-    when(fragmentTicket.newChildAllocator(anyString(), anyLong(), anyLong())).thenThrow(new OutOfMemoryException("No more memory"));
+    when(fragmentTicket.newChildAllocator(anyString(), anyLong(), anyLong()))
+        .thenThrow(new OutOfMemoryException("No more memory"));
 
     PlanFragmentFull planFragmentFull = mock(PlanFragmentFull.class);
-    when(planFragmentFull.getHandle()).thenReturn(ExecProtos.FragmentHandle.newBuilder().setMajorFragmentId(0).setMinorFragmentId(0).build());
+    when(planFragmentFull.getHandle())
+        .thenReturn(
+            ExecProtos.FragmentHandle.newBuilder()
+                .setMajorFragmentId(0)
+                .setMinorFragmentId(0)
+                .build());
     when(planFragmentFull.getMemInitial()).thenReturn(0L);
     when(planFragmentFull.getMemInitial()).thenReturn(0L);
 
-    BootStrapContext bootStrapContext = new BootStrapContext(DremioConfig.create(null, DEFAULT_SABOT_CONFIG), CLASSPATH_SCAN_RESULT);
+    BootStrapContext bootStrapContext =
+        new BootStrapContext(
+            DremioConfig.create(null, DEFAULT_SABOT_CONFIG), CLASSPATH_SCAN_RESULT);
 
-    FragmentExecutorBuilder fragmentExecutorBuilder = new FragmentExecutorBuilder(queriesClerk, mock(FragmentExecutors.class),
-      CoordinationProtos.NodeEndpoint.newBuilder().build(), mock(MaestroProxy.class), mock(SabotConfig.class), mock(DremioConfig.class), mock(ClusterCoordinator.class), mock(ExecutorService.class),
-      mock(OptionManager.class), mock(FragmentWorkManager.ExecConnectionCreator.class), mock(OperatorCreatorRegistry.class), mock(PhysicalPlanReader.class), mock(NamespaceService.class),
-      mock(CatalogService.class), mock(ContextInformationFactory.class), mock(FunctionImplementationRegistry.class), mock(FunctionImplementationRegistry.class),
-      bootStrapContext.getNodeDebugContextProvider(), mock(SpillService.class), mock(CodeCompiler.class), mock(Set.class), mock(Provider.class), mock(Provider.class),
-      mock(ExpressionSplitCache.class), mock(HeapLowMemController.class));
+    FragmentExecutorBuilder fragmentExecutorBuilder =
+        new FragmentExecutorBuilder(
+            queriesClerk,
+            mock(FragmentExecutors.class),
+            CoordinationProtos.NodeEndpoint.newBuilder().build(),
+            mock(MaestroProxy.class),
+            mock(SabotConfig.class),
+            mock(DremioConfig.class),
+            mock(ClusterCoordinator.class),
+            mock(ExecutorService.class),
+            mock(OptionManager.class),
+            mock(FragmentWorkManager.ExecConnectionCreator.class),
+            mock(OperatorCreatorRegistry.class),
+            mock(PhysicalPlanReader.class),
+            mock(NamespaceService.class),
+            mock(CatalogService.class),
+            mock(ContextInformationFactory.class),
+            mock(FunctionImplementationRegistry.class),
+            mock(FunctionImplementationRegistry.class),
+            bootStrapContext.getNodeDebugContextProvider(),
+            mock(SpillService.class),
+            mock(CodeCompiler.class),
+            mock(Set.class),
+            mock(Provider.class),
+            mock(Provider.class),
+            mock(ExpressionSplitCache.class),
+            mock(HeapLowMemController.class));
 
     try {
-      fragmentExecutorBuilder.build(mock(QueryTicket.class), planFragmentFull, 1, null, mock(EventProvider.class), null, mock(CachedFragmentReader.class));
+      fragmentExecutorBuilder.build(
+          mock(QueryTicket.class),
+          planFragmentFull,
+          1,
+          null,
+          mock(EventProvider.class),
+          null,
+          mock(CachedFragmentReader.class));
     } catch (UserException ex) {
-      Assert.assertTrue(ex.getContextStrings().stream().anyMatch(s -> s.contains("Allocator dominators:\nAllocator(ROOT)")));
+      Assert.assertTrue(
+          ex.getContextStrings().stream()
+              .anyMatch(s -> s.contains("Allocator dominators:\nAllocator(ROOT)")));
       throw ex;
     }
   }

@@ -15,13 +15,12 @@
  */
 package com.dremio.plugins.elastic.planning.functions;
 
-import org.apache.calcite.rex.RexCall;
-
 import com.dremio.plugins.elastic.planning.rules.SchemaField.NullReference;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
+import org.apache.calcite.rex.RexCall;
 
 public abstract class ElasticFunction {
 
@@ -38,17 +37,23 @@ public abstract class ElasticFunction {
   public abstract FunctionRender render(FunctionRenderer renderer, RexCall call);
 
   protected void checkArity(RexCall call, int num) {
-    Preconditions.checkArgument(call.getOperands().size() == num,
-      "Function operation %s expected %s arguments but received %s.", dremioName, num, call.getOperands().size());
+    Preconditions.checkArgument(
+        call.getOperands().size() == num,
+        "Function operation %s expected %s arguments but received %s.",
+        dremioName,
+        num,
+        call.getOperands().size());
   }
 
-  protected static Iterable<NullReference> nulls(FunctionRender... renders){
-    return FluentIterable.from(renders).
-      transformAndConcat(new Function<FunctionRender, Iterable<NullReference>>(){
-      @Override
-      public Iterable<NullReference> apply(FunctionRender input) {
-        return input.getNulls();
-      }});
+  protected static Iterable<NullReference> nulls(FunctionRender... renders) {
+    return FluentIterable.from(renders)
+        .transformAndConcat(
+            new Function<FunctionRender, Iterable<NullReference>>() {
+              @Override
+              public Iterable<NullReference> apply(FunctionRender input) {
+                return input.getNulls();
+              }
+            });
   }
 
   public String getDremioName() {
@@ -58,5 +63,4 @@ public abstract class ElasticFunction {
   public String getElasticName() {
     return elasticName;
   }
-
 }

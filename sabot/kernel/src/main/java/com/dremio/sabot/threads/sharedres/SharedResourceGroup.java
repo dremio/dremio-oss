@@ -19,7 +19,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Tracks availability of a group of resources. The group is marked available when all its resources are available
+ * Tracks availability of a group of resources. The group is marked available when all its resources
+ * are available
  */
 public class SharedResourceGroup {
   private SharedResourceManager sharedResourceManager;
@@ -27,9 +28,10 @@ public class SharedResourceGroup {
   // maintain a list so we can report what resources are unavailable.
   private final CopyOnWriteArrayList<SharedResource> resources = new CopyOnWriteArrayList<>();
   private final AtomicInteger blockedResources = new AtomicInteger();
+
   /**
-   * enforces ordering between creating and disabling resources: all resources created before {@link #markAllAvailable()}
-   * can no longer block
+   * enforces ordering between creating and disabling resources: all resources created before {@link
+   * #markAllAvailable()} can no longer block
    */
   private final Object disableLock = new Object();
 
@@ -39,7 +41,7 @@ public class SharedResourceGroup {
   }
 
   public SharedResource createResource(String name, SharedResourceType resourceType) {
-    synchronized(disableLock) {
+    synchronized (disableLock) {
       SharedResource resource = new SharedResource(this, name, resourceType);
       if (resources.isEmpty()) {
         sharedResourceManager.addAvailable();
@@ -56,21 +58,19 @@ public class SharedResourceGroup {
   }
 
   void removeBlocked() {
-    if(blockedResources.decrementAndGet() == 0){
+    if (blockedResources.decrementAndGet() == 0) {
       sharedResourceManager.addAvailable();
     }
   }
 
-  public boolean isAvailable(){
+  public boolean isAvailable() {
     return !resources.isEmpty() && blockedResources.get() == 0;
   }
 
-  /**
-   * Disable future blocking on existing shared resources. New resources can still block this.
-   */
+  /** Disable future blocking on existing shared resources. New resources can still block this. */
   public void markAllAvailable() {
-    synchronized(disableLock) {
-      for(SharedResource r : resources) {
+    synchronized (disableLock) {
+      for (SharedResource r : resources) {
         r.disableBlocking();
       }
     }
@@ -88,24 +88,29 @@ public class SharedResourceGroup {
   }
 
   @Override
-  public String toString(){
+  public String toString() {
     StringBuilder sb = new StringBuilder();
     int unavailable = 0;
     int available = 0;
-    for(SharedResource r : resources){
-      if(r.isAvailable()){
+    for (SharedResource r : resources) {
+      if (r.isAvailable()) {
         available++;
-      }else{
+      } else {
         sb.append(r.getName());
-        if(unavailable != 0){
+        if (unavailable != 0) {
           sb.append(", ");
         }
         unavailable++;
       }
-
     }
 
-    return String.format("{Group: %s, Available: %s, blocked: %d, Unavailable: %d/%d. [%s]}", name, unavailable == 0, blockedResources.get(), unavailable, unavailable + available, sb.toString());
+    return String.format(
+        "{Group: %s, Available: %s, blocked: %d, Unavailable: %d/%d. [%s]}",
+        name,
+        unavailable == 0,
+        blockedResources.get(),
+        unavailable,
+        unavailable + available,
+        sb.toString());
   }
-
 }

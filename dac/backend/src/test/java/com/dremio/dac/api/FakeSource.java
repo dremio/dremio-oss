@@ -15,12 +15,6 @@
  */
 package com.dremio.dac.api;
 
-import java.io.IOException;
-import java.util.List;
-import java.util.Optional;
-
-import javax.inject.Provider;
-
 import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.DatasetMetadata;
@@ -47,17 +41,16 @@ import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
-
 import io.protostuff.Tag;
+import java.io.IOException;
+import java.util.List;
+import java.util.Optional;
+import javax.inject.Provider;
 
-/**
- * Fake source for testing.
- */
+/** Fake source for testing. */
 @SourceType(value = "FAKESOURCE", label = "FakeSource")
 public class FakeSource extends ConnectionConf<FakeSource, StoragePlugin> {
-  /**
-   * Test fake enum
-   */
+  /** Test fake enum */
   public enum TestEnum {
     @DisplayMetadata(label = "Enum #1")
     ENUM_1,
@@ -98,9 +91,7 @@ public class FakeSource extends ConnectionConf<FakeSource, StoragePlugin> {
   @Tag(10)
   public TestEnum enumType;
 
-  /**
-   * Fake source no-op implementation
-   */
+  /** Fake source no-op implementation */
   class FakeSourcePlugin implements StoragePlugin {
     private final FakeSource fakeSource;
     private final String name;
@@ -144,11 +135,11 @@ public class FakeSource extends ConnectionConf<FakeSource, StoragePlugin> {
     }
 
     @Override
-    public void close() {
-    }
+    public void close() {}
 
     @Override
-    public Optional<DatasetHandle> getDatasetHandle(EntityPath datasetPath, GetDatasetOption... options) {
+    public Optional<DatasetHandle> getDatasetHandle(
+        EntityPath datasetPath, GetDatasetOption... options) {
       return Optional.empty();
     }
 
@@ -156,13 +147,14 @@ public class FakeSource extends ConnectionConf<FakeSource, StoragePlugin> {
     public DatasetMetadata getDatasetMetadata(
         DatasetHandle datasetHandle,
         PartitionChunkListing chunkListing,
-        GetMetadataOption... options
-    ) throws ConnectorException {
+        GetMetadataOption... options)
+        throws ConnectorException {
       throw new ConnectorException("Invalid handle.");
     }
 
     @Override
-    public PartitionChunkListing listPartitionChunks(DatasetHandle datasetHandle, ListPartitionChunkOption... options)
+    public PartitionChunkListing listPartitionChunks(
+        DatasetHandle datasetHandle, ListPartitionChunkOption... options)
         throws ConnectorException {
       throw new ConnectorException("Invalid handle.");
     }
@@ -174,7 +166,8 @@ public class FakeSource extends ConnectionConf<FakeSource, StoragePlugin> {
   }
 
   @Override
-  public StoragePlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
+  public StoragePlugin newPlugin(
+      SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
     return new FakeSourcePlugin(this, name);
   }
 }

@@ -15,13 +15,12 @@
  */
 package com.dremio.exec.catalog;
 
-/**
- * Thrown when dataset has a complex type column that is deeply nested
- */
+/** Thrown when dataset has a complex type column that is deeply nested */
 public class ColumnNestedTooDeepException extends DatasetMetadataTooLargeException {
   private static final long serialVersionUID = 7765148243332604248L;
 
-  public static final String MESSAGE = "Column ‘%s’ exceeded the maximum number of nested levels of %d";
+  public static final String MESSAGE =
+      "Column ‘%s’ exceeded the maximum number of nested levels of %d";
 
   public ColumnNestedTooDeepException(String name, int limit) {
     super(String.format(MESSAGE, name, limit));

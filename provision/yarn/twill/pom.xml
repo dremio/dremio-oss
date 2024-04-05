@@ -1,4 +1,4 @@
-<?xml version="1.0"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!--
 
     Copyright (C) 2017-2019 Dremio Corporation
@@ -22,13 +22,36 @@
   <parent>
     <groupId>com.dremio.provision</groupId>
     <artifactId>dremio-yarn-parent</artifactId>
-    <version>24.3.2-202401241821100032-d2d8a497</version>
+    <version>25.0.0-202404051521110861-ed9515a8</version>
   </parent>
 
   <groupId>com.dremio.provision</groupId>
   <artifactId>dremio-twill-shaded</artifactId>
   <packaging>jar</packaging>
   <name>Provisioning API - Shaded Twill JAR</name>
+
+  <dependencyManagement>
+    <dependencies>
+      <!--
+           Override our global Guava version with the version used by Twill.
+           It will be shaded in the package.
+      -->
+      <dependency>
+        <groupId>com.google.guava</groupId>
+        <artifactId>guava</artifactId>
+        <version>13.0.1</version>
+      </dependency>
+      <!--
+           Add scala-library as a managed dependency here.
+           Using the latest version of the Scala 2.10.x branch
+      -->
+      <dependency>
+        <groupId>org.scala-lang</groupId>
+        <artifactId>scala-library</artifactId>
+        <version>2.10.7</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
 
   <dependencies>
     <dependency>
@@ -37,40 +60,40 @@
       <version>${twill.version}</version>
       <exclusions>
         <exclusion>
-          <artifactId>log4j</artifactId>
           <groupId>log4j</groupId>
+          <artifactId>log4j</artifactId>
         </exclusion>
         <exclusion>
           <groupId>org.slf4j</groupId>
           <artifactId>slf4j-log4j12</artifactId>
         </exclusion>
         <exclusion>
+          <groupId>com.sun.jersey</groupId>
           <artifactId>jersey-core</artifactId>
-          <groupId>com.sun.jersey</groupId>
         </exclusion>
         <exclusion>
+          <groupId>com.sun.jersey</groupId>
           <artifactId>jersey-json</artifactId>
-          <groupId>com.sun.jersey</groupId>
         </exclusion>
         <exclusion>
+          <groupId>com.sun.jersey</groupId>
           <artifactId>jersey-server</artifactId>
-          <groupId>com.sun.jersey</groupId>
         </exclusion>
         <exclusion>
+          <groupId>tomcat</groupId>
           <artifactId>jasper-compiler</artifactId>
-          <groupId>tomcat</groupId>
         </exclusion>
         <exclusion>
+          <groupId>tomcat</groupId>
           <artifactId>jasper-runtime</artifactId>
-          <groupId>tomcat</groupId>
         </exclusion>
         <exclusion>
+          <groupId>tomcat</groupId>
           <artifactId>jasper-runtime</artifactId>
-          <groupId>tomcat</groupId>
         </exclusion>
         <exclusion>
-          <artifactId>jsp-api</artifactId>
           <groupId>javax.servlet.jsp</groupId>
+          <artifactId>jsp-api</artifactId>
         </exclusion>
         <exclusion>
           <groupId>org.mortbay.jetty</groupId>
@@ -85,8 +108,8 @@
           <artifactId>servlet-api</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>commons-logging-api</artifactId>
           <groupId>commons-logging</groupId>
+          <artifactId>commons-logging-api</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
@@ -95,45 +118,45 @@
       <artifactId>twill-yarn</artifactId>
       <version>${twill.version}</version>
       <exclusions>
-      <exclusion>
-        <artifactId>log4j</artifactId>
-        <groupId>log4j</groupId>
-      </exclusion>
-       <exclusion>
-         <groupId>org.slf4j</groupId>
-         <artifactId>slf4j-log4j12</artifactId>
-       </exclusion>
         <exclusion>
-          <artifactId>jersey-core</artifactId>
-          <groupId>com.sun.jersey</groupId>
+          <groupId>log4j</groupId>
+          <artifactId>log4j</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>jersey-json</artifactId>
-          <groupId>com.sun.jersey</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>jersey-server</artifactId>
-          <groupId>com.sun.jersey</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>jasper-compiler</artifactId>
-          <groupId>tomcat</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>jasper-runtime</artifactId>
-          <groupId>tomcat</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>jasper-runtime</artifactId>
-          <groupId>tomcat</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>jsp-api</artifactId>
-          <groupId>javax.servlet.jsp</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>slf4j-api</artifactId>
           <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-log4j12</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>com.sun.jersey</groupId>
+          <artifactId>jersey-core</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>com.sun.jersey</groupId>
+          <artifactId>jersey-json</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>com.sun.jersey</groupId>
+          <artifactId>jersey-server</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>tomcat</groupId>
+          <artifactId>jasper-compiler</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>tomcat</groupId>
+          <artifactId>jasper-runtime</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>tomcat</groupId>
+          <artifactId>jasper-runtime</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>javax.servlet.jsp</groupId>
+          <artifactId>jsp-api</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-api</artifactId>
         </exclusion>
         <exclusion>
           <groupId>org.mortbay.jetty</groupId>
@@ -148,16 +171,20 @@
           <artifactId>servlet-api</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>commons-logging-api</artifactId>
           <groupId>commons-logging</groupId>
+          <artifactId>commons-logging-api</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>commons-logging</artifactId>
           <groupId>commons-logging</groupId>
+          <artifactId>commons-logging</artifactId>
         </exclusion>
         <exclusion>
           <groupId>org.apache.hadoop</groupId>
           <artifactId>*</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>com.101tec</groupId>
+          <artifactId>zkclient</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
@@ -171,40 +198,40 @@
           <artifactId>logback-core</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>log4j</artifactId>
           <groupId>log4j</groupId>
+          <artifactId>log4j</artifactId>
         </exclusion>
         <exclusion>
           <groupId>org.slf4j</groupId>
           <artifactId>slf4j-log4j12</artifactId>
         </exclusion>
         <exclusion>
+          <groupId>com.sun.jersey</groupId>
           <artifactId>jersey-core</artifactId>
-          <groupId>com.sun.jersey</groupId>
         </exclusion>
         <exclusion>
+          <groupId>com.sun.jersey</groupId>
           <artifactId>jersey-json</artifactId>
-          <groupId>com.sun.jersey</groupId>
         </exclusion>
         <exclusion>
+          <groupId>com.sun.jersey</groupId>
           <artifactId>jersey-server</artifactId>
-          <groupId>com.sun.jersey</groupId>
         </exclusion>
         <exclusion>
+          <groupId>tomcat</groupId>
           <artifactId>jasper-compiler</artifactId>
-          <groupId>tomcat</groupId>
         </exclusion>
         <exclusion>
-          <artifactId>jasper-runtime</artifactId>
           <groupId>tomcat</groupId>
-        </exclusion>
-       <exclusion>
           <artifactId>jasper-runtime</artifactId>
-          <groupId>tomcat</groupId>
         </exclusion>
         <exclusion>
-          <artifactId>jsp-api</artifactId>
+          <groupId>tomcat</groupId>
+          <artifactId>jasper-runtime</artifactId>
+        </exclusion>
+        <exclusion>
           <groupId>javax.servlet.jsp</groupId>
+          <artifactId>jsp-api</artifactId>
         </exclusion>
         <exclusion>
           <groupId>org.mortbay.jetty</groupId>
@@ -219,39 +246,20 @@
           <artifactId>servlet-api</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>commons-logging-api</artifactId>
           <groupId>commons-logging</groupId>
+          <artifactId>commons-logging-api</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>commons-logging</artifactId>
           <groupId>commons-logging</groupId>
+          <artifactId>commons-logging</artifactId>
         </exclusion>
       </exclusions>
-     </dependency>
+    </dependency>
+    <dependency>
+      <groupId>com.101tec</groupId>
+      <artifactId>zkclient</artifactId>
+    </dependency>
   </dependencies>
-
-  <dependencyManagement>
-    <dependencies>
-      <!--
-           Override our global Guava version with the version used by Twill.
-           It will be shaded in the package.
-      -->
-      <dependency>
-        <groupId>com.google.guava</groupId>
-        <artifactId>guava</artifactId>
-        <version>13.0.1</version>
-      </dependency>
-      <!-- 
-           Add scala-library as a managed dependency here. 
-           Using the latest version of the Scala 2.10.x branch
-      -->
-      <dependency>
-        <groupId>org.scala-lang</groupId>
-        <artifactId>scala-library</artifactId>
-        <version>2.10.7</version>
-      </dependency>
-    </dependencies>
-  </dependencyManagement>
 
   <build>
     <plugins>
@@ -260,14 +268,14 @@
         <artifactId>maven-shade-plugin</artifactId>
         <executions>
           <execution>
-            <phase>package</phase>
             <goals>
               <goal>shade</goal>
             </goals>
+            <phase>package</phase>
             <configuration>
               <artifactSet>
                 <excludes>
-                 <exclude>org.apache.hadoop:*</exclude>
+                  <exclude>org.apache.hadoop:*</exclude>
                 </excludes>
 
                 <includes>

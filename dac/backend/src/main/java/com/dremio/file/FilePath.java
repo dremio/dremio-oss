@@ -15,8 +15,6 @@
  */
 package com.dremio.file;
 
-import java.util.List;
-
 import com.dremio.common.utils.PathUtils;
 import com.dremio.dac.model.common.LeafEntity;
 import com.dremio.dac.model.common.NamespacePath;
@@ -27,11 +25,9 @@ import com.dremio.dac.model.spaces.SpaceName;
 import com.dremio.dac.model.spaces.TempSpace;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.google.common.collect.ImmutableList;
+import java.util.List;
 
-/**
- * The full path to a file.
- * File must start with a home space @home.folder1...folderN.filename
- */
+/** The full path to a file. File must start with a home space @home.folder1...folderN.filename */
 public final class FilePath extends NamespacePath {
   /**
    * Creates a FilePath from a root entity and a path component from a URL
@@ -43,7 +39,8 @@ public final class FilePath extends NamespacePath {
   public static FilePath fromURLPath(RootEntity root, String path) {
     List<String> components = PathUtils.toPathComponents(path);
 
-    return new FilePath(ImmutableList.<String> builder().add(root.getName()).addAll(components).build());
+    return new FilePath(
+        ImmutableList.<String>builder().add(root.getName()).addAll(components).build());
   }
 
   public FilePath(RootEntity root, List<FolderName> folderPath, FileName fileName) {
@@ -85,12 +82,11 @@ public final class FilePath extends NamespacePath {
   }
 
   public FileName getFileName() {
-    return (FileName)getLeaf();
+    return (FileName) getLeaf();
   }
 
   @Override
   protected String getDefaultUrlPathType() {
     return "file";
   }
-
 }

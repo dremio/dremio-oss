@@ -16,11 +16,10 @@
 package com.dremio.datastore.api;
 
 /**
- * Function used to build a KVStore. Class is used as a key to later access the
- * singleton KVStore.
+ * Function used to build a KVStore. Class is used as a key to later access the singleton KVStore.
  *
- * Should not probably used directly but instead use
- * {@link KVStoreCreationFunction} or {@link IndexedStoreCreationFunction}
+ * <p>Should not probably used directly but instead use {@link KVStoreCreationFunction} or {@link
+ * IndexedStoreCreationFunction}
  *
  * @param <K> the key type
  * @param <V> the value type
@@ -29,6 +28,7 @@ package com.dremio.datastore.api;
 public interface StoreCreationFunction<K, V, T extends KVStore<K, V>> {
   /**
    * How to build this KVStore.
+   *
    * @param factory StoreBuildingFactory to indicate how to build this store.
    * @return KVStore of type T.
    */

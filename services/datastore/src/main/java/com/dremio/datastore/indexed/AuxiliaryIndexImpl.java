@@ -15,35 +15,40 @@
  */
 package com.dremio.datastore.indexed;
 
+import com.dremio.datastore.CoreIndexedStore;
+import com.dremio.datastore.CoreKVStore;
+import com.dremio.datastore.KVStoreTuple;
+import com.dremio.datastore.api.DocumentConverter;
+import com.dremio.datastore.api.FindByCondition;
+import java.lang.reflect.InvocationTargetException;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.StringField;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.util.BytesRef;
 
-import com.dremio.datastore.CoreIndexedStore;
-import com.dremio.datastore.CoreKVStore;
-import com.dremio.datastore.KVStoreTuple;
-import com.dremio.datastore.api.DocumentConverter;
-import com.dremio.datastore.api.FindByCondition;
-
 /**
- * Implementation of {@link AuxiliaryIndex} that works with {@link CoreKVStore} and {@link LuceneSearchIndex}
+ * Implementation of {@link AuxiliaryIndex} that works with {@link CoreKVStore} and {@link
+ * LuceneSearchIndex}
  */
-public class AuxiliaryIndexImpl<K, V, T> implements AuxiliaryIndex<K, V, T>{
+public class AuxiliaryIndexImpl<K, V, T> implements AuxiliaryIndex<K, V, T> {
   private final CoreKVStore<K, V> store;
   private final LuceneSearchIndex index;
   private final DocumentConverter<K, T> converter;
   private final CoreIndexedStore<K, V> coreIndexedStore;
 
   public AuxiliaryIndexImpl(
-    String name, CoreKVStore<K, V> store,
-    LuceneSearchIndex index,
-    Class<? extends DocumentConverter<K, T>> converter
-  ) throws IllegalAccessException, InstantiationException {
+      String name,
+      CoreKVStore<K, V> store,
+      LuceneSearchIndex index,
+      Class<? extends DocumentConverter<K, T>> converter)
+      throws IllegalAccessException,
+          InstantiationException,
+          InvocationTargetException,
+          NoSuchMethodException {
     this.store = store;
     this.index = index;
-    this.converter = converter.newInstance();
+    this.converter = converter.getDeclaredConstructor().newInstance();
 
     // we don't need to pass in a DocumentConverter as we handle our own indexing
     this.coreIndexedStore = new CoreIndexedStoreImpl<>(name, store, index, null, false);
@@ -60,21 +65,26 @@ public class AuxiliaryIndexImpl<K, V, T> implements AuxiliaryIndex<K, V, T>{
   }
 
   @Override
-  public Iterable<com.dremio.datastore.api.Document<KVStoreTuple<K>, KVStoreTuple<V>>> find(FindByCondition condition) {
+  public Iterable<com.dremio.datastore.api.Document<KVStoreTuple<K>, KVStoreTuple<V>>> find(
+      FindByCondition condition) {
     return coreIndexedStore.find(condition);
   }
 
-  private Term keyAsTerm(KVStoreTuple<K> key){
+  private Term keyAsTerm(KVStoreTuple<K> key) {
     final byte[] keyBytes = key.getSerializedBytes();
     return new Term(CoreIndexedStore.ID_FIELD_NAME, new BytesRef(keyBytes));
   }
 
-  private Document toDoc(KVStoreTuple<K> key, T value){
+  private Document toDoc(KVStoreTuple<K> key, T value) {
     final Document doc = new Document();
     final SimpleDocumentWriter documentWriter = new SimpleDocumentWriter(doc);
     converter.doConvert(documentWriter, key.getObject(), value);
 
-    doc.add(new StringField(CoreIndexedStore.ID_FIELD_NAME, new BytesRef(key.getSerializedBytes()), Field.Store.YES));
+    doc.add(
+        new StringField(
+            CoreIndexedStore.ID_FIELD_NAME,
+            new BytesRef(key.getSerializedBytes()),
+            Field.Store.YES));
 
     return doc;
   }

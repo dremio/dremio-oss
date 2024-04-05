@@ -15,6 +15,9 @@
  */
 package com.dremio.io;
 
+import com.dremio.common.exceptions.ErrorHelper;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import io.netty.buffer.ByteBuf;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
@@ -24,14 +27,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 
-import com.dremio.common.exceptions.ErrorHelper;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
-
-import io.netty.buffer.ByteBuf;
-
-/**
- * Decorator over AsyncByteReader with timeout.
- */
+/** Decorator over AsyncByteReader with timeout. */
 public class AsyncByteReaderWithTimeout extends ReusableAsyncByteReader {
   private static ScheduledThreadPoolExecutor delayer;
   private final AtomicInteger numOutstandingReads = new AtomicInteger(0);
@@ -39,10 +35,9 @@ public class AsyncByteReaderWithTimeout extends ReusableAsyncByteReader {
   private long timeoutInMillis;
 
   static {
-    delayer = new ScheduledThreadPoolExecutor(1, new ThreadFactoryBuilder()
-      .setDaemon(true)
-      .setNameFormat("timeoutAfter-%d")
-      .build());
+    delayer =
+        new ScheduledThreadPoolExecutor(
+            1, new ThreadFactoryBuilder().setDaemon(true).setNameFormat("timeoutAfter-%d").build());
     // remove cancelled tasks from the queue to reduce heap usage.
     delayer.setRemoveOnCancelPolicy(true);
   }
@@ -65,32 +60,36 @@ public class AsyncByteReaderWithTimeout extends ReusableAsyncByteReader {
   @Override
   public CompletableFuture<Void> readFully(long offset, ByteBuf dst, int dstOffset, int len) {
     numOutstandingReads.getAndIncrement();
-    CompletableFuture<Void> future = within(inner.readFully(offset, dst, dstOffset, len),
-      timeoutInMillis);
-    future = future.whenComplete((result, throwable) -> {
-      if (ErrorHelper.findWrappedCause(throwable, AsyncTimeoutException.class) != null) {
-        // grab an extra ref on behalf of the read that may complete at any point
-        // in the future and access the buf. This buf is essentially leaked.
-        dst.retain();
-      }
-      numOutstandingReads.getAndDecrement();
-    });
+    CompletableFuture<Void> future =
+        within(inner.readFully(offset, dst, dstOffset, len), timeoutInMillis);
+    future =
+        future.whenComplete(
+            (result, throwable) -> {
+              if (ErrorHelper.findWrappedCause(throwable, AsyncTimeoutException.class) != null) {
+                // grab an extra ref on behalf of the read that may complete at any point
+                // in the future and access the buf. This buf is essentially leaked.
+                dst.retain();
+              }
+              numOutstandingReads.getAndDecrement();
+            });
     return future;
   }
 
-  /**
-   * if the future cannot complete within 'millis', fail with TimeoutException.
-   */
+  /** if the future cannot complete within 'millis', fail with TimeoutException. */
   private static <T> CompletableFuture<T> within(CompletableFuture<T> future, long millis) {
     // schedule a task to generate a timeout after 'millis'
     final CompletableFuture<T> timeout = new CompletableFuture<>();
-    ScheduledFuture timeoutTask = delayer.schedule(
-      () -> timeout.completeExceptionally(new AsyncTimeoutException()), millis, TimeUnit.MILLISECONDS);
+    ScheduledFuture timeoutTask =
+        delayer.schedule(
+            () -> timeout.completeExceptionally(new AsyncTimeoutException()),
+            millis,
+            TimeUnit.MILLISECONDS);
 
     // accept either the origin future or the timeout, which ever happens first. cancel the timeout
     // task in either case.
-    return future.applyToEither(timeout, Function.identity())
-      .whenComplete((x, y) -> timeoutTask.cancel(true));
+    return future
+        .applyToEither(timeout, Function.identity())
+        .whenComplete((x, y) -> timeoutTask.cancel(true));
   }
 
   @Override

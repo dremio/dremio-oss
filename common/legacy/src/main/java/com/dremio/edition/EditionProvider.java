@@ -15,13 +15,12 @@
  */
 package com.dremio.edition;
 
-/**
- * Edition provider for providing dremio edition
- */
+/** Edition provider for providing dremio edition */
 public interface EditionProvider {
 
   /**
    * Returns the dremio edition
+   *
    * @return Dremio edition
    */
   String getEdition();

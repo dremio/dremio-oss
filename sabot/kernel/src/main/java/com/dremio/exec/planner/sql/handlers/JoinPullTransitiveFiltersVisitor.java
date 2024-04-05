@@ -15,17 +15,13 @@
  */
 package com.dremio.exec.planner.sql.handlers;
 
+import com.dremio.exec.planner.StatelessRelShuttleImpl;
+import com.dremio.exec.planner.logical.DremioJoinPushTransitivePredicatesRule;
 import java.util.Optional;
-
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.logical.LogicalJoin;
 
-import com.dremio.exec.planner.StatelessRelShuttleImpl;
-import com.dremio.exec.planner.logical.DremioJoinPushTransitivePredicatesRule;
-
-/**
- * Bottom up visitor to pull filters up from logical joins.
- */
+/** Bottom up visitor to pull filters up from logical joins. */
 public class JoinPullTransitiveFiltersVisitor extends StatelessRelShuttleImpl {
 
   @Override
@@ -34,7 +30,8 @@ public class JoinPullTransitiveFiltersVisitor extends StatelessRelShuttleImpl {
     if (!(rel instanceof LogicalJoin)) {
       return rel;
     }
-    RelNode newJoin = DremioJoinPushTransitivePredicatesRule.findAndApplyTransitivePredicates((LogicalJoin) rel);
+    RelNode newJoin =
+        DremioJoinPushTransitivePredicatesRule.findAndApplyTransitivePredicates((LogicalJoin) rel);
     return Optional.ofNullable(newJoin).orElse(rel);
   }
 }

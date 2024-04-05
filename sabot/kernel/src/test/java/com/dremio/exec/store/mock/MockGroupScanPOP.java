@@ -17,12 +17,6 @@ package com.dremio.exec.store.mock;
 
 import static com.dremio.common.util.MajorTypeHelper.getArrowMinorType;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.types.TypeProtos.DataMode;
@@ -52,9 +46,15 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
 
 @JsonTypeName("mock-scan")
-public class MockGroupScanPOP extends AbstractBase implements GroupScan<MockGroupScanPOP.MockScanEntry> {
+public class MockGroupScanPOP extends AbstractBase
+    implements GroupScan<MockGroupScanPOP.MockScanEntry> {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MockGroupScanPOP.class);
 
   private final String url;
@@ -63,7 +63,10 @@ public class MockGroupScanPOP extends AbstractBase implements GroupScan<MockGrou
   private final List<String> columns;
 
   @JsonCreator
-  public MockGroupScanPOP(@JsonProperty("props") OpProps props, @JsonProperty("url") String url, @JsonProperty("entries") List<MockScanEntry> readEntries) {
+  public MockGroupScanPOP(
+      @JsonProperty("props") OpProps props,
+      @JsonProperty("url") String url,
+      @JsonProperty("entries") List<MockScanEntry> readEntries) {
     super(props);
     this.readEntries = readEntries == null ? ImmutableList.<MockScanEntry>of() : readEntries;
     this.schema = getSchema(this.readEntries);
@@ -73,7 +76,7 @@ public class MockGroupScanPOP extends AbstractBase implements GroupScan<MockGrou
 
   static BatchSchema getSchema(List<MockScanEntry> entries) {
     SchemaBuilder builder = BatchSchema.newBuilder();
-    for(MockColumn e : entries.get(0).types){
+    for (MockColumn e : entries.get(0).types) {
       builder.addField(MajorTypeHelper.getFieldForNameAndMajorType(e.name, e.getMajorType()));
     }
     return builder.setSelectionVectorMode(SelectionVectorMode.NONE).build();
@@ -81,7 +84,7 @@ public class MockGroupScanPOP extends AbstractBase implements GroupScan<MockGrou
 
   static List<String> getColumns(List<MockScanEntry> entries) {
     List<String> columns = new ArrayList<>();
-    for(MockColumn e : entries.get(0).types){
+    for (MockColumn e : entries.get(0).types) {
       columns.add(e.name);
     }
     return columns;
@@ -140,7 +143,8 @@ public class MockGroupScanPOP extends AbstractBase implements GroupScan<MockGrou
     }
 
     @JsonCreator
-    public MockScanEntry(@JsonProperty("records") int records, @JsonProperty("types") MockColumn[] types) {
+    public MockScanEntry(
+        @JsonProperty("records") int records, @JsonProperty("types") MockColumn[] types) {
       this.records = records;
       this.types = types;
       int size = 0;
@@ -165,17 +169,24 @@ public class MockGroupScanPOP extends AbstractBase implements GroupScan<MockGrou
   }
 
   @JsonInclude(Include.NON_NULL)
-  public static class MockColumn{
-    @JsonProperty("type") public MinorType minorType;
+  public static class MockColumn {
+    @JsonProperty("type")
+    public MinorType minorType;
+
     public String name;
     public DataMode mode;
     public Integer width;
     public Integer precision;
     public Integer scale;
 
-
     @JsonCreator
-    public MockColumn(@JsonProperty("name") String name, @JsonProperty("type") MinorType minorType, @JsonProperty("mode") DataMode mode, @JsonProperty("width") Integer width, @JsonProperty("precision") Integer precision, @JsonProperty("scale") Integer scale) {
+    public MockColumn(
+        @JsonProperty("name") String name,
+        @JsonProperty("type") MinorType minorType,
+        @JsonProperty("mode") DataMode mode,
+        @JsonProperty("width") Integer width,
+        @JsonProperty("precision") Integer precision,
+        @JsonProperty("scale") Integer scale) {
       this.name = name;
       this.minorType = minorType;
       this.mode = mode;
@@ -188,18 +199,23 @@ public class MockGroupScanPOP extends AbstractBase implements GroupScan<MockGrou
     public MinorType getMinorType() {
       return minorType;
     }
+
     public String getName() {
       return name;
     }
+
     public DataMode getMode() {
       return mode;
     }
+
     public Integer getWidth() {
       return width;
     }
+
     public Integer getPrecision() {
       return precision;
     }
+
     public Integer getScale() {
       return scale;
     }
@@ -225,7 +241,6 @@ public class MockGroupScanPOP extends AbstractBase implements GroupScan<MockGrou
     public String toString() {
       return "MockColumn [minorType=" + minorType + ", name=" + name + ", mode=" + mode + "]";
     }
-
   }
 
   @Override
@@ -248,7 +263,6 @@ public class MockGroupScanPOP extends AbstractBase implements GroupScan<MockGrou
   public PhysicalOperator getNewWithChildren(List<PhysicalOperator> children) {
     Preconditions.checkArgument(children.isEmpty());
     return new MockGroupScanPOP(this.props, url, readEntries);
-
   }
 
   @Override
@@ -258,8 +272,7 @@ public class MockGroupScanPOP extends AbstractBase implements GroupScan<MockGrou
 
   @Override
   public String toString() {
-    return "MockGroupScanPOP [url=" + url
-        + ", readEntries=" + readEntries + "]";
+    return "MockGroupScanPOP [url=" + url + ", readEntries=" + readEntries + "]";
   }
 
   @Deprecated
@@ -268,7 +281,8 @@ public class MockGroupScanPOP extends AbstractBase implements GroupScan<MockGrou
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value) throws E {
+  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value)
+      throws E {
     return physicalVisitor.visitGroupScan(this, value);
   }
 
@@ -291,5 +305,4 @@ public class MockGroupScanPOP extends AbstractBase implements GroupScan<MockGrou
   public DistributionAffinity getDistributionAffinity() {
     return DistributionAffinity.SOFT;
   }
-
 }

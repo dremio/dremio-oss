@@ -15,10 +15,11 @@
  */
 package com.dremio.exec.planner.logical.rewrite.sargable;
 
+import com.dremio.exec.planner.sql.Checker;
+import com.google.common.collect.ImmutableList;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Locale;
-
 import org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexLiteral;
@@ -32,135 +33,92 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.ReturnTypes;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-import com.dremio.exec.planner.sql.Checker;
-import com.google.common.collect.ImmutableList;
-
 public final class SARGableRexUtils {
   private SARGableRexUtils() {}
 
-  public static final SqlFunction DATE_ADD = new SqlFunction(
-    "DATE_ADD",
-    SqlKind.OTHER_FUNCTION,
-    ReturnTypes.ARG0,
-    null,
-    Checker.of(2),
-    SqlFunctionCategory.USER_DEFINED_FUNCTION
-  );
+  public static final SqlFunction DATE_ADD =
+      new SqlFunction(
+          "DATE_ADD",
+          SqlKind.OTHER_FUNCTION,
+          ReturnTypes.ARG0,
+          null,
+          Checker.of(2),
+          SqlFunctionCategory.USER_DEFINED_FUNCTION);
 
-  public static final SqlFunction DATE_SUB = new SqlFunction(
-    "DATE_SUB",
-    SqlKind.OTHER_FUNCTION,
-    ReturnTypes.ARG0,
-    null,
-    Checker.of(2),
-    SqlFunctionCategory.USER_DEFINED_FUNCTION
-  );
+  public static final SqlFunction DATE_SUB =
+      new SqlFunction(
+          "DATE_SUB",
+          SqlKind.OTHER_FUNCTION,
+          ReturnTypes.ARG0,
+          null,
+          Checker.of(2),
+          SqlFunctionCategory.USER_DEFINED_FUNCTION);
 
-  public static final SqlFunction DATE_TRUNC = new SqlFunction(
-    "DATE_TRUNC",
-    SqlKind.OTHER_FUNCTION,
-    ReturnTypes.ARG1,
-    null,
-    Checker.of(2),
-    SqlFunctionCategory.USER_DEFINED_FUNCTION
-  );
+  public static final SqlFunction DATE_TRUNC =
+      new SqlFunction(
+          "DATE_TRUNC",
+          SqlKind.OTHER_FUNCTION,
+          ReturnTypes.ARG1,
+          null,
+          Checker.of(2),
+          SqlFunctionCategory.USER_DEFINED_FUNCTION);
 
-  public static final SqlFunction EXTRACT = new SqlFunction(
-    "EXTRACT",
-    SqlKind.OTHER_FUNCTION,
-    ReturnTypes.INTEGER,
-    null,
-    Checker.of(2),
-    SqlFunctionCategory.USER_DEFINED_FUNCTION
-  );
+  public static final SqlFunction EXTRACT =
+      new SqlFunction(
+          "EXTRACT",
+          SqlKind.OTHER_FUNCTION,
+          ReturnTypes.INTEGER,
+          null,
+          Checker.of(2),
+          SqlFunctionCategory.USER_DEFINED_FUNCTION);
 
-  public static final SqlFunction NEXT_DAY = new SqlFunction(
-    "NEXT_DAY",
-    SqlKind.OTHER_FUNCTION,
-    ReturnTypes.ARG0,
-    null,
-    Checker.of(2),
-    SqlFunctionCategory.USER_DEFINED_FUNCTION
-  );
+  public static final SqlFunction NEXT_DAY =
+      new SqlFunction(
+          "NEXT_DAY",
+          SqlKind.OTHER_FUNCTION,
+          ReturnTypes.ARG0,
+          null,
+          Checker.of(2),
+          SqlFunctionCategory.USER_DEFINED_FUNCTION);
 
   public static RexNode eq(RexNode left, RexNode right, RexBuilder rexBuilder) {
-    return rexBuilder.makeCall(
-      SqlStdOperatorTable.EQUALS,
-      left,
-      right
-    );
+    return rexBuilder.makeCall(SqlStdOperatorTable.EQUALS, left, right);
   }
 
   public static RexNode neq(RexNode left, RexNode right, RexBuilder rexBuilder) {
-    return rexBuilder.makeCall(
-      SqlStdOperatorTable.NOT_EQUALS,
-      left,
-      right
-    );
+    return rexBuilder.makeCall(SqlStdOperatorTable.NOT_EQUALS, left, right);
   }
 
   public static RexNode gt(RexNode left, RexNode right, RexBuilder rexBuilder) {
-    return rexBuilder.makeCall(
-      SqlStdOperatorTable.GREATER_THAN,
-      left,
-      right
-    );
+    return rexBuilder.makeCall(SqlStdOperatorTable.GREATER_THAN, left, right);
   }
 
   public static RexNode gte(RexNode left, RexNode right, RexBuilder rexBuilder) {
-    return rexBuilder.makeCall(
-      SqlStdOperatorTable.GREATER_THAN_OR_EQUAL,
-      left,
-      right
-    );
+    return rexBuilder.makeCall(SqlStdOperatorTable.GREATER_THAN_OR_EQUAL, left, right);
   }
 
   public static RexNode lt(RexNode left, RexNode right, RexBuilder rexBuilder) {
-    return rexBuilder.makeCall(
-      SqlStdOperatorTable.LESS_THAN,
-      left,
-      right
-    );
+    return rexBuilder.makeCall(SqlStdOperatorTable.LESS_THAN, left, right);
   }
 
   public static RexNode lte(RexNode left, RexNode right, RexBuilder rexBuilder) {
-    return rexBuilder.makeCall(
-      SqlStdOperatorTable.LESS_THAN_OR_EQUAL,
-      left,
-      right
-    );
+    return rexBuilder.makeCall(SqlStdOperatorTable.LESS_THAN_OR_EQUAL, left, right);
   }
 
   public static RexNode in(RexNode left, RexNode right, RexBuilder rexBuilder) {
-    return rexBuilder.makeCall(
-      SqlStdOperatorTable.IN,
-      left,
-      right
-    );
+    return rexBuilder.makeCall(SqlStdOperatorTable.IN, left, right);
   }
 
   public static RexNode notIn(RexNode left, RexNode right, RexBuilder rexBuilder) {
-    return rexBuilder.makeCall(
-      SqlStdOperatorTable.NOT_IN,
-      left,
-      right
-    );
+    return rexBuilder.makeCall(SqlStdOperatorTable.NOT_IN, left, right);
   }
 
   public static RexNode between(RexNode left, RexNode right, RexBuilder rexBuilder) {
-    return rexBuilder.makeCall(
-      SqlStdOperatorTable.BETWEEN,
-      left,
-      right
-    );
+    return rexBuilder.makeCall(SqlStdOperatorTable.BETWEEN, left, right);
   }
 
   public static RexNode notBetween(RexNode left, RexNode right, RexBuilder rexBuilder) {
-    return rexBuilder.makeCall(
-      SqlStdOperatorTable.NOT_BETWEEN,
-      left,
-      right
-    );
+    return rexBuilder.makeCall(SqlStdOperatorTable.NOT_BETWEEN, left, right);
   }
 
   public static RexNode and(RexNode left, RexNode right, RexBuilder rexBuilder) {
@@ -168,10 +126,7 @@ public final class SARGableRexUtils {
   }
 
   public static RexNode and(List<? extends RexNode> exprs, RexBuilder rexBuilder) {
-    return rexBuilder.makeCall(
-      SqlStdOperatorTable.AND,
-      exprs
-    );
+    return rexBuilder.makeCall(SqlStdOperatorTable.AND, exprs);
   }
 
   public static RexNode or(RexNode left, RexNode right, RexBuilder rexBuilder) {
@@ -179,42 +134,23 @@ public final class SARGableRexUtils {
   }
 
   public static RexNode or(List<? extends RexNode> exprs, RexBuilder rexBuilder) {
-    return rexBuilder.makeCall(
-      SqlStdOperatorTable.OR,
-      exprs
-    );
+    return rexBuilder.makeCall(SqlStdOperatorTable.OR, exprs);
   }
 
   public static RexNode dateAdd(RexNode dateExpr, RexNode interval, RexBuilder rexBuilder) {
-    return rexBuilder.makeCall(
-      DATE_ADD,
-      dateExpr,
-      interval
-    );
+    return rexBuilder.makeCall(DATE_ADD, dateExpr, interval);
   }
 
   public static RexNode dateAdd(RexNode dateExpr, int days, RexBuilder rexBuilder) {
-    return rexBuilder.makeCall(
-      DATE_ADD,
-      dateExpr,
-      rexBuilder.makeLiteral(String.valueOf(days))
-    );
+    return rexBuilder.makeCall(DATE_ADD, dateExpr, rexBuilder.makeLiteral(String.valueOf(days)));
   }
 
   public static RexNode dateTrunc(TimeUnit timeUnit, RexNode dateExpr, RexBuilder rexBuilder) {
-    return rexBuilder.makeCall(
-      DATE_TRUNC,
-      rexBuilder.makeLiteral(timeUnit.toString()),
-      dateExpr
-    );
+    return rexBuilder.makeCall(DATE_TRUNC, rexBuilder.makeLiteral(timeUnit.toString()), dateExpr);
   }
 
   public static RexNode nextDay(RexNode dateExpr, RexNode literal, RexBuilder rexBuilder) {
-    return rexBuilder.makeCall(
-      NEXT_DAY,
-      dateExpr,
-      literal
-    );
+    return rexBuilder.makeCall(NEXT_DAY, dateExpr, literal);
   }
 
   public static RexNode toInterval(Long num, RexLiteral rexTimeUnit, RexBuilder rexBuilder) {
@@ -270,9 +206,10 @@ public final class SARGableRexUtils {
   }
 
   public static RexNode toInterval(Long num, TimeUnit timeUnit, RexBuilder rexBuilder) {
-    return (num == null || timeUnit == null) ? null :
-      rexBuilder.makeIntervalLiteral(
-        BigDecimal.valueOf(num * timeUnit.multiplier.longValue()),
-        new SqlIntervalQualifier(timeUnit, null, SqlParserPos.ZERO));
+    return (num == null || timeUnit == null)
+        ? null
+        : rexBuilder.makeIntervalLiteral(
+            BigDecimal.valueOf(num * timeUnit.multiplier.longValue()),
+            new SqlIntervalQualifier(timeUnit, null, SqlParserPos.ZERO));
   }
 }

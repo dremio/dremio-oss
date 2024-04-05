@@ -23,15 +23,14 @@ import com.dremio.exec.physical.base.Writer;
 import com.dremio.exec.physical.config.WriterCommitterPOP;
 import com.dremio.exec.record.BatchSchema;
 
-/**
- * Find correct schema for root operator (below writer if a writer exists).
- */
+/** Find correct schema for root operator (below writer if a writer exists). */
 public class RootSchemaFinder extends AbstractPhysicalVisitor<Void, Void, Exception> {
 
   private BatchSchema batchSchema;
 
   public static BatchSchema getSchema(Root rootOperator) throws Exception {
-    // Start with schema of root operator. Replace it with schema of writer operator if any writer exists
+    // Start with schema of root operator. Replace it with schema of writer operator if any writer
+    // exists
     final BatchSchema rootOperatorSchema = rootOperator.getProps().getSchema();
     final RootSchemaFinder rootSchemaFinder = new RootSchemaFinder();
     rootOperator.accept(rootSchemaFinder, null);
@@ -42,8 +41,7 @@ public class RootSchemaFinder extends AbstractPhysicalVisitor<Void, Void, Except
     return rootOperatorSchema;
   }
 
-  private RootSchemaFinder() {
-  }
+  private RootSchemaFinder() {}
 
   @Override
   public Void visitWriterCommiter(WriterCommitterPOP commiter, Void value) throws Exception {

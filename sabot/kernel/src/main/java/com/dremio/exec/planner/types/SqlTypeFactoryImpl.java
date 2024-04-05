@@ -29,13 +29,13 @@ public class SqlTypeFactoryImpl extends org.apache.calcite.sql.type.SqlTypeFacto
   @Override
   public RelDataType createSqlType(SqlTypeName typeName, int precision) {
     switch (typeName) {
-    case CHAR:
-      return super.createSqlType(SqlTypeName.VARCHAR, precision);
-    case TIME:
-    case TIMESTAMP:
-      return super.createSqlType(typeName, RelDataTypeSystemImpl.SUPPORTED_DATETIME_PRECISION);
-    default:
-      return super.createSqlType(typeName, precision);
+      case CHAR:
+        return super.createSqlType(SqlTypeName.VARCHAR, precision);
+      case TIME:
+      case TIMESTAMP:
+        return super.createSqlType(typeName, RelDataTypeSystemImpl.SUPPORTED_DATETIME_PRECISION);
+      default:
+        return super.createSqlType(typeName, precision);
     }
   }
 }

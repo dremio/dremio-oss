@@ -15,19 +15,16 @@
  */
 package com.dremio.provision;
 
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import java.util.List;
-
 import org.immutables.value.Value.Immutable;
 
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-
-/**
- * Container
- */
+/** Container */
 @JsonDeserialize(builder = ImmutableContainer.Builder.class)
 @Immutable
 public interface Container {
   String getContainerId();
+
   List<Property> getContainerPropertyList();
 
   public static ImmutableContainer.Builder builder() {

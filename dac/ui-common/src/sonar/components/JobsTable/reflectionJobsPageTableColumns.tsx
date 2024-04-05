@@ -30,7 +30,7 @@ import { JOB_COLUMNS, getJobColumnLabels } from "./jobsPageTableColumns";
 export const reflectionJobsPageTableColumns = (
   renderJobLink?: (job: any) => React.ReactElement,
   renderDataset?: (job: any) => React.ReactElement,
-  renderSQL?: (sql: string) => React.ReactElement
+  renderSQL?: (sql: string) => React.ReactElement,
 ): Column<any>[] => {
   const jobColumnLabels = getJobColumnLabels();
   const { t } = getIntlContext();

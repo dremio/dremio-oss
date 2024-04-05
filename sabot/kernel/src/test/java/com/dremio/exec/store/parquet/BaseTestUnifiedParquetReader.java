@@ -17,22 +17,6 @@ package com.dremio.exec.store.parquet;
 
 import static com.dremio.exec.util.ColumnUtils.ROW_INDEX_COLUMN_NAME;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.StandardCopyOption;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.Collectors;
-
-import org.apache.arrow.vector.types.pojo.ArrowType;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.types.pojo.Schema;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.parquet.arrow.schema.SchemaConverter;
-import org.junit.AfterClass;
-import org.junit.Before;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.SchemaPath;
@@ -50,6 +34,20 @@ import com.dremio.sabot.exec.context.OperatorContextImpl;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.google.common.io.Resources;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.parquet.arrow.schema.SchemaConverter;
+import org.junit.AfterClass;
+import org.junit.Before;
 
 public class BaseTestUnifiedParquetReader extends BaseTestOperator {
 
@@ -85,8 +83,10 @@ public class BaseTestUnifiedParquetReader extends BaseTestOperator {
 
   public static Path getParquetFileFromResource(String resourceName) throws IOException {
     File dest = Files.createTempFile("TestUnifiedParquetReader", ".parquet").toFile();
-    Files.copy(Resources.getResource("parquet/" + resourceName).openStream(),
-        dest.toPath(), StandardCopyOption.REPLACE_EXISTING);
+    Files.copy(
+        Resources.getResource("parquet/" + resourceName).openStream(),
+        dest.toPath(),
+        StandardCopyOption.REPLACE_EXISTING);
     classCloseables.add(() -> dest.delete());
     return Path.of(dest.getAbsolutePath());
   }
@@ -96,7 +96,8 @@ public class BaseTestUnifiedParquetReader extends BaseTestOperator {
       ParquetFilters filters,
       List<String> projectedColumns,
       ParquetReaderOptions parquetReaderOptions,
-      RecordBatchValidator validator) throws Exception {
+      RecordBatchValidator validator)
+      throws Exception {
     return readAndValidate(path, filters, null, projectedColumns, parquetReaderOptions, validator);
   }
 
@@ -106,45 +107,44 @@ public class BaseTestUnifiedParquetReader extends BaseTestOperator {
       List<RuntimeFilter> runtimeFilters,
       List<String> projectedColumns,
       ParquetReaderOptions parquetReaderOptions,
-      RecordBatchValidator validator) throws Exception {
+      RecordBatchValidator validator)
+      throws Exception {
 
     ParquetScanProjectedColumns parquetScanProjectedColumns = getProjectedColumns(projectedColumns);
     FileAttributes fileAttributes = fs.getFileAttributes(path);
-    InputStreamProvider inputStreamProvider = createInputStreamProvider(
-        path,
-        fileAttributes,
-        0,
-        null,
-        null,
-        parquetScanProjectedColumns);
+    InputStreamProvider inputStreamProvider =
+        createInputStreamProvider(path, fileAttributes, 0, null, null, parquetScanProjectedColumns);
     MutableParquetMetadata footer = inputStreamProvider.getFooter();
     BatchSchema schema = getSchema(inputStreamProvider.getFooter(), projectedColumns);
 
     int totalRecords = 0;
     for (int rowGrpIdx = 0; rowGrpIdx < footer.getBlocks().size(); rowGrpIdx++) {
       if (rowGrpIdx > 0) {
-        inputStreamProvider = createInputStreamProvider(
-            path,
-            fileAttributes,
-            rowGrpIdx,
-            inputStreamProvider,
-            footer,
-            parquetScanProjectedColumns);
+        inputStreamProvider =
+            createInputStreamProvider(
+                path,
+                fileAttributes,
+                rowGrpIdx,
+                inputStreamProvider,
+                footer,
+                parquetScanProjectedColumns);
       }
 
-      try (
-          UnifiedParquetReader reader = createReader(
-              inputStreamProvider,
-              fileAttributes,
-              rowGrpIdx,
-              projectedColumns,
-              schema,
-              filters,
-              runtimeFilters,
-              parquetReaderOptions);
+      try (UnifiedParquetReader reader =
+              createReader(
+                  inputStreamProvider,
+                  fileAttributes,
+                  rowGrpIdx,
+                  projectedColumns,
+                  schema,
+                  filters,
+                  runtimeFilters,
+                  parquetReaderOptions);
           TestOutputMutator outputMutator = new TestOutputMutator(getTestAllocator())) {
-        // don't materialize projected columns like row num here to simulate how it works in the production stack
-        schema.materializeVectors(getProjectedSchemaPathsWithoutPopulatedCols(projectedColumns), outputMutator);
+        // don't materialize projected columns like row num here to simulate how it works in the
+        // production stack
+        schema.materializeVectors(
+            getProjectedSchemaPathsWithoutPopulatedCols(projectedColumns), outputMutator);
         reader.setup(outputMutator);
         reader.allocate(outputMutator.getFieldVectorMap());
 
@@ -170,45 +170,50 @@ public class BaseTestUnifiedParquetReader extends BaseTestOperator {
       ParquetReaderOptions parquetReaderOptions)
       throws Exception {
 
-    ParquetProtobuf.ParquetDatasetSplitScanXAttr readEntry = ParquetProtobuf.ParquetDatasetSplitScanXAttr.newBuilder()
-        .setPath(fileAttributes.getPath().toString())
-        .setStart(0)
-        .setLength(fileAttributes.size())
-        .setFileLength(fileAttributes.size())
-        .setLastModificationTime(fileAttributes.lastModifiedTime().toMillis())
-        .setRowGroupIndex(rowGroupIndex)
-        .build();
+    ParquetProtobuf.ParquetDatasetSplitScanXAttr readEntry =
+        ParquetProtobuf.ParquetDatasetSplitScanXAttr.newBuilder()
+            .setPath(fileAttributes.getPath().toString())
+            .setStart(0)
+            .setLength(fileAttributes.size())
+            .setFileLength(fileAttributes.size())
+            .setLastModificationTime(fileAttributes.lastModifiedTime().toMillis())
+            .setRowGroupIndex(rowGroupIndex)
+            .build();
 
     ParquetScanProjectedColumns parquetScanProjectedColumns = getProjectedColumns(projectedColumns);
-    SchemaDerivationHelper schemaHelper = SchemaDerivationHelper.builder()
-        .noSchemaLearning(schema)
-        .readInt96AsTimeStamp(parquetReaderOptions.isReadInt96AsTimestampEnabled())
-        .dateCorruptionStatus(ParquetReaderUtility.DateCorruptionStatus.META_SHOWS_NO_CORRUPTION)
-        .mapDataTypeEnabled(context.getOptions().getOption(ExecConstants.ENABLE_MAP_DATA_TYPE))
-        .build();
+    SchemaDerivationHelper schemaHelper =
+        SchemaDerivationHelper.builder()
+            .noSchemaLearning(schema)
+            .readInt96AsTimeStamp(parquetReaderOptions.isReadInt96AsTimestampEnabled())
+            .dateCorruptionStatus(
+                ParquetReaderUtility.DateCorruptionStatus.META_SHOWS_NO_CORRUPTION)
+            .mapDataTypeEnabled(context.getOptions().getOption(ExecConstants.ENABLE_MAP_DATA_TYPE))
+            .build();
 
     ParquetReaderFactory parquetReaderFactory = getParquetReaderFactory();
-    UnifiedParquetReader reader = new UnifiedParquetReader(
-        context,
-        parquetReaderFactory,
-        schema,
-        parquetScanProjectedColumns,
-        null,
-        filters,
-        parquetReaderFactory.newFilterCreator(context, ParquetReaderFactory.ManagedSchemaType.ICEBERG, null,
-            context.getAllocator()),
-        ParquetDictionaryConvertor.DEFAULT,
-        readEntry,
-        fs,
-        inputStreamProvider.getFooter(),
-        null,
-        schemaHelper,
-        parquetReaderOptions.isVectorizationEnabled(),
-        parquetReaderOptions.isDetailedTracingEnabled(),
-        false,
-        inputStreamProvider,
-        runtimeFilters == null ? new ArrayList<>() : runtimeFilters,
-        false);
+    UnifiedParquetReader reader =
+        new UnifiedParquetReader(
+            context,
+            parquetReaderFactory,
+            schema,
+            parquetScanProjectedColumns,
+            filters,
+            parquetReaderFactory.newFilterCreator(
+                context,
+                ParquetReaderFactory.ManagedSchemaType.ICEBERG,
+                null,
+                context.getAllocator()),
+            ParquetDictionaryConvertor.DEFAULT,
+            readEntry,
+            fs,
+            inputStreamProvider.getFooter(),
+            schemaHelper,
+            parquetReaderOptions.isVectorizationEnabled(),
+            parquetReaderOptions.isDetailedTracingEnabled(),
+            false,
+            inputStreamProvider,
+            runtimeFilters == null ? new ArrayList<>() : runtimeFilters,
+            false);
     reader.setIgnoreSchemaLearning(true);
 
     return reader;
@@ -220,24 +225,33 @@ public class BaseTestUnifiedParquetReader extends BaseTestOperator {
       int rowGroupIndex,
       InputStreamProvider currentInputStreamProvider,
       MutableParquetMetadata footer,
-      ParquetScanProjectedColumns projectedColumns) throws Exception {
-    InputStreamProvider inputStreamProvider = getInputStreamProviderFactory().create(
-        fs,
-        context,
-        path,
-        fileAttributes.size(),
-        fileAttributes.size(),
-        projectedColumns,
-        footer,
-        currentInputStreamProvider,
-        f -> rowGroupIndex,
-        false,
-        null,
-        fileAttributes.lastModifiedTime().toMillis(),
-        false,
-        true, ParquetFilters.NONE,
-        getParquetReaderFactory().newFilterCreator(context, ParquetReaderFactory.ManagedSchemaType.ICEBERG, null, context.getAllocator()),
-        InputStreamProviderFactory.DEFAULT_NON_PARTITION_COLUMN_RF);
+      ParquetScanProjectedColumns projectedColumns)
+      throws Exception {
+    InputStreamProvider inputStreamProvider =
+        getInputStreamProviderFactory()
+            .create(
+                fs,
+                context,
+                path,
+                fileAttributes.size(),
+                fileAttributes.size(),
+                projectedColumns,
+                footer,
+                currentInputStreamProvider,
+                f -> rowGroupIndex,
+                false,
+                null,
+                fileAttributes.lastModifiedTime().toMillis(),
+                false,
+                true,
+                ParquetFilters.NONE,
+                getParquetReaderFactory()
+                    .newFilterCreator(
+                        context,
+                        ParquetReaderFactory.ManagedSchemaType.ICEBERG,
+                        null,
+                        context.getAllocator()),
+                InputStreamProviderFactory.DEFAULT_NON_PARTITION_COLUMN_RF);
 
     testCloseables.add(inputStreamProvider);
     return inputStreamProvider;

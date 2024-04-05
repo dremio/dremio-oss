@@ -22,15 +22,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.concurrent.atomic.AtomicInteger;
-
-import org.apache.hadoop.conf.Configuration;
-import org.junit.Assert;
-import org.junit.Test;
-import org.mockito.MockedStatic;
-
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.AccessControlList;
 import com.amazonaws.services.s3.model.AmazonS3Exception;
@@ -42,7 +33,13 @@ import com.amazonaws.services.s3.model.Permission;
 import com.dremio.plugins.util.CloseableResource;
 import com.dremio.plugins.util.ContainerAccessDeniedException;
 import com.dremio.plugins.util.ContainerNotFoundException;
-
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.apache.hadoop.conf.Configuration;
+import org.junit.Assert;
+import org.junit.Test;
+import org.mockito.MockedStatic;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.regions.Region;
@@ -51,9 +48,7 @@ import software.amazon.awssdk.services.sts.StsClientBuilder;
 import software.amazon.awssdk.services.sts.model.GetCallerIdentityRequest;
 import software.amazon.awssdk.services.sts.model.StsException;
 
-/**
- * Test the S3FileSystem class.
- */
+/** Test the S3FileSystem class. */
 public class TestS3FileSystem {
   @Test
   public void testValidRegionFromEndpoint() {
@@ -72,7 +67,9 @@ public class TestS3FileSystem {
     r = S3FileSystem.getAwsRegionFromEndpoint("dremio.s3-control.cn-north-1.amazonaws.com.cn");
     Assert.assertEquals(Region.CN_NORTH_1, r);
 
-    r = S3FileSystem.getAwsRegionFromEndpoint("accountId.s3-control.dualstack.eu-central-1.amazonaws.com");
+    r =
+        S3FileSystem.getAwsRegionFromEndpoint(
+            "accountId.s3-control.dualstack.eu-central-1.amazonaws.com");
     Assert.assertEquals(Region.EU_CENTRAL_1, r);
 
     r = S3FileSystem.getAwsRegionFromEndpoint("s3-accesspoint.eu-west-1.amazonaws.com");
@@ -119,7 +116,7 @@ public class TestS3FileSystem {
     assertNotNull(fs.getUnknownContainer("testunknown"));
   }
 
-  @Test (expected = ContainerNotFoundException.class)
+  @Test(expected = ContainerNotFoundException.class)
   public void testUnknownContainerNotExists() throws IOException {
     TestExtendedS3FileSystem fs = new TestExtendedS3FileSystem();
     AmazonS3 mockedS3Client = mock(AmazonS3.class);
@@ -128,12 +125,15 @@ public class TestS3FileSystem {
     fs.getUnknownContainer("testunknown");
   }
 
-  @Test (expected = ContainerAccessDeniedException.class)
+  @Test(expected = ContainerAccessDeniedException.class)
   public void testUnknownContainerExistsButNoPermissions() throws IOException {
     TestExtendedS3FileSystem fs = new TestExtendedS3FileSystem();
     AmazonS3 mockedS3Client = mock(AmazonS3.class);
     when(mockedS3Client.doesBucketExistV2(any(String.class))).thenReturn(true);
-    when(mockedS3Client.listObjectsV2(any(ListObjectsV2Request.class))).thenThrow(new AmazonS3Exception("Access Denied (Service: Amazon S3; Status Code: 403; Error Code: AccessDenied; Request ID: FF025EBC3B2BF017; S3 Extended Request ID: 9cbmmg2cbPG7+3mXBizXNJ1haZ/0FUhztplqsm/dJPJB32okQRAhRWVWyqakJrKjCNVqzT57IZU=), S3 Extended Request ID: 9cbmmg2cbPG7+3mXBizXNJ1haZ/0FUhztplqsm/dJPJB32okQRAhRWVWyqakJrKjCNVqzT57IZU="));
+    when(mockedS3Client.listObjectsV2(any(ListObjectsV2Request.class)))
+        .thenThrow(
+            new AmazonS3Exception(
+                "Access Denied (Service: Amazon S3; Status Code: 403; Error Code: AccessDenied; Request ID: FF025EBC3B2BF017; S3 Extended Request ID: 9cbmmg2cbPG7+3mXBizXNJ1haZ/0FUhztplqsm/dJPJB32okQRAhRWVWyqakJrKjCNVqzT57IZU=), S3 Extended Request ID: 9cbmmg2cbPG7+3mXBizXNJ1haZ/0FUhztplqsm/dJPJB32okQRAhRWVWyqakJrKjCNVqzT57IZU="));
     fs.setCustomClient(mockedS3Client);
     fs.getUnknownContainer("testunknown");
   }
@@ -146,7 +146,9 @@ public class TestS3FileSystem {
     accessDenied.setStatusCode(403);
     String accessDeniedMessage = fs.translateForbiddenMessage("testBucket", accessDenied);
     Assert.assertTrue(accessDeniedMessage.contains("Access Denied"));
-    AmazonS3Exception accountProblem = new AmazonS3Exception("There is a problem with your AWS account that prevents the operation from completing successfully");
+    AmazonS3Exception accountProblem =
+        new AmazonS3Exception(
+            "There is a problem with your AWS account that prevents the operation from completing successfully");
     accountProblem.setErrorCode("AccountProblem");
     accountProblem.setStatusCode(403);
     String accountProblemMessage = fs.translateForbiddenMessage("testBucket", accountProblem);
@@ -162,18 +164,23 @@ public class TestS3FileSystem {
   public void testVerifyCredentialsRetry() {
     StsClient mockedClient = mock(StsClient.class);
     StsClientBuilder mockedClientBuilder = mock(StsClientBuilder.class);
-    when(mockedClientBuilder.credentialsProvider(any(AwsCredentialsProvider.class))).thenReturn(mockedClientBuilder);
+    when(mockedClientBuilder.credentialsProvider(any(AwsCredentialsProvider.class)))
+        .thenReturn(mockedClientBuilder);
     when(mockedClientBuilder.region(any(Region.class))).thenReturn(mockedClientBuilder);
     when(mockedClientBuilder.build()).thenReturn(mockedClient);
 
     TestExtendedS3FileSystem fs = new TestExtendedS3FileSystem();
     AtomicInteger retryAttemptNo = new AtomicInteger(1);
-    when(mockedClient.getCallerIdentity(any(GetCallerIdentityRequest.class))).then(invocationOnMock -> {
-      if (retryAttemptNo.incrementAndGet() < 10) {
-        throw SdkClientException.builder().message("Unable to load credentials from service endpoint.").build();
-      }
-      return null;
-    });
+    when(mockedClient.getCallerIdentity(any(GetCallerIdentityRequest.class)))
+        .then(
+            invocationOnMock -> {
+              if (retryAttemptNo.incrementAndGet() < 10) {
+                throw SdkClientException.builder()
+                    .message("Unable to load credentials from service endpoint.")
+                    .build();
+              }
+              return null;
+            });
 
     try (MockedStatic<StsClient> mocked = mockStatic(StsClient.class)) {
       mocked.when(() -> StsClient.builder()).thenReturn(mockedClientBuilder);
@@ -187,16 +194,22 @@ public class TestS3FileSystem {
 
     StsClient mockedClient = mock(StsClient.class);
     StsClientBuilder mockedClientBuilder = mock(StsClientBuilder.class);
-    when(mockedClientBuilder.credentialsProvider(any(AwsCredentialsProvider.class))).thenReturn(mockedClientBuilder);
+    when(mockedClientBuilder.credentialsProvider(any(AwsCredentialsProvider.class)))
+        .thenReturn(mockedClientBuilder);
     when(mockedClientBuilder.region(any(Region.class))).thenReturn(mockedClientBuilder);
     when(mockedClientBuilder.build()).thenReturn(mockedClient);
 
     TestExtendedS3FileSystem fs = new TestExtendedS3FileSystem();
     AtomicInteger retryAttemptNo = new AtomicInteger(0);
-    when(mockedClient.getCallerIdentity(any(GetCallerIdentityRequest.class))).then(invocationOnMock -> {
-      retryAttemptNo.incrementAndGet();
-      throw StsException.builder().message("The security token included in the request is invalid. (Service: Sts, Status Code: 403, Request ID: a7e2e92e-5ebb-4343-87a1-21e4d64edcd4)").build();
-    });
+    when(mockedClient.getCallerIdentity(any(GetCallerIdentityRequest.class)))
+        .then(
+            invocationOnMock -> {
+              retryAttemptNo.incrementAndGet();
+              throw StsException.builder()
+                  .message(
+                      "The security token included in the request is invalid. (Service: Sts, Status Code: 403, Request ID: a7e2e92e-5ebb-4343-87a1-21e4d64edcd4)")
+                  .build();
+            });
 
     try (MockedStatic<StsClient> mocked = mockStatic(StsClient.class)) {
       mocked.when(() -> StsClient.builder()).thenReturn(mockedClientBuilder);
@@ -209,7 +222,9 @@ public class TestS3FileSystem {
     ArrayList<Grant> grantCollection = new ArrayList<>();
 
     // Grant the account owner full control.
-    Grant grant1 = new Grant(new CanonicalGrantee(s3Client.getS3AccountOwner().getId()), Permission.FullControl);
+    Grant grant1 =
+        new Grant(
+            new CanonicalGrantee(s3Client.getS3AccountOwner().getId()), Permission.FullControl);
     grantCollection.add(grant1);
 
     // Save grants by replacing all current ACL grants with the two we just created.

@@ -16,14 +16,14 @@
 package com.dremio.service.coordinator;
 
 /**
- * A utility interface for the services to determine if the coordinator is running
- * in dremio software or service at runtime.
+ * A utility interface for the services to determine if the coordinator is running in dremio
+ * software or service at runtime.
  */
 public interface CoordinatorModeInfo {
 
   /**
-   * @return returns True if running as part of the dremio software on-prem deployment, otherwise false.
+   * @return returns True if running as part of the dremio software on-prem deployment, otherwise
+   *     false.
    */
   boolean isInSoftwareMode();
-
 }

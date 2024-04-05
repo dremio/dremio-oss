@@ -15,14 +15,13 @@
  */
 package com.dremio.connector.metadata.extensions;
 
-import java.util.Map;
-
 import com.dremio.connector.metadata.BytesOutput;
 import com.dremio.connector.metadata.DatasetStats;
+import java.util.Map;
 
 /**
- * Implemented as an extension to {@link com.dremio.connector.metadata.DatasetMetadata} to
- * provide additional Iceberg related metadata to the catalog.
+ * Implemented as an extension to {@link com.dremio.connector.metadata.DatasetMetadata} to provide
+ * additional Iceberg related metadata to the catalog.
  */
 public interface SupportsIcebergMetadata {
 
@@ -82,9 +81,7 @@ public interface SupportsIcebergMetadata {
    */
   DatasetStats getDeleteManifestStats();
 
-  /**
-   * modification time for the snapshot
-   */
+  /** modification time for the snapshot */
   long getMtime();
 
   /**
@@ -94,4 +91,6 @@ public interface SupportsIcebergMetadata {
    */
   Map<String, String> getTableProperties();
 
+  /** get the latest partition spec id */
+  int getDefaultPartitionSpecId();
 }

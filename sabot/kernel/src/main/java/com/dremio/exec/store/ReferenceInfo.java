@@ -18,9 +18,7 @@ package com.dremio.exec.store;
 
 import java.util.Objects;
 
-/**
- * Reference info used to support versioning.
- */
+/** Reference info used to support versioning. */
 public final class ReferenceInfo {
   public final String type;
   public final String refName;
@@ -41,7 +39,9 @@ public final class ReferenceInfo {
       return false;
     }
     ReferenceInfo that = (ReferenceInfo) o;
-    return Objects.equals(type, that.type) && Objects.equals(refName, that.refName) && Objects.equals(commitHash, that.commitHash);
+    return Objects.equals(type, that.type)
+        && Objects.equals(refName, that.refName)
+        && Objects.equals(commitHash, that.commitHash);
   }
 
   @Override

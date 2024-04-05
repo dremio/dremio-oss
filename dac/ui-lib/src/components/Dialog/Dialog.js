@@ -49,7 +49,7 @@ const Dialog = (props) => {
     container: clsx(
       "dremioDialog__container",
       { [classes.container]: classes.container },
-      { "--centered": isCentered }
+      { "--centered": isCentered },
     ),
     paper: clsx(["dremioDialog__paper", { [classes.paper]: classes.paper }]),
   };

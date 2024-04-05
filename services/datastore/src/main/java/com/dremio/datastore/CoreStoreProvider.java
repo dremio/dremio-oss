@@ -15,9 +15,7 @@
  */
 package com.dremio.datastore;
 
-/**
- * Store provider for CoreKVStore and CoreIndexedStore.
- */
+/** Store provider for CoreKVStore and CoreIndexedStore. */
 public interface CoreStoreProvider {
 
   <K, V> CoreStoreBuilder<K, V> newStore();
@@ -30,7 +28,7 @@ public interface CoreStoreProvider {
    */
   interface CoreStoreBuilder<K, V> {
     CoreKVStore<K, V> build(StoreBuilderHelper<K, V> helper);
+
     CoreIndexedStore<K, V> buildIndexed(StoreBuilderHelper<K, V> helper);
   }
-
 }

@@ -15,11 +15,9 @@
  */
 package com.dremio.exec.store.iceberg.model;
 
-/**
- * supported Iceberg catalog types
- */
+/** supported Iceberg catalog types */
 public enum IcebergCatalogType {
-    UNKNOWN,
-    NESSIE,
-    HADOOP
+  UNKNOWN,
+  NESSIE,
+  HADOOP
 }

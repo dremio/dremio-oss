@@ -15,19 +15,15 @@
  */
 package com.dremio.sabot.op.llvm;
 
+import com.dremio.exec.record.TypedFieldId;
+import com.dremio.exec.record.VectorWrapper;
 import java.util.Objects;
-
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.complex.AbstractStructVector;
 import org.apache.arrow.vector.types.pojo.Field;
 
-import com.dremio.exec.record.TypedFieldId;
-import com.dremio.exec.record.VectorWrapper;
-
-/**
- * Refers to the fields referenced in LogicalExpression to be executed in Gandiva
- */
+/** Refers to the fields referenced in LogicalExpression to be executed in Gandiva */
 public class ReferencedField {
   private final FieldVector referencedFieldVector;
   private final TypedFieldId typedFieldId;
@@ -39,7 +35,8 @@ public class ReferencedField {
     this.newField = referencedFieldVector.getField();
   }
 
-  public ReferencedField(FieldVector referencedFieldVector, TypedFieldId typedFieldId, VectorWrapper<?> vw) {
+  public ReferencedField(
+      FieldVector referencedFieldVector, TypedFieldId typedFieldId, VectorWrapper<?> vw) {
     this.typedFieldId = typedFieldId;
     this.referencedFieldVector = referencedFieldVector;
     this.newField = getFullyQualifiedFieldName(vw, typedFieldId.getFieldIds());
@@ -60,7 +57,7 @@ public class ReferencedField {
       sb.append(".").append(vector.getField().getName());
     }
     Field orig = referencedFieldVector.getField();
-    String fieldName =  sb.toString();
+    String fieldName = sb.toString();
     Field xformed = new Field(fieldName, orig.getFieldType(), orig.getChildren());
     return xformed;
   }
@@ -90,7 +87,9 @@ public class ReferencedField {
       return false;
     }
     ReferencedField that = (ReferencedField) o;
-    return referencedFieldVector.equals(that.referencedFieldVector) && typedFieldId.equals(that.typedFieldId) && newField.equals(that.newField);
+    return referencedFieldVector.equals(that.referencedFieldVector)
+        && typedFieldId.equals(that.typedFieldId)
+        && newField.equals(that.newField);
   }
 
   @Override

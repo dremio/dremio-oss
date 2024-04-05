@@ -19,12 +19,6 @@ package com.dremio.exec.store.deltalake;
 import static org.junit.Assert.assertFalse;
 import static org.mockito.Mockito.mock;
 
-import java.io.File;
-import java.io.IOException;
-
-import org.apache.hadoop.conf.Configuration;
-import org.junit.Test;
-
 import com.dremio.connector.metadata.BytesOutput;
 import com.dremio.connector.metadata.DatasetMetadata;
 import com.dremio.connector.metadata.options.TimeTravelOption;
@@ -35,23 +29,36 @@ import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
+import java.io.File;
+import java.io.IOException;
+import org.apache.hadoop.conf.Configuration;
+import org.junit.Test;
 
 public class TestDeltaLakeFormatDatasetAccessor {
 
   @Test
   public void testMetadataStaleCheckNoSignature() throws IOException {
     FileSystem fs = HadoopFileSystem.getLocal(new Configuration());
-    FileSelection selection = FileSelection.createNotExpanded(fs, Path.of(new File("dummy").getAbsolutePath()));
+    FileSelection selection =
+        FileSelection.createNotExpanded(fs, Path.of(new File("dummy").getAbsolutePath()));
     BytesOutput signature = BytesOutput.NONE;
     DatasetType dt = DatasetType.PHYSICAL_DATASET_SOURCE_FILE;
     FileSystemPlugin fileSystemPlugin = mock(FileSystemPlugin.class);
     DeltaLakeFormatPlugin deltaLakeFormatPlugin = mock(DeltaLakeFormatPlugin.class);
     NamespaceKey key = new NamespaceKey("dummy");
-    DeltaLakeFormatDatasetAccessor deltaLakeFormatDatasetAccessor = new DeltaLakeFormatDatasetAccessor(dt, fs,
-      fileSystemPlugin, selection, key, deltaLakeFormatPlugin,
-      TimeTravelOption.newTimestampRequest(System.currentTimeMillis()));
+    DeltaLakeFormatDatasetAccessor deltaLakeFormatDatasetAccessor =
+        new DeltaLakeFormatDatasetAccessor(
+            dt,
+            fs,
+            fileSystemPlugin,
+            selection,
+            key,
+            deltaLakeFormatPlugin,
+            TimeTravelOption.newTimestampRequest(System.currentTimeMillis()));
 
     // when there is no read signature, metadataValid should return false
-    assertFalse(deltaLakeFormatDatasetAccessor.metadataValid(signature, deltaLakeFormatDatasetAccessor, mock(DatasetMetadata.class), fs));
+    assertFalse(
+        deltaLakeFormatDatasetAccessor.metadataValid(
+            signature, deltaLakeFormatDatasetAccessor, mock(DatasetMetadata.class), fs));
   }
 }

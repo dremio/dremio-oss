@@ -55,11 +55,14 @@ public final class DeltaVersion {
 
   @Override
   public String toString() {
-    return "DeltaVersion{" +
-      "version=" + version +
-      ", subparts=" + subparts +
-      ", isCheckpoint=" + isCheckpoint +
-      '}';
+    return "DeltaVersion{"
+        + "version="
+        + version
+        + ", subparts="
+        + subparts
+        + ", isCheckpoint="
+        + isCheckpoint
+        + '}';
   }
 
   @Override
@@ -70,8 +73,8 @@ public final class DeltaVersion {
 
     DeltaVersion otherVersion = (DeltaVersion) other;
     return version == otherVersion.version
-       && subparts == otherVersion.subparts
-       && isCheckpoint == otherVersion.isCheckpoint;
+        && subparts == otherVersion.subparts
+        && isCheckpoint == otherVersion.isCheckpoint;
   }
 
   @Override

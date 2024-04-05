@@ -23,13 +23,16 @@ import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
 export const JobLink = ({
   job,
   reflectionId,
+  newTab,
 }: {
   job: any;
   reflectionId?: string;
+  newTab?: boolean;
 }) => {
   const jobAttempts = job?.totalAttempts;
   return (
     <Link
+      target={newTab ? "blank" : undefined}
       id={job.id}
       to={`${jobPaths.job.link({
         // @ts-ignore

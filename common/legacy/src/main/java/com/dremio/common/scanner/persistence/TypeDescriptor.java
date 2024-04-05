@@ -17,9 +17,7 @@ package com.dremio.common.scanner.persistence;
 
 import static java.lang.String.format;
 
-/**
- * represents the type of a field
- */
+/** represents the type of a field */
 public abstract class TypeDescriptor {
 
   private final boolean primitive;
@@ -55,16 +53,26 @@ public abstract class TypeDescriptor {
 
     private static Class<?> getPrimitiveType(char descriptor) {
       switch (descriptor) {
-      case 'V': return void.class;
-      case 'I': return int.class;
-      case 'B': return byte.class;
-      case 'J': return long.class;
-      case 'D': return double.class;
-      case 'F': return float.class;
-      case 'C': return char.class;
-      case 'S': return short.class;
-      case 'Z': return boolean.class;
-      default: throw new AssertionError("bad descriptor: " + descriptor);
+        case 'V':
+          return void.class;
+        case 'I':
+          return int.class;
+        case 'B':
+          return byte.class;
+        case 'J':
+          return long.class;
+        case 'D':
+          return double.class;
+        case 'F':
+          return float.class;
+        case 'C':
+          return char.class;
+        case 'S':
+          return short.class;
+        case 'Z':
+          return boolean.class;
+        default:
+          throw new AssertionError("bad descriptor: " + descriptor);
       }
     }
 

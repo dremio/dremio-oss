@@ -97,7 +97,7 @@ export function getRefQueryParams(nessie: NessieRootState, stateKey: string) {
 export function getRefQueryParamsFromPath(
   fullPath: string | string[],
   nessie: NessieRootState,
-  sep = "."
+  sep = ".",
 ) {
   const [sourceName] =
     typeof fullPath === "string" ? fullPath.split(sep) : fullPath;
@@ -113,7 +113,7 @@ export function getNessieReferencePayload(nessie?: NessieRootState | null) {
   if (!nessie) return {};
 
   const stateKeys = Object.keys(nessie).filter(
-    (key) => key && key.startsWith(NESSIE_REF_PREFIX)
+    (key) => key && key.startsWith(NESSIE_REF_PREFIX),
   );
   const keysAdded: string[] = [];
   return stateKeys.reduce((acc, key) => {
@@ -133,13 +133,13 @@ export function getNessieReferencePayload(nessie?: NessieRootState | null) {
 
 // Returns reference state for populated entries (has hash or reference name)
 export function getStateRefsOmitted(
-  nessie?: NessieRootState | null
+  nessie?: NessieRootState | null,
 ): NessieRootState {
   const result = {} as NessieRootState;
   if (!nessie) return result;
 
   const stateKeys = Object.keys(nessie).filter(
-    (key) => key && !key.startsWith(NESSIE_REF_PREFIX)
+    (key) => key && !key.startsWith(NESSIE_REF_PREFIX),
   );
   return stateKeys.reduce((acc, cur) => {
     acc[cur] = nessie[cur];
@@ -148,7 +148,7 @@ export function getStateRefsOmitted(
 }
 
 export function getReferenceListForTransform(
-  referencePayload = {} as { [key: string]: any } | null
+  referencePayload = {} as { [key: string]: any } | null,
 ) {
   if (referencePayload == null) return [];
   return Object.keys(referencePayload).map((key) => {
@@ -167,7 +167,7 @@ export function getReferencesListForScript(nessie?: NessieRootState) {
 
 export function convertReferencesListToRootState(
   state: NessieRootState,
-  referencesList: Script["referencesList"]
+  referencesList: Script["referencesList"],
 ) {
   const newState = { ...state };
 
@@ -204,7 +204,7 @@ export function convertReferencesListToRootState(
 
 export function getArcticProjectUrl(
   id: string | undefined,
-  nessieVersion?: string
+  nessieVersion?: string,
 ) {
   //@ts-ignore
   return `${window.location.protocol}${apiUtils.getAPIVersion("ARCTIC", {
@@ -226,14 +226,14 @@ export function isBranchSelected(state?: NessieState) {
 export const getSourceByName = moize(
   (name: string, sources?: Immutable.List<any>) => {
     return (sources || Immutable.List()).find(
-      (cur) => cur.get("name") === name && isVersionedSource(cur.get("type"))
+      (cur) => cur.get("name") === name && isVersionedSource(cur.get("type")),
     );
-  }
+  },
 );
 
 export const getSourceById = (
   id: string,
-  sources?: Immutable.Map<any, any>
+  sources?: Immutable.Map<any, any>,
 ) => {
   const source = sources?.get(id);
   return isVersionedSource(source?.get("type")) ? source : null;
@@ -252,14 +252,14 @@ type SourceType = {
 type CatalogSourceConfig = { arcticCatalogId: string };
 type NessieSourceConfig = { nessieEndpoint: string };
 export function isArcticCatalogConfig(
-  config?: CatalogSourceConfig | NessieSourceConfig
+  config?: CatalogSourceConfig | NessieSourceConfig,
 ): config is CatalogSourceConfig {
   return (config as CatalogSourceConfig)?.arcticCatalogId != null;
 }
 
 function getEndpointFromSourceConfig(
   config: CatalogSourceConfig | NessieSourceConfig | undefined,
-  nessieVersion: string
+  nessieVersion: string,
 ) {
   if (!config) return "";
   if (isArcticCatalogConfig(config)) {
@@ -275,7 +275,7 @@ function getNessieSourceUrl(sourceName: string) {
 
 export function getEndpointFromSource(
   source: SourceType | undefined,
-  nessieVersion = "v2"
+  nessieVersion = "v2",
 ) {
   if (!source) return "";
   if (source.type === NESSIE) {

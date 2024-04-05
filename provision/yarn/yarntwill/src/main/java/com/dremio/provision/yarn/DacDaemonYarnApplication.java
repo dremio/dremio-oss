@@ -17,6 +17,11 @@ package com.dremio.provision.yarn;
 
 import static org.apache.twill.api.TwillSpecification.PlacementPolicy.Type.DISTRIBUTED;
 
+import com.dremio.config.DremioConfig;
+import com.dremio.provision.yarn.service.YarnDefaultsConfigurator;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
@@ -26,26 +31,17 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
-
 import javax.validation.constraints.NotNull;
-
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.twill.api.ResourceSpecification;
 import org.apache.twill.api.TwillApplication;
 import org.apache.twill.api.TwillSpecification;
 
-import com.dremio.config.DremioConfig;
-import com.dremio.provision.yarn.service.YarnDefaultsConfigurator;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
-
-/**
- * DacDaemon Application specification to run with Twill on YARN
- */
+/** DacDaemon Application specification to run with Twill on YARN */
 public class DacDaemonYarnApplication implements TwillApplication {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DacDaemonYarnApplication.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(DacDaemonYarnApplication.class);
 
   public static final String YARN_RUNNABLE_NAME = "DremioTwillRunnable";
   public static final String YARN_APPLICATION_NAME_DEFAULT = "DremioDaemon";
@@ -72,39 +68,43 @@ public class DacDaemonYarnApplication implements TwillApplication {
   private List<File> classpathJarNames = new ArrayList<>();
   private List<String> jarNames = new ArrayList<>();
 
-  @VisibleForTesting
-  protected static boolean isTestingModeOn = false;
+  @VisibleForTesting protected static boolean isTestingModeOn = false;
 
-  public DacDaemonYarnApplication(DremioConfig dremioConfig, YarnConfiguration yarnConfig, @NotNull Environment env) {
+  public DacDaemonYarnApplication(
+      DremioConfig dremioConfig, YarnConfiguration yarnConfig, @NotNull Environment env) {
     this.yarnConfig = yarnConfig;
 
-    final String dremioHome = Preconditions.checkNotNull(env.getEnv(DREMIO_HOME),
-        "Environment variable DREMIO_HOME is not set");
+    final String dremioHome =
+        Preconditions.checkNotNull(
+            env.getEnv(DREMIO_HOME), "Environment variable DREMIO_HOME is not set");
 
     this.keytabFileLocation = dremioConfig.getString(DremioConfig.KERBEROS_KEYTAB_PATH);
 
     // Gather the list of jars to be added to the container classpath
-    Stream<String> classpathJars = Stream.concat(
-        yarnConfig.getTrimmedStringCollection(YarnDefaultsConfigurator.CLASSPATH_JARS).stream().map(d -> dremioHome.concat(d)),
-        dremioConfig.getStringList(DremioConfig.YARN_CLASSPATH).stream());
+    Stream<String> classpathJars =
+        Stream.concat(
+            yarnConfig.getTrimmedStringCollection(YarnDefaultsConfigurator.CLASSPATH_JARS).stream()
+                .map(d -> dremioHome.concat(d)),
+            dremioConfig.getStringList(DremioConfig.YARN_CLASSPATH).stream());
 
+    classpathJars.forEach(
+        classpathJar -> {
+          Path jarFullPath = Paths.get(classpathJar);
+          Path parentDir = jarFullPath.getParent();
+          final String fileName = jarFullPath.getFileName().toString();
 
-    classpathJars.forEach(classpathJar -> {
-      Path jarFullPath = Paths.get(classpathJar);
-      Path parentDir = jarFullPath.getParent();
-      final String fileName = jarFullPath.getFileName().toString();
-
-      try(Stream<Path> paths = Files.list(parentDir)) {
-        paths
-        .filter(p -> p.getFileName().toString().matches(fileName))
-        .forEach(p -> {
-          jarNames.add(p.getFileName().toString());
-          this.classpathJarNames.add(p.toFile());
+          try (Stream<Path> paths = Files.list(parentDir)) {
+            paths
+                .filter(p -> p.getFileName().toString().matches(fileName))
+                .forEach(
+                    p -> {
+                      jarNames.add(p.getFileName().toString());
+                      this.classpathJarNames.add(p.toFile());
+                    });
+          } catch (IOException e) {
+            logger.warn("Cannot list files in directory {}", parentDir, e);
+          }
         });
-      } catch(IOException e) {
-        logger.warn("Cannot list files in directory {}", parentDir, e);
-      }
-    });
 
     // Create an application bundle jar based on current application classpath
     AppBundleGenerator appBundleGenerator = AppBundleGenerator.of(dremioConfig);
@@ -126,11 +126,13 @@ public class DacDaemonYarnApplication implements TwillApplication {
     TwillSpecification.PlacementPolicy.Type yarnDeploymentPolicy = DISTRIBUTED;
     try {
       yarnDeploymentPolicy =
-        TwillSpecification.PlacementPolicy.Type.valueOf(yarnDeploymentPolicyStr.toUpperCase());
-    } catch(IllegalArgumentException e) {
-      logger.error("Invalid Deployment Policy is provided: {}, reverting to {}", yarnDeploymentPolicyStr, DISTRIBUTED);
+          TwillSpecification.PlacementPolicy.Type.valueOf(yarnDeploymentPolicyStr.toUpperCase());
+    } catch (IllegalArgumentException e) {
+      logger.error(
+          "Invalid Deployment Policy is provided: {}, reverting to {}",
+          yarnDeploymentPolicyStr,
+          DISTRIBUTED);
     }
-
 
     URI kerberosKeytabURI = null;
     if (!Strings.isNullOrEmpty(keytabFileLocation)) {
@@ -158,17 +160,21 @@ public class DacDaemonYarnApplication implements TwillApplication {
     int memoryOffHeapInt = Integer.valueOf(memoryOffHeap);
     int containerCountInt = Integer.valueOf(containerCount);
 
-    TwillSpecification.Builder.MoreFile files = TwillSpecification.Builder.with()
-        .setName(yarnConfig.get(YARN_APP_NAME, YARN_APPLICATION_NAME_DEFAULT))
-        .withRunnable()
-        .add(YARN_RUNNABLE_NAME, new AppBundleRunnable(),
-            ResourceSpecification.Builder.with()
-                .setVirtualCores(cpuInt)
-                .setMemory(memoryOnHeapInt+memoryOffHeapInt, ResourceSpecification.SizeUnit.MEGA)
-                .setInstances(containerCountInt).build())
-        .withLocalFiles()
-        .add(YARN_BUNDLED_JAR_NAME, yarnBundledJarPath.toUri(), false);
-
+    TwillSpecification.Builder.MoreFile files =
+        TwillSpecification.Builder.with()
+            .setName(yarnConfig.get(YARN_APP_NAME, YARN_APPLICATION_NAME_DEFAULT))
+            .withRunnable()
+            .add(
+                YARN_RUNNABLE_NAME,
+                new AppBundleRunnable(),
+                ResourceSpecification.Builder.with()
+                    .setVirtualCores(cpuInt)
+                    .setMemory(
+                        memoryOnHeapInt + memoryOffHeapInt, ResourceSpecification.SizeUnit.MEGA)
+                    .setInstances(containerCountInt)
+                    .build())
+            .withLocalFiles()
+            .add(YARN_BUNDLED_JAR_NAME, yarnBundledJarPath.toUri(), false);
 
     // Adding Dremio jars as resources
     if (kerberosKeytabURI != null) {
@@ -179,18 +185,19 @@ public class DacDaemonYarnApplication implements TwillApplication {
       files = files.add(classpathJarName.getName(), classpathJarName, false);
     }
 
-    return files.apply().withPlacementPolicy()
+    return files
+        .apply()
+        .withPlacementPolicy()
         .add(yarnDeploymentPolicy, YARN_RUNNABLE_NAME)
-        .anyOrder().build();
+        .anyOrder()
+        .build();
   }
 
   public List<String> getJarNames() {
     return jarNames;
   }
 
-  /**
-   * Unit Test Helper class
-   */
+  /** Unit Test Helper class */
   public static class Environment {
 
     public String getEnv(String name) {

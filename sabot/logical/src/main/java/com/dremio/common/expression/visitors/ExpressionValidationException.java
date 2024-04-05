@@ -32,5 +32,4 @@ public class ExpressionValidationException extends RuntimeException {
   public ExpressionValidationException(Throwable arg0) {
     super(arg0);
   }
-
 }

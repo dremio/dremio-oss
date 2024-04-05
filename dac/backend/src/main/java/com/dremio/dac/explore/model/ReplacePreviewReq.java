@@ -20,13 +20,12 @@ import com.dremio.dac.proto.model.dataset.ReplacePatternRule;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-/**
- * Replace preview request
- */
+/** Replace preview request */
 @Deprecated
 public class ReplacePreviewReq {
   private final Selection selection;
   private final ReplacePatternRule rule;
+
   @JsonCreator
   public ReplacePreviewReq(
       @JsonProperty("selection") Selection selection,
@@ -35,9 +34,11 @@ public class ReplacePreviewReq {
     this.selection = selection;
     this.rule = rule;
   }
+
   public Selection getSelection() {
     return selection;
   }
+
   public ReplacePatternRule getRule() {
     return rule;
   }

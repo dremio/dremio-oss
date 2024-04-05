@@ -15,16 +15,15 @@
  */
 package com.dremio.exec.store.iceberg;
 
-
 import static com.dremio.exec.planner.sql.handlers.SqlHandlerUtil.getTimestampFromMillis;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class SnapshotsScanOptions {
   public enum Mode {
-    EXPIRED_SNAPSHOTS,  // Expired snapshots. Does not commit expiry
-    LIVE_SNAPSHOTS,     // Live snapshots after committing expiry
-    ALL_SNAPSHOTS       // Return all snapshots. Does not commit expiry
+    EXPIRED_SNAPSHOTS, // Expired snapshots. Does not commit expiry
+    LIVE_SNAPSHOTS, // Live snapshots after committing expiry
+    ALL_SNAPSHOTS // Return all snapshots. Does not commit expiry
   }
 
   private final Mode mode;
@@ -32,9 +31,9 @@ public class SnapshotsScanOptions {
   private final Integer retainLast;
 
   public SnapshotsScanOptions(
-    @JsonProperty("mode") Mode mode,
-    @JsonProperty("olderThanInMillis") Long olderThanInMillis,
-    @JsonProperty("retainLast") Integer retainLast) {
+      @JsonProperty("mode") Mode mode,
+      @JsonProperty("olderThanInMillis") Long olderThanInMillis,
+      @JsonProperty("retainLast") Integer retainLast) {
     this.mode = mode;
     this.olderThanInMillis = olderThanInMillis;
     this.retainLast = retainLast;
@@ -60,7 +59,7 @@ public class SnapshotsScanOptions {
     if (olderThanInMillis != null) {
       s.append(", olderThan=" + getTimestampFromMillis(olderThanInMillis));
     }
-    if(retainLast != null) {
+    if (retainLast != null) {
       s.append(", retainLast=" + retainLast);
     }
     s.append("]");

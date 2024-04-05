@@ -17,26 +17,33 @@ package com.dremio.services.nessie.proxy;
 
 import static org.projectnessie.client.NessieConfigConstants.CONF_FORCE_URL_CONNECTION_CLIENT;
 
+import com.google.common.base.Preconditions;
 import java.util.Collections;
-
 import javax.enterprise.inject.Produces;
 import javax.inject.Singleton;
-
 import org.projectnessie.client.api.NessieApiV2;
 import org.projectnessie.client.http.HttpClientBuilder;
 
+/**
+ * this client connects to the externally running nessie server whose REST services we are proxying
+ * in the tests
+ */
 public class RestClientProducer {
 
   @Produces
   @Singleton
   public NessieApiV2 createClient() {
     return HttpClientBuilder.builder()
-      .fromConfig(Collections.singletonMap(CONF_FORCE_URL_CONNECTION_CLIENT, "true")::get)
-      .withUri(createNessieURIString())
-      .build(NessieApiV2.class);
+        .fromConfig(Collections.singletonMap(CONF_FORCE_URL_CONNECTION_CLIENT, "true")::get)
+        .withUri(createNessieURIString())
+        .build(NessieApiV2.class);
   }
 
   private static String createNessieURIString() {
-    return System.getProperty("nessie.server.url") +"/api/v2";
+    String baseUrl =
+        Preconditions.checkNotNull(
+            System.getProperty("nessie.server.url"),
+            "The nessie.server.url system property must be set");
+    return baseUrl + "/api/v2";
   }
 }

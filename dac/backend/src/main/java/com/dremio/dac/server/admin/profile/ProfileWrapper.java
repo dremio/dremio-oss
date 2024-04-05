@@ -18,24 +18,10 @@ package com.dremio.dac.server.admin.profile;
 import static com.dremio.dac.server.admin.profile.HostProcessingRateUtil.computeRecordProcRateAtPhaseHostLevel;
 import static com.dremio.dac.server.admin.profile.HostProcessingRateUtil.computeRecordProcRateAtPhaseOperatorHostLevel;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.text.NumberFormat;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Set;
-
-import org.apache.commons.lang3.StringEscapeUtils;
-import org.apache.commons.lang3.tuple.ImmutablePair;
-
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.dac.explore.model.DatasetPath;
+import com.dremio.dac.server.admin.profile.TableBuilder.Alignment;
+import com.dremio.exec.planner.MatchCountListener;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.AttemptEvent;
 import com.dremio.exec.proto.UserBitShared.AttemptEvent.State;
@@ -44,6 +30,8 @@ import com.dremio.exec.proto.UserBitShared.MajorFragmentProfile;
 import com.dremio.exec.proto.UserBitShared.MinorFragmentProfile;
 import com.dremio.exec.proto.UserBitShared.NodeQueryProfile;
 import com.dremio.exec.proto.UserBitShared.OperatorProfile;
+import com.dremio.exec.proto.UserBitShared.PlanPhaseProfile;
+import com.dremio.exec.proto.UserBitShared.PlannerPhaseRulesStats;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.service.accelerator.AccelerationDetailsUtils;
 import com.dremio.service.accelerator.proto.AccelerationDetails;
@@ -53,12 +41,26 @@ import com.google.common.base.Strings;
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Table;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.text.NumberFormat;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import org.apache.commons.lang3.StringEscapeUtils;
+import org.apache.commons.lang3.tuple.ImmutablePair;
 
-/**
- * Wrapper class for a {@link #profile query profile}, so it to be presented through web UI.
- */
+/** Wrapper class for a {@link #profile query profile}, so it to be presented through web UI. */
 public class ProfileWrapper {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ProfileWrapper.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ProfileWrapper.class);
 
   private static final NumberFormat NUMBER_FORMAT = NumberFormat.getInstance(Locale.US);
 
@@ -71,7 +73,7 @@ public class ProfileWrapper {
   private final Map<AttemptEvent.State, Long> stateDurations;
   private Long totalDuration; // null if the query hasn't terminated
   private final Table<Integer, Integer, String> majorMinorHostTable = HashBasedTable.create();
-  private List<SourceVersionWrapper> sourceVersionWrapperList ;
+  private List<SourceVersionWrapper> sourceVersionWrapperList;
 
   public ProfileWrapper(final QueryProfile profile, boolean debug) {
     this.profile = profile;
@@ -91,29 +93,38 @@ public class ProfileWrapper {
     this.nodeProfiles = nodeProfiles;
 
     sourceVersionWrapperList = new ArrayList<>();
-    profile.getContextInfo().getSourceVersionSettingList().forEach((sv) ->
-      sourceVersionWrapperList.add(new SourceVersionWrapper(sv.getSource(),sv.getVersionContext(), sv.getUsage())));
+    profile
+        .getContextInfo()
+        .getSourceVersionSettingList()
+        .forEach(
+            (sv) ->
+                sourceVersionWrapperList.add(
+                    new SourceVersionWrapper(
+                        sv.getSource(), sv.getVersionContext(), sv.getUsage())));
 
     final List<OperatorWrapper> ows = new ArrayList<>();
     // temporary map to store (major_id, operator_id) -> [(op_profile, minor_id)]
-    final Map<ImmutablePair<Integer, Integer>, List<ImmutablePair<OperatorProfile, Integer>>> opmap = new HashMap<>();
+    final Map<ImmutablePair<Integer, Integer>, List<ImmutablePair<OperatorProfile, Integer>>>
+        opmap = new HashMap<>();
 
     Collections.sort(majors, Comparators.majorId);
     for (final MajorFragmentProfile major : majors) {
 
-      final List<MinorFragmentProfile> minors = new ArrayList<>(major.getMinorFragmentProfileList());
+      final List<MinorFragmentProfile> minors =
+          new ArrayList<>(major.getMinorFragmentProfileList());
       Collections.sort(minors, Comparators.minorId);
       for (final MinorFragmentProfile minor : minors) {
-        majorMinorHostTable.put(major.getMajorFragmentId(),
-                                minor.getMinorFragmentId(),
-                                minor.getEndpoint().getAddress());
+        majorMinorHostTable.put(
+            major.getMajorFragmentId(),
+            minor.getMinorFragmentId(),
+            minor.getEndpoint().getAddress());
 
         final List<OperatorProfile> ops = new ArrayList<>(minor.getOperatorProfileList());
         Collections.sort(ops, Comparators.operatorId);
         for (final OperatorProfile op : ops) {
 
-          final ImmutablePair<Integer, Integer> ip = new ImmutablePair<>(
-              major.getMajorFragmentId(), op.getOperatorId());
+          final ImmutablePair<Integer, Integer> ip =
+              new ImmutablePair<>(major.getMajorFragmentId(), op.getOperatorId());
           if (!opmap.containsKey(ip)) {
             final List<ImmutablePair<OperatorProfile, Integer>> l = new ArrayList<>();
             opmap.put(ip, l);
@@ -130,9 +141,9 @@ public class ProfileWrapper {
 
     for (final ImmutablePair<Integer, Integer> ip : keys) {
       int majorId = ip.getLeft();
-      Set<HostProcessingRate> hostProcessingRateSet = computeRecordProcRateAtPhaseOperatorHostLevel(majorId,
-                                                                                                    opmap.get(ip),
-                                                                                                    majorMinorHostTable);
+      Set<HostProcessingRate> hostProcessingRateSet =
+          computeRecordProcRateAtPhaseOperatorHostLevel(
+              majorId, opmap.get(ip), majorMinorHostTable);
 
       Set<HostProcessingRate> phaseLevelSet = new HashSet<>();
       if (majorHostProcRateSetMap.containsKey(majorId)) {
@@ -141,28 +152,33 @@ public class ProfileWrapper {
       phaseLevelSet.addAll(hostProcessingRateSet);
       majorHostProcRateSetMap.put(majorId, phaseLevelSet);
 
-      ows.add(new OperatorWrapper(majorId,
-                                  opmap.get(ip),
-                                  profile.hasOperatorTypeMetricsMap() ? profile.getOperatorTypeMetricsMap(): null,
-                                  majorMinorHostTable,
-                                  hostProcessingRateSet
-                                 ));
+      ows.add(
+          new OperatorWrapper(
+              majorId,
+              opmap.get(ip),
+              profile.hasOperatorTypeMetricsMap() ? profile.getOperatorTypeMetricsMap() : null,
+              majorMinorHostTable,
+              hostProcessingRateSet));
     }
     this.operatorProfiles = ows;
 
     final List<FragmentWrapper> fragmentProfiles = new ArrayList<>();
     for (final MajorFragmentProfile major : majors) {
-      Set<HostProcessingRate> unAggregatedSetForMajor = majorHostProcRateSetMap.get(major.getMajorFragmentId());
+      Set<HostProcessingRate> unAggregatedSetForMajor =
+          majorHostProcRateSetMap.get(major.getMajorFragmentId());
       Set<HostProcessingRate> hostProcessingRateSet =
-                              computeRecordProcRateAtPhaseHostLevel(major.getMajorFragmentId(),
-                                                                    unAggregatedSetForMajor);
-      fragmentProfiles.add(new FragmentWrapper(major, profile.getStart(), debug, hostProcessingRateSet));
+          computeRecordProcRateAtPhaseHostLevel(
+              major.getMajorFragmentId(), unAggregatedSetForMajor);
+      fragmentProfiles.add(
+          new FragmentWrapper(major, profile.getStart(), debug, hostProcessingRateSet));
     }
     this.fragmentProfiles = fragmentProfiles;
 
     AccelerationWrapper wrapper = null;
     try {
-      AccelerationDetails details = AccelerationDetailsUtils.deserialize(profile.getAccelerationProfile().getAccelerationDetails());
+      AccelerationDetails details =
+          AccelerationDetailsUtils.deserialize(
+              profile.getAccelerationProfile().getAccelerationDetails());
       if (details != null) {
         wrapper = new AccelerationWrapper(details);
       }
@@ -171,7 +187,6 @@ public class ProfileWrapper {
       logger.warn("Failed to deserialize acceleration details", e);
     }
     accelerationDetails = wrapper;
-
 
     Map<AttemptEvent.State, Long> stateDurations = new HashMap<>();
     final List<AttemptEvent> events = new ArrayList<>(profile.getStateListList());
@@ -184,20 +199,19 @@ public class ProfileWrapper {
       }
       if (i + 1 < events.size()) {
         long timeSpent = events.get(i + 1).getStartTime() - events.get(i).getStartTime();
-        stateDurations.compute(events.get(i).getState(), (k, v) -> (v == null) ? timeSpent : v + timeSpent);
+        stateDurations.compute(
+            events.get(i).getState(), (k, v) -> (v == null) ? timeSpent : v + timeSpent);
       }
     }
     this.stateDurations = stateDurations;
   }
 
   private boolean isTerminal(AttemptEvent.State state) {
-    return (state == State.COMPLETED ||
-      state == State.CANCELED ||
-      state == State.FAILED);
+    return (state == State.COMPLETED || state == State.CANCELED || state == State.FAILED);
   }
 
   private String getDuration(AttemptEvent.State state) {
-    if (state == profile.getStateList(profile.getStateListCount()-1).getState()) {
+    if (state == profile.getStateList(profile.getStateListCount() - 1).getState()) {
       return "in progress";
     }
     if (!stateDurations.containsKey(state)) {
@@ -238,11 +252,27 @@ public class ProfileWrapper {
     return hasStateDurations() ? getDuration(State.RUNNING) : "-";
   }
 
+  public String getStartTimeInUTC() {
+    return profile.hasStart() ? convertTimestampToString(profile.getStart()) : "-";
+  }
+
+  public String getEndTimeInUTC() {
+    return profile.hasEnd() && profile.getEnd() > 0
+        ? convertTimestampToString(profile.getEnd())
+        : "-";
+  }
+
+  public String getCancelStartTimeInUTC() {
+    return profile.hasCancelStartTime()
+        ? convertTimestampToString(profile.getCancelStartTime())
+        : "-";
+  }
+
   private boolean hasQueryTerminated() {
     UserBitShared.QueryResult.QueryState queryState = profile.getState();
-    return queryState == UserBitShared.QueryResult.QueryState.COMPLETED ||
-      queryState == UserBitShared.QueryResult.QueryState.CANCELED ||
-      queryState == UserBitShared.QueryResult.QueryState.FAILED;
+    return queryState == UserBitShared.QueryResult.QueryState.COMPLETED
+        || queryState == UserBitShared.QueryResult.QueryState.CANCELED
+        || queryState == UserBitShared.QueryResult.QueryState.FAILED;
   }
 
   public String getTotalTime() {
@@ -264,6 +294,10 @@ public class ProfileWrapper {
     }
   }
 
+  public static String convertTimestampToString(long epochTimestamp) {
+    return Instant.ofEpochMilli(epochTimestamp).toString();
+  }
+
   /**
    * @return command pool wait time or "None" if not available.
    */
@@ -277,8 +311,8 @@ public class ProfileWrapper {
   }
 
   /**
-   * @return Get query planning time. If the planning hasn't started, returns "Planning not started". If planning hasn't
-   * completed, returns "Still planning".
+   * @return Get query planning time. If the planning hasn't started, returns "Planning not
+   *     started". If planning hasn't completed, returns "Still planning".
    */
   @SuppressWarnings("unused")
   public String getLegacyPlanningTime() {
@@ -291,7 +325,8 @@ public class ProfileWrapper {
       return "Still planning";
     }
 
-    // Starting from 3.0, the planning time includes the resource queueing time. Thus, correcting for it when resource scheduling time exists
+    // Starting from 3.0, the planning time includes the resource queueing time. Thus, correcting
+    // for it when resource scheduling time exists
     long planningPlusSchedulingTime = profile.getPlanningEnd() - profile.getPlanningStart();
 
     UserBitShared.ResourceSchedulingProfile r = profile.getResourceSchedulingProfile();
@@ -309,7 +344,8 @@ public class ProfileWrapper {
     if (r == null || r.getResourceSchedulingStart() == 0 || r.getResourceSchedulingEnd() == 0) {
       return "";
     }
-    return NUMBER_FORMAT.format(r.getResourceSchedulingEnd() - r.getResourceSchedulingStart()) + "ms";
+    return NUMBER_FORMAT.format(r.getResourceSchedulingEnd() - r.getResourceSchedulingStart())
+        + "ms";
   }
 
   @SuppressWarnings("unused")
@@ -388,8 +424,9 @@ public class ProfileWrapper {
   }
 
   public String getStateName() {
-    return hasStateDurations() ?
-      profile.getStateList(profile.getStateListCount()-1).getState().name() : profile.getState().name();
+    return hasStateDurations()
+        ? profile.getStateList(profile.getStateListCount() - 1).getState().name()
+        : profile.getState().name();
   }
 
   public AccelerationWrapper getAccelerationDetails() {
@@ -474,21 +511,25 @@ public class ProfileWrapper {
     return profile.getNumPlanCacheUsed();
   }
 
-  public Map<DatasetPath, List<UserBitShared.LayoutMaterializedViewProfile>> getDatasetGroupedLayoutList() {
+  public Map<DatasetPath, List<UserBitShared.LayoutMaterializedViewProfile>>
+      getDatasetGroupedLayoutList() {
     Map<DatasetPath, List<UserBitShared.LayoutMaterializedViewProfile>> map = Maps.newHashMap();
 
     UserBitShared.AccelerationProfile accelerationProfile = profile.getAccelerationProfile();
-    List<UserBitShared.LayoutMaterializedViewProfile> layoutProfilesList = accelerationProfile.getLayoutProfilesList();
+    List<UserBitShared.LayoutMaterializedViewProfile> layoutProfilesList =
+        accelerationProfile.getLayoutProfilesList();
 
     for (UserBitShared.LayoutMaterializedViewProfile viewProfile : layoutProfilesList) {
-      String reflectionDatasetPath = accelerationDetails.getReflectionDatasetPath(viewProfile.getLayoutId());
+      String reflectionDatasetPath =
+          accelerationDetails.getReflectionDatasetPath(viewProfile.getLayoutId());
 
       DatasetPath path;
 
       if ("".equals(reflectionDatasetPath)) {
         path = new DatasetPath(Arrays.asList("unknown", "missing dataset"));
       } else {
-        String datasetVersion = accelerationDetails.getReflectionDatasetVersion(viewProfile.getLayoutId());
+        String datasetVersion =
+            accelerationDetails.getReflectionDatasetVersion(viewProfile.getLayoutId());
         path = new DatasetPath(reflectionDatasetPath, datasetVersion);
       }
 
@@ -518,7 +559,6 @@ public class ProfileWrapper {
     return outputStream.toString();
   }
 
-
   @SuppressWarnings("unused")
   public String getOperatorProfilesJSON() throws IOException {
     final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
@@ -537,16 +577,20 @@ public class ProfileWrapper {
   }
 
   public int getConsideredReflectionsCount() {
-    return profile.hasAccelerationProfile() ? profile.getAccelerationProfile().getLayoutProfilesCount() : 0;
+    return profile.hasAccelerationProfile()
+        ? profile.getAccelerationProfile().getLayoutProfilesCount()
+        : 0;
   }
 
   public int getMatchedReflectionsCount() {
     int ret = 0;
-    if (profile.hasAccelerationProfile() && profile.getAccelerationProfile().getLayoutProfilesCount() > 0) {
+    if (profile.hasAccelerationProfile()
+        && profile.getAccelerationProfile().getLayoutProfilesCount() > 0) {
       UserBitShared.AccelerationProfile accelerationProfile = profile.getAccelerationProfile();
-      for (UserBitShared.LayoutMaterializedViewProfile profile: accelerationProfile.getLayoutProfilesList()) {
+      for (UserBitShared.LayoutMaterializedViewProfile profile :
+          accelerationProfile.getLayoutProfilesList()) {
         if (profile.hasNumSubstitutions() && profile.getNumSubstitutions() > 0) {
-          ret ++;
+          ret++;
         }
       }
     }
@@ -555,14 +599,70 @@ public class ProfileWrapper {
 
   public int getChosenReflectionsCount() {
     int ret = 0;
-    if (profile.hasAccelerationProfile() && profile.getAccelerationProfile().getLayoutProfilesCount() > 0) {
+    if (profile.hasAccelerationProfile()
+        && profile.getAccelerationProfile().getLayoutProfilesCount() > 0) {
       UserBitShared.AccelerationProfile accelerationProfile = profile.getAccelerationProfile();
-      for (UserBitShared.LayoutMaterializedViewProfile profile: accelerationProfile.getLayoutProfilesList()) {
+      for (UserBitShared.LayoutMaterializedViewProfile profile :
+          accelerationProfile.getLayoutProfilesList()) {
         if (profile.hasNumUsed() && profile.getNumUsed() > 0) {
-          ret ++;
+          ret++;
         }
       }
     }
     return ret;
+  }
+
+  /** Aggregates across used reflections for a job to find the timestamp of the oldest data */
+  public Long getEarliestReflectionRefresh() {
+    long ret = Long.MAX_VALUE;
+    if (profile.hasAccelerationProfile()
+        && profile.getAccelerationProfile().getLayoutProfilesCount() > 0) {
+      UserBitShared.AccelerationProfile accelerationProfile = profile.getAccelerationProfile();
+      for (UserBitShared.LayoutMaterializedViewProfile profile :
+          accelerationProfile.getLayoutProfilesList()) {
+        if (profile.hasLayoutId() && profile.hasNumUsed() && profile.getNumUsed() > 0) {
+          ret = Math.min(ret, accelerationDetails.getRefreshChainStartTime(profile.getLayoutId()));
+        }
+      }
+    }
+    return ret == Long.MAX_VALUE ? null : ret;
+  }
+
+  public String getRulesBreakdownTable() throws IOException {
+    @SuppressWarnings("deprecation") // checking backward compatibility
+    boolean oldStyle =
+        profile.getPlanPhasesList().stream()
+            .anyMatch(phaseProfile -> !phaseProfile.getTimeBreakdownPerRuleMap().isEmpty());
+
+    if (oldStyle) {
+      // Old way of phase-wise breakdown, kept for backward compatibility
+      TableBuilder tb = new TableBuilder(new String[0], Alignment.LEFT);
+      for (PlanPhaseProfile phaseProfile : profile.getPlanPhasesList()) {
+        @SuppressWarnings("deprecation") // checking backward compatibility
+        Map<String, Long> ruleMap = phaseProfile.getTimeBreakdownPerRuleMap();
+        if (!ruleMap.isEmpty()) {
+          tb.appendCell(phaseProfile.getPhaseName());
+          for (String key : ruleMap.keySet()) {
+            tb.appendCell(key + ", " + ruleMap.get(key) + " ms");
+          }
+        }
+      }
+      return tb.build();
+    }
+
+    TableBuilder tb = new TableBuilder(MatchCountListener.RULES_BREAKDOWN_COLUMNS, Alignment.LEFT);
+    for (PlanPhaseProfile phaseProfile : profile.getPlanPhasesList()) {
+      if (phaseProfile != null) {
+        for (PlannerPhaseRulesStats stats : phaseProfile.getRulesBreakdownStatsList()) {
+          tb.appendCell(phaseProfile.getPhaseName())
+              .appendCell(stats.getRule())
+              .appendCell(String.valueOf(stats.getTotalTimeMs()))
+              .appendCell(String.valueOf(stats.getMatchedCount()))
+              .appendCell(String.valueOf(stats.getTransformedCount()))
+              .appendCell(String.valueOf(stats.getRelnodesCount()));
+        }
+      }
+    }
+    return tb.build();
   }
 }

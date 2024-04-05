@@ -20,32 +20,6 @@ import static com.dremio.provision.service.ProvisioningServiceImpl.LARGE_SYSTEMS
 import static com.dremio.provision.service.ProvisioningServiceImpl.LARGE_SYSTEMS_MIN_MEMORY_MB;
 import static com.dremio.provision.service.ProvisioningServiceImpl.MIN_MEMORY_REQUIRED_MB;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
-
-import javax.annotation.security.RolesAllowed;
-import javax.inject.Inject;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.DELETE;
-import javax.ws.rs.DefaultValue;
-import javax.ws.rs.GET;
-import javax.ws.rs.POST;
-import javax.ws.rs.PUT;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.MediaType;
-
-import org.modelmapper.AbstractConverter;
-import org.modelmapper.ModelMapper;
-import org.modelmapper.convention.MatchingStrategies;
-import org.modelmapper.protobuf.ProtobufModule;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
@@ -80,11 +54,31 @@ import com.dremio.provision.service.ProvisioningHandlingException;
 import com.dremio.provision.service.ProvisioningService;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
+import javax.annotation.security.RolesAllowed;
+import javax.inject.Inject;
+import javax.ws.rs.Consumes;
+import javax.ws.rs.DELETE;
+import javax.ws.rs.DefaultValue;
+import javax.ws.rs.GET;
+import javax.ws.rs.POST;
+import javax.ws.rs.PUT;
+import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
+import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
+import javax.ws.rs.core.MediaType;
+import org.modelmapper.AbstractConverter;
+import org.modelmapper.ModelMapper;
+import org.modelmapper.convention.MatchingStrategies;
+import org.modelmapper.protobuf.ProtobufModule;
 
-
-/**
- * Resource to deal with Cluster Provisioning
- */
+/** Resource to deal with Cluster Provisioning */
 @RestResource
 @Secured
 @RolesAllowed({"admin"})
@@ -92,26 +86,35 @@ import com.google.common.base.Preconditions;
 public class ProvisioningResource {
 
   public static final String USE_EXISTING_SECRET_VALUE = "$DREMIO_EXISTING_VALUE$";
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ProvisioningResource.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ProvisioningResource.class);
   private static final ModelMapper MODEL_MAPPER;
 
   static {
     MODEL_MAPPER = new ModelMapper().registerModule(new ProtobufModule());
-    MODEL_MAPPER.addConverter(new AbstractConverter<AwsConnectionProps, AwsConnectionPropsApi>(){
-      @Override
-      protected AwsConnectionPropsApi convert(AwsConnectionProps source) {
-        return MODEL_MAPPER.map(source, ImmutableAwsConnectionPropsApi.Builder.class).build();
-      }});
-    MODEL_MAPPER.addConverter(new AbstractConverter<AwsTag, AwsTagApi>(){
-      @Override
-      protected AwsTagApi convert(AwsTag source) {
-        return MODEL_MAPPER.map(source, ImmutableAwsTagApi.Builder.class).build();
-      }});
-    MODEL_MAPPER.getConfiguration().setMatchingStrategy(MatchingStrategies.LOOSE).setSkipNullEnabled(true);
+    MODEL_MAPPER.addConverter(
+        new AbstractConverter<AwsConnectionProps, AwsConnectionPropsApi>() {
+          @Override
+          protected AwsConnectionPropsApi convert(AwsConnectionProps source) {
+            return MODEL_MAPPER.map(source, ImmutableAwsConnectionPropsApi.Builder.class).build();
+          }
+        });
+    MODEL_MAPPER.addConverter(
+        new AbstractConverter<AwsTag, AwsTagApi>() {
+          @Override
+          protected AwsTagApi convert(AwsTag source) {
+            return MODEL_MAPPER.map(source, ImmutableAwsTagApi.Builder.class).build();
+          }
+        });
+    MODEL_MAPPER
+        .getConfiguration()
+        .setMatchingStrategy(MatchingStrategies.LOOSE)
+        .setSkipNullEnabled(true);
   }
 
   private final ProvisioningService service;
-  //private boolean isMaster;
+
+  // private boolean isMaster;
 
   @Inject
   public ProvisioningResource(ProvisioningService service) {
@@ -122,11 +125,13 @@ public class ProvisioningResource {
   @Path("/cluster/{id}/dynamicConfig")
   @Consumes(MediaType.APPLICATION_JSON)
   @Produces(MediaType.APPLICATION_JSON)
-  public ClusterResponse resizeCluster(@PathParam("id") final String id,
-                                       ResizeClusterRequest clusterResizeRequest) throws Exception {
+  public ClusterResponse resizeCluster(
+      @PathParam("id") final String id, ResizeClusterRequest clusterResizeRequest)
+      throws Exception {
 
     final ClusterId clusterId = new ClusterId(id);
-    final ClusterEnriched cluster = service.resizeCluster(clusterId, clusterResizeRequest.getContainerCount());
+    final ClusterEnriched cluster =
+        service.resizeCluster(clusterId, clusterResizeRequest.getContainerCount());
     return toClusterResponse(cluster);
   }
 
@@ -150,20 +155,24 @@ public class ProvisioningResource {
     clusterConfig.setAllowAutoStop(clusterCreateRequest.isAllowAutoStop());
     clusterConfig.setShutdownInterval(clusterCreateRequest.getShutdownInterval());
 
-    if(clusterCreateRequest.getClusterType() == ClusterType.YARN) {
+    if (clusterCreateRequest.getClusterType() == ClusterType.YARN) {
       YarnPropsApi props = clusterCreateRequest.getYarnProps();
       Preconditions.checkNotNull(props);
       Preconditions.checkNotNull(props.getDistroType());
 
-      if(props.getMemoryMB() < MIN_MEMORY_REQUIRED_MB) {
-        throw new IllegalArgumentException("Minimum memory required should be greater or equal than: " +
-          MIN_MEMORY_REQUIRED_MB + "MB");
+      if (props.getMemoryMB() < MIN_MEMORY_REQUIRED_MB) {
+        throw new IllegalArgumentException(
+            "Minimum memory required should be greater or equal than: "
+                + MIN_MEMORY_REQUIRED_MB
+                + "MB");
       }
 
-      int onHeap = props.getMemoryMB() < LARGE_SYSTEMS_MIN_MEMORY_MB
-                                                      ? DEFAULT_HEAP_MEMORY_MB
-                                                      : LARGE_SYSTEMS_DEFAULT_HEAP_MEMORY_MB;
-      List<Property> properties = Optional.ofNullable(props.getSubPropertyList()).orElse(new ArrayList<Property>());
+      int onHeap =
+          props.getMemoryMB() < LARGE_SYSTEMS_MIN_MEMORY_MB
+              ? DEFAULT_HEAP_MEMORY_MB
+              : LARGE_SYSTEMS_DEFAULT_HEAP_MEMORY_MB;
+      List<Property> properties =
+          Optional.ofNullable(props.getSubPropertyList()).orElse(new ArrayList<Property>());
       for (Property prop : properties) {
         if (ProvisioningService.YARN_HEAP_SIZE_MB_PROPERTY.equalsIgnoreCase(prop.getKey())) {
           String onHeapStr = prop.getValue();
@@ -176,27 +185,33 @@ public class ProvisioningResource {
         }
       }
 
-      ClusterSpec spec = new ClusterSpec()
-        .setMemoryMBOffHeap(props.getMemoryMB() - onHeap)
-        .setMemoryMBOnHeap(onHeap)
-        .setContainerCount(clusterCreateRequest.getDynamicConfig().getContainerCount())
-        .setVirtualCoreCount(props.getVirtualCoreCount())
-        .setQueue(props.getQueue());
+      ClusterSpec spec =
+          new ClusterSpec()
+              .setMemoryMBOffHeap(props.getMemoryMB() - onHeap)
+              .setMemoryMBOnHeap(onHeap)
+              .setContainerCount(clusterCreateRequest.getDynamicConfig().getContainerCount())
+              .setVirtualCoreCount(props.getVirtualCoreCount())
+              .setQueue(props.getQueue());
 
       clusterConfig.setClusterSpec(spec);
       clusterConfig.setDistroType(props.getDistroType());
       clusterConfig.setIsSecure(props.isSecure());
       clusterConfig.setSubPropertyList(props.getSubPropertyList());
       clusterConfig.setClusterSpec(spec);
-    } else if(clusterCreateRequest.getClusterType() == ClusterType.EC2) {
-      if(clusterCreateRequest.getName() == null || clusterCreateRequest.getName().isEmpty()) {
-        throw UserException.validationError().message("Cluster name must be defined.").buildSilently();
+    } else if (clusterCreateRequest.getClusterType() == ClusterType.EC2) {
+      if (clusterCreateRequest.getName() == null || clusterCreateRequest.getName().isEmpty()) {
+        throw UserException.validationError()
+            .message("Cluster name must be defined.")
+            .buildSilently();
       }
-      ClusterSpec spec = new ClusterSpec().setContainerCount(clusterCreateRequest.getDynamicConfig().getContainerCount());
+      ClusterSpec spec =
+          new ClusterSpec()
+              .setContainerCount(clusterCreateRequest.getDynamicConfig().getContainerCount());
       clusterConfig.setClusterSpec(spec);
       clusterConfig.setAwsProps(map(clusterCreateRequest.getAwsProps(), AwsProps.class));
     } else {
-      throw new UnsupportedOperationException("Unknown cluster type: " + clusterCreateRequest.getClusterType());
+      throw new UnsupportedOperationException(
+          "Unknown cluster type: " + clusterCreateRequest.getClusterType());
     }
     return clusterConfig;
   }
@@ -205,18 +220,19 @@ public class ProvisioningResource {
   @Path("/cluster/{id}")
   @Consumes(MediaType.APPLICATION_JSON)
   @Produces(MediaType.APPLICATION_JSON)
-  public ClusterResponse modifyCluster(@PathParam("id") final String id, ClusterModifyRequest clusterModifyRequest) throws
-    ProvisioningHandlingException {
+  public ClusterResponse modifyCluster(
+      @PathParam("id") final String id, ClusterModifyRequest clusterModifyRequest)
+      throws ProvisioningHandlingException {
 
     final ClusterId clusterId = new ClusterId(id);
 
     final ClusterConfig clusterConfig = toClusterConfig(clusterModifyRequest);
 
-    ClusterEnriched cluster = service.modifyCluster(clusterId, toState(clusterModifyRequest.getDesiredState()),
-      clusterConfig);
+    ClusterEnriched cluster =
+        service.modifyCluster(
+            clusterId, toState(clusterModifyRequest.getDesiredState()), clusterConfig);
     return toClusterResponse(cluster);
   }
-
 
   @DELETE
   @Path("/cluster/{id}")
@@ -238,19 +254,21 @@ public class ProvisioningResource {
   @GET
   @Path("/clusters")
   @Produces(MediaType.APPLICATION_JSON)
-  public ClusterResponses getClustersInfo(@DefaultValue("") @QueryParam("type") final String type) throws Exception {
+  public ClusterResponses getClustersInfo(@DefaultValue("") @QueryParam("type") final String type)
+      throws Exception {
     final Stream<ClusterEnriched> clusters;
     if (type.isEmpty()) {
       // use all the types
       clusters = StreamSupport.stream(service.getClustersInfo().spliterator(), false);
     } else {
       ClusterType clusterType = ClusterType.valueOf(type.toUpperCase());
-      clusters = StreamSupport.stream(service.getClusterInfoByType(clusterType).spliterator(), false);
+      clusters =
+          StreamSupport.stream(service.getClusterInfoByType(clusterType).spliterator(), false);
     }
 
     return ClusterResponses.builder()
-        .setClusterList(clusters.map(ProvisioningResource::toClusterResponse)
-            .collect(Collectors.toList()))
+        .setClusterList(
+            clusters.map(ProvisioningResource::toClusterResponse).collect(Collectors.toList()))
         .build();
   }
 
@@ -261,7 +279,7 @@ public class ProvisioningResource {
     ImmutableClusterResponse.Builder response = ClusterResponse.builder();
 
     response.setCurrentState(cluster.getState());
-    if(cluster.getStateChangeTime() != null) {
+    if (cluster.getStateChangeTime() != null) {
       response.setStateChangeTime(cluster.getStateChangeTime());
     }
     if (cluster.getError() != null) {
@@ -275,15 +293,18 @@ public class ProvisioningResource {
     response.setIsAllowAutoStart(cluster.getClusterConfig().getAllowAutoStart());
     response.setIsAllowAutoStop(cluster.getClusterConfig().getAllowAutoStop());
     response.setShutdownInterval(config.getShutdownInterval());
-    response.setDynamicConfig(DynamicConfig.builder()
-        .setContainerCount(cluster.getClusterConfig().getClusterSpec().getContainerCount())
-        .build());
+    response.setDynamicConfig(
+        DynamicConfig.builder()
+            .setContainerCount(cluster.getClusterConfig().getClusterSpec().getContainerCount())
+            .build());
 
-
-    if(config.getClusterType() == ClusterType.YARN) {
+    if (config.getClusterType() == ClusterType.YARN) {
       ImmutableYarnPropsApi.Builder yarnProps = YarnPropsApi.builder();
-      yarnProps.setMemoryMB(cluster.getClusterConfig().getClusterSpec().getMemoryMBOnHeap() + cluster.getClusterConfig().getClusterSpec().getMemoryMBOffHeap());
-      yarnProps.setVirtualCoreCount(cluster.getClusterConfig().getClusterSpec().getVirtualCoreCount());
+      yarnProps.setMemoryMB(
+          cluster.getClusterConfig().getClusterSpec().getMemoryMBOnHeap()
+              + cluster.getClusterConfig().getClusterSpec().getMemoryMBOffHeap());
+      yarnProps.setVirtualCoreCount(
+          cluster.getClusterConfig().getClusterSpec().getVirtualCoreCount());
       yarnProps.setQueue(cluster.getClusterConfig().getClusterSpec().getQueue());
 
       // take care of the property types
@@ -304,18 +325,21 @@ public class ProvisioningResource {
       response.setYarnProps(yarnProps.build());
 
     } else if (config.getClusterType() == ClusterType.EC2) {
-      response.setAwsProps(map(cluster.getClusterConfig().getAwsProps(), ImmutableAwsPropsApi.Builder.class).build());
+      response.setAwsProps(
+          map(cluster.getClusterConfig().getAwsProps(), ImmutableAwsPropsApi.Builder.class)
+              .build());
     }
 
     response.setContainers(clusterEnriched.getRunTimeInfo());
-    response.setDesiredState(toDesiredState((cluster.getDesiredState() != null) ? cluster.getDesiredState() :
-        cluster.getState()));
+    response.setDesiredState(
+        toDesiredState(
+            (cluster.getDesiredState() != null) ? cluster.getDesiredState() : cluster.getState()));
 
     return response.build();
   }
 
   private static <T> T map(Object o, Class<T> clazz) {
-    if(o == null) {
+    if (o == null) {
       return null;
     }
     T t = MODEL_MAPPER.map(o, clazz);
@@ -328,7 +352,7 @@ public class ProvisioningResource {
     clusterConfig.setName(Optional.ofNullable(clusterModifyRequest.getName()).orElse(null));
     clusterConfig.setClusterType(clusterModifyRequest.getClusterType());
     clusterConfig.setTag(clusterModifyRequest.getTag());
-    if(clusterModifyRequest.getYarnProps() != null) {
+    if (clusterModifyRequest.getYarnProps() != null) {
       clusterConfig.setSubPropertyList(clusterModifyRequest.getYarnProps().getSubPropertyList());
     }
     ClusterSpec clusterSpec = new ClusterSpec();
@@ -354,17 +378,24 @@ public class ProvisioningResource {
       }
     }
 
-
-    if(clusterModifyRequest.getYarnProps() != null) {
+    if (clusterModifyRequest.getYarnProps() != null) {
       // total memory was passed in. if we don't know on-heap - adjust it later on
       clusterSpec.setMemoryMBOffHeap(clusterModifyRequest.getYarnProps().getMemoryMB() - onHeap);
     }
 
-
-    clusterSpec.setVirtualCoreCount(Optional.ofNullable(clusterModifyRequest.getYarnProps()).map(t -> t.getVirtualCoreCount()).orElse(null));
-    DynamicConfig requestConfig = Optional.ofNullable(clusterModifyRequest.getDynamicConfig()).orElse(DynamicConfig.builder().build());
-    clusterSpec.setContainerCount(Optional.ofNullable(requestConfig.getContainerCount()).orElse(null));
-    clusterSpec.setQueue(Optional.ofNullable(clusterModifyRequest.getYarnProps()).map(t -> t.getQueue()).orElse(null));
+    clusterSpec.setVirtualCoreCount(
+        Optional.ofNullable(clusterModifyRequest.getYarnProps())
+            .map(t -> t.getVirtualCoreCount())
+            .orElse(null));
+    DynamicConfig requestConfig =
+        Optional.ofNullable(clusterModifyRequest.getDynamicConfig())
+            .orElse(DynamicConfig.builder().build());
+    clusterSpec.setContainerCount(
+        Optional.ofNullable(requestConfig.getContainerCount()).orElse(null));
+    clusterSpec.setQueue(
+        Optional.ofNullable(clusterModifyRequest.getYarnProps())
+            .map(t -> t.getQueue())
+            .orElse(null));
 
     clusterConfig.setAwsProps(map(clusterModifyRequest.getAwsProps(), AwsProps.class));
     clusterConfig.setClusterSpec(clusterSpec);
@@ -401,5 +432,4 @@ public class ProvisioningResource {
     // can throw IllegalArgumentException
     return ClusterState.valueOf(state.name());
   }
-
 }

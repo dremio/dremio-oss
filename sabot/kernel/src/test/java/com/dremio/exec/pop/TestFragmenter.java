@@ -19,34 +19,34 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 
-import java.io.IOException;
-
-import org.junit.Ignore;
-import org.junit.Test;
-
 import com.dremio.exec.exception.FragmentSetupException;
 import com.dremio.exec.planner.PhysicalPlanReader;
 import com.dremio.exec.planner.PhysicalPlanReaderTestFactory;
 import com.dremio.exec.planner.fragment.Fragment;
 import com.dremio.exec.work.foreman.ForemanSetupException;
+import java.io.IOException;
+import org.junit.Ignore;
+import org.junit.Test;
 
 public class TestFragmenter extends PopUnitTestBase {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestFragmenter.class);
 
-
   @Test
-  public void ensureOneFragment() throws FragmentSetupException, IOException, ForemanSetupException {
-    PhysicalPlanReader ppr = PhysicalPlanReaderTestFactory.defaultPhysicalPlanReader(DEFAULT_SABOT_CONFIG, CLASSPATH_SCAN_RESULT);
+  public void ensureOneFragment()
+      throws FragmentSetupException, IOException, ForemanSetupException {
+    PhysicalPlanReader ppr =
+        PhysicalPlanReaderTestFactory.defaultPhysicalPlanReader(CLASSPATH_SCAN_RESULT);
     Fragment b = getRootFragment(ppr, "/physical_test1.json");
     assertEquals(1, getFragmentCount(b));
     assertEquals(0, b.getReceivingExchangePairs().size());
     assertNull(b.getSendingExchange());
   }
 
-
   @Ignore
-  public void ensureThreeFragments() throws FragmentSetupException, IOException, ForemanSetupException {
-    PhysicalPlanReader ppr = PhysicalPlanReaderTestFactory.defaultPhysicalPlanReader(DEFAULT_SABOT_CONFIG, CLASSPATH_SCAN_RESULT);
+  public void ensureThreeFragments()
+      throws FragmentSetupException, IOException, ForemanSetupException {
+    PhysicalPlanReader ppr =
+        PhysicalPlanReaderTestFactory.defaultPhysicalPlanReader(CLASSPATH_SCAN_RESULT);
     Fragment b = getRootFragment(ppr, "/physical_double_exchange.json");
     logger.debug("Fragment SabotNode {}", b);
     assertEquals(3, getFragmentCount(b));
@@ -62,12 +62,4 @@ public class TestFragmenter extends PopUnitTestBase {
     assertEquals(0, b.getReceivingExchangePairs().size());
     assertNotNull(b.getSendingExchange());
   }
-
-
-
-
-
-
-
-
 }

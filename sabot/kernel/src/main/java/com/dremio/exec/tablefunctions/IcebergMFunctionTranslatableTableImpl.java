@@ -15,21 +15,25 @@
  */
 package com.dremio.exec.tablefunctions;
 
+import com.dremio.exec.store.MFunctionCatalogMetadata;
+import com.dremio.exec.store.mfunctions.MFunctionQueryScanCrel;
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.rel.RelNode;
 
-import com.dremio.exec.store.MFunctionCatalogMetadata;
-import com.dremio.exec.store.mfunctions.MFunctionQueryScanCrel;
-
 /**
- * Translatable table impl for Iceberg metadata functions as table_history, table_snapshot, table_manifests
+ * Translatable table impl for Iceberg metadata functions as table_history, table_snapshot,
+ * table_manifests
  */
 public final class IcebergMFunctionTranslatableTableImpl extends MFunctionTranslatableTable {
 
   private final String metadataLocation;
 
-  public IcebergMFunctionTranslatableTableImpl(MFunctionCatalogMetadata catalogMetadata, String user, String metadataLocation, boolean complexTypeSupport) {
+  public IcebergMFunctionTranslatableTableImpl(
+      MFunctionCatalogMetadata catalogMetadata,
+      String user,
+      String metadataLocation,
+      boolean complexTypeSupport) {
     super(catalogMetadata, user, complexTypeSupport);
     this.metadataLocation = metadataLocation;
   }
@@ -37,8 +41,11 @@ public final class IcebergMFunctionTranslatableTableImpl extends MFunctionTransl
   @Override
   public RelNode toRel(RelOptTable.ToRelContext context, RelOptTable relOptTable) {
     return new MFunctionQueryScanCrel(
-      context.getCluster(),
-      context.getCluster().traitSetOf(Convention.NONE),
-      getRowType(context.getCluster().getTypeFactory()), catalogMetadata, user, metadataLocation);
+        context.getCluster(),
+        context.getCluster().traitSetOf(Convention.NONE),
+        getRowType(context.getCluster().getTypeFactory()),
+        catalogMetadata,
+        user,
+        metadataLocation);
   }
 }

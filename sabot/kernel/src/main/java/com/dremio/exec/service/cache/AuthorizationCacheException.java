@@ -15,9 +15,7 @@
  */
 package com.dremio.exec.service.cache;
 
-/**
- * Thrown when a user not found.
- */
+/** Thrown when a user not found. */
 public class AuthorizationCacheException extends Exception {
   private static final long serialVersionUID = 1L;
 

@@ -15,15 +15,6 @@
  */
 package com.dremio.sabot.op.sender.broadcast;
 
-import java.util.List;
-
-import javax.annotation.Nullable;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.OutOfMemoryException;
-import org.apache.arrow.vector.compression.NoCompressionCodec;
-import org.apache.arrow.vector.ipc.message.ArrowRecordBatch;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.physical.config.BroadcastSender;
 import com.dremio.exec.physical.config.MinorFragmentEndpoint;
@@ -45,14 +36,21 @@ import com.google.common.base.Function;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.FluentIterable;
 import com.google.common.primitives.Ints;
+import java.util.List;
+import javax.annotation.Nullable;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.OutOfMemoryException;
+import org.apache.arrow.vector.compression.NoCompressionCodec;
+import org.apache.arrow.vector.ipc.message.ArrowRecordBatch;
 
 /**
- * Broadcast Sender broadcasts incoming batches to all receivers (one or more).
- * This is useful in cases such as broadcast join where sending the entire table to join
- * to all nodes is cheaper than merging and computing all the joins in the same node.
+ * Broadcast Sender broadcasts incoming batches to all receivers (one or more). This is useful in
+ * cases such as broadcast join where sending the entire table to join to all nodes is cheaper than
+ * merging and computing all the joins in the same node.
  */
 public class BroadcastOperator extends BaseSender {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BroadcastOperator.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(BroadcastOperator.class);
 
   private State state = State.NEEDS_SETUP;
 
@@ -79,17 +77,20 @@ public class BroadcastOperator extends BaseSender {
     }
   }
 
-  public BroadcastOperator(TunnelProvider tunnelProvider, OperatorContext context, BroadcastSender config) throws OutOfMemoryException {
+  public BroadcastOperator(
+      TunnelProvider tunnelProvider, OperatorContext context, BroadcastSender config)
+      throws OutOfMemoryException {
     super(config);
     this.config = config;
     this.context = context;
     this.handle = context.getFragmentHandle();
     this.stats = context.getStats();
 
-    final List<MinorFragmentEndpoint> destinations = config.getDestinations(context.getEndpointsIndex());
+    final List<MinorFragmentEndpoint> destinations =
+        config.getDestinations(context.getEndpointsIndex());
     final ArrayListMultimap<NodeEndpoint, Integer> dests = ArrayListMultimap.create();
 
-    for(MinorFragmentEndpoint destination : destinations) {
+    for (MinorFragmentEndpoint destination : destinations) {
       dests.put(destination.getEndpoint(), destination.getMinorFragmentId());
     }
 
@@ -98,11 +99,11 @@ public class BroadcastOperator extends BaseSender {
 
     this.tunnels = new AccountingExecTunnel[destCount];
     this.receivingMinorFragments = new int[destCount][];
-    for(final NodeEndpoint ep : dests.keySet()){
-      List<Integer> minorsList= dests.get(ep);
+    for (final NodeEndpoint ep : dests.keySet()) {
+      List<Integer> minorsList = dests.get(ep);
       int[] minorsArray = new int[minorsList.size()];
       int x = 0;
-      for(Integer m : minorsList){
+      for (Integer m : minorsList) {
         minorsArray[x++] = m;
       }
       receivingMinorFragments[i] = minorsArray;
@@ -139,25 +140,25 @@ public class BroadcastOperator extends BaseSender {
   @Override
   public void noMoreToConsume() {
     for (int i = 0; i < tunnels.length; ++i) {
-      final FragmentStreamComplete completion = FragmentStreamComplete.newBuilder()
-          .setQueryId(handle.getQueryId())
-          .setSendingMajorFragmentId(handle.getMajorFragmentId())
-          .setSendingMinorFragmentId(handle.getMinorFragmentId())
-          .setReceivingMajorFragmentId(config.getReceiverMajorFragmentId())
-          .addAllReceivingMinorFragmentId(Ints.asList(receivingMinorFragments[i]))
-          .build();
+      final FragmentStreamComplete completion =
+          FragmentStreamComplete.newBuilder()
+              .setQueryId(handle.getQueryId())
+              .setSendingMajorFragmentId(handle.getMajorFragmentId())
+              .setSendingMinorFragmentId(handle.getMinorFragmentId())
+              .setReceivingMajorFragmentId(config.getReceiverMajorFragmentId())
+              .addAllReceivingMinorFragmentId(Ints.asList(receivingMinorFragments[i]))
+              .build();
       tunnels[i].sendStreamComplete(completion);
     }
     state = State.DONE;
   }
 
+  @Override
+  public void receivingFragmentFinished(FragmentHandle handle) {}
 
   @Override
-  public void receivingFragmentFinished(FragmentHandle handle) {
-  }
-
-  @Override
-  public <OUT, IN, EXCEP extends Throwable> OUT accept(OperatorVisitor<OUT, IN, EXCEP> visitor, IN value) throws EXCEP {
+  public <OUT, IN, EXCEP extends Throwable> OUT accept(
+      OperatorVisitor<OUT, IN, EXCEP> visitor, IN value) throws EXCEP {
     return visitor.visitTerminalOperator(this, value);
   }
 
@@ -168,19 +169,24 @@ public class BroadcastOperator extends BaseSender {
 
     List<ArrowBuf> buffers = arrowRecordBatch.getBuffers();
 
-    buffers = FluentIterable.from(buffers)
-      .transform(new Function<ArrowBuf, ArrowBuf>() {
-        @Nullable
-        @Override
-        public ArrowBuf apply(@Nullable ArrowBuf buf) {
-          long writerIndex = buf.writerIndex();
-          ArrowBuf newBuf = buf.getReferenceManager().transferOwnership(buf, context.getAllocator())
-            .getTransferredBuffer();
-          newBuf.writerIndex(writerIndex);
-          buf.close();
-          return newBuf;
-        }
-      }).toList();
+    buffers =
+        FluentIterable.from(buffers)
+            .transform(
+                new Function<ArrowBuf, ArrowBuf>() {
+                  @Nullable
+                  @Override
+                  public ArrowBuf apply(@Nullable ArrowBuf buf) {
+                    long writerIndex = buf.writerIndex();
+                    ArrowBuf newBuf =
+                        buf.getReferenceManager()
+                            .transferOwnership(buf, context.getAllocator())
+                            .getTransferredBuffer();
+                    newBuf.writerIndex(writerIndex);
+                    buf.close();
+                    return newBuf;
+                  }
+                })
+            .toList();
 
     if (tunnels.length > 1) {
       for (ArrowBuf buf : buffers) {
@@ -189,13 +195,19 @@ public class BroadcastOperator extends BaseSender {
     }
 
     for (int i = 0; i < tunnels.length; ++i) {
-      FragmentWritableBatch batch = new FragmentWritableBatch(
-          handle.getQueryId(),
-          handle.getMajorFragmentId(),
-          handle.getMinorFragmentId(),
-          config.getReceiverMajorFragmentId(),
-          new ArrowRecordBatch(arrowRecordBatch.getLength(), arrowRecordBatch.getNodes(), buffers, NoCompressionCodec.DEFAULT_BODY_COMPRESSION, false),
-          receivingMinorFragments[i]);
+      FragmentWritableBatch batch =
+          new FragmentWritableBatch(
+              handle.getQueryId(),
+              handle.getMajorFragmentId(),
+              handle.getMinorFragmentId(),
+              config.getReceiverMajorFragmentId(),
+              new ArrowRecordBatch(
+                  arrowRecordBatch.getLength(),
+                  arrowRecordBatch.getNodes(),
+                  buffers,
+                  NoCompressionCodec.DEFAULT_BODY_COMPRESSION,
+                  false),
+              receivingMinorFragments[i]);
       updateStats(batch);
       tunnels[i].sendRecordBatch(batch, latencyTracker.getLatencyObserver());
       for (ArrowBuf buf : buffers) {
@@ -206,10 +218,10 @@ public class BroadcastOperator extends BaseSender {
 
   public static class Creator implements TerminalOperator.Creator<BroadcastSender> {
     @Override
-    public TerminalOperator create(TunnelProvider tunnelProvider, OperatorContext context, BroadcastSender operator)
+    public TerminalOperator create(
+        TunnelProvider tunnelProvider, OperatorContext context, BroadcastSender operator)
         throws ExecutionSetupException {
       return new BroadcastOperator(tunnelProvider, context, operator);
     }
   }
-
 }

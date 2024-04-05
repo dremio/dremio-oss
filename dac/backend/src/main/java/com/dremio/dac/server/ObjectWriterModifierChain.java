@@ -15,18 +15,14 @@
  */
 package com.dremio.dac.server;
 
-import java.io.IOException;
-
-import javax.ws.rs.core.MultivaluedMap;
-
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.jaxrs.cfg.EndpointConfigBase;
 import com.fasterxml.jackson.jaxrs.cfg.ObjectWriterModifier;
+import java.io.IOException;
+import javax.ws.rs.core.MultivaluedMap;
 
-/**
- * Object writer modifier that calls {@code previous} modifier before altering a current writer.
- */
+/** Object writer modifier that calls {@code previous} modifier before altering a current writer. */
 public class ObjectWriterModifierChain extends ObjectWriterModifier {
 
   private final ObjectWriterModifier previous;
@@ -36,8 +32,13 @@ public class ObjectWriterModifierChain extends ObjectWriterModifier {
   }
 
   @Override
-  public ObjectWriter modify(EndpointConfigBase<?> endpoint, MultivaluedMap<String, Object> responseHeaders,
-                             Object valueToWrite, ObjectWriter w, JsonGenerator g) throws IOException {
+  public ObjectWriter modify(
+      EndpointConfigBase<?> endpoint,
+      MultivaluedMap<String, Object> responseHeaders,
+      Object valueToWrite,
+      ObjectWriter w,
+      JsonGenerator g)
+      throws IOException {
     ObjectWriter writer = w;
     if (previous != null) {
       writer = previous.modify(endpoint, responseHeaders, valueToWrite, w, g);

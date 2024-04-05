@@ -19,17 +19,18 @@ import static com.dremio.exec.store.iceberg.model.IcebergConstants.ADDED_DATA_FI
 import static com.dremio.exec.store.iceberg.model.IcebergConstants.DELETED_DATA_FILES;
 import static org.apache.iceberg.TableProperties.GC_ENABLED;
 
+import com.google.common.collect.ImmutableMap;
+import java.util.Map;
+import java.util.Optional;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.util.PropertyUtil;
 
-
-/**
- * Captures estimated costs for scanning Iceberg spec elements - manifests, data files etc.
- */
+/** Captures estimated costs for scanning Iceberg spec elements - manifests, data files etc. */
 public class IcebergCostEstimates {
 
-  // Each dataFile details into manifest take around 35-45 Bytes.This approximation is being considered with a manifest of 8MB size.
+  // Each dataFile details into manifest take around 35-45 Bytes.This approximation is being
+  // considered with a manifest of 8MB size.
   public static final long ESTIMATED_RECORDS_PER_MANIFEST = 100_000;
 
   private long snapshotsCount = 0L;
@@ -37,9 +38,7 @@ public class IcebergCostEstimates {
   private long manifestFileEstimatedCount = 0L;
   private long tablesCount = 1L;
 
-  /**
-   * Loads the metadata of the abstracted Iceberg table, and estimates cost from there.
-   */
+  /** Loads the metadata of the abstracted Iceberg table, and estimates cost from there. */
   public IcebergCostEstimates(Table icebergTable) {
     /*
      * Here is a suboptimal plan to estimate the row accounts for Prels used in ExpireSnapshots plan. The 'suboptimal' mean
@@ -54,7 +53,11 @@ public class IcebergCostEstimates {
     }
   }
 
-  public IcebergCostEstimates(long tablesCount, long snapshotsCount, long dataFileEstimatedCount, long manifestFileEstimatedCount) {
+  public IcebergCostEstimates(
+      long tablesCount,
+      long snapshotsCount,
+      long dataFileEstimatedCount,
+      long manifestFileEstimatedCount) {
     this.snapshotsCount = snapshotsCount;
     this.dataFileEstimatedCount = dataFileEstimatedCount;
     this.manifestFileEstimatedCount = manifestFileEstimatedCount;
@@ -78,43 +81,50 @@ public class IcebergCostEstimates {
   }
 
   public long getEstimatedRows() {
-    return dataFileEstimatedCount + manifestFileEstimatedCount + snapshotsCount /*Manifest list file*/ + snapshotsCount * 2 /*Partition stats files*/;
+    return dataFileEstimatedCount
+        + manifestFileEstimatedCount
+        + snapshotsCount /*Manifest list file*/
+        + snapshotsCount * 2 /*Partition stats files*/;
   }
 
   private void includeSnapshotCosts(Snapshot snapshot, long snapshotsCount) {
     // First snapshot
+    Map<String, String> summary =
+        Optional.ofNullable(snapshot).map(Snapshot::summary).orElseGet(ImmutableMap::of);
     if (1 == snapshotsCount) {
-      long numDataFiles = snapshot != null ?
-        Long.parseLong(snapshot.summary().getOrDefault("total-data-files", "0")) : 0L;
+      long numDataFiles = Long.parseLong(summary.getOrDefault("total-data-files", "0"));
       dataFileEstimatedCount += numDataFiles;
-      long numPositionDeletes = snapshot != null ?
-        Long.parseLong(snapshot.summary().getOrDefault("total-position-deletes", "0")) : 0L;
+      long numPositionDeletes = Long.parseLong(summary.getOrDefault("total-position-deletes", "0"));
       dataFileEstimatedCount += numPositionDeletes;
-      long numEqualityDeletes = snapshot != null ?
-        Long.parseLong(snapshot.summary().getOrDefault("total-equality-deletes", "0")) : 0L;
+      long numEqualityDeletes = Long.parseLong(summary.getOrDefault("total-equality-deletes", "0"));
       dataFileEstimatedCount += numEqualityDeletes;
 
-      manifestFileEstimatedCount += Math.max(dataFileEstimatedCount / ESTIMATED_RECORDS_PER_MANIFEST, 1);
+      manifestFileEstimatedCount +=
+          Math.max(dataFileEstimatedCount / ESTIMATED_RECORDS_PER_MANIFEST, 1);
     } else {
-      long numAddedDataFiles = snapshot != null ?
-        Long.parseLong(snapshot.summary().getOrDefault(ADDED_DATA_FILES, "0")) : 0L;
+      long numAddedDataFiles = Long.parseLong(summary.getOrDefault(ADDED_DATA_FILES, "0"));
       dataFileEstimatedCount += numAddedDataFiles;
-      long numAddedDeleteFiles = snapshot != null ?
-        Long.parseLong(snapshot.summary().getOrDefault(DELETED_DATA_FILES, "0")) : 0L;
+      long numAddedDeleteFiles = Long.parseLong(summary.getOrDefault(DELETED_DATA_FILES, "0"));
       dataFileEstimatedCount += numAddedDeleteFiles;
 
-      manifestFileEstimatedCount += Math.max((numAddedDataFiles + numAddedDeleteFiles) / ESTIMATED_RECORDS_PER_MANIFEST, 1);
+      manifestFileEstimatedCount +=
+          Math.max((numAddedDataFiles + numAddedDeleteFiles) / ESTIMATED_RECORDS_PER_MANIFEST, 1);
     }
   }
 
   @Override
   public String toString() {
-    return "IcebergCostEstimates{" +
-      "snapshotsCount=" + snapshotsCount +
-      ", dataFileEstimatedCount=" + dataFileEstimatedCount +
-      ", manifestFileEstimatedCount=" + manifestFileEstimatedCount +
-      ", tablesCount=" + tablesCount +
-      ", estimatedRows=" + getEstimatedRows() +
-      '}';
+    return "IcebergCostEstimates{"
+        + "snapshotsCount="
+        + snapshotsCount
+        + ", dataFileEstimatedCount="
+        + dataFileEstimatedCount
+        + ", manifestFileEstimatedCount="
+        + manifestFileEstimatedCount
+        + ", tablesCount="
+        + tablesCount
+        + ", estimatedRows="
+        + getEstimatedRows()
+        + '}';
   }
 }

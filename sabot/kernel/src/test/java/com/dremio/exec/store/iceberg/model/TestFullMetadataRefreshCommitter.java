@@ -15,9 +15,18 @@
  */
 package com.dremio.exec.store.iceberg.model;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.proto.UserBitShared;
+import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.store.metadatarefresh.committer.DatasetCatalogGrpcClient;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.dataset.proto.DatasetType;
+import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
+import com.dremio.service.namespace.dataset.proto.ReadDefinition;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import java.util.ArrayList;
 import java.util.HashMap;
-
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
@@ -30,27 +39,13 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnitRunner;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.proto.UserBitShared;
-import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.store.metadatarefresh.committer.DatasetCatalogGrpcClient;
-import com.dremio.service.namespace.dataset.proto.DatasetConfig;
-import com.dremio.service.namespace.dataset.proto.DatasetType;
-import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
-import com.dremio.service.namespace.dataset.proto.ReadDefinition;
-
-import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
-
 @RunWith(MockitoJUnitRunner.class)
 public class TestFullMetadataRefreshCommitter {
 
-  @Mock
-  private DatasetCatalogGrpcClient client;
-  @Mock
-  private Table table;
-  @Mock
-  private Snapshot snapshot;
+  @Mock private DatasetCatalogGrpcClient client;
+  @Mock private Table table;
+  @Mock private Snapshot snapshot;
+
   @Mock(answer = Answers.RETURNS_DEEP_STUBS)
   private IcebergCommand icebergCommand;
 
@@ -59,7 +54,9 @@ public class TestFullMetadataRefreshCommitter {
   @Test
   public void testCommitWhenThereIsException() {
     // Given
-    Mockito.doThrow(new StatusRuntimeException(Status.ABORTED)).when(fullMetadataRefreshCommitter).addOrUpdateDataSet();
+    Mockito.doThrow(new StatusRuntimeException(Status.ABORTED))
+        .when(fullMetadataRefreshCommitter)
+        .addOrUpdateDataSet();
     Mockito.doReturn(false).when(fullMetadataRefreshCommitter).isMetadataAlreadyCreated();
 
     try {
@@ -67,13 +64,14 @@ public class TestFullMetadataRefreshCommitter {
       fullMetadataRefreshCommitter.commit();
     } catch (UserException ex) {
       // Then
-      Assert.assertEquals(ex.getErrorType(), UserBitShared.DremioPBError.ErrorType.CONCURRENT_MODIFICATION);
-      Assert.assertEquals(UserException.REFRESH_METADATA_FAILED_CONCURRENT_UPDATE_MSG, ex.getMessage());
+      Assert.assertEquals(
+          ex.getErrorType(), UserBitShared.DremioPBError.ErrorType.CONCURRENT_MODIFICATION);
+      Assert.assertEquals(
+          UserException.REFRESH_METADATA_FAILED_CONCURRENT_UPDATE_MSG, ex.getMessage());
       return;
     }
     Assert.fail("Should throw exception");
   }
-
 
   @Before
   public void init() {
@@ -81,15 +79,27 @@ public class TestFullMetadataRefreshCommitter {
     datasetConfig.setType(DatasetType.PHYSICAL_DATASET);
     datasetConfig.setPhysicalDataset(new PhysicalDataset());
     datasetConfig.setReadDefinition(new ReadDefinition());
-    fullMetadataRefreshCommitter = Mockito.spy(new FullMetadataRefreshCommitter(
-      "test", new ArrayList<>(), null, "test", new BatchSchema(new ArrayList<>()), null,
-      new ArrayList<>(), icebergCommand, client, datasetConfig,
-      null, null, null, null));
+    fullMetadataRefreshCommitter =
+        Mockito.spy(
+            new FullMetadataRefreshCommitter(
+                "test",
+                new ArrayList<>(),
+                null,
+                "test",
+                new BatchSchema(new ArrayList<>()),
+                null,
+                new ArrayList<>(),
+                icebergCommand,
+                client,
+                datasetConfig,
+                null,
+                null,
+                null,
+                null));
     Mockito.when(icebergCommand.endTransaction()).thenReturn(table);
     Mockito.when(table.currentSnapshot()).thenReturn(snapshot);
     Mockito.when(snapshot.summary()).thenReturn(new HashMap<>());
     Mockito.when(icebergCommand.getRootPointer()).thenReturn("/test/metadata.json");
     Mockito.when(icebergCommand.getIcebergSchema()).thenReturn(new Schema(1, new ArrayList<>()));
   }
-
 }

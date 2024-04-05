@@ -15,13 +15,6 @@
  */
 package com.dremio.resource.basic;
 
-import java.io.IOException;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
-
-import javax.annotation.Nullable;
-import javax.inject.Provider;
-
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.options.OptionManager;
@@ -46,99 +39,115 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
+import java.io.IOException;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
+import javax.annotation.Nullable;
+import javax.inject.Provider;
 
-/**
- * Basic implementation of Resource Allocation APIs
- */
+/** Basic implementation of Resource Allocation APIs */
 public class BasicResourceAllocator implements ResourceAllocator {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BasicResourceAllocator.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(BasicResourceAllocator.class);
 
   private final Provider<ClusterCoordinator> clusterCoordinatorProvider;
   private final Provider<GroupResourceInformation> clusterResourceInformationProvider;
   private ClusterCoordinator clusterCoordinator;
   private final ListeningExecutorService executorService = MoreExecutors.newDirectExecutorService();
 
-  public BasicResourceAllocator(final Provider<ClusterCoordinator> clusterCoordinatorProvider,
-                                final Provider<GroupResourceInformation> clusterResourceInformationProvider) {
+  public BasicResourceAllocator(
+      final Provider<ClusterCoordinator> clusterCoordinatorProvider,
+      final Provider<GroupResourceInformation> clusterResourceInformationProvider) {
     this.clusterCoordinatorProvider = clusterCoordinatorProvider;
     this.clusterResourceInformationProvider = clusterResourceInformationProvider;
   }
 
   @Override
-  public ResourceSchedulingResult allocate(final ResourceSchedulingContext queryContext,
-                                           final ResourceSchedulingProperties resourceSchedulingProperties,
-                                           final ResourceSchedulingObserver resourceSchedulingObserver,
-                                           final Consumer<ResourceSchedulingDecisionInfo> schedulingDecisionInfoConsumer) {
+  public ResourceSchedulingResult allocate(
+      final ResourceSchedulingContext queryContext,
+      final ResourceSchedulingProperties resourceSchedulingProperties,
+      final ResourceSchedulingObserver resourceSchedulingObserver,
+      final Consumer<ResourceSchedulingDecisionInfo> schedulingDecisionInfoConsumer) {
 
-    final ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo = new ResourceSchedulingDecisionInfo();
-    final QueueType queueType = getQueueNameFromSchedulingProperties(queryContext, resourceSchedulingProperties);
+    final ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo =
+        new ResourceSchedulingDecisionInfo();
+    final QueueType queueType =
+        getQueueNameFromSchedulingProperties(queryContext, resourceSchedulingProperties);
     resourceSchedulingDecisionInfo.setQueueName(queueType.name());
     resourceSchedulingDecisionInfo.setQueueId(queueType.name());
-    resourceSchedulingDecisionInfo.setWorkloadClass(queryContext.getQueryContextInfo().getPriority().getWorkloadClass());
+    resourceSchedulingDecisionInfo.setWorkloadClass(
+        queryContext.getQueryContextInfo().getPriority().getWorkloadClass());
     schedulingDecisionInfoConsumer.accept(resourceSchedulingDecisionInfo);
 
     resourceSchedulingObserver.beginQueueWait();
     final Pointer<DistributedSemaphore.DistributedLease> lease = new Pointer();
-    ListenableFuture<ResourceSet> futureAllocation = executorService.submit(() -> {
-      lease.value = acquireQuerySemaphoreIfNecessary(queryContext, queueType);
+    ListenableFuture<ResourceSet> futureAllocation =
+        executorService.submit(
+            () -> {
+              lease.value = acquireQuerySemaphoreIfNecessary(queryContext, queueType);
 
-       // update query limit based on the queueType
-      final OptionManager options = queryContext.getOptions();
-      final boolean memoryControlEnabled = options.getOption(BasicResourceConstants.ENABLE_QUEUE_MEMORY_LIMIT);
-      // TODO REFLECTION_SMALL, REFLECTION_LARGE was not there before - was it a bug???
-      final long memoryLimit = (queueType == QueueType.SMALL || queueType == QueueType.REFLECTION_SMALL) ?
-        options.getOption(BasicResourceConstants.SMALL_QUEUE_MEMORY_LIMIT):
-        options.getOption(BasicResourceConstants.LARGE_QUEUE_MEMORY_LIMIT);
-      long queryMaxAllocation = queryContext.getQueryContextInfo().getQueryMaxAllocation();
-      if (memoryControlEnabled && memoryLimit > 0) {
-        queryMaxAllocation = Math.min(memoryLimit, queryMaxAllocation);
-      }
-      final UserBitShared.QueryId queryId = queryContext.getQueryId();
-      final long queryMaxAllocationFinal = queryMaxAllocation;
+              // update query limit based on the queueType
+              final OptionManager options = queryContext.getOptions();
+              final boolean memoryControlEnabled =
+                  options.getOption(BasicResourceConstants.ENABLE_QUEUE_MEMORY_LIMIT);
+              // TODO REFLECTION_SMALL, REFLECTION_LARGE was not there before - was it a bug???
+              final long memoryLimit =
+                  (queueType == QueueType.SMALL || queueType == QueueType.REFLECTION_SMALL)
+                      ? options.getOption(BasicResourceConstants.SMALL_QUEUE_MEMORY_LIMIT)
+                      : options.getOption(BasicResourceConstants.LARGE_QUEUE_MEMORY_LIMIT);
+              long queryMaxAllocation = queryContext.getQueryContextInfo().getQueryMaxAllocation();
+              if (memoryControlEnabled && memoryLimit > 0) {
+                queryMaxAllocation = Math.min(memoryLimit, queryMaxAllocation);
+              }
+              final UserBitShared.QueryId queryId = queryContext.getQueryId();
+              final long queryMaxAllocationFinal = queryMaxAllocation;
 
-      final ResourceSet resourceSet = new BasicResourceSet(
-        queryId,
-        lease.value,
-        queryMaxAllocationFinal,
-        queueType.name());
+              final ResourceSet resourceSet =
+                  new BasicResourceSet(
+                      queryId, lease.value, queryMaxAllocationFinal, queueType.name());
 
-      return resourceSet;
-    });
-    Futures.addCallback(futureAllocation, new FutureCallback<ResourceSet>() {
-      @Override
-      public void onSuccess(@Nullable ResourceSet resourceSet) {
-        // don't need to do anything additional
-      }
+              return resourceSet;
+            });
+    Futures.addCallback(
+        futureAllocation,
+        new FutureCallback<ResourceSet>() {
+          @Override
+          public void onSuccess(@Nullable ResourceSet resourceSet) {
+            // don't need to do anything additional
+          }
 
-      @Override
-      public void onFailure(Throwable throwable) {
-        // need to close lease
-        releaseLease(lease.value);
-      }
-    }, executorService);
+          @Override
+          public void onFailure(Throwable throwable) {
+            // need to close lease
+            releaseLease(lease.value);
+          }
+        },
+        executorService);
 
-    final ResourceSchedulingResult resourceSchedulingResult = new ResourceSchedulingResult(
-      resourceSchedulingDecisionInfo,
-      futureAllocation
-    );
+    final ResourceSchedulingResult resourceSchedulingResult =
+        new ResourceSchedulingResult(resourceSchedulingDecisionInfo, futureAllocation);
     return resourceSchedulingResult;
   }
 
   @Override
-  public void cancel(ResourceSchedulingContext queryContext) {
-  }
+  public void cancel(ResourceSchedulingContext queryContext) {}
 
-  protected QueueType getQueueNameFromSchedulingProperties(final ResourceSchedulingContext queryContext,
-                                                        final ResourceSchedulingProperties resourceSchedulingProperties) {
+  protected QueueType getQueueNameFromSchedulingProperties(
+      final ResourceSchedulingContext queryContext,
+      final ResourceSchedulingProperties resourceSchedulingProperties) {
     final Double cost = resourceSchedulingProperties.getQueryCost();
 
-    Preconditions.checkNotNull(cost, "Queue Cost is not provided, Unable to determine " +
-      "queue.");
+    Preconditions.checkNotNull(cost, "Queue Cost is not provided, Unable to determine " + "queue.");
 
-    final long queueThreshold = queryContext.getOptions().getOption(BasicResourceConstants.QUEUE_THRESHOLD_SIZE);
+    final long queueThreshold =
+        queryContext.getOptions().getOption(BasicResourceConstants.QUEUE_THRESHOLD_SIZE);
     final QueueType queueType;
-    if (queryContext.getQueryContextInfo().getPriority().getWorkloadClass().equals(UserBitShared.WorkloadClass.BACKGROUND)) {
+    if (queryContext
+        .getQueryContextInfo()
+        .getPriority()
+        .getWorkloadClass()
+        .equals(UserBitShared.WorkloadClass.BACKGROUND)) {
       queueType = (cost > queueThreshold) ? QueueType.REFLECTION_LARGE : QueueType.REFLECTION_SMALL;
     } else {
       queueType = (cost > queueThreshold) ? QueueType.LARGE : QueueType.SMALL;
@@ -147,8 +156,8 @@ public class BasicResourceAllocator implements ResourceAllocator {
   }
 
   @Override
-  public GroupResourceInformation getGroupResourceInformation(OptionManager optionManager,
-                                                              ResourceSchedulingProperties resourceSchedulingProperties) {
+  public GroupResourceInformation getGroupResourceInformation(
+      OptionManager optionManager, ResourceSchedulingProperties resourceSchedulingProperties) {
     return clusterResourceInformationProvider.get();
   }
 
@@ -158,19 +167,19 @@ public class BasicResourceAllocator implements ResourceAllocator {
   }
 
   @Override
-  public void close() throws Exception {
+  public void close() throws Exception {}
 
-  }
-
-  private DistributedSemaphore.DistributedLease acquireQuerySemaphoreIfNecessary(final ResourceSchedulingContext queryContext,
-                                                QueueType queueType) throws ResourceAllocationException {
+  private DistributedSemaphore.DistributedLease acquireQuerySemaphoreIfNecessary(
+      final ResourceSchedulingContext queryContext, QueueType queueType)
+      throws ResourceAllocationException {
 
     final OptionManager optionManager = queryContext.getOptions();
 
     boolean queuingEnabled = optionManager.getOption(BasicResourceConstants.ENABLE_QUEUE);
-    boolean reflectionQueuingEnabled = optionManager.getOption(BasicResourceConstants.REFLECTION_ENABLE_QUEUE);
+    boolean reflectionQueuingEnabled =
+        optionManager.getOption(BasicResourceConstants.REFLECTION_ENABLE_QUEUE);
 
-    if(!queuingEnabled){
+    if (!queuingEnabled) {
       return null;
     }
 
@@ -179,7 +188,7 @@ public class BasicResourceAllocator implements ResourceAllocator {
     if (!reflectionQueuingEnabled) {
       if (queueType == QueueType.REFLECTION_LARGE) {
         adjustedQueueType = QueueType.LARGE;
-      } else if (queueType == QueueType.REFLECTION_SMALL){
+      } else if (queueType == QueueType.REFLECTION_SMALL) {
         adjustedQueueType = QueueType.SMALL;
       }
     }
@@ -196,24 +205,32 @@ public class BasicResourceAllocator implements ResourceAllocator {
       // get the appropriate semaphore
       switch (adjustedQueueType) {
         case LARGE:
-          maxRunningConcurrency = (int) optionManager.getOption(BasicResourceConstants.LARGE_QUEUE_SIZE);
-          distributedSemaphore = clusterCoordinator.getSemaphore("query.large", maxRunningConcurrency);
+          maxRunningConcurrency =
+              (int) optionManager.getOption(BasicResourceConstants.LARGE_QUEUE_SIZE);
+          distributedSemaphore =
+              clusterCoordinator.getSemaphore("query.large", maxRunningConcurrency);
           queueName = "large";
           break;
         case SMALL:
-          maxRunningConcurrency = (int) optionManager.getOption(BasicResourceConstants.SMALL_QUEUE_SIZE);
-          distributedSemaphore = clusterCoordinator.getSemaphore("query.small", maxRunningConcurrency);
+          maxRunningConcurrency =
+              (int) optionManager.getOption(BasicResourceConstants.SMALL_QUEUE_SIZE);
+          distributedSemaphore =
+              clusterCoordinator.getSemaphore("query.small", maxRunningConcurrency);
           queueName = "small";
           break;
         case REFLECTION_LARGE:
-          maxRunningConcurrency = (int) optionManager.getOption(BasicResourceConstants.REFLECTION_LARGE_QUEUE_SIZE);
-          distributedSemaphore = clusterCoordinator.getSemaphore("reflection.query.large", maxRunningConcurrency);
+          maxRunningConcurrency =
+              (int) optionManager.getOption(BasicResourceConstants.REFLECTION_LARGE_QUEUE_SIZE);
+          distributedSemaphore =
+              clusterCoordinator.getSemaphore("reflection.query.large", maxRunningConcurrency);
           queueName = "reflection_large";
           queueTimeout = optionManager.getOption(BasicResourceConstants.REFLECTION_QUEUE_TIMEOUT);
           break;
         case REFLECTION_SMALL:
-          maxRunningConcurrency = (int) optionManager.getOption(BasicResourceConstants.REFLECTION_SMALL_QUEUE_SIZE);
-          distributedSemaphore = clusterCoordinator.getSemaphore("reflection.query.small", maxRunningConcurrency);
+          maxRunningConcurrency =
+              (int) optionManager.getOption(BasicResourceConstants.REFLECTION_SMALL_QUEUE_SIZE);
+          distributedSemaphore =
+              clusterCoordinator.getSemaphore("reflection.query.small", maxRunningConcurrency);
           queueName = "reflection_small";
           queueTimeout = optionManager.getOption(BasicResourceConstants.REFLECTION_QUEUE_TIMEOUT);
           break;
@@ -222,17 +239,19 @@ public class BasicResourceAllocator implements ResourceAllocator {
       }
       lease = distributedSemaphore.acquire(queueTimeout, TimeUnit.MILLISECONDS);
     } catch (final Exception e) {
-      final String message = String.format(
-          "Query cancelled by Workload Manager. Cannot enqueue as the '%s' queue is full. Please try again later.",
-          queueName);
+      final String message =
+          String.format(
+              "Query cancelled by Workload Manager. Cannot enqueue as the '%s' queue is full. Please try again later.",
+              queueName);
       logger.trace(message, e);
       throw new ResourceUnavailableException(message);
     }
 
     if (lease == null) {
-      final String message = String.format(
-          "Query cancelled by Workload Manager. Query enqueued time of %.2f seconds exceeded for '%s' queue.",
-          queueTimeout / 1000.0, queueName);
+      final String message =
+          String.format(
+              "Query cancelled by Workload Manager. Query enqueued time of %.2f seconds exceeded for '%s' queue.",
+              queueTimeout / 1000.0, queueName);
       logger.trace(message);
       throw new ResourceUnavailableException(message);
     }
@@ -241,28 +260,31 @@ public class BasicResourceAllocator implements ResourceAllocator {
 
   /**
    * Need for testing purposes
+   *
    * @param endpoint
    * @param memoryLimit
    * @param majorFragment
    * @return
    */
   @VisibleForTesting
-  public ResourceAllocation createAllocation(CoordinationProtos.NodeEndpoint endpoint, long memoryLimit, int
-    majorFragment) {
+  public ResourceAllocation createAllocation(
+      CoordinationProtos.NodeEndpoint endpoint, long memoryLimit, int majorFragment) {
     return new BasicResourceAllocation(endpoint, memoryLimit, majorFragment);
   }
 
   private class BasicResourceSet implements ResourceSet {
 
     private final UserBitShared.QueryId queryId;
-    private volatile DistributedSemaphore.DistributedLease lease; // used to limit the number of concurrent queries
+    private volatile DistributedSemaphore.DistributedLease
+        lease; // used to limit the number of concurrent queries
     private final long memoryLimit;
     private final String queueName;
 
-    BasicResourceSet(UserBitShared.QueryId queryId,
-                     DistributedSemaphore.DistributedLease lease,
-                     long memoryLimit,
-                     String queueName) {
+    BasicResourceSet(
+        UserBitShared.QueryId queryId,
+        DistributedSemaphore.DistributedLease lease,
+        long memoryLimit,
+        String queueName) {
       this.queryId = queryId;
       this.lease = lease;
       this.memoryLimit = memoryLimit;
@@ -300,7 +322,8 @@ public class BasicResourceAllocator implements ResourceAllocator {
     private final long memoryLimit;
     private int majorFragment;
 
-    BasicResourceAllocation(CoordinationProtos.NodeEndpoint endpoint, long memoryLimit, int majorFragment) {
+    BasicResourceAllocation(
+        CoordinationProtos.NodeEndpoint endpoint, long memoryLimit, int majorFragment) {
       this.endpoint = endpoint;
       this.memoryLimit = memoryLimit;
       this.majorFragment = majorFragment;
@@ -332,9 +355,7 @@ public class BasicResourceAllocator implements ResourceAllocator {
     }
 
     @Override
-    public void close() throws IOException {
-
-    }
+    public void close() throws IOException {}
 
     @Override
     public String toString() {

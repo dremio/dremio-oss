@@ -17,8 +17,14 @@ package com.dremio.exec.planner.common;
 
 import static com.dremio.exec.planner.sql.handlers.RexFieldAccessUtils.STRUCTURED_WRAPPER;
 
+import com.dremio.common.logical.data.NamedExpression;
+import com.dremio.exec.planner.common.MoreRelOptUtil.ContainsRexVisitor;
+import com.dremio.exec.planner.cost.DremioCost;
+import com.dremio.exec.planner.cost.DremioCost.Factory;
+import com.dremio.exec.planner.logical.ParseContext;
+import com.dremio.exec.planner.logical.RexToExpr;
+import com.dremio.exec.planner.physical.PrelUtil;
 import java.util.List;
-
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
@@ -45,29 +51,19 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.SqlTypeFamily;
 import org.apache.calcite.util.Pair;
 
-import com.dremio.common.logical.data.NamedExpression;
-import com.dremio.exec.planner.common.MoreRelOptUtil.ContainsRexVisitor;
-import com.dremio.exec.planner.cost.DremioCost;
-import com.dremio.exec.planner.cost.DremioCost.Factory;
-import com.dremio.exec.planner.logical.ParseContext;
-import com.dremio.exec.planner.logical.RexToExpr;
-import com.dremio.exec.planner.physical.PrelUtil;
-
-/**
- *
- * Base class for logical and physical Project implemented in Dremio
- */
+/** Base class for logical and physical Project implemented in Dremio */
 public abstract class ProjectRelBase extends Project {
   private final int nonSimpleFieldCount;
   private final int simpleFieldCount;
   private final boolean hasContains;
 
-  protected ProjectRelBase(Convention convention,
-                                RelOptCluster cluster,
-                                RelTraitSet traits,
-                                RelNode child,
-                                List<? extends RexNode> exps,
-                                RelDataType rowType) {
+  protected ProjectRelBase(
+      Convention convention,
+      RelOptCluster cluster,
+      RelTraitSet traits,
+      RelNode child,
+      List<? extends RexNode> exps,
+      RelDataType rowType) {
     super(cluster, traits, child, exps, rowType);
     assert getConvention() == convention;
     this.simpleFieldCount = getSimpleFieldCount();
@@ -85,12 +81,11 @@ public abstract class ProjectRelBase extends Project {
     this.hasContains = foundContains;
   }
 
-  protected static RelTraitSet adjustTraits(RelOptCluster cluster, RelNode input, List<? extends RexNode> exps, RelTraitSet traits) {
+  protected static RelTraitSet adjustTraits(
+      RelOptCluster cluster, RelNode input, List<? extends RexNode> exps, RelTraitSet traits) {
     final RelMetadataQuery mq = cluster.getMetadataQuery();
     return traits.replaceIfs(
-        RelCollationTraitDef.INSTANCE,
-        () -> RelMdCollation.project(mq, input, exps)
-    );
+        RelCollationTraitDef.INSTANCE, () -> RelMdCollation.project(mq, input, exps));
   }
 
   public boolean hasComplexFields() {
@@ -104,15 +99,20 @@ public abstract class ProjectRelBase extends Project {
       return planner.getCostFactory().makeInfiniteCost();
     }
 
-    if(PrelUtil.getSettings(getCluster()).useDefaultCosting()) {
+    if (PrelUtil.getSettings(getCluster()).useDefaultCosting()) {
       return super.computeSelfCost(planner, relMetadataQuery).multiplyBy(.1);
     }
 
     // cost is proportional to the number of rows and number of columns being projected
     double rowCount = relMetadataQuery.getRowCount(this);
-    // cpu is proportional to the number of columns and row count.  For complex expressions, we also add
+    // cpu is proportional to the number of columns and row count.  For complex expressions, we also
+    // add
     // additional cost for those columns (multiply by DremioCost.PROJECT_CPU_COST).
-    double cpuCost = (DremioCost.PROJECT_SIMPLE_CPU_COST * rowCount * simpleFieldCount) + (DremioCost.PROJECT_CPU_COST * (nonSimpleFieldCount > 0 ? rowCount : 0) * nonSimpleFieldCount);
+    double cpuCost =
+        (DremioCost.PROJECT_SIMPLE_CPU_COST * rowCount * simpleFieldCount)
+            + (DremioCost.PROJECT_CPU_COST
+                * (nonSimpleFieldCount > 0 ? rowCount : 0)
+                * nonSimpleFieldCount);
     Factory costFactory = (Factory) planner.getCostFactory();
     return costFactory.makeCost(rowCount, cpuCost, 0, 0);
   }
@@ -128,20 +128,23 @@ public abstract class ProjectRelBase extends Project {
   private int getSimpleFieldCount() {
     int cnt = 0;
 
-    final ComplexFieldWithNamedSegmentIdentifier complexFieldIdentifer = new ComplexFieldWithNamedSegmentIdentifier();
-    // SimpleField, either column name, or complex field reference with only named segment ==> no array segment
+    final ComplexFieldWithNamedSegmentIdentifier complexFieldIdentifer =
+        new ComplexFieldWithNamedSegmentIdentifier();
+    // SimpleField, either column name, or complex field reference with only named segment ==> no
+    // array segment
     // a, a.b.c are simple fields.
     // a[1].b.c, a.b[1], a.b.c[1] are not simple fields, since they all contain array segment.
     //  a + b, a * 10 + b, etc are not simple fields, since they are expressions.
     for (RexNode expr : this.getProjects()) {
       if ((expr instanceof RexInputRef)) {
         // Simple Field reference.
-        cnt ++;
-      } else if ((expr instanceof RexFieldAccess) && (((RexFieldAccess) expr).getReferenceExpr() instanceof RexInputRef)) {
-        cnt ++;
+        cnt++;
+      } else if ((expr instanceof RexFieldAccess)
+          && (((RexFieldAccess) expr).getReferenceExpr() instanceof RexInputRef)) {
+        cnt++;
       } else if (expr instanceof RexCall && expr.accept(complexFieldIdentifer)) {
         // Complex field with named segments only.
-        cnt ++;
+        cnt++;
       }
     }
     return cnt;
@@ -183,11 +186,13 @@ public abstract class ProjectRelBase extends Project {
         final RexNode op0 = call.getOperands().get(0);
         final RexNode op1 = call.getOperands().get(1);
 
-        if (op0 instanceof RexInputRef &&
-            op1 instanceof RexLiteral && ((RexLiteral) op1).getTypeName().getFamily() == SqlTypeFamily.CHARACTER) {
+        if (op0 instanceof RexInputRef
+            && op1 instanceof RexLiteral
+            && ((RexLiteral) op1).getTypeName().getFamily() == SqlTypeFamily.CHARACTER) {
           return true;
-        } else if (op0 instanceof RexCall &&
-            op1 instanceof RexLiteral && ((RexLiteral) op1).getTypeName().getFamily() == SqlTypeFamily.CHARACTER) {
+        } else if (op0 instanceof RexCall
+            && op1 instanceof RexLiteral
+            && ((RexLiteral) op1).getTypeName().getFamily() == SqlTypeFamily.CHARACTER) {
           return op0.accept(this);
         }
       } else if (call.getOperator().getName().equalsIgnoreCase(STRUCTURED_WRAPPER.getName())) {
@@ -216,5 +221,4 @@ public abstract class ProjectRelBase extends Project {
       return false;
     }
   }
-
 }

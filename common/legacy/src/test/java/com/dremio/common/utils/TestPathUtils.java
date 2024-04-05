@@ -20,32 +20,30 @@ import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.Collections;
-
-import org.junit.Test;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.io.file.Path;
 import com.google.common.collect.ImmutableList;
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collections;
+import org.junit.Test;
 
-/**
- * Tests for conversions between filesystem paths to schema paths.
- */
+/** Tests for conversions between filesystem paths to schema paths. */
 public class TestPathUtils {
 
   @Test
   public void testPathComponents() throws Exception {
     assertEquals(ImmutableList.of("a", "b", "c"), PathUtils.toPathComponents(Path.of("/a/b/c")));
     assertEquals(ImmutableList.of("a", "b", "c"), PathUtils.toPathComponents(Path.of("a/b/c")));
-    assertEquals(ImmutableList.of("a", "b", "c/"), PathUtils.toPathComponents(Path.of("a/b/\"c/\"")));
+    assertEquals(
+        ImmutableList.of("a", "b", "c/"), PathUtils.toPathComponents(Path.of("a/b/\"c/\"")));
   }
 
   @Test
   public void testGetQuotedFileName() throws Exception {
     assertEquals("\"c\"", PathUtils.getQuotedFileName(Path.of("/a/b/c")));
-    IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->PathUtils.getQuotedFileName(null));
+    IllegalArgumentException ex =
+        assertThrows(IllegalArgumentException.class, () -> PathUtils.getQuotedFileName(null));
     assertTrue(ex.getMessage().contains("Fail to get a valid path from"));
   }
 
@@ -58,7 +56,6 @@ public class TestPathUtils {
     assertEquals("\"c.json\"", PathUtils.toDottedPath(Path.of("/c.json")));
     assertEquals("c", PathUtils.toDottedPath(Path.of("/c")));
   }
-
 
   @Test
   public void testToFSPath() throws Exception {
@@ -89,7 +86,8 @@ public class TestPathUtils {
     assertEquals("d", PathUtils.toDottedPath(Path.of("/a/b/c"), Path.of("/a/b/c/d")));
     assertEquals("b.c.d", PathUtils.toDottedPath(Path.of("/a"), Path.of("/a/b/c/d")));
     assertEquals("a.b.c.d", PathUtils.toDottedPath(Path.of("/"), Path.of("/a/b/c/d")));
-    assertEquals("c.d.\"e.json\"", PathUtils.toDottedPath(Path.of("/a/b/"), Path.of("/a/b/c/d/e.json")));
+    assertEquals(
+        "c.d.\"e.json\"", PathUtils.toDottedPath(Path.of("/a/b/"), Path.of("/a/b/c/d/e.json")));
   }
 
   @Test
@@ -107,7 +105,8 @@ public class TestPathUtils {
     assertEquals("b", PathUtils.relativePath(Path.of("/a/b"), Path.of("/a")));
     assertEquals("b/c.json", PathUtils.relativePath(Path.of("/a/b/c.json"), Path.of("/a")));
     assertEquals("c/d/e", PathUtils.relativePath(Path.of("/a/b/c/d/e"), Path.of("/a/b")));
-    assertEquals("/a/b", PathUtils.relativePath(Path.of("/a/b"), Path.of("/c/d"))); // no common prefix
+    assertEquals(
+        "/a/b", PathUtils.relativePath(Path.of("/a/b"), Path.of("/c/d"))); // no common prefix
   }
 
   @Test
@@ -178,10 +177,12 @@ public class TestPathUtils {
     } catch (RuntimeException ex) {
     }
   }
+
   @Test
   public void testVerifyNoDirectoryTraversal4() {
     try {
-      PathUtils.verifyNoDirectoryTraversal(ImmutableList.of("a", "b", "../..", "c"), RuntimeException::new);
+      PathUtils.verifyNoDirectoryTraversal(
+          ImmutableList.of("a", "b", "../..", "c"), RuntimeException::new);
       fail();
     } catch (RuntimeException ex) {
     }
@@ -244,6 +245,7 @@ public class TestPathUtils {
 
   @Test
   public void testVerifyNoDirectoryTraversal12() {
-    PathUtils.verifyNoDirectoryTraversal(ImmutableList.of("a", ".", ".", "b"), RuntimeException::new);
+    PathUtils.verifyNoDirectoryTraversal(
+        ImmutableList.of("a", ".", ".", "b"), RuntimeException::new);
   }
 }

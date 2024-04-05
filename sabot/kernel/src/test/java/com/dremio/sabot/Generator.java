@@ -15,13 +15,13 @@
  */
 package com.dremio.sabot;
 
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.exec.record.VectorAccessible;
+import org.apache.arrow.memory.BufferAllocator;
 
 public interface Generator extends AutoCloseable {
 
   VectorAccessible getOutput();
+
   int next(int records);
 
   default Fixtures.Table toTable(int batchSize) throws Exception {

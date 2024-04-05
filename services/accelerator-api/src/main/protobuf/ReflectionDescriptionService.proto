@@ -37,6 +37,8 @@ message ListReflectionsResponse {
   optional string reflection_id = 1;
   optional string reflection_name = 2;
   optional string type = 3;
+  optional google.protobuf.Timestamp created_at = 20;
+  optional google.protobuf.Timestamp updated_at = 21;
   optional string status  = 4;
   optional string dataset_id = 16;
   optional string dataset_name = 5;
@@ -49,8 +51,22 @@ message ListReflectionsResponse {
   optional string display_columns = 11;
   optional string external_reflection = 12;
   optional int32 num_failures = 13 [default = 0];
+  optional string last_failure_message = 18;
+  optional string last_failure_stack = 19;
   repeated exec.shared.MeasureColumn measure_columns = 14;
   optional bool arrow_cache = 15 [default = false];
+  optional string refresh_status = 22;
+  optional string acceleration_status = 23;
+  optional int64 record_count = 24;
+  optional int64 current_footprint_bytes = 25;
+  optional int64 total_footprint_bytes = 26;
+  optional int64 last_refresh_duration_millis = 27;
+  optional google.protobuf.Timestamp last_refresh_from_table = 33;
+  optional string refresh_method = 28;
+  optional google.protobuf.Timestamp available_until = 29;
+  optional int32 considered_count = 30;
+  optional int32 matched_count = 31;
+  optional int32 accelerated_count = 32;
 }
 
 message ListReflectionsRequest {

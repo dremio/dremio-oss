@@ -17,9 +17,7 @@ package com.dremio.exec.store.iceberg.glue;
 
 import com.dremio.exec.store.iceberg.model.IcebergTableIdentifier;
 
-/**
- * Glue based iceberg table identifier
- */
+/** Glue based iceberg table identifier */
 public class IcebergGlueTableIdentifier implements IcebergTableIdentifier {
   private final String tableFolder;
   private final String namespace;

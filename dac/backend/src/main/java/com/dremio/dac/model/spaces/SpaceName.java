@@ -18,11 +18,8 @@ package com.dremio.dac.model.spaces;
 import com.dremio.dac.model.common.RootEntity;
 import com.fasterxml.jackson.annotation.JsonCreator;
 
-/**
- * name of a space
- *
- */
-public final class SpaceName extends RootEntity    {
+/** name of a space */
+public final class SpaceName extends RootEntity {
 
   public static final String SPACE_URL = "space";
 
@@ -30,7 +27,8 @@ public final class SpaceName extends RootEntity    {
   public SpaceName(String name) {
     super(name);
     if (name.startsWith(HomeName.HOME_PREFIX)) {
-      throw new IllegalArgumentException(String.format("Space %s can not start with %s", name, HomeName.HOME_PREFIX));
+      throw new IllegalArgumentException(
+          String.format("Space %s can not start with %s", name, HomeName.HOME_PREFIX));
     }
   }
 

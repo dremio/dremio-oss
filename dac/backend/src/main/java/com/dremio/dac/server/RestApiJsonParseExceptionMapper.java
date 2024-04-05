@@ -15,14 +15,16 @@
  */
 package com.dremio.dac.server;
 
+import com.fasterxml.jackson.core.JsonParseException;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.ext.ExceptionMapper;
-
-import com.fasterxml.jackson.core.JsonParseException;
 
 public class RestApiJsonParseExceptionMapper implements ExceptionMapper<JsonParseException> {
   @Override
   public Response toResponse(JsonParseException exception) {
-    return Response.status(Response.Status.BAD_REQUEST).entity(exception.getOriginalMessage()).type("text/plain").build();
+    return Response.status(Response.Status.BAD_REQUEST)
+        .entity(exception.getOriginalMessage())
+        .type("text/plain")
+        .build();
   }
 }

@@ -15,64 +15,83 @@
  */
 package com.dremio.exec.catalog;
 
-import java.util.concurrent.TimeUnit;
-
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators;
 import com.dremio.options.TypeValidators.BooleanValidator;
 import com.dremio.options.TypeValidators.LongValidator;
 import com.dremio.options.TypeValidators.PositiveLongValidator;
 import com.dremio.service.namespace.NamespaceService;
+import java.util.concurrent.TimeUnit;
 
-/**
- * Options related to catalog settings.
- */
+/** Options related to catalog settings. */
 @Options
 public final class CatalogOptions {
 
   // Maximum time to wait when creating a storage plugin before failing.
-  public static final LongValidator STORAGE_PLUGIN_CREATE_MAX = new PositiveLongValidator("store.plugin.wait_millis", TimeUnit.HOURS.toMillis(4), TimeUnit.SECONDS.toMillis(120));
+  public static final LongValidator STORAGE_PLUGIN_CREATE_MAX =
+      new PositiveLongValidator(
+          "store.plugin.wait_millis", TimeUnit.HOURS.toMillis(4), TimeUnit.SECONDS.toMillis(120));
 
   // Maximum time to wait when starting/creating storage plugin during startup before failing.
-  public static final LongValidator STARTUP_WAIT_MAX = new PositiveLongValidator("store.start.wait_millis", TimeUnit.HOURS.toMillis(4), TimeUnit.SECONDS.toMillis(120));
+  public static final LongValidator STARTUP_WAIT_MAX =
+      new PositiveLongValidator(
+          "store.start.wait_millis", TimeUnit.HOURS.toMillis(4), TimeUnit.SECONDS.toMillis(120));
 
   // When metadata impacting configuration parameter is changed, if old metadata should be kept
   public static final BooleanValidator STORAGE_PLUGIN_KEEP_METADATA_ON_REPLACE =
       new BooleanValidator("store.plugin.keep_metadata_on_replace", false);
 
   // Maximum number of leaf columns allowed for metadata
-  public static final LongValidator METADATA_LEAF_COLUMN_MAX = new PositiveLongValidator("store.plugin.max_metadata_leaf_columns", Integer.MAX_VALUE, 6400);
-  public static final LongValidator METADATA_LEAF_COLUMN_SCANNED_MAX = new PositiveLongValidator("store.plugin.max_leaf_columns_scanned", Integer.MAX_VALUE, 800);
+  public static final LongValidator METADATA_LEAF_COLUMN_MAX =
+      new PositiveLongValidator("store.plugin.max_metadata_leaf_columns", Integer.MAX_VALUE, 6400);
+  public static final LongValidator METADATA_LEAF_COLUMN_SCANNED_MAX =
+      new PositiveLongValidator("store.plugin.max_leaf_columns_scanned", Integer.MAX_VALUE, 800);
 
   // Maximum nested levels allowed for a column
-  public static final LongValidator MAX_NESTED_LEVELS = new PositiveLongValidator("store.plugin.max_nested_levels", 64, 16);
+  public static final LongValidator MAX_NESTED_LEVELS =
+      new PositiveLongValidator("store.plugin.max_nested_levels", 64, 16);
 
   // ORC ACID table factor for leaf columns
-  public static final LongValidator ORC_DELTA_LEAF_COLUMN_FACTOR = new PositiveLongValidator("store.hive.orc_delta_leaf_column_factor", Integer.MAX_VALUE, 5);
+  public static final LongValidator ORC_DELTA_LEAF_COLUMN_FACTOR =
+      new PositiveLongValidator("store.hive.orc_delta_leaf_column_factor", Integer.MAX_VALUE, 5);
 
   // Maximum number of single split partitions allowed to be saved together
-  public static final LongValidator SINGLE_SPLIT_PARTITION_MAX = new PositiveLongValidator("store.plugin.max_single_split_partitions", Long.MAX_VALUE, 500);
+  public static final LongValidator SINGLE_SPLIT_PARTITION_MAX =
+      new PositiveLongValidator("store.plugin.max_single_split_partitions", Long.MAX_VALUE, 500);
 
   // How should (multi-)splits be compressed in the K/V store
-  public static final TypeValidators.EnumValidator<NamespaceService.SplitCompression> SPLIT_COMPRESSION_TYPE = new TypeValidators.EnumValidator<>(
-    "store.plugin.split_compression", NamespaceService.SplitCompression.class, NamespaceService.SplitCompression.SNAPPY);
+  public static final TypeValidators.EnumValidator<NamespaceService.SplitCompression>
+      SPLIT_COMPRESSION_TYPE =
+          new TypeValidators.EnumValidator<>(
+              "store.plugin.split_compression",
+              NamespaceService.SplitCompression.class,
+              NamespaceService.SplitCompression.SNAPPY);
   // Disable cross source select
-  public static final BooleanValidator DISABLE_CROSS_SOURCE_SELECT = new BooleanValidator("planner.cross_source_select.disable", false);
+  public static final BooleanValidator DISABLE_CROSS_SOURCE_SELECT =
+      new BooleanValidator("planner.cross_source_select.disable", false);
   // Disable inline refresh
-  public static final BooleanValidator SHOW_METADATA_VALIDITY_CHECKBOX = new BooleanValidator("store.plugin.show_metadata_validity_checkbox", false);
+  public static final BooleanValidator SHOW_METADATA_VALIDITY_CHECKBOX =
+      new BooleanValidator("store.plugin.show_metadata_validity_checkbox", false);
   // Enable secrets field look up/resolution on sources
   public static final TypeValidators.BooleanValidator SOURCE_SECRETS_RESOLUTION_ENABLED =
-    new TypeValidators.BooleanValidator("auth.source-secrets-resolution.enabled", false);
+      new TypeValidators.BooleanValidator("auth.source-secrets-resolution.enabled", false);
+  // Enable in-line encryption of all source secrets.
+  public static final TypeValidators.BooleanValidator SOURCE_SECRETS_ENCRYPTION_ENABLED =
+      new TypeValidators.BooleanValidator("auth.source-secrets-encryption.enabled", true);
   // Enable reflection tab in any versioned source dialogs
-  public static final BooleanValidator REFLECTION_VERSIONED_SOURCE_ENABLED = new BooleanValidator("reflection.arctic.enabled", true);
+  public static final BooleanValidator REFLECTION_VERSIONED_SOURCE_ENABLED =
+      new BooleanValidator("reflection.arctic.enabled", true);
 
-  //Enable Wiki and Label support in default branch for Versioned sources.
-  public static final BooleanValidator WIKILABEL_ENABLED_FOR_VERSIONED_SOURCE_DEFAULT_BRANCH = new TypeValidators.BooleanValidator("arctic.wikilabel.defaultbranch.enabled", true);
+  // Enable Wiki and Label support in default branch for Versioned sources.
+  public static final BooleanValidator WIKILABEL_ENABLED_FOR_VERSIONED_SOURCE_DEFAULT_BRANCH =
+      new TypeValidators.BooleanValidator("arctic.wikilabel.defaultbranch.enabled", true);
   // User-Defined Functions for versioned sources
-  public static final BooleanValidator VERSIONED_SOURCE_UDF_ENABLED = new BooleanValidator("versioned.source.udf.enabled", false);
+  public static final BooleanValidator VERSIONED_SOURCE_UDF_ENABLED =
+      new BooleanValidator("versioned.source.udf.enabled", false);
   // View delegation for a versioned source
-  public static final BooleanValidator VERSIONED_SOURCE_VIEW_DELEGATION_ENABLED = new BooleanValidator("versioned.source.view_delegation.enabled", false);
+  public static final BooleanValidator VERSIONED_SOURCE_VIEW_DELEGATION_ENABLED =
+      new BooleanValidator("versioned.source.view_delegation.enabled", false);
+
   // Do not instantiate
-  private CatalogOptions() {
-  }
+  private CatalogOptions() {}
 }

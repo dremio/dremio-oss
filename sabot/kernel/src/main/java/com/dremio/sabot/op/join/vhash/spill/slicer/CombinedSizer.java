@@ -15,15 +15,13 @@
  */
 package com.dremio.sabot.op.join.vhash.spill.slicer;
 
+import com.dremio.sabot.op.join.vhash.spill.pool.Page;
+import com.google.common.collect.ImmutableList;
 import java.util.List;
 import java.util.stream.Collectors;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.FieldVector;
-
-import com.dremio.sabot.op.join.vhash.spill.pool.Page;
-import com.google.common.collect.ImmutableList;
 
 class CombinedSizer implements Sizer {
 
@@ -40,37 +38,36 @@ class CombinedSizer implements Sizer {
 
   @Override
   public int computeBitsNeeded(ArrowBuf sv2, int startIdx, int numberOfRecords) {
-    return sizers.stream()
-        .mapToInt(s -> s.computeBitsNeeded(sv2, startIdx, numberOfRecords))
-        .sum();
-  }
-
-@Override
-  public int getSizeInBitsStartingFromOrdinal(int ordinal, int numberOfRecords) {
-    return sizers.stream()
-      .mapToInt(s -> s.getSizeInBitsStartingFromOrdinal(ordinal, numberOfRecords))
-      .sum();
+    return sizers.stream().mapToInt(s -> s.computeBitsNeeded(sv2, startIdx, numberOfRecords)).sum();
   }
 
   @Override
-  public Copier getCopier(BufferAllocator allocator, ArrowBuf sv2, int startIdx, int count, List<FieldVector> vectorOutput) {
+  public int getSizeInBitsStartingFromOrdinal(int ordinal, int numberOfRecords) {
+    return sizers.stream()
+        .mapToInt(s -> s.getSizeInBitsStartingFromOrdinal(ordinal, numberOfRecords))
+        .sum();
+  }
+
+  @Override
+  public Copier getCopier(
+      BufferAllocator allocator,
+      ArrowBuf sv2,
+      int startIdx,
+      int count,
+      List<FieldVector> vectorOutput) {
     return new CombinedCopier(
         sizers.stream()
-        .map(s -> s.getCopier(allocator, sv2, startIdx, count, vectorOutput))
-        .collect(Collectors.toList())
-        );
+            .map(s -> s.getCopier(allocator, sv2, startIdx, count, vectorOutput))
+            .collect(Collectors.toList()));
   }
 
   @Override
   public int getEstimatedRecordSizeInBits() {
-    return sizers.stream()
-        .mapToInt(Sizer::getEstimatedRecordSizeInBits)
-        .sum();
+    return sizers.stream().mapToInt(Sizer::getEstimatedRecordSizeInBits).sum();
   }
 
   private static class CombinedCopier implements Copier {
     private final List<Copier> copiers;
-
 
     public CombinedCopier(List<Copier> copiers) {
       this.copiers = copiers;

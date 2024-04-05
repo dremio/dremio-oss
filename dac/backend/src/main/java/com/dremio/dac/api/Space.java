@@ -15,30 +15,25 @@
  */
 package com.dremio.dac.api;
 
-import java.util.List;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.List;
 
-/**
- * Space
- */
+/** Space */
 public class Space implements CatalogEntity {
   private final String id;
   private final String name;
   private final String tag;
-  @JsonISODateTime
-  private final Long createdAt;
+  @JsonISODateTime private final Long createdAt;
   private final List<CatalogItem> children;
 
   @JsonCreator
   public Space(
-    @JsonProperty("id") String id,
-    @JsonProperty("name") String name,
-    @JsonProperty("tag") String tag,
-    @JsonProperty("createdAt") Long createdAt,
-    @JsonProperty("children") List<CatalogItem> children
-  ) {
+      @JsonProperty("id") String id,
+      @JsonProperty("name") String name,
+      @JsonProperty("tag") String tag,
+      @JsonProperty("createdAt") Long createdAt,
+      @JsonProperty("children") List<CatalogItem> children) {
     this.id = id;
     this.name = name;
     this.tag = tag;

@@ -15,9 +15,6 @@
  */
 package com.dremio.plugins.elastic.execution;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.elastic.proto.ElasticReaderProto.ElasticTableXattr;
@@ -42,49 +39,66 @@ import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.protobuf.InvalidProtocolBufferException;
+import java.util.ArrayList;
+import java.util.List;
 
-/**
- * Creates a scan batch of Elastic readers.
- */
+/** Creates a scan batch of Elastic readers. */
 public class ElasticScanCreator implements ProducerOperator.Creator<ElasticsearchSubScan> {
 
   @Override
-  public ProducerOperator create(FragmentExecutionContext fec, OperatorContext context, ElasticsearchSubScan subScan) throws ExecutionSetupException {
+  public ProducerOperator create(
+      FragmentExecutionContext fec, OperatorContext context, ElasticsearchSubScan subScan)
+      throws ExecutionSetupException {
     try {
 
       final ElasticsearchStoragePlugin plugin = fec.getStoragePlugin(subScan.getPluginId());
       List<RecordReader> readers = new ArrayList<>();
       ElasticsearchScanSpec spec = subScan.getSpec();
-      ElasticTableXattr tableAttributes = ElasticTableXattr.parseFrom(subScan.getExtendedProperty().asReadOnlyByteBuffer());
+      ElasticTableXattr tableAttributes =
+          ElasticTableXattr.parseFrom(subScan.getExtendedProperty().asReadOnlyByteBuffer());
       final WorkingBuffer workingBuffer = new WorkingBuffer(context.getManagedBuffer());
-      final boolean useEdgeProject = context.getOptions().getOption(ExecConstants.ELASTIC_RULES_EDGE_PROJECT);
-      final ImmutableMap<SchemaPath, FieldAnnotation> annotations = FieldAnnotation.getAnnotationMap(tableAttributes.getAnnotationList());
-      final int maxCellSize = Math.toIntExact(context.getOptions().getOption(ExecConstants.LIMIT_FIELD_SIZE_BYTES));
+      final boolean useEdgeProject =
+          context.getOptions().getOption(ExecConstants.ELASTIC_RULES_EDGE_PROJECT);
+      final ImmutableMap<SchemaPath, FieldAnnotation> annotations =
+          FieldAnnotation.getAnnotationMap(tableAttributes.getAnnotationList());
+      final int maxCellSize =
+          Math.toIntExact(context.getOptions().getOption(ExecConstants.LIMIT_FIELD_SIZE_BYTES));
       final boolean forceDoublePrecision = plugin.getConfig().isForceDoublePrecision();
       for (SplitAndPartitionInfo split : subScan.getSplits()) {
 
-        final ElasticConnection connection = plugin.getConnection(FluentIterable.from(split.getDatasetSplitInfo().getAffinitiesList()).transform(new Function<Affinity, String>(){
-          @Override
-          public String apply(Affinity input) {
-            return input.getHost();
-          }}));
+        final ElasticConnection connection =
+            plugin.getConnection(
+                FluentIterable.from(split.getDatasetSplitInfo().getAffinitiesList())
+                    .transform(
+                        new Function<Affinity, String>() {
+                          @Override
+                          public String apply(Affinity input) {
+                            return input.getHost();
+                          }
+                        }));
 
-        readers.add(new ElasticsearchRecordReader(
-          plugin,
-          Iterables.getOnlyElement(subScan.getReferencedTables()),
-          tableAttributes,
-          context,
-          spec,
-          useEdgeProject,
-          split,
-          connection,
-          subScan.getColumns(),
-          FieldReadDefinition.getTree(subScan.getFullSchema(), annotations, workingBuffer, maxCellSize, new ElasticVersionBehaviorProvider(connection.getESVersionInCluster()), forceDoublePrecision),
-          plugin.getConfig()
-        ));
+        readers.add(
+            new ElasticsearchRecordReader(
+                plugin,
+                Iterables.getOnlyElement(subScan.getReferencedTables()),
+                tableAttributes,
+                context,
+                spec,
+                useEdgeProject,
+                split,
+                connection,
+                subScan.getColumns(),
+                FieldReadDefinition.getTree(
+                    subScan.getFullSchema(),
+                    annotations,
+                    workingBuffer,
+                    maxCellSize,
+                    new ElasticVersionBehaviorProvider(connection.getESVersionInCluster()),
+                    forceDoublePrecision),
+                plugin.getConfig()));
       }
 
-      return new ScanOperator(subScan, context, RecordReaderIterator.from(readers.iterator()));
+      return new ScanOperator(fec, subScan, context, RecordReaderIterator.from(readers.iterator()));
     } catch (InvalidProtocolBufferException e) {
       throw new ExecutionSetupException(e);
     }

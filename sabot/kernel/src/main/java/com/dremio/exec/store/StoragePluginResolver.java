@@ -23,8 +23,8 @@ public interface StoragePluginResolver {
    * Get a StoragePlugin according to the provided StoragePluginId. StoragePluginId is used as the
    * key when moving from planning to execution and will generally be exposed by Tables returned by
    * Catalog. Typically, a CatalogService consumer should never create a StoragePluginId.
-   * <p>
-   * This method will update the storage plugin if the config is newer than the one held locally.
+   *
+   * <p>This method will update the storage plugin if the config is newer than the one held locally.
    * This method will not check the kvstore for additional updates, simply trusting the provided
    * PluginId as a canonical source of truth. If the provided StoragePluginId has an older version
    * of configuration than the one currently active on this node, an exception will be thrown.

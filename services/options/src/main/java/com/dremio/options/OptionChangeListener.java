@@ -16,9 +16,7 @@
 
 package com.dremio.options;
 
-/**
- * A listener interface to act on changes to options.
- */
+/** A listener interface to act on changes to options. */
 public interface OptionChangeListener {
   void onChange();
 }

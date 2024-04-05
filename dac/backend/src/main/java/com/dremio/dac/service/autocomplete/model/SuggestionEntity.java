@@ -15,11 +15,10 @@
  */
 package com.dremio.dac.service.autocomplete.model;
 
-import java.util.List;
-import java.util.Objects;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.List;
+import java.util.Objects;
 
 public final class SuggestionEntity {
   private final List<String> name;
@@ -27,8 +26,7 @@ public final class SuggestionEntity {
 
   @JsonCreator
   public SuggestionEntity(
-    @JsonProperty("name") List<String> name,
-    @JsonProperty("type") String type) {
+      @JsonProperty("name") List<String> name, @JsonProperty("type") String type) {
     this.name = name;
     this.type = type;
   }

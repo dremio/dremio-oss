@@ -17,7 +17,6 @@
 package com.dremio.dac.server;
 
 import java.io.IOException;
-
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
@@ -27,26 +26,24 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.core.HttpHeaders;
 
-/**
- * Filter to add generic response headers to response
- */
+/** Filter to add generic response headers to response */
 public class GenericResponseHeadersFilter implements Filter {
 
   private static final String NO_CACHE = "no-cache";
   private static final String NO_STORE = "no-store";
 
   @Override
-  public void init(FilterConfig filterConfig) {
-  }
+  public void init(FilterConfig filterConfig) {}
 
   @Override
-  public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain) throws IOException, ServletException {
+  public void doFilter(
+      ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain)
+      throws IOException, ServletException {
     final HttpServletResponse response = (HttpServletResponse) servletResponse;
     response.setHeader(HttpHeaders.CACHE_CONTROL, String.format("%s, %s", NO_CACHE, NO_STORE));
     filterChain.doFilter(servletRequest, servletResponse);
   }
 
   @Override
-  public void destroy() {
-  }
+  public void destroy() {}
 }

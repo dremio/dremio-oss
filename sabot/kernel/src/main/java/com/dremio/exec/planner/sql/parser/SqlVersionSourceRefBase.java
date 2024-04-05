@@ -15,19 +15,17 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 import java.time.Instant;
-
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
-
 /**
- * Base class that contains a reference (by type and value), an optional
- * requested timestamp, and an optional versioned source name.
+ * Base class that contains a reference (by type and value), an optional requested timestamp, and an
+ * optional versioned source name.
  */
 public abstract class SqlVersionSourceRefBase extends SqlVersionBase {
 
@@ -59,10 +57,14 @@ public abstract class SqlVersionSourceRefBase extends SqlVersionBase {
     if (timestamp == null) {
       return null;
     }
-    return Instant.ofEpochMilli(SqlHandlerUtil.convertToTimeInMillis(((SqlLiteral) timestamp).getValueAs(String.class), timestamp.getParserPosition()));
+    return Instant.ofEpochMilli(
+        SqlHandlerUtil.convertToTimeInMillis(
+            ((SqlLiteral) timestamp).getValueAs(String.class), timestamp.getParserPosition()));
   }
 
-  public SqlNode getTimestampAsSqlNode() { return timestamp; }
+  public SqlNode getTimestampAsSqlNode() {
+    return timestamp;
+  }
 
   public void unparseRef(SqlWriter writer, int leftPrec, int rightPrec, String prefix) {
     if (refType != null && refValue != null) {

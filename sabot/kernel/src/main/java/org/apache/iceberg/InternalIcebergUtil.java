@@ -17,7 +17,6 @@ package org.apache.iceberg;
 
 import java.util.List;
 import java.util.stream.Collectors;
-
 import org.apache.iceberg.types.Types;
 
 public class InternalIcebergUtil {
@@ -25,8 +24,6 @@ public class InternalIcebergUtil {
   public static List<String> getPartitionNames(DataFile dataFile) {
     PartitionData partitionData = (PartitionData) dataFile.partition();
     List<Types.NestedField> nestedFields = partitionData.getPartitionType().fields();
-    return nestedFields.stream()
-      .map(Types.NestedField::name)
-      .collect(Collectors.toList());
+    return nestedFields.stream().map(Types.NestedField::name).collect(Collectors.toList());
   }
 }

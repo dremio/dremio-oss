@@ -16,9 +16,7 @@
 
 package com.dremio.common.expression.fn.impl;
 
-/**
- * Pair of two hashes
- */
+/** Pair of two hashes */
 public class HashValPair {
   private long hash1;
   private long hash2;
@@ -38,9 +36,6 @@ public class HashValPair {
 
   @Override
   public String toString() {
-    return "HashValPair{" +
-      "hash1=" + hash1 +
-      ", hash2=" + hash2 +
-      '}';
+    return "HashValPair{" + "hash1=" + hash1 + ", hash2=" + hash2 + '}';
   }
 }

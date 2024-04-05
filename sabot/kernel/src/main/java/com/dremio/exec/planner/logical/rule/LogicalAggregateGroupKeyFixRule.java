@@ -15,9 +15,10 @@
  */
 package com.dremio.exec.planner.logical.rule;
 
+import com.dremio.exec.planner.logical.RelOptHelper;
+import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.calcite.linq4j.Ord;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
@@ -34,71 +35,70 @@ import org.apache.calcite.util.mapping.Mapping;
 import org.apache.calcite.util.mapping.MappingType;
 import org.apache.calcite.util.mapping.Mappings;
 
-import com.dremio.exec.planner.logical.RelOptHelper;
-import com.google.common.collect.ImmutableList;
-
 /**
- * Rule to rewrite aggregate so that the group keys are always first in the input, e.g.
- * groupSet = {0,2}
- * will become
- * groupSet = {0,1}
- * with an appropriate project added below
+ * Rule to rewrite aggregate so that the group keys are always first in the input, e.g. groupSet =
+ * {0,2} will become groupSet = {0,1} with an appropriate project added below
  */
 public class LogicalAggregateGroupKeyFixRule {
-  public static final RelOptRule RULE = new RelOptRule(
-      RelOptHelper.any(LogicalAggregate.class, RelNode.class),
-      "LogicalAggregateGroupKeyFix") {
+  public static final RelOptRule RULE =
+      new RelOptRule(
+          RelOptHelper.any(LogicalAggregate.class, RelNode.class), "LogicalAggregateGroupKeyFix") {
 
-    @Override
-    public boolean matches(RelOptRuleCall call) {
-      LogicalAggregate agg = call.rel(0);
-      if (!(agg.getGroupType() == Group.SIMPLE)) {
-        return false;
-      }
-      // only need to apply the rule if the group set does not contain continuous values starting with 0
-      if (agg.getGroupSet().equals(ImmutableBitSet.range(agg.getGroupSet().cardinality()))) {
-        return false;
-      }
-      return true;
-    }
-
-    @Override
-    public void onMatch(RelOptRuleCall call) {
-      LogicalAggregate agg = call.rel(0);
-      Mapping inputMapping = Mappings.create(MappingType.BIJECTION, agg.getInput().getRowType().getFieldCount(), agg.getInput().getRowType().getFieldCount());
-      for (Ord<Integer> groupKey : Ord.zip(agg.getGroupSet())) {
-        int source = groupKey.e;
-        int target = groupKey.i;
-        inputMapping.set(source, target);
-      }
-
-      int target = agg.getGroupCount();
-      for (int i = 0; i < agg.getInput().getRowType().getFieldCount(); i++) {
-        if (!agg.getGroupSet().get(i)) {
-          inputMapping.set(i, target++);
+        @Override
+        public boolean matches(RelOptRuleCall call) {
+          LogicalAggregate agg = call.rel(0);
+          if (!(agg.getGroupType() == Group.SIMPLE)) {
+            return false;
+          }
+          // only need to apply the rule if the group set does not contain continuous values
+          // starting with 0
+          if (agg.getGroupSet().equals(ImmutableBitSet.range(agg.getGroupSet().cardinality()))) {
+            return false;
+          }
+          return true;
         }
-      }
 
-      RelBuilder relBuilder = call.builder();
-      relBuilder.push(agg.getInput());
-      relBuilder.project(relBuilder.fields(Mappings.invert(inputMapping)));
-      GroupKey groupKey = relBuilder.groupKey(Mappings.apply(inputMapping, agg.getGroupSet()), null);
-      List<AggCall> newAggCallList = new ArrayList<>();
-      for (AggregateCall aggCall : agg.getAggCallList()) {
-        final ImmutableList<RexNode> args =
-          relBuilder.fields(
-            Mappings.apply2(inputMapping, aggCall.getArgList()));
-        RelBuilder.AggCall newAggCall =
-          relBuilder.aggregateCall(aggCall.getAggregation(), args)
-            .distinct(aggCall.isDistinct())
-            .approximate(aggCall.isApproximate())
-            .sort(relBuilder.fields(aggCall.collation))
-            .as(aggCall.name);
-        newAggCallList.add(newAggCall);
-      }
-      relBuilder.aggregate(groupKey, newAggCallList);
-      call.transformTo(relBuilder.build());
-    }
-  };
+        @Override
+        public void onMatch(RelOptRuleCall call) {
+          LogicalAggregate agg = call.rel(0);
+          Mapping inputMapping =
+              Mappings.create(
+                  MappingType.BIJECTION,
+                  agg.getInput().getRowType().getFieldCount(),
+                  agg.getInput().getRowType().getFieldCount());
+          for (Ord<Integer> groupKey : Ord.zip(agg.getGroupSet())) {
+            int source = groupKey.e;
+            int target = groupKey.i;
+            inputMapping.set(source, target);
+          }
 
+          int target = agg.getGroupCount();
+          for (int i = 0; i < agg.getInput().getRowType().getFieldCount(); i++) {
+            if (!agg.getGroupSet().get(i)) {
+              inputMapping.set(i, target++);
+            }
+          }
+
+          RelBuilder relBuilder = call.builder();
+          relBuilder.push(agg.getInput());
+          relBuilder.project(relBuilder.fields(Mappings.invert(inputMapping)));
+          GroupKey groupKey =
+              relBuilder.groupKey(Mappings.apply(inputMapping, agg.getGroupSet()), null);
+          List<AggCall> newAggCallList = new ArrayList<>();
+          for (AggregateCall aggCall : agg.getAggCallList()) {
+            final ImmutableList<RexNode> args =
+                relBuilder.fields(Mappings.apply2(inputMapping, aggCall.getArgList()));
+            RelBuilder.AggCall newAggCall =
+                relBuilder
+                    .aggregateCall(aggCall.getAggregation(), args)
+                    .distinct(aggCall.isDistinct())
+                    .approximate(aggCall.isApproximate())
+                    .sort(relBuilder.fields(aggCall.collation))
+                    .as(aggCall.name);
+            newAggCallList.add(newAggCall);
+          }
+          relBuilder.aggregate(groupKey, newAggCallList);
+          call.transformTo(relBuilder.build());
+        }
+      };
 }

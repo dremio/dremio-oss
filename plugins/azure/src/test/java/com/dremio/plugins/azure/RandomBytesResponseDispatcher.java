@@ -21,12 +21,9 @@ import static org.mockito.Mockito.when;
 
 import java.util.Arrays;
 import java.util.Random;
-
 import org.asynchttpclient.HttpResponseBodyPart;
 
-/**
- * This class breaks the response in multiple parts, and dispatches one by one
- */
+/** This class breaks the response in multiple parts, and dispatches one by one */
 public class RandomBytesResponseDispatcher {
   private byte[] allBytes;
   private Random random = new Random();

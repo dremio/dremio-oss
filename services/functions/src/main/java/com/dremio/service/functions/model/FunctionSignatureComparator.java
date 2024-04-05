@@ -15,9 +15,8 @@
  */
 package com.dremio.service.functions.model;
 
-import java.util.Comparator;
-
 import com.google.common.collect.ImmutableList;
+import java.util.Comparator;
 
 public final class FunctionSignatureComparator implements Comparator<FunctionSignature> {
   public static final FunctionSignatureComparator INSTANCE = new FunctionSignatureComparator();
@@ -37,8 +36,7 @@ public final class FunctionSignatureComparator implements Comparator<FunctionSig
   }
 
   private static int compare(
-    ImmutableList<Parameter> parameters1,
-    ImmutableList<Parameter> parameters2) {
+      ImmutableList<Parameter> parameters1, ImmutableList<Parameter> parameters2) {
     int cmp = Integer.compare(parameters1.size(), parameters2.size());
     if (cmp != 0) {
       return cmp;

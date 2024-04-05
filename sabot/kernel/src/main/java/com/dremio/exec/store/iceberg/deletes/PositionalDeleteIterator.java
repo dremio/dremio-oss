@@ -18,11 +18,15 @@ package com.dremio.exec.store.iceberg.deletes;
 import java.util.Iterator;
 
 /**
- * Provides a simple Iterator interface on top of Iceberg positional delete information for a single data file.  This
- * may either be positions sourced from a single delete file, or the merged set from multiple delete files.
+ * Provides a simple Iterator interface on top of Iceberg positional delete information for a single
+ * data file. This may either be positions sourced from a single delete file, or the merged set from
+ * multiple delete files.
  */
 public interface PositionalDeleteIterator extends Iterator<Long>, AutoCloseable {
 
-  /** Long.MAX_VALUE is reserved for use as an end-of-iteration sentinel value in PositionDeleteFilter. */
+  /**
+   * Long.MAX_VALUE is reserved for use as an end-of-iteration sentinel value in
+   * PositionDeleteFilter.
+   */
   long END_POS = Long.MAX_VALUE;
 }

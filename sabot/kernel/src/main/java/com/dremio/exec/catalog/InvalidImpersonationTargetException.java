@@ -15,9 +15,7 @@
  */
 package com.dremio.exec.catalog;
 
-/**
- * Thrown during impersonation.
- */
+/** Thrown during impersonation. */
 public class InvalidImpersonationTargetException extends RuntimeException {
   public InvalidImpersonationTargetException(String message) {
     super(message);

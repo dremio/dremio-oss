@@ -25,17 +25,25 @@ import com.dremio.sabot.op.spi.ProducerOperator;
 import com.dremio.sabot.op.spi.SingleInputOperator;
 import com.dremio.sabot.op.spi.TerminalOperator;
 
-/**
- * Interface for generating operator instances.
- */
+/** Interface for generating operator instances. */
 public interface OperatorCreator {
-  <T extends PhysicalOperator> SingleInputOperator getSingleInputOperator(OperatorContext context, T operator) throws Exception;
-  default <T extends PhysicalOperator> SingleInputOperator getSingleInputOperator(FragmentExecutionContext fec,
-                                                                                  OperatorContext context, T operator) throws Exception {
+  <T extends PhysicalOperator> SingleInputOperator getSingleInputOperator(
+      OperatorContext context, T operator) throws Exception;
+
+  default <T extends PhysicalOperator> SingleInputOperator getSingleInputOperator(
+      FragmentExecutionContext fec, OperatorContext context, T operator) throws Exception {
     throw new UnsupportedOperationException("Not implemented");
   }
-  <T extends PhysicalOperator> DualInputOperator getDualInputOperator(OperatorContext context, T operator) throws Exception;
-  <T extends PhysicalOperator> TerminalOperator getTerminalOperator(TunnelProvider provider, OperatorContext context, T operator) throws Exception;
-  <T extends PhysicalOperator> ProducerOperator getProducerOperator(FragmentExecutionContext fec, OperatorContext context, T operator) throws Exception;
-  <T extends PhysicalOperator> ProducerOperator getReceiverOperator(BatchStreamProvider buffers, OperatorContext context, T operator) throws Exception;
+
+  <T extends PhysicalOperator> DualInputOperator getDualInputOperator(
+      OperatorContext context, T operator) throws Exception;
+
+  <T extends PhysicalOperator> TerminalOperator getTerminalOperator(
+      TunnelProvider provider, OperatorContext context, T operator) throws Exception;
+
+  <T extends PhysicalOperator> ProducerOperator getProducerOperator(
+      FragmentExecutionContext fec, OperatorContext context, T operator) throws Exception;
+
+  <T extends PhysicalOperator> ProducerOperator getReceiverOperator(
+      BatchStreamProvider buffers, OperatorContext context, T operator) throws Exception;
 }

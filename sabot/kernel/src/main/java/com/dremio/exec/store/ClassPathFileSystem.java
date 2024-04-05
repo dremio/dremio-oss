@@ -15,12 +15,12 @@
  */
 package com.dremio.exec.store;
 
+import com.google.common.io.Resources;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
-
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
@@ -29,11 +29,9 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.util.Progressable;
 
-import com.google.common.io.Resources;
-
-
-public class ClassPathFileSystem extends FileSystem{
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ClassPathFileSystem.class);
+public class ClassPathFileSystem extends FileSystem {
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ClassPathFileSystem.class);
 
   static final String ERROR_MSG = "ClassPathFileSystem is read only.";
 
@@ -47,8 +45,15 @@ public class ClassPathFileSystem extends FileSystem{
   }
 
   @Override
-  public FSDataOutputStream create(Path arg0, FsPermission arg1, boolean arg2, int arg3, short arg4, long arg5,
-      Progressable arg6) throws IOException {
+  public FSDataOutputStream create(
+      Path arg0,
+      FsPermission arg1,
+      boolean arg2,
+      int arg3,
+      short arg4,
+      long arg5,
+      Progressable arg6)
+      throws IOException {
     throw new IOException(ERROR_MSG);
   }
 
@@ -62,9 +67,9 @@ public class ClassPathFileSystem extends FileSystem{
     throw new IOException(ERROR_MSG);
   }
 
-  private String getFileName(Path path){
+  private String getFileName(Path path) {
     String file = path.toUri().getPath();
-    if(file.charAt(0) == '/'){
+    if (file.charAt(0) == '/') {
       file = file.substring(1);
     }
     return file;
@@ -82,11 +87,11 @@ public class ClassPathFileSystem extends FileSystem{
       // properly
       try {
         url = Resources.getResource(directory);
-      } catch(IllegalArgumentException e) {
+      } catch (IllegalArgumentException e) {
         // Fallback trying for a file
         url = Resources.getResource(file);
       }
-    } catch(IllegalArgumentException e) {
+    } catch (IllegalArgumentException e) {
       throw new FileNotFoundException(String.format("Unable to find path %s.", arg0.toString()));
     }
 
@@ -106,13 +111,19 @@ public class ClassPathFileSystem extends FileSystem{
     if (url.getPath().endsWith("/")) {
       return new FileStatus(0, true, 0, 0, url.openConnection().getLastModified(), arg0);
     }
-    return new FileStatus(Resources.asByteSource(url).size(), false, 1, 8096, url.openConnection().getLastModified(), arg0);
+    return new FileStatus(
+        Resources.asByteSource(url).size(),
+        false,
+        1,
+        8096,
+        url.openConnection().getLastModified(),
+        arg0);
   }
 
   @Override
   public URI getUri() {
     try {
-      return new URI(SCHEME+":///");
+      return new URI(SCHEME + ":///");
     } catch (URISyntaxException e) {
       throw new RuntimeException(e);
     }
@@ -137,7 +148,7 @@ public class ClassPathFileSystem extends FileSystem{
   public FSDataInputStream open(Path arg0, int arg1) throws IOException {
     String file = getFileName(arg0);
     URL url = Resources.getResource(file);
-    if(url == null){
+    if (url == null) {
       throw new IOException(String.format("Unable to find path %s.", arg0.getName()));
     }
     ResourceInputStream ris = new ResourceInputStream(Resources.toByteArray(url));
@@ -159,7 +170,7 @@ public class ClassPathFileSystem extends FileSystem{
     return SCHEME;
   }
 
-  public static void main(String[] args) throws Exception{
+  public static void main(String[] args) throws Exception {
     URI uri = new URI("classpath:///");
   }
 }

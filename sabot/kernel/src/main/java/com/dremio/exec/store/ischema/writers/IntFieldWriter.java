@@ -16,12 +16,10 @@
 
 package com.dremio.exec.store.ischema.writers;
 
+import com.dremio.sabot.op.scan.OutputMutator;
 import java.util.function.Function;
-
 import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.types.pojo.Field;
-
-import com.dremio.sabot.op.scan.OutputMutator;
 
 /**
  * Writes "int" field types.

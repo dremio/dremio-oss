@@ -15,8 +15,6 @@
  */
 package com.dremio.service.namespace;
 
-import java.io.IOException;
-
 import com.dremio.connector.metadata.BytesOutput;
 import com.dremio.connector.metadata.DatasetSplit;
 import com.dremio.connector.metadata.DatasetSplitAffinity;
@@ -24,10 +22,9 @@ import com.dremio.connector.metadata.PartitionValue;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
 import com.google.common.collect.FluentIterable;
 import com.google.protobuf.ByteString;
+import java.io.IOException;
 
-/**
- * Utility functions that deal with conversions between protos and connector objects
- */
+/** Utility functions that deal with conversions between protos and connector objects */
 public final class MetadataProtoUtils {
 
   public static ByteString toProtobuf(BytesOutput out) {
@@ -41,7 +38,8 @@ public final class MetadataProtoUtils {
   }
 
   public static PartitionProtobuf.PartitionValue toProtobuf(PartitionValue value) {
-    PartitionProtobuf.PartitionValue.Builder builder = PartitionProtobuf.PartitionValue.newBuilder();
+    PartitionProtobuf.PartitionValue.Builder builder =
+        PartitionProtobuf.PartitionValue.newBuilder();
     builder.setColumn(value.getColumn());
     builder.setType(toProtobuf(value.getPartitionValueType()));
 
@@ -50,7 +48,8 @@ public final class MetadataProtoUtils {
     }
 
     if (value instanceof PartitionValue.BinaryPartitionValue) {
-      builder.setBinaryValue(ByteString.copyFrom(((PartitionValue.BinaryPartitionValue) value).getValue()));
+      builder.setBinaryValue(
+          ByteString.copyFrom(((PartitionValue.BinaryPartitionValue) value).getValue()));
     } else if (value instanceof PartitionValue.BooleanPartitionValue) {
       builder.setBitValue(((PartitionValue.BooleanPartitionValue) value).getValue());
     } else if (value instanceof PartitionValue.DoublePartitionValue) {
@@ -64,7 +63,8 @@ public final class MetadataProtoUtils {
     } else if (value instanceof PartitionValue.StringPartitionValue) {
       builder.setStringValue(((PartitionValue.StringPartitionValue) value).getValue());
     } else {
-      throw new IllegalArgumentException("Unknown type of partition value: " + value.getClass().getName());
+      throw new IllegalArgumentException(
+          "Unknown type of partition value: " + value.getClass().getName());
     }
 
     return builder.build();
@@ -92,16 +92,18 @@ public final class MetadataProtoUtils {
     }
   }
 
-  private static PartitionProtobuf.PartitionValueType toProtobuf(PartitionValue.PartitionValueType type) {
+  private static PartitionProtobuf.PartitionValueType toProtobuf(
+      PartitionValue.PartitionValueType type) {
     switch (type) {
-    case IMPLICIT:
-      return PartitionProtobuf.PartitionValueType.IMPLICIT;
-    case INVISIBLE:
-      return PartitionProtobuf.PartitionValueType.INVISIBLE;
-    case VISIBLE:
-      return PartitionProtobuf.PartitionValueType.VISIBLE;
-    default:
-      throw new IllegalArgumentException("Unknown type of partition: " + type.getClass().getName());
+      case IMPLICIT:
+        return PartitionProtobuf.PartitionValueType.IMPLICIT;
+      case INVISIBLE:
+        return PartitionProtobuf.PartitionValueType.INVISIBLE;
+      case VISIBLE:
+        return PartitionProtobuf.PartitionValueType.VISIBLE;
+      default:
+        throw new IllegalArgumentException(
+            "Unknown type of partition: " + type.getClass().getName());
     }
   }
 
@@ -114,15 +116,13 @@ public final class MetadataProtoUtils {
 
   public static PartitionProtobuf.DatasetSplit toProtobuf(DatasetSplit split) {
     return PartitionProtobuf.DatasetSplit.newBuilder()
-        .addAllAffinities(FluentIterable
-            .from(split.getAffinities())
-            .transform(MetadataProtoUtils::toProtobuf))
+        .addAllAffinities(
+            FluentIterable.from(split.getAffinities()).transform(MetadataProtoUtils::toProtobuf))
         .setSize(split.getSizeInBytes())
         .setSplitExtendedProperty(MetadataProtoUtils.toProtobuf(split.getExtraInfo()))
         .build();
   }
 
   // prevent instantiation
-  private MetadataProtoUtils() {
-  }
+  private MetadataProtoUtils() {}
 }

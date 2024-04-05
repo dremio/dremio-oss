@@ -15,12 +15,7 @@
  */
 package com.dremio.exec.ops;
 
-import java.util.Collection;
-import java.util.Map;
-
-import org.apache.calcite.adapter.java.JavaTypeFactory;
-import org.apache.calcite.schema.Function;
-
+import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.catalog.model.VersionContext;
 import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.exec.catalog.Catalog;
@@ -29,14 +24,19 @@ import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.catalog.SimpleCatalog;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.service.namespace.NamespaceKey;
+import java.util.Collection;
+import java.util.Map;
+import org.apache.calcite.adapter.java.JavaTypeFactory;
+import org.apache.calcite.schema.Function;
 
 /**
- * PlannerCatalog that doesn't add any planning specific behavior and passes metadata requests
- * to the underlying catalog.  Used by auto-complete.
+ * PlannerCatalog that doesn't add any planning specific behavior and passes metadata requests to
+ * the underlying catalog. Used by auto-complete.
  */
 public final class DelegatingPlannerCatalog<T extends SimpleCatalog<T>> implements PlannerCatalog {
 
   private T delegate;
+
   private DelegatingPlannerCatalog(T delegate) {
     this.delegate = delegate;
   }
@@ -56,13 +56,13 @@ public final class DelegatingPlannerCatalog<T extends SimpleCatalog<T>> implemen
   }
 
   @Override
-  public DremioTable getTableSnapshotWithSchema(NamespaceKey key, TableVersionContext versionContext) {
-    return delegate.getTableSnapshot(key, versionContext);
+  public DremioTable getTableWithSchema(CatalogEntityKey catalogEntityKey) {
+    return delegate.getTableSnapshot(catalogEntityKey);
   }
 
   @Override
-  public DremioTable getTableSnapshotIgnoreSchema(NamespaceKey key, TableVersionContext versionContext) {
-    return delegate.getTableSnapshotNoResolve(key, versionContext);
+  public DremioTable getTableIgnoreSchema(CatalogEntityKey catalogEntityKey) {
+    return delegate.getTableNoResolve(catalogEntityKey);
   }
 
   @Override
@@ -76,12 +76,13 @@ public final class DelegatingPlannerCatalog<T extends SimpleCatalog<T>> implemen
   }
 
   @Override
-  public DremioTable getValidatedTableSnapshotWithSchema(NamespaceKey key, TableVersionContext context) {
-    return delegate.getTableSnapshotForQuery(key, context);
+  public DremioTable getValidatedTableWithSchema(CatalogEntityKey catalogEntityKey) {
+    return delegate.getTableSnapshotForQuery(catalogEntityKey);
   }
 
   @Override
-  public Collection<Function> getFunctions(NamespaceKey path, SimpleCatalog.FunctionType functionType) {
+  public Collection<Function> getFunctions(
+      NamespaceKey path, SimpleCatalog.FunctionType functionType) {
     return delegate.getFunctions(path, functionType);
   }
 
@@ -111,7 +112,7 @@ public final class DelegatingPlannerCatalog<T extends SimpleCatalog<T>> implemen
   }
 
   @Override
-  public boolean containerExists(NamespaceKey path) {
+  public boolean containerExists(CatalogEntityKey path) {
     throw new UnsupportedOperationException();
   }
 
@@ -136,7 +137,8 @@ public final class DelegatingPlannerCatalog<T extends SimpleCatalog<T>> implemen
   }
 
   @Override
-  public PlannerCatalog resolvePlannerCatalog(java.util.function.Function<Catalog, Catalog> catalogTransformer) {
+  public PlannerCatalog resolvePlannerCatalog(
+      java.util.function.Function<Catalog, Catalog> catalogTransformer) {
     throw new UnsupportedOperationException();
   }
 

@@ -18,7 +18,8 @@ package org.apache.arrow.flight;
 import com.google.common.base.Preconditions;
 
 public class DremioBackpressureStrategy implements BackpressureStrategy {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DremioBackpressureStrategy.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(DremioBackpressureStrategy.class);
   private final Object lock = new Object();
   private FlightProducer.ServerStreamListener listener;
   private boolean ready;
@@ -74,8 +75,8 @@ public class DremioBackpressureStrategy implements BackpressureStrategy {
   /**
    * Interrupt waiting on the listener to change state.
    *
-   * This method can be used in conjunction with
-   * {@link #shouldContinueWaiting(FlightProducer.ServerStreamListener, long)} to allow FlightProducers to
+   * <p>This method can be used in conjunction with {@link
+   * #shouldContinueWaiting(FlightProducer.ServerStreamListener, long)} to allow FlightProducers to
    * terminate streams internally and notify clients.
    */
   public void interruptWait() {
@@ -85,28 +86,23 @@ public class DremioBackpressureStrategy implements BackpressureStrategy {
   }
 
   /**
-   * Callback function to run to check if the listener should continue
-   * to be waited on if it leaves the waiting state without being cancelled,
-   * ready, or timed out.
+   * Callback function to run to check if the listener should continue to be waited on if it leaves
+   * the waiting state without being cancelled, ready, or timed out.
    *
-   * This method should be used to determine if the wait on the listener was interrupted explicitly using a
-   * call to {@link #interruptWait()} or if it was woken up due to a spurious wake.
+   * <p>This method should be used to determine if the wait on the listener was interrupted
+   * explicitly using a call to {@link #interruptWait()} or if it was woken up due to a spurious
+   * wake.
    */
-  protected boolean shouldContinueWaiting(FlightProducer.ServerStreamListener listener, long remainingTimeout) {
+  protected boolean shouldContinueWaiting(
+      FlightProducer.ServerStreamListener listener, long remainingTimeout) {
     return true;
   }
 
-  /**
-   * Callback to execute when the listener becomes ready.
-   */
-  protected void readyCallback() {
-  }
+  /** Callback to execute when the listener becomes ready. */
+  protected void readyCallback() {}
 
-  /**
-   * Callback to execute when the listener is cancelled.
-   */
-  protected void cancelCallback() {
-  }
+  /** Callback to execute when the listener is cancelled. */
+  protected void cancelCallback() {}
 
   private void onReady() {
     synchronized (lock) {

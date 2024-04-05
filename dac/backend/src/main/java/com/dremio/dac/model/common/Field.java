@@ -17,15 +17,12 @@ package com.dremio.dac.model.common;
 
 import com.dremio.dac.proto.model.dataset.DataType;
 
-/**
- * Class representing a dataset field
- */
+/** Class representing a dataset field */
 public class Field {
   private String name;
   private DataType type;
 
-  public Field() {
-  }
+  public Field() {}
 
   public Field(String name, DataType type) {
     this.name = name;
@@ -42,10 +39,7 @@ public class Field {
 
   @Override
   public String toString() {
-    return "Field{" +
-      "name='" + name + '\'' +
-      ", type=" + type +
-      '}';
+    return "Field{" + "name='" + name + '\'' + ", type=" + type + '}';
   }
 
   public void setName(String name) {

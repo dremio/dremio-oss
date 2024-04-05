@@ -35,13 +35,14 @@ public final class FunctionMerger {
       }
     }
 
-    ImmutableList<FunctionSignature> mergedSignatures = FunctionSignatureMerger.merge(signaturesBuilder.build().asList());
+    ImmutableList<FunctionSignature> mergedSignatures =
+        FunctionSignatureMerger.merge(signaturesBuilder.build().asList());
 
     Function firstFunction = functions.get(0);
     return Function.builder()
-      .name(firstFunction.getName())
-      .addAllSignatures(mergedSignatures)
-      .description(firstFunction.getDescription())
-      .build();
+        .name(firstFunction.getName())
+        .addAllSignatures(mergedSignatures)
+        .description(firstFunction.getDescription())
+        .build();
   }
 }

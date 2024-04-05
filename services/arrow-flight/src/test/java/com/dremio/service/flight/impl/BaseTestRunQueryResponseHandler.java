@@ -29,8 +29,14 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.proto.UserBitShared;
+import com.dremio.exec.work.protector.UserResult;
+import com.dremio.exec.work.protector.UserWorker;
+import com.dremio.options.OptionManager;
+import com.dremio.sabot.rpc.user.UserSession;
+import com.dremio.service.flight.DremioFlightServiceOptions;
 import javax.inject.Provider;
-
 import org.apache.arrow.flight.CallStatus;
 import org.apache.arrow.flight.FlightProducer;
 import org.apache.arrow.flight.FlightRuntimeException;
@@ -39,17 +45,7 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.proto.UserBitShared;
-import com.dremio.exec.work.protector.UserResult;
-import com.dremio.exec.work.protector.UserWorker;
-import com.dremio.options.OptionManager;
-import com.dremio.sabot.rpc.user.UserSession;
-import com.dremio.service.flight.DremioFlightServiceOptions;
-
-/**
- * Unit test class for RunQueryResponseHandler.
- */
+/** Unit test class for RunQueryResponseHandler. */
 public abstract class BaseTestRunQueryResponseHandler {
   private static UserBitShared.ExternalId externalId;
   private static UserSession userSession;
@@ -77,7 +73,8 @@ public abstract class BaseTestRunQueryResponseHandler {
     this.optionManager = mock(OptionManager.class);
     when(workerProvider.get()).thenReturn(userWorker);
     when(userWorker.getSystemOptions()).thenReturn(optionManager);
-    when(optionManager.getOption(DremioFlightServiceOptions.CLIENT_READINESS_TIMEOUT_MILLIS)).thenReturn(5000L);
+    when(optionManager.getOption(DremioFlightServiceOptions.CLIENT_READINESS_TIMEOUT_MILLIS))
+        .thenReturn(5000L);
   }
 
   public static UserBitShared.ExternalId getExternalId() {
@@ -142,13 +139,17 @@ public abstract class BaseTestRunQueryResponseHandler {
     when(result.getState()).thenReturn(FAILED);
     when(result.hasException()).thenReturn(false);
     when(result.getException()).thenReturn(null);
-    doAnswer((InvocationOnMock invocationOnMock) -> {
-      final FlightRuntimeException exception = (FlightRuntimeException) invocationOnMock.getArguments()[0];
-      final CallStatus status = exception.status();
-      assertEquals(FlightStatusCode.UNKNOWN, status.code());
-      assertEquals("Query failed but no exception was thrown.", status.description());
-      return null;
-    }).when(listener).error(any(FlightRuntimeException.class));
+    doAnswer(
+            (InvocationOnMock invocationOnMock) -> {
+              final FlightRuntimeException exception =
+                  (FlightRuntimeException) invocationOnMock.getArguments()[0];
+              final CallStatus status = exception.status();
+              assertEquals(FlightStatusCode.UNKNOWN, status.code());
+              assertEquals("Query failed but no exception was thrown.", status.description());
+              return null;
+            })
+        .when(listener)
+        .error(any(FlightRuntimeException.class));
 
     // Act
     createHandler().handleUserResultState(result);
@@ -161,20 +162,25 @@ public abstract class BaseTestRunQueryResponseHandler {
   public void testUserResultStateFailedWithException() {
     // Arrange
     final String expectedMessage = "Test UserException data read error.";
-    final UserException expectedException = UserException.dataReadError().message(expectedMessage).buildSilently();
+    final UserException expectedException =
+        UserException.dataReadError().message(expectedMessage).buildSilently();
 
     final UserResult result = mock(UserResult.class);
     when(result.getState()).thenReturn(FAILED);
     when(result.hasException()).thenReturn(true);
     when(result.getException()).thenReturn(expectedException);
-    doAnswer((InvocationOnMock invocationOnMock) -> {
-      final FlightRuntimeException exception = (FlightRuntimeException) invocationOnMock.getArguments()[0];
-      final CallStatus status = exception.status();
-      assertEquals(FlightStatusCode.INTERNAL, status.code());
-      assertEquals(expectedMessage, status.description());
-      assertEquals(expectedException, exception.getCause());
-      return null;
-    }).when(listener).error(any(FlightRuntimeException.class));
+    doAnswer(
+            (InvocationOnMock invocationOnMock) -> {
+              final FlightRuntimeException exception =
+                  (FlightRuntimeException) invocationOnMock.getArguments()[0];
+              final CallStatus status = exception.status();
+              assertEquals(FlightStatusCode.INTERNAL, status.code());
+              assertEquals(expectedMessage, status.description());
+              assertEquals(expectedException, exception.getCause());
+              return null;
+            })
+        .when(listener)
+        .error(any(FlightRuntimeException.class));
 
     // Act
     createHandler().handleUserResultState(result);
@@ -192,13 +198,17 @@ public abstract class BaseTestRunQueryResponseHandler {
     when(result.hasException()).thenReturn(false);
     when(result.getException()).thenReturn(null);
     when(result.getCancelReason()).thenReturn(expectedMessage);
-    doAnswer((InvocationOnMock invocationOnMock) -> {
-      final FlightRuntimeException exception = (FlightRuntimeException) invocationOnMock.getArguments()[0];
-      final CallStatus status = exception.status();
-      assertEquals(FlightStatusCode.CANCELLED, status.code());
-      assertEquals(expectedMessage, status.description());
-      return null;
-    }).when(listener).error(any(FlightRuntimeException.class));
+    doAnswer(
+            (InvocationOnMock invocationOnMock) -> {
+              final FlightRuntimeException exception =
+                  (FlightRuntimeException) invocationOnMock.getArguments()[0];
+              final CallStatus status = exception.status();
+              assertEquals(FlightStatusCode.CANCELLED, status.code());
+              assertEquals(expectedMessage, status.description());
+              return null;
+            })
+        .when(listener)
+        .error(any(FlightRuntimeException.class));
 
     // Act
     createHandler().handleUserResultState(result);
@@ -215,13 +225,17 @@ public abstract class BaseTestRunQueryResponseHandler {
     when(result.hasException()).thenReturn(false);
     when(result.getException()).thenReturn(null);
     when(result.getCancelReason()).thenReturn(null);
-    doAnswer((InvocationOnMock invocationOnMock) -> {
-      final FlightRuntimeException exception = (FlightRuntimeException) invocationOnMock.getArguments()[0];
-      final CallStatus status = exception.status();
-      assertEquals(FlightStatusCode.CANCELLED, status.code());
-      assertEquals("Query is cancelled by the server.", status.description());
-      return null;
-    }).when(listener).error(any(FlightRuntimeException.class));
+    doAnswer(
+            (InvocationOnMock invocationOnMock) -> {
+              final FlightRuntimeException exception =
+                  (FlightRuntimeException) invocationOnMock.getArguments()[0];
+              final CallStatus status = exception.status();
+              assertEquals(FlightStatusCode.CANCELLED, status.code());
+              assertEquals("Query is cancelled by the server.", status.description());
+              return null;
+            })
+        .when(listener)
+        .error(any(FlightRuntimeException.class));
 
     // Act
     createHandler().handleUserResultState(result);
@@ -234,20 +248,25 @@ public abstract class BaseTestRunQueryResponseHandler {
   public void testUserResultStateCancelledWithException() {
     // Arrange
     final String expectedMessage = "Test UserException data read error.";
-    final UserException expectedException = UserException.dataReadError().message(expectedMessage).buildSilently();
+    final UserException expectedException =
+        UserException.dataReadError().message(expectedMessage).buildSilently();
 
     final UserResult result = mock(UserResult.class);
     when(result.getState()).thenReturn(CANCELED);
     when(result.hasException()).thenReturn(true);
     when(result.getException()).thenReturn(expectedException);
-    doAnswer((InvocationOnMock invocationOnMock) -> {
-      final FlightRuntimeException exception = (FlightRuntimeException) invocationOnMock.getArguments()[0];
-      final CallStatus status = exception.status();
-      assertEquals(FlightStatusCode.CANCELLED, status.code());
-      assertEquals(expectedMessage, status.description());
-      assertEquals(expectedException, exception.getCause());
-      return null;
-    }).when(listener).error(any(FlightRuntimeException.class));
+    doAnswer(
+            (InvocationOnMock invocationOnMock) -> {
+              final FlightRuntimeException exception =
+                  (FlightRuntimeException) invocationOnMock.getArguments()[0];
+              final CallStatus status = exception.status();
+              assertEquals(FlightStatusCode.CANCELLED, status.code());
+              assertEquals(expectedMessage, status.description());
+              assertEquals(expectedException, exception.getCause());
+              return null;
+            })
+        .when(listener)
+        .error(any(FlightRuntimeException.class));
 
     // Act
     createHandler().handleUserResultState(result);
@@ -275,7 +294,7 @@ public abstract class BaseTestRunQueryResponseHandler {
     final String username = "testUser";
     final String impersonationName = "testImpersonationName";
     final UserBitShared.UserCredentials credentials =
-      UserBitShared.UserCredentials.newBuilder().setUserName(username).build();
+        UserBitShared.UserCredentials.newBuilder().setUserName(username).build();
     final UserWorker worker = mock(UserWorker.class);
 
     when(userSession.getCredentials()).thenReturn(credentials);

@@ -15,16 +15,6 @@
  */
 package com.dremio.exec.work.foreman;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.function.Supplier;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
-
-import org.slf4j.Logger;
-
 import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.DremioVersionInfo;
@@ -36,12 +26,11 @@ import com.dremio.exec.planner.observer.AbstractAttemptObserver;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.observer.AttemptObservers;
 import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.planner.physical.Prel;
-import com.dremio.exec.planner.physical.visitor.QueryProfileProcessor;
 import com.dremio.exec.planner.serialization.RelSerializerFactory;
 import com.dremio.exec.proto.CoordExecRPC.QueryProgressMetrics;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.AttemptEvent;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.work.protector.UserRequest;
 import com.dremio.exec.work.protector.UserResult;
 import com.dremio.options.OptionManager;
@@ -57,32 +46,42 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Empty;
-
 import io.grpc.Context;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
+import org.slf4j.Logger;
 
-/**
- * Tracker for the profile of a query attempt.
- */
+/** Tracker for the profile of a query attempt. */
 class AttemptProfileTracker {
-  private static final Logger logger = org.slf4j.LoggerFactory.getLogger(AttemptProfileTracker.class);
-  private static final ObjectWriter JSON_PRETTY_SERIALIZER = new ObjectMapper().writerWithDefaultPrettyPrinter();
+  private static final Logger logger =
+      org.slf4j.LoggerFactory.getLogger(AttemptProfileTracker.class);
+  private static final ObjectWriter JSON_PRETTY_SERIALIZER =
+      new ObjectMapper().writerWithDefaultPrettyPrinter();
 
   private final UserBitShared.QueryId queryId;
   private final QueryContext queryContext;
   private final String queryDescription;
   private final Supplier<UserBitShared.QueryResult.QueryState> queryStateSupplier;
   private final PlanCaptureAttemptObserver capturer;
-  private final AttemptObserver mergedObserver;
+  private final AttemptObservers mergedObserver;
   private final JobTelemetryClient jobTelemetryClient;
   private final UserBitShared.QueryProfile.Builder planningProfileBuilder =
-    UserBitShared.QueryProfile.newBuilder();
+      UserBitShared.QueryProfile.newBuilder();
 
   // the following mutable variables capture ongoing query status
   private long commandPoolWait;
   private long startPlanningTime;
-  private long endPlanningTime;  // NB: tracks the end of both planning and resource scheduling. Name match the profile object, which was kept intact for legacy reasons
+  private long
+      endPlanningTime; // NB: tracks the end of both planning and resource scheduling. Name match
+  // the profile object, which was kept intact for legacy reasons
   private long startTime;
   private long endTime;
+  private long cancelStartTime;
   private List<AttemptEvent> stateList = new ArrayList<>();
 
   private volatile UserBitShared.QueryProfile planningProfile;
@@ -92,12 +91,13 @@ class AttemptProfileTracker {
   private volatile ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo;
   private final Context grpcContext;
 
-  AttemptProfileTracker(UserBitShared.QueryId queryId,
-                        QueryContext queryContext,
-                        String queryDescription,
-                        Supplier<UserBitShared.QueryResult.QueryState> queryStateSupplier,
-                        AttemptObserver observer,
-                        JobTelemetryClient jobTelemetryClient) {
+  AttemptProfileTracker(
+      UserBitShared.QueryId queryId,
+      QueryContext queryContext,
+      String queryDescription,
+      Supplier<UserBitShared.QueryResult.QueryState> queryStateSupplier,
+      AttemptObserver observer,
+      JobTelemetryClient jobTelemetryClient) {
     this.queryId = queryId;
     this.queryContext = queryContext;
     this.queryDescription = queryDescription;
@@ -106,19 +106,22 @@ class AttemptProfileTracker {
 
     // add additional observers.
     final OptionManager optionManager = queryContext.getOptions();
-    capturer = new PlanCaptureAttemptObserver(
-      optionManager.getOption(PlannerSettings.VERBOSE_PROFILE),
-      optionManager.getOption(PlannerSettings.INCLUDE_DATASET_PROFILE),
-      queryContext.getFunctionRegistry(),
-      queryContext.getAccelerationManager().newPopulator(), RelSerializerFactory
-      .getProfileFactory(queryContext.getConfig(), queryContext.getScanResult()));
+    capturer =
+        new PlanCaptureAttemptObserver(
+            optionManager.getOption(PlannerSettings.VERBOSE_PROFILE),
+            optionManager.getOption(PlannerSettings.INCLUDE_DATASET_PROFILE),
+            queryContext.getFunctionRegistry(),
+            queryContext.getAccelerationManager().newPopulator(),
+            RelSerializerFactory.getProfileFactory(
+                queryContext.getConfig(), queryContext.getScanResult()));
 
     mergedObserver = AttemptObservers.of(observer, capturer, new TimeMarker());
-    //separate out grpc context for jts
+    // separate out grpc context for jts
     this.grpcContext = Context.current().fork();
+    cancelStartTime = -1;
   }
 
-  AttemptObserver getObserver() {
+  AttemptObservers getObserver() {
     return mergedObserver;
   }
 
@@ -128,6 +131,7 @@ class AttemptProfileTracker {
 
   void setCancelReason(String cancelReason) {
     this.cancelReason = cancelReason;
+    this.cancelStartTime = System.currentTimeMillis();
   }
 
   String getCancelReason() {
@@ -137,15 +141,16 @@ class AttemptProfileTracker {
   // Send planning profile to JTS.
   ListenableFuture<Empty> sendPlanningProfile() {
     try {
-      return grpcContext.call(() -> {
-        return jobTelemetryClient.getFutureStub()
-          .putQueryPlanningProfile(
-            PutPlanningProfileRequest.newBuilder()
-              .setQueryId(queryId)
-              .setProfile(getPlanningProfile())
-              .build()
-          );
-      });
+      return grpcContext.call(
+          () -> {
+            return jobTelemetryClient
+                .getFutureStub()
+                .putQueryPlanningProfile(
+                    PutPlanningProfileRequest.newBuilder()
+                        .setQueryId(queryId)
+                        .setProfile(getPlanningProfile())
+                        .build());
+          });
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
@@ -153,7 +158,8 @@ class AttemptProfileTracker {
 
   // Send tail profile to JTS (used after query terminates).
   UserBitShared.QueryProfile sendTailProfile(UserException userException) throws Exception {
-    // fetch latest progress metrics before publishing tail profile, as they'll be deleted in putQueryTailProfile
+    // fetch latest progress metrics before publishing tail profile, as they'll be deleted in
+    // putQueryTailProfile
     getLatestQueryProgressMetrics();
     this.userException = userException;
 
@@ -161,27 +167,29 @@ class AttemptProfileTracker {
     // sometimes the original context might not be valid.
     // fork a new context always.
     UserBitShared.QueryProfile profile = getPlanningProfile();
-    grpcContext.run( () -> {
-      jobTelemetryClient.getBlockingStub()
-        .putQueryTailProfile(
-          PutTailProfileRequest.newBuilder()
-            .setQueryId(queryId)
-            .setProfile(profile)
-            .build()
-        );
-    });
+    grpcContext.run(
+        () -> {
+          jobTelemetryClient
+              .getBlockingStub()
+              .putQueryTailProfile(
+                  PutTailProfileRequest.newBuilder()
+                      .setQueryId(queryId)
+                      .setProfile(profile)
+                      .build());
+        });
     return profile;
   }
 
   private void getLatestQueryProgressMetrics() throws Exception {
-    QueryProgressMetrics metrics = grpcContext.call( () -> {
-      return jobTelemetryClient.getBlockingStub()
-        .getQueryProgressMetricsUnary(
-          GetQueryProgressMetricsRequest.newBuilder()
-            .setQueryId(queryId)
-            .build()
-        ).getMetrics();
-    });
+    QueryProgressMetrics metrics =
+        grpcContext.call(
+            () -> {
+              return jobTelemetryClient
+                  .getBlockingStub()
+                  .getQueryProgressMetricsUnary(
+                      GetQueryProgressMetricsRequest.newBuilder().setQueryId(queryId).build())
+                  .getMetrics();
+            });
     if (metrics.getRowsProcessed() >= 0) {
       mergedObserver.recordsProcessed(metrics.getRowsProcessed());
     }
@@ -190,7 +198,8 @@ class AttemptProfileTracker {
     }
   }
 
-  private UserBitShared.QueryProfile getPlanningProfileFunction(boolean ignoreExceptions)  throws UserException, com.dremio.common.exceptions.UserCancellationException {
+  private UserBitShared.QueryProfile getPlanningProfileFunction(boolean ignoreExceptions)
+      throws UserException, com.dremio.common.exceptions.UserCancellationException {
     UserBitShared.QueryProfile.Builder builder = UserBitShared.QueryProfile.newBuilder();
 
     try {
@@ -217,7 +226,8 @@ class AttemptProfileTracker {
   }
 
   // Get the latest planning profile.
-  synchronized UserBitShared.QueryProfile getPlanningProfile() throws UserException, com.dremio.common.exceptions.UserCancellationException {
+  synchronized UserBitShared.QueryProfile getPlanningProfile()
+      throws UserException, com.dremio.common.exceptions.UserCancellationException {
     return getPlanningProfileFunction(false);
   }
 
@@ -229,27 +239,28 @@ class AttemptProfileTracker {
   // fetch full profile (including executor profiles) from JTS.
   UserBitShared.QueryProfile getFullProfile() {
     try {
-      return grpcContext.call(() -> {
-        return jobTelemetryClient.getBlockingStub()
-          .getQueryProfile(
-            GetQueryProfileRequest.newBuilder()
-              .setQueryId(queryId)
-              .build()
-          ).getProfile();
-      });
+      return grpcContext.call(
+          () -> {
+            return jobTelemetryClient
+                .getBlockingStub()
+                .getQueryProfile(GetQueryProfileRequest.newBuilder().setQueryId(queryId).build())
+                .getProfile();
+          });
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
   }
 
   /**
-   * Adds planner related details to the profile builder.
-   * This method is continuously called until planning is done.
+   * Adds planner related details to the profile builder. This method is continuously called until
+   * planning is done.
+   *
    * @param builder
    * @throws UserException
    * @throws com.dremio.common.exceptions.UserCancellationException
    */
-  private void addPlanningDetails(UserBitShared.QueryProfile.Builder builder) throws UserException, com.dremio.common.exceptions.UserCancellationException {
+  private void addPlanningDetails(UserBitShared.QueryProfile.Builder builder)
+      throws UserException, com.dremio.common.exceptions.UserCancellationException {
     builder.setQuery(queryDescription);
     builder.setUser(queryContext.getQueryUserName());
     builder.setId(queryId);
@@ -261,16 +272,17 @@ class AttemptProfileTracker {
     if (endPlanningTime > 0) {
       builder.setPlanningEnd(endPlanningTime);
     }
-    if(stateList != null) {
+    if (stateList != null) {
       builder.clearStateList().addAllStateList(stateList);
     }
 
     try {
-      builder.setNonDefaultOptionsJSON(JSON_PRETTY_SERIALIZER.writeValueAsString(queryContext.getNonDefaultOptions()));
+      builder.setNonDefaultOptionsJSON(
+          JSON_PRETTY_SERIALIZER.writeValueAsString(queryContext.getNonDefaultOptions()));
     } catch (Exception e) {
       logger.warn("Failed to serialize the non-default option list to JSON", e);
-      builder.setNonDefaultOptionsJSON("Failed to serialize the non-default " +
-        "option list to JSON: " + e.getMessage());
+      builder.setNonDefaultOptionsJSON(
+          "Failed to serialize the non-default " + "option list to JSON: " + e.getMessage());
     }
     builder.setOperatorTypeMetricsMap(OperatorMetricRegistry.getCoreOperatorTypeMetricsMap());
 
@@ -296,14 +308,9 @@ class AttemptProfileTracker {
       }
 
       // Scrape Final Physical Plan into a usable API
-      final Prel finalPrel = capturer.getFinalPrel();
-      if (finalPrel != null && queryContext.getOptions().getOption(PlannerSettings.PRETTY_PLAN_SCRAPING)) {
-        try {
-          Map<String, UserBitShared.RelNodeInfo> prettyRelProcessor = QueryProfileProcessor.process(finalPrel);
-          builder.putAllRelInfoMap(prettyRelProcessor);
-        } catch (Exception e) {
-          logger.warn("Failed to serialize the pretty Plan info", e);
-        }
+      final Map<String, UserBitShared.RelNodeInfo> finalPrelInfo = capturer.getFinalPrelInfo();
+      if (queryContext.getOptions().getOption(PlannerSettings.PRETTY_PLAN_SCRAPING)) {
+        builder.putAllRelInfoMap(finalPrelInfo);
       }
 
       final String fullSchema = capturer.getFullSchema();
@@ -321,31 +328,37 @@ class AttemptProfileTracker {
         builder.setSerializedPlan(ByteString.copyFrom(serializedPlan));
       }
       // This method might throw exception, hence moved it to the bottom
-      builder.setAccelerationProfile(capturer.getAccelerationProfile());
+      builder.setAccelerationProfile(capturer.buildAccelerationProfile(false));
     }
 
     // Adds final planning stats for catalog access
     if (endPlanningTime > 0) {
       queryContext.getCatalog().addCatalogStats();
-
     }
-    // Populates source version mapping and marks the ones relevant to the current datasets in the query
-    if (endPlanningTime > 0){
+    // Populates source version mapping and marks the ones relevant to the current datasets in the
+    // query
+    if (endPlanningTime > 0) {
       List<UserBitShared.SourceVersionSetting> sourceVersionSettingList = new ArrayList<>();
-      Set<String> currentDatasetSources = StreamSupport.stream(capturer.getDatasets().spliterator(), false)
-        .map(x -> PathUtils.parseFullPath(x.getDatasetPath()).get(0).toLowerCase())
-        .collect(Collectors.toSet());
-      queryContext.getSession().getSourceVersionMapping().entrySet().stream().forEach(x -> populateGlobalVersionContextMapping(x, sourceVersionSettingList, currentDatasetSources));
-      UserBitShared.ContextInfo contextInfo = UserBitShared.ContextInfo
-        .newBuilder()
-        .setSchemaPathContext(queryContext.getQueryContextInfo().getDefaultSchemaName())
-        .addAllSourceVersionSetting(sourceVersionSettingList)
-        .build();
+      Set<String> currentDatasetSources =
+          StreamSupport.stream(capturer.getDatasets().spliterator(), false)
+              .map(x -> PathUtils.parseFullPath(x.getDatasetPath()).get(0).toLowerCase())
+              .collect(Collectors.toSet());
+      queryContext.getSession().getSourceVersionMapping().entrySet().stream()
+          .forEach(
+              x ->
+                  populateGlobalVersionContextMapping(
+                      x, sourceVersionSettingList, currentDatasetSources));
+      UserBitShared.ContextInfo contextInfo =
+          UserBitShared.ContextInfo.newBuilder()
+              .setSchemaPathContext(queryContext.getQueryContextInfo().getDefaultSchemaName())
+              .addAllSourceVersionSetting(sourceVersionSettingList)
+              .build();
       builder.setContextInfo(contextInfo);
     }
 
     // Adds stats for individual table access (does not include versioned sources)
-    builder.addAllPlanPhases(queryContext.getCatalog().getMetadataStatsCollector().getPlanPhaseProfiles());
+    builder.addAllPlanPhases(
+        queryContext.getCatalog().getMetadataStatsCollector().getPlanPhaseProfiles());
 
     if (prepareId != null) {
       builder.setPrepareId(prepareId);
@@ -359,20 +372,26 @@ class AttemptProfileTracker {
     }
   }
 
-  private void populateGlobalVersionContextMapping(Map.Entry<String, VersionContext> svMapEntryFromContext, List<UserBitShared.SourceVersionSetting> svSettingList, Set<String> currentDatasetSources) {
-    UserBitShared.SourceVersionSetting svSetting = UserBitShared.SourceVersionSetting.getDefaultInstance();
-    svSettingList.add(svSetting.toBuilder()
-      .setSource(svMapEntryFromContext.getKey())
-      .setVersionContext(svMapEntryFromContext.getValue().toString())
-      .setUsage(currentDatasetSources.contains(svMapEntryFromContext.getKey()) ?
-        UserBitShared.SourceVersionSetting.Usage.USED_BY_QUERY
-        : UserBitShared.SourceVersionSetting.Usage.NOT_USED_BY_QUERY)
-      .build());
+  private void populateGlobalVersionContextMapping(
+      Map.Entry<String, VersionContext> svMapEntryFromContext,
+      List<UserBitShared.SourceVersionSetting> svSettingList,
+      Set<String> currentDatasetSources) {
+    UserBitShared.SourceVersionSetting svSetting =
+        UserBitShared.SourceVersionSetting.getDefaultInstance();
+    svSettingList.add(
+        svSetting.toBuilder()
+            .setSource(svMapEntryFromContext.getKey())
+            .setVersionContext(svMapEntryFromContext.getValue().toString())
+            .setUsage(
+                currentDatasetSources.contains(svMapEntryFromContext.getKey())
+                    ? UserBitShared.SourceVersionSetting.Usage.USED_BY_QUERY
+                    : UserBitShared.SourceVersionSetting.Usage.NOT_USED_BY_QUERY)
+            .build());
   }
 
   private UserBitShared.ResourceSchedulingProfile getResourceSchedulingProfile() {
-    UserBitShared.ResourceSchedulingProfile.Builder resourceBuilder = UserBitShared.ResourceSchedulingProfile
-      .newBuilder();
+    UserBitShared.ResourceSchedulingProfile.Builder resourceBuilder =
+        UserBitShared.ResourceSchedulingProfile.newBuilder();
     if (resourceSchedulingDecisionInfo.getQueueId() != null) {
       resourceBuilder.setQueueId(resourceSchedulingDecisionInfo.getQueueId());
     }
@@ -391,11 +410,11 @@ class AttemptProfileTracker {
     if (resourceSchedulingDecisionInfo.getRuleAction() != null) {
       resourceBuilder.setRuleAction(resourceSchedulingDecisionInfo.getRuleAction());
     }
-    final ResourceSchedulingProperties schedulingProperties = resourceSchedulingDecisionInfo
-      .getResourceSchedulingProperties();
+    final ResourceSchedulingProperties schedulingProperties =
+        resourceSchedulingDecisionInfo.getResourceSchedulingProperties();
     if (schedulingProperties != null) {
       UserBitShared.ResourceSchedulingProperties.Builder resourcePropsBuilder =
-        UserBitShared.ResourceSchedulingProperties.newBuilder();
+          UserBitShared.ResourceSchedulingProperties.newBuilder();
       if (schedulingProperties.getClientType() != null) {
         resourcePropsBuilder.setClientType(schedulingProperties.getClientType());
       }
@@ -413,8 +432,10 @@ class AttemptProfileTracker {
       }
       resourceBuilder.setSchedulingProperties(resourcePropsBuilder);
     }
-    resourceBuilder.setResourceSchedulingStart(resourceSchedulingDecisionInfo.getSchedulingStartTimeMs());
-    resourceBuilder.setResourceSchedulingEnd(resourceSchedulingDecisionInfo.getSchedulingEndTimeMs());
+    resourceBuilder.setResourceSchedulingStart(
+        resourceSchedulingDecisionInfo.getSchedulingStartTimeMs());
+    resourceBuilder.setResourceSchedulingEnd(
+        resourceSchedulingDecisionInfo.getSchedulingEndTimeMs());
     if (resourceSchedulingDecisionInfo.getEngineName() != null) {
       resourceBuilder.setEngineName(resourceSchedulingDecisionInfo.getEngineName());
     }
@@ -434,6 +455,9 @@ class AttemptProfileTracker {
 
     if (cancelReason != null) {
       builder.setCancelReason(cancelReason);
+    }
+    if (cancelStartTime != -1) {
+      builder.setCancelStartTime(cancelStartTime);
     }
     UserResult.addError(userException, builder);
   }
@@ -456,7 +480,7 @@ class AttemptProfileTracker {
     }
 
     @Override
-    public void planCompleted(ExecutionPlan plan) {
+    public void planCompleted(ExecutionPlan plan, BatchSchema batchSchema) {
       markEndPlanningTime();
     }
 

@@ -18,7 +18,6 @@ package com.dremio.exec.store.dfs;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
-
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
@@ -27,18 +26,15 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.util.Progressable;
 
-/**
- * A file system that throws exceptions if used.
- */
+/** A file system that throws exceptions if used. */
 class NoopFileSystem extends FileSystem {
 
   private static final String ERROR = "Local PDFs access isn't supported on a coordination node.";
 
   private static final URI NAME = URI.create("noop:///");
 
-  public NoopFileSystem(){
+  public NoopFileSystem() {}
 
-  }
   @Override
   public URI getUri() {
     return NAME;
@@ -50,13 +46,21 @@ class NoopFileSystem extends FileSystem {
   }
 
   @Override
-  public FSDataOutputStream create(Path f, FsPermission permission, boolean overwrite, int bufferSize,
-      short replication, long blockSize, Progressable progress) throws IOException {
+  public FSDataOutputStream create(
+      Path f,
+      FsPermission permission,
+      boolean overwrite,
+      int bufferSize,
+      short replication,
+      long blockSize,
+      Progressable progress)
+      throws IOException {
     throw new UnsupportedOperationException(ERROR);
   }
 
   @Override
-  public FSDataOutputStream append(Path f, int bufferSize, Progressable progress) throws IOException {
+  public FSDataOutputStream append(Path f, int bufferSize, Progressable progress)
+      throws IOException {
     throw new UnsupportedOperationException(ERROR);
   }
 

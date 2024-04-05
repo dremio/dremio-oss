@@ -15,13 +15,6 @@
  */
 package com.dremio.sabot.op.join.vhash.spill.io;
 
-import java.io.EOFException;
-import java.io.IOException;
-import java.nio.ByteBuffer;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.util.LargeMemoryUtil;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorContainer;
@@ -32,27 +25,26 @@ import com.dremio.sabot.op.sort.external.SpillManager.SpillInputStream;
 import com.dremio.sabot.op.sort.external.SpillManager.SpillOutputStream;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
-
 import io.netty.util.internal.PlatformDependent;
+import java.io.EOFException;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.util.LargeMemoryUtil;
 
 /**
- * Utility class for ser/deser of spill records.
- * Each chunk has the following format :
- *   1. 4-byte magic
- *   2. 4-byte for number-of-records in the chunk
- *   3. 4-byte len for pivoted fixed portion
- *   4. 4-byte len for pivoted variable portion
- *   5. 4-byte len for unpivoted portion
- *   6. pivoted fixed data
- *   7. pivoted variable data
- *   8. serialized (arrow format) batch for unpivoted columns
+ * Utility class for ser/deser of spill records. Each chunk has the following format : 1. 4-byte
+ * magic 2. 4-byte for number-of-records in the chunk 3. 4-byte len for pivoted fixed portion 4.
+ * 4-byte len for pivoted variable portion 5. 4-byte len for unpivoted portion 6. pivoted fixed data
+ * 7. pivoted variable data 8. serialized (arrow format) batch for unpivoted columns
  *
- *   The sum of (3) & (4) must be fit in one page. deserialized output of (8) must fit in one page.
+ * <p>The sum of (3) & (4) must be fit in one page. deserialized output of (8) must fit in one page.
  *
- *  A Spill file contains one or more chunks in the above format.
+ * <p>A Spill file contains one or more chunks in the above format.
  */
 public class SpillSerializableImpl implements SpillSerializable {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SpillSerializableImpl.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(SpillSerializableImpl.class);
   private static final int IO_CHUNK_SIZE = 32 * 1024;
   private static final int CHUNK_HEADER_LEN = 20;
   private static final int CHUNK_MAGIC_OFFSET = 0;
@@ -62,7 +54,8 @@ public class SpillSerializableImpl implements SpillSerializable {
   private static final int UNPIVOTED_LENGTH_OFFSET = 16;
   private static final int CHUNK_MAGIC = 0x6a6f696e; // 'JOIN' in hex
 
-  private final ByteBuffer intBuffer = ByteBuffer.allocate(Integer.SIZE / Byte.SIZE); //byte array of 4 bytes
+  private final ByteBuffer intBuffer =
+      ByteBuffer.allocate(Integer.SIZE / Byte.SIZE); // byte array of 4 bytes
   private final byte[] ioBuffer = new byte[IO_CHUNK_SIZE];
 
   @Override
@@ -115,7 +108,9 @@ public class SpillSerializableImpl implements SpillSerializable {
   }
 
   @Override
-  public SpillChunk readChunkFromStream(PageSupplier pageSupplier, BatchSchema unpivotedColumnsSchema, SpillInputStream input) throws IOException {
+  public SpillChunk readChunkFromStream(
+      PageSupplier pageSupplier, BatchSchema unpivotedColumnsSchema, SpillInputStream input)
+      throws IOException {
     try (AutoCloseables.RollbackCloseable rc = new AutoCloseables.RollbackCloseable(true)) {
 
       /* read chunk header */
@@ -135,10 +130,15 @@ public class SpillSerializableImpl implements SpillSerializable {
 
       final int numRecords = getLEIntFromByteArray(ioBuffer, NUM_RECORDS_LENGTH_OFFSET);
       final int fixedBufferLength = getLEIntFromByteArray(ioBuffer, FIXED_BUFFER_LENGTH_OFFSET);
-      final int variableBufferLength = getLEIntFromByteArray(ioBuffer, VARIABLE_BUFFER_LENGTH_OFFSET);
+      final int variableBufferLength =
+          getLEIntFromByteArray(ioBuffer, VARIABLE_BUFFER_LENGTH_OFFSET);
       final int unpivotedBufferLength = getLEIntFromByteArray(ioBuffer, UNPIVOTED_LENGTH_OFFSET);
 
-      Page pivotedPage = rc.add(pageSupplier.getPage(RoundUtil.round8up(fixedBufferLength) + RoundUtil.round8up(variableBufferLength)));
+      Page pivotedPage =
+          rc.add(
+              pageSupplier.getPage(
+                  RoundUtil.round8up(fixedBufferLength)
+                      + RoundUtil.round8up(variableBufferLength)));
       Page unpivotedPage = rc.add(pageSupplier.getPage(unpivotedBufferLength));
 
       // read the fixed buffer
@@ -157,8 +157,9 @@ public class SpillSerializableImpl implements SpillSerializable {
       input.load(container, unpivotedPage::sliceAligned);
       rc.commit();
 
-      return new SpillChunk(numRecords, fixed, variable, container, ImmutableList.of(pivotedPage, unpivotedPage));
-    } catch (IOException|RuntimeException ex) {
+      return new SpillChunk(
+          numRecords, fixed, variable, container, ImmutableList.of(pivotedPage, unpivotedPage));
+    } catch (IOException | RuntimeException ex) {
       logger.error("failed to read chunk", ex);
       throw ex;
     } catch (Exception ex) {
@@ -167,8 +168,9 @@ public class SpillSerializableImpl implements SpillSerializable {
   }
 
   // read one arrow buf from the input stream
-  private void readIntoArrowBuf(final ArrowBuf buffer, final int bufferLength,
-                                final SpillInputStream input) throws IOException {
+  private void readIntoArrowBuf(
+      final ArrowBuf buffer, final int bufferLength, final SpillInputStream input)
+      throws IOException {
     int numBytesToRead = bufferLength;
     while (numBytesToRead > 0) {
       final int lenghtToRead = Math.min(ioBuffer.length, numBytesToRead);

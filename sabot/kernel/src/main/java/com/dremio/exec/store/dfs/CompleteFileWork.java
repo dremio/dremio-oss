@@ -20,7 +20,7 @@ import com.dremio.exec.store.schedule.EndpointByteMap;
 import com.dremio.io.file.FileAttributes;
 import com.google.common.base.Objects;
 
-public class CompleteFileWork implements FileWork, Comparable<CompleteFileWork>{
+public class CompleteFileWork implements FileWork, Comparable<CompleteFileWork> {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CompleteFileWork.class);
 
   private final long start;
@@ -28,7 +28,8 @@ public class CompleteFileWork implements FileWork, Comparable<CompleteFileWork>{
   private final FileAttributes attributes;
   private final EndpointByteMap byteMap;
 
-  public CompleteFileWork(EndpointByteMap byteMap, long start, long length, FileAttributes attributes) {
+  public CompleteFileWork(
+      EndpointByteMap byteMap, long start, long length, FileAttributes attributes) {
     super();
     this.start = start;
     this.length = length;
@@ -38,25 +39,23 @@ public class CompleteFileWork implements FileWork, Comparable<CompleteFileWork>{
 
   @Override
   public int compareTo(CompleteFileWork o) {
-    if(o instanceof CompleteFileWork){
+    if (o instanceof CompleteFileWork) {
       CompleteFileWork c = o;
       int cmp = attributes.getPath().compareTo(c.attributes.getPath());
-      if(cmp != 0){
+      if (cmp != 0) {
         return cmp;
       }
 
-      cmp = Long.compare(start,  c.getStart());
-      if(cmp != 0){
+      cmp = Long.compare(start, c.getStart());
+      if (cmp != 0) {
         return cmp;
       }
-
     }
 
     return Long.compare(getTotalBytes(), o.getTotalBytes());
-
   }
 
-  public EndpointByteMap getByteMap(){
+  public EndpointByteMap getByteMap() {
     return byteMap;
   }
 
@@ -79,7 +78,7 @@ public class CompleteFileWork implements FileWork, Comparable<CompleteFileWork>{
     return length;
   }
 
-  public FileWorkImpl getAsFileWork(){
+  public FileWorkImpl getAsFileWork() {
     return new FileWorkImpl(start, length, attributes);
   }
 
@@ -92,9 +91,9 @@ public class CompleteFileWork implements FileWork, Comparable<CompleteFileWork>{
       return false;
     }
     CompleteFileWork that = (CompleteFileWork) o;
-    return start == that.start &&
-        length == that.length &&
-        Objects.equal(attributes, that.attributes);
+    return start == that.start
+        && length == that.length
+        && Objects.equal(attributes, that.attributes);
   }
 
   @Override
@@ -129,7 +128,6 @@ public class CompleteFileWork implements FileWork, Comparable<CompleteFileWork>{
     public long getLength() {
       return length;
     }
-
   }
 
   @Override

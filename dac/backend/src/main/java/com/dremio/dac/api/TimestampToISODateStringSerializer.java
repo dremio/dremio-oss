@@ -15,23 +15,21 @@
  */
 package com.dremio.dac.api;
 
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.databind.JsonSerializer;
+import com.fasterxml.jackson.databind.SerializerProvider;
 import java.io.IOException;
-
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.IllegalFieldValueException;
 import org.joda.time.format.ISODateTimeFormat;
 
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.databind.JsonSerializer;
-import com.fasterxml.jackson.databind.SerializerProvider;
-
-/**
- * Serialize a timestamp to a ISO DateTime string.
- */
+/** Serialize a timestamp to a ISO DateTime string. */
 public class TimestampToISODateStringSerializer extends JsonSerializer<Long> {
   @Override
-  public void serialize(Long timestamp, JsonGenerator jsonGenerator, SerializerProvider serializerProvider) throws IOException {
+  public void serialize(
+      Long timestamp, JsonGenerator jsonGenerator, SerializerProvider serializerProvider)
+      throws IOException {
     // Joda may throw an exception if the timestamp is MAX_LONG so protect ourselves here.
     try {
       DateTime dateTime = new DateTime(timestamp).withZone(DateTimeZone.UTC);

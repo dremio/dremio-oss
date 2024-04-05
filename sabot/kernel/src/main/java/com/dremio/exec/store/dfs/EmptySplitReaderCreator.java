@@ -15,18 +15,15 @@
  */
 package com.dremio.exec.store.dfs;
 
-import java.util.Set;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.store.EmptyRecordReader;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.parquet.InputStreamProvider;
 import com.dremio.exec.store.parquet.MutableParquetMetadata;
 import com.dremio.io.file.Path;
+import java.util.Set;
 
-/**
- * Reader creator which creates {@link EmptyRecordReader}
- */
+/** Reader creator which creates {@link EmptyRecordReader} */
 public class EmptySplitReaderCreator extends SplitReaderCreator {
 
   public EmptySplitReaderCreator(Path path, InputStreamProvider inputStreamProvider) {
@@ -35,7 +32,8 @@ public class EmptySplitReaderCreator extends SplitReaderCreator {
   }
 
   @Override
-  public void createInputStreamProvider(InputStreamProvider lastInputStreamProvider, MutableParquetMetadata lastFooter) {}
+  public void createInputStreamProvider(
+      InputStreamProvider lastInputStreamProvider, MutableParquetMetadata lastFooter) {}
 
   @Override
   public InputStreamProvider getInputStreamProvider() {
@@ -43,8 +41,7 @@ public class EmptySplitReaderCreator extends SplitReaderCreator {
   }
 
   @Override
-  public void addRowGroupsToRead(Set<Integer> rowGroupsToRead) {
-  }
+  public void addRowGroupsToRead(Set<Integer> rowGroupsToRead) {}
 
   @Override
   public MutableParquetMetadata getFooter() {

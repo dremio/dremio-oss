@@ -15,6 +15,13 @@
  */
 package com.dremio.service.coordinator;
 
+import com.dremio.common.AutoCloseables;
+import com.dremio.exec.proto.CoordinationProtos;
+import com.dremio.telemetry.api.metrics.Counter;
+import com.dremio.telemetry.api.metrics.Metrics;
+import com.dremio.telemetry.api.metrics.Timer;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.util.Collection;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -25,27 +32,23 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
-
 import javax.inject.Provider;
 
-import com.dremio.common.AutoCloseables;
-import com.dremio.exec.proto.CoordinationProtos;
-import com.dremio.telemetry.api.metrics.Counter;
-import com.dremio.telemetry.api.metrics.Metrics;
-import com.dremio.telemetry.api.metrics.Timer;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
-
 /**
- * Task Leader election service - allows to elect leader among
- * nodes that handle a particular service
+ * Task Leader election service - allows to elect leader among nodes that handle a particular
+ * service
  */
 public class TaskLeaderElection implements AutoCloseable {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TaskLeaderElection.class);
-  private static final Timer LEADERSHIP_LAST_ELECTED_TIMER = Metrics.newTimer(Metrics.join("TaskLeaderElection", "lastElectedTime"), Metrics.ResetType.NEVER);
-  private static final Counter LEADERSHIP_ELECTION_SUCCESS_COUNTER = Metrics.newCounter(Metrics.join("TaskLeaderElection", "success"), Metrics.ResetType.NEVER);
-  private static final Counter LEADERSHIP_ELECTION_FAILSAFE_COUNTER = Metrics.newCounter(Metrics.join("TaskLeaderElection", "failures"), Metrics.ResetType.NEVER);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(TaskLeaderElection.class);
+  private static final Timer LEADERSHIP_LAST_ELECTED_TIMER =
+      Metrics.newTimer(
+          Metrics.join("TaskLeaderElection", "lastElectedTime"), Metrics.ResetType.NEVER);
+  private static final Counter LEADERSHIP_ELECTION_SUCCESS_COUNTER =
+      Metrics.newCounter(Metrics.join("TaskLeaderElection", "success"), Metrics.ResetType.NEVER);
+  private static final Counter LEADERSHIP_ELECTION_FAILSAFE_COUNTER =
+      Metrics.newCounter(Metrics.join("TaskLeaderElection", "failures"), Metrics.ResetType.NEVER);
 
   private static final long LEADER_UNAVAILABLE_DURATION_SECS = 600; // 10 minutes
 
@@ -63,7 +66,8 @@ public class TaskLeaderElection implements AutoCloseable {
   private ServiceSet serviceSet;
   private volatile RegistrationHandle nodeEndpointRegistrationHandle;
   private Future leadershipReleaseFuture;
-  private ConcurrentMap<TaskLeaderChangeListener, TaskLeaderChangeListener> listeners = new ConcurrentHashMap<>();
+  private ConcurrentMap<TaskLeaderChangeListener, TaskLeaderChangeListener> listeners =
+      new ConcurrentHashMap<>();
   private volatile boolean electionHandleClosed = false;
   private final Function<ElectionListener, ElectionListener> electionListenerProvider;
   private FailSafeReElectionTask failSafeReElectionTask;
@@ -71,52 +75,73 @@ public class TaskLeaderElection implements AutoCloseable {
 
   /**
    * If we don't use relinquishing leadership - don't need executor
+   *
    * @param serviceName
    * @param clusterServiceSetManagerProvider
    * @param currentEndPoint
    */
-  public TaskLeaderElection(String serviceName,
-                            Provider<ClusterServiceSetManager> clusterServiceSetManagerProvider,
-                            Provider<ClusterElectionManager> clusterElectionManagerProvider,
-                            Provider<CoordinationProtos.NodeEndpoint> currentEndPoint) {
-    this(serviceName, clusterServiceSetManagerProvider, clusterElectionManagerProvider, null,
-      currentEndPoint, null);
+  public TaskLeaderElection(
+      String serviceName,
+      Provider<ClusterServiceSetManager> clusterServiceSetManagerProvider,
+      Provider<ClusterElectionManager> clusterElectionManagerProvider,
+      Provider<CoordinationProtos.NodeEndpoint> currentEndPoint) {
+    this(
+        serviceName,
+        clusterServiceSetManagerProvider,
+        clusterElectionManagerProvider,
+        null,
+        currentEndPoint,
+        null);
   }
 
-  public TaskLeaderElection(String serviceName,
-                            Provider<ClusterServiceSetManager> clusterServiceSetManagerProvider,
-                            Provider<ClusterElectionManager> clusterElectionManagerProvider,
-                            Long leaseExpirationTime,
-                            Provider<CoordinationProtos.NodeEndpoint> currentEndPoint,
-                            ScheduledExecutorService executorService) {
-    this(serviceName, clusterServiceSetManagerProvider, clusterElectionManagerProvider,
-      leaseExpirationTime, currentEndPoint,
-      executorService, LEADER_UNAVAILABLE_DURATION_SECS, Function.identity());
-
+  public TaskLeaderElection(
+      String serviceName,
+      Provider<ClusterServiceSetManager> clusterServiceSetManagerProvider,
+      Provider<ClusterElectionManager> clusterElectionManagerProvider,
+      Long leaseExpirationTime,
+      Provider<CoordinationProtos.NodeEndpoint> currentEndPoint,
+      ScheduledExecutorService executorService) {
+    this(
+        serviceName,
+        clusterServiceSetManagerProvider,
+        clusterElectionManagerProvider,
+        leaseExpirationTime,
+        currentEndPoint,
+        executorService,
+        LEADER_UNAVAILABLE_DURATION_SECS,
+        Function.identity());
   }
 
-  public TaskLeaderElection(String serviceName,
-                            Provider<ClusterServiceSetManager> clusterServiceSetManagerProvider,
-                            Provider<ClusterElectionManager> clusterElectionManagerProvider,
-                            Long leaseExpirationTime,
-                            Provider<CoordinationProtos.NodeEndpoint> currentEndPoint,
-                            ScheduledExecutorService executorService,
-                            Long failSafeLeaderUnavailableDuration,
-                            Function<ElectionListener, ElectionListener> electionListenerProvider) {
+  public TaskLeaderElection(
+      String serviceName,
+      Provider<ClusterServiceSetManager> clusterServiceSetManagerProvider,
+      Provider<ClusterElectionManager> clusterElectionManagerProvider,
+      Long leaseExpirationTime,
+      Provider<CoordinationProtos.NodeEndpoint> currentEndPoint,
+      ScheduledExecutorService executorService,
+      Long failSafeLeaderUnavailableDuration,
+      Function<ElectionListener, ElectionListener> electionListenerProvider) {
     this.serviceName = serviceName;
     this.clusterServiceSetManagerProvider = clusterServiceSetManagerProvider;
     this.clusterElectionManagerProvider = clusterElectionManagerProvider;
     this.leaseExpirationTime.set(leaseExpirationTime);
     this.currentEndPoint = currentEndPoint;
-    this.taskLeaderStatusListener = new TaskLeaderStatusListener(serviceName, clusterServiceSetManagerProvider);
-    this.failSafeLeaderUnavailableDuration = failSafeLeaderUnavailableDuration != null ? failSafeLeaderUnavailableDuration : LEADER_UNAVAILABLE_DURATION_SECS;
+    this.taskLeaderStatusListener =
+        new TaskLeaderStatusListener(serviceName, clusterServiceSetManagerProvider);
+    this.failSafeLeaderUnavailableDuration =
+        failSafeLeaderUnavailableDuration != null
+            ? failSafeLeaderUnavailableDuration
+            : LEADER_UNAVAILABLE_DURATION_SECS;
     this.electionListenerProvider = electionListenerProvider;
 
     if (executorService == null) {
-      reElectionExecutor = new ScheduledThreadPoolExecutor(1, new ThreadFactoryBuilder()
-        .setDaemon(true)
-        .setNameFormat("TaskLeaderElection-serviceName")
-        .build());
+      reElectionExecutor =
+          new ScheduledThreadPoolExecutor(
+              1,
+              new ThreadFactoryBuilder()
+                  .setDaemon(true)
+                  .setNameFormat("TaskLeaderElection-serviceName")
+                  .build());
       reElectionExecutor.setRemoveOnCancelPolicy(true);
       this.executorService = reElectionExecutor;
     } else {
@@ -151,70 +176,81 @@ public class TaskLeaderElection implements AutoCloseable {
   private void enterElections() {
     logger.info("Starting TaskLeader Election Service for {}", serviceName);
 
-    // setting this before calling joinElection, trying to avoid the callback on electionListener returning before this
+    // setting this before calling joinElection, trying to avoid the callback on electionListener
+    // returning before this
     // is configured and then missing an onElected operation
-    // there is a call to enterElections() from reset() where no synchronizer is used (can't be used because the handle is closed & set to null).
+    // there is a call to enterElections() from reset() where no synchronizer is used (can't be used
+    // because the handle is closed & set to null).
     electionHandleClosed = false;
 
-    final ElectionListener electionListener = new ElectionListener() {
-      @Override
-      public void onElected() {
-        // if handle pointer is null it means we are getting a callback
-        // before join election returns; there is no synchronisation point here
-        Object electionLock = electionHandle == null ? this : electionHandle.synchronizer();
-        synchronized (electionLock) {
-          if (electionHandleClosed) {
-            logger.info("onElected Event: election handle closed for {}. Will not proceed with the on elected function", serviceName);
-            return;
-          }
+    final ElectionListener electionListener =
+        new ElectionListener() {
+          @Override
+          public void onElected() {
+            // if handle pointer is null it means we are getting a callback
+            // before join election returns; there is no synchronisation point here
+            Object electionLock = electionHandle == null ? this : electionHandle.synchronizer();
+            synchronized (electionLock) {
+              if (electionHandleClosed) {
+                logger.info(
+                    "onElected Event: election handle closed for {}. Will not proceed with the on elected function",
+                    serviceName);
+                return;
+              }
 
-          // in case ZK connection is lost but reestablished later
-          // it may get to the situation when 'onElected' is called
-          // multiple times - this can create an issue with registering
-          // currentEndPoint as master again and again
-          // therefore checking if we were a leader before registering
-          // and doing other operations
-          if (isTaskLeader.compareAndSet(false, true)) {
-            logger.info("onElected Event: Electing Leader for {}", serviceName);
-            LEADERSHIP_LAST_ELECTED_TIMER.update(System.currentTimeMillis(), TimeUnit.MILLISECONDS);
-            LEADERSHIP_ELECTION_SUCCESS_COUNTER.increment();
-            // registering node with service
-            nodeEndpointRegistrationHandle = serviceSet.register(currentEndPoint.get());
-            listeners.keySet().forEach(TaskLeaderChangeListener::onLeadershipGained);
+              // in case ZK connection is lost but reestablished later
+              // it may get to the situation when 'onElected' is called
+              // multiple times - this can create an issue with registering
+              // currentEndPoint as master again and again
+              // therefore checking if we were a leader before registering
+              // and doing other operations
+              if (isTaskLeader.compareAndSet(false, true)) {
+                logger.info("onElected Event: Electing Leader for {}", serviceName);
+                LEADERSHIP_LAST_ELECTED_TIMER.update(
+                    System.currentTimeMillis(), TimeUnit.MILLISECONDS);
+                LEADERSHIP_ELECTION_SUCCESS_COUNTER.increment();
+                // registering node with service
+                nodeEndpointRegistrationHandle = serviceSet.register(currentEndPoint.get());
+                listeners.keySet().forEach(TaskLeaderChangeListener::onLeadershipGained);
 
-            // start thread only if relinquishing leadership time was set
-            if (leaseExpirationTime.get() != null) {
-              logger.info("onElected Event: Restarting leadership lease expiration task {} with {} ms timeout", serviceName, leaseExpirationTime.get());
-              leadershipReleaseFuture = executorService.schedule(
-                new LeadershipReset(),
-                leaseExpirationTime.get(),
-                TimeUnit.MILLISECONDS
-              );
+                // start thread only if relinquishing leadership time was set
+                if (leaseExpirationTime.get() != null) {
+                  logger.info(
+                      "onElected Event: Restarting leadership lease expiration task {} with {} ms timeout",
+                      serviceName,
+                      leaseExpirationTime.get());
+                  leadershipReleaseFuture =
+                      executorService.schedule(
+                          new LeadershipReset(), leaseExpirationTime.get(), TimeUnit.MILLISECONDS);
+                }
+              } else {
+                logger.debug(
+                    "onElected Event: This node is already the leader for {}", serviceName);
+              }
             }
-          } else {
-            logger.debug("onElected Event: This node is already the leader for {}", serviceName);
           }
-        }
-      }
 
-      @Override
-      public void onCancelled() {
-        if (isTaskLeader.compareAndSet(true, false)) {
-          logger.info("onCancelled Event: Rejecting Leader for {}", serviceName);
-          if (leadershipReleaseFuture != null) {
-            leadershipReleaseFuture.cancel(false);
+          @Override
+          public void onCancelled() {
+            if (isTaskLeader.compareAndSet(true, false)) {
+              logger.info("onCancelled Event: Rejecting Leader for {}", serviceName);
+              if (leadershipReleaseFuture != null) {
+                leadershipReleaseFuture.cancel(false);
+              }
+              // unregistering node from service
+              nodeEndpointRegistrationHandle.close();
+              listeners.keySet().forEach(TaskLeaderChangeListener::onLeadershipLost);
+            } else {
+              logger.debug(
+                  "onCancelled Event: This node is already NOT the leader for {}", serviceName);
+            }
           }
-          // unregistering node from service
-          nodeEndpointRegistrationHandle.close();
-          listeners.keySet().forEach(TaskLeaderChangeListener::onLeadershipLost);
-        } else {
-          logger.debug("onCancelled Event: This node is already NOT the leader for {}", serviceName);
-        }
-      }
-    };
+        };
 
-    electionHandle = clusterElectionManagerProvider.get()
-      .joinElection(serviceName, electionListenerProvider.apply(electionListener));
+    electionHandle =
+        clusterElectionManagerProvider
+            .get()
+            .joinElection(serviceName, electionListenerProvider.apply(electionListener));
 
     // no need to do anything if it is a follower
 
@@ -260,10 +296,7 @@ public class TaskLeaderElection implements AutoCloseable {
     return currentEndPoint.get();
   }
 
-  /**
-   * To abandon leadership after some time
-   * and enter elections again
-   */
+  /** To abandon leadership after some time and enter elections again */
   private final class LeadershipReset implements Runnable {
     @Override
     public void run() {
@@ -271,14 +304,19 @@ public class TaskLeaderElection implements AutoCloseable {
       if (isTaskLeader.compareAndSet(true, false) && electionHandle.instanceCount() > 1) {
         reset();
       } else {
-        logger.info("Do not relinquish leadership as it is {} and number of election participants is {}",
-          (isTaskLeader.get()) ? "task leader" : "task follower", electionHandle.instanceCount());
+        logger.info(
+            "Do not relinquish leadership as it is {} and number of election participants is {}",
+            (isTaskLeader.get()) ? "task leader" : "task follower",
+            electionHandle.instanceCount());
       }
     }
 
     void reset() {
       try {
-        logger.info("Trying to relinquish leadership for {}, as number of participants is {}", serviceName, electionHandle.instanceCount());
+        logger.info(
+            "Trying to relinquish leadership for {}, as number of participants is {}",
+            serviceName,
+            electionHandle.instanceCount());
         listeners.keySet().forEach(TaskLeaderChangeListener::onLeadershipRelinquished);
         // abandon leadership
         // and reenter elections
@@ -287,22 +325,30 @@ public class TaskLeaderElection implements AutoCloseable {
         if (leadershipReleaseFuture != null) {
           leadershipReleaseFuture.cancel(false);
         }
-      } catch(InterruptedException ie) {
-        logger.error("Current thread is interrupted. stopping elections before leader reelections for {}",
-          serviceName, ie);
+      } catch (InterruptedException ie) {
+        logger.error(
+            "Current thread is interrupted. stopping elections before leader reelections for {}",
+            serviceName,
+            ie);
         Thread.currentThread().interrupt();
       } catch (Exception e) {
-        logger.error("Error while trying to close elections before leader reelections for {}", serviceName);
+        logger.error(
+            "Error while trying to close elections before leader reelections for {}", serviceName);
       }
       enterElections();
     }
   }
 
-  // In general, when ZK restarts, the current leader will loose leadership, and when the clients gets reconnected one of
-  // the election participant would become a leader. However, in some situations the curator client looses the leader
-  // election notification from ZK, because of which there arises a situation where no leader is elected across the participants.
-  // FailSafeReElectionTask resolves this situation. FailSafeReElectionTask, periodically (every 5 minutes) checks if there is
-  // a leader. If there is no leader for 10 minutes consecutively, every participant will end the current election
+  // In general, when ZK restarts, the current leader will loose leadership, and when the clients
+  // gets reconnected one of
+  // the election participant would become a leader. However, in some situations the curator client
+  // looses the leader
+  // election notification from ZK, because of which there arises a situation where no leader is
+  // elected across the participants.
+  // FailSafeReElectionTask resolves this situation. FailSafeReElectionTask, periodically (every 5
+  // minutes) checks if there is
+  // a leader. If there is no leader for 10 minutes consecutively, every participant will end the
+  // current election
   // and re-enters the election.
   private class FailSafeReElectionTask {
     private long leaderIsNotAvailableFrom = Long.MAX_VALUE;
@@ -310,12 +356,9 @@ public class TaskLeaderElection implements AutoCloseable {
     private final Future failSafeReElectionFuture;
 
     FailSafeReElectionTask() {
-      failSafeReElectionFuture = executorService.scheduleAtFixedRate(
-        this::checkAndReElect,
-        0,
-        failSafeLeaderUnavailableDuration/2,
-        TimeUnit.SECONDS
-      );
+      failSafeReElectionFuture =
+          executorService.scheduleAtFixedRate(
+              this::checkAndReElect, 0, failSafeLeaderUnavailableDuration / 2, TimeUnit.SECONDS);
     }
 
     private void checkAndReElect() {
@@ -329,20 +372,25 @@ public class TaskLeaderElection implements AutoCloseable {
           leaderIsNotAvailableFrom = Long.MAX_VALUE;
           leaderIsNotAvailable = false;
         } else {
-          long leaderUnavailableDuration = (System.currentTimeMillis() - leaderIsNotAvailableFrom) / 1000;
+          long leaderUnavailableDuration =
+              (System.currentTimeMillis() - leaderIsNotAvailableFrom) / 1000;
           if (leaderUnavailableDuration >= failSafeLeaderUnavailableDuration) {
             synchronized (electionHandle.synchronizer()) {
               electionHandleClosed = true;
               LEADERSHIP_ELECTION_FAILSAFE_COUNTER.increment();
               if (isTaskLeader.compareAndSet(true, false)) {
-                logger.warn("this is the leader, but looks like leader is not available - closing current election handle and reentering elections for {} as there is no leader for {} secs",
-                  serviceName, leaderUnavailableDuration);
+                logger.warn(
+                    "this is the leader, but looks like leader is not available - closing current election handle and reentering elections for {} as there is no leader for {} secs",
+                    serviceName,
+                    leaderUnavailableDuration);
                 LeadershipReset leadershipReset = new LeadershipReset();
                 leadershipReset.reset();
                 this.cancel(false);
               } else {
-                logger.warn("this is NOT the leader, and looks like there is no leader available - closing current election handle and reentering elections for {} as there is no leader for {} secs",
-                  serviceName, leaderUnavailableDuration);
+                logger.warn(
+                    "this is NOT the leader, and looks like there is no leader available - closing current election handle and reentering elections for {} as there is no leader for {} secs",
+                    serviceName,
+                    leaderUnavailableDuration);
                 try {
                   AutoCloseables.close(electionHandle);
                   enterElections();

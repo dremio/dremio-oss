@@ -15,9 +15,6 @@
  */
 package com.dremio.dac.model.folder;
 
-import java.util.Arrays;
-import java.util.List;
-
 import com.dremio.dac.model.common.LeafEntity;
 import com.dremio.dac.model.common.NamespacePath;
 import com.dremio.dac.model.common.RootEntity;
@@ -27,11 +24,10 @@ import com.dremio.dac.model.spaces.TempSpace;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ObjectArrays;
+import java.util.Arrays;
+import java.util.List;
 
-/**
- * The full path to a folder in space/home.
- *
- */
+/** The full path to a folder in space/home. */
 public class FolderPath extends NamespacePath {
   /**
    * Creates a FolderPath from a root entity and a path component from a URL
@@ -42,7 +38,8 @@ public class FolderPath extends NamespacePath {
    */
   public static FolderPath fromURLPath(RootEntity root, String path) {
     List<String> components = Splitter.on('/').omitEmptyStrings().splitToList(path);
-    return new FolderPath(ImmutableList.<String> builder().add(root.getName()).addAll(components).build());
+    return new FolderPath(
+        ImmutableList.<String>builder().add(root.getName()).addAll(components).build());
   }
 
   public FolderPath(RootEntity root, List<FolderName> folderPath, FolderName name) {
@@ -54,7 +51,8 @@ public class FolderPath extends NamespacePath {
   }
 
   public FolderPath(final String space, final String urlPath) {
-    super(Arrays.asList(ObjectArrays.concat(new String[] { space }, urlPath.split("/"), String.class)));
+    super(
+        Arrays.asList(ObjectArrays.concat(new String[] {space}, urlPath.split("/"), String.class)));
   }
 
   public FolderPath(final List<String> path) {
@@ -95,6 +93,4 @@ public class FolderPath extends NamespacePath {
   protected String getDefaultUrlPathType() {
     return "folder";
   }
-
-
 }

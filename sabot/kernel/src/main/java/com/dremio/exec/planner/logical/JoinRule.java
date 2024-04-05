@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.planner.logical;
 
+import com.google.common.collect.ImmutableList;
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
@@ -24,11 +25,9 @@ import org.apache.calcite.rel.logical.LogicalJoin;
 import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.tools.RelBuilderFactory;
 
-import com.google.common.collect.ImmutableList;
-
 /**
- * Rule that converts a {@link org.apache.calcite.rel.logical.LogicalJoin} to a
- * {@link JoinRel}, which is implemented by Dremio "join" operation.
+ * Rule that converts a {@link org.apache.calcite.rel.logical.LogicalJoin} to a {@link JoinRel},
+ * which is implemented by Dremio "join" operation.
  */
 public class JoinRule extends RelOptRule {
   public static final RelOptRule INSTANCE = new JoinRule(DremioRelFactories.LOGICAL_BUILDER);
@@ -53,13 +52,14 @@ public class JoinRule extends RelOptRule {
     builder.join(join.getJoinType(), join.getCondition());
 
     final RelNode newJoin = builder.build();
-    if(newJoin != null) {
+    if (newJoin != null) {
       call.transformTo(newJoin);
     }
   }
 
   /**
    * Converts the tree to the proper convention
+   *
    * @param node the node to convert
    * @return the converted node or possibly the original if no conversion necessary
    */

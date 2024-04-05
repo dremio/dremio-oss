@@ -25,8 +25,8 @@ public class RexNamedInputRef extends RexInputRef {
   private final String fieldName;
 
   /**
-   *
    * Creates a named input variable.
+   *
    * @param fieldName Name of the input variable
    * @param index Index of the field in the underlying row-type
    * @param type Type of the column
@@ -39,6 +39,7 @@ public class RexNamedInputRef extends RexInputRef {
 
   /**
    * create a RexNamedInputRef from a RexInputRef.
+   *
    * @param rexInputRef Index based input variable
    * @param name Name of the input variable
    * @return a named input variable for the given rexInputRef
@@ -50,9 +51,9 @@ public class RexNamedInputRef extends RexInputRef {
   @Override
   public boolean equals(Object obj) {
     return (this == obj)
-      || (obj instanceof RexNamedInputRef
-        && fieldName.equals(((RexNamedInputRef) obj).fieldName)
-        && index == ((RexNamedInputRef) obj).index);
+        || (obj instanceof RexNamedInputRef
+            && fieldName.equals(((RexNamedInputRef) obj).fieldName)
+            && index == ((RexNamedInputRef) obj).index);
   }
 
   @Override

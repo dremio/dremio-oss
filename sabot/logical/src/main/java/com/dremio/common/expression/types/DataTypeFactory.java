@@ -18,6 +18,6 @@ package com.dremio.common.expression.types;
 public abstract class DataTypeFactory {
 
   public abstract DataType getArrayType(DataType containedType);
-  public abstract DataType getMapType(DataType keyType, DataType valueType);
 
+  public abstract DataType getMapType(DataType keyType, DataType valueType);
 }

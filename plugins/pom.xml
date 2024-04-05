@@ -1,4 +1,4 @@
-<?xml version="1.0"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!--
 
     Copyright (C) 2017-2019 Dremio Corporation
@@ -16,33 +16,31 @@
     limitations under the License.
 
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <artifactId>dremio-parent</artifactId>
     <groupId>com.dremio</groupId>
-    <version>24.3.2-202401241821100032-d2d8a497</version>
+    <artifactId>dremio-parent</artifactId>
+    <version>25.0.0-202404051521110861-ed9515a8</version>
   </parent>
 
   <groupId>com.dremio.plugins</groupId>
   <artifactId>dremio-plugin-parent</artifactId>
-  <name>Plugins - Parent</name>
   <packaging>pom</packaging>
+  <name>Plugins - Parent</name>
 
   <modules>
+    <module>common</module>
     <module>elasticsearch</module>
     <module>hdfs</module>
+    <module>hive</module>
+    <module>hive-common</module>
     <module>hive-function-registry</module>
-    <module>pdfs</module>
+    <module>hive2</module>
     <module>mongo</module>
     <module>nas</module>
-    <module>hive-common</module>
-    <module>hive</module>
-    <module>hive2</module>
-    <module>common</module>
+    <module>pdfs</module>
     <module>sysflight</module>
   </modules>
 
@@ -57,12 +55,13 @@
       <modules>
         <module>adls</module>
         <module>awsauth</module>
-        <module>azure</module>
-        <module>s3</module>
-        <module>hive3</module>
         <module>awsglue</module>
-        <module>gcs</module>
+        <module>azure</module>
         <module>dataplane</module>
+        <module>dataplane-tests</module>
+        <module>gcs</module>
+        <module>hive3</module>
+        <module>s3</module>
       </modules>
     </profile>
     <profile>

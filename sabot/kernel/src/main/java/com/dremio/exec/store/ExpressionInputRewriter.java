@@ -18,7 +18,6 @@ package com.dremio.exec.store;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
@@ -26,9 +25,7 @@ import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexShuttle;
 
-/**
- * Rewrite inputs in expression to handle any RowType change during expansion
- */
+/** Rewrite inputs in expression to handle any RowType change during expansion */
 public class ExpressionInputRewriter extends RexShuttle {
   private final RexBuilder builder;
   private final List<String> fieldNames;
@@ -36,14 +33,15 @@ public class ExpressionInputRewriter extends RexShuttle {
   private final Map<Integer, Integer> fieldMap;
   private final String suffix;
 
-  public ExpressionInputRewriter(RexBuilder builder, RelDataType rowType, RelNode input, String suffix) {
+  public ExpressionInputRewriter(
+      RexBuilder builder, RelDataType rowType, RelNode input, String suffix) {
     this.builder = builder;
     this.input = input;
     this.fieldNames = rowType.getFieldNames();
     this.fieldMap = new HashMap<>();
     this.suffix = suffix;
     final List<String> inputFields = input.getRowType().getFieldNames();
-    for(int i = 0 ; i < fieldNames.size() ; i++) {
+    for (int i = 0; i < fieldNames.size(); i++) {
       String fieldName = fieldNames.get(i);
       fieldMap.put(i, inputFields.indexOf(fieldName + suffix));
     }
@@ -54,7 +52,10 @@ public class ExpressionInputRewriter extends RexShuttle {
     int originalIndex = inputRef.getIndex();
     int newIndex = fieldMap.get(inputRef.getIndex());
     if (newIndex == -1) {
-      throw new IllegalArgumentException(String.format("Could not find field, %s, from, %s", fieldNames.get(originalIndex) + suffix, input.getRowType()));
+      throw new IllegalArgumentException(
+          String.format(
+              "Could not find field, %s, from, %s",
+              fieldNames.get(originalIndex) + suffix, input.getRowType()));
     }
     return builder.makeInputRef(input, newIndex);
   }

@@ -15,11 +15,6 @@
  */
 package com.dremio.datastore;
 
-import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.util.UUID;
-
 import com.dremio.common.utils.UUIDAdapter;
 import com.dremio.datastore.CompositeKeys.CompoundKeyPair;
 import com.dremio.datastore.format.Format;
@@ -30,20 +25,21 @@ import com.google.common.base.Preconditions;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Parser;
-
 import io.protostuff.Schema;
+import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.UUID;
 
 /**
- * Translates Generic Formats into serializers that translates data into bytes.
- * Used by both clients and servers. Servers, at the very least, need the serializers for backup.
+ * Translates Generic Formats into serializers that translates data into bytes. Used by both clients
+ * and servers. Servers, at the very least, need the serializers for backup.
  */
 public final class ByteSerializerFactory implements SerializerFactory<byte[]> {
 
   public static final ByteSerializerFactory INSTANCE = new ByteSerializerFactory();
 
-  private ByteSerializerFactory() {
-
-  }
+  private ByteSerializerFactory() {}
 
   @Override
   public Serializer<String, byte[]> visitStringFormat() {
@@ -54,15 +50,12 @@ public final class ByteSerializerFactory implements SerializerFactory<byte[]> {
 
     public static final UUIDSerializer INSTANCE = new UUIDSerializer();
 
-    private UUIDSerializer() {
-
-    }
+    private UUIDSerializer() {}
 
     @Override
     public byte[] convert(UUID v) {
       return UUIDAdapter.getBytesFromUUID(v);
     }
-
 
     @Override
     public UUID revert(byte[] v) {
@@ -84,8 +77,8 @@ public final class ByteSerializerFactory implements SerializerFactory<byte[]> {
     private final Serializer<K1, byte[]> key1Serializer;
     private final Serializer<K2, byte[]> key2Serializer;
 
-    public KeyPairSerializer(Serializer<K1, byte[]> key1Serializer,
-                             Serializer<K2, byte[]> key2Serializer) {
+    public KeyPairSerializer(
+        Serializer<K1, byte[]> key1Serializer, Serializer<K2, byte[]> key2Serializer) {
       this.key1Serializer = key1Serializer;
       this.key2Serializer = key2Serializer;
     }
@@ -95,9 +88,10 @@ public final class ByteSerializerFactory implements SerializerFactory<byte[]> {
       final byte[] part1 = key1Serializer.serialize(keyPair.getKey1());
       final byte[] part2 = key2Serializer.serialize(keyPair.getKey2());
       return CompoundKeyPair.newBuilder()
-        .setKey1(ByteString.copyFrom(part1))
-        .setKey2(ByteString.copyFrom(part2))
-        .build().toByteArray();
+          .setKey1(ByteString.copyFrom(part1))
+          .setKey2(ByteString.copyFrom(part2))
+          .build()
+          .toByteArray();
     }
 
     @Override
@@ -105,8 +99,9 @@ public final class ByteSerializerFactory implements SerializerFactory<byte[]> {
       try {
         CompoundKeyPair pair = CompoundKeyPair.parseFrom(keyPair);
 
-        return new KeyPair<>(key1Serializer.deserialize(pair.getKey1().toByteArray()),
-                             key2Serializer.deserialize(pair.getKey2().toByteArray()));
+        return new KeyPair<>(
+            key1Serializer.deserialize(pair.getKey1().toByteArray()),
+            key2Serializer.deserialize(pair.getKey2().toByteArray()));
       } catch (InvalidProtocolBufferException e) {
         throw new DatastoreException("Could not parse keyPair", e);
       }
@@ -114,12 +109,14 @@ public final class ByteSerializerFactory implements SerializerFactory<byte[]> {
 
     @Override
     public String toJson(KeyPair<K1, K2> v) throws IOException {
-      throw new UnsupportedOperationException("Conversion of compound keys to json is not supported in ByteSerializerFactory");
+      throw new UnsupportedOperationException(
+          "Conversion of compound keys to json is not supported in ByteSerializerFactory");
     }
 
     @Override
     public KeyPair<K1, K2> fromJson(String v) throws IOException {
-      throw new UnsupportedOperationException("Conversion of compound keys from json is not supported in ByteSerializerFactory");
+      throw new UnsupportedOperationException(
+          "Conversion of compound keys from json is not supported in ByteSerializerFactory");
     }
   }
 
@@ -135,10 +132,7 @@ public final class ByteSerializerFactory implements SerializerFactory<byte[]> {
 
   @Override
   public <K1, K2> Serializer<KeyPair<K1, K2>, byte[]> visitCompoundPairFormat(
-    String key1Name,
-    Format<K1> key1Format,
-    String key2Name,
-    Format<K2> key2Format) {
+      String key1Name, Format<K1> key1Format, String key2Name, Format<K2> key2Format) {
 
     Serializer<K1, byte[]> key1Serializer = (Serializer<K1, byte[]>) key1Format.apply(INSTANCE);
     Serializer<K2, byte[]> key2Serializer = (Serializer<K2, byte[]>) key2Format.apply(INSTANCE);
@@ -148,23 +142,27 @@ public final class ByteSerializerFactory implements SerializerFactory<byte[]> {
 
   @Override
   public <K1, K2, K3> Serializer<KeyTriple<K1, K2, K3>, byte[]> visitCompoundTripleFormat(
-    String key1Name,
-    Format<K1> key1Format,
-    String key2Name,
-    Format<K2> key2Format,
-    String key3Name,
-    Format<K3> key3Format) throws DatastoreFatalException {
-    throw new UnsupportedOperationException("Compound keys are not supported in ByteSerializerFactory");
+      String key1Name,
+      Format<K1> key1Format,
+      String key2Name,
+      Format<K2> key2Format,
+      String key3Name,
+      Format<K3> key3Format)
+      throws DatastoreFatalException {
+    throw new UnsupportedOperationException(
+        "Compound keys are not supported in ByteSerializerFactory");
   }
 
   @SuppressWarnings("unchecked")
   @Override
-  public <P extends com.google.protobuf.Message> Serializer<P, byte[]> visitProtobufFormat(Class<P> clazz) {
+  public <P extends com.google.protobuf.Message> Serializer<P, byte[]> visitProtobufFormat(
+      Class<P> clazz) {
 
     Parser<P> parser;
     try {
       Method defaultInstanceGetter = clazz.getDeclaredMethod("getDefaultInstance");
-      com.google.protobuf.Message defaultInst = (com.google.protobuf.Message) defaultInstanceGetter.invoke(null);
+      com.google.protobuf.Message defaultInst =
+          (com.google.protobuf.Message) defaultInstanceGetter.invoke(null);
       parser = (Parser<P>) defaultInst.getParserForType();
       Preconditions.checkNotNull(parser);
     } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
@@ -176,7 +174,8 @@ public final class ByteSerializerFactory implements SerializerFactory<byte[]> {
 
   @SuppressWarnings("unchecked")
   @Override
-  public <P extends io.protostuff.Message<P>> Serializer<P, byte[]> visitProtostuffFormat(Class<P> clazz) {
+  public <P extends io.protostuff.Message<P>> Serializer<P, byte[]> visitProtostuffFormat(
+      Class<P> clazz) {
     // getSchema is a method on all protostuff gen'ed classes.
     Schema<P> schema;
     try {
@@ -184,7 +183,8 @@ public final class ByteSerializerFactory implements SerializerFactory<byte[]> {
       schema = (Schema<P>) schemaGetter.invoke(null);
       assert schema != null;
     } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-      throw new DatastoreFatalException("Unable to get Schema for Protostuff class " + clazz.getName(), e);
+      throw new DatastoreFatalException(
+          "Unable to get Schema for Protostuff class " + clazz.getName(), e);
     }
     return new ProtostuffSerializer<>(schema);
   }

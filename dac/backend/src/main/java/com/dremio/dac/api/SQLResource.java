@@ -17,14 +17,6 @@ package com.dremio.dac.api;
 
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
-import javax.annotation.security.RolesAllowed;
-import javax.inject.Inject;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.SecurityContext;
-
 import com.dremio.dac.annotations.APIResource;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.explore.model.CreateFromSQL;
@@ -37,10 +29,15 @@ import com.dremio.service.job.SubmitJobRequest;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.jobs.JobSubmittedListener;
 import com.dremio.service.jobs.JobsService;
+import javax.annotation.security.RolesAllowed;
+import javax.inject.Inject;
+import javax.ws.rs.Consumes;
+import javax.ws.rs.POST;
+import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
+import javax.ws.rs.core.SecurityContext;
 
-/**
- * run external sql
- */
+/** run external sql */
 @APIResource
 @Secured
 @RolesAllowed({"admin", "user"})
@@ -52,14 +49,11 @@ public class SQLResource {
   private final SecurityContext securityContext;
   private final ProjectOptionManager projectOptionManager;
 
-  /**
-   * Query details
-   */
+  /** Query details */
   public static class QueryDetails {
     private String id;
 
-    public QueryDetails() {
-    }
+    public QueryDetails() {}
 
     public QueryDetails(String id) {
       this.id = id;
@@ -75,7 +69,10 @@ public class SQLResource {
   }
 
   @Inject
-  public SQLResource(JobsService jobs, SecurityContext securityContext, ProjectOptionManager projectOptionManager) {
+  public SQLResource(
+      JobsService jobs,
+      SecurityContext securityContext,
+      ProjectOptionManager projectOptionManager) {
     this.jobs = jobs;
     this.securityContext = securityContext;
     this.projectOptionManager = projectOptionManager;
@@ -83,23 +80,25 @@ public class SQLResource {
 
   @POST
   public QueryDetails runQuery(CreateFromSQL sql) {
-    final SqlQuery sqlQuery = JobRequestUtil.createSqlQuery(
-        sql.getSql(),
-        sql.getContext(),
-        securityContext.getUserPrincipal().getName(),
-        sql.getEngineName(),
-        null,
-        sql.getReferences());
+    final SqlQuery sqlQuery =
+        JobRequestUtil.createSqlQuery(
+            sql.getSql(),
+            sql.getContext(),
+            securityContext.getUserPrincipal().getName(),
+            sql.getEngineName(),
+            null,
+            sql.getReferences());
 
     final JobSubmittedListener listener = new JobSubmittedListener();
 
-    final JobId jobId = jobs.submitJob(
-        SubmitJobRequest.newBuilder()
-            .setSqlQuery(sqlQuery)
-            .setQueryType(QueryType.REST)
-            .build(),
-        listener)
-      .getJobId();
+    final JobId jobId =
+        jobs.submitJob(
+                SubmitJobRequest.newBuilder()
+                    .setSqlQuery(sqlQuery)
+                    .setQueryType(QueryType.REST)
+                    .build(),
+                listener)
+            .getJobId();
 
     // if async disabled, wait until job has been submitted then return
     if (!projectOptionManager.getOption(ExecConstants.REST_API_RUN_QUERY_ASYNC)) {

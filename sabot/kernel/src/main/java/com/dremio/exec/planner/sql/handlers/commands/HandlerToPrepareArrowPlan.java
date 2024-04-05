@@ -15,19 +15,17 @@
  */
 package com.dremio.exec.planner.sql.handlers.commands;
 
-import org.apache.calcite.sql.SqlNode;
-
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.query.SqlToPlanHandler;
 import com.dremio.exec.proto.UserProtos.CreatePreparedStatementArrowResp;
 import com.google.common.cache.Cache;
+import org.apache.calcite.sql.SqlNode;
 
-/**
- * Take a sql node, plan it and then return an async response with arrow metadata.
- */
-public class HandlerToPrepareArrowPlan extends HandlerToPreparePlanBase<CreatePreparedStatementArrowResp> {
+/** Take a sql node, plan it and then return an async response with arrow metadata. */
+public class HandlerToPrepareArrowPlan
+    extends HandlerToPreparePlanBase<CreatePreparedStatementArrowResp> {
 
   public HandlerToPrepareArrowPlan(
       QueryContext context,
@@ -43,7 +41,7 @@ public class HandlerToPrepareArrowPlan extends HandlerToPreparePlanBase<CreatePr
   @Override
   public CreatePreparedStatementArrowResp execute() {
     final QueryContext context = getContext();
-    return PreparedStatementProvider.buildArrow(getPlan().getRoot().getProps().getSchema(), getState(),
-      context.getQueryId());
+    return PreparedStatementProvider.buildArrow(
+        getPlan().getRoot().getProps().getSchema(), getState(), context.getQueryId());
   }
 }

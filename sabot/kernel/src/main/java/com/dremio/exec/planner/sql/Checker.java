@@ -15,13 +15,12 @@
  */
 package com.dremio.exec.planner.sql;
 
+import com.google.common.base.Preconditions;
 import org.apache.calcite.sql.SqlCallBinding;
 import org.apache.calcite.sql.SqlOperandCountRange;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.type.SqlOperandCountRanges;
 import org.apache.calcite.sql.type.SqlOperandTypeChecker;
-
-import com.google.common.base.Preconditions;
 
 public final class Checker implements SqlOperandTypeChecker {
   private final SqlOperandCountRange range;

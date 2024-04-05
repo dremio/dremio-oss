@@ -112,6 +112,18 @@ public class HiveClientWithAuthz extends HiveClientImpl {
   }
 
   @Override
+  public void checkState(boolean ignoreAuthzErrors) throws TException {
+    try {
+      authorizer.authorizeShowDatabases();
+    } catch (final HiveAccessControlException | HiveAuthzPluginException e) {
+      if (!ignoreAuthzErrors) {
+        throw UserException.permissionError(e).build(logger);
+      }
+    }
+    super.checkState(ignoreAuthzErrors);
+  }
+
+  @Override
   public List<String> getTableNames(final String dbName, boolean ignoreAuthzErrors) throws TException {
     try {
       authorizer.authorizeShowTables(dbName);

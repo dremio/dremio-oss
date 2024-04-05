@@ -15,13 +15,6 @@
  */
 package com.dremio.dac.cmd;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.util.Optional;
-
-import javax.inject.Provider;
-
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.scanner.ClassPathScanner;
 import com.dremio.common.scanner.persistence.ScanResult;
@@ -34,22 +27,27 @@ import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidatorListing;
 import com.dremio.options.impl.DefaultOptionManager;
 import com.dremio.options.impl.OptionManagerWrapper;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.util.Optional;
+import javax.inject.Provider;
 
-/**
- * cmd utils.
- */
+/** cmd utils. */
 public final class CmdUtils {
 
   private CmdUtils() {}
 
   /**
    * returns store provider, if data exists. Null if there is no data.
+   *
    * @param dremioConfig
    * @param classPathScan
    * @return store provider
    * @throws FileNotFoundException
    */
-  public static Optional<LocalKVStoreProvider> getKVStoreProvider(DremioConfig dremioConfig, ScanResult classPathScan) {
+  public static Optional<LocalKVStoreProvider> getKVStoreProvider(
+      DremioConfig dremioConfig, ScanResult classPathScan) {
     return getKVStoreProvider(dremioConfig, classPathScan, true, false);
   }
 
@@ -61,8 +59,11 @@ public final class CmdUtils {
    * @param noDBOpenRetry
    * @return store provider
    */
-  public static Optional<LocalKVStoreProvider> getKVStoreProvider(DremioConfig dremioConfig, ScanResult classPathScan,
-    boolean noDBOpenRetry, boolean noDBMessages) {
+  public static Optional<LocalKVStoreProvider> getKVStoreProvider(
+      DremioConfig dremioConfig,
+      ScanResult classPathScan,
+      boolean noDBOpenRetry,
+      boolean noDBMessages) {
     return getKVStoreProvider(dremioConfig, classPathScan, noDBOpenRetry, noDBMessages, false);
   }
 
@@ -76,8 +77,12 @@ public final class CmdUtils {
    * @param readOnly
    * @return KVStore provider
    */
-  private static Optional<LocalKVStoreProvider> getKVStoreProvider(DremioConfig dremioConfig, ScanResult classPathScan,
-    boolean noDBOpenRetry, boolean noDBMessages, boolean readOnly) {
+  private static Optional<LocalKVStoreProvider> getKVStoreProvider(
+      DremioConfig dremioConfig,
+      ScanResult classPathScan,
+      boolean noDBOpenRetry,
+      boolean noDBMessages,
+      boolean readOnly) {
     final String dbDir = dremioConfig.getString(DremioConfig.DB_PATH_STRING);
     try {
       validateDbDir(dbDir);
@@ -85,26 +90,32 @@ public final class CmdUtils {
       return Optional.empty();
     }
 
-    LocalKVStoreProvider provider = new LocalKVStoreProvider(classPathScan, dbDir, false, true, noDBOpenRetry,
-      noDBMessages, readOnly);
+    LocalKVStoreProvider provider =
+        new LocalKVStoreProvider(
+            classPathScan, dbDir, false, true, noDBOpenRetry, noDBMessages, readOnly);
     return Optional.of(provider);
   }
 
   public static Optional<LocalKVStoreProvider> getKVStoreProvider(DremioConfig dremioConfig) {
-    return CmdUtils.getKVStoreProvider(dremioConfig, ClassPathScanner.fromPrescan(dremioConfig.getSabotConfig()));
+    return CmdUtils.getKVStoreProvider(
+        dremioConfig, ClassPathScanner.fromPrescan(dremioConfig.getSabotConfig()));
   }
 
   /**
-   * Get the KV store provider using a different DB path. The path used into
-   * {@link DremioConfig} is ignored.
+   * Get the KV store provider using a different DB path. The path used into {@link DremioConfig} is
+   * ignored.
    *
    * @param dremioConfig
    * @return
    */
   public static Optional<LocalKVStoreProvider> getReadOnlyKVStoreProvider(
-    DremioConfig dremioConfig) {
-    return getKVStoreProvider(dremioConfig, ClassPathScanner.fromPrescan(dremioConfig.getSabotConfig()), true, false,
-      true);
+      DremioConfig dremioConfig) {
+    return getKVStoreProvider(
+        dremioConfig,
+        ClassPathScanner.fromPrescan(dremioConfig.getSabotConfig()),
+        true,
+        false,
+        true);
   }
 
   /**
@@ -114,32 +125,32 @@ public final class CmdUtils {
    * @param dremioConfig
    * @return {@link OptionManager} provider.
    */
-  public static Optional<Provider<OptionManager>> getOptionManager(LocalKVStoreProvider storeProvider,
-    DremioConfig dremioConfig) {
+  public static Optional<Provider<OptionManager>> getOptionManager(
+      LocalKVStoreProvider storeProvider, DremioConfig dremioConfig) {
     final ScanResult scanResult = ClassPathScanner.fromPrescan(dremioConfig.getSabotConfig());
-    final LogicalPlanPersistence lpp = new LogicalPlanPersistence(dremioConfig.getSabotConfig(), scanResult);
-    final OptionValidatorListing optionValidatorListing = new OptionValidatorListingImpl(scanResult);
-    final DefaultOptionManager defaultOptionManager = new DefaultOptionManager(optionValidatorListing);
+    final LogicalPlanPersistence lpp = new LogicalPlanPersistence(scanResult);
+    final OptionValidatorListing optionValidatorListing =
+        new OptionValidatorListingImpl(scanResult);
+    final DefaultOptionManager defaultOptionManager =
+        new DefaultOptionManager(optionValidatorListing);
 
     final SystemOptionManager systemOptionManager;
     final LegacyKVStoreProvider legacyKVStoreProvider = storeProvider.asLegacy();
-    systemOptionManager = new SystemOptionManager(optionValidatorListing,
-      lpp,
-      () -> legacyKVStoreProvider,
-      () -> null,
-      null,
-      false);
+    systemOptionManager =
+        new SystemOptionManager(
+            optionValidatorListing, lpp, () -> legacyKVStoreProvider, () -> null, null, false);
     try {
       systemOptionManager.start();
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
 
-    final OptionManagerWrapper optionManagerWrapper = OptionManagerWrapper.Builder.newBuilder()
-      .withOptionValidatorProvider(optionValidatorListing)
-      .withOptionManager(defaultOptionManager)
-      .withOptionManager(systemOptionManager)
-      .build();
+    final OptionManagerWrapper optionManagerWrapper =
+        OptionManagerWrapper.Builder.newBuilder()
+            .withOptionValidatorProvider(optionValidatorListing)
+            .withOptionManager(defaultOptionManager)
+            .withOptionManager(systemOptionManager)
+            .build();
     return Optional.of(() -> optionManagerWrapper);
   }
 
@@ -161,5 +172,4 @@ public final class CmdUtils {
       throw new IOException(String.format("Path '%s' is an empty directory", dbDir));
     }
   }
-
 }

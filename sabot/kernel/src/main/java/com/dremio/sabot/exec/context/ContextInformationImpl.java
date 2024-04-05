@@ -15,33 +15,31 @@
  */
 package com.dremio.sabot.exec.context;
 
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-
 import com.dremio.exec.context.AdditionalContext;
 import com.dremio.exec.proto.CoordExecRPC.QueryContextInformation;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.proto.UserBitShared.UserCredentials;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * Default implementation of ContextInformation.
- */
+/** Default implementation of ContextInformation. */
 public class ContextInformationImpl implements ContextInformation {
   private final String queryUser;
   private final String currentDefaultSchema;
   private final long queryStartTime;
   private final int rootFragmentTimeZone;
   private final QueryId lastQueryId;
-  private boolean isLastQueryIdPresent = false;
-  private boolean isPlanCacheable = true;
-  private final Map<Class<? extends AdditionalContext>, AdditionalContext> additionalInfo = new ConcurrentHashMap<>(1);
+  private final Map<Class<? extends AdditionalContext>, AdditionalContext> additionalInfo =
+      new ConcurrentHashMap<>(1);
 
-  public ContextInformationImpl(final UserCredentials userCredentials, final QueryContextInformation queryContextInfo) {
+  public ContextInformationImpl(
+      final UserCredentials userCredentials, final QueryContextInformation queryContextInfo) {
     this.queryUser = userCredentials.getUserName();
     this.currentDefaultSchema = queryContextInfo.getDefaultSchemaName();
     this.queryStartTime = queryContextInfo.getQueryStartTime();
     this.rootFragmentTimeZone = queryContextInfo.getTimeZone();
-    this.lastQueryId = (queryContextInfo.hasLastQueryId() ? queryContextInfo.getLastQueryId() : null);
+    this.lastQueryId =
+        (queryContextInfo.hasLastQueryId() ? queryContextInfo.getLastQueryId() : null);
   }
 
   @Override
@@ -75,18 +73,9 @@ public class ContextInformationImpl implements ContextInformation {
     // should be once per AdditionalContext type
     AdditionalContext prevValue = additionalInfo.putIfAbsent(object.getClass(), object);
     if (prevValue != null) {
-      throw new RuntimeException("Trying to set AdditionalContext of type: " + object.getClass() + " multiple times");
+      throw new RuntimeException(
+          "Trying to set AdditionalContext of type: " + object.getClass() + " multiple times");
     }
-  }
-
-  @Override
-  public boolean isPlanCacheable() {
-    return isPlanCacheable;
-  }
-
-  @Override
-  public void setPlanCacheable(boolean isPlanCacheable) {
-    this.isPlanCacheable = isPlanCacheable;
   }
 
   @Override

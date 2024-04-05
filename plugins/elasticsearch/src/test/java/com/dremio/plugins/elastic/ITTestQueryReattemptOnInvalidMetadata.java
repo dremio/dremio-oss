@@ -15,33 +15,24 @@
  */
 package com.dremio.plugins.elastic;
 
-import java.util.concurrent.TimeUnit;
-
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TestRule;
-
 import com.dremio.common.util.TestTools;
 import com.dremio.exec.ExecConstants;
 import com.dremio.plugins.elastic.ElasticsearchCluster.ColumnData;
 import com.google.common.collect.Lists;
+import java.util.concurrent.TimeUnit;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TestRule;
 
 public class ITTestQueryReattemptOnInvalidMetadata extends ElasticBaseTestQuery {
 
-  @Rule
-  public final TestRule timeoutRule = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
+  @Rule public final TestRule timeoutRule = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
 
   public static ColumnData[] getGodFather(String title, int year) {
-    return new ColumnData[]{
-        new ColumnData("title", ElasticsearchType.TEXT, new Object[][]{
-            {title}
-        }),
-        new ColumnData("director", ElasticsearchType.TEXT, new Object[][]{
-            {DIR}
-        }),
-        new ColumnData("year", ElasticsearchType.INTEGER, new Object[][]{
-            {year}
-        })
+    return new ColumnData[] {
+      new ColumnData("title", ElasticsearchType.TEXT, new Object[][] {{title}}),
+      new ColumnData("director", ElasticsearchType.TEXT, new Object[][] {{DIR}}),
+      new ColumnData("year", ElasticsearchType.INTEGER, new Object[][] {{year}})
     };
   }
 
@@ -70,7 +61,9 @@ public class ITTestQueryReattemptOnInvalidMetadata extends ElasticBaseTestQuery 
       elastic.alias(aliasName, gf1);
 
       testBuilder()
-          .sqlQuery("SELECT \"year\", \"director\", \"title\" FROM elasticsearch.%s.%s", aliasName, movieType)
+          .sqlQuery(
+              "SELECT \"year\", \"director\", \"title\" FROM elasticsearch.%s.%s",
+              aliasName, movieType)
           .unOrdered()
           .baselineColumns("title", "director", "year")
           .baselineValues(GF1, DIR, 1972)
@@ -79,14 +72,19 @@ public class ITTestQueryReattemptOnInvalidMetadata extends ElasticBaseTestQuery 
       final String gf2 = TestNameGenerator.schemaName();
       elastic.load(gf2, movieType, getGodFather2());
 
-      elastic.alias(Lists.newArrayList(
-          new ElasticTestActions.AliasActionDef(ElasticTestActions.AliasActionType.ADD, gf2, aliasName),
-          new ElasticTestActions.AliasActionDef(ElasticTestActions.AliasActionType.REMOVE, gf1, aliasName)));
+      elastic.alias(
+          Lists.newArrayList(
+              new ElasticTestActions.AliasActionDef(
+                  ElasticTestActions.AliasActionType.ADD, gf2, aliasName),
+              new ElasticTestActions.AliasActionDef(
+                  ElasticTestActions.AliasActionType.REMOVE, gf1, aliasName)));
 
       elastic.wipe(gf1);
 
       testBuilder()
-          .sqlQuery("SELECT \"year\", \"director\", \"title\" FROM elasticsearch.%s.%s", aliasName, movieType)
+          .sqlQuery(
+              "SELECT \"year\", \"director\", \"title\" FROM elasticsearch.%s.%s",
+              aliasName, movieType)
           .unOrdered()
           .baselineColumns("title", "director", "year")
           .baselineValues(GF2, DIR, 1974)

@@ -23,6 +23,8 @@ import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
+ *
+ *
  * <pre>
  * Extract each component of a filter expr with SARGableStandardForm for
  * - DATE_DIFF(date_expression DATE, days INTEGER) = rhsNode
@@ -36,9 +38,8 @@ import org.apache.calcite.sql.type.SqlTypeName;
  */
 public class DateUDiffDateIntervalShiftTransformer extends ShiftTransformer {
 
-  public DateUDiffDateIntervalShiftTransformer(RelOptCluster relOptCluster,
-                                               StandardForm stdForm,
-                                               SqlOperator sqlOperator) {
+  public DateUDiffDateIntervalShiftTransformer(
+      RelOptCluster relOptCluster, StandardForm stdForm, SqlOperator sqlOperator) {
     super(relOptCluster, stdForm, sqlOperator);
   }
 
@@ -48,21 +49,28 @@ public class DateUDiffDateIntervalShiftTransformer extends ShiftTransformer {
     RexNode rhs = super.getRhsNode();
     if (param instanceof RexLiteral) {
       RexLiteral rexLiteral = ((RexLiteral) param);
-      if (SqlTypeName.NUMERIC_TYPES.contains(rexLiteral.getTypeName()) ||
-        SqlTypeName.INTERVAL_TYPES.contains(rexLiteral.getTypeName())) {
-        // DATE_DIFF(time_expression TIME, time_interval INTERVAL) → TIME -> not supported for DATE_ADD
+      if (SqlTypeName.NUMERIC_TYPES.contains(rexLiteral.getTypeName())
+          || SqlTypeName.INTERVAL_TYPES.contains(rexLiteral.getTypeName())) {
+        // DATE_DIFF(time_expression TIME, time_interval INTERVAL) → TIME -> not supported for
+        // DATE_ADD
         // DATE_DIFF(date_expression DATE, time_interval INTERVAL) → TIMESTAMP
         // DATE_DIFF(date_expression DATE, days INTEGER) → DATE
         if (SqlTypeName.CHAR_TYPES.contains(rhs.getType().getSqlTypeName())) {
           return rexBuilder.makeCast(
-            rexBuilder.getTypeFactory().createTypeWithNullability(getLhsCall().operands.get(0).getType(), false), rhs);
+              rexBuilder
+                  .getTypeFactory()
+                  .createTypeWithNullability(getLhsCall().operands.get(0).getType(), false),
+              rhs);
         }
         return super.getRhsNode();
       } else if (SqlTypeName.CHAR_TYPES.contains(rexLiteral.getTypeName())) {
         // DATE_DIFF(date_expression DATE, date_expression DATE) → INTERVAL DAY
         // DATE_DIFF(timestamp_expression TIMESTAMP, timestamp_expression TIMESTAMP) → INTERVAL DAY
         return rexBuilder.makeCast(
-          rexBuilder.getTypeFactory().createTypeWithNullability(getLhsCall().operands.get(0).getType(), false), param);
+            rexBuilder
+                .getTypeFactory()
+                .createTypeWithNullability(getLhsCall().operands.get(0).getType(), false),
+            param);
       }
     }
     return param;
@@ -77,7 +85,8 @@ public class DateUDiffDateIntervalShiftTransformer extends ShiftTransformer {
         // DATE_DIFF(date_expression DATE, days INTEGER) → DATE
         return SARGableRexUtils.toInterval((RexLiteral) param, TimeUnit.DAY, rexBuilder);
       } else if (SqlTypeName.INTERVAL_TYPES.contains(rexLiteral.getTypeName())) {
-        // DATE_DIFF(time_expression TIME, time_interval INTERVAL) → TIME //not supported for DATE_ADD
+        // DATE_DIFF(time_expression TIME, time_interval INTERVAL) → TIME //not supported for
+        // DATE_ADD
         // DATE_DIFF(date_expression DATE, time_interval INTERVAL) → TIMESTAMP
         return param;
       }

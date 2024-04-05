@@ -18,9 +18,7 @@ package com.dremio.dac.model.sources;
 import com.dremio.dac.model.common.LeafEntity;
 import com.fasterxml.jackson.annotation.JsonCreator;
 
-/**
- * Physical dataset name (file or folder in source)
- */
+/** Physical dataset name (file or folder in source) */
 public class PhysicalDatasetName extends LeafEntity {
 
   @JsonCreator

@@ -30,13 +30,13 @@ public class ComplexToJson extends AbstractSingle {
 
   @JsonCreator
   public ComplexToJson(
-      @JsonProperty("props") OpProps props,
-      @JsonProperty("child") PhysicalOperator child) {
+      @JsonProperty("props") OpProps props, @JsonProperty("child") PhysicalOperator child) {
     super(props, child);
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value) throws E{
+  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value)
+      throws E {
     return physicalVisitor.visitOp(this, value);
   }
 
@@ -49,5 +49,4 @@ public class ComplexToJson extends AbstractSingle {
   public int getOperatorType() {
     return CoreOperatorType.COMPLEX_TO_JSON_VALUE;
   }
-
 }

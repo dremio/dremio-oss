@@ -18,21 +18,17 @@ package com.dremio.jdbc;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.dremio.jdbc.test.JdbcAssert;
 import java.sql.Clob;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
 import java.util.Properties;
-
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import com.dremio.jdbc.test.JdbcAssert;
-
-/**
- * Test that prepared statements works even if not supported on server, to some extent.
- */
+/** Test that prepared statements works even if not supported on server, to some extent. */
 public class LegacyPreparedStatementTest extends JdbcWithServerTestBase {
 
   @BeforeClass
@@ -41,7 +37,8 @@ public class LegacyPreparedStatementTest extends JdbcWithServerTestBase {
     properties.setProperty("server.preparedstatement.disabled", "true");
 
     setupConnection(properties);
-    assertThat(((DremioConnection) getConnection()).getConfig().isServerPreparedStatementDisabled()).isTrue();
+    assertThat(((DremioConnection) getConnection()).getConfig().isServerPreparedStatementDisabled())
+        .isTrue();
   }
 
   //////////
@@ -50,8 +47,8 @@ public class LegacyPreparedStatementTest extends JdbcWithServerTestBase {
   /** Tests that basic executeQuery() (with query statement) works. */
   @Test
   public void testExecuteQueryBasicCaseWorks() throws SQLException {
-    try (PreparedStatement stmt = getConnection().prepareStatement( "VALUES 11" )) {
-      try(ResultSet rs = stmt.executeQuery()) {
+    try (PreparedStatement stmt = getConnection().prepareStatement("VALUES 11")) {
+      try (ResultSet rs = stmt.executeQuery()) {
         assertThat(rs.getMetaData().getColumnCount()).isEqualTo(1);
         assertThat(rs.next()).isTrue();
         assertThat(rs.getInt(1)).isEqualTo(11);
@@ -63,29 +60,27 @@ public class LegacyPreparedStatementTest extends JdbcWithServerTestBase {
   //////////
   // Parameters-not-implemented tests:
 
-  /** Tests that "not supported" has priority over possible "no parameters"
-   *  check. */
+  /** Tests that "not supported" has priority over possible "no parameters" check. */
   @Test
   public void testParamSettingWhenNoParametersIndexSaysUnsupported() throws SQLException {
-    try (PreparedStatement prepStmt = getConnection().prepareStatement( "VALUES 1" )) {
+    try (PreparedStatement prepStmt = getConnection().prepareStatement("VALUES 1")) {
       assertThatThrownBy(() -> prepStmt.setBytes(4, null))
-        .isInstanceOf(SQLFeatureNotSupportedException.class)
-        .hasMessageContaining("arameter")
-        .hasMessageContaining("not")
-        .hasMessageContaining("support");
+          .isInstanceOf(SQLFeatureNotSupportedException.class)
+          .hasMessageContaining("arameter")
+          .hasMessageContaining("not")
+          .hasMessageContaining("support");
     }
   }
 
-  /** Tests that "not supported" has priority over possible "type not supported"
-   *  check. */
+  /** Tests that "not supported" has priority over possible "type not supported" check. */
   @Test
   public void testParamSettingWhenUnsupportedTypeSaysUnsupported() throws SQLException {
-    try (PreparedStatement prepStmt = getConnection().prepareStatement( "VALUES 1" )) {
+    try (PreparedStatement prepStmt = getConnection().prepareStatement("VALUES 1")) {
       assertThatThrownBy(() -> prepStmt.setClob(2, (Clob) null))
-        .isInstanceOf(SQLFeatureNotSupportedException.class)
-        .hasMessageContaining("arameter")
-        .hasMessageContaining("not")
-        .hasMessageContaining("support");
+          .isInstanceOf(SQLFeatureNotSupportedException.class)
+          .hasMessageContaining("arameter")
+          .hasMessageContaining("not")
+          .hasMessageContaining("support");
     }
   }
 }

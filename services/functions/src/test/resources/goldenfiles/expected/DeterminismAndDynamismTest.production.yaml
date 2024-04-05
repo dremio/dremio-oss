@@ -19,231 +19,564 @@
   description: "ALTERNATE"
   input: "ALTERNATE"
   output:
-    dynamic: false
     name: "ALTERNATE"
-    nonDeterministic: true
+    overloads:
+     -
+      className: "JAVA - SqlFunctionImpl"
+      dynamic: false
+      nonDeterministic: true
+      planCacheAllowed: false
+      reflectionAllowed: true
  -
   description: "ALTERNATE3"
   input: "ALTERNATE3"
   output:
-    dynamic: false
     name: "ALTERNATE3"
-    nonDeterministic: true
+    overloads:
+     -
+      className: "JAVA - SqlFunctionImpl"
+      dynamic: false
+      nonDeterministic: true
+      planCacheAllowed: false
+      reflectionAllowed: true
  -
   description: "CURRENT_CATALOG"
   input: "CURRENT_CATALOG"
   output:
-    dynamic: true
     name: "CURRENT_CATALOG"
-    nonDeterministic: false
+    overloads:
+     -
+      className: "SqlStringContextVariable"
+      dynamic: true
+      nonDeterministic: false
+      planCacheAllowed: false
+      reflectionAllowed: false
  -
   description: "CURRENT_DATE"
   input: "CURRENT_DATE"
   output:
-    dynamic: true
     name: "CURRENT_DATE"
-    nonDeterministic: false
+    overloads:
+     -
+      className: "SqlCurrentDateFunction"
+      dynamic: true
+      nonDeterministic: false
+      planCacheAllowed: false
+      reflectionAllowed: true
+     -
+      className: "JAVA - SqlFunctionImpl"
+      dynamic: true
+      nonDeterministic: false
+      planCacheAllowed: false
+      reflectionAllowed: true
  -
   description: "CURRENT_DATE_UTC"
   input: "CURRENT_DATE_UTC"
   output:
-    dynamic: true
     name: "CURRENT_DATE_UTC"
-    nonDeterministic: false
+    overloads:
+     -
+      className: "DremioSqlFunction"
+      dynamic: true
+      nonDeterministic: false
+      planCacheAllowed: false
+      reflectionAllowed: true
+     -
+      className: "JAVA - SqlFunctionImpl"
+      dynamic: true
+      nonDeterministic: false
+      planCacheAllowed: false
+      reflectionAllowed: true
  -
   description: "CURRENT_PATH"
   input: "CURRENT_PATH"
   output:
-    dynamic: true
     name: "CURRENT_PATH"
-    nonDeterministic: false
+    overloads:
+     -
+      className: "SqlStringContextVariable"
+      dynamic: true
+      nonDeterministic: false
+      planCacheAllowed: false
+      reflectionAllowed: false
  -
   description: "CURRENT_ROLE"
   input: "CURRENT_ROLE"
   output:
-    dynamic: true
     name: "CURRENT_ROLE"
-    nonDeterministic: false
+    overloads:
+     -
+      className: "SqlStringContextVariable"
+      dynamic: true
+      nonDeterministic: false
+      planCacheAllowed: false
+      reflectionAllowed: false
  -
   description: "CURRENT_SCHEMA"
   input: "CURRENT_SCHEMA"
   output:
-    dynamic: true
     name: "CURRENT_SCHEMA"
-    nonDeterministic: false
+    overloads:
+     -
+      className: "SqlStringContextVariable"
+      dynamic: true
+      nonDeterministic: false
+      planCacheAllowed: false
+      reflectionAllowed: false
+     -
+      className: "JAVA - SqlFunctionImpl"
+      dynamic: true
+      nonDeterministic: false
+      planCacheAllowed: false
+      reflectionAllowed: false
  -
   description: "CURRENT_TIME"
   input: "CURRENT_TIME"
   output:
-    dynamic: true
     name: "CURRENT_TIME"
-    nonDeterministic: false
+    overloads:
+     -
+      className: "SqlAbstractTimeFunction"
+      dynamic: true
+      nonDeterministic: false
+      planCacheAllowed: false
+      reflectionAllowed: true
+     -
+      className: "JAVA - SqlFunctionImpl"
+      dynamic: true
+      nonDeterministic: false
+      planCacheAllowed: false
+      reflectionAllowed: true
  -
   description: "CURRENT_TIMESTAMP"
   input: "CURRENT_TIMESTAMP"
   output:
-    dynamic: true
     name: "CURRENT_TIMESTAMP"
-    nonDeterministic: false
+    overloads:
+     -
+      className: "SqlAbstractTimeFunction"
+      dynamic: true
+      nonDeterministic: false
+      planCacheAllowed: false
+      reflectionAllowed: true
+     -
+      className: "JAVA - SqlFunctionImpl"
+      dynamic: true
+      nonDeterministic: false
+      planCacheAllowed: false
+      reflectionAllowed: true
  -
   description: "CURRENT_TIMESTAMP_UTC"
   input: "CURRENT_TIMESTAMP_UTC"
   output:
-    dynamic: true
     name: "CURRENT_TIMESTAMP_UTC"
-    nonDeterministic: false
+    overloads:
+     -
+      className: "DremioSqlFunction"
+      dynamic: true
+      nonDeterministic: false
+      planCacheAllowed: false
+      reflectionAllowed: true
+     -
+      className: "JAVA - SqlFunctionImpl"
+      dynamic: true
+      nonDeterministic: false
+      planCacheAllowed: false
+      reflectionAllowed: true
  -
   description: "CURRENT_TIME_UTC"
   input: "CURRENT_TIME_UTC"
   output:
-    dynamic: true
     name: "CURRENT_TIME_UTC"
-    nonDeterministic: false
+    overloads:
+     -
+      className: "DremioSqlFunction"
+      dynamic: true
+      nonDeterministic: false
+      planCacheAllowed: false
+      reflectionAllowed: true
+     -
+      className: "JAVA - SqlFunctionImpl"
+      dynamic: true
+      nonDeterministic: false
+      planCacheAllowed: false
+      reflectionAllowed: true
  -
   description: "CURRENT_USER"
   input: "CURRENT_USER"
   output:
-    dynamic: true
     name: "CURRENT_USER"
-    nonDeterministic: false
+    overloads:
+     -
+      className: "SqlStringContextVariable"
+      dynamic: true
+      nonDeterministic: false
+      planCacheAllowed: false
+      reflectionAllowed: false
  -
   description: "FLATTEN"
   input: "FLATTEN"
   output:
-    dynamic: false
     name: "FLATTEN"
-    nonDeterministic: true
+    overloads:
+     -
+      className: "SqlFlattenOperator"
+      dynamic: false
+      nonDeterministic: true
+      planCacheAllowed: true
+      reflectionAllowed: true
  -
   description: "IS_MEMBER"
   input: "IS_MEMBER"
   output:
-    dynamic: true
     name: "IS_MEMBER"
-    nonDeterministic: false
+    overloads:
+     -
+      className: "DremioSqlFunction"
+      dynamic: true
+      nonDeterministic: false
+      planCacheAllowed: false
+      reflectionAllowed: false
  -
   description: "LAST_QUERY_ID"
   input: "LAST_QUERY_ID"
   output:
-    dynamic: true
     name: "LAST_QUERY_ID"
-    nonDeterministic: false
+    overloads:
+     -
+      className: ""
+      dynamic: true
+      nonDeterministic: false
+      planCacheAllowed: false
+      reflectionAllowed: false
+     -
+      className: "JAVA - SqlFunctionImpl"
+      dynamic: true
+      nonDeterministic: false
+      planCacheAllowed: false
+      reflectionAllowed: false
  -
   description: "LOCALTIME"
   input: "LOCALTIME"
   output:
-    dynamic: true
     name: "LOCALTIME"
-    nonDeterministic: false
+    overloads:
+     -
+      className: "SqlAbstractTimeFunction"
+      dynamic: true
+      nonDeterministic: false
+      planCacheAllowed: false
+      reflectionAllowed: true
+     -
+      className: "JAVA - SqlFunctionImpl"
+      dynamic: true
+      nonDeterministic: false
+      planCacheAllowed: false
+      reflectionAllowed: true
  -
   description: "LOCALTIMESTAMP"
   input: "LOCALTIMESTAMP"
   output:
-    dynamic: true
     name: "LOCALTIMESTAMP"
-    nonDeterministic: false
+    overloads:
+     -
+      className: "SqlAbstractTimeFunction"
+      dynamic: true
+      nonDeterministic: false
+      planCacheAllowed: false
+      reflectionAllowed: true
+     -
+      className: "JAVA - SqlFunctionImpl"
+      dynamic: true
+      nonDeterministic: false
+      planCacheAllowed: false
+      reflectionAllowed: true
  -
   description: "NOW"
   input: "NOW"
   output:
-    dynamic: true
     name: "NOW"
-    nonDeterministic: false
- -
-  description: "PI"
-  input: "PI"
-  output:
-    dynamic: true
-    name: "PI"
-    nonDeterministic: false
+    overloads:
+     -
+      className: "DremioSqlFunction"
+      dynamic: true
+      nonDeterministic: false
+      planCacheAllowed: false
+      reflectionAllowed: true
+     -
+      className: "JAVA - SqlFunctionImpl"
+      dynamic: true
+      nonDeterministic: false
+      planCacheAllowed: false
+      reflectionAllowed: true
  -
   description: "QUERY_USER"
   input: "QUERY_USER"
   output:
-    dynamic: true
     name: "QUERY_USER"
-    nonDeterministic: false
+    overloads:
+     -
+      className: "DremioSqlFunction"
+      dynamic: true
+      nonDeterministic: false
+      planCacheAllowed: false
+      reflectionAllowed: false
+     -
+      className: "JAVA - SqlFunctionImpl"
+      dynamic: true
+      nonDeterministic: false
+      planCacheAllowed: false
+      reflectionAllowed: false
  -
   description: "RAND"
   input: "RAND"
   output:
-    dynamic: true
     name: "RAND"
-    nonDeterministic: true
+    overloads:
+     -
+      className: "DremioSqlFunction"
+      dynamic: false
+      nonDeterministic: true
+      planCacheAllowed: false
+      reflectionAllowed: true
+     -
+      className: "SqlRandFunction"
+      dynamic: true
+      nonDeterministic: true
+      planCacheAllowed: false
+      reflectionAllowed: false
+     -
+      className: "JAVA - SqlFunctionImpl"
+      dynamic: false
+      nonDeterministic: true
+      planCacheAllowed: false
+      reflectionAllowed: true
+     -
+      className: "JAVA - SqlFunctionImpl"
+      dynamic: false
+      nonDeterministic: true
+      planCacheAllowed: false
+      reflectionAllowed: true
+     -
+      className: "GANDIVA - SqlFunctionImpl"
+      dynamic: false
+      nonDeterministic: false
+      planCacheAllowed: true
+      reflectionAllowed: true
  -
   description: "RANDOM"
   input: "RANDOM"
   output:
-    dynamic: false
     name: "RANDOM"
-    nonDeterministic: true
+    overloads:
+     -
+      className: "JAVA - SqlFunctionImpl"
+      dynamic: false
+      nonDeterministic: true
+      planCacheAllowed: false
+      reflectionAllowed: true
+     -
+      className: "JAVA - SqlFunctionImpl"
+      dynamic: false
+      nonDeterministic: true
+      planCacheAllowed: false
+      reflectionAllowed: true
+     -
+      className: "GANDIVA - SqlFunctionImpl"
+      dynamic: false
+      nonDeterministic: false
+      planCacheAllowed: true
+      reflectionAllowed: true
  -
   description: "RAND_INTEGER"
   input: "RAND_INTEGER"
   output:
-    dynamic: true
     name: "RAND_INTEGER"
-    nonDeterministic: false
+    overloads:
+     -
+      className: "SqlRandIntegerFunction"
+      dynamic: true
+      nonDeterministic: false
+      planCacheAllowed: false
+      reflectionAllowed: false
  -
   description: "SAMPLE"
   input: "SAMPLE"
   output:
-    dynamic: false
     name: "SAMPLE"
-    nonDeterministic: true
+    overloads:
+     -
+      className: "JAVA - SqlFunctionImpl"
+      dynamic: false
+      nonDeterministic: true
+      planCacheAllowed: false
+      reflectionAllowed: true
  -
   description: "SESSION_USER"
   input: "SESSION_USER"
   output:
-    dynamic: true
     name: "SESSION_USER"
-    nonDeterministic: false
+    overloads:
+     -
+      className: "DremioSqlFunction"
+      dynamic: true
+      nonDeterministic: false
+      planCacheAllowed: false
+      reflectionAllowed: false
+     -
+      className: "SqlStringContextVariable"
+      dynamic: true
+      nonDeterministic: false
+      planCacheAllowed: false
+      reflectionAllowed: false
+     -
+      className: "JAVA - SqlFunctionImpl"
+      dynamic: true
+      nonDeterministic: false
+      planCacheAllowed: false
+      reflectionAllowed: false
  -
   description: "STATEMENT_TIMESTAMP"
   input: "STATEMENT_TIMESTAMP"
   output:
-    dynamic: true
     name: "STATEMENT_TIMESTAMP"
-    nonDeterministic: false
+    overloads:
+     -
+      className: "DremioSqlFunction"
+      dynamic: true
+      nonDeterministic: false
+      planCacheAllowed: false
+      reflectionAllowed: true
+     -
+      className: "JAVA - SqlFunctionImpl"
+      dynamic: true
+      nonDeterministic: false
+      planCacheAllowed: false
+      reflectionAllowed: true
  -
   description: "SYSTEM_USER"
   input: "SYSTEM_USER"
   output:
-    dynamic: true
     name: "SYSTEM_USER"
-    nonDeterministic: false
+    overloads:
+     -
+      className: "DremioSqlFunction"
+      dynamic: true
+      nonDeterministic: false
+      planCacheAllowed: false
+      reflectionAllowed: false
+     -
+      className: "SqlStringContextVariable"
+      dynamic: true
+      nonDeterministic: false
+      planCacheAllowed: false
+      reflectionAllowed: false
+     -
+      className: "JAVA - SqlFunctionImpl"
+      dynamic: true
+      nonDeterministic: false
+      planCacheAllowed: false
+      reflectionAllowed: false
  -
   description: "TIMEOFDAY"
   input: "TIMEOFDAY"
   output:
-    dynamic: true
     name: "TIMEOFDAY"
-    nonDeterministic: false
+    overloads:
+     -
+      className: "DremioSqlFunction"
+      dynamic: true
+      nonDeterministic: false
+      planCacheAllowed: false
+      reflectionAllowed: true
+     -
+      className: "JAVA - SqlFunctionImpl"
+      dynamic: true
+      nonDeterministic: false
+      planCacheAllowed: false
+      reflectionAllowed: true
  -
   description: "TRANSACTION_TIMESTAMP"
   input: "TRANSACTION_TIMESTAMP"
   output:
-    dynamic: true
     name: "TRANSACTION_TIMESTAMP"
-    nonDeterministic: false
+    overloads:
+     -
+      className: "DremioSqlFunction"
+      dynamic: true
+      nonDeterministic: false
+      planCacheAllowed: false
+      reflectionAllowed: true
+     -
+      className: "JAVA - SqlFunctionImpl"
+      dynamic: true
+      nonDeterministic: false
+      planCacheAllowed: false
+      reflectionAllowed: true
  -
   description: "UNIX_TIMESTAMP"
   input: "UNIX_TIMESTAMP"
   output:
-    dynamic: true
     name: "UNIX_TIMESTAMP"
-    nonDeterministic: false
+    overloads:
+     -
+      className: "DremioSqlFunction"
+      dynamic: true
+      nonDeterministic: false
+      planCacheAllowed: false
+      reflectionAllowed: true
+     -
+      className: "JAVA - SqlFunctionImpl"
+      dynamic: true
+      nonDeterministic: false
+      planCacheAllowed: false
+      reflectionAllowed: true
+     -
+      className: "JAVA - SqlFunctionImpl"
+      dynamic: true
+      nonDeterministic: false
+      planCacheAllowed: false
+      reflectionAllowed: true
+     -
+      className: "JAVA - SqlFunctionImpl"
+      dynamic: true
+      nonDeterministic: false
+      planCacheAllowed: false
+      reflectionAllowed: true
  -
   description: "USER"
   input: "USER"
   output:
-    dynamic: true
     name: "USER"
-    nonDeterministic: false
+    overloads:
+     -
+      className: "DremioSqlFunction"
+      dynamic: true
+      nonDeterministic: false
+      planCacheAllowed: false
+      reflectionAllowed: false
+     -
+      className: "SqlStringContextVariable"
+      dynamic: true
+      nonDeterministic: false
+      planCacheAllowed: false
+      reflectionAllowed: false
+     -
+      className: "JAVA - SqlFunctionImpl"
+      dynamic: true
+      nonDeterministic: false
+      planCacheAllowed: false
+      reflectionAllowed: false
  -
   description: "__THROWEXCEPTION"
   input: "__THROWEXCEPTION"
   output:
-    dynamic: false
     name: "__THROWEXCEPTION"
-    nonDeterministic: true
+    overloads:
+     -
+      className: "JAVA - SqlFunctionImpl"
+      dynamic: false
+      nonDeterministic: true
+      planCacheAllowed: false
+      reflectionAllowed: true
 

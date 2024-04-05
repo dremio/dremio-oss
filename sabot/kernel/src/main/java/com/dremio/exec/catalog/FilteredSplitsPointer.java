@@ -15,13 +15,12 @@
  */
 package com.dremio.exec.catalog;
 
-import java.util.Objects;
-
 import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.SearchTypes.SearchQuery;
 import com.dremio.datastore.api.LegacyIndexedStore.LegacyFindByCondition;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.PartitionChunkMetadata;
+import java.util.Objects;
 
 /**
  * Pointer to a set of splits for a dataset, which has been filtered further using a search query.

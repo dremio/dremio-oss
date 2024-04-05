@@ -18,6 +18,9 @@ package com.dremio.exec.planner.common;
 import static com.dremio.exec.planner.VacuumOutputSchema.getTableOutputRelDataType;
 import static com.dremio.exec.planner.sql.handlers.SqlHandlerUtil.getTimestampFromMillis;
 
+import com.dremio.exec.catalog.VacuumOptions;
+import com.dremio.exec.planner.logical.CreateTableEntry;
+import com.google.common.base.Preconditions;
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
@@ -27,25 +30,20 @@ import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.SingleRel;
 import org.apache.calcite.rel.type.RelDataType;
 
-import com.dremio.exec.catalog.VacuumOptions;
-import com.dremio.exec.planner.logical.CreateTableEntry;
-import com.google.common.base.Preconditions;
-
-/**
- * Base class for 'VACUUM' query.
- */
+/** Base class for 'VACUUM' query. */
 public class VacuumTableRelBase extends SingleRel {
   private final RelOptTable table;
   private final CreateTableEntry createTableEntry;
   private final VacuumOptions vacuumOptions;
 
-  protected VacuumTableRelBase(Convention convention,
-                               RelOptCluster cluster,
-                               RelTraitSet traitSet,
-                               RelNode input,
-                               RelOptTable table,
-                               CreateTableEntry createTableEntry,
-                               VacuumOptions vacuumOptions) {
+  protected VacuumTableRelBase(
+      Convention convention,
+      RelOptCluster cluster,
+      RelTraitSet traitSet,
+      RelNode input,
+      RelOptTable table,
+      CreateTableEntry createTableEntry,
+      VacuumOptions vacuumOptions) {
     super(cluster, traitSet, input);
     assert getConvention() == convention;
     this.table = table;

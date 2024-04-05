@@ -19,10 +19,7 @@ import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-
-/**
- * Dremio-specific {@link DatabaseMetaData}.
- */
+/** Dremio-specific {@link DatabaseMetaData}. */
 public interface DremioDatabaseMetaData extends DatabaseMetaData {
 
   // For matching order of java.sql.DatabaseMetaData:
@@ -34,32 +31,32 @@ public interface DremioDatabaseMetaData extends DatabaseMetaData {
   //  isReadOnly()
 
   /**
-   * <strong>Dremio</strong>:
-   * Reports that NULL values are sorted high.
+   * <strong>Dremio</strong>: Reports that NULL values are sorted high.
+   *
    * @return {@code true}
    */
   @Override
   public boolean nullsAreSortedHigh() throws SQLException;
 
   /**
-   * <strong>Dremio</strong>:
-   * Reports that NULL values are not sorted low.
+   * <strong>Dremio</strong>: Reports that NULL values are not sorted low.
+   *
    * @return {@code false}
    */
   @Override
   public boolean nullsAreSortedLow() throws SQLException;
 
   /**
-   * <strong>Dremio</strong>:
-   * Reports that NULL values are not sorted first.
+   * <strong>Dremio</strong>: Reports that NULL values are not sorted first.
+   *
    * @return {@code false}
    */
   @Override
   public boolean nullsAreSortedAtStart() throws SQLException;
 
   /**
-   * <strong>Dremio</strong>:
-   * Reports that NULL values are not sorted last.
+   * <strong>Dremio</strong>: Reports that NULL values are not sorted last.
+   *
    * @return {@code false}
    */
   @Override
@@ -83,15 +80,13 @@ public interface DremioDatabaseMetaData extends DatabaseMetaData {
   //  storesLowerCaseQuotedIdentifiers()
   //  storesMixedCaseQuotedIdentifiers()
 
-
   /**
-   * <strong>Dremio</strong>:
-   * Reports the SQL identifier quoting character.
+   * <strong>Dremio</strong>: Reports the SQL identifier quoting character.
+   *
    * @return the quoting character.
    */
   @Override
   String getIdentifierQuoteString() throws SQLException;
-
 
   // For matching order of java.sql.DatabaseMetaData:
   //  getSQLKeywords()
@@ -187,26 +182,22 @@ public interface DremioDatabaseMetaData extends DatabaseMetaData {
   //  dataDefinitionCausesTransactionCommit()
   //  dataDefinitionIgnoredInTransactions()
 
-
   /**
-   * <strong>Dremio</strong>:  Currently, returns an empty (zero-row) result set.
-   * (Note:  Currently, result set might not have the expected columns.)
+   * <strong>Dremio</strong>: Currently, returns an empty (zero-row) result set. (Note: Currently,
+   * result set might not have the expected columns.)
    */
   @Override
-  ResultSet getProcedures( String catalog,
-                           String schemaPattern,
-                           String procedureNamePattern) throws SQLException;
+  ResultSet getProcedures(String catalog, String schemaPattern, String procedureNamePattern)
+      throws SQLException;
 
   /**
-   * <strong>Dremio</strong>:  Currently, returns an empty (zero-row) result set.
-   * (Note:  Currently, result set might not have the expected columns.)
+   * <strong>Dremio</strong>: Currently, returns an empty (zero-row) result set. (Note: Currently,
+   * result set might not have the expected columns.)
    */
   @Override
-  ResultSet getProcedureColumns( String catalog,
-                                 String schemaPattern,
-                                 String procedureNamePattern,
-                                 String columnNamePattern ) throws SQLException;
-
+  ResultSet getProcedureColumns(
+      String catalog, String schemaPattern, String procedureNamePattern, String columnNamePattern)
+      throws SQLException;
 
   // For matching order of java.sql.DatabaseMetaData:
   //
@@ -214,112 +205,98 @@ public interface DremioDatabaseMetaData extends DatabaseMetaData {
   //  getSchemas()
   //  getCatalogs()
 
-
   /**
-   * <strong>Dremio</strong>:  Currently, returns an empty (zero-row) result set.
-   * (Note:  Currently, result set might not have the expected columns.)
+   * <strong>Dremio</strong>: Currently, returns an empty (zero-row) result set. (Note: Currently,
+   * result set might not have the expected columns.)
    */
   @Override
   ResultSet getTableTypes() throws SQLException;
-
 
   // For matching order of java.sql.DatabaseMetaData:
   //
   //  getColumns( String, String, String, String )
 
-
   /**
-   * <strong>Dremio</strong>:  Currently, returns an empty (zero-row) result set.
-   * (Note:  Currently, result set might not have the expected columns.)
+   * <strong>Dremio</strong>: Currently, returns an empty (zero-row) result set. (Note: Currently,
+   * result set might not have the expected columns.)
    */
   @Override
-  ResultSet getColumnPrivileges( String catalog,
-                                 String schema,
-                                 String table,
-                                 String columnNamePattern ) throws SQLException;
+  ResultSet getColumnPrivileges(
+      String catalog, String schema, String table, String columnNamePattern) throws SQLException;
 
   /**
-   * <strong>Dremio</strong>:  Currently, returns an empty (zero-row) result set.
-   * (Note:  Currently, result set might not have the expected columns.)
+   * <strong>Dremio</strong>: Currently, returns an empty (zero-row) result set. (Note: Currently,
+   * result set might not have the expected columns.)
    */
   @Override
-  ResultSet getTablePrivileges( String catalog,
-                                String schemaPattern,
-                                String tableNamePattern ) throws SQLException;
-
-  /**
-   * <strong>Dremio</strong>:  Currently, returns an empty (zero-row) result set.
-   * (Note:  Currently, result set might not have the expected columns.)
-   */
-  @Override
-  ResultSet getBestRowIdentifier( String catalog,
-                                  String schema,
-                                  String table,
-                                  int scope,
-                                  boolean nullable ) throws SQLException;
-
-  /**
-   * <strong>Dremio</strong>:  Currently, returns an empty (zero-row) result set.
-   * (Note:  Currently, result set might not have the expected columns.)
-   */
-  @Override
-  ResultSet getVersionColumns( String catalog, String schema, String table )
+  ResultSet getTablePrivileges(String catalog, String schemaPattern, String tableNamePattern)
       throws SQLException;
 
   /**
-   * <strong>Dremio</strong>:  Currently, returns an empty (zero-row) result set.
-   * (Note:  Currently, result set might not have the expected columns.)
+   * <strong>Dremio</strong>: Currently, returns an empty (zero-row) result set. (Note: Currently,
+   * result set might not have the expected columns.)
    */
   @Override
-  ResultSet getPrimaryKeys( String catalog, String schema, String table )
+  ResultSet getBestRowIdentifier(
+      String catalog, String schema, String table, int scope, boolean nullable) throws SQLException;
+
+  /**
+   * <strong>Dremio</strong>: Currently, returns an empty (zero-row) result set. (Note: Currently,
+   * result set might not have the expected columns.)
+   */
+  @Override
+  ResultSet getVersionColumns(String catalog, String schema, String table) throws SQLException;
+
+  /**
+   * <strong>Dremio</strong>: Currently, returns an empty (zero-row) result set. (Note: Currently,
+   * result set might not have the expected columns.)
+   */
+  @Override
+  ResultSet getPrimaryKeys(String catalog, String schema, String table) throws SQLException;
+
+  /**
+   * <strong>Dremio</strong>: Currently, returns an empty (zero-row) result set. (Note: Currently,
+   * result set might not have the expected columns.)
+   */
+  @Override
+  ResultSet getImportedKeys(String catalog, String schema, String table) throws SQLException;
+
+  /**
+   * <strong>Dremio</strong>: Currently, returns an empty (zero-row) result set. (Note: Currently,
+   * result set might not have the expected columns.)
+   */
+  @Override
+  ResultSet getExportedKeys(String catalog, String schema, String table) throws SQLException;
+
+  /**
+   * <strong>Dremio</strong>: Currently, returns an empty (zero-row) result set. (Note: Currently,
+   * result set might not have the expected columns.)
+   */
+  @Override
+  ResultSet getCrossReference(
+      String parentCatalog,
+      String parentSchema,
+      String parentTable,
+      String foreignCatalog,
+      String foreignSchema,
+      String foreignTable)
       throws SQLException;
 
   /**
-   * <strong>Dremio</strong>:  Currently, returns an empty (zero-row) result set.
-   * (Note:  Currently, result set might not have the expected columns.)
-   */
-  @Override
-  ResultSet getImportedKeys( String catalog, String schema, String table )
-      throws SQLException;
-
-  /**
-   * <strong>Dremio</strong>:  Currently, returns an empty (zero-row) result set.
-   * (Note:  Currently, result set might not have the expected columns.)
-   */
-  @Override
-  ResultSet getExportedKeys( String catalog, String schema, String table )
-      throws SQLException;
-
-  /**
-   * <strong>Dremio</strong>:  Currently, returns an empty (zero-row) result set.
-   * (Note:  Currently, result set might not have the expected columns.)
-   */
-  @Override
-  ResultSet getCrossReference( String parentCatalog,
-                               String parentSchema,
-                               String parentTable,
-                               String foreignCatalog,
-                               String foreignSchema,
-                               String foreignTable ) throws SQLException;
-
-  /**
-   * <strong>Dremio</strong>:  Currently, returns an empty (zero-row) result set.
-   * (Note:  Currently, result set might not have the expected columns.)
+   * <strong>Dremio</strong>: Currently, returns an empty (zero-row) result set. (Note: Currently,
+   * result set might not have the expected columns.)
    */
   @Override
   ResultSet getTypeInfo() throws SQLException;
 
   /**
-   * <strong>Dremio</strong>:  Currently, returns an empty (zero-row) result set.
-   * (Note:  Currently, result set might not have the expected columns.)
+   * <strong>Dremio</strong>: Currently, returns an empty (zero-row) result set. (Note: Currently,
+   * result set might not have the expected columns.)
    */
   @Override
-  ResultSet getIndexInfo( String catalog,
-                          String schema,
-                          String table,
-                          boolean unique,
-                          boolean approximate ) throws SQLException;
-
+  ResultSet getIndexInfo(
+      String catalog, String schema, String table, boolean unique, boolean approximate)
+      throws SQLException;
 
   // For matching order of java.sql.DatabaseMetaData:
   //
@@ -337,17 +314,13 @@ public interface DremioDatabaseMetaData extends DatabaseMetaData {
   //  insertsAreDetected( int )
   //  supportsBatchUpdates()
 
-
   /**
-   * <strong>Dremio</strong>:  Currently, returns an empty (zero-row) result set.
-   * (Note:  Currently, result set might not have the expected columns.)
+   * <strong>Dremio</strong>: Currently, returns an empty (zero-row) result set. (Note: Currently,
+   * result set might not have the expected columns.)
    */
   @Override
-  ResultSet getUDTs( String catalog,
-                     String schemaPattern,
-                     String typeNamePattern,
-                     int[] types ) throws SQLException;
-
+  ResultSet getUDTs(String catalog, String schemaPattern, String typeNamePattern, int[] types)
+      throws SQLException;
 
   // For matching order of java.sql.DatabaseMetaData:
   //
@@ -358,35 +331,30 @@ public interface DremioDatabaseMetaData extends DatabaseMetaData {
   //  supportsMultipleOpenResults()
   //  supportsGetGeneratedKeys()
 
-
   /**
-   * <strong>Dremio</strong>:  Currently, returns an empty (zero-row) result set.
-   * (Note:  Currently, result set might not have the expected columns.)
+   * <strong>Dremio</strong>: Currently, returns an empty (zero-row) result set. (Note: Currently,
+   * result set might not have the expected columns.)
    */
   @Override
-  ResultSet getSuperTypes( String catalog,
-                           String schemaPattern,
-                           String typeNamePattern ) throws SQLException;
+  ResultSet getSuperTypes(String catalog, String schemaPattern, String typeNamePattern)
+      throws SQLException;
 
   /**
-   * <strong>Dremio</strong>:  Currently, returns an empty (zero-row) result set.
-   * (Note:  Currently, result set might not have the expected columns.)
+   * <strong>Dremio</strong>: Currently, returns an empty (zero-row) result set. (Note: Currently,
+   * result set might not have the expected columns.)
    */
   @Override
-  ResultSet getSuperTables( String catalog,
-                            String schemaPattern,
-                            String tableNamePattern ) throws SQLException;
+  ResultSet getSuperTables(String catalog, String schemaPattern, String tableNamePattern)
+      throws SQLException;
 
   /**
-   * <strong>Dremio</strong>:  Currently, returns an empty (zero-row) result set.
-   * (Note:  Currently, result set might not have the expected columns.)
+   * <strong>Dremio</strong>: Currently, returns an empty (zero-row) result set. (Note: Currently,
+   * result set might not have the expected columns.)
    */
   @Override
-  ResultSet getAttributes( String catalog,
-                           String schemaPattern,
-                           String typeNamePattern,
-                           String attributeNamePattern ) throws SQLException;
-
+  ResultSet getAttributes(
+      String catalog, String schemaPattern, String typeNamePattern, String attributeNamePattern)
+      throws SQLException;
 
   // For matching order of java.sql.DatabaseMetaData:
   //
@@ -405,47 +373,40 @@ public interface DremioDatabaseMetaData extends DatabaseMetaData {
   //  supportsStoredFunctionsUsingCallSyntax()
   //  autoCommitFailureClosesAllResultSets()
 
-
   /**
-   * <strong>Dremio</strong>:  Currently, returns an empty (zero-row) result set.
-   * (Note:  Currently, result set might not have the expected columns.)
+   * <strong>Dremio</strong>: Currently, returns an empty (zero-row) result set. (Note: Currently,
+   * result set might not have the expected columns.)
    */
   @Override
   ResultSet getClientInfoProperties() throws SQLException;
 
   /**
-   * <strong>Dremio</strong>:  Currently, returns an empty (zero-row) result set.
-   * (Note:  Currently, result set might not have the expected columns.)
+   * <strong>Dremio</strong>: Currently, returns an empty (zero-row) result set. (Note: Currently,
+   * result set might not have the expected columns.)
    */
   @Override
-  ResultSet getFunctions( String catalog,
-                          String schemaPattern,
-                          String functionNamePattern ) throws SQLException;
+  ResultSet getFunctions(String catalog, String schemaPattern, String functionNamePattern)
+      throws SQLException;
 
   /**
-   * <strong>Dremio</strong>:  Currently, returns an empty (zero-row) result set.
-   * (Note:  Currently, result set might not have the expected columns.)
+   * <strong>Dremio</strong>: Currently, returns an empty (zero-row) result set. (Note: Currently,
+   * result set might not have the expected columns.)
    */
   @Override
-  ResultSet getFunctionColumns( String catalog,
-                                String schemaPattern,
-                                String functionNamePattern,
-                                String columnNamePattern ) throws SQLException;
-
+  ResultSet getFunctionColumns(
+      String catalog, String schemaPattern, String functionNamePattern, String columnNamePattern)
+      throws SQLException;
 
   // --------------------------JDBC 4.1 -----------------------------
 
-
   /**
-   * <strong>Dremio</strong>:  Currently, returns an empty (zero-row) result set.
-   * (Note:  Currently, result set might not have the expected columns.)
+   * <strong>Dremio</strong>: Currently, returns an empty (zero-row) result set. (Note: Currently,
+   * result set might not have the expected columns.)
    */
   @Override
-  ResultSet getPseudoColumns( String catalog,
-                              String schemaPattern,
-                              String tableNamePattern,
-                              String columnNamePattern ) throws SQLException;
-
+  ResultSet getPseudoColumns(
+      String catalog, String schemaPattern, String tableNamePattern, String columnNamePattern)
+      throws SQLException;
 
   // For matching order of java.sql.DatabaseMetaData:
   //

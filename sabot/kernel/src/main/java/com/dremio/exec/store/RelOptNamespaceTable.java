@@ -15,8 +15,13 @@
  */
 package com.dremio.exec.store;
 
+import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.planner.physical.PrelUtil;
+import com.google.common.base.Objects;
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
+import com.google.common.collect.ImmutableList;
 import java.util.List;
-
 import org.apache.calcite.linq4j.tree.Expression;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptSchema;
@@ -32,24 +37,19 @@ import org.apache.calcite.schema.ColumnStrategy;
 import org.apache.calcite.schema.Table;
 import org.apache.calcite.util.ImmutableBitSet;
 
-import com.dremio.exec.catalog.DremioTable;
-import com.dremio.exec.planner.physical.PrelUtil;
-import com.google.common.base.Objects;
-import com.google.common.base.Supplier;
-import com.google.common.base.Suppliers;
-import com.google.common.collect.ImmutableList;
-
-/**
- * Namespace table associated with a particular RelOptCluster.
- */
+/** Namespace table associated with a particular RelOptCluster. */
 public final class RelOptNamespaceTable implements RelOptTable {
 
   private final NamespaceTable table;
   private final RelOptCluster cluster;
 
   private final Supplier<RelDataType> rowType;
+
   public RelOptNamespaceTable(TableMetadata dataset, RelOptCluster cluster) {
-    this(new NamespaceTable(dataset, PrelUtil.getPlannerSettings(cluster).isFullNestedSchemaSupport()), cluster);
+    this(
+        new NamespaceTable(
+            dataset, PrelUtil.getPlannerSettings(cluster).isFullNestedSchemaSupport()),
+        cluster);
   }
 
   public RelOptNamespaceTable(final NamespaceTable table, final RelOptCluster cluster) {
@@ -58,12 +58,14 @@ public final class RelOptNamespaceTable implements RelOptTable {
     this.cluster = cluster;
 
     // rowType might be access frequently but computation is expensive.
-    rowType = Suppliers.memoize(new Supplier<RelDataType>() {
-      @Override
-      public RelDataType get() {
-        return table.getRowType(cluster.getTypeFactory());
-      }
-    });
+    rowType =
+        Suppliers.memoize(
+            new Supplier<RelDataType>() {
+              @Override
+              public RelDataType get() {
+                return table.getRowType(cluster.getTypeFactory());
+              }
+            });
   }
 
   @Override
@@ -73,7 +75,15 @@ public final class RelOptNamespaceTable implements RelOptTable {
 
   @Override
   public double getRowCount() {
-    return table.getStatistic().getRowCount();
+    Double statisticRowCount = table.getStatistic().getRowCount();
+    if (statisticRowCount == null) {
+      // This just a random number, so we don't get an NPE
+      // Ideally we table.getStatistic() returns a valid number, but it's an estimate.
+      // Basically the contract between DremioPrepareTable and Statistics are incompatible.
+      return 100;
+    }
+
+    return (double) statisticRowCount;
   }
 
   @Override
@@ -99,7 +109,7 @@ public final class RelOptNamespaceTable implements RelOptTable {
   @Override
   public RelDistribution getDistribution() {
     return RelDistributionTraitDef.INSTANCE.getDefault();
- }
+  }
 
   @Override
   public boolean isKey(ImmutableBitSet columns) {
@@ -117,7 +127,7 @@ public final class RelOptNamespaceTable implements RelOptTable {
   @SuppressWarnings("unchecked")
   @Override
   public <T> T unwrap(Class<T> clazz) {
-    if(clazz == NamespaceTable.class){
+    if (clazz == NamespaceTable.class) {
       return clazz.cast(table);
     } else if (clazz == DremioTable.class
         || clazz == RelOptNamespaceTable.class
@@ -154,12 +164,12 @@ public final class RelOptNamespaceTable implements RelOptTable {
       return false;
     }
     RelOptNamespaceTable castOther = (RelOptNamespaceTable) other;
-    return Objects.equal(table.getDataset().getName(), castOther.table.getDataset().getName()) && Objects.equal(cluster, castOther.cluster);
+    return Objects.equal(table.getDataset().getName(), castOther.table.getDataset().getName())
+        && Objects.equal(cluster, castOther.cluster);
   }
 
   @Override
   public int hashCode() {
     return Objects.hashCode(table, cluster);
   }
-
 }

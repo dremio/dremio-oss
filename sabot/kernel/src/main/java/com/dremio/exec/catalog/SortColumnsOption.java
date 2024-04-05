@@ -15,17 +15,17 @@
  */
 package com.dremio.exec.catalog;
 
-import java.util.List;
-import java.util.stream.Stream;
-
 import com.dremio.connector.metadata.GetDatasetOption;
 import com.dremio.connector.metadata.GetMetadataOption;
 import com.dremio.connector.metadata.ListPartitionChunkOption;
 import com.dremio.connector.metadata.MetadataOption;
+import java.util.List;
+import java.util.stream.Stream;
 
-public class SortColumnsOption implements GetMetadataOption, GetDatasetOption, ListPartitionChunkOption {
+public class SortColumnsOption
+    implements GetMetadataOption, GetDatasetOption, ListPartitionChunkOption {
 
- private final List<String> sortColumns;
+  private final List<String> sortColumns;
 
   public SortColumnsOption(List<String> sortColumns) {
     super();
@@ -37,6 +37,10 @@ public class SortColumnsOption implements GetMetadataOption, GetDatasetOption, L
   }
 
   public static List<String> getSortColumns(MetadataOption... options) {
-    return Stream.of(options).filter(o -> o instanceof SortColumnsOption).findFirst().map(o -> ((SortColumnsOption) o).getSortColumns()).orElse(null);
+    return Stream.of(options)
+        .filter(o -> o instanceof SortColumnsOption)
+        .findFirst()
+        .map(o -> ((SortColumnsOption) o).getSortColumns())
+        .orElse(null);
   }
 }

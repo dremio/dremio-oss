@@ -17,16 +17,16 @@ package com.dremio.exec.physical;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 
-
 public class PhysicalOperatorSetupException extends ExecutionSetupException {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PhysicalOperatorSetupException.class);
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(PhysicalOperatorSetupException.class);
 
   public PhysicalOperatorSetupException() {
     super();
   }
 
-  public PhysicalOperatorSetupException(String message, Throwable cause, boolean enableSuppression,
-      boolean writableStackTrace) {
+  public PhysicalOperatorSetupException(
+      String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
     super(message, cause, enableSuppression, writableStackTrace);
   }
 
@@ -41,6 +41,4 @@ public class PhysicalOperatorSetupException extends ExecutionSetupException {
   public PhysicalOperatorSetupException(Throwable cause) {
     super(cause);
   }
-
-
 }

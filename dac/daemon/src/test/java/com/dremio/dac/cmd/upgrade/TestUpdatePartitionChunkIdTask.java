@@ -17,14 +17,6 @@ package com.dremio.dac.cmd.upgrade;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import java.util.stream.StreamSupport;
-
-import org.junit.Test;
-
 import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.datastore.api.LegacyIndexedStore;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
@@ -39,28 +31,45 @@ import com.dremio.service.namespace.dataset.proto.ReadDefinition;
 import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.test.DremioTest;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.stream.StreamSupport;
+import org.junit.Test;
 
-/**
- * Test class for {@code UpdateDatasetSplitIdTask}
- */
+/** Test class for {@code UpdateDatasetSplitIdTask} */
 public class TestUpdatePartitionChunkIdTask extends DremioTest {
 
   @Test
   public void test() throws Exception {
-    try (final LocalKVStoreProvider kvStoreProvider = new LocalKVStoreProvider(
-      CLASSPATH_SCAN_RESULT, null, true, false)){
+    try (final LocalKVStoreProvider kvStoreProvider =
+        new LocalKVStoreProvider(CLASSPATH_SCAN_RESULT, null, true, false)) {
       kvStoreProvider.start();
       final LegacyKVStoreProvider legacyKVStoreProvider = kvStoreProvider.asLegacy();
-      final LegacyIndexedStore<String, NameSpaceContainer> namespace = legacyKVStoreProvider.getStore(NamespaceServiceImpl.NamespaceStoreCreator.class);
-      final LegacyIndexedStore<PartitionChunkId, PartitionChunk> partitionChunksStore = legacyKVStoreProvider.getStore(NamespaceServiceImpl.PartitionChunkCreator.class);
+      final LegacyIndexedStore<String, NameSpaceContainer> namespace =
+          legacyKVStoreProvider.getStore(NamespaceServiceImpl.NamespaceStoreCreator.class);
+      final LegacyIndexedStore<PartitionChunkId, PartitionChunk> partitionChunksStore =
+          legacyKVStoreProvider.getStore(NamespaceServiceImpl.PartitionChunkCreator.class);
 
-      final DatasetConfig ds1 = addDataset(namespace, partitionChunksStore, "foo_bar", Arrays.asList("test", "foo_bar"), 10);
-      final DatasetConfig ds2 = addDataset(namespace, partitionChunksStore, "foo%bar", Arrays.asList("test", "foo%bar"), 20);
-      final DatasetConfig ds3 = addDataset(namespace, partitionChunksStore, UUID.randomUUID().toString(), Arrays.asList("test", "foobar"), 30);
+      final DatasetConfig ds1 =
+          addDataset(
+              namespace, partitionChunksStore, "foo_bar", Arrays.asList("test", "foo_bar"), 10);
+      final DatasetConfig ds2 =
+          addDataset(
+              namespace, partitionChunksStore, "foo%bar", Arrays.asList("test", "foo%bar"), 20);
+      final DatasetConfig ds3 =
+          addDataset(
+              namespace,
+              partitionChunksStore,
+              UUID.randomUUID().toString(),
+              Arrays.asList("test", "foobar"),
+              30);
 
       // Check that split ids are unescaped
       int count = 0;
-      for(Map.Entry<PartitionChunkId, PartitionChunk> entry : partitionChunksStore.find(PartitionChunkId.unsafeGetSplitsRange(ds1))) {
+      for (Map.Entry<PartitionChunkId, PartitionChunk> entry :
+          partitionChunksStore.find(PartitionChunkId.unsafeGetSplitsRange(ds1))) {
         PartitionChunkId splitId = entry.getKey();
         assertThat(splitId.getDatasetId()).isEqualTo("foo");
         assertThat(splitId.getSplitVersion()).isEqualTo(Long.MIN_VALUE);
@@ -70,9 +79,12 @@ public class TestUpdatePartitionChunkIdTask extends DremioTest {
 
       // Check that split ids are unescaped
       count = 0;
-      for(Map.Entry<PartitionChunkId, PartitionChunk> entry : partitionChunksStore.find(PartitionChunkId.unsafeGetSplitsRange(ds2))) {
+      for (Map.Entry<PartitionChunkId, PartitionChunk> entry :
+          partitionChunksStore.find(PartitionChunkId.unsafeGetSplitsRange(ds2))) {
         PartitionChunkId splitId = entry.getKey();
-        assertThat(splitId.getDatasetId()).startsWith("foo"); // unescaped dataset split id might generate invalid unicode when unescaped
+        assertThat(splitId.getDatasetId())
+            .startsWith(
+                "foo"); // unescaped dataset split id might generate invalid unicode when unescaped
         assertThat(splitId.getSplitVersion()).isEqualTo(42L);
         count++;
       }
@@ -80,7 +92,8 @@ public class TestUpdatePartitionChunkIdTask extends DremioTest {
 
       // Check that split ids are unescaped
       count = 0;
-      for(Map.Entry<PartitionChunkId, PartitionChunk> entry : partitionChunksStore.find(PartitionChunkId.unsafeGetSplitsRange(ds3))) {
+      for (Map.Entry<PartitionChunkId, PartitionChunk> entry :
+          partitionChunksStore.find(PartitionChunkId.unsafeGetSplitsRange(ds3))) {
         PartitionChunkId splitId = entry.getKey();
         // dataset split id should be a valid uuid
         assertThat(splitId.getDatasetId()).isEqualTo(ds3.getId().getId());
@@ -88,16 +101,19 @@ public class TestUpdatePartitionChunkIdTask extends DremioTest {
         count++;
       }
       assertThat(count).isEqualTo(30);
-      assertThat(StreamSupport.stream(partitionChunksStore.find().spliterator(), false).count()).isEqualTo(10L + 20L + 30L);
+      assertThat(StreamSupport.stream(partitionChunksStore.find().spliterator(), false).count())
+          .isEqualTo(10L + 20L + 30L);
 
       // Perform upgrade
-      final UpgradeContext context = new UpgradeContext(kvStoreProvider, legacyKVStoreProvider, null, null, null);
+      final UpgradeContext context =
+          new UpgradeContext(kvStoreProvider, legacyKVStoreProvider, null, null, null);
       final UpdateDatasetSplitIdTask task = new UpdateDatasetSplitIdTask();
       task.upgrade(context);
 
       // Verify new splits
       count = 0;
-      for(Map.Entry<PartitionChunkId, PartitionChunk> entry : partitionChunksStore.find(PartitionChunkId.getSplitsRange(ds1))) {
+      for (Map.Entry<PartitionChunkId, PartitionChunk> entry :
+          partitionChunksStore.find(PartitionChunkId.getSplitsRange(ds1))) {
         PartitionChunkId splitId = entry.getKey();
         assertThat(splitId.getDatasetId()).isEqualTo("foo_bar");
         assertThat(splitId.getSplitVersion()).isEqualTo(42L);
@@ -106,16 +122,21 @@ public class TestUpdatePartitionChunkIdTask extends DremioTest {
       assertThat(count).isEqualTo(10);
 
       count = 0;
-      for(Map.Entry<PartitionChunkId, PartitionChunk> entry : partitionChunksStore.find(PartitionChunkId.getSplitsRange(ds2))) {
+      for (Map.Entry<PartitionChunkId, PartitionChunk> entry :
+          partitionChunksStore.find(PartitionChunkId.getSplitsRange(ds2))) {
         PartitionChunkId splitId = entry.getKey();
-        assertThat(splitId.getDatasetId()).startsWith("foo%bar"); // unescaped dataset split id might generate invalid unicode when unescaped
+        assertThat(splitId.getDatasetId())
+            .startsWith(
+                "foo%bar"); // unescaped dataset split id might generate invalid unicode when
+        // unescaped
         assertThat(splitId.getSplitVersion()).isEqualTo(42L);
         count++;
       }
       assertThat(count).isEqualTo(20);
 
       count = 0;
-      for(Map.Entry<PartitionChunkId, PartitionChunk> entry : partitionChunksStore.find(PartitionChunkId.getSplitsRange(ds3))) {
+      for (Map.Entry<PartitionChunkId, PartitionChunk> entry :
+          partitionChunksStore.find(PartitionChunkId.getSplitsRange(ds3))) {
         PartitionChunkId splitId = entry.getKey();
         assertThat(splitId.getDatasetId()).isEqualTo(ds3.getId().getId());
         assertThat(splitId.getSplitVersion()).isEqualTo(42L);
@@ -123,37 +144,40 @@ public class TestUpdatePartitionChunkIdTask extends DremioTest {
       }
       assertThat(count).isEqualTo(30);
 
-
-      assertThat(StreamSupport.stream(partitionChunksStore.find().spliterator(), false).count()).isEqualTo(10L + 20L + 30L);
+      assertThat(StreamSupport.stream(partitionChunksStore.find().spliterator(), false).count())
+          .isEqualTo(10L + 20L + 30L);
     }
-
-
   }
 
-  private DatasetConfig addDataset(LegacyIndexedStore<String, NameSpaceContainer> namespace, LegacyIndexedStore<PartitionChunkId, PartitionChunk> partitionChunksStore,
-                                   String id, List<String> path, int splits) {
-    DatasetConfig ds = new DatasetConfig()
-        .setId(new EntityId(id))
-        .setName(last(path))
-        .setFullPathList(path)
-        .setType(DatasetType.PHYSICAL_DATASET)
-        .setReadDefinition(new ReadDefinition().setSplitVersion(42L));
+  private DatasetConfig addDataset(
+      LegacyIndexedStore<String, NameSpaceContainer> namespace,
+      LegacyIndexedStore<PartitionChunkId, PartitionChunk> partitionChunksStore,
+      String id,
+      List<String> path,
+      int splits) {
+    DatasetConfig ds =
+        new DatasetConfig()
+            .setId(new EntityId(id))
+            .setName(last(path))
+            .setFullPathList(path)
+            .setType(DatasetType.PHYSICAL_DATASET)
+            .setReadDefinition(new ReadDefinition().setSplitVersion(42L));
 
     namespace.put(
         NamespaceServiceImpl.getKey(new NamespaceKey(path)),
-        new NameSpaceContainer().setType(NameSpaceContainer.Type.DATASET).setFullPathList(path).setDataset(ds));
+        new NameSpaceContainer()
+            .setType(NameSpaceContainer.Type.DATASET)
+            .setFullPathList(path)
+            .setDataset(ds));
 
-    for(int i = 0; i < splits; i++) {
+    for (int i = 0; i < splits; i++) {
       final String splitKey = Integer.toString(i);
 
-      PartitionChunk split = PartitionChunk.newBuilder()
-          .setSplitKey(splitKey)
-          .build();
+      PartitionChunk split = PartitionChunk.newBuilder().setSplitKey(splitKey).build();
 
       // Generate an older dataset split id
       PartitionChunkId splitId = UnsafeDatasetSplitIdHelper.of(ds, splitKey);
       partitionChunksStore.put(splitId, split);
-
     }
     return ds;
   }

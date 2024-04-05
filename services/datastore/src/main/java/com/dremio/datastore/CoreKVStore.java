@@ -17,19 +17,19 @@ package com.dremio.datastore;
 
 import com.dremio.datastore.api.KVStore;
 
-/**
- * CoreKVStore which uses tuple for keys and values.
- */
+/** CoreKVStore which uses tuple for keys and values. */
 public interface CoreKVStore<K, V> extends KVStore<KVStoreTuple<K>, KVStoreTuple<V>> {
 
   /**
    * Create a tuple for key. This allows rpc handler to convert bytes to objects.
+   *
    * @return empty KVStore tuple for key
    */
   KVStoreTuple<K> newKey();
 
   /**
    * Create a tuple for value. This allows rpc handler to convert bytes to object.
+   *
    * @return empty KVStore tuple for value
    */
   KVStoreTuple<V> newValue();

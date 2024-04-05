@@ -17,17 +17,15 @@ package com.dremio.exec.catalog.conf;
 
 import io.protostuff.Tag;
 
-/**
- * Types of authentication to use with Nessie server.
- */
+/** Types of authentication to use with Nessie server. */
 public enum NessieAuthType {
-  /**
-   * Access Nessie with no auth.
-   */
-  @Tag(1) @DisplayMetadata(label = "None") NONE,
+  /** Access Nessie with no auth. */
+  @Tag(1)
+  @DisplayMetadata(label = "None")
+  NONE,
 
-  /**
-   * Access Nessie with auth enabled mode.
-   */
-  @Tag(2) @DisplayMetadata(label = "Bearer") BEARER
+  /** Access Nessie with auth enabled mode. */
+  @Tag(2)
+  @DisplayMetadata(label = "Bearer")
+  BEARER
 }

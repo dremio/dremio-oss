@@ -34,7 +34,4 @@ public class MagicString {
   public byte[] getBytes() {
     return bytes;
   }
-
-
-
 }

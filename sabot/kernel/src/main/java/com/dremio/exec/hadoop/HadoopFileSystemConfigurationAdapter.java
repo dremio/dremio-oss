@@ -15,12 +15,12 @@
  */
 package com.dremio.exec.hadoop;
 
+import com.dremio.exec.store.dfs.FileSystemConfigurationAdapter;
 import org.apache.hadoop.conf.Configuration;
 
-import com.dremio.exec.store.dfs.FileSystemConfigurationAdapter;
-
 /**
- * A FileSystemConfigurationAdapter that exposes Hadoop configuration using the global Hadoop version.
+ * A FileSystemConfigurationAdapter that exposes Hadoop configuration using the global Hadoop
+ * version.
  */
 public class HadoopFileSystemConfigurationAdapter implements FileSystemConfigurationAdapter {
 

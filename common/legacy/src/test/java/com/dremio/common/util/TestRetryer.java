@@ -24,55 +24,61 @@ import static org.mockito.Mockito.verify;
 
 import java.io.IOException;
 import java.sql.SQLException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 
-
-/**
- * Tests for Retryer
- */
+/** Tests for Retryer */
 public class TestRetryer {
   private static final int MAX_RETRIES = 4;
 
   @Test
   public void testMaxRetries() {
-    Retryer retryer = Retryer.newBuilder()
-      .setWaitStrategy(Retryer.WaitStrategy.FLAT, 1, 1)
-      .retryIfExceptionOfType(RuntimeException.class)
-      .setMaxRetries(MAX_RETRIES).build();
+    Retryer retryer =
+        Retryer.newBuilder()
+            .setWaitStrategy(Retryer.WaitStrategy.FLAT, 1, 1)
+            .retryIfExceptionOfType(RuntimeException.class)
+            .setMaxRetries(MAX_RETRIES)
+            .build();
 
     // Succeed only in last attempt. Throw exceptions before that.
     AtomicInteger counter = new AtomicInteger(0);
-    boolean result = retryer.call(() -> {
-      if (counter.incrementAndGet() < MAX_RETRIES) {
-        throw new RuntimeException("Failure");
-      }
-      // Retry triggered even after success
-      return counter.get() == MAX_RETRIES;
-    });
+    boolean result =
+        retryer.call(
+            () -> {
+              if (counter.incrementAndGet() < MAX_RETRIES) {
+                throw new RuntimeException("Failure");
+              }
+              // Retry triggered even after success
+              return counter.get() == MAX_RETRIES;
+            });
     assertTrue("Retry happened even without exception", result);
   }
 
   @Test
   public void testNoRetryAfterSuccess() {
-    Retryer retryer = Retryer.newBuilder()
-      .setWaitStrategy(Retryer.WaitStrategy.FLAT, 1, 1)
-      .retryIfExceptionOfType(RuntimeException.class)
-      .setMaxRetries(MAX_RETRIES).build();
+    Retryer retryer =
+        Retryer.newBuilder()
+            .setWaitStrategy(Retryer.WaitStrategy.FLAT, 1, 1)
+            .retryIfExceptionOfType(RuntimeException.class)
+            .setMaxRetries(MAX_RETRIES)
+            .build();
 
     final int succeedAfter = MAX_RETRIES / 2;
 
     // Succeed only in mid attempt. Throw exceptions before that.
     AtomicInteger counter = new AtomicInteger(0);
-    boolean result = retryer.call(() -> {
-      if (counter.incrementAndGet() < succeedAfter) {
-        throw new RuntimeException("Failure");
-      }
-      // Retry triggered even after success
-      return counter.get() == succeedAfter;
-    });
+    boolean result =
+        retryer.call(
+            () -> {
+              if (counter.incrementAndGet() < succeedAfter) {
+                throw new RuntimeException("Failure");
+              }
+              // Retry triggered even after success
+              return counter.get() == succeedAfter;
+            });
     assertTrue("Retry happened even without exception", result);
     assertEquals(counter.get(), succeedAfter);
   }
@@ -81,16 +87,20 @@ public class TestRetryer {
   public void testFlatWaitStrategy() {
     final int expectedWait = 100;
 
-    Retryer retryer = spy(Retryer.newBuilder()
-      .setWaitStrategy(Retryer.WaitStrategy.FLAT, expectedWait, expectedWait)
-      .retryIfExceptionOfType(RuntimeException.class)
-      .setMaxRetries(MAX_RETRIES).build());
+    Retryer retryer =
+        spy(
+            Retryer.newBuilder()
+                .setWaitStrategy(Retryer.WaitStrategy.FLAT, expectedWait, expectedWait)
+                .retryIfExceptionOfType(RuntimeException.class)
+                .setMaxRetries(MAX_RETRIES)
+                .build());
     ArgumentCaptor<Long> captor = ArgumentCaptor.forClass(Long.class);
 
     try {
-      retryer.call(() -> {
-        throw new RuntimeException("Failure");
-      });
+      retryer.call(
+          () -> {
+            throw new RuntimeException("Failure");
+          });
     } catch (RuntimeException e) {
       // Nothing to do
     }
@@ -100,26 +110,31 @@ public class TestRetryer {
 
   @Test(expected = RuntimeException.class)
   public void testRetryIfException() {
-    Retryer retryer = Retryer.newBuilder()
-      .setWaitStrategy(Retryer.WaitStrategy.FLAT, 1, 1)
-      .retryIfExceptionOfType(IOException.class)
-      .retryIfExceptionOfType(SQLException.class)
-      .setMaxRetries(MAX_RETRIES).build();
+    Retryer retryer =
+        Retryer.newBuilder()
+            .setWaitStrategy(Retryer.WaitStrategy.FLAT, 1, 1)
+            .retryIfExceptionOfType(IOException.class)
+            .retryIfExceptionOfType(SQLException.class)
+            .setMaxRetries(MAX_RETRIES)
+            .build();
 
-    // Throw IOException and SQLException first. They should fall under retry. Other exceptions shouldn't
+    // Throw IOException and SQLException first. They should fall under retry. Other exceptions
+    // shouldn't
     AtomicInteger counter = new AtomicInteger(0);
-    boolean result = retryer.call(() -> {
-      if (counter.incrementAndGet() < (MAX_RETRIES - 2)) {
-        throw new IOException("Should retry");
-      } else if (counter.get() == (MAX_RETRIES - 2)) {
-        throw new SQLException("Should retry");
-      } else if (counter.get() == (MAX_RETRIES - 1)) {
-        throw new RuntimeException("Should fail");
-      } else {
-        // Retry triggered even after failure
-        return false;
-      }
-    });
+    boolean result =
+        retryer.call(
+            () -> {
+              if (counter.incrementAndGet() < (MAX_RETRIES - 2)) {
+                throw new IOException("Should retry");
+              } else if (counter.get() == (MAX_RETRIES - 2)) {
+                throw new SQLException("Should retry");
+              } else if (counter.get() == (MAX_RETRIES - 1)) {
+                throw new RuntimeException("Should fail");
+              } else {
+                // Retry triggered even after failure
+                return false;
+              }
+            });
 
     // fail if didn't come out of call() with runtime exception.
     assertTrue(result);
@@ -127,27 +142,66 @@ public class TestRetryer {
 
   @Test(expected = RuntimeException.class)
   public void testRetryIfExceptionFunc() {
-    Retryer retryer = Retryer.newBuilder()
-      .setWaitStrategy(Retryer.WaitStrategy.FLAT, 1, 1)
-      .retryOnExceptionFunc(ex -> ex instanceof IOException || ex instanceof SQLException)
-      .setMaxRetries(MAX_RETRIES).build();
+    Retryer retryer =
+        Retryer.newBuilder()
+            .setWaitStrategy(Retryer.WaitStrategy.FLAT, 1, 1)
+            .retryOnExceptionFunc(ex -> ex instanceof IOException || ex instanceof SQLException)
+            .setMaxRetries(MAX_RETRIES)
+            .build();
 
-    // Throw IOException and SQLException first. They should fall under retry. Other exceptions shouldn't
+    // Throw IOException and SQLException first. They should fall under retry. Other exceptions
+    // shouldn't
     AtomicInteger counter = new AtomicInteger(0);
-    boolean result = retryer.call(() -> {
-      if (counter.incrementAndGet() < (MAX_RETRIES - 2)) {
-        throw new IOException("Should retry");
-      } else if (counter.get() == (MAX_RETRIES - 2)) {
-        throw new SQLException("Should retry");
-      } else if (counter.get() == (MAX_RETRIES - 1)) {
-        throw new RuntimeException("Should fail");
-      } else {
-        // Retry triggered even after failure
-        return false;
-      }
-    });
+    boolean result =
+        retryer.call(
+            () -> {
+              if (counter.incrementAndGet() < (MAX_RETRIES - 2)) {
+                throw new IOException("Should retry");
+              } else if (counter.get() == (MAX_RETRIES - 2)) {
+                throw new SQLException("Should retry");
+              } else if (counter.get() == (MAX_RETRIES - 1)) {
+                throw new RuntimeException("Should fail");
+              } else {
+                // Retry triggered even after failure
+                return false;
+              }
+            });
 
     // fail if didn't come out of call() with runtime exception.
     assertTrue(result);
+  }
+
+  @Test
+  public void testRetryWithInfiniteRetriesActivated() throws InterruptedException {
+    int maxRetries = 3;
+    AtomicBoolean keepFailing = new AtomicBoolean(true);
+    Retryer retryer =
+        Retryer.newBuilder()
+            .setWaitStrategy(Retryer.WaitStrategy.FLAT, 1, 1)
+            .retryOnExceptionFunc(ex -> keepFailing.get())
+            .setMaxRetries(maxRetries)
+            .setInfiniteRetries(true)
+            .build();
+
+    AtomicInteger counter = new AtomicInteger(0);
+    CompletableFuture.runAsync(
+        () -> {
+          try {
+            retryer.run(
+                () -> {
+                  counter.incrementAndGet();
+                  throw new RuntimeException("Failure");
+                });
+          } catch (RuntimeException e) {
+            // do nothing
+          }
+        });
+
+    Thread.sleep(1000);
+    keepFailing.set(false);
+
+    // retry will not throw exception because infinite was set, only condition is reached, counter
+    // should be greater than the max retries passed in params
+    assertTrue(counter.get() > maxRetries);
   }
 }

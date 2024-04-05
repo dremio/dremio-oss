@@ -18,9 +18,7 @@ package com.dremio.service.namespace.capabilities;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-/**
- * A double capability value.
- */
+/** A double capability value. */
 public final class DoubleCapabilityValue extends CapabilityValue<Double, DoubleCapability> {
 
   @JsonCreator

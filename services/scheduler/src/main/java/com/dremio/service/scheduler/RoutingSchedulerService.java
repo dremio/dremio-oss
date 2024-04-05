@@ -17,28 +17,28 @@ package com.dremio.service.scheduler;
 
 import static com.dremio.service.coordinator.ClusterCoordinator.Role.MASTER;
 
-import java.util.Optional;
-
-import javax.inject.Provider;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.service.coordinator.ClusterServiceSetManager;
+import java.util.Optional;
+import javax.inject.Provider;
 
 /**
- * An implementation of scheduler service that routes the schedule request either to the Local scheduler or the
- * clustered singleton scheduler.
+ * An implementation of scheduler service that routes the schedule request either to the Local
+ * scheduler or the clustered singleton scheduler.
  */
 public class RoutingSchedulerService implements ModifiableSchedulerService {
-  private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(RoutingSchedulerService.class);
+  private static final org.slf4j.Logger LOGGER =
+      org.slf4j.LoggerFactory.getLogger(RoutingSchedulerService.class);
   private final Provider<ClusterServiceSetManager> clusterServiceSetManagerProvider;
   private final SchedulerService localSchedulerService;
   private final ModifiableSchedulerService distributedSchedulerService;
   private volatile boolean started = false;
 
-  public RoutingSchedulerService(Provider<ClusterServiceSetManager> clusterServiceSetManagerProvider,
-                                 SchedulerService localSchedulerService,
-                                 ModifiableSchedulerService distributedSchedulerService) {
+  public RoutingSchedulerService(
+      Provider<ClusterServiceSetManager> clusterServiceSetManagerProvider,
+      SchedulerService localSchedulerService,
+      ModifiableSchedulerService distributedSchedulerService) {
     this.clusterServiceSetManagerProvider = clusterServiceSetManagerProvider;
     this.localSchedulerService = localSchedulerService;
     this.distributedSchedulerService = distributedSchedulerService;
@@ -73,16 +73,25 @@ public class RoutingSchedulerService implements ModifiableSchedulerService {
   @Override
   public Optional<CoordinationProtos.NodeEndpoint> getCurrentTaskOwner(String taskName) {
     if (distributedSchedulerService != null) {
-      // we are a clustered singleton; the assumption here is that only distributed schedules asks for the current
-      // task owner; local schedules always has the local endpoint as the task leader which should be inferred by the
+      // we are a clustered singleton; the assumption here is that only distributed schedules asks
+      // for the current
+      // task owner; local schedules always has the local endpoint as the task leader which should
+      // be inferred by the
       // caller when they get an empty optional.
       return distributedSchedulerService.getCurrentTaskOwner(taskName);
     } else {
-      // if we are master less, there is only a single master. Thus return the same master endpoint always for all tasks
-      return Optional
-        .ofNullable(clusterServiceSetManagerProvider.get().getServiceSet(MASTER).getAvailableEndpoints())
-        .flatMap(nodeEndpoints -> nodeEndpoints.stream().findFirst());
+      // if we are master less, there is only a single master. Thus return the same master endpoint
+      // always for all tasks
+      return Optional.ofNullable(
+              clusterServiceSetManagerProvider.get().getServiceSet(MASTER).getAvailableEndpoints())
+          .flatMap(nodeEndpoints -> nodeEndpoints.stream().findFirst());
     }
+  }
+
+  @Override
+  public boolean isRollingUpgradeInProgress(String taskName) {
+    return distributedSchedulerService != null
+        && distributedSchedulerService.isRollingUpgradeInProgress(taskName);
   }
 
   @Override

@@ -19,6 +19,7 @@ import static java.util.Arrays.asList;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.dremio.exec.planner.types.SqlTypeFactoryImpl;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
@@ -27,8 +28,6 @@ import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Before;
-
-import com.dremio.exec.planner.types.SqlTypeFactoryImpl;
 
 public class RexBuilderTestBase {
   protected final RelDataTypeFactory typeFactory = SqlTypeFactoryImpl.INSTANCE;
@@ -39,19 +38,18 @@ public class RexBuilderTestBase {
 
   @Before
   public void setup() {
-    rowType = typeFactory.createStructType(
-        asList(
-            typeFactory.createSqlType(SqlTypeName.INTEGER),
-            typeFactory.createSqlType(SqlTypeName.BIGINT),
-            typeFactory.createSqlType(SqlTypeName.FLOAT),
-            typeFactory.createSqlType(SqlTypeName.DOUBLE),
-            typeFactory.createSqlType(SqlTypeName.DATE),
-            typeFactory.createSqlType(SqlTypeName.TIMESTAMP),
-            typeFactory.createSqlType(SqlTypeName.VARCHAR),
-            typeFactory.createSqlType(SqlTypeName.BOOLEAN)
-        ),
-        asList("intC", "bigIntC", "floatC", "doubleC", "dateC", "tsC", "varcharC", "boolC")
-    );
+    rowType =
+        typeFactory.createStructType(
+            asList(
+                typeFactory.createSqlType(SqlTypeName.INTEGER),
+                typeFactory.createSqlType(SqlTypeName.BIGINT),
+                typeFactory.createSqlType(SqlTypeName.FLOAT),
+                typeFactory.createSqlType(SqlTypeName.DOUBLE),
+                typeFactory.createSqlType(SqlTypeName.DATE),
+                typeFactory.createSqlType(SqlTypeName.TIMESTAMP),
+                typeFactory.createSqlType(SqlTypeName.VARCHAR),
+                typeFactory.createSqlType(SqlTypeName.BOOLEAN)),
+            asList("intC", "bigIntC", "floatC", "doubleC", "dateC", "tsC", "varcharC", "boolC"));
     when(input.getRowType()).thenReturn(rowType);
   }
 
@@ -68,7 +66,8 @@ public class RexBuilderTestBase {
   }
 
   protected RexLiteral intLit(int colIndex, int val) {
-    return (RexLiteral) builder.makeLiteral(val, rowType.getFieldList().get(colIndex).getType(), false);
+    return (RexLiteral)
+        builder.makeLiteral(val, rowType.getFieldList().get(colIndex).getType(), false);
   }
 
   protected RexLiteral bigIntLit(long val) {
@@ -76,7 +75,8 @@ public class RexBuilderTestBase {
   }
 
   protected RexLiteral bigIntLit(int colIndex, long val) {
-    return (RexLiteral) builder.makeLiteral(val, rowType.getFieldList().get(colIndex).getType(), false);
+    return (RexLiteral)
+        builder.makeLiteral(val, rowType.getFieldList().get(colIndex).getType(), false);
   }
 
   protected RexLiteral floatLit(float val) {
@@ -84,7 +84,8 @@ public class RexBuilderTestBase {
   }
 
   protected RexLiteral floatLit(int colIndex, float val) {
-    return (RexLiteral) builder.makeLiteral(val, rowType.getFieldList().get(colIndex).getType(), false);
+    return (RexLiteral)
+        builder.makeLiteral(val, rowType.getFieldList().get(colIndex).getType(), false);
   }
 
   protected RexLiteral doubleLit(double val) {
@@ -92,7 +93,8 @@ public class RexBuilderTestBase {
   }
 
   protected RexLiteral doubleLit(int colIndex, double val) {
-    return (RexLiteral) builder.makeLiteral(val, rowType.getFieldList().get(colIndex).getType(), false);
+    return (RexLiteral)
+        builder.makeLiteral(val, rowType.getFieldList().get(colIndex).getType(), false);
   }
 
   protected RexLiteral dateLit(int millisSinceEpoch) {
@@ -100,8 +102,9 @@ public class RexBuilderTestBase {
   }
 
   protected RexLiteral dateLit(int colIndex, int millisSinceEpoch) {
-    return (RexLiteral) builder.makeLiteral(millisSinceEpoch,
-        rowType.getFieldList().get(colIndex).getType(), false);
+    return (RexLiteral)
+        builder.makeLiteral(
+            millisSinceEpoch, rowType.getFieldList().get(colIndex).getType(), false);
   }
 
   protected RexLiteral tsLit(long millisSinceEpoch) {
@@ -109,8 +112,9 @@ public class RexBuilderTestBase {
   }
 
   protected RexLiteral tsLit(int colIndex, long millisSinceEpoch) {
-    return (RexLiteral) builder.makeLiteral(millisSinceEpoch,
-        rowType.getFieldList().get(colIndex).getType(), false);
+    return (RexLiteral)
+        builder.makeLiteral(
+            millisSinceEpoch, rowType.getFieldList().get(colIndex).getType(), false);
   }
 
   protected RexLiteral varcharLit(String varchar) {
@@ -118,7 +122,8 @@ public class RexBuilderTestBase {
   }
 
   protected RexLiteral varcharLit(int colIndex, String varchar) {
-    return (RexLiteral) builder.makeLiteral(varchar, rowType.getFieldList().get(colIndex).getType(), false);
+    return (RexLiteral)
+        builder.makeLiteral(varchar, rowType.getFieldList().get(colIndex).getType(), false);
   }
 
   protected RexLiteral boolLit(boolean value) {
@@ -126,6 +131,7 @@ public class RexBuilderTestBase {
   }
 
   protected RexLiteral boolLit(int colIndex, boolean value) {
-    return (RexLiteral) builder.makeLiteral(value, rowType.getFieldList().get(colIndex).getType(), false);
+    return (RexLiteral)
+        builder.makeLiteral(value, rowType.getFieldList().get(colIndex).getType(), false);
   }
 }

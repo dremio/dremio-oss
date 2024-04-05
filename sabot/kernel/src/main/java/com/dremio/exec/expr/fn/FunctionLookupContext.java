@@ -21,34 +21,33 @@ import com.dremio.options.OptionManager;
 public interface FunctionLookupContext {
 
   /**
-   * Method returns the materialized Dremio function corresponding to the function call that
-   * is passed in. Returns only if the function matches the call exactly.
+   * Method returns the materialized Dremio function corresponding to the function call that is
+   * passed in. Returns only if the function matches the call exactly.
    *
    * @param functionCall - Specifies function name and type of arguments
    * @param allowGandivaFunctions - If we should use gandiva functions in this materialization.
    * @return AbstractFunctionHolder
    */
-  public AbstractFunctionHolder findExactFunction(FunctionCall functionCall, boolean
-    allowGandivaFunctions);
+  public AbstractFunctionHolder findExactFunction(
+      FunctionCall functionCall, boolean allowGandivaFunctions);
 
   /**
-   * Method returns the materialized Dremio function corresponding to the function call that
-   * is passed in. Returns the function that best matches the input.
+   * Method returns the materialized Dremio function corresponding to the function call that is
+   * passed in. Returns the function that best matches the input.
    *
    * @param functionCall - Specifies function name and type of arguments
    * @param allowGandivaFunctions - If we should use gandiva functions in this materialization.
    * @return AbstractFunctionHolder
    */
-  public AbstractFunctionHolder findFunctionWithCast(FunctionCall functionCall, boolean
-    allowGandivaFunctions);
-
+  public AbstractFunctionHolder findFunctionWithCast(
+      FunctionCall functionCall, boolean allowGandivaFunctions);
 
   /**
-   * Find function implementation for given <code>functionCall</code> in non-Dremio function registries such as Hive UDF
-   * registry.
+   * Find function implementation for given <code>functionCall</code> in non-Dremio function
+   * registries such as Hive UDF registry.
    *
-   * Note: Order of searching is same as order of {@link com.dremio.exec.expr.fn.PluggableFunctionRegistry}
-   * implementations found on classpath.
+   * <p>Note: Order of searching is same as order of {@link
+   * com.dremio.exec.expr.fn.PluggableFunctionRegistry} implementations found on classpath.
    *
    * @param functionCall - Specifies function name and type of arguments
    * @return
@@ -58,5 +57,4 @@ public interface FunctionLookupContext {
   public OptionManager getOptionManager();
 
   public boolean isDecimalV2Enabled();
-
 }

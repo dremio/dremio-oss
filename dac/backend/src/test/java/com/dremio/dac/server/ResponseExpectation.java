@@ -17,10 +17,7 @@ package com.dremio.dac.server;
 
 import javax.ws.rs.core.Response;
 
-/**
- * Test expectation for a response
- *
- */
+/** Test expectation for a response */
 public interface ResponseExpectation {
   void validate(Response response);
 }

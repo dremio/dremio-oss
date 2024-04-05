@@ -15,9 +15,7 @@
  */
 package com.dremio.datastore;
 
-/**
- * RuntimeException that describes a form of exception within the data storage layer.
- */
+/** RuntimeException that describes a form of exception within the data storage layer. */
 @SuppressWarnings("serial")
 public class DatastoreException extends RuntimeException {
 
@@ -32,5 +30,4 @@ public class DatastoreException extends RuntimeException {
   public DatastoreException(Throwable cause) {
     super(cause);
   }
-
 }

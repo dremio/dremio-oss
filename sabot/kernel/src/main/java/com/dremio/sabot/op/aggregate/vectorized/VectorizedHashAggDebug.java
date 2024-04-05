@@ -15,17 +15,17 @@
  */
 package com.dremio.sabot.op.aggregate.vectorized;
 
-import java.util.Iterator;
-import java.util.List;
-import java.util.Queue;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.planner.physical.HashAggMemoryEstimator;
 import com.dremio.exec.record.BatchSchema;
 import com.google.common.base.Joiner;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Queue;
 
 class VectorizedHashAggDebug {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(VectorizedHashAggDebug.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(VectorizedHashAggDebug.class);
 
   private final boolean detailedEventTracing;
 
@@ -61,15 +61,14 @@ class VectorizedHashAggDebug {
    */
   private final int maxEvents;
 
-  VectorizedHashAggDebug(final boolean detailedEventTracing,
-                         final int maxEvents) {
+  VectorizedHashAggDebug(final boolean detailedEventTracing, final int maxEvents) {
     this.detailedEventTracing = detailedEventTracing;
     this.maxEvents = maxEvents;
     this.events = new Object[maxEvents];
   }
 
-  UserException prepareAndThrowException(final Exception ex, final String message,
-                                         final HashAggErrorType errorType) {
+  UserException prepareAndThrowException(
+      final Exception ex, final String message, final HashAggErrorType errorType) {
     final UserException.Builder exBuilder = getExceptionBuilder(ex, errorType);
     if (errorType == HashAggErrorType.OOM) {
       exBuilder.addContext(VectorizedHashAggOperator.OUT_OF_MEMORY_MSG);
@@ -82,7 +81,8 @@ class VectorizedHashAggDebug {
     exBuilder.addContext("AggAllocatorLimit", aggAllocatorLimit);
     exBuilder.addContext("AllocatedMemoryBeforeInit", allocatedMemoryBeforeInit);
     exBuilder.addContext("PreallocatedForPartitions", preallocatedMemoryForPartitions);
-    exBuilder.addContext("PreallocatedForReadingSpilledData", preallocatedMemoryForReadingSpilledData);
+    exBuilder.addContext(
+        "PreallocatedForReadingSpilledData", preallocatedMemoryForReadingSpilledData);
     exBuilder.addContext("PreallocatedForAux", preallocatedMemoryForAuxStructures);
     exBuilder.addContext("TotalPreallocated", totalPreallocatedMemory);
     exBuilder.addContext("HashTable BatchSize", hashTableBatchSize);
@@ -111,7 +111,8 @@ class VectorizedHashAggDebug {
     OOM
   }
 
-  private UserException.Builder getExceptionBuilder(final Exception ex, final HashAggErrorType errorType) {
+  private UserException.Builder getExceptionBuilder(
+      final Exception ex, final HashAggErrorType errorType) {
     switch (errorType) {
       case SPILL_READ:
         return (ex == null) ? (UserException.dataReadError()) : (UserException.dataReadError(ex));
@@ -125,14 +126,15 @@ class VectorizedHashAggDebug {
     }
   }
 
-  void setInfoBeforeInit(final long aggAllocatorInitReservation,
-                         final long aggAllocatorLimit,
-                         final int averageVarWidthFieldSize,
-                         final int numVarColumns,
-                         final int blockWidth,
-                         final int minHashTableSize,
-                         final int numPartitions,
-                         final int minHashTableSizePerPartition) {
+  void setInfoBeforeInit(
+      final long aggAllocatorInitReservation,
+      final long aggAllocatorLimit,
+      final int averageVarWidthFieldSize,
+      final int numVarColumns,
+      final int blockWidth,
+      final int minHashTableSize,
+      final int numPartitions,
+      final int minHashTableSizePerPartition) {
     this.aggAllocatorInitReservation = aggAllocatorInitReservation;
     this.aggAllocatorLimit = aggAllocatorLimit;
     this.averageVarColumnFieldLength = averageVarWidthFieldSize;
@@ -152,50 +154,63 @@ class VectorizedHashAggDebug {
   }
 
   void setPreallocatedMemoryForPartitions(final long amount) {
-    int estimated = preAllocEstimator.getMemHashTable() +
-      preAllocEstimator.getMemAccumulators() +
-      preAllocEstimator.getMemOrdinals();
-    assert amount <= estimated :
-      "mismatch in mem for hashTable: estimated " + estimated + ", actual " + amount;
+    int estimated =
+        preAllocEstimator.getMemHashTable()
+            + preAllocEstimator.getMemAccumulators()
+            + preAllocEstimator.getMemOrdinals();
+    assert amount <= estimated
+        : "mismatch in mem for hashTable: estimated " + estimated + ", actual " + amount;
     this.preallocatedMemoryForPartitions = amount;
   }
 
   void setPreallocatedMemoryForReadingSpilledData(final long amount) {
     int estimated = preAllocEstimator.getMemLoadingPartition();
-    assert amount <= estimated :
-      "mismatch in mem for reading spill data: estimated " + estimated + ", actual " + amount;
+    assert amount <= estimated
+        : "mismatch in mem for reading spill data: estimated " + estimated + ", actual " + amount;
     this.preallocatedMemoryForReadingSpilledData = amount;
   }
 
   void setPreallocatedMemoryForAuxStructures(final long amount) {
     int estimated = preAllocEstimator.getMemAuxStructures();
-    assert amount <= estimated :
-      "mismatch in mem for aux structures: estimated " + estimated + ", actual " + amount;
+    assert amount <= estimated
+        : "mismatch in mem for aux structures: estimated " + estimated + ", actual " + amount;
     this.preallocatedMemoryForAuxStructures = amount;
   }
 
-  void setInfoAfterInit(final int hashTableBatchSize,
-                        final long totalPreallocatedMemory,
-                        final BatchSchema outgoing) {
+  void setInfoAfterInit(
+      final int hashTableBatchSize,
+      final long totalPreallocatedMemory,
+      final BatchSchema outgoing) {
     this.hashTableBatchSize = hashTableBatchSize;
     this.totalPreallocatedMemory = totalPreallocatedMemory;
-    assert totalPreallocatedMemory <= preAllocEstimator.getMemTotal() :
-      "mismatch in total mem : estimated " + preAllocEstimator.getMemTotal() +
-      ", actual " + totalPreallocatedMemory;
+    assert totalPreallocatedMemory <= preAllocEstimator.getMemTotal()
+        : "mismatch in total mem : estimated "
+            + preAllocEstimator.getMemTotal()
+            + ", actual "
+            + totalPreallocatedMemory;
 
     /* BatchSchema.toString() is an expensive operation so don't do it by default */
-    this.aggSchema = (detailedEventTracing ? outgoing.toString() : "enable tracing to record schema");
+    this.aggSchema =
+        (detailedEventTracing ? outgoing.toString() : "enable tracing to record schema");
   }
 
-  void setMaxVarBlockLength(final int maxVarLen) { this.maxVarBlockLength = maxVarLen; }
+  void setMaxVarBlockLength(final int maxVarLen) {
+    this.maxVarBlockLength = maxVarLen;
+  }
 
-  void recordOOMEvent(final int iterations,
-                      final int ooms,
-                      final long currentAllocatedMemory,
-                      final VectorizedHashAggPartition[] partitions,
-                      final VectorizedHashAggPartitionSpillHandler spillHandler) {
-    logger.debug("Attempting to capture OOM event, current total events:{}, iteration:{}, ooms:{}, spills:{}, currentAllocatedMemory:{}",
-                 eventCount, iterations, ooms, spillHandler.getNumberOfSpills(), currentAllocatedMemory);
+  void recordOOMEvent(
+      final int iterations,
+      final int ooms,
+      final long currentAllocatedMemory,
+      final VectorizedHashAggPartition[] partitions,
+      final VectorizedHashAggPartitionSpillHandler spillHandler) {
+    logger.debug(
+        "Attempting to capture OOM event, current total events:{}, iteration:{}, ooms:{}, spills:{}, currentAllocatedMemory:{}",
+        eventCount,
+        iterations,
+        ooms,
+        spillHandler.getNumberOfSpills(),
+        currentAllocatedMemory);
     /* recording OOM event is likely to be an expensive operation and comes on the critical
      * path of operator as it is processing data and hits OOM (and then subsequently handles
      * via spill). So detailed event recording is not turned on by default.
@@ -219,9 +234,10 @@ class VectorizedHashAggDebug {
      * 3x faster when compared to the execution with full recording of OOM events.
      */
     try {
-      final OOMEvent event = new OOMEvent(iterations, ooms, currentAllocatedMemory, partitions, spillHandler);
+      final OOMEvent event =
+          new OOMEvent(iterations, ooms, currentAllocatedMemory, partitions, spillHandler);
       events[eventIndex] = event;
-      eventIndex = (eventIndex + 1)%maxEvents;
+      eventIndex = (eventIndex + 1) % maxEvents;
       eventCount++; /* total absolute count of events */
     } catch (OutOfMemoryError oe) {
       /* ran out of heap memory in JVM, don't record the event.
@@ -243,14 +259,12 @@ class VectorizedHashAggDebug {
     private final String spillFilePath;
     private final boolean activeSpilled;
 
-    SpilledPartitionState(final String id,
-                          final long batches,
-                          final String spillFile,
-                          final boolean activeSpilled) {
+    SpilledPartitionState(
+        final String id, final long batches, final String spillFile, final boolean activeSpilled) {
       this.partitionIdentifier = id;
       this.batchesSpilled = batches;
       this.spillFilePath = spillFile;
-      this.activeSpilled =  activeSpilled;
+      this.activeSpilled = activeSpilled;
     }
 
     @Override
@@ -276,11 +290,12 @@ class VectorizedHashAggDebug {
     private final SpilledPartitionState[] activeSpilled;
     private final SpilledPartitionState[] onDiskOnly;
 
-    OOMEvent(final int iterations,
-             final int ooms,
-             final long currentAllocatedMemory, /* allocated memory as of the time this OOM happened */
-             final VectorizedHashAggPartition[] partitions,
-             final VectorizedHashAggPartitionSpillHandler spillHandler) {
+    OOMEvent(
+        final int iterations,
+        final int ooms,
+        final long currentAllocatedMemory, /* allocated memory as of the time this OOM happened */
+        final VectorizedHashAggPartition[] partitions,
+        final VectorizedHashAggPartitionSpillHandler spillHandler) {
       this.iterations = iterations;
       this.spills = spillHandler.getNumberOfSpills();
       this.ooms = ooms;
@@ -292,13 +307,16 @@ class VectorizedHashAggDebug {
       this.activeSpilled = new SpilledPartitionState[spillHandler.getActiveSpilledPartitionCount()];
       this.onDiskOnly = new SpilledPartitionState[spillHandler.getSpilledPartitionCount()];
 
-      final List<VectorizedHashAggDiskPartition> activeSpilledPartitions = spillHandler.getActiveSpilledPartitions();
+      final List<VectorizedHashAggDiskPartition> activeSpilledPartitions =
+          spillHandler.getActiveSpilledPartitions();
       int counter = 0;
       for (VectorizedHashAggDiskPartition activeSpilledPartition : activeSpilledPartitions) {
         final SpilledPartitionState state =
-          new SpilledPartitionState(activeSpilledPartition.getIdentifier(),
-                                    activeSpilledPartition.getNumberOfBatches(),
-                                    activeSpilledPartition.getSpillFile().getPath().toString(), true);
+            new SpilledPartitionState(
+                activeSpilledPartition.getIdentifier(),
+                activeSpilledPartition.getNumberOfBatches(),
+                activeSpilledPartition.getSpillFile().getPath().toString(),
+                true);
         activeSpilled[counter] = state;
         counter++;
       }
@@ -309,8 +327,11 @@ class VectorizedHashAggDebug {
       while (iterator.hasNext()) {
         final VectorizedHashAggDiskPartition spilledPartition = iterator.next();
         final SpilledPartitionState state =
-          new SpilledPartitionState(spilledPartition.getIdentifier(), spilledPartition.getNumberOfBatches(),
-                                    spilledPartition.getSpillFile().getPath().toString(), false);
+            new SpilledPartitionState(
+                spilledPartition.getIdentifier(),
+                spilledPartition.getNumberOfBatches(),
+                spilledPartition.getSpillFile().getPath().toString(),
+                false);
         onDiskOnly[counter] = state;
         counter++;
       }
@@ -328,10 +349,10 @@ class VectorizedHashAggDebug {
       sb.append(" TotalBatchesSpilled: ").append(totalBatchesSpilled);
       sb.append(" MaxRecordsSpilled: ").append(maxRecordsSpilled);
       sb.append(" TotalRecordsSpilled: ").append(totalRecordsSpilled);
-      for (SpilledPartitionState state: activeSpilled) {
+      for (SpilledPartitionState state : activeSpilled) {
         sb.append(state.toString());
       }
-      for (SpilledPartitionState state: onDiskOnly) {
+      for (SpilledPartitionState state : onDiskOnly) {
         sb.append(state.toString());
       }
       return sb.toString();

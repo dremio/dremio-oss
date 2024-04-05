@@ -18,16 +18,17 @@ package com.dremio.exec.planner.sql.handlers;
 import org.apache.calcite.rel.RelNode;
 
 /**
- * RelTransformer is injected into the planning before JdbcPushdown phase of planning
- * Allows adding additional normalization depending on the type of query
+ * RelTransformer is injected into the planning before JdbcPushdown phase of planning Allows adding
+ * additional normalization depending on the type of query
  */
 public interface RelTransformer {
   RelNode transform(RelNode relNode);
 
-  RelTransformer NO_OP_TRANSFORMER = new RelTransformer() {
-    @Override
-    public RelNode transform(RelNode relNode) {
-      return relNode;
-    }
-  };
+  RelTransformer NO_OP_TRANSFORMER =
+      new RelTransformer() {
+        @Override
+        public RelNode transform(RelNode relNode) {
+          return relNode;
+        }
+      };
 }

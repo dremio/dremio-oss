@@ -13,25 +13,75 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { getLocation } from "selectors/routing";
-import { getJobList } from "./jobs";
-import { getDatasetVersionFromLocation, getFullDataset } from "./explore";
 
-// This was causing problems in the mocha tests, moving to it's own module
+import { createSelector } from "reselect";
+import {
+  getDatasetVersionFromLocation,
+  getExploreState,
+  getFullDataset,
+} from "@app/selectors/explore";
+import { getLocation } from "@app/selectors/routing";
+import { ExploreJobsState } from "@app/reducers/explore/exploreJobs";
+import { JobSummary } from "@app/exports/types/JobSummary.type";
+
+const getAllJobSummaries = (state: Record<string, any>) =>
+  getExploreState(state)?.exploreJobs.jobSummaries || {};
+
+export const getJobSummaries = createSelector(
+  // @ts-expect-error Selector type mismatch
+  [getAllJobSummaries],
+  (jobSummaries: ExploreJobsState["jobSummaries"]) => {
+    return jobSummaries;
+  },
+);
+
+const getAllJobDetailsSelector = (state: Record<string, any>) =>
+  getExploreState(state)?.exploreJobs.jobDetails || {};
+
+export const getAllJobDetails = createSelector(
+  // @ts-expect-error Selector type mismatch
+  [getAllJobDetailsSelector],
+  (allJobDetails: ExploreJobsState["jobDetails"]) => {
+    return allJobDetails;
+  },
+);
+
 export function getExploreJobId(state: Record<string, any>) {
-  // this selector will have to change once we move jobId out of fullDataset and load it prior to metadata
   const location = getLocation(state);
   const version = getDatasetVersionFromLocation(location);
   const fullDataset = getFullDataset(state, version);
-  const jobIdFromDataset = fullDataset?.getIn(["jobId", "id"]);
+  const jobIdFromDataset: string | undefined = fullDataset?.getIn([
+    "jobId",
+    "id",
+  ]);
 
   // a dataset is not returned in the first response of the new_tmp_untitled_sql endpoints
-  // so we need to get jobId from the jobList where the last job is the most recently submitted
-  const jobListArray = getJobList(state).toArray();
-  const jobIdFromList =
-    jobListArray?.[jobListArray.length - 1]?.get("id") ?? "";
+  // so we need to get the jobId from the most recently submitted job found in job summaries
+  const jobSummaries = getJobSummaries(state);
 
-  return jobIdFromDataset !== jobIdFromList && jobIdFromList
-    ? jobIdFromList
+  let mostRecentSummary: JobSummary | undefined;
+
+  // JS objects do not guarantee insertion order, so we need to find a running job
+  // or compare the end times and take the largest
+  if (Object.values(jobSummaries).length) {
+    mostRecentSummary = (Object.values(jobSummaries) as JobSummary[]).reduce(
+      (previous, current) => {
+        // since only one job can run at a time, an incomplete job must be the most recently submitted
+        if (!current.isComplete) {
+          return current;
+        }
+
+        if (!previous.isComplete) {
+          return previous;
+        }
+
+        // return the job that completed last
+        return previous.endTime > current.endTime ? previous : current;
+      },
+    );
+  }
+
+  return mostRecentSummary?.id && jobIdFromDataset !== mostRecentSummary.id
+    ? mostRecentSummary.id
     : jobIdFromDataset;
 }

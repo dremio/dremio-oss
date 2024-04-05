@@ -19,22 +19,18 @@ import static com.dremio.dac.proto.model.dataset.DataType.TEXT;
 import static java.util.Arrays.asList;
 import static org.junit.Assert.assertEquals;
 
-import java.io.File;
-import java.io.PrintWriter;
-import java.util.List;
-
-import org.junit.Test;
-
 import com.dremio.dac.explore.Recommender.TransformRuleWrapper;
 import com.dremio.dac.explore.model.extract.Selection;
 import com.dremio.dac.proto.model.dataset.CardExamplePosition;
 import com.dremio.dac.proto.model.dataset.MatchType;
 import com.dremio.dac.proto.model.dataset.SplitPositionType;
 import com.dremio.dac.proto.model.dataset.SplitRule;
+import java.io.File;
+import java.io.PrintWriter;
+import java.util.List;
+import org.junit.Test;
 
-/**
- * Tests for {@link SplitRecommender}
- */
+/** Tests for {@link SplitRecommender} */
 public class TestSplitRecommender extends RecommenderTestBase {
   private SplitRecommender recommender = new SplitRecommender();
 
@@ -78,46 +74,66 @@ public class TestSplitRecommender extends RecommenderTestBase {
       SplitRule rule = new SplitRule("b", MatchType.exact, true);
       TransformRuleWrapper<SplitRule> wrapper = recommender.wrapRule(rule);
 
-      assertEquals("regexp_matches(\"tbl name\".col, '(?i)(?u).*\\Qb\\E.*')", wrapper.getMatchFunctionExpr("\"tbl name\".col"));
-      assertEquals("regexp_split(tbl.col, '(?i)(?u)\\Qb\\E', 'ALL', 10)", wrapper.getFunctionExpr("tbl.col", SplitPositionType.ALL, 10));
-      assertEquals("regexp_split_positions(tbl.\"col name\", '(?i)(?u)\\Qb\\E')", wrapper.getExampleFunctionExpr("tbl.\"col name\""));
+      assertEquals(
+          "regexp_matches(\"tbl name\".col, '(?i)(?u).*\\Qb\\E.*')",
+          wrapper.getMatchFunctionExpr("\"tbl name\".col"));
+      assertEquals(
+          "regexp_split(tbl.col, '(?i)(?u)\\Qb\\E', 'ALL', 10)",
+          wrapper.getFunctionExpr("tbl.col", SplitPositionType.ALL, 10));
+      assertEquals(
+          "regexp_split_positions(tbl.\"col name\", '(?i)(?u)\\Qb\\E')",
+          wrapper.getExampleFunctionExpr("tbl.\"col name\""));
       assertEquals("Exactly matches \"b\" ignore case", wrapper.describe());
 
-      List<List<CardExamplePosition>> highlights = asList(
-          asList(new CardExamplePosition(1, 1)),
-          asList(new CardExamplePosition(1, 1), new CardExamplePosition(3, 1)),
-          null,
-          asList(new CardExamplePosition(1, 1), new CardExamplePosition(3, 1), new CardExamplePosition(5, 1)),
-          null
-      );
-      validate(dataFile.getAbsolutePath(), wrapper,
-          new Object[] { SplitPositionType.INDEX, 1}, list((Object)list("aBa"), list("aba", "a"), null, list("aba", "aba"), list("aaa")),
+      List<List<CardExamplePosition>> highlights =
+          asList(
+              asList(new CardExamplePosition(1, 1)),
+              asList(new CardExamplePosition(1, 1), new CardExamplePosition(3, 1)),
+              null,
+              asList(
+                  new CardExamplePosition(1, 1),
+                  new CardExamplePosition(3, 1),
+                  new CardExamplePosition(5, 1)),
+              null);
+      validate(
+          dataFile.getAbsolutePath(),
+          wrapper,
+          new Object[] {SplitPositionType.INDEX, 1},
+          list((Object) list("aBa"), list("aba", "a"), null, list("aba", "aba"), list("aaa")),
           asList(true, true, false, true, false),
-          highlights
-      );
+          highlights);
     }
     {
       SplitRule rule = new SplitRule("b", MatchType.exact, false);
       TransformRuleWrapper<SplitRule> wrapper = recommender.wrapRule(rule);
 
-      assertEquals("regexp_matches(tbl.col, '.*\\Qb\\E.*')", wrapper.getMatchFunctionExpr("tbl.col"));
-      assertEquals("regexp_split(tbl.col, '\\Qb\\E', 'ALL', 10)", wrapper.getFunctionExpr("tbl.col", SplitPositionType.ALL, 10));
-      assertEquals("regexp_split_positions(tbl.col, '\\Qb\\E')", wrapper.getExampleFunctionExpr("tbl.col"));
+      assertEquals(
+          "regexp_matches(tbl.col, '.*\\Qb\\E.*')", wrapper.getMatchFunctionExpr("tbl.col"));
+      assertEquals(
+          "regexp_split(tbl.col, '\\Qb\\E', 'ALL', 10)",
+          wrapper.getFunctionExpr("tbl.col", SplitPositionType.ALL, 10));
+      assertEquals(
+          "regexp_split_positions(tbl.col, '\\Qb\\E')", wrapper.getExampleFunctionExpr("tbl.col"));
       assertEquals("Exactly matches \"b\"", wrapper.describe());
 
-      List<List<CardExamplePosition>> highlights = asList(
-          null,
-          asList(new CardExamplePosition(1, 1)),
-          null,
-          asList(new CardExamplePosition(1, 1), new CardExamplePosition(3, 1), new CardExamplePosition(5, 1)),
-          null
-      );
+      List<List<CardExamplePosition>> highlights =
+          asList(
+              null,
+              asList(new CardExamplePosition(1, 1)),
+              null,
+              asList(
+                  new CardExamplePosition(1, 1),
+                  new CardExamplePosition(3, 1),
+                  new CardExamplePosition(5, 1)),
+              null);
 
-      validate(dataFile.getAbsolutePath(), wrapper,
-          new Object[] {SplitPositionType.LAST, -1 }, list((Object)list("aBa"), list("a", "aBa"), null, list("ababa", "a"), list("aaa")),
+      validate(
+          dataFile.getAbsolutePath(),
+          wrapper,
+          new Object[] {SplitPositionType.LAST, -1},
+          list((Object) list("aBa"), list("a", "aBa"), null, list("ababa", "a"), list("aaa")),
           asList(false, true, false, true, false),
-          highlights
-      );
+          highlights);
     }
   }
 
@@ -136,47 +152,80 @@ public class TestSplitRecommender extends RecommenderTestBase {
       SplitRule rule = new SplitRule("\\d+", MatchType.regex, false);
       TransformRuleWrapper<SplitRule> wrapper = recommender.wrapRule(rule);
 
-      assertEquals("regexp_matches(\"tbl name\".col, '.*\\d+.*')", wrapper.getMatchFunctionExpr("\"tbl name\".col"));
-      assertEquals("regexp_split(tbl.col, '\\d+', 'ALL', 10)", wrapper.getFunctionExpr("tbl.col", SplitPositionType.ALL, 10));
-      assertEquals("regexp_split_positions(tbl.\"col name\", '\\d+')", wrapper.getExampleFunctionExpr("tbl.\"col name\""));
+      assertEquals(
+          "regexp_matches(\"tbl name\".col, '.*\\d+.*')",
+          wrapper.getMatchFunctionExpr("\"tbl name\".col"));
+      assertEquals(
+          "regexp_split(tbl.col, '\\d+', 'ALL', 10)",
+          wrapper.getFunctionExpr("tbl.col", SplitPositionType.ALL, 10));
+      assertEquals(
+          "regexp_split_positions(tbl.\"col name\", '\\d+')",
+          wrapper.getExampleFunctionExpr("tbl.\"col name\""));
       assertEquals("Matches regex \"\\d+\"", wrapper.describe());
 
-      List<List<CardExamplePosition>> highlights = asList(
-          asList(new CardExamplePosition(3, 3), new CardExamplePosition(9, 3), new CardExamplePosition(14, 2)),
-          asList(new CardExamplePosition(1, 1), new CardExamplePosition(3, 1), new CardExamplePosition(5, 1)),
-          null,
-          null,
-          asList(new CardExamplePosition(0, 3))
-      );
+      List<List<CardExamplePosition>> highlights =
+          asList(
+              asList(
+                  new CardExamplePosition(3, 3),
+                  new CardExamplePosition(9, 3),
+                  new CardExamplePosition(14, 2)),
+              asList(
+                  new CardExamplePosition(1, 1),
+                  new CardExamplePosition(3, 1),
+                  new CardExamplePosition(5, 1)),
+              null,
+              null,
+              asList(new CardExamplePosition(0, 3)));
 
-      validate(dataFile.getAbsolutePath(), wrapper,
-          new Object[] { SplitPositionType.FIRST, -1 }, list((Object)list("aaa", "BBB222cc33d"), list("a", "b2c3"), null, list("abababa"), list("", "")),
+      validate(
+          dataFile.getAbsolutePath(),
+          wrapper,
+          new Object[] {SplitPositionType.FIRST, -1},
+          list(
+              (Object) list("aaa", "BBB222cc33d"),
+              list("a", "b2c3"),
+              null,
+              list("abababa"),
+              list("", "")),
           asList(true, true, false, false, true),
-          highlights
-      );
+          highlights);
     }
     {
       SplitRule rule = new SplitRule("[a-z]+", MatchType.regex, true);
       TransformRuleWrapper<SplitRule> wrapper = recommender.wrapRule(rule);
 
-      assertEquals("regexp_matches(tbl.col, '(?i)(?u).*[a-z]+.*')", wrapper.getMatchFunctionExpr("tbl.col"));
-      assertEquals("regexp_split(tbl.col, '(?i)(?u)[a-z]+', 'ALL', 10)", wrapper.getFunctionExpr("tbl.col", SplitPositionType.ALL, 10));
-      assertEquals("regexp_split_positions(tbl.col, '(?i)(?u)[a-z]+')", wrapper.getExampleFunctionExpr("tbl.col"));
+      assertEquals(
+          "regexp_matches(tbl.col, '(?i)(?u).*[a-z]+.*')", wrapper.getMatchFunctionExpr("tbl.col"));
+      assertEquals(
+          "regexp_split(tbl.col, '(?i)(?u)[a-z]+', 'ALL', 10)",
+          wrapper.getFunctionExpr("tbl.col", SplitPositionType.ALL, 10));
+      assertEquals(
+          "regexp_split_positions(tbl.col, '(?i)(?u)[a-z]+')",
+          wrapper.getExampleFunctionExpr("tbl.col"));
       assertEquals("Matches regex \"[a-z]+\" ignore case", wrapper.describe());
 
-      List<List<CardExamplePosition>> highlights = asList(
-          asList(new CardExamplePosition(0, 3), new CardExamplePosition(6, 3), new CardExamplePosition(12, 2), new CardExamplePosition(16, 1)),
-          asList(new CardExamplePosition(0, 1), new CardExamplePosition(2, 1), new CardExamplePosition(4, 1)),
-          null,
-          asList(new CardExamplePosition(0, 7)),
-          null
-      );
+      List<List<CardExamplePosition>> highlights =
+          asList(
+              asList(
+                  new CardExamplePosition(0, 3),
+                  new CardExamplePosition(6, 3),
+                  new CardExamplePosition(12, 2),
+                  new CardExamplePosition(16, 1)),
+              asList(
+                  new CardExamplePosition(0, 1),
+                  new CardExamplePosition(2, 1),
+                  new CardExamplePosition(4, 1)),
+              null,
+              asList(new CardExamplePosition(0, 7)),
+              null);
 
-      validate(dataFile.getAbsolutePath(), wrapper,
-          new Object[] { SplitPositionType.ALL, 2}, list((Object)list("", "111"), list("", "1"), null, list("", ""), list("111")),
+      validate(
+          dataFile.getAbsolutePath(),
+          wrapper,
+          new Object[] {SplitPositionType.ALL, 2},
+          list((Object) list("", "111"), list("", "1"), null, list("", ""), list("111")),
           asList(true, true, false, true, false),
-          highlights
-      );
+          highlights);
     }
   }
 }

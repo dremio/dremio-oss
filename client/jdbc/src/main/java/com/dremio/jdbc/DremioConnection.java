@@ -15,151 +15,122 @@
  */
 package com.dremio.jdbc;
 
+import com.dremio.exec.client.DremioClient;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
 import java.sql.Savepoint;
 import java.util.concurrent.Executor;
 
-import com.dremio.exec.client.DremioClient;
-
-
 /**
  * Dremio-specific {@link Connection}.
+ *
  * @see #unwrap
  */
 public interface DremioConnection extends Connection {
 
-
   /**
    * {@inheritDoc}
-   * <p>
-   *   <strong>Dremio</strong>:
-   *   Accepts {@code DremioConnection.class}.
-   * </p>
+   *
+   * <p><strong>Dremio</strong>: Accepts {@code DremioConnection.class}.
    */
   @Override
   <T> T unwrap(Class<T> iface) throws SQLException;
 
   /**
    * {@inheritDoc}
-   * <p>
-   *   <strong>Dremio</strong>:
-   *   Returns true for {@code DremioConnection.class}.
-   * </p>
+   *
+   * <p><strong>Dremio</strong>: Returns true for {@code DremioConnection.class}.
    */
   @Override
   boolean isWrapperFor(Class<?> iface) throws SQLException;
 
-
   /**
    * {@inheritDoc}
-   * <p>
-   *   <strong>Dremio</strong>:
-   *   Accepts only {@code true}.
-   * </p>
+   *
+   * <p><strong>Dremio</strong>: Accepts only {@code true}.
+   *
    * @throws SQLFeatureNotSupportedException if called with {@code false}
    */
   @Override
-  void setAutoCommit(boolean autoCommit) throws SQLFeatureNotSupportedException,
-                                                SQLException;
+  void setAutoCommit(boolean autoCommit) throws SQLFeatureNotSupportedException, SQLException;
+
   /**
    * {@inheritDoc}
-   * <p>
-   *   <strong>Dremio</strong>:
-   *   Always returns {@code true}.
-   * </p>
+   *
+   * <p><strong>Dremio</strong>: Always returns {@code true}.
    */
   @Override
   boolean getAutoCommit() throws SQLException;
 
-
   /**
-   * <strong>Dremio</strong>:
-   * Not supported.  Always throws {@link SQLFeatureNotSupportedException} (or
-   * {@link AlreadyClosedSqlException}).
+   * <strong>Dremio</strong>: Not supported. Always throws {@link SQLFeatureNotSupportedException}
+   * (or {@link AlreadyClosedSqlException}).
    */
   @Override
   void commit() throws SQLException;
 
-
   /**
-   * <strong>Dremio</strong>:
-   * Not supported.  Always throws {@link SQLFeatureNotSupportedException} (or
-   * {@link AlreadyClosedSqlException}).
+   * <strong>Dremio</strong>: Not supported. Always throws {@link SQLFeatureNotSupportedException}
+   * (or {@link AlreadyClosedSqlException}).
    */
   @Override
   void rollback() throws SQLException;
 
-
   /**
    * {@inheritDoc}
-   * <p>
-   *   <strong>Dremio</strong>:
-   *   Does not throw SQLException.
-   * </p>
+   *
+   * <p><strong>Dremio</strong>: Does not throw SQLException.
    */
   @Override
   boolean isClosed() throws SQLException;
 
-
   /**
    * {@inheritDoc}
-   * <p>
-   *   <strong>Dremio</strong>:
-   *   Accepts only {@link Connection#TRANSACTION_NONE}.
-   * </p>
    *
-   * @throws SQLFeatureNotSupportedException if {@code level} is not
-   * {@link Connection#TRANSACTION_NONE}.
+   * <p><strong>Dremio</strong>: Accepts only {@link Connection#TRANSACTION_NONE}.
+   *
+   * @throws SQLFeatureNotSupportedException if {@code level} is not {@link
+   *     Connection#TRANSACTION_NONE}.
    */
   @Override
-  void setTransactionIsolation(int level) throws SQLFeatureNotSupportedException,
-                                                 SQLException;
+  void setTransactionIsolation(int level) throws SQLFeatureNotSupportedException, SQLException;
 
   /**
    * {@inheritDoc}
-   * <p>
-   *   <strong>Dremio</strong>:
-   *   Always returns {@link Connection#TRANSACTION_NONE}.
-   * </p>
+   *
+   * <p><strong>Dremio</strong>: Always returns {@link Connection#TRANSACTION_NONE}.
    */
   @Override
   int getTransactionIsolation() throws SQLException;
 
-
   /**
-   * <strong>Dremio</strong>:
-   * Not supported.  Always throws {@link SQLFeatureNotSupportedException} (or
-   * {@link AlreadyClosedSqlException}).
+   * <strong>Dremio</strong>: Not supported. Always throws {@link SQLFeatureNotSupportedException}
+   * (or {@link AlreadyClosedSqlException}).
    */
   @Override
   Savepoint setSavepoint() throws SQLException;
 
   /**
-   * <strong>Dremio</strong>:
-   * Not supported.  Always throws {@link SQLFeatureNotSupportedException} (or
-   * {@link AlreadyClosedSqlException}).
+   * <strong>Dremio</strong>: Not supported. Always throws {@link SQLFeatureNotSupportedException}
+   * (or {@link AlreadyClosedSqlException}).
    */
   @Override
   Savepoint setSavepoint(String name) throws SQLException;
 
   /**
-   * <strong>Dremio</strong>:
-   * Not supported.  Always throws {@link SQLFeatureNotSupportedException} (or
-   * {@link AlreadyClosedSqlException}).
+   * <strong>Dremio</strong>: Not supported. Always throws {@link SQLFeatureNotSupportedException}
+   * (or {@link AlreadyClosedSqlException}).
    */
   @Override
   void rollback(Savepoint savepoint) throws SQLException;
 
   /**
-   * <strong>Dremio</strong>:
-   * Not supported.  Always throws {@link SQLFeatureNotSupportedException} (or
-   * {@link AlreadyClosedSqlException}).
+   * <strong>Dremio</strong>: Not supported. Always throws {@link SQLFeatureNotSupportedException}
+   * (or {@link AlreadyClosedSqlException}).
    */
   @Override
   void releaseSavepoint(Savepoint savepoint) throws SQLException;
-
 
   // In java.sql.Connection from JDK 1.7, but declared here to allow other JDKs.
   @Override
@@ -169,49 +140,39 @@ public interface DremioConnection extends Connection {
   @Override
   String getSchema() throws SQLException;
 
-
   /**
-   * <strong>Dremio</strong>:
-   * Not supported (for non-zero timeout value).
-   * <p>
-   *   Normally, just throws {@link SQLFeatureNotSupportedException} unless
-   *   request is trivially for no timeout (zero {@code milliseconds} value).
-   * </p>
-   * @throws  AlreadyClosedSqlException
-   *            if connection is closed
-   * @throws  JdbcApiSqlException
-   *            if an invalid parameter value is detected (and not above case)
-   * @throws  SQLFeatureNotSupportedException
-   *            if timeout is non-zero (and not above case)
+   * <strong>Dremio</strong>: Not supported (for non-zero timeout value).
+   *
+   * <p>Normally, just throws {@link SQLFeatureNotSupportedException} unless request is trivially
+   * for no timeout (zero {@code milliseconds} value).
+   *
+   * @throws AlreadyClosedSqlException if connection is closed
+   * @throws JdbcApiSqlException if an invalid parameter value is detected (and not above case)
+   * @throws SQLFeatureNotSupportedException if timeout is non-zero (and not above case)
    */
   @Override
-  void setNetworkTimeout( Executor executor, int milliseconds )
+  void setNetworkTimeout(Executor executor, int milliseconds)
       throws AlreadyClosedSqlException,
-             JdbcApiSqlException,
-             SQLFeatureNotSupportedException,
-             SQLException;
+          JdbcApiSqlException,
+          SQLFeatureNotSupportedException,
+          SQLException;
 
   /**
-   * <strong>Dremio</strong>:
-   * Returns zero.
-   * {@inheritDoc}
-   * @throws  AlreadyClosedSqlException
-   *            if connection is closed
+   * <strong>Dremio</strong>: Returns zero. {@inheritDoc}
+   *
+   * @throws AlreadyClosedSqlException if connection is closed
    */
   @Override
   int getNetworkTimeout() throws AlreadyClosedSqlException, SQLException;
-
 
   //////////////////////////////////////////////////////////////////////
   // Dremio extensions.
 
   /**
-   * Returns a view onto this connection's configuration properties. Code
-   * within Optiq should use this view rather than calling
-   * {@link java.util.Properties#getProperty(String)}.
+   * Returns a view onto this connection's configuration properties. Code within Optiq should use
+   * this view rather than calling {@link java.util.Properties#getProperty(String)}.
    */
   DremioConnectionConfig getConfig();
 
   DremioClient getClient();
-
 }

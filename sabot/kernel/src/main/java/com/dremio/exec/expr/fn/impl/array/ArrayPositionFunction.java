@@ -15,25 +15,28 @@
  */
 package com.dremio.exec.expr.fn.impl.array;
 
-import javax.inject.Inject;
-
-import org.apache.arrow.vector.complex.reader.FieldReader;
-import org.apache.arrow.vector.holders.IntHolder;
-import org.apache.arrow.vector.holders.NullableIntHolder;
-
 import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
 import com.dremio.exec.expr.annotations.Workspace;
 import com.dremio.exec.expr.fn.FunctionErrorContext;
+import javax.inject.Inject;
+import org.apache.arrow.vector.complex.reader.FieldReader;
+import org.apache.arrow.vector.holders.IntHolder;
+import org.apache.arrow.vector.holders.NullableIntHolder;
 
 public class ArrayPositionFunction {
 
-  @FunctionTemplate(name = "array_position", scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.INTERNAL)
+  @FunctionTemplate(
+      name = "array_position",
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.INTERNAL)
   public static class ArrayPosition implements SimpleFunction {
 
-    @Param(constant = true) private FieldReader value;
+    @Param(constant = true)
+    private FieldReader value;
+
     @Param private FieldReader in;
     @Output private NullableIntHolder out;
     @Inject private FunctionErrorContext errCtx;
@@ -41,8 +44,7 @@ public class ArrayPositionFunction {
     @Workspace private IntHolder index;
 
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
     public void eval() {
@@ -51,7 +53,8 @@ public class ArrayPositionFunction {
         out.isSet = 0;
         return;
       }
-      org.apache.arrow.vector.complex.impl.UnionListReader listReader = (org.apache.arrow.vector.complex.impl.UnionListReader) in;
+      org.apache.arrow.vector.complex.impl.UnionListReader listReader =
+          (org.apache.arrow.vector.complex.impl.UnionListReader) in;
       index.value = 0;
       while (listReader.next()) {
         if (java.util.Objects.equals(listReader.reader().readObject(), inputValue)) {

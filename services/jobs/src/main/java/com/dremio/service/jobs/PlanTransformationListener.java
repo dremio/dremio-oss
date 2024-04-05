@@ -15,20 +15,19 @@
  */
 package com.dremio.service.jobs;
 
-import org.apache.calcite.rel.RelNode;
-
 import com.dremio.exec.planner.PlannerPhase;
 import com.google.common.annotations.VisibleForTesting;
+import org.apache.calcite.rel.RelNode;
 
 /**
- * Listener that is notified after every planning phase.
- * This is used only in tests & works only when the listener is in the same process
- * as LocalJobsService.
+ * Listener that is notified after every planning phase. This is used only in tests & works only
+ * when the listener is in the same process as LocalJobsService.
  */
 @VisibleForTesting
 public interface PlanTransformationListener {
 
-  PlanTransformationListener NO_OP = new PlanTransformationListener() {
-  };
-  default void onPhaseCompletion(PlannerPhase phase, RelNode before, RelNode after, long millisTaken) {}
+  PlanTransformationListener NO_OP = new PlanTransformationListener() {};
+
+  default void onPhaseCompletion(
+      PlannerPhase phase, RelNode before, RelNode after, long millisTaken) {}
 }

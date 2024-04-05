@@ -17,18 +17,15 @@ package com.dremio.dac.model.common;
 
 import static java.lang.String.format;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
 import com.fasterxml.jackson.databind.DatabindContext;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.jsontype.TypeIdResolver;
 import com.fasterxml.jackson.databind.type.TypeFactory;
+import java.util.HashMap;
+import java.util.Map;
 
-/**
- * Custom subtype mapping for types annotated with TypesEnum
- */
+/** Custom subtype mapping for types annotated with TypesEnum */
 public class EnumTypeIdResolver implements TypeIdResolver {
 
   private final Map<String, JavaType> nameToType = new HashMap<>();
@@ -61,10 +58,10 @@ public class EnumTypeIdResolver implements TypeIdResolver {
         this.typeToName.put(c, name);
         sb.append(name + " => " + c.getName() + "\n");
       } catch (ClassNotFoundException e1) {
-        throw new RuntimeException(String.format(
-            "class not found %s for enum value %s for base type %s",
-            className, name, baseType
-            ) , e1);
+        throw new RuntimeException(
+            String.format(
+                "class not found %s for enum value %s for base type %s", className, name, baseType),
+            e1);
       }
     }
     this.description = sb.toString();
@@ -79,7 +76,8 @@ public class EnumTypeIdResolver implements TypeIdResolver {
   public String idFromValueAndType(Object value, Class<?> suggestedType) {
     String name = typeToName.get(suggestedType);
     if (name == null) {
-      throw new NullPointerException(suggestedType + " " + String.valueOf(value) + "\n" + description);
+      throw new NullPointerException(
+          suggestedType + " " + String.valueOf(value) + "\n" + description);
     }
     return name;
   }
@@ -94,9 +92,9 @@ public class EnumTypeIdResolver implements TypeIdResolver {
     JavaType type = nameToType.get(id.toLowerCase());
     if (type == null) {
       throw new NullPointerException(
-          format("no subtype of %s found for enum value %s. existing mappings:\n%s",
+          format(
+              "no subtype of %s found for enum value %s. existing mappings:\n%s",
               baseType, id, description));
-
     }
     return type;
   }
@@ -115,5 +113,4 @@ public class EnumTypeIdResolver implements TypeIdResolver {
   public String toString() {
     return "EnumTypeIdResolver{\n" + description + "}";
   }
-
 }

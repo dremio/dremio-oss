@@ -182,24 +182,28 @@ SqlNode SqlShowSchemas() :
 
 /**
  * Parses statement
- *   { DESCRIBE | DESC } tblname [col_name | wildcard ]
+ * { DESCRIBE TABLE | DESCRIBE | DESC } tblname
+ * [ AT (BRANCH | TAG | COMMIT | REF | REFERENCE) ]
+ * [ col_name | wildcard ]
  */
 SqlNode SqlDescribeTable() :
 {
     SqlParserPos pos;
     SqlIdentifier table;
     SqlIdentifier column = null;
+    SqlTableVersionSpec sqlTableVersionSpec = SqlTableVersionSpec.NOT_SPECIFIED;
 }
 {
-    (<DESCRIBE> | <DESC>) { pos = getPos(); }
+    ( <DESCRIBE> <TABLE>| <DESCRIBE> | <DESC> ) { pos = getPos(); }
     table = CompoundIdentifier()
+    [ sqlTableVersionSpec = ATVersionSpec() ]
     (
         column = CompoundIdentifier()
         |
         E()
     )
     {
-        return new SqlDescribeTable(pos, table, column);
+        return new SqlDescribeDremioTable(pos, table, sqlTableVersionSpec, column);
     }
 }
 
@@ -780,140 +784,6 @@ void ParseTableProperty(SqlNodeList tablePropertyNameList, SqlNodeList tableProp
 }
 
 /**
- * COPY INTO <source>.<path>.<table_name>
- * [AT BRANCH | REF | REFERENCE <reference_name>]
- * [( <col_name> [, <col_name>... ])]
- *      FROM location_clause
- *       { FILES ( '<file_name>' [ , ... ] ) |
- *         REGEX '<regex_pattern>' }
- *
- * [ FILE_FORMAT { PARQUET | ORC | CSV | JSON | AVRO | XML } ]
- * [ ( format_option_clause [, ...]
- *     copy_option_clause [, ...] ) ]
- */
-SqlNode SqlCopyInto() :
-{
-    SqlParserPos pos;
-    SqlNode tableWithVersionContext = null;
-    SqlNode location;
-    List<SqlNode> fileList = new ArrayList<SqlNode>();
-    SqlNodeList files = SqlNodeList.EMPTY;
-    SqlNode file;
-    SqlNode regexPattern = null;
-    SqlNode fileFormat = null;
-    SqlNodeList optionsList = SqlNodeList.EMPTY;
-    SqlNodeList optionsValueList = SqlNodeList.EMPTY;
-}
-{
-    <COPY> { pos = getPos(); }
-    <INTO>
-    tableWithVersionContext = CompoundIdentifier()
-    [ tableWithVersionContext = TableWithVersionContext(tableWithVersionContext) ]
-    <FROM>
-    location = StringLiteral()
-    (
-          <FILES>
-          <LPAREN>
-              file = Literal() { fileList.add((SqlLiteral) file); }
-          (
-              <COMMA>
-              file = Literal() {
-                  fileList.add((SqlLiteral) file);
-              }
-          )*
-          {
-              files = new SqlNodeList(fileList, getPos());
-          }
-          <RPAREN>
-          |
-          <REGEX> {
-          regexPattern = StringLiteral();
-          }
-    )?
-    (
-        <FILE_FORMAT>
-        (
-                fileFormat = Literal()
-        )
-    )?
-    (
-        <LPAREN>
-          {
-            optionsList = new SqlNodeList(getPos());
-            optionsValueList = new SqlNodeList(getPos());
-          }
-            ParseCopyIntoOptions(optionsList, optionsValueList)
-            (
-                <COMMA>
-                ParseCopyIntoOptions(optionsList, optionsValueList)
-            )*
-        <RPAREN>
-    )?
-
-    {
-      return new SqlCopyIntoTable(pos, tableWithVersionContext, location, files, regexPattern, fileFormat, optionsList, optionsValueList);
-    }
-}
-
-/**
- * Parse options for COPY INTO command.
- */
- void ParseCopyIntoOptions(SqlNodeList optionsList, SqlNodeList optionsValueList) :
- {
-  SqlNode exp;
-  SqlNodeList expList = SqlNodeList.EMPTY;
- }
- {
-    (
-        (
-          // CSV and JSON
-          <DATE_FORMAT> { optionsList.add(SqlLiteral.createCharString("DATE_FORMAT", getPos())); }
-          |
-          <TIME_FORMAT> { optionsList.add(SqlLiteral.createCharString("TIME_FORMAT", getPos())); }
-          |
-          <TIMESTAMP_FORMAT> { optionsList.add(SqlLiteral.createCharString("TIMESTAMP_FORMAT", getPos())); }
-          |
-          <TRIM_SPACE> { optionsList.add(SqlLiteral.createCharString("TRIM_SPACE", getPos())); }
-          |
-          // CSV specific
-          <RECORD_DELIMITER> { optionsList.add(SqlLiteral.createCharString("RECORD_DELIMITER", getPos())); }
-          |
-          <FIELD_DELIMITER> { optionsList.add(SqlLiteral.createCharString("FIELD_DELIMITER", getPos())); }
-          |
-          <QUOTE_CHAR> { optionsList.add(SqlLiteral.createCharString("QUOTE_CHAR", getPos())); }
-          |
-          <ESCAPE_CHAR> { optionsList.add(SqlLiteral.createCharString("ESCAPE_CHAR", getPos())); }
-          |
-          <EMPTY_AS_NULL> { optionsList.add(SqlLiteral.createCharString("EMPTY_AS_NULL", getPos())); }
-          |
-          <ON_ERROR> { optionsList.add(SqlLiteral.createCharString("ON_ERROR", getPos())); }
-          |
-          <EXTRACT_HEADER> { optionsList.add(SqlLiteral.createCharString("EXTRACT_HEADER", getPos())); }
-          |
-          <SKIP_LINES> { optionsList.add(SqlLiteral.createCharString("SKIP_LINES", getPos())); }
-        )
-        exp = Literal() {
-            optionsValueList.add(exp);
-        }
-    )
-    |
-    (
-        <NULL_IF> { optionsList.add(SqlLiteral.createCharString("NULL_IF", getPos())); }
-        <LPAREN>
-        {
-            expList = new SqlNodeList(getPos());
-        }
-        exp = Literal() { expList.add(exp); }
-        (
-            <COMMA>
-            exp = Literal() { expList.add(exp); }
-        )*
-        <RPAREN>
-        { optionsValueList.add(expList); }
-    )
- }
-
-/**
  * Parses a CTAS statement.
  * CREATE TABLE tblname [ (field1, field2, ...) ]
  *       [ (STRIPED, HASH, ROUNDROBIN) PARTITION BY (field1, field2, ..) ]
@@ -943,8 +813,7 @@ SqlNode SqlCreateTable() :
     SqlPolicy policy = null;
     SqlNodeList tablePropertyNameList;
     SqlNodeList tablePropertyValueList;
-    ReferenceType refType = null;
-    SqlIdentifier refValue = null;
+    SqlTableVersionSpec sqlTableVersionSpec;
 }
 {
     {
@@ -959,23 +828,14 @@ SqlNode SqlCreateTable() :
         policy = null;
         tablePropertyNameList = SqlNodeList.EMPTY;
         tablePropertyValueList = SqlNodeList.EMPTY;
+        sqlTableVersionSpec = SqlTableVersionSpec.NOT_SPECIFIED ;
     }
     <CREATE> { pos = getPos(); }
     <TABLE>
     [ <IF> <NOT> <EXISTS> { ifNotExists = true; } ]
     tblName = CompoundIdentifier()
     [ fieldList = TableElementListWithMasking() ]
-    [
-      <AT>
-      (
-        <REF> { refType = ReferenceType.REFERENCE; }
-        |
-        <REFERENCE> { refType = ReferenceType.REFERENCE; }
-        |
-        <BRANCH> { refType = ReferenceType.BRANCH; }
-      )
-      { refValue = SimpleIdentifier(); }
-    ]
+    [ sqlTableVersionSpec = WriteableAtVersionSpec() ]
     (
         (
             <STRIPED> {
@@ -1047,7 +907,7 @@ SqlNode SqlCreateTable() :
                 {
                     return new SqlCreateTable(pos, tblName, fieldList, ifNotExists, partitionDistributionStrategy,
                         partitionTransformList, formatOptions, location, singleWriter, sortFieldList,
-                        distributeFieldList, policy, query, tablePropertyNameList, tablePropertyValueList, refType, refValue);
+                        distributeFieldList, policy, query, tablePropertyNameList, tablePropertyValueList, sqlTableVersionSpec);
                 }
             )
             |
@@ -1055,7 +915,7 @@ SqlNode SqlCreateTable() :
                 {
                     return new SqlCreateEmptyTable(pos, tblName, fieldList, ifNotExists, partitionDistributionStrategy,
                         partitionTransformList, formatOptions, location, singleWriter, sortFieldList,
-                        distributeFieldList, policy, tablePropertyNameList, tablePropertyValueList, refType, refValue);
+                        distributeFieldList, policy, tablePropertyNameList, tablePropertyValueList, sqlTableVersionSpec);
                 }
             )
         )
@@ -1082,7 +942,7 @@ SqlNode SqlInsertTable() :
   <INSERT> { pos = getPos(); }
   <INTO>
     tblName = CompoundIdentifier()
-    [ sqlTableVersionSpec = ATBranchVersionOrReferenceSpec() ]
+    [ sqlTableVersionSpec = WriteableAtVersionSpec() ]
     [ fieldList = TableElementList() ]
     query = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
     {
@@ -1109,7 +969,7 @@ SqlNode SqlDeleteFromTable() :
   <DELETE> { pos = getPos(); }
   <FROM>
     targetTable = CompoundIdentifier()
-    [ sqlTableVersionSpec = ATBranchVersionOrReferenceSpec() ]
+    [ sqlTableVersionSpec = WriteableAtVersionSpec() ]
     [ [ <AS> ] alias = SimpleIdentifier() ]
     [ <USING> sourceTableRef = FromClause() ]
     condition = WhereOpt()
@@ -1144,7 +1004,7 @@ SqlNode SqlUpdateTable() :
       targetColumnList = new SqlNodeList(s.pos());
       sourceExpressionList = new SqlNodeList(s.pos());
   }
-  [ sqlTableVersionSpec = ATBranchVersionOrReferenceSpec() ]
+  [ sqlTableVersionSpec = WriteableAtVersionSpec() ]
   [ [ <AS> ] alias = SimpleIdentifier() ]
   <SET> id = SimpleIdentifier() {
       targetColumnList.add(id);
@@ -1194,7 +1054,7 @@ SqlNode SqlMergeIntoTable() :
 }
 {
     <MERGE> { s = span(); } <INTO> table = CompoundIdentifier()
-    [ targetSqlTableVersionSpec = ATBranchVersionOrReferenceSpec() ]
+    [ targetSqlTableVersionSpec = WriteableAtVersionSpec() ]
     [ [ <AS> ] alias = SimpleIdentifier() ]
     <USING> sourceTableRef = TableRef()
     <ON> condition = Expression(ExprContext.ACCEPT_SUB_QUERY)
@@ -1488,8 +1348,7 @@ SqlNode SqlTruncateTable() :
     boolean tableKeywordPresent = false;
     SqlIdentifier tableName;
     ReferenceType refType = null;
-    SqlIdentifier refValue = null;
-}
+    SqlIdentifier refValue = null;}
 {
     <TRUNCATE> { pos = getPos(); }
     [ <TABLE> { tableKeywordPresent = true; } ]
@@ -1915,55 +1774,6 @@ SqlNode SqlDropFolder() :
     { refValue = SimpleIdentifier(); }
   ]
   { return new SqlDropFolder(pos, ifNotExists, folderName, refType, refValue); }
-}
-
-SqlNode SqlCreatePipe():
-{
-    SqlParserPos pos;
-    SqlIdentifier pipeName = null;
-    SqlIdentifier notificationProvider = null;
-    SqlIdentifier notificationQueueRef = null;
-    SqlNode copyIntoNode;
-}
-{
-    <CREATE> { pos = getPos(); }
-    <PIPE>
-    pipeName = SimpleIdentifier()
-    [
-        <NOTIFICATION_PROVIDER> notificationProvider = SimpleIdentifier()
-        <NOTIFICATION_QUEUE_REFERENCE> notificationQueueRef = SimpleIdentifier()
-    ]
-
-    <AS>
-    (
-        copyIntoNode = SqlCopyInto()
-    )
-
-    { return new SqlCreatePipe(pos, pipeName, copyIntoNode, notificationProvider, notificationQueueRef); }
-}
-
-SqlNode SqlDescribePipe():
-{
-    SqlParserPos pos;
-    SqlIdentifier pipeName = null;
-}
-{
-    (<DESCRIBE> | <DESC>) { pos = getPos(); }
-    <PIPE>
-    {
-        pipeName = SimpleIdentifier();
-        return new SqlDescribePipe(pos, pipeName);
-    }
-}
-
-SqlNode SqlShowPipes():
-{
-    SqlParserPos pos;
-}
-{
-    <SHOW> { pos = getPos(); }
-    <PIPES>
-    { return new SqlShowPipes(pos); }
 }
 
 /**

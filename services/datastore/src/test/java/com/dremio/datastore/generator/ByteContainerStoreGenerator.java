@@ -15,24 +15,22 @@
  */
 package com.dremio.datastore.generator;
 
-import java.util.Arrays;
-
 import com.dremio.datastore.generator.factory.ByteContainerSupplierFactory;
 import com.dremio.datastore.generator.factory.StringSupplierFactory;
 import com.dremio.datastore.generator.supplier.UniqueSupplier;
 import com.dremio.datastore.generator.supplier.UniqueSupplierOptions;
+import java.util.Arrays;
 
-/**
- * Generates data for a byte store.
- *
- */
-public class ByteContainerStoreGenerator implements DataGenerator<String, ByteContainerStoreGenerator.ByteContainer> {
+/** Generates data for a byte store. */
+public class ByteContainerStoreGenerator
+    implements DataGenerator<String, ByteContainerStoreGenerator.ByteContainer> {
   private final UniqueSupplier<String> nextKey;
   private final UniqueSupplier<ByteContainer> nextValue;
 
   public ByteContainerStoreGenerator(UniqueSupplierOptions supplierOption) {
     final StringSupplierFactory stringFactory = new StringSupplierFactory(supplierOption);
-    final ByteContainerSupplierFactory byteFactory = new ByteContainerSupplierFactory(supplierOption);
+    final ByteContainerSupplierFactory byteFactory =
+        new ByteContainerSupplierFactory(supplierOption);
     nextKey = stringFactory.createSupplier("String@key-1ab3$5P_");
     nextValue = byteFactory.createSupplier("Bytes@value-1ab3$5P_");
   }
@@ -61,7 +59,7 @@ public class ByteContainerStoreGenerator implements DataGenerator<String, ByteCo
   /**
    * Wraps the byte[] so equality can be checked element-wise.
    *
-   * Also, tests wrapped formats.
+   * <p>Also, tests wrapped formats.
    */
   public static class ByteContainer {
     private final byte[] bytes;

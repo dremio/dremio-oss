@@ -17,9 +17,7 @@ package com.dremio.exec.util;
 
 import org.apache.arrow.memory.ArrowBuf;
 
-/**
- * Mixed endian decimal bytes comparator
- */
+/** Mixed endian decimal bytes comparator */
 public abstract class DecimalMixedEndianComparatorImpl implements DecimalMixedEndianComparator {
 
   private boolean isLeftValNegative;
@@ -40,28 +38,29 @@ public abstract class DecimalMixedEndianComparatorImpl implements DecimalMixedEn
     return isLeftValNegative;
   }
 
-  protected void setCommonValues(ArrowBuf left, int startIndexLeft, ArrowBuf right, int startIndexRight) {
+  protected void setCommonValues(
+      ArrowBuf left, int startIndexLeft, ArrowBuf right, int startIndexRight) {
     isLeftValNegative = left.getByte(startIndexLeft) < 0;
     isRightValNegative = right.getByte(startIndexRight + DecimalUtils.OFFSET_LE_MSB) < 0;
-    //value in right is assumed to be 16 bytes (used for compare values in parquet filters)
+    // value in right is assumed to be 16 bytes (used for compare values in parquet filters)
     rightValLow = getLongValueLow(right, startIndexRight);
-    rightValHigh =  getLongValueHigh(right, startIndexRight);
+    rightValHigh = getLongValueHigh(right, startIndexRight);
   }
 
   /**
-   * Compare two signed decimals where left is in big endian and right in little endian
-   * The left decimal is of arbitrary length.
+   * Compare two signed decimals where left is in big endian and right in little endian The left
+   * decimal is of arbitrary length.
    *
-   * @param left            buffer containing LHS values for comparison
-   * @param startIndexLeft  starting index in buffer to use for comparison
-   * @param valueLength     length of the value to be compared
-   * @param right           buffer containing RHS for comparison.
+   * @param left buffer containing LHS values for comparison
+   * @param startIndexLeft starting index in buffer to use for comparison
+   * @param valueLength length of the value to be compared
+   * @param right buffer containing RHS for comparison.
    * @param startIndexRight starting index in the buffer.
    * @return
    */
   @Override
-  public int compare(ArrowBuf left, int startIndexLeft,
-                     int valueLength, ArrowBuf right, int startIndexRight) {
+  public int compare(
+      ArrowBuf left, int startIndexLeft, int valueLength, ArrowBuf right, int startIndexRight) {
 
     setCommonValues(left, startIndexLeft, right, startIndexRight);
     // fast path, we are comparing one +ve and one -ve, return
@@ -73,7 +72,6 @@ public abstract class DecimalMixedEndianComparatorImpl implements DecimalMixedEn
     return compareInner(left, startIndexLeft, valueLength, right, startIndexRight);
   }
 
-  protected abstract int compareInner(ArrowBuf left, int startIndexLeft, int valueLength,
-                             ArrowBuf right, int startIndexRight);
-
+  protected abstract int compareInner(
+      ArrowBuf left, int startIndexLeft, int valueLength, ArrowBuf right, int startIndexRight);
 }

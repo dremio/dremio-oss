@@ -15,38 +15,25 @@
  */
 package com.dremio.exec.catalog;
 
+import com.dremio.catalog.model.CatalogEntityKey;
+import com.dremio.exec.ops.PlannerCatalog;
+import com.dremio.service.namespace.NamespaceKey;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSortedMap;
+import com.google.common.collect.ImmutableSortedSet;
 import org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.calcite.schema.Function;
 import org.apache.calcite.schema.Schema;
 import org.apache.calcite.schema.SchemaVersion;
 import org.apache.calcite.schema.Table;
 
-import com.dremio.exec.ops.PlannerCatalog;
-import com.dremio.service.namespace.NamespaceKey;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSortedMap;
-import com.google.common.collect.ImmutableSortedSet;
-
 public class DremioSchema extends CalciteSchema {
 
   private final PlannerCatalog catalog;
   private final NamespaceKey namespaceKey;
 
-  public DremioSchema(
-      PlannerCatalog catalog,
-      NamespaceKey namespaceKey) {
-    super(
-        null,
-        null,
-        namespaceKey.getSchemaPath(),
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null);
+  public DremioSchema(PlannerCatalog catalog, NamespaceKey namespaceKey) {
+    super(null, null, namespaceKey.getSchemaPath(), null, null, null, null, null, null, null, null);
     this.catalog = catalog;
     this.namespaceKey = namespaceKey;
   }
@@ -54,7 +41,7 @@ public class DremioSchema extends CalciteSchema {
   @Override
   protected CalciteSchema getImplicitSubSchema(String s, boolean b) {
     NamespaceKey newNamespaceKey = namespaceKey.getChild(s);
-    if(catalog.containerExists(newNamespaceKey)) {
+    if (catalog.containerExists(CatalogEntityKey.fromNamespaceKey(newNamespaceKey))) {
       return new DremioSchema(catalog, newNamespaceKey);
     } else {
       return null;
@@ -79,11 +66,14 @@ public class DremioSchema extends CalciteSchema {
   }
 
   @Override
-  protected TypeEntry getImplicitType(String name, boolean caseSensitive) { return null;}
+  protected TypeEntry getImplicitType(String name, boolean caseSensitive) {
+    return null;
+  }
 
   @Override
-  protected void addImplicitSubSchemaToBuilder(ImmutableSortedMap.Builder<String, CalciteSchema> builder) {
-    if(builder.build().isEmpty()) {
+  protected void addImplicitSubSchemaToBuilder(
+      ImmutableSortedMap.Builder<String, CalciteSchema> builder) {
+    if (builder.build().isEmpty()) {
       return;
     } else {
       throw new RuntimeException();
@@ -96,7 +86,8 @@ public class DremioSchema extends CalciteSchema {
   }
 
   @Override
-  protected void addImplicitFunctionsToBuilder(ImmutableList.Builder<Function> builder, String s, boolean b) {
+  protected void addImplicitFunctionsToBuilder(
+      ImmutableList.Builder<Function> builder, String s, boolean b) {
     throw new RuntimeException();
   }
 
@@ -106,14 +97,15 @@ public class DremioSchema extends CalciteSchema {
   }
 
   @Override
-  protected void addImplicitTablesBasedOnNullaryFunctionsToBuilder(ImmutableSortedMap.Builder<String, Table> builder) {
+  protected void addImplicitTablesBasedOnNullaryFunctionsToBuilder(
+      ImmutableSortedMap.Builder<String, Table> builder) {
     throw new RuntimeException();
   }
 
   @Override
   protected void addImplicitTypeNamesToBuilder(ImmutableSortedSet.Builder<String> builder) {
     throw new RuntimeException();
-}
+  }
 
   @Override
   protected CalciteSchema snapshot(CalciteSchema calciteSchema, SchemaVersion schemaVersion) {

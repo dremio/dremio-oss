@@ -15,6 +15,15 @@
  */
 package com.dremio.datastore.indexed;
 
+import com.dremio.datastore.SearchTypes.SearchQuery;
+import com.dremio.datastore.SearchTypes.SearchQuery.MatchAll;
+import com.dremio.datastore.SearchTypes.SearchQuery.Not;
+import com.dremio.datastore.SearchTypes.SearchQuery.RangeDouble;
+import com.dremio.datastore.SearchTypes.SearchQuery.RangeFloat;
+import com.dremio.datastore.SearchTypes.SearchQuery.RangeInt;
+import com.dremio.datastore.SearchTypes.SearchQuery.RangeLong;
+import com.dremio.datastore.SearchTypes.SearchQuery.RangeTerm;
+import com.google.common.base.CharMatcher;
 import org.apache.lucene.document.DoublePoint;
 import org.apache.lucene.document.FloatPoint;
 import org.apache.lucene.document.IntPoint;
@@ -31,93 +40,88 @@ import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.TermRangeQuery;
 import org.apache.lucene.search.WildcardQuery;
 
-import com.dremio.datastore.SearchTypes.SearchQuery;
-import com.dremio.datastore.SearchTypes.SearchQuery.MatchAll;
-import com.dremio.datastore.SearchTypes.SearchQuery.Not;
-import com.dremio.datastore.SearchTypes.SearchQuery.RangeDouble;
-import com.dremio.datastore.SearchTypes.SearchQuery.RangeFloat;
-import com.dremio.datastore.SearchTypes.SearchQuery.RangeInt;
-import com.dremio.datastore.SearchTypes.SearchQuery.RangeLong;
-import com.dremio.datastore.SearchTypes.SearchQuery.RangeTerm;
-import com.google.common.base.CharMatcher;
-
 /**
- * Helper class to convert from a KVStore {@code com.dremio.datastore.SearchQuery}
- * to a Lucene {@code org.apache.lucene.search.Query}
+ * Helper class to convert from a KVStore {@code com.dremio.datastore.SearchQuery} to a Lucene
+ * {@code org.apache.lucene.search.Query}
  */
 public class LuceneQueryConverter {
   public static final LuceneQueryConverter INSTANCE = new LuceneQueryConverter();
-  private final CharMatcher specialCharactersMatcher = CharMatcher.anyOf(new String(new char[] {
-    WildcardQuery.WILDCARD_ESCAPE, WildcardQuery.WILDCARD_CHAR, WildcardQuery.WILDCARD_STRING
-  })).precomputed();
+  private final CharMatcher specialCharactersMatcher =
+      CharMatcher.anyOf(
+              new String(
+                  new char[] {
+                    WildcardQuery.WILDCARD_ESCAPE,
+                    WildcardQuery.WILDCARD_CHAR,
+                    WildcardQuery.WILDCARD_STRING
+                  }))
+          .precomputed();
 
-  public LuceneQueryConverter() {
-  }
+  public LuceneQueryConverter() {}
 
   Query toLuceneQuery(SearchQuery query) {
-    switch(query.getType()) {
-    case BOOLEAN:
-      return toBooleanQuery(query.getBoolean());
+    switch (query.getType()) {
+      case BOOLEAN:
+        return toBooleanQuery(query.getBoolean());
 
-    case MATCH_ALL:
-      return toMatchAllQuery(query.getMatchAll());
+      case MATCH_ALL:
+        return toMatchAllQuery(query.getMatchAll());
 
-    case NOT:
-      return toNotQuery(query.getNot());
+      case NOT:
+        return toNotQuery(query.getNot());
 
-    case RANGE_DOUBLE:
-      return toRangeQuery(query.getRangeDouble());
+      case RANGE_DOUBLE:
+        return toRangeQuery(query.getRangeDouble());
 
-    case RANGE_FLOAT:
-      return toRangeQuery(query.getRangeFloat());
+      case RANGE_FLOAT:
+        return toRangeQuery(query.getRangeFloat());
 
-    case RANGE_INT:
-      return toRangeQuery(query.getRangeInt());
+      case RANGE_INT:
+        return toRangeQuery(query.getRangeInt());
 
-    case RANGE_LONG:
-      return toRangeQuery(query.getRangeLong());
+      case RANGE_LONG:
+        return toRangeQuery(query.getRangeLong());
 
-    case RANGE_TERM:
-      return toRangeQuery(query.getRangeTerm());
+      case RANGE_TERM:
+        return toRangeQuery(query.getRangeTerm());
 
-    case TERM:
-      return toTermQuery(query.getTerm());
+      case TERM:
+        return toTermQuery(query.getTerm());
 
-    case WILDCARD:
-      return toWildcardQuery(query.getWildcard());
+      case WILDCARD:
+        return toWildcardQuery(query.getWildcard());
 
-    case TERM_INT:
-      return toTermIntQuery(query.getTermInt());
+      case TERM_INT:
+        return toTermIntQuery(query.getTermInt());
 
-    case TERM_LONG:
-      return toTermLongQuery(query.getTermLong());
+      case TERM_LONG:
+        return toTermLongQuery(query.getTermLong());
 
-    case TERM_FLOAT:
-      return toTermFloatQuery(query.getTermFloat());
+      case TERM_FLOAT:
+        return toTermFloatQuery(query.getTermFloat());
 
-    case TERM_DOUBLE:
-      return toTermDoubleQuery(query.getTermDouble());
+      case TERM_DOUBLE:
+        return toTermDoubleQuery(query.getTermDouble());
 
-    case TERM_BOOLEAN:
-      return toTermBooleanQuery(query.getTermBoolean());
+      case TERM_BOOLEAN:
+        return toTermBooleanQuery(query.getTermBoolean());
 
       case EXISTS:
-      return toExistsquery(query.getExists());
+        return toExistsquery(query.getExists());
 
-    case DOES_NOT_EXIST:
-      return toDoesNotExistQuery(query.getExists());
+      case DOES_NOT_EXIST:
+        return toDoesNotExistQuery(query.getExists());
 
-    case BOOST:
-      return toBoostQuery(query.getBoost());
+      case BOOST:
+        return toBoostQuery(query.getBoost());
 
-    case CONTAINS:
-      return toContainsTermQuery(query.getContainsText());
+      case CONTAINS:
+        return toContainsTermQuery(query.getContainsText());
 
-    case PREFIX:
-      return toPrefixQuery(query.getPrefix());
+      case PREFIX:
+        return toPrefixQuery(query.getPrefix());
 
-    default:
-      throw new AssertionError("Unknown query type: " + query);
+      default:
+        throw new AssertionError("Unknown query type: " + query);
     }
   }
 
@@ -138,18 +142,18 @@ public class LuceneQueryConverter {
   private Query toBooleanQuery(SearchQuery.Boolean booleanQuery) {
     final BooleanQuery.Builder builder = new BooleanQuery.Builder();
     final BooleanClause.Occur occur;
-    switch(booleanQuery.getOp()) {
-    case AND:
-      occur = BooleanClause.Occur.MUST;
-      break;
-    case OR:
-      occur = BooleanClause.Occur.SHOULD;
+    switch (booleanQuery.getOp()) {
+      case AND:
+        occur = BooleanClause.Occur.MUST;
         break;
-    default:
-      throw new AssertionError("Unknown boolean operator: " + booleanQuery.getOp());
+      case OR:
+        occur = BooleanClause.Occur.SHOULD;
+        break;
+      default:
+        throw new AssertionError("Unknown boolean operator: " + booleanQuery.getOp());
     }
 
-    for(SearchQuery clause: booleanQuery.getClausesList()) {
+    for (SearchQuery clause : booleanQuery.getClausesList()) {
       builder.add(toLuceneQuery(clause), occur);
     }
     return builder.build();
@@ -168,53 +172,49 @@ public class LuceneQueryConverter {
   private Query toRangeQuery(RangeDouble range) {
     return DoublePoint.newRangeQuery(
         range.getField(),
-        range.hasMin() ?
-          range.getMinInclusive() ? range.getMin()
-          : Math.nextUp(range.getMin())
-        : Double.NEGATIVE_INFINITY,
-        range.hasMax() ?
-          range.getMaxInclusive() ? range.getMax()
-          : Math.nextAfter(range.getMax(), -Double.MAX_VALUE)
-        : Double.POSITIVE_INFINITY );
+        range.hasMin()
+            ? range.getMinInclusive() ? range.getMin() : Math.nextUp(range.getMin())
+            : Double.NEGATIVE_INFINITY,
+        range.hasMax()
+            ? range.getMaxInclusive()
+                ? range.getMax()
+                : Math.nextAfter(range.getMax(), -Double.MAX_VALUE)
+            : Double.POSITIVE_INFINITY);
   }
 
   private Query toRangeQuery(RangeFloat range) {
     return FloatPoint.newRangeQuery(
         range.getField(),
-        range.hasMin() ?
-          range.getMinInclusive() ? range.getMin()
-          : Math.nextUp(range.getMin())
-        : Float.NEGATIVE_INFINITY,
-        range.hasMax() ?
-          range.getMaxInclusive() ? range.getMax()
-          : Math.nextAfter(range.getMax(), -Double.MAX_VALUE)
-        : Float.POSITIVE_INFINITY );
+        range.hasMin()
+            ? range.getMinInclusive() ? range.getMin() : Math.nextUp(range.getMin())
+            : Float.NEGATIVE_INFINITY,
+        range.hasMax()
+            ? range.getMaxInclusive()
+                ? range.getMax()
+                : Math.nextAfter(range.getMax(), -Double.MAX_VALUE)
+            : Float.POSITIVE_INFINITY);
   }
 
   private Query toRangeQuery(RangeInt range) {
     return IntPoint.newRangeQuery(
         range.getField(),
-        range.hasMin() ?
-          range.getMinInclusive() ? range.getMin()
-          : (range.getMin() + 1)
-        : -Integer.MAX_VALUE,
-        range.hasMax() ?
-          range.getMaxInclusive() ? range.getMax()
-          : (range.getMax() - 1)
-        : Integer.MAX_VALUE );
+        range.hasMin()
+            ? range.getMinInclusive() ? range.getMin() : (range.getMin() + 1)
+            : -Integer.MAX_VALUE,
+        range.hasMax()
+            ? range.getMaxInclusive() ? range.getMax() : (range.getMax() - 1)
+            : Integer.MAX_VALUE);
   }
 
   private Query toRangeQuery(RangeLong range) {
     return LongPoint.newRangeQuery(
         range.getField(),
-        range.hasMin() ?
-          range.getMinInclusive() ? range.getMin()
-          : (range.getMin() + 1L)
-        : -Long.MAX_VALUE,
-        range.hasMax() ?
-          range.getMaxInclusive() ? range.getMax()
-          : (range.getMax() - 1L)
-        : Long.MAX_VALUE );
+        range.hasMin()
+            ? range.getMinInclusive() ? range.getMin() : (range.getMin() + 1L)
+            : -Long.MAX_VALUE,
+        range.hasMax()
+            ? range.getMaxInclusive() ? range.getMax() : (range.getMax() - 1L)
+            : Long.MAX_VALUE);
   }
 
   private Query toRangeQuery(RangeTerm range) {
@@ -245,38 +245,28 @@ public class LuceneQueryConverter {
   }
 
   private Query toTermIntQuery(SearchQuery.TermInt term) {
-    return IntPoint.newRangeQuery(
-      term.getField(),
-      term.getValue(),
-      term.getValue());
+    return IntPoint.newRangeQuery(term.getField(), term.getValue(), term.getValue());
   }
 
   private Query toTermLongQuery(SearchQuery.TermLong term) {
-    return LongPoint.newRangeQuery(
-      term.getField(),
-      term.getValue(),
-      term.getValue());
+    return LongPoint.newRangeQuery(term.getField(), term.getValue(), term.getValue());
   }
 
   private Query toTermFloatQuery(SearchQuery.TermFloat term) {
-    return FloatPoint.newRangeQuery(
-      term.getField(),
-      term.getValue(),
-      term.getValue());
+    return FloatPoint.newRangeQuery(term.getField(), term.getValue(), term.getValue());
   }
 
   private Query toTermDoubleQuery(SearchQuery.TermDouble term) {
-    return DoublePoint.newRangeQuery(
-      term.getField(),
-      term.getValue(),
-      term.getValue());
+    return DoublePoint.newRangeQuery(term.getField(), term.getValue(), term.getValue());
   }
 
   private Query toTermBooleanQuery(SearchQuery.TermBoolean term) {
     // there is no BooleanPoint or any other structure that can carry boolean query in lucene
     // support for it will be handled in DX-60829
-    throw new UnsupportedOperationException("The TermBoolean is not supported for " + LuceneQueryConverter.class.getName() +
-      ". For more info, see: DX-60829.");
+    throw new UnsupportedOperationException(
+        "The TermBoolean is not supported for "
+            + LuceneQueryConverter.class.getName()
+            + ". For more info, see: DX-60829.");
   }
 
   private Query toExistsquery(SearchQuery.Exists exists) {

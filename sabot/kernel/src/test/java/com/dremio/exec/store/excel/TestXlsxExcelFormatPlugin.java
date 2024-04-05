@@ -17,12 +17,11 @@ package com.dremio.exec.store.excel;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.dremio.common.util.TestTools;
+import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
-
-import com.dremio.common.util.TestTools;
-import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 
 public class TestXlsxExcelFormatPlugin extends TestExcelFormatPluginBase {
 
@@ -46,7 +45,10 @@ public class TestXlsxExcelFormatPlugin extends TestExcelFormatPluginBase {
   @Test
   public void testEmptyXlsx() throws Exception {
     final String filePath = TestTools.getWorkingPath() + "/src/test/resources/excel/empty.xlsx";
-    final String query = String.format("SELECT * FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => true, xls => false))", filePath);
+    final String query =
+        String.format(
+            "SELECT * FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => true, xls => false))",
+            filePath);
 
     testAndExpectUserException(query, ErrorType.DATA_READ, "Selected table has no columns.");
   }
@@ -54,16 +56,23 @@ public class TestXlsxExcelFormatPlugin extends TestExcelFormatPluginBase {
   @Test
   public void testEmpty2Xls() throws Exception {
     final String filePath = getExcelDir() + "empty2.xlsx";
-    final String query = String.format("SELECT * FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => true, xls => false))", filePath);
+    final String query =
+        String.format(
+            "SELECT * FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => true, xls => false))",
+            filePath);
 
-    // There are actual columns in this table, but they contain no value. Hence, show the columns with nulls.
+    // There are actual columns in this table, but they contain no value. Hence, show the columns
+    // with nulls.
     test(query);
   }
 
   @Test
   public void testInlineString() throws Exception {
     final String filePath = getExcelDir() + "InlineString.xlsx";
-    final String query = String.format("SELECT * FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => false))", filePath);
+    final String query =
+        String.format(
+            "SELECT * FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => false))",
+            filePath);
 
     // This will fail if the inline string column is ignored, as no columns will be detected.
     test(query);
@@ -72,7 +81,10 @@ public class TestXlsxExcelFormatPlugin extends TestExcelFormatPluginBase {
   @Test
   public void testCountStarQuery() throws Exception {
     String filePath = getExcelDir() + "simple.xlsx";
-    String query = String.format("SELECT COUNT(*) FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => false))", filePath);
+    String query =
+        String.format(
+            "SELECT COUNT(*) FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => false))",
+            filePath);
 
     assertThat(getResultString(testSqlWithResults(query), "")).contains("9");
   }
@@ -80,7 +92,10 @@ public class TestXlsxExcelFormatPlugin extends TestExcelFormatPluginBase {
   @Test
   public void testCountStarQueryOnEmptySheet() throws Exception {
     String filePath = getExcelDir() + "empty.xlsx";
-    String query = String.format("SELECT COUNT(*) FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => false))", filePath);
+    String query =
+        String.format(
+            "SELECT COUNT(*) FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => false))",
+            filePath);
 
     testAndExpectUserException(query, ErrorType.DATA_READ, "Selected table has no columns");
   }
@@ -88,7 +103,10 @@ public class TestXlsxExcelFormatPlugin extends TestExcelFormatPluginBase {
   @Test
   public void testCountOneQuery() throws Exception {
     String filePath = getExcelDir() + "simple.xlsx";
-    String query = String.format("SELECT COUNT(1) FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => false))", filePath);
+    String query =
+        String.format(
+            "SELECT COUNT(1) FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => false))",
+            filePath);
 
     assertThat(getResultString(testSqlWithResults(query), "")).contains("9");
   }
@@ -96,7 +114,10 @@ public class TestXlsxExcelFormatPlugin extends TestExcelFormatPluginBase {
   @Test
   public void testCountStarAndAvgQuery() throws Exception {
     String filePath = getExcelDir() + "simple.xlsx";
-    String query = String.format("SELECT COUNT(*),AVG(\"Age\") FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => false))", filePath);
+    String query =
+        String.format(
+            "SELECT COUNT(*),AVG(\"Age\") FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => false))",
+            filePath);
 
     assertThat(getResultString(testSqlWithResults(query), "|")).contains("9|");
   }
@@ -104,7 +125,10 @@ public class TestXlsxExcelFormatPlugin extends TestExcelFormatPluginBase {
   @Test
   public void testCountOneAndAvgQuery() throws Exception {
     String filePath = getExcelDir() + "simple.xlsx";
-    String query = String.format("SELECT COUNT(1),AVG(\"Age\") FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => false))", filePath);
+    String query =
+        String.format(
+            "SELECT COUNT(1),AVG(\"Age\") FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => false))",
+            filePath);
 
     assertThat(getResultString(testSqlWithResults(query), "|")).contains("9|");
   }
@@ -112,7 +136,10 @@ public class TestXlsxExcelFormatPlugin extends TestExcelFormatPluginBase {
   @Test
   public void testCountColumnQuery() throws Exception {
     String filePath = getExcelDir() + "simple.xlsx";
-    String query = String.format("SELECT COUNT(\"Age\") FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => false))", filePath);
+    String query =
+        String.format(
+            "SELECT COUNT(\"Age\") FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => false))",
+            filePath);
 
     assertThat(getResultString(testSqlWithResults(query), "")).contains("9");
   }
@@ -120,7 +147,10 @@ public class TestXlsxExcelFormatPlugin extends TestExcelFormatPluginBase {
   @Test
   public void testCountStarQueryXls() throws Exception {
     String filePath = getExcelDir() + "simple.xls";
-    String query = String.format("SELECT COUNT(*) FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => true))", filePath);
+    String query =
+        String.format(
+            "SELECT COUNT(*) FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => true))",
+            filePath);
 
     assertThat(getResultString(testSqlWithResults(query), "")).contains("9");
   }
@@ -128,7 +158,10 @@ public class TestXlsxExcelFormatPlugin extends TestExcelFormatPluginBase {
   @Test
   public void testCountOneQueryXls() throws Exception {
     String filePath = getExcelDir() + "simple.xls";
-    String query = String.format("SELECT COUNT(1) FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => true))", filePath);
+    String query =
+        String.format(
+            "SELECT COUNT(1) FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => true))",
+            filePath);
 
     assertThat(getResultString(testSqlWithResults(query), "")).contains("9");
   }
@@ -136,7 +169,10 @@ public class TestXlsxExcelFormatPlugin extends TestExcelFormatPluginBase {
   @Test
   public void testCountStarQueryOnEmptySheetXls() throws Exception {
     String filePath = getExcelDir() + "empty.xls";
-    String query = String.format("SELECT COUNT(*) FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => true))", filePath);
+    String query =
+        String.format(
+            "SELECT COUNT(*) FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => true))",
+            filePath);
 
     testAndExpectUserException(query, ErrorType.DATA_READ, "Selected table has no columns");
   }
@@ -144,7 +180,10 @@ public class TestXlsxExcelFormatPlugin extends TestExcelFormatPluginBase {
   @Test
   public void testCountStarAndAvgQueryXls() throws Exception {
     String filePath = getExcelDir() + "simple.xls";
-    String query = String.format("SELECT COUNT(*),AVG(\"Age\") FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => true))", filePath);
+    String query =
+        String.format(
+            "SELECT COUNT(*),AVG(\"Age\") FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => true))",
+            filePath);
 
     assertThat(getResultString(testSqlWithResults(query), "|")).contains("9|");
   }
@@ -152,7 +191,10 @@ public class TestXlsxExcelFormatPlugin extends TestExcelFormatPluginBase {
   @Test
   public void testCountOneAndAvgQueryXls() throws Exception {
     String filePath = getExcelDir() + "simple.xls";
-    String query = String.format("SELECT COUNT(1),AVG(\"Age\") FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => true))", filePath);
+    String query =
+        String.format(
+            "SELECT COUNT(1),AVG(\"Age\") FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => true))",
+            filePath);
 
     assertThat(getResultString(testSqlWithResults(query), "|")).contains("9|");
   }
@@ -160,7 +202,10 @@ public class TestXlsxExcelFormatPlugin extends TestExcelFormatPluginBase {
   @Test
   public void testCountColumnQueryXls() throws Exception {
     String filePath = getExcelDir() + "simple.xls";
-    String query = String.format("SELECT COUNT(\"Age\") FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => true))", filePath);
+    String query =
+        String.format(
+            "SELECT COUNT(\"Age\") FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => true))",
+            filePath);
 
     assertThat(getResultString(testSqlWithResults(query), "")).contains("9");
   }
@@ -168,55 +213,61 @@ public class TestXlsxExcelFormatPlugin extends TestExcelFormatPluginBase {
   @Test
   public void testHeaderOnly() throws Exception {
     final String filePath = getExcelDir() + "header_only.xlsx";
-    final String query = String.format("SELECT * FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => false))", filePath);
+    final String query =
+        String.format(
+            "SELECT * FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => false))",
+            filePath);
 
     testAndExpectUserException(query, ErrorType.DATA_READ, "Selected table has no columns.");
   }
 
   @Test
   public void testProjectAll1() throws Exception {
-    getHelper().test(testBuilder(), "sheet 1", true,  true);
+    getHelper().test(testBuilder(), "sheet 1", true, true);
   }
 
   @Test
   public void testProjectAll2() throws Exception {
-    getHelper().test(testBuilder(), "sheet 1", true,  false);
+    getHelper().test(testBuilder(), "sheet 1", true, false);
   }
 
   @Test
   public void testProjectPushdown1() throws Exception {
-    getHelper().testProjectPushdown1(testBuilder(), "sheet 1", true,  true);
+    getHelper().testProjectPushdown1(testBuilder(), "sheet 1", true, true);
   }
 
   @Test
   public void testProjectPushdown2() throws Exception {
-    getHelper().testProjectPushdown1(testBuilder(), "sheet 1", true,  false);
+    getHelper().testProjectPushdown1(testBuilder(), "sheet 1", true, false);
   }
 
   @Test
   public void testProjectPushdown3() throws Exception {
-    getHelper().testProjectPushdown2(testBuilder(), "sheet 1", true,  true);
+    getHelper().testProjectPushdown2(testBuilder(), "sheet 1", true, true);
   }
 
   @Test
   public void testProjectPushdown4() throws Exception {
-    getHelper().testProjectPushdown2(testBuilder(), "sheet 1", true,  false);
+    getHelper().testProjectPushdown2(testBuilder(), "sheet 1", true, false);
   }
 
   @Test
   public void testProjectPushdown5() throws Exception {
-    getHelper().testProjectPushdown3(testBuilder(), "sheet 1", true,  true);
+    getHelper().testProjectPushdown3(testBuilder(), "sheet 1", true, true);
   }
 
   @Test
   public void testProjectPushdown6() throws Exception {
-    getHelper().testProjectPushdown3(testBuilder(), "sheet 1", true,  false);
+    getHelper().testProjectPushdown3(testBuilder(), "sheet 1", true, false);
   }
 
   @Test
   public void testUnsafeSheet() throws Exception {
     final String filePath = getExcelDir() + "sheet-with-dtd.xlsx";
-    final String query = String.format("SELECT * FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => false))", filePath);
+    final String query =
+        String.format(
+            "SELECT * FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => false))",
+            filePath);
 
     testAndExpectUserException(query, ErrorType.DATA_READ, "Failure creating parser for entry");
   }
@@ -224,7 +275,10 @@ public class TestXlsxExcelFormatPlugin extends TestExcelFormatPluginBase {
   @Test
   public void testUnsafeWorkbook() throws Exception {
     final String filePath = getExcelDir() + "workbook-with-dtd.xlsx";
-    final String query = String.format("SELECT * FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => false))", filePath);
+    final String query =
+        String.format(
+            "SELECT * FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => false))",
+            filePath);
 
     testAndExpectUserException(query, ErrorType.DATA_READ, "Failure creating parser for entry");
   }
@@ -240,9 +294,11 @@ public class TestXlsxExcelFormatPlugin extends TestExcelFormatPluginBase {
   @Test
   public void testCountOneQueryXlsxWithNulls() throws Exception {
     String filePath = getExcelDir() + "SkipProjectedWithNulls.xlsx";
-    String query = String.format("SELECT COUNT(*) FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => false))", filePath);
+    String query =
+        String.format(
+            "SELECT COUNT(*) FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => false))",
+            filePath);
 
     assertThat(getResultString(testSqlWithResults(query), "")).contains("87");
   }
-
 }

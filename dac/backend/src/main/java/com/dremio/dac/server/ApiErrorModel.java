@@ -19,14 +19,9 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 
-/**
- * Structured type for including details about an error for the Rest API.
- *
- */
+/** Structured type for including details about an error for the Rest API. */
 public class ApiErrorModel<T> extends GenericErrorMessage {
-  /**
-   * Various error codes
-   */
+  /** Various error codes */
   public enum ErrorType {
     INITIAL_PREVIEW_ERROR,
     NEW_DATASET_QUERY_EXCEPTION,

@@ -46,4 +46,6 @@ message AccelerationSettingsDescriptor {
   optional int64 accelerationGracePeriod = 6;
   optional bool accelerationNeverExpire = 7 [default = false];
   optional bool accelerationNeverRefresh = 8 [default = false];
+  optional RefreshPolicyType accelerationActivePolicyType = 9 [default = PERIOD];
+  optional string accelerationRefreshSchedule = 10;
 }

@@ -15,6 +15,10 @@
  */
 package com.dremio.exec.store.iceberg;
 
+import com.dremio.common.expression.CompleteType;
+import com.google.common.base.Preconditions;
+import com.google.common.hash.Hasher;
+import com.google.common.hash.Hashing;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
@@ -23,7 +27,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
-
 import org.apache.arrow.vector.DateMilliVector;
 import org.apache.arrow.vector.TimeStampMilliVector;
 import org.apache.arrow.vector.ValueVector;
@@ -33,21 +36,19 @@ import org.apache.iceberg.StructLike;
 import org.apache.iceberg.types.Type;
 import org.apache.iceberg.types.Types;
 
-import com.dremio.common.expression.CompleteType;
-import com.google.common.base.Preconditions;
-import com.google.common.hash.Hasher;
-import com.google.common.hash.Hashing;
+public class IcebergPartitionData implements StructLike, Serializable {
 
-public class IcebergPartitionData
-  implements StructLike, Serializable {
-
-  public static Class<?> getPartitionColumnClass(PartitionSpec icebergPartitionSpec, int partColPos) {
+  public static Class<?> getPartitionColumnClass(
+      PartitionSpec icebergPartitionSpec, int partColPos) {
     return icebergPartitionSpec.javaClasses()[partColPos];
   }
-  public static IcebergPartitionData fromStructLike(PartitionSpec icebergPartitionSpec, StructLike partitionStruct) {
-    IcebergPartitionData partitionData = new IcebergPartitionData(icebergPartitionSpec.partitionType());
+
+  public static IcebergPartitionData fromStructLike(
+      PartitionSpec icebergPartitionSpec, StructLike partitionStruct) {
+    IcebergPartitionData partitionData =
+        new IcebergPartitionData(icebergPartitionSpec.partitionType());
     for (int partColPos = 0; partColPos < partitionStruct.size(); ++partColPos) {
-      Class<?>  partitionValueClass = getPartitionColumnClass(icebergPartitionSpec, partColPos);
+      Class<?> partitionValueClass = getPartitionColumnClass(icebergPartitionSpec, partColPos);
       Object partitionValue = partitionStruct.get(partColPos, partitionValueClass);
       partitionData.set(partColPos, partitionValue);
     }
@@ -60,8 +61,10 @@ public class IcebergPartitionData
 
   public IcebergPartitionData(Types.StructType partitionType) {
     for (Types.NestedField field : partitionType.fields()) {
-      Preconditions.checkArgument(field.type().isPrimitiveType(),
-        "Partitions cannot contain nested types: %s", field.type());
+      Preconditions.checkArgument(
+          field.type().isPrimitiveType(),
+          "Partitions cannot contain nested types: %s",
+          field.type());
     }
 
     this.partitionType = partitionType;
@@ -69,9 +72,7 @@ public class IcebergPartitionData
     this.data = new Object[size];
   }
 
-  /**
-   * Copy constructor
-   */
+  /** Copy constructor */
   private IcebergPartitionData(IcebergPartitionData toCopy) {
     this.partitionType = toCopy.partitionType;
     this.size = toCopy.size;
@@ -99,9 +100,9 @@ public class IcebergPartitionData
       return javaClass.cast(value);
     }
 
-    throw new IllegalArgumentException(String.format(
-      "Wrong class, %s, for object: %s",
-      javaClass.getName(), String.valueOf(value)));
+    throw new IllegalArgumentException(
+        String.format(
+            "Wrong class, %s, for object: %s", javaClass.getName(), String.valueOf(value)));
   }
 
   public Object get(int pos) {
@@ -144,9 +145,7 @@ public class IcebergPartitionData
       if (i > 0) {
         sb.append(", ");
       }
-      sb.append(partitionType.fields().get(i).name())
-        .append("=")
-        .append(data[i]);
+      sb.append(partitionType.fields().get(i).name()).append("=").append(data[i]);
     }
     sb.append("}");
     return sb.toString();
@@ -249,31 +248,31 @@ public class IcebergPartitionData
     switch (type.toMinorType()) {
       case TINYINT:
       case UINT1:
-        setInteger(position, Integer.valueOf((Byte)(vector.getObject(offset))));
+        setInteger(position, Integer.valueOf((Byte) (vector.getObject(offset))));
         break;
       case SMALLINT:
       case UINT2:
-        setInteger(position, Integer.valueOf((Short)(vector.getObject(offset))));
+        setInteger(position, Integer.valueOf((Short) (vector.getObject(offset))));
         break;
       case INT:
       case UINT4:
-        setInteger(position, (Integer)vector.getObject(offset));
+        setInteger(position, (Integer) vector.getObject(offset));
         break;
       case UINT8:
       case BIGINT:
-        setLong(position, (Long)(vector.getObject(offset)));
+        setLong(position, (Long) (vector.getObject(offset)));
         break;
       case FLOAT4:
-        setFloat(position, ((Float)(vector.getObject(offset))));
+        setFloat(position, ((Float) (vector.getObject(offset))));
         break;
       case FLOAT8:
-        setDouble(position, ((Double)(vector.getObject(offset))));
+        setDouble(position, ((Double) (vector.getObject(offset))));
         break;
       case BIT:
-        setBoolean(position, ((Boolean)(vector.getObject(offset))));
+        setBoolean(position, ((Boolean) (vector.getObject(offset))));
         break;
       case VARBINARY:
-        setBytes(position, ((byte[])(vector.getObject(offset))));
+        setBytes(position, ((byte[]) (vector.getObject(offset))));
         break;
       case DECIMAL9:
       case DECIMAL18:
@@ -282,14 +281,17 @@ public class IcebergPartitionData
       case DECIMAL28DENSE:
       case DECIMAL38DENSE:
       case DECIMAL:
-        setBigDecimal(position, ((BigDecimal)(vector.getObject(offset))));
+        setBigDecimal(position, ((BigDecimal) (vector.getObject(offset))));
         break;
 
       case DATE:
         if (vector instanceof DateMilliVector) {
-          setInteger(position, Math.toIntExact(TimeUnit.MILLISECONDS.toDays(((DateMilliVector) vector).get(offset))));
+          setInteger(
+              position,
+              Math.toIntExact(
+                  TimeUnit.MILLISECONDS.toDays(((DateMilliVector) vector).get(offset))));
         } else {
-          //TODO: needs further tuning
+          // TODO: needs further tuning
           set(position, null);
         }
         break;
@@ -300,10 +302,10 @@ public class IcebergPartitionData
       case INTERVAL:
       case INTERVALYEAR:
       case INTERVALDAY:
-        if (vector instanceof  TimeStampMilliVector) {
+        if (vector instanceof TimeStampMilliVector) {
           setLong(position, (((TimeStampMilliVector) vector).get(offset)) * 1000);
         } else {
-          //TODO: needs further tuning
+          // TODO: needs further tuning
           set(position, null);
         }
         break;
@@ -316,7 +318,6 @@ public class IcebergPartitionData
         setString(position, vector.getObject(offset).toString());
         break;
 
-
       case NULL:
       case MONEY:
       case LATE:
@@ -324,8 +325,8 @@ public class IcebergPartitionData
       case LIST:
       case GENERIC_OBJECT:
       case UNION:
-        throw new IllegalArgumentException("Unsupported type in partition data: " + type.toString());
-
+        throw new IllegalArgumentException(
+            "Unsupported type in partition data: " + type.toString());
     }
   }
 }

@@ -15,21 +15,6 @@
  */
 package com.dremio.sabot.exec.context;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.ExecutorService;
-import java.util.stream.Collectors;
-
-import javax.inject.Provider;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.BufferManager;
-import org.apache.arrow.memory.OutOfMemoryException;
-import org.apache.arrow.vector.types.pojo.Schema;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.config.SabotConfig;
@@ -62,10 +47,23 @@ import com.dremio.service.spill.SpillService;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.stream.Collectors;
+import javax.inject.Provider;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.BufferManager;
+import org.apache.arrow.memory.OutOfMemoryException;
+import org.apache.arrow.vector.types.pojo.Schema;
 
 @VisibleForTesting
 public class OperatorContextImpl extends OperatorContext implements AutoCloseable {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(OperatorContextImpl.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(OperatorContextImpl.class);
 
   private final SabotConfig config;
   private final DremioConfig dremioConfig;
@@ -95,31 +93,32 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
   private final HeapLowMemController heapLowMemController;
 
   public OperatorContextImpl(
-    SabotConfig sabotConfig,
-    DremioConfig dremioConfig,
-    FragmentHandle handle,
-    PhysicalOperator popConfig,
-    BufferAllocator allocator,
-    BufferAllocator fragmentOutputAllocator,
-    CodeCompiler compiler,
-    OperatorStats stats,
-    ExecutionControls executionControls,
-    FragmentExecutorBuilder fragmentExecutorBuilder,
-    ExecutorService executor,
-    FunctionLookupContext functions,
-    ContextInformation contextInformation,
-    final OptionManager optionManager,
-    SpillService spillService,
-    NodeDebugContextProvider nodeDebugContextProvider,
-    int targetBatchSize,
-    TunnelProvider tunnelProvider,
-    List<FragmentAssignment> assignments,
-    List<MajorFragmentAssignment> majorFragmentAssignments,
-    Provider<CoordinationProtos.NodeEndpoint> nodeEndpointProvider,
-    EndpointsIndex endpointsIndex,
-    List<MinorFragmentEndpoint> minorFragmentEndpoints,
-    ExpressionSplitCache expressionSplitCache,
-    HeapLowMemController heapLowMemController) throws OutOfMemoryException {
+      SabotConfig sabotConfig,
+      DremioConfig dremioConfig,
+      FragmentHandle handle,
+      PhysicalOperator popConfig,
+      BufferAllocator allocator,
+      BufferAllocator fragmentOutputAllocator,
+      CodeCompiler compiler,
+      OperatorStats stats,
+      ExecutionControls executionControls,
+      FragmentExecutorBuilder fragmentExecutorBuilder,
+      ExecutorService executor,
+      FunctionLookupContext functions,
+      ContextInformation contextInformation,
+      final OptionManager optionManager,
+      SpillService spillService,
+      NodeDebugContextProvider nodeDebugContextProvider,
+      int targetBatchSize,
+      TunnelProvider tunnelProvider,
+      List<FragmentAssignment> assignments,
+      List<MajorFragmentAssignment> majorFragmentAssignments,
+      Provider<CoordinationProtos.NodeEndpoint> nodeEndpointProvider,
+      EndpointsIndex endpointsIndex,
+      List<MinorFragmentEndpoint> minorFragmentEndpoints,
+      ExpressionSplitCache expressionSplitCache,
+      HeapLowMemController heapLowMemController)
+      throws OutOfMemoryException {
     this.config = sabotConfig;
     this.dremioConfig = dremioConfig;
     this.handle = handle;
@@ -128,9 +127,11 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
     this.popConfig = popConfig;
     this.nodeEndpointProvider = nodeEndpointProvider;
 
-    //some unit test cases pass null optionManager
-    final int bufCapacity = (optionManager != null) ?
-      (int)optionManager.getOption(ExecConstants.BUF_MANAGER_CAPACITY) : (1 << 16);
+    // some unit test cases pass null optionManager
+    final int bufCapacity =
+        (optionManager != null)
+            ? (int) optionManager.getOption(ExecConstants.BUF_MANAGER_CAPACITY)
+            : (1 << 16);
     this.manager = new BufferManagerImpl(allocator, bufCapacity);
 
     this.stats = stats;
@@ -140,13 +141,25 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
     this.optionManager = optionManager;
     this.targetBatchSize = targetBatchSize;
     this.nodeDebugContextProvider = nodeDebugContextProvider;
-    this.producer = new ClassProducerImpl(new CompilationOptions(optionManager), compiler, functions, contextInformation, manager, minorFragmentEndpoints);
+    this.producer =
+        new ClassProducerImpl(
+            new CompilationOptions(optionManager),
+            compiler,
+            functions,
+            contextInformation,
+            manager,
+            minorFragmentEndpoints);
     this.spillService = spillService;
     this.tunnelProvider = tunnelProvider;
     this.assignments = assignments;
     this.endpointsIndex = endpointsIndex;
-    this.majorFragmentAssignments = Optional.ofNullable(majorFragmentAssignments)
-            .map(f -> f.stream().collect(Collectors.toMap(MajorFragmentAssignment::getMajorFragmentId, v -> v)))
+    this.majorFragmentAssignments =
+        Optional.ofNullable(majorFragmentAssignments)
+            .map(
+                f ->
+                    f.stream()
+                        .collect(
+                            Collectors.toMap(MajorFragmentAssignment::getMajorFragmentId, v -> v)))
             .orElse(Collections.emptyMap());
     this.minorFragmentEndpoints = minorFragmentEndpoints;
     this.expressionSplitCache = expressionSplitCache;
@@ -154,35 +167,67 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
   }
 
   public OperatorContextImpl(
-    SabotConfig config,
-    DremioConfig dremioConfig,
-    BufferAllocator allocator,
-    OptionManager optionManager,
-    int targetBatchSize, ExpressionSplitCache expressionSplitCache) {
+      SabotConfig config,
+      DremioConfig dremioConfig,
+      BufferAllocator allocator,
+      OptionManager optionManager,
+      int targetBatchSize,
+      ExpressionSplitCache expressionSplitCache) {
 
-    this(config, dremioConfig, allocator, optionManager, null, targetBatchSize, expressionSplitCache);
+    this(
+        config,
+        dremioConfig,
+        allocator,
+        optionManager,
+        null,
+        targetBatchSize,
+        expressionSplitCache);
   }
 
   public OperatorContextImpl(
-    SabotConfig config,
-    DremioConfig dremioConfig,
-    BufferAllocator allocator,
-    OptionManager optionManager,
-    OperatorStats stats,
-    int targetBatchSize, ExpressionSplitCache expressionSplitCache) {
+      SabotConfig config,
+      DremioConfig dremioConfig,
+      BufferAllocator allocator,
+      OptionManager optionManager,
+      OperatorStats stats,
+      int targetBatchSize,
+      ExpressionSplitCache expressionSplitCache) {
 
-    this(config, dremioConfig, null, null, allocator, allocator, null, stats, null, null, null, null, null,
-      optionManager, null, NodeDebugContextProvider.NOOP, targetBatchSize, null, ImmutableList.of(), ImmutableList.of(), null, null, null,
-      expressionSplitCache, null);
+    this(
+        config,
+        dremioConfig,
+        null,
+        null,
+        allocator,
+        allocator,
+        null,
+        stats,
+        null,
+        null,
+        null,
+        null,
+        null,
+        optionManager,
+        null,
+        NodeDebugContextProvider.NOOP,
+        targetBatchSize,
+        null,
+        ImmutableList.of(),
+        ImmutableList.of(),
+        null,
+        null,
+        null,
+        expressionSplitCache,
+        null);
   }
 
   @Override
-  public SabotConfig getConfig(){
+  public SabotConfig getConfig() {
     return config;
   }
 
   @Override
-  public DremioConfig getDremioConfig(){
+  public DremioConfig getDremioConfig() {
     return dremioConfig;
   }
 
@@ -222,29 +267,37 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
   @Override
   public QueryId getQueryIdForLocalQuery() {
     if (fragmentExecutorBuilder == null) {
-      throw new UnsupportedOperationException("Operator context does not support generating QueryId");
+      throw new UnsupportedOperationException(
+          "Operator context does not support generating QueryId");
     }
     return fragmentExecutorBuilder.getFragmentExecutors().getQueryIdForLocalQuery();
   }
 
   @Override
   public LogicalPlanPersistence getLpPersistence() {
-    Preconditions.checkNotNull(fragmentExecutorBuilder, "Cannot get LogicalPlanPersistence without initializing FragmentExecutorBuilder");
+    Preconditions.checkNotNull(
+        fragmentExecutorBuilder,
+        "Cannot get LogicalPlanPersistence without initializing FragmentExecutorBuilder");
     return fragmentExecutorBuilder.getPlanReader().getLpPersistance();
   }
 
   @Override
   public CoordinationProtos.NodeEndpoint getNodeEndPoint() {
-    Preconditions.checkNotNull(fragmentExecutorBuilder, "Cannot get NodeEndpoint without initializing FragmentExecutorBuilder");
+    Preconditions.checkNotNull(
+        fragmentExecutorBuilder,
+        "Cannot get NodeEndpoint without initializing FragmentExecutorBuilder");
     return fragmentExecutorBuilder.getNodeEndpoint();
   }
 
   @Override
   public void startFragmentOnLocal(PlanFragmentFull planFragmentFull) {
     if (fragmentExecutorBuilder == null) {
-      throw new UnsupportedOperationException("Operator context does not support starting fragments");
+      throw new UnsupportedOperationException(
+          "Operator context does not support starting fragments");
     }
-    fragmentExecutorBuilder.getFragmentExecutors().startFragmentOnLocal(planFragmentFull, fragmentExecutorBuilder);
+    fragmentExecutorBuilder
+        .getFragmentExecutors()
+        .startFragmentOnLocal(planFragmentFull, fragmentExecutorBuilder);
   }
 
   @Override
@@ -292,7 +345,8 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
 
   @Override
   public VectorContainerWithSV createOutputVectorContainerWithSV() {
-    return new VectorContainerWithSV(fragmentOutputAllocator, new SelectionVector2(fragmentOutputAllocator));
+    return new VectorContainerWithSV(
+        fragmentOutputAllocator, new SelectionVector2(fragmentOutputAllocator));
   }
 
   @Override
@@ -306,7 +360,9 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
   }
 
   @Override
-  public BufferManager getBufferManager() { return  manager; }
+  public BufferManager getBufferManager() {
+    return manager;
+  }
 
   public boolean isClosed() {
     return closed;
@@ -325,13 +381,15 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
   @Override
   public void close() throws Exception {
     if (closed) {
-      logger.warn("Attempted to close Operator context for {}, but context is already closed", popConfig != null ? popConfig.getClass().getName() : "<unknown>");
+      logger.warn(
+          "Attempted to close Operator context for {}, but context is already closed",
+          popConfig != null ? popConfig.getClass().getName() : "<unknown>");
       return;
     }
 
-    try{
+    try {
       AutoCloseables.close(manager, allocator);
-    }finally{
+    } finally {
       closed = true;
     }
   }
@@ -357,13 +415,12 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
   }
 
   @Override
-  public ClassProducer getClassProducer(){
+  public ClassProducer getClassProducer() {
     return producer;
   }
 
-
   @Override
-  public  NodeDebugContextProvider getNodeDebugContextProvider() {
+  public NodeDebugContextProvider getNodeDebugContextProvider() {
     return nodeDebugContextProvider;
   }
 

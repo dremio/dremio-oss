@@ -15,14 +15,6 @@
  */
 package com.dremio.exec.rpc.user.security.testing;
 
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-
-import org.apache.hadoop.security.UserGroupInformation;
-
 import com.dremio.datastore.SearchTypes.SortOrder;
 import com.dremio.service.users.AuthResult;
 import com.dremio.service.users.SimpleUser;
@@ -34,11 +26,16 @@ import com.dremio.service.users.UserNotFoundException;
 import com.dremio.service.users.UserService;
 import com.dremio.service.users.proto.UID;
 import com.google.common.base.StandardSystemProperty;
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import org.apache.hadoop.security.UserGroupInformation;
 
 /**
- * Implement {@link UserService} for testing:
- * + UserAuthenticator and authentication of users from Java client to SabotNode.
- * + {@link TestInboundImpersonation user delegation}.
+ * Implement {@link UserService} for testing: + UserAuthenticator and authentication of users from
+ * Java client to SabotNode. + {@link TestInboundImpersonation user delegation}.
  */
 public class UserServiceTestImpl extends SimpleUserService {
   public static final String ANONYMOUS = "anonymous";
@@ -55,21 +52,24 @@ public class UserServiceTestImpl extends SimpleUserService {
 
   public static final String DEFAULT_PASSWORD = "dremio123";
 
-  private final Map<String, String> userPasswordMap = new HashMap<String, String>() {{
-    put(TEST_USER_1.toLowerCase(Locale.ROOT), TEST_USER_1_PASSWORD);
-    put(TEST_USER_2.toLowerCase(Locale.ROOT), TEST_USER_2_PASSWORD);
-    put(TEST_USER_3.toLowerCase(Locale.ROOT), TEST_USER_3_PASSWORD);
-    put(ADMIN_USER.toLowerCase(Locale.ROOT), ADMIN_USER_PASSWORD);
-    put(PROCESS_USER.toLowerCase(Locale.ROOT), PROCESS_USER_PASSWORD);
-    put(ANONYMOUS.toLowerCase(Locale.ROOT), DEFAULT_PASSWORD);
-  }};
+  private final Map<String, String> userPasswordMap =
+      new HashMap<String, String>() {
+        {
+          put(TEST_USER_1.toLowerCase(Locale.ROOT), TEST_USER_1_PASSWORD);
+          put(TEST_USER_2.toLowerCase(Locale.ROOT), TEST_USER_2_PASSWORD);
+          put(TEST_USER_3.toLowerCase(Locale.ROOT), TEST_USER_3_PASSWORD);
+          put(ADMIN_USER.toLowerCase(Locale.ROOT), ADMIN_USER_PASSWORD);
+          put(PROCESS_USER.toLowerCase(Locale.ROOT), PROCESS_USER_PASSWORD);
+          put(ANONYMOUS.toLowerCase(Locale.ROOT), DEFAULT_PASSWORD);
+        }
+      };
 
   public static final String ADMIN_GROUP = "admingrp";
 
   static {
-    UserGroupInformation.createUserForTesting("testUser1", new String[]{"g1", ADMIN_GROUP});
-    UserGroupInformation.createUserForTesting("testUser2", new String[]{ "g1" });
-    UserGroupInformation.createUserForTesting("admin", new String[]{ ADMIN_GROUP });
+    UserGroupInformation.createUserForTesting("testUser1", new String[] {"g1", ADMIN_GROUP});
+    UserGroupInformation.createUserForTesting("testUser2", new String[] {"g1"});
+    UserGroupInformation.createUserForTesting("admin", new String[] {ADMIN_GROUP});
   }
 
   public UserServiceTestImpl() {
@@ -85,12 +85,12 @@ public class UserServiceTestImpl extends SimpleUserService {
 
     if (userPasswordMap.containsKey(userName.toLowerCase(Locale.ROOT))) {
       return SimpleUser.newBuilder()
-        .setUID(new UID(userName))
-        .setUserName(userName)
-        .setEmail(userName + "@dremio.test")
-        .setFirstName(userName + " FN")
-        .setLastName(userName + " LN")
-        .build();
+          .setUID(new UID(userName))
+          .setUserName(userName)
+          .setEmail(userName + "@dremio.test")
+          .setFirstName(userName + " FN")
+          .setLastName(userName + " LN")
+          .build();
     }
 
     if (userName.equals(SystemUser.SYSTEM_USERNAME)) {
@@ -104,12 +104,12 @@ public class UserServiceTestImpl extends SimpleUserService {
   public User getUser(String userName) throws UserNotFoundException {
     if (userPasswordMap.containsKey(userName.toLowerCase(Locale.ROOT))) {
       return SimpleUser.newBuilder()
-        .setUID(new UID(userName))
-        .setUserName(userName)
-        .setEmail(userName + "@dremio.test")
-        .setFirstName(userName + " FN")
-        .setLastName(userName + " LN")
-        .build();
+          .setUID(new UID(userName))
+          .setUserName(userName)
+          .setEmail(userName + "@dremio.test")
+          .setFirstName(userName + " FN")
+          .setLastName(userName + " LN")
+          .build();
     }
 
     if (userName.equals(SystemUser.SYSTEM_USERNAME)) {
@@ -133,13 +133,15 @@ public class UserServiceTestImpl extends SimpleUserService {
   }
 
   @Override
-  public User updateUserName(String oldUserName, String newUserName, User userConfig, String authKey)
+  public User updateUserName(
+      String oldUserName, String newUserName, User userConfig, String authKey)
       throws IOException, IllegalArgumentException, UserNotFoundException {
     throw new UnsupportedOperationException("not supported");
   }
 
   @Override
-  public void deleteUser(String userName, String version) throws UserNotFoundException, IOException {
+  public void deleteUser(String userName, String version)
+      throws UserNotFoundException, IOException {
     throw new UnsupportedOperationException("not supported");
   }
 
@@ -153,9 +155,8 @@ public class UserServiceTestImpl extends SimpleUserService {
 
     String lcUser = userName.toLowerCase(Locale.ROOT);
 
-    if (
-        !(PROCESS_USER.equals(user) && PROCESS_USER_PASSWORD.equals(password)) &&
-        !(userPasswordMap.containsKey(lcUser) && password.equals(userPasswordMap.get(lcUser)))) {
+    if (!(PROCESS_USER.equals(user) && PROCESS_USER_PASSWORD.equals(password))
+        && !(userPasswordMap.containsKey(lcUser) && password.equals(userPasswordMap.get(lcUser)))) {
       throw new UserLoginException(userName, "Invalid credentials.");
     }
 
@@ -163,8 +164,7 @@ public class UserServiceTestImpl extends SimpleUserService {
   }
 
   @Override
-  public List<User> getAllUsers(Integer pageSize)
-      throws IOException {
+  public List<User> getAllUsers(Integer pageSize) throws IOException {
     return null;
   }
 
@@ -174,8 +174,8 @@ public class UserServiceTestImpl extends SimpleUserService {
   }
 
   @Override
-  public List<User> searchUsers(String searchTerm, String sortColumn, SortOrder order, Integer pageSize)
-      throws IOException {
+  public List<User> searchUsers(
+      String searchTerm, String sortColumn, SortOrder order, Integer pageSize) throws IOException {
     return null;
   }
 }

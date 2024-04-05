@@ -17,20 +17,6 @@ package com.dremio.exec.planner.physical.visitor;
 
 import static com.dremio.exec.planner.cost.DremioRelMdUtil.getNameFromColumnOrigin;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
-
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.metadata.RelColumnOrigin;
-import org.apache.calcite.rel.metadata.RelMetadataQuery;
-import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.util.BitSets;
-import org.apache.calcite.util.ImmutableBitSet;
-
 import com.dremio.common.utils.PathUtils;
 import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.planner.cost.DremioRelMdUtil;
@@ -43,22 +29,32 @@ import com.dremio.exec.planner.physical.ScanPrelBase;
 import com.dremio.exec.planner.physical.TableFunctionPrel;
 import com.dremio.exec.planner.physical.explain.PrelSequencer;
 import com.dremio.exec.proto.UserBitShared;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.metadata.RelColumnOrigin;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.util.BitSets;
+import org.apache.calcite.util.ImmutableBitSet;
 
-/**
- * Class for scrapping the physical Plan
- */
+/** Class for scrapping the physical Plan */
 public class QueryProfileProcessor {
 
-  public static Map<String, UserBitShared.RelNodeInfo> process(Prel prel) throws RuntimeException{
+  public static Map<String, UserBitShared.RelNodeInfo> process(Prel prel) throws RuntimeException {
     PrettyPlanVisitor relPrettyInformationExtractorVisitor =
-      new PrettyPlanVisitor(PrelSequencer.getIdMap(prel));
+        new PrettyPlanVisitor(PrelSequencer.getIdMap(prel));
     prel.accept(relPrettyInformationExtractorVisitor, null);
     return relPrettyInformationExtractorVisitor.getRelNodeInfoMap();
   }
 
   /**
-   * PrelVisitor which scraps a plan and converts its salient features to be
-   * serialized and stored in {@link com.dremio.exec.proto.UserBitShared.QueryProfile}
+   * PrelVisitor which scraps a plan and converts its salient features to be serialized and stored
+   * in {@link com.dremio.exec.proto.UserBitShared.QueryProfile}
    */
   public static class PrettyPlanVisitor extends BasePrelVisitor<Void, Object, RuntimeException> {
     private final Map<Prel, PrelSequencer.OpId> opIdMap;
@@ -71,14 +67,14 @@ public class QueryProfileProcessor {
       relNodeInfoMap = new HashMap<>();
     }
 
-    public Map<String, UserBitShared.RelNodeInfo> getRelNodeInfoMap(){
+    public Map<String, UserBitShared.RelNodeInfo> getRelNodeInfoMap() {
       return this.relNodeInfoMap;
     }
 
     @Override
     public Void visitPrel(Prel prel, Object value) throws RuntimeException {
-      for(Prel child : prel){
-         child.accept(this, null);
+      for (Prel child : prel) {
+        child.accept(this, null);
       }
       return null;
     }
@@ -87,14 +83,15 @@ public class QueryProfileProcessor {
     public Void visitAggregate(AggregatePrel aggregatePrel, Object unused) throws RuntimeException {
       visitPrel(aggregatePrel, unused);
       PrelSequencer.OpId opId = opIdMap.get(aggregatePrel);
-        relNodeInfoMap.put(opId.toString(),
+      relNodeInfoMap.put(
+          opId.toString(),
           UserBitShared.RelNodeInfo.newBuilder()
-            .setAggregateInfo(UserBitShared.AggregateInfo.newBuilder()
-              .addAllGroupingKey(groupSetToStringList(aggregatePrel))
-              .addAllAggExpr(aggCallsToStringList(aggregatePrel))
-              .build()
-            )
-            .build());
+              .setAggregateInfo(
+                  UserBitShared.AggregateInfo.newBuilder()
+                      .addAllGroupingKey(groupSetToStringList(aggregatePrel))
+                      .addAllAggExpr(aggCallsToStringList(aggregatePrel))
+                      .build())
+              .build());
       return null;
     }
 
@@ -105,21 +102,22 @@ public class QueryProfileProcessor {
       RexNode prettyExtraCondition = getPrettyColumnLineage(joinPrel, joinPrel.getExtraCondition());
 
       // Default Values if failed to scrape from expression Lineage
-      if(prettyJoinCondition == null){
+      if (prettyJoinCondition == null) {
         prettyJoinCondition = joinPrel.getCondition();
       }
-      if(prettyExtraCondition == null){
+      if (prettyExtraCondition == null) {
         prettyExtraCondition = joinPrel.getExtraCondition();
       }
       PrelSequencer.OpId opId = opIdMap.get(joinPrel);
-      relNodeInfoMap.put(opId.toString(),
-        UserBitShared.RelNodeInfo.newBuilder()
-          .setJoinInfo(UserBitShared.JoinInfo.newBuilder()
-            .setJoinFilterString(String.valueOf(prettyJoinCondition))
-            .setExtraJoinFilterString(String.valueOf(prettyExtraCondition))
-            .build()
-          )
-          .build());
+      relNodeInfoMap.put(
+          opId.toString(),
+          UserBitShared.RelNodeInfo.newBuilder()
+              .setJoinInfo(
+                  UserBitShared.JoinInfo.newBuilder()
+                      .setJoinFilterString(String.valueOf(prettyJoinCondition))
+                      .setExtraJoinFilterString(String.valueOf(prettyExtraCondition))
+                      .build())
+              .build());
       return null;
     }
 
@@ -128,30 +126,37 @@ public class QueryProfileProcessor {
       visitPrel(filterPrel, unused);
       RexNode prettyFilterCondition = getPrettyColumnLineage(filterPrel, filterPrel.getCondition());
       // Default Values if failed to scrape from expression Lineage
-      if(prettyFilterCondition == null){
+      if (prettyFilterCondition == null) {
         prettyFilterCondition = filterPrel.getCondition();
       }
       PrelSequencer.OpId opId = opIdMap.get(filterPrel);
-      relNodeInfoMap.put(opId.toString(),
-        UserBitShared.RelNodeInfo.newBuilder()
-          .setFilterInfo(UserBitShared.FilterInfo.newBuilder().
-            setFilterString(prettyFilterCondition.toString()).build())
-          .build());
+      relNodeInfoMap.put(
+          opId.toString(),
+          UserBitShared.RelNodeInfo.newBuilder()
+              .setFilterInfo(
+                  UserBitShared.FilterInfo.newBuilder()
+                      .setFilterString(prettyFilterCondition.toString())
+                      .build())
+              .build());
       return null;
     }
 
     @Override
     public Void visitTableFunction(TableFunctionPrel prel, Object unused) throws RuntimeException {
       visitPrel(prel, unused);
-      if(prel.getTableFunctionConfig().getType() != TableFunctionConfig.FunctionType.DATA_FILE_SCAN){
+      if (prel.getTableFunctionConfig().getType()
+          != TableFunctionConfig.FunctionType.DATA_FILE_SCAN) {
         return null;
       }
       PrelSequencer.OpId opId = opIdMap.get(prel);
-      relNodeInfoMap.put(opId.toString(),
-        UserBitShared.RelNodeInfo.newBuilder()
-          .setScanInfo(UserBitShared.ScanInfo.newBuilder().
-            setTableName(PathUtils.constructFullPath(prel.getTable().getQualifiedName())).build())
-          .build());
+      relNodeInfoMap.put(
+          opId.toString(),
+          UserBitShared.RelNodeInfo.newBuilder()
+              .setScanInfo(
+                  UserBitShared.ScanInfo.newBuilder()
+                      .setTableName(PathUtils.constructFullPath(prel.getTable().getQualifiedName()))
+                      .build())
+              .build());
       return null;
     }
 
@@ -160,62 +165,79 @@ public class QueryProfileProcessor {
       if (prel instanceof ScanPrelBase) {
         // Add info about all the Scans
         PrelSequencer.OpId opId = opIdMap.get(prel);
-        relNodeInfoMap.put(opId.toString(),
-          UserBitShared.RelNodeInfo.newBuilder()
-            .setScanInfo(UserBitShared.ScanInfo.newBuilder().
-              setTableName(PathUtils.constructFullPath(prel.getTable().getQualifiedName())).build())
-            .build());
+        relNodeInfoMap.put(
+            opId.toString(),
+            UserBitShared.RelNodeInfo.newBuilder()
+                .setScanInfo(
+                    UserBitShared.ScanInfo.newBuilder()
+                        .setTableName(
+                            PathUtils.constructFullPath(prel.getTable().getQualifiedName()))
+                        .build())
+                .build());
       }
       return null;
     }
 
-    public static List<UserBitShared.AggExpressionInfo> aggCallsToStringList(AggregatePrel aggregatePrel) throws RuntimeException {
-      return aggregatePrel.getAggCallList().stream().map(f -> {
-        List<String> args = new ArrayList<>();
-        for(int i=0;i<f.getArgList().size(); i++){
-        int idx = f.getArgList().get(i);
-            RelColumnOrigin relColumnOrigin = getColumnOrigin(aggregatePrel.getInput(), idx);
-          // Fallback to stringValue of referenced column name of the input
-          args.add(relColumnOrigin != null ? getNameFromColumnOrigin(relColumnOrigin):
-            aggregatePrel.getInput().getRowType().getFieldList().get(idx).getName());
-          }
-        return UserBitShared.AggExpressionInfo.newBuilder()
-          .setAggregation(f.getAggregation().toString())
-          .addAllArgs(args).build();
-      }).collect(Collectors.toList());
+    public static List<UserBitShared.AggExpressionInfo> aggCallsToStringList(
+        AggregatePrel aggregatePrel) throws RuntimeException {
+      return aggregatePrel.getAggCallList().stream()
+          .map(
+              f -> {
+                List<String> args = new ArrayList<>();
+                for (int i = 0; i < f.getArgList().size(); i++) {
+                  int idx = f.getArgList().get(i);
+                  RelColumnOrigin relColumnOrigin = getColumnOrigin(aggregatePrel.getInput(), idx);
+                  // Fallback to stringValue of referenced column name of the input
+                  args.add(
+                      relColumnOrigin != null
+                          ? getNameFromColumnOrigin(relColumnOrigin)
+                          : aggregatePrel
+                              .getInput()
+                              .getRowType()
+                              .getFieldList()
+                              .get(idx)
+                              .getName());
+                }
+                return UserBitShared.AggExpressionInfo.newBuilder()
+                    .setAggregation(f.getAggregation().toString())
+                    .addAllArgs(args)
+                    .build();
+              })
+          .collect(Collectors.toList());
     }
 
     public static List<String> groupSetToStringList(AggregatePrel input) throws RuntimeException {
       ImmutableBitSet groupSet = input.getGroupSet();
-      if(groupSet == null){
-        throw new RuntimeException(String.format("Origin not found for column" ));
+      if (groupSet == null) {
+        throw new RuntimeException(String.format("Origin not found for column"));
       }
       List<String> groupingList = new ArrayList<>();
       for (int group : BitSets.toIter(groupSet)) {
         RelColumnOrigin columnOrigin = getColumnOrigin(input, group);
         // Fallback to stringValue of groupingKey
-        groupingList.add((columnOrigin!=null) ? getNameFromColumnOrigin(columnOrigin) : String.valueOf(group));
+        groupingList.add(
+            (columnOrigin != null) ? getNameFromColumnOrigin(columnOrigin) : String.valueOf(group));
       }
       return groupingList;
     }
 
-
-    private static RelColumnOrigin getColumnOrigin(RelNode input, int idx){
-      Set<RelColumnOrigin> originSet = input.getCluster().getMetadataQuery().getColumnOrigins(input, idx);
-      if(originSet == null || originSet.size() == 0){
+    private static RelColumnOrigin getColumnOrigin(RelNode input, int idx) {
+      Set<RelColumnOrigin> originSet =
+          input.getCluster().getMetadataQuery().getColumnOrigins(input, idx);
+      if (originSet == null || originSet.size() == 0) {
         return null;
       }
       // ToDo: currently we just return first Column Origin
       return (RelColumnOrigin) originSet.toArray()[0];
     }
 
-    private RexNode getPrettyColumnLineage(RelNode rel, RexNode expr){
-      if(expr == null){
-        return  null;
+    private RexNode getPrettyColumnLineage(RelNode rel, RexNode expr) {
+      if (expr == null) {
+        return null;
       }
       RelMetadataQuery relMetadataQuery = rel.getCluster().getMetadataQuery();
       Set<RexNode> rexNodeSet = relMetadataQuery.getExpressionLineage(rel, expr);
-      if(rexNodeSet == null){
+      if (rexNodeSet == null) {
         return null;
       }
 
@@ -223,7 +245,5 @@ public class QueryProfileProcessor {
       RexNode prettyExpr = (RexNode) rexNodeSet.toArray()[0];
       return DremioRelMdUtil.swapTableInputReferences(prettyExpr);
     }
-
   }
-
 }

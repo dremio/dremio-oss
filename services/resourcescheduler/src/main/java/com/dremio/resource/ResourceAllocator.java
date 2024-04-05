@@ -15,43 +15,50 @@
  */
 package com.dremio.resource;
 
-import java.util.function.Consumer;
-
 import com.dremio.options.OptionManager;
 import com.dremio.resource.common.ResourceSchedulingContext;
 import com.dremio.resource.exception.ResourceAllocationException;
 import com.dremio.service.Service;
+import java.util.function.Consumer;
 
-/**
- * Interface to deal with Query lifecycle from resourcing prospective
- */
+/** Interface to deal with Query lifecycle from resourcing prospective */
 public interface ResourceAllocator extends Service {
 
   /**
    * To allocate resources from ResourceScheduler
+   *
    * @param queryContext
    * @param resourceSchedulingProperties
    * @return
    * @throws ResourceAllocationException
    */
-  default ResourceSchedulingResult allocate(final ResourceSchedulingContext queryContext,
-                                            final ResourceSchedulingProperties resourceSchedulingProperties) {
-    return allocate(queryContext, resourceSchedulingProperties,
-      ResourceSchedulingObserver.NO_OP, (x) -> {/*no-op*/});
+  default ResourceSchedulingResult allocate(
+      final ResourceSchedulingContext queryContext,
+      final ResourceSchedulingProperties resourceSchedulingProperties) {
+    return allocate(
+        queryContext,
+        resourceSchedulingProperties,
+        ResourceSchedulingObserver.NO_OP,
+        (x) -> {
+          /*no-op*/
+        });
   }
 
   /**
-   * To allocate resources from ResourceScheduler and report to an optional consumer (used for observers)
+   * To allocate resources from ResourceScheduler and report to an optional consumer (used for
+   * observers)
+   *
    * @param queryContext
    * @param resourceSchedulingProperties
    * @param resourceDecisionConsumer
    * @param resourceSchedulingObserver
    * @return
    */
-  ResourceSchedulingResult allocate(final ResourceSchedulingContext queryContext,
-                                    final ResourceSchedulingProperties resourceSchedulingProperties,
-                                    final ResourceSchedulingObserver resourceSchedulingObserver,
-                                    final Consumer<ResourceSchedulingDecisionInfo> resourceDecisionConsumer);
+  ResourceSchedulingResult allocate(
+      final ResourceSchedulingContext queryContext,
+      final ResourceSchedulingProperties resourceSchedulingProperties,
+      final ResourceSchedulingObserver resourceSchedulingObserver,
+      final Consumer<ResourceSchedulingDecisionInfo> resourceDecisionConsumer);
 
   void cancel(final ResourceSchedulingContext queryContext);
 
@@ -61,40 +68,38 @@ public interface ResourceAllocator extends Service {
    * @param optionManager
    * @return resource information.
    */
-  GroupResourceInformation getGroupResourceInformation(final OptionManager optionManager,
-                                                       final ResourceSchedulingProperties resourceSchedulingProperties)
-    throws ResourceAllocationException;
+  GroupResourceInformation getGroupResourceInformation(
+      final OptionManager optionManager,
+      final ResourceSchedulingProperties resourceSchedulingProperties)
+      throws ResourceAllocationException;
 
-  ResourceAllocator ResourceAllocatorNOOP = new ResourceAllocator(){
-    @Override
-    public void close() throws Exception {
+  ResourceAllocator ResourceAllocatorNOOP =
+      new ResourceAllocator() {
+        @Override
+        public void close() throws Exception {}
 
-    }
+        @Override
+        public void start() throws Exception {}
 
-    @Override
-    public void start() throws Exception {
+        @Override
+        public ResourceSchedulingResult allocate(
+            ResourceSchedulingContext queryContext,
+            ResourceSchedulingProperties resourceSchedulingProperties,
+            ResourceSchedulingObserver resourceSchedulingObserver,
+            Consumer<ResourceSchedulingDecisionInfo> resourceDecisionConsumer) {
+          throw new UnsupportedOperationException();
+        }
 
-    }
+        @Override
+        public void cancel(ResourceSchedulingContext queryContext) {
+          throw new UnsupportedOperationException();
+        }
 
-    @Override
-    public ResourceSchedulingResult allocate(ResourceSchedulingContext queryContext,
-                                             ResourceSchedulingProperties resourceSchedulingProperties,
-                                             ResourceSchedulingObserver resourceSchedulingObserver,
-                                             Consumer<ResourceSchedulingDecisionInfo> resourceDecisionConsumer) {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void cancel(ResourceSchedulingContext queryContext) {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public GroupResourceInformation getGroupResourceInformation(OptionManager optionManager,
-                                                                ResourceSchedulingProperties resourceSchedulingProperties) {
-      return null;
-    }
-  };
-
-
+        @Override
+        public GroupResourceInformation getGroupResourceInformation(
+            OptionManager optionManager,
+            ResourceSchedulingProperties resourceSchedulingProperties) {
+          return null;
+        }
+      };
 }

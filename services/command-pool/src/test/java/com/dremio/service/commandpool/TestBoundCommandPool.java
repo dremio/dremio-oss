@@ -15,21 +15,16 @@
  */
 package com.dremio.service.commandpool;
 
+import com.google.common.util.concurrent.Futures;
+import io.opentracing.noop.NoopTracerFactory;
 import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
-
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import com.google.common.util.concurrent.Futures;
-
-import io.opentracing.noop.NoopTracerFactory;
-
-/**
- * Tests for {@link BoundCommandPool}
- */
+/** Tests for {@link BoundCommandPool} */
 public class TestBoundCommandPool {
 
   private final AtomicInteger counter = new AtomicInteger();
@@ -51,12 +46,31 @@ public class TestBoundCommandPool {
     final BlockingCommand blocking = new BlockingCommand(new StartAndStop());
     pool.submit(CommandPool.Priority.HIGH, "test", "test", blocking, false);
 
-    // submitting multiple suppliers with the same priority should be executed in their submitted order
-    Future<Integer> future1 = pool.submit(CommandPool.Priority.HIGH, "test", "test", (waitInMillis) -> counter.getAndIncrement(), false);
+    // submitting multiple suppliers with the same priority should be executed in their submitted
+    // order
+    Future<Integer> future1 =
+        pool.submit(
+            CommandPool.Priority.HIGH,
+            "test",
+            "test",
+            (waitInMillis) -> counter.getAndIncrement(),
+            false);
     Thread.sleep(5);
-    Future<Integer> future2 = pool.submit(CommandPool.Priority.HIGH, "test", "test", (waitInMillis) -> counter.getAndIncrement(), false);
+    Future<Integer> future2 =
+        pool.submit(
+            CommandPool.Priority.HIGH,
+            "test",
+            "test",
+            (waitInMillis) -> counter.getAndIncrement(),
+            false);
     Thread.sleep(5);
-    Future<Integer> future3 = pool.submit(CommandPool.Priority.HIGH, "test", "test", (waitInMillis) -> counter.getAndIncrement(), false);
+    Future<Integer> future3 =
+        pool.submit(
+            CommandPool.Priority.HIGH,
+            "test",
+            "test",
+            (waitInMillis) -> counter.getAndIncrement(),
+            false);
 
     blocking.unblock();
     Assert.assertEquals(0, (int) Futures.getUnchecked(future1));
@@ -72,10 +86,29 @@ public class TestBoundCommandPool {
     final BlockingCommand blocking = new BlockingCommand(new StartAndStop());
     pool.submit(CommandPool.Priority.HIGH, "test", "test", blocking, false);
 
-    // submitting multiple suppliers with different priorities, to a single thread pool, should be executed according to their priority
-    Future<Integer> future1 = pool.submit(CommandPool.Priority.LOW, "test", "test", (waitInMillis) -> counter.getAndIncrement(), false);
-    Future<Integer> future2 = pool.submit(CommandPool.Priority.MEDIUM, "test", "test", (waitInMillis) -> counter.getAndIncrement(), false);
-    Future<Integer> future3 = pool.submit(CommandPool.Priority.HIGH, "test", "test", (waitInMillis) -> counter.getAndIncrement(), false);
+    // submitting multiple suppliers with different priorities, to a single thread pool, should be
+    // executed according to their priority
+    Future<Integer> future1 =
+        pool.submit(
+            CommandPool.Priority.LOW,
+            "test",
+            "test",
+            (waitInMillis) -> counter.getAndIncrement(),
+            false);
+    Future<Integer> future2 =
+        pool.submit(
+            CommandPool.Priority.MEDIUM,
+            "test",
+            "test",
+            (waitInMillis) -> counter.getAndIncrement(),
+            false);
+    Future<Integer> future3 =
+        pool.submit(
+            CommandPool.Priority.HIGH,
+            "test",
+            "test",
+            (waitInMillis) -> counter.getAndIncrement(),
+            false);
 
     blocking.unblock();
     Assert.assertEquals(2, (int) Futures.getUnchecked(future1));
@@ -83,9 +116,7 @@ public class TestBoundCommandPool {
     Assert.assertEquals(0, (int) Futures.getUnchecked(future3));
   }
 
-  /**
-   * Runnable that starts in a blocked state and can be unblocked
-   */
+  /** Runnable that starts in a blocked state and can be unblocked */
   protected static final class BlockingCommand implements CommandPool.Command<Void> {
     private final Semaphore semaphore = new Semaphore(0);
     private final StartAndStop startAndStop;
@@ -113,6 +144,7 @@ public class TestBoundCommandPool {
 
   protected static class StartAndStop {
     void start() {}
+
     void stop() {}
   }
 }

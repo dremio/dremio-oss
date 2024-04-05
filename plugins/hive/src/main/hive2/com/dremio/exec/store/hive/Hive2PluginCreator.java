@@ -15,24 +15,25 @@
  */
 package com.dremio.exec.store.hive;
 
+import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.server.SabotContext;
 import javax.inject.Provider;
-
 import org.pf4j.Extension;
 import org.pf4j.PluginManager;
 
-import com.dremio.exec.catalog.StoragePluginId;
-import com.dremio.exec.server.SabotContext;
-
-/**
- * PF4J extension for creating Hive2 StoragePlugin instances.
- */
+/** PF4J extension for creating Hive2 StoragePlugin instances. */
 @Extension
 public class Hive2PluginCreator implements StoragePluginCreator {
 
   @Override
-  public HiveStoragePlugin createStoragePlugin(PluginManager pf4jManager, HiveStoragePluginConfig config,
-                                           SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
+  public HiveStoragePlugin createStoragePlugin(
+      PluginManager pf4jManager,
+      HiveStoragePluginConfig config,
+      SabotContext context,
+      String name,
+      Provider<StoragePluginId> pluginIdProvider) {
     final HiveConfFactory confFactory = new HiveConfFactory();
-    return new HiveStoragePlugin(confFactory.createHiveConf(config), pf4jManager, context, name, pluginIdProvider);
+    return new HiveStoragePlugin(
+        confFactory.createHiveConf(config), pf4jManager, context, name, pluginIdProvider);
   }
 }

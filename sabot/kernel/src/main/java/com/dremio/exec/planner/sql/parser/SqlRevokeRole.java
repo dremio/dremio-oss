@@ -15,10 +15,14 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.dremio.exec.ops.QueryContext;
+import com.dremio.exec.planner.sql.handlers.direct.SimpleDirectHandler;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Throwables;
+import com.google.common.collect.Lists;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -29,38 +33,32 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.dremio.exec.ops.QueryContext;
-import com.dremio.exec.planner.sql.handlers.direct.SimpleDirectHandler;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
-import com.google.common.collect.Lists;
-
 /**
- * Implements SQL Role Revoke to revoke a role from a role. Represents statements like:
- * REVOKE ROLE role_name FROM ROLE grantee_role_name
+ * Implements SQL Role Revoke to revoke a role from a role. Represents statements like: REVOKE ROLE
+ * role_name FROM ROLE grantee_role_name
  */
 public class SqlRevokeRole extends SqlCall implements SimpleDirectHandler.Creator {
   private final SqlIdentifier roleToRevoke;
   private final SqlLiteral revokeeType;
   private final SqlIdentifier revokee;
 
-  public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("REVOKE", SqlKind.OTHER) {
-    @Override
-    public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 3, "SqlRevokeRole.createCall() has to get 3 operands!");
-      return new SqlRevokeRole(
-        pos,
-        (SqlIdentifier) operands[0],
-        (SqlLiteral) operands[1],
-        (SqlIdentifier) operands[2]
-      );
-    }
-  };
+  public static final SqlSpecialOperator OPERATOR =
+      new SqlSpecialOperator("REVOKE", SqlKind.OTHER) {
+        @Override
+        public SqlCall createCall(
+            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+          Preconditions.checkArgument(
+              operands.length == 3, "SqlRevokeRole.createCall() has to get 3 operands!");
+          return new SqlRevokeRole(
+              pos,
+              (SqlIdentifier) operands[0],
+              (SqlLiteral) operands[1],
+              (SqlIdentifier) operands[2]);
+        }
+      };
 
-  public SqlRevokeRole(SqlParserPos pos,
-                      SqlIdentifier roleToRevoke,
-                      SqlLiteral revokeeType,
-                      SqlIdentifier revokee) {
+  public SqlRevokeRole(
+      SqlParserPos pos, SqlIdentifier roleToRevoke, SqlLiteral revokeeType, SqlIdentifier revokee) {
     super(pos);
     this.roleToRevoke = roleToRevoke;
     this.revokeeType = revokeeType;
@@ -97,8 +95,11 @@ public class SqlRevokeRole extends SqlCall implements SimpleDirectHandler.Creato
       final Class<?> cl = Class.forName("com.dremio.exec.planner.sql.handlers.RoleRevokeHandler");
       Constructor<?> ctor = cl.getConstructor(QueryContext.class);
       return (SimpleDirectHandler) ctor.newInstance(context);
-    } catch (InstantiationException | IllegalAccessException | ClassNotFoundException
-      | NoSuchMethodException | InvocationTargetException e) {
+    } catch (InstantiationException
+        | IllegalAccessException
+        | ClassNotFoundException
+        | NoSuchMethodException
+        | InvocationTargetException e) {
       throw Throwables.propagate(e);
     }
   }

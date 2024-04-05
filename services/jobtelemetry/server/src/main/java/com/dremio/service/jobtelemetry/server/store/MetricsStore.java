@@ -15,26 +15,25 @@
  */
 package com.dremio.service.jobtelemetry.server.store;
 
-import java.util.Optional;
-
 import com.dremio.exec.proto.CoordExecRPC.QueryProgressMetrics;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.service.Service;
 import com.dremio.service.jobtelemetry.QueryProgressMetricsMap;
+import java.util.Optional;
 
-/**
- * Store used to store and retrieve query progress metrics.
- */
+/** Store used to store and retrieve query progress metrics. */
 public interface MetricsStore extends Service {
   /**
    * put query progression metrics for one executor node.
+   *
    * @param queryProgressMetrics metrics of one executor.
    */
-  void put(UserBitShared.QueryId queryId, String nodeAddress,
-           QueryProgressMetrics queryProgressMetrics);
+  void put(
+      UserBitShared.QueryId queryId, String nodeAddress, QueryProgressMetrics queryProgressMetrics);
 
   /**
    * get query progression metrics for all executor nodes.
+   *
    * @param queryId queryId
    * @return set of QueryProgressMetrics
    */
@@ -42,6 +41,7 @@ public interface MetricsStore extends Service {
 
   /**
    * Delete the metrics entry for given queryId.
+   *
    * @param queryId
    */
   void delete(UserBitShared.QueryId queryId);

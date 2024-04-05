@@ -15,50 +15,52 @@
  */
 package com.dremio.sabot.op.common.ht2;
 
+import com.dremio.sabot.op.aggregate.vectorized.Accumulator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.arrow.vector.FieldVector;
 
-import com.dremio.sabot.op.aggregate.vectorized.Accumulator;
-
 public interface ResizeListener {
-  public static ResizeListener NO_OP = new ResizeListener() {
-    @Override
-    public void addBatch() {}
+  public static ResizeListener NO_OP =
+      new ResizeListener() {
+        @Override
+        public void addBatch() {}
 
-    @Override
-    public void resetToMinimumSize() throws Exception {}
+        @Override
+        public void resetToMinimumSize() throws Exception {}
 
-    @Override
-    public void revertResize() {}
+        @Override
+        public void revertResize() {}
 
-    @Override
-    public void commitResize() {}
+        @Override
+        public void commitResize() {}
 
-    @Override
-    public List<Accumulator> getVarlenAccumChildren() {
-      return null;
-    }
+        @Override
+        public List<Accumulator> getVarlenAccumChildren() {
+          return null;
+        }
 
-    @Override
-    public List<FieldVector> getFixedlenAccumulators(final int batchIndex) {
-      return null;
-    }
+        @Override
+        public List<FieldVector> getFixedlenAccumulators(final int batchIndex) {
+          return null;
+        }
 
-    @Override
-    public void verifyBatchCount(int batches) { }
+        @Override
+        public void verifyBatchCount(int batches) {}
 
-    @Override
-    public void releaseBatch(final int batchIdx) { }
+        @Override
+        public void releaseBatch(final int batchIdx) {}
 
-    @Override
-    public void accumulate(final long memoryAddr, final int count,
-                           final int bitsInChunk, final int chunkOffsetMask) {}
+        @Override
+        public void accumulate(
+            final long memoryAddr,
+            final int count,
+            final int bitsInChunk,
+            final int chunkOffsetMask) {}
 
-    @Override
-    public void compact(final int batchIndex, final int nextRecSize) {}
-  };
+        @Override
+        public void compact(final int batchIndex, final int nextRecSize) {}
+      };
 
   void addBatch() throws Exception;
 
@@ -72,7 +74,8 @@ public interface ResizeListener {
 
   void releaseBatch(final int batchIdx);
 
-  default boolean hasSpace(final int space, final int numOfRecords, final int batchIndex, final int offsetInBatch) {
+  default boolean hasSpace(
+      final int space, final int numOfRecords, final int batchIndex, final int offsetInBatch) {
     return true;
   }
 
@@ -80,8 +83,8 @@ public interface ResizeListener {
 
   List<FieldVector> getFixedlenAccumulators(final int batchIndex);
 
-  void accumulate(final long memoryAddr, final int count,
-                  final int bitsInChunk, final int chunkOffsetMask);
+  void accumulate(
+      final long memoryAddr, final int count, final int bitsInChunk, final int chunkOffsetMask);
 
   void compact(int batchIndex, final int nextRecSize);
 

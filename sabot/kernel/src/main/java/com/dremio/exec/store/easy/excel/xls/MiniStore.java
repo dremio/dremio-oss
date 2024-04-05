@@ -15,31 +15,32 @@
  */
 package com.dremio.exec.store.easy.excel.xls;
 
+import com.dremio.exec.store.easy.excel.xls.properties.DirectoryProperty;
+import com.google.common.base.Preconditions;
 import org.apache.poi.poifs.common.POIFSConstants;
 import org.apache.poi.poifs.storage.BATBlock;
 import org.apache.poi.poifs.storage.HeaderBlock;
 
-import com.dremio.exec.store.easy.excel.xls.properties.DirectoryProperty;
-import com.google.common.base.Preconditions;
-
 /**
- * Special implementation of BlockStore to handle a mini-stream (stream of 64B blocks) stored in a regular
- * DIFAT chain.
+ * Special implementation of BlockStore to handle a mini-stream (stream of 64B blocks) stored in a
+ * regular DIFAT chain.
  */
 public class MiniStore extends BlockStoreBase {
 
   private final DirectoryProperty root;
   private final BlockStore difats;
 
-  public MiniStore(final XlsInputStream is, DirectoryProperty root, HeaderBlock header, BlockStore difats) {
+  public MiniStore(
+      final XlsInputStream is, DirectoryProperty root, HeaderBlock header, BlockStore difats) {
     super(is, header, POIFSConstants.SMALL_BLOCK_SIZE);
     this.root = root;
     this.difats = difats;
 
     // load all mini-FAT blocks
     int nextAt = header.getSBATStart();
-    for(int i = 0; i < header.getSBATCount() && nextAt != POIFSConstants.END_OF_CHAIN; i++) {
-      BATBlock sfat = BATBlock.createBATBlock(header.getBigBlockSize(), difats.getBlockBuffer(nextAt));
+    for (int i = 0; i < header.getSBATCount() && nextAt != POIFSConstants.END_OF_CHAIN; i++) {
+      BATBlock sfat =
+          BATBlock.createBATBlock(header.getBigBlockSize(), difats.getBlockBuffer(nextAt));
       sfat.setOurBlockIndex(nextAt);
       blocks.add(sfat);
       nextAt = difats.getNextBlock(nextAt);
@@ -63,11 +64,11 @@ public class MiniStore extends BlockStoreBase {
       idx++;
     }
 
-    Preconditions.checkState(idx == difatBlockNumber, "DIFAT block " + difatBlockNumber + " outside stream chain");
+    Preconditions.checkState(
+        idx == difatBlockNumber, "DIFAT block " + difatBlockNumber + " outside stream chain");
 
     int difatBlockOffset = difats.getBlockOffset(nextBlock);
 
     return difatBlockOffset + offsetInDifatBlock;
   }
-
 }

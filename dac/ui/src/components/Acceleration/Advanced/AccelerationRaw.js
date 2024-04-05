@@ -16,17 +16,14 @@
 import { Component } from "react";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
-import clsx from "clsx";
 
 import FontIcon from "components/Icon/FontIcon";
-import SimpleButton from "components/Buttons/SimpleButton";
 import { createReflectionFormValues } from "utils/accelerationUtils";
 import AccelerationRawMixin from "@inject/components/Acceleration/Advanced/AccelerationRawMixin.js";
-
+import { Button } from "dremio-ui-lib/components";
 import "@app/uiTheme/less/Acceleration/Acceleration.less";
 import { commonThemes } from "../commonThemes";
 import AccelerationGridController from "./AccelerationGridController";
-import * as classes from "@app/uiTheme/radium/replacingRadiumPseudoClasses.module.less";
 
 @AccelerationRawMixin
 export default class AccelerationRaw extends Component {
@@ -79,25 +76,20 @@ export default class AccelerationRaw extends Component {
 
   renderHeader = () => {
     return (
-      <div className={"AccelerationRaw__header"}>
-        <h3 className={"AccelerationRaw__toggleLabel"}>
+      <div className="AccelerationRaw__header">
+        <h3 className="AccelerationRaw__toggleLabel">
           <FontIcon type="RawMode" theme={commonThemes.rawIconTheme} />
           {laDeprecated("Raw Reflections")}
         </h3>
-        <SimpleButton
-          onClick={this.addNewLayout}
-          buttonStyle="secondary"
-          className={clsx(classes["secondaryButtonPsuedoClasses"])}
-          // DX-34369
-          style={
-            this.checkIfButtonShouldBeRendered()
-              ? { minWidth: "110px", marginRight: "8px" }
-              : { display: "none" }
-          }
-          type="button"
-        >
-          {laDeprecated("New Reflection")}
-        </SimpleButton>
+        {this.checkIfButtonShouldBeRendered() && (
+          <Button
+            variant="secondary"
+            className="mr-05"
+            onClick={this.addNewLayout}
+          >
+            {laDeprecated("New Reflection")}
+          </Button>
+        )}
       </div>
     );
   };

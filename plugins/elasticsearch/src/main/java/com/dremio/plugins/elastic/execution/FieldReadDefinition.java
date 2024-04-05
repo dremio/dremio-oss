@@ -15,15 +15,6 @@
  */
 package com.dremio.plugins.elastic.execution;
 
-import java.io.IOException;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-
-import org.apache.arrow.vector.complex.writer.BaseWriter.ListWriter;
-import org.apache.arrow.vector.complex.writer.BaseWriter.StructWriter;
-import org.apache.arrow.vector.types.pojo.Field;
-
 import com.dremio.common.exceptions.FieldSizeLimitExceptionHelper;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.SchemaPath;
@@ -44,41 +35,51 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Multimap;
+import java.io.IOException;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import org.apache.arrow.vector.complex.writer.BaseWriter.ListWriter;
+import org.apache.arrow.vector.complex.writer.BaseWriter.StructWriter;
+import org.apache.arrow.vector.types.pojo.Field;
 
 /**
- * Describes how we want to read each field. Everything we need to read a field
- * in Elastic should be provided by this file.
+ * Describes how we want to read each field. Everything we need to read a field in Elastic should be
+ * provided by this file.
  */
 public class FieldReadDefinition {
   static final class VariableFieldReadDefinition extends FieldReadDefinition {
-    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FieldReadDefinition.class);
+    private static final org.slf4j.Logger logger =
+        org.slf4j.LoggerFactory.getLogger(FieldReadDefinition.class);
     private final int maxCellSize;
     public static final String FORMATTER_DEFAULT_CLASS = "DateFormats.FormatterAndType";
     public static final String FORMATTER_JAVA_TIME_CLASS = "DateFormats.FormatterAndTypeJavaTime";
-    public static final String FORMATTER_MIX_CLASS= "DateFormats.FormatterAndTypeMix";
+    public static final String FORMATTER_MIX_CLASS = "DateFormats.FormatterAndTypeMix";
 
     private VariableFieldReadDefinition(
-      SchemaPath path,
-      String name,
-      CompleteType type,
-      int maxCellSize,
-      boolean isList,
-      boolean geo,
-      WriteHolder holder,
-      ImmutableMap<String, FieldReadDefinition> children) {
+        SchemaPath path,
+        String name,
+        CompleteType type,
+        int maxCellSize,
+        boolean isList,
+        boolean geo,
+        WriteHolder holder,
+        ImmutableMap<String, FieldReadDefinition> children) {
       super(path, name, type, maxCellSize, isList, geo, holder, children);
       this.maxCellSize = maxCellSize;
     }
 
     @Override
-    public void writeList(ListWriter writer, JsonToken token, JsonParser parser) throws IOException {
+    public void writeList(ListWriter writer, JsonToken token, JsonParser parser)
+        throws IOException {
       final int stringLength = parser.getValueAsString().length();
       FieldSizeLimitExceptionHelper.checkSizeLimit(stringLength, maxCellSize, name, logger);
       holder.writeList(writer, token, parser);
     }
 
     @Override
-    public void writeMap(StructWriter writer, JsonToken token, JsonParser parser) throws IOException {
+    public void writeMap(StructWriter writer, JsonToken token, JsonParser parser)
+        throws IOException {
       final int stringLength = parser.getValueAsString().length();
       FieldSizeLimitExceptionHelper.checkSizeLimit(stringLength, maxCellSize, name, logger);
       holder.writeMap(writer, token, parser);
@@ -96,9 +97,10 @@ public class FieldReadDefinition {
 
   /**
    * Constructor for hidden fields.
+   *
    * @param hidden
    */
-  private FieldReadDefinition(String name, boolean hidden){
+  private FieldReadDefinition(String name, boolean hidden) {
     assert hidden;
     this.type = null;
     this.name = name;
@@ -111,14 +113,14 @@ public class FieldReadDefinition {
   }
 
   private FieldReadDefinition(
-    SchemaPath path,
-    final String name,
-    CompleteType type,
-    int maxCellSize,
-    boolean isList,
-    boolean geo,
-    WriteHolder holder,
-    ImmutableMap<String, FieldReadDefinition> children) {
+      SchemaPath path,
+      final String name,
+      CompleteType type,
+      int maxCellSize,
+      boolean isList,
+      boolean geo,
+      WriteHolder holder,
+      ImmutableMap<String, FieldReadDefinition> children) {
     this.type = type;
     this.name = name;
     this.isList = isList;
@@ -128,45 +130,48 @@ public class FieldReadDefinition {
     this.hidden = false;
 
     if (isList) {
-      noList = createFieldReadDefinition(path, name, type, maxCellSize, false, geo, holder, children);
+      noList =
+          createFieldReadDefinition(path, name, type, maxCellSize, false, geo, holder, children);
     } else {
       noList = null;
     }
   }
 
   private static FieldReadDefinition createFieldReadDefinition(
-    SchemaPath path,
-    final String name,
-    CompleteType type,
-    int maxCellSize,
-    boolean isList,
-    boolean geo,
-    WriteHolder holder,
-    ImmutableMap<String, FieldReadDefinition> children) {
-    if (holder instanceof WriteHolders.VarCharWriteHolder || holder instanceof WriteHolders.VarBinaryWriteHolder) {
-      return new VariableFieldReadDefinition(path, name, type, maxCellSize, isList, geo, holder, children);
+      SchemaPath path,
+      final String name,
+      CompleteType type,
+      int maxCellSize,
+      boolean isList,
+      boolean geo,
+      WriteHolder holder,
+      ImmutableMap<String, FieldReadDefinition> children) {
+    if (holder instanceof WriteHolders.VarCharWriteHolder
+        || holder instanceof WriteHolders.VarBinaryWriteHolder) {
+      return new VariableFieldReadDefinition(
+          path, name, type, maxCellSize, isList, geo, holder, children);
     }
 
     return new FieldReadDefinition(path, name, type, maxCellSize, isList, geo, holder, children);
   }
 
-  public boolean isHidden(){
+  public boolean isHidden() {
     return hidden;
   }
 
-  public FieldReadDefinition asNoList(){
+  public FieldReadDefinition asNoList() {
     return isList ? noList : this;
   }
 
-  public boolean isGeo(){
+  public boolean isGeo() {
     return geo;
   }
 
-  public boolean isArray(){
+  public boolean isArray() {
     return isList;
   }
 
-  public FieldReadDefinition getChild(String name){
+  public FieldReadDefinition getChild(String name) {
     return children.get(name);
   }
 
@@ -183,19 +188,22 @@ public class FieldReadDefinition {
   }
 
   public static FieldReadDefinition getTree(
-    final BatchSchema schema,
-    final Map<SchemaPath, FieldAnnotation> annotationMap,
-    final WorkingBuffer buffer,
-    final int maxCellSize,
-    final ElasticVersionBehaviorProvider elasticVersionBehaviorProvider, boolean forceDoublePrecision) {
+      final BatchSchema schema,
+      final Map<SchemaPath, FieldAnnotation> annotationMap,
+      final WorkingBuffer buffer,
+      final int maxCellSize,
+      final ElasticVersionBehaviorProvider elasticVersionBehaviorProvider,
+      boolean forceDoublePrecision) {
 
-    // for all hidden fields, create a list for each parent of the children where we should create field read definition that mark data as hidden.
-    ImmutableListMultimap.Builder<SchemaPath, String> hiddenFieldsB = ImmutableListMultimap.builder();
+    // for all hidden fields, create a list for each parent of the children where we should create
+    // field read definition that mark data as hidden.
+    ImmutableListMultimap.Builder<SchemaPath, String> hiddenFieldsB =
+        ImmutableListMultimap.builder();
     ImmutableList.Builder<String> topLevelHiddenFieldsB = ImmutableList.builder();
-    for(Entry<SchemaPath, FieldAnnotation> e : annotationMap.entrySet()){
-      if(e.getValue().isUnknown()){
+    for (Entry<SchemaPath, FieldAnnotation> e : annotationMap.entrySet()) {
+      if (e.getValue().isUnknown()) {
         String name = e.getKey().getLastSegment().getNameSegment().getPath();
-        if(e.getKey().getRootSegment().isLastPath()){
+        if (e.getKey().getRootSegment().isLastPath()) {
           topLevelHiddenFieldsB.add(name);
         } else {
           hiddenFieldsB.put(e.getKey().getParent(), name);
@@ -205,63 +213,141 @@ public class FieldReadDefinition {
     final ImmutableListMultimap<SchemaPath, String> hiddenFields = hiddenFieldsB.build();
     final ImmutableList<String> topLevelHiddenFields = topLevelHiddenFieldsB.build();
 
-    return createFieldReadDefinition(null, null, null, 0, false, false, new WriteHolders.InvalidWriteHolder(),
-      FluentIterable.from(schema.getFields())
+    return createFieldReadDefinition(
+        null,
+        null,
+        null,
+        0,
+        false,
+        false,
+        new WriteHolders.InvalidWriteHolder(),
+        FluentIterable.from(schema.getFields())
+            .transform(
+                input ->
+                    getDefinition(
+                        null,
+                        input,
+                        maxCellSize,
+                        annotationMap,
+                        hiddenFields,
+                        buffer,
+                        false,
+                        elasticVersionBehaviorProvider,
+                        forceDoublePrecision))
 
-        .transform(input -> getDefinition(null, input, maxCellSize, annotationMap, hiddenFields, buffer, false, elasticVersionBehaviorProvider, forceDoublePrecision))
-
-        // add hidden fields.
-        .append(getHiddenFields(topLevelHiddenFields))
-
-        .uniqueIndex(input -> input.name));
+            // add hidden fields.
+            .append(getHiddenFields(topLevelHiddenFields))
+            .uniqueIndex(input -> input.name));
   }
 
-  private static Iterable<FieldReadDefinition> getHiddenFields(Iterable<String> names){
-    return FluentIterable.from(names).transform(new Function<String, FieldReadDefinition>(){
-      @Override
-      public FieldReadDefinition apply(String input) {
-        return new FieldReadDefinition(input, true);
-      }});
+  private static Iterable<FieldReadDefinition> getHiddenFields(Iterable<String> names) {
+    return FluentIterable.from(names)
+        .transform(
+            new Function<String, FieldReadDefinition>() {
+              @Override
+              public FieldReadDefinition apply(String input) {
+                return new FieldReadDefinition(input, true);
+              }
+            });
   }
 
-  private static FieldReadDefinition getDefinition(final SchemaPath parent, final Field field, int maxCellSize,
-                                                   final Map<SchemaPath, FieldAnnotation> annotations, final Multimap<SchemaPath, String> hiddenFields,
-                                                   final WorkingBuffer buffer, boolean incomingIsGeoShape, ElasticVersionBehaviorProvider esVersion, boolean forceDoublePrecision){
+  private static FieldReadDefinition getDefinition(
+      final SchemaPath parent,
+      final Field field,
+      int maxCellSize,
+      final Map<SchemaPath, FieldAnnotation> annotations,
+      final Multimap<SchemaPath, String> hiddenFields,
+      final WorkingBuffer buffer,
+      boolean incomingIsGeoShape,
+      ElasticVersionBehaviorProvider esVersion,
+      boolean forceDoublePrecision) {
 
     CompleteType type = CompleteType.fromField(field);
     final boolean isList = type.isList();
-    if(isList){
+    if (isList) {
       type = type.getOnlyChildType();
     }
 
-    final SchemaPath path = parent == null ? SchemaPath.getSimplePath(field.getName()) : parent.getChild(field.getName());
+    final SchemaPath path =
+        parent == null
+            ? SchemaPath.getSimplePath(field.getName())
+            : parent.getChild(field.getName());
     FieldAnnotation annotation = annotations.get(path);
-    final boolean isGeoShape = incomingIsGeoShape || (annotation == null ? false : annotation.isGeoShape());
-    final List<String> formats = annotation == null ? ImmutableList.<String>of() : annotation.getDateFormats();
-    if(type.isFloat() && forceDoublePrecision) {
+    final boolean isGeoShape =
+        incomingIsGeoShape || (annotation == null ? false : annotation.isGeoShape());
+    final List<String> formats =
+        annotation == null ? ImmutableList.<String>of() : annotation.getDateFormats();
+    if (type.isFloat() && forceDoublePrecision) {
       type = CompleteType.DOUBLE;
     }
-    final WriteHolder holder = getWriteHolder(field.getName(), isList, type.toMinorType(), formats, path, buffer, isGeoShape, esVersion);
-    if(isGeoShape && type.isUnion() && ElasticsearchConstants.GEO_SHAPE_COORDINATES.equals(field.getName())) {
-      return createFieldReadDefinition(path, field.getName(), type, maxCellSize, true, isGeoShape, holder, ImmutableMap.<String, FieldReadDefinition>of());
+    final WriteHolder holder =
+        getWriteHolder(
+            field.getName(),
+            isList,
+            type.toMinorType(),
+            formats,
+            path,
+            buffer,
+            isGeoShape,
+            esVersion);
+    if (isGeoShape
+        && type.isUnion()
+        && ElasticsearchConstants.GEO_SHAPE_COORDINATES.equals(field.getName())) {
+      return createFieldReadDefinition(
+          path,
+          field.getName(),
+          type,
+          maxCellSize,
+          true,
+          isGeoShape,
+          holder,
+          ImmutableMap.<String, FieldReadDefinition>of());
     }
 
-
-    return createFieldReadDefinition(path, field.getName(), type, maxCellSize, isList, isGeoShape, holder, FluentIterable.from(type.getChildren()).transform(new Function<Field, FieldReadDefinition>() {
-      @Override
-      public FieldReadDefinition apply(Field input) {
-        return getDefinition(path, input, maxCellSize, annotations, hiddenFields, buffer, isGeoShape, esVersion, forceDoublePrecision);
-      }
-    }).append(getHiddenFields(hiddenFields.get(path)))
-      .uniqueIndex(new Function<FieldReadDefinition, String>() {
-        @Override
-        public String apply(FieldReadDefinition input) {
-          return input.name;
-        }
-      }));
+    return createFieldReadDefinition(
+        path,
+        field.getName(),
+        type,
+        maxCellSize,
+        isList,
+        isGeoShape,
+        holder,
+        FluentIterable.from(type.getChildren())
+            .transform(
+                new Function<Field, FieldReadDefinition>() {
+                  @Override
+                  public FieldReadDefinition apply(Field input) {
+                    return getDefinition(
+                        path,
+                        input,
+                        maxCellSize,
+                        annotations,
+                        hiddenFields,
+                        buffer,
+                        isGeoShape,
+                        esVersion,
+                        forceDoublePrecision);
+                  }
+                })
+            .append(getHiddenFields(hiddenFields.get(path)))
+            .uniqueIndex(
+                new Function<FieldReadDefinition, String>() {
+                  @Override
+                  public String apply(FieldReadDefinition input) {
+                    return input.name;
+                  }
+                }));
   }
 
-  private static WriteHolder getWriteHolder(String name, boolean isList, MinorType type, List<String> formats, SchemaPath path, WorkingBuffer buffer, boolean isGeoShape, ElasticVersionBehaviorProvider elasticVersionBehaviorProvider){
+  private static WriteHolder getWriteHolder(
+      String name,
+      boolean isList,
+      MinorType type,
+      List<String> formats,
+      SchemaPath path,
+      WorkingBuffer buffer,
+      boolean isGeoShape,
+      ElasticVersionBehaviorProvider elasticVersionBehaviorProvider) {
     final DateFormats.AbstractFormatterAndType[] formatterAndType;
     formatterAndType = elasticVersionBehaviorProvider.getWriteHolderForVersion(formats);
 
@@ -270,7 +356,7 @@ public class FieldReadDefinition {
       return new WriteHolders.DoubleWriteHolder(name);
     }
 
-    switch(type) {
+    switch (type) {
       case BIGINT:
         return new WriteHolders.BigIntWriteHolder(name);
       case BIT:
@@ -298,7 +384,12 @@ public class FieldReadDefinition {
 
   @Override
   public String toString() {
-    return MoreObjects.toStringHelper(this).add("name", name).add("isList", isList).add("type", type)
-      .add("children", children).add("holder", holder).toString();
+    return MoreObjects.toStringHelper(this)
+        .add("name", name)
+        .add("isList", isList)
+        .add("type", type)
+        .add("children", children)
+        .add("holder", holder)
+        .toString();
   }
 }

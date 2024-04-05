@@ -15,15 +15,22 @@
  */
 package com.dremio.services.credentials;
 
+import com.dremio.options.OptionManager;
+import com.dremio.options.Options;
+import com.dremio.options.TypeValidators;
+import com.google.common.base.Preconditions;
 import java.net.URI;
 
-/**
- * Utility methods for credentials service.
- */
+/** Utility methods for credentials service. */
+@Options
 public final class CredentialsServiceUtils {
 
+  public static final TypeValidators.BooleanValidator REMOTE_LOOKUP_ENABLED =
+      new TypeValidators.BooleanValidator("services.credentials.exec.remote_lookup.enabled", false);
+
   /**
-   * Create a URI from a String. If the String is not a valid URI, the exception thrown will not contain the original string.
+   * Create a URI from a String. If the String is not a valid URI, the exception thrown will not
+   * contain the original string.
    *
    * @param pattern the string to create URI
    * @return URI created
@@ -37,8 +44,12 @@ public final class CredentialsServiceUtils {
     }
   }
 
-  // prevent instantiation
-  private CredentialsServiceUtils() {
+  /** Check if remote lookup is enabled */
+  public static boolean isRemoteLookupEnabled(OptionManager optionManager) {
+    Preconditions.checkNotNull(optionManager);
+    return optionManager.getOption(CredentialsServiceUtils.REMOTE_LOOKUP_ENABLED);
   }
 
+  // prevent instantiation
+  private CredentialsServiceUtils() {}
 }

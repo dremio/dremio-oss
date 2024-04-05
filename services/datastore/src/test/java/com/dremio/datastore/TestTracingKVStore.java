@@ -19,6 +19,12 @@ import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.dremio.datastore.api.Document;
+import com.dremio.datastore.api.KVStore;
+import io.opentracing.Scope;
+import io.opentracing.Span;
+import io.opentracing.mock.MockSpan;
+import io.opentracing.mock.MockTracer;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -26,18 +32,10 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
-import com.dremio.datastore.api.Document;
-import com.dremio.datastore.api.KVStore;
-
-import io.opentracing.Scope;
-import io.opentracing.Span;
-import io.opentracing.mock.MockSpan;
-import io.opentracing.mock.MockTracer;
-
 /**
- * Test that all calls to the tracing kv store are traced appropriately.
- * We only test 2 methods. One that produces a return value and one that does not.
- * We know that all implementations for tracing fall into one of the two categories.
+ * Test that all calls to the tracing kv store are traced appropriately. We only test 2 methods. One
+ * that produces a return value and one that does not. We know that all implementations for tracing
+ * fall into one of the two categories.
  */
 @RunWith(MockitoJUnitRunner.class)
 public class TestTracingKVStore {
@@ -69,7 +67,7 @@ public class TestTracingKVStore {
   }
 
   private void assertChildSpanMethod(String method) {
-    assertEquals("There must be a finished span.",1, tracer.finishedSpans().size());
+    assertEquals("There must be a finished span.", 1, tracer.finishedSpans().size());
     MockSpan kvSpan = tracer.finishedSpans().get(0);
 
     assertEquals(TracingKVStore.OPERATION_NAME, kvSpan.operationName());
@@ -111,7 +109,7 @@ public class TestTracingKVStore {
   public void testTypedReturnMethod() {
     setupLegitParentSpan();
 
-    when(delegate.get("myKey")).thenReturn(new TestDocument("myKey","yourValue"));
+    when(delegate.get("myKey")).thenReturn(new TestDocument("myKey", "yourValue"));
 
     Document<String, String> ret = underTest.get("myKey");
 

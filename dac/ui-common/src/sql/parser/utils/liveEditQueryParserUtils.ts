@@ -27,7 +27,7 @@ export function isKeyword(tokenType: number): boolean {
 }
 
 export function getTokenType(
-  tokenText: string
+  tokenText: string,
 ): "reservedKeyword" | "nonReservedKeyword" | "other" {
   if (tokenText.trim() === "") {
     return "other";
@@ -38,7 +38,7 @@ export function getTokenType(
     tokenText,
     lexerErrorListener,
     parserErrorListener,
-    true
+    true,
   );
   const parseTree = queryParser.getParser().nonReservedKeyWord();
   if (getErrors().find((error) => error.type === "lexer")) {
@@ -57,7 +57,7 @@ export const getIdentifierTokens: () => IntervalSet = moize(() => {
     atn.ruleToStartState[
       LiveEditParser.RULE_identifierSegment
     ].getStateNumber(),
-    undefined
+    undefined,
   );
 });
 
@@ -65,7 +65,7 @@ export const getExpressionTokens: () => IntervalSet = moize(() => {
   const atn = getATN();
   return atn.getExpectedTokens(
     atn.ruleToStartState[LiveEditParser.RULE_expression2b].getStateNumber(),
-    undefined
+    undefined,
   );
 });
 

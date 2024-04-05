@@ -15,18 +15,14 @@
  */
 package com.dremio.jdbc.impl;
 
-import java.sql.SQLException;
-
-import org.junit.Assert;
-import org.junit.Test;
-
 import com.dremio.exec.rpc.ConnectionFailedException;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.rpc.RpcExceptionStatus;
+import java.sql.SQLException;
+import org.junit.Assert;
+import org.junit.Test;
 
-/**
- * Class-level unit test for {@link DremioExceptionMapper}.
- */
+/** Class-level unit test for {@link DremioExceptionMapper}. */
 public class DremioExceptionMapperTest {
   @Test
   public void testDefaultException() {
@@ -53,7 +49,8 @@ public class DremioExceptionMapperTest {
   @Test
   public void testConnectionInvalidStatusException() {
     final String message = "myMessage";
-    final RpcException rpcEx = new RpcException(message, RpcExceptionStatus.CONNECTION_INVALID, "errorId");
+    final RpcException rpcEx =
+        new RpcException(message, RpcExceptionStatus.CONNECTION_INVALID, "errorId");
     testException(rpcEx, "01002", message);
     testExceptionArgs(rpcEx, "01002", "bar: %s", "foo");
   }
@@ -106,9 +103,11 @@ public class DremioExceptionMapperTest {
     Assert.assertEquals(sqlEx.getCause(), rpcEx);
   }
 
-  private void testExceptionArgs(RpcException rpcEx, String sqlState, String message, String... args) {
+  private void testExceptionArgs(
+      RpcException rpcEx, String sqlState, String message, String... args) {
     final SQLException sqlEx = DremioExceptionMapper.map(rpcEx, message, args);
-    final String formattedMsg = (message != null && args != null) ? String.format(message, args) : message;
+    final String formattedMsg =
+        (message != null && args != null) ? String.format(message, args) : message;
     Assert.assertEquals(formattedMsg, sqlEx.getMessage());
     Assert.assertEquals(sqlState, sqlEx.getSQLState());
     Assert.assertEquals(sqlEx.getCause(), rpcEx);

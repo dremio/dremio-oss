@@ -20,13 +20,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.io.File;
-import java.util.stream.Collectors;
-
-import org.apache.commons.lang3.tuple.Pair;
-import org.junit.Assert;
-import org.junit.Test;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.exec.physical.base.IcebergWriterOptions;
 import com.dremio.exec.physical.base.TableFormatWriterOptions;
@@ -43,11 +36,16 @@ import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.writer.WriterOperator;
 import com.google.common.collect.ImmutableList;
+import java.io.File;
+import java.util.stream.Collectors;
+import org.apache.commons.lang3.tuple.Pair;
+import org.junit.Assert;
+import org.junit.Test;
 
 public class TestInsertCleanupOnFailure extends BaseTestQuery {
 
   @Test
-  public void testCleanupOnWriterOperator() throws Exception{
+  public void testCleanupOnWriterOperator() throws Exception {
     OperatorContext context = mock(OperatorContext.class);
     WriterOptions options = mock(WriterOptions.class);
     RecordWriter recordWriter = mock(RecordWriter.class);
@@ -56,9 +54,16 @@ public class TestInsertCleanupOnFailure extends BaseTestQuery {
     ExecProtos.FragmentHandle handle = mock(ExecProtos.FragmentHandle.class);
 
     when(options.getTableFormatOptions()).thenReturn(mock(TableFormatWriterOptions.class));
-    when(options.getTableFormatOptions().getIcebergSpecificOptions()).thenReturn(mock(IcebergWriterOptions.class));
-    when(options.getTableFormatOptions().getIcebergSpecificOptions().getIcebergTableProps()).thenReturn(mock(IcebergTableProps.class));
-    when(options.getTableFormatOptions().getIcebergSpecificOptions().getIcebergTableProps().getIcebergOpType()).thenReturn(IcebergCommandType.INSERT);
+    when(options.getTableFormatOptions().getIcebergSpecificOptions())
+        .thenReturn(mock(IcebergWriterOptions.class));
+    when(options.getTableFormatOptions().getIcebergSpecificOptions().getIcebergTableProps())
+        .thenReturn(mock(IcebergTableProps.class));
+    when(options
+            .getTableFormatOptions()
+            .getIcebergSpecificOptions()
+            .getIcebergTableProps()
+            .getIcebergOpType())
+        .thenReturn(IcebergCommandType.INSERT);
     when(recordWriter.getFs()).thenReturn(fs);
     when(recordWriter.getLocation()).thenReturn(path);
     when(context.getFragmentHandle()).thenReturn(handle);
@@ -69,7 +74,7 @@ public class TestInsertCleanupOnFailure extends BaseTestQuery {
     WriterOperator operator = new WriterOperator(context, options, recordWriter);
     operator.close();
 
-    verify(fs,times(1)).delete(path, true);
+    verify(fs, times(1)).delete(path, true);
   }
 
   @Test
@@ -78,11 +83,18 @@ public class TestInsertCleanupOnFailure extends BaseTestQuery {
     String tableName = "test_table";
     String values = "(1,1,1),(2,2,2),(3,3,3)";
     String insertTableName = "test_table_insert";
-    String ctasQuery = String.format("CREATE TABLE IF NOT EXISTS %s.%s (%s) AS VALUES %s", TEMP_SCHEMA, insertTableName, schema, values);
-    String createQuery = String.format("CREATE TABLE IF NOT EXISTS %s.%s (%s)", TEMP_SCHEMA, tableName, schema);
+    String ctasQuery =
+        String.format(
+            "CREATE TABLE IF NOT EXISTS %s.%s (%s) AS VALUES %s",
+            TEMP_SCHEMA, insertTableName, schema, values);
+    String createQuery =
+        String.format("CREATE TABLE IF NOT EXISTS %s.%s (%s)", TEMP_SCHEMA, tableName, schema);
     runSQL(ctasQuery);
     runSQL(createQuery);
-    String sql = String.format("INSERT INTO %s.%s AS SELECT * FROM %s.%s", TEMP_SCHEMA, tableName, TEMP_SCHEMA, insertTableName);
+    String sql =
+        String.format(
+            "INSERT INTO %s.%s AS SELECT * FROM %s.%s",
+            TEMP_SCHEMA, tableName, TEMP_SCHEMA, insertTableName);
 
     setupErrorControllerAndTest(sql, tableName);
 
@@ -99,11 +111,20 @@ public class TestInsertCleanupOnFailure extends BaseTestQuery {
     String values = "(1,1,1),(2,2,2),(3,3,3)";
     String insertTableName = "test_table_insert";
     String partitionClause = "(c1, c2)";
-    String ctasQuery = String.format("CREATE TABLE IF NOT EXISTS %s.%s (%s) AS VALUES %s", TEMP_SCHEMA, insertTableName, schema, values);
-    String createQuery = String.format("CREATE TABLE IF NOT EXISTS %s.%s (%s) PARTITION BY %s", TEMP_SCHEMA, tableName, schema, partitionClause);
+    String ctasQuery =
+        String.format(
+            "CREATE TABLE IF NOT EXISTS %s.%s (%s) AS VALUES %s",
+            TEMP_SCHEMA, insertTableName, schema, values);
+    String createQuery =
+        String.format(
+            "CREATE TABLE IF NOT EXISTS %s.%s (%s) PARTITION BY %s",
+            TEMP_SCHEMA, tableName, schema, partitionClause);
     runSQL(ctasQuery);
     runSQL(createQuery);
-    String sql = String.format("INSERT INTO %s.%s AS SELECT * FROM %s.%s", TEMP_SCHEMA, tableName, TEMP_SCHEMA, insertTableName);
+    String sql =
+        String.format(
+            "INSERT INTO %s.%s AS SELECT * FROM %s.%s",
+            TEMP_SCHEMA, tableName, TEMP_SCHEMA, insertTableName);
 
     setupErrorControllerAndTest(sql, tableName);
 
@@ -114,16 +135,20 @@ public class TestInsertCleanupOnFailure extends BaseTestQuery {
   }
 
   @Test
-  public void  testCleanupWhenParquetRecordWriterFailsDuringCopyInto() throws Exception {
-    ImmutableList<Pair<String, String>> colNameTypePairs = ImmutableList.of(Pair.of("c1", "int"),
-      Pair.of("c2", "int"), Pair.of("c3", "int"));
+  public void testCleanupWhenParquetRecordWriterFailsDuringCopyInto() throws Exception {
+    ImmutableList<Pair<String, String>> colNameTypePairs =
+        ImmutableList.of(Pair.of("c1", "int"), Pair.of("c2", "int"), Pair.of("c3", "int"));
     String tableName = "test_table";
     String fileName = "file1.csv";
     File location = CopyIntoTests.createTempLocation();
-    File newSourceFile = CopyIntoTests.createTableAndGenerateSourceFile(tableName, colNameTypePairs, fileName ,
-      location, ITCopyIntoBase.FileFormat.CSV);
-    String  storageLocation = "\'@" + TEMP_SCHEMA_HADOOP + "/" + location.getName() + "\'";
-    String sql = String.format("COPY INTO %s.%s FROM %s files(\'%s\') (RECORD_DELIMITER '\n')", TEMP_SCHEMA, tableName, storageLocation, fileName);
+    File newSourceFile =
+        CopyIntoTests.createTableAndGenerateSourceFile(
+            tableName, colNameTypePairs, fileName, location, ITCopyIntoBase.FileFormat.CSV);
+    String storageLocation = "\'@" + TEMP_SCHEMA_HADOOP + "/" + location.getName() + "\'";
+    String sql =
+        String.format(
+            "COPY INTO %s.%s FROM %s files(\'%s\') (RECORD_DELIMITER '\n')",
+            TEMP_SCHEMA, tableName, storageLocation, fileName);
 
     setupErrorControllerAndTest(sql, tableName);
 
@@ -133,22 +158,32 @@ public class TestInsertCleanupOnFailure extends BaseTestQuery {
   }
 
   @Test
-  public void  testCleanupWhenParquetRecordWriterFailsDuringCopyIntoWithPartitions() throws Exception {
-    ImmutableList<Pair<String, String>> colNameTypePairs = ImmutableList.of(Pair.of("c1", "int"),
-      Pair.of("c2", "int"), Pair.of("c3", "int"));
+  public void testCleanupWhenParquetRecordWriterFailsDuringCopyIntoWithPartitions()
+      throws Exception {
+    ImmutableList<Pair<String, String>> colNameTypePairs =
+        ImmutableList.of(Pair.of("c1", "int"), Pair.of("c2", "int"), Pair.of("c3", "int"));
     String tableName = "test_table_partition";
     String partitionClause = "(c1, c2)";
-    String createQuery = String.format("CREATE TABLE IF NOT EXISTS %s.%s (%s) PARTITION BY %s", TEMP_SCHEMA, tableName,
-      colNameTypePairs.stream()
-        .map(p -> String.format("%s %s", p.getLeft(), p.getRight())).collect(Collectors.joining(",")),
-      partitionClause);
+    String createQuery =
+        String.format(
+            "CREATE TABLE IF NOT EXISTS %s.%s (%s) PARTITION BY %s",
+            TEMP_SCHEMA,
+            tableName,
+            colNameTypePairs.stream()
+                .map(p -> String.format("%s %s", p.getLeft(), p.getRight()))
+                .collect(Collectors.joining(",")),
+            partitionClause);
     runSQL(createQuery);
     String fileName = "file1.csv";
     File location = CopyIntoTests.createTempLocation();
-    File newSourceFile = CopyIntoTests.createTableAndGenerateSourceFile(tableName, colNameTypePairs, fileName,
-      location, ITCopyIntoBase.FileFormat.CSV);
-    String  storageLocation = "\'@" + TEMP_SCHEMA_HADOOP + "/" + location.getName() + "\'";
-    String sql = String.format("COPY INTO %s.%s FROM %s files(\'%s\') (RECORD_DELIMITER '\n')", TEMP_SCHEMA, tableName, storageLocation, fileName);
+    File newSourceFile =
+        CopyIntoTests.createTableAndGenerateSourceFile(
+            tableName, colNameTypePairs, fileName, location, ITCopyIntoBase.FileFormat.CSV);
+    String storageLocation = "\'@" + TEMP_SCHEMA_HADOOP + "/" + location.getName() + "\'";
+    String sql =
+        String.format(
+            "COPY INTO %s.%s FROM %s files(\'%s\') (RECORD_DELIMITER '\n')",
+            TEMP_SCHEMA, tableName, storageLocation, fileName);
 
     setupErrorControllerAndTest(sql, tableName);
 
@@ -157,21 +192,26 @@ public class TestInsertCleanupOnFailure extends BaseTestQuery {
     test(dropQuery);
   }
 
-  private void setupErrorControllerAndTest(String sql, String tableName){
-    String errorAfterFileWritten = Controls.newBuilder()
-      .addException(ParquetRecordWriter.class, ParquetRecordWriter.INJECTOR_AFTER_RECORDS_WRITTEN_ERROR,
-        UnsupportedOperationException.class)
-      .build();
+  private void setupErrorControllerAndTest(String sql, String tableName) {
+    String errorAfterFileWritten =
+        Controls.newBuilder()
+            .addException(
+                ParquetRecordWriter.class,
+                ParquetRecordWriter.INJECTOR_AFTER_RECORDS_WRITTEN_ERROR,
+                UnsupportedOperationException.class)
+            .build();
     ControlsInjectionUtil.setControls(client, errorAfterFileWritten);
 
     try {
-      //this will fail after inserting records
+      // this will fail after inserting records
       runSQL(sql);
       Assert.fail("expecting injected exception to be thrown");
-    } catch (Exception ex) {}
+    } catch (Exception ex) {
+    }
 
     File tableLocation = new File(getDfsTestTmpSchemaLocation(), tableName);
-    //Check to ensure that the table folder contains only one folder inside it, i.e metadata folder.
+    // Check to ensure that the table folder contains only one folder inside it, i.e metadata
+    // folder.
     Assert.assertEquals(tableLocation.listFiles().length, 1);
     tableLocation.deleteOnExit();
   }

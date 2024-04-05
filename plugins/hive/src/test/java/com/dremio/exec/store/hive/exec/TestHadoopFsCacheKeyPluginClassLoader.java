@@ -31,8 +31,8 @@ public class TestHadoopFsCacheKeyPluginClassLoader {
   public void testEquals() {
     URI uri = URI.create(String.format("%s://%s%s", UriSchemes.HDFS_SCHEME, "localhost", "/sample/data"));
     String userName = "dremio";
-    HadoopFsCacheKeyPluginClassLoader key1 = new HadoopFsCacheKeyPluginClassLoader(uri, new JobConf(), userName);
-    HadoopFsCacheKeyPluginClassLoader key2 = new HadoopFsCacheKeyPluginClassLoader(uri, new JobConf(), userName);
+    HadoopFsCacheKeyPluginClassLoader key1 = new HadoopFsCacheKeyPluginClassLoader(uri, new JobConf(), userName, false);
+    HadoopFsCacheKeyPluginClassLoader key2 = new HadoopFsCacheKeyPluginClassLoader(uri, new JobConf(), userName, false);
     assertEquals(key1, key2);
   }
 
@@ -43,22 +43,22 @@ public class TestHadoopFsCacheKeyPluginClassLoader {
     URI uri1 = URI.create(String.format("%s://%s%s", UriSchemes.HDFS_SCHEME, host1, path1));
     URI uri2 = URI.create(String.format("%s://%s%s", UriSchemes.FILE_SCHEME, host1, path1));
     String userName1 = "dremio1";
-    HadoopFsCacheKeyPluginClassLoader key1 = new HadoopFsCacheKeyPluginClassLoader(uri1, new JobConf(), userName1);
-    HadoopFsCacheKeyPluginClassLoader key2 = new HadoopFsCacheKeyPluginClassLoader(uri2, new JobConf(), userName1);
+    HadoopFsCacheKeyPluginClassLoader key1 = new HadoopFsCacheKeyPluginClassLoader(uri1, new JobConf(), userName1, false);
+    HadoopFsCacheKeyPluginClassLoader key2 = new HadoopFsCacheKeyPluginClassLoader(uri2, new JobConf(), userName1, false);
     assertNotEquals(key1, key2);
 
     String host2 = "175.23.2.71";
     URI uri3 = URI.create(String.format("%s://%s%s", UriSchemes.FILE_SCHEME, host2, path1));
-    HadoopFsCacheKeyPluginClassLoader key3 = new HadoopFsCacheKeyPluginClassLoader(uri3, new JobConf(), userName1);
+    HadoopFsCacheKeyPluginClassLoader key3 = new HadoopFsCacheKeyPluginClassLoader(uri3, new JobConf(), userName1, false);
     assertNotEquals(key2, key3);
 
     String path2 ="/sample/data2";
     URI uri4 = URI.create(String.format("%s://%s%s", UriSchemes.FILE_SCHEME, host2, path2));
-    HadoopFsCacheKeyPluginClassLoader key4 = new HadoopFsCacheKeyPluginClassLoader(uri4, new JobConf(), userName1);
+    HadoopFsCacheKeyPluginClassLoader key4 = new HadoopFsCacheKeyPluginClassLoader(uri4, new JobConf(), userName1, false);
     assertEquals(key3, key4);
 
     String userName2 = "dremio2";
-    HadoopFsCacheKeyPluginClassLoader key5 = new HadoopFsCacheKeyPluginClassLoader(uri4, new JobConf(), userName2);
+    HadoopFsCacheKeyPluginClassLoader key5 = new HadoopFsCacheKeyPluginClassLoader(uri4, new JobConf(), userName2, false);
     assertNotEquals(key4, key5);
   }
 }

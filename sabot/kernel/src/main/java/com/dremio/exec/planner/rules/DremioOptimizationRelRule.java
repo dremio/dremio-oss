@@ -33,7 +33,6 @@ public abstract class DremioOptimizationRelRule<C extends RelRule.Config> extend
     super(config);
   }
 
-
   @Override
   public void onMatch(RelOptRuleCall relOptRuleCall) {
     try {
@@ -44,10 +43,10 @@ public abstract class DremioOptimizationRelRule<C extends RelRule.Config> extend
       String derivedRuleName = this.getClass().getSimpleName();
 
       logger.warn(
-        "RelOptRule: '{}' ran into the following exception: '{}' when trying to rewrite: '{}'.",
-        relOptRuleInfo,
-        exceptionInfo,
-        derivedRuleName);
+          "RelOptRule: '{}' ran into the following exception: '{}' when trying to rewrite: '{}'.",
+          relOptRuleInfo,
+          exceptionInfo,
+          derivedRuleName);
     }
   }
 
@@ -61,10 +60,10 @@ public abstract class DremioOptimizationRelRule<C extends RelRule.Config> extend
       String derivedRuleName = this.getClass().getSimpleName();
 
       logger.warn(
-        "RelOptRule: '{}' ran into the following exception: '{}' when trying to match: '{}'.",
-        relOptRuleInfo,
-        exceptionInfo,
-        derivedRuleName);
+          "RelOptRule: '{}' ran into the following exception: '{}' when trying to match: '{}'.",
+          relOptRuleInfo,
+          exceptionInfo,
+          derivedRuleName);
     }
     return false;
   }

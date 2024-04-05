@@ -15,33 +15,29 @@
  */
 package com.dremio.exec.planner.serializer.logical;
 
-import java.util.stream.Collectors;
-
-import org.apache.calcite.rel.logical.LogicalTableFunctionScan;
-import org.apache.calcite.rel.metadata.RelColumnMapping;
-
 import com.dremio.exec.planner.serializer.RelNodeSerde;
 import com.dremio.plan.serialization.PLogicalTableFunctionScan;
 import com.dremio.plan.serialization.PRelColumnMapping;
+import java.util.stream.Collectors;
+import org.apache.calcite.rel.logical.LogicalTableFunctionScan;
+import org.apache.calcite.rel.metadata.RelColumnMapping;
 
-/**
- * Serde for LogicalTableFunctionScan
- */
+/** Serde for LogicalTableFunctionScan */
 public final class LogicalTableFunctionScanSerde
-  implements RelNodeSerde<LogicalTableFunctionScan, PLogicalTableFunctionScan> {
+    implements RelNodeSerde<LogicalTableFunctionScan, PLogicalTableFunctionScan> {
   @Override
   public PLogicalTableFunctionScan serialize(LogicalTableFunctionScan node, RelToProto s) {
-    PLogicalTableFunctionScan.Builder builder = PLogicalTableFunctionScan.newBuilder()
-      .addAllInputs(node.getInputs().stream().map(s::toProto).collect(Collectors.toList()))
-      .setRexCall(s.toProto(node.getCall()))
-      .setRowType(s.toProto(node.getRowType()));
+    PLogicalTableFunctionScan.Builder builder =
+        PLogicalTableFunctionScan.newBuilder()
+            .addAllInputs(node.getInputs().stream().map(s::toProto).collect(Collectors.toList()))
+            .setRexCall(s.toProto(node.getCall()))
+            .setRowType(s.toProto(node.getRowType()));
 
     if (node.getColumnMappings() != null) {
       builder.addAllColumnMappings(
-        node.getColumnMappings()
-          .stream()
-          .map(RelColumnMappingSerde::toProto)
-          .collect(Collectors.toList()));
+          node.getColumnMappings().stream()
+              .map(RelColumnMappingSerde::toProto)
+              .collect(Collectors.toList()));
     }
 
     return builder.build();
@@ -49,41 +45,36 @@ public final class LogicalTableFunctionScanSerde
 
   @Override
   public LogicalTableFunctionScan deserialize(
-    PLogicalTableFunctionScan pLogicalTableFunctionScan,
-    RelFromProto s) {
+      PLogicalTableFunctionScan pLogicalTableFunctionScan, RelFromProto s) {
     return LogicalTableFunctionScan.create(
-      s.cluster(),
-      pLogicalTableFunctionScan
-        .getInputsList()
-        .stream()
-        .map(s::toRel)
-        .collect(Collectors.toList()),
-      s.toRex(pLogicalTableFunctionScan.getRexCall()),
-      null,
-      s.toRelDataType(pLogicalTableFunctionScan.getRowType()),
-      pLogicalTableFunctionScan
-        .getColumnMappingsList()
-        .stream()
-        .map(RelColumnMappingSerde::fromProto)
-        .collect(Collectors.toSet()));
+        s.cluster(),
+        pLogicalTableFunctionScan.getInputsList().stream()
+            .map(s::toRel)
+            .collect(Collectors.toList()),
+        s.toRex(pLogicalTableFunctionScan.getRexCall()),
+        null,
+        s.toRelDataType(pLogicalTableFunctionScan.getRowType()),
+        pLogicalTableFunctionScan.getColumnMappingsList().stream()
+            .map(RelColumnMappingSerde::fromProto)
+            .collect(Collectors.toSet()));
   }
 
   private static final class RelColumnMappingSerde {
     public static PRelColumnMapping toProto(RelColumnMapping relColumnMapping) {
       return PRelColumnMapping.newBuilder()
-        .setIInputColumn(relColumnMapping.iInputColumn)
-        .setIInputRel(relColumnMapping.iInputRel)
-        .setIInputColumn(relColumnMapping.iInputRel)
-        .setDerived(relColumnMapping.derived)
-        .build();
+          .setIInputColumn(relColumnMapping.iInputColumn)
+          .setIInputRel(relColumnMapping.iInputRel)
+          .setIInputColumn(relColumnMapping.iInputRel)
+          .setDerived(relColumnMapping.derived)
+          .build();
     }
 
     public static RelColumnMapping fromProto(PRelColumnMapping pRelColumnMapping) {
       return new RelColumnMapping(
-        pRelColumnMapping.getIOutputColumn(),
-        pRelColumnMapping.getIInputRel(),
-        pRelColumnMapping.getIInputColumn(),
-        pRelColumnMapping.getDerived());
+          pRelColumnMapping.getIOutputColumn(),
+          pRelColumnMapping.getIInputRel(),
+          pRelColumnMapping.getIInputColumn(),
+          pRelColumnMapping.getDerived());
     }
   }
 }

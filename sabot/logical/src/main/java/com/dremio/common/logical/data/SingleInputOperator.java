@@ -15,15 +15,12 @@
  */
 package com.dremio.common.logical.data;
 
-import java.util.Iterator;
-
 import com.dremio.common.logical.UnexpectedOperatorType;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.Iterators;
+import java.util.Iterator;
 
-/**
- * SimpleOperator is an operator that has one inputs at most.
- */
+/** SimpleOperator is an operator that has one inputs at most. */
 public abstract class SingleInputOperator extends LogicalOperatorBase {
 
   private LogicalOperator input;
@@ -33,10 +30,15 @@ public abstract class SingleInputOperator extends LogicalOperatorBase {
     return input;
   }
 
-  @JsonProperty(value="input", required=true)
+  @JsonProperty(value = "input", required = true)
   public void setInput(LogicalOperator input) {
     if (input instanceof SinkOperator) {
-      throw new UnexpectedOperatorType("You have set the input of a sink node of type ["+input.getClass().getSimpleName()+ "] as the input for another node of type ["+this.getClass().getSimpleName()+ "].  This is invalid.");
+      throw new UnexpectedOperatorType(
+          "You have set the input of a sink node of type ["
+              + input.getClass().getSimpleName()
+              + "] as the input for another node of type ["
+              + this.getClass().getSimpleName()
+              + "].  This is invalid.");
     }
     this.input = input;
     input.registerAsSubscriber(this);
@@ -46,5 +48,4 @@ public abstract class SingleInputOperator extends LogicalOperatorBase {
   public Iterator<LogicalOperator> iterator() {
     return Iterators.singletonIterator(input);
   }
-
 }

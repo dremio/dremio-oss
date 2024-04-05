@@ -15,24 +15,21 @@
  */
 package com.dremio.exec.planner.sql.parser.impl;
 
+import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.planner.sql.parser.CompoundIdentifierConverter;
 import java.io.Reader;
 import java.util.stream.Collectors;
-
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.parser.SqlAbstractParserImpl;
 import org.apache.calcite.sql.parser.SqlParserImplFactory;
 import org.apache.calcite.sql.util.SqlVisitor;
 
-import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.planner.sql.parser.CompoundIdentifierConverter;
-
 public class ParserWithCompoundIdConverter extends ParserImpl {
 
   /**
    * {@link org.apache.calcite.sql.parser.SqlParserImplFactory} implementation for creating parser.
    */
-
   private final boolean withCalciteComplexTypeSupport;
 
   public ParserWithCompoundIdConverter(Reader stream, boolean withCalciteComplexTypeSupport) {
@@ -40,15 +37,18 @@ public class ParserWithCompoundIdConverter extends ParserImpl {
     this.withCalciteComplexTypeSupport = withCalciteComplexTypeSupport;
   }
 
-  public static final SqlParserImplFactory getParserImplFactory(boolean withCalciteComplexTypeSupport) {
-    SqlParserImplFactory factory = new SqlParserImplFactory() {
-      @Override
-      public SqlAbstractParserImpl getParser(Reader stream) {
-        SqlAbstractParserImpl parserImpl = new ParserWithCompoundIdConverter(stream, withCalciteComplexTypeSupport);
-        parserImpl.setIdentifierMaxLength(PlannerSettings.DEFAULT_IDENTIFIER_MAX_LENGTH);
-        return parserImpl;
-      }
-    };
+  public static final SqlParserImplFactory getParserImplFactory(
+      boolean withCalciteComplexTypeSupport) {
+    SqlParserImplFactory factory =
+        new SqlParserImplFactory() {
+          @Override
+          public SqlAbstractParserImpl getParser(Reader stream) {
+            SqlAbstractParserImpl parserImpl =
+                new ParserWithCompoundIdConverter(stream, withCalciteComplexTypeSupport);
+            parserImpl.setIdentifierMaxLength(PlannerSettings.DEFAULT_IDENTIFIER_MAX_LENGTH);
+            return parserImpl;
+          }
+        };
     return factory;
   }
 
@@ -72,8 +72,7 @@ public class ParserWithCompoundIdConverter extends ParserImpl {
   public SqlNodeList parseSqlStmtList() throws Exception {
     SqlNodeList list = super.parseSqlStmtList();
     return new SqlNodeList(
-      list.getList().stream().map(n->n.accept(createConverter())).collect(Collectors.toList()),
-      list.getParserPosition()
-    );
+        list.getList().stream().map(n -> n.accept(createConverter())).collect(Collectors.toList()),
+        list.getParserPosition());
   }
 }

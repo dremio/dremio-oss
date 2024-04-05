@@ -18,25 +18,25 @@ package com.dremio.exec.dotfile;
 import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.Path;
 
-
 public enum DotFileType {
   VIEW
-  // ,FORMAT
-  // ,STATS
-  ;
+// ,FORMAT
+// ,STATS
+;
 
   private final String ending;
 
-  private DotFileType(){
+  private DotFileType() {
     this.ending = '.' + name().toLowerCase() + ".meta";
   }
 
-  public boolean matches(FileAttributes attributes){
+  public boolean matches(FileAttributes attributes) {
     return attributes.getPath().getName().endsWith(ending);
   }
 
   /**
-   * For a given parent directory and base file name return complete path including file type specific extensions.
+   * For a given parent directory and base file name return complete path including file type
+   * specific extensions.
    *
    * @param parentDir Directory where the DotFile is stored.
    * @param name Base file name of the DotFile.
@@ -57,11 +57,11 @@ public enum DotFileType {
 
   public static final String DOT_FILE_GLOB;
 
-  static{
+  static {
     StringBuilder b = new StringBuilder();
     b.append(".{");
-    for(DotFileType d : values()){
-      if(b.length() > 2){
+    for (DotFileType d : values()) {
+      if (b.length() > 2) {
         b.append(',');
       }
       b.append(d.name().toLowerCase());

@@ -16,7 +16,6 @@
 
 package org.apache.arrow.vector;
 
-
 import org.apache.arrow.memory.BufferAllocator;
 
 public final class SimpleBigIntVector extends AbstractVector implements AutoCloseable {
@@ -31,7 +30,7 @@ public final class SimpleBigIntVector extends AbstractVector implements AutoClos
   }
 
   public void setSafe(int index, long value) {
-    while(index >= getValueCapacity()) {
+    while (index >= getValueCapacity()) {
       reAlloc();
     }
     dataBuffer.setLong(index * TYPE_WIDTH, value);

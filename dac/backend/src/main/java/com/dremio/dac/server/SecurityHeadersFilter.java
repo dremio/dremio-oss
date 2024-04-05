@@ -17,11 +17,11 @@ package com.dremio.dac.server;
 
 import static com.dremio.dac.server.UIOptions.CSP_HEADER_VALUE;
 
+import com.dremio.options.OptionManager;
 import java.io.IOException;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
-
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.servlet.Filter;
@@ -32,11 +32,7 @@ import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletResponse;
 
-import com.dremio.options.OptionManager;
-
-/**
- * Filter that adds several security related HTTP headers
- */
+/** Filter that adds several security related HTTP headers */
 public class SecurityHeadersFilter implements Filter {
   private static final long STS_MAX_AGE = TimeUnit.DAYS.toSeconds(365);
 
@@ -48,19 +44,24 @@ public class SecurityHeadersFilter implements Filter {
   }
 
   @Override
-  public void init(FilterConfig filterConfig) {
-  }
+  public void init(FilterConfig filterConfig) {}
 
   @Override
-  public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain) throws IOException, ServletException {
+  public void doFilter(
+      ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain)
+      throws IOException, ServletException {
     final HttpServletResponse response = (HttpServletResponse) servletResponse;
 
     response.setHeader("x-content-type-options", "nosniff");
     response.setHeader("x-frame-options", "SAMEORIGIN");
     response.setHeader("x-xss-protection", "1; mode=block");
     response.setHeader("Referrer-Policy", "origin");
-    response.setHeader("Content-Security-Policy", System.getProperty("dremio.ui.csp-header", cspCache)
-      + URLDecoder.decode(System.getProperty("dremio.ui.csp-header.opt-directives", ""), StandardCharsets.UTF_8.name()));
+    response.setHeader(
+        "Content-Security-Policy",
+        System.getProperty("dremio.ui.csp-header", cspCache)
+            + URLDecoder.decode(
+                System.getProperty("dremio.ui.csp-header.opt-directives", ""),
+                StandardCharsets.UTF_8.name()));
 
     if (servletRequest.isSecure()) {
       // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Strict-Transport-Security
@@ -71,6 +72,5 @@ public class SecurityHeadersFilter implements Filter {
   }
 
   @Override
-  public void destroy() {
-  }
+  public void destroy() {}
 }

@@ -15,51 +15,47 @@
  */
 package com.dremio.jdbc.impl;
 
+import com.dremio.exec.proto.UserProtos.PreparedStatement;
+import com.dremio.jdbc.AlreadyClosedSqlException;
+import com.dremio.jdbc.DremioPreparedStatement;
 import java.sql.ParameterMetaData;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
 import java.sql.SQLWarning;
-
 import org.apache.calcite.avatica.AvaticaParameter;
 import org.apache.calcite.avatica.AvaticaPreparedStatement;
 import org.apache.calcite.avatica.AvaticaSite;
 import org.apache.calcite.avatica.Meta;
 import org.apache.calcite.avatica.Meta.StatementHandle;
 
-import com.dremio.exec.proto.UserProtos.PreparedStatement;
-import com.dremio.jdbc.AlreadyClosedSqlException;
-import com.dremio.jdbc.DremioPreparedStatement;
-
 /**
  * Implementation of {@link java.sql.PreparedStatement} for Dremio.
  *
- * <p>
- * This class has sub-classes which implement JDBC 3.0 and JDBC 4.0 APIs; it is
- * instantiated using
- * {@link net.hydromatic.avatica.AvaticaFactory#newPreparedStatement}.
- * </p>
+ * <p>This class has sub-classes which implement JDBC 3.0 and JDBC 4.0 APIs; it is instantiated
+ * using {@link net.hydromatic.avatica.AvaticaFactory#newPreparedStatement}.
  */
 abstract class DremioPreparedStatementImpl extends AvaticaPreparedStatement
-    implements DremioPreparedStatement,
-               DremioRemoteStatement {
+    implements DremioPreparedStatement, DremioRemoteStatement {
 
   private final PreparedStatement preparedStatementHandle;
 
-  protected DremioPreparedStatementImpl(DremioConnectionImpl connection,
-                                       StatementHandle h,
-                                       Meta.Signature signature,
-                                       PreparedStatement preparedStatementHandle,
-                                       int resultSetType,
-                                       int resultSetConcurrency,
-                                       int resultSetHoldability) throws SQLException {
-    super(connection, h, signature,
-          resultSetType, resultSetConcurrency, resultSetHoldability);
+  protected DremioPreparedStatementImpl(
+      DremioConnectionImpl connection,
+      StatementHandle h,
+      Meta.Signature signature,
+      PreparedStatement preparedStatementHandle,
+      int resultSetType,
+      int resultSetConcurrency,
+      int resultSetHoldability)
+      throws SQLException {
+    super(connection, h, signature, resultSetType, resultSetConcurrency, resultSetHoldability);
     connection.openStatementsRegistry.addStatement(this);
     this.preparedStatementHandle = preparedStatementHandle;
     if (preparedStatementHandle != null) {
-      ((DremioColumnMetaDataList) signature.columns).updateColumnMetaData(preparedStatementHandle.getColumnsList());
+      ((DremioColumnMetaDataList) signature.columns)
+          .updateColumnMetaData(preparedStatementHandle.getColumnsList());
     }
   }
 
@@ -72,14 +68,13 @@ abstract class DremioPreparedStatementImpl extends AvaticaPreparedStatement
   /**
    * Throws AlreadyClosedSqlException <i>iff</i> this PreparedStatement is closed.
    *
-   * @throws  AlreadyClosedSqlException  if PreparedStatement is closed
+   * @throws AlreadyClosedSqlException if PreparedStatement is closed
    */
   private void throwIfClosed() throws AlreadyClosedSqlException {
     if (isClosed()) {
       throw new AlreadyClosedSqlException("PreparedStatement is already closed.");
     }
   }
-
 
   // Note:  Using dynamic proxies would reduce the quantity (450?) of method
   // overrides by eliminating those that exist solely to check whether the
@@ -419,8 +414,7 @@ abstract class DremioPreparedStatementImpl extends AvaticaPreparedStatement
     try {
       return super.isClosed();
     } catch (SQLException e) {
-      throw new RuntimeException(
-          "Unexpected " + e + " from AvaticaPreparedStatement.isClosed" );
+      throw new RuntimeException("Unexpected " + e + " from AvaticaPreparedStatement.isClosed");
     }
   }
 

@@ -15,14 +15,14 @@
  */
 package com.dremio.datastore.transientstore;
 
-import java.util.List;
-
 import com.dremio.datastore.api.Document;
 import com.dremio.datastore.api.KVStore;
+import java.util.List;
 
 /**
- * An interface for using it for caching purpose. Mostly supports a regular
- * kvstore APIs with some enhancements.
+ * An interface for using it for caching purpose. Mostly supports a regular kvstore APIs with some
+ * enhancements.
+ *
  * @param <K> key type
  * @param <V> value type
  */
@@ -33,17 +33,18 @@ public interface TransientStore<K, V> {
    *
    * @param key the key to use to look for the value.
    * @param options extra options for GET operation.
-   * @return the a Document with the value and tag associated with the key, or {@code null} if no such entry exists.
+   * @return the a Document with the value and tag associated with the key, or {@code null} if no
+   *     such entry exists.
    */
-  Document<K,V> get(K key, KVStore.GetOption... options);
+  Document<K, V> get(K key, KVStore.GetOption... options);
 
   /**
    * Get the Documents for each of the keys provided.
    *
    * @param keys a list of keys which their values are to be retrieved.
    * @param options extra options for GET operations.
-   * @return an Iterable of Documents associated with the list of keys provided. Iterable entry
-   *         is {@code null} if no such value exists.
+   * @return an Iterable of Documents associated with the list of keys provided. Iterable entry is
+   *     {@code null} if no such value exists.
    */
   Iterable<Document<K, V>> get(List<K> keys, KVStore.GetOption... options);
 
@@ -55,20 +56,21 @@ public interface TransientStore<K, V> {
    * @param value the value to save.
    * @param options extra options for PUT operation.
    * @return the document that is updated or created, with the latest version tag.
-   * @throws java.util.ConcurrentModificationException when VersionOption is passed in as a PutOption and that the
-   *         version tag provided by VersionOption is outdated. The provided document is not saved
-   *         nor updated.
+   * @throws java.util.ConcurrentModificationException when VersionOption is passed in as a
+   *     PutOption and that the version tag provided by VersionOption is outdated. The provided
+   *     document is not saved nor updated.
    */
   Document<K, V> put(K key, V value, KVStore.PutOption... options);
 
   /**
-   * Removes the entry with the provided key value. If version option is passed then it matches the document
-   * tag with the version and deletes it and if version doesn't match, then throws ConcurrentModificationException.
+   * Removes the entry with the provided key value. If version option is passed then it matches the
+   * document tag with the version and deletes it and if version doesn't match, then throws
+   * ConcurrentModificationException.
    *
    * @param key the key of the document to be removed from the KV Store.
    * @param options version option for DELETE operation.
-   * @throws java.util.ConcurrentModificationException when VersionOption doesn't match with
-   *         with the document version.
+   * @throws java.util.ConcurrentModificationException when VersionOption doesn't match with with
+   *     the document version.
    */
   void delete(K key, KVStore.DeleteOption... options);
 

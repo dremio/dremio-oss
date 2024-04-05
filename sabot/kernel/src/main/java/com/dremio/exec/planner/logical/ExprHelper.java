@@ -15,15 +15,15 @@
  */
 package com.dremio.exec.planner.logical;
 
-import java.util.List;
-
 import com.dremio.common.expression.FunctionCall;
 import com.dremio.common.expression.LogicalExpression;
+import java.util.List;
 
 public class ExprHelper {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ExprHelper.class);
 
-  private static final String COMPOUND_FAIL_MESSAGE = "The current Optiq based logical plan interpreter does not complicated expressions.  For Order By and Filter";
+  private static final String COMPOUND_FAIL_MESSAGE =
+      "The current Optiq based logical plan interpreter does not complicated expressions.  For Order By and Filter";
 
   public static String getAggregateFieldName(FunctionCall c) {
     List<LogicalExpression> exprs = c.args;
@@ -34,8 +34,7 @@ public class ExprHelper {
   }
 
   public static String getFieldName(LogicalExpression e) {
-    //if(e instanceof SchemaPath) return ((SchemaPath) e).getPath().toString();
+    // if(e instanceof SchemaPath) return ((SchemaPath) e).getPath().toString();
     throw new UnsupportedOperationException(COMPOUND_FAIL_MESSAGE);
   }
-
 }

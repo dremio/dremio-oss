@@ -16,6 +16,7 @@
 
 package com.dremio.sabot.op.aggregate.vectorized.arrayagg;
 
+import io.netty.util.internal.PlatformDependent;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BaseValueVector;
@@ -23,10 +24,13 @@ import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.Float8Vector;
 import org.apache.arrow.vector.complex.impl.UnionListWriter;
 
-import io.netty.util.internal.PlatformDependent;
-
 public final class DoubleArrayAggAccumulator extends BaseArrayAggAccumulator<Double, Float8Vector> {
-  public DoubleArrayAggAccumulator(FieldVector input, FieldVector transferVector, int maxValuesPerBatch, BaseValueVector tempAccumulatorHolder, BufferAllocator allocator) {
+  public DoubleArrayAggAccumulator(
+      FieldVector input,
+      FieldVector transferVector,
+      int maxValuesPerBatch,
+      BaseValueVector tempAccumulatorHolder,
+      BufferAllocator allocator) {
     super(input, transferVector, maxValuesPerBatch, tempAccumulatorHolder, allocator);
   }
 
@@ -41,12 +45,14 @@ public final class DoubleArrayAggAccumulator extends BaseArrayAggAccumulator<Dou
   }
 
   @Override
-  protected BaseArrayAggAccumulatorHolder<Double, Float8Vector> getAccumulatorHolder(int maxValuesPerBatch, BufferAllocator allocator) {
+  protected BaseArrayAggAccumulatorHolder<Double, Float8Vector> getAccumulatorHolder(
+      int maxValuesPerBatch, BufferAllocator allocator) {
     return new DoubleArrayAggAccumulatorHolder(maxValuesPerBatch, allocator);
   }
 
   @Override
-  protected Double getElement(long baseAddress, int itemIndex, ArrowBuf dataBuffer, ArrowBuf offsetBuffer) {
+  protected Double getElement(
+      long baseAddress, int itemIndex, ArrowBuf dataBuffer, ArrowBuf offsetBuffer) {
     long offHeapMemoryAddress = getOffHeapAddressForFixedWidthTypes(baseAddress, itemIndex);
     return Double.longBitsToDouble(PlatformDependent.getLong(offHeapMemoryAddress));
   }

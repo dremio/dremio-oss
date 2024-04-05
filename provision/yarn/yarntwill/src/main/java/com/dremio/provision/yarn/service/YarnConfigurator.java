@@ -17,9 +17,5 @@ package com.dremio.provision.yarn.service;
 
 import com.dremio.provision.service.DistroTypeConfigurator;
 
-/**
- * IFace to unify all the YARN configurators
- */
-public interface YarnConfigurator extends DistroTypeConfigurator {
-
-}
+/** IFace to unify all the YARN configurators */
+public interface YarnConfigurator extends DistroTypeConfigurator {}

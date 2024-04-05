@@ -17,31 +17,28 @@ package com.dremio.options;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import java.util.Locale;
-import java.util.regex.Pattern;
-import java.util.regex.PatternSyntaxException;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.options.OptionValue.Kind;
 import com.dremio.options.OptionValue.OptionType;
 import com.google.common.collect.ImmutableSet;
+import java.util.Locale;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
-/**
- * To help dealing with validation options of different types
- */
+/** To help dealing with validation options of different types */
 public class TypeValidators {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TypeValidators.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(TypeValidators.class);
 
-  /**
-   * PositiveLongValidator
-   */
+  /** PositiveLongValidator */
   public static class PositiveLongValidator extends LongValidator {
     private final long max;
 
     public PositiveLongValidator(String name, long max, long def) {
       super(name, def);
       checkArgument(max > 0, "max has to be a strictly positive value");
-      checkArgument(def >= 0 && def <= max, "def has to be positive value less than or equal to max");
+      checkArgument(
+          def >= 0 && def <= max, "def has to be positive value less than or equal to max");
       this.max = max;
     }
 
@@ -50,15 +47,13 @@ public class TypeValidators {
       super.validate(v);
       if (v.getNumVal() > max || v.getNumVal() < 1) {
         throw UserException.validationError()
-          .message(String.format("Option %s must be between %d and %d.", getOptionName(), 1, max))
-          .build(logger);
+            .message(String.format("Option %s must be between %d and %d.", getOptionName(), 1, max))
+            .build(logger);
       }
     }
   }
 
-  /**
-   * PowerOfTwoLongValidator
-   */
+  /** PowerOfTwoLongValidator */
   public static class PowerOfTwoLongValidator extends PositiveLongValidator {
 
     public PowerOfTwoLongValidator(String name, long max, long def) {
@@ -72,8 +67,8 @@ public class TypeValidators {
       super.validate(v);
       if (!isPowerOfTwo(v.getNumVal())) {
         throw UserException.validationError()
-          .message(String.format("Option %s must be a power of two.", getOptionName()))
-          .build(logger);
+            .message(String.format("Option %s must be a power of two.", getOptionName()))
+            .build(logger);
       }
     }
 
@@ -82,9 +77,7 @@ public class TypeValidators {
     }
   }
 
-  /**
-   * RangeDoubleValidator
-   */
+  /** RangeDoubleValidator */
   public static class RangeDoubleValidator extends DoubleValidator {
     private final double min;
     private final double max;
@@ -102,33 +95,28 @@ public class TypeValidators {
       super.validate(v);
       if (v.getFloatVal() > max || v.getFloatVal() < min) {
         throw UserException.validationError()
-          .message(String.format("Option %s must be between %f and %f.", getOptionName(), min, max))
-          .build(logger);
+            .message(
+                String.format("Option %s must be between %f and %f.", getOptionName(), min, max))
+            .build(logger);
       }
     }
   }
 
-  /**
-   * BooleanValidator
-   */
+  /** BooleanValidator */
   public static class BooleanValidator extends TypeValidator {
     public BooleanValidator(String name, boolean def) {
       super(name, Kind.BOOLEAN, OptionValue.createBoolean(OptionType.SYSTEM, name, def));
     }
   }
 
-  /**
-   * StringValidator
-   */
+  /** StringValidator */
   public static class StringValidator extends TypeValidator {
     public StringValidator(String name, String def) {
       super(name, Kind.STRING, OptionValue.createString(OptionType.SYSTEM, name, def));
     }
   }
 
-  /**
-   * RegexStringValidator, expressions are validated
-   */
+  /** RegexStringValidator, expressions are validated */
   public static class RegexStringValidator extends StringValidator {
     public RegexStringValidator(String name, String def) {
       super(name, def);
@@ -141,33 +129,27 @@ public class TypeValidators {
         Pattern.compile(v.getStringVal());
       } catch (PatternSyntaxException e) {
         throw UserException.validationError(e)
-          .message(String.format("Option %s must be valid regular expression", getOptionName()))
-          .build(logger);
+            .message(String.format("Option %s must be valid regular expression", getOptionName()))
+            .build(logger);
       }
     }
   }
 
-  /**
-   * LongValidator
-   */
+  /** LongValidator */
   public static class LongValidator extends TypeValidator {
     public LongValidator(String name, long def) {
       super(name, Kind.LONG, OptionValue.createLong(OptionType.SYSTEM, name, def));
     }
   }
 
-  /**
-   * DoubleValidator
-   */
+  /** DoubleValidator */
   public static class DoubleValidator extends TypeValidator {
     public DoubleValidator(String name, double def) {
       super(name, Kind.DOUBLE, OptionValue.createDouble(OptionType.SYSTEM, name, def));
     }
   }
 
-  /**
-   * RangeLongValidator
-   */
+  /** RangeLongValidator */
   public static class RangeLongValidator extends LongValidator {
     private final long min;
     private final long max;
@@ -185,15 +167,14 @@ public class TypeValidators {
       super.validate(v);
       if (v.getNumVal() > max || v.getNumVal() < min) {
         throw UserException.validationError()
-          .message(String.format("Option %s must be between %d and %d.", getOptionName(), min, max))
-          .build(logger);
+            .message(
+                String.format("Option %s must be between %d and %d.", getOptionName(), min, max))
+            .build(logger);
       }
     }
   }
 
-  /**
-   * String validator which can only be set at the SYSTEM level scope
-   */
+  /** String validator which can only be set at the SYSTEM level scope */
   public static class AdminStringValidator extends StringValidator {
     public AdminStringValidator(String name, String def) {
       super(name, def);
@@ -203,16 +184,16 @@ public class TypeValidators {
     public void validate(OptionValue v) {
       if (v.getType() != OptionType.SYSTEM) {
         throw UserException.validationError()
-          .message("Admin related settings can only be set at SYSTEM level scope. Given scope '%s'.", v.getType())
-          .build(logger);
+            .message(
+                "Admin related settings can only be set at SYSTEM level scope. Given scope '%s'.",
+                v.getType())
+            .build(logger);
       }
       super.validate(v);
     }
   }
 
-  /**
-   * Boolean validator which can only be set at the SYSTEM level scope
-   */
+  /** Boolean validator which can only be set at the SYSTEM level scope */
   public static class AdminBooleanValidator extends BooleanValidator {
     public AdminBooleanValidator(String name, boolean def) {
       super(name, def);
@@ -222,16 +203,16 @@ public class TypeValidators {
     public void validate(OptionValue v) {
       if (v.getType() != OptionType.SYSTEM) {
         throw UserException.validationError()
-          .message("Admin related settings can only be set at SYSTEM level scope. Given scope '%s'.", v.getType())
-          .build(logger);
+            .message(
+                "Admin related settings can only be set at SYSTEM level scope. Given scope '%s'.",
+                v.getType())
+            .build(logger);
       }
       super.validate(v);
     }
   }
 
-  /**
-   * Positive Long validator which can only be set at the SYSTEM level scope
-   */
+  /** Positive Long validator which can only be set at the SYSTEM level scope */
   public static class AdminPositiveLongValidator extends PositiveLongValidator {
 
     public AdminPositiveLongValidator(String name, long max, long def) {
@@ -242,15 +223,18 @@ public class TypeValidators {
     public void validate(OptionValue v) {
       if (v.getType() != OptionType.SYSTEM) {
         throw UserException.validationError()
-          .message("Admin related settings can only be set at SYSTEM level scope. Given scope '%s'.", v.getType())
-          .build(logger);
+            .message(
+                "Admin related settings can only be set at SYSTEM level scope. Given scope '%s'.",
+                v.getType())
+            .build(logger);
       }
       super.validate(v);
     }
   }
 
   /**
-   * Wrapper {@link OptionValidator} to make sure the given option is set only of type {@link OptionType#QUERY}
+   * Wrapper {@link OptionValidator} to make sure the given option is set only of type {@link
+   * OptionType#QUERY}
    */
   public static class QueryLevelOptionValidation extends OptionValidator {
     private final OptionValidator inner;
@@ -284,20 +268,24 @@ public class TypeValidators {
     public void validate(OptionValue v) {
       if (v.getType() != OptionType.QUERY) {
         throw UserException.validationError()
-          .message("Query level options can only be set at QUERY level scope. Given scope '%s'.", v.getType())
-          .build(logger);
+            .message(
+                "Query level options can only be set at QUERY level scope. Given scope '%s'.",
+                v.getType())
+            .build(logger);
       }
       inner.validate(v);
     }
   }
 
   /**
-   * Validator that checks if the given value is included in a list of acceptable values. Case insensitive.
+   * Validator that checks if the given value is included in a list of acceptable values. Case
+   * insensitive.
    */
   public static class EnumeratedStringValidator extends StringValidator {
     private final ImmutableSet<String> valuesSet;
 
-    public EnumeratedStringValidator(String name, String def, String firstValue, String... otherValues) {
+    public EnumeratedStringValidator(
+        String name, String def, String firstValue, String... otherValues) {
       super(name, def);
       ImmutableSet.Builder<String> builder = ImmutableSet.builder();
       builder.add(firstValue.toLowerCase(Locale.ROOT));
@@ -315,8 +303,8 @@ public class TypeValidators {
       super.validate(v);
       if (!isValid(v.getStringVal())) {
         throw UserException.validationError()
-          .message(String.format("Option %s must be one of: %s.", getOptionName(), valuesSet))
-          .build(logger);
+            .message(String.format("Option %s must be one of: %s.", getOptionName(), valuesSet))
+            .build(logger);
       }
     }
 
@@ -326,7 +314,8 @@ public class TypeValidators {
   }
 
   /**
-   * Validator that checks if the given value is included in a list of acceptable values. Case insensitive.
+   * Validator that checks if the given value is included in a list of acceptable values. Case
+   * insensitive.
    */
   public static class EnumValidator<E extends Enum<E>> extends StringValidator {
     private final ImmutableSet<String> valuesSet;
@@ -347,8 +336,8 @@ public class TypeValidators {
       super.validate(v);
       if (!isValid(v.getStringVal())) {
         throw UserException.validationError()
-          .message(String.format("Option %s must be one of: %s.", getOptionName(), valuesSet))
-          .build(logger);
+            .message(String.format("Option %s must be one of: %s.", getOptionName(), valuesSet))
+            .build(logger);
       }
     }
 
@@ -357,9 +346,7 @@ public class TypeValidators {
     }
   }
 
-  /**
-   * TypeValidator
-   */
+  /** TypeValidator */
   public abstract static class TypeValidator extends OptionValidator {
     private final Kind kind;
     private final OptionValue defaultValue;
@@ -380,9 +367,11 @@ public class TypeValidators {
     public void validate(final OptionValue v) {
       if (v.getKind() != kind) {
         throw UserException.validationError()
-          .message(String.format("Option %s must be of type %s but you tried to set to %s.", getOptionName(),
-            kind.name(), v.getKind().name()))
-          .build(logger);
+            .message(
+                String.format(
+                    "Option %s must be of type %s but you tried to set to %s.",
+                    getOptionName(), kind.name(), v.getKind().name()))
+            .build(logger);
       }
     }
   }

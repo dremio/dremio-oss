@@ -15,11 +15,10 @@
  */
 package com.dremio.exec.vector.accessor;
 
-import org.apache.arrow.vector.UInt8Vector;
-
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.types.Types;
+import org.apache.arrow.vector.UInt8Vector;
 
 public class UInt8Accessor extends AbstractSqlAccessor {
 
@@ -58,5 +57,4 @@ public class UInt8Accessor extends AbstractSqlAccessor {
   public long getLong(int index) {
     return ac.get(index);
   }
-
 }

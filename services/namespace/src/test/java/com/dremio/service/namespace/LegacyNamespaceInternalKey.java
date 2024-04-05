@@ -19,43 +19,39 @@ import static com.dremio.service.namespace.NamespaceInternalKeyDumpUtil.extractK
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.common.utils.PathUtils;
+import com.dremio.common.utils.SqlUtils;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.common.utils.PathUtils;
-import com.dremio.common.utils.SqlUtils;
-
 /**
  * Namespace keys used to model space, folders, sources, datasets names into kvstore key.
  *
- * Namespace keys are designed so that we can list folders or sub folders.
- * In order to use range query on kvstore we encode depth inside namespace key.
- * /a/b/c is   ``2``a``1``b``0``c
- * /a/b is ``1``a``0``b
- * a is ``0``a
+ * <p>Namespace keys are designed so that we can list folders or sub folders. In order to use range
+ * query on kvstore we encode depth inside namespace key. /a/b/c is ``2``a``1``b``0``c /a/b is
+ * ``1``a``0``b a is ``0``a
  *
- * Range search or listing under a key
- * listing under / we will search for ``0``*
- * listing under /a we will search for ``1``a``0``*
- * listing under /a/b we will search for ``2``a``1``b``0``*
- * listing under /a/b/c we will search for ``3``a``2``b``1``c``0``*
+ * <p>Range search or listing under a key listing under / we will search for ``0``* listing under /a
+ * we will search for ``1``a``0``* listing under /a/b we will search for ``2``a``1``b``0``* listing
+ * under /a/b/c we will search for ``3``a``2``b``1``c``0``*
  *
- * Source entities(files, folders, physical datasets) are special since listing is always recursive and
- * there are no guarantees that all parents are in namespace.
- * Depth value for all source entities is set to zero.
- * Namespace doesn't check if parent exists for a GET operation on physical dataset like virtual dataset.
+ * <p>Source entities(files, folders, physical datasets) are special since listing is always
+ * recursive and there are no guarantees that all parents are in namespace. Depth value for all
+ * source entities is set to zero. Namespace doesn't check if parent exists for a GET operation on
+ * physical dataset like virtual dataset.
  *
- * Note: This class is for backwards compatibility testing only.
- *       Please see NamespaceInternalKey for latest production implementation.
- **/
+ * <p>Note: This class is for backwards compatibility testing only. Please see NamespaceInternalKey
+ * for latest production implementation.
+ */
 class LegacyNamespaceInternalKey {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(LegacyNamespaceInternalKey.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(LegacyNamespaceInternalKey.class);
 
   /**
-   * Hard coded flag that allows disabling namespace key normalization.
-   * The purpose is to have one specific build with this set to false
+   * Hard coded flag that allows disabling namespace key normalization. The purpose is to have one
+   * specific build with this set to false
    */
   private static final boolean ENABLE_KEY_NORMALIZATION = true;
 
@@ -66,21 +62,24 @@ class LegacyNamespaceInternalKey {
   private static final byte MAX_VALUE = (byte) 0xFF;
 
   private static final int PREFIX_BYTES_SIZE = 2;
+
   /** byte array of size 1 containing 0xFF */
-  private static final byte[] TERMINATOR = new byte[] { MAX_VALUE };
+  private static final byte[] TERMINATOR = new byte[] {MAX_VALUE};
+
   /**
-   * "``" in UTF-8.
-   * In namespace key, path components are separated by `` which will never be part of the key.
+   * "``" in UTF-8. In namespace key, path components are separated by `` which will never be part
+   * of the key.
    */
   private static final byte[] DELIMITER_BYTES = format("%c%c", QUOTE, QUOTE).getBytes(UTF_8);
 
   private static final int DELIMITER_PREFIX_DELIMITER_SIZE =
-    DELIMITER_BYTES.length + PREFIX_BYTES_SIZE + DELIMITER_BYTES.length;
+      DELIMITER_BYTES.length + PREFIX_BYTES_SIZE + DELIMITER_BYTES.length;
 
   /** prefixes[i] == DELIMITER_BYTES + {i on 2 bytes} + DELIMITER_BYTES */
-  private static final byte [][] prefixes = generatePrefixes();
+  private static final byte[][] prefixes = generatePrefixes();
+
   private static final String NAMESPACE_PATH_FORMAT =
-    "Namespace path should be of format <space>.<folder1>.<folder2>....<folderN>.<dataset/file>";
+      "Namespace path should be of format <space>.<folder1>.<folder2>....<folderN>.<dataset/file>";
 
   private static final byte[] ROOT_LOOKUP_START = rootLookupStartKey();
   private static final byte[] ROOT_LOOKUP_END = rootLookupEndKey();
@@ -93,38 +92,37 @@ class LegacyNamespaceInternalKey {
       prefixes[i] = new byte[DELIMITER_PREFIX_DELIMITER_SIZE];
       System.arraycopy(DELIMITER_BYTES, 0, prefixes[i], 0, DELIMITER_BYTES.length);
       System.arraycopy(toPrefixBytes(i), 0, prefixes[i], DELIMITER_BYTES.length, PREFIX_BYTES_SIZE);
-      System.arraycopy(DELIMITER_BYTES, 0, prefixes[i], DELIMITER_BYTES.length + PREFIX_BYTES_SIZE, DELIMITER_BYTES.length);
+      System.arraycopy(
+          DELIMITER_BYTES,
+          0,
+          prefixes[i],
+          DELIMITER_BYTES.length + PREFIX_BYTES_SIZE,
+          DELIMITER_BYTES.length);
     }
     return prefixes;
   }
 
-  private byte [] keyBytes = null; // lookup key
+  private byte[] keyBytes = null; // lookup key
   private byte[] cachedKey = null; // copy of lookup key keyBytes
   // list folder/lookup keys
   private byte[] cachedRangeStartKey = null, cachedRangeEndKey = null;
 
-  /** length of the typed key in keyBytes*/
+  /** length of the typed key in keyBytes */
   private int keyLength;
 
-  /**
-   * dot delimited path
-   * with components quoted with back ticks if they are keywords
-   */
+  /** dot delimited path with components quoted with back ticks if they are keywords */
   private final String namespaceFullPath;
+
   /** path for this name */
   private final NamespaceKey namespaceKey;
 
   /**
-   * utf8 representation of the path components.
-   * pathComponentBytes.length == components.
+   * utf8 representation of the path components. pathComponentBytes.length == components.
    * pathComponentBytes[i].length > 0
    */
   private byte[][] pathComponentBytes;
 
-  /**
-   * number of components in the full path.
-   * components > 0
-   */
+  /** number of components in the full path. components > 0 */
   private int components;
 
   LegacyNamespaceInternalKey(final NamespaceKey path) {
@@ -144,8 +142,10 @@ class LegacyNamespaceInternalKey {
 
     if (components == 0) {
       throw UserException.validationError()
-        .message("Invalid name space key. Given: %s, Expected format: %s", namespaceFullPath, NAMESPACE_PATH_FORMAT)
-        .build(logger);
+          .message(
+              "Invalid name space key. Given: %s, Expected format: %s",
+              namespaceFullPath, NAMESPACE_PATH_FORMAT)
+          .build(logger);
     }
     convertStringComponentsIntoBytes(pathComponents, normalize);
   }
@@ -156,11 +156,15 @@ class LegacyNamespaceInternalKey {
     for (int i = 0; i < components; ++i) {
       if (pathComponents.get(i).length() == 0) {
         throw UserException.validationError()
-          .message("Invalid name space key. Given: %s, Expected format: %s", namespaceFullPath, NAMESPACE_PATH_FORMAT)
-          .build(logger);
+            .message(
+                "Invalid name space key. Given: %s, Expected format: %s",
+                namespaceFullPath, NAMESPACE_PATH_FORMAT)
+            .build(logger);
       }
-      this.pathComponentBytes[i] = (normalize)? pathComponents.get(i).toLowerCase(Locale.ENGLISH).getBytes(UTF_8) :
-        pathComponents.get(i).getBytes(UTF_8);
+      this.pathComponentBytes[i] =
+          (normalize)
+              ? pathComponents.get(i).toLowerCase(Locale.ENGLISH).getBytes(UTF_8)
+              : pathComponents.get(i).getBytes(UTF_8);
     }
   }
 
@@ -169,10 +173,11 @@ class LegacyNamespaceInternalKey {
       return;
     }
     /**
-     * Worst case size for utf8 is 1-4 bytes.
-     * Each component is prefixed with "delimiter-prefix-delimiter" of size {@link #DELIMITER_PREFIX_DELIMITER_SIZE}
+     * Worst case size for utf8 is 1-4 bytes. Each component is prefixed with
+     * "delimiter-prefix-delimiter" of size {@link #DELIMITER_PREFIX_DELIMITER_SIZE}
      */
-    this.keyBytes = new byte[4*namespaceFullPath.length() + components * DELIMITER_PREFIX_DELIMITER_SIZE];
+    this.keyBytes =
+        new byte[4 * namespaceFullPath.length() + components * DELIMITER_PREFIX_DELIMITER_SIZE];
     this.keyLength = 0;
     int count = pathComponentBytes.length - 1;
     for (int i = 0; i < components; ++i) {
@@ -194,22 +199,22 @@ class LegacyNamespaceInternalKey {
 
   private void buildRangeKeys() {
     /**
-     * Worst case size for utf8 is 1-4 bytes.
-     * Each component is prefixed with "delimiter-prefix-delimiter" of size {@link #DELIMITER_PREFIX_DELIMITER_SIZE}
-     * Terminator
+     * Worst case size for utf8 is 1-4 bytes. Each component is prefixed with
+     * "delimiter-prefix-delimiter" of size {@link #DELIMITER_PREFIX_DELIMITER_SIZE} Terminator
      */
-    final byte [] rangeKeyBytes = new byte[
-      4 * namespaceFullPath.length() +
-        (components +1 )* DELIMITER_PREFIX_DELIMITER_SIZE +
-        TERMINATOR.length
-      ];
+    final byte[] rangeKeyBytes =
+        new byte
+            [4 * namespaceFullPath.length()
+                + (components + 1) * DELIMITER_PREFIX_DELIMITER_SIZE
+                + TERMINATOR.length];
 
     int offset = 0;
     int count = components;
     for (int i = 0; i < components; ++i) {
       System.arraycopy(prefixes[count], 0, rangeKeyBytes, offset, prefixes[count].length);
       offset += prefixes[count].length;
-      System.arraycopy(pathComponentBytes[i], 0, rangeKeyBytes, offset, pathComponentBytes[i].length);
+      System.arraycopy(
+          pathComponentBytes[i], 0, rangeKeyBytes, offset, pathComponentBytes[i].length);
       offset += pathComponentBytes[i].length;
       --count;
     }
@@ -292,7 +297,6 @@ class LegacyNamespaceInternalKey {
     return end;
   }
 
-
   public static byte[] getRootLookupStart() {
     return ROOT_LOOKUP_START;
   }
@@ -302,7 +306,7 @@ class LegacyNamespaceInternalKey {
   }
 
   public static byte[] toPrefixBytes(int number) {
-    final byte [] prefix = new byte[PREFIX_BYTES_SIZE];
+    final byte[] prefix = new byte[PREFIX_BYTES_SIZE];
     for (int i = PREFIX_BYTES_SIZE - 1; i >= 0; --i) {
       prefix[i] = (byte) (number & 0xFF);
       number >>>= 8;

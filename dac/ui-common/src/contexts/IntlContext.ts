@@ -41,7 +41,7 @@ const intlContext: IntlContext = {
     }
 
     return new IntlMessageFormat(message, window.navigator.language).format(
-      params
+      params,
     );
   },
 };

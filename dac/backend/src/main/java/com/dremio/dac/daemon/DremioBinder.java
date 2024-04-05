@@ -15,15 +15,6 @@
  */
 package com.dremio.dac.daemon;
 
-import java.util.function.Supplier;
-
-import javax.inject.Inject;
-import javax.ws.rs.core.SecurityContext;
-
-import org.glassfish.jersey.internal.inject.AbstractBinder;
-import org.glassfish.jersey.internal.inject.ClassBinding;
-import org.glassfish.jersey.process.internal.RequestScoped;
-
 import com.dremio.dac.explore.QueryExecutor;
 import com.dremio.dac.explore.join.JobsBasedRecommender;
 import com.dremio.dac.explore.join.JoinRecommender;
@@ -31,7 +22,6 @@ import com.dremio.dac.model.sources.FormatTools;
 import com.dremio.dac.server.DACSecurityContext;
 import com.dremio.dac.server.test.SampleDataPopulator;
 import com.dremio.dac.server.tokens.TokenInfo;
-import com.dremio.dac.service.catalog.CatalogServiceHelper;
 import com.dremio.dac.service.collaboration.CollaborationHelper;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.reflection.ReflectionServiceHelper;
@@ -48,10 +38,14 @@ import com.dremio.service.BinderImpl.Binding;
 import com.dremio.service.BinderImpl.InstanceBinding;
 import com.dremio.service.BinderImpl.SingletonBinding;
 import com.dremio.service.SingletonRegistry;
+import java.util.function.Supplier;
+import javax.inject.Inject;
+import javax.ws.rs.core.SecurityContext;
+import org.glassfish.jersey.internal.inject.AbstractBinder;
+import org.glassfish.jersey.internal.inject.ClassBinding;
+import org.glassfish.jersey.process.internal.RequestScoped;
 
-/**
- * Class to bind resources to HK2 injector.
- */
+/** Class to bind resources to HK2 injector. */
 public class DremioBinder extends AbstractBinder {
 
   private SingletonRegistry bindings;
@@ -60,29 +54,29 @@ public class DremioBinder extends AbstractBinder {
     this.bindings = bindings;
   }
 
-  @SuppressWarnings({ "unchecked", "rawtypes" })
+  @SuppressWarnings({"unchecked", "rawtypes"})
   @Override
   protected void configure() {
-    for(Binding b : bindings){
-      switch(b.getType()){
-      case INSTANCE:
-        InstanceBinding ib = (InstanceBinding) b;
-        if(ib.getInstance().getAnnotation(RequestScoped.class) != null){
-          bind(ib.getInstance()).in(RequestScoped.class).to(b.getIface());
-        }else{
-          bind(ib.getInstance()).to(b.getIface());
-        }
-        break;
-      case SINGLETON:
-        SingletonBinding sb = (SingletonBinding) b;
-        bind(sb.getSingleton()).to(b.getIface());
-        break;
-      case PROVIDER:
-        BinderImpl.ProviderBinding pb = (BinderImpl.ProviderBinding) b;
-        bindFactory(() -> pb.getProvider().get()).to(b.getIface());
-        break;
-      default:
-        throw new IllegalStateException();
+    for (Binding b : bindings) {
+      switch (b.getType()) {
+        case INSTANCE:
+          InstanceBinding ib = (InstanceBinding) b;
+          if (ib.getInstance().getAnnotation(RequestScoped.class) != null) {
+            bind(ib.getInstance()).in(RequestScoped.class).to(b.getIface());
+          } else {
+            bind(ib.getInstance()).to(b.getIface());
+          }
+          break;
+        case SINGLETON:
+          SingletonBinding sb = (SingletonBinding) b;
+          bind(sb.getSingleton()).to(b.getIface());
+          break;
+        case PROVIDER:
+          BinderImpl.ProviderBinding pb = (BinderImpl.ProviderBinding) b;
+          bindFactory(() -> pb.getProvider().get()).to(b.getIface());
+          break;
+        default:
+          throw new IllegalStateException();
       }
     }
 
@@ -91,7 +85,6 @@ public class DremioBinder extends AbstractBinder {
     bindToSelf(DatasetVersionMutator.class);
     bindToSelf(SourceService.class);
     bindToSelf(ReflectionServiceHelper.class);
-    bindToSelf(CatalogServiceHelper.class);
     bindToSelf(CollaborationHelper.class);
     bindFactory(OptionManagerFactory.class).to(OptionManager.class);
     bind(JobsBasedRecommender.class).to(JoinRecommender.class);
@@ -112,10 +105,7 @@ public class DremioBinder extends AbstractBinder {
     return bind(serviceType).to(serviceType);
   }
 
-  /**
-   * A factory for OptionManager to be used for DI
-   * (and avoid passing directly SabotContext...)
-   */
+  /** A factory for OptionManager to be used for DI (and avoid passing directly SabotContext...) */
   public static class OptionManagerFactory implements Supplier<OptionManager> {
     private final SabotContext context;
 

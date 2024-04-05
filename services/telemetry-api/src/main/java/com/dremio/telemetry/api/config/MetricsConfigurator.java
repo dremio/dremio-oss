@@ -15,20 +15,19 @@
  */
 package com.dremio.telemetry.api.config;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-
 import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.annotations.VisibleForTesting;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 
 /**
- * The core wrapping class for all metrics configurators. Capture common properties as well as reporter configuration to do
- * comparison, etc.
+ * The core wrapping class for all metrics configurators. Capture common properties as well as
+ * reporter configuration to do comparison, etc.
  */
 public class MetricsConfigurator implements AutoCloseable {
 
@@ -45,12 +44,17 @@ public class MetricsConfigurator implements AutoCloseable {
       @JsonProperty("comment") String comment,
       @JsonProperty("reporter") ReporterConfigurator reporter,
       @JsonProperty("includes") List<String> includes,
-      @JsonProperty("excludes") List<String> excludes
-      ) {
+      @JsonProperty("excludes") List<String> excludes) {
     super();
     this.name = Objects.requireNonNull(name, "All reporters must have a name");
     this.comment = comment;
-    this.configurator = Objects.requireNonNull(reporter, () -> String.format("Invalid definition for reporter with name %s. Must define a reporter block.", name));
+    this.configurator =
+        Objects.requireNonNull(
+            reporter,
+            () ->
+                String.format(
+                    "Invalid definition for reporter with name %s. Must define a reporter block.",
+                    name));
     this.includes = Optional.ofNullable(includes).orElse(Collections.emptyList());
     this.excludes = Optional.ofNullable(excludes).orElse(Collections.emptyList());
 
@@ -59,7 +63,6 @@ public class MetricsConfigurator implements AutoCloseable {
     } else {
       filter = new IncludesExcludesFilter(includes, excludes);
     }
-
   }
 
   public String getName() {
@@ -77,10 +80,10 @@ public class MetricsConfigurator implements AutoCloseable {
 
   @Override
   public boolean equals(Object other) {
-    if(other == null) {
+    if (other == null) {
       return false;
     }
-    if(!this.getClass().equals(other.getClass())) {
+    if (!this.getClass().equals(other.getClass())) {
       return false;
     }
     MetricsConfigurator o = (MetricsConfigurator) other;

@@ -15,9 +15,15 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.dremio.exec.ExecConstants;
+import com.dremio.exec.exception.UnsupportedOperatorCollector;
+import com.dremio.exec.ops.QueryContext;
+import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.work.foreman.SqlUnsupportedException;
+import com.google.common.collect.Lists;
 import java.util.List;
-
 import org.apache.calcite.sql.JoinType;
+import org.apache.calcite.sql.SqlBasicCall;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.calcite.sql.SqlJoin;
@@ -34,13 +40,6 @@ import org.apache.calcite.sql.fun.SqlCountAggFunction;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.util.SqlShuttle;
-
-import com.dremio.exec.ExecConstants;
-import com.dremio.exec.exception.UnsupportedOperatorCollector;
-import com.dremio.exec.ops.QueryContext;
-import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.work.foreman.SqlUnsupportedException;
-import com.google.common.collect.Lists;
 
 public class UnsupportedOperatorsVisitor extends SqlShuttle {
   private QueryContext context;
@@ -77,10 +76,11 @@ public class UnsupportedOperatorsVisitor extends SqlShuttle {
 
   @Override
   public SqlNode visit(SqlDataTypeSpec type) {
-    for(String strType : disabledType) {
-      if(type.getTypeName().getSimple().equalsIgnoreCase(strType)) {
+    for (String strType : disabledType) {
+      if (type.getTypeName().getSimple().equalsIgnoreCase(strType)) {
         // see DRILL-1959
-        unsupportedOperatorCollector.setException(SqlUnsupportedException.ExceptionType.DATA_TYPE,
+        unsupportedOperatorCollector.setException(
+            SqlUnsupportedException.ExceptionType.DATA_TYPE,
             type.getTypeName().getSimple() + " is not supported");
         throw new UnsupportedOperationException();
       }
@@ -92,15 +92,15 @@ public class UnsupportedOperatorsVisitor extends SqlShuttle {
   @Override
   public SqlNode visit(SqlCall sqlCall) {
     // Inspect the window functions
-    if(sqlCall instanceof SqlSelect) {
+    if (sqlCall instanceof SqlSelect) {
       SqlSelect sqlSelect = (SqlSelect) sqlCall;
 
       checkGroupID((sqlSelect));
 
-      for(SqlNode nodeInSelectList : sqlSelect.getSelectList()) {
+      for (SqlNode nodeInSelectList : sqlSelect.getSelectList()) {
         // If the window function is used with an alias,
         // enter the first operand of AS operator
-        if(nodeInSelectList.getKind() == SqlKind.AS
+        if (nodeInSelectList.getKind() == SqlKind.AS
             && (((SqlCall) nodeInSelectList).getOperandList().get(0).getKind() == SqlKind.OVER)) {
           nodeInSelectList = ((SqlCall) nodeInSelectList).getOperandList().get(0);
         }
@@ -112,7 +112,7 @@ public class UnsupportedOperatorsVisitor extends SqlShuttle {
     // DRILL-3188
     // Disable frame which is other than the default
     // (i.e., BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
-    if(sqlCall instanceof SqlWindow) {
+    if (sqlCall instanceof SqlWindow) {
       SqlWindow window = (SqlWindow) sqlCall;
 
       SqlNode lowerBound = window.getLowerBound();
@@ -126,158 +126,206 @@ public class UnsupportedOperatorsVisitor extends SqlShuttle {
       // RANGE UNBOUNDED PRECEDING
       // RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
       // RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
-      if(window.getOrderList().size() != 0
+      if (window.getOrderList().size() != 0
           && !window.isRows()
           && SqlWindow.isUnboundedPreceding(lowerBound)
-          && (upperBound == null || SqlWindow.isCurrentRow(upperBound) || SqlWindow.isUnboundedFollowing(upperBound))) {
+          && (upperBound == null
+              || SqlWindow.isCurrentRow(upperBound)
+              || SqlWindow.isUnboundedFollowing(upperBound))) {
         isSupported = true;
       }
 
       // ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
       // is supported with and without the ORDER BY clause
       if (window.isRows()
-          && SqlWindow.isUnboundedPreceding(lowerBound)
-          && (upperBound == null || SqlWindow.isCurrentRow(upperBound))) {
+              && (SqlWindow.isUnboundedPreceding(lowerBound)
+                  && (upperBound == null || SqlWindow.isCurrentRow(upperBound)))
+          || (SqlWindow.isCurrentRow(lowerBound) && SqlWindow.isUnboundedFollowing(upperBound))) {
         isSupported = true;
       }
 
       // RANGE BETWEEN CURRENT ROW AND CURRENT ROW
       // is supported with and without an ORDER BY clause
-      if (!window.isRows() &&
-          SqlWindow.isCurrentRow(lowerBound) &&
-          SqlWindow.isCurrentRow(upperBound)) {
+      if (!window.isRows()
+          && SqlWindow.isCurrentRow(lowerBound)
+          && SqlWindow.isCurrentRow(upperBound)) {
         isSupported = true;
       }
 
-      // When OVER clause doesn't contain an ORDER BY clause, the following are equivalent to the default frame:
+      // When OVER clause doesn't contain an ORDER BY clause, the following are equivalent to the
+      // default frame:
       // RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
       // ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
-      if(window.getOrderList().size() == 0
+      if (window.getOrderList().size() == 0
           && SqlWindow.isUnboundedPreceding(lowerBound)
           && SqlWindow.isUnboundedFollowing(upperBound)) {
         isSupported = true;
       }
 
-      if(!isSupported) {
-        unsupportedOperatorCollector.setException(SqlUnsupportedException.ExceptionType.FUNCTION,
+      // ROWS BETWEEN <N> { PRECEDING | FOLLOWING } AND <N> { PRECEDING | FOLLOWING }
+      // ROWS BETWEEN UNBOUNDED PRECEDING AND <N> { PRECEDING | FOLLOWING }
+      // ROWS BETWEEN <N> { PRECEDING | FOLLOWING } AND UNBOUNDED FOLLOWING
+      if (window.getOrderList().size() != 0
+          && window.isRows()
+          && (lowerBound != null && upperBound != null)) {
+        isSupported = true;
+        if (SqlWindow.isUnboundedFollowing(lowerBound)
+            || SqlWindow.isUnboundedPreceding(upperBound)) {
+          isSupported = false;
+        }
+        if (lowerBound.getKind() == SqlKind.FOLLOWING
+            && upperBound.getKind() == SqlKind.PRECEDING) {
+          isSupported = false;
+        }
+      }
+
+      if (!isSupported) {
+        unsupportedOperatorCollector.setException(
+            SqlUnsupportedException.ExceptionType.FUNCTION,
             "This type of window frame is currently not supported");
         throw new UnsupportedOperationException();
       }
+      if (window.isRows() && lowerBound != null && upperBound != null) {
+        validateOffsets(lowerBound, upperBound);
+      }
 
       // DRILL-3189: Disable DISALLOW PARTIAL
-      if(!window.isAllowPartial()) {
-        unsupportedOperatorCollector.setException(SqlUnsupportedException.ExceptionType.FUNCTION,
+      if (!window.isAllowPartial()) {
+        unsupportedOperatorCollector.setException(
+            SqlUnsupportedException.ExceptionType.FUNCTION,
             "Dremio doesn't currently support DISALLOW PARTIAL.");
         throw new UnsupportedOperationException();
       }
     }
 
     // DRILL-1921: Disable unsupported Except ALL
-    if(sqlCall.getKind() == SqlKind.EXCEPT  && ((SqlSetOperator)sqlCall.getOperator()).isAll()) {
-      unsupportedOperatorCollector.setException(SqlUnsupportedException.ExceptionType.RELATIONAL,
+    if (sqlCall.getKind() == SqlKind.EXCEPT && ((SqlSetOperator) sqlCall.getOperator()).isAll()) {
+      unsupportedOperatorCollector.setException(
+          SqlUnsupportedException.ExceptionType.RELATIONAL,
           "Dremio doesn't currently support " + sqlCall.getOperator().getName() + " operations.");
       throw new UnsupportedOperationException();
     }
 
     // DRILL-1921: Disable unsupported Intersect ALL
-    if(sqlCall.getKind() == SqlKind.INTERSECT && ((SqlSetOperator)sqlCall.getOperator()).isAll()) {
-      unsupportedOperatorCollector.setException(SqlUnsupportedException.ExceptionType.RELATIONAL,
+    if (sqlCall.getKind() == SqlKind.INTERSECT
+        && ((SqlSetOperator) sqlCall.getOperator()).isAll()) {
+      unsupportedOperatorCollector.setException(
+          SqlUnsupportedException.ExceptionType.RELATIONAL,
           "Dremio doesn't currently support " + sqlCall.getOperator().getName() + " operations.");
       throw new UnsupportedOperationException();
     }
 
     // Disable unsupported JOINs
-    if(sqlCall.getKind() == SqlKind.JOIN) {
+    if (sqlCall.getKind() == SqlKind.JOIN) {
       SqlJoin join = (SqlJoin) sqlCall;
 
       // DRILL-1986: Block Natural Join
-      if(join.isNatural()) {
-        unsupportedOperatorCollector.setException(SqlUnsupportedException.ExceptionType.RELATIONAL,
+      if (join.isNatural()) {
+        unsupportedOperatorCollector.setException(
+            SqlUnsupportedException.ExceptionType.RELATIONAL,
             "Dremio doesn't currently support NATURAL JOIN.");
         throw new UnsupportedOperationException();
       }
 
       // DRILL-1921: Block Cross Join
-      if(join.getJoinType() == JoinType.CROSS && !context.getPlannerSettings().isCrossJoinEnabled()) {
-        unsupportedOperatorCollector.setException(SqlUnsupportedException.ExceptionType.RELATIONAL,
+      if (join.getJoinType() == JoinType.CROSS
+          && !context.getPlannerSettings().isCrossJoinEnabled()) {
+        unsupportedOperatorCollector.setException(
+            SqlUnsupportedException.ExceptionType.RELATIONAL,
             "Dremio doesn't currently support CROSS JOIN.");
         throw new UnsupportedOperationException();
       }
     }
 
     // DRILL-211: Disable Function
-    for(String strOperator : disabledOperators) {
-      if(sqlCall.getOperator().isName(strOperator, true)) {
-        unsupportedOperatorCollector.setException(SqlUnsupportedException.ExceptionType.FUNCTION,
+    for (String strOperator : disabledOperators) {
+      if (sqlCall.getOperator().isName(strOperator, true)) {
+        unsupportedOperatorCollector.setException(
+            SqlUnsupportedException.ExceptionType.FUNCTION,
             "Dremio doesn't currently support " + sqlCall.getOperator().getName() + ".");
         throw new UnsupportedOperationException();
       }
     }
 
     // DRILL-3944: Disable complex functions incorrect placement
-    if(sqlCall instanceof SqlSelect) {
+    if (sqlCall instanceof SqlSelect) {
       SqlSelect sqlSelect = (SqlSelect) sqlCall;
 
       for (SqlNode nodeInSelectList : sqlSelect.getSelectList()) {
         if (checkDirExplorers(nodeInSelectList)) {
-          unsupportedOperatorCollector.setException(SqlUnsupportedException.ExceptionType.FUNCTION,
-              "Directory explorers " + dirExplorers + " functions are not supported in Select List");
+          unsupportedOperatorCollector.setException(
+              SqlUnsupportedException.ExceptionType.FUNCTION,
+              "Directory explorers "
+                  + dirExplorers
+                  + " functions are not supported in Select List");
           throw new UnsupportedOperationException();
         }
       }
 
       if (sqlSelect.hasWhere()) {
-        if (checkDirExplorers(sqlSelect.getWhere()) && !context.getPlannerSettings().isConstantFoldingEnabled()) {
-          unsupportedOperatorCollector.setException(SqlUnsupportedException.ExceptionType.FUNCTION,
-              "Directory explorers " + dirExplorers + " functions can not be used " +
-                  "when " + PlannerSettings.CONSTANT_FOLDING.getOptionName() + " option is set to false");
+        if (checkDirExplorers(sqlSelect.getWhere())
+            && !context.getPlannerSettings().isConstantFoldingEnabled()) {
+          unsupportedOperatorCollector.setException(
+              SqlUnsupportedException.ExceptionType.FUNCTION,
+              "Directory explorers "
+                  + dirExplorers
+                  + " functions can not be used "
+                  + "when "
+                  + PlannerSettings.CONSTANT_FOLDING.getOptionName()
+                  + " option is set to false");
           throw new UnsupportedOperationException();
         }
       }
 
-      if(sqlSelect.hasOrderBy()) {
+      if (sqlSelect.hasOrderBy()) {
         for (SqlNode sqlNode : sqlSelect.getOrderList()) {
-          if(containsFlatten(sqlNode)) {
+          if (containsFlatten(sqlNode)) {
             // DRILL-2181
-            unsupportedOperatorCollector.setException(SqlUnsupportedException.ExceptionType.FUNCTION,
+            unsupportedOperatorCollector.setException(
+                SqlUnsupportedException.ExceptionType.FUNCTION,
                 "Dremio doesn't support using FLATTEN in the ORDER BY clause.");
             throw new UnsupportedOperationException();
           } else if (checkDirExplorers(sqlNode)) {
-            unsupportedOperatorCollector.setException(SqlUnsupportedException.ExceptionType.FUNCTION,
+            unsupportedOperatorCollector.setException(
+                SqlUnsupportedException.ExceptionType.FUNCTION,
                 "Directory explorers " + dirExplorers + " functions are not supported in Order By");
             throw new UnsupportedOperationException();
           }
         }
       }
 
-      if(sqlSelect.getGroup() != null) {
-        for(SqlNode sqlNode : sqlSelect.getGroup()) {
-          if(containsFlatten(sqlNode)) {
+      if (sqlSelect.getGroup() != null) {
+        for (SqlNode sqlNode : sqlSelect.getGroup()) {
+          if (containsFlatten(sqlNode)) {
             // DRILL-2181
-            unsupportedOperatorCollector.setException(SqlUnsupportedException.ExceptionType.FUNCTION,
+            unsupportedOperatorCollector.setException(
+                SqlUnsupportedException.ExceptionType.FUNCTION,
                 "Dremio doesn't support using FLATTEN in the GROUP BY clause.");
             throw new UnsupportedOperationException();
           } else if (checkDirExplorers(sqlNode)) {
-                unsupportedOperatorCollector.setException(SqlUnsupportedException.ExceptionType.FUNCTION,
+            unsupportedOperatorCollector.setException(
+                SqlUnsupportedException.ExceptionType.FUNCTION,
                 "Directory explorers " + dirExplorers + " functions are not supported in Group By");
             throw new UnsupportedOperationException();
           }
         }
       }
 
-      if(sqlSelect.isDistinct()) {
-        for(SqlNode column : sqlSelect.getSelectList()) {
-          if(column.getKind() ==  SqlKind.AS) {
-            if(containsFlatten(((SqlCall) column).getOperandList().get(0))) {
+      if (sqlSelect.isDistinct()) {
+        for (SqlNode column : sqlSelect.getSelectList()) {
+          if (column.getKind() == SqlKind.AS) {
+            if (containsFlatten(((SqlCall) column).getOperandList().get(0))) {
               // DRILL-2181
-              unsupportedOperatorCollector.setException(SqlUnsupportedException.ExceptionType.FUNCTION,
-                 "Dremio doesn't support using FLATTEN within DISTINCT.");
+              unsupportedOperatorCollector.setException(
+                  SqlUnsupportedException.ExceptionType.FUNCTION,
+                  "Dremio doesn't support using FLATTEN within DISTINCT.");
               throw new UnsupportedOperationException();
             }
           } else {
-            if(containsFlatten(column)) {
+            if (containsFlatten(column)) {
               // DRILL-2181
-              unsupportedOperatorCollector.setException(SqlUnsupportedException.ExceptionType.FUNCTION,
+              unsupportedOperatorCollector.setException(
+                  SqlUnsupportedException.ExceptionType.FUNCTION,
                   "Dremio doesn't support using FLATTEN within DISTINCT.");
               throw new UnsupportedOperationException();
             }
@@ -286,11 +334,12 @@ public class UnsupportedOperatorsVisitor extends SqlShuttle {
       }
     }
 
-    if(sqlCall.getOperator() instanceof SqlCountAggFunction) {
-      for(SqlNode sqlNode : sqlCall.getOperandList()) {
-        if(containsFlatten(sqlNode)) {
+    if (sqlCall.getOperator() instanceof SqlCountAggFunction) {
+      for (SqlNode sqlNode : sqlCall.getOperandList()) {
+        if (containsFlatten(sqlNode)) {
           // DRILL-2181
-          unsupportedOperatorCollector.setException(SqlUnsupportedException.ExceptionType.FUNCTION,
+          unsupportedOperatorCollector.setException(
+              SqlUnsupportedException.ExceptionType.FUNCTION,
               "Dremio doesn't support using FLATTEN within an aggregation expression.");
           throw new UnsupportedOperationException();
         }
@@ -298,11 +347,13 @@ public class UnsupportedOperatorsVisitor extends SqlShuttle {
     }
 
     // Disable EXTEND on SELECT
-    if (sqlCall instanceof SqlSelect && !context.getOptions().getOption(ExecConstants.ENABLE_EXTEND_ON_SELECT)) {
+    if (sqlCall instanceof SqlSelect
+        && !context.getOptions().getOption(ExecConstants.ENABLE_EXTEND_ON_SELECT)) {
       SqlSelect sqlSelect = (SqlSelect) sqlCall;
       if (sqlSelect.getFrom() != null && sqlSelect.getFrom().getKind() == SqlKind.EXTEND) {
-        unsupportedOperatorCollector.setException(SqlUnsupportedException.ExceptionType.FUNCTION,
-          "Dremio doesn't currently support EXTEND.");
+        unsupportedOperatorCollector.setException(
+            SqlUnsupportedException.ExceptionType.FUNCTION,
+            "Dremio doesn't currently support EXTEND.");
         throw new UnsupportedOperationException();
       }
     }
@@ -315,7 +366,7 @@ public class UnsupportedOperatorsVisitor extends SqlShuttle {
       validateOverOperators(node);
     }
     if (node instanceof SqlCall) {
-      for (SqlNode operand : ((SqlCall)node).getOperandList()) {
+      for (SqlNode operand : ((SqlCall) node).getOperandList()) {
         if (operand != null) {
           findAndValidateOverOperators(operand);
         }
@@ -325,24 +376,25 @@ public class UnsupportedOperatorsVisitor extends SqlShuttle {
 
   private void validateOverOperators(SqlNode node) {
     // Throw exceptions if window functions are disabled
-    if(!context.getOptions().getOption(ExecConstants.ENABLE_WINDOW_FUNCTIONS).getBoolVal()) {
+    if (!context.getOptions().getOption(ExecConstants.ENABLE_WINDOW_FUNCTIONS).getBoolVal()) {
       // see DRILL-2559
-      unsupportedOperatorCollector.setException(SqlUnsupportedException.ExceptionType.FUNCTION,
-        "Window functions are disabled");
+      unsupportedOperatorCollector.setException(
+          SqlUnsupportedException.ExceptionType.FUNCTION, "Window functions are disabled");
       throw new UnsupportedOperationException();
     }
 
     // DRILL-3182, DRILL-3195
     SqlCall over = (SqlCall) node;
-    if(over.getOperandList().get(0) instanceof SqlCall) {
+    if (over.getOperandList().get(0) instanceof SqlCall) {
       SqlCall function = (SqlCall) over.getOperandList().get(0);
 
       // DRILL-3182
       // Window function with DISTINCT qualifier is temporarily disabled
-      if(function.getFunctionQuantifier() != null
-        && function.getFunctionQuantifier().getValue() == SqlSelectKeyword.DISTINCT) {
-        unsupportedOperatorCollector.setException(SqlUnsupportedException.ExceptionType.FUNCTION,
-          "DISTINCT for window aggregate functions is not currently supported");
+      if (function.getFunctionQuantifier() != null
+          && function.getFunctionQuantifier().getValue() == SqlSelectKeyword.DISTINCT) {
+        unsupportedOperatorCollector.setException(
+            SqlUnsupportedException.ExceptionType.FUNCTION,
+            "DISTINCT for window aggregate functions is not currently supported");
         throw new UnsupportedOperationException();
       }
 
@@ -358,13 +410,16 @@ public class UnsupportedOperatorsVisitor extends SqlShuttle {
           if (!(operand instanceof SqlNumericLiteral)) {
             // we only support offset as a numeric literal
             supported = false;
-          }else if(SqlLiteral.unchain(operand).getValueAs(Integer.class) <= 0){
+          } else if (SqlLiteral.unchain(operand).getValueAs(Integer.class) <= 0) {
             supported = false;
           }
         }
         if (!supported) {
-          unsupportedOperatorCollector.setException(SqlUnsupportedException.ExceptionType.FUNCTION,
-            "Function " + functionName + " only supports (<value expression>) or (<value expression>, offset) where 'offset' > 0");
+          unsupportedOperatorCollector.setException(
+              SqlUnsupportedException.ExceptionType.FUNCTION,
+              "Function "
+                  + functionName
+                  + " only supports (<value expression>) or (<value expression>, offset) where 'offset' > 0");
           throw new UnsupportedOperationException();
         }
       }
@@ -376,8 +431,8 @@ public class UnsupportedOperatorsVisitor extends SqlShuttle {
     sqlSelect.accept(groupingFinder);
     if (groupingFinder.find()) {
       // DRILL-3962
-      unsupportedOperatorCollector.setException(SqlUnsupportedException.ExceptionType.FUNCTION,
-          "Group_ID is not supported.");
+      unsupportedOperatorCollector.setException(
+          SqlUnsupportedException.ExceptionType.FUNCTION, "Group_ID is not supported.");
       throw new UnsupportedOperationException();
     }
   }
@@ -388,22 +443,20 @@ public class UnsupportedOperatorsVisitor extends SqlShuttle {
     return dirExplorersFinder.find();
   }
 
-  /**
-  /**
-   * A condition that returns true if SqlNode has GROUP_ID.
-   */
-    private final SqlNodeCondition GroupID = new SqlNodeCondition() {
-    @Override
-    public boolean test(SqlNode sqlNode) {
-      if (sqlNode instanceof SqlCall) {
-        final SqlOperator operator = ((SqlCall) sqlNode).getOperator();
-          if (operator == SqlStdOperatorTable.GROUP_ID) {
-          return true;
+  /** /** A condition that returns true if SqlNode has GROUP_ID. */
+  private final SqlNodeCondition GroupID =
+      new SqlNodeCondition() {
+        @Override
+        public boolean test(SqlNode sqlNode) {
+          if (sqlNode instanceof SqlCall) {
+            final SqlOperator operator = ((SqlCall) sqlNode).getOperator();
+            if (operator == SqlStdOperatorTable.GROUP_ID) {
+              return true;
+            }
+          }
+          return false;
         }
-      }
-      return false;
-    }
-  };
+      };
 
   private final SqlNodeCondition DIR_EXPLORERS_CONDITION = new FindFunCondition(dirExplorers);
 
@@ -415,4 +468,48 @@ public class UnsupportedOperatorsVisitor extends SqlShuttle {
     return dirExplorersFinder.find();
   }
 
+  private int getOffsetForBound(SqlNode bound, boolean isPreceding) {
+    if (SqlWindow.isUnboundedPreceding(bound)) {
+      return 0;
+    }
+    if (SqlWindow.isUnboundedFollowing(bound)) {
+      return 0;
+    }
+    if (bound instanceof SqlBasicCall) {
+      SqlBasicCall basicCall = (SqlBasicCall) bound;
+      if (0 < basicCall.getOperands().length) {
+        final SqlNode operand = basicCall.getOperands()[0];
+        if (operand instanceof SqlNumericLiteral) {
+          int value = ((SqlNumericLiteral) operand).intValue(false);
+          return isPreceding ? value * -1 : value;
+        }
+      }
+    }
+    return 0;
+  }
+
+  private void validateOffsets(SqlNode lowerBound, SqlNode upperBound) {
+    int boundThreshold =
+        (int) context.getOptions().getOption(ExecConstants.WINDOW_FRAME_MAX_BOUND_THRESHOLD);
+    boolean isLowerPreceding = lowerBound.getKind() == SqlKind.PRECEDING;
+    boolean isUpperPreceding = upperBound.getKind() == SqlKind.PRECEDING;
+    final int lowerOffset = getOffsetForBound(lowerBound, isLowerPreceding);
+    final int upperOffset = getOffsetForBound(upperBound, isUpperPreceding);
+
+    if (!SqlWindow.isUnboundedPreceding(lowerBound)
+        && !SqlWindow.isUnboundedFollowing(upperBound)) {
+      if (lowerOffset > upperOffset) {
+        unsupportedOperatorCollector.setException(
+            SqlUnsupportedException.ExceptionType.FUNCTION,
+            "Lower bound offset cannot be greater than upper bound offset");
+        throw new UnsupportedOperationException();
+      }
+    }
+    if (upperOffset - lowerOffset > boundThreshold) {
+      unsupportedOperatorCollector.setException(
+          SqlUnsupportedException.ExceptionType.FUNCTION,
+          "Window frame size cannot be greater than " + boundThreshold);
+      throw new UnsupportedOperationException();
+    }
+  }
 }

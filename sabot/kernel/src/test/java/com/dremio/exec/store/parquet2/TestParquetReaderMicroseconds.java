@@ -17,24 +17,22 @@ package com.dremio.exec.store.parquet2;
 
 import static com.dremio.exec.ExecConstants.PARQUET_READER_VECTORIZE;
 
-import java.nio.file.Paths;
-import java.util.List;
-import java.util.Map;
-
-import org.joda.time.format.DateTimeFormatter;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.common.util.JodaDateUtility;
 import com.dremio.common.util.TestTools;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import java.nio.file.Paths;
+import java.util.List;
+import java.util.Map;
+import org.joda.time.format.DateTimeFormatter;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
 /**
- * Test reading TIMESTAMP and TIME MICROSECOND fields in parquet
- * using the Rowwise reader. This test uses a file with mixed datatypes.
+ * Test reading TIMESTAMP and TIME MICROSECOND fields in parquet using the Rowwise reader. This test
+ * uses a file with mixed datatypes.
  */
 public class TestParquetReaderMicroseconds extends BaseTestQuery {
   private static final String WORKING_PATH = TestTools.getWorkingPath();
@@ -49,7 +47,6 @@ public class TestParquetReaderMicroseconds extends BaseTestQuery {
     resetSystemOption(PARQUET_READER_VECTORIZE.getOptionName());
   }
 
-
   @Test
   public void testRowwiseMicroseconds() throws Exception {
     /*
@@ -57,54 +54,74 @@ public class TestParquetReaderMicroseconds extends BaseTestQuery {
      * Rowise is used for files using RLE dictionary encoding.
      */
 
-    final String parquetFiles = TestParquetUtil.setupParquetFiles("testRowiseMicroseconds", "rowise_microseconds", "rowise_micros.parquet", WORKING_PATH);
+    final String parquetFiles =
+        TestParquetUtil.setupParquetFiles(
+            "testRowiseMicroseconds", "rowise_microseconds", "rowise_micros.parquet", WORKING_PATH);
     try {
 
       DateTimeFormatter JODA_MILLIS_FORMATTER = JodaDateUtility.formatTimeStampMilli;
       {
         final String colName = "colDTMicro";
         final ImmutableList.Builder<Map<String, Object>> recordBuilder = ImmutableList.builder();
-        recordBuilder.add(ImmutableMap.of("`" + colName + "`", JODA_MILLIS_FORMATTER.parseLocalDateTime("2023-01-23 12:13:14.567")));
-        recordBuilder.add(ImmutableMap.of("`" + colName + "`", JODA_MILLIS_FORMATTER.parseLocalDateTime("2023-01-23 12:13:14.667")));
+        recordBuilder.add(
+            ImmutableMap.of(
+                "`" + colName + "`",
+                JODA_MILLIS_FORMATTER.parseLocalDateTime("2023-01-23 12:13:14.567")));
+        recordBuilder.add(
+            ImmutableMap.of(
+                "`" + colName + "`",
+                JODA_MILLIS_FORMATTER.parseLocalDateTime("2023-01-23 12:13:14.667")));
         final List<Map<String, Object>> baseLineRecords = recordBuilder.build();
 
         testBuilder()
-          .sqlQuery("SELECT " + colName + " FROM dfs.\"" + parquetFiles + "\"")
-          .unOrdered()
-          .baselineColumns(colName)
-          .baselineRecords(baseLineRecords)
-          .build()
-          .run();
+            .sqlQuery("SELECT " + colName + " FROM dfs.\"" + parquetFiles + "\"")
+            .unOrdered()
+            .baselineColumns(colName)
+            .baselineRecords(baseLineRecords)
+            .build()
+            .run();
       }
       {
         final String colName = "colTMicro32";
         final ImmutableList.Builder<Map<String, Object>> recordBuilder = ImmutableList.builder();
-        recordBuilder.add(ImmutableMap.of("`" + colName + "`", JODA_MILLIS_FORMATTER.parseLocalDateTime("1970-01-01 12:13:14.123")));
-        recordBuilder.add(ImmutableMap.of("`" + colName + "`", JODA_MILLIS_FORMATTER.parseLocalDateTime("1970-01-01 12:13:14.843")));
+        recordBuilder.add(
+            ImmutableMap.of(
+                "`" + colName + "`",
+                JODA_MILLIS_FORMATTER.parseLocalDateTime("1970-01-01 12:13:14.123")));
+        recordBuilder.add(
+            ImmutableMap.of(
+                "`" + colName + "`",
+                JODA_MILLIS_FORMATTER.parseLocalDateTime("1970-01-01 12:13:14.843")));
         final List<Map<String, Object>> baseLineRecords = recordBuilder.build();
 
         testBuilder()
-          .sqlQuery("SELECT " + colName + " FROM dfs.\"" + parquetFiles + "\"")
-          .unOrdered()
-          .baselineColumns(colName)
-          .baselineRecords(baseLineRecords)
-          .build()
-          .run();
+            .sqlQuery("SELECT " + colName + " FROM dfs.\"" + parquetFiles + "\"")
+            .unOrdered()
+            .baselineColumns(colName)
+            .baselineRecords(baseLineRecords)
+            .build()
+            .run();
       }
       {
         final String colName = "colTMicro";
         final ImmutableList.Builder<Map<String, Object>> recordBuilder = ImmutableList.builder();
-        recordBuilder.add(ImmutableMap.of("`" + colName + "`", JODA_MILLIS_FORMATTER.parseLocalDateTime("1970-01-01 12:13:14.123")));
-        recordBuilder.add(ImmutableMap.of("`" + colName + "`", JODA_MILLIS_FORMATTER.parseLocalDateTime("1970-01-01 12:13:14.843")));
+        recordBuilder.add(
+            ImmutableMap.of(
+                "`" + colName + "`",
+                JODA_MILLIS_FORMATTER.parseLocalDateTime("1970-01-01 12:13:14.123")));
+        recordBuilder.add(
+            ImmutableMap.of(
+                "`" + colName + "`",
+                JODA_MILLIS_FORMATTER.parseLocalDateTime("1970-01-01 12:13:14.843")));
         final List<Map<String, Object>> baseLineRecords = recordBuilder.build();
 
         testBuilder()
-          .sqlQuery("SELECT " + colName + " FROM dfs.\"" + parquetFiles + "\"")
-          .unOrdered()
-          .baselineColumns(colName)
-          .baselineRecords(baseLineRecords)
-          .build()
-          .run();
+            .sqlQuery("SELECT " + colName + " FROM dfs.\"" + parquetFiles + "\"")
+            .unOrdered()
+            .baselineColumns(colName)
+            .baselineRecords(baseLineRecords)
+            .build()
+            .run();
       }
     } finally {
       TestParquetUtil.delete(Paths.get(parquetFiles));

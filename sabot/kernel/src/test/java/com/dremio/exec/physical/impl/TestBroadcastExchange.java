@@ -17,11 +17,6 @@ package com.dremio.exec.physical.impl;
 
 import static org.junit.Assert.assertEquals;
 
-import java.util.List;
-
-import org.junit.Ignore;
-import org.junit.Test;
-
 import com.dremio.common.util.FileUtils;
 import com.dremio.exec.client.DremioClient;
 import com.dremio.exec.pop.PopUnitTestBase;
@@ -30,6 +25,9 @@ import com.dremio.exec.server.SabotNode;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.local.LocalClusterCoordinator;
+import java.util.List;
+import org.junit.Ignore;
+import org.junit.Test;
 
 public class TestBroadcastExchange extends PopUnitTestBase {
 
@@ -37,17 +35,28 @@ public class TestBroadcastExchange extends PopUnitTestBase {
   @Test
   public void TestSingleBroadcastExchangeWithTwoScans() throws Exception {
     try (ClusterCoordinator clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
-         SabotNode bit1 = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, true);
-         SabotNode bit2 = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, false);
-         DremioClient client = new DremioClient(DEFAULT_SABOT_CONFIG, clusterCoordinator)) {
+        SabotNode bit1 =
+            new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, true);
+        SabotNode bit2 =
+            new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, false);
+        DremioClient client = new DremioClient(DEFAULT_SABOT_CONFIG, clusterCoordinator)) {
 
       bit1.run();
       bit2.run();
       client.connect();
 
-      String physicalPlan = readResourceAsString("/sender/broadcast_exchange.json")
-              .replace("#{LEFT_FILE}", FileUtils.getResourceAsFile("/join/merge_single_batch.left.json").toURI().toString())
-              .replace("#{RIGHT_FILE}", FileUtils.getResourceAsFile("/join/merge_single_batch.right.json").toURI().toString());
+      String physicalPlan =
+          readResourceAsString("/sender/broadcast_exchange.json")
+              .replace(
+                  "#{LEFT_FILE}",
+                  FileUtils.getResourceAsFile("/join/merge_single_batch.left.json")
+                      .toURI()
+                      .toString())
+              .replace(
+                  "#{RIGHT_FILE}",
+                  FileUtils.getResourceAsFile("/join/merge_single_batch.right.json")
+                      .toURI()
+                      .toString());
       List<QueryDataBatch> results = client.runQuery(QueryType.PHYSICAL, physicalPlan);
       int count = 0;
       for (QueryDataBatch b : results) {
@@ -64,9 +73,11 @@ public class TestBroadcastExchange extends PopUnitTestBase {
   @Test
   public void multipleSendLocationBroadcastExchange() throws Exception {
     try (ClusterCoordinator clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
-         SabotNode bit1 = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, true);
-         SabotNode bit2 = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, false);
-         DremioClient client = new DremioClient(DEFAULT_SABOT_CONFIG, clusterCoordinator)) {
+        SabotNode bit1 =
+            new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, true);
+        SabotNode bit2 =
+            new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, false);
+        DremioClient client = new DremioClient(DEFAULT_SABOT_CONFIG, clusterCoordinator)) {
 
       bit1.run();
       bit2.run();
@@ -84,5 +95,4 @@ public class TestBroadcastExchange extends PopUnitTestBase {
       System.out.println(count);
     }
   }
-
 }

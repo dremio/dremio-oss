@@ -19,11 +19,10 @@ import static com.dremio.plugins.elastic.ElasticsearchType.INTEGER;
 import static com.dremio.plugins.elastic.ElasticsearchType.OBJECT;
 import static com.dremio.plugins.elastic.ElasticsearchType.TEXT;
 
-import org.junit.Before;
-import org.junit.Test;
-
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.google.common.collect.ImmutableMap;
+import org.junit.Before;
+import org.junit.Test;
 
 public class ITTestEmptyObjectColumn extends ElasticBaseTestQuery {
 
@@ -31,12 +30,14 @@ public class ITTestEmptyObjectColumn extends ElasticBaseTestQuery {
 
   @Before
   public void setup() throws Exception {
-    ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
-      new ElasticsearchCluster.ColumnData("state", TEXT, ImmutableMap.of("index", "false"), null),
-      new ElasticsearchCluster.ColumnData("state_analyzed", TEXT, null),
-      new ElasticsearchCluster.ColumnData("nullint", INTEGER, null),
-      new ElasticsearchCluster.ColumnData("emptyStruct", OBJECT, null),
-    };
+    ElasticsearchCluster.ColumnData[] data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "state", TEXT, ImmutableMap.of("index", "false"), null),
+          new ElasticsearchCluster.ColumnData("state_analyzed", TEXT, null),
+          new ElasticsearchCluster.ColumnData("nullint", INTEGER, null),
+          new ElasticsearchCluster.ColumnData("emptyStruct", OBJECT, null),
+        };
     elastic.load(schema, table, data);
     elastic.dataFromFile(schema, table, NULL_COLUMN_FILE);
   }
@@ -44,7 +45,7 @@ public class ITTestEmptyObjectColumn extends ElasticBaseTestQuery {
   @Test
   public void testSelectEmptyStructColumn() throws Exception {
     final String query = "select emptyStruct from elasticsearch." + schema + "." + table;
-    errorMsgWithTypeTestHelper(query, ErrorType.VALIDATION, "Column 'emptyStruct' not found in any table");
+    errorMsgWithTypeTestHelper(
+        query, ErrorType.VALIDATION, "Column 'emptyStruct' not found in any table");
   }
-
 }

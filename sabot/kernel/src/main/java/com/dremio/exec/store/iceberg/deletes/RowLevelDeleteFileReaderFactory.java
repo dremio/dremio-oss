@@ -15,19 +15,23 @@
  */
 package com.dremio.exec.store.iceberg.deletes;
 
-import java.util.List;
-
 import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
+import java.util.List;
 
 /**
  * A storage format agnostic factory interface for creating {@link PositionalDeleteFileReader} and
  * {@link EqualityDeleteFileReader} instances.
  */
 public interface RowLevelDeleteFileReaderFactory {
-  PositionalDeleteFileReader createPositionalDeleteFileReader(OperatorContext context, Path deleteFilePath,
-      List<String> dataFilePaths);
-  EqualityDeleteFileReader createEqualityDeleteFileReader(OperatorContext context, Path deleteFilePath,
-      long recordCount, List<Integer> equalityIds, List<IcebergProtobuf.IcebergSchemaField> icebergColumnIds);
+  PositionalDeleteFileReader createPositionalDeleteFileReader(
+      OperatorContext context, Path deleteFilePath, List<String> dataFilePaths);
+
+  EqualityDeleteFileReader createEqualityDeleteFileReader(
+      OperatorContext context,
+      Path deleteFilePath,
+      long recordCount,
+      List<Integer> equalityIds,
+      List<IcebergProtobuf.IcebergSchemaField> icebergColumnIds);
 }

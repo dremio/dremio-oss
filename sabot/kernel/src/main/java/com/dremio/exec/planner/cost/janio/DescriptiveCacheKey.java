@@ -16,8 +16,8 @@
 package com.dremio.exec.planner.cost.janio;
 
 /**
- * An object used as a caching key with descriptive to string.  Note the key
- * uses reference equality for performance.
+ * An object used as a caching key with descriptive to string. Note the key uses reference equality
+ * for performance.
  */
 public final class DescriptiveCacheKey {
 
@@ -27,7 +27,8 @@ public final class DescriptiveCacheKey {
     this.description = description;
   }
 
-  @Override public String toString() {
+  @Override
+  public String toString() {
     return description;
   }
 }

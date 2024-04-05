@@ -15,14 +15,11 @@
  */
 package com.dremio.sabot.op.filter;
 
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.selection.SelectionVector2;
+import org.apache.arrow.memory.BufferAllocator;
 
-/**
- * VectorContainers with sv2 (filters).
- */
+/** VectorContainers with sv2 (filters). */
 public class VectorContainerWithSV extends VectorContainer {
   private final SelectionVector2 sv2;
 
@@ -41,5 +38,4 @@ public class VectorContainerWithSV extends VectorContainer {
     sv2.clear();
     super.close();
   }
-
 }

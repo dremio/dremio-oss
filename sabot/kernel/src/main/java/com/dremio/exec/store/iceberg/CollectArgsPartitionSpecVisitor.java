@@ -18,20 +18,19 @@ package com.dremio.exec.store.iceberg;
 import org.apache.iceberg.transforms.PartitionSpecVisitor;
 
 /**
- * Collects the bucketCount or truncateLength from Bucket and Truncate transforms
- * It will throw UnsupportedOperationException if called on a field with any other transform
+ * Collects the bucketCount or truncateLength from Bucket and Truncate transforms It will throw
+ * UnsupportedOperationException if called on a field with any other transform
  */
 public final class CollectArgsPartitionSpecVisitor implements PartitionSpecVisitor<Integer> {
-  CollectArgsPartitionSpecVisitor() {
-  }
+  CollectArgsPartitionSpecVisitor() {}
 
   @Override
-  public Integer truncate(final String sourceName,final int sourceId,final int width) {
+  public Integer truncate(final String sourceName, final int sourceId, final int width) {
     return width;
   }
 
   @Override
-  public Integer bucket(final String sourceName,final int sourceId,final int numBuckets) {
+  public Integer bucket(final String sourceName, final int sourceId, final int numBuckets) {
     return numBuckets;
   }
 }

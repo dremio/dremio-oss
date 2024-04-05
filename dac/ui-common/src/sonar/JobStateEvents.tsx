@@ -14,19 +14,19 @@
  * limitations under the License.
  */
 
-type JobDetails = Record<string, any>;
+type JobSummary = Record<string, any>;
 
 const createJobStateEvents = () => {
   const subscribers = new Map<string, Set<Function>>();
 
-  const notifySubscribers = (id: string, jobDetails: JobDetails) => {
+  const notifySubscribers = (id: string, jobSummary: JobSummary) => {
     const currentSubscribers = subscribers.get(id);
     const wildcardSubscribers = subscribers.get("*");
     if (currentSubscribers) {
-      currentSubscribers.forEach((cb) => cb(jobDetails));
+      currentSubscribers.forEach((cb) => cb(jobSummary));
     }
     if (wildcardSubscribers) {
-      wildcardSubscribers.forEach((cb) => cb(jobDetails));
+      wildcardSubscribers.forEach((cb) => cb(jobSummary));
     }
   };
 
@@ -39,7 +39,7 @@ const createJobStateEvents = () => {
   };
 
   return {
-    onJobStateChange: (id: string, cb: (jobDetails: JobDetails) => any) => {
+    onJobStateChange: (id: string, cb: (jobSummary: JobSummary) => any) => {
       if (!subscribers.has(id)) {
         subscribers.set(id, new Set());
       }
@@ -50,8 +50,8 @@ const createJobStateEvents = () => {
         cleanUpSubscriber(id, cb);
       };
     },
-    updateJobState: (id: string, jobDetails: JobDetails): void => {
-      notifySubscribers(id, jobDetails);
+    updateJobState: (id: string, jobSummary: JobSummary): void => {
+      notifySubscribers(id, jobSummary);
     },
   };
 };

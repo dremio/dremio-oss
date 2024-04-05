@@ -15,19 +15,15 @@
  */
 package com.dremio.dac.model.common;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
-/**
- * A resource path
- * `/name1/{value1}/name2/{value2}/...
- */
+/** A resource path `/name1/{value1}/name2/{value2}/... */
 public abstract class ResourcePath {
 
   private static final Joiner joiner = Joiner.on("/").useForNull("");
@@ -61,16 +57,30 @@ public abstract class ResourcePath {
   protected static List<String> parse(String path, String... pathNames) {
     List<String> pathElements = toPath(path);
     if (pathElements.size() != pathNames.length * 2) {
-      throw new IllegalArgumentException("the sizes don't match : " + path + " and " + Arrays.toString(pathNames) + " => " + pathElements);
+      throw new IllegalArgumentException(
+          "the sizes don't match : "
+              + path
+              + " and "
+              + Arrays.toString(pathNames)
+              + " => "
+              + pathElements);
     }
     List<String> values = new ArrayList<>();
     for (int i = 0; i < pathNames.length; i++) {
       String pathName = pathNames[i];
-      int j = i*2;
+      int j = i * 2;
       String key = pathElements.get(j);
       String value = pathElements.get(j + 1);
       if (!pathName.equals(key)) {
-        throw new IllegalArgumentException("the value in " + i + " th in " + path + " position should be " + pathName + " found " + key);
+        throw new IllegalArgumentException(
+            "the value in "
+                + i
+                + " th in "
+                + path
+                + " position should be "
+                + pathName
+                + " found "
+                + key);
       }
       values.add(value);
     }
@@ -88,7 +98,7 @@ public abstract class ResourcePath {
   @Override
   public boolean equals(Object obj) {
     if (obj instanceof ResourcePath) {
-      return asPath().equals(((ResourcePath)obj).asPath());
+      return asPath().equals(((ResourcePath) obj).asPath());
     } else {
       return false;
     }

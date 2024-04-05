@@ -17,6 +17,9 @@ package com.dremio.exec.planner.common;
 
 import static com.dremio.exec.planner.OptimizeOutputSchema.getRelDataType;
 
+import com.dremio.exec.planner.logical.CreateTableEntry;
+import com.dremio.exec.planner.sql.handlers.query.OptimizeOptions;
+import com.google.common.base.Preconditions;
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
@@ -26,13 +29,7 @@ import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.SingleRel;
 import org.apache.calcite.rel.type.RelDataType;
 
-import com.dremio.exec.planner.logical.CreateTableEntry;
-import com.dremio.exec.planner.sql.handlers.query.OptimizeOptions;
-import com.google.common.base.Preconditions;
-
-/**
- * Base class for 'OPTIMIZE TABLE'
- */
+/** Base class for 'OPTIMIZE TABLE' */
 public abstract class TableOptimizeRelBase extends SingleRel {
   private final RelOptTable table;
 
@@ -40,18 +37,20 @@ public abstract class TableOptimizeRelBase extends SingleRel {
 
   private final OptimizeOptions optimizeOptions;
 
-  protected TableOptimizeRelBase(Convention convention,
-                                 RelOptCluster cluster,
-                                 RelTraitSet traitSet,
-                                 RelNode input,
-                                 RelOptTable table,
-                                 CreateTableEntry createTableEntry,
-                                 OptimizeOptions optimizeOptions) {
+  protected TableOptimizeRelBase(
+      Convention convention,
+      RelOptCluster cluster,
+      RelTraitSet traitSet,
+      RelNode input,
+      RelOptTable table,
+      CreateTableEntry createTableEntry,
+      OptimizeOptions optimizeOptions) {
     super(cluster, traitSet, input);
     assert getConvention() == convention;
     this.createTableEntry = createTableEntry;
     this.table = table;
-    this.optimizeOptions = Preconditions.checkNotNull(optimizeOptions, "Optimize options can't be null!");
+    this.optimizeOptions =
+        Preconditions.checkNotNull(optimizeOptions, "Optimize options can't be null!");
   }
 
   @Override

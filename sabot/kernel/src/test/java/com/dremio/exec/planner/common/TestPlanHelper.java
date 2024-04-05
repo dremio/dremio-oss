@@ -19,25 +19,25 @@ package com.dremio.exec.planner.common;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
+import com.dremio.common.SuppressForbidden;
+import com.dremio.exec.planner.StatelessRelShuttleImpl;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.TableScan;
 
-import com.dremio.common.SuppressForbidden;
-import com.dremio.exec.planner.StatelessRelShuttleImpl;
-
 public class TestPlanHelper {
-  public static <TPlan extends RelNode, TClass> TClass findSingleNode(TPlan plan, Class<TClass> clazz, Map<String, String> attributes) {
+  public static <TPlan extends RelNode, TClass> TClass findSingleNode(
+      TPlan plan, Class<TClass> clazz, Map<String, String> attributes) {
     return findFirstNode(plan, clazz, attributes, true);
   }
 
-  public static <TPlan extends RelNode, TClass> TClass findFirstNode(TPlan plan, Class<TClass> clazz, Map<String, String> attributes, boolean isSingle) {
-    TargetNodeDescriptor descriptor =  new TargetNodeDescriptor(clazz, attributes);
-    List<TClass> nodes= NodeFinder.find(plan, descriptor);
+  public static <TPlan extends RelNode, TClass> TClass findFirstNode(
+      TPlan plan, Class<TClass> clazz, Map<String, String> attributes, boolean isSingle) {
+    TargetNodeDescriptor descriptor = new TargetNodeDescriptor(clazz, attributes);
+    List<TClass> nodes = NodeFinder.find(plan, descriptor);
     assertThat(nodes).isNotNull();
     if (isSingle) {
       assertThat(nodes.size()).as("1 node is expected").isEqualTo(1);
@@ -49,9 +49,10 @@ public class TestPlanHelper {
     return node;
   }
 
-  public static <TPlan extends RelNode, TClass> List<TClass> findNodes(TPlan plan, Class<TClass> clazz, Map<String, String> attributes) {
-    TargetNodeDescriptor descriptor =  new TargetNodeDescriptor(clazz, attributes);
-    List<TClass> nodes= NodeFinder.find(plan, descriptor);
+  public static <TPlan extends RelNode, TClass> List<TClass> findNodes(
+      TPlan plan, Class<TClass> clazz, Map<String, String> attributes) {
+    TargetNodeDescriptor descriptor = new TargetNodeDescriptor(clazz, attributes);
+    List<TClass> nodes = NodeFinder.find(plan, descriptor);
     assertThat(nodes).isNotNull();
     assertThat(nodes.size() > 1).as("Multiple nodes are expected").isTrue();
 
@@ -72,7 +73,8 @@ public class TestPlanHelper {
   public static class NodeFinder<T extends RelNode> extends StatelessRelShuttleImpl {
     private final List<T> collectedNodes = new ArrayList<>();
     private final TargetNodeDescriptor targetNodeDescriptor;
-    public static<T> List<T> find(RelNode input, TargetNodeDescriptor targetNodeDescriptor) {
+
+    public static <T> List<T> find(RelNode input, TargetNodeDescriptor targetNodeDescriptor) {
       NodeFinder finder = new NodeFinder(targetNodeDescriptor);
       finder.visit(input);
       return finder.collect();
@@ -86,13 +88,12 @@ public class TestPlanHelper {
       return collectedNodes;
     }
 
-    private static Field getField(Class clazz, String fieldName)
-      throws NoSuchFieldException {
+    private static Field getField(Class clazz, String fieldName) throws NoSuchFieldException {
       try {
         return clazz.getDeclaredField(fieldName);
       } catch (NoSuchFieldException e) {
         Class superClass = clazz.getSuperclass();
-        if (superClass==null) {
+        if (superClass == null) {
           throw e;
         } else {
           return getField(superClass, fieldName);
@@ -133,8 +134,9 @@ public class TestPlanHelper {
     }
 
     private RelNode visitNode(RelNode node) {
-      if (targetNodeDescriptor.clazz.isAssignableFrom(node.getClass())  && matchAttributes((T)node)) {
-        collectedNodes.add((T)node);
+      if (targetNodeDescriptor.clazz.isAssignableFrom(node.getClass())
+          && matchAttributes((T) node)) {
+        collectedNodes.add((T) node);
       }
       return super.visit(node);
     }

@@ -18,12 +18,17 @@ package com.dremio.services.nessie.grpc;
 import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_INVALID_SUBTYPE;
 import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.grpc.Metadata;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
+import io.grpc.stub.StreamObserver;
 import java.io.IOException;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.util.Optional;
 import java.util.ServiceLoader;
 import java.util.concurrent.Callable;
-
 import org.projectnessie.error.ErrorCode;
 import org.projectnessie.error.ErrorCodeAware;
 import org.projectnessie.error.ImmutableNessieError;
@@ -41,18 +46,11 @@ import org.projectnessie.error.NessieReferenceAlreadyExistsException;
 import org.projectnessie.error.NessieReferenceConflictException;
 import org.projectnessie.error.NessieReferenceNotFoundException;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-import io.grpc.Metadata;
-import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
-import io.grpc.stub.StreamObserver;
-
 /** Maps gRPC exceptions to Nessie-specific exceptions and the other way around. */
 public final class GrpcExceptionMapper {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(GrpcExceptionMapper.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(GrpcExceptionMapper.class);
 
   /**
    * Object mapper that ignores unknown properties and unknown subtypes, so it is able to process
@@ -61,15 +59,14 @@ public final class GrpcExceptionMapper {
    * of the latter.
    */
   private static final ObjectMapper MAPPER =
-    new ObjectMapper().disable(FAIL_ON_UNKNOWN_PROPERTIES).disable(FAIL_ON_INVALID_SUBTYPE);
+      new ObjectMapper().disable(FAIL_ON_UNKNOWN_PROPERTIES).disable(FAIL_ON_INVALID_SUBTYPE);
 
-  private static final Metadata.Key<byte[]> NESSIE_ERROR_KEY = Metadata.Key.of("nessie-error-bin",
-    Metadata.BINARY_BYTE_MARSHALLER);
+  private static final Metadata.Key<byte[]> NESSIE_ERROR_KEY =
+      Metadata.Key.of("nessie-error-bin", Metadata.BINARY_BYTE_MARSHALLER);
 
   private static final ServerExceptionMapper SERVER_EXCEPTION_MAPPER = loadServerMapper();
 
-  private GrpcExceptionMapper() {
-  }
+  private GrpcExceptionMapper() {}
 
   /**
    * Takes the given Exception and converts it to a {@link StatusRuntimeException} with a specific
@@ -125,22 +122,23 @@ public final class GrpcExceptionMapper {
     }
   }
 
-  public static StatusRuntimeException statusRuntimeExForBadRequest(String message, Exception cause) {
+  public static StatusRuntimeException statusRuntimeExForBadRequest(
+      String message, Exception cause) {
     Status status = Status.INVALID_ARGUMENT;
 
-    Metadata trailers = toProto(ImmutableNessieError.builder()
-      .status(ErrorCode.BAD_REQUEST.httpStatus())
-      .reason("Bad Request")
-      .message(message)
-      .errorCode(ErrorCode.BAD_REQUEST)
-      .build());
+    Metadata trailers =
+        toProto(
+            ImmutableNessieError.builder()
+                .status(ErrorCode.BAD_REQUEST.httpStatus())
+                .reason("Bad Request")
+                .message(message)
+                .errorCode(ErrorCode.BAD_REQUEST)
+                .build());
 
-    return status.withDescription(message)
-      .withCause(cause)
-      .asRuntimeException(trailers);
+    return status.withDescription(message).withCause(cause).asRuntimeException(trailers);
   }
 
-  private static StatusRuntimeException statusRuntimeExFromNessieEx(ErrorCodeAware error) {
+  public static StatusRuntimeException statusRuntimeExFromNessieEx(ErrorCodeAware error) {
     Throwable ex = (Throwable) error;
     ErrorCode errorCode = error.getErrorCode();
     NessieErrorDetails errorDetails = error.getErrorDetails();
@@ -156,18 +154,22 @@ public final class GrpcExceptionMapper {
       status = Status.INVALID_ARGUMENT;
     }
 
-    Metadata trailers = toProto(ImmutableNessieError.builder()
-      .status(errorCode.httpStatus())
-      .reason(errorCode.name())
-      .message(ex.getMessage())
-      .errorCode(errorCode)
-      .errorDetails(errorDetails)
-      .build());
+    Metadata trailers =
+        toProto(
+            ImmutableNessieError.builder()
+                .status(errorCode.httpStatus())
+                .reason(errorCode.name())
+                .message(ex.getMessage())
+                .errorCode(errorCode)
+                .errorDetails(errorDetails)
+                .build());
 
-    return status.withDescription(errorCode.name())
-      .augmentDescription(ex.getMessage()) // keep old exception data for compatibility with old clients
-      .withCause(ex)
-      .asRuntimeException(trailers);
+    return status
+        .withDescription(errorCode.name())
+        .augmentDescription(
+            ex.getMessage()) // keep old exception data for compatibility with old clients
+        .withCause(ex)
+        .asRuntimeException(trailers);
   }
 
   /**
@@ -273,7 +275,7 @@ public final class GrpcExceptionMapper {
   }
 
   private static <E1 extends Exception, E2 extends Exception> void throwDeclaredException(
-    StatusRuntimeException e, Class<E1> scope1, Class<E2> scope2) throws E1, E2 {
+      StatusRuntimeException e, Class<E1> scope1, Class<E2> scope2) throws E1, E2 {
 
     Exception ex = toNessieException(e);
 
@@ -289,8 +291,17 @@ public final class GrpcExceptionMapper {
       throw (RuntimeException) ex;
     }
 
-    throw new UndeclaredThrowableException(ex, "Undeclared exception: " + ex.getClass().getName() + ":" + ex +
-      " (allowed types: " + scope1.getName() + ", " + scope2.getName() + ")");
+    throw new UndeclaredThrowableException(
+        ex,
+        "Undeclared exception: "
+            + ex.getClass().getName()
+            + ":"
+            + ex
+            + " (allowed types: "
+            + scope1.getName()
+            + ", "
+            + scope2.getName()
+            + ")");
   }
 
   private static Exception toNessieException(StatusRuntimeException e) {
@@ -316,9 +327,7 @@ public final class GrpcExceptionMapper {
         }
 
         String message = msg.substring(i + 1);
-        nessieError.errorCode(errorCode)
-          .reason(errorCode.name())
-          .message(message);
+        nessieError.errorCode(errorCode).reason(errorCode.name()).message(message);
 
         switch (e.getStatus().getCode()) {
           case NOT_FOUND:
@@ -353,15 +362,19 @@ public final class GrpcExceptionMapper {
           case NAMESPACE_NOT_FOUND:
             return new NessieNamespaceNotFoundException(nessieError.build());
           case UNKNOWN:
-            // Generic exceptions without an error code. These exceptions are never thrown by modern Nessie Servers,
-            // but are handled here for the sake of completeness and compatibility with older servers.
+            // Generic exceptions without an error code. These exceptions are never thrown by modern
+            // Nessie Servers,
+            // but are handled here for the sake of completeness and compatibility with older
+            // servers.
             switch (e.getStatus().getCode()) {
               case NOT_FOUND:
               case ALREADY_EXISTS:
               case INVALID_ARGUMENT:
-                return new NessieBadRequestException(nessieError.errorCode(ErrorCode.BAD_REQUEST)
-                  .reason("Bad Request: " + e.getStatus().getCode().name())
-                  .build());
+                return new NessieBadRequestException(
+                    nessieError
+                        .errorCode(ErrorCode.BAD_REQUEST)
+                        .reason("Bad Request: " + e.getStatus().getCode().name())
+                        .build());
               default:
                 break;
             }
@@ -380,17 +393,19 @@ public final class GrpcExceptionMapper {
   }
 
   private static ServerExceptionMapper loadServerMapper() {
-    ServiceLoader<ServerExceptionMapper> implementations = ServiceLoader.load(ServerExceptionMapper.class);
+    ServiceLoader<ServerExceptionMapper> implementations =
+        ServiceLoader.load(ServerExceptionMapper.class);
 
     ServerExceptionMapper mapper = GrpcExceptionMapper::toProtoDefault;
     for (ServerExceptionMapper impl : implementations) {
       logger.info("Using ServerExceptionMapper: {}", impl.getClass().getName());
 
       ServerExceptionMapper base = mapper;
-      mapper = ex -> {
-        StatusRuntimeException mapped = impl.toProto(ex);
-        return mapped != null ? mapped : base.toProto(ex);
-      };
+      mapper =
+          ex -> {
+            StatusRuntimeException mapped = impl.toProto(ex);
+            return mapped != null ? mapped : base.toProto(ex);
+          };
     }
     return mapper;
   }

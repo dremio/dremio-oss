@@ -15,12 +15,10 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
-import java.util.List;
-
-import org.apache.calcite.sql.SqlNode;
-
 import com.dremio.exec.ops.QueryContext;
 import com.google.common.collect.Lists;
+import java.util.List;
+import org.apache.calcite.sql.SqlNode;
 
 public class CheckPlanCacheable {
   private QueryContext context;
@@ -47,7 +45,7 @@ public class CheckPlanCacheable {
   }
 
   public static CheckPlanCacheable create(QueryContext context, SqlNode node) {
-    return new CheckPlanCacheable(context,node);
+    return new CheckPlanCacheable(context, node);
   }
 
   public boolean isPlanCacheable() {

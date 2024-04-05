@@ -17,7 +17,6 @@ package com.dremio.exec.planner.sql.parser;
 
 import java.util.Collections;
 import java.util.List;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -29,8 +28,8 @@ import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
 /**
- * Sql parse tree node to represent statement:
- * SHOW FILES [{FROM | IN} db_name] [LIKE 'pattern' | WHERE expr]
+ * Sql parse tree node to represent statement: SHOW FILES [{FROM | IN} db_name] [LIKE 'pattern' |
+ * WHERE expr]
  */
 public class SqlShowFiles extends SqlCall {
 
@@ -38,11 +37,12 @@ public class SqlShowFiles extends SqlCall {
 
   public static final SqlSpecialOperator OPERATOR =
       new SqlSpecialOperator("SHOW_FILES", SqlKind.OTHER) {
-    @Override
-    public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      return new SqlShowFiles(pos, (SqlIdentifier) operands[0]);
-    }
-  };
+        @Override
+        public SqlCall createCall(
+            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+          return new SqlShowFiles(pos, (SqlIdentifier) operands[0]);
+        }
+      };
 
   public SqlShowFiles(SqlParserPos pos, SqlIdentifier db) {
     super(pos);
@@ -56,7 +56,7 @@ public class SqlShowFiles extends SqlCall {
 
   @Override
   public List<SqlNode> getOperandList() {
-    return Collections.singletonList( (SqlNode) db);
+    return Collections.singletonList((SqlNode) db);
   }
 
   @Override
@@ -68,6 +68,7 @@ public class SqlShowFiles extends SqlCall {
     }
   }
 
-  public SqlIdentifier getDb() { return db; }
-
+  public SqlIdentifier getDb() {
+    return db;
+  }
 }

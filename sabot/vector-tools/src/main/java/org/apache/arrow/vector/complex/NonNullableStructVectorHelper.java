@@ -15,17 +15,6 @@
  */
 package org.apache.arrow.vector.complex;
 
-
-import java.util.List;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.vector.FieldVector;
-import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.ValueVectorHelper;
-import org.apache.arrow.vector.types.SerializedFieldHelper;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.util.BasicTypeHelper;
-
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.types.Types;
 import com.dremio.exec.expr.TypeHelper;
@@ -33,6 +22,14 @@ import com.dremio.exec.proto.UserBitShared.NamePart;
 import com.dremio.exec.proto.UserBitShared.SerializedField;
 import com.dremio.exec.proto.UserBitShared.SerializedField.Builder;
 import com.google.common.base.Preconditions;
+import java.util.List;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.ValueVectorHelper;
+import org.apache.arrow.vector.types.SerializedFieldHelper;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.util.BasicTypeHelper;
 
 public class NonNullableStructVectorHelper implements ValueVectorHelper {
   private NonNullableStructVector structVector;
@@ -55,7 +52,7 @@ public class NonNullableStructVectorHelper implements ValueVectorHelper {
 
       FieldVector vector = structVector.getChild(fieldDef.getName());
       if (vector == null) {
-//         if we arrive here, we didn't have a matching vector.
+        //         if we arrive here, we didn't have a matching vector.
         vector = BasicTypeHelper.getNewVector(fieldDef, structVector.allocator);
         structVector.putChild(fieldDef.getName(), vector);
       }
@@ -83,14 +80,14 @@ public class NonNullableStructVectorHelper implements ValueVectorHelper {
 
   @Override
   public SerializedField getMetadata() {
-    SerializedField.Builder b = SerializedField.newBuilder()
-        .setNamePart(NamePart.newBuilder().setName(structVector.getField().getName()))
-        .setMajorType(Types.optional(MinorType.STRUCT))
-        .setBufferLength(structVector.getBufferSize())
-        .setValueCount(structVector.valueCount);
+    SerializedField.Builder b =
+        SerializedField.newBuilder()
+            .setNamePart(NamePart.newBuilder().setName(structVector.getField().getName()))
+            .setMajorType(Types.optional(MinorType.STRUCT))
+            .setBufferLength(structVector.getBufferSize())
+            .setValueCount(structVector.valueCount);
 
-
-    for(ValueVector v : structVector.getChildren()) {
+    for (ValueVector v : structVector.getChildren()) {
       b.addChild(TypeHelper.getMetadata(v));
     }
     return b.build();
@@ -102,7 +99,8 @@ public class NonNullableStructVectorHelper implements ValueVectorHelper {
   }
 
   @Override
-  public void loadFromValidityAndDataBuffers(SerializedField metadata, ArrowBuf dataBuffer, ArrowBuf validityBuffer) {
+  public void loadFromValidityAndDataBuffers(
+      SerializedField metadata, ArrowBuf dataBuffer, ArrowBuf validityBuffer) {
     throw new UnsupportedOperationException();
   }
 

@@ -29,15 +29,6 @@ import static com.dremio.dac.proto.model.dataset.ReplaceType.NULL;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static java.lang.String.format;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.perf.Timer.TimedBlock;
 import com.dremio.dac.explore.model.DatasetPath;
@@ -111,11 +102,15 @@ import com.dremio.dac.service.errors.ClientErrorException;
 import com.dremio.exec.catalog.VersionedPlugin;
 import com.dremio.exec.store.CatalogService;
 import com.google.common.base.Joiner;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-
-/**
- * Generate the SQL query from a dataset state
- */
+/** Generate the SQL query from a dataset state */
 class SQLGenerator {
   private static final Logger logger = LoggerFactory.getLogger(SQLGenerator.class);
 
@@ -128,15 +123,16 @@ class SQLGenerator {
   /** max varchar length when converting to varchar */
   private static final long MAX_VARCHAR = 2048;
 
-  public static String generateSQL(VirtualDatasetState vss){
+  public static String generateSQL(VirtualDatasetState vss) {
     return new SQLGenerator().innerGenerateSQL(vss, false, null);
   }
 
-  public static String generateSQL(VirtualDatasetState vss, boolean isTransform, CatalogService catalogService){
+  public static String generateSQL(
+      VirtualDatasetState vss, boolean isTransform, CatalogService catalogService) {
     return new SQLGenerator().innerGenerateSQL(vss, isTransform, catalogService);
   }
 
-  public SQLGenerator(){}
+  public SQLGenerator() {}
 
   public static String getTableAlias(From from) {
     return new FromVisitor<String>() {
@@ -171,11 +167,7 @@ class SQLGenerator {
   }
 
   private static String function(String function, String params) {
-    return format(
-        "%s(%s)",
-        function,
-        params
-        );
+    return format("%s(%s)", function, params);
   }
 
   private String function(String tableName, String function, Expression... exp) {
@@ -183,10 +175,7 @@ class SQLGenerator {
     for (Expression expression : exp) {
       operands.add(eval(tableName, expression));
     }
-    return function(
-        function,
-        Joiner.on(", ").join(operands)
-        );
+    return function(function, Joiner.on(", ").join(operands));
   }
 
   private String convertCase(String tableName, ConvertCase convertCase, Expression operand) {
@@ -199,14 +188,14 @@ class SQLGenerator {
 
   private String convertCaseFunction(ConvertCase convertCase) {
     switch (convertCase) {
-    case LOWER_CASE:
-      return "LOWER";
-    case UPPER_CASE:
-      return "UPPER";
-    case TITLE_CASE:
-      return "TITLE";
-    default:
-      throw new UnsupportedOperationException("unknown case: " + convertCase);
+      case LOWER_CASE:
+        return "LOWER";
+      case UPPER_CASE:
+        return "UPPER";
+      case TITLE_CASE:
+        return "TITLE";
+      default:
+        throw new UnsupportedOperationException("unknown case: " + convertCase);
     }
   }
 
@@ -216,15 +205,15 @@ class SQLGenerator {
   }
 
   private String trimTypeStr(TrimType trimType) {
-    switch(trimType) {
-    case BOTH:
-      return "both";
-    case LEFT:
-      return "leading";
-    case RIGHT:
-      return "trailing";
-    default:
-      throw new UnsupportedOperationException("unknown trim type: " + trimType);
+    switch (trimType) {
+      case BOTH:
+        return "both";
+      case LEFT:
+        return "leading";
+      case RIGHT:
+        return "trailing";
+      default:
+        throw new UnsupportedOperationException("unknown trim type: " + trimType);
     }
   }
 
@@ -237,8 +226,11 @@ class SQLGenerator {
         e,
         convertType.getCastWhenPossible() ? 1 : 0,
         convertType.getActionForNonMatchingValue() == REPLACE_WITH_NULL ? 1 : 0,
-        quoted(convertType.getDefaultValue() == null || convertType.getDefaultValue().isEmpty() ?
-            "0" : convertType.getDefaultValue(), convertType.getDesiredType()));
+        quoted(
+            convertType.getDefaultValue() == null || convertType.getDefaultValue().isEmpty()
+                ? "0"
+                : convertType.getDefaultValue(),
+            convertType.getDesiredType()));
   }
 
   private String quoted(String value, DataType type) {
@@ -267,8 +259,10 @@ class SQLGenerator {
     }
   }
 
-  private String resolveReplacementValue(ReplaceType replaceType, String replacementValue, DataType replacementColType) {
-    // TODO: it would be better to remove the replacement type. A null value for replacement value should be suffice, but few
+  private String resolveReplacementValue(
+      ReplaceType replaceType, String replacementValue, DataType replacementColType) {
+    // TODO: it would be better to remove the replacement type. A null value for replacement value
+    // should be suffice, but few
     // APIs send replaceType for NULL replacement value.
     if (replaceType == NULL || replacementValue == null) {
       return "NULL";
@@ -297,27 +291,27 @@ class SQLGenerator {
     private Map<String, Integer> nextAvailableSuffix = new HashMap<>();
 
     /**
+     * The column conflict resolver provides an efficient way to find the next available suffix for
+     * a column alias. The caveat: if the user names columns in a way that imitates our suffix
+     * pattern, then this algorithm will become less efficient because the user may have "stolen"
+     * the column that our algorithm produces. We guarantee that the users root alias remains
+     * intact. A1994 will not be incremented to A1995. Instead, we will call the new column A1994_0.
      *
-     * The column conflict resolver provides an efficient way to find the next available suffix for a column alias.
-     * The caveat: if the user names columns in a way that imitates our suffix pattern, then this algorithm will become
-     * less efficient because the user may have "stolen" the column that our algorithm produces.
-     * We guarantee that the users root alias remains intact. A1994 will not be incremented to A1995. Instead, we will
-     * call the new column A1994_0.
-     *
-     * @param alias the column alias that the user wants to use. It may or not conflict with existing columns.
+     * @param alias the column alias that the user wants to use. It may or not conflict with
+     *     existing columns.
      * @return Either alias or alias_#.
      */
     public String findConflictFreeAlias(final String alias) {
       boolean sufferingFromStolenAliases = false;
       final String rootConflictFinder = alias.toLowerCase(Locale.ROOT);
-      int nextAliasSuffix = nextAvailableSuffix.compute(rootConflictFinder, (k, v) -> (v == null) ? 0: v + 1);
+      int nextAliasSuffix =
+          nextAvailableSuffix.compute(rootConflictFinder, (k, v) -> (v == null) ? 0 : v + 1);
       if (nextAliasSuffix == 0) {
         return alias;
       }
 
       StringBuilder sb = new StringBuilder(rootConflictFinder.length() + 6);
-      sb.append(rootConflictFinder)
-        .append("_");
+      sb.append(rootConflictFinder).append("_");
       final int suffixStart = sb.length();
       sb.append(nextAliasSuffix - 1);
       String keyAlias = sb.toString();
@@ -330,7 +324,8 @@ class SQLGenerator {
         sufferingFromStolenAliases = true;
       }
 
-      // If we suffixed our alias, then we need to put the alias we are using in the map so no one else can use it.
+      // If we suffixed our alias, then we need to put the alias we are using in the map so no one
+      // else can use it.
       nextAvailableSuffix.put(keyAlias, 0);
 
       // Update our root map entry so we don't have to re-encounter all the stolen aliases.
@@ -343,7 +338,8 @@ class SQLGenerator {
     }
   }
 
-  private String innerGenerateSQL(VirtualDatasetState state, boolean isTransform, CatalogService catalogService) {
+  private String innerGenerateSQL(
+      VirtualDatasetState state, boolean isTransform, CatalogService catalogService) {
     try (TimedBlock b = time("genSQL")) {
       String tableName = getTableAlias(state.getFrom());
       final List<String> evaledCols = new ArrayList<>();
@@ -393,82 +389,105 @@ class SQLGenerator {
       final List<String> joins = new ArrayList<>();
       if (state.getJoinsList() != null) {
         for (Join join : state.getJoinsList()) {
-          String evald = evalJoin(tableName, join, join.getJoinAlias(), state, catalogService, isTransform);
+          String evald =
+              evalJoin(tableName, join, join.getJoinAlias(), state, catalogService, isTransform);
           joins.add(evald);
         }
       }
 
-      return FromBase.unwrap(state.getFrom()).accept(new FromVisitor<String>() {
-        @Override
-        public String visit(FromSQL sql) throws Exception {
-          return formatSQLWithSubQuery(sql.getSql(), sql.getAlias(), true);
-        }
-
-        @Override
-        public String visit(FromTable name) throws Exception {
-          DatasetPath datasetPath = new DatasetPath(name.getDatasetPath());
-          List<String> path = new ArrayList<>();
-          for (String component : datasetPath.toPathList()) {
-            path.add(quoteIdentifier(component));
-          }
-          String referenceSyntax = getReferenceSyntaxForLeftTable(path);
-          String table = Joiner.on(".").join(path) + referenceSyntax + (name.getAlias() == null ? "" : " AS " + quoteIdentifier(name.getAlias()));
-          return formatSQL(evaledCols, orders, table, joins, evaledFilters, groupBys);
-        }
-
-        /**
-         * Add the proper syntax for Versioned source for Left table in case of Join
-         *
-         * @param path
-         * @return
-         */
-        public String getReferenceSyntaxForLeftTable(List<String> path) {
-          String referenceSyntax = "";
-          if (isTransform && state.getReferenceList() != null && catalogService != null) {
-            if (isVersionedPluginSource(path.get(0), catalogService)) {
-              for (SourceVersionReference sourceVersionReference: state.getReferenceList()) {
-                if (sourceVersionReference.getSourceName().equals(path.get(0))) {
-                  referenceSyntax = getReferenceSyntax(sourceVersionReference);
-                  break;
+      return FromBase.unwrap(state.getFrom())
+          .accept(
+              new FromVisitor<String>() {
+                @Override
+                public String visit(FromSQL sql) throws Exception {
+                  return formatSQLWithSubQuery(sql.getSql(), sql.getAlias(), true);
                 }
-              }
-            }
-          }
-          return referenceSyntax;
-        }
 
-        @Override
-        public String visit(FromSubQuery subQuery) throws Exception {
-          String sql = innerGenerateSQL(subQuery.getSuqQuery(), isTransform, catalogService);
-          return formatSQLWithSubQuery(sql, subQuery.getAlias(), false);
-        }
+                @Override
+                public String visit(FromTable name) throws Exception {
+                  DatasetPath datasetPath = new DatasetPath(name.getDatasetPath());
+                  List<String> path = new ArrayList<>();
+                  for (String component : datasetPath.toPathList()) {
+                    path.add(quoteIdentifier(component));
+                  }
+                  String referenceSyntax = getReferenceSyntaxForLeftTable(path);
+                  String table =
+                      Joiner.on(".").join(path)
+                          + referenceSyntax
+                          + (name.getAlias() == null
+                              ? ""
+                              : " AS " + quoteIdentifier(name.getAlias()));
+                  return formatSQL(evaledCols, orders, table, joins, evaledFilters, groupBys);
+                }
 
-        private String formatSQLWithSubQuery(String sql, String alias, boolean checkSemicolon) {
-          if (isStar && orders.isEmpty() && evaledFilters.isEmpty() && groupBys.isEmpty() && joins.isEmpty()) {
-            return sql;
-          } else {
-            if (alias == null) {
-              throw new UnsupportedOperationException("the subquery should be assigned an alias: " + sql);
-            }
-            // Sub-query can not have terminating semicolon.
-            // Checks innermost non-generated sub-query only.
-            if (checkSemicolon && sql.trim().endsWith(";")) {
-              sql = sql.replaceAll("[; ]+$", "");
-            }
-            return formatSQL(evaledCols, orders, "(\n" + indent(sql) + "\n) " + quoteIdentifier(alias), joins, evaledFilters, groupBys);
-          }
-        }
+                /**
+                 * Add the proper syntax for Versioned source for Left table in case of Join
+                 *
+                 * @param path
+                 * @return
+                 */
+                public String getReferenceSyntaxForLeftTable(List<String> path) {
+                  String referenceSyntax = "";
+                  if (isTransform && state.getReferenceList() != null && catalogService != null) {
+                    if (isVersionedPluginSource(path.get(0), catalogService)) {
+                      for (SourceVersionReference sourceVersionReference :
+                          state.getReferenceList()) {
+                        if (sourceVersionReference.getSourceName().equals(path.get(0))) {
+                          referenceSyntax = getReferenceSyntax(sourceVersionReference);
+                          break;
+                        }
+                      }
+                    }
+                  }
+                  return referenceSyntax;
+                }
 
-        private String indent(String sql) {
-          return "  " + Joiner.on("\n  ").join(sql.split("\n"));
-        }
-      });
+                @Override
+                public String visit(FromSubQuery subQuery) throws Exception {
+                  String sql =
+                      innerGenerateSQL(subQuery.getSuqQuery(), isTransform, catalogService);
+                  return formatSQLWithSubQuery(sql, subQuery.getAlias(), false);
+                }
+
+                private String formatSQLWithSubQuery(
+                    String sql, String alias, boolean checkSemicolon) {
+                  if (isStar
+                      && orders.isEmpty()
+                      && evaledFilters.isEmpty()
+                      && groupBys.isEmpty()
+                      && joins.isEmpty()) {
+                    return sql;
+                  } else {
+                    if (alias == null) {
+                      throw new UnsupportedOperationException(
+                          "the subquery should be assigned an alias: " + sql);
+                    }
+                    // Sub-query can not have terminating semicolon.
+                    // Checks innermost non-generated sub-query only.
+                    if (checkSemicolon && sql.trim().endsWith(";")) {
+                      sql = sql.replaceAll("[; ]+$", "");
+                    }
+                    return formatSQL(
+                        evaledCols,
+                        orders,
+                        "(\n" + indent(sql) + "\n) " + quoteIdentifier(alias),
+                        joins,
+                        evaledFilters,
+                        groupBys);
+                  }
+                }
+
+                private String indent(String sql) {
+                  return "  " + Joiner.on("\n  ").join(sql.split("\n"));
+                }
+              });
     }
   }
 
   public boolean isVersionedPluginSource(String sourceName, CatalogService catalogService) {
     try {
-      return catalogService.getSource(sourceName) instanceof VersionedPlugin;
+      return catalogService.getSource(sourceName) != null
+          && catalogService.getSource(sourceName).isWrapperFor(VersionedPlugin.class);
     } catch (UserException ignored) {
       // Source not found [For e.g: In case of spaces, home space]
       return false;
@@ -498,128 +517,142 @@ class SQLGenerator {
   private String evalFilter(final String tableName, Filter filter) {
     final String column = eval(tableName, filter.getOperand());
     final Boolean isExclude = Boolean.TRUE.equals(filter.getExclude());
-    StringBuilder sql = new StringBuilder(new FilterBase.FilterVisitor<String>() {
+    StringBuilder sql =
+        new StringBuilder(
+            new FilterBase.FilterVisitor<String>() {
 
-      @Override
-      public String visit(FilterCleanData clean) throws Exception {
-        return (isExclude ? "not " : "") + format(
-            "is_clean_data(%s, %d, %s)",
-            column,
-            clean.getCastWhenPossible() ? 1 : 0,
-            stringLiteral(clean.getDesiredType().name()));
-      }
+              @Override
+              public String visit(FilterCleanData clean) throws Exception {
+                return (isExclude ? "not " : "")
+                    + format(
+                        "is_clean_data(%s, %d, %s)",
+                        column,
+                        clean.getCastWhenPossible() ? 1 : 0,
+                        stringLiteral(clean.getDesiredType().name()));
+              }
 
-      @Override
-      public String visit(FilterByType byType) throws Exception {
-        return format(
-            "dremio_type_of(%s) " + (isExclude ? "<>" : "=") + " %s",
-            column,
-            stringLiteral(byType.getType().name()));
-      }
+              @Override
+              public String visit(FilterByType byType) throws Exception {
+                return format(
+                    "dremio_type_of(%s) " + (isExclude ? "<>" : "=") + " %s",
+                    column,
+                    stringLiteral(byType.getType().name()));
+              }
 
-      @Override
-      public String visit(FilterRange range) throws Exception {
-        StringBuilder sb = new StringBuilder();
-        if (range.getLowerBound() != null) {
-          if (range.getLowerBoundInclusive() != null && range.getLowerBoundInclusive()) {
-            sb.append(prepareValue(range.getLowerBound(), range.getDataType())).append(isExclude ? " >= " : " <= ").append(column);
-          } else {
-            sb.append(prepareValue(range.getLowerBound(), range.getDataType())).append(isExclude ? " > " : " < ").append(column);
-          }
-          if (range.getUpperBound() != null) {
-            sb.append(isExclude ? " OR " : " AND ");
-          }
-        }
-        if (range.getUpperBound() != null) {
-          if (range.getUpperBoundInclusive() != null && range.getUpperBoundInclusive()) {
-            sb.append(prepareValue(range.getUpperBound(), range.getDataType())).append(isExclude ? " <= " : " >= ")
-              .append(column);
-          } else {
-            sb.append(prepareValue(range.getUpperBound(), range.getDataType())).append(isExclude ? " < " : " > ")
-              .append(column);
-          }
-        }
-        return sb.toString();
-      }
+              @Override
+              public String visit(FilterRange range) throws Exception {
+                StringBuilder sb = new StringBuilder();
+                if (range.getLowerBound() != null) {
+                  if (range.getLowerBoundInclusive() != null && range.getLowerBoundInclusive()) {
+                    sb.append(prepareValue(range.getLowerBound(), range.getDataType()))
+                        .append(isExclude ? " >= " : " <= ")
+                        .append(column);
+                  } else {
+                    sb.append(prepareValue(range.getLowerBound(), range.getDataType()))
+                        .append(isExclude ? " > " : " < ")
+                        .append(column);
+                  }
+                  if (range.getUpperBound() != null) {
+                    sb.append(isExclude ? " OR " : " AND ");
+                  }
+                }
+                if (range.getUpperBound() != null) {
+                  if (range.getUpperBoundInclusive() != null && range.getUpperBoundInclusive()) {
+                    sb.append(prepareValue(range.getUpperBound(), range.getDataType()))
+                        .append(isExclude ? " <= " : " >= ")
+                        .append(column);
+                  } else {
+                    sb.append(prepareValue(range.getUpperBound(), range.getDataType()))
+                        .append(isExclude ? " < " : " > ")
+                        .append(column);
+                  }
+                }
+                return sb.toString();
+              }
 
-      @Override
-      public String visit(FilterCustom custom) throws Exception {
-        StringBuilder sb = new StringBuilder();
-        sb.append(custom.getExpression());
-        if (isExclude) {
-          sb.insert(0, " ( ").append(" ) IS FALSE ");
-        }
-        return sb.toString();
-      }
+              @Override
+              public String visit(FilterCustom custom) throws Exception {
+                StringBuilder sb = new StringBuilder();
+                sb.append(custom.getExpression());
+                if (isExclude) {
+                  sb.insert(0, " ( ").append(" ) IS FALSE ");
+                }
+                return sb.toString();
+              }
 
-      @Override
-      public String visit(FilterValue filterValue) throws Exception {
-        List<String> copyValues = new ArrayList<String>(filterValue.getValuesList());
-        boolean containsNull = copyValues.contains(null);
-        StringBuilder sb = new StringBuilder();
-        sb.append(column);
-        if (containsNull) {
-          sb.append(isExclude ? " IS NOT NULL" : " IS NULL");
-          copyValues.remove(null);
-        }
-        if (!copyValues.isEmpty()) {
-          if (containsNull) {
-            sb.append(isExclude ? " AND " : " OR ").append(column);
-          }
+              @Override
+              public String visit(FilterValue filterValue) throws Exception {
+                List<String> copyValues = new ArrayList<String>(filterValue.getValuesList());
+                boolean containsNull = copyValues.contains(null);
+                StringBuilder sb = new StringBuilder();
+                sb.append(column);
+                if (containsNull) {
+                  sb.append(isExclude ? " IS NOT NULL" : " IS NULL");
+                  copyValues.remove(null);
+                }
+                if (!copyValues.isEmpty()) {
+                  if (containsNull) {
+                    sb.append(isExclude ? " AND " : " OR ").append(column);
+                  }
 
-          if (copyValues.size() == 1) {
-            String value = copyValues.get(0);
-            sb.append(isExclude ? " <> " : " = ").append(prepareValue(value, filterValue.getDataType()));
-          } else {
-            if (isExclude) {
-              sb.append(" NOT");
-            }
-            sb.append(" IN (");
-            List<String> values = new ArrayList<>();
-            for (String value : copyValues) {
-              values.add(prepareValue(value, filterValue.getDataType()));
-            }
-            sb.append(Joiner.on(", ").join(values)).append(")");
-          }
-        }
-        return sb.toString();
-      }
+                  if (copyValues.size() == 1) {
+                    String value = copyValues.get(0);
+                    sb.append(isExclude ? " <> " : " = ")
+                        .append(prepareValue(value, filterValue.getDataType()));
+                  } else {
+                    if (isExclude) {
+                      sb.append(" NOT");
+                    }
+                    sb.append(" IN (");
+                    List<String> values = new ArrayList<>();
+                    for (String value : copyValues) {
+                      values.add(prepareValue(value, filterValue.getDataType()));
+                    }
+                    sb.append(Joiner.on(", ").join(values)).append(")");
+                  }
+                }
+                return sb.toString();
+              }
 
-      @Override
-      public String visit(FilterPattern filterPattern) throws Exception {
-        StringBuilder sb = new StringBuilder();
-        if (isExclude) {
-          sb.append("NOT ");
-        }
-        sb.append(replaceRecommender.wrapRule(filterPattern.getRule()).getMatchFunctionExpr(column));
-        return sb.toString();
-      }
+              @Override
+              public String visit(FilterPattern filterPattern) throws Exception {
+                StringBuilder sb = new StringBuilder();
+                if (isExclude) {
+                  sb.append("NOT ");
+                }
+                sb.append(
+                    replaceRecommender
+                        .wrapRule(filterPattern.getRule())
+                        .getMatchFunctionExpr(column));
+                return sb.toString();
+              }
 
-      @Override
-      public String visit(FilterConvertibleData value) throws Exception {
-        return (isExclude ? "NOT " : "") + format(
-            "is_convertible_data(%s, %d, %s)",
-            column,
-            1,
-            stringLiteral(value.getDesiredType().name()));
-      }
+              @Override
+              public String visit(FilterConvertibleData value) throws Exception {
+                return (isExclude ? "NOT " : "")
+                    + format(
+                        "is_convertible_data(%s, %d, %s)",
+                        column, 1, stringLiteral(value.getDesiredType().name()));
+              }
 
-      @Override
-      public String visit(FilterConvertibleDataWithPattern value) throws Exception {
-        switch (value.getDesiredType()) {
-          case DATE:
-          case DATETIME:
-          case TIME:
-            return (isExclude ? "NOT " : "") + format(
-              "is_%s(%s, %s)",
-              DataTypeUtil.getStringValueForDateType(value.getDesiredType()),
-              column,
-              quoted(value.getPattern(), TEXT));
-          default:
-            throw new UnsupportedOperationException("Unknown type " + value.getDesiredType());
-        }
-      }
-    }.visit(filter.getFilterDef()));
+              @Override
+              public String visit(FilterConvertibleDataWithPattern value) throws Exception {
+                switch (value.getDesiredType()) {
+                  case DATE:
+                  case DATETIME:
+                  case TIME:
+                    return (isExclude ? "NOT " : "")
+                        + format(
+                            "is_%s(%s, %s)",
+                            DataTypeUtil.getStringValueForDateType(value.getDesiredType()),
+                            column,
+                            quoted(value.getPattern(), TEXT));
+                  default:
+                    throw new UnsupportedOperationException(
+                        "Unknown type " + value.getDesiredType());
+                }
+              }
+            }.visit(filter.getFilterDef()));
 
     if (Boolean.TRUE.equals(filter.getKeepNull())) {
       sql.append(" OR ").append(column).append(" IS NULL ");
@@ -628,12 +661,13 @@ class SQLGenerator {
     return sql.toString();
   }
 
-  private String evalJoin(String table,
-                          Join join,
-                          String joinAlias,
-                          VirtualDatasetState state,
-                          CatalogService catalogService,
-                          boolean isTransform) {
+  private String evalJoin(
+      String table,
+      Join join,
+      String joinAlias,
+      VirtualDatasetState state,
+      CatalogService catalogService,
+      boolean isTransform) {
     StringBuilder sql = new StringBuilder("");
     switch (join.getJoinType()) {
       case Inner:
@@ -652,37 +686,47 @@ class SQLGenerator {
         throw new IllegalArgumentException("Unknown join type " + join.getJoinType().name());
     }
     // Add the proper syntax for Versioned source for Right table
-    String referenceSyntax = getReferenceSyntaxForRightTable(join.getRightTable(), state.getReferenceList(), catalogService, isTransform);
-    sql.append(join.getRightTable()).append(referenceSyntax).append(" AS ").append(quoteIdentifier(joinAlias)).append(" ON ");
+    String referenceSyntax =
+        getReferenceSyntaxForRightTable(
+            join.getRightTable(), state.getReferenceList(), catalogService, isTransform);
+    sql.append(join.getRightTable())
+        .append(referenceSyntax)
+        .append(" AS ")
+        .append(quoteIdentifier(joinAlias))
+        .append(" ON ");
     List<String> conds = new ArrayList<>();
     for (JoinCondition c : join.getJoinConditionsList()) {
-      conds.add(format("%s.%s = %s.%s",
-          quoteIdentifier(table),
-          quoteIdentifier(c.getLeftColumn()),
-          quoteIdentifier(joinAlias),
-          quoteIdentifier(c.getRightColumn())
-      ));
+      conds.add(
+          format(
+              "%s.%s = %s.%s",
+              quoteIdentifier(table),
+              quoteIdentifier(c.getLeftColumn()),
+              quoteIdentifier(joinAlias),
+              quoteIdentifier(c.getRightColumn())));
     }
     sql.append(Joiner.on(" AND ").join(conds));
     return sql.toString();
   }
 
   /**
-   * Only if the join is made with Versioned source (right table), payload will have the corresponding source version map
-   * and syntax will add the corresponding reference
+   * Only if the join is made with Versioned source (right table), payload will have the
+   * corresponding source version map and syntax will add the corresponding reference
+   *
    * @param joinRightTable
    * @param sourceVersionReferenceList
    * @param catalogService
-   *
    * @return
    */
-  public String getReferenceSyntaxForRightTable(String joinRightTable,
-                                                List<SourceVersionReference> sourceVersionReferenceList,
-                                                CatalogService catalogService,
-                                                boolean isTransform) {
+  public String getReferenceSyntaxForRightTable(
+      String joinRightTable,
+      List<SourceVersionReference> sourceVersionReferenceList,
+      CatalogService catalogService,
+      boolean isTransform) {
     String referenceSyntax = "";
-    String []datasetPaths = joinRightTable.split("\\.");  //first one is always the source name
-    if (isTransform && catalogService != null && isVersionedPluginSource(datasetPaths[0], catalogService)) {
+    String[] datasetPaths = joinRightTable.split("\\."); // first one is always the source name
+    if (isTransform
+        && catalogService != null
+        && isVersionedPluginSource(datasetPaths[0], catalogService)) {
       if (sourceVersionReferenceList != null && !sourceVersionReferenceList.isEmpty()) {
         return getReferenceSyntax(sourceVersionReferenceList.get(0));
       }
@@ -704,25 +748,36 @@ class SQLGenerator {
         case BRANCH:
         case TAG:
         case COMMIT:
-          referenceSyntax = " AT " + versionContext.getType().name() + " \"" + versionContext.getValue() + "\"";
+          referenceSyntax =
+              " AT " + versionContext.getType().name() + " \"" + versionContext.getValue() + "\"";
           break;
         default:
-          throw new UnsupportedOperationException("Unrecognized versionContextType: " + versionContext.getType());
+          throw new UnsupportedOperationException(
+              "Unrecognized versionContextType: " + versionContext.getType());
       }
     }
     return referenceSyntax;
   }
 
-  private String formatSQL(List<String> evaledCols, List<String> orders,
-      String parentDSSQL, List<String> evaledJoins, List<String> evaledFilters, List<String> groupBys) {
+  private String formatSQL(
+      List<String> evaledCols,
+      List<String> orders,
+      String parentDSSQL,
+      List<String> evaledJoins,
+      List<String> evaledFilters,
+      List<String> groupBys) {
     final String filtersJoined;
     // only add parenthesis around more than one filter condition, to keep query cleaner
-    filtersJoined = evaledFilters.isEmpty() ? "" :
-      "\n WHERE " + (
-        evaledFilters.size() == 1 ? evaledFilters.get(0) :
-          "(" + Joiner.on(") AND (").join(evaledFilters) + ")");
+    filtersJoined =
+        evaledFilters.isEmpty()
+            ? ""
+            : "\n WHERE "
+                + (evaledFilters.size() == 1
+                    ? evaledFilters.get(0)
+                    : "(" + Joiner.on(") AND (").join(evaledFilters) + ")");
 
-    return String.format("SELECT %s\nFROM %s%s%s%s%s",
+    return String.format(
+        "SELECT %s\nFROM %s%s%s%s%s",
         Joiner.on(", ").join(evaledCols),
         parentDSSQL,
         (evaledJoins.isEmpty() ? "" : "\n " + Joiner.on("\n ").join(evaledJoins)),
@@ -774,7 +829,8 @@ class SQLGenerator {
 
     @Override
     public String visit(final ExpFieldTransformation fieldTransformation) throws Exception {
-      return new EvaluatingFieldTransformationVisitor(fieldTransformation, tableName).visit(fieldTransformation.getTransformation());
+      return new EvaluatingFieldTransformationVisitor(fieldTransformation, tableName)
+          .visit(fieldTransformation.getTransformation());
     }
 
     @Override
@@ -787,46 +843,48 @@ class SQLGenerator {
       String operand = null;
       if (measure.getMeasureType() != MeasureType.Count_Star) {
         if (measure.getOperand() == null) {
-          throw new IllegalArgumentException("Operand should be not null for measure type " + measure.getMeasureType().name());
+          throw new IllegalArgumentException(
+              "Operand should be not null for measure type " + measure.getMeasureType().name());
         }
         operand = eval(measure.getOperand());
       }
-      switch(measure.getMeasureType()) {
-      case Average:
-        return function("AVG", operand);
-      case Count:
-        return function("COUNT", operand);
-      case Count_Distinct:
-        return function("COUNT", "DISTINCT " + operand);
-      case Count_Star:
-        return function("COUNT", "*");
-      case Maximum:
-        return function("MAX", operand);
-      case Minimum:
-        return function("MIN", operand);
-      case Standard_Deviation:
-        return function("STDDEV", operand);
-      case Standard_Deviation_Population:
-        return function("STDDEV_POP", operand);
-      case Sum:
-        return function("SUM", operand);
-      default:
-        throw new IllegalArgumentException("Unknown measure type " + measure.getMeasureType().name());
+      switch (measure.getMeasureType()) {
+        case Average:
+          return function("AVG", operand);
+        case Count:
+          return function("COUNT", operand);
+        case Count_Distinct:
+          return function("COUNT", "DISTINCT " + operand);
+        case Count_Star:
+          return function("COUNT", "*");
+        case Maximum:
+          return function("MAX", operand);
+        case Minimum:
+          return function("MIN", operand);
+        case Standard_Deviation:
+          return function("STDDEV", operand);
+        case Standard_Deviation_Population:
+          return function("STDDEV_POP", operand);
+        case Sum:
+          return function("SUM", operand);
+        default:
+          throw new IllegalArgumentException(
+              "Unknown measure type " + measure.getMeasureType().name());
       }
     }
 
     private String eval(Expression value) {
       return SQLGenerator.this.eval(tableName, value);
     }
-
   }
 
   private final class EvaluatingFieldTransformationVisitor
-    extends FieldTransformationBase.FieldTransformationVisitor<String> {
+      extends FieldTransformationBase.FieldTransformationVisitor<String> {
     private final ExpFieldTransformation fieldTransformation;
     private final String tableName;
 
-    private EvaluatingFieldTransformationVisitor(ExpFieldTransformation fieldTransformation, String tableName) {
+    private EvaluatingFieldTransformationVisitor(
+        ExpFieldTransformation fieldTransformation, String tableName) {
       this.fieldTransformation = checkNotNull(fieldTransformation);
       this.tableName = checkNotNull(tableName);
     }
@@ -849,8 +907,8 @@ class SQLGenerator {
     @Override
     public String visit(FieldConvertFloatToInteger floatToInt) throws Exception {
       return format(
-              "CAST(%s(%s) as INTEGER)",
-              floatToInt.getRounding().name(), eval(fieldTransformation.getOperand()));
+          "CAST(%s(%s) as INTEGER)",
+          floatToInt.getRounding().name(), eval(fieldTransformation.getOperand()));
     }
 
     @Override
@@ -864,8 +922,7 @@ class SQLGenerator {
     public String visit(FieldConvertDateToText dateToText) throws Exception {
       return format(
           "TO_CHAR(%s, %s)",
-          eval(fieldTransformation.getOperand()),
-          stringLiteral(dateToText.getFormat()));
+          eval(fieldTransformation.getOperand()), stringLiteral(dateToText.getFormat()));
     }
 
     @Override
@@ -884,21 +941,22 @@ class SQLGenerator {
           format = "(%s - 2440587.5) * 86400";
           break;
         default:
-          throw new ClientErrorException("only EPOCH, EXCEL and JULIAN ar valid. Got " + numberToDate.getFormat());
+          throw new ClientErrorException(
+              "only EPOCH, EXCEL and JULIAN ar valid. Got " + numberToDate.getFormat());
       }
       DataType desiredDateType = numberToDate.getDesiredType();
       switch (desiredDateType) {
         case DATE:
         case DATETIME:
         case TIME:
-          functionCall = format("TO_%s(%s)", DataTypeUtil.getStringValueForDateType(desiredDateType), format);
+          functionCall =
+              format("TO_%s(%s)", DataTypeUtil.getStringValueForDateType(desiredDateType), format);
           break;
         default:
-          throw new ClientErrorException("only DATE, TIME and DATETIME ar valid. Got " + desiredDateType);
+          throw new ClientErrorException(
+              "only DATE, TIME and DATETIME ar valid. Got " + desiredDateType);
       }
-      return format(
-        functionCall,
-        op);
+      return format(functionCall, op);
     }
 
     @Override
@@ -915,7 +973,8 @@ class SQLGenerator {
           ceil = "";
           break;
         default:
-          throw new ClientErrorException("only INTEGER or FLOAT are valid. Got " + dateToNumber.getDesiredType());
+          throw new ClientErrorException(
+              "only INTEGER or FLOAT are valid. Got " + dateToNumber.getDesiredType());
       }
 
       switch (dateToNumber.getConvertType()) {
@@ -929,7 +988,8 @@ class SQLGenerator {
           format = "'YYYY-MM-DD\"T\"HH24:MI:SS.FFFTZO'";
           break;
         default:
-          throw new ClientErrorException("only DATE, TIME or DATETIME are valid. Got " + dateToNumber.getConvertType());
+          throw new ClientErrorException(
+              "only DATE, TIME or DATETIME are valid. Got " + dateToNumber.getConvertType());
       }
 
       switch (dateToNumber.getFormat()) {
@@ -952,12 +1012,11 @@ class SQLGenerator {
           }
           break;
         default:
-          throw new ClientErrorException("only EPOCH, EXCEL and JULIAN ar valid. Got " + dateToNumber.getFormat());
+          throw new ClientErrorException(
+              "only EPOCH, EXCEL and JULIAN ar valid. Got " + dateToNumber.getFormat());
       }
 
-      return format(
-              functionCall,
-              op);
+      return format(functionCall, op);
     }
 
     @Override
@@ -969,9 +1028,11 @@ class SQLGenerator {
         case DATE:
         case DATETIME:
         case TIME:
-          return format("TO_%s(%s, %s)", DataTypeUtil.getStringValueForDateType(desiredType), op, dateFormat);
-      default:
-        throw new IllegalArgumentException("only DATE, TIME and DATETIME ar valid. Got " + desiredType);
+          return format(
+              "TO_%s(%s, %s)", DataTypeUtil.getStringValueForDateType(desiredType), op, dateFormat);
+        default:
+          throw new IllegalArgumentException(
+              "only DATE, TIME and DATETIME ar valid. Got " + desiredType);
       }
     }
 
@@ -993,17 +1054,17 @@ class SQLGenerator {
 
     @Override
     public String visit(FieldUnnestList unnest) throws Exception {
-      return format(
-          "flatten(%s)",
-          eval(fieldTransformation.getOperand()));
+      return format("flatten(%s)", eval(fieldTransformation.getOperand()));
     }
 
     @Override
     public String visit(FieldReplacePattern replacePattern) throws Exception {
       ReplacePatternRule rule = replacePattern.getRule();
       final String value = eval(fieldTransformation.getOperand());
-      return replaceRecommender.wrapRule(rule)
-          .getFunctionExpr(value, replacePattern.getReplaceType(), replacePattern.getReplacementValue());
+      return replaceRecommender
+          .wrapRule(rule)
+          .getFunctionExpr(
+              value, replacePattern.getReplaceType(), replacePattern.getReplacementValue());
     }
 
     @Override
@@ -1012,9 +1073,13 @@ class SQLGenerator {
       // TODO: What if the expression refers to the dropped field itself?
       StringBuilder sb = new StringBuilder("CASE");
       String quotedReplacementValue =
-          replaceCustom.getReplaceType() == NULL ? "NULL" :
-            quoted(replaceCustom.getReplacementValue(), replaceCustom.getReplacementType());
-      sb.append("\n  WHEN ").append(replaceCustom.getBooleanExpression()).append(" THEN ").append(quotedReplacementValue);
+          replaceCustom.getReplaceType() == NULL
+              ? "NULL"
+              : quoted(replaceCustom.getReplacementValue(), replaceCustom.getReplacementType());
+      sb.append("\n  WHEN ")
+          .append(replaceCustom.getBooleanExpression())
+          .append(" THEN ")
+          .append(quotedReplacementValue);
       sb.append("\n  ELSE ").append(value);
       sb.append("\nEND");
       return sb.toString();
@@ -1024,8 +1089,11 @@ class SQLGenerator {
     public String visit(FieldReplaceValue replaceValue) throws Exception {
       final String value = eval(fieldTransformation.getOperand());
       StringBuilder sb = new StringBuilder("CASE");
-      final String quotedReplacementValue = resolveReplacementValue(replaceValue.getReplaceType(),
-          replaceValue.getReplacementValue(), replaceValue.getReplacementType());
+      final String quotedReplacementValue =
+          resolveReplacementValue(
+              replaceValue.getReplaceType(),
+              replaceValue.getReplacementValue(),
+              replaceValue.getReplacementType());
 
       boolean atLeastOneValueSel = false;
       if (replaceValue.getReplacedValuesList() != null) {
@@ -1042,7 +1110,10 @@ class SQLGenerator {
       }
       if (replaceValue.getReplaceNull() != null && replaceValue.getReplaceNull()) {
         // Keep this to support old browser code (may be from cache)
-        sb.append("\n  WHEN ").append(value).append(" IS NULL THEN ").append(quotedReplacementValue);
+        sb.append("\n  WHEN ")
+            .append(value)
+            .append(" IS NULL THEN ")
+            .append(quotedReplacementValue);
         atLeastOneValueSel = true;
       }
 
@@ -1060,14 +1131,18 @@ class SQLGenerator {
     @Override
     public String visit(FieldReplaceRange replaceRange) throws Exception {
       final String value = eval(fieldTransformation.getOperand());
-      final String quotedReplacementValue = resolveReplacementValue(replaceRange.getReplaceType(),
-          replaceRange.getReplacementValue(), replaceRange.getReplacementType());
+      final String quotedReplacementValue =
+          resolveReplacementValue(
+              replaceRange.getReplaceType(),
+              replaceRange.getReplacementValue(),
+              replaceRange.getReplacementType());
 
       StringBuilder sb = new StringBuilder();
       if (replaceRange.getLowerBound() == null && replaceRange.getUpperBound() == null) {
 
         if (replaceRange.getReplaceType() == NULL || replaceRange.getReplacementValue() == null) {
-          // We can't project nulls without casting. Casting is an issue here as we don't have the precision available here.
+          // We can't project nulls without casting. Casting is an issue here as we don't have the
+          // precision available here.
           sb.append("CASE\n  WHEN 1 = 0 THEN ").append(value).append("\n  ELSE NULL\nEND");
         } else if (replaceRange.getKeepNull() != null && replaceRange.getKeepNull()) {
           // basically replace everything except the null values
@@ -1082,25 +1157,35 @@ class SQLGenerator {
           sb.append(quotedReplacementValue);
         }
       } else {
-        // It doesn't make sense for keepNulls flag when you have a range. So don't need to handle it.
+        // It doesn't make sense for keepNulls flag when you have a range. So don't need to handle
+        // it.
         sb.append("CASE");
         sb.append("\n  WHEN ");
         if (replaceRange.getLowerBound() != null) {
-          if (replaceRange.getLowerBoundInclusive() != null && replaceRange.getLowerBoundInclusive()) {
-            sb.append(quoted(replaceRange.getLowerBound(), replaceRange.getReplacementType())).append(" <= ").append(value);
+          if (replaceRange.getLowerBoundInclusive() != null
+              && replaceRange.getLowerBoundInclusive()) {
+            sb.append(quoted(replaceRange.getLowerBound(), replaceRange.getReplacementType()))
+                .append(" <= ")
+                .append(value);
           } else {
-            sb.append(quoted(replaceRange.getLowerBound(), replaceRange.getReplacementType())).append(" < ").append(value);
+            sb.append(quoted(replaceRange.getLowerBound(), replaceRange.getReplacementType()))
+                .append(" < ")
+                .append(value);
           }
           if (replaceRange.getUpperBound() != null) {
             sb.append(" AND ");
           }
         }
         if (replaceRange.getUpperBound() != null) {
-          if (replaceRange.getUpperBoundInclusive() != null && replaceRange.getUpperBoundInclusive()) {
-            sb.append(quoted(replaceRange.getUpperBound(), replaceRange.getReplacementType())).append(" >= ")
-              .append(value);
+          if (replaceRange.getUpperBoundInclusive() != null
+              && replaceRange.getUpperBoundInclusive()) {
+            sb.append(quoted(replaceRange.getUpperBound(), replaceRange.getReplacementType()))
+                .append(" >= ")
+                .append(value);
           } else {
-            sb.append(quoted(replaceRange.getUpperBound(), replaceRange.getReplacementType())).append(" > ").append(value);
+            sb.append(quoted(replaceRange.getUpperBound(), replaceRange.getReplacementType()))
+                .append(" > ")
+                .append(value);
           }
         }
         sb.append(" THEN ").append(quotedReplacementValue);
@@ -1114,17 +1199,21 @@ class SQLGenerator {
     @Override
     public String visit(FieldExtractMap extract) throws Exception {
       if (fieldTransformation.getOperand().getType() != ColumnReference) {
-        throw new IllegalArgumentException("Can only generate extract map for column reference, got " + extract.toString());
+        throw new IllegalArgumentException(
+            "Can only generate extract map for column reference, got " + extract.toString());
       }
       ExpColumnReference col = fieldTransformation.getOperand().getCol();
       ExtractMapRule rule = extract.getRule();
 
-      String tableAlias = col.getTable() ==  null ? tableName : col.getTable();
+      String tableAlias = col.getTable() == null ? tableName : col.getTable();
       if (tableAlias == null) {
-        throw new IllegalArgumentException("Can only generate extract map for column reference in a table for " + fieldTransformation);
+        throw new IllegalArgumentException(
+            "Can only generate extract map for column reference in a table for "
+                + fieldTransformation);
       }
 
-      String inputExpr = String.format("%s.%s", quoteIdentifier(tableAlias), quoteIdentifier(col.getName()));
+      String inputExpr =
+          String.format("%s.%s", quoteIdentifier(tableAlias), quoteIdentifier(col.getName()));
       return extractMapRecommender.wrapRule(rule).getFunctionExpr(inputExpr);
     }
 
@@ -1140,14 +1229,14 @@ class SQLGenerator {
       SplitRule rule = split.getRule();
       Integer last;
       switch (split.getPosition()) {
-      case ALL:
-        last = split.getMaxFields();
-        break;
-      case INDEX:
-        last = split.getIndex();
-        break;
-      default:
-        last = -1;
+        case ALL:
+          last = split.getMaxFields();
+          break;
+        case INDEX:
+          last = split.getIndex();
+          break;
+        default:
+          last = -1;
       }
 
       return splitRecommender.wrapRule(rule).getFunctionExpr(value, split.getPosition(), last);
@@ -1160,30 +1249,33 @@ class SQLGenerator {
     @Override
     public String visit(FieldSimpleConvertToType toType) throws Exception {
       switch (toType.getDataType()) {
-      case BOOLEAN:
-      case DECIMAL:
-      case GEO:
-      case INTEGER:
-      case LIST:
-      case MAP:
-      case STRUCT:
-      case MIXED:
-      case OTHER:
-        throw new IllegalArgumentException("Can't convert without parameters to type " + toType.getDataType());
-      case DATE:
-        return format("CAST(%s as DATE)", eval(fieldTransformation.getOperand()));
-      case DATETIME:
-        return format("CAST(%s as TIMESTAMP)", eval(fieldTransformation.getOperand()));
-      case TIME:
-        return format("CAST(CAST(%s as TIMESTAMP) as TIME)", eval(fieldTransformation.getOperand()));
-      case FLOAT:
-        return format("CAST(%s as DOUBLE)", eval(fieldTransformation.getOperand()));
-      case BINARY:
-        return format("CONVERT_TO(%s ,'UTF8')", eval(fieldTransformation.getOperand()));
-      case TEXT:
-        return format("CAST(%s as VARCHAR(%d))", eval(fieldTransformation.getOperand()), MAX_VARCHAR);
-      default:
-        throw new UnsupportedOperationException("Unknown type " + toType.getDataType());
+        case BOOLEAN:
+        case DECIMAL:
+        case GEO:
+        case INTEGER:
+        case LIST:
+        case MAP:
+        case STRUCT:
+        case MIXED:
+        case OTHER:
+          throw new IllegalArgumentException(
+              "Can't convert without parameters to type " + toType.getDataType());
+        case DATE:
+          return format("CAST(%s as DATE)", eval(fieldTransformation.getOperand()));
+        case DATETIME:
+          return format("CAST(%s as TIMESTAMP)", eval(fieldTransformation.getOperand()));
+        case TIME:
+          return format(
+              "CAST(CAST(%s as TIMESTAMP) as TIME)", eval(fieldTransformation.getOperand()));
+        case FLOAT:
+          return format("CAST(%s as DOUBLE)", eval(fieldTransformation.getOperand()));
+        case BINARY:
+          return format("CONVERT_TO(%s ,'UTF8')", eval(fieldTransformation.getOperand()));
+        case TEXT:
+          return format(
+              "CAST(%s as VARCHAR(%d))", eval(fieldTransformation.getOperand()), MAX_VARCHAR);
+        default:
+          throw new UnsupportedOperationException("Unknown type " + toType.getDataType());
       }
     }
 
@@ -1196,7 +1288,9 @@ class SQLGenerator {
           e,
           1,
           toTypeIfPossible.getActionForNonMatchingValue() == REPLACE_WITH_NULL ? 1 : 0,
-          quoted(toTypeIfPossible.getDefaultValue() == null ? "0" : toTypeIfPossible.getDefaultValue(), toTypeIfPossible.getDesiredType()));
+          quoted(
+              toTypeIfPossible.getDefaultValue() == null ? "0" : toTypeIfPossible.getDefaultValue(),
+              toTypeIfPossible.getDesiredType()));
     }
 
     @Override
@@ -1210,11 +1304,11 @@ class SQLGenerator {
         case DATETIME:
         case TIME:
           return format(
-            "TO_%s(%s, %s, %d)",
-            DataTypeUtil.getStringValueForDateType(desiredType),
-            e,
-            quoted(toTypeIfPossible.getPattern(), TEXT),
-            toTypeIfPossible.getActionForNonMatchingValue() == REPLACE_WITH_NULL ? 1 : 0);
+              "TO_%s(%s, %s, %d)",
+              DataTypeUtil.getStringValueForDateType(desiredType),
+              e,
+              quoted(toTypeIfPossible.getPattern(), TEXT),
+              toTypeIfPossible.getActionForNonMatchingValue() == REPLACE_WITH_NULL ? 1 : 0);
         default:
           throw new UnsupportedOperationException("Unknown type " + desiredType);
       }

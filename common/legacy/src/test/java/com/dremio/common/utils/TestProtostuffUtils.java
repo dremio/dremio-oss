@@ -19,88 +19,86 @@ import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 
-import java.io.IOException;
-
-import org.junit.Test;
-
 import io.protostuff.Input;
 import io.protostuff.Output;
 import io.protostuff.Schema;
+import java.io.IOException;
+import org.junit.Test;
 
-/**
- * Test class for {@code ProtostuffUtil} helper methods
- */
+/** Test class for {@code ProtostuffUtil} helper methods */
 public class TestProtostuffUtils {
   private static final class Foo {
     private double bar;
   }
 
-  private static final Schema<Foo> SCHEMA = new Schema<TestProtostuffUtils.Foo>() {
+  private static final Schema<Foo> SCHEMA =
+      new Schema<TestProtostuffUtils.Foo>() {
 
-    @Override
-    public String getFieldName(int number) {
-      switch(number) {
-      case 1: return "bar";
-      default:
-        throw new AssertionError(format("Unknown field id %d", number));
-      }
-    }
-
-    @Override
-    public int getFieldNumber(String name) {
-      switch(name) {
-      case "bar": return 1;
-      default:
-        throw new AssertionError(format("Unknown field name %s", name));
-      }
-    }
-
-    @Override
-    public boolean isInitialized(Foo message) {
-      return true;
-    }
-
-    @Override
-    public Foo newMessage() {
-      return new Foo();
-    }
-
-    @Override
-    public String messageName() {
-      return "Foo";
-    }
-
-    @Override
-    public String messageFullName() {
-      return Foo.class.getName();
-    }
-
-    @Override
-    public Class<? super Foo> typeClass() {
-      return Foo.class;
-    }
-
-    @Override
-    public void mergeFrom(Input input, Foo message) throws IOException {
-      for (int number = input.readFieldNumber(this);; number = input.readFieldNumber(this)) {
-        switch (number) {
-        case 0:
-          return;
-        case 1:
-          message.bar = input.readDouble();
-          break;
-        default:
-          input.handleUnknownField(number, this);
+        @Override
+        public String getFieldName(int number) {
+          switch (number) {
+            case 1:
+              return "bar";
+            default:
+              throw new AssertionError(format("Unknown field id %d", number));
+          }
         }
-      }
-    }
 
-    @Override
-    public void writeTo(Output output, Foo message) throws IOException {
-       output.writeDouble(1, message.bar, false);
-    }
-  };
+        @Override
+        public int getFieldNumber(String name) {
+          switch (name) {
+            case "bar":
+              return 1;
+            default:
+              throw new AssertionError(format("Unknown field name %s", name));
+          }
+        }
 
+        @Override
+        public boolean isInitialized(Foo message) {
+          return true;
+        }
+
+        @Override
+        public Foo newMessage() {
+          return new Foo();
+        }
+
+        @Override
+        public String messageName() {
+          return "Foo";
+        }
+
+        @Override
+        public String messageFullName() {
+          return Foo.class.getName();
+        }
+
+        @Override
+        public Class<? super Foo> typeClass() {
+          return Foo.class;
+        }
+
+        @Override
+        public void mergeFrom(Input input, Foo message) throws IOException {
+          for (int number = input.readFieldNumber(this); ; number = input.readFieldNumber(this)) {
+            switch (number) {
+              case 0:
+                return;
+              case 1:
+                message.bar = input.readDouble();
+                break;
+              default:
+                input.handleUnknownField(number, this);
+            }
+          }
+        }
+
+        @Override
+        public void writeTo(Output output, Foo message) throws IOException {
+          output.writeDouble(1, message.bar, false);
+        }
+      };
 
   @Test
   public void testDoubleDeserialization() throws IOException {
@@ -136,6 +134,9 @@ public class TestProtostuffUtils {
     Foo foo = new Foo();
     foo.bar = Double.NaN;
 
-    assertEquals(Double.NaN, ProtostuffUtil.fromJSON(ProtostuffUtil.toJSON(foo, SCHEMA, false), SCHEMA, false).bar, 0);
+    assertEquals(
+        Double.NaN,
+        ProtostuffUtil.fromJSON(ProtostuffUtil.toJSON(foo, SCHEMA, false), SCHEMA, false).bar,
+        0);
   }
 }

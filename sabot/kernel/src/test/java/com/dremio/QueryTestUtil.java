@@ -15,13 +15,6 @@
  */
 package com.dremio;
 
-import java.util.List;
-import java.util.Properties;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-import org.apache.arrow.memory.OutOfMemoryException;
-
 import com.dremio.BaseTestQuery.SilentListener;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.util.TestTools;
@@ -38,19 +31,19 @@ import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.dremio.sabot.rpc.user.UserResultsListener;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.coordinator.ClusterCoordinator;
+import java.util.List;
+import java.util.Properties;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import org.apache.arrow.memory.OutOfMemoryException;
 
-/**
- * Utilities useful for tests that issue SQL queries.
- */
+/** Utilities useful for tests that issue SQL queries. */
 public class QueryTestUtil {
 
   public static final String TEST_QUERY_PRINTING_SILENT = "dremio.test.query.printing.silent";
 
-  /**
-   * Constructor. All methods are static.
-   */
-  private QueryTestUtil() {
-  }
+  /** Constructor. All methods are static. */
+  private QueryTestUtil() {}
 
   /**
    * Create a DremioClient that can be used to query a dremio cluster.
@@ -62,15 +55,22 @@ public class QueryTestUtil {
    * @return the newly created client
    * @throws RpcException if there is a problem setting up the client
    */
-  public static DremioClient createClient(final SabotConfig config, final ClusterCoordinator clusterCoordinator,
-      final int maxWidth, Properties props) throws RpcException, OutOfMemoryException {
+  public static DremioClient createClient(
+      final SabotConfig config,
+      final ClusterCoordinator clusterCoordinator,
+      final int maxWidth,
+      Properties props)
+      throws RpcException, OutOfMemoryException {
     final DremioClient dremioClient = new DremioClient(config, clusterCoordinator);
 
     dremioClient.connect(checkAndAddAnonymousUser(props));
 
-    final List<QueryDataBatch> results = dremioClient.runQuery(
-        QueryType.SQL, String.format("alter session set %1$s%2$s%1$s = %3$d",
-            SqlUtils.QUOTE, GroupResourceInformation.MAX_WIDTH_PER_NODE_KEY, maxWidth));
+    final List<QueryDataBatch> results =
+        dremioClient.runQuery(
+            QueryType.SQL,
+            String.format(
+                "alter session set %1$s%2$s%1$s = %3$d",
+                SqlUtils.QUOTE, GroupResourceInformation.MAX_WIDTH_PER_NODE_KEY, maxWidth));
     for (QueryDataBatch queryDataBatch : results) {
       queryDataBatch.release();
     }
@@ -80,25 +80,30 @@ public class QueryTestUtil {
 
   /**
    * Checks if a user is present, and if not adds an anonymous user to the given properties.
+   *
    * @param props The properties to check for a user.
    * @return Properties guaranteed to have either a user, or an anonymous user.
    */
   public static Properties checkAndAddAnonymousUser(Properties props) {
     if (null == props) {
-      props = new Properties() {{
-        put(UserSession.USER, "anonymous");
-      }};
+      props =
+          new Properties() {
+            {
+              put(UserSession.USER, "anonymous");
+            }
+          };
     } else if (null == props.getProperty(UserSession.USER)) {
-      // Detect a null username and replace with anonymous to ensure tests that don't specify username work.
+      // Detect a null username and replace with anonymous to ensure tests that don't specify
+      // username work.
       props.put(UserSession.USER, "anonymous");
     }
     return props;
   }
 
   /**
-   * Create a DremioClient that can be used to query a dremio cluster.
-   * The only distinction between this function and createClient is that
-   * the latter runs a query to alter the default parsing behavior to double quotes.
+   * Create a DremioClient that can be used to query a dremio cluster. The only distinction between
+   * this function and createClient is that the latter runs a query to alter the default parsing
+   * behavior to double quotes.
    *
    * @param config
    * @param remoteServiceSet remote service set
@@ -106,8 +111,9 @@ public class QueryTestUtil {
    * @return the newly created client
    * @throws RpcException if there is a problem setting up the client
    */
-  public static DremioClient createCleanClient(final SabotConfig config, final ClusterCoordinator clusterCoordinator,
-     final Properties props) throws RpcException, OutOfMemoryException {
+  public static DremioClient createCleanClient(
+      final SabotConfig config, final ClusterCoordinator clusterCoordinator, final Properties props)
+      throws RpcException, OutOfMemoryException {
 
     final DremioClient dremioClient = new DremioClient(config, clusterCoordinator);
     dremioClient.connect(props);
@@ -118,17 +124,19 @@ public class QueryTestUtil {
   /**
    * Normalize the query relative to the test environment.
    *
-   * <p>Looks for "${WORKING_PATH}" in the query string, and replaces it the current
-   * working patch obtained from {@link com.dremio.common.util.TestTools#getWorkingPath()}.
+   * <p>Looks for "${WORKING_PATH}" in the query string, and replaces it the current working patch
+   * obtained from {@link com.dremio.common.util.TestTools#getWorkingPath()}.
    *
    * @param query the query string
    * @return the normalized query string
    */
   public static String normalizeQuery(final String query) {
     if (query.contains("${WORKING_PATH}")) {
-      return query.replaceAll(Pattern.quote("${WORKING_PATH}"), Matcher.quoteReplacement(TestTools.getWorkingPath()));
+      return query.replaceAll(
+          Pattern.quote("${WORKING_PATH}"), Matcher.quoteReplacement(TestTools.getWorkingPath()));
     } else if (query.contains("[WORKING_PATH]")) {
-      return query.replaceAll(Pattern.quote("[WORKING_PATH]"), Matcher.quoteReplacement(TestTools.getWorkingPath()));
+      return query.replaceAll(
+          Pattern.quote("[WORKING_PATH]"), Matcher.quoteReplacement(TestTools.getWorkingPath()));
     }
     return query;
   }
@@ -148,10 +156,9 @@ public class QueryTestUtil {
     SabotConfig config = client.getConfig();
     AwaitableUserResultsListener resultListener =
         new AwaitableUserResultsListener(
-            config.getBoolean(TEST_QUERY_PRINTING_SILENT) ?
-                new SilentListener() :
-                new PrintingResultsListener(config, Format.TSV, VectorUtil.DEFAULT_COLUMN_WIDTH)
-        );
+            config.getBoolean(TEST_QUERY_PRINTING_SILENT)
+                ? new SilentListener()
+                : new PrintingResultsListener(config, Format.TSV, VectorUtil.DEFAULT_COLUMN_WIDTH));
     client.runQuery(type, query, resultListener);
     return resultListener.await();
   }
@@ -163,7 +170,7 @@ public class QueryTestUtil {
    * @param queryString the query string
    * @throws Exception
    */
-  public static void test(final DremioClient client, final String queryString) throws Exception{
+  public static void test(final DremioClient client, final String queryString) throws Exception {
     final String query = normalizeQuery(queryString);
     String[] queries = query.split(";");
     for (String q : queries) {
@@ -180,12 +187,13 @@ public class QueryTestUtil {
    * add formatted arguments to the query string.
    *
    * @param client Dremio client to use
-   * @param query the query string; may contain formatting specifications to be used by
-   *   {@link String#format(String, Object...)}.
+   * @param query the query string; may contain formatting specifications to be used by {@link
+   *     String#format(String, Object...)}.
    * @param args optional args to use in the formatting call for the query string
    * @throws Exception
    */
-  public static void test(final DremioClient client, final String query, Object... args) throws Exception {
+  public static void test(final DremioClient client, final String query, Object... args)
+      throws Exception {
     test(client, String.format(query, args));
   }
 
@@ -197,8 +205,11 @@ public class QueryTestUtil {
    * @param queryString the query string
    * @param resultListener the result listener
    */
-  public static void testWithListener(final DremioClient client, final QueryType type,
-      final String queryString, final UserResultsListener resultListener) {
+  public static void testWithListener(
+      final DremioClient client,
+      final QueryType type,
+      final String queryString,
+      final UserResultsListener resultListener) {
     final String query = QueryTestUtil.normalizeQuery(queryString);
     client.runQuery(type, query, resultListener);
   }

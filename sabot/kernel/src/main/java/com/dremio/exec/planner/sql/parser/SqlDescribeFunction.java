@@ -15,9 +15,9 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
-
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import java.util.List;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -28,29 +28,27 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
-
 /**
- * A <code>SqlDescribeFunction</code> is a node of a parse tree that represents a
- * {@code DESCRIBE Function} statement.
+ * A <code>SqlDescribeFunction</code> is a node of a parse tree that represents a {@code DESCRIBE
+ * Function} statement.
  */
 public class SqlDescribeFunction extends SqlCall {
 
   private final SqlIdentifier Function;
 
   public static final SqlSpecialOperator OPERATOR =
-    new SqlSpecialOperator("DESCRIBE_FUNCTION", SqlKind.OTHER) {
-      @Override public SqlCall createCall(SqlLiteral functionQualifier,
-        SqlParserPos pos, SqlNode... operands) {
-        Preconditions.checkArgument(operands.length == 1, "SqlDescribeFunction.createCall() has to get 2 operands!");
-        return new SqlDescribeFunction(pos, (SqlIdentifier) operands[0]);
-      }
-    };
+      new SqlSpecialOperator("DESCRIBE_FUNCTION", SqlKind.OTHER) {
+        @Override
+        public SqlCall createCall(
+            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+          Preconditions.checkArgument(
+              operands.length == 1, "SqlDescribeFunction.createCall() has to get 2 operands!");
+          return new SqlDescribeFunction(pos, (SqlIdentifier) operands[0]);
+        }
+      };
 
   /** Creates a SqlDescribeFunction. */
-  public SqlDescribeFunction(SqlParserPos pos,
-    SqlIdentifier Function) {
+  public SqlDescribeFunction(SqlParserPos pos, SqlIdentifier Function) {
     super(pos);
     this.Function = Function;
   }
@@ -62,18 +60,19 @@ public class SqlDescribeFunction extends SqlCall {
     Function.unparse(writer, leftPrec, rightPrec);
   }
 
-  @Override public SqlOperator getOperator() {
+  @Override
+  public SqlOperator getOperator() {
     return OPERATOR;
   }
 
-  @Override public List<SqlNode> getOperandList() {
+  @Override
+  public List<SqlNode> getOperandList() {
     return ImmutableList.of(Function);
   }
 
   public SqlIdentifier getFunction() {
     return Function;
   }
-
 }
 
 // End SqlDescribeFunction.java

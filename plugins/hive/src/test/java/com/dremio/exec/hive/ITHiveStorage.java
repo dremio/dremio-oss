@@ -54,7 +54,6 @@ import com.dremio.connector.metadata.EntityPath;
 import com.dremio.connector.metadata.extensions.SupportsReadSignature;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.catalog.DatasetMetadataAdapter;
-import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.ImpersonationUtil;
@@ -76,17 +75,6 @@ import com.google.common.collect.Lists;
 public class ITHiveStorage extends HiveTestBase {
   protected static Boolean runWithUnlimitedSplitSupport = false;
   private static AutoCloseable mapEnabled;
-  private static AutoCloseable icebergDisabled;
-
-  @BeforeClass
-  public static void disableUnlimitedSplitFeature() {
-    icebergDisabled = disableUnlimitedSplitsAndIcebergSupportFlags();
-  }
-
-  @AfterClass
-  public static void resetUnlimitedSplitFeature() throws Exception {
-    icebergDisabled.close();
-  }
 
   @BeforeClass
   public static void enableMapFeature() {
@@ -98,20 +86,10 @@ public class ITHiveStorage extends HiveTestBase {
     mapEnabled.close();
   }
 
-  @BeforeClass
-  public static void setupOptions() throws Exception {
-    test(String.format("alter session set \"%s\" = true", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
-  }
-
-  @AfterClass
-  public static void shutdownOptions() throws Exception {
-    test(String.format("alter session set \"%s\" = false", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
-  }
-
   @Test // DRILL-4083
   public void testNativeScanWhenNoColumnIsRead() throws Exception {
     String query = "SELECT count(*) as col FROM hive.kv_parquet";
-    testVersionPlan(true, query);
+    testPhysicalPlan(query, "IcebergManifestList(table=[");
 
     testBuilder()
         .sqlQuery(query)
@@ -332,118 +310,6 @@ public class ITHiveStorage extends HiveTestBase {
   }
 
   @Test
-  public void testParquetHiveFixedLenVarchar() throws Exception {
-    Assume.assumeFalse(runWithUnlimitedSplitSupport);
-    String setOptionQuery = setTableOptionQuery("hive.\"default\".parq_varchar", HIVE_PARQUET_ENFORCE_VARCHAR_WIDTH, "true");
-    testBuilder()
-        .sqlQuery(setOptionQuery)
-        .unOrdered()
-        .baselineColumns("ok", "summary")
-        .baselineValues(true, "Table [hive.\"default\".parq_varchar] options updated")
-        .go();
-
-    String query = "SELECT R_NAME FROM hive.parq_varchar";
-    testBuilder().sqlQuery(query)
-      .unOrdered()
-      .baselineColumns("R_NAME")
-      .baselineValues("AFRICA")
-      .baselineValues("AMERIC")
-      .baselineValues("ASIA")
-      .baselineValues("EUROPE")
-      .baselineValues("MIDDLE")
-      .go();
-
-    runSQL(setTableOptionQuery("hive.\"default\".parq_varchar_no_trunc", HIVE_PARQUET_ENFORCE_VARCHAR_WIDTH, "true"));
-    query = "SELECT R_NAME FROM hive.parq_varchar_no_trunc";
-    testBuilder()
-        .sqlQuery(query)
-        .unOrdered()
-        .baselineColumns("R_NAME")
-        .baselineValues("AFRICA")
-        .baselineValues("AMERICA")
-        .baselineValues("ASIA")
-        .baselineValues("EUROPE")
-        .baselineValues("MIDDLE EAST")
-        .go();
-
-    runSQL(setTableOptionQuery("hive.\"default\".parq_char", HIVE_PARQUET_ENFORCE_VARCHAR_WIDTH, "true"));
-    query = "SELECT R_NAME FROM hive.parq_char";
-    testBuilder()
-        .sqlQuery(query)
-        .unOrdered()
-        .baselineColumns("R_NAME")
-        .baselineValues("AFRICA")
-        .baselineValues("AMERIC")
-        .baselineValues("ASIA")
-        .baselineValues("EUROPE")
-        .baselineValues("MIDDLE")
-        .go();
-
-    runSQL(setTableOptionQuery("hive.\"default\".parq_varchar_more_types_ext",
-        HIVE_PARQUET_ENFORCE_VARCHAR_WIDTH, "true"));
-    query = "SELECT Country, Capital, Lang FROM hive.parq_varchar_more_types_ext";
-    testBuilder()
-        .sqlQuery(query)
-        .unOrdered()
-        .baselineColumns("Country", "Capital", "Lang")
-        .baselineValues("United Kingdom", "London", "Eng")
-        .go();
-
-    testBuilder()
-        .sqlQuery(setTableOptionQuery("hive.\"default\".parq_varchar_more_types_ext", HIVE_PARQUET_ENFORCE_VARCHAR_WIDTH, "true"))
-        .unOrdered()
-        .baselineColumns("ok", "summary")
-        .baselineValues(true, "Table [hive.\"default\".parq_varchar_more_types_ext] options did not change")
-        .go();
-
-    query = "SELECT A, B, C FROM hive.parq_varchar_more_types_ext";
-    testBuilder().sqlQuery(query)
-        .unOrdered()
-        .baselineColumns("A", "B", "C")
-        .baselineValues(1, 2, 3)
-        .go();
-
-    runSQL(setTableOptionQuery("hive.\"default\".parq_varchar_complex_ext",
-        HIVE_PARQUET_ENFORCE_VARCHAR_WIDTH, "true"));
-    query = "SELECT Country, Capital FROM hive.parq_varchar_complex_ext";
-    testBuilder().sqlQuery(query)
-      .unOrdered()
-      .baselineColumns("Country", "Capital")
-      .baselineValues("Uni", "Lon")
-      .go();
-
-    runSQL(setTableOptionQuery("hive.\"default\".parquet_fixed_length_varchar_partition_ext",
-        HIVE_PARQUET_ENFORCE_VARCHAR_WIDTH, "true"));
-    query = "SELECT * FROM hive.parquet_fixed_length_varchar_partition_ext";
-    testBuilder()
-      .sqlQuery(query)
-      .unOrdered()
-      .baselineColumns("col1", "col2")
-      .baselineValues(100, "abcd")
-      .go();
-
-    runSQL(setTableOptionQuery("hive.\"default\".parquet_fixed_length_varchar_partition_ext",
-        HIVE_PARQUET_ENFORCE_VARCHAR_WIDTH, "false"));
-    query = "SELECT * FROM hive.parquet_fixed_length_varchar_partition_ext";
-    testBuilder()
-      .sqlQuery(query)
-      .unOrdered()
-      .baselineColumns("col1", "col2")
-      .baselineValues(100, "abcdefgh")
-      .go();
-
-    runSQL(setTableOptionQuery("hive.\"default\".parquet_fixed_length_char_partition_ext",
-        HIVE_PARQUET_ENFORCE_VARCHAR_WIDTH, "true"));
-    query = "SELECT * FROM hive.parquet_fixed_length_char_partition_ext";
-    testBuilder()
-      .sqlQuery(query)
-      .unOrdered()
-      .baselineColumns("col1", "col2")
-      .baselineValues(100, "abcd")
-      .go();
-  }
-
-  @Test
   public void readStringFieldSizeLimitText() throws Exception {
     readFieldSizeLimit("hive.field_size_limit_test", "col1");
   }
@@ -526,7 +392,7 @@ public class ITHiveStorage extends HiveTestBase {
     final String query = "SELECT * FROM hive.parquet_region";
 
     // Make sure the plan has Hive scan with native parquet reader
-    testVersionPlan(true, query);
+    testPhysicalPlan(query, "IcebergManifestList(table=[");
 
     testBuilder().sqlQuery(query)
       .ordered()
@@ -568,7 +434,7 @@ public class ITHiveStorage extends HiveTestBase {
       final String query = "SELECT count(r_regionkey) c FROM hive.parquet_with_two_files";
 
       // Make sure the plan has Hive scan with native parquet reader
-      testVersionPlan(true, query);
+      testPhysicalPlan(query, "IcebergManifestList(table=[");
 
       // With two files, the expected count is 10 (i.e 2 * 5).
       testBuilder().sqlQuery(query).ordered().baselineColumns("c").baselineValues(10L).go();
@@ -633,7 +499,7 @@ public class ITHiveStorage extends HiveTestBase {
   @Test
   public void countStar() throws Exception {
     testPhysicalPlan("SELECT count(*) FROM hive.kv", "columns=[]");
-    testVersionPlan(true, "SELECT count(*) FROM hive.kv_parquet");
+    testPhysicalPlan("SELECT count(*) FROM hive.kv_parquet", "IcebergManifestList(table=[");
 
     testBuilder()
         .sqlQuery("SELECT count(*) as cnt FROM hive.kv")
@@ -856,20 +722,21 @@ public class ITHiveStorage extends HiveTestBase {
     ((CatalogServiceImpl)getSabotContext().getCatalogService()).refreshSource(new NamespaceKey("hive"), CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
     NamespaceService ns = getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME);
     assertEquals(2, getCachedEntities(ns.getDataset(new NamespaceKey(parseFullPath("hive.db1.kv_db1")))).size());
-    assertEquals(2, getCachedEntities(ns.getDataset(new NamespaceKey(parseFullPath("hive.db1.avro")))).size());
+    assertEquals(1, getCachedEntities(ns.getDataset(new NamespaceKey(parseFullPath("hive.db1.avro")))).size());
     assertEquals(2, getCachedEntities(ns.getDataset(new NamespaceKey(parseFullPath("hive.\"default\".dummy")))).size());
-    assertEquals(2, getCachedEntities(ns.getDataset(new NamespaceKey(parseFullPath("hive.skipper.kv_parquet_large")))).size());
+    assertEquals(1, getCachedEntities(ns.getDataset(new NamespaceKey(parseFullPath("hive.skipper.kv_parquet_large")))).size());
 
     assertEquals(3, getCachedEntities(ns.getDataset(new NamespaceKey(parseFullPath("hive.\"default\".readtest")))).size());
-    assertEquals(3, getCachedEntities(ns.getDataset(new NamespaceKey(parseFullPath("hive.\"default\".readtest_parquet")))).size());
+    assertEquals(2, getCachedEntities(ns.getDataset(new NamespaceKey(parseFullPath("hive.\"default\".readtest_parquet")))).size());
 
-    assertEquals(10, getCachedEntities(ns.getDataset(new NamespaceKey(parseFullPath("hive.\"default\".kv_parquet")))).size());
+    assertEquals(5, getCachedEntities(ns.getDataset(new NamespaceKey(parseFullPath("hive.\"default\".kv_parquet")))).size());
     assertEquals(54, getCachedEntities(ns.getDataset(new NamespaceKey(parseFullPath("hive.\"default\".partition_with_few_schemas")))).size());
     assertEquals(56, getCachedEntities(ns.getDataset(new NamespaceKey(parseFullPath("hive.\"default\".partition_pruning_test")))).size());
   }
 
   @Test
   public void testCheckReadSignatureValid() throws Exception {
+    ((CatalogServiceImpl)getSabotContext().getCatalogService()).refreshSource(new NamespaceKey("hive"), CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
     ((CatalogServiceImpl)getSabotContext().getCatalogService()).refreshSource(new NamespaceKey("hive"), CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
     testCheckReadSignature(new EntityPath(ImmutableList.of("hive", "db1", "kv_db1")), SupportsReadSignature.MetadataValidity.VALID);
     testCheckReadSignature(new EntityPath(ImmutableList.of("hive", "default", "partition_with_few_schemas")), SupportsReadSignature.MetadataValidity.VALID);
@@ -1595,11 +1462,7 @@ public class ITHiveStorage extends HiveTestBase {
         .go();
   }
 
-  private void testVersionPlan(boolean icebergExpected, String query) throws Exception {
-    if (icebergExpected && runWithUnlimitedSplitSupport) {
+  private void testVersionPlan(String query) throws Exception {
       testPhysicalPlan(query, "IcebergManifestList(table=[");
-    } else {
-      testPhysicalPlan(query, "mode=[NATIVE_PARQUET");
-    }
   }
 }

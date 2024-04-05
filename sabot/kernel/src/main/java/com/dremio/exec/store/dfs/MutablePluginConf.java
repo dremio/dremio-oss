@@ -15,15 +15,14 @@
  */
 package com.dremio.exec.store.dfs;
 
-/**
- * Interface for ConnectionConfs that support mutable plugins
- */
+/** Interface for ConnectionConfs that support mutable plugins */
 public interface MutablePluginConf {
 
-    /**
-     * Indicates that the plugin should use the default ctas format for CTAS queries when user doesn't provide the storage type
-     */
-    default String getDefaultCtasFormat(){
-        return  "iceberg";
-    }
+  /**
+   * Indicates that the plugin should use the default ctas format for CTAS queries when user doesn't
+   * provide the storage type
+   */
+  default String getDefaultCtasFormat() {
+    return "iceberg";
+  }
 }

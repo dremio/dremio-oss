@@ -16,12 +16,22 @@
 
 package org.apache.arrow.vector;
 
+import com.dremio.common.util.Numbers;
+import com.dremio.exec.expr.TypeHelper;
+import com.dremio.exec.proto.UserBitShared;
+import com.dremio.sabot.op.aggregate.vectorized.Accumulator;
+import com.dremio.sabot.op.join.vhash.spill.SV2UnsignedUtil;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Stopwatch;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.IntList;
+import it.unimi.dsi.fastutil.ints.IntListIterator;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.complex.ListVector;
@@ -35,29 +45,15 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.util.Text;
 import org.apache.arrow.vector.util.TransferPair;
-import org.apache.parquet.it.unimi.dsi.fastutil.ints.IntArrayList;
-import org.apache.parquet.it.unimi.dsi.fastutil.ints.IntList;
-import org.apache.parquet.it.unimi.dsi.fastutil.ints.IntListIterator;
-
-import com.dremio.common.util.Numbers;
-import com.dremio.exec.expr.TypeHelper;
-import com.dremio.exec.proto.UserBitShared;
-import com.dremio.sabot.op.aggregate.vectorized.Accumulator;
-import com.dremio.sabot.op.join.vhash.spill.SV2UnsignedUtil;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Stopwatch;
-
 
 /**
- * FixedListVarcharVector implements a variable width vector of VARCHAR values.
- * These values may belong to one or more "group by "groups, identified
- * at same index at groupIndexBuf (2 byte(short) array), which have one entry
- * for each corresponding variable width VARCHAR entry.
+ * FixedListVarcharVector implements a variable width vector of VARCHAR values. These values may
+ * belong to one or more "group by "groups, identified at same index at groupIndexBuf (2 byte(short)
+ * array), which have one entry for each corresponding variable width VARCHAR entry.
  *
- * The main difference between a VarCharVector is that the values may be
- * grouped by an external entity as well as mutated/compacted over time
- * (along with garbage collection, by set of predefined rules/limites).
+ * <p>The main difference between a VarCharVector is that the values may be grouped by an external
+ * entity as well as mutated/compacted over time (along with garbage collection, by set of
+ * predefined rules/limites).
  */
 public class FixedListVarcharVector extends BaseVariableWidthVector {
   public static final int DELETED_VALUE_ROW_GROUP = 0xFFFF;
@@ -94,39 +90,82 @@ public class FixedListVarcharVector extends BaseVariableWidthVector {
   private final ListVector tempSpace;
   private final Accumulator.AccumStats accumStats;
 
-
-  public FixedListVarcharVector(String name, BufferAllocator allocator, int maxValuesPerBatch, String delimiter, int maxListAggSize,
-                                boolean distinct, boolean orderby, boolean asc, ListVector tempSpace) {
-    this(name, FieldType.nullable(MinorType.VARCHAR.getType()), allocator, maxValuesPerBatch,
-      delimiter, maxListAggSize, distinct, orderby, asc, null, tempSpace);
+  public FixedListVarcharVector(
+      String name,
+      BufferAllocator allocator,
+      int maxValuesPerBatch,
+      String delimiter,
+      int maxListAggSize,
+      boolean distinct,
+      boolean orderby,
+      boolean asc,
+      ListVector tempSpace) {
+    this(
+        name,
+        FieldType.nullable(MinorType.VARCHAR.getType()),
+        allocator,
+        maxValuesPerBatch,
+        delimiter,
+        maxListAggSize,
+        distinct,
+        orderby,
+        asc,
+        null,
+        tempSpace);
   }
 
-  public FixedListVarcharVector(String name, BufferAllocator allocator, int maxValuesPerBatch, String delimiter, int maxListAggSize,
-                                boolean distinct, boolean orderby, boolean asc, Accumulator.AccumStats accumStats, ListVector tempSpace) {
-    this(name, FieldType.nullable(MinorType.VARCHAR.getType()), allocator, maxValuesPerBatch,
-      delimiter, maxListAggSize, distinct, orderby, asc, accumStats, tempSpace);
+  public FixedListVarcharVector(
+      String name,
+      BufferAllocator allocator,
+      int maxValuesPerBatch,
+      String delimiter,
+      int maxListAggSize,
+      boolean distinct,
+      boolean orderby,
+      boolean asc,
+      Accumulator.AccumStats accumStats,
+      ListVector tempSpace) {
+    this(
+        name,
+        FieldType.nullable(MinorType.VARCHAR.getType()),
+        allocator,
+        maxValuesPerBatch,
+        delimiter,
+        maxListAggSize,
+        distinct,
+        orderby,
+        asc,
+        accumStats,
+        tempSpace);
   }
 
   /**
-   * Instantiate a FixedListVarcharVector. This doesn't allocate any memory for
-   * the data in vector.
+   * Instantiate a FixedListVarcharVector. This doesn't allocate any memory for the data in vector.
    *
-   * @param name                name of the vector
-   * @param fieldType           type of Field materialized by this vector
-   * @param allocator           allocator for memory management.
-   * @param maxValuesPerBatch   maximum number of groups in each batch
-   * @param delimiter           delimiter between list of values
-   * @param maxListAggSize      Maximum size for list of values for each row group
-   * @param distinct            keep only distinct values
-   * @param orderby             keep values sorted
-   * @param asc                 sorted values in ascending order or in descending order
-   * @param accumStats          Accumulator statistics to be collected
-   * @param tempSpace           temporary vector to store the output to spill
+   * @param name name of the vector
+   * @param fieldType type of Field materialized by this vector
+   * @param allocator allocator for memory management.
+   * @param maxValuesPerBatch maximum number of groups in each batch
+   * @param delimiter delimiter between list of values
+   * @param maxListAggSize Maximum size for list of values for each row group
+   * @param distinct keep only distinct values
+   * @param orderby keep values sorted
+   * @param asc sorted values in ascending order or in descending order
+   * @param accumStats Accumulator statistics to be collected
+   * @param tempSpace temporary vector to store the output to spill
    */
-  private FixedListVarcharVector(String name, FieldType fieldType, BufferAllocator allocator,
-                                 int maxValuesPerBatch, String delimiter, int maxListAggSize,
-                                 boolean distinct, boolean orderby, boolean asc, Accumulator.AccumStats accumStats,
-                                 ListVector tempSpace) {
+  private FixedListVarcharVector(
+      String name,
+      FieldType fieldType,
+      BufferAllocator allocator,
+      int maxValuesPerBatch,
+      String delimiter,
+      int maxListAggSize,
+      boolean distinct,
+      boolean orderby,
+      boolean asc,
+      Accumulator.AccumStats accumStats,
+      ListVector tempSpace) {
     super(new Field(name, fieldType, null), allocator);
     this.maxValuesPerBatch = maxValuesPerBatch;
     this.delimiter = delimiter;
@@ -143,8 +182,9 @@ public class FixedListVarcharVector extends BaseVariableWidthVector {
   public static ListVector allocListVector(BufferAllocator allocator, int maxValuesPerBatch) {
     /* Create a ListVector with a BaseVariableWidthVector as inner vector */
     ListVector listVector = ListVector.empty("tmp list-vector", allocator);
-    BaseVariableWidthVector dataVector = (BaseVariableWidthVector)listVector.addOrGetVector(
-      FieldType.nullable(MinorType.VARCHAR.getType())).getVector();
+    BaseVariableWidthVector dataVector =
+        (BaseVariableWidthVector)
+            listVector.addOrGetVector(FieldType.nullable(MinorType.VARCHAR.getType())).getVector();
 
     /* Allocate the combined buffer and dole out it's memory to variable buffers in ListVector */
     ArrowBuf combinedBuf = allocator.buffer(FIXED_LISTVECTOR_SIZE_TOTAL);
@@ -179,7 +219,8 @@ public class FixedListVarcharVector extends BaseVariableWidthVector {
     offsetBuffer = combinedBuf.slice(combinedBufOffset, offsetBufSize);
     combinedBufOffset += offsetBufSize;
 
-    ArrowBuf valueBuffer = combinedBuf.slice(combinedBufOffset, combinedBuf.capacity() - combinedBufOffset);
+    ArrowBuf valueBuffer =
+        combinedBuf.slice(combinedBufOffset, combinedBuf.capacity() - combinedBufOffset);
 
     arrowBufs = Arrays.asList(validityBuffer, offsetBuffer, valueBuffer);
 
@@ -213,7 +254,8 @@ public class FixedListVarcharVector extends BaseVariableWidthVector {
   }
 
   private static int getDataBufValidityBufferSize(int batchSize, int multiplier) {
-    return Numbers.nextMultipleOfEight(VarCharVector.getValidityBufferSizeFromCount(multiplier * batchSize));
+    return Numbers.nextMultipleOfEight(
+        VarCharVector.getValidityBufferSizeFromCount(multiplier * batchSize));
   }
 
   private static int getDataBufValidityBufferSize(int batchSize) {
@@ -222,12 +264,12 @@ public class FixedListVarcharVector extends BaseVariableWidthVector {
 
   public static int getValidityBufferSize(int batchSize) {
     /* Validity bits for the data buffer + overflow bits. */
-    return getDataBufValidityBufferSize(batchSize) +
-      getOverflowBufSize(batchSize);
+    return getDataBufValidityBufferSize(batchSize) + getOverflowBufSize(batchSize);
   }
 
   private static int getGroupIndexBufferSize(int batchSize, int multiplier) {
-    return Numbers.nextPowerOfTwo(2 /* bytes per entry in groupIndexBuf */ * batchSize * multiplier);
+    return Numbers.nextPowerOfTwo(
+        2 /* bytes per entry in groupIndexBuf */ * batchSize * multiplier);
   }
 
   private static int getGroupIndexBufferSize(int batchSize) {
@@ -244,7 +286,6 @@ public class FixedListVarcharVector extends BaseVariableWidthVector {
 
   /**
    * @param batchSize num elements to be stored
-   *
    * @return the data buffer capacity required to hold the fixedlist vector
    */
   public static int getDataBufferSize(int batchSize) {
@@ -278,10 +319,11 @@ public class FixedListVarcharVector extends BaseVariableWidthVector {
      * Used only to determine which partition to spill based on how big the accumulator
      * and/or HashAgg partition is, so no need to be super accurate.
      */
-    return getUsedByteCapacity() + getOffsetBufferSize(head, 1) +
-      getGroupIndexBufferSize(head, 1) +
-      getDataBufValidityBufferSize(head, 1) +
-      getOverflowBufSize(maxValuesPerBatch);
+    return getUsedByteCapacity()
+        + getOffsetBufferSize(head, 1)
+        + getGroupIndexBufferSize(head, 1)
+        + getDataBufValidityBufferSize(head, 1)
+        + getOverflowBufSize(maxValuesPerBatch);
   }
 
   @VisibleForTesting
@@ -291,8 +333,7 @@ public class FixedListVarcharVector extends BaseVariableWidthVector {
   }
 
   /**
-   * Get minor type for this vector. The vector holds values belonging
-   * to a particular type.
+   * Get minor type for this vector. The vector holds values belonging to a particular type.
    *
    * @return {@link org.apache.arrow.vector.types.Types.MinorType}
    */
@@ -312,8 +353,8 @@ public class FixedListVarcharVector extends BaseVariableWidthVector {
   }
 
   /**
-   * Reset the vector to initial state. Same as {@link #zeroVector()}.
-   * Note that this method doesn't release any memory.
+   * Reset the vector to initial state. Same as {@link #zeroVector()}. Note that this method doesn't
+   * release any memory.
    */
   @Override
   public void reset() {
@@ -327,17 +368,13 @@ public class FixedListVarcharVector extends BaseVariableWidthVector {
     head = 0;
   }
 
-  /**
-   * Close the vector and release the associated buffers.
-   */
+  /** Close the vector and release the associated buffers. */
   @Override
   public void close() {
     this.clear();
   }
 
-  /**
-   * Same as {@link #close()}.
-   */
+  /** Same as {@link #close()}. */
   @Override
   public void clear() {
     super.clear();
@@ -347,10 +384,10 @@ public class FixedListVarcharVector extends BaseVariableWidthVector {
   }
 
   /*----------------------------------------------------------------*
-   |                                                                |
-   |          vector value retrieval methods                        |
-   |                                                                |
-   *----------------------------------------------------------------*/
+  |                                                                |
+  |          vector value retrieval methods                        |
+  |                                                                |
+  *----------------------------------------------------------------*/
 
   /**
    * Get the variable length element at specified index as byte array.
@@ -372,28 +409,29 @@ public class FixedListVarcharVector extends BaseVariableWidthVector {
    * @param index position of element to get
    * @return Text object for non-null element, null otherwise
    */
-   @Override
-   public Text getObject(int index) {
-     Text result = new Text();
-     byte[] b;
-     try {
-       b = get(index);
-     } catch (IllegalStateException e) {
-       return null;
-     }
-     result.set(b);
-     return result;
-   }
+  @Override
+  public Text getObject(int index) {
+    Text result = new Text();
+    byte[] b;
+    try {
+      b = get(index);
+    } catch (IllegalStateException e) {
+      return null;
+    }
+    result.set(b);
+    return result;
+  }
 
   /*----------------------------------------------------------------*
-   |                                                                |
-   |          vector value setter methods                           |
-   |                                                                |
-   *----------------------------------------------------------------*/
+  |                                                                |
+  |          vector value setter methods                           |
+  |                                                                |
+  *----------------------------------------------------------------*/
 
   /**
-   * If 'numOfRecords' number of records could fit in this vector, return free space left.
-   * If these records don't fit (no space in offset buffer/validity buffer), return -1.
+   * If 'numOfRecords' number of records could fit in this vector, return free space left. If these
+   * records don't fit (no space in offset buffer/validity buffer), return -1.
+   *
    * @param numOfRecords
    * @return
    */
@@ -447,7 +485,8 @@ public class FixedListVarcharVector extends BaseVariableWidthVector {
         overFlowCount++;
       }
     }
-    delimterAndOverflowSize = delimiterCount * delimiterLength + overFlowCount * getOverflowReserveSpace();
+    delimterAndOverflowSize =
+        delimiterCount * delimiterLength + overFlowCount * getOverflowReserveSpace();
   }
 
   @VisibleForTesting
@@ -492,13 +531,14 @@ public class FixedListVarcharVector extends BaseVariableWidthVector {
   }
 
   /* Append the given length data within the inputBuf into this vector. */
-  private void addValueToRowGroupInternal(int group, int startOffset, int length, ArrowBuf inputBuf) {
+  private void addValueToRowGroupInternal(
+      int group, int startOffset, int length, ArrowBuf inputBuf) {
     Preconditions.checkState(hasSpace(length, 1, group));
 
     // update the group index
     setGroupIndex(head, group);
 
-    //append at the end
+    // append at the end
     super.set(head, 1, startOffset, startOffset + length, inputBuf);
 
     ++head;
@@ -517,7 +557,7 @@ public class FixedListVarcharVector extends BaseVariableWidthVector {
     // update the group index
     setGroupIndex(head, group);
 
-    //append at the end
+    // append at the end
     super.set(head, bytes, 0, bytes.length);
 
     ++head;
@@ -552,9 +592,7 @@ public class FixedListVarcharVector extends BaseVariableWidthVector {
     super.setNull(index);
   }
 
-  /**
-   * Keep only distinct values for each row group.
-   */
+  /** Keep only distinct values for each row group. */
   @VisibleForTesting
   public void distinct(final IntArrayList[] rowGroups) {
     ++numDistincts;
@@ -589,15 +627,17 @@ public class FixedListVarcharVector extends BaseVariableWidthVector {
   }
 
   /**
-   * outputToVector() will concat individual entries, with given delimiter, for each rowgroup
-   * and create final BaseVariableWidthVector as output.
+   * outputToVector() will concat individual entries, with given delimiter, for each rowgroup and
+   * create final BaseVariableWidthVector as output.
    */
   @VisibleForTesting
-  public void outputToVector(BaseVariableWidthVector outVector, final int targetStartIndex, final int numRecords) {
+  public void outputToVector(
+      BaseVariableWidthVector outVector, final int targetStartIndex, final int numRecords) {
     final IntArrayList[] rowGroups = extractRowGroups();
 
-    final ContentLengthChecker contentLengthChecker = new DelimitedContentLengthChecker(delimiterLength,
-      actualMaxListAggSize - getOverflowReserveSpace(), false);
+    final ContentLengthChecker contentLengthChecker =
+        new DelimitedContentLengthChecker(
+            delimiterLength, actualMaxListAggSize - getOverflowReserveSpace(), false);
     for (int rowGroup = 0; rowGroup < rowGroups.length; ++rowGroup) {
       if (rowGroups[rowGroup] == null) {
         continue;
@@ -609,7 +649,6 @@ public class FixedListVarcharVector extends BaseVariableWidthVector {
       for (int i = 0; i < rowGroups[rowGroup].size(); i++) {
         int index = rowGroups[rowGroup].getInt(i);
         byte[] bytes = get(index);
-
 
         if (!contentLengthChecker.hasSpaceFor(bytes.length) && i != 0) {
           setOverflow(rowGroup);
@@ -634,10 +673,11 @@ public class FixedListVarcharVector extends BaseVariableWidthVector {
   }
 
   /**
-   * Started a new list, writes all values at indices in indicesToPick to the destination vector using
-   * destinationVectorWriter, then ends the list
+   * Started a new list, writes all values at indices in indicesToPick to the destination vector
+   * using destinationVectorWriter, then ends the list
    */
-  void writeRowGroupValues(final UnionListWriter destinationVectorWriter, final IntList indicesToPick) {
+  void writeRowGroupValues(
+      final UnionListWriter destinationVectorWriter, final IntList indicesToPick) {
     destinationVectorWriter.startList();
 
     for (int i = 0; i < indicesToPick.size(); i++) {
@@ -652,16 +692,16 @@ public class FixedListVarcharVector extends BaseVariableWidthVector {
   }
 
   /**
-   * Outputs the contents to a pre-allocated ListVector
-   * The index of each list in the output ListVector corresponds to the row group the values belong to
-   * The length of the output ListVector is likely to be greater than the number of row groups, nulls are used to
-   * denote the missing row groups
-
+   * Outputs the contents to a pre-allocated ListVector The index of each list in the output
+   * ListVector corresponds to the row group the values belong to The length of the output
+   * ListVector is likely to be greater than the number of row groups, nulls are used to denote the
+   * missing row groups
    *
    * @param preallocatedVector the vector will be reset before being populated
    * @param targetStartIndex start index at which the records to append.
    */
-  public int outputToListVector(final ListVector preallocatedVector, final int targetStartIndex, final int numRecords) {
+  public int outputToListVector(
+      final ListVector preallocatedVector, final int targetStartIndex, final int numRecords) {
     final IntArrayList[] rowGroups = extractRowGroups();
     final UnionListWriter writer = preallocatedVector.getWriter();
     int numValidGroups = 0;
@@ -697,11 +737,7 @@ public class FixedListVarcharVector extends BaseVariableWidthVector {
   }
 
   /**
-   * Organizes indices to values under the same row groups, e.g.:
-   *   0: 0, 2, 3
-   *   1: 1, 5
-   *   2: 4
-   *   3: null
+   * Organizes indices to values under the same row groups, e.g.: 0: 0, 2, 3 1: 1, 5 2: 4 3: null
    */
   @VisibleForTesting
   public IntArrayList[] extractRowGroups() {
@@ -725,9 +761,7 @@ public class FixedListVarcharVector extends BaseVariableWidthVector {
     return rowGroups;
   }
 
-  /**
-   * This method mutates the value indices within the row groups
-   */
+  /** This method mutates the value indices within the row groups */
   @VisibleForTesting
   public void orderItemsInRowGroups(final IntArrayList[] rowGroups) {
     // Each row group gets sorted separately
@@ -735,13 +769,14 @@ public class FixedListVarcharVector extends BaseVariableWidthVector {
       if (rowGroups[rowGroup] == null) {
         continue;
       }
-      rowGroups[rowGroup].sort((itemAIndex, itemBIndex) -> {
-        final int comparisonMultiplier = asc ? 1 : -1;
-        final byte[] contentA = get(itemAIndex);
-        final byte[] contentB = get(itemBIndex);
+      rowGroups[rowGroup].sort(
+          (itemAIndex, itemBIndex) -> {
+            final int comparisonMultiplier = asc ? 1 : -1;
+            final byte[] contentA = get(itemAIndex);
+            final byte[] contentB = get(itemBIndex);
 
-        return comparisonMultiplier * ComparisonUtils.compareByteArrays(contentA, contentB);
-      });
+            return comparisonMultiplier * ComparisonUtils.compareByteArrays(contentA, contentB);
+          });
     }
   }
 
@@ -776,16 +811,15 @@ public class FixedListVarcharVector extends BaseVariableWidthVector {
     }
   }
 
-  /**
-   * This method mutates the row groups and the values
-   */
+  /** This method mutates the row groups and the values */
   @VisibleForTesting
   public void deleteExcessItemsInGroups(final IntArrayList[] rowGroups, final int nextRecSize) {
     int maxListAggReserveSpace = getOverflowReserveSpace();
     adjustMaxListAggSize(rowGroups, maxListAggReserveSpace);
 
-    final ContentLengthChecker contentLengthChecker = new DelimitedContentLengthChecker(delimiterLength,
-      maxListAggSize - maxListAggReserveSpace, true);
+    final ContentLengthChecker contentLengthChecker =
+        new DelimitedContentLengthChecker(
+            delimiterLength, maxListAggSize - maxListAggReserveSpace, true);
 
     for (int rowGroup = 0; rowGroup < rowGroups.length; ++rowGroup) {
       if (rowGroups[rowGroup] == null) {
@@ -836,7 +870,7 @@ public class FixedListVarcharVector extends BaseVariableWidthVector {
   public void physicallyRearrangeValues(final IntArrayList[] rowGroups) {
     // Making sure the temp space is empty
     tempSpace.reset();
-    BaseVariableWidthVector dataVector = (BaseVariableWidthVector)tempSpace.getDataVector();
+    BaseVariableWidthVector dataVector = (BaseVariableWidthVector) tempSpace.getDataVector();
 
     // Copying data to the temp space first
     int tempDataWriteIndex = 0;
@@ -844,7 +878,7 @@ public class FixedListVarcharVector extends BaseVariableWidthVector {
       if (rowGroups[rowGroup] == null) {
         continue;
       }
-      for (int oldValueIndex: rowGroups[rowGroup]) {
+      for (int oldValueIndex : rowGroups[rowGroup]) {
         dataVector.set(tempDataWriteIndex, get(oldValueIndex));
 
         tempDataWriteIndex++;
@@ -861,7 +895,7 @@ public class FixedListVarcharVector extends BaseVariableWidthVector {
       if (rowGroups[rowGroupIndex] == null) {
         continue;
       }
-      for (int index: rowGroups[rowGroupIndex]) {
+      for (int index : rowGroups[rowGroupIndex]) {
         final int valueLength = dataVector.getValueLength(tempDataReadIndex);
 
         addValueToRowGroupInternal(rowGroupIndex, startOffset, valueLength, dataVector.valueBuffer);
@@ -909,7 +943,8 @@ public class FixedListVarcharVector extends BaseVariableWidthVector {
     return TypeHelper.getMetadata(tempSpace);
   }
 
-  public void loadBuffers(int valueCount, final ArrowBuf dataBuffer, final ArrowBuf validityBuffer) {
+  public void loadBuffers(
+      int valueCount, final ArrowBuf dataBuffer, final ArrowBuf validityBuffer) {
     // load validity buffers
     final int dataValSize = getDataBufValidityBufferSize(valueCount);
     super.validityBuffer = validityBuffer.slice(0, dataValSize);
@@ -921,21 +956,21 @@ public class FixedListVarcharVector extends BaseVariableWidthVector {
     overflowBuf.writerIndex(overflowBufSize);
     overflowBuf.getReferenceManager().retain();
 
-    //load offset buffer
+    // load offset buffer
     final int offsetSize = getOffsetBufferSize(valueCount);
     super.offsetBuffer = dataBuffer.slice(0, offsetSize);
     super.offsetBuffer.writerIndex(offsetSize);
     super.offsetBuffer.getReferenceManager().retain();
 
-    //load group index buffer
+    // load group index buffer
     final int indexBufSize = getGroupIndexBufferSize(valueCount);
     groupIndexBuf = dataBuffer.slice(offsetSize, indexBufSize);
     groupIndexBuf.writerIndex(indexBufSize);
     groupIndexBuf.getReferenceManager().retain();
 
-    //load value data buffer
+    // load value data buffer
     final int dataBufOffset = offsetSize + indexBufSize;
-    final int dataBufSize = (int)dataBuffer.capacity() - dataBufOffset;
+    final int dataBufSize = (int) dataBuffer.capacity() - dataBufOffset;
     super.valueBuffer = dataBuffer.slice(dataBufOffset, dataBufSize);
     super.valueBuffer.writerIndex(dataBufSize);
     super.valueBuffer.getReferenceManager().retain();
@@ -946,22 +981,21 @@ public class FixedListVarcharVector extends BaseVariableWidthVector {
   }
 
   /*----------------------------------------------------------------*
-   |                                                                |
-   |                      vector transfer                           |
-   |                                                                |
-   *----------------------------------------------------------------*/
+  |                                                                |
+  |                      vector transfer                           |
+  |                                                                |
+  *----------------------------------------------------------------*/
 
   /**
-   * Construct a TransferPair comprising of this and a target vector of
-   * the same type.
+   * Construct a TransferPair comprising of this and a target vector of the same type.
    *
-   * @param ref       name of the target vector
+   * @param ref name of the target vector
    * @param allocator allocator for the target vector
    * @return {@link TransferPair}
    */
   @Override
   public TransferPair getTransferPair(String ref, BufferAllocator allocator) {
-    //return new VarCharVector.TransferImpl(ref, allocator);
+    // return new VarCharVector.TransferImpl(ref, allocator);
     throw new UnsupportedOperationException("not supported");
   }
 
@@ -978,7 +1012,7 @@ public class FixedListVarcharVector extends BaseVariableWidthVector {
    */
   @Override
   public TransferPair makeTransferPair(ValueVector to) {
-    //return new VarCharVector.TransferImpl((VarCharVector) to);
+    // return new VarCharVector.TransferImpl((VarCharVector) to);
     throw new UnsupportedOperationException("not supported");
   }
 
@@ -989,9 +1023,10 @@ public class FixedListVarcharVector extends BaseVariableWidthVector {
     head++;
   }
 
-  public void moveValuesAndFreeSpace(int srcStartGroupIdx, int dstStartGroupIdx, int numGroups, FieldVector accumulator) {
+  public void moveValuesAndFreeSpace(
+      int srcStartGroupIdx, int dstStartGroupIdx, int numGroups, FieldVector accumulator) {
     Preconditions.checkState(dstStartGroupIdx == 0);
-    FixedListVarcharVector flv = (FixedListVarcharVector)accumulator;
+    FixedListVarcharVector flv = (FixedListVarcharVector) accumulator;
 
     int dstIndex = 0;
     for (int i = 0; i < head; i++) {

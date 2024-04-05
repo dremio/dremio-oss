@@ -15,22 +15,20 @@
  */
 package com.dremio.plugins.elastic.mapping;
 
-import java.io.IOException;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.plugins.elastic.mapping.ElasticMappingSet.Type;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import com.google.common.collect.ImmutableMap;
+import java.io.IOException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Custom enumeration deserializer that maps all unknown values to ElasticMappingSet.Type.UNKNOWN
  */
-public class ElasticTypeDeserializer extends StdDeserializer<Type>{
+public class ElasticTypeDeserializer extends StdDeserializer<Type> {
 
   private static final Logger logger = LoggerFactory.getLogger(ElasticTypeDeserializer.class);
   private static ImmutableMap<String, Type> TYPES;
@@ -41,22 +39,21 @@ public class ElasticTypeDeserializer extends StdDeserializer<Type>{
 
   static {
     ImmutableMap.Builder<String, Type> builder = ImmutableMap.builder();
-    for(Type t : Type.values()){
+    for (Type t : Type.values()) {
       builder.put(t.name().toLowerCase(), t);
     }
     TYPES = builder.build();
   }
 
-
   @Override
-  public Type deserialize(JsonParser p, DeserializationContext ctxt) throws IOException, JsonProcessingException {
+  public Type deserialize(JsonParser p, DeserializationContext ctxt)
+      throws IOException, JsonProcessingException {
     String enumStr = p.getValueAsString();
     Type type = TYPES.get(enumStr.toLowerCase());
-    if(type != null){
+    if (type != null) {
       return type;
     }
     logger.debug("Dremio is unable to consume the field type {}, hiding from schema.", enumStr);
     return ElasticMappingSet.Type.UNKNOWN;
   }
-
 }

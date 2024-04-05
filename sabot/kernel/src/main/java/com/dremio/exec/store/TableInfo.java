@@ -18,9 +18,7 @@ package com.dremio.exec.store;
 
 import java.util.Objects;
 
-/**
- * Table info upon executing 'SHOW TABLES'.
- */
+/** Table info upon executing 'SHOW TABLES'. */
 public final class TableInfo {
   public final String source;
   public final String path;
@@ -36,13 +34,17 @@ public final class TableInfo {
 
   @Override
   public boolean equals(Object o) {
-    if (this == o) { return true; }
-    if (o == null || getClass() != o.getClass()) { return false; }
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
     TableInfo tableInfo = (TableInfo) o;
-    return Objects.equals(source, tableInfo.source) &&
-      Objects.equals(path, tableInfo.path) &&
-      Objects.equals(name, tableInfo.name) &&
-      Objects.equals(type, tableInfo.type);
+    return Objects.equals(source, tableInfo.source)
+        && Objects.equals(path, tableInfo.path)
+        && Objects.equals(name, tableInfo.name)
+        && Objects.equals(type, tableInfo.type);
   }
 
   @Override
@@ -52,11 +54,19 @@ public final class TableInfo {
 
   @Override
   public String toString() {
-    return "TableInfo{" +
-      "source='" + source + '\'' +
-      ", path='" + path + '\'' +
-      ", name='" + name + '\'' +
-      ", type='" + type + '\'' +
-      '}';
+    return "TableInfo{"
+        + "source='"
+        + source
+        + '\''
+        + ", path='"
+        + path
+        + '\''
+        + ", name='"
+        + name
+        + '\''
+        + ", type='"
+        + type
+        + '\''
+        + '}';
   }
 }

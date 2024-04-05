@@ -22,19 +22,18 @@ import com.dremio.datastore.format.Format;
 import com.dremio.datastore.format.visitor.BinaryFormatVisitor;
 import com.dremio.service.Service;
 
-/**
- * Legacy key-value store abstraction
- */
+/** Legacy key-value store abstraction */
 @Deprecated
 public interface LegacyKVStoreProvider extends Service {
 
   /**
    * Get the store associated with the provided legacy creator class.
+   *
    * @param creator The creator function.
    * @return The associated kvstore, previously initialized.
    */
-  <K, V, T extends LegacyKVStore<K, V>, U extends KVStore<K, V>>
-  T getStore(Class<? extends LegacyStoreCreationFunction<K, V, T, U>> creator);
+  <K, V, T extends LegacyKVStore<K, V>, U extends KVStore<K, V>> T getStore(
+      Class<? extends LegacyStoreCreationFunction<K, V, T, U>> creator);
 
   /**
    * Interface to configure and construct different store types.
@@ -44,16 +43,24 @@ public interface LegacyKVStoreProvider extends Service {
    */
   interface LegacyStoreBuilder<K, V> {
     LegacyStoreBuilder<K, V> name(String name);
+
     LegacyStoreBuilder<K, V> keyFormat(Format<K> format);
+
     LegacyStoreBuilder<K, V> valueFormat(Format<V> format);
-    LegacyStoreBuilder<K, V> versionExtractor(Class<? extends VersionExtractor<V>> versionExtractorClass);
+
+    LegacyStoreBuilder<K, V> versionExtractor(
+        Class<? extends VersionExtractor<V>> versionExtractorClass);
+
     LegacyStoreBuilder<K, V> permitCompoundKeys(boolean permitCompoundKeys);
+
     LegacyKVStore<K, V> build();
+
     LegacyIndexedStore<K, V> buildIndexed(DocumentConverter<K, V> documentConverter);
   }
 
   /**
    * Most StoreBuilders collect data the same exact way.
+   *
    * @param <K>
    * @param <V>
    */
@@ -82,7 +89,8 @@ public interface LegacyKVStoreProvider extends Service {
     }
 
     @Override
-    public LegacyStoreBuilder<K, V> versionExtractor(Class<? extends VersionExtractor<V>> versionExtractorClass) {
+    public LegacyStoreBuilder<K, V> versionExtractor(
+        Class<? extends VersionExtractor<V>> versionExtractorClass) {
       helper.versionExtractor(versionExtractorClass);
       return this;
     }
@@ -93,8 +101,8 @@ public interface LegacyKVStoreProvider extends Service {
   }
 
   /**
-   * Method that allows decorators of kv store to be peeled off.
-   * If unwrap cannot succeed, null is returned.
+   * Method that allows decorators of kv store to be peeled off. If unwrap cannot succeed, null is
+   * returned.
    */
   default <T> T unwrap(Class<T> clazz) {
     if (clazz.isInstance(this)) {

@@ -15,15 +15,14 @@
  */
 package com.dremio.datastore.adapter;
 
-import java.util.List;
-import java.util.Map;
-
 import com.dremio.datastore.SearchTypes;
 import com.dremio.datastore.VersionExtractor;
 import com.dremio.datastore.api.FindByCondition;
 import com.dremio.datastore.api.ImmutableFindByCondition;
 import com.dremio.datastore.api.IndexedStore;
 import com.dremio.datastore.api.LegacyIndexedStore;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Bridges LegacyIndexedStore to new IndexedStore API.
@@ -31,22 +30,26 @@ import com.dremio.datastore.api.LegacyIndexedStore;
  * @param <K> key of type K.
  * @param <V> value of type V.
  */
-public class LegacyIndexedStoreAdapter<K, V> extends LegacyKVStoreAdapter<K, V> implements LegacyIndexedStore<K,V> {
+public class LegacyIndexedStoreAdapter<K, V> extends LegacyKVStoreAdapter<K, V>
+    implements LegacyIndexedStore<K, V> {
   private IndexedStore<K, V> underlyingStore;
 
-  public LegacyIndexedStoreAdapter(IndexedStore<K, V> underlyingStore, VersionExtractor<V> versionExtractor) {
+  public LegacyIndexedStoreAdapter(
+      IndexedStore<K, V> underlyingStore, VersionExtractor<V> versionExtractor) {
     super(underlyingStore, versionExtractor);
     this.underlyingStore = underlyingStore;
   }
 
   @Override
   public Iterable<Map.Entry<K, V>> find(LegacyFindByCondition find) {
-    FindByCondition findByCondition = new ImmutableFindByCondition.Builder()
-      .setPageSize(find.getPageSize())
-      .setOffset(find.getOffset())
-      .setLimit(find.getLimit())
-      .setCondition(find.getCondition())
-      .setSort(find.getSort()).build();
+    FindByCondition findByCondition =
+        new ImmutableFindByCondition.Builder()
+            .setPageSize(find.getPageSize())
+            .setOffset(find.getOffset())
+            .setLimit(find.getLimit())
+            .setCondition(find.getCondition())
+            .setSort(find.getSort())
+            .build();
     return convertToMapEntry(underlyingStore.find(findByCondition));
   }
 

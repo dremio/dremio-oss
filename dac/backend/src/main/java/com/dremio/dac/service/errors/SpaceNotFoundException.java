@@ -18,9 +18,7 @@ package com.dremio.dac.service.errors;
 import com.dremio.dac.model.spaces.SpaceName;
 import com.dremio.dac.model.spaces.SpaceResourcePath;
 
-/**
- * Thrown when a space is not found for a given path.
- */
+/** Thrown when a space is not found for a given path. */
 public class SpaceNotFoundException extends NotFoundException {
   private static final long serialVersionUID = 1L;
 

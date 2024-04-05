@@ -15,26 +15,24 @@
  */
 package com.dremio.service.coordinator;
 
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-
 import com.dremio.exec.enginemanagement.proto.EngineManagementProtos;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators.BooleanValidator;
 import com.dremio.service.Service;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
 
-/**
- * Service that provides executor sets.
- */
+/** Service that provides executor sets. */
 @Options
 public interface ExecutorSetService extends Service {
 
   // Whether to exclude or include incompatible executors in query planning and execution
   // true - exclude
   // false - Include
-  BooleanValidator DREMIO_VERSION_CHECK = new BooleanValidator("dremio.coordinator.enable_version_check", true);
+  BooleanValidator DREMIO_VERSION_CHECK =
+      new BooleanValidator("dremio.coordinator.enable_version_check", true);
 
   /**
    * Get the set of executors with the given queue tag.
@@ -43,10 +41,12 @@ public interface ExecutorSetService extends Service {
    * @param subEngineId the actual subengine of that engine
    * @return set of executors.
    */
-  ListenableSet getExecutorSet(EngineManagementProtos.EngineId engineId, EngineManagementProtos.SubEngineId subEngineId);
+  ListenableSet getExecutorSet(
+      EngineManagementProtos.EngineId engineId, EngineManagementProtos.SubEngineId subEngineId);
 
   /**
    * Get the set of executors when engineId and subEngineId are not applicable
+   *
    * @return
    */
   default ListenableSet getExecutorSet() {
@@ -55,14 +55,16 @@ public interface ExecutorSetService extends Service {
 
   /**
    * Get all available endpoints across all engines and subEngines
+   *
    * @return
    */
   Collection<NodeEndpoint> getAllAvailableEndpoints();
 
   /**
    * Get all available endpoints across all engines and subEngines based on engines list
+   *
    * @return
    */
-  Map<EngineManagementProtos.SubEngineId, List<NodeEndpoint>> listAllEnginesExecutors() throws Exception;
-
-  }
+  Map<EngineManagementProtos.SubEngineId, List<NodeEndpoint>> listAllEnginesExecutors()
+      throws Exception;
+}

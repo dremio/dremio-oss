@@ -19,17 +19,13 @@ import com.dremio.dac.proto.model.collaboration.CollaborationWiki;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-/**
- * Collaboration wiki
- */
+/** Collaboration wiki */
 public class Wiki {
   private final Long version;
   private final String text;
 
   @JsonCreator
-  public Wiki(
-    @JsonProperty("text") String text,
-    @JsonProperty("version") Long version) {
+  public Wiki(@JsonProperty("text") String text, @JsonProperty("version") Long version) {
     this.text = text;
     this.version = version;
   }

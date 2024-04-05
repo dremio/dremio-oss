@@ -17,14 +17,13 @@ package com.dremio.services.nessie.grpc.client.impl;
 
 import static com.dremio.services.nessie.grpc.GrpcExceptionMapper.handleNessieRuntimeEx;
 
+import com.dremio.services.nessie.grpc.ProtoUtil;
+import com.dremio.services.nessie.grpc.api.GetAllReferencesResponse;
+import com.dremio.services.nessie.grpc.api.TreeServiceGrpc.TreeServiceBlockingStub;
 import org.projectnessie.api.v1.params.ReferencesParams;
 import org.projectnessie.client.builder.BaseGetAllReferencesBuilder;
 import org.projectnessie.model.ImmutableReferencesResponse;
 import org.projectnessie.model.ReferencesResponse;
-
-import com.dremio.services.nessie.grpc.ProtoUtil;
-import com.dremio.services.nessie.grpc.api.GetAllReferencesResponse;
-import com.dremio.services.nessie.grpc.api.TreeServiceGrpc.TreeServiceBlockingStub;
 
 final class GrpcGetAllReferences extends BaseGetAllReferencesBuilder<ReferencesParams> {
 
@@ -38,27 +37,26 @@ final class GrpcGetAllReferences extends BaseGetAllReferencesBuilder<ReferencesP
   @Override
   protected ReferencesParams params() {
     return ReferencesParams.builder()
-      .maxRecords(maxRecords)
-      .fetchOption(fetchOption)
-      .filter(filter)
-      .build();
+        .maxRecords(maxRecords)
+        .fetchOption(fetchOption)
+        .filter(filter)
+        .build();
   }
 
   @Override
   protected ReferencesResponse get(ReferencesParams p) {
     return handleNessieRuntimeEx(
-      () -> {
-        GetAllReferencesResponse response = stub.getAllReferences(ProtoUtil.toProto(p));
-        ImmutableReferencesResponse.Builder builder = ReferencesResponse.builder();
-        response.getReferenceList()
-          .stream()
-          .map(ProtoUtil::refFromProto)
-          .forEach(builder::addReferences);
-        builder.isHasMore(response.getHasMore());
-        if (response.hasPageToken()) {
-          builder.token(response.getPageToken());
-        }
-        return builder.build();
-      });
+        () -> {
+          GetAllReferencesResponse response = stub.getAllReferences(ProtoUtil.toProto(p));
+          ImmutableReferencesResponse.Builder builder = ReferencesResponse.builder();
+          response.getReferenceList().stream()
+              .map(ProtoUtil::refFromProto)
+              .forEach(builder::addReferences);
+          builder.isHasMore(response.getHasMore());
+          if (response.hasPageToken()) {
+            builder.token(response.getPageToken());
+          }
+          return builder.build();
+        });
   }
 }

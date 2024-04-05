@@ -15,38 +15,33 @@
  */
 package com.dremio.exec.store.dfs.system;
 
-import org.apache.iceberg.Schema;
-
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.iceberg.SchemaConverter;
+import org.apache.iceberg.Schema;
 
 /**
- * {@code SystemIcebergViewMetadata} is an abstract class representing metadata for system iceberg views. It contains
- * information about the view's Iceberg schema, schema version, table name, and methods to access or query the view.
+ * {@code SystemIcebergViewMetadata} is an abstract class representing metadata for system iceberg
+ * views. It contains information about the view's Iceberg schema, schema version, table name, and
+ * methods to access or query the view.
  */
 public abstract class SystemIcebergViewMetadata {
 
-  /**
-   * The Iceberg schema representing the view's structure.
-   */
+  /** The Iceberg schema representing the view's structure. */
   private final Schema schema;
 
-  /**
-   * The version of the schema for the view.
-   */
+  /** The version of the schema for the view. */
   private final long schemaVersion;
 
-  /**
-   * The name of the table associated with the view.
-   */
+  /** The name of the table associated with the view. */
   private final String tableName;
 
   /**
-   * Constructs a new {@code SystemIcebergViewMetadata} with the specified schema, schema version, and table name.
+   * Constructs a new {@code SystemIcebergViewMetadata} with the specified schema, schema version,
+   * and table name.
    *
-   * @param schema        The Iceberg {@link Schema} representing the view's schema.
+   * @param schema The Iceberg {@link Schema} representing the view's schema.
    * @param schemaVersion The version of the schema for the view.
-   * @param tableName     The name of the table associated with the view.
+   * @param tableName The name of the table associated with the view.
    */
   public SystemIcebergViewMetadata(Schema schema, long schemaVersion, String tableName) {
     this.schema = schema;
@@ -69,7 +64,10 @@ public abstract class SystemIcebergViewMetadata {
    * @return The BatchSchema object representing the schema of the view.
    */
   public BatchSchema getBatchSchema() {
-    return SchemaConverter.getBuilder().setTableName(tableName).build().fromIceberg(getIcebergSchema());
+    return SchemaConverter.getBuilder()
+        .setTableName(tableName)
+        .build()
+        .fromIceberg(getIcebergSchema());
   }
 
   /**
@@ -97,6 +95,7 @@ public abstract class SystemIcebergViewMetadata {
    * @return The SQL query for the view.
    */
   public String getViewQuery(String userName) {
-    return new SystemIcebergViewQueryBuilder(getSchemaVersion(), getTableName(), null, userName).getViewQuery();
+    return new SystemIcebergViewQueryBuilder(getSchemaVersion(), getTableName(), null, userName)
+        .getViewQuery();
   }
 }

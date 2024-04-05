@@ -15,9 +15,8 @@
  */
 package com.dremio.exec.store.dfs;
 
-import org.apache.calcite.rel.RelNode;
-
 import com.dremio.exec.store.TableMetadata;
+import org.apache.calcite.rel.RelNode;
 
 public interface PruneableScan extends RelNode {
   RelNode applyDatasetPointer(TableMetadata newDatasetPointer);

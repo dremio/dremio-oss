@@ -18,6 +18,19 @@ package com.dremio.services.nessie.grpc.client.impl;
 import static com.dremio.services.nessie.grpc.GrpcExceptionMapper.handleNessieNotFoundEx;
 import static com.dremio.services.nessie.grpc.ProtoUtil.fromProto;
 
+import com.dremio.services.nessie.grpc.api.ConfigServiceGrpc;
+import com.dremio.services.nessie.grpc.api.ConfigServiceGrpc.ConfigServiceBlockingStub;
+import com.dremio.services.nessie.grpc.api.ContentServiceGrpc;
+import com.dremio.services.nessie.grpc.api.ContentServiceGrpc.ContentServiceBlockingStub;
+import com.dremio.services.nessie.grpc.api.DiffServiceGrpc;
+import com.dremio.services.nessie.grpc.api.DiffServiceGrpc.DiffServiceBlockingStub;
+import com.dremio.services.nessie.grpc.api.Empty;
+import com.dremio.services.nessie.grpc.api.RefLogServiceGrpc;
+import com.dremio.services.nessie.grpc.api.RefLogServiceGrpc.RefLogServiceBlockingStub;
+import com.dremio.services.nessie.grpc.api.TreeServiceGrpc;
+import com.dremio.services.nessie.grpc.api.TreeServiceGrpc.TreeServiceBlockingStub;
+import io.grpc.ClientInterceptor;
+import io.grpc.ManagedChannel;
 import org.projectnessie.client.api.AssignBranchBuilder;
 import org.projectnessie.client.api.AssignReferenceBuilder;
 import org.projectnessie.client.api.AssignTagBuilder;
@@ -54,24 +67,7 @@ import org.projectnessie.error.NessieNotFoundException;
 import org.projectnessie.model.Branch;
 import org.projectnessie.model.NessieConfiguration;
 
-import com.dremio.services.nessie.grpc.api.ConfigServiceGrpc;
-import com.dremio.services.nessie.grpc.api.ConfigServiceGrpc.ConfigServiceBlockingStub;
-import com.dremio.services.nessie.grpc.api.ContentServiceGrpc;
-import com.dremio.services.nessie.grpc.api.ContentServiceGrpc.ContentServiceBlockingStub;
-import com.dremio.services.nessie.grpc.api.DiffServiceGrpc;
-import com.dremio.services.nessie.grpc.api.DiffServiceGrpc.DiffServiceBlockingStub;
-import com.dremio.services.nessie.grpc.api.Empty;
-import com.dremio.services.nessie.grpc.api.RefLogServiceGrpc;
-import com.dremio.services.nessie.grpc.api.RefLogServiceGrpc.RefLogServiceBlockingStub;
-import com.dremio.services.nessie.grpc.api.TreeServiceGrpc;
-import com.dremio.services.nessie.grpc.api.TreeServiceGrpc.TreeServiceBlockingStub;
-
-import io.grpc.ClientInterceptor;
-import io.grpc.ManagedChannel;
-
-/**
- * gRPC client implementation for {@link NessieApiV1}.
- */
+/** gRPC client implementation for {@link NessieApiV1}. */
 public class GrpcApiImpl implements NessieApiV1, NessieApiV2 {
 
   private final ManagedChannel channel;
@@ -86,14 +82,20 @@ public class GrpcApiImpl implements NessieApiV1, NessieApiV2 {
     this(channel, shutdownChannel, new ClientInterceptor[0]);
   }
 
-  public GrpcApiImpl(ManagedChannel channel, boolean shutdownChannel, ClientInterceptor... clientInterceptors) {
+  public GrpcApiImpl(
+      ManagedChannel channel, boolean shutdownChannel, ClientInterceptor... clientInterceptors) {
     this.channel = channel;
     this.shutdownChannel = shutdownChannel;
-    this.configServiceBlockingStub = ConfigServiceGrpc.newBlockingStub(channel).withInterceptors(clientInterceptors);
-    this.contentServiceBlockingStub = ContentServiceGrpc.newBlockingStub(channel).withInterceptors(clientInterceptors);
-    this.treeServiceBlockingStub = TreeServiceGrpc.newBlockingStub(channel).withInterceptors(clientInterceptors);
-    this.diffServiceBlockingStub = DiffServiceGrpc.newBlockingStub(channel).withInterceptors(clientInterceptors);
-    this.refLogServiceBlockingStub = RefLogServiceGrpc.newBlockingStub(channel).withInterceptors(clientInterceptors);
+    this.configServiceBlockingStub =
+        ConfigServiceGrpc.newBlockingStub(channel).withInterceptors(clientInterceptors);
+    this.contentServiceBlockingStub =
+        ContentServiceGrpc.newBlockingStub(channel).withInterceptors(clientInterceptors);
+    this.treeServiceBlockingStub =
+        TreeServiceGrpc.newBlockingStub(channel).withInterceptors(clientInterceptors);
+    this.diffServiceBlockingStub =
+        DiffServiceGrpc.newBlockingStub(channel).withInterceptors(clientInterceptors);
+    this.refLogServiceBlockingStub =
+        RefLogServiceGrpc.newBlockingStub(channel).withInterceptors(clientInterceptors);
   }
 
   @Override
@@ -200,7 +202,6 @@ public class GrpcApiImpl implements NessieApiV1, NessieApiV2 {
   public GetRefLogBuilder getRefLog() {
     return new GrpcGetRefLog(refLogServiceBlockingStub);
   }
-
 
   @Override
   public GetNamespaceBuilder getNamespace() {

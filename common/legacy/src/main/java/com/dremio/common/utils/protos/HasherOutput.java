@@ -15,15 +15,13 @@
  */
 package com.dremio.common.utils.protos;
 
-import java.io.IOException;
-import java.nio.ByteBuffer;
-
 import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
-
 import io.protostuff.ByteString;
 import io.protostuff.Output;
 import io.protostuff.Schema;
+import java.io.IOException;
+import java.nio.ByteBuffer;
 
 /***
  * Protostuff Output for hashing an object
@@ -35,10 +33,9 @@ public class HasherOutput implements Output {
     this.hasher = hasher;
   }
 
-  public HasherOutput(){
+  public HasherOutput() {
     this.hasher = Hashing.sha256().newHasher();
   }
-
 
   @Override
   public void writeInt32(int fieldNumber, int value, boolean repeated) {
@@ -143,13 +140,15 @@ public class HasherOutput implements Output {
   }
 
   @Override
-  public void writeByteRange(boolean utf8String, int fieldNumber, byte[] value, int offset, int length, boolean repeated) {
+  public void writeByteRange(
+      boolean utf8String, int fieldNumber, byte[] value, int offset, int length, boolean repeated) {
     hasher.putInt(fieldNumber);
     hasher.putBytes(value, offset, length);
   }
 
   @Override
-  public <T> void writeObject(int fieldNumber, T value, Schema<T> schema, boolean repeated) throws IOException {
+  public <T> void writeObject(int fieldNumber, T value, Schema<T> schema, boolean repeated)
+      throws IOException {
     hasher.putInt(fieldNumber);
     hasher.putUnencodedChars(schema.messageFullName());
     schema.writeTo(this, value);

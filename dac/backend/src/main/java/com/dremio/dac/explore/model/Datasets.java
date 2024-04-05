@@ -18,9 +18,7 @@ package com.dremio.dac.explore.model;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Datasets model
- */
+/** Datasets model */
 public class Datasets {
   private List<Dataset> datasets;
 

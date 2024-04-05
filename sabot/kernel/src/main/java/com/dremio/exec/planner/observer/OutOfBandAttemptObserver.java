@@ -15,25 +15,13 @@
  */
 package com.dremio.exec.planner.observer;
 
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.CountDownLatch;
-
-import javax.inject.Provider;
-
-import org.apache.calcite.plan.RelOptPlanner;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.RelRoot;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.sql.SqlNode;
-
 import com.dremio.common.DeferredException;
 import com.dremio.common.SerializedExecutor;
 import com.dremio.common.tracing.TracingUtils;
 import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.context.RequestContext;
 import com.dremio.exec.catalog.DremioTable;
-import com.dremio.exec.planner.CachedAccelDetails;
+import com.dremio.exec.planner.CachedPlan;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.acceleration.DremioMaterialization;
 import com.dremio.exec.planner.acceleration.RelWithInfo;
@@ -41,9 +29,12 @@ import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
 import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
+import com.dremio.exec.proto.UserBitShared.AccelerationProfile;
 import com.dremio.exec.proto.UserBitShared.AttemptEvent;
 import com.dremio.exec.proto.UserBitShared.FragmentRpcSizeStats;
+import com.dremio.exec.proto.UserBitShared.PlannerPhaseRulesStats;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.exec.work.QueryWorkUnit;
 import com.dremio.exec.work.foreman.ExecutionPlan;
@@ -52,17 +43,23 @@ import com.dremio.exec.work.protector.UserResult;
 import com.dremio.reflection.hints.ReflectionExplanationsAndQueryDistance;
 import com.dremio.resource.ResourceSchedulingDecisionInfo;
 import com.dremio.telemetry.utils.TracerFacade;
-
 import io.opentracing.Span;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import javax.inject.Provider;
+import org.apache.calcite.plan.RelOptPlanner;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.RelRoot;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.sql.SqlNode;
 
 /**
- * Does query observations in order but not in the query execution thread. This
- * ensures two things:
- * - any blocking commands don't block the underlying thread
- * - any exceptions don't bleed into the caller.
+ * Does query observations in order but not in the query execution thread. This ensures two things:
+ * - any blocking commands don't block the underlying thread - any exceptions don't bleed into the
+ * caller.
  *
- * Additionally, the observer will report back all exceptions thrown in the callbacks to the delegate
- * {@link #attemptCompletion(UserResult)} callback
+ * <p>Additionally, the observer will report back all exceptions thrown in the callbacks to the
+ * delegate {@link #attemptCompletion(UserResult)} callback
  */
 public class OutOfBandAttemptObserver implements AttemptObserver {
   private final SerializedExecutor<Runnable> serializedExec;
@@ -88,18 +85,20 @@ public class OutOfBandAttemptObserver implements AttemptObserver {
   @Override
   public void beginState(final AttemptEvent event) {
     switch (event.getState()) {
-      case RUNNING: {
-        executionSpan = TracingUtils.buildChildSpan(TracerFacade.INSTANCE, "execution-started");
-        break;
-      }
+      case RUNNING:
+        {
+          executionSpan = TracingUtils.buildChildSpan(TracerFacade.INSTANCE, "execution-started");
+          break;
+        }
       case COMPLETED:
       case CANCELED:
-      case FAILED: {
-        if (executionSpan != null) {
-          executionSpan.finish();
+      case FAILED:
+        {
+          if (executionSpan != null) {
+            executionSpan.finish();
+          }
+          break;
         }
-        break;
-      }
     }
     execute(() -> innerObserver.beginState(event));
   }
@@ -120,8 +119,8 @@ public class OutOfBandAttemptObserver implements AttemptObserver {
   }
 
   @Override
-  public void finalPrel(final Prel prel) {
-    execute(() -> innerObserver.finalPrel(prel));
+  public void finalPrelPlanGenerated(final Prel prel) {
+    execute(() -> innerObserver.finalPrelPlanGenerated(prel));
   }
 
   @Override
@@ -130,18 +129,27 @@ public class OutOfBandAttemptObserver implements AttemptObserver {
   }
 
   @Override
-  public void planRelTransform(final PlannerPhase phase, final RelOptPlanner planner, final RelNode before,
-                               final RelNode after, final long millisTaken, final Map<String, Long> timeBreakdownPerRule) {
-    execute(() -> innerObserver.planRelTransform(phase, planner, before, after, millisTaken, timeBreakdownPerRule));
+  public void planRelTransform(
+      final PlannerPhase phase,
+      final RelOptPlanner planner,
+      final RelNode before,
+      final RelNode after,
+      final long millisTaken,
+      final List<PlannerPhaseRulesStats> rulesBreakdownStats) {
+    execute(
+        () ->
+            innerObserver.planRelTransform(
+                phase, planner, before, after, millisTaken, rulesBreakdownStats));
   }
 
   /**
    * Gets the refresh decision and how long it took to make the refresh decision
+   *
    * @param text A string describing if we decided to do full or incremental refresh
    * @param millisTaken time taken in planning the refresh decision
    */
   @Override
-  public void planRefreshDecision(String text, long millisTaken){
+  public void planRefreshDecision(String text, long millisTaken) {
     execute(() -> innerObserver.planRefreshDecision(text, millisTaken));
   }
 
@@ -171,10 +179,16 @@ public class OutOfBandAttemptObserver implements AttemptObserver {
   }
 
   @Override
-  public void planSubstituted(final DremioMaterialization materialization,
-                              final List<RelWithInfo> substitutions,
-                              final RelWithInfo target, final long millisTaken, boolean defaultReflection) {
-    execute(() -> innerObserver.planSubstituted(materialization, substitutions, target, millisTaken, defaultReflection));
+  public void planSubstituted(
+      final DremioMaterialization materialization,
+      final List<RelWithInfo> substitutions,
+      final RelWithInfo target,
+      final long millisTaken,
+      boolean defaultReflection) {
+    execute(
+        () ->
+            innerObserver.planSubstituted(
+                materialization, substitutions, target, millisTaken, defaultReflection));
   }
 
   @Override
@@ -188,19 +202,24 @@ public class OutOfBandAttemptObserver implements AttemptObserver {
   }
 
   @Override
-  public void applyAccelDetails(final CachedAccelDetails accelDetails) {
-    execute(() -> innerObserver.applyAccelDetails(accelDetails));
+  public void addAccelerationProfileToCachedPlan(CachedPlan plan) {
+    execute(() -> innerObserver.addAccelerationProfileToCachedPlan(plan));
   }
 
   @Override
-  public void planCompleted(final ExecutionPlan plan) {
+  public void restoreAccelerationProfileFromCachedPlan(AccelerationProfile accelerationProfile) {
+    execute(() -> innerObserver.restoreAccelerationProfileFromCachedPlan(accelerationProfile));
+  }
+
+  @Override
+  public void planCompleted(final ExecutionPlan plan, final BatchSchema batchSchema) {
     // TODO(DX-61807): The catalog lookup will be avoided if we use cache.
     final RequestContext requestContext =
         (RequestContext.current() != RequestContext.empty() || requestContextProvider == null)
             ? RequestContext.current()
             : requestContextProvider.get();
 
-    execute(() -> requestContext.run(() -> innerObserver.planCompleted(plan)));
+    execute(() -> requestContext.run(() -> innerObserver.planCompleted(plan, batchSchema)));
   }
 
   @Override
@@ -209,7 +228,8 @@ public class OutOfBandAttemptObserver implements AttemptObserver {
   }
 
   @Override
-  public void execDataArrived(final RpcOutcomeListener<Ack> outcomeListener, final QueryWritableBatch result) {
+  public void execDataArrived(
+      final RpcOutcomeListener<Ack> outcomeListener, final QueryWritableBatch result) {
     if ((eventNameSuffix <= 10) && (executionSpan != null)) {
       numCallsToExecDataArrived++;
       if (numCallsToExecDataArrived == recordNextEventOnNumCalls) {
@@ -234,8 +254,15 @@ public class OutOfBandAttemptObserver implements AttemptObserver {
   }
 
   @Override
-  public void planValidated(final RelDataType rowType, final SqlNode node, final long millisTaken) {
-    execute(() -> innerObserver.planValidated(rowType, node, millisTaken));
+  public void planValidated(
+      final RelDataType rowType,
+      final SqlNode node,
+      final long millisTaken,
+      final boolean isMaterializationCacheInitialized) {
+    execute(
+        () ->
+            innerObserver.planValidated(
+                rowType, node, millisTaken, isMaterializationCacheInitialized));
   }
 
   @Override
@@ -259,7 +286,11 @@ public class OutOfBandAttemptObserver implements AttemptObserver {
   }
 
   @Override
-  public void planExpandView(final RelRoot expanded, final List<String> schemaPath, final int nestingLevel, final String sql) {
+  public void planExpandView(
+      final RelRoot expanded,
+      final List<String> schemaPath,
+      final int nestingLevel,
+      final String sql) {
     execute(() -> innerObserver.planExpandView(expanded, schemaPath, nestingLevel, sql));
   }
 
@@ -272,28 +303,36 @@ public class OutOfBandAttemptObserver implements AttemptObserver {
   public void attemptCompletion(final UserResult result) {
     // make sure we have correct ordering (this should come after all previous observations).
     final CountDownLatch cd = new CountDownLatch(1);
-    serializedExec.execute(() -> {
-      try {
-        UserResult finalResult = result;
-        if (deferred.hasException()) {
-          finalResult = finalResult.withException(deferred.getAndClear());
-        }
-        innerObserver.attemptCompletion(finalResult);
-      } finally {
-        cd.countDown();
-      }
-    });
-    try{
+    serializedExec.execute(
+        () -> {
+          try {
+            UserResult finalResult = result;
+            if (deferred.hasException()) {
+              finalResult = finalResult.withException(deferred.getAndClear());
+            }
+            innerObserver.attemptCompletion(finalResult);
+          } finally {
+            cd.countDown();
+          }
+        });
+    try {
       cd.await();
-    } catch(InterruptedException ex){
+    } catch (InterruptedException ex) {
       Thread.currentThread().interrupt();
     }
-
   }
 
   @Override
-  public void executorsSelected(long millisTaken, int idealNumFragments, int idealNumNodes, int numExecutors, String detailsText) {
-    execute(() -> innerObserver.executorsSelected(millisTaken, idealNumFragments, idealNumNodes, numExecutors, detailsText));
+  public void executorsSelected(
+      long millisTaken,
+      int idealNumFragments,
+      int idealNumNodes,
+      int numExecutors,
+      String detailsText) {
+    execute(
+        () ->
+            innerObserver.executorsSelected(
+                millisTaken, idealNumFragments, idealNumNodes, numExecutors, detailsText));
   }
 
   @Override
@@ -337,7 +376,8 @@ public class OutOfBandAttemptObserver implements AttemptObserver {
   }
 
   @Override
-  public void updateReflectionsWithHints(ReflectionExplanationsAndQueryDistance reflectionExplanationsAndQueryDistance) {
+  public void updateReflectionsWithHints(
+      ReflectionExplanationsAndQueryDistance reflectionExplanationsAndQueryDistance) {
     execute(() -> innerObserver.updateReflectionsWithHints(reflectionExplanationsAndQueryDistance));
   }
 
@@ -357,16 +397,17 @@ public class OutOfBandAttemptObserver implements AttemptObserver {
   }
 
   /**
-   * Wraps the runnable so that any exception thrown will eventually cause the attempt
-   * to fail when handling the {@link #attemptCompletion(UserResult)} callback
+   * Wraps the runnable so that any exception thrown will eventually cause the attempt to fail when
+   * handling the {@link #attemptCompletion(UserResult)} callback
    */
   private void execute(Runnable runnable) {
-    serializedExec.execute(() -> {
-      try {
-        runnable.run();
-      } catch (Throwable ex) {
-        deferred.addThrowable(ex);
-      }
-    });
+    serializedExec.execute(
+        () -> {
+          try {
+            runnable.run();
+          } catch (Throwable ex) {
+            deferred.addThrowable(ex);
+          }
+        });
   }
 }

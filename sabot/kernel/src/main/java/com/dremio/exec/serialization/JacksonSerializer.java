@@ -15,12 +15,11 @@
  */
 package com.dremio.exec.serialization;
 
-import java.io.IOException;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.base.Objects;
+import java.io.IOException;
 
 public class JacksonSerializer<T> implements InstanceSerializer<T> {
   private final ObjectReader reader;
@@ -44,7 +43,7 @@ public class JacksonSerializer<T> implements InstanceSerializer<T> {
   @Override
   public boolean equals(Object obj) {
     if (obj instanceof JacksonSerializer && obj.getClass().equals(getClass())) {
-      final JacksonSerializer<T> other = (JacksonSerializer<T>)obj;
+      final JacksonSerializer<T> other = (JacksonSerializer<T>) obj;
       return Objects.equal(reader, other.reader) && Objects.equal(writer, other.writer);
     }
     return false;

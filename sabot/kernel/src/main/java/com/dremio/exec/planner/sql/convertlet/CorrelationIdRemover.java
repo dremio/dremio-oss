@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.planner.sql.convertlet;
 
+import com.dremio.exec.planner.StatelessRelShuttleImpl;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.CorrelationId;
 import org.apache.calcite.rel.logical.LogicalFilter;
@@ -22,15 +23,13 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexSubQuery;
 import org.apache.calcite.util.Pair;
 
-import com.dremio.exec.planner.StatelessRelShuttleImpl;
-
 public final class CorrelationIdRemover {
 
   public static Pair<CorrelationId, RelNode> remove(RelNode relNode) {
     RelShuttle shuttle = new RelShuttle();
     RelNode rewrittenRelNode = relNode.accept(shuttle);
 
-    return Pair.of(shuttle.rexShuttle.correlationIdRemoved,  rewrittenRelNode);
+    return Pair.of(shuttle.rexShuttle.correlationIdRemoved, rewrittenRelNode);
   }
 
   public static Pair<CorrelationId, RexNode> remove(RexNode rexNode) {
@@ -91,7 +90,8 @@ public final class CorrelationIdRemover {
         return super.visit(filter);
       }
 
-      RelNode rewrittenFilter = filter.copy(filter.getTraitSet(), rewrittenInput, rewrittenCondition);
+      RelNode rewrittenFilter =
+          filter.copy(filter.getTraitSet(), rewrittenInput, rewrittenCondition);
       return rewrittenFilter;
     }
   }

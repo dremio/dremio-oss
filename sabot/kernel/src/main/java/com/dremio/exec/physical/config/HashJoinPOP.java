@@ -16,14 +16,6 @@
 
 package com.dremio.exec.physical.config;
 
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
-
-import org.apache.calcite.rel.core.JoinRelType;
-
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.logical.data.JoinCondition;
 import com.dremio.exec.physical.base.AbstractBase;
@@ -37,6 +29,12 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterators;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+import org.apache.calcite.rel.core.JoinRelType;
 
 @JsonTypeName("hash-join")
 public class HashJoinPOP extends AbstractBase {
@@ -47,6 +45,8 @@ public class HashJoinPOP extends AbstractBase {
   private final LogicalExpression extraCondition;
   private final JoinRelType joinType;
   private final boolean vectorize;
+
+  private final boolean spill;
   private RuntimeFilterInfo runtimeFilterInfo;
 
   @JsonCreator
@@ -58,8 +58,8 @@ public class HashJoinPOP extends AbstractBase {
       @JsonProperty("extraCondition") LogicalExpression extraCondition,
       @JsonProperty("joinType") JoinRelType joinType,
       @JsonProperty("vectorize") boolean vectorize,
-      @JsonProperty("runtimeFilterInfo") RuntimeFilterInfo runtimeFilterInfo
-      ) {
+      @JsonProperty("spill") boolean spill,
+      @JsonProperty("runtimeFilterInfo") RuntimeFilterInfo runtimeFilterInfo) {
     super(props);
     this.left = left;
     this.right = right;
@@ -67,39 +67,70 @@ public class HashJoinPOP extends AbstractBase {
     this.extraCondition = extraCondition;
     this.joinType = joinType;
     this.vectorize = vectorize;
+    this.spill = spill;
+    this.runtimeFilterInfo = runtimeFilterInfo;
+  }
+
+  public HashJoinPOP(
+      OpProps props,
+      PhysicalOperator left,
+      PhysicalOperator right,
+      List<JoinCondition> conditions,
+      LogicalExpression extraCondition,
+      JoinRelType joinType,
+      boolean vectorize,
+      RuntimeFilterInfo runtimeFilterInfo) {
+    super(props);
+    this.left = left;
+    this.right = right;
+    this.conditions = conditions;
+    this.extraCondition = extraCondition;
+    this.joinType = joinType;
+    this.vectorize = vectorize;
+    this.spill = false;
     this.runtimeFilterInfo = runtimeFilterInfo;
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value) throws E {
-      return physicalVisitor.visitHashJoin(this, value);
+  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value)
+      throws E {
+    return physicalVisitor.visitHashJoin(this, value);
   }
 
   @Override
   public PhysicalOperator getNewWithChildren(List<PhysicalOperator> children) {
-      Preconditions.checkArgument(children.size() == 2);
-      return new HashJoinPOP(props, children.get(0), children.get(1), conditions, extraCondition, joinType, vectorize, runtimeFilterInfo);
+    Preconditions.checkArgument(children.size() == 2);
+    return new HashJoinPOP(
+        props,
+        children.get(0),
+        children.get(1),
+        conditions,
+        extraCondition,
+        joinType,
+        vectorize,
+        spill,
+        runtimeFilterInfo);
   }
 
   @Override
   public Iterator<PhysicalOperator> iterator() {
-      return Iterators.forArray(left, right);
+    return Iterators.forArray(left, right);
   }
 
   public PhysicalOperator getLeft() {
-      return left;
+    return left;
   }
 
   public PhysicalOperator getRight() {
-      return right;
+    return right;
   }
 
   public JoinRelType getJoinType() {
-      return joinType;
+    return joinType;
   }
 
   public List<JoinCondition> getConditions() {
-      return conditions;
+    return conditions;
   }
 
   public LogicalExpression getExtraCondition() {
@@ -108,6 +139,10 @@ public class HashJoinPOP extends AbstractBase {
 
   public boolean isVectorize() {
     return vectorize;
+  }
+
+  public boolean isSpill() {
+    return spill;
   }
 
   @Override
@@ -129,7 +164,7 @@ public class HashJoinPOP extends AbstractBase {
       return Collections.emptySet();
     }
     return runtimeFilterInfo.getRuntimeFilterProbeTargets().stream()
-      .map(RuntimeFilterProbeTarget::getProbeScanMajorFragmentId)
-      .collect(Collectors.toSet());
+        .map(RuntimeFilterProbeTarget::getProbeScanMajorFragmentId)
+        .collect(Collectors.toSet());
   }
 }

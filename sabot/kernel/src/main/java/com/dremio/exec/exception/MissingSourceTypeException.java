@@ -18,8 +18,8 @@ package com.dremio.exec.exception;
 import java.util.ResourceBundle;
 
 /**
- * Exception used to indicate a source configuration was loaded but
- * no corresponding SourceType was available.
+ * Exception used to indicate a source configuration was loaded but no corresponding SourceType was
+ * available.
  */
 public class MissingSourceTypeException extends RuntimeException {
 
@@ -44,19 +44,22 @@ public class MissingSourceTypeException extends RuntimeException {
         return "HBase source type is not installed. Please download it from Dremio Hub: https://github.com/dremio-hub.";
 
       case "ADL":
-        if ("true".equals(ResourceBundle.getBundle("mapr-distribution").getString("maprDistribution"))) {
+        if ("true"
+            .equals(ResourceBundle.getBundle("mapr-distribution").getString("maprDistribution"))) {
           return "The Azure Data Lake source type is not available in the MapR edition of Dremio.";
         }
         return super.getMessage();
 
       case "AZURE_STORAGE":
-        if ("true".equals(ResourceBundle.getBundle("mapr-distribution").getString("maprDistribution"))) {
+        if ("true"
+            .equals(ResourceBundle.getBundle("mapr-distribution").getString("maprDistribution"))) {
           return "The Azure Storage source type is not available in the MapR edition of Dremio.";
         }
         return super.getMessage();
 
       case "S3":
-        if ("true".equals(ResourceBundle.getBundle("mapr-distribution").getString("maprDistribution"))) {
+        if ("true"
+            .equals(ResourceBundle.getBundle("mapr-distribution").getString("maprDistribution"))) {
           return "The Amazon S3 source type is not available in the MapR edition of Dremio.";
         }
         return super.getMessage();

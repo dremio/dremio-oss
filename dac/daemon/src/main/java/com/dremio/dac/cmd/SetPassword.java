@@ -15,8 +15,6 @@
  */
 package com.dremio.dac.cmd;
 
-import java.util.Optional;
-
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
@@ -24,25 +22,31 @@ import com.beust.jcommander.Parameters;
 import com.dremio.dac.server.DACConfig;
 import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.service.users.SimpleUserService;
+import java.util.Optional;
 
-/**
- * Set password for a given user, used by admins.
- */
+/** Set password for a given user, used by admins. */
 @AdminCommand(value = "set-password", description = "Sets passwords for Dremio users (non-LDAP)")
 public class SetPassword {
 
-  /**
-   * Command line options for set-password.
-   */
+  /** Command line options for set-password. */
   @Parameters(separators = "=")
   private static final class SetPasswordOptions {
-    @Parameter(names={"-h", "--help"}, description="show usage", help=true)
+    @Parameter(
+        names = {"-h", "--help"},
+        description = "show usage",
+        help = true)
     private boolean help = false;
 
-    @Parameter(names= {"-u", "--username"}, description="username of user", required=true)
+    @Parameter(
+        names = {"-u", "--username"},
+        description = "username of user",
+        required = true)
     private String userName = null;
 
-    @Parameter(names= {"-p", "--password"}, description="password", password=true)
+    @Parameter(
+        names = {"-p", "--password"},
+        description = "password",
+        password = true)
     private String password = null;
 
     public static SetPasswordOptions parse(String[] cliArgs) {
@@ -58,12 +62,12 @@ public class SetPassword {
         System.exit(1);
       }
 
-      if(args.help) {
+      if (args.help) {
         jc.usage();
         System.exit(0);
       }
 
-      if(args.userName != null && args.password == null) {
+      if (args.userName != null && args.password == null) {
         char[] pwd = System.console().readPassword("password: ");
         args.password = new String(pwd);
       }
@@ -71,14 +75,16 @@ public class SetPassword {
     }
   }
 
-  public static void resetPassword(DACConfig dacConfig, String userName, String password) throws Exception {
-    Optional<LocalKVStoreProvider> providerOptional = CmdUtils.getKVStoreProvider(dacConfig.getConfig());
+  public static void resetPassword(DACConfig dacConfig, String userName, String password)
+      throws Exception {
+    Optional<LocalKVStoreProvider> providerOptional =
+        CmdUtils.getKVStoreProvider(dacConfig.getConfig());
     if (!providerOptional.isPresent()) {
       AdminLogger.log("No KVStore detected.");
       return;
     }
 
-    try(LocalKVStoreProvider kvStoreProvider = providerOptional.get()) {
+    try (LocalKVStoreProvider kvStoreProvider = providerOptional.get()) {
       kvStoreProvider.start();
       new SimpleUserService(() -> kvStoreProvider.asLegacy()).setPassword(userName, password);
     }

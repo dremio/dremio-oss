@@ -16,18 +16,16 @@
 
 package com.dremio.dac.model.userpreferences;
 
+import com.dremio.service.userpreferences.proto.UserPreferenceProto;
 import java.util.List;
 
-import com.dremio.service.userpreferences.proto.UserPreferenceProto;
-
-/**
- * Class PreferenceData
- */
+/** Class PreferenceData */
 public final class PreferenceData {
   private final UserPreferenceProto.PreferenceType preferenceType;
   private final List<Entity> entities;
 
-  public PreferenceData(final UserPreferenceProto.PreferenceType preferenceType, final List<Entity> entities) {
+  public PreferenceData(
+      final UserPreferenceProto.PreferenceType preferenceType, final List<Entity> entities) {
     this.preferenceType = preferenceType;
     this.entities = entities;
   }
@@ -39,5 +37,4 @@ public final class PreferenceData {
   public List<Entity> getEntities() {
     return entities;
   }
-
 }

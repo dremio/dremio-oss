@@ -23,7 +23,6 @@ import com.dremio.sabot.exec.context.MetricDef;
  * Metrics used for scanning snapshots, and snapshot rewriting operations (such as Expiry/Vacuum)
  */
 public enum IcebergExpiryMetric implements MetricDef {
-
   COMMIT_SCAN_TIME,
   ICEBERG_COMMIT_TIME,
   NUM_TABLE_EXPIRY,
@@ -33,8 +32,7 @@ public enum IcebergExpiryMetric implements MetricDef {
   NUM_PARTIAL_FAILURES,
   NUM_ACCESS_DENIED,
   NUM_NOT_FOUND,
-  SNAPSHOT_LOAD_TIME
-  ;
+  SNAPSHOT_LOAD_TIME;
 
   private final DisplayType displayType;
   private final AggregationType aggregationType;
@@ -44,7 +42,8 @@ public enum IcebergExpiryMetric implements MetricDef {
     this(DisplayType.DISPLAY_NEVER, AggregationType.SUM, "");
   }
 
-  IcebergExpiryMetric(DisplayType displayType, AggregationType aggregationType, String displayCode) {
+  IcebergExpiryMetric(
+      DisplayType displayType, AggregationType aggregationType, String displayCode) {
     this.displayType = displayType;
     this.aggregationType = aggregationType;
     this.displayCode = displayCode;

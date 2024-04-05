@@ -20,7 +20,5 @@ import org.apache.calcite.rex.RexCall;
 public interface FunctionConvertlet {
   boolean matches(RexCall call);
 
-  RexCall convertCall(
-    ConvertletContext cx,
-    RexCall call);
+  RexCall convertCall(ConvertletContext cx, RexCall call);
 }

@@ -15,7 +15,8 @@
  */
 package com.dremio.exec.expr;
 
-public interface SimpleFunction extends Function{
+public interface SimpleFunction extends Function {
   public void setup();
+
   public void eval();
 }

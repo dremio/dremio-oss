@@ -18,15 +18,18 @@ package com.dremio.exec.planner.sql.handlers;
 import org.immutables.value.Value;
 
 /**
- * Parameters for DremioFieldTrimmer.
- * This staged builder pattern enables us to simulate "named parameters" in Java.
+ * Parameters for DremioFieldTrimmer. This staged builder pattern enables us to simulate "named
+ * parameters" in Java.
  */
 @Value.Style(stagedBuilder = true)
 @Value.Immutable
 public interface DremioFieldTrimmerParameters {
   boolean shouldLog();
+
   boolean isRelPlanning();
+
   boolean trimProjectedColumn();
+
   boolean trimJoinBranch();
 
   static ImmutableDremioFieldTrimmerParameters.ShouldLogBuildStage builder() {

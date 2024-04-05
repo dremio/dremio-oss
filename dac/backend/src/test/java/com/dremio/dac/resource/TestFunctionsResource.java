@@ -15,11 +15,6 @@
  */
 package com.dremio.dac.resource;
 
-import javax.ws.rs.core.Response;
-
-import org.junit.Assert;
-import org.junit.Test;
-
 import com.dremio.dac.server.BaseTestServer;
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -29,10 +24,11 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
 import com.fasterxml.jackson.datatype.guava.GuavaModule;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import javax.ws.rs.core.Response;
+import org.junit.Assert;
+import org.junit.Test;
 
-/**
- * Tests {@link FunctionsListService} API
- */
+/** Tests {@link FunctionsListService} API */
 public class TestFunctionsResource extends BaseTestServer {
   @Test
   public void testFunctions() throws Exception {
@@ -43,22 +39,21 @@ public class TestFunctionsResource extends BaseTestServer {
   public FunctionsListService.Response getFunctions() throws Exception {
     final String endpoint = "/sql/functions";
 
-    Response response = expectSuccess(
-      getBuilder(getAPIv2().path(endpoint))
-        .buildGet());
+    Response response = expectSuccess(getBuilder(getAPIv2().path(endpoint)).buildGet());
     String stringResponse = response.readEntity(String.class);
 
-    ObjectMapper objectMapper = new ObjectMapper(
-      new YAMLFactory()
-        .disable(YAMLGenerator.Feature.SPLIT_LINES)
-        .disable(YAMLGenerator.Feature.CANONICAL_OUTPUT)
-        .enable(YAMLGenerator.Feature.INDENT_ARRAYS))
-      .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
-      .enable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
-      .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
-      .registerModule(new JavaTimeModule())
-      .registerModule(new GuavaModule())
-      .registerModule(new Jdk8Module());
+    ObjectMapper objectMapper =
+        new ObjectMapper(
+                new YAMLFactory()
+                    .disable(YAMLGenerator.Feature.SPLIT_LINES)
+                    .disable(YAMLGenerator.Feature.CANONICAL_OUTPUT)
+                    .enable(YAMLGenerator.Feature.INDENT_ARRAYS))
+            .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
+            .enable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+            .registerModule(new JavaTimeModule())
+            .registerModule(new GuavaModule())
+            .registerModule(new Jdk8Module());
 
     return objectMapper.readValue(stringResponse, FunctionsListService.Response.class);
   }

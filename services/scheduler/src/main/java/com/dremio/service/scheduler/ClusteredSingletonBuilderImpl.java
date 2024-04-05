@@ -17,14 +17,13 @@ package com.dremio.service.scheduler;
 
 import static com.dremio.service.scheduler.Schedule.ClusteredSingletonBuilder;
 
+import com.google.common.base.Preconditions;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.temporal.TemporalAmount;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
-
-import com.google.common.base.Preconditions;
 
 /**
  * Builder Implementation to create multi shot {@code Schedule} instances for clustered singleton
@@ -53,10 +52,13 @@ final class ClusteredSingletonBuilderImpl implements ClusteredSingletonBuilder {
   }
 
   ClusteredSingletonBuilderImpl(Schedule old, TemporalAmount newAmount) {
-    Preconditions.checkState(old.getSingleShotType() == null, "Modifications are not allowed for single shot types");
-    Preconditions.checkState(!old.isInLockStep(), "Modifications are not allowed for Lock step schedules");
+    Preconditions.checkState(
+        old.getSingleShotType() == null, "Modifications are not allowed for single shot types");
+    Preconditions.checkState(
+        !old.isInLockStep(), "Modifications are not allowed for Lock step schedules");
     Instant at = ZonedDateTime.now(old.getZoneId()).toInstant().plus(newAmount);
-    this.scheduleBuilder = new ScheduleBuilderImpl(at, newAmount, old.getAdjuster(), old.getZoneId());
+    this.scheduleBuilder =
+        new ScheduleBuilderImpl(at, newAmount, old.getAdjuster(), old.getZoneId());
     // task name cannot be changed
     this.taskName = old.getTaskName();
     this.scheduledOwnershipRelease = old.getScheduledOwnershipReleaseInMillis();
@@ -115,8 +117,16 @@ final class ClusteredSingletonBuilderImpl implements ClusteredSingletonBuilder {
 
   @Override
   public Schedule build() {
-    return new BaseSchedule(scheduleBuilder.getStart(), scheduleBuilder.getAmount(), scheduleBuilder.getAdjuster(),
-      scheduleBuilder.getZoneId(), taskName, scheduledOwnershipRelease, cleanupListener, scheduleModifier,
-      taskGroupName, sticky);
+    return new BaseSchedule(
+        scheduleBuilder.getStart(),
+        scheduleBuilder.getAmount(),
+        scheduleBuilder.getAdjuster(),
+        scheduleBuilder.getZoneId(),
+        taskName,
+        scheduledOwnershipRelease,
+        cleanupListener,
+        scheduleModifier,
+        taskGroupName,
+        sticky);
   }
 }

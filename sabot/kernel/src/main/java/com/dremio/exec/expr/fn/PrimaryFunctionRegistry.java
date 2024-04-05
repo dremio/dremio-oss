@@ -16,13 +16,11 @@
 package com.dremio.exec.expr.fn;
 
 import java.util.List;
-
 import org.apache.calcite.sql.SqlOperator;
 
 /**
- * Marker interface for primary dremio function registries -
- * the dremio java function registry and the llvm based gandiva
- * registry
+ * Marker interface for primary dremio function registries - the dremio java function registry and
+ * the llvm based gandiva registry
  */
 public interface PrimaryFunctionRegistry {
   List<SqlOperator> listOperators(boolean isDecimalV2Enabled);

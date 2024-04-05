@@ -18,10 +18,7 @@ package com.dremio.service.coordinator;
 import com.dremio.service.Service;
 import com.dremio.service.coordinator.proto.ProjectConfig;
 
-/**
- * Interface for saving and retrieving coordinator settings that are
- * applied to cordinator.
- */
+/** Interface for saving and retrieving coordinator settings that are applied to cordinator. */
 public interface ProjectConfigStore extends Service {
   // get the project config of the coordinator
   ProjectConfig get();
@@ -29,26 +26,21 @@ public interface ProjectConfigStore extends Service {
   // save the project config of the coordinator
   void put(ProjectConfig projectConfig);
 
-  /**
-   * NO_OP implementation
-   */
-  public static final ProjectConfigStore NO_OP = new ProjectConfigStore() {
-    @Override
-    public void start() throws Exception {
-    }
+  /** NO_OP implementation */
+  public static final ProjectConfigStore NO_OP =
+      new ProjectConfigStore() {
+        @Override
+        public void start() throws Exception {}
 
-    @Override
-    public void close() throws Exception {
-    }
+        @Override
+        public void close() throws Exception {}
 
-    @Override
-    public ProjectConfig get() {
-      return null;
-    }
+        @Override
+        public ProjectConfig get() {
+          return null;
+        }
 
-    @Override
-    public void put(ProjectConfig projectConfig) {
-
-    }
-  };
+        @Override
+        public void put(ProjectConfig projectConfig) {}
+      };
 }

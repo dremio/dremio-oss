@@ -19,20 +19,6 @@ package com.dremio.sabot.op.writer;
 import static com.dremio.exec.store.iceberg.IcebergUtils.isIncrementalRefresh;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.OutOfMemoryException;
-import org.apache.arrow.vector.BigIntVector;
-import org.apache.arrow.vector.IntVector;
-import org.apache.arrow.vector.VarBinaryVector;
-import org.apache.arrow.vector.VarCharVector;
-import org.apache.arrow.vector.complex.ListVector;
-import org.apache.arrow.vector.complex.impl.UnionListWriter;
-import org.apache.commons.collections4.CollectionUtils;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
@@ -50,10 +36,23 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.spi.SingleInputOperator;
 import com.google.common.base.Preconditions;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.OutOfMemoryException;
+import org.apache.arrow.vector.BigIntVector;
+import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.VarBinaryVector;
+import org.apache.arrow.vector.VarCharVector;
+import org.apache.arrow.vector.complex.ListVector;
+import org.apache.arrow.vector.complex.impl.UnionListWriter;
+import org.apache.commons.collections4.CollectionUtils;
 
 public class WriterOperator implements SingleInputOperator {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(WriterOperator.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(WriterOperator.class);
   private final Listener listener = new Listener();
   private final StatsListener statsListener = new StatsListener();
   private final OperatorContext context;
@@ -90,8 +89,8 @@ public class WriterOperator implements SingleInputOperator {
   private boolean reachedOutputLimit = false;
 
   public enum Metric implements MetricDef {
-    BYTES_WRITTEN,    // Number of bytes written to the output file(s)
-    OUTPUT_LIMITED;   // 1, if the output limit was reached; 0, if not
+    BYTES_WRITTEN, // Number of bytes written to the output file(s)
+    OUTPUT_LIMITED; // 1, if the output limit was reached; 0, if not
 
     @Override
     public int metricId() {
@@ -99,13 +98,15 @@ public class WriterOperator implements SingleInputOperator {
     }
   }
 
-  public WriterOperator(OperatorContext context, WriterOptions options, RecordWriter recordWriter) throws OutOfMemoryException {
+  public WriterOperator(OperatorContext context, WriterOptions options, RecordWriter recordWriter)
+      throws OutOfMemoryException {
     this.context = context;
     this.stats = context.getStats();
     this.output = context.createOutputVectorContainer(RecordWriter.SCHEMA);
     this.options = options;
     final FragmentHandle handle = context.getFragmentHandle();
-    this.fragmentUniqueId = String.format("%d_%d", handle.getMajorFragmentId(), handle.getMinorFragmentId());
+    this.fragmentUniqueId =
+        String.format("%d_%d", handle.getMajorFragmentId(), handle.getMinorFragmentId());
     this.recordWriter = recordWriter;
     this.writtenRecordLimit = options.getRecordLimit();
   }
@@ -114,8 +115,10 @@ public class WriterOperator implements SingleInputOperator {
   public VectorAccessible setup(VectorAccessible incoming) throws Exception {
     state.is(State.NEEDS_SETUP);
 
-    if(options.hasPartitions() || options.hasDistributions()){
-      partitionManager = new PartitionWriteManager(options, incoming, options.getTableFormatOptions().isTableFormatWriter());
+    if (options.hasPartitions() || options.hasDistributions()) {
+      partitionManager =
+          new PartitionWriteManager(
+              options, incoming, options.getTableFormatOptions().isTableFormatWriter());
       this.maskedContainer = partitionManager.getMaskedContainer();
       recordWriter.setup(maskedContainer, listener, statsListener);
     } else {
@@ -131,7 +134,7 @@ public class WriterOperator implements SingleInputOperator {
     partitionNumberVector = output.addOrGet(RecordWriter.PARTITION);
     icebergMetadataVector = output.addOrGet(RecordWriter.ICEBERG_METADATA);
     schemaVector = output.addOrGet(RecordWriter.FILE_SCHEMA);
-    partitionDataVector  = output.addOrGet(RecordWriter.PARTITION_DATA);
+    partitionDataVector = output.addOrGet(RecordWriter.PARTITION_DATA);
     operationTypeVector = output.addOrGet(RecordWriter.OPERATION_TYPE);
     partitionValueVector = output.addOrGet(RecordWriter.PARTITION_VALUE);
     rejectedRecordVector = output.addOrGet(RecordWriter.REJECTED_RECORDS);
@@ -146,8 +149,8 @@ public class WriterOperator implements SingleInputOperator {
     state.is(State.CAN_CONSUME);
 
     // no partitions.
-    if(!options.hasPartitions() && !options.hasDistributions()){
-      if(partition == null){
+    if (!options.hasPartitions() && !options.hasDistributions()) {
+      if (partition == null) {
         partition = WritePartition.NONE;
         recordWriter.startPartition(partition);
       }
@@ -169,11 +172,11 @@ public class WriterOperator implements SingleInputOperator {
 
     int pointer = 0;
     int start = 0;
-    while(pointer < records){
+    while (pointer < records) {
       final WritePartition newPartition = partitionManager.getExistingOrNewPartition(pointer);
-      if(newPartition != partition){
+      if (newPartition != partition) {
         int length = pointer - start;
-        if(length > 0){
+        if (length > 0) {
           recordWriter.writeBatch(start, length);
         }
         this.partition = newPartition;
@@ -198,7 +201,7 @@ public class WriterOperator implements SingleInputOperator {
 
     final byte[] fragmentUniqueIdBytes = fragmentUniqueId.getBytes();
     int i = 0;
-    for(OutputEntry e : listener.entries){
+    for (OutputEntry e : listener.entries) {
       fragmentIdVector.setSafe(i, fragmentUniqueIdBytes, 0, fragmentUniqueIdBytes.length);
 
       summaryVector.setSafe(i, e.recordCount);
@@ -244,11 +247,11 @@ public class WriterOperator implements SingleInputOperator {
 
       fileSizeVector.setSafe(i, e.fileSize);
 
-      if(e.operationType != null) {
+      if (e.operationType != null) {
         operationTypeVector.setSafe(i, e.operationType);
       }
 
-      if(e.partitionValue != null) {
+      if (e.partitionValue != null) {
         byte[] bytePath = e.partitionValue.getBytes(UTF_8);
         partitionValueVector.setSafe(i, bytePath, 0, bytePath.length);
       }
@@ -260,7 +263,7 @@ public class WriterOperator implements SingleInputOperator {
 
     listener.entries.clear();
 
-    if(completedInput || reachedOutputLimit) {
+    if (completedInput || reachedOutputLimit) {
       stats.addLongStat(Metric.OUTPUT_LIMITED, reachedOutputLimit ? 1 : 0);
       state = State.DONE;
     } else {
@@ -283,7 +286,8 @@ public class WriterOperator implements SingleInputOperator {
   }
 
   @Override
-  public <OUT, IN, EXCEP extends Throwable> OUT accept(OperatorVisitor<OUT, IN, EXCEP> visitor, IN value) throws EXCEP {
+  public <OUT, IN, EXCEP extends Throwable> OUT accept(
+      OperatorVisitor<OUT, IN, EXCEP> visitor, IN value) throws EXCEP {
     return visitor.visitSingleInput(this, value);
   }
 
@@ -293,22 +297,38 @@ public class WriterOperator implements SingleInputOperator {
     try {
       if (checkForIcebergRecordWriterAbort()) {
         recordWriter.abort();
-        if (options.getTableFormatOptions().getIcebergSpecificOptions().getIcebergTableProps().getIcebergOpType() == IcebergCommandType.INSERT) {
-          Preconditions.checkNotNull(recordWriter.getLocation(),"Location cannot be null");
+        if (options
+                .getTableFormatOptions()
+                .getIcebergSpecificOptions()
+                .getIcebergTableProps()
+                .getIcebergOpType()
+            == IcebergCommandType.INSERT) {
+          Preconditions.checkNotNull(recordWriter.getLocation(), "Location cannot be null");
           Preconditions.checkState(recordWriter.getFs() != null, "Unexpected state");
           recordWriter.getFs().delete(recordWriter.getLocation(), true);
         }
       }
-    }catch(Exception e){
-      logger.error(String.format("Failure during cleaning up the unwanted files: %s", e.getMessage()));
+    } catch (Exception e) {
+      logger.error(
+          String.format("Failure during cleaning up the unwanted files: %s", e.getMessage()));
     }
   }
 
   private boolean checkForIcebergRecordWriterAbort() throws Exception {
-    if (state != State.DONE && recordWriter != null &&
-      options != null && options.getTableFormatOptions().getIcebergSpecificOptions().getIcebergTableProps() != null) {
-      IcebergCommandType command = options.getTableFormatOptions().getIcebergSpecificOptions().getIcebergTableProps().getIcebergOpType();
-      if (isIncrementalRefresh(command) || command == IcebergCommandType.CREATE || command == IcebergCommandType.INSERT) {
+    if (state != State.DONE
+        && recordWriter != null
+        && options != null
+        && options.getTableFormatOptions().getIcebergSpecificOptions().getIcebergTableProps()
+            != null) {
+      IcebergCommandType command =
+          options
+              .getTableFormatOptions()
+              .getIcebergSpecificOptions()
+              .getIcebergTableProps()
+              .getIcebergOpType();
+      if (isIncrementalRefresh(command)
+          || command == IcebergCommandType.CREATE
+          || command == IcebergCommandType.INSERT) {
         return true;
       }
     }
@@ -326,20 +346,32 @@ public class WriterOperator implements SingleInputOperator {
     private final List<OutputEntry> entries = new ArrayList<>();
 
     @Override
-    public void recordsWritten(long recordCount,
-                               long fileSize,
-                               String path,
-                               byte[] metadata,
-                               Integer partitionNumber,
-                               byte[] icebergMetadata,
-                               byte[] schema,
-                               Collection<IcebergPartitionData> partitions,
-                               Integer operationType,
-                               String partitionValue,
-                               long rejectedRecordCount) {
-      entries.add(new OutputEntry(recordCount, fileSize, path, metadata, icebergMetadata, partitionNumber, schema, partitions, operationType, partitionValue, rejectedRecordCount));
+    public void recordsWritten(
+        long recordCount,
+        long fileSize,
+        String path,
+        byte[] metadata,
+        Integer partitionNumber,
+        byte[] icebergMetadata,
+        byte[] schema,
+        Collection<IcebergPartitionData> partitions,
+        Integer operationType,
+        String partitionValue,
+        long rejectedRecordCount) {
+      entries.add(
+          new OutputEntry(
+              recordCount,
+              fileSize,
+              path,
+              metadata,
+              icebergMetadata,
+              partitionNumber,
+              schema,
+              partitions,
+              operationType,
+              partitionValue,
+              rejectedRecordCount));
     }
-
   }
 
   private class StatsListener implements WriteStatsListener {
@@ -362,17 +394,18 @@ public class WriterOperator implements SingleInputOperator {
     private final String partitionValue;
     private final long rejectedRecordCount;
 
-    OutputEntry(long recordCount,
-                long fileSize,
-                String path,
-                byte[] metadata,
-                byte[] icebergMetadata,
-                Integer partitionNumber,
-                byte[] schema,
-                Collection<IcebergPartitionData> partitions,
-                Integer operationType,
-                String partitionValue,
-                long rejectedRecordCount) {
+    OutputEntry(
+        long recordCount,
+        long fileSize,
+        String path,
+        byte[] metadata,
+        byte[] icebergMetadata,
+        Integer partitionNumber,
+        byte[] schema,
+        Collection<IcebergPartitionData> partitions,
+        Integer operationType,
+        String partitionValue,
+        long rejectedRecordCount) {
       this.recordCount = recordCount;
       this.fileSize = fileSize;
       this.path = path;
@@ -385,7 +418,5 @@ public class WriterOperator implements SingleInputOperator {
       this.partitionValue = partitionValue;
       this.rejectedRecordCount = rejectedRecordCount;
     }
-
   }
-
 }

@@ -22,7 +22,9 @@ import com.dremio.sabot.op.aggregate.streaming.StreamingAggOperator.TransferOnDe
 
 public interface StreamingAggregator {
 
-  public static TemplateClassDefinition<StreamingAggregator> TEMPLATE_DEFINITION = new TemplateClassDefinition<StreamingAggregator>(StreamingAggregator.class, StreamingAggTemplate.class);
+  public static TemplateClassDefinition<StreamingAggregator> TEMPLATE_DEFINITION =
+      new TemplateClassDefinition<StreamingAggregator>(
+          StreamingAggregator.class, StreamingAggTemplate.class);
 
   void setup(
       FunctionContext context,
@@ -32,30 +34,33 @@ public interface StreamingAggregator {
       int targetBatchSize,
       TransferOnDeckAtBat transfer);
 
-  /**
-   * Consume the first record at bat. Should only be called for the very first record received.
-   */
+  /** Consume the first record at bat. Should only be called for the very first record received. */
   void consumeFirstRecord();
 
   /**
-   * Consume the first record of onDeck records. Should only be called in case that we've already consumed at least one record previously.
+   * Consume the first record of onDeck records. Should only be called in case that we've already
+   * consumed at least one record previously.
    *
-   * Compares the last record in atBat to the first record of onDeck.
+   * <p>Compares the last record in atBat to the first record of onDeck.
    *
-   * Expects that the new data is in onDeck and the previous data is atBat. Note that this operation also promotes the movement of data from onDeck to atBat.
+   * <p>Expects that the new data is in onDeck and the previous data is atBat. Note that this
+   * operation also promotes the movement of data from onDeck to atBat.
    */
   int consumeBoundaryRecordAndSwap();
 
   /**
-   * Consume all records in atBat until the outgoing batch is full excluding the very first record. We skip the first record since it will be consumed throguh either consumeFirstRecord or
-   * @return The number of records in the outgoing batch or zero if an outgoing batch is not yet ready.
+   * Consume all records in atBat until the outgoing batch is full excluding the very first record.
+   * We skip the first record since it will be consumed throguh either consumeFirstRecord or
+   *
+   * @return The number of records in the outgoing batch or zero if an outgoing batch is not yet
+   *     ready.
    */
   int consumeRecords();
 
   /**
    * There are no more records. Close the last aggregation and produce a batch of records.
+   *
    * @return
    */
   int closeLastAggregation();
-
 }

@@ -15,8 +15,6 @@
  */
 package com.dremio.sabot.op.values;
 
-import java.util.Collections;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.physical.config.Values;
@@ -29,13 +27,28 @@ import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.sabot.op.spi.ProducerOperator;
 import com.google.common.collect.Iterables;
+import java.util.Collections;
 
 public class ValuesCreator implements ProducerOperator.Creator<Values> {
 
   @Override
-  public ProducerOperator create(FragmentExecutionContext fec, OperatorContext context, Values config) throws ExecutionSetupException {
-    RecordReader reader = new JSONRecordReader(context, config.getContent().asNode(), null, null, Collections.singletonList(SchemaPath.getSimplePath("*")));
-    reader = new EasyCoercionReader(context, config.getColumns(), reader, config.getFullSchema(), Iterables.getFirst(config.getReferencedTables(), null));
-    return new ScanOperator(config, context, RecordReaderIterator.from(reader));
+  public ProducerOperator create(
+      FragmentExecutionContext fec, OperatorContext context, Values config)
+      throws ExecutionSetupException {
+    RecordReader reader =
+        new JSONRecordReader(
+            context,
+            config.getContent().asNode(),
+            null,
+            null,
+            Collections.singletonList(SchemaPath.getSimplePath("*")));
+    reader =
+        new EasyCoercionReader(
+            context,
+            config.getColumns(),
+            reader,
+            config.getFullSchema(),
+            Iterables.getFirst(config.getReferencedTables(), null));
+    return new ScanOperator(fec, config, context, RecordReaderIterator.from(reader));
   }
 }

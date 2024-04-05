@@ -24,10 +24,16 @@ import static com.dremio.test.dsl.RexDsl.literal;
 import static com.dremio.test.dsl.RexDsl.or;
 import static com.dremio.test.dsl.RexDsl.plus;
 
+import com.dremio.exec.planner.DremioRexBuilder;
+import com.dremio.exec.planner.cost.DremioCost;
+import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.planner.types.SqlTypeFactoryImpl;
+import com.dremio.options.OptionResolver;
+import com.dremio.test.specs.OptionResolverSpec;
+import com.dremio.test.specs.OptionResolverSpecBuilder;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-
 import org.apache.calcite.plan.RelHintsPropagator;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptPlanner;
@@ -50,55 +56,51 @@ import org.apache.calcite.util.ImmutableIntList;
 import org.junit.Assert;
 import org.junit.Test;
 
-import com.dremio.exec.planner.DremioRexBuilder;
-import com.dremio.exec.planner.cost.DremioCost;
-import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.planner.types.SqlTypeFactoryImpl;
-import com.dremio.options.OptionResolver;
-import com.dremio.test.specs.OptionResolverSpec;
-import com.dremio.test.specs.OptionResolverSpecBuilder;
-
-public class TestDremioAggregateProjectPullUpConstantsRule{
+public class TestDremioAggregateProjectPullUpConstantsRule {
   private static final RelDataTypeFactory typeFactory = SqlTypeFactoryImpl.INSTANCE;
   private static final RexBuilder rexBuilder = new DremioRexBuilder(typeFactory);
   private static final RelBuilder relBuilder = makeRelBuilder();
   private static RelOptCluster cluster;
 
-  private static final DremioAggregateProjectPullUpConstantsRule rule = DremioAggregateProjectPullUpConstantsRule.INSTANCE2_REMOVE_ALL;
+  private static final DremioAggregateProjectPullUpConstantsRule rule =
+      DremioAggregateProjectPullUpConstantsRule.INSTANCE2_REMOVE_ALL;
 
   @Test
   public void testDremioAggregateProjectPullUpConstant() {
 
-    Filter filter = (Filter) relBuilder
-      .values(new String[]{"a", "b", "c", "d"},
-        1, 4, 20, 3, 2, 6, 20, 3)
-      .filter(and(
-        eq(
-          intInput(2),
-          literal(20)),
-        or(
-          isNotNull(intInput(3)),
-          isNull(
-            plus(
-              intInput(3),
-              literal(1))))))
-      .build();
+    Filter filter =
+        (Filter)
+            relBuilder
+                .values(new String[] {"a", "b", "c", "d"}, 1, 4, 20, 3, 2, 6, 20, 3)
+                .filter(
+                    and(
+                        eq(intInput(2), literal(20)),
+                        or(isNotNull(intInput(3)), isNull(plus(intInput(3), literal(1))))))
+                .build();
 
     List<AggregateCall> aggCalls = new ArrayList<>();
 
     aggCalls.add(
-      AggregateCall.create(SqlStdOperatorTable.COUNT, false,
-        false, ImmutableIntList.of(), -1, RelCollations.EMPTY,
-        typeFactory.createSqlType(SqlTypeName.BIGINT), null));
+        AggregateCall.create(
+            SqlStdOperatorTable.COUNT,
+            false,
+            false,
+            ImmutableIntList.of(),
+            -1,
+            RelCollations.EMPTY,
+            typeFactory.createSqlType(SqlTypeName.BIGINT),
+            null));
 
-    Aggregate agg = (Aggregate) relBuilder
-      .push(filter)
-      .aggregate(relBuilder.groupKey(ImmutableBitSet.of(2, 3)), aggCalls).build();
+    Aggregate agg =
+        (Aggregate)
+            relBuilder
+                .push(filter)
+                .aggregate(relBuilder.groupKey(ImmutableBitSet.of(2, 3)), aggCalls)
+                .build();
 
-    TestRelOptRuleCall testRelOptRuleCall = new TestRelOptRuleCall(cluster.getPlanner(),
-      rule.getOperand(),
-      new RelNode[]{agg, filter},
-      null);
+    TestRelOptRuleCall testRelOptRuleCall =
+        new TestRelOptRuleCall(
+            cluster.getPlanner(), rule.getOperand(), new RelNode[] {agg, filter}, null);
 
     rule.onMatch(testRelOptRuleCall);
 
@@ -108,14 +110,14 @@ public class TestDremioAggregateProjectPullUpConstantsRule{
 
     Assert.assertEquals("{2, 3}", agg.getGroupSet().toString());
     Assert.assertEquals("{3}", resultAgg.getGroupSet().toString());
-
   }
 
   private static RelBuilder makeRelBuilder() {
     OptionResolver optionResolver = OptionResolverSpecBuilder.build(new OptionResolverSpec());
     PlannerSettings context = new PlannerSettings(null, optionResolver, null);
-    RelOptPlanner planner = new HepPlanner(new HepProgramBuilder().build(), context, false,
-      null, new DremioCost.Factory());
+    RelOptPlanner planner =
+        new HepPlanner(
+            new HepProgramBuilder().build(), context, false, null, new DremioCost.Factory());
     cluster = RelOptCluster.create(planner, rexBuilder);
     return RelBuilder.proto(context).create(cluster, null);
   }
@@ -125,8 +127,11 @@ public class TestDremioAggregateProjectPullUpConstantsRule{
     @SuppressWarnings("checkstyle:VisibilityModifier")
     final List<RelNode> outcome = new ArrayList<>();
 
-    public TestRelOptRuleCall(RelOptPlanner planner, RelOptRuleOperand operand, RelNode[] rels,
-                              Map<RelNode, List<RelNode>> nodeInputs) {
+    public TestRelOptRuleCall(
+        RelOptPlanner planner,
+        RelOptRuleOperand operand,
+        RelNode[] rels,
+        Map<RelNode, List<RelNode>> nodeInputs) {
       super(planner, operand, rels, nodeInputs);
     }
 
@@ -134,6 +139,5 @@ public class TestDremioAggregateProjectPullUpConstantsRule{
     public void transformTo(RelNode rel, Map<RelNode, RelNode> equiv, RelHintsPropagator handler) {
       outcome.add(rel);
     }
-
   }
 }

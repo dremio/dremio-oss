@@ -23,12 +23,15 @@ import com.dremio.sabot.op.spi.SingleInputOperator;
 import com.dremio.sabot.op.spi.TerminalOperator;
 import com.google.common.base.Preconditions;
 
-/**
- * An abstract interconnection of operators that allows pumping data between distinct operators.
- */
+/** An abstract interconnection of operators that allows pumping data between distinct operators. */
 abstract class Pipe {
 
-  static enum Result {NOT_READY_UPSTREAM, NOT_READY_DOWNSTREAM, PUMPED, DONE}
+  static enum Result {
+    NOT_READY_UPSTREAM,
+    NOT_READY_DOWNSTREAM,
+    PUMPED,
+    DONE
+  }
 
   protected Pipe downstream;
 
@@ -37,10 +40,12 @@ abstract class Pipe {
   }
 
   public abstract Result pump();
+
   public abstract Pipe getRequiredUpstream();
+
   public abstract VectorAccessible setup() throws Exception;
 
-  public void setDownstream(Pipe downstream){
+  public void setDownstream(Pipe downstream) {
     Preconditions.checkNotNull(downstream);
     Preconditions.checkArgument(this.downstream == null, "Downstream already set.");
     this.downstream = downstream;
@@ -50,42 +55,47 @@ abstract class Pipe {
     return downstream;
   }
 
-  public abstract <DOWN, UP, EXCEP extends Exception> UP accept(Visitor<DOWN, UP, EXCEP> visitor, DOWN down) throws EXCEP;
+  public abstract <DOWN, UP, EXCEP extends Exception> UP accept(
+      Visitor<DOWN, UP, EXCEP> visitor, DOWN down) throws EXCEP;
 
   public interface Visitor<DOWN, UP, EXCEP extends Exception> {
-    UP visitWyePipe(WyePipe pipe, DOWN down)  throws EXCEP;
+    UP visitWyePipe(WyePipe pipe, DOWN down) throws EXCEP;
+
     UP visitStraightPipe(StraightPipe pipe, DOWN down) throws EXCEP;
   }
 
   @Override
   public abstract String toString();
 
-
-  static class SetupVisitor implements Operator.OperatorVisitor<VectorAccessible, VectorAccessible, Exception> {
+  static class SetupVisitor
+      implements Operator.OperatorVisitor<VectorAccessible, VectorAccessible, Exception> {
 
     @Override
-    public VectorAccessible visitDualInput(DualInputOperator op, VectorAccessible extra) throws Exception {
+    public VectorAccessible visitDualInput(DualInputOperator op, VectorAccessible extra)
+        throws Exception {
       throw new UnsupportedOperationException();
     }
 
     @Override
-    public VectorAccessible visitSingleInput(SingleInputOperator op, VectorAccessible extra) throws Exception {
+    public VectorAccessible visitSingleInput(SingleInputOperator op, VectorAccessible extra)
+        throws Exception {
       Preconditions.checkNotNull(extra);
       return op.setup(extra);
     }
 
     @Override
-    public VectorAccessible visitProducer(ProducerOperator op, VectorAccessible extra) throws Exception {
+    public VectorAccessible visitProducer(ProducerOperator op, VectorAccessible extra)
+        throws Exception {
       Preconditions.checkArgument(extra == null);
       return op.setup();
     }
 
     @Override
-    public VectorAccessible visitTerminalOperator(TerminalOperator op, VectorAccessible extra) throws Exception {
+    public VectorAccessible visitTerminalOperator(TerminalOperator op, VectorAccessible extra)
+        throws Exception {
       Preconditions.checkNotNull(extra);
       op.setup(extra);
       return null;
     }
-
   }
 }

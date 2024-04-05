@@ -15,43 +15,41 @@
  */
 package com.dremio.sabot.op.copier;
 
-import java.util.List;
-
-import org.apache.arrow.vector.FieldVector;
-
 import com.dremio.common.config.SabotConfig;
 import com.dremio.options.OptionManager;
+import java.util.List;
+import org.apache.arrow.vector.FieldVector;
 
-/**
- * Abstraction of a factory class for assigning copiers for a list of field vectors
- */
+/** Abstraction of a factory class for assigning copiers for a list of field vectors */
 public interface CopierFactory {
 
   /**
    * Assigns 2 byte copiers for the pairs of vectors in the inputs and outputs list
    *
-   * @param inputs                  Input List
-   * @param outputs                 Output List
+   * @param inputs Input List
+   * @param outputs Output List
    * @param isTargetVectorZeroedOut true if the target vector is zeroed out before copy
    * @return List containing the assigned copiers
    */
-  List<FieldBufferCopier> getTwoByteCopiers(List<FieldVector> inputs, List<FieldVector> outputs, boolean isTargetVectorZeroedOut);
+  List<FieldBufferCopier> getTwoByteCopiers(
+      List<FieldVector> inputs, List<FieldVector> outputs, boolean isTargetVectorZeroedOut);
 
   /**
    * Assigns 2 byte copiers for the pairs of vectors in the inputs and outputs list
    *
-   * @param inputs  Input List
+   * @param inputs Input List
    * @param outputs Output List
    * @return List containing the assigned copiers
    */
-  default List<FieldBufferCopier> getTwoByteCopiers(List<FieldVector> inputs, List<FieldVector> outputs) {
+  default List<FieldBufferCopier> getTwoByteCopiers(
+      List<FieldVector> inputs, List<FieldVector> outputs) {
     return getTwoByteCopiers(inputs, outputs, true);
   }
 
   /**
    * Assigns 4 byte copiers for the pairs of vectors in the inputs and outputs list
    *
-   * @param inputs  Input List
+   * @param inputs Input List
    * @param outputs Output List
    * @return List containing the assigned copiers
    */
@@ -60,7 +58,7 @@ public interface CopierFactory {
   /**
    * Assigns 6 byte copiers for the pairs of vectors in the inputs and outputs list
    *
-   * @param inputs  Input List
+   * @param inputs Input List
    * @param outputs Output List
    * @return List containing the assigned copiers
    */
@@ -69,20 +67,26 @@ public interface CopierFactory {
   /**
    * Assigns conditional 6 byte copiers for the pairs of vectors in the inputs and outputs list
    *
-   * @param inputs  Input List
+   * @param inputs Input List
    * @param outputs Output List
    * @return List containing the assigned copiers
    */
-  List<FieldBufferCopier> getSixByteConditionalCopiers(List<FieldVector[]> inputs, List<FieldVector> outputs);
+  List<FieldBufferCopier> getSixByteConditionalCopiers(
+      List<FieldVector[]> inputs, List<FieldVector> outputs);
 
   /**
    * Loads and instantiates a concrete implementation of CopierFactory
    *
-   * @param config        SabotConfig
+   * @param config SabotConfig
    * @param optionManager OptionManager
    * @return A concrete implementation of CopierFactory
    */
   static CopierFactory getInstance(SabotConfig config, OptionManager optionManager) {
-    return config.getInstanceWithConstructorArgType("dremio.copier.factory.class", CopierFactory.class, new FieldBufferCopierFactory(optionManager), OptionManager.class, optionManager);
+    return config.getInstanceWithConstructorArgType(
+        "dremio.copier.factory.class",
+        CopierFactory.class,
+        new FieldBufferCopierFactory(optionManager),
+        OptionManager.class,
+        optionManager);
   }
 }

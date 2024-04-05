@@ -17,19 +17,17 @@ package com.dremio.sabot.op.join.vhash.spill.slicer;
 
 import static org.apache.arrow.vector.BaseVariableWidthVector.OFFSET_WIDTH;
 
+import com.dremio.exec.record.VectorWrapper;
+import com.dremio.exec.util.RoundUtil;
+import com.dremio.sabot.op.join.vhash.spill.pool.Page;
+import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BaseVariableWidthVector;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.ipc.message.ArrowFieldNode;
-
-import com.dremio.exec.record.VectorWrapper;
-import com.dremio.exec.util.RoundUtil;
-import com.dremio.sabot.op.join.vhash.spill.pool.Page;
-import com.google.common.collect.ImmutableList;
 
 public class VariableMerger implements Merger {
   private final int wrapperIdx;
@@ -48,7 +46,8 @@ public class VariableMerger implements Merger {
     }
 
     int recordCount = srcContainers.getRecordCount();
-    final FieldVector outgoing = (FieldVector) src.get(0).getTransferPair(allocator).getTo();
+    final FieldVector outgoing =
+        (FieldVector) src.get(0).getTransferPair(src.get(0).getField(), allocator).getTo();
     vectorOutput.add(outgoing);
 
     final int validityLen = RoundUtil.round64up(recordCount) / BYTE_SIZE_BITS;
@@ -60,12 +59,13 @@ public class VariableMerger implements Merger {
     dataLen = RoundUtil.round8up(dataLen);
 
     try (final ArrowBuf validityBuf = dst.sliceAligned(validityLen);
-         final ArrowBuf offsetBuf = dst.sliceAligned(offsetLen);
-         final ArrowBuf dataBuf = dst.sliceAligned(dataLen)) {
-      outgoing.loadFieldBuffers(new ArrowFieldNode(recordCount, -1),
-        ImmutableList.of(validityBuf, offsetBuf, dataBuf));
+        final ArrowBuf offsetBuf = dst.sliceAligned(offsetLen);
+        final ArrowBuf dataBuf = dst.sliceAligned(dataLen)) {
+      outgoing.loadFieldBuffers(
+          new ArrowFieldNode(recordCount, -1), ImmutableList.of(validityBuf, offsetBuf, dataBuf));
 
-      // The bit copiers do ORs to set the bits, and expect that the buffer is zero-filled to begin with.
+      // The bit copiers do ORs to set the bits, and expect that the buffer is zero-filled to begin
+      // with.
       validityBuf.setZero(0, validityLen);
 
       // copy validity

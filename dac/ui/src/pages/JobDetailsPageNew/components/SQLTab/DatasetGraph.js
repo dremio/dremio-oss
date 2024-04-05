@@ -181,7 +181,7 @@ const DatasetGraph = ({
   const nodeColorFlags = {};
   const duplicateNodes = {};
   const algebricNodes = {};
-  const datasetGraph = dataSetGraphData.toJS();
+  const datasetGraph = [...dataSetGraphData];
   if (datasetGraph.length > 0) {
     datasetGraph.push({
       id: "1",
@@ -314,7 +314,7 @@ const DatasetGraph = ({
   );
 };
 DatasetGraph.propTypes = {
-  datasetGraph: PropTypes.object,
+  datasetGraph: PropTypes.array,
   intl: PropTypes.object.isRequired,
   algebricMatch: PropTypes.object,
 };

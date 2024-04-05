@@ -20,14 +20,13 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
-
 import javax.ws.rs.NameBinding;
 
 /**
- * Annotation for REST API resources or methods that are trigger by the UI via a non-Ajax call which needs passing a temporary token in query param
+ * Annotation for REST API resources or methods that are trigger by the UI via a non-Ajax call which
+ * needs passing a temporary token in query param
  */
 @Retention(RUNTIME)
 @Target({ElementType.TYPE, ElementType.METHOD})
 @NameBinding
-public @interface TemporaryAccess {
-}
+public @interface TemporaryAccess {}

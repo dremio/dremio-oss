@@ -15,19 +15,16 @@
  */
 package com.dremio.plugins.azure;
 
+import com.microsoft.azure.storage.StorageCredentials;
 import org.apache.hadoop.fs.azurebfs.services.SharedKeySigner;
 
-import com.microsoft.azure.storage.StorageCredentials;
-
-/**
- * A convenience interface to tie various Azure Credentials objects together
- */
+/** A convenience interface to tie various Azure Credentials objects together */
 public interface AzureStorageCredentials extends SharedKeySigner, AzureAuthTokenProvider {
 
   /**
-   * Export the credentials as {@link StorageCredentials}. These credentials should be treated as
-   * a snapshot of the vaule at the time of calling. For situations where the secret may change
-   * (i.e. secret rotation), the secret must be re-exported.
+   * Export the credentials as {@link StorageCredentials}. These credentials should be treated as a
+   * snapshot of the vaule at the time of calling. For situations where the secret may change (i.e.
+   * secret rotation), the secret must be re-exported.
    */
   public StorageCredentials exportToStorageCredentials();
 }

@@ -19,16 +19,6 @@ import static com.dremio.service.flight.DremioFlightServiceOptions.SESSION_EXPIR
 import static com.dremio.service.flight.client.properties.DremioFlightClientProperties.applyClientPropertiesToUserSessionBuilder;
 import static com.dremio.service.flight.client.properties.DremioFlightClientProperties.applyMutableClientProperties;
 
-import java.util.concurrent.TimeUnit;
-
-import javax.inject.Provider;
-
-import org.apache.arrow.flight.CallHeaders;
-import org.apache.arrow.flight.CallStatus;
-import org.apache.arrow.flight.FlightProducer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserProtos;
 import com.dremio.exec.server.SabotContext;
@@ -41,12 +31,18 @@ import com.dremio.service.usersessions.UserSessionService;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import java.util.concurrent.TimeUnit;
+import javax.inject.Provider;
+import org.apache.arrow.flight.CallHeaders;
+import org.apache.arrow.flight.CallStatus;
+import org.apache.arrow.flight.FlightProducer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * Manages user sessions in an in memory hash with the peerIdentity as the key.
- */
+/** Manages user sessions in an in memory hash with the peerIdentity as the key. */
 public class TokenCacheFlightSessionManager implements DremioFlightSessionsManager {
-  private static final Logger logger = LoggerFactory.getLogger(TokenCacheFlightSessionManager.class);
+  private static final Logger logger =
+      LoggerFactory.getLogger(TokenCacheFlightSessionManager.class);
 
   private final Cache<String, UserSession> userSessions;
   private final Provider<SabotContext> sabotContextProvider;
@@ -54,14 +50,16 @@ public class TokenCacheFlightSessionManager implements DremioFlightSessionsManag
   private final OptionManager optionManager;
 
   @SuppressWarnings("NoGuavaCacheUsage") // TODO: fix as part of DX-51884
-  public TokenCacheFlightSessionManager(Provider<SabotContext> sabotContextProvider,
-                                     Provider<TokenManager> tokenManagerProvider) {
+  public TokenCacheFlightSessionManager(
+      Provider<SabotContext> sabotContextProvider, Provider<TokenManager> tokenManagerProvider) {
     this.sabotContextProvider = sabotContextProvider;
     this.tokenManagerProvider = tokenManagerProvider;
     this.optionManager = sabotContextProvider.get().getOptionManager();
-    this.userSessions = CacheBuilder.newBuilder()
-      .expireAfterAccess(optionManager.getOption(SESSION_EXPIRATION_TIME_MINUTES), TimeUnit.MINUTES)
-      .build();
+    this.userSessions =
+        CacheBuilder.newBuilder()
+            .expireAfterAccess(
+                optionManager.getOption(SESSION_EXPIRATION_TIME_MINUTES), TimeUnit.MINUTES)
+            .build();
   }
 
   public long getMaxSessions() {
@@ -69,19 +67,23 @@ public class TokenCacheFlightSessionManager implements DremioFlightSessionsManag
   }
 
   @Override
-  public UserSessionService.UserSessionData getUserSession(String peerIdentity, CallHeaders incomingHeaders) {
+  public UserSessionService.UserSessionData getUserSession(
+      String peerIdentity, CallHeaders incomingHeaders) {
     UserSession userSession = userSessions.getIfPresent(peerIdentity);
     if (null == userSession) {
       tokenManagerProvider.get().invalidateToken(peerIdentity);
       logger.error("UserSession is not available in SessionManager.");
-      throw CallStatus.UNAUTHENTICATED.withDescription("User is not authenticated").toRuntimeException();
+      throw CallStatus.UNAUTHENTICATED
+          .withDescription("User is not authenticated")
+          .toRuntimeException();
     }
 
     return new UserSessionService.UserSessionData(userSession, null, null);
   }
 
   @Override
-  public UserSessionService.UserSessionData createUserSession(String token, CallHeaders incomingHeaders) {
+  public UserSessionService.UserSessionData createUserSession(
+      String token, CallHeaders incomingHeaders) {
     final TokenDetails tokenDetails = tokenManagerProvider.get().validateToken(token);
     final UserSession session = buildUserSession(tokenDetails.username, incomingHeaders);
 
@@ -94,18 +96,16 @@ public class TokenCacheFlightSessionManager implements DremioFlightSessionsManag
   }
 
   @Override
-  public void decorateResponse(FlightProducer.CallContext callContext, UserSessionService.UserSessionData sessionData) {
-  }
+  public void decorateResponse(
+      FlightProducer.CallContext callContext, UserSessionService.UserSessionData sessionData) {}
 
   @Override
-  public void updateSession(UserSessionService.UserSessionData updatedSession) {
-  }
+  public void updateSession(UserSessionService.UserSessionData updatedSession) {}
 
   /**
    * Determines if we have reached the max number of allowed sessions.
    *
-   * @return True if we have reached the max number of allowed sessions,
-   * False otherwise.
+   * @return True if we have reached the max number of allowed sessions, False otherwise.
    */
   public boolean reachedMaxNumberOfSessions() {
     final long maxSessions = getMaxSessions();
@@ -131,14 +131,18 @@ public class TokenCacheFlightSessionManager implements DremioFlightSessionsManag
    */
   @VisibleForTesting
   UserSession buildUserSession(String username, CallHeaders incomingHeaders) {
-    final UserSession.Builder builder = UserSession.Builder.newBuilder()
-      .withSessionOptionManager(
-        new SessionOptionManagerImpl(sabotContextProvider.get().getOptionValidatorListing()), optionManager)
-      .withCredentials(UserBitShared.UserCredentials.newBuilder()
-        .setUserName(username).build())
-      .withUserProperties(UserProtos.UserProperties.getDefaultInstance())
-      .setSupportComplexTypes(true)
-      .withClientInfos(UserBitShared.RpcEndpointInfos.newBuilder().setName("Arrow Flight").build());
+    final UserSession.Builder builder =
+        UserSession.Builder.newBuilder()
+            .withSessionOptionManager(
+                new SessionOptionManagerImpl(
+                    sabotContextProvider.get().getOptionValidatorListing()),
+                optionManager)
+            .withCredentials(
+                UserBitShared.UserCredentials.newBuilder().setUserName(username).build())
+            .withUserProperties(UserProtos.UserProperties.getDefaultInstance())
+            .setSupportComplexTypes(true)
+            .withClientInfos(
+                UserBitShared.RpcEndpointInfos.newBuilder().setName("Arrow Flight").build());
 
     if (incomingHeaders != null) {
       applyClientPropertiesToUserSessionBuilder(builder, incomingHeaders);

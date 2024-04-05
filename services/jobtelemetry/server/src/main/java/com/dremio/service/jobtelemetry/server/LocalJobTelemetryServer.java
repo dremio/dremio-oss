@@ -16,11 +16,6 @@
 
 package com.dremio.service.jobtelemetry.server;
 
-import javax.inject.Provider;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.concurrent.ContextMigratingExecutorService;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
@@ -33,13 +28,13 @@ import com.dremio.service.jobtelemetry.server.store.LocalProfileStore;
 import com.dremio.service.jobtelemetry.server.store.MetricsStore;
 import com.dremio.service.jobtelemetry.server.store.ProfileStore;
 import com.dremio.telemetry.utils.GrpcTracerFacade;
-
 import io.grpc.Server;
 import io.grpc.util.TransmitStatusRuntimeExceptionInterceptor;
+import javax.inject.Provider;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * Local job telemetry server, running on coordinator node.
- */
+/** Local job telemetry server, running on coordinator node. */
 public class LocalJobTelemetryServer implements Service {
   private static final Logger logger = LoggerFactory.getLogger(LocalJobTelemetryServer.class);
   private final GrpcServerBuilderFactory grpcFactory;
@@ -51,10 +46,12 @@ public class LocalJobTelemetryServer implements Service {
   private MetricsStore metricsStore;
   private Server server;
 
-  public LocalJobTelemetryServer(GrpcServerBuilderFactory grpcServerBuilderFactory,
-                                 Provider<LegacyKVStoreProvider> kvStoreProvider,
-                                 Provider<CoordinationProtos.NodeEndpoint> selfEndpoint,
-                                 GrpcTracerFacade tracer, ContextMigratingExecutorService executorService) {
+  public LocalJobTelemetryServer(
+      GrpcServerBuilderFactory grpcServerBuilderFactory,
+      Provider<LegacyKVStoreProvider> kvStoreProvider,
+      Provider<CoordinationProtos.NodeEndpoint> selfEndpoint,
+      GrpcTracerFacade tracer,
+      ContextMigratingExecutorService executorService) {
     this.grpcFactory = grpcServerBuilderFactory;
     this.kvStoreProvider = kvStoreProvider;
     this.selfEndpoint = selfEndpoint;
@@ -70,26 +67,31 @@ public class LocalJobTelemetryServer implements Service {
     metricsStore = new LocalMetricsStore();
     metricsStore.start();
 
-    server = JobTelemetryRpcUtils.newInProcessServerBuilder(grpcFactory,
-      selfEndpoint.get().getFabricPort())
-      .maxInboundMetadataSize(81920) // GrpcUtil.DEFAULT_MAX_HEADER_LIST_SIZE * 10
-      .intercept(TransmitStatusRuntimeExceptionInterceptor.instance())
-      .addService(new JobTelemetryServiceImpl(metricsStore, profileStore, tracer, true, executorService))
-      .build();
+    server =
+        JobTelemetryRpcUtils.newInProcessServerBuilder(
+                grpcFactory, selfEndpoint.get().getFabricPort())
+            .maxInboundMetadataSize(81920) // GrpcUtil.DEFAULT_MAX_HEADER_LIST_SIZE * 10
+            .intercept(TransmitStatusRuntimeExceptionInterceptor.instance())
+            .addService(
+                new JobTelemetryServiceImpl(
+                    metricsStore, profileStore, tracer, true, executorService))
+            .build();
 
     server.start();
-    logger.info("LocalJobTelemetryServer is up");
+    logger.info("LocalJobTelemetryServer started");
   }
 
   @Override
   public void close() throws Exception {
-    AutoCloseables.close(profileStore, metricsStore,
-      () -> {
-        if (server != null) {
-          server.shutdown();
-          server = null;
-        }
-    });
+    AutoCloseables.close(
+        profileStore,
+        metricsStore,
+        () -> {
+          if (server != null) {
+            server.shutdown();
+            server = null;
+          }
+        });
     logger.info("LocalJobTelemetryServer stopped");
   }
 }

@@ -17,8 +17,8 @@
 package com.dremio.service.scheduler;
 
 /**
- * An extension of the scheduler service that allows addition and deletion of task groups and optionally
- * allows these task groups to be associated with a task and its schedule.
+ * An extension of the scheduler service that allows addition and deletion of task groups and
+ * optionally allows these task groups to be associated with a task and its schedule.
  */
 public interface ModifiableSchedulerService extends SchedulerService {
   /**
@@ -30,9 +30,8 @@ public interface ModifiableSchedulerService extends SchedulerService {
 
   /**
    * Modify a task group, given its name.
-   * <p>
-   * <strong>NOTE:</strong> As of now throws a runtime exception if a group is not found.
-   * </p>
+   *
+   * <p><strong>NOTE:</strong> As of now throws a runtime exception if a group is not found.
    *
    * @param groupName name of the group
    * @param taskGroup The modified group

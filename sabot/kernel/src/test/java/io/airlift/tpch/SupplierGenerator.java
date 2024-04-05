@@ -28,9 +28,8 @@
  */
 package io.airlift.tpch;
 
-import org.apache.arrow.memory.BufferAllocator;
-
 import io.airlift.tpch.GenerationDefinition.TpchTable;
+import org.apache.arrow.memory.BufferAllocator;
 
 public class SupplierGenerator extends TpchGenerator {
 
@@ -48,22 +47,29 @@ public class SupplierGenerator extends TpchGenerator {
   public static final int BBB_COMMENTS_PER_SCALE_BASE = 10;
   public static final int BBB_COMPLAINT_PERCENT = 50;
 
-  private final RandomAlphaNumeric addressRandom = randomAlphaNumeric(706178559, ADDRESS_AVERAGE_LENGTH);
-  private final RandomBoundedInt nationKeyRandom = randomBoundedInt(110356601, 0, DISTRIBUTIONS.getNations().size() - 1);
+  private final RandomAlphaNumeric addressRandom =
+      randomAlphaNumeric(706178559, ADDRESS_AVERAGE_LENGTH);
+  private final RandomBoundedInt nationKeyRandom =
+      randomBoundedInt(110356601, 0, DISTRIBUTIONS.getNations().size() - 1);
   private final RandomPhoneNumber phoneRandom = randomPhoneNumber(884434366);
-  private final RandomBoundedInt accountBalanceRandom = randomBoundedInt(962338209, ACCOUNT_BALANCE_MIN, ACCOUNT_BALANCE_MAX);
-  private final RandomText commentRandom = randomText(1341315363, TEXT_POOL, COMMENT_AVERAGE_LENGTH);
+  private final RandomBoundedInt accountBalanceRandom =
+      randomBoundedInt(962338209, ACCOUNT_BALANCE_MIN, ACCOUNT_BALANCE_MAX);
+  private final RandomText commentRandom =
+      randomText(1341315363, TEXT_POOL, COMMENT_AVERAGE_LENGTH);
 
   private final RandomBoundedInt bbbCommentRandom = randomBoundedInt(202794285, 1, SCALE_BASE);
   private final RandomInt bbbJunkRandom = randomInt(263032577, 1);
   private final RandomInt bbbOffsetRandom = randomInt(715851524, 1);
   private final RandomBoundedInt bbbTypeRandom = randomBoundedInt(753643799, 0, 100);
 
-  public SupplierGenerator(BufferAllocator allocator, GenerationDefinition def, int partIndex, String...includedColumns) {
+  public SupplierGenerator(
+      BufferAllocator allocator,
+      GenerationDefinition def,
+      int partIndex,
+      String... includedColumns) {
     super(TpchTable.SUPPLIER, allocator, def, partIndex, includedColumns);
 
     // setup fields
-
 
     finalizeSetup();
   }
@@ -96,7 +102,9 @@ public class SupplierGenerator extends TpchGenerator {
 
       // write complaint or commendation text (e.g., "Complaints" or
       // "Recommends")
-      buffer.replace(BBB_BASE_TEXT.length() + offset + noise, BBB_BASE_TEXT.length() + offset + noise + type.length(),
+      buffer.replace(
+          BBB_BASE_TEXT.length() + offset + noise,
+          BBB_BASE_TEXT.length() + offset + noise + type.length(),
           type);
 
       comment = buffer.toString();
@@ -104,17 +112,14 @@ public class SupplierGenerator extends TpchGenerator {
 
     long nationKey = nationKeyRandom.nextValue();
 
-
-//    supplierKey,
-//    supplierKey,
-//    String.format("Supplier#%09d", supplierKey),
-//    addressRandom.nextValue(),
-//    nationKey,
-//    phoneRandom.nextValue(nationKey),
-//    accountBalanceRandom.nextValue(),
-//    comment
+    //    supplierKey,
+    //    supplierKey,
+    //    String.format("Supplier#%09d", supplierKey),
+    //    addressRandom.nextValue(),
+    //    nationKey,
+    //    phoneRandom.nextValue(nationKey),
+    //    accountBalanceRandom.nextValue(),
+    //    comment
 
   }
-
-
 }

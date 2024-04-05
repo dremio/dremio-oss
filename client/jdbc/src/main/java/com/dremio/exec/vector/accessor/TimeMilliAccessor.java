@@ -15,19 +15,17 @@
  */
 package com.dremio.exec.vector.accessor;
 
-import java.sql.Time;
-import java.time.LocalTime;
-import java.util.Calendar;
-import java.util.TimeZone;
-import java.util.concurrent.TimeUnit;
-
-import org.apache.arrow.vector.TimeMilliVector;
-
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.types.Types;
 import com.dremio.exec.vector.accessor.sql.TimePrintMillis;
 import com.google.common.base.Preconditions;
+import java.sql.Time;
+import java.time.LocalTime;
+import java.util.Calendar;
+import java.util.TimeZone;
+import java.util.concurrent.TimeUnit;
+import org.apache.arrow.vector.TimeMilliVector;
 
 public class TimeMilliAccessor extends AbstractSqlAccessor {
 

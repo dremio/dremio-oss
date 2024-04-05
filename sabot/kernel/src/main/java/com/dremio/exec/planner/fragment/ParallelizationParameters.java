@@ -15,9 +15,7 @@
  */
 package com.dremio.exec.planner.fragment;
 
-/**
- * Interface to implement for passing parameters to {@link FragmentParallelizer}.
- */
+/** Interface to implement for passing parameters to {@link FragmentParallelizer}. */
 public interface ParallelizationParameters {
 
   /**
@@ -31,12 +29,14 @@ public interface ParallelizationParameters {
   int getMaxWidthPerNode();
 
   /**
-   * @return Configured maximum allowed number of parallelization units per all nodes in the cluster.
+   * @return Configured maximum allowed number of parallelization units per all nodes in the
+   *     cluster.
    */
   int getMaxGlobalWidth();
 
   /**
-   * @return Factor by which a node with endpoint affinity will be favored while creating assignment.
+   * @return Factor by which a node with endpoint affinity will be favored while creating
+   *     assignment.
    */
   double getAffinityFactor();
 

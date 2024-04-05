@@ -17,9 +17,7 @@ package com.dremio.configfeature;
 
 import java.util.Objects;
 
-/**
- * List of supported features that can be used to control
- */
+/** List of supported features that can be used to control */
 public enum Features {
   COORDINATOR_ZK_SUPERVISOR("coordinator_zk_supervisor");
 

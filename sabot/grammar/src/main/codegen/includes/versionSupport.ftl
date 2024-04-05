@@ -377,7 +377,7 @@ SqlNode SqlAssignTag() :
 /**
  * Table version specification - can occur after either a table identifier or a TABLE() function call.
  *
- * AT [SNAPSHOT|BRANCH|TAG|COMMIT|REF] version-specifier
+ * AT [SNAPSHOT|BRANCH|TAG|COMMIT|REF[ERENCE]|TIMESTAMP] version-specifier
  * [ AS OF timestamp ]
  */
 SqlNode TableWithVersionContext(SqlNode tableRef) :
@@ -393,41 +393,12 @@ SqlNode TableWithVersionContext(SqlNode tableRef) :
     SqlBasicCall functionCall;
     List<SqlNode> operands = new ArrayList<SqlNode>();
     List<String> timeTravelFunctionName = TableMacroNames.TIME_TRAVEL;
-    SqlNode timestamp = null;
+    SqlTableVersionSpec sqlTableVersionSpec;
 }
 {
-    <AT> { pos = getPos(); }
-    (
-        <SNAPSHOT> specifier = StringLiteral() { type = TableVersionType.SNAPSHOT_ID; }
-    |
-        <BRANCH> simpleId = SimpleIdentifier()
-        {
-            type = TableVersionType.BRANCH;
-            specifier = SqlLiteral.createCharString(simpleId.toString(), simpleId.getParserPosition());
-        }
-    |
-        <TAG> simpleId = SimpleIdentifier()
-        {
-            type = TableVersionType.TAG;
-            specifier = SqlLiteral.createCharString(simpleId.toString(), simpleId.getParserPosition());
-        }
-    |
-        <COMMIT> simpleId = SimpleIdentifier()
-        {
-            type = TableVersionType.COMMIT;
-            specifier = SqlLiteral.createCharString(simpleId.toString(), simpleId.getParserPosition());
-        }
-    |
-        (<REF> | <REFERENCE>) simpleId = SimpleIdentifier()
-        {
-            type = TableVersionType.REFERENCE;
-            specifier = SqlLiteral.createCharString(simpleId.toString(), simpleId.getParserPosition());
-        }
-    |
-        specifier = Expression(ExprContext.ACCEPT_NON_QUERY) { type = TableVersionType.TIMESTAMP; }
-    )
-    [ <AS> <OF> timestamp = StringLiteral() ]
+    sqlTableVersionSpec = ATVersionSpec()
     {
+        pos = sqlTableVersionSpec.getPos();
         if (tableRef.getKind() == SqlKind.IDENTIFIER) {
             // for SqlIdentifier table refs, we want to convert to calling our internal time travel
             // VersionedTableMacro implementation.  This is expected to be a macro that takes one argument
@@ -435,7 +406,7 @@ SqlNode TableWithVersionContext(SqlNode tableRef) :
             // wrapped in a SqlVersionedTableMacroCall as this is the vehicle for passing along version info.
             tableId = (SqlIdentifier) tableRef;
             operands.add(SqlLiteral.createCharString(ParserUtil.unparseIdentifier(tableId), tableId.getParserPosition()));
-            tableMacro = new SqlUnresolvedVersionedTableMacro(new SqlIdentifier(timeTravelFunctionName, tableId.getParserPosition()), type, specifier, timestamp);
+            tableMacro = new SqlUnresolvedVersionedTableMacro(new SqlIdentifier(timeTravelFunctionName, tableId.getParserPosition()), sqlTableVersionSpec);
             call = tableMacro.createCall(null, tableId.getParserPosition(), operands.toArray(new SqlNode[0]));
             return new SqlVersionedTableCollectionCall(pos, (SqlVersionedTableMacroCall)call);
         } else if (tableRef.getKind() == SqlKind.COLLECTION_TABLE) {
@@ -444,7 +415,7 @@ SqlNode TableWithVersionContext(SqlNode tableRef) :
             collectionTableCall = (SqlBasicCall) tableRef;
             functionCall = collectionTableCall.operand(0);
             tableMacro = new SqlUnresolvedVersionedTableMacro(
-                ((SqlFunction) functionCall.getOperator()).getSqlIdentifier(), type, specifier, timestamp);
+                ((SqlFunction) functionCall.getOperator()).getSqlIdentifier(), sqlTableVersionSpec);
             SqlVersionedTableMacroCall versionTableMacroCall = (SqlVersionedTableMacroCall) tableMacro.createCall(null, functionCall.getParserPosition(),
                 functionCall.getOperands());
             return new SqlVersionedTableCollectionCall(pos, versionTableMacroCall);
@@ -453,8 +424,10 @@ SqlNode TableWithVersionContext(SqlNode tableRef) :
         }
     }
 }
+
 /**
- [AT (BRANCH | TAG | COMMIT | SNAPSHOT | TIMESTAMP (versionSpec)]
+ [AT (BRANCH | REF | REFERENCE | TAG | COMMIT | SNAPSHOT | TIMESTAMP (versionSpec)]
+ [ <AS> <OF> timestamp ]
 */
 SqlTableVersionSpec ATVersionSpec() :
 {
@@ -462,6 +435,7 @@ SqlTableVersionSpec ATVersionSpec() :
     SqlIdentifier simpleId;
     TableVersionType tableVersionType = TableVersionType.NOT_SPECIFIED;
     SqlNode specifier = SqlLiteral.createCharString("NOT_SPECIFIED",SqlParserPos.ZERO);
+    SqlNode timestamp = null;
 }
 {
     <AT> { pos = getPos(); }
@@ -494,14 +468,19 @@ SqlTableVersionSpec ATVersionSpec() :
      |
       specifier = Expression(ExprContext.ACCEPT_NON_QUERY) { tableVersionType = TableVersionType.TIMESTAMP; }
      )
+     [ <AS> <OF> timestamp = StringLiteral() ]
      {
-       return new SqlTableVersionSpec(pos, tableVersionType, specifier);
+       return new SqlTableVersionSpec(pos, tableVersionType, specifier, timestamp);
      }
 }
+
 /**
- [AT BRANCH | REF | REFERENCE (versionSpec)]
-*/
-SqlTableVersionSpec ATBranchVersionOrReferenceSpec() :
+ * [AT BRANCH | REF | REFERENCE (versionSpec)]
+ * Note that REF and REFERENCE version types are not guaranteed to be writeable. They could point to
+ * a tag or a commit as well. Since they might be a branch, we allow them in the grammar and check
+ * them later.
+ */
+SqlTableVersionSpec WriteableAtVersionSpec() :
 {
     SqlParserPos pos;
     SqlIdentifier simpleId;
@@ -524,6 +503,6 @@ SqlTableVersionSpec ATBranchVersionOrReferenceSpec() :
       }
      )
      {
-       return new SqlTableVersionSpec(pos, tableVersionType, specifier);
+       return new SqlTableVersionSpec(pos, tableVersionType, specifier, null);
      }
 }

@@ -18,31 +18,26 @@ package com.dremio.service.flight;
 
 import static com.dremio.service.flight.BaseFlightQueryTest.setupBaseFlightQueryTest;
 
+import com.dremio.service.flight.impl.FlightWorkManager;
 import org.apache.arrow.flight.CallOption;
 import org.junit.BeforeClass;
 import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
 
-import com.dremio.service.flight.impl.FlightWorkManager;
-
-/**
- * Test FlightServer with basic authentication using FlightSql producer.
- */
+/** Test FlightServer with basic authentication using FlightSql producer. */
 @RunWith(Enclosed.class)
 public class TestFlightSqlServerWithBasicAuth {
 
   private static void setup() throws Exception {
     setupBaseFlightQueryTest(
-      false,
-      true,
-      "flight.endpoint.port",
-      FlightWorkManager.RunQueryResponseHandlerFactory.DEFAULT,
-      DremioFlightService.FLIGHT_LEGACY_AUTH_MODE);
+        false,
+        true,
+        "flight.endpoint.port",
+        FlightWorkManager.RunQueryResponseHandlerFactory.DEFAULT,
+        DremioFlightService.FLIGHT_LEGACY_AUTH_MODE);
   }
 
-  /**
-   * Query execution tests.
-   */
+  /** Query execution tests. */
   public static class QueryExecutionTests extends AbstractTestFlightSqlServer {
     public QueryExecutionTests(ExecutionMode executionMode) {
       super(executionMode);
@@ -64,9 +59,7 @@ public class TestFlightSqlServerWithBasicAuth {
     }
   }
 
-  /**
-   * Catalog methods tests.
-   */
+  /** Catalog methods tests. */
   public static class CatalogMethodsTests extends AbstractTestFlightSqlServerCatalogMethods {
     @BeforeClass
     public static void setup() throws Exception {

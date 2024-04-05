@@ -15,19 +15,16 @@
  */
 package com.dremio.dac.explore.model;
 
-import java.util.Collections;
-import java.util.List;
-
 import com.dremio.dac.model.sources.PhysicalDatasetPath;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.Collections;
+import java.util.List;
 
-/**
- * Descendants of a dataset/source.
- */
+/** Descendants of a dataset/source. */
 public class Descendants {
 
-  private final List<DatasetPath>  datasetPaths;
+  private final List<DatasetPath> datasetPaths;
 
   private final List<PhysicalDatasetPath> physicalDatasetPaths;
 

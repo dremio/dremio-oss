@@ -141,7 +141,7 @@ describe("AutocompleteApiClient", () => {
 
     it("fetches top containers", async () => {
       expect(
-        await autocompleteApi.getContainers(path, prefix, queryContext)
+        await autocompleteApi.getContainers(path, prefix, queryContext),
       ).toEqual({
         containers: [
           {
@@ -217,7 +217,7 @@ describe("AutocompleteApiClient", () => {
 
     it("fetches references", async () => {
       expect(
-        await autocompleteApi.getReferences(prefix, sourceName, queryContext)
+        await autocompleteApi.getReferences(prefix, sourceName, queryContext),
       ).toEqual({
         references: [
           {

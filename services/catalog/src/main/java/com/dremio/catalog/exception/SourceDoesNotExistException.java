@@ -15,10 +15,11 @@
  */
 package com.dremio.catalog.exception;
 
-public class SourceDoesNotExistException extends Exception {
+public class SourceDoesNotExistException extends CatalogException {
   private final String sourceName;
 
   public SourceDoesNotExistException(String sourceName, Exception error) {
+    super(String.format("Source [%s] does not exist.", sourceName), error);
     this.sourceName = sourceName;
   }
 

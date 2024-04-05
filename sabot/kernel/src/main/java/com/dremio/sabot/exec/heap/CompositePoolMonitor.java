@@ -20,17 +20,17 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Monitors Java memory pool(s) that has both collection usage and usage threshold notifications for low memory
- * conditions.
- * <p>
- * Note that the G1GC has only a single such pool which is the 'G1 Old Gen' pool. However, this implementation
- * supports multiple such pools in order to make this implementation less tied to Java releases.
- * The methods are not thread safe and it is assumed that the controller calls these method after holding the pool
- * lock.
- * </p>
+ * Monitors Java memory pool(s) that has both collection usage and usage threshold notifications for
+ * low memory conditions.
+ *
+ * <p>Note that the G1GC has only a single such pool which is the 'G1 Old Gen' pool. However, this
+ * implementation supports multiple such pools in order to make this implementation less tied to
+ * Java releases. The methods are not thread safe and it is assumed that the controller calls these
+ * method after holding the pool lock.
  */
 final class CompositePoolMonitor {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CompositePoolMonitor.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(CompositePoolMonitor.class);
 
   private final Map<String, HeapPoolMonitor> poolMonitors;
   private MemoryState currentState;
@@ -54,28 +54,32 @@ final class CompositePoolMonitor {
     currentState = MemoryState.INACTIVE;
   }
 
-  void processPoolEvent(MemoryPoolMXBean pool, int currentLowMemThresholdPercentage, boolean thresholdCrossed) {
-    HeapPoolMonitor hpm = poolMonitors.compute(pool.getName(), (k, v) -> {
-      if (v == null) {
-        return new HeapPoolMonitor(currentLowMemThresholdPercentage, pool, thresholdCrossed);
-      } else {
-        if (thresholdCrossed) {
-          v.handleThresholdCrossedNotification();
-        }
-        return v;
-      }
-    });
+  void processPoolEvent(
+      MemoryPoolMXBean pool, int currentLowMemThresholdPercentage, boolean thresholdCrossed) {
+    HeapPoolMonitor hpm =
+        poolMonitors.compute(
+            pool.getName(),
+            (k, v) -> {
+              if (v == null) {
+                return new HeapPoolMonitor(
+                    currentLowMemThresholdPercentage, pool, thresholdCrossed);
+              } else {
+                if (thresholdCrossed) {
+                  v.handleThresholdCrossedNotification();
+                }
+                return v;
+              }
+            });
     if (firstPoolMonitor == null) {
       firstPoolMonitor = hpm;
     }
   }
 
   /**
-   * Checks and returns the memory availability state of this pool. State of the composite pool is the
-   * state of the underlying pool it manages.
-   * <p>
-   * Assumed to be protected under pool lock
-   * </p>
+   * Checks and returns the memory availability state of this pool. State of the composite pool is
+   * the state of the underlying pool it manages.
+   *
+   * <p>Assumed to be protected under pool lock
    *
    * @return Available memory state of this pool
    */

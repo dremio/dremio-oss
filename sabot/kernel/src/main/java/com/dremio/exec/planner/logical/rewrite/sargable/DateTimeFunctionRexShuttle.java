@@ -19,7 +19,6 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-
 import org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.rex.RexBuilder;
@@ -34,13 +33,11 @@ import org.apache.calcite.sql.fun.SqlDatetimeSubtractionOperator;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-/**
- * Visitor to walk over the filter condition and rewrite the
- * date/time functions
- */
+/** Visitor to walk over the filter condition and rewrite the date/time functions */
 public class DateTimeFunctionRexShuttle extends RexShuttle {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DateTimeFunctionRexShuttle.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(DateTimeFunctionRexShuttle.class);
 
   private final RexBuilder rexBuilder;
   private final RelOptCluster relOptCluster;
@@ -67,8 +64,10 @@ public class DateTimeFunctionRexShuttle extends RexShuttle {
     }
 
     StandardForm stdForm = StandardForm.build(call);
-    if (stdForm == null || stdForm.getRhsNode() instanceof RexInputRef ||
-      (stdForm.getRhsNode() instanceof RexLiteral && ((RexLiteral) stdForm.getRhsNode()).getValue2() == null)) {
+    if (stdForm == null
+        || stdForm.getRhsNode() instanceof RexInputRef
+        || (stdForm.getRhsNode() instanceof RexLiteral
+            && ((RexLiteral) stdForm.getRhsNode()).getValue2() == null)) {
       return call;
     }
 
@@ -77,120 +76,117 @@ public class DateTimeFunctionRexShuttle extends RexShuttle {
     Transformer transformer = null;
     switch (lhs.getOperator().getName().toUpperCase(Locale.ROOT)) {
       case "DATE_ADD":
-        transformer = new DateAddAndSubShiftTransformer(
-          relOptCluster, stdForm,
-          SARGableRexUtils.DATE_SUB);
+        transformer =
+            new DateAddAndSubShiftTransformer(relOptCluster, stdForm, SARGableRexUtils.DATE_SUB);
         break;
       case "DATE_SUB":
-        transformer = new DateAddAndSubShiftTransformer(
-          relOptCluster, stdForm,
-          SARGableRexUtils.DATE_ADD);
+        transformer =
+            new DateAddAndSubShiftTransformer(relOptCluster, stdForm, SARGableRexUtils.DATE_ADD);
         break;
       case "DATEDIFF":
-        transformer = new DateDiffShiftTransformer(
-          relOptCluster, stdForm,
-          SARGableRexUtils.DATE_ADD);
+        transformer =
+            new DateDiffShiftTransformer(relOptCluster, stdForm, SARGableRexUtils.DATE_ADD);
         break;
       case "DATE_DIFF":
         // DATE_DIFF(p1, p2)
         RexNode p1 = lhs.operands.get(0);
         RexNode p2 = lhs.operands.get(1);
         if (p2 instanceof RexLiteral) {
-          transformer = new DateUDiffDateIntervalShiftTransformer(
-            relOptCluster, stdForm,
-            SARGableRexUtils.DATE_ADD);
-        } else if (p2 instanceof RexInputRef &&
-          p1 instanceof RexLiteral &&
-          SqlTypeName.INTERVAL_TYPES.contains(rhs.getType().getSqlTypeName())) {
-          transformer = new DateUDiffDateDateShiftTransformer(
-            relOptCluster, stdForm,
-            SARGableRexUtils.DATE_SUB);
+          transformer =
+              new DateUDiffDateIntervalShiftTransformer(
+                  relOptCluster, stdForm, SARGableRexUtils.DATE_ADD);
+        } else if (p2 instanceof RexInputRef
+            && p1 instanceof RexLiteral
+            && SqlTypeName.INTERVAL_TYPES.contains(rhs.getType().getSqlTypeName())) {
+          transformer =
+              new DateUDiffDateDateShiftTransformer(
+                  relOptCluster, stdForm, SARGableRexUtils.DATE_SUB);
         }
         break;
       case "+":
         if (lhs.op instanceof SqlDatetimePlusOperator) { // TIMESTAMPADD with positive parameter
-          transformer = new TimestampAddShiftTransformer(
-            relOptCluster, stdForm,
-            SqlStdOperatorTable.MINUS_DATE);
+          transformer =
+              new TimestampAddShiftTransformer(
+                  relOptCluster, stdForm, SqlStdOperatorTable.MINUS_DATE);
         }
         break;
       case "-":
-        if (lhs.op instanceof SqlDatetimeSubtractionOperator) { // TIMESTAMPADD with negative parameter
-          transformer = new TimestampSubShiftTransformer(
-            relOptCluster, stdForm,
-            SqlStdOperatorTable.DATETIME_PLUS);
+        if (lhs.op
+            instanceof SqlDatetimeSubtractionOperator) { // TIMESTAMPADD with negative parameter
+          transformer =
+              new TimestampSubShiftTransformer(
+                  relOptCluster, stdForm, SqlStdOperatorTable.DATETIME_PLUS);
         }
         break;
       case "DATE_TRUNC":
-        transformer = new DateTruncRangeTransformer(
-          relOptCluster, stdForm,
-          stdForm.getLhsCall().getOperator());
+        transformer =
+            new DateTruncRangeTransformer(
+                relOptCluster, stdForm, stdForm.getLhsCall().getOperator());
         break;
       case "EXTRACT":
       case "DATE_PART":
         // SARGable for 'YEAR' only
         RexLiteral unitYear = (RexLiteral) lhs.operands.get(0);
         if ("YEAR".equalsIgnoreCase(unitYear.getValue2().toString())) {
-          transformer = new ExtractAndDatePartRangeTransformer(
-            relOptCluster, stdForm,
-            SARGableRexUtils.DATE_ADD);
+          transformer =
+              new ExtractAndDatePartRangeTransformer(
+                  relOptCluster, stdForm, SARGableRexUtils.DATE_ADD);
         }
         break;
       case "CASE": // "COALESCE":
-        transformer = new CaseTransformer(
-          relOptCluster, stdForm);
+        transformer = new CaseTransformer(relOptCluster, stdForm);
         break;
       case "AND": // For IN, check further in SARGableRexInTransformer
-      case "OR":  // For NOT IN
-        transformer = new InTransformer(
-          relOptCluster, stdForm);
+      case "OR": // For NOT IN
+        transformer = new InTransformer(relOptCluster, stdForm);
         break;
       case "LAST_DAY": // LAST_DAY(ts) = '2023-01-31' => DATE_TRUNC('MONTH', ts) = '2023-01-01'
-        transformer = new LastDayRangeTransformer(
-          relOptCluster, stdForm,
-          SARGableRexUtils.DATE_TRUNC,
-          false);
+        transformer =
+            new LastDayRangeTransformer(relOptCluster, stdForm, SARGableRexUtils.DATE_TRUNC, false);
         break;
       case "NEXT_DAY":
-        // NEXT_DAY(ts, 'TU') = '2023-02-07' => DATE_ADD('2023-02-07', -7) <= ts < '2023-02-07' --'2023-02-07' is a Tuesday
-        // NEXT_DAY(ts, 'TU') = '2023-02-06' => False --'2023-02-06' != DATE_ADD(NEXT_DAY('2023-02-06', 'TU'), -7)
-        BigDecimal diff = minus(
-          rexBuilder.makeBigintLiteral(getWeekOfDay(lhs.operands.get(1))),
-          extract(TimeUnit.DOW.toString(), rhs)
-        );
+        // NEXT_DAY(ts, 'TU') = '2023-02-07' => DATE_ADD('2023-02-07', -7) <= ts < '2023-02-07'
+        // --'2023-02-07' is a Tuesday
+        // NEXT_DAY(ts, 'TU') = '2023-02-06' => False --'2023-02-06' !=
+        // DATE_ADD(NEXT_DAY('2023-02-06', 'TU'), -7)
+        BigDecimal diff =
+            minus(
+                rexBuilder.makeBigintLiteral(getWeekOfDay(lhs.operands.get(1))),
+                extract(TimeUnit.DOW.toString(), rhs));
         if (diff != null) {
-          transformer = new NextDayTransformer(
-            relOptCluster, stdForm,
-            stdForm.getLhsCall().getOperator(),
-            false,
-            diff.intValue());
+          transformer =
+              new NextDayTransformer(
+                  relOptCluster,
+                  stdForm,
+                  stdForm.getLhsCall().getOperator(),
+                  false,
+                  diff.intValue());
         }
         break;
       case "CONVERT_TIMEZONE":
         if (lhs.operands.size() == 3) {
-          transformer = new ConvertTimezoneShiftTransformer(
-            relOptCluster, stdForm,
-            stdForm.getLhsCall().getOperator());
+          transformer =
+              new ConvertTimezoneShiftTransformer(
+                  relOptCluster, stdForm, stdForm.getLhsCall().getOperator());
         }
         break;
       case "MONTHS_BETWEEN":
         if (rhs instanceof RexLiteral) {
           Object obj = ((RexLiteral) rhs).getValue();
           if (obj instanceof BigDecimal) {
-            transformer = new MonthsBetweenShiftTransformer(
-              relOptCluster, stdForm,
-              SARGableRexUtils.DATE_ADD);
+            transformer =
+                new MonthsBetweenShiftTransformer(
+                    relOptCluster, stdForm, SARGableRexUtils.DATE_ADD);
           }
         }
         break;
       case "CAST":
       case "TO_DATE":
-        if (lhs.operands.get(0).getType().getSqlTypeName().equals(SqlTypeName.TIMESTAMP) &&
-          lhs.getType().getSqlTypeName().equals(SqlTypeName.DATE)
-        ) {
-          transformer = new CastAndToDateRangeTransformer(
-            relOptCluster, stdForm,
-            SARGableRexUtils.DATE_TRUNC);
+        if (lhs.operands.get(0).getType().getSqlTypeName().equals(SqlTypeName.TIMESTAMP)
+            && lhs.getType().getSqlTypeName().equals(SqlTypeName.DATE)) {
+          transformer =
+              new CastAndToDateRangeTransformer(
+                  relOptCluster, stdForm, SARGableRexUtils.DATE_TRUNC);
         }
         break;
       default:
@@ -215,11 +211,7 @@ public class DateTimeFunctionRexShuttle extends RexShuttle {
   }
 
   private RexNode extract(String keyword, RexNode dateExpr) {
-    return rexBuilder.makeCall(
-      SARGableRexUtils.EXTRACT,
-      rexBuilder.makeLiteral(keyword),
-      dateExpr
-    );
+    return rexBuilder.makeCall(SARGableRexUtils.EXTRACT, rexBuilder.makeLiteral(keyword), dateExpr);
   }
 
   private BigDecimal minus(RexNode n1, RexNode n2) {

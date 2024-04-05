@@ -15,44 +15,39 @@
  */
 package com.dremio.exec.store.ischema;
 
-import org.junit.Test;
-
 import com.dremio.BaseTestQuery;
+import org.junit.Test;
 
 public class Drill2283InfoSchemaVarchar1BugTest extends BaseTestQuery {
 
   @Test
   public void testInfoSchemaStringsNotOfLength1() throws Exception {
     testBuilder()
-        .sqlQuery("SELECT CATALOG_NAME, "
-                  + "     CATALOG_NAME = 'DREMIO' AS happened_to_be_right_1, "
-                  + "     CATALOG_NAME = 'DREM'  AS was_wrong_1, "
-                  + "     CATALOG_NAME = 'DRE'   AS was_wrong_2, "
-                  + "     CATALOG_NAME = 'DR'    AS was_wrong_3, "
-                  + "     CATALOG_NAME = 'DX'    AS happened_to_be_right_2, "
-                  + "     CATALOG_NAME = 'D'     AS happened_to_be_right_3, "
-                  + "     CATALOG_NAME = 'X'     AS happened_to_be_right_4"
-                  + " "
-                  + " FROM INFORMATION_SCHEMA.CATALOGS "
-                  + " WHERE CATALOG_NAME LIKE '%DREMIO%'"
-                  + " LIMIT 1")
+        .sqlQuery(
+            "SELECT CATALOG_NAME, "
+                + "     CATALOG_NAME = 'DREMIO' AS happened_to_be_right_1, "
+                + "     CATALOG_NAME = 'DREM'  AS was_wrong_1, "
+                + "     CATALOG_NAME = 'DRE'   AS was_wrong_2, "
+                + "     CATALOG_NAME = 'DR'    AS was_wrong_3, "
+                + "     CATALOG_NAME = 'DX'    AS happened_to_be_right_2, "
+                + "     CATALOG_NAME = 'D'     AS happened_to_be_right_3, "
+                + "     CATALOG_NAME = 'X'     AS happened_to_be_right_4"
+                + " "
+                + " FROM INFORMATION_SCHEMA.CATALOGS "
+                + " WHERE CATALOG_NAME LIKE '%DREMIO%'"
+                + " LIMIT 1")
         .ordered()
-        .baselineColumns("CATALOG_NAME",
-                         "happened_to_be_right_1",
-                         "was_wrong_1",
-                         "was_wrong_2",
-                         "was_wrong_3",
-                         "happened_to_be_right_2",
-                         "happened_to_be_right_3",
-                         "happened_to_be_right_4")
-        .baselineValues("DREMIO",
-                        true,
-                        false,
-                        false,
-                        false,
-                        false,
-                        false,
-                        false)
-        .build().run();
+        .baselineColumns(
+            "CATALOG_NAME",
+            "happened_to_be_right_1",
+            "was_wrong_1",
+            "was_wrong_2",
+            "was_wrong_3",
+            "happened_to_be_right_2",
+            "happened_to_be_right_3",
+            "happened_to_be_right_4")
+        .baselineValues("DREMIO", true, false, false, false, false, false, false)
+        .build()
+        .run();
   }
 }

@@ -17,9 +17,7 @@ package com.dremio.exec.store;
 
 import java.io.Serializable;
 
-/**
- * Split Identity.
- */
+/** Split Identity. */
 public class SplitIdentity implements Serializable {
 
   public static String PATH = "path";
@@ -32,8 +30,7 @@ public class SplitIdentity implements Serializable {
   private final long length;
   private final long fileLength;
 
-  public SplitIdentity(String path, long offset, long length, long fileLength)
-  {
+  public SplitIdentity(String path, long offset, long length, long fileLength) {
     this.path = path;
     this.offset = offset;
     this.length = length;

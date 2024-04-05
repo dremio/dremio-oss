@@ -15,6 +15,7 @@
  */
 package com.dremio.jdbc;
 
+import com.dremio.jdbc.impl.DriverImpl;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.DriverPropertyInfo;
@@ -22,18 +23,12 @@ import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
 import java.util.Properties;
 
-import com.dremio.jdbc.impl.DriverImpl;
-
-
-/**
- * Main class of Dremio JDBC driver.
- */
+/** Main class of Dremio JDBC driver. */
 public class Driver implements java.sql.Driver {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(Driver.class);
 
   /** Delegate for everything except registration with DriverManager. */
   private final DriverImpl impl;
-
 
   // The following should be the last static initialization, so that any other
   // static initialization is completed before we create an instance and let
@@ -64,36 +59,31 @@ public class Driver implements java.sql.Driver {
 
   /**
    * Ensures that class is loaded.
-   * <p>
-   *   (Avoids extra instance of calling {@code new Driver();}; avoids verbosity
-   *   of {@code Class.forName("com.dremio.jdbc.Driver");}.)
-   * </p>
+   *
+   * <p>(Avoids extra instance of calling {@code new Driver();}; avoids verbosity of {@code
+   * Class.forName("com.dremio.jdbc.Driver");}.)
    */
   public static boolean load() {
     return true;
   }
 
-
   public Driver() {
     impl = new DriverImpl();
   }
 
-
   @Override
-  public Connection connect( String url, Properties info ) throws SQLException {
-    return impl.connect( url, info );
-  }
-
-
-  @Override
-  public boolean acceptsURL( String url ) throws SQLException {
-    return impl.acceptsURL( url );
+  public Connection connect(String url, Properties info) throws SQLException {
+    return impl.connect(url, info);
   }
 
   @Override
-  public DriverPropertyInfo[] getPropertyInfo( String url, Properties info )
-     throws SQLException {
-    return impl.getPropertyInfo( url,  info );
+  public boolean acceptsURL(String url) throws SQLException {
+    return impl.acceptsURL(url);
+  }
+
+  @Override
+  public DriverPropertyInfo[] getPropertyInfo(String url, Properties info) throws SQLException {
+    return impl.getPropertyInfo(url, info);
   }
 
   @Override
@@ -115,5 +105,4 @@ public class Driver implements java.sql.Driver {
   public java.util.logging.Logger getParentLogger() throws SQLFeatureNotSupportedException {
     return impl.getParentLogger();
   }
-
 }

@@ -15,17 +15,14 @@
  */
 package com.dremio.common.expression;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import com.dremio.common.expression.PathSegment.ArraySegment;
 import com.dremio.common.expression.PathSegment.NameSegment;
 import com.dremio.exec.proto.UserBitShared.NamePart;
 import com.dremio.exec.proto.UserBitShared.NamePart.Type;
+import java.util.ArrayList;
+import java.util.List;
 
-/**
- * A Basic path object that can be used with vectors and containers.
- */
+/** A Basic path object that can be used with vectors and containers. */
 public abstract class BasePath implements ProvidesUnescapedPath {
 
   @SuppressWarnings("checkstyle:VisibilityModifier")
@@ -36,7 +33,7 @@ public abstract class BasePath implements ProvidesUnescapedPath {
   }
 
   public PathSegment getLastSegment() {
-    PathSegment s= rootSegment;
+    PathSegment s = rootSegment;
     while (s.getChild() != null) {
       s = s.getChild();
     }
@@ -47,12 +44,13 @@ public abstract class BasePath implements ProvidesUnescapedPath {
     return getNamePart(rootSegment);
   }
 
-  public <IN, OUT> OUT accept(SchemaPathVisitor<IN, OUT> visitor, IN in){
+  public <IN, OUT> OUT accept(SchemaPathVisitor<IN, OUT> visitor, IN in) {
     return getRootSegment().accept(visitor, in);
   }
 
   public interface SchemaPathVisitor<IN, OUT> {
     public OUT visitName(NameSegment segment, IN in);
+
     public OUT visitArray(ArraySegment segment, IN in);
   }
 
@@ -67,7 +65,8 @@ public abstract class BasePath implements ProvidesUnescapedPath {
 
     if (s.isArray()) {
       if (s.getArraySegment().hasIndex()) {
-        throw new IllegalStateException("You cannot convert a indexed schema path to a NamePart.  NameParts can only reference Vectors, not individual records or values.");
+        throw new IllegalStateException(
+            "You cannot convert a indexed schema path to a NamePart.  NameParts can only reference Vectors, not individual records or values.");
       }
       b.setType(Type.ARRAY);
     } else {
@@ -77,11 +76,11 @@ public abstract class BasePath implements ProvidesUnescapedPath {
     return b.build();
   }
 
-  public List<String> getNameSegments(){
+  public List<String> getNameSegments() {
     List<String> segments = new ArrayList<>();
     PathSegment seg = rootSegment;
-    while(seg != null){
-      if(seg.isNamed()){
+    while (seg != null) {
+      if (seg.isNamed()) {
         segments.add(seg.getNameSegment().getPath());
       }
       seg = seg.getChild();
@@ -89,11 +88,11 @@ public abstract class BasePath implements ProvidesUnescapedPath {
     return segments;
   }
 
-  public List<String> getComplexNameSegments(){
+  public List<String> getComplexNameSegments() {
     List<String> segments = new ArrayList<>();
     PathSegment seg = rootSegment;
-    while(seg != null){
-      if(seg.isNamed()){
+    while (seg != null) {
+      if (seg.isNamed()) {
         segments.add(seg.getNameSegment().getPath());
       } else if (seg.isArray()) {
         segments.add("list");
@@ -115,6 +114,7 @@ public abstract class BasePath implements ProvidesUnescapedPath {
 
   /**
    * A simple is a path where there are no repeated elements outside the lowest level of the path.
+   *
    * @return Whether this path is a simple path.
    */
   public boolean isSimplePath() {
@@ -149,7 +149,7 @@ public abstract class BasePath implements ProvidesUnescapedPath {
     }
     sb.append(seg.getNameSegment().getPath());
 
-    while ( (seg = seg.getChild()) != null) {
+    while ((seg = seg.getChild()) != null) {
       if (seg.isNamed()) {
         sb.append('.');
         sb.append(seg.getNameSegment().getPath());
@@ -161,5 +161,4 @@ public abstract class BasePath implements ProvidesUnescapedPath {
     }
     return sb.toString();
   }
-
 }

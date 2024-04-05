@@ -18,17 +18,15 @@ package com.dremio.util;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import org.junit.Before;
-import org.junit.Test;
-
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.util.QueryProfileUtil;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.service.jobAnalysis.proto.BaseMetrics;
 import com.dremio.service.jobAnalysis.proto.ThreadData;
+import java.util.ArrayList;
+import java.util.List;
+import org.junit.Before;
+import org.junit.Test;
 
 @SuppressWarnings("checkstyle:VisibilityModifier")
 public class TestQueryProfileUtil extends BaseTestServer {
@@ -54,7 +52,7 @@ public class TestQueryProfileUtil extends BaseTestServer {
   public void testBuildBaseMetrics() {
     BaseMetrics baseMetrics = new BaseMetrics();
     QueryProfileUtil.buildTheadLevelMetrics(majorFragmentProfile, threadLevelMetricsList);
-    QueryProfileUtil.buildBaseMetrics(threadLevelMetricsList, baseMetrics); //build BaseMetrics
+    QueryProfileUtil.buildBaseMetrics(threadLevelMetricsList, baseMetrics); // build BaseMetrics
 
     assertEquals(-1, baseMetrics.getNumThreads().intValue());
     assertEquals(5, baseMetrics.getFieldNumber("recordsProcessed"));

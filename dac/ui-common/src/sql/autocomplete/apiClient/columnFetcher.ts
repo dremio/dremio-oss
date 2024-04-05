@@ -30,7 +30,7 @@ type CacheValue = {
 export type IColumnFetcher = {
   getColumns(
     tablePath: string[],
-    queryContext: string[]
+    queryContext: string[],
   ): Promise<CatalogColumn[]>;
 };
 
@@ -45,23 +45,23 @@ export class ColumnFetcher implements IColumnFetcher {
 
   async getColumns(
     tablePath: string[],
-    queryContext: string[]
+    queryContext: string[],
   ): Promise<CatalogColumn[]> {
     const cacheKey: CacheKey = {
       tablePath: tablePath.map((pathPart: string) =>
-        pathPart.toLocaleLowerCase()
+        pathPart.toLocaleLowerCase(),
       ),
       queryContext,
     };
     const cacheEntry = this.columnCache.find((cacheEntry) =>
-      isEqual(cacheEntry[0], cacheKey)
+      isEqual(cacheEntry[0], cacheKey),
     );
     if (cacheEntry) {
       return cacheEntry[1].columns;
     }
     const { columns } = await this.autocompleteApi.getColumns(
       [tablePath],
-      queryContext
+      queryContext,
     );
     this.columnCache.push([cacheKey, { columns }]);
     return columns;

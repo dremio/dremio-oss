@@ -18,12 +18,14 @@ package com.dremio.dac.service.errors;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response;
 
-/**
- * 409 error
- */
+/** 409 error */
 public class ConflictException extends WebApplicationException {
   public ConflictException(String type, String suppliedVersion, String currentVersion) {
-    super(String.format("%s with tag [%s] supplied but current version has tag [%s]", type, suppliedVersion, currentVersion), Response.Status.CONFLICT);
+    super(
+        String.format(
+            "%s with tag [%s] supplied but current version has tag [%s]",
+            type, suppliedVersion, currentVersion),
+        Response.Status.CONFLICT);
   }
 
   public ConflictException(Exception e) {

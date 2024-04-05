@@ -15,45 +15,61 @@
  */
 package com.dremio.exec.store.iceberg;
 
+import com.dremio.common.exceptions.ExecutionSetupException;
+import com.dremio.exec.physical.base.OpProps;
+import com.dremio.exec.record.BatchSchema;
+import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.sabot.op.scan.OutputMutator;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
-
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.iceberg.DremioManifestListReaderUtils;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.expressions.Expressions;
 import org.apache.iceberg.io.FileIO;
 
-import com.dremio.common.exceptions.ExecutionSetupException;
-import com.dremio.exec.physical.base.OpProps;
-import com.dremio.exec.record.BatchSchema;
-import com.dremio.sabot.exec.context.OperatorContext;
-import com.dremio.sabot.op.scan.OutputMutator;
-
 /**
- * Lean version of {@link IcebergManifestListRecordReader} which doesn't load the TableMetadata, rather reads manifest
- * list avro directly for the manifest entries.
+ * Lean version of {@link IcebergManifestListRecordReader} which doesn't load the TableMetadata,
+ * rather reads manifest list avro directly for the manifest entries.
  *
- * Unsupported cases-
- * <li> Push-down filter expressions </li>
- * <li> Specific checks for Iceberg V2 checks </li>
- * <li> Listing specific manifest types (DELETE/DATA). All the manifests are listed by this reader </li>
- * <li> In case schema is not available, the class will ignore setting ColID maps. </li>
- * <li> Setting partition stats </li>
+ * <p>Unsupported cases-
+ * <li>Push-down filter expressions
+ * <li>Specific checks for Iceberg V2 checks
+ * <li>Listing specific manifest types (DELETE/DATA). All the manifests are listed by this reader
+ * <li>In case schema is not available, the class will ignore setting ColID maps.
+ * <li>Setting partition stats
  */
 public class LeanIcebergManifestListRecordReader extends IcebergManifestListRecordReader {
 
   private final String manifestListPath;
 
-  public LeanIcebergManifestListRecordReader(OperatorContext context, String manifestListPath,
-                                             SupportsIcebergRootPointer pluginForIceberg, List<String> dataset,
-                                             String dataSourcePluginId, BatchSchema fullSchema, OpProps props,
-                                             List<String> partitionCols, Optional<Schema> icebergTableSchema) throws IOException {
-    super(context, null, pluginForIceberg, dataset, dataSourcePluginId, fullSchema, props, partitionCols,
-      createEmptyProp(), ManifestContentType.ALL);
+  public LeanIcebergManifestListRecordReader(
+      OperatorContext context,
+      String manifestListPath,
+      SupportsIcebergRootPointer pluginForIceberg,
+      List<String> dataset,
+      String dataSourcePluginId,
+      BatchSchema fullSchema,
+      OpProps props,
+      List<String> partitionCols,
+      Optional<Schema> icebergTableSchema)
+      throws IOException {
+    super(
+        context,
+        null,
+        pluginForIceberg,
+        dataset,
+        dataSourcePluginId,
+        fullSchema,
+        props,
+        partitionCols,
+        createEmptyProp(),
+        ManifestContentType.ALL,
+        false);
 
-    this.manifestListPath = ObjectUtils.requireNonEmpty(manifestListPath, "manifestListPath is null");
+    this.manifestListPath =
+        ObjectUtils.requireNonEmpty(manifestListPath, "manifestListPath is null");
     this.icebergTableSchema = icebergTableSchema.orElse(null);
   }
 
@@ -79,10 +95,6 @@ public class LeanIcebergManifestListRecordReader extends IcebergManifestListReco
 
   private static IcebergExtendedProp createEmptyProp() throws IOException {
     return new IcebergExtendedProp(
-      null,
-      IcebergSerDe.serializeToByteArray(Expressions.alwaysTrue()),
-      -1,
-      null
-    );
+        null, IcebergSerDe.serializeToByteArray(Expressions.alwaysTrue()), -1, null);
   }
 }

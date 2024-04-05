@@ -17,9 +17,12 @@ package com.dremio.exec.expr;
 
 import static org.apache.arrow.vector.types.Types.getMinorTypeForArrowType;
 
+import com.dremio.common.util.MajorTypeHelper;
+import com.dremio.exec.proto.UserBitShared.SerializedField;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import java.util.List;
 import java.util.Optional;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.BaseFixedWidthVector;
 import org.apache.arrow.vector.BaseVariableWidthVector;
@@ -91,14 +94,7 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.util.BasicTypeHelper;
 
-import com.dremio.common.util.MajorTypeHelper;
-import com.dremio.exec.proto.UserBitShared.SerializedField;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
-
-/**
- * generated from TypeHelper.java
- */
+/** generated from TypeHelper.java */
 public final class TypeHelper extends BasicTypeHelper {
 
   public static <T extends ValueVector> Class<T> getValueVectorClass(Field field) {
@@ -115,18 +111,23 @@ public final class TypeHelper extends BasicTypeHelper {
     helper.get().load(metadata, buffer);
   }
 
-  public static void loadFromValidityAndDataBuffers(ValueVector v, SerializedField metadata, ArrowBuf dataBuffer,
-      ArrowBuf validityBuffer) {
+  public static void loadFromValidityAndDataBuffers(
+      ValueVector v, SerializedField metadata, ArrowBuf dataBuffer, ArrowBuf validityBuffer) {
     if (v instanceof ZeroVector) {
-      throw new UnsupportedOperationException(String.format("this loader is not supported for vector %s", v));
+      throw new UnsupportedOperationException(
+          String.format("this loader is not supported for vector %s", v));
     } else if (v instanceof UnionVector) {
-      throw new UnsupportedOperationException(String.format("this loader is not supported for vector %s", v));
+      throw new UnsupportedOperationException(
+          String.format("this loader is not supported for vector %s", v));
     } else if (v instanceof ListVector) {
-      throw new UnsupportedOperationException(String.format("this loader is not supported for vector %s", v));
+      throw new UnsupportedOperationException(
+          String.format("this loader is not supported for vector %s", v));
     } else if (v instanceof StructVector) {
-      throw new UnsupportedOperationException(String.format("this loader is not supported for vector %s", v));
+      throw new UnsupportedOperationException(
+          String.format("this loader is not supported for vector %s", v));
     } else if (v instanceof NonNullableStructVector) {
-      throw new UnsupportedOperationException(String.format("this loader is not supported for vector %s", v));
+      throw new UnsupportedOperationException(
+          String.format("this loader is not supported for vector %s", v));
     }
 
     Optional<ValueVectorHelper> helper = getHelper(v);
@@ -321,57 +322,85 @@ public final class TypeHelper extends BasicTypeHelper {
     return getFieldForSerializedField(serializedField, true);
   }
 
-  public static Field getFieldForSerializedField(SerializedField serializedField, boolean isNullable) {
+  public static Field getFieldForSerializedField(
+      SerializedField serializedField, boolean isNullable) {
     String name = serializedField.getNamePart().getName();
-    org.apache.arrow.vector.types.Types.MinorType arrowMinorType = MajorTypeHelper
-        .getArrowMinorType(serializedField.getMajorType().getMinorType());
+    org.apache.arrow.vector.types.Types.MinorType arrowMinorType =
+        MajorTypeHelper.getArrowMinorType(serializedField.getMajorType().getMinorType());
     switch (serializedField.getMajorType().getMinorType()) {
-    case MAP:
-      SerializedField serializedEntryField = serializedField.getChild(2);
-      List<SerializedField> keyValueFields = serializedEntryField.getChildList();
-      SerializedField keyValueBits = keyValueFields.get(0);
-      Preconditions.checkState(keyValueBits.getNamePart().getName().equals("$bits$"),
-        "children should start with validity vector buffer: %s", keyValueFields);
-      Preconditions.checkArgument(keyValueFields.size() == 3, "Invalid MAP structure for field %s", name);
-      ImmutableList.Builder<Field> keyValueBuilder = ImmutableList.builder();
-      keyValueBuilder.add(getFieldForSerializedField(keyValueFields.get(1), false));
-      keyValueBuilder.add(getFieldForSerializedField(keyValueFields.get(2), true));
-      Field entryField = new Field(MapVector.DATA_VECTOR_NAME, new FieldType(false, ArrowType.Struct.INSTANCE, null), keyValueBuilder.build());
-      return new Field(name, new FieldType(isNullable, new ArrowType.Map(false), null), ImmutableList.of(entryField));
-    case LIST:
-      return new Field(name, new FieldType(isNullable, arrowMinorType.getType(), null),
-          ImmutableList.of(getFieldForSerializedField(serializedField.getChild(2))));
-    case STRUCT: {
-      ImmutableList.Builder<Field> builder = ImmutableList.builder();
-      List<SerializedField> childList = serializedField.getChildList();
-      Preconditions.checkState(childList.size() > 0, "children should start with validity vector buffer");
-      SerializedField bits = childList.get(0);
-      Preconditions.checkState(bits.getNamePart().getName().equals("$bits$"),
-          "children should start with validity vector buffer: %s", childList);
-      for (int i = 1; i < childList.size(); i++) {
-        SerializedField child = childList.get(i);
-        builder.add(getFieldForSerializedField(child));
-      }
-      return new Field(name, new FieldType(isNullable, arrowMinorType.getType(), null), builder.build());
-    }
-    case UNION: {
-      ImmutableList.Builder<Field> builder = ImmutableList.builder();
-      final List<SerializedField> unionChilds = serializedField.getChild(1).getChildList();
-      final int[] typeIds = new int[unionChilds.size()];
-      for (int i = 0; i < unionChilds.size(); i++) {
-        final Field childField = getFieldForSerializedField(unionChilds.get(i));
-        builder.add(childField);
-        typeIds[i] = Types.getMinorTypeForArrowType(childField.getType()).ordinal();
-      }
+      case MAP:
+        SerializedField serializedEntryField = serializedField.getChild(2);
+        List<SerializedField> keyValueFields = serializedEntryField.getChildList();
+        SerializedField keyValueBits = keyValueFields.get(0);
+        Preconditions.checkState(
+            keyValueBits.getNamePart().getName().equals("$bits$"),
+            "children should start with validity vector buffer: %s",
+            keyValueFields);
+        Preconditions.checkArgument(
+            keyValueFields.size() == 3, "Invalid MAP structure for field %s", name);
+        ImmutableList.Builder<Field> keyValueBuilder = ImmutableList.builder();
+        keyValueBuilder.add(getFieldForSerializedField(keyValueFields.get(1), false));
+        keyValueBuilder.add(getFieldForSerializedField(keyValueFields.get(2), true));
+        Field entryField =
+            new Field(
+                MapVector.DATA_VECTOR_NAME,
+                new FieldType(false, ArrowType.Struct.INSTANCE, null),
+                keyValueBuilder.build());
+        return new Field(
+            name,
+            new FieldType(isNullable, new ArrowType.Map(false), null),
+            ImmutableList.of(entryField));
+      case LIST:
+        return new Field(
+            name,
+            new FieldType(isNullable, arrowMinorType.getType(), null),
+            ImmutableList.of(getFieldForSerializedField(serializedField.getChild(2))));
+      case STRUCT:
+        {
+          ImmutableList.Builder<Field> builder = ImmutableList.builder();
+          List<SerializedField> childList = serializedField.getChildList();
+          Preconditions.checkState(
+              childList.size() > 0, "children should start with validity vector buffer");
+          SerializedField bits = childList.get(0);
+          Preconditions.checkState(
+              bits.getNamePart().getName().equals("$bits$"),
+              "children should start with validity vector buffer: %s",
+              childList);
+          for (int i = 1; i < childList.size(); i++) {
+            SerializedField child = childList.get(i);
+            builder.add(getFieldForSerializedField(child));
+          }
+          return new Field(
+              name, new FieldType(isNullable, arrowMinorType.getType(), null), builder.build());
+        }
+      case UNION:
+        {
+          ImmutableList.Builder<Field> builder = ImmutableList.builder();
+          final List<SerializedField> unionChilds = serializedField.getChild(1).getChildList();
+          final int[] typeIds = new int[unionChilds.size()];
+          for (int i = 0; i < unionChilds.size(); i++) {
+            final Field childField = getFieldForSerializedField(unionChilds.get(i));
+            builder.add(childField);
+            typeIds[i] = Types.getMinorTypeForArrowType(childField.getType()).ordinal();
+          }
 
-      // TODO: not sure the sparse mode is correct.
-      final Union unionType = new Union(UnionMode.Sparse, typeIds);
-      return new Field(name, new FieldType(isNullable, unionType, null), builder.build());
-    }
-    case DECIMAL:
-      return new Field(name, new FieldType(isNullable,  new Decimal(serializedField.getMajorType().getPrecision(), serializedField.getMajorType().getScale(), 128), null), null);
-    default:
-      return new Field(name, new FieldType(isNullable, arrowMinorType.getType(), null), null);
+          // TODO: not sure the sparse mode is correct.
+          final Union unionType = new Union(UnionMode.Sparse, typeIds);
+          return new Field(name, new FieldType(isNullable, unionType, null), builder.build());
+        }
+      case DECIMAL:
+        return new Field(
+            name,
+            new FieldType(
+                isNullable,
+                new Decimal(
+                    serializedField.getMajorType().getPrecision(),
+                    serializedField.getMajorType().getScale(),
+                    128),
+                null),
+            null);
+      default:
+        return new Field(name, new FieldType(isNullable, arrowMinorType.getType(), null), null);
     }
   }
 

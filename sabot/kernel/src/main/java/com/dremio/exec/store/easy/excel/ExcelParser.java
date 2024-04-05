@@ -15,9 +15,7 @@
  */
 package com.dremio.exec.store.easy.excel;
 
-/**
- * XLS/XLSX basic parsing interface.
- */
+/** XLS/XLSX basic parsing interface. */
 public interface ExcelParser extends AutoCloseable {
 
   enum State {

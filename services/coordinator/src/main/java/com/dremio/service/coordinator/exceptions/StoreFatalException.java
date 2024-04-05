@@ -17,7 +17,8 @@ package com.dremio.service.coordinator.exceptions;
 
 public class StoreFatalException extends RuntimeException {
   private static final long serialVersionUID = 1L;
-  private static final String STR_FORMAT = "Unexpected exception while doing operation %s on path %s";
+  private static final String STR_FORMAT =
+      "Unexpected exception while doing operation %s on path %s";
 
   public StoreFatalException(String path, String operation, Throwable th) {
     super(String.format(STR_FORMAT, operation, path), th);

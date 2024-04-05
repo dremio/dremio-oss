@@ -19,9 +19,7 @@ import com.dremio.dac.model.sources.SourceName;
 import com.dremio.file.SourceFilePath;
 import com.dremio.file.SourceFileResourcePath;
 
-/**
- * Thrown when a file is not found in source.
- */
+/** Thrown when a file is not found in source. */
 public class SourceFileNotFoundException extends NotFoundException {
   private static final long serialVersionUID = 1L;
 

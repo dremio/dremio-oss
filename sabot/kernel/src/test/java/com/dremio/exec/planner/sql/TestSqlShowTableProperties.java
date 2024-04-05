@@ -15,43 +15,47 @@
  */
 package com.dremio.exec.planner.sql;
 
-  import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertEquals;
 
-  import java.util.ArrayList;
-  import java.util.HashMap;
-  import java.util.List;
-  import java.util.Map;
-
-  import org.apache.calcite.config.NullCollation;
-  import org.apache.calcite.sql.SqlDialect;
-  import org.apache.calcite.sql.SqlKind;
-  import org.apache.calcite.sql.SqlNode;
-  import org.apache.calcite.sql.pretty.SqlPrettyWriter;
-  import org.junit.Assert;
-  import org.junit.Test;
-
-  import com.dremio.BaseTestQuery;
-  import com.dremio.common.exceptions.UserException;
-  import com.dremio.common.utils.SqlUtils;
-  import com.dremio.exec.planner.physical.PlannerSettings;
-  import com.dremio.exec.planner.sql.parser.SqlShowTableProperties;
-  import com.dremio.exec.proto.UserBitShared;
-  import com.google.common.collect.Sets;
+import com.dremio.BaseTestQuery;
+import com.dremio.common.exceptions.UserException;
+import com.dremio.common.utils.SqlUtils;
+import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.planner.sql.parser.SqlShowTableProperties;
+import com.dremio.exec.proto.UserBitShared;
+import com.google.common.collect.Sets;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import org.apache.calcite.config.NullCollation;
+import org.apache.calcite.sql.SqlDialect;
+import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.pretty.SqlPrettyWriter;
+import org.junit.Assert;
+import org.junit.Test;
 
 public class TestSqlShowTableProperties extends BaseTestQuery {
-  private final ParserConfig parserConfig = new ParserConfig(ParserConfig.QUOTING, 100,
-    PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
+  private final ParserConfig parserConfig =
+      new ParserConfig(
+          ParserConfig.QUOTING,
+          100,
+          PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
 
   @Test
   public void testParseMalformedQueries() throws Exception {
-    List<String> malformedQueries = new ArrayList<String>() {{
-      add("SHOW TBLPROPERTIES");
-      add("SHOW TBLPROPERTIES()");
-      add("SHOW TBLPROPERTIES() tbl");
-      add("SHOW tbl TBLPROPERTIES");
-      add("SHOW TBLPROPERTIES tbl1,tbl2");
-      add("SHOW TBLPROPERTIES tbl1 tbl2");
-    }};
+    List<String> malformedQueries =
+        new ArrayList<String>() {
+          {
+            add("SHOW TBLPROPERTIES");
+            add("SHOW TBLPROPERTIES()");
+            add("SHOW TBLPROPERTIES() tbl");
+            add("SHOW tbl TBLPROPERTIES");
+            add("SHOW TBLPROPERTIES tbl1,tbl2");
+            add("SHOW TBLPROPERTIES tbl1 tbl2");
+          }
+        };
 
     for (String malformedQuery : malformedQueries) {
       parseAndVerifyMalFormat(malformedQuery);
@@ -60,10 +64,13 @@ public class TestSqlShowTableProperties extends BaseTestQuery {
 
   @Test
   public void testParseWellformedQueries() throws Exception {
-    List<String> wellformedQueries = new ArrayList<String>() {{
-      add("SHOW TBLPROPERTIES tbl");
-      add("SHOW TBLPROPERTIES \"tbl\"");
-    }};
+    List<String> wellformedQueries =
+        new ArrayList<String>() {
+          {
+            add("SHOW TBLPROPERTIES tbl");
+            add("SHOW TBLPROPERTIES \"tbl\"");
+          }
+        };
 
     for (String wellformedQuery : wellformedQueries) {
       parseAndVerifyWellFormat(wellformedQuery);
@@ -72,12 +79,15 @@ public class TestSqlShowTableProperties extends BaseTestQuery {
 
   @Test
   public void testParseAndUnparse() throws Exception {
-    Map<String, String> queryExpectedStrings = new HashMap<String, String>() {{
-      put("SHOW TBLPROPERTIES tbl", "SHOW TBLPROPERTIES \"tbl\"");
-      put("SHOW TBLPROPERTIES \"tbl\"", "SHOW TBLPROPERTIES \"tbl\"");
-    }};
+    Map<String, String> queryExpectedStrings =
+        new HashMap<String, String>() {
+          {
+            put("SHOW TBLPROPERTIES tbl", "SHOW TBLPROPERTIES \"tbl\"");
+            put("SHOW TBLPROPERTIES \"tbl\"", "SHOW TBLPROPERTIES \"tbl\"");
+          }
+        };
 
-    for (Map.Entry<String,String> entry : queryExpectedStrings.entrySet())  {
+    for (Map.Entry<String, String> entry : queryExpectedStrings.entrySet()) {
       parseAndVerifyUnparse(entry.getKey(), entry.getValue());
     }
   }
@@ -94,7 +104,11 @@ public class TestSqlShowTableProperties extends BaseTestQuery {
 
     // verify unParse
     SqlDialect DREMIO_DIALECT =
-      new SqlDialect(SqlDialect.DatabaseProduct.UNKNOWN, "Dremio", Character.toString(SqlUtils.QUOTE), NullCollation.FIRST);
+        new SqlDialect(
+            SqlDialect.DatabaseProduct.UNKNOWN,
+            "Dremio",
+            Character.toString(SqlUtils.QUOTE),
+            NullCollation.FIRST);
     SqlPrettyWriter writer = new SqlPrettyWriter(DREMIO_DIALECT);
     sqlNode.unparse(writer, 0, 0);
     String actual = writer.toString();

@@ -37,6 +37,14 @@ export const mapStateToProps = (state) => {
         createdSource && createdSource.has("accelerationGracePeriod")
           ? createdSource.get("accelerationGracePeriod")
           : DataFreshnessSection.defaultFormValueGracePeriod(),
+      accelerationActivePolicyType:
+        createdSource && createdSource.has("accelerationActivePolicyType")
+          ? createdSource.get("accelerationActivePolicyType")
+          : DataFreshnessSection.defaultFormValuePolicyType(),
+      accelerationRefreshSchedule:
+        createdSource && createdSource.has("accelerationRefreshSchedule")
+          ? createdSource.get("accelerationRefreshSchedule")
+          : DataFreshnessSection.defaultFormValueRefreshSchedule(),
       metadataPolicy: MetadataRefresh.mapToFormFields(createdSource),
     },
   };

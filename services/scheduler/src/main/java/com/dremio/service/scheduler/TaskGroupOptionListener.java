@@ -15,25 +15,25 @@
  */
 package com.dremio.service.scheduler;
 
-import javax.inject.Provider;
-
 import com.dremio.options.OptionChangeListener;
 import com.dremio.options.OptionManager;
 import com.dremio.options.TypeValidators.PositiveLongValidator;
+import javax.inject.Provider;
 
-/**
- * Listen to changes to configured Option and accordingly
- * modify the associated task group
- */
+/** Listen to changes to configured Option and accordingly modify the associated task group */
 public class TaskGroupOptionListener implements OptionChangeListener {
-  private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(TaskGroupOptionListener.class);
+  private static final org.slf4j.Logger LOGGER =
+      org.slf4j.LoggerFactory.getLogger(TaskGroupOptionListener.class);
   private final Provider<OptionManager> optionManager;
   private final PositiveLongValidator option;
   private final ModifiableSchedulerService schedulerService;
   private final String taskGroupName;
 
-  public TaskGroupOptionListener(ModifiableSchedulerService scheduler, String taskGroupName,
-                                 PositiveLongValidator option, Provider<OptionManager> optionManager) {
+  public TaskGroupOptionListener(
+      ModifiableSchedulerService scheduler,
+      String taskGroupName,
+      PositiveLongValidator option,
+      Provider<OptionManager> optionManager) {
     this.schedulerService = scheduler;
     this.option = option;
     this.optionManager = optionManager;
@@ -43,8 +43,9 @@ public class TaskGroupOptionListener implements OptionChangeListener {
   @Override
   public synchronized void onChange() {
     final int capacity = (int) optionManager.get().getOption(option);
-    LOGGER.debug("Option change request received, capacity = {} group = {}", capacity, taskGroupName);
-    schedulerService.modifyTaskGroup(taskGroupName, ScheduleTaskGroup.create(taskGroupName, capacity));
+    LOGGER.debug(
+        "Option change request received, capacity = {} group = {}", capacity, taskGroupName);
+    schedulerService.modifyTaskGroup(
+        taskGroupName, ScheduleTaskGroup.create(taskGroupName, capacity));
   }
-
 }

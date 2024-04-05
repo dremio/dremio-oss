@@ -16,8 +16,6 @@
 
 package com.dremio.exec.expr.fn;
 
-import org.apache.arrow.vector.complex.writer.BaseWriter.ComplexWriter;
-
 import com.dremio.common.expression.CompleteType;
 import com.dremio.exec.expr.ClassGenerator;
 import com.dremio.exec.expr.ClassGenerator.HoldingContainer;
@@ -25,26 +23,41 @@ import com.sun.codemodel.JBlock;
 import com.sun.codemodel.JExpr;
 import com.sun.codemodel.JExpression;
 import com.sun.codemodel.JVar;
+import org.apache.arrow.vector.complex.writer.BaseWriter.ComplexWriter;
 
 public class ComplexWriterFunctionHolder extends SimpleFunctionHolder {
 
-  public ComplexWriterFunctionHolder(FunctionAttributes functionAttributes, FunctionInitializer initializer) {
+  public ComplexWriterFunctionHolder(
+      FunctionAttributes functionAttributes, FunctionInitializer initializer) {
     super(functionAttributes, initializer);
   }
 
   @Override
-  protected HoldingContainer generateEvalBody(ClassGenerator<?> g, CompleteType resolvedOutput, HoldingContainer[] inputVariables, String body, JVar[] workspaceJVars) {
+  protected HoldingContainer generateEvalBody(
+      ClassGenerator<?> g,
+      CompleteType resolvedOutput,
+      HoldingContainer[] inputVariables,
+      String body,
+      JVar[] workspaceJVars) {
 
-    g.getEvalBlock().directStatement(String.format("//---- start of eval portion of %s function. ----//", registeredNames[0]));
+    g.getEvalBlock()
+        .directStatement(
+            String.format(
+                "//---- start of eval portion of %s function. ----//", registeredNames[0]));
 
     JBlock sub = new JBlock(true, true);
 
-    JVar complexWriter = g.declareClassField("complexWriter", g.getModel()._ref(ComplexWriter.class));
+    JVar complexWriter =
+        g.declareClassField("complexWriter", g.getModel()._ref(ComplexWriter.class));
 
     final JExpression writerCreator = JExpr.direct("writerCreator");
-    g.getSetupBlock().assign(complexWriter, writerCreator.invoke("addComplexWriter").arg(g.getOutputReferenceName()));
+    g.getSetupBlock()
+        .assign(
+            complexWriter,
+            writerCreator.invoke("addComplexWriter").arg(g.getOutputReferenceName()));
 
-    g.getEvalBlock().add(complexWriter.invoke("setPosition").arg(g.getMappingSet().getValueWriteIndex()));
+    g.getEvalBlock()
+        .add(complexWriter.invoke("setPosition").arg(g.getMappingSet().getValueWriteIndex()));
 
     sub.decl(g.getModel()._ref(ComplexWriter.class), getReturnName(), complexWriter);
 
@@ -53,9 +66,10 @@ public class ComplexWriterFunctionHolder extends SimpleFunctionHolder {
 
     addProtectedBlock(g, sub, body, inputVariables, workspaceJVars, false);
 
-    g.getEvalBlock().directStatement(String.format("//---- end of eval portion of %s function. ----//", registeredNames[0]));
+    g.getEvalBlock()
+        .directStatement(
+            String.format("//---- end of eval portion of %s function. ----//", registeredNames[0]));
 
     return null;
   }
-
 }

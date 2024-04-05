@@ -15,19 +15,6 @@
  */
 package com.dremio.exec.planner.sql;
 
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-
-import javax.inject.Provider;
-
-import org.apache.arrow.vector.types.pojo.ArrowType;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.junit.BeforeClass;
-import org.junit.Test;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.AttributeValue;
@@ -58,30 +45,45 @@ import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.source.proto.SourceConfig;
-
 import io.protostuff.Tag;
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import javax.inject.Provider;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
 public class TestAlterTableChangeColumnSetOptionHandler extends BaseTestQuery {
 
   @SourceType(value = "column_option", label = "ColumnOptionTest", configurable = false)
-  public static class ColumnOptionTestConf extends ConnectionConf<ColumnOptionTestConf, ColumnOptionTestPlugin> {
+  public static class ColumnOptionTestConf
+      extends ConnectionConf<ColumnOptionTestConf, ColumnOptionTestPlugin> {
     @Tag(1)
     public boolean shouldChangeMetadata = false;
 
     @Override
-    public ColumnOptionTestPlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
+    public ColumnOptionTestPlugin newPlugin(
+        SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
       return new ColumnOptionTestPlugin(name, shouldChangeMetadata);
     }
   }
 
-  public static final class ColumnOptionTestPlugin implements StoragePlugin, SupportsAlteringDatasetMetadata {
+  public static final class ColumnOptionTestPlugin
+      implements StoragePlugin, SupportsAlteringDatasetMetadata {
     private final DatasetHandle firstHandle;
     private final DatasetHandle secondHandle;
-    private final DatasetMetadata FIRST_METADATA = DatasetMetadata.of(
-      DatasetStats.of(10, 99.0), BatchSchema.of(Field.nullable("foo", ArrowType.Bool.INSTANCE)));
-    private final DatasetMetadata SECOND_METADATA = DatasetMetadata.of(
-      DatasetStats.of(10, 99.0), BatchSchema.of(Field.nullable("foo", ArrowType.Utf8.INSTANCE)));
-
+    private final DatasetMetadata FIRST_METADATA =
+        DatasetMetadata.of(
+            DatasetStats.of(10, 99.0),
+            BatchSchema.of(Field.nullable("foo", ArrowType.Bool.INSTANCE)));
+    private final DatasetMetadata SECOND_METADATA =
+        DatasetMetadata.of(
+            DatasetStats.of(10, 99.0),
+            BatchSchema.of(Field.nullable("foo", ArrowType.Utf8.INSTANCE)));
 
     private final boolean shouldSetOptionChangeData;
     private boolean firstAccessOfTable = true;
@@ -93,7 +95,8 @@ public class TestAlterTableChangeColumnSetOptionHandler extends BaseTestQuery {
     }
 
     @Override
-    public Optional<DatasetHandle> getDatasetHandle(EntityPath datasetPath, GetDatasetOption... options) throws ConnectorException {
+    public Optional<DatasetHandle> getDatasetHandle(
+        EntityPath datasetPath, GetDatasetOption... options) throws ConnectorException {
       if (firstAccessOfTable || !shouldSetOptionChangeData) {
         return Optional.of(firstHandle);
       }
@@ -101,12 +104,18 @@ public class TestAlterTableChangeColumnSetOptionHandler extends BaseTestQuery {
     }
 
     @Override
-    public PartitionChunkListing listPartitionChunks(DatasetHandle datasetHandle, ListPartitionChunkOption... options) throws ConnectorException {
+    public PartitionChunkListing listPartitionChunks(
+        DatasetHandle datasetHandle, ListPartitionChunkOption... options)
+        throws ConnectorException {
       return new PartitionChunkListingImpl();
     }
 
     @Override
-    public DatasetMetadata getDatasetMetadata(DatasetHandle datasetHandle, PartitionChunkListing chunkListing, GetMetadataOption... options) throws ConnectorException {
+    public DatasetMetadata getDatasetMetadata(
+        DatasetHandle datasetHandle,
+        PartitionChunkListing chunkListing,
+        GetMetadataOption... options)
+        throws ConnectorException {
       if (firstAccessOfTable) {
         firstAccessOfTable = false;
         return FIRST_METADATA;
@@ -124,7 +133,12 @@ public class TestAlterTableChangeColumnSetOptionHandler extends BaseTestQuery {
     }
 
     @Override
-    public DatasetMetadata alterMetadata(DatasetHandle datasetHandle, DatasetMetadata metadata, Map<String, AttributeValue> attributes, AlterMetadataOption... options) throws ConnectorException {
+    public DatasetMetadata alterMetadata(
+        DatasetHandle datasetHandle,
+        DatasetMetadata metadata,
+        Map<String, AttributeValue> attributes,
+        AlterMetadataOption... options)
+        throws ConnectorException {
       return null;
     }
 
@@ -154,17 +168,20 @@ public class TestAlterTableChangeColumnSetOptionHandler extends BaseTestQuery {
     }
 
     @Override
-    public void start() throws IOException {
-
-    }
+    public void start() throws IOException {}
 
     @Override
-    public void close() throws Exception {
-
-    }
+    public void close() throws Exception {}
 
     @Override
-    public DatasetMetadata alterDatasetSetColumnOption(DatasetHandle datasetHandle, DatasetMetadata metadata, String columnName, String attributeName, AttributeValue attributeValue, AlterMetadataOption... options) throws ConnectorException {
+    public DatasetMetadata alterDatasetSetColumnOption(
+        DatasetHandle datasetHandle,
+        DatasetMetadata metadata,
+        String columnName,
+        String attributeName,
+        AttributeValue attributeValue,
+        AlterMetadataOption... options)
+        throws ConnectorException {
       if (shouldSetOptionChangeData) {
         return SECOND_METADATA;
       }
@@ -183,7 +200,9 @@ public class TestAlterTableChangeColumnSetOptionHandler extends BaseTestQuery {
     final ColumnOptionTestConf colConf1 = new ColumnOptionTestConf();
     colConf1.shouldChangeMetadata = true;
     conf1.setConnectionConf(colConf1);
-    ((CatalogServiceImpl)getSabotContext().getCatalogService()).getSystemUserCatalog().createSource(conf1);
+    ((CatalogServiceImpl) getSabotContext().getCatalogService())
+        .getSystemUserCatalog()
+        .createSource(conf1);
 
     SourceConfig conf2 = new SourceConfig();
     conf2.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY);
@@ -191,26 +210,33 @@ public class TestAlterTableChangeColumnSetOptionHandler extends BaseTestQuery {
     final ColumnOptionTestConf colConf2 = new ColumnOptionTestConf();
     colConf2.shouldChangeMetadata = false;
     conf2.setConnectionConf(colConf2);
-    ((CatalogServiceImpl)getSabotContext().getCatalogService()).getSystemUserCatalog().createSource(conf2);
+    ((CatalogServiceImpl) getSabotContext().getCatalogService())
+        .getSystemUserCatalog()
+        .createSource(conf2);
   }
 
   @Test
   public void testColumnOptionKeepsSameMetadata() throws Exception {
     testBuilder()
-      .sqlQuery("ALTER TABLE \"col_conf\".\"first\" CHANGE COLUMN foo SET dummy_option = true")
-      .ordered()
-      .baselineColumns("ok", "summary")
-      .baselineValues(Boolean.TRUE, String.format("Table [%s] column [%s] options updated", "col_conf.first", "foo"))
-      .go();
+        .sqlQuery("ALTER TABLE \"col_conf\".\"first\" CHANGE COLUMN foo SET dummy_option = true")
+        .ordered()
+        .baselineColumns("ok", "summary")
+        .baselineValues(
+            Boolean.TRUE,
+            String.format("Table [%s] column [%s] options updated", "col_conf.first", "foo"))
+        .go();
   }
 
   @Test
   public void testColumnOptionChangesMetadata() throws Exception {
     testBuilder()
-      .sqlQuery("ALTER TABLE \"col_conf2\".\"first\" CHANGE COLUMN foo SET dummy_option = true")
-      .ordered()
-      .baselineColumns("ok", "summary")
-      .baselineValues(Boolean.TRUE, String.format("Table [%s] column [%s] options did not change", "col_conf2.first", "foo"))
-      .go();
+        .sqlQuery("ALTER TABLE \"col_conf2\".\"first\" CHANGE COLUMN foo SET dummy_option = true")
+        .ordered()
+        .baselineColumns("ok", "summary")
+        .baselineValues(
+            Boolean.TRUE,
+            String.format(
+                "Table [%s] column [%s] options did not change", "col_conf2.first", "foo"))
+        .go();
   }
 }

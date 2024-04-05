@@ -15,15 +15,14 @@
  */
 package io.protostuff;
 
-/**
- * Byte string utilities.
- */
+/** Byte string utilities. */
 public final class ByteStringUtil {
 
   /**
    * Wrap the given byte array into a {@link ByteString}, to avoid copying.
-   * <p>
-   * Warning: use only in a scenario where the given byte array will never be modified by other actors.
+   *
+   * <p>Warning: use only in a scenario where the given byte array will never be modified by other
+   * actors.
    *
    * @param bytes byte array
    * @return byte string
@@ -34,8 +33,9 @@ public final class ByteStringUtil {
 
   /**
    * Unwrap the given {@link ByteString} into byte array, to avoid copying.
-   * <p>
-   * Warning: use only in a scenario where the unwrapped byte array will never be modified by other actors.
+   *
+   * <p>Warning: use only in a scenario where the unwrapped byte array will never be modified by
+   * other actors.
    *
    * @param byteString byte string
    * @return byte array
@@ -45,6 +45,5 @@ public final class ByteStringUtil {
   }
 
   // prevent instantiation
-  private ByteStringUtil() {
-  }
+  private ByteStringUtil() {}
 }

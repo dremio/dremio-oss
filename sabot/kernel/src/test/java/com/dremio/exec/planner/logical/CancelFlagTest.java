@@ -18,29 +18,27 @@ package com.dremio.exec.planner.logical;
 import org.junit.Assert;
 import org.junit.Test;
 
-/**
- * Test for {@link CancelFlag}.
- */
+/** Test for {@link CancelFlag}. */
 public class CancelFlagTest {
 
   @Test
-  public void testIsNotStartedUntilReset () {
+  public void testIsNotStartedUntilReset() {
     CancelFlag cancelFlag = new CancelFlag(Long.MAX_VALUE);
-    Assert.assertFalse("The cancel flag should not be running until first reset",
-        cancelFlag.watch.isRunning());
+    Assert.assertFalse(
+        "The cancel flag should not be running until first reset", cancelFlag.watch.isRunning());
     cancelFlag.reset();
-    Assert.assertTrue("The cancel flag should be running after reset",
-        cancelFlag.watch.isRunning());
+    Assert.assertTrue(
+        "The cancel flag should be running after reset", cancelFlag.watch.isRunning());
   }
 
   @Test
-  public void testIsNotRunningAfterStop () {
+  public void testIsNotRunningAfterStop() {
     CancelFlag cancelFlag = new CancelFlag(Long.MAX_VALUE);
     cancelFlag.reset();
-    Assert.assertTrue("The cancel flag should be running after reset",
-      cancelFlag.watch.isRunning());
+    Assert.assertTrue(
+        "The cancel flag should be running after reset", cancelFlag.watch.isRunning());
     cancelFlag.stop();
-    Assert.assertFalse("The cancel flag should not be running after stop",
-      cancelFlag.watch.isRunning());
+    Assert.assertFalse(
+        "The cancel flag should not be running after stop", cancelFlag.watch.isRunning());
   }
 }

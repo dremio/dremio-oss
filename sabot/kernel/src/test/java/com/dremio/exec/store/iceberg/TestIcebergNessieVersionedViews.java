@@ -19,32 +19,26 @@ import static org.apache.iceberg.types.Types.NestedField.required;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.dremio.catalog.model.ResolvedVersionContext;
+import com.dremio.catalog.model.VersionContext;
+import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.store.iceberg.nessie.IcebergNessieVersionedViews;
+import com.dremio.exec.store.iceberg.viewdepoc.View;
+import com.dremio.exec.store.iceberg.viewdepoc.ViewDefinition;
+import com.dremio.plugins.NessieContent;
+import com.google.common.base.Joiner;
 import java.io.File;
 import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
-
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.types.Types;
-import org.apache.iceberg.viewdepoc.View;
-import org.apache.iceberg.viewdepoc.ViewDefinition;
-import org.apache.iceberg.viewdepoc.ViewUtils;
 import org.junit.jupiter.api.Test;
 import org.projectnessie.model.ContentKey;
-import org.projectnessie.model.Namespace;
-import org.projectnessie.model.TableReference;
-
-import com.dremio.catalog.model.ResolvedVersionContext;
-import com.dremio.catalog.model.VersionContext;
-import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.store.iceberg.nessie.IcebergNessieVersionedViews;
-import com.dremio.plugins.NessieContent;
-import com.google.common.base.Joiner;
 
 public class TestIcebergNessieVersionedViews extends BaseIcebergViewTest {
   private static final String SQL = "select id from tb1";
@@ -74,7 +68,8 @@ public class TestIcebergNessieVersionedViews extends BaseIcebergViewTest {
   private static final List<String> createViewKey = Arrays.asList("create", "foo", "bar");
   private static final List<String> replaceViewKey = Arrays.asList("replace", "foo", "bar");
   private static final List<String> dropViewKey = Arrays.asList("drop", "foo", "bar");
-  private static final List<String> complexDropViewKey = Arrays.asList("complex_drop", "foo", "bar");
+  private static final List<String> complexDropViewKey =
+      Arrays.asList("complex_drop", "foo", "bar");
   private static final List<String> newDropViewKey = Arrays.asList("new_drop", "foo", "bar");
   private static final List<String> nonExistViewKey = Arrays.asList("nonexist", "foo", "bar");
   private static final List<String> existViewKey = Arrays.asList("exist", "foo", "bar");
@@ -97,12 +92,10 @@ public class TestIcebergNessieVersionedViews extends BaseIcebergViewTest {
         ViewDefinition.of(SQL, SCHEMA, CATALOG_NAME, Collections.emptyList());
 
     icebergNessieVersionedViews.create(
-        createViewKey,
-        viewDefinition,
-        Collections.emptyMap(),
-        getVersion(CREATE_BRANCH));
+        createViewKey, viewDefinition, Collections.emptyMap(), getVersion(CREATE_BRANCH));
 
-    final View icebergView = icebergNessieVersionedViews.load(createViewKey, getVersion(CREATE_BRANCH));
+    final View icebergView =
+        icebergNessieVersionedViews.load(createViewKey, getVersion(CREATE_BRANCH));
 
     assertThat(icebergView).isNotNull();
     assertThat(icebergView.currentVersion().versionId()).isEqualTo(1);
@@ -124,12 +117,10 @@ public class TestIcebergNessieVersionedViews extends BaseIcebergViewTest {
         ViewDefinition.of(SQL, SCHEMA, CATALOG_NAME, Collections.emptyList());
 
     icebergNessieVersionedViews.create(
-        replaceViewKey,
-        viewDefinition,
-        Collections.emptyMap(),
-        getVersion(REPLACE_BRANCH));
+        replaceViewKey, viewDefinition, Collections.emptyMap(), getVersion(REPLACE_BRANCH));
 
-    final View icebergView = icebergNessieVersionedViews.load(replaceViewKey, getVersion(REPLACE_BRANCH));
+    final View icebergView =
+        icebergNessieVersionedViews.load(replaceViewKey, getVersion(REPLACE_BRANCH));
 
     assertThat(icebergView).isNotNull();
     assertThat(icebergView.currentVersion().versionId()).isEqualTo(1);
@@ -139,12 +130,10 @@ public class TestIcebergNessieVersionedViews extends BaseIcebergViewTest {
         ViewDefinition.of(NEW_SQL, NEW_SCHEMA, CATALOG_NAME, Collections.emptyList());
 
     icebergNessieVersionedViews.replace(
-        replaceViewKey,
-        newViewDefinition,
-        Collections.emptyMap(),
-        getVersion(REPLACE_BRANCH));
+        replaceViewKey, newViewDefinition, Collections.emptyMap(), getVersion(REPLACE_BRANCH));
 
-    final View newIcebergView = icebergNessieVersionedViews.load(replaceViewKey, getVersion(REPLACE_BRANCH));
+    final View newIcebergView =
+        icebergNessieVersionedViews.load(replaceViewKey, getVersion(REPLACE_BRANCH));
 
     assertThat(newIcebergView).isNotNull();
     assertThat(newIcebergView.currentVersion().versionId()).isEqualTo(2);
@@ -163,10 +152,7 @@ public class TestIcebergNessieVersionedViews extends BaseIcebergViewTest {
         ViewDefinition.of(SQL, SCHEMA, CATALOG_NAME, Collections.emptyList());
 
     icebergNessieVersionedViews.create(
-        dropViewKey,
-        viewDefinition,
-        Collections.emptyMap(),
-        getVersion(DROP_BRANCH));
+        dropViewKey, viewDefinition, Collections.emptyMap(), getVersion(DROP_BRANCH));
 
     final View icebergView = icebergNessieVersionedViews.load(dropViewKey, getVersion(DROP_BRANCH));
 
@@ -201,7 +187,8 @@ public class TestIcebergNessieVersionedViews extends BaseIcebergViewTest {
         Collections.emptyMap(),
         getVersion(COMPLEX_DROP_BRANCH));
 
-    View icebergView = icebergNessieVersionedViews.load(complexDropViewKey, getVersion(COMPLEX_DROP_BRANCH));
+    View icebergView =
+        icebergNessieVersionedViews.load(complexDropViewKey, getVersion(COMPLEX_DROP_BRANCH));
 
     assertThat(icebergView).isNotNull();
     assertThat(icebergView.currentVersion().versionId()).isEqualTo(1);
@@ -210,7 +197,8 @@ public class TestIcebergNessieVersionedViews extends BaseIcebergViewTest {
     // Drop the view and check the existence.
     icebergNessieVersionedViews.drop(complexDropViewKey, getVersion(COMPLEX_DROP_BRANCH));
 
-    assertThatThrownBy(() -> icebergNessieVersionedViews.load(dropViewKey, getVersion(COMPLEX_DROP_BRANCH)))
+    assertThatThrownBy(
+            () -> icebergNessieVersionedViews.load(dropViewKey, getVersion(COMPLEX_DROP_BRANCH)))
         .isInstanceOf(UserException.class)
         .hasMessageContaining("not found");
 
@@ -224,7 +212,8 @@ public class TestIcebergNessieVersionedViews extends BaseIcebergViewTest {
         Collections.emptyMap(),
         getVersion(COMPLEX_DROP_BRANCH));
 
-    icebergView = icebergNessieVersionedViews.load(complexDropViewKey, getVersion(COMPLEX_DROP_BRANCH));
+    icebergView =
+        icebergNessieVersionedViews.load(complexDropViewKey, getVersion(COMPLEX_DROP_BRANCH));
 
     assertThat(icebergView).isNotNull();
     assertThat(icebergView.currentVersion().versionId()).isEqualTo(1);
@@ -233,7 +222,8 @@ public class TestIcebergNessieVersionedViews extends BaseIcebergViewTest {
     // Drop the view and check the existence.
     icebergNessieVersionedViews.drop(complexDropViewKey, getVersion(COMPLEX_DROP_BRANCH));
 
-    assertThatThrownBy(() -> icebergNessieVersionedViews.load(dropViewKey, getVersion(COMPLEX_DROP_BRANCH)))
+    assertThatThrownBy(
+            () -> icebergNessieVersionedViews.load(dropViewKey, getVersion(COMPLEX_DROP_BRANCH)))
         .isInstanceOf(UserException.class)
         .hasMessageContaining("not found");
   }
@@ -247,10 +237,7 @@ public class TestIcebergNessieVersionedViews extends BaseIcebergViewTest {
         ViewDefinition.of(SQL, SCHEMA, CATALOG_NAME, Collections.emptyList());
 
     icebergNessieVersionedViews.create(
-        newDropViewKey,
-        viewDefinition,
-        Collections.emptyMap(),
-        getVersion(OLD_DROP_BRANCH));
+        newDropViewKey, viewDefinition, Collections.emptyMap(), getVersion(OLD_DROP_BRANCH));
 
     createBranch(NEW_DROP_BRANCH, VersionContext.ofBranch(OLD_DROP_BRANCH));
 
@@ -258,10 +245,7 @@ public class TestIcebergNessieVersionedViews extends BaseIcebergViewTest {
         ViewDefinition.of(NEW_SQL, SCHEMA, CATALOG_NAME, Collections.emptyList());
 
     icebergNessieVersionedViews.replace(
-        newDropViewKey,
-        newViewDefinition,
-        Collections.emptyMap(),
-        getVersion(NEW_DROP_BRANCH));
+        newDropViewKey, newViewDefinition, Collections.emptyMap(), getVersion(NEW_DROP_BRANCH));
 
     // Drop the view and validate that it's only deleted on the target branch.
     icebergNessieVersionedViews.drop(newDropViewKey, getVersion(OLD_DROP_BRANCH));
@@ -280,54 +264,6 @@ public class TestIcebergNessieVersionedViews extends BaseIcebergViewTest {
   }
 
   @Test
-  public void testGlobalMetadata() {
-    createBranch(GLOBAL_METADATA_BRANCH, VersionContext.NOT_SPECIFIED);
-    createNamespacesIfMissing(GLOBAL_METADATA_BRANCH, Namespace.of(VIEW_IDENTIFIER.namespace().levels()));
-    final ViewDefinition viewDefinition =
-        ViewDefinition.of(SQL, SCHEMA, CATALOG_NAME, Collections.emptyList());
-    final TableIdentifier viewIdentifier =
-        ViewUtils.toCatalogTableIdentifier(VIEW_IDENTIFIER + "@" + GLOBAL_METADATA_BRANCH);
-    nessieExtCatalog.create(viewIdentifier.toString(), viewDefinition, Collections.emptyMap());
-
-    final VersionContext metadataVersionContext = VersionContext.ofBranch(GLOBAL_METADATA_BRANCH);
-    createBranch(GLOBAL_NEW_METADATA_BRANCH, metadataVersionContext);
-
-    final ViewDefinition newViewDefinition =
-        ViewDefinition.of(NEW_SQL, SCHEMA, CATALOG_NAME, Collections.emptyList());
-    final TableIdentifier newViewIdentifier =
-        ViewUtils.toCatalogTableIdentifier(VIEW_IDENTIFIER + "@" + GLOBAL_NEW_METADATA_BRANCH);
-    nessieExtCatalog.replace(newViewIdentifier.toString(), newViewDefinition, Collections.emptyMap());
-
-    final TableReference tr = TableReference.parse(viewIdentifier.name());
-    List<String> viewPath = new ArrayList<>(Arrays.asList(viewIdentifier.namespace().levels()));
-    viewPath.add(tr.getName());
-
-    NessieContent nessieContent = fetchContent(viewPath, GLOBAL_METADATA_BRANCH);
-    NessieContent newNessieContent = fetchContent(viewPath, GLOBAL_NEW_METADATA_BRANCH);
-
-    assertThat(nessieContent.getMetadataLocation()).isPresent();
-    assertThat(newNessieContent.getMetadataLocation()).isPresent();
-
-    assertThat(nessieContent.getMetadataLocation()).isNotEqualTo(newNessieContent.getMetadataLocation());
-
-    ViewDefinition firstDef = nessieExtCatalog.getViewCatalog().loadDefinition(viewIdentifier.toString());
-    ViewDefinition secondDef = nessieExtCatalog.getViewCatalog().loadDefinition(newViewIdentifier.toString());
-    assertThat(firstDef).isNotEqualTo(secondDef);
-    assertThat(firstDef.sql()).isEqualTo(SQL);
-    assertThat(firstDef.schema().toString()).isEqualTo(SCHEMA.toString());
-    assertThat(secondDef.sql()).isEqualTo(NEW_SQL);
-    assertThat(secondDef.schema().toString()).isEqualTo(SCHEMA.toString());
-
-    View first = nessieExtCatalog.getViewCatalog().load(viewIdentifier.toString());
-    View second = nessieExtCatalog.getViewCatalog().load(newViewIdentifier.toString());
-    assertThat(first).isNotEqualTo(second);
-    assertThat(first.currentVersion().viewDefinition().schema().toString()).isEqualTo(SCHEMA.toString());
-    assertThat(first.currentVersion().viewDefinition().sql()).isEqualTo(SQL);
-    assertThat(second.currentVersion().viewDefinition().schema().toString()).isEqualTo(SCHEMA.toString());
-    assertThat(second.currentVersion().viewDefinition().sql()).isEqualTo(NEW_SQL);
-  }
-
-  @Test
   public void testNonGlobalMetadata() {
     createBranch(NON_GLOBAL_METADATA_BRANCH, VersionContext.NOT_SPECIFIED);
     createNamespacesIfMissing(NON_GLOBAL_METADATA_BRANCH, ContentKey.of(nonGlobalMetadataViewKey));
@@ -341,7 +277,8 @@ public class TestIcebergNessieVersionedViews extends BaseIcebergViewTest {
         Collections.emptyMap(),
         getVersion(NON_GLOBAL_METADATA_BRANCH));
 
-    createBranch(NEW_NON_GLOBAL_METADATA_BRANCH, VersionContext.ofBranch(NON_GLOBAL_METADATA_BRANCH));
+    createBranch(
+        NEW_NON_GLOBAL_METADATA_BRANCH, VersionContext.ofBranch(NON_GLOBAL_METADATA_BRANCH));
 
     final ViewDefinition newViewDefinition =
         ViewDefinition.of(NEW_SQL, SCHEMA, CATALOG_NAME, Collections.emptyList());
@@ -352,13 +289,16 @@ public class TestIcebergNessieVersionedViews extends BaseIcebergViewTest {
         Collections.emptyMap(),
         getVersion(NEW_NON_GLOBAL_METADATA_BRANCH));
 
-    NessieContent nessieContent = fetchContent(nonGlobalMetadataViewKey, NON_GLOBAL_METADATA_BRANCH);
-    NessieContent newNessieContent = fetchContent(nonGlobalMetadataViewKey, NEW_NON_GLOBAL_METADATA_BRANCH);
+    NessieContent nessieContent =
+        fetchContent(nonGlobalMetadataViewKey, NON_GLOBAL_METADATA_BRANCH);
+    NessieContent newNessieContent =
+        fetchContent(nonGlobalMetadataViewKey, NEW_NON_GLOBAL_METADATA_BRANCH);
 
     assertThat(nessieContent.getMetadataLocation()).isPresent();
     assertThat(newNessieContent.getMetadataLocation()).isPresent();
 
-    assertThat(nessieContent.getMetadataLocation()).isNotEqualTo(newNessieContent.getMetadataLocation());
+    assertThat(nessieContent.getMetadataLocation())
+        .isNotEqualTo(newNessieContent.getMetadataLocation());
   }
 
   @Test
@@ -370,14 +310,10 @@ public class TestIcebergNessieVersionedViews extends BaseIcebergViewTest {
         ViewDefinition.of(SQL, SCHEMA, CATALOG_NAME, Collections.emptyList());
 
     icebergNessieVersionedViews.create(
-        createViewKey,
-        viewDefinition,
-        Collections.emptyMap(),
-        getVersion(DIALECT_BRANCH));
+        createViewKey, viewDefinition, Collections.emptyMap(), getVersion(DIALECT_BRANCH));
 
     NessieContent nessieContent = fetchContent(createViewKey, DIALECT_BRANCH);
-    assertThat(nessieContent.getViewDialect())
-      .contains(IcebergNessieVersionedViews.DIALECT);
+    assertThat(nessieContent.getViewDialect()).contains(IcebergNessieVersionedViews.DIALECT);
   }
 
   @Test
@@ -388,14 +324,18 @@ public class TestIcebergNessieVersionedViews extends BaseIcebergViewTest {
     assertThatThrownBy(
             () ->
                 icebergNessieVersionedViews.replace(
-                    nonExistViewKey, viewDefinition, Collections.emptyMap(), getVersion(MAIN_BRANCH)))
+                    nonExistViewKey,
+                    viewDefinition,
+                    Collections.emptyMap(),
+                    getVersion(MAIN_BRANCH)))
         .isInstanceOf(RuntimeException.class)
         .hasMessageContaining("not found");
   }
 
   @Test
   public void loadNonExistView() {
-    assertThatThrownBy(() -> icebergNessieVersionedViews.load(nonExistViewKey, getVersion(MAIN_BRANCH)))
+    assertThatThrownBy(
+            () -> icebergNessieVersionedViews.load(nonExistViewKey, getVersion(MAIN_BRANCH)))
         .isInstanceOf(UserException.class)
         .hasMessageContaining("not found");
   }
@@ -403,7 +343,9 @@ public class TestIcebergNessieVersionedViews extends BaseIcebergViewTest {
   @Test
   public void loadNonExistViewDefinition() {
     assertThatThrownBy(
-            () -> icebergNessieVersionedViews.loadDefinition(nonExistViewKey, getVersion(MAIN_BRANCH)))
+            () ->
+                icebergNessieVersionedViews.loadDefinition(
+                    nonExistViewKey, getVersion(MAIN_BRANCH)))
         .isInstanceOf(UserException.class)
         .hasMessageContaining("not found");
   }

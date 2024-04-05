@@ -15,43 +15,46 @@
  */
 package org.apache.arrow.vector;
 
-import org.apache.arrow.vector.complex.ListVector;
-
 import io.netty.util.internal.PlatformDependent;
+import org.apache.arrow.vector.complex.ListVector;
 
 public class VectorHelper {
 
   /**
-   * For a ListVector record at a given index, return it's size in bytes and count of elements in it.
+   * For a ListVector record at a given index, return it's size in bytes and count of elements in
+   * it.
+   *
    * @param vector
    * @param listIndex
    * @return
    */
-  public static ListVectorRecordInfo getListVectorEntrySizeAndCount(final ListVector vector, final int listIndex) {
+  public static ListVectorRecordInfo getListVectorEntrySizeAndCount(
+      final ListVector vector, final int listIndex) {
 
     if (vector.isNull(listIndex)) {
-      return new ListVectorRecordInfo(-1,-1);
+      return new ListVectorRecordInfo(-1, -1);
     }
 
-    //This list's start and end index in data vector
+    // This list's start and end index in data vector
     final long startAndEndOffset = getLongOffsetValueAtAnIndex(vector, listIndex);
 
-    //This list's start and end index in child data vector (values next to each other after given index in offset buffer)
+    // This list's start and end index in child data vector (values next to each other after given
+    // index in offset buffer)
     final int start = (int) startAndEndOffset;
     final int end = (int) (startAndEndOffset >>> 32);
 
     final int recordCount = end - start;
 
-    //This is an empty record.
+    // This is an empty record.
     if (recordCount == 0) {
       return new ListVectorRecordInfo(0, 1);
     }
 
-    //This list's start and end offsets in child data vector
+    // This list's start and end offsets in child data vector
     final int offsetEnd = getIntOffsetValueAtAnIndex(vector.getDataVector(), end);
     final int offsetStart = getIntOffsetValueAtAnIndex(vector.getDataVector(), start);
 
-    final int recordSize =  offsetEnd - offsetStart;
+    final int recordSize = offsetEnd - offsetStart;
 
     return new ListVectorRecordInfo(recordSize, recordCount);
   }
@@ -66,17 +69,18 @@ public class VectorHelper {
 
   /**
    * Get length of the index'th record of a BaseVariableWidthVector
+   *
    * @param vector
    * @param index
    * @return -1 if record is null else the record length
    */
-  public static int getVariableWidthVectorValueLength(final BaseVariableWidthVector vector, final int index) {
+  public static int getVariableWidthVectorValueLength(
+      final BaseVariableWidthVector vector, final int index) {
 
     if (vector.isNull(index)) {
       return -1;
     }
 
     return vector.getValueLength(index);
-
   }
 }

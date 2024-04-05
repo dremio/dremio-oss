@@ -30,20 +30,23 @@ public class HiveIcebergScanTableMetadata extends TableMetadataImpl {
 
   private final TableMetadata tableMetadata;
 
-  public HiveIcebergScanTableMetadata(TableMetadata tableMetadata,
-                                      SupportsIcebergRootPointer icebergTableStoragePlugin) {
-    super(tableMetadata.getStoragePluginId(), tableMetadata.getDatasetConfig(),
-      tableMetadata.getUser(), (SplitsPointer) tableMetadata.getSplitsKey(), tableMetadata.getPrimaryKey());
+  public HiveIcebergScanTableMetadata(
+      TableMetadata tableMetadata, SupportsIcebergRootPointer icebergTableStoragePlugin) {
+    super(
+        tableMetadata.getStoragePluginId(),
+        tableMetadata.getDatasetConfig(),
+        tableMetadata.getUser(),
+        (SplitsPointer) tableMetadata.getSplitsKey(),
+        tableMetadata.getPrimaryKey());
     formatPlugin = icebergTableStoragePlugin.getFormatPlugin(new IcebergFormatConfig());
     this.tableMetadata = tableMetadata;
   }
 
   @Override
   public FileConfig getFormatSettings() {
-    return PhysicalDatasetUtils
-      .toFileFormat(formatPlugin)
-      .asFileConfig()
-      .setLocation(getMetadataLocation());
+    return PhysicalDatasetUtils.toFileFormat(formatPlugin)
+        .asFileConfig()
+        .setLocation(getMetadataLocation());
   }
 
   @Override
@@ -52,6 +55,7 @@ public class HiveIcebergScanTableMetadata extends TableMetadataImpl {
   }
 
   private String getMetadataLocation() {
-    return IcebergUtils.getMetadataLocation(tableMetadata.getDatasetConfig(), tableMetadata.getSplits());
+    return IcebergUtils.getMetadataLocation(
+        tableMetadata.getDatasetConfig(), tableMetadata.getSplits());
   }
 }

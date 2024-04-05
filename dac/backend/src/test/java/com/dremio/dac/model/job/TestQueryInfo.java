@@ -17,26 +17,23 @@ package com.dremio.dac.model.job;
 
 import static org.junit.Assert.assertEquals;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.common.exceptions.UserRemoteException;
+import com.dremio.exec.planner.sql.SqlExceptionHelper;
 import java.util.List;
-
 import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.junit.Test;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.common.exceptions.UserRemoteException;
-import com.dremio.exec.planner.sql.SqlExceptionHelper;
-
-/**
- * Unit Tests for {@code LocalJobsService}
- */
+/** Unit Tests for {@code LocalJobsService} */
 public class TestQueryInfo {
 
   @Test
   public void convertExceptionToQueryErrors() {
-    SqlParseException parseException = new SqlParseException("test message", new SqlParserPos(7, 42, 13, 57), null, null, null);
-    UserException userException = SqlExceptionHelper.parseError("SELECT FOO", parseException)
-        .buildSilently();
+    SqlParseException parseException =
+        new SqlParseException("test message", new SqlParserPos(7, 42, 13, 57), null, null, null);
+    UserException userException =
+        SqlExceptionHelper.parseError("SELECT FOO", parseException).buildSilently();
 
     List<QueryError> errors = QueryError.of(userException);
 
@@ -52,11 +49,13 @@ public class TestQueryInfo {
 
   @Test
   public void convertRemoteExceptionToQueryErrors() {
-    SqlParseException parseException = new SqlParseException("test message", new SqlParserPos(7, 42, 13, 57), null, null, null);
-    UserException userException = SqlExceptionHelper.parseError("SELECT FOO", parseException)
-            .buildSilently();
+    SqlParseException parseException =
+        new SqlParseException("test message", new SqlParserPos(7, 42, 13, 57), null, null, null);
+    UserException userException =
+        SqlExceptionHelper.parseError("SELECT FOO", parseException).buildSilently();
 
-    UserException remoteException = UserRemoteException.create(userException.getOrCreatePBError(false));
+    UserException remoteException =
+        UserRemoteException.create(userException.getOrCreatePBError(false));
 
     List<QueryError> errors = QueryError.of(remoteException);
 
@@ -72,9 +71,10 @@ public class TestQueryInfo {
 
   @Test
   public void convertExceptionToQueryErrorsWithPosition() {
-    SqlParseException parseException = new SqlParseException("test message 2", new SqlParserPos(7, 42, 7, 42), null, null, null);
-    UserException userException = SqlExceptionHelper.parseError("SELECT BAR", parseException)
-        .buildSilently();
+    SqlParseException parseException =
+        new SqlParseException("test message 2", new SqlParserPos(7, 42, 7, 42), null, null, null);
+    UserException userException =
+        SqlExceptionHelper.parseError("SELECT BAR", parseException).buildSilently();
 
     List<QueryError> errors = QueryError.of(userException);
 

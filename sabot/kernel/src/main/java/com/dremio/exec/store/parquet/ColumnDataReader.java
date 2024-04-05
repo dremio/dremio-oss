@@ -18,7 +18,6 @@ package com.dremio.exec.store.parquet;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.parquet.bytes.BytesInput;
 import org.apache.parquet.format.PageHeader;
@@ -31,13 +30,13 @@ public class ColumnDataReader {
   private final long endPosition;
   public final SeekableInputStream input;
 
-  public ColumnDataReader(SeekableInputStream input, long start, long length) throws IOException{
+  public ColumnDataReader(SeekableInputStream input, long start, long length) throws IOException {
     this.input = input;
     this.input.seek(start);
     this.endPosition = start + length;
   }
 
-  public PageHeader readPageHeader() throws IOException{
+  public PageHeader readPageHeader() throws IOException {
     return Util.readPageHeader(input);
   }
 
@@ -45,7 +44,7 @@ public class ColumnDataReader {
     return input;
   }
 
-  public BytesInput getPageAsBytesInput(int pageLength) throws IOException{
+  public BytesInput getPageAsBytesInput(int pageLength) throws IOException {
     byte[] b = new byte[pageLength];
     input.read(b);
     return new HadoopBytesInput(b);
@@ -58,19 +57,19 @@ public class ColumnDataReader {
     target.writerIndex(pageLength);
   }
 
-  public void clear(){
-    try{
+  public void clear() {
+    try {
       input.close();
-    }catch(IOException ex){
+    } catch (IOException ex) {
       logger.warn("Error while closing input stream.", ex);
     }
   }
 
-  public boolean hasRemainder() throws IOException{
+  public boolean hasRemainder() throws IOException {
     return input.getPos() < endPosition;
   }
 
-  public class HadoopBytesInput extends BytesInput{
+  public class HadoopBytesInput extends BytesInput {
 
     private final byte[] pageBytes;
 
@@ -93,7 +92,5 @@ public class ColumnDataReader {
     public void writeAllTo(OutputStream out) throws IOException {
       out.write(pageBytes);
     }
-
   }
-
 }

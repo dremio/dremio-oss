@@ -17,13 +17,20 @@ package com.dremio.fmpp.mojo;
 
 import static java.lang.String.format;
 
+import com.dremio.fmpp.mojo.MavenDataLoader.MavenData;
+import com.google.common.base.Joiner;
+import com.google.common.base.Stopwatch;
+import fmpp.Engine;
+import fmpp.ProgressListener;
+import fmpp.progresslisteners.TerseConsoleProgressListener;
+import fmpp.setting.Settings;
+import fmpp.util.MiscUtil;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.commons.io.FileUtils;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
@@ -33,59 +40,36 @@ import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
 
-import com.dremio.fmpp.mojo.MavenDataLoader.MavenData;
-import com.google.common.base.Joiner;
-import com.google.common.base.Stopwatch;
-
-import fmpp.Engine;
-import fmpp.ProgressListener;
-import fmpp.progresslisteners.TerseConsoleProgressListener;
-import fmpp.setting.Settings;
-import fmpp.util.MiscUtil;
-
 /**
- * a maven plugin to run the freemarker generation incrementally
- * (if output has not changed, the files are not touched)
+ * a maven plugin to run the freemarker generation incrementally (if output has not changed, the
+ * files are not touched)
  */
 @Mojo(name = "generate", defaultPhase = LifecyclePhase.GENERATE_SOURCES, threadSafe = true)
 public class FMPPMojo extends AbstractMojo {
 
-  /**
-   * Used to add new source directories to the build.
-   **/
+  /** Used to add new source directories to the build. */
   @Parameter(defaultValue = "${project}", readonly = true, required = true)
   private MavenProject project;
 
-  /**
-   * Where to find the FreeMarker template files.
-   */
+  /** Where to find the FreeMarker template files. */
   @Parameter(defaultValue = "src/main/resources/fmpp/templates/", required = true)
   private File templates;
 
-  /**
-   * Where to write the generated files of the output files.
-   */
+  /** Where to write the generated files of the output files. */
   @Parameter(defaultValue = "${project.build.directory}/generated-sources/fmpp/", required = true)
   private File output;
 
-  /**
-   * Location of the FreeMarker config file.
-   */
+  /** Location of the FreeMarker config file. */
   @Parameter(defaultValue = "src/main/resources/fmpp/config.fmpp", required = true)
   private File config;
 
-  /**
-   * compilation scope to be added to ("compile" or "test")
-   */
+  /** compilation scope to be added to ("compile" or "test") */
   @Parameter(defaultValue = "compile", required = true)
   private String scope;
 
-  @Parameter
-  private String data;
+  @Parameter private String data;
 
-  /**
-   * if maven properties are added as data
-   */
+  /** if maven properties are added as data */
   @Parameter(defaultValue = "true", required = true)
   private boolean addMavenDataLoader;
 
@@ -107,47 +91,57 @@ public class FMPPMojo extends AbstractMojo {
     switch (scope) {
       case "compile":
         project.addCompileSourceRoot(outputPath);
-      break;
+        break;
       case "test":
         project.addTestCompileSourceRoot(outputPath);
-      break;
+        break;
       default:
         throw new MojoFailureException("scope must be compile or test");
     }
 
     final Stopwatch sw = Stopwatch.createStarted();
     try {
-      getLog().info(format("Freemarker generation:\n scope: %s,\n config: %s,\n templates: %s",
-          scope, config.getAbsolutePath(), templatesPath));
+      getLog()
+          .info(
+              format(
+                  "Freemarker generation:\n scope: %s,\n config: %s,\n templates: %s",
+                  scope, config.getAbsolutePath(), templatesPath));
       final File tmp = Files.createTempDirectory("freemarker-tmp").toFile();
       String tmpPath = tmp.getAbsolutePath();
-      final String tmpPathNormalized = tmpPath.endsWith(File.separator) ? tmpPath : tmpPath + File.separator;
+      final String tmpPathNormalized =
+          tmpPath.endsWith(File.separator) ? tmpPath : tmpPath + File.separator;
       Settings settings = new Settings(new File("."));
       settings.set(Settings.NAME_SOURCE_ROOT, templatesPath);
       settings.set(Settings.NAME_OUTPUT_ROOT, tmp.getAbsolutePath());
       settings.load(config);
       settings.addProgressListener(new TerseConsoleProgressListener());
-      settings.addProgressListener(new ProgressListener() {
-        @Override
-        public void notifyProgressEvent(
-            Engine engine, int event,
-            File src, int pMode,
-            Throwable error, Object param)
-            throws Exception {
-          if (event == EVENT_END_PROCESSING_SESSION) {
-            getLog().info(format("Freemarker generation took %dms", sw.elapsed(TimeUnit.MILLISECONDS)));
-            sw.reset();
-            Report report = moveIfChanged(tmp, tmpPathNormalized);
-            if (!tmp.delete()) {
-              throw new MojoFailureException(format("can not delete %s", tmp));
+      settings.addProgressListener(
+          new ProgressListener() {
+            @Override
+            public void notifyProgressEvent(
+                Engine engine, int event, File src, int pMode, Throwable error, Object param)
+                throws Exception {
+              if (event == EVENT_END_PROCESSING_SESSION) {
+                getLog()
+                    .info(
+                        format(
+                            "Freemarker generation took %dms", sw.elapsed(TimeUnit.MILLISECONDS)));
+                sw.reset();
+                Report report = moveIfChanged(tmp, tmpPathNormalized);
+                if (!tmp.delete()) {
+                  throw new MojoFailureException(format("can not delete %s", tmp));
+                }
+                getLog()
+                    .info(
+                        format(
+                            "Incremental output update took %dms",
+                            sw.elapsed(TimeUnit.MILLISECONDS)));
+                getLog().info(format("new: %d", report.newFiles));
+                getLog().info(format("changed: %d", report.changedFiles));
+                getLog().info(format("unchanged: %d", report.unchangedFiles));
+              }
             }
-            getLog().info(format("Incremental output update took %dms", sw.elapsed(TimeUnit.MILLISECONDS)));
-            getLog().info(format("new: %d", report.newFiles));
-            getLog().info(format("changed: %d", report.changedFiles));
-            getLog().info(format("unchanged: %d", report.unchangedFiles));
-          }
-        }
-      } );
+          });
       List<String> dataValues = new ArrayList<>();
       if (addMavenDataLoader) {
         getLog().info("Adding maven data loader");
@@ -157,9 +151,9 @@ public class FMPPMojo extends AbstractMojo {
       if (data != null) {
         dataValues.add(data);
       }
-      if(!dataValues.isEmpty()) {
+      if (!dataValues.isEmpty()) {
         String dataString = Joiner.on(",").join(dataValues);
-        getLog().info("Setting data loader "+ dataString);
+        getLog().info("Setting data loader " + dataString);
 
         settings.add(Settings.NAME_DATA, dataString);
       }
@@ -173,28 +167,34 @@ public class FMPPMojo extends AbstractMojo {
     private int changedFiles;
     private int unchangedFiles;
     private int newFiles;
+
     Report(int changedFiles, int unchangedFiles, int newFiles) {
       super();
       this.changedFiles = changedFiles;
       this.unchangedFiles = unchangedFiles;
       this.newFiles = newFiles;
     }
+
     public Report() {
       this(0, 0, 0);
     }
+
     void add(Report other) {
       changedFiles += other.changedFiles;
       unchangedFiles += other.unchangedFiles;
       newFiles += other.newFiles;
     }
+
     public void addChanged() {
-      ++ changedFiles;
+      ++changedFiles;
     }
+
     public void addNew() {
-      ++ newFiles;
+      ++newFiles;
     }
+
     public void addUnchanged() {
-      ++ unchangedFiles;
+      ++unchangedFiles;
     }
   }
 
@@ -227,10 +227,14 @@ public class FMPPMojo extends AbstractMojo {
         if (!outputFile.exists()) {
           File parentDir = outputFile.getParentFile();
           if (parentDir.exists() && !parentDir.isDirectory()) {
-            throw new MojoFailureException(format("can not move %s to %s as %s is not a dir", file, outputFile, parentDir));
+            throw new MojoFailureException(
+                format("can not move %s to %s as %s is not a dir", file, outputFile, parentDir));
           }
           if (!parentDir.exists() && !parentDir.mkdirs()) {
-            throw new MojoFailureException(format("can not move %s to %s as dir %s can not be created", file, outputFile, parentDir));
+            throw new MojoFailureException(
+                format(
+                    "can not move %s to %s as dir %s can not be created",
+                    file, outputFile, parentDir));
           }
           FileUtils.moveFile(file, outputFile);
         } else {

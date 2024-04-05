@@ -15,20 +15,17 @@
  */
 package com.dremio.exec.store.sys;
 
-
-import java.util.List;
-
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelOptTable;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.hint.RelHint;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.planner.common.ScanRelBase;
 import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.store.TableMetadata;
+import java.util.List;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptTable;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.hint.RelHint;
 
 public class SystemScanDrel extends ScanRelBase implements Rel {
 
@@ -41,17 +38,40 @@ public class SystemScanDrel extends ScanRelBase implements Rel {
       List<SchemaPath> projectedColumns,
       double observedRowcountAdjustment,
       List<RelHint> hints) {
-    super(cluster, traitSet, table, pluginId, tableMetadata, projectedColumns, observedRowcountAdjustment, hints);
+    super(
+        cluster,
+        traitSet,
+        table,
+        pluginId,
+        tableMetadata,
+        projectedColumns,
+        observedRowcountAdjustment,
+        hints);
   }
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new SystemScanDrel(getCluster(), traitSet, table, pluginId, tableMetadata, getProjectedColumns(), observedRowcountAdjustment, hints);
+    return new SystemScanDrel(
+        getCluster(),
+        traitSet,
+        table,
+        pluginId,
+        tableMetadata,
+        getProjectedColumns(),
+        observedRowcountAdjustment,
+        hints);
   }
 
   @Override
   public ScanRelBase cloneWithProject(List<SchemaPath> projection) {
-    return new SystemScanDrel(getCluster(), traitSet, table, pluginId, tableMetadata, projection, observedRowcountAdjustment, hints);
+    return new SystemScanDrel(
+        getCluster(),
+        traitSet,
+        table,
+        pluginId,
+        tableMetadata,
+        projection,
+        observedRowcountAdjustment,
+        hints);
   }
-
 }

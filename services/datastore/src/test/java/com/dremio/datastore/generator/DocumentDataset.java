@@ -15,18 +15,17 @@
  */
 package com.dremio.datastore.generator;
 
+import com.dremio.datastore.api.Document;
+import com.google.common.base.Preconditions;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.dremio.datastore.api.Document;
-import com.google.common.base.Preconditions;
-
 /**
- * Dataset helper class used for testing kv stores.
- * Essentially a container for keys and values.
+ * Dataset helper class used for testing kv stores. Essentially a container for keys and values.
  *
- * IMPORTANT: If keys cannot be sorted from least to greatest, then the format does not support
+ * <p>IMPORTANT: If keys cannot be sorted from least to greatest, then the format does not support
  * find and must be marked as such in tests.
+ *
  * @param <K> key type
  * @param <V> value type
  */
@@ -61,7 +60,7 @@ public class DocumentDataset<K, V> {
    * Retrieves a subset of the dataset.
    *
    * @param start start of slice, inclusive.
-   * @param end   end of slice, inclusive.
+   * @param end end of slice, inclusive.
    * @return a map of keys paired to their respective values.
    */
   public Iterable<Document<K, V>> getDocumentDatasetSlice(int start, int end) {

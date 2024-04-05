@@ -15,18 +15,15 @@
  */
 package com.dremio.exec.planner.sql.handlers.commands;
 
-import org.apache.calcite.sql.SqlNode;
-
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.query.SqlToPlanHandler;
 import com.dremio.exec.proto.UserProtos.CreatePreparedStatementResp;
 import com.google.common.cache.Cache;
+import org.apache.calcite.sql.SqlNode;
 
-/**
- * Take a sql node, plan it and then return an async response.
- */
+/** Take a sql node, plan it and then return an async response. */
 public class HandlerToPreparePlan extends HandlerToPreparePlanBase<CreatePreparedStatementResp> {
 
   public HandlerToPreparePlan(
@@ -43,7 +40,11 @@ public class HandlerToPreparePlan extends HandlerToPreparePlanBase<CreatePrepare
   @Override
   public CreatePreparedStatementResp execute() {
     final QueryContext context = getContext();
-    return PreparedStatementProvider.build(getPlan().getRoot().getProps().getSchema(), getState(),
-      context.getQueryId(), context.getSession().getCatalogName(), context.getSession().getRecordBatchFormat());
+    return PreparedStatementProvider.build(
+        getPlan().getRoot().getProps().getSchema(),
+        getState(),
+        context.getQueryId(),
+        context.getSession().getCatalogName(),
+        context.getSession().getRecordBatchFormat());
   }
 }

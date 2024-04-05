@@ -52,6 +52,14 @@
     outline: none;
   }
 
+  &__prefix {
+    background-color: var(--color--neutral--25);
+    padding-block: 5px;
+    margin-inline-start: -4px;
+    margin-inline-end: 4px;
+    padding-inline: 4px;
+  }
+
   @at-root input#{&}:not([type="radio"]):not([type="checkbox"]) {
     padding-inline: 0.5em;
   }

@@ -15,15 +15,12 @@
  */
 package com.dremio.service.functions;
 
+import com.google.common.collect.ImmutableSet;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 
-import com.google.common.collect.ImmutableSet;
-
-/**
- * Class to determine if a function should be excluded from the docs.
- */
+/** Class to determine if a function should be excluded from the docs. */
 public final class ExcludedFunctions {
 
   private ExcludedFunctions() {}
@@ -43,7 +40,12 @@ public final class ExcludedFunctions {
 
     String variantName = matchVariant(name);
     if (variantName != null) {
-      return name + " is an variant of " + "'" + variantName + "'" + "and should not appear as a function.";
+      return name
+          + " is an variant of "
+          + "'"
+          + variantName
+          + "'"
+          + "and should not appear as a function.";
     }
 
     if (isInternalFunction(name)) {
@@ -51,7 +53,10 @@ public final class ExcludedFunctions {
     }
 
     if (isJsonFunction(name)) {
-      return "'" + name + "'" + " is an unimplemented JSON function and should not appear as a function.";
+      return "'"
+          + name
+          + "'"
+          + " is an unimplemented JSON function and should not appear as a function.";
     }
 
     return null;
@@ -67,30 +72,30 @@ public final class ExcludedFunctions {
       return true;
     }
 
-    ImmutableSet<String> names = ImmutableSet.of(
-      "ADD",
-      "AND",
-      "BOOLEANAND",
-      "BOOLEANOR",
-      "DIV",
-      "DIVIDE",
-      "EQ",
-      "EQUAL",
-      "GREATER_THAN",
-      "GREATER_THAN_OR_EQUAL_TO",
-      "LESS_THAN",
-      "LESS_THAN_OR_EQUAL_TO",
-      "MOD",
-      "MODULO",
-      "MULTIPLY",
-      "NEGATIVE",
-      "NOT",
-      "NOT_EQUAL",
-      "OR",
-      "ORNOSHORTCIRCUIT",
-      "POSITIVE",
-      "SUBTRACT"
-    );
+    ImmutableSet<String> names =
+        ImmutableSet.of(
+            "ADD",
+            "AND",
+            "BOOLEANAND",
+            "BOOLEANOR",
+            "DIV",
+            "DIVIDE",
+            "EQ",
+            "EQUAL",
+            "GREATER_THAN",
+            "GREATER_THAN_OR_EQUAL_TO",
+            "LESS_THAN",
+            "LESS_THAN_OR_EQUAL_TO",
+            "MOD",
+            "MODULO",
+            "MULTIPLY",
+            "NEGATIVE",
+            "NOT",
+            "NOT_EQUAL",
+            "OR",
+            "ORNOSHORTCIRCUIT",
+            "POSITIVE",
+            "SUBTRACT");
 
     return names.contains(name);
   }
@@ -145,9 +150,20 @@ public final class ExcludedFunctions {
     detectors.put("LENGTH", name -> name.equals("LENGTHUTF8"));
     detectors.put("MAX", name -> name.equals("MAX_V2"));
     detectors.put("MIN", name -> name.equals("MIN_V2"));
-    detectors.put("RANDOM", name -> ImmutableSet.of("RAND", "RANDOMBIGINT", "RANDOMFLOAT8").contains(name));
+    detectors.put(
+        "RANDOM", name -> ImmutableSet.of("RAND", "RANDOMBIGINT", "RANDOMFLOAT8").contains(name));
     detectors.put("SIMILAR_TO", name -> name.equals("SIMILAR"));
-    detectors.put("SUBSTRING", name -> ImmutableSet.of("BYTESUBSTRING", "BYTE_SUBSTR", "CHARSUBSTRING", "SUBSTR", "SUBSTR2", "SUBSTRING2").contains(name));
+    detectors.put(
+        "SUBSTRING",
+        name ->
+            ImmutableSet.of(
+                    "BYTESUBSTRING",
+                    "BYTE_SUBSTR",
+                    "CHARSUBSTRING",
+                    "SUBSTR",
+                    "SUBSTR2",
+                    "SUBSTRING2")
+                .contains(name));
     detectors.put("SUM", name -> name.equals("SUM_V2"));
     detectors.put("TIMESTAMPADD", name -> sharesPrefix(name, "TIMESTAMPADD"));
     detectors.put("TIMESTAMPDIFF", name -> sharesPrefix(name, "TIMESTAMPDIFF"));
@@ -162,23 +178,61 @@ public final class ExcludedFunctions {
 
   private static boolean isInternalFunction(String name) {
     return ImmutableSet.of(
-      "COMPARETYPE", "DREMIOSPLITDISTRIBUTE", "EVERY",
-      "ICEBERGDISTRIBUTEBYPARTITION", "INCREASINGBIGINT", "ITEMS_SKETCH",
-      "KVGEN", "LEAKRESOURCE", "NEWPARTITIONNUMBER", "NEWPARTITIONVALUE", "NONNULLSTATCOUNT",
-      "PARTITIONBITCOUNTER", "PIVOT", "SINGLE_VALUE", "STATCOUNT", "STATEMENT_TIMESTAMP",
-      "TDIGEST", "TDIGEST_MERGE", "TDIGEST_QUANTILE", "TIMEOFDAY", "U-", "UNPIVOT", "LAST_MATCHING_MAP_ENTRY_FOR_KEY",
-      "LOCAL_LISTAGG", "LISTAGG_MERGE", "PHASE1_ARRAY_AGG", "PHASE2_ARRAY_AGG", "ARRAY_SORT", "LIST_TO_DELIMITED_STRING",
-      "IDENTITY", "NULLABLE")
-      .contains(name);
+            "COMPARETYPE",
+            "DREMIOSPLITDISTRIBUTE",
+            "EVERY",
+            "ICEBERGDISTRIBUTEBYPARTITION",
+            "INCREASINGBIGINT",
+            "ITEMS_SKETCH",
+            "KVGEN",
+            "LEAKRESOURCE",
+            "NEWPARTITIONNUMBER",
+            "NEWPARTITIONVALUE",
+            "NONNULLSTATCOUNT",
+            "PARTITIONBITCOUNTER",
+            "PIVOT",
+            "SINGLE_VALUE",
+            "STATCOUNT",
+            "STATEMENT_TIMESTAMP",
+            "TDIGEST",
+            "TDIGEST_MERGE",
+            "TDIGEST_QUANTILE",
+            "TIMEOFDAY",
+            "U-",
+            "UNPIVOT",
+            "LAST_MATCHING_MAP_ENTRY_FOR_KEY",
+            "LOCAL_LISTAGG",
+            "LISTAGG_MERGE",
+            "PHASE1_ARRAY_AGG",
+            "PHASE2_ARRAY_AGG",
+            "ARRAY_SORT",
+            "LIST_TO_DELIMITED_STRING",
+            "IDENTITY",
+            "NULLABLE")
+        .contains(name);
   }
 
   private static boolean isJsonFunction(String name) {
     return ImmutableSet.of(
-        "JSON_ARRAY", "JSON_ARRAYAGG", "JSON_ARRAYAGG_ABSENT_ON_NULL",
-        "JSON_ARRAYAGG_NULL_ON_NULL", "JSON_EXISTS", "JSON_OBJECT",
-        "JSON_OBJECTAGG", "JSON_OBJECTAGG_ABSENT_ON_NULL",
-        "JSON_OBJECTAGG_NULL_ON_NULL", "JSON_QUERY",
-        "JSON_VALUE", "JSON_VALUE_ANY")
-      .contains(name);
+            "JSON_ARRAY",
+            "JSON_ARRAYAGG",
+            "JSON_ARRAYAGG_ABSENT_ON_NULL",
+            "JSON_ARRAYAGG_NULL_ON_NULL",
+            "JSON_DEPTH",
+            "JSON_EXISTS",
+            "JSON_KEYS",
+            "JSON_LENGTH",
+            "JSON_OBJECT",
+            "JSON_OBJECTAGG",
+            "JSON_OBJECTAGG_ABSENT_ON_NULL",
+            "JSON_OBJECTAGG_NULL_ON_NULL",
+            "JSON_PRETTY",
+            "JSON_QUERY",
+            "JSON_REMOVE",
+            "JSON_STORAGE_SIZE",
+            "JSON_TYPE",
+            "JSON_VALUE",
+            "JSON_VALUE_ANY")
+        .contains(name);
   }
 }

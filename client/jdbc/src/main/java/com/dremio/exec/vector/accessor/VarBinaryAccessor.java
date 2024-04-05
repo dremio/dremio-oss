@@ -15,18 +15,15 @@
  */
 package com.dremio.exec.vector.accessor;
 
-import java.io.InputStream;
-
-import org.apache.arrow.vector.VarBinaryVector;
-import org.apache.arrow.vector.holders.NullableVarBinaryHolder;
-
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.types.Types;
 import com.dremio.common.util.DremioStringUtils;
-
 import io.netty.buffer.ByteBufInputStream;
 import io.netty.buffer.NettyArrowBuf;
+import java.io.InputStream;
+import org.apache.arrow.vector.VarBinaryVector;
+import org.apache.arrow.vector.holders.NullableVarBinaryHolder;
 
 public class VarBinaryAccessor extends AbstractSqlAccessor {
 
@@ -87,5 +84,4 @@ public class VarBinaryAccessor extends AbstractSqlAccessor {
     byte[] b = ac.get(index);
     return DremioStringUtils.toBinaryString(b);
   }
-
 }

@@ -38,20 +38,19 @@ public abstract class ResponseSenderHandler<T extends MessageLite> implements Us
 
   @Override
   public final void sendData(RpcOutcomeListener<Ack> outcomeListener, QueryWritableBatch result) {
-    throw new UnsupportedOperationException("A response sender based implementation should send no data to end users.");
+    throw new UnsupportedOperationException(
+        "A response sender based implementation should send no data to end users.");
   }
 
   @Override
   public final void completed(UserResult result) {
-    if(result.getException() != null){
+    if (result.getException() != null) {
       sender.send(new Response(type, getException(result.getException())));
-    }else{
+    } else {
       T value = result.unwrap(clazz);
       sender.send(new Response(type, value));
     }
   }
 
   protected abstract T getException(UserException ex);
-
-
 }

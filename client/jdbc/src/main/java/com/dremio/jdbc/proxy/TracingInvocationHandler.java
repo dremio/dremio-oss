@@ -20,87 +20,83 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
 /**
- * Tracing proxy-invocation handler.
- * Reports invocations of methods of given proxied object to given invocation
- * reporter.
+ * Tracing proxy-invocation handler. Reports invocations of methods of given proxied object to given
+ * invocation reporter.
  */
-class TracingInvocationHandler<INTF> implements InvocationHandler
-{
+class TracingInvocationHandler<INTF> implements InvocationHandler {
   private final ProxiesManager proxiesManager;
   private final InvocationReporter callReporter;
   private final INTF proxiedObject;
   private final Class<?> proxiedInterface;
 
-
   /**
-   * Constructs invocation handler for given object, treats ~as given (single)
-   * interface.
+   * Constructs invocation handler for given object, treats ~as given (single) interface.
    *
-   * @param  proxiesManager
-   *         the proxies manager to use for creating new proxy objects
-   * @param  reporter
-   *         the invocation report to use to report invocation events
-   * @param  proxiedObject
-   *         ...
-   * @param  proxiedInterface
-   *         ...
+   * @param proxiesManager the proxies manager to use for creating new proxy objects
+   * @param reporter the invocation report to use to report invocation events
+   * @param proxiedObject ...
+   * @param proxiedInterface ...
    */
-  TracingInvocationHandler( final ProxiesManager proxiesManager,
-                            final InvocationReporter reporter,
-                            final INTF proxiedObject,
-                            final Class<?> proxiedInterface ) {
+  TracingInvocationHandler(
+      final ProxiesManager proxiesManager,
+      final InvocationReporter reporter,
+      final INTF proxiedObject,
+      final Class<INTF> proxiedInterface) {
     this.proxiesManager = proxiesManager;
     this.callReporter = reporter;
     this.proxiedObject = proxiedObject;
     this.proxiedInterface = proxiedInterface;
   }
 
-
   @Override
-  public Object invoke( Object proxy, Method method, Object[] args )
-      throws Throwable {
+  public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
 
     // Report that method was called:
-    callReporter.methodCalled( proxiedObject, proxiedInterface, method, args );
+    callReporter.methodCalled(proxiedObject, proxiedInterface, method, args);
 
     final Object rawReturnedResult;
     final Object netReturnedResult;
     try {
       // Invoke proxied original object's method:
-      rawReturnedResult = method.invoke( proxiedObject, args );
+      rawReturnedResult = method.invoke(proxiedObject, args);
 
-      if ( null == rawReturnedResult ) {
+      if (null == rawReturnedResult) {
         netReturnedResult = null;
       } else {
         Class<?> methodReturnType = method.getReturnType();
 
-        if ( ! methodReturnType.isInterface() ) {
+        if (!methodReturnType.isInterface()) {
           // Declared type is not an interface type, so don't proxy the returned
           // instance.  (We could proxy and intercept some methods, but we can't
           // intercept all, so intercepting only some would be misleading.)
           netReturnedResult = rawReturnedResult;
         } else {
           // Get the new or existing proxying instance for the returned instance.
-          netReturnedResult =
-              proxiesManager.getProxyInstanceForOriginal( rawReturnedResult,
-                                                          methodReturnType );
+          netReturnedResult = getProxyInstance(rawReturnedResult, methodReturnType);
         }
       }
-    } catch ( IllegalAccessException | IllegalArgumentException e ) {
-      throw new RuntimeException(
-          "Unexpected/unhandled error calling proxied method: " + e, e );
-    } catch ( InvocationTargetException e ) {
+    } catch (IllegalAccessException | IllegalArgumentException e) {
+      throw new RuntimeException("Unexpected/unhandled error calling proxied method: " + e, e);
+    } catch (InvocationTargetException e) {
       Throwable thrownResult = e.getCause();
       // Report that method threw exception:
-      callReporter.methodThrew( proxiedObject, proxiedInterface, method, args,
-                                thrownResult );
+      callReporter.methodThrew(proxiedObject, proxiedInterface, method, args, thrownResult);
       throw thrownResult;
     }
 
     // Report that method returned:
-    callReporter.methodReturned( proxiedObject, proxiedInterface, method, args,
-                                 rawReturnedResult );
+    callReporter.methodReturned(proxiedObject, proxiedInterface, method, args, rawReturnedResult);
     return netReturnedResult;
   } // invoke(...)
 
+  @SuppressWarnings("unchecked")
+  private <T> T getProxyInstance(Object originalInstance, Class<T> declaredType) {
+    assert declaredType.isInstance(originalInstance)
+        : "toBeProxied is of class ("
+            + originalInstance.getClass().getName()
+            + ") that doesn't implement specified interface "
+            + declaredType.getName();
+
+    return proxiesManager.getProxyInstanceForOriginal((T) originalInstance, declaredType);
+  }
 } // class ProxyInvocationHandler<INTF>

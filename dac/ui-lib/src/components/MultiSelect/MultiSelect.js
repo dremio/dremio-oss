@@ -61,7 +61,7 @@ const MultiSelectComponent = (props) => {
     return (options || []).filter(
       ({ value: optionValue }) =>
         noFilterText ||
-        optionValue.toLowerCase().indexOf(filterText.toLowerCase()) !== -1
+        optionValue.toLowerCase().indexOf(filterText.toLowerCase()) !== -1,
     );
   }, [filterText, options]);
 
@@ -78,7 +78,7 @@ const MultiSelectComponent = (props) => {
     "multiSelect__value",
     { "--error": hasError },
     { [classes.value]: classes.value },
-    { "--disabled": disabled }
+    { "--disabled": disabled },
   );
 
   const inputClass = clsx("multiSelect__input", "margin-top", {
@@ -104,7 +104,7 @@ const MultiSelectComponent = (props) => {
 
   const removeValue = (deleteValue) => {
     const updatedValue = value.filter(
-      (selectedVal) => selectedVal !== deleteValue
+      (selectedVal) => selectedVal !== deleteValue,
     );
     updateValue(updatedValue);
   };
@@ -165,7 +165,7 @@ const MultiSelectComponent = (props) => {
       e.key === "Enter" &&
       value.findIndex(
         (selectedVal) =>
-          selectedVal.toLowerCase() === filteredValues[0].value.toLowerCase()
+          selectedVal.toLowerCase() === filteredValues[0].value.toLowerCase(),
       ) === -1
     ) {
       addValue(filteredValues[0].value);
@@ -239,7 +239,7 @@ const MultiSelectComponent = (props) => {
                   root: clsx(
                     "multiSelect__chip",
                     selectedVal === nonClearableValue &&
-                      classes.nonClearableChip
+                      classes.nonClearableChip,
                   ),
                   icon: "icon --md multiSelect__chip__icon",
                 }}
@@ -297,7 +297,7 @@ const MultiSelectComponent = (props) => {
         <span
           className={clsx(
             "multiSelect__optionIcon margin-right--half margin-left--half flex",
-            description && "self-start"
+            description && "self-start",
           )}
         >
           <IconComponent />
@@ -350,7 +350,7 @@ const MultiSelectComponent = (props) => {
               "gutter-right--half",
               !item.description
                 ? "gutter-top--half"
-                : ["self-start", "gutter-top--quarter"]
+                : ["self-start", "gutter-top--quarter"],
             )}
           >
             <Checkbox checked={isSelected} />
@@ -427,7 +427,7 @@ MultiSelectComponent.propTypes = {
     PropTypes.shape({
       label: PropTypes.string,
       value: PropTypes.string,
-    })
+    }),
   ).isRequired,
   handleChange: PropTypes.func,
   style: PropTypes.object,
@@ -443,7 +443,7 @@ MultiSelectComponent.propTypes = {
     PropTypes.shape({
       label: PropTypes.string,
       value: PropTypes.string,
-    })
+    }),
   ),
   disabled: PropTypes.bool,
   nonClearableValue: PropTypes.string,

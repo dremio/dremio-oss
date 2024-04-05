@@ -20,22 +20,19 @@ import java.util.LinkedList;
 import java.util.NoSuchElementException;
 import java.util.Queue;
 import java.util.Set;
-
 import org.apache.arrow.memory.ArrowBuf;
 
 /**
  * SplayTree held in a single block of memory. Structure is follows:
  *
- * [ 0000 0000 0000 0000 ] [ aaaa bbbb cccc dddd ] [ eeee ffff gggg hhhh ] ...
+ * <p>[ 0000 0000 0000 0000 ] [ aaaa bbbb cccc dddd ] [ eeee ffff gggg hhhh ] ...
  *
- * first 16 bytes are empty. This is because we use 0 as the NULL position.
+ * <p>first 16 bytes are empty. This is because we use 0 as the NULL position.
  *
- * aaaa - dddd: information for the first node in the tree.
- * eeee - hhhh: information for the second node in the tree.
- * aaaa, eeee: the node value (0 byte offset)
- * bbbb, ffff: the node left position (4 byte offset)
- * cccc, gggg: the node right position (8 byte offset)
- * dddd, hhhh: the node parent position. (12 byte offset)
+ * <p>aaaa - dddd: information for the first node in the tree. eeee - hhhh: information for the
+ * second node in the tree. aaaa, eeee: the node value (0 byte offset) bbbb, ffff: the node left
+ * position (4 byte offset) cccc, gggg: the node right position (8 byte offset) dddd, hhhh: the node
+ * parent position. (12 byte offset)
  */
 public abstract class SplayTree {
 
@@ -56,16 +53,14 @@ public abstract class SplayTree {
   /**
    * Uses memory but doesn't manage it.
    *
-   * @param data
-   *          The buffer to use for data. Note that this needs to resized
-   *          externally if you want to grow the tree. The internal logic
-   *          assumes this is the right size.
+   * @param data The buffer to use for data. Note that this needs to resized externally if you want
+   *     to grow the tree. The internal logic assumes this is the right size.
    */
-  public void setData(ArrowBuf data){
+  public void setData(ArrowBuf data) {
     this.data = data;
   }
 
-  public SplayIterator iterator(){
+  public SplayIterator iterator() {
     return new SplayIterator();
   }
 
@@ -75,7 +70,7 @@ public abstract class SplayTree {
     return compareValues(val1, val2);
   }
 
-  public int getTotalCount(){
+  public int getTotalCount() {
     return totalCount;
   }
 
@@ -315,21 +310,22 @@ public abstract class SplayTree {
     b.append("root: " + root + "\n");
     for (int i = 0; i < totalCount; i++) {
       b.append(i + "\t");
-      b.append(data.getInt(i*NODE_SIZE) + "\t");
-      b.append(data.getInt(i*NODE_SIZE + OFFSET_PARENT) + "\t");
-      b.append(data.getInt(i*NODE_SIZE + OFFSET_LEFT) + "\t");
-      b.append(data.getInt(i*NODE_SIZE + OFFSET_RIGHT) + "\t");
+      b.append(data.getInt(i * NODE_SIZE) + "\t");
+      b.append(data.getInt(i * NODE_SIZE + OFFSET_PARENT) + "\t");
+      b.append(data.getInt(i * NODE_SIZE + OFFSET_LEFT) + "\t");
+      b.append(data.getInt(i * NODE_SIZE + OFFSET_RIGHT) + "\t");
       b.append("\n");
     }
     // System.out.println(b);
   }
 
-  public void clearData(){
+  public void clearData() {
     data.clear();
   }
 
   /**
-   * Iterate through tree. Doesn't implement base iterator since that would require auotboxing int values.
+   * Iterate through tree. Doesn't implement base iterator since that would require auotboxing int
+   * values.
    */
   public class SplayIterator {
 
@@ -343,7 +339,7 @@ public abstract class SplayTree {
       }
       while (getLeft(next) != NULL) {
         i++;
-//        System.out.println(i + ": " + next);
+        //        System.out.println(i + ": " + next);
 
         next = getLeft(next);
       }
@@ -352,7 +348,6 @@ public abstract class SplayTree {
     public boolean hasNext() {
       return next != NULL;
     }
-
 
     public int next() {
       if (!hasNext()) {
@@ -387,8 +382,5 @@ public abstract class SplayTree {
         }
       }
     }
-
   }
-
-
 }

@@ -15,15 +15,12 @@
  */
 package com.dremio.dac.service.autocomplete.model;
 
-import java.util.List;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.List;
 
-/**
- * Autocomplete API Request
- */
+/** Autocomplete API Request */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public final class AutocompleteRequest {
   private final String prefix;
@@ -35,12 +32,12 @@ public final class AutocompleteRequest {
 
   @JsonCreator
   public AutocompleteRequest(
-    @JsonProperty("prefix") String prefix,
-    @JsonProperty("type") SuggestionsType type,
-    @JsonProperty("catalogEntityKeys") List<List<String>> catalogEntityKeys,
-    @JsonProperty("queryContext") List<String> queryContext,
-    @JsonProperty("refType") String refType,
-    @JsonProperty("refValue") String refValue) {
+      @JsonProperty("prefix") String prefix,
+      @JsonProperty("type") SuggestionsType type,
+      @JsonProperty("catalogEntityKeys") List<List<String>> catalogEntityKeys,
+      @JsonProperty("queryContext") List<String> queryContext,
+      @JsonProperty("refType") String refType,
+      @JsonProperty("refValue") String refValue) {
     this.prefix = prefix;
     this.type = type;
     this.catalogEntityKeys = catalogEntityKeys;
@@ -49,44 +46,32 @@ public final class AutocompleteRequest {
     this.refValue = refValue;
   }
 
-  /**
-   * Get prefix
-   */
+  /** Get prefix */
   public String getPrefix() {
     return this.prefix;
   }
 
-  /**
-   * Get type
-   */
+  /** Get type */
   public SuggestionsType getType() {
     return this.type;
   }
 
-  /**
-   * Get namespace keys
-   */
+  /** Get namespace keys */
   public List<List<String>> getCatalogEntityKeys() {
     return this.catalogEntityKeys;
   }
 
-  /**
-   * Get query context
-   */
+  /** Get query context */
   public List<String> getQueryContext() {
     return this.queryContext;
   }
 
-  /**
-   * Get ref type
-   */
+  /** Get ref type */
   public String getRefType() {
     return this.refType;
   }
 
-  /**
-   * Get ref value
-   */
+  /** Get ref value */
   public String getRefValue() {
     return this.refValue;
   }

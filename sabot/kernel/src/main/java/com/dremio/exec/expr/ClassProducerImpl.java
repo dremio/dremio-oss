@@ -17,14 +17,6 @@ package com.dremio.exec.expr;
 
 import static com.dremio.proto.model.PartitionStats.PartitionStatsValue;
 
-import java.util.List;
-import java.util.Map;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.BufferManager;
-import org.apache.arrow.vector.holders.ValueHolder;
-import org.apache.arrow.vector.types.Types.MinorType;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.ErrorCollector;
@@ -51,10 +43,17 @@ import com.dremio.sabot.exec.context.FunctionContext;
 import com.google.common.base.Function;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import java.util.List;
+import java.util.Map;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.BufferManager;
+import org.apache.arrow.vector.holders.ValueHolder;
+import org.apache.arrow.vector.types.Types.MinorType;
 
 public class ClassProducerImpl implements ClassProducer {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ClassProducerImpl.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ClassProducerImpl.class);
 
   private final CompilationOptions compilationOptions;
   private final CodeCompiler compiler;
@@ -87,39 +86,50 @@ public class ClassProducerImpl implements ClassProducer {
 
   @Override
   public LogicalExpression materialize(LogicalExpression expr, VectorAccessible batch) {
-    try(ErrorCollector collector = new ErrorCollectorImpl()){
-      return ExpressionTreeMaterializer.materialize(expr, batch != null ? batch.getSchema() : null, collector, functionLookupContext, false);
+    try (ErrorCollector collector = new ErrorCollectorImpl()) {
+      return ExpressionTreeMaterializer.materialize(
+          expr, batch != null ? batch.getSchema() : null, collector, functionLookupContext, false);
     }
   }
 
   @Override
-  public LogicalExpression materializeWithBatchSchema(LogicalExpression expr, BatchSchema batchSchema) {
-    try(ErrorCollector collector = new ErrorCollectorImpl()){
-      return ExpressionTreeMaterializer.materialize(expr, batchSchema, collector, functionLookupContext, false);
+  public LogicalExpression materializeWithBatchSchema(
+      LogicalExpression expr, BatchSchema batchSchema) {
+    try (ErrorCollector collector = new ErrorCollectorImpl()) {
+      return ExpressionTreeMaterializer.materialize(
+          expr, batchSchema, collector, functionLookupContext, false);
     }
   }
 
   @Override
-  public LogicalExpression materializeAndAllowComplex(LogicalExpression expr, VectorAccessible batch) {
-    try(ErrorCollector collector = new ErrorCollectorImpl()){
-      return ExpressionTreeMaterializer.materialize(expr, batch != null ? batch.getSchema() : null, collector, functionLookupContext, true);
+  public LogicalExpression materializeAndAllowComplex(
+      LogicalExpression expr, VectorAccessible batch) {
+    try (ErrorCollector collector = new ErrorCollectorImpl()) {
+      return ExpressionTreeMaterializer.materialize(
+          expr, batch != null ? batch.getSchema() : null, collector, functionLookupContext, true);
     }
   }
 
   @Override
-  public LogicalExpression materializeAndAllowComplex(LogicalExpression expr, VectorAccessible batch, boolean allowGandivaFunctions) {
-    try(ErrorCollector collector = new ErrorCollectorImpl()){
-      return ExpressionTreeMaterializer.materialize(expr, batch != null ? batch.getSchema() : null, collector, functionLookupContext, true, allowGandivaFunctions);
+  public LogicalExpression materializeAndAllowComplex(
+      LogicalExpression expr, VectorAccessible batch, boolean allowGandivaFunctions) {
+    try (ErrorCollector collector = new ErrorCollectorImpl()) {
+      return ExpressionTreeMaterializer.materialize(
+          expr,
+          batch != null ? batch.getSchema() : null,
+          collector,
+          functionLookupContext,
+          true,
+          allowGandivaFunctions);
     }
   }
 
   @Override
   public LogicalExpression addImplicitCast(LogicalExpression fromExpr, CompleteType toType) {
-    try(ErrorCollector collector = new ErrorCollectorImpl()){
-      return ExpressionTreeMaterializer.addImplicitCastExact(fromExpr, toType,
-        functionLookupContext, collector, false);
+    try (ErrorCollector collector = new ErrorCollectorImpl()) {
+      return ExpressionTreeMaterializer.addImplicitCastExact(
+          fromExpr, toType, functionLookupContext, collector, false);
     }
-
   }
 
   @Override
@@ -133,21 +143,24 @@ public class ClassProducerImpl implements ClassProducer {
   }
 
   @Override
-  public LogicalExpression annotateTheExpression(ExpressionEvaluationOptions options, LogicalExpression expr, VectorAccessible batch) {
-    try(ErrorCollector collector = new ErrorCollectorImpl()) {
-      return ExpressionTreeMaterializer.annotateTheExp(options, expr, functionLookupContext, collector, batch.getSchema());
+  public LogicalExpression annotateTheExpression(
+      ExpressionEvaluationOptions options, LogicalExpression expr, VectorAccessible batch) {
+    try (ErrorCollector collector = new ErrorCollectorImpl()) {
+      return ExpressionTreeMaterializer.annotateTheExp(
+          options, expr, functionLookupContext, collector, batch.getSchema());
     }
   }
 
   public class ProducerFunctionContext implements FunctionContext {
     /** Stores constants and their holders by type */
     private final Map<String, Map<MinorType, ValueHolder>> constantValueHolderCache;
-    /** Stores error contexts registered with this function context **/
+
+    /** Stores error contexts registered with this function context * */
     int nextErrorContextId = 0;
+
     private final List<FunctionErrorContext> errorContexts;
 
-    public ProducerFunctionContext()
-    {
+    public ProducerFunctionContext() {
       this.constantValueHolderCache = Maps.newHashMap();
       this.errorContexts = Lists.newArrayList();
     }
@@ -169,9 +182,13 @@ public class ClassProducerImpl implements ClassProducer {
 
     @Override
     public PartitionExplorer getPartitionExplorer() {
-      throw UserException.unsupportedError().message("The partition explorer interface can only be used " +
-        "in functions that can be evaluated at planning time. Make sure that the %s configuration " +
-        "option is set to true.", PlannerSettings.CONSTANT_FOLDING.getOptionName()).build(logger);
+      throw UserException.unsupportedError()
+          .message(
+              "The partition explorer interface can only be used "
+                  + "in functions that can be evaluated at planning time. Make sure that the %s configuration "
+                  + "option is set to true.",
+              PlannerSettings.CONSTANT_FOLDING.getOptionName())
+          .build(logger);
     }
 
     @Override
@@ -198,13 +215,16 @@ public class ClassProducerImpl implements ClassProducer {
       if (0 <= errorContextId && errorContextId <= errorContexts.size()) {
         return errorContexts.get(errorContextId);
       }
-      throw new IndexOutOfBoundsException(String.format("Attempted to access error context ID %d. Max = %d",
-        errorContextId, errorContexts.size()));
+      throw new IndexOutOfBoundsException(
+          String.format(
+              "Attempted to access error context ID %d. Max = %d",
+              errorContextId, errorContexts.size()));
     }
 
     @Override
     public FunctionErrorContext getFunctionErrorContext() {
-      // Dummy context. TODO (DX-9622): remove this method once we handle the function interpretation in the planning phase
+      // Dummy context. TODO (DX-9622): remove this method once we handle the function
+      // interpretation in the planning phase
       return FunctionErrorContextBuilder.builder().build();
     }
 
@@ -214,8 +234,8 @@ public class ClassProducerImpl implements ClassProducer {
     }
 
     @Override
-    public ValueHolder getConstantValueHolder(String value, MinorType type,
-        Function<ArrowBuf, ValueHolder> holderInitializer) {
+    public ValueHolder getConstantValueHolder(
+        String value, MinorType type, Function<ArrowBuf, ValueHolder> holderInitializer) {
       if (!constantValueHolderCache.containsKey(value)) {
         constantValueHolderCache.put(value, Maps.<MinorType, ValueHolder>newHashMap());
       }
@@ -235,9 +255,9 @@ public class ClassProducerImpl implements ClassProducer {
     }
 
     @Override
-    public PartitionStatsValue getSurvivingRowCountWithPruneFilter(ScanRelBase scan, PruneFilterCondition pruneCondition) {
+    public PartitionStatsValue getSurvivingRowCountWithPruneFilter(
+        ScanRelBase scan, PruneFilterCondition pruneCondition) {
       return null;
     }
   }
-
 }

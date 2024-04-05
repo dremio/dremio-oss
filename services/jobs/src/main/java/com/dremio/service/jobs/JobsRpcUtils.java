@@ -15,27 +15,22 @@
  */
 package com.dremio.service.jobs;
 
-import java.security.AccessControlException;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.exceptions.GrpcExceptionUtil;
 import com.dremio.common.exceptions.UserException;
 import com.google.common.base.Preconditions;
-
 import io.grpc.Status;
 import io.grpc.StatusException;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
+import java.security.AccessControlException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * Utilities related to RPC.
- */
+/** Utilities related to RPC. */
 public final class JobsRpcUtils {
   private static final Logger logger = LoggerFactory.getLogger(JobsRpcUtils.class);
 
-  @SuppressWarnings("DremioGRPCStreamObserverOnError") //the exception is already a grpc exception
+  @SuppressWarnings("DremioGRPCStreamObserverOnError") // the exception is already a grpc exception
   static <V> void handleException(StreamObserver<V> responseObserver, Throwable t) {
     Preconditions.checkNotNull(t, "exception");
     responseObserver.onError(convertToGrpcException(t));
@@ -47,7 +42,9 @@ public final class JobsRpcUtils {
     if (t instanceof UserException) {
       return GrpcExceptionUtil.toStatusRuntimeException((UserException) t);
     } else if (t instanceof JobNotFoundException) {
-      if (((JobNotFoundException) t).getErrorType().equals(JobNotFoundException.CauseOfFailure.CANCEL_FAILED)) {
+      if (((JobNotFoundException) t)
+          .getErrorType()
+          .equals(JobNotFoundException.CauseOfFailure.CANCEL_FAILED)) {
         return Status.FAILED_PRECONDITION.withDescription(t.getMessage()).asRuntimeException();
       }
       return io.grpc.Status.NOT_FOUND.asException();
@@ -68,6 +65,5 @@ public final class JobsRpcUtils {
   }
 
   // prevent instantiation
-  private JobsRpcUtils() {
-  }
+  private JobsRpcUtils() {}
 }

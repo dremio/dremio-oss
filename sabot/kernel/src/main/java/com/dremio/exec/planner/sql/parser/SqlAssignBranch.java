@@ -15,9 +15,13 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.ops.QueryContext;
+import com.dremio.exec.planner.sql.handlers.direct.SqlDirectHandler;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import java.lang.reflect.Constructor;
 import java.util.List;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -28,19 +32,11 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.ops.QueryContext;
-import com.dremio.exec.planner.sql.handlers.direct.SqlDirectHandler;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
-
 /**
  * Implements SQL ALTER BRANCH ASSIGN to assign a new reference to the given branch.
  *
- * ALTER BRANCH branchName ASSIGN
- * ( REF[ERENCE] | BRANCH | TAG | COMMIT ) refValue
- * [ AS OF timestamp ]
- * [ IN sourceName ]
+ * <p>ALTER BRANCH branchName ASSIGN ( REF[ERENCE] | BRANCH | TAG | COMMIT ) refValue [ AS OF
+ * timestamp ] [ IN sourceName ]
  */
 public final class SqlAssignBranch extends SqlVersionSourceRefBase {
   public static final SqlSpecialOperator OPERATOR =
@@ -51,12 +47,12 @@ public final class SqlAssignBranch extends SqlVersionSourceRefBase {
           Preconditions.checkArgument(
               operands.length == 5, "SqlAssignBranch.createCall() has to get 5 operands!");
           return new SqlAssignBranch(
-            pos,
-            (SqlIdentifier) operands[0],
-            ((SqlLiteral) operands[1]).symbolValue(ReferenceType.class),
-            (SqlIdentifier) operands[2],
-            operands[3],
-            (SqlIdentifier) operands[4]);
+              pos,
+              (SqlIdentifier) operands[0],
+              ((SqlLiteral) operands[1]).symbolValue(ReferenceType.class),
+              (SqlIdentifier) operands[2],
+              operands[3],
+              (SqlIdentifier) operands[4]);
         }
       };
 

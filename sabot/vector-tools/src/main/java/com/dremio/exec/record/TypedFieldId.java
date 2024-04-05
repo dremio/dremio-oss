@@ -15,16 +15,14 @@
  */
 package com.dremio.exec.record;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-
-import org.apache.arrow.vector.ValueVector;
-import org.apache.commons.lang3.ArrayUtils;
-
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.PathSegment;
 import com.dremio.exec.vector.ObjectVector;
 import com.google.common.base.Preconditions;
+import java.util.ArrayList;
+import java.util.Arrays;
+import org.apache.arrow.vector.ValueVector;
+import org.apache.commons.lang3.ArrayUtils;
 
 public class TypedFieldId {
   private final CompleteType finalType;
@@ -44,15 +42,53 @@ public class TypedFieldId {
     this(type, type, type, isHyper, null, false, fieldIds);
   }
 
-  public TypedFieldId(CompleteType intermediateType, CompleteType secondaryFinal, CompleteType finalType, boolean isHyper, PathSegment remainder, boolean isListInPath, int... fieldIds) {
-    this(intermediateType, secondaryFinal, finalType, isHyper, false, remainder, isListInPath, fieldIds);
+  public TypedFieldId(
+      CompleteType intermediateType,
+      CompleteType secondaryFinal,
+      CompleteType finalType,
+      boolean isHyper,
+      PathSegment remainder,
+      boolean isListInPath,
+      int... fieldIds) {
+    this(
+        intermediateType,
+        secondaryFinal,
+        finalType,
+        isHyper,
+        false,
+        remainder,
+        isListInPath,
+        fieldIds);
   }
 
-  public TypedFieldId(CompleteType intermediateType, CompleteType secondaryFinal, CompleteType finalType, boolean isHyper, boolean isListVector, PathSegment remainder, int... fieldIds) {
-    this(intermediateType, secondaryFinal, finalType, isHyper, isListVector, remainder, false, fieldIds);
+  public TypedFieldId(
+      CompleteType intermediateType,
+      CompleteType secondaryFinal,
+      CompleteType finalType,
+      boolean isHyper,
+      boolean isListVector,
+      PathSegment remainder,
+      int... fieldIds) {
+    this(
+        intermediateType,
+        secondaryFinal,
+        finalType,
+        isHyper,
+        isListVector,
+        remainder,
+        false,
+        fieldIds);
   }
 
-  public TypedFieldId(CompleteType intermediateType, CompleteType secondaryFinal, CompleteType finalType, boolean isHyper, boolean isListVector, PathSegment remainder, boolean isListInPath, int... fieldIds) {
+  public TypedFieldId(
+      CompleteType intermediateType,
+      CompleteType secondaryFinal,
+      CompleteType finalType,
+      boolean isHyper,
+      boolean isListVector,
+      PathSegment remainder,
+      boolean isListInPath,
+      int... fieldIds) {
     super();
     this.intermediateType = intermediateType;
     this.finalType = finalType;
@@ -66,7 +102,14 @@ public class TypedFieldId {
 
   public TypedFieldId cloneWithChild(int id) {
     int[] fieldIds = ArrayUtils.add(this.fieldIds, id);
-    return new TypedFieldId(intermediateType, secondaryFinal, finalType, isHyperReader, remainder, isListOrUnionInPath, fieldIds);
+    return new TypedFieldId(
+        intermediateType,
+        secondaryFinal,
+        finalType,
+        isHyperReader,
+        remainder,
+        isListOrUnionInPath,
+        fieldIds);
   }
 
   public PathSegment getLastSegment() {
@@ -81,7 +124,14 @@ public class TypedFieldId {
   }
 
   public TypedFieldId cloneWithRemainder(PathSegment remainder) {
-    return new TypedFieldId(intermediateType, secondaryFinal, finalType, isHyperReader, remainder, isListOrUnionInPath, fieldIds);
+    return new TypedFieldId(
+        intermediateType,
+        secondaryFinal,
+        finalType,
+        isHyperReader,
+        remainder,
+        isListOrUnionInPath,
+        fieldIds);
   }
 
   public boolean hasRemainder() {
@@ -131,7 +181,7 @@ public class TypedFieldId {
     return new Builder();
   }
 
-  public static class Builder{
+  public static class Builder {
     private final ArrayList<Integer> ids = new ArrayList<>();
     private CompleteType finalType;
     private CompleteType intermediateType;
@@ -199,15 +249,25 @@ public class TypedFieldId {
       }
 
       CompleteType actualFinalType = finalType;
-      //CompleteType secondaryFinal = finalType;
+      // CompleteType secondaryFinal = finalType;
 
       // if this has an index, switch to required type for output
-      //if(withIndex && intermediateType == finalType) actualFinalType = finalType.toBuilder().setMode(DataMode.REQUIRED).build();
+      // if(withIndex && intermediateType == finalType) actualFinalType =
+      // finalType.toBuilder().setMode(DataMode.REQUIRED).build();
 
       // if this isn't a direct access, switch the final type to nullable as offsets may be null.
       // TODO: there is a bug here with some things.
-      //if(intermediateType != finalType) actualFinalType = finalType.toBuilder().setMode(DataMode.OPTIONAL).build();
-      return new TypedFieldId(intermediateType, secondaryFinal, actualFinalType, hyperReader, isListVector, remainder, isListOrUnionInPath, ids.stream().mapToInt(i -> i).toArray());
+      // if(intermediateType != finalType) actualFinalType =
+      // finalType.toBuilder().setMode(DataMode.OPTIONAL).build();
+      return new TypedFieldId(
+          intermediateType,
+          secondaryFinal,
+          actualFinalType,
+          hyperReader,
+          isListVector,
+          remainder,
+          isListOrUnionInPath,
+          ids.stream().mapToInt(i -> i).toArray());
     }
   }
 
@@ -277,8 +337,11 @@ public class TypedFieldId {
   public String toString() {
     final int maxLen = 10;
     return "TypedFieldId [fieldIds="
-        + (fieldIds != null ? Arrays.toString(Arrays.copyOf(fieldIds, Math.min(fieldIds.length, maxLen))) : null)
-        + ", remainder=" + remainder + "]";
+        + (fieldIds != null
+            ? Arrays.toString(Arrays.copyOf(fieldIds, Math.min(fieldIds.length, maxLen)))
+            : null)
+        + ", remainder="
+        + remainder
+        + "]";
   }
-
 }

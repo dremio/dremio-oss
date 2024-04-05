@@ -18,7 +18,7 @@ package com.dremio.exec.work;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.rpc.BaseRpcOutcomeListener;
 
-public abstract class EndpointListener<RET, V> extends BaseRpcOutcomeListener<RET>{
+public abstract class EndpointListener<RET, V> extends BaseRpcOutcomeListener<RET> {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(EndpointListener.class);
 
   protected final NodeEndpoint endpoint;
@@ -37,6 +37,4 @@ public abstract class EndpointListener<RET, V> extends BaseRpcOutcomeListener<RE
   protected V getValue() {
     return value;
   }
-
-
 }

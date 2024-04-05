@@ -15,30 +15,29 @@
  */
 package com.dremio.exec.expr.fn.impl;
 
+import com.dremio.exec.expr.fn.FunctionErrorContext;
+import com.dremio.exec.expr.fn.impl.array.ArrayHelper;
 import org.apache.arrow.vector.complex.impl.UnionListReader;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.complex.writer.BaseWriter;
 
-import com.dremio.exec.expr.fn.FunctionErrorContext;
-import com.dremio.exec.expr.fn.impl.array.ArrayHelper;
-
 public class ArrayConcatUtility {
   public static void concat(
-    FieldReader arrayReader1,
-    FieldReader arrayReader2,
-    BaseWriter.ComplexWriter writer,
-    FunctionErrorContext errorContext) {
+      FieldReader arrayReader1,
+      FieldReader arrayReader2,
+      BaseWriter.ComplexWriter writer,
+      FunctionErrorContext errorContext) {
     UnionListReader listReader1 = (UnionListReader) arrayReader1;
     UnionListReader listReader2 = (UnionListReader) arrayReader2;
 
     BaseWriter.ListWriter listWriter = writer.rootAsList();
     listWriter.startList();
 
-    while (listReader1.next()){
+    while (listReader1.next()) {
       ArrayHelper.copyListElements(listReader1, listWriter);
     }
 
-    while (listReader2.next()){
+    while (listReader2.next()) {
       ArrayHelper.copyListElements(listReader2, listWriter);
     }
 

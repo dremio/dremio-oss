@@ -15,12 +15,6 @@
  */
 package com.dremio.datastore;
 
-import java.util.Map;
-import java.util.stream.Collectors;
-
-import org.apache.lucene.document.Document;
-import org.apache.lucene.index.Term;
-
 import com.dremio.datastore.CoreStoreProviderImpl.StoreWithId;
 import com.dremio.datastore.api.DocumentConverter;
 import com.dremio.datastore.indexed.CoreIndexedStoreImpl;
@@ -28,10 +22,12 @@ import com.dremio.datastore.indexed.LuceneSearchIndex;
 import com.dremio.datastore.indexed.SimpleDocumentWriter;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Maps;
+import java.util.Map;
+import java.util.stream.Collectors;
+import org.apache.lucene.document.Document;
+import org.apache.lucene.index.Term;
 
-/**
- * Replays updates from {@link CoreKVStore} to {@link LuceneSearchIndex}.
- */
+/** Replays updates from {@link CoreKVStore} to {@link LuceneSearchIndex}. */
 public class ReIndexer implements ReplayHandler {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ReIndexer.class);
 
@@ -61,8 +57,7 @@ public class ReIndexer implements ReplayHandler {
     final Document document = toDoc(tableName, keyTuple, valueTuple(tableName, value));
     if (document != null) {
       // this is an update(...) and not an add; see CoreIndexedStoreImpl#index
-      indexManager.getIndex(tableName)
-          .update(keyAsTerm(keyTuple), document);
+      indexManager.getIndex(tableName).update(keyAsTerm(keyTuple), document);
 
       metrics(tableName).puts++;
     }
@@ -75,15 +70,14 @@ public class ReIndexer implements ReplayHandler {
       return;
     }
 
-    indexManager.getIndex(tableName)
-        .deleteDocuments(keyAsTerm(keyTuple(tableName, key)));
+    indexManager.getIndex(tableName).deleteDocuments(keyAsTerm(keyTuple(tableName, key)));
 
     metrics(tableName).deletes++;
   }
 
   private boolean isIndexed(String name) {
-    return idToStore.containsKey(name) &&
-        (idToStore.get(name).getStore() instanceof CoreIndexedStore);
+    return idToStore.containsKey(name)
+        && (idToStore.get(name).getStore() instanceof CoreIndexedStore);
   }
 
   @SuppressWarnings("unchecked")
@@ -91,8 +85,7 @@ public class ReIndexer implements ReplayHandler {
     assert isIndexed(name);
 
     if (!converters.containsKey(name)) {
-      converters.put(name,
-        idToStore.get(name).getStoreBuilderHelper().getDocumentConverter());
+      converters.put(name, idToStore.get(name).getStoreBuilderHelper().getDocumentConverter());
     }
 
     return (DocumentConverter<K, V>) converters.get(name);
@@ -102,8 +95,13 @@ public class ReIndexer implements ReplayHandler {
     assert isIndexed(name);
 
     if (!keySerializers.containsKey(name)) {
-      keySerializers.put(name,
-        idToStore.get(name).getStoreBuilderHelper().getKeyFormat().apply(ByteSerializerFactory.INSTANCE));
+      keySerializers.put(
+          name,
+          idToStore
+              .get(name)
+              .getStoreBuilderHelper()
+              .getKeyFormat()
+              .apply(ByteSerializerFactory.INSTANCE));
     }
 
     return keySerializers.get(name);
@@ -113,21 +111,24 @@ public class ReIndexer implements ReplayHandler {
     assert isIndexed(name);
 
     if (!valueSerializers.containsKey(name)) {
-      valueSerializers.put(name,
-        idToStore.get(name).getStoreBuilderHelper().getValueFormat().apply(ByteSerializerFactory.INSTANCE));
+      valueSerializers.put(
+          name,
+          idToStore
+              .get(name)
+              .getStoreBuilderHelper()
+              .getValueFormat()
+              .apply(ByteSerializerFactory.INSTANCE));
     }
 
     return valueSerializers.get(name);
   }
 
   private KVStoreTuple<?> keyTuple(String tableName, byte[] serializedBytes) {
-    return new KVStoreTuple<>(keySerializer(tableName))
-        .setSerializedBytes(serializedBytes);
+    return new KVStoreTuple<>(keySerializer(tableName)).setSerializedBytes(serializedBytes);
   }
 
   private KVStoreTuple<?> valueTuple(String tableName, byte[] serializedBytes) {
-    return new KVStoreTuple<>(valueSerializer(tableName))
-        .setSerializedBytes(serializedBytes);
+    return new KVStoreTuple<>(valueSerializer(tableName)).setSerializedBytes(serializedBytes);
   }
 
   private <K, V> Document toDoc(String tableName, KVStoreTuple<K> key, KVStoreTuple<V> value) {
@@ -154,21 +155,23 @@ public class ReIndexer implements ReplayHandler {
 
   String getMetrics() {
     return Joiner.on(",\n")
-        .join(metricsMap.entrySet()
-            .stream()
-            .map(entry -> {
-              final ReIndexMetrics metrics = entry.getValue();
-              return "{ name: '" + entry.getKey()
-                  + "', puts: " + metrics.puts
-                  + ", deletes: " + metrics.deletes
-                  + " }";
-            }).collect(Collectors.toList())
-        );
+        .join(
+            metricsMap.entrySet().stream()
+                .map(
+                    entry -> {
+                      final ReIndexMetrics metrics = entry.getValue();
+                      return "{ name: '"
+                          + entry.getKey()
+                          + "', puts: "
+                          + metrics.puts
+                          + ", deletes: "
+                          + metrics.deletes
+                          + " }";
+                    })
+                .collect(Collectors.toList()));
   }
 
-  /**
-   * Metrics about re-indexing.
-   */
+  /** Metrics about re-indexing. */
   private static final class ReIndexMetrics {
     private int puts = 0;
     private int deletes = 0;

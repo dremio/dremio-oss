@@ -19,10 +19,12 @@ package com.dremio.sabot.op.aggregate.vectorized.arrayagg;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.IntervalYearVector;
 
-public final class IntervalYearArrayAggAccumulatorHolder extends
-  BaseArrayAggAccumulatorHolder<Integer, IntervalYearVector> {
+public final class IntervalYearArrayAggAccumulatorHolder
+    extends BaseArrayAggAccumulatorHolder<Integer, IntervalYearVector> {
   private final IntervalYearVector vector;
-  public IntervalYearArrayAggAccumulatorHolder(int maxValuesPerBatch, final BufferAllocator allocator) {
+
+  public IntervalYearArrayAggAccumulatorHolder(
+      int maxValuesPerBatch, final BufferAllocator allocator) {
     super(maxValuesPerBatch, allocator);
     vector = new IntervalYearVector("array_agg IntervalYearArrayAggAccumulatorHolder", allocator);
     vector.allocateNew(maxValuesPerBatch);
@@ -30,9 +32,9 @@ public final class IntervalYearArrayAggAccumulatorHolder extends
 
   @Override
   public long getSizeInBytes() {
-    return vector.getDataBuffer().getActualMemoryConsumed() +
-      vector.getValidityBuffer().getActualMemoryConsumed() +
-      super.getSizeInBytes();
+    return vector.getDataBuffer().getActualMemoryConsumed()
+        + vector.getValidityBuffer().getActualMemoryConsumed()
+        + super.getSizeInBytes();
   }
 
   @Override

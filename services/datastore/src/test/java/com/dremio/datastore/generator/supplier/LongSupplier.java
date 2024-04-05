@@ -15,9 +15,7 @@
  */
 package com.dremio.datastore.generator.supplier;
 
-/**
- * Generates longs starting just below int max.
- */
+/** Generates longs starting just below int max. */
 public class LongSupplier implements UniqueSupplier<Long> {
   private long nextLong = Integer.MAX_VALUE - 2;
 

@@ -19,42 +19,16 @@ import static com.dremio.service.accelerator.AccelerationDetailsUtils.deserializ
 import static com.dremio.service.jobs.JobsConstant.ACCELERATOR;
 import static com.dremio.service.jobs.JobsConstant.AGGREGATION;
 import static com.dremio.service.jobs.JobsConstant.ALGEBRAIC_REFLECTIONS;
-import static com.dremio.service.jobs.JobsConstant.DATASETGRAPH;
-import static com.dremio.service.jobs.JobsConstant.DATASET_GRAPH_ERROR;
 import static com.dremio.service.jobs.JobsConstant.DOT;
 import static com.dremio.service.jobs.JobsConstant.DOT_BACKSLASH;
-import static com.dremio.service.jobs.JobsConstant.EXTERNAL_QUERY;
-import static com.dremio.service.jobs.JobsConstant.OTHERS;
 import static com.dremio.service.jobs.JobsConstant.PDS;
 import static com.dremio.service.jobs.JobsConstant.QUOTES;
 import static com.dremio.service.jobs.JobsConstant.REFLECTION;
 import static com.dremio.service.jobs.JobsConstant.__ACCELERATOR;
 
-import java.security.AccessControlException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.UUID;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-import org.apache.calcite.util.Util;
-import org.apache.commons.collections4.CollectionUtils;
-import org.apache.commons.lang3.StringUtils;
-
-import com.dremio.dac.api.CatalogEntity;
-import com.dremio.dac.api.CatalogItem;
 import com.dremio.dac.obfuscate.ObfuscationUtils;
 import com.dremio.dac.service.catalog.CatalogServiceHelper;
-import com.dremio.dac.service.reflection.ReflectionServiceHelper;
 import com.dremio.dac.util.JobUtil;
-import com.dremio.exec.proto.UserBitShared;
 import com.dremio.service.accelerator.proto.AccelerationDetails;
 import com.dremio.service.accelerator.proto.LayoutDescriptor;
 import com.dremio.service.accelerator.proto.ReflectionRelationship;
@@ -62,7 +36,6 @@ import com.dremio.service.accelerator.proto.SubstitutionState;
 import com.dremio.service.job.JobDetails;
 import com.dremio.service.job.RequestType;
 import com.dremio.service.job.proto.DataSet;
-import com.dremio.service.job.proto.DatasetGraph;
 import com.dremio.service.job.proto.DurationDetails;
 import com.dremio.service.job.proto.JobAttempt;
 import com.dremio.service.job.proto.JobId;
@@ -76,28 +49,32 @@ import com.dremio.service.job.proto.ScannedDataset;
 import com.dremio.service.jobs.JobsProtoUtil;
 import com.dremio.service.jobs.JobsServiceUtil;
 import com.dremio.service.namespace.NamespaceException;
-import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetCommonProtobuf;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
-import com.dremio.service.namespace.dataset.proto.DatasetType;
-import com.dremio.service.namespace.dataset.proto.ParentDataset;
-import com.dremio.service.namespace.proto.EntityId;
-import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Strings;
 import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.ProtocolStringList;
-
 import io.opentelemetry.instrumentation.annotations.WithSpan;
+import java.security.AccessControlException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import org.apache.calcite.util.Util;
+import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
 
-/**
- * Builds response of Job Details page
- */
+/** Builds response of Job Details page */
 public class JobInfoDetailsUI {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(JobInfoDetailsUI.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(JobInfoDetailsUI.class);
   private String id;
   private QueryType queryType;
   private String queryUser;
@@ -119,15 +96,11 @@ public class JobInfoDetailsUI {
   private Long removedFiles;
   private Long duration;
   private List<DurationDetails> durationDetails;
-  private int nrReflectionsConsidered;
-  private int nrReflectionsMatched;
-  private int nrReflectionsUsed;
   private List<Reflection> reflectionsMatched = new ArrayList<>();
   private List<Reflection> reflectionsUsed = new ArrayList<>();
   private List<Reflection> reflections = new ArrayList<>();
   private List<DataSet> queriedDatasets = new ArrayList<>();
   private List<ScannedDataset> scannedDatasets = new ArrayList<>();
-  private List<DatasetGraph> datasetGraph = new ArrayList<>();
   private String jobStatus;
   private boolean isStarFlakeAccelerated;
   private Map<String, Reflection> remainingReflections = new HashMap<>();
@@ -140,7 +113,6 @@ public class JobInfoDetailsUI {
   private RequestType requestType;
   private Map<String, String> exceptionsMap = new HashMap<>();
   private boolean isAccessException = Boolean.FALSE;
-  private boolean isGraphException = Boolean.FALSE;
   private boolean isAlgebraicException = Boolean.FALSE;
   private JobFailureInfo failureInfo;
   private JobCancellationInfo cancellationInfo;
@@ -152,65 +124,56 @@ public class JobInfoDetailsUI {
   private long totalMemory;
   private long cpuUsed;
   private Boolean isOutputLimited;
-  private String graphExceptionTable;
-  // Dataset paths of the container, not the dataset paths within the query.
   private List<String> datasetPaths;
 
-  public JobInfoDetailsUI() {
-  }
+  public JobInfoDetailsUI() {}
 
   @JsonCreator
   public JobInfoDetailsUI(
-    @JsonProperty("id") String id,
-    @JsonProperty("jobStatus") String jobStatus,
-    @JsonProperty("queryType") QueryType queryType,
-    @JsonProperty("queryUser") String queryUser,
-    @JsonProperty("queryText") String queryText,
-    @JsonInclude(JsonInclude.Include.NON_EMPTY)
-    @JsonProperty("wlmQueue") String wlmQueue,
-    @JsonProperty("startTime") Long startTime,
-    @JsonProperty("endTime") Long endTime,
-    @JsonProperty("waitInClient") Long waitInClient,
-    @JsonProperty("isAccelerated") boolean isAccelerated,
-    @JsonProperty("inputBytes") Long inputBytes,
-    @JsonProperty("inputRecords") Long inputRecords,
-    @JsonProperty("outputBytes") Long outputBytes,
-    @JsonProperty("outputRecords") Long outputRecords,
-    @JsonProperty("addedFiles") Long addedFiles,
-    @JsonProperty("removedFiles") Long removedFiles,
-    @JsonProperty("duration") Long duration,
-    @JsonProperty("durationDetails") List<DurationDetails> durationDetails,
-    @JsonProperty("nrReflectionsConsidered") int nrReflectionsConsidered,
-    @JsonProperty("nrReflectionsMatched") int nrReflectionsMatched,
-    @JsonProperty("nrReflectionsUsed") int nrReflectionsUsed,
-    @JsonProperty("reflectionsMatched") List<Reflection> reflectionsMatched,
-    @JsonProperty("reflectionsUsed") List<Reflection> reflectionsUsed,
-    @JsonProperty("reflections") List<Reflection> reflections,
-    @JsonProperty("queriedDatasets") List<DataSet> queriedDatasets,
-    @JsonProperty("scannedDataset") List<ScannedDataset> scannedDatasets,
-    @JsonProperty("DatasetGraph") List<DatasetGraph> datasetGraph,
-    @JsonProperty("spilled") boolean spilled,
-    @JsonProperty("spillDetails") Map<FieldDescriptor, Object> spilledJobDetails,
-    @JsonProperty("algebraicReflectionsDataset") List<DataSet> algebraicReflectionsDataset,
-    @JsonProperty("isStarFlakeAccelerated") boolean isStarFlakeAccelerated,
-    @JsonProperty("attemptDetails;") List<AttemptDetailsUI> attemptDetails,
-    @JsonProperty("attemptsSummary;") String attemptsSummary,
-    @JsonProperty("description") String description,
-    @JsonProperty("requestType") RequestType requestType,
-    @JsonProperty("exceptionsMap") Map<String, String> exceptionsMap,
-    @JsonProperty("failureInfo") JobFailureInfo failureInfo,
-    @JsonProperty("cancellationInfo") JobCancellationInfo cancellationInfo,
-    @JsonProperty("datasetVersion") String datasetVersion,
-    @JsonProperty("resultsAvailable") Boolean resultsAvailable,
-    @JsonInclude(JsonInclude.Include.NON_EMPTY)
-    @JsonProperty("engine") String engine,
-    @JsonProperty("isComplete") boolean isComplete,
-    @JsonProperty("rowsScanned") Long rowsScanned,
-    @JsonProperty("plannerEstimatedCost") Double plannerEstimatedCost,
-    @JsonProperty("totalMemory") Long totalMemory,
-    @JsonProperty("cpuUsed") Long cpuUsed,
-    @JsonProperty("isOutputLimited") Boolean isOutputLimited,
-    @JsonProperty("datasetPaths") List<String> datasetPaths) {
+      @JsonProperty("id") String id,
+      @JsonProperty("jobStatus") String jobStatus,
+      @JsonProperty("queryType") QueryType queryType,
+      @JsonProperty("queryUser") String queryUser,
+      @JsonProperty("queryText") String queryText,
+      @JsonInclude(JsonInclude.Include.NON_EMPTY) @JsonProperty("wlmQueue") String wlmQueue,
+      @JsonProperty("startTime") Long startTime,
+      @JsonProperty("endTime") Long endTime,
+      @JsonProperty("waitInClient") Long waitInClient,
+      @JsonProperty("isAccelerated") boolean isAccelerated,
+      @JsonProperty("inputBytes") Long inputBytes,
+      @JsonProperty("inputRecords") Long inputRecords,
+      @JsonProperty("outputBytes") Long outputBytes,
+      @JsonProperty("outputRecords") Long outputRecords,
+      @JsonProperty("addedFiles") Long addedFiles,
+      @JsonProperty("removedFiles") Long removedFiles,
+      @JsonProperty("duration") Long duration,
+      @JsonProperty("durationDetails") List<DurationDetails> durationDetails,
+      @JsonProperty("reflectionsMatched") List<Reflection> reflectionsMatched,
+      @JsonProperty("reflectionsUsed") List<Reflection> reflectionsUsed,
+      @JsonProperty("reflections") List<Reflection> reflections,
+      @JsonProperty("queriedDatasets") List<DataSet> queriedDatasets,
+      @JsonProperty("scannedDataset") List<ScannedDataset> scannedDatasets,
+      @JsonProperty("spilled") boolean spilled,
+      @JsonProperty("spillDetails") Map<FieldDescriptor, Object> spilledJobDetails,
+      @JsonProperty("algebraicReflectionsDataset") List<DataSet> algebraicReflectionsDataset,
+      @JsonProperty("isStarFlakeAccelerated") boolean isStarFlakeAccelerated,
+      @JsonProperty("attemptDetails;") List<AttemptDetailsUI> attemptDetails,
+      @JsonProperty("attemptsSummary;") String attemptsSummary,
+      @JsonProperty("description") String description,
+      @JsonProperty("requestType") RequestType requestType,
+      @JsonProperty("exceptionsMap") Map<String, String> exceptionsMap,
+      @JsonProperty("failureInfo") JobFailureInfo failureInfo,
+      @JsonProperty("cancellationInfo") JobCancellationInfo cancellationInfo,
+      @JsonProperty("datasetVersion") String datasetVersion,
+      @JsonProperty("resultsAvailable") Boolean resultsAvailable,
+      @JsonInclude(JsonInclude.Include.NON_EMPTY) @JsonProperty("engine") String engine,
+      @JsonProperty("isComplete") boolean isComplete,
+      @JsonProperty("rowsScanned") Long rowsScanned,
+      @JsonProperty("plannerEstimatedCost") Double plannerEstimatedCost,
+      @JsonProperty("totalMemory") Long totalMemory,
+      @JsonProperty("cpuUsed") Long cpuUsed,
+      @JsonProperty("isOutputLimited") Boolean isOutputLimited,
+      @JsonProperty("datasetPaths") List<String> datasetPaths) {
     this.id = id;
     this.jobStatus = jobStatus;
     this.queryType = queryType;
@@ -233,15 +196,11 @@ public class JobInfoDetailsUI {
     this.removedFiles = removedFiles;
     this.duration = duration;
     this.durationDetails = durationDetails;
-    this.nrReflectionsConsidered = nrReflectionsConsidered;
-    this.nrReflectionsMatched = nrReflectionsMatched;
-    this.nrReflectionsUsed = nrReflectionsUsed;
     this.reflectionsMatched = reflectionsMatched;
     this.reflectionsUsed = reflectionsUsed;
     this.reflections = reflections;
     this.queriedDatasets = queriedDatasets;
     this.scannedDatasets = scannedDatasets;
-    this.datasetGraph = datasetGraph;
     this.spilled = spilled;
     this.spilledJobDetails = spilledJobDetails;
     this.isStarFlakeAccelerated = isStarFlakeAccelerated;
@@ -262,9 +221,17 @@ public class JobInfoDetailsUI {
   }
 
   @WithSpan
-  public JobInfoDetailsUI of(JobDetails jobDetails, UserBitShared.QueryProfile profile, CatalogServiceHelper catalogServiceHelper, ReflectionServiceHelper reflectionServiceHelper, NamespaceService namespaceService, int detailLevel, int attemptIndex) throws NamespaceException {
+  public JobInfoDetailsUI of(
+      JobDetails jobDetails,
+      CatalogServiceHelper catalogServiceHelper,
+      int detailLevel,
+      int attemptIndex)
+      throws NamespaceException {
     JobProtobuf.JobAttempt jobAttempt = jobDetails.getAttemptsList().get(attemptIndex);
-    final List<JobAttempt> attempts = jobDetails.getAttemptsList().stream().map(JobsProtoUtil::toStuff).collect(Collectors.toList());
+    final List<JobAttempt> attempts =
+        jobDetails.getAttemptsList().stream()
+            .map(JobsProtoUtil::toStuff)
+            .collect(Collectors.toList());
     final JobInfo jobInfo = jobDetails.getAttempts(attemptIndex).getInfo();
     final JobId jobId = JobsProtoUtil.toStuff(jobDetails.getJobId());
     final JobAttempt lastJobAttempt = Util.last(attempts);
@@ -276,7 +243,11 @@ public class JobInfoDetailsUI {
       logger.warn("Failed to deserialize acceleration details", e);
     }
     id = jobId.getId();
-    jobStatus = JobUtil.computeJobState(JobsProtoUtil.toStuff(jobDetails.getAttempts(attemptIndex).getState()), jobDetails.getCompleted()).toString();
+    jobStatus =
+        JobUtil.computeJobState(
+                JobsProtoUtil.toStuff(jobDetails.getAttempts(attemptIndex).getState()),
+                jobDetails.getCompleted())
+            .toString();
     queryType = jobInfo.getQueryType();
     queryUser = jobInfo.getUser();
     queryText = jobInfo.getSql();
@@ -297,43 +268,50 @@ public class JobInfoDetailsUI {
     duration = JobUtil.getTotalDuration(jobDetails, attemptIndex);
     durationDetails = JobUtil.buildDurationDetails(jobAttempt.getStateListList());
     requestType = RequestType.valueOf(jobInfo.getRequestType().toString());
-    description = JobsServiceUtil.getJobDescription(RequestType.valueOf(jobInfo.getRequestType().toString()), jobInfo.getSql(), jobInfo.getDescription());
+    description =
+        JobsServiceUtil.getJobDescription(
+            RequestType.valueOf(jobInfo.getRequestType().toString()),
+            jobInfo.getSql(),
+            jobInfo.getDescription());
     attemptDetails = AttemptsUIHelper.fromAttempts(jobId, attempts);
     attemptsSummary = AttemptsUIHelper.constructSummary(attempts);
     datasetPaths = jobInfo.getDatasetPathList();
-    if(queryType != QueryType.ACCELERATOR_DROP) {
-      queriedDatasets = JobUtil.getQueriedDatasets(JobsProtoUtil.toStuff(jobAttempt.getInfo()), requestType);
+    if (queryType != QueryType.ACCELERATOR_DROP) {
+      queriedDatasets =
+          JobsServiceUtil.getQueriedDatasets(
+              JobsProtoUtil.toStuff(jobAttempt.getInfo()), requestType);
       if (detailLevel == 1) {
-        if (profile != null) {
-          fetchReflectionsMatchedOrUsed(accelerationDetails, jobInfo);
-          convertReflectionListToMap(reflectionsUsed, reflectionsMatched);
-          scannedDatasets = buildScannedDatasets(jobInfo.getParentsList(), jobInfo.getGrandParentsList(), jobAttempt.getDetails().getTableDatasetProfilesList());
-          if (queryType != QueryType.UI_EXPORT && queryType != QueryType.UNKNOWN) {
-            if (!isAccessException) {
-              datasetGraph = buildDataSetGraph(jobInfo, catalogServiceHelper, reflectionServiceHelper, namespaceService, profile);
-              segregateExpansionAlgebraicReflections(reflectionsUsed, reflectionsMatched);
-              algebraicReflectionsDataset = buildAlgebraicReflections(catalogServiceHelper, remainingReflections);
-            }
-            if(isGraphException || isAlgebraicException) {
-              if (isGraphException) {
-                datasetGraph.clear();
-                datasetGraph.add(new DatasetGraph().setDescription(DATASET_GRAPH_ERROR + graphExceptionTable));
-              }
-              algebraicReflectionsDataset.clear();
-            }
+        fetchReflectionsMatchedOrUsed(accelerationDetails, jobInfo);
+        convertReflectionListToMap(reflectionsUsed, reflectionsMatched);
+        scannedDatasets =
+            buildScannedDatasets(
+                jobInfo.getParentsList(),
+                jobInfo.getGrandParentsList(),
+                jobAttempt.getDetails().getTableDatasetProfilesList());
+        if (queryType != QueryType.UI_EXPORT && queryType != QueryType.UNKNOWN) {
+          if (!isAccessException) {
+            segregateExpansionAlgebraicReflections(reflectionsUsed, reflectionsMatched);
+            algebraicReflectionsDataset =
+                buildAlgebraicReflections(catalogServiceHelper, remainingReflections);
+          }
+          if (isAlgebraicException) {
+            algebraicReflectionsDataset.clear();
           }
         }
       }
     }
-    nrReflectionsConsidered = (profile != null && profile.getAccelerationProfile() != null) ? profile.getAccelerationProfile().getLayoutProfilesCount() : 0;
-    nrReflectionsMatched = reflectionsMatched.size();
-    nrReflectionsUsed = reflectionsUsed.size();
-    isAccelerated = nrReflectionsUsed > 0;
-    isStarFlakeAccelerated = this.isAccelerated && JobUtil.isSnowflakeAccelerated(accelerationDetails);
+    isAccelerated = !reflectionsUsed.isEmpty();
+    isStarFlakeAccelerated =
+        this.isAccelerated && JobUtil.isSnowflakeAccelerated(accelerationDetails);
     spilledJobDetails = jobInfo.getSpillJobDetails().getAllFields();
-    spilled = spilledJobDetails.size() > 0;
-    failureInfo = JobUtil.toJobFailureInfo(lastJobAttempt.getInfo().getFailureInfo(), lastJobAttempt.getInfo().getDetailedFailureInfo());
-    cancellationInfo = JobUtil.toJobCancellationInfo(lastJobAttempt.getState(), lastJobAttempt.getInfo().getCancellationInfo());
+    spilled = !spilledJobDetails.isEmpty();
+    failureInfo =
+        JobUtil.toJobFailureInfo(
+            lastJobAttempt.getInfo().getFailureInfo(),
+            lastJobAttempt.getInfo().getDetailedFailureInfo());
+    cancellationInfo =
+        JobUtil.toJobCancellationInfo(
+            lastJobAttempt.getState(), lastJobAttempt.getInfo().getCancellationInfo());
     datasetVersion = lastJobAttempt.getInfo().getDatasetVersion();
     final String currentUser = jobDetails.getAttempts(0).getInfo().getUser();
     resultsAvailable = jobDetails.getHasResults() && currentUser.equals(queryUser);
@@ -341,57 +319,51 @@ public class JobInfoDetailsUI {
     cpuUsed = jobAttempt.getDetails().getCpuUsed();
     isOutputLimited = jobAttempt.getStats().getIsOutputLimited();
     return new JobInfoDetailsUI(
-      id,
-      jobStatus,
-      queryType,
-      queryUser,
-      queryText,
-      wlmQueue,
-      startTime,
-      endTime,
-      waitInClient,
-      isAccelerated,
-      inputBytes,
-      inputRecords,
-      outputBytes,
-      outputRecords,
-      addedFiles,
-      removedFiles,
-      duration,
-      durationDetails,
-      nrReflectionsConsidered,
-      nrReflectionsMatched,
-      nrReflectionsUsed,
-      ObfuscationUtils.obfuscate(reflectionsMatched, ObfuscationUtils::obfuscate),
-      ObfuscationUtils.obfuscate(reflectionsUsed, ObfuscationUtils::obfuscate),
-      reflections,
-      ObfuscationUtils.obfuscate(queriedDatasets, ObfuscationUtils::obfuscate),
-      scannedDatasets,
-      datasetGraph,
-      spilled,
-      spilledJobDetails,
-      ObfuscationUtils.obfuscate(algebraicReflectionsDataset, ObfuscationUtils::obfuscate),
-      isStarFlakeAccelerated,
-      attemptDetails,
-      attemptsSummary,
-      description,
-      requestType,
-      exceptionsMap,
-      failureInfo,
-      cancellationInfo,
-      datasetVersion,
-      resultsAvailable,
-      engine,
-      isComplete,
-      rowsScanned,
-      plannerEstimatedCost,
-      totalMemory,
-      cpuUsed,
-      isOutputLimited,
-      datasetPaths
-    );
+        id,
+        jobStatus,
+        queryType,
+        queryUser,
+        queryText,
+        wlmQueue,
+        startTime,
+        endTime,
+        waitInClient,
+        isAccelerated,
+        inputBytes,
+        inputRecords,
+        outputBytes,
+        outputRecords,
+        addedFiles,
+        removedFiles,
+        duration,
+        durationDetails,
+        ObfuscationUtils.obfuscate(reflectionsMatched, ObfuscationUtils::obfuscate),
+        ObfuscationUtils.obfuscate(reflectionsUsed, ObfuscationUtils::obfuscate),
+        reflections,
+        ObfuscationUtils.obfuscate(queriedDatasets, ObfuscationUtils::obfuscate),
+        scannedDatasets,
+        spilled,
+        spilledJobDetails,
+        ObfuscationUtils.obfuscate(algebraicReflectionsDataset, ObfuscationUtils::obfuscate),
+        isStarFlakeAccelerated,
+        attemptDetails,
+        attemptsSummary,
+        description,
+        requestType,
+        exceptionsMap,
+        failureInfo,
+        cancellationInfo,
+        datasetVersion,
+        resultsAvailable,
+        engine,
+        isComplete,
+        rowsScanned,
+        plannerEstimatedCost,
+        totalMemory,
+        cpuUsed,
+        isOutputLimited,
+        datasetPaths);
   }
-
 
   public String getDatasetVersion() {
     return datasetVersion;
@@ -435,10 +407,6 @@ public class JobInfoDetailsUI {
 
   public List<ScannedDataset> getScannedDatasets() {
     return scannedDatasets;
-  }
-
-  public List<DatasetGraph> getDatasetGraph() {
-    return datasetGraph;
   }
 
   public QueryType getQueryType() {
@@ -496,18 +464,6 @@ public class JobInfoDetailsUI {
 
   public List<DurationDetails> getDurationDetails() {
     return durationDetails;
-  }
-
-  public int getNrReflectionsConsidered() {
-    return nrReflectionsConsidered;
-  }
-
-  public int getNrReflectionsMatched() {
-    return nrReflectionsMatched;
-  }
-
-  public int getNrReflectionsUsed() {
-    return nrReflectionsUsed;
   }
 
   public List<Reflection> getReflectionsMatched() {
@@ -578,67 +534,85 @@ public class JobInfoDetailsUI {
     return cpuUsed;
   }
 
-  public boolean getIsOutputLimited() {return isOutputLimited;}
+  public boolean getIsOutputLimited() {
+    return isOutputLimited;
+  }
 
   public List<String> getDatasetPaths() {
     return datasetPaths;
   }
 
-  private void convertReflectionListToMap(List<Reflection> reflectionsUsed, List<Reflection> reflectionsMatched) {
-    reflectionsUsedMap = reflectionsUsed.stream().collect(Collectors.toMap(reflection -> reflection.getReflectionID(), reflection -> reflection));
-    reflectionsMatchedMap = reflectionsMatched.stream().collect(Collectors.toMap(reflection -> reflection.getReflectionID(), reflection -> reflection));
+  private void convertReflectionListToMap(
+      List<Reflection> reflectionsUsed, List<Reflection> reflectionsMatched) {
+    reflectionsUsedMap =
+        reflectionsUsed.stream()
+            .collect(
+                Collectors.toMap(
+                    reflection -> reflection.getReflectionID(), reflection -> reflection));
+    reflectionsMatchedMap =
+        reflectionsMatched.stream()
+            .collect(
+                Collectors.toMap(
+                    reflection -> reflection.getReflectionID(), reflection -> reflection));
     reflectionsMap.putAll(reflectionsUsedMap);
     reflectionsMap.putAll(reflectionsMatchedMap);
   }
 
-  private List<ScannedDataset> buildScannedDatasets(List<JobProtobuf.ParentDatasetInfo> parentsList, List<DatasetCommonProtobuf.ParentDataset> grandParentsList, List<JobProtobuf.TableDatasetProfile> tableDatasetProfiles) {
+  private List<ScannedDataset> buildScannedDatasets(
+      List<JobProtobuf.ParentDatasetInfo> parentsList,
+      List<DatasetCommonProtobuf.ParentDataset> grandParentsList,
+      List<JobProtobuf.TableDatasetProfile> tableDatasetProfiles) {
     List<ScannedDataset> scannedDatasetList = new ArrayList<>();
-    tableDatasetProfiles.stream().forEach(
-      dataset -> {
-        ScannedDataset scannedDataset = new ScannedDataset();
-        String datasetName = "";
-        String scanDescription = "";
-        List<String> pathList = new ArrayList<>();
-        List<String> paths = getDatasetPath(dataset);
-        paths.forEach(s -> pathList.add(s.replaceAll(QUOTES, "")));
-        if (CollectionUtils.isNotEmpty(pathList)) {
-          boolean isReflection = pathList.get(0).equals(__ACCELERATOR);
-          if (isReflection) {
-            final String reflectionId = pathList.get(1);
-            if (reflectionsMap.containsKey(reflectionId)) {
-              Reflection reflection = reflectionsMap.get(reflectionId);
-              datasetName = reflection.getReflectionName() + " (" + reflection.getDatasetName() + ")";
-            }
-          } else {
-            // For versioned table/view the parentsList/grandParentsList are empty, so
-            // getScannedDatasetName will return an empty dataset name. And we will get the
-            // dataset name from profile directly instead. For other cases we will compare
-            // the dataset name in profile to the paths in parentsList/grandParentsList,
-            // we will return it if we find a matching one.
-            datasetName =
-                StringUtils.defaultIfEmpty(
-                    getScannedDatasetName(parentsList, grandParentsList, dataset),
-                    getDatasetName(
-                        StringUtils.join(
-                            dataset
-                                .getDatasetProfile()
-                                .getDatasetPathsList()
-                                .get(0)
-                                .getDatasetPathList(),
-                            DOT)));
-          }
+    tableDatasetProfiles.stream()
+        .forEach(
+            dataset -> {
+              ScannedDataset scannedDataset = new ScannedDataset();
+              String datasetName = "";
+              String scanDescription = "";
+              List<String> pathList = new ArrayList<>();
+              List<String> paths = getDatasetPath(dataset);
+              paths.forEach(s -> pathList.add(s.replaceAll(QUOTES, "")));
+              if (CollectionUtils.isNotEmpty(pathList)) {
+                boolean isReflection = pathList.get(0).equals(__ACCELERATOR);
+                if (isReflection) {
+                  final String reflectionId = pathList.get(1);
+                  if (reflectionsMap.containsKey(reflectionId)) {
+                    Reflection reflection = reflectionsMap.get(reflectionId);
+                    datasetName =
+                        reflection.getReflectionName() + " (" + reflection.getDatasetName() + ")";
+                  }
+                } else {
+                  // For versioned table/view the parentsList/grandParentsList are empty, so
+                  // getScannedDatasetName will return an empty dataset name. And we will get the
+                  // dataset name from profile directly instead. For other cases we will compare
+                  // the dataset name in profile to the paths in parentsList/grandParentsList,
+                  // we will return it if we find a matching one.
+                  datasetName =
+                      StringUtils.defaultIfEmpty(
+                          getScannedDatasetName(parentsList, grandParentsList, dataset),
+                          getDatasetName(
+                              StringUtils.join(
+                                  dataset
+                                      .getDatasetProfile()
+                                      .getDatasetPathsList()
+                                      .get(0)
+                                      .getDatasetPathList(),
+                                  DOT)));
+                }
 
-          String type = isReflection ? REFLECTION : PDS;
-          scannedDataset.setDatasetType(type);
-          scannedDataset.setNrScanThreads(dataset.getDatasetProfile().getParallelism());
-          scannedDataset.setNrScannedRows(dataset.getDatasetProfile().getRecordsRead());
-          scannedDataset.setIoWaitDurationMs(dataset.getDatasetProfile().getWaitOnSource());
-          scannedDataset.setName(datasetName);
-          scannedDataset.setDescription(scanDescription != null && !scanDescription.isEmpty() ? scanDescription : datasetName);
-          scannedDatasetList.add(scannedDataset);
-        }
-      }
-    );
+                String type = isReflection ? REFLECTION : PDS;
+                scannedDataset.setDatasetType(type);
+                scannedDataset.setNrScanThreads(dataset.getDatasetProfile().getParallelism());
+                scannedDataset.setNrScannedRows(dataset.getDatasetProfile().getRecordsRead());
+                scannedDataset.setIoWaitDurationMs(dataset.getDatasetProfile().getWaitOnSource());
+                scannedDataset.setName(datasetName);
+                scannedDataset.setDescription(
+                    scanDescription != null && !scanDescription.isEmpty()
+                        ? scanDescription
+                        : datasetName);
+                scannedDatasetList.add(scannedDataset);
+              }
+            });
     return scannedDatasetList;
   }
 
@@ -652,14 +626,24 @@ public class JobInfoDetailsUI {
   }
 
   // To get custom datasetname in case of query on non reflection datasets.
-  private String getScannedDatasetName(List<JobProtobuf.ParentDatasetInfo> parentsList, List<DatasetCommonProtobuf.ParentDataset> grandParentsList, JobProtobuf.TableDatasetProfile dataset) {
-    String datasetFullPath = StringUtils.join(dataset.getDatasetProfile().getDatasetPathsList().get(0).getDatasetPathList(),".").replaceAll(QUOTES,"");
+  private String getScannedDatasetName(
+      List<JobProtobuf.ParentDatasetInfo> parentsList,
+      List<DatasetCommonProtobuf.ParentDataset> grandParentsList,
+      JobProtobuf.TableDatasetProfile dataset) {
+    String datasetFullPath =
+        StringUtils.join(
+                dataset.getDatasetProfile().getDatasetPathsList().get(0).getDatasetPathList(), ".")
+            .replaceAll(QUOTES, "");
     // Access grandparents list in case of query on VDS
     for (int grandparentIndex = 0; grandparentIndex < grandParentsList.size(); grandparentIndex++) {
-      DatasetCommonProtobuf.ParentDataset grandParentDataset = grandParentsList.get(grandparentIndex);
-      String grandParentsPath = StringUtils.join(grandParentsList.get(grandparentIndex).getDatasetPathList(), ".");
+      DatasetCommonProtobuf.ParentDataset grandParentDataset =
+          grandParentsList.get(grandparentIndex);
+      String grandParentsPath =
+          StringUtils.join(grandParentsList.get(grandparentIndex).getDatasetPathList(), ".");
       if (datasetFullPath.equals(grandParentsPath)) {
-        return grandParentDataset.getDatasetPathList().get(grandParentDataset.getDatasetPathList().size() - 1);
+        return grandParentDataset
+            .getDatasetPathList()
+            .get(grandParentDataset.getDatasetPathList().size() - 1);
       }
     }
     // Access parents list in case of query on PDS
@@ -667,151 +651,47 @@ public class JobInfoDetailsUI {
       JobProtobuf.ParentDatasetInfo parentDataset = parentsList.get(parentIndex);
       String parentsPath = StringUtils.join(parentsList.get(parentIndex).getDatasetPathList(), ".");
       if (datasetFullPath.equals(parentsPath)) {
-        return parentDataset.getDatasetPathList().get(parentDataset.getDatasetPathList().size() - 1);
+        return parentDataset
+            .getDatasetPathList()
+            .get(parentDataset.getDatasetPathList().size() - 1);
       }
     }
     return "";
   }
 
   private List<String> getDatasetPath(JobProtobuf.TableDatasetProfile dataset) {
-    int datasetPathSize = dataset.getDatasetProfile().getDatasetPathsList().get(0).getDatasetPathList().size();
-    return Arrays.asList(dataset.getDatasetProfile().getDatasetPathsList().get(0).getDatasetPathList().get(datasetPathSize - 1).split(DOT_BACKSLASH));
+    int datasetPathSize =
+        dataset.getDatasetProfile().getDatasetPathsList().get(0).getDatasetPathList().size();
+    return Arrays.asList(
+        dataset
+            .getDatasetProfile()
+            .getDatasetPathsList()
+            .get(0)
+            .getDatasetPathList()
+            .get(datasetPathSize - 1)
+            .split(DOT_BACKSLASH));
   }
 
-  private void segregateExpansionAlgebraicReflections(List<Reflection> reflectionsUsed, List<Reflection> reflectionsMatched) {
-    remainingReflections.putAll(reflectionsUsed.stream().filter(s -> s.getReflectionMatchingType() == null).map(s -> s.setReflectionMatchingType(ReflectionMatchingType.ALGEBRAIC)).collect(Collectors.toMap(reflection -> reflection.getReflectionID(), reflection -> reflection)));
-    remainingReflections.putAll(reflectionsMatched.stream().filter(s -> s.getReflectionMatchingType() == null).map(s -> s.setReflectionMatchingType(ReflectionMatchingType.ALGEBRAIC)).collect(Collectors.toMap(reflection -> reflection.getReflectionID(), reflection -> reflection)));
+  private void segregateExpansionAlgebraicReflections(
+      List<Reflection> reflectionsUsed, List<Reflection> reflectionsMatched) {
+    remainingReflections.putAll(
+        reflectionsUsed.stream()
+            .filter(s -> s.getReflectionMatchingType() == null)
+            .map(s -> s.setReflectionMatchingType(ReflectionMatchingType.ALGEBRAIC))
+            .collect(
+                Collectors.toMap(
+                    reflection -> reflection.getReflectionID(), reflection -> reflection)));
+    remainingReflections.putAll(
+        reflectionsMatched.stream()
+            .filter(s -> s.getReflectionMatchingType() == null)
+            .map(s -> s.setReflectionMatchingType(ReflectionMatchingType.ALGEBRAIC))
+            .collect(
+                Collectors.toMap(
+                    reflection -> reflection.getReflectionID(), reflection -> reflection)));
   }
 
-  private List<DatasetGraph> buildDataSetGraph(JobProtobuf.JobInfo jobInfo, CatalogServiceHelper catalogServiceHelper, ReflectionServiceHelper reflectionServiceHelper, NamespaceService namespaceService, UserBitShared.QueryProfile profile) throws NamespaceException {
-    List<JobProtobuf.ParentDatasetInfo> parents = jobInfo.getParentsList();
-    String sqlQuery = jobInfo.getSql();
-    try {
-      for (JobProtobuf.ParentDatasetInfo parent : parents) {
-        List<String> pathList = new ArrayList<>();
-        pathList.addAll(parent.getDatasetPathList());
-        buildTree(catalogServiceHelper, reflectionServiceHelper, namespaceService, profile, sqlQuery, pathList, datasetGraph, null);
-      }
-    } catch (Exception ex) {
-      isAccessException = Boolean.TRUE;
-      isGraphException = Boolean.TRUE;
-      exceptionsMap.put(DATASETGRAPH, ex.getMessage());
-    }
-    return datasetGraph;
-  }
-
-  private void buildTree(CatalogServiceHelper catalogServiceHelper, ReflectionServiceHelper reflectionServiceHelper, NamespaceService namespaceService, UserBitShared.QueryProfile profile, String sqlQuery, List<String> pathList, List<DatasetGraph> dGraph, String dbId) throws Exception {
-    try {
-      Optional<CatalogEntity> entity = catalogServiceHelper.getCatalogEntityByPath(pathList, new ArrayList<>(), new ArrayList<>());
-      String datasetId = entity.get().getId();
-      List<CatalogItem> parentsList;
-      Optional<DatasetConfig> datasetConfig = catalogServiceHelper.getDatasetById(datasetId);
-      if (datasetConfig.isPresent()) {
-        DatasetConfig dataset = datasetConfig.get();
-        parentsList = getParentsForDataset(dataset, namespaceService);
-        dGraph.add(addNextDatasetGraph(dataset, parentsList, reflectionServiceHelper, profile));
-        if (CollectionUtils.isNotEmpty(parentsList)) {
-          buildDatasetGraphTree(reflectionServiceHelper, catalogServiceHelper, namespaceService, parentsList, dGraph, profile, sqlQuery);
-        }
-      }
-    } catch (IllegalArgumentException ex) {
-      handleCatalogEntityByPathException(dGraph, pathList, sqlQuery, dbId, null);
-    } catch (Exception e) {
-      graphExceptionTable = String.join(".", pathList);
-      throw e;
-    }
-  }
-
-  private void handleCatalogEntityByPathException(List<DatasetGraph> dGraph, List<String> pathList, String sqlQuery, String uuid, String cItem) {
-    AtomicBoolean isExternalQuery = getIsExternalQuery(pathList);
-    String tempId = uuid != null ? uuid : cItem;
-    if (isExternalQuery.get()) {
-      sqlQuery = dGraph.size() > 0 ? "" : sqlQuery;
-      dGraph.add(buildExternalQueryDataset(sqlQuery, pathList, OTHERS, EXTERNAL_QUERY, tempId));
-    } else {
-      dGraph.add(buildExternalQueryDataset(sqlQuery, pathList, OTHERS, OTHERS, tempId));
-    }
-  }
-
-  private AtomicBoolean getIsExternalQuery(List<String> pathList) {
-    AtomicBoolean isExternalQuery = new AtomicBoolean(false);
-    pathList.stream().forEach((path) -> {
-      if (path.contains(EXTERNAL_QUERY)) {
-        isExternalQuery.set(true);
-      }
-    });
-    return isExternalQuery;
-  }
-
-  private DatasetGraph buildExternalQueryDataset(String sqlQuery, List<String> pathList, String datasetType, String datasetName, String uuid) {
-    String tempId = uuid != null ? uuid : String.valueOf(UUID.randomUUID());
-    DatasetGraph datasetGraph = new DatasetGraph();
-    DataSet dataSet = new DataSet();
-    dataSet.setDatasetType(datasetType);
-    dataSet.setDatasetID(tempId);
-    dataSet.setDatasetName(datasetName);
-    dataSet.setDatasetPath(String.join(".", pathList));
-    datasetGraph.setDataSet(dataSet);
-    datasetGraph.setSql(sqlQuery);
-    datasetGraph.setId(tempId);
-    datasetGraph.setParentNodeIdList(new ArrayList<>());
-    return datasetGraph;
-  }
-
-  private List<DatasetGraph> buildDatasetGraphTree(ReflectionServiceHelper reflectionServiceHelper, CatalogServiceHelper catalogServiceHelper, NamespaceService namespaceService, List<CatalogItem> parentsList, List<DatasetGraph> graph, UserBitShared.QueryProfile profile, String sqlQuery) throws Exception {
-    for (CatalogItem parent : parentsList) {
-      List pathList = parent.getPath();
-      try {
-        buildTree(catalogServiceHelper, reflectionServiceHelper, namespaceService, profile, sqlQuery, pathList, graph, parent.getId());
-      } catch (Exception e) {
-        throw e;
-      }
-    }
-    return graph;
-  }
-
-  private DatasetGraph addNextDatasetGraph(DatasetConfig dataset, List<CatalogItem> parents, ReflectionServiceHelper reflectionServiceHelper, UserBitShared.QueryProfile profile) {
-    DataSet sampleDataset = new DataSet();
-    DatasetGraph datasetGraph = new DatasetGraph();
-    datasetGraph.setId(dataset.getId().getId());
-    List<String> parentsId = new ArrayList<>();
-    parents.forEach(p -> parentsId.add(p.getId()));
-    datasetGraph.setParentNodeIdList(parentsId);
-    sampleDataset.setDatasetType(JobUtil.getDatasetType(String.valueOf(dataset.getType())));
-    sampleDataset.setDatasetID(dataset.getId().getId());
-    sampleDataset.setDatasetName(JobUtil.extractDatasetConfigName(dataset));
-    sampleDataset.setDatasetPath(String.join(".", dataset.getFullPathList()));
-    sampleDataset = addReflections(reflectionServiceHelper, sampleDataset);
-    datasetGraph.setDataSet(sampleDataset);
-    java.util.Optional<UserBitShared.DatasetProfile> datasetProfileOptional = profile.getDatasetProfileList().stream().filter(datasetProfile ->
-      datasetProfile.getDatasetPath().replaceAll(QUOTES,"").equals(String.join(".", dataset.getFullPathList()))).findFirst();
-    if (datasetProfileOptional.isPresent()) {
-      datasetGraph.setSql(datasetProfileOptional.get().getSql());
-    }
-    return datasetGraph;
-  }
-
-  private DataSet addReflections(ReflectionServiceHelper reflectionServiceHelper, DataSet dataSet) {
-    List<Reflection> reflectionList = new ArrayList<>();
-    reflectionsMap.entrySet().stream().forEach(goalMap -> {
-      if (goalMap.getValue().getDatasetId().equals(dataSet.getDatasetID())) {
-        Reflection goal = goalMap.getValue();
-        Reflection reflection = buildReflections(goal, ReflectionMatchingType.EXPANSION);
-        if (reflectionsUsedMap.containsKey(goal.getReflectionID())) {
-          reflection.setIsUsed(Boolean.TRUE);
-          reflectionsUsedMap.get(goal.getReflectionID()).setReflectionMatchingType(ReflectionMatchingType.EXPANSION);
-        } else {
-          reflection.setIsUsed(Boolean.FALSE);
-          reflectionsMatchedMap.get(goal.getReflectionID()).setReflectionMatchingType(ReflectionMatchingType.EXPANSION);
-        }
-        reflectionList.add(reflection);
-      }
-    });
-    dataSet.setReflectionsDefinedList(reflectionList);
-    return dataSet;
-  }
-
-  private Reflection buildReflections(Reflection goal, ReflectionMatchingType reflectionMatchingType) {
+  private Reflection buildReflections(
+      Reflection goal, ReflectionMatchingType reflectionMatchingType) {
     Reflection reflection = new Reflection();
     reflection.setReflectionID(goal.getReflectionID());
     reflection.setReflectionName(goal.getReflectionName());
@@ -823,43 +703,12 @@ public class JobInfoDetailsUI {
     return reflection;
   }
 
-  private List<CatalogItem> getParentsForDataset(DatasetConfig datasetConfig, NamespaceService namespaceService) throws NamespaceException {
-    // only virtual datasets have parents
-    if (datasetConfig.getType() != DatasetType.VIRTUAL_DATASET) {
-      return Collections.emptyList();
-    }
-    final List<CatalogItem> parents = new ArrayList<>();
-    final List<ParentDataset> parentsList = datasetConfig.getVirtualDataset().getParentsList();
-    // Parents may not exist.  For example "select 1".
-    if (CollectionUtils.isNotEmpty(parentsList)) {
-      parentsList.stream().forEach((parent) -> {
-        try {
-          DatasetConfig tempDatasetConfig = null;
-          AtomicBoolean isExternalQuery = getIsExternalQuery(parent.getDatasetPathList());
-          final NameSpaceContainer entity = namespaceService.getEntities(Collections.singletonList(new NamespaceKey(parent.getDatasetPathList()))).get(0);
-          if (entity != null) {
-            parents.add(CatalogItem.fromDatasetConfig(entity.getDataset(), null));
-          } else {
-            tempDatasetConfig = new DatasetConfig().setId(new EntityId(String.valueOf(UUID.randomUUID()))).setType(DatasetType.OTHERS).setFullPathList(parent.getDatasetPathList());
-            if (isExternalQuery.get()) { // test condition to handle external query scenario.
-              tempDatasetConfig.setName(EXTERNAL_QUERY);
-            } else {  // test condition to handle all others scenario.
-              tempDatasetConfig.setName(OTHERS);
-            }
-            parents.add(CatalogItem.fromDatasetConfig(tempDatasetConfig, null));
-          }
-        } catch (NamespaceException e) {
-          e.printStackTrace();
-        }
-      });
-    }
-    return parents;
-  }
-
-  private List<DataSet> buildAlgebraicReflections(CatalogServiceHelper catalogServiceHelper, Map<String, Reflection> remainingReflections) {
+  private List<DataSet> buildAlgebraicReflections(
+      CatalogServiceHelper catalogServiceHelper, Map<String, Reflection> remainingReflections) {
     List<DataSet> algebraicDatasets = new ArrayList<>();
     try {
-      algebraicDatasets = buildAlgebraicReflectionsDatasets(catalogServiceHelper, remainingReflections);
+      algebraicDatasets =
+          buildAlgebraicReflectionsDatasets(catalogServiceHelper, remainingReflections);
     } catch (AccessControlException ace) {
       isAccessException = Boolean.TRUE;
       isAlgebraicException = Boolean.TRUE;
@@ -872,15 +721,17 @@ public class JobInfoDetailsUI {
     return algebraicDatasets;
   }
 
-  private List<DataSet> buildAlgebraicReflectionsDatasets(CatalogServiceHelper catalogServiceHelper, Map<String, Reflection> remainingReflections) {
+  private List<DataSet> buildAlgebraicReflectionsDatasets(
+      CatalogServiceHelper catalogServiceHelper, Map<String, Reflection> remainingReflections) {
     Map<String, DataSet> datasetsMap = new HashMap<>();
     for (Map.Entry<String, Reflection> refMap : remainingReflections.entrySet()) {
       Reflection reflectionGoal = refMap.getValue();
       List<Reflection> reflectionsList = new ArrayList<>();
       DataSet tempDataset = null;
       Reflection reflection = null;
-      if(!datasetsMap.containsKey(reflectionGoal.getDatasetId())) {
-        DatasetConfig datasetConfig = catalogServiceHelper.getDatasetById(reflectionGoal.getDatasetId()).get();
+      if (!datasetsMap.containsKey(reflectionGoal.getDatasetId())) {
+        DatasetConfig datasetConfig =
+            catalogServiceHelper.getDatasetById(reflectionGoal.getDatasetId()).get();
         tempDataset = new DataSet();
         tempDataset.setDatasetType(JobUtil.getDatasetType(String.valueOf(datasetConfig.getType())));
         tempDataset.setDatasetID(datasetConfig.getId().getId());
@@ -904,39 +755,60 @@ public class JobInfoDetailsUI {
     return datasetsList;
   }
 
-  private void fetchReflectionsMatchedOrUsed(AccelerationDetails accelerationDetails, JobInfo jobInfo) {
-    if (accelerationDetails.getReflectionRelationshipsList() != null && accelerationDetails.getReflectionRelationshipsList().size() > 0) {
-        extractReflectionFromReflectionRelationship(accelerationDetails);
+  private void fetchReflectionsMatchedOrUsed(
+      AccelerationDetails accelerationDetails, JobInfo jobInfo) {
+    if (accelerationDetails.getReflectionRelationshipsList() != null
+        && accelerationDetails.getReflectionRelationshipsList().size() > 0) {
+      extractReflectionFromReflectionRelationship(accelerationDetails);
     }
-    if (jobInfo.getQueryType().toString().contains(ACCELERATOR) && !Strings.isNullOrEmpty(jobInfo.getMaterializationFor().getReflectionId())) {
-      createReflectionDetails(jobInfo.getMaterializationFor(), jobInfo.getDatasetPathList(), reflections);
+    if (jobInfo.getQueryType().toString().contains(ACCELERATOR)
+        && !Strings.isNullOrEmpty(jobInfo.getMaterializationFor().getReflectionId())) {
+      createReflectionDetails(
+          jobInfo.getMaterializationFor(), jobInfo.getDatasetPathList(), reflections);
     }
   }
 
-  private void createReflectionDetails(JobProtobuf.MaterializationSummary materializationFor, ProtocolStringList datasetPathList, List<Reflection> reflections) {
+  private void createReflectionDetails(
+      JobProtobuf.MaterializationSummary materializationFor,
+      ProtocolStringList datasetPathList,
+      List<Reflection> reflections) {
     Reflection reflection = new Reflection();
     reflection.setReflectionID(materializationFor.getReflectionId());
     reflection.setReflectionName(materializationFor.getReflectionName());
-    ReflectionType reflectionType = (materializationFor.getReflectionType() != null && !materializationFor.getReflectionType().isEmpty()) ? (materializationFor.getReflectionType().equalsIgnoreCase(AGGREGATION) ? ReflectionType.AGGREGATE : ReflectionType.valueOf(materializationFor.getReflectionType())) : null;
+    ReflectionType reflectionType =
+        (materializationFor.getReflectionType() != null
+                && !materializationFor.getReflectionType().isEmpty())
+            ? (materializationFor.getReflectionType().equalsIgnoreCase(AGGREGATION)
+                ? ReflectionType.AGGREGATE
+                : ReflectionType.valueOf(materializationFor.getReflectionType()))
+            : null;
     reflection.setReflectionType(reflectionType);
     reflection.setReflectionDatasetPath(String.join(".", datasetPathList));
     reflection.setDatasetId(materializationFor.getDatasetId());
     reflections.add(reflection);
   }
 
-  private void extractReflectionFromReflectionRelationship(AccelerationDetails accelerationDetails) {
-    accelerationDetails.getReflectionRelationshipsList().stream().forEach(reflectionRelationship -> {
-      if(Objects.nonNull(reflectionRelationship)) {
-        if (reflectionRelationship.getState() == SubstitutionState.CHOSEN) {
-          addReflectionFromAccelerationDetails(reflectionRelationship, Boolean.TRUE, reflectionsUsed);
-        } else {
-          addReflectionFromAccelerationDetails(reflectionRelationship, Boolean.FALSE, reflectionsMatched);
-        }
-      }
-    });
+  private void extractReflectionFromReflectionRelationship(
+      AccelerationDetails accelerationDetails) {
+    accelerationDetails.getReflectionRelationshipsList().stream()
+        .forEach(
+            reflectionRelationship -> {
+              if (Objects.nonNull(reflectionRelationship)) {
+                if (reflectionRelationship.getState() == SubstitutionState.CHOSEN) {
+                  addReflectionFromAccelerationDetails(
+                      reflectionRelationship, Boolean.TRUE, reflectionsUsed);
+                } else {
+                  addReflectionFromAccelerationDetails(
+                      reflectionRelationship, Boolean.FALSE, reflectionsMatched);
+                }
+              }
+            });
   }
 
-  private void addReflectionFromAccelerationDetails(ReflectionRelationship reflectionRelationship, Boolean isUsed, List<Reflection> reflectionList) {
+  private void addReflectionFromAccelerationDetails(
+      ReflectionRelationship reflectionRelationship,
+      Boolean isUsed,
+      List<Reflection> reflectionList) {
     if (Objects.nonNull(reflectionRelationship)) {
       Reflection reflection = new Reflection();
       LayoutDescriptor reflectionFromRelationShip = reflectionRelationship.getReflection();
@@ -949,21 +821,32 @@ public class JobInfoDetailsUI {
       reflection.setIsStarFlake(reflectionRelationship.getSnowflake());
       reflection.setIsUsed(isUsed);
       if (Objects.nonNull(reflectionRelationship.getReflectionType())) {
-        reflection.setReflectionType(ReflectionType.valueOf(reflectionRelationship.getReflectionType().getNumber()));
+        reflection.setReflectionType(
+            ReflectionType.valueOf(reflectionRelationship.getReflectionType().getNumber()));
       }
       if (Objects.nonNull(reflectionRelationship.getDataset())) {
-        if (Objects.nonNull(reflectionRelationship.getDataset().getPathList()) && reflectionRelationship.getDataset().getPathList().size() > 0) {
-          reflection.setDatasetName(reflectionRelationship.getDataset().getPathList().get(reflectionRelationship.getDataset().getPathList().size() - 1));
-          reflection.setReflectionDatasetPath(String.join(".", reflectionRelationship.getDataset().getPathList()));
+        if (Objects.nonNull(reflectionRelationship.getDataset().getPathList())
+            && reflectionRelationship.getDataset().getPathList().size() > 0) {
+          reflection.setDatasetName(
+              reflectionRelationship
+                  .getDataset()
+                  .getPathList()
+                  .get(reflectionRelationship.getDataset().getPathList().size() - 1));
+          reflection.setReflectionDatasetPath(
+              String.join(".", reflectionRelationship.getDataset().getPathList()));
         }
         reflection.setDatasetId(reflectionRelationship.getDataset().getId());
       }
-      if (Objects.nonNull(reflectionRelationship.getMaterialization()) && Objects.nonNull(reflectionRelationship.getMaterialization().getRefreshChainStartTime())) {
-        reflection.setReflectionCreated(reflectionRelationship.getMaterialization().getRefreshChainStartTime().toString());
+      if (Objects.nonNull(reflectionRelationship.getMaterialization())
+          && Objects.nonNull(
+              reflectionRelationship.getMaterialization().getRefreshChainStartTime())) {
+        reflection.setReflectionCreated(
+            reflectionRelationship.getMaterialization().getRefreshChainStartTime().toString());
       }
       reflectionList.add(reflection);
     }
   }
+
   public void setWlmQueue(String wlmQueue) {
     this.wlmQueue = wlmQueue;
   }

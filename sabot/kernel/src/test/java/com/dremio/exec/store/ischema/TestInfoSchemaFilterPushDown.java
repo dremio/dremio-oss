@@ -18,17 +18,18 @@ package com.dremio.exec.store.ischema;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import com.dremio.PlanTestBase;
 import org.junit.Ignore;
 import org.junit.Test;
-
-import com.dremio.PlanTestBase;
 
 public class TestInfoSchemaFilterPushDown extends PlanTestBase {
 
   @Test
   public void testFilterPushdown_Equal() throws Exception {
-    final String query = "SELECT * FROM INFORMATION_SCHEMA.\"TABLES\" WHERE TABLE_SCHEMA='INFORMATION_SCHEMA'";
-    final String scan = "query=[equals {   field: \"SEARCH_SCHEMA\"   stringValue: \"INFORMATION_SCHEMA\" } ]";
+    final String query =
+        "SELECT * FROM INFORMATION_SCHEMA.\"TABLES\" WHERE TABLE_SCHEMA='INFORMATION_SCHEMA'";
+    final String scan =
+        "query=[equals {   field: \"SEARCH_SCHEMA\"   stringValue: \"INFORMATION_SCHEMA\" } ]";
 
     testHelper(query, scan, false);
   }
@@ -36,15 +37,18 @@ public class TestInfoSchemaFilterPushDown extends PlanTestBase {
   @Ignore("NOT not currently supported")
   @Test
   public void testFilterPushdown_NonEqual() throws Exception {
-    final String query = "SELECT * FROM INFORMATION_SCHEMA.\"TABLES\" WHERE TABLE_SCHEMA <> 'INFORMATION_SCHEMA'";
-    final String scan = "query=[type: NOT not {   clause {     type: TERM     term {       field: \"SEARCH_SCHEMA\"       value: \"INFORMATION_SCHEMA\"     }   } } ]";
+    final String query =
+        "SELECT * FROM INFORMATION_SCHEMA.\"TABLES\" WHERE TABLE_SCHEMA <> 'INFORMATION_SCHEMA'";
+    final String scan =
+        "query=[type: NOT not {   clause {     type: TERM     term {       field: \"SEARCH_SCHEMA\"       value: \"INFORMATION_SCHEMA\"     }   } } ]";
 
     testHelper(query, scan, false);
   }
 
   @Test
   public void testFilterPushdown_LikeWithPercent() throws Exception {
-    final String query = "SELECT * FROM INFORMATION_SCHEMA.\"TABLES\" WHERE TABLE_SCHEMA LIKE '%SCH%'";
+    final String query =
+        "SELECT * FROM INFORMATION_SCHEMA.\"TABLES\" WHERE TABLE_SCHEMA LIKE '%SCH%'";
     final String scan = "query=[like {   field: \"SEARCH_SCHEMA\"   pattern: \"%SCH%\" } ]";
 
     testHelper(query, scan, false);
@@ -52,33 +56,40 @@ public class TestInfoSchemaFilterPushDown extends PlanTestBase {
 
   @Test
   public void testFilterPushdown_LikeWithUnderscore() throws Exception {
-    final String query = "SELECT * FROM INFORMATION_SCHEMA.\"TABLES\" WHERE TABLE_SCHEMA LIKE 'SOURCE_1.FOLDER_'";
-    final String scan = "query=[like {   field: \"SEARCH_SCHEMA\"   pattern: \"SOURCE_1.FOLDER_\" } ]";
+    final String query =
+        "SELECT * FROM INFORMATION_SCHEMA.\"TABLES\" WHERE TABLE_SCHEMA LIKE 'SOURCE_1.FOLDER_'";
+    final String scan =
+        "query=[like {   field: \"SEARCH_SCHEMA\"   pattern: \"SOURCE_1.FOLDER_\" } ]";
 
     testHelper(query, scan, false);
   }
 
   @Test
   public void testFilterPushdown_LikeMixedWithPercentAndUnderscore() throws Exception {
-    final String query = "SELECT * FROM INFORMATION_SCHEMA.\"TABLES\" WHERE TABLE_SCHEMA LIKE 'SOURCE%1.FOLDER_'";
-    final String scan = "query=[like {   field: \"SEARCH_SCHEMA\"   pattern: \"SOURCE%1.FOLDER_\" } ]";
+    final String query =
+        "SELECT * FROM INFORMATION_SCHEMA.\"TABLES\" WHERE TABLE_SCHEMA LIKE 'SOURCE%1.FOLDER_'";
+    final String scan =
+        "query=[like {   field: \"SEARCH_SCHEMA\"   pattern: \"SOURCE%1.FOLDER_\" } ]";
 
     testHelper(query, scan, false);
   }
 
   @Test
   public void testFilterPushdown_LikeWithEscape() throws Exception {
-    final String query = "SELECT * FROM INFORMATION_SCHEMA.\"TABLES\" WHERE TABLE_SCHEMA LIKE '%\\\\SCH%' ESCAPE '\\'";
-    final String scan = "query=[like {   field: \"SEARCH_SCHEMA\"   pattern: \"%\\\\\\\\SCH%\"   escape: \"\\\\\" } ])";
+    final String query =
+        "SELECT * FROM INFORMATION_SCHEMA.\"TABLES\" WHERE TABLE_SCHEMA LIKE '%\\\\SCH%' ESCAPE '\\'";
+    final String scan =
+        "query=[like {   field: \"SEARCH_SCHEMA\"   pattern: \"%\\\\\\\\SCH%\"   escape: \"\\\\\" } ])";
 
     testHelper(query, scan, false);
   }
 
   @Test
   public void testFilterPushdown_And() throws Exception {
-    final String query = "SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE " +
-        "TABLE_SCHEMA = 'sys' AND " +
-        "TABLE_NAME <> 'version'";
+    final String query =
+        "SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE "
+            + "TABLE_SCHEMA = 'sys' AND "
+            + "TABLE_NAME <> 'version'";
     final String scan = "query=[equals {   field: \"SEARCH_SCHEMA\"   stringValue: \"sys\" } ]";
 
     testHelper(query, scan, true);
@@ -87,89 +98,143 @@ public class TestInfoSchemaFilterPushDown extends PlanTestBase {
   @Ignore("NOT not currently supported")
   @Test
   public void testFilterPushdown_Or() throws Exception {
-    final String query = "SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE " +
-        "TABLE_SCHEMA = 'sys' OR " +
-        "TABLE_NAME <> 'version' OR " +
-        "TABLE_SCHEMA like '%sdfgjk%'";
-    final String scan = "query=[type: BOOLEAN boolean {   op: OR   clauses {     type: TERM     term {       field: \"SEARCH_SCHEMA\"       value: \"sys\"     }   }   clauses {     type: NOT     not {       clause {         type: TERM         term {           field: \"SEARCH_NAME\"           value: \"version\"         }       }     }   }   clauses {     type: WILDCARD     wildcard {       field: \"SEARCH_SCHEMA\"       value: \"*sdfgjk*\"     }   } } ]";
+    final String query =
+        "SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE "
+            + "TABLE_SCHEMA = 'sys' OR "
+            + "TABLE_NAME <> 'version' OR "
+            + "TABLE_SCHEMA like '%sdfgjk%'";
+    final String scan =
+        "query=[type: BOOLEAN boolean {   op: OR   clauses {     type: TERM     term {       field: \"SEARCH_SCHEMA\"       value: \"sys\"     }   }   clauses {     type: NOT     not {       clause {         type: TERM         term {           field: \"SEARCH_NAME\"           value: \"version\"         }       }     }   }   clauses {     type: WILDCARD     wildcard {       field: \"SEARCH_SCHEMA\"       value: \"*sdfgjk*\"     }   } } ]";
 
     testHelper(query, scan, false);
   }
 
   @Test
   public void testFilterPushdown_Having() throws Exception {
-    final String query = "SELECT TABLE_SCHEMA,TABLE_NAME FROM INFORMATION_SCHEMA.\"TABLES\" WHERE (TABLE_SCHEMA = 'sys') group by TABLE_SCHEMA,TABLE_NAME"+
-  " HAVING TABLE_NAME LIKE 'ref%'"+
-  " ORDER BY 1, 2 ASC";
-    final String scan = "query=[and {   clauses {     equals {       field: \"SEARCH_SCHEMA\"       stringValue: \"sys\"     }   }   clauses {     like {       field: \"SEARCH_NAME\"       pattern: \"ref%\"     }   } } ]";
+    final String query =
+        "SELECT TABLE_SCHEMA,TABLE_NAME FROM INFORMATION_SCHEMA.\"TABLES\" WHERE (TABLE_SCHEMA = 'sys') group by TABLE_SCHEMA,TABLE_NAME"
+            + " HAVING TABLE_NAME LIKE 'ref%'"
+            + " ORDER BY 1, 2 ASC";
+    final String scan =
+        "query=[and {   clauses {     equals {       field: \"SEARCH_SCHEMA\"       stringValue: \"sys\"     }   }   clauses {     like {       field: \"SEARCH_NAME\"       pattern: \"ref%\"     }   } } ]";
     testHelper(query, scan, false);
   }
 
-
   @Test
   public void testFilterPushdown_OrEqLike() throws Exception {
-    final String query ="SELECT DISTINCT TABLE_SCHEMA,TABLE_NAME FROM INFORMATION_SCHEMA.\"TABLES\" WHERE  "+
-      "TABLE_SCHEMA = 'sys'  "+
-      "OR TABLE_SCHEMA LIKE 'sys.%'ORDER BY 1, 2 ASC";
-    final String scan = "query=[or {   clauses {     equals {       field: \"SEARCH_SCHEMA\"       stringValue: \"sys\"     }   }   clauses {     like {       field: \"SEARCH_SCHEMA\"       pattern: \"sys.%\"     }   } } ]";
+    final String query =
+        "SELECT DISTINCT TABLE_SCHEMA,TABLE_NAME FROM INFORMATION_SCHEMA.\"TABLES\" WHERE  "
+            + "TABLE_SCHEMA = 'sys'  "
+            + "OR TABLE_SCHEMA LIKE 'sys.%'ORDER BY 1, 2 ASC";
+    final String scan =
+        "query=[or {   clauses {     equals {       field: \"SEARCH_SCHEMA\"       stringValue: \"sys\"     }   }   clauses {     like {       field: \"SEARCH_SCHEMA\"       pattern: \"sys.%\"     }   } } ]";
     testHelper(query, scan, false);
   }
 
   @Test
   public void testFilterPushdown_OrIn() throws Exception {
-    final String query ="SELECT DISTINCT TABLE_NAME, COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE "+
-      "TABLE_NAME IN ('COLUMNS','fragments') order by 1 ASC";
+    final String query =
+        "SELECT DISTINCT TABLE_NAME, COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE "
+            + "TABLE_NAME IN ('COLUMNS','fragments') order by 1 ASC";
 
-    final String scan = "query=[or {   clauses {     equals {       field: \"SEARCH_NAME\"       stringValue: \"COLUMNS\"     }   }   clauses {     equals {       field: \"SEARCH_NAME\"       stringValue: \"fragments\"     }   } } ]";
+    final String scan =
+        "query=[or {   clauses {     equals {       field: \"SEARCH_NAME\"       stringValue: \"COLUMNS\"     }   }   clauses {     equals {       field: \"SEARCH_NAME\"       stringValue: \"fragments\"     }   } } ]";
     testHelper(query, scan, false);
   }
 
   @Test
   public void testFilterPushDownWithProject_Equal() throws Exception {
-    final String query = "SELECT COLUMN_NAME from INFORMATION_SCHEMA.\"COLUMNS\" WHERE TABLE_SCHEMA = 'INFORMATION_SCHEMA'";
-    final String scan = "query=[equals {   field: \"SEARCH_SCHEMA\"   stringValue: \"INFORMATION_SCHEMA\" } ]";
+    final String query =
+        "SELECT COLUMN_NAME from INFORMATION_SCHEMA.\"COLUMNS\" WHERE TABLE_SCHEMA = 'INFORMATION_SCHEMA'";
+    final String scan =
+        "query=[equals {   field: \"SEARCH_SCHEMA\"   stringValue: \"INFORMATION_SCHEMA\" } ]";
     testHelper(query, scan, false);
   }
 
   @Ignore("NOT not currently supported")
   @Test
   public void testFilterPushDownWithProject_NotEqual() throws Exception {
-    final String query = "SELECT COLUMN_NAME from INFORMATION_SCHEMA.\"COLUMNS\" WHERE TABLE_NAME <> 'TABLES'";
-    final String scan = "query=[type: NOT not {   clause {     type: TERM     term {       field: \"SEARCH_NAME\"       value: \"TABLES\"     }   } } ]";
+    final String query =
+        "SELECT COLUMN_NAME from INFORMATION_SCHEMA.\"COLUMNS\" WHERE TABLE_NAME <> 'TABLES'";
+    final String scan =
+        "query=[type: NOT not {   clause {     type: TERM     term {       field: \"SEARCH_NAME\"       value: \"TABLES\"     }   } } ]";
     testHelper(query, scan, false);
   }
 
   @Test
   public void testFilterPushDownWithProject_Like() throws Exception {
-    final String query = "SELECT COLUMN_NAME from INFORMATION_SCHEMA.\"COLUMNS\" WHERE TABLE_NAME LIKE '%BL%'";
+    final String query =
+        "SELECT COLUMN_NAME from INFORMATION_SCHEMA.\"COLUMNS\" WHERE TABLE_NAME LIKE '%BL%'";
     final String scan = "query=[like {   field: \"SEARCH_NAME\"   pattern: \"%BL%\" } ]";
     testHelper(query, scan, false);
   }
 
   @Test
   public void testPartialFilterPushDownWithProject() throws Exception {
-    final String query = "SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE " +
-        "TABLE_SCHEMA = 'sys' AND " +
-        "TABLE_NAME = 'version' AND " +
-        "COLUMN_NAME like 'commit%s' AND " + // this is not expected to pushdown into scan
-        "IS_NULLABLE = 'YES'"; // this is not expected to pushdown into scan
-    final String scan = "query=[and {   clauses {     equals {       field: \"SEARCH_SCHEMA\"       stringValue: \"sys\"     }   }   clauses {     equals {       field: \"SEARCH_NAME\"       stringValue: \"version\"     }   } } ]";
+    final String query =
+        "SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE "
+            + "TABLE_SCHEMA = 'sys' AND "
+            + "TABLE_NAME = 'version' AND "
+            + "COLUMN_NAME like 'commit%s' AND "
+            + // this is not expected to pushdown into scan
+            "IS_NULLABLE = 'YES'"; // this is not expected to pushdown into scan
+    final String scan =
+        "query=[and {   clauses {     equals {       field: \"SEARCH_SCHEMA\"       stringValue: \"sys\"     }   }   clauses {     equals {       field: \"SEARCH_NAME\"       stringValue: \"version\"     }   } } ]";
     testHelper(query, scan, true);
   }
 
+  @Test
+  public void testFilterPushdownWithFunctionPrel() throws Exception {
+    final String query =
+        "SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE "
+            + "UPPER(TABLE_SCHEMA) = 'SYS' AND "
+            + "LOWER(TABLE_NAME) = 'version'";
+    final String scan =
+        "query=[and {   clauses {     equals {       field: \"SEARCH_SCHEMA_LC\"       stringValue: \"sys\"     }   }   clauses {     equals {       field: \"SEARCH_NAME_LC\"       stringValue: \"version\"     }   } } ]";
+    testHelper(query, scan, true);
+  }
 
-  private void testHelper(final String query, String filterInScan, boolean filterPrelExpected) throws Exception {
+  @Test
+  public void testFilterPushdownWithFunctionPrel_HiveFuncs() throws Exception {
+    final String query =
+        "SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE "
+            + "UCASE(TABLE_SCHEMA) = 'SYS' AND "
+            + "LCASE(TABLE_NAME) = 'version'";
+    final String scan =
+        "query=[and {   clauses {     equals {       field: \"SEARCH_SCHEMA_LC\"       stringValue: \"sys\"     }   }   clauses {     equals {       field: \"SEARCH_NAME_LC\"       stringValue: \"version\"     }   } } ]";
+    testHelper(query, scan, true);
+  }
+
+  @Test
+  public void testFilterPushdownWithFunctionPrel_Like() throws Exception {
+    final String query =
+        "SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE "
+            + "UPPER(TABLE_SCHEMA) LIKE 'SYS.%' AND "
+            + "LOWER(TABLE_NAME) LIKE 'ref%'";
+    final String scan =
+        "query=[and {   clauses {     like {       field: \"SEARCH_SCHEMA_LC\"       pattern: \"sys.%\"     }   }   clauses {     like {       field: \"SEARCH_NAME_LC\"       pattern: \"ref%\"     }   } } ]";
+    testHelper(query, scan, true);
+  }
+
+  private void testHelper(final String query, String filterInScan, boolean filterPrelExpected)
+      throws Exception {
     final String plan = getPlanInString("EXPLAIN PLAN FOR " + query, OPTIQ_FORMAT);
 
     if (!filterPrelExpected) {
       // If filter prel is not expected, make sure it is not in plan
-      assertFalse(String.format("Expected plan to not contain filter, however it did.\n %s", plan), plan.contains("Filter("));
+      assertFalse(
+          String.format("Expected plan to not contain filter, however it did.\n %s", plan),
+          plan.contains("Filter("));
     } else {
-      assertTrue(String.format("Expected plan to contain filter and did not.\n %s", plan), plan.contains("Filter("));
+      assertTrue(
+          String.format("Expected plan to contain filter and did not.\n %s", plan),
+          plan.contains("Filter("));
     }
 
     // Check for filter pushed into scan.
-    assertTrue(String.format("Expected plan to contain %s, however it did not.\n %s", filterInScan, plan), plan.contains(filterInScan));
+    assertTrue(
+        String.format("Expected plan to contain %s, however it did not.\n %s", filterInScan, plan),
+        plan.contains(filterInScan));
 
     // run the query
     test(query);

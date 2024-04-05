@@ -17,9 +17,7 @@ package com.dremio.datastore.api;
 
 import com.dremio.datastore.api.LegacyKVStoreProvider.LegacyStoreBuilder;
 
-/**
- * Internal Interface for defining how to build a legacy kv store.
- */
+/** Internal Interface for defining how to build a legacy kv store. */
 @Deprecated
 @FunctionalInterface
 public interface LegacyStoreBuildingFactory {

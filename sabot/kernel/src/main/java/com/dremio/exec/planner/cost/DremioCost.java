@@ -16,34 +16,30 @@
 
 package com.dremio.exec.planner.cost;
 
+import com.google.common.base.Objects;
 import org.apache.calcite.plan.RelOptUtil;
 
-import com.google.common.base.Objects;
-
-/**
- * Implementation of the RelOptCost, modeled similar to VolcanoCost
- */
+/** Implementation of the RelOptCost, modeled similar to VolcanoCost */
 public class DremioCost implements RelOptCost {
 
   /**
-   * NOTE: the multiplication factors below are not calibrated yet...these
-   * are chosen based on approximations for now. For reference purposes,
-   * assume each disk on a server can have a sustained I/O throughput of
-   * 100 MBytes/sec.  Suppose there is an array of 16 disks per server..theoretically
-   * one could get 1.6GBytes/sec. Suppose network speed is 1GBit/sec which is
-   * 128MBytes/sec, although actual transfer rate over the network may be lower.
-   * We are only concerned with relative costs, not absolute values.
-   * For relative costing, let's assume sending data over the network is
-   * about 16x slower than reading/writing to an array of local disks.
+   * NOTE: the multiplication factors below are not calibrated yet...these are chosen based on
+   * approximations for now. For reference purposes, assume each disk on a server can have a
+   * sustained I/O throughput of 100 MBytes/sec. Suppose there is an array of 16 disks per
+   * server..theoretically one could get 1.6GBytes/sec. Suppose network speed is 1GBit/sec which is
+   * 128MBytes/sec, although actual transfer rate over the network may be lower. We are only
+   * concerned with relative costs, not absolute values. For relative costing, let's assume sending
+   * data over the network is about 16x slower than reading/writing to an array of local disks.
    */
-  public static final int BASE_CPU_COST = 1;                        // base cpu cost per 'operation'
-  public static final int BYTE_DISK_READ_COST = 32 * BASE_CPU_COST;    // disk read cost per byte
-  public static final int BYTE_NETWORK_COST = 16 * BYTE_DISK_READ_COST; // network transfer cost per byte
-  public static final int BYTE_DISK_WRITE_COST = 35 * BASE_CPU_COST;    // disk write cost per byte
+  public static final int BASE_CPU_COST = 1; // base cpu cost per 'operation'
 
+  public static final int BYTE_DISK_READ_COST = 32 * BASE_CPU_COST; // disk read cost per byte
+  public static final int BYTE_NETWORK_COST =
+      16 * BYTE_DISK_READ_COST; // network transfer cost per byte
+  public static final int BYTE_DISK_WRITE_COST = 35 * BASE_CPU_COST; // disk write cost per byte
 
-  public static final int SVR_CPU_COST = 8 * BASE_CPU_COST;          // cpu cost for SV remover
-  public static final int FUNC_CPU_COST = 12 * BASE_CPU_COST;         // cpu cost for a function evaluation
+  public static final int SVR_CPU_COST = 8 * BASE_CPU_COST; // cpu cost for SV remover
+  public static final int FUNC_CPU_COST = 12 * BASE_CPU_COST; // cpu cost for a function evaluation
 
   // cpu cost for projecting an expression; note that projecting an expression
   // that is not a simple column or constant may include evaluation, but we
@@ -51,7 +47,8 @@ public class DremioCost implements RelOptCost {
   public static final int PROJECT_CPU_COST = 4 * BASE_CPU_COST;
   public static final double PROJECT_SIMPLE_CPU_COST = 0.00001 * BASE_CPU_COST;
 
-  // hash cpu cost per field (for now we don't distinguish between fields of different types) involves
+  // hash cpu cost per field (for now we don't distinguish between fields of different types)
+  // involves
   // the cost of the following operations:
   // compute hash value, probe hash table, walk hash chain and compare with each element,
   // add to the end of hash chain if no match found
@@ -72,21 +69,18 @@ public class DremioCost implements RelOptCost {
   public static final int COPY_COST = 1 * BASE_CPU_COST;
 
   public static final long LARGE_ROW_COUNT = 1_000_000_000L;
-  public static final long LARGE_FILE_COUNT = 50_000L; // large file count for metadata scan operations
+  public static final long LARGE_FILE_COUNT =
+      50_000L; // large file count for metadata scan operations
 
   // Default cost for unknown cost and row count.
   public static final double BIG_ROW_COUNT = 1_000_000_000D;
 
-  /** For the costing formulas in computeSelfCost(), assume the following notations:
-  * Let
-  *   C = Cost per node.
-  *   k = number of fields on which to distribute on
-  *   h = CPU cost of computing hash value on 1 field
-  *   s = CPU cost of Selection-Vector remover per row
-  *   w = Network cost of sending 1 row to 1 destination
-  *   c = CPU cost of comparing an incoming row with one on a heap of size N
-  */
-
+  /**
+   * For the costing formulas in computeSelfCost(), assume the following notations: Let C = Cost per
+   * node. k = number of fields on which to distribute on h = CPU cost of computing hash value on 1
+   * field s = CPU cost of Selection-Vector remover per row w = Network cost of sending 1 row to 1
+   * destination c = CPU cost of comparing an incoming row with one on a heap of size N
+   */
   static final DremioCost INFINITY =
       new DremioCost(
           Double.POSITIVE_INFINITY,
@@ -100,10 +94,7 @@ public class DremioCost implements RelOptCost {
       };
 
   static final DremioCost HUGE =
-      new DremioCost(Double.MAX_VALUE,
-        Double.MAX_VALUE,
-        Double.MAX_VALUE,
-        Double.MAX_VALUE) {
+      new DremioCost(Double.MAX_VALUE, Double.MAX_VALUE, Double.MAX_VALUE, Double.MAX_VALUE) {
         @Override
         public String toString() {
           return "{huge}";
@@ -176,11 +167,11 @@ public class DremioCost implements RelOptCost {
   @Override
   public boolean isInfinite() {
     return (this == INFINITY)
-      || (this.cpu == Double.POSITIVE_INFINITY)
-      || (this.io == Double.POSITIVE_INFINITY)
-      || (this.network == Double.POSITIVE_INFINITY)
-      || (this.rowCount == Double.POSITIVE_INFINITY)
-      || (this.memory == Double.POSITIVE_INFINITY) ;
+        || (this.cpu == Double.POSITIVE_INFINITY)
+        || (this.io == Double.POSITIVE_INFINITY)
+        || (this.network == Double.POSITIVE_INFINITY)
+        || (this.rowCount == Double.POSITIVE_INFINITY)
+        || (this.memory == Double.POSITIVE_INFINITY);
   }
 
   @Override
@@ -218,20 +209,18 @@ public class DremioCost implements RelOptCost {
     }
     DremioCost that = (DremioCost) other;
     return (this == that)
-      || ((Math.abs(this.cpu - that.cpu) < RelOptUtil.EPSILON)
-          && (Math.abs(this.io - that.io) < RelOptUtil.EPSILON)
-          && (Math.abs(this.network - that.network) < RelOptUtil.EPSILON)
-          && (Math.abs(this.rowCount - that.rowCount) < RelOptUtil.EPSILON)
-          && (Math.abs(this.memory - that.memory) < RelOptUtil.EPSILON));
+        || ((Math.abs(this.cpu - that.cpu) < RelOptUtil.EPSILON)
+            && (Math.abs(this.io - that.io) < RelOptUtil.EPSILON)
+            && (Math.abs(this.network - that.network) < RelOptUtil.EPSILON)
+            && (Math.abs(this.rowCount - that.rowCount) < RelOptUtil.EPSILON)
+            && (Math.abs(this.memory - that.memory) < RelOptUtil.EPSILON));
   }
 
   @Override
   public boolean isLe(org.apache.calcite.plan.RelOptCost other) {
     DremioCost that = (DremioCost) other;
 
-    return this == that
-      || this.equals(other)
-      || this.isLt(other);
+    return this == that || this.equals(other) || this.isLt(other);
   }
 
   @Override
@@ -240,10 +229,11 @@ public class DremioCost implements RelOptCost {
 
     // Compare the difference of each cost factor one-by-one instead of aggregating them together
     // to minimize issues from double truncation.
-    return (that.cpu - this.cpu) +
-      (that.io - this.io) +
-      (that.network - this.network) +
-      (that.memory - this.memory) * DremioCost.MEMORY_TO_CPU_RATIO > 0;
+    return (that.cpu - this.cpu)
+            + (that.io - this.io)
+            + (that.network - this.network)
+            + (that.memory - this.memory) * DremioCost.MEMORY_TO_CPU_RATIO
+        > 0;
   }
 
   @Override
@@ -279,7 +269,8 @@ public class DremioCost implements RelOptCost {
     if (this == INFINITY) {
       return this;
     }
-    return new DremioCost(rowCount * factor, cpu * factor, io * factor, network * factor, memory * factor);
+    return new DremioCost(
+        rowCount * factor, cpu * factor, io * factor, network * factor, memory * factor);
   }
 
   @Override
@@ -326,19 +317,29 @@ public class DremioCost implements RelOptCost {
 
   @Override
   public String toString() {
-    return "{" + rowCount + " rows, " + cpu + " cpu, " + io + " io, " + network + " network, " + memory + " memory}";
+    return "{"
+        + rowCount
+        + " rows, "
+        + cpu
+        + " cpu, "
+        + io
+        + " io, "
+        + network
+        + " network, "
+        + memory
+        + " memory}";
   }
 
-  /**
-   * Returns the aggregate cost from given {@link org.apache.calcite.plan.RelOptCost} cost.
-   *
-   */
+  /** Returns the aggregate cost from given {@link org.apache.calcite.plan.RelOptCost} cost. */
   public static double aggregateCost(final org.apache.calcite.plan.RelOptCost cost) {
-    final double aggCost = DremioCost.BASE_CPU_COST * cost.getCpu() + DremioCost.BYTE_DISK_READ_COST * cost.getIo();
+    final double aggCost =
+        DremioCost.BASE_CPU_COST * cost.getCpu() + DremioCost.BYTE_DISK_READ_COST * cost.getIo();
 
     if (cost instanceof DremioCost) {
       final DremioCost dremioCost = (DremioCost) cost;
-      return aggCost + DremioCost.BYTE_NETWORK_COST * dremioCost.getNetwork() + dremioCost.getMemory()  * DremioCost.BASE_CPU_COST / DremioCost.MEMORY_TO_CPU_RATIO;
+      return aggCost
+          + DremioCost.BYTE_NETWORK_COST * dremioCost.getNetwork()
+          + dremioCost.getMemory() * DremioCost.BASE_CPU_COST / DremioCost.MEMORY_TO_CPU_RATIO;
     }
 
     return aggCost;
@@ -347,7 +348,8 @@ public class DremioCost implements RelOptCost {
   public static class Factory implements RelOptCostFactory {
 
     @Override
-    public DremioCost makeCost(double dRows, double dCpu, double dIo, double dNetwork, double dMemory) {
+    public DremioCost makeCost(
+        double dRows, double dCpu, double dIo, double dNetwork, double dMemory) {
       return new DremioCost(dRows, dCpu, dIo, dNetwork, dMemory);
     }
 
@@ -381,5 +383,4 @@ public class DremioCost implements RelOptCost {
       return DremioCost.ZERO;
     }
   }
-
 }

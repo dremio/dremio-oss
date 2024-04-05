@@ -23,9 +23,7 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.spi.BatchStreamProvider;
 import com.dremio.sabot.op.spi.ProducerOperator;
 
-/**
- * Impl for sender operator that reads from a file, instead of a socket.
- */
+/** Impl for sender operator that reads from a file, instead of a socket. */
 public class BridgeFileReaderOperator extends AbstractBridgeReaderOperator {
   public enum Metric implements MetricDef {
     BYTES_READ;
@@ -37,11 +35,10 @@ public class BridgeFileReaderOperator extends AbstractBridgeReaderOperator {
   }
 
   public BridgeFileReaderOperator(
-    BatchStreamProvider streams,
-    OperatorContext context,
-    BatchSchema batchSchema,
-    String bridgeSetId)
-  {
+      BatchStreamProvider streams,
+      OperatorContext context,
+      BatchSchema batchSchema,
+      String bridgeSetId) {
     super(streams, context, batchSchema, bridgeSetId);
   }
 
@@ -52,10 +49,12 @@ public class BridgeFileReaderOperator extends AbstractBridgeReaderOperator {
 
   public static class Creator implements ReceiverCreator<BridgeFileReader> {
     @Override
-    public ProducerOperator create(BatchStreamProvider streams, OperatorContext context, BridgeFileReader config)
-      throws ExecutionSetupException {
+    public ProducerOperator create(
+        BatchStreamProvider streams, OperatorContext context, BridgeFileReader config)
+        throws ExecutionSetupException {
 
-      return new BridgeFileReaderOperator(streams, context, config.getFullSchema(), config.getBridgeSetId());
+      return new BridgeFileReaderOperator(
+          streams, context, config.getFullSchema(), config.getBridgeSetId());
     }
   }
 }

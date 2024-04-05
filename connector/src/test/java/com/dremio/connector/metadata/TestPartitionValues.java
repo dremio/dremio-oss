@@ -18,15 +18,11 @@ package com.dremio.connector.metadata;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import com.dremio.connector.metadata.PartitionValue.PartitionValueType;
 import java.nio.ByteBuffer;
-
 import org.junit.Test;
 
-import com.dremio.connector.metadata.PartitionValue.PartitionValueType;
-
-/**
- *Test class for PartitionValues
- */
+/** Test class for PartitionValues */
 public class TestPartitionValues {
 
   @Test
@@ -35,13 +31,14 @@ public class TestPartitionValues {
     int value2 = 2;
 
     assertTrue(PartitionValue.of("x", value1).equals(PartitionValue.of("x", value1)));
-    assertTrue(PartitionValue.of("x", value1).hashCode() ==
-      PartitionValue.of("x", value1).hashCode());
+    assertTrue(
+        PartitionValue.of("x", value1).hashCode() == PartitionValue.of("x", value1).hashCode());
 
     assertFalse(PartitionValue.of("x", value1).equals(PartitionValue.of("x", value2)));
     assertFalse(PartitionValue.of("x", value1).equals(PartitionValue.of("y", value1)));
-    assertFalse(PartitionValue.of("x", value1).equals(PartitionValue.of("x", value1,
-      PartitionValueType.INVISIBLE)));
+    assertFalse(
+        PartitionValue.of("x", value1)
+            .equals(PartitionValue.of("x", value1, PartitionValueType.INVISIBLE)));
   }
 
   @Test
@@ -50,8 +47,8 @@ public class TestPartitionValues {
     long value2 = 2;
 
     assertTrue(PartitionValue.of("x", value1).equals(PartitionValue.of("x", value1)));
-    assertTrue(PartitionValue.of("x", value1).hashCode() ==
-      PartitionValue.of("x", value1).hashCode());
+    assertTrue(
+        PartitionValue.of("x", value1).hashCode() == PartitionValue.of("x", value1).hashCode());
 
     assertFalse(PartitionValue.of("x", value1).equals(PartitionValue.of("x", value2)));
     assertFalse(PartitionValue.of("x", value1).equals(PartitionValue.of("y", value1)));
@@ -63,8 +60,8 @@ public class TestPartitionValues {
     float value2 = 2;
 
     assertTrue(PartitionValue.of("x", value1).equals(PartitionValue.of("x", value1)));
-    assertTrue(PartitionValue.of("x", value1).hashCode() ==
-      PartitionValue.of("x", value1).hashCode());
+    assertTrue(
+        PartitionValue.of("x", value1).hashCode() == PartitionValue.of("x", value1).hashCode());
 
     assertFalse(PartitionValue.of("x", value1).equals(PartitionValue.of("x", value2)));
     assertFalse(PartitionValue.of("x", value1).equals(PartitionValue.of("y", value1)));
@@ -76,8 +73,8 @@ public class TestPartitionValues {
     double value2 = 2;
 
     assertTrue(PartitionValue.of("x", value1).equals(PartitionValue.of("x", value1)));
-    assertTrue(PartitionValue.of("x", value1).hashCode() ==
-      PartitionValue.of("x", value1).hashCode());
+    assertTrue(
+        PartitionValue.of("x", value1).hashCode() == PartitionValue.of("x", value1).hashCode());
 
     assertFalse(PartitionValue.of("x", value1).equals(PartitionValue.of("x", value2)));
     assertFalse(PartitionValue.of("x", value1).equals(PartitionValue.of("y", value1)));
@@ -89,8 +86,8 @@ public class TestPartitionValues {
     boolean value2 = false;
 
     assertTrue(PartitionValue.of("x", value1).equals(PartitionValue.of("x", value1)));
-    assertTrue(PartitionValue.of("x", value1).hashCode() ==
-      PartitionValue.of("x", value1).hashCode());
+    assertTrue(
+        PartitionValue.of("x", value1).hashCode() == PartitionValue.of("x", value1).hashCode());
 
     assertFalse(PartitionValue.of("x", value1).equals(PartitionValue.of("x", value2)));
     assertFalse(PartitionValue.of("x", value1).equals(PartitionValue.of("y", value1)));
@@ -108,9 +105,9 @@ public class TestPartitionValues {
     assertFalse(PartitionValue.of("x", value1).equals(PartitionValue.of("x", value2)));
 
     // test nulls
-    assertTrue(PartitionValue.of("x", (String)null).equals(PartitionValue.of("x", (String)null)));
-    assertFalse(PartitionValue.of("x", (String)null).equals(PartitionValue.of("x", value2)));
-    assertFalse(PartitionValue.of("x", value1).equals(PartitionValue.of("x", (String)null)));
+    assertTrue(PartitionValue.of("x", (String) null).equals(PartitionValue.of("x", (String) null)));
+    assertFalse(PartitionValue.of("x", (String) null).equals(PartitionValue.of("x", value2)));
+    assertFalse(PartitionValue.of("x", value1).equals(PartitionValue.of("x", (String) null)));
   }
 
   @Test
@@ -120,12 +117,14 @@ public class TestPartitionValues {
 
     assertTrue(PartitionValue.of("x", value1).equals(PartitionValue.of("x", value1)));
     assertTrue(
-      PartitionValue.of("x", value1).hashCode() == PartitionValue.of("x", value1).hashCode());
+        PartitionValue.of("x", value1).hashCode() == PartitionValue.of("x", value1).hashCode());
 
     assertFalse(PartitionValue.of("x", value1).equals(PartitionValue.of("x", value2)));
 
     // test nulls
-    assertTrue(PartitionValue.of("x", (ByteBuffer) null).equals(PartitionValue.of("x", (ByteBuffer) null)));
+    assertTrue(
+        PartitionValue.of("x", (ByteBuffer) null)
+            .equals(PartitionValue.of("x", (ByteBuffer) null)));
     assertFalse(PartitionValue.of("x", (ByteBuffer) null).equals(PartitionValue.of("x", value2)));
     assertFalse(PartitionValue.of("x", value1).equals(PartitionValue.of("x", (ByteBuffer) null)));
   }

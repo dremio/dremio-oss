@@ -15,11 +15,8 @@
  */
 package com.dremio.dac.model.common;
 
-/**
- * All resources that have a resourcePath field with their resourcePath
- */
+/** All resources that have a resourcePath field with their resourcePath */
 public interface AddressableResource {
 
   ResourcePath getResourcePath();
-
 }

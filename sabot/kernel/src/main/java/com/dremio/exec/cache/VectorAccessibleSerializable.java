@@ -15,25 +15,6 @@
  */
 package com.dremio.exec.cache;
 
-import java.io.EOFException;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.util.Arrays;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.types.SerializedFieldHelper;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.parquet.io.SeekableInputStream;
-import org.xerial.snappy.Snappy;
-
 import com.dremio.common.AutoCloseables.RollbackCloseable;
 import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.proto.UserBitShared;
@@ -49,38 +30,59 @@ import com.dremio.telemetry.api.metrics.Timer.TimerContext;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Lists;
-
 import io.netty.util.internal.PlatformDependent;
+import java.io.EOFException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.types.SerializedFieldHelper;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.parquet.io.SeekableInputStream;
+import org.xerial.snappy.Snappy;
 
 /**
- * A wrapper around a VectorAccessible. Will serialize a VectorAccessible and write to an OutputStream, or can read
- * from an InputStream and construct a new VectorContainer.
+ * A wrapper around a VectorAccessible. Will serialize a VectorAccessible and write to an
+ * OutputStream, or can read from an InputStream and construct a new VectorContainer.
  */
 public class VectorAccessibleSerializable extends AbstractStreamSerializable {
-  private static final Timer WRITER_TIMER = Metrics.newTimer(Metrics.join(VectorAccessibleSerializable.class.getName(), "writerTime"), ResetType.NEVER);
+  private static final Timer WRITER_TIMER =
+      Metrics.newTimer(
+          Metrics.join(VectorAccessibleSerializable.class.getName(), "writerTime"),
+          ResetType.NEVER);
 
   static final int COMPRESSED_LENGTH_BYTES = 4;
-  public static final int RAW_CHUNK_SIZE_TO_COMPRESS = 32*1024;
+  public static final int RAW_CHUNK_SIZE_TO_COMPRESS = 32 * 1024;
 
   /*
    * A reusable buffer for I/O operations to avoid GC churn by creating too many byte arrays
    */
-  private static final ThreadLocal<byte[]> REUSABLE_LARGE_BUFFER = new ThreadLocal<byte[]>() {
-    @Override
-    protected byte[] initialValue() {
-      return new byte[RAW_CHUNK_SIZE_TO_COMPRESS*2];
-    }
-  };
+  private static final ThreadLocal<byte[]> REUSABLE_LARGE_BUFFER =
+      new ThreadLocal<byte[]>() {
+        @Override
+        protected byte[] initialValue() {
+          return new byte[RAW_CHUNK_SIZE_TO_COMPRESS * 2];
+        }
+      };
 
   /*
    * A reusable buffer for int to array conversions
    */
-  private static final ThreadLocal<byte[]> REUSABLE_SMALL_BUFFER = new ThreadLocal<byte[]>() {
-    @Override
-    protected byte[] initialValue() {
-      return new byte[Integer.SIZE / Byte.SIZE];
-    }
-  };
+  private static final ThreadLocal<byte[]> REUSABLE_SMALL_BUFFER =
+      new ThreadLocal<byte[]>() {
+        @Override
+        protected byte[] initialValue() {
+          return new byte[Integer.SIZE / Byte.SIZE];
+        }
+      };
 
   private VectorContainer va;
   private WritableBatch batch;
@@ -99,6 +101,7 @@ public class VectorAccessibleSerializable extends AbstractStreamSerializable {
 
   /**
    * De-serialize the batch
+   *
    * @param allocator
    */
   public VectorAccessibleSerializable(BufferAllocator allocator) {
@@ -109,22 +112,27 @@ public class VectorAccessibleSerializable extends AbstractStreamSerializable {
 
   /**
    * Decompress the spill files when de-serializing the spilled batch
+   *
    * @param allocator
    * @param useCodec
    * @param decompressAllocator
    */
-  public VectorAccessibleSerializable(BufferAllocator allocator, boolean useCodec, BufferAllocator decompressAllocator) {
+  public VectorAccessibleSerializable(
+      BufferAllocator allocator, boolean useCodec, BufferAllocator decompressAllocator) {
     this.allocator = allocator;
     va = new VectorContainer();
     this.useCodec = useCodec;
     this.decompressAllocator = decompressAllocator;
     if (useCodec) {
-      Preconditions.checkArgument((decompressAllocator != null), "decompress allocator can't be null when compressing spill files");
+      Preconditions.checkArgument(
+          (decompressAllocator != null),
+          "decompress allocator can't be null when compressing spill files");
     }
   }
 
   /**
    * Creates a wrapper around batch for writing to a stream. Batch won't be compressed.
+   *
    * @param batch
    * @param allocator
    */
@@ -133,15 +141,14 @@ public class VectorAccessibleSerializable extends AbstractStreamSerializable {
   }
 
   /**
-   * Write the contents of a ArrowBuf to a stream. Done this way, rather
-   * than calling the ArrowBuf.getBytes() method, because this method
-   * avoids repeated heap allocation for the intermediate heap buffer.
+   * Write the contents of a ArrowBuf to a stream. Done this way, rather than calling the
+   * ArrowBuf.getBytes() method, because this method avoids repeated heap allocation for the
+   * intermediate heap buffer.
    *
    * @param buf the ArrowBuf to write
    * @param output the output stream
    * @throws IOException if a write error occurs
    */
-
   private void writeBuf(ArrowBuf buf, OutputStream output) throws IOException {
     long bufLength = buf.readableBytes();
     /* Use current thread buffer (safe to do since I/O operation is blocking) */
@@ -201,13 +208,16 @@ public class VectorAccessibleSerializable extends AbstractStreamSerializable {
   }
 
   /**
-   * Creates a wrapper around batch and sv2 for writing to a stream. sv2 will never be released by this class, and ownership
-   * is maintained by caller. Also indicates whether compression is to be used for spilling the batch.
+   * Creates a wrapper around batch and sv2 for writing to a stream. sv2 will never be released by
+   * this class, and ownership is maintained by caller. Also indicates whether compression is to be
+   * used for spilling the batch.
+   *
    * @param batch
    * @param sv2
    * @param allocator
    */
-  public VectorAccessibleSerializable(WritableBatch batch, SelectionVector2 sv2, BufferAllocator allocator, boolean useCodec) {
+  public VectorAccessibleSerializable(
+      WritableBatch batch, SelectionVector2 sv2, BufferAllocator allocator, boolean useCodec) {
     this.allocator = allocator;
     this.batch = batch;
     if (sv2 != null) {
@@ -218,8 +228,9 @@ public class VectorAccessibleSerializable extends AbstractStreamSerializable {
   }
 
   /**
-   * Reads from an InputStream and parses a RecordBatchDef. From this, we construct a SelectionVector2 if it exits
-   * and construct the vectors and add them to a vector container
+   * Reads from an InputStream and parses a RecordBatchDef. From this, we construct a
+   * SelectionVector2 if it exits and construct the vectors and add them to a vector container
+   *
    * @param input the InputStream to read from
    * @throws IOException
    */
@@ -227,9 +238,11 @@ public class VectorAccessibleSerializable extends AbstractStreamSerializable {
   public void readFromStream(InputStream input) throws IOException {
     try (RollbackCloseable rollback = new RollbackCloseable()) {
       final VectorContainer container = rollback.add(new VectorContainer());
-      final UserBitShared.RecordBatchDef batchDef = UserBitShared.RecordBatchDef.parseDelimitedFrom(input);
+      final UserBitShared.RecordBatchDef batchDef =
+          UserBitShared.RecordBatchDef.parseDelimitedFrom(input);
       recordCount = batchDef.getRecordCount();
-      if (batchDef.hasCarriesTwoByteSelectionVector() && batchDef.getCarriesTwoByteSelectionVector()) {
+      if (batchDef.hasCarriesTwoByteSelectionVector()
+          && batchDef.getCarriesTwoByteSelectionVector()) {
 
         if (sv2 == null) {
           sv2 = rollback.add(new SelectionVector2(allocator));
@@ -285,6 +298,7 @@ public class VectorAccessibleSerializable extends AbstractStreamSerializable {
 
   /**
    * Serializes the VectorAccessible va and writes it to an output stream
+   *
    * @param output the OutputStream to write to
    * @throws IOException
    */
@@ -294,21 +308,21 @@ public class VectorAccessibleSerializable extends AbstractStreamSerializable {
 
     try (final TimerContext timerContext = WRITER_TIMER.start()) {
       ArrowBuf[] buffers = new ArrowBuf[batch.getBuffers().length];
-      final ArrowBuf[] incomingBuffers = Arrays.stream(batch.getBuffers())
-                                               .map(buf -> buf.arrowBuf())
-                                               .collect(Collectors.toList())
-                                               .toArray(buffers);
+      final ArrowBuf[] incomingBuffers =
+          Arrays.stream(batch.getBuffers())
+              .map(buf -> buf.arrowBuf())
+              .collect(Collectors.toList())
+              .toArray(buffers);
       final UserBitShared.RecordBatchDef batchDef = batch.getDef();
 
       /* ArrowBuf associated with the selection vector */
       ArrowBuf svBuf = null;
-      Integer svCount =  null;
+      Integer svCount = null;
 
       if (svMode == BatchSchema.SelectionVectorMode.TWO_BYTE) {
         svCount = sv2.getCount();
-        svBuf = sv2.getBuffer(); //this calls retain() internally
+        svBuf = sv2.getBuffer(); // this calls retain() internally
       }
-
 
       /* Write the metadata to the file */
       batchDef.writeDelimitedTo(output);
@@ -358,26 +372,30 @@ public class VectorAccessibleSerializable extends AbstractStreamSerializable {
     return sv2;
   }
 
-
   /**
-   * Helper method that reads into <code>outputBuffer</code> from <code>inputStream</code>. It reads until
-   * <code>numBytesToRead</code> is reached. If an EOF is reached before then an {@link EOFException} is thrown.
+   * Helper method that reads into <code>outputBuffer</code> from <code>inputStream</code>. It reads
+   * until <code>numBytesToRead</code> is reached. If an EOF is reached before then an {@link
+   * EOFException} is thrown.
+   *
    * @param inputStream
    * @param outputBuffer
    * @param numBytesToRead
    * @throws IOException
    */
-  public static void readIntoArrowBuf(InputStream inputStream, ArrowBuf outputBuffer, long numBytesToRead)
-      throws IOException {
-//  Disabling direct reads for this since we have to be careful to avoid issues with compatibilityutil where it caches failure or success in direct reading. Direct reading will fail for LocalFIleSystem. As such, if we enable this path, we will non-direct reading for all sources (including HDFS)
-//    if(inputStream instanceof FSDataInputStream){
-//      readFromStream((FSDataInputStream) inputStream, outputBuffer, numBytesToRead);
-//      return;
-//    }
+  public static void readIntoArrowBuf(
+      InputStream inputStream, ArrowBuf outputBuffer, long numBytesToRead) throws IOException {
+    //  Disabling direct reads for this since we have to be careful to avoid issues with
+    // compatibilityutil where it caches failure or success in direct reading. Direct reading will
+    // fail for LocalFIleSystem. As such, if we enable this path, we will non-direct reading for all
+    // sources (including HDFS)
+    //    if(inputStream instanceof FSDataInputStream){
+    //      readFromStream((FSDataInputStream) inputStream, outputBuffer, numBytesToRead);
+    //      return;
+    //    }
 
     /* Use current thread buffer (safe to do since I/O operation is blocking) */
     final byte[] buffer = REUSABLE_LARGE_BUFFER.get();
-    while(numBytesToRead > 0) {
+    while (numBytesToRead > 0) {
       int len = (int) Math.min(buffer.length, numBytesToRead);
 
       final int numBytesRead = inputStream.read(buffer, 0, len);
@@ -399,17 +417,18 @@ public class VectorAccessibleSerializable extends AbstractStreamSerializable {
    * as this represents the compressed length of a chunk and then we will read the subsequent
    * bytes (compressed data), uncompress them and append into the output ArrowBuf.
    */
-  private void readAndUncompressIntoArrowBuf(InputStream inputStream, ArrowBuf outputBuffer, int rawDataLength)
-    throws IOException {
+  private void readAndUncompressIntoArrowBuf(
+      InputStream inputStream, ArrowBuf outputBuffer, int rawDataLength) throws IOException {
     int bufferPos = 0;
 
     /* Use current thread buffer (safe to do since I/O operation is blocking) */
     final byte[] buffer = REUSABLE_LARGE_BUFFER.get();
-    while(rawDataLength > 0) {
+    while (rawDataLength > 0) {
       /* read the first 4 bytes to get the length of subsequent compressed bytes */
       int numBytesToRead = COMPRESSED_LENGTH_BYTES;
-      while(numBytesToRead > 0) {
-        final int numBytesRead = inputStream.read(buffer, COMPRESSED_LENGTH_BYTES - numBytesToRead, numBytesToRead);
+      while (numBytesToRead > 0) {
+        final int numBytesRead =
+            inputStream.read(buffer, COMPRESSED_LENGTH_BYTES - numBytesToRead, numBytesToRead);
         if (numBytesRead == -1 && numBytesToRead > 0) {
           throw new EOFException("Unexpected end of stream while reading.");
         }
@@ -428,15 +447,18 @@ public class VectorAccessibleSerializable extends AbstractStreamSerializable {
         /* read the compressed bytes */
         int compressedOffset = 0;
         while (compressedLengthToRead > 0) {
-          final int numCompressedBytesRead = inputStream.read(buffer, compressedOffset, compressedLengthToRead);
+          final int numCompressedBytesRead =
+              inputStream.read(buffer, compressedOffset, compressedLengthToRead);
           if (numCompressedBytesRead == -1) {
-            throw new IOException("ERROR: total length of compressed data read is less than expected");
+            throw new IOException(
+                "ERROR: total length of compressed data read is less than expected");
           }
           compressedLengthToRead -= numCompressedBytesRead;
           compressedOffset += numCompressedBytesRead;
         }
-        if(compressedOffset != compressedDirectBuffer.limit()) {
-          throw new IOException("ERROR: total length of compressed data read is less than expected");
+        if (compressedOffset != compressedDirectBuffer.limit()) {
+          throw new IOException(
+              "ERROR: total length of compressed data read is less than expected");
         }
 
         /* load the compressed data from byte array into direct buffer */
@@ -444,7 +466,10 @@ public class VectorAccessibleSerializable extends AbstractStreamSerializable {
         compressedDirectBuffer.position(0);
 
         /* for each chunk we decompress, the raw length should be 32KB or less (for the last chunk) */
-        final int rawBufferSize = (rawDataLength >= RAW_CHUNK_SIZE_TO_COMPRESS) ? RAW_CHUNK_SIZE_TO_COMPRESS : rawDataLength;
+        final int rawBufferSize =
+            (rawDataLength >= RAW_CHUNK_SIZE_TO_COMPRESS)
+                ? RAW_CHUNK_SIZE_TO_COMPRESS
+                : rawDataLength;
 
         /* get the direct buffer to store the uncompressed data */
         ByteBuffer rawDirectBuffer = outputBuffer.nioBuffer(bufferPos, rawBufferSize);
@@ -480,7 +505,9 @@ public class VectorAccessibleSerializable extends AbstractStreamSerializable {
     return array;
   }
 
-  public static void readFromStream(SeekableInputStream input, final ArrowBuf outputBuffer, final int bytesToRead) throws IOException{
+  public static void readFromStream(
+      SeekableInputStream input, final ArrowBuf outputBuffer, final int bytesToRead)
+      throws IOException {
     final ByteBuffer directBuffer = outputBuffer.nioBuffer(0, bytesToRead);
     input.readFully(directBuffer);
     outputBuffer.writerIndex(bytesToRead);

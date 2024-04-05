@@ -15,6 +15,8 @@
  */
 package com.dremio.service.grpc;
 
+import com.dremio.common.SuppressForbidden;
+import io.netty.buffer.ByteBuf;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.lang.reflect.Constructor;
@@ -24,20 +26,17 @@ import java.lang.reflect.Method;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import com.dremio.common.SuppressForbidden;
-
-import io.netty.buffer.ByteBuf;
-
 /**
  * Writer that enables copying a byte buffer to stream through grpc writable buffers without an
  * extra copy.
  *
- * Adapted from https://github.com/apache/arrow/tree/master/java/flight/flight-core/src/main/java/org/apache/arrow/flight/grpc
+ * <p>Adapted from
+ * https://github.com/apache/arrow/tree/master/java/flight/flight-core/src/main/java/org/apache/arrow/flight/grpc
  */
 @SuppressForbidden
 public class ByteBufToStreamCopier {
-  private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.
-          getLogger(ByteBufToStreamCopier.class);
+  private static final org.slf4j.Logger LOGGER =
+      org.slf4j.LoggerFactory.getLogger(ByteBufToStreamCopier.class);
   private static final Constructor<?> BUF_CONSTRUCTOR;
   private static final Field BUFFER_LIST;
   private static final Field CURRENT;
@@ -46,8 +45,7 @@ public class ByteBufToStreamCopier {
   private static final AtomicInteger NON_OPTIMAL_WRITE = new AtomicInteger(0);
 
   /**
-   * Copy the buffer into the stream and directly set it to the grpc
-   * buffers.
+   * Copy the buffer into the stream and directly set it to the grpc buffers.
    *
    * @param buf buffer to write to the stream
    * @param stream the grpc output stream
@@ -56,7 +54,8 @@ public class ByteBufToStreamCopier {
    */
   public static boolean add(ByteBuf buf, OutputStream stream) throws IOException {
     if (BUF_CHAIN_OUT == null || !stream.getClass().equals(BUF_CHAIN_OUT)) {
-      LOGGER.warn("Entered non optimal write path {} number of times", NON_OPTIMAL_WRITE.incrementAndGet());
+      LOGGER.warn(
+          "Entered non optimal write path {} number of times", NON_OPTIMAL_WRITE.incrementAndGet());
       return false;
     } else {
       try {
@@ -70,7 +69,10 @@ public class ByteBufToStreamCopier {
           CURRENT.set(stream, obj);
           return true;
         }
-      } catch (IllegalArgumentException | InvocationTargetException | InstantiationException | IllegalAccessException e) {
+      } catch (IllegalArgumentException
+          | InvocationTargetException
+          | InstantiationException
+          | IllegalAccessException e) {
         LOGGER.warn("Error adding byte buf to output stream", e);
         return false;
       }
@@ -78,10 +80,10 @@ public class ByteBufToStreamCopier {
   }
 
   /**
-   * Reflect and get internal methods that helps us directly
-   * drain the arrow buffer into grpc writable buffer.
+   * Reflect and get internal methods that helps us directly drain the arrow buffer into grpc
+   * writable buffer.
    *
-   * All variables are initialized or none.
+   * <p>All variables are initialized or none.
    */
   static {
     Constructor<?> tmpConstruct = null;
@@ -91,14 +93,16 @@ public class ByteBufToStreamCopier {
     Method tmpListAdd = null;
 
     try {
-      // For this to work, make sure to not have grpc-netty-shaded-XXXX.jar in classpath or mvn dependencies
+      // For this to work, make sure to not have grpc-netty-shaded-XXXX.jar in classpath or mvn
+      // dependencies
       // otherwise we observe below error
       // Caused by: java.lang.ClassCastException: io.grpc.netty.NettyWritableBuffer cannot be
       // cast to io.grpc.netty.shaded.io.grpc.netty.NettyWritableBuffer
       Class<?> nwb = Class.forName("io.grpc.netty.NettyWritableBuffer");
       Constructor<?> tmpConstruct2 = nwb.getDeclaredConstructor(ByteBuf.class);
       tmpConstruct2.setAccessible(true);
-      Class<?> tmpBufChainOut2 = Class.forName("io.grpc.internal.MessageFramer$BufferChainOutputStream");
+      Class<?> tmpBufChainOut2 =
+          Class.forName("io.grpc.internal.MessageFramer$BufferChainOutputStream");
       Field tmpBufferList2 = tmpBufChainOut2.getDeclaredField("bufferList");
       tmpBufferList2.setAccessible(true);
       Field tmpCurrent2 = tmpBufChainOut2.getDeclaredField("current");

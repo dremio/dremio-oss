@@ -15,13 +15,10 @@
  */
 package com.dremio.service.sqlrunner;
 
+import com.dremio.service.sqlrunner.proto.SQLRunnerSessionProto;
 import java.util.List;
 
-import com.dremio.service.sqlrunner.proto.SQLRunnerSessionProto;
-
-/**
- * SQLRunnerSession POJO that wraps the protobuf version
- */
+/** SQLRunnerSession POJO that wraps the protobuf version */
 public class SQLRunnerSession {
   private SQLRunnerSessionProto.SQLRunnerSession delegate;
 
@@ -34,11 +31,12 @@ public class SQLRunnerSession {
   }
 
   public SQLRunnerSession(String userId, List<String> scriptIds, String currentScriptId) {
-    this.delegate = SQLRunnerSessionProto.SQLRunnerSession.newBuilder()
-      .setUserId(userId)
-      .addAllScriptIds(scriptIds)
-      .setCurrentScriptId(currentScriptId)
-      .build();
+    this.delegate =
+        SQLRunnerSessionProto.SQLRunnerSession.newBuilder()
+            .setUserId(userId)
+            .addAllScriptIds(scriptIds)
+            .setCurrentScriptId(currentScriptId)
+            .build();
   }
 
   public String getUserId() {
@@ -50,10 +48,7 @@ public class SQLRunnerSession {
   }
 
   public void setScriptIds(List<String> scriptIds) {
-    delegate = delegate.toBuilder()
-      .clearScriptIds()
-      .addAllScriptIds(scriptIds)
-      .build();
+    delegate = delegate.toBuilder().clearScriptIds().addAllScriptIds(scriptIds).build();
   }
 
   public String getCurrentScriptId() {
@@ -67,5 +62,4 @@ public class SQLRunnerSession {
   public SQLRunnerSessionProto.SQLRunnerSession toProtobuf() {
     return delegate;
   }
-
 }

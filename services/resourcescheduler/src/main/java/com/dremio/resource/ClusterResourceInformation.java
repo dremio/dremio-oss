@@ -15,20 +15,16 @@
  */
 package com.dremio.resource;
 
-import java.util.Collection;
-import java.util.Set;
-
-import javax.inject.Provider;
-
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.options.OptionResolver;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.NodeStatusListener;
 import com.dremio.service.coordinator.ServiceSet;
+import java.util.Collection;
+import java.util.Set;
+import javax.inject.Provider;
 
-/**
- * Resource information including all executors in the cluster, for software.
- */
+/** Resource information including all executors in the cluster, for software. */
 public class ClusterResourceInformation implements GroupResourceInformation {
   private final Provider<ClusterCoordinator> clusterCoordinatorProvider;
   private volatile ServiceSet executorSet;
@@ -42,18 +38,20 @@ public class ClusterResourceInformation implements GroupResourceInformation {
 
   @Override
   public void start() throws Exception {
-    this.executorSet = clusterCoordinatorProvider.get().getServiceSet(ClusterCoordinator.Role.EXECUTOR);
-    executorSet.addNodeStatusListener(new NodeStatusListener() {
-      @Override
-      public void nodesUnregistered(Set<NodeEndpoint> unregisteredNodes) {
-        refreshInfo();
-      }
+    this.executorSet =
+        clusterCoordinatorProvider.get().getServiceSet(ClusterCoordinator.Role.EXECUTOR);
+    executorSet.addNodeStatusListener(
+        new NodeStatusListener() {
+          @Override
+          public void nodesUnregistered(Set<NodeEndpoint> unregisteredNodes) {
+            refreshInfo();
+          }
 
-      @Override
-      public void nodesRegistered(Set<NodeEndpoint> registeredNodes) {
-        refreshInfo();
-      }
-    });
+          @Override
+          public void nodesRegistered(Set<NodeEndpoint> registeredNodes) {
+            refreshInfo();
+          }
+        });
 
     refreshInfo();
   }
@@ -82,7 +80,7 @@ public class ClusterResourceInformation implements GroupResourceInformation {
       averageExecutorCores = 0;
     } else {
       int totalCoresAcrossExecutors = 0;
-      for (final NodeEndpoint endpoint: executors) {
+      for (final NodeEndpoint endpoint : executors) {
         totalCoresAcrossExecutors += endpoint.getAvailableCores();
       }
 
@@ -102,6 +100,7 @@ public class ClusterResourceInformation implements GroupResourceInformation {
 
   /**
    * Get the number of executors.
+   *
    * @return Number of registered executors.
    */
   @Override
@@ -110,18 +109,17 @@ public class ClusterResourceInformation implements GroupResourceInformation {
   }
 
   /**
-   * Get the average number of cores in executor nodes.
-   * This will be used as the default value of MAX_WIDTH_PER_NODE
+   * Get the average number of cores in executor nodes. This will be used as the default value of
+   * MAX_WIDTH_PER_NODE
    *
    * @return average number of executor cores
    */
   @Override
   public long getAverageExecutorCores(final OptionResolver optionManager) {
-    return GroupResourceInformation.computeCoresAvailableForExecutor(averageExecutorCores, optionManager);
+    return GroupResourceInformation.computeCoresAvailableForExecutor(
+        averageExecutorCores, optionManager);
   }
 
   @Override
-  public void close() throws Exception {
-
-  }
+  public void close() throws Exception {}
 }

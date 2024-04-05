@@ -29,7 +29,8 @@ import com.dremio.exec.planner.physical.UnionPrel;
 import com.dremio.exec.planner.physical.WriterCommitterPrel;
 import com.dremio.exec.planner.physical.WriterPrel;
 
-public class BasePrelVisitor<RETURN, EXTRA, EXCEP extends Throwable> implements PrelVisitor<RETURN, EXTRA, EXCEP> {
+public class BasePrelVisitor<RETURN, EXTRA, EXCEP extends Throwable>
+    implements PrelVisitor<RETURN, EXTRA, EXCEP> {
 
   @Override
   public RETURN visitExchange(ExchangePrel prel, EXTRA value) throws EXCEP {
@@ -93,7 +94,8 @@ public class BasePrelVisitor<RETURN, EXTRA, EXCEP extends Throwable> implements 
 
   @Override
   public RETURN visitPrel(Prel prel, EXTRA value) throws EXCEP {
-    throw new UnsupportedOperationException(String.format("No visit method defined for prel %s in visitor %s.", prel, this.getClass().getName()));
+    throw new UnsupportedOperationException(
+        String.format(
+            "No visit method defined for prel %s in visitor %s.", prel, this.getClass().getName()));
   }
-
 }

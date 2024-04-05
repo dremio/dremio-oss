@@ -15,15 +15,14 @@
  */
 package com.dremio.common.util;
 
+import com.google.common.collect.MoreCollectors;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import com.google.common.collect.MoreCollectors;
-
 public class DremioCollectors {
-  public static <VALUE, KEY> java.util.stream.Collector<VALUE, ?, java.util.Map<KEY, VALUE>> uniqueGrouping(
-    Function<VALUE, KEY> function
-  ){
+  public static <VALUE, KEY>
+      java.util.stream.Collector<VALUE, ?, java.util.Map<KEY, VALUE>> uniqueGrouping(
+          Function<VALUE, KEY> function) {
     return Collectors.groupingBy(function, MoreCollectors.<VALUE>onlyElement());
   }
 }

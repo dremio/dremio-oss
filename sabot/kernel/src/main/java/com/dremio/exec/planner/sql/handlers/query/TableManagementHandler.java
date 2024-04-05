@@ -17,12 +17,7 @@ package com.dremio.exec.planner.sql.handlers.query;
 
 import static com.dremio.exec.planner.sql.handlers.SqlHandlerUtil.PLANNER_SOURCE_TARGET_SOURCE_TYPE_SPAN_ATTRIBUTE_NAME;
 
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.core.TableScan;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.sql.SqlOperator;
-
+import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.exec.calcite.logical.ScanCrel;
 import com.dremio.exec.calcite.logical.TableModifyCrel;
 import com.dremio.exec.calcite.logical.TableOptimizeCrel;
@@ -42,12 +37,17 @@ import com.dremio.exec.planner.sql.parser.DmlUtils;
 import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.annotations.VisibleForTesting;
-
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.core.TableScan;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlOperator;
 
 /**
- * Abstraction of the plan building components, within table modification operations, such as DML and OPTIMIZE.
+ * Abstraction of the plan building components, within table modification operations, such as DML
+ * and OPTIMIZE.
  */
 public abstract class TableManagementHandler implements SqlToPlanHandler {
 
@@ -55,40 +55,50 @@ public abstract class TableManagementHandler implements SqlToPlanHandler {
   public abstract NamespaceKey getTargetTablePath(SqlNode sqlNode) throws Exception;
 
   /**
-   * Run  {@link #checkValidations(Catalog, SqlHandlerConfig, NamespaceKey, SqlNode)}
-   * and return Plan {@link #getPlan(SqlHandlerConfig, String, SqlNode, NamespaceKey)}
+   * Run {@link #checkValidations(Catalog, SqlHandlerConfig, NamespaceKey, SqlNode)} and return Plan
+   * {@link #getPlan(SqlHandlerConfig, String, SqlNode, NamespaceKey)}
    */
   @WithSpan
   @Override
-  public final PhysicalPlan getPlan(SqlHandlerConfig config, String sql, SqlNode sqlNode) throws Exception {
+  public final PhysicalPlan getPlan(SqlHandlerConfig config, String sql, SqlNode sqlNode)
+      throws Exception {
     final Catalog catalog = config.getContext().getCatalog();
-    final NamespaceKey path = CatalogUtil.getResolvePathForTableManagement(config.getContext().getCatalog(), getTargetTablePath(sqlNode), DmlUtils.getVersionContext(sqlNode));
-    Span.current().setAttribute(PLANNER_SOURCE_TARGET_SOURCE_TYPE_SPAN_ATTRIBUTE_NAME, SqlHandlerUtil.getSourceType(catalog, path.getRoot()));
+    final NamespaceKey path =
+        CatalogUtil.getResolvePathForTableManagement(
+            config.getContext().getCatalog(),
+            getTargetTablePath(sqlNode),
+            DmlUtils.getVersionContext(sqlNode));
+    Span.current()
+        .setAttribute(
+            PLANNER_SOURCE_TARGET_SOURCE_TYPE_SPAN_ATTRIBUTE_NAME,
+            SqlHandlerUtil.getSourceType(catalog, path.getRoot()));
     checkValidations(catalog, config, path, sqlNode);
     return getPlan(config, sql, sqlNode, path);
   }
 
-  /**
-   * Build the physical plan if SQL is valid.
-   */
-  protected abstract PhysicalPlan getPlan(SqlHandlerConfig config, String sql, SqlNode sqlNode, NamespaceKey path) throws Exception;
+  /** Build the physical plan if SQL is valid. */
+  protected abstract PhysicalPlan getPlan(
+      SqlHandlerConfig config, String sql, SqlNode sqlNode, NamespaceKey path) throws Exception;
 
-  /**
-   * A single place to do all the SQL validations.
-   */
-  abstract void checkValidations(Catalog catalog, SqlHandlerConfig config, NamespaceKey path, SqlNode sqlNode) throws Exception ;
+  /** A single place to do all the SQL validations. */
+  abstract void checkValidations(
+      Catalog catalog, SqlHandlerConfig config, NamespaceKey path, SqlNode sqlNode)
+      throws Exception;
 
-  /**
-   *
-   */
+  /** */
   protected abstract SqlOperator getSqlOperator();
 
-  /**
-   * Privileges that are needed to run the query.
-   */
-  protected abstract void validatePrivileges(Catalog catalog, NamespaceKey path, SqlNode sqlNode) throws Exception;
+  /** Privileges that are needed to run the query. */
+  protected abstract void validatePrivileges(
+      Catalog catalog, CatalogEntityKey path, SqlNode sqlNode) throws Exception;
 
-  protected abstract Rel convertToDrel(SqlHandlerConfig config, SqlNode sqlNode, NamespaceKey path, PlannerCatalog catalog, RelNode relNode) throws Exception;
+  protected abstract Rel convertToDrel(
+      SqlHandlerConfig config,
+      SqlNode sqlNode,
+      NamespaceKey path,
+      PlannerCatalog catalog,
+      RelNode relNode)
+      throws Exception;
 
   @Override
   public String getTextPlan() {
@@ -97,14 +107,13 @@ public abstract class TableManagementHandler implements SqlToPlanHandler {
 
   protected static RelNode rewriteCrel(RelNode relNode, CreateTableEntry createTableEntry) {
     return ScanCrelSubstitutionRewriter.disableScanCrelSubstitution(
-      CrelInputRewriter.castIfRequired(
-        CrelCreateTableEntryApplier.apply(relNode, createTableEntry)));
+        CrelInputRewriter.castIfRequired(
+            CrelCreateTableEntryApplier.apply(relNode, createTableEntry)));
   }
 
   protected static RelNode rewriteCrel(RelNode relNode) {
     return ScanCrelSubstitutionRewriter.disableScanCrelSubstitution(
-      CrelInputRewriter.castIfRequired(
-        CrelEntryApplier.apply(relNode)));
+        CrelInputRewriter.castIfRequired(CrelEntryApplier.apply(relNode)));
   }
 
   private static class CrelCreateTableEntryApplier extends StatelessRelShuttleImpl {
@@ -131,7 +140,7 @@ public abstract class TableManagementHandler implements SqlToPlanHandler {
       }
 
       if (other instanceof VacuumTableCrel) {
-          other = ((VacuumTableCrel) other).createWith(createTableEntry);
+        other = ((VacuumTableCrel) other).createWith(createTableEntry);
       }
 
       return super.visit(other);
@@ -175,24 +184,25 @@ public abstract class TableManagementHandler implements SqlToPlanHandler {
     @Override
     public RelNode visit(TableScan scan) {
       if (!(scan instanceof ScanCrel)
-        || targetTableName == null  // we only care the ScanCrels inside TableModifyCrel
-        || !((ScanCrel) scan).getTableMetadata().getName().equals(targetTableName)) {
+          || targetTableName == null // we only care the ScanCrels inside TableModifyCrel
+          || !((ScanCrel) scan).getTableMetadata().getName().equals(targetTableName)) {
         return super.visit(scan);
       }
 
-      ScanCrel oldScan =  ((ScanCrel) scan);
+      ScanCrel oldScan = ((ScanCrel) scan);
       // disable reflection by set ScanCrel's 'isSubstitutable' false
-      ScanCrel newScan = new ScanCrel(
-        oldScan.getCluster(),
-        oldScan.getTraitSet(),
-        oldScan.getPluginId(),
-        oldScan.getTableMetadata(),
-        oldScan.getProjectedColumns(),
-        oldScan.getObservedRowcountAdjustment(),
-        oldScan.getHints(),
-        oldScan.isDirectNamespaceDescendent(),
-        false,
-        oldScan.getSnapshotDiffContext());
+      ScanCrel newScan =
+          new ScanCrel(
+              oldScan.getCluster(),
+              oldScan.getTraitSet(),
+              oldScan.getPluginId(),
+              oldScan.getTableMetadata(),
+              oldScan.getProjectedColumns(),
+              oldScan.getObservedRowcountAdjustment(),
+              oldScan.getHints(),
+              oldScan.isDirectNamespaceDescendent(),
+              false,
+              oldScan.getSnapshotDiffContext());
       return super.visit(newScan);
     }
   }
@@ -209,17 +219,21 @@ public abstract class TableManagementHandler implements SqlToPlanHandler {
         final TableModifyCrel tableModifyCrel = (TableModifyCrel) other;
         final RelDataType expectedInputRowType = tableModifyCrel.getExpectedInputRowType();
         final RelNode input = tableModifyCrel.getInput();
-        other = MoreRelOptUtil.areDataTypesEqual(expectedInputRowType, input.getRowType(), false)
-          ? other
-          : tableModifyCrel.createWith(MoreRelOptUtil.createCastRel(input, expectedInputRowType));
+        other =
+            MoreRelOptUtil.areDataTypesEqual(expectedInputRowType, input.getRowType(), false)
+                ? other
+                : tableModifyCrel.createWith(
+                    MoreRelOptUtil.createCastRel(input, expectedInputRowType));
       }
 
       return super.visit(other);
     }
   }
 
-  protected void validateTableExistenceAndMutability(Catalog catalog, SqlHandlerConfig config, NamespaceKey namespaceKey) {
+  protected void validateTableExistenceAndMutability(
+      Catalog catalog, SqlHandlerConfig config, NamespaceKey namespaceKey) {
     // Validate table exists and is Iceberg table
-    IcebergUtils.checkTableExistenceAndMutability(catalog, config, namespaceKey, getSqlOperator(), true);
+    IcebergUtils.checkTableExistenceAndMutability(
+        catalog, config, namespaceKey, getSqlOperator(), true);
   }
 }

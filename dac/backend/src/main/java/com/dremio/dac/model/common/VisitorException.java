@@ -15,12 +15,11 @@
  */
 package com.dremio.dac.model.common;
 
-/**
- * wraps caught exceptions thrown by visitors
- */
+/** wraps caught exceptions thrown by visitors */
 public class VisitorException extends RuntimeException {
   private static final long serialVersionUID = 1L;
   private final Exception cause;
+
   public VisitorException(String message, Exception cause) {
     super(message, cause);
     this.cause = cause;

@@ -15,9 +15,13 @@
  */
 package com.dremio.exec.store.dfs.implicit;
 
+import com.dremio.common.AutoCloseables;
+import com.dremio.common.expression.CompleteType;
+import com.dremio.exec.store.TestOutputMutator;
+import com.dremio.test.AllocatorRule;
+import com.google.common.collect.Lists;
 import java.math.BigDecimal;
 import java.util.List;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BigIntVector;
@@ -43,18 +47,9 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 
-import com.dremio.common.AutoCloseables;
-import com.dremio.common.expression.CompleteType;
-import com.dremio.exec.store.TestOutputMutator;
-import com.dremio.test.AllocatorRule;
-import com.google.common.collect.Lists;
-
-/**
- * Tests for the constant column populators
- */
+/** Tests for the constant column populators */
 public class TestConstantColumnPopulators {
-  @ClassRule
-  public static final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
+  @ClassRule public static final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
   private static BufferAllocator bufferAllocator;
   private static TestOutputMutator outputMutator;
 
@@ -69,11 +64,13 @@ public class TestConstantColumnPopulators {
     outputMutator.addField(CompleteType.DOUBLE.toField("doubleCol"), Float8Vector.class);
     outputMutator.addField(CompleteType.TIME.toField("timeCol"), TimeMilliVector.class);
     outputMutator.addField(CompleteType.DATE.toField("dateCol"), DateMilliVector.class);
-    outputMutator.addField(CompleteType.TIMESTAMP.toField("timestampCol"), TimeStampMilliVector.class);
+    outputMutator.addField(
+        CompleteType.TIMESTAMP.toField("timestampCol"), TimeStampMilliVector.class);
     outputMutator.addField(CompleteType.VARBINARY.toField("varbinaryCol"), VarBinaryVector.class);
     outputMutator.addField(CompleteType.VARCHAR.toField("varcharCol"), VarCharVector.class);
-    outputMutator.addField(new Field("decimalCol", new FieldType(true,
-      new ArrowType.Decimal(10, 2, 128), null), null), DecimalVector.class);
+    outputMutator.addField(
+        new Field("decimalCol", new FieldType(true, new ArrowType.Decimal(10, 2, 128), null), null),
+        DecimalVector.class);
   }
 
   @AfterClass
@@ -81,12 +78,13 @@ public class TestConstantColumnPopulators {
     AutoCloseables.close(outputMutator, bufferAllocator);
   }
 
-  private void verifyNonNullColumn(NameValuePair nameValuePair, VerifyValue verifyValue) throws Exception {
+  private void verifyNonNullColumn(NameValuePair nameValuePair, VerifyValue verifyValue)
+      throws Exception {
     AdditionalColumnsRecordReader.Populator populator = nameValuePair.createPopulator();
     populator.setup(outputMutator);
     int[] recordCounts = new int[] {8000, 10, 12000, 0};
     ValueVector valueVector = outputMutator.getVector(nameValuePair.getName());
-    for(int i = 0; i < recordCounts.length; i++) {
+    for (int i = 0; i < recordCounts.length; i++) {
       valueVector.reset();
       int recordCount = recordCounts[i];
       populator.allocate();
@@ -94,7 +92,8 @@ public class TestConstantColumnPopulators {
       Assert.assertEquals(recordCount, valueVector.getValueCount());
       Assert.assertEquals(0, valueVector.getNullCount());
       for (int j = 0; j < valueVector.getValueCount(); j++) {
-        Assert.assertTrue("Iteration " + i + ", Mismatch at " + j, verifyValue.checkValue(valueVector, i));
+        Assert.assertTrue(
+            "Iteration " + i + ", Mismatch at " + j, verifyValue.checkValue(valueVector, i));
       }
       valueVector.close();
     }
@@ -103,100 +102,124 @@ public class TestConstantColumnPopulators {
 
   @Test
   public void testIntColumn() throws Exception {
-    ConstantColumnPopulators.IntNameValuePair nameValuePair = new ConstantColumnPopulators.IntNameValuePair("intCol", 10);
-    verifyNonNullColumn(nameValuePair, new VerifyValue() {
-      @Override
-      public boolean checkValue(ValueVector valueVector, int i) {
-        IntVector vector = (IntVector)valueVector;
-        return (vector.get(i) == nameValuePair.getValue().intValue());
-      }
-    });
+    ConstantColumnPopulators.IntNameValuePair nameValuePair =
+        new ConstantColumnPopulators.IntNameValuePair("intCol", 10);
+    verifyNonNullColumn(
+        nameValuePair,
+        new VerifyValue() {
+          @Override
+          public boolean checkValue(ValueVector valueVector, int i) {
+            IntVector vector = (IntVector) valueVector;
+            return (vector.get(i) == nameValuePair.getValue().intValue());
+          }
+        });
   }
 
   @Test
   public void testBigIntColumn() throws Exception {
-    ConstantColumnPopulators.BigIntNameValuePair nameValuePair = new ConstantColumnPopulators.BigIntNameValuePair("bigintCol", 1000L);
-    verifyNonNullColumn(nameValuePair, new VerifyValue() {
-      @Override
-      public boolean checkValue(ValueVector valueVector, int i) {
-        BigIntVector vector = (BigIntVector)valueVector;
-        return (vector.get(i) == nameValuePair.getValue().longValue());
-      }
-    });
+    ConstantColumnPopulators.BigIntNameValuePair nameValuePair =
+        new ConstantColumnPopulators.BigIntNameValuePair("bigintCol", 1000L);
+    verifyNonNullColumn(
+        nameValuePair,
+        new VerifyValue() {
+          @Override
+          public boolean checkValue(ValueVector valueVector, int i) {
+            BigIntVector vector = (BigIntVector) valueVector;
+            return (vector.get(i) == nameValuePair.getValue().longValue());
+          }
+        });
   }
 
   @Test
   public void testFloatColumn() throws Exception {
-    NameValuePair nameValuePair = new ConstantColumnPopulators.Float4NameValuePair("floatCol", 1.2f);
-    verifyNonNullColumn(nameValuePair, new VerifyValue() {
-      @Override
-      public boolean checkValue(ValueVector valueVector, int i) {
-        Float4Vector vector = (Float4Vector)valueVector;
-        return (vector.get(i) == (float)nameValuePair.getValue());
-      }
-    });
+    NameValuePair nameValuePair =
+        new ConstantColumnPopulators.Float4NameValuePair("floatCol", 1.2f);
+    verifyNonNullColumn(
+        nameValuePair,
+        new VerifyValue() {
+          @Override
+          public boolean checkValue(ValueVector valueVector, int i) {
+            Float4Vector vector = (Float4Vector) valueVector;
+            return (vector.get(i) == (float) nameValuePair.getValue());
+          }
+        });
   }
 
   @Test
   public void testDoubleColumn() throws Exception {
-    NameValuePair nameValuePair = new ConstantColumnPopulators.Float8NameValuePair("doubleCol", 300.12d);
-    verifyNonNullColumn(nameValuePair, new VerifyValue() {
-      @Override
-      public boolean checkValue(ValueVector valueVector, int i) {
-        Float8Vector vector = (Float8Vector)valueVector;
-        return (vector.get(i) == (double)nameValuePair.getValue());
-      }
-    });
+    NameValuePair nameValuePair =
+        new ConstantColumnPopulators.Float8NameValuePair("doubleCol", 300.12d);
+    verifyNonNullColumn(
+        nameValuePair,
+        new VerifyValue() {
+          @Override
+          public boolean checkValue(ValueVector valueVector, int i) {
+            Float8Vector vector = (Float8Vector) valueVector;
+            return (vector.get(i) == (double) nameValuePair.getValue());
+          }
+        });
   }
 
   @Test
   public void testTimeColumn() throws Exception {
-    NameValuePair nameValuePair = new ConstantColumnPopulators.TimeMilliNameValuePair("timeCol", 3_000);
-    verifyNonNullColumn(nameValuePair, new VerifyValue() {
-      @Override
-      public boolean checkValue(ValueVector valueVector, int i) {
-        TimeMilliVector vector = (TimeMilliVector)valueVector;
-        return (vector.get(i) == (int)nameValuePair.getValue());
-      }
-    });
+    NameValuePair nameValuePair =
+        new ConstantColumnPopulators.TimeMilliNameValuePair("timeCol", 3_000);
+    verifyNonNullColumn(
+        nameValuePair,
+        new VerifyValue() {
+          @Override
+          public boolean checkValue(ValueVector valueVector, int i) {
+            TimeMilliVector vector = (TimeMilliVector) valueVector;
+            return (vector.get(i) == (int) nameValuePair.getValue());
+          }
+        });
   }
 
   @Test
   public void testTimestampColumn() throws Exception {
-    NameValuePair nameValuePair = new ConstantColumnPopulators.TimeStampMilliNameValuePair("timestampCol", 3600000L);
-    verifyNonNullColumn(nameValuePair, new VerifyValue() {
-      @Override
-      public boolean checkValue(ValueVector valueVector, int i) {
-        TimeStampMilliVector vector = (TimeStampMilliVector)valueVector;
-        return (vector.get(i) == (long)nameValuePair.getValue());
-      }
-    });
+    NameValuePair nameValuePair =
+        new ConstantColumnPopulators.TimeStampMilliNameValuePair("timestampCol", 3600000L);
+    verifyNonNullColumn(
+        nameValuePair,
+        new VerifyValue() {
+          @Override
+          public boolean checkValue(ValueVector valueVector, int i) {
+            TimeStampMilliVector vector = (TimeStampMilliVector) valueVector;
+            return (vector.get(i) == (long) nameValuePair.getValue());
+          }
+        });
   }
 
   @Test
   public void testDateColumn() throws Exception {
-    NameValuePair nameValuePair = new ConstantColumnPopulators.DateMilliNameValuePair("dateCol", 3600000L);
-    verifyNonNullColumn(nameValuePair, new VerifyValue() {
-      @Override
-      public boolean checkValue(ValueVector valueVector, int i) {
-        DateMilliVector vector = (DateMilliVector)valueVector;
-        return (vector.get(i) == (long)nameValuePair.getValue());
-      }
-    });
+    NameValuePair nameValuePair =
+        new ConstantColumnPopulators.DateMilliNameValuePair("dateCol", 3600000L);
+    verifyNonNullColumn(
+        nameValuePair,
+        new VerifyValue() {
+          @Override
+          public boolean checkValue(ValueVector valueVector, int i) {
+            DateMilliVector vector = (DateMilliVector) valueVector;
+            return (vector.get(i) == (long) nameValuePair.getValue());
+          }
+        });
   }
 
   @Test
   public void testBitColumn() throws Exception {
-    ConstantColumnPopulators.BitNameValuePair nameValuePair = new ConstantColumnPopulators.BitNameValuePair("bitCol", true);
+    ConstantColumnPopulators.BitNameValuePair nameValuePair =
+        new ConstantColumnPopulators.BitNameValuePair("bitCol", true);
     int expectedValue = nameValuePair.getValue() ? 1 : 0;
 
-    verifyNonNullColumn(nameValuePair, new VerifyValue() {
-      @Override
-      public boolean checkValue(ValueVector valueVector, int i) {
-        BitVector vector = (BitVector)valueVector;
-        return (vector.get(i) == expectedValue);
-      }
-    });
+    verifyNonNullColumn(
+        nameValuePair,
+        new VerifyValue() {
+          @Override
+          public boolean checkValue(ValueVector valueVector, int i) {
+            BitVector vector = (BitVector) valueVector;
+            return (vector.get(i) == expectedValue);
+          }
+        });
   }
 
   private boolean compareBytes(byte[] buf1, byte[] buf2) {
@@ -204,7 +227,7 @@ public class TestConstantColumnPopulators {
       return false;
     }
 
-    for(int i = 0; i < buf1.length; i++) {
+    for (int i = 0; i < buf1.length; i++) {
       if (buf1[i] != buf2[i]) {
         return false;
       }
@@ -216,29 +239,35 @@ public class TestConstantColumnPopulators {
   @Test
   public void testVarBinaryColumn() throws Exception {
     byte[] bytes = new byte[] {'H', 'e', 'l', 'l', 'o'};
-    NameValuePair nameValuePair = new ConstantColumnPopulators.VarBinaryNameValuePair("varbinaryCol", bytes);
+    NameValuePair nameValuePair =
+        new ConstantColumnPopulators.VarBinaryNameValuePair("varbinaryCol", bytes);
 
-    verifyNonNullColumn(nameValuePair, new VerifyValue() {
-      @Override
-      public boolean checkValue(ValueVector valueVector, int i) {
-        VarBinaryVector vector = (VarBinaryVector)valueVector;
-        return compareBytes(vector.get(i), bytes);
-      }
-    });
+    verifyNonNullColumn(
+        nameValuePair,
+        new VerifyValue() {
+          @Override
+          public boolean checkValue(ValueVector valueVector, int i) {
+            VarBinaryVector vector = (VarBinaryVector) valueVector;
+            return compareBytes(vector.get(i), bytes);
+          }
+        });
   }
 
   @Test
   public void testVarCharColumn() throws Exception {
     String expectedValue = new String("hello");
-    ConstantColumnPopulators.VarCharNameValuePair nameValuePair = new ConstantColumnPopulators.VarCharNameValuePair("varcharCol", expectedValue);
+    ConstantColumnPopulators.VarCharNameValuePair nameValuePair =
+        new ConstantColumnPopulators.VarCharNameValuePair("varcharCol", expectedValue);
 
-    verifyNonNullColumn(nameValuePair, new VerifyValue() {
-      @Override
-      public boolean checkValue(ValueVector valueVector, int i) {
-        VarCharVector vector = (VarCharVector)valueVector;
-        return compareBytes(vector.get(i), expectedValue.getBytes());
-      }
-    });
+    verifyNonNullColumn(
+        nameValuePair,
+        new VerifyValue() {
+          @Override
+          public boolean checkValue(ValueVector valueVector, int i) {
+            VarCharVector vector = (VarCharVector) valueVector;
+            return compareBytes(vector.get(i), expectedValue.getBytes());
+          }
+        });
   }
 
   private boolean compareArrowBufs(ArrowBuf buf1, ArrowBuf buf2) {
@@ -246,7 +275,7 @@ public class TestConstantColumnPopulators {
       return false;
     }
 
-    for(int i = 0; i < buf1.capacity(); i++) {
+    for (int i = 0; i < buf1.capacity(); i++) {
       if (buf1.getByte(i) != buf2.getByte(i)) {
         return false;
       }
@@ -265,15 +294,18 @@ public class TestConstantColumnPopulators {
     holder.scale = 2;
     holder.buffer = arrowBuf;
     holder.start = 0;
-    NameValuePair nameValuePair = new ConstantColumnPopulators.DecimalNameValuePair("decimalCol", holder);
+    NameValuePair nameValuePair =
+        new ConstantColumnPopulators.DecimalNameValuePair("decimalCol", holder);
 
-    verifyNonNullColumn(nameValuePair, new VerifyValue() {
-      @Override
-      public boolean checkValue(ValueVector valueVector, int i) {
-        DecimalVector vector = (DecimalVector)valueVector;
-        return compareArrowBufs(vector.get(i), arrowBuf);
-      }
-    });
+    verifyNonNullColumn(
+        nameValuePair,
+        new VerifyValue() {
+          @Override
+          public boolean checkValue(ValueVector valueVector, int i) {
+            DecimalVector vector = (DecimalVector) valueVector;
+            return compareArrowBufs(vector.get(i), arrowBuf);
+          }
+        });
 
     arrowBuf.close();
   }
@@ -284,7 +316,7 @@ public class TestConstantColumnPopulators {
     int[] recordCounts = new int[] {8000, 10, 12000, 0};
 
     ValueVector valueVector = outputMutator.getVector(nameValuePair.getName());
-    for(int i = 0; i < recordCounts.length; i++) {
+    for (int i = 0; i < recordCounts.length; i++) {
       valueVector.reset();
       int recordCount = recordCounts[i];
       populator.allocate();
@@ -297,7 +329,7 @@ public class TestConstantColumnPopulators {
   }
 
   private void verifyAllNullColumns(List<NameValuePair> nameValuePairs) throws Exception {
-    for(NameValuePair nameValuePair : nameValuePairs) {
+    for (NameValuePair nameValuePair : nameValuePairs) {
       verifyNullColumn(nameValuePair);
     }
   }
@@ -305,19 +337,39 @@ public class TestConstantColumnPopulators {
   @Test
   public void testNullColumns() throws Exception {
     NameValuePair intNameValuePair = new ConstantColumnPopulators.IntNameValuePair("intCol", null);
-    NameValuePair bigIntNameValuePair = new ConstantColumnPopulators.BigIntNameValuePair("bigintCol", null);
-    NameValuePair floatValuePair = new ConstantColumnPopulators.Float4NameValuePair("floatCol", null);
-    NameValuePair doubleValuePair = new ConstantColumnPopulators.Float8NameValuePair("doubleCol", null);
-    NameValuePair timeValuePair = new ConstantColumnPopulators.TimeMilliNameValuePair("timeCol", null);
-    NameValuePair timestampValuePair = new ConstantColumnPopulators.TimeStampMilliNameValuePair("timestampCol", null);
-    NameValuePair dateValuePair = new ConstantColumnPopulators.DateMilliNameValuePair("dateCol", null);
+    NameValuePair bigIntNameValuePair =
+        new ConstantColumnPopulators.BigIntNameValuePair("bigintCol", null);
+    NameValuePair floatValuePair =
+        new ConstantColumnPopulators.Float4NameValuePair("floatCol", null);
+    NameValuePair doubleValuePair =
+        new ConstantColumnPopulators.Float8NameValuePair("doubleCol", null);
+    NameValuePair timeValuePair =
+        new ConstantColumnPopulators.TimeMilliNameValuePair("timeCol", null);
+    NameValuePair timestampValuePair =
+        new ConstantColumnPopulators.TimeStampMilliNameValuePair("timestampCol", null);
+    NameValuePair dateValuePair =
+        new ConstantColumnPopulators.DateMilliNameValuePair("dateCol", null);
     NameValuePair bitValuePair = new ConstantColumnPopulators.BitNameValuePair("bitCol", null);
-    NameValuePair varBinaryValuePair = new ConstantColumnPopulators.VarBinaryNameValuePair("varbinaryCol", null);
-    NameValuePair varcharValuePair = new ConstantColumnPopulators.VarCharNameValuePair("varcharCol", null);
-    NameValuePair decimalValuePair = new ConstantColumnPopulators.DecimalNameValuePair("decimalCol", null);
+    NameValuePair varBinaryValuePair =
+        new ConstantColumnPopulators.VarBinaryNameValuePair("varbinaryCol", null);
+    NameValuePair varcharValuePair =
+        new ConstantColumnPopulators.VarCharNameValuePair("varcharCol", null);
+    NameValuePair decimalValuePair =
+        new ConstantColumnPopulators.DecimalNameValuePair("decimalCol", null);
 
-    verifyAllNullColumns(Lists.newArrayList(intNameValuePair, bigIntNameValuePair, floatValuePair, doubleValuePair, timeValuePair,
-      timestampValuePair, dateValuePair, bitValuePair, varBinaryValuePair, varcharValuePair, decimalValuePair));
+    verifyAllNullColumns(
+        Lists.newArrayList(
+            intNameValuePair,
+            bigIntNameValuePair,
+            floatValuePair,
+            doubleValuePair,
+            timeValuePair,
+            timestampValuePair,
+            dateValuePair,
+            bitValuePair,
+            varBinaryValuePair,
+            varcharValuePair,
+            decimalValuePair));
   }
 
   interface VerifyValue {

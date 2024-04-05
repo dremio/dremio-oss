@@ -18,15 +18,13 @@ package com.dremio.sabot.threads.sharedres;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Tracks a particular resource and whether it is available. Note that rule is
- * currently:
+ * Tracks a particular resource and whether it is available. Note that rule is currently:
  *
- * - Only the inside thread (single) may cause a blocked state.
- * - The outside threads (many) may cause an unblocked state.
+ * <p>- Only the inside thread (single) may cause a blocked state. - The outside threads (many) may
+ * cause an unblocked state.
  *
- * To avoid any concurrency issues, any operations that are doing something
- * depending on this much also synchronize on this object so that no race
- * conditions are introduced.
+ * <p>To avoid any concurrency issues, any operations that are doing something depending on this
+ * much also synchronize on this object so that no race conditions are introduced.
  */
 public class SharedResource {
   private final SharedResourceGroup resourceGroup;
@@ -35,21 +33,21 @@ public class SharedResource {
   private final String name;
   private final SharedResourceType resourceType;
 
-  SharedResource(SharedResourceGroup resourceGroup, String name, SharedResourceType resourceType){
+  SharedResource(SharedResourceGroup resourceGroup, String name, SharedResourceType resourceType) {
     this.resourceGroup = resourceGroup;
     this.name = name;
     this.resourceType = resourceType;
   }
 
   void disableBlocking() {
-    synchronized(this) {
+    synchronized (this) {
       disabled.set(true);
       markAvailable();
     }
   }
 
   public void markBlocked() {
-    synchronized(this) {
+    synchronized (this) {
       if (!disabled.get() && available.compareAndSet(true, false)) {
         resourceGroup.addBlocked();
       }
@@ -57,18 +55,18 @@ public class SharedResource {
   }
 
   public void markAvailable() {
-    synchronized(this) {
+    synchronized (this) {
       if (available.compareAndSet(false, true)) {
-         resourceGroup.removeBlocked();
+        resourceGroup.removeBlocked();
       }
     }
   }
 
-  public boolean isAvailable(){
+  public boolean isAvailable() {
     return available.get();
   }
 
-  public String getName(){
+  public String getName() {
     return name;
   }
 

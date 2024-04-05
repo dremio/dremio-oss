@@ -15,33 +15,29 @@
  */
 package com.dremio.services.jobresults.common;
 
-import java.util.Arrays;
-import java.util.List;
-
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.BitVector;
-import org.apache.arrow.vector.IntVector;
-import org.apache.arrow.vector.ValueVector;
-
 import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.exec.enginemanagement.proto.EngineManagementProtos;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.record.WritableBatch;
+import java.util.Arrays;
+import java.util.List;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.BitVector;
+import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.ValueVector;
 
-/**
- * Utils related to JobResults
- */
+/** Utils related to JobResults */
 public class JobResultsTestUtils {
   public static CoordinationProtos.NodeEndpoint getSampleForeman() {
-    return CoordinationProtos.NodeEndpoint
-      .newBuilder()
-      .setAddress("sample-foreman-address")
-      .setConduitPort(9000)
-      .setMaxDirectMemory(8096)
-      .setEngineId(EngineManagementProtos.EngineId.newBuilder().setId("engine-id").build())
-      .setSubEngineId(EngineManagementProtos.SubEngineId.newBuilder().setId("subengine-id").build())
-      .build();
+    return CoordinationProtos.NodeEndpoint.newBuilder()
+        .setAddress("sample-foreman-address")
+        .setConduitPort(9000)
+        .setMaxDirectMemory(8096)
+        .setEngineId(EngineManagementProtos.EngineId.newBuilder().setId("engine-id").build())
+        .setSubEngineId(
+            EngineManagementProtos.SubEngineId.newBuilder().setId("subengine-id").build())
+        .build();
   }
 
   public static IntVector intVector(BufferAllocator allocator, String name, int count) {
@@ -71,9 +67,12 @@ public class JobResultsTestUtils {
   }
 
   public static QueryWritableBatch createQueryWritableBatch(BufferAllocator allocator, int count) {
-    List<ValueVector> original = Arrays.<ValueVector>asList(bitVector(allocator, "field1", count), intVector(allocator, "field2", count));
+    List<ValueVector> original =
+        Arrays.<ValueVector>asList(
+            bitVector(allocator, "field1", count), intVector(allocator, "field2", count));
     WritableBatch batch = WritableBatch.getBatchNoHV(count, original, false);
-    UserBitShared.QueryData header = UserBitShared.QueryData.newBuilder().setRowCount(count).setDef(batch.getDef()).build();
+    UserBitShared.QueryData header =
+        UserBitShared.QueryData.newBuilder().setRowCount(count).setDef(batch.getDef()).build();
     return new QueryWritableBatch(header, batch.getBuffers());
   }
 }

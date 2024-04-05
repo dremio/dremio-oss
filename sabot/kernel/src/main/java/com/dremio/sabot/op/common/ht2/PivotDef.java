@@ -15,15 +15,13 @@
  */
 package com.dremio.sabot.op.common.ht2;
 
-import java.util.List;
-
-import org.apache.arrow.vector.FieldVector;
-
 import com.dremio.sabot.op.common.ht2.PivotBuilder.FieldMode;
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
+import java.util.List;
+import org.apache.arrow.vector.FieldVector;
 
 public class PivotDef {
   private final int blockWidth;
@@ -36,46 +34,67 @@ public class PivotDef {
   private final ImmutableList<VectorPivotDef> variablePivots;
   private final List<FieldVector> outputVectors;
 
-  public PivotDef(
-      int blockWidth,
-      int variableCount,
-      int bitCount,
-      List<VectorPivotDef> fields) {
+  public PivotDef(int blockWidth, int variableCount, int bitCount, List<VectorPivotDef> fields) {
     super();
     this.blockWidth = blockWidth;
     this.variableCount = variableCount;
     this.bitCount = bitCount;
     this.vectorPivots = ImmutableList.copyOf(fields);
 
-    this.fixedPivots = FluentIterable.from(vectorPivots).filter(new Predicate<VectorPivotDef>(){
-      @Override
-      public boolean apply(VectorPivotDef input) {
-        return input.getType().mode != FieldMode.VARIABLE;
-      }}).toList();
+    this.fixedPivots =
+        FluentIterable.from(vectorPivots)
+            .filter(
+                new Predicate<VectorPivotDef>() {
+                  @Override
+                  public boolean apply(VectorPivotDef input) {
+                    return input.getType().mode != FieldMode.VARIABLE;
+                  }
+                })
+            .toList();
 
-    this.bitPivots = FluentIterable.from(vectorPivots).filter(new Predicate<VectorPivotDef>(){
-      @Override
-      public boolean apply(VectorPivotDef input) {
-        return input.getType().mode == FieldMode.BIT;
-      }}).toList();
+    this.bitPivots =
+        FluentIterable.from(vectorPivots)
+            .filter(
+                new Predicate<VectorPivotDef>() {
+                  @Override
+                  public boolean apply(VectorPivotDef input) {
+                    return input.getType().mode == FieldMode.BIT;
+                  }
+                })
+            .toList();
 
-    this.nonBitFixedPivots = FluentIterable.from(vectorPivots).filter(new Predicate<VectorPivotDef>(){
-      @Override
-      public boolean apply(VectorPivotDef input) {
-        return input.getType().mode == FieldMode.FIXED;
-      }}).toList();
+    this.nonBitFixedPivots =
+        FluentIterable.from(vectorPivots)
+            .filter(
+                new Predicate<VectorPivotDef>() {
+                  @Override
+                  public boolean apply(VectorPivotDef input) {
+                    return input.getType().mode == FieldMode.FIXED;
+                  }
+                })
+            .toList();
 
-    this.variablePivots = FluentIterable.from(vectorPivots).filter(new Predicate<VectorPivotDef>(){
-      @Override
-      public boolean apply(VectorPivotDef input) {
-        return input.getType().mode == FieldMode.VARIABLE;
-      }}).toList();
+    this.variablePivots =
+        FluentIterable.from(vectorPivots)
+            .filter(
+                new Predicate<VectorPivotDef>() {
+                  @Override
+                  public boolean apply(VectorPivotDef input) {
+                    return input.getType().mode == FieldMode.VARIABLE;
+                  }
+                })
+            .toList();
 
-    this.outputVectors = FluentIterable.from(vectorPivots).transform(new Function<VectorPivotDef, FieldVector>(){
-      @Override
-      public FieldVector apply(VectorPivotDef input) {
-        return input.getOutgoingVector();
-      }}).toList();
+    this.outputVectors =
+        FluentIterable.from(vectorPivots)
+            .transform(
+                new Function<VectorPivotDef, FieldVector>() {
+                  @Override
+                  public FieldVector apply(VectorPivotDef input) {
+                    return input.getOutgoingVector();
+                  }
+                })
+            .toList();
   }
 
   public ImmutableList<VectorPivotDef> getBitPivots() {
@@ -83,8 +102,8 @@ public class PivotDef {
   }
 
   public boolean isBoolField(final String fieldName) {
-    return getBitPivots().stream().anyMatch(p -> p.getIncomingVector().getField().getName()
-      .equalsIgnoreCase(fieldName));
+    return getBitPivots().stream()
+        .anyMatch(p -> p.getIncomingVector().getField().getName().equalsIgnoreCase(fieldName));
   }
 
   public ImmutableList<VectorPivotDef> getNonBitFixedPivots() {
@@ -107,16 +126,15 @@ public class PivotDef {
     return vectorPivots;
   }
 
-  public List<VectorPivotDef> getVariablePivots(){
+  public List<VectorPivotDef> getVariablePivots() {
     return variablePivots;
   }
 
-  public List<VectorPivotDef> getFixedPivots(){
+  public List<VectorPivotDef> getFixedPivots() {
     return fixedPivots;
   }
 
-  public List<FieldVector> getOutputVectors(){
+  public List<FieldVector> getOutputVectors() {
     return outputVectors;
   }
-
 }

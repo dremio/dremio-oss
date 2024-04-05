@@ -15,9 +15,7 @@
  */
 package com.dremio.exec.compile;
 
-/**
- * A class name and the associated bytes
- */
+/** A class name and the associated bytes */
 public class ClassBytes {
   private final String name;
   private final byte[] bytes;
@@ -35,5 +33,4 @@ public class ClassBytes {
   public byte[] getBytes() {
     return bytes;
   }
-
 }

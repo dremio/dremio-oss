@@ -35,10 +35,6 @@ import static com.dremio.service.jobs.JobIndexKeys.SQL;
 import static com.dremio.service.jobs.JobIndexKeys.START_TIME;
 import static com.dremio.service.jobs.JobIndexKeys.USER;
 
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-
 import com.dremio.common.utils.PathUtils;
 import com.dremio.datastore.api.DocumentConverter;
 import com.dremio.datastore.api.DocumentWriter;
@@ -56,21 +52,23 @@ import com.dremio.service.namespace.dataset.proto.FieldOrigin;
 import com.dremio.service.namespace.dataset.proto.Origin;
 import com.dremio.service.namespace.dataset.proto.ParentDataset;
 import com.google.common.base.Joiner;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
-/**
- * Creator for jobs.
- */
+/** Creator for jobs. */
 public class JobsStoreCreator implements LegacyIndexedStoreCreationFunction<JobId, JobResult> {
   public static final String JOBS_NAME = "jobs";
 
   @SuppressWarnings("unchecked")
   @Override
   public LegacyIndexedStore<JobId, JobResult> build(LegacyStoreBuildingFactory factory) {
-    return factory.<JobId, JobResult>newStore()
-      .name(JOBS_NAME)
-      .keyFormat(Format.wrapped(JobId.class, JobId::getId, JobId::new, Format.ofString()))
-      .valueFormat(Format.ofProtostuff(JobResult.class))
-      .buildIndexed(new JobConverter());
+    return factory
+        .<JobId, JobResult>newStore()
+        .name(JOBS_NAME)
+        .keyFormat(Format.wrapped(JobId.class, JobId::getId, JobId::new, Format.ofString()))
+        .valueFormat(Format.ofProtostuff(JobResult.class))
+        .buildIndexed(new JobConverter());
   }
 
   private static final class JobConverter implements DocumentConverter<JobId, JobResult> {
@@ -101,12 +99,15 @@ public class JobsStoreCreator implements LegacyIndexedStoreCreationFunction<JobI
       writer.write(DATASET_VERSION, jobInfo.getDatasetVersion());
       writer.write(START_TIME, jobInfo.getStartTime());
       writer.write(END_TIME, jobInfo.getFinishTime());
-      if (jobInfo.getResourceSchedulingInfo() != null && jobInfo.getResourceSchedulingInfo().getQueueName() != null) {
+      if (jobInfo.getResourceSchedulingInfo() != null
+          && jobInfo.getResourceSchedulingInfo().getQueueName() != null) {
         writer.write(QUEUE_NAME, jobInfo.getResourceSchedulingInfo().getQueueName());
       }
 
-      final Long duration = jobInfo.getStartTime() == null || jobInfo.getFinishTime() == null ? null :
-        jobInfo.getFinishTime() - jobInfo.getStartTime();
+      final Long duration =
+          jobInfo.getStartTime() == null || jobInfo.getFinishTime() == null
+              ? null
+              : jobInfo.getFinishTime() - jobInfo.getStartTime();
       writer.write(DURATION, duration);
 
       Set<NamespaceKey> parentDatasets = new HashSet<>();
@@ -135,11 +136,12 @@ public class JobsStoreCreator implements LegacyIndexedStoreCreationFunction<JobI
 
       for (NamespaceKey parentDatasetPath : parentDatasets) {
         // DX-5119 Index unquoted dataset names along with quoted ones.
-        // TODO (Amit H): DX-1563 We should be using analyzer to match both rather than indexing twice.
+        // TODO (Amit H): DX-1563 We should be using analyzer to match both rather than indexing
+        // twice.
         writer.write(
-          PARENT_DATASET,
-          parentDatasetPath.getSchemaPath(),
-          Joiner.on(PathUtils.getPathDelimiter()).join(parentDatasetPath.getPathComponents()));
+            PARENT_DATASET,
+            parentDatasetPath.getSchemaPath(),
+            Joiner.on(PathUtils.getPathDelimiter()).join(parentDatasetPath.getPathComponents()));
       }
       // index all datasets accessed by this job
       for (ParentDataset parentDataset : listNotNull(jobInfo.getGrandParentsList())) {
@@ -147,10 +149,12 @@ public class JobsStoreCreator implements LegacyIndexedStoreCreationFunction<JobI
       }
       for (NamespaceKey allDatasetPath : allDatasets) {
         // DX-5119 Index unquoted dataset names along with quoted ones.
-        // TODO (Amit H): DX-1563 We should be using analyzer to match both rather than indexing twice.
-        writer.write(ALL_DATASETS,
-          allDatasetPath.getSchemaPath(),
-          Joiner.on(PathUtils.getPathDelimiter()).join(allDatasetPath.getPathComponents()));
+        // TODO (Amit H): DX-1563 We should be using analyzer to match both rather than indexing
+        // twice.
+        writer.write(
+            ALL_DATASETS,
+            allDatasetPath.getSchemaPath(),
+            Joiner.on(PathUtils.getPathDelimiter()).join(allDatasetPath.getPathComponents()));
       }
 
       for (String id : listNotNull(jobInfo.getConsideredReflectionIdsList())) {

@@ -26,5 +26,4 @@ class DynamicType implements RelProtoDataType {
   public RelDataType apply(RelDataTypeFactory factory) {
     return factory.createSqlType(SqlTypeName.ANY);
   }
-
 }

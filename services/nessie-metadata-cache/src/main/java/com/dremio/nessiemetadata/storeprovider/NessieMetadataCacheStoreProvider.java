@@ -15,7 +15,12 @@
  */
 package com.dremio.nessiemetadata.storeprovider;
 
-import com.dremio.datastore.transientstore.TransientStoreProvider;
+import com.dremio.nessiemetadata.cache.NessieMetadataCache;
+import com.dremio.service.Service;
+import javax.annotation.Nullable;
+import org.projectnessie.client.api.NessieApiV2;
 
-public interface NessieMetadataCacheStoreProvider extends TransientStoreProvider  {
+public interface NessieMetadataCacheStoreProvider extends Service {
+  NessieMetadataCache getStore(
+      @Nullable NessieApiV2 nessieApi, long maxSize, long ttlMinutes, boolean bypassCache);
 }

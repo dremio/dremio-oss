@@ -15,16 +15,6 @@
  */
 package com.dremio.plugins.elastic.execution;
 
-import java.io.IOException;
-import java.util.List;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.vector.complex.writer.BaseWriter;
-import org.apache.arrow.vector.complex.writer.BaseWriter.ComplexWriter;
-import org.apache.arrow.vector.complex.writer.BaseWriter.ListWriter;
-import org.apache.arrow.vector.complex.writer.BaseWriter.StructWriter;
-import org.apache.calcite.util.Pair;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.PathSegment;
 import com.dremio.common.expression.SchemaPath;
@@ -35,9 +25,18 @@ import com.dremio.plugins.elastic.ElasticsearchConstants;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonToken;
 import com.google.common.base.Preconditions;
+import java.io.IOException;
+import java.util.List;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.vector.complex.writer.BaseWriter;
+import org.apache.arrow.vector.complex.writer.BaseWriter.ComplexWriter;
+import org.apache.arrow.vector.complex.writer.BaseWriter.ListWriter;
+import org.apache.arrow.vector.complex.writer.BaseWriter.StructWriter;
+import org.apache.calcite.util.Pair;
 
 public class ElasticsearchJsonReader extends BaseJsonProcessor {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ElasticsearchJsonReader.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ElasticsearchJsonReader.class);
 
   private static final boolean EXTRA_STREAM_DEBUG = false;
   private final WorkingBuffer workingBuffer;
@@ -51,24 +50,23 @@ public class ElasticsearchJsonReader extends BaseJsonProcessor {
   private final boolean metaIndexSelected;
   private final boolean metaTypeSelected;
 
-  /**
-   * The name of the current field being parsed. For Error messages.
-   */
+  /** The name of the current field being parsed. For Error messages. */
   private String currentFieldName = "<none>";
 
   private FieldSelection selection;
   private String index;
   private String type;
 
-  public ElasticsearchJsonReader(ArrowBuf managedBuf,
-                                 List<SchemaPath> columns,
-                                 String resourceName,
-                                 FieldReadDefinition rootDefinition,
-                                 boolean fieldsProjected,
-                                 boolean metaUIDSelected,
-                                 boolean metaIDSelected,
-                                 boolean metaTypeSelected,
-                                 boolean metaIndexSelected) {
+  public ElasticsearchJsonReader(
+      ArrowBuf managedBuf,
+      List<SchemaPath> columns,
+      String resourceName,
+      FieldReadDefinition rootDefinition,
+      boolean fieldsProjected,
+      boolean metaUIDSelected,
+      boolean metaIDSelected,
+      boolean metaTypeSelected,
+      boolean metaIndexSelected) {
 
     this.workingBuffer = new WorkingBuffer(managedBuf);
     this.resourceName = resourceName;
@@ -121,7 +119,7 @@ public class ElasticsearchJsonReader extends BaseJsonProcessor {
 
     JsonToken t = parser.nextToken();
 
-    while ( !parser.hasCurrentToken() && !parser.isClosed()) {
+    while (!parser.hasCurrentToken() && !parser.isClosed()) {
       t = parser.nextToken();
     }
 
@@ -143,14 +141,18 @@ public class ElasticsearchJsonReader extends BaseJsonProcessor {
       assert t == JsonToken.VALUE_STRING;
       index = parser.getText();
       if (metaIndexSelected) {
-        structWriter.varChar(ElasticsearchConstants.INDEX).writeVarChar(0, workingBuffer.prepareVarCharHolder(index), workingBuffer.getBuf());
+        structWriter
+            .varChar(ElasticsearchConstants.INDEX)
+            .writeVarChar(0, workingBuffer.prepareVarCharHolder(index), workingBuffer.getBuf());
       }
 
       t = seekForward(ElasticsearchConstants.TYPE);
       assert t == JsonToken.VALUE_STRING;
       type = parser.getText();
       if (metaTypeSelected) {
-        structWriter.varChar(ElasticsearchConstants.TYPE).writeVarChar(0, workingBuffer.prepareVarCharHolder(type), workingBuffer.getBuf());
+        structWriter
+            .varChar(ElasticsearchConstants.TYPE)
+            .writeVarChar(0, workingBuffer.prepareVarCharHolder(type), workingBuffer.getBuf());
       }
 
       // We use _uid, since _uid can be used in aggregation pipelines, while _id cannot.
@@ -162,10 +164,14 @@ public class ElasticsearchJsonReader extends BaseJsonProcessor {
         final String thisID = parser.getText();
         if (metaUIDSelected) {
           final String uid = this.type + "#" + thisID;
-          structWriter.varChar(ElasticsearchConstants.UID).writeVarChar(0, workingBuffer.prepareVarCharHolder(uid), workingBuffer.getBuf());
+          structWriter
+              .varChar(ElasticsearchConstants.UID)
+              .writeVarChar(0, workingBuffer.prepareVarCharHolder(uid), workingBuffer.getBuf());
         }
         if (metaIDSelected) {
-          structWriter.varChar(ElasticsearchConstants.ID).writeVarChar(0, workingBuffer.prepareVarCharHolder(thisID), workingBuffer.getBuf());
+          structWriter
+              .varChar(ElasticsearchConstants.ID)
+              .writeVarChar(0, workingBuffer.prepareVarCharHolder(thisID), workingBuffer.getBuf());
         }
       }
 
@@ -198,10 +204,10 @@ public class ElasticsearchJsonReader extends BaseJsonProcessor {
       case WRITE_SUCCEED:
         break;
       default:
-        throw getExceptionWithContext(
-          UserException.dataReadError(), currentFieldName)
-          .message("Failure while reading JSON. (Got an invalid read state %s )", readState.toString())
-          .build(logger);
+        throw getExceptionWithContext(UserException.dataReadError(), currentFieldName)
+            .message(
+                "Failure while reading JSON. (Got an invalid read state %s )", readState.toString())
+            .build(logger);
     }
 
     return readState;
@@ -211,21 +217,27 @@ public class ElasticsearchJsonReader extends BaseJsonProcessor {
     switch (t) {
       case START_OBJECT:
       case START_ARRAY:
-        writeDeclaredMap(writer, this.selection, rootDefinition, true /* move forward*/, null, true /* first level*/);
+        writeDeclaredMap(
+            writer,
+            this.selection,
+            rootDefinition,
+            true /* move forward*/,
+            null,
+            true /* first level*/);
         break;
       case END_ARRAY:
       case NOT_AVAILABLE:
         return ReadState.END_OF_STREAM;
       default:
-        throw getExceptionWithContext(
-          UserException.dataReadError(), currentFieldName)
-          .message("Failure while parsing JSON.  Found token of %s.  Dremio currently only supports parsing "
-                  + "json strings that contain either lists or maps.  The root object cannot be a scalar.", t)
-          .build(logger);
+        throw getExceptionWithContext(UserException.dataReadError(), currentFieldName)
+            .message(
+                "Failure while parsing JSON.  Found token of %s.  Dremio currently only supports parsing "
+                    + "json strings that contain either lists or maps.  The root object cannot be a scalar.",
+                t)
+            .build(logger);
     }
 
     return ReadState.WRITE_SUCCEED;
-
   }
 
   private void consumeEntireNextValue() throws IOException {
@@ -241,18 +253,20 @@ public class ElasticsearchJsonReader extends BaseJsonProcessor {
     }
   }
 
-  private void p(String str, Object...objects){
-    if(EXTRA_STREAM_DEBUG){
-      System.out.println(String.format(str,  objects));
+  private void p(String str, Object... objects) {
+    if (EXTRA_STREAM_DEBUG) {
+      System.out.println(String.format(str, objects));
     }
   }
 
-  private void writeDeclaredMap(StructWriter map,
-                         FieldSelection selection,
-                         FieldReadDefinition parentDefinition,
-                         boolean moveForward,
-                         SchemaPath parentPath,
-                         boolean firstLevel) throws IOException {
+  private void writeDeclaredMap(
+      StructWriter map,
+      FieldSelection selection,
+      FieldReadDefinition parentDefinition,
+      boolean moveForward,
+      SchemaPath parentPath,
+      boolean firstLevel)
+      throws IOException {
     p("enter map. %s", System.identityHashCode(map));
     if (!firstLevel) {
       map.start();
@@ -274,7 +288,8 @@ public class ElasticsearchJsonReader extends BaseJsonProcessor {
           return;
         }
 
-        Preconditions.checkState(t == JsonToken.FIELD_NAME, String.format("Expected FIELD_NAME but got %s.", t.name()));
+        Preconditions.checkState(
+            t == JsonToken.FIELD_NAME, String.format("Expected FIELD_NAME but got %s.", t.name()));
 
         final String fieldName = parser.getText();
         this.currentFieldName = fieldName;
@@ -286,20 +301,24 @@ public class ElasticsearchJsonReader extends BaseJsonProcessor {
 
         final FieldReadDefinition definition = parentDefinition.getChild(fieldName);
 
-        if(definition == null){
+        if (definition == null) {
           p("writing undeclared map: %s.", t);
-          // since we're already partially reading a map, we want to avoid map.Start() events and also forward movement.
+          // since we're already partially reading a map, we want to avoid map.Start() events and
+          // also forward movement.
           writeUndeclaredMap(map, selection, false, true, true);
           continue;
         }
 
         // skip hidden fields.
-        if(definition.isHidden()){
+        if (definition.isHidden()) {
           consumeEntireNextValue();
           continue;
         }
 
-        final SchemaPath path = parentPath == null ? SchemaPath.getSimplePath(fieldName) : parentPath.getChild(fieldName);
+        final SchemaPath path =
+            parentPath == null
+                ? SchemaPath.getSimplePath(fieldName)
+                : parentPath.getChild(fieldName);
 
         t = parser.nextToken();
 
@@ -307,12 +326,14 @@ public class ElasticsearchJsonReader extends BaseJsonProcessor {
         if (t == JsonToken.VALUE_NULL) {
           // do nothing.
         } else if (t == JsonToken.START_ARRAY) {
-          writeDeclaredList(map.list(fieldName), childSelection, definition.asNoList(), path, true, true);
-        } else if (definition.isArray()){
-          // we need to do a promoted scalar behavior (data is a scalar but elsewhere is a list, treat it as a list always).
+          writeDeclaredList(
+              map.list(fieldName), childSelection, definition.asNoList(), path, true, true);
+        } else if (definition.isArray()) {
+          // we need to do a promoted scalar behavior (data is a scalar but elsewhere is a list,
+          // treat it as a list always).
           ListWriter list = map.list(fieldName);
           list.startList();
-          if(t == JsonToken.START_OBJECT){
+          if (t == JsonToken.START_OBJECT) {
             writeDeclaredMap(list.struct(), childSelection, definition, true, path, false);
           } else {
             definition.writeList(list, t, parser);
@@ -320,7 +341,8 @@ public class ElasticsearchJsonReader extends BaseJsonProcessor {
           list.endList();
 
         } else if (t == JsonToken.START_OBJECT) {
-          writeDeclaredMap(map.struct(fieldName), childSelection, definition.asNoList(), true, path, false);
+          writeDeclaredMap(
+              map.struct(fieldName), childSelection, definition.asNoList(), true, path, false);
         } else if (t == JsonToken.END_OBJECT) {
           return;
         } else {
@@ -335,8 +357,15 @@ public class ElasticsearchJsonReader extends BaseJsonProcessor {
     }
   }
 
-  private void writeDeclaredList(ListWriter list, FieldSelection selection, FieldReadDefinition readDef, SchemaPath path, boolean startList, boolean allowNestList) throws IOException {
-    if(startList && allowNestList){
+  private void writeDeclaredList(
+      ListWriter list,
+      FieldSelection selection,
+      FieldReadDefinition readDef,
+      SchemaPath path,
+      boolean startList,
+      boolean allowNestList)
+      throws IOException {
+    if (startList && allowNestList) {
       list.startList();
     }
     while (true) {
@@ -344,7 +373,13 @@ public class ElasticsearchJsonReader extends BaseJsonProcessor {
         JsonToken token = parser.nextToken();
         if (token == JsonToken.START_ARRAY) {
           boolean innerAllowNestList = readDef.isArray() || readDef.isGeo();
-          writeDeclaredList(innerAllowNestList ? list.list() : list, selection, readDef, path, true, innerAllowNestList);
+          writeDeclaredList(
+              innerAllowNestList ? list.list() : list,
+              selection,
+              readDef,
+              path,
+              true,
+              innerAllowNestList);
         } else if (token == JsonToken.END_ARRAY) {
           break;
         } else if (token == JsonToken.END_OBJECT) {
@@ -359,13 +394,14 @@ public class ElasticsearchJsonReader extends BaseJsonProcessor {
       }
     }
 
-    if(startList && allowNestList){
+    if (startList && allowNestList) {
       list.endList();
     }
   }
 
   /**
    * Seek to desired field name.
+   *
    * @param fieldName The name of the field to find.
    * @return Either the current token or null if the position wasn't found.
    * @throws IOException
@@ -402,14 +438,20 @@ public class ElasticsearchJsonReader extends BaseJsonProcessor {
     return null;
   }
 
-
-  private void writeUndeclaredMap(StructWriter map, FieldSelection selection, boolean moveForward, boolean skipMapStartEnd, boolean breakAfterSingle) throws IOException {
+  private void writeUndeclaredMap(
+      StructWriter map,
+      FieldSelection selection,
+      boolean moveForward,
+      boolean skipMapStartEnd,
+      boolean breakAfterSingle)
+      throws IOException {
     //
-    if(!skipMapStartEnd){
+    if (!skipMapStartEnd) {
       map.start();
     }
     try {
-      outside: while (true) {
+      outside:
+      while (true) {
 
         JsonToken t;
         if (moveForward) {
@@ -423,7 +465,8 @@ public class ElasticsearchJsonReader extends BaseJsonProcessor {
           return;
         }
 
-        assert t == JsonToken.FIELD_NAME : String.format("Expected FIELD_NAME but got %s.", t.name());
+        assert t == JsonToken.FIELD_NAME
+            : String.format("Expected FIELD_NAME but got %s.", t.name());
 
         final String fieldName = parser.getText();
         this.currentFieldName = fieldName;
@@ -434,56 +477,62 @@ public class ElasticsearchJsonReader extends BaseJsonProcessor {
         }
 
         switch (parser.nextToken()) {
-        case START_ARRAY:
-          writeUndeclaredList(map.list(fieldName), childSelection);
-          break;
-        case START_OBJECT:
-          writeUndeclaredMap(map.struct(fieldName), childSelection, true, false, false);
-          break;
-        case END_OBJECT:
-          break outside;
+          case START_ARRAY:
+            writeUndeclaredList(map.list(fieldName), childSelection);
+            break;
+          case START_OBJECT:
+            writeUndeclaredMap(map.struct(fieldName), childSelection, true, false, false);
+            break;
+          case END_OBJECT:
+            break outside;
 
-        case VALUE_FALSE: {
-          map.bit(fieldName).writeBit(0);
-          break;
-        }
-        case VALUE_TRUE: {
-          map.bit(fieldName).writeBit(1);
-          break;
-        }
-        case VALUE_NULL:
-          // do nothing as we don't have a type.
-          break;
-        case VALUE_NUMBER_FLOAT:
-          map.float8(fieldName).writeFloat8(parser.getDoubleValue());
-          break;
-        case VALUE_NUMBER_INT:
-          map.bigInt(fieldName).writeBigInt(parser.getLongValue());
-          break;
-        case VALUE_STRING:
-          map.varChar(fieldName).writeVarChar(0, workingBuffer.prepareVarCharHolder(parser.getText()), workingBuffer.getBuf());
-          break;
+          case VALUE_FALSE:
+            {
+              map.bit(fieldName).writeBit(0);
+              break;
+            }
+          case VALUE_TRUE:
+            {
+              map.bit(fieldName).writeBit(1);
+              break;
+            }
+          case VALUE_NULL:
+            // do nothing as we don't have a type.
+            break;
+          case VALUE_NUMBER_FLOAT:
+            map.float8(fieldName).writeFloat8(parser.getDoubleValue());
+            break;
+          case VALUE_NUMBER_INT:
+            map.bigInt(fieldName).writeBigInt(parser.getLongValue());
+            break;
+          case VALUE_STRING:
+            map.varChar(fieldName)
+                .writeVarChar(
+                    0,
+                    workingBuffer.prepareVarCharHolder(parser.getText()),
+                    workingBuffer.getBuf());
+            break;
 
-        default:
-          throw getExceptionWithContext(UserException.dataReadError(), currentFieldName)
-            .message("Unexpected token %s", parser.getCurrentToken()).build(logger);
+          default:
+            throw getExceptionWithContext(UserException.dataReadError(), currentFieldName)
+                .message("Unexpected token %s", parser.getCurrentToken())
+                .build(logger);
         }
 
-        if(breakAfterSingle){
+        if (breakAfterSingle) {
           return;
         }
       }
     } finally {
-      if(!skipMapStartEnd){
+      if (!skipMapStartEnd) {
         map.end();
       }
     }
-
   }
 
   public static boolean parseElasticBoolean(String toParse) {
     assert toParse != null : "Elastic group by returned null string as key " + toParse;
-    switch(toParse.toLowerCase()) {
+    switch (toParse.toLowerCase()) {
       case "":
       case "0":
       case "false":
@@ -498,50 +547,59 @@ public class ElasticsearchJsonReader extends BaseJsonProcessor {
 
   private void writeUndeclaredList(ListWriter list, FieldSelection selection) throws IOException {
     list.startList();
-    outside: while (true) {
+    outside:
+    while (true) {
       try {
         switch (parser.nextToken()) {
-        case START_ARRAY:
-          writeUndeclaredList(list.list(), selection);
-          break;
-        case START_OBJECT:
-          writeUndeclaredMap(list.struct(), selection, true, false, false);
-          break;
-        case END_ARRAY:
-        case END_OBJECT:
-          break outside;
+          case START_ARRAY:
+            writeUndeclaredList(list.list(), selection);
+            break;
+          case START_OBJECT:
+            writeUndeclaredMap(list.struct(), selection, true, false, false);
+            break;
+          case END_ARRAY:
+          case END_OBJECT:
+            break outside;
 
-        case VALUE_EMBEDDED_OBJECT:
-        case VALUE_FALSE: {
-          list.bit().writeBit(0);
-          break;
-        }
-        case VALUE_TRUE: {
-          list.bit().writeBit(1);
-          break;
-        }
-        case VALUE_NULL:
-          throw UserException.unsupportedError()
-            .message("Null values are not supported in lists read from Elasticsearch. " +
-              "Please alter the query to filter out null values or remove the null values from Elasticsearch.")
-            .build(logger);
-        case VALUE_NUMBER_FLOAT:
-          list.float8().writeFloat8(parser.getDoubleValue());
-          break;
-        case VALUE_NUMBER_INT:
-          list.bigInt().writeBigInt(parser.getLongValue());
-          break;
-        case VALUE_STRING:
-          list.varChar().writeVarChar(0, workingBuffer.prepareVarCharHolder(parser.getText()), workingBuffer.getBuf());
-          break;
-        default:
-          throw UserException.dataReadError().message("Unexpected token %s", parser.getCurrentToken()).build(logger);
+          case VALUE_EMBEDDED_OBJECT:
+          case VALUE_FALSE:
+            {
+              list.bit().writeBit(0);
+              break;
+            }
+          case VALUE_TRUE:
+            {
+              list.bit().writeBit(1);
+              break;
+            }
+          case VALUE_NULL:
+            throw UserException.unsupportedError()
+                .message(
+                    "Null values are not supported in lists read from Elasticsearch. "
+                        + "Please alter the query to filter out null values or remove the null values from Elasticsearch.")
+                .build(logger);
+          case VALUE_NUMBER_FLOAT:
+            list.float8().writeFloat8(parser.getDoubleValue());
+            break;
+          case VALUE_NUMBER_INT:
+            list.bigInt().writeBigInt(parser.getLongValue());
+            break;
+          case VALUE_STRING:
+            list.varChar()
+                .writeVarChar(
+                    0,
+                    workingBuffer.prepareVarCharHolder(parser.getText()),
+                    workingBuffer.getBuf());
+            break;
+          default:
+            throw UserException.dataReadError()
+                .message("Unexpected token %s", parser.getCurrentToken())
+                .build(logger);
         }
       } catch (Exception e) {
         throw getExceptionWithContext(e, this.currentFieldName).build(logger);
       }
     }
     list.endList();
-
   }
 }

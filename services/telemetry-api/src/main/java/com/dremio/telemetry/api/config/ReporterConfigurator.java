@@ -19,22 +19,22 @@ import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
-/**
- * A interface for configuring and starting metrics. Should include a @JsonTypeName annotation.
- */
+/** A interface for configuring and starting metrics. Should include a @JsonTypeName annotation. */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
 public abstract class ReporterConfigurator implements AutoCloseable {
 
   public abstract void configureAndStart(String name, MetricRegistry registry, MetricFilter filter);
 
   /**
-   * Important to implement since this is used to confirm whether to replace an existing configuration.
+   * Important to implement since this is used to confirm whether to replace an existing
+   * configuration.
    */
   @Override
   public abstract int hashCode();
 
   /**
-   * Important to implement since this is used to confirm whether to replace an existing configuration.
+   * Important to implement since this is used to confirm whether to replace an existing
+   * configuration.
    */
   @Override
   public abstract boolean equals(Object other);

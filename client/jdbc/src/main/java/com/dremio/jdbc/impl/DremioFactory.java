@@ -18,18 +18,15 @@ package com.dremio.jdbc.impl;
 
 import java.sql.SQLException;
 import java.util.Properties;
-
 import org.apache.calcite.avatica.AvaticaConnection;
 import org.apache.calcite.avatica.AvaticaFactory;
 import org.apache.calcite.avatica.UnregisteredDriver;
 
-
 /**
- * Partial implementation of {@link net.hydromatic.avatica.AvaticaFactory}
- * (factory for main JDBC objects) for Dremio's JDBC driver.
- * <p>
- *   Handles JDBC version number.
- * </p>
+ * Partial implementation of {@link net.hydromatic.avatica.AvaticaFactory} (factory for main JDBC
+ * objects) for Dremio's JDBC driver.
+ *
+ * <p>Handles JDBC version number.
  */
 abstract class DremioFactory implements AvaticaFactory {
   protected final int major;
@@ -51,27 +48,20 @@ abstract class DremioFactory implements AvaticaFactory {
     return minor;
   }
 
-
   /**
    * Creates a Dremio connection for Avatica (in terms of Avatica types).
-   * <p>
-   *   This implementation delegates to
-   *   {@link #newDremioConnection(DriverImpl, DremioFactory, String, Properties)}.
-   * </p>
+   *
+   * <p>This implementation delegates to {@link #newDremioConnection(DriverImpl, DremioFactory,
+   * String, Properties)}.
    */
   @Override
-  public final AvaticaConnection newConnection(UnregisteredDriver driver,
-                                               AvaticaFactory factory,
-                                               String url,
-                                               Properties info) throws SQLException {
+  public final AvaticaConnection newConnection(
+      UnregisteredDriver driver, AvaticaFactory factory, String url, Properties info)
+      throws SQLException {
     return newConnection((DriverImpl) driver, (DremioFactory) factory, url, info);
   }
 
-  /**
-   * Creates a Dremio connection (in terms of Dremio-specific types).
-   */
-  abstract DremioConnectionImpl newConnection(DriverImpl driver,
-                                                  DremioFactory factory,
-                                                  String url,
-                                                  Properties info) throws SQLException;
+  /** Creates a Dremio connection (in terms of Dremio-specific types). */
+  abstract DremioConnectionImpl newConnection(
+      DriverImpl driver, DremioFactory factory, String url, Properties info) throws SQLException;
 }

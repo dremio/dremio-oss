@@ -16,7 +16,8 @@
 package com.dremio.services.credentials;
 
 /**
- * {@link CredentialsException} that occurred during interaction with file system {@link CredentialsException}.
+ * {@link CredentialsException} that occurred during interaction with file system {@link
+ * CredentialsException}.
  */
 public class FileCredentialsException extends CredentialsException {
   private static final long serialVersionUID = 1L;

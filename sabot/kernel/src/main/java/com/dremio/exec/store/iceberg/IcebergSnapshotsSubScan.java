@@ -15,11 +15,6 @@
  */
 package com.dremio.exec.store.iceberg;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.stream.Collectors;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.OpProps;
@@ -34,30 +29,32 @@ import com.dremio.exec.store.SplitWork;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
 
-/**
- * Iceberg snapshots subscan POP
- */
+/** Iceberg snapshots subscan POP */
 @JsonTypeName("iceberg-snapshots-sub-scan")
 public class IcebergSnapshotsSubScan extends SubScanWithProjection {
   private final StoragePluginId pluginId;
   private final SnapshotsScanOptions snapshotsScanOptions;
-  @JsonIgnore
-  private List<SplitAndPartitionInfo> splits;
+  @JsonIgnore private List<SplitAndPartitionInfo> splits;
   private static final Collection<List<String>> NO_REFERENCED_TABLES = Collections.EMPTY_LIST;
 
   public IcebergSnapshotsSubScan(
-    @JsonProperty("props") OpProps props,
-    @JsonProperty("fullSchema") BatchSchema fullSchema,
-    @JsonProperty("pluginId") StoragePluginId pluginId,
-    @JsonProperty("columns") List<SchemaPath> columns,
-    @JsonProperty("snapshotsScanOptions") SnapshotsScanOptions snapshotsScanOptions,
-    @JsonProperty("splitWorks") List<SplitWork> splitWorks) {
+      @JsonProperty("props") OpProps props,
+      @JsonProperty("fullSchema") BatchSchema fullSchema,
+      @JsonProperty("pluginId") StoragePluginId pluginId,
+      @JsonProperty("columns") List<SchemaPath> columns,
+      @JsonProperty("snapshotsScanOptions") SnapshotsScanOptions snapshotsScanOptions,
+      @JsonProperty("splitWorks") List<SplitWork> splitWorks) {
     super(props, fullSchema, NO_REFERENCED_TABLES, columns);
     this.pluginId = pluginId;
     this.snapshotsScanOptions = snapshotsScanOptions;
     if (splitWorks != null) {
-      this.splits = splitWorks.stream().map(SplitWork::getSplitAndPartitionInfo).collect(Collectors.toList());
+      this.splits =
+          splitWorks.stream().map(SplitWork::getSplitAndPartitionInfo).collect(Collectors.toList());
     }
   }
 

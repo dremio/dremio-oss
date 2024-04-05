@@ -15,14 +15,12 @@
  */
 package com.dremio.sabot.op.join.nlje;
 
-
-/**
- * A concept of a range of values from two sets of records. Used to iterate over
- */
+/** A concept of a range of values from two sets of records. Used to iterate over */
 public abstract class DualRange implements AutoCloseable {
 
   /**
    * Whether there is available data to consume after the current data.
+   *
    * @return
    */
   public abstract boolean hasNext();
@@ -38,14 +36,13 @@ public abstract class DualRange implements AutoCloseable {
 
   /**
    * Inform the range that the next probe batch is now available.
+   *
    * @param records Number of records in the probe batch.
    * @return
    */
   public abstract DualRange startNextProbe(int records);
 
-
   public abstract boolean isIndexRange();
-
 
   public IndexRange asIndexRange() {
     throw new UnsupportedOperationException();
@@ -54,5 +51,4 @@ public abstract class DualRange implements AutoCloseable {
   public VectorRange asVectorRange() {
     throw new UnsupportedOperationException();
   }
-
 }

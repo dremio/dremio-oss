@@ -15,13 +15,11 @@
  */
 package com.dremio.exec.catalog;
 
-import javax.annotation.Nullable;
-
-import org.immutables.value.Value;
-
 import com.dremio.catalog.model.ResolvedVersionContext;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import javax.annotation.Nullable;
+import org.immutables.value.Value;
 
 @Value.Immutable
 @JsonSerialize(as = ImmutableTableMutationOptions.class)
@@ -32,7 +30,9 @@ public abstract class TableMutationOptions {
   public abstract ResolvedVersionContext getResolvedVersionContext();
 
   @Value.Default
-  public boolean isLayered() { return false; }
+  public boolean isLayered() {
+    return false;
+  }
 
   /**
    * Create a new builder.
@@ -44,5 +44,7 @@ public abstract class TableMutationOptions {
   }
 
   @Value.Default
-  public boolean shouldDeleteCatalogEntry() { return false; }
+  public boolean shouldDeleteCatalogEntry() {
+    return false;
+  }
 }

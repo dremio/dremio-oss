@@ -15,33 +15,36 @@
  */
 package com.dremio;
 
-import org.junit.Test;
-
 import com.dremio.exec.planner.physical.PlannerSettings;
+import org.junit.Test;
 
 public class TestMultipleCountDistinct extends PlanTestBase {
   @Test
   public void testPlan() throws Exception {
-    try (AutoCloseable option = withOption(PlannerSettings.ENABLE_DISTINCT_AGG_WITH_GROUPING_SETS, true)) {
-      String sql = "select n_regionkey, count(distinct n_name) dist_name, count(distinct n_nationkey) dist_key from cp.\"tpch/nation.parquet\" group by n_regionkey";
-      testPlanMatchingPatterns(sql, new String[]{"NestedLoopJoin"}, "HashJoin");
+    try (AutoCloseable option =
+        withOption(PlannerSettings.ENABLE_DISTINCT_AGG_WITH_GROUPING_SETS, true)) {
+      String sql =
+          "select n_regionkey, count(distinct n_name) dist_name, count(distinct n_nationkey) dist_key from cp.\"tpch/nation.parquet\" group by n_regionkey";
+      testPlanMatchingPatterns(sql, new String[] {"NestedLoopJoin"}, "HashJoin");
     }
   }
 
   @Test
   public void testExecution() throws Exception {
-    try (AutoCloseable option = withOption(PlannerSettings.ENABLE_DISTINCT_AGG_WITH_GROUPING_SETS, true)) {
-      String sql = "select n_regionkey, count(distinct n_name) dist_name, count(distinct n_nationkey) dist_key from cp.\"tpch/nation.parquet\" group by n_regionkey";
+    try (AutoCloseable option =
+        withOption(PlannerSettings.ENABLE_DISTINCT_AGG_WITH_GROUPING_SETS, true)) {
+      String sql =
+          "select n_regionkey, count(distinct n_name) dist_name, count(distinct n_nationkey) dist_key from cp.\"tpch/nation.parquet\" group by n_regionkey";
       testBuilder()
-        .sqlQuery(sql)
-        .unOrdered()
-        .baselineColumns("n_regionkey", "dist_name", "dist_key")
-        .baselineValues(0, 5L, 5L)
-        .baselineValues(1, 5L, 5L)
-        .baselineValues(2, 5L, 5L)
-        .baselineValues(3, 5L, 5L)
-        .baselineValues(4, 5L, 5L)
-        .go();
+          .sqlQuery(sql)
+          .unOrdered()
+          .baselineColumns("n_regionkey", "dist_name", "dist_key")
+          .baselineValues(0, 5L, 5L)
+          .baselineValues(1, 5L, 5L)
+          .baselineValues(2, 5L, 5L)
+          .baselineValues(3, 5L, 5L)
+          .baselineValues(4, 5L, 5L)
+          .go();
     }
   }
 }

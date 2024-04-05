@@ -1,4 +1,4 @@
-<?xml version="1.0"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!--
 
     Copyright (C) 2017-2019 Dremio Corporation
@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.plugins</groupId>
     <artifactId>dremio-plugin-parent</artifactId>
-    <version>24.3.2-202401241821100032-d2d8a497</version>
+    <version>25.0.0-202404051521110861-ed9515a8</version>
   </parent>
 
   <artifactId>dremio-hive-plugin</artifactId>
@@ -99,16 +99,16 @@
           <artifactId>servlet-api-2.5</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>slf4j-log4j12</artifactId>
           <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-log4j12</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>slf4j-log4j12</artifactId>
           <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-log4j12</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>log4j</artifactId>
           <groupId>log4j</groupId>
+          <artifactId>log4j</artifactId>
         </exclusion>
         <exclusion>
           <groupId>com.sun.jersey</groupId>
@@ -127,24 +127,24 @@
           <artifactId>jersey-client</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>asm</artifactId>
           <groupId>asm</groupId>
+          <artifactId>asm</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>libthrift</artifactId>
           <groupId>org.apache.thrift</groupId>
+          <artifactId>libthrift</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>jruby-complete</artifactId>
           <groupId>org.jruby</groupId>
+          <artifactId>jruby-complete</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>jcodings</artifactId>
           <groupId>org.jruby.jcodings</groupId>
+          <artifactId>jcodings</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>joni</artifactId>
           <groupId>org.jruby.joni</groupId>
+          <artifactId>joni</artifactId>
         </exclusion>
         <exclusion>
           <groupId>commons-logging</groupId>
@@ -155,52 +155,52 @@
           <artifactId>commons-logging-api</artifactId>
         </exclusion>
         <exclusion>
+          <groupId>org.apache.avro</groupId>
           <artifactId>avro-ipc</artifactId>
-          <groupId>org.apache.avro</groupId>
         </exclusion>
         <exclusion>
+          <groupId>org.apache.avro</groupId>
           <artifactId>avro</artifactId>
-          <groupId>org.apache.avro</groupId>
         </exclusion>
         <exclusion>
-          <artifactId>commons-codec</artifactId>
           <groupId>commons-codec</groupId>
+          <artifactId>commons-codec</artifactId>
         </exclusion>
         <exclusion>
+          <groupId>tomcat</groupId>
           <artifactId>jasper-runtime</artifactId>
-          <groupId>tomcat</groupId>
         </exclusion>
         <exclusion>
+          <groupId>org.codehaus.jackson</groupId>
           <artifactId>jackson-core-asl</artifactId>
-          <groupId>org.codehaus.jackson</groupId>
         </exclusion>
         <exclusion>
+          <groupId>org.codehaus.jackson</groupId>
           <artifactId>jackson-mapper-asl</artifactId>
-          <groupId>org.codehaus.jackson</groupId>
         </exclusion>
         <exclusion>
-          <artifactId>jasper-compiler</artifactId>
           <groupId>tomcat</groupId>
+          <artifactId>jasper-compiler</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>jamon-runtime</artifactId>
           <groupId>org.jamon</groupId>
+          <artifactId>jamon-runtime</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>jaxb-api</artifactId>
           <groupId>javax.xml.bind</groupId>
+          <artifactId>jaxb-api</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>zookeeper</artifactId>
           <groupId>org.apache.zookeeper</groupId>
+          <artifactId>zookeeper</artifactId>
         </exclusion>
         <exclusion>
+          <groupId>org.mortbay.jetty</groupId>
           <artifactId>jsp-2.1</artifactId>
-          <groupId>org.mortbay.jetty</groupId>
         </exclusion>
         <exclusion>
-          <artifactId>jsp-api-2.1</artifactId>
           <groupId>org.mortbay.jetty</groupId>
+          <artifactId>jsp-api-2.1</artifactId>
         </exclusion>
         <exclusion>
           <groupId>org.mortbay.jetty</groupId>
@@ -231,8 +231,8 @@
           <artifactId>metrics-core</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>stax-api</artifactId>
           <groupId>stax</groupId>
+          <artifactId>stax-api</artifactId>
         </exclusion>
         <exclusion>
           <groupId>com.github.stephenc.findbugs</groupId>
@@ -280,9 +280,9 @@
     <dependency>
       <groupId>com.dremio</groupId>
       <artifactId>dremio-common</artifactId>
+      <version>${project.version}</version>
       <classifier>tests</classifier>
       <type>test-jar</type>
-      <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -317,11 +317,12 @@
         </exclusion>
       </exclusions>
     </dependency>
-    <dependency> <!-- needed for Hive test data generator -->
+    <dependency>
+      <!-- needed for Hive test data generator -->
       <groupId>org.apache.hive</groupId>
       <artifactId>hive-llap-client</artifactId>
-      <scope>test</scope>
       <version>${hive.version}</version>
+      <scope>test</scope>
       <exclusions>
         <exclusion>
           <groupId>org.apache.hive</groupId>
@@ -435,10 +436,10 @@
         <artifactId>build-helper-maven-plugin</artifactId>
         <executions>
           <execution>
-            <phase>generate-sources</phase>
             <goals>
               <goal>add-source</goal>
             </goals>
+            <phase>generate-sources</phase>
             <configuration>
               <sources>
                 <source>${project.basedir}/src/main/hive2</source>
@@ -447,10 +448,10 @@
           </execution>
           <execution>
             <id>add-test-source</id>
-            <phase>generate-test-sources</phase>
             <goals>
               <goal>add-test-source</goal>
             </goals>
+            <phase>generate-test-sources</phase>
             <configuration>
               <sources>
                 <source>${project.basedir}/src/test/hive2</source>
@@ -474,8 +475,10 @@
         <executions>
           <execution>
             <id>classpath-scanning</id>
+            <goals>
+              <goal>java</goal>
+            </goals>
             <phase>process-classes</phase>
-            <goals><goal>java</goal></goals>
             <configuration>
               <mainClass>com.dremio.common.scanner.BuildTimeScan</mainClass>
               <includePluginDependencies>true</includePluginDependencies>
@@ -491,6 +494,25 @@
         <artifactId>maven-checkstyle-plugin</artifactId>
         <configuration>
           <configLocation>dremio-checkstyle/legacy-config.xml</configLocation>
+          <sourceDirectories combine.children="append">
+            <sourceDirectory>${project.basedir}/src/main/hive2</sourceDirectory>
+          </sourceDirectories>
+          <testSourceDirectories combine.children="append">
+            <testSourceDirectory>${project.basedir}/src/test/hive2</testSourceDirectory>
+          </testSourceDirectories>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>com.diffplug.spotless</groupId>
+        <artifactId>spotless-maven-plugin</artifactId>
+        <configuration>
+          <!-- See https://github.com/diffplug/spotless/tree/main/plugin-maven#java -->
+          <java>
+            <includes combine.children="append">
+              <include>src/main/hive2/**/*.java</include>
+              <include>src/test/hive2/**/*.java</include>
+            </includes>
+          </java>
         </configuration>
       </plugin>
       <plugin>
@@ -499,10 +521,10 @@
         <executions>
           <execution>
             <id>generate-fmpp-sources</id>
-            <phase>generate-sources</phase>
             <goals>
               <goal>generate</goal>
             </goals>
+            <phase>generate-sources</phase>
             <configuration>
               <config>src/main/codegen/config.fmpp</config>
               <output>${project.build.directory}/generated-sources/fmpp</output>
@@ -546,8 +568,10 @@
         <executions>
           <execution>
             <id>copy-resources</id>
+            <goals>
+              <goal>copy-resources</goal>
+            </goals>
             <phase>generate-resources</phase>
-            <goals><goal>copy-resources</goal></goals>
             <configuration>
               <resources>
                 <resource>
@@ -569,8 +593,10 @@
           </execution>
           <execution>
             <id>copy-test-resources</id>
+            <goals>
+              <goal>copy-resources</goal>
+            </goals>
             <phase>generate-resources</phase>
-            <goals><goal>copy-resources</goal></goals>
             <configuration>
               <resources>
                 <resource>
@@ -592,10 +618,10 @@
         <executions>
           <execution>
             <id>jar-resources</id>
-            <phase>package</phase>
             <goals>
               <goal>jar</goal>
             </goals>
+            <phase>package</phase>
             <configuration>
               <classesDirectory>${project.build.directory}/src-resources</classesDirectory>
               <skipIfEmpty>true</skipIfEmpty>
@@ -638,23 +664,25 @@
     <profile>
       <id>linux</id>
       <activation>
-        <os><name>linux</name></os>
+        <os>
+          <name>linux</name>
+        </os>
       </activation>
 
       <dependencies>
         <dependency>
           <groupId>org.apache.hadoop</groupId>
           <artifactId>hadoop-common-native</artifactId>
-          <classifier>linux</classifier>
           <version>${hadoop.version}</version>
+          <classifier>linux</classifier>
           <scope>test</scope>
         </dependency>
 
         <dependency>
           <groupId>org.apache.hadoop</groupId>
           <artifactId>hadoop-native-libraries</artifactId>
-          <classifier>linux</classifier>
           <version>1.0.1</version>
+          <classifier>linux</classifier>
           <scope>test</scope>
         </dependency>
       </dependencies>
@@ -667,10 +695,10 @@
             <executions>
               <execution>
                 <id>unpack</id>
-                <phase>initialize</phase>
                 <goals>
                   <goal>unpack</goal>
                 </goals>
+                <phase>initialize</phase>
                 <configuration>
                   <artifactItems>
                     <artifactItem>

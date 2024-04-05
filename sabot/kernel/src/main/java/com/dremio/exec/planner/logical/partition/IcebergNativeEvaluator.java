@@ -15,8 +15,9 @@
  */
 package com.dremio.exec.planner.logical.partition;
 
+import com.dremio.exec.store.iceberg.IcebergExpGenVisitor;
+import com.google.common.collect.ImmutableList;
 import java.util.List;
-
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexCall;
@@ -26,14 +27,14 @@ import org.apache.iceberg.expressions.Expression;
 import org.apache.iceberg.expressions.Expressions;
 import org.apache.iceberg.expressions.Projections;
 
-import com.dremio.exec.store.iceberg.IcebergExpGenVisitor;
-import com.google.common.collect.ImmutableList;
-
 class IcebergNativeEvaluator extends SargPrunableEvaluator {
   private final Evaluator evaluator;
   private final boolean hasConditions;
 
-  public IcebergNativeEvaluator(final PartitionStatsBasedPruner pruner,final  Evaluator evaluator,final  boolean hasConditions) {
+  public IcebergNativeEvaluator(
+      final PartitionStatsBasedPruner pruner,
+      final Evaluator evaluator,
+      final boolean hasConditions) {
     super(pruner);
     this.evaluator = evaluator;
     this.hasConditions = hasConditions;
@@ -46,31 +47,40 @@ class IcebergNativeEvaluator extends SargPrunableEvaluator {
 
   @Override
   public boolean isRecordMatch(final StructLike partitionData) {
-    if(evaluator != null) {
+    if (evaluator != null) {
       return evaluator.eval(partitionData);
     }
     return true;
   }
 
-  public static IcebergNativeEvaluator buildSargPrunableConditions(final PartitionStatsBasedPruner partitionStatsBasedPruner,
-                                                                   final ImmutableList<RexCall> rexConditions,
-                                                                   final RelDataType rowType,
-                                                                   final RelOptCluster cluster,
-                                                                   final FindSimpleFilters rexVisitor) {
+  public static IcebergNativeEvaluator buildSargPrunableConditions(
+      final PartitionStatsBasedPruner partitionStatsBasedPruner,
+      final ImmutableList<RexCall> rexConditions,
+      final RelDataType rowType,
+      final RelOptCluster cluster,
+      final FindSimpleFilters rexVisitor) {
     final IcebergExpGenVisitor icebergExpGenVisitor = new IcebergExpGenVisitor(rowType, cluster);
-    final List<UnprocessedCondition> unprocessedConditions = buildUnprocessedConditions(rexConditions, rexVisitor);
+    final List<UnprocessedCondition> unprocessedConditions =
+        buildUnprocessedConditions(rexConditions, rexVisitor);
     Expression pruneAndExpression = null;
     for (final UnprocessedCondition unprocessedCondition : unprocessedConditions) {
       final Expression icebergPartitionPruneExpression =
-        icebergExpGenVisitor.convertToIcebergExpression(unprocessedCondition.getCondition());
-      pruneAndExpression = (pruneAndExpression == null) ? icebergPartitionPruneExpression :
-        Expressions.and(pruneAndExpression, icebergPartitionPruneExpression);
+          icebergExpGenVisitor.convertToIcebergExpression(unprocessedCondition.getCondition());
+      pruneAndExpression =
+          (pruneAndExpression == null)
+              ? icebergPartitionPruneExpression
+              : Expressions.and(pruneAndExpression, icebergPartitionPruneExpression);
     }
     Evaluator evaluator = null;
-    if(pruneAndExpression != null) {
-      final Expression projected = Projections.inclusive(partitionStatsBasedPruner.getPartitionSpec(), false).project(pruneAndExpression);
-      evaluator = new Evaluator(partitionStatsBasedPruner.getPartitionSpec().partitionType(), projected, false);
+    if (pruneAndExpression != null) {
+      final Expression projected =
+          Projections.inclusive(partitionStatsBasedPruner.getPartitionSpec(), false)
+              .project(pruneAndExpression);
+      evaluator =
+          new Evaluator(
+              partitionStatsBasedPruner.getPartitionSpec().partitionType(), projected, false);
     }
-    return new IcebergNativeEvaluator(partitionStatsBasedPruner, evaluator,pruneAndExpression != null);
+    return new IcebergNativeEvaluator(
+        partitionStatsBasedPruner, evaluator, pruneAndExpression != null);
   }
 }

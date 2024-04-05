@@ -25,7 +25,8 @@ import org.apache.calcite.rel.logical.LogicalProject;
 import org.apache.calcite.rex.RexNode;
 
 /**
- * Rule that converts a {@link org.apache.calcite.rel.logical.LogicalProject} to a Dremio "project" operation.
+ * Rule that converts a {@link org.apache.calcite.rel.logical.LogicalProject} to a Dremio "project"
+ * operation.
  */
 public class ProjectRule extends RelOptRule {
 
@@ -53,6 +54,12 @@ public class ProjectRule extends RelOptRule {
     final RelNode input = toTransform.getInput();
     final RelTraitSet traits = toTransform.getTraitSet().plus(Rel.LOGICAL);
     final RelNode convertedInput = convert(input, input.getTraitSet().plus(Rel.LOGICAL).simplify());
-    call.transformTo(ProjectRel.create(toTransform.getCluster(), traits, convertedInput, toTransform.getProjects(), toTransform.getRowType()));
+    call.transformTo(
+        ProjectRel.create(
+            toTransform.getCluster(),
+            traits,
+            convertedInput,
+            toTransform.getProjects(),
+            toTransform.getRowType()));
   }
 }

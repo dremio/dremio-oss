@@ -19,17 +19,15 @@ import com.dremio.service.job.proto.JobId;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-/**
- * Response to download request includes job id, url to retrieve job data.
- */
+/** Response to download request includes job id, url to retrieve job data. */
 public class InitialDownloadResponse {
 
   private final JobId jobId;
   private final String downloadUrl;
 
   @JsonCreator
-  public InitialDownloadResponse(@JsonProperty("jobId") JobId jobId,
-                                 @JsonProperty("downloadUrl") String downloadUrl) {
+  public InitialDownloadResponse(
+      @JsonProperty("jobId") JobId jobId, @JsonProperty("downloadUrl") String downloadUrl) {
     this.jobId = jobId;
     this.downloadUrl = downloadUrl;
   }

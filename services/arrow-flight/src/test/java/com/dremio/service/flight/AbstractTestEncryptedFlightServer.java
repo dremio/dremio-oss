@@ -21,42 +21,29 @@ import org.apache.arrow.flight.FlightClient;
 import org.apache.arrow.flight.FlightRuntimeException;
 import org.junit.Test;
 
-/**
- * Tests for encryption options with the Flight endpoint service.
- */
+/** Tests for encryption options with the Flight endpoint service. */
 public abstract class AbstractTestEncryptedFlightServer extends BaseFlightQueryTest {
   public abstract String getAuthMode();
 
   @Test(expected = FlightRuntimeException.class)
   public void testFlightEncryptedClientNoCerts() throws Exception {
-    try (final FlightClient ignored = openFlightClient(
-      DUMMY_USER,
-      DUMMY_PASSWORD,
-      getAuthMode()))
-    {
+    try (final FlightClient ignored = openFlightClient(DUMMY_USER, DUMMY_PASSWORD, getAuthMode())) {
       assertNotNull(ignored);
     }
   }
 
   @Test
   public void testFlightEncryptedClientWithServerCerts() throws Exception {
-    try (final FlightClient ignored = openEncryptedFlightClient(
-      DUMMY_USER,
-      DUMMY_PASSWORD,
-      getCertificateStream(),
-      getAuthMode()))
-    {
+    try (final FlightClient ignored =
+        openEncryptedFlightClient(
+            DUMMY_USER, DUMMY_PASSWORD, getCertificateStream(), getAuthMode())) {
       assertNotNull(ignored);
     }
   }
 
   @Test(expected = FlightRuntimeException.class)
   public void testFlightClientUnencryptedServerEncrypted() throws Exception {
-    try (final FlightClient ignored = openFlightClient(
-      DUMMY_USER,
-      DUMMY_PASSWORD,
-      getAuthMode()))
-    {
+    try (final FlightClient ignored = openFlightClient(DUMMY_USER, DUMMY_PASSWORD, getAuthMode())) {
       assertNotNull(ignored);
     }
   }

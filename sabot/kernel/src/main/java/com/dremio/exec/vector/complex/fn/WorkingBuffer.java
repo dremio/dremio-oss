@@ -18,7 +18,6 @@ package com.dremio.exec.vector.complex.fn;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import java.io.IOException;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.holders.VarBinaryHolder;
 import org.apache.arrow.vector.holders.VarCharHolder;
@@ -45,7 +44,7 @@ public class WorkingBuffer {
     h.buffer = workBuf;
   }
 
-  public int prepareBinary(byte[] b){
+  public int prepareBinary(byte[] b) {
     ensure(b.length);
     workBuf.setBytes(0, b);
     return b.length;
@@ -66,8 +65,7 @@ public class WorkingBuffer {
     h.buffer = workBuf;
   }
 
-  public ArrowBuf getBuf(){
+  public ArrowBuf getBuf() {
     return workBuf;
   }
-
 }

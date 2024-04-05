@@ -15,34 +15,31 @@
  */
 package com.dremio.plugins.sysflight;
 
-import java.util.Collections;
-
-import javax.inject.Provider;
-
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.sys.SystemTable;
+import java.util.Collections;
+import javax.inject.Provider;
 
-/**
- * Connection config for Sys-flight
- */
+/** Connection config for Sys-flight */
 @SourceType(value = "SYSFLIGHT", configurable = false)
-public class SysFlightPluginConf extends ConnectionConf<SysFlightPluginConf, SysFlightStoragePlugin>{
+public class SysFlightPluginConf
+    extends ConnectionConf<SysFlightPluginConf, SysFlightStoragePlugin> {
 
   /**
-   *  @Tag(1)
-   *  public NodeEndpoint endpoint;
+   * @Tag(1) public NodeEndpoint endpoint;
    *
-   *  Please, do not use protobuf here or in any other class that extends ConnectionConf. ConnectionConf uses protostuff
-   *  and if you add protobuf this will result in a backward compatibility issue, in the case you have to change the
-   *  protobuf file in the future.
+   * <p>Please, do not use protobuf here or in any other class that extends ConnectionConf.
+   * ConnectionConf uses protostuff and if you add protobuf this will result in a backward
+   * compatibility issue, in the case you have to change the protobuf file in the future.
    */
-
   @Override
-  public SysFlightStoragePlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
-    return new SysFlightStoragePlugin(context, name, pluginIdProvider, true, Collections.singletonList(SystemTable.DEPENDENCIES));
+  public SysFlightStoragePlugin newPlugin(
+      SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
+    return new SysFlightStoragePlugin(
+        context, name, pluginIdProvider, true, Collections.singletonList(SystemTable.DEPENDENCIES));
   }
 
   @Override

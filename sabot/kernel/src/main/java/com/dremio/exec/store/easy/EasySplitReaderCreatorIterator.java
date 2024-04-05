@@ -15,12 +15,6 @@
  */
 package com.dremio.exec.store.easy;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.ExecConstants;
@@ -46,14 +40,19 @@ import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.google.common.base.Preconditions;
-
 import io.protostuff.ByteString;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
 
 /**
  * An object that holds the relevant creation fields so we don't have to have an really long lambda.
  */
 public class EasySplitReaderCreatorIterator implements SplitReaderCreatorIterator {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(EasySplitReaderCreatorIterator.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(EasySplitReaderCreatorIterator.class);
   protected final SupportsIcebergRootPointer plugin;
   protected final FileSystem fs;
   private final boolean prefetchReader;
@@ -64,7 +63,8 @@ public class EasySplitReaderCreatorIterator implements SplitReaderCreatorIterato
   private List<SplitAndPartitionInfo> inputSplits;
 
   protected Iterator<ParquetProtobuf.ParquetDatasetSplitScanXAttr> rowGroupSplitIterator;
-  protected Iterator<SplitAndPartitionInfo> splitAndPartitionInfoIterator; // used only if the main splits are row group based
+  protected Iterator<SplitAndPartitionInfo>
+      splitAndPartitionInfoIterator; // used only if the main splits are row group based
 
   private SplitReaderCreator first;
   protected SplitAndPartitionInfo currentSplitInfo;
@@ -75,24 +75,36 @@ public class EasySplitReaderCreatorIterator implements SplitReaderCreatorIterato
   protected final ExtendedFormatOptions extendedFormatOptions;
   private final ByteString extendedProperty;
 
-  public EasySplitReaderCreatorIterator(FragmentExecutionContext fragmentExecContext, final OperatorContext context, OpProps props, final TableFunctionConfig config, boolean produceFromBufferedSplits) throws ExecutionSetupException {
+  public EasySplitReaderCreatorIterator(
+      FragmentExecutionContext fragmentExecContext,
+      final OperatorContext context,
+      OpProps props,
+      final TableFunctionConfig config,
+      boolean produceFromBufferedSplits)
+      throws ExecutionSetupException {
     this.inputSplits = null;
     this.tablePath = config.getFunctionContext().getTablePath();
     this.columns = config.getFunctionContext().getColumns();
     this.context = context;
     this.prefetchReader = context.getOptions().getOption(ExecConstants.PREFETCH_READER);
     this.plugin = fragmentExecContext.getStoragePlugin(config.getFunctionContext().getPluginId());
-    this.extendedFormatOptions = ((EasyScanTableFunctionContext) config.getFunctionContext()).getExtendedFormatOptions();
+    this.extendedFormatOptions =
+        ((EasyScanTableFunctionContext) config.getFunctionContext()).getExtendedFormatOptions();
     this.extendedProperty = config.getFunctionContext().getExtendedProperty();
     try {
-        this.fs = plugin.createFS(config.getFunctionContext().getFormatSettings().getLocation(),
-                props.getUserName(), context);
+      this.fs =
+          plugin.createFS(
+              config.getFunctionContext().getFormatSettings().getLocation(),
+              props.getUserName(),
+              context);
     } catch (IOException e) {
       throw new ExecutionSetupException("Cannot access plugin filesystem", e);
     }
     this.fragmentExecutionContext = fragmentExecContext;
     FileConfig formatSettings = config.getFunctionContext().getFormatSettings();
-    this.formatPlugin = plugin.getFormatPlugin(PhysicalDatasetUtils.toFormatPlugin(formatSettings, Collections.<String>emptyList()));
+    this.formatPlugin =
+        plugin.getFormatPlugin(
+            PhysicalDatasetUtils.toFormatPlugin(formatSettings, Collections.<String>emptyList()));
 
     processSplits();
     if (prefetchReader) {
@@ -108,7 +120,8 @@ public class EasySplitReaderCreatorIterator implements SplitReaderCreatorIterato
 
     rowGroupSplitIterator = Collections.emptyIterator();
     splitAndPartitionInfoIterator = inputSplits.iterator();
-    currentSplitInfo = splitAndPartitionInfoIterator.hasNext() ? splitAndPartitionInfoIterator.next() : null;
+    currentSplitInfo =
+        splitAndPartitionInfoIterator.hasNext() ? splitAndPartitionInfoIterator.next() : null;
   }
 
   public RecordReaderIterator getRecordReaderIterator() {
@@ -122,14 +135,14 @@ public class EasySplitReaderCreatorIterator implements SplitReaderCreatorIterato
   }
 
   private void initSplits(SplitReaderCreator curr) {
-      if (currentSplitInfo != null) {
-        first = createSplitReaderCreator();
-        curr = first;
-     }
-      while (currentSplitInfo  != null) {
-        SplitReaderCreator creator = createSplitReaderCreator();
-        curr.setNext(creator);
-        curr = creator;
+    if (currentSplitInfo != null) {
+      first = createSplitReaderCreator();
+      curr = first;
+    }
+    while (currentSplitInfo != null) {
+      SplitReaderCreator creator = createSplitReaderCreator();
+      curr.setNext(creator);
+      curr = creator;
     }
   }
 
@@ -157,9 +170,17 @@ public class EasySplitReaderCreatorIterator implements SplitReaderCreatorIterato
 
   protected SplitReaderCreator createSplitReaderCreator() {
 
-    SplitReaderCreator creator = new EasySplitReaderCreator(context,
-      fs, currentSplitInfo, tablePath, columns, formatPlugin,
-      ((FileSystemPlugin<?>) this.plugin).getCompressionCodecFactory(), extendedFormatOptions, extendedProperty);
+    SplitReaderCreator creator =
+        new EasySplitReaderCreator(
+            context,
+            fs,
+            currentSplitInfo,
+            tablePath,
+            columns,
+            formatPlugin,
+            ((FileSystemPlugin<?>) this.plugin).getCompressionCodecFactory(),
+            extendedFormatOptions,
+            extendedProperty);
     if (splitAndPartitionInfoIterator.hasNext()) {
       currentSplitInfo = splitAndPartitionInfoIterator.next();
     } else {

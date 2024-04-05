@@ -15,22 +15,19 @@
  */
 package com.dremio.service.flight;
 
+import com.dremio.service.flight.impl.FlightWorkManager;
 import org.junit.BeforeClass;
 
-import com.dremio.service.flight.impl.FlightWorkManager;
-
-/**
- * Test encrypted Flight Server with basic auth handler.
- */
+/** Test encrypted Flight Server with basic auth handler. */
 public class TestEncryptedFlightServerWithBasicAuth extends AbstractTestEncryptedFlightServer {
   @BeforeClass
   public static void setup() throws Exception {
     setupBaseFlightQueryTest(
-      true,
-      true,
-      "encrypted.flight.reserved.port",
-      FlightWorkManager.RunQueryResponseHandlerFactory.DEFAULT,
-      DremioFlightService.FLIGHT_LEGACY_AUTH_MODE);
+        true,
+        true,
+        "encrypted.flight.reserved.port",
+        FlightWorkManager.RunQueryResponseHandlerFactory.DEFAULT,
+        DremioFlightService.FLIGHT_LEGACY_AUTH_MODE);
   }
 
   @Override

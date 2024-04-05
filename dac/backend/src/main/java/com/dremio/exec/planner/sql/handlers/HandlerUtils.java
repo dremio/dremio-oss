@@ -16,6 +16,6 @@
 package com.dremio.exec.planner.sql.handlers;
 
 public class HandlerUtils {
-  protected static final String REFERENCE_ALREADY_EXISTS_MESSAGE = "Reference %s already exists in Source %s.";
-
+  protected static final String REFERENCE_ALREADY_EXISTS_MESSAGE =
+      "Reference %s already exists in Source %s.";
 }

@@ -15,9 +15,6 @@
  */
 package com.dremio.service.users;
 
-
-import java.io.IOException;
-
 import com.dremio.datastore.SearchTypes;
 import com.dremio.datastore.SearchTypes.SortOrder;
 import com.dremio.service.users.events.UserServiceEvent;
@@ -25,10 +22,9 @@ import com.dremio.service.users.events.UserServiceEventSubscriber;
 import com.dremio.service.users.events.UserServiceEventTopic;
 import com.dremio.service.users.events.UserServiceEvents;
 import com.dremio.service.users.proto.UID;
+import java.io.IOException;
 
-/**
- * User service interface.
- */
+/** User service interface. */
 public interface UserService extends UserServiceEvents {
 
   // Only admin and logged in user should be able to get user's info.
@@ -39,32 +35,29 @@ public interface UserService extends UserServiceEvents {
   // Admin only.
   User createUser(User userConfig, String authKey) throws IOException, IllegalArgumentException;
 
-  default User createUser(User userConfig) throws IOException, IllegalArgumentException{
+  default User createUser(User userConfig) throws IOException, IllegalArgumentException {
     return createUser(userConfig, null);
   }
 
-  /**
-   * Fetch original user by userName and replace its info.
-   */
+  /** Fetch original user by userName and replace its info. */
   // Edit user. User only.
-  User updateUser(User userConfig, String authKey) throws IOException, IllegalArgumentException, UserNotFoundException;
+  User updateUser(User userConfig, String authKey)
+      throws IOException, IllegalArgumentException, UserNotFoundException;
 
-  /**
-   * Fetch original user by userId and replace its info.
-   */
-  default User updateUserById(
-    User userConfig,
-    String authKey
-  ) throws IllegalArgumentException, UserNotFoundException {
+  /** Fetch original user by userId and replace its info. */
+  default User updateUserById(User userConfig, String authKey)
+      throws IllegalArgumentException, UserNotFoundException {
     throw new UnsupportedOperationException("Not yet supported");
   }
 
-  User updateUserName(String oldUserName, String newUserName, User userConfig, String authKey) throws IOException, IllegalArgumentException, UserNotFoundException;
+  User updateUserName(String oldUserName, String newUserName, User userConfig, String authKey)
+      throws IOException, IllegalArgumentException, UserNotFoundException;
 
   void deleteUser(String userName, String version) throws UserNotFoundException, IOException;
 
   /**
    * Delete a user with corresponding UID
+   *
    * @param uid UID of user to delete
    * @throws UserNotFoundException if no user with UID is found
    */
@@ -74,6 +67,7 @@ public interface UserService extends UserServiceEvents {
 
   /**
    * Delete a user with corresponding UID and version
+   *
    * @param uid UID of user to delete
    * @param version version of user to delete
    * @throws UserNotFoundException if no user with UID and version is found
@@ -84,7 +78,9 @@ public interface UserService extends UserServiceEvents {
 
   /**
    * TODO(DX-33891): use @CheckReturnValue
-   * @deprecated TODO DX-82990: Remove UserService#authenticate. Uses Authenticator#authenticate instead
+   *
+   * @deprecated TODO DX-82990: Remove UserService#authenticate. Uses Authenticator#authenticate
+   *     instead
    */
   @Deprecated
   AuthResult authenticate(String userName, String password) throws UserLoginException;
@@ -96,8 +92,9 @@ public interface UserService extends UserServiceEvents {
   /**
    * Performs case SENSITIVE search for the users.
    *
-   * Search looking through full name, first name, last name and email fields and returns any record that has
-   * {@code searchTerm} as substring.
+   * <p>Search looking through full name, first name, last name and email fields and returns any
+   * record that has {@code searchTerm} as substring.
+   *
    * @param searchTerm - a string to search
    * @param sortColumn - sort column
    * @param order - sort order
@@ -105,12 +102,16 @@ public interface UserService extends UserServiceEvents {
    * @return a collection of users that not exceeds {@code limit} number
    * @throws IOException
    */
-  Iterable<? extends User> searchUsers(final String searchTerm, String sortColumn, SortOrder order, Integer limit) throws IOException;
+  Iterable<? extends User> searchUsers(
+      final String searchTerm, String sortColumn, SortOrder order, Integer limit)
+      throws IOException;
 
   /**
    * Performs case SENSITIVE search for the users.
    *
-   * Search looking through full name, first name, last name and email fields and returns any record that has
+   * <p>Search looking through full name, first name, last name and email fields and returns any
+   * record that has
+   *
    * @param searchQuery query to search by
    * @param sortColumn - sort column
    * @param order - sort order
@@ -120,31 +121,29 @@ public interface UserService extends UserServiceEvents {
    * @throws IOException
    */
   default Iterable<? extends User> searchUsers(
-    SearchTypes.SearchQuery searchQuery,
-    String sortColumn,
-    SortOrder order,
-    Integer startIndex,
-    Integer pageSize
-  ) throws IOException {
+      SearchTypes.SearchQuery searchQuery,
+      String sortColumn,
+      SortOrder order,
+      Integer startIndex,
+      Integer pageSize)
+      throws IOException {
     throw new UnsupportedOperationException("Not yet supported");
   }
 
   /**
-   * Provide a count of the number of users entries that match the
-   * requested condition.
+   * Provide a count of the number of users entries that match the requested condition.
    *
    * @param searchQuery - query to search by, defaults to match all
    * @return number of users matching the searchTerm
    */
-   default Integer getNumUsers(SearchTypes.SearchQuery searchQuery) {
+  default Integer getNumUsers(SearchTypes.SearchQuery searchQuery) {
     throw new UnsupportedOperationException("Not yet supported");
   }
 
   @Override
-  default void subscribe(UserServiceEventTopic userServiceEventTopic, UserServiceEventSubscriber subscriber) {
-  }
+  default void subscribe(
+      UserServiceEventTopic userServiceEventTopic, UserServiceEventSubscriber subscriber) {}
 
   @Override
-  default void publish(UserServiceEvent event) {
-  }
+  default void publish(UserServiceEvent event) {}
 }

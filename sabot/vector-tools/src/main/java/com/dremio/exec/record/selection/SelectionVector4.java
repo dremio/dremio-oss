@@ -15,10 +15,9 @@
  */
 package com.dremio.exec.record.selection;
 
-import org.apache.arrow.memory.ArrowBuf;
-
 import com.dremio.exec.record.DeadBuf;
 import com.google.common.base.Preconditions;
+import org.apache.arrow.memory.ArrowBuf;
 
 public class SelectionVector4 implements AutoCloseable {
 
@@ -28,9 +27,11 @@ public class SelectionVector4 implements AutoCloseable {
   private int length;
 
   public SelectionVector4(ArrowBuf vector, int recordCount, int batchRecordCount) {
-    Preconditions.checkArgument(recordCount < Integer.MAX_VALUE / 4,
+    Preconditions.checkArgument(
+        recordCount < Integer.MAX_VALUE / 4,
         "Currently, Dremio can only support allocations up to 2gb in size.  "
-        + "You requested an allocation of %s bytes.", recordCount * 4);
+            + "You requested an allocation of %s bytes.",
+        recordCount * 4);
     this.recordCount = recordCount;
     this.start = 0;
     this.length = Math.min(batchRecordCount, recordCount);
@@ -47,6 +48,7 @@ public class SelectionVector4 implements AutoCloseable {
 
   /**
    * Get location of current start point.
+   *
    * @return Memory address where current batch starts.
    */
   public long getMemoryAddress() {
@@ -54,19 +56,21 @@ public class SelectionVector4 implements AutoCloseable {
   }
 
   public void set(int index, int compound) {
-    data.setInt(index*4, compound);
+    data.setInt(index * 4, compound);
   }
 
   public void set(int index, int recordBatch, int recordIndex) {
-    data.setInt(index*4, (recordBatch << 16) | (recordIndex & 65535));
+    data.setInt(index * 4, (recordBatch << 16) | (recordIndex & 65535));
   }
 
   public int get(int index) {
-    return data.getInt( (start+index)*4);
+    return data.getInt((start + index) * 4);
   }
 
   /**
-   * Caution: This method shares the underlying buffer between this vector and the newly created one.
+   * Caution: This method shares the underlying buffer between this vector and the newly created
+   * one.
+   *
    * @param batchRecordCount this will be used when creating the new vector
    * @return Newly created single batch SelectionVector4.
    */
@@ -78,7 +82,9 @@ public class SelectionVector4 implements AutoCloseable {
   }
 
   /**
-   * Caution: This method shares the underlying buffer between this vector and the newly created one.
+   * Caution: This method shares the underlying buffer between this vector and the newly created
+   * one.
+   *
    * @return Newly created single batch SelectionVector4.
    */
   public SelectionVector4 createNewWrapperCurrent() {
@@ -86,21 +92,24 @@ public class SelectionVector4 implements AutoCloseable {
   }
 
   public boolean next() {
-//    logger.debug("Next called. Start: {}, Length: {}, recordCount: " + recordCount, start, length);
 
     if (start + length >= recordCount) {
 
       start = recordCount;
       length = 0;
-//      logger.debug("Setting count to zero.");
       return false;
     }
 
-    start = start+length;
-    int newEnd = Math.min(start+length, recordCount);
+    start = start + length;
+    int newEnd = Math.min(start + length, recordCount);
     length = newEnd - start;
-//    logger.debug("New start {}, new length {}", start, length);
-    return true;
+
+    /**
+     * If length == 0, all the records in this sv4 have been consumed. As records cannot be added in
+     * SV4 (only set at an index within pre-allocated length) there is nothing to return ias next
+     * entry. Hence, returning false;
+     */
+    return length > 0;
   }
 
   public void clear() {

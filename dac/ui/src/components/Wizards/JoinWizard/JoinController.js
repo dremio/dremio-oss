@@ -37,7 +37,10 @@ import {
   resetJoins,
   setJoinStep,
 } from "actions/explore/join";
-import { loadRecommendedJoin, setJoinReference } from "actions/explore/join";
+import {
+  loadRecommendedJoin,
+  setJoinReference,
+} from "@app/actions/explore/join";
 
 import {
   getTableColumns,
@@ -136,7 +139,7 @@ export class JoinController extends Component {
     this.recommendationsPromise = CancelablePromise.resolve(
       this.props.loadRecommendedJoin({
         href: `${this.props.dataset.getIn(["apiLinks", "self"])}/join_recs`,
-      })
+      }),
     );
     return this.recommendationsPromise;
   }
@@ -254,7 +257,7 @@ export class JoinController extends Component {
       nextProps.loadJoinDataset(
         nextProps.values.activeDataset,
         JOIN_TABLE_VIEW_ID,
-        referencePayload
+        referencePayload,
       );
     }
   }
@@ -372,7 +375,7 @@ function mapStateToProps(state, ownProps) {
     leftColumns: getTableColumns(
       state,
       ownProps.dataset.get("datasetVersion"),
-      location
+      location,
     ),
     rightColumns: getJoinTable(state, ownProps).get("columns"),
     joinStep: explorePageState.join.get("step"),
@@ -405,7 +408,7 @@ export default connectComplexForm(
     setJoinTab,
     resetJoins,
     setJoinStep,
-  }
+  },
 )(JoinController);
 
 const styles = {
@@ -425,7 +428,7 @@ function isValidJoin(values) {
   const isInvalidJoin = value.some(
     (item) =>
       isEmptyValue(item.joinedColumn) ||
-      isEmptyValue(item.joinedTableKeyColumnName)
+      isEmptyValue(item.joinedTableKeyColumnName),
   );
   if (!value || value.length === 0 || isInvalidJoin) {
     return false;

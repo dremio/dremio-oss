@@ -15,21 +15,21 @@
  */
 package com.dremio.exec.tablefunctions;
 
+import com.dremio.catalog.model.dataset.TableVersionContext;
 import java.util.List;
-
 import org.apache.calcite.schema.FunctionParameter;
 import org.apache.calcite.schema.TranslatableTable;
 import org.apache.calcite.schema.impl.ReflectiveFunctionBase;
 
-import com.dremio.catalog.model.dataset.TableVersionContext;
-
 /**
- * Provides support for querying tables at a specific version or point in time.  Table references of the form
+ * Provides support for querying tables at a specific version or point in time. Table references of
+ * the form
  *
- *   table-id AT version-spec
+ * <p>table-id AT version-spec
  *
- * will be translated into a call to this table macro, with the parsed TableVersionContext passed as a
- * parameter to apply().  The parsed table-id will be provided as a string in the 1st parameter to the macro.
+ * <p>will be translated into a call to this table macro, with the parsed TableVersionContext passed
+ * as a parameter to apply(). The parsed table-id will be provided as a string in the 1st parameter
+ * to the macro.
  */
 public class TimeTravelTableMacro extends VersionedTableMacro {
 
@@ -37,8 +37,8 @@ public class TimeTravelTableMacro extends VersionedTableMacro {
 
   private final TranslatableTableResolver tableResolver;
 
-  private static final List<FunctionParameter> FUNCTION_PARAMS = new ReflectiveFunctionBase.ParameterListBuilder()
-      .add(String.class, "table_name").build();
+  private static final List<FunctionParameter> FUNCTION_PARAMS =
+      new ReflectiveFunctionBase.ParameterListBuilder().add(String.class, "table_name").build();
 
   public TimeTravelTableMacro(TranslatableTableResolver tableResolver) {
     this.tableResolver = tableResolver;
@@ -50,7 +50,8 @@ public class TimeTravelTableMacro extends VersionedTableMacro {
   }
 
   @Override
-  public TranslatableTable apply(final List<? extends Object> arguments, TableVersionContext tableVersionContext) {
+  public TranslatableTable apply(
+      final List<? extends Object> arguments, TableVersionContext tableVersionContext) {
     final List<String> tablePath = splitTableIdentifier((String) arguments.get(0));
 
     return tableResolver.find(tablePath, tableVersionContext);

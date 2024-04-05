@@ -27,18 +27,20 @@ export const getSupportFlagUrl = (supportKey: string) =>
 
 export const getSupportFlag = moize(
   <T = any>(flagId: string): Promise<SupportFlagResponse<T>> => {
+    const token = localStorageUtils!.getAuthToken();
     return fetch(getSupportFlagUrl(flagId), {
       headers: {
-        Authorization: localStorageUtils!.getAuthToken(),
+        ...(token && { Authorization: token }),
       },
     })
       .then((res) => res.json() as unknown as SupportFlagResponse<T>)
       .then((payload) => {
         store.dispatch(fetchSupportFlagsSuccess(payload));
         return payload;
-      });
+      })
+      .catch(() => false);
   },
-  { isPromise: true, maxSize: Infinity }
+  { isPromise: true, maxSize: Infinity },
 );
 
 export const clearCachedSupportFlag = (id: string) => {

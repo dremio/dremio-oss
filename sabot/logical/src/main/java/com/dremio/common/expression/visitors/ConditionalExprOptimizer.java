@@ -16,11 +16,6 @@
 
 package com.dremio.common.expression.visitors;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
-
 import com.dremio.common.expression.BooleanOperator;
 import com.dremio.common.expression.CaseExpression;
 import com.dremio.common.expression.CastExpression;
@@ -31,13 +26,19 @@ import com.dremio.common.expression.IfExpression;
 import com.dremio.common.expression.IfExpression.IfCondition;
 import com.dremio.common.expression.LogicalExpression;
 import com.google.common.collect.Lists;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 
-public class ConditionalExprOptimizer extends AbstractExprVisitor<LogicalExpression, Void, RuntimeException> {
+public class ConditionalExprOptimizer
+    extends AbstractExprVisitor<LogicalExpression, Void, RuntimeException> {
 
   public static ConditionalExprOptimizer INSTANCE = new ConditionalExprOptimizer();
 
   @Override
-  public LogicalExpression visitBooleanOperator(BooleanOperator op, Void value) throws RuntimeException {
+  public LogicalExpression visitBooleanOperator(BooleanOperator op, Void value)
+      throws RuntimeException {
 
     List<LogicalExpression> newArgs = Lists.newArrayList();
 
@@ -48,9 +49,9 @@ public class ConditionalExprOptimizer extends AbstractExprVisitor<LogicalExpress
     return new BooleanOperator(op.getName(), newArgs);
   }
 
-
   @Override
-  public LogicalExpression visitFunctionHolderExpression(FunctionHolderExpression holder, Void value) throws RuntimeException {
+  public LogicalExpression visitFunctionHolderExpression(
+      FunctionHolderExpression holder, Void value) throws RuntimeException {
     List<LogicalExpression> args = Lists.newArrayList();
     for (int i = 0; i < holder.args.size(); ++i) {
       LogicalExpression newExpr = holder.args.get(i).accept(this, value);
@@ -58,7 +59,7 @@ public class ConditionalExprOptimizer extends AbstractExprVisitor<LogicalExpress
       args.add(newExpr);
     }
 
-    //replace with a new function call, since its argument could be changed.
+    // replace with a new function call, since its argument could be changed.
 
     return holder.copy(args);
   }
@@ -68,9 +69,9 @@ public class ConditionalExprOptimizer extends AbstractExprVisitor<LogicalExpress
     return e;
   }
 
-
   @Override
-  public LogicalExpression visitIfExpression(IfExpression ifExpr, Void value) throws RuntimeException{
+  public LogicalExpression visitIfExpression(IfExpression ifExpr, Void value)
+      throws RuntimeException {
     LogicalExpression newElseExpr = ifExpr.elseExpression.accept(this, value);
     IfCondition conditions = ifExpr.ifCondition;
 
@@ -82,45 +83,53 @@ public class ConditionalExprOptimizer extends AbstractExprVisitor<LogicalExpress
   }
 
   @Override
-  public LogicalExpression visitFunctionCall(FunctionCall call, Void value) throws RuntimeException {
-    throw new UnsupportedOperationException("FunctionCall is not expected here. "
-        + "It should have been converted to FunctionHolderExpression in materialization");
+  public LogicalExpression visitFunctionCall(FunctionCall call, Void value)
+      throws RuntimeException {
+    throw new UnsupportedOperationException(
+        "FunctionCall is not expected here. "
+            + "It should have been converted to FunctionHolderExpression in materialization");
   }
 
   @Override
-  public LogicalExpression visitCastExpression(CastExpression cast, Void value) throws RuntimeException {
-    throw new UnsupportedOperationException("CastExpression is not expected here. "
-        + "It should have been converted to FunctionHolderExpression in materialization");
-  }
-
-
-  @Override
-  public LogicalExpression visitConvertExpression(ConvertExpression cast, Void value) throws RuntimeException {
-    throw new UnsupportedOperationException("ConvertExpression is not expected here. "
-        + "It should have been converted to FunctionHolderExpression in materialization");
+  public LogicalExpression visitCastExpression(CastExpression cast, Void value)
+      throws RuntimeException {
+    throw new UnsupportedOperationException(
+        "CastExpression is not expected here. "
+            + "It should have been converted to FunctionHolderExpression in materialization");
   }
 
   @Override
-  public LogicalExpression visitCaseExpression(CaseExpression caseExpression, Void value) throws RuntimeException {
+  public LogicalExpression visitConvertExpression(ConvertExpression cast, Void value)
+      throws RuntimeException {
+    throw new UnsupportedOperationException(
+        "ConvertExpression is not expected here. "
+            + "It should have been converted to FunctionHolderExpression in materialization");
+  }
+
+  @Override
+  public LogicalExpression visitCaseExpression(CaseExpression caseExpression, Void value)
+      throws RuntimeException {
     List<CaseExpression.CaseConditionNode> newConditions = new ArrayList<>();
     LogicalExpression newElseExpr = caseExpression.elseExpr.accept(this, value);
 
     for (CaseExpression.CaseConditionNode conditionNode : caseExpression.caseConditions) {
       LogicalExpression newWhen = conditionNode.whenExpr.accept(this, value);
       LogicalExpression newThen = conditionNode.thenExpr.accept(this, value);
-      CaseExpression.CaseConditionNode condition = new CaseExpression.CaseConditionNode(newWhen, newThen);
+      CaseExpression.CaseConditionNode condition =
+          new CaseExpression.CaseConditionNode(newWhen, newThen);
       newConditions.add(condition);
     }
-    return CaseExpression.newBuilder().setCaseConditions(newConditions).setElseExpr(newElseExpr).build();
+    return CaseExpression.newBuilder()
+        .setCaseConditions(newConditions)
+        .setElseExpr(newElseExpr)
+        .build();
   }
 
-  private static Comparator<LogicalExpression> costComparator = new Comparator<LogicalExpression> () {
-    @Override
-    public int compare(LogicalExpression e1, LogicalExpression e2) {
-      return Integer.compare(e1.getCumulativeCost(), e2.getCumulativeCost());
-    }
-  };
-
-
-
+  private static Comparator<LogicalExpression> costComparator =
+      new Comparator<LogicalExpression>() {
+        @Override
+        public int compare(LogicalExpression e1, LogicalExpression e2) {
+          return Integer.compare(e1.getCumulativeCost(), e2.getCumulativeCost());
+        }
+      };
 }

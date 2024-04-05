@@ -16,7 +16,6 @@
 
 package com.dremio.exec.planner.sql.parser;
 
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlIdentifier;
@@ -25,35 +24,31 @@ import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlUnresolvedFunction;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.dremio.catalog.model.dataset.TableVersionType;
-
 /**
- * Implementation of {@link SqlUnresolvedFunction} which represents an unresolved versioned table macro used with
- * time travel. Version information, in the form of a {@link TableVersionSpec}, is maintained locally.  This version
- * information is transferred to a {@link SqlVersionedTableMacro} once table macro resolution happens during
- * validation.
+ * Implementation of {@link SqlUnresolvedFunction} which represents an unresolved versioned table
+ * macro used with time travel. Version information, in the form of a {@link TableVersionSpec}, is
+ * maintained locally. This version information is transferred to a {@link SqlVersionedTableMacro}
+ * once table macro resolution happens during validation.
  */
-public class SqlUnresolvedVersionedTableMacro extends SqlUnresolvedFunction implements HasTableVersion {
+public class SqlUnresolvedVersionedTableMacro extends SqlUnresolvedFunction
+    implements HasTableVersion {
 
-  private TableVersionSpec tableVersionSpec;
+  private SqlTableVersionSpec sqlTableVersionSpec;
 
   public SqlUnresolvedVersionedTableMacro(
-    SqlIdentifier sqlIdentifier,
-    TableVersionType tableVersionType,
-    SqlNode versionSpecifier,
-    SqlNode timestamp) {
+      SqlIdentifier sqlIdentifier, SqlTableVersionSpec sqlTableVersionSpec) {
     super(sqlIdentifier, null, null, null, null, SqlFunctionCategory.USER_DEFINED_TABLE_FUNCTION);
-    this.tableVersionSpec = new TableVersionSpec(tableVersionType, versionSpecifier, timestamp);
+    this.sqlTableVersionSpec = sqlTableVersionSpec;
   }
 
   @Override
-  public TableVersionSpec getTableVersionSpec() {
-    return tableVersionSpec;
+  public SqlTableVersionSpec getSqlTableVersionSpec() {
+    return sqlTableVersionSpec;
   }
 
   @Override
-  public void setTableVersionSpec(TableVersionSpec tableVersionSpec) {
-    this.tableVersionSpec = tableVersionSpec;
+  public void setSqlTableVersionSpec(SqlTableVersionSpec sqlTableVersionSpec) {
+    this.sqlTableVersionSpec = sqlTableVersionSpec;
   }
 
   @Override

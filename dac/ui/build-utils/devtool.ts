@@ -15,4 +15,4 @@
  */
 import { isProduction } from "./mode";
 
-export const devtool = isProduction ? "hidden-source-map" : "source-map";
+export const devtool = isProduction ? "source-map" : "eval-source-map";

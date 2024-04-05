@@ -15,17 +15,6 @@
  */
 package com.dremio.exec.maestro;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
-
 import com.dremio.common.concurrent.CloseableSchedulerThreadPool;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserRemoteException;
@@ -47,11 +36,21 @@ import com.dremio.service.executor.ExecutorServiceClient;
 import com.dremio.service.executor.ExecutorServiceClientFactory;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.Empty;
-
 import io.grpc.stub.StreamObserver;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 class FragmentTracker implements AutoCloseable {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FragmentTracker.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(FragmentTracker.class);
   public static final int MAX_CANCEL_RETRIES = 2;
   private final QueryId queryId;
   private final CompletionListener completionListener;
@@ -70,13 +69,12 @@ class FragmentTracker implements AutoCloseable {
   private Set<NodeEndpoint> lostNodes = ConcurrentHashMap.newKeySet();
 
   public FragmentTracker(
-    QueryId queryId,
-    CompletionListener completionListener,
-    Runnable queryCloser,
-    ExecutorServiceClientFactory executorServiceClientFactory,
-    ExecutorSetService executorSetService,
-    CloseableSchedulerThreadPool closeableSchedulerThreadPool
-    ) {
+      QueryId queryId,
+      CompletionListener completionListener,
+      Runnable queryCloser,
+      ExecutorServiceClientFactory executorServiceClientFactory,
+      ExecutorSetService executorSetService,
+      CloseableSchedulerThreadPool closeableSchedulerThreadPool) {
 
     this.queryId = queryId;
     this.completionListener = completionListener;
@@ -90,29 +88,29 @@ class FragmentTracker implements AutoCloseable {
     return queryId;
   }
 
-  public void populate(List<PlanFragmentFull> fragments, ResourceSchedulingDecisionInfo decisionInfo) {
+  public void populate(
+      List<PlanFragmentFull> fragments, ResourceSchedulingDecisionInfo decisionInfo) {
     for (PlanFragmentFull fragment : fragments) {
       final NodeEndpoint assignment = fragment.getMinor().getAssignment();
       pendingNodes.add(assignment);
     }
 
-    executorSet = executorSetService.getExecutorSet(decisionInfo.getEngineId(), decisionInfo.getSubEngineId());
+    executorSet =
+        executorSetService.getExecutorSet(
+            decisionInfo.getEngineId(), decisionInfo.getSubEngineId());
     executorSet.addNodeStatusListener(nodeStatusListener);
     validateEndpoints();
     checkAndNotifyCompletionListener();
   }
 
-  /**
-   * Throws an exception if any of the executors the query is scheduled to run on is down
-   */
+  /** Throws an exception if any of the executors the query is scheduled to run on is down */
   private void validateEndpoints() {
 
     // set of all active endpoints, minimized
-    Set<NodeEndpoint> minimizedActiveSet = executorSet
-        .getAvailableEndpoints()
-        .stream()
-        .map((e) -> EndpointHelper.getMinimalEndpoint(e))
-        .collect(Collectors.toSet());
+    Set<NodeEndpoint> minimizedActiveSet =
+        executorSet.getAvailableEndpoints().stream()
+            .map((e) -> EndpointHelper.getMinimalEndpoint(e))
+            .collect(Collectors.toSet());
 
     logger.debug("validating endpoints {}", minimizedActiveSet);
 
@@ -130,15 +128,13 @@ class FragmentTracker implements AutoCloseable {
 
     if (!failedNodeList.isEmpty()) {
       logger.warn(
-              "One or more nodes are down {}, cancelling query {}",
-              failedNodeList,
-              queryId.toString());
+          "One or more nodes are down {}, cancelling query {}", failedNodeList, queryId.toString());
 
       checkAndUpdateFirstError(
-              new ExecutionSetupException(
-                      String.format(
-                              "One or more nodes lost connectivity during query.  Identified nodes were [%s].",
-                              failedNodeList)));
+          new ExecutionSetupException(
+              String.format(
+                  "One or more nodes lost connectivity during query.  Identified nodes were [%s].",
+                  failedNodeList)));
     }
   }
 
@@ -147,15 +143,19 @@ class FragmentTracker implements AutoCloseable {
   }
 
   public void nodeMarkFirstError(NodeQueryFirstError firstError) {
-    logger.info("Fragment {} failed, cancelling remaining fragments.",
-            QueryIdHelper.getQueryIdentifier(firstError.getHandle()));
+    logger.info(
+        "Fragment {} failed, cancelling remaining fragments.",
+        QueryIdHelper.getQueryIdentifier(firstError.getHandle()));
     checkAndUpdateFirstError(UserRemoteException.create(firstError.getError()));
   }
 
   public void nodeCompleted(NodeQueryCompletion completion) {
     if (completion.hasFirstError()) {
-      logger.debug("received node completion with error for query {} from node {}:{}",
-        QueryIdHelper.getQueryId(queryId), completion.getEndpoint().getAddress(), completion.getEndpoint().getFabricPort());
+      logger.debug(
+          "received node completion with error for query {} from node {}:{}",
+          QueryIdHelper.getQueryId(queryId),
+          completion.getEndpoint().getAddress(),
+          completion.getEndpoint().getFabricPort());
 
       checkAndUpdateFirstError(UserRemoteException.create(completion.getFirstError()));
     }
@@ -163,17 +163,22 @@ class FragmentTracker implements AutoCloseable {
   }
 
   public void screenCompleted() {
-    logger.debug("received screen completion for query {}, cancelling remaining fragments",
-      QueryIdHelper.getQueryId(queryId));
+    logger.debug(
+        "received screen completion for query {}, cancelling remaining fragments",
+        QueryIdHelper.getQueryId(queryId));
     cancelExecutingFragmentsInternal();
   }
 
   void handleFailedNodes(final Set<NodeEndpoint> unregisteredNodes) {
-    // let's do a pass through all unregistered nodes, check if any of them has running fragments without marking them
-    // as complete for now. Otherwise, the last node may complete successfully and send a completion message to the
+    // let's do a pass through all unregistered nodes, check if any of them has running fragments
+    // without marking them
+    // as complete for now. Otherwise, the last node may complete successfully and send a completion
+    // message to the
     // foreman which will mark the query as succeeded.
-    // Note that by the time we build and send the failure message, its possible that we get a completion message
-    // from the last fragments that were running on the dead nodes which may cause the query to be marked completed
+    // Note that by the time we build and send the failure message, its possible that we get a
+    // completion message
+    // from the last fragments that were running on the dead nodes which may cause the query to be
+    // marked completed
     // which is actually correct in this case as the node died after all its fragments completed.
 
     logger.debug("pendingNodes:{}, unRegisteredNodes:{}", pendingNodes, unregisteredNodes);
@@ -190,19 +195,24 @@ class FragmentTracker implements AutoCloseable {
         logger.debug("Executor nodeEndpoint: {}, not in pendingNodes: {}", minimalEp, pendingNodes);
         continue;
       }
-      logger.debug("Executor nodeEndpoint: {}, is added to nodesToMarkDead: {}", minimalEp, nodesToMarkDead);
+      logger.debug(
+          "Executor nodeEndpoint: {}, is added to nodesToMarkDead: {}", minimalEp, nodesToMarkDead);
       nodesToMarkDead.add(minimalEp);
     }
 
     if (nodesToMarkDead.size() > 0) {
       lostNodes.addAll(nodesToMarkDead);
       String failedNodeDesc = nodesToStringDesc(nodesToMarkDead);
-      logger.warn("Nodes [{}] no longer registered in cluster.  Canceling query {}",
-              failedNodeDesc, QueryIdHelper.getQueryId(queryId));
+      logger.warn(
+          "Nodes [{}] no longer registered in cluster.  Canceling query {}",
+          failedNodeDesc,
+          QueryIdHelper.getQueryId(queryId));
 
       checkAndUpdateFirstError(
-              new ExecutionSetupException(String.format("One or more nodes lost connectivity during query.  Identified nodes were [%s].",
-                      failedNodeDesc)));
+          new ExecutionSetupException(
+              String.format(
+                  "One or more nodes lost connectivity during query.  Identified nodes were [%s].",
+                  failedNodeDesc)));
     }
 
     // now we can deem the failed nodes as completed.
@@ -230,11 +240,19 @@ class FragmentTracker implements AutoCloseable {
 
   private void markNodeDone(NodeEndpoint endpoint) {
     if (pendingNodes.remove(endpoint)) {
-      logger.debug("node completed for query {} from node {}:{}, pending nodes {}",
-        QueryIdHelper.getQueryId(queryId), endpoint.getAddress(), endpoint.getFabricPort(), nodesToStringDesc(pendingNodes));
+      logger.debug(
+          "node completed for query {} from node {}:{}, pending nodes {}",
+          QueryIdHelper.getQueryId(queryId),
+          endpoint.getAddress(),
+          endpoint.getFabricPort(),
+          nodesToStringDesc(pendingNodes));
     } else {
-      logger.warn("handling completion for query {} on node {}:{}, which is not in the list of pending nodes {}, ignoring message",
-        QueryIdHelper.getQueryId(queryId), endpoint.getAddress(), endpoint.getFabricPort(), nodesToStringDesc(pendingNodes));
+      logger.warn(
+          "handling completion for query {} on node {}:{}, which is not in the list of pending nodes {}, ignoring message",
+          QueryIdHelper.getQueryId(queryId),
+          endpoint.getAddress(),
+          endpoint.getFabricPort(),
+          nodesToStringDesc(pendingNodes));
     }
     checkAndNotifyCompletionListener();
   }
@@ -244,58 +262,58 @@ class FragmentTracker implements AutoCloseable {
     cancelExecutingFragmentsInternal();
   }
 
-  /**
-   * Cancel all fragments. Only one rpc is sent per executor.
-   */
+  /** Cancel all fragments. Only one rpc is sent per executor. */
   void cancelExecutingFragmentsInternal() {
     // can be best effort. query sync will anyway cancel non active queries.
     cancelExecutingFragmentsInternalHelper(queryId, pendingNodes);
     checkAndNotifyCompletionListener();
   }
 
-  /**
-   * Cancel all fragments. Only one rpc is sent per executor.
-   */
+  /** Cancel all fragments. Only one rpc is sent per executor. */
   @VisibleForTesting
-  void cancelExecutingFragmentsInternalHelper(QueryId queryId,
-                                              Set<NodeEndpoint> pendingNodes) {
-    CancelFragments fragments = CancelFragments
-      .newBuilder()
-      .setQueryId(queryId)
-      .build();
+  void cancelExecutingFragmentsInternalHelper(QueryId queryId, Set<NodeEndpoint> pendingNodes) {
+    CancelFragments fragments = CancelFragments.newBuilder().setQueryId(queryId).build();
     for (NodeEndpoint endpoint : pendingNodes) {
-      logger.debug("sending cancellation for query {} to node {}:{}",
-        QueryIdHelper.getQueryId(queryId), endpoint.getAddress(), endpoint.getFabricPort());
+      logger.debug(
+          "sending cancellation for query {} to node {}:{}",
+          QueryIdHelper.getQueryId(queryId),
+          endpoint.getAddress(),
+          endpoint.getFabricPort());
       FragmentTracker.SignalListener responseObserver = getResponseObserver(endpoint, fragments);
       cancelFragmentsHelper(fragments, endpoint, responseObserver);
     }
   }
 
   @VisibleForTesting
-  SignalListener getResponseObserver(NodeEndpoint endpoint,
-                                     CancelFragments fragments) {
+  SignalListener getResponseObserver(NodeEndpoint endpoint, CancelFragments fragments) {
     return new SignalListener(endpoint, fragments);
   }
 
-  void cancelFragmentsHelper(CancelFragments fragments,
-                             NodeEndpoint endpoint,
-                             SignalListener listener) {
+  void cancelFragmentsHelper(
+      CancelFragments fragments, NodeEndpoint endpoint, SignalListener listener) {
     if (listener.getRetryAttempt() >= MAX_CANCEL_RETRIES) {
       /* The query cancel is called in two places - when screen is complete due to a limit or
-         user cancels the query. In both cases we record the query as either being complete or
-         cancelled. which leads to active query sync removing it from any executor tht missed the
-         cancel request.*/
-      logger.error("Retrying cancelling fragments failed for queryId:{}. Max retries reached. No more retry done.",
-        queryId);
+      user cancels the query. In both cases we record the query as either being complete or
+      cancelled. which leads to active query sync removing it from any executor tht missed the
+      cancel request.*/
+      logger.error(
+          "Retrying cancelling fragments failed for queryId:{}. Max retries reached. No more retry done.",
+          queryId);
       markNodeDone(endpoint);
     } else if (!pendingNodes.contains(endpoint)) {
-      logger.info("Retrying cancelling fragments for queryId{} endpoint {} not required. Endpoint" +
-          " is not active", queryId, endpoint);
+      logger.info(
+          "Retrying cancelling fragments for queryId{} endpoint {} not required. Endpoint"
+              + " is not active",
+          queryId,
+          endpoint);
     } else {
-      CompletableFuture.runAsync(() -> {
-        ExecutorServiceClient executorServiceClient = executorServiceClientFactory.getClientForEndpoint(endpoint);
-        executorServiceClient.cancelFragments(fragments, listener);
-      }, closeableSchedulerThreadPool);
+      CompletableFuture.runAsync(
+          () -> {
+            ExecutorServiceClient executorServiceClient =
+                executorServiceClientFactory.getClientForEndpoint(endpoint);
+            executorServiceClient.cancelFragments(fragments, listener);
+          },
+          closeableSchedulerThreadPool);
     }
   }
 
@@ -320,8 +338,10 @@ class FragmentTracker implements AutoCloseable {
   }
 
   private void checkAndCloseQuery() {
-    if (pendingNodes.isEmpty() || // nothing pending from any of the executors.
-        firstError.get() != null && cancelled) { // there was an error, and the cancels have been sent.
+    if (pendingNodes.isEmpty()
+        || // nothing pending from any of the executors.
+        firstError.get() != null
+            && cancelled) { // there was an error, and the cancels have been sent.
       queryCloser.run();
       queryCloserInvoked = true;
     }
@@ -340,21 +360,30 @@ class FragmentTracker implements AutoCloseable {
     @Override
     public void nodesUnregistered(Set<NodeEndpoint> unregisteredNodes) {
       if (logger.isDebugEnabled()) {
-        logger.debug("nodes Unregistered {}, received notification for query {}",
-          unregisteredNodes, queryId);
+        logger.debug(
+            "nodes Unregistered {}, received notification for query {}",
+            unregisteredNodes,
+            queryId);
       }
 
       try {
         handleFailedNodes(unregisteredNodes);
       } catch (Exception e) {
-        logger.warn("FragmentTracker {} failed to handle unregistered nodes {}",
-          QueryIdHelper.getQueryId(queryId), unregisteredNodes, e);
+        logger.warn(
+            "FragmentTracker {} failed to handle unregistered nodes {}",
+            QueryIdHelper.getQueryId(queryId),
+            unregisteredNodes,
+            e);
       } catch (Throwable e) {
-        // the assumption is that the system is in bad state and this will most likely cause it shutdown. That's why
-        // we do nothing about the exception, but just in case it doesn't we want to at least get it in the log in case
+        // the assumption is that the system is in bad state and this will most likely cause it
+        // shutdown. That's why
+        // we do nothing about the exception, but just in case it doesn't we want to at least get it
+        // in the log in case
         // some of those queries get stuck
-        logger.error("Throwable exception was thrown in nodesUnregistered, this queries may get stuck {}",
-          queryId, e);
+        logger.error(
+            "Throwable exception was thrown in nodesUnregistered, this queries may get stuck {}",
+            queryId,
+            e);
         throw e;
       }
     }
@@ -363,7 +392,6 @@ class FragmentTracker implements AutoCloseable {
     public void nodesRegistered(Set<NodeEndpoint> registeredNodes) {
       // nothing to do.
     }
-
   }
 
   /*
@@ -373,27 +401,26 @@ class FragmentTracker implements AutoCloseable {
    */
   class SignalListener implements StreamObserver<Empty> {
     @Override
-    public void onNext(Empty empty) {
-
-    }
+    public void onNext(Empty empty) {}
 
     @Override
     public void onError(Throwable throwable) {
-      final String endpointIdentity = endpoint != null ?
-              endpoint.getAddress() + ":" + endpoint.getUserPort() : "<null>";
-      String errorMessage = new StringBuilder()
-        .append("Failure while attempting to cancel fragments of query ")
-        .append(QueryIdHelper.getQueryId(value.getQueryId()))
-        .append(" on endpoint ")
-        .append(endpointIdentity + ".")
-        .toString();
+      final String endpointIdentity =
+          endpoint != null ? endpoint.getAddress() + ":" + endpoint.getUserPort() : "<null>";
+      String errorMessage =
+          new StringBuilder()
+              .append("Failure while attempting to cancel fragments of query ")
+              .append(QueryIdHelper.getQueryId(value.getQueryId()))
+              .append(" on endpoint ")
+              .append(endpointIdentity + ".")
+              .toString();
 
       logger.warn(errorMessage, throwable);
       // if rendezvous has already retried the cancel rpc; ignore;
       if (!(throwable instanceof Retryer.OperationFailedAfterRetriesException)) {
         retryAttempt++;
-        closeableSchedulerThreadPool.schedule( () -> cancelFragmentsHelper(value, endpoint, this),
-          retryAttempt, TimeUnit.SECONDS);
+        closeableSchedulerThreadPool.schedule(
+            () -> cancelFragmentsHelper(value, endpoint, this), retryAttempt, TimeUnit.SECONDS);
       }
     }
 

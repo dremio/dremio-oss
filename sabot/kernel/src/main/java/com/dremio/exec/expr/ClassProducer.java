@@ -25,12 +25,22 @@ import com.dremio.sabot.exec.context.FunctionContext;
 
 public interface ClassProducer {
   <T> CodeGenerator<T> createGenerator(TemplateClassDefinition<T> definition);
+
   LogicalExpression materializeWithBatchSchema(LogicalExpression expr, BatchSchema batchSchema);
+
   LogicalExpression materialize(LogicalExpression expr, VectorAccessible batch);
+
   LogicalExpression materializeAndAllowComplex(LogicalExpression expr, VectorAccessible batch);
-  LogicalExpression materializeAndAllowComplex(LogicalExpression expr, VectorAccessible batch, boolean allowGandivaFunctions);
+
+  LogicalExpression materializeAndAllowComplex(
+      LogicalExpression expr, VectorAccessible batch, boolean allowGandivaFunctions);
+
   LogicalExpression addImplicitCast(LogicalExpression fromExpr, CompleteType toType);
+
   FunctionContext getFunctionContext();
+
   FunctionLookupContext getFunctionLookupContext();
-  LogicalExpression annotateTheExpression(ExpressionEvaluationOptions options, LogicalExpression expr, VectorAccessible batch);
+
+  LogicalExpression annotateTheExpression(
+      ExpressionEvaluationOptions options, LogicalExpression expr, VectorAccessible batch);
 }

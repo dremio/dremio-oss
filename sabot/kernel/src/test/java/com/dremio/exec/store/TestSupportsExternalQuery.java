@@ -21,24 +21,22 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
-import java.util.List;
-import java.util.Optional;
-
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.schema.Function;
-import org.junit.Test;
-
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.tablefunctions.ExternalQuery;
 import com.google.common.collect.ImmutableList;
+import java.util.List;
+import java.util.Optional;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.schema.Function;
+import org.junit.Test;
 
-/**
- * Test SupportsExternalQuery default methods.
- */
+/** Test SupportsExternalQuery default methods. */
 public class TestSupportsExternalQuery {
-  private static final java.util.function.Function<String, BatchSchema> DUMMY_SCHEMA_BUILDER = (dummy) -> null;
-  private static final java.util.function.Function<BatchSchema, RelDataType> DUMMY_ROW_TYPE_BUILDER = (dummy) -> null;
+  private static final java.util.function.Function<String, BatchSchema> DUMMY_SCHEMA_BUILDER =
+      (dummy) -> null;
+  private static final java.util.function.Function<BatchSchema, RelDataType>
+      DUMMY_ROW_TYPE_BUILDER = (dummy) -> null;
   private static final StoragePluginId DUMMY_ID = mock(StoragePluginId.class);
 
   private Optional<Function> getExternalQueryFunctionHelper(List<String> paths) {
@@ -103,16 +101,17 @@ public class TestSupportsExternalQuery {
   @Test
   public void testGetExternalQueryFuncWithoutSchemaBuilder() {
     final List<String> paths = ImmutableList.of("source", "external_query");
-    assertThatThrownBy(() -> getExternalQueryFunction(null, DUMMY_ROW_TYPE_BUILDER, DUMMY_ID, paths))
-      .hasMessageContaining("schemaBuilder cannot be null.")
-      .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(
+            () -> getExternalQueryFunction(null, DUMMY_ROW_TYPE_BUILDER, DUMMY_ID, paths))
+        .hasMessageContaining("schemaBuilder cannot be null.")
+        .isInstanceOf(NullPointerException.class);
   }
 
   @Test
   public void testGetExternalQueryFuncWithoutRowTypeBuilder() {
     final List<String> paths = ImmutableList.of("source", "external_query");
     assertThatThrownBy(() -> getExternalQueryFunction(DUMMY_SCHEMA_BUILDER, null, DUMMY_ID, paths))
-      .hasMessageContaining("rowTypeBuilder cannot be null.")
-      .isInstanceOf(NullPointerException.class);
+        .hasMessageContaining("rowTypeBuilder cannot be null.")
+        .isInstanceOf(NullPointerException.class);
   }
 }

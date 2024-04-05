@@ -127,6 +127,7 @@ message IcebergMetadata {
   optional int64 partition_stats_file_size = 12; // size of partition stats file
   optional string sort_order = 13;
   repeated TableProperties table_properties = 14; // iceberg table properties
+  optional int32 default_partition_spec_id = 15; // default partition spec id
 }
 
 message UserDefinedSchemaSettings {

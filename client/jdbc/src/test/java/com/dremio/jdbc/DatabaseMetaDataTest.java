@@ -24,14 +24,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.sql.DatabaseMetaData;
 import java.sql.SQLException;
-
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 /**
- * Test for Dremio's implementation of DatabaseMetaData's methods (other than
- * those tested separately, e.g., {@code getColumn(...)}, tested in
- * {@link DatabaseMetaDataGetColumnsTest})).
+ * Test for Dremio's implementation of DatabaseMetaData's methods (other than those tested
+ * separately, e.g., {@code getColumn(...)}, tested in {@link DatabaseMetaDataGetColumnsTest})).
  */
 public class DatabaseMetaDataTest extends JdbcWithServerTestBase {
   protected static DatabaseMetaData dbmd;
@@ -42,7 +40,6 @@ public class DatabaseMetaDataTest extends JdbcWithServerTestBase {
     dbmd = getConnection().getMetaData();
   }
 
-
   // For matching order of java.sql.DatabaseMetaData:
   //
   //  allProceduresAreCallable()
@@ -51,7 +48,6 @@ public class DatabaseMetaDataTest extends JdbcWithServerTestBase {
   //  getUserName()
   //  isReadOnly()
 
-
   @Test
   public void testNullsAreSortedMethodsSaySortedHigh() throws SQLException {
     assertThat(dbmd.nullsAreSortedHigh()).isTrue();
@@ -59,7 +55,6 @@ public class DatabaseMetaDataTest extends JdbcWithServerTestBase {
     assertThat(dbmd.nullsAreSortedAtEnd()).isFalse();
     assertThat(dbmd.nullsAreSortedAtStart()).isFalse();
   }
-
 
   // For matching order of java.sql.DatabaseMetaData:
   //
@@ -80,12 +75,10 @@ public class DatabaseMetaDataTest extends JdbcWithServerTestBase {
   //  storesLowerCaseQuotedIdentifiers()
   //  storesMixedCaseQuotedIdentifiers()
 
-
   @Test
   public void testGetIdentifierQuoteStringSaysDoublequote() throws SQLException {
     assertThat(dbmd.getIdentifierQuoteString()).isEqualTo("\"");
   }
-
 
   // For matching order of java.sql.DatabaseMetaData:
   //
@@ -182,7 +175,6 @@ public class DatabaseMetaDataTest extends JdbcWithServerTestBase {
   //  dataDefinitionCausesTransactionCommit()
   //  dataDefinitionIgnoredInTransactions()
 
-
   @Test
   public void testGetDefaultTransactionIsolationSaysNone() throws SQLException {
     assertThat(dbmd.getDefaultTransactionIsolation()).isEqualTo(TRANSACTION_NONE);
@@ -194,14 +186,12 @@ public class DatabaseMetaDataTest extends JdbcWithServerTestBase {
   }
 
   @Test
-  public void testSupportsTransactionIsolationLevelNoneSaysYes()
-    throws SQLException {
+  public void testSupportsTransactionIsolationLevelNoneSaysYes() throws SQLException {
     assertThat(dbmd.supportsTransactionIsolationLevel(TRANSACTION_NONE)).isTrue();
   }
 
   @Test
-  public void testSupportsTransactionIsolationLevelOthersSayNo()
-    throws SQLException {
+  public void testSupportsTransactionIsolationLevelOthersSayNo() throws SQLException {
     assertThat(dbmd.supportsTransactionIsolationLevel(TRANSACTION_READ_UNCOMMITTED)).isFalse();
     assertThat(dbmd.supportsTransactionIsolationLevel(TRANSACTION_READ_COMMITTED)).isFalse();
     assertThat(dbmd.supportsTransactionIsolationLevel(TRANSACTION_REPEATABLE_READ)).isFalse();
@@ -212,14 +202,15 @@ public class DatabaseMetaDataTest extends JdbcWithServerTestBase {
   public void testGetProceduresReturnsNonNull() throws SQLException {
     assertThat(dbmd.getProcedures(null, null, "%")).isNotNull();
   }
+
   // TODO:  Later, test more (e.g., right columns (even if/though zero rows)).
 
   @Test
   public void testGetProcedureColumnsReturnsNonNull() throws SQLException {
     assertThat(dbmd.getProcedureColumns(null, null, "%", "%")).isNotNull();
   }
-  // TODO:  Later, test more (e.g., right columns (even if/though zero rows)).
 
+  // TODO:  Later, test more (e.g., right columns (even if/though zero rows)).
 
   // For matching order of java.sql.DatabaseMetaData:
   //
@@ -227,80 +218,88 @@ public class DatabaseMetaDataTest extends JdbcWithServerTestBase {
   //  getSchemas()
   //  getCatalogs()
 
-
   @Test
   public void testGetTableTypesReturnsNonNull() throws SQLException {
     assertThat(dbmd.getTableTypes()).isNotNull();
   }
-  // TODO:  Later, test more (e.g., right columns (even if/though zero rows)).
 
+  // TODO:  Later, test more (e.g., right columns (even if/though zero rows)).
 
   // For matching order of java.sql.DatabaseMetaData:
   //
-  //  getColumns(String catalog, String schemaPattern, String tableNamePattern, String columnNamePattern)
-
+  //  getColumns(String catalog, String schemaPattern, String tableNamePattern, String
+  // columnNamePattern)
 
   @Test
   public void testGetColumnPrivilegesReturnsNonNull() throws SQLException {
     assertThat(dbmd.getColumnPrivileges(null, null, "%", "%")).isNotNull();
   }
+
   // TODO:  Later, test more (e.g., right columns (even if/though zero rows)).
 
   @Test
   public void testGetTablePrivilegesReturnsNonNull() throws SQLException {
     assertThat(dbmd.getTablePrivileges(null, null, "%")).isNotNull();
   }
+
   // TODO:  Later, test more (e.g., right columns (even if/though zero rows)).
 
   @Test
   public void testGetBestRowIdentifierReturnsNonNull() throws SQLException {
-    assertThat(dbmd.getBestRowIdentifier(null, null, "%", DatabaseMetaData.bestRowTemporary,
-      true)).isNotNull();
+    assertThat(dbmd.getBestRowIdentifier(null, null, "%", DatabaseMetaData.bestRowTemporary, true))
+        .isNotNull();
   }
+
   // TODO:  Later, test more (e.g., right columns (even if/though zero rows)).
 
   @Test
   public void testGetVersionColumnsReturnsNonNull() throws SQLException {
     assertThat(dbmd.getVersionColumns(null, null, "%")).isNotNull();
   }
+
   // TODO:  Later, test more (e.g., right columns (even if/though zero rows)).
 
   @Test
   public void testGetPrimaryKeysReturnsNonNull() throws SQLException {
     assertThat(dbmd.getPrimaryKeys(null, null, "%")).isNotNull();
   }
+
   // TODO:  Later, test more (e.g., right columns (even if/though zero rows)).
 
   @Test
   public void testGetImportedKeysReturnsNonNull() throws SQLException {
     assertThat(dbmd.getImportedKeys(null, null, "%")).isNotNull();
   }
+
   // TODO:  Later, test more (e.g., right columns (even if/though zero rows)).
 
   @Test
   public void testGetExportedKeysReturnsNonNull() throws SQLException {
     assertThat(dbmd.getExportedKeys(null, null, "%")).isNotNull();
   }
+
   // TODO:  Later, test more (e.g., right columns (even if/though zero rows)).
 
   @Test
   public void testGetCrossReferenceReturnsNonNull() throws SQLException {
     assertThat(dbmd.getCrossReference(null, null, "%", null, null, "%")).isNotNull();
   }
+
   // TODO:  Later, test more (e.g., right columns (even if/though zero rows)).
 
   @Test
   public void testGetTypeInfoReturnsNonNull() throws SQLException {
     assertThat(dbmd.getTypeInfo()).isNotNull();
   }
+
   // TODO:  Later, test more (e.g., right columns (even if/though zero rows)).
 
   @Test
   public void testGetIndexInfoReturnsNonNull() throws SQLException {
     assertThat(dbmd.getIndexInfo(null, null, "%", false, true)).isNotNull();
   }
-  // TODO:  Later, test more (e.g., right columns (even if/though zero rows)).
 
+  // TODO:  Later, test more (e.g., right columns (even if/though zero rows)).
 
   // For matching order of java.sql.DatabaseMetaData:
   //
@@ -318,13 +317,12 @@ public class DatabaseMetaDataTest extends JdbcWithServerTestBase {
   //  insertsAreDetected(int type)
   //  supportsBatchUpdates()
 
-
   @Test
   public void testGetUDTsReturnsNonNull() throws SQLException {
     assertThat(dbmd.getUDTs(null, null, "%", null)).isNotNull();
   }
-  // TODO:  Later, test more (e.g., right columns (even if/though zero rows)).
 
+  // TODO:  Later, test more (e.g., right columns (even if/though zero rows)).
 
   // For matching order of java.sql.DatabaseMetaData:
   // getConnection()
@@ -334,25 +332,26 @@ public class DatabaseMetaDataTest extends JdbcWithServerTestBase {
   //  supportsMultipleOpenResults()
   //  supportsGetGeneratedKeys()
 
-
   @Test
   public void testGetSuperTypesReturnsNonNull() throws SQLException {
     assertThat(dbmd.getSuperTypes(null, "%", "%")).isNotNull();
   }
+
   // TODO:  Later, test more (e.g., right columns (even if/though zero rows)).
 
   @Test
   public void testGetSuperTablesReturnsNonNull() throws SQLException {
     assertThat(dbmd.getSuperTables(null, "%", "%")).isNotNull();
   }
+
   // TODO:  Later, test more (e.g., right columns (even if/though zero rows)).
 
   @Test
   public void testGetAttributesReturnsNonNull() throws SQLException {
     assertThat(dbmd.getAttributes(null, null, "%", "%")).isNotNull();
   }
-  // TODO:  Later, test more (e.g., right columns (even if/though zero rows)).
 
+  // TODO:  Later, test more (e.g., right columns (even if/though zero rows)).
 
   // For matching order of java.sql.DatabaseMetaData:
   //
@@ -365,38 +364,37 @@ public class DatabaseMetaDataTest extends JdbcWithServerTestBase {
   //  getSQLStateType()
   //  locatorsUpdateCopy()
   //  supportsStatementPooling()
-  //- ------------------------ JDBC 4.0 -----------------------------------
+  // - ------------------------ JDBC 4.0 -----------------------------------
   //  getRowIdLifetime()
   //  getSchemas(String catalog, String schemaPattern)
   //  getSchemas(String, String)
-
 
   @Test
   public void testGetClientInfoPropertiesReturnsNonNull() throws SQLException {
     assertThat(dbmd.getClientInfoProperties()).isNotNull();
   }
-  // TODO:  Later, test more (e.g., right columns (even if/though zero rows)).
 
+  // TODO:  Later, test more (e.g., right columns (even if/though zero rows)).
 
   @Test
   public void testGetFunctionsReturnsNonNull() throws SQLException {
     assertThat(dbmd.getFunctions(null, "%", "%")).isNotNull();
   }
+
   // TODO:  Later, test more (e.g., right columns (even if/though zero rows)).
 
   @Test
   public void testGetFunctionColumnsReturnsNonNull() throws SQLException {
     assertThat(dbmd.getFunctionColumns(null, null, "%", null)).isNotNull();
   }
-  // TODO:  Later, test more (e.g., right columns (even if/though zero rows)).
 
+  // TODO:  Later, test more (e.g., right columns (even if/though zero rows)).
 
   // For matching order of java.sql.DatabaseMetaData:
   //
   //  supportsStoredFunctionsUsingCallSyntax()
   //  autoCommitFailureClosesAllResultSets()
-  //??--------------------------JDBC 4.1 -----------------------------
-
+  // ??--------------------------JDBC 4.1 -----------------------------
 
   @Test
   public void testGetPseudoColumnsReturnsNonNull() throws SQLException {
@@ -404,10 +402,8 @@ public class DatabaseMetaDataTest extends JdbcWithServerTestBase {
   }
   // TODO:  Later, test more (e.g., right columns (even if/though zero rows)).
 
-
   // For matching order of java.sql.DatabaseMetaData:
   //
   //   generatedKeyAlwaysReturned()
-
 
 }

@@ -15,13 +15,6 @@
  */
 package com.dremio.exec.planner.sql.handlers.direct;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-
-import org.apache.calcite.schema.Schema.TableType;
-import org.apache.calcite.sql.SqlNode;
-
 import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
@@ -35,11 +28,17 @@ import com.dremio.exec.planner.sql.parser.SqlDropView;
 import com.dremio.exec.planner.sql.parser.SqlGrant;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.collect.ImmutableMap;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import org.apache.calcite.schema.Schema.TableType;
+import org.apache.calcite.sql.SqlNode;
 
 /** Handler for Drop View [If Exists] DDL command. */
 public class DropViewHandler implements SqlDirectHandler<SimpleCommandResult> {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DropViewHandler.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(DropViewHandler.class);
 
   private final Catalog catalog;
   private final SqlHandlerConfig config;
@@ -58,13 +57,16 @@ public class DropViewHandler implements SqlDirectHandler<SimpleCommandResult> {
     final DremioTable table;
     final String sourceName = path.getRoot();
     VersionContext statementSourceVersion =
-      ReferenceTypeUtils.map(dropView.getRefType(), dropView.getRefValue(), null);
-    final VersionContext sessionVersion = config.getContext().getSession().getSessionVersionForSource(sourceName);
+        ReferenceTypeUtils.map(dropView.getRefType(), dropView.getRefValue(), null);
+    final VersionContext sessionVersion =
+        config.getContext().getSession().getSessionVersionForSource(sourceName);
     VersionContext sourceVersion = statementSourceVersion.orElse(sessionVersion);
-    final ResolvedVersionContext version = CatalogUtil.resolveVersionContext(catalog, sourceName, sourceVersion);
+    final ResolvedVersionContext version =
+        CatalogUtil.resolveVersionContext(catalog, sourceName, sourceVersion);
 
-    if(isVersioned(path)) {
-      final Catalog catalog = getCatalog().resolveCatalogResetContext(path.getRoot(), sourceVersion);
+    if (isVersioned(path)) {
+      final Catalog catalog =
+          getCatalog().resolveCatalogResetContext(path.getRoot(), sourceVersion);
       final Map<String, VersionContext> contextMap = ImmutableMap.of(sourceName, sourceVersion);
       table = catalog.resolveCatalog(contextMap).getTableNoColumnCount(path);
     } else {
@@ -72,37 +74,37 @@ public class DropViewHandler implements SqlDirectHandler<SimpleCommandResult> {
     }
 
     if (dropView.shouldErrorIfViewDoesNotExist()) {
-      if(table == null) {
-        throw UserException.validationError()
-          .message("Unknown view [%s].", path)
-          .buildSilently();
-      } else if(table.getJdbcTableType() != TableType.VIEW) {
+      if (table == null) {
+        throw UserException.validationError().message("Unknown view [%s].", path).buildSilently();
+      } else if (table.getJdbcTableType() != TableType.VIEW) {
         throw UserException.validationError()
             .message("[%s] is not a VIEW", table.getPath())
             .buildSilently();
       }
-    } else if(table == null) {
-      return Collections.singletonList(new SimpleCommandResult(true, String.format("View [%s] not found.", path)));
-    } else if(table.getJdbcTableType() != TableType.VIEW) {
-      return Collections.singletonList(new SimpleCommandResult(true, String.format("View [%s] not found.", path)));
+    } else if (table == null) {
+      return Collections.singletonList(
+          new SimpleCommandResult(true, String.format("View [%s] not found.", path)));
+    } else if (table.getJdbcTableType() != TableType.VIEW) {
+      return Collections.singletonList(
+          new SimpleCommandResult(true, String.format("View [%s] not found.", path)));
     }
-    if(isVersioned(path)){
+    if (isVersioned(path)) {
       catalog.dropView(path, getViewOptions(version));
     } else {
       catalog.dropView(path, null);
     }
-    return Collections.singletonList(SimpleCommandResult.successful("View [%s] deleted successfully.", path));
+    return Collections.singletonList(
+        SimpleCommandResult.successful("View [%s] deleted successfully.", path));
   }
 
-  protected ViewOptions getViewOptions(ResolvedVersionContext resolvedVersionContext){
-    ViewOptions viewOptions = new ViewOptions.ViewOptionsBuilder()
-      .version(resolvedVersionContext)
-      .build();
+  protected ViewOptions getViewOptions(ResolvedVersionContext resolvedVersionContext) {
+    ViewOptions viewOptions =
+        new ViewOptions.ViewOptionsBuilder().version(resolvedVersionContext).build();
 
     return viewOptions;
   }
 
-  protected boolean isVersioned(NamespaceKey path){
+  protected boolean isVersioned(NamespaceKey path) {
     return CatalogUtil.requestedPluginSupportsVersionedTables(path, catalog);
   }
 
@@ -114,5 +116,4 @@ public class DropViewHandler implements SqlDirectHandler<SimpleCommandResult> {
   protected Catalog getCatalog() {
     return catalog;
   }
-
 }

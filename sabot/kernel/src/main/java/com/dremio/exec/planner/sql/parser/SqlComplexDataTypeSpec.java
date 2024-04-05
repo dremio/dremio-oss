@@ -21,18 +21,19 @@ import org.apache.calcite.sql.SqlBasicTypeNameSpec;
 import org.apache.calcite.sql.SqlDataTypeSpec;
 
 /**
- * Extends SqlDataTypeSpec to support complex specs.
- * Facilitates customized deriveType for complex types
+ * Extends SqlDataTypeSpec to support complex specs. Facilitates customized deriveType for complex
+ * types
  */
 public class SqlComplexDataTypeSpec extends SqlDataTypeSpec {
 
   public SqlComplexDataTypeSpec(SqlDataTypeSpec spec) {
-    super(spec.getCollectionsTypeName(),
-      spec.getTypeNameSpec(),
-      spec.getTypeNameSpec(),
-      spec.getTimeZone(),
-      spec.getNullable(),
-      spec.getParserPosition());
+    super(
+        spec.getCollectionsTypeName(),
+        spec.getTypeNameSpec(),
+        spec.getTypeNameSpec(),
+        spec.getTimeZone(),
+        spec.getNullable(),
+        spec.getParserPosition());
   }
 
   @Override
@@ -45,11 +46,14 @@ public class SqlComplexDataTypeSpec extends SqlDataTypeSpec {
   }
 
   private RelDataType getDataTypeForComplex(RelDataTypeFactory typeFactory) {
-    RelDataType type = createTypeFromTypeNameSpec(typeFactory, (SqlTypeNameSpec) this.getTypeName());
+    RelDataType type =
+        createTypeFromTypeNameSpec(typeFactory, (SqlTypeNameSpec) this.getTypeName());
     if (type == null) {
       return null;
     }
-    type = typeFactory.createTypeWithNullability(type, this.getNullable() == null ? true : this.getNullable());
+    type =
+        typeFactory.createTypeWithNullability(
+            type, this.getNullable() == null ? true : this.getNullable());
 
     return type;
   }
@@ -61,8 +65,7 @@ public class SqlComplexDataTypeSpec extends SqlDataTypeSpec {
    * @return the type.
    */
   private RelDataType createTypeFromTypeNameSpec(
-    RelDataTypeFactory typeFactory,
-    SqlTypeNameSpec typeNameSpec) {
+      RelDataTypeFactory typeFactory, SqlTypeNameSpec typeNameSpec) {
     return typeNameSpec.deriveType(typeFactory);
   }
 

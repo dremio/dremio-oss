@@ -20,13 +20,22 @@ import static com.dremio.sabot.Fixtures.t;
 import static com.dremio.sabot.Fixtures.th;
 import static com.dremio.sabot.Fixtures.tr;
 
+import com.dremio.common.AutoCloseables;
+import com.dremio.common.expression.CompleteType;
+import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
+import com.dremio.exec.record.VectorAccessible;
+import com.dremio.exec.record.VectorContainer;
+import com.dremio.exec.record.selection.SelectionVector2;
+import com.dremio.sabot.Fixtures.DataRow;
+import com.dremio.sabot.op.filter.VectorContainerWithSV;
+import com.google.common.base.Preconditions;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collections;
 import java.util.List;
-
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
@@ -41,27 +50,14 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.util.JsonStringArrayList;
 
-import com.dremio.common.AutoCloseables;
-import com.dremio.common.expression.CompleteType;
-import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
-import com.dremio.exec.record.VectorAccessible;
-import com.dremio.exec.record.VectorContainer;
-import com.dremio.exec.record.selection.SelectionVector2;
-import com.dremio.sabot.Fixtures.DataRow;
-import com.dremio.sabot.op.filter.VectorContainerWithSV;
-import com.google.common.base.Preconditions;
-
-/**
- * Creates custom data with a Selection vector.
- */
+/** Creates custom data with a Selection vector. */
 public class CustomGeneratorWithSV2 implements Generator {
 
   public static final Field BITF = CompleteType.BIT.toField("BIT");
   public static final Field INTF = CompleteType.INT.toField("INT");
   public static final Field BIGINTF = CompleteType.BIGINT.toField("BIGINT");
-  public static final Field DECIMALF = new Field("DECIMAL", new FieldType(true,
-    new Decimal(38, 0, 128), null), null);
+  public static final Field DECIMALF =
+      new Field("DECIMAL", new FieldType(true, new Decimal(38, 0, 128), null), null);
   public static final Field STRINGF = CompleteType.VARCHAR.toField("STRING");
   private static final Field LISTF = CompleteType.BIGINT.asList().toField("LIST");
 
@@ -181,7 +177,7 @@ public class CustomGeneratorWithSV2 implements Generator {
     container.allocateNew();
     for (int i = 0; i < toFill; i++) {
       if (selectedBitSet.get(position + i)) {
-        sv2.setIndex(selected, (char)i);
+        sv2.setIndex(selected, (char) i);
         ++selected;
       }
 
@@ -222,13 +218,14 @@ public class CustomGeneratorWithSV2 implements Generator {
         continue;
       }
 
-      rows[idx] = tr(
-        bitValues.get(i),
-        intValues.get(i) == null ? NULL_INT : intValues.get(i),
-        longValues.get(i),
-        decimalValues.get(i),
-        stringValues.get(i),
-        listValues.get(i));
+      rows[idx] =
+          tr(
+              bitValues.get(i),
+              intValues.get(i) == null ? NULL_INT : intValues.get(i),
+              longValues.get(i),
+              decimalValues.get(i),
+              stringValues.get(i),
+              listValues.get(i));
       ++idx;
     }
     return t(th("BIT", "INT", "BIGINT", "DECIMAL", "STRING", "LIST"), rows);
@@ -250,7 +247,9 @@ public class CustomGeneratorWithSV2 implements Generator {
     return strings;
   }
 
-  /** @return shuffled list of integers [0..size) */
+  /**
+   * @return shuffled list of integers [0..size)
+   */
   private static List<Integer> randomListOfInts(int size) {
     Integer[] ids = new Integer[size];
     for (int i = 0; i < size; i++) {

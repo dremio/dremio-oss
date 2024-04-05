@@ -19,12 +19,6 @@ import static com.dremio.dac.server.test.SampleDataPopulator.POPULATOR_USER_NAME
 import static com.dremio.dac.server.test.SampleDataPopulator.TEST_USER_NAME;
 import static org.junit.Assert.assertEquals;
 
-import java.time.LocalDate;
-import java.util.List;
-
-import org.junit.Before;
-import org.junit.Test;
-
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.service.job.JobAndUserStat;
@@ -34,10 +28,12 @@ import com.dremio.service.job.JobCountByQueryType;
 import com.dremio.service.job.UniqueUsersCountByQueryType;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.namespace.dataset.DatasetVersion;
+import java.time.LocalDate;
+import java.util.List;
+import org.junit.Before;
+import org.junit.Test;
 
-/**
- * Tests for job and user stats.
- */
+/** Tests for job and user stats. */
 public class TestJobAndUserStats extends BaseTestServer {
   private HybridJobsService jobsService;
 
@@ -57,24 +53,24 @@ public class TestJobAndUserStats extends BaseTestServer {
     String[] users = {DEFAULT_USERNAME, TEST_USER_NAME, POPULATOR_USER_NAME};
     QueryType[] queryTypes = {QueryType.UI_PREVIEW, QueryType.UI_RUN, QueryType.REST};
 
-    JobRequest.Builder jobRequestBuilder = JobRequest.newBuilder()
-      .setSqlQuery(new SqlQuery(sql, null, users[0]))
-      .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
-      .setDatasetVersion(DatasetVersion.NONE);
+    JobRequest.Builder jobRequestBuilder =
+        JobRequest.newBuilder()
+            .setSqlQuery(new SqlQuery(sql, null, users[0]))
+            .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+            .setDatasetVersion(DatasetVersion.NONE);
 
     for (int i = 0; i < users.length; i++) {
       for (int j = 0; j <= i; j++) {
         for (int k = 0; k < 10; k++) {
-          submitAndWaitUntilSubmitted(jobRequestBuilder
-            .setQueryType(queryTypes[j])
-            .setUsername(users[i])
-            .build());
+          submitAndWaitUntilSubmitted(
+              jobRequestBuilder.setQueryType(queryTypes[j]).setUsername(users[i]).build());
         }
       }
     }
   }
 
-  private void verifyDetailedUniqueUserStats(List<UniqueUsersCountByQueryType> uniqueUsersCountByQueryTypes) {
+  private void verifyDetailedUniqueUserStats(
+      List<UniqueUsersCountByQueryType> uniqueUsersCountByQueryTypes) {
     for (UniqueUsersCountByQueryType uniqueUserStat : uniqueUsersCountByQueryTypes) {
       switch (uniqueUserStat.getQueryType()) {
         case UI_INTERNAL_RUN:
@@ -118,10 +114,9 @@ public class TestJobAndUserStats extends BaseTestServer {
 
   @Test
   public void testUIRequest() {
-    JobAndUserStats jobAndUserStats = jobsService.getJobAndUserStats(JobAndUserStatsRequest.newBuilder()
-      .setNumDaysBack(7)
-      .setDetailedStats(false)
-      .build());
+    JobAndUserStats jobAndUserStats =
+        jobsService.getJobAndUserStats(
+            JobAndUserStatsRequest.newBuilder().setNumDaysBack(7).setDetailedStats(false).build());
     assertEquals(7, jobAndUserStats.getStatsList().size());
     for (JobAndUserStat stat : jobAndUserStats.getStatsList()) {
       if (stat.getDate().equals(LocalDate.now().toString())) {
@@ -136,18 +131,21 @@ public class TestJobAndUserStats extends BaseTestServer {
 
   @Test
   public void testDetailedRequest() {
-    JobAndUserStats jobAndUserStats = jobsService.getJobAndUserStats(JobAndUserStatsRequest.newBuilder()
-      .setNumDaysBack(30)
-      .setDetailedStats(true)
-      .build());
+    JobAndUserStats jobAndUserStats =
+        jobsService.getJobAndUserStats(
+            JobAndUserStatsRequest.newBuilder().setNumDaysBack(30).setDetailedStats(true).build());
     assertEquals(32, jobAndUserStats.getStatsList().size());
     for (JobAndUserStat stat : jobAndUserStats.getStatsList()) {
       if (stat.getIsWeeklyStat()) {
-        assertEquals(LocalDate.now().minusDays(LocalDate.now().getDayOfWeek().getValue() % 7).toString(), stat.getDate());
+        assertEquals(
+            LocalDate.now().minusDays(LocalDate.now().getDayOfWeek().getValue() % 7).toString(),
+            stat.getDate());
         assertEquals(stat.getTotalUniqueUsers(), 4);
         verifyDetailedUniqueUserStats(stat.getUniqueUsersCountByQueryTypeList());
       } else if (stat.getIsMonthlyStat()) {
-        assertEquals(LocalDate.now().minusDays(LocalDate.now().getDayOfMonth() - 1).toString(), stat.getDate());
+        assertEquals(
+            LocalDate.now().minusDays(LocalDate.now().getDayOfMonth() - 1).toString(),
+            stat.getDate());
         assertEquals(stat.getTotalUniqueUsers(), 4);
         verifyDetailedUniqueUserStats(stat.getUniqueUsersCountByQueryTypeList());
       } else {

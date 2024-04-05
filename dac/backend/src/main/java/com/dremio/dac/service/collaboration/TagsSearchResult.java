@@ -15,13 +15,10 @@
  */
 package com.dremio.dac.service.collaboration;
 
+import com.dremio.dac.proto.model.collaboration.CollaborationTag;
 import java.util.Map;
 
-import com.dremio.dac.proto.model.collaboration.CollaborationTag;
-
-/**
- * Tags by key search result
- */
+/** Tags by key search result */
 public class TagsSearchResult {
   private final Map<String, CollaborationTag> tags;
   private final boolean canTagsBeSkipped;

@@ -39,14 +39,14 @@ const udfRuleAnalyzers: CompositeRuleAnalyzers = {
       Parser.RULE_compoundIdentifier,
       (_priorToken: Token | undefined, ruleContext: RuleContext) =>
         !(ruleContext instanceof SqlCreateOrReplaceContext) ||
-        !ruleContext.REPLACE()
+        !ruleContext.REPLACE(),
     ),
   ]),
 };
 
 export function isUdf(
   priorTerminals: TerminalNode[],
-  identifierCandidate: IdentifierCandidate
+  identifierCandidate: IdentifierCandidate,
 ): boolean {
   if (priorTerminals.length == 0) {
     return false;
@@ -57,12 +57,12 @@ export function isUdf(
     (isTokenOfType(priorTerminal.symbol, udfTokens) ||
       areTokensOfType(
         priorTerminals.slice(-3).map((terminal) => terminal.symbol),
-        [udfTokens, [Parser.IF], [Parser.EXISTS]]
+        [udfTokens, [Parser.IF], [Parser.EXISTS]],
       ));
   return validateCompositeRules(
     identifierCandidate,
     udfRuleAnalyzers,
     priorTerminal,
-    fallbackRule
+    fallbackRule,
   );
 }

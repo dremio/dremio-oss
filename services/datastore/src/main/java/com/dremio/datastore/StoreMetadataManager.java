@@ -15,20 +15,16 @@
  */
 package com.dremio.datastore;
 
-/**
- * Manages metadata about stores. The metadata is stored in the "default" store.
- */
+/** Manages metadata about stores. The metadata is stored in the "default" store. */
 interface StoreMetadataManager extends AutoCloseable {
 
-  /**
-   * Allow updates to the metadata store.
-   */
+  /** Allow updates to the metadata store. */
   void allowUpdates();
 
   /**
    * Get the latest transaction number.
    *
-   * Note that the number returned is not per store; the number is global.
+   * <p>Note that the number returned is not per store; the number is global.
    *
    * @return latest transaction number
    */
@@ -42,25 +38,21 @@ interface StoreMetadataManager extends AutoCloseable {
    */
   void setLatestTransactionNumber(String storeName, long transactionNumber);
 
-  /**
-   * No op implementation.
-   */
-  StoreMetadataManager NO_OP = new StoreMetadataManager() {
-    @Override
-    public void allowUpdates() {
-    }
+  /** No op implementation. */
+  StoreMetadataManager NO_OP =
+      new StoreMetadataManager() {
+        @Override
+        public void allowUpdates() {}
 
-    @Override
-    public long getLatestTransactionNumber() {
-      return 0;
-    }
+        @Override
+        public long getLatestTransactionNumber() {
+          return 0;
+        }
 
-    @Override
-    public void setLatestTransactionNumber(String storeName, long transactionNumber) {
-    }
+        @Override
+        public void setLatestTransactionNumber(String storeName, long transactionNumber) {}
 
-    @Override
-    public void close() {
-    }
-  };
+        @Override
+        public void close() {}
+      };
 }

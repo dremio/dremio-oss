@@ -15,21 +15,20 @@
  */
 package com.dremio.sabot.op.join.nlj;
 
-import java.util.LinkedList;
-import java.util.List;
-
-import javax.inject.Named;
-
 import com.dremio.exec.record.ExpandableHyperContainer;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.sabot.exec.context.FunctionContext;
+import java.util.LinkedList;
+import java.util.List;
+import javax.inject.Named;
 
 /*
  * Template class that combined with the runtime generated source implements the NestedLoopJoin interface. This
  * class contains the main nested loop join logic.
  */
 public abstract class NLJWorkerTemplate implements NLJWorker {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(NLJWorkerTemplate.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(NLJWorkerTemplate.class);
 
   // Current left input batch being processed
   private VectorAccessible left = null;
@@ -42,8 +41,9 @@ public abstract class NLJWorkerTemplate implements NLJWorker {
   private int rightIndex = 0;
 
   /**
-   * Method initializes necessary state and invokes the doSetup() to set the
-   * input and output value vector references
+   * Method initializes necessary state and invokes the doSetup() to set the input and output value
+   * vector references
+   *
    * @param context Fragment context
    * @param left Current left input batch being processed
    * @param rightContainer Hyper container
@@ -55,7 +55,7 @@ public abstract class NLJWorkerTemplate implements NLJWorker {
       VectorAccessible left,
       ExpandableHyperContainer rightContainer,
       LinkedList<Integer> rightCounts,
-      VectorAccessible outgoing){
+      VectorAccessible outgoing) {
     this.left = left;
     this.rightCounts = rightCounts;
 
@@ -64,6 +64,7 @@ public abstract class NLJWorkerTemplate implements NLJWorker {
 
   /**
    * Emit records for the join.
+   *
    * @param outputIndex
    * @param targetTotalOutput
    * @return
@@ -78,7 +79,12 @@ public abstract class NLJWorkerTemplate implements NLJWorker {
     // Total number of records on the left
     final int localLeftRecordCount = left.getRecordCount();
 
-     logger.debug("Left record count: {}, Right batch count: {}, OutputIndex: {}, Target output {}", localLeftRecordCount, totalRightBatches, outputIndex, targetTotalOutput);
+    logger.debug(
+        "Left record count: {}, Right batch count: {}, OutputIndex: {}, Target output {}",
+        localLeftRecordCount,
+        totalRightBatches,
+        outputIndex,
+        targetTotalOutput);
 
     /*
      * The below logic is the core of the NLJ. To have better performance we copy the instance members into local
@@ -91,10 +97,10 @@ public abstract class NLJWorkerTemplate implements NLJWorker {
     int lRightIndex = this.rightIndex;
     boolean finishedCurrentLeft = true;
 
-    logger.debug("[Enter] Left: {}, Right {}:{}.",  leftIndex, lRightBatchNumber, rightIndex);
+    logger.debug("[Enter] Left: {}, Right {}:{}.", leftIndex, lRightBatchNumber, rightIndex);
 
-    outer: {
-
+    outer:
+    {
       for (; lRightBatchNumber < totalRightBatches; lRightBatchNumber++) {
         // for every batch on the right
 
@@ -106,7 +112,12 @@ public abstract class NLJWorkerTemplate implements NLJWorker {
           for (; lLeftIndex < localLeftRecordCount; lLeftIndex++) {
             // for every record in the left batch
 
-            logger.trace("Left: {}, Right: {}:{}, Output: {}", lLeftIndex, lRightBatchNumber, lRightIndex, outputIndex);
+            logger.trace(
+                "Left: {}, Right: {}:{}, Output: {}",
+                lLeftIndex,
+                lRightBatchNumber,
+                lRightIndex,
+                outputIndex);
 
             // project records from the left and right batches
             emitLeft(lLeftIndex, outputIndex);
@@ -129,31 +140,42 @@ public abstract class NLJWorkerTemplate implements NLJWorker {
       }
     }
 
-    if(finishedCurrentLeft){
+    if (finishedCurrentLeft) {
       this.rightBatchNumber = 0;
       this.rightIndex = 0;
       this.leftIndex = 0;
-      logger.debug("[Exit] Left: {}, Right {}:{}, OutputIndex: {}",  leftIndex, rightBatchNumber, rightIndex, outputIndex);
+      logger.debug(
+          "[Exit] Left: {}, Right {}:{}, OutputIndex: {}",
+          leftIndex,
+          rightBatchNumber,
+          rightIndex,
+          outputIndex);
       return outputIndex;
     } else {
       // save offsets
       this.rightBatchNumber = lRightBatchNumber;
       this.rightIndex = lRightIndex;
       this.leftIndex = lLeftIndex;
-       logger.debug("[Exit] Left: {}, Right {}:{}, OutputIndex: {}",  leftIndex, rightBatchNumber, rightIndex, outputIndex);
+      logger.debug(
+          "[Exit] Left: {}, Right {}:{}, OutputIndex: {}",
+          leftIndex,
+          rightBatchNumber,
+          rightIndex,
+          outputIndex);
       return -outputIndex;
     }
   }
 
+  public abstract void doSetup(
+      @Named("context") FunctionContext context,
+      @Named("rightContainer") VectorAccessible rightContainer,
+      @Named("leftBatch") VectorAccessible leftBatch,
+      @Named("outgoing") VectorAccessible outgoing);
 
-  public abstract void doSetup(@Named("context") FunctionContext context,
-                               @Named("rightContainer") VectorAccessible rightContainer,
-                               @Named("leftBatch") VectorAccessible leftBatch,
-                               @Named("outgoing") VectorAccessible outgoing);
-
-  public abstract void emitRight(@Named("batchIndex") int batchIndex,
-                                 @Named("recordIndexWithinBatch") int recordIndexWithinBatch,
-                                 @Named("outIndex") int outIndex);
+  public abstract void emitRight(
+      @Named("batchIndex") int batchIndex,
+      @Named("recordIndexWithinBatch") int recordIndexWithinBatch,
+      @Named("outIndex") int outIndex);
 
   public abstract void emitLeft(@Named("leftIndex") int leftIndex, @Named("outIndex") int outIndex);
 }

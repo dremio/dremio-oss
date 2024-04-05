@@ -15,15 +15,12 @@
  */
 package com.dremio.exec.store.parquet.columnreaders;
 
-import org.junit.Test;
-
 import com.dremio.BaseTestQuery;
+import org.junit.Test;
 
 public class TestDateReader extends BaseTestQuery {
 
-  /**
-   * check if DateReader works well with dictionary encoding.
-   */
+  /** check if DateReader works well with dictionary encoding. */
   @Test
   public void testDictionary() throws Exception {
     // the file 'date_dictionary.parquet' contains two DATE columns, one optional and one required
@@ -33,9 +30,7 @@ public class TestDateReader extends BaseTestQuery {
     testNoResult("SELECT * FROM cp.\"parquet/date_dictionary.parquet\"");
   }
 
-  /**
-   * check if DateReader works well with plain encoding.
-   */
+  /** check if DateReader works well with plain encoding. */
   @Test
   public void testNoDictionary() throws Exception {
     // the file 'date_dictionary.parquet' contains two DATE columns, one optional and one required

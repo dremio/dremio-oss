@@ -43,8 +43,10 @@ import com.dremio.common.expression.ValueExpressions.QuotedString;
 import com.dremio.common.expression.ValueExpressions.TimeExpression;
 import com.dremio.common.expression.ValueExpressions.TimeStampExpression;
 
-public abstract class AbstractExprVisitor<T, VAL, EXCEP extends Exception> implements ExprVisitor<T, VAL, EXCEP> {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AbstractExprVisitor.class);
+public abstract class AbstractExprVisitor<T, VAL, EXCEP extends Exception>
+    implements ExprVisitor<T, VAL, EXCEP> {
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(AbstractExprVisitor.class);
 
   @Override
   public T visitFunctionCall(FunctionCall call, VAL value) throws EXCEP {
@@ -178,8 +180,9 @@ public abstract class AbstractExprVisitor<T, VAL, EXCEP extends Exception> imple
 
   @Override
   public T visitUnknown(LogicalExpression e, VAL value) throws EXCEP {
-    throw new UnsupportedOperationException(String.format("Expression of type %s not handled by visitor type %s.", e.getClass().getCanonicalName(), this.getClass().getCanonicalName()));
+    throw new UnsupportedOperationException(
+        String.format(
+            "Expression of type %s not handled by visitor type %s.",
+            e.getClass().getCanonicalName(), this.getClass().getCanonicalName()));
   }
-
-
 }

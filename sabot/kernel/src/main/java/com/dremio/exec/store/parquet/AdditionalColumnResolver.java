@@ -15,22 +15,20 @@
  */
 package com.dremio.exec.store.parquet;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Set;
-
-import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.util.ColumnUtils;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.Set;
+import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
 
 /**
- * A wrapper around {@link ParquetColumnResolver} to resolve columns, taking into consideration any new columns
- * which are not present in the currently known table schema.
+ * A wrapper around {@link ParquetColumnResolver} to resolve columns, taking into consideration any
+ * new columns which are not present in the currently known table schema.
  */
 public class AdditionalColumnResolver {
   private final BatchSchema tableSchema;
@@ -43,9 +41,11 @@ public class AdditionalColumnResolver {
 
   public Collection<SchemaPath> resolveColumns(List<ColumnChunkMetaData> metadata) {
     if (!ColumnUtils.isStarQuery(columnResolver.getBatchSchemaProjectedColumns())) {
-      // Return all selected columns + any additional columns that are not present in the table schema (for schema
+      // Return all selected columns + any additional columns that are not present in the table
+      // schema (for schema
       // learning purpose)
-      List<SchemaPath> columnsToRead = Lists.newArrayList(columnResolver.getProjectedParquetColumns());
+      List<SchemaPath> columnsToRead =
+          Lists.newArrayList(columnResolver.getProjectedParquetColumns());
       Set<String> columnsTableDef = Sets.newHashSet();
       Set<String> columnsTableDefLowercase = Sets.newHashSet();
       tableSchema.forEach(f -> columnsTableDef.add(f.getName()));
@@ -53,11 +53,12 @@ public class AdditionalColumnResolver {
       for (ColumnChunkMetaData c : metadata) {
         final String columnInParquetFile = c.getPath().iterator().next();
         // Column names in parquet are case sensitive, in Dremio they are case insensitive
-        // First try to find the column with exact case. If not found try the case insensitive comparision.
+        // First try to find the column with exact case. If not found try the case insensitive
+        // comparision.
         String batchSchemaColumnName = columnResolver.getBatchSchemaColumnName(columnInParquetFile);
-        if (batchSchemaColumnName != null &&
-          !columnsTableDef.contains(batchSchemaColumnName) &&
-          !columnsTableDefLowercase.contains(batchSchemaColumnName.toLowerCase())) {
+        if (batchSchemaColumnName != null
+            && !columnsTableDef.contains(batchSchemaColumnName)
+            && !columnsTableDefLowercase.contains(batchSchemaColumnName.toLowerCase())) {
           columnsToRead.add(SchemaPath.getSimplePath(columnInParquetFile));
         }
       }

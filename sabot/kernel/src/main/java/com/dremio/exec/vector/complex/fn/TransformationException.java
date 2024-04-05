@@ -17,9 +17,7 @@ package com.dremio.exec.vector.complex.fn;
 
 import java.io.IOException;
 
-/**
- * Describes Exception while during Transformations in "COPY-INTO" command
- */
+/** Describes Exception while during Transformations in "COPY-INTO" command */
 public class TransformationException extends IOException {
 
   private final int lineNumber;

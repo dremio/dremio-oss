@@ -15,9 +15,16 @@
  */
 package com.dremio.sabot.rpc.user;
 
+import com.dremio.exec.expr.TypeHelper;
+import com.dremio.exec.proto.UserBitShared.QueryData;
+import com.dremio.exec.proto.UserBitShared.SerializedField;
+import com.dremio.exec.record.VectorContainer;
+import com.dremio.exec.record.WritableBatch;
+import com.google.common.base.Preconditions;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.NettyArrowBuf;
 import java.util.Arrays;
 import java.util.List;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.AllocationHelper;
@@ -26,16 +33,6 @@ import org.apache.arrow.vector.types.SerializedFieldHelper;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.dremio.exec.expr.TypeHelper;
-import com.dremio.exec.proto.UserBitShared.QueryData;
-import com.dremio.exec.proto.UserBitShared.SerializedField;
-import com.dremio.exec.record.VectorContainer;
-import com.dremio.exec.record.WritableBatch;
-import com.google.common.base.Preconditions;
-
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.NettyArrowBuf;
 
 /**
  * Base class for common functionality used by a backwards compatibility handler. The subclasses
@@ -51,7 +48,7 @@ abstract class BaseBackwardsCompatibilityHandler {
     public QueryBatch(QueryData header, ByteBuf... buffers) {
       this.header = header;
       this.buffers = buffers;
-      for(ByteBuf b : buffers){
+      for (ByteBuf b : buffers) {
         Preconditions.checkNotNull(b);
       }
     }
@@ -78,7 +75,8 @@ abstract class BaseBackwardsCompatibilityHandler {
     }
   }
 
-  private static final Logger logger = LoggerFactory.getLogger(BaseBackwardsCompatibilityHandler.class);
+  private static final Logger logger =
+      LoggerFactory.getLogger(BaseBackwardsCompatibilityHandler.class);
   private final BufferAllocator allocator;
 
   BaseBackwardsCompatibilityHandler(final BufferAllocator allocator) {
@@ -89,9 +87,7 @@ abstract class BaseBackwardsCompatibilityHandler {
     return allocator;
   }
 
-  /**
-   * If we received this data off the network, we need to slice it so we can replace pieces.
-   */
+  /** If we received this data off the network, we need to slice it so we can replace pieces. */
   protected ByteBuf[] sliceIfNecessary(QueryBatch batch) {
     ByteBuf[] buffers = batch.getBuffers();
     if (buffers != null && buffers.length != 1) {
@@ -126,25 +122,41 @@ abstract class BaseBackwardsCompatibilityHandler {
     try {
       patchFields(fieldBuilders, buffers, 0, buffers.length, "$root$", "");
     } catch (RuntimeException e) {
-      throw new IllegalStateException("Failure patching batch for compatibility. schema: " + batch.getHeader()
-        + " buffers: " + sizesString(buffers, 0, buffers.length), e);
+      throw new IllegalStateException(
+          "Failure patching batch for compatibility. schema: "
+              + batch.getHeader()
+              + " buffers: "
+              + sizesString(buffers, 0, buffers.length),
+          e);
     }
     QueryData newHeader = header.build();
     return new QueryBatch(newHeader, buffers);
   }
 
-  protected void patchFields(List<SerializedField.Builder> fields, ByteBuf[] oldBuffers, final int bufferStart,
-                           final int buffersLength, String parentName, String indent) {
+  protected void patchFields(
+      List<SerializedField.Builder> fields,
+      ByteBuf[] oldBuffers,
+      final int bufferStart,
+      final int buffersLength,
+      String parentName,
+      String indent) {
     Preconditions.checkArgument(
-      bufferStart >= 0
-        && ((oldBuffers.length == 0 && bufferStart == 0) || bufferStart < oldBuffers.length)
-        && buffersLength >= 0
-        && (bufferStart + buffersLength) <= oldBuffers.length,
-      "bufferStart: %s, buffersLength: %s, oldBuffers.length: %s", bufferStart, buffersLength, oldBuffers.length);
+        bufferStart >= 0
+            && ((oldBuffers.length == 0 && bufferStart == 0) || bufferStart < oldBuffers.length)
+            && buffersLength >= 0
+            && (bufferStart + buffersLength) <= oldBuffers.length,
+        "bufferStart: %s, buffersLength: %s, oldBuffers.length: %s",
+        bufferStart,
+        buffersLength,
+        oldBuffers.length);
 
     if (logger.isDebugEnabled()) {
-      logger.debug("{}fields: {}, buffers: {} for {}", indent, sizesString(fields),
-        sizesString(oldBuffers, bufferStart, buffersLength), parentName);
+      logger.debug(
+          "{}fields: {}, buffers: {} for {}",
+          indent,
+          sizesString(fields),
+          sizesString(oldBuffers, bufferStart, buffersLength),
+          parentName);
     }
 
     int bufferIndex = bufferStart;
@@ -156,18 +168,32 @@ abstract class BaseBackwardsCompatibilityHandler {
       childBufferLength -= fieldBuffersLength;
     }
     // skip empty trailing buffers
-    while (bufferIndex < (bufferStart + buffersLength) && oldBuffers[bufferIndex].readableBytes() == 0) {
+    while (bufferIndex < (bufferStart + buffersLength)
+        && oldBuffers[bufferIndex].readableBytes() == 0) {
       ++bufferIndex;
     }
     if (bufferIndex != (bufferStart + buffersLength)) {
-      throw new IllegalStateException("Fields (" + sizeTreeString(fields)
-        + ") should have consumed all the buffers: " + sizesString(oldBuffers, bufferStart, buffersLength)
-        + " " + bufferIndex + " != " + (bufferStart + buffersLength) + " parent: " + parentName);
+      throw new IllegalStateException(
+          "Fields ("
+              + sizeTreeString(fields)
+              + ") should have consumed all the buffers: "
+              + sizesString(oldBuffers, bufferStart, buffersLength)
+              + " "
+              + bufferIndex
+              + " != "
+              + (bufferStart + buffersLength)
+              + " parent: "
+              + parentName);
     }
   }
 
-  public abstract void patch(SerializedField.Builder field, ByteBuf[] buffers, int bufferStart,
-                             int buffersLength, String parentName, String indent);
+  public abstract void patch(
+      SerializedField.Builder field,
+      ByteBuf[] buffers,
+      int bufferStart,
+      int buffersLength,
+      String parentName,
+      String indent);
 
   /**
    * present the list of sizes for the designated buffers
@@ -178,11 +204,8 @@ abstract class BaseBackwardsCompatibilityHandler {
    * @return
    */
   protected static String sizesString(ByteBuf[] buffers, int bufferStart, int buffersLength) {
-    StringBuilder buffersSizes = new StringBuilder("#")
-      .append(bufferStart)
-      .append("/ ")
-      .append(buffersLength)
-      .append("[ ");
+    StringBuilder buffersSizes =
+        new StringBuilder("#").append(bufferStart).append("/ ").append(buffersLength).append("[ ");
     for (int i = 0; i < buffersLength; i++) {
       ByteBuf byteBuf = buffers[bufferStart + i];
       buffersSizes.append(byteBuf.readableBytes()).append(" ");
@@ -218,17 +241,20 @@ abstract class BaseBackwardsCompatibilityHandler {
   }
 
   /**
-   * finds the buffers belonging to the current field starting at buffersStart
-   * their total size is equal to field.bufferLength
+   * finds the buffers belonging to the current field starting at buffersStart their total size is
+   * equal to field.bufferLength
    *
-   * @param field         current field
-   * @param buffers       record batch buffers
-   * @param buffersStart  current position
+   * @param field current field
+   * @param buffers record batch buffers
+   * @param buffersStart current position
    * @param buffersLength current buffer count for the parent
    * @return buffer count for this field starting at buffersStart
    */
-  static int fieldBuffersCount(SerializedField.Builder field, ByteBuf[] buffers,
-                               final int buffersStart, final int buffersLength) {
+  static int fieldBuffersCount(
+      SerializedField.Builder field,
+      ByteBuf[] buffers,
+      final int buffersStart,
+      final int buffersLength) {
     int totalBufferWidth = 0;
     int lastIndex = buffersStart;
     while (totalBufferWidth < field.getBufferLength() && lastIndex < buffersStart + buffersLength) {
@@ -237,10 +263,21 @@ abstract class BaseBackwardsCompatibilityHandler {
       ++lastIndex;
     }
     if (totalBufferWidth != field.getBufferLength()) {
-      throw new IllegalStateException("not enough buffers for field " + field.build()
-        + " in " + sizesString(buffers, buffersStart, buffersLength) + " lastIndex = " + lastIndex
-        + " bs=" + buffersStart + " bl = " + buffersLength + " " + totalBufferWidth
-        + " != " + field.getBufferLength());
+      throw new IllegalStateException(
+          "not enough buffers for field "
+              + field.build()
+              + " in "
+              + sizesString(buffers, buffersStart, buffersLength)
+              + " lastIndex = "
+              + lastIndex
+              + " bs="
+              + buffersStart
+              + " bl = "
+              + buffersLength
+              + " "
+              + totalBufferWidth
+              + " != "
+              + field.getBufferLength());
     }
     return lastIndex - buffersStart;
   }

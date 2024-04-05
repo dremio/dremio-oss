@@ -21,20 +21,19 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.proto.UserBitShared;
+import com.google.common.base.Joiner;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-
 import org.junit.Test;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.proto.UserBitShared;
-import com.google.common.base.Joiner;
-
 public class TestSelectWithOption extends BaseTestQuery {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestSelectWithOption.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(TestSelectWithOption.class);
 
   private File genCSVFile(String name, String... rows) throws IOException {
     File file = new File(format("target/%s_%s.csv", this.getClass().getName(), name));
@@ -52,10 +51,7 @@ public class TestSelectWithOption extends BaseTestQuery {
   }
 
   private void testWithResult(String query, Object... expectedResult) throws Exception {
-    TestBuilder builder = testBuilder()
-        .sqlQuery(query)
-        .ordered()
-        .baselineColumns("columns");
+    TestBuilder builder = testBuilder().sqlQuery(query).ordered().baselineColumns("columns");
     for (Object o : expectedResult) {
       builder = builder.baselineValues(o);
     }
@@ -64,13 +60,16 @@ public class TestSelectWithOption extends BaseTestQuery {
 
   @Test
   public void columnLimitExceeded() throws Exception {
-    String tableName = genCSVTable("columnLimitExceeded",
-        "\"a1\",\"a2\",\"a3\",\"a4\",\"a5\",\"a6\",\"a7\",\"a8\",\"a9\",\"a0\"",
-        "\"a1\",\"a2\",\"a3\",\"a4\",\"a5\",\"a6\",\"a7\",\"a8\",\"a9\",\"a0\""
-    );
+    String tableName =
+        genCSVTable(
+            "columnLimitExceeded",
+            "\"a1\",\"a2\",\"a3\",\"a4\",\"a5\",\"a6\",\"a7\",\"a8\",\"a9\",\"a0\"",
+            "\"a1\",\"a2\",\"a3\",\"a4\",\"a5\",\"a6\",\"a7\",\"a8\",\"a9\",\"a0\"");
 
-    String queryTemplate = "select columns from table(%s (type => 'TeXT', fieldDelimiter => '%s', extractHeader => true))";
-    try (AutoCloseable closeable = setSystemOptionWithAutoReset("store.plugin.max_metadata_leaf_columns", "2")) {
+    String queryTemplate =
+        "select columns from table(%s (type => 'TeXT', fieldDelimiter => '%s', extractHeader => true))";
+    try (AutoCloseable closeable =
+        setSystemOptionWithAutoReset("store.plugin.max_metadata_leaf_columns", "2")) {
       test(format(queryTemplate, tableName, ","));
       fail("query should have failed");
     } catch (UserException e) {
@@ -81,41 +80,37 @@ public class TestSelectWithOption extends BaseTestQuery {
 
   @Test
   public void testTextFieldDelimiter() throws Exception {
-    String tableName = genCSVTable("testTextFieldDelimiter",
-        "\"b\"|\"0\"",
-        "\"b\"|\"1\"",
-        "\"b\"|\"2\"");
+    String tableName =
+        genCSVTable("testTextFieldDelimiter", "\"b\"|\"0\"", "\"b\"|\"1\"", "\"b\"|\"2\"");
 
-    String queryTemplate =
-        "select columns from table(%s (type => 'TeXT', fieldDelimiter => '%s'))";
-    testWithResult(format(queryTemplate, tableName, ","),
+    String queryTemplate = "select columns from table(%s (type => 'TeXT', fieldDelimiter => '%s'))";
+    testWithResult(
+        format(queryTemplate, tableName, ","),
         listOf("b\"|\"0"),
         listOf("b\"|\"1"),
-        listOf("b\"|\"2")
-      );
-    testWithResult(format(queryTemplate, tableName, "|"),
+        listOf("b\"|\"2"));
+    testWithResult(
+        format(queryTemplate, tableName, "|"),
         listOf("b", "0"),
         listOf("b", "1"),
-        listOf("b", "2")
-      );
+        listOf("b", "2"));
   }
 
   @Test
   public void testTabFieldDelimiter() throws Exception {
-    String tableName = genCSVTable("testTabFieldDelimiter",
-        "1\ta",
-        "2\tb");
-    testWithResult(format("select columns from table(%s(type=>'TeXT', fieldDelimiter => '\t'))", tableName),
+    String tableName = genCSVTable("testTabFieldDelimiter", "1\ta", "2\tb");
+    testWithResult(
+        format("select columns from table(%s(type=>'TeXT', fieldDelimiter => '\t'))", tableName),
         listOf("1", "a"),
         listOf("2", "b"));
   }
 
   @Test
   public void testSingleTextLineDelimiter() throws Exception {
-    String tableName = genCSVTable("testSingleTextLineDelimiter",
-        "a|b|c");
+    String tableName = genCSVTable("testSingleTextLineDelimiter", "a|b|c");
 
-    testWithResult(format("select columns from table(%s(type => 'TeXT', lineDelimiter => '|'))", tableName),
+    testWithResult(
+        format("select columns from table(%s(type => 'TeXT', lineDelimiter => '|'))", tableName),
         listOf("a"),
         listOf("b"),
         listOf("c"));
@@ -123,13 +118,13 @@ public class TestSelectWithOption extends BaseTestQuery {
 
   @Test
   // '\n' is treated as standard delimiter
-  // if user has indicated custom line delimiter but input file contains '\n', split will occur on both
+  // if user has indicated custom line delimiter but input file contains '\n', split will occur on
+  // both
   public void testCustomTextLineDelimiterAndNewLine() throws Exception {
-    String tableName = genCSVTable("testTextLineDelimiter",
-        "b|1",
-        "b|2");
+    String tableName = genCSVTable("testTextLineDelimiter", "b|1", "b|2");
 
-    testWithResult(format("select columns from table(%s(type => 'TeXT', lineDelimiter => '|'))", tableName),
+    testWithResult(
+        format("select columns from table(%s(type => 'TeXT', lineDelimiter => '|'))", tableName),
         listOf("b"),
         listOf("1"),
         listOf("b"),
@@ -138,20 +133,19 @@ public class TestSelectWithOption extends BaseTestQuery {
 
   @Test
   public void testTextLineDelimiterWithCarriageReturn() throws Exception {
-    String tableName = genCSVTable("testTextLineDelimiterWithCarriageReturn",
-        "1, a\r",
-        "2, b\r");
-    testWithResult(format("select columns from table(%s(type=>'TeXT', lineDelimiter => '\r\n'))", tableName),
+    String tableName = genCSVTable("testTextLineDelimiterWithCarriageReturn", "1, a\r", "2, b\r");
+    testWithResult(
+        format("select columns from table(%s(type=>'TeXT', lineDelimiter => '\r\n'))", tableName),
         listOf("1, a"),
         listOf("2, b"));
   }
 
   @Test
   public void testMultiByteLineDelimiter() throws Exception {
-    String tableName = genCSVTable("testMultiByteLineDelimiter",
-        "1abc2abc3abc");
+    String tableName = genCSVTable("testMultiByteLineDelimiter", "1abc2abc3abc");
     test(format("select columns from table(%s(type=>'TeXT', lineDelimiter => 'abc'))", tableName));
-    testWithResult(format("select columns from table(%s(type=>'TeXT', lineDelimiter => 'abc'))", tableName),
+    testWithResult(
+        format("select columns from table(%s(type=>'TeXT', lineDelimiter => 'abc'))", tableName),
         listOf("1"),
         listOf("2"),
         listOf("3"),
@@ -160,18 +154,20 @@ public class TestSelectWithOption extends BaseTestQuery {
 
   @Test
   public void testExtendedCharDelimiters() throws Exception {
-    String tableName = genCSVTable("testExtendedCharDelimiters",
-      "1¦22¦333∆x¦yy¦zzz");
-    testWithResult(format("select columns from table(%s(type=>'TeXT', fieldDelimiter => '¦', lineDelimiter => '∆'))", tableName),
-      listOf("1", "22", "333"),
-      listOf("x", "yy", "zzz"));
+    String tableName = genCSVTable("testExtendedCharDelimiters", "1¦22¦333∆x¦yy¦zzz");
+    testWithResult(
+        format(
+            "select columns from table(%s(type=>'TeXT', fieldDelimiter => '¦', lineDelimiter => '∆'))",
+            tableName),
+        listOf("1", "22", "333"),
+        listOf("x", "yy", "zzz"));
   }
 
   @Test
   public void testDataWithPartOfMultiByteLineDelimiter() throws Exception {
-    String tableName = genCSVTable("testDataWithPartOfMultiByteLineDelimiter",
-        "ab1abc2abc3abc");
-    testWithResult(format("select columns from table(%s(type=>'TeXT', lineDelimiter => 'abc'))", tableName),
+    String tableName = genCSVTable("testDataWithPartOfMultiByteLineDelimiter", "ab1abc2abc3abc");
+    testWithResult(
+        format("select columns from table(%s(type=>'TeXT', lineDelimiter => 'abc'))", tableName),
         listOf("ab1"),
         listOf("2"),
         listOf("3"),
@@ -180,183 +176,167 @@ public class TestSelectWithOption extends BaseTestQuery {
 
   @Test
   public void testTextQuote() throws Exception {
-    String tableName = genCSVTable("testTextQuote",
-        "\"b\"|\"0\"",
-        "\"b\"|\"1\"",
-        "\"b\"|\"2\"");
+    String tableName = genCSVTable("testTextQuote", "\"b\"|\"0\"", "\"b\"|\"1\"", "\"b\"|\"2\"");
 
-    testWithResult(format("select columns from table(%s(type => 'TeXT', fieldDelimiter => '|', quote => '@'))", tableName),
+    testWithResult(
+        format(
+            "select columns from table(%s(type => 'TeXT', fieldDelimiter => '|', quote => '@'))",
+            tableName),
         listOf("\"b\"", "\"0\""),
         listOf("\"b\"", "\"1\""),
-        listOf("\"b\"", "\"2\"")
-        );
+        listOf("\"b\"", "\"2\""));
 
-    String quoteTableName = genCSVTable("testTextQuote2",
-        "@b@|@0@",
-        "@b$@c@|@1@");
+    String quoteTableName = genCSVTable("testTextQuote2", "@b@|@0@", "@b$@c@|@1@");
     // It seems that a parameter can not be called "escape"
-    testWithResult(format("select columns from table(%s(\"escape\" => '$', type => 'TeXT', fieldDelimiter => '|', quote => '@'))", quoteTableName),
+    testWithResult(
+        format(
+            "select columns from table(%s(\"escape\" => '$', type => 'TeXT', fieldDelimiter => '|', quote => '@'))",
+            quoteTableName),
         listOf("b", "0"),
-        listOf("b@c", "1")
-        );
+        listOf("b@c", "1"));
   }
 
   @Test
   public void testTextComment() throws Exception {
-      String commentTableName = genCSVTable("testTextComment",
-          "b|0",
-          "@ this is a comment",
-          "b|1");
-      testWithResult(format("select columns from table(%s(type => 'TeXT', fieldDelimiter => '|', comment => '@'))", commentTableName),
-          listOf("b", "0"),
-          listOf("b", "1")
-          );
+    String commentTableName = genCSVTable("testTextComment", "b|0", "@ this is a comment", "b|1");
+    testWithResult(
+        format(
+            "select columns from table(%s(type => 'TeXT', fieldDelimiter => '|', comment => '@'))",
+            commentTableName),
+        listOf("b", "0"),
+        listOf("b", "1"));
   }
 
   @Test
   public void testTextHeader() throws Exception {
-    String headerTableName = genCSVTable("testTextHeader",
-        "b|a",
-        "b|0",
-        "b|1");
-    testWithResult(format("select columns from table(%s(type => 'TeXT', fieldDelimiter => '|', skipFirstLine => true))", headerTableName),
+    String headerTableName = genCSVTable("testTextHeader", "b|a", "b|0", "b|1");
+    testWithResult(
+        format(
+            "select columns from table(%s(type => 'TeXT', fieldDelimiter => '|', skipFirstLine => true))",
+            headerTableName),
         listOf("b", "0"),
-        listOf("b", "1")
-        );
+        listOf("b", "1"));
 
     testBuilder()
-        .sqlQuery(format("select a, b from table(%s(type => 'TeXT', fieldDelimiter => '|', extractHeader => true))", headerTableName))
+        .sqlQuery(
+            format(
+                "select a, b from table(%s(type => 'TeXT', fieldDelimiter => '|', extractHeader => true))",
+                headerTableName))
         .ordered()
         .baselineColumns("b", "a")
         .baselineValues("b", "0")
         .baselineValues("b", "1")
-        .build().run();
+        .build()
+        .run();
   }
 
   @Test // DX-2584
   public void testCountWithTableOptions() throws Exception {
-    String headerTableName = genCSVTable("testTextHeader",
-        "b|a",
-        "b |0",
-        " b|1",
-        "s|",
-        "|s",
-        "|",
-        "");
+    String headerTableName =
+        genCSVTable("testTextHeader", "b|a", "b |0", " b|1", "s|", "|s", "|", "");
 
-    String query = format(
-        "select count(*) as cnt from table(%s(type => 'TeXT', fieldDelimiter => '|', extractHeader => true))",
-        headerTableName);
-    testBuilder()
-        .sqlQuery(query)
-        .ordered()
-        .baselineColumns("cnt")
-        .baselineValues(6L)
-        .build().run();
+    String query =
+        format(
+            "select count(*) as cnt from table(%s(type => 'TeXT', fieldDelimiter => '|', extractHeader => true))",
+            headerTableName);
+    testBuilder().sqlQuery(query).ordered().baselineColumns("cnt").baselineValues(6L).build().run();
 
-    query = format(
-        "select count(*) as cnt from table(%s(type => 'TeXT', fieldDelimiter => '|', extractHeader => false))",
-        headerTableName);
-    testBuilder()
-        .sqlQuery(query)
-        .ordered()
-        .baselineColumns("cnt")
-        .baselineValues(7L)
-        .build().run();
+    query =
+        format(
+            "select count(*) as cnt from table(%s(type => 'TeXT', fieldDelimiter => '|', extractHeader => false))",
+            headerTableName);
+    testBuilder().sqlQuery(query).ordered().baselineColumns("cnt").baselineValues(7L).build().run();
 
-    query = format(
-        "select count(*) as cnt from table(%s(type => 'TeXT', fieldDelimiter => '|', skipFirstLine => true))",
-        headerTableName);
-    testBuilder()
-        .sqlQuery(query)
-        .ordered()
-        .baselineColumns("cnt")
-        .baselineValues(6L)
-        .build().run();
+    query =
+        format(
+            "select count(*) as cnt from table(%s(type => 'TeXT', fieldDelimiter => '|', skipFirstLine => true))",
+            headerTableName);
+    testBuilder().sqlQuery(query).ordered().baselineColumns("cnt").baselineValues(6L).build().run();
 
-    query = format(
-        "select count(*) as cnt from table(%s(type => 'TeXT', fieldDelimiter => '|', skipFirstLine => true, " +
-            " extractHeader => true))",
-        headerTableName);
+    query =
+        format(
+            "select count(*) as cnt from table(%s(type => 'TeXT', fieldDelimiter => '|', skipFirstLine => true, "
+                + " extractHeader => true))",
+            headerTableName);
     testBuilder()
         .sqlQuery(query)
         .ordered()
         .baselineColumns("cnt")
         .baselineValues(6L) // skipFirstLine is ignored when extractHeader is true
-        .build().run();
+        .build()
+        .run();
   }
 
   @Test
   public void testVariationsCSV() throws Exception {
-    String csvTableName = genCSVTable("testVariationsCSV",
-        "a,b",
-        "c|d");
+    String csvTableName = genCSVTable("testVariationsCSV", "a,b", "c|d");
     // Using the defaults in TextFormatConfig (the field delimiter is neither "," not "|")
     String[] csvQueries = {
-//        format("select columns from %s ('TeXT')", csvTableName),
-//        format("select columns from %s('TeXT')", csvTableName),
-        format("select columns from table(%s ('TeXT'))", csvTableName),
-        format("select columns from table(%s (type => 'TeXT'))", csvTableName),
-//        format("select columns from %s (type => 'TeXT')", csvTableName)
+      //        format("select columns from %s ('TeXT')", csvTableName),
+      //        format("select columns from %s('TeXT')", csvTableName),
+      format("select columns from table(%s ('TeXT'))", csvTableName),
+      format("select columns from table(%s (type => 'TeXT'))", csvTableName),
+      //        format("select columns from %s (type => 'TeXT')", csvTableName)
     };
     for (String csvQuery : csvQueries) {
-      testWithResult(csvQuery,
-          listOf("a,b"),
-          listOf("c|d"));
+      testWithResult(csvQuery, listOf("a,b"), listOf("c|d"));
     }
     // the sabot config file binds .csv to "," delimited
-//    testWithResult(format("select columns from %s", csvTableName),
-//          listOf("a", "b"),
-//          listOf("c|d"));
+    //    testWithResult(format("select columns from %s", csvTableName),
+    //          listOf("a", "b"),
+    //          listOf("c|d"));
     // setting the delimiter
-    testWithResult(format("select columns from table(%s (type => 'TeXT', fieldDelimiter => ','))", csvTableName),
+    testWithResult(
+        format(
+            "select columns from table(%s (type => 'TeXT', fieldDelimiter => ','))", csvTableName),
         listOf("a", "b"),
         listOf("c|d"));
-    testWithResult(format("select columns from table(%s (type => 'TeXT', fieldDelimiter => '|'))", csvTableName),
+    testWithResult(
+        format(
+            "select columns from table(%s (type => 'TeXT', fieldDelimiter => '|'))", csvTableName),
         listOf("a,b"),
         listOf("c", "d"));
   }
 
   @Test
   public void testVariationsJSON() throws Exception {
-    String jsonTableName = genCSVTable("testVariationsJSON",
-        "{\"columns\": [\"f\",\"g\"]}");
+    String jsonTableName = genCSVTable("testVariationsJSON", "{\"columns\": [\"f\",\"g\"]}");
     // the extension is actually csv
     String[] jsonQueries = {
-        format("select columns from table(%s ('JSON'))", jsonTableName),
-        format("select columns from table(%s(type => 'JSON'))", jsonTableName),
-//        format("select columns from %s ('JSON')", jsonTableName),
-//        format("select columns from %s (type => 'JSON')", jsonTableName),
-//        format("select columns from %s(type => 'JSON')", jsonTableName),
-        // we can use named format plugin configurations too!
-        format("select columns from table(%s(type => 'Named', name => 'json'))", jsonTableName),
+      format("select columns from table(%s ('JSON'))", jsonTableName),
+      format("select columns from table(%s(type => 'JSON'))", jsonTableName),
+      //        format("select columns from %s ('JSON')", jsonTableName),
+      //        format("select columns from %s (type => 'JSON')", jsonTableName),
+      //        format("select columns from %s(type => 'JSON')", jsonTableName),
+      // we can use named format plugin configurations too!
+      format("select columns from table(%s(type => 'Named', name => 'json'))", jsonTableName),
     };
     for (String jsonQuery : jsonQueries) {
-      testWithResult(jsonQuery, listOf("f","g"));
+      testWithResult(jsonQuery, listOf("f", "g"));
     }
   }
 
   @Test
   public void testUse() throws Exception {
     final String schema = getValueInFirstRecord("select current_schema", "current_schema");
-    File f = genCSVFile("testUse",
-        "{\"columns\": [\"f\",\"g\"]}");
+    File f = genCSVFile("testUse", "{\"columns\": [\"f\",\"g\"]}");
     String jsonTableName = format("\"${WORKING_PATH}/%s\"", f.getPath());
     // the extension is actually csv
     test("use dfs");
     try {
       String[] jsonQueries = {
-          format("select columns from table(%s ('JSON'))", jsonTableName),
-          format("select columns from table(%s(type => 'JSON'))", jsonTableName),
+        format("select columns from table(%s ('JSON'))", jsonTableName),
+        format("select columns from table(%s(type => 'JSON'))", jsonTableName),
       };
       for (String jsonQuery : jsonQueries) {
-        testWithResult(jsonQuery, listOf("f","g"));
+        testWithResult(jsonQuery, listOf("f", "g"));
       }
 
-      testWithResult(format("select length(columns[0]) as columns from table(%s ('JSON'))", jsonTableName), 1);
+      testWithResult(
+          format("select length(columns[0]) as columns from table(%s ('JSON'))", jsonTableName), 1);
     } finally {
-      //setting the schema back
-      if(!schema.isEmpty()) {
+      // setting the schema back
+      if (!schema.isEmpty()) {
         test(format("use %s", schema));
       }
     }
@@ -372,6 +352,10 @@ public class TestSelectWithOption extends BaseTestQuery {
     String row = Joiner.on(",").join(values);
     String csvTable = genCSVTable("longRows", row, row);
 
-    test(format("select * from table(%s (type => 'Text', fieldDelimiter => '\t', autoGenerateColumnNames => false, extractHeader => true, skipFirstLine => false))", csvTable), values);
+    test(
+        format(
+            "select * from table(%s (type => 'Text', fieldDelimiter => '\t', autoGenerateColumnNames => false, extractHeader => true, skipFirstLine => false))",
+            csvTable),
+        values);
   }
 }

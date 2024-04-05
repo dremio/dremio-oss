@@ -15,27 +15,20 @@
  */
 package com.dremio.exec.planner.serializer.logical;
 
+import com.dremio.exec.planner.serializer.RelNodeSerde;
+import com.dremio.plan.serialization.PLogicalFilter;
+import com.dremio.plan.serialization.PRexNode;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.logical.LogicalFilter;
 import org.apache.calcite.rex.RexNode;
 
-import com.dremio.exec.planner.serializer.RelNodeSerde;
-import com.dremio.plan.serialization.PLogicalFilter;
-import com.dremio.plan.serialization.PRexNode;
-
-/**
- * Serde for LogicalFilter
- */
+/** Serde for LogicalFilter */
 public final class LogicalFilterSerde implements RelNodeSerde<LogicalFilter, PLogicalFilter> {
   @Override
   public PLogicalFilter serialize(LogicalFilter node, RelToProto s) {
     int input = s.toProto(node.getInput());
     PRexNode condition = s.toProto(node.getCondition());
-    return PLogicalFilter
-        .newBuilder()
-        .setInput(input)
-        .setCondition(condition)
-        .build();
+    return PLogicalFilter.newBuilder().setInput(input).setCondition(condition).build();
   }
 
   @Override

@@ -18,6 +18,9 @@ package com.dremio.exec.server;
 import static com.dremio.exec.ExecConstants.SLICE_TARGET;
 import static com.dremio.exec.ExecConstants.SLICE_TARGET_DEFAULT;
 
+import com.dremio.BaseTestQuery;
+import com.dremio.exec.ExecConstants;
+import com.dremio.exec.proto.UserBitShared;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Rule;
@@ -25,27 +28,18 @@ import org.junit.Test;
 import org.junit.rules.TestRule;
 import org.junit.rules.Timeout;
 
-import com.dremio.BaseTestQuery;
-import com.dremio.exec.ExecConstants;
-import com.dremio.exec.proto.UserBitShared;
-
 /**
  * To run this unit class you need to download the following data file:
- * http://apache-drill.s3.amazonaws.com/files/tpcds-sf1-parquet.tgz
- * and untar it in a some folder (e.g. /tpcds-sf1-parquet) then add the following workspace to
+ * http://apache-drill.s3.amazonaws.com/files/tpcds-sf1-parquet.tgz and untar it in a some folder
+ * (e.g. /tpcds-sf1-parquet) then add the following workspace to
  * exec/java-exec/src/test/resources/bootstrap-storage-plugins.json
  *
- * ,"tpcds" : {
- *   location: "/tpcds-sf1-parquet",
- *   writable: false
- * }
- *
+ * <p>,"tpcds" : { location: "/tpcds-sf1-parquet", writable: false }
  */
 @Ignore
 public class TestTpcdsSf1Leaks extends BaseTestQuery {
 
-  @Rule
-  public final TestRule TIMEOUT = new Timeout(0); // wait forever
+  @Rule public final TestRule TIMEOUT = new Timeout(0); // wait forever
 
   @BeforeClass
   public static void initCluster() {
@@ -54,7 +48,8 @@ public class TestTpcdsSf1Leaks extends BaseTestQuery {
 
   @Test
   public void testSortSpill() throws Exception {
-    final String query = "CREATE TABLE dfs_test.test PARTITION BY (ss_store_sk) LOCALSORT BY (ss_customer_sk) AS SELECT * FROM dfs_test.tpcds.store_sales";
+    final String query =
+        "CREATE TABLE dfs_test.test PARTITION BY (ss_store_sk) LOCALSORT BY (ss_customer_sk) AS SELECT * FROM dfs_test.tpcds.store_sales";
     setSessionOption(ExecConstants.TEST_MEMORY_LIMIT.getOptionName(), "1000000000");
     testRunAndPrint(UserBitShared.QueryType.SQL, query);
   }
@@ -65,12 +60,11 @@ public class TestTpcdsSf1Leaks extends BaseTestQuery {
     try {
       final String query = getFile("tpcds-sf1/q73.sql");
       for (int i = 0; i < 20; i++) {
-        System.out.printf("%nRun #%d%n", i+1);
+        System.out.printf("%nRun #%d%n", i + 1);
         runSQL(query);
       }
-    }finally {
+    } finally {
       setSessionOption(SLICE_TARGET, Long.toString(SLICE_TARGET_DEFAULT));
     }
   }
-
 }

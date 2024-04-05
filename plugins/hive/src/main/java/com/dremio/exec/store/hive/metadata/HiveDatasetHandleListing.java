@@ -25,6 +25,8 @@ import com.dremio.exec.store.hive.HiveClient;
 import com.dremio.hive.thrift.TException;
 import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.ImmutableList;
+import java.util.Locale;
+import java.util.Set;
 
 /**
  * Produces of DatasetHandle instances lazily as the caller uses the iterator.
@@ -35,6 +37,7 @@ public class HiveDatasetHandleListing implements DatasetHandleListing {
   private final HiveClient client;
   private final boolean ignoreAuthzErrors;
   private final String pluginName;
+  private final Set<String> allowedDatabases;
 
   private final Iterator<String> dbNames;
 
@@ -42,15 +45,19 @@ public class HiveDatasetHandleListing implements DatasetHandleListing {
   private Iterator<String> tableNamesInCurrentDb;
 
   public HiveDatasetHandleListing(final HiveClient client, final String pluginName,
+                                  final Set<String> allowedDatabases,
                                   final boolean ignoreAuthzErrors) throws TException {
 
     this.client = client;
     this.ignoreAuthzErrors = ignoreAuthzErrors;
+    this.allowedDatabases = allowedDatabases;
     this.pluginName = pluginName;
 
     tableNamesInCurrentDb = Collections.emptyIterator();
 
+    logger.debug("Start listing database names for source {}", pluginName);
     dbNames = getDatabaseNames();
+    logger.debug("End listing database names for source {}", pluginName);
     advanceToNonEmptyDatabase();
   }
 
@@ -106,7 +113,11 @@ public class HiveDatasetHandleListing implements DatasetHandleListing {
   }
 
   private Iterator<String> getDatabaseNames() throws TException {
-    return client.getDatabases(ignoreAuthzErrors).iterator();
+    if (allowedDatabases == null || allowedDatabases.isEmpty()) {
+      return client.getDatabases(ignoreAuthzErrors).iterator();
+    }
+
+    return allowedDatabases.iterator();
   }
 
   private Iterator<String> getTableNames(String dbName) throws TException {

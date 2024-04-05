@@ -15,12 +15,6 @@
  */
 package com.dremio.exec.catalog;
 
-import java.util.List;
-import java.util.Objects;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.catalog.model.dataset.TableVersionType;
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -28,32 +22,46 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
+import java.util.List;
+import java.util.Objects;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class VersionedDatasetId {
-  /**
-   * Composite DatasetId for a versioned dataset from Nessie
-   */
+  /** Composite DatasetId for a versioned dataset from Nessie */
   private static final Logger logger = LoggerFactory.getLogger(VersionedDatasetId.class);
+
   private List<String> tableKey;
   private String contentId;
   private TableVersionContext versionContext;
-  private static final  ObjectMapper objectMapper = new ObjectMapper();
+  private static final ObjectMapper objectMapper = new ObjectMapper();
 
   @JsonCreator
-  VersionedDatasetId(@JsonProperty("tableKey") List<String> tableKey,
-                     @JsonProperty("contentId") String contentId,
-                     @JsonProperty("versionContext") TableVersionContext versionContext) {
+  VersionedDatasetId(
+      @JsonProperty("tableKey") List<String> tableKey,
+      @JsonProperty("contentId") String contentId,
+      @JsonProperty("versionContext") TableVersionContext versionContext) {
     this.tableKey = tableKey;
     this.contentId = contentId;
     this.versionContext = versionContext;
   }
-  public List<String> getTableKey() { return tableKey; };
 
-  public String getContentId() { return contentId; };
+  public List<String> getTableKey() {
+    return tableKey;
+  }
+  ;
 
-  public TableVersionContext getVersionContext() { return versionContext; };
+  public String getContentId() {
+    return contentId;
+  }
+  ;
 
-  public String asString()  {
+  public TableVersionContext getVersionContext() {
+    return versionContext;
+  }
+  ;
+
+  public String asString() {
     try {
       return objectMapper.writeValueAsString(this);
     } catch (JsonProcessingException e) {
@@ -63,10 +71,9 @@ public class VersionedDatasetId {
   }
 
   public static VersionedDatasetId fromString(String idAsString) throws JsonProcessingException {
-    //parse the dataset id
+    // parse the dataset id
     return objectMapper.readValue(idAsString, VersionedDatasetId.class);
   }
-
 
   public static VersionedDatasetId tryParse(String idAsString) {
     try {
@@ -75,7 +82,6 @@ public class VersionedDatasetId {
       return null;
     }
   }
-
 
   public static boolean isVersionedDatasetId(String idAsString) {
     try {
@@ -96,8 +102,8 @@ public class VersionedDatasetId {
   }
 
   public static boolean isTimeTravelDatasetId(VersionedDatasetId versionedDatasetId) {
-    return versionedDatasetId.getVersionContext().getType() == TableVersionType.TIMESTAMP ||
-      versionedDatasetId.getVersionContext().getType() == TableVersionType.SNAPSHOT_ID;
+    return versionedDatasetId.getVersionContext().getType() == TableVersionType.TIMESTAMP
+        || versionedDatasetId.getVersionContext().getType() == TableVersionType.SNAPSHOT_ID;
   }
 
   @Override
@@ -109,9 +115,9 @@ public class VersionedDatasetId {
       return true;
     }
     VersionedDatasetId other = (VersionedDatasetId) obj;
-    return Objects.equals(tableKey, other.tableKey) &&
-      Objects.equals(contentId, other.contentId) &&
-      Objects.equals(versionContext, other.versionContext);
+    return Objects.equals(tableKey, other.tableKey)
+        && Objects.equals(contentId, other.contentId)
+        && Objects.equals(versionContext, other.versionContext);
   }
 
   @Override
@@ -131,8 +137,9 @@ public class VersionedDatasetId {
     private List<String> tableKey;
     private String contentId;
     private TableVersionContext versionContext;
-    public Builder() {
-    }
+
+    public Builder() {}
+
     public Builder setTableKey(List<String> key) {
       this.tableKey = key;
       return this;
@@ -152,7 +159,8 @@ public class VersionedDatasetId {
       Preconditions.checkNotNull(tableKey);
       Preconditions.checkState(tableKey.size() > 0);
       Preconditions.checkNotNull(versionContext);
-      if (versionContext.getType() != TableVersionType.TIMESTAMP && versionContext.getType() != TableVersionType.SNAPSHOT_ID) {
+      if (versionContext.getType() != TableVersionType.TIMESTAMP
+          && versionContext.getType() != TableVersionType.SNAPSHOT_ID) {
         Preconditions.checkNotNull(contentId);
       }
       if (!(versionContext instanceof TableVersionContext)) {
@@ -160,6 +168,5 @@ public class VersionedDatasetId {
       }
       return new VersionedDatasetId(tableKey, contentId, versionContext);
     }
-
   }
 }

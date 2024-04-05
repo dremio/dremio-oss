@@ -15,11 +15,6 @@
  */
 package com.dremio.plugins.elastic.planning.rules;
 
-import org.apache.calcite.plan.RelOptRule;
-import org.apache.calcite.plan.RelOptRuleCall;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rex.RexLiteral;
-
 import com.dremio.exec.planner.common.SampleRelBase;
 import com.dremio.exec.planner.logical.RelOptHelper;
 import com.dremio.exec.planner.physical.LimitPrel;
@@ -29,13 +24,19 @@ import com.dremio.plugins.elastic.planning.rels.ElasticsearchIntermediatePrel;
 import com.dremio.plugins.elastic.planning.rels.ElasticsearchLimit;
 import com.dremio.plugins.elastic.planning.rels.ElasticsearchSample;
 import com.google.common.base.Predicate;
+import org.apache.calcite.plan.RelOptRule;
+import org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rex.RexLiteral;
 
 public class ElasticLimitRule extends RelOptRule {
 
   public static final ElasticLimitRule INSTANCE = new ElasticLimitRule();
 
   public ElasticLimitRule() {
-    super(RelOptHelper.some(LimitPrel.class, RelOptHelper.any(ElasticsearchIntermediatePrel.class)), "ElasticLimitRule");
+    super(
+        RelOptHelper.some(LimitPrel.class, RelOptHelper.any(ElasticsearchIntermediatePrel.class)),
+        "ElasticLimitRule");
   }
 
   @Override
@@ -52,10 +53,13 @@ public class ElasticLimitRule extends RelOptRule {
       return false;
     }
 
-    final PlannerSettings plannerSettings = PrelUtil.getPlannerSettings(limit.getCluster().getPlanner());
+    final PlannerSettings plannerSettings =
+        PrelUtil.getPlannerSettings(limit.getCluster().getPlanner());
     if (intermediatePrel.contains(ElasticsearchSample.class)
         && limit.getFetch() != null
-        && RexLiteral.intValue(limit.getFetch()) >= SampleRelBase.getSampleSizeAndSetMinSampleSize(plannerSettings, ElasticSampleRule.SAMPLE_SIZE_DENOMINATOR)) {
+        && RexLiteral.intValue(limit.getFetch())
+            >= SampleRelBase.getSampleSizeAndSetMinSampleSize(
+                plannerSettings, ElasticSampleRule.SAMPLE_SIZE_DENOMINATOR)) {
       return false;
     }
 
@@ -67,23 +71,27 @@ public class ElasticLimitRule extends RelOptRule {
     final LimitPrel limitPrel = call.rel(0);
     final ElasticsearchIntermediatePrel intermediatePrel = call.rel(1);
 
-    final ElasticsearchLimit newLimit = new ElasticsearchLimit(
-        intermediatePrel.getInput().getCluster(),
-        intermediatePrel.getInput().getTraitSet(),
-        intermediatePrel.getInput(),
-        limitPrel.getOffset(),
-        limitPrel.getFetch(),
-        limitPrel.isPushDown(),
-        intermediatePrel.getPluginId());
+    final ElasticsearchLimit newLimit =
+        new ElasticsearchLimit(
+            intermediatePrel.getInput().getCluster(),
+            intermediatePrel.getInput().getTraitSet(),
+            intermediatePrel.getInput(),
+            limitPrel.getOffset(),
+            limitPrel.getFetch(),
+            limitPrel.isPushDown(),
+            intermediatePrel.getPluginId());
 
     final ElasticsearchSample sample = intermediatePrel.getNoCheck(ElasticsearchSample.class);
-    if(sample != null){
+    if (sample != null) {
       // we do not allow a sample and limit to coexist in the elastic tree, need to collapse them.
-      final ElasticsearchIntermediatePrel withoutSample = intermediatePrel.filter(new Predicate<RelNode>(){
-        @Override
-        public boolean apply(RelNode input) {
-          return !(input instanceof ElasticsearchSample);
-        }});
+      final ElasticsearchIntermediatePrel withoutSample =
+          intermediatePrel.filter(
+              new Predicate<RelNode>() {
+                @Override
+                public boolean apply(RelNode input) {
+                  return !(input instanceof ElasticsearchSample);
+                }
+              });
       final ElasticsearchLimit mergedLimitSample = newLimit.merge(sample, withoutSample.getInput());
       call.transformTo(intermediatePrel.withNewInput(mergedLimitSample));
     } else {

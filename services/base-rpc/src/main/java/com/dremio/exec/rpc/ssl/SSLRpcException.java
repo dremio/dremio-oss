@@ -15,13 +15,10 @@
  */
 package com.dremio.exec.rpc.ssl;
 
+import com.dremio.exec.rpc.RpcException;
 import javax.net.ssl.SSLException;
 
-import com.dremio.exec.rpc.RpcException;
-
-/**
- * RPC Exception for SSL related failures.
- */
+/** RPC Exception for SSL related failures. */
 public class SSLRpcException extends RpcException {
 
   public SSLRpcException(SSLException e) {

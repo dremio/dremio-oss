@@ -17,12 +17,6 @@ package com.dremio.dac.explore.model;
 
 import static com.dremio.common.utils.PathUtils.encodeURIComponent;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import java.util.stream.Collectors;
-
 import com.dremio.dac.model.common.AddressableResource;
 import com.dremio.dac.model.common.RootEntity;
 import com.dremio.dac.model.folder.FolderName;
@@ -34,11 +28,16 @@ import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
-/**
- * The dataset, its history and data
- */
-@JsonIgnoreProperties(value={"links"}, allowGetters=true)
+/** The dataset, its history and data */
+@JsonIgnoreProperties(
+    value = {"links"},
+    allowGetters = true)
 public class Dataset implements AddressableResource {
 
   private final String id;
@@ -63,7 +62,7 @@ public class Dataset implements AddressableResource {
   public Dataset(
       @JsonProperty("id") String id,
       @JsonProperty("resourcePath") DatasetResourcePath resourcePath,
-      @JsonProperty("versionedResourcePath")  DatasetVersionResourcePath versionedResourcePath,
+      @JsonProperty("versionedResourcePath") DatasetVersionResourcePath versionedResourcePath,
       @JsonProperty("datasetName") DatasetName datasetName,
       @JsonProperty("sql") String sql,
       @JsonProperty("datasetConfig") VirtualDatasetUI datasetConfig,
@@ -82,26 +81,30 @@ public class Dataset implements AddressableResource {
   }
 
   public static Dataset newInstance(
-    DatasetResourcePath resourcePath,
-    DatasetVersionResourcePath versionedResourcePath,
-    DatasetName datasetName,
-    String sql,
-    VirtualDatasetUI datasetConfig,
-    int jobCount,
-    List<String> tags) {
+      DatasetResourcePath resourcePath,
+      DatasetVersionResourcePath versionedResourcePath,
+      DatasetName datasetName,
+      String sql,
+      VirtualDatasetUI datasetConfig,
+      int jobCount,
+      List<String> tags) {
     // The history item is populated only after transform
-    return new Dataset(datasetConfig.getId(), resourcePath, versionedResourcePath, datasetName, sql, datasetConfig, null, jobCount, tags);
+    return new Dataset(
+        datasetConfig.getId(),
+        resourcePath,
+        versionedResourcePath,
+        datasetName,
+        sql,
+        datasetConfig,
+        null,
+        jobCount,
+        tags);
   }
 
   public static Dataset newInstance(
-    RootEntity rootEntity,
-    List<String> folderNamespace,
-    String folderName,
-    String id) {
+      RootEntity rootEntity, List<String> folderNamespace, String folderName, String id) {
     final List<FolderName> folderPath =
-      folderNamespace.stream()
-        .map(name -> new FolderName(name))
-        .collect(Collectors.toList());
+        folderNamespace.stream().map(name -> new FolderName(name)).collect(Collectors.toList());
     final DatasetName datasetName = new DatasetName(folderName);
     final DatasetPath datasetPath = new DatasetPath(rootEntity, folderPath, datasetName);
 
@@ -115,9 +118,18 @@ public class Dataset implements AddressableResource {
     // For the iceberg view in nessie, we generate a datasetVersion for it.
     final DatasetResourcePath datasetResourcePath = new DatasetResourcePath(datasetPath);
     final DatasetVersionResourcePath datasetVersionResourcePath =
-      new DatasetVersionResourcePath(datasetPath, datasetVersion);
+        new DatasetVersionResourcePath(datasetPath, datasetVersion);
 
-    return new Dataset(vds.getId(), datasetResourcePath, datasetVersionResourcePath, datasetName, null, vds, null,0, null);
+    return new Dataset(
+        vds.getId(),
+        datasetResourcePath,
+        datasetVersionResourcePath,
+        datasetName,
+        null,
+        vds,
+        null,
+        0,
+        null);
   }
 
   public int getJobCount() {
@@ -172,11 +184,17 @@ public class Dataset implements AddressableResource {
     Map<String, String> links = new HashMap<>();
     links.put("self", datasetPath.toUrlPath());
     links.put("query", datasetPath.getQueryUrlPath());
-    links.put("edit", links.get("query") + "?mode=edit&version="
-      + (datasetVersion == null ? datasetVersion : encodeURIComponent(datasetVersion.toString())));
-    final JobFilters jobFilters = new JobFilters()
-      .addFilter(JobIndexKeys.ALL_DATASETS, datasetPath.toString())
-      .addFilter(JobIndexKeys.QUERY_TYPE, JobIndexKeys.UI, JobIndexKeys.EXTERNAL);
+    links.put(
+        "edit",
+        links.get("query")
+            + "?mode=edit&version="
+            + (datasetVersion == null
+                ? datasetVersion
+                : encodeURIComponent(datasetVersion.toString())));
+    final JobFilters jobFilters =
+        new JobFilters()
+            .addFilter(JobIndexKeys.ALL_DATASETS, datasetPath.toString())
+            .addFilter(JobIndexKeys.QUERY_TYPE, JobIndexKeys.UI, JobIndexKeys.EXTERNAL);
     links.put("jobs", jobFilters.toUrl());
     return links;
   }

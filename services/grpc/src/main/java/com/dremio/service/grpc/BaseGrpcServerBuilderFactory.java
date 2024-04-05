@@ -15,22 +15,18 @@
  */
 package com.dremio.service.grpc;
 
-import java.util.Set;
-
 import com.dremio.telemetry.utils.GrpcTracerFacade;
 import com.dremio.telemetry.utils.TracerFacade;
 import com.google.common.collect.Sets;
-
 import io.grpc.ServerBuilder;
 import io.grpc.ServerInterceptor;
 import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.netty.NettyServerBuilder;
 import io.opentracing.Tracer;
 import io.opentracing.contrib.grpc.TracingServerInterceptor;
+import java.util.Set;
 
-/**
- * Base class for grpc server builder factory.
- */
+/** Base class for grpc server builder factory. */
 public class BaseGrpcServerBuilderFactory implements GrpcServerBuilderFactory {
 
   private final Tracer tracer;
@@ -40,24 +36,20 @@ public class BaseGrpcServerBuilderFactory implements GrpcServerBuilderFactory {
     this(new GrpcTracerFacade((TracerFacade) tracer), Sets.newHashSet());
   }
 
-  public BaseGrpcServerBuilderFactory(GrpcTracerFacade tracer,
-                                      Set<ServerInterceptor> interceptors) {
+  public BaseGrpcServerBuilderFactory(
+      GrpcTracerFacade tracer, Set<ServerInterceptor> interceptors) {
     this.tracer = tracer;
     // preserve order of intereptor addition
     this.interceptors = Sets.newLinkedHashSet(interceptors);
   }
 
-  /**
-   * Returns a new gRPC ServerBuilder with instrumentation.
-   */
+  /** Returns a new gRPC ServerBuilder with instrumentation. */
   @Override
   public ServerBuilder<?> newServerBuilder() {
     return newServerBuilder(0);
   }
 
-  /**
-   * Returns a new gRPC ServerBuilder with instrumentation.
-   */
+  /** Returns a new gRPC ServerBuilder with instrumentation. */
   @Override
   public ServerBuilder<?> newServerBuilder(int port) {
     final ServerBuilder<?> builder = NettyServerBuilder.forPort(port);
@@ -65,9 +57,7 @@ public class BaseGrpcServerBuilderFactory implements GrpcServerBuilderFactory {
     return builder;
   }
 
-  /**
-   * Returns a new gRPC InProcessServerBuilder with instrumentation.
-   */
+  /** Returns a new gRPC InProcessServerBuilder with instrumentation. */
   @Override
   public ServerBuilder<?> newInProcessServerBuilder(String processName) {
     final ServerBuilder<?> builder = InProcessServerBuilder.forName(processName);
@@ -78,10 +68,8 @@ public class BaseGrpcServerBuilderFactory implements GrpcServerBuilderFactory {
 
   /* Decorates a ServerBuilder with additional interceptors.*/
   private void addInterceptors(ServerBuilder<?> builder) {
-    final TracingServerInterceptor tracingInterceptor = TracingServerInterceptor
-      .newBuilder()
-      .withTracer(tracer)
-      .build();
+    final TracingServerInterceptor tracingInterceptor =
+        TracingServerInterceptor.newBuilder().withTracer(tracer).build();
     builder.intercept(tracingInterceptor);
 
     for (ServerInterceptor intercept : interceptors) {

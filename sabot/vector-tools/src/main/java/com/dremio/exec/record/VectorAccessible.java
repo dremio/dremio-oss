@@ -15,26 +15,26 @@
  */
 package com.dremio.exec.record;
 
-import org.apache.arrow.vector.ValueVector;
-
 import com.dremio.common.expression.BasePath;
 import com.dremio.exec.record.selection.SelectionVector2;
 import com.dremio.exec.record.selection.SelectionVector4;
+import org.apache.arrow.vector.ValueVector;
 
 // TODO javadoc
 public interface VectorAccessible extends Iterable<VectorWrapper<?>> {
   // TODO are these <?> releated in any way? Should they be the same one?
   // TODO javadoc
-  public <T extends ValueVector> VectorWrapper<T> getValueAccessorById(Class<T> clazz, int... fieldIds);
+  public <T extends ValueVector> VectorWrapper<T> getValueAccessorById(
+      Class<T> clazz, int... fieldIds);
 
   /**
-   * Get the value vector type and id for the given schema path. The TypedFieldId
-   * should store a fieldId which is the same as the ordinal position of the field
-   * within the Iterator provided this classes implementation of Iterable<ValueVector>.
+   * Get the value vector type and id for the given schema path. The TypedFieldId should store a
+   * fieldId which is the same as the ordinal position of the field within the Iterator provided
+   * this classes implementation of Iterable<ValueVector>.
    *
    * @param path the path where the vector should be located.
-   * @return the local field id associated with this vector. If no field matches this
-   *   path, this will return a null TypedFieldId
+   * @return the local field id associated with this vector. If no field matches this path, this
+   *     will return a null TypedFieldId
    */
   public TypedFieldId getValueVectorId(BasePath path);
 
@@ -56,6 +56,4 @@ public interface VectorAccessible extends Iterable<VectorWrapper<?>> {
   public abstract SelectionVector2 getSelectionVector2();
 
   public abstract SelectionVector4 getSelectionVector4();
-
-
 }

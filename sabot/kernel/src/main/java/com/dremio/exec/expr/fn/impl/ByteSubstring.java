@@ -15,33 +15,33 @@
  */
 package com.dremio.exec.expr.fn.impl;
 
-import org.apache.arrow.vector.holders.BigIntHolder;
-import org.apache.arrow.vector.holders.VarBinaryHolder;
-
 import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
+import org.apache.arrow.vector.holders.BigIntHolder;
+import org.apache.arrow.vector.holders.VarBinaryHolder;
 
 // TODO: implement optional length parameter
 
 /**
- * Evaluate a substring expression for a given value; specifying the start
- * position, and optionally the end position.
+ * Evaluate a substring expression for a given value; specifying the start position, and optionally
+ * the end position.
  *
- *  - If the start position is negative, start from abs(start) characters from
- *    the end of the buffer.
+ * <p>- If the start position is negative, start from abs(start) characters from the end of the
+ * buffer.
  *
- *  - If no length is specified, continue to the end of the string.
+ * <p>- If no length is specified, continue to the end of the string.
  *
- *  - If the substring expression's length exceeds the value's upward bound, the
- *    value's length will be used.
+ * <p>- If the substring expression's length exceeds the value's upward bound, the value's length
+ * will be used.
  *
- *  - If the substring is invalid, return an empty string.
+ * <p>- If the substring is invalid, return an empty string.
  */
-@FunctionTemplate(names = {"bytesubstring", "byte_substr"},
-                  scope = FunctionTemplate.FunctionScope.SIMPLE,
-                  nulls = FunctionTemplate.NullHandling.NULL_IF_NULL)
+@FunctionTemplate(
+    names = {"bytesubstring", "byte_substr"},
+    scope = FunctionTemplate.FunctionScope.SIMPLE,
+    nulls = FunctionTemplate.NullHandling.NULL_IF_NULL)
 public class ByteSubstring implements SimpleFunction {
 
   @Param VarBinaryHolder in;
@@ -50,7 +50,7 @@ public class ByteSubstring implements SimpleFunction {
   @Output VarBinaryHolder out;
 
   @Override
-  public void setup() { }
+  public void setup() {}
 
   @Override
   public void eval() {
@@ -63,17 +63,16 @@ public class ByteSubstring implements SimpleFunction {
     } else {
       // handle negative and positive offset values
       if (offset.value < 0) {
-        out.start = in.end + (int)offset.value;
+        out.start = in.end + (int) offset.value;
       } else {
-        out.start = in.start + (int)offset.value - 1;
+        out.start = in.start + (int) offset.value - 1;
       }
       // calculate end position from length and truncate to upper value bounds
       if (out.start + length.value > in.end) {
         out.end = in.end;
       } else {
-        out.end = out.start + (int)length.value;
+        out.end = out.start + (int) length.value;
       }
     }
   }
-
 }

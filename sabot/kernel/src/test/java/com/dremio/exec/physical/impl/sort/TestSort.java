@@ -15,22 +15,22 @@
  */
 package com.dremio.exec.physical.impl.sort;
 
+import com.dremio.BaseTestQuery;
+import com.dremio.exec.ExecConstants;
+import com.dremio.resource.GroupResourceInformation;
 import org.apache.arrow.vector.util.JsonStringArrayList;
 import org.apache.arrow.vector.util.JsonStringHashMap;
 import org.junit.Test;
 
-import com.dremio.BaseTestQuery;
-import com.dremio.exec.ExecConstants;
-import com.dremio.resource.GroupResourceInformation;
-
 /**
- * Placeholder for all sort related test. Can be used as we move
- * more tests to use the new test framework
+ * Placeholder for all sort related test. Can be used as we move more tests to use the new test
+ * framework
  */
 public class TestSort extends BaseTestQuery {
 
   private static final JsonStringHashMap<String, Object> x = new JsonStringHashMap<>();
-  private static final JsonStringArrayList<JsonStringHashMap<String, Object>> repeated_map = new JsonStringArrayList<>();
+  private static final JsonStringArrayList<JsonStringHashMap<String, Object>> repeated_map =
+      new JsonStringArrayList<>();
 
   static {
     x.put("c", 1L);
@@ -40,7 +40,8 @@ public class TestSort extends BaseTestQuery {
   @Test
   public void testSortWithComplexInput() throws Exception {
     testBuilder()
-        .sqlQuery("select (t.a) as col from cp.\"jsoninput/repeatedmap_sort_bug.json\" t order by t.b")
+        .sqlQuery(
+            "select (t.a) as col from cp.\"jsoninput/repeatedmap_sort_bug.json\" t order by t.b")
         .ordered()
         .baselineColumns("col")
         .baselineValues(repeated_map)
@@ -50,7 +51,8 @@ public class TestSort extends BaseTestQuery {
   @Test
   public void testSortWithRepeatedMapWithExchanges() throws Exception {
     testBuilder()
-        .sqlQuery("select (t.a) as col from cp.\"jsoninput/repeatedmap_sort_bug.json\" t order by t.b")
+        .sqlQuery(
+            "select (t.a) as col from cp.\"jsoninput/repeatedmap_sort_bug.json\" t order by t.b")
         .optionSettingQueriesForTestQuery("alter session set \"planner.slice_target\" = 1")
         .ordered()
         .baselineColumns("col")
@@ -65,11 +67,11 @@ public class TestSort extends BaseTestQuery {
   public void testSortSpill() throws Exception {
     setSessionOption(GroupResourceInformation.MAX_WIDTH_PER_NODE_KEY, "6");
     try {
-      test("CREATE TABLE dfs_test.test_sort PARTITION BY (l_modline, l_moddate) AS " +
-        "SELECT l.*, l_shipdate - ((EXTRACT(DAY FROM l_shipdate) - 1) * INTERVAL '1' DAY) l_moddate, " +
-        "MOD(l_linenumber,3) l_modline " +
-        "FROM cp.\"tpch/lineitem.parquet\" l ORDER BY l_moddate"
-      );
+      test(
+          "CREATE TABLE dfs_test.test_sort PARTITION BY (l_modline, l_moddate) AS "
+              + "SELECT l.*, l_shipdate - ((EXTRACT(DAY FROM l_shipdate) - 1) * INTERVAL '1' DAY) l_moddate, "
+              + "MOD(l_linenumber,3) l_modline "
+              + "FROM cp.\"tpch/lineitem.parquet\" l ORDER BY l_moddate");
     } finally {
       resetSessionOption(GroupResourceInformation.MAX_WIDTH_PER_NODE_KEY);
     }

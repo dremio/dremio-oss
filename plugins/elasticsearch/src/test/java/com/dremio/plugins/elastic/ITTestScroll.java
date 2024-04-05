@@ -17,12 +17,11 @@ package com.dremio.plugins.elastic;
 
 import static com.dremio.plugins.elastic.ElasticsearchType.INTEGER;
 
-import org.junit.Test;
-
 import com.dremio.TestBuilder;
 import com.dremio.plugins.elastic.ElasticBaseTestQuery.ElasticScrollSize;
+import org.junit.Test;
 
-@ElasticScrollSize(scrollSize=128)
+@ElasticScrollSize(scrollSize = 128)
 public class ITTestScroll extends ElasticBaseTestQuery {
 
   @Test
@@ -32,16 +31,18 @@ public class ITTestScroll extends ElasticBaseTestQuery {
     for (int i = 0; i < rowCount; i++) {
       obj[i][0] = i;
     }
-    ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
-      new ElasticsearchCluster.ColumnData("val", INTEGER, obj)
-    };
+    ElasticsearchCluster.ColumnData[] data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData("val", INTEGER, obj)
+        };
 
     elastic.load(schema, table, data);
 
-    TestBuilder builder = testBuilder()
-      .sqlQuery(String.format("select val from elasticsearch.%s.%s", schema, table))
-      .unOrdered()
-      .baselineColumns("val");
+    TestBuilder builder =
+        testBuilder()
+            .sqlQuery(String.format("select val from elasticsearch.%s.%s", schema, table))
+            .unOrdered()
+            .baselineColumns("val");
 
     for (int i = 0; i < rowCount; i++) {
       builder.baselineValues(i);

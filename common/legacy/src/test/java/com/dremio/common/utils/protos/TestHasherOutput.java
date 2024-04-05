@@ -15,14 +15,11 @@
  */
 package com.dremio.common.utils.protos;
 
+import io.protostuff.ByteString;
 import org.junit.Assert;
 import org.junit.Test;
 
-import io.protostuff.ByteString;
-
-/**
- * Tests HasherOutput
- */
+/** Tests HasherOutput */
 public class TestHasherOutput {
 
   @Test
@@ -92,7 +89,6 @@ public class TestHasherOutput {
     String result = subject.getHasher().hash().toString();
     Assert.assertEquals("cadb330ef18bdd78b300904622c4c763c2d671da995ef7b13972f94ad254c96e", result);
   }
-
 
   @Test
   public void testStringField2InputTrue() {

@@ -16,14 +16,16 @@
 
 package com.dremio.sabot.op.aggregate.vectorized.arrayagg;
 
+import com.dremio.exec.expr.fn.impl.ByteArrayWrapper;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.VarBinaryVector;
 
-import com.dremio.exec.expr.fn.impl.ByteArrayWrapper;
-
-public final class VarbinaryArrayAggAccumulatorHolder extends BaseArrayAggAccumulatorHolder<ByteArrayWrapper, VarBinaryVector> {
+public final class VarbinaryArrayAggAccumulatorHolder
+    extends BaseArrayAggAccumulatorHolder<ByteArrayWrapper, VarBinaryVector> {
   private final VarBinaryVector vector;
-  public VarbinaryArrayAggAccumulatorHolder(int maxValuesPerBatch, final BufferAllocator allocator) {
+
+  public VarbinaryArrayAggAccumulatorHolder(
+      int maxValuesPerBatch, final BufferAllocator allocator) {
     super(maxValuesPerBatch, allocator);
     vector = new VarBinaryVector("array_agg VarbinaryArrayAggAccumulatorHolder", allocator);
     vector.allocateNew(maxValuesPerBatch);
@@ -31,10 +33,10 @@ public final class VarbinaryArrayAggAccumulatorHolder extends BaseArrayAggAccumu
 
   @Override
   public long getSizeInBytes() {
-    return vector.getDataBuffer().getActualMemoryConsumed() +
-      vector.getValidityBuffer().getActualMemoryConsumed() +
-      vector.getOffsetBuffer().getActualMemoryConsumed() +
-      super.getSizeInBytes();
+    return vector.getDataBuffer().getActualMemoryConsumed()
+        + vector.getValidityBuffer().getActualMemoryConsumed()
+        + vector.getOffsetBuffer().getActualMemoryConsumed()
+        + super.getSizeInBytes();
   }
 
   @Override

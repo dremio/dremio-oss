@@ -17,18 +17,15 @@ package com.dremio.exec.physical.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import org.apache.iceberg.expressions.Expression;
-import org.apache.iceberg.expressions.Expressions;
-import org.junit.Test;
-
 import com.dremio.exec.store.iceberg.IcebergSerDe;
 import com.dremio.exec.util.LongRange;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.iceberg.expressions.Expression;
+import org.apache.iceberg.expressions.Expressions;
+import org.junit.Test;
 
-/**
- * Tests for {@link ManifestScanFilters}
- */
+/** Tests for {@link ManifestScanFilters} */
 public class TestManifestScanFilters {
 
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
@@ -43,7 +40,7 @@ public class TestManifestScanFilters {
 
     ManifestScanFilters deserialized = OBJECT_MAPPER.readValue(json, ManifestScanFilters.class);
     assertThat(raw.getIcebergAnyColExpressionDeserialized().toString())
-      .isEqualTo(deserialized.getIcebergAnyColExpressionDeserialized().toString());
+        .isEqualTo(deserialized.getIcebergAnyColExpressionDeserialized().toString());
     assertThat(raw.getSkipDataFileSizeRange()).isEqualTo(deserialized.getSkipDataFileSizeRange());
     assertThat(raw.getMinPartitionSpecId()).isEqualTo(deserialized.getMinPartitionSpecId());
   }
@@ -83,7 +80,8 @@ public class TestManifestScanFilters {
 
     assertThat(withExpr.doesIcebergAnyColExpressionExists()).isTrue();
     assertThat(withExpr.getIcebergAnyColExpression()).isNotNull();
-    assertThat(TEST_EXPR.toString()).isEqualTo(withExpr.getIcebergAnyColExpressionDeserialized().toString());
+    assertThat(TEST_EXPR.toString())
+        .isEqualTo(withExpr.getIcebergAnyColExpressionDeserialized().toString());
   }
 
   @Test
@@ -112,11 +110,17 @@ public class TestManifestScanFilters {
     assertThat(withSpecId.getMinPartitionSpecId()).isEqualTo(2);
   }
 
-  private ManifestScanFilters newInstance(Expression expr, LongRange longRange, Integer partitionSpecId) {
-    ImmutableManifestScanFilters.Builder manifestScanBuilders = new ImmutableManifestScanFilters.Builder();
+  private ManifestScanFilters newInstance(
+      Expression expr, LongRange longRange, Integer partitionSpecId) {
+    ImmutableManifestScanFilters.Builder manifestScanBuilders =
+        new ImmutableManifestScanFilters.Builder();
     if (expr != null) {
-      manifestScanBuilders.setIcebergAnyColExpression(IcebergSerDe.serializeToByteArrayUnchecked(expr));
+      manifestScanBuilders.setIcebergAnyColExpression(
+          IcebergSerDe.serializeToByteArrayUnchecked(expr));
     }
-    return manifestScanBuilders.setMinPartitionSpecId(partitionSpecId).setSkipDataFileSizeRange(longRange).build();
+    return manifestScanBuilders
+        .setMinPartitionSpecId(partitionSpecId)
+        .setSkipDataFileSizeRange(longRange)
+        .build();
   }
 }

@@ -17,43 +17,43 @@ package com.dremio;
 
 import static com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType.PARSE;
 
+import com.dremio.test.UserExceptionAssert;
 import org.junit.Test;
 
-import com.dremio.test.UserExceptionAssert;
-
-/**
- * Tests for query hints.
- */
+/** Tests for query hints. */
 public class TestHints extends BaseTestQuery {
   /**
-   * Test that we throw parser errors when using hints in parts of the query we do not allow hints to be.
+   * Test that we throw parser errors when using hints in parts of the query we do not allow hints
+   * to be.
+   *
    * @throws Exception
    */
   @Test
   public void invalidHintPlacement() throws Exception {
-    final String[] testQueries = new String[]{
-      "select 1 /*+ BADHINT */",
-      "select * /*+ BROADCAST */ from INFORMATION_SCHEMA.COLUMNS",
-      "select * from /*+ BROADCAST */ INFORMATION_SCHEMA.COLUMNS"
-    };
+    final String[] testQueries =
+        new String[] {
+          "select 1 /*+ BADHINT */",
+          "select * /*+ BROADCAST */ from INFORMATION_SCHEMA.COLUMNS",
+          "select * from /*+ BROADCAST */ INFORMATION_SCHEMA.COLUMNS"
+        };
 
     for (String query : testQueries) {
-      UserExceptionAssert
-        .assertThatThrownBy(() -> test(query))
-        .hasErrorType(PARSE);
+      UserExceptionAssert.assertThatThrownBy(() -> test(query)).hasErrorType(PARSE);
     }
   }
 
   /**
    * Test that using a registered hint does not throw errors if used in a place we support hints.
+   *
    * @throws Exception
    */
   @Test
   public void validHintUsage() throws Exception {
-    final String[] testQueries = new String[]{
-      "select * from INFORMATION_SCHEMA.COLUMNS /*+ BROADCAST */",
-      "select /*+ BROADCAST */ * from INFORMATION_SCHEMA.COLUMNS"
-    };
+    final String[] testQueries =
+        new String[] {
+          "select * from INFORMATION_SCHEMA.COLUMNS /*+ BROADCAST */",
+          "select /*+ BROADCAST */ * from INFORMATION_SCHEMA.COLUMNS"
+        };
 
     for (String query : testQueries) {
       this.test(query);
@@ -62,14 +62,16 @@ public class TestHints extends BaseTestQuery {
 
   /**
    * Test that we return an error when the user specifies an unregistered hint.
+   *
    * @throws Exception
    */
   @Test
   public void unregisteredHints() throws Exception {
-    final String[] testQueries = new String[]{
-      "select * from INFORMATION_SCHEMA.COLUMNS /*+ BADHINT */",
-      "select /*+ BADHINT */ * from INFORMATION_SCHEMA.COLUMNS"
-    };
+    final String[] testQueries =
+        new String[] {
+          "select * from INFORMATION_SCHEMA.COLUMNS /*+ BADHINT */",
+          "select /*+ BADHINT */ * from INFORMATION_SCHEMA.COLUMNS"
+        };
 
     for (String query : testQueries) {
       this.errorMsgTestHelper(query, "BADHINT should be registered in the HintStrategies.");

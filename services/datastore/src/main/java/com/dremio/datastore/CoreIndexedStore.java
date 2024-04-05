@@ -15,30 +15,28 @@
  */
 package com.dremio.datastore;
 
-import java.util.List;
-
 import com.dremio.datastore.SearchTypes.SearchQuery;
 import com.dremio.datastore.api.Document;
 import com.dremio.datastore.api.FindByCondition;
+import java.util.List;
 
-/**
- * Core indexed store.
- */
+/** Core indexed store. */
 public interface CoreIndexedStore<K, V> extends CoreKVStore<K, V> {
 
   String ID_FIELD_NAME = "_id";
 
   /**
    * Search kvstore and return matching values for given condition.
+   *
    * @param find contains search queries/sorting conditions to search for.
    * @param options the search options.
    * @return matching key values
    */
-  Iterable<Document<KVStoreTuple<K>, KVStoreTuple<V>>> find(FindByCondition find, FindOption... options);
+  Iterable<Document<KVStoreTuple<K>, KVStoreTuple<V>>> find(
+      FindByCondition find, FindOption... options);
 
   /**
-   * Provide a count of the number of documents that match each of the requested
-   * conditions.
+   * Provide a count of the number of documents that match each of the requested conditions.
    *
    * @param conditions
    * @return
@@ -47,14 +45,15 @@ public interface CoreIndexedStore<K, V> extends CoreKVStore<K, V> {
 
   /**
    * ReIndex all the entries in the store
+   *
    * @return number of entries which got reIndexed.
    */
-   int reindex();
+  int reindex();
 
   /**
    * Version for the indicies.
    *
-   *  @return version number.
+   * @return version number.
    */
   Integer version();
 }

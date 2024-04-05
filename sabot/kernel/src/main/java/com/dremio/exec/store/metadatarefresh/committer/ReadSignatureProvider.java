@@ -15,22 +15,20 @@
  */
 package com.dremio.exec.store.metadatarefresh.committer;
 
-import java.util.Set;
-
 import com.dremio.exec.store.iceberg.IcebergPartitionData;
 import com.google.protobuf.ByteString;
+import java.util.Set;
 
-/**
- * Interface to compute read signature in Unlimited splits metadata refresh
- */
+/** Interface to compute read signature in Unlimited splits metadata refresh */
 public interface ReadSignatureProvider {
 
   /**
    * Create read signature ByteString from given modified partitions
+   *
    * @param addedPartitions
    * @param deletedPartitions
    * @return
    */
-  ByteString compute(Set<IcebergPartitionData> addedPartitions, Set<IcebergPartitionData> deletedPartitions);
-
+  ByteString compute(
+      Set<IcebergPartitionData> addedPartitions, Set<IcebergPartitionData> deletedPartitions);
 }

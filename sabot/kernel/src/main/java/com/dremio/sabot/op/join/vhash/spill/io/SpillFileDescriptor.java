@@ -17,9 +17,7 @@ package com.dremio.sabot.op.join.vhash.spill.io;
 
 import com.dremio.sabot.op.sort.external.SpillManager;
 
-/**
- * Descriptor for a spill file.
- */
+/** Descriptor for a spill file. */
 public class SpillFileDescriptor {
   private SpillManager.SpillFile file;
   private long numRecords;

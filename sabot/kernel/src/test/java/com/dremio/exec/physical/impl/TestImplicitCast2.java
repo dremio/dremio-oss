@@ -15,53 +15,47 @@
  */
 package com.dremio.exec.physical.impl;
 
-import org.junit.Test;
-
 import com.dremio.sabot.BaseTestFunction;
 import com.dremio.sabot.Fixtures;
+import org.junit.Test;
 
 public class TestImplicitCast2 extends BaseTestFunction {
 
   @Test
-  public void go(){
+  public void go() {
     testFunctions(tests);
   }
 
-
   Object[][] tests = {
-      { "10+20.1", 30.1f },
-      { "20.1+10", 30.1f },
-      { "20.1 + '10'", 30.1f },
-      { "cast('10' as int) + 20.1", 30.1f },
-      { "cast('10' as int) + cast('20' as bigint)", 30L},
-      { "cast('10' as bigint) + cast('20' as int)", 30L},
-      { "cast('10' as int) + cast('20.1' as float8)", 30.1d },
-      { "cast('20.1' as float8) + cast('10' as int) ", 30.1d },
-      { "cast('10' as int) + cast('20.1' as float4)", 30.1f },
-      { "cast('10' as bigint) + cast('20.1' as float4)", 30.1f },
-      { "cast('10' as bigint) + cast('20.1' as float8)", 30.1d },
-      { "cast('10' as float4) + cast('20.1' as float8)", 30.1d },
-      { "'10' + cast('20.1' as float4)", 30.1f },
-      { "'10' + cast('20.1' as float8)", 30.1d },
-      { "cast('10' as float4) + '20.1' ", 30.1f },
-      { "cast('10' as float8) + '20.1' ", 30.1d },
-      { "10 < 20.1", true },
-      { "'10' < 20.1", true },
-      { "20.1 > '10' ", true },
-      { " 20.1  + 10 > '10' ", true },
-      { " 20.1  + 10 > '10'  + 15.1", true },
-
-      { "c0 + c1", 0, 1, 1},
-      { "c0 + c1", 0, 1, 1},
-      { "c0 + c1", 0, 1f, 1f},
-      { "c0 + c1", 0f, 1, 1f},
-      { "c0 + c1", 0d, 1L, 1d},
-
-      { "isnull(c0)", Fixtures.NULL_BIGINT, true},
-      { "isnull(c0)", 0d, false},
-      { "isnotnull(c0)", 0d, true},
-      { "isnotnull(c0)", Fixtures.NULL_BIGINT, false}
-
-
-   };
+    {"10+20.1", 30.1f},
+    {"20.1+10", 30.1f},
+    {"20.1 + '10'", 30.1f},
+    {"cast('10' as int) + 20.1", 30.1f},
+    {"cast('10' as int) + cast('20' as bigint)", 30L},
+    {"cast('10' as bigint) + cast('20' as int)", 30L},
+    {"cast('10' as int) + cast('20.1' as float8)", 30.1d},
+    {"cast('20.1' as float8) + cast('10' as int) ", 30.1d},
+    {"cast('10' as int) + cast('20.1' as float4)", 30.1f},
+    {"cast('10' as bigint) + cast('20.1' as float4)", 30.1f},
+    {"cast('10' as bigint) + cast('20.1' as float8)", 30.1d},
+    {"cast('10' as float4) + cast('20.1' as float8)", 30.1d},
+    {"'10' + cast('20.1' as float4)", 30.1f},
+    {"'10' + cast('20.1' as float8)", 30.1d},
+    {"cast('10' as float4) + '20.1' ", 30.1f},
+    {"cast('10' as float8) + '20.1' ", 30.1d},
+    {"10 < 20.1", true},
+    {"'10' < 20.1", true},
+    {"20.1 > '10' ", true},
+    {" 20.1  + 10 > '10' ", true},
+    {" 20.1  + 10 > '10'  + 15.1", true},
+    {"c0 + c1", 0, 1, 1},
+    {"c0 + c1", 0, 1, 1},
+    {"c0 + c1", 0, 1f, 1f},
+    {"c0 + c1", 0f, 1, 1f},
+    {"c0 + c1", 0d, 1L, 1d},
+    {"isnull(c0)", Fixtures.NULL_BIGINT, true},
+    {"isnull(c0)", 0d, false},
+    {"isnotnull(c0)", 0d, true},
+    {"isnotnull(c0)", Fixtures.NULL_BIGINT, false}
+  };
 }

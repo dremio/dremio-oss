@@ -15,13 +15,10 @@
  */
 package com.dremio.common;
 
-/**
- * Common Constants related to User
- */
+/** Common Constants related to User */
 public class UserConstants {
-  /**
-   * System user running the Dremio service.
-   */
+  /** System user running the Dremio service. */
   public static final String SYSTEM_USERNAME = "$dremio$";
+
   public static final String SYSTEM_ID = "1";
 }

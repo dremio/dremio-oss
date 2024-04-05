@@ -16,9 +16,13 @@
 
 package com.dremio.exec.planner.logical;
 
+import com.dremio.exec.planner.physical.PrelUtil;
+import com.dremio.exec.planner.physical.PrelUtil.ProjectPushInfo;
+import com.dremio.exec.store.dfs.FilesystemScanDrel;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import java.util.List;
 import java.util.stream.Stream;
-
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.rel.RelNode;
@@ -27,35 +31,34 @@ import org.apache.calcite.rel.rules.ProjectRemoveRule;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.tools.RelBuilder;
 
-import com.dremio.exec.planner.physical.PrelUtil;
-import com.dremio.exec.planner.physical.PrelUtil.ProjectPushInfo;
-import com.dremio.exec.store.dfs.FilesystemScanDrel;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
-
-/**
- * This Rule Pushes a project past filesystem scan while maintaining partition column info
- */
+/** This Rule Pushes a project past filesystem scan while maintaining partition column info */
 public class PushProjectIntoFilesystemScanRule extends RelOptRule {
 
   public static final RelOptRule INSTANCE = new PushProjectIntoFilesystemScanRule();
 
   private PushProjectIntoFilesystemScanRule() {
-    super(RelOptHelper.some(ProjectRel.class, RelOptHelper.any(FilesystemScanDrel.class)),  DremioRelFactories.LOGICAL_BUILDER,
-      "PushProjectIntoFilesystemScanRule");
+    super(
+        RelOptHelper.some(ProjectRel.class, RelOptHelper.any(FilesystemScanDrel.class)),
+        DremioRelFactories.LOGICAL_BUILDER,
+        "PushProjectIntoFilesystemScanRule");
   }
 
   @Override
   public void onMatch(RelOptRuleCall call) {
     final Project proj = call.rel(0);
     final FilesystemScanDrel scan = call.rel(1);
-    List<RexNode> projects = Stream.concat(proj.getProjects().stream(),
-        PushProjectForFlattenIntoScanRule.getPartitionColumns(scan, call.builder().getRexBuilder()).stream())
-      .collect(ImmutableList.toImmutableList());
+    List<RexNode> projects =
+        Stream.concat(
+                proj.getProjects().stream(),
+                PushProjectForFlattenIntoScanRule.getPartitionColumns(
+                    scan, call.builder().getRexBuilder())
+                    .stream())
+            .collect(ImmutableList.toImmutableList());
 
     ProjectPushInfo columnInfo = PrelUtil.getColumns(scan.getRowType(), projects);
 
-    // get TableBase, either wrapped in RelOptTable, or TranslatableTable. TableBase table = scan.getTable().unwrap(TableBase.class);
+    // get TableBase, either wrapped in RelOptTable, or TranslatableTable. TableBase table =
+    // scan.getTable().unwrap(TableBase.class);
     if (columnInfo == null || columnInfo.isStarQuery()) {
       return;
     }
@@ -63,7 +66,7 @@ public class PushProjectIntoFilesystemScanRule extends RelOptRule {
     FilesystemScanDrel newScan = scan.cloneWithProject(columnInfo.columns, true);
 
     // if the scan is the same as this one (no change in projections), no need to push down.
-    if(newScan.getProjectedColumns().equals(scan.getProjectedColumns())){
+    if (newScan.getProjectedColumns().equals(scan.getProjectedColumns())) {
       return;
     }
 
@@ -78,16 +81,18 @@ public class PushProjectIntoFilesystemScanRule extends RelOptRule {
     final RelNode newProj = relBuilder.build();
 
     if (newProj instanceof Project
-      && ProjectRemoveRule.isTrivial((Project) newProj)
-      && newScan.getRowType().getFullTypeString().equals(newProj.getRowType().getFullTypeString())) {
+        && ProjectRemoveRule.isTrivial((Project) newProj)
+        && newScan
+            .getRowType()
+            .getFullTypeString()
+            .equals(newProj.getRowType().getFullTypeString())) {
       call.transformTo(newScan);
     } else {
-      if(newScan.getProjectedColumns().equals(scan.getProjectedColumns())) {
+      if (newScan.getProjectedColumns().equals(scan.getProjectedColumns())) {
         // no point in doing a pushdown that doesn't change anything.
         return;
       }
       call.transformTo(newProj);
     }
   }
-
 }

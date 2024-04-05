@@ -15,8 +15,6 @@
  */
 package com.dremio.datastore;
 
-import java.util.Set;
-
 import com.dremio.datastore.TracingKVStore.TracingIndexedStore;
 import com.dremio.datastore.api.DocumentConverter;
 import com.dremio.datastore.api.IndexedStore;
@@ -24,14 +22,11 @@ import com.dremio.datastore.api.KVStore;
 import com.dremio.datastore.api.KVStoreProvider;
 import com.dremio.datastore.api.StoreCreationFunction;
 import com.dremio.datastore.format.Format;
-
 import io.opentracing.Tracer;
+import java.util.Set;
 
-/**
- * Provider of KVStores. Wraps all stores in a tracing decorator.
- */
+/** Provider of KVStores. Wraps all stores in a tracing decorator. */
 public class TracingKVStoreProvider implements KVStoreProvider {
-
 
   private final KVStoreProvider kvProvider;
   private final Tracer tracer;
@@ -47,10 +42,9 @@ public class TracingKVStoreProvider implements KVStoreProvider {
   }
 
   /**
-   * TracingKVStoreProvider's implementation of the StoreBuilder class.
-   * TracingStoreBuilder provides the underlying StoreBuilder, tracer and
-   * basic configurations along side build and buildIndexed methods
-   * for creating TracingKVStores and TracingIndexedStores.
+   * TracingKVStoreProvider's implementation of the StoreBuilder class. TracingStoreBuilder provides
+   * the underlying StoreBuilder, tracer and basic configurations along side build and buildIndexed
+   * methods for creating TracingKVStores and TracingIndexedStores.
    *
    * @param <K> key type K.
    * @param <V> value type V.
@@ -96,7 +90,6 @@ public class TracingKVStoreProvider implements KVStoreProvider {
       return TracingKVStore.of(name, tracer, delegate.build());
     }
 
-
     @Override
     public IndexedStore<K, V> buildIndexed(DocumentConverter<K, V> documentConverter) {
       return TracingIndexedStore.of(name, tracer, delegate.buildIndexed(documentConverter));
@@ -105,12 +98,13 @@ public class TracingKVStoreProvider implements KVStoreProvider {
 
   @Override
   public Set<KVStore<?, ?>> stores() {
-     return kvProvider.stores();
+    return kvProvider.stores();
   }
 
   @Override
   @SuppressWarnings("unchecked")
-  public <K, V, T extends KVStore<K, V>> T getStore(Class<? extends StoreCreationFunction<K, V, T>> creator) {
+  public <K, V, T extends KVStore<K, V>> T getStore(
+      Class<? extends StoreCreationFunction<K, V, T>> creator) {
     final KVStore<?, ?> ret = kvProvider.getStore(creator);
 
     if (ret instanceof IndexedStore) {

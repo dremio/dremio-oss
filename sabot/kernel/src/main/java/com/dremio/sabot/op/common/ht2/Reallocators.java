@@ -15,21 +15,24 @@
  */
 package com.dremio.sabot.op.common.ht2;
 
+import com.dremio.common.expression.Describer;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VarCharVector;
 
-import com.dremio.common.expression.Describer;
-
 public class Reallocators {
 
-  private Reallocators(){}
+  private Reallocators() {}
 
   public static interface Reallocator {
     long addr();
+
     long ensure(int size);
+
     long max();
+
     void setCount(int count);
+
     void ensureValidityAndOffsets(int count);
   }
 
@@ -42,7 +45,7 @@ public class Reallocators {
 
     @Override
     public long ensure(int size) {
-      while(varbinary.getByteCapacity() < size){
+      while (varbinary.getByteCapacity() < size) {
         varbinary.reallocDataBuffer();
       }
       return addr();
@@ -80,7 +83,7 @@ public class Reallocators {
 
     @Override
     public long ensure(int size) {
-      while(varchar.getByteCapacity() < size){
+      while (varchar.getByteCapacity() < size) {
         varchar.reallocDataBuffer();
       }
       return addr();
@@ -109,12 +112,12 @@ public class Reallocators {
     }
   }
 
-  public static Reallocator getReallocator(FieldVector vect){
-    if(vect instanceof VarCharVector){
+  public static Reallocator getReallocator(FieldVector vect) {
+    if (vect instanceof VarCharVector) {
       return new VarCharReallocator(((VarCharVector) vect));
-    }else if(vect instanceof VarBinaryVector){
+    } else if (vect instanceof VarBinaryVector) {
       return new VarBinaryReallocator(((VarBinaryVector) vect));
-    }else{
+    } else {
       throw new IllegalStateException("Invalid vector: " + Describer.describe(vect.getField()));
     }
   }

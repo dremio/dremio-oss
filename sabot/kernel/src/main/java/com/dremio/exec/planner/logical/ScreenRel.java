@@ -15,13 +15,11 @@
  */
 package com.dremio.exec.planner.logical;
 
+import com.dremio.exec.planner.common.ScreenRelBase;
 import java.util.List;
-
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
-
-import com.dremio.exec.planner.common.ScreenRelBase;
 
 public class ScreenRel extends ScreenRelBase implements Rel {
   public ScreenRel(RelOptCluster cluster, RelTraitSet traitSet, RelNode input) {

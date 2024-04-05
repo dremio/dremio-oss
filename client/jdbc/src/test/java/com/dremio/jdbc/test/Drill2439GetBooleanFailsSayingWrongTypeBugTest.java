@@ -17,16 +17,13 @@ package com.dremio.jdbc.test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.dremio.jdbc.JdbcWithServerTestBase;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
-
-import com.dremio.jdbc.JdbcWithServerTestBase;
-
 
 public class Drill2439GetBooleanFailsSayingWrongTypeBugTest extends JdbcWithServerTestBase {
 
@@ -46,8 +43,7 @@ public class Drill2439GetBooleanFailsSayingWrongTypeBugTest extends JdbcWithServ
 
   @Test
   public void testGetBooleanGetsTrue() throws Exception {
-    ResultSet rs =
-      statement.executeQuery("SELECT TRUE FROM INFORMATION_SCHEMA.CATALOGS");
+    ResultSet rs = statement.executeQuery("SELECT TRUE FROM INFORMATION_SCHEMA.CATALOGS");
     rs.next();
     assertThat(rs.getBoolean(1)).isTrue();
     assertThat(rs.wasNull()).isFalse();
@@ -55,8 +51,7 @@ public class Drill2439GetBooleanFailsSayingWrongTypeBugTest extends JdbcWithServ
 
   @Test
   public void testGetBooleanGetsFalse() throws Exception {
-    ResultSet rs =
-      statement.executeQuery("SELECT FALSE FROM INFORMATION_SCHEMA.CATALOGS");
+    ResultSet rs = statement.executeQuery("SELECT FALSE FROM INFORMATION_SCHEMA.CATALOGS");
     rs.next();
     assertThat(rs.getBoolean(1)).isFalse();
     assertThat(rs.wasNull()).isFalse();
@@ -64,11 +59,10 @@ public class Drill2439GetBooleanFailsSayingWrongTypeBugTest extends JdbcWithServ
 
   @Test
   public void testGetBooleanGetsNull() throws Exception {
-    ResultSet rs = statement.executeQuery(
-      "SELECT CAST( NULL AS BOOLEAN ) FROM INFORMATION_SCHEMA.CATALOGS");
+    ResultSet rs =
+        statement.executeQuery("SELECT CAST( NULL AS BOOLEAN ) FROM INFORMATION_SCHEMA.CATALOGS");
     rs.next();
     assertThat(rs.getBoolean(1)).isFalse();
     assertThat(rs.wasNull()).isTrue();
   }
-
 }

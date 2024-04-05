@@ -15,15 +15,16 @@
  */
 package com.dremio.exec.work.foreman;
 
-
 public class ForemanSetupException extends ForemanException {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ForemanSetupException.class);
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ForemanSetupException.class);
 
   public ForemanSetupException() {
     super();
   }
 
-  public ForemanSetupException(String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
+  public ForemanSetupException(
+      String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
     super(message, cause, enableSuppression, writableStackTrace);
   }
 
@@ -38,6 +39,4 @@ public class ForemanSetupException extends ForemanException {
   public ForemanSetupException(Throwable cause) {
     super(cause);
   }
-
-
 }

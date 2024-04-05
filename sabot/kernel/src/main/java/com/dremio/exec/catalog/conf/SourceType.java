@@ -20,17 +20,21 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-/**
- * Describes the name of the Source type.
- */
+/** Describes the name of the Source type. */
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.TYPE})
 public @interface SourceType {
   String value();
+
   String label() default "";
+
   String uiConfig() default "";
+
   boolean configurable() default true;
+
   boolean listable() default true;
+
   boolean externalQuerySupported() default false;
+
   boolean previewEngineRequired() default false;
 }

@@ -15,13 +15,6 @@
  */
 package com.dremio.exec.expr.fn.impl;
 
-import java.util.List;
-
-import javax.inject.Inject;
-
-import org.apache.arrow.vector.complex.reader.FieldReader;
-import org.apache.arrow.vector.complex.writer.BaseWriter;
-
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.exec.expr.SimpleFunction;
@@ -31,12 +24,16 @@ import com.dremio.exec.expr.annotations.Param;
 import com.dremio.exec.expr.fn.FunctionErrorContext;
 import com.dremio.exec.expr.fn.OutputDerivation;
 import com.google.common.base.Preconditions;
+import java.util.List;
+import javax.inject.Inject;
+import org.apache.arrow.vector.complex.reader.FieldReader;
+import org.apache.arrow.vector.complex.writer.BaseWriter;
 
 public final class ArrayConcat {
   @FunctionTemplate(
-    names = {"array_concat", "array_cat"},
-    derivation = ArrayConcat.ArrayConcatOutputDerivation.class,
-    nulls = FunctionTemplate.NullHandling.NULL_IF_NULL)
+      names = {"array_concat", "array_cat"},
+      derivation = ArrayConcat.ArrayConcatOutputDerivation.class,
+      nulls = FunctionTemplate.NullHandling.NULL_IF_NULL)
   public static final class ArrayConcatSimpleFunction implements SimpleFunction {
     @Param FieldReader arrReader1;
     @Param FieldReader arrReader2;
@@ -44,12 +41,12 @@ public final class ArrayConcat {
     @Inject FunctionErrorContext errorContext;
 
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
     public void eval() {
-      com.dremio.exec.expr.fn.impl.ArrayConcatUtility.concat(arrReader1, arrReader2, writer, errorContext);
+      com.dremio.exec.expr.fn.impl.ArrayConcatUtility.concat(
+          arrReader1, arrReader2, writer, errorContext);
     }
   }
 

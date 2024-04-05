@@ -18,15 +18,11 @@ package com.dremio.sabot.exec.context;
 import com.dremio.exec.proto.CoordExecRPC.QueryContextInformation;
 import com.dremio.exec.proto.UserBitShared.UserCredentials;
 
-/**
- * Factory to create contextual information during execution.
- */
+/** Factory to create contextual information during execution. */
 public class ContextInformationFactory {
 
   public ContextInformation newContextFactory(
-      final UserCredentials userCredentials,
-      QueryContextInformation queryContextInfo) {
+      final UserCredentials userCredentials, QueryContextInformation queryContextInfo) {
     return new ContextInformationImpl(userCredentials, queryContextInfo);
   }
-
 }

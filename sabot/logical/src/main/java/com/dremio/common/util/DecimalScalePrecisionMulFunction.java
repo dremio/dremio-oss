@@ -23,12 +23,14 @@ package com.dremio.common.util;
  */
 public class DecimalScalePrecisionMulFunction extends ScalePrecisionFunctionBase {
 
-  public DecimalScalePrecisionMulFunction(int leftPrecision, int leftScale, int rightPrecision, int rightScale) {
+  public DecimalScalePrecisionMulFunction(
+      int leftPrecision, int leftScale, int rightPrecision, int rightScale) {
     super(leftPrecision, leftScale, rightPrecision, rightScale);
   }
 
   @Override
-  public void computeScalePrecision(int leftPrecision, int leftScale, int rightPrecision, int rightScale) {
+  public void computeScalePrecision(
+      int leftPrecision, int leftScale, int rightPrecision, int rightScale) {
     // compute the output scale and precision here
     outputScale = leftScale + rightScale;
     int integerDigits = (leftPrecision - leftScale) + (rightPrecision - rightScale);

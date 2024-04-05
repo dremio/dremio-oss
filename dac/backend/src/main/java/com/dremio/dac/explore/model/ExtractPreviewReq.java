@@ -20,24 +20,24 @@ import com.dremio.dac.proto.model.dataset.ExtractRule;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-/**
- * Extract preview request
- */
+/** Extract preview request */
 @Deprecated
 public class ExtractPreviewReq {
   private final Selection selection;
   private final ExtractRule rule;
+
   @JsonCreator
   public ExtractPreviewReq(
-      @JsonProperty("selection") Selection selection,
-      @JsonProperty("rule") ExtractRule rule) {
+      @JsonProperty("selection") Selection selection, @JsonProperty("rule") ExtractRule rule) {
     super();
     this.selection = selection;
     this.rule = rule;
   }
+
   public Selection getSelection() {
     return selection;
   }
+
   public ExtractRule getRule() {
     return rule;
   }

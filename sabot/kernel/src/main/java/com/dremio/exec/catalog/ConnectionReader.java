@@ -15,25 +15,24 @@
  */
 package com.dremio.exec.catalog;
 
-import java.lang.reflect.InvocationTargetException;
-import java.util.Map;
-
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.scanner.persistence.ScanResult;
+import com.dremio.exec.catalog.conf.AbstractSecretRef;
 import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.service.namespace.AbstractConnectionReader;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.google.common.base.Throwables;
+import java.lang.reflect.InvocationTargetException;
+import java.util.Map;
 
-/**
- * Resolves concrete ConnectionConf types using Classpath Scanning.
- */
+/** Resolves concrete ConnectionConf types using Classpath Scanning. */
 public interface ConnectionReader extends AbstractConnectionReader {
 
   ConnectionConf<?, ?> getConnectionConf(SourceConfig config);
 
   /**
-   * Returns the given source config as a string, without secret fields. Useful in error messages and debug logs.
+   * Returns the given source config as a string, without secret fields. Useful in error messages
+   * and debug logs.
    *
    * @param sourceConfig source config
    * @return source config as string, without secret fields
@@ -43,7 +42,8 @@ public interface ConnectionReader extends AbstractConnectionReader {
   /**
    * Get a map of all the available connection configuration classes
    *
-   * The map key is the source type, and the value is the class representing the connection configuration
+   * <p>The map key is the source type, and the value is the class representing the connection
+   * configuration
    *
    * @return an immutable map
    */
@@ -51,22 +51,30 @@ public interface ConnectionReader extends AbstractConnectionReader {
 
   @SuppressWarnings("deprecation")
   static String toType(SourceConfig config) {
-    if(config.getType() != null) {
+    if (config.getType() != null) {
       return config.getType();
     }
 
-    if(config.getLegacySourceTypeEnum() != null) {
+    if (config.getLegacySourceTypeEnum() != null) {
       return config.getLegacySourceTypeEnum().name();
     }
 
-    throw new IllegalStateException(String.format("Unable to manage source of type: named: [%s], legacy enum: [%d].", config.getType(), config.getLegacySourceTypeEnum().getNumber()));
+    throw new IllegalStateException(
+        String.format(
+            "Unable to manage source of type: named: [%s], legacy enum: [%d].",
+            config.getType(), config.getLegacySourceTypeEnum().getNumber()));
   }
 
   static ConnectionReader of(final ScanResult scanResult, final SabotConfig sabotConfig) {
+    // Register delegates before ConnectionReader schemas are created. Redundant binding for upgrade
+    // scenarios.
+    AbstractSecretRef.registerDelegates();
     try {
       final Class<? extends ConnectionReader> clazz =
-        sabotConfig.getClass("dremio.connection.reader.class", ConnectionReader.class, ConnectionReaderImpl.class);
-      return (ConnectionReader)clazz.getMethod("makeReader", ScanResult.class).invoke(null, scanResult);
+          sabotConfig.getClass(
+              "dremio.connection.reader.class", ConnectionReader.class, ConnectionReaderImpl.class);
+      return (ConnectionReader)
+          clazz.getMethod("makeReader", ScanResult.class).invoke(null, scanResult);
     } catch (final InvocationTargetException e) {
       Throwable cause = e.getCause() != null ? e.getCause() : e;
       Throwables.throwIfUnchecked(cause);

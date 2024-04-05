@@ -15,28 +15,29 @@
  */
 package com.dremio.exec.expr;
 
-import java.util.Arrays;
-
-import org.apache.arrow.vector.ValueVector;
-
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorWrapper;
 import com.google.common.base.Preconditions;
-
+import org.apache.arrow.vector.ValueVector;
 
 public class VectorResolver {
-  public static <T extends ValueVector> T[] hyper(VectorAccessible incoming, Class<T> vectorClass, int... ids) {
+  public static <T extends ValueVector> T[] hyper(
+      VectorAccessible incoming, Class<T> vectorClass, int... ids) {
     VectorWrapper<T> wrapper = incoming.getValueAccessorById(vectorClass, ids);
-    Preconditions.checkNotNull(wrapper, "Failure while loading vector with id: %s. Vector not found.", Arrays.toString(ids));
-    Preconditions.checkArgument(wrapper.isHyper(), "Failure while loading vector with id: %s. Vector was expected to be hyper but turned out to be simple.", Arrays.toString(ids));
+    Preconditions.checkNotNull(wrapper, "Failure while loading vector. Vector not found.");
+    Preconditions.checkArgument(
+        wrapper.isHyper(),
+        "Failure while loading vector. Vector was expected to be hyper but turned out to be simple.");
     return wrapper.getValueVectors();
   }
 
-  public static <T extends ValueVector> T simple(VectorAccessible incoming, Class<T> vectorClass, int... ids) {
+  public static <T extends ValueVector> T simple(
+      VectorAccessible incoming, Class<T> vectorClass, int... ids) {
     VectorWrapper<T> wrapper = incoming.getValueAccessorById(vectorClass, ids);
-    Preconditions.checkNotNull(wrapper, "Failure while loading vector with id: %s. Vector not found.", Arrays.toString(ids));
-    Preconditions.checkArgument(!wrapper.isHyper(), "Failure while loading vector with id: %s. Vector was expected to be simple but turned out to be hyper.", Arrays.toString(ids));
+    Preconditions.checkNotNull(wrapper, "Failure while loading vector. Vector not found.");
+    Preconditions.checkArgument(
+        !wrapper.isHyper(),
+        "Failure while loading vector. Vector was expected to be simple but turned out to be hyper.");
     return wrapper.getValueVector();
   }
-
 }

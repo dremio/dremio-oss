@@ -15,8 +15,6 @@
  */
 package com.dremio.dac.explore.model;
 
-import java.util.List;
-
 import com.dremio.dac.model.common.Acceptor;
 import com.dremio.dac.model.common.EnumTypeIdResolver;
 import com.dremio.dac.model.common.TypesEnum;
@@ -45,16 +43,16 @@ import com.dremio.dac.util.JSONUtil;
 import com.dremio.datastore.Converter;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.annotation.JsonTypeIdResolver;
+import java.util.List;
 
-/**
- * Transform base class
- */
+/** Transform base class */
 @JsonTypeInfo(use = JsonTypeInfo.Id.CUSTOM, include = JsonTypeInfo.As.PROPERTY, property = "type")
 @JsonTypeIdResolver(EnumTypeIdResolver.class)
 @TypesEnum(types = TransformType.class, format = "com.dremio.dac.proto.model.dataset.Transform%s")
-public abstract class TransformBase  {
+public abstract class TransformBase {
 
-  public static final Acceptor<TransformBase, TransformVisitor<?>, Transform> acceptor = new Acceptor<TransformBase, TransformVisitor<?>, Transform>(){};
+  public static final Acceptor<TransformBase, TransformVisitor<?>, Transform> acceptor =
+      new Acceptor<TransformBase, TransformVisitor<?>, Transform>() {};
 
   public final <T> T accept(TransformVisitor<T> visitor) throws VisitorException {
     return acceptor.accept(visitor, this);
@@ -76,21 +74,37 @@ public abstract class TransformBase  {
    */
   public interface TransformVisitor<T> {
     T visit(TransformLookup lookup) throws Exception;
+
     T visit(TransformJoin join) throws Exception;
+
     T visit(TransformSort sort) throws Exception;
+
     T visit(TransformSorts sortMultiple) throws Exception;
+
     T visit(TransformDrop drop) throws Exception;
+
     T visit(TransformRename rename) throws Exception;
+
     T visit(TransformConvertCase convertCase) throws Exception;
+
     T visit(TransformTrim trim) throws Exception;
+
     T visit(TransformExtract extract) throws Exception;
+
     T visit(TransformAddCalculatedField addCalculatedField) throws Exception;
+
     T visit(TransformUpdateSQL updateSQL) throws Exception;
+
     T visit(TransformField field) throws Exception;
+
     T visit(TransformConvertToSingleType convertToSingleType) throws Exception;
+
     T visit(TransformSplitByDataType splitByDataType) throws Exception;
+
     T visit(TransformGroupBy groupBy) throws Exception;
+
     T visit(TransformFilter filter) throws Exception;
+
     T visit(TransformCreateFromParent createFromParent) throws Exception;
   }
 

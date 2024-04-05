@@ -15,9 +15,6 @@
  */
 package com.dremio.plugins.dataplane.exec;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.sql.handlers.query.VacuumCatalogCompatibilityChecker;
@@ -25,29 +22,35 @@ import com.dremio.exec.store.StoragePlugin;
 import com.dremio.options.OptionManager;
 import com.dremio.plugins.dataplane.store.AbstractDataplanePluginConfig.StorageProviderType;
 import com.dremio.plugins.dataplane.store.DataplanePlugin;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * Vacuum Catalog has selective support against different filesystem sources. This class is used to apply the selection
- * of compatible source types
+ * Vacuum Catalog has selective support against different filesystem sources. This class is used to
+ * apply the selection of compatible source types
  */
 public class VacuumCatalogCompatibilityCheckerImpl implements VacuumCatalogCompatibilityChecker {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(VacuumCatalogCompatibilityCheckerImpl.class);
+  private static final Logger LOGGER =
+      LoggerFactory.getLogger(VacuumCatalogCompatibilityCheckerImpl.class);
 
   @Override
   public void checkCompatibility(StoragePlugin plugin, OptionManager options) {
     LOGGER.info("Executing compatibility checks, which are applicable for versioned sources.");
     if (!(plugin instanceof DataplanePlugin)) {
-      throw UserException.validationError().message("VACUUM CATALOG is only supported on versioned sources.")
-        .buildSilently();
+      throw UserException.validationError()
+          .message("VACUUM CATALOG is only supported on versioned sources.")
+          .buildSilently();
     }
 
     DataplanePlugin dataplanePlugin = (DataplanePlugin) plugin;
     StorageProviderType storageProvider = dataplanePlugin.getConfig().getStorageProvider();
-    if (!options.getOption(ExecConstants.ENABLE_ICEBERG_VACUUM_CATALOG_ON_AZURE) && storageProvider != null &&
-      StorageProviderType.AZURE.equals(storageProvider)) {
-      throw UserException.validationError().message("VACUUM CATALOG is not supported on Azure file storage.")
-        .buildSilently();
+    if (!options.getOption(ExecConstants.ENABLE_ICEBERG_VACUUM_CATALOG_ON_AZURE)
+        && storageProvider != null
+        && StorageProviderType.AZURE.equals(storageProvider)) {
+      throw UserException.validationError()
+          .message("VACUUM CATALOG is not supported on Azure file storage.")
+          .buildSilently();
     }
   }
 }

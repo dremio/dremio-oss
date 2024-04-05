@@ -15,16 +15,13 @@
  */
 package com.dremio.exec.planner.logical;
 
+import com.dremio.exec.calcite.logical.TableOptimizeCrel;
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.rel.RelNode;
 
-import com.dremio.exec.calcite.logical.TableOptimizeCrel;
-
-/**
- * Planner rule, Applicable for OPTIMIZE command only.
- */
+/** Planner rule, Applicable for OPTIMIZE command only. */
 public class TableOptimizeRule extends RelOptRule {
 
   public static final RelOptRule INSTANCE = new TableOptimizeRule();
@@ -37,12 +34,16 @@ public class TableOptimizeRule extends RelOptRule {
   public void onMatch(RelOptRuleCall call) {
     final TableOptimizeCrel optimizeCrel = call.rel(0);
     final RelNode input = optimizeCrel.getInput();
-    //Set traits with Logical convention, Else it won't fetch the best plan.
+    // Set traits with Logical convention, Else it won't fetch the best plan.
     final RelNode convertedInput = convert(input, input.getTraitSet().plus(Rel.LOGICAL).simplify());
-    call.transformTo(new TableOptimizeRel(
-      optimizeCrel.getCluster(),
-      optimizeCrel.getTraitSet().plus(Rel.LOGICAL),
-      convertedInput, optimizeCrel.getTable(), optimizeCrel.getCreateTableEntry(),
-            optimizeCrel.getOptimizeOptions(), null));
+    call.transformTo(
+        new TableOptimizeRel(
+            optimizeCrel.getCluster(),
+            optimizeCrel.getTraitSet().plus(Rel.LOGICAL),
+            convertedInput,
+            optimizeCrel.getTable(),
+            optimizeCrel.getCreateTableEntry(),
+            optimizeCrel.getOptimizeOptions(),
+            null));
   }
 }

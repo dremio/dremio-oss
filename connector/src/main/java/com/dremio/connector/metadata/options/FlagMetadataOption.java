@@ -17,8 +17,5 @@ package com.dremio.connector.metadata.options;
 
 import com.dremio.connector.metadata.MetadataOption;
 
-/**
- * Flag metadata option. The option is set if it exists.
- */
-public interface FlagMetadataOption extends MetadataOption {
-}
+/** Flag metadata option. The option is set if it exists. */
+public interface FlagMetadataOption extends MetadataOption {}

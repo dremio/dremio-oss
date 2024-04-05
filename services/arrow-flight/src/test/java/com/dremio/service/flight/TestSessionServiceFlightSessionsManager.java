@@ -27,15 +27,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
-import javax.inject.Provider;
-
-import org.apache.arrow.flight.CallHeaders;
-import org.apache.arrow.flight.ErrorFlightMetadata;
-import org.apache.arrow.flight.FlightCallHeaders;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.datastore.api.options.ImmutableVersionOption;
 import com.dremio.datastore.api.options.VersionOption;
@@ -50,10 +41,15 @@ import com.dremio.service.flight.client.properties.DremioFlightClientProperties;
 import com.dremio.service.tokens.TokenDetails;
 import com.dremio.service.tokens.TokenManager;
 import com.dremio.service.usersessions.UserSessionService;
+import javax.inject.Provider;
+import org.apache.arrow.flight.CallHeaders;
+import org.apache.arrow.flight.ErrorFlightMetadata;
+import org.apache.arrow.flight.FlightCallHeaders;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
-/**
- * Unit tests for DremioFlightSessionsManager
- */
+/** Unit tests for DremioFlightSessionsManager */
 public class TestSessionServiceFlightSessionsManager {
   private static final String TOKEN1 = "TOKEN_1";
   private static final String TOKEN2 = "TOKEN_2";
@@ -63,12 +59,16 @@ public class TestSessionServiceFlightSessionsManager {
   private static final boolean DEFAULT_SUPPORT_COMPLEX_TYPES = true;
   private static final String DEFAULT_RPC_ENDPOINT_INFO_NAME = "Arrow Flight";
 
-  private static final UserSession USER1_SESSION = UserSession.Builder.newBuilder()
-    .withCredentials(UserBitShared.UserCredentials.newBuilder().setUserName(USERNAME1).build())
-    .build();
-  private static final UserSession USER2_SESSION = UserSession.Builder.newBuilder()
-    .withCredentials(UserBitShared.UserCredentials.newBuilder().setUserName(USERNAME2).build())
-    .build();
+  private static final UserSession USER1_SESSION =
+      UserSession.Builder.newBuilder()
+          .withCredentials(
+              UserBitShared.UserCredentials.newBuilder().setUserName(USERNAME1).build())
+          .build();
+  private static final UserSession USER2_SESSION =
+      UserSession.Builder.newBuilder()
+          .withCredentials(
+              UserBitShared.UserCredentials.newBuilder().setUserName(USERNAME2).build())
+          .build();
 
   private static final long TOKEN_EXPIRATION_MINS = 60L;
   private static final long MAX_NUMBER_OF_SESSIONS = 2L;
@@ -90,24 +90,26 @@ public class TestSessionServiceFlightSessionsManager {
 
     when(mockSabotContextProvider.get()).thenReturn(mockSabotContext);
     when(mockSabotContextProvider.get().getOptionManager()).thenReturn(mockOptionManager);
-    when(mockSabotContextProvider.get().getOptionManager().getOption(SESSION_EXPIRATION_TIME_MINUTES))
-      .thenReturn(TOKEN_EXPIRATION_MINS);
+    when(mockSabotContextProvider
+            .get()
+            .getOptionManager()
+            .getOption(SESSION_EXPIRATION_TIME_MINUTES))
+        .thenReturn(TOKEN_EXPIRATION_MINS);
     when(mockTokenManagerProvider.get()).thenReturn(mockTokenManager);
     when(mockUserSessionServiceProvider.get()).thenReturn(mockUserSessionService);
     when(mockSabotContextProvider.get().getOptionValidatorListing())
-      .thenReturn(mock(OptionValidatorListing.class));
+        .thenReturn(mock(OptionValidatorListing.class));
     when(mockOptionManager.getOption("client.max_metadata_count"))
-      .thenReturn(OptionValue.createLong(OptionValue.OptionType.SESSION, "dummy", 0L));
+        .thenReturn(OptionValue.createLong(OptionValue.OptionType.SESSION, "dummy", 0L));
     when(mockOptionManager.getOption(MAX_SESSIONS)).thenReturn(MAX_NUMBER_OF_SESSIONS);
     sessionsManager =
-      new SessionServiceFlightSessionsManager(mockSabotContextProvider, mockTokenManagerProvider, mockUserSessionServiceProvider);
+        new SessionServiceFlightSessionsManager(
+            mockSabotContextProvider, mockTokenManagerProvider, mockUserSessionServiceProvider);
     spySessionsManager = spy(sessionsManager);
 
-    doReturn(USER1_SESSION)
-      .when(spySessionsManager).buildUserSession(USERNAME1, null);
+    doReturn(USER1_SESSION).when(spySessionsManager).buildUserSession(USERNAME1, null);
 
-    doReturn(USER2_SESSION)
-      .when(spySessionsManager).buildUserSession(USERNAME2, null);
+    doReturn(USER2_SESSION).when(spySessionsManager).buildUserSession(USERNAME2, null);
   }
 
   @After
@@ -126,15 +128,15 @@ public class TestSessionServiceFlightSessionsManager {
     final CallHeaders headers2 = new FlightCallHeaders();
     final VersionOption version = new ImmutableVersionOption.Builder().setTag("version").build();
 
-    doReturn(TokenDetails.of(TOKEN1, USERNAME1, 100))
-      .when(mockTokenManager).validateToken(TOKEN1);
-    doReturn(TokenDetails.of(TOKEN2, USERNAME2, 100))
-      .when(mockTokenManager).validateToken(TOKEN2);
+    doReturn(TokenDetails.of(TOKEN1, USERNAME1, 100)).when(mockTokenManager).validateToken(TOKEN1);
+    doReturn(TokenDetails.of(TOKEN2, USERNAME2, 100)).when(mockTokenManager).validateToken(TOKEN2);
 
     doReturn(new UserSessionService.SessionIdAndVersion(sessionId1, version))
-      .when(mockUserSessionService).putSession(USER1_SESSION);
+        .when(mockUserSessionService)
+        .putSession(USER1_SESSION);
     doReturn(new UserSessionService.SessionIdAndVersion(sessionId2, version))
-      .when(mockUserSessionService).putSession(USER2_SESSION);
+        .when(mockUserSessionService)
+        .putSession(USER2_SESSION);
 
     spySessionsManager.createUserSession(TOKEN1, null);
     spySessionsManager.createUserSession(TOKEN2, null);
@@ -143,13 +145,17 @@ public class TestSessionServiceFlightSessionsManager {
     headers2.insert(COOKIE_HEADER, String.format("%s=%s", SESSION_ID_KEY, sessionId2));
 
     doReturn(new UserSessionService.UserSessionAndVersion(USER1_SESSION, version))
-      .when(mockUserSessionService).getSession(sessionId1);
+        .when(mockUserSessionService)
+        .getSession(sessionId1);
     doReturn(new UserSessionService.UserSessionAndVersion(USER2_SESSION, version))
-      .when(mockUserSessionService).getSession(sessionId2);
+        .when(mockUserSessionService)
+        .getSession(sessionId2);
 
     // Act
-    final UserSession actualUser1 = spySessionsManager.getUserSession(TOKEN1, headers1).getSession();
-    final UserSession actualUser2 = spySessionsManager.getUserSession(TOKEN2, headers2).getSession();
+    final UserSession actualUser1 =
+        spySessionsManager.getUserSession(TOKEN1, headers1).getSession();
+    final UserSession actualUser2 =
+        spySessionsManager.getUserSession(TOKEN2, headers2).getSession();
 
     // Assert
     assertEquals(USER1_SESSION, actualUser1);
@@ -198,14 +204,21 @@ public class TestSessionServiceFlightSessionsManager {
     final String testSchema = "test.catalog.table";
     final String testRoutingTag = "test-tag";
     final String testRoutingQueue = "test-queue-name";
-    final UserSession userSession = UserSession.Builder.newBuilder()
-      .withUserProperties(
-        UserProtos.UserProperties.newBuilder()
-          .addProperties(DremioFlightClientProperties.createUserProperty(UserSession.SCHEMA, testSchema))
-          .addProperties(DremioFlightClientProperties.createUserProperty(UserSession.ROUTING_TAG, testRoutingTag))
-          .addProperties(DremioFlightClientProperties.createUserProperty(UserSession.ROUTING_QUEUE, testRoutingQueue))
-          .build())
-      .build();
+    final UserSession userSession =
+        UserSession.Builder.newBuilder()
+            .withUserProperties(
+                UserProtos.UserProperties.newBuilder()
+                    .addProperties(
+                        DremioFlightClientProperties.createUserProperty(
+                            UserSession.SCHEMA, testSchema))
+                    .addProperties(
+                        DremioFlightClientProperties.createUserProperty(
+                            UserSession.ROUTING_TAG, testRoutingTag))
+                    .addProperties(
+                        DremioFlightClientProperties.createUserProperty(
+                            UserSession.ROUTING_QUEUE, testRoutingQueue))
+                    .build())
+            .build();
 
     final String testPeerIdentity = "tempToken";
     final String newSchema = "new.catalog.table";
@@ -217,17 +230,20 @@ public class TestSessionServiceFlightSessionsManager {
     incomingCallHeaders.insert(UserSession.SCHEMA, newSchema);
 
     doReturn(TokenDetails.of(testPeerIdentity, testUser, 100))
-      .when(mockTokenManager).validateToken(testPeerIdentity);
-    doReturn(userSession)
-      .when(spySessionsManager).buildUserSession(testUser, incomingCallHeaders);
+        .when(mockTokenManager)
+        .validateToken(testPeerIdentity);
+    doReturn(userSession).when(spySessionsManager).buildUserSession(testUser, incomingCallHeaders);
     doReturn(new UserSessionService.SessionIdAndVersion(sessionId, version))
-      .when(mockUserSessionService).putSession(userSession);
+        .when(mockUserSessionService)
+        .putSession(userSession);
     doReturn(new UserSessionService.UserSessionAndVersion(userSession, version))
-      .when(mockUserSessionService).getSession(sessionId);
+        .when(mockUserSessionService)
+        .getSession(sessionId);
 
     // Act
     spySessionsManager.createUserSession(testPeerIdentity, incomingCallHeaders);
-    final UserSession actual = spySessionsManager.getUserSession(testPeerIdentity, incomingCallHeaders).getSession();
+    final UserSession actual =
+        spySessionsManager.getUserSession(testPeerIdentity, incomingCallHeaders).getSession();
 
     // Verify
     assertEquals(newSchema, String.join(".", actual.getDefaultSchemaPath().getPathComponents()));
@@ -242,15 +258,21 @@ public class TestSessionServiceFlightSessionsManager {
     final String testSchema = "test.catalog.table";
     final String testRoutingTag = "test-tag";
     final String testRoutingQueue = "test-queue-name";
-    final UserSession userSession = UserSession.Builder.newBuilder()
-      .withUserProperties(
-        UserProtos.UserProperties.newBuilder()
-          .addProperties(DremioFlightClientProperties.createUserProperty(UserSession.SCHEMA, testSchema))
-          .addProperties(DremioFlightClientProperties.createUserProperty(UserSession.ROUTING_TAG, testRoutingTag))
-          .addProperties(DremioFlightClientProperties.createUserProperty(UserSession.ROUTING_QUEUE, testRoutingQueue))
-          .build())
-      .build();
-
+    final UserSession userSession =
+        UserSession.Builder.newBuilder()
+            .withUserProperties(
+                UserProtos.UserProperties.newBuilder()
+                    .addProperties(
+                        DremioFlightClientProperties.createUserProperty(
+                            UserSession.SCHEMA, testSchema))
+                    .addProperties(
+                        DremioFlightClientProperties.createUserProperty(
+                            UserSession.ROUTING_TAG, testRoutingTag))
+                    .addProperties(
+                        DremioFlightClientProperties.createUserProperty(
+                            UserSession.ROUTING_QUEUE, testRoutingQueue))
+                    .build())
+            .build();
 
     final String testPeerIdentity = "tempToken";
     final String sessionId = "sessionId";
@@ -258,21 +280,24 @@ public class TestSessionServiceFlightSessionsManager {
     final CallHeaders incomingCallHeaders = new FlightCallHeaders();
     incomingCallHeaders.insert(COOKIE_HEADER, String.format("%s=%s", SESSION_ID_KEY, sessionId));
 
-    doReturn(userSession)
-      .when(spySessionsManager).buildUserSession(testUser, incomingCallHeaders);
+    doReturn(userSession).when(spySessionsManager).buildUserSession(testUser, incomingCallHeaders);
 
     doReturn(TokenDetails.of(testPeerIdentity, testUser, 100))
-      .when(mockTokenManager).validateToken(testPeerIdentity);
+        .when(mockTokenManager)
+        .validateToken(testPeerIdentity);
 
     doReturn(new UserSessionService.SessionIdAndVersion(sessionId, version))
-      .when(mockUserSessionService).putSession(userSession);
+        .when(mockUserSessionService)
+        .putSession(userSession);
 
     doReturn(new UserSessionService.UserSessionAndVersion(userSession, version))
-      .when(mockUserSessionService).getSession(sessionId);
+        .when(mockUserSessionService)
+        .getSession(sessionId);
 
     // Act
     spySessionsManager.createUserSession(testPeerIdentity, incomingCallHeaders);
-    final UserSession actual = spySessionsManager.getUserSession(testPeerIdentity, incomingCallHeaders).getSession();
+    final UserSession actual =
+        spySessionsManager.getUserSession(testPeerIdentity, incomingCallHeaders).getSession();
 
     // Verify
     assertEquals(testSchema, String.join(".", actual.getDefaultSchemaPath().getPathComponents()));

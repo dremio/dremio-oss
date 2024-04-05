@@ -15,14 +15,11 @@
  */
 package com.dremio.exec.store.sys.statistics;
 
-import java.sql.Timestamp;
-
 import com.dremio.exec.proto.StatisticsRPC;
 import com.dremio.service.Service;
+import java.sql.Timestamp;
 
-/**
- * Exposes the acceleration store to the execution engine
- */
+/** Exposes the acceleration store to the execution engine */
 public interface StatisticsListManager extends Service {
 
   Iterable<StatisticsInfo> getStatisticsInfos();
@@ -37,7 +34,15 @@ public interface StatisticsListManager extends Service {
     public final String quantiles;
     public final String heavy_hitters;
 
-    public StatisticsInfo(String table, String column, Timestamp createdAt, Long ndv, Long rowCount, Long nullCount, String quantiles, String heavyHitters) {
+    public StatisticsInfo(
+        String table,
+        String column,
+        Timestamp createdAt,
+        Long ndv,
+        Long rowCount,
+        Long nullCount,
+        String quantiles,
+        String heavyHitters) {
       this.table = table;
       this.column = column;
       this.created_at = createdAt;
@@ -54,22 +59,29 @@ public interface StatisticsListManager extends Service {
 
     public static StatisticsInfo fromProto(StatisticsRPC.StatisticsInfo statisticsInfo) {
 
-      return new StatisticsInfo(statisticsInfo.getTable(),
-        statisticsInfo.getColumn(),
-        new Timestamp(statisticsInfo.getCreatedAt()),
-        statisticsInfo.getNumberOfDistinctValues() == -1 ? null : statisticsInfo.getNumberOfDistinctValues(),
-        statisticsInfo.getRowCount() == -1 ? null : statisticsInfo.getRowCount(),
-        statisticsInfo.getNullCount() == -1 ? null : statisticsInfo.getNullCount(),
-        statisticsInfo.getQuantiles().equals("null") ? null : statisticsInfo.getQuantiles(),
-        statisticsInfo.getHeavyHitters().equals("null") ? null :statisticsInfo.getHeavyHitters());
+      return new StatisticsInfo(
+          statisticsInfo.getTable(),
+          statisticsInfo.getColumn(),
+          new Timestamp(statisticsInfo.getCreatedAt()),
+          statisticsInfo.getNumberOfDistinctValues() == -1
+              ? null
+              : statisticsInfo.getNumberOfDistinctValues(),
+          statisticsInfo.getRowCount() == -1 ? null : statisticsInfo.getRowCount(),
+          statisticsInfo.getNullCount() == -1 ? null : statisticsInfo.getNullCount(),
+          statisticsInfo.getQuantiles().equals("null") ? null : statisticsInfo.getQuantiles(),
+          statisticsInfo.getHeavyHitters().equals("null")
+              ? null
+              : statisticsInfo.getHeavyHitters());
     }
 
     public StatisticsRPC.StatisticsInfo toProto() {
-      StatisticsRPC.StatisticsInfo.Builder protoStatisticsInfo = StatisticsRPC.StatisticsInfo.newBuilder();
+      StatisticsRPC.StatisticsInfo.Builder protoStatisticsInfo =
+          StatisticsRPC.StatisticsInfo.newBuilder();
       protoStatisticsInfo.setTable(table);
       protoStatisticsInfo.setColumn(column);
       protoStatisticsInfo.setCreatedAt(created_at.getTime());
-      protoStatisticsInfo.setNumberOfDistinctValues(number_of_distinct_values == null ? -1 : number_of_distinct_values);
+      protoStatisticsInfo.setNumberOfDistinctValues(
+          number_of_distinct_values == null ? -1 : number_of_distinct_values);
       protoStatisticsInfo.setRowCount(row_count == null ? -1 : row_count);
       protoStatisticsInfo.setNullCount(null_count == null ? -1 : null_count);
       protoStatisticsInfo.setQuantiles(quantiles == null ? "null" : quantiles);

@@ -15,11 +15,10 @@
  */
 package com.dremio.jdbc;
 
-
 public class SQLConversionOverflowException extends SQLConversionException {
   private static final long serialVersionUID = 2015_04_07L;
 
-  public SQLConversionOverflowException( String message ) {
-    super( message );
+  public SQLConversionOverflowException(String message) {
+    super(message);
   }
 }

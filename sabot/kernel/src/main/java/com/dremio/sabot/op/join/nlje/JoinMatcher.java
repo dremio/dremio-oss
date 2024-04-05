@@ -19,28 +19,33 @@ import com.dremio.common.expression.LogicalExpression;
 import com.dremio.exec.expr.ClassProducer;
 import com.dremio.exec.record.VectorAccessible;
 
-/**
- * Generates matches for NLJE joins
- */
+/** Generates matches for NLJE joins */
 interface JoinMatcher extends AutoCloseable {
 
   /**
    * Output next set of values.
+   *
    * @return Number of values output.
    */
   int output();
 
-  void setup(LogicalExpression expr, ClassProducer classProducer, VectorAccessible probe, VectorAccessible build)
+  void setup(
+      LogicalExpression expr,
+      ClassProducer classProducer,
+      VectorAccessible probe,
+      VectorAccessible build)
       throws Exception;
 
   /**
    * Read the new probe batch and determine how many matches there are.
+   *
    * @param records Number of records in the batch.
    */
   void startNextProbe(int records);
 
   /**
    * Whether we have completely consumed the current batch and need another to produce more data.
+   *
    * @return
    */
   boolean needNextInput();
@@ -50,18 +55,21 @@ interface JoinMatcher extends AutoCloseable {
 
   /**
    * Time spent copying.
+   *
    * @return Time in nanoseconds
    */
   long getCopyNanos();
 
   /**
    * Time spent matching
+   *
    * @return Time in nanoseconds
    */
   long getMatchNanos();
 
   /**
    * Get the number records that have been probed thus far.
+   *
    * @return Number of probed records
    */
   long getProbeCount();

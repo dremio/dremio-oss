@@ -15,24 +15,19 @@
  */
 package org.apache.hadoop.fs;
 
+import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
-
 import org.apache.hadoop.io.ByteBufferPool;
 
-import com.google.common.base.Preconditions;
-
-/**
- * Copy of hadoop's org.apache.hadoop.fs.ByteBufferUtil, with a bugfix for HADOOP-15911
- */
+/** Copy of hadoop's org.apache.hadoop.fs.ByteBufferUtil, with a bugfix for HADOOP-15911 */
 public final class ByteBufferUtil {
   static final int MAX_BUFFERED_READ = 256 * 1024;
-  private static final ThreadLocal<byte[]> heapBuffer = ThreadLocal.withInitial(() -> new byte[MAX_BUFFERED_READ]);
+  private static final ThreadLocal<byte[]> heapBuffer =
+      ThreadLocal.withInitial(() -> new byte[MAX_BUFFERED_READ]);
 
-  /**
-   * Determine if a stream can do a byte buffer read via read(ByteBuffer buf)
-   */
+  /** Determine if a stream can do a byte buffer read via read(ByteBuffer buf) */
   private static boolean streamHasByteBufferRead(InputStream stream) {
     if (!(stream instanceof ByteBufferReadable)) {
       return false;
@@ -40,27 +35,25 @@ public final class ByteBufferUtil {
     if (!(stream instanceof FSDataInputStream)) {
       return true;
     }
-    return ((FSDataInputStream)stream).getWrappedStream()
-      instanceof ByteBufferReadable;
+    return ((FSDataInputStream) stream).getWrappedStream() instanceof ByteBufferReadable;
   }
 
-  /**
-   * Perform a fallback read.
-   */
+  /** Perform a fallback read. */
   public static ByteBuffer fallbackRead(
-    InputStream stream, ByteBufferPool bufferPool, int maxLength)
-    throws IOException {
+      InputStream stream, ByteBufferPool bufferPool, int maxLength) throws IOException {
     if (bufferPool == null) {
-      throw new UnsupportedOperationException("zero-copy reads " +
-        "were not available, and you did not provide a fallback " +
-        "ByteBufferPool.");
+      throw new UnsupportedOperationException(
+          "zero-copy reads "
+              + "were not available, and you did not provide a fallback "
+              + "ByteBufferPool.");
     }
     final boolean useDirect = streamHasByteBufferRead(stream);
     ByteBuffer buffer = bufferPool.getBuffer(true, maxLength);
     if (buffer == null) {
-      throw new UnsupportedOperationException("zero-copy reads " +
-        "were not available, and the ByteBufferPool did not provide " +
-        "us with a direct buffer.");
+      throw new UnsupportedOperationException(
+          "zero-copy reads "
+              + "were not available, and the ByteBufferPool did not provide "
+              + "us with a direct buffer.");
     }
     Preconditions.checkState(buffer.capacity() > 0);
     Preconditions.checkState(buffer.isDirect());
@@ -70,7 +63,7 @@ public final class ByteBufferUtil {
       if (useDirect) {
         buffer.clear();
         buffer.limit(maxLength);
-        ByteBufferReadable readable = (ByteBufferReadable)stream;
+        ByteBufferReadable readable = (ByteBufferReadable) stream;
         int totalRead = 0;
         while (true) {
           if (totalRead >= maxLength) {

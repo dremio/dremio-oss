@@ -16,30 +16,33 @@
 
 package com.dremio.sabot.op.join.vhash;
 
+import com.dremio.common.AutoCloseables;
+import com.dremio.exec.physical.config.RuntimeFilterProbeTarget;
+import com.dremio.exec.util.ValueListFilter;
+import com.dremio.exec.util.ValueListFilterBuilder;
+import com.dremio.sabot.op.common.ht2.FixedBlockVector;
+import com.dremio.sabot.op.common.ht2.HashTable;
+import com.dremio.sabot.op.common.ht2.HashTableFilterUtil;
+import com.dremio.sabot.op.common.ht2.HashTableKeyReader;
+import com.dremio.sabot.op.common.ht2.PivotDef;
+import com.dremio.sabot.op.common.ht2.VariableBlockVector;
+import com.dremio.sabot.op.common.ht2.VectorPivotDef;
+import com.dremio.sabot.op.join.vhash.spill.partition.DiskPartitionFilterHelper;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 
-import com.dremio.common.AutoCloseables;
-import com.dremio.exec.physical.config.RuntimeFilterProbeTarget;
-import com.dremio.exec.util.ValueListFilter;
-import com.dremio.exec.util.ValueListFilterBuilder;
-import com.dremio.sabot.op.common.ht2.HashTable;
-import com.dremio.sabot.op.common.ht2.HashTableFilterUtil;
-import com.dremio.sabot.op.common.ht2.HashTableKeyReader;
-import com.dremio.sabot.op.common.ht2.PivotDef;
-import com.dremio.sabot.op.common.ht2.VectorPivotDef;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
-
 public class NonPartitionColFilters implements AutoCloseable {
-  private final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(NonPartitionColFilters.class);
+  private final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(NonPartitionColFilters.class);
   static final int MAX_VAL_LIST_FILTER_KEY_SIZE = 17;
 
   private final List<NonPartitionColFilter> nonPartitionColFilters;
@@ -49,20 +52,27 @@ public class NonPartitionColFilters implements AutoCloseable {
   private final PivotDef pivotDef;
   private final int maxElements;
 
-  public NonPartitionColFilters(BufferAllocator allocator, List<RuntimeFilterProbeTarget> probeTargets, PivotDef pivotDef, int maxElements) {
-    this.allocator = allocator.newChildAllocator("nonpartition-col-filters", 0, allocator.getLimit());
+  public NonPartitionColFilters(
+      BufferAllocator allocator,
+      List<RuntimeFilterProbeTarget> probeTargets,
+      PivotDef pivotDef,
+      int maxElements) {
+    this.allocator =
+        allocator.newChildAllocator("nonpartition-col-filters", 0, allocator.getLimit());
     this.probeTargets = probeTargets;
     this.pivotDef = pivotDef;
     this.maxElements = maxElements;
     this.nonPartitionColFilters = build();
   }
 
-  private static ArrowType getFieldType(final List<VectorPivotDef> vectorPivotDefs, final String fieldName) {
+  private static ArrowType getFieldType(
+      final List<VectorPivotDef> vectorPivotDefs, final String fieldName) {
     return vectorPivotDefs.stream()
-      .map(p -> p.getIncomingVector().getField())
-      .filter(f -> f.getName().equalsIgnoreCase(fieldName))
-      .map(f -> f.getType())
-      .findAny().orElse(null);
+        .map(p -> p.getIncomingVector().getField())
+        .filter(f -> f.getName().equalsIgnoreCase(fieldName))
+        .map(f -> f.getType())
+        .findAny()
+        .orElse(null);
   }
 
   private void setFieldType(final ValueListFilterBuilder filterBuilder, final String fieldName) {
@@ -90,8 +100,9 @@ public class NonPartitionColFilters implements AutoCloseable {
       RuntimeFilterProbeTarget probeTarget = probeTargets.get(i);
 
       if (CollectionUtils.isEmpty(probeTarget.getNonPartitionBuildTableKeys())) {
-        NonPartitionColFilter nonPartitionColFilter = new NonPartitionColFilter(probeTarget,
-          Collections.emptyList(), Collections.emptyList());
+        NonPartitionColFilter nonPartitionColFilter =
+            new NonPartitionColFilter(
+                probeTarget, Collections.emptyList(), Collections.emptyList());
         nonPartitionColFilters.add(nonPartitionColFilter);
         logger.warn("Ignoring empty non partition col filter(" + i + ")");
         continue;
@@ -110,18 +121,28 @@ public class NonPartitionColFilters implements AutoCloseable {
 
         final boolean isBooleanField = pivotDef.isBoolField(fieldName);
 
-        try (AutoCloseables.RollbackCloseable closeOnError = new AutoCloseables.RollbackCloseable()) {
-          final HashTableKeyReader keyReader = new HashTableKeyReader.Builder()
-            .setBufferAllocator(allocator)
-            .setFieldsToRead(ImmutableList.of(fieldName))
-            .setPivot(pivotDef)
-            .setSetVarFieldLenInFirstByte(true) // Set length at first byte, to avoid comparison issues for different size values.
-            .setMaxKeySize(MAX_VAL_LIST_FILTER_KEY_SIZE) // Max key size 16, excluding one byte for validity bits.
-            .build();
+        try (AutoCloseables.RollbackCloseable closeOnError =
+            new AutoCloseables.RollbackCloseable()) {
+          final HashTableKeyReader keyReader =
+              new HashTableKeyReader.Builder()
+                  .setBufferAllocator(allocator)
+                  .setFieldsToRead(ImmutableList.of(fieldName))
+                  .setPivot(pivotDef)
+                  .setSetVarFieldLenInFirstByte(
+                      true) // Set length at first byte, to avoid comparison issues for different
+                  // size values.
+                  .setMaxKeySize(
+                      MAX_VAL_LIST_FILTER_KEY_SIZE) // Max key size 16, excluding one byte for
+                  // validity bits.
+                  .build();
           closeOnError.add(keyReader);
 
-          ValueListFilterBuilder filterBuilder = new ValueListFilterBuilder(allocator, maxElements,
-            isBooleanField ? 0 : keyReader.getEffectiveKeySize(), isBooleanField);
+          ValueListFilterBuilder filterBuilder =
+              new ValueListFilterBuilder(
+                  allocator,
+                  maxElements,
+                  isBooleanField ? 0 : keyReader.getEffectiveKeySize(),
+                  isBooleanField);
           filterBuilder.setup();
           filterBuilder.setFieldName(probeTarget.getNonPartitionProbeTableKeys().get(colId));
           filterBuilder.setName(Thread.currentThread().getName());
@@ -133,12 +154,13 @@ public class NonPartitionColFilters implements AutoCloseable {
           keyReaderList.add(keyReader);
           valueListFilterBuilderList.add(filterBuilder);
         } catch (Exception e) {
-          logger.warn("Unable to prepare value list filter for {} because {}", fieldName, e.getMessage());
+          logger.warn(
+              "Unable to prepare value list filter for {} because {}", fieldName, e.getMessage());
         }
       }
       Preconditions.checkState(keyReaderList.size() == valueListFilterBuilderList.size());
-      NonPartitionColFilter nonPartitionColFilter = new NonPartitionColFilter(probeTarget,
-        keyReaderList, valueListFilterBuilderList);
+      NonPartitionColFilter nonPartitionColFilter =
+          new NonPartitionColFilter(probeTarget, keyReaderList, valueListFilterBuilderList);
       nonPartitionColFilters.add(nonPartitionColFilter);
     }
 
@@ -148,7 +170,8 @@ public class NonPartitionColFilters implements AutoCloseable {
   public void finalizeValueListFilters() {
     for (int i = 0; i < probeTargets.size(); i++) {
       NonPartitionColFilter nonPartitionColFilter = nonPartitionColFilters.get(i);
-      List<ValueListFilterBuilder> valueListFilterBuilderList = nonPartitionColFilter.getValueListFilterBuilderList();
+      List<ValueListFilterBuilder> valueListFilterBuilderList =
+          nonPartitionColFilter.getValueListFilterBuilderList();
       List<HashTableKeyReader> keyReaderList = nonPartitionColFilter.getKeyReaderList();
       Preconditions.checkState(keyReaderList.size() == valueListFilterBuilderList.size());
 
@@ -165,8 +188,32 @@ public class NonPartitionColFilters implements AutoCloseable {
   public void prepareValueListFilters(HashTable hashTable) {
     for (int i = 0; i < nonPartitionColFilters.size(); i++) {
       NonPartitionColFilter nonPartitionColFilter = nonPartitionColFilters.get(i);
-      HashTableFilterUtil.prepareValueListFilters(nonPartitionColFilter.getKeyReaderList(),
-        nonPartitionColFilter.getValueListFilterBuilderList(), pivotDef, hashTable);
+      HashTableFilterUtil.prepareValueListFilters(
+          nonPartitionColFilter.getKeyReaderList(),
+          nonPartitionColFilter.getValueListFilterBuilderList(),
+          pivotDef,
+          hashTable);
+    }
+  }
+
+  // For disk partition
+  public void prepareValueListFilters(
+      FixedBlockVector pivotedFixedBlockVector,
+      VariableBlockVector pivotedVariableBlockVector,
+      int pivotShift,
+      int records,
+      ArrowBuf sv2) {
+    for (int i = 0; i < nonPartitionColFilters.size(); i++) {
+      NonPartitionColFilter nonPartitionColFilter = nonPartitionColFilters.get(i);
+      DiskPartitionFilterHelper.prepareValueListFilters(
+          nonPartitionColFilter.getKeyReaderList(),
+          nonPartitionColFilter.getValueListFilterBuilderList(),
+          pivotDef,
+          pivotedFixedBlockVector,
+          pivotedVariableBlockVector,
+          pivotShift,
+          records,
+          sv2);
     }
   }
 
@@ -176,7 +223,8 @@ public class NonPartitionColFilters implements AutoCloseable {
     AutoCloseables.close(allocator);
   }
 
-  public List<ValueListFilter> getValueListFilters(int index, RuntimeFilterProbeTarget probeTarget) {
+  public List<ValueListFilter> getValueListFilters(
+      int index, RuntimeFilterProbeTarget probeTarget) {
     NonPartitionColFilter nonPartitionColFilter = nonPartitionColFilters.get(index);
     Preconditions.checkState(nonPartitionColFilter.getProbeTarget() == probeTarget);
     return nonPartitionColFilter.getValueListFilters();
@@ -188,9 +236,10 @@ public class NonPartitionColFilters implements AutoCloseable {
     private final List<ValueListFilterBuilder> valueListFilterBuilderList;
     private List<ValueListFilter> valueListFilters = null;
 
-    public NonPartitionColFilter(RuntimeFilterProbeTarget probeTarget,
-                                 List<HashTableKeyReader> keyReaderList,
-                                 List<ValueListFilterBuilder> valueListFilterBuilderList) {
+    public NonPartitionColFilter(
+        RuntimeFilterProbeTarget probeTarget,
+        List<HashTableKeyReader> keyReaderList,
+        List<ValueListFilterBuilder> valueListFilterBuilderList) {
       this.probeTarget = probeTarget;
       this.keyReaderList = keyReaderList;
       this.valueListFilterBuilderList = valueListFilterBuilderList;

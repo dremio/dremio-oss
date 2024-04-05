@@ -15,10 +15,6 @@
  */
 package com.dremio.dac.explore;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.Collectors;
-
 import com.dremio.dac.proto.model.dataset.Column;
 import com.dremio.dac.proto.model.dataset.ExpCalculatedField;
 import com.dremio.dac.proto.model.dataset.ExpColumnReference;
@@ -31,9 +27,13 @@ import com.dremio.dac.proto.model.dataset.OrderDirection;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetState;
 import com.dremio.service.jobs.metadata.proto.QueryMetadata;
 import com.dremio.service.namespace.dataset.proto.ViewFieldType;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
- * Allows us to convert user submitted queries into internal dataset state to provide better queries upon transformation.
+ * Allows us to convert user submitted queries into internal dataset state to provide better queries
+ * upon transformation.
  */
 public final class QuerySemantics {
 
@@ -41,6 +41,7 @@ public final class QuerySemantics {
 
   /**
    * Will parse a sql query and return a Dataset state
+   *
    * @return the corresponding state
    */
   public static VirtualDatasetState extract(QueryMetadata metadata) {
@@ -51,25 +52,23 @@ public final class QuerySemantics {
     }
     if (pState.getColumnsCount() > 0) {
       state.setColumnsList(
-        pState.getColumnsList()
-          .stream()
-          .map((c) -> new Column(c.getName(), fromBuf(c.getExpression())))
-          .collect(Collectors.toList()));
+          pState.getColumnsList().stream()
+              .map((c) -> new Column(c.getName(), fromBuf(c.getExpression())))
+              .collect(Collectors.toList()));
     }
     if (pState.getOrdersCount() > 0) {
       state.setOrdersList(
-        pState.getOrdersList()
-          .stream()
-          .map((o) -> new Order(o.getName(), OrderDirection.valueOf(o.getDirection().name())))
-          .collect(Collectors.toList())
-      );
+          pState.getOrdersList().stream()
+              .map((o) -> new Order(o.getName(), OrderDirection.valueOf(o.getDirection().name())))
+              .collect(Collectors.toList()));
     }
     state.setReferredTablesList(pState.getReferredTablesList());
     state.setContextList(pState.getContextList());
     return state;
   }
 
-  public static void populateSemanticFields(List<ViewFieldType> viewFieldTypes, VirtualDatasetState state){
+  public static void populateSemanticFields(
+      List<ViewFieldType> viewFieldTypes, VirtualDatasetState state) {
     List<Column> columns = new ArrayList<>();
     for (ViewFieldType fieldType : viewFieldTypes) {
       ExpColumnReference colRef = new ExpColumnReference(fieldType.getName());
@@ -99,5 +98,4 @@ public final class QuerySemantics {
         throw new IllegalStateException("Unrecognized ExpressionType " + pExpression.getType());
     }
   }
-
 }

@@ -17,13 +17,10 @@ package com.dremio.dac.server;
 
 import javax.ws.rs.core.Configuration;
 
-/**
- * Helper class to use with {@code javax.ws.rs.core.Configuration#getProperty(String)}
- */
-public  final class PropertyHelper {
+/** Helper class to use with {@code javax.ws.rs.core.Configuration#getProperty(String)} */
+public final class PropertyHelper {
 
-  private PropertyHelper() {
-  }
+  private PropertyHelper() {}
 
   /**
    * Get the property value as boolean
@@ -45,5 +42,4 @@ public  final class PropertyHelper {
 
     return Boolean.parseBoolean(property.toString());
   }
-
 }

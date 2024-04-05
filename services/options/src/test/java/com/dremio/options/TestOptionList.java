@@ -18,25 +18,26 @@ package com.dremio.options;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 
-import java.util.SortedSet;
-
-import org.junit.Test;
-
 import com.dremio.options.OptionValue.OptionType;
 import com.google.common.collect.TreeMultimap;
+import java.util.SortedSet;
+import org.junit.Test;
 
-/**
- * Test for {@code OptionList} classes
- */
+/** Test for {@code OptionList} classes */
 public class TestOptionList {
 
   @Test
   public void testMergeOptionLists() {
-    final OptionValue optionValue0 = OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, "test-option0", false);
-    final OptionValue optionValue1 = OptionValue.createLong(OptionValue.OptionType.SYSTEM, "test-option1", 2);
-    final OptionValue optionValue2 = OptionValue.createLong(OptionValue.OptionType.SESSION, "test-option2", 4);
-    final OptionValue optionValue3 = OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, "test-option0", true);
-    final OptionValue optionValue4 = OptionValue.createLong(OptionValue.OptionType.SESSION, "test-option1", 2);
+    final OptionValue optionValue0 =
+        OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, "test-option0", false);
+    final OptionValue optionValue1 =
+        OptionValue.createLong(OptionValue.OptionType.SYSTEM, "test-option1", 2);
+    final OptionValue optionValue2 =
+        OptionValue.createLong(OptionValue.OptionType.SESSION, "test-option2", 4);
+    final OptionValue optionValue3 =
+        OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, "test-option0", true);
+    final OptionValue optionValue4 =
+        OptionValue.createLong(OptionValue.OptionType.SESSION, "test-option1", 2);
     final OptionList localList = new OptionList();
     localList.add(optionValue0);
     localList.add(optionValue1);
@@ -56,9 +57,12 @@ public class TestOptionList {
   @Test
   public void testOptionValueCompareOrder() {
     // Check OptionType order: QUERY > SESSION > SYSTEM > BOOT
-    final OptionValue optionValue0 = OptionValue.createLong(OptionValue.OptionType.SYSTEM, "test-option", 2);
-    final OptionValue optionValue1 = OptionValue.createLong(OptionValue.OptionType.SESSION, "test-option", 3);
-    final OptionValue optionValue2 = OptionValue.createLong(OptionValue.OptionType.QUERY, "test-option", 4);
+    final OptionValue optionValue0 =
+        OptionValue.createLong(OptionValue.OptionType.SYSTEM, "test-option", 2);
+    final OptionValue optionValue1 =
+        OptionValue.createLong(OptionValue.OptionType.SESSION, "test-option", 3);
+    final OptionValue optionValue2 =
+        OptionValue.createLong(OptionValue.OptionType.QUERY, "test-option", 4);
     final TreeMultimap<String, OptionValue> optionMap = TreeMultimap.create();
     optionMap.put(optionValue0.getName(), optionValue0);
     optionMap.put(optionValue1.getName(), optionValue1);
@@ -68,8 +72,6 @@ public class TestOptionList {
     assertEquals(OptionType.QUERY, maxType);
     assertEquals(OptionType.SYSTEM, minType);
     SortedSet<OptionValue> values = optionMap.get("nonexisting-test-option");
-    assertThat(values)
-      .isNotNull()
-      .isEmpty();
+    assertThat(values).isNotNull().isEmpty();
   }
 }

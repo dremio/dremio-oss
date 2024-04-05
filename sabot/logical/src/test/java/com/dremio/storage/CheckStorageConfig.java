@@ -17,14 +17,12 @@ package com.dremio.storage;
 
 import static org.junit.Assert.assertEquals;
 
-import java.util.Collection;
-
-import org.junit.Test;
-
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.logical.LogicalPlan;
 import com.dremio.common.store.StoragePluginConfig;
 import com.dremio.test.DremioTest;
+import java.util.Collection;
+import org.junit.Test;
 
 public class CheckStorageConfig extends DremioTest {
 
@@ -36,6 +34,9 @@ public class CheckStorageConfig extends DremioTest {
 
   @Test
   public void checkPlanParsing() {
-    LogicalPlan plan = LogicalPlan.parse(new LogicalPlanPersistence(DEFAULT_SABOT_CONFIG, CLASSPATH_SCAN_RESULT), readResourceAsString("/storage_engine_plan.json"));
+    LogicalPlan plan =
+        LogicalPlan.parse(
+            new LogicalPlanPersistence(CLASSPATH_SCAN_RESULT),
+            readResourceAsString("/storage_engine_plan.json"));
   }
 }

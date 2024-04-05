@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.time.Instant;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -32,13 +31,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Helper class to walk directories in the file system looking for executor and job directories
- * that needs clean up.
+ * Helper class to walk directories in the file system looking for executor and job directories that
+ * needs clean up.
  */
 final class FileSystemHelper {
   private static final Logger logger = LoggerFactory.getLogger(FileSystemHelper.class);
   private static final String NEW_INCARNATION_FORMAT = "%s" + File.separator + "%d";
-  private static final FsPermission PERMISSIONS = new FsPermission(FsAction.ALL, FsAction.NONE, FsAction.NONE);
+  private static final FsPermission PERMISSIONS =
+      new FsPermission(FsAction.ALL, FsAction.NONE, FsAction.NONE);
 
   private final Configuration conf;
 
@@ -49,7 +49,8 @@ final class FileSystemHelper {
   void visitDirectory(Path rootPath, String prefix, Consumer<FileStatus> statusConsumer) {
     try (final LocalFileSystemWrapper wrapper = new LocalFileSystemWrapper(rootPath, conf)) {
       final FileSystem fileSystem = wrapper.getWrappedFs();
-      final Path prefixPath = (prefix == null || prefix.isEmpty()) ? rootPath : new Path(rootPath, prefix);
+      final Path prefixPath =
+          (prefix == null || prefix.isEmpty()) ? rootPath : new Path(rootPath, prefix);
       if (fileSystem.exists(prefixPath)) {
         final FileStatus[] statuses = fileSystem.listStatus(prefixPath);
         for (final FileStatus fStatus : statuses) {
@@ -57,7 +58,9 @@ final class FileSystemHelper {
         }
       }
     } catch (IOException e) {
-      logger.warn("IO exception occurred while looking for stale executor incarnations. {}", e.getMessage());
+      logger.warn(
+          "IO exception occurred while looking for stale executor incarnations. {}",
+          e.getMessage());
     }
   }
 
@@ -73,21 +76,27 @@ final class FileSystemHelper {
         }
       }
     } catch (IOException e) {
-      logger.warn("IO exception occurred while looking for stale executor incarnations. {}", e.getMessage());
+      logger.warn(
+          "IO exception occurred while looking for stale executor incarnations. {}",
+          e.getMessage());
     }
   }
 
   void safeCleanDirectory(Path rootPath, String prefix, int stalenessLimitSeconds) {
-    visitDirectory(rootPath, prefix, fileStatus -> {
-      if (fileStatus.isDirectory() && isStaleModify(fileStatus, stalenessLimitSeconds)) {
-        safeCleanOldIncarnation(fileStatus.getPath(), stalenessLimitSeconds, false);
-      }
-    });
+    visitDirectory(
+        rootPath,
+        prefix,
+        fileStatus -> {
+          if (fileStatus.isDirectory() && isStaleModify(fileStatus, stalenessLimitSeconds)) {
+            safeCleanOldIncarnation(fileStatus.getPath(), stalenessLimitSeconds, false);
+          }
+        });
   }
 
   Path createTmpDirectory(Path rootPath, String prefix) throws IOException {
     final long incarnation = Instant.now().toEpochMilli();
-    final Path tmpDirPath = new Path(rootPath, String.format(NEW_INCARNATION_FORMAT, prefix, incarnation));
+    final Path tmpDirPath =
+        new Path(rootPath, String.format(NEW_INCARNATION_FORMAT, prefix, incarnation));
     try (final LocalFileSystemWrapper wrapper = new LocalFileSystemWrapper(rootPath, conf)) {
       final FileSystem fileSystem = wrapper.getWrappedFs();
       if (fileSystem.exists(tmpDirPath) || fileSystem.mkdirs(tmpDirPath, PERMISSIONS)) {
@@ -102,20 +111,25 @@ final class FileSystemHelper {
       final FileSystem fileSystem = wrapper.getWrappedFs();
       final boolean[] canDelete = new boolean[1];
       canDelete[0] = true;
-      walkDirectory(fileSystem, incarnationDir, fileStatus -> {
-        if (!isStaleAccess(fileStatus, stalenessLimitSeconds)) {
-          canDelete[0] = false;
-        }
-      });
+      walkDirectory(
+          fileSystem,
+          incarnationDir,
+          fileStatus -> {
+            if (!isStaleAccess(fileStatus, stalenessLimitSeconds)) {
+              canDelete[0] = false;
+            }
+          });
       if (canDelete[0]) {
         logger.info("Cleaning up {}", incarnationDir);
         fileSystem.delete(incarnationDir, true);
         logger.info("Cleanup done for {}", incarnationDir);
       } else if (warn) {
-        logger.warn("Unable to cleanup directory {} due to unexpected recent access", incarnationDir);
+        logger.warn(
+            "Unable to cleanup directory {} due to unexpected recent access", incarnationDir);
       }
     } catch (IOException e) {
-      logger.warn("Unable to clean {}. Cleanup may be retried in the next iteration", incarnationDir);
+      logger.warn(
+          "Unable to clean {}. Cleanup may be retried in the next iteration", incarnationDir);
     }
   }
 
@@ -132,20 +146,25 @@ final class FileSystemHelper {
         }
       }
     } catch (IOException e) {
-      logger.warn("IO exception occurred while looking for stale executor incarnations. {}", e.getMessage());
+      logger.warn(
+          "IO exception occurred while looking for stale executor incarnations. {}",
+          e.getMessage());
     }
   }
 
   private static boolean isStaleModify(FileStatus fileStatus, int stalenessLimitSeconds) {
     final long currentTime = Instant.now().toEpochMilli();
-    final long lastModified = TimeUnit.MILLISECONDS.toSeconds(currentTime - fileStatus.getModificationTime());
+    final long lastModified =
+        TimeUnit.MILLISECONDS.toSeconds(currentTime - fileStatus.getModificationTime());
     return lastModified > stalenessLimitSeconds;
   }
 
   private static boolean isStaleAccess(FileStatus fileStatus, int stalenessLimitSeconds) {
     final long currentTime = Instant.now().toEpochMilli();
-    final long lastAccessed = TimeUnit.MILLISECONDS.toSeconds(currentTime - fileStatus.getAccessTime());
-    final long lastModified = TimeUnit.MILLISECONDS.toSeconds(currentTime - fileStatus.getModificationTime());
+    final long lastAccessed =
+        TimeUnit.MILLISECONDS.toSeconds(currentTime - fileStatus.getAccessTime());
+    final long lastModified =
+        TimeUnit.MILLISECONDS.toSeconds(currentTime - fileStatus.getModificationTime());
     return lastAccessed > stalenessLimitSeconds && lastModified > stalenessLimitSeconds;
   }
 

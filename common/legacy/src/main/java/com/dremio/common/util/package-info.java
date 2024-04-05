@@ -13,7 +13,5 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/**
- * Utilities useful across packages.
- */
+/** Utilities useful across packages. */
 package com.dremio.common.util;

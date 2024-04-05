@@ -15,21 +15,20 @@
  */
 package com.dremio.exec.compile;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TestRule;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.common.util.TestTools;
 import com.dremio.exec.ExecConstants;
 import com.google.common.base.Joiner;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TestRule;
 
 public class TestLargeFileCompilation extends BaseTestQuery {
-  @Rule public final TestRule timeoutRule = TestTools.getTimeoutRule(150, TimeUnit.SECONDS); // 150secs
+  @Rule
+  public final TestRule timeoutRule = TestTools.getTimeoutRule(150, TimeUnit.SECONDS); // 150secs
 
   private static final String LARGE_QUERY_GROUP_BY;
 
@@ -43,7 +42,8 @@ public class TestLargeFileCompilation extends BaseTestQuery {
 
   private static final String LARGE_QUERY_SELECT_LIST;
 
-  private static final int ITERATION_COUNT = Integer.valueOf(System.getProperty("TestLargeFileCompilation.iteration", "1"));
+  private static final int ITERATION_COUNT =
+      Integer.valueOf(System.getProperty("TestLargeFileCompilation.iteration", "1"));
 
   private static final int NUM_PROJECT_COULMNS = 2000;
 
@@ -92,13 +92,15 @@ public class TestLargeFileCompilation extends BaseTestQuery {
   }
 
   static {
-    StringBuilder sb = new StringBuilder("select *\n")
-      .append("from cp.\"employee.json\"\n")
-      .append("where");
+    StringBuilder sb =
+        new StringBuilder("select *\n").append("from cp.\"employee.json\"\n").append("where");
     for (int i = 0; i < NUM_FILTER_COULMNS; i++) {
-      sb.append(" employee_id+").append(i).append(" < employee_id ").append(i%2==0?"OR":"AND");
+      sb.append(" employee_id+")
+          .append(i)
+          .append(" < employee_id ")
+          .append(i % 2 == 0 ? "OR" : "AND");
     }
-    LARGE_QUERY_FILTER = sb.append(" true") .toString();
+    LARGE_QUERY_FILTER = sb.append(" true").toString();
   }
 
   static {
@@ -122,7 +124,8 @@ public class TestLargeFileCompilation extends BaseTestQuery {
     testNoResult("alter session set \"%s\"='JDK'", ClassCompilerSelector.JAVA_COMPILER_OPTION);
     testNoResult("use dfs_test");
     testNoResult("alter session set \"%s\"='parquet'", ExecConstants.OUTPUT_FORMAT_OPTION);
-    testNoResult(ITERATION_COUNT, "create table %s as %s", "wide_table_parquet", LARGE_SELECT_QUERY);
+    testNoResult(
+        ITERATION_COUNT, "create table %s as %s", "wide_table_parquet", LARGE_SELECT_QUERY);
   }
 
   @Test
@@ -157,104 +160,105 @@ public class TestLargeFileCompilation extends BaseTestQuery {
 
   @Test
   public void testFilterWithMultipleCaseStatements() throws Exception {
-    String sql = "SELECT CASE \n" +
-      "         WHEN ( l.l_orderkey = 1 ) THEN 'one' \n" +
-      "         WHEN ( l.l_orderkey = 2 ) THEN 'two' \n" +
-      "         WHEN ( l.l_orderkey = 3 ) THEN 'three' \n" +
-      "         WHEN ( l.l_orderkey = 4 ) THEN 'four' \n" +
-      "         WHEN ( l.l_orderkey = 5 ) THEN 'five' \n" +
-      "         WHEN ( l.l_orderkey = 6 ) THEN 'six' \n" +
-      "         WHEN ( l.l_orderkey = 7 ) THEN 'seven' \n" +
-      "         WHEN ( l.l_orderkey = 8 ) THEN 'eight' \n" +
-      "         WHEN ( l.l_orderkey = 9 ) THEN 'nine' \n" +
-      "         WHEN ( l.l_orderkey = 10 ) THEN 'ten' \n" +
-      "         WHEN ( l.l_orderkey = 11 ) THEN 'eleven' \n" +
-      "         WHEN ( l.l_orderkey = 12 ) THEN 'twelve' \n" +
-      "         WHEN ( l.l_orderkey = 13 ) THEN 'thirteen' \n" +
-      "         WHEN ( l.l_orderkey = 14 ) THEN 'fourteen' \n" +
-      "         WHEN ( l.l_orderkey = 15 ) THEN 'fifteen' \n" +
-      "         WHEN ( l.l_orderkey = 16 ) THEN 'sixteen' \n" +
-      "         WHEN ( l.l_orderkey = 17 ) THEN 'seventeen' \n" +
-      "         WHEN ( l.l_orderkey = 18 ) THEN 'eighteen' \n" +
-      "         WHEN ( l.l_orderkey = 19 ) THEN 'nineteen' \n" +
-      "         WHEN ( l.l_orderkey = 20 ) THEN 'twenty' \n" +
-      "         WHEN ( l.l_orderkey = 21 ) THEN 'twenty one' \n" +
-      "         ELSE NULL \n" +
-      "       end AS calculation \n" +
-      "FROM   cp.\"tpch/lineitem.parquet\" l\n" +
-      "WHERE  ( ( ( CASE \n" +
-      "               WHEN ( l.l_orderkey = 1 ) THEN  'one' \n" +
-      "               WHEN ( l.l_orderkey = 2 ) THEN  'two' \n" +
-      "               WHEN ( l.l_orderkey = 3 ) THEN  'three' \n" +
-      "               WHEN ( l.l_orderkey = 4 ) THEN  'four' \n" +
-      "               WHEN ( l.l_orderkey = 5 ) THEN  'five' \n" +
-      "               WHEN ( l.l_orderkey = 6 ) THEN  'six' \n" +
-      "               WHEN ( l.l_orderkey = 7 ) THEN  'seven' \n" +
-      "               WHEN ( l.l_orderkey = 8 ) THEN  'eight' \n" +
-      "               WHEN ( l.l_orderkey = 9 ) THEN  'nine' \n" +
-      "               WHEN ( l.l_orderkey = 10 ) THEN 'ten' \n" +
-      "               WHEN ( l.l_orderkey = 11 ) THEN 'eleven' \n" +
-      "               WHEN ( l.l_orderkey = 12 ) THEN 'twelve' \n" +
-      "               WHEN ( l.l_orderkey = 13 ) THEN 'thirteen' \n" +
-      "               WHEN ( l.l_orderkey = 14 ) THEN 'fourteen' \n" +
-      "               WHEN ( l.l_orderkey = 15 ) THEN 'fifteen' \n" +
-      "               WHEN ( l.l_orderkey = 16 ) THEN 'sixteen' \n" +
-      "               WHEN ( l.l_orderkey = 17 ) THEN 'seventeen' \n" +
-      "               WHEN ( l.l_orderkey = 18 ) THEN 'eighteen' \n" +
-      "               WHEN ( l.l_orderkey = 19 ) THEN 'nineteen' \n" +
-      "               WHEN ( l.l_orderkey = 20 ) THEN 'twenty' \n" +
-      "               WHEN ( l.l_orderkey = 21 ) THEN 'twenty one' \n" +
-      "               ELSE NULL \n" +
-      "             end ) IN (\n" +
-      "                'one',\n" +
-      "                'two',\n" +
-      "                'three',\n" +
-      "                'four',\n" +
-      "                'five',\n" +
-      "                'six',\n" +
-      "                'seven',\n" +
-      "                'eight',\n" +
-      "                'nine',\n" +
-      "                'ten',\n" +
-      "                'eleven',\n" +
-      "                'twelve',\n" +
-      "                'thirteen',\n" +
-      "                'fourteen',\n" +
-      "                'fifteen',\n" +
-      "                'sixteen',\n" +
-      "                'seventeen',\n" +
-      "                'eighteen',\n" +
-      "                'nineteen',\n" +
-      "                'twenty' \n" +
-      "                'twenty one' \n" +
-      "\t\t) ) \n" +
-      "         AND ( ( CASE \n" +
-      "                   WHEN ( ( CASE \n" +
-      "                              WHEN ( l.l_orderkey = 1 ) THEN 'one' \n" +
-      "                              WHEN ( l.l_orderkey = 2 ) THEN 'two' \n" +
-      "                              WHEN ( l.l_orderkey = 3 ) THEN 'three' \n" +
-      "                              WHEN ( l.l_orderkey = 4 ) THEN 'four' \n" +
-      "                              WHEN ( l.l_orderkey = 5 ) THEN 'five' \n" +
-      "                              WHEN ( l.l_orderkey = 6 ) THEN 'six' \n" +
-      "                              WHEN ( l.l_orderkey = 7 ) THEN 'seven' \n" +
-      "                              WHEN ( l.l_orderkey = 8 ) THEN 'eight' \n" +
-      "                              WHEN ( l.l_orderkey = 9 ) THEN 'nine' \n" +
-      "                              WHEN ( l.l_orderkey = 10 ) THEN 'ten' \n" +
-      "                              WHEN ( l.l_orderkey = 11 ) THEN 'eleven' \n" +
-      "                              WHEN ( l.l_orderkey = 12 ) THEN 'twelve' \n" +
-      "                              WHEN ( l.l_orderkey = 13 ) THEN 'thirteen' \n" +
-      "                              WHEN ( l.l_orderkey = 14 ) THEN 'fourteen' \n" +
-      "                              WHEN ( l.l_orderkey = 15 ) THEN 'fifteen' \n" +
-      "                              WHEN ( l.l_orderkey = 16 ) THEN 'sixteen' \n" +
-      "                              WHEN ( l.l_orderkey = 17 ) THEN 'seventeen' \n" +
-      "                              WHEN ( l.l_orderkey = 18 ) THEN 'eighteen' \n" +
-      "                              WHEN ( l.l_orderkey = 19 ) THEN 'nineteen' \n" +
-      "                              WHEN ( l.l_orderkey = 20 ) THEN 'twenty' \n" +
-      "                              WHEN ( l.l_orderkey = 21 ) THEN 'twenty one' \n" +
-      "                              ELSE NULL \n" +
-      "                            end ) IS NULL ) THEN 0 \n" +
-      "                   ELSE 1 \n" +
-      "                 end ) = 1 ) )\n";
+    String sql =
+        "SELECT CASE \n"
+            + "         WHEN ( l.l_orderkey = 1 ) THEN 'one' \n"
+            + "         WHEN ( l.l_orderkey = 2 ) THEN 'two' \n"
+            + "         WHEN ( l.l_orderkey = 3 ) THEN 'three' \n"
+            + "         WHEN ( l.l_orderkey = 4 ) THEN 'four' \n"
+            + "         WHEN ( l.l_orderkey = 5 ) THEN 'five' \n"
+            + "         WHEN ( l.l_orderkey = 6 ) THEN 'six' \n"
+            + "         WHEN ( l.l_orderkey = 7 ) THEN 'seven' \n"
+            + "         WHEN ( l.l_orderkey = 8 ) THEN 'eight' \n"
+            + "         WHEN ( l.l_orderkey = 9 ) THEN 'nine' \n"
+            + "         WHEN ( l.l_orderkey = 10 ) THEN 'ten' \n"
+            + "         WHEN ( l.l_orderkey = 11 ) THEN 'eleven' \n"
+            + "         WHEN ( l.l_orderkey = 12 ) THEN 'twelve' \n"
+            + "         WHEN ( l.l_orderkey = 13 ) THEN 'thirteen' \n"
+            + "         WHEN ( l.l_orderkey = 14 ) THEN 'fourteen' \n"
+            + "         WHEN ( l.l_orderkey = 15 ) THEN 'fifteen' \n"
+            + "         WHEN ( l.l_orderkey = 16 ) THEN 'sixteen' \n"
+            + "         WHEN ( l.l_orderkey = 17 ) THEN 'seventeen' \n"
+            + "         WHEN ( l.l_orderkey = 18 ) THEN 'eighteen' \n"
+            + "         WHEN ( l.l_orderkey = 19 ) THEN 'nineteen' \n"
+            + "         WHEN ( l.l_orderkey = 20 ) THEN 'twenty' \n"
+            + "         WHEN ( l.l_orderkey = 21 ) THEN 'twenty one' \n"
+            + "         ELSE NULL \n"
+            + "       end AS calculation \n"
+            + "FROM   cp.\"tpch/lineitem.parquet\" l\n"
+            + "WHERE  ( ( ( CASE \n"
+            + "               WHEN ( l.l_orderkey = 1 ) THEN  'one' \n"
+            + "               WHEN ( l.l_orderkey = 2 ) THEN  'two' \n"
+            + "               WHEN ( l.l_orderkey = 3 ) THEN  'three' \n"
+            + "               WHEN ( l.l_orderkey = 4 ) THEN  'four' \n"
+            + "               WHEN ( l.l_orderkey = 5 ) THEN  'five' \n"
+            + "               WHEN ( l.l_orderkey = 6 ) THEN  'six' \n"
+            + "               WHEN ( l.l_orderkey = 7 ) THEN  'seven' \n"
+            + "               WHEN ( l.l_orderkey = 8 ) THEN  'eight' \n"
+            + "               WHEN ( l.l_orderkey = 9 ) THEN  'nine' \n"
+            + "               WHEN ( l.l_orderkey = 10 ) THEN 'ten' \n"
+            + "               WHEN ( l.l_orderkey = 11 ) THEN 'eleven' \n"
+            + "               WHEN ( l.l_orderkey = 12 ) THEN 'twelve' \n"
+            + "               WHEN ( l.l_orderkey = 13 ) THEN 'thirteen' \n"
+            + "               WHEN ( l.l_orderkey = 14 ) THEN 'fourteen' \n"
+            + "               WHEN ( l.l_orderkey = 15 ) THEN 'fifteen' \n"
+            + "               WHEN ( l.l_orderkey = 16 ) THEN 'sixteen' \n"
+            + "               WHEN ( l.l_orderkey = 17 ) THEN 'seventeen' \n"
+            + "               WHEN ( l.l_orderkey = 18 ) THEN 'eighteen' \n"
+            + "               WHEN ( l.l_orderkey = 19 ) THEN 'nineteen' \n"
+            + "               WHEN ( l.l_orderkey = 20 ) THEN 'twenty' \n"
+            + "               WHEN ( l.l_orderkey = 21 ) THEN 'twenty one' \n"
+            + "               ELSE NULL \n"
+            + "             end ) IN (\n"
+            + "                'one',\n"
+            + "                'two',\n"
+            + "                'three',\n"
+            + "                'four',\n"
+            + "                'five',\n"
+            + "                'six',\n"
+            + "                'seven',\n"
+            + "                'eight',\n"
+            + "                'nine',\n"
+            + "                'ten',\n"
+            + "                'eleven',\n"
+            + "                'twelve',\n"
+            + "                'thirteen',\n"
+            + "                'fourteen',\n"
+            + "                'fifteen',\n"
+            + "                'sixteen',\n"
+            + "                'seventeen',\n"
+            + "                'eighteen',\n"
+            + "                'nineteen',\n"
+            + "                'twenty' \n"
+            + "                'twenty one' \n"
+            + "\t\t) ) \n"
+            + "         AND ( ( CASE \n"
+            + "                   WHEN ( ( CASE \n"
+            + "                              WHEN ( l.l_orderkey = 1 ) THEN 'one' \n"
+            + "                              WHEN ( l.l_orderkey = 2 ) THEN 'two' \n"
+            + "                              WHEN ( l.l_orderkey = 3 ) THEN 'three' \n"
+            + "                              WHEN ( l.l_orderkey = 4 ) THEN 'four' \n"
+            + "                              WHEN ( l.l_orderkey = 5 ) THEN 'five' \n"
+            + "                              WHEN ( l.l_orderkey = 6 ) THEN 'six' \n"
+            + "                              WHEN ( l.l_orderkey = 7 ) THEN 'seven' \n"
+            + "                              WHEN ( l.l_orderkey = 8 ) THEN 'eight' \n"
+            + "                              WHEN ( l.l_orderkey = 9 ) THEN 'nine' \n"
+            + "                              WHEN ( l.l_orderkey = 10 ) THEN 'ten' \n"
+            + "                              WHEN ( l.l_orderkey = 11 ) THEN 'eleven' \n"
+            + "                              WHEN ( l.l_orderkey = 12 ) THEN 'twelve' \n"
+            + "                              WHEN ( l.l_orderkey = 13 ) THEN 'thirteen' \n"
+            + "                              WHEN ( l.l_orderkey = 14 ) THEN 'fourteen' \n"
+            + "                              WHEN ( l.l_orderkey = 15 ) THEN 'fifteen' \n"
+            + "                              WHEN ( l.l_orderkey = 16 ) THEN 'sixteen' \n"
+            + "                              WHEN ( l.l_orderkey = 17 ) THEN 'seventeen' \n"
+            + "                              WHEN ( l.l_orderkey = 18 ) THEN 'eighteen' \n"
+            + "                              WHEN ( l.l_orderkey = 19 ) THEN 'nineteen' \n"
+            + "                              WHEN ( l.l_orderkey = 20 ) THEN 'twenty' \n"
+            + "                              WHEN ( l.l_orderkey = 21 ) THEN 'twenty one' \n"
+            + "                              ELSE NULL \n"
+            + "                            end ) IS NULL ) THEN 0 \n"
+            + "                   ELSE 1 \n"
+            + "                 end ) = 1 ) )\n";
     test(sql);
   }
 

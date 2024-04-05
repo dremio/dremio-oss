@@ -17,15 +17,13 @@ package com.dremio.exec.store.json;
 
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
-import java.nio.file.Path;
-import java.nio.file.Paths;
-
-import org.junit.Test;
-
 import com.dremio.PlanTestBase;
 import com.dremio.TestBuilder;
 import com.dremio.common.exceptions.UserRemoteException;
 import com.dremio.exec.proto.UserBitShared;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import org.junit.Test;
 
 public class TestJsonFiltersNoMixedTypes extends PlanTestBase {
 
@@ -112,7 +110,8 @@ public class TestJsonFiltersNoMixedTypes extends PlanTestBase {
   @Test
   public void testBetweenFilterSelectSingleColumn() throws Exception {
     Path jsonDir = copyFiles("double_and_bigint");
-    String query = "SELECT heading1 from dfs.\"" + jsonDir + "\" where heading1 between 12.0 and 13.0";
+    String query =
+        "SELECT heading1 from dfs.\"" + jsonDir + "\" where heading1 between 12.0 and 13.0";
     triggerSchemaLearning(jsonDir);
     verifyRecords(query, "heading1", 12.3, 12.4, 12.0, 13.0);
   }
@@ -142,10 +141,8 @@ public class TestJsonFiltersNoMixedTypes extends PlanTestBase {
   }
 
   void verifyRecords(String query, String baselineCol, Object... values) throws Exception {
-    TestBuilder testBuilder = testBuilder()
-      .sqlQuery(query)
-      .unOrdered()
-      .baselineColumns(baselineCol);
+    TestBuilder testBuilder =
+        testBuilder().sqlQuery(query).unOrdered().baselineColumns(baselineCol);
     for (Object value : values) {
       testBuilder.baselineValues(value);
     }
@@ -153,10 +150,7 @@ public class TestJsonFiltersNoMixedTypes extends PlanTestBase {
   }
 
   void verifyEmptyResult(String query) throws Exception {
-    testBuilder()
-      .sqlQuery(query)
-      .expectsEmptyResultSet()
-      .go();
+    testBuilder().sqlQuery(query).expectsEmptyResultSet().go();
   }
 
   private Path copyFiles(String dirName) {
@@ -168,9 +162,9 @@ public class TestJsonFiltersNoMixedTypes extends PlanTestBase {
   private void triggerSchemaLearning(Path jsonDir) {
     String query = String.format("SELECT * FROM dfs.\"%s\"", jsonDir);
     assertThatExceptionOfType(Exception.class)
-      .isThrownBy(() -> testRunAndReturn(UserBitShared.QueryType.SQL, query))
-      .havingCause()
-      .isInstanceOf(UserRemoteException.class)
-      .withMessageContaining("New schema found");
+        .isThrownBy(() -> testRunAndReturn(UserBitShared.QueryType.SQL, query))
+        .havingCause()
+        .isInstanceOf(UserRemoteException.class)
+        .withMessageContaining("New schema found");
   }
 }

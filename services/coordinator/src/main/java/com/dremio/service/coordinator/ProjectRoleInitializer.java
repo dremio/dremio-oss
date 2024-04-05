@@ -17,8 +17,5 @@ package com.dremio.service.coordinator;
 
 import com.dremio.service.Service;
 
-/**
- * Place holder to initialize the project role provider
- */
-public interface ProjectRoleInitializer extends Service {
-}
+/** Place holder to initialize the project role provider */
+public interface ProjectRoleInitializer extends Service {}

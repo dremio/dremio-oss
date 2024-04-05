@@ -18,9 +18,7 @@ package com.dremio.dac.service.errors;
 import com.dremio.dac.model.folder.FolderPath;
 import com.dremio.dac.model.folder.FolderResourcePath;
 
-/**
- * Thrown when a folder is not found for a given path
- */
+/** Thrown when a folder is not found for a given path */
 public class FolderNotFoundException extends NotFoundException {
   private static final long serialVersionUID = 1L;
 

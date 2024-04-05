@@ -15,18 +15,15 @@
  */
 package com.dremio.dac.server;
 
+import com.dremio.common.scanner.persistence.ScanResult;
+import com.dremio.dac.annotations.RestResourceUsedForTesting;
+import com.dremio.exec.server.BootStrapContext;
 import javax.inject.Inject;
 import javax.ws.rs.core.Configuration;
 import javax.ws.rs.core.Feature;
 import javax.ws.rs.core.FeatureContext;
 
-import com.dremio.common.scanner.persistence.ScanResult;
-import com.dremio.dac.annotations.RestResourceUsedForTesting;
-import com.dremio.exec.server.BootStrapContext;
-
-/**
- * Feature to include test resources
- */
+/** Feature to include test resources */
 public class TestResourcesFeature implements Feature {
   private final ScanResult scanResult;
 

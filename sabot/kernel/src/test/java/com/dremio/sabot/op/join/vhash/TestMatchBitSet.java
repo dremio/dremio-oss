@@ -17,22 +17,18 @@ package com.dremio.sabot.op.join.vhash;
 
 import static org.junit.Assert.assertTrue;
 
+import com.dremio.sabot.BaseTestWithAllocator;
 import java.util.BitSet;
 import java.util.Random;
-
 import org.junit.Test;
 
-import com.dremio.sabot.BaseTestWithAllocator;
-
-/**
- * Unit test for {@link MatchBitSet}
- */
+/** Unit test for {@link MatchBitSet} */
 public class TestMatchBitSet extends BaseTestWithAllocator {
   private static final int WORD_BITS = 64;
 
   private void validateBits(final MatchBitSet matchBitSet, final BitSet bitSet, final int count) {
     assertTrue(matchBitSet.cardinality() == bitSet.cardinality());
-    for (int i = 0; i < count; i ++) {
+    for (int i = 0; i < count; i++) {
       assertTrue(matchBitSet.get(i) == bitSet.get(i));
       assertTrue(matchBitSet.nextUnSetBit(i) == bitSet.nextClearBit(i));
     }
@@ -40,12 +36,11 @@ public class TestMatchBitSet extends BaseTestWithAllocator {
 
   @Test
   public void randomBits() throws Exception {
-    final int count = 8*1024*1024;
+    final int count = 8 * 1024 * 1024;
     BitSet bitSet = new BitSet(count);
     final Random rand = new Random();
     try (MatchBitSet matchBitSet = new MatchBitSet(count, allocator)) {
-      for (int i = 0; i < count; i ++)
-      {
+      for (int i = 0; i < count; i++) {
 
         int val = rand.nextInt(10);
         if (val > 3) {
@@ -60,7 +55,7 @@ public class TestMatchBitSet extends BaseTestWithAllocator {
 
   @Test
   public void fullBits() throws Exception {
-    final int count = 256*1024;
+    final int count = 256 * 1024;
     BitSet bitSet = new BitSet(count);
     try (MatchBitSet matchBitSet = new MatchBitSet(count, allocator)) {
       for (int i = 0; i < count; i++) {
@@ -74,7 +69,7 @@ public class TestMatchBitSet extends BaseTestWithAllocator {
 
   @Test
   public void specifiedBits() throws Exception {
-    final int count = 256*1024 + 13;
+    final int count = 256 * 1024 + 13;
     BitSet bitSet = new BitSet(count);
     try (MatchBitSet matchBitSet = new MatchBitSet(count, allocator)) {
       for (int i = 0; i < count; i += WORD_BITS) {

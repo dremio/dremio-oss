@@ -18,9 +18,6 @@ package com.dremio.dac.obfuscate;
 
 import static org.junit.Assert.assertEquals;
 
-import org.jetbrains.annotations.NotNull;
-import org.junit.Test;
-
 import com.dremio.context.RequestContext;
 import com.dremio.context.SupportContext;
 import com.dremio.dac.explore.model.DatasetPath;
@@ -30,6 +27,8 @@ import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.dataset.DatasetVersion;
+import org.jetbrains.annotations.NotNull;
+import org.junit.Test;
 
 public class ObfuscationUtilsTest extends BaseTestServer {
 
@@ -37,10 +36,17 @@ public class ObfuscationUtilsTest extends BaseTestServer {
   public void obfuscateQueryProfilePositiveTest() throws Exception {
     ObfuscationUtils.setFullObfuscation(true);
     String query = "SELECT * FROM (VALUES(1234)) where 'MA' = 'MA' ";
-    String observedQuery = obfuscateQueryProfileHelper(new SupportContext("dummy", "dummy", new String[]{ SupportContext.SupportRole.BASIC_SUPPORT_ROLE.getValue() }), query);
-    String expectedQuery = "SELECT \"field_0\"\n" +
-      "FROM (VALUES ROW(1234))\n" +
-      "WHERE 'literal_994' = 'literal_994'";
+    String observedQuery =
+        obfuscateQueryProfileHelper(
+            new SupportContext(
+                "dummy",
+                "dummy",
+                new String[] {SupportContext.SupportRole.BASIC_SUPPORT_ROLE.getValue()}),
+            query);
+    String expectedQuery =
+        "SELECT \"field_0\"\n"
+            + "FROM (VALUES ROW(1234))\n"
+            + "WHERE 'literal_994' = 'literal_994'";
     assertEquals(expectedQuery, observedQuery);
   }
 
@@ -54,27 +60,29 @@ public class ObfuscationUtilsTest extends BaseTestServer {
 
   /**
    * Run query, get query profile and return query string from query profile.
+   *
    * @param supportContext
    * @param query
    * @return
    * @throws Exception
    */
-  private String obfuscateQueryProfileHelper(SupportContext supportContext, String query) throws Exception {
+  private String obfuscateQueryProfileHelper(SupportContext supportContext, String query)
+      throws Exception {
     return RequestContext.current()
-      .with(SupportContext.CTX_KEY, supportContext)
-      .call(() -> getQueryProfile(query).getQuery());
+        .with(SupportContext.CTX_KEY, supportContext)
+        .call(() -> getQueryProfile(query).getQuery());
   }
 
   @NotNull
   private UserBitShared.QueryProfile getQueryProfile(String query) throws Exception {
-    UserBitShared.QueryProfile queryProfile = getQueryProfile(
-      JobRequest.newBuilder()
-        .setSqlQuery(new SqlQuery(query, DEFAULT_USERNAME))
-        .setQueryType(QueryType.UI_INTERNAL_RUN)
-        .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
-        .setDatasetVersion(DatasetVersion.NONE)
-        .build()
-    );
+    UserBitShared.QueryProfile queryProfile =
+        getQueryProfile(
+            JobRequest.newBuilder()
+                .setSqlQuery(new SqlQuery(query, DEFAULT_USERNAME))
+                .setQueryType(QueryType.UI_INTERNAL_RUN)
+                .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+                .setDatasetVersion(DatasetVersion.NONE)
+                .build());
 
     queryProfile = ObfuscationUtils.obfuscate(queryProfile);
     assertEquals(UserBitShared.QueryResult.QueryState.COMPLETED, queryProfile.getState());

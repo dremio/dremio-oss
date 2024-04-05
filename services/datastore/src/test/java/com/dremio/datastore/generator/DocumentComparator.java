@@ -15,9 +15,8 @@
  */
 package com.dremio.datastore.generator;
 
-import java.util.Comparator;
-
 import com.dremio.datastore.api.Document;
+import java.util.Comparator;
 
 /**
  * Comparator for comparing Map.Entry with K, V as key and value types.
@@ -34,8 +33,8 @@ public class DocumentComparator<K, V> implements Comparator<Document<K, V>> {
 
   @Override
   public int compare(Document<K, V> o1, Document<K, V> o2) {
-    return (formatComparator == null)?
-      ((Comparable) o1.getKey()).compareTo(o2.getKey()) :
-      formatComparator.compare(o1.getKey(), o2.getKey());
+    return (formatComparator == null)
+        ? ((Comparable) o1.getKey()).compareTo(o2.getKey())
+        : formatComparator.compare(o1.getKey(), o2.getKey());
   }
 }

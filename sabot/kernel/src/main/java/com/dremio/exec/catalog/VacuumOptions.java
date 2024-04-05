@@ -15,14 +15,13 @@
  */
 package com.dremio.exec.catalog;
 
-
-
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class VacuumOptions {
   public static final String GC_RETENTION_MILLIS_PROP_NAME = "GC_RETENTION_MILLIS";
-  public static final String GC_LAST_RUN_TIMESTAMP_MILLIS_PROP_NAME = "GC_LAST_RUN_TIMESTAMP_MILLIS";
+  public static final String GC_LAST_RUN_TIMESTAMP_MILLIS_PROP_NAME =
+      "GC_LAST_RUN_TIMESTAMP_MILLIS";
   public static final String GC_LAST_RUN_TIMESTAMP_DEFAULT = "0";
   private final Long olderThanInMillis;
   private final Integer retainLast;
@@ -32,12 +31,13 @@ public class VacuumOptions {
   private final Long gracePeriodInMillis;
 
   @JsonCreator
-  public VacuumOptions(@JsonProperty("expireSnapshots") boolean expireSnapshots,
-                       @JsonProperty("removeOrphans") boolean removeOrphans,
-                       @JsonProperty("olderThanInMillis") Long olderThanInMillis,
-                       @JsonProperty("retainLast") Integer retainLast,
-                       @JsonProperty("location") String location,
-                       @JsonProperty("gracePeriodInMillis") Long gracePeriodInMillis) {
+  public VacuumOptions(
+      @JsonProperty("expireSnapshots") boolean expireSnapshots,
+      @JsonProperty("removeOrphans") boolean removeOrphans,
+      @JsonProperty("olderThanInMillis") Long olderThanInMillis,
+      @JsonProperty("retainLast") Integer retainLast,
+      @JsonProperty("location") String location,
+      @JsonProperty("gracePeriodInMillis") Long gracePeriodInMillis) {
     this.expireSnapshots = expireSnapshots;
     this.removeOrphans = removeOrphans;
     this.olderThanInMillis = olderThanInMillis;
@@ -82,13 +82,19 @@ public class VacuumOptions {
 
   @Override
   public String toString() {
-    return "VacuumOptions{" +
-      "olderThanInMillis=" + olderThanInMillis +
-      ", retainLast=" + retainLast +
-      ", expireSnapshots=" + expireSnapshots +
-      ", removeOrphans=" + removeOrphans +
-      ", location=" + location +
-      ", gracePeriodInMillis=" + gracePeriodInMillis +
-      '}';
+    return "VacuumOptions{"
+        + "olderThanInMillis="
+        + olderThanInMillis
+        + ", retainLast="
+        + retainLast
+        + ", expireSnapshots="
+        + expireSnapshots
+        + ", removeOrphans="
+        + removeOrphans
+        + ", location="
+        + location
+        + ", gracePeriodInMillis="
+        + gracePeriodInMillis
+        + '}';
   }
 }

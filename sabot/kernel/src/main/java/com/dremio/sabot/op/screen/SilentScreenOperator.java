@@ -19,15 +19,14 @@ import com.dremio.exec.proto.ExecProtos;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.sabot.op.spi.TerminalOperator;
 
-/**
- * A TerminalOperator which does not send messages to Coordinator
- */
+/** A TerminalOperator which does not send messages to Coordinator */
 public class SilentScreenOperator implements TerminalOperator {
 
   private State state = State.NEEDS_SETUP;
 
   @Override
-  public <OUT, IN, EXCEP extends Throwable> OUT accept(OperatorVisitor<OUT, IN, EXCEP> visitor, IN value) throws EXCEP {
+  public <OUT, IN, EXCEP extends Throwable> OUT accept(
+      OperatorVisitor<OUT, IN, EXCEP> visitor, IN value) throws EXCEP {
     return visitor.visitTerminalOperator(this, value);
   }
 

@@ -17,13 +17,17 @@ package com.dremio.exec.physical.impl.join;
 
 import static org.junit.Assert.assertEquals;
 
+import com.dremio.BaseTestQuery;
+import com.dremio.common.util.TestTools;
+import com.dremio.exec.ExecConstants;
+import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.resource.GroupResourceInformation;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
-
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
@@ -31,31 +35,29 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestRule;
 
-import com.dremio.BaseTestQuery;
-import com.dremio.common.util.TestTools;
-import com.dremio.exec.ExecConstants;
-import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.resource.GroupResourceInformation;
-
 public class TestMergeJoinAdvanced extends BaseTestQuery {
   @Rule
-  public final TestRule timeoutRule = TestTools.getTimeoutRule(120, TimeUnit.SECONDS); // Longer timeout than usual.
+  public final TestRule timeoutRule =
+      TestTools.getTimeoutRule(120, TimeUnit.SECONDS); // Longer timeout than usual.
 
   // Have to disable hash join to test merge join in this class
   @BeforeClass
   public static void disableHashJoin() throws Exception {
-    test("alter session set \"planner.enable_hashjoin\" = false; alter session set \"planner.enable_mergejoin\" = true");
+    test(
+        "alter session set \"planner.enable_hashjoin\" = false; alter session set \"planner.enable_mergejoin\" = true");
   }
 
   @AfterClass
   public static void enableHashJoin() throws Exception {
-    test("alter session set \"planner.enable_hashjoin\" = true; alter session set \"planner.enable_mergejoin\" = false");
+    test(
+        "alter session set \"planner.enable_hashjoin\" = true; alter session set \"planner.enable_mergejoin\" = false");
   }
 
   @Test
   public void testJoinWithDifferentTypesInCondition() throws Exception {
-    String query = "select t1.full_name from cp.\"employee.json\" t1, cp.\"department.json\" t2 " +
-        "where cast(t1.department_id as double) = t2.department_id and t1.employee_id = 1";
+    String query =
+        "select t1.full_name from cp.\"employee.json\" t1, cp.\"department.json\" t2 "
+            + "where cast(t1.department_id as double) = t2.department_id and t1.employee_id = 1";
 
     testBuilder()
         .sqlQuery(query)
@@ -65,11 +67,14 @@ public class TestMergeJoinAdvanced extends BaseTestQuery {
         .baselineValues("Sheri Nowmer")
         .go();
 
-
-    query = "select t1.bigint_col from cp.\"jsoninput/implicit_cast_join_1.json\" t1, cp.\"jsoninput/implicit_cast_join_1.json\" t2 " +
-        " where t1.bigint_col = cast(t2.bigint_col as int) and" + // join condition with bigint and int
-        " t1.double_col  = cast(t2.double_col as float) and" + // join condition with double and float
-        " t1.bigint_col = cast(t2.bigint_col as double)"; // join condition with bigint and double
+    query =
+        "select t1.bigint_col from cp.\"jsoninput/implicit_cast_join_1.json\" t1, cp.\"jsoninput/implicit_cast_join_1.json\" t2 "
+            + " where t1.bigint_col = cast(t2.bigint_col as int) and"
+            + // join condition with bigint and int
+            " t1.double_col  = cast(t2.double_col as float) and"
+            + // join condition with double and float
+            " t1.bigint_col = cast(t2.bigint_col as double)"; // join condition with bigint and
+    // double
 
     testBuilder()
         .sqlQuery(query)
@@ -79,19 +84,16 @@ public class TestMergeJoinAdvanced extends BaseTestQuery {
         .baselineValues(1L)
         .go();
 
-    try (AutoCloseable c = disableUnlimitedSplitsSupportFlags()) {
-      // date_dictionary.parquet file has implicit partition columns and the partition value is not same as
-      // value in the file.
-      query = "select count(*) col1 from " +
-        "(select t1.date_opt from cp.\"parquet/date_dictionary.parquet\" t1, cp.\"parquet/timestamp_table.parquet\" t2 " +
-        "where t1.date_opt = cast(t2.timestamp_col as date))"; // join condition contains date and timestamp
-      testBuilder()
-        .sqlQuery(query)
-        .unOrdered()
-        .baselineColumns("col1")
-        .baselineValues(4L)
-        .go();
-    }
+    // date_dictionary.parquet file has implicit partition columns and the partition value is not
+    // same as value in the file.
+    // DX-87601 Removing this poirtion of the test with move to unlimited splits
+    // query =
+    //     "select count(*) col1 from "
+    //         + "(select t1.date_opt from cp.\"parquet/date_dictionary.parquet\" t1,
+    // cp.\"parquet/timestamp_table.parquet\" t2 "
+    //         + "where t1.date_opt = cast(t2.timestamp_col as date))"; // join condition contains
+    // date and timestamp
+    // testBuilder().sqlQuery(query).unOrdered().baselineColumns("col1").baselineValues(4L).go();
   }
 
   @Test
@@ -105,27 +107,35 @@ public class TestMergeJoinAdvanced extends BaseTestQuery {
     final String testResPath = TestTools.getWorkingPath() + "/src/test/resources";
 
     try {
-      test("select * from dfs.\"%s/join/j1\" j1 left outer join dfs.\"%s/join/j2\" j2 on (j1.c_varchar = j2.c_varchar)",
-        testResPath, testResPath);
+      test(
+          "select * from dfs.\"%s/join/j1\" j1 left outer join dfs.\"%s/join/j2\" j2 on (j1.c_varchar = j2.c_varchar)",
+          testResPath, testResPath);
     } finally {
-      setSessionOption(PlannerSettings.BROADCAST.getOptionName(), String.valueOf(PlannerSettings.BROADCAST.getDefault
-        ().getBoolVal()));
-      setSessionOption(PlannerSettings.HASHJOIN.getOptionName(), String.valueOf(PlannerSettings.HASHJOIN.getDefault()
-        .getBoolVal()));
-      setSessionOption(ExecConstants.SLICE_TARGET, String.valueOf(ExecConstants.SLICE_TARGET_DEFAULT));
+      setSessionOption(
+          PlannerSettings.BROADCAST.getOptionName(),
+          String.valueOf(PlannerSettings.BROADCAST.getDefault().getBoolVal()));
+      setSessionOption(
+          PlannerSettings.HASHJOIN.getOptionName(),
+          String.valueOf(PlannerSettings.HASHJOIN.getDefault().getBoolVal()));
+      setSessionOption(
+          ExecConstants.SLICE_TARGET, String.valueOf(ExecConstants.SLICE_TARGET_DEFAULT));
       resetSessionOption(GroupResourceInformation.MAX_WIDTH_PER_NODE_KEY);
     }
   }
 
-  private static void generateData(final BufferedWriter leftWriter, final BufferedWriter rightWriter,
-                             final long left, final long right) throws IOException {
-    for (int i=0; i < left; ++i) {
+  private static void generateData(
+      final BufferedWriter leftWriter,
+      final BufferedWriter rightWriter,
+      final long left,
+      final long right)
+      throws IOException {
+    for (int i = 0; i < left; ++i) {
       leftWriter.write(String.format("{ \"k\" : %d , \"v\": %d }", 10000, i));
     }
     leftWriter.write(String.format("{ \"k\" : %d , \"v\": %d }", 10001, 10001));
     leftWriter.write(String.format("{ \"k\" : %d , \"v\": %d }", 10002, 10002));
 
-    for (int i=0; i < right; ++i) {
+    for (int i = 0; i < right; ++i) {
       rightWriter.write(String.format("{ \"k1\" : %d , \"v1\": %d }", 10000, i));
     }
     rightWriter.write(String.format("{ \"k1\" : %d , \"v1\": %d }", 10004, 10004));
@@ -136,22 +146,25 @@ public class TestMergeJoinAdvanced extends BaseTestQuery {
     rightWriter.close();
   }
 
-  private void testMultipleBatchJoin(final long left, final long right,
-                                     final String joinType, final long expected) throws Exception {
+  private void testMultipleBatchJoin(
+      final long left, final long right, final String joinType, final long expected)
+      throws Exception {
     final String leftSide = BaseTestQuery.getTempDir("merge-join-left.json");
     final String rightSide = BaseTestQuery.getTempDir("merge-join-right.json");
     final BufferedWriter leftWriter = new BufferedWriter(new FileWriter(new File(leftSide)));
     final BufferedWriter rightWriter = new BufferedWriter(new FileWriter(new File(rightSide)));
     generateData(leftWriter, rightWriter, left, right);
-    final String query1 = String.format("select count(*) c1 from dfs.\"%s\" L %s join dfs.\"%s\" R on L.k=R.k1",
-      leftSide, joinType, rightSide);
+    final String query1 =
+        String.format(
+            "select count(*) c1 from dfs.\"%s\" L %s join dfs.\"%s\" R on L.k=R.k1",
+            leftSide, joinType, rightSide);
     testBuilder()
-      .sqlQuery(query1)
-      .optionSettingQueriesForTestQuery("alter session set \"planner.enable_hashjoin\" = false")
-      .unOrdered()
-      .baselineColumns("c1")
-      .baselineValues(expected)
-      .go();
+        .sqlQuery(query1)
+        .optionSettingQueriesForTestQuery("alter session set \"planner.enable_hashjoin\" = false")
+        .unOrdered()
+        .baselineColumns("c1")
+        .baselineValues(expected)
+        .go();
   }
 
   @Test
@@ -191,7 +204,7 @@ public class TestMergeJoinAdvanced extends BaseTestQuery {
     final Random r = new Random();
     final long right = r.nextInt(10001) + 1L;
     final long left = r.nextInt(10001) + 1L;
-    testMultipleBatchJoin(left, right, "inner", left*right);
+    testMultipleBatchJoin(left, right, "inner", left * right);
   }
 
   @Test
@@ -200,7 +213,7 @@ public class TestMergeJoinAdvanced extends BaseTestQuery {
     final Random r = new Random();
     final long right = r.nextInt(10001) + 1L;
     final long left = r.nextInt(10001) + 1L;
-    testMultipleBatchJoin(left, right, "left", left*right + 2L);
+    testMultipleBatchJoin(left, right, "left", left * right + 2L);
   }
 
   @Test
@@ -214,13 +227,9 @@ public class TestMergeJoinAdvanced extends BaseTestQuery {
 
   @Test
   public void testDrill4165() throws Exception {
-    final String query1 = "select count(*) cnt from cp.\"tpch/lineitem.parquet\" l1, cp.\"tpch/lineitem.parquet\" l2 where l1.l_partkey = l2.l_partkey and l1.l_suppkey < 30 and l2.l_suppkey < 30";
-    testBuilder()
-      .sqlQuery(query1)
-      .unOrdered()
-      .baselineColumns("cnt")
-      .baselineValues(202452L)
-      .go();
+    final String query1 =
+        "select count(*) cnt from cp.\"tpch/lineitem.parquet\" l1, cp.\"tpch/lineitem.parquet\" l2 where l1.l_partkey = l2.l_partkey and l1.l_suppkey < 30 and l2.l_suppkey < 30";
+    testBuilder().sqlQuery(query1).unOrdered().baselineColumns("cnt").baselineValues(202452L).go();
   }
 
   @Test
@@ -232,63 +241,65 @@ public class TestMergeJoinAdvanced extends BaseTestQuery {
 
     // output batch is 32k, create 60k left batch
     leftWriter.write(String.format("{ \"k\" : %d , \"v\": %d }", 9999, 9999));
-    for (int i=0; i < 6000; ++i) {
+    for (int i = 0; i < 6000; ++i) {
       leftWriter.write(String.format("{ \"k\" : %d , \"v\": %d }", 10000, 10000));
     }
     leftWriter.write(String.format("{ \"k\" : %d , \"v\": %d }", 10001, 10001));
     leftWriter.write(String.format("{ \"k\" : %d , \"v\": %d }", 10002, 10002));
 
     // Keep all values same. Jon will consume entire right side.
-    for (int i=0; i < 800; ++i) {
+    for (int i = 0; i < 800; ++i) {
       rightWriter.write(String.format("{ \"k1\" : %d , \"v1\": %d }", 10000, 10000));
     }
 
     leftWriter.close();
     rightWriter.close();
 
-    final String query1 = String.format("select count(*) c1 from dfs.\"%s\" L %s join dfs.\"%s\" R on L.k=R.k1",
-      leftSide, "inner", rightSide);
+    final String query1 =
+        String.format(
+            "select count(*) c1 from dfs.\"%s\" L %s join dfs.\"%s\" R on L.k=R.k1",
+            leftSide, "inner", rightSide);
     testBuilder()
-      .sqlQuery(query1)
-      .optionSettingQueriesForTestQuery("alter session set \"planner.enable_hashjoin\" = false")
-      .unOrdered()
-      .baselineColumns("c1")
-      .baselineValues(6000*800L)
-      .go();
+        .sqlQuery(query1)
+        .optionSettingQueriesForTestQuery("alter session set \"planner.enable_hashjoin\" = false")
+        .unOrdered()
+        .baselineColumns("c1")
+        .baselineValues(6000 * 800L)
+        .go();
   }
 
   @Test
   public void testMergeJoinInnerEmptyBatch() throws Exception {
-    String plan = readResourceAsString("/join/merge_join_empty_batch.json").replace("${JOIN_TYPE}", "INNER");
+    String plan =
+        readResourceAsString("/join/merge_join_empty_batch.json").replace("${JOIN_TYPE}", "INNER");
     assertEquals(0, testPhysical(plan));
   }
 
   @Test
   public void testMergeJoinLeftEmptyBatch() throws Exception {
-    final String plan = readResourceAsString("/join/merge_join_empty_batch.json")
-        .replace("${JOIN_TYPE}", "LEFT");
+    final String plan =
+        readResourceAsString("/join/merge_join_empty_batch.json").replace("${JOIN_TYPE}", "LEFT");
     assertEquals(50, testPhysical(plan));
   }
 
   @Test
   public void testMergeJoinRightEmptyBatch() throws Exception {
-    final String plan = readResourceAsString("/join/merge_join_empty_batch.json")
-        .replace("${JOIN_TYPE}", "RIGHT");
+    final String plan =
+        readResourceAsString("/join/merge_join_empty_batch.json").replace("${JOIN_TYPE}", "RIGHT");
     assertEquals(0, testPhysical(plan));
   }
 
   @Ignore("DX-12609: parquet file format has changed, test case to be upgraded")
   @Test
   public void testMergeJoinExprInCondition() throws Exception {
-    final String plan = readResourceAsString("/join/mergeJoinExpr.json")
-        .replace("${JOIN_TYPE}", "RIGHT");
+    final String plan =
+        readResourceAsString("/join/mergeJoinExpr.json").replace("${JOIN_TYPE}", "RIGHT");
     assertEquals(10, testPhysical(plan));
   }
 
-
   @Ignore("DX-12609: parquet file format has changed, test case to be upgraded")
   @Test
-  //the physical plan is obtained for the following SQL query:
+  // the physical plan is obtained for the following SQL query:
   //  "select l.l_partkey, l.l_suppkey, ps.ps_partkey, ps.ps_suppkey "
   //      + " from cp.\"tpch/lineitem.parquet\" l join "
   //      + "      cp.\"tpch/partsupp.parquet\" ps"
@@ -311,7 +322,8 @@ public class TestMergeJoinAdvanced extends BaseTestQuery {
   @Ignore("join on non-existent column")
   // The physical plan is obtained through sql:
   // alter session set \"planner.enable_hashjoin\"=false;
-  // select * from cp.\"region.json\" t1 left outer join cp.\"region.json\" t2 on  t1.non_exist = t2.non_exist2 ;
+  // select * from cp.\"region.json\" t1 left outer join cp.\"region.json\" t2 on  t1.non_exist =
+  // t2.non_exist2 ;
   public void testMergeJoinLeftOuterNullKey() throws Exception {
     assertEquals(110, testPhysicalFromFile("/join/merge_join_nullkey.json"));
   }

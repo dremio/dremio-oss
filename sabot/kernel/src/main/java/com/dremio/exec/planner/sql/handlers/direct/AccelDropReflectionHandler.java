@@ -15,11 +15,6 @@
  */
 package com.dremio.exec.planner.sql.handlers.direct;
 
-import java.util.Collections;
-import java.util.List;
-
-import org.apache.calcite.sql.SqlNode;
-
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.ops.ReflectionContext;
@@ -29,10 +24,14 @@ import com.dremio.exec.planner.sql.parser.SqlDropReflection;
 import com.dremio.exec.store.sys.accel.AccelerationManager;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.rpc.user.UserSession;
+import java.util.Collections;
+import java.util.List;
+import org.apache.calcite.sql.SqlNode;
 
 public class AccelDropReflectionHandler extends SimpleDirectHandler {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AccelDropReflectionHandler.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(AccelDropReflectionHandler.class);
 
   private final Catalog catalog;
   private final AccelerationManager accel;
@@ -40,9 +39,8 @@ public class AccelDropReflectionHandler extends SimpleDirectHandler {
   private final OptionManager optionManager;
   private final UserSession userSession;
 
-  public AccelDropReflectionHandler(Catalog catalog,
-                                    QueryContext queryContext,
-                                    ReflectionContext reflectionContext) {
+  public AccelDropReflectionHandler(
+      Catalog catalog, QueryContext queryContext, ReflectionContext reflectionContext) {
     this.catalog = catalog;
     this.accel = queryContext.getAccelerationManager();
     this.reflectionContext = reflectionContext;
@@ -53,11 +51,14 @@ public class AccelDropReflectionHandler extends SimpleDirectHandler {
   @Override
   public List<SimpleCommandResult> toResult(String sql, SqlNode sqlNode) throws Exception {
     final SqlDropReflection dropReflection = SqlNodeUtil.unwrap(sqlNode, SqlDropReflection.class);
-    TableWithPath table = SchemaUtilities.verify(catalog, dropReflection.getTblName(), userSession, dropReflection.getSqlTableVersionSpec(), optionManager);
-    accel.dropLayout(table,
-      dropReflection.getLayoutId().toString(),
-      reflectionContext);
+    TableWithPath table =
+        SchemaUtilities.verify(
+            catalog,
+            dropReflection.getTblName(),
+            userSession,
+            dropReflection.getSqlTableVersionSpec(),
+            optionManager);
+    accel.dropLayout(table, dropReflection.getLayoutId().toString(), reflectionContext);
     return Collections.singletonList(SimpleCommandResult.successful("Reflection dropped."));
   }
-
 }

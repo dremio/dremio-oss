@@ -17,13 +17,10 @@ package com.dremio.dac.model.sources;
 
 import static java.util.Arrays.asList;
 
+import com.dremio.dac.model.common.ResourcePath;
 import java.util.List;
 
-import com.dremio.dac.model.common.ResourcePath;
-
-/**
- * "/source/{source}"
- */
+/** "/source/{source}" */
 public class SourceResourcePath extends ResourcePath {
 
   private final SourceName sourceName;
@@ -31,7 +28,8 @@ public class SourceResourcePath extends ResourcePath {
   public SourceResourcePath(String sourcePath) {
     List<String> path = parse(sourcePath, "source");
     if (path.size() != 1) {
-      throw new IllegalArgumentException("path should be of form: /source/{sourceName}, found " + sourcePath);
+      throw new IllegalArgumentException(
+          "path should be of form: /source/{sourceName}, found " + sourcePath);
     }
     this.sourceName = new SourceName(path.get(0));
   }

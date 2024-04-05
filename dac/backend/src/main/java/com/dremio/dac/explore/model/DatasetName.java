@@ -18,10 +18,7 @@ package com.dremio.dac.explore.model;
 import com.dremio.dac.model.common.LeafEntity;
 import com.fasterxml.jackson.annotation.JsonCreator;
 
-/**
- * The name of a dataset
- *
- */
+/** The name of a dataset */
 public final class DatasetName extends LeafEntity {
 
   @Override

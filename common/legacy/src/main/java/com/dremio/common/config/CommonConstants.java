@@ -17,13 +17,12 @@ package com.dremio.common.config;
 
 public interface CommonConstants {
 
-  /** Default (base) configuration file name.  (Classpath resource pathname.) */
+  /** Default (base) configuration file name. (Classpath resource pathname.) */
   String CONFIG_DEFAULT_RESOURCE_PATHNAME = "sabot-default.conf";
 
-  /** Module configuration files name.  (Classpath resource pathname.) */
+  /** Module configuration files name. (Classpath resource pathname.) */
   String SABOT_JAR_MARKER_FILE_RESOURCE_PATHNAME = "sabot-module.conf";
 
-  /** Override configuration file name.  (Classpath resource pathname.) */
+  /** Override configuration file name. (Classpath resource pathname.) */
   String CONFIG_OVERRIDE_RESOURCE_PATHNAME = "sabot-override.conf";
-
 }

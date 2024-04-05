@@ -24,12 +24,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.when;
 
-import java.util.Collections;
-import java.util.List;
-
-import org.junit.Test;
-import org.mockito.Mockito;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.physical.EndpointAffinity;
 import com.dremio.exec.physical.base.GroupScan;
@@ -43,6 +37,10 @@ import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.PartitionChu
 import com.google.common.collect.HashMultiset;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import java.util.Collections;
+import java.util.List;
+import org.junit.Test;
+import org.mockito.Mockito;
 
 public class TestHardAffinityFragmentParallelizer {
 
@@ -59,8 +57,8 @@ public class TestHardAffinityFragmentParallelizer {
     return NodeEndpoint.newBuilder().setAddress(address).setFabricPort(port).build();
   }
 
-  private static final ParallelizationParameters newParameters(final long threshold, final int maxWidthPerNode,
-      final int maxGlobalWidth) {
+  private static final ParallelizationParameters newParameters(
+      final long threshold, final int maxWidthPerNode, final int maxGlobalWidth) {
     return new ParallelizationParameters() {
       @Override
       public long getSliceTarget() {
@@ -79,6 +77,7 @@ public class TestHardAffinityFragmentParallelizer {
 
       /**
        * {@link HardAffinityFragmentParallelizer} doesn't use affinity factor.
+       *
        * @return
        */
       @Override
@@ -103,7 +102,8 @@ public class TestHardAffinityFragmentParallelizer {
     };
   }
 
-  private final Wrapper newWrapper(double cost, int minWidth, int maxWidth, List<EndpointAffinity> epAffs) {
+  private final Wrapper newWrapper(
+      double cost, int minWidth, int maxWidth, List<EndpointAffinity> epAffs) {
     PhysicalOperator root = Mockito.mock(PhysicalOperator.class);
     Fragment fragment = Mockito.mock(Fragment.class);
     when(fragment.getRoot()).thenReturn(root);
@@ -118,7 +118,11 @@ public class TestHardAffinityFragmentParallelizer {
     return fragmentWrapper;
   }
 
-  private final Wrapper newSplitWrapper(double cost, int minWidth, int maxWidth, List<EndpointAffinity> epAffs,
+  private final Wrapper newSplitWrapper(
+      double cost,
+      int minWidth,
+      int maxWidth,
+      List<EndpointAffinity> epAffs,
       ExecutionNodeMap execNodeMap) {
     PhysicalOperator root = Mockito.mock(PhysicalOperator.class);
     Fragment fragment = Mockito.mock(Fragment.class);
@@ -130,11 +134,19 @@ public class TestHardAffinityFragmentParallelizer {
     stats.addMaxWidth(maxWidth);
     final PartitionChunk partitionChunk = PartitionChunk.newBuilder().build();
     final DatasetSplit.Builder dataSplit = DatasetSplit.newBuilder();
-    epAffs.forEach(endpointAffinity -> dataSplit.addAffinitiesBuilder()
-        .setFactor(endpointAffinity.getAffinity())
-        .setHost(endpointAffinity.getEndpoint().getAddress()));
+    epAffs.forEach(
+        endpointAffinity ->
+            dataSplit
+                .addAffinitiesBuilder()
+                .setFactor(endpointAffinity.getAffinity())
+                .setHost(endpointAffinity.getEndpoint().getAddress()));
 
-    SplitWork splitWork = new SplitWork(new LegacyPartitionChunkMetadata(partitionChunk), dataSplit.build(), execNodeMap, DistributionAffinity.HARD);
+    SplitWork splitWork =
+        new SplitWork(
+            new LegacyPartitionChunkMetadata(partitionChunk),
+            dataSplit.build(),
+            execNodeMap,
+            DistributionAffinity.HARD);
 
     GroupScan groupScan = Mockito.mock(GroupScan.class);
     when(groupScan.getDistributionAffinity()).thenReturn(DistributionAffinity.HARD);
@@ -174,9 +186,11 @@ public class TestHardAffinityFragmentParallelizer {
 
   private final List<CompleteWork> transform(final List<EndpointAffinity> epAffs) {
     List<CompleteWork> workUnits = Lists.newArrayList();
-    for(EndpointAffinity epAff : epAffs) {
-      for(int i = 0; i < epAff.getMaxWidth(); i++) {
-        workUnits.add(new TestWorkUnit(asList(new EndpointAffinity(epAff.getEndpoint(), epAff.getAffinity(), true, 1))));
+    for (EndpointAffinity epAff : epAffs) {
+      for (int i = 0; i < epAff.getMaxWidth(); i++) {
+        workUnits.add(
+            new TestWorkUnit(
+                asList(new EndpointAffinity(epAff.getEndpoint(), epAff.getAffinity(), true, 1))));
       }
     }
     return workUnits;
@@ -184,11 +198,14 @@ public class TestHardAffinityFragmentParallelizer {
 
   @Test
   public void simpleCase1() throws Exception {
-    final Wrapper wrapper = newWrapper(200, 1, 20, Collections.singletonList(new EndpointAffinity(N1_EP1, 1.0, true, 50)));
+    final Wrapper wrapper =
+        newWrapper(
+            200, 1, 20, Collections.singletonList(new EndpointAffinity(N1_EP1, 1.0, true, 50)));
     INSTANCE.parallelizeFragment(wrapper, newParameters(SLICE_TARGET_DEFAULT, 5, 20), null);
 
     // Expect the fragment parallelization to be just one because:
-    // The cost (200) is below the threshold (SLICE_TARGET_DEFAULT) (which gives width of 200/10000 = ~1) and
+    // The cost (200) is below the threshold (SLICE_TARGET_DEFAULT) (which gives width of 200/10000
+    // = ~1) and
     assertEquals(1, wrapper.getWidth());
 
     final List<NodeEndpoint> assignedEps = wrapper.getAssignedEndpoints();
@@ -198,10 +215,13 @@ public class TestHardAffinityFragmentParallelizer {
 
   @Test
   public void matchHardAffinity() throws Exception {
-    final Wrapper wrapper = newSplitWrapper(200, 1, 20,
-        Collections.singletonList(new EndpointAffinity(N1_EP1, 1.0, true, 20)),
-        new ExecutionNodeMap(ImmutableList.of(N1_EP1))
-    );
+    final Wrapper wrapper =
+        newSplitWrapper(
+            200,
+            1,
+            20,
+            Collections.singletonList(new EndpointAffinity(N1_EP1, 1.0, true, 20)),
+            new ExecutionNodeMap(ImmutableList.of(N1_EP1)));
     INSTANCE.parallelizeFragment(wrapper, newParameters(SLICE_TARGET_DEFAULT, 5, 20), null);
     assertEquals(1, wrapper.getWidth());
 
@@ -213,22 +233,28 @@ public class TestHardAffinityFragmentParallelizer {
   @Test
   public void noMatchHardAffinity() {
     assertThatThrownBy(
-      () -> newSplitWrapper(200, 1, 20,
-        Collections.singletonList(new EndpointAffinity(N1_EP1, 1.0, true, 20)),
-        new ExecutionNodeMap(ImmutableList.of(N2_EP1))
-      ))
-      .isInstanceOf(UserException.class)
-      .hasMessageStartingWith("No executors are available for data with hard affinity.");
+            () ->
+                newSplitWrapper(
+                    200,
+                    1,
+                    20,
+                    Collections.singletonList(new EndpointAffinity(N1_EP1, 1.0, true, 20)),
+                    new ExecutionNodeMap(ImmutableList.of(N2_EP1))))
+        .isInstanceOf(UserException.class)
+        .hasMessageStartingWith("No executors are available for data with hard affinity.");
   }
 
   @Test
   public void simpleCase2() throws Exception {
     // Set the slice target to 1
-    final Wrapper wrapper = newWrapper(200, 1, 20, Collections.singletonList(new EndpointAffinity(N1_EP1, 1.0, true, 50)));
+    final Wrapper wrapper =
+        newWrapper(
+            200, 1, 20, Collections.singletonList(new EndpointAffinity(N1_EP1, 1.0, true, 50)));
     INSTANCE.parallelizeFragment(wrapper, newParameters(1, 5, 20), null);
 
     // Expect the fragment parallelization to be 5:
-    // 1. the cost (200) is above the threshold (SLICE_TARGET_DEFAULT) (which gives 200/1=200 width) and
+    // 1. the cost (200) is above the threshold (SLICE_TARGET_DEFAULT) (which gives 200/1=200 width)
+    // and
     // 2. Max width per node is 5 (limits the width 200 to 5)
     assertEquals(5, wrapper.getWidth());
 
@@ -241,18 +267,22 @@ public class TestHardAffinityFragmentParallelizer {
 
   @Test
   public void multiNodeCluster1() throws Exception {
-    final Wrapper wrapper = newWrapper(200, 1, 20,
-        ImmutableList.of(
-            new EndpointAffinity(N1_EP1, 0.15, true, 50),
-            new EndpointAffinity(N1_EP2, 0.15, true, 50),
-            new EndpointAffinity(N2_EP1, 0.10, true, 50),
-            new EndpointAffinity(N3_EP2, 0.20, true, 50),
-            new EndpointAffinity(N4_EP2, 0.20, true, 50)
-        ));
+    final Wrapper wrapper =
+        newWrapper(
+            200,
+            1,
+            20,
+            ImmutableList.of(
+                new EndpointAffinity(N1_EP1, 0.15, true, 50),
+                new EndpointAffinity(N1_EP2, 0.15, true, 50),
+                new EndpointAffinity(N2_EP1, 0.10, true, 50),
+                new EndpointAffinity(N3_EP2, 0.20, true, 50),
+                new EndpointAffinity(N4_EP2, 0.20, true, 50)));
     INSTANCE.parallelizeFragment(wrapper, newParameters(SLICE_TARGET_DEFAULT, 5, 20), null);
 
     // Expect the fragment parallelization to be 5 because:
-    // 1. The cost (200) is below the threshold (SLICE_TARGET_DEFAULT) (which gives width of 200/10000 = ~1) and
+    // 1. The cost (200) is below the threshold (SLICE_TARGET_DEFAULT) (which gives width of
+    // 200/10000 = ~1) and
     // 2. Number of mandoatory node assignments are 5 which overrides the cost based width of 1.
     assertEquals(5, wrapper.getWidth());
 
@@ -268,18 +298,22 @@ public class TestHardAffinityFragmentParallelizer {
 
   @Test
   public void multiNodeCluster2() throws Exception {
-    final Wrapper wrapper = newWrapper(200, 1, 20,
-        ImmutableList.of(
-            new EndpointAffinity(N1_EP2, 0.15, true, 50),
-            new EndpointAffinity(N2_EP2, 0.15, true, 50),
-            new EndpointAffinity(N3_EP1, 0.10, true, 50),
-            new EndpointAffinity(N4_EP2, 0.20, true, 50),
-            new EndpointAffinity(N1_EP1, 0.20, true, 50)
-        ));
+    final Wrapper wrapper =
+        newWrapper(
+            200,
+            1,
+            20,
+            ImmutableList.of(
+                new EndpointAffinity(N1_EP2, 0.15, true, 50),
+                new EndpointAffinity(N2_EP2, 0.15, true, 50),
+                new EndpointAffinity(N3_EP1, 0.10, true, 50),
+                new EndpointAffinity(N4_EP2, 0.20, true, 50),
+                new EndpointAffinity(N1_EP1, 0.20, true, 50)));
     INSTANCE.parallelizeFragment(wrapper, newParameters(1, 5, 20), null);
 
     // Expect the fragment parallelization to be 20 because:
-    // 1. the cost (200) is above the threshold (SLICE_TARGET_DEFAULT) (which gives 200/1=200 width) and
+    // 1. the cost (200) is above the threshold (SLICE_TARGET_DEFAULT) (which gives 200/1=200 width)
+    // and
     // 2. Number of mandatory node assignments are 5 (current width 200 satisfies the requirement)
     // 3. max fragment width is 20 which limits the width
     assertEquals(20, wrapper.getWidth());
@@ -287,7 +321,7 @@ public class TestHardAffinityFragmentParallelizer {
     final List<NodeEndpoint> assignedEps = wrapper.getAssignedEndpoints();
     assertEquals(20, assignedEps.size());
     final HashMultiset<NodeEndpoint> counts = HashMultiset.create();
-    for(final NodeEndpoint ep : assignedEps) {
+    for (final NodeEndpoint ep : assignedEps) {
       counts.add(ep);
     }
     // Each node gets at max 5.
@@ -300,20 +334,25 @@ public class TestHardAffinityFragmentParallelizer {
 
   @Test
   public void multiNodeClusterNonNormalizedAffinities() throws Exception {
-    final Wrapper wrapper = newWrapper(2000, 1, 250,
-        ImmutableList.of(
-            new EndpointAffinity(N1_EP2, 15, true, 50),
-            new EndpointAffinity(N2_EP2, 15, true, 50),
-            new EndpointAffinity(N3_EP1, 10, true, 50),
-            new EndpointAffinity(N4_EP2, 20, true, 50),
-            new EndpointAffinity(N1_EP1, 20, true, 50)
-        ));
+    final Wrapper wrapper =
+        newWrapper(
+            2000,
+            1,
+            250,
+            ImmutableList.of(
+                new EndpointAffinity(N1_EP2, 15, true, 50),
+                new EndpointAffinity(N2_EP2, 15, true, 50),
+                new EndpointAffinity(N3_EP1, 10, true, 50),
+                new EndpointAffinity(N4_EP2, 20, true, 50),
+                new EndpointAffinity(N1_EP1, 20, true, 50)));
     INSTANCE.parallelizeFragment(wrapper, newParameters(100, 20, 80), null);
 
     // Expect the fragment parallelization to be 20 because:
-    // 1. the cost (2000) is above the threshold (SLICE_TARGET_DEFAULT) (which gives 2000/100=20 width) and
+    // 1. the cost (2000) is above the threshold (SLICE_TARGET_DEFAULT) (which gives 2000/100=20
+    // width) and
     // 2. Number of mandatory node assignments are 5 (current width 200 satisfies the requirement)
-    // 3. max width per node is 20 which limits the width to 100, but existing width (20) is already less
+    // 3. max width per node is 20 which limits the width to 100, but existing width (20) is already
+    // less
     assertEquals(20, wrapper.getWidth());
 
     final List<NodeEndpoint> assignedEps = wrapper.getAssignedEndpoints();
@@ -330,18 +369,22 @@ public class TestHardAffinityFragmentParallelizer {
 
   @Test
   public void multiNodeClusterNegative2() throws Exception {
-    final Wrapper wrapper = newWrapper(200, 1, 3,
-        ImmutableList.of(
-            new EndpointAffinity(N1_EP2, 0.15, true, 50),
-            new EndpointAffinity(N2_EP2, 0.15, true, 50),
-            new EndpointAffinity(N3_EP1, 0.10, true, 50),
-            new EndpointAffinity(N4_EP2, 0.20, true, 50),
-            new EndpointAffinity(N1_EP1, 0.20, true, 50)
-        ));
+    final Wrapper wrapper =
+        newWrapper(
+            200,
+            1,
+            3,
+            ImmutableList.of(
+                new EndpointAffinity(N1_EP2, 0.15, true, 50),
+                new EndpointAffinity(N2_EP2, 0.15, true, 50),
+                new EndpointAffinity(N3_EP1, 0.10, true, 50),
+                new EndpointAffinity(N4_EP2, 0.20, true, 50),
+                new EndpointAffinity(N1_EP1, 0.20, true, 50)));
 
     try {
       INSTANCE.parallelizeFragment(wrapper, newParameters(1, 2, 2), null);
-      fail("Expected an exception, because max fragment width (3) is less than the number of mandatory nodes (5)");
+      fail(
+          "Expected an exception, because max fragment width (3) is less than the number of mandatory nodes (5)");
     } catch (Exception e) {
       // ok
     }

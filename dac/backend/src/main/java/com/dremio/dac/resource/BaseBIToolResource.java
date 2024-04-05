@@ -15,10 +15,6 @@
  */
 package com.dremio.dac.resource;
 
-import java.util.Map;
-
-import javax.ws.rs.core.Response;
-
 import com.dremio.common.utils.PathUtils;
 import com.dremio.dac.explore.DatasetResourceUtils;
 import com.dremio.dac.explore.model.DatasetPath;
@@ -31,27 +27,34 @@ import com.dremio.exec.server.options.ProjectOptionManager;
 import com.dremio.options.TypeValidators;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.google.common.annotations.VisibleForTesting;
+import java.util.Map;
+import javax.ws.rs.core.Response;
 
-/**
- * Base class for resources that are for loading datasets in BI Tools.
- */
+/** Base class for resources that are for loading datasets in BI Tools. */
 public abstract class BaseBIToolResource {
   private final ProjectOptionManager optionManager;
   private final DatasetCatalog datasetCatalog;
   private final DatasetPath path;
   private final Map<String, VersionContextReq> references;
 
-  protected BaseBIToolResource(ProjectOptionManager optionManager, DatasetCatalog datasetCatalog,
-                               String path, String refType, String refValue) {
+  protected BaseBIToolResource(
+      ProjectOptionManager optionManager,
+      DatasetCatalog datasetCatalog,
+      String path,
+      String refType,
+      String refValue) {
     this.optionManager = optionManager;
     this.datasetCatalog = datasetCatalog;
     this.path = new DatasetPath(PathUtils.toPathComponents(path));
-    this.references = DatasetResourceUtils.createSourceVersionMapping(this.path.getRoot().getName(), refType, refValue);
+    this.references =
+        DatasetResourceUtils.createSourceVersionMapping(
+            this.path.getRoot().getName(), refType, refValue);
   }
 
   /**
-   * Returns a response providing a way to connect to the given dataset on a given host with
-   * the BI tool associated with this resource
+   * Returns a response providing a way to connect to the given dataset on a given host with the BI
+   * tool associated with this resource
+   *
    * @param host The host to specify to the BI tool. Can be null.
    * @return A response providing a way to load the given dataset in the BI tool.
    */
@@ -70,18 +73,19 @@ public abstract class BaseBIToolResource {
 
     // Make sure path exists
     final DatasetCatalog datasetNewCatalog =
-      datasetCatalog.resolveCatalog(DatasetResourceUtils.createSourceVersionMapping(references));
+        datasetCatalog.resolveCatalog(DatasetResourceUtils.createSourceVersionMapping(references));
     final DremioTable table = datasetNewCatalog.getTable(path.toNamespaceKey());
     if (table == null) {
       throw new DatasetNotFoundException(path);
     }
     final DatasetConfig datasetConfig = table.getDatasetConfig();
-    final Response.ResponseBuilder builder =  Response.ok().entity(datasetConfig);
+    final Response.ResponseBuilder builder = Response.ok().entity(datasetConfig);
     return buildResponseWithHost(builder, host).build();
   }
 
   /**
    * Returns a response with the correct hostname header if appropriate.
+   *
    * @param builder The response builder to populate.
    * @param host The host to specify to the BI tool. Can be null.
    * @return A response builder with the correct hostname header.
@@ -104,8 +108,8 @@ public abstract class BaseBIToolResource {
   }
 
   /**
-   * Get the option to use to verify this endpoint is enabled, or null if this
-   * endpoint is always enabled.
+   * Get the option to use to verify this endpoint is enabled, or null if this endpoint is always
+   * enabled.
    */
   protected abstract TypeValidators.BooleanValidator getClientToolOption();
 }

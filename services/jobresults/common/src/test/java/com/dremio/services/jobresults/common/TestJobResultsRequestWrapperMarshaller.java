@@ -15,8 +15,8 @@
  */
 package com.dremio.services.jobresults.common;
 
+import com.dremio.common.utils.protos.QueryWritableBatch;
 import java.io.InputStream;
-
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
 import org.junit.AfterClass;
@@ -24,11 +24,7 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import com.dremio.common.utils.protos.QueryWritableBatch;
-
-/**
- * Test class for {@link JobResultsRequestWrapperMarshaller}
- */
+/** Test class for {@link JobResultsRequestWrapperMarshaller} */
 public class TestJobResultsRequestWrapperMarshaller {
   private static BufferAllocator allocator;
   private static JobResultsRequestWrapperMarshaller marshaller;
@@ -49,7 +45,8 @@ public class TestJobResultsRequestWrapperMarshaller {
   private JobResultsRequestWrapper createRequest() {
     QueryWritableBatch data = JobResultsTestUtils.createQueryWritableBatch(allocator, COUNT);
     long sequenceId = 100;
-    return new JobResultsRequestWrapper(data.getHeader(), sequenceId, data.getBuffers(), JobResultsTestUtils.getSampleForeman());
+    return new JobResultsRequestWrapper(
+        data.getHeader(), sequenceId, data.getBuffers(), JobResultsTestUtils.getSampleForeman());
   }
 
   @Test
@@ -59,11 +56,11 @@ public class TestJobResultsRequestWrapperMarshaller {
 
     JobResultsRequestWrapper wrapperFromStream = marshaller.parse(stream);
 
-    Assert.assertTrue("Stream() and parse() of JobResultsRequestWrapperMarshaller seems not consistent.",
-      wrapper.equals(wrapperFromStream));
+    Assert.assertTrue(
+        "Stream() and parse() of JobResultsRequestWrapperMarshaller seems not consistent.",
+        wrapper.equals(wrapperFromStream));
 
     wrapperFromStream.close();
     stream.close();
   }
-
 }

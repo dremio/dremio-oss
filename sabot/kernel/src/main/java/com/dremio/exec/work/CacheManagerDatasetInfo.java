@@ -17,9 +17,7 @@ package com.dremio.exec.work;
 
 import java.sql.Timestamp;
 
-/**
- * This is the schema for sys."cache_manager_datasets"
- */
+/** This is the schema for sys."cache_manager_datasets" */
 public class CacheManagerDatasetInfo {
   public final String hostname;
   public final String dataset_name;
@@ -30,8 +28,15 @@ public class CacheManagerDatasetInfo {
   public final Timestamp percent_data_75;
   public final Timestamp percent_data_100;
 
-  public CacheManagerDatasetInfo(String hostname, String datasetName, String storagePluginName, long approxFileCount, Timestamp percent_data_25,
-    Timestamp percent_data_50, Timestamp percent_data_75, Timestamp percent_data_100) {
+  public CacheManagerDatasetInfo(
+      String hostname,
+      String datasetName,
+      String storagePluginName,
+      long approxFileCount,
+      Timestamp percent_data_25,
+      Timestamp percent_data_50,
+      Timestamp percent_data_75,
+      Timestamp percent_data_100) {
     this.hostname = hostname;
     this.dataset_name = datasetName;
     this.storage_plugin_name = storagePluginName;

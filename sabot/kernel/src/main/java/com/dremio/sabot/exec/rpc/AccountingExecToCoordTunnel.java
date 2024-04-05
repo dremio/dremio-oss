@@ -22,15 +22,16 @@ import com.dremio.sabot.threads.SendingMonitor;
 import com.dremio.services.jobresults.common.JobResultsTunnel;
 
 /**
- * Wrapper around a {@link com.dremio.sabot.rpc.user.UserRPCServer.UserClientConnection} that tracks the status of batches
- * sent to User.
+ * Wrapper around a {@link com.dremio.sabot.rpc.user.UserRPCServer.UserClientConnection} that tracks
+ * the status of batches sent to User.
  */
 public class AccountingExecToCoordTunnel {
   private final JobResultsTunnel tunnel;
   private final SendingMonitor sendMonitor;
   private final RpcOutcomeListener<Ack> statusHandler;
 
-  public AccountingExecToCoordTunnel(JobResultsTunnel tunnel, SendingMonitor sendMonitor, RpcOutcomeListener<Ack> statusHandler) {
+  public AccountingExecToCoordTunnel(
+      JobResultsTunnel tunnel, SendingMonitor sendMonitor, RpcOutcomeListener<Ack> statusHandler) {
     this.tunnel = tunnel;
     this.sendMonitor = sendMonitor;
     this.statusHandler = statusHandler;

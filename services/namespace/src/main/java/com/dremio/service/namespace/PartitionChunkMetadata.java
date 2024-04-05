@@ -33,15 +33,14 @@ public interface PartitionChunkMetadata {
 
   int getSplitCount();
 
-  default void mayGetDatasetSplits() {};
+  default void mayGetDatasetSplits() {}
+  ;
 
   Iterable<PartitionProtobuf.DatasetSplit> getDatasetSplits();
 
   ByteString getPartitionExtendedProperty();
 
-  /**
-   * Instead: get dataset splits, then use the affinity from the splits
-   */
+  /** Instead: get dataset splits, then use the affinity from the splits */
   @Deprecated
   Iterable<PartitionProtobuf.Affinity> getAffinities();
 

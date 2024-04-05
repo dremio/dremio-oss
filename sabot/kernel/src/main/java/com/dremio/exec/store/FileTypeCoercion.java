@@ -21,18 +21,14 @@ import static org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID.List;
 import static org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID.Map;
 import static org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID.Struct;
 
-import java.util.Map;
-
-import org.apache.arrow.vector.types.pojo.Field;
-
 import com.dremio.common.map.CaseInsensitiveMap;
 import com.dremio.common.types.TypeProtos;
 import com.dremio.common.util.MajorTypeHelper;
 import com.dremio.exec.record.BatchSchema;
+import java.util.Map;
+import org.apache.arrow.vector.types.pojo.Field;
 
-/**
- * Implements the TypeCoercion interface for files
- */
+/** Implements the TypeCoercion interface for files */
 public class FileTypeCoercion implements TypeCoercion {
   private final Map<String, Field> fieldsByName;
 
@@ -55,7 +51,9 @@ public class FileTypeCoercion implements TypeCoercion {
   public TypeCoercion getChildTypeCoercion(String fieldName, BatchSchema childSchema) {
     Map<String, Field> childrenByName = CaseInsensitiveMap.newHashMap();
     Field typeInfo = fieldsByName.get(fieldName);
-    if (typeInfo.getType().getTypeID() == Struct || typeInfo.getType().getTypeID() == List || typeInfo.getType().getTypeID() == Map) {
+    if (typeInfo.getType().getTypeID() == Struct
+        || typeInfo.getType().getTypeID() == List
+        || typeInfo.getType().getTypeID() == Map) {
       for (Field field : childSchema.getFields()) {
         childrenByName.put(field.getName(), field);
       }

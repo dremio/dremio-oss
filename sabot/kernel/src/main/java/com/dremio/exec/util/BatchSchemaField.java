@@ -15,20 +15,15 @@
  */
 package com.dremio.exec.util;
 
+import com.dremio.common.expression.CompleteType;
+import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import java.util.List;
 import java.util.stream.Collectors;
-
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 
-import com.dremio.common.expression.CompleteType;
-import com.dremio.exec.planner.sql.CalciteArrowHelper;
-
-/**
- * Class derived from Arrow Field class.
- * Helps in overriding type names
- */
+/** Class derived from Arrow Field class. Helps in overriding type names */
 public class BatchSchemaField extends Field {
   public BatchSchemaField(String name, boolean nullable, ArrowType type, List<Field> children) {
     super(name, new FieldType(nullable, type, null), children);
@@ -46,22 +41,31 @@ public class BatchSchemaField extends Field {
     if (this.getFieldType().getType().isComplex()) {
       sb.append(CompleteType.fromField(this).toMinorType());
     } else {
-      sb.append(CalciteArrowHelper.getCalciteTypeFromMinorType(CompleteType.fromField(this).toMinorType()));
+      sb.append(
+          CalciteArrowHelper.getCalciteTypeFromMinorType(
+              CompleteType.fromField(this).toMinorType()));
     }
 
     // append child field types
     if (!this.getChildren().isEmpty()) {
-      sb.append("<").append((String)this.getChildren().stream().map((t) -> {
-        return t.toString();
-      }).collect(Collectors.joining(", "))).append(">");
+      sb.append("<")
+          .append(
+              (String)
+                  this.getChildren().stream()
+                      .map(
+                          (t) -> {
+                            return t.toString();
+                          })
+                      .collect(Collectors.joining(", ")))
+          .append(">");
     }
 
     return sb.toString();
   }
 
   public static BatchSchemaField fromField(Field field) {
-    List<Field> children = field.getChildren().stream().map(
-      BatchSchemaField::fromField).collect(Collectors.toList());
+    List<Field> children =
+        field.getChildren().stream().map(BatchSchemaField::fromField).collect(Collectors.toList());
 
     return new BatchSchemaField(field.getName(), field.isNullable(), field.getType(), children);
   }

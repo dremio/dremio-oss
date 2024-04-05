@@ -17,9 +17,13 @@ package com.dremio.exec.planner.sql.convertlet;
 
 import static com.dremio.exec.planner.sql.DremioSqlOperatorTable.IDENTITY;
 
+import com.dremio.exec.catalog.udf.CorrelatedUdfDetector;
+import com.dremio.exec.catalog.udf.DremioScalarUserDefinedFunction;
+import com.dremio.exec.catalog.udf.ParameterizedQueryParameterReplacer;
+import com.dremio.exec.ops.UserDefinedFunctionExpander;
+import com.google.common.collect.ImmutableList;
 import java.util.List;
 import java.util.stream.Collectors;
-
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelShuttle;
 import org.apache.calcite.rel.core.CorrelationId;
@@ -38,14 +42,9 @@ import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.fun.SqlQuantifyOperator;
 import org.apache.calcite.sql.validate.SqlUserDefinedFunction;
 
-import com.dremio.exec.catalog.udf.CorrelatedUdfDetector;
-import com.dremio.exec.catalog.udf.DremioScalarUserDefinedFunction;
-import com.dremio.exec.catalog.udf.ParameterizedQueryParameterReplacer;
-import com.dremio.exec.ops.UserDefinedFunctionExpander;
-import com.google.common.collect.ImmutableList;
-
 public final class UdfConvertlet implements FunctionConvertlet {
   private final UserDefinedFunctionExpander expander;
+
   public UdfConvertlet(UserDefinedFunctionExpander expander) {
     this.expander = expander;
   }
@@ -65,41 +64,41 @@ public final class UdfConvertlet implements FunctionConvertlet {
   public RexCall convertCall(ConvertletContext cx, RexCall call) {
     SqlOperator operator = call.getOperator();
     Function function = ((SqlUserDefinedFunction) operator).getFunction();
-    DremioScalarUserDefinedFunction dremioScalarUserDefinedFunction = (DremioScalarUserDefinedFunction) function;
+    DremioScalarUserDefinedFunction dremioScalarUserDefinedFunction =
+        (DremioScalarUserDefinedFunction) function;
     RexBuilder rexBuilder = cx.getRexBuilder();
 
     RexNode udfExpression = expander.expandScalar(dremioScalarUserDefinedFunction);
     if (!CorrelatedUdfDetector.hasCorrelatedUdf(udfExpression)) {
-      udfExpression = ParameterizedQueryParameterReplacer.replaceParameters(
-        udfExpression,
-        function.getParameters(),
-        call.getOperands(),
-        rexBuilder);
+      udfExpression =
+          ParameterizedQueryParameterReplacer.replaceParameters(
+              udfExpression, function.getParameters(), call.getOperands(), rexBuilder);
     } else {
       RexCorrelVariable rexCorrelVariable = cx.getRexCorrelVariable();
-      RexInputRefToFieldAccess replacer = new RexInputRefToFieldAccess(
-        rexBuilder,
-        rexCorrelVariable);
-      List<RexNode> rewrittenCorrelateOperands = call
-        .getOperands()
-        .stream()
-        .map(operand -> operand.accept(replacer))
-        .collect(Collectors.toList());
-      udfExpression = RexArgumentReplacer.replaceArguments(
-        udfExpression,
-        function.getParameters(),
-        rewrittenCorrelateOperands,
-        call.getOperands(),
-        rexCorrelVariable.id,
-        rexBuilder);
+      RexInputRefToFieldAccess replacer =
+          new RexInputRefToFieldAccess(rexBuilder, rexCorrelVariable);
+      List<RexNode> rewrittenCorrelateOperands =
+          call.getOperands().stream()
+              .map(operand -> operand.accept(replacer))
+              .collect(Collectors.toList());
+      udfExpression =
+          RexArgumentReplacer.replaceArguments(
+              udfExpression,
+              function.getParameters(),
+              rewrittenCorrelateOperands,
+              call.getOperands(),
+              rexCorrelVariable.id,
+              rexBuilder);
     }
 
     // A user might have picked a whacky return type like VARCHAR for integer multiplication
     RelDataType udfSignatureType = call.getType();
-    // Arrow types don't have a notion of nullability, so we might have to force the calcite type to match
+    // Arrow types don't have a notion of nullability, so we might have to force the calcite type to
+    // match
     udfExpression = rexBuilder.makeCast(udfSignatureType, udfExpression, true);
 
-    // A UDF might return a literal, so we need to make it a call to match the function conversion type system
+    // A UDF might return a literal, so we need to make it a call to match the function conversion
+    // type system
     if (!(udfExpression instanceof RexCall)) {
       udfExpression = rexBuilder.makeCall(IDENTITY, udfExpression);
     }
@@ -130,11 +129,11 @@ public final class UdfConvertlet implements FunctionConvertlet {
     private final CorrelationId correlationId;
 
     private RexArgumentReplacer(
-      RelShuttle correlateRelReplacer,
-      RelShuttle refIndexRelReplacer,
-      RexShuttle correlateRexReplacer,
-      RexShuttle refIndexRexReplacer,
-      CorrelationId correlationId) {
+        RelShuttle correlateRelReplacer,
+        RelShuttle refIndexRelReplacer,
+        RexShuttle correlateRexReplacer,
+        RexShuttle refIndexRexReplacer,
+        CorrelationId correlationId) {
       this.correlateRelReplacer = correlateRelReplacer;
       this.refIndexRelReplacer = refIndexRelReplacer;
       this.correlateRexReplacer = correlateRexReplacer;
@@ -149,11 +148,10 @@ public final class UdfConvertlet implements FunctionConvertlet {
       boolean relRewritten = rewrittenRelNode != subQuery.rel;
 
       // And the operands with ref indexes:
-      List<RexNode> rewrittenOperands = subQuery
-        .getOperands()
-        .stream()
-        .map(operand -> operand.accept(refIndexRexReplacer))
-        .collect(ImmutableList.toImmutableList());
+      List<RexNode> rewrittenOperands =
+          subQuery.getOperands().stream()
+              .map(operand -> operand.accept(refIndexRexReplacer))
+              .collect(ImmutableList.toImmutableList());
 
       // This is because the operands are in relation to the outer query
       // And the RelNode is in relation to the inner query
@@ -161,14 +159,15 @@ public final class UdfConvertlet implements FunctionConvertlet {
       // This is more clear in the case of IN vs EXISTS:
       // IN($0, {
       //  LogicalProject(DEPTNO=[$6])
-      //  ScanCrel(table=[cp.scott."EMP.json"], columns=[`EMPNO`, `ENAME`, `JOB`, `MGR`, `HIREDATE`, `SAL`, `DEPTNO`, `COMM`], splits=[1])
-      //})
+      //  ScanCrel(table=[cp.scott."EMP.json"], columns=[`EMPNO`, `ENAME`, `JOB`, `MGR`, `HIREDATE`,
+      // `SAL`, `DEPTNO`, `COMM`], splits=[1])
+      // })
       //
       // EXISTS({
       //  LogicalFilter(condition=[=($6, $cor1.DEPTNO)])
-      //  ScanCrel(table=[cp.scott."EMP.json"], columns=[`EMPNO`, `ENAME`, `JOB`, `MGR`, `HIREDATE`, `SAL`, `DEPTNO`, `COMM`], splits=[1])
-      //})
-
+      //  ScanCrel(table=[cp.scott."EMP.json"], columns=[`EMPNO`, `ENAME`, `JOB`, `MGR`, `HIREDATE`,
+      // `SAL`, `DEPTNO`, `COMM`], splits=[1])
+      // })
 
       CorrelationId rewrittenCorrelateId = relRewritten ? correlationId : null;
       // TODO: add RexSubQuery.clone(CorrelationId) so we don't need this switch case
@@ -184,7 +183,11 @@ public final class UdfConvertlet implements FunctionConvertlet {
           return RexSubQuery.in(rewrittenRelNode, rewrittenOperands, rewrittenCorrelateId);
 
         case SOME:
-          return RexSubQuery.some(rewrittenRelNode, rewrittenOperands, (SqlQuantifyOperator) subQuery.op, rewrittenCorrelateId);
+          return RexSubQuery.some(
+              rewrittenRelNode,
+              rewrittenOperands,
+              (SqlQuantifyOperator) subQuery.op,
+              rewrittenCorrelateId);
 
         case ARRAY_QUERY_CONSTRUCTOR:
           return RexSubQuery.array(rewrittenRelNode, rewrittenCorrelateId);
@@ -202,22 +205,31 @@ public final class UdfConvertlet implements FunctionConvertlet {
     }
 
     public static RexNode replaceArguments(
-      RexNode rexNode,
-      List<FunctionParameter> functionParameters,
-      List<RexNode> correlateReplacements,
-      List<RexNode> refIndexReplacements,
-      CorrelationId correlationId,
-      RexBuilder rexBuilder) {
-      RelShuttle correlateRelReplacer = ParameterizedQueryParameterReplacer.createRelParameterReplacer(functionParameters, correlateReplacements, rexBuilder);
-      RelShuttle refIndexRelReplacer = ParameterizedQueryParameterReplacer.createRelParameterReplacer(functionParameters, refIndexReplacements, rexBuilder);
-      RexShuttle correlateRexReplacer = ParameterizedQueryParameterReplacer.createRexParameterReplacer(functionParameters, correlateReplacements, rexBuilder);
-      RexShuttle refIndexRexReplacer = ParameterizedQueryParameterReplacer.createRexParameterReplacer(functionParameters, refIndexReplacements, rexBuilder);
-      RexArgumentReplacer compositeReplacer = new RexArgumentReplacer(
-        correlateRelReplacer,
-        refIndexRelReplacer,
-        correlateRexReplacer,
-        refIndexRexReplacer,
-        correlationId);
+        RexNode rexNode,
+        List<FunctionParameter> functionParameters,
+        List<RexNode> correlateReplacements,
+        List<RexNode> refIndexReplacements,
+        CorrelationId correlationId,
+        RexBuilder rexBuilder) {
+      RelShuttle correlateRelReplacer =
+          ParameterizedQueryParameterReplacer.createRelParameterReplacer(
+              functionParameters, correlateReplacements, rexBuilder);
+      RelShuttle refIndexRelReplacer =
+          ParameterizedQueryParameterReplacer.createRelParameterReplacer(
+              functionParameters, refIndexReplacements, rexBuilder);
+      RexShuttle correlateRexReplacer =
+          ParameterizedQueryParameterReplacer.createRexParameterReplacer(
+              functionParameters, correlateReplacements, rexBuilder);
+      RexShuttle refIndexRexReplacer =
+          ParameterizedQueryParameterReplacer.createRexParameterReplacer(
+              functionParameters, refIndexReplacements, rexBuilder);
+      RexArgumentReplacer compositeReplacer =
+          new RexArgumentReplacer(
+              correlateRelReplacer,
+              refIndexRelReplacer,
+              correlateRexReplacer,
+              refIndexRexReplacer,
+              correlationId);
       return rexNode.accept(compositeReplacer);
     }
   }

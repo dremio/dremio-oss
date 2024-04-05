@@ -15,10 +15,6 @@
  */
 package com.dremio.telemetry.impl.config.metrics;
 
-import java.util.Objects;
-import java.util.Optional;
-import java.util.concurrent.TimeUnit;
-
 import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.jmx.JmxReporter;
@@ -27,10 +23,11 @@ import com.dremio.telemetry.api.config.ReporterConfigurator;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
-/**
- * Configurator for JMX
- */
+/** Configurator for JMX */
 @JsonTypeName("jmx")
 public class JmxConfigurator extends ReporterConfigurator {
 
@@ -40,8 +37,7 @@ public class JmxConfigurator extends ReporterConfigurator {
 
   @JsonCreator
   public JmxConfigurator(
-      @JsonProperty("rate") TimeUnit rateUnit,
-      @JsonProperty("duration") TimeUnit durationUnit) {
+      @JsonProperty("rate") TimeUnit rateUnit, @JsonProperty("duration") TimeUnit durationUnit) {
     super();
     this.rateUnit = Optional.ofNullable(rateUnit).orElse(TimeUnit.SECONDS);
     this.durationUnit = Optional.ofNullable(durationUnit).orElse(TimeUnit.MILLISECONDS);
@@ -49,7 +45,12 @@ public class JmxConfigurator extends ReporterConfigurator {
 
   @Override
   public void configureAndStart(String name, MetricRegistry registry, MetricFilter filter) {
-    reporter = JmxReporter.forRegistry(registry).convertRatesTo(rateUnit).convertDurationsTo(durationUnit).filter(filter).build();
+    reporter =
+        JmxReporter.forRegistry(registry)
+            .convertRatesTo(rateUnit)
+            .convertDurationsTo(durationUnit)
+            .filter(filter)
+            .build();
     reporter.start();
   }
 
@@ -60,28 +61,24 @@ public class JmxConfigurator extends ReporterConfigurator {
 
   @Override
   public boolean equals(Object other) {
-    if(other == null) {
+    if (other == null) {
       return false;
     }
-    if(!other.getClass().equals(this.getClass())) {
+    if (!other.getClass().equals(this.getClass())) {
       return false;
     }
     JmxConfigurator o = (JmxConfigurator) other;
-    return Objects.equals(rateUnit, o.rateUnit)
-        && Objects.equals(durationUnit, o.durationUnit);
+    return Objects.equals(rateUnit, o.rateUnit) && Objects.equals(durationUnit, o.durationUnit);
   }
 
   @Override
   public void close() {
-    if(reporter != null) {
+    if (reporter != null) {
       reporter.close();
     }
   }
 
-  /**
-   * Module that may be added to a jackson object mapper
-   * so it can parse jmx config.
-   */
+  /** Module that may be added to a jackson object mapper so it can parse jmx config. */
   public static class Module extends ConfigModule {
     @Override
     public void setupModule(SetupContext context) {

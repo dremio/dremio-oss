@@ -26,20 +26,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.io.ByteArrayOutputStream;
-import java.io.OutputStream;
-import java.util.Map;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
-
-import javax.inject.Inject;
-import javax.inject.Provider;
-
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
-
 import com.dremio.service.BinderImpl.Binding;
 import com.dremio.service.BinderImpl.DeferredProvider;
 import com.dremio.service.BinderImpl.FinalResolver;
@@ -51,6 +37,17 @@ import com.dremio.service.BinderImpl.ProviderReference;
 import com.dremio.service.BinderImpl.Resolver;
 import com.dremio.service.BinderImpl.SingletonBinding;
 import com.google.inject.Injector;
+import java.io.ByteArrayOutputStream;
+import java.io.OutputStream;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
+import javax.inject.Inject;
+import javax.inject.Provider;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
 
 class TestBinderImpl {
 
@@ -58,44 +55,59 @@ class TestBinderImpl {
 
   @Test
   void testIterator() {
-    // The iterator is principally used in the InjectableReference to resolve the dependency instances on a call to get()
+    // The iterator is principally used in the InjectableReference to resolve the dependency
+    // instances on a call to get()
     binder.bind(String.class, "THIS");
     binder.bind(Foo.class, PublicFooImplementationWithInjectableCtor.class);
     Provider<OutputStream> provider = ByteArrayOutputStream::new;
     binder.bindProvider(OutputStream.class, provider);
 
     Iterable<Binding<?>> iterable = binder::iterator;
-    Map<Class<?>, Binding<?>> bindings = StreamSupport.stream(iterable.spliterator(), false).collect(Collectors.toMap(
-      Binding::getIface,
-      Function.identity()
-    ));
-    assertThat(bindings).satisfies(b -> {
-      assertThat(b).hasSize(3);
-      assertThat(b.get(String.class)).satisfies(sb -> {
-        assertThat(sb.getIface()).isEqualTo(String.class);
-        assertThat(sb.getType()).isEqualTo(SINGLETON);
-        assertThat(sb).isInstanceOf(SingletonBinding.class);
-        assertThat((SingletonBinding<?>) sb).satisfies(ssb -> {
-          assertThat(ssb.getSingleton()).isEqualTo("THIS");
-        });
-      });
-      assertThat(b.get(Foo.class)).satisfies(sb -> {
-        assertThat(sb.getIface()).isEqualTo(Foo.class);
-        assertThat(sb.getType()).isEqualTo(INSTANCE);
-        assertThat(sb).isInstanceOf(InstanceBinding.class);
-        assertThat((InstanceBinding<?>) sb).satisfies(isb -> {
-          assertThat(isb.getInstance()).isEqualTo(PublicFooImplementationWithInjectableCtor.class);
-        });
-      });
-      assertThat(b.get(OutputStream.class)).satisfies(sb -> {
-        assertThat(sb.getIface()).isEqualTo(OutputStream.class);
-        assertThat(sb.getType()).isEqualTo(PROVIDER);
-        assertThat(sb).isInstanceOf(ProviderBinding.class);
-        assertThat((ProviderBinding<?>) sb).satisfies(isb -> {
-          assertThat(isb.getProvider()).isEqualTo(provider);
-        });
-      });
-    });
+    Map<Class<?>, Binding<?>> bindings =
+        StreamSupport.stream(iterable.spliterator(), false)
+            .collect(Collectors.toMap(Binding::getIface, Function.identity()));
+    assertThat(bindings)
+        .satisfies(
+            b -> {
+              assertThat(b).hasSize(3);
+              assertThat(b.get(String.class))
+                  .satisfies(
+                      sb -> {
+                        assertThat(sb.getIface()).isEqualTo(String.class);
+                        assertThat(sb.getType()).isEqualTo(SINGLETON);
+                        assertThat(sb).isInstanceOf(SingletonBinding.class);
+                        assertThat((SingletonBinding<?>) sb)
+                            .satisfies(
+                                ssb -> {
+                                  assertThat(ssb.getSingleton()).isEqualTo("THIS");
+                                });
+                      });
+              assertThat(b.get(Foo.class))
+                  .satisfies(
+                      sb -> {
+                        assertThat(sb.getIface()).isEqualTo(Foo.class);
+                        assertThat(sb.getType()).isEqualTo(INSTANCE);
+                        assertThat(sb).isInstanceOf(InstanceBinding.class);
+                        assertThat((InstanceBinding<?>) sb)
+                            .satisfies(
+                                isb -> {
+                                  assertThat(isb.getInstance())
+                                      .isEqualTo(PublicFooImplementationWithInjectableCtor.class);
+                                });
+                      });
+              assertThat(b.get(OutputStream.class))
+                  .satisfies(
+                      sb -> {
+                        assertThat(sb.getIface()).isEqualTo(OutputStream.class);
+                        assertThat(sb.getType()).isEqualTo(PROVIDER);
+                        assertThat(sb).isInstanceOf(ProviderBinding.class);
+                        assertThat((ProviderBinding<?>) sb)
+                            .satisfies(
+                                isb -> {
+                                  assertThat(isb.getProvider()).isEqualTo(provider);
+                                });
+                      });
+            });
   }
 
   @Nested
@@ -134,20 +146,23 @@ class TestBinderImpl {
     /* Naive attempt to have a lazy singleton via a provider. This would be annoying to do in practice. */
     @Test
     void testBoundProviderCanBehaveAsALazySingleton() {
-      binder.bindProvider(Object.class, new Provider<Object>() {
-        private volatile Object instance;
-        @Override
-        public Object get() {
-          if (instance == null) {
-            synchronized (Object.class) {
+      binder.bindProvider(
+          Object.class,
+          new Provider<Object>() {
+            private volatile Object instance;
+
+            @Override
+            public Object get() {
               if (instance == null) {
-                instance = new Object();
+                synchronized (Object.class) {
+                  if (instance == null) {
+                    instance = new Object();
+                  }
+                }
               }
+              return instance;
             }
-          }
-          return instance;
-        }
-      });
+          });
       Object value1 = binder.lookup(Object.class);
       Object value2 = binder.lookup(Object.class);
       assertThat(value1).isSameAs(value2);
@@ -182,7 +197,6 @@ class TestBinderImpl {
         finalResolver.getImplementation(bindingProvider);
         verify(bindingProvider).lookup(String.class);
       }
-
     }
 
     @Nested
@@ -194,7 +208,8 @@ class TestBinderImpl {
         // In an injectable reference, it creates a final resolver instance for each injectable
         // argument of the ctor. When we call get, this triggers a getImplementation call on each
         // final resolver, forcing a cascade of dependency instantiation and resolution.
-        InjectableReference reference = new InjectableReference(PublicFooImplementationWithInjectableCtor.class);
+        InjectableReference reference =
+            new InjectableReference(PublicFooImplementationWithInjectableCtor.class);
 
         BindingProvider bindingProvider = mock(BindingProvider.class);
         reference.get(bindingProvider);
@@ -214,11 +229,13 @@ class TestBinderImpl {
       @Test
       void testInstanceResolver() {
         binder.bind(String.class, "THIS");
-        assertThat(binder.getResolver(String.class)).satisfies(r -> {
-          assertThat(r).isInstanceOf(GenericReference.class);
-          assertThat(r.getType()).isEqualTo(SINGLETON);
-          assertThat(r.get(null)).isEqualTo("THIS");
-        });
+        assertThat(binder.getResolver(String.class))
+            .satisfies(
+                r -> {
+                  assertThat(r).isInstanceOf(GenericReference.class);
+                  assertThat(r.getType()).isEqualTo(SINGLETON);
+                  assertThat(r.get(null)).isEqualTo("THIS");
+                });
       }
 
       @Test
@@ -226,35 +243,42 @@ class TestBinderImpl {
         Provider<String> provider = mock(Provider.class);
         when(provider.get()).thenReturn("THIS");
         binder.bindProvider(String.class, provider);
-        assertThat(binder.getResolver(String.class)).satisfies(r -> {
-          verify(provider, never()).get();
-          assertThat(r).isInstanceOf(ProviderReference.class);
-          assertThat(r.getType()).isEqualTo(PROVIDER);
-          assertThat(r.get(null)).isEqualTo("THIS");
-        });
+        assertThat(binder.getResolver(String.class))
+            .satisfies(
+                r -> {
+                  verify(provider, never()).get();
+                  assertThat(r).isInstanceOf(ProviderReference.class);
+                  assertThat(r.getType()).isEqualTo(PROVIDER);
+                  assertThat(r.get(null)).isEqualTo("THIS");
+                });
       }
 
       @Test
       void testInjectableResolver() {
         binder.bind(Foo.class, PublicFooImplementationWithInjectableCtor.class);
-        assertThat(binder.getResolver(Foo.class)).satisfies(r -> {
-          assertThat(r).isInstanceOf(InjectableReference.class);
-          assertThat(r.getType()).isEqualTo(INSTANCE);
-          // Inject dependency
-          binder.bind(String.class, "DEPENDENCY");
-          BindingProvider bindingProvider = binder;
-          assertThat(r.get(bindingProvider)).isInstanceOf(PublicFooImplementationWithInjectableCtor.class);
-        });
+        assertThat(binder.getResolver(Foo.class))
+            .satisfies(
+                r -> {
+                  assertThat(r).isInstanceOf(InjectableReference.class);
+                  assertThat(r.getType()).isEqualTo(INSTANCE);
+                  // Inject dependency
+                  binder.bind(String.class, "DEPENDENCY");
+                  BindingProvider bindingProvider = binder;
+                  assertThat(r.get(bindingProvider))
+                      .isInstanceOf(PublicFooImplementationWithInjectableCtor.class);
+                });
       }
 
       @Test
       void testInjectableResolverCheckNoEagerCinit() {
         // If Injectable is eagerly created, this will fail
         binder.bind(Foo.class, UninstantiablePublicFooImplementationWithInjectableCtor.class);
-        assertThat(binder.getResolver(Foo.class)).satisfies(r -> {
-          assertThat(r).isInstanceOf(InjectableReference.class);
-          assertThat(r.getType()).isEqualTo(INSTANCE);
-        });
+        assertThat(binder.getResolver(Foo.class))
+            .satisfies(
+                r -> {
+                  assertThat(r).isInstanceOf(InjectableReference.class);
+                  assertThat(r.getType()).isEqualTo(INSTANCE);
+                });
       }
 
       @Test
@@ -267,11 +291,13 @@ class TestBinderImpl {
         binder.bind(String.class, "THIS");
         BinderImpl child = new BinderImpl(binder);
         assertThat(child.asMap()).isEmpty();
-        assertThat(child.getResolver(String.class)).satisfies(r -> {
-          assertThat(r).isInstanceOf(GenericReference.class);
-          assertThat(r.getType()).isEqualTo(SINGLETON);
-          assertThat(r.get(null)).isEqualTo("THIS");
-        });
+        assertThat(child.getResolver(String.class))
+            .satisfies(
+                r -> {
+                  assertThat(r).isInstanceOf(GenericReference.class);
+                  assertThat(r.getType()).isEqualTo(SINGLETON);
+                  assertThat(r.get(null)).isEqualTo("THIS");
+                });
       }
     }
 
@@ -303,15 +329,18 @@ class TestBinderImpl {
           binder.bind(Foo.class, PublicFooImplementationWithInjectableCtor.class);
           // Inject dependency
           binder.bind(String.class, "DEPENDENCY");
-          assertThat(binder.lookup(Foo.class)).satisfies(v -> {
-            assertThat(v).isNotNull();
-            assertThat(v).isInstanceOf(PublicFooImplementationWithInjectableCtor.class);
-          });
+          assertThat(binder.lookup(Foo.class))
+              .satisfies(
+                  v -> {
+                    assertThat(v).isNotNull();
+                    assertThat(v).isInstanceOf(PublicFooImplementationWithInjectableCtor.class);
+                  });
         }
 
         @Test
         void testLookupNonExistentReference() {
-          assertThatThrownBy(() -> binder.lookup(String.class)).isInstanceOf(NullPointerException.class);
+          assertThatThrownBy(() -> binder.lookup(String.class))
+              .isInstanceOf(NullPointerException.class);
         }
 
         @Test
@@ -320,10 +349,12 @@ class TestBinderImpl {
           when(guiceInjector.getInstance(String.class)).thenReturn("THIS");
           binder.registerGuiceInjector(guiceInjector);
           assertThat(binder.asMap()).isEmpty();
-          assertThat(binder.lookup(String.class)).satisfies(v -> {
-            assertThat(v).isEqualTo("THIS");
-            verify(guiceInjector).getInstance(String.class);
-          });
+          assertThat(binder.lookup(String.class))
+              .satisfies(
+                  v -> {
+                    assertThat(v).isEqualTo("THIS");
+                    verify(guiceInjector).getInstance(String.class);
+                  });
         }
 
         @Test
@@ -333,7 +364,6 @@ class TestBinderImpl {
           assertThat(child.asMap()).isEmpty();
           assertThat(child.lookup(String.class)).isEqualTo("THIS");
         }
-
       }
 
       @Nested
@@ -350,27 +380,34 @@ class TestBinderImpl {
           Provider<String> provider = mock(Provider.class);
           when(provider.get()).thenReturn("THIS");
           binder.bindProvider(String.class, provider);
-          assertThat(binder.provider(String.class)).satisfies(p -> {
-            assertThat(p).isNotEqualTo(provider);
-            assertThat(p).isInstanceOf(DeferredProvider.class);
-            // It's a deferred provider, so we should expect it to defer the get
-            verify(provider, never()).get();
-            assertThat(p.get()).isSameAs(provider.get());
-          });
+          assertThat(binder.provider(String.class))
+              .satisfies(
+                  p -> {
+                    assertThat(p).isNotEqualTo(provider);
+                    assertThat(p).isInstanceOf(DeferredProvider.class);
+                    // It's a deferred provider, so we should expect it to defer the get
+                    verify(provider, never()).get();
+                    assertThat(p.get()).isSameAs(provider.get());
+                  });
         }
 
         @Test
         void testProviderForInjectableReference() {
           binder.bind(Foo.class, PublicFooImplementationWithInjectableCtor.class);
-          assertThat(binder.provider(Foo.class)).satisfies(p -> {
-            assertThat(p).isInstanceOf(DeferredProvider.class);
-            // Inject dependency
-            binder.bind(String.class, "DEPENDENCY");
-            assertThat(p.get()).satisfies(v -> {
-              assertThat(v).isNotNull();
-              assertThat(v).isInstanceOf(PublicFooImplementationWithInjectableCtor.class);
-            });
-          });
+          assertThat(binder.provider(Foo.class))
+              .satisfies(
+                  p -> {
+                    assertThat(p).isInstanceOf(DeferredProvider.class);
+                    // Inject dependency
+                    binder.bind(String.class, "DEPENDENCY");
+                    assertThat(p.get())
+                        .satisfies(
+                            v -> {
+                              assertThat(v).isNotNull();
+                              assertThat(v)
+                                  .isInstanceOf(PublicFooImplementationWithInjectableCtor.class);
+                            });
+                  });
         }
 
         @Test
@@ -382,10 +419,12 @@ class TestBinderImpl {
 
         @Test
         void testProviderForNonExistentReference() {
-          assertThat(binder.provider(String.class)).satisfies(p -> {
-            assertThat(p).isNotNull();
-            assertThatThrownBy(p::get).isInstanceOf(NullPointerException.class);
-          });
+          assertThat(binder.provider(String.class))
+              .satisfies(
+                  p -> {
+                    assertThat(p).isNotNull();
+                    assertThatThrownBy(p::get).isInstanceOf(NullPointerException.class);
+                  });
         }
 
         @Test
@@ -394,13 +433,15 @@ class TestBinderImpl {
           when(guiceInjector.getInstance(String.class)).thenReturn("THIS");
           binder.registerGuiceInjector(guiceInjector);
           assertThat(binder.asMap()).isEmpty();
-          assertThat(binder.provider(String.class)).satisfies(p -> {
-            assertThat(p).isInstanceOf(DeferredProvider.class);
-            // It's a deferred provider, so we should expect it to defer the get
-            verify(guiceInjector, never()).getInstance((Class<?>) any());
-            assertThat(p.get()).isEqualTo("THIS");
-            verify(guiceInjector).getInstance(String.class);
-          });
+          assertThat(binder.provider(String.class))
+              .satisfies(
+                  p -> {
+                    assertThat(p).isInstanceOf(DeferredProvider.class);
+                    // It's a deferred provider, so we should expect it to defer the get
+                    verify(guiceInjector, never()).getInstance((Class<?>) any());
+                    assertThat(p.get()).isEqualTo("THIS");
+                    verify(guiceInjector).getInstance(String.class);
+                  });
         }
 
         @Test
@@ -410,7 +451,6 @@ class TestBinderImpl {
           assertThat(child.asMap()).isEmpty();
           assertThat(child.provider(String.class).get()).isEqualTo("THIS");
         }
-
       }
     }
   }
@@ -435,12 +475,16 @@ class TestBinderImpl {
 
     @Test
     void testWrapNonInjectableClass() {
-      assertThatThrownBy(() -> BinderImpl.wrap(Foo.class)).isInstanceOf(IllegalArgumentException.class);
+      assertThatThrownBy(() -> BinderImpl.wrap(Foo.class))
+          .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void testWrapInjectableClass() {
-      assertThat(BinderImpl.wrap(UninstantiablePublicFooImplementationWithInjectableCtor.class)).isEqualTo(new InjectableReference(UninstantiablePublicFooImplementationWithInjectableCtor.class));
+      assertThat(BinderImpl.wrap(UninstantiablePublicFooImplementationWithInjectableCtor.class))
+          .isEqualTo(
+              new InjectableReference(
+                  UninstantiablePublicFooImplementationWithInjectableCtor.class));
     }
 
     @Test
@@ -456,56 +500,79 @@ class TestBinderImpl {
     @Test
     void testBindInstance() {
       binder.bind(String.class, "THIS");
-      assertThat(binder.asMap()).satisfies(b -> {
-        assertThat(b).hasSize(1);
-        assertThat(b).containsEntry(String.class, new GenericReference("THIS"));
-      });
+      assertThat(binder.asMap())
+          .satisfies(
+              b -> {
+                assertThat(b).hasSize(1);
+                assertThat(b).containsEntry(String.class, new GenericReference("THIS"));
+              });
     }
 
     @Test
     void testBindInstanceNull() {
       binder.bind(String.class, (String) null);
-      assertThat(binder.asMap()).satisfies(b -> {
-        assertThat(b).hasSize(1);
-        assertThat(b).containsEntry(String.class, new GenericReference(null));
-      });
+      assertThat(binder.asMap())
+          .satisfies(
+              b -> {
+                assertThat(b).hasSize(1);
+                assertThat(b).containsEntry(String.class, new GenericReference(null));
+              });
     }
 
     @Test
     void testBindSelfInstance() {
       binder.bindSelf("THIS");
-      assertThat(binder.asMap()).satisfies(b -> {
-        assertThat(b).hasSize(1);
-        assertThat(b).containsEntry(String.class, new GenericReference("THIS"));
-      });
+      assertThat(binder.asMap())
+          .satisfies(
+              b -> {
+                assertThat(b).hasSize(1);
+                assertThat(b).containsEntry(String.class, new GenericReference("THIS"));
+              });
     }
 
     @Test
     void testBindPublicImplementationClassWithInjectableCtor() {
       binder.bind(Foo.class, UninstantiablePublicFooImplementationWithInjectableCtor.class);
-      assertThat(binder.asMap()).satisfies(b -> {
-        assertThat(b).hasSize(1);
-        assertThat(b).containsEntry(Foo.class, new InjectableReference(UninstantiablePublicFooImplementationWithInjectableCtor.class));
-      });
+      assertThat(binder.asMap())
+          .satisfies(
+              b -> {
+                assertThat(b).hasSize(1);
+                assertThat(b)
+                    .containsEntry(
+                        Foo.class,
+                        new InjectableReference(
+                            UninstantiablePublicFooImplementationWithInjectableCtor.class));
+              });
     }
 
     @Test
     void testBindPrivateImplementationClassWithInjectableCtor() {
-      assertThatThrownBy(() -> binder.bind(Foo.class, UninstantiablePrivateFooImplementationWithInjectableCtor.class)).isInstanceOf(IllegalArgumentException.class);
+      assertThatThrownBy(
+              () ->
+                  binder.bind(
+                      Foo.class, UninstantiablePrivateFooImplementationWithInjectableCtor.class))
+          .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void testBindImplementationClassWithoutInjectableCtor() {
-      assertThatThrownBy(() -> binder.bind(CharSequence.class, String.class)).isInstanceOf(IllegalArgumentException.class);
+      assertThatThrownBy(() -> binder.bind(CharSequence.class, String.class))
+          .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void testBindSelfPublicImplementationClassWithInjectableCtor() {
       binder.bindSelf(UninstantiablePublicFooImplementationWithInjectableCtor.class);
-      assertThat(binder.asMap()).satisfies(b -> {
-        assertThat(b).hasSize(1);
-        assertThat(b).containsEntry(UninstantiablePublicFooImplementationWithInjectableCtor.class, new InjectableReference(UninstantiablePublicFooImplementationWithInjectableCtor.class));
-      });
+      assertThat(binder.asMap())
+          .satisfies(
+              b -> {
+                assertThat(b).hasSize(1);
+                assertThat(b)
+                    .containsEntry(
+                        UninstantiablePublicFooImplementationWithInjectableCtor.class,
+                        new InjectableReference(
+                            UninstantiablePublicFooImplementationWithInjectableCtor.class));
+              });
     }
 
     @Test
@@ -514,10 +581,12 @@ class TestBinderImpl {
       when(provider.get()).thenReturn("THIS");
       verify(provider, never()).get();
       binder.bindProvider(CharSequence.class, provider);
-      assertThat(binder.asMap()).satisfies(b -> {
-        assertThat(b).hasSize(1);
-        assertThat(b).containsEntry(CharSequence.class, new ProviderReference(provider));
-      });
+      assertThat(binder.asMap())
+          .satisfies(
+              b -> {
+                assertThat(b).hasSize(1);
+                assertThat(b).containsEntry(CharSequence.class, new ProviderReference(provider));
+              });
     }
 
     @Nested
@@ -527,22 +596,25 @@ class TestBinderImpl {
       @Test
       void testNewInstanceBinding() {
         assertThat(binder.bindIfUnbound(String.class, "THIS")).isTrue();
-        assertThat(binder.asMap()).satisfies(b -> {
-          assertThat(b).hasSize(1);
-          assertThat(b).containsEntry(String.class, new GenericReference("THIS"));
-        });
+        assertThat(binder.asMap())
+            .satisfies(
+                b -> {
+                  assertThat(b).hasSize(1);
+                  assertThat(b).containsEntry(String.class, new GenericReference("THIS"));
+                });
       }
 
       @Test
       void testExistingInstanceBinding() {
         binder.bind(String.class, "THIS");
         assertThat(binder.bindIfUnbound(String.class, "THAT")).isFalse();
-        assertThat(binder.asMap()).satisfies(b -> {
-          assertThat(b).hasSize(1);
-          assertThat(b).containsEntry(String.class, new GenericReference("THIS"));
-        });
+        assertThat(binder.asMap())
+            .satisfies(
+                b -> {
+                  assertThat(b).hasSize(1);
+                  assertThat(b).containsEntry(String.class, new GenericReference("THIS"));
+                });
       }
-
     }
 
     @Nested
@@ -557,7 +629,8 @@ class TestBinderImpl {
 
       @Test
       void testRemoveNonExistentReference() {
-        assertThatThrownBy(() -> binder.remove(String.class)).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> binder.remove(String.class))
+            .isInstanceOf(IllegalStateException.class);
       }
     }
 
@@ -569,15 +642,18 @@ class TestBinderImpl {
       void testReplaceInstance() {
         binder.bind(String.class, "THIS");
         binder.replace(String.class, "THAT");
-        assertThat(binder.asMap()).satisfies(b -> {
-          assertThat(b).hasSize(1);
-          assertThat(b).containsEntry(String.class, new GenericReference("THAT"));
-        });
+        assertThat(binder.asMap())
+            .satisfies(
+                b -> {
+                  assertThat(b).hasSize(1);
+                  assertThat(b).containsEntry(String.class, new GenericReference("THAT"));
+                });
       }
 
       @Test
       void testReplaceNonExistentInstance() {
-        assertThatThrownBy(() -> binder.replace(String.class, "THAT")).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> binder.replace(String.class, "THAT"))
+            .isInstanceOf(IllegalStateException.class);
       }
 
       @Test
@@ -586,10 +662,12 @@ class TestBinderImpl {
         Provider<String> replacement = mock(Provider.class);
         binder.replaceProvider(String.class, replacement);
         verify(replacement, never()).get();
-        assertThat(binder.asMap()).satisfies(b -> {
-          assertThat(b).hasSize(1);
-          assertThat(b).containsEntry(String.class, new ProviderReference(replacement));
-        });
+        assertThat(binder.asMap())
+            .satisfies(
+                b -> {
+                  assertThat(b).hasSize(1);
+                  assertThat(b).containsEntry(String.class, new ProviderReference(replacement));
+                });
       }
 
       /* This is not consistent with other replace methods */
@@ -598,25 +676,37 @@ class TestBinderImpl {
         Provider<String> replacement = mock(Provider.class);
         binder.replaceProvider(String.class, replacement);
         verify(replacement, never()).get();
-        assertThat(binder.asMap()).satisfies(b -> {
-          assertThat(b).hasSize(1);
-          assertThat(b).containsEntry(String.class, new ProviderReference(replacement));
-        });
+        assertThat(binder.asMap())
+            .satisfies(
+                b -> {
+                  assertThat(b).hasSize(1);
+                  assertThat(b).containsEntry(String.class, new ProviderReference(replacement));
+                });
       }
 
       @Test
       void testReplaceInjectable() {
         binder.bind(Foo.class, UninstantiablePublicFooImplementationWithInjectableCtor.class);
         binder.replace(Foo.class, UninstantiablePublicFooImplementationWithInjectableCtor2.class);
-        assertThat(binder.asMap()).satisfies(b -> {
-          assertThat(b).hasSize(1);
-          assertThat(b).containsEntry(Foo.class, new InjectableReference(UninstantiablePublicFooImplementationWithInjectableCtor2.class));
-        });
+        assertThat(binder.asMap())
+            .satisfies(
+                b -> {
+                  assertThat(b).hasSize(1);
+                  assertThat(b)
+                      .containsEntry(
+                          Foo.class,
+                          new InjectableReference(
+                              UninstantiablePublicFooImplementationWithInjectableCtor2.class));
+                });
       }
 
       @Test
       void testReplaceNonExistentInjectable() {
-        assertThatThrownBy(() -> binder.replace(Foo.class, UninstantiablePublicFooImplementationWithInjectableCtor.class)).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(
+                () ->
+                    binder.replace(
+                        Foo.class, UninstantiablePublicFooImplementationWithInjectableCtor.class))
+            .isInstanceOf(IllegalStateException.class);
       }
 
       @Test
@@ -625,70 +715,57 @@ class TestBinderImpl {
         Resolver replacement = mock(Resolver.class);
         binder.replace(String.class, replacement);
         verify(replacement, never()).get(any(BindingProvider.class));
-        assertThat(binder.asMap()).satisfies(b -> {
-          assertThat(b).hasSize(1);
-          assertThat(b).containsEntry(String.class, replacement);
-        });
+        assertThat(binder.asMap())
+            .satisfies(
+                b -> {
+                  assertThat(b).hasSize(1);
+                  assertThat(b).containsEntry(String.class, replacement);
+                });
       }
 
       @Test
       void testReplaceNonExistentResolver() {
         Resolver replacement = mock(Resolver.class);
-        assertThatThrownBy(() -> binder.replace(Foo.class, replacement)).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> binder.replace(Foo.class, replacement))
+            .isInstanceOf(IllegalStateException.class);
         verify(replacement, never()).get(any(BindingProvider.class));
       }
     }
-
   }
 
-  interface Foo {
-  }
+  interface Foo {}
 
-  /**
-   * An injectable that can be bound and instantiated.
-   */
+  /** An injectable that can be bound and instantiated. */
   static class PublicFooImplementationWithInjectableCtor implements Foo {
 
     @Inject
-    public PublicFooImplementationWithInjectableCtor(String bar) {
-    }
-
+    public PublicFooImplementationWithInjectableCtor(String bar) {}
   }
 
-  /**
-   * An injectable that can't be instantiated.
-   */
+  /** An injectable that can't be instantiated. */
   static class UninstantiablePublicFooImplementationWithInjectableCtor implements Foo {
 
     @Inject
     public UninstantiablePublicFooImplementationWithInjectableCtor(String bar) {
       throw new IllegalStateException("Unexpected eager cinit()");
     }
-
   }
 
-  /**
-   * An injectable that can't be instantiated.
-   */
+  /** An injectable that can't be instantiated. */
   static class UninstantiablePublicFooImplementationWithInjectableCtor2 implements Foo {
 
     @Inject
     public UninstantiablePublicFooImplementationWithInjectableCtor2(String bar) {
       throw new IllegalStateException("Unexpected eager cinit()");
     }
-
   }
 
-  /**
-   * An injectable that can't be bound because it is private, can cannot be instantiated.
-   */
+  /** An injectable that can't be bound because it is private, can cannot be instantiated. */
   static class UninstantiablePrivateFooImplementationWithInjectableCtor implements Foo {
 
     @Inject
     UninstantiablePrivateFooImplementationWithInjectableCtor(String bar) {
       throw new IllegalStateException("Unexpected eager cinit()");
     }
-
   }
-
 }

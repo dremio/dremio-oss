@@ -15,19 +15,15 @@
  */
 package com.dremio.exec.store.easy.excel.xls;
 
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.List;
-
 import org.apache.poi.poifs.storage.BATBlock;
 import org.apache.poi.poifs.storage.HeaderBlock;
 
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
-
-/**
- * Base implementation of {@link BlockStoreBase} backed by a byte array
- */
+/** Base implementation of {@link BlockStoreBase} backed by a byte array */
 abstract class BlockStoreBase implements BlockStore {
   private final int blockSize;
   private final XlsInputStream is;
@@ -61,7 +57,7 @@ abstract class BlockStoreBase implements BlockStore {
   @Override
   public int getNextBlock(int sector) {
     BATBlock.BATBlockAndIndex bai = getBATBlockAndIndex(sector);
-    return bai.getBlock().getValueAt( bai.getIndex() );
+    return bai.getBlock().getValueAt(bai.getIndex());
   }
 
   private BATBlock.BATBlockAndIndex getBATBlockAndIndex(final int sector) {

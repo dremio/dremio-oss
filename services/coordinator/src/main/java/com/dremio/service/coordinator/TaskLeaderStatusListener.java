@@ -15,22 +15,18 @@
  */
 package com.dremio.service.coordinator;
 
+import com.dremio.exec.proto.CoordinationProtos;
+import com.google.common.base.Joiner;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
 import java.util.stream.Collectors;
-
 import javax.inject.Provider;
 
-import com.dremio.exec.proto.CoordinationProtos;
-import com.google.common.base.Joiner;
-
-/**
- * Generic Listener on Service Task Leader
- * will always provide leader for the service
- */
+/** Generic Listener on Service Task Leader will always provide leader for the service */
 public class TaskLeaderStatusListener implements NodeStatusListener, AutoCloseable {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TaskLeaderStatusListener.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(TaskLeaderStatusListener.class);
 
   private final Provider<ClusterServiceSetManager> clusterServiceSetManagerProvider;
   private final String taskName;
@@ -41,13 +37,16 @@ public class TaskLeaderStatusListener implements NodeStatusListener, AutoCloseab
   private volatile boolean shutdown = false;
   private CoordinatorLostHandle leaderUnregisteredHandle;
 
-  public TaskLeaderStatusListener(String taskName,
-                                  Provider<ClusterServiceSetManager> clusterServiceSetManagerProvider) {
+  public TaskLeaderStatusListener(
+      String taskName, Provider<ClusterServiceSetManager> clusterServiceSetManagerProvider) {
     this(taskName, clusterServiceSetManagerProvider, false, null);
   }
 
-  public TaskLeaderStatusListener(String taskName,
-                                  Provider<ClusterServiceSetManager> clusterServiceSetManagerProvider, boolean isLeader, CoordinatorLostHandle leaderUnregisteredHandle) {
+  public TaskLeaderStatusListener(
+      String taskName,
+      Provider<ClusterServiceSetManager> clusterServiceSetManagerProvider,
+      boolean isLeader,
+      CoordinatorLostHandle leaderUnregisteredHandle) {
     this.taskName = taskName;
     this.clusterServiceSetManagerProvider = clusterServiceSetManagerProvider;
     this.taskLeaderUp = isLeader;
@@ -63,9 +62,16 @@ public class TaskLeaderStatusListener implements NodeStatusListener, AutoCloseab
 
   public void start() throws Exception {
     logger.info("Starting TaskLeaderStatusListener for: {}", taskName);
-    clusterServiceSetManagerProvider.get().getOrCreateServiceSet(taskName).addNodeStatusListener(this);
-    nodesRegistered(new HashSet<>(clusterServiceSetManagerProvider.get().getOrCreateServiceSet(taskName)
-      .getAvailableEndpoints()));
+    clusterServiceSetManagerProvider
+        .get()
+        .getOrCreateServiceSet(taskName)
+        .addNodeStatusListener(this);
+    nodesRegistered(
+        new HashSet<>(
+            clusterServiceSetManagerProvider
+                .get()
+                .getOrCreateServiceSet(taskName)
+                .getAvailableEndpoints()));
     logger.info("TaskLeaderStatusListener for: {} is up", taskName);
   }
 
@@ -76,18 +82,27 @@ public class TaskLeaderStatusListener implements NodeStatusListener, AutoCloseab
     synchronized (taskLeaderLock) {
       taskLeaderLock.notifyAll();
     }
-    clusterServiceSetManagerProvider.get().getOrCreateServiceSet(taskName).removeNodeStatusListener(this);
+    clusterServiceSetManagerProvider
+        .get()
+        .getOrCreateServiceSet(taskName)
+        .removeNodeStatusListener(this);
     logger.info("Stopped TaskLeaderStatusListener for: {}", taskName);
   }
 
   @Override
   public void nodesUnregistered(Set<CoordinationProtos.NodeEndpoint> unregisteredNodes) {
-    synchronized(taskLeaderLock) {
+    synchronized (taskLeaderLock) {
       if (taskLeaderNode == null) {
-        logger.warn("Receiving unregistration notice for {}, but no TaskLeader for {} was registered", Joiner.on(",")
-          .join(unregisteredNodes.stream()
-            .map(input -> String.format("%s:%d", input.getAddress(), input.getFabricPort())).collect(Collectors.toList())),
-          taskName);
+        logger.warn(
+            "Receiving unregistration notice for {}, but no TaskLeader for {} was registered",
+            Joiner.on(",")
+                .join(
+                    unregisteredNodes.stream()
+                        .map(
+                            input ->
+                                String.format("%s:%d", input.getAddress(), input.getFabricPort()))
+                        .collect(Collectors.toList())),
+            taskName);
         return;
       }
 
@@ -115,21 +130,27 @@ public class TaskLeaderStatusListener implements NodeStatusListener, AutoCloseab
     }
 
     CoordinationProtos.NodeEndpoint endpoint = iterator.next();
-    synchronized(taskLeaderLock) {
+    synchronized (taskLeaderLock) {
       if (taskLeaderNode != null && !taskLeaderNode.equals(endpoint)) {
-        logger.info("Leader for task {} for node changed. Previous was {}:{}, new is {}:{}", taskName,
-          taskLeaderNode.getAddress(),
-          taskLeaderNode.getFabricPort(), endpoint.getAddress(), endpoint.getFabricPort());
+        logger.info(
+            "Leader for task {} for node changed. Previous was {}:{}, new is {}:{}",
+            taskName,
+            taskLeaderNode.getAddress(),
+            taskLeaderNode.getFabricPort(),
+            endpoint.getAddress(),
+            endpoint.getFabricPort());
       } else {
-        logger.info("New Leader node for task {} {}:{} registered itself.", taskName,
-          endpoint.getAddress(), endpoint.getFabricPort());
+        logger.info(
+            "New Leader node for task {} {}:{} registered itself.",
+            taskName,
+            endpoint.getAddress(),
+            endpoint.getFabricPort());
       }
       taskLeaderNode = endpoint;
       taskLeaderUp = true;
       taskLeaderLock.notifyAll();
     }
   }
-
 
   public void waitForTaskLeader() throws InterruptedException {
     long waitTimeInSecs = 0;

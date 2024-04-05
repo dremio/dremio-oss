@@ -20,12 +20,11 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 
-import org.junit.Test;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.ischema.InfoSchemaStoragePlugin;
+import org.junit.Test;
 
 public class TestSqlHandlerUtil {
 
@@ -36,7 +35,8 @@ public class TestSqlHandlerUtil {
     String sourceName = "info_schema";
     doReturn(source).when(catalog).getSource(sourceName);
 
-    assertThat(SqlHandlerUtil.getSourceType(catalog, sourceName)).isEqualTo("InfoSchemaStoragePlugin");
+    assertThat(SqlHandlerUtil.getSourceType(catalog, sourceName))
+        .isEqualTo("InfoSchemaStoragePlugin");
   }
 
   @Test

@@ -27,67 +27,73 @@ public interface ControlsInjector {
   Class<?> getSiteClass();
 
   /**
-   * Inject (throw) an unchecked exception at this point, if an injection is specified, and it is time
-   * for it to be thrown.
-   * <p/>
+   * Inject (throw) an unchecked exception at this point, if an injection is specified, and it is
+   * time for it to be thrown.
+   *
+   * <p>
+   *
    * <p>Implementors use this in their code at a site where they want to simulate an exception
    * during testing.
    *
    * @param executionControls the controls in the current context
-   * @param desc              the site descriptor
-   *                          throws the exception specified by the injection, if it is time
+   * @param desc the site descriptor throws the exception specified by the injection, if it is time
    */
   void injectUnchecked(ExecutionControls executionControls, String desc);
-
 
   /**
    * Inject (throw) a checked exception at this point, if an injection is specified, and it is time
    * for it to be thrown.
-   * <p/>
+   *
+   * <p>
+   *
    * <p>Implementors use this in their code at a site where they want to simulate an exception
    * during testing.
    *
    * @param executionControls the controls in the current context
-   * @param desc              the site descriptor
-   * @param exceptionClass    the expected class of the exception (or a super class of it)
+   * @param desc the site descriptor
+   * @param exceptionClass the expected class of the exception (or a super class of it)
    * @throws T the exception specified by the injection, if it is time
    */
-  <T extends Throwable> void injectChecked(ExecutionControls executionControls, String desc, Class<T> exceptionClass)
-    throws T;
+  <T extends Throwable> void injectChecked(
+      ExecutionControls executionControls, String desc, Class<T> exceptionClass) throws T;
 
   /**
    * Pauses at this point, if such an injection is specified (i.e. matches the site description).
-   * <p/>
-   * <p>Implementors use this in their code at a site where they want to simulate a pause
-   * during testing.
+   *
+   * <p>
+   *
+   * <p>Implementors use this in their code at a site where they want to simulate a pause during
+   * testing.
    *
    * @param executionControls the controls in the current context
-   * @param desc              the site descriptor
-   * @param logger            logger of the class containing the injection site
+   * @param desc the site descriptor
+   * @param logger logger of the class containing the injection site
    */
   void injectPause(ExecutionControls executionControls, String desc, Logger logger);
 
   /**
-   * Insert a pause that can be interrupted using {@link Thread#interrupt()} at the given site point, if such an
-   * injection is specified (i.e. matches the site description).
-   * <p/>
-   * <p>Implementors use this in their code at a site where they want to simulate a interruptible pause
-   * during testing.
+   * Insert a pause that can be interrupted using {@link Thread#interrupt()} at the given site
+   * point, if such an injection is specified (i.e. matches the site description).
+   *
+   * <p>
+   *
+   * <p>Implementors use this in their code at a site where they want to simulate a interruptible
+   * pause during testing.
    *
    * @param executionControls the controls in the current context
-   * @param desc              the site descriptor
-   * @param logger            logger of the class containing the injection site
+   * @param desc the site descriptor
+   * @param logger logger of the class containing the injection site
    * @throws InterruptedException if interrupted using {@link Thread#interrupt()}
    */
   void injectInterruptiblePause(ExecutionControls executionControls, String desc, Logger logger)
-    throws InterruptedException;
+      throws InterruptedException;
 
   /**
-   * Used to insert a latch in site class. See {@link CountDownLatchInjection} and
-   * {@link com.dremio.exec.testing.TestCountDownLatchInjection} for usage.
+   * Used to insert a latch in site class. See {@link CountDownLatchInjection} and {@link
+   * com.dremio.exec.testing.TestCountDownLatchInjection} for usage.
+   *
    * @param executionControls the controls in the current context
-   * @param desc              the site descriptor
+   * @param desc the site descriptor
    */
   CountDownLatchInjection getLatch(final ExecutionControls executionControls, final String desc);
-
 }

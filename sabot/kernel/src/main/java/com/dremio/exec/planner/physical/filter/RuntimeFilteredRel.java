@@ -16,15 +16,15 @@
 
 package com.dremio.exec.planner.physical.filter;
 
-import java.util.List;
-
-import org.apache.calcite.rel.RelNode;
-
 import com.dremio.exec.store.TableMetadata;
+import java.util.List;
+import org.apache.calcite.rel.RelNode;
 
 public interface RuntimeFilteredRel extends RelNode {
   List<Info> getRuntimeFilters();
+
   void addRuntimeFilter(Info filterInfo);
+
   TableMetadata getTableMetadata();
 
   enum ColumnType {
@@ -33,7 +33,8 @@ public interface RuntimeFilteredRel extends RelNode {
       protected String alias() {
         return "p";
       }
-    }, RANDOM{
+    },
+    RANDOM {
       @Override
       protected String alias() {
         return "r";
@@ -49,7 +50,8 @@ public interface RuntimeFilteredRel extends RelNode {
     private final String filteredColumnName;
     private final String filteringColumnName;
 
-    public Info(RuntimeFilterId runtimeFilterId,
+    public Info(
+        RuntimeFilterId runtimeFilterId,
         ColumnType columnType,
         String filteredColumnName,
         String filteringColumnName) {
@@ -70,17 +72,21 @@ public interface RuntimeFilteredRel extends RelNode {
     public String getFilteredColumnName() {
       return filteredColumnName;
     }
+
     public String getFilteringColumnName() {
       return filteringColumnName;
     }
 
     @Override
     public String toString() {
-      //used in rel explain
-      return columnType.alias() + "_" + runtimeFilterId + ":" +
-        filteringColumnName + "->" + filteredColumnName;
+      // used in rel explain
+      return columnType.alias()
+          + "_"
+          + runtimeFilterId
+          + ":"
+          + filteringColumnName
+          + "->"
+          + filteredColumnName;
     }
   }
-
-
 }

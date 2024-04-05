@@ -15,29 +15,31 @@
  */
 package com.dremio.exec.expr.fn.impl.conv;
 
-import org.apache.arrow.vector.holders.VarBinaryHolder;
-import org.apache.arrow.vector.holders.VarCharHolder;
-
 import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.FunctionTemplate.FunctionScope;
 import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
+import org.apache.arrow.vector.holders.VarBinaryHolder;
+import org.apache.arrow.vector.holders.VarCharHolder;
 
-@FunctionTemplate(name = "convert_fromUTF8", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+@FunctionTemplate(
+    name = "convert_fromUTF8",
+    scope = FunctionScope.SIMPLE,
+    nulls = NullHandling.NULL_IF_NULL)
 public class UTF8ConvertFrom implements SimpleFunction {
 
   @Param VarBinaryHolder in;
   @Output VarCharHolder out;
 
   @Override
-  public void setup() { }
+  public void setup() {}
 
   @Override
   public void eval() {
     out.buffer = in.buffer;
-    out.start =  in.start;
+    out.start = in.start;
     out.end = in.end;
   }
 }

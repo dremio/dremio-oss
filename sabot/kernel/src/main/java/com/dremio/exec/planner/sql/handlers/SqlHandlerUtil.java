@@ -1,4 +1,3 @@
-
 /*
  * Copyright (C) 2017-2019 Dremio Corporation
  *
@@ -19,6 +18,44 @@ package com.dremio.exec.planner.sql.handlers;
 import static com.dremio.exec.planner.physical.PlannerSettings.QUERY_RESULTS_STORE_TABLE;
 import static com.dremio.exec.planner.physical.PlannerSettings.STORE_QUERY_RESULTS;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.common.utils.protos.QueryIdHelper;
+import com.dremio.exec.ExecConstants;
+import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.CatalogOptions;
+import com.dremio.exec.catalog.CatalogUser;
+import com.dremio.exec.catalog.CatalogUtil;
+import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.ops.QueryContext;
+import com.dremio.exec.physical.base.WriterOptions;
+import com.dremio.exec.planner.StarColumnHelper;
+import com.dremio.exec.planner.common.MoreRelOptUtil;
+import com.dremio.exec.planner.logical.CreateTableEntry;
+import com.dremio.exec.planner.logical.Rel;
+import com.dremio.exec.planner.logical.WriterRel;
+import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.planner.physical.PlannerSettings.StoreQueryResultsPolicy;
+import com.dremio.exec.planner.sql.CalciteArrowHelper;
+import com.dremio.exec.planner.sql.SqlExceptionHelper;
+import com.dremio.exec.planner.sql.handlers.direct.SimpleCommandResult;
+import com.dremio.exec.planner.sql.parser.DremioSqlColumnDeclaration;
+import com.dremio.exec.planner.sql.parser.DremioSqlRowTypeSpec;
+import com.dremio.exec.planner.sql.parser.SqlArrayTypeSpec;
+import com.dremio.exec.planner.sql.parser.SqlColumnPolicyPair;
+import com.dremio.exec.planner.sql.parser.SqlComplexDataTypeSpec;
+import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
+import com.dremio.exec.planner.types.RelDataTypeSystemImpl;
+import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.record.SchemaBuilder;
+import com.dremio.exec.store.easy.arrow.ArrowFormatPlugin;
+import com.dremio.exec.store.iceberg.IcebergUtils;
+import com.dremio.options.OptionManager;
+import com.dremio.service.namespace.DatasetHelper;
+import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.users.SystemUser;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import java.text.SimpleDateFormat;
 import java.util.AbstractList;
 import java.util.ArrayList;
@@ -31,7 +68,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
-
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.RelTraitSet;
@@ -60,70 +96,47 @@ import org.apache.calcite.util.TimestampString;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.text.StrTokenizer;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.common.utils.protos.QueryIdHelper;
-import com.dremio.exec.ExecConstants;
-import com.dremio.exec.catalog.Catalog;
-import com.dremio.exec.catalog.CatalogOptions;
-import com.dremio.exec.catalog.CatalogUser;
-import com.dremio.exec.catalog.CatalogUtil;
-import com.dremio.exec.catalog.DremioTable;
-import com.dremio.exec.ops.QueryContext;
-import com.dremio.exec.physical.base.WriterOptions;
-import com.dremio.exec.planner.StarColumnHelper;
-import com.dremio.exec.planner.common.MoreRelOptUtil;
-import com.dremio.exec.planner.logical.CreateTableEntry;
-import com.dremio.exec.planner.logical.Rel;
-import com.dremio.exec.planner.logical.WriterRel;
-import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.planner.physical.PlannerSettings.StoreQueryResultsPolicy;
-import com.dremio.exec.planner.sql.CalciteArrowHelper;
-import com.dremio.exec.planner.sql.SqlExceptionHelper;
-import com.dremio.exec.planner.sql.handlers.direct.SimpleCommandResult;
-import com.dremio.exec.planner.sql.parser.DremioSqlColumnDeclaration;
-import com.dremio.exec.planner.sql.parser.DremioSqlRowTypeSpec;
-import com.dremio.exec.planner.sql.parser.SqlArrayTypeSpec;
-import com.dremio.exec.planner.sql.parser.SqlColumnPolicyPair;
-import com.dremio.exec.planner.sql.parser.SqlComplexDataTypeSpec;
-import com.dremio.exec.planner.types.RelDataTypeSystemImpl;
-import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.record.SchemaBuilder;
-import com.dremio.exec.store.easy.arrow.ArrowFormatPlugin;
-import com.dremio.exec.store.iceberg.IcebergUtils;
-import com.dremio.options.OptionManager;
-import com.dremio.service.namespace.DatasetHelper;
-import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.users.SystemUser;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-
 public class SqlHandlerUtil {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SqlHandlerUtil.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(SqlHandlerUtil.class);
 
   private static final String UNKNOWN_SOURCE_TYPE = "Unknown";
-  public static final String PLANNER_SOURCE_TARGET_SOURCE_TYPE_SPAN_ATTRIBUTE_NAME = "dremio.planner.source.target.source_type";
+  public static final String PLANNER_SOURCE_TARGET_SOURCE_TYPE_SPAN_ATTRIBUTE_NAME =
+      "dremio.planner.source.target.source_type";
 
   /**
-   * Resolve final RelNode of the new table (or view) for given table field list and new table definition.
+   * Resolve final RelNode of the new table (or view) for given table field list and new table
+   * definition.
    *
-   * @param isNewTableView Is the new table created a view? This doesn't affect the functionality, but it helps format
-   *                       better error messages.
-   * @param tableFieldNames List of fields specified in new table/view field list. These are the fields given just after
-   *                        new table name.
-   *                        Ex. CREATE TABLE newTblName(col1, medianOfCol2, avgOfCol3) AS
-   *                        SELECT col1, median(col2), avg(col3) FROM sourcetbl GROUP BY col1;
-   * @throws ValidationException If table's fields list and field list specified in table definition are not valid.
+   * @param isNewTableView Is the new table created a view? This doesn't affect the functionality,
+   *     but it helps format better error messages.
+   * @param tableFieldNames List of fields specified in new table/view field list. These are the
+   *     fields given just after new table name. Ex. CREATE TABLE newTblName(col1, medianOfCol2,
+   *     avgOfCol3) AS SELECT col1, median(col2), avg(col3) FROM sourcetbl GROUP BY col1;
+   * @throws ValidationException If table's fields list and field list specified in table definition
+   *     are not valid.
    */
-  public static RelNode resolveNewTableRel(boolean isNewTableView, List<String> tableFieldNames,
-                                           RelDataType validatedRowtype, RelNode queryRelNode) throws ValidationException {
-    return resolveNewTableRel(isNewTableView, tableFieldNames, validatedRowtype, queryRelNode,
+  public static RelNode resolveNewTableRel(
+      boolean isNewTableView,
+      List<String> tableFieldNames,
+      RelDataType validatedRowtype,
+      RelNode queryRelNode)
+      throws ValidationException {
+    return resolveNewTableRel(
+        isNewTableView,
+        tableFieldNames,
+        validatedRowtype,
+        queryRelNode,
         false /* disallow duplicates cols in select query */);
   }
 
-  public static RelNode resolveNewTableRel(boolean isNewTableView, List<String> tableFieldNames,
-                                           RelDataType validatedRowtype, RelNode queryRelNode,
-                                           boolean allowDuplicatesInSelect) throws ValidationException {
+  public static RelNode resolveNewTableRel(
+      boolean isNewTableView,
+      List<String> tableFieldNames,
+      RelDataType validatedRowtype,
+      RelNode queryRelNode,
+      boolean allowDuplicatesInSelect)
+      throws ValidationException {
 
     validateRowType(isNewTableView, tableFieldNames, validatedRowtype);
     if (tableFieldNames.size() > 0) {
@@ -137,11 +150,13 @@ public class SqlHandlerUtil {
     return queryRelNode;
   }
 
-  public static void validateRowType(boolean isNewTableView, List<String> tableFieldNames,
-      RelDataType validatedRowtype) throws ValidationException{
+  public static void validateRowType(
+      boolean isNewTableView, List<String> tableFieldNames, RelDataType validatedRowtype)
+      throws ValidationException {
 
     // Get the row type of view definition query.
-    // Reason for getting the row type from validated SqlNode than RelNode is because SqlNode -> RelNode involves
+    // Reason for getting the row type from validated SqlNode than RelNode is because SqlNode ->
+    // RelNode involves
     // renaming duplicate fields which is not desired when creating a view or table.
     // For ex: SELECT region_id, region_id FROM cp."region.json" LIMIT 1 returns
     //  +------------+------------+
@@ -150,14 +165,16 @@ public class SqlHandlerUtil {
     //  | 0          | 0          |
     //  +------------+------------+
     // which is not desired when creating new views or tables.
-//    final RelDataType queryRowType = validatedRowtype;
+    //    final RelDataType queryRowType = validatedRowtype;
 
     if (tableFieldNames.size() > 0) {
       // Field count should match.
       if (tableFieldNames.size() != validatedRowtype.getFieldCount()) {
         final String tblType = isNewTableView ? "view" : "table";
         throw UserException.validationError()
-            .message("%s's field list and the %s's query field list have different counts.", tblType, tblType)
+            .message(
+                "%s's field list and the %s's query field list have different counts.",
+                tblType, tblType)
             .build(logger);
       }
 
@@ -166,7 +183,8 @@ public class SqlHandlerUtil {
         if ("*".equals(field)) {
           final String tblType = isNewTableView ? "view" : "table";
           throw UserException.validationError()
-              .message("%s's query field list has a '*', which is invalid when %s's field list is specified.",
+              .message(
+                  "%s's query field list has a '*', which is invalid when %s's field list is specified.",
                   tblType, tblType)
               .build(logger);
         }
@@ -177,9 +195,10 @@ public class SqlHandlerUtil {
     ensureNoDuplicateColumnNames(tableFieldNames);
   }
 
-  private static void ensureNoDuplicateColumnNames(List<String> fieldNames) throws ValidationException {
+  private static void ensureNoDuplicateColumnNames(List<String> fieldNames)
+      throws ValidationException {
     final Set<String> fieldHashSet = Sets.newHashSetWithExpectedSize(fieldNames.size());
-    for(String field : fieldNames) {
+    for (String field : fieldNames) {
       if (fieldHashSet.contains(field.toLowerCase())) {
         throw new ValidationException(String.format("Duplicate column name [%s]", field));
       }
@@ -188,19 +207,19 @@ public class SqlHandlerUtil {
   }
 
   /**
-   *  Resolve the partition columns specified in "PARTITION BY" clause of CTAS statement.
-   *  Throw validation error if a partition column is not resolved correctly.
-   *  A partition column is resolved, either (1) the same column appear in the select list of CTAS
-   *  or (2) CTAS has a * in select list.
+   * Resolve the partition columns specified in "PARTITION BY" clause of CTAS statement. Throw
+   * validation error if a partition column is not resolved correctly. A partition column is
+   * resolved, either (1) the same column appear in the select list of CTAS or (2) CTAS has a * in
+   * select list.
    *
-   *  In the second case, a PROJECT with ITEM expression would be created and returned.
-   *  Throw validation error if a partition column is not resolved correctly.
+   * <p>In the second case, a PROJECT with ITEM expression would be created and returned. Throw
+   * validation error if a partition column is not resolved correctly.
    *
    * @param input : the RelNode represents the select statement in CTAS.
    * @param partitionColumns : the list of partition columns.
-   * @return : 1) the original RelNode input, if all partition columns are in select list of CTAS
-   *           2) a New Project, if a partition column is resolved to * column in select list
-   *           3) validation error, if partition column is not resolved.
+   * @return : 1) the original RelNode input, if all partition columns are in select list of CTAS 2)
+   *     a New Project, if a partition column is resolved to * column in select list 3) validation
+   *     error, if partition column is not resolved.
    */
   public static RelNode qualifyPartitionCol(RelNode input, List<String> partitionColumns) {
 
@@ -272,10 +291,11 @@ public class SqlHandlerUtil {
     }
   }
 
-  public static void unparseSqlNodeList(SqlWriter writer, int leftPrec, int rightPrec, SqlNodeList fieldList) {
+  public static void unparseSqlNodeList(
+      SqlWriter writer, int leftPrec, int rightPrec, SqlNodeList fieldList) {
     writer.keyword("(");
     fieldList.get(0).unparse(writer, leftPrec, rightPrec);
-    for (int i = 1; i<fieldList.size(); i++) {
+    for (int i = 1; i < fieldList.size(); i++) {
       writer.keyword(",");
       fieldList.get(i).unparse(writer, leftPrec, rightPrec);
     }
@@ -283,33 +303,38 @@ public class SqlHandlerUtil {
   }
 
   /**
-   * When enabled, add a writer rel on top of the given rel to catch the output and write to configured store table.
+   * When enabled, add a writer rel on top of the given rel to catch the output and write to
+   * configured store table.
+   *
    * @param inputRel
    * @return
    */
-  public static Rel storeQueryResultsIfNeeded(final SqlParser.Config config, final QueryContext context,
-                                              final Rel inputRel) {
+  public static Rel storeQueryResultsIfNeeded(
+      final SqlParser.Config config, final QueryContext context, final Rel inputRel) {
     final OptionManager options = context.getOptions();
-    final StoreQueryResultsPolicy storeQueryResultsPolicy = Optional
-        .ofNullable(options.getOption(STORE_QUERY_RESULTS.getOptionName()))
-        .map(o -> StoreQueryResultsPolicy.valueOf(o.getStringVal().toUpperCase(Locale.ROOT)))
-        .orElse(StoreQueryResultsPolicy.NO);
+    final StoreQueryResultsPolicy storeQueryResultsPolicy =
+        Optional.ofNullable(options.getOption(STORE_QUERY_RESULTS.getOptionName()))
+            .map(o -> StoreQueryResultsPolicy.valueOf(o.getStringVal().toUpperCase(Locale.ROOT)))
+            .orElse(StoreQueryResultsPolicy.NO);
 
     switch (storeQueryResultsPolicy) {
-    case NO:
-      return inputRel;
+      case NO:
+        return inputRel;
 
-    case DIRECT_PATH:
-    case PATH_AND_ATTEMPT_ID:
-      // supported cases
-      break;
+      case DIRECT_PATH:
+      case PATH_AND_ATTEMPT_ID:
+        // supported cases
+        break;
 
-    default:
-      logger.warn("Unknown query result store policy {}. Query results won't be saved", storeQueryResultsPolicy);
-      return inputRel;
+      default:
+        logger.warn(
+            "Unknown query result store policy {}. Query results won't be saved",
+            storeQueryResultsPolicy);
+        return inputRel;
     }
 
-    final String storeTablePath = options.getOption(QUERY_RESULTS_STORE_TABLE.getOptionName()).getStringVal();
+    final String storeTablePath =
+        options.getOption(QUERY_RESULTS_STORE_TABLE.getOptionName()).getStringVal();
     final List<String> storeTable =
         new StrTokenizer(storeTablePath, '.', config.quoting().string.charAt(0))
             .setIgnoreEmptyTokens(true)
@@ -320,33 +345,49 @@ public class SqlHandlerUtil {
       storeTable.add(QueryIdHelper.getQueryId(context.getQueryId()));
     }
 
-    // Query results are stored in arrow format. If need arises, we can change this to a configuration option.
-    final Map<String, Object> storageOptions = ImmutableMap.<String, Object>of("type", ArrowFormatPlugin.ARROW_DEFAULT_NAME);
+    // Query results are stored in arrow format. If need arises, we can change this to a
+    // configuration option.
+    final Map<String, Object> storageOptions =
+        ImmutableMap.<String, Object>of("type", ArrowFormatPlugin.ARROW_DEFAULT_NAME);
 
     WriterOptions writerOptions = WriterOptions.DEFAULT;
     if (options.getOption(PlannerSettings.ENABLE_OUTPUT_LIMITS)) {
-      writerOptions = WriterOptions.DEFAULT
-                                   .withOutputLimitEnabled(options.getOption(PlannerSettings.ENABLE_OUTPUT_LIMITS))
-                                   .withOutputLimitSize(options.getOption(PlannerSettings.OUTPUT_LIMIT_SIZE));
+      writerOptions =
+          WriterOptions.DEFAULT
+              .withOutputLimitEnabled(options.getOption(PlannerSettings.ENABLE_OUTPUT_LIMITS))
+              .withOutputLimitSize(options.getOption(PlannerSettings.OUTPUT_LIMIT_SIZE));
     }
 
     // store table as system user.
-    final CreateTableEntry createTableEntry = context.getCatalog()
-        .resolveCatalog(CatalogUser.from(SystemUser.SYSTEM_USERNAME))
-        .createNewTable(new NamespaceKey(storeTable), null, writerOptions, storageOptions, true /** results table */);
+    final CreateTableEntry createTableEntry =
+        context
+            .getCatalog()
+            .resolveCatalog(CatalogUser.from(SystemUser.SYSTEM_USERNAME))
+            .createNewTable(
+                new NamespaceKey(storeTable), null, writerOptions, storageOptions, true
+                /** results table */
+                );
 
     final RelTraitSet traits = inputRel.getCluster().traitSet().plus(Rel.LOGICAL);
-    return new WriterRel(inputRel.getCluster(), traits, inputRel, createTableEntry, inputRel.getRowType());
+    return new WriterRel(
+        inputRel.getCluster(), traits, inputRel, createTableEntry, inputRel.getRowType());
   }
 
   /**
    * Checks if new columns list has duplicates or has columns from existing schema
+   *
    * @param newColumsDeclaration
    * @param existingSchema
    */
-  public static void checkForDuplicateColumns(List<DremioSqlColumnDeclaration> newColumsDeclaration, BatchSchema existingSchema, String sql) {
-    Set<String> existingColumns = existingSchema.getFields().stream().map(Field::getName).map(String::toUpperCase)
-      .collect(Collectors.toSet());
+  public static void checkForDuplicateColumns(
+      List<DremioSqlColumnDeclaration> newColumsDeclaration,
+      BatchSchema existingSchema,
+      String sql) {
+    Set<String> existingColumns =
+        existingSchema.getFields().stream()
+            .map(Field::getName)
+            .map(String::toUpperCase)
+            .collect(Collectors.toSet());
     Set<String> newColumns = new HashSet<>();
     String column, columnUpper;
     for (DremioSqlColumnDeclaration columnDecl : newColumsDeclaration) {
@@ -354,17 +395,28 @@ public class SqlHandlerUtil {
       columnUpper = column.toUpperCase();
       SqlIdentifier type = columnDecl.getDataType().getTypeName();
       if (existingColumns.contains(columnUpper)) {
-        throw SqlExceptionHelper.parseError(String.format("Column [%s] already in the table.", column), sql,
-          columnDecl.getParserPosition()).buildSilently();
+        throw SqlExceptionHelper.parseError(
+                String.format("Column [%s] already in the table.", column),
+                sql,
+                columnDecl.getParserPosition())
+            .buildSilently();
       }
-      checkIfSpecifiedMultipleTimesAndAddColumn(sql, newColumns, column, columnUpper, type, columnDecl.getParserPosition());
+      checkIfSpecifiedMultipleTimesAndAddColumn(
+          sql, newColumns, column, columnUpper, type, columnDecl.getParserPosition());
     }
   }
 
-  private static void checkIfSpecifiedMultipleTimesAndAddColumn(String sql, Set<String> newColumns, String column, String columnUpper, SqlIdentifier type, SqlParserPos parserPosition) {
+  private static void checkIfSpecifiedMultipleTimesAndAddColumn(
+      String sql,
+      Set<String> newColumns,
+      String column,
+      String columnUpper,
+      SqlIdentifier type,
+      SqlParserPos parserPosition) {
     if (newColumns.contains(columnUpper)) {
-      throw SqlExceptionHelper.parseError(String.format("Column [%s] specified multiple times.", column), sql,
-        parserPosition).buildSilently();
+      throw SqlExceptionHelper.parseError(
+              String.format("Column [%s] specified multiple times.", column), sql, parserPosition)
+          .buildSilently();
     }
     checkNestedFieldsForDuplicateNameDeclarations(sql, type);
     newColumns.add(columnUpper);
@@ -374,11 +426,13 @@ public class SqlHandlerUtil {
     if (type instanceof DremioSqlRowTypeSpec) {
       checkForDuplicateColumnsInStruct((DremioSqlRowTypeSpec) type, sql);
     } else if (type instanceof SqlArrayTypeSpec) {
-      checkNestedFieldsForDuplicateNameDeclarations(sql, ((SqlArrayTypeSpec) type).getSpec().getTypeName());
+      checkNestedFieldsForDuplicateNameDeclarations(
+          sql, ((SqlArrayTypeSpec) type).getSpec().getTypeName());
     }
   }
 
-  private static void checkForDuplicateColumnsInStruct(DremioSqlRowTypeSpec rowTypeSpec, String sql) {
+  private static void checkForDuplicateColumnsInStruct(
+      DremioSqlRowTypeSpec rowTypeSpec, String sql) {
     List<SqlComplexDataTypeSpec> fieldTypes = rowTypeSpec.getFieldTypes();
     List<SqlIdentifier> fieldNames = rowTypeSpec.getFieldNames();
     Set<String> newColumns = new HashSet<>();
@@ -386,7 +440,8 @@ public class SqlHandlerUtil {
       String column = fieldNames.get(i).getSimple();
       String columnUpper = column.toUpperCase();
       SqlIdentifier type = fieldTypes.get(i).getTypeName();
-      checkIfSpecifiedMultipleTimesAndAddColumn(sql, newColumns, column, columnUpper, type, rowTypeSpec.getParserPosition());
+      checkIfSpecifiedMultipleTimesAndAddColumn(
+          sql, newColumns, column, columnUpper, type, rowTypeSpec.getParserPosition());
     }
   }
 
@@ -398,7 +453,8 @@ public class SqlHandlerUtil {
       String column = fieldNames.get(i).getSimple();
       String columnUpper = column.toUpperCase();
       SqlIdentifier type = fieldTypes.get(i).getTypeName();
-      checkIfSpecifiedMultipleTimesAndAddColumn(sql, newColumns, column, columnUpper, type, rowTypeSpec.getParserPos());
+      checkIfSpecifiedMultipleTimesAndAddColumn(
+          sql, newColumns, column, columnUpper, type, rowTypeSpec.getParserPos());
     }
   }
 
@@ -409,13 +465,22 @@ public class SqlHandlerUtil {
    * @param column
    * @return
    */
-  public static Field fieldFromSqlColDeclaration(SqlHandlerConfig config, DremioSqlColumnDeclaration column, String sql) {
+  public static Field fieldFromSqlColDeclaration(
+      SqlHandlerConfig config, DremioSqlColumnDeclaration column, String sql) {
     checkInvalidType(column, sql);
 
-    return CalciteArrowHelper.fieldFromCalciteRowType(column.getName().getSimple(), column.getDataType()
-      .deriveType(config.getConverter().getTypeFactory())).orElseThrow(
-      () -> SqlExceptionHelper.parseError(String.format("Invalid type [%s] specified for column [%s].",
-        column.getDataType(), column.getName().getSimple()), sql, column.getParserPosition()).buildSilently());
+    return CalciteArrowHelper.fieldFromCalciteRowType(
+            column.getName().getSimple(),
+            column.getDataType().deriveType(JavaTypeFactoryImpl.INSTANCE))
+        .orElseThrow(
+            () ->
+                SqlExceptionHelper.parseError(
+                        String.format(
+                            "Invalid type [%s] specified for column [%s].",
+                            column.getDataType(), column.getName().getSimple()),
+                        sql,
+                        column.getParserPosition())
+                    .buildSilently());
   }
 
   /**
@@ -425,44 +490,68 @@ public class SqlHandlerUtil {
    * @param column
    * @return
    */
-  public static Field fieldFromSqlColDeclaration(RelDataTypeFactory relDataTypeFactory, DremioSqlColumnDeclaration column, String sql) {
+  public static Field fieldFromSqlColDeclaration(
+      RelDataTypeFactory relDataTypeFactory, DremioSqlColumnDeclaration column, String sql) {
     checkInvalidType(column, sql);
 
-    return CalciteArrowHelper.fieldFromCalciteRowType(column.getName().getSimple(), column.getDataType()
-        .deriveType(relDataTypeFactory)).orElseThrow(
-        () -> SqlExceptionHelper.parseError(String.format("Invalid type [%s] specified for column [%s].",
-            column.getDataType(), column.getName().getSimple()), sql, column.getParserPosition()).buildSilently());
+    return CalciteArrowHelper.fieldFromCalciteRowType(
+            column.getName().getSimple(), column.getDataType().deriveType(relDataTypeFactory))
+        .orElseThrow(
+            () ->
+                SqlExceptionHelper.parseError(
+                        String.format(
+                            "Invalid type [%s] specified for column [%s].",
+                            column.getDataType(), column.getName().getSimple()),
+                        sql,
+                        column.getParserPosition())
+                    .buildSilently());
   }
 
   public static void checkInvalidType(DremioSqlColumnDeclaration column, String sql) {
     if (SqlTypeName.get(column.getDataType().getTypeName().getSimple()) == null) {
-      throw SqlExceptionHelper.parseError(String.format("Invalid column type [%s] specified for column [%s].",
-          column.getDataType(), column.getName().getSimple()),
-        sql, column.getParserPosition()).buildSilently();
+      throw SqlExceptionHelper.parseError(
+              String.format(
+                  "Invalid column type [%s] specified for column [%s].",
+                  column.getDataType(), column.getName().getSimple()),
+              sql,
+              column.getParserPosition())
+          .buildSilently();
     }
 
-    if (SqlTypeName.get(column.getDataType().getTypeName().getSimple()) == SqlTypeName.DECIMAL &&
-      ((SqlBasicTypeNameSpec) column.getDataType().getTypeNameSpec()).getPrecision()
-        > RelDataTypeSystemImpl.MAX_NUMERIC_PRECISION) {
-      throw SqlExceptionHelper.parseError(String.format("Precision larger than %s is not supported.",
-        RelDataTypeSystemImpl.MAX_NUMERIC_PRECISION), sql, column.getParserPosition()).buildSilently();
+    if (SqlTypeName.get(column.getDataType().getTypeName().getSimple()) == SqlTypeName.DECIMAL
+        && ((SqlBasicTypeNameSpec) column.getDataType().getTypeNameSpec()).getPrecision()
+            > RelDataTypeSystemImpl.MAX_NUMERIC_PRECISION) {
+      throw SqlExceptionHelper.parseError(
+              String.format(
+                  "Precision larger than %s is not supported.",
+                  RelDataTypeSystemImpl.MAX_NUMERIC_PRECISION),
+              sql,
+              column.getParserPosition())
+          .buildSilently();
     }
 
-    if (SqlTypeName.get(column.getDataType().getTypeName().getSimple()) == SqlTypeName.DECIMAL &&
-      ((SqlBasicTypeNameSpec) column.getDataType().getTypeNameSpec()).getScale()
-        > RelDataTypeSystemImpl.MAX_NUMERIC_SCALE) {
-      throw SqlExceptionHelper.parseError(String.format("Scale larger than %s is not supported.",
-        RelDataTypeSystemImpl.MAX_NUMERIC_SCALE), sql, column.getParserPosition()).buildSilently();
+    if (SqlTypeName.get(column.getDataType().getTypeName().getSimple()) == SqlTypeName.DECIMAL
+        && ((SqlBasicTypeNameSpec) column.getDataType().getTypeNameSpec()).getScale()
+            > RelDataTypeSystemImpl.MAX_NUMERIC_SCALE) {
+      throw SqlExceptionHelper.parseError(
+              String.format(
+                  "Scale larger than %s is not supported.",
+                  RelDataTypeSystemImpl.MAX_NUMERIC_SCALE),
+              sql,
+              column.getParserPosition())
+          .buildSilently();
     }
   }
 
   /**
    * create BatchSchema from table schema specified in sql as list of columns
+   *
    * @param config
    * @param newColumsDeclaration
    * @return
    */
-  public static BatchSchema batchSchemaFromSqlSchemaSpec(SqlHandlerConfig config, List<DremioSqlColumnDeclaration> newColumsDeclaration, String sql) {
+  public static BatchSchema batchSchemaFromSqlSchemaSpec(
+      SqlHandlerConfig config, List<DremioSqlColumnDeclaration> newColumsDeclaration, String sql) {
     SchemaBuilder schemaBuilder = BatchSchema.newBuilder();
     for (DremioSqlColumnDeclaration column : newColumsDeclaration) {
       schemaBuilder.addField(fieldFromSqlColDeclaration(config, column, sql));
@@ -470,78 +559,79 @@ public class SqlHandlerUtil {
     return schemaBuilder.build();
   }
 
-  /**
-   * create sql column declarations from SqlNodeList
-   */
-  public static List<DremioSqlColumnDeclaration> columnDeclarationsFromSqlNodes(SqlNodeList columnList, String sql) {
+  /** create sql column declarations from SqlNodeList */
+  public static List<DremioSqlColumnDeclaration> columnDeclarationsFromSqlNodes(
+      SqlNodeList columnList, String sql) {
     List<DremioSqlColumnDeclaration> columnDeclarations = new ArrayList<>();
     for (SqlNode node : columnList.getList()) {
       if (node instanceof DremioSqlColumnDeclaration) {
         columnDeclarations.add((DremioSqlColumnDeclaration) node);
       } else {
-        throw SqlExceptionHelper.parseError("Column type not specified", sql, node.getParserPosition()).buildSilently();
+        throw SqlExceptionHelper.parseError(
+                "Column type not specified", sql, node.getParserPosition())
+            .buildSilently();
       }
     }
     return columnDeclarations;
   }
 
-  public static List<SqlColumnPolicyPair> columnPolicyPairsFromSqlNodes(SqlNodeList columnList, String sql) {
+  public static List<SqlColumnPolicyPair> columnPolicyPairsFromSqlNodes(
+      SqlNodeList columnList, String sql) {
     List<SqlColumnPolicyPair> columnPolicyPairs = new ArrayList<>();
     for (SqlNode node : columnList.getList()) {
       if (node instanceof DremioSqlColumnDeclaration) {
         DremioSqlColumnDeclaration columnDeclaration = (DremioSqlColumnDeclaration) node;
-        columnPolicyPairs.add(new SqlColumnPolicyPair(node.getParserPosition(), columnDeclaration.getName(), columnDeclaration.getPolicy()));
+        columnPolicyPairs.add(
+            new SqlColumnPolicyPair(
+                node.getParserPosition(),
+                columnDeclaration.getName(),
+                columnDeclaration.getPolicy()));
       } else if (node instanceof SqlColumnPolicyPair) {
         columnPolicyPairs.add((SqlColumnPolicyPair) node);
       } else {
-        throw SqlExceptionHelper.parseError("Column type not specified", sql, node.getParserPosition()).buildSilently();
+        throw SqlExceptionHelper.parseError(
+                "Column type not specified", sql, node.getParserPosition())
+            .buildSilently();
       }
     }
     return columnPolicyPairs;
   }
 
-
-  public static SimpleCommandResult validateSupportForDDLOperations(Catalog catalog, SqlHandlerConfig config, NamespaceKey path, DremioTable table) {
+  public static SimpleCommandResult validateSupportForDDLOperations(
+      Catalog catalog, SqlHandlerConfig config, NamespaceKey path, DremioTable table) {
     Optional<SimpleCommandResult> validate = Optional.empty();
 
     if (table == null) {
-      throw UserException.validationError()
-        .message("Table [%s] not found", path)
-        .buildSilently();
+      throw UserException.validationError().message("Table [%s] not found", path).buildSilently();
     }
 
     if (table.getJdbcTableType() != org.apache.calcite.schema.Schema.TableType.TABLE) {
       throw UserException.validationError()
-        .message("[%s] is a %s", path, table.getJdbcTableType())
-        .buildSilently();
+          .message("[%s] is a %s", path, table.getJdbcTableType())
+          .buildSilently();
     }
 
     if (table.getDatasetConfig() == null) {
-      throw UserException.validationError()
-        .message("Table [%s] not found", path)
-        .buildSilently();
+      throw UserException.validationError().message("Table [%s] not found", path).buildSilently();
     }
 
     // Only for FS sources internal Iceberg or Json tables or Mongo source
-    if (CatalogUtil.isFSInternalIcebergTableOrJsonTableOrMongo(catalog, path, table.getDatasetConfig())) {
+    if (CatalogUtil.isFSInternalIcebergTableOrJsonTableOrMongo(
+        catalog, path, table.getDatasetConfig())) {
       if (!(config.getContext().getOptions().getOption(ExecConstants.ENABLE_INTERNAL_SCHEMA))) {
         throw UserException.unsupportedError()
-          .message("Please contact customer support for steps to enable " +
-            "user managed schema feature.")
-          .buildSilently();
+            .message(
+                "Please contact customer support for steps to enable "
+                    + "user managed schema feature.")
+            .buildSilently();
       }
       if (DatasetHelper.isInternalIcebergTable(table.getDatasetConfig())) {
         if (!IcebergUtils.isIcebergFeatureEnabled(config.getContext().getOptions(), null)) {
           throw UserException.unsupportedError()
-            .message("Please contact customer support for steps to enable " +
-              "the iceberg tables feature.")
-            .buildSilently();
-        }
-        if (!config.getContext().getOptions().getOption(PlannerSettings.UNLIMITED_SPLITS_SUPPORT)) {
-          throw UserException.unsupportedError()
-            .message("Please contact customer support for steps to enable " +
-              "the unlimited splits feature.")
-            .buildSilently();
+              .message(
+                  "Please contact customer support for steps to enable "
+                      + "the iceberg tables feature.")
+              .buildSilently();
         }
       }
     } else {
@@ -564,20 +654,22 @@ public class SqlHandlerUtil {
       return timestampLiteral.getValueAs(Calendar.class).getTimeInMillis();
     } catch (Exception e) {
       throw UserException.parseError(e)
-        .message("Literal '%s' cannot be casted to TIMESTAMP", timestamp)
-        .buildSilently();
+          .message("Literal '%s' cannot be casted to TIMESTAMP", timestamp)
+          .buildSilently();
     }
   }
 
   private static String removeEndingZeros(String timestamp) {
-    // Remove ending '0' after '.' in the timestamp string, because TimestampString does not accept timestamp string
-    // with ending of '0'. For instance, convert "2022-10-23 18:05:30.252000" to be "2022-10-23 18:05:30.252".
+    // Remove ending '0' after '.' in the timestamp string, because TimestampString does not accept
+    // timestamp string
+    // with ending of '0'. For instance, convert "2022-10-23 18:05:30.252000" to be "2022-10-23
+    // 18:05:30.252".
     timestamp = timestamp.trim();
-    if (timestamp.indexOf('.') < 0){
+    if (timestamp.indexOf('.') < 0) {
       return timestamp;
     }
     int index = timestamp.length();
-    while (index > 0 && timestamp.charAt(index -1)  == '0') {
+    while (index > 0 && timestamp.charAt(index - 1) == '0') {
       index--;
     }
 
@@ -588,12 +680,13 @@ public class SqlHandlerUtil {
     return timestamp.substring(0, index);
   }
 
-  public static void validateSupportForVersionedReflections(String source, Catalog catalog, OptionManager optionManager) {
+  public static void validateSupportForVersionedReflections(
+      String source, Catalog catalog, OptionManager optionManager) {
     if (CatalogUtil.requestedPluginSupportsVersionedTables(source, catalog)) {
       if (!optionManager.getOption(CatalogOptions.REFLECTION_VERSIONED_SOURCE_ENABLED)) {
         throw UserException.unsupportedError()
-          .message("Versioned source does not support reflection.")
-          .build(logger);
+            .message("Versioned source does not support reflection.")
+            .build(logger);
       }
     }
   }
@@ -603,7 +696,8 @@ public class SqlHandlerUtil {
       try {
         return catalog.getSource(sourceName).getClass().getSimpleName();
       } catch (UserException e) {
-        logger.debug("Unable to get source {} from the catalog: {}", sourceName, e.getOriginalMessage());
+        logger.debug(
+            "Unable to get source {} from the catalog: {}", sourceName, e.getOriginalMessage());
       }
     }
 

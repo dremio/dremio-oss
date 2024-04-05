@@ -15,10 +15,14 @@
  */
 package com.dremio.exec.planner.serialization.kryo;
 
+import com.dremio.PlanTestBase;
+import com.dremio.exec.ops.DremioCatalogReader;
+import com.dremio.exec.planner.serialization.LogicalPlanDeserializer;
+import com.dremio.exec.planner.serialization.LogicalPlanSerializer;
+import com.dremio.exec.planner.types.SqlTypeFactoryImpl;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.volcano.VolcanoPlanner;
 import org.apache.calcite.rel.RelNode;
@@ -36,12 +40,6 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
-
-import com.dremio.PlanTestBase;
-import com.dremio.exec.ops.DremioCatalogReader;
-import com.dremio.exec.planner.serialization.LogicalPlanDeserializer;
-import com.dremio.exec.planner.serialization.LogicalPlanSerializer;
-import com.dremio.exec.planner.types.SqlTypeFactoryImpl;
 
 public class TestRelDataTypeSerializer extends PlanTestBase {
 
@@ -68,15 +66,16 @@ public class TestRelDataTypeSerializer extends PlanTestBase {
     String col1 = UUID.randomUUID().toString();
     String col2 = UUID.randomUUID().toString();
     List<RelDataTypeField> fields = new ArrayList<>();
-    RelDataTypeField field0 = new RelDataTypeFieldImpl(
-      col1, 0, typeFactory.createSqlType(SqlTypeName.INTEGER));
-    RelDataTypeField field1 = new RelDataTypeFieldImpl(
-      col2, 1, typeFactory.createSqlType(SqlTypeName.VARCHAR));
+    RelDataTypeField field0 =
+        new RelDataTypeFieldImpl(col1, 0, typeFactory.createSqlType(SqlTypeName.INTEGER));
+    RelDataTypeField field1 =
+        new RelDataTypeFieldImpl(col2, 1, typeFactory.createSqlType(SqlTypeName.VARCHAR));
     fields.add(field0);
     fields.add(field1);
 
     // Create a nullable struct type without using type factory cache
-    final RelDataType nullableRecordType = new RelRecordType(StructKind.FULLY_QUALIFIED, fields, true);
+    final RelDataType nullableRecordType =
+        new RelRecordType(StructKind.FULLY_QUALIFIED, fields, true);
     Assert.assertTrue(nullableRecordType.isNullable());
 
     // Serde through Kryo serializer and double check nullability

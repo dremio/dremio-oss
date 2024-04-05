@@ -76,6 +76,7 @@ public abstract class AbstractStoreBuilder<K, V> implements KVStoreProvider.Stor
   }
 
   protected abstract KVStore<K, V> doBuild();
+
   protected abstract IndexedStore<K, V> doBuildIndexed(DocumentConverter<K, V> documentConverter);
 
   private void checkCompoundKeyUsage() {

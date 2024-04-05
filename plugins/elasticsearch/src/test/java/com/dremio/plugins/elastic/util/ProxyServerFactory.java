@@ -17,12 +17,10 @@ package com.dremio.plugins.elastic.util;
 
 import java.io.File;
 import java.io.IOException;
-
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
-
 import org.apache.http.HttpVersion;
 import org.eclipse.jetty.proxy.ProxyServlet;
 import org.eclipse.jetty.server.HttpConfiguration;
@@ -40,12 +38,12 @@ import org.slf4j.LoggerFactory;
 /**
  * A helper class to create a SSL Proxy
  *
- * It's a separate class so that jetty-proxy dependency can be made optional
+ * <p>It's a separate class so that jetty-proxy dependency can be made optional
  */
 public final class ProxyServerFactory {
   private static final Logger logger = LoggerFactory.getLogger(ProxyServerFactory.class);
 
-  private ProxyServerFactory() { }
+  private ProxyServerFactory() {}
 
   public static Server of(String proxyTo, int port, File keystoreFile, String keystorePassword) {
     Server proxy = new Server();
@@ -57,10 +55,13 @@ public final class ProxyServerFactory {
     sslContextFactory.setKeyStorePassword(keystorePassword);
 
     // SSL Connector
-    final ServerConnector sslConnector = new ServerConnector(proxy,
-        new SslConnectionFactory(sslContextFactory, HttpVersion.HTTP_1_1.toString()),
-        new HttpConnectionFactory(new HttpConfiguration()));
-    // regular http connector if one needs to inspect the wire. Requires tweaking the ElasticsearchPlugin to use http
+    final ServerConnector sslConnector =
+        new ServerConnector(
+            proxy,
+            new SslConnectionFactory(sslContextFactory, HttpVersion.HTTP_1_1.toString()),
+            new HttpConnectionFactory(new HttpConfiguration()));
+    // regular http connector if one needs to inspect the wire. Requires tweaking the
+    // ElasticsearchPlugin to use http
     // final ServerConnector sslConnector = new ServerConnector(embeddedJetty,
     //   new HttpConnectionFactory(new HttpConfiguration()));
     sslConnector.setPort(port);
@@ -70,47 +71,52 @@ public final class ProxyServerFactory {
     final RequestLogHandler rootHandler = new RequestLogHandler();
     proxy.setHandler(rootHandler);
 
-    final ServletContextHandler servletContextHandler = new ServletContextHandler(ServletContextHandler.NO_SESSIONS);
+    final ServletContextHandler servletContextHandler =
+        new ServletContextHandler(ServletContextHandler.NO_SESSIONS);
     servletContextHandler.setContextPath("/");
     rootHandler.setHandler(servletContextHandler);
 
     // error handler
-    ProxyServlet.Transparent proxyServlet = new ProxyServlet.Transparent() {
-      @Override
-      public void service(ServletRequest req, ServletResponse res) throws ServletException, IOException {
-        try {
-          HttpServletRequest hr = (HttpServletRequest) req;
-          logger.debug("incoming {} {}://{}:{} {}",
-              hr.getMethod(),
-              req.getScheme(),
-              req.getServerName(),
-              req.getServerPort(),
-              hr.getRequestURL());
-          super.service(req, res);
-        } catch (Exception e) {
-          logger.error("can't proxy " + req, e);
-          throw new RuntimeException(e);
-        }
-      }
+    ProxyServlet.Transparent proxyServlet =
+        new ProxyServlet.Transparent() {
+          @Override
+          public void service(ServletRequest req, ServletResponse res)
+              throws ServletException, IOException {
+            try {
+              HttpServletRequest hr = (HttpServletRequest) req;
+              logger.debug(
+                  "incoming {} {}://{}:{} {}",
+                  hr.getMethod(),
+                  req.getScheme(),
+                  req.getServerName(),
+                  req.getServerPort(),
+                  hr.getRequestURL());
+              super.service(req, res);
+            } catch (Exception e) {
+              logger.error("can't proxy " + req, e);
+              throw new RuntimeException(e);
+            }
+          }
 
-      @Override
-      protected String rewriteTarget(HttpServletRequest clientRequest) {
-        final String serverName = clientRequest.getServerName();
-        final int serverPort = clientRequest.getServerPort();
-        final String query = clientRequest.getQueryString();
+          @Override
+          protected String rewriteTarget(HttpServletRequest clientRequest) {
+            final String serverName = clientRequest.getServerName();
+            final int serverPort = clientRequest.getServerPort();
+            final String query = clientRequest.getQueryString();
 
-        String result = super.rewriteTarget(clientRequest);
+            String result = super.rewriteTarget(clientRequest);
 
-        logger.debug("Proxying {}://{}:{}{} to {}\n",
-            clientRequest.getScheme(),
-            serverName,
-            serverPort,
-            query != null ? '?' + query : "",
-            result);
+            logger.debug(
+                "Proxying {}://{}:{}{} to {}\n",
+                clientRequest.getScheme(),
+                serverName,
+                serverPort,
+                query != null ? '?' + query : "",
+                result);
 
-        return result;
-      }
-    };
+            return result;
+          }
+        };
     // Rest API
     final ServletHolder proxyHolder = new ServletHolder(proxyServlet);
     proxyHolder.setInitParameter("proxyTo", proxyTo);
@@ -120,5 +126,4 @@ public final class ProxyServerFactory {
 
     return proxy;
   }
-
 }

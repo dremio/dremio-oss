@@ -15,12 +15,11 @@
  */
 package com.dremio.common.collections;
 
-import java.util.Map;
-
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
+import java.util.Map;
 
-public class ImmutableEntry<K, V> implements Map.Entry<K, V>  {
+public class ImmutableEntry<K, V> implements Map.Entry<K, V> {
   private final K key;
   private final V value;
 
@@ -47,7 +46,7 @@ public class ImmutableEntry<K, V> implements Map.Entry<K, V>  {
   @Override
   public boolean equals(final Object other) {
     if (other instanceof ImmutableEntry && other.getClass() == getClass()) {
-      final ImmutableEntry<K, V> entry = (ImmutableEntry<K, V>)other;
+      final ImmutableEntry<K, V> entry = (ImmutableEntry<K, V>) other;
       return Objects.equal(key, entry.key) && Objects.equal(value, entry.value);
     }
     return false;

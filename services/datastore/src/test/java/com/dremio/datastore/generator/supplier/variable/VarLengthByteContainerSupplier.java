@@ -15,13 +15,10 @@
  */
 package com.dremio.datastore.generator.supplier.variable;
 
+import com.dremio.datastore.generator.ByteContainerStoreGenerator.ByteContainer;
 import java.nio.charset.StandardCharsets;
 
-import com.dremio.datastore.generator.ByteContainerStoreGenerator.ByteContainer;
-
-/**
- * Supplier that generates ByteContainers with variable-length byte[].
- */
+/** Supplier that generates ByteContainers with variable-length byte[]. */
 public class VarLengthByteContainerSupplier extends VarLengthSupplier<ByteContainer> {
   public VarLengthByteContainerSupplier(String prefix) {
     super(prefix);

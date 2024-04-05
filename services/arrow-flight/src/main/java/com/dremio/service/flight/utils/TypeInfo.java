@@ -16,9 +16,7 @@
 
 package com.dremio.service.flight.utils;
 
-/**
- * Auxilary class to hold Flight SQL TypeInfo data.
- */
+/** Auxilary class to hold Flight SQL TypeInfo data. */
 public class TypeInfo {
   private final String typeName;
   private final Integer dataType;
@@ -39,11 +37,25 @@ public class TypeInfo {
   private final Integer sqlDatetimeSub;
   private final Integer numPrecRadix;
 
-  public TypeInfo(String typeName, Integer dataType, Integer columnSize, String literalPrefix, String literalSuffix,
-                  String createParams, Integer nullable, Integer caseSensitive, Integer searchable,
-                  Integer unsignedAttribute, Integer fixedPrecScale, Integer autoUniqueValue, String localTypeName,
-                  Integer minimumScale, Integer maximumScale, Integer sqlDataType, Integer sqlDatetimeSub,
-                  Integer numPrecRadix) {
+  public TypeInfo(
+      String typeName,
+      Integer dataType,
+      Integer columnSize,
+      String literalPrefix,
+      String literalSuffix,
+      String createParams,
+      Integer nullable,
+      Integer caseSensitive,
+      Integer searchable,
+      Integer unsignedAttribute,
+      Integer fixedPrecScale,
+      Integer autoUniqueValue,
+      String localTypeName,
+      Integer minimumScale,
+      Integer maximumScale,
+      Integer sqlDataType,
+      Integer sqlDatetimeSub,
+      Integer numPrecRadix) {
     this.typeName = typeName;
     this.dataType = dataType;
     this.columnSize = columnSize;

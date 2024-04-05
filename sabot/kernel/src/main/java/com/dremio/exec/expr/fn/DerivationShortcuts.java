@@ -15,28 +15,28 @@
  */
 package com.dremio.exec.expr.fn;
 
-import org.apache.arrow.vector.types.pojo.ArrowType.Decimal;
-
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.ValueExpressions.IntExpression;
 import com.dremio.common.expression.ValueExpressions.LongExpression;
+import org.apache.arrow.vector.types.pojo.ArrowType.Decimal;
 
 public class DerivationShortcuts {
-  public static int prec(LogicalExpression e){
+  public static int prec(LogicalExpression e) {
     return e.getCompleteType().getType(Decimal.class).getPrecision();
   }
 
-  public static int scale(LogicalExpression e){
+  public static int scale(LogicalExpression e) {
     return e.getCompleteType().getType(Decimal.class).getScale();
   }
 
-  public static int val(LogicalExpression e){
-    if(e instanceof IntExpression){
+  public static int val(LogicalExpression e) {
+    if (e instanceof IntExpression) {
       return ((IntExpression) e).getInt();
-    }else if(e instanceof LongExpression ){
+    } else if (e instanceof LongExpression) {
       return (int) ((LongExpression) e).getLong();
     } else {
-      throw new IllegalStateException("Tried to retrieve constant value from non constant expression " + e);
+      throw new IllegalStateException(
+          "Tried to retrieve constant value from non constant expression " + e);
     }
   }
 }

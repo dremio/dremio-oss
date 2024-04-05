@@ -15,24 +15,19 @@
  */
 package com.dremio.io;
 
+import com.google.common.primitives.Ints;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.NettyArrowBuf;
 import java.io.EOFException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-
 import javax.annotation.concurrent.NotThreadSafe;
-
 import org.apache.arrow.memory.ArrowBuf;
 
-import com.google.common.primitives.Ints;
-
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.NettyArrowBuf;
-
 /**
- * An implementation of {@code FSInputStream} using a {@code ArrowBuf}
- * as its backend.
+ * An implementation of {@code FSInputStream} using a {@code ArrowBuf} as its backend.
  *
- * The buffer will be closed when the stream is closed
+ * <p>The buffer will be closed when the stream is closed
  */
 @NotThreadSafe
 public class ArrowBufFSInputStream extends FSInputStream {
@@ -44,8 +39,8 @@ public class ArrowBufFSInputStream extends FSInputStream {
   /**
    * Creates a new stream
    *
-   * The current position and limit will be used as the start and
-   * end indices.
+   * <p>The current position and limit will be used as the start and end indices.
+   *
    * @param buf
    */
   public ArrowBufFSInputStream(ArrowBuf buf) {

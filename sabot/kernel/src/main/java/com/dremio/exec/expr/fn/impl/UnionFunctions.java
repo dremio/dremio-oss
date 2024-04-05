@@ -17,20 +17,6 @@ package com.dremio.exec.expr.fn.impl;
 
 import static com.dremio.common.util.MajorTypeHelper.getMinorTypeFromArrowMinorType;
 
-import java.util.List;
-
-import javax.inject.Inject;
-
-import org.apache.arrow.vector.complex.reader.FieldReader;
-import org.apache.arrow.vector.complex.writer.BaseWriter.ComplexWriter;
-import org.apache.arrow.vector.holders.NullableBitHolder;
-import org.apache.arrow.vector.holders.NullableDecimalHolder;
-import org.apache.arrow.vector.holders.NullableIntHolder;
-import org.apache.arrow.vector.holders.UnionHolder;
-import org.apache.arrow.vector.types.Types.MinorType;
-import org.apache.arrow.vector.types.pojo.ArrowType;
-import org.apache.arrow.vector.types.pojo.Field;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.LogicalExpression;
@@ -43,6 +29,17 @@ import com.dremio.exec.expr.fn.FunctionErrorContext;
 import com.dremio.exec.expr.fn.OutputDerivation;
 import com.dremio.exec.resolver.TypeCastRules;
 import com.google.common.base.Preconditions;
+import java.util.List;
+import javax.inject.Inject;
+import org.apache.arrow.vector.complex.reader.FieldReader;
+import org.apache.arrow.vector.complex.writer.BaseWriter.ComplexWriter;
+import org.apache.arrow.vector.holders.NullableBitHolder;
+import org.apache.arrow.vector.holders.NullableDecimalHolder;
+import org.apache.arrow.vector.holders.NullableIntHolder;
+import org.apache.arrow.vector.holders.UnionHolder;
+import org.apache.arrow.vector.types.Types.MinorType;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.Field;
 
 /**
  * The class contains additional functions for union types in addition to those in GUnionFunctions
@@ -50,12 +47,14 @@ import com.google.common.base.Preconditions;
 public class UnionFunctions {
 
   /**
-   * Returns zero if the inputs have equivalent types. Two numeric types are considered equivalent, as are a combination
-   * of date/timestamp. If not equivalent, returns a value determined by the numeric value of the MinorType enum
+   * Returns zero if the inputs have equivalent types. Two numeric types are considered equivalent,
+   * as are a combination of date/timestamp. If not equivalent, returns a value determined by the
+   * numeric value of the MinorType enum
    */
-  @FunctionTemplate(names = {"compareType"},
-          scope = FunctionTemplate.FunctionScope.SIMPLE,
-          nulls = NullHandling.INTERNAL)
+  @FunctionTemplate(
+      names = {"compareType"},
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      nulls = NullHandling.INTERNAL)
   public static class CompareType implements SimpleFunction {
 
     @Param FieldReader input1;
@@ -92,9 +91,10 @@ public class UnionFunctions {
   }
 
   /**
-   * Gives a type ordering modeled after the behavior of MongoDB
-   * Numeric types are first, folowed by string types, followed by binary, then boolean, then date, then timestamp
-   * Any other times will be sorted after that
+   * Gives a type ordering modeled after the behavior of MongoDB Numeric types are first, folowed by
+   * string types, followed by binary, then boolean, then date, then timestamp Any other times will
+   * be sorted after that
+   *
    * @param type
    * @return
    */
@@ -103,39 +103,38 @@ public class UnionFunctions {
       return 0;
     }
     switch (type) {
-    case TINYINT:
-    case SMALLINT:
-    case INT:
-    case BIGINT:
-    case UINT1:
-    case UINT2:
-    case UINT4:
-    case UINT8:
-    case DECIMAL:
-    case FLOAT4:
-    case FLOAT8:
-      return 0;
-    case VARCHAR:
-      return 1;
-    case VARBINARY:
-      return 2;
-    case BIT:
-      return 3;
-    case DATEMILLI:
-      return 4;
-    case TIMESTAMPMILLI:
-      return 5;
-    default:
-      return 6 + type.ordinal();
+      case TINYINT:
+      case SMALLINT:
+      case INT:
+      case BIGINT:
+      case UINT1:
+      case UINT2:
+      case UINT4:
+      case UINT8:
+      case DECIMAL:
+      case FLOAT4:
+      case FLOAT8:
+        return 0;
+      case VARCHAR:
+        return 1;
+      case VARBINARY:
+        return 2;
+      case BIT:
+        return 3;
+      case DATEMILLI:
+        return 4;
+      case TIMESTAMPMILLI:
+        return 5;
+      default:
+        return 6 + type.ordinal();
     }
   }
 
   @FunctionTemplate(names = {"castUNION", "castToUnion"})
-  public static class CastUnionToUnion implements SimpleFunction{
+  public static class CastUnionToUnion implements SimpleFunction {
 
     @Param FieldReader in;
-    @Output
-    UnionHolder out;
+    @Output UnionHolder out;
 
     @Override
     public void setup() {}
@@ -147,7 +146,7 @@ public class UnionFunctions {
     }
   }
 
-  @FunctionTemplate(name = "ASSERT_LIST", derivation =  AssertListOutputDerivation.class)
+  @FunctionTemplate(name = "ASSERT_LIST", derivation = AssertListOutputDerivation.class)
   public static class CastUnionList implements SimpleFunction {
 
     @Param UnionHolder in;
@@ -161,13 +160,11 @@ public class UnionFunctions {
     public void eval() {
       if (in.isSet == 1) {
         if (in.reader.getMinorType() != org.apache.arrow.vector.types.Types.MinorType.LIST) {
-          throw errorContext.error()
-              .message("The input is not a LIST type")
-              .build();
+          throw errorContext.error().message("The input is not a LIST type").build();
         }
 
-        org.apache.arrow.vector.complex.impl.ComplexCopier.copy(in.reader,
-            (org.apache.arrow.vector.complex.writer.FieldWriter) out.rootAsList());
+        org.apache.arrow.vector.complex.impl.ComplexCopier.copy(
+            in.reader, (org.apache.arrow.vector.complex.writer.FieldWriter) out.rootAsList());
       }
     }
   }
@@ -194,7 +191,8 @@ public class UnionFunctions {
 
       if (listType == null) {
         throw UserException.validationError()
-            .message("The field must be a list of values or a mixed type that contains a list of values")
+            .message(
+                "The field must be a list of values or a mixed type that contains a list of values")
             .addContext("field type", expression.getCompleteType().toString())
             .build();
       }
@@ -203,7 +201,10 @@ public class UnionFunctions {
   }
 
   @SuppressWarnings("unused")
-  @FunctionTemplate(name = "IS_LIST", scope = FunctionTemplate.FunctionScope.SIMPLE, nulls=NullHandling.INTERNAL)
+  @FunctionTemplate(
+      name = "IS_LIST",
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      nulls = NullHandling.INTERNAL)
   public static class UnionIsList implements SimpleFunction {
 
     @Param UnionHolder in;
@@ -223,13 +224,11 @@ public class UnionFunctions {
     }
   }
 
-  @FunctionTemplate(name = "ASSERT_DECIMAL", derivation =  AssertDecimalOutputDerivation.class)
+  @FunctionTemplate(name = "ASSERT_DECIMAL", derivation = AssertDecimalOutputDerivation.class)
   public static class CastUnionDecimal implements SimpleFunction {
 
-
     @Param UnionHolder in;
-    @Output
-    NullableDecimalHolder out;
+    @Output NullableDecimalHolder out;
 
     @Override
     public void setup() {}
@@ -254,10 +253,10 @@ public class UnionFunctions {
       // Get the max scale and precision from the inputs
       for (LogicalExpression e : args) {
         CompleteType type = e.getCompleteType();
-        if(type.isUnion()) {
-          List<Field> fields= type.getChildren();
-          for(Field f: fields) {
-            if(f.getType().getTypeID() == ArrowType.ArrowTypeID.Decimal) {
+        if (type.isUnion()) {
+          List<Field> fields = type.getChildren();
+          for (Field f : fields) {
+            if (f.getType().getTypeID() == ArrowType.ArrowTypeID.Decimal) {
               ArrowType.Decimal arg = (ArrowType.Decimal) f.getType();
               scale = Math.max(scale, arg.getScale());
               precision = Math.max(precision, arg.getPrecision());
@@ -270,7 +269,10 @@ public class UnionFunctions {
   }
 
   @SuppressWarnings("unused")
-  @FunctionTemplate(name = "IS_DECIMAL", scope = FunctionTemplate.FunctionScope.SIMPLE, nulls=NullHandling.INTERNAL)
+  @FunctionTemplate(
+      name = "IS_DECIMAL",
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      nulls = NullHandling.INTERNAL)
   public static class UnionIsDecimal implements SimpleFunction {
 
     @Param UnionHolder in;
@@ -283,17 +285,20 @@ public class UnionFunctions {
     public void eval() {
       out.isSet = 1;
       if (in.isSet == 1) {
-        out.value = in.getMinorType() == org.apache.arrow.vector.types.Types.MinorType.DECIMAL ? 1 : 0;
+        out.value =
+            in.getMinorType() == org.apache.arrow.vector.types.Types.MinorType.DECIMAL ? 1 : 0;
       } else {
         out.value = 0;
       }
     }
   }
 
-
   @SuppressWarnings("unused")
-  @FunctionTemplate(names = "ASSERT_STRUCT", scope = FunctionTemplate.FunctionScope.SIMPLE,
-      nulls = NullHandling.INTERNAL, derivation =  AssertStructOutputDerivation.class)
+  @FunctionTemplate(
+      names = "ASSERT_STRUCT",
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      nulls = NullHandling.INTERNAL,
+      derivation = AssertStructOutputDerivation.class)
   public static class CastUnionStruct implements SimpleFunction {
 
     @Param UnionHolder in;
@@ -307,13 +312,11 @@ public class UnionFunctions {
     public void eval() {
       if (in.isSet == 1) {
         if (in.reader.getMinorType() != org.apache.arrow.vector.types.Types.MinorType.STRUCT) {
-          throw errorContext.error()
-              .message("The input is not a STRUCT type")
-              .build();
+          throw errorContext.error().message("The input is not a STRUCT type").build();
         }
 
-        org.apache.arrow.vector.complex.impl.ComplexCopier.copy(in.reader,
-            (org.apache.arrow.vector.complex.writer.FieldWriter) out.rootAsStruct());
+        org.apache.arrow.vector.complex.impl.ComplexCopier.copy(
+            in.reader, (org.apache.arrow.vector.complex.writer.FieldWriter) out.rootAsStruct());
       }
     }
   }
@@ -349,7 +352,10 @@ public class UnionFunctions {
   }
 
   @SuppressWarnings("unused")
-  @FunctionTemplate(names = "IS_STRUCT", scope = FunctionTemplate.FunctionScope.SIMPLE, nulls=NullHandling.INTERNAL)
+  @FunctionTemplate(
+      names = "IS_STRUCT",
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      nulls = NullHandling.INTERNAL)
   public static class UnionIsStruct implements SimpleFunction {
 
     @Param UnionHolder in;
@@ -362,21 +368,25 @@ public class UnionFunctions {
     public void eval() {
       out.isSet = 1;
       if (in.isSet == 1) {
-        out.value = in.getMinorType() == org.apache.arrow.vector.types.Types.MinorType.STRUCT ? 1 : 0;
+        out.value =
+            in.getMinorType() == org.apache.arrow.vector.types.Types.MinorType.STRUCT ? 1 : 0;
       } else {
         out.value = 0;
       }
     }
   }
 
-  @FunctionTemplate(names = {"isnotnull", "is not null"}, scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.INTERNAL)
+  @FunctionTemplate(
+      names = {"isnotnull", "is not null"},
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.INTERNAL)
   public static class IsNotNull implements SimpleFunction {
 
     @Param UnionHolder input;
     @Output NullableBitHolder out;
 
     @Override
-    public void setup() { }
+    public void setup() {}
 
     @Override
     public void eval() {
@@ -385,14 +395,17 @@ public class UnionFunctions {
     }
   }
 
-  @FunctionTemplate(names = {"isnull", "is null"}, scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.INTERNAL)
+  @FunctionTemplate(
+      names = {"isnull", "is null"},
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.INTERNAL)
   public static class IsNull implements SimpleFunction {
 
     @Param UnionHolder input;
     @Output NullableBitHolder out;
 
     @Override
-    public void setup() { }
+    public void setup() {}
 
     @Override
     public void eval() {
@@ -400,5 +413,4 @@ public class UnionFunctions {
       out.value = input.isSet == 1 ? 0 : 1;
     }
   }
-
 }

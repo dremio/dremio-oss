@@ -15,11 +15,6 @@
  */
 package com.dremio.dac.cmd.upgrade;
 
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.Map;
-import java.util.Map.Entry;
-
 import com.dremio.common.Version;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.scanner.ClassPathScanner;
@@ -37,20 +32,24 @@ import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.PartitionChunk;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.google.common.collect.ImmutableList;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.Map;
+import java.util.Map.Entry;
 
 /**
- * Scan for datasets whose id may cause unsafe dataset split ids
- * as they are using reserved characters
+ * Scan for datasets whose id may cause unsafe dataset split ids as they are using reserved
+ * characters
  */
 public class UpdateDatasetSplitIdTask extends UpgradeTask implements LegacyUpgradeTask {
 
-
-  //DO NOT MODIFY
+  // DO NOT MODIFY
   static final String taskUUID = "d7cb2438-bc97-4c76-8a7a-ff5493e48e5e";
 
   public UpdateDatasetSplitIdTask() {
-    super("Fix dataset split ids with invalid id",
-      ImmutableList.of(ReIndexAllStores.taskUUID, "ff9f6514-d7e6-44c7-b628-865cd3ce7368"));
+    super(
+        "Fix dataset split ids with invalid id",
+        ImmutableList.of(ReIndexAllStores.taskUUID, "ff9f6514-d7e6-44c7-b628-865cd3ce7368"));
   }
 
   @Override
@@ -66,13 +65,15 @@ public class UpdateDatasetSplitIdTask extends UpgradeTask implements LegacyUpgra
   @Override
   public void upgrade(UpgradeContext context) throws Exception {
     final LegacyKVStoreProvider storeProvider = context.getLegacyKVStoreProvider();
-    final LegacyKVStore<String, NameSpaceContainer> namespace = storeProvider.getStore(NamespaceServiceImpl.NamespaceStoreCreator.class);
-    final LegacyKVStore<PartitionChunkId, PartitionChunk> partitionChunksStore = storeProvider.getStore(NamespaceServiceImpl.PartitionChunkCreator.class);
+    final LegacyKVStore<String, NameSpaceContainer> namespace =
+        storeProvider.getStore(NamespaceServiceImpl.NamespaceStoreCreator.class);
+    final LegacyKVStore<PartitionChunkId, PartitionChunk> partitionChunksStore =
+        storeProvider.getStore(NamespaceServiceImpl.PartitionChunkCreator.class);
 
     int fixedSplitIds = 0;
     // namespace#find() returns entries ordered by depth, so sources will
     // be processed before folders, which will be processed before datasets
-    for(Map.Entry<String, NameSpaceContainer> entry: namespace.find()) {
+    for (Map.Entry<String, NameSpaceContainer> entry : namespace.find()) {
       final NameSpaceContainer container = entry.getValue();
 
       if (container.getType() != NameSpaceContainer.Type.DATASET) {
@@ -84,7 +85,8 @@ public class UpdateDatasetSplitIdTask extends UpgradeTask implements LegacyUpgra
         continue;
       }
 
-      if (config.getReadDefinition() == null || config.getReadDefinition().getSplitVersion() == null) {
+      if (config.getReadDefinition() == null
+          || config.getReadDefinition().getSplitVersion() == null) {
         continue;
       }
 
@@ -99,7 +101,8 @@ public class UpdateDatasetSplitIdTask extends UpgradeTask implements LegacyUpgra
     AdminLogger.log("  Updated {} dataset splits with new ids.", fixedSplitIds);
   }
 
-  private void fixSplits(final LegacyKVStore<PartitionChunkId, PartitionChunk> partitionChunksStore,
+  private void fixSplits(
+      final LegacyKVStore<PartitionChunkId, PartitionChunk> partitionChunksStore,
       DatasetConfig config) {
     final long version = config.getReadDefinition().getSplitVersion();
 
@@ -121,9 +124,9 @@ public class UpdateDatasetSplitIdTask extends UpgradeTask implements LegacyUpgra
     }
   }
 
-
   /**
    * Run the task against a directory
+   *
    * @param args one single argument, the path to the database
    * @throws Exception
    */
@@ -142,10 +145,11 @@ public class UpdateDatasetSplitIdTask extends UpgradeTask implements LegacyUpgra
     final SabotConfig sabotConfig = DACConfig.newConfig().getConfig().getSabotConfig();
     final ScanResult classpathScan = ClassPathScanner.fromPrescan(sabotConfig);
     try (final LocalKVStoreProvider storeProvider =
-      new LocalKVStoreProvider(classpathScan, args[0], false, true)) {
+        new LocalKVStoreProvider(classpathScan, args[0], false, true)) {
       storeProvider.start();
 
-      final UpgradeContext context = new UpgradeContext(storeProvider, storeProvider.asLegacy(), null, null, null);
+      final UpgradeContext context =
+          new UpgradeContext(storeProvider, storeProvider.asLegacy(), null, null, null);
       final UpdateDatasetSplitIdTask task = new UpdateDatasetSplitIdTask();
       task.upgrade(context);
     }

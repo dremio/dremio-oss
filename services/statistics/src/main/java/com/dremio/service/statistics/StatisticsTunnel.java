@@ -23,11 +23,10 @@ import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.services.fabric.ProxyConnection;
 import com.dremio.services.fabric.api.FabricCommandRunner;
 
-/**
- * To access StatisticsService from executor(client)
- */
+/** To access StatisticsService from executor(client) */
 class StatisticsTunnel {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(StatisticsTunnel.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(StatisticsTunnel.class);
 
   private final CoordinationProtos.NodeEndpoint ep;
   private final FabricCommandRunner manager;
@@ -38,11 +37,9 @@ class StatisticsTunnel {
     this.manager = manager;
   }
 
-  /**
-   * To get RequestStatisticsInfo
-   */
-  public static class RequestStatisticsInfo extends FutureBitCommand<StatisticsRPC.StatisticsInfoResp,
-    ProxyConnection> {
+  /** To get RequestStatisticsInfo */
+  public static class RequestStatisticsInfo
+      extends FutureBitCommand<StatisticsRPC.StatisticsInfoResp, ProxyConnection> {
     private final StatisticsRPC.StatisticsInfoReq statisticsInfoRequest;
 
     public RequestStatisticsInfo(StatisticsRPC.StatisticsInfoReq statisticsInfoRequest) {
@@ -51,16 +48,22 @@ class StatisticsTunnel {
     }
 
     @Override
-    public void doRpcCall(RpcOutcomeListener<StatisticsRPC.StatisticsInfoResp> outcomeListener, ProxyConnection
-      connection) {
-      connection.send(outcomeListener, StatisticsRPC.RpcType.REQ_STATISTICS_INFO, statisticsInfoRequest, StatisticsRPC
-        .StatisticsInfoResp.class);
+    public void doRpcCall(
+        RpcOutcomeListener<StatisticsRPC.StatisticsInfoResp> outcomeListener,
+        ProxyConnection connection) {
+      connection.send(
+          outcomeListener,
+          StatisticsRPC.RpcType.REQ_STATISTICS_INFO,
+          statisticsInfoRequest,
+          StatisticsRPC.StatisticsInfoResp.class);
     }
   }
 
   public RpcFuture<StatisticsRPC.StatisticsInfoResp> requestStatisticsInfos() {
-    StatisticsRPC.StatisticsInfoReq statisticsInfoRequest = StatisticsRPC.StatisticsInfoReq.newBuilder().build();
-    StatisticsTunnel.RequestStatisticsInfo b = new StatisticsTunnel.RequestStatisticsInfo(statisticsInfoRequest);
+    StatisticsRPC.StatisticsInfoReq statisticsInfoRequest =
+        StatisticsRPC.StatisticsInfoReq.newBuilder().build();
+    StatisticsTunnel.RequestStatisticsInfo b =
+        new StatisticsTunnel.RequestStatisticsInfo(statisticsInfoRequest);
     manager.runCommand(b);
     return b.getFuture();
   }

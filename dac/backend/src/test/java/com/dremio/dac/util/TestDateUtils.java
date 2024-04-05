@@ -19,12 +19,9 @@ package com.dremio.dac.util;
 import static org.junit.Assert.assertEquals;
 
 import java.time.LocalDate;
-
 import org.junit.Test;
 
-/**
- * Tests for {@link DateUtils}
- */
+/** Tests for {@link DateUtils} */
 public class TestDateUtils {
   @Test
   public void testGetStartOfLastMonth() {

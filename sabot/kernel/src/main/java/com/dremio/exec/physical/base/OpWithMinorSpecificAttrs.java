@@ -18,9 +18,7 @@ package com.dremio.exec.physical.base;
 import com.dremio.exec.planner.fragment.MinorDataReader;
 import com.dremio.exec.planner.fragment.MinorDataWriter;
 
-/**
- * Operator that has attributes that are specific to the minor version.
- */
+/** Operator that has attributes that are specific to the minor version. */
 public interface OpWithMinorSpecificAttrs {
   /*
    * Collect attributes that are specific to a minor fragment.

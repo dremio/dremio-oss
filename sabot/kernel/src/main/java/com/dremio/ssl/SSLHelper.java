@@ -19,7 +19,6 @@ import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
-
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSession;
@@ -30,6 +29,7 @@ public class SSLHelper {
 
   /**
    * We will accept all hostnames
+   *
    * @return
    */
   public static HostnameVerifier newAllValidHostnameVerifier() {
@@ -43,23 +43,28 @@ public class SSLHelper {
 
   /**
    * we will trust all SSL certificates
+   *
    * @return
    */
   public static SSLContext newAllTrustingSSLContext(String algorithm) {
     // Create a trust manager that does not validate certificate chains
-    TrustManager[] trustAllCerts = new TrustManager[] {new X509TrustManager() {
-      @Override
-      public X509Certificate[] getAcceptedIssuers() {
-        return null;
-      }
-      @Override
-      public void checkServerTrusted(X509Certificate[] chain, String authType) throws CertificateException {
-      }
+    TrustManager[] trustAllCerts =
+        new TrustManager[] {
+          new X509TrustManager() {
+            @Override
+            public X509Certificate[] getAcceptedIssuers() {
+              return null;
+            }
 
-      @Override
-      public void checkClientTrusted(X509Certificate[] chain, String authType) throws CertificateException {
-      }
-    }};
+            @Override
+            public void checkServerTrusted(X509Certificate[] chain, String authType)
+                throws CertificateException {}
+
+            @Override
+            public void checkClientTrusted(X509Certificate[] chain, String authType)
+                throws CertificateException {}
+          }
+        };
 
     try {
       SSLContext sc;

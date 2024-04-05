@@ -17,15 +17,6 @@ package com.dremio.dac.resource;
 
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
-import java.io.IOException;
-
-import javax.annotation.security.RolesAllowed;
-import javax.inject.Inject;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.model.job.JobFilterItem;
@@ -35,13 +26,16 @@ import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
 import com.dremio.service.users.User;
 import com.dremio.service.users.UserService;
-
 import io.opentelemetry.instrumentation.annotations.WithSpan;
+import java.io.IOException;
+import javax.annotation.security.RolesAllowed;
+import javax.inject.Inject;
+import javax.ws.rs.GET;
+import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
 
-
-/**
- * Resource for getting lists of spaces and user for job filtering
- */
+/** Resource for getting lists of spaces and user for job filtering */
 @RestResource
 @Secured
 @RolesAllowed({"admin", "user"})
@@ -61,7 +55,9 @@ public class JobsFiltersResource {
   @GET
   @Path("/spaces")
   @Produces(APPLICATION_JSON)
-  public JobFilterItems searchSpaces(@QueryParam("filter") String query, @QueryParam("limit") Integer limit) throws NamespaceException {
+  public JobFilterItems searchSpaces(
+      @QueryParam("filter") String query, @QueryParam("limit") Integer limit)
+      throws NamespaceException {
     final JobFilterItems spaces = new JobFilterItems();
     for (SpaceConfig spaceConfig : namespaceService.getSpaces()) {
       if (query == null || spaceConfig.getName().contains(query)) {
@@ -78,13 +74,12 @@ public class JobsFiltersResource {
   @GET
   @Path("/users")
   @Produces(APPLICATION_JSON)
-  public JobFilterItems searchUsers(@QueryParam("filter") String query, @QueryParam("limit") Integer limit) throws IOException {
+  public JobFilterItems searchUsers(
+      @QueryParam("filter") String query, @QueryParam("limit") Integer limit) throws IOException {
     final JobFilterItems users = new JobFilterItems();
     for (final User userConfig : userService.searchUsers(query, null, null, limit)) {
       users.add(new JobFilterItem(userConfig.getUserName(), userConfig.getUserName()));
     }
     return users;
   }
-
-
 }

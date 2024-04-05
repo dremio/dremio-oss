@@ -15,23 +15,18 @@
  */
 package com.dremio.sabot.exec.rpc;
 
-import java.io.IOException;
-import java.io.OutputStream;
-
-import org.apache.arrow.memory.util.LargeMemoryUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.proto.ExecRPC;
 import com.dremio.exec.proto.FileExec;
 import com.dremio.exec.record.FragmentWritableBatch;
-
 import io.netty.buffer.ByteBuf;
+import java.io.IOException;
+import java.io.OutputStream;
+import org.apache.arrow.memory.util.LargeMemoryUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * Tunnel-like API that writes batches/completions to a file.
- */
+/** Tunnel-like API that writes batches/completions to a file. */
 public class FileTunnel implements AutoCloseable {
   private static final Logger logger = LoggerFactory.getLogger(FileTunnel.class);
   private final FileStreamManager fileStreamManager;
@@ -50,15 +45,15 @@ public class FileTunnel implements AutoCloseable {
 
   public long sendRecordBatch(FragmentWritableBatch batch) throws IOException {
     try {
-      writeMessage(currentOutput,
-        FileExec.FileMessage.newBuilder()
-          .setType(ExecRPC.RpcType.REQ_RECORD_BATCH)
-          .setMsgSeq(currentBatchSeq++)
-          .setBodySize(batch.getByteCount())
-          .setRecordBatch(batch.getHeader())
-          .build(),
-        batch.getBuffers()
-      );
+      writeMessage(
+          currentOutput,
+          FileExec.FileMessage.newBuilder()
+              .setType(ExecRPC.RpcType.REQ_RECORD_BATCH)
+              .setMsgSeq(currentBatchSeq++)
+              .setBodySize(batch.getByteCount())
+              .setRecordBatch(batch.getHeader())
+              .build(),
+          batch.getBuffers());
       if (currentBatchSeq % maxBatchesPerFile == 0) {
         switchOutputStream();
       }
@@ -71,29 +66,31 @@ public class FileTunnel implements AutoCloseable {
   }
 
   public long sendStreamComplete(ExecRPC.FragmentStreamComplete streamComplete) throws IOException {
-    logger.debug("sending streamComplete currentFileSeq {} currentBatchSeq {}", currentFileSeq, currentBatchSeq);
-    writeMessage(currentOutput,
-      FileExec.FileMessage.newBuilder()
-        .setType(ExecRPC.RpcType.REQ_STREAM_COMPLETE)
-        .setMsgSeq(currentBatchSeq++)
-        .setStreamComplete(streamComplete)
-        .build(),
-      null
-    );
+    logger.debug(
+        "sending streamComplete currentFileSeq {} currentBatchSeq {}",
+        currentFileSeq,
+        currentBatchSeq);
+    writeMessage(
+        currentOutput,
+        FileExec.FileMessage.newBuilder()
+            .setType(ExecRPC.RpcType.REQ_STREAM_COMPLETE)
+            .setMsgSeq(currentBatchSeq++)
+            .setStreamComplete(streamComplete)
+            .build(),
+        null);
     currentOutput.close();
     currentOutput = null;
     return currentBatchSeq - 1;
   }
 
-
   private void switchOutputStream() throws IOException {
-    writeMessage(currentOutput,
-      FileExec.FileMessage.newBuilder()
-        // type not set in message to indicate EOF.
-        .setMsgSeq(currentBatchSeq++)
-        .build(),
-      null
-    );
+    writeMessage(
+        currentOutput,
+        FileExec.FileMessage.newBuilder()
+            // type not set in message to indicate EOF.
+            .setMsgSeq(currentBatchSeq++)
+            .build(),
+        null);
 
     // close current stream
     currentOutput.close();
@@ -112,7 +109,8 @@ public class FileTunnel implements AutoCloseable {
     return currentFileSeq;
   }
 
-  private void writeMessage(OutputStream output, FileExec.FileMessage message, ByteBuf[] extraBufs) throws IOException {
+  private void writeMessage(OutputStream output, FileExec.FileMessage message, ByteBuf[] extraBufs)
+      throws IOException {
     // msg contains :
     // - protobuf msg
     // - arrow buffers (optional)

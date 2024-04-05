@@ -15,11 +15,10 @@
  */
 package com.dremio.sabot.threads.sharedres;
 
-/**
- * Wrapper over SharedResource. supports a resource that can be activated, but not deactivated
- */
+/** Wrapper over SharedResource. supports a resource that can be activated, but not deactivated */
 public class ActivableResource {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ActivableResource.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ActivableResource.class);
 
   // local variable to avoid locking/synchronization on every call.
   private volatile boolean activated = false;

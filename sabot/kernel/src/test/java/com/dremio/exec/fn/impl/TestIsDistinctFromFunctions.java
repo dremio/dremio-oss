@@ -15,26 +15,16 @@
  */
 package com.dremio.exec.fn.impl;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
+import com.dremio.PlanTestBase;
 import org.junit.Ignore;
 import org.junit.Test;
-
-import com.dremio.PlanTestBase;
-import com.dremio.exec.planner.physical.PlannerSettings;
 
 /**
  * Tests for IS [NOT] DISTINCT FROM functions.
  *
- * Not an exhaustive test list, but contains a test case for each category of type.
+ * <p>Not an exhaustive test list, but contains a test case for each category of type.
  */
 public class TestIsDistinctFromFunctions extends PlanTestBase {
-
-  @BeforeClass
-  public static void setupOptions() throws Exception {
-    test(String.format("alter session set \"%s\" = true", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
-  }
-
 
   @Test
   public void intType() throws Exception {
@@ -51,8 +41,7 @@ public class TestIsDistinctFromFunctions extends PlanTestBase {
     helper(
         "cast(TIMESTAMP_col1 as TIMESTAMP)",
         "cast(TIMESTAMP_col2 as TIMESTAMP)",
-        "timestamp_distinct_result"
-    );
+        "timestamp_distinct_result");
   }
 
   @Test
@@ -61,18 +50,15 @@ public class TestIsDistinctFromFunctions extends PlanTestBase {
     helper(
         "cast(DECIMAL9_col as DECIMAL(29, 2))",
         "cast(DECIMAL18_col as DECIMAL(29, 2))",
-        "decimal_distinct_result"
-    );
+        "decimal_distinct_result");
   }
-
 
   @Test
   public void intervalYearType() throws Exception {
     helper(
         "cast(INTERVALYEAR_col1 as INTERVAL YEAR)",
         "cast(INTERVALYEAR_col2 as INTERVAL YEAR)",
-        "intervalyear_distinct_result"
-    );
+        "intervalyear_distinct_result");
   }
 
   @Test
@@ -80,16 +66,18 @@ public class TestIsDistinctFromFunctions extends PlanTestBase {
     helper(
         "cast(INTERVALDAY_col1 as INTERVAL DAY)",
         "cast(INTERVALDAY_col2 as INTERVAL DAY)",
-        "intervalday_distinct_result"
-    );
+        "intervalday_distinct_result");
   }
 
   public void helper(String col1, String col2, String expCol) throws Exception {
-    String query = String.format("SELECT " +
-        "%s is distinct from %s as col, %s " +
-        "FROM cp.\"functions/distinct_from.json\"", col1, col2, expCol);
+    String query =
+        String.format(
+            "SELECT "
+                + "%s is distinct from %s as col, %s "
+                + "FROM cp.\"functions/distinct_from.json\"",
+            col1, col2, expCol);
 
-    testPlanSubstrPatterns(query, new String[] { "IS DISTINCT FROM" }, null);
+    testPlanSubstrPatterns(query, new String[] {"IS DISTINCT FROM"}, null);
 
     testBuilder()
         .sqlQuery(query)
@@ -102,11 +90,14 @@ public class TestIsDistinctFromFunctions extends PlanTestBase {
         .baselineValues(false, false)
         .go();
 
-    query = String.format("SELECT " +
-        "%s is not distinct from %s as col, %s " +
-        "FROM cp.\"functions/distinct_from.json\"", col1, col2, expCol);
+    query =
+        String.format(
+            "SELECT "
+                + "%s is not distinct from %s as col, %s "
+                + "FROM cp.\"functions/distinct_from.json\"",
+            col1, col2, expCol);
 
-    testPlanSubstrPatterns(query, new String[] { "IS NOT DISTINCT FROM" }, null);
+    testPlanSubstrPatterns(query, new String[] {"IS NOT DISTINCT FROM"}, null);
 
     testBuilder()
         .sqlQuery(query)
@@ -118,10 +109,5 @@ public class TestIsDistinctFromFunctions extends PlanTestBase {
         .baselineValues(false, true)
         .baselineValues(true, false)
         .go();
-  }
-
-  @AfterClass
-  public static void shutdownOptions() throws Exception {
-    test(String.format("alter session set \"%s\" = false", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
   }
 }

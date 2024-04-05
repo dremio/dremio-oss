@@ -15,12 +15,11 @@
  */
 package com.dremio.sabot.exec;
 
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.sabot.task.AsyncTaskWrapper;
 import com.dremio.sabot.task.SchedulingGroup;
 import com.google.common.base.Preconditions;
+import org.apache.arrow.memory.BufferAllocator;
 
 /*
  * Allows for creating child allocators for the fragment.
@@ -31,9 +30,11 @@ public class FragmentTicket implements AutoCloseable {
   private final SchedulingGroup<AsyncTaskWrapper> schedulingGroup;
   private boolean closed;
 
-  public FragmentTicket(PhaseTicket phaseTicket, FragmentHandle handle, SchedulingGroup<AsyncTaskWrapper> schedulingGroup) {
-    this.phaseTicket = Preconditions.checkNotNull(phaseTicket,
-      "PhaseTicket should not be null");
+  public FragmentTicket(
+      PhaseTicket phaseTicket,
+      FragmentHandle handle,
+      SchedulingGroup<AsyncTaskWrapper> schedulingGroup) {
+    this.phaseTicket = Preconditions.checkNotNull(phaseTicket, "PhaseTicket should not be null");
     this.handle = handle;
     this.schedulingGroup = schedulingGroup;
     phaseTicket.reserve(this);
@@ -43,7 +44,9 @@ public class FragmentTicket implements AutoCloseable {
     return phaseTicket.getAllocator().newChildAllocator(name, initReservation, maxAllocation);
   }
 
-  public FragmentHandle getHandle() { return handle; }
+  public FragmentHandle getHandle() {
+    return handle;
+  }
 
   public SchedulingGroup<AsyncTaskWrapper> getSchedulingGroup() {
     return schedulingGroup;
@@ -55,7 +58,8 @@ public class FragmentTicket implements AutoCloseable {
     closed = true;
 
     if (phaseTicket.release(this)) {
-      // NB: The query ticket removes itself from the queries clerk when its last phase ticket is removed
+      // NB: The query ticket removes itself from the queries clerk when its last phase ticket is
+      // removed
       phaseTicket.getQueryTicket().removePhaseTicket(phaseTicket);
     }
   }

@@ -15,21 +15,20 @@
  */
 package com.dremio.sabot.op.join.vhash.spill.slicer;
 
+import com.dremio.exec.util.RoundUtil;
+import com.dremio.sabot.op.copier.FieldBufferPreAllocedCopier;
+import com.dremio.sabot.op.join.vhash.spill.SV2UnsignedUtil;
+import com.google.common.collect.ImmutableList;
 import java.util.List;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BaseVariableWidthVector;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.ipc.message.ArrowFieldNode;
 
-import com.dremio.exec.util.RoundUtil;
-import com.dremio.sabot.op.copier.FieldBufferPreAllocedCopier;
-import com.dremio.sabot.op.join.vhash.spill.SV2UnsignedUtil;
-import com.google.common.collect.ImmutableList;
-
 class VariableSizer implements Sizer {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(VariableSizer.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(VariableSizer.class);
   private final BaseVariableWidthVector incoming;
   private long cachedSv2Addr;
   private int cachedStartIdx;
@@ -60,7 +59,9 @@ class VariableSizer implements Sizer {
     int validitySize = RoundUtil.round64up(VALID_SIZE_BITS * count);
     int dataSize;
 
-    if (sv2.memoryAddress() == cachedSv2Addr && startIdx == cachedStartIdx && Math.abs(count - cachedCount) <= 8) {
+    if (sv2.memoryAddress() == cachedSv2Addr
+        && startIdx == cachedStartIdx
+        && Math.abs(count - cachedCount) <= 8) {
       // do a delta with the cached value.
       dataSize = cachedDataSize;
       if (cachedCount < count) {
@@ -81,14 +82,18 @@ class VariableSizer implements Sizer {
   }
 
   @Override
-  public int getSizeInBitsStartingFromOrdinal(final int ordinal, final int numberOfRecords){
-
+  public int getSizeInBitsStartingFromOrdinal(final int ordinal, final int numberOfRecords) {
+    if (incoming.getValueCount() == 0) {
+      return 0;
+    }
     final int start = incoming.getOffsetBuffer().getInt((long) ordinal * OFFSET_SIZE_BYTES);
-    final int end = incoming.getOffsetBuffer().getInt((long) (ordinal + numberOfRecords) * OFFSET_SIZE_BYTES);
+    final int end =
+        incoming.getOffsetBuffer().getInt((long) (ordinal + numberOfRecords) * OFFSET_SIZE_BYTES);
 
-    final int offsetBufferSize = Sizer.getOffsetBufferSizeInBits(numberOfRecords); //offset buffer
-    final int dataBufferSize = RoundUtil.round64up((end - start) * BYTE_SIZE_BITS); //data buffer
-    final int validityBufferSize = Sizer.getValidityBufferSizeInBits(numberOfRecords); // validity buffer
+    final int offsetBufferSize = Sizer.getOffsetBufferSizeInBits(numberOfRecords); // offset buffer
+    final int dataBufferSize = RoundUtil.round64up((end - start) * BYTE_SIZE_BITS); // data buffer
+    final int validityBufferSize =
+        Sizer.getValidityBufferSizeInBits(numberOfRecords); // validity buffer
 
     return offsetBufferSize + dataBufferSize + validityBufferSize;
   }
@@ -106,8 +111,14 @@ class VariableSizer implements Sizer {
   }
 
   @Override
-  public Copier getCopier(BufferAllocator allocator, ArrowBuf sv2, int startIdx, int count, List<FieldVector> vectorOutput) {
-    final FieldVector outgoing = (FieldVector) incoming.getTransferPair(allocator).getTo();
+  public Copier getCopier(
+      BufferAllocator allocator,
+      ArrowBuf sv2,
+      int startIdx,
+      int count,
+      List<FieldVector> vectorOutput) {
+    final FieldVector outgoing =
+        (FieldVector) incoming.getTransferPair(incoming.getField(), allocator).getTo();
     vectorOutput.add(outgoing);
     sv2.checkBytes(startIdx * SV2_SIZE_BYTES, (startIdx + count) * SV2_SIZE_BYTES);
     return (page) -> {
@@ -118,17 +129,19 @@ class VariableSizer implements Sizer {
       final int dataLen = expectedSize / BYTE_SIZE_BITS - validityLen - offsetLen;
 
       try (final ArrowBuf validityBuf = page.sliceAligned(validityLen);
-           final ArrowBuf offsetBuf = page.sliceAligned(offsetLen);
-           final ArrowBuf dataBuf = page.sliceAligned(dataLen)) {
-        outgoing.loadFieldBuffers(new ArrowFieldNode(count, -1),
-          ImmutableList.of(validityBuf, offsetBuf, dataBuf));
+          final ArrowBuf offsetBuf = page.sliceAligned(offsetLen);
+          final ArrowBuf dataBuf = page.sliceAligned(dataLen)) {
+        outgoing.loadFieldBuffers(
+            new ArrowFieldNode(count, -1), ImmutableList.of(validityBuf, offsetBuf, dataBuf));
 
-        // The bit copiers do ORs to set the bits, and expect that the buffer is zero-filled to begin with.
+        // The bit copiers do ORs to set the bits, and expect that the buffer is zero-filled to
+        // begin with.
         validityBuf.setZero(0, validityLen);
         // copy data.
         offsetBuf.setInt(0, 0); // rest of the offsets will be filled in during the copy
-        FieldBufferPreAllocedCopier.getCopiers(ImmutableList.of(incoming), ImmutableList.of(outgoing))
-          .forEach(copier -> copier.copy(sv2.memoryAddress() + startIdx * SV2_SIZE_BYTES, count));
+        FieldBufferPreAllocedCopier.getCopiers(
+                ImmutableList.of(incoming), ImmutableList.of(outgoing))
+            .forEach(copier -> copier.copy(sv2.memoryAddress() + startIdx * SV2_SIZE_BYTES, count));
 
         assert outgoing.getValidityBufferAddress() == validityBuf.memoryAddress();
         assert outgoing.getOffsetBufferAddress() == offsetBuf.memoryAddress();

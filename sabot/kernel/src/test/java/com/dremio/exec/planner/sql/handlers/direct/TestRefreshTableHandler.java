@@ -23,10 +23,18 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.DatasetCatalog;
+import com.dremio.exec.planner.sql.parser.SqlRefreshTable;
+import com.dremio.exec.store.DatasetRetrievalOptions;
+import com.dremio.exec.store.DatasetRetrievalPartitionOptions;
+import com.dremio.service.namespace.NamespaceException;
+import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.NamespaceService;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNodeList;
@@ -39,20 +47,9 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.mockito.stubbing.Answer;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.catalog.Catalog;
-import com.dremio.exec.catalog.DatasetCatalog;
-import com.dremio.exec.planner.sql.parser.SqlRefreshTable;
-import com.dremio.exec.store.DatasetRetrievalOptions;
-import com.dremio.exec.store.DatasetRetrievalPartitionOptions;
-import com.dremio.service.namespace.NamespaceException;
-import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.namespace.NamespaceService;
-
 @RunWith(MockitoJUnitRunner.class)
 public class TestRefreshTableHandler {
   private RefreshTableHandler refreshTableHandler;
-  private RefreshTableHandler refreshTableHandlerDisabled;
   @Mock private Catalog catalog;
   @Mock private NamespaceService namespaceService;
 
@@ -62,106 +59,123 @@ public class TestRefreshTableHandler {
 
   @Before
   public void setup() throws NamespaceException {
-    refreshTableHandler = new RefreshTableHandler(catalog, namespaceService, true, USER_NAME);
-    refreshTableHandlerDisabled = new RefreshTableHandler(catalog, namespaceService,false, USER_NAME);
+    refreshTableHandler = new RefreshTableHandler(catalog, namespaceService, USER_NAME);
 
-    when(catalog.resolveSingle(any(NamespaceKey.class))).thenAnswer((Answer<NamespaceKey>) invocationOnMock -> {
-      NamespaceKey key = invocationOnMock.getArgument(0, NamespaceKey.class);
-      if (TABLE_KEY.equals(key)) {
-        return TABLE_KEY;
-      }
+    when(catalog.resolveSingle(any(NamespaceKey.class)))
+        .thenAnswer(
+            (Answer<NamespaceKey>)
+                invocationOnMock -> {
+                  NamespaceKey key = invocationOnMock.getArgument(0, NamespaceKey.class);
+                  if (TABLE_KEY.equals(key)) {
+                    return TABLE_KEY;
+                  }
 
-      return null;
-    });
+                  return null;
+                });
 
     when(namespaceService.getDataset((any(NamespaceKey.class)))).thenReturn(null);
   }
 
   @Test(expected = UserException.class)
   public void toResult_files_list() throws Exception {
-    final SqlRefreshTable refreshTable = new SqlRefreshTable(
-      SqlParserPos.ZERO,
-      new SqlIdentifier(TABLE_NAME, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(true, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(true, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(true, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(true, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
-      SqlNodeList.of(SqlLiteral.createCharString("file1.txt", SqlParserPos.ZERO)),
-      SqlNodeList.EMPTY);
+    final SqlRefreshTable refreshTable =
+        new SqlRefreshTable(
+            SqlParserPos.ZERO,
+            new SqlIdentifier(TABLE_NAME, SqlParserPos.ZERO),
+            SqlLiteral.createBoolean(true, SqlParserPos.ZERO),
+            SqlLiteral.createBoolean(true, SqlParserPos.ZERO),
+            SqlLiteral.createBoolean(true, SqlParserPos.ZERO),
+            SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
+            SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
+            SqlLiteral.createBoolean(true, SqlParserPos.ZERO),
+            SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
+            SqlNodeList.of(SqlLiteral.createCharString("file1.txt", SqlParserPos.ZERO)),
+            SqlNodeList.EMPTY);
 
-    final ArgumentCaptor<DatasetRetrievalOptions> optionsCaptor = ArgumentCaptor.forClass(DatasetRetrievalOptions.class);
-    lenient().when(catalog.refreshDataset(eq(TABLE_KEY), optionsCaptor.capture(), eq(false))).thenReturn(DatasetCatalog.UpdateStatus.CHANGED);
+    final ArgumentCaptor<DatasetRetrievalOptions> optionsCaptor =
+        ArgumentCaptor.forClass(DatasetRetrievalOptions.class);
+    lenient()
+        .when(catalog.refreshDataset(eq(TABLE_KEY), optionsCaptor.capture(), eq(false)))
+        .thenReturn(DatasetCatalog.UpdateStatus.CHANGED);
 
     refreshTableHandler.toResult("", refreshTable);
-//    Refresh Metadata for files are not supported.
-//    final List<SimpleCommandResult> result = refreshTableHandler.toResult("", refreshTable);
-//    assertFalse(result.isEmpty());
-//    assertTrue(result.get(0).ok);
-//
-//    DatasetRetrievalOptions options = optionsCaptor.getValue();
-//    assertTrue(options.deleteUnavailableDatasets());
-//    assertTrue(options.forceUpdate());
-//    assertTrue(options.autoPromote());
-//    assertEquals(Collections.singletonList("file1.txt"), ((DatasetRetrievalFilesListOptions) options).getFilesList());
+    //    Refresh Metadata for files are not supported.
+    //    final List<SimpleCommandResult> result = refreshTableHandler.toResult("", refreshTable);
+    //    assertFalse(result.isEmpty());
+    //    assertTrue(result.get(0).ok);
+    //
+    //    DatasetRetrievalOptions options = optionsCaptor.getValue();
+    //    assertTrue(options.deleteUnavailableDatasets());
+    //    assertTrue(options.forceUpdate());
+    //    assertTrue(options.autoPromote());
+    //    assertEquals(Collections.singletonList("file1.txt"), ((DatasetRetrievalFilesListOptions)
+    // options).getFilesList());
   }
 
   @Test(expected = UserException.class)
   public void toResult_files_mulitple_list() throws Exception {
-    final SqlRefreshTable refreshTable = new SqlRefreshTable(
-      SqlParserPos.ZERO,
-      new SqlIdentifier(TABLE_NAME, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(true, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(true, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(true, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(true, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
-      SqlNodeList.of(
-        SqlLiteral.createCharString("file1.txt", SqlParserPos.ZERO),
-        SqlLiteral.createCharString("file2.txt", SqlParserPos.ZERO)),
-      SqlNodeList.EMPTY);
+    final SqlRefreshTable refreshTable =
+        new SqlRefreshTable(
+            SqlParserPos.ZERO,
+            new SqlIdentifier(TABLE_NAME, SqlParserPos.ZERO),
+            SqlLiteral.createBoolean(true, SqlParserPos.ZERO),
+            SqlLiteral.createBoolean(true, SqlParserPos.ZERO),
+            SqlLiteral.createBoolean(true, SqlParserPos.ZERO),
+            SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
+            SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
+            SqlLiteral.createBoolean(true, SqlParserPos.ZERO),
+            SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
+            SqlNodeList.of(
+                SqlLiteral.createCharString("file1.txt", SqlParserPos.ZERO),
+                SqlLiteral.createCharString("file2.txt", SqlParserPos.ZERO)),
+            SqlNodeList.EMPTY);
 
-    final ArgumentCaptor<DatasetRetrievalOptions> optionsCaptor = ArgumentCaptor.forClass(DatasetRetrievalOptions.class);
-    lenient().when(catalog.refreshDataset(eq(TABLE_KEY), optionsCaptor.capture(), eq(false))).thenReturn(DatasetCatalog.UpdateStatus.CHANGED);
+    final ArgumentCaptor<DatasetRetrievalOptions> optionsCaptor =
+        ArgumentCaptor.forClass(DatasetRetrievalOptions.class);
+    lenient()
+        .when(catalog.refreshDataset(eq(TABLE_KEY), optionsCaptor.capture(), eq(false)))
+        .thenReturn(DatasetCatalog.UpdateStatus.CHANGED);
 
     refreshTableHandler.toResult("", refreshTable);
-//    Refresh Metadata for files are not supported.
-//    final List<SimpleCommandResult> result = refreshTableHandler.toResult("", refreshTable);
-//    assertFalse(result.isEmpty());
-//    assertTrue(result.get(0).ok);
-//
-//    DatasetRetrievalOptions options = optionsCaptor.getValue();
-//    assertTrue(options.deleteUnavailableDatasets());
-//    assertTrue(options.forceUpdate());
-//    assertTrue(options.autoPromote());
-//
-//    List<String> expectedList = new ArrayList<>();
-//    expectedList.add("file1.txt");
-//    expectedList.add("file2.txt");
-//    assertEquals(expectedList, ((DatasetRetrievalFilesListOptions) options).getFilesList());
+    //    Refresh Metadata for files are not supported.
+    //    final List<SimpleCommandResult> result = refreshTableHandler.toResult("", refreshTable);
+    //    assertFalse(result.isEmpty());
+    //    assertTrue(result.get(0).ok);
+    //
+    //    DatasetRetrievalOptions options = optionsCaptor.getValue();
+    //    assertTrue(options.deleteUnavailableDatasets());
+    //    assertTrue(options.forceUpdate());
+    //    assertTrue(options.autoPromote());
+    //
+    //    List<String> expectedList = new ArrayList<>();
+    //    expectedList.add("file1.txt");
+    //    expectedList.add("file2.txt");
+    //    assertEquals(expectedList, ((DatasetRetrievalFilesListOptions) options).getFilesList());
   }
 
   @Test
   public void toResult_partition_list() throws Exception {
-    final SqlRefreshTable refreshTable = new SqlRefreshTable(
-      SqlParserPos.ZERO,
-      new SqlIdentifier(TABLE_NAME, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(true, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(true, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(true, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(true, SqlParserPos.ZERO),
-      SqlNodeList.EMPTY,
-      SqlNodeList.of(SqlNodeList.of(new SqlIdentifier("year", SqlParserPos.ZERO), SqlLiteral.createCharString("2021", SqlParserPos.ZERO))));
+    final SqlRefreshTable refreshTable =
+        new SqlRefreshTable(
+            SqlParserPos.ZERO,
+            new SqlIdentifier(TABLE_NAME, SqlParserPos.ZERO),
+            SqlLiteral.createBoolean(true, SqlParserPos.ZERO),
+            SqlLiteral.createBoolean(true, SqlParserPos.ZERO),
+            SqlLiteral.createBoolean(true, SqlParserPos.ZERO),
+            SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
+            SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
+            SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
+            SqlLiteral.createBoolean(true, SqlParserPos.ZERO),
+            SqlNodeList.EMPTY,
+            SqlNodeList.of(
+                SqlNodeList.of(
+                    new SqlIdentifier("year", SqlParserPos.ZERO),
+                    SqlLiteral.createCharString("2021", SqlParserPos.ZERO))));
 
-    final ArgumentCaptor<DatasetRetrievalOptions> optionsCaptor = ArgumentCaptor.forClass(DatasetRetrievalOptions.class);
-    when(catalog.refreshDataset(eq(TABLE_KEY), optionsCaptor.capture(), eq(false))).thenReturn(DatasetCatalog.UpdateStatus.CHANGED);
+    final ArgumentCaptor<DatasetRetrievalOptions> optionsCaptor =
+        ArgumentCaptor.forClass(DatasetRetrievalOptions.class);
+    when(catalog.refreshDataset(eq(TABLE_KEY), optionsCaptor.capture(), eq(false)))
+        .thenReturn(DatasetCatalog.UpdateStatus.CHANGED);
 
     final List<SimpleCommandResult> result = refreshTableHandler.toResult("", refreshTable);
     assertFalse(result.isEmpty());
@@ -179,21 +193,27 @@ public class TestRefreshTableHandler {
 
   @Test
   public void toResult_partition_list_null_value() throws Exception {
-    final SqlRefreshTable refreshTable = new SqlRefreshTable(
-      SqlParserPos.ZERO,
-      new SqlIdentifier(TABLE_NAME, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(true, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(true, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(true, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(true, SqlParserPos.ZERO),
-      SqlNodeList.EMPTY,
-      SqlNodeList.of(SqlNodeList.of(new SqlIdentifier("year", SqlParserPos.ZERO), SqlLiteral.createNull(SqlParserPos.ZERO))));
+    final SqlRefreshTable refreshTable =
+        new SqlRefreshTable(
+            SqlParserPos.ZERO,
+            new SqlIdentifier(TABLE_NAME, SqlParserPos.ZERO),
+            SqlLiteral.createBoolean(true, SqlParserPos.ZERO),
+            SqlLiteral.createBoolean(true, SqlParserPos.ZERO),
+            SqlLiteral.createBoolean(true, SqlParserPos.ZERO),
+            SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
+            SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
+            SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
+            SqlLiteral.createBoolean(true, SqlParserPos.ZERO),
+            SqlNodeList.EMPTY,
+            SqlNodeList.of(
+                SqlNodeList.of(
+                    new SqlIdentifier("year", SqlParserPos.ZERO),
+                    SqlLiteral.createNull(SqlParserPos.ZERO))));
 
-    final ArgumentCaptor<DatasetRetrievalOptions> optionsCaptor = ArgumentCaptor.forClass(DatasetRetrievalOptions.class);
-    when(catalog.refreshDataset(eq(TABLE_KEY), optionsCaptor.capture(), eq(false))).thenReturn(DatasetCatalog.UpdateStatus.CHANGED);
+    final ArgumentCaptor<DatasetRetrievalOptions> optionsCaptor =
+        ArgumentCaptor.forClass(DatasetRetrievalOptions.class);
+    when(catalog.refreshDataset(eq(TABLE_KEY), optionsCaptor.capture(), eq(false)))
+        .thenReturn(DatasetCatalog.UpdateStatus.CHANGED);
 
     final List<SimpleCommandResult> result = refreshTableHandler.toResult("", refreshTable);
     assertFalse(result.isEmpty());
@@ -211,23 +231,30 @@ public class TestRefreshTableHandler {
 
   @Test
   public void toResult_partition_mulitple_list() throws Exception {
-    final SqlRefreshTable refreshTable = new SqlRefreshTable(
-      SqlParserPos.ZERO,
-      new SqlIdentifier(TABLE_NAME, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(true, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(true, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(true, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(true, SqlParserPos.ZERO),
-      SqlNodeList.EMPTY,
-      SqlNodeList.of(
-        SqlNodeList.of(new SqlIdentifier("year", SqlParserPos.ZERO), SqlLiteral.createCharString("2021", SqlParserPos.ZERO)),
-        SqlNodeList.of(new SqlIdentifier("month", SqlParserPos.ZERO), SqlLiteral.createCharString("Jan", SqlParserPos.ZERO))));
+    final SqlRefreshTable refreshTable =
+        new SqlRefreshTable(
+            SqlParserPos.ZERO,
+            new SqlIdentifier(TABLE_NAME, SqlParserPos.ZERO),
+            SqlLiteral.createBoolean(true, SqlParserPos.ZERO),
+            SqlLiteral.createBoolean(true, SqlParserPos.ZERO),
+            SqlLiteral.createBoolean(true, SqlParserPos.ZERO),
+            SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
+            SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
+            SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
+            SqlLiteral.createBoolean(true, SqlParserPos.ZERO),
+            SqlNodeList.EMPTY,
+            SqlNodeList.of(
+                SqlNodeList.of(
+                    new SqlIdentifier("year", SqlParserPos.ZERO),
+                    SqlLiteral.createCharString("2021", SqlParserPos.ZERO)),
+                SqlNodeList.of(
+                    new SqlIdentifier("month", SqlParserPos.ZERO),
+                    SqlLiteral.createCharString("Jan", SqlParserPos.ZERO))));
 
-    final ArgumentCaptor<DatasetRetrievalOptions> optionsCaptor = ArgumentCaptor.forClass(DatasetRetrievalOptions.class);
-    when(catalog.refreshDataset(eq(TABLE_KEY), optionsCaptor.capture(), eq(false))).thenReturn(DatasetCatalog.UpdateStatus.CHANGED);
+    final ArgumentCaptor<DatasetRetrievalOptions> optionsCaptor =
+        ArgumentCaptor.forClass(DatasetRetrievalOptions.class);
+    when(catalog.refreshDataset(eq(TABLE_KEY), optionsCaptor.capture(), eq(false)))
+        .thenReturn(DatasetCatalog.UpdateStatus.CHANGED);
 
     final List<SimpleCommandResult> result = refreshTableHandler.toResult("", refreshTable);
     assertFalse(result.isEmpty());
@@ -246,21 +273,24 @@ public class TestRefreshTableHandler {
 
   @Test
   public void toReseult_all_files() throws Exception {
-    final SqlRefreshTable refreshTable = new SqlRefreshTable(
-      SqlParserPos.ZERO,
-      new SqlIdentifier(TABLE_NAME, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(true, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
-      SqlNodeList.EMPTY,
-      SqlNodeList.EMPTY);
+    final SqlRefreshTable refreshTable =
+        new SqlRefreshTable(
+            SqlParserPos.ZERO,
+            new SqlIdentifier(TABLE_NAME, SqlParserPos.ZERO),
+            SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
+            SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
+            SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
+            SqlLiteral.createBoolean(true, SqlParserPos.ZERO),
+            SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
+            SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
+            SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
+            SqlNodeList.EMPTY,
+            SqlNodeList.EMPTY);
 
-    final ArgumentCaptor<DatasetRetrievalOptions> optionsCaptor = ArgumentCaptor.forClass(DatasetRetrievalOptions.class);
-    when(catalog.refreshDataset(eq(TABLE_KEY), optionsCaptor.capture(), eq(false))).thenReturn(DatasetCatalog.UpdateStatus.UNCHANGED);
+    final ArgumentCaptor<DatasetRetrievalOptions> optionsCaptor =
+        ArgumentCaptor.forClass(DatasetRetrievalOptions.class);
+    when(catalog.refreshDataset(eq(TABLE_KEY), optionsCaptor.capture(), eq(false)))
+        .thenReturn(DatasetCatalog.UpdateStatus.UNCHANGED);
 
     final List<SimpleCommandResult> result = refreshTableHandler.toResult("", refreshTable);
     assertFalse(result.isEmpty());
@@ -275,21 +305,24 @@ public class TestRefreshTableHandler {
 
   @Test
   public void toReseult_all_partitions() throws Exception {
-    final SqlRefreshTable refreshTable = new SqlRefreshTable(
-      SqlParserPos.ZERO,
-      new SqlIdentifier(TABLE_NAME, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(true, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
-      SqlNodeList.EMPTY,
-      SqlNodeList.EMPTY);
+    final SqlRefreshTable refreshTable =
+        new SqlRefreshTable(
+            SqlParserPos.ZERO,
+            new SqlIdentifier(TABLE_NAME, SqlParserPos.ZERO),
+            SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
+            SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
+            SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
+            SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
+            SqlLiteral.createBoolean(true, SqlParserPos.ZERO),
+            SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
+            SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
+            SqlNodeList.EMPTY,
+            SqlNodeList.EMPTY);
 
-    final ArgumentCaptor<DatasetRetrievalOptions> optionsCaptor = ArgumentCaptor.forClass(DatasetRetrievalOptions.class);
-    when(catalog.refreshDataset(eq(TABLE_KEY), optionsCaptor.capture(), eq(false))).thenReturn(DatasetCatalog.UpdateStatus.UNCHANGED);
+    final ArgumentCaptor<DatasetRetrievalOptions> optionsCaptor =
+        ArgumentCaptor.forClass(DatasetRetrievalOptions.class);
+    when(catalog.refreshDataset(eq(TABLE_KEY), optionsCaptor.capture(), eq(false)))
+        .thenReturn(DatasetCatalog.UpdateStatus.UNCHANGED);
 
     final List<SimpleCommandResult> result = refreshTableHandler.toResult("", refreshTable);
     assertFalse(result.isEmpty());
@@ -304,21 +337,24 @@ public class TestRefreshTableHandler {
 
   @Test
   public void toReseult_no_files() throws Exception {
-    final SqlRefreshTable refreshTable = new SqlRefreshTable(
-      SqlParserPos.ZERO,
-      new SqlIdentifier(TABLE_NAME, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
-      SqlNodeList.EMPTY,
-      SqlNodeList.EMPTY);
+    final SqlRefreshTable refreshTable =
+        new SqlRefreshTable(
+            SqlParserPos.ZERO,
+            new SqlIdentifier(TABLE_NAME, SqlParserPos.ZERO),
+            SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
+            SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
+            SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
+            SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
+            SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
+            SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
+            SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
+            SqlNodeList.EMPTY,
+            SqlNodeList.EMPTY);
 
-    final ArgumentCaptor<DatasetRetrievalOptions> optionsCaptor = ArgumentCaptor.forClass(DatasetRetrievalOptions.class);
-    when(catalog.refreshDataset(eq(TABLE_KEY), optionsCaptor.capture(), eq(false))).thenReturn(DatasetCatalog.UpdateStatus.UNCHANGED);
+    final ArgumentCaptor<DatasetRetrievalOptions> optionsCaptor =
+        ArgumentCaptor.forClass(DatasetRetrievalOptions.class);
+    when(catalog.refreshDataset(eq(TABLE_KEY), optionsCaptor.capture(), eq(false)))
+        .thenReturn(DatasetCatalog.UpdateStatus.UNCHANGED);
 
     final List<SimpleCommandResult> result = refreshTableHandler.toResult("", refreshTable);
     assertFalse(result.isEmpty());
@@ -329,89 +365,5 @@ public class TestRefreshTableHandler {
     assertFalse(options.forceUpdate());
     assertFalse(options.autoPromote());
     assertEquals(DatasetRetrievalOptions.class, options.getClass());
-  }
-
-  @Test(expected = UserException.class)
-  public void toResult_files_list_disabled() throws Exception {
-    final SqlRefreshTable refreshTable = new SqlRefreshTable(
-      SqlParserPos.ZERO,
-      new SqlIdentifier(TABLE_NAME, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(true, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(true, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(true, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(true, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
-      SqlNodeList.of(SqlLiteral.createCharString("file1.txt", SqlParserPos.ZERO)),
-      SqlNodeList.EMPTY);
-
-    final ArgumentCaptor<DatasetRetrievalOptions> optionsCaptor = ArgumentCaptor.forClass(DatasetRetrievalOptions.class);
-    lenient().when(catalog.refreshDataset(eq(TABLE_KEY), optionsCaptor.capture(), eq(false))).thenReturn(DatasetCatalog.UpdateStatus.CHANGED);
-
-    refreshTableHandlerDisabled.toResult("", refreshTable);
-  }
-
-  @Test(expected = UnsupportedOperationException.class)
-  public void toResult_partition_disabled() throws Exception {
-    final SqlRefreshTable refreshTable = new SqlRefreshTable(
-      SqlParserPos.ZERO,
-      new SqlIdentifier(TABLE_NAME, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(true, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(true, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(true, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(true, SqlParserPos.ZERO),
-      SqlNodeList.EMPTY,
-      SqlNodeList.of(SqlNodeList.of(new SqlIdentifier("year", SqlParserPos.ZERO), SqlLiteral.createCharString("2021", SqlParserPos.ZERO))));
-
-    final ArgumentCaptor<DatasetRetrievalOptions> optionsCaptor = ArgumentCaptor.forClass(DatasetRetrievalOptions.class);
-    lenient().when(catalog.refreshDataset(eq(TABLE_KEY), optionsCaptor.capture(), eq(false))).thenReturn(DatasetCatalog.UpdateStatus.CHANGED);
-
-    refreshTableHandlerDisabled.toResult("", refreshTable);
-  }
-
-  @Test(expected = UnsupportedOperationException.class)
-  public void toResult_all_files_disabled() throws Exception {
-    final SqlRefreshTable refreshTable = new SqlRefreshTable(
-      SqlParserPos.ZERO,
-      new SqlIdentifier(TABLE_NAME, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(true, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
-      SqlNodeList.EMPTY,
-      SqlNodeList.EMPTY);
-
-    final ArgumentCaptor<DatasetRetrievalOptions> optionsCaptor = ArgumentCaptor.forClass(DatasetRetrievalOptions.class);
-    lenient().when(catalog.refreshDataset(eq(TABLE_KEY), optionsCaptor.capture(), eq(false))).thenReturn(DatasetCatalog.UpdateStatus.CHANGED);
-
-    refreshTableHandlerDisabled.toResult("", refreshTable);
-  }
-
-  @Test(expected = UnsupportedOperationException.class)
-  public void toResult_all_partitions_disabled() throws Exception {
-    final SqlRefreshTable refreshTable = new SqlRefreshTable(
-      SqlParserPos.ZERO,
-      new SqlIdentifier(TABLE_NAME, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(true, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
-      SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
-      SqlNodeList.EMPTY,
-      SqlNodeList.EMPTY);
-
-    final ArgumentCaptor<DatasetRetrievalOptions> optionsCaptor = ArgumentCaptor.forClass(DatasetRetrievalOptions.class);
-    lenient().when(catalog.refreshDataset(eq(TABLE_KEY), optionsCaptor.capture(), eq(false))).thenReturn(DatasetCatalog.UpdateStatus.CHANGED);
-
-    refreshTableHandlerDisabled.toResult("", refreshTable);
   }
 }

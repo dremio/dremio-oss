@@ -23,7 +23,6 @@ import static org.junit.Assert.assertTrue;
 
 import java.util.Collection;
 import java.util.List;
-
 import org.junit.Test;
 import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
@@ -44,25 +43,26 @@ public class TestDatasetsUtil {
 
     @Parameterized.Parameters(name = "dataset path {0}, expected {1})")
     public static Collection<Object[]> data() {
-      return asList(new Object[][] {
-        { null, false },
-        { emptyList(), false },
-        { singletonList(null), false },
-        { singletonList(""), false },
-        { asList(null, null), false },
-        { asList("", ""), false },
-        { asList(null, ""), false },
-        { asList("", null), false },
-        { singletonList("tmp"), false },
-        { asList("tmp", "TEST"), false },
-        { asList("test", ""), false },
-        { asList("test", "test"), false },
-        { asList("test", "UNTITLED"), false },
-        { asList("test", "tmp", "UNTITLED"), false },
-        { asList("tmp", "test", "UNTITLED"), false },
-        { asList("tmp", "UNTITLED"), true },
-        { asList("tmp/hello", "UNTITLED"), false }
-      });
+      return asList(
+          new Object[][] {
+            {null, false},
+            {emptyList(), false},
+            {singletonList(null), false},
+            {singletonList(""), false},
+            {asList(null, null), false},
+            {asList("", ""), false},
+            {asList(null, ""), false},
+            {asList("", null), false},
+            {singletonList("tmp"), false},
+            {asList("tmp", "TEST"), false},
+            {asList("test", ""), false},
+            {asList("test", "test"), false},
+            {asList("test", "UNTITLED"), false},
+            {asList("test", "tmp", "UNTITLED"), false},
+            {asList("tmp", "test", "UNTITLED"), false},
+            {asList("tmp", "UNTITLED"), true},
+            {asList("tmp/hello", "UNTITLED"), false}
+          });
     }
 
     @Test
@@ -73,7 +73,5 @@ public class TestDatasetsUtil {
         assertFalse(DatasetsUtil.isTemporaryPath(value));
       }
     }
-
   }
-
 }

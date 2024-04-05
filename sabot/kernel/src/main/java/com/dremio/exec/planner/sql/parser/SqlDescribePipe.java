@@ -15,9 +15,9 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.google.common.base.Preconditions;
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -27,25 +27,22 @@ import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.google.common.base.Preconditions;
-
-/**
- * Sql node representing DESCRIBE PIPE command
- */
+/** Sql node representing DESCRIBE PIPE command */
 public class SqlDescribePipe extends SqlCall {
 
   private final SqlIdentifier pipeName;
 
-  public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("DESCRIBE PIPE", SqlKind.OTHER) {
-    @Override
-    public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 1, String.format("Invalid number of operands : %d", operands.length));
-      return new SqlDescribePipe(
-        pos,
-        (SqlIdentifier) operands[0]
-      );
-    }
-  };
+  public static final SqlSpecialOperator OPERATOR =
+      new SqlSpecialOperator("DESCRIBE PIPE", SqlKind.OTHER) {
+        @Override
+        public SqlCall createCall(
+            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+          Preconditions.checkArgument(
+              operands.length == 1,
+              String.format("Invalid number of operands : %d", operands.length));
+          return new SqlDescribePipe(pos, (SqlIdentifier) operands[0]);
+        }
+      };
 
   public SqlDescribePipe(SqlParserPos pos, SqlIdentifier pipeName) {
     super(pos);

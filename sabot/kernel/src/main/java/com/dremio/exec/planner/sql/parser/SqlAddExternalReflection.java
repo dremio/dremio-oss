@@ -15,8 +15,9 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import java.util.List;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -26,29 +27,29 @@ import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
-
 public class SqlAddExternalReflection extends SqlSystemCall {
 
-  public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("ADD_EXTERNAL_REFLECTION", SqlKind.OTHER_DDL) {
-    @Override
-    public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 3, "SqlAddExternalReflection.createCall() has to get 3 operands!");
-      return new SqlAddExternalReflection(
-        pos,
-        (SqlIdentifier) operands[0],
-        (SqlIdentifier) operands[1],
-        (SqlIdentifier) operands[2]
-      );
-    }
-  };
+  public static final SqlSpecialOperator OPERATOR =
+      new SqlSpecialOperator("ADD_EXTERNAL_REFLECTION", SqlKind.OTHER_DDL) {
+        @Override
+        public SqlCall createCall(
+            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+          Preconditions.checkArgument(
+              operands.length == 3, "SqlAddExternalReflection.createCall() has to get 3 operands!");
+          return new SqlAddExternalReflection(
+              pos,
+              (SqlIdentifier) operands[0],
+              (SqlIdentifier) operands[1],
+              (SqlIdentifier) operands[2]);
+        }
+      };
 
   private final SqlIdentifier tblName;
   private final SqlIdentifier name;
   private final SqlIdentifier targetTable;
 
-  public SqlAddExternalReflection(SqlParserPos pos, SqlIdentifier tblName, SqlIdentifier name, SqlIdentifier targetTable) {
+  public SqlAddExternalReflection(
+      SqlParserPos pos, SqlIdentifier tblName, SqlIdentifier name, SqlIdentifier targetTable) {
     super(pos);
     this.tblName = tblName;
     this.name = name;
@@ -76,5 +77,4 @@ public class SqlAddExternalReflection extends SqlSystemCall {
   public SqlIdentifier getTargetTable() {
     return targetTable;
   }
-
 }

@@ -30,6 +30,17 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.withSettings;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.ExecTest;
+import com.dremio.exec.dfs.proto.DFS;
+import com.dremio.exec.dfs.proto.DFS.ListStatusContinuationHandle;
+import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
+import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
+import com.dremio.exec.rpc.Response;
+import com.dremio.services.fabric.api.PhysicalConnection;
+import com.dremio.test.DremioTest;
+import com.google.common.base.Ticker;
+import io.netty.buffer.ByteBuf;
 import java.io.Closeable;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -38,7 +49,6 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -56,37 +66,29 @@ import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.ExecTest;
-import com.dremio.exec.dfs.proto.DFS;
-import com.dremio.exec.dfs.proto.DFS.ListStatusContinuationHandle;
-import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
-import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
-import com.dremio.exec.rpc.Response;
-import com.dremio.services.fabric.api.PhysicalConnection;
-import com.dremio.test.DremioTest;
-import com.google.common.base.Ticker;
-
-import io.netty.buffer.ByteBuf;
-
-/**
- * Test class for {@link PDFSProtocol}
- */
+/** Test class for {@link PDFSProtocol} */
 public abstract class TestPDFSProtocol extends ExecTest {
 
   private static final NodeEndpoint LOCAL_ENDPOINT = newNodeEndpoint("10.0.0.1", 1234);
   private static final String TEST_PATH_STRING = "/tmp/foo";
   private static final Path TEST_PATH = new Path(TEST_PATH_STRING);
-  private static final FileStatus TEST_FILE_STATUS = new FileStatus(1024, false, 1, 4096, 1453325757, 1453325758, new FsPermission((short) 0644), "testowner",
-      "testgroup", TEST_PATH);
+  private static final FileStatus TEST_FILE_STATUS =
+      new FileStatus(
+          1024,
+          false,
+          1,
+          4096,
+          1453325757,
+          1453325758,
+          new FsPermission((short) 0644),
+          "testowner",
+          "testgroup",
+          TEST_PATH);
 
   private static final String TEST_PATH_2_STRING = "/tmp/foo2";
   private static final Path TEST_PATH_2 = new Path(TEST_PATH_2_STRING);
 
-
-  /**
-   * Test for class {@link PDFSProtocol} getFileStatus operations
-   */
+  /** Test for class {@link PDFSProtocol} getFileStatus operations */
   public static class TestGetFileStatusHandler extends TestPDFSProtocol {
     /**
      * Get the response produced by the handler for a given filesystem response.
@@ -95,16 +97,24 @@ public abstract class TestPDFSProtocol extends ExecTest {
      * @throws IOException
      * @throws UserException
      */
-    private DFS.GetFileStatusResponse getResponse(final Object o) throws IOException, UserException {
+    private DFS.GetFileStatusResponse getResponse(final Object o)
+        throws IOException, UserException {
       if (o instanceof Throwable) {
         doThrow((Throwable) o).when(getFileSystem()).getFileStatus(TEST_PATH);
       } else {
         doReturn(o).when(getFileSystem()).getFileStatus(TEST_PATH);
       }
 
-
-      Response response = getPDFSProtocol().handle(getConnection(), DFS.RpcType.GET_FILE_STATUS_REQUEST_VALUE,
-          DFS.GetFileStatusRequest.newBuilder().setPath(TEST_PATH_STRING).build().toByteString(), null);
+      Response response =
+          getPDFSProtocol()
+              .handle(
+                  getConnection(),
+                  DFS.RpcType.GET_FILE_STATUS_REQUEST_VALUE,
+                  DFS.GetFileStatusRequest.newBuilder()
+                      .setPath(TEST_PATH_STRING)
+                      .build()
+                      .toByteString(),
+                  null);
 
       assertEquals(DFS.RpcType.GET_FILE_STATUS_RESPONSE, response.rpcType);
       assertArrayEquals(new ByteBuf[] {}, response.dBodies);
@@ -123,7 +133,7 @@ public abstract class TestPDFSProtocol extends ExecTest {
       try {
         getResponse(new FileNotFoundException("Where is the file?"));
         fail("Expected UserException/FileNoFoundExpection");
-      } catch(UserException e) {
+      } catch (UserException e) {
         // Expected
         assertEquals(ErrorType.IO_EXCEPTION, e.getErrorType());
         assertSame(FileNotFoundException.class, e.getCause().getClass());
@@ -136,7 +146,7 @@ public abstract class TestPDFSProtocol extends ExecTest {
       try {
         getResponse(new IOException());
         fail("Expected UserException/IOException");
-      } catch(UserException e) {
+      } catch (UserException e) {
         // Expected
         assertEquals(ErrorType.IO_EXCEPTION, e.getErrorType());
         assertSame(IOException.class, e.getCause().getClass());
@@ -144,9 +154,7 @@ public abstract class TestPDFSProtocol extends ExecTest {
     }
   }
 
-  /**
-   * Test for class {@link PDFSProtocol} get file data operations
-   */
+  /** Test for class {@link PDFSProtocol} get file data operations */
   public static class TestGetFileDataHandler extends TestPDFSProtocol {
     /**
      * Get the response produced by the handler for a given filesystem response.
@@ -155,26 +163,38 @@ public abstract class TestPDFSProtocol extends ExecTest {
      * @throws IOException
      * @throws UserException
      */
-    private Response getResponse(Long start, Integer length, final Object o) throws IOException, UserException {
+    private Response getResponse(Long start, Integer length, final Object o)
+        throws IOException, UserException {
       if (o instanceof Throwable) {
         doThrow((Throwable) o).when(getFileSystem()).open(TEST_PATH);
       } else {
         doReturn(o).when(getFileSystem()).open(TEST_PATH);
       }
 
-      Response response = getPDFSProtocol().handle(getConnection(),
-          DFS.RpcType.GET_FILE_DATA_REQUEST_VALUE,
-          DFS.GetFileDataRequest.newBuilder().setPath(TEST_PATH_STRING).setStart(start).setLength(length).build().toByteString(),
-          null);
+      Response response =
+          getPDFSProtocol()
+              .handle(
+                  getConnection(),
+                  DFS.RpcType.GET_FILE_DATA_REQUEST_VALUE,
+                  DFS.GetFileDataRequest.newBuilder()
+                      .setPath(TEST_PATH_STRING)
+                      .setStart(start)
+                      .setLength(length)
+                      .build()
+                      .toByteString(),
+                  null);
 
       assertEquals(DFS.RpcType.GET_FILE_DATA_RESPONSE, response.rpcType);
-      //assertArrayEquals(new ByteBuf[] {}, response.dBodies);
+      // assertArrayEquals(new ByteBuf[] {}, response.dBodies);
       return response;
     }
 
     @Test
     public void testOnMessageSuccessful() throws IOException {
-      InputStream mis = mock(InputStream.class, withSettings().extraInterfaces(Seekable.class, PositionedReadable.class));
+      InputStream mis =
+          mock(
+              InputStream.class,
+              withSettings().extraInterfaces(Seekable.class, PositionedReadable.class));
       doReturn(42).when(mis).read(any(byte[].class), anyInt(), anyInt());
 
       FSDataInputStream fdis = new FSDataInputStream(mis);
@@ -191,7 +211,10 @@ public abstract class TestPDFSProtocol extends ExecTest {
 
     @Test
     public void testOnMessageEOF() throws IOException {
-      InputStream mis = mock(InputStream.class, withSettings().extraInterfaces(Seekable.class, PositionedReadable.class));
+      InputStream mis =
+          mock(
+              InputStream.class,
+              withSettings().extraInterfaces(Seekable.class, PositionedReadable.class));
       doReturn(-1).when(mis).read(any(byte[].class), anyInt(), anyInt());
 
       FSDataInputStream fdis = new FSDataInputStream(mis);
@@ -211,7 +234,7 @@ public abstract class TestPDFSProtocol extends ExecTest {
       try {
         getResponse(0L, 4096, new FileNotFoundException("Where is the file?"));
         fail("Was expecting UserException/FileNotFoundException");
-      } catch(UserException e) {
+      } catch (UserException e) {
         assertEquals(ErrorType.IO_EXCEPTION, e.getErrorType());
         assertSame(FileNotFoundException.class, e.getCause().getClass());
         assertEquals("Where is the file?", e.getCause().getMessage());
@@ -223,7 +246,7 @@ public abstract class TestPDFSProtocol extends ExecTest {
       try {
         getResponse(0L, 4096, new IOException("Something happened"));
         fail("Was expecting UserException/IOException");
-      } catch(UserException e) {
+      } catch (UserException e) {
         assertEquals(ErrorType.IO_EXCEPTION, e.getErrorType());
         assertSame(IOException.class, e.getCause().getClass());
         assertEquals("Something happened", e.getCause().getMessage());
@@ -231,9 +254,7 @@ public abstract class TestPDFSProtocol extends ExecTest {
     }
   }
 
-  /**
-   * Test class for {@link PDFSProtocol} listStatus operation
-   */
+  /** Test class for {@link PDFSProtocol} listStatus operation */
   public static class TestListFileStatusHandler extends TestPDFSProtocol {
     /**
      * Get the response produced by the handler for a given filesystem response.
@@ -242,12 +263,17 @@ public abstract class TestPDFSProtocol extends ExecTest {
      * @throws IOException
      * @throws UserException
      */
-    private DFS.ListStatusResponse getResponse(final String path, final Object o) throws IOException, UserException {
+    private DFS.ListStatusResponse getResponse(final String path, final Object o)
+        throws IOException, UserException {
       return getResponse(path, o, null, null);
     }
 
-    private DFS.ListStatusResponse getResponse(final String pathString, final Object o, Integer limit,
-        final ListStatusContinuationHandle handle) throws IOException, UserException {
+    private DFS.ListStatusResponse getResponse(
+        final String pathString,
+        final Object o,
+        Integer limit,
+        final ListStatusContinuationHandle handle)
+        throws IOException, UserException {
 
       DFS.ListStatusRequest.Builder builder = DFS.ListStatusRequest.newBuilder();
       if (pathString != null) {
@@ -258,7 +284,10 @@ public abstract class TestPDFSProtocol extends ExecTest {
         } else if (o instanceof RemoteIterator) {
           doReturn(o).when(getFileSystem()).listStatusIterator(path);
         } else if (o != null) {
-          fail(format("Wrong result type for mock. Was expectig exception or RemoteIterator, got %s", o.getClass()));
+          fail(
+              format(
+                  "Wrong result type for mock. Was expectig exception or RemoteIterator, got %s",
+                  o.getClass()));
         }
         builder.setPath(pathString);
       } else {
@@ -273,10 +302,13 @@ public abstract class TestPDFSProtocol extends ExecTest {
         builder.setHandle(handle);
       }
 
-      Response response = getPDFSProtocol().handle(getConnection(),
-          DFS.RpcType.LIST_STATUS_REQUEST_VALUE,
-          builder.build().toByteString(),
-          null);
+      Response response =
+          getPDFSProtocol()
+              .handle(
+                  getConnection(),
+                  DFS.RpcType.LIST_STATUS_REQUEST_VALUE,
+                  builder.build().toByteString(),
+                  null);
 
       assertEquals(DFS.RpcType.LIST_STATUS_RESPONSE, response.rpcType);
       assertArrayEquals(new ByteBuf[] {}, response.dBodies);
@@ -286,10 +318,30 @@ public abstract class TestPDFSProtocol extends ExecTest {
 
     @Test
     public void testOnMessageSuccessful() throws IOException {
-      TestRemoteIterator statuses = newRemoteIterator(
-          new FileStatus(1337, false, 1, 4096, 1, 2, FsPermission.getFileDefault(), "testowner", "testgroup", new Path(TEST_PATH, "bar")),
-          new FileStatus(0, true, 0, 0, 3, 4, FsPermission.getDirDefault(), "testowner", "testgroup", new Path(TEST_PATH, "baz"))
-      );
+      TestRemoteIterator statuses =
+          newRemoteIterator(
+              new FileStatus(
+                  1337,
+                  false,
+                  1,
+                  4096,
+                  1,
+                  2,
+                  FsPermission.getFileDefault(),
+                  "testowner",
+                  "testgroup",
+                  new Path(TEST_PATH, "bar")),
+              new FileStatus(
+                  0,
+                  true,
+                  0,
+                  0,
+                  3,
+                  4,
+                  FsPermission.getDirDefault(),
+                  "testowner",
+                  "testgroup",
+                  new Path(TEST_PATH, "baz")));
 
       DFS.ListStatusResponse response = getResponse(TEST_PATH_STRING, statuses);
 
@@ -302,10 +354,30 @@ public abstract class TestPDFSProtocol extends ExecTest {
 
     @Test
     public void testStream() throws IOException {
-      TestRemoteIterator statuses = newRemoteIterator(
-          new FileStatus(1337, false, 1, 4096, 1, 2, FsPermission.getFileDefault(), "testowner", "testgroup", new Path(TEST_PATH, "bar")),
-          new FileStatus(0, true, 0, 0, 3, 4, FsPermission.getDirDefault(), "testowner", "testgroup", new Path(TEST_PATH, "baz"))
-      );
+      TestRemoteIterator statuses =
+          newRemoteIterator(
+              new FileStatus(
+                  1337,
+                  false,
+                  1,
+                  4096,
+                  1,
+                  2,
+                  FsPermission.getFileDefault(),
+                  "testowner",
+                  "testgroup",
+                  new Path(TEST_PATH, "bar")),
+              new FileStatus(
+                  0,
+                  true,
+                  0,
+                  0,
+                  3,
+                  4,
+                  FsPermission.getDirDefault(),
+                  "testowner",
+                  "testgroup",
+                  new Path(TEST_PATH, "baz")));
 
       final ListStatusContinuationHandle handle;
       {
@@ -333,10 +405,30 @@ public abstract class TestPDFSProtocol extends ExecTest {
 
     @Test
     public void testStreamOptionalPath() throws IOException {
-      TestRemoteIterator statuses = newRemoteIterator(
-          new FileStatus(1337, false, 1, 4096, 1, 2, FsPermission.getFileDefault(), "testowner", "testgroup", new Path(TEST_PATH, "bar")),
-          new FileStatus(0, true, 0, 0, 3, 4, FsPermission.getDirDefault(), "testowner", "testgroup", new Path(TEST_PATH, "baz"))
-      );
+      TestRemoteIterator statuses =
+          newRemoteIterator(
+              new FileStatus(
+                  1337,
+                  false,
+                  1,
+                  4096,
+                  1,
+                  2,
+                  FsPermission.getFileDefault(),
+                  "testowner",
+                  "testgroup",
+                  new Path(TEST_PATH, "bar")),
+              new FileStatus(
+                  0,
+                  true,
+                  0,
+                  0,
+                  3,
+                  4,
+                  FsPermission.getDirDefault(),
+                  "testowner",
+                  "testgroup",
+                  new Path(TEST_PATH, "baz")));
 
       final ListStatusContinuationHandle handle;
       {
@@ -364,10 +456,30 @@ public abstract class TestPDFSProtocol extends ExecTest {
 
     @Test
     public void testStreamWithCacheExpiration() throws IOException {
-      TestRemoteIterator statuses = newRemoteIterator(
-          new FileStatus(1337, false, 1, 4096, 1, 2, FsPermission.getFileDefault(), "testowner", "testgroup", new Path(TEST_PATH, "bar")),
-          new FileStatus(0, true, 0, 0, 3, 4, FsPermission.getDirDefault(), "testowner", "testgroup", new Path(TEST_PATH, "baz"))
-      );
+      TestRemoteIterator statuses =
+          newRemoteIterator(
+              new FileStatus(
+                  1337,
+                  false,
+                  1,
+                  4096,
+                  1,
+                  2,
+                  FsPermission.getFileDefault(),
+                  "testowner",
+                  "testgroup",
+                  new Path(TEST_PATH, "bar")),
+              new FileStatus(
+                  0,
+                  true,
+                  0,
+                  0,
+                  3,
+                  4,
+                  FsPermission.getDirDefault(),
+                  "testowner",
+                  "testgroup",
+                  new Path(TEST_PATH, "baz")));
 
       final ListStatusContinuationHandle handle;
       {
@@ -399,7 +511,7 @@ public abstract class TestPDFSProtocol extends ExecTest {
       try {
         getResponse(TEST_PATH_STRING, new FileNotFoundException("Where is the file?"));
         fail("Was expecting UserException/FileNotFoundException");
-      } catch(UserException e) {
+      } catch (UserException e) {
         assertEquals(ErrorType.IO_EXCEPTION, e.getErrorType());
         assertSame(FileNotFoundException.class, e.getCause().getClass());
         assertEquals("Where is the file?", e.getCause().getMessage());
@@ -411,7 +523,7 @@ public abstract class TestPDFSProtocol extends ExecTest {
       try {
         getResponse(TEST_PATH_STRING, new IOException());
         fail("Was expecting UserException/IOException");
-      } catch(UserException e) {
+      } catch (UserException e) {
         assertEquals(ErrorType.IO_EXCEPTION, e.getErrorType());
         assertSame(IOException.class, e.getCause().getClass());
       }
@@ -450,9 +562,7 @@ public abstract class TestPDFSProtocol extends ExecTest {
     }
   }
 
-  /**
-   * Test for class {@link PDFSProtocol} delete operations
-   */
+  /** Test for class {@link PDFSProtocol} delete operations */
   public static class TestDeleteHandler extends TestPDFSProtocol {
     /**
      * Get the response produced by the handler for a given filesystem response.
@@ -461,17 +571,25 @@ public abstract class TestPDFSProtocol extends ExecTest {
      * @throws IOException
      * @throws UserException
      */
-    private DFS.DeleteResponse getResponse(final boolean recursive, final Object o) throws IOException, UserException {
+    private DFS.DeleteResponse getResponse(final boolean recursive, final Object o)
+        throws IOException, UserException {
       if (o instanceof Throwable) {
         doThrow((Throwable) o).when(getFileSystem()).delete(TEST_PATH, recursive);
       } else {
         doReturn(o).when(getFileSystem()).delete(TEST_PATH, recursive);
       }
 
-      Response response = getPDFSProtocol().handle(getConnection(),
-          DFS.RpcType.DELETE_REQUEST_VALUE,
-          DFS.DeleteRequest.newBuilder().setPath(TEST_PATH_STRING).setRecursive(recursive).build().toByteString(),
-          null);
+      Response response =
+          getPDFSProtocol()
+              .handle(
+                  getConnection(),
+                  DFS.RpcType.DELETE_REQUEST_VALUE,
+                  DFS.DeleteRequest.newBuilder()
+                      .setPath(TEST_PATH_STRING)
+                      .setRecursive(recursive)
+                      .build()
+                      .toByteString(),
+                  null);
 
       assertEquals(DFS.RpcType.DELETE_RESPONSE, response.rpcType);
       assertArrayEquals(new ByteBuf[] {}, response.dBodies);
@@ -491,7 +609,7 @@ public abstract class TestPDFSProtocol extends ExecTest {
       try {
         getResponse(true, new FileNotFoundException("Where is the file?"));
         fail("Was expecting UserException/FileNotFoundException");
-      } catch(UserException e) {
+      } catch (UserException e) {
         assertEquals(ErrorType.IO_EXCEPTION, e.getErrorType());
         assertSame(FileNotFoundException.class, e.getCause().getClass());
         assertEquals("Where is the file?", e.getCause().getMessage());
@@ -510,10 +628,7 @@ public abstract class TestPDFSProtocol extends ExecTest {
     }
   }
 
-
-  /**
-   * Test for class {@link PDFSProtocol} mkdirs operations
-   */
+  /** Test for class {@link PDFSProtocol} mkdirs operations */
   public static class TestMkdirsHandler extends TestPDFSProtocol {
     /**
      * Get the response produced by the handler for a given filesystem response.
@@ -522,17 +637,25 @@ public abstract class TestPDFSProtocol extends ExecTest {
      * @throws IOException
      * @throws UserException
      */
-    private DFS.MkdirsResponse getResponse(final FsPermission permission, final Object o) throws IOException, UserException {
+    private DFS.MkdirsResponse getResponse(final FsPermission permission, final Object o)
+        throws IOException, UserException {
       if (o instanceof Throwable) {
         doThrow((Throwable) o).when(getFileSystem()).mkdirs(TEST_PATH, permission);
       } else {
         doReturn(o).when(getFileSystem()).mkdirs(TEST_PATH, permission);
       }
 
-      Response response = getPDFSProtocol().handle(getConnection(),
-          DFS.RpcType.MKDIRS_REQUEST_VALUE,
-          DFS.MkdirsRequest.newBuilder().setPath(TEST_PATH_STRING).setPermission(permission.toExtendedShort()).build().toByteString(),
-          null);
+      Response response =
+          getPDFSProtocol()
+              .handle(
+                  getConnection(),
+                  DFS.RpcType.MKDIRS_REQUEST_VALUE,
+                  DFS.MkdirsRequest.newBuilder()
+                      .setPath(TEST_PATH_STRING)
+                      .setPermission(permission.toExtendedShort())
+                      .build()
+                      .toByteString(),
+                  null);
 
       assertEquals(DFS.RpcType.MKDIRS_RESPONSE, response.rpcType);
       assertArrayEquals(new ByteBuf[] {}, response.dBodies);
@@ -552,7 +675,7 @@ public abstract class TestPDFSProtocol extends ExecTest {
       try {
         getResponse(FsPermission.getDirDefault(), new FileNotFoundException("Where is the file?"));
         fail("Was expecting UserException/FileNotFoundException");
-      } catch(UserException e) {
+      } catch (UserException e) {
         assertEquals(ErrorType.IO_EXCEPTION, e.getErrorType());
         assertSame(FileNotFoundException.class, e.getCause().getClass());
         assertEquals("Where is the file?", e.getCause().getMessage());
@@ -568,13 +691,10 @@ public abstract class TestPDFSProtocol extends ExecTest {
         assertEquals(ErrorType.IO_EXCEPTION, e.getErrorType());
         assertSame(IOException.class, e.getCause().getClass());
       }
-
     }
   }
 
-  /**
-   * Test for class {@link PDFSProtocol} rename operations
-   */
+  /** Test for class {@link PDFSProtocol} rename operations */
   public static class TestRenameHandler extends TestPDFSProtocol {
     /**
      * Get the response produced by the handler for a given filesystem response.
@@ -590,10 +710,17 @@ public abstract class TestPDFSProtocol extends ExecTest {
         doReturn(o).when(getFileSystem()).rename(TEST_PATH, TEST_PATH_2);
       }
 
-      Response response = getPDFSProtocol().handle(getConnection(),
-          DFS.RpcType.RENAME_REQUEST_VALUE,
-          DFS.RenameRequest.newBuilder().setOldpath(TEST_PATH_STRING).setNewpath(TEST_PATH_2_STRING).build().toByteString(),
-          null);
+      Response response =
+          getPDFSProtocol()
+              .handle(
+                  getConnection(),
+                  DFS.RpcType.RENAME_REQUEST_VALUE,
+                  DFS.RenameRequest.newBuilder()
+                      .setOldpath(TEST_PATH_STRING)
+                      .setNewpath(TEST_PATH_2_STRING)
+                      .build()
+                      .toByteString(),
+                  null);
 
       assertEquals(DFS.RpcType.RENAME_RESPONSE, response.rpcType);
       assertArrayEquals(new ByteBuf[] {}, response.dBodies);
@@ -613,7 +740,7 @@ public abstract class TestPDFSProtocol extends ExecTest {
       try {
         getResponse(new FileNotFoundException("Where is the file?"));
         fail("Was expecting UserException/FileNotFoundException");
-      } catch(UserException e) {
+      } catch (UserException e) {
         assertEquals(ErrorType.IO_EXCEPTION, e.getErrorType());
         assertSame(FileNotFoundException.class, e.getCause().getClass());
         assertEquals("Where is the file?", e.getCause().getMessage());
@@ -632,7 +759,6 @@ public abstract class TestPDFSProtocol extends ExecTest {
     }
   }
 
-
   private static final class TestTicker extends Ticker {
     private long nanos = System.nanoTime();
 
@@ -645,6 +771,7 @@ public abstract class TestPDFSProtocol extends ExecTest {
       return nanos;
     }
   }
+
   @Rule public final MockitoRule mockitoRule = MockitoJUnit.rule();
   @Mock private FileSystem fileSystem;
   @Mock private PhysicalConnection connection;
@@ -652,15 +779,22 @@ public abstract class TestPDFSProtocol extends ExecTest {
   private TestTicker ticker;
   private PDFSProtocol pdfsProtocol;
 
-
   @Before
   public void setUp() throws IOException {
     this.ticker = new TestTicker();
-    pdfsProtocol = new PDFSProtocol(LOCAL_ENDPOINT, DremioTest.DEFAULT_SABOT_CONFIG, this.allocator, fileSystem, true, ticker);
+    pdfsProtocol =
+        new PDFSProtocol(
+            LOCAL_ENDPOINT,
+            DremioTest.DEFAULT_SABOT_CONFIG,
+            this.allocator,
+            fileSystem,
+            true,
+            ticker);
   }
 
   /**
    * Create a {@link com.dremio.exec.dfs.proto.beans.NodeEndpoint}
+   *
    * @param address the address
    * @param port the control port
    * @return

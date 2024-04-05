@@ -75,5 +75,4 @@ public final class DremioSqlConformance extends SqlDelegatingConformance {
   public boolean allowExplicitRowValueConstructor() {
     return true;
   }
-
 }

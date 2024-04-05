@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.store.parquet;
 
-import java.util.List;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.OpProps;
@@ -25,7 +23,6 @@ import com.dremio.exec.physical.config.BoostPOP;
 import com.dremio.exec.planner.fragment.MinorDataReader;
 import com.dremio.exec.planner.fragment.MinorDataWriter;
 import com.dremio.exec.planner.fragment.SplitNormalizer;
-import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.SplitAndPartitionInfo;
@@ -35,12 +32,10 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.ImmutableList;
-
 import io.protostuff.ByteString;
+import java.util.List;
 
-/**
- * Parquet sub scan.
- */
+/** Parquet sub scan. */
 @JsonTypeName("parquet-scan")
 public class ParquetSubScan extends SubScanWithProjection {
   private final List<ParquetFilterCondition> conditions;
@@ -48,26 +43,23 @@ public class ParquetSubScan extends SubScanWithProjection {
   private final FileConfig formatSettings;
   private final List<String> partitionColumns;
   private final List<List<String>> tablePath;
-  private final List<GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns;
   private final ByteString extendedProperty;
   private final boolean arrowCachingEnabled;
 
-  @JsonIgnore
-  private List<SplitAndPartitionInfo> splits;
+  @JsonIgnore private List<SplitAndPartitionInfo> splits;
 
   public ParquetSubScan(
-    OpProps props,
-    FileConfig formatSettings,
-    List<SplitAndPartitionInfo> splits,
-    BatchSchema fullSchema,
-    List<List<String>> tablePath,
-    List<ParquetFilterCondition> conditions,
-    StoragePluginId pluginId,
-    List<SchemaPath> columns,
-    List<String> partitionColumns,
-    List<GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns,
-    ByteString extendedProperty,
-    boolean arrowCachingEnabled) {
+      OpProps props,
+      FileConfig formatSettings,
+      List<SplitAndPartitionInfo> splits,
+      BatchSchema fullSchema,
+      List<List<String>> tablePath,
+      List<ParquetFilterCondition> conditions,
+      StoragePluginId pluginId,
+      List<SchemaPath> columns,
+      List<String> partitionColumns,
+      ByteString extendedProperty,
+      boolean arrowCachingEnabled) {
     super(props, fullSchema, tablePath, columns);
     this.formatSettings = formatSettings;
     this.splits = splits;
@@ -75,30 +67,38 @@ public class ParquetSubScan extends SubScanWithProjection {
     this.conditions = conditions == null ? null : ImmutableList.copyOf(conditions);
     this.pluginId = pluginId;
     this.partitionColumns = partitionColumns;
-    this.globalDictionaryEncodedColumns = globalDictionaryEncodedColumns;
     this.extendedProperty = extendedProperty;
     this.arrowCachingEnabled = arrowCachingEnabled;
   }
 
   @JsonCreator
   public ParquetSubScan(
-    @JsonProperty("props") OpProps props,
-    @JsonProperty("formatSettings") FileConfig formatSettings,
-    @JsonProperty("schema") BatchSchema fullSchema,
-    @JsonProperty("referencedTables") List<List<String>> tablePath,
-    @JsonProperty("conditions") List<ParquetFilterCondition> conditions,
-    @JsonProperty("pluginId") StoragePluginId pluginId,
-    @JsonProperty("columns") List<SchemaPath> columns,
-    @JsonProperty("partitionColumns") List<String> partitionColumns,
-    @JsonProperty("globalDictionaryEncodedColumns") List<GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns,
-    @JsonProperty("extendedProperty") ByteString extendedProperty,
-    @JsonProperty("arrowCachingEnabled") boolean arrowCachingEnabled) {
+      @JsonProperty("props") OpProps props,
+      @JsonProperty("formatSettings") FileConfig formatSettings,
+      @JsonProperty("schema") BatchSchema fullSchema,
+      @JsonProperty("referencedTables") List<List<String>> tablePath,
+      @JsonProperty("conditions") List<ParquetFilterCondition> conditions,
+      @JsonProperty("pluginId") StoragePluginId pluginId,
+      @JsonProperty("columns") List<SchemaPath> columns,
+      @JsonProperty("partitionColumns") List<String> partitionColumns,
+      @JsonProperty("extendedProperty") ByteString extendedProperty,
+      @JsonProperty("arrowCachingEnabled") boolean arrowCachingEnabled) {
 
-    this(props, formatSettings, null, fullSchema, tablePath, conditions, pluginId, columns, partitionColumns,
-      globalDictionaryEncodedColumns, extendedProperty, arrowCachingEnabled);
+    this(
+        props,
+        formatSettings,
+        null,
+        fullSchema,
+        tablePath,
+        conditions,
+        pluginId,
+        columns,
+        partitionColumns,
+        extendedProperty,
+        arrowCachingEnabled);
   }
 
-  public FileConfig getFormatSettings(){
+  public FileConfig getFormatSettings() {
     return formatSettings;
   }
 
@@ -126,10 +126,6 @@ public class ParquetSubScan extends SubScanWithProjection {
     return pluginId;
   }
 
-  public List<GlobalDictionaryFieldInfo> getGlobalDictionaryEncodedColumns() {
-    return globalDictionaryEncodedColumns;
-  }
-
   public boolean isArrowCachingEnabled() {
     return arrowCachingEnabled;
   }
@@ -154,16 +150,15 @@ public class ParquetSubScan extends SubScanWithProjection {
   @Override
   public BoostPOP getBoostConfig(List<SchemaPath> columnsToBoost) {
     return new BoostPOP(
-      this.getProps(),
-      this.getFormatSettings(),
-      this.getSplits(),
-      this.getFullSchema(),
-      this.getTablePath(),
-      this.getPluginId(),
-      columnsToBoost,
-      this.getPartitionColumns(),
-      this.getGlobalDictionaryEncodedColumns(),
-      this.getExtendedProperty(),
-      false);
+        this.getProps(),
+        this.getFormatSettings(),
+        this.getSplits(),
+        this.getFullSchema(),
+        this.getTablePath(),
+        this.getPluginId(),
+        columnsToBoost,
+        this.getPartitionColumns(),
+        this.getExtendedProperty(),
+        false);
   }
 }

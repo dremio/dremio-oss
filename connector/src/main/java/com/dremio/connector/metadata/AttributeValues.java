@@ -17,15 +17,12 @@ package com.dremio.connector.metadata;
 
 import java.util.List;
 
-/**
- * Default implementations.
- */
+/** Default implementations. */
 public final class AttributeValues {
 
   private static final int PRIME = 31;
-  /**
-   * Abstract implementation.
-   */
+
+  /** Abstract implementation. */
   private abstract static class AbstractAttributeValue implements AttributeValue {
 
     @Override
@@ -45,10 +42,9 @@ public final class AttributeValues {
     }
   }
 
-  /**
-   * String implementation.
-   */
-  static final class StringImpl extends AbstractAttributeValue implements AttributeValue.StringValue {
+  /** String implementation. */
+  static final class StringImpl extends AbstractAttributeValue
+      implements AttributeValue.StringValue {
     private final String value;
 
     StringImpl(String value) {
@@ -84,10 +80,9 @@ public final class AttributeValues {
     }
   }
 
-  /**
-   * Boolean implementation.
-   */
-  static final class BooleanImpl extends AbstractAttributeValue implements AttributeValue.BooleanValue {
+  /** Boolean implementation. */
+  static final class BooleanImpl extends AbstractAttributeValue
+      implements AttributeValue.BooleanValue {
     private final boolean value;
 
     BooleanImpl(boolean value) {
@@ -113,10 +108,9 @@ public final class AttributeValues {
     }
   }
 
-  /**
-   * Double implementation.
-   */
-  static final class DoubleImpl extends AbstractAttributeValue implements AttributeValue.DoubleValue {
+  /** Double implementation. */
+  static final class DoubleImpl extends AbstractAttributeValue
+      implements AttributeValue.DoubleValue {
     private final double value;
 
     DoubleImpl(double value) {
@@ -142,9 +136,7 @@ public final class AttributeValues {
     }
   }
 
-  /**
-   * Long implementation.
-   */
+  /** Long implementation. */
   static final class LongImpl extends AbstractAttributeValue implements AttributeValue.LongValue {
     private final long value;
 
@@ -171,10 +163,9 @@ public final class AttributeValues {
     }
   }
 
-  /**
-   * Identifier implementation
-   */
-  static final class IdentifierImpl extends AbstractAttributeValue implements AttributeValue.IdentifierValue {
+  /** Identifier implementation */
+  static final class IdentifierImpl extends AbstractAttributeValue
+      implements AttributeValue.IdentifierValue {
 
     private final List<String> components;
 
@@ -221,6 +212,5 @@ public final class AttributeValues {
   }
 
   // prevent instantiation
-  private AttributeValues() {
-  }
+  private AttributeValues() {}
 }

@@ -17,21 +17,19 @@ package com.dremio.common.tracing;
 
 import static org.junit.Assert.assertEquals;
 
-import java.util.HashMap;
-import java.util.Map;
-
-import org.junit.After;
-import org.junit.Test;
-
 import io.opentracing.Scope;
 import io.opentracing.Span;
 import io.opentracing.mock.MockSpan;
 import io.opentracing.mock.MockTracer;
 import io.opentracing.noop.NoopSpan;
+import java.util.HashMap;
+import java.util.Map;
+import org.junit.After;
+import org.junit.Test;
 
 /**
- * Tests TracingUtils. Only tests the trace function wrapper since
- * all other trace methods depend on it.
+ * Tests TracingUtils. Only tests the trace function wrapper since all other trace methods depend on
+ * it.
  */
 public class TestTracingUtils {
 
@@ -45,12 +43,10 @@ public class TestTracingUtils {
   private void testIsChildSpanCreatedWithParent(Span parent, boolean createsChild) {
 
     try (Scope scope = tracer.activateSpan(parent)) {
-      TracingUtils.buildChildSpan(tracer, "test-child-span")
-        .finish();
+      TracingUtils.buildChildSpan(tracer, "test-child-span").finish();
     }
 
-    assertEquals("Finished span is child span",
-      createsChild, tracer.finishedSpans().size() == 1);
+    assertEquals("Finished span is child span", createsChild, tracer.finishedSpans().size() == 1);
   }
 
   private void testNoChildSpanWithParent(Span parent) {
@@ -77,20 +73,25 @@ public class TestTracingUtils {
     MockSpan parent = tracer.buildSpan("parent").start();
     final MockSpan[] child = new MockSpan[1];
     final int ret;
-    try(Scope s = tracer.activateSpan(parent)) {
-      ret = TracingUtils.trace(
-        (span) -> {
-          span.log("someRunTimeEvent");
-          child[0] = ((MockSpan) span);
-          return 42;
-        }, tracer, "child-work",
-        "tag1", "val1",
-        "tag2", "val2");
+    try (Scope s = tracer.activateSpan(parent)) {
+      ret =
+          TracingUtils.trace(
+              (span) -> {
+                span.log("someRunTimeEvent");
+                child[0] = ((MockSpan) span);
+                return 42;
+              },
+              tracer,
+              "child-work",
+              "tag1",
+              "val1",
+              "tag2",
+              "val2");
     }
 
     assertEquals(42, ret);
     assertEquals(parent.context().spanId(), child[0].parentId());
-    assertEquals("child-work",child[0].operationName());
+    assertEquals("child-work", child[0].operationName());
     assertEquals(tracer.finishedSpans().get(0), child[0]);
 
     final Map<String, Object> expectedTags = new HashMap<>();

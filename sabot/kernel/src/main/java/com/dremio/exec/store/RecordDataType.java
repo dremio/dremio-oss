@@ -15,17 +15,13 @@
  */
 package com.dremio.exec.store;
 
+import com.google.common.collect.Lists;
 import java.util.List;
-
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-import com.google.common.collect.Lists;
-
-/**
- * RecordDataType defines names and data types of columns in a static table.
- */
+/** RecordDataType defines names and data types of columns in a static table. */
 public abstract class RecordDataType {
 
   /**
@@ -39,8 +35,8 @@ public abstract class RecordDataType {
   public abstract List<String> getFieldNames();
 
   /**
-   * This method constructs a {@link org.apache.calcite.rel.type.RelDataType} based on the
-   * {@link com.dremio.exec.store.RecordDataType}'s field sql types and field names.
+   * This method constructs a {@link org.apache.calcite.rel.type.RelDataType} based on the {@link
+   * com.dremio.exec.store.RecordDataType}'s field sql types and field names.
    *
    * @param factory helps construct a {@link org.apache.calcite.rel.type.RelDataType}
    * @return the constructed type
@@ -60,5 +56,4 @@ public abstract class RecordDataType {
     }
     return factory.createStructType(fields, names);
   }
-
 }

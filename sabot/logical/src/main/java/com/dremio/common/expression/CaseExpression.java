@@ -15,14 +15,12 @@
  */
 package com.dremio.common.expression;
 
+import com.dremio.common.expression.visitors.ExprVisitor;
+import com.google.common.collect.ImmutableList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
-
 import javax.annotation.Nonnull;
-
-import com.dremio.common.expression.visitors.ExprVisitor;
-import com.google.common.collect.ImmutableList;
 
 public class CaseExpression extends LogicalExpressionBase {
   public final List<CaseConditionNode> caseConditions;
@@ -30,7 +28,8 @@ public class CaseExpression extends LogicalExpressionBase {
   public final CompleteType outputType;
   private final int sizeOfChildren;
 
-  public CaseExpression(List<CaseConditionNode> caseConditions, LogicalExpression elseExpr, CompleteType outputType) {
+  public CaseExpression(
+      List<CaseConditionNode> caseConditions, LogicalExpression elseExpr, CompleteType outputType) {
     if (caseConditions == null) {
       caseConditions = Collections.emptyList();
     } else {
@@ -41,7 +40,7 @@ public class CaseExpression extends LogicalExpressionBase {
     this.caseConditions = caseConditions;
     this.elseExpr = elseExpr;
     this.outputType = outputType;
-    this.sizeOfChildren = caseConditions.size()*2 + 1;
+    this.sizeOfChildren = caseConditions.size() * 2 + 1;
   }
 
   @Override

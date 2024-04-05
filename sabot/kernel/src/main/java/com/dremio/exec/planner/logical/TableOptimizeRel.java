@@ -15,33 +15,30 @@
  */
 package com.dremio.exec.planner.logical;
 
-import java.util.List;
-
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelOptTable;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelNode;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.planner.common.TableOptimizeRelBase;
 import com.dremio.exec.planner.logical.partition.PruneFilterCondition;
 import com.dremio.exec.planner.sql.handlers.query.OptimizeOptions;
 import com.dremio.exec.store.dfs.FilterableScan;
+import java.util.List;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptTable;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelNode;
 
-/**
- * Drel for 'OPTIMIZE TABLE'.
- */
+/** Drel for 'OPTIMIZE TABLE'. */
 public class TableOptimizeRel extends TableOptimizeRelBase implements Rel {
 
   private final PruneFilterCondition partitionFilter;
 
-  public TableOptimizeRel(RelOptCluster cluster,
-                          RelTraitSet traitSet,
-                          RelNode input,
-                          RelOptTable table,
-                          CreateTableEntry createTableEntry,
-                          OptimizeOptions optimizeOptions,
-                          PruneFilterCondition partitionFilter) {
+  public TableOptimizeRel(
+      RelOptCluster cluster,
+      RelTraitSet traitSet,
+      RelNode input,
+      RelOptTable table,
+      CreateTableEntry createTableEntry,
+      OptimizeOptions optimizeOptions,
+      PruneFilterCondition partitionFilter) {
     super(LOGICAL, cluster, traitSet, input, table, createTableEntry, optimizeOptions);
     this.partitionFilter = partitionFilter;
   }
@@ -49,26 +46,37 @@ public class TableOptimizeRel extends TableOptimizeRelBase implements Rel {
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
     RelNode relNode = sole(inputs);
-    PruneFilterCondition pruneFilterCondition = partitionFilter == null ? computePartitionFilter(relNode) : partitionFilter;
-    return new TableOptimizeRel(getCluster(), traitSet, relNode, getTable(), getCreateTableEntry(), getOptimizeOptions(), pruneFilterCondition);
+    PruneFilterCondition pruneFilterCondition =
+        partitionFilter == null ? computePartitionFilter(relNode) : partitionFilter;
+    return new TableOptimizeRel(
+        getCluster(),
+        traitSet,
+        relNode,
+        getTable(),
+        getCreateTableEntry(),
+        getOptimizeOptions(),
+        pruneFilterCondition);
   }
 
-  /**
-   * Rule for filters with ICEBERG Compaction.
-   */
+  /** Rule for filters with ICEBERG Compaction. */
   private PruneFilterCondition computePartitionFilter(RelNode relNode) {
     PruneFilterCondition pruneFilterCondition = null;
     if (relNode instanceof FilterableScan) {
-      // All filters have been resolved by pruning; In this case, there is nothing to push down for select scan
+      // All filters have been resolved by pruning; In this case, there is nothing to push down for
+      // select scan
       pruneFilterCondition = ((FilterableScan) relNode).getPartitionFilter();
     } else if (relNode instanceof FilterRel) {
       // Things have been pruned; In this case, select scan does parquet push down too.
       FilterableScan scan = (FilterableScan) ((FilterRel) relNode).getInput();
-      pruneFilterCondition =  scan.getPartitionFilter();
+      pruneFilterCondition = scan.getPartitionFilter();
       if ((pruneFilterCondition == null || pruneFilterCondition.isEmpty())) {
-        //Nothing was pruned, In this case, select scan does parquet push down only.
-        throw UserException.unsupportedError().message(String.format("OPTIMIZE command is only supported on the partition columns - %s",
-                scan.getTableMetadata().getReadDefinition().getPartitionColumnsList())).buildSilently();
+        // Nothing was pruned, In this case, select scan does parquet push down only.
+        throw UserException.unsupportedError()
+            .message(
+                String.format(
+                    "OPTIMIZE command is only supported on the partition columns - %s",
+                    scan.getTableMetadata().getReadDefinition().getPartitionColumnsList()))
+            .buildSilently();
       }
     }
     return pruneFilterCondition;

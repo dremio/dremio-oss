@@ -16,15 +16,12 @@
 
 package com.dremio.exec.planner.logical;
 
+import com.dremio.exec.calcite.logical.EmptyCrel;
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 
-import com.dremio.exec.calcite.logical.EmptyCrel;
-
-/**
- * Convert {@link EmptyCrel} to Dremio logical {@link EmptyRel}
- */
+/** Convert {@link EmptyCrel} to Dremio logical {@link EmptyRel} */
 public class EmptyRule extends RelOptRule {
   public static final RelOptRule INSTANCE = new EmptyRule();
 
@@ -35,10 +32,11 @@ public class EmptyRule extends RelOptRule {
   @Override
   public void onMatch(RelOptRuleCall call) {
     final EmptyCrel crel = call.rel(0);
-    call.transformTo(new EmptyRel(
-      crel.getCluster(),
-      crel.getTraitSet().plus(Rel.LOGICAL),
-      crel.getRowType(),
-      crel.getProjectedSchema()));
+    call.transformTo(
+        new EmptyRel(
+            crel.getCluster(),
+            crel.getTraitSet().plus(Rel.LOGICAL),
+            crel.getRowType(),
+            crel.getProjectedSchema()));
   }
 }

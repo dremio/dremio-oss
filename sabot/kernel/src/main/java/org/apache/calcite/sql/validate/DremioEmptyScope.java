@@ -15,22 +15,21 @@
  */
 package org.apache.calcite.sql.validate;
 
+import com.google.common.collect.ImmutableList;
 import java.util.List;
 
-import com.google.common.collect.ImmutableList;
-
 public class DremioEmptyScope extends EmptyScope {
-  //~ Constructors -----------------------------------------------------------
+  // ~ Constructors -----------------------------------------------------------
 
   public DremioEmptyScope(SqlValidatorImpl validator) {
     super(validator);
   }
 
-  //~ Methods ----------------------------------------------------------------
+  // ~ Methods ----------------------------------------------------------------
 
-  @Override public void resolveTable(List<String> names,
-      SqlNameMatcher nameMatcher,
-      Path path, Resolved resolved) {
+  @Override
+  public void resolveTable(
+      List<String> names, SqlNameMatcher nameMatcher, Path path, Resolved resolved) {
     SqlValidatorTable table = resolveTable(validator.catalogReader, names);
     if (null == table) {
       super.resolveTable(names, nameMatcher, path, resolved);
@@ -40,14 +39,12 @@ public class DremioEmptyScope extends EmptyScope {
     }
   }
 
-  protected SqlValidatorTable resolveTable(SqlValidatorCatalogReader catalogReader, List<String> names){
+  protected SqlValidatorTable resolveTable(
+      SqlValidatorCatalogReader catalogReader, List<String> names) {
     return catalogReader.getTable(names);
   }
 
   public static SqlValidatorScope createBaseScope(SqlValidatorImpl sqlValidator) {
-    return new CatalogScope(
-        new DremioEmptyScope(sqlValidator),
-        ImmutableList.of("CATALOG")
-    );
+    return new CatalogScope(new DremioEmptyScope(sqlValidator), ImmutableList.of("CATALOG"));
   }
 }

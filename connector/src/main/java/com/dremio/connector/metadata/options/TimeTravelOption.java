@@ -15,17 +15,15 @@
  */
 package com.dremio.connector.metadata.options;
 
-import java.util.stream.Stream;
-
 import com.dremio.connector.metadata.GetDatasetOption;
 import com.dremio.connector.metadata.GetMetadataOption;
 import com.dremio.connector.metadata.ListPartitionChunkOption;
 import com.dremio.connector.metadata.MetadataOption;
+import java.util.stream.Stream;
 
-/**
- * Option that express time travel settings.
- */
-public final class TimeTravelOption implements GetDatasetOption, GetMetadataOption, ListPartitionChunkOption {
+/** Option that express time travel settings. */
+public final class TimeTravelOption
+    implements GetDatasetOption, GetMetadataOption, ListPartitionChunkOption {
 
   private final TimeTravelRequest timeTravelRequest;
 
@@ -37,14 +35,10 @@ public final class TimeTravelOption implements GetDatasetOption, GetMetadataOpti
     return timeTravelRequest;
   }
 
-  /**
-   * Time travel request.
-   */
+  /** Time travel request. */
   public interface TimeTravelRequest {}
 
-  /**
-   * Timestamp based time travel request.
-   */
+  /** Timestamp based time travel request. */
   public static final class TimestampRequest implements TimeTravelRequest {
 
     private final long millis;
@@ -58,9 +52,7 @@ public final class TimeTravelOption implements GetDatasetOption, GetMetadataOpti
     }
   }
 
-  /**
-   * Snapshot id based time travel request.
-   */
+  /** Snapshot id based time travel request. */
   public static final class SnapshotIdRequest implements TimeTravelRequest {
 
     private final String snapshotId;
@@ -87,9 +79,7 @@ public final class TimeTravelOption implements GetDatasetOption, GetMetadataOpti
   }
 
   public static TimeTravelOption getTimeTravelOption(MetadataOption... options) {
-    return (TimeTravelOption) Stream.of(options)
-      .filter(o -> o instanceof TimeTravelOption)
-      .findFirst()
-      .orElse(null);
+    return (TimeTravelOption)
+        Stream.of(options).filter(o -> o instanceof TimeTravelOption).findFirst().orElse(null);
   }
 }

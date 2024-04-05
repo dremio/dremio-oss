@@ -15,8 +15,6 @@
  */
 package com.dremio.dac.daemon;
 
-import java.util.Iterator;
-
 import com.dremio.exec.server.options.ProjectOptionManager;
 import com.dremio.options.OptionList;
 import com.dremio.options.OptionValidatorListing;
@@ -25,6 +23,7 @@ import com.dremio.options.impl.BaseOptionManager;
 import com.dremio.options.impl.DefaultOptionManager;
 import com.dremio.options.impl.OptionManagerWrapper;
 import com.google.common.collect.Iterators;
+import java.util.Iterator;
 
 /**
  * {@link OptionManagerWrapper ) for {@link ProjectOptionManager }'s
@@ -34,8 +33,8 @@ public class ProjectOptionManagerWrapper extends BaseOptionManager implements Pr
   private final DefaultOptionManager defaultOptionManager;
   private final OptionValidatorListing optionValidatorListing;
 
-  public ProjectOptionManagerWrapper(ProjectOptionManager projectOptionManager,
-                                     DefaultOptionManager defaultOptionManager) {
+  public ProjectOptionManagerWrapper(
+      ProjectOptionManager projectOptionManager, DefaultOptionManager defaultOptionManager) {
     super(defaultOptionManager.getOptionValidatorListing());
     this.projectOptionManager = projectOptionManager;
     this.defaultOptionManager = defaultOptionManager;

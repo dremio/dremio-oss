@@ -23,40 +23,47 @@ import com.dremio.exec.rpc.ResponseSender;
 import com.dremio.service.jobresults.JobResultsRequest;
 import com.dremio.services.jobresults.common.JobResultsRequestWrapper;
 
-/**
- * NoOp implementation of MaestroForwarder
- */
+/** NoOp implementation of MaestroForwarder */
 public class NoOpMaestroForwarder implements MaestroForwarder {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(NoOpMaestroForwarder.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(NoOpMaestroForwarder.class);
 
   @Override
   public void screenCompleted(NodeQueryScreenCompletion completion) {
-    logger.debug("screen completion message arrived post query termination, dropping. Query [{}] from node {}.",
-      QueryIdHelper.getQueryId(completion.getId()), completion.getEndpoint());
+    logger.debug(
+        "screen completion message arrived post query termination, dropping. Query [{}] from node {}.",
+        QueryIdHelper.getQueryId(completion.getId()),
+        completion.getEndpoint());
   }
 
   @Override
   public void nodeQueryCompleted(NodeQueryCompletion completion) {
-    logger.debug("A node query completion message arrived post query termination, dropping. Query [{}] from node {}.",
-      QueryIdHelper.getQueryId(completion.getId()), completion.getEndpoint());
+    logger.debug(
+        "A node query completion message arrived post query termination, dropping. Query [{}] from node {}.",
+        QueryIdHelper.getQueryId(completion.getId()),
+        completion.getEndpoint());
   }
 
   @Override
   public void nodeQueryMarkFirstError(NodeQueryFirstError error) {
-    logger.debug("A node query error message arrived post query termination, dropping. Query [{}] from node {}.",
-      QueryIdHelper.getQueryId(error.getHandle().getQueryId()), error.getEndpoint());
+    logger.debug(
+        "A node query error message arrived post query termination, dropping. Query [{}] from node {}.",
+        QueryIdHelper.getQueryId(error.getHandle().getQueryId()),
+        error.getEndpoint());
   }
 
   @Override
   public void dataArrived(JobResultsRequest request, ResponseSender sender) {
-    logger.debug("User data arrived post query termination, dropping. Data was from QueryId: {}.",
-      QueryIdHelper.getQueryId(request.getHeader().getQueryId()));
+    logger.debug(
+        "User data arrived post query termination, dropping. Data was from QueryId: {}.",
+        QueryIdHelper.getQueryId(request.getHeader().getQueryId()));
   }
 
   @Override
   public void dataArrived(JobResultsRequestWrapper request, ResponseSender sender) {
-    logger.debug("User data arrived post query termination, dropping. Data was from QueryId: {}.",
-      QueryIdHelper.getQueryId(request.getHeader().getQueryId()));
+    logger.debug(
+        "User data arrived post query termination, dropping. Data was from QueryId: {}.",
+        QueryIdHelper.getQueryId(request.getHeader().getQueryId()));
   }
 
   @Override
@@ -70,6 +77,5 @@ public class NoOpMaestroForwarder implements MaestroForwarder {
   }
 
   @Override
-  public void close() throws Exception {
-  }
+  public void close() throws Exception {}
 }

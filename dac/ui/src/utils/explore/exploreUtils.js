@@ -43,6 +43,11 @@ import { newQuery } from "@app/exports/paths";
 import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
 import * as sqlPaths from "dremio-ui-common/paths/sqlEditor.js";
 import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
+import { getSupportFlag } from "@app/exports/endpoints/SupportFlags/getSupportFlag";
+import { SQLRUNNER_TABS_UI } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
+import { filter, firstValueFrom } from "rxjs";
+import { $SqlRunnerSession } from "dremio-ui-common/sonar/SqlRunnerSession/resources/SqlRunnerSessionResource.js";
+import { $Scripts } from "dremio-ui-common/sonar/scripts/resources/ScriptsResource.js";
 
 const DROP_WIDTH = 150;
 const ARROW_WIDTH = 20;
@@ -107,7 +112,7 @@ class ExploreUtils {
         this.getInitialTransformMethod(
           state.columnType,
           state.transformType,
-          state.selection
+          state.selection,
         ),
       selection: state.selection || {},
     });
@@ -143,7 +148,7 @@ class ExploreUtils {
       state.method = this.getInitialTransformMethod(
         state.columnType,
         state.transformType,
-        state.selection
+        state.selection,
       );
     }
     return { pathname, state, query };
@@ -308,16 +313,16 @@ class ExploreUtils {
         const start = prev[prev.length - 1][1] + 2; // + 1 for comma, +1 to advance to next item.
         return prev.concat([[start, start + itemText.length - 1]]);
       },
-      [[1, 1 + itemsText[0].length - 1]]
+      [[1, 1 + itemsText[0].length - 1]],
     );
 
     const startItemIndex = sortedIndex(
       itemExtents.map((x) => x[1]),
-      startOffset
+      startOffset,
     );
     const endItemIndex = sortedIndex(
       itemExtents.map((x) => x[0]),
-      endOffset
+      endOffset,
     ); // This end index is exclusive
 
     if (
@@ -341,7 +346,7 @@ class ExploreUtils {
     const newOffsets = this.calculateListSelectionOffsets(
       startOffset,
       endOffset,
-      text
+      text,
     );
     if (newOffsets === null) {
       return null;
@@ -358,7 +363,7 @@ class ExploreUtils {
       sel,
       sel.anchorNode,
       newStartOffset,
-      newEndOffset
+      newEndOffset,
     );
     const selectedText = text.slice(newStartOffset, newEndOffset);
     return {
@@ -376,7 +381,7 @@ class ExploreUtils {
       startOffset,
       endOffset,
       columnText,
-      selection
+      selection,
     );
     if (!itemInfo) {
       return null;
@@ -466,7 +471,7 @@ class ExploreUtils {
   getHrefForUntitledDatasetConfig = (
     dottedFullPath,
     newVersion,
-    doNotWaitJobCompletion
+    doNotWaitJobCompletion,
   ) => {
     const apiCall = new APIV2Call().paths("/datasets/new_untitled").params({
       parentDataset: dottedFullPath,
@@ -481,7 +486,7 @@ class ExploreUtils {
     dottedFullPath,
     newVersion,
     doNotWaitJobCompletion,
-    willLoadTable
+    willLoadTable,
   ) => {
     const apiCall = new APIV2Call().paths("/datasets/new_untitled").params({
       parentDataset: dottedFullPath,
@@ -507,7 +512,7 @@ class ExploreUtils {
       .paths(
         datasetPath
           ? `dataset/${datasetPath.join(".")}/version/${version}/preview`
-          : `${dataset.apiLinks.self}/preview`
+          : `${dataset.apiLinks.self}/preview`,
       )
       .params({
         view: "explore",
@@ -543,7 +548,7 @@ class ExploreUtils {
     sessionId,
     willLoadTable = true,
     refType,
-    refValue
+    refValue,
   ) => {
     const apiCall = new APIV2Call()
       .paths(`${dataset.getIn(["apiLinks", "self"])}/preview`)
@@ -595,7 +600,7 @@ class ExploreUtils {
     const fullPath =
       location.query.mode === "edit" && !!resourceId
         ? `${encodeURIComponent(`"${resourceId}"`)}.${encodeURIComponent(
-            tableId
+            tableId,
           )}`
         : "tmp.UNTITLED";
 
@@ -610,14 +615,14 @@ class ExploreUtils {
 
   getPreviewTransformationLink(dataset, newVersion) {
     const end = `transformAndPreview?newVersion=${encodeURIComponent(
-      newVersion
+      newVersion,
     )}&limit=0`;
     return `${dataset.getIn(["apiLinks", "self"])}/${end}`;
   }
 
   getNewPreviewTransformationLink(dataset, newVersion) {
     const end = `transform_and_preview?newVersion=${encodeURIComponent(
-      newVersion
+      newVersion,
     )}&limit=0`;
 
     return `${dataset.getIn(["apiLinks", "self"])}/${end}`;
@@ -626,34 +631,34 @@ class ExploreUtils {
   getTransformPeekHref(dataset) {
     const newVersion = this.getNewDatasetVersion();
     const end = `transformPeek?newVersion=${encodeURIComponent(
-      newVersion
+      newVersion,
     )}&limit=${ROWS_LIMIT}`;
     return `${dataset.getIn(["apiLinks", "self"])}/${end}`;
   }
 
   getRunTransformationLink({ fullPath, version, newVersion, type }) {
     return `/dataset/${fullPath.join(
-      "."
+      ".",
     )}/version/${version}/${type}?newVersion=${encodeURIComponent(
-      newVersion
+      newVersion,
     )}&limit=${ROWS_LIMIT}`;
   }
 
   getUntitledSqlHref({ newVersion, sessionId }) {
     if (sessionId) {
       return `/datasets/new_untitled_sql?newVersion=${encodeURIComponent(
-        newVersion
+        newVersion,
       )}&sessionId=${sessionId}&limit=0`;
     } else {
       return `/datasets/new_untitled_sql?newVersion=${encodeURIComponent(
-        newVersion
+        newVersion,
       )}&limit=0`;
     }
   }
 
   getTmpUntitledSqlHref({ newVersion, sessionId }) {
     return `/datasets/new_tmp_untitled_sql?newVersion=${encodeURIComponent(
-      newVersion
+      newVersion,
     )}${sessionId ? `&sessionId=${sessionId}` : ""}&limit=0`;
   }
 
@@ -661,18 +666,18 @@ class ExploreUtils {
     // does not need limit=0 as does not return data in all cases
     if (sessionId) {
       return `/datasets/new_untitled_sql_and_run?newVersion=${encodeURIComponent(
-        newVersion
+        newVersion,
       )}&sessionId=${sessionId}`;
     } else {
       return `/datasets/new_untitled_sql_and_run?newVersion=${encodeURIComponent(
-        newVersion
+        newVersion,
       )}`;
     }
   }
 
   getTmpUntitledSqlAndRunHref({ newVersion, sessionId }) {
     return `/datasets/new_tmp_untitled_sql_and_run?newVersion=${encodeURIComponent(
-      newVersion
+      newVersion,
     )}${sessionId ? `&sessionId=${sessionId}` : ""}`;
   }
 
@@ -684,7 +689,7 @@ class ExploreUtils {
       (transformationMapperHash[detailsType || item.type] &&
         transformationMapperHash[detailsType || item.type](
           item,
-          item.transformType
+          item.transformType,
         )) ||
       item
     );
@@ -787,7 +792,7 @@ class ExploreUtils {
       curLocation.includes(
         sqlPaths.unsavedDatasetPath.link({
           projectId,
-        })
+        }),
       ) || curLocation.includes(newQuery())
     );
   }
@@ -837,7 +842,7 @@ class ExploreUtils {
       return [false, true];
     }
     const originalDatasetHistory = datasetUI.get(
-      historyList.get(historyList.size - 1)
+      historyList.get(historyList.size - 1),
     );
     hasPhysicalDatasetOrigin =
       originalDatasetHistory &&
@@ -865,6 +870,33 @@ class ExploreUtils {
 
   createNewQueryFromDatasetOverlay(datasetPath) {
     return datasetPath ? `SELECT * FROM ${datasetPath}` : "";
+  }
+
+  async getCurrentScript() {
+    if (!(await getSupportFlag(SQLRUNNER_TABS_UI)).value) {
+      return;
+    }
+
+    const [session, scripts] = await Promise.all([
+      firstValueFrom(
+        $SqlRunnerSession.$source.pipe(filter((session) => session !== null)),
+      ),
+      firstValueFrom(
+        $Scripts.pipe(
+          filter((scripts) => scripts !== null && !!scripts.length),
+        ),
+      ),
+    ]);
+
+    const script = scripts.find(
+      (script) => script.id === session.currentScriptId,
+    );
+
+    if (!script) {
+      return;
+    }
+
+    return script;
   }
 }
 

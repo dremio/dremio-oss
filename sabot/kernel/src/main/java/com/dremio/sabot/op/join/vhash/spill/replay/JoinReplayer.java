@@ -15,15 +15,6 @@
  */
 package com.dremio.sabot.op.join.vhash.spill.replay;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.calcite.rel.core.JoinRelType;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.util.CloseableIterator;
 import com.dremio.exec.record.BatchSchema;
@@ -41,16 +32,22 @@ import com.dremio.sabot.op.join.vhash.spill.partition.Partition;
 import com.dremio.sabot.op.join.vhash.spill.pool.PagePool;
 import com.dremio.sabot.op.sort.external.SpillManager.SpillFile;
 import com.google.common.base.Preconditions;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.calcite.rel.core.JoinRelType;
 
 /**
  * Replayer for one a of join spill files that correspond to one partition.
  *
- * - Processes build files
- * - Processes probe files
- * - project non-matches
+ * <p>- Processes build files - Processes probe files - project non-matches
  */
 public class JoinReplayer implements YieldingRunnable {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(JoinReplayer.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(JoinReplayer.class);
   private final JoinSetupParams setupParams;
   private final Partition partition;
   private final VectorContainer outgoing;
@@ -78,12 +75,19 @@ public class JoinReplayer implements YieldingRunnable {
     DONE;
 
     public void is(ReplayState expected) {
-      assert expected == this : String.format("JoinReplayer should have been in state %s but was in state %s.",
-        expected.name(), this.name());
+      assert expected == this
+          : String.format(
+              "JoinReplayer should have been in state %s but was in state %s.",
+              expected.name(), this.name());
     }
   }
 
-  public JoinReplayer(JoinReplayEntry replayEntry, JoinSetupParams setupParams, Partition partition, VectorContainer outgoing, int targetOutputSize) {
+  public JoinReplayer(
+      JoinReplayEntry replayEntry,
+      JoinSetupParams setupParams,
+      Partition partition,
+      VectorContainer outgoing,
+      int targetOutputSize) {
     this.setupParams = setupParams;
     this.partition = partition;
     this.outgoing = outgoing;
@@ -102,8 +106,14 @@ public class JoinReplayer implements YieldingRunnable {
       }
       ++index;
     }
-    this.buildChunkIterator = new SpillChunkIterator(setupParams.getSpillSerializable(true), setupParams.getSpillPagePool(),
-      replayEntry.getBuildFiles(), setupParams.getBuildKeyPivot(), new BatchSchema(unpivotedBuildFields), setupParams.getMaxInputBatchSize());
+    this.buildChunkIterator =
+        new SpillChunkIterator(
+            setupParams.getSpillSerializable(true),
+            setupParams.getSpillPagePool(),
+            replayEntry.getBuildFiles(),
+            setupParams.getBuildKeyPivot(),
+            new BatchSchema(unpivotedBuildFields),
+            setupParams.getMaxInputBatchSize());
 
     // for probe side, the spill has
     // - key columns in both pivoted and unpivoted format
@@ -111,8 +121,14 @@ public class JoinReplayer implements YieldingRunnable {
     for (VectorWrapper<?> vector : setupParams.getLeft()) {
       unpivotedProbeVectorsMap.put(vector.getField().getName(), vector);
     }
-    this.probeChunkIterator = new SpillChunkIterator(setupParams.getSpillSerializable(false), setupParams.getSpillPagePool(),
-      replayEntry.getProbeFiles(), setupParams.getBuildKeyPivot(), setupParams.getLeft().getSchema(), setupParams.getMaxInputBatchSize());
+    this.probeChunkIterator =
+        new SpillChunkIterator(
+            setupParams.getSpillSerializable(false),
+            setupParams.getSpillPagePool(),
+            replayEntry.getProbeFiles(),
+            setupParams.getBuildKeyPivot(),
+            setupParams.getLeft().getSchema(),
+            setupParams.getMaxInputBatchSize());
   }
 
   @Override
@@ -156,7 +172,7 @@ public class JoinReplayer implements YieldingRunnable {
         reset();
         break;
     }
-    logger.trace("exit replayState {}",  replayState);
+    logger.trace("exit replayState {}", replayState);
     return ret;
   }
 
@@ -179,8 +195,11 @@ public class JoinReplayer implements YieldingRunnable {
 
     currentBuildChunk = buildChunkIterator.next();
     setupParams.getSpillStats().addReadBuildBatchesMerged(1);
-    copyOrTransferFromChunk(currentBuildChunk, setupParams.getPivotedFixedBlock(),
-      setupParams.getPivotedVariableBlock(), unpivotedBuildVectorsMap);
+    copyOrTransferFromChunk(
+        currentBuildChunk,
+        setupParams.getPivotedFixedBlock(),
+        setupParams.getPivotedVariableBlock(),
+        unpivotedBuildVectorsMap);
     replayState = ReplayState.BUILD_PROCESS;
   }
 
@@ -197,8 +216,9 @@ public class JoinReplayer implements YieldingRunnable {
   private void buildNoMore() {
     replayState.is(ReplayState.BUILD_NO_MORE);
 
-    if (partition.isBuildSideEmpty() &&
-      !(setupParams.getJoinType() == JoinRelType.LEFT || setupParams.getJoinType() == JoinRelType.FULL)) {
+    if (partition.isBuildSideEmpty()
+        && !(setupParams.getJoinType() == JoinRelType.LEFT
+            || setupParams.getJoinType() == JoinRelType.FULL)) {
       // nothing needs to be read on the left side as right side is empty
       replayState = ReplayState.RESET;
       return;
@@ -217,8 +237,11 @@ public class JoinReplayer implements YieldingRunnable {
 
     currentProbeChunk = probeChunkIterator.next();
     setupParams.getSpillStats().addReadProbeBatchesMerged(1);
-    copyOrTransferFromChunk(currentProbeChunk, setupParams.getPivotedFixedBlock(),
-      setupParams.getPivotedVariableBlock(), unpivotedProbeVectorsMap);
+    copyOrTransferFromChunk(
+        currentProbeChunk,
+        setupParams.getPivotedFixedBlock(),
+        setupParams.getPivotedVariableBlock(),
+        unpivotedProbeVectorsMap);
     partition.probeBatchBegin(0, currentProbeChunk.getNumRecords());
     replayState = ReplayState.PROBE_PROCESS;
   }
@@ -241,7 +264,8 @@ public class JoinReplayer implements YieldingRunnable {
   private void probeNoMore() {
     replayState.is(ReplayState.PROBE_NO_MORE);
 
-    if (setupParams.getJoinType() == JoinRelType.FULL || setupParams.getJoinType() == JoinRelType.RIGHT) {
+    if (setupParams.getJoinType() == JoinRelType.FULL
+        || setupParams.getJoinType() == JoinRelType.RIGHT) {
       // if we need to project build records that didn't match, make sure we do so.
       replayState = ReplayState.PROJECT_NON_MATCHES;
     } else {
@@ -271,10 +295,11 @@ public class JoinReplayer implements YieldingRunnable {
     replayState = ReplayState.DONE;
   }
 
-  private static void copyOrTransferFromChunk(SpillChunk chunk,
-                                              FixedBlockVector fixed,
-                                              VariableBlockVector variable,
-                                              Map<String, VectorWrapper<?>> nameToVectorMap) {
+  private static void copyOrTransferFromChunk(
+      SpillChunk chunk,
+      FixedBlockVector fixed,
+      VariableBlockVector variable,
+      Map<String, VectorWrapper<?>> nameToVectorMap) {
     // The fixed/variable parts are copied from spill chunk to the vector expected by the partition
     fixed.getBuf().setBytes(0, chunk.getFixed(), 0, chunk.getFixed().capacity());
     if (variable != null) {
@@ -313,8 +338,13 @@ public class JoinReplayer implements YieldingRunnable {
     private SpillChunk nextChunk;
     private boolean isFinished;
 
-    SpillChunkIterator(SpillSerializable serializable, PagePool pool, List<SpillFile> spillFiles,
-                       PivotDef pivotDef, BatchSchema schema, int maxInputBatchSize) {
+    SpillChunkIterator(
+        SpillSerializable serializable,
+        PagePool pool,
+        List<SpillFile> spillFiles,
+        PivotDef pivotDef,
+        BatchSchema schema,
+        int maxInputBatchSize) {
       this.serializable = serializable;
       this.pool = pool;
       this.spillFiles = new LinkedList<>(spillFiles);
@@ -361,8 +391,9 @@ public class JoinReplayer implements YieldingRunnable {
           return;
         }
         currentFile = spillFiles.getFirst();
-        currentReader = new BatchCombiningSpillReader(currentFile, serializable, pool, pivotDef, schema,
-          maxInputBatchSize);
+        currentReader =
+            new BatchCombiningSpillReader(
+                currentFile, serializable, pool, pivotDef, schema, maxInputBatchSize);
       }
 
       if (currentReader.hasNext()) {

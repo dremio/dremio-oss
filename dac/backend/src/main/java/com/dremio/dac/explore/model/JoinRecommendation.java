@@ -15,34 +15,32 @@
  */
 package com.dremio.dac.explore.model;
 
-import java.util.List;
-import java.util.Map;
-
 import com.dremio.dac.proto.model.dataset.JoinType;
 import com.dremio.dac.util.JSONUtil;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableMap;
+import java.util.List;
+import java.util.Map;
 
-/**
- * Recommendation for join
- */
-@JsonIgnoreProperties(value={ "links" }, allowGetters=true)
+/** Recommendation for join */
+@JsonIgnoreProperties(
+    value = {"links"},
+    allowGetters = true)
 public class JoinRecommendation {
 
   private final JoinType joinType;
   private final List<String> rightTableFullPathList;
-/**
- *  Map from left key to right key.
- */
+
+  /** Map from left key to right key. */
   private final Map<String, String> matchingKeys;
 
   @JsonCreator
   public JoinRecommendation(
-          @JsonProperty("joinType") JoinType joinType,
-          @JsonProperty("fullPathList") List<String> rightTableFullPathList,
-          @JsonProperty("matchingKeys") Map<String, String> matchingKeys) {
+      @JsonProperty("joinType") JoinType joinType,
+      @JsonProperty("fullPathList") List<String> rightTableFullPathList,
+      @JsonProperty("matchingKeys") Map<String, String> matchingKeys) {
     this.joinType = joinType;
     this.rightTableFullPathList = rightTableFullPathList;
     this.matchingKeys = matchingKeys;
@@ -75,7 +73,8 @@ public class JoinRecommendation {
     int result = 1;
     result = prime * result + ((joinType == null) ? 0 : joinType.hashCode());
     result = prime * result + ((matchingKeys == null) ? 0 : matchingKeys.hashCode());
-    result = prime * result + ((rightTableFullPathList == null) ? 0 : rightTableFullPathList.hashCode());
+    result =
+        prime * result + ((rightTableFullPathList == null) ? 0 : rightTableFullPathList.hashCode());
     return result;
   }
 
@@ -110,5 +109,4 @@ public class JoinRecommendation {
     }
     return true;
   }
-
 }

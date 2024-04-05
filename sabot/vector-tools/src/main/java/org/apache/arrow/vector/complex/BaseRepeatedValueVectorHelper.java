@@ -17,6 +17,9 @@ package org.apache.arrow.vector.complex;
 
 import static com.dremio.common.util.MajorTypeHelper.getArrowMinorType;
 
+import com.dremio.exec.expr.TypeHelper;
+import com.dremio.exec.proto.UserBitShared;
+import com.dremio.exec.proto.UserBitShared.SerializedField;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.util.CommonUtil;
@@ -24,11 +27,8 @@ import org.apache.arrow.memory.util.LargeMemoryUtil;
 import org.apache.arrow.vector.BaseValueVectorHelper;
 import org.apache.arrow.vector.types.pojo.FieldType;
 
-import com.dremio.exec.expr.TypeHelper;
-import com.dremio.exec.proto.UserBitShared;
-import com.dremio.exec.proto.UserBitShared.SerializedField;
-
-public abstract class BaseRepeatedValueVectorHelper<T extends BaseRepeatedValueVector> extends BaseValueVectorHelper<T> {
+public abstract class BaseRepeatedValueVectorHelper<T extends BaseRepeatedValueVector>
+    extends BaseValueVectorHelper<T> {
 
   private BaseRepeatedValueVector vector;
 
@@ -46,11 +46,14 @@ public abstract class BaseRepeatedValueVectorHelper<T extends BaseRepeatedValueV
   }
 
   protected SerializedField buildOffsetMetadata() {
-    SerializedField.Builder offsetBuilder = SerializedField.newBuilder()
-      .setNamePart(UserBitShared.NamePart.newBuilder().setName("$offsets$").build())
-      .setValueCount((vector.valueCount == 0) ? 0 : vector.valueCount + 1)
-      .setBufferLength((vector.valueCount == 0) ? 0 : (vector.valueCount + 1) * 4)
-      .setMajorType(com.dremio.common.types.Types.required(com.dremio.common.types.TypeProtos.MinorType.UINT4));
+    SerializedField.Builder offsetBuilder =
+        SerializedField.newBuilder()
+            .setNamePart(UserBitShared.NamePart.newBuilder().setName("$offsets$").build())
+            .setValueCount((vector.valueCount == 0) ? 0 : vector.valueCount + 1)
+            .setBufferLength((vector.valueCount == 0) ? 0 : (vector.valueCount + 1) * 4)
+            .setMajorType(
+                com.dremio.common.types.Types.required(
+                    com.dremio.common.types.TypeProtos.MinorType.UINT4));
 
     return offsetBuilder.build();
   }
@@ -71,7 +74,8 @@ public abstract class BaseRepeatedValueVectorHelper<T extends BaseRepeatedValueV
 
     /* load inner data vector */
     if (vector.getDataVector() == BaseRepeatedValueVector.DEFAULT_DATA_VECTOR) {
-      vector.addOrGetVector(FieldType.nullable(getArrowMinorType(metadata.getMajorType().getMinorType()).getType()));
+      vector.addOrGetVector(
+          FieldType.nullable(getArrowMinorType(metadata.getMajorType().getMinorType()).getType()));
     }
 
     TypeHelper.load(vector.vector, vectorMetadata, buffer.slice(offsetLength, vectorLength));
@@ -81,9 +85,10 @@ public abstract class BaseRepeatedValueVectorHelper<T extends BaseRepeatedValueV
     final int valueCount = metadata.getValueCount();
     final int actualLength = metadata.getBufferLength();
     final int expectedLength = valueCount * BaseRepeatedValueVector.OFFSET_WIDTH;
-    assert actualLength == expectedLength :
-      String.format("Expected to load %d bytes in offset buffer but actually loaded %d bytes", expectedLength,
-        actualLength);
+    assert actualLength == expectedLength
+        : String.format(
+            "Expected to load %d bytes in offset buffer but actually loaded %d bytes",
+            expectedLength, actualLength);
 
     vector.offsetBuffer = buffer.slice(0, actualLength);
     vector.offsetBuffer.writerIndex(actualLength);
@@ -103,10 +108,13 @@ public abstract class BaseRepeatedValueVectorHelper<T extends BaseRepeatedValueV
    * inner offset buffer but that approach is going to pollute the public
    * API in OSS.
    */
-  public static void setOffsetHelper(final BaseRepeatedValueVector vector,
-                                     final int indexToGet, final int indexToSet,
-                                     final BufferAllocator vectorAllocator) {
-    final int valueToSet = vector.offsetBuffer.getInt(indexToGet * BaseRepeatedValueVector.OFFSET_WIDTH);
+  public static void setOffsetHelper(
+      final BaseRepeatedValueVector vector,
+      final int indexToGet,
+      final int indexToSet,
+      final BufferAllocator vectorAllocator) {
+    final int valueToSet =
+        vector.offsetBuffer.getInt(indexToGet * BaseRepeatedValueVector.OFFSET_WIDTH);
     while (indexToSet >= getOffsetBufferValueCapacity(vector)) {
       reallocOffsetBuffer(vector, vectorAllocator);
     }
@@ -114,14 +122,14 @@ public abstract class BaseRepeatedValueVectorHelper<T extends BaseRepeatedValueV
   }
 
   private static int getOffsetBufferValueCapacity(final BaseRepeatedValueVector vector) {
-    return (int)((vector.offsetBuffer.capacity() * 1.0)/BaseRepeatedValueVector.OFFSET_WIDTH);
+    return (int) ((vector.offsetBuffer.capacity() * 1.0) / BaseRepeatedValueVector.OFFSET_WIDTH);
   }
 
-  private static void reallocOffsetBuffer(final BaseRepeatedValueVector vector,
-                                          final BufferAllocator allocator) {
+  private static void reallocOffsetBuffer(
+      final BaseRepeatedValueVector vector, final BufferAllocator allocator) {
     long currentBufferCapacity = vector.offsetBuffer.capacity();
     long baseSize = vector.offsetAllocationSizeInBytes;
-    if(baseSize < currentBufferCapacity) {
+    if (baseSize < currentBufferCapacity) {
       baseSize = currentBufferCapacity;
     }
     long newAllocationSize = baseSize * 2L;

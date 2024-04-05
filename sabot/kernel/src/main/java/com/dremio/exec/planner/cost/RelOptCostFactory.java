@@ -17,13 +17,9 @@ package com.dremio.exec.planner.cost;
 
 public interface RelOptCostFactory extends org.apache.calcite.plan.RelOptCostFactory {
 
-  /**
-   * Creates a cost object.
-   */
+  /** Creates a cost object. */
   RelOptCost makeCost(double rowCount, double cpu, double io, double network, double memory);
 
-  /**
-   * Creates a cost object.
-   */
+  /** Creates a cost object. */
   RelOptCost makeCost(double rowCount, double cpu, double io, double network);
 }

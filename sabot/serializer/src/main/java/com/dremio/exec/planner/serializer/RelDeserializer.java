@@ -15,17 +15,6 @@
  */
 package com.dremio.exec.planner.serializer;
 
-import java.util.List;
-
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelOptTable.ToRelContext;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.sql.SqlOperator;
-import org.apache.calcite.tools.RelBuilder;
-import org.apache.calcite.tools.RelBuilderFactory;
-
 import com.dremio.exec.planner.serializer.RelNodeSerde.PluginRetriever;
 import com.dremio.exec.planner.serializer.RelNodeSerde.RelFromProto;
 import com.dremio.exec.planner.serializer.RelNodeSerde.TableRetriever;
@@ -36,6 +25,15 @@ import com.dremio.plan.serialization.PRexNode;
 import com.dremio.plan.serialization.PSqlOperator;
 import com.google.common.base.Preconditions;
 import com.google.protobuf.Any;
+import java.util.List;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptTable.ToRelContext;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.tools.RelBuilder;
+import org.apache.calcite.tools.RelBuilderFactory;
 
 class RelDeserializer implements RelFromProto {
 
@@ -66,7 +64,9 @@ class RelDeserializer implements RelFromProto {
     this.nodes = nodes;
     this.types = new TypeSerde(cluster.getTypeFactory());
     this.sqlOperatorSerde = sqlOperatorSerde;
-    this.rexDeserializer = new RexDeserializer(cluster.getRexBuilder(), types, registry, tables, plugins, cluster, sqlOperatorSerde);
+    this.rexDeserializer =
+        new RexDeserializer(
+            cluster.getRexBuilder(), types, registry, tables, plugins, cluster, sqlOperatorSerde);
   }
 
   @Override
@@ -125,14 +125,16 @@ class RelDeserializer implements RelFromProto {
   }
 
   public static RelNode deserialize(
-    RelSerdeRegistry registry,
-    RelBuilderFactory factory,
-    TableRetriever tables,
-    PluginRetriever plugins,
-    PRelList list,
-    RelOptCluster cluster,
-    SqlOperatorSerde sqlOperatorSerde) {
-    RelDeserializer de = new RelDeserializer(registry, factory, tables, plugins, cluster, list.getNodeList(), sqlOperatorSerde);
+      RelSerdeRegistry registry,
+      RelBuilderFactory factory,
+      TableRetriever tables,
+      PluginRetriever plugins,
+      PRelList list,
+      RelOptCluster cluster,
+      SqlOperatorSerde sqlOperatorSerde) {
+    RelDeserializer de =
+        new RelDeserializer(
+            registry, factory, tables, plugins, cluster, list.getNodeList(), sqlOperatorSerde);
     return de.toRel(list.getNodeCount() - 1);
   }
 }

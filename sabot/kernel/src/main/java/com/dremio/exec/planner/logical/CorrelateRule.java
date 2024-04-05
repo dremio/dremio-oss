@@ -22,8 +22,8 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.logical.LogicalCorrelate;
 
 /**
- * Rule that converts a {@link org.apache.calcite.rel.logical.LogicalCorrelate}
- * to a Dremio equivalent {@link CorrelateRel}.
+ * Rule that converts a {@link org.apache.calcite.rel.logical.LogicalCorrelate} to a Dremio
+ * equivalent {@link CorrelateRel}.
  */
 public class CorrelateRule extends RelOptRule {
   public static final RelOptRule INSTANCE = new CorrelateRule();
@@ -38,10 +38,19 @@ public class CorrelateRule extends RelOptRule {
     final RelTraitSet traits = correlate.getTraitSet().plus(Rel.LOGICAL);
     final RelNode left = correlate.getInput(0);
     final RelNode right = correlate.getInput(1);
-    final RelNode convertedLeftInput = convert(left, left.getTraitSet().plus(Rel.LOGICAL).simplify());
-    final RelNode convertedRightInput = convert(right, right.getTraitSet().plus(Rel.LOGICAL).simplify());
-    CorrelateRel newRel = new CorrelateRel(correlate.getCluster(), traits, convertedLeftInput,
-            convertedRightInput, correlate.getCorrelationId(), correlate.getRequiredColumns(), correlate.getJoinType());
+    final RelNode convertedLeftInput =
+        convert(left, left.getTraitSet().plus(Rel.LOGICAL).simplify());
+    final RelNode convertedRightInput =
+        convert(right, right.getTraitSet().plus(Rel.LOGICAL).simplify());
+    CorrelateRel newRel =
+        new CorrelateRel(
+            correlate.getCluster(),
+            traits,
+            convertedLeftInput,
+            convertedRightInput,
+            correlate.getCorrelationId(),
+            correlate.getRequiredColumns(),
+            correlate.getJoinType());
     call.transformTo(newRel);
   }
 }

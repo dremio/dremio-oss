@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.expr.fn.listagg;
 
+import com.dremio.exec.planner.types.SqlTypeFactoryImpl;
 import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlKind;
@@ -22,43 +23,41 @@ import org.apache.calcite.sql.type.OperandTypes;
 import org.apache.calcite.sql.type.ReturnTypes;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-import com.dremio.exec.planner.types.SqlTypeFactoryImpl;
-
 public class ListAgg {
 
   public static class SqlLocalListAggFunction extends SqlAggFunction {
     public SqlLocalListAggFunction() {
-      super("local_listagg",
-        null,
-        SqlKind.LISTAGG,
-        ReturnTypes.explicit(
-          SqlTypeFactoryImpl.INSTANCE.createTypeWithNullability(
-            SqlTypeFactoryImpl.INSTANCE.createArrayType(
-              SqlTypeFactoryImpl.INSTANCE.createSqlType(SqlTypeName.VARCHAR), -1), true)),
-        null,
-        OperandTypes.or(OperandTypes.STRING, OperandTypes.STRING_STRING),
-        SqlFunctionCategory.USER_DEFINED_FUNCTION,
-        false,
-        false
-      );
+      super(
+          "local_listagg",
+          null,
+          SqlKind.LISTAGG,
+          ReturnTypes.explicit(
+              SqlTypeFactoryImpl.INSTANCE.createTypeWithNullability(
+                  SqlTypeFactoryImpl.INSTANCE.createArrayType(
+                      SqlTypeFactoryImpl.INSTANCE.createSqlType(SqlTypeName.VARCHAR), -1),
+                  true)),
+          null,
+          OperandTypes.or(OperandTypes.STRING, OperandTypes.STRING_STRING),
+          SqlFunctionCategory.USER_DEFINED_FUNCTION,
+          false,
+          false);
     }
   }
 
   public static class SqlListAggMergeFunction extends SqlAggFunction {
     public SqlListAggMergeFunction() {
-      super("listagg_merge",
-        null,
-        SqlKind.LISTAGG,
-        ReturnTypes.explicit(
-          SqlTypeFactoryImpl.INSTANCE.createTypeWithNullability(
-            SqlTypeFactoryImpl.INSTANCE.createSqlType(SqlTypeName.VARCHAR), true)),
-        null,
-        OperandTypes.or(OperandTypes.ARRAY, OperandTypes.STRING_STRING),
-        SqlFunctionCategory.USER_DEFINED_FUNCTION,
-        false,
-        false
-      );
+      super(
+          "listagg_merge",
+          null,
+          SqlKind.LISTAGG,
+          ReturnTypes.explicit(
+              SqlTypeFactoryImpl.INSTANCE.createTypeWithNullability(
+                  SqlTypeFactoryImpl.INSTANCE.createSqlType(SqlTypeName.VARCHAR), true)),
+          null,
+          OperandTypes.or(OperandTypes.ARRAY, OperandTypes.STRING_STRING),
+          SqlFunctionCategory.USER_DEFINED_FUNCTION,
+          false,
+          false);
     }
   }
-
 }

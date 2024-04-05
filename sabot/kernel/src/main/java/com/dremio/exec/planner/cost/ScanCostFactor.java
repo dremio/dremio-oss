@@ -18,11 +18,13 @@ package com.dremio.exec.planner.cost;
 import com.google.common.base.Preconditions;
 
 /**
- * An enumeration that holds relative costs between {@link com.dremio.exec.physical.base.GroupScan group scans}.
+ * An enumeration that holds relative costs between {@link com.dremio.exec.physical.base.GroupScan
+ * group scans}.
  */
 public class ScanCostFactor {
 
-  public static final ScanCostFactor PARQUET = ScanCostFactor.of(1); // make parquet the cheapest persisted
+  public static final ScanCostFactor PARQUET =
+      ScanCostFactor.of(1); // make parquet the cheapest persisted
   public static final ScanCostFactor ARROW = ScanCostFactor.of(1);
   public static final ScanCostFactor HIVE = ScanCostFactor.of(5);
   public static final ScanCostFactor EASY = ScanCostFactor.of(5); // json and text
@@ -45,5 +47,4 @@ public class ScanCostFactor {
   public static ScanCostFactor of(final double factor) {
     return new ScanCostFactor(factor);
   }
-
 }

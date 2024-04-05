@@ -15,23 +15,20 @@
  */
 package com.dremio.common.exceptions;
 
+import com.dremio.exec.proto.UserBitShared.DremioPBError;
+import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import org.junit.Assert;
 import org.junit.Test;
 
-import com.dremio.exec.proto.UserBitShared.DremioPBError;
-import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
-
-/**
- * Test various use cases when creating user exceptions
- */
+/** Test various use cases when creating user exceptions */
 public class TestUserException {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory
-      .getLogger("--ignore.as.this.is.for.testing.exceptions--");
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger("--ignore.as.this.is.for.testing.exceptions--");
 
   private Exception wrap(UserException uex, int numWraps) {
     Exception ex = uex;
     for (int i = 0; i < numWraps; i++) {
-      ex = new Exception("wrap #" + (i+1), ex);
+      ex = new Exception("wrap #" + (i + 1), ex);
     }
 
     return ex;
@@ -41,7 +38,8 @@ public class TestUserException {
   @Test
   public void testBuildSystemException() {
     String message = "This is an exception";
-    UserException uex = UserException.systemError(new Exception(new RuntimeException(message))).build(logger);
+    UserException uex =
+        UserException.systemError(new Exception(new RuntimeException(message))).build(logger);
 
     Assert.assertTrue(uex.getOriginalMessage().contains(message));
     Assert.assertTrue(uex.getOriginalMessage().contains("RuntimeException"));
@@ -79,7 +77,10 @@ public class TestUserException {
     String messageA = "Test message A";
     String messageB = "Test message B";
 
-    UserException uex = UserException.dataWriteError(new RuntimeException(messageA)).message(messageB).build(logger);
+    UserException uex =
+        UserException.dataWriteError(new RuntimeException(messageA))
+            .message(messageB)
+            .build(logger);
     DremioPBError error = uex.getOrCreatePBError(false);
 
     // passed message should override the cause message
@@ -93,14 +94,16 @@ public class TestUserException {
     String messageB = "Test message B";
 
     UserException original = UserException.connectionError().message(messageA).build(logger);
-    UserException uex = UserException.dataWriteError(wrap(original, 5)).message(messageB).build(logger);
+    UserException uex =
+        UserException.dataWriteError(wrap(original, 5)).message(messageB).build(logger);
 
-    //builder should return the unwrapped original user exception and not build a new one
+    // builder should return the unwrapped original user exception and not build a new one
     Assert.assertEquals(original, uex);
 
     DremioPBError error = uex.getOrCreatePBError(false);
     Assert.assertEquals(messageA, uex.getOriginalMessage());
-    Assert.assertFalse(error.getMessage().contains(messageB)); // messageB should not be part of the context
+    Assert.assertFalse(
+        error.getMessage().contains(messageB)); // messageB should not be part of the context
   }
 
   @Test
@@ -117,10 +120,10 @@ public class TestUserException {
   // make sure wrapped user exceptions are retrieved properly when calling ErrorHelper.wrap()
   @Test
   public void testWrapUserException() {
-    UserException uex = UserException.dataReadError().message("this is a data read exception").build(logger);
+    UserException uex =
+        UserException.dataReadError().message("this is a data read exception").build(logger);
 
     Exception wrapped = wrap(uex, 3);
     Assert.assertEquals(uex, UserException.systemError(wrapped).build(logger));
   }
-
 }

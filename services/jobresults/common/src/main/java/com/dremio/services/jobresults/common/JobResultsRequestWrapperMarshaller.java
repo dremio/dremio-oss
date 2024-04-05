@@ -15,19 +15,6 @@
  */
 package com.dremio.services.jobresults.common;
 
-import java.io.ByteArrayOutputStream;
-import java.io.Closeable;
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.ArrowByteBufAllocator;
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.util.LargeMemoryUtil;
-
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.service.grpc.DrainableByteBufInputStream;
@@ -38,30 +25,42 @@ import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.CodedOutputStream;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.WireFormat;
-
 import io.grpc.MethodDescriptor;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.NettyArrowBuf;
+import java.io.ByteArrayOutputStream;
+import java.io.Closeable;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.ArrowByteBufAllocator;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.util.LargeMemoryUtil;
 
 /**
- * Marshaller of {@link JobResultsRequestWrapper}
- * to avoid job results being copied to heap memory before copying it to grpc on-wire.
+ * Marshaller of {@link JobResultsRequestWrapper} to avoid job results being copied to heap memory
+ * before copying it to grpc on-wire.
  */
-public class JobResultsRequestWrapperMarshaller implements MethodDescriptor.Marshaller<JobResultsRequestWrapper>, Closeable {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(JobResultsRequestWrapperMarshaller.class);
+public class JobResultsRequestWrapperMarshaller
+    implements MethodDescriptor.Marshaller<JobResultsRequestWrapper>, Closeable {
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(JobResultsRequestWrapperMarshaller.class);
 
   private static final int HEADER_TAG =
-    (JobResultsRequest.HEADER_FIELD_NUMBER << 3) | WireFormat.WIRETYPE_LENGTH_DELIMITED;
+      (JobResultsRequest.HEADER_FIELD_NUMBER << 3) | WireFormat.WIRETYPE_LENGTH_DELIMITED;
 
   private static final int SEQUENCE_ID_TAG =
-    (JobResultsRequest.SEQUENCEID_FIELD_NUMBER << 3) | WireFormat.WIRETYPE_VARINT;
+      (JobResultsRequest.SEQUENCEID_FIELD_NUMBER << 3) | WireFormat.WIRETYPE_VARINT;
 
   private static final int DATA_TAG =
-    (JobResultsRequest.DATA_FIELD_NUMBER << 3) | WireFormat.WIRETYPE_LENGTH_DELIMITED;
+      (JobResultsRequest.DATA_FIELD_NUMBER << 3) | WireFormat.WIRETYPE_LENGTH_DELIMITED;
 
   private static final int FOREMAN_TAG =
-    (JobResultsRequest.FOREMAN_FIELD_NUMBER << 3) | WireFormat.WIRETYPE_LENGTH_DELIMITED;
+      (JobResultsRequest.FOREMAN_FIELD_NUMBER << 3) | WireFormat.WIRETYPE_LENGTH_DELIMITED;
 
   private final BufferAllocator allocator;
   // maintaining inputStreams, so that it can be closed explicitly if inputStream is not closed
@@ -76,7 +75,7 @@ public class JobResultsRequestWrapperMarshaller implements MethodDescriptor.Mars
   public InputStream stream(JobResultsRequestWrapper value) {
     logger.debug("requestWrapper stream called.");
     cleanupBefore();
-    try (ByteArrayOutputStream baos = new ByteArrayOutputStream();) {
+    try (ByteArrayOutputStream baos = new ByteArrayOutputStream(); ) {
       CodedOutputStream cos = CodedOutputStream.newInstance(baos);
 
       cos.writeMessage(JobResultsRequest.HEADER_FIELD_NUMBER, value.getHeader());
@@ -99,8 +98,8 @@ public class JobResultsRequestWrapperMarshaller implements MethodDescriptor.Mars
         buffers.addAll(Arrays.asList(value.getByteBuffers()));
       }
 
-      CompositeByteBuf compositeByteBuf = new CompositeByteBuf(new ArrowByteBufAllocator(allocator), true,
-        buffers.size(), buffers);
+      CompositeByteBuf compositeByteBuf =
+          new CompositeByteBuf(new ArrowByteBufAllocator(allocator), true, buffers.size(), buffers);
 
       // buffer ownership transferred to the stream. Decrements refcount when done.
       DrainableByteBufInputStream inputStream = new DrainableByteBufInputStream(compositeByteBuf);
@@ -117,7 +116,7 @@ public class JobResultsRequestWrapperMarshaller implements MethodDescriptor.Mars
   public JobResultsRequestWrapper parse(InputStream stream) {
     logger.debug("requestWrapper parse called.");
     UserBitShared.QueryData header = null;
-    long sequenceId = -1 ;
+    long sequenceId = -1;
     ByteBuf[] byteBuffers = null;
     CoordinationProtos.NodeEndpoint foreman = null;
 
@@ -140,7 +139,7 @@ public class JobResultsRequestWrapperMarshaller implements MethodDescriptor.Mars
             length = readRawVarint32(stream);
             directBuf = allocator.buffer(length);
             StreamToByteBufReader.readIntoBuffer(stream, directBuf, length);
-            byteBuffers = new ByteBuf[] { NettyArrowBuf.unwrapBuffer(directBuf) };
+            byteBuffers = new ByteBuf[] {NettyArrowBuf.unwrapBuffer(directBuf)};
             logger.debug("Parsed data successfully, data size:{}", length);
             break;
           case FOREMAN_TAG:
@@ -163,10 +162,10 @@ public class JobResultsRequestWrapperMarshaller implements MethodDescriptor.Mars
     if (firstByte == -1) {
       // copied from InvalidProtocolBufferException.truncatedMessage
       throw new InvalidProtocolBufferException(
-        "While parsing a protocol message, the input ended unexpectedly "
-          + "in the middle of a field.  This could mean either that the "
-          + "input has been truncated or that an embedded message "
-          + "misreported its own length.");
+          "While parsing a protocol message, the input ended unexpectedly "
+              + "in the middle of a field.  This could mean either that the "
+              + "input has been truncated or that an embedded message "
+              + "misreported its own length.");
     }
     return CodedInputStream.readRawVarint32(firstByte, is);
   }
@@ -176,7 +175,7 @@ public class JobResultsRequestWrapperMarshaller implements MethodDescriptor.Mars
   private static long readRawVarint64(InputStream is) throws IOException {
     long result = 0;
     for (int shift = 0; shift < 64; shift += 7) {
-      final byte b = (byte)is.read();
+      final byte b = (byte) is.read();
       result |= (long) (b & 0x7F) << shift;
       if ((b & 0x80) == 0) {
         return result;
@@ -188,7 +187,7 @@ public class JobResultsRequestWrapperMarshaller implements MethodDescriptor.Mars
   @Override
   public void close() throws IOException {
     if (!inputStreams.isEmpty()) {
-      for (DrainableByteBufInputStream inputStream: inputStreams) {
+      for (DrainableByteBufInputStream inputStream : inputStreams) {
         inputStream.close();
       }
     }

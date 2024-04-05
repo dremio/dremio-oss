@@ -16,9 +16,7 @@
 
 package com.dremio.service.script;
 
-/**
- * ScriptDuplicateNameFound class
- */
+/** ScriptDuplicateNameFound class */
 public class DuplicateScriptNameException extends Exception {
   public DuplicateScriptNameException(String name) {
     super("Cannot reuse the same script name within a project. Please try another script name.");

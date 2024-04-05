@@ -18,15 +18,6 @@ package com.dremio.dac.explore.model;
 import static com.dremio.common.util.MajorTypeHelper.getMinorTypeFromArrowMinorType;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import java.io.IOException;
-import java.math.BigDecimal;
-import java.util.Map;
-
-import org.apache.arrow.vector.complex.impl.UnionMapReader;
-import org.apache.arrow.vector.complex.reader.FieldReader;
-import org.apache.arrow.vector.util.Text;
-import org.joda.time.format.DateTimeFormatter;
-
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.util.Closeable;
 import com.dremio.common.util.DateTimes;
@@ -38,29 +29,41 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.DatabindContext;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.collect.ImmutableMap;
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.util.Map;
+import org.apache.arrow.vector.complex.impl.UnionMapReader;
+import org.apache.arrow.vector.complex.reader.FieldReader;
+import org.apache.arrow.vector.util.Text;
+import org.joda.time.format.DateTimeFormatter;
 
 /**
- * Utility class to read values from {@link FieldReader}s and write in JSON format. Besides converting to JSON, it also
+ * Utility class to read values from {@link FieldReader}s and write in JSON format. Besides
+ * converting to JSON, it also
+ *
  * <ul>
- *   <li>updates the approximate space the JSON format value took in {@link JsonOutputContext}</li>
- *   <li>truncates the original value to accommodate in available space according to {@link JsonOutputContext}</li>
+ *   <li>updates the approximate space the JSON format value took in {@link JsonOutputContext}
+ *   <li>truncates the original value to accommodate in available space according to {@link
+ *       JsonOutputContext}
  * </ul>
  */
 public class DataJsonOutput {
-  public static final DateTimeFormatter FORMAT_DATE = DateFunctionsUtils.getSQLFormatterForFormatString("YYYY-MM-DD").withZoneUTC();
-  public static final DateTimeFormatter FORMAT_TIMESTAMP = DateFunctionsUtils.getSQLFormatterForFormatString("YYYY-MM-DD HH24:MI:SS.FFF").withZoneUTC();
-  public static final DateTimeFormatter FORMAT_TIME = DateFunctionsUtils.getSQLFormatterForFormatString("HH24:MI:SS.FFF").withZoneUTC();
-  public static final String DREMIO_JOB_DATA_NUMBERS_AS_STRINGS_ATTRIBUTE = "DREMIO_JOB_DATA_NUMBERS_AS_STRINGS";
+  public static final DateTimeFormatter FORMAT_DATE =
+      DateFunctionsUtils.getSQLFormatterForFormatString("YYYY-MM-DD").withZoneUTC();
+  public static final DateTimeFormatter FORMAT_TIMESTAMP =
+      DateFunctionsUtils.getSQLFormatterForFormatString("YYYY-MM-DD HH24:MI:SS.FFF").withZoneUTC();
+  public static final DateTimeFormatter FORMAT_TIME =
+      DateFunctionsUtils.getSQLFormatterForFormatString("HH24:MI:SS.FFF").withZoneUTC();
+  public static final String DREMIO_JOB_DATA_NUMBERS_AS_STRINGS_ATTRIBUTE =
+      "DREMIO_JOB_DATA_NUMBERS_AS_STRINGS";
 
   /**
-   * Lets go with a constant length value for primitive types. Finding the exact length for primitive types
-   * (ex. decimal) for every cell is an expensive operation.
+   * Lets go with a constant length value for primitive types. Finding the exact length for
+   * primitive types (ex. decimal) for every cell is an expensive operation.
    */
   private static final int PRIMITIVE_FIXED_LENGTH = 8;
 
-  /**
-   * Null value length.
-   */
+  /** Null value length. */
   private static final int NULL_VALUE_LENGTH = 4;
 
   private boolean convertNumbersToStringsEnabled;
@@ -69,7 +72,8 @@ public class DataJsonOutput {
     private boolean resetOnClose;
 
     private NumberAsStringDisabler() {
-      // if the feature was already disabled. we should not enable it, as there is some parent call that should handle this
+      // if the feature was already disabled. we should not enable it, as there is some parent call
+      // that should handle this
       resetOnClose = convertNumbersToStringsEnabled;
       convertNumbersToStringsEnabled = false;
     }
@@ -83,167 +87,228 @@ public class DataJsonOutput {
   }
 
   /**
-   * Interface that implements writing a specific type value in UnionVector. Instead of having a switch on current value
-   * type, create objects which can be found in hash map {@link #UNION_FIELD_WRITERS} and executed to write the
-   * current value.
+   * Interface that implements writing a specific type value in UnionVector. Instead of having a
+   * switch on current value type, create objects which can be found in hash map {@link
+   * #UNION_FIELD_WRITERS} and executed to write the current value.
    */
   private interface UnionFieldWriter {
-    void write(DataJsonOutput output, FieldReader reader, JsonOutputContext context) throws IOException;
+    void write(DataJsonOutput output, FieldReader reader, JsonOutputContext context)
+        throws IOException;
   }
 
   public static final ObjectWriter setNumbersAsStrings(ObjectWriter writer, boolean isEnabled) {
-    return writer.withAttribute(DataJsonOutput.DREMIO_JOB_DATA_NUMBERS_AS_STRINGS_ATTRIBUTE, isEnabled);
+    return writer.withAttribute(
+        DataJsonOutput.DREMIO_JOB_DATA_NUMBERS_AS_STRINGS_ATTRIBUTE, isEnabled);
   }
 
   public static final boolean isNumberAsString(DatabindContext context) {
     Object attr = context.getAttribute(DataJsonOutput.DREMIO_JOB_DATA_NUMBERS_AS_STRINGS_ATTRIBUTE);
-    return attr instanceof Boolean && ((Boolean)attr).booleanValue();
+    return attr instanceof Boolean && ((Boolean) attr).booleanValue();
   }
 
   private static final Map<MinorType, UnionFieldWriter> UNION_FIELD_WRITERS =
       ImmutableMap.<MinorType, UnionFieldWriter>builder()
-          .put(MinorType.FLOAT4, new UnionFieldWriter() {
-            @Override
-            public void write(DataJsonOutput output, FieldReader reader, JsonOutputContext context)
-                throws IOException {
-              output.writeFloat(reader, context);
-            }
-          })
-          .put(MinorType.FLOAT8, new UnionFieldWriter() {
-            @Override
-            public void write(DataJsonOutput output, FieldReader reader, JsonOutputContext context)
-                throws IOException {
-              output.writeDouble(reader, context);
-            }
-          })
-          .put(MinorType.INT, new UnionFieldWriter() {
-            @Override
-            public void write(DataJsonOutput output, FieldReader reader, JsonOutputContext context)
-                throws IOException {
-              output.writeInt(reader, context);
-            }
-          })
-          .put(MinorType.SMALLINT, new UnionFieldWriter() {
-            @Override
-            public void write(DataJsonOutput output, FieldReader reader, JsonOutputContext context)
-                throws IOException {
-              output.writeSmallInt(reader, context);
-            }
-          })
-          .put(MinorType.TINYINT, new UnionFieldWriter() {
-            @Override
-            public void write(DataJsonOutput output, FieldReader reader, JsonOutputContext context)
-                throws IOException {
-              output.writeTinyInt(reader, context);
-            }
-          })
-          .put(MinorType.BIGINT, new UnionFieldWriter() {
-            @Override
-            public void write(DataJsonOutput output, FieldReader reader, JsonOutputContext context)
-                throws IOException {
-              output.writeBigInt(reader, context);
-            }
-          })
-          .put(MinorType.BIT, new UnionFieldWriter() {
-            @Override
-            public void write(DataJsonOutput output, FieldReader reader, JsonOutputContext context)
-                throws IOException {
-              output.writeBit(reader, context);
-            }
-          })
-          .put(MinorType.DATE, new UnionFieldWriter() {
-            @Override
-            public void write(DataJsonOutput output, FieldReader reader, JsonOutputContext context)
-                throws IOException {
-              output.writeDate(reader, context);
-            }
-          })
-          .put(MinorType.TIME, new UnionFieldWriter() {
-            @Override
-            public void write(DataJsonOutput output, FieldReader reader, JsonOutputContext context)
-                throws IOException {
-              output.writeTime(reader, context);
-            }
-          })
-          .put(MinorType.TIMESTAMP, new UnionFieldWriter() {
-            @Override
-            public void write(DataJsonOutput output, FieldReader reader, JsonOutputContext context)
-                throws IOException {
-              output.writeTimeStampMilli(reader, context);
-            }
-          })
-          .put(MinorType.INTERVALDAY, new UnionFieldWriter() {
-            @Override
-            public void write(DataJsonOutput output, FieldReader reader, JsonOutputContext context)
-                throws IOException {
-              output.writeIntervalDay(reader, context);
-            }
-          })
-          .put(MinorType.INTERVALYEAR, new UnionFieldWriter() {
-            @Override
-            public void write(DataJsonOutput output, FieldReader reader, JsonOutputContext context)
-                throws IOException {
-              output.writeIntervalYear(reader, context);
-            }
-          })
-          .put(MinorType.DECIMAL, new UnionFieldWriter() {
-            @Override
-            public void write(DataJsonOutput output, FieldReader reader, JsonOutputContext context)
-                throws IOException {
-              output.writeDecimal(reader, context);
-            }
-          })
-          .put(MinorType.LIST, new UnionFieldWriter() {
-            @Override
-            public void write(DataJsonOutput output, FieldReader reader, JsonOutputContext context)
-                throws IOException {
-              output.writeList(reader, context);
-            }
-          })
-          .put(MinorType.STRUCT, new UnionFieldWriter() {
-            @Override
-            public void write(DataJsonOutput output, FieldReader reader, JsonOutputContext context)
-                throws IOException {
-              output.writeStruct(reader, context);
-            }
-          })
-          .put(MinorType.MAP, new UnionFieldWriter() {
-            @Override
-            public void write(DataJsonOutput output, FieldReader reader, JsonOutputContext context)
-                throws IOException {
-              output.writeMap(reader, context);
-            }
-          })
-          .put(MinorType.NULL, new UnionFieldWriter() {
-            @Override
-            public void write(DataJsonOutput output, FieldReader reader, JsonOutputContext context)
-                throws IOException {
-              output.writeNull(context);
-            }
-          })
-          .put(MinorType.VARCHAR, new UnionFieldWriter() {
-            @Override
-            public void write(DataJsonOutput output, FieldReader reader, JsonOutputContext context)
-                throws IOException {
-              output.writeVarChar(reader, context);
-            }
-          })
-          .put(MinorType.VAR16CHAR, new UnionFieldWriter() {
-            @Override
-            public void write(DataJsonOutput output, FieldReader reader, JsonOutputContext context)
-                throws IOException {
-              output.writeVar16Char(reader, context);
-            }
-          })
-          .put(MinorType.VARBINARY, new UnionFieldWriter() {
-            @Override
-            public void write(DataJsonOutput output, FieldReader reader, JsonOutputContext context)
-                throws IOException {
-              output.writeVarBinary(reader, context);
-            }
-          })
+          .put(
+              MinorType.FLOAT4,
+              new UnionFieldWriter() {
+                @Override
+                public void write(
+                    DataJsonOutput output, FieldReader reader, JsonOutputContext context)
+                    throws IOException {
+                  output.writeFloat(reader, context);
+                }
+              })
+          .put(
+              MinorType.FLOAT8,
+              new UnionFieldWriter() {
+                @Override
+                public void write(
+                    DataJsonOutput output, FieldReader reader, JsonOutputContext context)
+                    throws IOException {
+                  output.writeDouble(reader, context);
+                }
+              })
+          .put(
+              MinorType.INT,
+              new UnionFieldWriter() {
+                @Override
+                public void write(
+                    DataJsonOutput output, FieldReader reader, JsonOutputContext context)
+                    throws IOException {
+                  output.writeInt(reader, context);
+                }
+              })
+          .put(
+              MinorType.SMALLINT,
+              new UnionFieldWriter() {
+                @Override
+                public void write(
+                    DataJsonOutput output, FieldReader reader, JsonOutputContext context)
+                    throws IOException {
+                  output.writeSmallInt(reader, context);
+                }
+              })
+          .put(
+              MinorType.TINYINT,
+              new UnionFieldWriter() {
+                @Override
+                public void write(
+                    DataJsonOutput output, FieldReader reader, JsonOutputContext context)
+                    throws IOException {
+                  output.writeTinyInt(reader, context);
+                }
+              })
+          .put(
+              MinorType.BIGINT,
+              new UnionFieldWriter() {
+                @Override
+                public void write(
+                    DataJsonOutput output, FieldReader reader, JsonOutputContext context)
+                    throws IOException {
+                  output.writeBigInt(reader, context);
+                }
+              })
+          .put(
+              MinorType.BIT,
+              new UnionFieldWriter() {
+                @Override
+                public void write(
+                    DataJsonOutput output, FieldReader reader, JsonOutputContext context)
+                    throws IOException {
+                  output.writeBit(reader, context);
+                }
+              })
+          .put(
+              MinorType.DATE,
+              new UnionFieldWriter() {
+                @Override
+                public void write(
+                    DataJsonOutput output, FieldReader reader, JsonOutputContext context)
+                    throws IOException {
+                  output.writeDate(reader, context);
+                }
+              })
+          .put(
+              MinorType.TIME,
+              new UnionFieldWriter() {
+                @Override
+                public void write(
+                    DataJsonOutput output, FieldReader reader, JsonOutputContext context)
+                    throws IOException {
+                  output.writeTime(reader, context);
+                }
+              })
+          .put(
+              MinorType.TIMESTAMP,
+              new UnionFieldWriter() {
+                @Override
+                public void write(
+                    DataJsonOutput output, FieldReader reader, JsonOutputContext context)
+                    throws IOException {
+                  output.writeTimeStampMilli(reader, context);
+                }
+              })
+          .put(
+              MinorType.INTERVALDAY,
+              new UnionFieldWriter() {
+                @Override
+                public void write(
+                    DataJsonOutput output, FieldReader reader, JsonOutputContext context)
+                    throws IOException {
+                  output.writeIntervalDay(reader, context);
+                }
+              })
+          .put(
+              MinorType.INTERVALYEAR,
+              new UnionFieldWriter() {
+                @Override
+                public void write(
+                    DataJsonOutput output, FieldReader reader, JsonOutputContext context)
+                    throws IOException {
+                  output.writeIntervalYear(reader, context);
+                }
+              })
+          .put(
+              MinorType.DECIMAL,
+              new UnionFieldWriter() {
+                @Override
+                public void write(
+                    DataJsonOutput output, FieldReader reader, JsonOutputContext context)
+                    throws IOException {
+                  output.writeDecimal(reader, context);
+                }
+              })
+          .put(
+              MinorType.LIST,
+              new UnionFieldWriter() {
+                @Override
+                public void write(
+                    DataJsonOutput output, FieldReader reader, JsonOutputContext context)
+                    throws IOException {
+                  output.writeList(reader, context);
+                }
+              })
+          .put(
+              MinorType.STRUCT,
+              new UnionFieldWriter() {
+                @Override
+                public void write(
+                    DataJsonOutput output, FieldReader reader, JsonOutputContext context)
+                    throws IOException {
+                  output.writeStruct(reader, context);
+                }
+              })
+          .put(
+              MinorType.MAP,
+              new UnionFieldWriter() {
+                @Override
+                public void write(
+                    DataJsonOutput output, FieldReader reader, JsonOutputContext context)
+                    throws IOException {
+                  output.writeMap(reader, context);
+                }
+              })
+          .put(
+              MinorType.NULL,
+              new UnionFieldWriter() {
+                @Override
+                public void write(
+                    DataJsonOutput output, FieldReader reader, JsonOutputContext context)
+                    throws IOException {
+                  output.writeNull(context);
+                }
+              })
+          .put(
+              MinorType.VARCHAR,
+              new UnionFieldWriter() {
+                @Override
+                public void write(
+                    DataJsonOutput output, FieldReader reader, JsonOutputContext context)
+                    throws IOException {
+                  output.writeVarChar(reader, context);
+                }
+              })
+          .put(
+              MinorType.VAR16CHAR,
+              new UnionFieldWriter() {
+                @Override
+                public void write(
+                    DataJsonOutput output, FieldReader reader, JsonOutputContext context)
+                    throws IOException {
+                  output.writeVar16Char(reader, context);
+                }
+              })
+          .put(
+              MinorType.VARBINARY,
+              new UnionFieldWriter() {
+                @Override
+                public void write(
+                    DataJsonOutput output, FieldReader reader, JsonOutputContext context)
+                    throws IOException {
+                  output.writeVarBinary(reader, context);
+                }
+              })
           .build();
-
 
   private final JsonGenerator gen;
 
@@ -380,7 +445,8 @@ public class DataJsonOutput {
 
   public void writeVarChar(FieldReader reader, JsonOutputContext context) throws IOException {
     if (reader.isSet()) {
-      // NB: For UnionReader(s), reader.isSet() checks if the reader has a type set, not if the data itself is null
+      // NB: For UnionReader(s), reader.isSet() checks if the reader has a type set, not if the data
+      // itself is null
       final Text text = reader.readText();
       if (text != null) {
         String value = text.toString();
@@ -433,8 +499,8 @@ public class DataJsonOutput {
 
   public void writeDate(FieldReader reader, JsonOutputContext context) throws IOException {
     if (reader.isSet()) {
-      gen.writeString(FORMAT_DATE.print(DateTimes.toMillis(
-        JodaDateUtility.readLocalDateTime(reader))));
+      gen.writeString(
+          FORMAT_DATE.print(DateTimes.toMillis(JodaDateUtility.readLocalDateTime(reader))));
       context.used(PRIMITIVE_FIXED_LENGTH);
     } else {
       writeNull(context);
@@ -447,18 +513,19 @@ public class DataJsonOutput {
 
   public void writeTime(FieldReader reader, JsonOutputContext context) throws IOException {
     if (reader.isSet()) {
-      gen.writeString(FORMAT_TIME.print(DateTimes.toMillis(
-        JodaDateUtility.readLocalDateTime(reader))));
+      gen.writeString(
+          FORMAT_TIME.print(DateTimes.toMillis(JodaDateUtility.readLocalDateTime(reader))));
       context.used(PRIMITIVE_FIXED_LENGTH);
     } else {
       writeNull(context);
     }
   }
 
-  public void writeTimeStampMilli(FieldReader reader, JsonOutputContext context) throws IOException {
+  public void writeTimeStampMilli(FieldReader reader, JsonOutputContext context)
+      throws IOException {
     if (reader.isSet()) {
-      gen.writeString(FORMAT_TIMESTAMP.print(DateTimes.toMillis(
-        JodaDateUtility.readLocalDateTime(reader))));
+      gen.writeString(
+          FORMAT_TIMESTAMP.print(DateTimes.toMillis(JodaDateUtility.readLocalDateTime(reader))));
       context.used(PRIMITIVE_FIXED_LENGTH);
     } else {
       writeNull(context);
@@ -467,8 +534,8 @@ public class DataJsonOutput {
 
   public void writeIntervalYear(FieldReader reader, JsonOutputContext context) throws IOException {
     if (reader.isSet()) {
-      gen.writeString(DremioStringUtils.formatIntervalYear(
-        JodaDateUtility.readPeriodInYears(reader)));
+      gen.writeString(
+          DremioStringUtils.formatIntervalYear(JodaDateUtility.readPeriodInYears(reader)));
       context.used(PRIMITIVE_FIXED_LENGTH);
     } else {
       writeNull(context);
@@ -477,8 +544,8 @@ public class DataJsonOutput {
 
   public void writeIntervalDay(FieldReader reader, JsonOutputContext context) throws IOException {
     if (reader.isSet()) {
-      gen.writeString(DremioStringUtils
-        .formatIntervalDay(JodaDateUtility.readPeriodInDays(reader)));
+      gen.writeString(
+          DremioStringUtils.formatIntervalDay(JodaDateUtility.readPeriodInDays(reader)));
       context.used(PRIMITIVE_FIXED_LENGTH);
     } else {
       writeNull(context);
@@ -491,7 +558,9 @@ public class DataJsonOutput {
   }
 
   public void writeUnion(FieldReader reader, JsonOutputContext context) throws IOException {
-    UNION_FIELD_WRITERS.get(getMinorTypeFromArrowMinorType(reader.getMinorType())).write(this, reader, context);
+    UNION_FIELD_WRITERS
+        .get(getMinorTypeFromArrowMinorType(reader.getMinorType()))
+        .write(this, reader, context);
   }
 
   public void writeStruct(FieldReader reader, JsonOutputContext context) throws IOException {
@@ -535,7 +604,7 @@ public class DataJsonOutput {
   }
 
   public void writeMap(FieldReader reader, JsonOutputContext context) throws IOException {
-    try (final NumberAsStringDisabler disabler = new NumberAsStringDisabler() ) {
+    try (final NumberAsStringDisabler disabler = new NumberAsStringDisabler()) {
       if (reader.isSet()) {
         writeStartObject();
         UnionMapReader mapReader = (UnionMapReader) reader;

@@ -15,8 +15,8 @@
  */
 package com.dremio.exec.planner.logical;
 
+import com.dremio.exec.planner.logical.FlattenVisitors.FlattenCounter;
 import java.util.List;
-
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptUtil;
@@ -30,19 +30,18 @@ import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.tools.RelBuilderFactory;
 import org.apache.calcite.util.Permutation;
 
-import com.dremio.exec.planner.logical.FlattenVisitors.FlattenCounter;
-
 public class MergeProjectRule extends RelOptRule {
 
-  public static final MergeProjectRule CALCITE_INSTANCE = new MergeProjectRule(LogicalProject.class, RelFactories.LOGICAL_BUILDER, "ProjectMergeRuleCrel");
-  public static final MergeProjectRule LOGICAL_INSTANCE = new MergeProjectRule(ProjectRel.class, DremioRelFactories.LOGICAL_BUILDER, "ProjectMergeRuleDrel");
+  public static final MergeProjectRule CALCITE_INSTANCE =
+      new MergeProjectRule(
+          LogicalProject.class, RelFactories.LOGICAL_BUILDER, "ProjectMergeRuleCrel");
+  public static final MergeProjectRule LOGICAL_INSTANCE =
+      new MergeProjectRule(
+          ProjectRel.class, DremioRelFactories.LOGICAL_BUILDER, "ProjectMergeRuleDrel");
 
-  private MergeProjectRule(Class<? extends Project> class1, RelBuilderFactory relBuilderFactory, String name) {
-    super(
-        operand(class1,
-            operand(class1, any())),
-        relBuilderFactory,
-        name);
+  private MergeProjectRule(
+      Class<? extends Project> class1, RelBuilderFactory relBuilderFactory, String name) {
+    super(operand(class1, operand(class1, any())), relBuilderFactory, name);
   }
 
   @Override
@@ -83,7 +82,7 @@ public class MergeProjectRule extends RelOptRule {
         List<RexNode> exprs = relBuilder.fields(product);
         relBuilder.project(exprs, topProject.getRowType().getFieldNames());
 
-        if(FlattenVisitors.count(exprs) == uniqueFlattens){
+        if (FlattenVisitors.count(exprs) == uniqueFlattens) {
           call.transformTo(relBuilder.build());
         }
         return;
@@ -101,7 +100,7 @@ public class MergeProjectRule extends RelOptRule {
     // replace the two projects with a combined projection
     relBuilder.push(bottomProject.getInput());
     relBuilder.project(newProjects, topProject.getRowType().getFieldNames());
-    if(FlattenVisitors.count(newProjects) == uniqueFlattens){
+    if (FlattenVisitors.count(newProjects) == uniqueFlattens) {
       call.transformTo(relBuilder.build());
     }
   }

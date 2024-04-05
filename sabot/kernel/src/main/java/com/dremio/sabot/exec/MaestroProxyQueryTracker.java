@@ -15,20 +15,6 @@
  */
 package com.dremio.sabot.exec;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Consumer;
-
-import javax.inject.Provider;
-
 import com.dremio.common.nodes.EndpointHelper;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.proto.CoordExecRPC.ExecutorQueryProfile;
@@ -55,15 +41,24 @@ import com.dremio.service.maestroservice.MaestroClient;
 import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.Empty;
-
 import io.grpc.stub.StreamObserver;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
+import javax.inject.Provider;
 
-/**
- * Tracker for one query in the local Proxy for the maestro service.
- */
+/** Tracker for one query in the local Proxy for the maestro service. */
 class MaestroProxyQueryTracker implements QueryTracker {
   private static final org.slf4j.Logger logger =
-    org.slf4j.LoggerFactory.getLogger(MaestroProxyQueryTracker.class);
+      org.slf4j.LoggerFactory.getLogger(MaestroProxyQueryTracker.class);
   private static final int INITIAL_BACKOFF_MILLIS = 5;
   private static final int MAX_BACKOFF_MILLIS = 60_000;
 
@@ -74,7 +69,8 @@ class MaestroProxyQueryTracker implements QueryTracker {
   private final ClusterCoordinator clusterCoordinator;
   private final Map<FragmentHandle, FragmentStatus> lastFragmentStatuses = new HashMap<>();
   private final ForemanDeathListener foremanDeathListener = new ForemanDeathListener();
-  private final FileCursorManagerFactory fileCursorManagerFactory = new FileCursorManagerFactoryImpl();
+  private final FileCursorManagerFactory fileCursorManagerFactory =
+      new FileCursorManagerFactoryImpl();
 
   private State state = State.INVALID;
   private boolean cancelled;
@@ -94,14 +90,15 @@ class MaestroProxyQueryTracker implements QueryTracker {
   private boolean notifyFileCursorManagerDone;
 
   /**
-   * Initialize with the set of fragment handles for the query before
-   * starting the query.
+   * Initialize with the set of fragment handles for the query before starting the query.
+   *
    * @param pendingFragments
    */
   @Override
   public void initFragmentsForQuery(Set<FragmentHandle> pendingFragments) {
-    Preconditions.checkState(pendingFragments != null && pendingFragments.size() > 0, "Pending " +
-      "fragments should be non empty.");
+    Preconditions.checkState(
+        pendingFragments != null && pendingFragments.size() > 0,
+        "Pending " + "fragments should be non empty.");
     this.pendingFragments = pendingFragments;
     this.notStartedFragments = new HashSet<>(pendingFragments);
   }
@@ -112,10 +109,12 @@ class MaestroProxyQueryTracker implements QueryTracker {
     DONE
   }
 
-  MaestroProxyQueryTracker(QueryId queryId, Provider<NodeEndpoint> selfEndpoint,
-                           long evictionDelayMillis,
-                           ScheduledThreadPoolExecutor retryExecutor,
-                           ClusterCoordinator clusterCoordinator) {
+  MaestroProxyQueryTracker(
+      QueryId queryId,
+      Provider<NodeEndpoint> selfEndpoint,
+      long evictionDelayMillis,
+      ScheduledThreadPoolExecutor retryExecutor,
+      ClusterCoordinator clusterCoordinator) {
     this.queryId = queryId;
     this.selfEndpoint = selfEndpoint;
     this.evictionDelayMillis = evictionDelayMillis;
@@ -132,10 +131,11 @@ class MaestroProxyQueryTracker implements QueryTracker {
    * @return true if query can be started.
    */
   @Override
-  public synchronized boolean tryStart(QueryTicket queryTicket,
-                                       NodeEndpoint foreman,
-                                       MaestroClient maestroServiceClient,
-                                       JobTelemetryExecutorClient jobTelemetryClient) {
+  public synchronized boolean tryStart(
+      QueryTicket queryTicket,
+      NodeEndpoint foreman,
+      MaestroClient maestroServiceClient,
+      JobTelemetryExecutorClient jobTelemetryClient) {
     if (state != State.INVALID) {
       // query already started, probably a duplicate request.
       return false;
@@ -180,15 +180,15 @@ class MaestroProxyQueryTracker implements QueryTracker {
 
   @Override
   public boolean isExpired() {
-    return (state == State.INVALID || state == State.DONE) &&
-      pendingMessages.get() == 0 &&
-      System.currentTimeMillis() > expirationTime;
+    return (state == State.INVALID || state == State.DONE)
+        && pendingMessages.get() == 0
+        && System.currentTimeMillis() > expirationTime;
   }
 
   private static boolean isTerminal(FragmentState state) {
     return state == FragmentState.FAILED
-      || state == FragmentState.FINISHED
-      || state == FragmentState.CANCELLED;
+        || state == FragmentState.FINISHED
+        || state == FragmentState.CANCELLED;
   }
 
   private static boolean isRunningOrTerminal(FragmentState state) {
@@ -228,13 +228,14 @@ class MaestroProxyQueryTracker implements QueryTracker {
     Preconditions.checkState(queryTicket != null);
 
     List<FragmentStatus> fragmentStatuses = new ArrayList<>(lastFragmentStatuses.values());
-    profile = ExecutorQueryProfile.newBuilder()
-      .setQueryId(queryId)
-      .setEndpoint(EndpointHelper.getMinimalEndpoint(selfEndpoint.get()))
-      .setProgress(buildProgressMetrics(fragmentStatuses))
-      .setNodeStatus(queryTicket.getStatus())
-      .addAllFragments(fragmentStatuses)
-      .build();
+    profile =
+        ExecutorQueryProfile.newBuilder()
+            .setQueryId(queryId)
+            .setEndpoint(EndpointHelper.getMinimalEndpoint(selfEndpoint.get()))
+            .setProgress(buildProgressMetrics(fragmentStatuses))
+            .setNodeStatus(queryTicket.getStatus())
+            .addAllFragments(fragmentStatuses)
+            .build();
     return profile;
   }
 
@@ -254,13 +255,14 @@ class MaestroProxyQueryTracker implements QueryTracker {
         }
       }
     }
-    // derived from QueryProfileParser.java, all operators which produce output to client except SCREEN,
+    // derived from QueryProfileParser.java, all operators which produce output to client except
+    // SCREEN,
     // first check ctas writers, if not present then arrow writer.
     long outputRecords = (ctasRecordCount > 0) ? ctasRecordCount : arrowRecordCount;
     return QueryProgressMetrics.newBuilder()
-      .setRowsProcessed(recordCount)
-      .setOutputRecords(outputRecords)
-      .build();
+        .setRowsProcessed(recordCount)
+        .setOutputRecords(outputRecords)
+        .build();
   }
 
   private static boolean isCtasOperator(CoreOperatorType type) {
@@ -280,10 +282,11 @@ class MaestroProxyQueryTracker implements QueryTracker {
   }
 
   /**
-   * Error from any one of the the MinorFragmentProfile is sufficient to end the query and return the
-   * error to the callers. So, once an error from a profile is captured in firstErrorInQuery, errors from other
-   * profiles can be cleared. Clearing the errors from profiles helps not consuming heap memory when the
-   * error messages are too long especially when the error messages are due to insufficient heap memory.
+   * Error from any one of the the MinorFragmentProfile is sufficient to end the query and return
+   * the error to the callers. So, once an error from a profile is captured in firstErrorInQuery,
+   * errors from other profiles can be cleared. Clearing the errors from profiles helps not
+   * consuming heap memory when the error messages are too long especially when the error messages
+   * are due to insufficient heap memory.
    */
   private FragmentStatus clearProfileError(FragmentStatus fragmentStatus) {
     FragmentStatus newFragmentStatus = fragmentStatus;
@@ -321,8 +324,9 @@ class MaestroProxyQueryTracker implements QueryTracker {
   @SuppressWarnings("DremioGRPCStreamObserverOnError")
   @Override
   public void fragmentStatusChanged(FragmentStatus fragmentStatus) {
-    Preconditions.checkState(pendingFragments != null, "Pending fragments should have been " +
-      "registered before starting the query.");
+    Preconditions.checkState(
+        pendingFragments != null,
+        "Pending fragments should have been " + "registered before starting the query.");
 
     final FragmentHandle handle = fragmentStatus.getHandle();
     final MinorFragmentProfile profile = fragmentStatus.getProfile();
@@ -338,12 +342,13 @@ class MaestroProxyQueryTracker implements QueryTracker {
             errorFragmentHandle = fragmentStatus.getHandle();
 
             // propagate the first error.
-            firstError = NodeQueryFirstError.newBuilder()
-              .setHandle(handle)
-              .setEndpoint(EndpointHelper.getMinimalEndpoint(selfEndpoint.get()))
-              .setForeman(foreman)
-              .setError(firstErrorInQuery)
-              .build();
+            firstError =
+                NodeQueryFirstError.newBuilder()
+                    .setHandle(handle)
+                    .setEndpoint(EndpointHelper.getMinimalEndpoint(selfEndpoint.get()))
+                    .setForeman(foreman)
+                    .setError(firstErrorInQuery)
+                    .build();
           }
           // fall-through
 
@@ -354,11 +359,12 @@ class MaestroProxyQueryTracker implements QueryTracker {
           pendingFragments.remove(fragmentStatus.getHandle());
           if (handle.getMajorFragmentId() == 0 && profile.getState() == FragmentState.FINISHED) {
             // operator with screen finished.
-            screenCompletion = NodeQueryScreenCompletion.newBuilder()
-              .setId(handle.getQueryId())
-              .setEndpoint(EndpointHelper.getMinimalEndpoint(selfEndpoint.get()))
-              .setForeman(foreman)
-              .build();
+            screenCompletion =
+                NodeQueryScreenCompletion.newBuilder()
+                    .setId(handle.getQueryId())
+                    .setEndpoint(EndpointHelper.getMinimalEndpoint(selfEndpoint.get()))
+                    .setForeman(foreman)
+                    .build();
           }
           checkIfResultsSent(fragmentStatus);
           checkIfAllFragmentDone();
@@ -372,29 +378,33 @@ class MaestroProxyQueryTracker implements QueryTracker {
     if (screenCompletion != null) {
       final NodeQueryScreenCompletion completion = screenCompletion;
       Consumer<StreamObserver<Empty>> consumer =
-        observer -> {
-          try {
-            logger.debug("sending screen completion to foreman {}:{}",
-              foreman.getAddress(), foreman.getFabricPort());
-            maestroServiceClient.screenComplete(completion, observer);
-          } catch (Exception e) {
-            observer.onError(e);
-          }
-        };
+          observer -> {
+            try {
+              logger.debug(
+                  "sending screen completion to foreman {}:{}",
+                  foreman.getAddress(),
+                  foreman.getFabricPort());
+              maestroServiceClient.screenComplete(completion, observer);
+            } catch (Exception e) {
+              observer.onError(e);
+            }
+          };
       consumer.accept(new RetryingObserver(consumer));
     }
     if (firstError != null) {
       final NodeQueryFirstError error = firstError;
       Consumer<StreamObserver<Empty>> consumer =
-        observer -> {
-          try {
-            logger.debug("sending fragment error to foreman {}:{}",
-              foreman.getAddress(), foreman.getFabricPort());
-            maestroServiceClient.nodeFirstError(error, observer);
-          } catch (Exception e) {
-            observer.onError(e);
-          }
-        };
+          observer -> {
+            try {
+              logger.debug(
+                  "sending fragment error to foreman {}:{}",
+                  foreman.getAddress(),
+                  foreman.getFabricPort());
+              maestroServiceClient.nodeFirstError(error, observer);
+            } catch (Exception e) {
+              observer.onError(e);
+            }
+          };
       consumer.accept(new RetryingObserver(consumer));
     }
   }
@@ -413,7 +423,6 @@ class MaestroProxyQueryTracker implements QueryTracker {
     ExecutorQueryProfile finalQueryProfile = getExecutorQueryProfile();
     sendNodeCompletion(finalQueryProfile);
   }
-
 
   public void sendNodeCompletion(ExecutorQueryProfile finalQueryProfile) {
     state = State.DONE;
@@ -443,15 +452,17 @@ class MaestroProxyQueryTracker implements QueryTracker {
     expirationTime = System.currentTimeMillis() + evictionDelayMillis;
     final NodeQueryCompletion completion = completionBuilder.build();
     Consumer<StreamObserver<Empty>> consumer =
-      observer -> {
-        try {
-          logger.debug("sending node completion message to foreman {}:{}",
-            foreman.getAddress(), foreman.getFabricPort());
-          maestroServiceClient.nodeQueryComplete(completion, observer);
-        } catch (Exception e) {
-          observer.onError(e);
-        }
-      };
+        observer -> {
+          try {
+            logger.debug(
+                "sending node completion message to foreman {}:{}",
+                foreman.getAddress(),
+                foreman.getFabricPort());
+            maestroServiceClient.nodeQueryComplete(completion, observer);
+          } catch (Exception e) {
+            observer.onError(e);
+          }
+        };
     consumer.accept(new RetryingObserver(consumer));
   }
 
@@ -474,10 +485,14 @@ class MaestroProxyQueryTracker implements QueryTracker {
 
   @Override
   public String toString() {
-    return "queryId " + QueryIdHelper.getQueryId(queryId) +
-      " state " + state +
-      " resultsSent " + resultsSent +
-      " pendingPhases " + (queryTicket == null ? 0 : queryTicket.getActivePhaseTickets().size());
+    return "queryId "
+        + QueryIdHelper.getQueryId(queryId)
+        + " state "
+        + state
+        + " resultsSent "
+        + resultsSent
+        + " pendingPhases "
+        + (queryTicket == null ? 0 : queryTicket.getActivePhaseTickets().size());
   }
 
   @Override
@@ -513,10 +528,13 @@ class MaestroProxyQueryTracker implements QueryTracker {
       } else {
         // retry with back-off
         backoffMillis = Integer.min(backoffMillis * 2, MAX_BACKOFF_MILLIS);
-        logger.warn("sending failure for query {} to maestro failed, will retry after " +
-          "backoff {} ms", QueryIdHelper.getQueryId(queryId), backoffMillis, throwable);
-        retryExecutor.schedule(() -> retryFunction.accept(this), backoffMillis,
-          TimeUnit.MILLISECONDS);
+        logger.warn(
+            "sending failure for query {} to maestro failed, will retry after " + "backoff {} ms",
+            QueryIdHelper.getQueryId(queryId),
+            backoffMillis,
+            throwable);
+        retryExecutor.schedule(
+            () -> retryFunction.accept(this), backoffMillis, TimeUnit.MILLISECONDS);
       }
     }
 
@@ -524,18 +542,22 @@ class MaestroProxyQueryTracker implements QueryTracker {
     public void onCompleted() {
       decrementPendingMessages();
     }
-
-  };
+  }
+  ;
 
   private synchronized void incrementPendingMessages() {
     if (pendingMessages.getAndIncrement() == 0) {
-      clusterCoordinator.getServiceSet(ClusterCoordinator.Role.COORDINATOR).addNodeStatusListener(foremanDeathListener);
+      clusterCoordinator
+          .getServiceSet(ClusterCoordinator.Role.COORDINATOR)
+          .addNodeStatusListener(foremanDeathListener);
     }
   }
 
   private synchronized void decrementPendingMessages() {
     if (pendingMessages.decrementAndGet() == 0) {
-      clusterCoordinator.getServiceSet(ClusterCoordinator.Role.COORDINATOR).removeNodeStatusListener(foremanDeathListener);
+      clusterCoordinator
+          .getServiceSet(ClusterCoordinator.Role.COORDINATOR)
+          .removeNodeStatusListener(foremanDeathListener);
     }
   }
 
@@ -547,8 +569,7 @@ class MaestroProxyQueryTracker implements QueryTracker {
   private class ForemanDeathListener implements NodeStatusListener {
 
     @Override
-    public void nodesRegistered(final Set<NodeEndpoint> registered) {
-    }
+    public void nodesRegistered(final Set<NodeEndpoint> registered) {}
 
     @Override
     public void nodesUnregistered(final Set<NodeEndpoint> unregistered) {
@@ -556,6 +577,5 @@ class MaestroProxyQueryTracker implements QueryTracker {
         foremanDead = true;
       }
     }
-
   }
 }

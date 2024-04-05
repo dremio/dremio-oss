@@ -17,12 +17,11 @@ package com.dremio.sabot.rpc.user;
 
 import com.dremio.exec.rpc.ResponseSender;
 import com.dremio.exec.rpc.RpcException;
-
 import io.netty.buffer.ByteBuf;
 
 /**
- * Relied on by UserRpcServer. Abstracts away how individual rpc types are handled.
- * Work may be performed synch or asynch.
+ * Relied on by UserRpcServer. Abstracts away how individual rpc types are handled. Work may be
+ * performed synch or asynch.
  */
 interface WorkIngestor {
 
@@ -36,6 +35,11 @@ interface WorkIngestor {
    * @param responseSender - Used to send results or failures back to client
    * @throws RpcException - If unable to parse pbody
    */
-  void feedWork(UserRPCServer.UserClientConnectionImpl connection, int rpcType, byte[] pBody, ByteBuf dBody,
-                ResponseSender responseSender) throws RpcException;
+  void feedWork(
+      UserRPCServer.UserClientConnectionImpl connection,
+      int rpcType,
+      byte[] pBody,
+      ByteBuf dBody,
+      ResponseSender responseSender)
+      throws RpcException;
 }

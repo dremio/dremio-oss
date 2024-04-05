@@ -37,7 +37,11 @@ public class WritePartition {
     this(partitionValues, offset, distributionOrdinal, null);
   }
 
-  public WritePartition(String[] partitionValues, Integer offset, Integer distributionOrdinal, IcebergPartitionData icebergPartitionData) {
+  public WritePartition(
+      String[] partitionValues,
+      Integer offset,
+      Integer distributionOrdinal,
+      IcebergPartitionData icebergPartitionData) {
     super();
     this.partitionValues = partitionValues;
     this.offset = offset;
@@ -45,30 +49,30 @@ public class WritePartition {
     this.icebergPartitionData = icebergPartitionData;
   }
 
-  public boolean isSinglePartition(){
-    return partitionValues== null;
+  public boolean isSinglePartition() {
+    return partitionValues == null;
   }
 
-  public Integer getBucketNumber(){
+  public Integer getBucketNumber() {
     return distributionOrdinal;
   }
 
-  public Path getQualifiedPath(String baseLocation, String name){
+  public Path getQualifiedPath(String baseLocation, String name) {
     return getQualifiedPath(Path.of(baseLocation), name);
   }
 
-  public Path getQualifiedPath(Path baseLocation, String name){
-    if(partitionValues== null){
+  public Path getQualifiedPath(Path baseLocation, String name) {
+    if (partitionValues == null) {
       return baseLocation.resolve(name);
     }
 
     Path path = baseLocation;
 
-    if(distributionOrdinal != null){
+    if (distributionOrdinal != null) {
       path = path.resolve(Integer.toString(distributionOrdinal));
     }
 
-    for(String partition : partitionValues){
+    for (String partition : partitionValues) {
       String partitionValuePath = format("%s_%s", offset, partition);
       path = path.resolve(partitionValuePath);
     }
@@ -81,7 +85,7 @@ public class WritePartition {
   }
 
   public String getPartitionValues() {
-    if(partitionValues== null){
+    if (partitionValues == null) {
       return null;
     }
     return String.join("_", partitionValues);

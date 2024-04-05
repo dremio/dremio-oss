@@ -15,9 +15,10 @@
  */
 package com.dremio.services.nessie.proxy;
 
+import com.fasterxml.jackson.annotation.JsonView;
 import javax.enterprise.context.RequestScoped;
 import javax.inject.Inject;
-
+import javax.ws.rs.Path;
 import org.projectnessie.api.v1.http.HttpDiffApi;
 import org.projectnessie.api.v1.params.DiffParams;
 import org.projectnessie.client.api.GetDiffBuilder;
@@ -26,25 +27,22 @@ import org.projectnessie.error.NessieNotFoundException;
 import org.projectnessie.model.DiffResponse;
 import org.projectnessie.model.ser.Views;
 
-import com.fasterxml.jackson.annotation.JsonView;
-
-/**
- * Nessie diff-API REST endpoint that forwards via gRPC.
- */
+/** Nessie diff-API REST endpoint that forwards via gRPC. */
 @RequestScoped
+@Path("api/v1/diffs")
 public class ProxyDiffResource implements HttpDiffApi {
 
   @SuppressWarnings("checkstyle:visibilityModifier")
   @Inject
   NessieApiV1 api;
 
-  public ProxyDiffResource() {
-  }
+  public ProxyDiffResource() {}
 
   @Override
   @JsonView(Views.V1.class)
   public DiffResponse getDiff(DiffParams params) throws NessieNotFoundException {
-    GetDiffBuilder diff = api.getDiff().fromRefName(params.getFromRef()).toRefName(params.getToRef());
+    GetDiffBuilder diff =
+        api.getDiff().fromRefName(params.getFromRef()).toRefName(params.getToRef());
     if (params.getFromHashOnRef() != null) {
       diff.fromHashOnRef(params.getFromHashOnRef());
     }

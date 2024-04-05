@@ -16,11 +16,6 @@
 
 package com.dremio.service.jobcounts.server;
 
-import javax.inject.Provider;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.datastore.api.KVStoreProvider;
 import com.dremio.exec.proto.CoordinationProtos;
@@ -29,13 +24,13 @@ import com.dremio.service.grpc.GrpcServerBuilderFactory;
 import com.dremio.service.jobcounts.JobCountsRpcUtils;
 import com.dremio.service.jobcounts.server.store.JobCountStore;
 import com.dremio.service.jobcounts.server.store.JobCountStoreImpl;
-
 import io.grpc.Server;
 import io.grpc.util.TransmitStatusRuntimeExceptionInterceptor;
+import javax.inject.Provider;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * Local job counts server, running on coordinator node.
- */
+/** Local job counts server, running on coordinator node. */
 public class LocalJobCountsServer implements Service {
   private static final Logger logger = LoggerFactory.getLogger(LocalJobCountsServer.class);
   private final GrpcServerBuilderFactory grpcFactory;
@@ -44,9 +39,10 @@ public class LocalJobCountsServer implements Service {
   private JobCountStore jobCountStore;
   private Server server;
 
-  public LocalJobCountsServer(GrpcServerBuilderFactory grpcServerBuilderFactory,
-                              Provider<KVStoreProvider> kvStoreProvider,
-                              Provider<CoordinationProtos.NodeEndpoint> selfEndpoint) {
+  public LocalJobCountsServer(
+      GrpcServerBuilderFactory grpcServerBuilderFactory,
+      Provider<KVStoreProvider> kvStoreProvider,
+      Provider<CoordinationProtos.NodeEndpoint> selfEndpoint) {
     this.grpcFactory = grpcServerBuilderFactory;
     this.kvStoreProvider = kvStoreProvider;
     this.selfEndpoint = selfEndpoint;
@@ -57,12 +53,12 @@ public class LocalJobCountsServer implements Service {
     jobCountStore = new JobCountStoreImpl(kvStoreProvider);
     jobCountStore.start();
 
-    server = JobCountsRpcUtils.newInProcessServerBuilder(grpcFactory,
-      selfEndpoint.get().getFabricPort())
-      .maxInboundMetadataSize(81920) // GrpcUtil.DEFAULT_MAX_HEADER_LIST_SIZE * 10
-      .intercept(TransmitStatusRuntimeExceptionInterceptor.instance())
-      .addService(new JobCountsServiceImpl(jobCountStore))
-      .build();
+    server =
+        JobCountsRpcUtils.newInProcessServerBuilder(grpcFactory, selfEndpoint.get().getFabricPort())
+            .maxInboundMetadataSize(81920) // GrpcUtil.DEFAULT_MAX_HEADER_LIST_SIZE * 10
+            .intercept(TransmitStatusRuntimeExceptionInterceptor.instance())
+            .addService(new JobCountsServiceImpl(jobCountStore))
+            .build();
 
     server.start();
     logger.info("LocalJobCountsServer is up");
@@ -70,13 +66,14 @@ public class LocalJobCountsServer implements Service {
 
   @Override
   public void close() throws Exception {
-    AutoCloseables.close(jobCountStore,
-      () -> {
-        if (server != null) {
-          server.shutdown();
-          server = null;
-        }
-    });
+    AutoCloseables.close(
+        jobCountStore,
+        () -> {
+          if (server != null) {
+            server.shutdown();
+            server = null;
+          }
+        });
     logger.info("LocalJobCountsServer stopped");
   }
 
@@ -87,11 +84,10 @@ public class LocalJobCountsServer implements Service {
     }
 
     @Override
-    public void start() throws Exception {
-    }
+    public void start() throws Exception {}
 
     @Override
-    public void close() throws Exception {
-    }
-  };
+    public void close() throws Exception {}
+  }
+  ;
 }

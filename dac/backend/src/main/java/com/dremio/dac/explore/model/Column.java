@@ -21,9 +21,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Objects;
 
-/**
- * A column descriptor for the data grid
- */
+/** A column descriptor for the data grid */
 public class Column {
   private final String name;
   private final DataType type;
@@ -69,9 +67,7 @@ public class Column {
 
     Column column = (Column) o;
 
-    return index == column.index &&
-        Objects.equal(name, column.name) &&
-        type == column.type;
+    return index == column.index && Objects.equal(name, column.name) && type == column.type;
   }
 
   @Override

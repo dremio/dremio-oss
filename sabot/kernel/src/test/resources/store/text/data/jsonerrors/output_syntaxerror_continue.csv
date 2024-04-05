@@ -1,0 +1,4 @@
+col1#col2#col3#col4#col5#col6#col7#D_R_E_M_I_O_C_O_P_Y_I_N_T_O_E_R_R_O_R
+true#1#123453#1.122#5667.4567#56.1234#abc#null
+false#2#123454#1.123#4568.1234432432423234#1.9#xyz#null
+null#null#null#null#null#null#null#{"queryId":"6357c02f-2000-474a-9136-2121c2d7ba54","queryUser":"testUser","tableName":"testTable","filePath":"file:/dremio/oss/sabot/kernel/target/test-classes/store/text/data/jsonerrors/syntaxerror.json","formatOptions":{"TRIM_SPACE":false,"DATE_FORMAT":null,"TIME_FORMAT":null,"EMPTY_AS_NULL":false,"TIMESTAMP_FORMAT":null,"NULL_IF":null,"RECORD_DELIMITER":null,"FIELD_DELIMITER":null,"QUOTE_CHAR":null,"ESCAPE_CHAR":null},"recordsLoadedCount":2,"recordsRejectedCount":1,"fileState":"PARTIALLY_LOADED"}

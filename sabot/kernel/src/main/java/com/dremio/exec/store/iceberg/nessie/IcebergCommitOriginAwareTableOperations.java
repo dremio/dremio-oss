@@ -15,14 +15,12 @@
  */
 package com.dremio.exec.store.iceberg.nessie;
 
-import javax.annotation.Nullable;
-
 import com.dremio.exec.store.iceberg.model.IcebergCommitOrigin;
+import javax.annotation.Nullable;
 
 public interface IcebergCommitOriginAwareTableOperations {
 
-  /**
-   * updates the origin to the new value if it currently has the old value
-   */
-  void tryNarrowCommitOrigin(@Nullable IcebergCommitOrigin oldOrigin, IcebergCommitOrigin newOrigin);
+  /** updates the origin to the new value if it currently has the old value */
+  void tryNarrowCommitOrigin(
+      @Nullable IcebergCommitOrigin oldOrigin, IcebergCommitOrigin newOrigin);
 }

@@ -15,19 +15,15 @@
  */
 package com.dremio.dac.resource;
 
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.core.Response;
-
-import org.junit.Assume;
-import org.junit.Test;
-
 import com.dremio.dac.model.usergroup.UserLogin;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.server.GenericErrorMessage;
+import javax.ws.rs.client.Entity;
+import javax.ws.rs.core.Response;
+import org.junit.Assume;
+import org.junit.Test;
 
-/**
- * Test for class {@link com.dremio.dac.server.test.NoUserTestFilter}
- */
+/** Test for class {@link com.dremio.dac.server.test.NoUserTestFilter} */
 public class TestNoUserTestFilter extends BaseTestServer {
 
   @Test
@@ -45,10 +41,12 @@ public class TestNoUserTestFilter extends BaseTestServer {
     // clearing everything should not affect the server response if NoUserTestFilter is being used
     {
       final UserLogin userLogin = new UserLogin(DEFAULT_USERNAME, DEFAULT_PASSWORD);
-      GenericErrorMessage errorMessage = expectStatus(Response.Status.FORBIDDEN,
-        getAPIv2().path("/login").request(JSON).buildPost(Entity.json(userLogin)), GenericErrorMessage.class);
+      GenericErrorMessage errorMessage =
+          expectStatus(
+              Response.Status.FORBIDDEN,
+              getAPIv2().path("/login").request(JSON).buildPost(Entity.json(userLogin)),
+              GenericErrorMessage.class);
       assertErrorMessage(errorMessage, GenericErrorMessage.NO_USER_MSG, "");
     }
   }
-
 }

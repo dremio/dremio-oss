@@ -21,9 +21,9 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * An annotation which states that when a string field is populated, it should be replaced with the provided value upon
- * serialization. Works in tandem with SentinelSecureFilter used in the Jersey ObjectMapper to ensure secrets are not
- * serialized when returned via REST endpoints.
+ * An annotation which states that when a string field is populated, it should be replaced with the
+ * provided value upon serialization. Works in tandem with SentinelSecureFilter used in the Jersey
+ * ObjectMapper to ensure secrets are not serialized when returned via REST endpoints.
  */
 @Target({ElementType.FIELD, ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)

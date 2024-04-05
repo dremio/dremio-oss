@@ -70,7 +70,7 @@ export function validateCompositeRules(
   identifierCandidate: IdentifierCandidate,
   analyzers: CompositeRuleAnalyzers,
   priorTerminal: TerminalNode,
-  fallbackRule?: (identifierRuleIndex: number) => boolean
+  fallbackRule?: (identifierRuleIndex: number) => boolean,
 ): boolean {
   const { ruleIndex, ruleList } = identifierCandidate;
   const ruleListWithIdentifier = [...ruleList, ruleIndex];
@@ -95,8 +95,8 @@ export function validateCompositeRules(
             childRule.ruleIndex == nextRule &&
             childRule.applies(
               priorTerminal.symbol,
-              priorTerminal.parent!.ruleContext
-            )
+              priorTerminal.parent!.ruleContext,
+            ),
         )
       ) {
         isIdentifier = true;
@@ -110,8 +110,8 @@ export function validateCompositeRules(
             childRule.ruleIndex == nextRule &&
             childRule.applies(
               priorTerminal.symbol,
-              priorTerminal.parent!.ruleContext
-            )
+              priorTerminal.parent!.ruleContext,
+            ),
         )
       ) {
         return false;
@@ -123,8 +123,8 @@ export function validateCompositeRules(
             childRule.ruleIndex == nextRule &&
             childRule.applies(
               priorTerminal.symbol,
-              priorTerminal.parent!.ruleContext
-            )
+              priorTerminal.parent!.ruleContext,
+            ),
         )
       ) {
         return false;
@@ -140,7 +140,7 @@ export function validateDirectRules(
   identifierCandidate: IdentifierCandidate,
   analyzers: DirectRuleAnalyzers,
   priorTerminal: TerminalNode,
-  fallbackRule?: (identifierRuleIndex: number) => boolean
+  fallbackRule?: (identifierRuleIndex: number) => boolean,
 ): boolean {
   const { ruleIndex, ruleList } = identifierCandidate;
   const ruleListWithIdentifier = [...ruleList, ruleIndex];
@@ -160,8 +160,8 @@ export function validateDirectRules(
           childRule.ruleIndex == nextRule &&
           childRule.applies(
             priorTerminal.symbol,
-            priorTerminal.parent!.ruleContext
-          )
+            priorTerminal.parent!.ruleContext,
+          ),
       )
     ) {
       isIdentifier = true;
@@ -179,7 +179,7 @@ function getSearchStartIndex(ruleListWithIdentifier: RuleList): number {
       ruleListWithIdentifier,
       ({ index }) =>
         index > 0 &&
-        ruleListWithIdentifier[index - 1] == LiveEditParser.RULE_sqlStmt
+        ruleListWithIdentifier[index - 1] == LiveEditParser.RULE_sqlStmt,
     ) ??
     0
   );
@@ -187,7 +187,7 @@ function getSearchStartIndex(ruleListWithIdentifier: RuleList): number {
 
 export function isTokenOfType(
   token: Token | undefined,
-  type: number | number[]
+  type: number | number[],
 ) {
   const types: number[] = typeof type == "number" ? [type] : type;
   return !!token && types.includes(token.type);
@@ -235,7 +235,10 @@ export function excludeAll(): CompositeRuleAnalyzer {
 
 export function child(
   ruleIndex: number,
-  applies?: (priorToken: Token | undefined, ruleContext: RuleContext) => boolean
+  applies?: (
+    priorToken: Token | undefined,
+    ruleContext: RuleContext,
+  ) => boolean,
 ): ChildRule {
   return { ruleIndex, applies: applies ?? (() => true) };
 }

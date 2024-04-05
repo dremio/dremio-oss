@@ -17,22 +17,19 @@ package com.dremio.dac.model.folder;
 
 import static java.util.Arrays.asList;
 
-import java.util.List;
-
 import com.dremio.dac.model.common.ResourcePath;
 import com.dremio.dac.model.sources.SourceName;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import java.util.List;
 
-/**
- * "source/{sourceName}/folder/{source}.[folder.]*name}"
- */
+/** "source/{sourceName}/folder/{source}.[folder.]*name}" */
 public class SourceFolderResourcePath extends ResourcePath {
 
   private final SourceFolderPath folderPath;
   private final SourceName sourceName;
 
   public SourceFolderResourcePath(SourceName sourceName, SourceFolderPath path) {
-    this.sourceName= sourceName;
+    this.sourceName = sourceName;
     this.folderPath = path;
   }
 
@@ -40,7 +37,8 @@ public class SourceFolderResourcePath extends ResourcePath {
   public SourceFolderResourcePath(String folderPath) {
     List<String> path = parse(folderPath, "source", "folder");
     if (path.size() != 2) {
-      throw new IllegalArgumentException("path should be of form: /source/{source}/folder/{folderPath}, found " + folderPath);
+      throw new IllegalArgumentException(
+          "path should be of form: /source/{source}/folder/{folderPath}, found " + folderPath);
     }
     this.sourceName = new SourceName(path.get(0));
     this.folderPath = new SourceFolderPath(path.get(1));

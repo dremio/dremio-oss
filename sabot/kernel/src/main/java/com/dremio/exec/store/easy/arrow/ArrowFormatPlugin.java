@@ -15,9 +15,6 @@
  */
 package com.dremio.exec.store.easy.arrow;
 
-import java.io.IOException;
-import java.util.List;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
@@ -32,34 +29,50 @@ import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.store.easy.proto.EasyProtobuf.EasyDatasetSplitXAttr;
+import java.io.IOException;
+import java.util.List;
 
 /**
- * {@link FormatPlugin} implementation for reading and writing Arrow format files in queries. Arrow buffers are
- * dumped to/read from file as it is from/to in-memory format. There is no endian-ness conversion,
- * so if the sharing files across different endian-ness machines is not supported.
+ * {@link FormatPlugin} implementation for reading and writing Arrow format files in queries. Arrow
+ * buffers are dumped to/read from file as it is from/to in-memory format. There is no endian-ness
+ * conversion, so if the sharing files across different endian-ness machines is not supported.
  */
 public class ArrowFormatPlugin extends EasyFormatPlugin<ArrowFormatPluginConfig> {
   public static final String ARROW_DEFAULT_NAME = "arrow";
 
-  /**
-   * Bytes of magic word for Arrow format files.
-   */
+  /** Bytes of magic word for Arrow format files. */
   public static final String MAGIC_STRING = "DREMARROW1";
+
   public static final int MAGIC_STRING_LENGTH = MAGIC_STRING.getBytes().length;
 
-  public static final int FOOTER_OFFSET_SIZE = Long.SIZE/Byte.SIZE; // Size of long in bytes
+  public static final int FOOTER_OFFSET_SIZE = Long.SIZE / Byte.SIZE; // Size of long in bytes
 
   /**
-   * Standard signature constructor which is used when {@link FormatPlugin}s are constructored through reflection.
+   * Standard signature constructor which is used when {@link FormatPlugin}s are constructored
+   * through reflection.
+   *
    * @param name
    * @param context
    * @param storageConfig
    * @param formatConfig
    * @param fsPlugin
    */
-  public ArrowFormatPlugin(final String name, final SabotContext context, final ArrowFormatPluginConfig formatConfig, final FileSystemPlugin fsPlugin) {
-    super(name, context, formatConfig, true, false, /* splittable = */ false, /* compressible = */ false,
-        formatConfig.getDefaultExtensions(), ARROW_DEFAULT_NAME, fsPlugin);
+  public ArrowFormatPlugin(
+      final String name,
+      final SabotContext context,
+      final ArrowFormatPluginConfig formatConfig,
+      final FileSystemPlugin fsPlugin) {
+    super(
+        name,
+        context,
+        formatConfig,
+        true,
+        false,
+        /* splittable= */ false,
+        /* compressible= */ false,
+        formatConfig.getDefaultExtensions(),
+        ARROW_DEFAULT_NAME,
+        fsPlugin);
   }
 
   @Override
@@ -68,7 +81,12 @@ public class ArrowFormatPlugin extends EasyFormatPlugin<ArrowFormatPluginConfig>
   }
 
   @Override
-  public RecordReader getRecordReader(final OperatorContext context, final FileSystem dfs, EasyDatasetSplitXAttr splitAttributes, final List<SchemaPath> columns) throws ExecutionSetupException {
+  public RecordReader getRecordReader(
+      final OperatorContext context,
+      final FileSystem dfs,
+      EasyDatasetSplitXAttr splitAttributes,
+      final List<SchemaPath> columns)
+      throws ExecutionSetupException {
     final Path path = dfs.makeQualified(Path.of(splitAttributes.getPath()));
     return new ArrowRecordReader(context, dfs, path, columns);
   }
@@ -79,8 +97,10 @@ public class ArrowFormatPlugin extends EasyFormatPlugin<ArrowFormatPluginConfig>
   }
 
   @Override
-  public RecordWriter getRecordWriter(final OperatorContext context, final EasyWriter writer) throws IOException {
-    return new ArrowRecordWriter(context, writer, (ArrowFormatPluginConfig) writer.getFormatConfig());
+  public RecordWriter getRecordWriter(final OperatorContext context, final EasyWriter writer)
+      throws IOException {
+    return new ArrowRecordWriter(
+        context, writer, (ArrowFormatPluginConfig) writer.getFormatConfig());
   }
 
   @Override
@@ -90,6 +110,7 @@ public class ArrowFormatPlugin extends EasyFormatPlugin<ArrowFormatPluginConfig>
 
   @Override
   public int getMaxFilesLimit() {
-    return Math.toIntExact(getContext().getOptionManager().getOption(FileDatasetHandle.DFS_MAX_ARROW_FILES));
+    return Math.toIntExact(
+        getContext().getOptionManager().getOption(FileDatasetHandle.DFS_MAX_ARROW_FILES));
   }
 }

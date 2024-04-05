@@ -29,34 +29,29 @@ import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.RecordReader;
 import org.apache.hadoop.mapred.Reporter;
 
-import com.dremio.exec.ExecConstants;
-import com.dremio.options.OptionManager;
-
 public class DeltaHiveInputFormat extends FileInputFormat<NullWritable, ArrayWritable> {
   static final String DELTA_STORAGE_HANDLER = "io.delta.hive.DeltaStorageHandler";
   static final String SPARK_SQL_SOURCES_PROVIDER = "spark.sql.sources.provider";
   static final String DELTA = "delta";
   static final String PATH = "path";
 
-  public static boolean isDeltaTable(Table table, OptionManager options) {
-    return isDeltaByStorageHandler(table, options) || isDeltaBySparkFormat(table, options);
+  public static boolean isDeltaTable(Table table) {
+    return isDeltaByStorageHandler(table) || isDeltaBySparkFormat(table);
   }
 
-  public static String getLocation(Table table, OptionManager options) {
-    if (isDeltaBySparkFormat(table, options)) {
+  public static String getLocation(Table table) {
+    if (isDeltaBySparkFormat(table)) {
       return table.getSd().getSerdeInfo().getParameters().get(PATH);
     }
     return table.getSd().getLocation();
   }
 
-  private static boolean isDeltaByStorageHandler(Table table, OptionManager options) {
-    return options.getOption(ExecConstants.ENABLE_DELTALAKE_HIVE_SUPPORT)
-        && DELTA_STORAGE_HANDLER.equalsIgnoreCase(table.getParameters().get(META_TABLE_STORAGE));
+  private static boolean isDeltaByStorageHandler(Table table) {
+    return DELTA_STORAGE_HANDLER.equalsIgnoreCase(table.getParameters().get(META_TABLE_STORAGE));
   }
 
-  private static boolean isDeltaBySparkFormat(Table table, OptionManager options) {
-    return options.getOption(ExecConstants.ENABLE_DELTALAKE_SPARK_SUPPORT)
-      && DELTA.equalsIgnoreCase(table.getParameters().get(SPARK_SQL_SOURCES_PROVIDER));
+  private static boolean isDeltaBySparkFormat(Table table) {
+    return DELTA.equalsIgnoreCase(table.getParameters().get(SPARK_SQL_SOURCES_PROVIDER));
   }
 
   public DeltaHiveInputFormat() {

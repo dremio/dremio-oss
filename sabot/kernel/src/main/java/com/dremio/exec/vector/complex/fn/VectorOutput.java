@@ -15,8 +15,12 @@
  */
 package com.dremio.exec.vector.complex.fn;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.expr.fn.impl.StringFunctionHelpers;
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
 import java.io.IOException;
-
 import org.apache.arrow.vector.complex.writer.BaseWriter.ListWriter;
 import org.apache.arrow.vector.complex.writer.BaseWriter.StructWriter;
 import org.apache.arrow.vector.complex.writer.BigIntWriter;
@@ -38,12 +42,6 @@ import org.joda.time.format.ISODateTimeFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.expr.fn.impl.StringFunctionHelpers;
-import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonToken;
-
 abstract class VectorOutput {
 
   private static final Logger LOG = LoggerFactory.getLogger(VectorOutput.class);
@@ -59,62 +57,62 @@ abstract class VectorOutput {
 
   private final boolean enforceValidJsonDateFormat;
 
-  public VectorOutput(WorkingBuffer work, boolean enforceValidJsonDateFormat){
+  public VectorOutput(WorkingBuffer work, boolean enforceValidJsonDateFormat) {
     this.work = work;
     this.enforceValidJsonDateFormat = enforceValidJsonDateFormat;
   }
 
-  public void setParser(JsonParser parser){
+  public void setParser(JsonParser parser) {
     this.parser = parser;
   }
 
-  protected boolean innerRun() throws IOException{
+  protected boolean innerRun() throws IOException {
     JsonToken t = parser.nextToken();
-    if(t != JsonToken.FIELD_NAME){
+    if (t != JsonToken.FIELD_NAME) {
       return false;
     }
 
     String possibleTypeName = parser.getText();
-    if(!possibleTypeName.isEmpty() && possibleTypeName.charAt(0) == '$'){
-      switch(possibleTypeName){
-      case ExtendedTypeName.BINARY:
-        writeBinary(checkNextToken(JsonToken.VALUE_STRING));
-        checkCurrentToken(JsonToken.END_OBJECT);
-        return true;
-      case ExtendedTypeName.TYPE:
-        if(checkNextToken(JsonToken.VALUE_NUMBER_INT) || !hasBinary()) {
-          throw UserException.parseError()
-          .message("Either $type is not an integer or has no $binary")
-          .build(LOG);
-        }
-        writeBinary(checkNextToken(JsonToken.VALUE_STRING));
-        checkCurrentToken(JsonToken.END_OBJECT);
-        return true;
-      case ExtendedTypeName.DATE:
-        writeDate(checkNextToken(JsonToken.VALUE_STRING));
-        checkNextToken(JsonToken.END_OBJECT);
-        return true;
-      case ExtendedTypeName.TIME:
-        writeTime(checkNextToken(JsonToken.VALUE_STRING));
-        checkNextToken(JsonToken.END_OBJECT);
-        return true;
-      case ExtendedTypeName.TIMESTAMP:
-        parser.nextToken();
-        if (enforceValidJsonDateFormat) {
-          parseExtendedTimestamp(parser);
-        } else {
-          writeTimestamp(checkCurrentToken(JsonToken.VALUE_STRING, JsonToken.VALUE_NUMBER_INT));
-        }
-        checkNextToken(JsonToken.END_OBJECT);
-        return true;
-      case ExtendedTypeName.INTERVAL:
-        throw new UnsupportedOperationException("Interval type not supported");
-      case ExtendedTypeName.INTEGER:
-        writeInteger(checkNextToken(JsonToken.VALUE_STRING, JsonToken.VALUE_NUMBER_INT));
-        checkNextToken(JsonToken.END_OBJECT);
-        return true;
-      case ExtendedTypeName.DECIMAL:
-        throw new UnsupportedOperationException("Decimal type not supported");
+    if (!possibleTypeName.isEmpty() && possibleTypeName.charAt(0) == '$') {
+      switch (possibleTypeName) {
+        case ExtendedTypeName.BINARY:
+          writeBinary(checkNextToken(JsonToken.VALUE_STRING));
+          checkCurrentToken(JsonToken.END_OBJECT);
+          return true;
+        case ExtendedTypeName.TYPE:
+          if (checkNextToken(JsonToken.VALUE_NUMBER_INT) || !hasBinary()) {
+            throw UserException.parseError()
+                .message("Either $type is not an integer or has no $binary")
+                .build(LOG);
+          }
+          writeBinary(checkNextToken(JsonToken.VALUE_STRING));
+          checkCurrentToken(JsonToken.END_OBJECT);
+          return true;
+        case ExtendedTypeName.DATE:
+          writeDate(checkNextToken(JsonToken.VALUE_STRING));
+          checkNextToken(JsonToken.END_OBJECT);
+          return true;
+        case ExtendedTypeName.TIME:
+          writeTime(checkNextToken(JsonToken.VALUE_STRING));
+          checkNextToken(JsonToken.END_OBJECT);
+          return true;
+        case ExtendedTypeName.TIMESTAMP:
+          parser.nextToken();
+          if (enforceValidJsonDateFormat) {
+            parseExtendedTimestamp(parser);
+          } else {
+            writeTimestamp(checkCurrentToken(JsonToken.VALUE_STRING, JsonToken.VALUE_NUMBER_INT));
+          }
+          checkNextToken(JsonToken.END_OBJECT);
+          return true;
+        case ExtendedTypeName.INTERVAL:
+          throw new UnsupportedOperationException("Interval type not supported");
+        case ExtendedTypeName.INTEGER:
+          writeInteger(checkNextToken(JsonToken.VALUE_STRING, JsonToken.VALUE_NUMBER_INT));
+          checkNextToken(JsonToken.END_OBJECT);
+          return true;
+        case ExtendedTypeName.DECIMAL:
+          throw new UnsupportedOperationException("Decimal type not supported");
       }
     }
     return false;
@@ -129,38 +127,46 @@ abstract class VectorOutput {
       String parserValue = parser.getValueAsString();
       if (!ExtendedTypeName.INTEGER.equals(parserValue)) {
         throw UserException.validationError()
-          .message(String.format("Invalid token %s", parserValue))
-          .build(LOG);
+            .message(String.format("Invalid token %s", parserValue))
+            .build(LOG);
       }
       writeTimestamp(checkNextToken(JsonToken.VALUE_STRING));
-      // If we had a nested token, there is an extra end object (that of the outer token) that we need to skip over.
+      // If we had a nested token, there is an extra end object (that of the outer token) that we
+      // need to skip over.
       checkNextToken(JsonToken.END_OBJECT);
     } else if (StringUtils.isNumeric(parser.getValueAsString())) {
-      // The fact that we have entered this method means ENFORCE_VALID_JSON_DATE_FORMAT_ENABLED flag is enabled.
-      // In this case, we don't support the invalid format of a numerical value for $date which we supported before.
+      // The fact that we have entered this method means ENFORCE_VALID_JSON_DATE_FORMAT_ENABLED flag
+      // is enabled.
+      // In this case, we don't support the invalid format of a numerical value for $date which we
+      // supported before.
       throw UserException.unsupportedError()
-        .message("Invalid format for " + ExtendedTypeName.TIMESTAMP + ". Must be wrapped by $numberLong or "
-          + "follow any other valid ISO-8601 format.")
-        .build(LOG);
+          .message(
+              "Invalid format for "
+                  + ExtendedTypeName.TIMESTAMP
+                  + ". Must be wrapped by $numberLong or "
+                  + "follow any other valid ISO-8601 format.")
+          .build(LOG);
     } else {
       // Handle non-nested format
       writeTimestamp(checkCurrentToken(JsonToken.VALUE_STRING));
     }
   }
 
-  public boolean checkNextToken(final JsonToken expected) throws IOException{
+  public boolean checkNextToken(final JsonToken expected) throws IOException {
     return checkNextToken(expected, expected);
   }
 
-  public boolean checkCurrentToken(final JsonToken expected) throws IOException{
+  public boolean checkCurrentToken(final JsonToken expected) throws IOException {
     return checkCurrentToken(expected, expected);
   }
 
-  public boolean checkNextToken(final JsonToken expected1, final JsonToken expected2) throws IOException{
+  public boolean checkNextToken(final JsonToken expected1, final JsonToken expected2)
+      throws IOException {
     return checkToken(parser.nextToken(), expected1, expected2);
   }
 
-  public boolean checkCurrentToken(final JsonToken expected1, final JsonToken expected2) throws IOException{
+  public boolean checkCurrentToken(final JsonToken expected1, final JsonToken expected2)
+      throws IOException {
     return checkToken(parser.getCurrentToken(), expected1, expected2);
   }
 
@@ -177,34 +183,44 @@ abstract class VectorOutput {
   long getType() throws JsonParseException, IOException {
     if (!checkNextToken(JsonToken.VALUE_NUMBER_INT, JsonToken.VALUE_STRING)) {
       long type = parser.getValueAsLong();
-      //Advancing the token, as checking current token in binary
+      // Advancing the token, as checking current token in binary
       parser.nextToken();
       return type;
     }
-    throw new JsonParseException("Failure while reading $type value. Expected a NUMBER or STRING",
+    throw new JsonParseException(
+        "Failure while reading $type value. Expected a NUMBER or STRING",
         parser.getCurrentLocation());
   }
 
-  public boolean checkToken(final JsonToken t, final JsonToken expected1, final JsonToken expected2) throws IOException{
-    if(t == JsonToken.VALUE_NULL){
+  public boolean checkToken(final JsonToken t, final JsonToken expected1, final JsonToken expected2)
+      throws IOException {
+    if (t == JsonToken.VALUE_NULL) {
       return true;
-    }else if(t == expected1){
+    } else if (t == expected1) {
       return false;
-    }else if(t == expected2){
+    } else if (t == expected2) {
       return false;
-    }else{
-      throw new JsonParseException(String.format("Failure while reading ExtendedJSON typed value. Expected a %s but "
-          + "received a token of type %s", expected1, t), parser.getCurrentLocation());
+    } else {
+      throw new JsonParseException(
+          String.format(
+              "Failure while reading ExtendedJSON typed value. Expected a %s but "
+                  + "received a token of type %s",
+              expected1, t),
+          parser.getCurrentLocation());
     }
   }
 
   public abstract void writeBinary(boolean isNull) throws IOException;
+
   public abstract void writeDate(boolean isNull) throws IOException;
+
   public abstract void writeTime(boolean isNull) throws IOException;
+
   public abstract void writeTimestamp(boolean isNull) throws IOException;
+
   public abstract void writeInteger(boolean isNull) throws IOException;
 
-  static class ListVectorOutput extends VectorOutput{
+  static class ListVectorOutput extends VectorOutput {
     private ListWriter writer;
     private boolean enforceValidJsonDateFormat;
 
@@ -213,7 +229,7 @@ abstract class VectorOutput {
       this.enforceValidJsonDateFormat = enforceValidJsonDateFormat;
     }
 
-    public boolean run(ListWriter writer) throws IOException{
+    public boolean run(ListWriter writer) throws IOException {
       this.writer = writer;
       return innerRun();
     }
@@ -221,15 +237,15 @@ abstract class VectorOutput {
     @Override
     public void writeBinary(boolean isNull) throws IOException {
       VarBinaryWriter bin = writer.varBinary();
-      if(!isNull){
+      if (!isNull) {
         byte[] binaryData = parser.getBinaryValue();
         if (hasType()) {
-          //Ignoring type info as of now.
+          // Ignoring type info as of now.
           long type = getType();
           if (type < 0 || type > 255) {
             throw UserException.validationError()
-            .message("$type should be between 0 to 255")
-            .build(LOG);
+                .message("$type should be between 0 to 255")
+                .build(LOG);
           }
         }
         work.prepareBinary(binaryData, binary);
@@ -240,44 +256,54 @@ abstract class VectorOutput {
     @Override
     public void writeDate(boolean isNull) throws IOException {
       DateMilliWriter dt = writer.dateMilli();
-      if(!isNull){
+      if (!isNull) {
         work.prepareVarCharHolder(parser.getValueAsString(), varchar);
-        dt.writeDateMilli(StringFunctionHelpers.getDate(varchar.buffer, varchar.start, varchar.end));
+        dt.writeDateMilli(
+            StringFunctionHelpers.getDate(varchar.buffer, varchar.start, varchar.end));
       }
     }
 
     @Override
     public void writeTime(boolean isNull) throws IOException {
       TimeMilliWriter t = writer.timeMilli();
-      if(!isNull){
+      if (!isNull) {
         DateTimeFormatter f = ISODateTimeFormat.time();
-        t.writeTimeMilli((int) com.dremio.common.util.DateTimes.toMillis(f.parseLocalDateTime(parser.getValueAsString())));
+        t.writeTimeMilli(
+            (int)
+                com.dremio.common.util.DateTimes.toMillis(
+                    f.parseLocalDateTime(parser.getValueAsString())));
       }
     }
 
     @Override
     public void writeTimestamp(boolean isNull) throws IOException {
       TimeStampMilliWriter ts = writer.timeStampMilli();
-      if(!isNull){
+      if (!isNull) {
         switch (parser.getCurrentToken()) {
-        case VALUE_NUMBER_INT:
-          if (enforceValidJsonDateFormat) {
+          case VALUE_NUMBER_INT:
+            if (enforceValidJsonDateFormat) {
+              throw UserException.unsupportedError()
+                  .message(
+                      "Invalid format for "
+                          + ExtendedTypeName.TIMESTAMP
+                          + ". Must be wrapped by $numberLong or "
+                          + "follow any other valid ISO-8601 format.")
+                  .build(LOG);
+            }
+            LocalDateTime dt =
+                new LocalDateTime(parser.getLongValue(), org.joda.time.DateTimeZone.UTC);
+            ts.writeTimeStampMilli(com.dremio.common.util.DateTimes.toMillis(dt));
+            break;
+          case VALUE_STRING:
+            DateTimeFormatter f = ISODateTimeFormat.dateTime();
+            ts.writeTimeStampMilli(
+                com.dremio.common.util.DateTimes.toMillis(
+                    LocalDateTime.parse(parser.getValueAsString(), f)));
+            break;
+          default:
             throw UserException.unsupportedError()
-              .message("Invalid format for " + ExtendedTypeName.TIMESTAMP + ". Must be wrapped by $numberLong or "
-                + "follow any other valid ISO-8601 format.")
-              .build(LOG);
-          }
-          LocalDateTime dt = new LocalDateTime(parser.getLongValue(), org.joda.time.DateTimeZone.UTC);
-          ts.writeTimeStampMilli(com.dremio.common.util.DateTimes.toMillis(dt));
-          break;
-        case VALUE_STRING:
-          DateTimeFormatter f = ISODateTimeFormat.dateTime();
-          ts.writeTimeStampMilli(com.dremio.common.util.DateTimes.toMillis(LocalDateTime.parse(parser.getValueAsString(), f)));
-          break;
-        default:
-          throw UserException.unsupportedError()
-              .message(parser.getCurrentToken().toString())
-              .build(LOG);
+                .message(parser.getCurrentToken().toString())
+                .build(LOG);
         }
       }
     }
@@ -285,11 +311,10 @@ abstract class VectorOutput {
     @Override
     public void writeInteger(boolean isNull) throws IOException {
       BigIntWriter intWriter = writer.bigInt();
-      if(!isNull){
+      if (!isNull) {
         intWriter.writeBigInt(Long.parseLong(parser.getValueAsString()));
       }
     }
-
   }
 
   static class MapVectorOutput extends VectorOutput {
@@ -303,7 +328,7 @@ abstract class VectorOutput {
       this.enforceValidJsonDateFormat = enforceValidJsonDateFormat;
     }
 
-    public boolean run(StructWriter writer, String fieldName) throws IOException{
+    public boolean run(StructWriter writer, String fieldName) throws IOException {
       this.fieldName = fieldName;
       this.writer = writer;
       return innerRun();
@@ -312,15 +337,15 @@ abstract class VectorOutput {
     @Override
     public void writeBinary(boolean isNull) throws IOException {
       VarBinaryWriter bin = writer.varBinary(fieldName);
-      if(!isNull){
+      if (!isNull) {
         byte[] binaryData = parser.getBinaryValue();
         if (hasType()) {
-          //Ignoring type info as of now.
+          // Ignoring type info as of now.
           long type = getType();
           if (type < 0 || type > 255) {
             throw UserException.validationError()
-            .message("$type should be between 0 to 255")
-            .build(LOG);
+                .message("$type should be between 0 to 255")
+                .build(LOG);
           }
         }
         work.prepareBinary(binaryData, binary);
@@ -331,7 +356,7 @@ abstract class VectorOutput {
     @Override
     public void writeDate(boolean isNull) throws IOException {
       DateMilliWriter dt = writer.dateMilli(fieldName);
-      if(!isNull){
+      if (!isNull) {
         DateTimeFormatter f = ISODateTimeFormat.date();
         LocalDateTime date = f.parseLocalDateTime(parser.getValueAsString());
         dt.writeDateMilli(com.dremio.common.util.DateTimes.toMillis(date));
@@ -341,47 +366,71 @@ abstract class VectorOutput {
     @Override
     public void writeTime(boolean isNull) throws IOException {
       TimeMilliWriter t = writer.timeMilli(fieldName);
-      if(!isNull){
+      if (!isNull) {
         DateTimeFormatter f = ISODateTimeFormat.time();
-        t.writeTimeMilli((int) com.dremio.common.util.DateTimes.toMillis(f.parseLocalDateTime(parser.getValueAsString())));
+        t.writeTimeMilli(
+            (int)
+                com.dremio.common.util.DateTimes.toMillis(
+                    f.parseLocalDateTime(parser.getValueAsString())));
       }
     }
 
     @Override
     public void writeTimestamp(boolean isNull) throws IOException {
       TimeStampMilliWriter ts = writer.timeStampMilli(fieldName);
-      if(!isNull){
+      if (!isNull) {
         switch (parser.getCurrentToken()) {
-        case VALUE_NUMBER_INT:
-          if (enforceValidJsonDateFormat) {
-            throw UserException.unsupportedError()
-              .message("Invalid format for " + ExtendedTypeName.TIMESTAMP + ". Must be wrapped by $numberLong or "
-                + "follow any other valid ISO-8601 format.")
-              .build(LOG);
-          }
-          LocalDateTime dt = new LocalDateTime(parser.getLongValue(), org.joda.time.DateTimeZone.UTC);
-          ts.writeTimeStampMilli(com.dremio.common.util.DateTimes.toMillis(dt));
-          break;
-        case VALUE_STRING:
-          String timestampLiteral = parser.getValueAsString();
-          if (timestampLiteral.contains("W")) { // Joda Time does not natively support week number in short format (eg 2020W065), so we need to add hyphens ('-') around 'W'
-            int weekIndex = timestampLiteral.indexOf("W"); // Index of the W char that marks week num
-            if (timestampLiteral.charAt(weekIndex - 1) != '-') {
-              timestampLiteral = timestampLiteral.substring(0, weekIndex) + '-' + timestampLiteral.substring(weekIndex, weekIndex + 3);
-              weekIndex++; // Increment the index as we added a '-' character
-              if (timestampLiteral.length() > weekIndex + 3) { // Check if the timestamp has a day component following week
-                timestampLiteral += '-' + timestampLiteral.substring(weekIndex + 3); // Add a '-' between week num and day
+          case VALUE_NUMBER_INT:
+            if (enforceValidJsonDateFormat) {
+              throw UserException.unsupportedError()
+                  .message(
+                      "Invalid format for "
+                          + ExtendedTypeName.TIMESTAMP
+                          + ". Must be wrapped by $numberLong or "
+                          + "follow any other valid ISO-8601 format.")
+                  .build(LOG);
+            }
+            LocalDateTime dt =
+                new LocalDateTime(parser.getLongValue(), org.joda.time.DateTimeZone.UTC);
+            ts.writeTimeStampMilli(com.dremio.common.util.DateTimes.toMillis(dt));
+            break;
+          case VALUE_STRING:
+            String timestampLiteral = parser.getValueAsString();
+            if (timestampLiteral.contains(
+                "W")) { // Joda Time does not natively support week number in short format (eg
+              // 2020W065), so we need to add hyphens ('-') around 'W'
+              int weekIndex =
+                  timestampLiteral.indexOf("W"); // Index of the W char that marks week num
+              if (timestampLiteral.charAt(weekIndex - 1) != '-') {
+                timestampLiteral =
+                    timestampLiteral.substring(0, weekIndex)
+                        + '-'
+                        + timestampLiteral.substring(weekIndex, weekIndex + 3);
+                weekIndex++; // Increment the index as we added a '-' character
+                if (timestampLiteral.length()
+                    > weekIndex + 3) { // Check if the timestamp has a day component following week
+                  timestampLiteral +=
+                      '-'
+                          + timestampLiteral.substring(
+                              weekIndex + 3); // Add a '-' between week num and day
+                }
               }
             }
-          }
-          timestampLiteral = timestampLiteral.replace(' ', 'T'); // Support formats like 2020-039 09 that have a space between date and time
-          long millis = StringUtils.isNumeric(timestampLiteral) ? Long.parseLong(timestampLiteral) : new DateTime(timestampLiteral).getMillis();
-          ts.writeTimeStampMilli(millis);
-          break;
-        default:
-          throw UserException.unsupportedError()
-          .message(parser.getCurrentToken().toString())
-          .build(LOG);
+            timestampLiteral =
+                timestampLiteral.replace(
+                    ' ',
+                    'T'); // Support formats like 2020-039 09 that have a space between date and
+            // time
+            long millis =
+                StringUtils.isNumeric(timestampLiteral)
+                    ? Long.parseLong(timestampLiteral)
+                    : new DateTime(timestampLiteral).getMillis();
+            ts.writeTimeStampMilli(millis);
+            break;
+          default:
+            throw UserException.unsupportedError()
+                .message(parser.getCurrentToken().toString())
+                .build(LOG);
         }
       }
     }
@@ -389,11 +438,9 @@ abstract class VectorOutput {
     @Override
     public void writeInteger(boolean isNull) throws IOException {
       BigIntWriter intWriter = writer.bigInt(fieldName);
-      if(!isNull){
+      if (!isNull) {
         intWriter.writeBigInt(Long.parseLong(parser.getValueAsString()));
       }
     }
-
   }
-
 }

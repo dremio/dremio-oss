@@ -15,10 +15,6 @@
  */
 package com.dremio.exec.store.sys.udf;
 
-import java.sql.Timestamp;
-import java.util.List;
-import java.util.stream.Collectors;
-
 import com.dremio.common.expression.CompleteType;
 import com.dremio.service.namespace.function.proto.FunctionArg;
 import com.dremio.service.namespace.function.proto.FunctionBody;
@@ -26,8 +22,10 @@ import com.dremio.service.namespace.function.proto.FunctionConfig;
 import com.dremio.service.namespace.function.proto.FunctionDefinition;
 import com.dremio.service.namespace.function.proto.ReturnType;
 import com.google.common.collect.ImmutableList;
-
 import io.protostuff.ByteString;
+import java.sql.Timestamp;
+import java.util.List;
+import java.util.stream.Collectors;
 
 public final class UserDefinedFunctionSerde {
   private UserDefinedFunctionSerde() {}
@@ -35,45 +33,62 @@ public final class UserDefinedFunctionSerde {
   public static UserDefinedFunction fromProto(FunctionConfig functionConfig) {
     FunctionDefinition functionDefinition = functionConfig.getFunctionDefinitionsList().get(0);
     List<UserDefinedFunction.FunctionArg> functionArgList =
-      functionDefinition.getFunctionArgList() == null
-        ? ImmutableList.of()
-        : functionDefinition
-          .getFunctionArgList()
-          .stream()
-          .map(functionArg ->
-            new UserDefinedFunction.FunctionArg(
-              functionArg.getName(),
-              CompleteType.deserialize(functionArg.getRawDataType().toByteArray()),
-              functionArg.getDefaultExpression()))
-          .collect(ImmutableList.toImmutableList());
+        functionDefinition.getFunctionArgList() == null
+            ? ImmutableList.of()
+            : functionDefinition.getFunctionArgList().stream()
+                .map(
+                    functionArg ->
+                        new UserDefinedFunction.FunctionArg(
+                            functionArg.getName(),
+                            CompleteType.deserialize(functionArg.getRawDataType().toByteArray()),
+                            functionArg.getDefaultExpression()))
+                .collect(ImmutableList.toImmutableList());
     return new UserDefinedFunction(
-      functionConfig.getName(),
-      functionDefinition.getFunctionBody().getRawBody(),
-      CompleteType.deserialize(functionConfig.getReturnType().getRawDataType().toByteArray()),
-      functionArgList,
-      functionConfig.getFullPathList(),
-      functionDefinition.getFunctionBody().getSerializedPlan() == null ? null : functionDefinition.getFunctionBody().getSerializedPlan().toByteArray(),
-      (functionConfig.getCreatedAt() != null) ? new Timestamp(functionConfig.getCreatedAt()) : null,
-      (functionConfig.getLastModified() != null) ? new Timestamp(functionConfig.getLastModified()):null);
+        functionConfig.getName(),
+        functionDefinition.getFunctionBody().getRawBody(),
+        CompleteType.deserialize(functionConfig.getReturnType().getRawDataType().toByteArray()),
+        functionArgList,
+        functionConfig.getFullPathList(),
+        functionDefinition.getFunctionBody().getSerializedPlan() == null
+            ? null
+            : functionDefinition.getFunctionBody().getSerializedPlan().toByteArray(),
+        (functionConfig.getCreatedAt() != null)
+            ? new Timestamp(functionConfig.getCreatedAt())
+            : null,
+        (functionConfig.getLastModified() != null)
+            ? new Timestamp(functionConfig.getLastModified())
+            : null);
   }
 
   public static FunctionConfig toProto(UserDefinedFunction userDefinedFunction) {
     return new FunctionConfig()
-      .setName(userDefinedFunction.getName())
-        .setFunctionDefinitionsList(ImmutableList.of(
-          new FunctionDefinition().setFunctionBody(
-            new FunctionBody()
-              .setRawBody(userDefinedFunction.getFunctionSql())
-              .setSerializedPlan(userDefinedFunction.getSerializedFunctionPlan() == null ? null : ByteString.copyFrom(userDefinedFunction.getSerializedFunctionPlan())))
-        .setFunctionArgList(userDefinedFunction.getFunctionArgsList().stream()
-          .map(functionArg ->
-            new FunctionArg()
-              .setName(functionArg.getName())
-              .setRawDataType(ByteString.copyFrom(functionArg.getDataType().serialize()))
-              .setDefaultExpression(functionArg.getDefaultExpression()))
-          .collect(Collectors.toList()))
-      ))
-      .setFullPathList(userDefinedFunction.getFullPath())
-      .setReturnType(new ReturnType().setRawDataType(ByteString.copyFrom(userDefinedFunction.getReturnType().serialize())));
+        .setName(userDefinedFunction.getName())
+        .setFunctionDefinitionsList(
+            ImmutableList.of(
+                new FunctionDefinition()
+                    .setFunctionBody(
+                        new FunctionBody()
+                            .setRawBody(userDefinedFunction.getFunctionSql())
+                            .setSerializedPlan(
+                                userDefinedFunction.getSerializedFunctionPlan() == null
+                                    ? null
+                                    : ByteString.copyFrom(
+                                        userDefinedFunction.getSerializedFunctionPlan())))
+                    .setFunctionArgList(
+                        userDefinedFunction.getFunctionArgsList().stream()
+                            .map(
+                                functionArg ->
+                                    new FunctionArg()
+                                        .setName(functionArg.getName())
+                                        .setRawDataType(
+                                            ByteString.copyFrom(
+                                                functionArg.getDataType().serialize()))
+                                        .setDefaultExpression(functionArg.getDefaultExpression()))
+                            .collect(Collectors.toList()))))
+        .setFullPathList(userDefinedFunction.getFullPath())
+        .setReturnType(
+            new ReturnType()
+                .setRawDataType(
+                    ByteString.copyFrom(userDefinedFunction.getReturnType().serialize())));
   }
 }

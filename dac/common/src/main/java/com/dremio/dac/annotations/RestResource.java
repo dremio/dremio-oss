@@ -21,12 +21,7 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 
-/**
- * Annotation for REST API resources (V2)
- * base path: /apiv2
- */
+/** Annotation for REST API resources (V2) base path: /apiv2 */
 @Retention(RUNTIME)
 @Target(TYPE)
-public @interface RestResource {
-
-}
+public @interface RestResource {}

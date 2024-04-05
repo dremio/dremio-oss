@@ -15,84 +15,52 @@
  */
 package com.dremio.exec.planner.logical;
 
+import com.dremio.PlanTestBase;
 import org.junit.Test;
 
-import com.dremio.PlanTestBase;
-
 public class TestConvertCountToDirectScan extends PlanTestBase {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestConvertCountToDirectScan.class);
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(TestConvertCountToDirectScan.class);
 
   @Test
   public void ensureCaseDoesntConvertToDirectScan() throws Exception {
     testPlanMatchingPatterns(
         "select count(case when r_name = 'ALGERIA' and r_regionkey = 2 then r_regionkey else null end) as cnt from dfs.\"${WORKING_PATH}/src/test/resources/directcount.parquet\"",
-        new String[] { "CASE" },
-        new String[]{});
+        new String[] {"CASE"},
+        new String[] {});
   }
 
   @Test
   public void testConvertToDirectScanWithNoColStats() throws Exception {
-    //Bug 9548
-    String sql = "select count(l_orderkey) as cnt from dfs.\"${WORKING_PATH}/src/test/resources/dremio-no-column-stats.parquet\"";
-    testPlanMatchingPatterns(
-      sql,
-      new String[]{},
-      new String[]{"Values"});
+    // Bug 9548
+    String sql =
+        "select count(l_orderkey) as cnt from dfs.\"${WORKING_PATH}/src/test/resources/dremio-no-column-stats.parquet\"";
+    testPlanMatchingPatterns(sql, new String[] {}, new String[] {"Values"});
 
-    testBuilder()
-      .sqlQuery(sql)
-      .unOrdered()
-      .baselineColumns("cnt")
-      .baselineValues(60175L)
-      .go();
+    testBuilder().sqlQuery(sql).unOrdered().baselineColumns("cnt").baselineValues(60175L).go();
   }
 
   @Test
   public void ensureConvertSimpleCountToDirectScan() throws Exception {
     final String sql = "select count(*) as cnt from cp.\"tpch/nation.parquet\"";
-    testPlanMatchingPatterns(
-        sql,
-        new String[] { "Values" },
-        new String[]{});
+    testPlanMatchingPatterns(sql, new String[] {"Values"}, new String[] {});
 
-    testBuilder()
-        .sqlQuery(sql)
-        .unOrdered()
-        .baselineColumns("cnt")
-        .baselineValues(25L)
-        .go();
+    testBuilder().sqlQuery(sql).unOrdered().baselineColumns("cnt").baselineValues(25L).go();
   }
 
   @Test
   public void ensureConvertSimpleCountConstToDirectScan() throws Exception {
     final String sql = "select count(100) as cnt from cp.\"tpch/nation.parquet\"";
-    testPlanMatchingPatterns(
-        sql,
-        new String[] { "Values" },
-        new String[]{});
+    testPlanMatchingPatterns(sql, new String[] {"Values"}, new String[] {});
 
-    testBuilder()
-        .sqlQuery(sql)
-        .unOrdered()
-        .baselineColumns("cnt")
-        .baselineValues(25L)
-        .go();
+    testBuilder().sqlQuery(sql).unOrdered().baselineColumns("cnt").baselineValues(25L).go();
   }
 
   @Test
   public void ensureConvertSimpleCountConstExprToDirectScan() throws Exception {
     final String sql = "select count(1 + 2) as cnt from cp.\"tpch/nation.parquet\"";
-    testPlanMatchingPatterns(
-        sql,
-        new String[] { "Values" },
-        new String[]{});
+    testPlanMatchingPatterns(sql, new String[] {"Values"}, new String[] {});
 
-    testBuilder()
-        .sqlQuery(sql)
-        .unOrdered()
-        .baselineColumns("cnt")
-        .baselineValues(25L)
-        .go();
+    testBuilder().sqlQuery(sql).unOrdered().baselineColumns("cnt").baselineValues(25L).go();
   }
-
 }

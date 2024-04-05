@@ -19,10 +19,9 @@ import java.util.LinkedList;
 import java.util.concurrent.Executor;
 
 /**
- * Serializes execution of multiple submissions to a single target, while still
- * using a thread pool to execute those submissions. Provides an implicit
- * queueing capability for a single target that requires any commands that
- * execute against it to be serialized.
+ * Serializes execution of multiple submissions to a single target, while still using a thread pool
+ * to execute those submissions. Provides an implicit queueing capability for a single target that
+ * requires any commands that execute against it to be serialized.
  */
 public abstract class SerializedExecutor<R extends Runnable> {
 
@@ -33,39 +32,32 @@ public abstract class SerializedExecutor<R extends Runnable> {
   private final boolean useRunnableToStringForName;
 
   /**
-   *
    * @param name
    * @param underlyingExecutor underlying executor to use to execute commands submitted to this
-   *          SerializedExecutor
+   *     SerializedExecutor
    * @param runnableClass Runnable types.
    */
-  public SerializedExecutor(String name, Executor underlyingExecutor, boolean useRunnableToStringForName) {
+  public SerializedExecutor(
+      String name, Executor underlyingExecutor, boolean useRunnableToStringForName) {
     this.underlyingExecutor = underlyingExecutor;
     this.useRunnableToStringForName = useRunnableToStringForName;
     this.name = name;
   }
 
   /**
-   * An exception occurred in the last command executed; this reports that to
-   * the subclass of SerializedExecutor.
+   * An exception occurred in the last command executed; this reports that to the subclass of
+   * SerializedExecutor.
    *
-   * <p>
-   * The default implementation of this method throws an exception, which is
-   * considered an error (see below). Implementors have two alternatives:
-   * Arrange not to throw from your commands' run(), or if they do, provide an
-   * override of this method that handles any exception that is thrown.
-   * </p>
+   * <p>The default implementation of this method throws an exception, which is considered an error
+   * (see below). Implementors have two alternatives: Arrange not to throw from your commands'
+   * run(), or if they do, provide an override of this method that handles any exception that is
+   * thrown.
    *
-   * <p>
-   * It is an error for this to throw an exception, and doing so will terminate
-   * the thread with an IllegalStateException. Derivers must handle any reported
-   * exceptions in other ways.
-   * </p>
+   * <p>It is an error for this to throw an exception, and doing so will terminate the thread with
+   * an IllegalStateException. Derivers must handle any reported exceptions in other ways.
    *
-   * @param command
-   *          the command that caused the exception
-   * @param t
-   *          the exception
+   * @param command the command that caused the exception
+   * @param t the exception
    */
   protected abstract void runException(R command, Throwable t);
 
@@ -82,13 +74,13 @@ public abstract class SerializedExecutor<R extends Runnable> {
       final Thread currentThread = Thread.currentThread();
       final String originalThreadName = currentThread.getName();
 
-      if(!useRunnableToStringForName) {
+      if (!useRunnableToStringForName) {
         currentThread.setName(name);
       }
 
       try {
         while (true) {
-          if(useRunnableToStringForName) {
+          if (useRunnableToStringForName) {
             currentThread.setName(command.toString());
           }
 

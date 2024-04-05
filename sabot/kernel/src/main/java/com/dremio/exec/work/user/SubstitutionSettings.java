@@ -15,18 +15,15 @@
  */
 package com.dremio.exec.work.user;
 
-import java.util.List;
-
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import java.util.List;
 
-/**
- * Transfer Object for substitution related settings
- *
- */
+/** Transfer Object for substitution related settings */
 public class SubstitutionSettings {
 
-  private static final SubstitutionSettings EMPTY = new SubstitutionSettings(ImmutableList.<String>of());
+  private static final SubstitutionSettings EMPTY =
+      new SubstitutionSettings(ImmutableList.<String>of());
 
   private List<String> exclusions;
   private List<String> inclusions = ImmutableList.of();
@@ -37,10 +34,14 @@ public class SubstitutionSettings {
   }
 
   public SubstitutionSettings(SubstitutionSettings substitutionSettings) {
-    this.exclusions = substitutionSettings.exclusions != null ?
-      ImmutableList.copyOf(substitutionSettings.exclusions) : ImmutableList.of();
-    this.inclusions = substitutionSettings.inclusions != null ?
-      ImmutableList.copyOf(substitutionSettings.inclusions) : ImmutableList.of();
+    this.exclusions =
+        substitutionSettings.exclusions != null
+            ? ImmutableList.copyOf(substitutionSettings.exclusions)
+            : ImmutableList.of();
+    this.inclusions =
+        substitutionSettings.inclusions != null
+            ? ImmutableList.copyOf(substitutionSettings.inclusions)
+            : ImmutableList.of();
     this.excludeFileBasedIncremental = substitutionSettings.excludeFileBasedIncremental;
   }
 
@@ -59,8 +60,9 @@ public class SubstitutionSettings {
   }
 
   /**
-   * list of materialization identifiers that shall be excluded from acceleration.
-   *  used to exclude self and/or stale dependencies.
+   * list of materialization identifiers that shall be excluded from acceleration. used to exclude
+   * self and/or stale dependencies.
+   *
    * @return list of materialization ids
    */
   public List<String> getExclusions() {
@@ -68,7 +70,9 @@ public class SubstitutionSettings {
   }
 
   /**
-   * list of materialization identifiers that should be included for acceleration. If this is set, exclusions cannot be set.
+   * list of materialization identifiers that should be included for acceleration. If this is set,
+   * exclusions cannot be set.
+   *
    * @return
    */
   public List<String> getInclusions() {
@@ -76,9 +80,10 @@ public class SubstitutionSettings {
   }
 
   /**
-   * true if file based incrementally refreshed materializations should be excluded for acceleration.  This is set to true
-   * when we are incrementally refreshing a materialization and Iceberg table format is used for materialization storage.
-   * We currently do not support incremental refreshes on Iceberg tables.
+   * true if file based incrementally refreshed materializations should be excluded for
+   * acceleration. This is set to true when we are incrementally refreshing a materialization and
+   * Iceberg table format is used for materialization storage. We currently do not support
+   * incremental refreshes on Iceberg tables.
    *
    * @return
    */
@@ -89,7 +94,4 @@ public class SubstitutionSettings {
   public void setExcludeFileBasedIncremental(boolean excludeFileBasedIncremental) {
     this.excludeFileBasedIncremental = excludeFileBasedIncremental;
   }
-
-
-
 }

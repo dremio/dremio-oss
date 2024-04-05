@@ -17,9 +17,6 @@ package com.dremio.dac.explore;
 
 import static java.lang.String.format;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import com.dremio.dac.explore.model.FieldTransformationBase;
 import com.dremio.dac.explore.model.TransformBase;
 import com.dremio.dac.proto.model.dataset.ConvertCase;
@@ -45,6 +42,8 @@ import com.dremio.dac.proto.model.dataset.TransformTrim;
 import com.dremio.dac.proto.model.dataset.TransformUpdateSQL;
 import com.dremio.dac.proto.model.dataset.TrimType;
 import com.google.common.base.Joiner;
+import java.util.ArrayList;
+import java.util.List;
 
 class DescribeTransformation implements TransformBase.TransformVisitor<String> {
 
@@ -58,27 +57,30 @@ class DescribeTransformation implements TransformBase.TransformVisitor<String> {
   public String visit(TransformJoin join) throws Exception {
     String jointype;
     switch (join.getJoinType()) {
-    case Inner:
-      jointype = "Inner";
-      break;
-    case LeftOuter:
-      jointype = "Left outer";
-      break;
-    case RightOuter:
-      jointype = "Rigth outer";
-      break;
-    case FullOuter:
-      jointype = "Full outer";
-      break;
-    default:
-      throw new UnsupportedOperationException("Unknown join type " + join.getJoinType().name());
+      case Inner:
+        jointype = "Inner";
+        break;
+      case LeftOuter:
+        jointype = "Left outer";
+        break;
+      case RightOuter:
+        jointype = "Rigth outer";
+        break;
+      case FullOuter:
+        jointype = "Full outer";
+        break;
+      default:
+        throw new UnsupportedOperationException("Unknown join type " + join.getJoinType().name());
     }
     List<String> conditions = new ArrayList<>();
     for (JoinCondition jc : join.getJoinConditionsList()) {
       conditions.add(jc.getLeftColumn() + " = " + jc.getRightColumn());
     }
     // TODO show quoted path
-    return jointype + " join with " + Joiner.on(".").join(join.getRightTableFullPathList()) + " on "
+    return jointype
+        + " join with "
+        + Joiner.on(".").join(join.getRightTableFullPathList())
+        + " on "
         + Joiner.on(" and ").join(conditions);
   }
 
@@ -119,17 +121,17 @@ class DescribeTransformation implements TransformBase.TransformVisitor<String> {
   private String describeConvertCase(ConvertCase c, String columnName) {
     String display;
     switch (c) {
-    case LOWER_CASE:
-      display = "lower case";
-      break;
-    case UPPER_CASE:
-      display = "upper case";
-      break;
-    case TITLE_CASE:
-      display = "title case";
-      break;
-    default:
-      throw new UnsupportedOperationException("Unknown case " + c);
+      case LOWER_CASE:
+        display = "lower case";
+        break;
+      case UPPER_CASE:
+        display = "upper case";
+        break;
+      case TITLE_CASE:
+        display = "title case";
+        break;
+      default:
+        throw new UnsupportedOperationException("Unknown case " + c);
     }
     return "Convert case of " + columnName + " to " + display;
   }
@@ -142,24 +144,27 @@ class DescribeTransformation implements TransformBase.TransformVisitor<String> {
   private String describeTrim(String columnName, TrimType trimType) {
     String display;
     switch (trimType) {
-    case BOTH:
-      display = "on both sides";
-      break;
-    case LEFT:
-      display = "on the left";
-      break;
-    case RIGHT:
-      display = "on the right";
-      break;
-    default:
-      throw new UnsupportedOperationException("Unknown trim " + trimType);
+      case BOTH:
+        display = "on both sides";
+        break;
+      case LEFT:
+        display = "on the left";
+        break;
+      case RIGHT:
+        display = "on the right";
+        break;
+      default:
+        throw new UnsupportedOperationException("Unknown trim " + trimType);
     }
     return "Trim " + columnName + " " + display;
   }
 
   @Override
   public String visit(TransformExtract extract) throws Exception {
-    return "Extract " + ExtractRecommender.describe(extract.getRule()) + " as " + extract.getNewColumnName();
+    return "Extract "
+        + ExtractRecommender.describe(extract.getRule())
+        + " as "
+        + extract.getNewColumnName();
   }
 
   @Override
@@ -180,14 +185,16 @@ class DescribeTransformation implements TransformBase.TransformVisitor<String> {
 
   @Override
   public String visit(TransformConvertToSingleType convertToSingleType) throws Exception {
-    return format("convert mixed type %s to single type %s", convertToSingleType.getSourceColumnName(),
-        convertToSingleType.getDesiredType());
+    return format(
+        "convert mixed type %s to single type %s",
+        convertToSingleType.getSourceColumnName(), convertToSingleType.getDesiredType());
   }
 
   @Override
   public String visit(TransformSplitByDataType splitByDataType) throws Exception {
-    return format("split mixed type %s to separate columns %s*", splitByDataType.getSourceColumnName(),
-        splitByDataType.getNewColumnNamePrefix());
+    return format(
+        "split mixed type %s to separate columns %s*",
+        splitByDataType.getSourceColumnName(), splitByDataType.getNewColumnNamePrefix());
   }
 
   @Override
@@ -211,5 +218,4 @@ class DescribeTransformation implements TransformBase.TransformVisitor<String> {
   public String visit(TransformCreateFromParent createFromParent) throws Exception {
     return "Dataset creation";
   }
-
 }

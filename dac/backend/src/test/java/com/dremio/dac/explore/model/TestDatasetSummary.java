@@ -15,25 +15,23 @@
  */
 package com.dremio.dac.explore.model;
 
-import java.util.Collections;
-
-import org.junit.Test;
-
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
+import java.util.Collections;
+import org.junit.Test;
 
 public class TestDatasetSummary {
 
   @Test
   public void testCreateNewInstance() {
     DatasetSummary.newInstance(
-      new DatasetConfig().setType(DatasetType.PHYSICAL_DATASET),
-      0,
-      0,
-      Collections.emptyMap(),
-      Collections.emptyList(),
-      false,
-      null,
-      null);
+        new DatasetConfig().setType(DatasetType.PHYSICAL_DATASET),
+        0,
+        0,
+        Collections.emptyMap(),
+        Collections.emptyList(),
+        false,
+        null,
+        null);
   }
 }

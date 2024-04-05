@@ -15,34 +15,46 @@
  */
 package com.dremio.exec.planner.logical;
 
-import java.util.List;
-
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelNode;
-
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.VacuumOptions;
 import com.dremio.exec.planner.common.VacuumCatalogRelBase;
 import com.dremio.exec.planner.cost.iceberg.IcebergCostEstimates;
+import java.util.List;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelNode;
 
-/**
- * Dremio rel node for 'VACUUM CATALOG' query.
- */
+/** Dremio rel node for 'VACUUM CATALOG' query. */
 public class VacuumCatalogDrel extends VacuumCatalogRelBase implements Rel {
 
-  public VacuumCatalogDrel(RelOptCluster cluster,
-                           RelTraitSet traitSet,
-                           StoragePluginId storagePluginId,
-                           String user,
-                           String sourceName,
-                           IcebergCostEstimates icebergCostEstimates,
-                           VacuumOptions vacuumOptions) {
-    super(LOGICAL, cluster, traitSet, storagePluginId, user, sourceName, icebergCostEstimates, vacuumOptions);
+  public VacuumCatalogDrel(
+      RelOptCluster cluster,
+      RelTraitSet traitSet,
+      StoragePluginId storagePluginId,
+      String user,
+      String sourceName,
+      IcebergCostEstimates icebergCostEstimates,
+      VacuumOptions vacuumOptions) {
+    super(
+        LOGICAL,
+        cluster,
+        traitSet,
+        storagePluginId,
+        user,
+        sourceName,
+        icebergCostEstimates,
+        vacuumOptions);
   }
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new VacuumCatalogDrel(getCluster(), traitSet, getStoragePluginId(), getUser(), getSourceName(), getCostEstimates(), getVacuumOptions());
+    return new VacuumCatalogDrel(
+        getCluster(),
+        traitSet,
+        getStoragePluginId(),
+        getUser(),
+        getSourceName(),
+        getCostEstimates(),
+        getVacuumOptions());
   }
 }

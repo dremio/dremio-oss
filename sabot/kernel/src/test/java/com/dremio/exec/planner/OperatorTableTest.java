@@ -17,16 +17,15 @@ package com.dremio.exec.planner;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import com.dremio.BaseTestQuery;
 import java.math.BigDecimal;
-
 import org.junit.Ignore;
 import org.junit.Test;
 
-import com.dremio.BaseTestQuery;
+public class OperatorTableTest extends BaseTestQuery {
 
-public class OperatorTableTest extends BaseTestQuery{
-
-  @Test public void testRound() throws Exception {
+  @Test
+  public void testRound() throws Exception {
     testBuilder()
         .sqlQuery("SELECT ROUND(CAST(99.99 AS NUMERIC(4,2))) AS my_field")
         .unOrdered()
@@ -35,7 +34,8 @@ public class OperatorTableTest extends BaseTestQuery{
         .go();
   }
 
-  @Test public void testRoundUsingJdbcEscaping() throws Exception {
+  @Test
+  public void testRoundUsingJdbcEscaping() throws Exception {
     testBuilder()
         .sqlQuery("SELECT {fn ROUND(CAST (99.99 AS NUMERIC(4,2)), 0)} AS my_field")
         .unOrdered()
@@ -44,7 +44,8 @@ public class OperatorTableTest extends BaseTestQuery{
         .go();
   }
 
-  @Test public void testTruncate() throws Exception {
+  @Test
+  public void testTruncate() throws Exception {
     testBuilder()
         .sqlQuery("SELECT TRUNCATE(CAST(99.99 AS NUMERIC(4,2)), 0) AS my_field")
         .unOrdered()
@@ -59,15 +60,18 @@ public class OperatorTableTest extends BaseTestQuery{
         .go();
   }
 
-  @Test public void testGreatestOperator() throws Exception{
+  @Test
+  public void testGreatestOperator() throws Exception {
     testBuilder()
-        .sqlQuery("SELECT GREATEST(CAST(1.2 AS float), CAST(123.12 AS decimal(5,2))) AS \"my_field\"")
+        .sqlQuery(
+            "SELECT GREATEST(CAST(1.2 AS float), CAST(123.12 AS decimal(5,2))) AS \"my_field\"")
         .unOrdered()
         .baselineColumns("my_field")
-        .baselineValues( 123.12D)
+        .baselineValues(123.12D)
         .go();
     testBuilder()
-        .sqlQuery("SELECT GREATEST(CAST(123.5 AS float), CAST(123.12 AS decimal(5,2))) AS \"my_field\"")
+        .sqlQuery(
+            "SELECT GREATEST(CAST(123.5 AS float), CAST(123.12 AS decimal(5,2))) AS \"my_field\"")
         .unOrdered()
         .baselineColumns("my_field")
         .baselineValues(123.5D)
@@ -75,55 +79,63 @@ public class OperatorTableTest extends BaseTestQuery{
   }
 
   @Ignore // we are exclude oracles decode, because it conflicts with the existing hive decode
-  @Test public void testDecode() throws Exception{
+  @Test
+  public void testDecode() throws Exception {
     testBuilder()
-        .sqlQuery(""
-            + "SELECT DECODE(my_value, 1, 'hello', 2, 'good bye') AS \"my_field\"\n"
-            + "FROM (VALUES (1), (2)) as my_table(my_value) ")
+        .sqlQuery(
+            ""
+                + "SELECT DECODE(my_value, 1, 'hello', 2, 'good bye') AS \"my_field\"\n"
+                + "FROM (VALUES (1), (2)) as my_table(my_value) ")
         .unOrdered()
         .baselineColumns("my_field")
-        .baselineValues( "hello")
-        .baselineValues( "good bye")
+        .baselineValues("hello")
+        .baselineValues("good bye")
         .go();
   }
 
-  @Test public void testConvertTo() throws Exception {
+  @Test
+  public void testConvertTo() throws Exception {
     testBuilder()
         .sqlQuery("SELECT CONVERT_TO('my_value', 'UTF8') AS \"my_field\"")
         .unOrdered()
         .baselineColumns("my_field")
-        .baselineValues( "my_value".getBytes(UTF_8))
+        .baselineValues("my_value".getBytes(UTF_8))
         .go();
   }
 
-  @Test public void testConvertFROM() throws Exception {
+  @Test
+  public void testConvertFROM() throws Exception {
     testBuilder()
-        .sqlQuery("SELECT CONVERT_FROM(BINARY_STRING('\\x68\\x65\\x6c\\x6c\\x6f'), 'UTF8') AS \"my_field\"")
+        .sqlQuery(
+            "SELECT CONVERT_FROM(BINARY_STRING('\\x68\\x65\\x6c\\x6c\\x6f'), 'UTF8') AS \"my_field\"")
         .unOrdered()
         .baselineColumns("my_field")
-        .baselineValues( "hello")
+        .baselineValues("hello")
         .go();
   }
 
-  @Test public void testTranslate() throws Exception{
+  @Test
+  public void testTranslate() throws Exception {
     testBuilder()
         .sqlQuery("SELECT TRANSLATE('good bye', 'by', 'pi') AS \"my_field\"")
         .unOrdered()
         .baselineColumns("my_field")
-        .baselineValues( "good pie")
+        .baselineValues("good pie")
         .go();
   }
 
-  @Test public void testTranslateWithCast() throws Exception{
+  @Test
+  public void testTranslateWithCast() throws Exception {
     testBuilder()
         .sqlQuery("SELECT TRANSLATE('good 12e', CAST('12' AS VARCHAR), 'pi') AS \"my_field\"")
         .unOrdered()
         .baselineColumns("my_field")
-        .baselineValues( "good pie")
+        .baselineValues("good pie")
         .go();
   }
 
-  @Test public void testLeastOperator() throws Exception {
+  @Test
+  public void testLeastOperator() throws Exception {
     testBuilder()
         .sqlQuery("SELECT LEAST(CAST(1.5 AS float), CAST(123.12 AS decimal(5,2))) AS \"my_field\"")
         .unOrdered()
@@ -131,14 +143,16 @@ public class OperatorTableTest extends BaseTestQuery{
         .baselineValues(1.5D)
         .go();
     testBuilder()
-        .sqlQuery("SELECT LEAST(CAST(123.5 AS float), CAST(123.12 AS decimal(5,2))) AS \"my_field\"")
+        .sqlQuery(
+            "SELECT LEAST(CAST(123.5 AS float), CAST(123.12 AS decimal(5,2))) AS \"my_field\"")
         .unOrdered()
         .baselineColumns("my_field")
         .baselineValues(123.12D)
         .go();
   }
 
-  @Test public void testTrimOperator() throws Exception {
+  @Test
+  public void testTrimOperator() throws Exception {
     testBuilder()
         .sqlQuery("SELECT LTRIM(' hello ') AS \"my_field\"")
         .unOrdered()
@@ -165,7 +179,8 @@ public class OperatorTableTest extends BaseTestQuery{
         .go();
   }
 
-  @Test public void testSubStr() throws Exception {
+  @Test
+  public void testSubStr() throws Exception {
     testBuilder()
         .sqlQuery("SELECT substr(' hello ', 2, 5) AS \"my_field\"")
         .unOrdered()
@@ -179,35 +194,40 @@ public class OperatorTableTest extends BaseTestQuery{
         .baselineValues("C");
   }
 
-  @Test public void testNvlOperator() throws Exception {
+  @Test
+  public void testNvlOperator() throws Exception {
     testBuilder()
-        .sqlQuery(""
-          + "SELECT NVL(hello, good_bye) AS \"my_field\"\n"
-          + "FROM (VALUES ('hello', 'good bye')) AS my_table(hello, good_bye)")
+        .sqlQuery(
+            ""
+                + "SELECT NVL(hello, good_bye) AS \"my_field\"\n"
+                + "FROM (VALUES ('hello', 'good bye')) AS my_table(hello, good_bye)")
         .unOrdered()
         .baselineColumns("my_field")
         .baselineValues("hello")
         .go();
     testBuilder()
-        .sqlQuery(""
-          + "SELECT NVL(hello, good_bye) AS \"my_field\"\n"
-          + "FROM (VALUES ('hello', CAST(null AS VARCHAR))) AS my_table(hello, good_bye)")
+        .sqlQuery(
+            ""
+                + "SELECT NVL(hello, good_bye) AS \"my_field\"\n"
+                + "FROM (VALUES ('hello', CAST(null AS VARCHAR))) AS my_table(hello, good_bye)")
         .unOrdered()
         .baselineColumns("my_field")
         .baselineValues("hello")
         .go();
     testBuilder()
-        .sqlQuery(""
-          + "SELECT NVL(hello, good_bye) AS \"my_field\"\n"
-          + "FROM (VALUES (CAST(null AS VARCHAR), 'good bye')) AS my_table(hello, good_bye)")
+        .sqlQuery(
+            ""
+                + "SELECT NVL(hello, good_bye) AS \"my_field\"\n"
+                + "FROM (VALUES (CAST(null AS VARCHAR), 'good bye')) AS my_table(hello, good_bye)")
         .unOrdered()
         .baselineColumns("my_field")
         .baselineValues("good bye")
         .go();
     testBuilder()
-        .sqlQuery(""
-          + "SELECT NVL(hello, good_bye) AS \"my_field\"\n"
-          + "FROM (VALUES (CAST(null AS VARCHAR), CAST(null AS VARCHAR))) AS my_table(hello, good_bye)")
+        .sqlQuery(
+            ""
+                + "SELECT NVL(hello, good_bye) AS \"my_field\"\n"
+                + "FROM (VALUES (CAST(null AS VARCHAR), CAST(null AS VARCHAR))) AS my_table(hello, good_bye)")
         .unOrdered()
         .baselineColumns("my_field")
         .baselineValues((Object) null)

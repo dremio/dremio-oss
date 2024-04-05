@@ -18,11 +18,16 @@ package com.dremio.exec.planner.sql.parser;
 import static org.apache.iceberg.TableProperties.MAX_SNAPSHOT_AGE_MS_DEFAULT;
 import static org.apache.iceberg.TableProperties.MIN_SNAPSHOTS_TO_KEEP_DEFAULT;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.catalog.VacuumOptions;
+import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
+import com.dremio.exec.planner.sql.handlers.query.SqlToPlanHandler;
+import com.dremio.service.namespace.NamespaceKey;
+import com.google.common.collect.ImmutableMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlLiteral;
@@ -34,15 +39,8 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.sql.validate.SqlValidatorScope;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.catalog.VacuumOptions;
-import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
-import com.dremio.exec.planner.sql.handlers.query.SqlToPlanHandler;
-import com.dremio.service.namespace.NamespaceKey;
-import com.google.common.collect.ImmutableMap;
-
 public abstract class SqlVacuum extends SqlCall implements SqlToPlanHandler.Creator {
-  public static final long MAX_FILE_AGE_MS_DEFAULT = TimeUnit.DAYS.toMillis(3);  // 3 days
+  public static final long MAX_FILE_AGE_MS_DEFAULT = TimeUnit.DAYS.toMillis(3); // 3 days
 
   protected final SqlNodeList optionsList;
   protected final SqlNodeList optionsValueList;
@@ -54,24 +52,23 @@ public abstract class SqlVacuum extends SqlCall implements SqlToPlanHandler.Crea
   protected SqlLiteral expireSnapshots;
   protected SqlLiteral removeOrphans;
 
-  /**
-   * Creates a SqlVacuum.
-   */
+  /** Creates a SqlVacuum. */
   public SqlVacuum(
-    SqlParserPos pos,
-    SqlLiteral expireSnapshots,
-    SqlLiteral removeOrphans,
-    SqlNodeList optionsList,
-    SqlNodeList optionsValueList) {
+      SqlParserPos pos,
+      SqlLiteral expireSnapshots,
+      SqlLiteral removeOrphans,
+      SqlNodeList optionsList,
+      SqlNodeList optionsValueList) {
     super(pos);
     this.expireSnapshots = expireSnapshots;
     this.removeOrphans = removeOrphans;
     this.optionsList = optionsList;
     this.optionsValueList = optionsValueList;
-    this.optionsConsumer = ImmutableMap.of(
-      "older_than", sqlNode -> this.olderThanTimestamp = extractStringValue(sqlNode),
-      "retain_last", sqlNode -> this.retainLastSnapshots = extractRetainLast(sqlNode),
-      "location", sqlNode -> this.location = extractStringValue(sqlNode));
+    this.optionsConsumer =
+        ImmutableMap.of(
+            "older_than", sqlNode -> this.olderThanTimestamp = extractStringValue(sqlNode),
+            "retain_last", sqlNode -> this.retainLastSnapshots = extractRetainLast(sqlNode),
+            "location", sqlNode -> this.location = extractStringValue(sqlNode));
 
     populateOptions(optionsList, optionsValueList);
   }
@@ -91,8 +88,15 @@ public abstract class SqlVacuum extends SqlCall implements SqlToPlanHandler.Crea
         long currentTime = System.currentTimeMillis();
         olderThanInMillis = currentTime - MAX_SNAPSHOT_AGE_MS_DEFAULT;
       }
-      int retainLast = retainLastSnapshots != null ? retainLastSnapshots : MIN_SNAPSHOTS_TO_KEEP_DEFAULT;
-      return new VacuumOptions(expireSnapshots.booleanValue(), removeOrphans.booleanValue(), olderThanInMillis, retainLast, null, null);
+      int retainLast =
+          retainLastSnapshots != null ? retainLastSnapshots : MIN_SNAPSHOTS_TO_KEEP_DEFAULT;
+      return new VacuumOptions(
+          expireSnapshots.booleanValue(),
+          removeOrphans.booleanValue(),
+          olderThanInMillis,
+          retainLast,
+          null,
+          null);
     }
 
     if (removeOrphans.booleanValue()) {
@@ -104,10 +108,17 @@ public abstract class SqlVacuum extends SqlCall implements SqlToPlanHandler.Crea
         olderThanInMillis = currentTime - MAX_FILE_AGE_MS_DEFAULT;
       }
 
-      return new VacuumOptions(expireSnapshots.booleanValue(), removeOrphans.booleanValue(), olderThanInMillis, 1, location, null);
+      return new VacuumOptions(
+          expireSnapshots.booleanValue(),
+          removeOrphans.booleanValue(),
+          olderThanInMillis,
+          1,
+          location,
+          null);
     }
 
-    return new VacuumOptions(expireSnapshots.booleanValue(), removeOrphans.booleanValue(), null, null, null, null);
+    return new VacuumOptions(
+        expireSnapshots.booleanValue(), removeOrphans.booleanValue(), null, null, null, null);
   }
 
   protected void populateOptions(SqlNodeList optionsList, SqlNodeList optionsValueList) {
@@ -120,9 +131,17 @@ public abstract class SqlVacuum extends SqlCall implements SqlToPlanHandler.Crea
       SqlIdentifier optionIdentifier = (SqlIdentifier) option;
       String optionName = optionIdentifier.getSimple();
 
-      Consumer<SqlNode> optionConsumer = getOptionsConsumer(optionName.toLowerCase())
-        .orElseThrow(() -> new RuntimeException(new SqlParseException(
-          String.format("Unsupported option '%s' for VACUUM.", optionName), pos, null, null, null)));
+      Consumer<SqlNode> optionConsumer =
+          getOptionsConsumer(optionName.toLowerCase())
+              .orElseThrow(
+                  () ->
+                      new RuntimeException(
+                          new SqlParseException(
+                              String.format("Unsupported option '%s' for VACUUM.", optionName),
+                              pos,
+                              null,
+                              null,
+                              null)));
 
       optionConsumer.accept(optionsValueList.get(idx));
       idx++;
@@ -138,8 +157,8 @@ public abstract class SqlVacuum extends SqlCall implements SqlToPlanHandler.Crea
     Integer retainLastValue = Integer.valueOf(optionValueNumLiteral.intValue(true));
     if (retainLastValue <= 0) {
       throw UserException.unsupportedError()
-        .message("Minimum number of snapshots to retain can be 1")
-        .buildSilently();
+          .message("Minimum number of snapshots to retain can be 1")
+          .buildSilently();
     }
     return retainLastValue;
   }

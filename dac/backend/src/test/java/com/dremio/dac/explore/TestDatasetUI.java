@@ -17,24 +17,23 @@ package com.dremio.dac.explore;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-
-import org.junit.jupiter.api.Test;
-
 import com.dremio.catalog.model.VersionContext;
 import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.dac.explore.model.DatasetUI;
 import com.dremio.exec.catalog.VersionedDatasetId;
 import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import org.junit.jupiter.api.Test;
 
 public class TestDatasetUI {
   private final List<String> homeDatasetFullPath = Arrays.asList("@dremio", "table1");
   private final List<String> spaceDatasetFullPath = Arrays.asList("view1");
   private final List<String> sourceDatasetFullPath = Arrays.asList("other", "table1");
-  private final List<String> versionedPhysicalDatasetFullPath = Arrays.asList("versioned", "table1");
+  private final List<String> versionedPhysicalDatasetFullPath =
+      Arrays.asList("versioned", "table1");
   private final List<String> versionedVirtualDatasetFullPath = Arrays.asList("versioned", "view1");
 
   private final String branchName = "main";
@@ -58,8 +57,8 @@ public class TestDatasetUI {
   public void testCreateLinksForVersionedPhysicalDataset() throws Exception {
     final Map<String, String> linksMap =
         DatasetUI.createLinks(
-          versionedPhysicalDatasetFullPath,
-          versionedPhysicalDatasetFullPath,
+            versionedPhysicalDatasetFullPath,
+            versionedPhysicalDatasetFullPath,
             datasetVersion,
             false,
             versionedPhysicalDatasetId.asString(),
@@ -74,8 +73,8 @@ public class TestDatasetUI {
   public void testCreateLinksForVersionedVirtualDataset() throws Exception {
     final Map<String, String> linksMap =
         DatasetUI.createLinks(
-          versionedVirtualDatasetFullPath,
-          versionedVirtualDatasetFullPath,
+            versionedVirtualDatasetFullPath,
+            versionedVirtualDatasetFullPath,
             datasetVersion,
             false,
             versionedVirtualDatasetId.asString(),

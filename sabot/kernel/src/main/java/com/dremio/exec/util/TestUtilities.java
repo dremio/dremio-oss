@@ -21,15 +21,6 @@ import static com.dremio.exec.store.dfs.system.SystemIcebergTablesStoragePluginC
 import static com.dremio.exec.store.iceberg.IcebergModelCreator.DREMIO_NESSIE_DEFAULT_NAMESPACE;
 import static com.dremio.exec.store.metadatarefresh.MetadataRefreshExecConstants.METADATA_STORAGE_PLUGIN_NAME;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.ConcurrentModificationException;
-import java.util.List;
-import java.util.Set;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.datastore.LocalKVStoreProvider;
@@ -56,11 +47,19 @@ import com.dremio.service.namespace.space.proto.HomeConfig;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.io.Files;
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.ConcurrentModificationException;
+import java.util.List;
+import java.util.Set;
 
 /**
- * This class contains utility methods to speed up tests. Some of the production code currently calls this method
- * when the production code is executed as part of the test runs. That's the reason why this code has to be in
- * production module.
+ * This class contains utility methods to speed up tests. Some of the production code currently
+ * calls this method when the production code is executed as part of the test runs. That's the
+ * reason why this code has to be in production module.
  */
 public class TestUtilities {
 
@@ -81,7 +80,8 @@ public class TestUtilities {
     addDefaultTestPlugins(catalog, tmpDirPath, true);
   }
 
-  public static void addDefaultTestPlugins(CatalogService catalog, final String tmpDirPath, boolean addHadoopDataLakes) {
+  public static void addDefaultTestPlugins(
+      CatalogService catalog, final String tmpDirPath, boolean addHadoopDataLakes) {
     CatalogServiceImpl catalogImpl = (CatalogServiceImpl) catalog;
     if (addHadoopDataLakes) {
       addIcebergHadoopTables(catalog, tmpDirPath);
@@ -92,10 +92,10 @@ public class TestUtilities {
       InternalFileConf conf = new InternalFileConf();
       conf.connection = "file:///";
       conf.path = "/";
-      conf.propertyList = Arrays.asList(
+      conf.propertyList =
+          Arrays.asList(
               new Property(ExecConstants.ICEBERG_CATALOG_TYPE_KEY, "nessie"),
-              new Property(ICEBERG_NAMESPACE_KEY, DREMIO_NESSIE_DEFAULT_NAMESPACE)
-      );
+              new Property(ICEBERG_NAMESPACE_KEY, DREMIO_NESSIE_DEFAULT_NAMESPACE));
       c.setConnectionConf(conf);
       c.setName("dfs");
       c.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE);
@@ -107,10 +107,10 @@ public class TestUtilities {
       InternalFileConf conf = new InternalFileConf();
       conf.connection = "file:///";
       conf.path = "/";
-      conf.propertyList = Arrays.asList(
-        new Property(ExecConstants.ICEBERG_CATALOG_TYPE_KEY, "nessie"),
-        new Property(ICEBERG_NAMESPACE_KEY, DREMIO_NESSIE_DEFAULT_NAMESPACE)
-      );
+      conf.propertyList =
+          Arrays.asList(
+              new Property(ExecConstants.ICEBERG_CATALOG_TYPE_KEY, "nessie"),
+              new Property(ICEBERG_NAMESPACE_KEY, DREMIO_NESSIE_DEFAULT_NAMESPACE));
       conf.isPartitionInferenceEnabled = true;
       c.setConnectionConf(conf);
       c.setName("dfs_partition_inference");
@@ -124,10 +124,10 @@ public class TestUtilities {
       conf.connection = "file:///";
       conf.path = tmpDirPath;
       conf.mutability = SchemaMutability.ALL;
-      conf.propertyList = Arrays.asList(
+      conf.propertyList =
+          Arrays.asList(
               new Property(ExecConstants.ICEBERG_CATALOG_TYPE_KEY, "nessie"),
-              new Property(ICEBERG_NAMESPACE_KEY, DREMIO_NESSIE_DEFAULT_NAMESPACE)
-      );
+              new Property(ICEBERG_NAMESPACE_KEY, DREMIO_NESSIE_DEFAULT_NAMESPACE));
       c.setConnectionConf(conf);
       c.setName("dfs_test");
       c.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE);
@@ -164,7 +164,9 @@ public class TestUtilities {
       MetadataStoragePluginConfig conf = new MetadataStoragePluginConfig();
       conf.connection = "file:///";
       conf.path = tmpDirPath;
-      conf.propertyList = Collections.singletonList(new Property(ICEBERG_NAMESPACE_KEY, DREMIO_NESSIE_DEFAULT_NAMESPACE));
+      conf.propertyList =
+          Collections.singletonList(
+              new Property(ICEBERG_NAMESPACE_KEY, DREMIO_NESSIE_DEFAULT_NAMESPACE));
       c.setConnectionConf(conf);
       c.setName(METADATA_STORAGE_PLUGIN_NAME);
       c.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE);
@@ -176,7 +178,9 @@ public class TestUtilities {
       GandivaPersistentCachePluginConfig conf = new GandivaPersistentCachePluginConfig();
       conf.connection = "file:///";
       conf.path = tmpDirPath;
-      conf.propertyList = Collections.singletonList(new Property(ICEBERG_NAMESPACE_KEY, DREMIO_NESSIE_DEFAULT_NAMESPACE));
+      conf.propertyList =
+          Collections.singletonList(
+              new Property(ICEBERG_NAMESPACE_KEY, DREMIO_NESSIE_DEFAULT_NAMESPACE));
       c.setConnectionConf(conf);
       c.setName(GANDIVA_PERSISTENT_CACHE_PLUGIN_NAME);
       c.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE);
@@ -188,7 +192,9 @@ public class TestUtilities {
       SystemIcebergTablesStoragePluginConfig conf = new SystemIcebergTablesStoragePluginConfig();
       conf.connection = "file:///";
       conf.path = tmpDirPath;
-      conf.propertyList = Collections.singletonList(new Property(ICEBERG_NAMESPACE_KEY, DREMIO_NESSIE_DEFAULT_NAMESPACE));
+      conf.propertyList =
+          Collections.singletonList(
+              new Property(ICEBERG_NAMESPACE_KEY, DREMIO_NESSIE_DEFAULT_NAMESPACE));
       c.setConnectionConf(conf);
       c.setName(SYSTEM_ICEBERG_TABLES_PLUGIN_NAME);
       c.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE);
@@ -210,7 +216,7 @@ public class TestUtilities {
       c.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE);
       catalogImpl.getSystemUserCatalog().createSource(c);
     }
-    //dfs_hadoop_mutable
+    // dfs_hadoop_mutable
     {
       SourceConfig c = new SourceConfig();
       InternalFileConf conf = new InternalFileConf();
@@ -240,7 +246,8 @@ public class TestUtilities {
 
     // Need to create a new source `dfs_static_test_hadoop` rooted at a known location because:
     //  1. dfs_hadoop is immutable.
-    //  2. dfs_test_hadoop is mutable BUT is rooted at a tmpDirPath which won't work with statically created Iceberg tables.
+    //  2. dfs_test_hadoop is mutable BUT is rooted at a tmpDirPath which won't work with statically
+    // created Iceberg tables.
     {
       SourceConfig c = new SourceConfig();
       InternalFileConf conf = new InternalFileConf();
@@ -298,19 +305,20 @@ public class TestUtilities {
    * identified and the namespace stores (namespace/splits). For namespace, it does selective delete
    * based on the list of items that should be maintained in savedPaths.
    *
-   * @param catalogService
-   *          CatalogService
-   * @param kvstore
-   *          KVStoreProvider
-   * @param savedStores
-   *          List of kvstores that should be maintained (in addition to namespace).
-   * @param savedPaths
-   *          List of root entities in namespace that should be maintained in addition to a standard
-   *          set of internal entities.
+   * @param catalogService CatalogService
+   * @param kvstore KVStoreProvider
+   * @param savedStores List of kvstores that should be maintained (in addition to namespace).
+   * @param savedPaths List of root entities in namespace that should be maintained in addition to a
+   *     standard set of internal entities.
    * @throws NamespaceException
    * @throws IOException
    */
-  public static void clear(CatalogService catalogService, LegacyKVStoreProvider kvstore, List<String> savedStores, List<String> savedPaths) throws NamespaceException, IOException {
+  public static void clear(
+      CatalogService catalogService,
+      LegacyKVStoreProvider kvstore,
+      List<String> savedStores,
+      List<String> savedPaths)
+      throws NamespaceException, IOException {
     {
       List<String> list = new ArrayList<>();
       list.add(NamespaceServiceImpl.DAC_NAMESPACE);
@@ -324,13 +332,14 @@ public class TestUtilities {
       list.add("roles_store");
       list.add("sys.options");
       list.add("catalogevent");
-      if(savedStores != null) {
+      if (savedStores != null) {
         list.addAll(savedStores);
       }
       kvstore.unwrap(LocalKVStoreProvider.class).deleteEverything(list.toArray(new String[0]));
     }
 
-    final NamespaceService namespace = new NamespaceServiceImpl(kvstore, new CatalogStatusEventsImpl());
+    final NamespaceService namespace =
+        new NamespaceServiceImpl(kvstore, new CatalogStatusEventsImpl());
 
     List<String> list = new ArrayList<>();
     list.add("__jobResultsStore");
@@ -344,23 +353,23 @@ public class TestUtilities {
     list.add("$scratch");
     list.add("sys");
     list.add("INFORMATION_SCHEMA");
-    if(savedPaths != null) {
+    if (savedPaths != null) {
       list.addAll(savedPaths);
     }
 
     final Set<String> rootsToSaveSet = ImmutableSet.copyOf(list);
 
-    for(HomeConfig home : namespace.getHomeSpaces()) {
+    for (HomeConfig home : namespace.getHomeSpaces()) {
       String name = "@" + home.getOwner();
-      if(rootsToSaveSet.contains(name)) {
+      if (rootsToSaveSet.contains(name)) {
         continue;
       }
 
       namespace.deleteHome(new NamespaceKey("@" + home.getOwner()), home.getTag());
     }
 
-    for(SpaceConfig space : namespace.getSpaces()) {
-      if(rootsToSaveSet.contains(space.getName())) {
+    for (SpaceConfig space : namespace.getSpaces()) {
+      if (rootsToSaveSet.contains(space.getName())) {
         continue;
       }
 
@@ -368,10 +377,10 @@ public class TestUtilities {
     }
 
     ((CatalogServiceImpl) catalogService).deleteExcept(rootsToSaveSet);
-
   }
 
-  public static void updateDfsTestTmpSchemaLocation(final CatalogServiceImpl catalog, final String tmpDirPath) throws ExecutionSetupException {
+  public static void updateDfsTestTmpSchemaLocation(
+      final CatalogServiceImpl catalog, final String tmpDirPath) throws ExecutionSetupException {
     final ManagedStoragePlugin msp = catalog.getManagedSource(DFS_TEST_PLUGIN_NAME);
     final FileSystemPlugin plugin = (FileSystemPlugin) catalog.getSource(DFS_TEST_PLUGIN_NAME);
     SourceConfig newConfig = msp.getId().getClonedConfig();

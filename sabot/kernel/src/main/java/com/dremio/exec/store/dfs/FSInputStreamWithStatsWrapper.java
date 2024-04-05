@@ -15,26 +15,24 @@
  */
 package com.dremio.exec.store.dfs;
 
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.util.concurrent.TimeUnit;
-
 import com.dremio.io.FSInputStream;
 import com.dremio.io.FilterFSInputStream;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.exec.context.OperatorStats.WaitRecorder;
 import com.google.common.base.Stopwatch;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.concurrent.TimeUnit;
 
-
-/**
- * Wrapper around FSInputStream to collect IO Stats.
- */
+/** Wrapper around FSInputStream to collect IO Stats. */
 public class FSInputStreamWithStatsWrapper extends FilterFSInputStream {
   private final OperatorStats operatorStats;
   private final OperatorStats waitStats;
   private final String filePath;
 
-  public FSInputStreamWithStatsWrapper(FSInputStream in, OperatorStats operatorStats, boolean recordWaitTimes, String filePath) throws IOException {
+  public FSInputStreamWithStatsWrapper(
+      FSInputStream in, OperatorStats operatorStats, boolean recordWaitTimes, String filePath)
+      throws IOException {
     super(in);
     this.operatorStats = operatorStats;
     this.waitStats = recordWaitTimes ? operatorStats : null;
@@ -48,7 +46,8 @@ public class FSInputStreamWithStatsWrapper extends FilterFSInputStream {
       Stopwatch stopwatch = Stopwatch.createStarted();
       int n = super.read();
       stopwatch.stop();
-      operatorStats.updateReadIOStats(stopwatch.elapsed(TimeUnit.NANOSECONDS), filePath, n == -1 ? 0 : 1, getPosition());
+      operatorStats.updateReadIOStats(
+          stopwatch.elapsed(TimeUnit.NANOSECONDS), filePath, n == -1 ? 0 : 1, getPosition());
       return n;
     }
   }
@@ -59,7 +58,8 @@ public class FSInputStreamWithStatsWrapper extends FilterFSInputStream {
       Stopwatch stopwatch = Stopwatch.createStarted();
       int n = super.read(b);
       stopwatch.stop();
-      operatorStats.updateReadIOStats(stopwatch.elapsed(TimeUnit.NANOSECONDS), filePath, n, getPosition());
+      operatorStats.updateReadIOStats(
+          stopwatch.elapsed(TimeUnit.NANOSECONDS), filePath, n, getPosition());
       return n;
     }
   }
@@ -70,7 +70,8 @@ public class FSInputStreamWithStatsWrapper extends FilterFSInputStream {
       Stopwatch stopwatch = Stopwatch.createStarted();
       int n = super.read(b, off, len);
       stopwatch.stop();
-      operatorStats.updateReadIOStats(stopwatch.elapsed(TimeUnit.NANOSECONDS), filePath, n, getPosition());
+      operatorStats.updateReadIOStats(
+          stopwatch.elapsed(TimeUnit.NANOSECONDS), filePath, n, getPosition());
       return n;
     }
   }
@@ -81,7 +82,8 @@ public class FSInputStreamWithStatsWrapper extends FilterFSInputStream {
       Stopwatch stopwatch = Stopwatch.createStarted();
       int n = super.read(dst);
       stopwatch.stop();
-      operatorStats.updateReadIOStats(stopwatch.elapsed(TimeUnit.NANOSECONDS), filePath, n, getPosition());
+      operatorStats.updateReadIOStats(
+          stopwatch.elapsed(TimeUnit.NANOSECONDS), filePath, n, getPosition());
       return n;
     }
   }
@@ -92,7 +94,8 @@ public class FSInputStreamWithStatsWrapper extends FilterFSInputStream {
       Stopwatch stopwatch = Stopwatch.createStarted();
       int n = super.read(position, dst);
       stopwatch.stop();
-      operatorStats.updateReadIOStats(stopwatch.elapsed(TimeUnit.NANOSECONDS), filePath,  n, position);
+      operatorStats.updateReadIOStats(
+          stopwatch.elapsed(TimeUnit.NANOSECONDS), filePath, n, position);
       return n;
     }
   }

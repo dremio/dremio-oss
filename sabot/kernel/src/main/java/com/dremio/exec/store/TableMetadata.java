@@ -17,14 +17,6 @@ package com.dremio.exec.store;
 
 import static com.dremio.exec.store.iceberg.IcebergSerDe.deserializedJsonAsSchema;
 
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
-
-import org.apache.iceberg.PartitionSpec;
-
 import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.datastore.SearchTypes;
 import com.dremio.exec.catalog.StoragePluginId;
@@ -41,10 +33,14 @@ import com.dremio.service.namespace.dataset.proto.ReadDefinition;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+import org.apache.iceberg.PartitionSpec;
 
-/**
- * TableMetadata interface. This is how a table is exposed to the planning environment.
- */
+/** TableMetadata interface. This is how a table is exposed to the planning environment. */
 public interface TableMetadata {
   NamespaceKey getName();
 
@@ -52,6 +48,7 @@ public interface TableMetadata {
 
   /**
    * Should be moved to ReadDefinition.
+   *
    * @return
    */
   @Deprecated
@@ -59,6 +56,7 @@ public interface TableMetadata {
 
   /**
    * Specific configuration associated with a particular type of reader.
+   *
    * @return
    */
   ReadDefinition getReadDefinition();
@@ -105,44 +103,59 @@ public interface TableMetadata {
    */
   List<String> getPrimaryKey();
 
-
-  default TableVersionContext getVersionContext() { return null; }
+  default TableVersionContext getVersionContext() {
+    return null;
+  }
 
   default Set<String> getInvalidPartitionColumns() {
     if (null == getDatasetConfig().getPhysicalDataset().getIcebergMetadata()) {
       return ImmutableSet.of();
-    } else if (null != getDatasetConfig().getPhysicalDataset().getIcebergMetadata().getPartitionSpecsJsonMap()) {
+    } else if (null
+        != getDatasetConfig()
+            .getPhysicalDataset()
+            .getIcebergMetadata()
+            .getPartitionSpecsJsonMap()) {
       Map<Integer, PartitionSpec> partitionSpecMap =
-        IcebergSerDe.deserializeJsonPartitionSpecMap(
-          deserializedJsonAsSchema(getDatasetConfig().getPhysicalDataset().getIcebergMetadata().getJsonSchema()),
-          getDatasetConfig().getPhysicalDataset().getIcebergMetadata().getPartitionSpecsJsonMap().toByteArray());
+          IcebergSerDe.deserializeJsonPartitionSpecMap(
+              deserializedJsonAsSchema(
+                  getDatasetConfig().getPhysicalDataset().getIcebergMetadata().getJsonSchema()),
+              getDatasetConfig()
+                  .getPhysicalDataset()
+                  .getIcebergMetadata()
+                  .getPartitionSpecsJsonMap()
+                  .toByteArray());
       return IcebergUtils.getInvalidColumnsForPruning(partitionSpecMap);
-    } else if (null != getDatasetConfig().getPhysicalDataset().getIcebergMetadata().getPartitionSpecs()) {
-      Map<Integer, PartitionSpec> partitionSpecMap = IcebergSerDe.deserializePartitionSpecMap(getDatasetConfig().getPhysicalDataset().getIcebergMetadata().getPartitionSpecs().toByteArray());
+    } else if (null
+        != getDatasetConfig().getPhysicalDataset().getIcebergMetadata().getPartitionSpecs()) {
+      Map<Integer, PartitionSpec> partitionSpecMap =
+          IcebergSerDe.deserializePartitionSpecMap(
+              getDatasetConfig()
+                  .getPhysicalDataset()
+                  .getIcebergMetadata()
+                  .getPartitionSpecs()
+                  .toByteArray());
       return IcebergUtils.getInvalidColumnsForPruning(partitionSpecMap);
     } else {
       return ImmutableSet.of();
     }
   }
 
-  /**
-   * Computes partition columns that are not invalid.
-   */
-  default List<String> validPartitionColumns(){
+  /** Computes partition columns that are not invalid. */
+  default List<String> validPartitionColumns() {
     Set<String> invalidPartitionColumns = getInvalidPartitionColumns();
 
-    if(null == invalidPartitionColumns || invalidPartitionColumns.isEmpty()){
+    if (null == invalidPartitionColumns || invalidPartitionColumns.isEmpty()) {
       return getReadDefinition().getPartitionColumnsList();
     }
 
     return getReadDefinition().getPartitionColumnsList().stream()
-      .filter(partitionColumn -> !invalidPartitionColumns.contains(partitionColumn))
-      .collect(Collectors.toList());
+        .filter(partitionColumn -> !invalidPartitionColumns.contains(partitionColumn))
+        .collect(Collectors.toList());
   }
 
   default PartitionFilterGranularity getPartitionFilterGranularity() {
-    if(getDatasetConfig().getPhysicalDataset().getIcebergMetadata() != null
-      || DatasetHelper.isIcebergDataset(getDatasetConfig())) {
+    if (getDatasetConfig().getPhysicalDataset().getIcebergMetadata() != null
+        || DatasetHelper.isIcebergDataset(getDatasetConfig())) {
       return PartitionFilterGranularity.FINE_GRAIN;
     } else {
       return PartitionFilterGranularity.RANGE;
@@ -150,6 +163,7 @@ public interface TableMetadata {
   }
 
   enum PartitionFilterGranularity {
-    FINE_GRAIN, RANGE
+    FINE_GRAIN,
+    RANGE
   }
 }

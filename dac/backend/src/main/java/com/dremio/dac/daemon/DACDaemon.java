@@ -15,13 +15,6 @@
  */
 package com.dremio.dac.daemon;
 
-import java.io.IOException;
-import java.util.EnumSet;
-import java.util.Set;
-import java.util.concurrent.CountDownLatch;
-
-import org.apache.hadoop.security.UserGroupInformation;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.perf.Timer;
 import com.dremio.common.perf.Timer.TimedBlock;
@@ -43,37 +36,39 @@ import com.dremio.service.coordinator.ClusterCoordinator;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-
+import java.io.IOException;
+import java.util.EnumSet;
+import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import org.apache.hadoop.security.UserGroupInformation;
 
 /**
  * The single container for all of the services in Dremio.
  *
- * This daemon currently this manages the Dremio Web UI,
- * launching an embedded Zookeeper instance and launching
- * a SabotNode.
+ * <p>This daemon currently this manages the Dremio Web UI, launching an embedded Zookeeper instance
+ * and launching a SabotNode.
  */
 public final class DACDaemon implements AutoCloseable {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DACDaemon.class);
 
-  /**
-   * Specify the kind of Dremio cluster
-   *
-   */
+  /** Specify the kind of Dremio cluster */
   public enum ClusterMode {
-    LOCAL, DISTRIBUTED
+    LOCAL,
+    DISTRIBUTED
   }
 
-  private final Runnable shutdownHook = new Runnable() {
-    @Override
-    public void run() {
-      try {
-        close();
-      } catch (InterruptedException ignored) {
-      } catch (Exception e) {
-        logger.error("Failed to close services during shutdown", e);
-      }
-    }
-  };
+  private final Runnable shutdownHook =
+      new Runnable() {
+        @Override
+        public void run() {
+          try {
+            close();
+          } catch (InterruptedException ignored) {
+          } catch (Exception e) {
+            logger.error("Failed to close services during shutdown", e);
+          }
+        }
+      };
 
   private final Set<ClusterCoordinator.Role> roles;
 
@@ -90,28 +85,51 @@ public final class DACDaemon implements AutoCloseable {
   private WebServer webServer;
   private final DACConfig dacConfig;
 
-
   private DACDaemon(
       DremioConfig incomingConfig,
       final ScanResult scanResult,
       DACModule dacModule,
-      DremioServer server
-      ) throws IOException {
+      DremioServer server)
+      throws IOException {
 
     // ensure that the zookeeper option for sabot is same as dremio config.
-    final DremioConfig config = incomingConfig
-        .withSabotValue(ExecConstants.ZK_CONNECTION, incomingConfig.getString(DremioConfig.ZOOKEEPER_QUORUM))
-        .withSabotValue(DremioClient.INITIAL_USER_PORT, incomingConfig.getString(DremioConfig.CLIENT_PORT_INT))
-        .withSabotValue(ExecConstants.SPILL_DIRS, incomingConfig.getList(DremioConfig.SPILLING_PATH_STRING))
-        .withSabotValue(ExecConstants.REGISTRATION_ADDRESS, incomingConfig.getString(DremioConfig.REGISTRATION_ADDRESS))
-        .withSabotValue(ExecConstants.ZK_SESSION_TIMEOUT, incomingConfig.getString(DremioConfig.ZK_CLIENT_SESSION_TIMEOUT))
-        .withSabotValue(ExecConstants.ZK_RETRY_UNLIMITED, incomingConfig.getString(DremioConfig.ZK_CLIENT_RETRY_UNLIMITED))
-        .withSabotValue(ExecConstants.ZK_CONNECTION_HANDLE_ENABLED, incomingConfig.getString(DremioConfig.ZK_CONNECTION_HANDLE_ENABLED))
-        .withSabotValue(ExecConstants.ZK_RETRY_LIMIT, incomingConfig.getString(DremioConfig.ZK_CLIENT_RETRY_LIMIT))
-        .withSabotValue(ExecConstants.ZK_INITIAL_TIMEOUT_MS, incomingConfig.getString(DremioConfig.ZK_CLIENT_INITIAL_TIMEOUT_MS))
-        .withSabotValue(ExecConstants.ZK_SUPERVISOR_INTERVAL_MS, incomingConfig.getString(DremioConfig.ZK_SUPERVISOR_INTERVAL_MS))
-        .withSabotValue(ExecConstants.ZK_SUPERVISOR_READ_TIMEOUT_MS, incomingConfig.getString(DremioConfig.ZK_SUPERVISOR_READ_TIMEOUT_MS))
-        .withSabotValue(ExecConstants.ZK_SUPERVISOR_MAX_FAILURES, incomingConfig.getString(DremioConfig.ZK_SUPERVISOR_MAX_FAILURES));
+    final DremioConfig config =
+        incomingConfig
+            .withSabotValue(
+                ExecConstants.ZK_CONNECTION,
+                incomingConfig.getString(DremioConfig.ZOOKEEPER_QUORUM))
+            .withSabotValue(
+                DremioClient.INITIAL_USER_PORT,
+                incomingConfig.getString(DremioConfig.CLIENT_PORT_INT))
+            .withSabotValue(
+                ExecConstants.SPILL_DIRS, incomingConfig.getList(DremioConfig.SPILLING_PATH_STRING))
+            .withSabotValue(
+                ExecConstants.REGISTRATION_ADDRESS,
+                incomingConfig.getString(DremioConfig.REGISTRATION_ADDRESS))
+            .withSabotValue(
+                ExecConstants.ZK_SESSION_TIMEOUT,
+                incomingConfig.getString(DremioConfig.ZK_CLIENT_SESSION_TIMEOUT))
+            .withSabotValue(
+                ExecConstants.ZK_RETRY_UNLIMITED,
+                incomingConfig.getString(DremioConfig.ZK_CLIENT_RETRY_UNLIMITED))
+            .withSabotValue(
+                ExecConstants.ZK_CONNECTION_HANDLE_ENABLED,
+                incomingConfig.getString(DremioConfig.ZK_CONNECTION_HANDLE_ENABLED))
+            .withSabotValue(
+                ExecConstants.ZK_RETRY_LIMIT,
+                incomingConfig.getString(DremioConfig.ZK_CLIENT_RETRY_LIMIT))
+            .withSabotValue(
+                ExecConstants.ZK_INITIAL_TIMEOUT_MS,
+                incomingConfig.getString(DremioConfig.ZK_CLIENT_INITIAL_TIMEOUT_MS))
+            .withSabotValue(
+                ExecConstants.ZK_SUPERVISOR_INTERVAL_MS,
+                incomingConfig.getString(DremioConfig.ZK_SUPERVISOR_INTERVAL_MS))
+            .withSabotValue(
+                ExecConstants.ZK_SUPERVISOR_READ_TIMEOUT_MS,
+                incomingConfig.getString(DremioConfig.ZK_SUPERVISOR_READ_TIMEOUT_MS))
+            .withSabotValue(
+                ExecConstants.ZK_SUPERVISOR_MAX_FAILURES,
+                incomingConfig.getString(DremioConfig.ZK_SUPERVISOR_MAX_FAILURES));
 
     // This should be the first thing to do.
     setupHadoopUserUsingKerberosKeytab(config);
@@ -150,7 +168,8 @@ public final class DACDaemon implements AutoCloseable {
     // we should not check it only on master - either check everywhere
     // or nowhere
     final String writePath = config.getString(DremioConfig.LOCAL_WRITE_PATH_STRING);
-    logger.info("Dremio daemon write path: " + config.getString(DremioConfig.LOCAL_WRITE_PATH_STRING));
+    logger.info(
+        "Dremio daemon write path: " + config.getString(DremioConfig.LOCAL_WRITE_PATH_STRING));
     PathUtils.checkWritePath(writePath);
 
     sb.append("This node acts as ");
@@ -172,7 +191,8 @@ public final class DACDaemon implements AutoCloseable {
       registry = new SingletonRegistry();
     } else {
       // retry if service start fails due to master is unavailable.
-      registry = new NonMasterSingletonRegistry(bootstrapRegistry.provider(MasterStatusListener.class));
+      registry =
+          new NonMasterSingletonRegistry(bootstrapRegistry.provider(MasterStatusListener.class));
     }
 
     if (server == null) {
@@ -208,18 +228,21 @@ public final class DACDaemon implements AutoCloseable {
       }
       System.out.println("Dremio Daemon Started as " + text);
       LocalAdmin.getInstance().setDaemon(this);
-      if(webServer != null){
-        System.out.println(String.format("Webserver available at: %s://%s:%d",
-            dacConfig.webSSLEnabled() ? "https" : "http", thisNode, webServer.getPort()));
+      if (webServer != null) {
+        System.out.println(
+            String.format(
+                "Webserver available at: %s://%s:%d",
+                dacConfig.webSSLEnabled() ? "https" : "http", thisNode, webServer.getPort()));
       }
-
     }
   }
 
   /**
-   * Set up the current user in {@link UserGroupInformation} using the kerberos principal and keytab file path if
-   * present in config. If not present, this method call is a no-op. When communicating with the kerberos enabled
-   * Hadoop based filesystem credentials in {@link UserGroupInformation} will be used..
+   * Set up the current user in {@link UserGroupInformation} using the kerberos principal and keytab
+   * file path if present in config. If not present, this method call is a no-op. When communicating
+   * with the kerberos enabled Hadoop based filesystem credentials in {@link UserGroupInformation}
+   * will be used..
+   *
    * @param config
    * @throws IOException
    */
@@ -233,13 +256,16 @@ public final class DACDaemon implements AutoCloseable {
 
     UserGroupInformation.loginUserFromKeytab(kerberosPrincipal, kerberosKeytab);
 
-    logger.info("Setup Hadoop user info using kerberos principal {} and keytab file {} successful.",
-        kerberosPrincipal, kerberosKeytab);
+    logger.info(
+        "Setup Hadoop user info using kerberos principal {} and keytab file {} successful.",
+        kerberosPrincipal,
+        kerberosKeytab);
   }
 
   /**
-   * Closes this daemon on JVM shutdown. By invoking this method, the caller is delegating the responsibility of
-   * invoking {@link #close} to the JVM. Although this method is idempotent, the method should be called at most once.
+   * Closes this daemon on JVM shutdown. By invoking this method, the caller is delegating the
+   * responsibility of invoking {@link #close} to the JVM. Although this method is idempotent, the
+   * method should be called at most once.
    */
   public void closeOnJVMShutDown() {
     // Set shutdown hook after services are initialized
@@ -268,10 +294,7 @@ public final class DACDaemon implements AutoCloseable {
     closed.await();
   }
 
-  /**
-   * Notify that daemon is being shut down.
-   * Code waiting on awaitClose() will be released
-   */
+  /** Notify that daemon is being shut down. Code waiting on awaitClose() will be released */
   public void shutdown() {
     closed.countDown();
   }
@@ -288,42 +311,40 @@ public final class DACDaemon implements AutoCloseable {
     }
   }
 
-  public static DACDaemon newDremioDaemon(DACConfig dacConfig, ScanResult scanResult) throws IOException {
+  public static DACDaemon newDremioDaemon(DACConfig dacConfig, ScanResult scanResult)
+      throws IOException {
     return newDremioDaemon(dacConfig, scanResult, new DACDaemonModule());
   }
 
   public static DACDaemon newDremioDaemon(
-      DACConfig dacConfig,
-      ScanResult scanResult,
-      DACModule dacModule,
-      DremioServer server) throws IOException {
+      DACConfig dacConfig, ScanResult scanResult, DACModule dacModule, DremioServer server)
+      throws IOException {
     try (TimedBlock b = Timer.time("newDaemon")) {
       return new DACDaemon(dacConfig.getConfig(), scanResult, dacModule, server);
     }
   }
 
   public static DACDaemon newDremioDaemon(
-    DACConfig dacConfig,
-    ScanResult scanResult,
-    DACModule dacModule) throws IOException {
+      DACConfig dacConfig, ScanResult scanResult, DACModule dacModule) throws IOException {
     return newDremioDaemon(dacConfig, scanResult, dacModule, null);
   }
 
   public static void main(final String[] args) throws Exception {
     try (TimedBlock b = Timer.time("main")) {
       DACConfig config = DACConfig.newConfig();
-      DACDaemon daemon = newDremioDaemon(config, ClassPathScanner.fromPrescan(config.getConfig().getSabotConfig()));
+      DACDaemon daemon =
+          newDremioDaemon(
+              config, ClassPathScanner.fromPrescan(config.getConfig().getSabotConfig()));
       daemon.init();
       daemon.closeOnJVMShutDown();
     }
   }
 
-  public BindingProvider getBindingProvider(){
+  public BindingProvider getBindingProvider() {
     return registry.getBindingProvider();
   }
 
   public BindingCreator getBindingCreator() {
     return registry.getBindingCreator();
   }
-
 }

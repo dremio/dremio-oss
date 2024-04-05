@@ -21,18 +21,14 @@ import static org.junit.Assert.assertTrue;
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.net.URI;
-
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-/**
- * Tests for Lookup in File Credential Provider.
- */
+/** Tests for Lookup in File Credential Provider. */
 public class TestFileCredentialsProvider {
 
-  @Rule
-  public TemporaryFolder tempFolder = new TemporaryFolder();
+  @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
 
   @Test
   public void testProviderFileLookup() throws Exception {
@@ -58,7 +54,5 @@ public class TestFileCredentialsProvider {
 
     String ldap = provider.lookup(uri);
     assertEquals(originalString, ldap);
-
   }
-
 }

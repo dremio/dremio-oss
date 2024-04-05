@@ -15,15 +15,12 @@
  */
 package com.dremio.sabot.op.join.vhash.spill.pool;
 
+import com.dremio.common.AutoCloseables;
+import com.dremio.exec.util.RoundUtil;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.util.LargeMemoryUtil;
 
-import com.dremio.common.AutoCloseables;
-import com.dremio.exec.util.RoundUtil;
-
-/**
- * Wrapper over page that enforces a cap on the usage.
- */
+/** Wrapper over page that enforces a cap on the usage. */
 public class PageSlice implements Page {
   private final Page inner;
   private final ArrowBuf slicedBuf;

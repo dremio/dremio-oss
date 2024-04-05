@@ -18,15 +18,13 @@ import PropTypes from "prop-types";
 import Immutable from "immutable";
 
 import FontIcon from "components/Icon/FontIcon";
-import SimpleButton from "components/Buttons/SimpleButton";
 import { createReflectionFormValues } from "utils/accelerationUtils";
 import AccelerationAggregationMixin from "@inject/components/Acceleration/Advanced/AccelerationAggregationMixin.js";
 
 import "@app/uiTheme/less/Acceleration/Acceleration.less";
-import * as classes from "@app/uiTheme/radium/replacingRadiumPseudoClasses.module.less";
+import { Button } from "dremio-ui-lib/components";
 import { commonThemes } from "../commonThemes";
 import AccelerationGridController from "./AccelerationGridController";
-import clsx from "clsx";
 
 @AccelerationAggregationMixin
 export default class AccelerationAggregation extends Component {
@@ -90,20 +88,15 @@ export default class AccelerationAggregation extends Component {
           />
           {laDeprecated("Aggregation Reflections")}
         </h3>
-        <SimpleButton
-          onClick={this.addNewLayout}
-          buttonStyle="secondary"
-          className={clsx(classes["secondaryButtonPsuedoClasses"])}
-          // DX-34369
-          style={
-            this.checkIfButtonShouldBeRendered()
-              ? { minWidth: "110px" }
-              : { display: "none" }
-          }
-          type="button"
-        >
-          {laDeprecated("New Reflection")}
-        </SimpleButton>
+        {this.checkIfButtonShouldBeRendered() && (
+          <Button
+            onClick={this.addNewLayout}
+            variant="secondary"
+            className="mr-05"
+          >
+            {laDeprecated("New Reflection")}
+          </Button>
+        )}
       </div>
     );
   };

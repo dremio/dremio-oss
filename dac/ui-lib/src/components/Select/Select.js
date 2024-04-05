@@ -65,7 +65,7 @@ const Select = (props) => {
   const containerClass = clsx(
     "selectRoot__select",
     { "--disabled": disabled },
-    classes.container
+    classes.container,
   );
 
   return (
@@ -104,7 +104,7 @@ const Select = (props) => {
                 classes: itemClasses = {},
                 onClick: optionOnClick,
               },
-              idx
+              idx,
             ) => (
               <MenuItem
                 key={idx}
@@ -121,7 +121,7 @@ const Select = (props) => {
               >
                 {optionLabel}
               </MenuItem>
-            )
+            ),
           )}
       </MuiSelect>
     </div>
@@ -140,7 +140,7 @@ Select.propTypes = {
     PropTypes.shape({
       label: PropTypes.node,
       value: PropTypes.string,
-    })
+    }),
   ).isRequired,
   onChange: PropTypes.func,
   label: PropTypes.string,

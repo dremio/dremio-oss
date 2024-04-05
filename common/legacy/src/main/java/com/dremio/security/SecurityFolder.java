@@ -22,6 +22,9 @@ import static java.nio.file.attribute.PosixFilePermission.OWNER_EXECUTE;
 import static java.nio.file.attribute.PosixFilePermission.OWNER_READ;
 import static java.nio.file.attribute.PosixFilePermission.OWNER_WRITE;
 
+import com.dremio.config.DremioConfig;
+import com.google.common.collect.ImmutableSet;
+import com.google.errorprone.annotations.FormatMethod;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -37,13 +40,7 @@ import java.security.GeneralSecurityException;
 import java.util.EnumSet;
 import java.util.Set;
 
-import com.dremio.config.DremioConfig;
-import com.google.common.collect.ImmutableSet;
-import com.google.errorprone.annotations.FormatMethod;
-
-/**
- * Helper class to manage a security folder to store confidential information
- */
+/** Helper class to manage a security folder to store confidential information */
 public final class SecurityFolder {
 
   private static final String SECURITY_DIRECTORY = "security";
@@ -56,23 +53,25 @@ public final class SecurityFolder {
 
   private final Path securityDirectory;
 
-
   /**
    * Create a security folder instance based on the dremio configuration.
    *
-   * If it doesn't already exist, the security directory will be created directly under the
-   * local write path.
+   * <p>If it doesn't already exist, the security directory will be created directly under the local
+   * write path.
    *
    * @param config the Dremio config
    * @throws IOException if the security directory cannot be created
    * @throws GeneralSecurityException if the security directory permissions are invalid
-   * @throws IOException if the directory cannot be created, or a file with the same name already exists
+   * @throws IOException if the directory cannot be created, or a file with the same name already
+   *     exists
    */
-  public static SecurityFolder of(DremioConfig config) throws GeneralSecurityException, IOException {
+  public static SecurityFolder of(DremioConfig config)
+      throws GeneralSecurityException, IOException {
     final String localWritePath = config.getString(DremioConfig.LOCAL_WRITE_PATH_STRING);
     final Path path = Paths.get(localWritePath, SECURITY_DIRECTORY);
 
-    Files.createDirectories(path, PosixFilePermissions.asFileAttribute(SECURITY_DIRECTORY_PERMISSIONS));
+    Files.createDirectories(
+        path, PosixFilePermissions.asFileAttribute(SECURITY_DIRECTORY_PERMISSIONS));
     return new SecurityFolder(path);
   }
 
@@ -82,6 +81,7 @@ public final class SecurityFolder {
 
   /**
    * Check if a file or a directory already exists under the security folder
+   *
    * @param filename the file name
    * @return true if the directory already exists
    */
@@ -111,31 +111,23 @@ public final class SecurityFolder {
     return securityDirectory.resolve(filename);
   }
 
-  /**
-   * Option when opening a file for write
-   */
+  /** Option when opening a file for write */
   public enum OpenOption {
-    /**
-     * Create the file if necessary and open it for write
-     */
+    /** Create the file if necessary and open it for write */
     CREATE_OR_WRITE,
 
-    /**
-     * Create the file and fail if the file already exists
-     */
+    /** Create the file and fail if the file already exists */
     CREATE_ONLY,
 
-    /**
-     * Open the file for write, do not create it if it already exists.
-     */
+    /** Open the file for write, do not create it if it already exists. */
     NO_CREATE
   }
 
   /**
    * Create an output stream for a file under the security directory
    *
-   * The file content will be created if it doesn't exist and {@code create} is true, and its content will be truncated first.
-   * The file wille only accessible to the current user.
+   * <p>The file content will be created if it doesn't exist and {@code create} is true, and its
+   * content will be truncated first. The file wille only accessible to the current user.
    *
    * @param filename the name of the file to open for write
    * @param openOptions how the file should be open
@@ -144,7 +136,8 @@ public final class SecurityFolder {
    * @throws IOException if an I/O error occurs
    * @throws GeneralSecurityException if the file already exists but permissions are invalid
    */
-  public OutputStream newSecureOutputStream(String filename, OpenOption openOption) throws GeneralSecurityException, IOException {
+  public OutputStream newSecureOutputStream(String filename, OpenOption openOption)
+      throws GeneralSecurityException, IOException {
     final Path filePath = securityDirectory.resolve(filename);
     boolean exists = Files.exists(filePath);
     if (!exists && openOption == OpenOption.NO_CREATE) {
@@ -152,13 +145,18 @@ public final class SecurityFolder {
     }
 
     if (!exists) {
-      final WritableByteChannel byteChannel = Files.newByteChannel(filePath, ImmutableSet.of(CREATE_NEW, WRITE), PosixFilePermissions.asFileAttribute(SECURITY_FILE_PERMISSIONS));
+      final WritableByteChannel byteChannel =
+          Files.newByteChannel(
+              filePath,
+              ImmutableSet.of(CREATE_NEW, WRITE),
+              PosixFilePermissions.asFileAttribute(SECURITY_FILE_PERMISSIONS));
       return Channels.newOutputStream(byteChannel);
     } else {
       checkFilePermissions(filePath);
-      final java.nio.file.OpenOption[] options = openOption == OpenOption.CREATE_ONLY
-          ? new java.nio.file.OpenOption[] { CREATE_NEW, WRITE, TRUNCATE_EXISTING }
-          : new java.nio.file.OpenOption[] { WRITE, TRUNCATE_EXISTING };
+      final java.nio.file.OpenOption[] options =
+          openOption == OpenOption.CREATE_ONLY
+              ? new java.nio.file.OpenOption[] {CREATE_NEW, WRITE, TRUNCATE_EXISTING}
+              : new java.nio.file.OpenOption[] {WRITE, TRUNCATE_EXISTING};
       return Files.newOutputStream(filePath, options);
     }
   }
@@ -166,21 +164,23 @@ public final class SecurityFolder {
   /**
    * Create an input stream for a file under the security directory
    *
-   * Before opening the file for read, permissions will check and an exception will be thrown
-   * if the file is accessible to other people than the current user.
+   * <p>Before opening the file for read, permissions will check and an exception will be thrown if
+   * the file is accessible to other people than the current user.
    *
    * @param filename the file to read
    * @return an input stream
    * @throws IOException if an I/O error occurs
    * @throws GeneralSecurityException if the file permissions are invalid
    */
-  public InputStream newSecureInputStream(String filename) throws GeneralSecurityException, IOException {
+  public InputStream newSecureInputStream(String filename)
+      throws GeneralSecurityException, IOException {
     Path filePath = securityDirectory.resolve(filename);
     checkFilePermissions(filePath);
     return Files.newInputStream(filePath);
   }
 
-  private static Path checkDirectoryPermissions(Path path) throws GeneralSecurityException, IOException {
+  private static Path checkDirectoryPermissions(Path path)
+      throws GeneralSecurityException, IOException {
     return checkPathPermissions(path, "Directory", SECURITY_DIRECTORY_PERMISSIONS);
   }
 
@@ -188,14 +188,21 @@ public final class SecurityFolder {
     return checkPathPermissions(path, "File", SECURITY_FILE_PERMISSIONS);
   }
 
-  private static Path checkPathPermissions(Path path, String fileType, Set<PosixFilePermission> permissionReference) throws GeneralSecurityException, IOException {
+  private static Path checkPathPermissions(
+      Path path, String fileType, Set<PosixFilePermission> permissionReference)
+      throws GeneralSecurityException, IOException {
     Set<PosixFilePermission> permission = Files.getPosixFilePermissions(path);
-    checkSecurity(permissionReference.equals(permission), "%s %s is not accessible to owner only", fileType, path);
+    checkSecurity(
+        permissionReference.equals(permission),
+        "%s %s is not accessible to owner only",
+        fileType,
+        path);
     return path;
   }
 
   @FormatMethod
-  private static void checkSecurity(boolean check, String message, Object... args) throws GeneralSecurityException {
+  private static void checkSecurity(boolean check, String message, Object... args)
+      throws GeneralSecurityException {
     if (!check) {
       throw new GeneralSecurityException(String.format(message, args));
     }

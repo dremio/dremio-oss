@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.store.iceberg;
 
-import java.util.List;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.config.TableFunctionContext;
@@ -31,8 +29,8 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.ImmutableList;
-
 import io.protostuff.ByteString;
+import java.util.List;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonTypeName("optimize-manifests")
@@ -41,50 +39,50 @@ public class OptimizeManifestsTableFunctionContext extends TableFunctionContext 
   private final IcebergTableProps icebergTableProps;
 
   @JsonIgnore
-  public OptimizeManifestsTableFunctionContext(TableMetadata tableMetadata,
-                                               BatchSchema outputSchema,
-                                               IcebergTableProps icebergTableProps) {
+  public OptimizeManifestsTableFunctionContext(
+      TableMetadata tableMetadata, BatchSchema outputSchema, IcebergTableProps icebergTableProps) {
     this(
-      tableMetadata.getFormatSettings(),
-      outputSchema,
-      outputSchema.getFields().stream()
-        .map(f -> SchemaPath.getSimplePath(f.getName()))
-        .collect(ImmutableList.toImmutableList()),
-      ImmutableList.of(tableMetadata.getName().getPathComponents()),
-      tableMetadata.getStoragePluginId(),
-      tableMetadata.getReadDefinition().getPartitionColumnsList(),
-      tableMetadata.getReadDefinition().getExtendedProperty(),
-      tableMetadata.getDatasetConfig().getPhysicalDataset().getInternalSchemaSettings(),
-      icebergTableProps
-    );
+        tableMetadata.getFormatSettings(),
+        outputSchema,
+        outputSchema.getFields().stream()
+            .map(f -> SchemaPath.getSimplePath(f.getName()))
+            .collect(ImmutableList.toImmutableList()),
+        ImmutableList.of(tableMetadata.getName().getPathComponents()),
+        tableMetadata.getStoragePluginId(),
+        tableMetadata.getReadDefinition().getPartitionColumnsList(),
+        tableMetadata.getReadDefinition().getExtendedProperty(),
+        tableMetadata.getDatasetConfig().getPhysicalDataset().getInternalSchemaSettings(),
+        icebergTableProps);
   }
 
   @JsonCreator
-  public OptimizeManifestsTableFunctionContext(@JsonProperty("formatSettings") FileConfig formatSettings,
-                                               @JsonProperty("schema") BatchSchema outputSchema,
-                                               @JsonProperty("columns") List<SchemaPath> columns,
-                                               @JsonProperty("referencedTables") List<List<String>> tablePath,
-                                               @JsonProperty("pluginId") StoragePluginId pluginId,
-                                               @JsonProperty("partitionColumns") List<String> partitionColumns,
-                                               @JsonProperty("extendedProperty") ByteString extendedProperty,
-                                               @JsonProperty("userDefinedSchemaSettings") UserDefinedSchemaSettings userDefinedSchemaSettings,
-                                               @JsonProperty("icebergTableProps") IcebergTableProps icebergTableProps) {
+  public OptimizeManifestsTableFunctionContext(
+      @JsonProperty("formatSettings") FileConfig formatSettings,
+      @JsonProperty("schema") BatchSchema outputSchema,
+      @JsonProperty("columns") List<SchemaPath> columns,
+      @JsonProperty("referencedTables") List<List<String>> tablePath,
+      @JsonProperty("pluginId") StoragePluginId pluginId,
+      @JsonProperty("partitionColumns") List<String> partitionColumns,
+      @JsonProperty("extendedProperty") ByteString extendedProperty,
+      @JsonProperty("userDefinedSchemaSettings")
+          UserDefinedSchemaSettings userDefinedSchemaSettings,
+      @JsonProperty("icebergTableProps") IcebergTableProps icebergTableProps) {
     super(
-      formatSettings,
-      outputSchema,
-      outputSchema,
-      tablePath,
-      null,
-      null,
-      pluginId,
-      null,
-      columns,
-      partitionColumns,
-      null,
-      extendedProperty,
-      false, false, false,
-      userDefinedSchemaSettings
-    );
+        formatSettings,
+        outputSchema,
+        outputSchema,
+        tablePath,
+        null,
+        null,
+        pluginId,
+        null,
+        columns,
+        partitionColumns,
+        extendedProperty,
+        false,
+        false,
+        false,
+        userDefinedSchemaSettings);
     this.icebergTableProps = icebergTableProps;
   }
 

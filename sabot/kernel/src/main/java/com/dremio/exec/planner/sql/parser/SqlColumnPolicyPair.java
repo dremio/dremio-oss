@@ -15,8 +15,8 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.google.common.collect.ImmutableList;
 import java.util.List;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -27,31 +27,28 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.google.common.collect.ImmutableList;
-
-/**
- * SqlColumnPolicyPair
- */
+/** SqlColumnPolicyPair */
 public class SqlColumnPolicyPair extends SqlCall {
   private static final SqlSpecialOperator OPERATOR =
-    new SqlSpecialOperator("COLUMN_POLICY_PAIR", SqlKind.OTHER) {
-      @Override
-      public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-        if(operands.length == 1) {
+      new SqlSpecialOperator("COLUMN_POLICY_PAIR", SqlKind.OTHER) {
+        @Override
+        public SqlCall createCall(
+            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+          if (operands.length == 1) {
             return new SqlColumnPolicyPair(pos, (SqlIdentifier) operands[0], null);
-          } else if(operands.length ==2) {
-            return new SqlColumnPolicyPair(pos, (SqlIdentifier) operands[0], (SqlPolicy) operands[1]);
+          } else if (operands.length == 2) {
+            return new SqlColumnPolicyPair(
+                pos, (SqlIdentifier) operands[0], (SqlPolicy) operands[1]);
           }
-        throw new IllegalArgumentException("SqlSpecialOperator.createCall() has to get 1 or 2 operand(s)!");
-      }
-    };
+          throw new IllegalArgumentException(
+              "SqlSpecialOperator.createCall() has to get 1 or 2 operand(s)!");
+        }
+      };
 
   private final SqlIdentifier name;
   private final SqlPolicy policy;
 
-  /**
-   * Creates a SqlColumnPolicyPair.
-   */
+  /** Creates a SqlColumnPolicyPair. */
   public SqlColumnPolicyPair(SqlParserPos pos, SqlIdentifier name, SqlPolicy policy) {
     super(pos);
     this.name = name;

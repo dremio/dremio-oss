@@ -22,6 +22,8 @@ import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
+ *
+ *
  * <pre>
  * Extract each component of a filter expr with SARGableStandardForm for
  * - CAST(expression Any type, data_type Any type) = rhsNode
@@ -32,9 +34,8 @@ import org.apache.calcite.sql.type.SqlTypeName;
  */
 public class CastAndToDateRangeTransformer extends RangeTransformer {
 
-  public CastAndToDateRangeTransformer(RelOptCluster relOptCluster,
-                                       StandardForm stdForm,
-                                       SqlOperator sqlOperator) {
+  public CastAndToDateRangeTransformer(
+      RelOptCluster relOptCluster, StandardForm stdForm, SqlOperator sqlOperator) {
     super(relOptCluster, stdForm, sqlOperator);
   }
 
@@ -46,10 +47,10 @@ public class CastAndToDateRangeTransformer extends RangeTransformer {
   @Override
   RexNode getRhsNode() {
     RexNode rhs = super.getRhsNode();
-    if (SqlTypeName.CHAR_TYPES.contains(rhs.getType().getSqlTypeName()) ||
-      !getColumn().getType().getSqlTypeName().equals(rhs.getType().getSqlTypeName())) {
+    if (SqlTypeName.CHAR_TYPES.contains(rhs.getType().getSqlTypeName())
+        || !getColumn().getType().getSqlTypeName().equals(rhs.getType().getSqlTypeName())) {
       return rexBuilder.makeCast(
-        rexBuilder.getTypeFactory().createTypeWithNullability(getColumn().getType(), false), rhs);
+          rexBuilder.getTypeFactory().createTypeWithNullability(getColumn().getType(), false), rhs);
     }
     return rhs;
   }

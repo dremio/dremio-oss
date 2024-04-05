@@ -19,7 +19,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Implementation of {@link JobStatusListener} that allows the caller to block until the job has been submitted.
+ * Implementation of {@link JobStatusListener} that allows the caller to block until the job has
+ * been submitted.
  */
 public class JobSubmittedListener implements JobStatusListener {
 
@@ -39,9 +40,9 @@ public class JobSubmittedListener implements JobStatusListener {
 
   /**
    * blocks the thread until the job has been submitted or the timeout is exceeded
+   *
    * @param timeout the maximum time to wait
    * @param unit the time unit of the timeout argument
-   *
    * @return true if job has been submitted before the timeout, false otherwise
    */
   public boolean await(long timeout, TimeUnit unit) {
@@ -60,9 +61,7 @@ public class JobSubmittedListener implements JobStatusListener {
     return submitted;
   }
 
-  /**
-   * blocks the thread until the job has been submitted.
-   */
+  /** blocks the thread until the job has been submitted. */
   public void await() {
     try {
       latch.await();

@@ -17,15 +17,14 @@ package com.dremio.dac.api;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-/**
- * A dataset count statistics for a catalog item.
- */
+/** A dataset count statistics for a catalog item. */
 public class CatalogItemStats {
   private final int datasetCount;
   private final boolean datasetCountBounded;
 
-  public CatalogItemStats(@JsonProperty("datasetCount") int datasetCount,
-    @JsonProperty("datasetCountBounded") boolean datasetCountBounded) {
+  public CatalogItemStats(
+      @JsonProperty("datasetCount") int datasetCount,
+      @JsonProperty("datasetCountBounded") boolean datasetCountBounded) {
     this.datasetCount = datasetCount;
     this.datasetCountBounded = datasetCountBounded;
   }

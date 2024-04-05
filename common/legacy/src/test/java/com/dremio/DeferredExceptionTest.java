@@ -15,12 +15,10 @@
  */
 package com.dremio;
 
+import com.dremio.common.DeferredException;
 import java.util.stream.IntStream;
-
 import org.junit.Assert;
 import org.junit.Test;
-
-import com.dremio.common.DeferredException;
 
 public class DeferredExceptionTest {
 
@@ -51,13 +49,14 @@ public class DeferredExceptionTest {
     Assert.assertEquals(4, finalException.getSuppressed().length);
 
     Throwable[] suppressedExceptions = finalException.getSuppressed();
-    IntStream.range(0, 4).forEach(i -> Assert.assertEquals(5,
-      suppressedExceptions[i].getSuppressed().length));
+    IntStream.range(0, 4)
+        .forEach(i -> Assert.assertEquals(5, suppressedExceptions[i].getSuppressed().length));
 
-    IntStream.range(0, 4).forEach(i -> {
-      Assert.assertEquals(5,
-        suppressedExceptions[i].getSuppressed()[i].getSuppressed().length);
-    });
-
+    IntStream.range(0, 4)
+        .forEach(
+            i -> {
+              Assert.assertEquals(
+                  5, suppressedExceptions[i].getSuppressed()[i].getSuppressed().length);
+            });
   }
 }

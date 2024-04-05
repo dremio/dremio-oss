@@ -30,12 +30,12 @@ function isPromise(obj: any): boolean {
 
 export function timed(
   message: string,
-  logLevel?: "debug" | "info" | "warn" | "error"
+  logLevel?: "debug" | "info" | "warn" | "error",
 ) {
   return function (
     _target: any,
     _name: string,
-    descriptor: PropertyDescriptor
+    descriptor: PropertyDescriptor,
   ) {
     const logger = getLogger();
     const func = descriptor.value;
@@ -47,7 +47,7 @@ export function timed(
       const result = func.apply(this, args);
       if (isPromise(result)) {
         throw new Error(
-          "Must use timedAsync for functions that return promises"
+          "Must use timedAsync for functions that return promises",
         );
       }
       const endTime = Date.now();
@@ -59,12 +59,12 @@ export function timed(
 
 export function timedAsync(
   message: string,
-  logLevel?: "debug" | "info" | "warn" | "error"
+  logLevel?: "debug" | "info" | "warn" | "error",
 ) {
   return function (
     _target: any,
     _name: string,
-    descriptor: PropertyDescriptor
+    descriptor: PropertyDescriptor,
   ) {
     const logger = getLogger();
     const func = descriptor.value;
@@ -76,7 +76,7 @@ export function timedAsync(
       const resultPromise = func.apply(this, args);
       if (!isPromise(resultPromise)) {
         throw new Error(
-          "Must use timed for functions that do not return promises"
+          "Must use timed for functions that do not return promises",
         );
       }
       const result = await resultPromise;

@@ -15,22 +15,23 @@
  */
 package com.dremio.sabot.exec;
 
-import java.util.Optional;
-
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.sabot.exec.cursors.FileCursorManagerFactory;
 import com.dremio.service.jobtelemetry.client.JobTelemetryExecutorClient;
 import com.dremio.service.maestroservice.MaestroClient;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.Empty;
+import java.util.Optional;
 
-/**
- * A QueryTracker which does not send any messages to Coordinator
- */
+/** A QueryTracker which does not send any messages to Coordinator */
 public class NoOpQueryTracker implements QueryTracker {
 
   @Override
-  public boolean tryStart(QueryTicket ticket, CoordinationProtos.NodeEndpoint foreman, MaestroClient maestroClient, JobTelemetryExecutorClient telemetryClient) {
+  public boolean tryStart(
+      QueryTicket ticket,
+      CoordinationProtos.NodeEndpoint foreman,
+      MaestroClient maestroClient,
+      JobTelemetryExecutorClient telemetryClient) {
     return true;
   }
 
@@ -70,8 +71,7 @@ public class NoOpQueryTracker implements QueryTracker {
   }
 
   @Override
-  public void setQuerySentTime(long querySentTime) {
-  }
+  public void setQuerySentTime(long querySentTime) {}
 
   @Override
   public FileCursorManagerFactory getFileCursorManagerFactory() {

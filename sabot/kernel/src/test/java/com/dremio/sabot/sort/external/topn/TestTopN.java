@@ -20,19 +20,17 @@ import static com.dremio.sabot.Fixtures.tb;
 import static com.dremio.sabot.Fixtures.th;
 import static com.dremio.sabot.Fixtures.tr;
 
-import java.util.Collections;
-import java.util.Properties;
-
-import org.apache.calcite.rel.RelFieldCollation.Direction;
-import org.apache.calcite.rel.RelFieldCollation.NullDirection;
-import org.junit.Test;
-
 import com.dremio.common.config.SabotConfig;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.physical.config.TopN;
 import com.dremio.sabot.BaseTestOperator;
 import com.dremio.sabot.Fixtures.Table;
 import com.dremio.sabot.op.sort.topn.TopNOperator;
+import java.util.Collections;
+import java.util.Properties;
+import org.apache.calcite.rel.RelFieldCollation.Direction;
+import org.apache.calcite.rel.RelFieldCollation.NullDirection;
+import org.junit.Test;
 
 public class TestTopN extends BaseTestOperator {
 
@@ -45,68 +43,42 @@ public class TestTopN extends BaseTestOperator {
       testContext.updateConfig(SabotConfig.create(props));
     }
 
-    Table input = t(
-      th("c0"),
-      tb(
-        tr(35),
-        tr(8)
-      ),
-      tb(
-        tr(22),
-        tr(17),
-        tr(15)
-      ),
-      tb(
-        tr(12),
-        tr(42),
-        tr(18),
-        tr(11),
-        tr(94),
-        tr(106)
-      )
-    );
+    Table input =
+        t(
+            th("c0"),
+            tb(tr(35), tr(8)),
+            tb(tr(22), tr(17), tr(15)),
+            tb(tr(12), tr(42), tr(18), tr(11), tr(94), tr(106)));
 
-    Table output = t(
-      th("c0"),
-      tr(8),
-      tr(11),
-      tr(12),
-      tr(15)
-    );
+    Table output = t(th("c0"), tr(8), tr(11), tr(12), tr(15));
 
-    TopN topn = new TopN(PROPS, null, 4, Collections.singletonList(ordering("c0", Direction.ASCENDING, NullDirection.FIRST)), false);
+    TopN topn =
+        new TopN(
+            PROPS,
+            null,
+            4,
+            Collections.singletonList(ordering("c0", Direction.ASCENDING, NullDirection.FIRST)),
+            false);
     validateSingle(topn, TopNOperator.class, input, output);
   }
 
   @Test
   public void topNData() throws Exception {
 
-    Table input = t(
-      th("c0"),
-      tr(35),
-      tr(8),
-      tr(22),
-      tr(17),
-      tr(15),
-      tr(12),
-      tr(42),
-      tr(18),
-      tr(11),
-      tr(94),
-      tr(106)
-    );
+    Table input =
+        t(
+            th("c0"), tr(35), tr(8), tr(22), tr(17), tr(15), tr(12), tr(42), tr(18), tr(11), tr(94),
+            tr(106));
 
-    Table output = t(
-      th("c0"),
-      tr(8),
-      tr(11),
-      tr(12),
-      tr(15)
-    );
+    Table output = t(th("c0"), tr(8), tr(11), tr(12), tr(15));
 
-    TopN topn = new TopN(PROPS, null, 4, Collections.singletonList(ordering("c0", Direction.ASCENDING, NullDirection.FIRST)), false);
+    TopN topn =
+        new TopN(
+            PROPS,
+            null,
+            4,
+            Collections.singletonList(ordering("c0", Direction.ASCENDING, NullDirection.FIRST)),
+            false);
     validateSingle(topn, TopNOperator.class, input, output);
   }
-
-
 }

@@ -18,25 +18,24 @@ package com.dremio.plugins.elastic;
 import static com.dremio.plugins.elastic.ElasticsearchType.FLOAT;
 import static com.dremio.plugins.elastic.ElasticsearchType.TEXT;
 
+import com.dremio.TestBuilder;
+import com.dremio.common.util.TestTools;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
-
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestRule;
 
-import com.dremio.TestBuilder;
-import com.dremio.common.util.TestTools;
-
 public class ITTestForceDoublePrecisionTrue extends ElasticBaseTestQuery {
-  private static final  ElasticsearchCluster.ColumnData[] DATA = new ElasticsearchCluster.ColumnData[]{
-    new ElasticsearchCluster.ColumnData("colFloatDoublePrecision", FLOAT, new Object[][]{  { 1234567891011.50 } }),
-    new ElasticsearchCluster.ColumnData("varCharArray", TEXT, new Object[][] { { "foo", "bar"} }),
-  };
+  private static final ElasticsearchCluster.ColumnData[] DATA =
+      new ElasticsearchCluster.ColumnData[] {
+        new ElasticsearchCluster.ColumnData(
+            "colFloatDoublePrecision", FLOAT, new Object[][] {{1234567891011.50}}),
+        new ElasticsearchCluster.ColumnData("varCharArray", TEXT, new Object[][] {{"foo", "bar"}}),
+      };
 
-  @Rule
-  public final TestRule timeoutRule = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
+  @Rule public final TestRule timeoutRule = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
 
   @Before
   @Override
@@ -47,12 +46,16 @@ public class ITTestForceDoublePrecisionTrue extends ElasticBaseTestQuery {
   @Test
   public void testForceDoublePrecisionTrue() throws Exception {
     elastic.load(schema, table, DATA);
-    final String sql = "select cast ( colFloatDoublePrecision as varchar ) as colFloatDoublePrecision, varCharArray from elasticsearch." + schema + "." + table;
+    final String sql =
+        "select cast ( colFloatDoublePrecision as varchar ) as colFloatDoublePrecision, varCharArray from elasticsearch."
+            + schema
+            + "."
+            + table;
     testBuilder()
-      .sqlQuery(sql)
-      .ordered()
-      .baselineColumns("colFloatDoublePrecision", "varCharArray")
-      .baselineValues("1.2345678910115E12", TestBuilder.listOf("foo", "bar"))
-      .go();
+        .sqlQuery(sql)
+        .ordered()
+        .baselineColumns("colFloatDoublePrecision", "varCharArray")
+        .baselineValues("1.2345678910115E12", TestBuilder.listOf("foo", "bar"))
+        .go();
   }
 }

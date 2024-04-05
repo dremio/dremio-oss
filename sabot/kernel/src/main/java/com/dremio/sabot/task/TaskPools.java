@@ -18,9 +18,7 @@ package com.dremio.sabot.task;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.sabot.task.single.DedicatedTaskPool;
 
-/**
- * Task pool utilities
- */
+/** Task pool utilities */
 public final class TaskPools {
 
   public static final String DREMIO_TASK_POOL_FACTORY_CLASS = "dremio.task.pool.factory.class";
@@ -30,7 +28,8 @@ public final class TaskPools {
   public static TaskPoolFactory newFactory(SabotConfig config) {
     final TaskPoolFactory factory;
     if (config.hasPath(TaskPools.DREMIO_TASK_POOL_FACTORY_CLASS)) {
-      factory = config.getInstanceOf(TaskPools.DREMIO_TASK_POOL_FACTORY_CLASS, TaskPoolFactory.class);
+      factory =
+          config.getInstanceOf(TaskPools.DREMIO_TASK_POOL_FACTORY_CLASS, TaskPoolFactory.class);
     } else {
       factory = new DedicatedTaskPool.Factory();
     }

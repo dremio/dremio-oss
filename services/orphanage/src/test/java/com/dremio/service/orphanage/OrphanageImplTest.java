@@ -15,20 +15,16 @@
  */
 package com.dremio.service.orphanage;
 
+import com.dremio.datastore.api.Document;
+import com.dremio.datastore.api.KVStoreProvider;
+import com.dremio.service.orphanage.proto.OrphanEntry;
 import java.util.ArrayList;
 import java.util.Iterator;
-
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import com.dremio.datastore.api.Document;
-import com.dremio.datastore.api.KVStoreProvider;
-import com.dremio.service.orphanage.proto.OrphanEntry;
-
-/**
- * test class for OrphanageImpl
- */
+/** test class for OrphanageImpl */
 public class OrphanageImplTest {
 
   private KVStoreProvider kvStoreProvider;
@@ -40,20 +36,32 @@ public class OrphanageImplTest {
 
   private OrphanEntry.Orphan prepareIcebergOrphanEntry(String uuid) {
 
-    OrphanEntry.OrphanIcebergMetadata icebergOrphan = OrphanEntry.OrphanIcebergMetadata.newBuilder().setIcebergTableUuid(uuid).build();
+    OrphanEntry.OrphanIcebergMetadata icebergOrphan =
+        OrphanEntry.OrphanIcebergMetadata.newBuilder().setIcebergTableUuid(uuid).build();
     long currTime = System.currentTimeMillis();
-    OrphanEntry.Orphan orphanEntry = OrphanEntry.Orphan.newBuilder().setOrphanType(OrphanEntry.OrphanType.ICEBERG_METADATA).setCreatedAt(currTime).setScheduledAt(currTime).setOrphanDetails(icebergOrphan.toByteString()).build();
+    OrphanEntry.Orphan orphanEntry =
+        OrphanEntry.Orphan.newBuilder()
+            .setOrphanType(OrphanEntry.OrphanType.ICEBERG_METADATA)
+            .setCreatedAt(currTime)
+            .setScheduledAt(currTime)
+            .setOrphanDetails(icebergOrphan.toByteString())
+            .build();
     return orphanEntry;
-
   }
 
   private OrphanEntry.Orphan prepareIcebergOrphanEntry(String uuid, long scheduledAt) {
 
-    OrphanEntry.OrphanIcebergMetadata icebergOrphan = OrphanEntry.OrphanIcebergMetadata.newBuilder().setIcebergTableUuid(uuid).build();
+    OrphanEntry.OrphanIcebergMetadata icebergOrphan =
+        OrphanEntry.OrphanIcebergMetadata.newBuilder().setIcebergTableUuid(uuid).build();
     long currTime = System.currentTimeMillis();
-    OrphanEntry.Orphan orphanEntry = OrphanEntry.Orphan.newBuilder().setOrphanType(OrphanEntry.OrphanType.ICEBERG_METADATA).setCreatedAt(currTime).setScheduledAt(scheduledAt).setOrphanDetails(icebergOrphan.toByteString()).build();
+    OrphanEntry.Orphan orphanEntry =
+        OrphanEntry.Orphan.newBuilder()
+            .setOrphanType(OrphanEntry.OrphanType.ICEBERG_METADATA)
+            .setCreatedAt(currTime)
+            .setScheduledAt(scheduledAt)
+            .setOrphanDetails(icebergOrphan.toByteString())
+            .build();
     return orphanEntry;
-
   }
 
   @Test
@@ -62,8 +70,10 @@ public class OrphanageImplTest {
     Orphanage orphanage = new OrphanageImpl(kvStoreProvider);
     OrphanEntry.Orphan orphanEntry = prepareIcebergOrphanEntry("icebergtable1", 123);
     orphanage.addOrphan(orphanEntry);
-    Iterable<Document<OrphanEntry.OrphanId, OrphanEntry.Orphan>> orphans = orphanage.getAllOrphans();
-    Iterator<Document<OrphanEntry.OrphanId, OrphanEntry.Orphan>> orphansIterator = orphans.iterator();
+    Iterable<Document<OrphanEntry.OrphanId, OrphanEntry.Orphan>> orphans =
+        orphanage.getAllOrphans();
+    Iterator<Document<OrphanEntry.OrphanId, OrphanEntry.Orphan>> orphansIterator =
+        orphans.iterator();
 
     if (orphansIterator.hasNext()) {
       Assert.assertEquals(orphanEntry, orphansIterator.next().getValue());
@@ -77,7 +87,8 @@ public class OrphanageImplTest {
 
     Orphanage orphanage = new OrphanageImpl(kvStoreProvider);
 
-    OrphanEntry.OrphanId orphanId = OrphanEntry.OrphanId.newBuilder().setOrphanId("addupdateorphantest").build();
+    OrphanEntry.OrphanId orphanId =
+        OrphanEntry.OrphanId.newBuilder().setOrphanId("addupdateorphantest").build();
     OrphanEntry.Orphan orphanEntry = prepareIcebergOrphanEntry("icebergtable2");
 
     orphanage.addOrUpdateOrphan(orphanId, orphanEntry);
@@ -87,7 +98,6 @@ public class OrphanageImplTest {
     OrphanEntry.Orphan updatedOrphanEntry = prepareIcebergOrphanEntry("icebergtable2", 28794004);
     orphanage.addOrUpdateOrphan(orphanId, updatedOrphanEntry);
     Assert.assertEquals(updatedOrphanEntry, orphanage.getOrphan(orphanId).getValue());
-
   }
 
   @Test
@@ -95,8 +105,10 @@ public class OrphanageImplTest {
 
     Orphanage orphanage = new OrphanageImpl(kvStoreProvider);
     orphanage.addOrphan(prepareIcebergOrphanEntry("icebergtable3"));
-    Iterable<Document<OrphanEntry.OrphanId, OrphanEntry.Orphan>> orphans = orphanage.getAllOrphans();
-    Iterator<Document<OrphanEntry.OrphanId, OrphanEntry.Orphan>> orphansIterator = orphans.iterator();
+    Iterable<Document<OrphanEntry.OrphanId, OrphanEntry.Orphan>> orphans =
+        orphanage.getAllOrphans();
+    Iterator<Document<OrphanEntry.OrphanId, OrphanEntry.Orphan>> orphansIterator =
+        orphans.iterator();
 
     if (orphansIterator.hasNext()) {
       OrphanEntry.OrphanId key = orphansIterator.next().getKey();
@@ -109,16 +121,15 @@ public class OrphanageImplTest {
     }
   }
 
-
   @Test
   public void getOrphan() {
 
     Orphanage orphanage = new OrphanageImpl(kvStoreProvider);
-    OrphanEntry.OrphanId orphanId = OrphanEntry.OrphanId.newBuilder().setOrphanId("getorphantestid").build();
+    OrphanEntry.OrphanId orphanId =
+        OrphanEntry.OrphanId.newBuilder().setOrphanId("getorphantestid").build();
     OrphanEntry.Orphan orphanEntry = prepareIcebergOrphanEntry("icebergtable4", 123456);
     orphanage.addOrUpdateOrphan(orphanId, orphanEntry);
     Assert.assertEquals(orphanage.getOrphan(orphanId).getValue(), orphanEntry);
-
   }
 
   @Test
@@ -133,8 +144,10 @@ public class OrphanageImplTest {
     orphanage.addOrphan(secondOrphan);
     orphanage.addOrphan(thirdOrphan);
 
-    Iterable<Document<OrphanEntry.OrphanId, OrphanEntry.Orphan>> orphans = orphanage.getAllOrphans();
-    Iterator<Document<OrphanEntry.OrphanId, OrphanEntry.Orphan>> orphansIterator = orphans.iterator();
+    Iterable<Document<OrphanEntry.OrphanId, OrphanEntry.Orphan>> orphans =
+        orphanage.getAllOrphans();
+    Iterator<Document<OrphanEntry.OrphanId, OrphanEntry.Orphan>> orphansIterator =
+        orphans.iterator();
     ArrayList<OrphanEntry.Orphan> orphansList = new ArrayList<>();
     while (orphansIterator.hasNext()) {
       orphansList.add(orphansIterator.next().getValue());
@@ -144,7 +157,5 @@ public class OrphanageImplTest {
     orphansListSorted.add(thirdOrphan);
     orphansListSorted.add(secondOrphan);
     Assert.assertArrayEquals(orphansList.toArray(), orphansListSorted.toArray());
-
   }
-
 }

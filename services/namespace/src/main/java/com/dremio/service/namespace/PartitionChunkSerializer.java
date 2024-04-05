@@ -18,9 +18,7 @@ package com.dremio.service.namespace;
 import com.dremio.datastore.LegacyProtobufSerializer;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.PartitionChunk;
 
-/**
- * A serializer for partition chunks.
- */
+/** A serializer for partition chunks. */
 public class PartitionChunkSerializer extends LegacyProtobufSerializer<PartitionChunk> {
 
   public PartitionChunkSerializer() {

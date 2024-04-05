@@ -15,6 +15,10 @@
  */
 package com.dremio.exec.hadoop;
 
+import com.dremio.common.SuppressForbidden;
+import com.dremio.io.file.FileAttributes;
+import com.dremio.io.file.Path;
+import com.google.common.base.Throwables;
 import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
 import java.lang.invoke.MethodHandle;
@@ -24,22 +28,15 @@ import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.Set;
 import java.util.function.Predicate;
-
 import org.apache.hadoop.fs.FSError;
 
-import com.dremio.common.SuppressForbidden;
-import com.dremio.io.file.FileAttributes;
-import com.dremio.io.file.Path;
-import com.google.common.base.Throwables;
-
-/**
- * Some helper methods to test FSError handling
- */
+/** Some helper methods to test FSError handling */
 @SuppressForbidden
 public final class FSErrorTestUtils {
   private FSErrorTestUtils() {}
 
   private static final MethodHandle FSERROR_NEW_INSTANCE_HANDLE;
+
   static {
     try {
       Constructor<FSError> constructor = FSError.class.getDeclaredConstructor(Throwable.class);
@@ -52,6 +49,7 @@ public final class FSErrorTestUtils {
 
   /**
    * Create a new {@code FSError} through reflection
+   *
    * @param t
    * @return
    */
@@ -60,19 +58,20 @@ public final class FSErrorTestUtils {
     try {
       return (FSError) FSERROR_NEW_INSTANCE_HANDLE.invokeExact(t);
     } catch (Throwable e) {
-     throw Throwables.propagate(e);
+      throw Throwables.propagate(e);
     }
   }
 
   /**
    * Create dummy arguments for invoking the provided method
+   *
    * @param method
    * @return
    */
   public static Object[] getDummyArguments(Method method) {
     final Class<?>[] parameterTypes = method.getParameterTypes();
     Object[] params = new Object[parameterTypes.length];
-    for(int i = 0; i<params.length; i++) {
+    for (int i = 0; i < params.length; i++) {
       final Class<?> parameterType = parameterTypes[i];
       if (!parameterType.isPrimitive()) {
         if (parameterType == Set.class) {

@@ -115,7 +115,7 @@ export class QueryVisitor implements LiveEditParserVisitor<Promise<QueryPlan>> {
     identifierInfo: IdentifierInfo,
     commonTokenStream: CommonTokenStream,
     columnFetcher: IColumnFetcher,
-    queryContext: string[]
+    queryContext: string[],
   ) {
     this.cursorInfo = cursorInfo;
     this.identifierInfo = identifierInfo;
@@ -145,7 +145,7 @@ export class QueryVisitor implements LiveEditParserVisitor<Promise<QueryPlan>> {
 
     // Pre-compute with tables that affect the query plan
     this.withTablesInScope.push(
-      ...(await this.collectWithTables(fromContextBoundary))
+      ...(await this.collectWithTables(fromContextBoundary)),
     );
 
     // Now visit descendents to find all tables in scope
@@ -166,7 +166,7 @@ export class QueryVisitor implements LiveEditParserVisitor<Promise<QueryPlan>> {
       }
       const fetchedColumns = await this.columnFetcher.getColumns(
         path,
-        this.queryContext
+        this.queryContext,
       );
       return {
         tables: [
@@ -193,7 +193,7 @@ export class QueryVisitor implements LiveEditParserVisitor<Promise<QueryPlan>> {
 
       let priorToken: Token | undefined = getPriorToken(
         this.commonTokenStream,
-        child.sourceInterval.a
+        child.sourceInterval.a,
       );
 
       const analyzer: DirectRuleAnalyzer = tableRuleAnalyzers[ruleIndex];
@@ -202,7 +202,7 @@ export class QueryVisitor implements LiveEditParserVisitor<Promise<QueryPlan>> {
           analyzer.some(
             (childRule) =>
               childRule.ruleIndex == childRuleContext.ruleIndex &&
-              childRule.applies(priorToken, node.ruleContext)
+              childRule.applies(priorToken, node.ruleContext),
           )) &&
         (!tableScopeRestraints[ruleIndex] ||
           !tableScopeRestraints[ruleIndex][childRuleContext.ruleIndex] ||
@@ -211,8 +211,8 @@ export class QueryVisitor implements LiveEditParserVisitor<Promise<QueryPlan>> {
               hasRuleTransition(
                 this.fromContextBoundaryRuleList,
                 ruleIndex,
-                restraintRuleIndex
-              )
+                restraintRuleIndex,
+              ),
           ));
 
       if (shouldVisitChild) {
@@ -231,7 +231,7 @@ export class QueryVisitor implements LiveEditParserVisitor<Promise<QueryPlan>> {
   }
 
   async collectWithTables(
-    fromContextBoundary: RuleContext
+    fromContextBoundary: RuleContext,
   ): Promise<DerivedTable[]> {
     const withTables: DerivedTable[] = [];
     let ruleContext: RuleContext | undefined = fromContextBoundary;
@@ -260,7 +260,8 @@ export class QueryVisitor implements LiveEditParserVisitor<Promise<QueryPlan>> {
           // Only add it if it doesn't shadow some lower-scope with table
           if (
             !withTables.some(
-              (withTable: DerivedTable) => withTable.alias == derivedTable.alias
+              (withTable: DerivedTable) =>
+                withTable.alias == derivedTable.alias,
             )
           ) {
             withTables.push(derivedTable);
@@ -302,7 +303,7 @@ export class QueryVisitor implements LiveEditParserVisitor<Promise<QueryPlan>> {
           const tablesToExpand: Table[] = [];
           const tableName: string | undefined = colIdentifier.tableName;
           const tableInScope: Table | undefined = tablesInScope.find(
-            (table) => !tableName || referencesTable(tableName, table)
+            (table) => !tableName || referencesTable(tableName, table),
           );
           if (tableInScope) {
             tablesToExpand.push(tableInScope);
@@ -313,7 +314,7 @@ export class QueryVisitor implements LiveEditParserVisitor<Promise<QueryPlan>> {
               const projection = createColumnProjection(
                 column,
                 true,
-                usedColumnNames
+                usedColumnNames,
               );
               addProjection(projection, projections, usedColumnNames);
             }
@@ -323,13 +324,13 @@ export class QueryVisitor implements LiveEditParserVisitor<Promise<QueryPlan>> {
           const column = getColumn(
             tablesInScope,
             columnName,
-            colIdentifier.tableName
+            colIdentifier.tableName,
           );
           if (column) {
             const projection = createColumnProjection(
               column,
               false,
-              usedColumnNames
+              usedColumnNames,
             );
             addProjection(projection, projections, usedColumnNames);
           }
@@ -340,7 +341,7 @@ export class QueryVisitor implements LiveEditParserVisitor<Promise<QueryPlan>> {
             const projection = createColumnProjection(
               column,
               true,
-              usedColumnNames
+              usedColumnNames,
             );
             addProjection(projection, projections, usedColumnNames);
           }
@@ -365,7 +366,7 @@ export class QueryVisitor implements LiveEditParserVisitor<Promise<QueryPlan>> {
         (!table.derived &&
           table.path.length == 1 &&
           this.withTablesInScope.find((withTable: DerivedTable) =>
-            referencesTable(getTableName(table) || "", withTable)
+            referencesTable(getTableName(table) || "", withTable),
           )) ||
         undefined;
       const simpleIdentifier = ctx.simpleIdentifier();
@@ -437,20 +438,20 @@ function createDerivedTable(childQueryPlan: QueryPlan): DerivedTable {
 function hasRuleTransition(
   fromContextBoundaryRuleList: number[],
   fromRuleIndex: number,
-  toRuleIndex: number
+  toRuleIndex: number,
 ): boolean {
   return fromContextBoundaryRuleList.some(
     (ruleIndex, i) =>
       ruleIndex > 0 &&
       fromContextBoundaryRuleList[i] == toRuleIndex &&
-      fromContextBoundaryRuleList[i - 1] == fromRuleIndex
+      fromContextBoundaryRuleList[i - 1] == fromRuleIndex,
   );
 }
 
 function createColumnProjection(
   column: Column,
   inStar: boolean,
-  usedColumnNames: Set<string>
+  usedColumnNames: Set<string>,
 ): Projection | undefined {
   const name = inferProjectionName(column.name, inStar, usedColumnNames);
   return name ? { name, column } : undefined;
@@ -458,7 +459,7 @@ function createColumnProjection(
 
 function createExpressionProjection(
   expressionAlias: string | undefined,
-  usedColumnNames: Set<string>
+  usedColumnNames: Set<string>,
 ): Projection | undefined {
   const name = inferProjectionName(expressionAlias, false, usedColumnNames);
   const column: ExpressionColumn = {
@@ -471,7 +472,7 @@ function createExpressionProjection(
 function inferProjectionName(
   columnName: string | undefined,
   inStar: boolean,
-  usedColumnNames: Set<string>
+  usedColumnNames: Set<string>,
 ): string | undefined {
   const name = columnName || "EXPR$" + usedColumnNames.size;
   if (!usedColumnNames.has(name)) {
@@ -494,7 +495,7 @@ function inferProjectionName(
 function addProjection(
   projection: Projection | undefined,
   /** out param */ projections: Projection[],
-  /** out param */ usedColumnNames: Set<string>
+  /** out param */ usedColumnNames: Set<string>,
 ) {
   if (projection) {
     projections.push(projection);
@@ -505,7 +506,7 @@ function addProjection(
 function getColumn(
   tables: Table[],
   columnName: string,
-  tableName: string | undefined
+  tableName: string | undefined,
 ): Column | undefined {
   const candidateTables = tableName
     ? tables.filter((table) => referencesTable(tableName, table))
@@ -522,7 +523,7 @@ function getColumn(
 }
 
 function getTablePath(
-  ruleContext: CompoundIdentifierContext
+  ruleContext: CompoundIdentifierContext,
 ): string[] | undefined {
   if (
     ruleContext.LBRACKET().length > 0 ||
@@ -538,7 +539,7 @@ function getTablePath(
 }
 
 function parseSelectItemIdentifier(
-  compoundIdentifier: CompoundIdentifierContext
+  compoundIdentifier: CompoundIdentifierContext,
 ): ColumnIdentifier | undefined {
   const identifierParts: CompoundIdentifierPart[] =
     getCompoundIdentifierParts(compoundIdentifier);
@@ -564,7 +565,7 @@ function parseSelectItemIdentifier(
 }
 
 function getCompoundIdentifier(
-  selectExpression: SelectExpressionContext
+  selectExpression: SelectExpressionContext,
 ): CompoundIdentifierContext | undefined {
   return selectExpression
     .expression()

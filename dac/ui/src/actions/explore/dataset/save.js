@@ -18,7 +18,7 @@ import flatten from "lodash/flatten";
 import invariant from "invariant";
 
 import exploreUtils from "utils/explore/exploreUtils";
-
+import { addProjectBase as wrapBackendLink } from "dremio-ui-common/utilities/projectBase.js";
 import { datasetWithoutData } from "schemas/v2/fullDataset";
 import {
   constructFullPathAndEncode,
@@ -32,6 +32,7 @@ import { navigateAfterReapply } from "./reapply";
 import { store } from "@app/store/store";
 import { isBranchSelected } from "@app/utils/nessieUtils";
 import { setRefs } from "@app/actions/nessie/nessie";
+import { getVersionContextFromId } from "dremio-ui-common/utilities/datasetReference.js";
 
 export function saveDataset(dataset, viewId, nextAction) {
   return (dispatch) => {
@@ -54,7 +55,7 @@ export function saveAsDataset(nextAction, message) {
       replace({
         ...location,
         state: { modal: "SaveAsDatasetModal", nextAction, message },
-      })
+      }),
     );
   };
 }
@@ -63,7 +64,10 @@ export function submitSaveDataset(dataset, viewId) {
   return (dispatch) => {
     const savedTag = dataset.get("version");
     const link = dataset.getIn(["apiLinks", "self"]);
-    const href = `${link}/save?savedTag=${encodeURIComponent(savedTag)}`;
+    const href =
+      `${link}/save?savedTag=${encodeURIComponent(savedTag)}` +
+      // Read the branchName here since the Nessie state (Save As dialog) is not initialized
+      getBranchParamFromId(dataset.get("entityId"));
     return dispatch(
       postDatasetOperation({
         href,
@@ -71,9 +75,18 @@ export function submitSaveDataset(dataset, viewId) {
         schema: datasetWithoutData,
         metas: [{}, { mergeEntities: true }], // Save returns dataset and history only, so need to merge fullDataset
         notificationMessage: laDeprecated("Successfully saved."),
-      })
+      }),
     );
   };
+}
+
+function getBranchParamFromId(entityId) {
+  const versionContext = getVersionContextFromId(entityId);
+  if (versionContext?.type !== "BRANCH") {
+    return "";
+  }
+
+  return `&branchName=${versionContext.value}`;
 }
 
 function getBranchParam(fullPath) {
@@ -90,14 +103,12 @@ function getBranchParam(fullPath) {
   return "";
 }
 
-export function submitSaveAsDataset(name, fullPath, location, reapply) {
+export function submitSaveAsDataset(name, fullPath, location, inMultiTabs) {
   return (dispatch) => {
     const routeParams = getRouteParamsFromLocation(location);
     const link = exploreUtils.getHrefForTransform(routeParams, location);
     const href =
-      `${link}/${
-        reapply ? "reapplyAndSave" : "save"
-      }?as=${constructFullPathAndEncode(fullPath.concat(name))}` +
+      `${link}/save?as=${constructFullPathAndEncode(fullPath.concat(name))}` +
       getBranchParam(fullPath);
 
     return dispatch(
@@ -105,8 +116,8 @@ export function submitSaveAsDataset(name, fullPath, location, reapply) {
         href,
         schema: datasetWithoutData,
         notificationMessage: laDeprecated("Successfully saved."),
-        metas: [{}, { mergeEntities: true }],
-      })
+        metas: [{}, { mergeEntities: true, inMultiTabs }],
+      }),
     );
   };
 }
@@ -118,7 +129,7 @@ export function submitReapplyAndSaveAsDataset(name, fullPath, location) {
     const link = exploreUtils.getHrefForTransform(routeParams, location);
     const href =
       `${link}/reapplyAndSave?as=${constructFullPathAndEncode(
-        fullPath.concat(name)
+        fullPath.concat(name),
       )}` + getBranchParam(fullPath);
     return dispatch(
       postDatasetOperation({
@@ -126,7 +137,7 @@ export function submitReapplyAndSaveAsDataset(name, fullPath, location) {
         schema: datasetWithoutData,
         notificationMessage: laDeprecated("Successfully saved."),
         metas: [{}, { mergeEntities: true }],
-      })
+      }),
     ).then((response) => {
       if (!response.error) {
         dispatch(navigateAfterReapply(response, true));
@@ -142,8 +153,9 @@ export function afterSaveDatasetWithMultiTab(response) {
     dispatch(replace(window.location.href));
     const nextDataset = apiUtils.getEntityFromResponse("datasetUI", response);
     window.open(
-      window.location.origin + nextDataset.getIn(["links", "edit"]),
-      "_blank"
+      window.location.origin +
+        wrapBackendLink(nextDataset.getIn(["links", "edit"])),
+      "_blank",
     );
   };
 }
@@ -160,12 +172,12 @@ export function afterSaveDataset(response, nextAction) {
       .getIn(["entities", "historyItem"])
       .toList();
     dispatch(
-      navigateToNextDataset(response, { replaceNav: true, isSaveAs: true })
+      navigateToNextDataset(response, { replaceNav: true, isSaveAs: true }),
     );
 
     // old versions need to be reloaded for occ version and possible change in display name
     dispatch(
-      deleteOldDatasetVersions(nextDataset.get("datasetVersion"), historyItems)
+      deleteOldDatasetVersions(nextDataset.get("datasetVersion"), historyItems),
     );
     dispatch(performNextAction(nextDataset, nextAction));
     return response;
@@ -185,9 +197,9 @@ export function deleteOldDatasetVersions(currentVersion, historyItemsList) {
       entityRemovePaths: flatten(
         datasetVersions.map((id) =>
           ["datasetUI", "tableData", "fullDataset", "history"].map(
-            (entityType) => [entityType, id]
-          )
-        )
+            (entityType) => [entityType, id],
+          ),
+        ),
       ),
     },
   };

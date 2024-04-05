@@ -15,23 +15,20 @@
  */
 package com.dremio.service.jobs;
 
-import java.util.List;
-import java.util.function.Function;
-
 import com.dremio.service.job.log.JobState;
 import com.dremio.service.job.log.LoggedQuery;
 import com.dremio.service.job.proto.JobInfo;
+import java.util.List;
+import java.util.function.Function;
 
-/**
- * Converts a job to a log entry
- */
+/** Converts a job to a log entry */
 public class JobResultToLogEntryConverter implements Function<Job, LoggedQuery> {
   @Override
   public LoggedQuery apply(Job job) {
     final JobInfo info = job.getJobAttempt().getInfo();
     final List<String> contextList = info.getContextList();
     String outcomeReason = null;
-    switch(job.getJobAttempt().getState()) {
+    switch (job.getJobAttempt().getState()) {
       case CANCELED:
         outcomeReason = info.getCancellationInfo().getMessage();
         break;

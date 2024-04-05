@@ -15,23 +15,23 @@
  */
 package com.dremio.exec.store.deltalake;
 
+import com.dremio.exec.store.TableMetadata;
+import com.dremio.options.Options;
 import java.util.List;
-
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
-import com.dremio.exec.store.TableMetadata;
-import com.dremio.options.Options;
-
-/**
- * Hive version of DeltaLake commit log reader prel for added and removed paths
- */
+/** Hive version of DeltaLake commit log reader prel for added and removed paths */
 @Options
 public class HiveDeltaLakeCommitLogScanPrel extends DeltaLakeCommitLogScanPrel {
-  public HiveDeltaLakeCommitLogScanPrel(RelOptCluster cluster, RelTraitSet traitSet, TableMetadata tableMetadata,
-                                        boolean arrowCachingEnabled, boolean scanForAddedPaths) {
+  public HiveDeltaLakeCommitLogScanPrel(
+      RelOptCluster cluster,
+      RelTraitSet traitSet,
+      TableMetadata tableMetadata,
+      boolean arrowCachingEnabled,
+      boolean scanForAddedPaths) {
     super(cluster, traitSet, tableMetadata, arrowCachingEnabled, scanForAddedPaths);
   }
 
@@ -45,6 +45,11 @@ public class HiveDeltaLakeCommitLogScanPrel extends DeltaLakeCommitLogScanPrel {
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new HiveDeltaLakeCommitLogScanPrel(getCluster(), getTraitSet(), getTableMetadata(), isArrowCachingEnabled(), isScanForAddedPaths());
+    return new HiveDeltaLakeCommitLogScanPrel(
+        getCluster(),
+        getTraitSet(),
+        getTableMetadata(),
+        isArrowCachingEnabled(),
+        isScanForAddedPaths());
   }
 }

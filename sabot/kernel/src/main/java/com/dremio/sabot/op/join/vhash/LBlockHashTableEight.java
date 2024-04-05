@@ -15,15 +15,6 @@
  */
 package com.dremio.sabot.op.join.vhash;
 
-
-import java.util.Optional;
-import java.util.Random;
-import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.TimeUnit;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.AutoCloseables.RollbackCloseable;
 import com.dremio.exec.util.BloomFilter;
@@ -37,12 +28,15 @@ import com.koloboke.collect.hash.HashConfig;
 import com.koloboke.collect.impl.hash.HashConfigWrapper;
 import com.koloboke.collect.impl.hash.LHash.SeparateKVLongKeyMixing;
 import com.koloboke.collect.impl.hash.LHashCapacities;
-
 import io.netty.util.internal.PlatformDependent;
+import java.util.Optional;
+import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.BufferAllocator;
 
-/**
- * A hash map of longs > ints
- */
+/** A hash map of longs > ints */
 public final class LBlockHashTableEight implements AutoCloseable {
   public static final int KEY_WIDTH = 8;
   public static final int ORDINAL_WIDTH = 4;
@@ -93,16 +87,15 @@ public final class LBlockHashTableEight implements AutoCloseable {
 
   /**
    * Insert key into the hash table
+   *
    * @param key 64 bit key
    * @param keyHash 32 bit hashvalue
    * @return ordinal of insertion point
-   *
-   * Hashing is now done externally to the hash table. With support
-   * for spilling, the code that handles the input data (build or probe)
-   * computes hash.
+   *     <p>Hashing is now done externally to the hash table. With support for spilling, the code
+   *     that handles the input data (build or probe) computes hash.
    */
   public int insert(long key, int keyHash) {
-    if(key == freeValue){
+    if (key == freeValue) {
       changeFree();
     }
     return getOrInsert(key, true, keyHash);
@@ -190,13 +183,11 @@ public final class LBlockHashTableEight implements AutoCloseable {
 
   /**
    * Lookup key in the hash table
+   *
    * @param key 64 bit key
    * @param keyHash 32 bit hashvalue
-   * @return
-   *
-   * Hashing is now done externally to the hash table. With support
-   * for spilling, the code that handles the input data (build or probe)
-   * computes hash.
+   * @return Hashing is now done externally to the hash table. With support for spilling, the code
+   *     that handles the input data (build or probe) computes hash.
    */
   public int get(long key, int keyHash) {
     return getOrInsert(key, false, keyHash);
@@ -228,7 +219,7 @@ public final class LBlockHashTableEight implements AutoCloseable {
       }
     }
 
-    if(!insertNew){
+    if (!insertNew) {
       return -1;
     } else {
 
@@ -248,15 +239,15 @@ public final class LBlockHashTableEight implements AutoCloseable {
     }
   }
 
-  private long changeFree(){
+  private long changeFree() {
     long oldFree = this.freeValue;
     long newFree = nextFree(oldFree);
     final long[] controlAddrs = this.tableFixedAddresses;
-    for(int batch =0; batch < controlAddrs.length; batch++){
+    for (int batch = 0; batch < controlAddrs.length; batch++) {
       long addr = controlAddrs[batch];
       final long max = addr + MAX_VALUES_PER_BATCH * BLOCK_WIDTH;
-      for(long oldControlAddr = addr; oldControlAddr < max; oldControlAddr += BLOCK_WIDTH){
-        if(PlatformDependent.getLong(oldControlAddr) == oldFree){
+      for (long oldControlAddr = addr; oldControlAddr < max; oldControlAddr += BLOCK_WIDTH) {
+        if (PlatformDependent.getLong(oldControlAddr) == oldFree) {
           PlatformDependent.putLong(oldControlAddr, newFree);
         }
       }
@@ -265,7 +256,7 @@ public final class LBlockHashTableEight implements AutoCloseable {
     return newFree;
   }
 
-  private long nextFree(final long oldFree){
+  private long nextFree(final long oldFree) {
     Random random = ThreadLocalRandom.current();
     long newFree;
 
@@ -274,8 +265,9 @@ public final class LBlockHashTableEight implements AutoCloseable {
      */
     do {
       newFree = random.nextLong();
-    } while (newFree == oldFree || newFree == NULL_KEY_VALUE
-      || getOrInsert(newFree, false, (int)HashComputation.computeHash(newFree)) != NO_MATCH);
+    } while (newFree == oldFree
+        || newFree == NULL_KEY_VALUE
+        || getOrInsert(newFree, false, (int) HashComputation.computeHash(newFree)) != NO_MATCH);
     return newFree;
   }
 
@@ -290,8 +282,9 @@ public final class LBlockHashTableEight implements AutoCloseable {
       removeNull();
     }
 
-    try(RollbackCloseable closer = new RollbackCloseable()){ // Close old control blocks when done rehashing.
-      for(FixedBlockVector cb : this.fixedBlocks){
+    try (RollbackCloseable closer =
+        new RollbackCloseable()) { // Close old control blocks when done rehashing.
+      for (FixedBlockVector cb : this.fixedBlocks) {
         closer.add(cb);
       }
 
@@ -299,20 +292,24 @@ public final class LBlockHashTableEight implements AutoCloseable {
       final int capacityMask = this.capacityMask;
       final long[] newFixedAddrs = this.tableFixedAddresses;
 
-      for(int batch = 0; batch < oldFixedAddrs.length; batch++){
+      for (int batch = 0; batch < oldFixedAddrs.length; batch++) {
         long addr = oldFixedAddrs[batch];
         final long max = addr + (MAX_VALUES_PER_BATCH * BLOCK_WIDTH);
-        for(long oldFixedAddr = addr; oldFixedAddr < max; oldFixedAddr += BLOCK_WIDTH){
+        for (long oldFixedAddr = addr; oldFixedAddr < max; oldFixedAddr += BLOCK_WIDTH) {
           long key = PlatformDependent.getLong(oldFixedAddr);
 
-          if(key != free){
+          if (key != free) {
             int newIndex = hash(key) & capacityMask; // get previously computed hash and slice it.
-            long newFixedAddr = newFixedAddrs[newIndex >>> BITS_IN_CHUNK] + ((newIndex & CHUNK_OFFSET_MASK) * BLOCK_WIDTH);
+            long newFixedAddr =
+                newFixedAddrs[newIndex >>> BITS_IN_CHUNK]
+                    + ((newIndex & CHUNK_OFFSET_MASK) * BLOCK_WIDTH);
 
             if (PlatformDependent.getLong(newFixedAddr) != free) {
               while (true) {
                 newIndex = (newIndex - 1) & capacityMask;
-                newFixedAddr = newFixedAddrs[newIndex >>> BITS_IN_CHUNK] + ((newIndex & CHUNK_OFFSET_MASK) * BLOCK_WIDTH);
+                newFixedAddr =
+                    newFixedAddrs[newIndex >>> BITS_IN_CHUNK]
+                        + ((newIndex & CHUNK_OFFSET_MASK) * BLOCK_WIDTH);
                 if (PlatformDependent.getLong(newFixedAddr) == free) {
                   break;
                 }
@@ -322,7 +319,6 @@ public final class LBlockHashTableEight implements AutoCloseable {
             final int ordinalValue = PlatformDependent.getInt(oldFixedAddr + KEY_WIDTH);
             PlatformDependent.putLong(newFixedAddr, key);
             PlatformDependent.putInt(newFixedAddr + KEY_WIDTH, ordinalValue);
-
           }
         }
       }
@@ -336,7 +332,7 @@ public final class LBlockHashTableEight implements AutoCloseable {
     }
   }
 
-  private static final int hash(long key){
+  private static final int hash(long key) {
     return SeparateKVLongKeyMixing.mix(key);
   }
 
@@ -355,12 +351,12 @@ public final class LBlockHashTableEight implements AutoCloseable {
     return this == obj;
   }
 
-  public int size(){
+  public int size() {
     return currentOrdinal;
   }
 
-  public int blocks(){
-    return (int) Math.ceil( currentOrdinal / (MAX_VALUES_PER_BATCH * 1.0d) );
+  public int blocks() {
+    return (int) Math.ceil(currentOrdinal / (MAX_VALUES_PER_BATCH * 1.0d));
   }
 
   public int capacity() {
@@ -385,11 +381,11 @@ public final class LBlockHashTableEight implements AutoCloseable {
     }
   }
 
-  public long getRehashTime(TimeUnit unit){
+  public long getRehashTime(TimeUnit unit) {
     return rehashTimer.elapsed(unit);
   }
 
-  public int getRehashCount(){
+  public int getRehashCount() {
     return rehashCount;
   }
 
@@ -398,15 +394,16 @@ public final class LBlockHashTableEight implements AutoCloseable {
     Preconditions.checkArgument((capacity & (capacity - 1)) == 0);
     initTimer.start();
     this.capacity = capacity;
-    this.maxSize = !LHashCapacities.isMaxCapacity(capacity, false) ? config.maxSize(capacity) : capacity - 1;
-    this.batches = (int) Math.ceil( capacity / (MAX_VALUES_PER_BATCH * 1.0d) );
+    this.maxSize =
+        !LHashCapacities.isMaxCapacity(capacity, false) ? config.maxSize(capacity) : capacity - 1;
+    this.batches = (int) Math.ceil(capacity / (MAX_VALUES_PER_BATCH * 1.0d));
     final FixedBlockVector[] newFixedBlocks = new FixedBlockVector[batches];
     tableFixedAddresses = new long[batches];
     capacityMask = capacity - 1;
-    try(RollbackCloseable rollbackable = new RollbackCloseable()) {
+    try (RollbackCloseable rollbackable = new RollbackCloseable()) {
 
       final long free = this.freeValue;
-      for(int i =0; i < batches; i++){
+      for (int i = 0; i < batches; i++) {
         FixedBlockVector vector = new FixedBlockVector(allocator, BLOCK_WIDTH);
         rollbackable.add(vector);
         vector.allocateNoClear(MAX_VALUES_PER_BATCH);
@@ -415,7 +412,7 @@ public final class LBlockHashTableEight implements AutoCloseable {
 
         final long addr = newFixedBlocks[i].getMemoryAddress();
         final long max = addr + MAX_VALUES_PER_BATCH * BLOCK_WIDTH;
-        for(long l = addr; l < max; l+= LBlockHashTableEight.BLOCK_WIDTH){
+        for (long l = addr; l < max; l += LBlockHashTableEight.BLOCK_WIDTH) {
           PlatformDependent.putLong(l, free);
           PlatformDependent.putInt(l + KEY_WIDTH, NO_MATCH);
         }
@@ -430,15 +427,20 @@ public final class LBlockHashTableEight implements AutoCloseable {
   }
 
   public Optional<BloomFilter> prepareBloomFilter(final boolean sizeDynamically) throws Exception {
-    final long bloomFilterSize = sizeDynamically ? Math.min(BloomFilter.getOptimalSize(size()),
-            BLOOMFILTER_MAX_SIZE) : BLOOMFILTER_MAX_SIZE;
+    final long bloomFilterSize =
+        sizeDynamically
+            ? Math.min(BloomFilter.getOptimalSize(size()), BLOOMFILTER_MAX_SIZE)
+            : BLOOMFILTER_MAX_SIZE;
     try (ArrowBuf keyHolder = allocator.buffer(9);
-         RollbackCloseable closeOnErr = new RollbackCloseable()) {
-      final BloomFilter bloomFilter = new BloomFilter(allocator, Thread.currentThread().getName(), bloomFilterSize); // fixed to 2MB
+        RollbackCloseable closeOnErr = new RollbackCloseable()) {
+      final BloomFilter bloomFilter =
+          new BloomFilter(
+              allocator, Thread.currentThread().getName(), bloomFilterSize); // fixed to 2MB
       closeOnErr.add(bloomFilter);
       bloomFilter.setup();
 
-      // Since the exact address of the values are computed via keyhash, it is not possible to navigate values without keyhash
+      // Since the exact address of the values are computed via keyhash, it is not possible to
+      // navigate values without keyhash
       // Hence, we go over each block, and pick if it contains a value.
       for (int chunk = 0; chunk < tableFixedAddresses.length; chunk++) {
         final long chunkAddr = tableFixedAddresses[chunk];
@@ -449,7 +451,10 @@ public final class LBlockHashTableEight implements AutoCloseable {
             continue;
           }
           keyHolder.writerIndex(0);
-          final byte validityByte = (key == NULL_KEY_VALUE) ? (byte)0x00 : (byte)0x01; // validity bit set for first key - 0000 000[1]
+          final byte validityByte =
+              (key == NULL_KEY_VALUE)
+                  ? (byte) 0x00
+                  : (byte) 0x01; // validity bit set for first key - 0000 000[1]
           keyHolder.writeByte(validityByte);
           keyHolder.writeLong(key);
           bloomFilter.put(keyHolder, 9);

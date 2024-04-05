@@ -17,19 +17,6 @@ package com.dremio.exec.store.cache;
 
 import static com.dremio.io.file.UriSchemes.HDFS_SCHEME;
 
-import java.io.IOException;
-import java.net.URI;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.concurrent.locks.Lock;
-import java.util.function.Function;
-
-import org.eclipse.jetty.util.URIUtil;
-import org.rocksdb.RocksDBException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.VM;
 import com.dremio.config.DremioConfig;
 import com.dremio.exec.ExecConstants;
@@ -40,14 +27,24 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.BlockLocationsList;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.Striped;
+import java.io.IOException;
+import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.concurrent.locks.Lock;
+import java.util.function.Function;
+import org.eclipse.jetty.util.URIUtil;
+import org.rocksdb.RocksDBException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * Manager for setting up a block locations cache and creating cache entries
- */
+/** Manager for setting up a block locations cache and creating cache entries */
 public class BlockLocationsCacheManager implements AutoCloseable {
   private static final Logger LOGGER = LoggerFactory.getLogger(BlockLocationsCacheManager.class);
   private static final String DB_DIR_NAME = "block-locations";
-  private static final Striped<Lock> IN_PROGRESS_FILE_LOCKS = Striped.lazyWeakLock(VM.availableProcessors());
+  private static final Striped<Lock> IN_PROGRESS_FILE_LOCKS =
+      Striped.lazyWeakLock(VM.availableProcessors());
 
   private static volatile RocksDbBroker rocksDbBroker;
 
@@ -59,19 +56,31 @@ public class BlockLocationsCacheManager implements AutoCloseable {
     this.readerWriter = readerWriter;
   }
 
-  public static BlockLocationsCacheManager newInstance(FileSystem fs, String pluginId, DremioConfig dremioConfig,
-                                                       OperatorContext operatorContext) throws InitializationException {
-    return newInstance(fs, pluginId, operatorContext, dremioConfig,
-      broker -> new RecordingCacheReaderWriter(fs, broker, operatorContext.getStats()));
+  public static BlockLocationsCacheManager newInstance(
+      FileSystem fs, String pluginId, DremioConfig dremioConfig, OperatorContext operatorContext)
+      throws InitializationException {
+    return newInstance(
+        fs,
+        pluginId,
+        operatorContext,
+        dremioConfig,
+        broker -> new RecordingCacheReaderWriter(fs, broker, operatorContext.getStats()));
   }
 
   @VisibleForTesting
-  static BlockLocationsCacheManager newInstance(FileSystem fileSystem, String pluginId,
-                                                OperatorContext operatorContext, DremioConfig dremioConfig,
-                                                Function<RocksDbBroker, RecordingCacheReaderWriter> readerWriter) throws InitializationException {
-    boolean featureEnabled = operatorContext.getOptions().getOption(ExecConstants.HADOOP_BLOCK_CACHE_ENABLED);
+  static BlockLocationsCacheManager newInstance(
+      FileSystem fileSystem,
+      String pluginId,
+      OperatorContext operatorContext,
+      DremioConfig dremioConfig,
+      Function<RocksDbBroker, RecordingCacheReaderWriter> readerWriter)
+      throws InitializationException {
+    boolean featureEnabled =
+        operatorContext.getOptions().getOption(ExecConstants.HADOOP_BLOCK_CACHE_ENABLED);
     if (!fileSystem.supportsBlockAffinity() || !featureEnabled) {
-      LOGGER.debug("Not creating block locations cache on {} filesystem as prerequisites are not met", fileSystem);
+      LOGGER.debug(
+          "Not creating block locations cache on {} filesystem as prerequisites are not met",
+          fileSystem);
       return null;
     }
 
@@ -99,6 +108,7 @@ public class BlockLocationsCacheManager implements AutoCloseable {
 
   /**
    * Initialize the cache for the given file.
+   *
    * @param filePath path for the file whose block locations are to be cached
    * @param fileSize size of the file in bytes
    * @return the value of the created cache entry
@@ -150,7 +160,8 @@ public class BlockLocationsCacheManager implements AutoCloseable {
     rocksDbBroker = null;
   }
 
-  private static Path createDirectories(DremioConfig dremioConfig, NodeEndpoint nodeEndPoint) throws IOException {
+  private static Path createDirectories(DremioConfig dremioConfig, NodeEndpoint nodeEndPoint)
+      throws IOException {
     Path baseDir = Paths.get(dremioConfig.getString(DremioConfig.CACHE_DB_PATH));
     boolean isYarnDeployment = dremioConfig.getBoolean(DremioConfig.YARN_ENABLED_BOOL);
     if (isYarnDeployment) {
@@ -176,7 +187,7 @@ public class BlockLocationsCacheManager implements AutoCloseable {
   }
 
   private boolean hasNoOrHdfsScheme(String filePath) {
-    String encodedPath = URIUtil.encodePath(filePath); //needed to handle whitespaces in path
+    String encodedPath = URIUtil.encodePath(filePath); // needed to handle whitespaces in path
     URI uri = URI.create(encodedPath);
     String scheme = uri.getScheme();
     if (scheme == null) {

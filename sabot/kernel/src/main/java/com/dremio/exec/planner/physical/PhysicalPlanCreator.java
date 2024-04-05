@@ -18,10 +18,6 @@ package com.dremio.exec.planner.physical;
 import static java.lang.Math.max;
 import static java.lang.Math.min;
 
-import java.io.IOException;
-import java.util.List;
-import java.util.Map;
-
 import com.dremio.common.logical.PlanProperties;
 import com.dremio.common.logical.PlanProperties.Generator.ResultMode;
 import com.dremio.common.logical.PlanProperties.PlanPropertiesBuilder;
@@ -38,11 +34,11 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.options.OptionManager;
 import com.dremio.options.TypeValidators.LongValidator;
 import com.google.common.collect.Lists;
+import java.io.IOException;
+import java.util.List;
+import java.util.Map;
 
-
-/**
- * Carries common state and utility methods for generating a physical plan.
- */
+/** Carries common state and utility methods for generating a physical plan. */
 public class PhysicalPlanCreator {
 
   private final Map<Prel, OpId> opIdMap;
@@ -69,7 +65,7 @@ public class PhysicalPlanCreator {
     return context.getOptions();
   }
 
-  private int getId(Prel originalPrel){
+  private int getId(Prel originalPrel) {
     return opIdMap.get(originalPrel).getAsSingleInt();
   }
 
@@ -77,62 +73,139 @@ public class PhysicalPlanCreator {
     return opIdMap.get(prel);
   }
 
-  public OpProps props(int operatorId, Prel prel, String username, BatchSchema schema, LongValidator reserveOption, LongValidator limitOption, double cost) {
-    return props(operatorId, username, schema,
-      reserveOption == null ? Prel.DEFAULT_RESERVE : context.getOptions().getOption(reserveOption),
-      limitOption, Prel.DEFAULT_LOW_LIMIT, 0, cost,
-      prel.getTraitSet().getTrait(DistributionTraitDef.INSTANCE) == DistributionTrait.SINGLETON);
+  public OpProps props(
+      int operatorId,
+      Prel prel,
+      String username,
+      BatchSchema schema,
+      LongValidator reserveOption,
+      LongValidator limitOption,
+      double cost) {
+    return props(
+        operatorId,
+        username,
+        schema,
+        reserveOption == null
+            ? Prel.DEFAULT_RESERVE
+            : context.getOptions().getOption(reserveOption),
+        limitOption,
+        Prel.DEFAULT_LOW_LIMIT,
+        0,
+        cost,
+        prel.getTraitSet().getTrait(DistributionTraitDef.INSTANCE) == DistributionTrait.SINGLETON);
   }
 
-  public OpProps props(Prel prel, String username, BatchSchema schema, LongValidator reserveOption, LongValidator limitOption, double cost) {
-    return props(prel, username, schema,
-      reserveOption == null ? Prel.DEFAULT_RESERVE : context.getOptions().getOption(reserveOption),
-      limitOption, Prel.DEFAULT_LOW_LIMIT, 0, cost);
+  public OpProps props(
+      Prel prel,
+      String username,
+      BatchSchema schema,
+      LongValidator reserveOption,
+      LongValidator limitOption,
+      double cost) {
+    return props(
+        prel,
+        username,
+        schema,
+        reserveOption == null
+            ? Prel.DEFAULT_RESERVE
+            : context.getOptions().getOption(reserveOption),
+        limitOption,
+        Prel.DEFAULT_LOW_LIMIT,
+        0,
+        cost);
   }
 
-  public OpProps props(Prel prel, String username, BatchSchema schema, LongValidator reserveOption, LongValidator limitOption) {
-    return props(prel, username, schema,
-      reserveOption == null ? Prel.DEFAULT_RESERVE : context.getOptions().getOption(reserveOption),
-      limitOption, Prel.DEFAULT_LOW_LIMIT);
+  public OpProps props(
+      Prel prel,
+      String username,
+      BatchSchema schema,
+      LongValidator reserveOption,
+      LongValidator limitOption) {
+    return props(
+        prel,
+        username,
+        schema,
+        reserveOption == null
+            ? Prel.DEFAULT_RESERVE
+            : context.getOptions().getOption(reserveOption),
+        limitOption,
+        Prel.DEFAULT_LOW_LIMIT);
   }
 
-  public OpProps props(Prel prel, String username, BatchSchema schema, long reservation, LongValidator limitOption, long lowLimit) {
+  public OpProps props(
+      Prel prel,
+      String username,
+      BatchSchema schema,
+      long reservation,
+      LongValidator limitOption,
+      long lowLimit) {
     return props(prel, username, schema, reservation, limitOption, lowLimit, 0);
   }
 
-  public OpProps props(Prel prel, String username, BatchSchema schema, long reservation, LongValidator limitOption, long lowLimit, long forcedMemLimit) {
-    return props(prel, username, schema, reservation, limitOption, lowLimit, forcedMemLimit,
-      prel.getCostForParallelization());
+  public OpProps props(
+      Prel prel,
+      String username,
+      BatchSchema schema,
+      long reservation,
+      LongValidator limitOption,
+      long lowLimit,
+      long forcedMemLimit) {
+    return props(
+        prel,
+        username,
+        schema,
+        reservation,
+        limitOption,
+        lowLimit,
+        forcedMemLimit,
+        prel.getCostForParallelization());
   }
 
-  private OpProps props(Prel prel, String username, BatchSchema schema, long reservation, LongValidator limitOption, long lowLimit, long forcedMemLimit, double cost) {
-    return props(getId(prel), username, schema, reservation, limitOption, lowLimit, forcedMemLimit, cost,
-      prel.getTraitSet().getTrait(DistributionTraitDef.INSTANCE) == DistributionTrait.SINGLETON);
+  private OpProps props(
+      Prel prel,
+      String username,
+      BatchSchema schema,
+      long reservation,
+      LongValidator limitOption,
+      long lowLimit,
+      long forcedMemLimit,
+      double cost) {
+    return props(
+        getId(prel),
+        username,
+        schema,
+        reservation,
+        limitOption,
+        lowLimit,
+        forcedMemLimit,
+        cost,
+        prel.getTraitSet().getTrait(DistributionTraitDef.INSTANCE) == DistributionTrait.SINGLETON);
   }
 
-  private OpProps props(int operatorId,
-                        String username,
-                        BatchSchema schema,
-                        long reservation,
-                        LongValidator limitOption,
-                        long lowLimit,
-                        long forcedMemLimit,
-                        double cost,
-                        boolean singleStream) {
+  private OpProps props(
+      int operatorId,
+      String username,
+      BatchSchema schema,
+      long reservation,
+      LongValidator limitOption,
+      long lowLimit,
+      long forcedMemLimit,
+      double cost,
+      boolean singleStream) {
     return new OpProps(
-      operatorId,
-      username,
-      reservation,
-      limitOption == null ? Prel.DEFAULT_LIMIT : context.getOptions().getOption(limitOption),
-      lowLimit,
-      forcedMemLimit,
-      cost,
-      singleStream,
-      calculateTargetRecordSize(schema),
-      schema,
-      false,
-      0.0d,
-      false);
+        operatorId,
+        username,
+        reservation,
+        limitOption == null ? Prel.DEFAULT_LIMIT : context.getOptions().getOption(limitOption),
+        lowLimit,
+        forcedMemLimit,
+        cost,
+        singleStream,
+        calculateTargetRecordSize(schema),
+        schema,
+        false,
+        0.0d,
+        false);
   }
 
   public OpProps props(Prel prel, String username, BatchSchema schema) {
@@ -151,19 +224,19 @@ public class PhysicalPlanCreator {
     propsBuilder.resultMode(ResultMode.EXEC);
     propsBuilder.generator(PhysicalPlanCreator.class.getName(), "");
 
-
     try {
       // invoke getPhysicalOperator on the root Prel which will recursively invoke it
       // on the descendants and we should have a well-formed physical operator tree
       PhysicalOperator rootPOP = rootPrel.getPhysicalOperator(this);
       if (rootPOP != null) {
-        assert (popList.size() > 0); //getPhysicalOperator() is supposed to populate this list
+        assert (popList.size() > 0); // getPhysicalOperator() is supposed to populate this list
         plan = new PhysicalPlan(propsBuilder.build(), popList);
       }
 
     } catch (IOException e) {
       plan = null;
-      throw new UnsupportedOperationException("Physical plan created failed with error : " + e.toString());
+      throw new UnsupportedOperationException(
+          "Physical plan created failed with error : " + e.toString());
     }
 
     return plan;
@@ -171,8 +244,10 @@ public class PhysicalPlanCreator {
 
   private int estimateRecordSize(BatchSchema schema, OptionManager options) {
     final int listSizeEstimate = (int) options.getOption(ExecConstants.BATCH_LIST_SIZE_ESTIMATE);
-    final int varFieldSizeEstimate = (int) options.getOption(ExecConstants.BATCH_VARIABLE_FIELD_SIZE_ESTIMATE);
-    final int estimatedRecordSize = schema.estimateRecordSize(listSizeEstimate, varFieldSizeEstimate);
+    final int varFieldSizeEstimate =
+        (int) options.getOption(ExecConstants.BATCH_VARIABLE_FIELD_SIZE_ESTIMATE);
+    final int estimatedRecordSize =
+        schema.estimateRecordSize(listSizeEstimate, varFieldSizeEstimate);
     return estimatedRecordSize;
   }
 
@@ -182,12 +257,15 @@ public class PhysicalPlanCreator {
     return calculateBatchCountFromRecordSize(options, estimatedRecordSize);
   }
 
-  public static int calculateBatchCountFromRecordSize(OptionManager options, int estimatedRecordSize) {
+  public static int calculateBatchCountFromRecordSize(
+      OptionManager options, int estimatedRecordSize) {
 
     if (estimatedRecordSize == 0) {
-      // If the estimated row size is zero (possible when schema is not known initially for queries containing
+      // If the estimated row size is zero (possible when schema is not known initially for queries
+      // containing
       // convert_from), fall back to max size
-      return optimizeBatchSizeForAllocs((int) options.getOption(ExecConstants.TARGET_BATCH_RECORDS_MAX));
+      return optimizeBatchSizeForAllocs(
+          (int) options.getOption(ExecConstants.TARGET_BATCH_RECORDS_MAX));
     }
 
     final int minTargetBatchCount = (int) options.getOption(ExecConstants.TARGET_BATCH_RECORDS_MIN);
@@ -195,8 +273,8 @@ public class PhysicalPlanCreator {
 
     final int maxBatchSizeBytes = (int) options.getOption(ExecConstants.TARGET_BATCH_SIZE_BYTES);
 
-    final int targetBatchSize = max(minTargetBatchCount,
-      min(maxTargetBatchCount, maxBatchSizeBytes / estimatedRecordSize));
+    final int targetBatchSize =
+        max(minTargetBatchCount, min(maxTargetBatchCount, maxBatchSizeBytes / estimatedRecordSize));
 
     return optimizeBatchSizeForAllocs(targetBatchSize);
   }
@@ -217,5 +295,4 @@ public class PhysicalPlanCreator {
      */
     return max(1, targetCount - targetCount / 32);
   }
-
 }

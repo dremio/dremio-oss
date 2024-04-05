@@ -16,74 +16,70 @@
 
 package com.dremio.common.exceptions;
 
-import java.security.AccessControlException;
-import java.util.Optional;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.exec.proto.UserBitShared.DremioPBError;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.dremio.type.AnyTypeUtil;
 import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.rpc.Status;
-
 import io.grpc.Status.Code;
 import io.grpc.StatusException;
 import io.grpc.StatusRuntimeException;
 import io.grpc.protobuf.StatusProto;
 import io.grpc.stub.StreamObserver;
+import java.security.AccessControlException;
+import java.util.Optional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * Utility functions related to grpc errors.
- */
+/** Utility functions related to grpc errors. */
 public final class GrpcExceptionUtil {
   private static final Logger logger = LoggerFactory.getLogger(GrpcExceptionUtil.class);
 
   private static Code toCode(ErrorType errorType) {
     switch (errorType) {
-    case DATA_READ:
-    case DATA_WRITE:
-      return Code.FAILED_PRECONDITION;
+      case DATA_READ:
+      case DATA_WRITE:
+        return Code.FAILED_PRECONDITION;
 
-    case PERMISSION:
-      return Code.PERMISSION_DENIED;
+      case PERMISSION:
+        return Code.PERMISSION_DENIED;
 
-    case RESOURCE:
-    case RESOURCE_TIMEOUT:
-      return Code.RESOURCE_EXHAUSTED;
+      case RESOURCE:
+      case RESOURCE_TIMEOUT:
+        return Code.RESOURCE_EXHAUSTED;
 
-    case UNSUPPORTED_OPERATION:
-      return Code.UNIMPLEMENTED;
+      case UNSUPPORTED_OPERATION:
+        return Code.UNIMPLEMENTED;
 
-    case PARSE:
-    case PLAN:
-    case VALIDATION:
-      return Code.INVALID_ARGUMENT;
+      case PARSE:
+      case PLAN:
+      case VALIDATION:
+        return Code.INVALID_ARGUMENT;
 
-    case CONCURRENT_MODIFICATION:
-      return Code.ABORTED;
+      case CONCURRENT_MODIFICATION:
+        return Code.ABORTED;
 
-    case FUNCTION:
-    case IO_EXCEPTION:
-    case CONNECTION:
-    case SCHEMA_CHANGE:
-    case INVALID_DATASET_METADATA:
-    case REFLECTION_ERROR:
-    case SOURCE_BAD_STATE:
-    case JSON_FIELD_CHANGE:
-    case SYSTEM:
-    case OUT_OF_MEMORY:
-      return Code.INTERNAL;
+      case FUNCTION:
+      case IO_EXCEPTION:
+      case CONNECTION:
+      case SCHEMA_CHANGE:
+      case INVALID_DATASET_METADATA:
+      case REFLECTION_ERROR:
+      case SOURCE_BAD_STATE:
+      case JSON_FIELD_CHANGE:
+      case SYSTEM:
+      case OUT_OF_MEMORY:
+        return Code.INTERNAL;
 
-    default:
-      return Code.UNKNOWN;
+      default:
+        return Code.UNKNOWN;
     }
   }
 
   public static StatusRuntimeException toStatusRuntimeException(DremioPBError error) {
-    return toStatusRuntimeException(error.getMessage(), toCode(error.getErrorType()), UserRemoteException.create(error));
+    return toStatusRuntimeException(
+        error.getMessage(), toCode(error.getErrorType()), UserRemoteException.create(error));
   }
 
   /**
@@ -100,26 +96,31 @@ public final class GrpcExceptionUtil {
    * Converts the given {@link UserException} to a {@link StatusRuntimeException}.
    *
    * @param message status message
-   * @param code    status code
-   * @param ue      user exception
+   * @param code status code
+   * @param ue user exception
    * @return status runtime exception
    */
-  public static StatusRuntimeException toStatusRuntimeException(String message, Code code, UserException ue) {
-    return StatusProto.toStatusRuntimeException(Status.newBuilder() // this is com.google.rpc.Status
-        .setCode(code.value()) // this is io.grpc.Status.Code
-        .setMessage(message)
-        .addDetails(Any.pack(ue.getOrCreatePBError(false), AnyTypeUtil.DREMIO_TYPE_URL_PREFIX))
-        .build());
+  public static StatusRuntimeException toStatusRuntimeException(
+      String message, Code code, UserException ue) {
+    return StatusProto.toStatusRuntimeException(
+        Status.newBuilder() // this is com.google.rpc.Status
+            .setCode(code.value()) // this is io.grpc.Status.Code
+            .setMessage(message)
+            .addDetails(Any.pack(ue.getOrCreatePBError(false), AnyTypeUtil.DREMIO_TYPE_URL_PREFIX))
+            .build());
   }
 
   /**
-   *  Handles unknown {@link Throwable} by passing it in the {@link StreamObserver} as a Status* exception
-   *  Only use this method after handling the throwable as accurately as possible, and when no other information about the throwable is available
+   * Handles unknown {@link Throwable} by passing it in the {@link StreamObserver} as a Status*
+   * exception Only use this method after handling the throwable as accurately as possible, and when
+   * no other information about the throwable is available
+   *
    * @param responseObserver responseObserver
    * @param t unknown exception
    * @param message High level description of what failed (can be found from the method name)
    */
-  public static <V> void fallbackHandleException(StreamObserver<V> responseObserver, Throwable t, String message) {
+  public static <V> void fallbackHandleException(
+      StreamObserver<V> responseObserver, Throwable t, String message) {
     logger.warn("Using fallback to handle unknown exception", t);
     if (t instanceof UserException) {
       responseObserver.onError(toStatusRuntimeException((UserException) t));
@@ -132,35 +133,26 @@ public final class GrpcExceptionUtil {
     }
   }
 
-  /**
-   * Returns Grpc status given an exception type
-   */
+  /** Returns Grpc status given an exception type */
   public static io.grpc.Status toErrorStatus(Throwable t, String message) {
     if (t instanceof IllegalArgumentException) {
-      return io.grpc.Status.INVALID_ARGUMENT
-          .withCause(t)
-          .withDescription(message);
+      return io.grpc.Status.INVALID_ARGUMENT.withCause(t).withDescription(message);
     } else if (t instanceof IllegalStateException) {
-      return io.grpc.Status.INTERNAL
-          .withCause(t)
-          .withDescription(message);
+      return io.grpc.Status.INTERNAL.withCause(t).withDescription(message);
     } else if (t instanceof AccessControlException) {
-      return io.grpc.Status.PERMISSION_DENIED
-          .withCause(t)
-          .withDescription(message);
+      return io.grpc.Status.PERMISSION_DENIED.withCause(t).withDescription(message);
     } else {
-      return io.grpc.Status.UNKNOWN
-          .withCause(t)
-          .withDescription(message);
+      return io.grpc.Status.UNKNOWN.withCause(t).withDescription(message);
     }
   }
 
   private static StatusRuntimeException statusRuntimeExceptionMapper(Throwable t) {
     if (!(t instanceof StatusRuntimeException)) {
       return new StatusRuntimeException(
-        io.grpc.Status.UNKNOWN.withDescription(
-          "The server encountered an unexpected error. Please retry your request.")
-          .withCause(t));
+          io.grpc.Status.UNKNOWN
+              .withDescription(
+                  "The server encountered an unexpected error. Please retry your request.")
+              .withCause(t));
     }
 
     StatusRuntimeException sre = (StatusRuntimeException) t;
@@ -168,16 +160,18 @@ public final class GrpcExceptionUtil {
     // Provide a readable error message to user.
     if (sre.getStatus().getCode() == io.grpc.Status.Code.UNAVAILABLE) {
       return new StatusRuntimeException(
-        io.grpc.Status.UNAVAILABLE.withDescription(
-          "The service is temporarily unavailable. Please retry your request.")
-          .withCause(t));
+          io.grpc.Status.UNAVAILABLE
+              .withDescription("The service is temporarily unavailable. Please retry your request.")
+              .withCause(t));
     }
     return sre;
   }
 
   /**
-   *  Handles unknown {@link Throwable} by passing it in the {@link StreamObserver} as a Status* exception
-   *  Only use this method after handling the throwable as accurately as possible, and when no other information about the throwable is available
+   * Handles unknown {@link Throwable} by passing it in the {@link StreamObserver} as a Status*
+   * exception Only use this method after handling the throwable as accurately as possible, and when
+   * no other information about the throwable is available
+   *
    * @param responseObserver responseObserver
    * @param t unknown exception
    */
@@ -222,6 +216,7 @@ public final class GrpcExceptionUtil {
 
   /**
    * Throws if the given exception contains a {@link UserException} as part of its details.
+   *
    * @param e exception
    */
   public static void throwIfUserException(StatusRuntimeException e) {
@@ -231,6 +226,5 @@ public final class GrpcExceptionUtil {
     }
   }
 
-  private GrpcExceptionUtil() {
-  }
+  private GrpcExceptionUtil() {}
 }

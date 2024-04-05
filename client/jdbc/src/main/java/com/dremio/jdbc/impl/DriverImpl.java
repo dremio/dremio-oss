@@ -15,26 +15,22 @@
  */
 package com.dremio.jdbc.impl;
 
+import com.dremio.common.config.SabotConfig;
+import com.dremio.common.util.DremioVersionInfo;
 import org.apache.calcite.avatica.AvaticaConnection;
 import org.apache.calcite.avatica.DriverVersion;
 import org.apache.calcite.avatica.Handler;
 import org.apache.calcite.avatica.Meta;
 import org.apache.calcite.avatica.UnregisteredDriver;
 
-import com.dremio.common.config.SabotConfig;
-import com.dremio.common.util.DremioVersionInfo;
-
-/**
- * Avatica JDBC driver.
- */
+/** Avatica JDBC driver. */
 public class DriverImpl extends UnregisteredDriver {
   private static final String CONNECTION_STRING_PREFIX = "jdbc:dremio:";
   private static final String METADATA_PROPERTIES_RESOURCE_PATH = "dremio-jdbc.properties";
 
   private SabotConfig sabotConfig;
 
-  public DriverImpl() {
-  }
+  public DriverImpl() {}
 
   @Override
   protected String getConnectStringPrefix() {
@@ -44,13 +40,13 @@ public class DriverImpl extends UnregisteredDriver {
   @Override
   protected String getFactoryClassName(JdbcVersion jdbcVersion) {
     switch (jdbcVersion) {
-    case JDBC_30:
-      return "com.dremio.jdbc.impl.DremioJdbc3Factory";
-    case JDBC_40:
-      return "com.dremio.jdbc.impl.DremioJdbc40Factory";
-    case JDBC_41:
-    default:
-      return "com.dremio.jdbc.impl.DremioJdbc41Factory";
+      case JDBC_30:
+        return "com.dremio.jdbc.impl.DremioJdbc3Factory";
+      case JDBC_40:
+        return "com.dremio.jdbc.impl.DremioJdbc40Factory";
+      case JDBC_41:
+      default:
+        return "com.dremio.jdbc.impl.DremioJdbc41Factory";
     }
   }
 

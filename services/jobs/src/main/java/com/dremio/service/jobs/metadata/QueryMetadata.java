@@ -17,26 +17,6 @@ package com.dremio.service.jobs.metadata;
 
 import static com.dremio.common.utils.Protos.listNotNull;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
-
-import org.apache.calcite.plan.RelOptCost;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.RelShuttleImpl;
-import org.apache.calcite.rel.core.TableScan;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.sql.SqlIdentifier;
-import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.sql.parser.SqlParserPos;
-import org.apache.calcite.tools.ValidationException;
-
 import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.common.utils.PathUtils;
@@ -51,6 +31,7 @@ import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.planner.logical.TableModifyRel;
 import com.dremio.exec.planner.logical.TableOptimizeRel;
 import com.dremio.exec.planner.logical.WriterRel;
+import com.dremio.exec.planner.sql.AncestorsVisitor;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.CatalogService;
@@ -62,6 +43,7 @@ import com.dremio.service.job.proto.ScanPath;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
+import com.dremio.service.namespace.dataset.DatasetMetadata;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.FieldOrigin;
@@ -78,19 +60,35 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+import org.apache.calcite.plan.RelOptCost;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.RelShuttleImpl;
+import org.apache.calcite.rel.core.TableScan;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.calcite.tools.ValidationException;
 
-/**
- * A description of information we use to better understand a query.
- */
+/** A description of information we use to better understand a query. */
 public class QueryMetadata {
 
-  private static final Set<String> RESERVED_PARENT_NAMES = ImmutableSet.of("dremio_limited_preview");
+  private static final Set<String> RESERVED_PARENT_NAMES =
+      ImmutableSet.of("dremio_limited_preview");
 
   private final RelDataType rowType;
   private final Optional<List<SqlIdentifier>> ancestors;
   private final Optional<List<FieldOrigin>> fieldOrigins;
-  @Deprecated
-  private final Optional<List<JoinInfo>> joins;
+  @Deprecated private final Optional<List<JoinInfo>> joins;
   private final Optional<List<ParentDatasetInfo>> parents;
   private final Optional<SqlNode> sqlNode;
   private final Optional<List<ParentDataset>> grandParents;
@@ -118,8 +116,7 @@ public class QueryMetadata {
       String querySql,
       List<String> queryContext,
       List<String> sourceNames,
-      List<String> sinkPath
-  ) {
+      List<String> sinkPath) {
     this.rowType = rowType;
 
     this.ancestors = Optional.ofNullable(ancestors);
@@ -190,9 +187,7 @@ public class QueryMetadata {
     return scanPaths;
   }
 
-  /**
-   * Returns original cost of query past logical planning.
-   */
+  /** Returns original cost of query past logical planning. */
   public Optional<RelOptCost> getCost() {
     return cost;
   }
@@ -220,7 +215,8 @@ public class QueryMetadata {
   /**
    * Create a builder for QueryMetadata.
    *
-   * @param namespace A namespace service. If provided, ParentDatasetInfo will be extracted, otherwise it won't.
+   * @param namespace A namespace service. If provided, ParentDatasetInfo will be extracted,
+   *     otherwise it won't.
    * @return The builder.
    */
   public static Builder builder(NamespaceService namespace, CatalogService catalogService) {
@@ -232,9 +228,7 @@ public class QueryMetadata {
     return new Builder(namespace, catalogService, jobResultsSourceName);
   }
 
-  /**
-   * A builder to construct query metadata.
-   */
+  /** A builder to construct query metadata. */
   public static class Builder {
 
     private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(Builder.class);
@@ -320,16 +314,15 @@ public class QueryMetadata {
       return this;
     }
 
-    /**
-     * Sets parallelized query plan.
-     */
+    /** Sets parallelized query plan. */
     public Builder setPlanningSet(final PlanningSet planningSet) {
       this.planningSet = planningSet;
       return this;
     }
 
     public QueryMetadata build() throws ValidationException {
-      Preconditions.checkNotNull(rowType, "The validated row type must be observed before reporting metadata.");
+      Preconditions.checkNotNull(
+          rowType, "The validated row type must be observed before reporting metadata.");
 
       final List<SqlIdentifier> ancestors = new ArrayList<>();
       final List<TableVersionContext> versionContexts = new ArrayList<>();
@@ -381,7 +374,8 @@ public class QueryMetadata {
       List<FieldOrigin> fieldOrigins = null;
       if (expanded != null && rowType != null) {
         try {
-          fieldOrigins = ImmutableList.copyOf(FieldOriginExtractor.getFieldOrigins(expanded, rowType));
+          fieldOrigins =
+              ImmutableList.copyOf(FieldOriginExtractor.getFieldOrigins(expanded, rowType));
         } catch (Exception e) {
           // If we fail to extract the column origins, don't fail the query
           logger.debug("Failed to extract column origins for query: " + sql);
@@ -417,12 +411,12 @@ public class QueryMetadata {
           querySql,
           queryContext,
           externalQuerySourceInfo,
-          sinkPath
-      );
+          sinkPath);
     }
 
     /**
      * Return list of all parents for given dataset
+     *
      * @param parents parents of dataset from sql.
      * @throws NamespaceException
      */
@@ -452,15 +446,18 @@ public class QueryMetadata {
                   if (virtualDataset.getParentsList() != null) {
                     // add parents of parents
                     for (ParentDataset parentDataset : virtualDataset.getParentsList()) {
-                      final NamespaceKey parentKey = new NamespaceKey(parentDataset.getDatasetPathList());
+                      final NamespaceKey parentKey =
+                          new NamespaceKey(parentDataset.getDatasetPathList());
                       if (!parentsToLevelMap.containsKey(parentKey)) {
                         parentsToLevelMap.put(parentKey, parentDataset.getLevel() + 1);
                       }
                     }
                     // add grand parents of parent too
                     if (virtualDataset.getGrandParentsList() != null) {
-                      for (ParentDataset grandParentDataset : virtualDataset.getGrandParentsList()) {
-                        final NamespaceKey parentKey = new NamespaceKey(grandParentDataset.getDatasetPathList());
+                      for (ParentDataset grandParentDataset :
+                          virtualDataset.getGrandParentsList()) {
+                        final NamespaceKey parentKey =
+                            new NamespaceKey(grandParentDataset.getDatasetPathList());
                         if (!parentsToLevelMap.containsKey(parentKey)) {
                           parentsToLevelMap.put(parentKey, grandParentDataset.getLevel() + 1);
                         }
@@ -478,14 +475,19 @@ public class QueryMetadata {
 
       for (Map.Entry<NamespaceKey, Integer> entry : parentsToLevelMap.entrySet()) {
         if (entry.getValue() > 1) {
-          grandParents.add(new ParentDataset().setDatasetPathList(entry.getKey().getPathComponents()).setLevel(entry.getValue()));
+          grandParents.add(
+              new ParentDataset()
+                  .setDatasetPathList(entry.getKey().getPathComponents())
+                  .setLevel(entry.getValue()));
         }
       }
       return grandParents;
     }
 
     /**
-     * Return lists of {@link ParentDatasetInfo} from given list of directly referred tables in the query.
+     * Return lists of {@link ParentDatasetInfo} from given list of directly referred tables in the
+     * query.
+     *
      * @return The list of directly referenced virtual or physical datasets
      */
     private List<ParentDatasetInfo> getParentsFromSql(
@@ -535,7 +537,8 @@ public class QueryMetadata {
       } catch (Throwable e) {
         logger.warn(
             "Failure while attempting to extract parents from dataset. This is likely due to  "
-            + "a datasource no longer being available that was used in a past job.", e);
+                + "a datasource no longer being available that was used in a past job.",
+            e);
         return Collections.emptyList();
       }
     }
@@ -558,25 +561,26 @@ public class QueryMetadata {
       }
 
       // try the original path and then try the cleaned path.
-      for(List<String> paths : Arrays.asList(path.getPathComponents(), cleanedPathComponents )) {
+      for (List<String> paths : Arrays.asList(path.getPathComponents(), cleanedPathComponents)) {
         try {
-          List<NameSpaceContainer> containers = namespace.getEntities(Collections.singletonList(new NamespaceKey(paths)));
+          List<NameSpaceContainer> containers =
+              namespace.getEntities(Collections.singletonList(new NamespaceKey(paths)));
           if (!containers.isEmpty()) {
             final NameSpaceContainer container = containers.get(0);
-            if(container != null && container.getType() == Type.DATASET){
+            if (container != null && container.getType() == Type.DATASET) {
               DatasetConfig config = container.getDataset();
               return new ParentDatasetInfo()
                   .setDatasetPathList(config.getFullPathList())
                   .setType(config.getType());
             }
           }
-        } catch(NamespaceException | IllegalArgumentException e) {
+        } catch (NamespaceException | IllegalArgumentException e) {
           // Ignore
         }
       }
 
-
-      //TODO we couldn't find a dataset corresponding to path, should we throw an exception instead ??
+      // TODO we couldn't find a dataset corresponding to path, should we throw an exception instead
+      // ??
       return new ParentDatasetInfo().setDatasetPathList(cleanedPathComponents);
     }
   }
@@ -591,15 +595,34 @@ public class QueryMetadata {
     final Set<String> sources = Sets.newHashSet();
     if (datasetConfig.getType() == DatasetType.VIRTUAL_DATASET) {
       getSourcesForVds(datasetConfig.getVirtualDataset(), sources);
-    } else if (datasetConfig.getFullPathList() != null && datasetConfig.getFullPathList().size() > 0) {
+    } else if (datasetConfig.getFullPathList() != null
+        && datasetConfig.getFullPathList().size() > 0) {
       sources.add(datasetConfig.getFullPathList().get(0));
     }
     return new ArrayList<>(sources);
   }
 
   /**
-   * Checks vds for source references. It first checks for source references in the list of FieldOrigin.
-   * Then it checks for source references with external query usage in the parents and grandparents.
+   * Retrieves a list of source names referenced in the DatasetMetadata.
+   *
+   * @param datasetMetadata the DatasetMetadata to inspect.
+   * @return a list of source names found referenced in the DatasetMetadata.
+   */
+  public static List<String> getSources(DatasetMetadata datasetMetadata) {
+    final Set<String> sources = Sets.newHashSet();
+    if (datasetMetadata.getType() == DatasetType.VIRTUAL_DATASET) {
+      getSourcesForVds(datasetMetadata.getVirtualDataset(), sources);
+    } else if (datasetMetadata.getFullPathList() != null
+        && datasetMetadata.getFullPathList().size() > 0) {
+      sources.add(datasetMetadata.getFullPathList().get(0));
+    }
+    return new ArrayList<>(sources);
+  }
+
+  /**
+   * Checks vds for source references. It first checks for source references in the list of
+   * FieldOrigin. Then it checks for source references with external query usage in the parents and
+   * grandparents.
    *
    * @param vds the Virtual Dataset to inspect.
    * @param sources the set of source names to add found source names to.
@@ -616,7 +639,7 @@ public class QueryMetadata {
    * @param sources the set of source names to add found source names to.
    */
   private static void getSourcesForVdsWithFieldOriginList(VirtualDataset vds, Set<String> sources) {
-    if (vds.getFieldOriginsList() != null ) {
+    if (vds.getFieldOriginsList() != null) {
       for (FieldOrigin fieldOrigin : vds.getFieldOriginsList()) {
         for (Origin origin : listNotNull(fieldOrigin.getOriginsList())) {
           sources.add(origin.getTableList().get(0));
@@ -626,9 +649,9 @@ public class QueryMetadata {
   }
 
   /**
-   * Checks the vds for references of external query. It checks for references of external query
-   * in the parents list and grandparents list. It adds the source name referenced to the given set
-   * of sources if a reference to an external query dataset is found.
+   * Checks the vds for references of external query. It checks for references of external query in
+   * the parents list and grandparents list. It adds the source name referenced to the given set of
+   * sources if a reference to an external query dataset is found.
    *
    * @param vds the Virtual Dataset to inspect.
    * @param sources the set of source names to add found source names to.
@@ -654,8 +677,8 @@ public class QueryMetadata {
    * @param parentDatasets a list of parent dataset to inspect.
    * @param sources the set of source names to add found source names to.
    */
-  private static void getSourcesFromParentDatasetForExternalQuery(List<ParentDataset> parentDatasets,
-                                                                  Set<String> sources) {
+  private static void getSourcesFromParentDatasetForExternalQuery(
+      List<ParentDataset> parentDatasets, Set<String> sources) {
     for (ParentDataset parentDataset : parentDatasets) {
       final List<String> pathList = parentDataset.getDatasetPathList();
       if (pathList.size() > 1 && pathList.get(1).equalsIgnoreCase("external_query")) {
@@ -666,32 +689,40 @@ public class QueryMetadata {
 
   public static List<ScanPath> getScans(RelNode logicalPlan) {
     final ImmutableList.Builder<ScanPath> builder = ImmutableList.builder();
-    logicalPlan.accept(new StatelessRelShuttleImpl() {
-      @Override
-      public RelNode visit(final TableScan scan) {
-        ScanPath path = new ScanPath().setPathList(scan.getTable().getQualifiedName());
-        TableVersionContext versionContext = ((ScanRelBase)scan).getTableMetadata().getVersionContext();
-        if (versionContext != null) {
-          path.setVersionContext(versionContext.serialize());
-        }
-        // If scanning an iceberg table, save the snapshot ID to the scanpath, so it can be used in the DependencyGraph for reflections
-        IcebergMetadata icebergMetadata = ((ScanRelBase) scan).getTableMetadata().getDatasetConfig().getPhysicalDataset().getIcebergMetadata();
-        if (icebergMetadata != null) {
-          path.setSnapshotId(icebergMetadata.getSnapshotId());
-        }
-        builder.add(path);
-        return super.visit(scan);
-      }
+    logicalPlan.accept(
+        new StatelessRelShuttleImpl() {
+          @Override
+          public RelNode visit(final TableScan scan) {
+            ScanPath path = new ScanPath().setPathList(scan.getTable().getQualifiedName());
+            TableVersionContext versionContext =
+                ((ScanRelBase) scan).getTableMetadata().getVersionContext();
+            if (versionContext != null) {
+              path.setVersionContext(versionContext.serialize());
+            }
+            // If scanning an iceberg table, save the snapshot ID to the scanpath, so it can be used
+            // in the DependencyGraph for reflections
+            IcebergMetadata icebergMetadata =
+                ((ScanRelBase) scan)
+                    .getTableMetadata()
+                    .getDatasetConfig()
+                    .getPhysicalDataset()
+                    .getIcebergMetadata();
+            if (icebergMetadata != null) {
+              path.setSnapshotId(icebergMetadata.getSnapshotId());
+            }
+            builder.add(path);
+            return super.visit(scan);
+          }
 
-      @Override
-      public RelNode visit(RelNode other) {
-        if (other instanceof ContainerRel) {
-          ContainerRel containerRel = (ContainerRel) other;
-          containerRel.getSubTree().accept(this);
-        }
-        return super.visit(other);
-      }
-    });
+          @Override
+          public RelNode visit(RelNode other) {
+            if (other instanceof ContainerRel) {
+              ContainerRel containerRel = (ContainerRel) other;
+              containerRel.getSubTree().accept(this);
+            }
+            return super.visit(other);
+          }
+        });
     return builder.build();
   }
 
@@ -703,19 +734,23 @@ public class QueryMetadata {
       public RelNode visit(RelNode other) {
 
         if (other instanceof WriterRel) {
-          final NamespaceKey namespaceKey = ((WriterRel) other).getCreateTableEntry().getDatasetPath();
+          final NamespaceKey namespaceKey =
+              ((WriterRel) other).getCreateTableEntry().getDatasetPath();
           setSinkPath(namespaceKey);
         }
         if (other instanceof TableModifyRel) {
-          final NamespaceKey namespaceKey = ((TableModifyRel) other).getCreateTableEntry().getDatasetPath();
+          final NamespaceKey namespaceKey =
+              ((TableModifyRel) other).getCreateTableEntry().getDatasetPath();
           setSinkPath(namespaceKey);
         }
         if (other instanceof TableOptimizeRel) {
-          final NamespaceKey namespaceKey = ((TableOptimizeRel) other).getCreateTableEntry().getDatasetPath();
+          final NamespaceKey namespaceKey =
+              ((TableOptimizeRel) other).getCreateTableEntry().getDatasetPath();
           setSinkPath(namespaceKey);
         }
         if (other instanceof VacuumCatalogRelBase) {
-          final NamespaceKey sourceName = new NamespaceKey(((VacuumCatalogRelBase) other).getSourceName());
+          final NamespaceKey sourceName =
+              new NamespaceKey(((VacuumCatalogRelBase) other).getSourceName());
           setSinkPath(sourceName);
         }
         return super.visit(other);
@@ -740,18 +775,18 @@ public class QueryMetadata {
    */
   public static List<String> getExternalQuerySources(RelNode logicalAfter) {
     final ImmutableList.Builder<String> builder = ImmutableList.builder();
-    logicalAfter.accept(new StatelessRelShuttleImpl() {
-      @Override
-      public RelNode visit(RelNode other) {
-        if (other instanceof ExternalQueryScanDrel) {
-          ExternalQueryScanDrel drel = (ExternalQueryScanDrel) other;
-          builder.add(drel.getPluginId().getConfig().getName());
-          builder.add(drel.getSql());
-        }
-        return super.visit(other);
-      }
-    });
+    logicalAfter.accept(
+        new StatelessRelShuttleImpl() {
+          @Override
+          public RelNode visit(RelNode other) {
+            if (other instanceof ExternalQueryScanDrel) {
+              ExternalQueryScanDrel drel = (ExternalQueryScanDrel) other;
+              builder.add(drel.getPluginId().getConfig().getName());
+              builder.add(drel.getSql());
+            }
+            return super.visit(other);
+          }
+        });
     return builder.build();
   }
-
 }

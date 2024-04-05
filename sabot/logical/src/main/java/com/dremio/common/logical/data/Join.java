@@ -15,11 +15,6 @@
  */
 package com.dremio.common.logical.data;
 
-import java.util.Iterator;
-import java.util.List;
-
-import org.apache.calcite.rel.core.JoinRelType;
-
 import com.dremio.common.exceptions.ExpressionParsingException;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.logical.data.visitors.LogicalVisitor;
@@ -30,6 +25,9 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
+import java.util.Iterator;
+import java.util.List;
+import org.apache.calcite.rel.core.JoinRelType;
 
 @JsonTypeName("join")
 public class Join extends LogicalOperatorBase {
@@ -44,20 +42,27 @@ public class Join extends LogicalOperatorBase {
         return jt;
       }
     }
-    throw new ExpressionParsingException(String.format("Unable to determine join type for value '%s'.", val));
+    throw new ExpressionParsingException(
+        String.format("Unable to determine join type for value '%s'.", val));
   }
 
   // TODO - should not have two @JsonCreators, need to figure out which one is being used
   // I'm guess this one, is the case insensitive match in resolve() actually needed?
   @JsonCreator
-  public Join(@JsonProperty("left") LogicalOperator left, @JsonProperty("right") LogicalOperator right,
-      @JsonProperty("conditions") List<JoinCondition> conditions, @JsonProperty("type") String type) {
+  public Join(
+      @JsonProperty("left") LogicalOperator left,
+      @JsonProperty("right") LogicalOperator right,
+      @JsonProperty("conditions") List<JoinCondition> conditions,
+      @JsonProperty("type") String type) {
     this(left, right, conditions, resolve(type));
   }
 
   @JsonCreator
-  public Join(@JsonProperty("left") LogicalOperator left, @JsonProperty("right") LogicalOperator right,
-              @JsonProperty("conditions") List<JoinCondition> conditions, @JsonProperty("type") JoinRelType type) {
+  public Join(
+      @JsonProperty("left") LogicalOperator left,
+      @JsonProperty("right") LogicalOperator right,
+      @JsonProperty("conditions") List<JoinCondition> conditions,
+      @JsonProperty("type") JoinRelType type) {
     super();
     this.conditions = conditions;
     this.left = left;
@@ -65,7 +70,6 @@ public class Join extends LogicalOperatorBase {
     left.registerAsSubscriber(this);
     right.registerAsSubscriber(this);
     this.type = type;
-
   }
 
   public LogicalOperator getLeft() {
@@ -90,7 +94,8 @@ public class Join extends LogicalOperatorBase {
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(LogicalVisitor<T, X, E> logicalVisitor, X value) throws E {
+  public <T, X, E extends Throwable> T accept(LogicalVisitor<T, X, E> logicalVisitor, X value)
+      throws E {
     return logicalVisitor.visitJoin(this, value);
   }
 
@@ -103,7 +108,7 @@ public class Join extends LogicalOperatorBase {
     return new Builder();
   }
 
-  public static class Builder extends AbstractBuilder<Join>{
+  public static class Builder extends AbstractBuilder<Join> {
     private LogicalOperator left;
     private LogicalOperator right;
     private JoinRelType type;
@@ -118,12 +123,14 @@ public class Join extends LogicalOperatorBase {
       this.left = left;
       return this;
     }
+
     public Builder right(LogicalOperator right) {
       this.right = right;
       return this;
     }
 
-    public Builder addCondition(String relationship, LogicalExpression left, LogicalExpression right) {
+    public Builder addCondition(
+        String relationship, LogicalExpression left, LogicalExpression right) {
       conditions.add(new JoinCondition(relationship, left, right));
       return this;
     }
@@ -135,7 +142,5 @@ public class Join extends LogicalOperatorBase {
       Preconditions.checkNotNull(type);
       return new Join(left, right, conditions, type);
     }
-
   }
-
 }

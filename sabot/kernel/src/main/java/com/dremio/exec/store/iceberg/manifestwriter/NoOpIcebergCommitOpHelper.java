@@ -21,28 +21,23 @@ import com.dremio.io.file.FileSystem;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.writer.WriterCommitterOutputHandler;
 
-/**
- * Iceberg is disabled, overrides ensure no operations done
- */
+/** Iceberg is disabled, overrides ensure no operations done */
 public class NoOpIcebergCommitOpHelper extends IcebergCommitOpHelper {
 
-  public NoOpIcebergCommitOpHelper(OperatorContext context, WriterCommitterPOP config, FileSystem fs) {
+  public NoOpIcebergCommitOpHelper(
+      OperatorContext context, WriterCommitterPOP config, FileSystem fs) {
     super(context, config, fs);
   }
 
   @Override
-  public void setup(VectorAccessible incoming) {
-  }
-
-    @Override
-  public void consumeData(int records) throws Exception {
-  }
+  public void setup(VectorAccessible incoming) {}
 
   @Override
-  public void commit(WriterCommitterOutputHandler outputHandler) throws Exception {
-  }
+  public void consumeData(int records) throws Exception {}
 
   @Override
-  public void close() {
-  }
+  public void commit(WriterCommitterOutputHandler outputHandler) throws Exception {}
+
+  @Override
+  public void close() {}
 }

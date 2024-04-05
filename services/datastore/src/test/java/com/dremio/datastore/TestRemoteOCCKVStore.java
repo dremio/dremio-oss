@@ -15,10 +15,6 @@
  */
 package com.dremio.datastore;
 
-import org.apache.arrow.memory.BufferAllocator;
-import org.junit.After;
-import org.junit.Rule;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.concurrent.CloseableThreadPool;
 import com.dremio.datastore.api.KVStoreProvider;
@@ -28,10 +24,11 @@ import com.dremio.services.fabric.FabricServiceImpl;
 import com.dremio.services.fabric.api.FabricService;
 import com.dremio.test.AllocatorRule;
 import com.dremio.test.DremioTest;
+import org.apache.arrow.memory.BufferAllocator;
+import org.junit.After;
+import org.junit.Rule;
 
-/**
- * Tests for remote occ kvstore.
- */
+/** Tests for remote occ kvstore. */
 public class TestRemoteOCCKVStore<K, V> extends AbstractTestOCCKVStore<K, V> {
 
   private static final String HOSTNAME = "localhost";
@@ -47,32 +44,61 @@ public class TestRemoteOCCKVStore<K, V> extends AbstractTestOCCKVStore<K, V> {
   private BufferAllocator allocator;
   private CloseableThreadPool pool;
 
-  @Rule
-  public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
+  @Rule public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
 
   @Override
   protected KVStoreProvider createKVStoreProvider() throws Exception {
 
     allocator = allocatorRule.newAllocator("test-remote-occ-kvstore", 0, 20 * 1024 * 1024);
     pool = new CloseableThreadPool("test-remoteocckvstore");
-    localFabricService = new FabricServiceImpl(HOSTNAME, 45678, true, THREAD_COUNT, allocator, RESERVATION,
-        MAX_ALLOCATION, TIMEOUT, pool);
+    localFabricService =
+        new FabricServiceImpl(
+            HOSTNAME,
+            45678,
+            true,
+            THREAD_COUNT,
+            allocator,
+            RESERVATION,
+            MAX_ALLOCATION,
+            TIMEOUT,
+            pool);
     localFabricService.start();
 
-    remoteFabricService = new FabricServiceImpl(HOSTNAME, 45679, true, THREAD_COUNT, allocator, RESERVATION,
-        MAX_ALLOCATION, TIMEOUT, pool);
+    remoteFabricService =
+        new FabricServiceImpl(
+            HOSTNAME,
+            45679,
+            true,
+            THREAD_COUNT,
+            allocator,
+            RESERVATION,
+            MAX_ALLOCATION,
+            TIMEOUT,
+            pool);
     remoteFabricService.start();
 
-    localKVStoreProvider = new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT,
-      DirectProvider.<FabricService>wrap(localFabricService), allocator, HOSTNAME, null, true, true, false);
+    localKVStoreProvider =
+        new LocalKVStoreProvider(
+            DremioTest.CLASSPATH_SCAN_RESULT,
+            DirectProvider.<FabricService>wrap(localFabricService),
+            allocator,
+            HOSTNAME,
+            null,
+            true,
+            true,
+            false);
     localKVStoreProvider.start();
-    remoteKVStoreProvider = new RemoteKVStoreProvider(
-      DremioTest.CLASSPATH_SCAN_RESULT,
-      DirectProvider.wrap(NodeEndpoint.newBuilder()
-        .setAddress(HOSTNAME)
-        .setFabricPort(localFabricService.getPort())
-        .build()),
-      DirectProvider.<FabricService>wrap(remoteFabricService), allocator, HOSTNAME);
+    remoteKVStoreProvider =
+        new RemoteKVStoreProvider(
+            DremioTest.CLASSPATH_SCAN_RESULT,
+            DirectProvider.wrap(
+                NodeEndpoint.newBuilder()
+                    .setAddress(HOSTNAME)
+                    .setFabricPort(localFabricService.getPort())
+                    .build()),
+            DirectProvider.<FabricService>wrap(remoteFabricService),
+            allocator,
+            HOSTNAME);
     remoteKVStoreProvider.start();
     return remoteKVStoreProvider;
   }
@@ -80,7 +106,12 @@ public class TestRemoteOCCKVStore<K, V> extends AbstractTestOCCKVStore<K, V> {
   @After
   @Override
   public void after() throws Exception {
-    AutoCloseables.close(remoteKVStoreProvider, localKVStoreProvider, remoteFabricService, localFabricService, pool,
+    AutoCloseables.close(
+        remoteKVStoreProvider,
+        localKVStoreProvider,
+        remoteFabricService,
+        localFabricService,
+        pool,
         allocator);
   }
 }

@@ -18,11 +18,12 @@ package org.apache.calcite.rex;
 /**
  * Rex copier that also handles window over nodes.
  *
- * TODO(DX-14028): Remove once DX-14208 is complete.
+ * <p>TODO(DX-14028): Remove once DX-14208 is complete.
  */
 public class RexCopierWithOver extends RexCopier {
 
   private final RexBuilder builder;
+
   public RexCopierWithOver(RexBuilder builder) {
     super(builder);
     this.builder = builder;
@@ -38,5 +39,4 @@ public class RexCopierWithOver extends RexCopier {
   public RexNode visitCorrelVariable(RexCorrelVariable variable) {
     return new RexCorrelVariable(variable.id, variable.getType());
   }
-
 }

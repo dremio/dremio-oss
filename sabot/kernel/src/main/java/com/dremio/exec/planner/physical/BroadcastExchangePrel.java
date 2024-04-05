@@ -16,16 +16,6 @@
 
 package com.dremio.exec.planner.physical;
 
-import java.io.IOException;
-import java.util.List;
-
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelOptCost;
-import org.apache.calcite.plan.RelOptPlanner;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.metadata.RelMetadataQuery;
-
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.config.BroadcastExchange;
@@ -34,14 +24,30 @@ import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators.LongValidator;
 import com.dremio.options.TypeValidators.PositiveLongValidator;
+import java.io.IOException;
+import java.util.List;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptCost;
+import org.apache.calcite.plan.RelOptPlanner;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
 @Options
-public class BroadcastExchangePrel extends ExchangePrel{
+public class BroadcastExchangePrel extends ExchangePrel {
 
-  public static final LongValidator SENDER_RESERVE = new PositiveLongValidator("planner.op.broadcast.sender.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
-  public static final LongValidator SENDER_LIMIT = new PositiveLongValidator("planner.op.broadcast.sender.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
-  public static final LongValidator RECEIVER_RESERVE = new PositiveLongValidator("planner.op.broadcast.receiver.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
-  public static final LongValidator RECEIVER_LIMIT = new PositiveLongValidator("planner.op.broadcast.receiver.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
+  public static final LongValidator SENDER_RESERVE =
+      new PositiveLongValidator(
+          "planner.op.broadcast.sender.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
+  public static final LongValidator SENDER_LIMIT =
+      new PositiveLongValidator(
+          "planner.op.broadcast.sender.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
+  public static final LongValidator RECEIVER_RESERVE =
+      new PositiveLongValidator(
+          "planner.op.broadcast.receiver.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
+  public static final LongValidator RECEIVER_LIMIT =
+      new PositiveLongValidator(
+          "planner.op.broadcast.receiver.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
 
   public BroadcastExchangePrel(RelOptCluster cluster, RelTraitSet traitSet, RelNode input) {
     super(cluster, traitSet, input);
@@ -49,20 +55,20 @@ public class BroadcastExchangePrel extends ExchangePrel{
   }
 
   /**
-   * In a BroadcastExchange, each sender is sending data to N receivers (for costing
-   * purposes we assume it is also sending to itself).
+   * In a BroadcastExchange, each sender is sending data to N receivers (for costing purposes we
+   * assume it is also sending to itself).
    */
   @Override
   public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
     PlannerSettings plannerSettings = PrelUtil.getSettings(getCluster());
-    if(plannerSettings.useDefaultCosting()) {
+    if (plannerSettings.useDefaultCosting()) {
       return super.computeSelfCost(planner, mq).multiplyBy(.1);
     }
 
     RelNode child = this.getInput();
     final double inputRows = mq.getRowCount(this);
 
-    final int  rowWidth = child.getRowType().getFieldCount() * DremioCost.AVG_FIELD_WIDTH;
+    final int rowWidth = child.getRowType().getFieldCount() * DremioCost.AVG_FIELD_WIDTH;
     final double cpuCost = DremioCost.SVR_CPU_COST * inputRows;
     final double networkCost = DremioCost.BYTE_NETWORK_COST * inputRows * rowWidth;
 
@@ -99,17 +105,27 @@ public class BroadcastExchangePrel extends ExchangePrel{
     PhysicalOperator childPOP = child.getPhysicalOperator(creator);
 
     final OpProps props = creator.props(this, null, childPOP.getProps().getSchema());
-    final int senderOperatorId = OpProps.buildOperatorId(childPOP.getProps().getMajorFragmentId(), 0);
-    final OpProps senderProps = creator.props(senderOperatorId, this, null, props.getSchema(), SENDER_RESERVE, SENDER_LIMIT, props.getCost() * 0.5);
-    final OpProps receiverProps = creator.props(this, null, props.getSchema(), RECEIVER_RESERVE, RECEIVER_LIMIT, props.getCost() * 0.01);
+    final int senderOperatorId =
+        OpProps.buildOperatorId(childPOP.getProps().getMajorFragmentId(), 0);
+    final OpProps senderProps =
+        creator.props(
+            senderOperatorId,
+            this,
+            null,
+            props.getSchema(),
+            SENDER_RESERVE,
+            SENDER_LIMIT,
+            props.getCost() * 0.5);
+    final OpProps receiverProps =
+        creator.props(
+            this,
+            null,
+            props.getSchema(),
+            RECEIVER_RESERVE,
+            RECEIVER_LIMIT,
+            props.getCost() * 0.01);
 
     return new BroadcastExchange(
-        props,
-        senderProps,
-        receiverProps,
-        props.getSchema(),
-        childPOP,
-        creator.getOptionManager());
+        props, senderProps, receiverProps, props.getSchema(), childPOP, creator.getOptionManager());
   }
-
 }

@@ -15,9 +15,5 @@
  */
 package com.dremio.exec.store.easy.excel;
 
-/**
- * Couldn't find sheet in the workbook.
- */
-public class SheetNotFoundException extends Exception {
-
-}
+/** Couldn't find sheet in the workbook. */
+public class SheetNotFoundException extends Exception {}

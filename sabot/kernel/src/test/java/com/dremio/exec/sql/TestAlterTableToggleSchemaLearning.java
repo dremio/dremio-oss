@@ -15,6 +15,13 @@
  */
 package com.dremio.exec.sql;
 
+import com.dremio.BaseTestQuery;
+import com.dremio.exec.ExecConstants;
+import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.planner.sql.ParserConfig;
+import com.dremio.exec.proto.UserBitShared;
+import com.dremio.test.TemporarySystemProperties;
+import com.dremio.test.UserExceptionAssert;
 import org.apache.calcite.avatica.util.Quoting;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.parser.SqlParseException;
@@ -23,18 +30,9 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
-import com.dremio.BaseTestQuery;
-import com.dremio.exec.ExecConstants;
-import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.planner.sql.ParserConfig;
-import com.dremio.exec.proto.UserBitShared;
-import com.dremio.test.TemporarySystemProperties;
-import com.dremio.test.UserExceptionAssert;
-
 public class TestAlterTableToggleSchemaLearning extends BaseTestQuery {
 
-  @Rule
-  public TemporarySystemProperties properties = new TemporarySystemProperties();
+  @Rule public TemporarySystemProperties properties = new TemporarySystemProperties();
 
   @Before
   public void setup() {
@@ -42,7 +40,11 @@ public class TestAlterTableToggleSchemaLearning extends BaseTestQuery {
   }
 
   private SqlNode parse(String toParse) throws SqlParseException {
-    ParserConfig config = new ParserConfig(Quoting.DOUBLE_QUOTE, 255, PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
+    ParserConfig config =
+        new ParserConfig(
+            Quoting.DOUBLE_QUOTE,
+            255,
+            PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
     SqlParser parser = SqlParser.create(toParse, config);
     return parser.parseStmt();
   }
@@ -50,23 +52,21 @@ public class TestAlterTableToggleSchemaLearning extends BaseTestQuery {
   @Test
   public void badSql() {
     String[] queries = {
-      "ALTER TABLE ENABLE SCHEMA LEARNING",
-      "ALTER TABLE tbl ENABLE SCHEMALEARNING"};
+      "ALTER TABLE ENABLE SCHEMA LEARNING", "ALTER TABLE tbl ENABLE SCHEMALEARNING"
+    };
     for (String q : queries) {
-      UserExceptionAssert
-        .assertThatThrownBy(() -> test(q))
-        .hasErrorType(UserBitShared.DremioPBError.ErrorType.PARSE);
+      UserExceptionAssert.assertThatThrownBy(() -> test(q))
+          .hasErrorType(UserBitShared.DremioPBError.ErrorType.PARSE);
     }
   }
 
   @Test
-  public void TestParsingEnableSchemaLearningCommand () throws SqlParseException {
+  public void TestParsingEnableSchemaLearningCommand() throws SqlParseException {
     parse("ALTER TABLE tbl ENABLE SCHEMA LEARNING");
   }
 
   @Test
-  public void TestParsingDisableSchemaLearning () throws SqlParseException  {
+  public void TestParsingDisableSchemaLearning() throws SqlParseException {
     parse("ALTER TABLE tbl DISABLE SCHEMA LEARNING");
   }
-
 }

@@ -18,7 +18,6 @@ package com.dremio.exec.hive;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.ql.Driver;
 import org.apache.hadoop.hive.ql.processors.CommandProcessorResponse;
@@ -28,6 +27,7 @@ public class HiveTestUtilities {
 
   /**
    * Execute the give <i>query</i> on given <i>hiveDriver</i> instance.
+   *
    * @param hiveDriver
    * @param query
    */
@@ -39,14 +39,17 @@ public class HiveTestUtilities {
     try {
       response = hiveDriver.run(query);
       cause = null;
-    } catch(Exception ex) {
+    } catch (Exception ex) {
       failed = true;
       cause = ex;
     }
 
-    if (failed || response.getResponseCode() != 0 ) {
-      throw new RuntimeException(String.format("Failed to execute command '%s', errorMsg = '%s'",
-          query, (response != null ? response.getErrorMessage() : "")), cause);
+    if (failed || response.getResponseCode() != 0) {
+      throw new RuntimeException(
+          String.format(
+              "Failed to execute command '%s', errorMsg = '%s'",
+              query, (response != null ? response.getErrorMessage() : "")),
+          cause);
     }
   }
 

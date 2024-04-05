@@ -15,30 +15,28 @@
  */
 package com.dremio.service.jobs;
 
-import java.util.Optional;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Consumer;
-
 import com.dremio.common.exceptions.GrpcExceptionUtil;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.service.job.JobEvent;
 import com.dremio.service.job.JobSummary;
 import com.dremio.service.job.proto.JobSubmission;
 import com.google.common.util.concurrent.SettableFuture;
-
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
+import java.util.Optional;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 
-/**
- * Adapts {@link JobStatusListener} to {@link StreamObserver}.
- */
+/** Adapts {@link JobStatusListener} to {@link StreamObserver}. */
 class JobStatusListenerAdapter implements StreamObserver<JobEvent> {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(JobStatusListenerAdapter.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(JobStatusListenerAdapter.class);
 
   private final SettableFuture<JobSubmission> jobSubmission = SettableFuture.create();
 
-  // an exception that occurs before this event is considered a submission failure, otherwise a job failure
+  // an exception that occurs before this event is considered a submission failure, otherwise a job
+  // failure
   private final AtomicBoolean jobSubmitted = new AtomicBoolean(false);
 
   private final JobStatusListener statusListener;
@@ -50,50 +48,53 @@ class JobStatusListenerAdapter implements StreamObserver<JobEvent> {
   @Override
   public void onNext(JobEvent value) {
     switch (value.getEventCase()) {
-
-    case JOB_SUBMISSION:
-      jobSubmission.set(JobsProtoUtil.toStuff(value.getJobSubmission()));
-      break;
-
-    case JOB_SUBMITTED:
-      if (jobSubmitted.compareAndSet(false, true)) {
-        statusListener.jobSubmitted();
-      }
-      break;
-
-    case QUERY_METADATA:
-      statusListener.metadataCollected(value.getQueryMetadata());
-      break;
-
-    case PROGRESS_JOB_SUMMARY:
-      break;
-
-    case FINAL_JOB_SUMMARY: {
-      final JobSummary finalSummary = value.getFinalJobSummary();
-      switch (finalSummary.getJobState()) {
-      case CANCELED:
-        statusListener.jobCancelled(finalSummary.getCancellationInfo().getMessage());
+      case JOB_SUBMISSION:
+        jobSubmission.set(JobsProtoUtil.toStuff(value.getJobSubmission()));
         break;
-      case COMPLETED:
-        statusListener.jobCompleted();
+
+      case JOB_SUBMITTED:
+        if (jobSubmitted.compareAndSet(false, true)) {
+          statusListener.jobSubmitted();
+        }
         break;
+
+      case QUERY_METADATA:
+        statusListener.metadataCollected(value.getQueryMetadata());
+        break;
+
+      case PROGRESS_JOB_SUMMARY:
+        break;
+
+      case FINAL_JOB_SUMMARY:
+        {
+          final JobSummary finalSummary = value.getFinalJobSummary();
+          switch (finalSummary.getJobState()) {
+            case CANCELED:
+              statusListener.jobCancelled(finalSummary.getCancellationInfo().getMessage());
+              break;
+            case COMPLETED:
+              statusListener.jobCompleted();
+              break;
+            default:
+              logger.error("Unrecognized final job state: {}", finalSummary.getJobState());
+              break;
+          }
+          break;
+        }
+
       default:
-        logger.error("Unrecognized final job state: {}", finalSummary.getJobState());
+        logger.error("Unrecognized event: {}", value.getEventCase());
         break;
-      }
-      break;
-    }
-
-    default:
-      logger.error("Unrecognized event: {}", value.getEventCase());
-      break;
     }
   }
 
   @Override
   public void onError(Throwable t) {
-    invokeFailureCallback(jobSubmitted.compareAndSet(false, true)
-        ? statusListener::submissionFailed : statusListener::jobFailed, t);
+    invokeFailureCallback(
+        jobSubmitted.compareAndSet(false, true)
+            ? statusListener::submissionFailed
+            : statusListener::jobFailed,
+        t);
   }
 
   private void invokeFailureCallback(Consumer<RuntimeException> failureCallback, Throwable t) {

@@ -15,13 +15,27 @@
  */
 package com.dremio.exec.store;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.calcite.logical.ScanCrel;
+import com.dremio.exec.catalog.DatasetMetadataState;
+import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
+import com.dremio.exec.planner.sql.CalciteArrowHelper;
+import com.dremio.exec.record.BatchSchema;
+import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
+import com.google.common.base.Objects;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.stream.Collectors;
-
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.linq4j.Ord;
 import org.apache.calcite.plan.Convention;
@@ -40,56 +54,72 @@ import org.apache.calcite.schema.Table;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.commons.collections4.CollectionUtils;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.calcite.logical.ScanCrel;
-import com.dremio.exec.catalog.DremioTable;
-import com.dremio.exec.catalog.StoragePluginId;
-import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
-import com.dremio.exec.planner.sql.CalciteArrowHelper;
-import com.dremio.exec.record.BatchSchema;
-import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.namespace.dataset.proto.DatasetConfig;
-import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
-import com.google.common.base.Objects;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
-
 public class NamespaceTable implements DremioTable {
 
   /**
-   * In the future, we should move this to field extended metadata once we get to Arrow upstream has this.
+   * In the future, we should move this to field extended metadata once we get to Arrow upstream has
+   * this.
    */
-  public static final ImmutableSet<String> SYSTEM_COLUMNS = ImmutableSet.of(IncrementalUpdateUtils.UPDATE_COLUMN);
+  public static final ImmutableSet<String> SYSTEM_COLUMNS =
+      ImmutableSet.of(IncrementalUpdateUtils.UPDATE_COLUMN);
 
   private final TableMetadata dataset;
+  private final DatasetMetadataState metadataState;
   private final boolean complexTypeSupport;
   private final List<RelDataTypeField> extendedFields;
 
   private ImmutableBitSet keys;
 
   public NamespaceTable(TableMetadata dataset, boolean complexTypeSupport) {
-    this.dataset = Preconditions.checkNotNull(dataset);
-    this.complexTypeSupport = complexTypeSupport;
-    this.extendedFields = Collections.emptyList();
+    this(
+        Preconditions.checkNotNull(dataset),
+        DatasetMetadataState.builder()
+            .setIsComplete(true)
+            .setIsExpired(false)
+            .setLastRefreshTimeMillis(
+                Optional.ofNullable(dataset.getDatasetConfig()).map(DatasetConfig::getLastModified))
+            .build(),
+        complexTypeSupport,
+        Collections.emptyList());
   }
 
-  private NamespaceTable(TableMetadata dataset, boolean complexTypeSupport, List<RelDataTypeField> extendedFields) {
+  public NamespaceTable(
+      TableMetadata dataset, DatasetMetadataState metadataState, boolean complexTypeSupport) {
+    this(dataset, metadataState, complexTypeSupport, Collections.emptyList());
+  }
+
+  private NamespaceTable(
+      TableMetadata dataset,
+      DatasetMetadataState metadataState,
+      boolean complexTypeSupport,
+      List<RelDataTypeField> extendedFields) {
     this.dataset = Preconditions.checkNotNull(dataset);
+    this.metadataState = Preconditions.checkNotNull(metadataState);
     this.complexTypeSupport = complexTypeSupport;
     this.extendedFields = new ArrayList<>(extendedFields);
   }
 
   @Override
   public ScanCrel toRel(ToRelContext toRelContext, RelOptTable relOptTable) {
-    return new ScanCrel(toRelContext.getCluster(), toRelContext.getCluster().traitSetOf(Convention.NONE),
-      dataset.getStoragePluginId(), dataset, null, 1.0d, ImmutableList.of(), true, true);
+    return new ScanCrel(
+        toRelContext.getCluster(),
+        toRelContext.getCluster().traitSetOf(Convention.NONE),
+        dataset.getStoragePluginId(),
+        dataset,
+        null,
+        1.0d,
+        ImmutableList.of(),
+        true,
+        true);
   }
 
   @Override
   public RelDataType getRowType(RelDataTypeFactory relDataTypeFactory) {
     return CalciteArrowHelper.wrap(dataset.getSchema())
-      .toCalciteRecordType(relDataTypeFactory, (Field f) -> !SYSTEM_COLUMNS.contains(f.getName()), complexTypeSupport);
+        .toCalciteRecordType(
+            relDataTypeFactory,
+            (Field f) -> !SYSTEM_COLUMNS.contains(f.getName()),
+            complexTypeSupport);
   }
 
   @Override
@@ -119,11 +149,13 @@ public class NamespaceTable implements DremioTable {
             return false;
           }
           ImmutableBitSet.Builder b = ImmutableBitSet.builder();
-          Ord.zip(getSchema().getFields()).forEach(f -> {
-            if (keys.contains(f.e.getName().toLowerCase(Locale.ROOT))) {
-              b.set(f.i);
-            }
-          });
+          Ord.zip(getSchema().getFields())
+              .forEach(
+                  f -> {
+                    if (keys.contains(f.e.getName().toLowerCase(Locale.ROOT))) {
+                      b.set(f.i);
+                    }
+                  });
           NamespaceTable.this.keys = b.build();
         }
         return !NamespaceTable.this.keys.isEmpty() && columns.contains(NamespaceTable.this.keys);
@@ -133,7 +165,7 @@ public class NamespaceTable implements DremioTable {
 
   public boolean isApproximateStatsAllowed() {
     PhysicalDataset pd = dataset.getDatasetConfig().getPhysicalDataset();
-    if(pd == null) {
+    if (pd == null) {
       return false;
     }
 
@@ -153,7 +185,8 @@ public class NamespaceTable implements DremioTable {
   @Override
   public TableType getJdbcTableType() {
     // ugly way to return correct table type for the system tables and information schema.
-    if(dataset.getName().getRoot().equals("sys") || dataset.getName().getRoot().equals("INFORMATION_SCHEMA") ) {
+    if (dataset.getName().getRoot().equals("sys")
+        || dataset.getName().getRoot().equals("INFORMATION_SCHEMA")) {
       return TableType.SYSTEM_TABLE;
     }
     return TableType.TABLE;
@@ -179,30 +212,46 @@ public class NamespaceTable implements DremioTable {
 
   @Override
   public Table extend(List<RelDataTypeField> fields) {
-    boolean tryingToExtendExistingField = getSchema().getFields().stream().anyMatch(
-      field -> fields.stream().anyMatch(
-        extendingField -> extendingField.getName().equals(field.getName())));
+    boolean tryingToExtendExistingField =
+        getSchema().getFields().stream()
+            .anyMatch(
+                field ->
+                    fields.stream()
+                        .anyMatch(
+                            extendingField -> extendingField.getName().equals(field.getName())));
     if (tryingToExtendExistingField) {
       throw UserException.sourceInBadState().buildSilently();
     }
 
     // ScanCrel works directly with TableMetadata, rather than RelOptTable, so we must
     // use a delegating TableMetadata and override getSchema specifically.
-    return new NamespaceTable(new DelegatingTableMetadata(dataset) {
+    return new NamespaceTable(
+        new DelegatingTableMetadata(dataset) {
 
-      private BatchSchema schema;
+          private BatchSchema schema;
 
-      @Override
-      public BatchSchema getSchema() {
-        if (schema == null) {
-          schema = getTableMetadata().getSchema().cloneWithFields(fields.stream().map(
-              field -> CalciteArrowHelper.fieldFromCalciteRowType(field.getName(), field.getType()).get())
-            .collect(ImmutableList.toImmutableList()));
-        }
+          @Override
+          public BatchSchema getSchema() {
+            if (schema == null) {
+              schema =
+                  getTableMetadata()
+                      .getSchema()
+                      .cloneWithFields(
+                          fields.stream()
+                              .map(
+                                  field ->
+                                      CalciteArrowHelper.fieldFromCalciteRowType(
+                                              field.getName(), field.getType())
+                                          .get())
+                              .collect(ImmutableList.toImmutableList()));
+            }
 
-        return schema;
-      }
-    }, complexTypeSupport, fields);
+            return schema;
+          }
+        },
+        metadataState,
+        complexTypeSupport,
+        fields);
   }
 
   @Override
@@ -244,7 +293,15 @@ public class NamespaceTable implements DremioTable {
       return "";
     }
 
-    return String.format("EXTEND (%s)", extendedFields.stream().map(
-      field -> String.format("\"%s\" %s", field.getName(), field.getType())).collect(Collectors.joining(", ")));
+    return String.format(
+        "EXTEND (%s)",
+        extendedFields.stream()
+            .map(field -> String.format("\"%s\" %s", field.getName(), field.getType()))
+            .collect(Collectors.joining(", ")));
+  }
+
+  @Override
+  public DatasetMetadataState getDatasetMetadataState() {
+    return metadataState;
   }
 }

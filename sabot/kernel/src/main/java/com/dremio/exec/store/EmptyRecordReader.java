@@ -15,23 +15,19 @@
  */
 package com.dremio.exec.store;
 
-import java.util.Map;
-
-import org.apache.arrow.memory.OutOfMemoryException;
-import org.apache.arrow.vector.ValueVector;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.sabot.op.scan.OutputMutator;
+import java.util.Map;
+import org.apache.arrow.memory.OutOfMemoryException;
+import org.apache.arrow.vector.ValueVector;
 
 public class EmptyRecordReader implements RecordReader {
 
   @Override
-  public void close() throws Exception {
-  }
+  public void close() throws Exception {}
 
   @Override
-  public void setup(OutputMutator output) throws ExecutionSetupException {
-  }
+  public void setup(OutputMutator output) throws ExecutionSetupException {}
 
   @Override
   public void allocate(Map<String, ValueVector> vectorMap) throws OutOfMemoryException {
@@ -44,5 +40,4 @@ public class EmptyRecordReader implements RecordReader {
   public int next() {
     return 0;
   }
-
 }

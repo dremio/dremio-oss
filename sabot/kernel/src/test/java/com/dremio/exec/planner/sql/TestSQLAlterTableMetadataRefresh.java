@@ -15,9 +15,13 @@
  */
 package com.dremio.exec.planner.sql;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.planner.sql.parser.SqlAlterDatasetReflectionRouting;
+import com.dremio.exec.planner.sql.parser.SqlRefreshTable;
+import com.google.common.collect.Sets;
 import java.util.Arrays;
 import java.util.Collections;
-
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlLiteral;
@@ -26,39 +30,47 @@ import org.apache.calcite.sql.SqlNodeList;
 import org.junit.Assert;
 import org.junit.Test;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.planner.sql.parser.SqlAlterDatasetReflectionRouting;
-import com.dremio.exec.planner.sql.parser.SqlRefreshTable;
-import com.google.common.collect.Sets;
-
 public class TestSQLAlterTableMetadataRefresh {
-  private final ParserConfig parserConfig = new ParserConfig(ParserConfig.QUOTING, 100, PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
+  private final ParserConfig parserConfig =
+      new ParserConfig(
+          ParserConfig.QUOTING,
+          100,
+          PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
 
   @Test
   public void testAlterTableRefreshMetadataAllFiles() {
     final String sql = "ALTER TABLE a.b.tbl REFRESH METADATA FOR ALL FILES";
-    final  SqlNode sqlNode = SqlConverter.parseSingleStatementImpl(sql, parserConfig, false);
+    final SqlNode sqlNode = SqlConverter.parseSingleStatementImpl(sql, parserConfig, false);
     Assert.assertTrue(sqlNode.isA(Sets.immutableEnumSet(SqlKind.OTHER)));
 
-    final  SqlRefreshTable sqlRefreshTable = (SqlRefreshTable) sqlNode;
+    final SqlRefreshTable sqlRefreshTable = (SqlRefreshTable) sqlNode;
     Assert.assertTrue(sqlRefreshTable.getAllFilesRefresh().booleanValue());
 
-    String refreshDatasetQuery = sqlRefreshTable.toRefreshDatasetQuery(Arrays.asList("a", "b", "tbl"));
+    String refreshDatasetQuery =
+        sqlRefreshTable.toRefreshDatasetQuery(Arrays.asList("a", "b", "tbl"));
     Assert.assertEquals("REFRESH DATASET \"a\".\"b\".\"tbl\" FOR ALL FILES", refreshDatasetQuery);
-    final  SqlNode refreshDatasetNode = SqlConverter.parseSingleStatementImpl(refreshDatasetQuery, parserConfig, false);
-    Assert.assertEquals("REFRESH DATASET `a`.`b`.`tbl` FOR ALL FILES", refreshDatasetNode.toString());
+    final SqlNode refreshDatasetNode =
+        SqlConverter.parseSingleStatementImpl(refreshDatasetQuery, parserConfig, false);
+    Assert.assertEquals(
+        "REFRESH DATASET `a`.`b`.`tbl` FOR ALL FILES", refreshDatasetNode.toString());
   }
 
   @Test
   public void testAlterTableReflectionRouting() {
     final String sql = "ALTER TABLE tbl ROUTE ALL REFLECTIONS TO QUEUE q1";
-    final  SqlNode sqlNode = SqlConverter.parseSingleStatementImpl(sql, parserConfig, false);
-    Assert.assertTrue(sqlNode instanceof SqlAlterDatasetReflectionRouting && ((SqlAlterDatasetReflectionRouting) sqlNode).getQueueOrEngineName().toString().equals("q1"));
+    final SqlNode sqlNode = SqlConverter.parseSingleStatementImpl(sql, parserConfig, false);
+    Assert.assertTrue(
+        sqlNode instanceof SqlAlterDatasetReflectionRouting
+            && ((SqlAlterDatasetReflectionRouting) sqlNode)
+                .getQueueOrEngineName()
+                .toString()
+                .equals("q1"));
 
     final String sql2 = "ALTER TABLE tbl ROUTE ALL REFLECTIONS TO DEFAULT QUEUE";
-    final  SqlNode sqlNode2 = SqlConverter.parseSingleStatementImpl(sql2, parserConfig, false);
-    Assert.assertTrue(sqlNode2 instanceof SqlAlterDatasetReflectionRouting && ((SqlAlterDatasetReflectionRouting) sqlNode2).isDefault());
+    final SqlNode sqlNode2 = SqlConverter.parseSingleStatementImpl(sql2, parserConfig, false);
+    Assert.assertTrue(
+        sqlNode2 instanceof SqlAlterDatasetReflectionRouting
+            && ((SqlAlterDatasetReflectionRouting) sqlNode2).isDefault());
   }
 
   @Test
@@ -67,10 +79,11 @@ public class TestSQLAlterTableMetadataRefresh {
     final SqlNode sqlNode = SqlConverter.parseSingleStatementImpl(sql, parserConfig, false);
     Assert.assertTrue(sqlNode.isA(Sets.immutableEnumSet(SqlKind.OTHER)));
 
-    final  SqlRefreshTable sqlRefreshTable = (SqlRefreshTable) sqlNode;
+    final SqlRefreshTable sqlRefreshTable = (SqlRefreshTable) sqlNode;
     Assert.assertTrue(sqlRefreshTable.getAllPartitionsRefresh().booleanValue());
 
-    String refreshDatasetQuery = sqlRefreshTable.toRefreshDatasetQuery(Collections.singletonList("tbl"));
+    String refreshDatasetQuery =
+        sqlRefreshTable.toRefreshDatasetQuery(Collections.singletonList("tbl"));
     Assert.assertEquals("REFRESH DATASET \"tbl\" FOR ALL PARTITIONS", refreshDatasetQuery);
   }
 
@@ -84,7 +97,8 @@ public class TestSQLAlterTableMetadataRefresh {
     Assert.assertTrue(sqlRefreshTable.getAllFilesRefresh().booleanValue());
     Assert.assertFalse(sqlRefreshTable.getForceUpdate().booleanValue());
 
-    String refreshDatasetQuery = sqlRefreshTable.toRefreshDatasetQuery(Collections.singletonList("tbl"));
+    String refreshDatasetQuery =
+        sqlRefreshTable.toRefreshDatasetQuery(Collections.singletonList("tbl"));
     Assert.assertEquals("REFRESH DATASET \"tbl\" FOR ALL FILES LAZY UPDATE", refreshDatasetQuery);
   }
 
@@ -98,8 +112,10 @@ public class TestSQLAlterTableMetadataRefresh {
     Assert.assertTrue(sqlRefreshTable.getAllPartitionsRefresh().booleanValue());
     Assert.assertFalse(sqlRefreshTable.getForceUpdate().booleanValue());
 
-    String refreshDatasetQuery = sqlRefreshTable.toRefreshDatasetQuery(Collections.singletonList("tbl"));
-    Assert.assertEquals("REFRESH DATASET \"tbl\" FOR ALL PARTITIONS LAZY UPDATE", refreshDatasetQuery);
+    String refreshDatasetQuery =
+        sqlRefreshTable.toRefreshDatasetQuery(Collections.singletonList("tbl"));
+    Assert.assertEquals(
+        "REFRESH DATASET \"tbl\" FOR ALL PARTITIONS LAZY UPDATE", refreshDatasetQuery);
   }
 
   @Test(expected = UserException.class)
@@ -122,9 +138,11 @@ public class TestSQLAlterTableMetadataRefresh {
 
     final SqlRefreshTable sqlRefreshTable = (SqlRefreshTable) sqlNode;
     Assert.assertTrue(sqlRefreshTable.getFileRefresh().booleanValue());
-    Assert.assertArrayEquals(new String[]{"file1.json"}, sqlRefreshTable.getFileNames().toArray(new String[0]));
+    Assert.assertArrayEquals(
+        new String[] {"file1.json"}, sqlRefreshTable.getFileNames().toArray(new String[0]));
 
-    String refreshDatasetQuery = sqlRefreshTable.toRefreshDatasetQuery(Collections.singletonList("tbl"));
+    String refreshDatasetQuery =
+        sqlRefreshTable.toRefreshDatasetQuery(Collections.singletonList("tbl"));
     Assert.assertEquals("REFRESH DATASET \"tbl\" FOR FILES ('file1.json')", refreshDatasetQuery);
   }
 
@@ -142,10 +160,13 @@ public class TestSQLAlterTableMetadataRefresh {
 
     final SqlRefreshTable sqlRefreshTable = (SqlRefreshTable) sqlNode;
     Assert.assertTrue(sqlRefreshTable.getFileRefresh().booleanValue());
-    Assert.assertArrayEquals(new String[]{"file1'%$#&*.json"}, sqlRefreshTable.getFileNames().toArray(new String[0]));
+    Assert.assertArrayEquals(
+        new String[] {"file1'%$#&*.json"}, sqlRefreshTable.getFileNames().toArray(new String[0]));
 
-    String refreshDatasetQuery = sqlRefreshTable.toRefreshDatasetQuery(Collections.singletonList("tbl"));
-    Assert.assertEquals("REFRESH DATASET \"tbl\" FOR FILES ('file1''%$#&*.json')", refreshDatasetQuery);
+    String refreshDatasetQuery =
+        sqlRefreshTable.toRefreshDatasetQuery(Collections.singletonList("tbl"));
+    Assert.assertEquals(
+        "REFRESH DATASET \"tbl\" FOR FILES ('file1''%$#&*.json')", refreshDatasetQuery);
   }
 
   @Test
@@ -163,8 +184,10 @@ public class TestSQLAlterTableMetadataRefresh {
     Assert.assertEquals("year", ((SqlIdentifier) pair.get(0)).getSimple());
     Assert.assertEquals("2021", ((SqlLiteral) pair.get(1)).getValueAs(String.class));
 
-    String refreshDatasetQuery = sqlRefreshTable.toRefreshDatasetQuery(Collections.singletonList("tbl"));
-    Assert.assertEquals("REFRESH DATASET \"tbl\" FOR PARTITIONS (\"year\" = '2021')", refreshDatasetQuery);
+    String refreshDatasetQuery =
+        sqlRefreshTable.toRefreshDatasetQuery(Collections.singletonList("tbl"));
+    Assert.assertEquals(
+        "REFRESH DATASET \"tbl\" FOR PARTITIONS (\"year\" = '2021')", refreshDatasetQuery);
   }
 
   @Test(expected = UserException.class)
@@ -194,8 +217,10 @@ public class TestSQLAlterTableMetadataRefresh {
     Assert.assertEquals("year", ((SqlIdentifier) pair.get(0)).getSimple());
     Assert.assertEquals("2021'%$#&*", ((SqlLiteral) pair.get(1)).getValueAs(String.class));
 
-    String refreshDatasetQuery = sqlRefreshTable.toRefreshDatasetQuery(Collections.singletonList("tbl"));
-    Assert.assertEquals("REFRESH DATASET \"tbl\" FOR PARTITIONS (\"year\" = '2021''%$#&*')", refreshDatasetQuery);
+    String refreshDatasetQuery =
+        sqlRefreshTable.toRefreshDatasetQuery(Collections.singletonList("tbl"));
+    Assert.assertEquals(
+        "REFRESH DATASET \"tbl\" FOR PARTITIONS (\"year\" = '2021''%$#&*')", refreshDatasetQuery);
   }
 
   @Test
@@ -206,15 +231,20 @@ public class TestSQLAlterTableMetadataRefresh {
 
     final SqlRefreshTable sqlRefreshTable = (SqlRefreshTable) sqlNode;
     Assert.assertTrue(sqlRefreshTable.getFileRefresh().booleanValue());
-    Assert.assertArrayEquals(new String[]{"file1.json", "file2.json"}, sqlRefreshTable.getFileNames().toArray(new String[0]));
+    Assert.assertArrayEquals(
+        new String[] {"file1.json", "file2.json"},
+        sqlRefreshTable.getFileNames().toArray(new String[0]));
 
-    String refreshDatasetQuery = sqlRefreshTable.toRefreshDatasetQuery(Collections.singletonList("tbl"));
-    Assert.assertEquals("REFRESH DATASET \"tbl\" FOR FILES ('file1.json', 'file2.json')", refreshDatasetQuery);
+    String refreshDatasetQuery =
+        sqlRefreshTable.toRefreshDatasetQuery(Collections.singletonList("tbl"));
+    Assert.assertEquals(
+        "REFRESH DATASET \"tbl\" FOR FILES ('file1.json', 'file2.json')", refreshDatasetQuery);
   }
 
   @Test
   public void testAlterTableRefreshMetadataForPartitions_MultiplePartitionKeys() {
-    final String sql = "ALTER TABLE tbl REFRESH METADATA FOR PARTITIONS (\"year\" = '2021', \"month\" = 'Jan')";
+    final String sql =
+        "ALTER TABLE tbl REFRESH METADATA FOR PARTITIONS (\"year\" = '2021', \"month\" = 'Jan')";
     final SqlNode sqlNode = SqlConverter.parseSingleStatementImpl(sql, parserConfig, false);
     Assert.assertTrue(sqlNode.isA(Sets.immutableEnumSet(SqlKind.OTHER)));
 
@@ -232,17 +262,24 @@ public class TestSQLAlterTableMetadataRefresh {
     Assert.assertEquals("month", ((SqlIdentifier) pair2.get(0)).getSimple());
     Assert.assertEquals("Jan", ((SqlLiteral) pair2.get(1)).getValueAs(String.class));
 
-    String refreshDatasetQuery = sqlRefreshTable.toRefreshDatasetQuery(Collections.singletonList("tbl"));
-    Assert.assertEquals("REFRESH DATASET \"tbl\" FOR PARTITIONS (\"year\" = '2021', \"month\" = 'Jan')", refreshDatasetQuery);
+    String refreshDatasetQuery =
+        sqlRefreshTable.toRefreshDatasetQuery(Collections.singletonList("tbl"));
+    Assert.assertEquals(
+        "REFRESH DATASET \"tbl\" FOR PARTITIONS (\"year\" = '2021', \"month\" = 'Jan')",
+        refreshDatasetQuery);
   }
 
   @Test
   public void testAlterTableRefreshMetadataForPartitionAndForceUpdateAndAutoPromotoion() {
-    final String sql = "ALTER TABLE tbl REFRESH METADATA FOR PARTITIONS (\"year\" = '2021', \"month\" = 'Jan') AUTO PROMOTION FORCE UPDATE MAINTAIN WHEN MISSING";
+    final String sql =
+        "ALTER TABLE tbl REFRESH METADATA FOR PARTITIONS (\"year\" = '2021', \"month\" = 'Jan') AUTO PROMOTION FORCE UPDATE MAINTAIN WHEN MISSING";
     final SqlNode sqlNode = SqlConverter.parseSingleStatementImpl(sql, parserConfig, false);
     Assert.assertTrue(sqlNode.isA(Sets.immutableEnumSet(SqlKind.OTHER)));
     final SqlRefreshTable sqlRefreshTable = (SqlRefreshTable) sqlNode;
-    String refreshDatasetQuery = sqlRefreshTable.toRefreshDatasetQuery(Collections.singletonList("tbl"));
-    Assert.assertEquals("REFRESH DATASET \"tbl\" FOR PARTITIONS (\"year\" = '2021', \"month\" = 'Jan') AUTO PROMOTION FORCE UPDATE MAINTAIN WHEN MISSING", refreshDatasetQuery);
+    String refreshDatasetQuery =
+        sqlRefreshTable.toRefreshDatasetQuery(Collections.singletonList("tbl"));
+    Assert.assertEquals(
+        "REFRESH DATASET \"tbl\" FOR PARTITIONS (\"year\" = '2021', \"month\" = 'Jan') AUTO PROMOTION FORCE UPDATE MAINTAIN WHEN MISSING",
+        refreshDatasetQuery);
   }
 }

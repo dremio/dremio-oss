@@ -18,28 +18,24 @@ package com.dremio.plugins.s3.store;
 import static com.dremio.common.TestProfileHelper.assumeNonMaprProfile;
 import static org.junit.Assert.assertEquals;
 
-import java.net.URI;
-
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import org.junit.Test;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.exec.catalog.conf.AWSAuthenticationType;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.server.SabotContext;
 import com.google.common.collect.ImmutableList;
+import java.net.URI;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.junit.Test;
 
-/**
- * Check that external s3 buckets can be listed without an access key.
- */
+/** Check that external s3 buckets can be listed without an access key. */
 public class TestExternalBucket extends BaseTestQuery {
 
   @Test
   public void ensureExternalBucketsWork() throws Exception {
     assumeNonMaprProfile();
-    try(FileSystem fs = new S3FileSystem()){
+    try (FileSystem fs = new S3FileSystem()) {
       Configuration config = new Configuration();
       S3PluginConfig s3 = new S3PluginConfig();
       s3.externalBucketList = ImmutableList.of("landsat-pds", "commoncrawl");
@@ -47,7 +43,7 @@ public class TestExternalBucket extends BaseTestQuery {
 
       SabotContext context = getSabotContext();
       S3StoragePlugin plugin = s3.newPlugin(context, "test-plugin", null);
-      for(Property e : plugin.getProperties()){
+      for (Property e : plugin.getProperties()) {
         config.set(e.name, e.value);
       }
       fs.initialize(new URI("dremioS3:///"), config);

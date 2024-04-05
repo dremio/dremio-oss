@@ -15,22 +15,19 @@
  */
 package com.dremio.exec.planner.serializer;
 
+import com.google.protobuf.Message;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 
-import com.google.protobuf.Message;
-
-/**
- * Tools to retrieve information from Proto classes.
- */
+/** Tools to retrieve information from Proto classes. */
 public class MessageTools {
 
   public static Message getDefaultInstance(Class<? extends Message> clazz) {
-    for(Method m : clazz.getDeclaredMethods()) {
-      if(Modifier.isStatic(m.getModifiers()) && "getDefaultInstance".equals(m.getName())) {
+    for (Method m : clazz.getDeclaredMethods()) {
+      if (Modifier.isStatic(m.getModifiers()) && "getDefaultInstance".equals(m.getName())) {
         try {
           return (Message) m.invoke(null);
         } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
@@ -38,18 +35,20 @@ public class MessageTools {
         }
       }
     }
-    throw new IllegalStateException(String.format("unable to find getDefaultInstance() for class %s.", clazz.getName()));
+    throw new IllegalStateException(
+        String.format("unable to find getDefaultInstance() for class %s.", clazz.getName()));
   }
 
   @SuppressWarnings("unchecked")
-  public static <T> Class<? extends T> getClassArg(RelNodeSerde<?, ?> instance, Class<T> clazz, int index){
+  public static <T> Class<? extends T> getClassArg(
+      RelNodeSerde<?, ?> instance, Class<T> clazz, int index) {
 
-    for(Type c : instance.getClass().getGenericInterfaces()) {
-      if(c instanceof ParameterizedType && ((ParameterizedType) c).getRawType() == RelNodeSerde.class) {
+    for (Type c : instance.getClass().getGenericInterfaces()) {
+      if (c instanceof ParameterizedType
+          && ((ParameterizedType) c).getRawType() == RelNodeSerde.class) {
         return (Class<? extends T>) ((ParameterizedType) c).getActualTypeArguments()[index];
       }
     }
     throw new IllegalStateException(String.format("unable to find interface: %s", clazz.getName()));
   }
-
 }

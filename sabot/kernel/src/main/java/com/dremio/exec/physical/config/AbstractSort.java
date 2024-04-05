@@ -15,21 +15,21 @@
  */
 package com.dremio.exec.physical.config;
 
-import java.util.List;
-
 import com.dremio.common.logical.data.Order.Ordering;
 import com.dremio.exec.physical.base.AbstractSingle;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.PhysicalVisitor;
+import java.util.List;
 
-public abstract class AbstractSort extends AbstractSingle{
+public abstract class AbstractSort extends AbstractSingle {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AbstractSort.class);
 
   protected final List<Ordering> orderings;
   protected final boolean reverse;
 
-  public AbstractSort(OpProps props, PhysicalOperator child, List<Ordering> orderings, boolean reverse) {
+  public AbstractSort(
+      OpProps props, PhysicalOperator child, List<Ordering> orderings, boolean reverse) {
     super(props, child);
     this.orderings = orderings;
     this.reverse = reverse;
@@ -44,7 +44,8 @@ public abstract class AbstractSort extends AbstractSingle{
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value) throws E{
+  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value)
+      throws E {
     return physicalVisitor.visitSort(this, value);
   }
 }

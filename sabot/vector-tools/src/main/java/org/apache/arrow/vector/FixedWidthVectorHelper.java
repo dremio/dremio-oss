@@ -15,16 +15,17 @@
  */
 package org.apache.arrow.vector;
 
-import org.apache.arrow.memory.ArrowBuf;
-
 import com.dremio.common.expression.CompleteType;
 import com.dremio.exec.proto.UserBitShared.NamePart;
 import com.dremio.exec.proto.UserBitShared.SerializedField;
+import org.apache.arrow.memory.ArrowBuf;
 
-public class FixedWidthVectorHelper<T extends BaseFixedWidthVector> extends BaseValueVectorHelper<T> {
+public class FixedWidthVectorHelper<T extends BaseFixedWidthVector>
+    extends BaseValueVectorHelper<T> {
 
   private final int size;
   private final boolean bitVector;
+
   public FixedWidthVectorHelper(T vector) {
     super(vector);
     this.size = vector.getTypeWidth();
@@ -34,9 +35,10 @@ public class FixedWidthVectorHelper<T extends BaseFixedWidthVector> extends Base
   @Override
   public SerializedField.Builder getMetadataBuilder() {
     return super.getMetadataBuilder()
-          .addChild(buildValidityMetadata())
-          .addChild(buildDataMetadata())
-          .setMajorType(com.dremio.common.util.MajorTypeHelper.getMajorTypeForField(vector.getField()));
+        .addChild(buildValidityMetadata())
+        .addChild(buildDataMetadata())
+        .setMajorType(
+            com.dremio.common.util.MajorTypeHelper.getMajorTypeForField(vector.getField()));
   }
 
   @Override
@@ -44,14 +46,15 @@ public class FixedWidthVectorHelper<T extends BaseFixedWidthVector> extends Base
     final int actualLength = metadata.getBufferLength();
     final int valueCount = metadata.getValueCount();
     final int expectedLength;
-    if(bitVector) {
+    if (bitVector) {
       expectedLength = getValidityBufferSizeFromCount(valueCount);
     } else {
       expectedLength = valueCount * size;
     }
-    assert actualLength == expectedLength :
-      String.format("Expected to load %d bytes but actually loaded %d bytes in data buffer", expectedLength,
-      actualLength);
+    assert actualLength == expectedLength
+        : String.format(
+            "Expected to load %d bytes but actually loaded %d bytes in data buffer",
+            expectedLength, actualLength);
 
     vector.valueBuffer = buffer.slice(0, actualLength);
     vector.valueBuffer.getReferenceManager().retain();
@@ -60,11 +63,14 @@ public class FixedWidthVectorHelper<T extends BaseFixedWidthVector> extends Base
   }
 
   private SerializedField buildDataMetadata() {
-    SerializedField.Builder dataBuilder = SerializedField.newBuilder()
-          .setNamePart(NamePart.newBuilder().setName("$values$").build())
-          .setValueCount(vector.valueCount)
-          .setMajorType(com.dremio.common.types.Types.required(CompleteType.fromField(vector.getField()).toMinorType()));
-    if(bitVector) {
+    SerializedField.Builder dataBuilder =
+        SerializedField.newBuilder()
+            .setNamePart(NamePart.newBuilder().setName("$values$").build())
+            .setValueCount(vector.valueCount)
+            .setMajorType(
+                com.dremio.common.types.Types.required(
+                    CompleteType.fromField(vector.getField()).toMinorType()));
+    if (bitVector) {
       dataBuilder.setBufferLength(getValidityBufferSizeFromCount(vector.valueCount));
     } else {
       dataBuilder.setBufferLength(vector.valueCount * size);
@@ -72,5 +78,4 @@ public class FixedWidthVectorHelper<T extends BaseFixedWidthVector> extends Base
 
     return dataBuilder.build();
   }
-
 }

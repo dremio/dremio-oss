@@ -18,26 +18,22 @@ package com.dremio.service.jobtelemetry.server;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.function.Consumer;
-
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.proto.CoordExecRPC;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.service.Pointer;
 import com.dremio.service.jobtelemetry.server.store.LocalMetricsStore;
 import com.dremio.service.jobtelemetry.server.store.MetricsStore;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Consumer;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
-/**
- * Tests for ProgressMetricsPublisher.
- */
+/** Tests for ProgressMetricsPublisher. */
 public class TestProgressMetricsPublisher {
   private ProgressMetricsPublisher publisher;
   private MetricsStore metricsStore;
@@ -57,14 +53,12 @@ public class TestProgressMetricsPublisher {
 
   @Test
   public void testSingleQuery() throws InterruptedException {
-    UserBitShared.QueryId queryId = UserBitShared.QueryId.newBuilder()
-      .setPart1(1000)
-      .setPart2(20)
-      .build();
+    UserBitShared.QueryId queryId =
+        UserBitShared.QueryId.newBuilder().setPart1(1000).setPart2(20).build();
 
     Pointer<Long> recordsProcessed = new Pointer<>();
     Consumer<CoordExecRPC.QueryProgressMetrics> consumer =
-      x -> recordsProcessed.value = x.getRowsProcessed();
+        x -> recordsProcessed.value = x.getRowsProcessed();
     publisher.addSubscriber(queryId, consumer);
 
     Thread.sleep(100);
@@ -85,17 +79,15 @@ public class TestProgressMetricsPublisher {
     List<UserBitShared.QueryId> queryIdList = new ArrayList<>();
     List<Consumer<CoordExecRPC.QueryProgressMetrics>> consumers = new ArrayList<>();
 
-    UserBitShared.QueryId queryId = UserBitShared.QueryId.newBuilder()
-      .setPart1(1000)
-      .setPart2(100)
-      .build();
+    UserBitShared.QueryId queryId =
+        UserBitShared.QueryId.newBuilder().setPart1(1000).setPart2(100).build();
 
     putMetrics(queryId, 2, 100);
 
     for (int i = 0; i < 4; i++) {
       final int idx = i;
       Consumer<CoordExecRPC.QueryProgressMetrics> consumer =
-        x -> recordsProcessedMap.put(idx, x.getRowsProcessed());
+          x -> recordsProcessedMap.put(idx, x.getRowsProcessed());
       consumers.add(consumer);
 
       publisher.addSubscriber(queryId, consumer);
@@ -118,14 +110,12 @@ public class TestProgressMetricsPublisher {
     List<Consumer<CoordExecRPC.QueryProgressMetrics>> consumers = new ArrayList<>();
 
     for (int i = 1; i < 5; i++) {
-      UserBitShared.QueryId queryId = UserBitShared.QueryId.newBuilder()
-        .setPart1(1000)
-        .setPart2(i)
-        .build();
+      UserBitShared.QueryId queryId =
+          UserBitShared.QueryId.newBuilder().setPart1(1000).setPart2(i).build();
       queryIdList.add(queryId);
 
       Consumer<CoordExecRPC.QueryProgressMetrics> consumer =
-        x -> recordsProcessedMap.put((int)queryId.getPart2(), x.getRowsProcessed());
+          x -> recordsProcessedMap.put((int) queryId.getPart2(), x.getRowsProcessed());
       consumers.add(consumer);
 
       publisher.addSubscriber(queryId, consumer);
@@ -135,14 +125,16 @@ public class TestProgressMetricsPublisher {
 
     for (int i = 1; i < 5; i++) {
       assertEquals(i * 100, recordsProcessedMap.get(i).longValue());
-      publisher.removeSubscriber(queryIdList.get(i-1), consumers.get(i-1), true);
+      publisher.removeSubscriber(queryIdList.get(i - 1), consumers.get(i - 1), true);
     }
   }
 
   private void putMetrics(UserBitShared.QueryId queryId, int numNodes, int recordsPerNode) {
     for (int i = 0; i < numNodes; ++i) {
-      metricsStore.put(queryId, "node" +  i,
-        CoordExecRPC.QueryProgressMetrics.newBuilder().setRowsProcessed(recordsPerNode).build());
+      metricsStore.put(
+          queryId,
+          "node" + i,
+          CoordExecRPC.QueryProgressMetrics.newBuilder().setRowsProcessed(recordsPerNode).build());
     }
   }
 }

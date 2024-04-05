@@ -33,11 +33,12 @@ class TokenUtils {
     const tempApiCall = new APIV2Call()
       .path("temp-token")
       .params(updatedParams);
+    const token = localStorageUtils.getAuthToken();
     return fetch(tempApiCall.toString(), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: localStorageUtils.getAuthToken(),
+        ...(token && { Authorization: token }),
       },
     }).then((res) => res.json());
   }

@@ -15,14 +15,19 @@
  */
 package com.dremio.exec.planner.logical;
 
-
+import com.dremio.exec.planner.StatelessRelShuttleImpl;
+import com.dremio.service.Pointer;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Sets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
-
 import org.apache.calcite.plan.Context;
 import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptUtil;
+import org.apache.calcite.rel.RelHomogeneousShuttle;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.core.Correlate;
@@ -37,16 +42,9 @@ import org.apache.calcite.rel.logical.LogicalCorrelate;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.tools.RelBuilderFactory;
+import org.apache.calcite.util.Litmus;
 
-import com.dremio.exec.planner.StatelessRelShuttleImpl;
-import com.dremio.service.Pointer;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Sets;
-
-/**
- * Dremio version of RelDecorrelator extended from Calcite
- */
+/** Dremio version of RelDecorrelator extended from Calcite */
 public final class DremioRelDecorrelator extends CalciteRelDecorrelator {
   private static final String DECORRELATION_ERROR_MESSAGE = "This query cannot be decorrelated.";
 
@@ -72,22 +70,18 @@ public final class DremioRelDecorrelator extends CalciteRelDecorrelator {
     return DremioRelFactories.CALCITE_LOGICAL_BUILDER;
   }
 
-  /** Decorrelates a query.
+  /**
+   * Decorrelates a query.
    *
    * <p>This is the main entry point to {@code DremioRelDecorrelator}.
    *
    * @param rootRel Root node of the query
    * @param forceValueGenerator force value generator to be created when decorrelating filters
-   * @param relBuilder        Builder for relational expressions
-   *
-   * @return Equivalent query with all
-   * {@link Correlate} instances removed
+   * @param relBuilder Builder for relational expressions
+   * @return Equivalent query with all {@link Correlate} instances removed
    */
   public static RelNode decorrelateQuery(
-    RelNode rootRel,
-    RelBuilder relBuilder,
-    boolean forceValueGenerator,
-    boolean isRelPlanning) {
+      RelNode rootRel, RelBuilder relBuilder, boolean forceValueGenerator, boolean isRelPlanning) {
     rootRel = FlattenDecorrelator.decorrelate(rootRel, relBuilder);
     final CorelMap corelMap = new CorelMapBuilder().build(rootRel);
     if (!corelMap.hasCorrelation()) {
@@ -96,7 +90,12 @@ public final class DremioRelDecorrelator extends CalciteRelDecorrelator {
 
     final RelOptCluster cluster = rootRel.getCluster();
     final DremioRelDecorrelator decorrelator =
-      new DremioRelDecorrelator(corelMap, cluster.getPlanner().getContext(), relBuilder, forceValueGenerator, isRelPlanning);
+        new DremioRelDecorrelator(
+            corelMap,
+            cluster.getPlanner().getContext(),
+            relBuilder,
+            forceValueGenerator,
+            isRelPlanning);
     RelNode newRootRel = decorrelator.removeCorrelationViaRule(rootRel);
     if (!decorrelator.cm.getMapCorToCorRel().isEmpty()) {
       newRootRel = decorrelator.decorrelate(newRootRel);
@@ -106,21 +105,15 @@ public final class DremioRelDecorrelator extends CalciteRelDecorrelator {
   }
 
   public static RelNode decorrelateQuery(
-    RelNode rootRel,
-    RelBuilder relBuilder,
-    boolean isRelPlanning) {
+      RelNode rootRel, RelBuilder relBuilder, boolean isRelPlanning) {
+
+    // Check if the correlates can be rewritten into joins.
+    rootRel = rewriteCorrelate(rootRel, relBuilder);
+
     // Try with both forceValueGenerator true and false
-    RelNode decorrelateQuery = decorrelateQuery(
-      rootRel,
-      relBuilder,
-      true,
-      isRelPlanning);
+    RelNode decorrelateQuery = decorrelateQuery(rootRel, relBuilder, true, isRelPlanning);
     if (correlateCount(decorrelateQuery) != 0) {
-      decorrelateQuery = decorrelateQuery(
-        rootRel,
-        relBuilder,
-        false,
-        isRelPlanning);
+      decorrelateQuery = decorrelateQuery(rootRel, relBuilder, false, isRelPlanning);
     }
 
     if (correlateCount(decorrelateQuery) != 0) {
@@ -130,14 +123,45 @@ public final class DremioRelDecorrelator extends CalciteRelDecorrelator {
     return decorrelateQuery;
   }
 
+  /**
+   * Rewrites CorrelateRel to a join if the correlation id is not getting used in the right
+   * relational tree.
+   */
+  private static RelNode rewriteCorrelate(RelNode relNode, RelBuilder relBuilder) {
+    return relNode.accept(
+        new RelHomogeneousShuttle() {
+          @Override
+          public RelNode visit(RelNode other) {
+            if (!(other instanceof Correlate)) {
+              return super.visit(other);
+            }
+            final Correlate correlate = (Correlate) other;
+            // if the correlation id is not getting used in the right subtree, rewrite correlate to
+            // join.
+            if (RelOptUtil.notContainsCorrelation(
+                correlate.getRight(), correlate.getCorrelationId(), Litmus.IGNORE)) {
+              return super.visit(
+                  relBuilder
+                      .push(correlate.getLeft())
+                      .push(correlate.getRight())
+                      .join(correlate.getJoinType(), relBuilder.getRexBuilder().makeLiteral(true))
+                      .build());
+            } else {
+              return super.visit(other);
+            }
+          }
+        });
+  }
+
   @Override
   public Frame decorrelateRel(Values rel, boolean isCorVarDefined) {
     // There are no inputs, so rel does not need to be changed.
-    return decorrelateRel((RelNode)rel, isCorVarDefined);
+    return decorrelateRel((RelNode) rel, isCorVarDefined);
   }
 
   /**
-   * Modified from upstream to add a join condition if the same correlated variable occurs on both sides.
+   * Modified from upstream to add a join condition if the same correlated variable occurs on both
+   * sides.
    *
    * @param rel
    * @param isCorVarDefined
@@ -166,28 +190,33 @@ public final class DremioRelDecorrelator extends CalciteRelDecorrelator {
       return null;
     }
 
-
     Sets.SetView<CalciteRelDecorrelator.CorDef> intersection =
-      Sets.intersection(leftFrame.corDefOutputs.keySet(), rightFrame.corDefOutputs.keySet());
+        Sets.intersection(leftFrame.corDefOutputs.keySet(), rightFrame.corDefOutputs.keySet());
 
     RexNode condition = decorrelateExpr(currentRel, map, cm, rel.getCondition());
 
-    final RelNode newJoin = relBuilder
-      .push(leftFrame.r)
-      .push(rightFrame.r)
-      .join(rel.getJoinType(),
-        relBuilder.and(
-          ImmutableList.<RexNode>builder()
-            .add(condition)
-            .addAll(intersection.stream()
-              .map(cor ->
-                relBuilder.equals(
-                  relBuilder.field(2, 0, leftFrame.corDefOutputs.get(cor)),
-                  relBuilder.field(2, 1, rightFrame.corDefOutputs.get(cor))))
-              ::iterator)
-            .build()),
-        ImmutableSet.of())
-      .build();
+    final RelNode newJoin =
+        relBuilder
+            .push(leftFrame.r)
+            .push(rightFrame.r)
+            .join(
+                rel.getJoinType(),
+                relBuilder.and(
+                    ImmutableList.<RexNode>builder()
+                        .add(condition)
+                        .addAll(
+                            intersection.stream()
+                                    .map(
+                                        cor ->
+                                            relBuilder.equals(
+                                                relBuilder.field(
+                                                    2, 0, leftFrame.corDefOutputs.get(cor)),
+                                                relBuilder.field(
+                                                    2, 1, rightFrame.corDefOutputs.get(cor))))
+                                ::iterator)
+                        .build()),
+                ImmutableSet.of())
+            .build();
 
     // Create the mapping between the output of the old correlation rel
     // and the new join rel
@@ -205,12 +234,11 @@ public final class DremioRelDecorrelator extends CalciteRelDecorrelator {
 
     // Right input positions are shifted by newLeftFieldCount.
     for (int i = 0; i < oldRightFieldCount; i++) {
-      mapOldToNewOutputs.put(i + oldLeftFieldCount,
-        rightFrame.oldToNewOutputs.get(i) + newLeftFieldCount);
+      mapOldToNewOutputs.put(
+          i + oldLeftFieldCount, rightFrame.oldToNewOutputs.get(i) + newLeftFieldCount);
     }
 
-    final SortedMap<CorDef, Integer> corDefOutputs =
-      new TreeMap<>(leftFrame.corDefOutputs);
+    final SortedMap<CorDef, Integer> corDefOutputs = new TreeMap<>(leftFrame.corDefOutputs);
 
     // Right input positions are shifted by newLeftFieldCount.
     for (Map.Entry<CorDef, Integer> entry : rightFrame.corDefOutputs.entrySet()) {
@@ -246,7 +274,7 @@ public final class DremioRelDecorrelator extends CalciteRelDecorrelator {
   private Frame doInvoke(RelNode r, boolean isCorVarDefined) {
     if (r instanceof Aggregate) {
       return decorrelateRel((Aggregate) r, isCorVarDefined);
-    } else if(r instanceof Correlate){
+    } else if (r instanceof Correlate) {
       return decorrelateRel((Correlate) r, isCorVarDefined);
     } else if (r instanceof Filter) {
       return decorrelateRel((Filter) r, isCorVarDefined);
@@ -267,21 +295,22 @@ public final class DremioRelDecorrelator extends CalciteRelDecorrelator {
 
   public static int correlateCount(RelNode rel) {
     final Pointer<Integer> count = new Pointer<>(0);
-    rel.accept(new StatelessRelShuttleImpl() {
-      @Override
-      public RelNode visit(RelNode other) {
-        if (other instanceof Correlate) {
-          count.value++;
-        }
-        return super.visit(other);
-      }
+    rel.accept(
+        new StatelessRelShuttleImpl() {
+          @Override
+          public RelNode visit(RelNode other) {
+            if (other instanceof Correlate) {
+              count.value++;
+            }
+            return super.visit(other);
+          }
 
-      @Override
-      public RelNode visit(LogicalCorrelate correlate) {
-        count.value++;
-        return super.visit(correlate);
-      }
-    });
+          @Override
+          public RelNode visit(LogicalCorrelate correlate) {
+            count.value++;
+            return super.visit(correlate);
+          }
+        });
     return count.value;
   }
 }

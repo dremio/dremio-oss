@@ -15,21 +15,19 @@
  */
 package com.dremio.exec.planner.sql.handlers;
 
-import org.apache.calcite.rel.RelNode;
-
 import com.dremio.exec.planner.StatelessRelShuttleImpl;
 import com.dremio.exec.planner.physical.HashJoinPrel;
 import com.dremio.exec.planner.physical.IncrementalRefreshByPartitionPlaceholderPrel;
+import org.apache.calcite.rel.RelNode;
 
 /**
  * A class that replaces IncrementalRefreshByPartitionPlaceholderPrel with an actual plan stored in
- * placeholderPrel.getSnapshotDiffContext().getDeleteFilesFilter()
- * The plan is not available originally, so we insert a IncrementalRefreshByPartitionPlaceholderPrel in place of actual plan
- * Later once the plan is available we use IncrementalRefreshByPartitionFinalizeShuttle
- * to replace the IncrementalRefreshByPartitionPlaceholderPrel with the actual plan
+ * placeholderPrel.getSnapshotDiffContext().getDeleteFilesFilter() The plan is not available
+ * originally, so we insert a IncrementalRefreshByPartitionPlaceholderPrel in place of actual plan
+ * Later once the plan is available we use IncrementalRefreshByPartitionFinalizeShuttle to replace
+ * the IncrementalRefreshByPartitionPlaceholderPrel with the actual plan
  */
 class IncrementalRefreshByPartitionFinalizeShuttle extends StatelessRelShuttleImpl {
-
 
   public IncrementalRefreshByPartitionFinalizeShuttle() {
     super();
@@ -40,21 +38,22 @@ class IncrementalRefreshByPartitionFinalizeShuttle extends StatelessRelShuttleIm
     if (other instanceof HashJoinPrel) {
       final HashJoinPrel hashJoinPrel = (HashJoinPrel) other;
 
-      //if we find a IncrementalRefreshByPartitionPlaceholderPrel, that is the right child of a hashJoinPrel,
-      //replace the right argument of the hash join with the pre-generated delete plan
-      if(hashJoinPrel.getRight() instanceof IncrementalRefreshByPartitionPlaceholderPrel)
-      {
-        final IncrementalRefreshByPartitionPlaceholderPrel placeholderPrel = (IncrementalRefreshByPartitionPlaceholderPrel)hashJoinPrel.getRight();
-        if(placeholderPrel.getSnapshotDiffContext().getDeleteFilesFilter() != null){
-          return hashJoinPrel.copy(hashJoinPrel.getTraitSet(),
-            hashJoinPrel.getCondition(),
-            hashJoinPrel.getLeft(),
-            placeholderPrel.getSnapshotDiffContext().getDeleteFilesFilter(),
-            hashJoinPrel.getJoinType(),
-            hashJoinPrel.isSemiJoinDone());
+      // if we find a IncrementalRefreshByPartitionPlaceholderPrel, that is the right child of a
+      // hashJoinPrel,
+      // replace the right argument of the hash join with the pre-generated delete plan
+      if (hashJoinPrel.getRight() instanceof IncrementalRefreshByPartitionPlaceholderPrel) {
+        final IncrementalRefreshByPartitionPlaceholderPrel placeholderPrel =
+            (IncrementalRefreshByPartitionPlaceholderPrel) hashJoinPrel.getRight();
+        if (placeholderPrel.getSnapshotDiffContext().getDeleteFilesFilter() != null) {
+          return hashJoinPrel.copy(
+              hashJoinPrel.getTraitSet(),
+              hashJoinPrel.getCondition(),
+              hashJoinPrel.getLeft(),
+              placeholderPrel.getSnapshotDiffContext().getDeleteFilesFilter(),
+              hashJoinPrel.getJoinType(),
+              hashJoinPrel.isSemiJoinDone());
         }
       }
-
     }
     return super.visit(other);
   }

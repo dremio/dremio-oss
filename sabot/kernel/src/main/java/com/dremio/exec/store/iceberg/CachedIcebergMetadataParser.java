@@ -15,31 +15,30 @@
  */
 package com.dremio.exec.store.iceberg;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.TableMetadataParser;
 import org.apache.iceberg.io.FileIO;
 
-import com.github.benmanes.caffeine.cache.Cache;
-import com.github.benmanes.caffeine.cache.Caffeine;
-
 /**
- * Uses caches to avoid re-loading of the metadata json for repeated operations between the operators.
+ * Uses caches to avoid re-loading of the metadata json for repeated operations between the
+ * operators.
  */
 public final class CachedIcebergMetadataParser {
 
-  private static Cache<Key, Snapshot> CACHE = Caffeine.newBuilder()
-      .expireAfterAccess(30, TimeUnit.MINUTES).maximumSize(10_000)
-      .build();
+  private static Cache<Key, Snapshot> CACHE =
+      Caffeine.newBuilder().expireAfterAccess(30, TimeUnit.MINUTES).maximumSize(10_000).build();
 
   private CachedIcebergMetadataParser() {
     // Not to be instantiated
   }
 
   public static Snapshot loadSnapshot(String metadataJsonPath, long snapshotId, FileIO fileIO) {
-    return CACHE.get(new Key(metadataJsonPath, snapshotId),
+    return CACHE.get(
+        new Key(metadataJsonPath, snapshotId),
         k -> TableMetadataParser.read(fileIO, metadataJsonPath).snapshot(snapshotId));
   }
 
@@ -73,8 +72,7 @@ public final class CachedIcebergMetadataParser {
         return false;
       }
       Key key = (Key) o;
-      return snapshot == key.snapshot && Objects.equals(metadataJsonPath,
-          key.metadataJsonPath);
+      return snapshot == key.snapshot && Objects.equals(metadataJsonPath, key.metadataJsonPath);
     }
 
     @Override

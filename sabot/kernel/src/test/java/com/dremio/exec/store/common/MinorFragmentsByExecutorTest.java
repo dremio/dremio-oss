@@ -19,18 +19,17 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
+import com.google.common.net.HostAndPort;
 import org.junit.Test;
 
-import com.google.common.net.HostAndPort;
-
-/**
- * Test for {@link MinorFragmentsByExecutor}
- */
+/** Test for {@link MinorFragmentsByExecutor} */
 public class MinorFragmentsByExecutorTest {
   @Test
   public void testEqualsAndComparable_hostOnly() {
-    MinorFragmentsByExecutor endpointsWithHost = new MinorFragmentsByExecutor(HostAndPort.fromHost("host"));
-    MinorFragmentsByExecutor endpointsWithHost2 = new MinorFragmentsByExecutor(HostAndPort.fromHost("host"));
+    MinorFragmentsByExecutor endpointsWithHost =
+        new MinorFragmentsByExecutor(HostAndPort.fromHost("host"));
+    MinorFragmentsByExecutor endpointsWithHost2 =
+        new MinorFragmentsByExecutor(HostAndPort.fromHost("host"));
     assertEquals(endpointsWithHost2, endpointsWithHost);
     assertEquals(endpointsWithHost2.hashCode(), endpointsWithHost.hashCode());
     assertEquals(0, endpointsWithHost2.compareTo(endpointsWithHost));
@@ -38,8 +37,10 @@ public class MinorFragmentsByExecutorTest {
 
   @Test
   public void testEqualsAndComparable_hostAndPort() {
-    MinorFragmentsByExecutor endpointsWithHostPort = new MinorFragmentsByExecutor(HostAndPort.fromParts("host", 12345));
-    MinorFragmentsByExecutor endpointsWithHostPort2 = new MinorFragmentsByExecutor(HostAndPort.fromParts("host", 12345));
+    MinorFragmentsByExecutor endpointsWithHostPort =
+        new MinorFragmentsByExecutor(HostAndPort.fromParts("host", 12345));
+    MinorFragmentsByExecutor endpointsWithHostPort2 =
+        new MinorFragmentsByExecutor(HostAndPort.fromParts("host", 12345));
     assertEquals(endpointsWithHostPort2, endpointsWithHostPort);
     assertEquals(endpointsWithHostPort2.hashCode(), endpointsWithHostPort.hashCode());
     assertEquals(0, endpointsWithHostPort2.compareTo(endpointsWithHostPort));
@@ -47,8 +48,10 @@ public class MinorFragmentsByExecutorTest {
 
   @Test
   public void testNotEqualsAndComparable_hostAndPort_hostIsBigger() {
-    MinorFragmentsByExecutor endpointsWithHostPort = new MinorFragmentsByExecutor(HostAndPort.fromParts("host", 12345));
-    MinorFragmentsByExecutor endpointsWithHostPort2 = new MinorFragmentsByExecutor(HostAndPort.fromParts("host2", 12345));
+    MinorFragmentsByExecutor endpointsWithHostPort =
+        new MinorFragmentsByExecutor(HostAndPort.fromParts("host", 12345));
+    MinorFragmentsByExecutor endpointsWithHostPort2 =
+        new MinorFragmentsByExecutor(HostAndPort.fromParts("host2", 12345));
     assertNotEquals(endpointsWithHostPort2, endpointsWithHostPort);
     assertNotEquals(endpointsWithHostPort2.hashCode(), endpointsWithHostPort.hashCode());
     assertTrue(endpointsWithHostPort2.compareTo(endpointsWithHostPort) > 0);
@@ -56,8 +59,10 @@ public class MinorFragmentsByExecutorTest {
 
   @Test
   public void testNotEqualsAndComparable_hostAndPort_portIsBigger() {
-    MinorFragmentsByExecutor endpointsWithHostPort = new MinorFragmentsByExecutor(HostAndPort.fromParts("host", 12345));
-    MinorFragmentsByExecutor endpointsWithHostPort2 = new MinorFragmentsByExecutor(HostAndPort.fromParts("host", 23456));
+    MinorFragmentsByExecutor endpointsWithHostPort =
+        new MinorFragmentsByExecutor(HostAndPort.fromParts("host", 12345));
+    MinorFragmentsByExecutor endpointsWithHostPort2 =
+        new MinorFragmentsByExecutor(HostAndPort.fromParts("host", 23456));
     assertNotEquals(endpointsWithHostPort2, endpointsWithHostPort);
     assertNotEquals(endpointsWithHostPort2.hashCode(), endpointsWithHostPort.hashCode());
     assertTrue(endpointsWithHostPort2.compareTo(endpointsWithHostPort) > 0);
@@ -65,8 +70,10 @@ public class MinorFragmentsByExecutorTest {
 
   @Test
   public void testNotEqualsButComparable_hostAndPort_noPortInFirst() {
-    MinorFragmentsByExecutor endpointsWithHost = new MinorFragmentsByExecutor(HostAndPort.fromHost("host"));
-    MinorFragmentsByExecutor endpointsWithHostPort = new MinorFragmentsByExecutor(HostAndPort.fromParts("host", 12345));
+    MinorFragmentsByExecutor endpointsWithHost =
+        new MinorFragmentsByExecutor(HostAndPort.fromHost("host"));
+    MinorFragmentsByExecutor endpointsWithHostPort =
+        new MinorFragmentsByExecutor(HostAndPort.fromParts("host", 12345));
     assertNotEquals(endpointsWithHostPort, endpointsWithHost);
     assertNotEquals(endpointsWithHostPort.hashCode(), endpointsWithHost.hashCode());
     assertEquals(0, endpointsWithHostPort.compareTo(endpointsWithHost));
@@ -74,8 +81,10 @@ public class MinorFragmentsByExecutorTest {
 
   @Test
   public void testNotEqualsButComparable_internalStateChange() {
-    MinorFragmentsByExecutor endpointsWithHostPort = new MinorFragmentsByExecutor(HostAndPort.fromParts("host", 12345));
-    MinorFragmentsByExecutor endpointsWithHostPort2 = new MinorFragmentsByExecutor(HostAndPort.fromParts("host", 12345));
+    MinorFragmentsByExecutor endpointsWithHostPort =
+        new MinorFragmentsByExecutor(HostAndPort.fromParts("host", 12345));
+    MinorFragmentsByExecutor endpointsWithHostPort2 =
+        new MinorFragmentsByExecutor(HostAndPort.fromParts("host", 12345));
 
     endpointsWithHostPort.addMinorFragmentEndPoint(10);
     assertNotEquals(endpointsWithHostPort2, endpointsWithHostPort);

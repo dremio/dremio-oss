@@ -16,8 +16,8 @@
 
 package com.dremio.sabot.op.aggregate.vectorized.arrayagg;
 
+import com.dremio.sabot.op.aggregate.vectorized.DecimalAccumulatorUtils;
 import java.math.BigDecimal;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BaseValueVector;
@@ -25,13 +25,17 @@ import org.apache.arrow.vector.DecimalVector;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.complex.impl.UnionListWriter;
 
-import com.dremio.sabot.op.aggregate.vectorized.DecimalAccumulatorUtils;
-
-public final class BigDecimalArrayAggAccumulator extends BaseArrayAggAccumulator<BigDecimal, DecimalVector> {
+public final class BigDecimalArrayAggAccumulator
+    extends BaseArrayAggAccumulator<BigDecimal, DecimalVector> {
 
   private final byte[] valueBuffer = new byte[DecimalVector.TYPE_WIDTH];
-  public BigDecimalArrayAggAccumulator(FieldVector input, FieldVector transferVector, int maxValuesPerBatch,
-                                       BaseValueVector tempAccumulatorHolder, BufferAllocator allocator) {
+
+  public BigDecimalArrayAggAccumulator(
+      FieldVector input,
+      FieldVector transferVector,
+      int maxValuesPerBatch,
+      BaseValueVector tempAccumulatorHolder,
+      BufferAllocator allocator) {
     super(input, transferVector, maxValuesPerBatch, tempAccumulatorHolder, allocator);
   }
 
@@ -47,15 +51,16 @@ public final class BigDecimalArrayAggAccumulator extends BaseArrayAggAccumulator
 
   @Override
   protected BaseArrayAggAccumulatorHolder<BigDecimal, DecimalVector> getAccumulatorHolder(
-    int maxValuesPerBatch, BufferAllocator allocator) {
-    return new BigDecimalArrayAggAccumulatorHolder(maxValuesPerBatch, allocator,
-      (DecimalVector) getInput());
+      int maxValuesPerBatch, BufferAllocator allocator) {
+    return new BigDecimalArrayAggAccumulatorHolder(
+        maxValuesPerBatch, allocator, (DecimalVector) getInput());
   }
 
   @Override
-  protected BigDecimal getElement(long baseAddress, int itemIndex, ArrowBuf dataBuffer, ArrowBuf offsetBuffer) {
+  protected BigDecimal getElement(
+      long baseAddress, int itemIndex, ArrowBuf dataBuffer, ArrowBuf offsetBuffer) {
     long offHeapMemoryAddress = getOffHeapAddressForFixedWidthTypes(baseAddress, itemIndex);
-    final int scale = ((DecimalVector)getInput()).getScale();
+    final int scale = ((DecimalVector) getInput()).getScale();
     return DecimalAccumulatorUtils.getBigDecimal(offHeapMemoryAddress, valueBuffer, scale);
   }
 }

@@ -15,14 +15,13 @@
  */
 package com.dremio.exec.store.dfs;
 
-import java.util.List;
-
 import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.io.file.Path;
+import java.util.List;
 
-public abstract class FileSystemConf<C extends FileSystemConf<C, P>, P extends FileSystemPlugin<C>> extends ConnectionConf<C, P>
-  implements AsyncStreamConf, MutablePluginConf {
+public abstract class FileSystemConf<C extends FileSystemConf<C, P>, P extends FileSystemPlugin<C>>
+    extends ConnectionConf<C, P> implements AsyncStreamConf, MutablePluginConf {
   public abstract Path getPath();
 
   public abstract boolean isImpersonationEnabled();
@@ -37,15 +36,14 @@ public abstract class FileSystemConf<C extends FileSystemConf<C, P>, P extends F
 
   /**
    * Whether the plugin should automatically create the requested path if it doesn't already exist.
+   *
    * @return {@code true} if a missing path should be created.
    */
   public boolean createIfMissing() {
     return false;
   }
 
-  /**
-   * Defines the constants used for cloud file systems.
-   */
+  /** Defines the constants used for cloud file systems. */
   public enum CloudFileSystemScheme {
     S3_FILE_SYSTEM_SCHEME("dremioS3"),
     ADL_FILE_SYSTEM_SCHEME("dremioAdl"),
@@ -53,6 +51,7 @@ public abstract class FileSystemConf<C extends FileSystemConf<C, P>, P extends F
     GOOGLE_CLOUD_FILE_SYSTEM("dremiogcs");
 
     private String scheme;
+
     CloudFileSystemScheme(String scheme) {
       this.scheme = scheme;
     }
@@ -63,6 +62,7 @@ public abstract class FileSystemConf<C extends FileSystemConf<C, P>, P extends F
 
     /**
      * Create a CacheProperties object
+     *
      * @param enabled Whether it should be enabled.
      * @param limitPct The limit pct.
      * @return The CacheProperties object.
@@ -72,21 +72,23 @@ public abstract class FileSystemConf<C extends FileSystemConf<C, P>, P extends F
         @Override
         public int cacheMaxSpaceLimitPct() {
           return limitPct;
-        }};
+        }
+      };
     }
   }
+
   /**
    * Is the scheme in path belongs to a cloud file system.
+   *
    * @param connectionOrScheme connection string or scheme
    * @return true if scheme is found in CloudFileSystemScheme.
    */
   public static boolean isCloudFileSystemScheme(String connectionOrScheme) {
-    for(CloudFileSystemScheme cloudFS: CloudFileSystemScheme.values()) {
+    for (CloudFileSystemScheme cloudFS : CloudFileSystemScheme.values()) {
       if (connectionOrScheme.startsWith(cloudFS.getScheme())) {
         return true;
       }
     }
     return false;
   }
-
 }

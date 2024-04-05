@@ -30,26 +30,38 @@ import org.apache.arrow.vector.complex.writer.TimeStampMilliWriter;
 import org.apache.arrow.vector.complex.writer.VarBinaryWriter;
 import org.apache.arrow.vector.complex.writer.VarCharWriter;
 
-/**
- * hides the specific writer implementation passed to {@link ParquetGroupConverter}
- */
+/** hides the specific writer implementation passed to {@link ParquetGroupConverter} */
 interface WriterProvider {
 
-  //TODO I should probably just pass a StructOrListWriter
+  // TODO I should probably just pass a StructOrListWriter
   StructWriter struct(String name);
+
   MapWriter map(String name);
+
   ListWriter list(String name);
+
   IntWriter integer(String name);
+
   DecimalWriter decimal(String name, int scale, int precision);
+
   DecimalWriter decimal(String name);
+
   DateMilliWriter date(String name);
+
   TimeMilliWriter time(String name);
+
   BigIntWriter bigInt(String name);
+
   TimeStampMilliWriter timeStamp(String name);
+
   VarBinaryWriter varBinary(String name);
+
   Float4Writer float4(String name);
+
   Float8Writer float8(String name);
+
   BitWriter bit(String name);
+
   VarCharWriter varChar(String name);
 
   class StructWriterProvider implements WriterProvider {

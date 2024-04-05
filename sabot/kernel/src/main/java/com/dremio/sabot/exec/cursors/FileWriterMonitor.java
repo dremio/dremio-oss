@@ -18,9 +18,7 @@ package com.dremio.sabot.exec.cursors;
 import com.dremio.sabot.threads.sharedres.SharedResource;
 import com.google.common.base.Preconditions;
 
-/**
- * Monitor to block writer if it's gets too much ahead of the readers.
- */
+/** Monitor to block writer if it's gets too much ahead of the readers. */
 class FileWriterMonitor {
   private static final int MAX_GAP = 3;
   private final SharedResource resource;

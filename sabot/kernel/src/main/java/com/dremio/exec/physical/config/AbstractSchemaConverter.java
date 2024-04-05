@@ -15,10 +15,9 @@
  */
 package com.dremio.exec.physical.config;
 
+import com.dremio.common.expression.AbstractArrowTypeVisitor;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
-
-import com.dremio.common.expression.AbstractArrowTypeVisitor;
 
 public class AbstractSchemaConverter extends AbstractArrowTypeVisitor<Field> {
 
@@ -30,7 +29,7 @@ public class AbstractSchemaConverter extends AbstractArrowTypeVisitor<Field> {
   }
 
   @Override
-  public Field visitGeneric(ArrowType type){
+  public Field visitGeneric(ArrowType type) {
     return field;
   }
 }

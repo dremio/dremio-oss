@@ -16,9 +16,11 @@
 
 package com.dremio.exec.store.pojo;
 
+import com.dremio.common.exceptions.ExecutionSetupException;
+import com.dremio.exec.store.SampleMutator;
+import com.dremio.test.AllocatorRule;
 import java.util.Arrays;
 import java.util.List;
-
 import org.apache.arrow.memory.BufferAllocator;
 import org.junit.After;
 import org.junit.Assert;
@@ -26,16 +28,11 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
-import com.dremio.common.exceptions.ExecutionSetupException;
-import com.dremio.exec.store.SampleMutator;
-import com.dremio.test.AllocatorRule;
-
 public class TestPojoRecordReader {
 
   private BufferAllocator testAllocator;
 
-  @Rule
-  public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
+  @Rule public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
 
   @Before
   public void setupBeforeTest() {
@@ -50,13 +47,13 @@ public class TestPojoRecordReader {
   @Test
   public void testPojoReaderBatched() throws ExecutionSetupException {
 
-    TestPojo obj1 = new TestPojo(1,2);
-    TestPojo obj2 = new TestPojo(1,2);
+    TestPojo obj1 = new TestPojo(1, 2);
+    TestPojo obj2 = new TestPojo(1, 2);
     List<TestPojo> list = Arrays.asList(obj1, obj2);
 
-    try (PojoRecordReader<TestPojo> reader = new PojoRecordReader<>(TestPojo.class, list.iterator(),
-            null, 1 );
-         SampleMutator mutator = new SampleMutator(testAllocator)) {
+    try (PojoRecordReader<TestPojo> reader =
+            new PojoRecordReader<>(TestPojo.class, list.iterator(), null, 1);
+        SampleMutator mutator = new SampleMutator(testAllocator)) {
       reader.setup(mutator);
       int size = reader.next();
       Assert.assertTrue(size == 1);
@@ -64,7 +61,6 @@ public class TestPojoRecordReader {
       Assert.assertTrue(reader.next() == 0);
     }
   }
-
 }
 
 class TestPojo {

@@ -22,8 +22,8 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * Response when a run and transformation are applied simultaneously. (Currently
- * only possible when modifying sql.)
+ * Response when a run and transformation are applied simultaneously. (Currently only possible when
+ * modifying sql.)
  */
 public class InitialTransformAndRunResponse {
   private final String paginationUrl;
@@ -47,8 +47,10 @@ public class InitialTransformAndRunResponse {
     this.history = history;
   }
 
-  public static InitialTransformAndRunResponse of(DatasetUI dataset, JobId jobId, SessionId sessionId, History history) {
-    return new InitialTransformAndRunResponse(JobResource.getPaginationURL(jobId), dataset, jobId, sessionId, history);
+  public static InitialTransformAndRunResponse of(
+      DatasetUI dataset, JobId jobId, SessionId sessionId, History history) {
+    return new InitialTransformAndRunResponse(
+        JobResource.getPaginationURL(jobId), dataset, jobId, sessionId, history);
   }
 
   public String getPaginationUrl() {
@@ -70,5 +72,4 @@ public class InitialTransformAndRunResponse {
   public History getHistory() {
     return history;
   }
-
 }

@@ -15,44 +15,39 @@
  */
 package com.dremio.exec.store.mfunctions;
 
+import com.dremio.exec.planner.logical.Rel;
+import com.dremio.exec.store.MFunctionCatalogMetadata;
 import java.util.List;
-
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.type.RelDataType;
 
-import com.dremio.exec.planner.logical.Rel;
-import com.dremio.exec.store.MFunctionCatalogMetadata;
-
-/**
- * Drel implementation of metadata functions scan.
- */
+/** Drel implementation of metadata functions scan. */
 final class MFunctionQueryScanDrel extends MFunctionQueryRelBase implements Rel {
 
-  public MFunctionQueryScanDrel(RelOptCluster cluster, RelTraitSet traitSet, RelDataType rowType,
-                                MFunctionCatalogMetadata tableMetadata, String user, String metadataLocation ) {
+  public MFunctionQueryScanDrel(
+      RelOptCluster cluster,
+      RelTraitSet traitSet,
+      RelDataType rowType,
+      MFunctionCatalogMetadata tableMetadata,
+      String user,
+      String metadataLocation) {
     super(cluster, traitSet, rowType, tableMetadata, user, metadataLocation);
   }
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
     return new MFunctionQueryScanDrel(
-      getCluster(),
-      getTraitSet(),
-      getRowType(),
-      tableMetadata,
-      user,
-      metadataLocation);
+        getCluster(), getTraitSet(), getRowType(), tableMetadata, user, metadataLocation);
   }
 
   @Override
   public final RelWriter explainTerms(RelWriter pw) {
     return super.explainTerms(pw)
-      .item("source", tableMetadata.getStoragePluginId().getName())
-      .item("mFunction", tableMetadata.getMetadataFunctionName().getName())
-      .item("table", tableMetadata.getNamespaceKey().getPathComponents());
+        .item("source", tableMetadata.getStoragePluginId().getName())
+        .item("mFunction", tableMetadata.getMetadataFunctionName().getName())
+        .item("table", tableMetadata.getNamespaceKey().getPathComponents());
   }
-
 }

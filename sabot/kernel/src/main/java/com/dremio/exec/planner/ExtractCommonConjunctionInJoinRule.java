@@ -21,12 +21,12 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.tools.RelBuilder;
 
 /**
- * Rewrite filter conditions to avoid NLJ
- * E.g., (t1.x = t2.y AND ….) OR (t1.x = t2.y AND ….)
- * can be rewritten as (t1.x = t2.y) AND (… OR …)
+ * Rewrite filter conditions to avoid NLJ E.g., (t1.x = t2.y AND ….) OR (t1.x = t2.y AND ….) can be
+ * rewritten as (t1.x = t2.y) AND (… OR …)
  */
 public class ExtractCommonConjunctionInJoinRule extends ExtractCommonConjunctionRule {
-  public static final ExtractCommonConjunctionInJoinRule INSTANCE = new ExtractCommonConjunctionInJoinRule();
+  public static final ExtractCommonConjunctionInJoinRule INSTANCE =
+      new ExtractCommonConjunctionInJoinRule();
 
   private ExtractCommonConjunctionInJoinRule() {
     super(operand(LogicalJoin.class, any()), "ExtractCommonConjunctionsInJoin");
@@ -36,14 +36,15 @@ public class ExtractCommonConjunctionInJoinRule extends ExtractCommonConjunction
   public void onMatch(RelOptRuleCall call) {
     LogicalJoin join = call.rel(0);
     RexNode condition = join.getCondition();
-    RexNode newCondition = new RexConjunctionExtractor(join.getCluster().getRexBuilder()).apply(condition);
+    RexNode newCondition =
+        new RexConjunctionExtractor(join.getCluster().getRexBuilder()).apply(condition);
     if (condition != newCondition) {
-      final RelBuilder relBuilder = call.builder()
-        .push(join.getLeft())
-        .push(join.getRight())
-        .join(join.getJoinType(), newCondition);
+      final RelBuilder relBuilder =
+          call.builder()
+              .push(join.getLeft())
+              .push(join.getRight())
+              .join(join.getJoinType(), newCondition);
       call.transformTo(relBuilder.build());
     }
   }
-
 }

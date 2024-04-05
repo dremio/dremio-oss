@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <!--
 
     Copyright (C) 2017-2019 Dremio Corporation
@@ -15,14 +16,13 @@
     limitations under the License.
 
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-dac-parent</artifactId>
-    <version>24.3.2-202401241821100032-d2d8a497</version>
+    <version>25.0.0-202404051521110861-ed9515a8</version>
   </parent>
 
   <artifactId>dremio-dac-backend</artifactId>
@@ -33,8 +33,8 @@
     <dependency>
       <groupId>com.dremio.services</groupId>
       <artifactId>dremio-services-accelerator</artifactId>
-      <classifier>proto</classifier>
       <version>${project.version}</version>
+      <classifier>proto</classifier>
     </dependency>
     <dependency>
       <groupId>com.dremio.services</groupId>
@@ -44,8 +44,8 @@
     <dependency>
       <groupId>com.dremio.services</groupId>
       <artifactId>dremio-services-jobs</artifactId>
-      <classifier>proto</classifier>
       <version>${project.version}</version>
+      <classifier>proto</classifier>
     </dependency>
     <dependency>
       <groupId>com.dremio.services</groupId>
@@ -63,20 +63,20 @@
     <dependency>
       <groupId>com.dremio.services</groupId>
       <artifactId>dremio-services-namespace</artifactId>
-      <classifier>proto</classifier>
       <version>${project.version}</version>
+      <classifier>proto</classifier>
     </dependency>
     <dependency>
       <groupId>com.dremio</groupId>
       <artifactId>dremio-protocol</artifactId>
-      <classifier>proto</classifier>
       <version>${project.version}</version>
+      <classifier>proto</classifier>
     </dependency>
     <dependency>
       <groupId>com.dremio.sabot</groupId>
       <artifactId>dremio-sabot-kernel</artifactId>
-      <classifier>proto</classifier>
       <version>${project.version}</version>
+      <classifier>proto</classifier>
     </dependency>
     <dependency>
       <groupId>com.dremio.sabot</groupId>
@@ -87,8 +87,8 @@
     <dependency>
       <groupId>com.dremio.services</groupId>
       <artifactId>dremio-services-datastore</artifactId>
-      <classifier>proto</classifier>
       <version>${project.version}</version>
+      <classifier>proto</classifier>
     </dependency>
     <dependency>
       <groupId>com.dremio.services</groupId>
@@ -101,13 +101,7 @@
     </dependency>
     <dependency>
       <groupId>com.dremio.services</groupId>
-      <artifactId>dremio-services-nessie</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.projectnessie.nessie</groupId>
-      <artifactId>nessie-versioned-persist-testextension</artifactId>
-      <version>${nessie.version}</version>
-      <scope>test</scope>
+      <artifactId>dremio-services-embedded-metadata-pointer</artifactId>
     </dependency>
     <dependency>
       <groupId>com.dremio.services</groupId>
@@ -269,8 +263,9 @@
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.apache.zookeeper</groupId>
-      <artifactId>zookeeper</artifactId>
+      <groupId>com.dremio.common</groupId>
+      <artifactId>dremio-common-zookeeper</artifactId>
+      <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>org.apache.commons</groupId>
@@ -289,9 +284,9 @@
     <dependency>
       <groupId>com.dremio.sabot</groupId>
       <artifactId>dremio-sabot-kernel</artifactId>
+      <version>${project.version}</version>
       <classifier>tests</classifier>
       <type>test-jar</type>
-      <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -302,9 +297,9 @@
     <dependency>
       <groupId>com.dremio</groupId>
       <artifactId>dremio-common</artifactId>
+      <version>${project.version}</version>
       <classifier>tests</classifier>
       <type>test-jar</type>
-      <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -346,8 +341,8 @@
       <artifactId>jersey-mvc-freemarker</artifactId>
       <exclusions>
         <exclusion>
-          <artifactId>servlet-api</artifactId>
           <groupId>javax.servlet</groupId>
+          <artifactId>servlet-api</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
@@ -390,6 +385,11 @@
       <artifactId>hibernate-validator</artifactId>
     </dependency>
     <dependency>
+      <groupId>javax.ws.rs</groupId>
+      <artifactId>javax.ws.rs-api</artifactId>
+      <version>${javax.ws.rs-api.version}</version>
+    </dependency>
+    <dependency>
       <groupId>org.glassfish</groupId>
       <artifactId>javax.el</artifactId>
     </dependency>
@@ -419,6 +419,11 @@
     </dependency>
     <dependency>
       <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-nessie-restjavax</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
       <artifactId>dremio-services-nessie-proxy</artifactId>
       <version>${project.version}</version>
     </dependency>
@@ -438,20 +443,20 @@
       <version>${project.version}</version>
     </dependency>
     <dependency>
-        <groupId>com.dremio.services</groupId>
-        <artifactId>dremio-services-arrow-flight-common</artifactId>
-        <version>${project.version}</version>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-arrow-flight-common</artifactId>
+      <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>com.dremio.services</groupId>
       <artifactId>dremio-credential-provider</artifactId>
       <version>${project.version}</version>
     </dependency>
-      <dependency>
-          <groupId>com.dremio.community.plugins</groupId>
-          <artifactId>dremio-ce-jdbc-plugin</artifactId>
-          <version>${project.version}</version>
-      </dependency>
+    <dependency>
+      <groupId>com.dremio.community.plugins</groupId>
+      <artifactId>dremio-ce-jdbc-plugin</artifactId>
+      <version>${project.version}</version>
+    </dependency>
     <dependency>
       <groupId>io.findify</groupId>
       <artifactId>s3mock_2.12</artifactId>
@@ -460,9 +465,9 @@
     <dependency>
       <groupId>com.dremio.services</groupId>
       <artifactId>dremio-services-nessie-proxy</artifactId>
+      <version>${project.version}</version>
       <classifier>tests</classifier>
       <type>test-jar</type>
-      <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -496,6 +501,11 @@
       <artifactId>dremio-services-systemicebergtablescleaner</artifactId>
       <version>${project.version}</version>
     </dependency>
+    <dependency>
+      <groupId>com.azure</groupId>
+      <artifactId>azure-storage-blob</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
@@ -528,10 +538,10 @@
         <artifactId>exec-maven-plugin</artifactId>
         <executions>
           <execution>
-            <phase>process-classes</phase>
             <goals>
               <goal>java</goal>
             </goals>
+            <phase>process-classes</phase>
             <configuration>
               <mainClass>com.dremio.common.scanner.BuildTimeScan</mainClass>
               <arguments>
@@ -546,10 +556,10 @@
         <executions>
           <execution>
             <id>copy-sources-as-resources</id>
-            <phase>process-sources</phase>
             <goals>
               <goal>copy-resources</goal>
             </goals>
+            <phase>process-sources</phase>
             <configuration>
               <outputDirectory>${project.build.outputDirectory}</outputDirectory>
               <resources>
@@ -565,10 +575,10 @@
           </execution>
           <execution>
             <id>copy-test-sources-as-resources</id>
-            <phase>process-test-sources</phase>
             <goals>
               <goal>copy-resources</goal>
             </goals>
+            <phase>process-test-sources</phase>
             <configuration>
               <outputDirectory>${project.build.testOutputDirectory}</outputDirectory>
               <resources>
@@ -614,21 +624,24 @@
         <executions>
           <execution>
             <id>generate-sources</id>
-            <phase>generate-sources</phase>
             <goals>
               <goal>compile</goal>
             </goals>
+            <phase>generate-sources</phase>
           </execution>
         </executions>
       </plugin>
-      <plugin> <!-- generate sources from fmpp -->
+      <plugin>
+        <!-- generate sources from fmpp -->
         <groupId>com.dremio.tools</groupId>
         <artifactId>dremio-fmpp-maven-plugin</artifactId>
         <executions>
           <execution>
             <id>generate-fmpp</id>
+            <goals>
+              <goal>generate</goal>
+            </goals>
             <phase>generate-sources</phase>
-            <goals><goal>generate</goal></goals>
             <configuration>
               <config>src/main/codegen/config.fmpp</config>
               <output>${project.build.directory}/generated-sources/fmpp</output>
@@ -643,21 +656,21 @@
         <executions>
           <execution>
             <id>generate-proto</id>
-            <phase>generate-sources</phase>
             <goals>
               <goal>compile</goal>
             </goals>
+            <phase>generate-sources</phase>
             <configuration>
               <protoSourceRoot>${basedir}/src/main/rpc</protoSourceRoot>
             </configuration>
           </execution>
           <execution>
             <id>generate-protobuf</id>
-            <phase>generate-sources</phase>
             <goals>
               <goal>compile</goal>
               <goal>compile-custom</goal>
             </goals>
+            <phase>generate-sources</phase>
             <configuration>
               <protoSourceRoot>${project.basedir}/src/main/protobuf</protoSourceRoot>
               <pluginId>grpc-java</pluginId>
@@ -674,10 +687,10 @@
         <executions>
           <execution>
             <id>proto-jar-resources</id>
-            <phase>package</phase>
             <goals>
               <goal>jar</goal>
             </goals>
+            <phase>package</phase>
             <configuration>
               <classesDirectory>${project.basedir}/src/main/proto</classesDirectory>
               <classifier>proto</classifier>
@@ -734,61 +747,7 @@
           </execution>
         </executions>
       </plugin>
-      <plugin>
-        <artifactId>maven-failsafe-plugin</artifactId>
-        <configuration>
-          <systemPropertyVariables>
-            <!-- The value is provided by nessie-runner-maven-plugin -->
-            <nessie.server.url>${nessie.server.url}</nessie.server.url>
-          </systemPropertyVariables>
-        </configuration>
-      </plugin>
-      <plugin>
-        <groupId>org.projectnessie.nessie-runner</groupId>
-        <artifactId>nessie-runner-maven-plugin</artifactId>
-        <configuration>
-          <skip>${skipTests}</skip>
-          <!-- Preferred way, specify the GAV of the Nessie Quarkus server runnable (uber-jar) -->
-          <appArtifactId>org.projectnessie.nessie:nessie-quarkus:jar:runner:${nessie.version}</appArtifactId>
-          <systemProperties>
-            <!-- The IN_MEMORY store type implies the "new" storage model (full pagination support). -->
-            <nessie.version.store.type>IN_MEMORY</nessie.version.store.type>
-            <nessie.version.store.persist.cache-capacity-mb>1</nessie.version.store.persist.cache-capacity-mb>
-          </systemProperties>
-          <environment>
-            <!-- Jenkins sets OTEL_TRACES_EXPORTER and other OTEL config variables to monitor builds. However,
-            those settins break recent Nessie servers, which must be configured in a Quarkus-specific way.
-            Therefore, we override this main config variable here to un-enable tracing in Nessie during tests. -->
-            <OTEL_TRACES_EXPORTER>none</OTEL_TRACES_EXPORTER>
-          </environment>
-          <httpListenPortProperty>nessie.server.http.port</httpListenPortProperty>
-          <httpListenUrlProperty>nessie.server.url</httpListenUrlProperty>
-        </configuration>
-        <executions>
-          <execution>
-            <!-- Start the Nessie Server before the integration tests start -->
-            <id>start</id>
-            <phase>pre-integration-test</phase>
-            <goals><goal>start</goal></goals>
-          </execution>
-          <execution>
-            <!-- Stop the Nessie Server after the integration tests finished -->
-            <id>stop</id>
-            <phase>post-integration-test</phase>
-            <goals><goal>stop</goal></goals>
-          </execution>
-        </executions>
-      </plugin>
     </plugins>
-    <testResources>
-      <testResource>
-        <directory>${project.basedir}/src/test/resources</directory>
-      </testResource>
-      <testResource>
-        <directory>${project.basedir}/src/test/resources-nessie</directory>
-        <filtering>true</filtering>
-      </testResource>
-    </testResources>
   </build>
 
   <profiles>
@@ -802,6 +761,7 @@
       <build>
         <plugins>
           <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-compiler-plugin</artifactId>
             <configuration>
               <testExcludes>
@@ -810,13 +770,9 @@
                 <testExclude>com/dremio/dac/explore/TestAccelerationSettingsFromAPI.java</testExclude>
                 <testExclude>com/dremio/dac/explore/TestDatasetResource.java</testExclude>
                 <testExclude>com/dremio/dac/resource/TestNessieSourceResource.java</testExclude>
-                <testExclude>com/dremio/dac/resource/ITNessieSourceApi.java</testExclude>
                 <testExclude>com/dremio/dac/service/TestCatalogServiceHelperForVersioned.java</testExclude>
                 <testExclude>com/dremio/dac/service/source/TestSourceService.java</testExclude>
                 <testExclude>com/dremio/dac/service/datasets/TestDatasetVersionMutator.java</testExclude>
-                <testExclude>com/dremio/exec/catalog/dataplane/ITDataplanePlugin.java</testExclude>
-                <testExclude>com/dremio/exec/catalog/dataplane/ITDatasetVersionContext.java</testExclude>
-                <testExclude>com/dremio/exec/planner/sql/TestContextSettingsInPlanProfile.java</testExclude>
                 <testExclude>com/dremio/exec/planner/sql/handlers/TestShowTagsHandler.java</testExclude>
                 <testExclude>com/dremio/exec/planner/sql/handlers/TestDropTagHandler.java</testExclude>
                 <testExclude>com/dremio/exec/planner/sql/handlers/TestShowLogsHandler.java</testExclude>
@@ -831,24 +787,8 @@
                 <testExclude>com/dremio/exec/planner/sql/handlers/TestDropBranchHandler.java</testExclude>
                 <testExclude>com/dremio/exec/planner/sql/handlers/TestAssignTagHandler.java</testExclude>
                 <testExclude>com/dremio/exec/planner/sql/handlers/TestCreateFolderHandler.java</testExclude>
-                <testExclude>com/dremio/dac/service/datasets/ITTestVersionedViews.java</testExclude>
-                <testExclude>com/dremio/dac/service/datasets/ITVersionedSourceCollaborationResource.java</testExclude>
               </testExcludes>
             </configuration>
-            <executions>
-              <execution>
-                <id>default-testCompile</id>
-                <phase>test-compile</phase>
-                <configuration>
-                  <testExcludes>
-                    <exclude>com/dremio/exec/catalog/dataplane/*.java</exclude>
-                  </testExcludes>
-                </configuration>
-                <goals>
-                  <goal>testCompile</goal>
-                </goals>
-              </execution>
-            </executions>
           </plugin>
         </plugins>
       </build>

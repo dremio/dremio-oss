@@ -15,8 +15,12 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.dremio.exec.ops.QueryContext;
+import com.dremio.exec.planner.sql.handlers.direct.DropPrimaryKeyHandler;
+import com.dremio.exec.planner.sql.handlers.direct.SimpleDirectHandler;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import java.util.List;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -27,33 +31,28 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.dremio.exec.ops.QueryContext;
-import com.dremio.exec.planner.sql.handlers.direct.DropPrimaryKeyHandler;
-import com.dremio.exec.planner.sql.handlers.direct.SimpleDirectHandler;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
+/** ALTER TABLE tblname DROP PRIMARY KEY */
+public class SqlAlterTableDropPrimaryKey extends SqlAlterTable
+    implements SimpleDirectHandler.Creator {
 
-/**
- * ALTER TABLE tblname DROP PRIMARY KEY
- */
-public class SqlAlterTableDropPrimaryKey extends SqlAlterTable implements SimpleDirectHandler.Creator {
+  public static final SqlSpecialOperator DROP_PRIMARY_KEY_OPERATOR =
+      new SqlSpecialOperator("DROP_PRIMARY_KEY", SqlKind.ALTER_TABLE) {
 
-  public static final SqlSpecialOperator DROP_PRIMARY_KEY_OPERATOR = new SqlSpecialOperator("DROP_PRIMARY_KEY", SqlKind.ALTER_TABLE) {
+        @Override
+        public SqlCall createCall(
+            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+          Preconditions.checkArgument(
+              operands.length == 2,
+              "SqlAlterTableDropPrimaryKey.createCall() " + "has to get 2 operands!");
 
-    @Override
-    public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 2, "SqlAlterTableDropPrimaryKey.createCall() " +
-          "has to get 2 operands!");
-
-      return new SqlAlterTableDropPrimaryKey(
-          pos,
-          (SqlIdentifier) operands[0],
-          (SqlTableVersionSpec) operands[1]);
-    }
-  };
+          return new SqlAlterTableDropPrimaryKey(
+              pos, (SqlIdentifier) operands[0], (SqlTableVersionSpec) operands[1]);
+        }
+      };
   protected final SqlTableVersionSpec sqlTableVersionSpec;
 
-  public SqlAlterTableDropPrimaryKey(SqlParserPos pos, SqlIdentifier tblName, SqlTableVersionSpec sqlTableVersionSpec) {
+  public SqlAlterTableDropPrimaryKey(
+      SqlParserPos pos, SqlIdentifier tblName, SqlTableVersionSpec sqlTableVersionSpec) {
     super(pos, tblName);
     this.sqlTableVersionSpec = sqlTableVersionSpec;
   }

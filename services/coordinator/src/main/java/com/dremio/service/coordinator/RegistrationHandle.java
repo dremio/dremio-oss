@@ -15,14 +15,12 @@
  */
 package com.dremio.service.coordinator;
 
-/**
- * Handle returned by {@code ServiceSet} to unregister itself
- */
+/** Handle returned by {@code ServiceSet} to unregister itself */
 public interface RegistrationHandle extends AutoCloseable {
   /**
    * Unregister the handle
    *
-   * Close the handle, causing the coordinator to unregister the node
+   * <p>Close the handle, causing the coordinator to unregister the node
    */
   @Override
   void close();

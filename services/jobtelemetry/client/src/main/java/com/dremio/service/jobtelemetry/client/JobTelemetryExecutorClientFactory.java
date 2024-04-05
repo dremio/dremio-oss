@@ -18,9 +18,7 @@ package com.dremio.service.jobtelemetry.client;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.service.Service;
 
-/**
- * Factory for creating the job telemetry client.
- */
+/** Factory for creating the job telemetry client. */
 public interface JobTelemetryExecutorClientFactory extends Service {
   public JobTelemetryExecutorClient getClient(CoordinationProtos.NodeEndpoint endpoint);
 }

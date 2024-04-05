@@ -24,19 +24,19 @@ import org.apache.calcite.sql.type.SqlOperandCountRanges;
 import org.apache.calcite.sql.type.SqlOperandTypeChecker;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
 
-public class HiveUDFOperator extends SqlFunctionImpl{
+public class HiveUDFOperator extends SqlFunctionImpl {
   public HiveUDFOperator(String name, SqlReturnTypeInference sqlReturnTypeInference) {
     super(
-      name,
-      sqlReturnTypeInference,
-      ArgChecker.INSTANCE,
-      Source.HIVE,
-      // Consider Hive functions to be non-deterministic so they are not folded at
-      // planning time. The expression interpreter used to evaluate constant expressions
-      // currently does not support anything but simple functions.
-      false,
-      false,
-      SqlSyntax.FUNCTION);
+        name,
+        sqlReturnTypeInference,
+        ArgChecker.INSTANCE,
+        Source.HIVE,
+        // Consider Hive functions to be non-deterministic so they are not folded at
+        // planning time. The expression interpreter used to evaluate constant expressions
+        // currently does not support anything but simple functions.
+        false,
+        false,
+        SqlSyntax.FUNCTION);
   }
 
   /** Argument Checker for variable number of arguments */

@@ -15,9 +15,7 @@
  */
 package com.dremio.sabot.op.common.ht2;
 
-/**
- * Thrown when {@link LBlockHashTable} reaches maximum size it can support.
- */
+/** Thrown when {@link LBlockHashTable} reaches maximum size it can support. */
 public class HashTableMaxCapacityReachedException extends RuntimeException {
 
   public HashTableMaxCapacityReachedException(int currentSize) {

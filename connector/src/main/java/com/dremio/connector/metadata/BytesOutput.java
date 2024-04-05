@@ -18,9 +18,7 @@ package com.dremio.connector.metadata;
 import java.io.IOException;
 import java.io.OutputStream;
 
-/**
- * Generic output of bytes.
- */
+/** Generic output of bytes. */
 public interface BytesOutput {
   BytesOutput NONE = os -> {};
 
@@ -31,5 +29,4 @@ public interface BytesOutput {
    * @throws IOException if there are errors while writing
    */
   void writeTo(OutputStream os) throws IOException;
-
 }

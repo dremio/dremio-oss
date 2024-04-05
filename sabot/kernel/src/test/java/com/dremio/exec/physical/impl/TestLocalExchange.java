@@ -20,20 +20,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.util.List;
-
-import org.apache.commons.lang3.StringUtils;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Ignore;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.mockito.Mockito;
-
 import com.dremio.PlanTestBase;
 import com.dremio.TestBuilder;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
@@ -69,16 +55,27 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
+import java.io.File;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.util.List;
+import org.apache.commons.lang3.StringUtils;
+import org.junit.AfterClass;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Ignore;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
+import org.mockito.Mockito;
 
 /**
  * This test starts a Drill cluster with CLUSTER_SIZE nodes and generates data for test tables.
  *
- * Tests queries involve HashToRandomExchange (group by and join) and test the following.
- *   1. Plan that has mux and demux exchanges inserted
- *   2. Run the query and check the output record count
- *   3. Take the plan we got in (1), use SimpleParallelizer to get PlanFragments and test that the number of
- *   partition senders in a major fragment is not more than the number of SabotNode nodes in cluster and there exists
- *   at most one partition sender per SabotNode.
+ * <p>Tests queries involve HashToRandomExchange (group by and join) and test the following. 1. Plan
+ * that has mux and demux exchanges inserted 2. Run the query and check the output record count 3.
+ * Take the plan we got in (1), use SimpleParallelizer to get PlanFragments and test that the number
+ * of partition senders in a major fragment is not more than the number of SabotNode nodes in
+ * cluster and there exists at most one partition sender per SabotNode.
  */
 @Ignore("DX-3475")
 public class TestLocalExchange extends PlanTestBase {
@@ -91,12 +88,13 @@ public class TestLocalExchange extends PlanTestBase {
   private static final String MUX_EXCHANGE_CONST = "unordered-mux-exchange";
   private static final String DEMUX_EXCHANGE_CONST = "unordered-demux-exchange";
   private static final String HASH_EXCHANGE = "hash-to-random-exchange";
-  private static final UserSession USER_SESSION = UserSession.Builder.newBuilder()
-    .withSessionOptionManager(
-      new SessionOptionManagerImpl(getSabotContext().getOptionValidatorListing()),
-      getSabotContext().getOptionManager())
-    .withCredentials(UserBitShared.UserCredentials.newBuilder().setUserName("foo").build())
-      .build();
+  private static final UserSession USER_SESSION =
+      UserSession.Builder.newBuilder()
+          .withSessionOptionManager(
+              new SessionOptionManagerImpl(getSabotContext().getOptionValidatorListing()),
+              getSabotContext().getOptionManager())
+          .withCredentials(UserBitShared.UserCredentials.newBuilder().setUserName("foo").build())
+          .build();
 
   private SimpleParallelizer PARALLELIZER;
 
@@ -127,9 +125,7 @@ public class TestLocalExchange extends PlanTestBase {
     testTempFolder.create();
   }
 
-  /**
-   * Generate data for two tables. Each table consists of several JSON files.
-   */
+  /** Generate data for two tables. Each table consists of several JSON files. */
   @BeforeClass
   public static void generateTestDataAndQueries() throws Exception {
     // Table 1 consists of two columns "emp_id", "emp_name" and "dept_id"
@@ -137,12 +133,20 @@ public class TestLocalExchange extends PlanTestBase {
 
     // Write 100 records for each new file
     final int empNumRecsPerFile = 100;
-    for(int fileIndex=0; fileIndex<NUM_EMPLOYEES/empNumRecsPerFile; fileIndex++) {
+    for (int fileIndex = 0; fileIndex < NUM_EMPLOYEES / empNumRecsPerFile; fileIndex++) {
       File file = new File(empTableLocation + File.separator + fileIndex + ".json");
       PrintWriter printWriter = new PrintWriter(file);
-      for (int recordIndex = fileIndex*empNumRecsPerFile; recordIndex < (fileIndex+1)*empNumRecsPerFile; recordIndex++) {
-        String record = String.format("{ \"emp_id\" : %d, \"emp_name\" : \"Employee %d\", \"dept_id\" : %d, \"mng_id\" : %d, \"some_id\" : %d }",
-            recordIndex, recordIndex, recordIndex % NUM_DEPTS, recordIndex % NUM_MNGRS, recordIndex % NUM_IDS);
+      for (int recordIndex = fileIndex * empNumRecsPerFile;
+          recordIndex < (fileIndex + 1) * empNumRecsPerFile;
+          recordIndex++) {
+        String record =
+            String.format(
+                "{ \"emp_id\" : %d, \"emp_name\" : \"Employee %d\", \"dept_id\" : %d, \"mng_id\" : %d, \"some_id\" : %d }",
+                recordIndex,
+                recordIndex,
+                recordIndex % NUM_DEPTS,
+                recordIndex % NUM_MNGRS,
+                recordIndex % NUM_IDS);
         printWriter.println(record);
       }
       printWriter.close();
@@ -153,57 +157,70 @@ public class TestLocalExchange extends PlanTestBase {
 
     // Write 4 records for each new file
     final int deptNumRecsPerFile = 4;
-    for(int fileIndex=0; fileIndex<NUM_DEPTS/deptNumRecsPerFile; fileIndex++) {
+    for (int fileIndex = 0; fileIndex < NUM_DEPTS / deptNumRecsPerFile; fileIndex++) {
       File file = new File(deptTableLocation + File.separator + fileIndex + ".json");
       PrintWriter printWriter = new PrintWriter(file);
-      for (int recordIndex = fileIndex*deptNumRecsPerFile; recordIndex < (fileIndex+1)*deptNumRecsPerFile; recordIndex++) {
-        String record = String.format("{ \"dept_id\" : %d, \"dept_name\" : \"Department %d\" }",
-            recordIndex, recordIndex);
+      for (int recordIndex = fileIndex * deptNumRecsPerFile;
+          recordIndex < (fileIndex + 1) * deptNumRecsPerFile;
+          recordIndex++) {
+        String record =
+            String.format(
+                "{ \"dept_id\" : %d, \"dept_name\" : \"Department %d\" }",
+                recordIndex, recordIndex);
         printWriter.println(record);
       }
       printWriter.close();
     }
 
     // Initialize test queries
-    groupByQuery = String.format("SELECT dept_id, count(*) as numEmployees FROM dfs.\"%s\" GROUP BY dept_id", empTableLocation);
-    joinQuery = String.format("SELECT e.emp_name, d.dept_name FROM dfs.\"%s\" e JOIN dfs.\"%s\" d ON e.dept_id = d.dept_id",
-        empTableLocation, deptTableLocation);
+    groupByQuery =
+        String.format(
+            "SELECT dept_id, count(*) as numEmployees FROM dfs.\"%s\" GROUP BY dept_id",
+            empTableLocation);
+    joinQuery =
+        String.format(
+            "SELECT e.emp_name, d.dept_name FROM dfs.\"%s\" e JOIN dfs.\"%s\" d ON e.dept_id = d.dept_id",
+            empTableLocation, deptTableLocation);
 
-    // Generate and store output data for test queries. Used when verifying the output of queries ran using different
+    // Generate and store output data for test queries. Used when verifying the output of queries
+    // ran using different
     // configurations.
 
-    groupByQueryBaselineColumns = new String[] { "dept_id", "numEmployees" };
+    groupByQueryBaselineColumns = new String[] {"dept_id", "numEmployees"};
 
     groupByQueryBaselineValues = Lists.newArrayList();
-    // group Id is generated based on expression 'recordIndex % NUM_DEPTS' above. 'recordIndex' runs from 0 to
-    // NUM_EMPLOYEES, so we expect each number of occurrance of each dept_id to be NUM_EMPLOYEES/NUM_DEPTS (1000/40 =
+    // group Id is generated based on expression 'recordIndex % NUM_DEPTS' above. 'recordIndex' runs
+    // from 0 to
+    // NUM_EMPLOYEES, so we expect each number of occurrance of each dept_id to be
+    // NUM_EMPLOYEES/NUM_DEPTS (1000/40 =
     // 25)
-    final int numOccurrances = NUM_EMPLOYEES/NUM_DEPTS;
-    for(int i = 0; i < NUM_DEPTS; i++) {
-      groupByQueryBaselineValues.add(new Object[] { (long)i, (long)numOccurrances});
+    final int numOccurrances = NUM_EMPLOYEES / NUM_DEPTS;
+    for (int i = 0; i < NUM_DEPTS; i++) {
+      groupByQueryBaselineValues.add(new Object[] {(long) i, (long) numOccurrances});
     }
 
-    joinQueryBaselineColumns = new String[] { "emp_name", "dept_name" };
+    joinQueryBaselineColumns = new String[] {"emp_name", "dept_name"};
 
     joinQueryBaselineValues = Lists.newArrayList();
-    for(int i = 0; i < NUM_EMPLOYEES; i++) {
+    for (int i = 0; i < NUM_EMPLOYEES; i++) {
       final String employee = String.format("Employee %d", i);
       final String dept = String.format("Department %d", i % NUM_DEPTS);
-      joinQueryBaselineValues.add(new String[] { employee, dept });
+      joinQueryBaselineValues.add(new String[] {employee, dept});
     }
   }
 
   @Before
   public void initParallelizer() {
-    PARALLELIZER = new SimpleParallelizer(
-        1 /*parallelizationThreshold (slice_count)*/,
-        6 /*maxWidthPerNode*/,
-        1000 /*maxGlobalWidth*/,
-        1.2, /*affinityFactor*/
-        AbstractMaestroObserver.NOOP,
-        true,
-        1.5d,
-        false);
+    PARALLELIZER =
+        new SimpleParallelizer(
+            1 /*parallelizationThreshold (slice_count)*/,
+            6 /*maxWidthPerNode*/,
+            1000 /*maxGlobalWidth*/,
+            1.2, /*affinityFactor*/
+            AbstractMaestroObserver.NOOP,
+            true,
+            1.5d,
+            false);
   }
 
   public static void setupHelper(boolean isMuxOn, boolean isDeMuxOn) throws Exception {
@@ -223,23 +240,33 @@ public class TestLocalExchange extends PlanTestBase {
     test("ALTER SESSION SET \"planner.enable_mux_exchange\"=" + true);
     test("ALTER SESSION SET \"planner.enable_demux_exchange\"=" + false);
 
-    final String groupByMultipleQuery = String.format("SELECT dept_id, mng_id, some_id, count(*) as numEmployees FROM dfs.\"%s\" e GROUP BY dept_id, mng_id, some_id", empTableLocation);
-    final String[] groupByMultipleQueryBaselineColumns = new String[] { "dept_id", "mng_id", "some_id", "numEmployees" };
+    final String groupByMultipleQuery =
+        String.format(
+            "SELECT dept_id, mng_id, some_id, count(*) as numEmployees FROM dfs.\"%s\" e GROUP BY dept_id, mng_id, some_id",
+            empTableLocation);
+    final String[] groupByMultipleQueryBaselineColumns =
+        new String[] {"dept_id", "mng_id", "some_id", "numEmployees"};
 
-    final int numOccurrances = NUM_EMPLOYEES/NUM_DEPTS;
+    final int numOccurrances = NUM_EMPLOYEES / NUM_DEPTS;
 
     final String plan = getPlanInString("EXPLAIN PLAN FOR " + groupByMultipleQuery, JSON_FORMAT);
 
-    jsonExchangeOrderChecker(plan, false, 1, "hash32asdouble\\(.*, hash32asdouble\\(.*, hash32asdouble\\(.*\\) \\) \\) ");
+    jsonExchangeOrderChecker(
+        plan,
+        false,
+        1,
+        "hash32asdouble\\(.*, hash32asdouble\\(.*, hash32asdouble\\(.*\\) \\) \\) ");
 
     // Run the query and verify the output
-    final TestBuilder testBuilder = testBuilder()
-        .sqlQuery(groupByMultipleQuery)
-        .unOrdered()
-        .baselineColumns(groupByMultipleQueryBaselineColumns);
+    final TestBuilder testBuilder =
+        testBuilder()
+            .sqlQuery(groupByMultipleQuery)
+            .unOrdered()
+            .baselineColumns(groupByMultipleQueryBaselineColumns);
 
-    for(int i = 0; i < NUM_DEPTS; i++) {
-      testBuilder.baselineValues(new Object[] { (long)i, (long)0, (long)0, (long)numOccurrances});
+    for (int i = 0; i < NUM_DEPTS; i++) {
+      testBuilder.baselineValues(
+          new Object[] {(long) i, (long) 0, (long) 0, (long) numOccurrances});
     }
 
     testBuilder.go();
@@ -286,48 +313,73 @@ public class TestLocalExchange extends PlanTestBase {
   }
 
   private void testGroupByHelper(boolean isMuxOn, boolean isDeMuxOn) throws Exception {
-    testHelper(isMuxOn, isDeMuxOn, groupByQuery,
-        isMuxOn ? 1 : 0, isDeMuxOn ? 1 : 0,
-        groupByQueryBaselineColumns, groupByQueryBaselineValues);
+    testHelper(
+        isMuxOn,
+        isDeMuxOn,
+        groupByQuery,
+        isMuxOn ? 1 : 0,
+        isDeMuxOn ? 1 : 0,
+        groupByQueryBaselineColumns,
+        groupByQueryBaselineValues);
   }
 
   public void testJoinHelper(boolean isMuxOn, boolean isDeMuxOn) throws Exception {
-    testHelper(isMuxOn, isDeMuxOn, joinQuery,
-        isMuxOn ? 2 : 0, isDeMuxOn ? 2 : 0,
-        joinQueryBaselineColumns, joinQueryBaselineValues);
+    testHelper(
+        isMuxOn,
+        isDeMuxOn,
+        joinQuery,
+        isMuxOn ? 2 : 0,
+        isDeMuxOn ? 2 : 0,
+        joinQueryBaselineColumns,
+        joinQueryBaselineValues);
   }
 
-  private void testHelper(boolean isMuxOn, boolean isDeMuxOn, String query,
-      int expectedNumMuxes, int expectedNumDeMuxes, String[] baselineColumns, List<Object[]> baselineValues)
+  private void testHelper(
+      boolean isMuxOn,
+      boolean isDeMuxOn,
+      String query,
+      int expectedNumMuxes,
+      int expectedNumDeMuxes,
+      String[] baselineColumns,
+      List<Object[]> baselineValues)
       throws Exception {
     setupHelper(isMuxOn, isDeMuxOn);
 
     String plan = getPlanInString("EXPLAIN PLAN FOR " + query, JSON_FORMAT);
     System.out.println("Plan: " + plan);
 
-    if ( isMuxOn ) {
+    if (isMuxOn) {
       // # of hash exchanges should be = # of mux exchanges + # of demux exchanges
-      assertEquals("HashExpr on the hash column should not happen", 2*expectedNumMuxes+expectedNumDeMuxes, StringUtils.countMatches(plan, HASH_EXPR_NAME));
+      assertEquals(
+          "HashExpr on the hash column should not happen",
+          2 * expectedNumMuxes + expectedNumDeMuxes,
+          StringUtils.countMatches(plan, HASH_EXPR_NAME));
       jsonExchangeOrderChecker(plan, isDeMuxOn, expectedNumMuxes, "hash32asdouble\\(.*\\) ");
     } else {
-      assertEquals("HashExpr on the hash column should not happen", 0, StringUtils.countMatches(plan, HASH_EXPR_NAME));
+      assertEquals(
+          "HashExpr on the hash column should not happen",
+          0,
+          StringUtils.countMatches(plan, HASH_EXPR_NAME));
     }
 
     // Make sure the plan has mux and demux exchanges (TODO: currently testing is rudimentary,
-    // need to move it to sophisticated testing once we have better planning test tools are available)
-    assertEquals("Wrong number of MuxExchanges are present in the plan",
-        expectedNumMuxes, StringUtils.countMatches(plan, MUX_EXCHANGE));
+    // need to move it to sophisticated testing once we have better planning test tools are
+    // available)
+    assertEquals(
+        "Wrong number of MuxExchanges are present in the plan",
+        expectedNumMuxes,
+        StringUtils.countMatches(plan, MUX_EXCHANGE));
 
-    assertEquals("Wrong number of DeMuxExchanges are present in the plan",
-        expectedNumDeMuxes, StringUtils.countMatches(plan, DEMUX_EXCHANGE));
+    assertEquals(
+        "Wrong number of DeMuxExchanges are present in the plan",
+        expectedNumDeMuxes,
+        StringUtils.countMatches(plan, DEMUX_EXCHANGE));
 
     // Run the query and verify the output
-    TestBuilder testBuilder = testBuilder()
-        .sqlQuery(query)
-        .unOrdered()
-        .baselineColumns(baselineColumns);
+    TestBuilder testBuilder =
+        testBuilder().sqlQuery(query).unOrdered().baselineColumns(baselineColumns);
 
-    for(Object[] baselineRecord : baselineValues) {
+    for (Object[] baselineRecord : baselineValues) {
       testBuilder.baselineValues(baselineRecord);
     }
 
@@ -336,7 +388,9 @@ public class TestLocalExchange extends PlanTestBase {
     testHelperVerifyPartitionSenderParallelization(plan, isMuxOn, isDeMuxOn);
   }
 
-  private static void jsonExchangeOrderChecker(String plan, boolean isDemuxEnabled, int expectedNumMuxes, String hashExprPattern) throws Exception {
+  private static void jsonExchangeOrderChecker(
+      String plan, boolean isDemuxEnabled, int expectedNumMuxes, String hashExprPattern)
+      throws Exception {
     ObjectMapper mapper = new ObjectMapper();
     ObjectNode planObj = (ObjectNode) mapper.readTree(plan);
     assertNotNull("Corrupted query plan: null", planObj);
@@ -349,60 +403,72 @@ public class TestLocalExchange extends PlanTestBase {
     int muxesCount = 0;
     for (JsonNode object : graphArray) {
       final ObjectNode popObj = (ObjectNode) object;
-      if ( popObj.has("pop") && popObj.get("pop").asText().equals("project")) {
-        if ( popObj.has("exprs")) {
+      if (popObj.has("pop") && popObj.get("pop").asText().equals("project")) {
+        if (popObj.has("exprs")) {
           final ArrayNode exprsArray = (ArrayNode) popObj.get("exprs");
           for (JsonNode exprObj : exprsArray) {
             final ArrayNode expr = (ArrayNode) exprObj;
-            if ( expr.has("ref") && expr.get("ref").asText().equals("`"+ HASH_EXPR_NAME +"`")) {
+            if (expr.has("ref") && expr.get("ref").asText().equals("`" + HASH_EXPR_NAME + "`")) {
               // found a match. Let's see if next one is the one we need
               final String hashField = expr.get("expr").asText();
               assertNotNull("HashExpr field can not be null", hashField);
-              assertTrue("HashExpr field does not match pattern",hashField.matches(hashExprPattern));
+              assertTrue(
+                  "HashExpr field does not match pattern", hashField.matches(hashExprPattern));
               k = i;
               foundExpr = true;
               muxesCount++;
               break;
             }
           }
-          if ( foundExpr ) {
+          if (foundExpr) {
             // will be reset to prevExprsArraySize-1 on the last project of the whole stanza
             prevExprsArraySize = exprsArray.size();
           }
         }
       }
-      if ( !foundExpr ) {
+      if (!foundExpr) {
         continue;
       }
       // next after project with hashexpr
-      if ( k == i-1) {
-        assertTrue("UnorderedMux should follow Project with HashExpr",
+      if (k == i - 1) {
+        assertTrue(
+            "UnorderedMux should follow Project with HashExpr",
             popObj.has("pop") && popObj.get("pop").asText().equals(MUX_EXCHANGE_CONST));
       }
-      if ( k == i-2) {
-        assertTrue("HashToRandomExchange should follow UnorderedMux which should follow Project with HashExpr",
+      if (k == i - 2) {
+        assertTrue(
+            "HashToRandomExchange should follow UnorderedMux which should follow Project with HashExpr",
             popObj.has("pop") && popObj.get("pop").asText().equals(HASH_EXCHANGE));
         // is HashToRandom is using HashExpr
-        assertTrue("HashToRandomExchnage should use hashExpr",
-            popObj.has("expr") && popObj.get("expr").asText().equals("`"+ HASH_EXPR_NAME +"`"));
+        assertTrue(
+            "HashToRandomExchnage should use hashExpr",
+            popObj.has("expr") && popObj.get("expr").asText().equals("`" + HASH_EXPR_NAME + "`"));
       }
       // if Demux is enabled it also should use HashExpr
-      if ( isDemuxEnabled && k == i-3) {
-        assertTrue("UnorderdDemuxExchange should follow HashToRandomExchange",
+      if (isDemuxEnabled && k == i - 3) {
+        assertTrue(
+            "UnorderdDemuxExchange should follow HashToRandomExchange",
             popObj.has("pop") && popObj.get("pop").asText().equals(DEMUX_EXCHANGE_CONST));
         // is HashToRandom is using HashExpr
-        assertTrue("UnorderdDemuxExchange should use hashExpr",
-            popObj.has("expr") && popObj.get("expr").asText().equals("`"+HASH_EXPR_NAME +"`"));
+        assertTrue(
+            "UnorderdDemuxExchange should use hashExpr",
+            popObj.has("expr") && popObj.get("expr").asText().equals("`" + HASH_EXPR_NAME + "`"));
       }
-      if ( (isDemuxEnabled && k == i-4) || (!isDemuxEnabled && k == i-3) ) {
-        // it should be a project without hashexpr, check if number of exprs is 1 less then in first project
-        assertTrue("Should be project without hashexpr", popObj.has("pop") && popObj.get("pop").asText().equals("project"));
+      if ((isDemuxEnabled && k == i - 4) || (!isDemuxEnabled && k == i - 3)) {
+        // it should be a project without hashexpr, check if number of exprs is 1 less then in first
+        // project
+        assertTrue(
+            "Should be project without hashexpr",
+            popObj.has("pop") && popObj.get("pop").asText().equals("project"));
         final ArrayNode exprsArray = (ArrayNode) popObj.get("exprs");
         assertNotNull("Project should have some fields", exprsArray);
-        assertEquals("Number of fields in closing project should be one less then in starting project",
-            prevExprsArraySize, exprsArray.size());
+        assertEquals(
+            "Number of fields in closing project should be one less then in starting project",
+            prevExprsArraySize,
+            exprsArray.size());
 
-        // Now let's reset all the counters, flags if we are going to have another batch of those exchanges
+        // Now let's reset all the counters, flags if we are going to have another batch of those
+        // exchanges
         k = 0;
         foundExpr = false;
         prevExprsArraySize = 0;
@@ -412,8 +478,10 @@ public class TestLocalExchange extends PlanTestBase {
     assertEquals("Number of Project/Mux/HashExchange/... ", expectedNumMuxes, muxesCount);
   }
 
-  // Verify the number of partition senders in a major fragments is not more than the cluster size and each endpoint
-  // in the cluster has at most one fragment from a given major fragment that has the partition sender.
+  // Verify the number of partition senders in a major fragments is not more than the cluster size
+  // and each endpoint
+  // in the cluster has at most one fragment from a given major fragment that has the partition
+  // sender.
   private void testHelperVerifyPartitionSenderParallelization(
       String plan, boolean isMuxOn, boolean isDeMuxOn) throws Exception {
 
@@ -427,41 +495,54 @@ public class TestLocalExchange extends PlanTestBase {
 
     // Create a planningSet to get the assignment of major fragment ids to fragments.
     PARALLELIZER.initFragmentWrappers(rootFragment, planningSet);
-    PARALLELIZER.setExecutorSelectionService(new ExecutorSelectionService() {
-      @Override
-      public ExecutorSelectionHandle getExecutors(int desiredNumExecutors, ExecutorSelectionContext executorSelectionContext) {
-        return new ExecutorSelectionHandleImpl(sabotContext.getExecutors());
-      }
+    PARALLELIZER.setExecutorSelectionService(
+        new ExecutorSelectionService() {
+          @Override
+          public ExecutorSelectionHandle getExecutors(
+              int desiredNumExecutors, ExecutorSelectionContext executorSelectionContext) {
+            return new ExecutorSelectionHandleImpl(sabotContext.getExecutors());
+          }
 
-      @Override
-      public ExecutorSelectionHandle getAllActiveExecutors(ExecutorSelectionContext executorSelectionContext) {
-        return new ExecutorSelectionHandleImpl(sabotContext.getExecutors());
-      }
+          @Override
+          public ExecutorSelectionHandle getAllActiveExecutors(
+              ExecutorSelectionContext executorSelectionContext) {
+            return new ExecutorSelectionHandleImpl(sabotContext.getExecutors());
+          }
 
-      @Override
-      public void start() throws Exception {
-      }
+          @Override
+          public void start() throws Exception {}
 
-      @Override
-      public void close() throws Exception {
-      }
-    });
+          @Override
+          public void close() throws Exception {}
+        });
 
     findFragmentsWithPartitionSender(rootFragment, planningSet, deMuxFragments, htrFragments);
 
-    final QueryContextInformation queryContextInfo = Utilities.createQueryContextInfo("dummySchemaName");
-    List<PlanFragmentFull> fragments = PARALLELIZER.getFragments(new OptionList(), sabotContext.getEndpoint(),
-        QueryId.getDefaultInstance(),
-        planReader, rootFragment,
-        new PlanFragmentsIndex.Builder(),
-        USER_SESSION, queryContextInfo, Mockito.mock(FunctionLookupContext.class));
+    final QueryContextInformation queryContextInfo =
+        Utilities.createQueryContextInfo("dummySchemaName");
+    List<PlanFragmentFull> fragments =
+        PARALLELIZER.getFragments(
+            new OptionList(),
+            sabotContext.getEndpoint(),
+            QueryId.getDefaultInstance(),
+            planReader,
+            rootFragment,
+            new PlanFragmentsIndex.Builder(),
+            USER_SESSION,
+            queryContextInfo,
+            Mockito.mock(FunctionLookupContext.class));
 
-    // Make sure the number of minor fragments with HashPartitioner within a major fragment is not more than the
+    // Make sure the number of minor fragments with HashPartitioner within a major fragment is not
+    // more than the
     // number of SabotNodes in cluster
     ArrayListMultimap<Integer, NodeEndpoint> partitionSenderMap = ArrayListMultimap.create();
-    for(PlanFragmentFull planFragment : fragments) {
+    for (PlanFragmentFull planFragment : fragments) {
       // Our parallelizer doesn't compress fragments
-      if (planFragment.getMajor().getFragmentJson().toStringUtf8().contains("hash-partition-sender")) {
+      if (planFragment
+          .getMajor()
+          .getFragmentJson()
+          .toStringUtf8()
+          .contains("hash-partition-sender")) {
         int majorFragmentId = planFragment.getHandle().getMajorFragmentId();
         NodeEndpoint assignedEndpoint = planFragment.getAssignment();
         partitionSenderMap.get(majorFragmentId).add(assignedEndpoint);
@@ -478,13 +559,15 @@ public class TestLocalExchange extends PlanTestBase {
   }
 
   /**
-   * Helper method to find the major fragment ids of fragments that have PartitionSender.
-   * A fragment can have PartitionSender if sending exchange of the current fragment is a
-   *   1. DeMux Exchange -> goes in deMuxFragments
-   *   2. HashToRandomExchange -> goes into htrFragments
+   * Helper method to find the major fragment ids of fragments that have PartitionSender. A fragment
+   * can have PartitionSender if sending exchange of the current fragment is a 1. DeMux Exchange ->
+   * goes in deMuxFragments 2. HashToRandomExchange -> goes into htrFragments
    */
-  private static void findFragmentsWithPartitionSender(Fragment currentRootFragment, PlanningSet planningSet,
-      List<Integer> deMuxFragments, List<Integer> htrFragments) {
+  private static void findFragmentsWithPartitionSender(
+      Fragment currentRootFragment,
+      PlanningSet planningSet,
+      List<Integer> deMuxFragments,
+      List<Integer> htrFragments) {
 
     if (currentRootFragment != null) {
       final Exchange sendingExchange = currentRootFragment.getSendingExchange();
@@ -497,29 +580,40 @@ public class TestLocalExchange extends PlanTestBase {
         }
       }
 
-      for(ExchangeFragmentPair e : currentRootFragment.getReceivingExchangePairs()) {
+      for (ExchangeFragmentPair e : currentRootFragment.getReceivingExchangePairs()) {
         findFragmentsWithPartitionSender(e.getNode(), planningSet, deMuxFragments, htrFragments);
       }
     }
   }
 
-  /** Helper method to verify the number of PartitionSenders in a given fragment endpoint assignments */
-  private static void verifyAssignment(List<Integer> fragmentList,
-      ArrayListMultimap<Integer, NodeEndpoint> partitionSenderMap) {
+  /**
+   * Helper method to verify the number of PartitionSenders in a given fragment endpoint assignments
+   */
+  private static void verifyAssignment(
+      List<Integer> fragmentList, ArrayListMultimap<Integer, NodeEndpoint> partitionSenderMap) {
 
     // We expect at least one entry the list
     assertTrue(fragmentList.size() > 0);
 
-    for(Integer majorFragmentId : fragmentList) {
-      // we expect the fragment that has DeMux/HashToRandom as sending exchange to have parallelization with not more
-      // than the number of nodes in the cluster and each node in the cluster can have at most one assignment
+    for (Integer majorFragmentId : fragmentList) {
+      // we expect the fragment that has DeMux/HashToRandom as sending exchange to have
+      // parallelization with not more
+      // than the number of nodes in the cluster and each node in the cluster can have at most one
+      // assignment
       List<NodeEndpoint> assignments = partitionSenderMap.get(majorFragmentId);
       assertNotNull(assignments);
       assertTrue(assignments.size() > 0);
-      assertTrue(String.format("Number of partition senders in major fragment [%d] is more than expected", majorFragmentId), CLUSTER_SIZE >= assignments.size());
+      assertTrue(
+          String.format(
+              "Number of partition senders in major fragment [%d] is more than expected",
+              majorFragmentId),
+          CLUSTER_SIZE >= assignments.size());
 
-      // Make sure there are no duplicates in assigned endpoints (i.e at most one partition sender per endpoint)
-      assertTrue("Some endpoints have more than one fragment that has ParitionSender", ImmutableSet.copyOf(assignments).size() == assignments.size());
+      // Make sure there are no duplicates in assigned endpoints (i.e at most one partition sender
+      // per endpoint)
+      assertTrue(
+          "Some endpoints have more than one fragment that has ParitionSender",
+          ImmutableSet.copyOf(assignments).size() == assignments.size());
     }
   }
 

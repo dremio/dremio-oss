@@ -15,17 +15,13 @@
  */
 package com.dremio.exec.planner.serializer.logical;
 
-import java.util.stream.Collectors;
-
-import org.apache.calcite.rel.logical.LogicalMinus;
-
 import com.dremio.exec.planner.serializer.RelNodeSerde;
 import com.dremio.plan.serialization.PLogicalMinus;
+import java.util.stream.Collectors;
+import org.apache.calcite.rel.logical.LogicalMinus;
 
-/**
- * Serde for LogicalMinus
- */
-public final class LogicalMinusSerde implements RelNodeSerde<LogicalMinus, PLogicalMinus>{
+/** Serde for LogicalMinus */
+public final class LogicalMinusSerde implements RelNodeSerde<LogicalMinus, PLogicalMinus> {
 
   @Override
   public PLogicalMinus serialize(LogicalMinus minus, RelToProto s) {
@@ -38,8 +34,6 @@ public final class LogicalMinusSerde implements RelNodeSerde<LogicalMinus, PLogi
   @Override
   public LogicalMinus deserialize(PLogicalMinus node, RelFromProto s) {
     return LogicalMinus.create(
-      node.getInputsList().stream().map(s::toRel).collect(Collectors.toList()),
-      node.getAll());
+        node.getInputsList().stream().map(s::toRel).collect(Collectors.toList()), node.getAll());
   }
-
 }

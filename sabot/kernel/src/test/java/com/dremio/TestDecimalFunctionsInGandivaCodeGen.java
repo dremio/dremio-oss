@@ -18,8 +18,8 @@ package com.dremio;
 import com.dremio.common.expression.SupportedEngines.CodeGenOption;
 
 /**
- * Tests Gandiva decimal functions that run across java and gandiva, but with the default
- * code generator set to gandiva.
+ * Tests Gandiva decimal functions that run across java and gandiva, but with the default code
+ * generator set to gandiva.
  */
 public class TestDecimalFunctionsInGandivaCodeGen extends TestMixedDecimalFunctionTests {
 

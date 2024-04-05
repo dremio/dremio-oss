@@ -16,28 +16,35 @@
 
 package com.dremio.common.util;
 
+import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
-
 public class DremioVersionUtils {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DremioVersionUtils.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(DremioVersionUtils.class);
+
   /**
-   * If given endpoint has dremio version compatible with
-   * coordinator version returns true. Otherwise return false
+   * If given endpoint has dremio version compatible with coordinator version returns true.
+   * Otherwise return false
+   *
    * @param endpoint
    * @return
    */
   public static boolean isCompatibleVersion(NodeEndpoint endpoint) {
     boolean isCompatible = isCompatibleVersion(endpoint.getDremioVersion());
-    logger.debug("NodeEndpoint address:" + endpoint.getAddress()
-                  + ", NodeEndpoint version:" + endpoint.getDremioVersion()
-                  + ", Coordinator version:" + DremioVersionInfo.getVersion()
-                  + ", is NodeEndpoint compatible ?: " + isCompatible);
+    logger.debug(
+        "NodeEndpoint address:"
+            + endpoint.getAddress()
+            + ", NodeEndpoint version:"
+            + endpoint.getDremioVersion()
+            + ", Coordinator version:"
+            + DremioVersionInfo.getVersion()
+            + ", is NodeEndpoint compatible ?: "
+            + isCompatible);
     return isCompatible;
   }
 
@@ -47,15 +54,18 @@ public class DremioVersionUtils {
 
   /**
    * Return collection of nodeEndpoints which are compatible with coordinator.
+   *
    * @param nodeEndpoints
    * @return
    */
-  public static Collection<NodeEndpoint> getCompatibleNodeEndpoints(Collection<NodeEndpoint> nodeEndpoints) {
+  public static Collection<NodeEndpoint> getCompatibleNodeEndpoints(
+      Collection<NodeEndpoint> nodeEndpoints) {
     List<NodeEndpoint> compatibleNodeEndpoints = new ArrayList<>();
     if (nodeEndpoints != null && !nodeEndpoints.isEmpty()) {
-      compatibleNodeEndpoints = nodeEndpoints.stream()
-                                             .filter(nep -> isCompatibleVersion(nep))
-                                             .collect(Collectors.toList());
+      compatibleNodeEndpoints =
+          nodeEndpoints.stream()
+              .filter(nep -> isCompatibleVersion(nep))
+              .collect(Collectors.toList());
     }
     return Collections.unmodifiableCollection(compatibleNodeEndpoints);
   }

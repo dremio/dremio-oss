@@ -19,34 +19,36 @@ package com.dremio.sabot.task;
  * The main purpose of load balancing is to keep all CPUs (executing threads) busy.<br>
  * <br>
  * Each executing thread has it's own runqueue and associated scheduler.<br>
- * Ideally when a task yields we want to pick up the task with the smallest vruntime in all runqueues.<br>
- * In practice, each scheduler selects the best task from it's own runqueue, and the load balancer moves
- * tasks between the threads whenever there is an imbalance between their runqueues.
+ * Ideally when a task yields we want to pick up the task with the smallest vruntime in all
+ * runqueues.<br>
+ * In practice, each scheduler selects the best task from it's own runqueue, and the load balancer
+ * moves tasks between the threads whenever there is an imbalance between their runqueues.
  */
 public interface TaskManager<T extends Task> extends GroupManager<T>, AutoCloseable {
 
-  long MAX_WEIGHT = 1000; // using higher values that MAX_WEIGHT will cause vRuntime overflow to occur sooner than can be handled by the system
+  long MAX_WEIGHT =
+      1000; // using higher values that MAX_WEIGHT will cause vRuntime overflow to occur sooner than
+
+  // can be handled by the system
 
   /**
-   * Listener called whenever a task has been added to a thread. Useful to wake up the
-   * corresponding executing thread if it was idle.
+   * Listener called whenever a task has been added to a thread. Useful to wake up the corresponding
+   * executing thread if it was idle.
    */
   interface WakeUpListener {
     void wakeUpIfIdle();
   }
 
   /**
-   * When a task is added to the load balancer, an entity instance is returned
-   * to the caller so the task can be woken up if it gets blocked.
-   * TaskHandle also exposes information and stats about the task
+   * When a task is added to the load balancer, an entity instance is returned to the caller so the
+   * task can be woken up if it gets blocked. TaskHandle also exposes information and stats about
+   * the task
    */
   interface TaskHandle<T extends Task> {
 
     T getTask();
 
-    /**
-     * Called when the task become runnable after it was previously blocked.
-     */
+    /** Called when the task become runnable after it was previously blocked. */
     void reEnqueue();
 
     /**
@@ -55,11 +57,11 @@ public interface TaskManager<T extends Task> extends GroupManager<T>, AutoClosea
     int getThread();
 
     /**
-     * Gets the current task load on the thread on which the task represented by this thread is running.
+     * Gets the current task load on the thread on which the task represented by this thread is
+     * running.
      *
-     * <p>
-     * Omly accurate when a task given by this task handle is running.
-     * </p>
+     * <p>Omly accurate when a task given by this task handle is running.
+     *
      * @return current load on the thread. Ideally should be one.
      */
     int getCurrentTaskLoad();
@@ -105,7 +107,6 @@ public interface TaskManager<T extends Task> extends GroupManager<T>, AutoClosea
    *
    * @param task new task
    * @param weight task's priority
-   *
    * @return corresponding task handle
    */
   TaskHandle<T> addTask(T task, long weight);
@@ -116,14 +117,11 @@ public interface TaskManager<T extends Task> extends GroupManager<T>, AutoClosea
    * @param thread thread index
    * @param listener wake up listener
    * @param threadActive is the thread a active Thread or a standby thread.
-   *
    * @return task provider
    */
   TaskProvider<T> getTaskProvider(int thread, WakeUpListener listener, boolean threadActive);
 
-  /**
-   * Find a free thread
-   */
+  /** Find a free thread */
   int getFreeThread();
 
   void markFree(int threadId);

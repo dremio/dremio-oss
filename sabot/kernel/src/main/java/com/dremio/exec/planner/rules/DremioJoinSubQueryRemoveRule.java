@@ -15,11 +15,12 @@
  */
 package com.dremio.exec.planner.rules;
 
+import com.dremio.exec.planner.sql.handlers.RexSubQueryUtils;
+import com.google.common.base.Suppliers;
+import com.google.common.collect.ImmutableSet;
 import java.util.Set;
 import java.util.function.Supplier;
-
 import javax.annotation.Nullable;
-
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
@@ -39,35 +40,29 @@ import org.apache.calcite.rex.RexShuttle;
 import org.apache.calcite.rex.RexSubQuery;
 import org.apache.calcite.tools.RelBuilder;
 
-import com.dremio.exec.planner.sql.handlers.RexSubQueryUtils;
-import com.google.common.base.Suppliers;
-import com.google.common.collect.ImmutableSet;
-
 /**
  * Rewrites a join condition with a sub-query to a Correlate with filter on the right side.
  *
- * Filter conditions transformations:
+ * <p>Filter conditions transformations:
+ *
  * <UL>
- *   <LI>{@link RexInputRef} referring to the left side are rewritten to a {@link RexFieldAccess} with a new {@link CorrelationId} referring to the left side</LI>
- *   <LI>{@link RexInputRef} referring to the right side need to be shifted</LI>
- *   <LI>{@link RexFieldAccess} inside {@link  RexSubQuery} referring to the left side are rewritten with a new {@link CorrelationId} referring to the left side</LI>
+ *   <LI>{@link RexInputRef} referring to the left side are rewritten to a {@link RexFieldAccess}
+ *       with a new {@link CorrelationId} referring to the left side
+ *   <LI>{@link RexInputRef} referring to the right side need to be shifted
+ *   <LI>{@link RexFieldAccess} inside {@link RexSubQuery} referring to the left side are rewritten
+ *       with a new {@link CorrelationId} referring to the left side
  * </UL>
  *
- *
- * The following will be rewritten as:
- * <code>
+ * The following will be rewritten as: <code>
  *   JOIN condition=subquery(.., cor0)
  *     ....
  *     ....
- * </code>
- *
- * <code>
+ * </code> <code>
  *   CORRELATE id=cor1
  *     ...
  *     FILTER filter=subquery(.., cor0)
- * </code>
+ * </code> The upstream rule does not handle left joins.
  *
- * The upstream rule does not handle left joins.
  * @see org.apache.calcite.rel.rules.CoreRules#JOIN_SUB_QUERY_TO_CORRELATE
  */
 public class DremioJoinSubQueryRemoveRule extends RelRule<DremioJoinSubQueryRemoveRule.Config> {
@@ -81,7 +76,8 @@ public class DremioJoinSubQueryRemoveRule extends RelRule<DremioJoinSubQueryRemo
     super(config);
   }
 
-  @Override public void onMatch(RelOptRuleCall call) {
+  @Override
+  public void onMatch(RelOptRuleCall call) {
     Join join = call.rel(0);
     RelNode left = join.getLeft();
     RelNode right = join.getRight();
@@ -91,18 +87,16 @@ public class DremioJoinSubQueryRemoveRule extends RelRule<DremioJoinSubQueryRemo
 
     RexNode newCondition = rewrite(join, leftCorrelateId);
 
-    call.transformTo(builder
-      .push(left)
-      .push(right)
-      .filter(newCondition)
-      .join(join.getJoinType(),
-        rexBuilder.makeLiteral(true),
-        leftCorrelateId.setOfIds())
-      .build());
+    call.transformTo(
+        builder
+            .push(left)
+            .push(right)
+            .filter(newCondition)
+            .join(join.getJoinType(), rexBuilder.makeLiteral(true), leftCorrelateId.setOfIds())
+            .build());
   }
 
   /**
-   *
    * @param join
    * @param correlationId
    * @return
@@ -114,51 +108,61 @@ public class DremioJoinSubQueryRemoveRule extends RelRule<DremioJoinSubQueryRemo
     RelNode right = join.getRight();
 
     Supplier<RexNode> leftBaseNode =
-      Suppliers.memoize(() -> rexBuilder.makeCorrel(left.getRowType(), correlationId.getCorrelationId()));
-
+        Suppliers.memoize(
+            () -> rexBuilder.makeCorrel(left.getRowType(), correlationId.getCorrelationId()));
 
     int leftSize = left.getRowType().getFieldCount();
 
-    return join.getCondition().accept(new RexShuttle() {
-      @Override public RexNode visitInputRef(RexInputRef inputRef) {
-        if (inputRef.getIndex() < leftSize) { // is left
-          return rexBuilder.makeFieldAccess(leftBaseNode.get(), inputRef.getIndex());
-        } else {
-          return rexBuilder.makeInputRef(inputRef.getType(), inputRef.getIndex() - leftSize);
-        }
-      }
+    return join.getCondition()
+        .accept(
+            new RexShuttle() {
+              @Override
+              public RexNode visitInputRef(RexInputRef inputRef) {
+                if (inputRef.getIndex() < leftSize) { // is left
+                  return rexBuilder.makeFieldAccess(leftBaseNode.get(), inputRef.getIndex());
+                } else {
+                  return rexBuilder.makeInputRef(
+                      inputRef.getType(), inputRef.getIndex() - leftSize);
+                }
+              }
 
-      @Override
-      public RexNode visitSubQuery(RexSubQuery subQuery) {
-        RexNode rightBase = null == subQuery.correlationId
-          ? null
-          : rexBuilder.makeCorrel(right.getRowType(), subQuery.correlationId);
-        RexSubQuery rewrittenSubQuery = (RexSubQuery) super.visitSubQuery(subQuery);
-        RewriteSubQueryValues rexShuttle = new RewriteSubQueryValues(
-          rexBuilder,
-          rewrittenSubQuery.correlationId,
-          leftBaseNode,
-          rightBase,
-          left.getRowType());
-        return rewrittenSubQuery.accept(rexShuttle);
-      }
-    });
+              @Override
+              public RexNode visitSubQuery(RexSubQuery subQuery) {
+                RexNode rightBase =
+                    null == subQuery.correlationId
+                        ? null
+                        : rexBuilder.makeCorrel(right.getRowType(), subQuery.correlationId);
+                RexSubQuery rewrittenSubQuery = (RexSubQuery) super.visitSubQuery(subQuery);
+                RewriteSubQueryValues rexShuttle =
+                    new RewriteSubQueryValues(
+                        rexBuilder,
+                        rewrittenSubQuery.correlationId,
+                        leftBaseNode,
+                        rightBase,
+                        left.getRowType());
+                return rewrittenSubQuery.accept(rexShuttle);
+              }
+            });
   }
 
-  public interface Config extends RelRule.Config{
-    Config DEFAULT = RelRule.Config.EMPTY
-      .withOperandSupplier(os ->
-        os.operand(Join.class)
-          .predicate(join -> RexSubQueryUtils.containsSubQuery(join)
-            && !join.getJoinType().generatesNullsOnLeft())
-          .anyInputs())
-      .as(Config.class);
+  public interface Config extends RelRule.Config {
+    Config DEFAULT =
+        RelRule.Config.EMPTY
+            .withOperandSupplier(
+                os ->
+                    os.operand(Join.class)
+                        .predicate(
+                            join ->
+                                RexSubQueryUtils.containsSubQuery(join)
+                                    && !join.getJoinType().generatesNullsOnLeft())
+                        .anyInputs())
+            .as(Config.class);
 
-    @Override default RelOptRule toRule() {
+    @Override
+    default RelOptRule toRule() {
       return new DremioJoinSubQueryRemoveRule(this);
     }
   }
-
 
   private static class RewriteSubQueryValues extends RexShuttle {
     private final RexBuilder rexBuilder;
@@ -188,24 +192,23 @@ public class DremioJoinSubQueryRemoveRule extends RelRule<DremioJoinSubQueryRemo
     public RexNode visitFieldAccess(RexFieldAccess fieldAccess) {
       RexNode rexCorrelVariable = fieldAccess.getReferenceExpr();
       if (rexCorrelVariable instanceof RexCorrelVariable
-        && ((RexCorrelVariable)rexCorrelVariable).id == correlationId) {
+          && ((RexCorrelVariable) rexCorrelVariable).id == correlationId) {
         int fieldIndex = fieldAccess.getField().getIndex();
-        if(fieldAccess.getField().getIndex() < leftRowType.getFieldCount()) { // is left
+        if (fieldAccess.getField().getIndex() < leftRowType.getFieldCount()) { // is left
           return rexBuilder.makeFieldAccess(leftCorrelationBase.get(), fieldIndex);
-        } else { //is right
-          return rexBuilder.makeFieldAccess(rightCorrelateBase, fieldIndex - leftRowType.getFieldCount());
+        } else { // is right
+          return rexBuilder.makeFieldAccess(
+              rightCorrelateBase, fieldIndex - leftRowType.getFieldCount());
         }
       } else {
         return super.visitFieldAccess(fieldAccess);
       }
-
     }
 
     @Override
     public RexNode visitSubQuery(RexSubQuery subQuery) {
       return subQuery.clone(subQuery.rel.accept(relShuttle));
     }
-
   }
 
   private static class RelShuttleRewriter extends RelHomogeneousShuttle {
@@ -217,8 +220,7 @@ public class DremioJoinSubQueryRemoveRule extends RelRule<DremioJoinSubQueryRemo
 
     @Override
     public RelNode visit(RelNode other) {
-      return super.visit(other)
-        .accept(rexShuttle);
+      return super.visit(other).accept(rexShuttle);
     }
   }
 
@@ -242,13 +244,11 @@ public class DremioJoinSubQueryRemoveRule extends RelRule<DremioJoinSubQueryRemo
     }
 
     public Set<CorrelationId> setOfIds() {
-      if(null == correlationId) {
+      if (null == correlationId) {
         return ImmutableSet.of();
       } else {
         return ImmutableSet.of(correlationId);
       }
     }
   }
-
-
 }

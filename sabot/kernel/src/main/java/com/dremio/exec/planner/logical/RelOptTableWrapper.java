@@ -16,7 +16,6 @@
 package com.dremio.exec.planner.logical;
 
 import java.util.List;
-
 import org.apache.calcite.linq4j.tree.Expression;
 import org.apache.calcite.plan.RelOptSchema;
 import org.apache.calcite.plan.RelOptTable;

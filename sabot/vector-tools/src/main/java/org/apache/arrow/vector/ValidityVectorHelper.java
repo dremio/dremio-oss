@@ -15,11 +15,10 @@
  */
 package org.apache.arrow.vector;
 
-import org.apache.arrow.memory.ArrowBuf;
-
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.exec.proto.UserBitShared.SerializedField;
 import com.google.common.base.Preconditions;
+import org.apache.arrow.memory.ArrowBuf;
 
 /*
  * Arrow code has a BitVectorHelper class used extensively throughout the vector
@@ -37,12 +36,15 @@ public class ValidityVectorHelper extends FixedWidthVectorHelper<BitVector> {
 
   @Override
   public void load(SerializedField metadata, ArrowBuf buffer) {
-    Preconditions.checkArgument(vector.getName().equals(metadata.getNamePart().getName()), "The " +
-      "field %s doesn't match the provided metadata %s.", vector.getName(), metadata);
+    Preconditions.checkArgument(
+        vector.getName().equals(metadata.getNamePart().getName()),
+        "The " + "field %s doesn't match the provided metadata %s.",
+        vector.getName(),
+        metadata);
     final int valueCount = metadata.getValueCount();
     final int expectedLength = vector.getValidityBufferSizeFromCount(valueCount);
     final int actualLength = metadata.getBufferLength();
-    assert expectedLength == actualLength: "expected and actual buffer sizes do not match";
+    assert expectedLength == actualLength : "expected and actual buffer sizes do not match";
 
     vector.clear();
     vector.valueBuffer = buffer.slice(0, actualLength);

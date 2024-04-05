@@ -21,34 +21,38 @@ import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 
-/**
- * DatafileProcessorFactory : For input arguments this returns datafile processor
- */
+/** DatafileProcessorFactory : For input arguments this returns datafile processor */
 public class ManifestEntryProcessorFactory {
   private final FragmentExecutionContext fec;
   private final OpProps props;
   private final OperatorContext context;
 
-  public ManifestEntryProcessorFactory(FragmentExecutionContext fec, OpProps props, OperatorContext context) {
+  public ManifestEntryProcessorFactory(
+      FragmentExecutionContext fec, OpProps props, OperatorContext context) {
     this.fec = fec;
     this.props = props;
     this.context = context;
   }
 
   ManifestEntryProcessor getManifestEntryProcessor(TableFunctionConfig functionConfig) {
-    // DX-49879: SPLIT_GEN_MANIFEST_SCAN needs to be migrated to the new ICEBERG_MANIFEST_SCAN/ICEBERG_SPLIT_GEN table
+    // DX-49879: SPLIT_GEN_MANIFEST_SCAN needs to be migrated to the new
+    // ICEBERG_MANIFEST_SCAN/ICEBERG_SPLIT_GEN table
     // functions
     switch (functionConfig.getType()) {
       case METADATA_MANIFEST_FILE_SCAN:
         return new DataFileContentReader(context, functionConfig.getFunctionContext());
       case SPLIT_GEN_MANIFEST_SCAN:
-        SupportsInternalIcebergTable plugin = IcebergUtils.getSupportsInternalIcebergTablePlugin(fec, functionConfig.getFunctionContext().getPluginId());
-        return new SplitGeneratingDatafileProcessor(context, plugin, props, functionConfig.getFunctionContext());
+        SupportsInternalIcebergTable plugin =
+            IcebergUtils.getSupportsInternalIcebergTablePlugin(
+                fec, functionConfig.getFunctionContext().getPluginId());
+        return new SplitGeneratingDatafileProcessor(
+            context, plugin, props, functionConfig.getFunctionContext());
       case ICEBERG_MANIFEST_SCAN:
-        return new PathGeneratingManifestEntryProcessor(context,
-            functionConfig.getFunctionContext(ManifestScanTableFunctionContext.class));
+        return new PathGeneratingManifestEntryProcessor(
+            context, functionConfig.getFunctionContext(ManifestScanTableFunctionContext.class));
       default:
-        throw new UnsupportedOperationException("Unknown table function type " + functionConfig.getType());
+        throw new UnsupportedOperationException(
+            "Unknown table function type " + functionConfig.getType());
     }
   }
 }

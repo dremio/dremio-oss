@@ -16,14 +16,6 @@
 
 package com.dremio.exec.planner.sql.handlers.direct;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.sql.SqlIdentifier;
-import org.apache.calcite.sql.SqlNode;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.catalog.EntityExplorer;
@@ -37,18 +29,23 @@ import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.IcebergMetadata;
 import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.dremio.service.namespace.dataset.proto.TableProperties;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlNode;
 
-/**
- * Handler for show table properties.
- * SHOW TBLPROPERTIES tblName
- */
-public class ShowTablePropertiesHandler implements SqlDirectHandler<ShowTablePropertiesHandler.ShowTablePropertiesResult> {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ShowTablePropertiesHandler.class);
+/** Handler for show table properties. SHOW TBLPROPERTIES tblName */
+public class ShowTablePropertiesHandler
+    implements SqlDirectHandler<ShowTablePropertiesHandler.ShowTablePropertiesResult> {
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ShowTablePropertiesHandler.class);
 
   private final EntityExplorer catalog;
   private final QueryContext context;
 
-  public ShowTablePropertiesHandler(EntityExplorer catalog, QueryContext context){
+  public ShowTablePropertiesHandler(EntityExplorer catalog, QueryContext context) {
     super();
     this.catalog = catalog;
     this.context = context;
@@ -56,7 +53,8 @@ public class ShowTablePropertiesHandler implements SqlDirectHandler<ShowTablePro
 
   @Override
   public List<ShowTablePropertiesResult> toResult(String sql, SqlNode sqlNode) throws Exception {
-    SqlShowTableProperties sqlShowTableProperties = SqlNodeUtil.unwrap(sqlNode, SqlShowTableProperties.class);
+    SqlShowTableProperties sqlShowTableProperties =
+        SqlNodeUtil.unwrap(sqlNode, SqlShowTableProperties.class);
 
     IcebergUtils.validateTablePropertiesRequest(context.getOptions());
     try {
@@ -65,9 +63,7 @@ public class ShowTablePropertiesHandler implements SqlDirectHandler<ShowTablePro
       final DremioTable table = catalog.getTable(path);
       final RelDataType type;
       if (table == null) {
-        throw UserException.validationError()
-          .message("Unknown table [%s]", path)
-          .build(logger);
+        throw UserException.validationError().message("Unknown table [%s]", path).build(logger);
       } else {
         type = table.getRowType(JavaTypeFactoryImpl.INSTANCE);
       }
@@ -81,15 +77,17 @@ public class ShowTablePropertiesHandler implements SqlDirectHandler<ShowTablePro
         return Collections.emptyList();
       }
       for (TableProperties properties : tablePropertiesList) {
-        ShowTablePropertiesHandler.ShowTablePropertiesResult result = new ShowTablePropertiesHandler.ShowTablePropertiesResult(properties.getTablePropertyName(),
-          properties.getTablePropertyValue());
+        ShowTablePropertiesHandler.ShowTablePropertiesResult result =
+            new ShowTablePropertiesHandler.ShowTablePropertiesResult(
+                properties.getTablePropertyName(), properties.getTablePropertyValue());
         columns.add(result);
       }
       return columns;
     } catch (Exception ex) {
       throw UserException.invalidMetadataError(ex)
-        .message("Error while getting metadata via SHOW TABLEPROPERTIES query: %s", ex.getMessage())
-        .build(logger);
+          .message(
+              "Error while getting metadata via SHOW TABLEPROPERTIES query: %s", ex.getMessage())
+          .build(logger);
     }
   }
 

@@ -15,20 +15,19 @@
  */
 package com.dremio.exec.store.schedule;
 
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-
 import com.carrotsearch.hppc.ObjectDoubleHashMap;
 import com.carrotsearch.hppc.cursors.ObjectDoubleCursor;
 import com.dremio.exec.physical.EndpointAffinity;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Lists;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 public class AffinityCreator {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AffinityCreator.class);
 
-  public static <T extends CompleteWork> List<EndpointAffinity> getAffinityMap(List<T> work){
+  public static <T extends CompleteWork> List<EndpointAffinity> getAffinityMap(List<T> work) {
     Stopwatch watch = Stopwatch.createStarted();
 
     double totalBytes = 0;
@@ -38,7 +37,7 @@ public class AffinityCreator {
 
     ObjectDoubleHashMap<NodeEndpoint> affinities = new ObjectDoubleHashMap<NodeEndpoint>();
     for (CompleteWork entry : work) {
-      for(EndpointAffinity affinity : entry.getAffinity()){
+      for (EndpointAffinity affinity : entry.getAffinity()) {
         final double bytes = affinity.getAffinity();
         double newAffinityValue = bytes / totalBytes;
         NodeEndpoint endpoint = affinity.getEndpoint();
@@ -51,7 +50,7 @@ public class AffinityCreator {
       affinityList.add(new EndpointAffinity(d.key, d.value));
     }
 
-    if(logger.isDebugEnabled()){
+    if (logger.isDebugEnabled()) {
       for (ObjectDoubleCursor<NodeEndpoint> d : affinities) {
         logger.debug("Endpoint {} has affinity {}", d.key.getAddress(), d.value);
       }
@@ -61,5 +60,4 @@ public class AffinityCreator {
 
     return affinityList;
   }
-
 }

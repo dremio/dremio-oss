@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-/**
- * Declare Dremio's default annotations.
- */
+/** Declare Dremio's default annotations. */
 @GnarlyStyle
 package com.dremio;

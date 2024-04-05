@@ -20,7 +20,7 @@ export const replaceSqlRunnerSessionUrl = () =>
   getApiContext().createSonarUrl("sql-runner/session");
 
 export const replaceSqlRunnerSession = (
-  updatedSession: paths["/sql-runner/session"]["put"]["requestBody"]["content"]["application/json"]
+  updatedSession: paths["/sql-runner/session"]["put"]["requestBody"]["content"]["application/json"],
 ): Promise<
   paths["/sql-runner/session"]["put"]["responses"]["200"]["content"]["application/json"]
 > =>

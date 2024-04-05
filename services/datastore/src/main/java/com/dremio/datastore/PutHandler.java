@@ -15,10 +15,6 @@
  */
 package com.dremio.datastore;
 
-import java.util.ArrayList;
-import java.util.ConcurrentModificationException;
-import java.util.List;
-
 import com.dremio.datastore.api.Document;
 import com.dremio.datastore.api.KVStore;
 import com.dremio.datastore.api.options.ImmutableVersionOption;
@@ -26,10 +22,11 @@ import com.dremio.datastore.indexed.ImmutableIndexPutOption;
 import com.dremio.datastore.indexed.IndexPutOption;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import java.util.ArrayList;
+import java.util.ConcurrentModificationException;
+import java.util.List;
 
-/**
- * Takes in rpc PutRequests and translates and applies them to the appropriate core store.
- */
+/** Takes in rpc PutRequests and translates and applies them to the appropriate core store. */
 public class PutHandler {
   private final CoreStoreProviderRpcService coreStoreProvider;
 
@@ -37,12 +34,15 @@ public class PutHandler {
     this.coreStoreProvider = coreStoreProvider;
   }
 
-  public RemoteDataStoreProtobuf.PutResponse apply(RemoteDataStoreProtobuf.PutRequest request, boolean convertIndexesToPutOption) {
+  public RemoteDataStoreProtobuf.PutResponse apply(
+      RemoteDataStoreProtobuf.PutRequest request, boolean convertIndexesToPutOption) {
     final RemoteDataStoreProtobuf.PutOptionInfo putOptionInfo = request.getOptionInfo();
     final CoreKVStore store = coreStoreProvider.getStore(request.getStoreId());
-    final RemoteDataStoreProtobuf.PutResponse.Builder builder = RemoteDataStoreProtobuf.PutResponse.newBuilder();
+    final RemoteDataStoreProtobuf.PutResponse.Builder builder =
+        RemoteDataStoreProtobuf.PutResponse.newBuilder();
     final KVStoreTuple<?> key = store.newKey().setSerializedBytes(request.getKey().toByteArray());
-    final KVStoreTuple<?> value = store.newValue().setSerializedBytes(request.getValue().toByteArray());
+    final KVStoreTuple<?> value =
+        store.newValue().setSerializedBytes(request.getValue().toByteArray());
     final Document<?, ?> result;
 
     final List<KVStore.PutOption> putOptions = new ArrayList<>();
@@ -55,7 +55,8 @@ public class PutHandler {
             break;
           case VERSION:
             Preconditions.checkArgument(putOptionInfo.hasParameter());
-            putOptions.add(new ImmutableVersionOption.Builder().setTag(putOptionInfo.getParameter()).build());
+            putOptions.add(
+                new ImmutableVersionOption.Builder().setTag(putOptionInfo.getParameter()).build());
             break;
           default:
             throw new DatastoreException("Invalid put option specified " + optionType.toString());
@@ -66,19 +67,20 @@ public class PutHandler {
         putOptions.add(toIndexPutOption(request));
       }
 
-      if(!putOptions.isEmpty()) {
-        result = store.put(key, value, putOptions.toArray(new KVStore.PutOption[putOptions.size()]));
+      if (!putOptions.isEmpty()) {
+        result =
+            store.put(key, value, putOptions.toArray(new KVStore.PutOption[putOptions.size()]));
       } else {
         result = store.put(key, value);
       }
 
-      if(!Strings.isNullOrEmpty(result.getTag())) {
+      if (!Strings.isNullOrEmpty(result.getTag())) {
         builder.setTag(result.getTag());
       }
     } catch (DatastoreException | ConcurrentModificationException e) {
       builder
-        .setConcurrentModificationError(e instanceof ConcurrentModificationException)
-        .setErrorMessage(e.getMessage());
+          .setConcurrentModificationError(e instanceof ConcurrentModificationException)
+          .setErrorMessage(e.getMessage());
     }
 
     return builder.build();
@@ -86,6 +88,8 @@ public class PutHandler {
 
   private static IndexPutOption toIndexPutOption(RemoteDataStoreProtobuf.PutRequest putRequest) {
     Preconditions.checkArgument(putRequest != null);
-    return new ImmutableIndexPutOption.Builder().setIndexedFields(putRequest.getIndexFieldsList()).build();
+    return new ImmutableIndexPutOption.Builder()
+        .setIndexedFields(putRequest.getIndexFieldsList())
+        .build();
   }
 }

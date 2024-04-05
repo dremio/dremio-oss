@@ -17,9 +17,7 @@ package com.dremio.dac.server;
 
 import com.dremio.dac.model.common.DACRuntimeException;
 
-/**
- * Thrown when there's an error on the server that is not caused by a client error
- */
+/** Thrown when there's an error on the server that is not caused by a client error */
 public class ServerErrorException extends DACRuntimeException {
   private static final long serialVersionUID = 1L;
 
@@ -34,5 +32,4 @@ public class ServerErrorException extends DACRuntimeException {
   public ServerErrorException(String message) {
     super(message);
   }
-
 }

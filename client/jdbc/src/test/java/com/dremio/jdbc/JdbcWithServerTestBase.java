@@ -17,23 +17,18 @@ package com.dremio.jdbc;
 
 import static com.dremio.exec.rpc.user.security.testing.UserServiceTestImpl.ANONYMOUS;
 
+import com.dremio.jdbc.test.JdbcAssert;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Properties;
-
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 
-import com.dremio.jdbc.test.JdbcAssert;
-
-/**
- * Subclass of {@code JdbcTestBase} which starts a Sabot node to test against.
- */
+/** Subclass of {@code JdbcTestBase} which starts a Sabot node to test against. */
 public class JdbcWithServerTestBase extends JdbcTestBase {
-  @ClassRule
-  public static final SabotNodeRule sabotNode = new SabotNodeRule();
+  @ClassRule public static final SabotNodeRule sabotNode = new SabotNodeRule();
 
   private static Connection connection;
 
@@ -49,7 +44,7 @@ public class JdbcWithServerTestBase extends JdbcTestBase {
   protected static void setupConnection(Properties properties) throws SQLException {
     Driver.load();
     properties.put("user", ANONYMOUS);
-    connection = DriverManager.getConnection( sabotNode.getJDBCConnectionString(), properties );
+    connection = DriverManager.getConnection(sabotNode.getJDBCConnectionString(), properties);
   }
 
   @AfterClass
@@ -58,5 +53,4 @@ public class JdbcWithServerTestBase extends JdbcTestBase {
       connection.close();
     }
   }
-
 }

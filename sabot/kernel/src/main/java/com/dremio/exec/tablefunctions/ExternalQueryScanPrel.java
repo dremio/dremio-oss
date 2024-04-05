@@ -15,16 +15,6 @@
  */
 package com.dremio.exec.tablefunctions;
 
-import java.io.IOException;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.type.RelDataType;
-
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.planner.fragment.DistributionAffinity;
@@ -35,35 +25,44 @@ import com.dremio.exec.planner.physical.visitor.PrelVisitor;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.exec.store.SupportsExternalQuery;
+import java.io.IOException;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.type.RelDataType;
 
-/**
- * Physical RelNode of an external query scan.
- */
+/** Physical RelNode of an external query scan. */
 public final class ExternalQueryScanPrel extends ExternalQueryRelBase implements LeafPrel {
-  public ExternalQueryScanPrel(RelOptCluster cluster, RelTraitSet traitSet, RelDataType rowType,
-                               StoragePluginId pluginId, String sql, BatchSchema schema) {
+  public ExternalQueryScanPrel(
+      RelOptCluster cluster,
+      RelTraitSet traitSet,
+      RelDataType rowType,
+      StoragePluginId pluginId,
+      String sql,
+      BatchSchema schema) {
     super(cluster, traitSet, rowType, pluginId, sql, schema);
   }
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
     return new ExternalQueryScanPrel(
-      getCluster(),
-      getTraitSet(),
-      getRowType(),
-      pluginId,
-      sql,
-      batchSchema);
+        getCluster(), getTraitSet(), getRowType(), pluginId, sql, batchSchema);
   }
 
   @Override
   public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
-    final SupportsExternalQuery externalQueryImplementor = creator.getContext().getCatalogService().getSource(pluginId);
-    return externalQueryImplementor.getExternalQueryPhysicalOperator(creator, this, batchSchema, sql);
+    final SupportsExternalQuery externalQueryImplementor =
+        creator.getContext().getCatalogService().getSource(pluginId);
+    return externalQueryImplementor.getExternalQueryPhysicalOperator(
+        creator, this, batchSchema, sql);
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(PrelVisitor<T, X, E> logicalVisitor, X value) throws E {
+  public <T, X, E extends Throwable> T accept(PrelVisitor<T, X, E> logicalVisitor, X value)
+      throws E {
     return logicalVisitor.visitPrel(this, value);
   }
 

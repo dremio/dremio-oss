@@ -15,22 +15,16 @@
  */
 package com.dremio.dac.explore.model.extract;
 
-import java.util.List;
-
-import javax.validation.constraints.NotNull;
-
 import com.dremio.dac.util.JSONUtil;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.List;
+import javax.validation.constraints.NotNull;
 
-/**
- * The selection in a given cell
- */
+/** The selection in a given cell */
 public class MapSelection {
-  @NotNull
-  private final String colName;
-  @NotNull
-  private final List<String> mapPathList;
+  @NotNull private final String colName;
+  @NotNull private final List<String> mapPathList;
 
   @JsonCreator
   public MapSelection(
@@ -44,6 +38,7 @@ public class MapSelection {
   public String getColName() {
     return colName;
   }
+
   public List<String> getMapPathList() {
     return mapPathList;
   }

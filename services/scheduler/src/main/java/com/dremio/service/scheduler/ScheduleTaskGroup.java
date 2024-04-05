@@ -16,16 +16,16 @@
 package com.dremio.service.scheduler;
 
 /**
- * Specifies the configuration of a group to which a given task and its schedule are associated with.
- * The group determines common resources such as thread pool used to execute a given task. This allows different
- * types of task to be executed under different thread pool(s), allowing for better control of JVM resource usage
- * by these tasks.
- * <p>
- * If a group is not specified for a task, the default group is used for the task. All groups other than the
- * 'default' group is modifiable, which means an external system outside the scheduler can vary properties such as the
- * capacity. The 'default' group must be provided while constructing the scheduler service, along with a
- * 'root path' that is common across service instances of a given service, but must differ across different services.
- * </p>
+ * Specifies the configuration of a group to which a given task and its schedule are associated
+ * with. The group determines common resources such as thread pool used to execute a given task.
+ * This allows different types of task to be executed under different thread pool(s), allowing for
+ * better control of JVM resource usage by these tasks.
+ *
+ * <p>If a group is not specified for a task, the default group is used for the task. All groups
+ * other than the 'default' group is modifiable, which means an external system outside the
+ * scheduler can vary properties such as the capacity. The 'default' group must be provided while
+ * constructing the scheduler service, along with a 'root path' that is common across service
+ * instances of a given service, but must differ across different services.
  */
 public interface ScheduleTaskGroup {
   String getGroupName();

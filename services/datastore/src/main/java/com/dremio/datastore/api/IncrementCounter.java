@@ -15,24 +15,23 @@
  */
 package com.dremio.datastore.api;
 
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import org.immutables.value.Value.Immutable;
 
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-
-/**
- * Configuration for incrementing a field
- */
+/** Configuration for incrementing a field */
 @JsonDeserialize(builder = ImmutableIncrementCounter.Builder.class)
 @Immutable
 public interface IncrementCounter {
   /**
    * field to be incremented
+   *
    * @return counterName.
    */
   String getCounterName();
 
   /**
    * value to increment by
+   *
    * @return incrementBy.
    */
   int getIncrementBy();

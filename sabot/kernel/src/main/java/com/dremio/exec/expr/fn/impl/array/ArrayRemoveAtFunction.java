@@ -15,14 +15,6 @@
  */
 package com.dremio.exec.expr.fn.impl.array;
 
-import java.util.List;
-
-import javax.inject.Inject;
-
-import org.apache.arrow.vector.complex.reader.FieldReader;
-import org.apache.arrow.vector.complex.writer.BaseWriter;
-import org.apache.arrow.vector.holders.IntHolder;
-
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.exec.expr.SimpleFunction;
@@ -33,9 +25,18 @@ import com.dremio.exec.expr.annotations.Workspace;
 import com.dremio.exec.expr.fn.FunctionErrorContext;
 import com.dremio.exec.expr.fn.OutputDerivation;
 import com.google.common.base.Preconditions;
+import java.util.List;
+import javax.inject.Inject;
+import org.apache.arrow.vector.complex.reader.FieldReader;
+import org.apache.arrow.vector.complex.writer.BaseWriter;
+import org.apache.arrow.vector.holders.IntHolder;
 
 public class ArrayRemoveAtFunction {
-  @FunctionTemplate(names = "array_remove_at", scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.INTERNAL, derivation = ListWithoutRemovedElements.class)
+  @FunctionTemplate(
+      names = "array_remove_at",
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.INTERNAL,
+      derivation = ListWithoutRemovedElements.class)
   public static class ArrayRemoveAt implements SimpleFunction {
 
     @Param private FieldReader in;
@@ -45,8 +46,7 @@ public class ArrayRemoveAtFunction {
     @Inject private FunctionErrorContext errCtx;
 
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
     public void eval() {
@@ -54,13 +54,15 @@ public class ArrayRemoveAtFunction {
       if (!in.isSet() || in.readObject() == null) {
         return;
       }
-      org.apache.arrow.vector.complex.impl.UnionListReader listReader = (org.apache.arrow.vector.complex.impl.UnionListReader) in;
-      if(index.value < 0 ){
+      org.apache.arrow.vector.complex.impl.UnionListReader listReader =
+          (org.apache.arrow.vector.complex.impl.UnionListReader) in;
+      if (index.value < 0) {
         index.value = listReader.size() + index.value;
       }
       org.apache.arrow.vector.complex.writer.BaseWriter.ListWriter listWriter = out.rootAsList();
-      if(listReader.size() <= index.value){
-        org.apache.arrow.vector.complex.impl.ComplexCopier.copy(listReader, (org.apache.arrow.vector.complex.writer.FieldWriter) listWriter);
+      if (listReader.size() <= index.value) {
+        org.apache.arrow.vector.complex.impl.ComplexCopier.copy(
+            listReader, (org.apache.arrow.vector.complex.writer.FieldWriter) listWriter);
       } else {
         listWriter.startList();
         while (listReader.next()) {

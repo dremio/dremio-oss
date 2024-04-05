@@ -15,16 +15,13 @@
  */
 package com.dremio.exec.planner.fragment;
 
+import com.dremio.exec.proto.CoordExecRPC.MinorAttr;
+import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.dremio.exec.proto.CoordExecRPC.MinorAttr;
-import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
-
-/**
- * Use the index to resolve references to repetitive attributes or objects in the plan.
- */
+/** Use the index to resolve references to repetitive attributes or objects in the plan. */
 public class PlanFragmentsIndex {
   private final EndpointsIndex endpointsIndex;
   private final SharedAttrsIndex sharedAttrsIndex;
@@ -55,12 +52,10 @@ public class PlanFragmentsIndex {
       return endpointsIndexBuilder;
     }
 
-    /**
-     * The shared attribute index is built separately for each endpoint.
-     */
+    /** The shared attribute index is built separately for each endpoint. */
     public SharedAttrsIndex.Builder getSharedAttrsIndexBuilder(NodeEndpoint endpoint) {
-      return sharedAttrsIndexBuilderMap.computeIfAbsent(endpoint,
-        k -> new SharedAttrsIndex.Builder());
+      return sharedAttrsIndexBuilderMap.computeIfAbsent(
+          endpoint, k -> new SharedAttrsIndex.Builder());
     }
   }
 }

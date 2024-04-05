@@ -16,11 +16,13 @@
 package com.dremio.dac.server.admin.profile;
 
 /**
- * Used to build a description list == list of description items, each of them having a "definition" and a "description"
+ * Used to build a description list == list of description items, each of them having a "definition"
+ * and a "description"
  */
 public class DescriptionListBuilder {
 
   private StringBuilder sb;
+
   public DescriptionListBuilder() {
     sb = new StringBuilder();
     sb.append("<dl class=\"dl-horizontal info-list\">");

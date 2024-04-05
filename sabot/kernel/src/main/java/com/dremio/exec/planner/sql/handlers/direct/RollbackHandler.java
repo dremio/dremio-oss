@@ -15,20 +15,11 @@
  */
 package com.dremio.exec.planner.sql.handlers.direct;
 
-
 import static com.dremio.exec.planner.sql.handlers.query.DataAdditionCmdHandler.refreshDataset;
-
-import java.util.Collections;
-import java.util.List;
-
-import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.sql.SqlOperator;
 
 import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.catalog.model.VersionContext;
-import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.DremioTable;
@@ -38,6 +29,10 @@ import com.dremio.exec.planner.sql.parser.SqlRollbackTable;
 import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import java.util.Collections;
+import java.util.List;
+import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlOperator;
 
 public class RollbackHandler extends SimpleDirectHandler {
   private final Catalog catalog;
@@ -50,18 +45,20 @@ public class RollbackHandler extends SimpleDirectHandler {
 
   @Override
   public List<SimpleCommandResult> toResult(String sql, SqlNode sqlNode) throws Exception {
-    final NamespaceKey path = CatalogUtil.getResolvePathForTableManagement(catalog, getTablePath (sqlNode));
+    final NamespaceKey path =
+        CatalogUtil.getResolvePathForTableManagement(catalog, getTablePath(sqlNode));
     CatalogEntityKey key = CatalogEntityKey.fromNamespaceKey(path);
     validateCommand(catalog, config, key);
     DremioTable table = catalog.getTable(path);
 
     final String sourceName = path.getRoot();
-    final VersionContext sessionVersion = config.getContext().getSession().getSessionVersionForSource(sourceName);
-    ResolvedVersionContext resolvedVersionContext = CatalogUtil.resolveVersionContext(catalog, sourceName, sessionVersion);
+    final VersionContext sessionVersion =
+        config.getContext().getSession().getSessionVersionForSource(sourceName);
+    ResolvedVersionContext resolvedVersionContext =
+        CatalogUtil.resolveVersionContext(catalog, sourceName, sessionVersion);
     CatalogUtil.validateResolvedVersionIsBranch(resolvedVersionContext);
-    TableMutationOptions tableMutationOptions = TableMutationOptions.newBuilder()
-      .setResolvedVersionContext(resolvedVersionContext)
-      .build();
+    TableMutationOptions tableMutationOptions =
+        TableMutationOptions.newBuilder().setResolvedVersionContext(resolvedVersionContext).build();
 
     execute(catalog, sqlNode, path, table.getDatasetConfig(), tableMutationOptions);
 
@@ -75,8 +72,8 @@ public class RollbackHandler extends SimpleDirectHandler {
     return getCommandResult(path);
   }
 
-  protected void validateCommand(Catalog catalog, SqlHandlerConfig config, CatalogEntityKey key) throws Exception {
-    validateFeatureEnabled(config);
+  protected void validateCommand(Catalog catalog, SqlHandlerConfig config, CatalogEntityKey key)
+      throws Exception {
     IcebergUtils.checkTableExistenceAndMutability(catalog, config, key, getSqlOperator(), true);
   }
 
@@ -88,22 +85,19 @@ public class RollbackHandler extends SimpleDirectHandler {
     return SqlRollbackTable.OPERATOR;
   }
 
-  private void validateFeatureEnabled(SqlHandlerConfig config) {
-    if (!config.getContext().getOptions().getOption(ExecConstants.ENABLE_ICEBERG_ROLLBACK)) {
-      throw UserException.unsupportedError().message("ROLLBACK TABLE command is not supported.").buildSilently();
-    }
-  }
-
   private List<SimpleCommandResult> getCommandResult(NamespaceKey path) {
     return Collections.singletonList(SimpleCommandResult.successful("Table [%s] rollbacked", path));
   }
 
-  private void execute(Catalog catalog,
-                         SqlNode sqlNode,
-                         NamespaceKey path,
-                         DatasetConfig datasetConfig,
-                         TableMutationOptions tableMutationOptions) throws Exception {
+  private void execute(
+      Catalog catalog,
+      SqlNode sqlNode,
+      NamespaceKey path,
+      DatasetConfig datasetConfig,
+      TableMutationOptions tableMutationOptions)
+      throws Exception {
     final SqlRollbackTable rollbackTable = SqlNodeUtil.unwrap(sqlNode, SqlRollbackTable.class);
-    catalog.rollbackTable(path, datasetConfig, rollbackTable.getRollbackOption(), tableMutationOptions);
+    catalog.rollbackTable(
+        path, datasetConfig, rollbackTable.getRollbackOption(), tableMutationOptions);
   }
 }

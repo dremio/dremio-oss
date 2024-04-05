@@ -24,6 +24,20 @@ import static com.dremio.exec.store.iceberg.IcebergUtils.loadTableMetadata;
 import static com.dremio.exec.store.iceberg.IcebergUtils.writeSplitIdentity;
 import static com.dremio.exec.store.iceberg.IcebergUtils.writeToVector;
 
+import com.dremio.common.AutoCloseables;
+import com.dremio.common.exceptions.ExecutionSetupException;
+import com.dremio.common.exceptions.UserException;
+import com.dremio.common.exceptions.UserRemoteException;
+import com.dremio.common.utils.PathUtils;
+import com.dremio.exec.physical.base.OpProps;
+import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
+import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.store.RecordReader;
+import com.dremio.exec.store.SplitIdentity;
+import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
+import com.dremio.sabot.op.scan.OutputMutator;
+import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -32,7 +46,6 @@ import java.util.Map;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.ValueVector;
@@ -52,26 +65,10 @@ import org.apache.iceberg.expressions.ManifestEvaluator;
 import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.types.Type;
 
-import com.dremio.common.AutoCloseables;
-import com.dremio.common.exceptions.ExecutionSetupException;
-import com.dremio.common.exceptions.UserException;
-import com.dremio.common.exceptions.UserRemoteException;
-import com.dremio.common.utils.PathUtils;
-import com.dremio.exec.physical.base.OpProps;
-import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
-import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.store.RecordReader;
-import com.dremio.exec.store.SplitIdentity;
-import com.dremio.sabot.exec.context.OperatorContext;
-import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
-import com.dremio.sabot.op.scan.OutputMutator;
-import com.google.common.base.Preconditions;
-
-/**
- * Manifest list record reader
- */
+/** Manifest list record reader */
 public class IcebergManifestListRecordReader implements RecordReader {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(IcebergManifestListRecordReader.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(IcebergManifestListRecordReader.class);
 
   private final BatchSchema schema;
   private final List<String> dataset;
@@ -91,6 +88,8 @@ public class IcebergManifestListRecordReader implements RecordReader {
   private final ManifestContentType manifestContent;
   private Map<Integer, PartitionSpec> partitionSpecMap;
 
+  private final boolean isInternalIcebergScanTableMetadata;
+
   private StructVector splitIdentityVector;
   private VarBinaryVector splitInfoVector;
   private VarBinaryVector colIdsVector;
@@ -100,16 +99,18 @@ public class IcebergManifestListRecordReader implements RecordReader {
   protected OutputMutator output;
   protected Consumer<Integer> setColIds;
 
-  public IcebergManifestListRecordReader(OperatorContext context,
-                                         String metadataLocation,
-                                         SupportsIcebergRootPointer pluginForIceberg,
-                                         List<String> dataset,
-                                         String dataSourcePluginId,
-                                         BatchSchema fullSchema,
-                                         OpProps props,
-                                         List<String> partitionCols,
-                                         IcebergExtendedProp icebergExtendedProp,
-                                         ManifestContentType manifestContent) {
+  public IcebergManifestListRecordReader(
+      OperatorContext context,
+      String metadataLocation,
+      SupportsIcebergRootPointer pluginForIceberg,
+      List<String> dataset,
+      String dataSourcePluginId,
+      BatchSchema fullSchema,
+      OpProps props,
+      List<String> partitionCols,
+      IcebergExtendedProp icebergExtendedProp,
+      ManifestContentType manifestContent,
+      boolean isInternalIcebergScanTableMetadata) {
     this.metadataLocation = metadataLocation;
     this.context = context;
     this.pluginForIceberg = pluginForIceberg;
@@ -118,13 +119,18 @@ public class IcebergManifestListRecordReader implements RecordReader {
     this.schema = fullSchema;
     this.props = props;
     this.partitionCols = partitionCols;
-    this.partColToKeyMap = partitionCols != null ? IntStream.range(0, partitionCols.size())
-      .boxed()
-      .collect(Collectors.toMap(i -> partitionCols.get(i).toLowerCase(), i -> i)) : null;
+    this.partColToKeyMap =
+        partitionCols != null
+            ? IntStream.range(0, partitionCols.size())
+                .boxed()
+                .collect(Collectors.toMap(i -> partitionCols.get(i).toLowerCase(), i -> i))
+            : null;
     this.icebergExtendedProp = icebergExtendedProp;
     this.manifestContent = manifestContent;
+    this.isInternalIcebergScanTableMetadata = isInternalIcebergScanTableMetadata;
     try {
-      this.icebergFilterExpression = IcebergSerDe.deserializeFromByteArray(icebergExtendedProp.getIcebergExpression());
+      this.icebergFilterExpression =
+          IcebergSerDe.deserializeFromByteArray(icebergExtendedProp.getIcebergExpression());
     } catch (IOException e) {
       throw new RuntimeIOException(e, "failed to deserialize Iceberg Expression");
     } catch (ClassNotFoundException e) {
@@ -140,31 +146,43 @@ public class IcebergManifestListRecordReader implements RecordReader {
 
     partitionSpecMap = tableMetadata.specsById();
     final long snapshotId = icebergExtendedProp.getSnapshotId();
-    final Snapshot snapshot = snapshotId == -1 ? tableMetadata.currentSnapshot() : tableMetadata.snapshot(snapshotId);
+    final Snapshot snapshot =
+        snapshotId == -1 ? tableMetadata.currentSnapshot() : tableMetadata.snapshot(snapshotId);
     if (snapshot == null) {
       emptyTable = true;
       return;
     }
-    icebergTableSchema = icebergExtendedProp.getIcebergSchema() != null ?
-            IcebergSerDe.deserializedJsonAsSchema(icebergExtendedProp.getIcebergSchema()) :
-            tableMetadata.schema();
+    icebergTableSchema =
+        icebergExtendedProp.getIcebergSchema() != null
+            ? IcebergSerDe.deserializedJsonAsSchema(icebergExtendedProp.getIcebergSchema())
+            : tableMetadata.schema();
 
     // DX-41522, throw exception when DeleteFiles are present.
     // TODO: remove this throw when we get full support for handling the deletes correctly.
     if (tableMetadata.formatVersion() > 1) {
-      long numDeleteFiles = Long.parseLong(snapshot.summary().getOrDefault("total-delete-files", "0"));
-      if (numDeleteFiles > 0 && !context.getOptions().getOption(ENABLE_ICEBERG_MERGE_ON_READ_SCAN)) {
+      long numDeleteFiles =
+          snapshot.summary() != null
+              ? Long.parseLong(snapshot.summary().getOrDefault("total-delete-files", "0"))
+              : 0;
+      if (numDeleteFiles > 0
+          && !context.getOptions().getOption(ENABLE_ICEBERG_MERGE_ON_READ_SCAN)) {
         throw UserException.unsupportedError()
             .message("Iceberg V2 tables with delete files are not supported.")
             .buildSilently();
       }
     }
 
-    long numEqualityDeletes = Long.parseLong(snapshot.summary().getOrDefault("total-equality-deletes", "0"));
-    if (numEqualityDeletes > 0 && !context.getOptions().getOption(ENABLE_ICEBERG_MERGE_ON_READ_SCAN_WITH_EQUALITY_DELETE)) {
+    long numEqualityDeletes =
+        snapshot.summary() != null
+            ? Long.parseLong(snapshot.summary().getOrDefault("total-equality-deletes", "0"))
+            : 0;
+    if (numEqualityDeletes > 0
+        && !context
+            .getOptions()
+            .getOption(ENABLE_ICEBERG_MERGE_ON_READ_SCAN_WITH_EQUALITY_DELETE)) {
       throw UserException.unsupportedError()
-        .message("Iceberg V2 tables with equality deletes are not supported.")
-        .buildSilently();
+          .message("Iceberg V2 tables with equality deletes are not supported.")
+          .buildSilently();
     }
 
     List<ManifestFile> manifestFileList = filterManifestFiles(getManifests(snapshot, io));
@@ -175,24 +193,29 @@ public class IcebergManifestListRecordReader implements RecordReader {
   }
 
   protected void initializeDatasetXAttr() {
-    Map<String, Integer> colIdMap = manifestContent == ManifestContentType.DELETES ?
-      IcebergUtils.getColIDMapWithReservedDeleteFields(icebergTableSchema) :
-      IcebergUtils.getIcebergColumnNameToIDMap(icebergTableSchema);
-    icebergDatasetXAttr = IcebergProtobuf.IcebergDatasetXAttr.newBuilder()
-      .addAllColumnIds(colIdMap.entrySet()
-        .stream()
-        .map(c -> IcebergProtobuf.IcebergSchemaField.newBuilder()
-          .setSchemaPath(c.getKey())
-          .setId(c.getValue())
-          .build())
-        .collect(Collectors.toList()))
-      .build()
-      .toByteArray();
-     setColIds = outIndex -> colIdsVector.setSafe(outIndex, icebergDatasetXAttr);
+    Map<String, Integer> colIdMap =
+        manifestContent == ManifestContentType.DELETES
+            ? IcebergUtils.getColIDMapWithReservedDeleteFields(icebergTableSchema)
+            : IcebergUtils.getIcebergColumnNameToIDMap(icebergTableSchema);
+    icebergDatasetXAttr =
+        IcebergProtobuf.IcebergDatasetXAttr.newBuilder()
+            .addAllColumnIds(
+                colIdMap.entrySet().stream()
+                    .map(
+                        c ->
+                            IcebergProtobuf.IcebergSchemaField.newBuilder()
+                                .setSchemaPath(c.getKey())
+                                .setId(c.getValue())
+                                .build())
+                    .collect(Collectors.toList()))
+            .build()
+            .toByteArray();
+    setColIds = outIndex -> colIdsVector.setSafe(outIndex, icebergDatasetXAttr);
   }
 
   protected FileIO createIO(String path) {
-    return createFileIOForIcebergMetadata(pluginForIceberg, context, datasourcePluginUID, props, dataset, path);
+    return createFileIOForIcebergMetadata(
+        pluginForIceberg, context, datasourcePluginUID, props, dataset, path);
   }
 
   protected void initializeOutVectors() {
@@ -200,8 +223,8 @@ public class IcebergManifestListRecordReader implements RecordReader {
     tmpBuf = context.getAllocator().buffer(4096);
 
     splitIdentityVector = (StructVector) output.getVector(RecordReader.SPLIT_IDENTITY);
-    splitInfoVector = (VarBinaryVector)output.getVector(RecordReader.SPLIT_INFORMATION);
-    colIdsVector = (VarBinaryVector)output.getVector(RecordReader.COL_IDS);
+    splitInfoVector = (VarBinaryVector) output.getVector(RecordReader.SPLIT_INFORMATION);
+    colIdsVector = (VarBinaryVector) output.getVector(RecordReader.COL_IDS);
   }
 
   private List<ManifestFile> getManifests(Snapshot snapshot, FileIO io) {
@@ -217,10 +240,13 @@ public class IcebergManifestListRecordReader implements RecordReader {
           throw new IllegalStateException("Invalid ManifestContentType " + manifestContent);
       }
     } catch (NotFoundException nfe) {
-      logger.error(String.format("Unable to read manifest list [%s]", snapshot.manifestListLocation()), nfe);
-      throw UserRemoteException.dataReadError() // Job is not re-attempted on this error code
-          .message("This version of the table [%s] is not available - [snapshot with id %d created at %s].",
-              String.join(".", dataset), snapshot.snapshotId(),
+      logger.error(
+          String.format("Unable to read manifest list [%s]", snapshot.manifestListLocation()), nfe);
+      throw UserRemoteException.dataReadError(nfe) // Job is not re-attempted on this error code
+          .message(
+              "This version of the table [%s] is not available - [snapshot with id %d created at %s].",
+              String.join(".", dataset),
+              snapshot.snapshotId(),
               SqlHandlerUtil.getTimestampFromMillis(snapshot.timestampMillis()))
           .build(logger);
     }
@@ -248,7 +274,8 @@ public class IcebergManifestListRecordReader implements RecordReader {
       NullableStructWriter splitIdentityWriter = splitIdentityVector.getWriter();
       while (manifestFileIterator.hasNext() && outIndex < maxOutIndex) {
         ManifestFile manifestFile = manifestFileIterator.next();
-        SplitIdentity splitIdentity = new SplitIdentity(manifestFile.path(), 0, manifestFile.length(), manifestFile.length());
+        SplitIdentity splitIdentity =
+            new SplitIdentity(manifestFile.path(), 0, manifestFile.length(), manifestFile.length());
 
         writeSplitIdentity(splitIdentityWriter, outIndex, splitIdentity, tmpBuf);
         splitInfoVector.setSafe(outIndex, IcebergSerDe.serializeToByteArray(manifestFile));
@@ -258,7 +285,8 @@ public class IcebergManifestListRecordReader implements RecordReader {
           if (isNonAddOnField(field.getName())) {
             continue;
           }
-          writeToVector(output.getVector(field.getName()), outIndex, getStatValue(manifestFile, field));
+          writeToVector(
+              output.getVector(field.getName()), outIndex, getStatValue(manifestFile, field));
         }
         outIndex++;
       }
@@ -267,10 +295,11 @@ public class IcebergManifestListRecordReader implements RecordReader {
       output.getVectors().forEach(v -> v.setValueCount(lastOutIndex));
       return lastOutIndex - startOutIndex;
     } catch (Exception e) {
-      throw UserException
-        .dataReadError(e)
-        .message("Unable to read manifest list files for table '%s'", PathUtils.constructFullPath(dataset))
-        .build(logger);
+      throw UserException.dataReadError(e)
+          .message(
+              "Unable to read manifest list files for table '%s'",
+              PathUtils.constructFullPath(dataset))
+          .build(logger);
     }
   }
 
@@ -279,20 +308,29 @@ public class IcebergManifestListRecordReader implements RecordReader {
     Preconditions.checkArgument(fieldName.length() > 4);
     String colName = fieldName.substring(0, fieldName.length() - 4).toLowerCase();
     String suffix = fieldName.substring(fieldName.length() - 3).toLowerCase();
-    Preconditions.checkArgument(partColToKeyMap.containsKey(colName), "partition column not present");
+    Preconditions.checkArgument(
+        partColToKeyMap.containsKey(colName), "partition column not present");
     int key = partColToKeyMap.get(colName);
     Type fieldType = icebergTableSchema.caseInsensitiveFindField(colName).type();
     Object value;
 
     switch (suffix) {
       case "min":
-        value = key < manifestFile.partitions().size() ? getValueFromByteBuffer(manifestFile.partitions().get(key).lowerBound(), fieldType) : null;
+        value =
+            key < manifestFile.partitions().size()
+                ? getValueFromByteBuffer(manifestFile.partitions().get(key).lowerBound(), fieldType)
+                : null;
         break;
       case "max":
-        value = key < manifestFile.partitions().size() ? getValueFromByteBuffer(manifestFile.partitions().get(key).upperBound(), fieldType) : null;
+        value =
+            key < manifestFile.partitions().size()
+                ? getValueFromByteBuffer(manifestFile.partitions().get(key).upperBound(), fieldType)
+                : null;
         break;
       default:
-        throw UserException.unsupportedError().message("unexpected suffix for column: " + fieldName).buildSilently();
+        throw UserException.unsupportedError()
+            .message("unexpected suffix for column: " + fieldName)
+            .buildSilently();
     }
 
     return value;
@@ -310,9 +348,33 @@ public class IcebergManifestListRecordReader implements RecordReader {
     }
     Map<Integer, ManifestEvaluator> evaluatorMap = new HashMap<>();
     for (Map.Entry<Integer, PartitionSpec> spec : partitionSpecMap.entrySet()) {
-      ManifestEvaluator partitionEval = ManifestEvaluator.forRowFilter(icebergFilterExpression, spec.getValue(), false);
+      ManifestEvaluator partitionEval =
+          ManifestEvaluator.forRowFilter(icebergFilterExpression, spec.getValue(), false);
       evaluatorMap.put(spec.getKey(), partitionEval);
     }
-    return manifestFileList.stream().filter(file -> evaluatorMap.get(file.partitionSpecId()).eval(file)).collect(Collectors.toList());
+
+    return manifestFileList.stream()
+        .filter(
+            file -> {
+              if (this.isInternalIcebergScanTableMetadata) {
+                PartitionSpec boundPartitionSpec = partitionSpecMap.get(file.partitionSpecId());
+                // The partitionType is what the ManifestEvaluator uses to bind field names into the
+                // icebergFilterExpression
+                // This will not catch if the manifest file has different types but the name number
+                // of partitions.
+                // Unfortunately the ManifestFile doesn't contain a full ParititionSpec just a
+                // List<PartitionFieldSummary>
+                if (boundPartitionSpec.isPartitioned()
+                    && boundPartitionSpec.partitionType().fields().size()
+                        == file.partitions().size()) {
+                  return evaluatorMap.get(file.partitionSpecId()).eval(file);
+                } else {
+                  return true;
+                }
+              } else {
+                return evaluatorMap.get(file.partitionSpecId()).eval(file);
+              }
+            })
+        .collect(Collectors.toList());
   }
 }

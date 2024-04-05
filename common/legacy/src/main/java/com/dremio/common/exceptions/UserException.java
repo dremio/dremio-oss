@@ -15,45 +15,53 @@
  */
 package com.dremio.common.exceptions;
 
-import java.util.List;
-
-import org.apache.arrow.memory.OutOfMemoryException;
-import org.apache.arrow.vector.util.SchemaChangeRuntimeException;
-import org.slf4j.Logger;
-
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.UserBitShared.DremioPBError;
 import com.google.errorprone.annotations.FormatMethod;
 import com.google.protobuf.ByteString;
+import java.util.List;
+import org.apache.arrow.memory.OutOfMemoryException;
+import org.apache.arrow.vector.util.SchemaChangeRuntimeException;
+import org.slf4j.Logger;
 
 /**
- * Base class for all user exception. The goal is to separate out common error conditions where we can give users
- * useful feedback.
- * <p>Throwing a user exception will guarantee it's message will be displayed to the user, along with any context
- * information added to the exception at various levels while being sent to the client.
- * <p>A specific class of user exceptions are system exception. They represent system level errors that don't display
- * any specific error message to the user apart from "A system error has occurred" along with information to retrieve
- * the details of the exception from the logs.
- * <p>Although system exception should only display a generic message to the user, for now they will display the root
- * error message, until all user errors are properly sent from the server side.
- * <p>Any thrown exception that is not wrapped inside a user exception will automatically be converted to a system
- * exception before being sent to the client.
+ * Base class for all user exception. The goal is to separate out common error conditions where we
+ * can give users useful feedback.
+ *
+ * <p>Throwing a user exception will guarantee it's message will be displayed to the user, along
+ * with any context information added to the exception at various levels while being sent to the
+ * client.
+ *
+ * <p>A specific class of user exceptions are system exception. They represent system level errors
+ * that don't display any specific error message to the user apart from "A system error has
+ * occurred" along with information to retrieve the details of the exception from the logs.
+ *
+ * <p>Although system exception should only display a generic message to the user, for now they will
+ * display the root error message, until all user errors are properly sent from the server side.
+ *
+ * <p>Any thrown exception that is not wrapped inside a user exception will automatically be
+ * converted to a system exception before being sent to the client.
  *
  * @see com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType
  */
 public class UserException extends RuntimeException {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(UserException.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(UserException.class);
 
-  public static final String MEMORY_ERROR_MSG = "Query was cancelled because it exceeded the memory limits set by the administrator.";
+  public static final String MEMORY_ERROR_MSG =
+      "Query was cancelled because it exceeded the memory limits set by the administrator.";
 
-  public static final String OOM_MSG = "Query canceled - out of memory, check the query profile for details";
+  public static final String OOM_MSG =
+      "Query canceled - out of memory, check the query profile for details";
 
   public static final String SYSTEM_ERROR_MSG = "Unexpected error occurred.";
 
-  public static final String QUERY_REJECTED_MSG = "Rejecting query because it exceeded the maximum allowed number of live queries in a single coordinator";
+  public static final String QUERY_REJECTED_MSG =
+      "Rejecting query because it exceeded the maximum allowed number of live queries in a single coordinator";
 
-  public static final String REFRESH_METADATA_FAILED_CONCURRENT_UPDATE_MSG = "Unable to refresh metadata for the dataset (due to concurrent updates). Please retry.";
+  public static final String REFRESH_METADATA_FAILED_CONCURRENT_UPDATE_MSG =
+      "Unable to refresh metadata for the dataset (due to concurrent updates). Please retry.";
 
   // reasons for cancelling a query using UserException
   public enum AttemptCompletionState {
@@ -80,20 +88,20 @@ public class UserException extends RuntimeException {
 
   /**
    * Wraps the passed exception inside a invalid dataset metadata error.
-   * <p>The cause message will be used unless {@link Builder#message(String, Object...)} is called.
-   * <p>If the wrapped exception is, or wraps, a user exception it will be returned by {@link Builder#build(Logger)}
-   * instead of creating a new exception. Any added context will be added to the user exception as well.
    *
-   * Add context with paths of data sets that should be refreshed. For example:
-   * UserException.metadataOutOfDateError()
-   *   .setAdditionalExceptionContext(new InvalidMetaDataErrorContext(paths))
-   *   ...
-   *   .build(logger);
+   * <p>The cause message will be used unless {@link Builder#message(String, Object...)} is called.
+   *
+   * <p>If the wrapped exception is, or wraps, a user exception it will be returned by {@link
+   * Builder#build(Logger)} instead of creating a new exception. Any added context will be added to
+   * the user exception as well.
+   *
+   * <p>Add context with paths of data sets that should be refreshed. For example:
+   * UserException.metadataOutOfDateError() .setAdditionalExceptionContext(new
+   * InvalidMetaDataErrorContext(paths)) ... .build(logger);
    *
    * @see com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType#INVALID_DATASET_METADATA
-   *
-   * @param cause exception we want the user exception to wrap. If cause is, or wrap, a user exception it will be
-   *              returned by the builder instead of creating a new user exception
+   * @param cause exception we want the user exception to wrap. If cause is, or wrap, a user
+   *     exception it will be returned by the builder instead of creating a new user exception
    * @return user exception builder
    */
   public static Builder invalidMetadataError(final Throwable cause) {
@@ -112,14 +120,16 @@ public class UserException extends RuntimeException {
 
   /**
    * Wraps the passed exception inside a schema change error.
+   *
    * <p>The cause message will be used unless {@link Builder#message(String, Object...)} is called.
-   * <p>If the wrapped exception is, or wraps, a user exception it will be returned by {@link Builder#build(Logger)}
-   * instead of creating a new exception. Any added context will be added to the user exception as well.
+   *
+   * <p>If the wrapped exception is, or wraps, a user exception it will be returned by {@link
+   * Builder#build(Logger)} instead of creating a new exception. Any added context will be added to
+   * the user exception as well.
    *
    * @see com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType#SCHEMA_CHANGE
-   *
-   * @param cause exception we want the user exception to wrap. If cause is, or wrap, a user exception it will be
-   *              returned by the builder instead of creating a new user exception
+   * @param cause exception we want the user exception to wrap. If cause is, or wrap, a user
+   *     exception it will be returned by the builder instead of creating a new user exception
    * @return user exception builder
    */
   public static Builder schemaChangeError(final Throwable cause) {
@@ -138,14 +148,16 @@ public class UserException extends RuntimeException {
 
   /**
    * Wraps the passed exception inside a resource timeout error.
+   *
    * <p>The cause message will be used unless {@link Builder#message(String, Object...)} is called.
-   * <p>If the wrapped exception is, or wraps, a user exception it will be returned by {@link Builder#build(Logger)}
-   * instead of creating a new exception. Any added context will be added to the user exception as well.
+   *
+   * <p>If the wrapped exception is, or wraps, a user exception it will be returned by {@link
+   * Builder#build(Logger)} instead of creating a new exception. Any added context will be added to
+   * the user exception as well.
    *
    * @see com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType#RESOURCE_TIMEOUT
-   *
-   * @param cause exception we want the user exception to wrap. If cause is, or wrap, a user exception it will be
-   *              returned by the builder instead of creating a new user exception
+   * @param cause exception we want the user exception to wrap. If cause is, or wrap, a user
+   *     exception it will be returned by the builder instead of creating a new user exception
    * @return user exception builder
    */
   public static Builder resourceTimeoutError(final Throwable cause) {
@@ -164,19 +176,21 @@ public class UserException extends RuntimeException {
 
   /**
    * Wraps the passed exception inside a JSON field change error.
+   *
    * <p>The cause message will be used unless {@link Builder#message(String, Object...)} is called.
-   * <p>If the wrapped exception is, or wraps, a user exception it will be returned by {@link Builder#build(Logger)}
-   * instead of creating a new exception. Any added context will be added to the user exception as well.
+   *
+   * <p>If the wrapped exception is, or wraps, a user exception it will be returned by {@link
+   * Builder#build(Logger)} instead of creating a new exception. Any added context will be added to
+   * the user exception as well.
    *
    * @see com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType#JSON_FIELD_CHANGE
-   *
-   * @param cause exception we want the user exception to wrap. If cause is, or wrap, a user exception it will be
-   *              returned by the builder instead of creating a new user exception
+   * @param cause exception we want the user exception to wrap. If cause is, or wrap, a user
+   *     exception it will be returned by the builder instead of creating a new user exception
    * @return user exception builder
    */
-   public static Builder jsonFieldChangeError(final Throwable cause) {
-     return builder(DremioPBError.ErrorType.JSON_FIELD_CHANGE, cause);
-   }
+  public static Builder jsonFieldChangeError(final Throwable cause) {
+    return builder(DremioPBError.ErrorType.JSON_FIELD_CHANGE, cause);
+  }
 
   /**
    * Creates an OUT_OF_MEMORY error with a prebuilt message
@@ -185,8 +199,8 @@ public class UserException extends RuntimeException {
    * @return user exception builder
    */
   public static Builder memoryError(final Throwable cause) {
-    final Builder b = builder(DremioPBError.ErrorType.OUT_OF_MEMORY, cause)
-      .message(MEMORY_ERROR_MSG);
+    final Builder b =
+        builder(DremioPBError.ErrorType.OUT_OF_MEMORY, cause).message(MEMORY_ERROR_MSG);
     if (cause != null) {
       b.addContext(cause.getMessage());
     }
@@ -204,18 +218,19 @@ public class UserException extends RuntimeException {
 
   /**
    * Wraps the passed exception inside a system error.
+   *
    * <p>The cause message will be used unless {@link Builder#message(String, Object...)} is called.
-   * <p>If the wrapped exception is, or wraps, a user exception it will be returned by {@link Builder#build(Logger)}
-   * instead of creating a new exception. Any added context will be added to the user exception as well.
+   *
+   * <p>If the wrapped exception is, or wraps, a user exception it will be returned by {@link
+   * Builder#build(Logger)} instead of creating a new exception. Any added context will be added to
+   * the user exception as well.
    *
    * @see com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType#SYSTEM
-   *
-   * @param cause exception we want the user exception to wrap. If cause is, or wrap, a user exception it will be
-   *              returned by the builder instead of creating a new user exception
+   * @param cause exception we want the user exception to wrap. If cause is, or wrap, a user
+   *     exception it will be returned by the builder instead of creating a new user exception
    * @return user exception builder
-   *
-   * @deprecated This method should never need to be used explicitly, unless you are passing the exception to the
-   *             Rpc layer or UserResultListener.submitFailed()
+   * @deprecated This method should never need to be used explicitly, unless you are passing the
+   *     exception to the Rpc layer or UserResultListener.submitFailed()
    */
   @Deprecated
   public static Builder systemError(final Throwable cause) {
@@ -234,14 +249,16 @@ public class UserException extends RuntimeException {
 
   /**
    * Wraps the passed exception inside a connection error.
+   *
    * <p>The cause message will be used unless {@link Builder#message(String, Object...)} is called.
-   * <p>If the wrapped exception is, or wraps, a user exception it will be returned by {@link Builder#build(Logger)}
-   * instead of creating a new exception. Any added context will be added to the user exception as well.
+   *
+   * <p>If the wrapped exception is, or wraps, a user exception it will be returned by {@link
+   * Builder#build(Logger)} instead of creating a new exception. Any added context will be added to
+   * the user exception as well.
    *
    * @see com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType#CONNECTION
-   *
-   * @param cause exception we want the user exception to wrap. If cause is, or wrap, a user exception it will be
-   *              returned by the builder instead of creating a new user exception
+   * @param cause exception we want the user exception to wrap. If cause is, or wrap, a user
+   *     exception it will be returned by the builder instead of creating a new user exception
    * @return user exception builder
    */
   public static Builder connectionError(final Throwable cause) {
@@ -260,14 +277,16 @@ public class UserException extends RuntimeException {
 
   /**
    * Wraps the passed exception inside a data read error.
+   *
    * <p>The cause message will be used unless {@link Builder#message(String, Object...)} is called.
-   * <p>If the wrapped exception is, or wraps, a user exception it will be returned by {@link Builder#build(Logger)}
-   * instead of creating a new exception. Any added context will be added to the user exception as well.
+   *
+   * <p>If the wrapped exception is, or wraps, a user exception it will be returned by {@link
+   * Builder#build(Logger)} instead of creating a new exception. Any added context will be added to
+   * the user exception as well.
    *
    * @see com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType#DATA_READ
-   *
-   * @param cause exception we want the user exception to wrap. If cause is, or wrap, a user exception it will be
-   *              returned by the builder instead of creating a new user exception
+   * @param cause exception we want the user exception to wrap. If cause is, or wrap, a user
+   *     exception it will be returned by the builder instead of creating a new user exception
    * @return user exception builder
    */
   public static Builder dataReadError(final Throwable cause) {
@@ -286,14 +305,16 @@ public class UserException extends RuntimeException {
 
   /**
    * Wraps the passed exception inside a data read error.
+   *
    * <p>The cause message will be used unless {@link Builder#message(String, Object...)} is called.
-   * <p>If the wrapped exception is, or wraps, a user exception it will be returned by {@link Builder#build(Logger)}
-   * instead of creating a new exception. Any added context will be added to the user exception as well.
+   *
+   * <p>If the wrapped exception is, or wraps, a user exception it will be returned by {@link
+   * Builder#build(Logger)} instead of creating a new exception. Any added context will be added to
+   * the user exception as well.
    *
    * @see com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType#SOURCE_BAD_STATE
-   *
-   * @param cause exception we want the user exception to wrap. If cause is, or wrap, a user exception it will be
-   *              returned by the builder instead of creating a new user exception
+   * @param cause exception we want the user exception to wrap. If cause is, or wrap, a user
+   *     exception it will be returned by the builder instead of creating a new user exception
    * @return user exception builder
    */
   public static Builder sourceInBadState(final Throwable cause) {
@@ -312,14 +333,16 @@ public class UserException extends RuntimeException {
 
   /**
    * Wraps the passed exception inside a data write error.
+   *
    * <p>The cause message will be used unless {@link Builder#message(String, Object...)} is called.
-   * <p>If the wrapped exception is, or wraps, a user exception it will be returned by {@link Builder#build(Logger)}
-   * instead of creating a new exception. Any added context will be added to the user exception as well.
+   *
+   * <p>If the wrapped exception is, or wraps, a user exception it will be returned by {@link
+   * Builder#build(Logger)} instead of creating a new exception. Any added context will be added to
+   * the user exception as well.
    *
    * @see com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType#DATA_WRITE
-   *
-   * @param cause exception we want the user exception to wrap. If cause is, or wrap, a user exception it will be
-   *              returned by the builder instead of creating a new user exception
+   * @param cause exception we want the user exception to wrap. If cause is, or wrap, a user
+   *     exception it will be returned by the builder instead of creating a new user exception
    * @return user exception builder
    */
   public static Builder dataWriteError(final Throwable cause) {
@@ -338,14 +361,16 @@ public class UserException extends RuntimeException {
 
   /**
    * Wraps the passed exception inside a function error.
+   *
    * <p>The cause message will be used unless {@link Builder#message(String, Object...)} is called.
-   * <p>If the wrapped exception is, or wraps, a user exception it will be returned by {@link Builder#build(Logger)}
-   * instead of creating a new exception. Any added context will be added to the user exception as well.
+   *
+   * <p>If the wrapped exception is, or wraps, a user exception it will be returned by {@link
+   * Builder#build(Logger)} instead of creating a new exception. Any added context will be added to
+   * the user exception as well.
    *
    * @see com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType#FUNCTION
-   *
-   * @param cause exception we want the user exception to wrap. If cause is, or wrap, a user exception it will be
-   *              returned by the builder instead of creating a new user exception
+   * @param cause exception we want the user exception to wrap. If cause is, or wrap, a user
+   *     exception it will be returned by the builder instead of creating a new user exception
    * @return user exception builder
    */
   public static Builder functionError(final Throwable cause) {
@@ -364,14 +389,16 @@ public class UserException extends RuntimeException {
 
   /**
    * Wraps the passed exception inside a parse error.
+   *
    * <p>The cause message will be used unless {@link Builder#message(String, Object...)} is called.
-   * <p>If the wrapped exception is, or wraps, a user exception it will be returned by {@link Builder#build(Logger)}
-   * instead of creating a new exception. Any added context will be added to the user exception as well.
+   *
+   * <p>If the wrapped exception is, or wraps, a user exception it will be returned by {@link
+   * Builder#build(Logger)} instead of creating a new exception. Any added context will be added to
+   * the user exception as well.
    *
    * @see com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType#PARSE
-   *
-   * @param cause exception we want the user exception to wrap. If cause is, or wrap, a user exception it will be
-   *              returned by the builder instead of creating a new user exception
+   * @param cause exception we want the user exception to wrap. If cause is, or wrap, a user
+   *     exception it will be returned by the builder instead of creating a new user exception
    * @return user exception builder
    */
   public static Builder parseError(final Throwable cause) {
@@ -390,14 +417,16 @@ public class UserException extends RuntimeException {
 
   /**
    * wraps the passed exception inside a validation error.
+   *
    * <p>the cause message will be used unless {@link Builder#message(String, Object...)} is called.
-   * <p>if the wrapped exception is, or wraps, a user exception it will be returned by {@link Builder#build(Logger)}
-   * instead of creating a new exception. Any added context will be added to the user exception as well.
+   *
+   * <p>if the wrapped exception is, or wraps, a user exception it will be returned by {@link
+   * Builder#build(Logger)} instead of creating a new exception. Any added context will be added to
+   * the user exception as well.
    *
    * @see com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType#VALIDATION
-   *
-   * @param cause exception we want the user exception to wrap. If cause is, or wrap, a user exception it will be
-   *              returned by the builder instead of creating a new user exception
+   * @param cause exception we want the user exception to wrap. If cause is, or wrap, a user
+   *     exception it will be returned by the builder instead of creating a new user exception
    * @return user exception builder
    */
   public static Builder validationError(Throwable cause) {
@@ -405,7 +434,6 @@ public class UserException extends RuntimeException {
   }
 
   /**
-   *
    * Creates a new user exception builder .
    *
    * @see com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType#REFLECTION_ERROR
@@ -418,20 +446,21 @@ public class UserException extends RuntimeException {
 
   /**
    * wraps the passed exception inside a validation error.
+   *
    * <p>the cause message will be used unless {@link Builder#message(String, Object...)} is called.
-   * <p>if the wrapped exception is, or wraps, a user exception it will be returned by {@link Builder#build(Logger)}
-   * instead of creating a new exception. Any added context will be added to the user exception as well.
+   *
+   * <p>if the wrapped exception is, or wraps, a user exception it will be returned by {@link
+   * Builder#build(Logger)} instead of creating a new exception. Any added context will be added to
+   * the user exception as well.
    *
    * @see com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType#REFLECTION_ERROR
-   *
-   * @param cause exception we want the user exception to wrap. If cause is, or wrap, a user exception it will be
-   *              returned by the builder instead of creating a new user exception
+   * @param cause exception we want the user exception to wrap. If cause is, or wrap, a user
+   *     exception it will be returned by the builder instead of creating a new user exception
    * @return user exception builder
    */
   public static Builder pdfsRetriableError(Throwable cause) {
     return builder(DremioPBError.ErrorType.PDFS_RETRIABLE_ERROR, cause);
   }
-
 
   /**
    * Creates a new user exception builder .
@@ -445,14 +474,16 @@ public class UserException extends RuntimeException {
 
   /**
    * wraps the passed exception inside a retry attempt error.
+   *
    * <p>the cause message will be used unless {@link Builder#message(String, Object...)} is called.
-   * <p>if the wrapped exception is, or wraps, a user exception it will be returned by {@link Builder#build(Logger)}
-   * instead of creating a new exception. Any added context will be added to the user exception as well.
+   *
+   * <p>if the wrapped exception is, or wraps, a user exception it will be returned by {@link
+   * Builder#build(Logger)} instead of creating a new exception. Any added context will be added to
+   * the user exception as well.
    *
    * @see com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType#RETRY_ATTEMPT_ERROR
-   *
-   * @param cause exception we want the user exception to wrap. If cause is, or wrap, a user exception it will be
-   *              returned by the builder instead of creating a new user exception
+   * @param cause exception we want the user exception to wrap. If cause is, or wrap, a user
+   *     exception it will be returned by the builder instead of creating a new user exception
    * @return user exception builder
    */
   public static Builder retryAttemptError(Throwable cause) {
@@ -471,14 +502,16 @@ public class UserException extends RuntimeException {
 
   /**
    * wraps the passed exception inside a validation error.
+   *
    * <p>the cause message will be used unless {@link Builder#message(String, Object...)} is called.
-   * <p>if the wrapped exception is, or wraps, a user exception it will be returned by {@link Builder#build(Logger)}
-   * instead of creating a new exception. Any added context will be added to the user exception as well.
+   *
+   * <p>if the wrapped exception is, or wraps, a user exception it will be returned by {@link
+   * Builder#build(Logger)} instead of creating a new exception. Any added context will be added to
+   * the user exception as well.
    *
    * @see com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType#REFLECTION_ERROR
-   *
-   * @param cause exception we want the user exception to wrap. If cause is, or wrap, a user exception it will be
-   *              returned by the builder instead of creating a new user exception
+   * @param cause exception we want the user exception to wrap. If cause is, or wrap, a user
+   *     exception it will be returned by the builder instead of creating a new user exception
    * @return user exception builder
    */
   public static Builder reflectionError(Throwable cause) {
@@ -497,14 +530,16 @@ public class UserException extends RuntimeException {
 
   /**
    * wraps the passed exception inside a validation error.
+   *
    * <p>the cause message will be used unless {@link Builder#message(String, Object...)} is called.
-   * <p>if the wrapped exception is, or wraps, a user exception it will be returned by {@link Builder#build(Logger)}
-   * instead of creating a new exception. Any added context will be added to the user exception as well.
+   *
+   * <p>if the wrapped exception is, or wraps, a user exception it will be returned by {@link
+   * Builder#build(Logger)} instead of creating a new exception. Any added context will be added to
+   * the user exception as well.
    *
    * @see com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType#REFRESH_DATASET_ERROR
-   *
-   * @param cause exception we want the user exception to wrap. If cause is, or wrap, a user exception it will be
-   *              returned by the builder instead of creating a new user exception
+   * @param cause exception we want the user exception to wrap. If cause is, or wrap, a user
+   *     exception it will be returned by the builder instead of creating a new user exception
    * @return user exception builder
    */
   public static Builder refreshDatasetError(Throwable cause) {
@@ -523,14 +558,16 @@ public class UserException extends RuntimeException {
 
   /**
    * Wraps the passed exception inside a permission error.
+   *
    * <p>The cause message will be used unless {@link Builder#message(String, Object...)} is called.
-   * <p>If the wrapped exception is, or wraps, a user exception it will be returned by {@link Builder#build(Logger)}
-   * instead of creating a new exception. Any added context will be added to the user exception as well.
+   *
+   * <p>If the wrapped exception is, or wraps, a user exception it will be returned by {@link
+   * Builder#build(Logger)} instead of creating a new exception. Any added context will be added to
+   * the user exception as well.
    *
    * @see com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType#PERMISSION
-   *
-   * @param cause exception we want the user exception to wrap. If cause is, or wrap, a user exception it will be
-   *              returned by the builder instead of creating a new user exception
+   * @param cause exception we want the user exception to wrap. If cause is, or wrap, a user
+   *     exception it will be returned by the builder instead of creating a new user exception
    * @return user exception builder
    */
   public static Builder permissionError(final Throwable cause) {
@@ -549,14 +586,16 @@ public class UserException extends RuntimeException {
 
   /**
    * Wraps the passed exception inside a plan error.
+   *
    * <p>The cause message will be used unless {@link Builder#message(String, Object...)} is called.
-   * <p>If the wrapped exception is, or wraps, a user exception it will be returned by {@link Builder#build(Logger)}
-   * instead of creating a new exception. Any added context will be added to the user exception as well.
+   *
+   * <p>If the wrapped exception is, or wraps, a user exception it will be returned by {@link
+   * Builder#build(Logger)} instead of creating a new exception. Any added context will be added to
+   * the user exception as well.
    *
    * @see com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType#PLAN
-   *
-   * @param cause exception we want the user exception to wrap. If cause is, or wrap, a user exception it will be
-   *              returned by the builder instead of creating a new user exception
+   * @param cause exception we want the user exception to wrap. If cause is, or wrap, a user
+   *     exception it will be returned by the builder instead of creating a new user exception
    * @return user exception builder
    */
   public static Builder planError(final Throwable cause) {
@@ -575,14 +614,16 @@ public class UserException extends RuntimeException {
 
   /**
    * Wraps the passed exception inside a resource error.
+   *
    * <p>The cause message will be used unless {@link Builder#message(String, Object...)} is called.
-   * <p>If the wrapped exception is, or wraps, a user exception it will be returned by {@link Builder#build(Logger)}
-   * instead of creating a new exception. Any added context will be added to the user exception as well.
+   *
+   * <p>If the wrapped exception is, or wraps, a user exception it will be returned by {@link
+   * Builder#build(Logger)} instead of creating a new exception. Any added context will be added to
+   * the user exception as well.
    *
    * @see com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType#RESOURCE
-   *
-   * @param cause exception we want the user exception to wrap. If cause is, or wrap, a user exception it will be
-   *              returned by the builder instead of creating a new user exception
+   * @param cause exception we want the user exception to wrap. If cause is, or wrap, a user
+   *     exception it will be returned by the builder instead of creating a new user exception
    * @return user exception builder
    */
   public static Builder resourceError(final Throwable cause) {
@@ -601,14 +642,16 @@ public class UserException extends RuntimeException {
 
   /**
    * Wraps the passed exception inside a unsupported error.
+   *
    * <p>The cause message will be used unless {@link Builder#message(String, Object...)} is called.
-   * <p>If the wrapped exception is, or wraps, a user exception it will be returned by {@link Builder#build(Logger)}
-   * instead of creating a new exception. Any added context will be added to the user exception as well.
+   *
+   * <p>If the wrapped exception is, or wraps, a user exception it will be returned by {@link
+   * Builder#build(Logger)} instead of creating a new exception. Any added context will be added to
+   * the user exception as well.
    *
    * @see com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType#UNSUPPORTED_OPERATION
-   *
-   * @param cause exception we want the user exception to wrap. If cause is, or wrap, a user exception it will be
-   *              returned by the builder instead of creating a new user exception
+   * @param cause exception we want the user exception to wrap. If cause is, or wrap, a user
+   *     exception it will be returned by the builder instead of creating a new user exception
    * @return user exception builder
    */
   public static Builder unsupportedError(final Throwable cause) {
@@ -627,14 +670,16 @@ public class UserException extends RuntimeException {
 
   /**
    * Wraps the passed exception inside a ioexception error.
+   *
    * <p>The cause message will be used unless {@link Builder#message(String, Object...)} is called.
-   * <p>If the wrapped exception is, or wraps, a user exception it will be returned by {@link Builder#build(Logger)}
-   * instead of creating a new exception. Any added context will be added to the user exception as well.
+   *
+   * <p>If the wrapped exception is, or wraps, a user exception it will be returned by {@link
+   * Builder#build(Logger)} instead of creating a new exception. Any added context will be added to
+   * the user exception as well.
    *
    * @see com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType#IO_EXCEPTION
-   *
-   * @param cause exception we want the user exception to wrap. If cause is, or wrap, a user exception it will be
-   *              returned by the builder instead of creating a new user exception
+   * @param cause exception we want the user exception to wrap. If cause is, or wrap, a user
+   *     exception it will be returned by the builder instead of creating a new user exception
    * @return user exception builder
    */
   public static Builder ioExceptionError(final Throwable cause) {
@@ -653,14 +698,16 @@ public class UserException extends RuntimeException {
 
   /**
    * Wraps the passed exception inside a concurrent modification error.
+   *
    * <p>The cause message will be used unless {@link Builder#message(String, Object...)} is called.
-   * <p>If the wrapped exception is, or wraps, a user exception it will be returned by {@link Builder#build(Logger)}
-   * instead of creating a new exception. Any added context will be added to the user exception as well.
+   *
+   * <p>If the wrapped exception is, or wraps, a user exception it will be returned by {@link
+   * Builder#build(Logger)} instead of creating a new exception. Any added context will be added to
+   * the user exception as well.
    *
    * @see com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType#CONCURRENT_MODIFICATION
-   *
-   * @param cause exception we want the user exception to wrap. If cause is, or wrap, a user exception it will be
-   *              returned by the builder instead of creating a new user exception
+   * @param cause exception we want the user exception to wrap. If cause is, or wrap, a user
+   *     exception it will be returned by the builder instead of creating a new user exception
    * @return user exception builder
    */
   public static Builder concurrentModificationError(final Throwable cause) {
@@ -672,10 +719,10 @@ public class UserException extends RuntimeException {
   }
 
   /**
-   * Builder class for UserException. You can wrap an existing exception, in this case it will first check if
-   * this exception is, or wraps, a UserException. If it does then the builder will use the user exception as it is
-   * (it will ignore the message passed to the constructor) and will add any additional context information to the
-   * exception's context
+   * Builder class for UserException. You can wrap an existing exception, in this case it will first
+   * check if this exception is, or wraps, a UserException. If it does then the builder will use the
+   * user exception as it is (it will ignore the message passed to the constructor) and will add any
+   * additional context information to the exception's context
    */
   public static final class Builder {
 
@@ -693,16 +740,16 @@ public class UserException extends RuntimeException {
     /**
      * Wraps an existing exception inside a user exception.
      *
-     * traverses the causes hierarchy searching for out of memory exception, if found the exception will be converted
-     * to a memory error
+     * <p>traverses the causes hierarchy searching for out of memory exception, if found the
+     * exception will be converted to a memory error
      *
-     * @param errorType user exception type that should be created if the passed exception isn't,
-     *                  or doesn't wrap a user exception
+     * @param errorType user exception type that should be created if the passed exception isn't, or
+     *     doesn't wrap a user exception
      * @param cause exception to wrap inside a user exception. Can be null
      */
     private Builder(final DremioPBError.ErrorType errorType, final Throwable cause) {
 
-      //TODO handle the improbable case where cause is a SYSTEM exception ?
+      // TODO handle the improbable case where cause is a SYSTEM exception ?
       uex = ErrorHelper.findWrappedCause(cause, UserException.class);
       if (uex != null) {
         this.errorType = null;
@@ -727,6 +774,7 @@ public class UserException extends RuntimeException {
 
     /**
      * sets or replaces the error message.
+     *
      * <p>This will be ignored if this builder is wrapping a user exception
      *
      * @param message string
@@ -742,10 +790,10 @@ public class UserException extends RuntimeException {
 
     /**
      * sets or replaces the error message.
+     *
      * <p>This will be ignored if this builder is wrapping a user exception
      *
      * @see String#format(String, Object...)
-     *
      * @param format format string
      * @param args Arguments referenced by the format specifiers in the format string
      * @return this builder
@@ -761,6 +809,7 @@ public class UserException extends RuntimeException {
 
     /**
      * add NodeEndpoint identity to the context.
+     *
      * <p>if the context already has a node endpoint identity, the new identity will be ignored
      *
      * @param endpoint node endpoint identity
@@ -772,6 +821,7 @@ public class UserException extends RuntimeException {
 
     /**
      * add a string line to the bottom of the context
+     *
      * @param value string line
      * @return this builder
      */
@@ -782,6 +832,7 @@ public class UserException extends RuntimeException {
 
     /**
      * add a string line to the bottom of the context
+     *
      * @param value string line
      * @return this builder
      */
@@ -880,7 +931,8 @@ public class UserException extends RuntimeException {
      * @return this builder
      */
     public Builder setAdditionalExceptionContext(AdditionalExceptionContext additionalContext) {
-      assert additionalContext.getErrorType() == errorType : "error type of context and builder must match";
+      assert additionalContext.getErrorType() == errorType
+          : "error type of context and builder must match";
       this.rawAdditionalContext = additionalContext.toByteString();
       return this;
     }
@@ -891,13 +943,14 @@ public class UserException extends RuntimeException {
     }
 
     /**
-     * builds a user exception or returns the wrapped one. If the error is a system error, the error message is logged
-     * to the given {@link Logger}.
+     * builds a user exception or returns the wrapped one. If the error is a system error, the error
+     * message is logged to the given {@link Logger}.
      *
      * @param logger the logger to write to, if null call won't log
      * @return user exception
-     * @deprecated we are no longer required to log UserExceptions whenever we build them. The user will see the exception
-     * in the query profile, and the caller can always chose to log the exception if really needed.
+     * @deprecated we are no longer required to log UserExceptions whenever we build them. The user
+     *     will see the exception in the query profile, and the caller can always chose to log the
+     *     exception if really needed.
      */
     @Deprecated
     public UserException build(final Logger logger) {
@@ -961,7 +1014,8 @@ public class UserException extends RuntimeException {
           // see https://dremio.atlassian.net/browse/DX-15825
           Exception e = new Exception("Failure while logging", ignore.getCause());
           e.addSuppressed(newException);
-          // we can't log the exception so make sure we are printing to std.out otherwise it will be completely hidden
+          // we can't log the exception so make sure we are printing to std.out otherwise it will be
+          // completely hidden
           e.printStackTrace();
 
           newException.addSuppressed(ignore);
@@ -975,8 +1029,8 @@ public class UserException extends RuntimeException {
      * Builds a user exception or returns the wrapped one.
      *
      * @return user exception
-     * @deprecated Use {@link #build(Logger)} instead. If the error is a system error, the error message is logged to
-     * this {@link UserException#logger}.
+     * @deprecated Use {@link #build(Logger)} instead. If the error is a system error, the error
+     *     message is logged to this {@link UserException#logger}.
      */
     @Deprecated
     public UserException build() {
@@ -984,8 +1038,7 @@ public class UserException extends RuntimeException {
     }
 
     /**
-     * Builds a user exception or returns the wrapped one.
-     * Doesn't log anything
+     * Builds a user exception or returns the wrapped one. Doesn't log anything
      *
      * @return user exception
      */
@@ -1002,8 +1055,11 @@ public class UserException extends RuntimeException {
 
   private final AttemptCompletionState attemptCompletionState;
 
-  protected UserException(final DremioPBError.ErrorType errorType, final String message, final Throwable cause,
-                          final ByteString rawAdditionalContext) {
+  protected UserException(
+      final DremioPBError.ErrorType errorType,
+      final String message,
+      final Throwable cause,
+      final ByteString rawAdditionalContext) {
     super(message, cause);
 
     this.errorType = errorType;
@@ -1033,15 +1089,19 @@ public class UserException extends RuntimeException {
   public String getErrorIdWithIdentity() {
     final NodeEndpoint endpoint = context.getEndpoint();
 
-    if (endpoint == null ) {
+    if (endpoint == null) {
       return "ErrorId: " + context.getErrorId();
     } else {
-      return "ErrorId: " + context.getErrorId() + " on " + endpoint.getAddress() + ":" + endpoint.getUserPort();
+      return "ErrorId: "
+          + context.getErrorId()
+          + " on "
+          + endpoint.getAddress()
+          + ":"
+          + endpoint.getUserPort();
     }
   }
 
   /**
-   *
    * @return the error message that was passed to the builder
    */
   public String getOriginalMessage() {
@@ -1049,7 +1109,8 @@ public class UserException extends RuntimeException {
   }
 
   /**
-   * generates the message that will be displayed to the client. The message also contains the stack trace.
+   * generates the message that will be displayed to the client. The message also contains the stack
+   * trace.
    *
    * @return verbose error message
    */
@@ -1058,7 +1119,9 @@ public class UserException extends RuntimeException {
   }
 
   public String getVerboseMessage(boolean includeErrorIdAndIdentity) {
-    return generateMessage(includeErrorIdAndIdentity) + "\n\n" + ErrorHelper.buildCausesMessage(getCause());
+    return generateMessage(includeErrorIdAndIdentity)
+        + "\n\n"
+        + ErrorHelper.buildCausesMessage(getCause());
   }
 
   public AttemptCompletionState getAttemptCompletionState() {
@@ -1082,14 +1145,15 @@ public class UserException extends RuntimeException {
     builder.setOriginalMessage(getOriginalMessage());
 
     if (getCause() != null) {
-      // some unit tests use this information to make sure a specific exception was thrown in the server
+      // some unit tests use this information to make sure a specific exception was thrown in the
+      // server
       builder.setException(ErrorHelper.getWrapper(getCause()));
     }
 
     builder.addAllContext(context.getContextAsStrings());
 
     if (rawAdditionalContext != null) {
-        builder.setTypeSpecificContext(rawAdditionalContext);
+      builder.setTypeSpecificContext(rawAdditionalContext);
     }
     return builder.build();
   }
@@ -1125,15 +1189,16 @@ public class UserException extends RuntimeException {
   }
 
   /**
-   * Generates a user error message that has the following structure:
-   * ERROR TYPE: ERROR_MESSAGE
-   * CONTEXT
-   * [ERROR_ID on NODE_IP:NODE_USER_PORT]
+   * Generates a user error message that has the following structure: ERROR TYPE: ERROR_MESSAGE
+   * CONTEXT [ERROR_ID on NODE_IP:NODE_USER_PORT]
    *
    * @return generated user error message
    */
   private String generateMessage(boolean includeErrorIdAndIdentity) {
-    return errorType + " ERROR: " + super.getMessage() + "\n\n" +
-        context.generateContextMessage(includeErrorIdAndIdentity);
+    return errorType
+        + " ERROR: "
+        + super.getMessage()
+        + "\n\n"
+        + context.generateContextMessage(includeErrorIdAndIdentity);
   }
 }

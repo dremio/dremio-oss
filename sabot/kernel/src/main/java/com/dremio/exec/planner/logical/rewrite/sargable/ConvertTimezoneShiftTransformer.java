@@ -15,15 +15,16 @@
  */
 package com.dremio.exec.planner.logical.rewrite.sargable;
 
+import com.google.common.collect.ImmutableList;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.commons.lang3.function.TriFunction;
 
-import com.google.common.collect.ImmutableList;
-
 /**
+ *
+ *
  * <pre>
  * Extract each component of a filter expr with SARGableStandardForm for
  * - CONVERT_TIMEZONE([sourceTimezone string], destinationTimezone string, timestamp date, timestamp, or string in ISO 8601 format) = rhsNode
@@ -31,9 +32,8 @@ import com.google.common.collect.ImmutableList;
  */
 public class ConvertTimezoneShiftTransformer extends ShiftTransformer {
 
-  public ConvertTimezoneShiftTransformer(RelOptCluster relOptCluster,
-                                         StandardForm stdForm,
-                                         SqlOperator sqlOperator) {
+  public ConvertTimezoneShiftTransformer(
+      RelOptCluster relOptCluster, StandardForm stdForm, SqlOperator sqlOperator) {
     super(relOptCluster, stdForm, sqlOperator);
   }
 
@@ -48,9 +48,7 @@ public class ConvertTimezoneShiftTransformer extends ShiftTransformer {
     // Cast string date/time literal to date/time type
     if (SqlTypeName.CHAR_TYPES.contains(rhs.getType().getSqlTypeName())) {
       return rexBuilder.makeCast(
-        rexBuilder.getTypeFactory().createTypeWithNullability(getColumn().getType(), false),
-        rhs
-      );
+          rexBuilder.getTypeFactory().createTypeWithNullability(getColumn().getType(), false), rhs);
     }
     return rhs;
   }

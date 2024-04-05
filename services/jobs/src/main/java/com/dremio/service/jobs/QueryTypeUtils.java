@@ -15,21 +15,17 @@
  */
 package com.dremio.service.jobs;
 
-import java.util.Locale;
-
 import com.dremio.exec.proto.UserBitShared.RpcEndpointInfos;
 import com.dremio.exec.proto.UserBitShared.WorkloadClass;
 import com.dremio.exec.proto.UserBitShared.WorkloadType;
 import com.dremio.service.job.proto.QueryType;
+import java.util.Locale;
 
-/**
- * Utility class for query type.
- */
+/** Utility class for query type. */
 // package private
 final class QueryTypeUtils {
 
-  private QueryTypeUtils() {
-  }
+  private QueryTypeUtils() {}
 
   /**
    * If the query is submitted by services internally, and not by a user action.
@@ -39,31 +35,30 @@ final class QueryTypeUtils {
    */
   static boolean isInternal(final QueryType queryType) {
     switch (queryType) {
-
-    case UI_INTERNAL_PREVIEW:
-    case UI_INTERNAL_RUN:
-    case UI_EXPORT:
-    case ACCELERATOR_CREATE:
-    case ACCELERATOR_DROP:
-    case ACCELERATOR_OPTIMIZE:
-    case PREPARE_INTERNAL:
-    case ACCELERATOR_EXPLAIN:
-    case METADATA_REFRESH:
-    case INTERNAL_ICEBERG_METADATA_DROP:
-    case COPY_ERRORS_PLAN:
+      case UI_INTERNAL_PREVIEW:
+      case UI_INTERNAL_RUN:
+      case UI_EXPORT:
+      case ACCELERATOR_CREATE:
+      case ACCELERATOR_DROP:
+      case ACCELERATOR_OPTIMIZE:
+      case PREPARE_INTERNAL:
+      case ACCELERATOR_EXPLAIN:
+      case METADATA_REFRESH:
+      case INTERNAL_ICEBERG_METADATA_DROP:
+      case COPY_ERRORS_PLAN:
         return true;
 
-    case UI_RUN:
-    case UI_PREVIEW:
-    case ODBC:
-    case D2D:
-    case JDBC:
-    case REST:
-    case UI_INITIAL_PREVIEW:
-    case FLIGHT:
-    case UNKNOWN:
-    default:
-      return false;
+      case UI_RUN:
+      case UI_PREVIEW:
+      case ODBC:
+      case D2D:
+      case JDBC:
+      case REST:
+      case UI_INITIAL_PREVIEW:
+      case FLIGHT:
+      case UNKNOWN:
+      default:
+        return false;
     }
   }
 
@@ -74,9 +69,9 @@ final class QueryTypeUtils {
    * @return iff leaf limits should be enabled
    */
   static boolean requiresLeafLimits(final QueryType queryType) {
-    return queryType == QueryType.UI_PREVIEW ||
-        queryType == QueryType.UI_INTERNAL_PREVIEW ||
-        queryType == QueryType.UI_INITIAL_PREVIEW;
+    return queryType == QueryType.UI_PREVIEW
+        || queryType == QueryType.UI_INTERNAL_PREVIEW
+        || queryType == QueryType.UI_INITIAL_PREVIEW;
   }
 
   /**
@@ -87,33 +82,32 @@ final class QueryTypeUtils {
    */
   static WorkloadClass getWorkloadClassFor(final QueryType queryType) {
     switch (queryType) {
-
-    case ACCELERATOR_CREATE:
-    case ACCELERATOR_DROP:
-    case ACCELERATOR_EXPLAIN:
-    case ACCELERATOR_OPTIMIZE:
-    case INTERNAL_ICEBERG_METADATA_DROP:
+      case ACCELERATOR_CREATE:
+      case ACCELERATOR_DROP:
+      case ACCELERATOR_EXPLAIN:
+      case ACCELERATOR_OPTIMIZE:
+      case INTERNAL_ICEBERG_METADATA_DROP:
         return WorkloadClass.BACKGROUND;
 
-    case PREPARE_INTERNAL:
-    case UI_INTERNAL_PREVIEW:
-    case UI_INITIAL_PREVIEW:
-    case UI_PREVIEW:
-      return WorkloadClass.NRT;
+      case PREPARE_INTERNAL:
+      case UI_INTERNAL_PREVIEW:
+      case UI_INITIAL_PREVIEW:
+      case UI_PREVIEW:
+        return WorkloadClass.NRT;
 
-    case UNKNOWN:
-    case D2D:
-    case JDBC:
-    case ODBC:
-    case REST:
-    case UI_EXPORT:
-    case UI_INTERNAL_RUN:
-    case UI_RUN:
-    case FLIGHT:
-    case METADATA_REFRESH:
-    case COPY_ERRORS_PLAN:
-    default:
-      return WorkloadClass.GENERAL;
+      case UNKNOWN:
+      case D2D:
+      case JDBC:
+      case ODBC:
+      case REST:
+      case UI_EXPORT:
+      case UI_INTERNAL_RUN:
+      case UI_RUN:
+      case FLIGHT:
+      case METADATA_REFRESH:
+      case COPY_ERRORS_PLAN:
+      default:
+        return WorkloadClass.GENERAL;
     }
   }
 
@@ -125,15 +119,14 @@ final class QueryTypeUtils {
    */
   static boolean isQueryFromUI(final QueryType queryType) {
     switch (queryType) {
-
-    case UI_RUN:
-    case UI_PREVIEW:
-    case UI_INTERNAL_PREVIEW:
-    case UI_INTERNAL_RUN:
-    case UI_INITIAL_PREVIEW:
-      return true;
-    default:
-      return false;
+      case UI_RUN:
+      case UI_PREVIEW:
+      case UI_INTERNAL_PREVIEW:
+      case UI_INTERNAL_RUN:
+      case UI_INITIAL_PREVIEW:
+        return true;
+      default:
+        return false;
     }
   }
 
@@ -145,7 +138,7 @@ final class QueryTypeUtils {
    */
   static QueryType getQueryType(final RpcEndpointInfos clientInfos) {
     if (clientInfos == null) {
-      //TODO Come up with a better way to handle this
+      // TODO Come up with a better way to handle this
       return QueryType.ODBC;
     }
 
@@ -170,7 +163,7 @@ final class QueryTypeUtils {
   }
 
   public static WorkloadType getWorkloadType(final QueryType queryType) {
-    switch(queryType) {
+    switch (queryType) {
       case UI_PREVIEW:
         return WorkloadType.UI_PREVIEW;
       case UI_INTERNAL_PREVIEW:
@@ -210,10 +203,8 @@ final class QueryTypeUtils {
     }
   }
 
-
   static boolean isAccelerationType(final QueryType queryType) {
     switch (queryType) {
-
       case ACCELERATOR_CREATE:
       case ACCELERATOR_DROP:
       case ACCELERATOR_EXPLAIN:

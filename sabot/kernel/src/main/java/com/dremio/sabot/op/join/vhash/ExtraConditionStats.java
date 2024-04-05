@@ -15,12 +15,11 @@
  */
 package com.dremio.sabot.op.join.vhash;
 
-/**
- * Operational metrics for extra condition matching in the hash join operator
- */
+/** Operational metrics for extra condition matching in the hash join operator */
 public interface ExtraConditionStats {
   /**
-   * Counts number of evaluations done against the generated code for the extra condition expression.
+   * Counts number of evaluations done against the generated code for the extra condition
+   * expression.
    *
    * @return number of evaluations done
    */
@@ -45,5 +44,4 @@ public interface ExtraConditionStats {
   default long getSetupNanos() {
     return 0L;
   }
-
 }

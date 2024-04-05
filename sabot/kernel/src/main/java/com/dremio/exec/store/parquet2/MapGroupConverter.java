@@ -18,16 +18,6 @@ package com.dremio.exec.store.parquet2;
 import static org.apache.parquet.schema.Type.Repetition.REPEATED;
 import static org.apache.parquet.schema.Type.Repetition.REQUIRED;
 
-import java.util.Collection;
-import java.util.List;
-
-import org.apache.arrow.vector.complex.writer.BaseWriter.MapWriter;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.parquet.schema.GroupType;
-import org.apache.parquet.schema.Type;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.store.parquet.ParquetColumnResolver;
@@ -35,58 +25,68 @@ import com.dremio.exec.store.parquet.SchemaDerivationHelper;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.google.common.base.Functions;
+import java.util.Collection;
+import java.util.List;
+import org.apache.arrow.vector.complex.writer.BaseWriter.MapWriter;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.parquet.schema.GroupType;
+import org.apache.parquet.schema.Type;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-
-/**
- * First level of MAP conversion.
- */
+/** First level of MAP conversion. */
 public class MapGroupConverter extends ParquetGroupConverter {
   private static final Logger logger = LoggerFactory.getLogger(MapGroupConverter.class);
   private final MapWriter mapWriter;
 
   public MapGroupConverter(
-    ParquetColumnResolver columnResolver,
-    String fieldName,
-    OutputMutator mutator,
-    MapWriter mapWriter,
-    GroupType schema,
-    Collection<SchemaPath> columns,
-    OptionManager options,
-    List<Field> arrowSchema,
-    SchemaDerivationHelper schemaHelper) {
+      ParquetColumnResolver columnResolver,
+      String fieldName,
+      OutputMutator mutator,
+      MapWriter mapWriter,
+      GroupType schema,
+      Collection<SchemaPath> columns,
+      OptionManager options,
+      List<Field> arrowSchema,
+      SchemaDerivationHelper schemaHelper) {
     super(
-      columnResolver,
-      mutator,
-      schema,
-      columns,
-      options,
-      arrowSchema,
-      Functions.identity(),
-      schemaHelper);
+        columnResolver,
+        mutator,
+        schema,
+        columns,
+        options,
+        arrowSchema,
+        Functions.identity(),
+        schemaHelper);
 
     this.mapWriter = mapWriter;
 
     if (!isSupportedSchema(schema)) {
       throw UserException.dataReadError()
-        .message("Unsupported MAP parquet schema for field: %s", fieldName)
-        .addContext("schema: %s", schema)
-        .build(logger);
+          .message("Unsupported MAP parquet schema for field: %s", fieldName)
+          .addContext("schema: %s", schema)
+          .build(logger);
     }
     GroupType entrySchema = schema.getFields().get(0).asGroupType();
     String entryFieldName = fieldName.concat(".").concat(entrySchema.getName());
-    converters.add(new MapEntryConverter(columnResolver,
-      entryFieldName,
-      mutator,
-      mapWriter,
-      entrySchema,
-      columns,
-      options,
-      arrowSchema != null && !arrowSchema.isEmpty() ? arrowSchema.get(0).getChildren() : arrowSchema,
-      schemaHelper));
+    converters.add(
+        new MapEntryConverter(
+            columnResolver,
+            entryFieldName,
+            mutator,
+            mapWriter,
+            entrySchema,
+            columns,
+            options,
+            arrowSchema != null && !arrowSchema.isEmpty()
+                ? arrowSchema.get(0).getChildren()
+                : arrowSchema,
+            schemaHelper));
   }
 
   /**
    * Checks if the schema is similar to the following:
+   *
    * <pre>
    * optional group <name> (MAP) {
    *   repeated group <map-name> {
@@ -100,10 +100,12 @@ public class MapGroupConverter extends ParquetGroupConverter {
    * @return true is supported
    */
   private boolean isSupportedSchema(GroupType schema) {
-    if (schema.getFieldCount()==1) {
+    if (schema.getFieldCount() == 1) {
       Type type = schema.getType(0);
       // check: repeated group
-      if (type.isPrimitive() || !type.isRepetition(REPEATED) || type.asGroupType().getFieldCount() != 2) {
+      if (type.isPrimitive()
+          || !type.isRepetition(REPEATED)
+          || type.asGroupType().getFieldCount() != 2) {
         return false;
       }
       Type keyType = type.asGroupType().getType(0);

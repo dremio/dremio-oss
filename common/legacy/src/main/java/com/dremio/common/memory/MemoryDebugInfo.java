@@ -15,21 +15,17 @@
  */
 package com.dremio.common.memory;
 
+import com.dremio.common.collections.Tuple;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.Optional;
 import java.util.stream.Collectors;
-
 import org.apache.arrow.memory.AllocationOutcomeDetails;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.memory.util.CommonUtil;
 
-import com.dremio.common.collections.Tuple;
-
-/**
- * Helper class to get summary of memory state on allocation failures.
- */
+/** Helper class to get summary of memory state on allocation failures. */
 public final class MemoryDebugInfo {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MemoryDebugInfo.class);
   // (1:root, 2:queue, 3:query, 4:phase, 5:frag, 6:operator).
@@ -40,7 +36,12 @@ public final class MemoryDebugInfo {
   // To pass onto profile/coordinator upto 2 levels are dumped to reduce memory footprint
   private static final int MAX_NODES_PER_LEVEL_TO_STORE = 2;
 
-  private static void print(StringBuilder sb, BufferAllocator current, int currentLevel, int maxLevels, int nodesPerLevel) {
+  private static void print(
+      StringBuilder sb,
+      BufferAllocator current,
+      int currentLevel,
+      int maxLevels,
+      int nodesPerLevel) {
     if (currentLevel > maxLevels) {
       return;
     }
@@ -63,21 +64,22 @@ public final class MemoryDebugInfo {
         .append('\n');
 
     for (BufferAllocator child : pruneAllocatorList(childAllocators, nodesPerLevel)) {
-      print(sb, child,currentLevel + 1, maxLevels, nodesPerLevel);
+      print(sb, child, currentLevel + 1, maxLevels, nodesPerLevel);
     }
   }
 
-  private static Collection<BufferAllocator> pruneAllocatorList(Collection<BufferAllocator> allocators, int nodesPerLevel) {
+  private static Collection<BufferAllocator> pruneAllocatorList(
+      Collection<BufferAllocator> allocators, int nodesPerLevel) {
     if (allocators.size() <= nodesPerLevel) {
       return allocators;
     }
 
     return allocators.stream()
-      .map(allocator -> Tuple.of(allocator.getAllocatedMemory(), allocator))
-      .sorted(Comparator.comparingLong(tuple -> -tuple.first))
-      .limit(nodesPerLevel)
-      .map(tuple -> tuple.second)
-      .collect(Collectors.toList());
+        .map(allocator -> Tuple.of(allocator.getAllocatedMemory(), allocator))
+        .sorted(Comparator.comparingLong(tuple -> -tuple.first))
+        .limit(nodesPerLevel)
+        .map(tuple -> tuple.second)
+        .collect(Collectors.toList());
   }
 
   private static String getSummary(BufferAllocator start, int numLevels, int nodesPerLevel) {
@@ -96,11 +98,12 @@ public final class MemoryDebugInfo {
     return getSummary(root, NUM_LEVELS_FROM_ROOT_TO_OPERATOR, nodesPerLevel);
   }
 
-  public static String  getSummaryFromRoot(BufferAllocator allocator) {
+  public static String getSummaryFromRoot(BufferAllocator allocator) {
     return getSummaryFromRoot(allocator, MAX_NODES_PER_LEVEL_TO_STORE);
   }
 
-  public static String getDetailsOnAllocationFailure(OutOfMemoryException exception, BufferAllocator allocator) {
+  public static String getDetailsOnAllocationFailure(
+      OutOfMemoryException exception, BufferAllocator allocator) {
     BufferAllocator failedAtAllocator = null;
 
     /*

@@ -17,26 +17,25 @@ package com.dremio.exec.store.iceberg.model;
 
 import org.apache.iceberg.Table;
 
-/**
- * Loads an Iceberg table
- */
+/** Loads an Iceberg table */
 public class IcebergTableLoader {
-    private Table icebergTable;
-    private final IcebergCommand icebergCommand;
-    private final String rootPointer;
-    public IcebergTableLoader(IcebergCommand icebergCommand) {
-        this.icebergCommand = icebergCommand;
-        this.rootPointer = icebergCommand.getRootPointer();
-    }
+  private Table icebergTable;
+  private final IcebergCommand icebergCommand;
+  private final String rootPointer;
 
-    public Table getIcebergTable() {
-      if (icebergTable == null) {
-        icebergTable = icebergCommand.loadTable();
-      }
-      return icebergTable;
-    }
+  public IcebergTableLoader(IcebergCommand icebergCommand) {
+    this.icebergCommand = icebergCommand;
+    this.rootPointer = icebergCommand.getRootPointer();
+  }
 
-    public String getRootPointer() {
-        return rootPointer;
+  public Table getIcebergTable() {
+    if (icebergTable == null) {
+      icebergTable = icebergCommand.loadTable();
     }
+    return icebergTable;
+  }
+
+  public String getRootPointer() {
+    return rootPointer;
+  }
 }

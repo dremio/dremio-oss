@@ -15,18 +15,15 @@
  */
 package com.dremio.exec.planner.fragment;
 
-import java.io.IOException;
-import java.util.List;
-
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.proto.CoordExecRPC.MinorFragmentIndexEndpoint;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.NormalizedPartitionInfo;
 import com.google.protobuf.ByteString;
+import java.io.IOException;
+import java.util.List;
 
-/**
- * Utility class to deserialize and read minor-specific data.
- */
+/** Utility class to deserialize and read minor-specific data. */
 public class MinorDataReader {
   private final FragmentHandle handle;
   private final PlanFragmentsIndex index;
@@ -34,10 +31,10 @@ public class MinorDataReader {
   private final MinorAttrsMap attrsMap;
 
   public MinorDataReader(
-    FragmentHandle handle,
-    MinorDataSerDe serDe,
-    PlanFragmentsIndex index,
-    MinorAttrsMap attrsMap) {
+      FragmentHandle handle,
+      MinorDataSerDe serDe,
+      PlanFragmentsIndex index,
+      MinorAttrsMap attrsMap) {
 
     this.handle = handle;
     this.serDe = serDe;
@@ -49,12 +46,14 @@ public class MinorDataReader {
     return handle;
   }
 
-  public MinorFragmentIndexEndpoint readMinorFragmentIndexEndpoint(OpProps props, String key) throws Exception {
+  public MinorFragmentIndexEndpoint readMinorFragmentIndexEndpoint(OpProps props, String key)
+      throws Exception {
     ByteString buffer = attrsMap.getAttrValue(props, key);
     return serDe.deserializeMinorFragmentIndexEndpoint(buffer);
   }
 
-  public List<MinorFragmentIndexEndpoint> readMinorFragmentIndexEndpoints(OpProps props, String key) throws Exception {
+  public List<MinorFragmentIndexEndpoint> readMinorFragmentIndexEndpoints(OpProps props, String key)
+      throws Exception {
     ByteString buffer = attrsMap.getAttrValue(props, key);
     return serDe.deserializeMinorFragmentIndexEndpointList(buffer).getFragsList();
   }

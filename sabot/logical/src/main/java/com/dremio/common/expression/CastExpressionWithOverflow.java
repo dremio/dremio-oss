@@ -17,9 +17,7 @@ package com.dremio.common.expression;
 
 import com.dremio.common.types.TypeProtos;
 
-/**
- * Indicates that cast should error on overflow
- */
+/** Indicates that cast should error on overflow */
 public class CastExpressionWithOverflow extends CastExpression {
 
   public CastExpressionWithOverflow(LogicalExpression input, TypeProtos.MajorType type) {

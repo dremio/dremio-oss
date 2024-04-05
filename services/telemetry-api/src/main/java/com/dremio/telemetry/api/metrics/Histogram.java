@@ -15,9 +15,7 @@
  */
 package com.dremio.telemetry.api.metrics;
 
-/**
- * Monitoring Histogram.
- */
+/** Monitoring Histogram. */
 public interface Histogram {
   void update(long value, String... tags);
 }

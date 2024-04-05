@@ -15,9 +15,7 @@
  */
 package com.dremio.service.nessie;
 
-/**
- * Creates the KeyList KV store for Nessie.
- */
+/** Creates the KeyList KV store for Nessie. */
 public class NessieKeyListStoreBuilder extends AbstractNessieStoreBuilder {
   public NessieKeyListStoreBuilder() {
     super("key_list");

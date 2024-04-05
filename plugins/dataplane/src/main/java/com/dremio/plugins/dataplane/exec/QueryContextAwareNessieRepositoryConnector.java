@@ -15,11 +15,14 @@
  */
 package com.dremio.plugins.dataplane.exec;
 
+import com.dremio.common.utils.protos.QueryIdHelper;
+import com.dremio.context.JobIdContext;
+import com.dremio.context.RequestContext;
+import com.dremio.exec.proto.UserBitShared.QueryId;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.stream.Stream;
-
 import org.projectnessie.client.api.NessieApiV2;
 import org.projectnessie.error.NessieNotFoundException;
 import org.projectnessie.gc.repository.NessieRepositoryConnector;
@@ -31,11 +34,6 @@ import org.projectnessie.model.Detached;
 import org.projectnessie.model.LogResponse.LogEntry;
 import org.projectnessie.model.Reference;
 
-import com.dremio.common.utils.protos.QueryIdHelper;
-import com.dremio.context.JobIdContext;
-import com.dremio.context.RequestContext;
-import com.dremio.exec.proto.UserBitShared.QueryId;
-
 public class QueryContextAwareNessieRepositoryConnector implements RepositoryConnector {
 
   private final RequestContext requestContext;
@@ -43,8 +41,9 @@ public class QueryContextAwareNessieRepositoryConnector implements RepositoryCon
 
   public QueryContextAwareNessieRepositoryConnector(QueryId queryId, NessieApiV2 nessieApi) {
     this.delegate = NessieRepositoryConnector.nessie(nessieApi);
-    this.requestContext = RequestContext.current().with(JobIdContext.CTX_KEY,
-        new JobIdContext(QueryIdHelper.getQueryId(queryId)));
+    this.requestContext =
+        RequestContext.current()
+            .with(JobIdContext.CTX_KEY, new JobIdContext(QueryIdHelper.getQueryId(queryId)));
   }
 
   @Override
@@ -63,7 +62,8 @@ public class QueryContextAwareNessieRepositoryConnector implements RepositoryCon
     return requestCtxAwareStream(() -> delegate.allContents(ref, types));
   }
 
-  private <T> Stream<T> requestCtxAwareStream(Callable<Stream<T>> in) throws NessieNotFoundException {
+  private <T> Stream<T> requestCtxAwareStream(Callable<Stream<T>> in)
+      throws NessieNotFoundException {
     try {
       return requestContext.callStream(in);
     } catch (NessieNotFoundException e) {

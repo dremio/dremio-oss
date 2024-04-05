@@ -21,11 +21,11 @@ import java.util.List;
 import java.util.ListIterator;
 
 /**
- * Helper class to make simple changing lists for Avatica.  Want to make sure Avatica doesn't try any nonsense other than getting with the list.
+ * Helper class to make simple changing lists for Avatica. Want to make sure Avatica doesn't try any
+ * nonsense other than getting with the list.
  */
-abstract class BasicList<T> implements List<T>{
+abstract class BasicList<T> implements List<T> {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BasicList.class);
-
 
   @Override
   public boolean isEmpty() {
@@ -87,9 +87,8 @@ abstract class BasicList<T> implements List<T>{
     throw new UnsupportedOperationException();
   }
 
-
   @Override
-  public void clear(){
+  public void clear() {
     throw new UnsupportedOperationException();
   }
 

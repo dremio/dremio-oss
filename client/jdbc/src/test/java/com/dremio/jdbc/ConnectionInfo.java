@@ -15,16 +15,13 @@
  */
 package com.dremio.jdbc;
 
-import java.util.Map;
-import java.util.Properties;
-
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
+import java.util.Map;
+import java.util.Properties;
 
-/**
- * An immutable bag of parameters that describes a {@link java.sql.Connection}.
- */
+/** An immutable bag of parameters that describes a {@link java.sql.Connection}. */
 public class ConnectionInfo {
   private final String url;
   private final Map<Object, Object> params;
@@ -38,26 +35,20 @@ public class ConnectionInfo {
     this.params = params;
   }
 
-  /**
-   * Returns connection url.
-   */
+  /** Returns connection url. */
   public String getUrl() {
     return url;
   }
 
-  /**
-   * Returns connection parameters.
-   */
+  /** Returns connection parameters. */
   public Map<Object, Object> getParameters() {
     return params;
   }
 
-  /**
-   * Creates a new {@link java.util.Properties} instance from underlying parameters.
-   */
+  /** Creates a new {@link java.util.Properties} instance from underlying parameters. */
   public Properties getParamsAsProperties() {
     final Properties props = new Properties();
-    for (Object key:params.keySet()) {
+    for (Object key : params.keySet()) {
       props.put(key, params.get(key));
     }
     return props;

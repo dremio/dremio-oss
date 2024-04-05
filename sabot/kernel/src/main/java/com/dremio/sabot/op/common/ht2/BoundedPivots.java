@@ -17,19 +17,16 @@ package com.dremio.sabot.op.common.ht2;
 
 import static com.dremio.sabot.op.common.ht2.LBlockHashTable.VAR_LENGTH_SIZE;
 
+import com.dremio.common.expression.Describer;
+import com.google.common.base.Preconditions;
+import io.netty.util.internal.PlatformDependent;
 import java.util.List;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.FieldVector;
 
-import com.dremio.common.expression.Describer;
-import com.google.common.base.Preconditions;
-
-import io.netty.util.internal.PlatformDependent;
-
 /**
- * Build pivots from incoming batch starting at a particular offset and fill output buffers until output buffers are
- * full or required count is reached.
+ * Build pivots from incoming batch starting at a particular offset and fill output buffers until
+ * output buffers are full or required count is reached.
  */
 public class BoundedPivots {
   private static final int FOUR_BYTE = 4;
@@ -56,16 +53,19 @@ public class BoundedPivots {
     long targetFixedAddress = targetFixed.getMemoryAddress();
 
     int i = 0;
-    for(VectorPivotDef vpd : fields){
+    for (VectorPivotDef vpd : fields) {
       nullByteOffset[i] = vpd.getNullByteOffset();
       nullBitOffset[i] = vpd.getNullBitOffset();
 
       List<ArrowBuf> buffers = vpd.getIncomingVector().getFieldBuffers();
-      Preconditions.checkArgument(buffers.size() == 3,
+      Preconditions.checkArgument(
+          buffers.size() == 3,
           "A variable length vector should have three field buffers. %s has %s buffers.",
-          Describer.describe(vpd.getIncomingVector().getField()), buffers.size());
+          Describer.describe(vpd.getIncomingVector().getField()),
+          buffers.size());
 
-      // convert to bit offsets. Overflows shouldn't exist since no system (yet) has memory of Long.MAX_VALUE / 8
+      // convert to bit offsets. Overflows shouldn't exist since no system (yet) has memory of
+      // Long.MAX_VALUE / 8
       bitAddresses[i] = buffers.get(0).memoryAddress() * 8;
       offsetAddresses[i] = buffers.get(1).memoryAddress();
       dataAddresses[i] = buffers.get(2).memoryAddress();
@@ -88,14 +88,14 @@ public class BoundedPivots {
     int outputRecordIdx = 0;
 
     ReachedTargetBufferLimit:
-    while(outputRecordIdx < count) {
+    while (outputRecordIdx < count) {
       int varLen = 0;
       // write the starting position of the variable width data.
       PlatformDependent.putInt(varOffsetAddress, (int) (targetVariableAddr - startingVariableAddr));
       final long varLenAddress = targetVariableAddr;
       targetVariableAddr += VAR_LENGTH_SIZE; // we'll write length last.
 
-      for(int field = 0; field < fieldCount; field++){
+      for (int field = 0; field < fieldCount; field++) {
 
         final long offsetAddress = offsetAddresses[field];
         final long startAndEnd = PlatformDependent.getLong(offsetAddress);
@@ -107,15 +107,19 @@ public class BoundedPivots {
         final long bitAddress = bitAddresses[field];
         final int bitVal = (PlatformDependent.getByte(bitAddress >>> 3) >>> (bitAddress & 7)) & 1;
         long targetNullByteAddress = targetFixedAddress + nullByteOffset[field];
-        PlatformDependent.putInt(targetNullByteAddress, PlatformDependent.getInt(targetNullByteAddress) | (bitVal << nullBitOffset[field]));
+        PlatformDependent.putInt(
+            targetNullByteAddress,
+            PlatformDependent.getInt(targetNullByteAddress) | (bitVal << nullBitOffset[field]));
 
         // update length.
         final int copyLength = (int) (bitVal * len);
 
         // check if we are still within the buffer capacity. If not exit
         if (targetVariableAddr + VAR_LENGTH_SIZE + copyLength > maxTargetVariableAddr) {
-          // leaving at this point it is possible that we may have partial list written, thats ok as the caller is
-          // expected to read based on the output count returned which doesn't include the partially filled record.
+          // leaving at this point it is possible that we may have partial list written, thats ok as
+          // the caller is
+          // expected to read based on the output count returned which doesn't include the partially
+          // filled record.
           break ReachedTargetBufferLimit;
         }
 
@@ -144,14 +148,18 @@ public class BoundedPivots {
     }
 
     if (outputRecordIdx == 0) {
-     throw new StringIndexOutOfBoundsException("Not enough space to pivot single record. Allocated capacity for pivot: "
-       + Long.toString(targetVariable.getMaxMemoryAddress() - targetVariable.getMemoryAddress()) + " bytes.");
+      throw new StringIndexOutOfBoundsException(
+          "Not enough space to pivot single record. Allocated capacity for pivot: "
+              + Long.toString(
+                  targetVariable.getMaxMemoryAddress() - targetVariable.getMemoryAddress())
+              + " bytes.");
     }
 
     return outputRecordIdx;
   }
 
-  private static void resetPivotStructures(PivotDef pivotDef, int count, FixedBlockVector fixedBlock, VariableBlockVector variable) {
+  private static void resetPivotStructures(
+      PivotDef pivotDef, int count, FixedBlockVector fixedBlock, VariableBlockVector variable) {
     fixedBlock.getBuf().readerIndex(0);
     fixedBlock.getBuf().writerIndex(0);
     if (variable != null) {
@@ -159,17 +167,27 @@ public class BoundedPivots {
       variable.getBuf().writerIndex(0);
     }
 
-    // Zero-out the fixed block for the impacted entries only - this is typically much smaller than the fixedBlock
+    // Zero-out the fixed block for the impacted entries only - this is typically much smaller than
+    // the fixedBlock
     // capacity. The zero-out is required for two reasons :
-    // - When setting validity bits in the pivot block, the code uses OR operations i.e. it assumes that they were zero-initialized.
-    // - Some fields in the pivot block are word-aligned and if the pad regions are not zero-initialized, the hash-computation
+    // - When setting validity bits in the pivot block, the code uses OR operations i.e. it assumes
+    // that they were zero-initialized.
+    // - Some fields in the pivot block are word-aligned and if the pad regions are not
+    // zero-initialized, the hash-computation
     //   can give non-deterministic results. Same for the mem-compare during hash lookup.
     //
     // There is no need to zero out the variable block.
-    fixedBlock.getBuf().setZero(0, Long.min(count * pivotDef.getBlockWidth(), fixedBlock.getCapacity()));
+    fixedBlock
+        .getBuf()
+        .setZero(0, Long.min(count * pivotDef.getBlockWidth(), fixedBlock.getCapacity()));
   }
 
-  public static int pivot(PivotDef pivot, int start, int count, FixedBlockVector fixedBlock, VariableBlockVector variable) {
+  public static int pivot(
+      PivotDef pivot,
+      int start,
+      int count,
+      FixedBlockVector fixedBlock,
+      VariableBlockVector variable) {
     resetPivotStructures(pivot, count, fixedBlock, variable);
 
     if (pivot.getBlockWidth() == 0) {
@@ -180,14 +198,15 @@ public class BoundedPivots {
     // First fill the variable width vectors to find how many records we can fit in.
     if (pivot.getVariableCount() > 0) {
       Preconditions.checkState(variable != null);
-      int updatedCount = pivotVariableLengths(pivot.getVariablePivots(), fixedBlock, variable, start, count);
+      int updatedCount =
+          pivotVariableLengths(pivot.getVariablePivots(), fixedBlock, variable, start, count);
       Preconditions.checkState(updatedCount <= count);
       count = updatedCount;
     }
     count = Integer.min(fixedBlock.getCapacity() / fixedBlock.getBlockWidth(), count);
 
-    for(VectorPivotDef def : pivot.getFixedPivots()){
-      switch(def.getType()){
+    for (VectorPivotDef def : pivot.getFixedPivots()) {
+      switch (def.getType()) {
         case BIT:
           pivotBit(def, fixedBlock, start, count);
           break;
@@ -202,7 +221,8 @@ public class BoundedPivots {
           break;
         case VARIABLE:
         default:
-          throw new UnsupportedOperationException("Pivot: unknown type: " + Describer.describe(def.getIncomingVector().getField()));
+          throw new UnsupportedOperationException(
+              "Pivot: unknown type: " + Describer.describe(def.getIncomingVector().getField()));
       }
     }
 
@@ -210,19 +230,20 @@ public class BoundedPivots {
   }
 
   static void pivotBit(
-    VectorPivotDef def,
-    FixedBlockVector fixedBlock,
-    final int start,
-    final int count
-  ){
+      VectorPivotDef def, FixedBlockVector fixedBlock, final int start, final int count) {
     final FieldVector field = def.getIncomingVector();
     final List<ArrowBuf> buffers = field.getFieldBuffers();
 
-    Preconditions.checkArgument(buffers.size() == 2,
-                                "A Bit vector should have two field buffers. %s has %s buffers.", Describer.describe(field.getField()), buffers.size());
-    Preconditions.checkArgument(def.getNullBitOffset() + 1 == def.getOffset(),
-                                "A BIT definition should define the null bit next to the value bit. Instead: bit offset=%s, val offset=%s",
-                                def.getNullBitOffset(), def.getOffset());
+    Preconditions.checkArgument(
+        buffers.size() == 2,
+        "A Bit vector should have two field buffers. %s has %s buffers.",
+        Describer.describe(field.getField()),
+        buffers.size());
+    Preconditions.checkArgument(
+        def.getNullBitOffset() + 1 == def.getOffset(),
+        "A BIT definition should define the null bit next to the value bit. Instead: bit offset=%s, val offset=%s",
+        def.getNullBitOffset(),
+        def.getOffset());
 
     final int blockLength = fixedBlock.getBlockWidth();
     final int bitOffset = def.getNullBitOffset();
@@ -242,11 +263,12 @@ public class BoundedPivots {
       validityBitValues = validityBitValues >>> offsetInFirstWord;
       dataBitValues = dataBitValues >>> offsetInFirstWord;
       for (long remainingValidity = validityBitValues, remainingValue = dataBitValues, i = 0;
-           i < maxCopy;
-           remainingValidity = remainingValidity >>> 1, remainingValue = remainingValue >>> 1, bitTargetAddr += blockLength, i++) {
+          i < maxCopy;
+          remainingValidity = remainingValidity >>> 1, remainingValue = remainingValue >>> 1,
+              bitTargetAddr += blockLength, i++) {
         // Valid and value bits are next to each other. Setting them together
-        int valid = (int)(remainingValidity & 0x01L);
-        int isSet = (int)(remainingValue & 0x01L);
+        int valid = (int) (remainingValidity & 0x01L);
+        int isSet = (int) (remainingValue & 0x01L);
         int bitPair = (((isSet * valid) << 1) | valid) << bitOffset;
         PlatformDependent.putInt(bitTargetAddr, PlatformDependent.getInt(bitTargetAddr) | bitPair);
       }
@@ -277,13 +299,15 @@ public class BoundedPivots {
         // at least some are set
         final long newBitTargetAddr = bitTargetAddr + (WORD_BITS * blockLength);
         for (long remainingValidity = validityBitValues, remainingValue = bitValues;
-             remainingValidity != 0;
-             remainingValidity = remainingValidity >>> 1, remainingValue = remainingValue >>> 1, bitTargetAddr += blockLength) {
+            remainingValidity != 0;
+            remainingValidity = remainingValidity >>> 1, remainingValue = remainingValue >>> 1,
+                bitTargetAddr += blockLength) {
           // Valid and value bits are next to each other. Setting them together
-          int valid = (int)(remainingValidity & 0x01L);
-          int isSet = (int)(remainingValue & 0x01L);
+          int valid = (int) (remainingValidity & 0x01L);
+          int isSet = (int) (remainingValue & 0x01L);
           int bitPair = (((isSet * valid) << 1) | valid) << bitOffset;
-          PlatformDependent.putInt(bitTargetAddr, PlatformDependent.getInt(bitTargetAddr) | bitPair);
+          PlatformDependent.putInt(
+              bitTargetAddr, PlatformDependent.getInt(bitTargetAddr) | bitPair);
         }
         bitTargetAddr = newBitTargetAddr;
       }
@@ -300,31 +324,30 @@ public class BoundedPivots {
       } else {
         // at least some are set
         for (long remainingValidity = validityBitValues, remainingValue = bitValues, i = 0;
-             i < remainCount;
-             remainingValidity = remainingValidity >>> 1, remainingValue = remainingValue >>> 1, bitTargetAddr += blockLength, i++) {
+            i < remainCount;
+            remainingValidity = remainingValidity >>> 1, remainingValue = remainingValue >>> 1,
+                bitTargetAddr += blockLength, i++) {
           // Valid and value bits are next to each other. Setting them together
-          int valid = (int)(remainingValidity & 0x01L);
-          int isSet = (int)(remainingValue & 0x01L);
+          int valid = (int) (remainingValidity & 0x01L);
+          int isSet = (int) (remainingValue & 0x01L);
           int bitPair = (((isSet * valid) << 1) | valid) << bitOffset;
-          PlatformDependent.putInt(bitTargetAddr, PlatformDependent.getInt(bitTargetAddr) | bitPair);
+          PlatformDependent.putInt(
+              bitTargetAddr, PlatformDependent.getInt(bitTargetAddr) | bitPair);
         }
       }
     }
-
   }
 
   static void pivot4Bytes(
-      VectorPivotDef def,
-      FixedBlockVector fixedBlock,
-      final int start,
-      final int count
-  ){
+      VectorPivotDef def, FixedBlockVector fixedBlock, final int start, final int count) {
     final FieldVector field = def.getIncomingVector();
     final List<ArrowBuf> buffers = field.getFieldBuffers();
 
-    Preconditions.checkArgument(buffers.size() == 2,
+    Preconditions.checkArgument(
+        buffers.size() == 2,
         "A four byte vector should have two field buffers. %s has %s buffers.",
-        Describer.describe(field.getField()), buffers.size());
+        Describer.describe(field.getField()),
+        buffers.size());
 
     final int blockLength = fixedBlock.getBlockWidth();
     final int bitOffset = def.getNullBitOffset();
@@ -342,10 +365,13 @@ public class BoundedPivots {
       int offsetInFirstWord = start % WORD_BITS;
       long bitValues = PlatformDependent.getLong(srcBitsAddr);
       bitValues = bitValues >>> offsetInFirstWord;
-      for (int i = 0; i < maxCopy;
-           i++, bitTargetAddr += blockLength, valueTargetAddr += blockLength, srcDataAddr += FOUR_BYTE) {
+      for (int i = 0;
+          i < maxCopy;
+          i++, bitTargetAddr += blockLength, valueTargetAddr += blockLength,
+              srcDataAddr += FOUR_BYTE) {
         int bitVal = ((int) (bitValues >>> i)) & 1;
-        PlatformDependent.putInt(bitTargetAddr, PlatformDependent.getInt(bitTargetAddr) | (bitVal << bitOffset));
+        PlatformDependent.putInt(
+            bitTargetAddr, PlatformDependent.getInt(bitTargetAddr) | (bitVal << bitOffset));
         PlatformDependent.putInt(valueTargetAddr, PlatformDependent.getInt(srcDataAddr) * bitVal);
       }
       srcBitsAddr += WORD_BYTES;
@@ -373,21 +399,28 @@ public class BoundedPivots {
         srcDataAddr += (WORD_BITS * FOUR_BYTE);
 
       } else if (bitValues == ALL_SET) {
-        // all set, set the bit values using a constant. Independently set the data values without transformation.
+        // all set, set the bit values using a constant. Independently set the data values without
+        // transformation.
         final int bitVal = 1 << bitOffset;
         for (int i = 0; i < WORD_BITS; i++, bitTargetAddr += blockLength) {
           PlatformDependent.putInt(bitTargetAddr, PlatformDependent.getInt(bitTargetAddr) | bitVal);
         }
 
-        for (int i = 0; i < WORD_BITS; i++, valueTargetAddr += blockLength, srcDataAddr += FOUR_BYTE) {
+        for (int i = 0;
+            i < WORD_BITS;
+            i++, valueTargetAddr += blockLength, srcDataAddr += FOUR_BYTE) {
           PlatformDependent.putInt(valueTargetAddr, PlatformDependent.getInt(srcDataAddr));
         }
 
       } else {
         // some nulls, some not, update each value to zero or the value, depending on the null bit.
-        for (int i = 0; i < WORD_BITS; i++, bitTargetAddr += blockLength, valueTargetAddr += blockLength, srcDataAddr += FOUR_BYTE) {
+        for (int i = 0;
+            i < WORD_BITS;
+            i++, bitTargetAddr += blockLength, valueTargetAddr += blockLength,
+                srcDataAddr += FOUR_BYTE) {
           final int bitVal = ((int) (bitValues >>> i)) & 1;
-          PlatformDependent.putInt(bitTargetAddr, PlatformDependent.getInt(bitTargetAddr) | (bitVal << bitOffset));
+          PlatformDependent.putInt(
+              bitTargetAddr, PlatformDependent.getInt(bitTargetAddr) | (bitVal << bitOffset));
           PlatformDependent.putInt(valueTargetAddr, PlatformDependent.getInt(srcDataAddr) * bitVal);
         }
       }
@@ -395,29 +428,30 @@ public class BoundedPivots {
     }
 
     // do the remaining bits..
-    if(remainCount > 0) {
+    if (remainCount > 0) {
       final long bitValues = PlatformDependent.getLong(srcBitsAddr);
-      for (int i = 0; i < remainCount;
-           i++, bitTargetAddr += blockLength, valueTargetAddr += blockLength, srcDataAddr += FOUR_BYTE) {
+      for (int i = 0;
+          i < remainCount;
+          i++, bitTargetAddr += blockLength, valueTargetAddr += blockLength,
+              srcDataAddr += FOUR_BYTE) {
         int bitVal = ((int) (bitValues >>> i)) & 1;
-        PlatformDependent.putInt(bitTargetAddr, PlatformDependent.getInt(bitTargetAddr) | (bitVal << bitOffset));
+        PlatformDependent.putInt(
+            bitTargetAddr, PlatformDependent.getInt(bitTargetAddr) | (bitVal << bitOffset));
         PlatformDependent.putInt(valueTargetAddr, PlatformDependent.getInt(srcDataAddr) * bitVal);
       }
     }
   }
 
   static void pivot8Bytes(
-      VectorPivotDef def,
-      FixedBlockVector fixedBlock,
-      final int start,
-      final int count
-  ){
+      VectorPivotDef def, FixedBlockVector fixedBlock, final int start, final int count) {
     final FieldVector field = def.getIncomingVector();
     final List<ArrowBuf> buffers = field.getFieldBuffers();
 
-    Preconditions.checkArgument(buffers.size() == 2,
+    Preconditions.checkArgument(
+        buffers.size() == 2,
         "A four byte vector should have two field buffers. %s has %s buffers.",
-        Describer.describe(field.getField()), buffers.size());
+        Describer.describe(field.getField()),
+        buffers.size());
 
     final int blockLength = fixedBlock.getBlockWidth();
     final int bitOffset = def.getNullBitOffset();
@@ -435,10 +469,13 @@ public class BoundedPivots {
       long bitValues = PlatformDependent.getLong(srcBitsAddr);
       bitValues = bitValues >>> offsetInFirstWord;
       final int maxCopy = Math.min(partialCountInFirstWord, count);
-      for (int i = 0; i < maxCopy;
-           i++, bitTargetAddr += blockLength, valueTargetAddr += blockLength, srcDataAddr += EIGHT_BYTE) {
+      for (int i = 0;
+          i < maxCopy;
+          i++, bitTargetAddr += blockLength, valueTargetAddr += blockLength,
+              srcDataAddr += EIGHT_BYTE) {
         int bitVal = ((int) (bitValues >>> i)) & 1;
-        PlatformDependent.putInt(bitTargetAddr, PlatformDependent.getInt(bitTargetAddr) | (bitVal << bitOffset));
+        PlatformDependent.putInt(
+            bitTargetAddr, PlatformDependent.getInt(bitTargetAddr) | (bitVal << bitOffset));
         PlatformDependent.putLong(valueTargetAddr, PlatformDependent.getLong(srcDataAddr) * bitVal);
       }
       srcBitsAddr += WORD_BYTES;
@@ -466,51 +503,60 @@ public class BoundedPivots {
         srcDataAddr += (WORD_BITS * EIGHT_BYTE);
 
       } else if (bitValues == ALL_SET) {
-        // all set, set the bit values using a constant. Independently set the data values without transformation.
+        // all set, set the bit values using a constant. Independently set the data values without
+        // transformation.
         final int bitVal = 1 << bitOffset;
         for (int i = 0; i < WORD_BITS; i++, bitTargetAddr += blockLength) {
           PlatformDependent.putInt(bitTargetAddr, PlatformDependent.getInt(bitTargetAddr) | bitVal);
         }
 
-        for (int i = 0; i < WORD_BITS; i++, valueTargetAddr += blockLength, srcDataAddr += EIGHT_BYTE) {
+        for (int i = 0;
+            i < WORD_BITS;
+            i++, valueTargetAddr += blockLength, srcDataAddr += EIGHT_BYTE) {
           PlatformDependent.putLong(valueTargetAddr, PlatformDependent.getLong(srcDataAddr));
         }
 
       } else {
         // some nulls, some not, update each value to zero or the value, depending on the null bit.
-        for (int i = 0; i < WORD_BITS; i++, bitTargetAddr += blockLength, valueTargetAddr += blockLength, srcDataAddr += EIGHT_BYTE) {
+        for (int i = 0;
+            i < WORD_BITS;
+            i++, bitTargetAddr += blockLength, valueTargetAddr += blockLength,
+                srcDataAddr += EIGHT_BYTE) {
           final int bitVal = ((int) (bitValues >>> i)) & 1;
-          PlatformDependent.putInt(bitTargetAddr, PlatformDependent.getInt(bitTargetAddr) | (bitVal << bitOffset));
-          PlatformDependent.putLong(valueTargetAddr, PlatformDependent.getLong(srcDataAddr) * bitVal);
+          PlatformDependent.putInt(
+              bitTargetAddr, PlatformDependent.getInt(bitTargetAddr) | (bitVal << bitOffset));
+          PlatformDependent.putLong(
+              valueTargetAddr, PlatformDependent.getLong(srcDataAddr) * bitVal);
         }
       }
       srcBitsAddr += WORD_BYTES;
     }
 
     // do the remaining bits..
-    if(remainCount > 0) {
+    if (remainCount > 0) {
       final long bitValues = PlatformDependent.getLong(srcBitsAddr);
-      for (int i = 0; i < remainCount;
-           i++, bitTargetAddr += blockLength, valueTargetAddr += blockLength, srcDataAddr += EIGHT_BYTE) {
+      for (int i = 0;
+          i < remainCount;
+          i++, bitTargetAddr += blockLength, valueTargetAddr += blockLength,
+              srcDataAddr += EIGHT_BYTE) {
         int bitVal = ((int) (bitValues >>> i)) & 1;
-        PlatformDependent.putInt(bitTargetAddr, PlatformDependent.getInt(bitTargetAddr) | (bitVal << bitOffset));
+        PlatformDependent.putInt(
+            bitTargetAddr, PlatformDependent.getInt(bitTargetAddr) | (bitVal << bitOffset));
         PlatformDependent.putLong(valueTargetAddr, PlatformDependent.getLong(srcDataAddr) * bitVal);
       }
     }
   }
 
   static void pivot16Bytes(
-      VectorPivotDef def,
-      FixedBlockVector fixedBlock,
-      final int start,
-      final int count
-  ) {
+      VectorPivotDef def, FixedBlockVector fixedBlock, final int start, final int count) {
     final FieldVector field = def.getIncomingVector();
     final List<ArrowBuf> buffers = field.getFieldBuffers();
 
-    Preconditions.checkArgument(buffers.size() == 2,
+    Preconditions.checkArgument(
+        buffers.size() == 2,
         "A four byte vector should have two field buffers. %s has %s buffers.",
-        Describer.describe(field.getField()), buffers.size());
+        Describer.describe(field.getField()),
+        buffers.size());
 
     final int blockLength = fixedBlock.getBlockWidth();
     final int bitOffset = def.getNullBitOffset();
@@ -528,12 +574,17 @@ public class BoundedPivots {
       long bitValues = PlatformDependent.getLong(srcBitsAddr);
       bitValues = bitValues >>> offsetInFirstWord;
       final int maxCopy = Math.min(partialCountInFirstWord, count);
-      for (int i = 0; i < maxCopy;
-           i++, bitTargetAddr += blockLength, valueTargetAddr += blockLength, srcDataAddr += SIXTEEN_BYTE) {
+      for (int i = 0;
+          i < maxCopy;
+          i++, bitTargetAddr += blockLength, valueTargetAddr += blockLength,
+              srcDataAddr += SIXTEEN_BYTE) {
         int bitVal = ((int) (bitValues >>> i)) & 1;
-        PlatformDependent.putInt(bitTargetAddr, PlatformDependent.getInt(bitTargetAddr) | (bitVal << bitOffset));
+        PlatformDependent.putInt(
+            bitTargetAddr, PlatformDependent.getInt(bitTargetAddr) | (bitVal << bitOffset));
         PlatformDependent.putLong(valueTargetAddr, PlatformDependent.getLong(srcDataAddr) * bitVal);
-        PlatformDependent.putLong(valueTargetAddr + EIGHT_BYTE, PlatformDependent.getLong(srcDataAddr + EIGHT_BYTE) * bitVal);
+        PlatformDependent.putLong(
+            valueTargetAddr + EIGHT_BYTE,
+            PlatformDependent.getLong(srcDataAddr + EIGHT_BYTE) * bitVal);
       }
       srcBitsAddr += WORD_BYTES;
     }
@@ -560,38 +611,54 @@ public class BoundedPivots {
         srcDataAddr += (WORD_BITS * SIXTEEN_BYTE);
 
       } else if (bitValues == ALL_SET) {
-        // all set, set the bit values using a constant. Independently set the data values without transformation.
+        // all set, set the bit values using a constant. Independently set the data values without
+        // transformation.
         final int bitVal = 1 << bitOffset;
         for (int i = 0; i < WORD_BITS; i++, bitTargetAddr += blockLength) {
           PlatformDependent.putInt(bitTargetAddr, PlatformDependent.getInt(bitTargetAddr) | bitVal);
         }
 
-        for (int i = 0; i < WORD_BITS; i++, valueTargetAddr += blockLength, srcDataAddr += SIXTEEN_BYTE) {
+        for (int i = 0;
+            i < WORD_BITS;
+            i++, valueTargetAddr += blockLength, srcDataAddr += SIXTEEN_BYTE) {
           PlatformDependent.putLong(valueTargetAddr, PlatformDependent.getLong(srcDataAddr));
-          PlatformDependent.putLong(valueTargetAddr + EIGHT_BYTE, PlatformDependent.getLong(srcDataAddr + EIGHT_BYTE));
+          PlatformDependent.putLong(
+              valueTargetAddr + EIGHT_BYTE, PlatformDependent.getLong(srcDataAddr + EIGHT_BYTE));
         }
 
       } else {
         // some nulls, some not, update each value to zero or the value, depending on the null bit.
-        for (int i = 0; i < WORD_BITS; i++, bitTargetAddr += blockLength, valueTargetAddr += blockLength, srcDataAddr += SIXTEEN_BYTE) {
+        for (int i = 0;
+            i < WORD_BITS;
+            i++, bitTargetAddr += blockLength, valueTargetAddr += blockLength,
+                srcDataAddr += SIXTEEN_BYTE) {
           final int bitVal = ((int) (bitValues >>> i)) & 1;
-          PlatformDependent.putInt(bitTargetAddr, PlatformDependent.getInt(bitTargetAddr) | (bitVal << bitOffset));
-          PlatformDependent.putLong(valueTargetAddr, PlatformDependent.getLong(srcDataAddr) * bitVal);
-          PlatformDependent.putLong(valueTargetAddr + EIGHT_BYTE, PlatformDependent.getLong(srcDataAddr + EIGHT_BYTE) * bitVal);
+          PlatformDependent.putInt(
+              bitTargetAddr, PlatformDependent.getInt(bitTargetAddr) | (bitVal << bitOffset));
+          PlatformDependent.putLong(
+              valueTargetAddr, PlatformDependent.getLong(srcDataAddr) * bitVal);
+          PlatformDependent.putLong(
+              valueTargetAddr + EIGHT_BYTE,
+              PlatformDependent.getLong(srcDataAddr + EIGHT_BYTE) * bitVal);
         }
       }
       srcBitsAddr += WORD_BYTES;
     }
 
     // do the remaining bits..
-    if(remainCount > 0) {
+    if (remainCount > 0) {
       final long bitValues = PlatformDependent.getLong(srcBitsAddr);
-      for (int i = 0; i < remainCount;
-           i++, bitTargetAddr += blockLength, valueTargetAddr += blockLength, srcDataAddr += SIXTEEN_BYTE) {
+      for (int i = 0;
+          i < remainCount;
+          i++, bitTargetAddr += blockLength, valueTargetAddr += blockLength,
+              srcDataAddr += SIXTEEN_BYTE) {
         int bitVal = ((int) (bitValues >>> i)) & 1;
-        PlatformDependent.putInt(bitTargetAddr, PlatformDependent.getInt(bitTargetAddr) | (bitVal << bitOffset));
+        PlatformDependent.putInt(
+            bitTargetAddr, PlatformDependent.getInt(bitTargetAddr) | (bitVal << bitOffset));
         PlatformDependent.putLong(valueTargetAddr, PlatformDependent.getLong(srcDataAddr) * bitVal);
-        PlatformDependent.putLong(valueTargetAddr + EIGHT_BYTE, PlatformDependent.getLong(srcDataAddr + EIGHT_BYTE) * bitVal);
+        PlatformDependent.putLong(
+            valueTargetAddr + EIGHT_BYTE,
+            PlatformDependent.getLong(srcDataAddr + EIGHT_BYTE) * bitVal);
       }
     }
   }

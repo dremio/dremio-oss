@@ -22,7 +22,8 @@ import com.dremio.sabot.op.spi.SingleInputOperator;
 
 /**
  * Abstraction for {@link WriterCommitterOperator} to have different output writing strategies.
- * Irrespective of the strategy, the output schema is always fixed to {@link com.dremio.exec.store.RecordWriter#SCHEMA}
+ * Irrespective of the strategy, the output schema is always fixed to {@link
+ * com.dremio.exec.store.RecordWriter#SCHEMA}
  */
 public interface WriterCommitterOutputHandler extends AutoCloseable {
 
@@ -37,14 +38,16 @@ public interface WriterCommitterOutputHandler extends AutoCloseable {
   void consumeData(int records) throws Exception;
 
   /**
-   * Writes the values in the outgoing vector. Applicable only in the implementations that support custom output.
+   * Writes the values in the outgoing vector. Applicable only in the implementations that support
+   * custom output.
    */
   void write(WriterCommitterRecord record);
 
-  /**
-   * Factory method for instantiating an implementation
-   */
-  static WriterCommitterOutputHandler getInstance(OperatorContext context, WriterCommitterPOP config, boolean hasCustomOutput) {
-    return hasCustomOutput ? new CustomOutputHandler(context, config) : new ProjectOutputHandler(context, config);
+  /** Factory method for instantiating an implementation */
+  static WriterCommitterOutputHandler getInstance(
+      OperatorContext context, WriterCommitterPOP config, boolean hasCustomOutput) {
+    return hasCustomOutput
+        ? new CustomOutputHandler(context, config)
+        : new ProjectOutputHandler(context, config);
   }
 }

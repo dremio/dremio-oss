@@ -34,22 +34,23 @@ export type ModifiedSQLFunction = ModelFunction & {
 
 const listSqlFunctionsURL = "sql/functions";
 
-export const listSqlFunctions = async (): Promise<ModifiedSQLFunction[]> =>
-  await apiUtils
+export const listSqlFunctions = async (): Promise<ModifiedSQLFunction[]> => {
+  const token = (localStorageUtils as any)?.getAuthToken?.();
+  return await apiUtils
     .fetch(
       listSqlFunctionsURL,
       {
         headers: {
-          Authorization: (localStorageUtils as any)?.getAuthToken?.(),
+          ...(token && { Authorization: token }),
         },
       },
-      2
+      2,
     )
     .then((res: any) => res.json())
     .then((res: any) => {
       const functions = res?.functions ?? [];
       const nonAlphabetFunctions = functions.filter(
-        (fn: ModelFunction) => !isLetter(fn?.name[0])
+        (fn: ModelFunction) => !isLetter(fn?.name[0]),
       );
       const sortedFunctions = functions
         .filter((fn: ModelFunction) => isLetter(fn?.name[0]))
@@ -73,7 +74,7 @@ export const listSqlFunctions = async (): Promise<ModifiedSQLFunction[]> =>
               // BE response snippet is `<name>()`, and monaco only reads `()`
               snippet = snippetOverride.substring(
                 fn.name.length,
-                snippetOverride.length
+                snippetOverride.length,
               );
             }
 
@@ -81,12 +82,12 @@ export const listSqlFunctions = async (): Promise<ModifiedSQLFunction[]> =>
               parameters,
               snippetOverride?.substring(
                 fn.name.length + 1,
-                snippetOverride.length - 1
-              ) || ""
+                snippetOverride.length - 1,
+              ) || "",
             )}) → ${returnType}`;
             const tags =
               fn.functionCategories?.map(
-                (cat) => FunctionCategoryLabels[cat]
+                (cat) => FunctionCategoryLabels[cat],
               ) ?? [];
 
             const newFunction = {
@@ -100,7 +101,8 @@ export const listSqlFunctions = async (): Promise<ModifiedSQLFunction[]> =>
             };
             delete newFunction.signatures;
             return newFunction;
-          }
+          },
         );
       });
     });
+};

@@ -19,11 +19,13 @@ public abstract class ScalePrecisionFunctionBase {
   protected int outputScale = 0;
   protected int outputPrecision = 0;
 
-  public ScalePrecisionFunctionBase(int leftPrecision, int leftScale, int rightPrecision, int rightScale) {
+  public ScalePrecisionFunctionBase(
+      int leftPrecision, int leftScale, int rightPrecision, int rightScale) {
     computeScalePrecision(leftPrecision, leftScale, rightPrecision, rightScale);
   }
 
-  protected abstract void computeScalePrecision(int leftPrecision, int leftScale, int rightPrecision, int rightScale);
+  protected abstract void computeScalePrecision(
+      int leftPrecision, int leftScale, int rightPrecision, int rightScale);
 
   public int getOutputScale() {
     return outputScale;

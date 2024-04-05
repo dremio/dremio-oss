@@ -18,37 +18,57 @@ package com.dremio.service.scheduler;
 import com.dremio.exec.proto.CoordinationProtos;
 
 /**
- * Internal interface used within the clustered singleton to notify events to any one who is interested in
- * listening to various scheduler events such as the {@code TaskStatsCollector}.
- * <p>
- * <strong>NOTE:</strong> In the future this interface may be made public to allow higher layers to add their own
- * event sinks for the distributed singleton events.
- * </p>
+ * Internal interface used within the clustered singleton to notify events to any one who is
+ * interested in listening to various scheduler events such as the {@code TaskStatsCollector}.
+ *
+ * <p><strong>NOTE:</strong> In the future this interface may be made public to allow higher layers
+ * to add their own event sinks for the distributed singleton events.
  */
 interface SchedulerEvents {
   void taskDone(String taskName);
+
   void membershipChanged(int newCount);
+
   void tasksAddedToMembership(int taskCount);
+
   void tasksRemovedFromMembership(int taskCount);
+
   void runSetSize(int currentSize);
+
   PerTaskEvents addTask(PerTaskSchedule schedule);
+
+  void hitUnexpectedError();
+
   interface PerTaskMainEvents {
     void bookingAttempted();
+
     void bookingAcquired();
+
     void bookingReleased();
+
     void contractError();
+
     void runStarted();
+
     void runEnded(boolean success);
+
     void scheduleModified();
+
     void taskOwnerQuery(CoordinationProtos.NodeEndpoint nodeEndpoint);
+
     void noTaskOwnerFound();
+
     void taskOwnerQueryFailed();
   }
+
   interface PerTaskLoadEvents {
     void addedToRunSet();
+
     void crossedThreshold();
+
     void removedFromRunSet(long cTime);
   }
+
   enum RecoveryRejectReason {
     TASK_DONE("already_done"),
     NOT_RECOVERY_OWNER("not_recovery_owner"),
@@ -65,16 +85,24 @@ interface SchedulerEvents {
       return name;
     }
   }
+
   interface PerTaskRecoveryEvents {
     void recoveryMonitoringStarted();
+
     void recoveryMonitoringStopped();
+
     void recoveryRequested();
+
     void recoveryRejected(RecoveryRejectReason reason);
+
     void recovered();
+
     void addedToDeathWatch();
+
     void runOnDeath();
+
     void failedToRunOnDeath();
   }
-  interface PerTaskEvents extends PerTaskMainEvents, PerTaskLoadEvents, PerTaskRecoveryEvents {
-  }
+
+  interface PerTaskEvents extends PerTaskMainEvents, PerTaskLoadEvents, PerTaskRecoveryEvents {}
 }

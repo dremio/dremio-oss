@@ -37,20 +37,27 @@ export class EntityLink extends PureComponent {
     activeClassName: PropTypes.string,
     children: PropTypes.any,
     onlyActiveOnIndex: PropTypes.bool,
+    style: PropTypes.any,
 
     //connected
     linkTo: PropTypes.string.isRequired,
   };
 
   render() {
-    const { children, className, activeClassName, linkTo, onlyActiveOnIndex } =
-      this.props;
+    const {
+      children,
+      className,
+      activeClassName,
+      linkTo,
+      onlyActiveOnIndex,
+      style,
+    } = this.props;
 
     return (
       <Link
         to={linkTo}
         activeClassName={activeClassName}
-        style={link}
+        style={style || link}
         className={className}
         onlyActiveOnIndex={onlyActiveOnIndex}
       >

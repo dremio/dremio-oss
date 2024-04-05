@@ -15,10 +15,9 @@
  */
 package com.dremio.exec.catalog.conf;
 
+import io.protostuff.Tag;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
-
-import io.protostuff.Tag;
 
 public class Host {
   //  optional string hostname = 1;
@@ -38,10 +37,10 @@ public class Host {
     this.port = port;
   }
 
-  public Host() { }
+  public Host() {}
 
   public String toCompound() {
-    if(port != null) {
+    if (port != null) {
       return hostname + ":" + port;
     }
     return hostname;

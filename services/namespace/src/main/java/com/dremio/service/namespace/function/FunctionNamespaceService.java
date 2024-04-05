@@ -15,19 +15,21 @@
  */
 package com.dremio.service.namespace.function;
 
-import java.util.List;
-
 import com.dremio.service.namespace.NamespaceAttribute;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.function.proto.FunctionConfig;
+import java.util.List;
 
-/**
- * Namespace operations for Functions.
- */
+/** Namespace operations for Functions. */
 public interface FunctionNamespaceService {
-  void addOrUpdateFunction(NamespaceKey functionPath, FunctionConfig functionConfig, NamespaceAttribute... attributes) throws NamespaceException;
+  void addOrUpdateFunction(
+      NamespaceKey functionPath, FunctionConfig functionConfig, NamespaceAttribute... attributes)
+      throws NamespaceException;
+
   FunctionConfig getFunction(NamespaceKey functionPath) throws NamespaceException;
+
   List<FunctionConfig> getFunctions();
+
   void deleteFunction(NamespaceKey functionPath) throws NamespaceException;
 }

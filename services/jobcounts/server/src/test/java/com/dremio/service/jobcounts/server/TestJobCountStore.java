@@ -15,17 +15,6 @@
  */
 package com.dremio.service.jobcounts.server;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.UUID;
-import java.util.concurrent.TimeUnit;
-
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.Test;
-
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.scanner.ClassPathScanner;
 import com.dremio.common.scanner.persistence.ScanResult;
@@ -34,14 +23,21 @@ import com.dremio.service.jobcounts.JobCountType;
 import com.dremio.service.jobcounts.JobCountUpdate;
 import com.dremio.service.jobcounts.server.store.JobCountStore;
 import com.dremio.service.jobcounts.server.store.JobCountStoreImpl;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+import org.junit.AfterClass;
+import org.junit.Assert;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
-/**
- * Test Jobs count store.
- */
+/** Test Jobs count store. */
 public class TestJobCountStore {
   public static final SabotConfig DEFAULT_SABOT_CONFIG = SabotConfig.forClient();
   public static final ScanResult CLASSPATH_SCAN_RESULT =
-    ClassPathScanner.fromPrescan(DEFAULT_SABOT_CONFIG);
+      ClassPathScanner.fromPrescan(DEFAULT_SABOT_CONFIG);
   private static LocalKVStoreProvider kvStoreProvider;
   private static JobCountStore store;
 
@@ -89,15 +85,21 @@ public class TestJobCountStore {
   public void testUpdateRotation() {
     String id = UUID.randomUUID().toString();
     long currTs = System.currentTimeMillis();
-    for (int i=0; i<=29; i++) {
-      store.updateCount(id, JobCountType.CATALOG, currTs - TimeUnit.DAYS.toMillis(JobCountStoreImpl.COUNTS_SIZE - i));
+    for (int i = 0; i <= 29; i++) {
+      store.updateCount(
+          id,
+          JobCountType.CATALOG,
+          currTs - TimeUnit.DAYS.toMillis(JobCountStoreImpl.COUNTS_SIZE - i));
     }
     // first update won't be counted as it's timestamp is older than 30days
-    Assert.assertEquals(29, store.getCount(id, JobCountType.CATALOG, JobCountStoreImpl.COUNTS_SIZE));
+    Assert.assertEquals(
+        29, store.getCount(id, JobCountType.CATALOG, JobCountStoreImpl.COUNTS_SIZE));
 
-    // this update will cause the above first entry to be deleted (as a circular queue is used) and new entry will get added.
+    // this update will cause the above first entry to be deleted (as a circular queue is used) and
+    // new entry will get added.
     store.updateCount(id, JobCountType.CATALOG, currTs);
-    Assert.assertEquals(30, store.getCount(id, JobCountType.CATALOG, JobCountStoreImpl.COUNTS_SIZE));
+    Assert.assertEquals(
+        30, store.getCount(id, JobCountType.CATALOG, JobCountStoreImpl.COUNTS_SIZE));
   }
 
   @Test
@@ -116,12 +118,20 @@ public class TestJobCountStore {
     String id = UUID.randomUUID().toString();
     long currTs = System.currentTimeMillis();
     // update older than 30 days (COUNTS_SIZE) won't be counted
-    store.updateCount(id, JobCountType.CATALOG, currTs - TimeUnit.DAYS.toMillis(JobCountStoreImpl.COUNTS_SIZE + 1));
-    store.updateCount(id, JobCountType.CATALOG, currTs - TimeUnit.DAYS.toMillis(JobCountStoreImpl.COUNTS_SIZE - 5));
+    store.updateCount(
+        id,
+        JobCountType.CATALOG,
+        currTs - TimeUnit.DAYS.toMillis(JobCountStoreImpl.COUNTS_SIZE + 1));
+    store.updateCount(
+        id,
+        JobCountType.CATALOG,
+        currTs - TimeUnit.DAYS.toMillis(JobCountStoreImpl.COUNTS_SIZE - 5));
     store.updateCount(id, JobCountType.CATALOG, currTs);
     Assert.assertEquals(2, store.getCount(id, JobCountType.CATALOG, JobCountStoreImpl.COUNTS_SIZE));
-    Assert.assertEquals(0, store.getCount("random", JobCountType.CATALOG, JobCountStoreImpl.COUNTS_SIZE));
-    Assert.assertEquals(0, store.getCount(id, JobCountType.CONSIDERED, JobCountStoreImpl.COUNTS_SIZE));
+    Assert.assertEquals(
+        0, store.getCount("random", JobCountType.CATALOG, JobCountStoreImpl.COUNTS_SIZE));
+    Assert.assertEquals(
+        0, store.getCount(id, JobCountType.CONSIDERED, JobCountStoreImpl.COUNTS_SIZE));
   }
 
   @Test
@@ -129,7 +139,9 @@ public class TestJobCountStore {
     String id = UUID.randomUUID().toString();
     long currTs = System.currentTimeMillis();
     store.updateCount(id, JobCountType.CATALOG, currTs);
-    List<Integer> counts = store.getCounts(Arrays.asList(id, "random"), JobCountType.CATALOG, JobCountStoreImpl.COUNTS_SIZE);
+    List<Integer> counts =
+        store.getCounts(
+            Arrays.asList(id, "random"), JobCountType.CATALOG, JobCountStoreImpl.COUNTS_SIZE);
     Assert.assertEquals(2, counts.size());
     Assert.assertEquals(1, counts.get(0).intValue());
     Assert.assertEquals(0, counts.get(1).intValue());
@@ -140,14 +152,20 @@ public class TestJobCountStore {
     String id = UUID.randomUUID().toString();
     long currTs = System.currentTimeMillis();
     // update a job count on each day for last 30 days
-    for (int i=0; i<=29; i++) {
-      store.updateCount(id, JobCountType.CATALOG, currTs - TimeUnit.DAYS.toMillis(JobCountStoreImpl.COUNTS_SIZE - i - 1));
+    for (int i = 0; i <= 29; i++) {
+      store.updateCount(
+          id,
+          JobCountType.CATALOG,
+          currTs - TimeUnit.DAYS.toMillis(JobCountStoreImpl.COUNTS_SIZE - i - 1));
     }
 
     // verify get job counts based on jobCountsAgeInDays
-    Assert.assertEquals(30, store.getCount(id, JobCountType.CATALOG, JobCountStoreImpl.COUNTS_SIZE));
-    Assert.assertEquals(29, store.getCount(id, JobCountType.CATALOG, JobCountStoreImpl.COUNTS_SIZE-1));
-    Assert.assertEquals(28, store.getCount(id, JobCountType.CATALOG, JobCountStoreImpl.COUNTS_SIZE-2));
+    Assert.assertEquals(
+        30, store.getCount(id, JobCountType.CATALOG, JobCountStoreImpl.COUNTS_SIZE));
+    Assert.assertEquals(
+        29, store.getCount(id, JobCountType.CATALOG, JobCountStoreImpl.COUNTS_SIZE - 1));
+    Assert.assertEquals(
+        28, store.getCount(id, JobCountType.CATALOG, JobCountStoreImpl.COUNTS_SIZE - 2));
     Assert.assertEquals(2, store.getCount(id, JobCountType.CATALOG, 2));
     Assert.assertEquals(1, store.getCount(id, JobCountType.CATALOG, 1));
   }
@@ -158,7 +176,8 @@ public class TestJobCountStore {
     store.updateCount(id, JobCountType.MATCHED, System.currentTimeMillis());
     Assert.assertEquals(1, store.getCount(id, JobCountType.MATCHED, JobCountStoreImpl.COUNTS_SIZE));
     Assert.assertEquals(0, store.getCount(id, JobCountType.CHOSEN, JobCountStoreImpl.COUNTS_SIZE));
-    Assert.assertEquals(0, store.getCount(id, JobCountType.CONSIDERED, JobCountStoreImpl.COUNTS_SIZE));
+    Assert.assertEquals(
+        0, store.getCount(id, JobCountType.CONSIDERED, JobCountStoreImpl.COUNTS_SIZE));
   }
 
   @Test
@@ -172,7 +191,8 @@ public class TestJobCountStore {
     store.updateCount(id, JobCountType.CHOSEN, currTs);
     store.updateCount(id, JobCountType.CHOSEN, currTs);
     Assert.assertEquals(1, store.getCount(id, JobCountType.MATCHED, JobCountStoreImpl.COUNTS_SIZE));
-    Assert.assertEquals(2, store.getCount(id, JobCountType.CONSIDERED, JobCountStoreImpl.COUNTS_SIZE));
+    Assert.assertEquals(
+        2, store.getCount(id, JobCountType.CONSIDERED, JobCountStoreImpl.COUNTS_SIZE));
     Assert.assertEquals(3, store.getCount(id, JobCountType.CHOSEN, JobCountStoreImpl.COUNTS_SIZE));
   }
 
@@ -187,7 +207,8 @@ public class TestJobCountStore {
     store.updateCount(id, JobCountType.CHOSEN, currTs - TimeUnit.DAYS.toMillis(1));
     store.updateCount(id, JobCountType.CHOSEN, currTs);
     Assert.assertEquals(1, store.getCount(id, JobCountType.MATCHED, JobCountStoreImpl.COUNTS_SIZE));
-    Assert.assertEquals(2, store.getCount(id, JobCountType.CONSIDERED, JobCountStoreImpl.COUNTS_SIZE));
+    Assert.assertEquals(
+        2, store.getCount(id, JobCountType.CONSIDERED, JobCountStoreImpl.COUNTS_SIZE));
     Assert.assertEquals(3, store.getCount(id, JobCountType.CHOSEN, JobCountStoreImpl.COUNTS_SIZE));
   }
 
@@ -196,27 +217,44 @@ public class TestJobCountStore {
     String catalogId = UUID.randomUUID().toString();
     String reflectionId = UUID.randomUUID().toString();
     List<JobCountUpdate> updateList = new ArrayList<>();
-    updateList.add(JobCountUpdate.newBuilder().setId(catalogId).setType(JobCountType.CATALOG).build());
-    updateList.add(JobCountUpdate.newBuilder().setId(reflectionId).setType(JobCountType.MATCHED).build());
-    updateList.add(JobCountUpdate.newBuilder().setId(reflectionId).setType(JobCountType.CONSIDERED).build());
-    updateList.add(JobCountUpdate.newBuilder().setId(reflectionId).setType(JobCountType.CONSIDERED).build());
-    updateList.add(JobCountUpdate.newBuilder().setId(reflectionId).setType(JobCountType.CHOSEN).build());
+    updateList.add(
+        JobCountUpdate.newBuilder().setId(catalogId).setType(JobCountType.CATALOG).build());
+    updateList.add(
+        JobCountUpdate.newBuilder().setId(reflectionId).setType(JobCountType.MATCHED).build());
+    updateList.add(
+        JobCountUpdate.newBuilder().setId(reflectionId).setType(JobCountType.CONSIDERED).build());
+    updateList.add(
+        JobCountUpdate.newBuilder().setId(reflectionId).setType(JobCountType.CONSIDERED).build());
+    updateList.add(
+        JobCountUpdate.newBuilder().setId(reflectionId).setType(JobCountType.CHOSEN).build());
 
     store.bulkUpdateCount(updateList);
-    Assert.assertEquals(1, store.getCount(catalogId, JobCountType.CATALOG, JobCountStoreImpl.COUNTS_SIZE));
-    Assert.assertEquals(0, store.getCount(catalogId, JobCountType.CONSIDERED, JobCountStoreImpl.COUNTS_SIZE));
-    Assert.assertEquals(1, store.getCount(reflectionId, JobCountType.MATCHED, JobCountStoreImpl.COUNTS_SIZE));
-    Assert.assertEquals(2, store.getCount(reflectionId, JobCountType.CONSIDERED, JobCountStoreImpl.COUNTS_SIZE));
-    Assert.assertEquals(1, store.getCount(reflectionId, JobCountType.CHOSEN, JobCountStoreImpl.COUNTS_SIZE));
-    Assert.assertEquals(0, store.getCount(reflectionId, JobCountType.CATALOG, JobCountStoreImpl.COUNTS_SIZE));
+    Assert.assertEquals(
+        1, store.getCount(catalogId, JobCountType.CATALOG, JobCountStoreImpl.COUNTS_SIZE));
+    Assert.assertEquals(
+        0, store.getCount(catalogId, JobCountType.CONSIDERED, JobCountStoreImpl.COUNTS_SIZE));
+    Assert.assertEquals(
+        1, store.getCount(reflectionId, JobCountType.MATCHED, JobCountStoreImpl.COUNTS_SIZE));
+    Assert.assertEquals(
+        2, store.getCount(reflectionId, JobCountType.CONSIDERED, JobCountStoreImpl.COUNTS_SIZE));
+    Assert.assertEquals(
+        1, store.getCount(reflectionId, JobCountType.CHOSEN, JobCountStoreImpl.COUNTS_SIZE));
+    Assert.assertEquals(
+        0, store.getCount(reflectionId, JobCountType.CATALOG, JobCountStoreImpl.COUNTS_SIZE));
 
     List<String> deleteList = Arrays.asList(catalogId, reflectionId);
     store.bulkDeleteCount(deleteList);
-    Assert.assertEquals(0, store.getCount(catalogId, JobCountType.CATALOG, JobCountStoreImpl.COUNTS_SIZE));
-    Assert.assertEquals(0, store.getCount(catalogId, JobCountType.CONSIDERED, JobCountStoreImpl.COUNTS_SIZE));
-    Assert.assertEquals(0, store.getCount(reflectionId, JobCountType.MATCHED, JobCountStoreImpl.COUNTS_SIZE));
-    Assert.assertEquals(0, store.getCount(reflectionId, JobCountType.CONSIDERED, JobCountStoreImpl.COUNTS_SIZE));
-    Assert.assertEquals(0, store.getCount(reflectionId, JobCountType.CHOSEN, JobCountStoreImpl.COUNTS_SIZE));
-    Assert.assertEquals(0, store.getCount(reflectionId, JobCountType.CATALOG, JobCountStoreImpl.COUNTS_SIZE));
+    Assert.assertEquals(
+        0, store.getCount(catalogId, JobCountType.CATALOG, JobCountStoreImpl.COUNTS_SIZE));
+    Assert.assertEquals(
+        0, store.getCount(catalogId, JobCountType.CONSIDERED, JobCountStoreImpl.COUNTS_SIZE));
+    Assert.assertEquals(
+        0, store.getCount(reflectionId, JobCountType.MATCHED, JobCountStoreImpl.COUNTS_SIZE));
+    Assert.assertEquals(
+        0, store.getCount(reflectionId, JobCountType.CONSIDERED, JobCountStoreImpl.COUNTS_SIZE));
+    Assert.assertEquals(
+        0, store.getCount(reflectionId, JobCountType.CHOSEN, JobCountStoreImpl.COUNTS_SIZE));
+    Assert.assertEquals(
+        0, store.getCount(reflectionId, JobCountType.CATALOG, JobCountStoreImpl.COUNTS_SIZE));
   }
 }

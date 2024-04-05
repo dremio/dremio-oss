@@ -15,16 +15,15 @@
  */
 package com.dremio.sabot.join.hash;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Ignore;
-
 import com.dremio.exec.ExecConstants;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValue;
 import com.dremio.options.OptionValue.OptionType;
 import com.dremio.sabot.op.join.hash.HashJoinOperator;
 import com.dremio.sabot.op.join.vhash.spill.VectorizedSpillingHashJoinOperator;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Ignore;
 
 // Test join with replay of spill
 @Ignore("TestVHashJoinSpillBuildAndReplay is a superset of this test")
@@ -35,11 +34,18 @@ public class TestVHashJoinSpillReplay extends TestVHashJoinSpill {
   @Override
   @Before
   public void before() {
-    options.setOption(OptionValue.createBoolean(OptionType.SYSTEM, HashJoinOperator.ENABLE_SPILL.getOptionName(), true));
-    options.setOption(OptionValue.createLong(OptionType.SYSTEM, ExecConstants.TARGET_BATCH_RECORDS_MAX.getOptionName(), 65535));
-    // If this option is set, the operator starts with a DiskPartition. This forces the code-path of spill write,
+    options.setOption(
+        OptionValue.createBoolean(
+            OptionType.SYSTEM, HashJoinOperator.ENABLE_SPILL.getOptionName(), true));
+    options.setOption(
+        OptionValue.createLong(
+            OptionType.SYSTEM, ExecConstants.TARGET_BATCH_RECORDS_MAX.getOptionName(), 65535));
+    // If this option is set, the operator starts with a DiskPartition. This forces the code-path of
+    // spill write,
     // read and replay, thus testing the recursion & replay code.
-    options.setOption(OptionValue.createString(OptionType.SYSTEM, HashJoinOperator.TEST_SPILL_MODE.getOptionName(), "replay"));
+    options.setOption(
+        OptionValue.createString(
+            OptionType.SYSTEM, HashJoinOperator.TEST_SPILL_MODE.getOptionName(), "replay"));
     VectorizedSpillingHashJoinOperator.MIN_RESERVE = 9 * 1024 * 1024;
   }
 

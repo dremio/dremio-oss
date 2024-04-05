@@ -19,25 +19,26 @@ package com.dremio.service.script;
 import com.dremio.datastore.SearchTypes;
 import com.dremio.datastore.indexed.IndexKey;
 
-/**
- * Indexes for ScriptStore
- */
+/** Indexes for ScriptStore */
 public interface ScriptStoreIndexedKeys {
-  IndexKey ID = IndexKey.newBuilder("id", "ID", String.class)
-    .setSortedValueType(SearchTypes.SearchFieldSorting.FieldType.STRING)
-    .build();
-  IndexKey NAME = IndexKey.newBuilder("name", "NAME", String.class)
-    .setSortedValueType(SearchTypes.SearchFieldSorting.FieldType.STRING)
-    .build();
+  IndexKey ID =
+      IndexKey.newBuilder("id", "ID", String.class)
+          .setSortedValueType(SearchTypes.SearchFieldSorting.FieldType.STRING)
+          .build();
+  IndexKey NAME =
+      IndexKey.newBuilder("name", "NAME", String.class)
+          .setSortedValueType(SearchTypes.SearchFieldSorting.FieldType.STRING)
+          .build();
   IndexKey CREATED_AT =
-    IndexKey.newBuilder("created_at", "CREATED_AT", Long.class)
-      .setSortedValueType(SearchTypes.SearchFieldSorting.FieldType.LONG)
-      .build();
-  IndexKey CREATED_BY = IndexKey.newBuilder("created_by", "CREATED_BY", String.class)
-    .setSortedValueType(SearchTypes.SearchFieldSorting.FieldType.STRING)
-    .build();
+      IndexKey.newBuilder("created_at", "CREATED_AT", Long.class)
+          .setSortedValueType(SearchTypes.SearchFieldSorting.FieldType.LONG)
+          .build();
+  IndexKey CREATED_BY =
+      IndexKey.newBuilder("created_by", "CREATED_BY", String.class)
+          .setSortedValueType(SearchTypes.SearchFieldSorting.FieldType.STRING)
+          .build();
   IndexKey MODIFIED_AT =
-    IndexKey.newBuilder("modified_at", "MODIFIED_AT", Long.class)
-      .setSortedValueType(SearchTypes.SearchFieldSorting.FieldType.LONG)
-      .build();
+      IndexKey.newBuilder("modified_at", "MODIFIED_AT", Long.class)
+          .setSortedValueType(SearchTypes.SearchFieldSorting.FieldType.LONG)
+          .build();
 }

@@ -15,10 +15,9 @@
  */
 package com.dremio.exec.testing;
 
-import java.util.List;
-
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.google.common.collect.Lists;
+import java.util.List;
 
 public class Controls {
 
@@ -33,91 +32,102 @@ public class Controls {
     return new Builder();
   }
 
-  /**
-   * Constructor. To disallow building controls without the builder.
-   */
-  private Controls() {
-  }
+  /** Constructor. To disallow building controls without the builder. */
+  private Controls() {}
 
   /**
-   * A builder to create a controls string, a JSON that holds a list of injections that are to be injected in code for
-   * testing purposes. This string is passed through the
-   * {@link com.dremio.exec.ExecConstants#NODE_CONTROL_INJECTIONS} session option.
-   * <p/>
-   * The builder class can be reused; it is safe to call build() multiple times to build multiple controls strings in
-   * series. Each new controls string contains all the injections added to the builder before it.
+   * A builder to create a controls string, a JSON that holds a list of injections that are to be
+   * injected in code for testing purposes. This string is passed through the {@link
+   * com.dremio.exec.ExecConstants#NODE_CONTROL_INJECTIONS} session option.
+   *
+   * <p>The builder class can be reused; it is safe to call build() multiple times to build multiple
+   * controls strings in series. Each new controls string contains all the injections added to the
+   * builder before it.
    */
   public static class Builder {
 
     private final List<String> injections = Lists.newArrayList();
 
-    public Builder() {
-    }
+    public Builder() {}
 
     /**
      * Adds an exception injection to the controls builder with the given parameters.
      *
-     * @param siteClass      class where the exception should be thrown
-     * @param desc           descriptor for the exception site in the site class
+     * @param siteClass class where the exception should be thrown
+     * @param desc descriptor for the exception site in the site class
      * @param exceptionClass class of the exception to throw
-     * @param nSkip          number of times to skip before firing
-     * @param nFire          number of times to fire the exception
+     * @param nSkip number of times to skip before firing
+     * @param nFire number of times to fire the exception
      * @return this builder
      */
-    public Builder addException(final Class<?> siteClass, final String desc,
-                                final Class<? extends Throwable> exceptionClass, final int nSkip,
-                                final int nFire) {
-      injections.add(ControlsInjectionUtil.createException(siteClass, desc, nSkip, nFire, exceptionClass));
+    public Builder addException(
+        final Class<?> siteClass,
+        final String desc,
+        final Class<? extends Throwable> exceptionClass,
+        final int nSkip,
+        final int nFire) {
+      injections.add(
+          ControlsInjectionUtil.createException(siteClass, desc, nSkip, nFire, exceptionClass));
       return this;
     }
 
     /**
-     * Adds an exception injection to the controls builder with the given parameters. The injection is not skipped, and
-     * the exception is thrown when execution reaches the site.
+     * Adds an exception injection to the controls builder with the given parameters. The injection
+     * is not skipped, and the exception is thrown when execution reaches the site.
      *
-     * @param siteClass      class where the exception should be thrown
-     * @param desc           descriptor for the exception site in the site class
+     * @param siteClass class where the exception should be thrown
+     * @param desc descriptor for the exception site in the site class
      * @param exceptionClass class of the exception to throw
      * @return this builder
      */
-    public Builder addException(final Class<?> siteClass, final String desc,
-                                final Class<? extends Throwable> exceptionClass) {
+    public Builder addException(
+        final Class<?> siteClass,
+        final String desc,
+        final Class<? extends Throwable> exceptionClass) {
       return addException(siteClass, desc, exceptionClass, 0, 1);
     }
 
     /**
-     * Adds an exception injection (for the specified node) to the controls builder with the given parameters.
+     * Adds an exception injection (for the specified node) to the controls builder with the given
+     * parameters.
      *
-     * @param siteClass      class where the exception should be thrown
-     * @param desc           descriptor for the exception site in the site class
+     * @param siteClass class where the exception should be thrown
+     * @param desc descriptor for the exception site in the site class
      * @param exceptionClass class of the exception to throw
-     * @param endpoint       the endpoint of the node on which to inject
-     * @param nSkip          number of times to skip before firing
-     * @param nFire          number of times to fire the exception
+     * @param endpoint the endpoint of the node on which to inject
+     * @param nSkip number of times to skip before firing
+     * @param nFire number of times to fire the exception
      * @return this builder
      */
-    public Builder addExceptionOnNode(final Class<?> siteClass, final String desc,
-                                     final Class<? extends Throwable> exceptionClass,
-                                     final NodeEndpoint endpoint, final int nSkip,
-                                     final int nFire) {
-      injections.add(ControlsInjectionUtil.createExceptionOnNode(siteClass, desc, nSkip, nFire, exceptionClass,
-        endpoint));
+    public Builder addExceptionOnNode(
+        final Class<?> siteClass,
+        final String desc,
+        final Class<? extends Throwable> exceptionClass,
+        final NodeEndpoint endpoint,
+        final int nSkip,
+        final int nFire) {
+      injections.add(
+          ControlsInjectionUtil.createExceptionOnNode(
+              siteClass, desc, nSkip, nFire, exceptionClass, endpoint));
       return this;
     }
 
     /**
-     * Adds an exception injection (for the specified node) to the controls builder with the given parameters. The
-     * injection is not skipped, and the exception is thrown when execution reaches the site on the specified node.
+     * Adds an exception injection (for the specified node) to the controls builder with the given
+     * parameters. The injection is not skipped, and the exception is thrown when execution reaches
+     * the site on the specified node.
      *
-     * @param siteClass      class where the exception should be thrown
-     * @param desc           descriptor for the exception site in the site class
+     * @param siteClass class where the exception should be thrown
+     * @param desc descriptor for the exception site in the site class
      * @param exceptionClass class of the exception to throw
-     * @param endpoint       endpoint of the node on which to inject
+     * @param endpoint endpoint of the node on which to inject
      * @return this builder
      */
-    public Builder addExceptionOnNode(final Class<?> siteClass, final String desc,
-                                     final Class<? extends Throwable> exceptionClass,
-                                     final NodeEndpoint endpoint) {
+    public Builder addExceptionOnNode(
+        final Class<?> siteClass,
+        final String desc,
+        final Class<? extends Throwable> exceptionClass,
+        final NodeEndpoint endpoint) {
       return addExceptionOnNode(siteClass, desc, exceptionClass, endpoint, 0, 1);
     }
 
@@ -125,8 +135,8 @@ public class Controls {
      * Adds a pause injection to the controls builder with the given parameters.
      *
      * @param siteClass class where the pause should happen
-     * @param desc      descriptor for the pause site in the site class
-     * @param nSkip     number of times to skip before firing
+     * @param desc descriptor for the pause site in the site class
+     * @param nSkip number of times to skip before firing
      * @return this builder
      */
     public Builder addPause(final Class<?> siteClass, final String desc, final int nSkip) {
@@ -135,11 +145,11 @@ public class Controls {
     }
 
     /**
-     * Adds a pause injection to the controls builder with the given parameters. The pause is not skipped i.e. the pause
-     * happens when execution reaches the site.
+     * Adds a pause injection to the controls builder with the given parameters. The pause is not
+     * skipped i.e. the pause happens when execution reaches the site.
      *
      * @param siteClass class where the pause should happen
-     * @param desc      descriptor for the pause site in the site class
+     * @param desc descriptor for the pause site in the site class
      * @return this builder
      */
     public Builder addPause(final Class<?> siteClass, final String desc) {
@@ -147,29 +157,30 @@ public class Controls {
     }
 
     /**
-     * Adds a pause injection (for the specified node) to the controls builder with the given parameters.
+     * Adds a pause injection (for the specified node) to the controls builder with the given
+     * parameters.
      *
      * @param siteClass class where the pause should happen
-     * @param desc      descriptor for the pause site in the site class
-     * @param nSkip     number of times to skip before firing
+     * @param desc descriptor for the pause site in the site class
+     * @param nSkip number of times to skip before firing
      * @return this builder
      */
-    public Builder addPauseOnNode(final Class<?> siteClass, final String desc,
-                                 final NodeEndpoint endpoint, final int nSkip) {
+    public Builder addPauseOnNode(
+        final Class<?> siteClass, final String desc, final NodeEndpoint endpoint, final int nSkip) {
       injections.add(ControlsInjectionUtil.createPauseOnNode(siteClass, desc, nSkip, endpoint));
       return this;
     }
 
     /**
-     * Adds a pause injection (for the specified node) to the controls builder with the given parameters. The pause
-     * is not skipped i.e. the pause happens when execution reaches the site.
+     * Adds a pause injection (for the specified node) to the controls builder with the given
+     * parameters. The pause is not skipped i.e. the pause happens when execution reaches the site.
      *
      * @param siteClass class where the pause should happen
-     * @param desc      descriptor for the pause site in the site class
+     * @param desc descriptor for the pause site in the site class
      * @return this builder
      */
-    public Builder addPauseOnNode(final Class<?> siteClass, final String desc,
-                                 final NodeEndpoint endpoint) {
+    public Builder addPauseOnNode(
+        final Class<?> siteClass, final String desc, final NodeEndpoint endpoint) {
       return addPauseOnNode(siteClass, desc, endpoint, 0);
     }
 
@@ -177,7 +188,7 @@ public class Controls {
      * Adds a count down latch to the controls builder with the given parameters.
      *
      * @param siteClass class where the latch should be injected
-     * @param desc      descriptor for the latch in the site class
+     * @param desc descriptor for the latch in the site class
      * @return this builder
      */
     public Builder addLatch(final Class<?> siteClass, final String desc) {
@@ -189,8 +200,8 @@ public class Controls {
      * Builds the controls string.
      *
      * @return a validated controls string with the added injections
-     * @throws java.lang.AssertionError if controls cannot be validated using
-     *                                  {@link com.dremio.exec.testing.ExecutionControls#controlsOptionMapper}
+     * @throws java.lang.AssertionError if controls cannot be validated using {@link
+     *     com.dremio.exec.testing.ExecutionControls#controlsOptionMapper}
      */
     public String build() {
       if (injections.size() == 0) {
@@ -199,8 +210,7 @@ public class Controls {
 
       final StringBuilder builder = new StringBuilder("{ \"injections\" : [");
       for (final String injection : injections) {
-        builder.append(injection)
-          .append(",");
+        builder.append(injection).append(",");
       }
       builder.setLength(builder.length() - 1); // remove the extra ","
       builder.append("]}");

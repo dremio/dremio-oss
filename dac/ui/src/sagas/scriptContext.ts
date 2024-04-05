@@ -32,6 +32,9 @@ export function* updateScriptContext(sessionId?: string): any {
     (yield select(getExploreState))?.view?.activeScript || {};
 
   try {
+    if (!activeScript.permissions?.includes("MODIFY")) {
+      return;
+    }
     // sessionId can be null if the dataset was fetched using the "/preview" endpoint
     // e.g. run a new query -> click preview without changing anything
     if (activeScript.id && sessionId) {

@@ -15,8 +15,12 @@
  */
 package com.dremio.exec.planner.logical;
 
+import com.dremio.exec.exception.UnsupportedOperatorCollector;
+import com.dremio.exec.planner.StarColumnHelper;
+import com.dremio.exec.planner.StatelessRelShuttleImpl;
+import com.dremio.exec.work.foreman.SqlUnsupportedException;
+import com.google.common.collect.Lists;
 import java.util.List;
-
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.logical.LogicalAggregate;
 import org.apache.calcite.rel.logical.LogicalFilter;
@@ -32,27 +36,19 @@ import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlOperator;
 
-import com.dremio.exec.exception.UnsupportedOperatorCollector;
-import com.dremio.exec.planner.StarColumnHelper;
-import com.dremio.exec.planner.StatelessRelShuttleImpl;
-import com.dremio.exec.work.foreman.SqlUnsupportedException;
-import com.google.common.collect.Lists;
-
 /**
- * This class rewrites all the project expression that contain convert_to/ convert_from
- * to actual implementations.
- * Eg: convert_from(EXPR, 'JSON') is rewritten as convert_fromjson(EXPR)
+ * This class rewrites all the project expression that contain convert_to/ convert_from to actual
+ * implementations. Eg: convert_from(EXPR, 'JSON') is rewritten as convert_fromjson(EXPR)
  *
- * With the actual method name we can find out if the function has a complex
- * output type, and we will fire/ ignore certain rules (merge project rule) based on this fact.
+ * <p>With the actual method name we can find out if the function has a complex output type, and we
+ * will fire/ ignore certain rules (merge project rule) based on this fact.
  */
 public final class PreProcessRel extends StatelessRelShuttleImpl {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PreProcessRel.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(PreProcessRel.class);
   private final UnsupportedOperatorCollector unsupportedOperatorCollector;
   private final UnwrappingExpressionVisitor unwrappingExpressionVisitor;
-  private final ConvertItemToInnerMapFunctionVisitor.RewriteItemOperatorVisitor rewriteItemOperatorVisitor;
-
 
   public static PreProcessRel createVisitor(RexBuilder rexBuilder) {
     return new PreProcessRel(rexBuilder);
@@ -62,47 +58,45 @@ public final class PreProcessRel extends StatelessRelShuttleImpl {
     super();
     this.unsupportedOperatorCollector = new UnsupportedOperatorCollector();
     this.unwrappingExpressionVisitor = new UnwrappingExpressionVisitor(rexBuilder);
-    this.rewriteItemOperatorVisitor = new ConvertItemToInnerMapFunctionVisitor.RewriteItemOperatorVisitor(rexBuilder);
   }
 
   @Override
   public RelNode visit(LogicalProject project) {
     final List<RexNode> projExpr = Lists.newArrayList();
     for (RexNode rexNode : project.getProjects()) {
-      projExpr.add(rexNode.accept(unwrappingExpressionVisitor).accept(rewriteItemOperatorVisitor));
+      projExpr.add(rexNode.accept(unwrappingExpressionVisitor));
     }
 
-    project =  project.copy(project.getTraitSet(),
-        project.getInput(),
-        projExpr,
-        project.getRowType());
+    project =
+        project.copy(project.getTraitSet(), project.getInput(), projExpr, project.getRowType());
 
     return visitChild(project, 0, project.getInput());
   }
 
   @Override
   public RelNode visit(LogicalFilter filter) {
-    final RexNode condition = filter.getCondition().accept(unwrappingExpressionVisitor).accept(rewriteItemOperatorVisitor);
-    filter = filter.copy(
-        filter.getTraitSet(),
-        filter.getInput(),
-        condition);
+    final RexNode condition = filter.getCondition().accept(unwrappingExpressionVisitor);
+    filter = filter.copy(filter.getTraitSet(), filter.getInput(), condition);
     return visitChild(filter, 0, filter.getInput());
   }
 
   @Override
   public RelNode visit(LogicalAggregate aggregate) {
-    if (aggregate.getAggCallList().stream().anyMatch(call -> {
-      if (call.getAggregation().getKind() == SqlKind.LISTAGG) {
-        int inputArg = call.getArgList().get(0);
-        return call.getCollation().getFieldCollations().size() > 1 ||
-          (call.getCollation().getFieldCollations().size() == 1 &&
-            call.getCollation().getFieldCollations().get(0).getFieldIndex() != inputArg);
-      }
-      return false;
-    })) {
-      unsupportedOperatorCollector.setException(SqlUnsupportedException.ExceptionType.FUNCTION,
-        "ORDER BY columns must be subset LISTAGG columns");
+    if (aggregate.getAggCallList().stream()
+        .anyMatch(
+            call -> {
+              if (call.getAggregation().getKind() == SqlKind.LISTAGG) {
+                int inputArg = call.getArgList().get(0);
+                return call.getCollation().getFieldCollations().size() > 1
+                    || (call.getCollation().getFieldCollations().size() == 1
+                        && call.getCollation().getFieldCollations().get(0).getFieldIndex()
+                            != inputArg);
+              }
+              return false;
+            })) {
+      unsupportedOperatorCollector.setException(
+          SqlUnsupportedException.ExceptionType.FUNCTION,
+          "ORDER BY columns must be subset LISTAGG columns");
       throw new UnsupportedOperationException();
     }
     return super.visit(aggregate);
@@ -110,24 +104,27 @@ public final class PreProcessRel extends StatelessRelShuttleImpl {
 
   @Override
   public RelNode visit(LogicalJoin join) {
-    final RexNode conditionExpr = join.getCondition().accept(unwrappingExpressionVisitor).accept(rewriteItemOperatorVisitor);
-    join = join.copy(join.getTraitSet(),
-        conditionExpr,
-        join.getLeft(),
-        join.getRight(),
-        join.getJoinType(),
-        join.isSemiJoinDone());
+    final RexNode conditionExpr = join.getCondition().accept(unwrappingExpressionVisitor);
+    join =
+        join.copy(
+            join.getTraitSet(),
+            conditionExpr,
+            join.getLeft(),
+            join.getRight(),
+            join.getJoinType(),
+            join.isSemiJoinDone());
 
     return visitChildren(join);
   }
 
   @Override
   public RelNode visit(LogicalUnion union) {
-    for(RelNode child : union.getInputs()) {
-      for(RelDataTypeField dataField : child.getRowType().getFieldList()) {
-        if(dataField.getName().contains(StarColumnHelper.STAR_COLUMN)) {
+    for (RelNode child : union.getInputs()) {
+      for (RelDataTypeField dataField : child.getRowType().getFieldList()) {
+        if (dataField.getName().contains(StarColumnHelper.STAR_COLUMN)) {
           // see DRILL-2414
-          unsupportedOperatorCollector.setException(SqlUnsupportedException.ExceptionType.RELATIONAL,
+          unsupportedOperatorCollector.setException(
+              SqlUnsupportedException.ExceptionType.RELATIONAL,
               "Union-All over schema-less tables must specify the columns explicitly");
           throw new UnsupportedOperationException();
         }
@@ -150,13 +147,10 @@ public final class PreProcessRel extends StatelessRelShuttleImpl {
 
     @Override
     public RexNode visitCall(final RexCall call) {
-      final List<RexNode> clonedOperands = visitList(call.operands, new boolean[]{true});
+      final List<RexNode> clonedOperands = visitList(call.operands, new boolean[] {true});
       final SqlOperator sqlOperator = call.getOperator();
-      return RexUtil.flatten(rexBuilder,
-          rexBuilder.makeCall(
-              call.getType(),
-              sqlOperator,
-              clonedOperands));
+      return RexUtil.flatten(
+          rexBuilder, rexBuilder.makeCall(call.getType(), sqlOperator, clonedOperands));
     }
   }
 }

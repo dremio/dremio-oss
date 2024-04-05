@@ -15,20 +15,6 @@
  */
 package com.dremio.service.coordinator.local;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Queue;
-import java.util.UUID;
-import java.util.WeakHashMap;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.service.coordinator.AbstractServiceSet;
@@ -43,12 +29,24 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Queue;
+import java.util.UUID;
+import java.util.WeakHashMap;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 
-/**
- * A {@code ClusterCoordinator} local implementation for testing purposes
- */
+/** A {@code ClusterCoordinator} local implementation for testing purposes */
 public class LocalClusterCoordinator extends ClusterCoordinator {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(LocalClusterCoordinator.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(LocalClusterCoordinator.class);
 
   /*
    * Since we hand out the endpoints list in {@see #getAvailableEndpoints()}, we use a
@@ -76,7 +74,7 @@ public class LocalClusterCoordinator extends ClusterCoordinator {
 
   public LocalClusterCoordinator() {
     logger.info("Local Cluster Coordinator is up.");
-    for(ClusterCoordinator.Role role : ClusterCoordinator.Role.values()) {
+    for (ClusterCoordinator.Role role : ClusterCoordinator.Role.values()) {
       serviceSets.put(role.name(), new LocalServiceSet(role.name()));
     }
   }
@@ -89,8 +87,7 @@ public class LocalClusterCoordinator extends ClusterCoordinator {
   }
 
   @Override
-  public void start() {
-  }
+  public void start() {}
 
   @Override
   public ServiceSet getServiceSet(Role role) {
@@ -195,7 +192,6 @@ public class LocalClusterCoordinator extends ClusterCoordinator {
     }
   }
 
-
   @Override
   public DistributedSemaphore getSemaphore(final String name, final int maximumLeases) {
     if (!semaphores.containsKey(name)) {
@@ -221,7 +217,8 @@ public class LocalClusterCoordinator extends ClusterCoordinator {
     private final Semaphore semaphore;
     private final int size;
     private final LocalLease singleLease = new LocalLease(1);
-    private final Map<UpdateListener, Void> listeners = Collections.synchronizedMap(new WeakHashMap<UpdateListener, Void>());
+    private final Map<UpdateListener, Void> listeners =
+        Collections.synchronizedMap(new WeakHashMap<UpdateListener, Void>());
 
     LocalSemaphore(final int size) {
       this.semaphore = new Semaphore(size);
@@ -246,7 +243,7 @@ public class LocalClusterCoordinator extends ClusterCoordinator {
 
     private void update() {
       Collection<UpdateListener> col = new ArrayList<>(listeners.keySet());
-      for(UpdateListener l : col) {
+      for (UpdateListener l : col) {
         l.updated();
       }
     }
@@ -267,18 +264,18 @@ public class LocalClusterCoordinator extends ClusterCoordinator {
 
     @Override
     public boolean registerUpdateListener(UpdateListener listener) {
-      listeners.put(() -> {
-        try {
-        listener.updated();
-        } catch (Exception e) {
-          logger.warn("Exception occurred while notifying listener.", e);
-        }
-      }, null);
+      listeners.put(
+          () -> {
+            try {
+              listener.updated();
+            } catch (Exception e) {
+              logger.warn("Exception occurred while notifying listener.", e);
+            }
+          },
+          null);
       return true;
     }
   }
-
-
 
   private final class Candidate {
     private final ElectionListener listener;
@@ -294,7 +291,7 @@ public class LocalClusterCoordinator extends ClusterCoordinator {
 
     public ElectionRegistrationHandle joinElection(final ElectionListener listener) {
       final Candidate candidate = new Candidate(listener);
-      synchronized(this) {
+      synchronized (this) {
         if (currentLeader == null) {
           currentLeader = candidate;
           candidate.listener.onElected();
@@ -302,7 +299,6 @@ public class LocalClusterCoordinator extends ClusterCoordinator {
           waiting.add(candidate);
         }
       }
-
 
       return new ElectionRegistrationHandle() {
         @Override
@@ -323,7 +319,7 @@ public class LocalClusterCoordinator extends ClusterCoordinator {
     }
 
     private void leaveElection(final Candidate candidate) {
-      synchronized(this) {
+      synchronized (this) {
         if (currentLeader == candidate) {
           currentLeader = waiting.poll();
           if (currentLeader != null) {

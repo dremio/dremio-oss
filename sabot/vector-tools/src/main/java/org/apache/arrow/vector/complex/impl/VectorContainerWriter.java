@@ -15,10 +15,13 @@
  */
 package org.apache.arrow.vector.complex.impl;
 
+import com.dremio.exec.exception.SchemaChangeException;
+import com.dremio.sabot.op.scan.OutputMutator;
+import com.google.common.base.Function;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import java.util.List;
-
 import javax.annotation.Nullable;
-
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.FieldVector;
@@ -29,12 +32,6 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.util.CallBack;
-
-import com.dremio.exec.exception.SchemaChangeException;
-import com.dremio.sabot.op.scan.OutputMutator;
-import com.google.common.base.Function;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 
 public class VectorContainerWriter extends AbstractFieldWriter implements ComplexWriter {
 
@@ -113,17 +110,21 @@ public class VectorContainerWriter extends AbstractFieldWriter implements Comple
 
     @Override
     public List<FieldVector> getChildren() {
-      return Lists.newArrayList(Iterables.transform(mutator.getVectors(), new Function<ValueVector, FieldVector>() {
-        @Nullable
-        @Override
-        public FieldVector apply(@Nullable ValueVector input) {
-          return (FieldVector) input;
-        }
-      }));
+      return Lists.newArrayList(
+          Iterables.transform(
+              mutator.getVectors(),
+              new Function<ValueVector, FieldVector>() {
+                @Nullable
+                @Override
+                public FieldVector apply(@Nullable ValueVector input) {
+                  return (FieldVector) input;
+                }
+              }));
     }
 
     @Override
-    public <T extends FieldVector> T addOrGet(String childName, FieldType fieldType, Class<T> clazz) {
+    public <T extends FieldVector> T addOrGet(
+        String childName, FieldType fieldType, Class<T> clazz) {
       try {
         Field field = new Field(childName, fieldType, null);
         final FieldVector v = mutator.addField(field, clazz);
@@ -158,6 +159,6 @@ public class VectorContainerWriter extends AbstractFieldWriter implements Comple
   @Override
   public MapWriter rootAsMap(boolean b) {
     throw new UnsupportedOperationException(
-      "Dremio doesn't support objects whose first level is map.  Objects must start as struct.");
+        "Dremio doesn't support objects whose first level is map.  Objects must start as struct.");
   }
 }

@@ -15,9 +15,7 @@
  */
 package com.dremio.service.namespace;
 
-/**
- * Base class for all namespace exceptions.
- */
+/** Base class for all namespace exceptions. */
 public abstract class NamespaceException extends Exception {
   private static final long serialVersionUID = 1L;
 

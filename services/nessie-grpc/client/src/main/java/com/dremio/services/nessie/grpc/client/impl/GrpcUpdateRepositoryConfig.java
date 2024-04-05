@@ -18,13 +18,12 @@ package com.dremio.services.nessie.grpc.client.impl;
 import static com.dremio.services.nessie.grpc.GrpcExceptionMapper.handleNessieRuntimeEx;
 import static com.dremio.services.nessie.grpc.ProtoUtil.fromProto;
 
+import com.dremio.services.nessie.grpc.ProtoUtil;
+import com.dremio.services.nessie.grpc.api.ConfigServiceGrpc;
 import org.projectnessie.client.api.UpdateRepositoryConfigBuilder;
 import org.projectnessie.error.NessieConflictException;
 import org.projectnessie.model.RepositoryConfig;
 import org.projectnessie.model.UpdateRepositoryConfigResponse;
-
-import com.dremio.services.nessie.grpc.ProtoUtil;
-import com.dremio.services.nessie.grpc.api.ConfigServiceGrpc;
 
 public class GrpcUpdateRepositoryConfig implements UpdateRepositoryConfigBuilder {
 
@@ -32,7 +31,8 @@ public class GrpcUpdateRepositoryConfig implements UpdateRepositoryConfigBuilder
 
   private RepositoryConfig update;
 
-  public GrpcUpdateRepositoryConfig(ConfigServiceGrpc.ConfigServiceBlockingStub configServiceBlockingStub) {
+  public GrpcUpdateRepositoryConfig(
+      ConfigServiceGrpc.ConfigServiceBlockingStub configServiceBlockingStub) {
     this.stub = configServiceBlockingStub;
   }
 
@@ -48,6 +48,6 @@ public class GrpcUpdateRepositoryConfig implements UpdateRepositoryConfigBuilder
   @Override
   public UpdateRepositoryConfigResponse update() throws NessieConflictException {
     return handleNessieRuntimeEx(
-      () -> fromProto(stub.updateRepositoryConfig(ProtoUtil.toProtoRepoConfigUpdate(update))));
+        () -> fromProto(stub.updateRepositoryConfig(ProtoUtil.toProtoRepoConfigUpdate(update))));
   }
 }

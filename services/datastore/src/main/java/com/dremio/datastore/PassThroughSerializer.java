@@ -15,19 +15,14 @@
  */
 package com.dremio.datastore;
 
-
 import java.io.IOException;
-
 import org.apache.commons.codec.binary.Base64;
 
-/**
- * A NOP serializer
- */
+/** A NOP serializer */
 public class PassThroughSerializer extends Serializer<byte[], byte[]> {
   private static final PassThroughSerializer INSTANCE = new PassThroughSerializer();
 
-  public PassThroughSerializer() {
-  }
+  public PassThroughSerializer() {}
 
   @Override
   public byte[] convert(byte[] bytes) {

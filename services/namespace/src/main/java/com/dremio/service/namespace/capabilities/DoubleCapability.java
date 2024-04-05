@@ -18,15 +18,12 @@ package com.dremio.service.namespace.capabilities;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-/**
- * A double capability.
- */
-public final class DoubleCapability extends Capability<Double>{
+/** A double capability. */
+public final class DoubleCapability extends Capability<Double> {
 
   @JsonCreator
   public DoubleCapability(
-      @JsonProperty("name") String name,
-      @JsonProperty("defaultValue") double defaultValue) {
+      @JsonProperty("name") String name, @JsonProperty("defaultValue") double defaultValue) {
     super(name, defaultValue);
   }
 }

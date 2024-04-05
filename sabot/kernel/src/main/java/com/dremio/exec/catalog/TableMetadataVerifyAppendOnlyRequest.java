@@ -16,7 +16,8 @@
 package com.dremio.exec.catalog;
 
 /**
- * Metadata verify request for verifying if operations between "begin-snapshot" and "end-snapshot" were append-only.
+ * Metadata verify request for verifying if operations between "begin-snapshot" and "end-snapshot"
+ * were append-only.
  */
 public class TableMetadataVerifyAppendOnlyRequest implements TableMetadataVerifyRequest {
   private final String beginSnapshotId;

@@ -15,9 +15,5 @@
  */
 package com.dremio.exec.context;
 
-/**
- * Marker interface to provide ability to
- * add additional context
- */
-public interface AdditionalContext {
-}
+/** Marker interface to provide ability to add additional context */
+public interface AdditionalContext {}

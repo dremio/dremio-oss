@@ -15,19 +15,6 @@
  */
 package com.dremio.sabot.op.fromjson;
 
-import java.io.EOFException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.VarBinaryVector;
-import org.apache.arrow.vector.VarCharVector;
-import org.apache.arrow.vector.complex.writer.BaseWriter.ComplexWriter;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.util.TransferPair;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.FieldSizeLimitExceptionHelper;
@@ -50,9 +37,21 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.fromjson.ConvertFromJsonPOP.ConversionColumn;
 import com.dremio.sabot.op.spi.SingleInputOperator;
 import com.google.common.base.Preconditions;
+import java.io.EOFException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.VarBinaryVector;
+import org.apache.arrow.vector.VarCharVector;
+import org.apache.arrow.vector.complex.writer.BaseWriter.ComplexWriter;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.util.TransferPair;
 
 public class ConvertFromJsonOperator implements SingleInputOperator {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ConvertFromJsonOperator.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ConvertFromJsonOperator.class);
 
   private final ConvertFromJsonPOP config;
   private final OperatorContext context;
@@ -76,25 +75,43 @@ public class ConvertFromJsonOperator implements SingleInputOperator {
     outgoing.setInitialCapacity(context.getTargetBatchSize());
 
     final Map<String, ConversionColumn> cMap = new HashMap<>();
-    for(ConversionColumn c : config.getColumns()){
+    for (ConversionColumn c : config.getColumns()) {
       cMap.put(c.getInputField().toLowerCase(), c);
     }
 
-    final int sizeLimit = Math.toIntExact(this.context.getOptions().getOption(ExecConstants.LIMIT_FIELD_SIZE_BYTES));
-    final int maxLeafLimit = Math.toIntExact(this.context.getOptions().getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX));
+    final int sizeLimit =
+        Math.toIntExact(this.context.getOptions().getOption(ExecConstants.LIMIT_FIELD_SIZE_BYTES));
+    final int maxLeafLimit =
+        Math.toIntExact(
+            this.context.getOptions().getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX));
 
-    for (VectorWrapper<?> w: accessible) {
+    for (VectorWrapper<?> w : accessible) {
       final Field f = w.getField();
       final ValueVector incomingVector = w.getValueVector();
       ConversionColumn conversion = cMap.get(f.getName().toLowerCase());
-      if(conversion != null){
+      if (conversion != null) {
         Field updatedField = conversion.asField(f.getName());
         ValueVector outgoingVector = outgoing.addOrGet(updatedField);
-        Preconditions.checkArgument(incomingVector instanceof VarBinaryVector || incomingVector instanceof VarCharVector, "Incoming field [%s] should have been either a varchar or varbinary.", Describer.describe(f));
-        if(incomingVector instanceof VarBinaryVector){
-          converters.add(new BinaryConverter(conversion, sizeLimit, maxLeafLimit, (VarBinaryVector) incomingVector, outgoingVector));
+        Preconditions.checkArgument(
+            incomingVector instanceof VarBinaryVector || incomingVector instanceof VarCharVector,
+            "Incoming field [%s] should have been either a varchar or varbinary.",
+            Describer.describe(f));
+        if (incomingVector instanceof VarBinaryVector) {
+          converters.add(
+              new BinaryConverter(
+                  conversion,
+                  sizeLimit,
+                  maxLeafLimit,
+                  (VarBinaryVector) incomingVector,
+                  outgoingVector));
         } else {
-          converters.add(new CharConverter(conversion, sizeLimit, maxLeafLimit, (VarCharVector) incomingVector, outgoingVector));
+          converters.add(
+              new CharConverter(
+                  conversion,
+                  sizeLimit,
+                  maxLeafLimit,
+                  (VarCharVector) incomingVector,
+                  outgoingVector));
         }
 
       } else {
@@ -105,8 +122,10 @@ public class ConvertFromJsonOperator implements SingleInputOperator {
     }
 
     if (converters.size() != config.getColumns().size()) {
-      throw new SetupException(String.format("Expected %d input column(s) but only found %d", config.getColumns().size(),
-        converters.size()));
+      throw new SetupException(
+          String.format(
+              "Expected %d input column(s) but only found %d",
+              config.getColumns().size(), converters.size()));
     }
 
     outgoing.buildSchema();
@@ -125,11 +144,11 @@ public class ConvertFromJsonOperator implements SingleInputOperator {
     state.is(State.CAN_PRODUCE);
 
     final int records = incoming.getRecordCount();
-    for(JsonConverter<?> converter : converters){
+    for (JsonConverter<?> converter : converters) {
       converter.convert(records);
     }
 
-    for(TransferPair transfer : transfers){
+    for (TransferPair transfer : transfers) {
       transfer.transfer();
       transfer.getTo().setValueCount(records);
     }
@@ -141,7 +160,8 @@ public class ConvertFromJsonOperator implements SingleInputOperator {
   }
 
   @Override
-  public <OUT, IN, EXCEP extends Throwable> OUT accept(OperatorVisitor<OUT, IN, EXCEP> visitor, IN value) throws EXCEP {
+  public <OUT, IN, EXCEP extends Throwable> OUT accept(
+      OperatorVisitor<OUT, IN, EXCEP> visitor, IN value) throws EXCEP {
     return visitor.visitSingleInput(this, value);
   }
 
@@ -163,7 +183,12 @@ public class ConvertFromJsonOperator implements SingleInputOperator {
 
   private class BinaryConverter extends JsonConverter<VarBinaryVector> {
 
-    BinaryConverter(ConversionColumn column, int sizeLimit, int maxLeafLimit, VarBinaryVector vector, ValueVector outgoingVector) {
+    BinaryConverter(
+        ConversionColumn column,
+        int sizeLimit,
+        int maxLeafLimit,
+        VarBinaryVector vector,
+        ValueVector outgoingVector) {
       super(column, sizeLimit, maxLeafLimit, vector, outgoingVector);
     }
 
@@ -180,7 +205,12 @@ public class ConvertFromJsonOperator implements SingleInputOperator {
 
   private class CharConverter extends JsonConverter<VarCharVector> {
 
-    CharConverter(ConversionColumn column, int sizeLimit, int maxLeafLimit, VarCharVector vector, ValueVector outgoingVector) {
+    CharConverter(
+        ConversionColumn column,
+        int sizeLimit,
+        int maxLeafLimit,
+        VarCharVector vector,
+        ValueVector outgoingVector) {
       super(column, sizeLimit, maxLeafLimit, vector, outgoingVector);
     }
 
@@ -204,12 +234,26 @@ public class ConvertFromJsonOperator implements SingleInputOperator {
     private final ValueVector outgoingVector;
     protected final int sizeLimit;
 
-    public JsonConverter(ConversionColumn column, int sizeLimit, int maxLeafLimit, T vector, ValueVector outgoingVector) {
+    public JsonConverter(
+        ConversionColumn column,
+        int sizeLimit,
+        int maxLeafLimit,
+        T vector,
+        ValueVector outgoingVector) {
       this.column = column;
       this.vector = vector;
       this.writer = VectorAccessibleComplexWriter.getWriter(column.getInputField(), outgoing);
-      this.reader = new JsonReader(context.getManagedBuffer(), sizeLimit, maxLeafLimit, context.getOptions().getOption(ExecConstants.JSON_READER_ALL_TEXT_MODE_VALIDATOR), false, false,
-        context.getOptions().getOption(PlannerSettings.ENFORCE_VALID_JSON_DATE_FORMAT_ENABLED));
+      this.reader =
+          new JsonReader(
+              context.getManagedBuffer(),
+              sizeLimit,
+              maxLeafLimit,
+              context.getOptions().getOption(ExecConstants.JSON_READER_ALL_TEXT_MODE_VALIDATOR),
+              false,
+              false,
+              context
+                  .getOptions()
+                  .getOption(PlannerSettings.ENFORCE_VALID_JSON_DATE_FORMAT_ENABLED));
       this.outgoingVector = outgoingVector;
       this.sizeLimit = sizeLimit;
     }
@@ -219,7 +263,7 @@ public class ConvertFromJsonOperator implements SingleInputOperator {
     public void convert(final int records) {
       try {
         outgoingVector.allocateNew();
-        for(int i = 0; i < records; i++){
+        for (int i = 0; i < records; i++) {
           writer.setPosition(i);
           byte[] bytes = getBytes(i);
           if (bytes == null || bytes.length == 0) {
@@ -235,7 +279,8 @@ public class ConvertFromJsonOperator implements SingleInputOperator {
         }
 
       } catch (Exception ex) {
-        throw UserException.dataReadError(ex).message("Failure converting field %s from JSON.", column.getInputField())
+        throw UserException.dataReadError(ex)
+            .message("Failure converting field %s from JSON.", column.getInputField())
             .build(logger);
       }
 
@@ -249,11 +294,12 @@ public class ConvertFromJsonOperator implements SingleInputOperator {
 
         // throw a fieldChangeError back to coordinator with necessary context to update schema.
         throw UserException.jsonFieldChangeError()
-          .message("New field in the schema found.  Please reattempt the query.  Multiple attempts may be necessary to fully learn the schema.")
-          .setAdditionalExceptionContext(new JsonFieldChangeExceptionContext(column.getOriginTable(),
-            column.getOriginField(),
-            typedFieldId.getFinalType()))
-          .build(logger);
+            .message(
+                "New field in the schema found.  Please reattempt the query.  Multiple attempts may be necessary to fully learn the schema.")
+            .setAdditionalExceptionContext(
+                new JsonFieldChangeExceptionContext(
+                    column.getOriginTable(), column.getOriginField(), typedFieldId.getFinalType()))
+            .build(logger);
       }
     }
   }
@@ -262,9 +308,9 @@ public class ConvertFromJsonOperator implements SingleInputOperator {
   public static class ConvertCreator implements Creator<ConvertFromJsonPOP> {
 
     @Override
-    public SingleInputOperator create(OperatorContext context, ConvertFromJsonPOP operator) throws ExecutionSetupException {
+    public SingleInputOperator create(OperatorContext context, ConvertFromJsonPOP operator)
+        throws ExecutionSetupException {
       return new ConvertFromJsonOperator(context, operator);
     }
-
   }
 }

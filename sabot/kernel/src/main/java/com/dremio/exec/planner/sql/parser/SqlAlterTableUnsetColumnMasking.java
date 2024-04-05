@@ -15,10 +15,15 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.ExecConstants;
+import com.dremio.exec.ops.QueryContext;
+import com.dremio.exec.planner.sql.handlers.direct.SimpleDirectHandler;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -29,37 +34,33 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.ExecConstants;
-import com.dremio.exec.ops.QueryContext;
-import com.dremio.exec.planner.sql.handlers.direct.SimpleDirectHandler;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
-
 /**
- * SqlAlterTableUnsetColumnMasking
- * ALTER { TABLE | VIEW } [ IF EXISTS ] <table_name>
- *    MODIFY COLUMN <column_name>
- *    UNSET MASKING POLICY <function_name>
+ * SqlAlterTableUnsetColumnMasking ALTER { TABLE | VIEW } [ IF EXISTS ] <table_name> MODIFY COLUMN
+ * <column_name> UNSET MASKING POLICY <function_name>
  */
-public class SqlAlterTableUnsetColumnMasking extends SqlAlterTable implements SimpleDirectHandler.Creator {
+public class SqlAlterTableUnsetColumnMasking extends SqlAlterTable
+    implements SimpleDirectHandler.Creator {
   private final SqlIdentifier columnName;
   private final SqlPolicy policy;
 
-  public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("UNSET_COLUMN_MASKING", SqlKind.OTHER) {
-    @Override
-    public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 3, "SqlAlterTableUnsetColumnMasking.createCall() has to get 3 operands!");
-      return new SqlAlterTableUnsetColumnMasking(
-        pos,
-        (SqlIdentifier) operands[0],
-        (SqlIdentifier) operands[1],
-        (SqlPolicy) operands[2]
-      );
-    }
-  };
+  public static final SqlSpecialOperator OPERATOR =
+      new SqlSpecialOperator("UNSET_COLUMN_MASKING", SqlKind.OTHER) {
+        @Override
+        public SqlCall createCall(
+            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+          Preconditions.checkArgument(
+              operands.length == 3,
+              "SqlAlterTableUnsetColumnMasking.createCall() has to get 3 operands!");
+          return new SqlAlterTableUnsetColumnMasking(
+              pos,
+              (SqlIdentifier) operands[0],
+              (SqlIdentifier) operands[1],
+              (SqlPolicy) operands[2]);
+        }
+      };
 
-  public SqlAlterTableUnsetColumnMasking(SqlParserPos pos, SqlIdentifier tblName, SqlIdentifier columnName, SqlPolicy policy) {
+  public SqlAlterTableUnsetColumnMasking(
+      SqlParserPos pos, SqlIdentifier tblName, SqlIdentifier columnName, SqlPolicy policy) {
     super(pos, tblName);
     this.columnName = columnName;
     this.policy = policy;
@@ -80,10 +81,7 @@ public class SqlAlterTableUnsetColumnMasking extends SqlAlterTable implements Si
 
   @Override
   public List<SqlNode> getOperandList() {
-    return ImmutableList.of(
-      tblName,
-      columnName,
-      policy);
+    return ImmutableList.of(tblName, columnName, policy);
   }
 
   @Override
@@ -105,12 +103,19 @@ public class SqlAlterTableUnsetColumnMasking extends SqlAlterTable implements Si
     }
 
     try {
-      final Class<?> cl = Class.forName("com.dremio.exec.planner.sql.handlers.EnterpriseAlterTableUnsetColumnMasking");
+      final Class<?> cl =
+          Class.forName(
+              "com.dremio.exec.planner.sql.handlers.EnterpriseAlterTableUnsetColumnMasking");
       final Constructor<?> ctor = cl.getConstructor(QueryContext.class);
       return (SimpleDirectHandler) ctor.newInstance(context);
-    } catch (InstantiationException | IllegalAccessException | ClassNotFoundException | NoSuchMethodException | InvocationTargetException e) {
-      final UserException.Builder exceptionBuilder = UserException.unsupportedError()
-        .message("This command is not supported in this edition of Dremio.");
+    } catch (InstantiationException
+        | IllegalAccessException
+        | ClassNotFoundException
+        | NoSuchMethodException
+        | InvocationTargetException e) {
+      final UserException.Builder exceptionBuilder =
+          UserException.unsupportedError()
+              .message("This command is not supported in this edition of Dremio.");
       throw exceptionBuilder.buildSilently();
     }
   }

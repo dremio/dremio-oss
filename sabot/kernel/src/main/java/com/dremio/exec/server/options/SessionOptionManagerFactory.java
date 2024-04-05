@@ -15,13 +15,10 @@
  */
 package com.dremio.exec.server.options;
 
-/**
- * Interface for managing options set at the session level.
- */
+/** Interface for managing options set at the session level. */
 public interface SessionOptionManagerFactory {
   /**
-   * Given a session Id and context, fetch or create the appropriate
-   * OptionManager.
+   * Given a session Id and context, fetch or create the appropriate OptionManager.
    *
    * @param sessionId session Id
    * @return

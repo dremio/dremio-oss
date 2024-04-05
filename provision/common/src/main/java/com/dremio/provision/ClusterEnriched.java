@@ -15,15 +15,12 @@
  */
 package com.dremio.provision;
 
-/**
- * Enriched cluster
- */
+/** Enriched cluster */
 public class ClusterEnriched {
   private Cluster cluster;
   private Containers containers;
 
-  public ClusterEnriched() {
-  }
+  public ClusterEnriched() {}
 
   public ClusterEnriched(Cluster cluster) {
     this.cluster = cluster;
@@ -32,15 +29,16 @@ public class ClusterEnriched {
   public Cluster getCluster() {
     return cluster;
   }
+
   public void setCluster(Cluster cluster) {
     this.cluster = cluster;
   }
+
   public Containers getRunTimeInfo() {
     return containers;
   }
+
   public void setRunTimeInfo(Containers containers) {
     this.containers = containers;
   }
-
-
 }

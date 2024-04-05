@@ -17,15 +17,12 @@ package com.dremio.connector;
 
 import java.io.IOException;
 
-/**
- * Exception in connector.
- */
+/** Exception in connector. */
 public class ConnectorException extends IOException {
 
   private static final long serialVersionUID = 5815196186588007984L;
 
-  public ConnectorException() {
-  }
+  public ConnectorException() {}
 
   public ConnectorException(String message) {
     super(message);
@@ -38,5 +35,4 @@ public class ConnectorException extends IOException {
   public ConnectorException(Throwable cause) {
     super(cause);
   }
-
 }

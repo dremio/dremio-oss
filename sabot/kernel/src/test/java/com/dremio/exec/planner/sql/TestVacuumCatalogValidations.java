@@ -17,29 +17,28 @@ package com.dremio.exec.planner.sql;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 
-import org.junit.Test;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.ExecConstants;
+import org.junit.Test;
 
-/**
- * Validations on `VACUUM CATALOG` sql command
- */
+/** Validations on `VACUUM CATALOG` sql command */
 public class TestVacuumCatalogValidations extends BaseTestQuery {
   @Test
   public void testAssertSourceType() throws Exception {
     try (AutoCloseable c = enableVacuumCatalog()) {
       assertThatThrownBy(() -> runSQL(String.format("VACUUM CATALOG %s", TEMP_SCHEMA_HADOOP)))
-        .isInstanceOf(UserException.class)
-        .hasMessageContaining("UNSUPPORTED_OPERATION ERROR: VACUUM CATALOG is supported only on versioned sources.");
+          .isInstanceOf(UserException.class)
+          .hasMessageContaining(
+              "UNSUPPORTED_OPERATION ERROR: VACUUM CATALOG is supported only on versioned sources.");
     }
   }
 
   private static AutoCloseable enableVacuumCatalog() {
     setSystemOption(ExecConstants.ENABLE_ICEBERG_VACUUM_CATALOG, "true");
     return () ->
-      setSystemOption(ExecConstants.ENABLE_ICEBERG_VACUUM_CATALOG,
-        ExecConstants.ENABLE_ICEBERG_VACUUM_CATALOG.getDefault().getBoolVal().toString());
+        setSystemOption(
+            ExecConstants.ENABLE_ICEBERG_VACUUM_CATALOG,
+            ExecConstants.ENABLE_ICEBERG_VACUUM_CATALOG.getDefault().getBoolVal().toString());
   }
 }

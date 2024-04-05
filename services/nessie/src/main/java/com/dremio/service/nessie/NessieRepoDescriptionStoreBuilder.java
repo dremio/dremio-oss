@@ -15,9 +15,7 @@
  */
 package com.dremio.service.nessie;
 
-/**
- * Creates the KV store for the Nessie repository description information.
- */
+/** Creates the KV store for the Nessie repository description information. */
 public class NessieRepoDescriptionStoreBuilder extends AbstractNessieStoreBuilder {
   public NessieRepoDescriptionStoreBuilder() {
     super("repo_props");

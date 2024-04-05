@@ -19,8 +19,8 @@ import Immutable from "immutable";
 
 import { LOGIN_VIEW_ID, loginUser } from "@inject/actions/account";
 
-import * as ButtonTypes from "components/Buttons/ButtonTypes";
-import { Button } from "dremio-ui-lib";
+import { Link } from "react-router";
+import { Button } from "dremio-ui-lib/components";
 import { FieldWithError, TextField } from "@app/components/Fields";
 import { getViewState } from "selectors/resources";
 import {
@@ -114,28 +114,22 @@ export class LoginForm extends PureComponent {
           <div style={styles.submitWrapper}>
             <div style={{ display: "flex", flexGrow: 1 }}>
               <Button
-                color={ButtonTypes.UI_LIB_PRIMARY}
+                type="submit"
+                variant="primary"
                 key="details-wizard-next"
-                style={{ marginBottom: 0 }}
-                text={intl.formatMessage({ id: "Log.In" })}
-                disableMargin
-              />
-              <Spinner
-                iconStyle={styles.spinnerIcon}
-                style={{
-                  display: viewState.get("isInProgress") ? "block" : "none",
-                  ...styles.spinner,
-                }}
-              />
+                pending={viewState.get("isInProgress")}
+              >
+                {intl.formatMessage({ id: "Log.In" })}
+              </Button>
             </div>
             <div style={{ display: "flex", alignItems: "center" }}>
-              <a
-                href="https://www.dremio.com/legal/privacy-policy"
+              <Link
+                to="https://www.dremio.com/legal/privacy-policy"
                 target="_blank"
                 rel="noopener noreferrer"
               >
                 {laDeprecated("Privacy")}
-              </a>
+              </Link>
             </div>
           </div>
         </InnerComplexForm>

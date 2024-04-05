@@ -30,14 +30,14 @@ const MAX_SUGGESTIONS_EXP = 4; // 10^4 max suggestions
 
 export function createMonacoCompletions(
   tokenSuggestions: SuggestionInfo,
-  identifierSuggestions: GetIdentifierSuggestionsResult | undefined
+  identifierSuggestions: GetIdentifierSuggestionsResult | undefined,
 ): monaco.languages.CompletionItem[] {
   const completionItems: monaco.languages.CompletionItem[] = [];
   let itemNum = { num: 0 };
 
   if (identifierSuggestions) {
     completionItems.push(
-      ...createCatalogCompletions(identifierSuggestions, itemNum)
+      ...createCatalogCompletions(identifierSuggestions, itemNum),
     );
   }
 
@@ -46,7 +46,7 @@ export function createMonacoCompletions(
   }
 
   const sortedKeywords = tokenSuggestions.keywords.sort((a, b) =>
-    a.toString().localeCompare(b.toString())
+    a.toString().localeCompare(b.toString()),
   );
   for (const keyword of sortedKeywords) {
     completionItems.push(createKeywordCompletion(keyword, itemNum));
@@ -57,7 +57,7 @@ export function createMonacoCompletions(
 
 function createCatalogCompletions(
   suggestions: GetIdentifierSuggestionsResult | undefined,
-  itemNum: { num: number }
+  itemNum: { num: number },
 ): monaco.languages.CompletionItem[] {
   if (!suggestions) {
     return [];
@@ -68,8 +68,8 @@ function createCatalogCompletions(
         container.name,
         container.type,
         itemNum,
-        container.insertText
-      )
+        container.insertText,
+      ),
     );
   };
   const addColumnCompletion = (column: ColumnSuggestion) => {
@@ -80,15 +80,15 @@ function createCatalogCompletions(
         column.type,
         tableName,
         itemNum,
-        column.insertText
-      )
+        column.insertText,
+      ),
     );
   };
   const completions: monaco.languages.CompletionItem[] = [];
   switch (suggestions.type) {
     case "containers": {
       const sortedContainers = suggestions.containers.sort((a, b) =>
-        a.name.localeCompare(b.name)
+        a.name.localeCompare(b.name),
       );
       for (const container of sortedContainers) {
         addContainerCompletion(container);
@@ -128,7 +128,7 @@ function createCatalogCompletions(
 
 function createFunctionCompletion(
   func: SQLFunction,
-  itemNum: { num: number }
+  itemNum: { num: number },
 ): monaco.languages.CompletionItem {
   const label = `${func.name}${func.label}`;
   const insertText: monaco.languages.SnippetString = {
@@ -139,7 +139,7 @@ function createFunctionCompletion(
     getCompletionItemKind("Function"),
     itemNum.num,
     func.description?.trim(),
-    insertText
+    insertText,
   );
   itemNum.num += 1;
   return completionItem;
@@ -149,7 +149,7 @@ function createContainerCompletion(
   containerName: string,
   type: ContainerType,
   itemNum: { num: number },
-  insertText?: string
+  insertText?: string,
 ): monaco.languages.CompletionItem {
   const kind = getContainerCompletionItemKind(type);
   const completionItem = createMonacoCompletionItem(
@@ -157,7 +157,7 @@ function createContainerCompletion(
     kind,
     itemNum.num,
     undefined,
-    insertText
+    insertText,
   );
   itemNum.num += 1;
   return completionItem;
@@ -168,7 +168,7 @@ function createColumnCompletion(
   dataType: SimpleDataType,
   tableName: string,
   itemNum: { num: number },
-  insertText?: string
+  insertText?: string,
 ): monaco.languages.CompletionItem {
   const kind = getColumnCompletionItemKind(dataType);
   const detail = `column (${SimpleDataType[dataType]}) in ${tableName}`;
@@ -177,7 +177,7 @@ function createColumnCompletion(
     kind,
     itemNum.num,
     detail,
-    insertText
+    insertText,
   );
   itemNum.num += 1;
   return completionItem;
@@ -185,12 +185,12 @@ function createColumnCompletion(
 
 function createKeywordCompletion(
   keyword: KeywordSuggestion,
-  itemNum: { num: number }
+  itemNum: { num: number },
 ): monaco.languages.CompletionItem {
   const completionItem = createMonacoCompletionItem(
     keyword.toString(),
     getCompletionItemKind("Keyword"),
-    itemNum.num
+    itemNum.num,
   );
   itemNum.num += 1;
   return completionItem;
@@ -201,7 +201,7 @@ function createMonacoCompletionItem(
   kind: monaco.languages.CompletionItemKind,
   sortNum: number,
   detail?: string,
-  insertText?: string | monaco.languages.SnippetString
+  insertText?: string | monaco.languages.SnippetString,
 ): monaco.languages.CompletionItem {
   // Fixed-length string so "030" < "200"
   const sortText = sortNum.toString().padStart(MAX_SUGGESTIONS_EXP, "0");
@@ -215,7 +215,7 @@ function createMonacoCompletionItem(
 }
 
 function getCompletionItemKind(
-  key: keyof typeof monaco.languages.CompletionItemKind
+  key: keyof typeof monaco.languages.CompletionItemKind,
 ): monaco.languages.CompletionItemKind {
   // Type-safe hack to work around not being able to import CompletionItemKind enum from monaco.d.ts
   // This will not compile if there are missing enum keys or mismatched values
@@ -244,7 +244,7 @@ function getCompletionItemKind(
 }
 
 function getContainerCompletionItemKind(
-  type: ContainerType
+  type: ContainerType,
 ): monaco.languages.CompletionItemKind {
   switch (type) {
     case ContainerType.FOLDER:
@@ -268,7 +268,7 @@ function getContainerCompletionItemKind(
 }
 
 function getColumnCompletionItemKind(
-  dataType: SimpleDataType
+  dataType: SimpleDataType,
 ): monaco.languages.CompletionItemKind {
   // We hijack the monaco completionitemkind meaning based on our own data types
   // These only matter for the purpose of the custom icons we show, see SQLEditor.less

@@ -18,16 +18,13 @@ package com.dremio.dac.model.job;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-/**
- * Expose job cancellation info
- */
+/** Expose job cancellation info */
 public class JobCancellationInfo {
 
   private final String message;
 
   @JsonCreator
-  public JobCancellationInfo(
-      @JsonProperty("message") String message) {
+  public JobCancellationInfo(@JsonProperty("message") String message) {
     this.message = message;
   }
 

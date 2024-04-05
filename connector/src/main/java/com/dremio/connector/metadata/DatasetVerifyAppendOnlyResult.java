@@ -15,18 +15,16 @@
  */
 package com.dremio.connector.metadata;
 
-import java.util.List;
-
-import org.apache.commons.lang3.tuple.Pair;
-import org.immutables.value.Value;
-
 import com.dremio.connector.metadata.extensions.SupportsMetadataVerify;
 import com.dremio.connector.metadata.options.MetadataVerifyRequest;
 import com.dremio.connector.metadata.options.VerifyAppendOnlyRequest;
+import java.util.List;
+import org.apache.commons.lang3.tuple.Pair;
+import org.immutables.value.Value;
 
 /**
- * Metadata verify result returned by {@link SupportsMetadataVerify#verifyMetadata(DatasetHandle, MetadataVerifyRequest)}
- * for metadata verify request of {@link VerifyAppendOnlyRequest}
+ * Metadata verify result returned by {@link SupportsMetadataVerify#verifyMetadata(DatasetHandle,
+ * MetadataVerifyRequest)} for metadata verify request of {@link VerifyAppendOnlyRequest}
  */
 @Value.Immutable
 public interface DatasetVerifyAppendOnlyResult extends DatasetMetadataVerifyResult {

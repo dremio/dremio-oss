@@ -15,19 +15,16 @@
  */
 package com.dremio.exec.planner.acceleration.substitution;
 
-import java.util.List;
-import java.util.Objects;
-
 import com.dremio.exec.planner.acceleration.MaterializationDescriptor;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import java.util.List;
+import java.util.Objects;
 
-/**
- * An abstraction that represents a single substitution made during acceleration.
- */
+/** An abstraction that represents a single substitution made during acceleration. */
 public class SubstitutionInfo {
 
   private final double acceleratedCost;
@@ -54,7 +51,7 @@ public class SubstitutionInfo {
     private double cost;
     private final List<Substitution> substitutions = Lists.newArrayList();
 
-    private Builder() { }
+    private Builder() {}
 
     public Builder setCost(final double cost) {
       this.cost = cost;
@@ -76,8 +73,9 @@ public class SubstitutionInfo {
     private final double speedup;
 
     @JsonCreator
-    public Substitution(@JsonProperty("materialization") final MaterializationDescriptor materialization,
-                            @JsonProperty("speedup") final double speedup) {
+    public Substitution(
+        @JsonProperty("materialization") final MaterializationDescriptor materialization,
+        @JsonProperty("speedup") final double speedup) {
       this.materialization = Preconditions.checkNotNull(materialization);
       this.speedup = speedup;
     }
@@ -99,8 +97,8 @@ public class SubstitutionInfo {
         return false;
       }
       final Substitution that = (Substitution) o;
-      return Double.compare(that.speedup, speedup) == 0 &&
-          Objects.equals(materialization, that.materialization);
+      return Double.compare(that.speedup, speedup) == 0
+          && Objects.equals(materialization, that.materialization);
     }
 
     @Override

@@ -17,20 +17,16 @@ package com.dremio.service.flight.error.mapping;
 
 import static org.junit.Assert.assertEquals;
 
+import com.dremio.common.exceptions.UserException;
 import java.util.Arrays;
 import java.util.List;
-
 import org.apache.arrow.flight.CallStatus;
 import org.apache.arrow.flight.FlightRuntimeException;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import com.dremio.common.exceptions.UserException;
-
-/**
- * Unit tests for DremioFlightErrorMapper.
- */
+/** Unit tests for DremioFlightErrorMapper. */
 @RunWith(Parameterized.class)
 public class TestDremioFlightErrorMapper {
   private UserException.Builder builder;
@@ -39,27 +35,28 @@ public class TestDremioFlightErrorMapper {
   @Parameterized.Parameters
   public static List<Object[]> testCases() {
     return Arrays.asList(
-      new Object[] {UserException.connectionError(), CallStatus.INTERNAL},
-      new Object[] {UserException.dataReadError(), CallStatus.INTERNAL},
-      new Object[] {UserException.dataWriteError(), CallStatus.INTERNAL},
-      new Object[] {UserException.functionError(), CallStatus.INTERNAL},
-      new Object[] {UserException.parseError(), CallStatus.INVALID_ARGUMENT},
-      new Object[] {UserException.permissionError(), CallStatus.UNAUTHORIZED},
-      new Object[] {UserException.planError(), CallStatus.INTERNAL},
-      new Object[] {UserException.resourceError(), CallStatus.UNAVAILABLE},
-      new Object[] {UserException.systemError(new Exception("Test exception")), CallStatus.INTERNAL},
-      new Object[] {UserException.unsupportedError(), CallStatus.INTERNAL},
-      new Object[] {UserException.validationError(), CallStatus.INVALID_ARGUMENT},
-      new Object[] {UserException.memoryError(), CallStatus.UNAVAILABLE},
-      new Object[] {UserException.schemaChangeError(), CallStatus.INTERNAL},
-      new Object[] {UserException.ioExceptionError(), CallStatus.UNAVAILABLE},
-      new Object[] {UserException.concurrentModificationError(), CallStatus.UNAVAILABLE},
-      new Object[] {UserException.invalidMetadataError(), CallStatus.INTERNAL},
-      new Object[] {UserException.reflectionError(), CallStatus.INTERNAL},
-      new Object[] {UserException.sourceInBadState(), CallStatus.INTERNAL},
-      new Object[] {UserException.jsonFieldChangeError(), CallStatus.INTERNAL},
-      new Object[] {UserException.resourceTimeoutError(), CallStatus.TIMED_OUT}
-    );
+        new Object[] {UserException.connectionError(), CallStatus.INTERNAL},
+        new Object[] {UserException.dataReadError(), CallStatus.INTERNAL},
+        new Object[] {UserException.dataWriteError(), CallStatus.INTERNAL},
+        new Object[] {UserException.functionError(), CallStatus.INTERNAL},
+        new Object[] {UserException.parseError(), CallStatus.INVALID_ARGUMENT},
+        new Object[] {UserException.permissionError(), CallStatus.UNAUTHORIZED},
+        new Object[] {UserException.planError(), CallStatus.INTERNAL},
+        new Object[] {UserException.resourceError(), CallStatus.UNAVAILABLE},
+        new Object[] {
+          UserException.systemError(new Exception("Test exception")), CallStatus.INTERNAL
+        },
+        new Object[] {UserException.unsupportedError(), CallStatus.INTERNAL},
+        new Object[] {UserException.validationError(), CallStatus.INVALID_ARGUMENT},
+        new Object[] {UserException.memoryError(), CallStatus.UNAVAILABLE},
+        new Object[] {UserException.schemaChangeError(), CallStatus.INTERNAL},
+        new Object[] {UserException.ioExceptionError(), CallStatus.UNAVAILABLE},
+        new Object[] {UserException.concurrentModificationError(), CallStatus.UNAVAILABLE},
+        new Object[] {UserException.invalidMetadataError(), CallStatus.INTERNAL},
+        new Object[] {UserException.reflectionError(), CallStatus.INTERNAL},
+        new Object[] {UserException.sourceInBadState(), CallStatus.INTERNAL},
+        new Object[] {UserException.jsonFieldChangeError(), CallStatus.INTERNAL},
+        new Object[] {UserException.resourceTimeoutError(), CallStatus.TIMED_OUT});
   }
 
   public TestDremioFlightErrorMapper(UserException.Builder builder, CallStatus expectedCallStatus) {
@@ -71,7 +68,7 @@ public class TestDremioFlightErrorMapper {
   public void testDremioParseError() {
     final UserException userEx = builder.buildSilently();
     final FlightRuntimeException flightRuntimeEx =
-      DremioFlightErrorMapper.toFlightRuntimeException(userEx);
+        DremioFlightErrorMapper.toFlightRuntimeException(userEx);
 
     assertEquals(flightRuntimeEx.status().code(), expectedCallStatus.code());
   }

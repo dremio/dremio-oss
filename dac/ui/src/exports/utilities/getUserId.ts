@@ -17,4 +17,4 @@
 import localStorageUtils from "@app/utils/storageUtils/localStorageUtils";
 
 export const getUserId = (): string | null =>
-  localStorageUtils?.getUserData().userId || null;
+  localStorageUtils?.getUserData()?.userId || null;

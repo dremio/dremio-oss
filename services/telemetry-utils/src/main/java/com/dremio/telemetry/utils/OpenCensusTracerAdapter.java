@@ -15,16 +15,9 @@
  */
 package com.dremio.telemetry.utils;
 
-
 import static io.opencensus.trace.SpanContext.INVALID;
 
-import java.util.HashMap;
-import java.util.Map;
-
-import javax.annotation.Nullable;
-
 import com.google.errorprone.annotations.MustBeClosed;
-
 import io.opencensus.trace.AttributeValue;
 import io.opencensus.trace.BlankSpan;
 import io.opencensus.trace.Tracer;
@@ -42,11 +35,13 @@ import io.opentracing.propagation.Format;
 import io.opentracing.propagation.TextMapExtract;
 import io.opentracing.propagation.TextMapInject;
 import io.opentracing.tag.Tag;
+import java.util.HashMap;
+import java.util.Map;
+import javax.annotation.Nullable;
 
 /**
- * Hides open census objects behind the open tracing interfaces.
- * Not all functionality is supported. I took shortcuts based on the functionality I know we use.
- *
+ * Hides open census objects behind the open tracing interfaces. Not all functionality is supported.
+ * I took shortcuts based on the functionality I know we use.
  */
 public class OpenCensusTracerAdapter implements io.opentracing.Tracer {
 
@@ -55,7 +50,6 @@ public class OpenCensusTracerAdapter implements io.opentracing.Tracer {
   public OpenCensusTracerAdapter(Tracer ocTracer) {
     this.ocTracer = ocTracer;
   }
-
 
   @Override
   public ScopeManager scopeManager() {
@@ -80,7 +74,6 @@ public class OpenCensusTracerAdapter implements io.opentracing.Tracer {
     // Our traces will not sample if we use a noop.
     return shouldNotSample ? NoopSpan.INSTANCE : new OpenCensusSpanAdapter(inner);
   }
-
 
   @SuppressWarnings("MustBeClosedChecker")
   @MustBeClosed
@@ -107,8 +100,9 @@ public class OpenCensusTracerAdapter implements io.opentracing.Tracer {
   }
 
   /**
-   * Currently only supports text formats. Will need to update for binary.
-   * If open census context is not used then we will inject nothing.
+   * Currently only supports text formats. Will need to update for binary. If open census context is
+   * not used then we will inject nothing.
+   *
    * @param context Either opencensus wrapped context or open tracing context.
    * @param format Binary or Text instance.
    * @param carrier Container of data in format format.
@@ -122,17 +116,19 @@ public class OpenCensusTracerAdapter implements io.opentracing.Tracer {
     }
 
     if (!(carrier instanceof TextMapInject)) {
-      throw new UnsupportedOperationException(String.format("Injection format %s not supported", format));
+      throw new UnsupportedOperationException(
+          String.format("Injection format %s not supported", format));
     }
 
     TextMapInject map = (TextMapInject) carrier;
 
-    final Setter<TextMapInject> setter = new Setter<TextMapInject>() {
-      @Override
-      public void put(TextMapInject carrier, String key, String value) {
-        carrier.put(key, value);
-      }
-    };
+    final Setter<TextMapInject> setter =
+        new Setter<TextMapInject>() {
+          @Override
+          public void put(TextMapInject carrier, String key, String value) {
+            carrier.put(key, value);
+          }
+        };
 
     Tracing.getPropagationComponent().getB3Format().inject(adapter.getOcContext(), map, setter);
   }
@@ -140,8 +136,9 @@ public class OpenCensusTracerAdapter implements io.opentracing.Tracer {
   @Override
   public <C> SpanContext extract(Format<C> format, C carrier) {
 
-    if(!(carrier instanceof TextMapExtract)) {
-      throw new UnsupportedOperationException(String.format("Extraction format %s not supported", format));
+    if (!(carrier instanceof TextMapExtract)) {
+      throw new UnsupportedOperationException(
+          String.format("Extraction format %s not supported", format));
     }
 
     TextMapExtract textMap = (TextMapExtract) carrier;
@@ -150,17 +147,19 @@ public class OpenCensusTracerAdapter implements io.opentracing.Tracer {
 
     textMap.forEach((entry) -> map.put(entry.getKey(), entry.getValue()));
 
-    final TextFormat.Getter<Map<String, String>> getter = new TextFormat.Getter<Map<String, String>>() {
-      @Nullable
-      @Override
-      public String get(Map<String, String> carrier, String key) {
-        return carrier.getOrDefault(key, null);
-      }
-    };
+    final TextFormat.Getter<Map<String, String>> getter =
+        new TextFormat.Getter<Map<String, String>>() {
+          @Nullable
+          @Override
+          public String get(Map<String, String> carrier, String key) {
+            return carrier.getOrDefault(key, null);
+          }
+        };
 
     io.opencensus.trace.SpanContext ocContext;
     try {
-      return new OpenCensusContextAdapter(Tracing.getPropagationComponent().getB3Format().extract(map, getter));
+      return new OpenCensusContextAdapter(
+          Tracing.getPropagationComponent().getB3Format().extract(map, getter));
     } catch (SpanContextParseException e) {
       return NoopSpan.INSTANCE.context();
     }
@@ -173,10 +172,8 @@ public class OpenCensusTracerAdapter implements io.opentracing.Tracer {
     // Therefore, this tracer will not receive anymore calls.
   }
 
-
   /**
-   * Maps OT span to OC span.
-   * OT has a more generic interface that we won't support at this point.
+   * Maps OT span to OC span. OT has a more generic interface that we won't support at this point.
    */
   public static class OpenCensusSpanAdapter implements io.opentracing.Span {
     private final io.opencensus.trace.Span ocSpan;
@@ -215,9 +212,9 @@ public class OpenCensusTracerAdapter implements io.opentracing.Tracer {
 
     @Override
     public <T> Span setTag(Tag<T> tag, T value) {
-      throw new UnsupportedOperationException("Adapter span only supports boolean, number, and string tags");
+      throw new UnsupportedOperationException(
+          "Adapter span only supports boolean, number, and string tags");
     }
-
 
     @Override
     public Span log(Map<String, ?> fields) {
@@ -237,7 +234,8 @@ public class OpenCensusTracerAdapter implements io.opentracing.Tracer {
 
     @Override
     public Span log(long ts, String event) {
-      throw new UnsupportedOperationException("Adapter span does not support custom timestamp logs");
+      throw new UnsupportedOperationException(
+          "Adapter span does not support custom timestamp logs");
     }
 
     @Override
@@ -268,9 +266,7 @@ public class OpenCensusTracerAdapter implements io.opentracing.Tracer {
     }
   }
 
-  /**
-   * OT to OC context adapter.
-   */
+  /** OT to OC context adapter. */
   public static class OpenCensusContextAdapter implements SpanContext {
     private final io.opencensus.trace.SpanContext ocContext;
 
@@ -298,9 +294,7 @@ public class OpenCensusTracerAdapter implements io.opentracing.Tracer {
     }
   }
 
-  /**
-   * Wraps Opencensus scope behind Opentracing scope interface.
-   */
+  /** Wraps Opencensus scope behind Opentracing scope interface. */
   public static class OpenCensusScopeAdapter implements Scope {
 
     private final io.opencensus.common.Scope ocScope;
@@ -316,11 +310,11 @@ public class OpenCensusTracerAdapter implements io.opentracing.Tracer {
   }
 
   /**
-   * Maps behavior of Opencensus span building to Opentracing spanbuilder.
-   * In OC, the method called on the tracer differs depending on the parent child relationship you want.
-   * Example: ocTracer.spanBuilderWithRemoteParent(...);
-   * However, OT only has one method to get a builder, once we have the builder we can customize the relationship.
-   * In order to preserve that control over the parent relationship, we defer invoking the builder method on the ocTracer.
+   * Maps behavior of Opencensus span building to Opentracing spanbuilder. In OC, the method called
+   * on the tracer differs depending on the parent child relationship you want. Example:
+   * ocTracer.spanBuilderWithRemoteParent(...); However, OT only has one method to get a builder,
+   * once we have the builder we can customize the relationship. In order to preserve that control
+   * over the parent relationship, we defer invoking the builder method on the ocTracer.
    */
   public static class OpenCensusSpanBuilderAdapter implements SpanBuilder {
     private final Tracer tracer;

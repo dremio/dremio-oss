@@ -19,9 +19,7 @@ import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.google.common.base.Preconditions;
 import com.google.common.net.HostAndPort;
 
-/**
- * EndpointAffinity captures affinity value for a given single SabotNode endpoint.
- */
+/** EndpointAffinity captures affinity value for a given single SabotNode endpoint. */
 public class EndpointAffinity {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(EndpointAffinity.class);
 
@@ -32,19 +30,20 @@ public class EndpointAffinity {
   // Requires including this endpoint at least once? Default is not required.
   private boolean mandatory;
 
-  /**
-   * Maximum allowed assignments for this endpoint. Default is {@link Integer#MAX_VALUE}
-   */
+  /** Maximum allowed assignments for this endpoint. Default is {@link Integer#MAX_VALUE} */
   private int maxWidth = Integer.MAX_VALUE;
+
   private int minWidth = 0;
 
   public static EndpointAffinity fromHostAndPort(HostAndPort hostAndPort, double affinity) {
-    return new EndpointAffinity(hostAndPort, getNodeEndpointFromHostPort(hostAndPort), affinity, false, Integer.MAX_VALUE);
+    return new EndpointAffinity(
+        hostAndPort, getNodeEndpointFromHostPort(hostAndPort), affinity, false, Integer.MAX_VALUE);
   }
 
   /**
-   * Create EndpointAffinity instance for given SabotNode endpoint. Affinity is initialized to 0. Affinity can be added
-   * after EndpointAffinity object creation using {@link #addAffinity(double)}.
+   * Create EndpointAffinity instance for given SabotNode endpoint. Affinity is initialized to 0.
+   * Affinity can be added after EndpointAffinity object creation using {@link
+   * #addAffinity(double)}.
    *
    * @param endpoint Sabot endpoint
    */
@@ -54,8 +53,9 @@ public class EndpointAffinity {
   }
 
   /**
-   * Create EndpointAffinity instance for given SabotNode endpoint and affinity initialized to given affinity value.
-   * Affinity can be added after EndpointAffinity object creation using {@link #addAffinity(double)}.
+   * Create EndpointAffinity instance for given SabotNode endpoint and affinity initialized to given
+   * affinity value. Affinity can be added after EndpointAffinity object creation using {@link
+   * #addAffinity(double)}.
    *
    * @param endpoint Sabot endpoint
    * @param affinity Initial affinity value.
@@ -67,37 +67,51 @@ public class EndpointAffinity {
   }
 
   /**
-   * Creates EndpointAffinity instance for given NodeEndpoint, affinity and mandatory assignment requirement flag.
+   * Creates EndpointAffinity instance for given NodeEndpoint, affinity and mandatory assignment
+   * requirement flag.
+   *
    * @param endpoint Sabot endpoint
    * @param affinity Initial affinity value
    * @param mandatory Is this endpoint requires at least one mandatory assignment?
    * @param maxWidth Maximum allowed assignments for this endpoint.
    */
-  public EndpointAffinity(NodeEndpoint endpoint, final double affinity, final boolean mandatory, final int maxWidth) {
+  public EndpointAffinity(
+      NodeEndpoint endpoint, final double affinity, final boolean mandatory, final int maxWidth) {
     this(getHostPortFromNodeEndpoint(endpoint), endpoint, affinity, mandatory, maxWidth);
   }
 
   /**
-   * Creates EndpointAffinity instance for given NodeEndpoint, affinity and mandatory assignment requirement flag.
+   * Creates EndpointAffinity instance for given NodeEndpoint, affinity and mandatory assignment
+   * requirement flag.
+   *
    * @param hostAndPort host and port
    * @param affinity Initial affinity value
    * @param mandatory Is this endpoint requires at least one mandatory assignment?
    * @param maxWidth Maximum allowed assignments for this endpoint.
    */
-  public EndpointAffinity(HostAndPort hostAndPort, final double affinity, final boolean mandatory, final int maxWidth) {
+  public EndpointAffinity(
+      HostAndPort hostAndPort, final double affinity, final boolean mandatory, final int maxWidth) {
     this(hostAndPort, getNodeEndpointFromHostPort(hostAndPort), affinity, mandatory, maxWidth);
   }
 
   /**
-   * Creates EndpointAffinity instance for given NodeEndpoint, affinity and mandatory assignment requirement flag.
+   * Creates EndpointAffinity instance for given NodeEndpoint, affinity and mandatory assignment
+   * requirement flag.
+   *
    * @param hostAndPort host and port
    * @param endpoint Sabot endpoint
    * @param affinity Initial affinity value
    * @param mandatory Is this endpoint requires at least one mandatory assignment?
    * @param maxWidth Maximum allowed assignments for this endpoint.
    */
-  public EndpointAffinity(final HostAndPort hostAndPort, final NodeEndpoint endpoint, final double affinity, final boolean mandatory, final int maxWidth) {
-    Preconditions.checkArgument(maxWidth >= 1, "MaxWidth for given endpoint should be at least one.");
+  public EndpointAffinity(
+      final HostAndPort hostAndPort,
+      final NodeEndpoint endpoint,
+      final double affinity,
+      final boolean mandatory,
+      final int maxWidth) {
+    Preconditions.checkArgument(
+        maxWidth >= 1, "MaxWidth for given endpoint should be at least one.");
     this.hostAndPort = hostAndPort;
     this.endpoint = endpoint;
     this.affinity = affinity;
@@ -129,7 +143,8 @@ public class EndpointAffinity {
   }
 
   /**
-   * Get the affinity value. Affinity value is Double.POSITIVE_INFINITY if the SabotNode endpoint requires an assignment.
+   * Get the affinity value. Affinity value is Double.POSITIVE_INFINITY if the SabotNode endpoint
+   * requires an assignment.
    *
    * @return affinity value
    */
@@ -152,7 +167,7 @@ public class EndpointAffinity {
    * @param f Affinity value (must be a non-negative value).
    * @throws java.lang.IllegalArgumentException If the given affinity value is negative.
    */
-  public void addAffinity(double f){
+  public void addAffinity(double f) {
     Preconditions.checkArgument(f >= 0.0d, "Affinity should not be negative");
     if (Double.POSITIVE_INFINITY == f) {
       affinity = f;
@@ -161,9 +176,7 @@ public class EndpointAffinity {
     }
   }
 
-  /**
-   * Set the endpoint requires at least one assignment.
-   */
+  /** Set the endpoint requires at least one assignment. */
   public void setAssignmentRequired() {
     mandatory = true;
   }
@@ -190,10 +203,12 @@ public class EndpointAffinity {
 
   /**
    * Set the new max width as the minimum of the the given value and current max width.
+   *
    * @param maxWidth
    */
   public void setMaxWidth(final int maxWidth) {
-    Preconditions.checkArgument(maxWidth >= 1, "MaxWidth for given endpoint should be at least one.");
+    Preconditions.checkArgument(
+        maxWidth >= 1, "MaxWidth for given endpoint should be at least one.");
     this.maxWidth = Math.min(this.maxWidth, maxWidth);
   }
 
@@ -239,7 +254,14 @@ public class EndpointAffinity {
 
   @Override
   public String toString() {
-    return "EndpointAffinity [hostPort=" + hostAndPort.toString() + ", affinity=" + affinity +
-        ", mandatory=" + mandatory + ", maxWidth=" + maxWidth + "]";
+    return "EndpointAffinity [hostPort="
+        + hostAndPort.toString()
+        + ", affinity="
+        + affinity
+        + ", mandatory="
+        + mandatory
+        + ", maxWidth="
+        + maxWidth
+        + "]";
   }
 }

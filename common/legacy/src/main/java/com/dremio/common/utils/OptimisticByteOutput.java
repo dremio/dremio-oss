@@ -15,19 +15,18 @@
  */
 package com.dremio.common.utils;
 
-import java.nio.ByteBuffer;
-
 import com.google.common.base.Preconditions;
 import com.google.protobuf.ByteOutput;
+import java.nio.ByteBuffer;
 
 /**
  * {@link ByteOutput} implementation which optimistically which takes a copy of passed in array
  * references, from lazy methods only, when the complete array is available only.
- * <p>
- * Otherwise, any written bytes will be copied to a fallback ByteBuffer.
- * <p>
- * Errors are thrown if consuming of the internal array is attempted before all expected
- * bytes are available.
+ *
+ * <p>Otherwise, any written bytes will be copied to a fallback ByteBuffer.
+ *
+ * <p>Errors are thrown if consuming of the internal array is attempted before all expected bytes
+ * are available.
  */
 public class OptimisticByteOutput extends ByteOutput {
 
@@ -55,7 +54,8 @@ public class OptimisticByteOutput extends ByteOutput {
     }
 
     checkArray();
-    // Per ByteOutput#write(byte, int, int), value must be consumed/copied before this call is returned.
+    // Per ByteOutput#write(byte, int, int), value must be consumed/copied before this call is
+    // returned.
     System.arraycopy(value, offset, arrayReference, arrayOffset, length);
     this.arrayOffset += length;
   }
@@ -64,7 +64,8 @@ public class OptimisticByteOutput extends ByteOutput {
   public void writeLazy(byte[] value, int offset, int length) {
     // If first write, check if value holds the complete payload, no more, no less
     if (arrayReference == null && payloadSize == length && offset == 0) {
-      // Per ByteOutput#writeLazy(byte[], int, int), value is immutable and it is okay to keep a reference
+      // Per ByteOutput#writeLazy(byte[], int, int), value is immutable and it is okay to keep a
+      // reference
       arrayReference = value;
       arrayOffset += payloadSize;
       return;
@@ -73,7 +74,6 @@ public class OptimisticByteOutput extends ByteOutput {
     // fallback to copy
     write(value, offset, length);
   }
-
 
   @Override
   public void write(ByteBuffer value) {
@@ -92,13 +92,18 @@ public class OptimisticByteOutput extends ByteOutput {
   @Override
   public void writeLazy(ByteBuffer value) {
     // If first write, check if value holds the complete payload, no more, no less
-    if (arrayReference == null && value.hasArray() && value.arrayOffset() == 0 && value.array().length == payloadSize
-        && value.position() == 0 && value.remaining() == payloadSize) {
+    if (arrayReference == null
+        && value.hasArray()
+        && value.arrayOffset() == 0
+        && value.array().length == payloadSize
+        && value.position() == 0
+        && value.remaining() == payloadSize) {
       // Per ByteOutput#writeLazy(ByteBuffer), value is immutable and it is okay to keep a reference
       arrayReference = value.array();
       arrayOffset += payloadSize;
 
-      // Per ByteOutput#writeLazy(ByteBuffer), position() should match limit() when this call returns
+      // Per ByteOutput#writeLazy(ByteBuffer), position() should match limit() when this call
+      // returns
       value.position(payloadSize); // previous position was 0 per condition
       return;
     }
@@ -114,7 +119,6 @@ public class OptimisticByteOutput extends ByteOutput {
 
     Preconditions.checkState(arrayOffset == payloadSize, "Byte payload not fully received.");
     return arrayReference;
-
   }
 
   private void checkArray() {

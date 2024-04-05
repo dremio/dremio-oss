@@ -15,23 +15,21 @@
  */
 package com.dremio.dac.explore.model.extract;
 
-import javax.validation.constraints.Min;
-import javax.validation.constraints.NotNull;
-
 import com.dremio.dac.util.JSONUtil;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import javax.validation.constraints.Min;
+import javax.validation.constraints.NotNull;
 
-/**
- * The selection in a given cell
- */
+/** The selection in a given cell */
 public class Selection {
-  @NotNull
-  private final String colName;
+  @NotNull private final String colName;
   // Can be null
   private final String cellText;
+
   @Min(0)
   private final int offset;
+
   @Min(0)
   private final int length;
 
@@ -51,15 +49,19 @@ public class Selection {
   public String getColName() {
     return colName;
   }
+
   public String getCellText() {
     return cellText;
   }
+
   public int getOffset() {
     return offset;
   }
+
   public int getLength() {
     return length;
   }
+
   @Override
   public String toString() {
     return JSONUtil.toString(this);

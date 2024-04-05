@@ -108,6 +108,7 @@ type TabListTabProps = {
   className?: string;
   children: JSX.Element[] | JSX.Element | string;
   id: string;
+  disabledCloseTooltip: string;
   onClose?: (() => void) | null;
   onSelected: () => void;
   getMenuItems?: () => TabMenuItem[];
@@ -115,7 +116,7 @@ type TabListTabProps = {
 
 const renderMenuItems = (
   menuItems: TabMenuItem[],
-  close: () => void
+  close: () => void,
 ): JSX.Element => {
   return (
     <ul
@@ -146,10 +147,10 @@ const renderMenuItems = (
 };
 
 export const TabListTab = (props: TabListTabProps) => {
-  const { getMenuItems, onClose, onSelected, ...rest } = props;
+  const { getMenuItems, onClose, onSelected, disabledCloseTooltip, ...rest } =
+    props;
   const elRef = React.useRef<HTMLButtonElement>();
   const selected = props["aria-selected"];
-
   React.useLayoutEffect(() => {
     if (!selected || !elRef.current) {
       return;
@@ -201,7 +202,10 @@ export const TabListTab = (props: TabListTabProps) => {
       ) : null}
       <IconButton
         disabled={!onClose}
-        aria-label="Close"
+        tooltip={!onClose && disabledCloseTooltip}
+        tooltipPortal
+        tooltipPlacement="top"
+        aria-label={onClose && "Close"}
         className="tab-list-tab__close-icon"
         onClick={(e) => {
           e.stopPropagation();

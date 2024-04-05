@@ -17,18 +17,15 @@ package com.dremio.dac.explore;
 
 import static com.dremio.common.util.MajorTypeHelper.getMinorTypeFromArrowMinorType;
 
-import org.apache.calcite.sql.type.SqlTypeName;
-
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.dac.proto.model.dataset.DataType;
+import org.apache.calcite.sql.type.SqlTypeName;
 
-/**
- * Tools to transform from execution types to UI types.
- */
+/** Tools to transform from execution types to UI types. */
 public final class DataTypeUtil {
 
-  private DataTypeUtil(){}
+  private DataTypeUtil() {}
 
   public static DataType getDataType(MajorType type) {
     return getDataType(type.getMinorType());
@@ -40,58 +37,58 @@ public final class DataTypeUtil {
 
   public static DataType getDataType(MinorType minorType) {
     switch (minorType) {
-    case FIXED16CHAR:
-    case FIXEDCHAR:
-    case VAR16CHAR:
-    case VARCHAR:
-      return DataType.TEXT;
-    case FIXEDSIZEBINARY:
-    case VARBINARY:
-      return DataType.BINARY;
-    case BIT:
-      return DataType.BOOLEAN;
-    case FLOAT4:
-    case FLOAT8:
-      return DataType.FLOAT;
-    case BIGINT:
-    case INT:
-    case TINYINT:
-    case UINT1:
-    case UINT2:
-    case UINT4:
-    case UINT8:
-    case SMALLINT:
-      return DataType.INTEGER;
-    case DECIMAL:
-      return DataType.DECIMAL;
-    case UNION:
-      return DataType.MIXED;
-    case DATE:
-      return DataType.DATE;
-    case TIME:
-    case TIMETZ:
-      return DataType.TIME;
-    case TIMESTAMP:
-    case TIMESTAMPTZ:
-      return DataType.DATETIME;
-    case LIST:
-      return DataType.LIST;
-    case MAP:
-      return DataType.MAP;
-    case STRUCT:
-    case GENERIC_OBJECT:
-      return DataType.STRUCT;
-//    case ???:
-//      return DataType.GEO;
-    case MONEY:
-    case NULL:
-    case INTERVAL:
-    case INTERVALDAY:
-    case INTERVALYEAR:
-    case LATE:
-      return DataType.OTHER;
-    default:
-      throw new UnsupportedOperationException(minorType.name());
+      case FIXED16CHAR:
+      case FIXEDCHAR:
+      case VAR16CHAR:
+      case VARCHAR:
+        return DataType.TEXT;
+      case FIXEDSIZEBINARY:
+      case VARBINARY:
+        return DataType.BINARY;
+      case BIT:
+        return DataType.BOOLEAN;
+      case FLOAT4:
+      case FLOAT8:
+        return DataType.FLOAT;
+      case BIGINT:
+      case INT:
+      case TINYINT:
+      case UINT1:
+      case UINT2:
+      case UINT4:
+      case UINT8:
+      case SMALLINT:
+        return DataType.INTEGER;
+      case DECIMAL:
+        return DataType.DECIMAL;
+      case UNION:
+        return DataType.MIXED;
+      case DATE:
+        return DataType.DATE;
+      case TIME:
+      case TIMETZ:
+        return DataType.TIME;
+      case TIMESTAMP:
+      case TIMESTAMPTZ:
+        return DataType.DATETIME;
+      case LIST:
+        return DataType.LIST;
+      case MAP:
+        return DataType.MAP;
+      case STRUCT:
+      case GENERIC_OBJECT:
+        return DataType.STRUCT;
+        //    case ???:
+        //      return DataType.GEO;
+      case MONEY:
+      case NULL:
+      case INTERVAL:
+      case INTERVALDAY:
+      case INTERVALYEAR:
+      case LATE:
+        return DataType.OTHER;
+      default:
+        throw new UnsupportedOperationException(minorType.name());
     }
   }
 
@@ -169,5 +166,4 @@ public final class DataTypeUtil {
         throw new UnsupportedOperationException("Unknown type " + type);
     }
   }
-
 }

@@ -15,9 +15,8 @@
  */
 package com.dremio.dac.explore;
 
-import java.util.List;
-
 import com.dremio.dac.proto.model.dataset.DataType;
+import java.util.List;
 
 /**
  * Generic transform recommender interface.
@@ -31,20 +30,21 @@ public abstract class Recommender<T, U> {
    *
    * @param selection User selection in UI
    * @param selColType selected column type
-   *
    * @return
    */
   public abstract List<T> getRules(U selection, DataType selColType);
 
   /**
    * Get a {@link TransformRuleWrapper<T>} around the given rule.
+   *
    * @return
    */
   public abstract TransformRuleWrapper<T> wrapRule(T rule);
 
-
   /**
-   * Wrapper around transform recommendation rule which provides methods to provide evaluating the rule.
+   * Wrapper around transform recommendation rule which provides methods to provide evaluating the
+   * rule.
+   *
    * @param <T>
    */
   public abstract static class TransformRuleWrapper<T> {

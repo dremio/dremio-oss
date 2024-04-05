@@ -20,10 +20,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-/**
- * Describes a property that should never be passed back in a configuration.
- */
+/** Describes a property that should never be passed back in a configuration. */
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.FIELD})
-public @interface Secret {
-}
+public @interface Secret {}

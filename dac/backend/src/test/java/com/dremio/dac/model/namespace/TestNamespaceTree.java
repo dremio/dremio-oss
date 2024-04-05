@@ -18,11 +18,10 @@ package com.dremio.dac.model.namespace;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import org.junit.Test;
-
 import com.dremio.dac.model.folder.SourceFolderPath;
 import com.dremio.service.namespace.proto.NameSpaceContainer.Type;
 import com.dremio.service.namespace.space.proto.FolderConfig;
+import org.junit.Test;
 
 public class TestNamespaceTree {
 
@@ -30,13 +29,18 @@ public class TestNamespaceTree {
   public void testAddFolderCheckFileSystemFolder() throws Exception {
     NamespaceTree namespaceTree = new NamespaceTree();
     namespaceTree.setIsFileSystemSource(true);
-    namespaceTree.addFolder(new SourceFolderPath("abc.cde"), new FolderConfig(), null, Type.SOURCE, false, false);
-    assertTrue("Folder should be file system folder if source is file system source", namespaceTree.getFolders().get(0).isFileSystemFolder());
+    namespaceTree.addFolder(
+        new SourceFolderPath("abc.cde"), new FolderConfig(), null, Type.SOURCE, false, false);
+    assertTrue(
+        "Folder should be file system folder if source is file system source",
+        namespaceTree.getFolders().get(0).isFileSystemFolder());
 
     namespaceTree = new NamespaceTree();
     namespaceTree.setIsFileSystemSource(false);
-    namespaceTree.addFolder(new SourceFolderPath("abc.bcd"), new FolderConfig(), null, Type.SOURCE, false, false);
-    assertFalse("Folder should not be file system folder if source is not file system source",
-      namespaceTree.getFolders().get(0).isFileSystemFolder());
+    namespaceTree.addFolder(
+        new SourceFolderPath("abc.bcd"), new FolderConfig(), null, Type.SOURCE, false, false);
+    assertFalse(
+        "Folder should not be file system folder if source is not file system source",
+        namespaceTree.getFolders().get(0).isFileSystemFolder());
   }
 }

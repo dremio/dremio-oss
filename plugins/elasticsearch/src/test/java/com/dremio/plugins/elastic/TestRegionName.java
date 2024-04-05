@@ -18,13 +18,10 @@ package com.dremio.plugins.elastic;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 
+import com.dremio.test.DremioTest;
 import org.junit.Test;
 
-import com.dremio.test.DremioTest;
-
-/**
- * Test ElasticsearchAuthentication.getRegionName
- */
+/** Test ElasticsearchAuthentication.getRegionName */
 public class TestRegionName extends DremioTest {
 
   @Test
@@ -33,7 +30,7 @@ public class TestRegionName extends DremioTest {
     String regionName = ElasticsearchAuthentication.getRegionName("", endpoint);
     assertEquals("us-west-2", regionName);
 
-    regionName = ElasticsearchAuthentication.getRegionName( "us-west-1", endpoint);
+    regionName = ElasticsearchAuthentication.getRegionName("us-west-1", endpoint);
     assertEquals("us-west-1", regionName);
   }
 
@@ -42,7 +39,7 @@ public class TestRegionName extends DremioTest {
     final String endpoint = "vpc-dremio-es63-test.us-west-.es.amazonaws.com";
     // We don't want to assert the exception message as it is thrown by a third party library.
     assertThatThrownBy(() -> ElasticsearchAuthentication.getRegionName("", endpoint))
-      .isInstanceOf(IllegalArgumentException.class);
+        .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test
@@ -50,15 +47,16 @@ public class TestRegionName extends DremioTest {
     final String endpoint = "vpc-dremio-es63-test.us-west-2.es.amazonaws.com";
     // We don't want to assert the exception message as it is thrown by a third party library.
     assertThatThrownBy(() -> ElasticsearchAuthentication.getRegionName("us-west", endpoint))
-      .isInstanceOf(IllegalArgumentException.class);
+        .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test
   public void testNoRegionName() {
     final String endpoint = "es.amazonaws.com";
     assertThatThrownBy(() -> ElasticsearchAuthentication.getRegionName("", endpoint))
-      .isInstanceOf(IllegalArgumentException.class)
-      .hasMessageContaining("Failure creating Amazon Elasticsearch Service connection. " +
-        "You must provide hostname like *.[region name].es.amazonaws.com");
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining(
+            "Failure creating Amazon Elasticsearch Service connection. "
+                + "You must provide hostname like *.[region name].es.amazonaws.com");
   }
 }

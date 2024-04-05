@@ -15,10 +15,6 @@
  */
 package com.dremio.service.statistics.store;
 
-import java.util.Map;
-
-import javax.inject.Provider;
-
 import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.datastore.api.LegacyKVStoreCreationFunction;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
@@ -28,22 +24,24 @@ import com.dremio.service.job.proto.JobId;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
+import java.util.Map;
+import javax.inject.Provider;
 
-/**
- * store for StatisticEntry
- */
+/** store for StatisticEntry */
 public class StatisticEntriesStore {
   private static final String STORE_NAME = "statistic_entries_store";
   private final Supplier<LegacyKVStore<String, JobId>> store;
 
   public StatisticEntriesStore(final Provider<LegacyKVStoreProvider> provider) {
     Preconditions.checkNotNull(provider, "kvStore provider required");
-    this.store = Suppliers.memoize(new Supplier<LegacyKVStore<String, JobId>>() {
-      @Override
-      public LegacyKVStore<String, JobId> get() {
-        return provider.get().getStore(StoreCreator.class);
-      }
-    });
+    this.store =
+        Suppliers.memoize(
+            new Supplier<LegacyKVStore<String, JobId>>() {
+              @Override
+              public LegacyKVStore<String, JobId> get() {
+                return provider.get().getStore(StoreCreator.class);
+              }
+            });
   }
 
   public void save(String tablePath, JobId entry) {
@@ -65,20 +63,16 @@ public class StatisticEntriesStore {
     store.get().delete(tablePath);
   }
 
-
-  /**
-   * {@link StatisticEntriesStore} creator
-   */
+  /** {@link StatisticEntriesStore} creator */
   public static final class StoreCreator implements LegacyKVStoreCreationFunction<String, JobId> {
     @Override
     public LegacyKVStore<String, JobId> build(LegacyStoreBuildingFactory factory) {
-      return factory.<String, JobId>newStore()
-        .name(STORE_NAME)
-        .keyFormat(Format.ofString())
-        .valueFormat(Format.ofProtostuff(JobId.class))
-        .build();
+      return factory
+          .<String, JobId>newStore()
+          .name(STORE_NAME)
+          .keyFormat(Format.ofString())
+          .valueFormat(Format.ofProtostuff(JobId.class))
+          .build();
     }
   }
-
-
 }

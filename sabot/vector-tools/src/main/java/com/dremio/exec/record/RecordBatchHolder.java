@@ -17,9 +17,7 @@ package com.dremio.exec.record;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-/**
- * Represents a subset of data in {@link RecordBatchData}.
- */
+/** Represents a subset of data in {@link RecordBatchData}. */
 public final class RecordBatchHolder implements AutoCloseable {
 
   private final RecordBatchData data;
@@ -34,33 +32,46 @@ public final class RecordBatchHolder implements AutoCloseable {
 
   /**
    * Create a new {@link RecordBatchHolder}
+   *
    * @param data underlying {@link RecordBatchData}
    * @param start starting index where the interested data starts.
    * @param end ending index (exclusive) where interested data ends.
    * @return
    */
-  public static RecordBatchHolder newRecordBatchHolder(final RecordBatchData data, final int start, final int end) {
-    checkArgument(start >= 0,
-        "Invalid start index (%s) in RecordBatchData (of size (%s))", start, data.getRecordCount());
-    checkArgument(end <= data.getRecordCount(),
-        "Invalid end index (%s) in RecordBatchData (of size (%s))", end, data.getRecordCount());
-    checkArgument(start <= end,
-        "Invalid range indices. Start (%s), End (%s), Batch size (%s)", start, end, data.getRecordCount());
+  public static RecordBatchHolder newRecordBatchHolder(
+      final RecordBatchData data, final int start, final int end) {
+    checkArgument(
+        start >= 0,
+        "Invalid start index (%s) in RecordBatchData (of size (%s))",
+        start,
+        data.getRecordCount());
+    checkArgument(
+        end <= data.getRecordCount(),
+        "Invalid end index (%s) in RecordBatchData (of size (%s))",
+        end,
+        data.getRecordCount());
+    checkArgument(
+        start <= end,
+        "Invalid range indices. Start (%s), End (%s), Batch size (%s)",
+        start,
+        end,
+        data.getRecordCount());
 
     return new RecordBatchHolder(data, start, end);
   }
 
   /**
    * Get the underlying {@link RecordBatchData}
+   *
    * @return
    */
   public RecordBatchData getData() {
     return data;
   }
 
-
   /**
    * Get the start index in underlying index where the interested data starts.
+   *
    * @return
    */
   public int getStart() {
@@ -69,6 +80,7 @@ public final class RecordBatchHolder implements AutoCloseable {
 
   /**
    * Get the last index (exclusive) where the interested data ends.
+   *
    * @return
    */
   public int getEnd() {
@@ -77,6 +89,7 @@ public final class RecordBatchHolder implements AutoCloseable {
 
   /**
    * Total number of records in subset.
+   *
    * @return
    */
   public int size() {

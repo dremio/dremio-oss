@@ -18,27 +18,25 @@ package com.dremio.telemetry.api.metrics;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 
-import java.util.Collections;
-
-import org.junit.Test;
-
 import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
 import com.dremio.telemetry.api.config.MetricsConfigurator;
 import com.dremio.telemetry.api.config.ReporterConfigurator;
+import java.util.Collections;
+import org.junit.Test;
 
 public class TestIntegrationMetricsInstrumenter {
   private static final String SERVICE_NAME = "someService";
   private static final String OPERATION_NAME = "someOperation";
 
   private static final String TIME_METRIC_NAME =
-    Metrics.join(SERVICE_NAME, OPERATION_NAME, MetricsInstrumenter.TIME_METRIC_SUFFIX);
+      Metrics.join(SERVICE_NAME, OPERATION_NAME, MetricsInstrumenter.TIME_METRIC_SUFFIX);
 
   private static final String COUNT_METRIC_NAME =
-    Metrics.join(SERVICE_NAME, OPERATION_NAME, MetricsInstrumenter.COUNT_METRIC_SUFFIX);
+      Metrics.join(SERVICE_NAME, OPERATION_NAME, MetricsInstrumenter.COUNT_METRIC_SUFFIX);
 
   private static final String ERROR_METRIC_NAME =
-    Metrics.join(SERVICE_NAME, OPERATION_NAME, MetricsInstrumenter.ERROR_METRIC_SUFFIX);
+      Metrics.join(SERVICE_NAME, OPERATION_NAME, MetricsInstrumenter.ERROR_METRIC_SUFFIX);
 
   private static final int EXPECTED_TOTAL_COUNT = 10;
   private static final int EXPECTED_TOTAL_ERRORS = 5;
@@ -47,7 +45,6 @@ public class TestIntegrationMetricsInstrumenter {
 
   private final DefaultMetricsProvider provider = new DefaultMetricsProvider();
   private final MetricsInstrumenter metrics = new MetricsInstrumenter(SERVICE_NAME, provider);
-
 
   @Test
   public void successfulOperationsAreLogged() {
@@ -68,8 +65,14 @@ public class TestIntegrationMetricsInstrumenter {
         metrics.log(OPERATION_NAME, () -> {});
       } else {
         // 5 failing operations
-        assertThatThrownBy(() -> metrics.log(OPERATION_NAME, () -> { throw new RuntimeException(); }))
-          .isInstanceOf(RuntimeException.class);
+        assertThatThrownBy(
+                () ->
+                    metrics.log(
+                        OPERATION_NAME,
+                        () -> {
+                          throw new RuntimeException();
+                        }))
+            .isInstanceOf(RuntimeException.class);
       }
     }
 
@@ -84,11 +87,10 @@ public class TestIntegrationMetricsInstrumenter {
     public MetricsAsserter() {
       Metrics.RegistryHolder.initRegistry();
 
-      Metrics.onChange(Collections.singletonList(new MetricsConfigurator(
-        "",
-        "",
-        reporter,
-        Collections.emptyList(), Collections.emptyList())));
+      Metrics.onChange(
+          Collections.singletonList(
+              new MetricsConfigurator(
+                  "", "", reporter, Collections.emptyList(), Collections.emptyList())));
     }
 
     public void assertCounterCount(String name, int expectedCount) {
@@ -123,10 +125,7 @@ public class TestIntegrationMetricsInstrumenter {
       }
 
       @Override
-      public void close() {
-
-      }
+      public void close() {}
     }
   }
-
 }

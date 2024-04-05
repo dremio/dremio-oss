@@ -30,12 +30,9 @@ import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.services.fabric.ProxyConnection;
 import com.dremio.services.fabric.api.FabricCommandRunner;
 import com.dremio.services.jobresults.common.JobResultsTunnel;
-
 import io.netty.buffer.ByteBuf;
 
-/**
- * Handler for messages going from coordinator to executor.
- */
+/** Handler for messages going from coordinator to executor. */
 public class ExecToCoordTunnel extends JobResultsTunnel {
 
   private final FabricCommandRunner manager;
@@ -61,12 +58,17 @@ public class ExecToCoordTunnel extends JobResultsTunnel {
 
     @Override
     public void doRpcCall(RpcOutcomeListener<Ack> outcomeListener, ProxyConnection connection) {
-      connection.send(outcomeListener, RpcType.REQ_QUERY_DATA, batch.getHeader(), Ack.class, batch.getBuffers());
+      connection.send(
+          outcomeListener,
+          RpcType.REQ_QUERY_DATA,
+          batch.getHeader(),
+          Ack.class,
+          batch.getBuffers());
     }
 
     @Override
     public void connectionFailed(FailureType type, Throwable t) {
-      for(ByteBuf buffer : batch.getBuffers()) {
+      for (ByteBuf buffer : batch.getBuffers()) {
         buffer.release();
       }
       super.connectionFailed(type, t);
@@ -74,45 +76,57 @@ public class ExecToCoordTunnel extends JobResultsTunnel {
   }
 
   public RpcFuture<Ack> sendNodeQueryScreenCompletion(NodeQueryScreenCompletion completion) {
-    FutureBitCommand<Ack, ProxyConnection> cmd = new FutureBitCommand<Ack, ProxyConnection>() {
-      @Override
-      public void doRpcCall(RpcOutcomeListener<Ack> outcomeListener, ProxyConnection connection) {
-        connection.sendUnsafe(outcomeListener, RpcType.REQ_NODE_QUERY_SCREEN_COMPLETION, completion, Ack.class);
-      }
-    };
+    FutureBitCommand<Ack, ProxyConnection> cmd =
+        new FutureBitCommand<Ack, ProxyConnection>() {
+          @Override
+          public void doRpcCall(
+              RpcOutcomeListener<Ack> outcomeListener, ProxyConnection connection) {
+            connection.sendUnsafe(
+                outcomeListener, RpcType.REQ_NODE_QUERY_SCREEN_COMPLETION, completion, Ack.class);
+          }
+        };
     manager.runCommand(cmd);
     return cmd.getFuture();
   }
 
   public RpcFuture<Ack> sendNodeQueryCompletion(NodeQueryCompletion completion) {
-    FutureBitCommand<Ack, ProxyConnection> cmd = new FutureBitCommand<Ack, ProxyConnection>() {
-      @Override
-      public void doRpcCall(RpcOutcomeListener<Ack> outcomeListener, ProxyConnection connection) {
-        connection.sendUnsafe(outcomeListener, RpcType.REQ_NODE_QUERY_COMPLETION, completion, Ack.class);
-      }
-    };
+    FutureBitCommand<Ack, ProxyConnection> cmd =
+        new FutureBitCommand<Ack, ProxyConnection>() {
+          @Override
+          public void doRpcCall(
+              RpcOutcomeListener<Ack> outcomeListener, ProxyConnection connection) {
+            connection.sendUnsafe(
+                outcomeListener, RpcType.REQ_NODE_QUERY_COMPLETION, completion, Ack.class);
+          }
+        };
     manager.runCommand(cmd);
     return cmd.getFuture();
   }
 
   public RpcFuture<Ack> sendNodeQueryError(NodeQueryFirstError firstError) {
-    FutureBitCommand<Ack, ProxyConnection> cmd = new FutureBitCommand<Ack, ProxyConnection>() {
-      @Override
-      public void doRpcCall(RpcOutcomeListener<Ack> outcomeListener, ProxyConnection connection) {
-        connection.sendUnsafe(outcomeListener, RpcType.REQ_NODE_QUERY_ERROR, firstError, Ack.class);
-      }
-    };
+    FutureBitCommand<Ack, ProxyConnection> cmd =
+        new FutureBitCommand<Ack, ProxyConnection>() {
+          @Override
+          public void doRpcCall(
+              RpcOutcomeListener<Ack> outcomeListener, ProxyConnection connection) {
+            connection.sendUnsafe(
+                outcomeListener, RpcType.REQ_NODE_QUERY_ERROR, firstError, Ack.class);
+          }
+        };
     manager.runCommand(cmd);
     return cmd.getFuture();
   }
 
   public RpcFuture<Ack> sendNodeQueryProfile(ExecutorQueryProfile profile) {
-    FutureBitCommand<Ack, ProxyConnection> cmd = new FutureBitCommand<Ack, ProxyConnection>() {
-      @Override
-      public void doRpcCall(RpcOutcomeListener<Ack> outcomeListener, ProxyConnection connection) {
-        connection.sendUnsafe(outcomeListener, RpcType.REQ_NODE_QUERY_PROFILE, profile, Ack.class);
-      }
-    };
+    FutureBitCommand<Ack, ProxyConnection> cmd =
+        new FutureBitCommand<Ack, ProxyConnection>() {
+          @Override
+          public void doRpcCall(
+              RpcOutcomeListener<Ack> outcomeListener, ProxyConnection connection) {
+            connection.sendUnsafe(
+                outcomeListener, RpcType.REQ_NODE_QUERY_PROFILE, profile, Ack.class);
+          }
+        };
     manager.runCommand(cmd);
     return cmd.getFuture();
   }

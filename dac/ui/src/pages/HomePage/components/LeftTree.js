@@ -16,6 +16,7 @@
 
 import { Component, createRef } from "react";
 import { connect } from "react-redux";
+import { browserHistory } from "react-router";
 import { compose } from "redux";
 import classNames from "clsx";
 import { FormattedMessage, injectIntl } from "react-intl";
@@ -27,9 +28,8 @@ import FinderNavItem from "components/FinderNavItem";
 import ViewStateWrapper from "components/ViewStateWrapper";
 import SpacesSection from "@app/pages/HomePage/components/SpacesSection";
 import EmptyStateContainer from "./EmptyStateContainer";
-import { IconButton } from "dremio-ui-lib";
+import { Button, IconButton } from "dremio-ui-lib/components";
 import LinkWithRef from "@app/components/LinkWithRef/LinkWithRef";
-import { Link } from "react-router";
 
 import {
   isDatabaseType,
@@ -275,7 +275,7 @@ export class LeftTree extends Component {
             {this.getCanAddSource() && (
               <IconButton
                 className="add-source-button"
-                tooltip="Source.AddSource"
+                tooltip={formatMessage({ id: "Source.AddSource" })}
                 as={LinkWithRef}
                 to={this.getAddSourceHref(true)}
                 data-qa="add-sources"
@@ -287,7 +287,7 @@ export class LeftTree extends Component {
               </IconButton>
             )}
           </div>
-          {sources.size < 1 && (
+          {!sourcesViewState.get("isInProgress") && sources.size < 1 && (
             <EmptyStateContainer
               title="Sources.noSources"
               icon="interface/empty-add-data"
@@ -378,16 +378,16 @@ export class LeftTree extends Component {
               this.state.addBotShadow ? "add-shadow-bot" : ""
             }`}
           >
-            <Link
-              className="add-source"
-              data-qa={`add-source`}
-              to={this.getAddSourceHref(true)}
+            <Button
+              variant="tertiary"
+              data-qa="add-source"
+              onClick={() => browserHistory.push(this.getAddSourceHref(true))}
             >
               <dremio-icon name="interface/add-small" class="add-source-icon" />
               {formatMessage({
                 id: "Source.AddSource",
               })}
-            </Link>
+            </Button>
           </div>
         )}
       </div>

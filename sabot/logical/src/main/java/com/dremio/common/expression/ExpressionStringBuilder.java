@@ -15,12 +15,6 @@
  */
 package com.dremio.common.expression;
 
-import java.math.BigDecimal;
-import java.math.BigInteger;
-import java.util.List;
-
-import org.joda.time.Period;
-
 import com.dremio.common.expression.IfExpression.IfCondition;
 import com.dremio.common.expression.ValueExpressions.BooleanExpression;
 import com.dremio.common.expression.ValueExpressions.DateExpression;
@@ -38,9 +32,15 @@ import com.dremio.common.expression.visitors.AbstractExprVisitor;
 import com.dremio.common.types.TypeProtos;
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.Types;
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.util.List;
+import org.joda.time.Period;
 
-public class ExpressionStringBuilder extends AbstractExprVisitor<Void, StringBuilder, RuntimeException>{
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ExpressionStringBuilder.class);
+public class ExpressionStringBuilder
+    extends AbstractExprVisitor<Void, StringBuilder, RuntimeException> {
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ExpressionStringBuilder.class);
 
   static final ExpressionStringBuilder INSTANCE = new ExpressionStringBuilder();
 
@@ -77,13 +77,13 @@ public class ExpressionStringBuilder extends AbstractExprVisitor<Void, StringBui
     return null;
   }
 
-
   @Override
-  public Void visitInputReference(InputReference sideExpr, StringBuilder sb) throws RuntimeException {
+  public Void visitInputReference(InputReference sideExpr, StringBuilder sb)
+      throws RuntimeException {
     sb.append("INPUT_REFERENCE(");
     sb.append(sideExpr.getInputOrdinal());
     sb.append(",");
-    sideExpr.getReference().accept(this,  sb);
+    sideExpr.getReference().accept(this, sb);
     sb.append(")");
     return null;
   }
@@ -94,7 +94,8 @@ public class ExpressionStringBuilder extends AbstractExprVisitor<Void, StringBui
   }
 
   @Override
-  public Void visitFunctionHolderExpression(FunctionHolderExpression holder, StringBuilder sb) throws RuntimeException {
+  public Void visitFunctionHolderExpression(FunctionHolderExpression holder, StringBuilder sb)
+      throws RuntimeException {
     List<LogicalExpression> args = holder.args;
     sb.append(holder.getName());
     sb.append("(");
@@ -138,7 +139,7 @@ public class ExpressionStringBuilder extends AbstractExprVisitor<Void, StringBui
     sb.append(escapeBackTick(seg.getNameSegment().getPath()));
     sb.append('`');
 
-    while ( (seg = seg.getChild()) != null) {
+    while ((seg = seg.getChild()) != null) {
       if (seg.isNamed()) {
         sb.append('.');
         sb.append('`');
@@ -177,7 +178,8 @@ public class ExpressionStringBuilder extends AbstractExprVisitor<Void, StringBui
   }
 
   @Override
-  public Void visitTimeStampConstant(TimeStampExpression lExpr, StringBuilder sb) throws RuntimeException {
+  public Void visitTimeStampConstant(TimeStampExpression lExpr, StringBuilder sb)
+      throws RuntimeException {
     sb.append("cast( ");
     sb.append(lExpr.getTimeStamp());
     sb.append("l as TIMESTAMP)");
@@ -185,7 +187,8 @@ public class ExpressionStringBuilder extends AbstractExprVisitor<Void, StringBui
   }
 
   @Override
-  public Void visitIntervalYearConstant(IntervalYearExpression lExpr, StringBuilder sb) throws RuntimeException {
+  public Void visitIntervalYearConstant(IntervalYearExpression lExpr, StringBuilder sb)
+      throws RuntimeException {
     sb.append("cast( '");
     sb.append(Period.months(lExpr.getIntervalYear()).toString());
     sb.append("' as INTERVALYEAR)");
@@ -193,7 +196,8 @@ public class ExpressionStringBuilder extends AbstractExprVisitor<Void, StringBui
   }
 
   @Override
-  public Void visitIntervalDayConstant(IntervalDayExpression lExpr, StringBuilder sb) throws RuntimeException {
+  public Void visitIntervalDayConstant(IntervalDayExpression lExpr, StringBuilder sb)
+      throws RuntimeException {
     sb.append("cast( '");
     sb.append(Period.days(lExpr.getIntervalDay()).plusMillis(lExpr.getIntervalMillis()).toString());
     sb.append("' as INTERVALDAY)");
@@ -209,9 +213,9 @@ public class ExpressionStringBuilder extends AbstractExprVisitor<Void, StringBui
       builder.append(bi.toString());
     }
     return builder
-      .append(String.format("%02d", decExpr.getPrecision() + CompleteType.MAX_DECIMAL_PRECISION))
-      .append(String.format("%02d", decExpr.getScale() + CompleteType.MAX_DECIMAL_PRECISION))
-      .toString();
+        .append(String.format("%02d", decExpr.getPrecision() + CompleteType.MAX_DECIMAL_PRECISION))
+        .append(String.format("%02d", decExpr.getScale() + CompleteType.MAX_DECIMAL_PRECISION))
+        .toString();
   }
 
   static DecimalExpression deserializeDecimalConstant(String numStr) {
@@ -225,25 +229,29 @@ public class ExpressionStringBuilder extends AbstractExprVisitor<Void, StringBui
 
     // extract precision
     offsetInString += biLen;
-    int precision = Integer.parseInt(numStr.substring(offsetInString, offsetInString + 2)) -
-      CompleteType.MAX_DECIMAL_PRECISION;
+    int precision =
+        Integer.parseInt(numStr.substring(offsetInString, offsetInString + 2))
+            - CompleteType.MAX_DECIMAL_PRECISION;
 
     // extract scale
     offsetInString += 2;
-    int scale = Integer.parseInt(numStr.substring(offsetInString, offsetInString + 2)) -
-      CompleteType.MAX_DECIMAL_PRECISION;
+    int scale =
+        Integer.parseInt(numStr.substring(offsetInString, offsetInString + 2))
+            - CompleteType.MAX_DECIMAL_PRECISION;
     return new DecimalExpression(new BigDecimal(bi, scale), precision, scale);
   }
 
   @Override
-  public Void visitDecimalConstant(DecimalExpression decExpr, StringBuilder sb) throws RuntimeException {
+  public Void visitDecimalConstant(DecimalExpression decExpr, StringBuilder sb)
+      throws RuntimeException {
     sb.append(serializeDecimalConstant(decExpr));
     sb.append('m');
     return null;
   }
 
   @Override
-  public Void visitDoubleConstant(DoubleExpression dExpr, StringBuilder sb) throws RuntimeException {
+  public Void visitDoubleConstant(DoubleExpression dExpr, StringBuilder sb)
+      throws RuntimeException {
     sb.append(dExpr.getDouble());
     sb.append("d");
     return null;
@@ -264,7 +272,8 @@ public class ExpressionStringBuilder extends AbstractExprVisitor<Void, StringBui
   }
 
   @Override
-  public Void visitConvertExpression(ConvertExpression e, StringBuilder sb) throws RuntimeException {
+  public Void visitConvertExpression(ConvertExpression e, StringBuilder sb)
+      throws RuntimeException {
     sb.append(e.getConvertFunction()).append("(");
     e.getInput().accept(this, sb);
     sb.append(", '").append(e.getEncodingType()).append("')");
@@ -280,59 +289,59 @@ public class ExpressionStringBuilder extends AbstractExprVisitor<Void, StringBui
     sb.append(" ) as ");
     sb.append(mt.getMinorType().name());
 
-    switch(mt.getMinorType()) {
-    case FLOAT4:
-    case FLOAT8:
-    case BIT:
-    case INT:
-    case TINYINT:
-    case SMALLINT:
-    case BIGINT:
-    case UINT1:
-    case UINT2:
-    case UINT4:
-    case UINT8:
-    case DATE:
-    case TIMESTAMP:
-    case TIMESTAMPTZ:
-    case TIME:
-    case INTERVAL:
-    case INTERVALDAY:
-    case INTERVALYEAR:
-    case STRUCT:
-    case LIST:
-    case MAP:
-    case UNION:
-      // do nothing else.
-      break;
-    case VAR16CHAR:
-    case VARBINARY:
-    case VARCHAR:
-    case FIXED16CHAR:
-    case FIXEDSIZEBINARY:
-    case FIXEDCHAR:
+    switch (mt.getMinorType()) {
+      case FLOAT4:
+      case FLOAT8:
+      case BIT:
+      case INT:
+      case TINYINT:
+      case SMALLINT:
+      case BIGINT:
+      case UINT1:
+      case UINT2:
+      case UINT4:
+      case UINT8:
+      case DATE:
+      case TIMESTAMP:
+      case TIMESTAMPTZ:
+      case TIME:
+      case INTERVAL:
+      case INTERVALDAY:
+      case INTERVALYEAR:
+      case STRUCT:
+      case LIST:
+      case MAP:
+      case UNION:
+        // do nothing else.
+        break;
+      case VAR16CHAR:
+      case VARBINARY:
+      case VARCHAR:
+      case FIXED16CHAR:
+      case FIXEDSIZEBINARY:
+      case FIXEDCHAR:
 
-      // add size in parens
-      sb.append("(");
-      sb.append(mt.getWidth());
-      sb.append(")");
-      break;
-    case DECIMAL:
+        // add size in parens
+        sb.append("(");
+        sb.append(mt.getWidth());
+        sb.append(")");
+        break;
+      case DECIMAL:
 
-      // add scale and precision
-      sb.append("(");
-      sb.append(mt.getPrecision());
-      sb.append(", ");
-      sb.append(mt.getScale());
-      sb.append(")");
-      break;
-    default:
-      throw new UnsupportedOperationException(String.format("Unable to convert cast expression %s into string.", e));
+        // add scale and precision
+        sb.append("(");
+        sb.append(mt.getPrecision());
+        sb.append(", ");
+        sb.append(mt.getScale());
+        sb.append(")");
+        break;
+      default:
+        throw new UnsupportedOperationException(
+            String.format("Unable to convert cast expression %s into string.", e));
     }
     sb.append(" )");
     return null;
   }
-
 
   @Override
   public Void visitFloatConstant(FloatExpression fExpr, StringBuilder sb) throws RuntimeException {
@@ -352,8 +361,13 @@ public class ExpressionStringBuilder extends AbstractExprVisitor<Void, StringBui
   public Void visitNullConstant(TypedNullConstant e, StringBuilder sb) throws RuntimeException {
     MajorType type = Types.optional(e.getCompleteType().toMinorType());
     if (e.getCompleteType().isDecimal()) {
-      type = MajorType.newBuilder().setMode(TypeProtos.DataMode.OPTIONAL).setMinorType(e.getCompleteType().toMinorType())
-        .setPrecision(e.getCompleteType().getPrecision()).setScale(e.getCompleteType().getScale()).build();
+      type =
+          MajorType.newBuilder()
+              .setMode(TypeProtos.DataMode.OPTIONAL)
+              .setMinorType(e.getCompleteType().toMinorType())
+              .setPrecision(e.getCompleteType().getPrecision())
+              .setScale(e.getCompleteType().getScale())
+              .build();
     }
     CastExpression cast = new CastExpression(NullExpression.INSTANCE, type);
     cast.accept(this, sb);
@@ -366,12 +380,13 @@ public class ExpressionStringBuilder extends AbstractExprVisitor<Void, StringBui
     return null;
   }
 
-  @Override  public Void visitInExpression(InExpression e, StringBuilder sb) throws RuntimeException {
+  @Override
+  public Void visitInExpression(InExpression e, StringBuilder sb) throws RuntimeException {
     e.getEval().accept(this, sb);
     sb.append(" in ( ");
     boolean first = true;
-    for(LogicalExpression expression: e.getConstants()) {
-      if(first) {
+    for (LogicalExpression expression : e.getConstants()) {
+      if (first) {
         first = false;
       } else {
         sb.append(", ");
@@ -384,7 +399,8 @@ public class ExpressionStringBuilder extends AbstractExprVisitor<Void, StringBui
   }
 
   @Override
-  public Void visitCaseExpression(CaseExpression caseExpression, StringBuilder sb) throws RuntimeException {
+  public Void visitCaseExpression(CaseExpression caseExpression, StringBuilder sb)
+      throws RuntimeException {
     sb.append(" ( ");
     sb.append("case ");
     for (CaseExpression.CaseConditionNode conditionNode : caseExpression.caseConditions) {
@@ -409,7 +425,8 @@ public class ExpressionStringBuilder extends AbstractExprVisitor<Void, StringBui
   }
 
   @Override
-  public Void visitListAggExpression(ListAggExpression e, StringBuilder sb) throws RuntimeException {
+  public Void visitListAggExpression(ListAggExpression e, StringBuilder sb)
+      throws RuntimeException {
     sb.append("LIST_AGG(");
     visitFunctionCall((FunctionCall) e, sb);
     sb.append(",");
@@ -447,7 +464,8 @@ public class ExpressionStringBuilder extends AbstractExprVisitor<Void, StringBui
   }
 
   @Override
-  public Void visitArrayLiteralExpression(ArrayLiteralExpression e, StringBuilder sb) throws RuntimeException {
+  public Void visitArrayLiteralExpression(ArrayLiteralExpression e, StringBuilder sb)
+      throws RuntimeException {
     sb.append("ARRAY(");
 
     for (int i = 0; i < e.getItems().size(); i++) {

@@ -19,12 +19,9 @@ import static org.junit.Assert.assertEquals;
 
 import java.util.ArrayList;
 import java.util.List;
-
 import org.junit.Test;
 
-/**
- * Unit test for BatchLookupOptimiser
- */
+/** Unit test for BatchLookupOptimiser */
 public class TestBatchLookupOptimiser {
   List<Integer> bulkLookup(List<String> keys) {
     List<Integer> values = new ArrayList<>();
@@ -32,7 +29,7 @@ public class TestBatchLookupOptimiser {
     for (String key : keys) {
       Integer value = null;
       try {
-       value = Integer.valueOf(key);
+        value = Integer.valueOf(key);
       } catch (NumberFormatException ignore) {
       }
       values.add(value);
@@ -45,7 +42,7 @@ public class TestBatchLookupOptimiser {
     BatchLookupOptimiser<String, Integer> optimiser = new BatchLookupOptimiser<>(this::bulkLookup);
 
     optimiser.mayLookup("10");
-    assertEquals((Integer)10, optimiser.lookup("10"));
+    assertEquals((Integer) 10, optimiser.lookup("10"));
     assertEquals(0, optimiser.getNumMisses());
   }
 
@@ -54,7 +51,7 @@ public class TestBatchLookupOptimiser {
     BatchLookupOptimiser<String, Integer> optimiser = new BatchLookupOptimiser<>(this::bulkLookup);
 
     optimiser.mayLookup("10.3");
-    assertEquals((Integer)null, optimiser.lookup("10.3"));
+    assertEquals((Integer) null, optimiser.lookup("10.3"));
     assertEquals(0, optimiser.getNumMisses());
   }
 

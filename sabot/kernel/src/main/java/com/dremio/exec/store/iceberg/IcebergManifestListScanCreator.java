@@ -15,9 +15,6 @@
  */
 package com.dremio.exec.store.iceberg;
 
-import java.io.IOException;
-import java.util.List;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.datastore.LegacyProtobufSerializer;
 import com.dremio.exec.store.RecordReader;
@@ -30,33 +27,52 @@ import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
 import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.sabot.op.spi.ProducerOperator;
 import com.google.protobuf.InvalidProtocolBufferException;
+import java.io.IOException;
+import java.util.List;
 
-/**
- * Iceberg manifest list scan operator creator
- */
-public class IcebergManifestListScanCreator implements ProducerOperator.Creator<IcebergManifestListSubScan>{
-    @Override
-    public ProducerOperator create(FragmentExecutionContext fragmentExecContext,
-                                   OperatorContext context,
-                                   IcebergManifestListSubScan config) throws ExecutionSetupException {
-        final SupportsIcebergRootPointer plugin = fragmentExecContext.getStoragePlugin(config.getPluginId());
-        FileSystem fs;
-        try {
-            fs = plugin.createFSWithAsyncOptions(config.getLocation(), config.getProps().getUserName(), context);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-        List<SplitAndPartitionInfo> splits = config.getSplits();
-        IcebergProtobuf.IcebergDatasetSplitXAttr splitXAttr;
-        try {
-            splitXAttr = LegacyProtobufSerializer.parseFrom(IcebergProtobuf.IcebergDatasetSplitXAttr.PARSER,
-                    splits.get(0).getDatasetSplitInfo().getExtendedProperty());
-        } catch (InvalidProtocolBufferException e) {
-            throw new RuntimeException("Could not deserialize split info", e);
-        }
-        final RecordReader reader = new IcebergManifestListRecordReader(context, splitXAttr.getPath(), plugin,
-                config.getTableSchemaPath(), config.getDatasourcePluginId().getName(), config.getFullSchema(), config.getProps(),
-                config.getPartitionColumns(), config.getIcebergExtendedProp(), config.getManifestContent());
-        return new ScanOperator(config, context, RecordReaderIterator.from(reader));
+/** Iceberg manifest list scan operator creator */
+public class IcebergManifestListScanCreator
+    implements ProducerOperator.Creator<IcebergManifestListSubScan> {
+  @Override
+  public ProducerOperator create(
+      FragmentExecutionContext fragmentExecContext,
+      OperatorContext context,
+      IcebergManifestListSubScan config)
+      throws ExecutionSetupException {
+    final SupportsIcebergRootPointer plugin =
+        fragmentExecContext.getStoragePlugin(config.getPluginId());
+    FileSystem fs;
+    try {
+      fs =
+          plugin.createFSWithAsyncOptions(
+              config.getLocation(), config.getProps().getUserName(), context);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
     }
+    List<SplitAndPartitionInfo> splits = config.getSplits();
+    IcebergProtobuf.IcebergDatasetSplitXAttr splitXAttr;
+    try {
+      splitXAttr =
+          LegacyProtobufSerializer.parseFrom(
+              IcebergProtobuf.IcebergDatasetSplitXAttr.PARSER,
+              splits.get(0).getDatasetSplitInfo().getExtendedProperty());
+    } catch (InvalidProtocolBufferException e) {
+      throw new RuntimeException("Could not deserialize split info", e);
+    }
+    final RecordReader reader =
+        new IcebergManifestListRecordReader(
+            context,
+            splitXAttr.getPath(),
+            plugin,
+            config.getTableSchemaPath(),
+            config.getDatasourcePluginId().getName(),
+            config.getFullSchema(),
+            config.getProps(),
+            config.getPartitionColumns(),
+            config.getIcebergExtendedProp(),
+            config.getManifestContent(),
+            config.getIsInternalIcebergScanTableMetadata());
+    return new ScanOperator(
+        fragmentExecContext, config, context, RecordReaderIterator.from(reader));
+  }
 }

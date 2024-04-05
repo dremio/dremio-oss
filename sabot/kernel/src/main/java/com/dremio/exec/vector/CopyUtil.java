@@ -28,36 +28,41 @@ import com.sun.codemodel.JExpression;
 import com.sun.codemodel.JVar;
 
 public class CopyUtil {
-  public static void generateCopies(ClassGenerator<?> g, VectorAccessible batch, boolean hyper){
-    // we have parallel ids for each value vector so we don't actually have to deal with managing the ids at all.
+  public static void generateCopies(ClassGenerator<?> g, VectorAccessible batch, boolean hyper) {
+    // we have parallel ids for each value vector so we don't actually have to deal with managing
+    // the ids at all.
     int fieldId = 0;
 
     JExpression inIndex = JExpr.direct("inIndex");
     JExpression outIndex = JExpr.direct("outIndex");
-    for(VectorWrapper<?> vv : batch) {
+    for (VectorWrapper<?> vv : batch) {
       String copyMethod;
-      if (!Types.isFixedWidthType(getMajorTypeForField(vv.getField())) || Types.isRepeated(getMajorTypeForField(vv.getField())) || Types.isComplex(getMajorTypeForField(vv.getField()))) {
+      if (!Types.isFixedWidthType(getMajorTypeForField(vv.getField()))
+          || Types.isRepeated(getMajorTypeForField(vv.getField()))
+          || Types.isComplex(getMajorTypeForField(vv.getField()))) {
         copyMethod = "copyFromSafe";
       } else {
         copyMethod = "copyFrom";
       }
       g.rotateBlock();
-      JVar inVV = g.declareVectorValueSetupAndMember("incoming", new TypedFieldId(CompleteType.fromField(vv.getField()), vv.isHyper(), fieldId));
-      JVar outVV = g.declareVectorValueSetupAndMember("outgoing", new TypedFieldId(CompleteType.fromField(vv.getField()), false, fieldId));
+      JVar inVV =
+          g.declareVectorValueSetupAndMember(
+              "incoming",
+              new TypedFieldId(CompleteType.fromField(vv.getField()), vv.isHyper(), fieldId));
+      JVar outVV =
+          g.declareVectorValueSetupAndMember(
+              "outgoing", new TypedFieldId(CompleteType.fromField(vv.getField()), false, fieldId));
 
-      if(hyper){
+      if (hyper) {
 
-        g.getEvalBlock().add(
+        g.getEvalBlock()
+            .add(
                 outVV
-                        .invoke(copyMethod)
-                        .arg(
-                                inIndex.band(JExpr.lit((int) Character.MAX_VALUE)))
-                        .arg(outIndex)
-                        .arg(
-                                inVV.component(inIndex.shrz(JExpr.lit(16)))
-                        )
-        );
-      }else{
+                    .invoke(copyMethod)
+                    .arg(inIndex.band(JExpr.lit((int) Character.MAX_VALUE)))
+                    .arg(outIndex)
+                    .arg(inVV.component(inIndex.shrz(JExpr.lit(16)))));
+      } else {
         g.getEvalBlock().add(outVV.invoke(copyMethod).arg(inIndex).arg(outIndex).arg(inVV));
       }
 
@@ -65,5 +70,4 @@ public class CopyUtil {
       fieldId++;
     }
   }
-
 }

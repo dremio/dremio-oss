@@ -17,12 +17,12 @@ package com.dremio.exec.planner.sql.convertlet;
 
 import static com.dremio.exec.planner.sql.DremioSqlOperatorTable.ARRAY_SORT;
 
+import com.dremio.common.exceptions.UserException;
 import org.apache.calcite.rex.RexCall;
 
-import com.dremio.common.exceptions.UserException;
-
 public final class ArraySortConvertlet implements FunctionConvertlet {
-  public static final FunctionConvertlet INSTANCE = new NullableArrayFunctionConvertlet(new ArraySortConvertlet());
+  public static final FunctionConvertlet INSTANCE =
+      new NullableArrayFunctionConvertlet(new ArraySortConvertlet());
 
   private ArraySortConvertlet() {}
 
@@ -33,9 +33,8 @@ public final class ArraySortConvertlet implements FunctionConvertlet {
 
   @Override
   public RexCall convertCall(ConvertletContext cx, RexCall call) {
-    throw UserException
-      .planError()
-      .message("ARRAY_SORT is currently not supported.")
-      .buildSilently();
+    throw UserException.planError()
+        .message("ARRAY_SORT is currently not supported.")
+        .buildSilently();
   }
 }

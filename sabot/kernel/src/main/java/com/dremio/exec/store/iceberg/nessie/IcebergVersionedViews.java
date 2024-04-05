@@ -15,17 +15,13 @@
  */
 package com.dremio.exec.store.iceberg.nessie;
 
+import com.dremio.catalog.model.ResolvedVersionContext;
+import com.dremio.exec.store.iceberg.viewdepoc.View;
+import com.dremio.exec.store.iceberg.viewdepoc.ViewDefinition;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.iceberg.viewdepoc.View;
-import org.apache.iceberg.viewdepoc.ViewDefinition;
-
-import com.dremio.catalog.model.ResolvedVersionContext;
-
-/**
- * Generic interface for operating on an view implementation.
- */
+/** Generic interface for operating on an view implementation. */
 public interface IcebergVersionedViews {
   /**
    * Create a view without replacing any existing view.

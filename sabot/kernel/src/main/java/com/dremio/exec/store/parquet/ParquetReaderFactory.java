@@ -15,19 +15,17 @@
  */
 package com.dremio.exec.store.parquet;
 
-import java.util.List;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.SimpleIntVector;
-import org.apache.parquet.compression.CompressionCodecFactory;
-import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
-
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.RuntimeFilter;
 import com.dremio.exec.store.iceberg.deletes.ParquetDeleteFileFilterCreator;
 import com.dremio.sabot.exec.context.OperatorContext;
+import java.util.List;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.SimpleIntVector;
+import org.apache.parquet.compression.CompressionCodecFactory;
+import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
 
 public interface ParquetReaderFactory {
   enum ManagedSchemaType {
@@ -37,72 +35,84 @@ public interface ParquetReaderFactory {
 
   boolean isSupported(ColumnChunkMetaData chunk, OperatorContext context);
 
-  RecordReader newReader(OperatorContext context,
-                         ParquetScanProjectedColumns projectedColumns,
-                         String path,
-                         CompressionCodecFactory codecFactory,
-                         ParquetFilters filters,
-                         ParquetFilterCreator filterCreator,
-                         ParquetDictionaryConvertor dictionaryConvertor,
-                         boolean enableDetailedTracing,
-                         MutableParquetMetadata footer,
-                         int rowGroupIndex,
-                         SimpleIntVector deltas,
-                         SchemaDerivationHelper schemaHelper,
-                         InputStreamProvider inputStreamProvider,
-                         List<RuntimeFilter> runtimeFilters,
-                         ArrowBuf validityBuf,
-                         BatchSchema tableSchema,
-                         boolean ignoreSchemaLearning);
+  RecordReader newReader(
+      OperatorContext context,
+      ParquetScanProjectedColumns projectedColumns,
+      String path,
+      CompressionCodecFactory codecFactory,
+      ParquetFilters filters,
+      ParquetFilterCreator filterCreator,
+      ParquetDictionaryConvertor dictionaryConvertor,
+      boolean enableDetailedTracing,
+      MutableParquetMetadata footer,
+      int rowGroupIndex,
+      SimpleIntVector deltas,
+      SchemaDerivationHelper schemaHelper,
+      InputStreamProvider inputStreamProvider,
+      List<RuntimeFilter> runtimeFilters,
+      ArrowBuf validityBuf,
+      BatchSchema tableSchema,
+      boolean ignoreSchemaLearning);
 
-  ParquetFilterCreator newFilterCreator(OperatorContext operatorContext, ManagedSchemaType type, ManagedSchema schema, BufferAllocator allocator);
+  ParquetFilterCreator newFilterCreator(
+      OperatorContext operatorContext,
+      ManagedSchemaType type,
+      ManagedSchema schema,
+      BufferAllocator allocator);
 
   ParquetDeleteFileFilterCreator newDeleteFileFilterCreator();
 
   ParquetDictionaryConvertor newDictionaryConvertor(ManagedSchemaType type, ManagedSchema schema);
 
-  ParquetReaderFactory NONE = new ParquetReaderFactory(){
+  ParquetReaderFactory NONE =
+      new ParquetReaderFactory() {
 
-    @Override
-    public boolean isSupported(ColumnChunkMetaData chunk, OperatorContext context) {
-      return false;
-    }
+        @Override
+        public boolean isSupported(ColumnChunkMetaData chunk, OperatorContext context) {
+          return false;
+        }
 
-    @Override
-    public RecordReader newReader(OperatorContext context,
-                                  ParquetScanProjectedColumns projectedColumns,
-                                  String path,
-                                  CompressionCodecFactory codecFactory,
-                                  ParquetFilters filters,
-                                  ParquetFilterCreator filterCreator,
-                                  ParquetDictionaryConvertor dictionaryConvertor,
-                                  boolean enableDetailedTracing,
-                                  MutableParquetMetadata footer,
-                                  int rowGroupIndex,
-                                  SimpleIntVector deltas,
-                                  SchemaDerivationHelper schemaHelper,
-                                  InputStreamProvider inputStreamProvider,
-                                  List<RuntimeFilter> runtimeFilters,
-                                  ArrowBuf validityBuf,
-                                  BatchSchema tableSchema,
-                                  boolean ignoreSchemaLearning) {
+        @Override
+        public RecordReader newReader(
+            OperatorContext context,
+            ParquetScanProjectedColumns projectedColumns,
+            String path,
+            CompressionCodecFactory codecFactory,
+            ParquetFilters filters,
+            ParquetFilterCreator filterCreator,
+            ParquetDictionaryConvertor dictionaryConvertor,
+            boolean enableDetailedTracing,
+            MutableParquetMetadata footer,
+            int rowGroupIndex,
+            SimpleIntVector deltas,
+            SchemaDerivationHelper schemaHelper,
+            InputStreamProvider inputStreamProvider,
+            List<RuntimeFilter> runtimeFilters,
+            ArrowBuf validityBuf,
+            BatchSchema tableSchema,
+            boolean ignoreSchemaLearning) {
 
-      throw new UnsupportedOperationException();
-    }
+          throw new UnsupportedOperationException();
+        }
 
-    @Override
-    public ParquetFilterCreator newFilterCreator(OperatorContext operatorContext, ManagedSchemaType type, ManagedSchema managedSchema, BufferAllocator allocator) {
-      return ParquetFilterCreator.DEFAULT;
-    }
+        @Override
+        public ParquetFilterCreator newFilterCreator(
+            OperatorContext operatorContext,
+            ManagedSchemaType type,
+            ManagedSchema managedSchema,
+            BufferAllocator allocator) {
+          return ParquetFilterCreator.DEFAULT;
+        }
 
-    @Override
-    public ParquetDeleteFileFilterCreator newDeleteFileFilterCreator() {
-      return ParquetDeleteFileFilterCreator.DEFAULT;
-    }
+        @Override
+        public ParquetDeleteFileFilterCreator newDeleteFileFilterCreator() {
+          return ParquetDeleteFileFilterCreator.DEFAULT;
+        }
 
-    @Override
-    public ParquetDictionaryConvertor newDictionaryConvertor(ManagedSchemaType type, ManagedSchema schema) {
-      return ParquetDictionaryConvertor.DEFAULT;
-    }
-  };
+        @Override
+        public ParquetDictionaryConvertor newDictionaryConvertor(
+            ManagedSchemaType type, ManagedSchema schema) {
+          return ParquetDictionaryConvertor.DEFAULT;
+        }
+      };
 }

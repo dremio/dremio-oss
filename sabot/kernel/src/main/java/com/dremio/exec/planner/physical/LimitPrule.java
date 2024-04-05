@@ -15,16 +15,15 @@
  */
 package com.dremio.exec.planner.physical;
 
+import com.dremio.exec.planner.logical.LimitRel;
+import com.dremio.exec.planner.logical.Rel;
+import com.dremio.exec.planner.logical.RelOptHelper;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 
-import com.dremio.exec.planner.logical.LimitRel;
-import com.dremio.exec.planner.logical.Rel;
-import com.dremio.exec.planner.logical.RelOptHelper;
-
-public class LimitPrule extends Prule{
+public class LimitPrule extends Prule {
   public static final RelOptRule INSTANCE = new LimitPrule();
 
   private LimitPrule() {
@@ -36,9 +35,16 @@ public class LimitPrule extends Prule{
     final LimitRel limit = (LimitRel) call.rel(0);
     final RelNode input = limit.getInput();
 
-    final RelTraitSet traits = input.getTraitSet().plus(Prel.PHYSICAL).plus(DistributionTrait.SINGLETON);
+    final RelTraitSet traits =
+        input.getTraitSet().plus(Prel.PHYSICAL).plus(DistributionTrait.SINGLETON);
     final RelNode convertedInput = convert(input, traits);
-    LimitPrel newLimit = new LimitPrel(limit.getCluster(), limit.getTraitSet().plus(Prel.PHYSICAL).plus(DistributionTrait.SINGLETON), convertedInput, limit.getOffset(), limit.getFetch());
+    LimitPrel newLimit =
+        new LimitPrel(
+            limit.getCluster(),
+            limit.getTraitSet().plus(Prel.PHYSICAL).plus(DistributionTrait.SINGLETON),
+            convertedInput,
+            limit.getOffset(),
+            limit.getFetch());
     call.transformTo(newLimit);
   }
 }

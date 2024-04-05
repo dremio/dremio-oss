@@ -15,6 +15,8 @@
  */
 package com.dremio.common.io;
 
+import com.dremio.common.concurrent.CloseableSchedulerThreadPool;
+import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -24,14 +26,10 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.dremio.common.concurrent.CloseableSchedulerThreadPool;
-import com.google.common.annotations.VisibleForTesting;
 
 /**
  * Monitors temporary data created by dremio engine(s) and cleans it up when it is no longer
@@ -61,7 +59,8 @@ public class DefaultTemporaryFolderManager implements TemporaryFolderManager {
   private static final int DEFAULT_STALENESS_ON_RESTART_LIMIT_SECONDS = 90;
   private static final int DEFAULT_CLEANUP_DELAY_SECONDS = 3 * 60;
   private static final int DEFAULT_CLEANUP_DELAY_MAX_GAP = 60;
-  private static final int DEFAULT_ONE_SHOT_DELAY_SECONDS = DEFAULT_STALENESS_ON_RESTART_LIMIT_SECONDS + 1;
+  private static final int DEFAULT_ONE_SHOT_DELAY_SECONDS =
+      DEFAULT_STALENESS_ON_RESTART_LIMIT_SECONDS + 1;
   private static final int DEFAULT_MIN_UNHEALTHY_CYCLES = 5;
 
   private static final CleanupConfig CLEANUP_CONFIG = new DefaultCleanupConfig();
@@ -77,16 +76,21 @@ public class DefaultTemporaryFolderManager implements TemporaryFolderManager {
   private volatile ScheduledFuture<?> oneShotTask;
   private volatile boolean closed;
 
-  public DefaultTemporaryFolderManager(Supplier<ExecutorId> thisExecutor, Configuration conf,
-                                       Supplier<Set<ExecutorId>> availableExecutors,
-                                       String purpose) {
+  public DefaultTemporaryFolderManager(
+      Supplier<ExecutorId> thisExecutor,
+      Configuration conf,
+      Supplier<Set<ExecutorId>> availableExecutors,
+      String purpose) {
     this(thisExecutor, conf, availableExecutors, purpose, CLEANUP_CONFIG);
   }
 
   @VisibleForTesting
-  DefaultTemporaryFolderManager(Supplier<ExecutorId> thisExecutor, Configuration conf,
-                                Supplier<Set<ExecutorId>> availableExecutors,
-                                String purpose, CleanupConfig cleanupConfig) {
+  DefaultTemporaryFolderManager(
+      Supplier<ExecutorId> thisExecutor,
+      Configuration conf,
+      Supplier<Set<ExecutorId>> availableExecutors,
+      String purpose,
+      CleanupConfig cleanupConfig) {
     this.executorService = new CloseableSchedulerThreadPool(CLEANUP_THREAD_PREFIX, 1);
     this.executorService.setExecuteExistingDelayedTasksAfterShutdownPolicy(true);
     this.executorService.setRemoveOnCancelPolicy(true);
@@ -95,9 +99,16 @@ public class DefaultTemporaryFolderManager implements TemporaryFolderManager {
     this.purpose = purpose;
     this.thisExecutor = thisExecutor;
     if (availableExecutors != null) {
-      // if available executors can be monitored, start a background task to clean up on dead executors.
-      this.folderMonitor = new TemporaryFolderMonitor(thisExecutor, availableExecutors, purpose,
-        cleanupConfig.getStalenessLimitSeconds(), cleanupConfig.getMinUnhealthyCyclesBeforeDelete(), fsWrapper);
+      // if available executors can be monitored, start a background task to clean up on dead
+      // executors.
+      this.folderMonitor =
+          new TemporaryFolderMonitor(
+              thisExecutor,
+              availableExecutors,
+              purpose,
+              cleanupConfig.getStalenessLimitSeconds(),
+              cleanupConfig.getMinUnhealthyCyclesBeforeDelete(),
+              fsWrapper);
     } else {
       this.folderMonitor = null;
     }
@@ -108,13 +119,16 @@ public class DefaultTemporaryFolderManager implements TemporaryFolderManager {
   @Override
   public void startMonitoring() {
     if (folderMonitor != null) {
-      final int increment = (cleanupConfig.getCleanupDelayMaxVariationSeconds() > 0) ?
-        (int) (Instant.now().toEpochMilli() * Thread.currentThread().getId())
-          % cleanupConfig.getCleanupDelayMaxVariationSeconds() : 0;
+      final int increment =
+          (cleanupConfig.getCleanupDelayMaxVariationSeconds() > 0)
+              ? (int) (Instant.now().toEpochMilli() * Thread.currentThread().getId())
+                  % cleanupConfig.getCleanupDelayMaxVariationSeconds()
+              : 0;
       final int delay = cleanupConfig.getCleanupDelaySeconds() + increment;
       logger.debug("Starting folder monitoring for cleanup with {} seconds as interval", delay);
-      this.monitorTask = executorService.scheduleAtFixedRate(folderMonitor::doCleanupOther, delay, delay,
-        TimeUnit.SECONDS);
+      this.monitorTask =
+          executorService.scheduleAtFixedRate(
+              folderMonitor::doCleanupOther, delay, delay, TimeUnit.SECONDS);
     }
   }
 
@@ -128,25 +142,36 @@ public class DefaultTemporaryFolderManager implements TemporaryFolderManager {
       return rootPath;
     }
     final String prefix = thisExecutor.get().toPrefix(purpose);
-    logger.info("Registering path '{}' for temporary file monitoring and cleanup", rootPath.toString());
+    logger.info(
+        "Registering path '{}' for temporary file monitoring and cleanup", rootPath.toString());
     List<Path> pathsToDelete = new ArrayList<>();
-    fsWrapper.visitDirectory(rootPath, prefix, fileStatus -> {
-      if (fileStatus.isDirectory()) {
-        try {
-          final long incarnation = Long.parseLong(fileStatus.getPath().getName());
-          if (incarnation > Instant.EPOCH.toEpochMilli() && incarnation < Instant.now().toEpochMilli()) {
-            pathsToDelete.add(fileStatus.getPath());
-          } else {
-            logger.warn("Not deleting old incarnation {} as it is too recent or invalid", incarnation);
+    fsWrapper.visitDirectory(
+        rootPath,
+        prefix,
+        fileStatus -> {
+          if (fileStatus.isDirectory()) {
+            try {
+              final long incarnation = Long.parseLong(fileStatus.getPath().getName());
+              if (incarnation > Instant.EPOCH.toEpochMilli()
+                  && incarnation < Instant.now().toEpochMilli()) {
+                pathsToDelete.add(fileStatus.getPath());
+              } else {
+                logger.warn(
+                    "Not deleting old incarnation {} as it is too recent or invalid", incarnation);
+              }
+            } catch (NumberFormatException ignored) {
+              logger.debug(
+                  "Ignoring directory {} as it is not a valid incarnation",
+                  fileStatus.getPath().getName());
+            }
           }
-        } catch (NumberFormatException ignored) {
-          logger.debug("Ignoring directory {} as it is not a valid incarnation", fileStatus.getPath().getName());
-        }
-      }
-    });
+        });
     if (!pathsToDelete.isEmpty()) {
-      this.oneShotTask = executorService.schedule(() -> doCleanupOneShot(pathsToDelete),
-        cleanupConfig.getOneShotCleanupDelaySeconds(), TimeUnit.SECONDS);
+      this.oneShotTask =
+          executorService.schedule(
+              () -> doCleanupOneShot(pathsToDelete),
+              cleanupConfig.getOneShotCleanupDelaySeconds(),
+              TimeUnit.SECONDS);
     }
     final Path newIncarnation = fsWrapper.createTmpDirectory(rootPath, prefix);
     if (folderMonitor != null) {
@@ -178,14 +203,16 @@ public class DefaultTemporaryFolderManager implements TemporaryFolderManager {
       this.closed = true;
     } catch (Exception e) {
       // just log.. mask the exception from layers above as this mostly in the shutdown path
-      logger.warn("Unexpected exception while stopping temporary folder service {}",
-        e.getCause() == null ? e.getMessage() : e.getCause().getMessage());
+      logger.warn(
+          "Unexpected exception while stopping temporary folder service {}",
+          e.getCause() == null ? e.getMessage() : e.getCause().getMessage());
     }
   }
 
   private void doCleanupOneShot(List<Path> pathsToDelete) {
     for (final Path incarnationDir : pathsToDelete) {
-      fsWrapper.safeCleanOldIncarnation(incarnationDir, cleanupConfig.getStalenessOnRestartSeconds(), true);
+      fsWrapper.safeCleanOldIncarnation(
+          incarnationDir, cleanupConfig.getStalenessOnRestartSeconds(), true);
     }
   }
 

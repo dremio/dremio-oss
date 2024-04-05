@@ -21,19 +21,19 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.util.stream.Stream;
-
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.RawLocalFileSystem;
 
 /**
- * A {@link RawLocalFileSystem} subclass supporting {@code org.apache.hadoop.fs.FileSystem#listStatusIterator(Path)}
- * method
+ * A {@link RawLocalFileSystem} subclass supporting {@code
+ * org.apache.hadoop.fs.FileSystem#listStatusIterator(Path)} method
  */
 public final class PDFSLocalFileSystem extends RawLocalFileSystem {
 
   @Override
-  public CloseableRemoteIterator<FileStatus> listStatusIterator(Path f) throws FileNotFoundException, IOException {
+  public CloseableRemoteIterator<FileStatus> listStatusIterator(Path f)
+      throws FileNotFoundException, IOException {
     File localf = pathToFile(f);
     java.nio.file.Path localp = localf.toPath();
 
@@ -46,15 +46,17 @@ public final class PDFSLocalFileSystem extends RawLocalFileSystem {
     }
 
     @SuppressWarnings("StreamResourceLeak")
-    final Stream<FileStatus> statuses = Files.list(localp)
-        .map(p -> {
-          Path hp = new Path(f, new Path(null, null, p.toFile().getName()));
-          try {
-            return getFileStatus(hp);
-          } catch (IOException e) {
-            throw new UncheckedIOException(e);
-          }
-        });
+    final Stream<FileStatus> statuses =
+        Files.list(localp)
+            .map(
+                p -> {
+                  Path hp = new Path(f, new Path(null, null, p.toFile().getName()));
+                  try {
+                    return getFileStatus(hp);
+                  } catch (IOException e) {
+                    throw new UncheckedIOException(e);
+                  }
+                });
 
     return new CloseableRemoteIterator<>(statuses);
   }

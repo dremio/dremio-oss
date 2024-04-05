@@ -27,6 +27,7 @@ import { getClusterInfo } from "@app/utils/infoUtils";
 import { getSupport } from "@app/utils/supportUtils";
 import { usePrevious } from "@app/utils/jobsUtils";
 import { getExploreState } from "@app/selectors/explore";
+import { getAllJobDetails, getJobSummaries } from "@app/selectors/exploreJobs";
 
 import { updateQueryState, setClusterType } from "actions/jobs/jobs";
 import {
@@ -60,6 +61,8 @@ const JobListingPage = (props) => {
     dataWithItemsForFilters,
     admin,
     jobList,
+    jobSummaries,
+    allJobDetails,
     loadNextJobsList,
     dispatchFetchJobsList,
     dispatchUpdateQueryState,
@@ -99,7 +102,7 @@ const JobListingPage = (props) => {
     ) {
       if (!queryState.equals(prevQueryState)) {
         dispatchUpdateQueryState(
-          queryState.setIn(["filters", "qt"], ["UI", "EXTERNAL"])
+          queryState.setIn(["filters", "qt"], ["UI", "EXTERNAL"]),
         );
       }
     }
@@ -182,7 +185,7 @@ const JobListingPage = (props) => {
   };
 
   const isOnJobDetails = rmProjectBase(location.pathname).startsWith(
-    "/jobs/job"
+    "/jobs/job",
   );
 
   return (
@@ -198,6 +201,8 @@ const JobListingPage = (props) => {
           location={location}
           jobId={previousJobId}
           jobs={jobList}
+          jobSummaries={jobSummaries}
+          allJobDetails={allJobDetails}
           queryState={queryState}
           next={next}
           isNextJobsInProgress={isNextJobsInProgress}
@@ -227,6 +232,8 @@ JobListingPage.propTypes = {
   location: PropTypes.object.isRequired,
   jobId: PropTypes.string,
   jobList: PropTypes.instanceOf(Immutable.List),
+  jobSummaries: PropTypes.object,
+  allJobDetails: PropTypes.object,
   explorePageJobsPending: PropTypes.instanceOf(Immutable.List),
   queryState: PropTypes.instanceOf(Immutable.Map).isRequired,
   next: PropTypes.string,
@@ -263,6 +270,8 @@ function mapStateToProps(state, ownProps) {
   return {
     jobId,
     jobList: getJobList(state, ownProps),
+    jobSummaries: getJobSummaries(state),
+    allJobDetails: getAllJobDetails(state),
     queryState: parseQueryState(location.query),
     next: state.jobs.jobs.get("next"),
     isNextJobsInProgress: state.jobs.jobs.get("isNextJobsInProgress"),
@@ -286,5 +295,5 @@ const mapDispatchToProps = {
 export default compose(
   connect(mapStateToProps, mapDispatchToProps),
   withRouter,
-  injectIntl
+  injectIntl,
 )(JobListingPage);

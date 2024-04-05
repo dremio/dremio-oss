@@ -15,15 +15,13 @@
  */
 package com.dremio.exec.store;
 
-/**
- * Listable entities under a schema.
- */
+/** Listable entities under a schema. */
 public class SchemaEntity {
 
   public enum SchemaEntityType {
     TABLE,
     FILE_TABLE, // file that has format settings or marked as physical dataset
-    FOLDER_TABLE, //folder that has format settings or marked as physical dataset
+    FOLDER_TABLE, // folder that has format settings or marked as physical dataset
     SUBSCHEMA,
     FILE, // a file on filesystem with no format settings
     FOLDER // most cases same as sub schema in the context of listing.

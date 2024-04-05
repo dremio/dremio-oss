@@ -15,9 +15,6 @@
  */
 package com.dremio.exec.physical.base;
 
-import java.util.List;
-import java.util.Set;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.graph.GraphValue;
 import com.dremio.common.graph.GraphVisitor;
@@ -32,10 +29,12 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 import com.google.common.base.Preconditions;
+import java.util.List;
+import java.util.Set;
 
 @Options
 @JsonInclude(Include.NON_NULL)
-@JsonPropertyOrder({ "id" })
+@JsonPropertyOrder({"id"})
 @JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "id")
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "pop")
 public interface PhysicalOperator extends GraphValue<PhysicalOperator> {
@@ -49,12 +48,15 @@ public interface PhysicalOperator extends GraphValue<PhysicalOperator> {
   <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value) throws E;
 
   /**
-   * Regenerate with this node with a new set of children.  This is used in the case of materialization or optimization.
+   * Regenerate with this node with a new set of children. This is used in the case of
+   * materialization or optimization.
+   *
    * @param children
    * @return
    */
   @JsonIgnore
-  PhysicalOperator getNewWithChildren(List<PhysicalOperator> children) throws ExecutionSetupException;
+  PhysicalOperator getNewWithChildren(List<PhysicalOperator> children)
+      throws ExecutionSetupException;
 
   @Override
   default void accept(GraphVisitor<PhysicalOperator> visitor) {
@@ -76,6 +78,7 @@ public interface PhysicalOperator extends GraphValue<PhysicalOperator> {
 
   /**
    * Exists only to help jackson.
+   *
    * @param id
    */
   @Deprecated
@@ -96,8 +99,8 @@ public interface PhysicalOperator extends GraphValue<PhysicalOperator> {
   }
 
   /**
-   * Other major fragments, this operator will be interested in sending messages to.
-   * This is processed only once per major fragment.
+   * Other major fragments, this operator will be interested in sending messages to. This is
+   * processed only once per major fragment.
    *
    * @return
    */

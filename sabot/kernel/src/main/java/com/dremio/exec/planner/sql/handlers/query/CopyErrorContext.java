@@ -16,19 +16,18 @@
 
 package com.dremio.exec.planner.sql.handlers.query;
 
-import java.util.List;
-import java.util.UUID;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.DremioPrepareTable;
 import com.dremio.exec.catalog.SimpleCatalog;
 import com.dremio.exec.ops.DelegatingPlannerCatalog;
 import com.dremio.exec.ops.DremioCatalogReader;
 import com.dremio.exec.tablefunctions.VersionedTableMacro;
+import java.util.List;
+import java.util.UUID;
 
 /**
- * Internal structure to hold input parameters/options for 'COPY_ERRORS' table function.
- * Also validates user input for target table name and original COPY INTO jobId.
+ * Internal structure to hold input parameters/options for 'COPY_ERRORS' table function. Also
+ * validates user input for target table name and original COPY INTO jobId.
  */
 public final class CopyErrorContext {
 
@@ -38,8 +37,11 @@ public final class CopyErrorContext {
   private final boolean strictConsistency;
   private DremioPrepareTable resolvedTargetTable;
 
-
-  public CopyErrorContext(SimpleCatalog<?> catalog, String targetTableName, String copyIntoJobId, boolean strictConsistency) {
+  public CopyErrorContext(
+      SimpleCatalog<?> catalog,
+      String targetTableName,
+      String copyIntoJobId,
+      boolean strictConsistency) {
     this.catalog = catalog;
     validateTargetTableName(targetTableName);
     this.targetTableName = targetTableName;
@@ -49,15 +51,20 @@ public final class CopyErrorContext {
   }
 
   private void validateTargetTableName(String targetTableName) {
-    DremioCatalogReader catalogReader = new DremioCatalogReader(DelegatingPlannerCatalog.newInstance(catalog));
+    DremioCatalogReader catalogReader =
+        new DremioCatalogReader(DelegatingPlannerCatalog.newInstance(catalog));
     try {
       List<String> tablePath = VersionedTableMacro.splitTableIdentifier(targetTableName);
       resolvedTargetTable = catalogReader.getTable(tablePath);
       if (resolvedTargetTable == null) {
-        throw UserException.resourceError().message("Unable to find target table %s", targetTableName).buildSilently();
+        throw UserException.resourceError()
+            .message("Unable to find target table %s", targetTableName)
+            .buildSilently();
       }
     } catch (IllegalArgumentException e) {
-      throw UserException.parseError(e).message("Invalid table identifier %s", targetTableName).buildSilently();
+      throw UserException.parseError(e)
+          .message("Invalid table identifier %s", targetTableName)
+          .buildSilently();
     }
   }
 
@@ -69,11 +76,10 @@ public final class CopyErrorContext {
       UUID.fromString(copyIntoJobId);
     } catch (IllegalArgumentException e) {
       throw UserException.parseError()
-        .message("JobID must be a UUID " + e.getMessage())
-        .buildSilently();
+          .message("JobID must be a UUID " + e.getMessage())
+          .buildSilently();
     }
   }
-
 
   public String getTargetTableName() {
     return targetTableName;

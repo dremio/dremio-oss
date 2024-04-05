@@ -15,17 +15,6 @@
  */
 package com.dremio.sabot.op.receiver.merging;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.PriorityQueue;
-
-import org.apache.arrow.memory.OutOfMemoryException;
-import org.apache.arrow.vector.AllocationHelper;
-import org.apache.arrow.vector.FixedWidthVector;
-import org.apache.arrow.vector.ValueVector;
-import org.apache.calcite.rel.RelFieldCollation.Direction;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.LogicalExpression;
@@ -54,12 +43,20 @@ import com.dremio.sabot.op.spi.BatchStreamProvider;
 import com.dremio.sabot.op.spi.ProducerOperator;
 import com.sun.codemodel.JConditional;
 import com.sun.codemodel.JExpr;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.PriorityQueue;
+import org.apache.arrow.memory.OutOfMemoryException;
+import org.apache.arrow.vector.AllocationHelper;
+import org.apache.arrow.vector.FixedWidthVector;
+import org.apache.arrow.vector.ValueVector;
+import org.apache.calcite.rel.RelFieldCollation.Direction;
 
-/**
- * The MergingRecordBatch merges pre-sorted record batches from remote senders.
- */
+/** The MergingRecordBatch merges pre-sorted record batches from remote senders. */
 public class MergingReceiverOperator implements ProducerOperator {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MergingReceiverOperator.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(MergingReceiverOperator.class);
 
   private final OperatorContext context;
   private final VectorContainer outgoingContainer;
@@ -69,7 +66,10 @@ public class MergingReceiverOperator implements ProducerOperator {
   private final OperatorStats stats;
   private final ReceiverLatencyTracker latencyTracker = new ReceiverLatencyTracker();
 
-  private static enum OutputState {INIT_ON_NEXT, ACTIVE_OUTPUT};
+  private static enum OutputState {
+    INIT_ON_NEXT,
+    ACTIVE_OUTPUT
+  };
 
   private State state = State.NEEDS_SETUP;
   private OutputState outputState = OutputState.INIT_ON_NEXT;
@@ -78,7 +78,7 @@ public class MergingReceiverOperator implements ProducerOperator {
 
   private int outgoingPosition = 0;
 
-  public static enum Metric implements MetricDef{
+  public static enum Metric implements MetricDef {
     BYTES_RECEIVED,
     BATCHES_RECEIVED,
     NUM_SENDERS,
@@ -97,8 +97,8 @@ public class MergingReceiverOperator implements ProducerOperator {
   public MergingReceiverOperator(
       final OperatorContext context,
       final BatchStreamProvider streamProvider,
-      final MergingReceiverPOP config
-      ) throws OutOfMemoryException {
+      final MergingReceiverPOP config)
+      throws OutOfMemoryException {
     this.context = context;
     this.streamProvider = streamProvider;
     this.stats = context.getStats();
@@ -106,16 +106,19 @@ public class MergingReceiverOperator implements ProducerOperator {
     this.outgoingContainer = context.createOutputVectorContainer(config.getSchema());
     this.stats.setLongStat(Metric.NUM_SENDERS, config.getNumSenders());
     this.nodes = new Node[config.getNumSenders()];
-    RawFragmentBatchProvider[] fragProviders = streamProvider.getBuffers(config.getSenderMajorFragmentId());
+    RawFragmentBatchProvider[] fragProviders =
+        streamProvider.getBuffers(config.getSenderMajorFragmentId());
     assert fragProviders.length == config.getNumSenders();
-    for(int i = 0; i < nodes.length; i++){
+    for (int i = 0; i < nodes.length; i++) {
       nodes[i] = new Node(i, fragProviders[i]);
     }
   }
 
   @Override
   public State getState() {
-    return state == State.BLOCKED && !streamProvider.isPotentiallyBlocked() ? State.CAN_PRODUCE : state;
+    return state == State.BLOCKED && !streamProvider.isPotentiallyBlocked()
+        ? State.CAN_PRODUCE
+        : state;
   }
 
   @Override
@@ -132,10 +135,10 @@ public class MergingReceiverOperator implements ProducerOperator {
   private boolean ensureReady() {
     // populate the priority queue with initial values
     for (Node node : nodes) {
-      if(node.isReady()){
+      if (node.isReady()) {
         continue;
       } else {
-        if(!node.nextPosition()){
+        if (!node.nextPosition()) {
           return false;
         }
       }
@@ -149,12 +152,12 @@ public class MergingReceiverOperator implements ProducerOperator {
     // use getState here so we can transition out of blocked.
     getState().is(State.CAN_PRODUCE);
 
-    if(!ensureReady()){
+    if (!ensureReady()) {
       state = State.BLOCKED;
       return 0;
     }
 
-    if(outputState == OutputState.INIT_ON_NEXT){
+    if (outputState == OutputState.INIT_ON_NEXT) {
       allocateOutgoing();
       outgoingPosition = 0;
       outputState = OutputState.ACTIVE_OUTPUT;
@@ -163,10 +166,9 @@ public class MergingReceiverOperator implements ProducerOperator {
     final int maxRecords = context.getTargetBatchSize();
 
     /**
-     * we exit this loop when:
-     * - we don't have enough data to create an outgoing batch (one of the incoming streams is waiting for a downstream message).
-     * - when our outgoing batch is full
-     * - when there are no more records.
+     * we exit this loop when: - we don't have enough data to create an outgoing batch (one of the
+     * incoming streams is waiting for a downstream message). - when our outgoing batch is full -
+     * when there are no more records.
      */
     while (!pqueue.isEmpty()) {
       // pop next value from pq and copy to outgoing batch
@@ -181,11 +183,10 @@ public class MergingReceiverOperator implements ProducerOperator {
         return outgoingContainer.setAllCount(outgoingPosition);
       }
 
-      if(!node.nextPosition()){
+      if (!node.nextPosition()) {
         state = State.BLOCKED;
         return 0;
       }
-
     }
 
     // set the value counts in the outgoing vectors
@@ -220,7 +221,8 @@ public class MergingReceiverOperator implements ProducerOperator {
    */
   private Merger createMerger() {
 
-    final CodeGenerator<Merger> cg = context.getClassProducer().createGenerator(Merger.TEMPLATE_DEFINITION);
+    final CodeGenerator<Merger> cg =
+        context.getClassProducer().createGenerator(Merger.TEMPLATE_DEFINITION);
     final ClassGenerator<Merger> g = cg.getRoot();
 
     ExpandableHyperContainer batch = null;
@@ -244,13 +246,24 @@ public class MergingReceiverOperator implements ProducerOperator {
     return merger;
   }
 
-  private final MappingSet mainMapping = new MappingSet( (String) null, null, ClassGenerator.DEFAULT_SCALAR_MAP, ClassGenerator.DEFAULT_SCALAR_MAP);
-  private final MappingSet leftMapping = new MappingSet("leftIndex", null, ClassGenerator.DEFAULT_SCALAR_MAP, ClassGenerator.DEFAULT_SCALAR_MAP);
-  private final MappingSet rightMapping = new MappingSet("rightIndex", null, ClassGenerator.DEFAULT_SCALAR_MAP, ClassGenerator.DEFAULT_SCALAR_MAP);
-  private final GeneratorMapping copierMapping = new GeneratorMapping("doSetup", "doCopy", null, null);
+  private final MappingSet mainMapping =
+      new MappingSet(
+          (String) null,
+          null,
+          ClassGenerator.DEFAULT_SCALAR_MAP,
+          ClassGenerator.DEFAULT_SCALAR_MAP);
+  private final MappingSet leftMapping =
+      new MappingSet(
+          "leftIndex", null, ClassGenerator.DEFAULT_SCALAR_MAP, ClassGenerator.DEFAULT_SCALAR_MAP);
+  private final MappingSet rightMapping =
+      new MappingSet(
+          "rightIndex", null, ClassGenerator.DEFAULT_SCALAR_MAP, ClassGenerator.DEFAULT_SCALAR_MAP);
+  private final GeneratorMapping copierMapping =
+      new GeneratorMapping("doSetup", "doCopy", null, null);
   private final MappingSet copierMappingSet = new MappingSet(copierMapping, copierMapping);
 
-  private void generateComparisons(final ClassGenerator<?> g, final VectorAccessible batch) throws SchemaChangeException {
+  private void generateComparisons(final ClassGenerator<?> g, final VectorAccessible batch)
+      throws SchemaChangeException {
     g.setMappingSet(mainMapping);
 
     for (final Ordering od : config.getOrderings()) {
@@ -264,8 +277,8 @@ public class MergingReceiverOperator implements ProducerOperator {
 
       // next we wrap the two comparison sides and add the expression block for the comparison.
       final LogicalExpression fh =
-          FunctionGenerationHelper.getOrderingComparator(od.nullsSortHigh(), left, right,
-                                                         context.getClassProducer());
+          FunctionGenerationHelper.getOrderingComparator(
+              od.nullsSortHigh(), left, right, context.getClassProducer());
       final HoldingContainer out = g.addExpr(fh, ClassGenerator.BlockCreateMode.MERGE);
       final JConditional jc = g.getEvalBlock()._if(out.getValue().ne(JExpr.lit(0)));
 
@@ -280,15 +293,15 @@ public class MergingReceiverOperator implements ProducerOperator {
   }
 
   /**
-   * A SabotNode contains a reference to a single value in a specific incoming batch.  It is used
-   * as a wrapper for the priority queue.
+   * A SabotNode contains a reference to a single value in a specific incoming batch. It is used as
+   * a wrapper for the priority queue.
    */
   private class Node implements Comparable<Node>, AutoCloseable {
-    private final int batchId;      // incoming batch
+    private final int batchId; // incoming batch
     private final ArrowRecordBatchLoader loader;
     private final RawFragmentBatchProvider provider;
 
-    private int valueIndex;   // value within the batch
+    private int valueIndex; // value within the batch
     private int outputCounts;
     private int inputCounts;
     private RawFragmentBatch currentBatch;
@@ -300,8 +313,8 @@ public class MergingReceiverOperator implements ProducerOperator {
       this.provider = provider;
     }
 
-    private void clear(){
-      if(currentBatch != null && currentBatch.getBody() != null){
+    private void clear() {
+      if (currentBatch != null && currentBatch.getBody() != null) {
         currentBatch.getBody().close();
       }
       valueIndex = 0;
@@ -309,20 +322,21 @@ public class MergingReceiverOperator implements ProducerOperator {
 
     /**
      * Attempt to get next value and then readd yourself to the priority queue.
-     * @return True if we were able to move forward (whether added to queue or not). False if we are blocked on an incoming message.
+     *
+     * @return True if we were able to move forward (whether added to queue or not). False if we are
+     *     blocked on an incoming message.
      */
-    private boolean nextPosition(){
-      if(currentBatch == null || valueIndex == loader.getRecordCount() - 1){
+    private boolean nextPosition() {
+      if (currentBatch == null || valueIndex == loader.getRecordCount() - 1) {
         clear();
 
         // get next batch.
         currentBatch = provider.getNext();
 
-
         int size;
         // we didn't get a batch. this is because we're pending on a message or we're finished.
         if (currentBatch == null) {
-          if(provider.isStreamDone()){
+          if (provider.isStreamDone()) {
             done = true;
           }
           return provider.isStreamDone();
@@ -342,14 +356,14 @@ public class MergingReceiverOperator implements ProducerOperator {
         pqueue.add(this);
         return true;
 
-      }else{
+      } else {
         valueIndex++;
         pqueue.add(this);
         return true;
       }
     }
 
-    public boolean isReady(){
+    public boolean isReady() {
       return done || currentBatch != null;
     }
 
@@ -362,7 +376,9 @@ public class MergingReceiverOperator implements ProducerOperator {
 
     private void copyRecordToOutgoingBatch() {
       if (!(++outputCounts <= inputCounts)) {
-        throw new RuntimeException(String.format("Stream %d input count: %d output count %d", batchId, inputCounts, outputCounts));
+        throw new RuntimeException(
+            String.format(
+                "Stream %d input count: %d output count %d", batchId, inputCounts, outputCounts));
       }
       final int inIndex = (batchId << 16) + valueIndex;
       merger.doCopy(inIndex, outgoingPosition);
@@ -376,17 +392,17 @@ public class MergingReceiverOperator implements ProducerOperator {
       stats.setLongStat(Metric.SUM_QUEUE_MILLIS, latencyTracker.getSumQueueMillis());
       stats.setLongStat(Metric.MAX_QUEUE_MILLIS, latencyTracker.getMaxQueueMillis());
 
-      if(currentBatch != null){
+      if (currentBatch != null) {
         AutoCloseables.close(currentBatch.getBody(), loader);
       } else {
         loader.close();
       }
     }
-
   }
 
   @Override
-  public <OUT, IN, EXCEP extends Throwable> OUT accept(OperatorVisitor<OUT, IN, EXCEP> visitor, IN value) throws EXCEP {
+  public <OUT, IN, EXCEP extends Throwable> OUT accept(
+      OperatorVisitor<OUT, IN, EXCEP> visitor, IN value) throws EXCEP {
     return visitor.visitProducer(this, value);
   }
 
@@ -401,10 +417,10 @@ public class MergingReceiverOperator implements ProducerOperator {
   public static class Creator implements ReceiverCreator<MergingReceiverPOP> {
 
     @Override
-    public ProducerOperator create(BatchStreamProvider streams, OperatorContext context, MergingReceiverPOP config)
+    public ProducerOperator create(
+        BatchStreamProvider streams, OperatorContext context, MergingReceiverPOP config)
         throws ExecutionSetupException {
       return new MergingReceiverOperator(context, streams, config);
     }
-
   }
 }

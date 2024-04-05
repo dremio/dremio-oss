@@ -27,17 +27,10 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.util.Arrays;
-import java.util.List;
-
-import org.apache.calcite.sql.SqlIdentifier;
-import org.apache.calcite.sql.parser.SqlParserPos;
-import org.junit.Before;
-import org.junit.Test;
-
 import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.VersionedPlugin;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.sql.handlers.direct.SimpleCommandResult;
 import com.dremio.exec.planner.sql.parser.SqlMergeBranch;
@@ -51,10 +44,14 @@ import com.dremio.plugins.dataplane.store.DataplanePlugin;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.test.DremioTest;
+import java.util.Arrays;
+import java.util.List;
+import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.parser.SqlParserPos;
+import org.junit.Before;
+import org.junit.Test;
 
-/**
- * Tests for ALTER BRANCH MERGE.
- */
+/** Tests for ALTER BRANCH MERGE. */
 public class TestMergeBranchHandler extends DremioTest {
 
   private static final String DEFAULT_SOURCE_NAME = "localnessie";
@@ -62,8 +59,7 @@ public class TestMergeBranchHandler extends DremioTest {
   private static final String SOURCE_BRANCH = "sourcebranch";
   private static final String DEFAULT_BRANCH_NAME = "branchName";
   private static final VersionContext DEFAULT_VERSION =
-    VersionContext.ofBranch(DEFAULT_BRANCH_NAME);
-
+      VersionContext.ofBranch(DEFAULT_BRANCH_NAME);
 
   private QueryContext context;
   private OptionManager optionManager;
@@ -93,7 +89,11 @@ public class TestMergeBranchHandler extends DremioTest {
     when(context.getSession()).thenReturn(userSession);
     when(optionManager.getOption(ENABLE_USE_VERSION_SYNTAX)).thenReturn(true);
     when(catalog.getSource(anyString())).thenReturn(dataplanePlugin);
-    when(userSession.getDefaultSchemaPath()).thenReturn(new NamespaceKey(Arrays.asList(DEFAULT_SOURCE_NAME, "unusedFolder")));
+    when(dataplanePlugin.isWrapperFor(VersionedPlugin.class)).thenReturn(true);
+    when(dataplanePlugin.unwrap(VersionedPlugin.class)).thenReturn(dataplanePlugin);
+    when(dataplanePlugin.isWrapperFor(VersionedPlugin.class)).thenReturn(true);
+    when(userSession.getDefaultSchemaPath())
+        .thenReturn(new NamespaceKey(Arrays.asList(DEFAULT_SOURCE_NAME, "unusedFolder")));
     when(userSession.getSessionVersionForSource(DEFAULT_SOURCE_NAME)).thenReturn(DEFAULT_VERSION);
 
     handler = new MergeBranchHandler(context);
@@ -110,43 +110,45 @@ public class TestMergeBranchHandler extends DremioTest {
             SqlParserPos.ZERO,
             new SqlIdentifier(SOURCE_BRANCH, SqlParserPos.ZERO),
             new SqlIdentifier(TARGET_BRANCH, SqlParserPos.ZERO),
-          null
-    );
+            null);
 
     mergeBranchWithNoTargetBranch =
         new SqlMergeBranch(
             SqlParserPos.ZERO,
             new SqlIdentifier(SOURCE_BRANCH, SqlParserPos.ZERO),
-          null,
+            null,
             new SqlIdentifier(DEFAULT_SOURCE_NAME, SqlParserPos.ZERO));
 
     mergeBranchWithNoSourceAndTargetBranch =
         new SqlMergeBranch(
-            SqlParserPos.ZERO,
-            new SqlIdentifier(SOURCE_BRANCH, SqlParserPos.ZERO),
-          null,
-            null);
+            SqlParserPos.ZERO, new SqlIdentifier(SOURCE_BRANCH, SqlParserPos.ZERO), null, null);
     setUpVersionContext();
   }
+
   public void setUpVersionContext() {
     QueryContext queryVersionContext = mock(QueryContext.class);
     OptionManager optionManagerVersionContext = mock(OptionManager.class);
     Catalog catalogVersionContext = mock(Catalog.class);
     UserSession userSessionVersionContext = mock(UserSession.class);
     dataplanePluginVersionContext = mock(DataplanePlugin.class);
+    when(dataplanePluginVersionContext.isWrapperFor(VersionedPlugin.class)).thenReturn(true);
+    when(dataplanePluginVersionContext.unwrap(VersionedPlugin.class))
+        .thenReturn(dataplanePluginVersionContext);
     when(queryVersionContext.getCatalog()).thenReturn(catalogVersionContext);
     when(queryVersionContext.getOptions()).thenReturn(optionManagerVersionContext);
     when(queryVersionContext.getSession()).thenReturn(userSessionVersionContext);
     when(optionManagerVersionContext.getOption(ENABLE_USE_VERSION_SYNTAX)).thenReturn(true);
     when(catalogVersionContext.getSource(anyString())).thenReturn(dataplanePluginVersionContext);
-    when(userSessionVersionContext.getSessionVersionForSource("localnessie")).thenReturn(VersionContext.ofBranch("mainVersionContext"));
+    when(dataplanePluginVersionContext.isWrapperFor(VersionedPlugin.class)).thenReturn(true);
+    when(userSessionVersionContext.getSessionVersionForSource("localnessie"))
+        .thenReturn(VersionContext.ofBranch("mainVersionContext"));
     handlerVersionContext = new MergeBranchHandler(queryVersionContext);
     mergeBranchVersionContext =
         new SqlMergeBranch(
-          SqlParserPos.ZERO,
-          new SqlIdentifier("sourcebranch", SqlParserPos.ZERO),
-          null,
-          new SqlIdentifier("localnessie", SqlParserPos.ZERO));
+            SqlParserPos.ZERO,
+            new SqlIdentifier("sourcebranch", SqlParserPos.ZERO),
+            null,
+            new SqlIdentifier("localnessie", SqlParserPos.ZERO));
   }
 
   @Test
@@ -161,9 +163,14 @@ public class TestMergeBranchHandler extends DremioTest {
 
   @Test
   public void mergeBranchSucceedForVersionContext()
-    throws ForemanSetupException, ReferenceAlreadyExistsException, ReferenceNotFoundException, NoDefaultBranchException, ReferenceConflictException {
+      throws ForemanSetupException,
+          ReferenceAlreadyExistsException,
+          ReferenceNotFoundException,
+          NoDefaultBranchException,
+          ReferenceConflictException {
     doNothing().when(dataplanePluginVersionContext).createTag(anyString(), any());
-    List<SimpleCommandResult> result = handlerVersionContext.toResult("", mergeBranchVersionContext);
+    List<SimpleCommandResult> result =
+        handlerVersionContext.toResult("", mergeBranchVersionContext);
     assertFalse(result.isEmpty());
     assertTrue(result.get(0).ok);
   }
@@ -172,26 +179,25 @@ public class TestMergeBranchHandler extends DremioTest {
   public void mergeBranchThrowUnsupport() {
     when(optionManager.getOption(ENABLE_USE_VERSION_SYNTAX)).thenReturn(false);
 
-    assertThatThrownBy(() -> handler.toResult("", mergeBranch))
-      .isInstanceOf(UserException.class);
+    assertThatThrownBy(() -> handler.toResult("", mergeBranch)).isInstanceOf(UserException.class);
   }
 
   @Test
   public void createBranchThrowNotFoundForVersionContext()
-    throws ReferenceNotFoundException, ReferenceConflictException {
+      throws ReferenceNotFoundException, ReferenceConflictException {
     doThrow(ReferenceNotFoundException.class)
-      .when(dataplanePluginVersionContext)
-      .mergeBranch(anyString(), any());
+        .when(dataplanePluginVersionContext)
+        .mergeBranch(anyString(), any());
 
-    assertThatThrownBy(() -> handlerVersionContext.toResult("", mergeBranchVersionContext)).hasMessageContaining("mainVersionContext");
+    assertThatThrownBy(() -> handlerVersionContext.toResult("", mergeBranchVersionContext))
+        .hasMessageContaining("mainVersionContext");
   }
 
   @Test
   public void mergeBranchThrowWrongPlugin() {
     when(catalog.getSource(anyString())).thenReturn(null);
 
-    assertThatThrownBy(() -> handler.toResult("", mergeBranch))
-      .isInstanceOf(UserException.class);
+    assertThatThrownBy(() -> handler.toResult("", mergeBranch)).isInstanceOf(UserException.class);
   }
 
   @Test
@@ -201,8 +207,7 @@ public class TestMergeBranchHandler extends DremioTest {
         .when(dataplanePlugin)
         .mergeBranch(anyString(), anyString());
 
-    assertThatThrownBy(() -> handler.toResult("", mergeBranch))
-      .isInstanceOf(UserException.class);
+    assertThatThrownBy(() -> handler.toResult("", mergeBranch)).isInstanceOf(UserException.class);
   }
 
   @Test
@@ -212,32 +217,30 @@ public class TestMergeBranchHandler extends DremioTest {
         .when(dataplanePlugin)
         .mergeBranch(anyString(), anyString());
 
-    assertThatThrownBy(() -> handler.toResult("", mergeBranch))
-      .isInstanceOf(UserException.class);
+    assertThatThrownBy(() -> handler.toResult("", mergeBranch)).isInstanceOf(UserException.class);
   }
 
   @Test
   public void mergeBranchNoDefaultBranch()
-    throws ReferenceConflictException, ReferenceNotFoundException {
+      throws ReferenceConflictException, ReferenceNotFoundException {
     // TODO: Is this var needed?
     final SqlMergeBranch mergeBranch =
-      new SqlMergeBranch(
-        SqlParserPos.ZERO,
-        new SqlIdentifier("sourcebranch", SqlParserPos.ZERO),
-        null,
-        new SqlIdentifier("localnessie", SqlParserPos.ZERO));
+        new SqlMergeBranch(
+            SqlParserPos.ZERO,
+            new SqlIdentifier("sourcebranch", SqlParserPos.ZERO),
+            null,
+            new SqlIdentifier("localnessie", SqlParserPos.ZERO));
 
     doThrow(ReferenceNotFoundException.class)
-      .when(dataplanePlugin)
-      .mergeBranch(anyString(), anyString());
+        .when(dataplanePlugin)
+        .mergeBranch(anyString(), anyString());
 
-    assertThatThrownBy(() -> handler.toResult("", mergeBranch))
-      .isInstanceOf(UserException.class);
+    assertThatThrownBy(() -> handler.toResult("", mergeBranch)).isInstanceOf(UserException.class);
   }
 
   @Test
   public void mergeBranchNoTargetBranch()
-    throws ReferenceConflictException, ReferenceNotFoundException, ForemanSetupException {
+      throws ReferenceConflictException, ReferenceNotFoundException, ForemanSetupException {
     // Arrange
     doNothing().when(dataplanePlugin).mergeBranch(anyString(), anyString());
     // Act
@@ -246,9 +249,7 @@ public class TestMergeBranchHandler extends DremioTest {
     // Assert
     assertThat(result).isNotEmpty();
     assertThat(result.get(0).ok).isTrue();
-    assertThat(result.get(0).summary)
-      .contains("merged")
-      .contains(DEFAULT_SOURCE_NAME);
+    assertThat(result.get(0).summary).contains("merged").contains(DEFAULT_SOURCE_NAME);
   }
 
   @Test
@@ -263,9 +264,7 @@ public class TestMergeBranchHandler extends DremioTest {
     // Assert
     assertThat(result).isNotEmpty();
     assertThat(result.get(0).ok).isTrue();
-    assertThat(result.get(0).summary)
-      .contains("merged")
-      .contains(DEFAULT_SOURCE_NAME);
+    assertThat(result.get(0).summary).contains("merged").contains(DEFAULT_SOURCE_NAME);
   }
 
   @Test
@@ -280,11 +279,6 @@ public class TestMergeBranchHandler extends DremioTest {
     // Assert
     assertThat(result).isNotEmpty();
     assertThat(result.get(0).ok).isTrue();
-    assertThat(result.get(0).summary)
-      .contains("merged")
-      .contains(DEFAULT_SOURCE_NAME);
+    assertThat(result.get(0).summary).contains("merged").contains(DEFAULT_SOURCE_NAME);
   }
-
-
-
 }

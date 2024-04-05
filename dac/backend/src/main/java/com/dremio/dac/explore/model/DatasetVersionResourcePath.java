@@ -17,16 +17,12 @@ package com.dremio.dac.explore.model;
 
 import static java.util.Arrays.asList;
 
-import java.util.List;
-
 import com.dremio.dac.model.common.ResourcePath;
 import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import java.util.List;
 
-/**
- * The resource path to a given version of a dataset
- *
- */
+/** The resource path to a given version of a dataset */
 public final class DatasetVersionResourcePath extends ResourcePath {
   private final DatasetPath dataset;
   private final DatasetVersion version;
@@ -63,5 +59,4 @@ public final class DatasetVersionResourcePath extends ResourcePath {
   public DatasetVersionResourcePath ammendVersion(DatasetVersion nextVersion) {
     return new DatasetVersionResourcePath(this.dataset, nextVersion);
   }
-
 }

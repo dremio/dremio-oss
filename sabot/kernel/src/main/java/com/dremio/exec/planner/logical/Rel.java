@@ -15,27 +15,28 @@
  */
 package com.dremio.exec.planner.logical;
 
+import com.dremio.exec.planner.physical.Prel;
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 
-import com.dremio.exec.planner.physical.Prel;
-
-/**
- * Relational expression that is implemented in Dremio.
- */
+/** Relational expression that is implemented in Dremio. */
 public interface Rel extends RelNode {
-  /** Calling convention for relational expressions that are "implemented" by
-   * generating Dremio logical plans. */
-  public static final Convention LOGICAL = new Convention.Impl("LOGICAL", Rel.class) {
-    @Override
-    public boolean canConvertConvention(Convention toConvention) {
-      return (toConvention == Prel.PHYSICAL || toConvention == LOGICAL);
-    }
+  /**
+   * Calling convention for relational expressions that are "implemented" by generating Dremio
+   * logical plans.
+   */
+  public static final Convention LOGICAL =
+      new Convention.Impl("LOGICAL", Rel.class) {
+        @Override
+        public boolean canConvertConvention(Convention toConvention) {
+          return (toConvention == Prel.PHYSICAL || toConvention == LOGICAL);
+        }
 
-    @Override
-    public boolean useAbstractConvertersForConversion(RelTraitSet fromTraits, RelTraitSet toTraits) {
-      return canConvertConvention((Convention) toTraits.getTrait(this.getTraitDef()));
-    }
-  };
+        @Override
+        public boolean useAbstractConvertersForConversion(
+            RelTraitSet fromTraits, RelTraitSet toTraits) {
+          return canConvertConvention((Convention) toTraits.getTrait(this.getTraitDef()));
+        }
+      };
 }

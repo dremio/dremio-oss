@@ -17,36 +17,31 @@ package com.dremio.plugins.dataplane.store;
 
 import static com.dremio.exec.util.InformationSchemaCatalogUtil.getEscapeCharacter;
 
-import java.util.Set;
-
 import com.dremio.service.catalog.SearchQuery;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import java.util.Set;
 
-/**
- * Helpers for converting from SearchQuery to CEL syntax
- */
+/** Helpers for converting from SearchQuery to CEL syntax */
 final class SearchQueryToCelConversionUtilities {
 
   private SearchQueryToCelConversionUtilities() {}
 
   private static final ImmutableMap<Character, String> SEARCH_QUERY_SPECIAL_CHARACTERS_MAP =
-    ImmutableMap.<Character, String>builder()
-      .put('%', ".*")
-      .put('_', ".")
-      .build();
+      ImmutableMap.<Character, String>builder().put('%', ".*").put('_', ".").build();
   // CEL uses RE2 syntax: https://github.com/google/re2/wiki/Syntax
   private static final Set<Character> RE2_SPECIAL_CHARACTERS =
-    ImmutableSet.of('*', '+', '?', '(', ')', '|', '[', ']', ':', '^', '\\', '.', '{', '}');
+      ImmutableSet.of('*', '+', '?', '(', ')', '|', '[', ']', ':', '^', '\\', '.', '{', '}');
   private static final char RE2_ESCAPE = '\\';
 
   /**
-   * Converts a string into the equivalent CEL raw string literal. By using a
-   * raw string wrapped in single quotes, only existing single quote characters
-   * need to be escaped. This is particularly helpful for passing regex patterns
-   * to a CEL matches filter.
-   * <p>
-   * See <a href="https://github.com/google/cel-spec/blob/master/doc/langdef.md#string-and-bytes-values">the spec</a>.
+   * Converts a string into the equivalent CEL raw string literal. By using a raw string wrapped in
+   * single quotes, only existing single quote characters need to be escaped. This is particularly
+   * helpful for passing regex patterns to a CEL matches filter.
+   *
+   * <p>See <a
+   * href="https://github.com/google/cel-spec/blob/master/doc/langdef.md#string-and-bytes-values">the
+   * spec</a>.
    */
   public static String convertToRawCelStringLiteral(String string) {
     StringBuilder sb = new StringBuilder();
@@ -62,9 +57,7 @@ final class SearchQueryToCelConversionUtilities {
     return String.format("r'%s'", sb);
   }
 
-  /**
-   * Converts a SearchQuery Like object into the equivalent RE2 regex pattern.
-   */
+  /** Converts a SearchQuery Like object into the equivalent RE2 regex pattern. */
   public static String likeQueryToRe2Regex(SearchQuery.Like likeQuery) {
     String pattern = likeQuery.getPattern();
     String escape = likeQuery.getEscape();

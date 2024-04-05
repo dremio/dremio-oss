@@ -22,6 +22,8 @@ import DatasetSummaryError from "../DatasetSummary/DatasetSummaryError/DatasetSu
 import { constructFullPath } from "@app/utils/pathUtils";
 import EntitySummary from "./EntitySummary";
 import { transformEntity } from "@app/utils/entity-utils";
+import { useSelector } from "react-redux";
+import { getRefQueryParams } from "@app/utils/nessieUtils";
 
 type EntitySummaryOverlayProps = {
   name: string;
@@ -44,14 +46,16 @@ const EntitySummaryOverlay = ({
   openDetailsPanel,
   getEntityUrl,
 }: EntitySummaryOverlayProps) => {
+  const nessie = useSelector((state: any) => state.nessie);
   const [entityResource, entityResourceErr] = useResourceSnapshot(
-    EntityOverlayResource
+    EntityOverlayResource,
   );
   const url = getEntityUrl ? getEntityUrl() : entityUrl;
 
   useEffect(() => {
-    if (!entity) EntityOverlayResource.fetch({ entityUrl: url });
-  }, [entityUrl, entity, url]);
+    const query = getRefQueryParams(nessie, fullPath.first());
+    if (!entity) EntityOverlayResource.fetch({ entityUrl: url, query });
+  }, [entityUrl, entity, url, fullPath, nessie]);
 
   const constructedFullPath = constructFullPath(fullPath);
   const transformedEntity = transformEntity(entityResource || {});

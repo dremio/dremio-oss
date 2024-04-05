@@ -15,15 +15,6 @@
  */
 package com.dremio.sabot.exec.fragment;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.concurrent.ExecutorService;
-
-import javax.inject.Provider;
-
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.AutoCloseables.RollbackCloseable;
 import com.dremio.common.config.SabotConfig;
@@ -35,6 +26,7 @@ import com.dremio.exec.expr.ExpressionSplitCache;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.Sender;
+import com.dremio.exec.physical.config.ExternalSort;
 import com.dremio.exec.physical.config.MinorFragmentEndpoint;
 import com.dremio.exec.planner.fragment.EndpointsIndex;
 import com.dremio.exec.planner.physical.PlannerSettings;
@@ -56,6 +48,12 @@ import com.dremio.sabot.exec.rpc.TunnelProvider;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.spill.SpillService;
 import com.google.common.base.Preconditions;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import javax.inject.Provider;
+import org.apache.arrow.memory.BufferAllocator;
 
 class OperatorContextCreator implements OperatorContext.Creator, AutoCloseable {
 
@@ -85,17 +83,33 @@ class OperatorContextCreator implements OperatorContext.Creator, AutoCloseable {
   private List<MinorFragmentEndpoint> minorFragmentEndpoints;
   private final ExpressionSplitCache expressionSplitCache;
   private final HeapLowMemController heapLowMemController;
+  private final boolean enableMAStaticMemLimit;
+  private final boolean enableMA;
 
-  public OperatorContextCreator(FragmentStats stats, BufferAllocator allocator, CodeCompiler compiler,
-                                SabotConfig config, DremioConfig dremioConfig, FragmentHandle handle, ExecutionControls executionControls,
-                                FunctionLookupContext funcRegistry, FunctionLookupContext decimalFuncRegistry,
-                                NamespaceService namespaceService, OptionManager options, FragmentExecutorBuilder fragmentExecutorBuilder,
-                                ExecutorService executor, SpillService spillService, ContextInformation contextInformation,
-                                NodeDebugContextProvider nodeDebugContextProvider, TunnelProvider tunnelProvider,
-                                List<FragmentAssignment> assignments, EndpointsIndex endpointsIndex,
-                                Provider<CoordinationProtos.NodeEndpoint> nodeEndpointProvider,
-                                List<CoordExecRPC.MajorFragmentAssignment> extFragmentAssignments, ExpressionSplitCache expressionSplitCache,
-                                HeapLowMemController heapLowMemController) {
+  public OperatorContextCreator(
+      FragmentStats stats,
+      BufferAllocator allocator,
+      CodeCompiler compiler,
+      SabotConfig config,
+      DremioConfig dremioConfig,
+      FragmentHandle handle,
+      ExecutionControls executionControls,
+      FunctionLookupContext funcRegistry,
+      FunctionLookupContext decimalFuncRegistry,
+      NamespaceService namespaceService,
+      OptionManager options,
+      FragmentExecutorBuilder fragmentExecutorBuilder,
+      ExecutorService executor,
+      SpillService spillService,
+      ContextInformation contextInformation,
+      NodeDebugContextProvider nodeDebugContextProvider,
+      TunnelProvider tunnelProvider,
+      List<FragmentAssignment> assignments,
+      EndpointsIndex endpointsIndex,
+      Provider<CoordinationProtos.NodeEndpoint> nodeEndpointProvider,
+      List<CoordExecRPC.MajorFragmentAssignment> extFragmentAssignments,
+      ExpressionSplitCache expressionSplitCache,
+      HeapLowMemController heapLowMemController) {
     super();
     this.stats = stats;
     this.allocator = allocator;
@@ -121,6 +135,9 @@ class OperatorContextCreator implements OperatorContext.Creator, AutoCloseable {
     this.extFragmentAssignments = extFragmentAssignments;
     this.expressionSplitCache = expressionSplitCache;
     this.heapLowMemController = heapLowMemController;
+    this.enableMAStaticMemLimit =
+        options.getOption(ExecConstants.ENABLE_SPILLABLE_OPERATORS_STATIC_MEMLIMIT);
+    this.enableMA = options.getOption(ExecConstants.ENABLE_SPILLABLE_OPERATORS);
   }
 
   public void setFragmentOutputAllocator(BufferAllocator fragmentOutputAllocator) {
@@ -130,60 +147,70 @@ class OperatorContextCreator implements OperatorContext.Creator, AutoCloseable {
 
   public void setMinorFragmentEndpointsFromRootSender(PhysicalOperator root) {
     if (root instanceof Sender) {
-      this.minorFragmentEndpoints = ((Sender)root).getDestinations(this.endpointsIndex);
+      this.minorFragmentEndpoints = ((Sender) root).getDestinations(this.endpointsIndex);
     }
   }
 
   @Override
   public OperatorContext newOperatorContext(PhysicalOperator popConfig) throws Exception {
     Preconditions.checkState(this.fragmentOutputAllocator != null);
-    final String allocatorName = String.format("op:%s:%d:%s",
-      QueryIdHelper.getFragmentId(handle),
-      popConfig.getProps().getLocalOperatorId(),
-      popConfig.getClass().getSimpleName());
+    final String allocatorName =
+        String.format(
+            "op:%s:%d:%s",
+            QueryIdHelper.getFragmentId(handle),
+            popConfig.getProps().getLocalOperatorId(),
+            popConfig.getClass().getSimpleName());
 
     long memReserve = popConfig.getProps().getMemReserve();
     long memLimit = popConfig.getProps().getMemLimit();
-    if (options.getOption(ExecConstants.ENABLE_SPILLABLE_OPERATORS)) {
+    if (enableMA) {
       memReserve = 0;
-      memLimit = Long.MAX_VALUE;
+      if (!enableMAStaticMemLimit || !(popConfig instanceof ExternalSort)) {
+        memLimit = Long.MAX_VALUE;
+      }
     }
 
     final BufferAllocator operatorAllocator =
-      allocator.newChildAllocator(allocatorName, memReserve, memLimit);
+        allocator.newChildAllocator(allocatorName, memReserve, memLimit);
     try (RollbackCloseable closeable = AutoCloseables.rollbackable(operatorAllocator)) {
-      final OpProfileDef def = new OpProfileDef(popConfig.getProps().getLocalOperatorId(), popConfig.getOperatorType(), OperatorContext.getChildCount(popConfig), popConfig.getOperatorSubType());
+      final OpProfileDef def =
+          new OpProfileDef(
+              popConfig.getProps().getLocalOperatorId(),
+              popConfig.getOperatorType(),
+              OperatorContext.getChildCount(popConfig),
+              popConfig.getOperatorSubType());
       final OperatorStats stats = this.stats.newOperatorStats(def, operatorAllocator);
       FunctionLookupContext functionLookupContext = funcRegistry;
       if (options.getOption(PlannerSettings.ENABLE_DECIMAL_V2)) {
         functionLookupContext = decimalFuncRegistry;
       }
-      OperatorContextImpl context = new OperatorContextImpl(
-        config,
-        dremioConfig,
-        handle,
-        popConfig,
-        operatorAllocator,
-        fragmentOutputAllocator,
-        compiler,
-        stats,
-        executionControls,
-        fragmentExecutorBuilder,
-        executor,
-        functionLookupContext,
-        contextInformation,
-        options,
-        spillService,
-        nodeDebugContextProvider,
-        popConfig.getProps().getTargetBatchSize(),
-        tunnelProvider,
-        assignments,
-        extFragmentAssignments,
-        nodeEndpointProvider,
-        endpointsIndex,
-        minorFragmentEndpoints,
-        expressionSplitCache,
-        heapLowMemController);
+      OperatorContextImpl context =
+          new OperatorContextImpl(
+              config,
+              dremioConfig,
+              handle,
+              popConfig,
+              operatorAllocator,
+              fragmentOutputAllocator,
+              compiler,
+              stats,
+              executionControls,
+              fragmentExecutorBuilder,
+              executor,
+              functionLookupContext,
+              contextInformation,
+              options,
+              spillService,
+              nodeDebugContextProvider,
+              popConfig.getProps().getTargetBatchSize(),
+              tunnelProvider,
+              assignments,
+              extFragmentAssignments,
+              nodeEndpointProvider,
+              endpointsIndex,
+              minorFragmentEndpoints,
+              expressionSplitCache,
+              heapLowMemController);
       operatorContexts.add(context);
       closeable.commit();
       return context;

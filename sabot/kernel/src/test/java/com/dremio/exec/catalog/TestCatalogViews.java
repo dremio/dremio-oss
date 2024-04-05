@@ -15,24 +15,20 @@
  */
 package com.dremio.exec.catalog;
 
+import com.dremio.BaseTestQuery;
+import com.dremio.common.util.TestTools;
+import com.dremio.config.DremioConfig;
+import com.dremio.test.TemporarySystemProperties;
 import java.util.concurrent.TimeUnit;
-
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestRule;
 
-import com.dremio.BaseTestQuery;
-import com.dremio.common.util.TestTools;
-import com.dremio.config.DremioConfig;
-import com.dremio.test.TemporarySystemProperties;
-
 public class TestCatalogViews extends BaseTestQuery {
-  @Rule
-  public final TestRule timeoutRule = TestTools.getTimeoutRule(20, TimeUnit.SECONDS);
+  @Rule public final TestRule timeoutRule = TestTools.getTimeoutRule(20, TimeUnit.SECONDS);
 
-  @Rule
-  public TemporarySystemProperties properties = new TemporarySystemProperties();
+  @Rule public TemporarySystemProperties properties = new TemporarySystemProperties();
 
   @Before
   public void before() {
@@ -42,9 +38,10 @@ public class TestCatalogViews extends BaseTestQuery {
   @Test
   public void testQueryJsonView() throws Exception {
     test("use " + TEMP_SCHEMA);
-    test("create view json_view as \n" +
-      "    SELECT \n" +
-      "        convert_fromJSON('{\"x\": 17}') as obj");
+    test(
+        "create view json_view as \n"
+            + "    SELECT \n"
+            + "        convert_fromJSON('{\"x\": 17}') as obj");
     test("SELECT obj.x from json_view");
     test("drop view json_view");
   }

@@ -17,7 +17,7 @@
 import { TableVersionType } from "../arctic/datasets/TableVersionType.type";
 import { getShortHash } from "../utilities/versionContext";
 
-const VERSION_CONTEXT: {[V in TableVersionType]: string} = {
+const VERSION_CONTEXT: { [V in TableVersionType]: string } = {
   [TableVersionType.BRANCH]: "branch",
   [TableVersionType.TAG]: "tag",
   [TableVersionType.COMMIT_HASH_ONLY]: "commit",

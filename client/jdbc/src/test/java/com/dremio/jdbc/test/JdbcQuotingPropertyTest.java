@@ -18,33 +18,28 @@ package com.dremio.jdbc.test;
 import static com.dremio.exec.rpc.user.security.testing.UserServiceTestImpl.ANONYMOUS;
 import static org.junit.Assert.assertTrue;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.ResultSet;
-import java.sql.Statement;
-import java.util.Properties;
-
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-
 import com.dremio.config.DremioConfig;
 import com.dremio.jdbc.Driver;
 import com.dremio.jdbc.JdbcTestBase;
 import com.dremio.jdbc.SabotNodeRule;
 import com.dremio.test.TemporarySystemProperties;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.Statement;
+import java.util.Properties;
+import org.junit.Before;
+import org.junit.ClassRule;
+import org.junit.Rule;
+import org.junit.Test;
 
 public class JdbcQuotingPropertyTest extends JdbcTestBase {
 
-  @ClassRule
-  public static final SabotNodeRule sabotNode = new SabotNodeRule();
+  @ClassRule public static final SabotNodeRule sabotNode = new SabotNodeRule();
 
-  private static final String VIEW_NAME =
-    JdbcQuotingPropertyTest.class.getSimpleName() + "_View";
+  private static final String VIEW_NAME = JdbcQuotingPropertyTest.class.getSimpleName() + "_View";
 
-  @Rule
-  public TemporarySystemProperties properties = new TemporarySystemProperties();
+  @Rule public TemporarySystemProperties properties = new TemporarySystemProperties();
 
   @Before
   public void before() {
@@ -58,32 +53,38 @@ public class JdbcQuotingPropertyTest extends JdbcTestBase {
     properties.put("quoting", "DOUBLE_QUOTE");
 
     Driver.load();
-    final Connection connection = DriverManager.getConnection(sabotNode.getJDBCConnectionString(), properties);
+    final Connection connection =
+        DriverManager.getConnection(sabotNode.getJDBCConnectionString(), properties);
 
     final Statement stmt = connection.createStatement();
     ResultSet util;
 
     // Test query PDS
     util = stmt.executeQuery("select * from \"cp\".\"employee.json\"");
-    assertTrue( util.next() );
+    assertTrue(util.next());
 
     // Create a view
-    util = stmt.executeQuery(
-      "CREATE OR REPLACE VIEW \"dfs_test\".\"" + VIEW_NAME + "\" AS "
-        + "\n  SELECT * from \"cp\".\"employee.json\"");
-    assertTrue( util.next() );
-    assertTrue( "Error creating temporary view " + VIEW_NAME + ": "
-      + util.getString( 2 ), util.getBoolean( 1 ) );
+    util =
+        stmt.executeQuery(
+            "CREATE OR REPLACE VIEW \"dfs_test\".\""
+                + VIEW_NAME
+                + "\" AS "
+                + "\n  SELECT * from \"cp\".\"employee.json\"");
+    assertTrue(util.next());
+    assertTrue(
+        "Error creating temporary view " + VIEW_NAME + ": " + util.getString(2),
+        util.getBoolean(1));
 
     // Test query VDS
     util = stmt.executeQuery("select * from \"dfs_test\".\"" + VIEW_NAME + "\"");
-    assertTrue( util.next() );
+    assertTrue(util.next());
 
     // Clean up the test view:
-    util = stmt.executeQuery( "DROP VIEW \"dfs_test\".\"" + VIEW_NAME + "\"");
-    assertTrue( util.next() );
-    assertTrue( "Error dropping temporary view " + VIEW_NAME + ": "
-      + util.getString( 2 ), util.getBoolean( 1 ) );
+    util = stmt.executeQuery("DROP VIEW \"dfs_test\".\"" + VIEW_NAME + "\"");
+    assertTrue(util.next());
+    assertTrue(
+        "Error dropping temporary view " + VIEW_NAME + ": " + util.getString(2),
+        util.getBoolean(1));
 
     connection.close();
   }
@@ -95,35 +96,42 @@ public class JdbcQuotingPropertyTest extends JdbcTestBase {
     properties.put("quoting", "BACK_TICK");
 
     Driver.load();
-    final Connection connection = DriverManager.getConnection(sabotNode.getJDBCConnectionString(), properties);
+    final Connection connection =
+        DriverManager.getConnection(sabotNode.getJDBCConnectionString(), properties);
 
     final Statement stmt = connection.createStatement();
     ResultSet util;
 
     // Test query PDS
     util = stmt.executeQuery("select * from `cp`.`employee.json`");
-    assertTrue( util.next() );
+    assertTrue(util.next());
 
     // Create a view
-    util = stmt.executeQuery(
-      "CREATE OR REPLACE VIEW `dfs_test`.`" + VIEW_NAME + "` AS "
-        + "\n  SELECT * from `cp`.`employee.json`");
-    assertTrue( util.next() );
-    assertTrue( "Error creating temporary view " + VIEW_NAME + ": "
-          + util.getString( 2 ), util.getBoolean( 1 ) );
+    util =
+        stmt.executeQuery(
+            "CREATE OR REPLACE VIEW `dfs_test`.`"
+                + VIEW_NAME
+                + "` AS "
+                + "\n  SELECT * from `cp`.`employee.json`");
+    assertTrue(util.next());
+    assertTrue(
+        "Error creating temporary view " + VIEW_NAME + ": " + util.getString(2),
+        util.getBoolean(1));
 
     // Test query VDS
-    // Note that when Dremio expands the view, the VDS query will be: SELECT * FROM "cp"."employee.json"
+    // Note that when Dremio expands the view, the VDS query will be: SELECT * FROM
+    // "cp"."employee.json"
     // So default DOUBLE_QUOTE will be used.
     // The query will fail without the DX-52443 fix
     util = stmt.executeQuery("select * from `dfs_test`.`" + VIEW_NAME + "`");
-    assertTrue( util.next() );
+    assertTrue(util.next());
 
     // Clean up the test view:
-    util = stmt.executeQuery( "DROP VIEW `dfs_test`.`" + VIEW_NAME + "`");
-    assertTrue( util.next() );
-    assertTrue( "Error dropping temporary view " + VIEW_NAME + ": "
-         + util.getString( 2 ), util.getBoolean( 1 ) );
+    util = stmt.executeQuery("DROP VIEW `dfs_test`.`" + VIEW_NAME + "`");
+    assertTrue(util.next());
+    assertTrue(
+        "Error dropping temporary view " + VIEW_NAME + ": " + util.getString(2),
+        util.getBoolean(1));
 
     connection.close();
   }
@@ -135,35 +143,42 @@ public class JdbcQuotingPropertyTest extends JdbcTestBase {
     properties.put("quoting", "BRACKET");
 
     Driver.load();
-    final Connection connection = DriverManager.getConnection(sabotNode.getJDBCConnectionString(), properties);
+    final Connection connection =
+        DriverManager.getConnection(sabotNode.getJDBCConnectionString(), properties);
 
     final Statement stmt = connection.createStatement();
     ResultSet util;
 
     // Test query PDS
     util = stmt.executeQuery("select * from [cp].[employee.json]");
-    assertTrue( util.next() );
+    assertTrue(util.next());
 
     // Create a view
-    util = stmt.executeQuery(
-      "CREATE OR REPLACE VIEW [dfs_test].[" + VIEW_NAME + "] AS "
-        + "\n  SELECT * from [cp].[employee.json]");
-    assertTrue( util.next() );
-    assertTrue( "Error creating temporary view " + VIEW_NAME + ": "
-      + util.getString( 2 ), util.getBoolean( 1 ) );
+    util =
+        stmt.executeQuery(
+            "CREATE OR REPLACE VIEW [dfs_test].["
+                + VIEW_NAME
+                + "] AS "
+                + "\n  SELECT * from [cp].[employee.json]");
+    assertTrue(util.next());
+    assertTrue(
+        "Error creating temporary view " + VIEW_NAME + ": " + util.getString(2),
+        util.getBoolean(1));
 
     // Test query VDS
-    // Note that when Dremio expands the view, the VDS query will be: SELECT * FROM "cp"."employee.json"
+    // Note that when Dremio expands the view, the VDS query will be: SELECT * FROM
+    // "cp"."employee.json"
     // So default DOUBLE_QUOTE will be used.
     // The query will fail without the DX-52443 fix.
     util = stmt.executeQuery("select * from [dfs_test].[" + VIEW_NAME + "]");
-    assertTrue( util.next() );
+    assertTrue(util.next());
 
     // Clean up the test view:
-    util = stmt.executeQuery( "DROP VIEW [dfs_test].[" + VIEW_NAME + "]");
-    assertTrue( util.next() );
-    assertTrue( "Error dropping temporary view " + VIEW_NAME + ": "
-      + util.getString( 2 ), util.getBoolean( 1 ) );
+    util = stmt.executeQuery("DROP VIEW [dfs_test].[" + VIEW_NAME + "]");
+    assertTrue(util.next());
+    assertTrue(
+        "Error dropping temporary view " + VIEW_NAME + ": " + util.getString(2),
+        util.getBoolean(1));
 
     connection.close();
   }

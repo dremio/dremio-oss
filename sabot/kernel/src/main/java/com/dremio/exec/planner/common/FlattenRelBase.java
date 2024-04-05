@@ -15,12 +15,17 @@
  */
 package com.dremio.exec.planner.common;
 
+import com.dremio.exec.planner.cost.DremioCost;
+import com.dremio.exec.planner.cost.DremioCost.Factory;
+import com.dremio.exec.planner.physical.PrelUtil;
+import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.FluentIterable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptPlanner;
@@ -35,16 +40,7 @@ import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rel.type.RelDataTypeFieldImpl;
 import org.apache.calcite.rex.RexInputRef;
 
-import com.dremio.exec.planner.cost.DremioCost;
-import com.dremio.exec.planner.cost.DremioCost.Factory;
-import com.dremio.exec.planner.physical.PrelUtil;
-import com.google.common.base.Function;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.FluentIterable;
-
-/**
- * Flatten rel base (can be any convention)
- */
+/** Flatten rel base (can be any convention) */
 public abstract class FlattenRelBase extends SingleRel {
 
   protected final List<RexInputRef> toFlatten;
@@ -52,12 +48,12 @@ public abstract class FlattenRelBase extends SingleRel {
   protected final int numProjectsPushed;
 
   public FlattenRelBase(
-    RelOptCluster cluster,
-    RelTraitSet traits,
-    RelNode child,
-    List<RexInputRef> toFlatten,
-    List<String> aliases,
-    int numProjectsPushed) {
+      RelOptCluster cluster,
+      RelTraitSet traits,
+      RelNode child,
+      List<RexInputRef> toFlatten,
+      List<String> aliases,
+      int numProjectsPushed) {
     super(cluster, traits, child);
     Preconditions.checkArgument(!toFlatten.isEmpty(), "Must have at least one flatten input.");
     this.toFlatten = toFlatten;
@@ -95,7 +91,7 @@ public abstract class FlattenRelBase extends SingleRel {
         outputFields.add(field);
       } else {
         RelDataType newType = field.getType().getComponentType();
-        if (newType == null){
+        if (newType == null) {
           outputFields.add(field);
         } else {
           String alias = indexToAlias.get(i);
@@ -119,15 +115,21 @@ public abstract class FlattenRelBase extends SingleRel {
   @Override
   public double estimateRowCount(RelMetadataQuery mq) {
     // We expect for flattens output to be expanding. Use a constant to expand the data.
-    return mq.getRowCount(input) * toFlatten.size() * PrelUtil.getPlannerSettings(getCluster().getPlanner()).getFlattenExpansionAmount();
+    return mq.getRowCount(input)
+        * toFlatten.size()
+        * PrelUtil.getPlannerSettings(getCluster().getPlanner()).getFlattenExpansionAmount();
   }
 
-  public Set<Integer> getFlattenedIndices(){
-    return FluentIterable.from(getToFlatten()).transform(new Function<RexInputRef, Integer>(){
-      @Override
-      public Integer apply(RexInputRef input) {
-        return input.getIndex();
-      }}).toSet();
+  public Set<Integer> getFlattenedIndices() {
+    return FluentIterable.from(getToFlatten())
+        .transform(
+            new Function<RexInputRef, Integer>() {
+              @Override
+              public Integer apply(RexInputRef input) {
+                return input.getIndex();
+              }
+            })
+        .toSet();
   }
 
   public Map<Integer, String> getFlattenIndicesToAlias() {
@@ -148,7 +150,7 @@ public abstract class FlattenRelBase extends SingleRel {
 
   @Override
   public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
-    if(PrelUtil.getSettings(getCluster()).useDefaultCosting()) {
+    if (PrelUtil.getSettings(getCluster()).useDefaultCosting()) {
       return super.computeSelfCost(planner, mq).multiplyBy(.1);
     }
 
@@ -156,10 +158,10 @@ public abstract class FlattenRelBase extends SingleRel {
     double rowCount = this.estimateRowCount(mq);
     double cpuCost = DremioCost.PROJECT_CPU_COST * rowCount * getRowType().getFieldCount();
 
-    Factory costFactory = (Factory)planner.getCostFactory();
+    Factory costFactory = (Factory) planner.getCostFactory();
 
     if (numProjectsPushed > 0) {
-      return costFactory.makeCost(rowCount, cpuCost, 0, 0).multiplyBy(1/numProjectsPushed);
+      return costFactory.makeCost(rowCount, cpuCost, 0, 0).multiplyBy(1 / numProjectsPushed);
     } else {
       return costFactory.makeCost(rowCount, cpuCost, 0, 0);
     }
@@ -169,5 +171,4 @@ public abstract class FlattenRelBase extends SingleRel {
   public RelWriter explainTerms(RelWriter pw) {
     return super.explainTerms(pw).item("flattenField", this.toFlatten);
   }
-
 }

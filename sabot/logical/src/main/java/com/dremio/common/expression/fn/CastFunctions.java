@@ -15,10 +15,9 @@
  */
 package com.dremio.common.expression.fn;
 
+import com.dremio.common.types.TypeProtos.MinorType;
 import java.util.HashMap;
 import java.util.Map;
-
-import com.dremio.common.types.TypeProtos.MinorType;
 
 public class CastFunctions {
 
@@ -46,10 +45,11 @@ public class CastFunctions {
   }
 
   /**
-  * Given the target type, get the appropriate cast function
-  * @param targetMinorType the target data type
-  * @return the name of cast function
-  */
+   * Given the target type, get the appropriate cast function
+   *
+   * @param targetMinorType the target data type
+   * @return the name of cast function
+   */
   public static String getCastFunc(MinorType targetMinorType) {
     String func = TYPE2FUNC.get(targetMinorType);
     if (func != null) {
@@ -57,6 +57,6 @@ public class CastFunctions {
     }
 
     throw new RuntimeException(
-      String.format("cast function for type %s is not defined", targetMinorType.name()));
+        String.format("cast function for type %s is not defined", targetMinorType.name()));
   }
 }

@@ -15,8 +15,9 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import java.util.List;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlLiteral;
@@ -26,30 +27,27 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
-
 public class SqlVersionedTableCollectionCall extends SqlCall {
 
-  public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("VERSIONED TABLE COLLECTION", SqlKind.COLLECTION_TABLE) {
-    @Override
-    public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 1, "SqlVersionedTableCollectionCall.createCall() has to get 1 operands!");
-      return new SqlVersionedTableCollectionCall(
-        pos,
-        (SqlVersionedTableMacroCall) operands[0]
-      );
-    }
-  };
+  public static final SqlSpecialOperator OPERATOR =
+      new SqlSpecialOperator("VERSIONED TABLE COLLECTION", SqlKind.COLLECTION_TABLE) {
+        @Override
+        public SqlCall createCall(
+            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+          Preconditions.checkArgument(
+              operands.length == 1,
+              "SqlVersionedTableCollectionCall.createCall() has to get 1 operands!");
+          return new SqlVersionedTableCollectionCall(pos, (SqlVersionedTableMacroCall) operands[0]);
+        }
+      };
 
   private final SqlVersionedTableMacroCall versionedTableMacroCall;
 
-  public SqlVersionedTableCollectionCall(SqlParserPos pos, SqlVersionedTableMacroCall versionedTableCall) {
+  public SqlVersionedTableCollectionCall(
+      SqlParserPos pos, SqlVersionedTableMacroCall versionedTableCall) {
     super(pos);
     versionedTableMacroCall = versionedTableCall;
   }
-
-
 
   @Override
   public SqlOperator getOperator() {

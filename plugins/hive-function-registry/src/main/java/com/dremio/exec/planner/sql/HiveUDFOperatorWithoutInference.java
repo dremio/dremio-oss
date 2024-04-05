@@ -23,7 +23,6 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.sql.validate.SqlValidatorScope;
 
-
 public final class HiveUDFOperatorWithoutInference extends HiveUDFOperator {
   public HiveUDFOperatorWithoutInference(String name) {
     super(name, DynamicReturnType.INSTANCE);

@@ -17,12 +17,19 @@ package com.dremio.exec.planner.sql.parser;
 
 import static org.apache.calcite.util.Static.RESOURCE;
 
+import com.dremio.catalog.model.dataset.TableVersionContext;
+import com.dremio.catalog.model.dataset.TableVersionType;
+import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.planner.sql.evaluator.FunctionEvaluatorRule;
+import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
+import com.dremio.sabot.exec.context.ContextInformation;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashMap;
 import java.util.List;
-
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexExecutor;
 import org.apache.calcite.rex.RexLiteral;
@@ -41,16 +48,10 @@ import org.apache.calcite.sql.validate.SqlValidatorException;
 import org.apache.calcite.sql2rel.SqlToRelConverter;
 import org.apache.calcite.util.TimestampString;
 
-import com.dremio.catalog.model.dataset.TableVersionContext;
-import com.dremio.catalog.model.dataset.TableVersionType;
-import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
-
 /**
- * Representation of a table version specification, which may be associated with a table identifier or a TABLE()
- * function call.  A TableVersionSpec must be resolved to convert constant expressions into literal values.
+ * Representation of a table version specification, which may be associated with a table identifier
+ * or a TABLE() function call. A TableVersionSpec must be resolved to convert constant expressions
+ * into literal values.
  */
 public class TableVersionSpec {
 
@@ -59,7 +60,8 @@ public class TableVersionSpec {
   private final SqlNode timestamp;
   private SqlLiteral resolvedVersionSpecifier;
 
-  public TableVersionSpec(TableVersionType tableVersionType, SqlNode versionSpecifier, SqlNode timestamp) {
+  public TableVersionSpec(
+      TableVersionType tableVersionType, SqlNode versionSpecifier, SqlNode timestamp) {
     this.tableVersionType = tableVersionType;
     this.versionSpecifier = versionSpecifier;
     this.timestamp = timestamp;
@@ -74,7 +76,9 @@ public class TableVersionSpec {
         Preconditions.checkState(resolvedVersionSpecifier instanceof SqlCharStringLiteral);
         value = resolvedVersionSpecifier.getValueAs(String.class);
         if (timestamp != null) {
-          throw UserException.validationError().message("Reference type 'Commit' cannot be used with AS OF syntax.").buildSilently();
+          throw UserException.validationError()
+              .message("Reference type 'Commit' cannot be used with AS OF syntax.")
+              .buildSilently();
         }
         break;
       case BRANCH:
@@ -97,7 +101,6 @@ public class TableVersionSpec {
     return new TableVersionContext(tableVersionType, value, getTimestampAsInstant());
   }
 
-
   public TableVersionContext getTableVersionContext() {
     Preconditions.checkNotNull(versionSpecifier);
     Object value = null;
@@ -109,11 +112,12 @@ public class TableVersionSpec {
       case NOT_SPECIFIED:
       case SNAPSHOT_ID:
         Preconditions.checkState(versionSpecifier instanceof SqlCharStringLiteral);
-        value = ((SqlCharStringLiteral)versionSpecifier).getValueAs(String.class);
+        value = ((SqlCharStringLiteral) versionSpecifier).getValueAs(String.class);
         break;
       case TIMESTAMP:
         Preconditions.checkState(versionSpecifier instanceof SqlTimestampLiteral);
-        value = ((SqlTimestampLiteral)versionSpecifier).getValueAs(Calendar.class).getTimeInMillis();
+        value =
+            ((SqlTimestampLiteral) versionSpecifier).getValueAs(Calendar.class).getTimeInMillis();
         break;
     }
 
@@ -122,11 +126,16 @@ public class TableVersionSpec {
   }
 
   /**
-   * Resolves a TableVersionSpec by performing constant folding on the versionSpecifier.  An error will be reported
-   * if the expression provided is not resolvable to a constant value of the appropriate type.
+   * Resolves a TableVersionSpec by performing constant folding on the versionSpecifier. An error
+   * will be reported if the expression provided is not resolvable to a constant value of the
+   * appropriate type.
    */
-  public void resolve(SqlValidator validator, SqlToRelConverter converter, RexExecutor rexExecutor,
-                      RexBuilder rexBuilder) {
+  public void resolve(
+      SqlValidator validator,
+      SqlToRelConverter converter,
+      RexExecutor rexExecutor,
+      RexBuilder rexBuilder,
+      ContextInformation contextInformation) {
     SqlNode validatedSpecifier = validator.validate(versionSpecifier);
 
     // Nothing to resolve if the version specifier is already a literal - this should always be the
@@ -135,10 +144,14 @@ public class TableVersionSpec {
       resolvedVersionSpecifier = (SqlLiteral) validatedSpecifier;
       return;
     }
-    // TIMESTAMP is the only type that allows non-literal constant expressions, guaranteed by the grammar
+    // TIMESTAMP is the only type that allows non-literal constant expressions, guaranteed by the
+    // grammar
     Preconditions.checkState(tableVersionType == TableVersionType.TIMESTAMP);
-
     RexNode expr = converter.convertExpression(validatedSpecifier, new HashMap<>());
+
+    FunctionEvaluatorRule functionEvaluatorRule = new FunctionEvaluatorRule(contextInformation);
+    expr = functionEvaluatorRule.evaluate(expr, rexBuilder);
+
     List<RexNode> reducedExprs = new ArrayList<>();
     rexExecutor.reduce(rexBuilder, ImmutableList.of(expr), reducedExprs);
     RexNode finalExpr = reducedExprs.get(0);
@@ -149,9 +162,11 @@ public class TableVersionSpec {
         throw resolveError("Expected timestamp literal or constant timestamp expression");
       }
 
-      resolvedVersionSpecifier = SqlLiteral.createTimestamp(
-        TimestampString.fromCalendarFields(literal.getValueAs(Calendar.class)), 3,
-        versionSpecifier.getParserPosition());
+      resolvedVersionSpecifier =
+          SqlLiteral.createTimestamp(
+              TimestampString.fromCalendarFields(literal.getValueAs(Calendar.class)),
+              3,
+              versionSpecifier.getParserPosition());
     }
   }
 
@@ -163,14 +178,15 @@ public class TableVersionSpec {
     int endLine = pos.getEndLineNum();
     int endCol = pos.getEndColumnNum();
     CalciteContextException contextEx =
-      (line == endLine && col == endCol
-        ? RESOURCE.validatorContextPoint(line, col)
-        : RESOURCE.validatorContext(line, col, endLine, endCol)).ex(validatorEx);
+        (line == endLine && col == endCol
+                ? RESOURCE.validatorContextPoint(line, col)
+                : RESOURCE.validatorContext(line, col, endLine, endCol))
+            .ex(validatorEx);
     contextEx.setPosition(line, col, endLine, endCol);
     return contextEx;
   }
 
-  public TableVersionType getTableVersionType(){
+  public TableVersionType getTableVersionType() {
     return tableVersionType;
   }
 
@@ -186,7 +202,9 @@ public class TableVersionSpec {
     if (timestamp == null) {
       return null;
     }
-    return Instant.ofEpochMilli(SqlHandlerUtil.convertToTimeInMillis(((SqlLiteral) timestamp).getValueAs(String.class), timestamp.getParserPosition()));
+    return Instant.ofEpochMilli(
+        SqlHandlerUtil.convertToTimeInMillis(
+            ((SqlLiteral) timestamp).getValueAs(String.class), timestamp.getParserPosition()));
   }
 
   public void unparseVersionSpec(SqlWriter writer, int leftPrec, int rightPrec) {
@@ -202,19 +220,20 @@ public class TableVersionSpec {
         final SqlCharStringLiteral versionCharSpecLiteral =
             (SqlCharStringLiteral) getVersionSpecifier();
         final String value = versionCharSpecLiteral.getNlsString().getValue();
-        writer.print(
-            (tableVersionType == TableVersionType.COMMIT) ? '"' + value + '"' : value);
+        writer.print((tableVersionType == TableVersionType.COMMIT) ? '"' + value + '"' : value);
 
         break;
       case TIMESTAMP:
         SqlNode versionSpecifier = getVersionSpecifier();
-        Preconditions.checkState(versionSpecifier instanceof SqlTimestampLiteral || versionSpecifier instanceof SqlBasicCall);
-        if (versionSpecifier instanceof  SqlTimestampLiteral) {
+        Preconditions.checkState(
+            versionSpecifier instanceof SqlTimestampLiteral
+                || versionSpecifier instanceof SqlBasicCall);
+        if (versionSpecifier instanceof SqlTimestampLiteral) {
           writer.keyword(getTableVersionType().toSqlRepresentation());
           SqlTimestampLiteral versionTimeSpecLiteral = (SqlTimestampLiteral) getVersionSpecifier();
           writer.print(String.valueOf(versionTimeSpecLiteral.getValue()));
         } else if (versionSpecifier instanceof SqlBasicCall) {
-          SqlBasicCall call = (SqlBasicCall)versionSpecifier;
+          SqlBasicCall call = (SqlBasicCall) versionSpecifier;
           call.getOperator().unparse(writer, call, leftPrec, rightPrec);
         }
         break;

@@ -15,34 +15,33 @@
  */
 package com.dremio.exec.expr.fn.impl;
 
-import org.apache.arrow.vector.holders.NullableBigIntHolder;
-import org.apache.arrow.vector.holders.NullableFloat4Holder;
-import org.apache.arrow.vector.holders.NullableFloat8Holder;
-import org.apache.arrow.vector.holders.NullableIntHolder;
-
 import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.FunctionTemplate.FunctionScope;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
+import org.apache.arrow.vector.holders.NullableBigIntHolder;
+import org.apache.arrow.vector.holders.NullableFloat4Holder;
+import org.apache.arrow.vector.holders.NullableFloat8Holder;
+import org.apache.arrow.vector.holders.NullableIntHolder;
 
 /**
- * hash32 function definitions for numeric data types. These functions cast the input numeric value to a
- * double before doing the hashing. See comments in {@link Hash64AsDouble} for the reason for doing this.
+ * hash32 function definitions for numeric data types. These functions cast the input numeric value
+ * to a double before doing the hashing. See comments in {@link Hash64AsDouble} for the reason for
+ * doing this.
  */
 public class Hash32AsDouble {
-  @FunctionTemplate(name = "hash32AsDouble", scope = FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.INTERNAL)
-
+  @FunctionTemplate(
+      name = "hash32AsDouble",
+      scope = FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.INTERNAL)
   public static class NullableFloatHash implements SimpleFunction {
 
-    @Param
-    NullableFloat4Holder in;
-    @Output
-    NullableIntHolder out;
+    @Param NullableFloat4Holder in;
+    @Output NullableIntHolder out;
 
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
     public void eval() {
@@ -55,17 +54,17 @@ public class Hash32AsDouble {
     }
   }
 
-  @FunctionTemplate(name = "hash32AsDouble", scope = FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.INTERNAL)
+  @FunctionTemplate(
+      name = "hash32AsDouble",
+      scope = FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.INTERNAL)
   public static class NullableDoubleHash implements SimpleFunction {
 
-    @Param
-    NullableFloat8Holder in;
-    @Output
-    NullableIntHolder out;
+    @Param NullableFloat8Holder in;
+    @Output NullableIntHolder out;
 
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
     public void eval() {
@@ -78,18 +77,17 @@ public class Hash32AsDouble {
     }
   }
 
-
-  @FunctionTemplate(name = "hash32AsDouble", scope = FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.INTERNAL)
+  @FunctionTemplate(
+      name = "hash32AsDouble",
+      scope = FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.INTERNAL)
   public static class NullableBigIntHash implements SimpleFunction {
 
-    @Param
-    NullableBigIntHolder in;
-    @Output
-    NullableIntHolder out;
+    @Param NullableBigIntHolder in;
+    @Output NullableIntHolder out;
 
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
     public void eval() {
@@ -102,16 +100,16 @@ public class Hash32AsDouble {
     }
   }
 
-  @FunctionTemplate(name = "hash32AsDouble", scope = FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.INTERNAL)
+  @FunctionTemplate(
+      name = "hash32AsDouble",
+      scope = FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.INTERNAL)
   public static class NullableIntHash implements SimpleFunction {
-    @Param
-    NullableIntHolder in;
-    @Output
-    NullableIntHolder out;
+    @Param NullableIntHolder in;
+    @Output NullableIntHolder out;
 
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
     public void eval() {
@@ -123,6 +121,4 @@ public class Hash32AsDouble {
       }
     }
   }
-
-
 }

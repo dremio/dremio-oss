@@ -19,11 +19,11 @@ import static org.junit.Assert.assertEquals;
 
 import javax.ws.rs.core.Response;
 
-/**
- * Expectations based on the response status family
- */
+/** Expectations based on the response status family */
 public enum FamilyExpectation implements ResponseExpectation {
-  SUCCESS(Response.Status.Family.SUCCESSFUL), CLIENT_ERROR(Response.Status.Family.CLIENT_ERROR), SERVER_ERROR(Response.Status.Family.SERVER_ERROR);
+  SUCCESS(Response.Status.Family.SUCCESSFUL),
+  CLIENT_ERROR(Response.Status.Family.CLIENT_ERROR),
+  SERVER_ERROR(Response.Status.Family.SERVER_ERROR);
 
   private final Response.Status.Family f;
 

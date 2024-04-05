@@ -17,17 +17,6 @@ package com.dremio.exec.store.parquet;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.function.Predicate;
-
-import org.apache.arrow.vector.IntVector;
-import org.apache.iceberg.FileContent;
-import org.assertj.core.api.Condition;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
-
 import com.dremio.common.expression.FieldReference;
 import com.dremio.common.expression.FunctionCallFactory;
 import com.dremio.common.expression.LogicalExpression;
@@ -43,17 +32,31 @@ import com.dremio.exec.store.iceberg.deletes.RowLevelDeleteFilterFactory.DeleteF
 import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
 import com.google.common.collect.ImmutableList;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Predicate;
+import org.apache.arrow.vector.IntVector;
+import org.apache.iceberg.FileContent;
+import org.assertj.core.api.Condition;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
 public class TestUnifiedParquetReaderWithEqualityDeletes extends BaseTestUnifiedParquetReader {
 
-  private static final ParquetReaderOptions ROWWISE_READER_OPTIONS = ParquetReaderOptions.builder().build();
+  private static final ParquetReaderOptions ROWWISE_READER_OPTIONS =
+      ParquetReaderOptions.builder().build();
 
   // data file has 2 row groups of 100 rows each, and contains product_id 0..199
   private static final String DATA_WIDGET_00 = "widget/widget-00.parquet";
 
   // delete rows where product_id >= 0 && product_id < 30
-  private static final DeleteFileInfo EQ_DELETE_WIDGET_00 = new DeleteFileInfo(
-      "widget/eqdelete-widget-00.parquet", FileContent.EQUALITY_DELETES, 30, ImmutableList.of(1));
+  private static final DeleteFileInfo EQ_DELETE_WIDGET_00 =
+      new DeleteFileInfo(
+          "widget/eqdelete-widget-00.parquet",
+          FileContent.EQUALITY_DELETES,
+          30,
+          ImmutableList.of(1));
 
   protected static IcebergTestTables.Table table;
 
@@ -81,12 +84,15 @@ public class TestUnifiedParquetReaderWithEqualityDeletes extends BaseTestUnified
   public void testWithPushdownFilter() throws Exception {
     // create a pushdown filter: product_id < 100
     SchemaPath productIdCol = SchemaPath.getSimplePath("product_id");
-    LogicalExpression expr = FunctionCallFactory.createExpression("less_than",
-        new FieldReference(productIdCol), ValueExpressions.getInt(100));
-    ParquetFilterCondition condition = new ParquetFilterCondition(productIdCol, new ParquetFilterIface() {}, expr, 0);
+    LogicalExpression expr =
+        FunctionCallFactory.createExpression(
+            "less_than", new FieldReference(productIdCol), ValueExpressions.getInt(100));
+    ParquetFilterCondition condition =
+        new ParquetFilterCondition(productIdCol, new ParquetFilterIface() {}, expr, 0);
 
     readAndValidateProductIdConditionAndRowCount(
-        new ParquetFilters(ImmutableList.of(condition), null, createEqualityDeleteFilter(EQ_DELETE_WIDGET_00)),
+        new ParquetFilters(
+            ImmutableList.of(condition), null, createEqualityDeleteFilter(EQ_DELETE_WIDGET_00)),
         ROWWISE_READER_OPTIONS,
         id -> id >= 30 && id < 100,
         "between [ 30, 99 ]",
@@ -98,40 +104,53 @@ public class TestUnifiedParquetReaderWithEqualityDeletes extends BaseTestUnified
       ParquetReaderOptions parquetReaderOptions,
       Predicate<Integer> productIdPredicate,
       String predicateDescription,
-      int expectedRecordCount) throws Exception {
+      int expectedRecordCount)
+      throws Exception {
 
-    RecordBatchValidator validator = (rowGroupIndex, outputRowIndex, records, mutator) -> {
-      IntVector productIdVector = (IntVector) mutator.getVector("product_id");
-      for (int i = 0; i < records; i++) {
+    RecordBatchValidator validator =
+        (rowGroupIndex, outputRowIndex, records, mutator) -> {
+          IntVector productIdVector = (IntVector) mutator.getVector("product_id");
+          for (int i = 0; i < records; i++) {
 
-        int productId = productIdVector.get(i);
-        assertThat(productId)
-            .as("output row index %d", outputRowIndex + i)
-            .is(new Condition<>(productIdPredicate, predicateDescription));
-      }
-    };
+            int productId = productIdVector.get(i);
+            assertThat(productId)
+                .as("output row index %d", outputRowIndex + i)
+                .is(new Condition<>(productIdPredicate, predicateDescription));
+          }
+        };
 
-    int recordCount = readAndValidate(
-        getAbsolutePath(DATA_WIDGET_00),
-        filters,
-        ImmutableList.of("product_id", "color"),
-        parquetReaderOptions,
-        validator);
+    int recordCount =
+        readAndValidate(
+            getAbsolutePath(DATA_WIDGET_00),
+            filters,
+            ImmutableList.of("product_id", "color"),
+            parquetReaderOptions,
+            validator);
 
     assertThat(recordCount).isEqualTo(expectedRecordCount);
     assertThat(filters.getEqualityDeleteFilter().refCount()).isEqualTo(0);
   }
 
-  private EqualityDeleteFilter createEqualityDeleteFilter(DeleteFileInfo deleteFile) throws Exception {
-    ParquetRowLevelDeleteFileReaderFactory factory = new ParquetRowLevelDeleteFileReaderFactory(
-        getInputStreamProviderFactory(), getParquetReaderFactory(), fs, null, IcebergTestTables.PRODUCTS_SCHEMA);
-    EqualityDeleteFileReader reader = factory.createEqualityDeleteFileReader(context,
-        getAbsolutePath(deleteFile.getPath()), deleteFile.getRecordCount(), deleteFile.getEqualityIds(),
-        getIcebergSchemaFields(IcebergTestTables.PRODUCTS_SCHEMA));
+  private EqualityDeleteFilter createEqualityDeleteFilter(DeleteFileInfo deleteFile)
+      throws Exception {
+    ParquetRowLevelDeleteFileReaderFactory factory =
+        new ParquetRowLevelDeleteFileReaderFactory(
+            getInputStreamProviderFactory(),
+            getParquetReaderFactory(),
+            fs,
+            null,
+            IcebergTestTables.PRODUCTS_SCHEMA);
+    EqualityDeleteFileReader reader =
+        factory.createEqualityDeleteFileReader(
+            context,
+            getAbsolutePath(deleteFile.getPath()),
+            deleteFile.getRecordCount(),
+            deleteFile.getEqualityIds(),
+            getIcebergSchemaFields(IcebergTestTables.PRODUCTS_SCHEMA));
     reader.setup();
     // create with refcount 2 since there's 2 rowgroups in the data file
-    return new EqualityDeleteFilter(getTestAllocator(), new LazyEqualityDeleteTableSupplier(ImmutableList.of(reader)),
-        2, null);
+    return new EqualityDeleteFilter(
+        getTestAllocator(), new LazyEqualityDeleteTableSupplier(ImmutableList.of(reader)), 2, null);
   }
 
   private Path getAbsolutePath(String relativePath) {
@@ -141,10 +160,11 @@ public class TestUnifiedParquetReaderWithEqualityDeletes extends BaseTestUnified
   private List<IcebergProtobuf.IcebergSchemaField> getIcebergSchemaFields(BatchSchema schema) {
     List<IcebergProtobuf.IcebergSchemaField> fields = new ArrayList<>();
     for (int i = 0; i < schema.getFields().size(); i++) {
-      fields.add(IcebergProtobuf.IcebergSchemaField.newBuilder()
-          .setSchemaPath(schema.getFields().get(i).getName())
-          .setId(i + 1)
-          .build());
+      fields.add(
+          IcebergProtobuf.IcebergSchemaField.newBuilder()
+              .setSchemaPath(schema.getFields().get(i).getName())
+              .setId(i + 1)
+              .build());
     }
 
     return fields;

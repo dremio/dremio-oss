@@ -15,15 +15,6 @@
  */
 package com.dremio.exec.store;
 
-import java.util.ConcurrentModificationException;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Stream;
-
-import javax.annotation.concurrent.ThreadSafe;
-
-import org.apache.calcite.tools.RuleSet;
-
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.ManagedStoragePlugin;
 import com.dremio.exec.catalog.MetadataRequestOptions;
@@ -39,75 +30,88 @@ import com.dremio.service.namespace.source.proto.MetadataPolicy;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.source.proto.UpdateMode;
 import com.google.common.annotations.VisibleForTesting;
+import java.util.ConcurrentModificationException;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
+import javax.annotation.concurrent.ThreadSafe;
+import org.apache.calcite.tools.RuleSet;
 
-/**
- * Manages metadata for sources and datasets under these sources.
- */
+/** Manages metadata for sources and datasets under these sources. */
 @ThreadSafe
-public interface CatalogService extends AutoCloseable, Service, StoragePluginResolver, CatalogStatusEvents {
-  long DEFAULT_REFRESH_MILLIS = TimeUnit.MILLISECONDS.convert(
-    Integer.getInteger("dremio.metadata.default_refresh_time_in_hours", 1), TimeUnit.HOURS);
-  long DEFAULT_EXPIRE_MILLIS = TimeUnit.MILLISECONDS.convert(
-    Integer.getInteger("dremio.metadata.default_expire_time_in_hours", 3), TimeUnit.HOURS);
+public interface CatalogService
+    extends AutoCloseable, Service, StoragePluginResolver, CatalogStatusEvents {
+  long DEFAULT_REFRESH_MILLIS =
+      TimeUnit.MILLISECONDS.convert(
+          Integer.getInteger("dremio.metadata.default_refresh_time_in_hours", 1), TimeUnit.HOURS);
+  long DEFAULT_EXPIRE_MILLIS =
+      TimeUnit.MILLISECONDS.convert(
+          Integer.getInteger("dremio.metadata.default_expire_time_in_hours", 3), TimeUnit.HOURS);
   long DEFAULT_AUTHTTLS_MILLIS = TimeUnit.MILLISECONDS.convert(1, TimeUnit.DAYS);
   long CENTURY_MILLIS = TimeUnit.DAYS.toMillis(365 * 100);
 
   @VisibleForTesting
-  MetadataPolicy REFRESH_EVERYTHING_NOW = new MetadataPolicy()
-    .setAuthTtlMs(0L)
-    .setDeleteUnavailableDatasets(true)
-    .setAutoPromoteDatasets(DatasetRetrievalOptions.DEFAULT_AUTO_PROMOTE)
-    .setDatasetUpdateMode(UpdateMode.PREFETCH)
-    .setNamesRefreshMs(0L)
-    .setDatasetDefinitionRefreshAfterMs(0L)
-    .setDatasetDefinitionExpireAfterMs(DEFAULT_EXPIRE_MILLIS);
+  MetadataPolicy REFRESH_EVERYTHING_NOW =
+      new MetadataPolicy()
+          .setAuthTtlMs(0L)
+          .setDeleteUnavailableDatasets(true)
+          .setAutoPromoteDatasets(DatasetRetrievalOptions.DEFAULT_AUTO_PROMOTE)
+          .setDatasetUpdateMode(UpdateMode.PREFETCH)
+          .setNamesRefreshMs(0L)
+          .setDatasetDefinitionRefreshAfterMs(0L)
+          .setDatasetDefinitionExpireAfterMs(DEFAULT_EXPIRE_MILLIS);
 
-  MetadataPolicy DEFAULT_METADATA_POLICY = new MetadataPolicy()
-    .setAuthTtlMs(DEFAULT_AUTHTTLS_MILLIS)
-    .setDeleteUnavailableDatasets(true)
-    .setAutoPromoteDatasets(DatasetRetrievalOptions.DEFAULT_AUTO_PROMOTE)
-    .setDatasetUpdateMode(UpdateMode.PREFETCH_QUERIED)
-    .setNamesRefreshMs(DEFAULT_REFRESH_MILLIS)
-    .setDatasetDefinitionRefreshAfterMs(DEFAULT_REFRESH_MILLIS)
-    .setDatasetDefinitionExpireAfterMs(DEFAULT_EXPIRE_MILLIS);
-
-  @VisibleForTesting
-  MetadataPolicy DEFAULT_METADATA_POLICY_WITH_AUTO_PROMOTE = new MetadataPolicy()
-      .setAuthTtlMs(DEFAULT_AUTHTTLS_MILLIS)
-      .setDeleteUnavailableDatasets(true)
-      .setAutoPromoteDatasets(true)
-      .setDatasetUpdateMode(UpdateMode.PREFETCH_QUERIED)
-      .setNamesRefreshMs(DEFAULT_REFRESH_MILLIS)
-      .setDatasetDefinitionRefreshAfterMs(DEFAULT_REFRESH_MILLIS)
-      .setDatasetDefinitionExpireAfterMs(DEFAULT_EXPIRE_MILLIS);
-
-  MetadataPolicy NEVER_REFRESH_POLICY = new MetadataPolicy()
-    .setAuthTtlMs(CENTURY_MILLIS)
-    .setDeleteUnavailableDatasets(true)
-    .setAutoPromoteDatasets(DatasetRetrievalOptions.DEFAULT_AUTO_PROMOTE)
-    .setDatasetUpdateMode(UpdateMode.PREFETCH)
-    .setNamesRefreshMs(CENTURY_MILLIS)
-    .setDatasetDefinitionRefreshAfterMs(CENTURY_MILLIS)
-    .setDatasetDefinitionExpireAfterMs(CENTURY_MILLIS);
-
-  MetadataPolicy NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE = new MetadataPolicy()
-      .setAuthTtlMs(CENTURY_MILLIS)
-      .setDeleteUnavailableDatasets(true)
-      .setAutoPromoteDatasets(true)
-      .setDatasetUpdateMode(UpdateMode.PREFETCH)
-      .setNamesRefreshMs(CENTURY_MILLIS)
-      .setDatasetDefinitionRefreshAfterMs(CENTURY_MILLIS)
-      .setDatasetDefinitionExpireAfterMs(CENTURY_MILLIS);
+  MetadataPolicy DEFAULT_METADATA_POLICY =
+      new MetadataPolicy()
+          .setAuthTtlMs(DEFAULT_AUTHTTLS_MILLIS)
+          .setDeleteUnavailableDatasets(true)
+          .setAutoPromoteDatasets(DatasetRetrievalOptions.DEFAULT_AUTO_PROMOTE)
+          .setDatasetUpdateMode(UpdateMode.PREFETCH_QUERIED)
+          .setNamesRefreshMs(DEFAULT_REFRESH_MILLIS)
+          .setDatasetDefinitionRefreshAfterMs(DEFAULT_REFRESH_MILLIS)
+          .setDatasetDefinitionExpireAfterMs(DEFAULT_EXPIRE_MILLIS);
 
   @VisibleForTesting
-  MetadataPolicy NEVER_REFRESH_POLICY_WITH_PREFETCH_QUERIED = new MetadataPolicy()
-    .setAuthTtlMs(CENTURY_MILLIS)
-    .setDeleteUnavailableDatasets(true)
-    .setAutoPromoteDatasets(DatasetRetrievalOptions.DEFAULT_AUTO_PROMOTE)
-    .setDatasetUpdateMode(UpdateMode.PREFETCH_QUERIED)
-    .setNamesRefreshMs(CENTURY_MILLIS)
-    .setDatasetDefinitionRefreshAfterMs(CENTURY_MILLIS)
-    .setDatasetDefinitionExpireAfterMs(CENTURY_MILLIS);
+  MetadataPolicy DEFAULT_METADATA_POLICY_WITH_AUTO_PROMOTE =
+      new MetadataPolicy()
+          .setAuthTtlMs(DEFAULT_AUTHTTLS_MILLIS)
+          .setDeleteUnavailableDatasets(true)
+          .setAutoPromoteDatasets(true)
+          .setDatasetUpdateMode(UpdateMode.PREFETCH_QUERIED)
+          .setNamesRefreshMs(DEFAULT_REFRESH_MILLIS)
+          .setDatasetDefinitionRefreshAfterMs(DEFAULT_REFRESH_MILLIS)
+          .setDatasetDefinitionExpireAfterMs(DEFAULT_EXPIRE_MILLIS);
+
+  MetadataPolicy NEVER_REFRESH_POLICY =
+      new MetadataPolicy()
+          .setAuthTtlMs(CENTURY_MILLIS)
+          .setDeleteUnavailableDatasets(true)
+          .setAutoPromoteDatasets(DatasetRetrievalOptions.DEFAULT_AUTO_PROMOTE)
+          .setDatasetUpdateMode(UpdateMode.PREFETCH)
+          .setNamesRefreshMs(CENTURY_MILLIS)
+          .setDatasetDefinitionRefreshAfterMs(CENTURY_MILLIS)
+          .setDatasetDefinitionExpireAfterMs(CENTURY_MILLIS);
+
+  MetadataPolicy NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE =
+      new MetadataPolicy()
+          .setAuthTtlMs(CENTURY_MILLIS)
+          .setDeleteUnavailableDatasets(true)
+          .setAutoPromoteDatasets(true)
+          .setDatasetUpdateMode(UpdateMode.PREFETCH)
+          .setNamesRefreshMs(CENTURY_MILLIS)
+          .setDatasetDefinitionRefreshAfterMs(CENTURY_MILLIS)
+          .setDatasetDefinitionExpireAfterMs(CENTURY_MILLIS);
+
+  @VisibleForTesting
+  MetadataPolicy NEVER_REFRESH_POLICY_WITH_PREFETCH_QUERIED =
+      new MetadataPolicy()
+          .setAuthTtlMs(CENTURY_MILLIS)
+          .setDeleteUnavailableDatasets(true)
+          .setAutoPromoteDatasets(DatasetRetrievalOptions.DEFAULT_AUTO_PROMOTE)
+          .setDatasetUpdateMode(UpdateMode.PREFETCH_QUERIED)
+          .setNamesRefreshMs(CENTURY_MILLIS)
+          .setDatasetDefinitionRefreshAfterMs(CENTURY_MILLIS)
+          .setDatasetDefinitionExpireAfterMs(CENTURY_MILLIS);
 
   /**
    * Create the provided source if a source by the provided name doesn't already exist.
@@ -116,8 +120,8 @@ public interface CatalogService extends AutoCloseable, Service, StoragePluginRes
    * @return True if the source is created, else false.
    * @throws ConcurrentModificationException
    */
-  boolean createSourceIfMissingWithThrow(SourceConfig config) throws ConcurrentModificationException;
-
+  boolean createSourceIfMissingWithThrow(SourceConfig config)
+      throws ConcurrentModificationException;
 
   /**
    * Get the cached source state for a plugin.
@@ -138,10 +142,9 @@ public interface CatalogService extends AutoCloseable, Service, StoragePluginRes
 
   /**
    * Collect all rules for StoragePlugins.
-   * <p>
-   * Collects the following:
-   * - One set of rules for each storage plugin type.
-   * - One set of rules for each storage plugin instance.
+   *
+   * <p>Collects the following: - One set of rules for each storage plugin type. - One set of rules
+   * for each storage plugin instance.
    *
    * @param context
    * @param phase
@@ -151,9 +154,11 @@ public interface CatalogService extends AutoCloseable, Service, StoragePluginRes
 
   /**
    * Get a new {@link Catalog} contextualized to the {@link SchemaConfig} provided via the given
-   * {@link MetadataRequestOptions metadata request options}, and constrained by the other request options.
-   * <p>
-   * {@link Catalog Catalogs} are used to interact with datasets within the context of a particular session.
+   * {@link MetadataRequestOptions metadata request options}, and constrained by the other request
+   * options.
+   *
+   * <p>{@link Catalog Catalogs} are used to interact with datasets within the context of a
+   * particular session.
    *
    * @param requestOptions metadata request options
    * @return catalog with the given constraints
@@ -161,7 +166,8 @@ public interface CatalogService extends AutoCloseable, Service, StoragePluginRes
   Catalog getCatalog(MetadataRequestOptions requestOptions);
 
   /**
-   * Determines if a SourceConfig changes metadata impacting properties compared to the existing SourceConfig.
+   * Determines if a SourceConfig changes metadata impacting properties compared to the existing
+   * SourceConfig.
    *
    * @param sourceConfig source config
    * @return boolean
@@ -178,8 +184,10 @@ public interface CatalogService extends AutoCloseable, Service, StoragePluginRes
    * @param rpcType
    * @return
    */
-  void communicateChangeToExecutors(List<CoordinationProtos.NodeEndpoint> nodeEndpointList, SourceConfig config, CatalogRPC.RpcType rpcType);
+  void communicateChangeToExecutors(
+      List<CoordinationProtos.NodeEndpoint> nodeEndpointList,
+      SourceConfig config,
+      CatalogRPC.RpcType rpcType);
 
   Stream<VersionedPlugin> getAllVersionedPlugins();
-
-  }
+}

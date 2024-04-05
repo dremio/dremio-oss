@@ -15,30 +15,21 @@
  */
 package com.dremio.resource;
 
-/**
- * Observer for updates during resource scheduling/allocation.
- */
+/** Observer for updates during resource scheduling/allocation. */
 public interface ResourceSchedulingObserver {
-  /**
-   * Called to report the beginning of engine start.
-   */
+  /** Called to report the beginning of engine start. */
   void beginEngineStart();
 
-  /**
-   * Called to report the beginning of queue wait.
-   */
+  /** Called to report the beginning of queue wait. */
   void beginQueueWait();
 
-  /**
-   * No-op implementation.
-   */
-  ResourceSchedulingObserver NO_OP = new ResourceSchedulingObserver() {
-    @Override
-    public void beginEngineStart() {
-    }
+  /** No-op implementation. */
+  ResourceSchedulingObserver NO_OP =
+      new ResourceSchedulingObserver() {
+        @Override
+        public void beginEngineStart() {}
 
-    @Override
-    public void beginQueueWait() {
-    }
-  };
+        @Override
+        public void beginQueueWait() {}
+      };
 }

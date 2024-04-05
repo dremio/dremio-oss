@@ -135,7 +135,6 @@ export function navigateToNextDataset(
     const { tipVersion, openResults } = location.query || {};
     let targetPageType = PageTypes.default;
     let keepQuery = false;
-    let collapseSqlEditor = false;
 
     // pathnames in the dataset editor have the format "/{space|source|home}/{top-level name}/{dataset path}/{tab name}"
     // to make sure datasets named after tabs don't auto-switch we need to check the 4th index for the tab name
@@ -151,10 +150,9 @@ export function navigateToNextDataset(
     if (validTabs.includes(tabName) && !openResults) {
       targetPageType = tabName;
       keepQuery = true;
-      collapseSqlEditor = true;
     }
 
-    if (collapseSqlEditor) {
+    if (openResults) {
       dispatch(collapseExploreSql());
     }
 
@@ -239,6 +237,7 @@ export function navigateToNextDataset(
     const nextState = {
       ...(isTransform ? { isTransform } : {}),
       ...(goToSqlRunner && renderScriptTab ? { renderScriptTab } : {}),
+      ...(location.state?.isFromDataGraph ? { isFromDataGraph: true } : {}), // used when opening a table from the lineage graph
     };
 
     const state = isSaveAs ? { afterDatasetSave: true } : nextState;

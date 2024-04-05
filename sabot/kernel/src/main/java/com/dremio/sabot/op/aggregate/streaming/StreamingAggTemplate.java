@@ -15,11 +15,10 @@
  */
 package com.dremio.sabot.op.aggregate.streaming;
 
-import javax.inject.Named;
-
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.sabot.exec.context.FunctionContext;
 import com.dremio.sabot.op.aggregate.streaming.StreamingAggOperator.TransferOnDeckAtBat;
+import javax.inject.Named;
 
 public abstract class StreamingAggTemplate implements StreamingAggregator {
 
@@ -44,7 +43,6 @@ public abstract class StreamingAggTemplate implements StreamingAggregator {
     setupOnDeck(context, onDeck, atBat, output);
   }
 
-
   @Override
   public void consumeFirstRecord() {
     addAtBatRecord(atBatIndex++);
@@ -68,7 +66,7 @@ public abstract class StreamingAggTemplate implements StreamingAggregator {
       addAtBatRecord(atBatIndex++);
 
       // check if we should return the output batch.
-      if(outputIndex == targetBatchSize) {
+      if (outputIndex == targetBatchSize) {
         int localOutputIndex = outputIndex;
         outputIndex = 0;
         return localOutputIndex;
@@ -86,9 +84,9 @@ public abstract class StreamingAggTemplate implements StreamingAggregator {
     int outputIndex = this.outputIndex;
     int cur = atBatIndex;
 
-    for(; cur < recordCount; cur++){
+    for (; cur < recordCount; cur++) {
       final int prev = cur - 1;
-      if(compareAtBat(prev, cur)) { // keys matched.
+      if (compareAtBat(prev, cur)) { // keys matched.
         addAtBatRecord(cur);
       } else { // keys didn't match, output a record.
         outputAggregation(outputIndex);
@@ -97,7 +95,7 @@ public abstract class StreamingAggTemplate implements StreamingAggregator {
         resetValues();
         addAtBatRecord(cur);
 
-        if(outputIndex == targetBatchSize) {
+        if (outputIndex == targetBatchSize) {
           // reset class variable
           this.outputIndex = 0;
           this.atBatIndex = cur + 1;
@@ -125,10 +123,17 @@ public abstract class StreamingAggTemplate implements StreamingAggregator {
   }
 
   // Methods associated only with atBat data.
-  public abstract void setupAtBat(@Named("context") FunctionContext context, @Named("atBat") VectorAccessible atBat, @Named("output") VectorAccessible output);
+  public abstract void setupAtBat(
+      @Named("context") FunctionContext context,
+      @Named("atBat") VectorAccessible atBat,
+      @Named("output") VectorAccessible output);
+
   public abstract boolean compareAtBat(@Named("index1") int index1, @Named("index2") int index2);
+
   public abstract void addAtBatRecord(@Named("atBatIndex") int index);
-  public abstract void outputAtBatKeys(@Named("atBatIndex") int inIndex, @Named("outputIndex") int outputIndex);
+
+  public abstract void outputAtBatKeys(
+      @Named("atBatIndex") int inIndex, @Named("outputIndex") int outputIndex);
 
   // Methods associated with onDeck data.
   public abstract void setupOnDeck(
@@ -136,12 +141,13 @@ public abstract class StreamingAggTemplate implements StreamingAggregator {
       @Named("onDeck") VectorAccessible onDeck,
       @Named("atBat") VectorAccessible atBat,
       @Named("output") VectorAccessible output);
-  public abstract boolean compareOnDeckAndAtBat(@Named("onDeckIndex") int onDeckIndex, @Named("atBatIndex") int atBatIndex);
+
+  public abstract boolean compareOnDeckAndAtBat(
+      @Named("onDeckIndex") int onDeckIndex, @Named("atBatIndex") int atBatIndex);
 
   public abstract void outputAggregation(@Named("outputIndex") int outIndex);
+
   public abstract int getVectorIndex(@Named("recordIndex") int recordIndex);
+
   public abstract boolean resetValues();
-
-
-
 }

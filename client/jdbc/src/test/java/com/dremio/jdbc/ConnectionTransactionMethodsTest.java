@@ -25,13 +25,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
-
 import org.junit.Test;
 
-
-/**
- * Test for Dremio's implementation of Connection's main transaction-related methods.
- */
+/** Test for Dremio's implementation of Connection's main transaction-related methods. */
 public class ConnectionTransactionMethodsTest extends JdbcWithServerTestBase {
 
   ////////////////////////////////////////
@@ -59,35 +55,35 @@ public class ConnectionTransactionMethodsTest extends JdbcWithServerTestBase {
   @Test
   public void testSetTransactionIsolationReadUncommittedThrows() {
     assertThatThrownBy(() -> getConnection().setTransactionIsolation(TRANSACTION_READ_UNCOMMITTED))
-      .isInstanceOf(SQLFeatureNotSupportedException.class)
-      .hasMessageContaining("TRANSACTION_READ_UNCOMMITTED")
-      .hasMessageContaining("transaction isolation level")
-      .hasMessageContaining("TRANSACTION_NONE");
+        .isInstanceOf(SQLFeatureNotSupportedException.class)
+        .hasMessageContaining("TRANSACTION_READ_UNCOMMITTED")
+        .hasMessageContaining("transaction isolation level")
+        .hasMessageContaining("TRANSACTION_NONE");
   }
 
   @Test
   public void testSetTransactionIsolationReadCommittedThrows() {
     assertThatThrownBy(() -> getConnection().setTransactionIsolation(TRANSACTION_READ_COMMITTED))
-      .isInstanceOf(SQLFeatureNotSupportedException.class);
+        .isInstanceOf(SQLFeatureNotSupportedException.class);
   }
 
   @Test
   public void testSetTransactionIsolationRepeatableReadThrows() {
     assertThatThrownBy(() -> getConnection().setTransactionIsolation(TRANSACTION_REPEATABLE_READ))
-      .isInstanceOf(SQLFeatureNotSupportedException.class);
+        .isInstanceOf(SQLFeatureNotSupportedException.class);
   }
 
   @Test
   public void testSetTransactionIsolationSerializableThrows() {
     assertThatThrownBy(() -> getConnection().setTransactionIsolation(TRANSACTION_SERIALIZABLE))
-      .isInstanceOf(SQLFeatureNotSupportedException.class);
+        .isInstanceOf(SQLFeatureNotSupportedException.class);
   }
 
   @Test
   public void testSetTransactionIsolationBadIntegerThrows() {
     // not any TRANSACTION_* value
     assertThatThrownBy(() -> getConnection().setTransactionIsolation(15))
-      .isInstanceOf(JdbcApiSqlException.class);
+        .isInstanceOf(JdbcApiSqlException.class);
   }
 
   //////////
@@ -111,15 +107,13 @@ public class ConnectionTransactionMethodsTest extends JdbcWithServerTestBase {
   @Test
   public void testCommitThrows() {
     // Should fail saying because in auto-commit mode (or maybe because not supported).
-    assertThatThrownBy(() -> getConnection().commit())
-      .isInstanceOf(JdbcApiSqlException.class);
+    assertThatThrownBy(() -> getConnection().commit()).isInstanceOf(JdbcApiSqlException.class);
   }
 
   @Test
   public void testRollbackThrows() {
     // Should fail saying because in auto-commit mode (or maybe because not supported).
-    assertThatThrownBy(() -> getConnection().rollback())
-      .isInstanceOf(JdbcApiSqlException.class);
+    assertThatThrownBy(() -> getConnection().rollback()).isInstanceOf(JdbcApiSqlException.class);
   }
 
   ////////////////////////////////////////
@@ -128,25 +122,24 @@ public class ConnectionTransactionMethodsTest extends JdbcWithServerTestBase {
   @Test
   public void testSetSavepointUnamed() {
     assertThatThrownBy(() -> getConnection().setSavepoint())
-      .isInstanceOf(SQLFeatureNotSupportedException.class);
+        .isInstanceOf(SQLFeatureNotSupportedException.class);
   }
 
   @Test
   public void testSetSavepointNamed() {
     assertThatThrownBy(() -> getConnection().setSavepoint("savepoint name"))
-      .isInstanceOf(SQLFeatureNotSupportedException.class);
+        .isInstanceOf(SQLFeatureNotSupportedException.class);
   }
 
   @Test
   public void testRollbackSavepoint() {
     assertThatThrownBy(() -> getConnection().rollback(null))
-      .isInstanceOf(SQLFeatureNotSupportedException.class);
+        .isInstanceOf(SQLFeatureNotSupportedException.class);
   }
 
   @Test
   public void testReleaseSavepoint() {
     assertThatThrownBy(() -> getConnection().releaseSavepoint(null))
-      .isInstanceOf(SQLFeatureNotSupportedException.class);
+        .isInstanceOf(SQLFeatureNotSupportedException.class);
   }
-
 }

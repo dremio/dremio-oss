@@ -15,16 +15,13 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.dremio.service.namespace.NamespaceKey;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.dremio.service.namespace.NamespaceKey;
-
-/**
- * Abstract class for 'ALTER TABLE' - unparses 'ALTER TABLE' part of the command
- */
+/** Abstract class for 'ALTER TABLE' - unparses 'ALTER TABLE' part of the command */
 public abstract class SqlAlterTable extends SqlCall {
 
   protected final SqlIdentifier tblName;

@@ -15,44 +15,42 @@
  */
 package com.dremio.plugins.elastic.planning.rules;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import org.apache.calcite.rel.RelNode;
-
 import com.dremio.exec.planner.common.MoreRelOptUtil;
 import com.dremio.plugins.elastic.planning.rels.ElasticsearchPrel;
 import com.google.common.collect.ImmutableList;
+import java.util.ArrayList;
+import java.util.List;
+import org.apache.calcite.rel.RelNode;
 
-/**
- * Get the stack of Elastic operators
- */
+/** Get the stack of Elastic operators */
 public final class StackFinder {
 
-  private StackFinder(){}
+  private StackFinder() {}
 
-  public static List<ElasticsearchPrel> getStack(RelNode rel){
+  public static List<ElasticsearchPrel> getStack(RelNode rel) {
     rel = rel.accept(new MoreRelOptUtil.SubsetRemover(false));
     rel = rel.accept(new MoreRelOptUtil.VertexRemover());
     List<ElasticsearchPrel> stack = new ArrayList<>();
-    outside: while(rel != null){
-      if( !(rel instanceof ElasticsearchPrel) ){
-        throw new IllegalStateException("Stack should only include ElasticPrels, but actually included " + rel.getClass().getName());
+    outside:
+    while (rel != null) {
+      if (!(rel instanceof ElasticsearchPrel)) {
+        throw new IllegalStateException(
+            "Stack should only include ElasticPrels, but actually included "
+                + rel.getClass().getName());
       }
       stack.add((ElasticsearchPrel) rel);
       List<RelNode> nodes = rel.getInputs();
-      switch(nodes.size()){
-      case 0:
-        break outside;
-      case 1:
-        rel = nodes.get(0);
-        break;
-      default:
-        throw new IllegalStateException("Elastic rels should be single input or no input.");
+      switch (nodes.size()) {
+        case 0:
+          break outside;
+        case 1:
+          rel = nodes.get(0);
+          break;
+        default:
+          throw new IllegalStateException("Elastic rels should be single input or no input.");
       }
     }
 
     return ImmutableList.copyOf(stack);
   }
-
 }

@@ -18,11 +18,17 @@ package com.dremio.exec.planner.sql;
 import static com.dremio.test.UserExceptionAssert.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 
+import com.dremio.BaseTestQuery;
+import com.dremio.common.exceptions.UserException;
+import com.dremio.common.utils.SqlUtils;
+import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.planner.sql.parser.SqlAlterTableSortOrder;
+import com.dremio.exec.proto.UserBitShared;
+import com.google.common.collect.Sets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
 import org.apache.calcite.config.NullCollation;
 import org.apache.calcite.sql.SqlDialect;
 import org.apache.calcite.sql.SqlKind;
@@ -31,30 +37,28 @@ import org.apache.calcite.sql.pretty.SqlPrettyWriter;
 import org.junit.Assert;
 import org.junit.Test;
 
-import com.dremio.BaseTestQuery;
-import com.dremio.common.exceptions.UserException;
-import com.dremio.common.utils.SqlUtils;
-import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.planner.sql.parser.SqlAlterTableSortOrder;
-import com.dremio.exec.proto.UserBitShared;
-import com.google.common.collect.Sets;
-
 public class TestSqlAlterTableSortOrder extends BaseTestQuery {
 
-  private final ParserConfig parserConfig = new ParserConfig(ParserConfig.QUOTING, 100,
-    PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
+  private final ParserConfig parserConfig =
+      new ParserConfig(
+          ParserConfig.QUOTING,
+          100,
+          PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
 
   @Test
   public void testParseMalformedQueries() throws Exception {
-    List<String> malformedQueries = new ArrayList<String>() {{
-      add("ALTER TABLE t1 LOCALSORT BY");
-      add("ALTER TABLE t1 LOCALSORT BY (");
-      add("ALTER TABLE t1 LOCALSORT BY )");
-      add("ALTER TABLE t1 LOCALSORT BY (()");
-      add("ALTER TABLE t1 LOCALSORT BY ((a))");
-      add("ALTER TABLE t1 LOCALSORT BY (b a e");
-      add("ALTER TABLE t1 LOCALSORT BY (b a e)");
-    }};
+    List<String> malformedQueries =
+        new ArrayList<String>() {
+          {
+            add("ALTER TABLE t1 LOCALSORT BY");
+            add("ALTER TABLE t1 LOCALSORT BY (");
+            add("ALTER TABLE t1 LOCALSORT BY )");
+            add("ALTER TABLE t1 LOCALSORT BY (()");
+            add("ALTER TABLE t1 LOCALSORT BY ((a))");
+            add("ALTER TABLE t1 LOCALSORT BY (b a e");
+            add("ALTER TABLE t1 LOCALSORT BY (b a e)");
+          }
+        };
     for (String malformedQuery : malformedQueries) {
       parseAndVerifyMalFormat(malformedQuery);
     }
@@ -62,11 +66,14 @@ public class TestSqlAlterTableSortOrder extends BaseTestQuery {
 
   @Test
   public void testWellFormedQueries() throws Exception {
-    List<String> malformedQueries = new ArrayList<String>() {{
-      add("ALTER TABLE t1 LOCALSORT BY (a)");
-      add("ALTER TABLE t1 LOCALSORT BY (a, b, c, d, e, f, g, h)");
-      add("ALTER TABLE t1 LOCALSORT BY (blah, foo, block, mic, ToTaL_COST23)");
-    }};
+    List<String> malformedQueries =
+        new ArrayList<String>() {
+          {
+            add("ALTER TABLE t1 LOCALSORT BY (a)");
+            add("ALTER TABLE t1 LOCALSORT BY (a, b, c, d, e, f, g, h)");
+            add("ALTER TABLE t1 LOCALSORT BY (blah, foo, block, mic, ToTaL_COST23)");
+          }
+        };
     for (String malformedQuery : malformedQueries) {
       parseAndVerifyWellFormat(malformedQuery);
     }
@@ -74,16 +81,22 @@ public class TestSqlAlterTableSortOrder extends BaseTestQuery {
 
   @Test
   public void testParseAndUnparse() throws Exception {
-    Map<String, String> queryExpectedString = new HashMap<String, String>() {{
-      put("ALTER TABLE t1 LOCALSORT BY (a)", "ALTER TABLE \"t1\" LOCALSORT BY (\"a\")");
-      put("ALTER TABLE t1 LOCALSORT BY (a, b, c, d, e, f, g, h)", "ALTER TABLE \"t1\" LOCALSORT BY (\"a\", \"b\", \"c\", \"d\", \"e\", \"f\", \"g\", \"h\")");
-      put("ALTER TABLE t1 LOCALSORT BY (blah, foo, block, mic, ToTaL_COST23)", "ALTER TABLE \"t1\" LOCALSORT BY (\"blah\", \"foo\", \"block\", \"mic\", \"ToTal_COST23\")");
-    }};
+    Map<String, String> queryExpectedString =
+        new HashMap<String, String>() {
+          {
+            put("ALTER TABLE t1 LOCALSORT BY (a)", "ALTER TABLE \"t1\" LOCALSORT BY (\"a\")");
+            put(
+                "ALTER TABLE t1 LOCALSORT BY (a, b, c, d, e, f, g, h)",
+                "ALTER TABLE \"t1\" LOCALSORT BY (\"a\", \"b\", \"c\", \"d\", \"e\", \"f\", \"g\", \"h\")");
+            put(
+                "ALTER TABLE t1 LOCALSORT BY (blah, foo, block, mic, ToTaL_COST23)",
+                "ALTER TABLE \"t1\" LOCALSORT BY (\"blah\", \"foo\", \"block\", \"mic\", \"ToTal_COST23\")");
+          }
+        };
 
     for (Map.Entry<String, String> entry : queryExpectedString.entrySet()) {
       parseAndVerifyUnparse(entry.getKey(), entry.getValue());
     }
-
   }
 
   private void parseAndVerifyWellFormat(String sql) {
@@ -94,17 +107,22 @@ public class TestSqlAlterTableSortOrder extends BaseTestQuery {
 
   private void parseAndVerifyMalFormat(String sql) {
     assertThatThrownBy(() -> SqlConverter.parseSingleStatementImpl(sql, parserConfig, false))
-      .isInstanceOf(UserException.class)
-      .satisfies(e -> assertEquals((e).getErrorType(), UserBitShared.DremioPBError.ErrorType.PARSE));
+        .isInstanceOf(UserException.class)
+        .satisfies(
+            e -> assertEquals((e).getErrorType(), UserBitShared.DremioPBError.ErrorType.PARSE));
   }
 
   private void parseAndVerifyUnparse(String sql, String expectedString) {
     SqlNode sqlNode = SqlConverter.parseSingleStatementImpl(sql, parserConfig, false);
     Assert.assertTrue(sqlNode instanceof SqlAlterTableSortOrder);
 
-    //verify Unparse
+    // verify Unparse
     SqlDialect DREMIO_DIALECT =
-      new SqlDialect(SqlDialect.DatabaseProduct.UNKNOWN, "Dremio", Character.toString(SqlUtils.QUOTE), NullCollation.FIRST);
+        new SqlDialect(
+            SqlDialect.DatabaseProduct.UNKNOWN,
+            "Dremio",
+            Character.toString(SqlUtils.QUOTE),
+            NullCollation.FIRST);
     SqlPrettyWriter writer = new SqlPrettyWriter(DREMIO_DIALECT);
     sqlNode.unparse(writer, 0, 0);
     String actual = writer.toString();

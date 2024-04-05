@@ -17,8 +17,10 @@ package com.dremio.plugins.elastic;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.dremio.plugins.elastic.ElasticActions.Search;
+import com.dremio.plugins.elastic.ElasticActions.SearchBytes;
+import com.dremio.plugins.elastic.ElasticConnectionPool.ElasticConnection;
 import java.util.Random;
-
 import org.apache.commons.lang3.NotImplementedException;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.node.DiscoveryNode;
@@ -35,13 +37,7 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.plugins.elastic.ElasticActions.Search;
-import com.dremio.plugins.elastic.ElasticActions.SearchBytes;
-import com.dremio.plugins.elastic.ElasticConnectionPool.ElasticConnection;
-
-/**
- * Tests for the shard-aware search client.
- */
+/** Tests for the shard-aware search client. */
 @Ignore
 public class ITTestClient extends ElasticBaseTestQuery {
 
@@ -58,7 +54,8 @@ public class ITTestClient extends ElasticBaseTestQuery {
   @Before
   public void before() throws Exception {
     super.before();
-    ElasticsearchStoragePlugin plugin = getSabotContext().getCatalogService().getSource("elasticsearch");
+    ElasticsearchStoragePlugin plugin =
+        getSabotContext().getCatalogService().getSource("elasticsearch");
     connection = plugin.getRandomConnection();
   }
 
@@ -86,14 +83,20 @@ public class ITTestClient extends ElasticBaseTestQuery {
     DiscoveryNode dn = nodes.get(routing.currentNodeId());
     logger.info("--> executing search on: [{}] batch size: [{}]", routing, batchSize);
 
-    Search<byte[]> search = new SearchBytes()
-        .setQuery(String.format("{ \"query\": %s } ", QueryBuilders.matchAllQuery().toString()))
-        .setResource(schema + "/" + table)
-        .setParameter("scroll", "10s")
-        .setParameter("size", Integer.toString(batchSize));
+    Search<byte[]> search =
+        new SearchBytes()
+            .setQuery(String.format("{ \"query\": %s } ", QueryBuilders.matchAllQuery().toString()))
+            .setResource(schema + "/" + table)
+            .setParameter("scroll", "10s")
+            .setParameter("size", Integer.toString(batchSize));
 
     byte[] result = connection.execute(search, connection.getESVersionInCluster().getMajor());
-    totalHitsReceived = ElasticsearchCluster.asJsonObject(result).get(ElasticsearchConstants.HITS).getAsJsonObject().get(ElasticsearchConstants.TOTAL_HITS).getAsInt();
+    totalHitsReceived =
+        ElasticsearchCluster.asJsonObject(result)
+            .get(ElasticsearchConstants.HITS)
+            .getAsJsonObject()
+            .get(ElasticsearchConstants.TOTAL_HITS)
+            .getAsInt();
     assertThat(totalHitsReceived).isEqualTo(docs);
   }
 
@@ -122,15 +125,22 @@ public class ITTestClient extends ElasticBaseTestQuery {
       DiscoveryNode dn = nodes.get(routing.currentNodeId());
       logger.info("--> executing search on: [{}] batch size: [{}]", routing, batchSize);
 
-      Search<byte[]> search = new SearchBytes()
-          .setQuery(String.format("{ \"query\": %s } ", QueryBuilders.matchAllQuery().toString()))
-          .setResource(schema + "/" + table)
-          .setParameter("scroll", "10s")
-          .setParameter("preference", "_shards:" + routing.getId())
-          .setParameter("size", Integer.toString(batchSize));
+      Search<byte[]> search =
+          new SearchBytes()
+              .setQuery(
+                  String.format("{ \"query\": %s } ", QueryBuilders.matchAllQuery().toString()))
+              .setResource(schema + "/" + table)
+              .setParameter("scroll", "10s")
+              .setParameter("preference", "_shards:" + routing.getId())
+              .setParameter("size", Integer.toString(batchSize));
       byte[] result = connection.execute(search, connection.getESVersionInCluster().getMajor());
 
-      totalHitsReceived += ElasticsearchCluster.asJsonObject(result).get("hits").getAsJsonObject().get("total").getAsInt();
+      totalHitsReceived +=
+          ElasticsearchCluster.asJsonObject(result)
+              .get("hits")
+              .getAsJsonObject()
+              .get("total")
+              .getAsInt();
     }
 
     logger.info("--> total hits received across [{}] shards: [{}]", iter.size(), totalHitsReceived);
@@ -139,7 +149,8 @@ public class ITTestClient extends ElasticBaseTestQuery {
 
   private ClusterState state(final String index) {
     throw new NotImplementedException();
-    //return elastic.getElasticInternalClient().admin().cluster().prepareState().setIndices(index).get().getState();
+    // return
+    // elastic.getElasticInternalClient().admin().cluster().prepareState().setIndices(index).get().getState();
   }
 
   private IndexRoutingTable routing(final ClusterState state, final String index) {

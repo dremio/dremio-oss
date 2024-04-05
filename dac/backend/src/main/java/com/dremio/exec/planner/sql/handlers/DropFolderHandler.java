@@ -17,12 +17,6 @@ package com.dremio.exec.planner.sql.handlers;
 
 import static java.util.Objects.requireNonNull;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-
-import org.apache.calcite.sql.SqlNode;
-
 import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
@@ -38,6 +32,10 @@ import com.dremio.exec.store.ReferenceNotFoundException;
 import com.dremio.exec.store.ReferenceTypeConflictException;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.namespace.NamespaceKey;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import org.apache.calcite.sql.SqlNode;
 
 public class DropFolderHandler extends BaseVersionHandler<SimpleCommandResult> {
 
@@ -51,7 +49,8 @@ public class DropFolderHandler extends BaseVersionHandler<SimpleCommandResult> {
   @Override
   public List<SimpleCommandResult> toResult(String sql, SqlNode sqlNode) throws Exception {
 
-    final SqlDropFolder dropFolder = requireNonNull(SqlNodeUtil.unwrap(sqlNode, SqlDropFolder.class));
+    final SqlDropFolder dropFolder =
+        requireNonNull(SqlNodeUtil.unwrap(sqlNode, SqlDropFolder.class));
     NamespaceKey path = dropFolder.getPath();
     String sourceName = path.getRoot();
     // since the path has single item, we add context.
@@ -62,49 +61,44 @@ public class DropFolderHandler extends BaseVersionHandler<SimpleCommandResult> {
 
     final boolean existenceCheck = dropFolder.getExistenceCheck().booleanValue();
     VersionContext statementSourceVersion =
-      ReferenceTypeUtils.map(dropFolder.getRefType(), dropFolder.getRefValue(), null);
+        ReferenceTypeUtils.map(dropFolder.getRefType(), dropFolder.getRefValue(), null);
     VersionContext sessionVersion = userSession.getSessionVersionForSource(sourceName);
     VersionContext sourceVersion = statementSourceVersion.orElse(sessionVersion);
 
     final VersionedPlugin versionedPlugin = getVersionedPlugin(sourceName);
 
-    try{
+    try {
       versionedPlugin.deleteFolder(path, sourceVersion);
     } catch (NessieNamespaceNotFoundException e) {
       if (existenceCheck) {
-        return Collections.singletonList(
-          SimpleCommandResult.successful(e.getMessage()));
+        return Collections.singletonList(SimpleCommandResult.successful(e.getMessage()));
       }
-      throw UserException.validationError(e)
-        .message(e.getMessage())
-        .buildSilently();
-    }  catch (NessieNamespaceNotEmptyException e) {
-      throw UserException.validationError(e)
-        .message(e.getMessage())
-        .buildSilently();
+      throw UserException.validationError(e).message(e.getMessage()).buildSilently();
+    } catch (NessieNamespaceNotEmptyException e) {
+      throw UserException.validationError(e).message(e.getMessage()).buildSilently();
     } catch (ReferenceNotFoundException e) {
       throw UserException.validationError(e)
-        .message("Source %s not found in Source %s.", sourceVersion, sourceName)
-        .buildSilently();
+          .message("Source %s not found in Source %s.", sourceVersion, sourceName)
+          .buildSilently();
     } catch (NoDefaultBranchException e) {
       throw UserException.validationError(e)
-        .message("Unable to resolve source version. Version was not specified and Source %s does not have a default branch set.", sourceName)
-        .buildSilently();
+          .message(
+              "Unable to resolve source version. Version was not specified and Source %s does not have a default branch set.",
+              sourceName)
+          .buildSilently();
     } catch (ReferenceTypeConflictException e) {
       throw UserException.validationError(e)
-        .message("Requested %s in source %s is not the requested type.", sourceVersion, sourceName)
-        .buildSilently();
+          .message(
+              "Requested %s in source %s is not the requested type.", sourceVersion, sourceName)
+          .buildSilently();
     }
 
-    String sourceVersionMessage = sourceVersion.isSpecified()
-      ? sourceVersion.toString()
-      : "the default branch";
+    String sourceVersionMessage =
+        sourceVersion.isSpecified() ? sourceVersion.toString() : "the default branch";
     return Collections.singletonList(
-      SimpleCommandResult.successful(
-        "Folder %s has been deleted at %s in source %s.",
-        path.getName(),
-        sourceVersionMessage,
-        sourceName));
+        SimpleCommandResult.successful(
+            "Folder %s has been deleted at %s in source %s.",
+            path.getName(), sourceVersionMessage, sourceName));
   }
 
   @Override

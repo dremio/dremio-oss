@@ -58,10 +58,10 @@ export const Drawer = forwardRef<HTMLDialogElement, DrawerProps>(
             ref={mergeRefs([ref, dialogRef])}
             {...rest}
           />,
-          window.document.body
+          window.document.body,
         )
       : null;
-  }
+  },
 );
 
 export const useDrawer = () => {

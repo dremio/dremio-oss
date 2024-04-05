@@ -15,53 +15,61 @@
  */
 package com.dremio.exec.store.parquet;
 
-import java.util.Map;
-import java.util.Optional;
-
-import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.parquet.schema.Type;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.expr.TypeHelper;
-import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.io.file.FileSystem;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf;
 import com.dremio.sabot.op.scan.OutputMutator;
+import java.util.Optional;
+import java.util.stream.Collectors;
+import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.parquet.schema.Type;
 
 /**
- * Parquet reader for DeltaLake datasets. This will be an inner reader of a
- * coercion reader to support up promotion of column data types.
+ * Parquet reader for DeltaLake datasets. This will be an inner reader of a coercion reader to
+ * support up promotion of column data types.
  */
 public class DeltaLakeParquetReader extends TransactionalTableParquetReader {
 
   public DeltaLakeParquetReader(
-    OperatorContext context,
-    ParquetReaderFactory readerFactory,
-    BatchSchema tableSchema,
-    ParquetScanProjectedColumns projectedColumns,
-    Map<String, GlobalDictionaryFieldInfo> globalDictionaryFieldInfoMap,
-    DeltaLakeParquetFilters filters,
-    ParquetProtobuf.ParquetDatasetSplitScanXAttr readEntry,
-    FileSystem fs,
-    MutableParquetMetadata footer,
-    GlobalDictionaries dictionaries,
-    SchemaDerivationHelper schemaHelper,
-    boolean vectorize,
-    boolean enableDetailedTracing,
-    boolean supportsColocatedReads,
-    InputStreamProvider inputStreamProvider) {
-    super(context, readerFactory, tableSchema, projectedColumns, globalDictionaryFieldInfoMap, filters,
-            readEntry, fs, footer, dictionaries, schemaHelper, vectorize, enableDetailedTracing, supportsColocatedReads,
-            inputStreamProvider);
+      OperatorContext context,
+      ParquetReaderFactory readerFactory,
+      BatchSchema tableSchema,
+      ParquetScanProjectedColumns projectedColumns,
+      DeltaLakeParquetFilters filters,
+      ParquetProtobuf.ParquetDatasetSplitScanXAttr readEntry,
+      FileSystem fs,
+      MutableParquetMetadata footer,
+      SchemaDerivationHelper schemaHelper,
+      boolean vectorize,
+      boolean enableDetailedTracing,
+      boolean supportsColocatedReads,
+      InputStreamProvider inputStreamProvider) {
+    super(
+        context,
+        readerFactory,
+        tableSchema,
+        projectedColumns,
+        filters,
+        readEntry,
+        fs,
+        footer,
+        schemaHelper,
+        vectorize,
+        enableDetailedTracing,
+        supportsColocatedReads,
+        inputStreamProvider,
+        false);
   }
 
   @Override
   public void setup(OutputMutator output) throws ExecutionSetupException {
-    ParquetColumnResolver columnResolver = projectedColumns.getColumnResolver(footer.getFileMetaData().getSchema());
+    ParquetColumnResolver columnResolver =
+        projectedColumns.getColumnResolver(footer.getFileMetaData().getSchema());
 
     // create output vector based on schema in parquet file
     for (Type parquetField : footer.getFileMetaData().getSchema().getFields()) {
@@ -75,12 +83,22 @@ public class DeltaLakeParquetReader extends TransactionalTableParquetReader {
           break;
         }
         final Class<? extends ValueVector> clazz = TypeHelper.getValueVectorClass(field.get());
-        output.addField(field.get(), clazz);
+        output.addField(resolveField(columnResolver, field.get()), clazz);
         break;
       }
     }
     output.getContainer().buildSchema();
     output.getAndResetSchemaChanged();
     setupCurrentReader(output);
+  }
+
+  private Field resolveField(ParquetColumnResolver columnResolver, Field field) {
+    String schemaName = columnResolver.getBatchSchemaColumnName(field.getName());
+    return new Field(
+        schemaName,
+        field.getFieldType(),
+        field.getChildren().stream()
+            .map(f -> resolveField(columnResolver, f))
+            .collect(Collectors.toList()));
   }
 }

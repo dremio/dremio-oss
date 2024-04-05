@@ -17,13 +17,6 @@ package com.dremio.service.namespace;
 
 import static java.util.Arrays.asList;
 
-import java.util.List;
-
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
-
 import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEvent;
@@ -43,10 +36,15 @@ import com.dremio.service.namespace.space.proto.FolderConfig;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
 import com.dremio.test.DremioTest;
 import com.google.common.collect.Lists;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
 
-/**
- * Test class for NamespaceServiceImpl
- */
+/** Test class for NamespaceServiceImpl */
 public class TestNamespaceServiceImpl extends DremioTest {
   private LocalKVStoreProvider kvStoreProvider;
   private LegacyKVStoreProvider legacyKVStoreProvider;
@@ -61,11 +59,9 @@ public class TestNamespaceServiceImpl extends DremioTest {
     legacyKVStoreProvider = kvStoreProvider.asLegacy();
     testDatasetDeletionSubscriber = new TestDatasetDeletionSubscriber();
     catalogStatusEvents = new CatalogStatusEventsImpl();
-    catalogStatusEvents.subscribe(DatasetDeletionCatalogStatusEvent.getEventTopic(), testDatasetDeletionSubscriber);
-    ns = new NamespaceServiceImpl(
-      legacyKVStoreProvider,
-      catalogStatusEvents
-    );
+    catalogStatusEvents.subscribe(
+        DatasetDeletionCatalogStatusEvent.getEventTopic(), testDatasetDeletionSubscriber);
+    ns = new NamespaceServiceImpl(legacyKVStoreProvider, catalogStatusEvents);
   }
 
   @After
@@ -93,7 +89,18 @@ public class TestNamespaceServiceImpl extends DremioTest {
     final SourceConfig sourceConfig = ns.getSource(sourceKey);
     ns.deleteSource(sourceKey, sourceConfig.getTag());
 
-    Assert.assertEquals("There should be two dataset deletion events fired.", 2, testDatasetDeletionSubscriber.getCount());
+    Assert.assertEquals(
+        "There should be two dataset deletion events fired.",
+        2,
+        testDatasetDeletionSubscriber.getTotalCount());
+    Assert.assertEquals(
+        String.format("There should be one dataset deletion fired for %s.", dataset1),
+        1,
+        testDatasetDeletionSubscriber.getCountPerPath(dataset1.toString()));
+    Assert.assertEquals(
+        String.format("There should be one dataset deletion fired for %s.", dataset2),
+        1,
+        testDatasetDeletionSubscriber.getCountPerPath(dataset2.toString()));
   }
 
   @Test
@@ -116,19 +123,26 @@ public class TestNamespaceServiceImpl extends DremioTest {
     final SpaceConfig sourceConfig = ns.getSpace(spaceKey);
     ns.deleteSpace(spaceKey, sourceConfig.getTag());
 
-    Assert.assertEquals("There should be two dataset deletion events fired.", 2, testDatasetDeletionSubscriber.getCount());
+    Assert.assertEquals(
+        "There should be two dataset deletion events fired.",
+        2,
+        testDatasetDeletionSubscriber.getTotalCount());
+    Assert.assertEquals(
+        String.format("There should be one dataset deletion fired for %s.", dataset1),
+        1,
+        testDatasetDeletionSubscriber.getCountPerPath(dataset1.toString()));
+    Assert.assertEquals(
+        String.format("There should be one dataset deletion fired for %s.", dataset2),
+        1,
+        testDatasetDeletionSubscriber.getCountPerPath(dataset2.toString()));
   }
 
   private SourceConfig newTestSource(String sourceName) {
-    return new SourceConfig()
-      .setName(sourceName)
-      .setType("NAS")
-      .setCtime(1000L);
+    return new SourceConfig().setName(sourceName).setType("NAS").setCtime(1000L);
   }
 
   private SpaceConfig newTestSpace(String spaceName) {
-    return new SpaceConfig()
-      .setName(spaceName);
+    return new SpaceConfig().setName(spaceName);
   }
 
   private DatasetConfig newTestVirtualDataset(NamespaceKey parent, String name) {
@@ -167,17 +181,26 @@ public class TestNamespaceServiceImpl extends DremioTest {
   }
 
   private final class TestDatasetDeletionSubscriber implements CatalogStatusSubscriber {
-    private int count = 0;
+    private int totalCount = 0;
+    private final Map<String, Integer> pathToCount = new HashMap<>();
+
     @Override
     public void onCatalogStatusEvent(CatalogStatusEvent event) {
       if (!(event instanceof DatasetDeletionCatalogStatusEvent)) {
         return;
       }
-      count++;
+      String datasetPath = ((DatasetDeletionCatalogStatusEvent) event).getDatasetPath();
+      Integer previousCount = pathToCount.getOrDefault(datasetPath, 0);
+      pathToCount.put(datasetPath, previousCount + 1);
+      totalCount++;
     }
 
-    public int getCount() {
-      return count;
+    public int getCountPerPath(String datasetPath) {
+      return pathToCount.getOrDefault(datasetPath, 0);
+    }
+
+    public int getTotalCount() {
+      return totalCount;
     }
   }
 }

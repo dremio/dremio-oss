@@ -15,19 +15,6 @@
  */
 package com.dremio.plugins.adl.store;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.util.Map;
-import java.util.NoSuchElementException;
-
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.LocatedFileStatus;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.RemoteIterator;
-import org.apache.hadoop.fs.adl.AdlFileSystem;
-import org.apache.hadoop.fs.permission.FsPermission;
-import org.apache.hadoop.security.UserGroupInformation;
-
 import com.dremio.exec.hadoop.MayProvideAsyncStream;
 import com.dremio.exec.store.dfs.FileSystemConf;
 import com.dremio.io.AsyncByteReader;
@@ -36,11 +23,21 @@ import com.microsoft.azure.datalake.store.AdlsListPathResponse;
 import com.microsoft.azure.datalake.store.DirectoryEntry;
 import com.microsoft.azure.datalake.store.DirectoryEntryType;
 import com.microsoft.azure.datalake.store.UserGroupRepresentation;
-
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.util.Map;
+import java.util.NoSuchElementException;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.LocatedFileStatus;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.RemoteIterator;
+import org.apache.hadoop.fs.adl.AdlFileSystem;
+import org.apache.hadoop.fs.permission.FsPermission;
+import org.apache.hadoop.security.UserGroupInformation;
 
 /**
- * Specialized Hadoop FileSystem implementation for ADLS gen 1 which adds async reading capabilities.
- * Also supports batchlisting of directory entries
+ * Specialized Hadoop FileSystem implementation for ADLS gen 1 which adds async reading
+ * capabilities. Also supports batchlisting of directory entries
  */
 @SuppressWarnings("Unchecked")
 public class DremioAdlFileSystem extends AdlFileSystem implements MayProvideAsyncStream {
@@ -62,7 +59,10 @@ public class DremioAdlFileSystem extends AdlFileSystem implements MayProvideAsyn
         return false;
       } else {
         FsPermission that = (FsPermission) obj;
-        return this.getUserAction() == that.getUserAction() && this.getGroupAction() == that.getGroupAction() && this.getOtherAction() == that.getOtherAction() && this.getStickyBit() == that.getStickyBit();
+        return this.getUserAction() == that.getUserAction()
+            && this.getGroupAction() == that.getGroupAction()
+            && this.getOtherAction() == that.getOtherAction()
+            && this.getStickyBit() == that.getStickyBit();
       }
     }
 
@@ -76,10 +76,32 @@ public class DremioAdlFileSystem extends AdlFileSystem implements MayProvideAsyn
     boolean overrideOwner = getConf().getBoolean("adl.debug.override.localuserasfileowner", false);
     boolean aclBitStatus = getConf().getBoolean("adl.feature.support.acl.bit", true);
     boolean aclBit = aclBitStatus ? entry.aclBit : false;
-    return overrideOwner ? new FileStatus(entry.length, DirectoryEntryType.DIRECTORY == entry.type, 1, entry.blocksize, entry.lastModifiedTime.getTime(), entry.lastAccessTime.getTime(), new AdlPermission(aclBit, Short.parseShort(entry.permission, 8)), UserGroupInformation.getCurrentUser().getShortUserName(), UserGroupInformation.getCurrentUser().getPrimaryGroupName(), (Path) null, f) : new FileStatus(entry.length, DirectoryEntryType.DIRECTORY == entry.type, 1, entry.blocksize, entry.lastModifiedTime.getTime(), entry.lastAccessTime.getTime(), new AdlPermission(aclBit, Short.parseShort(entry.permission, 8)), entry.user, entry.group, (Path) null, f);
-
+    return overrideOwner
+        ? new FileStatus(
+            entry.length,
+            DirectoryEntryType.DIRECTORY == entry.type,
+            1,
+            entry.blocksize,
+            entry.lastModifiedTime.getTime(),
+            entry.lastAccessTime.getTime(),
+            new AdlPermission(aclBit, Short.parseShort(entry.permission, 8)),
+            UserGroupInformation.getCurrentUser().getShortUserName(),
+            UserGroupInformation.getCurrentUser().getPrimaryGroupName(),
+            (Path) null,
+            f)
+        : new FileStatus(
+            entry.length,
+            DirectoryEntryType.DIRECTORY == entry.type,
+            1,
+            entry.blocksize,
+            entry.lastModifiedTime.getTime(),
+            entry.lastAccessTime.getTime(),
+            new AdlPermission(aclBit, Short.parseShort(entry.permission, 8)),
+            entry.user,
+            entry.group,
+            (Path) null,
+            f);
   }
-
 
   class AdlsListIterator implements RemoteIterator<LocatedFileStatus> {
     private AdlsListPathResponse currBatchResponse;
@@ -107,19 +129,23 @@ public class DremioAdlFileSystem extends AdlFileSystem implements MayProvideAsyn
       DirectoryEntry currentFile = currBatchResponse.getEntries().get(currIndex);
       currIndex = currIndex + 1;
       if (currBatchResponse.shouldLoadNextBatch(currIndex)) {
-        currBatchResponse = getAdlClient().enumerateDirectories(path, oidOrUpn, currBatchResponse.getContinuationToken());
+        currBatchResponse =
+            getAdlClient()
+                .enumerateDirectories(path, oidOrUpn, currBatchResponse.getContinuationToken());
         currIndex = 0;
       }
       return new LocatedFileStatus(toFileStatus(currentFile, new Path(currentFile.fullName)), null);
     }
   }
 
-  //recursive case handled from dremio code (in filesystem class)
+  // recursive case handled from dremio code (in filesystem class)
   @Override
-  public RemoteIterator<LocatedFileStatus> listLocatedStatus(final Path f) throws FileNotFoundException, IOException {
+  public RemoteIterator<LocatedFileStatus> listLocatedStatus(final Path f)
+      throws FileNotFoundException, IOException {
     statistics.incrementReadOps(1);
     boolean enableUPN = getConf().getBoolean("adl.feature.ownerandgroup.enableupn", false);
-    UserGroupRepresentation oidOrUpn = enableUPN ? UserGroupRepresentation.UPN : UserGroupRepresentation.OID;
+    UserGroupRepresentation oidOrUpn =
+        enableUPN ? UserGroupRepresentation.UPN : UserGroupRepresentation.OID;
     return new AdlsListIterator(f.toString(), oidOrUpn);
   }
 
@@ -143,19 +169,25 @@ public class DremioAdlFileSystem extends AdlFileSystem implements MayProvideAsyn
   }
 
   @Override
-  public AsyncByteReader getAsyncByteReader(Path path, String version, Map<String, String> options) throws IOException {
+  public AsyncByteReader getAsyncByteReader(Path path, String version, Map<String, String> options)
+      throws IOException {
     if (asyncHttpClientManager == null) {
       synchronized (this) {
         if (asyncHttpClientManager == null) {
-          final AzureDataLakeConf adlsConf = AzureDataLakeConf.fromConfiguration(getUri(), getConf());
-          asyncHttpClientManager = new AsyncHttpClientManager("dist-uri-" + getUri().toASCIIString(), adlsConf);
+          final AzureDataLakeConf adlsConf =
+              AzureDataLakeConf.fromConfiguration(getUri(), getConf());
+          asyncHttpClientManager =
+              new AsyncHttpClientManager("dist-uri-" + getUri().toASCIIString(), adlsConf);
         }
       }
     }
 
     return new AdlsAsyncFileReader(
-      new ADLSClient(asyncHttpClientManager.getClient()),
-      asyncHttpClientManager.getAsyncHttpClient(),
-      path.toUri().getPath(), version, this, asyncHttpClientManager.getUtilityThreadPool());
+        new ADLSClient(asyncHttpClientManager.getClient()),
+        asyncHttpClientManager.getAsyncHttpClient(),
+        path.toUri().getPath(),
+        version,
+        this,
+        asyncHttpClientManager.getUtilityThreadPool());
   }
 }

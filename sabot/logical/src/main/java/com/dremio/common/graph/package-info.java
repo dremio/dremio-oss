@@ -13,7 +13,5 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/**
- * Connected-graph representation shared by logical and physical query graphs.
- */
+/** Connected-graph representation shared by logical and physical query graphs. */
 package com.dremio.common.graph;

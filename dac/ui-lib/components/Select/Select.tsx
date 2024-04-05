@@ -73,6 +73,7 @@ export const Select = (props: SelectProps) => {
           disabled={props.disabled}
           type="button"
           {...getToggleButtonProps()}
+          style={props.style}
         >
           {props.renderButtonLabel(selectedItem)}
           {/*@ts-ignore*/}

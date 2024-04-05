@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.planner.common;
 
+import com.google.common.base.Preconditions;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptPlanner;
@@ -25,10 +26,9 @@ import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 
-import com.google.common.base.Preconditions;
-
 /**
- * For no-op relnodes for jdbc (e.g. jdbc drel, prel, and intermediate nodes).  Just points to the subtree.
+ * For no-op relnodes for jdbc (e.g. jdbc drel, prel, and intermediate nodes). Just points to the
+ * subtree.
  */
 public abstract class JdbcRelBase extends AbstractRelNode implements ContainerRel {
   protected final RelNode jdbcSubTree;
@@ -63,5 +63,4 @@ public abstract class JdbcRelBase extends AbstractRelNode implements ContainerRe
   public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
     return planner.getCost(jdbcSubTree, mq);
   }
-
 }

@@ -17,26 +17,17 @@ package com.dremio.exec.planner.sql.handlers.direct;
 
 import static com.dremio.exec.store.iceberg.IcebergSerDe.serializedSchemaAsJson;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import org.apache.calcite.sql.SqlNode;
-import org.apache.iceberg.PartitionSpec;
-import org.apache.iceberg.SortOrder;
-
 import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.catalog.model.VersionContext;
+import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogOptions;
 import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.ColumnCountTooLargeException;
 import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.catalog.TableMutationOptions;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.physical.base.IcebergWriterOptions;
 import com.dremio.exec.physical.base.ImmutableIcebergWriterOptions;
@@ -65,11 +56,20 @@ import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
-
 import io.protostuff.ByteString;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import org.apache.calcite.sql.SqlNode;
+import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.SortOrder;
 
 public class CreateEmptyTableHandler extends SimpleDirectHandler {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CreateEmptyTableHandler.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(CreateEmptyTableHandler.class);
 
   private final Catalog catalog;
   private final SqlHandlerConfig config;
@@ -78,7 +78,8 @@ public class CreateEmptyTableHandler extends SimpleDirectHandler {
   private final boolean ifNotExists;
   private Map<String, String> tableProperties = new HashMap<>();
 
-  public CreateEmptyTableHandler(Catalog catalog, SqlHandlerConfig config, UserSession userSession, boolean ifNotExists) {
+  public CreateEmptyTableHandler(
+      Catalog catalog, SqlHandlerConfig config, UserSession userSession, boolean ifNotExists) {
     this.catalog = Preconditions.checkNotNull(catalog);
     this.config = Preconditions.checkNotNull(config);
     QueryContext context = Preconditions.checkNotNull(config.getContext());
@@ -89,22 +90,34 @@ public class CreateEmptyTableHandler extends SimpleDirectHandler {
 
   @Override
   public List<SimpleCommandResult> toResult(String sql, SqlNode sqlNode) throws Exception {
-    SqlCreateEmptyTable sqlCreateEmptyTable = SqlNodeUtil.unwrap(sqlNode, SqlCreateEmptyTable.class);
+    SqlCreateEmptyTable sqlCreateEmptyTable =
+        SqlNodeUtil.unwrap(sqlNode, SqlCreateEmptyTable.class);
 
     NamespaceKey tableKey = catalog.resolveSingle(sqlCreateEmptyTable.getPath());
     catalog.validatePrivilege(tableKey, Privilege.CREATE_TABLE);
 
-    List<SimpleCommandResult> result = CatalogUtil.requestedPluginSupportsVersionedTables(tableKey,catalog) ?
-      createVersionedEmptyTable(tableKey, sql, sqlCreateEmptyTable) :
-      createEmptyTable(tableKey, sql, sqlCreateEmptyTable);
+    final String sourceName = tableKey.getRoot();
+    VersionContext statementSourceVersion =
+        ReferenceTypeUtils.map(
+            sqlCreateEmptyTable.getRefType(), sqlCreateEmptyTable.getRefValue(), null);
+    final VersionContext sessionVersion = userSession.getSessionVersionForSource(sourceName);
+    VersionContext sourceVersion = statementSourceVersion.orElse(sessionVersion);
+    CatalogEntityKey catalogEntityKey =
+        CatalogEntityKey.newBuilder()
+            .keyComponents(tableKey.getPathComponents())
+            .tableVersionContext(TableVersionContext.of(sourceVersion))
+            .build();
+
+    List<SimpleCommandResult> result = createEmptyTable(catalogEntityKey, sql, sqlCreateEmptyTable);
     return handlePolicy(result, tableKey, sql, sqlCreateEmptyTable);
   }
 
   protected List<SimpleCommandResult> handlePolicy(
-    List<SimpleCommandResult> createTableResult,
-    NamespaceKey key,
-    String sql,
-    SqlCreateEmptyTable sqlCreateEmptyTable) throws Exception {
+      List<SimpleCommandResult> createTableResult,
+      NamespaceKey key,
+      String sql,
+      SqlCreateEmptyTable sqlCreateEmptyTable)
+      throws Exception {
     return createTableResult;
   }
 
@@ -121,236 +134,214 @@ public class CreateEmptyTableHandler extends SimpleDirectHandler {
   }
 
   @VisibleForTesting
-  public void callCatalogCreateEmptyTableWithCleanup(NamespaceKey key, BatchSchema batchSchema, WriterOptions options) {
+  public void callCatalogCreateEmptyTableWithCleanup(
+      CatalogEntityKey key, BatchSchema batchSchema, WriterOptions options) {
+    ResolvedVersionContext resolvedVersionContext =
+        getResolvedVersionContextIfVersioned(key, catalog);
     try {
-      catalog.createEmptyTable(key, batchSchema, options);
+      options.setResolvedVersionContext(resolvedVersionContext);
+      catalog.createEmptyTable(key.toNamespaceKey(), batchSchema, options);
     } catch (Exception ex) {
-      cleanUpFromCatalogAndMetaStore(key);
-      throw UserException.validationError(ex)
-        .message(ex.getMessage())
-        .buildSilently();
+      cleanUpFromCatalogAndMetaStore(key.toNamespaceKey(), resolvedVersionContext);
+      throw UserException.validationError(ex).message(ex.getMessage()).buildSilently();
     }
   }
 
-  protected List<SimpleCommandResult> createEmptyTable(NamespaceKey key, String sql, SqlCreateEmptyTable sqlCreateEmptyTable) throws Exception{
+  protected List<SimpleCommandResult> createEmptyTable(
+      CatalogEntityKey key, String sql, SqlCreateEmptyTable sqlCreateEmptyTable) throws Exception {
+
+    validateCreateTableOptions(
+        sqlCreateEmptyTable, sql, key, getResolvedVersionContextIfVersioned(key, catalog));
+    if (!(sqlCreateEmptyTable.getTablePropertyNameList() == null
+        || sqlCreateEmptyTable.getTablePropertyNameList().isEmpty())) {
+      IcebergUtils.validateTablePropertiesRequest(optionManager);
+      tableProperties =
+          IcebergUtils.convertTableProperties(
+              sqlCreateEmptyTable.getTablePropertyNameList(),
+              sqlCreateEmptyTable.getTablePropertyValueList(),
+              false);
+    }
+    List<DremioSqlColumnDeclaration> columnDeclarations =
+        SqlHandlerUtil.columnDeclarationsFromSqlNodes(sqlCreateEmptyTable.getFieldList(), sql);
+    final long ringCount = optionManager.getOption(PlannerSettings.RING_COUNT);
+    if (!isPolicyAllowed()
+        && columnDeclarations.stream().anyMatch(col -> col.getPolicy() != null)) {
+      throw UserException.unsupportedError()
+          .message("This Dremio edition doesn't support SET COLUMN MASKING")
+          .buildSilently();
+    }
+    long maxColumnCount = optionManager.getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX);
+    SqlHandlerUtil.checkForDuplicateColumns(columnDeclarations, BatchSchema.of(), sql);
+    if (columnDeclarations.size() > maxColumnCount) {
+      throw new ColumnCountTooLargeException((int) maxColumnCount);
+    }
+
+    BatchSchema batchSchema =
+        SqlHandlerUtil.batchSchemaFromSqlSchemaSpec(config, columnDeclarations, sql);
+    PartitionSpec partitionSpec =
+        IcebergUtils.getIcebergPartitionSpecFromTransforms(
+            batchSchema, sqlCreateEmptyTable.getPartitionTransforms(null), null);
+    SortOrder sortOrder =
+        IcebergUtils.getIcebergSortOrder(
+            batchSchema,
+            sqlCreateEmptyTable.getSortColumns(),
+            partitionSpec.schema(),
+            config.getContext().getOptions());
+    IcebergTableProps icebergTableProps =
+        new IcebergTableProps(
+            ByteString.copyFrom(IcebergSerDe.serializePartitionSpec(partitionSpec)),
+            serializedSchemaAsJson(
+                SchemaConverter.getBuilder().build().toIcebergSchema(batchSchema)),
+            IcebergSerDe.serializeSortOrderAsJson(sortOrder),
+            tableProperties);
+    IcebergWriterOptions icebergWriterOptions =
+        new ImmutableIcebergWriterOptions.Builder().setIcebergTableProps(icebergTableProps).build();
+    TableFormatWriterOptions tableFormatOptions =
+        new ImmutableTableFormatWriterOptions.Builder()
+            .setIcebergSpecificOptions(icebergWriterOptions)
+            .setOperation(TableFormatOperation.CREATE)
+            .build();
+
+    final WriterOptions options =
+        new WriterOptions(
+            (int) ringCount,
+            sqlCreateEmptyTable.getPartitionColumns(null),
+            sqlCreateEmptyTable.getSortColumns(),
+            sqlCreateEmptyTable.getDistributionColumns(),
+            sqlCreateEmptyTable.getPartitionDistributionStrategy(config, null, null),
+            sqlCreateEmptyTable.getLocation(),
+            sqlCreateEmptyTable.isSingleWriter(),
+            Long.MAX_VALUE,
+            tableFormatOptions,
+            null,
+            tableProperties);
+
+    DremioTable table = catalog.getTableNoResolve(key);
+    if (table != null) {
+      if (ifNotExists) {
+        return Collections.singletonList(
+            new SimpleCommandResult(
+                true, String.format("Table [%s] already exists.", key.toNamespaceKey())));
+      } else {
+        throw UserException.validationError()
+            .message("A table or view with given name [%s] already exists.", key.toNamespaceKey())
+            .buildSilently();
+      }
+    }
+
+    callCatalogCreateEmptyTableWithCleanup(key, batchSchema, options);
+
+    // do a refresh on the dataset to populate the kvstore.
+    // Will the orphanage cleanup logic remove files and folders if query fails during
+    // refreshDataset() function?
+    DataAdditionCmdHandler.refreshDataset(catalog, key.toNamespaceKey(), true);
+
+    return Collections.singletonList(SimpleCommandResult.successful("Table created"));
+  }
+
+  @VisibleForTesting
+  public void validateCreateTableOptions(
+      SqlCreateEmptyTable sqlCreateEmptyTable,
+      String sql,
+      CatalogEntityKey catalogEntityKey,
+      ResolvedVersionContext resolvedVersionContext) {
     SqlValidatorImpl.checkForFeatureSpecificSyntax(sqlCreateEmptyTable, optionManager);
 
-    if (!IcebergUtils.isIcebergDMLFeatureEnabled(catalog, key, optionManager, null)) {
+    if (!IcebergUtils.isIcebergDMLFeatureEnabled(
+        catalog, catalogEntityKey.toNamespaceKey(), optionManager, null)) {
       throw UserException.unsupportedError()
-        .message("Please contact customer support for steps to enable the iceberg tables feature.")
-        .buildSilently();
+          .message(
+              "Please contact customer support for steps to enable the iceberg tables feature.")
+          .buildSilently();
     }
 
     // path is not valid
-    if (!DataAdditionCmdHandler.validatePath(this.catalog, key)) {
+    if (!DataAdditionCmdHandler.validatePath(this.catalog, catalogEntityKey.toNamespaceKey())) {
       throw UserException.unsupportedError()
-        .message(String.format("Invalid path. Given path, [%s] is not valid.", key))
-        .buildSilently();
+          .message(
+              String.format(
+                  "Invalid path. Given path, [%s] is not valid.",
+                  catalogEntityKey.toNamespaceKey()))
+          .buildSilently();
     }
 
     // path is valid but source is not valid
-    if (!IcebergUtils.validatePluginSupportForIceberg(this.catalog, key)) {
+    if (!IcebergUtils.validatePluginSupportForIceberg(
+        this.catalog, catalogEntityKey.toNamespaceKey())) {
       throw UserException.unsupportedError()
-        .message(String.format("Source [%s] does not support CREATE TABLE. Please use correct catalog", key.getRoot()))
-        .buildSilently();
+          .message(
+              String.format(
+                  "Source [%s] does not support CREATE TABLE. Please use correct catalog",
+                  catalogEntityKey.getRootEntity()))
+          .buildSilently();
     }
 
     // row access policy is not allowed
     if (!isPolicyAllowed() && sqlCreateEmptyTable.getPolicy() != null) {
       throw UserException.unsupportedError()
-        .message("This Dremio edition doesn't support ADD ROW ACCESS POLICY")
-        .buildSilently();
-    }
-
-    IcebergUtils.validateIcebergLocalSortIfDeclared(sql, config.getContext().getOptions());
-
-    if (!(sqlCreateEmptyTable.getTablePropertyNameList() == null || sqlCreateEmptyTable.getTablePropertyNameList().isEmpty())) {
-      IcebergUtils.validateTablePropertiesRequest(optionManager);
-      tableProperties = IcebergUtils.convertTableProperties(sqlCreateEmptyTable.getTablePropertyNameList(), sqlCreateEmptyTable.getTablePropertyValueList(), false);
-    }
-
-    // validate if source supports providing table location
-    DataAdditionCmdHandler.validateCreateTableLocation(this.catalog, key, sqlCreateEmptyTable);
-
-    final long ringCount = optionManager.getOption(PlannerSettings.RING_COUNT);
-
-
-    List<DremioSqlColumnDeclaration> columnDeclarations = SqlHandlerUtil.columnDeclarationsFromSqlNodes(sqlCreateEmptyTable.getFieldList(), sql);
-
-    if (!isPolicyAllowed() && columnDeclarations.stream().anyMatch(col -> col.getPolicy() != null)) {
-      throw UserException.unsupportedError()
-        .message("This Dremio edition doesn't support SET COLUMN MASKING")
-        .buildSilently();
-    }
-
-    SqlHandlerUtil.checkForDuplicateColumns(columnDeclarations, BatchSchema.of(), sql);
-    BatchSchema batchSchema = SqlHandlerUtil.batchSchemaFromSqlSchemaSpec(config, columnDeclarations, sql);
-    PartitionSpec partitionSpec = IcebergUtils.getIcebergPartitionSpecFromTransforms(
-            batchSchema,
-            sqlCreateEmptyTable.getPartitionTransforms(null),
-            null);
-    SortOrder sortOrder = IcebergUtils.getIcebergSortOrder(
-            batchSchema,
-            sqlCreateEmptyTable.getSortColumns(),
-            partitionSpec.schema(),
-            config.getContext().getOptions());
-    IcebergTableProps icebergTableProps = new IcebergTableProps(
-            ByteString.copyFrom(IcebergSerDe.serializePartitionSpec(partitionSpec)),
-            serializedSchemaAsJson(SchemaConverter.getBuilder().build().toIcebergSchema(batchSchema)),
-            IcebergSerDe.serializeSortOrderAsJson(sortOrder), tableProperties);
-    IcebergWriterOptions icebergWriterOptions = new ImmutableIcebergWriterOptions.Builder()
-      .setIcebergTableProps(icebergTableProps).build();
-    TableFormatWriterOptions tableFormatOptions = new ImmutableTableFormatWriterOptions.Builder()
-      .setIcebergSpecificOptions(icebergWriterOptions).setOperation(TableFormatOperation.CREATE).build();
-
-    final WriterOptions options = new WriterOptions(
-      (int) ringCount,
-      sqlCreateEmptyTable.getPartitionColumns(null),
-      sqlCreateEmptyTable.getSortColumns(),
-      sqlCreateEmptyTable.getDistributionColumns(),
-      sqlCreateEmptyTable.getPartitionDistributionStrategy(config, null, null),
-      sqlCreateEmptyTable.getLocation(),
-      sqlCreateEmptyTable.isSingleWriter(),
-      Long.MAX_VALUE,
-      tableFormatOptions,
-      null,
-      tableProperties
-    );
-
-    DremioTable table = catalog.getTableNoResolve(key);
-    if (table != null) {
-      if(ifNotExists){
-        return Collections.singletonList(new SimpleCommandResult(true, String.format("Table [%s] already exists.", key)));
-      } else {
-        throw UserException.validationError()
-          .message("A table or view with given name [%s] already exists.", key)
+          .message("This Dremio edition doesn't support ADD ROW ACCESS POLICY")
           .buildSilently();
-      }
-    }
-
-    long maxColumnCount = optionManager.getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX);
-    if (columnDeclarations.size() > maxColumnCount) {
-      throw new ColumnCountTooLargeException((int) maxColumnCount);
-    }
-    callCatalogCreateEmptyTableWithCleanup(key, batchSchema, options);
-
-      // do a refresh on the dataset to populate the kvstore.
-      //Will the orphanage cleanup logic remove files and folders if query fails during refreshDataset() function?
-    DataAdditionCmdHandler.refreshDataset(catalog, key, true);
-
-    return Collections.singletonList(SimpleCommandResult.successful("Table created"));
-  }
-
-  private List<SimpleCommandResult> createVersionedEmptyTable(NamespaceKey key, String sql, SqlCreateEmptyTable sqlCreateEmptyTable) {
-    // path is not valid
-    if (!DataAdditionCmdHandler.validatePath(this.catalog, key)) {
-      throw UserException.unsupportedError()
-        .message(String.format("Invalid path. Given path, [%s] is not valid.", key))
-        .buildSilently();
     }
 
     IcebergUtils.validateIcebergLocalSortIfDeclared(sql, config.getContext().getOptions());
 
-    if (!(sqlCreateEmptyTable.getTablePropertyNameList() == null || sqlCreateEmptyTable.getTablePropertyNameList().isEmpty())) {
+    if (!(sqlCreateEmptyTable.getTablePropertyNameList() == null
+        || sqlCreateEmptyTable.getTablePropertyNameList().isEmpty())) {
       IcebergUtils.validateTablePropertiesRequest(optionManager);
-      tableProperties = IcebergUtils.convertTableProperties(sqlCreateEmptyTable.getTablePropertyNameList(), sqlCreateEmptyTable.getTablePropertyValueList(), false);
+      tableProperties =
+          IcebergUtils.convertTableProperties(
+              sqlCreateEmptyTable.getTablePropertyNameList(),
+              sqlCreateEmptyTable.getTablePropertyValueList(),
+              false);
     }
 
     // validate if source supports providing table location
-    DataAdditionCmdHandler.validateCreateTableLocation(this.catalog, key, sqlCreateEmptyTable);
+    DataAdditionCmdHandler.validateCreateTableLocation(
+        this.catalog, catalogEntityKey.toNamespaceKey(), sqlCreateEmptyTable);
 
-    final long ringCount = optionManager.getOption(PlannerSettings.RING_COUNT);
-
-    final String sourceName = key.getRoot();
-    VersionContext statementSourceVersion =
-      ReferenceTypeUtils.map(sqlCreateEmptyTable.getRefType(), sqlCreateEmptyTable.getRefValue(), null);
-    final VersionContext sessionVersion = userSession.getSessionVersionForSource(sourceName);
-    VersionContext sourceVersion = statementSourceVersion.orElse(sessionVersion);
-    final ResolvedVersionContext resolvedVersionContext = CatalogUtil.resolveVersionContext(catalog, sourceName, sourceVersion);
     CatalogUtil.validateResolvedVersionIsBranch(resolvedVersionContext);
-    List<DremioSqlColumnDeclaration> columnDeclarations = SqlHandlerUtil.columnDeclarationsFromSqlNodes(sqlCreateEmptyTable.getFieldList(), sql);
-    SqlHandlerUtil.checkForDuplicateColumns(columnDeclarations, BatchSchema.of(), sql);
-    BatchSchema batchSchema = SqlHandlerUtil.batchSchemaFromSqlSchemaSpec(config, columnDeclarations, sql);
-    PartitionSpec partitionSpec = IcebergUtils.getIcebergPartitionSpecFromTransforms(
-            batchSchema,
-            sqlCreateEmptyTable.getPartitionTransforms(null),
-            null);
-    SortOrder sortOrder = IcebergUtils.getIcebergSortOrder(
-            batchSchema,
-            sqlCreateEmptyTable.getSortColumns(),
-            partitionSpec.schema(),
-            config.getContext().getOptions());
-    IcebergTableProps icebergTableProps = new IcebergTableProps(
-            ByteString.copyFrom(IcebergSerDe.serializePartitionSpec(partitionSpec)),
-            serializedSchemaAsJson(SchemaConverter.getBuilder().build().toIcebergSchema(batchSchema)),
-            IcebergSerDe.serializeSortOrderAsJson(sortOrder), tableProperties);
-    IcebergWriterOptions icebergWriterOptions = new ImmutableIcebergWriterOptions.Builder()
-      .setIcebergTableProps(icebergTableProps).build();
-    TableFormatWriterOptions tableFormatOptions = new ImmutableTableFormatWriterOptions.Builder()
-      .setIcebergSpecificOptions(icebergWriterOptions).setOperation(TableFormatOperation.CREATE).build();
-
-    final WriterOptions writerOptions = new WriterOptions(
-      (int) ringCount,
-      sqlCreateEmptyTable.getPartitionColumns(null),
-      sqlCreateEmptyTable.getSortColumns(),
-      sqlCreateEmptyTable.getDistributionColumns(),
-      sqlCreateEmptyTable.getPartitionDistributionStrategy(config, null, null),
-      sqlCreateEmptyTable.getLocation(),
-      sqlCreateEmptyTable.isSingleWriter(),
-      Long.MAX_VALUE,
-      tableFormatOptions,
-      null,
-      resolvedVersionContext
-    );
-
-    CatalogEntityKey catalogEntityKey = CatalogUtil.getCatalogEntityKey(
-      key,
-      resolvedVersionContext,
-      catalog);
-    final DremioTable table = CatalogUtil.getTableNoResolve(catalogEntityKey, catalog);
-
-    if (table != null) {
-      if(ifNotExists){
-        return Collections.singletonList(new SimpleCommandResult(true, String.format("Table [%s] already exists.", key)));
-      } else {
-        throw UserException.validationError()
-          .message("A table with the given name already exists")
-          .buildSilently();
-      }
-    }
-
-    long maxColumnCount = optionManager.getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX);
-    if (columnDeclarations.size() > maxColumnCount) {
-      throw new ColumnCountTooLargeException((int) maxColumnCount);
-    }
-
-    SqlHandlerUtil.checkForDuplicateColumns(columnDeclarations, BatchSchema.of(), sql);
-    callCatalogCreateEmptyTableWithCleanup(key, SqlHandlerUtil.batchSchemaFromSqlSchemaSpec(config, columnDeclarations, sql), writerOptions);
-
-    return Collections.singletonList(SimpleCommandResult.successful("Table created"));
   }
 
-  public static CreateEmptyTableHandler create(Catalog catalog, SqlHandlerConfig config, UserSession userSession, boolean ifNotExists) {
+  public static CreateEmptyTableHandler create(
+      Catalog catalog, SqlHandlerConfig config, UserSession userSession, boolean ifNotExists) {
     try {
-      final Class<?> cl = Class.forName("com.dremio.exec.planner.sql.handlers.EnterpriseCreateEmptyTableHandler");
-      final Constructor<?> ctor = cl.getConstructor(Catalog.class, SqlHandlerConfig.class, UserSession.class, boolean.class);
+      final Class<?> cl =
+          Class.forName("com.dremio.exec.planner.sql.handlers.EnterpriseCreateEmptyTableHandler");
+      final Constructor<?> ctor =
+          cl.getConstructor(
+              Catalog.class, SqlHandlerConfig.class, UserSession.class, boolean.class);
       return (CreateEmptyTableHandler) ctor.newInstance(catalog, config, userSession, ifNotExists);
     } catch (ClassNotFoundException e) {
       return new CreateEmptyTableHandler(catalog, config, userSession, ifNotExists);
-    } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e2) {
+    } catch (InstantiationException
+        | IllegalAccessException
+        | NoSuchMethodException
+        | InvocationTargetException e2) {
       throw Throwables.propagate(e2);
     }
   }
 
-  private void cleanUpFromCatalogAndMetaStore(NamespaceKey key){
+  private void cleanUpFromCatalogAndMetaStore(
+      NamespaceKey key, ResolvedVersionContext resolvedVersionContext) {
+    TableMutationOptions tableMutationOptions =
+        TableMutationOptions.newBuilder().setResolvedVersionContext(resolvedVersionContext).build();
     try {
-      if(catalog.getSource(key.getRoot()) instanceof FileSystemPlugin) {
+      if (catalog.getSource(key.getRoot()) instanceof FileSystemPlugin) {
         catalog.forgetTable(key);
-      }else{
-        catalog.dropTable(key, null);
+      } else {
+        catalog.dropTable(key, tableMutationOptions);
       }
-    }catch(Exception i){
-      logger.warn("Failure during removing table from catalog and metastore. " + i.getMessage() );
+    } catch (Exception i) {
+      logger.warn("Failure during removing table from catalog and metastore. " + i.getMessage());
     }
+  }
+
+  private ResolvedVersionContext getResolvedVersionContextIfVersioned(
+      CatalogEntityKey key, Catalog catalog) {
+    if (CatalogUtil.requestedPluginSupportsVersionedTables(key.getRootEntity(), catalog)) {
+      return CatalogUtil.resolveVersionContext(
+          catalog, key.getRootEntity(), key.getTableVersionContext().asVersionContext());
+    }
+    return null;
   }
 }

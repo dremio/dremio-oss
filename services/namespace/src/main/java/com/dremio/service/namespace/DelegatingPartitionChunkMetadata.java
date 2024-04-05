@@ -18,9 +18,7 @@ package com.dremio.service.namespace;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
 import com.google.protobuf.ByteString;
 
-/**
- * Delegating implementation of PartitionChunkMetadata
- */
+/** Delegating implementation of PartitionChunkMetadata */
 public class DelegatingPartitionChunkMetadata implements PartitionChunkMetadata {
   private final PartitionChunkMetadata inner;
 

@@ -14,106 +14,102 @@
  * limitations under the License.
  */
 
-
 /*
  * This class is automatically generated from AggrTypeFunctions2.tdd using FreeMarker.
  */
 
 package com.dremio.exec.expr.fn.impl;
 
-import org.apache.arrow.vector.holders.BitHolder;
-import org.apache.arrow.vector.holders.NullableBitHolder;
-
 import com.dremio.exec.expr.AggrFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
 import com.dremio.exec.expr.annotations.Workspace;
+import org.apache.arrow.vector.holders.BitHolder;
+import org.apache.arrow.vector.holders.NullableBitHolder;
 
 @SuppressWarnings("unused")
 public class BooleanAggrFunctions {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BooleanAggrFunctions.class);
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(BooleanAggrFunctions.class);
 
+  @FunctionTemplate(name = "bool_or", scope = FunctionTemplate.FunctionScope.POINT_AGGREGATE)
+  public static class NullableBitBooleanOr implements AggrFunction {
 
-@FunctionTemplate(name = "bool_or", scope = FunctionTemplate.FunctionScope.POINT_AGGREGATE)
-public static class NullableBitBooleanOr implements AggrFunction{
+    @Param NullableBitHolder in;
+    @Workspace BitHolder inter;
+    @Output NullableBitHolder out;
 
-  @Param NullableBitHolder in;
-  @Workspace BitHolder inter;
-  @Output NullableBitHolder out;
+    @Override
+    public void setup() {
+      inter = new BitHolder();
 
-  @Override
-  public void setup() {
-  inter = new BitHolder();
-
-    // Initialize the workspace variables
-    inter.value = 0;
-  }
-
-  @Override
-  public void add() {
-    sout: {
-    if (in.isSet == 0) {
-     // processing nullable input and the value is null, so don't do anything...
-     break sout;
+      // Initialize the workspace variables
+      inter.value = 0;
     }
 
-    inter.value = inter.value | in.value;
-    } // end of sout block
-  }
+    @Override
+    public void add() {
+      sout:
+      {
+        if (in.isSet == 0) {
+          // processing nullable input and the value is null, so don't do anything...
+          break sout;
+        }
 
-
-  @Override
-  public void output() {
-    out.isSet = 1;
-    out.value = inter.value;
-  }
-
-  @Override
-  public void reset() {
-    inter.value = 0;
-  }
-}
-
-@FunctionTemplate(name = "bool_and", scope = FunctionTemplate.FunctionScope.POINT_AGGREGATE)
-public static class NullableBitBooleanAnd implements AggrFunction{
-
-  @Param NullableBitHolder in;
-  @Workspace BitHolder inter;
-  @Output NullableBitHolder out;
-
-  @Override
-  public void setup() {
-  inter = new BitHolder();
-
-    // Initialize the workspace variables
-    inter.value = Integer.MAX_VALUE;
-  }
-
-  @Override
-  public void add() {
-    sout: {
-    if (in.isSet == 0) {
-     // processing nullable input and the value is null, so don't do anything...
-     break sout;
+        inter.value = inter.value | in.value;
+      } // end of sout block
     }
 
-    inter.value = inter.value & in.value;
+    @Override
+    public void output() {
+      out.isSet = 1;
+      out.value = inter.value;
+    }
 
-    } // end of sout block
+    @Override
+    public void reset() {
+      inter.value = 0;
+    }
   }
 
+  @FunctionTemplate(name = "bool_and", scope = FunctionTemplate.FunctionScope.POINT_AGGREGATE)
+  public static class NullableBitBooleanAnd implements AggrFunction {
 
-  @Override
-  public void output() {
-    out.isSet = 1;
-    out.value = inter.value;
+    @Param NullableBitHolder in;
+    @Workspace BitHolder inter;
+    @Output NullableBitHolder out;
+
+    @Override
+    public void setup() {
+      inter = new BitHolder();
+
+      // Initialize the workspace variables
+      inter.value = Integer.MAX_VALUE;
+    }
+
+    @Override
+    public void add() {
+      sout:
+      {
+        if (in.isSet == 0) {
+          // processing nullable input and the value is null, so don't do anything...
+          break sout;
+        }
+
+        inter.value = inter.value & in.value;
+      } // end of sout block
+    }
+
+    @Override
+    public void output() {
+      out.isSet = 1;
+      out.value = inter.value;
+    }
+
+    @Override
+    public void reset() {
+      inter.value = Integer.MAX_VALUE;
+    }
   }
-
-  @Override
-  public void reset() {
-    inter.value = Integer.MAX_VALUE;
-  }
-}
-
 }

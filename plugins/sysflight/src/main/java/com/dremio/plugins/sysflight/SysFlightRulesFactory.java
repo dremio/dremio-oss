@@ -15,37 +15,36 @@
  */
 package com.dremio.plugins.sysflight;
 
-import java.util.Set;
-
-import org.apache.calcite.plan.RelOptRule;
-
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.ops.OptimizerRulesContext;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.store.StoragePluginRulesFactory.StoragePluginTypeRulesFactory;
 import com.google.common.collect.ImmutableSet;
+import java.util.Set;
+import org.apache.calcite.plan.RelOptRule;
 
-/**
- * Rules factory for sys-flight plugin
- */
+/** Rules factory for sys-flight plugin */
 public class SysFlightRulesFactory extends StoragePluginTypeRulesFactory {
 
   @Override
-  public Set<RelOptRule> getRules(OptimizerRulesContext optimizerContext, PlannerPhase phase, SourceType pluginType) {
-    switch(phase) {
-    case LOGICAL:
-      return ImmutableSet.<RelOptRule>of(new SysFlightScanDrule(pluginType));
+  public Set<RelOptRule> getRules(
+      OptimizerRulesContext optimizerContext, PlannerPhase phase, SourceType pluginType) {
+    switch (phase) {
+      case LOGICAL:
+        return ImmutableSet.<RelOptRule>of(new SysFlightScanDrule(pluginType));
 
-    case PHYSICAL:
-      return ImmutableSet.of(
-        new SysFlightScanPrule(optimizerContext.getCatalogService().getSource(CatalogServiceImpl.SYSTEM_TABLE_SOURCE_NAME)),
-        SysFlightPushFilterIntoScan.IS_FILTER_ON_PROJECT,
-        SysFlightPushFilterIntoScan.IS_FILTER_ON_SCAN);
+      case PHYSICAL:
+        return ImmutableSet.of(
+            new SysFlightScanPrule(
+                optimizerContext
+                    .getCatalogService()
+                    .getSource(CatalogServiceImpl.SYSTEM_TABLE_SOURCE_NAME)),
+            SysFlightPushFilterIntoScan.IS_FILTER_ON_PROJECT,
+            SysFlightPushFilterIntoScan.IS_FILTER_ON_SCAN);
 
-    default:
-      return ImmutableSet.of();
+      default:
+        return ImmutableSet.of();
     }
   }
-
 }

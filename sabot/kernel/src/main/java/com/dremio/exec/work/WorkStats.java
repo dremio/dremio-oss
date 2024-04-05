@@ -15,13 +15,12 @@
  */
 package com.dremio.exec.work;
 
-import java.sql.Timestamp;
-import java.util.Collections;
-import java.util.Iterator;
-
 import com.dremio.resource.GroupResourceInformation;
 import com.dremio.sabot.task.TaskDescriptor;
 import com.dremio.sabot.task.TaskPool;
+import java.sql.Timestamp;
+import java.util.Collections;
+import java.util.Iterator;
 
 public interface WorkStats {
 
@@ -35,13 +34,12 @@ public interface WorkStats {
    * @return number of running fragments / max width per node
    */
   float getClusterLoad();
-  float getClusterLoad(GroupResourceInformation groupResourceInformation);
 
+  float getClusterLoad(GroupResourceInformation groupResourceInformation);
 
   Integer getCpuTrailingAverage(long id, int seconds);
 
   Integer getUserTrailingAverage(long id, int seconds);
-
 
   /**
    * Computes the reduction that should be applied to the default max_width_per_node option.<br>
@@ -51,23 +49,28 @@ public interface WorkStats {
    * @return load reduction in the range [0, 1]
    */
   double getMaxWidthFactor();
+
   double getMaxWidthFactor(GroupResourceInformation groupResourceInformation);
 
-  /**
-   * sys.slicing_threads entry
-   */
+  /** sys.slicing_threads entry */
   class SlicingThreadInfo {
 
     public final String node_id;
+
     /** Sabot node infos */
     public final String hostname;
+
     public final int fabric_port;
+
     /** current Java thread name */
     public final String thread_name;
+
     /** slicing thread Id */
     public final int slicing_thread_id;
+
     /** OS thread Id */
     public final int os_thread_id;
+
     /** cpu id (core) */
     public final int cpu_id;
 
@@ -98,10 +101,10 @@ public interface WorkStats {
     public final int major_fragment_id;
     public final int minor_fragment_id;
     public final Long memory_usage;
-    /**
-     * The maximum number of input records across all Operators in fragment
-     */
+
+    /** The maximum number of input records across all Operators in fragment */
     public final Long rows_processed;
+
     public final Timestamp start_time;
     public final String blocks;
 
@@ -111,9 +114,18 @@ public interface WorkStats {
     public final long blocked;
     public final long memory_grant;
 
-    public FragmentInfo(String hostname, String job_id, int major_fragment_id, int minor_fragment_id, Long memory_usage,
-                        Long rows_processed, Timestamp start_time, String blocks, TaskDescriptor taskDescriptor,
-                        long fabric_port, long memory_grant) {
+    public FragmentInfo(
+        String hostname,
+        String job_id,
+        int major_fragment_id,
+        int minor_fragment_id,
+        Long memory_usage,
+        Long rows_processed,
+        Timestamp start_time,
+        String blocks,
+        TaskDescriptor taskDescriptor,
+        long fabric_port,
+        long memory_grant) {
       this.hostname = hostname;
       this.job_id = job_id;
       this.major_fragment_id = major_fragment_id;
@@ -131,41 +143,44 @@ public interface WorkStats {
     }
   }
 
-  WorkStats NO_OP = new WorkStats(){
+  WorkStats NO_OP =
+      new WorkStats() {
 
-    @Override
-    public Iterator<FragmentInfo> getRunningFragments() {
-      return Collections.emptyIterator();
-    }
+        @Override
+        public Iterator<FragmentInfo> getRunningFragments() {
+          return Collections.emptyIterator();
+        }
 
-    @Override
-    public float getClusterLoad(com.dremio.resource.GroupResourceInformation groupResourceInformation) {
-      return getClusterLoad();
-    }
+        @Override
+        public float getClusterLoad(
+            com.dremio.resource.GroupResourceInformation groupResourceInformation) {
+          return getClusterLoad();
+        }
 
-    @Override
-    public double getMaxWidthFactor(com.dremio.resource.GroupResourceInformation groupResourceInformation) {
-      return getMaxWidthFactor();
-    }
+        @Override
+        public double getMaxWidthFactor(
+            com.dremio.resource.GroupResourceInformation groupResourceInformation) {
+          return getMaxWidthFactor();
+        }
 
-    @Override
-    public float getClusterLoad() {
-      return 1.0f;
-    }
+        @Override
+        public float getClusterLoad() {
+          return 1.0f;
+        }
 
-    @Override
-    public Integer getCpuTrailingAverage(long id, int seconds) {
-      return 0;
-    }
+        @Override
+        public Integer getCpuTrailingAverage(long id, int seconds) {
+          return 0;
+        }
 
-    @Override
-    public Integer getUserTrailingAverage(long id, int seconds) {
-      return 0;
-    }
+        @Override
+        public Integer getUserTrailingAverage(long id, int seconds) {
+          return 0;
+        }
 
-    @Override
-    public double getMaxWidthFactor() {
-      return 1.0f;
-    }
-  };
+        @Override
+        public double getMaxWidthFactor() {
+          return 1.0f;
+        }
+      };
 }

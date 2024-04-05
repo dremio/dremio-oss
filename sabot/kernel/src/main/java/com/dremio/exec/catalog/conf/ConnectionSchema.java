@@ -15,21 +15,22 @@
  */
 package com.dremio.exec.catalog.conf;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Throwables;
+import io.protostuff.CustomSchema;
+import io.protostuff.Schema;
+import io.protostuff.runtime.IdStrategy;
+import io.protostuff.runtime.RuntimeEnv;
+import io.protostuff.runtime.RuntimeEnv.Instantiator;
+import io.protostuff.runtime.RuntimeSchema;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 
-import com.google.common.base.Throwables;
-
-import io.protostuff.CustomSchema;
-import io.protostuff.Schema;
-import io.protostuff.runtime.RuntimeEnv.Instantiator;
-import io.protostuff.runtime.RuntimeSchema;
-
 /**
  * A special schema for {@code ConnectionConf}
  *
- * Calls
+ * <p>Calls
  *
  * @param <T> the message type
  */
@@ -43,7 +44,9 @@ public class ConnectionSchema<T> extends CustomSchema<T> {
     }
 
     @Override
-    public T newInstance() { return schema.newMessage(); }
+    public T newInstance() {
+      return schema.newMessage();
+    }
   }
 
   private static final class FactoryInstantiator<T> extends Instantiator<T> {
@@ -69,13 +72,19 @@ public class ConnectionSchema<T> extends CustomSchema<T> {
   }
 
   private final Instantiator<T> instantiator;
+
   private ConnectionSchema(Schema<T> schema, Instantiator<T> instantiator) {
     super(schema);
     this.instantiator = instantiator;
   }
 
   public static <T> ConnectionSchema<T> getSchema(Class<T> typeClass) {
-    final Schema<T> schema = RuntimeSchema.getSchema(typeClass);
+    return getSchema(typeClass, RuntimeEnv.ID_STRATEGY);
+  }
+
+  @VisibleForTesting
+  public static <T> ConnectionSchema<T> getSchema(Class<T> typeClass, IdStrategy idStrategy) {
+    final Schema<T> schema = RuntimeSchema.getSchema(typeClass, idStrategy);
 
     final Instantiator<T> instantiator = findInstantiator(typeClass, schema);
     return new ConnectionSchema<>(schema, instantiator);
@@ -100,6 +109,7 @@ public class ConnectionSchema<T> extends CustomSchema<T> {
     }
     return new SchemaInstantiator<>(schema);
   }
+
   @Override
   public T newMessage() {
     return instantiator.newInstance();

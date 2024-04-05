@@ -15,11 +15,6 @@
  */
 package com.dremio.dac.service.sysflight;
 
-import javax.inject.Provider;
-
-import org.apache.arrow.flight.FlightProducer.ServerStreamListener;
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.exec.proto.FlightProtos.SysFlightTicket;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.acceleration.ReflectionDescriptionServiceGrpc;
@@ -37,30 +32,38 @@ import com.dremio.service.job.RecentJobsRequest;
 import com.dremio.service.sysflight.ProtobufRecordReader;
 import com.dremio.service.sysflight.SysFlightDataProvider;
 import com.dremio.service.sysflight.SysFlightStreamObserver;
+import javax.inject.Provider;
+import org.apache.arrow.flight.FlightProducer.ServerStreamListener;
+import org.apache.arrow.memory.BufferAllocator;
 
-/**
- * SysFlight tables provider
- */
+/** SysFlight tables provider */
 public class SysFlightTablesProvider {
 
-  /**
-   * Jobs table
-   */
+  /** Jobs table */
   public static class JobsTable implements SysFlightDataProvider {
     private final Provider<ChronicleGrpc.ChronicleStub> jobsStub;
+
     public JobsTable(Provider<ChronicleGrpc.ChronicleStub> jobsStub) {
       this.jobsStub = jobsStub;
     }
 
     @Override
-    public void streamData(SysFlightTicket ticket, ServerStreamListener listener, BufferAllocator allocator,
-      int recordBatchSize) {
-      ActiveJobsRequest.Builder requestBuilder = ActiveJobsRequest.newBuilder().setQuery(ticket.getQuery());
-      if(!(ticket.getUserName().equals(""))){
+    public void streamData(
+        SysFlightTicket ticket,
+        ServerStreamListener listener,
+        BufferAllocator allocator,
+        int recordBatchSize) {
+      ActiveJobsRequest.Builder requestBuilder =
+          ActiveJobsRequest.newBuilder().setQuery(ticket.getQuery());
+      if (!(ticket.getUserName().equals(""))) {
         requestBuilder.setUserName(ticket.getUserName());
       }
-      jobsStub.get().getActiveJobs(requestBuilder.build(), new SysFlightStreamObserver<>(allocator, listener,
-        ActiveJobSummary.getDescriptor(), recordBatchSize));
+      jobsStub
+          .get()
+          .getActiveJobs(
+              requestBuilder.build(),
+              new SysFlightStreamObserver<>(
+                  allocator, listener, ActiveJobSummary.getDescriptor(), recordBatchSize));
     }
 
     @Override
@@ -69,23 +72,30 @@ public class SysFlightTablesProvider {
     }
   }
 
-
-  /**
-   * Reflections table
-   */
+  /** Reflections table */
   public static class ReflectionsTable implements SysFlightDataProvider {
-    private final Provider<ReflectionDescriptionServiceGrpc.ReflectionDescriptionServiceStub> reflectionsStub;
+    private final Provider<ReflectionDescriptionServiceGrpc.ReflectionDescriptionServiceStub>
+        reflectionsStub;
+
     public ReflectionsTable(
-      Provider<ReflectionDescriptionServiceGrpc.ReflectionDescriptionServiceStub> reflectionsStub) {
+        Provider<ReflectionDescriptionServiceGrpc.ReflectionDescriptionServiceStub>
+            reflectionsStub) {
       this.reflectionsStub = reflectionsStub;
     }
 
     @Override
-    public void streamData(SysFlightTicket ticket, ServerStreamListener listener, BufferAllocator allocator,
-      int recordBatchSize) {
+    public void streamData(
+        SysFlightTicket ticket,
+        ServerStreamListener listener,
+        BufferAllocator allocator,
+        int recordBatchSize) {
       ListReflectionsRequest request = ListReflectionsRequest.newBuilder().build();
-      reflectionsStub.get().listReflections(request, new SysFlightStreamObserver<>(allocator, listener,
-        ListReflectionsResponse.getDescriptor(), recordBatchSize));
+      reflectionsStub
+          .get()
+          .listReflections(
+              request,
+              new SysFlightStreamObserver<>(
+                  allocator, listener, ListReflectionsResponse.getDescriptor(), recordBatchSize));
     }
 
     @Override
@@ -94,22 +104,33 @@ public class SysFlightTablesProvider {
     }
   }
 
-  /**
-   * Materializations table
-   */
+  /** Materializations table */
   public static class MaterializationsTable implements SysFlightDataProvider {
-    private final Provider<ReflectionDescriptionServiceGrpc.ReflectionDescriptionServiceStub> reflectionsStub;
+    private final Provider<ReflectionDescriptionServiceGrpc.ReflectionDescriptionServiceStub>
+        reflectionsStub;
+
     public MaterializationsTable(
-      Provider<ReflectionDescriptionServiceGrpc.ReflectionDescriptionServiceStub> reflectionsStub) {
+        Provider<ReflectionDescriptionServiceGrpc.ReflectionDescriptionServiceStub>
+            reflectionsStub) {
       this.reflectionsStub = reflectionsStub;
     }
 
     @Override
-    public void streamData(SysFlightTicket ticket, ServerStreamListener listener, BufferAllocator allocator,
-      int recordBatchSize) {
+    public void streamData(
+        SysFlightTicket ticket,
+        ServerStreamListener listener,
+        BufferAllocator allocator,
+        int recordBatchSize) {
       ListMaterializationsRequest request = ListMaterializationsRequest.newBuilder().build();
-      reflectionsStub.get().listMaterializations(request, new SysFlightStreamObserver<>(allocator, listener,
-        ListMaterializationsResponse.getDescriptor(), recordBatchSize));
+      reflectionsStub
+          .get()
+          .listMaterializations(
+              request,
+              new SysFlightStreamObserver<>(
+                  allocator,
+                  listener,
+                  ListMaterializationsResponse.getDescriptor(),
+                  recordBatchSize));
     }
 
     @Override
@@ -118,22 +139,34 @@ public class SysFlightTablesProvider {
     }
   }
 
-  /**
-   * Reflection Dependencies table
-   */
+  /** Reflection Dependencies table */
   public static class ReflectionDependenciesTable implements SysFlightDataProvider {
-    private final Provider<ReflectionDescriptionServiceGrpc.ReflectionDescriptionServiceStub> reflectionsStub;
+    private final Provider<ReflectionDescriptionServiceGrpc.ReflectionDescriptionServiceStub>
+        reflectionsStub;
+
     public ReflectionDependenciesTable(
-      Provider<ReflectionDescriptionServiceGrpc.ReflectionDescriptionServiceStub> reflectionsStub) {
+        Provider<ReflectionDescriptionServiceGrpc.ReflectionDescriptionServiceStub>
+            reflectionsStub) {
       this.reflectionsStub = reflectionsStub;
     }
 
     @Override
-    public void streamData(SysFlightTicket ticket, ServerStreamListener listener, BufferAllocator allocator,
-      int recordBatchSize) {
-      ListReflectionDependenciesRequest request = ListReflectionDependenciesRequest.newBuilder().build();
-      reflectionsStub.get().listReflectionDependencies(request, new SysFlightStreamObserver<>(allocator, listener,
-        ListReflectionDependenciesResponse.getDescriptor(), recordBatchSize));
+    public void streamData(
+        SysFlightTicket ticket,
+        ServerStreamListener listener,
+        BufferAllocator allocator,
+        int recordBatchSize) {
+      ListReflectionDependenciesRequest request =
+          ListReflectionDependenciesRequest.newBuilder().build();
+      reflectionsStub
+          .get()
+          .listReflectionDependencies(
+              request,
+              new SysFlightStreamObserver<>(
+                  allocator,
+                  listener,
+                  ListReflectionDependenciesResponse.getDescriptor(),
+                  recordBatchSize));
     }
 
     @Override
@@ -142,24 +175,31 @@ public class SysFlightTablesProvider {
     }
   }
 
-  /**
-   * Recent Jobs table
-   */
+  /** Recent Jobs table */
   public static class RecentJobsTable implements SysFlightDataProvider {
     private final Provider<ChronicleGrpc.ChronicleStub> jobsStub;
+
     public RecentJobsTable(Provider<ChronicleGrpc.ChronicleStub> jobsStub) {
       this.jobsStub = jobsStub;
     }
 
     @Override
-    public void streamData(SysFlightTicket ticket, ServerStreamListener listener, BufferAllocator allocator,
-                           int recordBatchSize) {
-      RecentJobsRequest.Builder requestBuilder = RecentJobsRequest.newBuilder().setQuery(ticket.getQuery());
-      if(!(ticket.getUserName().equals(""))){
+    public void streamData(
+        SysFlightTicket ticket,
+        ServerStreamListener listener,
+        BufferAllocator allocator,
+        int recordBatchSize) {
+      RecentJobsRequest.Builder requestBuilder =
+          RecentJobsRequest.newBuilder().setQuery(ticket.getQuery());
+      if (!(ticket.getUserName().equals(""))) {
         requestBuilder.setUserName(ticket.getUserName());
       }
-      jobsStub.get().getRecentJobs(requestBuilder.build(), new SysFlightStreamObserver<>(allocator, listener,
-        RecentJobSummary.getDescriptor(), recordBatchSize));
+      jobsStub
+          .get()
+          .getRecentJobs(
+              requestBuilder.build(),
+              new SysFlightStreamObserver<>(
+                  allocator, listener, RecentJobSummary.getDescriptor(), recordBatchSize));
     }
 
     @Override

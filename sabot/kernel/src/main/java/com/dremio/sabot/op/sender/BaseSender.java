@@ -28,9 +28,10 @@ public abstract class BaseSender implements TerminalOperator {
   }
 
   protected void checkSchema(BatchSchema schema) {
-    Preconditions.checkState(schema.equals(popConfig.getSchema()),
-      String.format("Schema does not match expected schema:\nExpected:%s\nActual:%s",
-        popConfig.getSchema().toStringVerbose(),
-        schema.toStringVerbose()));
+    Preconditions.checkState(
+        schema.equals(popConfig.getSchema()),
+        String.format(
+            "Schema does not match expected schema:\nExpected:%s\nActual:%s",
+            popConfig.getSchema().toStringVerbose(), schema.toStringVerbose()));
   }
 }

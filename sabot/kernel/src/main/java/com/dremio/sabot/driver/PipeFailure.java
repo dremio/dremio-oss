@@ -15,13 +15,10 @@
  */
 package com.dremio.sabot.driver;
 
-/**
- * Exception class that keeps track of the pipe that failed processing.
- */
+/** Exception class that keeps track of the pipe that failed processing. */
 public class PipeFailure extends RuntimeException {
 
   public PipeFailure(Pipe pipe, Throwable cause) {
     super(String.format("Pipe pumping failure for pipe: %s.", pipe), cause);
   }
-
 }

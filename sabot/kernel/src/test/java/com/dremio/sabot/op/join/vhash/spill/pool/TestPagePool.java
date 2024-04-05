@@ -18,20 +18,16 @@ package com.dremio.sabot.op.join.vhash.spill.pool;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
+import com.dremio.common.AutoCloseables;
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import com.dremio.common.AutoCloseables;
-
-/**
- * Test the PagePool
- */
+/** Test the PagePool */
 public class TestPagePool {
 
   private BufferAllocator allocator;
@@ -42,7 +38,6 @@ public class TestPagePool {
     this.allocator = new RootAllocator(70 * 1024);
     this.pool = new PagePool(allocator, 1024, 64);
     pool.start();
-
   }
 
   @After
@@ -59,12 +54,12 @@ public class TestPagePool {
   @Test
   public void overPrealloc() throws Exception {
     List<AutoCloseable> c1 = new ArrayList<>();
-    for(int i = 0; i < 32; i++) {
+    for (int i = 0; i < 32; i++) {
       c1.add(pool.newPage());
     }
 
     List<AutoCloseable> c2 = new ArrayList<>();
-    for(int i = 0; i < 32; i++) {
+    for (int i = 0; i < 32; i++) {
       c2.add(pool.newPage());
     }
 

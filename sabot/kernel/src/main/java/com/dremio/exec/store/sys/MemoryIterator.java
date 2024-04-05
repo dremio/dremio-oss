@@ -15,17 +15,15 @@
  */
 package com.dremio.exec.store.sys;
 
-
+import com.dremio.common.VM;
+import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
+import com.dremio.exec.server.SabotContext;
+import com.dremio.sabot.exec.context.OperatorContext;
 import java.lang.management.BufferPoolMXBean;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryUsage;
 import java.util.Iterator;
 import java.util.List;
-
-import com.dremio.common.VM;
-import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
-import com.dremio.exec.server.SabotContext;
-import com.dremio.sabot.exec.context.OperatorContext;
 
 public class MemoryIterator implements Iterator<Object> {
 
@@ -61,7 +59,6 @@ public class MemoryIterator implements Iterator<Object> {
 
     BufferPoolMXBean directBean = getDirectBean();
     memoryInfo.jvm_direct_current = directBean.getMemoryUsed();
-
 
     memoryInfo.direct_current = dbContext.getAllocator().getAllocatedMemory();
     memoryInfo.direct_max = VM.getMaxDirectMemory();

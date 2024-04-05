@@ -21,6 +21,28 @@ import static com.dremio.exec.store.hive.HiveUtilities.getInputFormatClass;
 import static com.dremio.exec.store.hive.HiveUtilities.getStructOI;
 import static com.dremio.exec.store.hive.exec.HiveReaderProtoUtil.getPartitionProperties;
 
+import com.dremio.common.SuppressForbidden;
+import com.dremio.common.exceptions.UserException;
+import com.dremio.common.util.Closeable;
+import com.dremio.exec.store.RecordReader;
+import com.dremio.exec.store.ScanFilter;
+import com.dremio.exec.store.SplitAndPartitionInfo;
+import com.dremio.exec.store.dfs.implicit.CompositeReaderConfig;
+import com.dremio.exec.store.hive.HivePf4jPlugin;
+import com.dremio.exec.store.hive.HiveSettings;
+import com.dremio.exec.store.hive.HiveUtilities;
+import com.dremio.exec.store.parquet.RecordReaderIterator;
+import com.dremio.hive.proto.HiveReaderProto.HiveSplitXattr;
+import com.dremio.hive.proto.HiveReaderProto.HiveTableXattr;
+import com.dremio.hive.proto.HiveReaderProto.PartitionXattr;
+import com.dremio.options.OptionManager;
+import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.sabot.exec.context.OperatorStats;
+import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
+import com.dremio.sabot.op.scan.ScanOperator;
+import com.dremio.sabot.op.spi.ProducerOperator;
+import com.google.common.base.Throwables;
+import com.google.common.collect.FluentIterable;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
@@ -33,7 +55,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.function.Supplier;
-
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -57,43 +78,20 @@ import org.apache.orc.OrcConf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.common.SuppressForbidden;
-import com.dremio.common.exceptions.UserException;
-import com.dremio.common.util.Closeable;
-import com.dremio.exec.store.RecordReader;
-import com.dremio.exec.store.ScanFilter;
-import com.dremio.exec.store.SplitAndPartitionInfo;
-import com.dremio.exec.store.dfs.implicit.CompositeReaderConfig;
-import com.dremio.exec.store.hive.HivePf4jPlugin;
-import com.dremio.exec.store.hive.HiveSettings;
-import com.dremio.exec.store.hive.HiveUtilities;
-import com.dremio.exec.store.parquet.RecordReaderIterator;
-import com.dremio.hive.proto.HiveReaderProto.HiveSplitXattr;
-import com.dremio.hive.proto.HiveReaderProto.HiveTableXattr;
-import com.dremio.hive.proto.HiveReaderProto.PartitionXattr;
-import com.dremio.options.OptionManager;
-import com.dremio.sabot.exec.context.OperatorContext;
-import com.dremio.sabot.exec.context.OperatorStats;
-import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
-import com.dremio.sabot.op.scan.ScanOperator;
-import com.dremio.sabot.op.spi.ProducerOperator;
-import com.google.common.base.Throwables;
-import com.google.common.collect.FluentIterable;
-
 /**
- * Helper class for {@link HiveScanBatchCreator} to create a {@link ProducerOperator} that uses readers provided by
- * Hive.
+ * Helper class for {@link HiveScanBatchCreator} to create a {@link ProducerOperator} that uses
+ * readers provided by Hive.
  */
 @SuppressForbidden
 class ScanWithHiveReader {
   private static final Logger logger = LoggerFactory.getLogger(ScanWithHiveReader.class);
 
   /**
-   * Use different classes for different Hive native formats:
-   * ORC, AVRO, RCFFile, Text and Parquet.
+   * Use different classes for different Hive native formats: ORC, AVRO, RCFFile, Text and Parquet.
    * If input format is none of them falls to default reader.
    */
   private static final Map<String, Class<? extends HiveAbstractReader>> readerMap = new HashMap<>();
+
   static {
     readerMap.put(OrcInputFormat.class.getCanonicalName(), HiveOrcReader.class);
     readerMap.put(AvroContainerInputFormat.class.getCanonicalName(), HiveAvroReader.class);
@@ -103,6 +101,7 @@ class ScanWithHiveReader {
   }
 
   private static final boolean isNativeZlibLoaded;
+
   static {
     boolean isLoaded;
     try {
@@ -117,8 +116,11 @@ class ScanWithHiveReader {
     isNativeZlibLoaded = isLoaded;
   }
 
-  private static Class<? extends HiveAbstractReader> getNativeReaderClass(Optional<String> formatName,
-                                                                          OptionManager options, Configuration configuration, boolean isTransactional) {
+  private static Class<? extends HiveAbstractReader> getNativeReaderClass(
+      Optional<String> formatName,
+      OptionManager options,
+      Configuration configuration,
+      boolean isTransactional) {
     if (!formatName.isPresent()) {
       return HiveDefaultReader.class;
     }
@@ -129,19 +131,20 @@ class ScanWithHiveReader {
       if (OrcConf.USE_ZEROCOPY.getBoolean(configuration)) {
         if (!NativeCodeLoader.isNativeCodeLoaded()) {
           throw UserException.dataReadError()
-              .message("Hadoop native library is required for Hive ORC data, but is not loaded").build(logger);
+              .message("Hadoop native library is required for Hive ORC data, but is not loaded")
+              .build(logger);
         }
         // TODO: find a way to access compression codec information?
         if (!SnappyDecompressor.isNativeCodeLoaded()) {
           throw UserException.dataReadError()
-            .message("Snappy native library is required for Hive ORC data, but is not loaded").build(logger);
+              .message("Snappy native library is required for Hive ORC data, but is not loaded")
+              .build(logger);
         }
 
         if (!isNativeZlibLoaded) {
-          throw UserException
-          .dataReadError()
-          .message("Zlib native library is required for Hive ORC data, but is not loaded")
-          .build(logger);
+          throw UserException.dataReadError()
+              .message("Zlib native library is required for Hive ORC data, but is not loaded")
+              .build(logger);
         }
       }
 
@@ -159,11 +162,21 @@ class ScanWithHiveReader {
     return readerClass;
   }
 
-  private static Constructor<? extends HiveAbstractReader> getNativeReaderCtor(Class<? extends HiveAbstractReader> clazz)
-      throws NoSuchMethodException {
-    return clazz.getConstructor(HiveTableXattr.class, SplitAndPartitionInfo.class, List.class, OperatorContext.class,
-                                JobConf.class, AbstractSerDe.class, StructObjectInspector.class, AbstractSerDe.class, StructObjectInspector.class,
-                                ScanFilter.class, Collection.class, UserGroupInformation.class);
+  private static Constructor<? extends HiveAbstractReader> getNativeReaderCtor(
+      Class<? extends HiveAbstractReader> clazz) throws NoSuchMethodException {
+    return clazz.getConstructor(
+        HiveTableXattr.class,
+        SplitAndPartitionInfo.class,
+        List.class,
+        OperatorContext.class,
+        JobConf.class,
+        AbstractSerDe.class,
+        StructObjectInspector.class,
+        AbstractSerDe.class,
+        StructObjectInspector.class,
+        ScanFilter.class,
+        Collection.class,
+        UserGroupInformation.class);
   }
 
   static RecordReaderIterator createReaders(
@@ -176,30 +189,53 @@ class ScanWithHiveReader {
       final ScanFilter scanFilter,
       final boolean isPartitioned,
       final Collection<List<String>> referencedTables,
-      List<SplitAndPartitionInfo> splits){
+      List<SplitAndPartitionInfo> splits) {
 
-    if(splits.isEmpty()) {
+    if (splits.isEmpty()) {
       return RecordReaderIterator.from(Collections.emptyIterator());
     }
 
-    final List<Pair<SplitAndPartitionInfo, Supplier<RecordReader>>> readers = FluentIterable.from(splits).transform(split ->
-      readerUGI.doAs((PrivilegedAction<Pair<SplitAndPartitionInfo, Supplier<RecordReader>>>) () -> {
-        final Supplier<RecordReader> innerReader = () -> compositeReader.wrapIfNecessary(context.getAllocator(),
-          getRecordReader(tableXattr, context, hiveConf, split, compositeReader, readerUGI, scanFilter,
-            isPartitioned, referencedTables),
-          split);
-        return Pair.of(split, innerReader);
-      })).toList();
+    final List<Pair<SplitAndPartitionInfo, Supplier<RecordReader>>> readers =
+        FluentIterable.from(splits)
+            .transform(
+                split ->
+                    readerUGI.doAs(
+                        (PrivilegedAction<Pair<SplitAndPartitionInfo, Supplier<RecordReader>>>)
+                            () -> {
+                              final Supplier<RecordReader> innerReader =
+                                  () ->
+                                      compositeReader.wrapIfNecessary(
+                                          context.getAllocator(),
+                                          getRecordReader(
+                                              tableXattr,
+                                              context,
+                                              hiveConf,
+                                              split,
+                                              compositeReader,
+                                              readerUGI,
+                                              scanFilter,
+                                              isPartitioned,
+                                              referencedTables),
+                                          split);
+                              return Pair.of(split, innerReader);
+                            }))
+            .toList();
     return new HiveRecordReaderIterator(context, compositeReader, readers);
   }
 
-  private static RecordReader getRecordReader(HiveTableXattr tableXattr,
-                                              OperatorContext context, HiveConf hiveConf,
-                                              SplitAndPartitionInfo split, CompositeReaderConfig compositeReader,
-                                              UserGroupInformation readerUgi, ScanFilter scanFilter, boolean isPartitioned,
-                                              Collection<List<String>> referencedTables) {
-    try(Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
-      final HiveSplitXattr splitXattr = HiveSplitXattr.parseFrom(split.getDatasetSplitInfo().getExtendedProperty());
+  private static RecordReader getRecordReader(
+      HiveTableXattr tableXattr,
+      OperatorContext context,
+      HiveConf hiveConf,
+      SplitAndPartitionInfo split,
+      CompositeReaderConfig compositeReader,
+      UserGroupInformation readerUgi,
+      ScanFilter scanFilter,
+      boolean isPartitioned,
+      Collection<List<String>> referencedTables) {
+    try (Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
+      final HiveSplitXattr splitXattr =
+          HiveSplitXattr.parseFrom(split.getDatasetSplitInfo().getExtendedProperty());
       final JobConf jobConf = new JobConf(hiveConf);
       final Properties tableProperties = new Properties();
       addProperties(jobConf, tableProperties, HiveReaderProtoUtil.getTableProperties(tableXattr));
@@ -207,7 +243,10 @@ class ScanWithHiveReader {
       final boolean isTransactional = AcidUtils.isTablePropertyTransactional(jobConf);
       final Optional<String> tableInputFormat = HiveReaderProtoUtil.getTableInputFormat(tableXattr);
 
-      final AbstractSerDe tableSerDe = createSerDe(jobConf, HiveReaderProtoUtil.getTableSerializationLib(tableXattr).get(),
+      final AbstractSerDe tableSerDe =
+          createSerDe(
+              jobConf,
+              HiveReaderProtoUtil.getTableSerializationLib(tableXattr).get(),
               tableProperties);
       final StructObjectInspector tableOI = getStructOI(tableSerDe);
       final AbstractSerDe partitionSerDe;
@@ -222,9 +261,11 @@ class ScanWithHiveReader {
       }
 
       final Class<? extends HiveAbstractReader> tableReaderClass =
-              getNativeReaderClass(tableInputFormat, context.getOptions(), hiveConf, isTransactional && hasDeltas);
+          getNativeReaderClass(
+              tableInputFormat, context.getOptions(), hiveConf, isTransactional && hasDeltas);
 
-      final Constructor<? extends HiveAbstractReader> tableReaderCtor = getNativeReaderCtor(tableReaderClass);
+      final Constructor<? extends HiveAbstractReader> tableReaderCtor =
+          getNativeReaderCtor(tableReaderClass);
 
       Constructor<? extends HiveAbstractReader> readerCtor = tableReaderCtor;
       // It is possible to for a partition to have different input format than table input format.
@@ -232,54 +273,81 @@ class ScanWithHiveReader {
         final Properties partitionProperties = new Properties();
         final Optional<String> partitionInputFormat;
         final Optional<String> partitionStorageHandlerName;
-        // First add table properties and then add partition properties. Partition properties override table properties.
-        addProperties(jobConf, partitionProperties, HiveReaderProtoUtil.getTableProperties(tableXattr));
+        // First add table properties and then add partition properties. Partition properties
+        // override table properties.
+        addProperties(
+            jobConf, partitionProperties, HiveReaderProtoUtil.getTableProperties(tableXattr));
 
         // If Partition Properties are stored in DatasetMetadata (Pre 3.2.0)
         if (HiveReaderProtoUtil.isPreDremioVersion3dot2dot0LegacyFormat(tableXattr)) {
           logger.debug("Reading partition properties from DatasetMetadata");
-          addProperties(jobConf, partitionProperties, getPartitionProperties(tableXattr, splitXattr.getPartitionId()));
+          addProperties(
+              jobConf,
+              partitionProperties,
+              getPartitionProperties(tableXattr, splitXattr.getPartitionId()));
           partitionSerDe =
-                  createSerDe(jobConf,
-                          HiveReaderProtoUtil.getPartitionSerializationLib(tableXattr, splitXattr.getPartitionId()).get(),
-                          partitionProperties
-                  );
-          partitionInputFormat = HiveReaderProtoUtil.getPartitionInputFormat(tableXattr, splitXattr.getPartitionId());
-          partitionStorageHandlerName = HiveReaderProtoUtil.getPartitionStorageHandler(tableXattr, splitXattr.getPartitionId());
+              createSerDe(
+                  jobConf,
+                  HiveReaderProtoUtil.getPartitionSerializationLib(
+                          tableXattr, splitXattr.getPartitionId())
+                      .get(),
+                  partitionProperties);
+          partitionInputFormat =
+              HiveReaderProtoUtil.getPartitionInputFormat(tableXattr, splitXattr.getPartitionId());
+          partitionStorageHandlerName =
+              HiveReaderProtoUtil.getPartitionStorageHandler(
+                  tableXattr, splitXattr.getPartitionId());
 
         } else {
           logger.debug("Reading partition properties from PartitionChunk");
           // TODO
           final PartitionXattr partitionXattr = HiveReaderProtoUtil.getPartitionXattr(split);
-          addProperties(jobConf, partitionProperties, getPartitionProperties(tableXattr, partitionXattr));
+          addProperties(
+              jobConf, partitionProperties, getPartitionProperties(tableXattr, partitionXattr));
           partitionSerDe =
-                  createSerDe(jobConf,
-                          HiveReaderProtoUtil.getPartitionSerializationLib(tableXattr, partitionXattr),
-                          partitionProperties
-                  );
-          partitionInputFormat = HiveReaderProtoUtil.getPartitionInputFormat(tableXattr, partitionXattr);
-          partitionStorageHandlerName = HiveReaderProtoUtil.getPartitionStorageHandler(tableXattr, partitionXattr);
+              createSerDe(
+                  jobConf,
+                  HiveReaderProtoUtil.getPartitionSerializationLib(tableXattr, partitionXattr),
+                  partitionProperties);
+          partitionInputFormat =
+              HiveReaderProtoUtil.getPartitionInputFormat(tableXattr, partitionXattr);
+          partitionStorageHandlerName =
+              HiveReaderProtoUtil.getPartitionStorageHandler(tableXattr, partitionXattr);
         }
 
-        jobConf.setInputFormat(getInputFormatClass(jobConf, partitionInputFormat, partitionStorageHandlerName));
+        jobConf.setInputFormat(
+            getInputFormatClass(jobConf, partitionInputFormat, partitionStorageHandlerName));
         partitionOI = getStructOI(partitionSerDe);
         updateFileFormatStat(context.getStats(), partitionInputFormat);
 
         if (!partitionInputFormat.equals(tableInputFormat) || isTransactional && hasDeltas) {
-          final Class<? extends HiveAbstractReader> partitionReaderClass = getNativeReaderClass(
+          final Class<? extends HiveAbstractReader> partitionReaderClass =
+              getNativeReaderClass(
                   partitionInputFormat, context.getOptions(), jobConf, isTransactional);
           readerCtor = getNativeReaderCtor(partitionReaderClass);
         }
       } else {
         partitionSerDe = null;
         partitionOI = null;
-        jobConf.setInputFormat(getInputFormatClass(jobConf, tableInputFormat, HiveReaderProtoUtil.getTableStorageHandler(tableXattr)));
+        jobConf.setInputFormat(
+            getInputFormatClass(
+                jobConf, tableInputFormat, HiveReaderProtoUtil.getTableStorageHandler(tableXattr)));
         updateFileFormatStat(context.getStats(), tableInputFormat);
       }
 
-      return readerCtor.newInstance(tableXattr, split,
-              compositeReader.getInnerColumns(), context, jobConf, tableSerDe, tableOI, partitionSerDe,
-              partitionOI, scanFilter, referencedTables, readerUgi);
+      return readerCtor.newInstance(
+          tableXattr,
+          split,
+          compositeReader.getInnerColumns(),
+          context,
+          jobConf,
+          tableSerDe,
+          tableOI,
+          partitionSerDe,
+          partitionOI,
+          scanFilter,
+          referencedTables,
+          readerUgi);
     } catch (Exception e) {
       throw Throwables.propagate(e);
     }
@@ -320,7 +388,8 @@ class ScanWithHiveReader {
     } else {
       fileFormat = (1 << ScanOperator.HiveFileFormat.OTHER.ordinal());
     }
-    stats.setLongStat(ScanOperator.Metric.HIVE_FILE_FORMATS,
-      stats.getLongStat(ScanOperator.Metric.HIVE_FILE_FORMATS) | fileFormat);
+    stats.setLongStat(
+        ScanOperator.Metric.HIVE_FILE_FORMATS,
+        stats.getLongStat(ScanOperator.Metric.HIVE_FILE_FORMATS) | fileFormat);
   }
 }

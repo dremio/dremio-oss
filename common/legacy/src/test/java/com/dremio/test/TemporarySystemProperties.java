@@ -16,7 +16,6 @@
 package com.dremio.test;
 
 import java.util.Properties;
-
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
@@ -24,11 +23,10 @@ import org.junit.runners.model.Statement;
 /**
  * A JUnit rule to set/reset system properties
  *
- * Note that this rule is not thread-safe as system properties are global objects
+ * <p>Note that this rule is not thread-safe as system properties are global objects
  */
 public class TemporarySystemProperties implements TestRule {
-  public TemporarySystemProperties() {
-  }
+  public TemporarySystemProperties() {}
 
   @Override
   public Statement apply(final Statement base, Description description) {
@@ -43,7 +41,6 @@ public class TemporarySystemProperties implements TestRule {
         } finally {
           System.setProperties(cloned);
         }
-
       }
     };
   }
@@ -51,6 +48,7 @@ public class TemporarySystemProperties implements TestRule {
   // helper methods
   /**
    * Get system property for key
+   *
    * @param key
    * @return
    */
@@ -60,6 +58,7 @@ public class TemporarySystemProperties implements TestRule {
 
   /**
    * Get system property for key, or default if not set
+   *
    * @param key
    * @param def
    * @return
@@ -70,6 +69,7 @@ public class TemporarySystemProperties implements TestRule {
 
   /**
    * Set system property for key
+   *
    * @param key
    * @param value
    */
@@ -79,10 +79,10 @@ public class TemporarySystemProperties implements TestRule {
 
   /**
    * Clear system property for key
+   *
    * @param name
    */
   public void clear(String key) {
     System.clearProperty(key);
   }
-
 }

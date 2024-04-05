@@ -15,24 +15,6 @@
  */
 package com.dremio.dac.resource;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-
-import javax.annotation.security.RolesAllowed;
-import javax.inject.Inject;
-import javax.inject.Provider;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.SecurityContext;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
@@ -50,10 +32,23 @@ import com.dremio.services.fabric.api.FabricService;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.protobuf.Empty;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import javax.annotation.security.RolesAllowed;
+import javax.inject.Inject;
+import javax.inject.Provider;
+import javax.ws.rs.GET;
+import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.SecurityContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * Resource for system info
- */
+/** Resource for system info */
 @RestResource
 @Secured
 @RolesAllowed({"admin"})
@@ -70,15 +65,14 @@ public class SystemResource extends BaseResourceWithAllocator {
   private final Provider<ExecutorServiceClientFactory> executorServiceClientFactoryProvider;
 
   @Inject
-  public SystemResource (
-    Provider<SabotContext> context,
-    Provider<FabricService> fabric,
-    Provider<JobsService> jobsService,
-    Provider<ExecutorServiceClientFactory> executorServiceClientFactoryProvider,
-    SecurityContext securityContext,
-    BufferAllocatorFactory allocatorFactory,
-    ProjectOptionManager projectOptionManager
-  ) {
+  public SystemResource(
+      Provider<SabotContext> context,
+      Provider<FabricService> fabric,
+      Provider<JobsService> jobsService,
+      Provider<ExecutorServiceClientFactory> executorServiceClientFactoryProvider,
+      SecurityContext securityContext,
+      BufferAllocatorFactory allocatorFactory,
+      ProjectOptionManager projectOptionManager) {
     super(allocatorFactory);
     this.jobsService = jobsService;
     this.securityContext = securityContext;
@@ -93,18 +87,18 @@ public class SystemResource extends BaseResourceWithAllocator {
   @Produces(MediaType.APPLICATION_JSON)
   public ResourceInfo getClusterResourceInformation() {
     GroupResourceInformation clusterResourceInformation =
-      context.get().getClusterResourceInformation();
+        context.get().getClusterResourceInformation();
 
     ResourceInfo result;
-    result = new ResourceInfo(clusterResourceInformation.getAverageExecutorMemory(),
-      clusterResourceInformation.getAverageExecutorCores(projectOptionManager),
-      clusterResourceInformation.getExecutorNodeCount());
+    result =
+        new ResourceInfo(
+            clusterResourceInformation.getAverageExecutorMemory(),
+            clusterResourceInformation.getAverageExecutorCores(projectOptionManager),
+            clusterResourceInformation.getExecutorNodeCount());
     return result;
   }
 
-  /**
-   * MemoryInfo struct to pass back to the client
-   */
+  /** MemoryInfo struct to pass back to the client */
   public static class ResourceInfo {
     private final Long averageExecutorMemory;
     private final Long averageExecutorCores;
@@ -112,10 +106,9 @@ public class SystemResource extends BaseResourceWithAllocator {
 
     @JsonCreator
     public ResourceInfo(
-      @JsonProperty("averageExecutorMemory") Long averageExecutorMemory,
-      @JsonProperty("averageExecutorCores") Long averageExecutorCores,
-      @JsonProperty("executorCount") Integer executorCount
-    ) {
+        @JsonProperty("averageExecutorMemory") Long averageExecutorMemory,
+        @JsonProperty("averageExecutorCores") Long averageExecutorCores,
+        @JsonProperty("executorCount") Integer executorCount) {
       this.averageExecutorMemory = averageExecutorMemory;
       this.averageExecutorCores = averageExecutorCores;
       this.executorCount = executorCount;
@@ -137,26 +130,30 @@ public class SystemResource extends BaseResourceWithAllocator {
   @GET
   @Path("/nodes")
   @Produces(MediaType.APPLICATION_JSON)
-  public List<NodeInfo> getNodes(){
+  public List<NodeInfo> getNodes() {
     final List<NodeInfo> result = new ArrayList<>();
     final Map<String, NodeEndpoint> execMap = new HashMap<>();
     final Map<String, NodeEndpoint> coordMap = new HashMap<>();
 
     // first get the coordinator nodes (in case there are no executors running)
-    for(NodeEndpoint ep : context.get().getCoordinators()){
+    for (NodeEndpoint ep : context.get().getCoordinators()) {
       coordMap.put(ep.getAddress() + ":" + ep.getFabricPort(), ep);
     }
 
     // try to get any executor nodes, but don't throw a UserException if we can't find any
     try {
-      NodeStatsListener nodeStatsListener = new NodeStatsListener(context.get().getExecutors().size());
-      context.get().getExecutors().forEach(
-        ep -> {
-
-          executorServiceClientFactoryProvider.get().getClientForEndpoint(ep).getNodeStats(Empty.newBuilder().build(),
-                  nodeStatsListener);
-        }
-      );
+      NodeStatsListener nodeStatsListener =
+          new NodeStatsListener(context.get().getExecutors().size());
+      context
+          .get()
+          .getExecutors()
+          .forEach(
+              ep -> {
+                executorServiceClientFactoryProvider
+                    .get()
+                    .getClientForEndpoint(ep)
+                    .getNodeStats(Empty.newBuilder().build(), nodeStatsListener);
+              });
 
       try {
         nodeStatsListener.waitForFinish();
@@ -186,7 +183,7 @@ public class SystemResource extends BaseResourceWithAllocator {
 
     final List<NodeInfo> finalList = new ArrayList<>();
     final List<NodeInfo> coord = new ArrayList<>();
-    for (NodeEndpoint ep : coordMap.values()){
+    for (NodeEndpoint ep : coordMap.values()) {
       final NodeInfo nodeInfo = NodeInfo.fromEndpoint(ep);
       if (nodeInfo.getIsMaster()) {
         finalList.add(nodeInfo);
@@ -196,7 +193,7 @@ public class SystemResource extends BaseResourceWithAllocator {
     }
 
     final List<NodeInfo> failedNodes = new ArrayList<>();
-    for (NodeEndpoint ep : execMap.values()){
+    for (NodeEndpoint ep : execMap.values()) {
       final NodeInfo nodeInfo = NodeInfo.fromUnresponsiveEndpoint(ep);
       failedNodes.add(nodeInfo);
     }

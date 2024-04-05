@@ -24,16 +24,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
-
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Captor;
-import org.mockito.junit.jupiter.MockitoExtension;
-
 import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.connector.ConnectorException;
@@ -43,37 +33,49 @@ import com.dremio.connector.metadata.GetDatasetOption;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.VersionedDatasetAccessOptions;
 import com.dremio.service.namespace.file.proto.FileType;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 public class TestVersionedDatasetAdapterFactory {
 
   public static final List<String> VERSIONED_TABLE_KEY = Arrays.asList("Arctic", "mytable");
 
-  @Captor
-  private ArgumentCaptor<GetDatasetOption[]> getDatasetOptionsArgumentCaptor;
+  @Captor private ArgumentCaptor<GetDatasetOption[]> getDatasetOptionsArgumentCaptor;
 
   @Test
   public void testNewInstanceNull() {
-    assertNull(new VersionedDatasetAdapterFactory()
-      .newInstance(VERSIONED_TABLE_KEY,
-        mock(ResolvedVersionContext.class),
-        mock(StoragePlugin.class),
-        mock(StoragePluginId.class),
-        null));
+    assertNull(
+        new VersionedDatasetAdapterFactory()
+            .newInstance(
+                VERSIONED_TABLE_KEY,
+                mock(ResolvedVersionContext.class),
+                mock(StoragePlugin.class),
+                mock(StoragePluginId.class),
+                null));
   }
-
 
   @Test
   public void testNewInstanceException() throws ConnectorException {
     StoragePlugin storagePlugin = mock(StoragePlugin.class);
     when(storagePlugin.getDatasetHandle(any(), any())).thenThrow(ConnectorException.class);
 
-    assertThrows(UserException.class, () -> new VersionedDatasetAdapterFactory()
-      .newInstance(VERSIONED_TABLE_KEY,
-        mock(ResolvedVersionContext.class),
-        storagePlugin,
-        mock(StoragePluginId.class),
-        null));
+    assertThrows(
+        UserException.class,
+        () ->
+            new VersionedDatasetAdapterFactory()
+                .newInstance(
+                    VERSIONED_TABLE_KEY,
+                    mock(ResolvedVersionContext.class),
+                    storagePlugin,
+                    mock(StoragePluginId.class),
+                    null));
   }
 
   @Test
@@ -82,22 +84,29 @@ public class TestVersionedDatasetAdapterFactory {
     ResolvedVersionContext resolvedVersionContext = mock(ResolvedVersionContext.class);
     StoragePlugin storagePlugin = mock(StoragePlugin.class);
 
-    when(storagePlugin.getDatasetHandle(eq(entityPath), any())).thenReturn(Optional.of(mock(DatasetHandle.class)));
+    when(storagePlugin.getDatasetHandle(eq(entityPath), any()))
+        .thenReturn(Optional.of(mock(DatasetHandle.class)));
 
-    VersionedDatasetAdapter versionedDatasetAdapter = new VersionedDatasetAdapterFactory()
-      .newInstance(VERSIONED_TABLE_KEY,
-        resolvedVersionContext,
-        storagePlugin,
-        mock(StoragePluginId.class),
-        null);
+    VersionedDatasetAdapter versionedDatasetAdapter =
+        new VersionedDatasetAdapterFactory()
+            .newInstance(
+                VERSIONED_TABLE_KEY,
+                resolvedVersionContext,
+                storagePlugin,
+                mock(StoragePluginId.class),
+                null);
 
     assertEquals(storagePlugin, versionedDatasetAdapter.getStoragePlugin());
-    assertNull(versionedDatasetAdapter.getOwner(entityPath, null));
+    assertNull(versionedDatasetAdapter.getOwner(entityPath, null, null));
 
-    verify(storagePlugin).getDatasetHandle(eq(entityPath), getDatasetOptionsArgumentCaptor.capture());
+    verify(storagePlugin)
+        .getDatasetHandle(eq(entityPath), getDatasetOptionsArgumentCaptor.capture());
 
     GetDatasetOption[] getDatasetOptions = getDatasetOptionsArgumentCaptor.getValue();
-    assertEquals(resolvedVersionContext, ((VersionedDatasetAccessOptions) getDatasetOptions[3]).getVersionContext());
-    assertEquals(FileType.ICEBERG, ((FileConfigOption) getDatasetOptions[4]).getFileConfig().getType());
+    assertEquals(
+        resolvedVersionContext,
+        ((VersionedDatasetAccessOptions) getDatasetOptions[3]).getVersionContext());
+    assertEquals(
+        FileType.ICEBERG, ((FileConfigOption) getDatasetOptions[4]).getFileConfig().getType());
   }
 }

@@ -15,9 +15,7 @@
  */
 package com.dremio.dac.explore.model;
 
-/**
- * Download physical/virtual dataset format options.
- */
+/** Download physical/virtual dataset format options. */
 public enum DownloadFormat {
   JSON,
   CSV,

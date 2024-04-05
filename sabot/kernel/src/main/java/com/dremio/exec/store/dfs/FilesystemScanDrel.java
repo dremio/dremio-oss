@@ -20,22 +20,6 @@ import static com.dremio.exec.store.dfs.FileSystemRulesFactory.IcebergMetadataFi
 import static com.dremio.service.namespace.DatasetHelper.isConvertedIcebergDataset;
 import static com.dremio.service.namespace.DatasetHelper.supportsPruneFilter;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-
-import org.apache.calcite.plan.ConventionTraitDef;
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelOptCost;
-import org.apache.calcite.plan.RelOptPlanner;
-import org.apache.calcite.plan.RelOptTable;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.RelWriter;
-import org.apache.calcite.rel.hint.RelHint;
-import org.apache.calcite.rel.metadata.RelMetadataQuery;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.ops.OptimizerRulesContext;
@@ -51,10 +35,22 @@ import com.dremio.exec.store.parquet.ParquetScanFilter;
 import com.dremio.exec.store.parquet.ParquetScanRowGroupFilter;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import com.google.common.base.Preconditions;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import org.apache.calcite.plan.ConventionTraitDef;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptCost;
+import org.apache.calcite.plan.RelOptPlanner;
+import org.apache.calcite.plan.RelOptTable;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.RelWriter;
+import org.apache.calcite.rel.hint.RelHint;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
-/**
- * ScanDrel for filesystem stores filter conditions.
- */
+/** ScanDrel for filesystem stores filter conditions. */
 public class FilesystemScanDrel extends ScanRelBase implements Rel, FilterableScan, PruneableScan {
   private final ParquetScanFilter filter;
   private final ParquetScanRowGroupFilter rowGroupFilter;
@@ -64,19 +60,63 @@ public class FilesystemScanDrel extends ScanRelBase implements Rel, FilterableSc
   private final Long survivingFileCount;
   private final boolean partitionValuesEnabled;
 
-  public FilesystemScanDrel(RelOptCluster cluster, RelTraitSet traitSet, RelOptTable table, StoragePluginId pluginId,
-                            TableMetadata dataset, List<SchemaPath> projectedColumns, double observedRowcountAdjustment,
-                            List<RelHint> hints, boolean arrowCachingEnabled, SnapshotDiffContext snapshotDiffContext) {
-    this(cluster, traitSet, table, pluginId, dataset, projectedColumns, null, null, observedRowcountAdjustment, hints,
-         arrowCachingEnabled, null, null, null, snapshotDiffContext, false);
+  public FilesystemScanDrel(
+      RelOptCluster cluster,
+      RelTraitSet traitSet,
+      RelOptTable table,
+      StoragePluginId pluginId,
+      TableMetadata dataset,
+      List<SchemaPath> projectedColumns,
+      double observedRowcountAdjustment,
+      List<RelHint> hints,
+      boolean arrowCachingEnabled,
+      SnapshotDiffContext snapshotDiffContext) {
+    this(
+        cluster,
+        traitSet,
+        table,
+        pluginId,
+        dataset,
+        projectedColumns,
+        null,
+        null,
+        observedRowcountAdjustment,
+        hints,
+        arrowCachingEnabled,
+        null,
+        null,
+        null,
+        snapshotDiffContext,
+        false);
   }
 
-  private FilesystemScanDrel(RelOptCluster cluster, RelTraitSet traitSet, RelOptTable table, StoragePluginId pluginId,
-                             TableMetadata dataset, List<SchemaPath> projectedColumns, ParquetScanFilter filter,
-                             ParquetScanRowGroupFilter rowGroupFilter, double observedRowcountAdjustment, List<RelHint> hints, boolean arrowCachingEnabled,
-                             PruneFilterCondition partitionFilter, Long survivingRowCount, Long survivingFileCount,
-                             SnapshotDiffContext snapshotDiffContext, boolean partitionValuesEnabled) {
-    super(cluster, traitSet, table, pluginId, dataset, projectedColumns, observedRowcountAdjustment, hints, snapshotDiffContext);
+  private FilesystemScanDrel(
+      RelOptCluster cluster,
+      RelTraitSet traitSet,
+      RelOptTable table,
+      StoragePluginId pluginId,
+      TableMetadata dataset,
+      List<SchemaPath> projectedColumns,
+      ParquetScanFilter filter,
+      ParquetScanRowGroupFilter rowGroupFilter,
+      double observedRowcountAdjustment,
+      List<RelHint> hints,
+      boolean arrowCachingEnabled,
+      PruneFilterCondition partitionFilter,
+      Long survivingRowCount,
+      Long survivingFileCount,
+      SnapshotDiffContext snapshotDiffContext,
+      boolean partitionValuesEnabled) {
+    super(
+        cluster,
+        traitSet,
+        table,
+        pluginId,
+        dataset,
+        projectedColumns,
+        observedRowcountAdjustment,
+        hints,
+        snapshotDiffContext);
     assert traitSet.getTrait(ConventionTraitDef.INSTANCE) == Rel.LOGICAL;
     this.filter = filter;
     this.rowGroupFilter = rowGroupFilter;
@@ -89,8 +129,16 @@ public class FilesystemScanDrel extends ScanRelBase implements Rel, FilterableSc
 
   // Clone with new conditions
   private FilesystemScanDrel(FilesystemScanDrel that, ParquetScanFilter filter) {
-    super(that.getCluster(), that.getTraitSet(), that.getTable(), that.getPluginId(), that.getTableMetadata(),
-          that.getProjectedColumns(), that.getObservedRowcountAdjustment(), that.getHints(), that.getSnapshotDiffContext());
+    super(
+        that.getCluster(),
+        that.getTraitSet(),
+        that.getTable(),
+        that.getPluginId(),
+        that.getTableMetadata(),
+        that.getProjectedColumns(),
+        that.getObservedRowcountAdjustment(),
+        that.getHints(),
+        that.getSnapshotDiffContext());
     assert traitSet.getTrait(ConventionTraitDef.INSTANCE) == Rel.LOGICAL;
     this.filter = filter;
     this.rowGroupFilter = that.getRowGroupFilter();
@@ -102,9 +150,21 @@ public class FilesystemScanDrel extends ScanRelBase implements Rel, FilterableSc
   }
 
   // Clone with partition filter
-  private FilesystemScanDrel(FilesystemScanDrel that, PruneFilterCondition partitionFilter, Long survivingRowCount, Long survivingFileCount) {
-    super(that.getCluster(), that.getTraitSet(), that.getTable(), that.getPluginId(), that.getTableMetadata(),
-          that.getProjectedColumns(), that.getObservedRowcountAdjustment(), that.getHints(), that.getSnapshotDiffContext());
+  private FilesystemScanDrel(
+      FilesystemScanDrel that,
+      PruneFilterCondition partitionFilter,
+      Long survivingRowCount,
+      Long survivingFileCount) {
+    super(
+        that.getCluster(),
+        that.getTraitSet(),
+        that.getTable(),
+        that.getPluginId(),
+        that.getTableMetadata(),
+        that.getProjectedColumns(),
+        that.getObservedRowcountAdjustment(),
+        that.getHints(),
+        that.getSnapshotDiffContext());
     assert traitSet.getTrait(ConventionTraitDef.INSTANCE) == Rel.LOGICAL;
     this.filter = that.getFilter();
     this.rowGroupFilter = that.getRowGroupFilter();
@@ -117,9 +177,16 @@ public class FilesystemScanDrel extends ScanRelBase implements Rel, FilterableSc
 
   // Clone with new dataset pointer
   private FilesystemScanDrel(FilesystemScanDrel that, TableMetadata newDatasetPointer) {
-    super(that.getCluster(), that.getTraitSet(), new RelOptNamespaceTable(newDatasetPointer, that.getCluster()),
-          that.getPluginId(), newDatasetPointer, that.getProjectedColumns(), that.getObservedRowcountAdjustment(),
-          that.getHints(), that.getSnapshotDiffContext());
+    super(
+        that.getCluster(),
+        that.getTraitSet(),
+        new RelOptNamespaceTable(newDatasetPointer, that.getCluster()),
+        that.getPluginId(),
+        newDatasetPointer,
+        that.getProjectedColumns(),
+        that.getObservedRowcountAdjustment(),
+        that.getHints(),
+        that.getSnapshotDiffContext());
     assert traitSet.getTrait(ConventionTraitDef.INSTANCE) == Rel.LOGICAL;
     this.filter = that.getFilter();
     this.rowGroupFilter = that.getRowGroupFilter();
@@ -132,8 +199,16 @@ public class FilesystemScanDrel extends ScanRelBase implements Rel, FilterableSc
 
   // Clone with new arrowCachingEnabled
   private FilesystemScanDrel(FilesystemScanDrel that, boolean arrowCachingEnabled) {
-    super(that.getCluster(), that.getTraitSet(), that.getTable(), that.getPluginId(), that.getTableMetadata(),
-          that.getProjectedColumns(), that.getObservedRowcountAdjustment(), that.getHints(), that.getSnapshotDiffContext());
+    super(
+        that.getCluster(),
+        that.getTraitSet(),
+        that.getTable(),
+        that.getPluginId(),
+        that.getTableMetadata(),
+        that.getProjectedColumns(),
+        that.getObservedRowcountAdjustment(),
+        that.getHints(),
+        that.getSnapshotDiffContext());
     assert traitSet.getTrait(ConventionTraitDef.INSTANCE) == Rel.LOGICAL;
     this.filter = that.getFilter();
     this.rowGroupFilter = that.getRowGroupFilter();
@@ -146,8 +221,16 @@ public class FilesystemScanDrel extends ScanRelBase implements Rel, FilterableSc
 
   // Clone with new rowGroupFilter
   private FilesystemScanDrel(FilesystemScanDrel that, ParquetScanRowGroupFilter rowGroupFilter) {
-    super(that.getCluster(), that.getTraitSet(), that.getTable(), that.getPluginId(), that.getTableMetadata(),
-      that.getProjectedColumns(), that.getObservedRowcountAdjustment(), that.getHints(), that.getSnapshotDiffContext());
+    super(
+        that.getCluster(),
+        that.getTraitSet(),
+        that.getTable(),
+        that.getPluginId(),
+        that.getTableMetadata(),
+        that.getProjectedColumns(),
+        that.getObservedRowcountAdjustment(),
+        that.getHints(),
+        that.getSnapshotDiffContext());
     assert traitSet.getTrait(ConventionTraitDef.INSTANCE) == Rel.LOGICAL;
     this.filter = that.getFilter();
     this.rowGroupFilter = rowGroupFilter;
@@ -160,9 +243,23 @@ public class FilesystemScanDrel extends ScanRelBase implements Rel, FilterableSc
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new FilesystemScanDrel(getCluster(), traitSet, getTable(), pluginId, tableMetadata, getProjectedColumns(),
-      filter, rowGroupFilter, observedRowcountAdjustment, getHints(), arrowCachingEnabled, partitionFilter,
-      survivingRowCount, survivingFileCount, snapshotDiffContext, partitionValuesEnabled);
+    return new FilesystemScanDrel(
+        getCluster(),
+        traitSet,
+        getTable(),
+        pluginId,
+        tableMetadata,
+        getProjectedColumns(),
+        filter,
+        rowGroupFilter,
+        observedRowcountAdjustment,
+        getHints(),
+        arrowCachingEnabled,
+        partitionFilter,
+        survivingRowCount,
+        survivingFileCount,
+        snapshotDiffContext,
+        partitionValuesEnabled);
   }
 
   @Override
@@ -177,7 +274,8 @@ public class FilesystemScanDrel extends ScanRelBase implements Rel, FilterableSc
   }
 
   @Override
-  public FilesystemScanDrel applyPartitionFilter(PruneFilterCondition partitionFilter, Long survivingRowCount, Long survivingFileCount) {
+  public FilesystemScanDrel applyPartitionFilter(
+      PruneFilterCondition partitionFilter, Long survivingRowCount, Long survivingFileCount) {
     Preconditions.checkArgument(supportsPruneFilter(getTableMetadata().getDatasetConfig()));
     return new FilesystemScanDrel(this, partitionFilter, survivingRowCount, survivingFileCount);
   }
@@ -217,12 +315,12 @@ public class FilesystemScanDrel extends ScanRelBase implements Rel, FilterableSc
   }
 
   @Override
-  public double getCostAdjustmentFactor(){
+  public double getCostAdjustmentFactor() {
     return filter != null ? filter.getCostAdjustment() : super.getCostAdjustmentFactor();
   }
 
   @Override
-  public double getFilterReduction(){
+  public double getFilterReduction() {
     if (filter != null) {
       return 0.15d;
     } else {
@@ -231,13 +329,28 @@ public class FilesystemScanDrel extends ScanRelBase implements Rel, FilterableSc
   }
 
   public FilesystemScanDrel removeRowCountAdjustment() {
-    return new FilesystemScanDrel(getCluster(), getTraitSet(), getTable(), pluginId, tableMetadata,
-      getProjectedColumns(), filter, rowGroupFilter, 1.0, getHints(), arrowCachingEnabled,
-      partitionFilter, survivingRowCount, survivingFileCount, snapshotDiffContext, partitionValuesEnabled);
+    return new FilesystemScanDrel(
+        getCluster(),
+        getTraitSet(),
+        getTable(),
+        pluginId,
+        tableMetadata,
+        getProjectedColumns(),
+        filter,
+        rowGroupFilter,
+        1.0,
+        getHints(),
+        arrowCachingEnabled,
+        partitionFilter,
+        survivingRowCount,
+        survivingFileCount,
+        snapshotDiffContext,
+        partitionValuesEnabled);
   }
 
   @Override
-  public FilesystemScanDrel cloneWithProject(List<SchemaPath> projection, boolean preserveFilterColumns) {
+  public FilesystemScanDrel cloneWithProject(
+      List<SchemaPath> projection, boolean preserveFilterColumns) {
     if (filter != null && preserveFilterColumns) {
       final List<SchemaPath> newProjection = new ArrayList<>(projection);
       final Set<SchemaPath> projectionSet = new HashSet<>(projection);
@@ -256,13 +369,29 @@ public class FilesystemScanDrel extends ScanRelBase implements Rel, FilterableSc
 
   @Override
   public FilesystemScanDrel cloneWithProject(List<SchemaPath> projection) {
-    return new FilesystemScanDrel(getCluster(), getTraitSet(), getTable(), pluginId, tableMetadata, projection,
-      filter == null ? filter : filter.applyProjection(projection, rowType, getCluster(), getBatchSchema()),
-      rowGroupFilter == null ? null : rowGroupFilter.applyProjection(projection, rowType, getCluster(), getBatchSchema()),
-      observedRowcountAdjustment, getHints(), arrowCachingEnabled,
-      partitionFilter == null ? partitionFilter : partitionFilter.applyProjection(projection, rowType,
-        getCluster(), getBatchSchema()),
-      getSurvivingRowCount(), getSurvivingFileCount(), snapshotDiffContext, partitionValuesEnabled);
+    return new FilesystemScanDrel(
+        getCluster(),
+        getTraitSet(),
+        getTable(),
+        pluginId,
+        tableMetadata,
+        projection,
+        filter == null
+            ? filter
+            : filter.applyProjection(projection, rowType, getCluster(), getBatchSchema()),
+        rowGroupFilter == null
+            ? null
+            : rowGroupFilter.applyProjection(projection, rowType, getCluster(), getBatchSchema()),
+        observedRowcountAdjustment,
+        getHints(),
+        arrowCachingEnabled,
+        partitionFilter == null
+            ? partitionFilter
+            : partitionFilter.applyProjection(projection, rowType, getCluster(), getBatchSchema()),
+        getSurvivingRowCount(),
+        getSurvivingFileCount(),
+        snapshotDiffContext,
+        partitionValuesEnabled);
   }
 
   @Override
@@ -270,7 +399,8 @@ public class FilesystemScanDrel extends ScanRelBase implements Rel, FilterableSc
     if (FileSystemRulesFactory.isIcebergDataset(getTableMetadata())) {
       return getPluginId();
     } else if (supportsConvertedIcebergDataset(context, getTableMetadata())) { // internal
-      return getInternalIcebergTableMetadata(getTableMetadata(), context).getIcebergTableStoragePlugin();
+      return getInternalIcebergTableMetadata(getTableMetadata(), context)
+          .getIcebergTableStoragePlugin();
     }
     return null;
   }
@@ -278,12 +408,11 @@ public class FilesystemScanDrel extends ScanRelBase implements Rel, FilterableSc
   @Override
   public RelWriter explainTerms(RelWriter pw) {
     pw = super.explainTerms(pw);
-    return pw
-      .itemIf("filters", filter, filter != null)
-      .itemIf("arrowCachingEnabled", arrowCachingEnabled, arrowCachingEnabled)
-      .itemIf("partitionFilters", partitionFilter, partitionFilter != null)
-      .itemIf("rowGroupFilter", rowGroupFilter, rowGroupFilter != null)
-      .itemIf("partitionValuesEnabled", partitionValuesEnabled, partitionValuesEnabled);
+    return pw.itemIf("filters", filter, filter != null)
+        .itemIf("arrowCachingEnabled", arrowCachingEnabled, arrowCachingEnabled)
+        .itemIf("partitionFilters", partitionFilter, partitionFilter != null)
+        .itemIf("rowGroupFilter", rowGroupFilter, rowGroupFilter != null)
+        .itemIf("partitionValuesEnabled", partitionValuesEnabled, partitionValuesEnabled);
   }
 
   public boolean isArrowCachingEnabled() {
@@ -291,21 +420,36 @@ public class FilesystemScanDrel extends ScanRelBase implements Rel, FilterableSc
   }
 
   @Override
-  public boolean canUsePartitionStats(){
-    return isConvertedIcebergDataset(getTableMetadata().getDatasetConfig()) || pluginId.getCapabilities().getCapability(SourceCapabilities.getCanUsePartitionStats());
+  public boolean canUsePartitionStats() {
+    return isConvertedIcebergDataset(getTableMetadata().getDatasetConfig())
+        || pluginId.getCapabilities().getCapability(SourceCapabilities.getCanUsePartitionStats());
   }
 
   @Override
   public RelOptCost computeSelfCost(final RelOptPlanner planner, final RelMetadataQuery mq) {
     return partitionValuesEnabled
-      ? planner.getCostFactory().makeTinyCost()
-      : super.computeSelfCost(planner, mq);
+        ? planner.getCostFactory().makeTinyCost()
+        : super.computeSelfCost(planner, mq);
   }
 
   public FilesystemScanDrel applyPartitionValuesEnabled(final boolean partitionValuesEnabled) {
-    return new FilesystemScanDrel(getCluster(), getTraitSet(), getTable(), pluginId, tableMetadata,
-      getProjectedColumns(), filter, rowGroupFilter, observedRowcountAdjustment, getHints(), arrowCachingEnabled,
-      partitionFilter, survivingRowCount, survivingFileCount, snapshotDiffContext, partitionValuesEnabled);
+    return new FilesystemScanDrel(
+        getCluster(),
+        getTraitSet(),
+        getTable(),
+        pluginId,
+        tableMetadata,
+        getProjectedColumns(),
+        filter,
+        rowGroupFilter,
+        observedRowcountAdjustment,
+        getHints(),
+        arrowCachingEnabled,
+        partitionFilter,
+        survivingRowCount,
+        survivingFileCount,
+        snapshotDiffContext,
+        partitionValuesEnabled);
   }
 
   public boolean isPartitionValuesEnabled() {

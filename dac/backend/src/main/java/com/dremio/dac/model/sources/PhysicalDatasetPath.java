@@ -15,8 +15,6 @@
  */
 package com.dremio.dac.model.sources;
 
-import java.util.List;
-
 import com.dremio.dac.model.common.LeafEntity;
 import com.dremio.dac.model.common.NamespacePath;
 import com.dremio.dac.model.common.RootEntity;
@@ -28,10 +26,9 @@ import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
+import java.util.List;
 
-/**
- * Raw dataset path can point to file or folder in source.
- */
+/** Raw dataset path can point to file or folder in source. */
 public class PhysicalDatasetPath extends NamespacePath {
 
   /**
@@ -43,18 +40,20 @@ public class PhysicalDatasetPath extends NamespacePath {
    */
   public static PhysicalDatasetPath fromURLPath(SourceName sourceName, String path) {
     Iterable<String> components = Splitter.on('/').omitEmptyStrings().split(path);
-    return new PhysicalDatasetPath(ImmutableList.<String> builder().add(sourceName.getName()).addAll(components).build());
+    return new PhysicalDatasetPath(
+        ImmutableList.<String>builder().add(sourceName.getName()).addAll(components).build());
   }
 
   private final DatasetType datasetType;
 
   public PhysicalDatasetPath(SourceName source, List<FolderName> folderPath, FileName fileName) {
-    super(source,  folderPath, fileName);
+    super(source, folderPath, fileName);
     this.datasetType = DatasetType.PHYSICAL_DATASET_SOURCE_FILE;
   }
 
-  public PhysicalDatasetPath(SourceName source, List<FolderName> folderPath, FolderName folderName) {
-    super(source,  folderPath, folderName);
+  public PhysicalDatasetPath(
+      SourceName source, List<FolderName> folderPath, FolderName folderName) {
+    super(source, folderPath, folderName);
     this.datasetType = DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER;
   }
 
@@ -118,7 +117,6 @@ public class PhysicalDatasetPath extends NamespacePath {
   public FileName getFileName() {
     return new FileName(getLeaf().getName());
   }
-
 
   public PhysicalDatasetName getDatasetName() {
     return new PhysicalDatasetName(getLeaf().getName());

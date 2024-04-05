@@ -15,24 +15,23 @@
  */
 package com.dremio.exec.planner.physical;
 
+import com.dremio.exec.planner.physical.visitor.PrelVisitor;
+import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import java.util.Iterator;
-
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.SingleRel;
 
-import com.dremio.exec.planner.physical.visitor.PrelVisitor;
-import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
-
-public abstract class SinglePrel extends SingleRel implements Prel{
+public abstract class SinglePrel extends SingleRel implements Prel {
 
   public SinglePrel(RelOptCluster cluster, RelTraitSet traits, RelNode child) {
     super(cluster, traits, child);
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(PrelVisitor<T, X, E> logicalVisitor, X value) throws E {
+  public <T, X, E extends Throwable> T accept(PrelVisitor<T, X, E> logicalVisitor, X value)
+      throws E {
     return logicalVisitor.visitPrel(this, value);
   }
 

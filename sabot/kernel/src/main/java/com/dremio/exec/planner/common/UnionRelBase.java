@@ -15,8 +15,9 @@
  */
 package com.dremio.exec.planner.common;
 
+import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.planner.physical.PrelUtil;
 import java.util.List;
-
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.InvalidRelException;
@@ -24,19 +25,20 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Union;
 import org.apache.calcite.rel.type.RelDataType;
 
-import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.planner.physical.PrelUtil;
-
-/**
- * Base class for logical and physical Union implemented in Dremio
- */
+/** Base class for logical and physical Union implemented in Dremio */
 public abstract class UnionRelBase extends Union {
 
-  public UnionRelBase(RelOptCluster cluster, RelTraitSet traits,
-      List<RelNode> inputs, boolean all, boolean checkCompatibility) throws InvalidRelException {
+  public UnionRelBase(
+      RelOptCluster cluster,
+      RelTraitSet traits,
+      List<RelNode> inputs,
+      boolean all,
+      boolean checkCompatibility)
+      throws InvalidRelException {
     super(cluster, traits, inputs, all);
-    if (checkCompatibility &&
-        !this.isCompatible(cluster, false /* don't compare names */, true /* allow substrings */)) {
+    if (checkCompatibility
+        && !this.isCompatible(
+            cluster, false /* don't compare names */, true /* allow substrings */)) {
       throw new InvalidRelException("Input row types of the Union are not compatible.");
     }
   }
@@ -45,8 +47,8 @@ public abstract class UnionRelBase extends Union {
     RelDataType unionType = getRowType();
     PlannerSettings plannerSettings = PrelUtil.getPlannerSettings(cluster);
     for (RelNode input : getInputs()) {
-      if (! MoreRelOptUtil.areRowTypesCompatible(
-        input.getRowType(), unionType, compareNames, allowSubstring)) {
+      if (!MoreRelOptUtil.areRowTypesCompatible(
+          input.getRowType(), unionType, compareNames, allowSubstring)) {
         return false;
       }
     }

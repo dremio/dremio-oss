@@ -15,14 +15,11 @@
  */
 package com.dremio.dac.server;
 
-import org.eclipse.jetty.util.component.LifeCycle;
-
 import ch.qos.logback.access.jetty.RequestLogImpl;
+import org.eclipse.jetty.util.component.LifeCycle;
 
 /**
  * Jetty 9.3.+ changed RequestLogImpl to break using Logback for access log.
  * https://github.com/eclipse/jetty.project/issues/509
  */
-public class RequestLogImpl_Jetty_Fix extends RequestLogImpl implements LifeCycle {
-
-}
+public class RequestLogImpl_Jetty_Fix extends RequestLogImpl implements LifeCycle {}

@@ -15,6 +15,12 @@
  */
 package com.dremio.datastore.indexed;
 
+import com.dremio.datastore.RemoteDataStoreProtobuf;
+import com.dremio.datastore.RemoteDataStoreUtils;
+import com.dremio.datastore.api.DocumentWriter;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
+import com.google.protobuf.UnsafeByteOperations;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -22,33 +28,21 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import com.dremio.datastore.RemoteDataStoreProtobuf;
-import com.dremio.datastore.RemoteDataStoreUtils;
-import com.dremio.datastore.api.DocumentWriter;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
-import com.google.protobuf.UnsafeByteOperations;
-
 /**
- * Conforms to document writer interface to intercept values. Values are added to a
- * put request for use with Remote KVStore api.
+ * Conforms to document writer interface to intercept values. Values are added to a put request for
+ * use with Remote KVStore api.
  */
 public final class PutRequestDocumentWriter implements DocumentWriter {
 
-  @VisibleForTesting
-  final Map<IndexKey, List<Double>> doubleMap = new HashMap<>();
+  @VisibleForTesting final Map<IndexKey, List<Double>> doubleMap = new HashMap<>();
 
-  @VisibleForTesting
-  final Map<IndexKey, List<Integer>> integerMap = new HashMap<>();
+  @VisibleForTesting final Map<IndexKey, List<Integer>> integerMap = new HashMap<>();
 
-  @VisibleForTesting
-  final Map<IndexKey, List<String>> stringMap = new HashMap<>();
+  @VisibleForTesting final Map<IndexKey, List<String>> stringMap = new HashMap<>();
 
-  @VisibleForTesting
-  final Map<IndexKey, List<Long>> longMap = new HashMap<>();
+  @VisibleForTesting final Map<IndexKey, List<Long>> longMap = new HashMap<>();
 
-  @VisibleForTesting
-  final Map<IndexKey, List<byte[]>> byteArrayMap = new HashMap<>();
+  @VisibleForTesting final Map<IndexKey, List<byte[]>> byteArrayMap = new HashMap<>();
 
   @Override
   public void write(IndexKey key, Double value) {
@@ -78,61 +72,61 @@ public final class PutRequestDocumentWriter implements DocumentWriter {
   public void toPutRequest(RemoteDataStoreProtobuf.PutRequest.Builder putRequest) {
     for (Map.Entry<IndexKey, List<Double>> entry : doubleMap.entrySet()) {
       if (!entry.getValue().isEmpty()) {
-        putRequest.addIndexFields(RemoteDataStoreProtobuf
-          .PutRequestIndexField.newBuilder()
-          .setKey(RemoteDataStoreUtils.toPutRequestIndexKey(entry.getKey()))
-          .addAllValueDouble(entry.getValue())
-          .build());
+        putRequest.addIndexFields(
+            RemoteDataStoreProtobuf.PutRequestIndexField.newBuilder()
+                .setKey(RemoteDataStoreUtils.toPutRequestIndexKey(entry.getKey()))
+                .addAllValueDouble(entry.getValue())
+                .build());
       }
     }
 
     for (Map.Entry<IndexKey, List<Integer>> entry : integerMap.entrySet()) {
       if (!entry.getValue().isEmpty()) {
-        putRequest.addIndexFields(RemoteDataStoreProtobuf
-          .PutRequestIndexField.newBuilder()
-          .setKey(RemoteDataStoreUtils.toPutRequestIndexKey(entry.getKey()))
-          .addAllValueInt32(entry.getValue())
-          .build());
+        putRequest.addIndexFields(
+            RemoteDataStoreProtobuf.PutRequestIndexField.newBuilder()
+                .setKey(RemoteDataStoreUtils.toPutRequestIndexKey(entry.getKey()))
+                .addAllValueInt32(entry.getValue())
+                .build());
       }
     }
 
     for (Map.Entry<IndexKey, List<Long>> entry : longMap.entrySet()) {
       if (!entry.getValue().isEmpty()) {
-        putRequest.addIndexFields(RemoteDataStoreProtobuf
-          .PutRequestIndexField.newBuilder()
-          .setKey(RemoteDataStoreUtils.toPutRequestIndexKey(entry.getKey()))
-          .addAllValueInt64(entry.getValue())
-          .build());
+        putRequest.addIndexFields(
+            RemoteDataStoreProtobuf.PutRequestIndexField.newBuilder()
+                .setKey(RemoteDataStoreUtils.toPutRequestIndexKey(entry.getKey()))
+                .addAllValueInt64(entry.getValue())
+                .build());
       }
     }
 
     for (Map.Entry<IndexKey, List<String>> entry : stringMap.entrySet()) {
       if (!entry.getValue().isEmpty()) {
-        putRequest.addIndexFields(RemoteDataStoreProtobuf
-          .PutRequestIndexField.newBuilder()
-          .setKey(RemoteDataStoreUtils.toPutRequestIndexKey(entry.getKey()))
-          .addAllValueString(entry.getValue())
-          .build());
+        putRequest.addIndexFields(
+            RemoteDataStoreProtobuf.PutRequestIndexField.newBuilder()
+                .setKey(RemoteDataStoreUtils.toPutRequestIndexKey(entry.getKey()))
+                .addAllValueString(entry.getValue())
+                .build());
       }
     }
 
     for (Map.Entry<IndexKey, List<byte[]>> entry : byteArrayMap.entrySet()) {
       if (!entry.getValue().isEmpty()) {
-        putRequest.addIndexFields(RemoteDataStoreProtobuf
-          .PutRequestIndexField.newBuilder()
-          .setKey(RemoteDataStoreUtils.toPutRequestIndexKey(entry.getKey()))
-          .addAllValueBytes(entry.getValue().stream()
-              .map(UnsafeByteOperations::unsafeWrap)
-              .collect(Collectors.toList()))
-          .build());
+        putRequest.addIndexFields(
+            RemoteDataStoreProtobuf.PutRequestIndexField.newBuilder()
+                .setKey(RemoteDataStoreUtils.toPutRequestIndexKey(entry.getKey()))
+                .addAllValueBytes(
+                    entry.getValue().stream()
+                        .map(UnsafeByteOperations::unsafeWrap)
+                        .collect(Collectors.toList()))
+                .build());
       }
     }
   }
 
   private <V> void addEntries(Map<IndexKey, List<V>> targetMap, IndexKey key, V... values) {
-    final List<V> nonNullValues = Arrays.stream(values)
-      .filter(v -> v != null)
-      .collect(Collectors.toList());
+    final List<V> nonNullValues =
+        Arrays.stream(values).filter(v -> v != null).collect(Collectors.toList());
 
     if (nonNullValues.isEmpty()) {
       return;
@@ -145,11 +139,14 @@ public final class PutRequestDocumentWriter implements DocumentWriter {
     }
 
     if (!key.canContainMultipleValues()) {
-      Preconditions.checkState(nonNullValues.size() == 1,
-        "Cannot add multiple values to an index key [%s] with a single value. Multiple values attempting to be added.", key.getIndexFieldName());
       Preconditions.checkState(
-        existingValues.isEmpty(),
-        "Cannot add multiple values to an index key [%s] with a single value. A value is already present at that key.", key.getIndexFieldName());
+          nonNullValues.size() == 1,
+          "Cannot add multiple values to an index key [%s] with a single value. Multiple values attempting to be added.",
+          key.getIndexFieldName());
+      Preconditions.checkState(
+          existingValues.isEmpty(),
+          "Cannot add multiple values to an index key [%s] with a single value. A value is already present at that key.",
+          key.getIndexFieldName());
     }
 
     existingValues.addAll(nonNullValues);

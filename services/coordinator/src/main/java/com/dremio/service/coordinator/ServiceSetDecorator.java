@@ -15,13 +15,10 @@
  */
 package com.dremio.service.coordinator;
 
+import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import java.util.Collection;
 
-import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
-
-/**
- * Helper to make sure constructor arguments bind correctly (TODO: remove this)
- */
+/** Helper to make sure constructor arguments bind correctly (TODO: remove this) */
 public class ServiceSetDecorator implements ServiceSet {
 
   private final ServiceSet delegate;
@@ -47,6 +44,7 @@ public class ServiceSetDecorator implements ServiceSet {
   }
 
   @Override
-  public void removeNodeStatusListener(NodeStatusListener listener) { delegate.removeNodeStatusListener(listener); }
-
+  public void removeNodeStatusListener(NodeStatusListener listener) {
+    delegate.removeNodeStatusListener(listener);
+  }
 }

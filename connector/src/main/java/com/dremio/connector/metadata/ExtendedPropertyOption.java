@@ -18,11 +18,12 @@ package com.dremio.connector.metadata;
 import java.util.Optional;
 import java.util.stream.Stream;
 
-
 /**
- * Option passed to {@link SourceMetadata#getDatasetHandle}, {@link SourceMetadata#getDatasetMetadata} and {@link SourceMetadata#listPartitionChunks}
+ * Option passed to {@link SourceMetadata#getDatasetHandle}, {@link
+ * SourceMetadata#getDatasetMetadata} and {@link SourceMetadata#listPartitionChunks}
  */
-public class ExtendedPropertyOption implements GetDatasetOption, GetMetadataOption, ListPartitionChunkOption {
+public class ExtendedPropertyOption
+    implements GetDatasetOption, GetMetadataOption, ListPartitionChunkOption {
 
   private final BytesOutput extendedProperty;
 
@@ -34,12 +35,19 @@ public class ExtendedPropertyOption implements GetDatasetOption, GetMetadataOpti
     return extendedProperty;
   }
 
-  public static Optional<BytesOutput> getExtendedPropertyFromMetadataOption(MetadataOption... options) {
-    return Stream.of(options).filter(o -> o instanceof ExtendedPropertyOption).findFirst().map(o -> ((ExtendedPropertyOption) o).getExtendedProperty());
+  public static Optional<BytesOutput> getExtendedPropertyFromMetadataOption(
+      MetadataOption... options) {
+    return Stream.of(options)
+        .filter(o -> o instanceof ExtendedPropertyOption)
+        .findFirst()
+        .map(o -> ((ExtendedPropertyOption) o).getExtendedProperty());
   }
 
-  public static Optional<BytesOutput> getExtendedPropertyFromListPartitionChunkOption(ListPartitionChunkOption... options) {
-    return Stream.of(options).filter(o -> o instanceof ExtendedPropertyOption).findFirst().map(o -> ((ExtendedPropertyOption) o).getExtendedProperty());
+  public static Optional<BytesOutput> getExtendedPropertyFromListPartitionChunkOption(
+      ListPartitionChunkOption... options) {
+    return Stream.of(options)
+        .filter(o -> o instanceof ExtendedPropertyOption)
+        .findFirst()
+        .map(o -> ((ExtendedPropertyOption) o).getExtendedProperty());
   }
-
 }

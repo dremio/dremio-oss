@@ -18,13 +18,12 @@ package com.dremio.datastore;
 import com.dremio.datastore.api.KVStoreProvider;
 import com.dremio.test.DremioTest;
 
-/**
- * Test Local OCC Store.
- */
+/** Test Local OCC Store. */
 public class TestLocalOCCKVStore<K, V> extends AbstractTestOCCKVStore<K, V> {
   @Override
   protected KVStoreProvider createKVStoreProvider() throws Exception {
-    final LocalKVStoreProvider provider = new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false);
+    final LocalKVStoreProvider provider =
+        new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false);
     provider.start();
     return provider;
   }

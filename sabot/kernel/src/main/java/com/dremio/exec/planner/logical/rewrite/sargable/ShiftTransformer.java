@@ -15,9 +15,9 @@
  */
 package com.dremio.exec.planner.logical.rewrite.sargable;
 
+import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
@@ -27,9 +27,9 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.commons.lang3.function.TriFunction;
 
-import com.google.common.collect.ImmutableList;
-
 /**
+ *
+ *
  * <pre>
  * A shift transformer that transforms a logical expression to an equal expression by shifting the change in
  * the opposite direction to the right hand side.
@@ -52,9 +52,8 @@ public class ShiftTransformer implements Transformer {
   private final SqlOperator transformedOp;
   private final boolean swapped;
 
-  public ShiftTransformer(RelOptCluster relOptCluster,
-                          StandardForm standardForm,
-                          SqlOperator transformedOp) {
+  public ShiftTransformer(
+      RelOptCluster relOptCluster, StandardForm standardForm, SqlOperator transformedOp) {
     this.relOptCluster = relOptCluster;
     this.rexBuilder = relOptCluster.getRexBuilder();
     this.standardForm = standardForm;
@@ -127,44 +126,38 @@ public class ShiftTransformer implements Transformer {
     switch (getRhsParamCount()) {
       case ARG1:
         if (getReturnType() != null) {
-          right = rexBuilder.makeCall(
-            getReturnType(),
-            getTransformedOp(),
-            ImmutableList.of(getRhsNode())
-          );
+          right =
+              rexBuilder.makeCall(
+                  getReturnType(), getTransformedOp(), ImmutableList.of(getRhsNode()));
         } else {
-          right = rexBuilder.makeCall(
-            getTransformedOp(),
-            ImmutableList.of(getRhsNode())
-          );
+          right = rexBuilder.makeCall(getTransformedOp(), ImmutableList.of(getRhsNode()));
         }
         break;
       case ARG2:
         if (getReturnType() != null) {
-          right = rexBuilder.makeCall(
-            getReturnType(),
-            getTransformedOp(),
-            ImmutableList.of(getRhsNode(), getRhsParam())
-          );
+          right =
+              rexBuilder.makeCall(
+                  getReturnType(),
+                  getTransformedOp(),
+                  ImmutableList.of(getRhsNode(), getRhsParam()));
         } else {
-          right = rexBuilder.makeCall(
-            getTransformedOp(),
-            ImmutableList.of(getRhsNode(), getRhsParam())
-          );
+          right =
+              rexBuilder.makeCall(
+                  getTransformedOp(), ImmutableList.of(getRhsNode(), getRhsParam()));
         }
         break;
       case ARG3:
         if (getReturnType() != null) {
-          right = rexBuilder.makeCall(
-            getReturnType(),
-            getTransformedOp(),
-            getTransformationFunction().apply(getRhsNode(), getRhsParam(), getRhsParam2())
-          );
+          right =
+              rexBuilder.makeCall(
+                  getReturnType(),
+                  getTransformedOp(),
+                  getTransformationFunction().apply(getRhsNode(), getRhsParam(), getRhsParam2()));
         } else {
-          right = rexBuilder.makeCall(
-            getTransformedOp(),
-            getTransformationFunction().apply(getRhsNode(), getRhsParam(), getRhsParam2())
-          );
+          right =
+              rexBuilder.makeCall(
+                  getTransformedOp(),
+                  getTransformationFunction().apply(getRhsNode(), getRhsParam(), getRhsParam2()));
         }
         break;
       default:
@@ -224,9 +217,7 @@ public class ShiftTransformer implements Transformer {
   }
 
   Args getRhsParamCount() {
-    return getRhsParam() == null ? Args.ARG1 :
-      getRhsParam2() == null ? Args.ARG2 :
-        Args.ARG3;
+    return getRhsParam() == null ? Args.ARG1 : getRhsParam2() == null ? Args.ARG2 : Args.ARG3;
   }
 
   boolean isSwapped() {

@@ -16,15 +16,16 @@
 
 package com.dremio.common.util;
 
-
 public class DecimalScalePrecisionModFunction extends ScalePrecisionFunctionBase {
 
-  public DecimalScalePrecisionModFunction(int leftPrecision, int leftScale, int rightPrecision, int rightScale) {
+  public DecimalScalePrecisionModFunction(
+      int leftPrecision, int leftScale, int rightPrecision, int rightScale) {
     super(leftPrecision, leftScale, rightPrecision, rightScale);
   }
 
   @Override
-  public void computeScalePrecision(int leftPrecision, int leftScale, int rightPrecision, int rightScale) {
+  public void computeScalePrecision(
+      int leftPrecision, int leftScale, int rightPrecision, int rightScale) {
 
     // compute the output scale and precision here
     outputScale = Math.max(leftScale, rightScale);

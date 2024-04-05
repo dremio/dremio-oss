@@ -15,11 +15,6 @@
  */
 package com.dremio.exec.store.deltalake;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.datastore.LegacyProtobufSerializer;
@@ -32,16 +27,25 @@ import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.dfs.easy.EasyGroupScan;
 import com.dremio.exec.store.dfs.easy.EasySubScan;
 import com.dremio.sabot.exec.store.easy.proto.EasyProtobuf;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
 
 /**
- * DeltaLake dataset's group scan. The expected output schema to include split and partition info along with min, max
- * and nullCount stats for each column
+ * DeltaLake dataset's group scan. The expected output schema to include split and partition info
+ * along with min, max and nullCount stats for each column
  */
 public class DeltaLakeGroupScan extends EasyGroupScan {
   private final BatchSchema deltaCommitLogSchema;
   private final boolean scanForAddedPaths;
 
-  public DeltaLakeGroupScan(OpProps props, TableMetadata dataset, BatchSchema deltaCommitLogSchema, List<SchemaPath> columns, boolean scanForAddedPaths) {
+  public DeltaLakeGroupScan(
+      OpProps props,
+      TableMetadata dataset,
+      BatchSchema deltaCommitLogSchema,
+      List<SchemaPath> columns,
+      boolean scanForAddedPaths) {
     super(props, dataset, columns);
     this.deltaCommitLogSchema = deltaCommitLogSchema;
     this.scanForAddedPaths = scanForAddedPaths;
@@ -56,27 +60,37 @@ public class DeltaLakeGroupScan extends EasyGroupScan {
       }
       splits.add(split.getSplitAndPartitionInfo());
     }
-    final List<String> partitionCols = Optional.ofNullable(getDataset().getReadDefinition().getPartitionColumnsList()).orElse(Collections.EMPTY_LIST);
+    final List<String> partitionCols =
+        Optional.ofNullable(getDataset().getReadDefinition().getPartitionColumnsList())
+            .orElse(Collections.EMPTY_LIST);
     return new EasySubScan(
-      props,
-      getDataset().getFormatSettings(),
-      splits,
-      deltaCommitLogSchema,
-      getDataset().getName().getPathComponents(),
-      dataset.getStoragePluginId(),
-      dataset.getStoragePluginId(),
-      columns,
-      partitionCols,
-      getDataset().getReadDefinition().getExtendedProperty(),
-      null);
+        props,
+        getDataset().getFormatSettings(),
+        splits,
+        deltaCommitLogSchema,
+        getDataset().getName().getPathComponents(),
+        dataset.getStoragePluginId(),
+        dataset.getStoragePluginId(),
+        columns,
+        partitionCols,
+        getDataset().getReadDefinition().getExtendedProperty(),
+        null);
   }
 
   private boolean isParquetCheckpointSplit(SplitWork split) {
     try {
-      String path = LegacyProtobufSerializer.parseFrom(EasyProtobuf.EasyDatasetSplitXAttr.PARSER,
-        split.getSplitAndPartitionInfo().getDatasetSplitInfo().getExtendedProperty().toByteArray()).getPath();
+      String path =
+          LegacyProtobufSerializer.parseFrom(
+                  EasyProtobuf.EasyDatasetSplitXAttr.PARSER,
+                  split
+                      .getSplitAndPartitionInfo()
+                      .getDatasetSplitInfo()
+                      .getExtendedProperty()
+                      .toByteArray())
+              .getPath();
       return path.endsWith("parquet");
-    } catch (Exception ignore) {}
+    } catch (Exception ignore) {
+    }
     return false;
   }
 }

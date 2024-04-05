@@ -15,18 +15,15 @@
  */
 package com.dremio.exec.planner.serialization;
 
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.sql.SqlOperatorTable;
-
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.exec.ops.DremioCatalogReader;
 import com.dremio.exec.planner.serialization.kryo.KryoRelSerializerFactory;
 import com.dremio.exec.store.CatalogService;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.sql.SqlOperatorTable;
 
-/**
- * Abstract class that defines how to get plan serializers and deserializers.
- */
+/** Abstract class that defines how to get plan serializers and deserializers. */
 public abstract class RelSerializerFactory {
 
   private static final String PLANNING_PATH = "dremio.planning.serializer";
@@ -36,13 +33,16 @@ public abstract class RelSerializerFactory {
 
   /**
    * Get a serializer for the given cluster.
+   *
    * @param cluster The cluster to serialize from.
    * @return
    */
-  public abstract LogicalPlanSerializer getSerializer(RelOptCluster cluster, SqlOperatorTable sqlOperatorTable);
+  public abstract LogicalPlanSerializer getSerializer(
+      RelOptCluster cluster, SqlOperatorTable sqlOperatorTable);
 
   /**
    * Get a deserializer for the given cluster and catalog.
+   *
    * @param cluster Cluster to read into.
    * @param catalog Catalog to use for deserializing tables.
    * @param sqlOperatorTable SqlOperatorTable to use for deserializing Dremio operators.
@@ -55,9 +55,9 @@ public abstract class RelSerializerFactory {
       final CatalogService catalogService);
 
   public LogicalPlanDeserializer getDeserializer(
-    final RelOptCluster cluster,
-    final DremioCatalogReader catalog,
-    final SqlOperatorTable sqlOperatorTable) {
+      final RelOptCluster cluster,
+      final DremioCatalogReader catalog,
+      final SqlOperatorTable sqlOperatorTable) {
     return getDeserializer(cluster, catalog, sqlOperatorTable, null);
   }
 
@@ -65,7 +65,8 @@ public abstract class RelSerializerFactory {
     return getFactory(config, scanResult, PLANNING_PATH);
   }
 
-  public static RelSerializerFactory getLegacyPlanningFactory(SabotConfig config, ScanResult scanResult) {
+  public static RelSerializerFactory getLegacyPlanningFactory(
+      SabotConfig config, ScanResult scanResult) {
     return getFactory(config, scanResult, LEGACY_PLANNING_PATH);
   }
 
@@ -73,11 +74,11 @@ public abstract class RelSerializerFactory {
     return getFactory(config, scanResult, PROFILE_PATH);
   }
 
-  private static RelSerializerFactory getFactory(SabotConfig config, ScanResult scanResult, String property) {
-    if(config.hasPath(property)) {
+  private static RelSerializerFactory getFactory(
+      SabotConfig config, ScanResult scanResult, String property) {
+    if (config.hasPath(property)) {
       return config.getInstance(property, RelSerializerFactory.class, scanResult);
     }
     return DEFAULT;
   }
-
 }

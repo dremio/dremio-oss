@@ -23,6 +23,7 @@ import { cloneDeep } from "lodash";
 const jobsReducer = (curState, action) => {
   const state = combineReducers({
     jobs,
+    // TODO: goal is to ultimately remove this from jobs in redux and move it to the explore module
     tabJobs: (...args) => {
       return tabJobsReducer({
         jobs: jobs(curState?.jobs, action),

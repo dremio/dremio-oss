@@ -17,10 +17,6 @@ package com.dremio.exec.work.rpc;
 
 import static com.dremio.exec.rpc.RpcBus.get;
 
-import java.util.Optional;
-
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.utils.protos.ExternalIdHelper;
 import com.dremio.exec.proto.CoordRPC;
@@ -40,12 +36,14 @@ import com.dremio.services.fabric.api.FabricProtocol;
 import com.dremio.services.fabric.api.PhysicalConnection;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.MessageLite;
-
 import io.netty.buffer.ByteBuf;
+import java.util.Optional;
+import org.apache.arrow.memory.BufferAllocator;
 
 public class CoordProtocol implements FabricProtocol {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CoordProtocol.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(CoordProtocol.class);
 
   private static final Response OK = new Response(RpcType.ACK, Acks.OK);
   private static final Response FAIL = new Response(RpcType.ACK, Acks.FAIL);
@@ -78,14 +76,14 @@ public class CoordProtocol implements FabricProtocol {
   @Override
   public MessageLite getResponseDefaultInstance(int rpcType) throws RpcException {
     switch (rpcType) {
-    case RpcType.ACK_VALUE:
-      return Ack.getDefaultInstance();
+      case RpcType.ACK_VALUE:
+        return Ack.getDefaultInstance();
 
-    case RpcType.RESP_QUERY_PROFILE_VALUE:
-      return QueryProfile.getDefaultInstance();
+      case RpcType.RESP_QUERY_PROFILE_VALUE:
+        return QueryProfile.getDefaultInstance();
 
-    default:
-      throw new UnsupportedOperationException();
+      default:
+        throw new UnsupportedOperationException();
     }
   }
 
@@ -95,36 +93,41 @@ public class CoordProtocol implements FabricProtocol {
       int rpcType,
       ByteString pBody,
       ByteBuf dBody,
-      ResponseSender sender) throws RpcException {
+      ResponseSender sender)
+      throws RpcException {
 
     if (RpcConstants.EXTRA_DEBUGGING) {
       logger.debug("Received exec > coord message of type {}", rpcType);
     }
 
     switch (rpcType) {
+      case RpcType.REQ_QUERY_CANCEL_VALUE:
+        {
+          final CoordRPC.JobCancelRequest jobCancelRequest =
+              get(pBody, CoordRPC.JobCancelRequest.PARSER);
+          final ExternalId id = jobCancelRequest.getExternalId();
+          final String cancelreason = jobCancelRequest.getCancelReason();
+          boolean canceled = tool.cancel(id, cancelreason);
+          final Response outcome = canceled ? OK : FAIL;
+          sender.send(outcome);
+          break;
+        }
 
-    case RpcType.REQ_QUERY_CANCEL_VALUE: {
-      final CoordRPC.JobCancelRequest jobCancelRequest = get(pBody, CoordRPC.JobCancelRequest.PARSER);
-      final ExternalId id = jobCancelRequest.getExternalId();
-      final String cancelreason = jobCancelRequest.getCancelReason();
-      boolean canceled = tool.cancel(id, cancelreason);
-      final Response outcome = canceled ? OK : FAIL;
-      sender.send(outcome);
-      break;
-    }
+      case RpcType.REQ_QUERY_PROFILE_VALUE:
+        {
+          ExternalId id = get(pBody, ExternalId.PARSER);
+          Optional<QueryProfile> profile = tool.getProfile(id);
+          if (!profile.isPresent()) {
+            throw new RpcException(
+                "Unable to get profile for query with id: " + ExternalIdHelper.toString(id));
+          }
 
-    case RpcType.REQ_QUERY_PROFILE_VALUE: {
-      ExternalId id = get(pBody, ExternalId.PARSER);
-      Optional<QueryProfile> profile = tool.getProfile(id);
-      if(!profile.isPresent()){
-        throw new RpcException("Unable to get profile for query with id: " + ExternalIdHelper.toString(id));
-      }
-
-      sender.send(new Response(RpcType.RESP_QUERY_PROFILE, profile.get()));
-      break;
-    }
-    default:
-      throw new RpcException("Message received that is not yet supported. Message type: " + rpcType);
+          sender.send(new Response(RpcType.RESP_QUERY_PROFILE, profile.get()));
+          break;
+        }
+      default:
+        throw new RpcException(
+            "Message received that is not yet supported. Message type: " + rpcType);
     }
   }
 
@@ -133,7 +136,11 @@ public class CoordProtocol implements FabricProtocol {
         .name("CoordToCoord")
         .timeout(config.getInt(RpcConstants.BIT_RPC_TIMEOUT))
         .add(RpcType.REQ_QUERY_CANCEL, CoordRPC.JobCancelRequest.class, RpcType.ACK, Ack.class)
-        .add(RpcType.REQ_QUERY_PROFILE, ExternalId.class, RpcType.RESP_QUERY_PROFILE, QueryProfile.class)
+        .add(
+            RpcType.REQ_QUERY_PROFILE,
+            ExternalId.class,
+            RpcType.RESP_QUERY_PROFILE,
+            QueryProfile.class)
         .build();
   }
 }

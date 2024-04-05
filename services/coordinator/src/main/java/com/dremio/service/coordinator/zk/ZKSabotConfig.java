@@ -37,10 +37,9 @@ import static com.dremio.service.coordinator.zk.ZKClusterClient.ZK_LOST_HANDLER_
 import com.dremio.common.config.SabotConfig;
 import com.dremio.configfeature.ConfigFeatureProvider;
 import com.dremio.service.coordinator.CoordinatorLostHandle;
+import com.dremio.service.coordinator.ObservableConnectionLostHandler;
 
-/**
- * ZKClusterConfig through SabotConfig
- */
+/** ZKClusterConfig through SabotConfig */
 public class ZKSabotConfig implements ZKClusterConfig {
   private final SabotConfig config;
 
@@ -110,7 +109,10 @@ public class ZKSabotConfig implements ZKClusterConfig {
 
   @Override
   public CoordinatorLostHandle getConnectionLostHandler() {
-    return config.getInstance(ZK_LOST_HANDLER_MODULE_CLASS, CoordinatorLostHandle.class, CoordinatorLostHandle.NO_OP);
+    return config.getInstance(
+        ZK_LOST_HANDLER_MODULE_CLASS,
+        CoordinatorLostHandle.class,
+        ObservableConnectionLostHandler.OBSERVABLE_LOST_HANDLER.get());
   }
 
   @Override

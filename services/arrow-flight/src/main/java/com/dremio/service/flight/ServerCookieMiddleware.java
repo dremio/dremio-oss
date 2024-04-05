@@ -19,9 +19,7 @@ package com.dremio.service.flight;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
-
 import javax.validation.constraints.NotNull;
-
 import org.apache.arrow.flight.CallHeaders;
 import org.apache.arrow.flight.CallInfo;
 import org.apache.arrow.flight.CallStatus;
@@ -29,7 +27,8 @@ import org.apache.arrow.flight.FlightServerMiddleware;
 import org.apache.arrow.flight.RequestContext;
 
 /**
- * ServerCookieMiddleware allows a FlightServer to retrieve cookies from the request as well as set outgoing cookies
+ * ServerCookieMiddleware allows a FlightServer to retrieve cookies from the request as well as set
+ * outgoing cookies
  */
 @SuppressWarnings("checkstyle:FinalClass")
 public class ServerCookieMiddleware implements FlightServerMiddleware {
@@ -37,33 +36,26 @@ public class ServerCookieMiddleware implements FlightServerMiddleware {
   private Map<String, String> cookieValues;
   private final CallHeaders incomingHeaders;
 
-  /**
-   * Factory to construct @see com.dremio.service.flight.ServerCookieMiddlewares
-   */
+  /** Factory to construct @see com.dremio.service.flight.ServerCookieMiddlewares */
   public static class Factory implements FlightServerMiddleware.Factory<ServerCookieMiddleware> {
-    /**
-     * Construct a factory for receiving call headers.
-     */
-    public Factory() {
-    }
+    /** Construct a factory for receiving call headers. */
+    public Factory() {}
 
     @Override
-    public ServerCookieMiddleware onCallStarted(CallInfo callInfo, CallHeaders incomingHeaders,
-                                                RequestContext context) {
+    public ServerCookieMiddleware onCallStarted(
+        CallInfo callInfo, CallHeaders incomingHeaders, RequestContext context) {
       return new ServerCookieMiddleware(callInfo, incomingHeaders, context);
     }
   }
 
-
-  private ServerCookieMiddleware(CallInfo callInfo, CallHeaders incomingHeaders, RequestContext requestContext) {
+  private ServerCookieMiddleware(
+      CallInfo callInfo, CallHeaders incomingHeaders, RequestContext requestContext) {
     this.incomingHeaders = incomingHeaders;
     this.requestContext = requestContext;
     this.cookieValues = new HashMap<String, String>();
   }
 
-  /**
-   * Retrieve the headers for this call.
-   */
+  /** Retrieve the headers for this call. */
   public CallHeaders headers() {
     return this.incomingHeaders;
   }
@@ -84,20 +76,18 @@ public class ServerCookieMiddleware implements FlightServerMiddleware {
       return;
     }
 
-    final String cookies = cookieValues.entrySet()
-      .stream()
-      .map((entry) -> String.format("%s=%s", entry.getKey(), entry.getValue()))
-      .collect(Collectors.joining(";"));
+    final String cookies =
+        cookieValues.entrySet().stream()
+            .map((entry) -> String.format("%s=%s", entry.getKey(), entry.getValue()))
+            .collect(Collectors.joining(";"));
 
     // set it in the headers
     outgoingHeaders.insert("Set-Cookie", cookies);
   }
 
   @Override
-  public void onCallCompleted(CallStatus status) {
-  }
+  public void onCallCompleted(CallStatus status) {}
 
   @Override
-  public void onCallErrored(Throwable err) {
-  }
+  public void onCallErrored(Throwable err) {}
 }

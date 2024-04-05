@@ -15,22 +15,21 @@
  */
 package com.dremio.exec.planner.cost;
 
+import com.dremio.common.utils.PathUtils;
+import com.dremio.exec.expr.RexTableColumnNameRef;
+import com.dremio.exec.planner.physical.PrelUtil;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.rel.metadata.RelColumnOrigin;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexShuttle;
 import org.apache.calcite.rex.RexTableInputRef;
 
-import com.dremio.common.utils.PathUtils;
-import com.dremio.exec.expr.RexTableColumnNameRef;
-import com.dremio.exec.planner.physical.PrelUtil;
-
-/**
- * DremioRelMdUtil
- */
+/** DremioRelMdUtil */
 public class DremioRelMdUtil {
   public static boolean isStatisticsEnabled(RelOptPlanner planner, boolean isNoOp) {
-    return !isNoOp && (PrelUtil.getPlannerSettings(planner).useStatistics() || PrelUtil.getPlannerSettings(planner).semiJoinCosting());
+    return !isNoOp
+        && (PrelUtil.getPlannerSettings(planner).useStatistics()
+            || PrelUtil.getPlannerSettings(planner).semiJoinCosting());
   }
 
   public static boolean isRowCountStatisticsEnabled(RelOptPlanner planner, boolean isNoOp) {
@@ -38,23 +37,29 @@ public class DremioRelMdUtil {
   }
 
   /**
-   * Given an expression, it will swap the table references contained in its
-   * {@link RexTableInputRef} to a new {@link RexTableColumnNameRef}  which will wrap It
+   * Given an expression, it will swap the table references contained in its {@link
+   * RexTableInputRef} to a new {@link RexTableColumnNameRef} which will wrap It
    */
   public static RexNode swapTableInputReferences(final RexNode node) {
     RexShuttle visitor =
-      new RexShuttle() {
-        @Override public RexNode visitTableInputRef(RexTableInputRef inputRef) {
-          return new RexTableColumnNameRef(inputRef);
-        }
-      };
+        new RexShuttle() {
+          @Override
+          public RexNode visitTableInputRef(RexTableInputRef inputRef) {
+            return new RexTableColumnNameRef(inputRef);
+          }
+        };
     return visitor.apply(node);
   }
 
-  public static String getNameFromColumnOrigin(RelColumnOrigin columnOrigin){
-    String columnNameWithTableName = PathUtils.constructFullPath(columnOrigin.getOriginTable().getQualifiedName()) +
-      "."+ columnOrigin.getOriginTable().getRowType().getFieldNames().get(columnOrigin.getOriginColumnOrdinal());
+  public static String getNameFromColumnOrigin(RelColumnOrigin columnOrigin) {
+    String columnNameWithTableName =
+        PathUtils.constructFullPath(columnOrigin.getOriginTable().getQualifiedName())
+            + "."
+            + columnOrigin
+                .getOriginTable()
+                .getRowType()
+                .getFieldNames()
+                .get(columnOrigin.getOriginColumnOrdinal());
     return columnNameWithTableName;
   }
-
 }

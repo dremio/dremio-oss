@@ -15,10 +15,14 @@
  */
 package com.dremio.dac.api;
 
+import com.dremio.service.Pointer;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.google.protobuf.Timestamp;
 import java.text.ParseException;
-import java.text.SimpleDateFormat;
+import java.time.Instant;
+import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -26,56 +30,52 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
-import com.dremio.service.Pointer;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import com.google.protobuf.Timestamp;
-
-/**
- * Misc set of utils functions.
- */
+/** Misc set of utils functions. */
 public class StatsUtils {
-  private static final long nMilliSecInADay = 1000*24*60*60L;
-  private static final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+  private static final long nMilliSecInADay = 1000 * 24 * 60 * 60L;
   // since user stats and job stats are typically called for 7 days - setting a min of 14 threads
-  private static final int STATS_THREAD_POOL_SIZE = Math.max(14, Runtime.getRuntime().availableProcessors()-1);
+  private static final int STATS_THREAD_POOL_SIZE =
+      Math.max(14, Runtime.getRuntime().availableProcessors() - 1);
 
-  private static final ExecutorService statsExecutorService = Executors.newFixedThreadPool(STATS_THREAD_POOL_SIZE,
-    new ThreadFactoryBuilder()
-    .setDaemon(true)
-    .setNameFormat("stats-pool-%d")
-    .build());
+  private static final ExecutorService statsExecutorService =
+      Executors.newFixedThreadPool(
+          STATS_THREAD_POOL_SIZE,
+          new ThreadFactoryBuilder().setDaemon(true).setNameFormat("stats-pool-%d").build());
 
   /**
-   * Create a list of pairs - one pair for each date between startEpoch and endEpoch.
-   * Each pair contains start and end epoch times.
+   * Create a list of pairs - one pair for each date between startEpoch and endEpoch. Each pair
+   * contains start and end epoch times.
    *
-   * Invariants
-   * Start epoch of each pair >= startEpoch
-   * End epoch of each pair <= endEpoch
-   * start epoch of each pair <= end epoch of each pair
+   * <p>Invariants Start epoch of each pair >= startEpoch End epoch of each pair <= endEpoch start
+   * epoch of each pair <= end epoch of each pair
    *
-   * For eg:
-   * startEpoch 1634748029001 i.e Wednesday, 20 October 2021 16:40:29.000001
-   * endEpoch   1634920829002 i.e Friday,    22 October 2021 16:40:29.000002
+   * <p>For eg: startEpoch 1634748029001 i.e Wednesday, 20 October 2021 16:40:29.000001 endEpoch
+   * 1634920829002 i.e Friday, 22 October 2021 16:40:29.000002
    *
-   * Result list will have epoch equivalent of
-   * results = {
-   *   [Wednesday, 20 October 2021 16:40:29.000001, Wednesday, 20 October 2021 23:59:59.999999],
-   *   [Thursday, 21 October 2021 00:00:00.000000, Thursday, 21 October 2021 23:59:59.999999]
-   *   [Friday, 22 October 2021 00:00:00.000000, Friday, 22 October 2021 16:40:29.000002]
-   * }
+   * <p>Result list will have epoch equivalent of results = { [Wednesday, 20 October 2021
+   * 16:40:29.000001, Wednesday, 20 October 2021 23:59:59.999999], [Thursday, 21 October 2021
+   * 00:00:00.000000, Thursday, 21 October 2021 23:59:59.999999] [Friday, 22 October 2021
+   * 00:00:00.000000, Friday, 22 October 2021 16:40:29.000002] }
    *
    * @param startEpoch
    * @param endEpoch
    * @return
    * @throws ParseException
    */
-  public static List<Long[]> createDateWiseParameterBatches(long startEpoch, long endEpoch) throws ParseException {
+  public static List<Long[]> createDateWiseParameterBatches(long startEpoch, long endEpoch)
+      throws ParseException {
     List<Long[]> batches = new ArrayList<>();
-
     long iterStartDate = startEpoch;
     // compute iterEndDate as last second of same day as iterStartDate
-    long iterEndDate = sdf.parse(sdf.format(new Date(iterStartDate + nMilliSecInADay))).getTime() - 1;
+    long iterEndDate =
+        Instant.ofEpochMilli(iterStartDate)
+            .atZone(ZoneId.systemDefault())
+            .toLocalDate()
+            .atTime(LocalTime.MAX)
+            .atZone(ZoneId.systemDefault())
+            .toInstant()
+            .toEpochMilli();
+
     iterEndDate = Math.min(iterEndDate, endEpoch);
 
     do {
@@ -86,7 +86,7 @@ public class StatsUtils {
       batches.add(pair);
 
       iterStartDate = iterEndDate + 1;
-      iterEndDate = iterStartDate + nMilliSecInADay-1;
+      iterEndDate = iterStartDate + nMilliSecInADay - 1;
       iterEndDate = Math.min(iterEndDate, endEpoch);
     } while (iterStartDate < endEpoch);
 
@@ -95,29 +95,32 @@ public class StatsUtils {
 
   public static Timestamp convert(long epochInMilliSeconds) {
     return Timestamp.newBuilder()
-      .setSeconds(epochInMilliSeconds / 1000)
-      .setNanos((int)(epochInMilliSeconds % 1000) * 1_000_000)
-      .build();
+        .setSeconds(epochInMilliSeconds / 1000)
+        .setNanos((int) (epochInMilliSeconds % 1000) * 1_000_000)
+        .build();
   }
 
-  public static void executeDateWise(long startEpoch, long endEpoch, Consumer<Long[]> consumer) throws Exception {
+  public static void executeDateWise(long startEpoch, long endEpoch, Consumer<Long[]> consumer)
+      throws Exception {
     Pointer<Exception> exceptionPointer = new Pointer<>();
     List<Long[]> batches = createDateWiseParameterBatches(startEpoch, endEpoch);
     CountDownLatch latch = new CountDownLatch(batches.size());
-    batches.stream().forEach(pair ->
-      statsExecutorService.execute(()->{
-        try {
-          consumer.accept(pair);
-        } catch (Exception err) {
-          exceptionPointer.value = err;
-          // exit on first exception.
-          while (latch.getCount() > 0) {
-            latch.countDown();
-          }
-        }
-        latch.countDown();
-      })
-    );
+    batches.stream()
+        .forEach(
+            pair ->
+                statsExecutorService.execute(
+                    () -> {
+                      try {
+                        consumer.accept(pair);
+                      } catch (Exception err) {
+                        exceptionPointer.value = err;
+                        // exit on first exception.
+                        while (latch.getCount() > 0) {
+                          latch.countDown();
+                        }
+                      }
+                      latch.countDown();
+                    }));
 
     latch.await(100, TimeUnit.SECONDS);
 

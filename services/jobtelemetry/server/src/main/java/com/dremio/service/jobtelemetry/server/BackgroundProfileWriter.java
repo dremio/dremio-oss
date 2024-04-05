@@ -15,25 +15,22 @@
  */
 package com.dremio.service.jobtelemetry.server;
 
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.concurrent.CloseableExecutorService;
 import com.dremio.common.concurrent.CloseableThreadPool;
 import com.dremio.common.concurrent.ContextMigratingExecutorService.ContextMigratingCloseableExecutorService;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.service.jobtelemetry.server.store.ProfileStore;
-
 import io.opentracing.Tracer;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Background writer for merged profiles.
- * - Enforces a bound on the number of in-progress jobs.
- * - Ensures that two jobs do not attempt to write to the same path (can still happen
- *   across JTS instances).
+ * Background writer for merged profiles. - Enforces a bound on the number of in-progress jobs. -
+ * Ensures that two jobs do not attempt to write to the same path (can still happen across JTS
+ * instances).
  */
 public class BackgroundProfileWriter implements AutoCloseable {
   static final int MAX_BACKGROUND_WRITES = 100;
@@ -44,11 +41,13 @@ public class BackgroundProfileWriter implements AutoCloseable {
 
   BackgroundProfileWriter(ProfileStore profileStore, Tracer tracer) {
     this.profileStore = profileStore;
-    this.executor = new ContextMigratingCloseableExecutorService<>(new CloseableThreadPool("bg-profile-writer"));
+    this.executor =
+        new ContextMigratingCloseableExecutorService<>(
+            new CloseableThreadPool("bg-profile-writer"));
   }
 
-  Optional<CompletableFuture<Void>> tryWriteAsync(UserBitShared.QueryId queryId,
-                                                  UserBitShared.QueryProfile profile) {
+  Optional<CompletableFuture<Void>> tryWriteAsync(
+      UserBitShared.QueryId queryId, UserBitShared.QueryProfile profile) {
     if (inProgressWrites.size() + 1 > MAX_BACKGROUND_WRITES) {
       // too much backlog
       return Optional.empty();
@@ -59,11 +58,12 @@ public class BackgroundProfileWriter implements AutoCloseable {
       return Optional.empty();
     }
 
-    CompletableFuture<Void> future = CompletableFuture.runAsync(
-      () -> profileStore.putFullProfile(queryId, profile), executor)
-      .whenComplete((ret, ex) -> {
-        inProgressWrites.remove(queryId);
-      });
+    CompletableFuture<Void> future =
+        CompletableFuture.runAsync(() -> profileStore.putFullProfile(queryId, profile), executor)
+            .whenComplete(
+                (ret, ex) -> {
+                  inProgressWrites.remove(queryId);
+                });
     return Optional.of(future);
   }
 

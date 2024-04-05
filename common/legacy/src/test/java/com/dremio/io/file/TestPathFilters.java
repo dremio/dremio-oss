@@ -17,24 +17,18 @@ package com.dremio.io.file;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.dremio.test.DremioTest;
 import java.util.Arrays;
 import java.util.function.Predicate;
-
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
-import com.dremio.test.DremioTest;
-
-/**
- * Tests for helpers inside {@code PathFilters}
- */
+/** Tests for helpers inside {@code PathFilters} */
 public class TestPathFilters extends DremioTest {
 
-  /**
-   * Tests for {@code PathFilters#NO_HIDDEN_FILES}
-   */
+  /** Tests for {@code PathFilters#NO_HIDDEN_FILES} */
   @RunWith(Parameterized.class)
   public static final class TestNoHiddenFiles extends DremioTest {
     private final boolean expected;
@@ -43,20 +37,19 @@ public class TestPathFilters extends DremioTest {
     @Parameters(name = "{index}: path={1}")
     public static Iterable<Object[]> getTestCases() {
       return Arrays.asList(
-          new Object[] { true, "foo" },
-          new Object[] { true, "bar" },
-          new Object[] { true, "foo.bar" },
-          new Object[] { true, "foo_bar" },
-          new Object[] { true, "bar." },
-          new Object[] { true, "bar_" },
-          new Object[] { false, ".foo" },
-          new Object[] { false, "_foo" },
-          new Object[] { false, "_" },
-          new Object[] { false, "_logs" },
-          new Object[] { false, "_SUCCESS" },
-          new Object[] { true, "/_foo/bar" },
-          new Object[] { false, "/_foo/_bar" }
-          );
+          new Object[] {true, "foo"},
+          new Object[] {true, "bar"},
+          new Object[] {true, "foo.bar"},
+          new Object[] {true, "foo_bar"},
+          new Object[] {true, "bar."},
+          new Object[] {true, "bar_"},
+          new Object[] {false, ".foo"},
+          new Object[] {false, "_foo"},
+          new Object[] {false, "_"},
+          new Object[] {false, "_logs"},
+          new Object[] {false, "_SUCCESS"},
+          new Object[] {true, "/_foo/bar"},
+          new Object[] {false, "/_foo/_bar"});
     }
 
     public TestNoHiddenFiles(boolean expected, String path) {
@@ -70,10 +63,7 @@ public class TestPathFilters extends DremioTest {
     }
   }
 
-
-  /**
-   * Tests for {@code PathFilters#startsWith(String)}
-   */
+  /** Tests for {@code PathFilters#startsWith(String)} */
   @RunWith(Parameterized.class)
   public static final class TestStartsWith extends DremioTest {
     private final boolean expected;
@@ -83,15 +73,14 @@ public class TestPathFilters extends DremioTest {
     @Parameters(name = "{index}: path={1}, pattern={2}")
     public static Iterable<Object[]> getTestCases() {
       return Arrays.asList(
-          new Object[] { true, "foo" , "" },
-          new Object[] { true, "foo" , "f" },
-          new Object[] { true, "foo" , "fo" },
-          new Object[] { false, "foo" , "oo" },
-          new Object[] { true, "bar" , "bar" },
-          new Object[] { false, "bar" , "barb" },
-          new Object[] { true, "/foo/bar",  "bar"},
-          new Object[] { false, "/foo/bar",  "foo"}
-          );
+          new Object[] {true, "foo", ""},
+          new Object[] {true, "foo", "f"},
+          new Object[] {true, "foo", "fo"},
+          new Object[] {false, "foo", "oo"},
+          new Object[] {true, "bar", "bar"},
+          new Object[] {false, "bar", "barb"},
+          new Object[] {true, "/foo/bar", "bar"},
+          new Object[] {false, "/foo/bar", "foo"});
     }
 
     public TestStartsWith(boolean expected, String path, String pattern) {
@@ -106,9 +95,7 @@ public class TestPathFilters extends DremioTest {
     }
   }
 
-  /**
-   * Tests for {@code PathFilters#startsWith(String)}
-   */
+  /** Tests for {@code PathFilters#startsWith(String)} */
   @RunWith(Parameterized.class)
   public static final class TestEndsWith extends DremioTest {
     private final boolean expected;
@@ -118,15 +105,14 @@ public class TestPathFilters extends DremioTest {
     @Parameters(name = "{index}: path={1}, pattern={2}")
     public static Iterable<Object[]> getTestCases() {
       return Arrays.asList(
-          new Object[] { true, "foo" , "" },
-          new Object[] { true, "foo" , "o" },
-          new Object[] { true, "foo" , "oo" },
-          new Object[] { false, "foo" , "f" },
-          new Object[] { true, "bar" , "bar" },
-          new Object[] { false, "bar" , "barb" },
-          new Object[] { true, "/foo/bar",  "r"},
-          new Object[] { false, "/foo/bar",  "o"}
-          );
+          new Object[] {true, "foo", ""},
+          new Object[] {true, "foo", "o"},
+          new Object[] {true, "foo", "oo"},
+          new Object[] {false, "foo", "f"},
+          new Object[] {true, "bar", "bar"},
+          new Object[] {false, "bar", "barb"},
+          new Object[] {true, "/foo/bar", "r"},
+          new Object[] {false, "/foo/bar", "o"});
     }
 
     public TestEndsWith(boolean expected, String path, String pattern) {
@@ -140,5 +126,4 @@ public class TestPathFilters extends DremioTest {
       assertThat(predicate.test(path)).isEqualTo(expected);
     }
   }
-
 }

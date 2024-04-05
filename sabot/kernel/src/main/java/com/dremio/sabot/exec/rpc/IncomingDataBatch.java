@@ -15,18 +15,17 @@
  */
 package com.dremio.sabot.exec.rpc;
 
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.util.LargeMemoryUtil;
-
 import com.dremio.common.memory.AllocatorUtil;
 import com.dremio.exec.proto.ExecRPC.FragmentRecordBatch;
 import com.dremio.sabot.op.receiver.RawFragmentBatch;
 import com.google.common.base.Preconditions;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.util.LargeMemoryUtil;
 
 /**
- * An incoming batch of data. The data is held by the original allocator. Any use of the associated data must be
- * leveraged through the use of newRawFragmentBatch().
+ * An incoming batch of data. The data is held by the original allocator. Any use of the associated
+ * data must be leveraged through the use of newRawFragmentBatch().
  */
 public class IncomingDataBatch {
 
@@ -37,12 +36,9 @@ public class IncomingDataBatch {
   /**
    * Create a new batch. Does not impact reference counts of body.
    *
-   * @param header
-   *          Batch header
-   * @param body
-   *          Data body. Could be null.
-   * @param sender
-   *          AckSender to use for underlying RawFragmentBatches.
+   * @param header Batch header
+   * @param body Data body. Could be null.
+   * @param sender AckSender to use for underlying RawFragmentBatches.
    */
   public IncomingDataBatch(FragmentRecordBatch header, ArrowBuf body, AckSenderImpl sender) {
     Preconditions.checkNotNull(header);
@@ -53,17 +49,17 @@ public class IncomingDataBatch {
   }
 
   /**
-   * Create a new RawFragmentBatch based on this incoming data batch that is transferred into the provided allocator.
-   * Also increments the AckSender to expect one additional return message.
+   * Create a new RawFragmentBatch based on this incoming data batch that is transferred into the
+   * provided allocator. Also increments the AckSender to expect one additional return message.
    *
-   * @param allocator
-   *          Target allocator that should be associated with data underlying this batch.
+   * @param allocator Target allocator that should be associated with data underlying this batch.
    * @return The newly created RawFragmentBatch
    */
   public RawFragmentBatch newRawFragmentBatch(final BufferAllocator allocator) {
-    final ArrowBuf transferredBuffer = body == null ? null : body.getReferenceManager()
-      .transferOwnership(body, allocator)
-      .getTransferredBuffer();
+    final ArrowBuf transferredBuffer =
+        body == null
+            ? null
+            : body.getReferenceManager().transferOwnership(body, allocator).getTransferredBuffer();
     sender.increment();
     return new RawFragmentBatch(header, transferredBuffer, sender);
   }
@@ -72,10 +68,7 @@ public class IncomingDataBatch {
     return header;
   }
 
-  /**
-   * Check if the batch size is acceptable.
-   * throws exception if not acceptable.
-   */
+  /** Check if the batch size is acceptable. throws exception if not acceptable. */
   public void checkAcceptance(final BufferAllocator allocator) {
     AllocatorUtil.ensureHeadroom(allocator, size());
     sender.increment();
@@ -83,7 +76,7 @@ public class IncomingDataBatch {
   }
 
   public int size() {
-    if (body == null){
+    if (body == null) {
       return 0;
     }
 

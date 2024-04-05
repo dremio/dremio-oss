@@ -25,28 +25,36 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-/**
- * History item for the history vertical bar
- */
-@JsonIgnoreProperties(value={ "datasetVersion" }, allowGetters=true)
+/** History item for the history vertical bar */
+@JsonIgnoreProperties(
+    value = {"datasetVersion"},
+    allowGetters = true)
 public class HistoryItem {
   /** path to that version of the dataset */
   private DatasetVersionResourcePath versionedResourcePath;
+
   /** status of the query */
   private JobState state;
+
   /** description of the transformation that produced this item */
   private String transformDescription;
+
   /** owner of that job */
   private String owner;
-  /** time of the creation timestamp in ms*/
+
+  /** time of the creation timestamp in ms */
   private long createdAt;
-  /** optional: time of the query completion timestamp in ms*/
+
+  /** optional: time of the query completion timestamp in ms */
   private Long finishedAt;
+
   /** whether this was a preview */
   private boolean preview;
-  /** optional: number of records returned. (so far if STARTED )*/
+
+  /** optional: number of records returned. (so far if STARTED ) */
   private Long recordsReturned;
-  /** optional: size in bytes returned. (so far if STARTED )*/
+
+  /** optional: size in bytes returned. (so far if STARTED ) */
   private Long bytes;
 
   @JsonCreator
@@ -71,6 +79,7 @@ public class HistoryItem {
     this.recordsReturned = recordsReturned;
     this.bytes = bytes;
   }
+
   public DatasetVersionResourcePath getVersionedResourcePath() {
     return versionedResourcePath;
   }
@@ -83,27 +92,35 @@ public class HistoryItem {
   public DatasetPath getDataset() {
     return versionedResourcePath.getDataset();
   }
+
   public JobState getState() {
     return state;
   }
+
   public String getTransformDescription() {
     return transformDescription;
   }
+
   public String getOwner() {
     return owner;
   }
+
   public long getCreatedAt() {
     return createdAt;
   }
+
   public boolean isPreview() {
     return preview;
   }
+
   public Long getRecordsReturned() {
     return recordsReturned;
   }
+
   public Long getFinishedAt() {
     return finishedAt;
   }
+
   public Long getBytes() {
     return bytes;
   }

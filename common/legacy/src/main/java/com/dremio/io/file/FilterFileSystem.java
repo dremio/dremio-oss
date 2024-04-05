@@ -15,6 +15,10 @@
  */
 package com.dremio.io.file;
 
+import com.dremio.io.AsyncByteReader;
+import com.dremio.io.AsyncByteReader.FileKey;
+import com.dremio.io.FSInputStream;
+import com.dremio.io.FSOutputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
@@ -27,14 +31,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
 
-import com.dremio.io.AsyncByteReader;
-import com.dremio.io.AsyncByteReader.FileKey;
-import com.dremio.io.FSInputStream;
-import com.dremio.io.FSOutputStream;
-
-/**
- * A filter file system delegating calls to another instance
- */
+/** A filter file system delegating calls to another instance */
 public class FilterFileSystem implements FileSystem {
   private final FileSystem fs;
 
@@ -68,7 +65,8 @@ public class FilterFileSystem implements FileSystem {
   }
 
   @Override
-  public FSOutputStream create(Path f, boolean overwrite) throws FileAlreadyExistsException, IOException {
+  public FSOutputStream create(Path f, boolean overwrite)
+      throws FileAlreadyExistsException, IOException {
     return fs.create(f, overwrite);
   }
 
@@ -78,7 +76,8 @@ public class FilterFileSystem implements FileSystem {
   }
 
   @Override
-  public void setPermission(Path p, Set<PosixFilePermission> permissions) throws FileNotFoundException, IOException {
+  public void setPermission(Path p, Set<PosixFilePermission> permissions)
+      throws FileNotFoundException, IOException {
     fs.setPermission(p, permissions);
   }
 
@@ -108,8 +107,9 @@ public class FilterFileSystem implements FileSystem {
   }
 
   @Override
-  public AsyncByteReader getAsyncByteReader(FileKey fileKey, Map<String, String> options) throws IOException {
-    return fs.getAsyncByteReader(fileKey,options);
+  public AsyncByteReader getAsyncByteReader(FileKey fileKey, Map<String, String> options)
+      throws IOException {
+    return fs.getAsyncByteReader(fileKey, options);
   }
 
   @Override
@@ -125,7 +125,7 @@ public class FilterFileSystem implements FileSystem {
 
   @Override
   public DirectoryStream<FileAttributes> listFiles(Path f, boolean recursive)
-    throws FileNotFoundException, IOException {
+      throws FileNotFoundException, IOException {
     return fs.listFiles(f, recursive);
   }
 
@@ -171,13 +171,14 @@ public class FilterFileSystem implements FileSystem {
   }
 
   @Override
-  public Iterable<FileBlockLocation> getFileBlockLocations(FileAttributes file, long start, long len)
-      throws IOException {
+  public Iterable<FileBlockLocation> getFileBlockLocations(
+      FileAttributes file, long start, long len) throws IOException {
     return fs.getFileBlockLocations(file, start, len);
   }
 
   @Override
-  public Iterable<FileBlockLocation> getFileBlockLocations(Path p, long start, long len) throws IOException {
+  public Iterable<FileBlockLocation> getFileBlockLocations(Path p, long start, long len)
+      throws IOException {
     return fs.getFileBlockLocations(p, start, len);
   }
 

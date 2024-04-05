@@ -17,9 +17,8 @@ package com.dremio.exec.physical.impl.svremover;
 
 import static org.junit.Assert.assertEquals;
 
-import org.junit.Test;
-
 import com.dremio.BaseTestQuery;
+import org.junit.Test;
 
 public class TestSVRemover extends BaseTestQuery {
   @Test

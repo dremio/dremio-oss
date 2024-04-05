@@ -17,19 +17,6 @@ package com.dremio.exec.planner.sql.handlers;
 
 import static com.dremio.exec.ExecConstants.ENABLE_RUNTIME_FILTER_ON_NON_PARTITIONED_PARQUET;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-
-import org.apache.calcite.plan.RelOptPlanner;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.sql.SqlExplainLevel;
-import org.apache.calcite.tools.RelConversionException;
-import org.apache.calcite.util.Pair;
-
 import com.dremio.common.JSONOptions;
 import com.dremio.common.logical.PlanProperties;
 import com.dremio.common.logical.PlanProperties.Generator.ResultMode;
@@ -49,7 +36,6 @@ import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.exec.planner.physical.explain.PrelSequencer;
-import com.dremio.exec.planner.physical.visitor.AggValidator;
 import com.dremio.exec.planner.physical.visitor.BridgeReaderSchemaFinder;
 import com.dremio.exec.planner.physical.visitor.CSEIdentifier;
 import com.dremio.exec.planner.physical.visitor.ComplexToJsonPrelVisitor;
@@ -57,7 +43,6 @@ import com.dremio.exec.planner.physical.visitor.EmptyPrelPropagator;
 import com.dremio.exec.planner.physical.visitor.ExcessiveExchangeIdentifier;
 import com.dremio.exec.planner.physical.visitor.ExpandNestedFunctionVisitor;
 import com.dremio.exec.planner.physical.visitor.FinalColumnReorderer;
-import com.dremio.exec.planner.physical.visitor.GlobalDictionaryVisitor;
 import com.dremio.exec.planner.physical.visitor.InsertHashProjectVisitor;
 import com.dremio.exec.planner.physical.visitor.InsertLocalExchangeVisitor;
 import com.dremio.exec.planner.physical.visitor.JoinConditionValidatorVisitor;
@@ -83,28 +68,48 @@ import com.dremio.sabot.op.join.JoinUtils;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Lists;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+import org.apache.calcite.plan.RelOptPlanner;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.sql.SqlExplainLevel;
+import org.apache.calcite.tools.RelConversionException;
+import org.apache.calcite.util.Pair;
 
-/**
- * Collection of Rel, Drel and Prel transformations used in various planning cycles.
- */
+/** Collection of Rel, Drel and Prel transformations used in various planning cycles. */
 public final class PrelTransformer {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PrelTransformer.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(PrelTransformer.class);
 
-  private PrelTransformer() {
-  }
+  private PrelTransformer() {}
 
-  public static Pair<Prel, String> convertToPrel(SqlHandlerConfig config, RelNode drel) throws RelConversionException, SqlUnsupportedException {
+  public static Pair<Prel, String> convertToPrel(SqlHandlerConfig config, RelNode drel)
+      throws RelConversionException, SqlUnsupportedException {
     Preconditions.checkArgument(drel.getConvention() == Rel.LOGICAL);
 
-    final RelTraitSet traits = drel.getTraitSet().plus(Prel.PHYSICAL).plus(DistributionTrait.SINGLETON);
+    final RelTraitSet traits =
+        drel.getTraitSet().plus(Prel.PHYSICAL).plus(DistributionTrait.SINGLETON);
     Prel phyRelNode;
     try {
       final Stopwatch watch = Stopwatch.createStarted();
-      final RelNode prel1 = PlannerUtil.transform(config, PlannerType.VOLCANO, PlannerPhase.PHYSICAL, drel, traits, true);
+      final RelNode prel1 =
+          PlannerUtil.transform(
+              config, PlannerType.VOLCANO, PlannerPhase.PHYSICAL, drel, traits, true);
 
-      final RelNode prel2 = PlannerUtil.transform(config, PlannerType.HEP_AC, PlannerPhase.PHYSICAL_HEP, prel1, prel1.getTraitSet(), true);
+      final RelNode prel2 =
+          PlannerUtil.transform(
+              config,
+              PlannerType.HEP_AC,
+              PlannerPhase.PHYSICAL_HEP,
+              prel1,
+              prel1.getTraitSet(),
+              true);
       phyRelNode = (Prel) prel2.accept(new PrelFinalizer());
-      if(config.getContext().getWorkloadType() == UserBitShared.WorkloadType.ACCELERATOR){
+      if (config.getContext().getWorkloadType() == UserBitShared.WorkloadType.ACCELERATOR) {
         phyRelNode = (Prel) phyRelNode.accept(new IncrementalRefreshByPartitionFinalizeShuttle());
       }
       // log externally as we need to finalize before traversing the tree.
@@ -112,8 +117,10 @@ public final class PrelTransformer {
     } catch (RelOptPlanner.CannotPlanException ex) {
       logger.error(ex.getMessage());
 
-      if(JoinUtils.checkCartesianJoin(drel, new ArrayList<>(), new ArrayList<>(), Lists.<Boolean>newArrayList())) {
-        throw new UnsupportedRelOperatorException("This query cannot be planned\u2014possibly due to use of an unsupported feature.");
+      if (JoinUtils.checkCartesianJoin(
+          drel, new ArrayList<>(), new ArrayList<>(), Lists.<Boolean>newArrayList())) {
+        throw new UnsupportedRelOperatorException(
+            "This query cannot be planned\u2014possibly due to use of an unsupported feature.");
       } else {
         throw ex;
       }
@@ -121,7 +128,8 @@ public final class PrelTransformer {
     return applyPhysicalPrelTransformations(config, phyRelNode);
   }
 
-  public static Pair<Prel, String> applyPhysicalPrelTransformations(SqlHandlerConfig config, Prel phyRelNode) throws RelConversionException {
+  public static Pair<Prel, String> applyPhysicalPrelTransformations(
+      SqlHandlerConfig config, Prel phyRelNode) throws RelConversionException {
     QueryContext context = config.getContext();
     OptionManager queryOptions = context.getOptions();
     final PlannerSettings plannerSettings = context.getPlannerSettings();
@@ -143,7 +151,11 @@ public final class PrelTransformer {
     /*
      * Check whether the query is within the required number-of-splits limit(s)
      */
-    phyRelNode = SplitCountChecker.checkNumSplits(phyRelNode, plannerSettings.getQueryMaxSplitLimit(), plannerSettings.getDatasetMaxSplitLimit());
+    phyRelNode =
+        SplitCountChecker.checkNumSplits(
+            phyRelNode,
+            plannerSettings.getQueryMaxSplitLimit(),
+            plannerSettings.getDatasetMaxSplitLimit());
 
     /* The order of the following transformations is important */
     final Stopwatch finalPrelTimer = Stopwatch.createStarted();
@@ -169,7 +181,9 @@ public final class PrelTransformer {
      * We want to have smaller dataset on the right side, since hash table builds on right side.
      */
     if (plannerSettings.isHashJoinSwapEnabled()) {
-      phyRelNode = SwapHashJoinVisitor.swapHashJoin(phyRelNode, plannerSettings.getHashJoinSwapMarginFactor());
+      phyRelNode =
+          SwapHashJoinVisitor.swapHashJoin(
+              phyRelNode, plannerSettings.getHashJoinSwapMarginFactor());
     }
 
     /*
@@ -187,10 +201,11 @@ public final class PrelTransformer {
      *
      * This is not needed for planning anymore, but just in case there are udfs that needs to be split up, keep it.
      */
-    phyRelNode = phyRelNode.accept(
-      new SplitUpComplexExpressions.SplitUpComplexExpressionsVisitor(
-        context.getFunctionRegistry()),
-      null);
+    phyRelNode =
+        phyRelNode.accept(
+            new SplitUpComplexExpressions.SplitUpComplexExpressionsVisitor(
+                context.getFunctionRegistry()),
+            null);
 
     /*
      * 2.)
@@ -208,7 +223,8 @@ public final class PrelTransformer {
      *   The limit is 10k or less
      *   All scans are soft affinity
      */
-    phyRelNode = SimpleLimitExchangeRemover.apply(config.getContext().getPlannerSettings(), phyRelNode);
+    phyRelNode =
+        SimpleLimitExchangeRemover.apply(config.getContext().getPlannerSettings(), phyRelNode);
 
     /*
      * 3.)
@@ -232,7 +248,7 @@ public final class PrelTransformer {
 
     /* 5.)
      * if the client does not support complex types (Map, Repeated)
-     * insert a project which which would convert
+     * insert a project which would convert
      */
     if (!context.getSession().isSupportComplexTypes()) {
       logger.debug("Client does not support complex types, add ComplexToJson operator.");
@@ -252,27 +268,22 @@ public final class PrelTransformer {
     /* 6.)
      * Insert LocalExchange (mux and/or demux) nodes
      */
-    phyRelNode = InsertLocalExchangeVisitor.insertLocalExchanges(phyRelNode, queryOptions, context.getGroupResourceInformation());
+    phyRelNode =
+        InsertLocalExchangeVisitor.insertLocalExchanges(
+            phyRelNode, queryOptions, context.getGroupResourceInformation());
 
     /*
      * 7.)
      *
      * Convert any CONVERT_FROM(*, 'JSON') into a separate operator.
      */
-    phyRelNode = phyRelNode.accept(new ConvertFromJsonConverter(context, phyRelNode.getCluster()), null);
+    phyRelNode =
+        phyRelNode.accept(new ConvertFromJsonConverter(context, phyRelNode.getCluster()), null);
 
     /*
      * 7.5.) Remove subtrees that are topped by a limit0.
      */
     phyRelNode = Limit0Converter.eliminateEmptyTrees(config, phyRelNode);
-
-    /*
-     * 7.6.)
-     * Encode columns using dictionary encoding during scans and insert lookup before consuming dictionary ids.
-     */
-    if (plannerSettings.isGlobalDictionariesEnabled()) {
-      phyRelNode = GlobalDictionaryVisitor.useGlobalDictionaries(phyRelNode);
-    }
 
     /* 7.8)
      * If a node is replaced by an EmptyPrel, certain operators coming after that node will be
@@ -287,7 +298,6 @@ public final class PrelTransformer {
      */
     phyRelNode = SelectionVectorPrelVisitor.addSelectionRemoversWhereNecessary(phyRelNode);
 
-
     /* 9.)
      * Finally, Make sure that the no rels are repeats.
      * This could happen in the case of querying the same table twice as Optiq may canonicalize these.
@@ -299,17 +309,20 @@ public final class PrelTransformer {
        * Remove common sub expressions.
        */
       if (plannerSettings.isCSEEnabled()) {
-        phyRelNode = CSEIdentifier.embellishAfterCommonSubExprElimination(config.getContext(), phyRelNode);
+        phyRelNode =
+            CSEIdentifier.embellishAfterCommonSubExprElimination(config.getContext(), phyRelNode);
       }
 
       /*
        * add runtime filter information if applicable
        */
       if (plannerSettings.isRuntimeFilterEnabled()) {
-        phyRelNode = RuntimeFilterDecorator
-          .addRuntimeFilterToHashJoin(
-            phyRelNode,
-            plannerSettings.getOptions().getOption(ENABLE_RUNTIME_FILTER_ON_NON_PARTITIONED_PARQUET));
+        phyRelNode =
+            RuntimeFilterDecorator.addRuntimeFilterToHashJoin(
+                phyRelNode,
+                plannerSettings
+                    .getOptions()
+                    .getOption(ENABLE_RUNTIME_FILTER_ON_NON_PARTITIONED_PARQUET));
       }
     } else {
       /*
@@ -317,22 +330,24 @@ public final class PrelTransformer {
        * add runtime filter information if applicable
        */
       if (plannerSettings.isRuntimeFilterEnabled()) {
-        phyRelNode = RuntimeFilterDecorator
-          .addRuntimeFilterToHashJoin(
-            phyRelNode,
-            plannerSettings.getOptions().getOption(ENABLE_RUNTIME_FILTER_ON_NON_PARTITIONED_PARQUET));
+        phyRelNode =
+            RuntimeFilterDecorator.addRuntimeFilterToHashJoin(
+                phyRelNode,
+                plannerSettings
+                    .getOptions()
+                    .getOption(ENABLE_RUNTIME_FILTER_ON_NON_PARTITIONED_PARQUET));
       }
 
       /* 9.2)
        * Remove common sub expressions.
        */
       if (plannerSettings.isCSEEnabled()) {
-        phyRelNode = CSEIdentifier.embellishAfterCommonSubExprElimination(config.getContext(), phyRelNode);
+        phyRelNode =
+            CSEIdentifier.embellishAfterCommonSubExprElimination(config.getContext(), phyRelNode);
       }
     }
 
     phyRelNode = BridgeReaderSchemaFinder.findAndSetSchemas(phyRelNode, config.getContext());
-
 
     /* 10.0)
      * Expand nested functions. Need to do that here at the end of planning
@@ -341,19 +356,18 @@ public final class PrelTransformer {
     phyRelNode = ExpandNestedFunctionVisitor.pushdownNestedFunctions(phyRelNode, queryOptions);
 
     /*
-    * validate the join conditions after all prel transformation
-    * */
+     * validate the join conditions after all prel transformation
+     * */
     phyRelNode = JoinConditionValidatorVisitor.validate(phyRelNode, queryOptions);
-
-    /*
-     * Validate that DISTINCT call inside the agg function has been pushed down and
-     * converted to AggregateRel (exception LISTAGG)
-     */
-    phyRelNode = AggValidator.validate(phyRelNode);
 
     final String textPlan;
     if (logger.isDebugEnabled() || config.getObserver() != null) {
-      textPlan = PrelSequencer.setPlansWithIds(phyRelNode, SqlExplainLevel.ALL_ATTRIBUTES, config.getObserver(), finalPrelTimer.elapsed(TimeUnit.MILLISECONDS));
+      textPlan =
+          PrelSequencer.setPlansWithIds(
+              phyRelNode,
+              SqlExplainLevel.ALL_ATTRIBUTES,
+              config.getObserver(),
+              finalPrelTimer.elapsed(TimeUnit.MILLISECONDS));
       if (logger.isDebugEnabled()) {
         logger.debug(String.format("%s:\n%s", "Final Physical Transformation", textPlan));
       }
@@ -361,13 +375,15 @@ public final class PrelTransformer {
       textPlan = "";
     }
 
-    config.getObserver().finalPrel(phyRelNode);
+    config.getObserver().finalPrelPlanGenerated(phyRelNode);
     config.getObserver().setNumJoinsInFinalPrel(MoreRelOptUtil.countJoins(phyRelNode));
     return Pair.of(phyRelNode, textPlan);
   }
 
-  public static PhysicalOperator convertToPop(SqlHandlerConfig config, Prel prel) throws IOException {
-    PhysicalPlanCreator creator = new PhysicalPlanCreator(config.getContext(), PrelSequencer.getIdMap(prel));
+  public static PhysicalOperator convertToPop(SqlHandlerConfig config, Prel prel)
+      throws IOException {
+    PhysicalPlanCreator creator =
+        new PhysicalPlanCreator(config.getContext(), PrelSequencer.getIdMap(prel));
     PhysicalOperator op = prel.getPhysicalOperator(creator);
 
     // Catch unresolvable "is_member()" function in plan and set the flag in query context
@@ -378,7 +394,8 @@ public final class PrelTransformer {
     return op;
   }
 
-  public static PhysicalPlan convertToPlan(SqlHandlerConfig config, PhysicalOperator op, Runnable committer, Runnable cleaner) {
+  public static PhysicalPlan convertToPlan(
+      SqlHandlerConfig config, PhysicalOperator op, Runnable committer, Runnable cleaner) {
     OptionList options = new OptionList();
     options.merge(config.getContext().getQueryOptionManager().getNonDefaultOptions());
     options.merge(config.getContext().getSessionOptionManager().getNonDefaultOptions());
@@ -399,10 +416,12 @@ public final class PrelTransformer {
     return convertToPlan(config, op, null, null);
   }
 
-  private static class PopCollector extends AbstractPhysicalVisitor<Void, Collection<PhysicalOperator>, RuntimeException> {
+  private static class PopCollector
+      extends AbstractPhysicalVisitor<Void, Collection<PhysicalOperator>, RuntimeException> {
 
     @Override
-    public Void visitOp(PhysicalOperator op, Collection<PhysicalOperator> collection) throws RuntimeException {
+    public Void visitOp(PhysicalOperator op, Collection<PhysicalOperator> collection)
+        throws RuntimeException {
       collection.add(op);
       for (PhysicalOperator o : op) {
         o.accept(this, collection);
@@ -410,5 +429,4 @@ public final class PrelTransformer {
       return null;
     }
   }
-
 }

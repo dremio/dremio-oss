@@ -18,9 +18,16 @@ package com.dremio.sabot.copier;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertEquals;
 
+import com.dremio.common.expression.CompleteType;
+import com.dremio.exec.record.selection.SelectionVector2;
+import com.dremio.sabot.BaseTestOperator;
+import com.dremio.sabot.op.copier.FieldBufferCopier;
+import com.dremio.sabot.op.copier.FieldBufferCopier.Cursor;
+import com.dremio.sabot.op.copier.FieldBufferCopierFactory;
+import com.google.common.collect.ImmutableList;
+import io.netty.util.internal.PlatformDependent;
 import java.math.BigDecimal;
 import java.util.List;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.AllocationHelper;
 import org.apache.arrow.vector.BigIntVector;
@@ -36,20 +43,10 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.junit.Test;
 
-import com.dremio.common.expression.CompleteType;
-import com.dremio.exec.record.selection.SelectionVector2;
-import com.dremio.sabot.BaseTestOperator;
-import com.dremio.sabot.op.copier.FieldBufferCopier;
-import com.dremio.sabot.op.copier.FieldBufferCopier.Cursor;
-import com.dremio.sabot.op.copier.FieldBufferCopierFactory;
-import com.google.common.collect.ImmutableList;
-
-import io.netty.util.internal.PlatformDependent;
-
 public class TestCopierRoundTrip extends BaseTestOperator {
 
-  private static void copy(List<FieldBufferCopier> copiers, SelectionVector2 sv2){
-    for(FieldBufferCopier fbc : copiers){
+  private static void copy(List<FieldBufferCopier> copiers, SelectionVector2 sv2) {
+    for (FieldBufferCopier fbc : copiers) {
       fbc.copy(sv2.memoryAddress(), sv2.getCount());
     }
   }
@@ -65,31 +62,29 @@ public class TestCopierRoundTrip extends BaseTestOperator {
   }
 
   @Test
-  public void intRoundtrip(){
+  public void intRoundtrip() {
     final int count = 1024;
-    try(
-      IntVector in = new IntVector("in", allocator);
-      IntVector out = new IntVector("out", allocator);
-        ){
+    try (IntVector in = new IntVector("in", allocator);
+        IntVector out = new IntVector("out", allocator); ) {
 
       in.allocateNew(count);
 
-      for(int i = 0; i < count; i++){
-        if(i % 5 == 0){
+      for (int i = 0; i < count; i++) {
+        if (i % 5 == 0) {
           in.setSafe(i, i);
         }
       }
       in.setValueCount(count);
 
-      List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getTwoByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
-      try(
-          final SelectionVector2 sv2 = new SelectionVector2(allocator);
-          ){
+      List<FieldBufferCopier> copiers =
+          new FieldBufferCopierFactory(testContext.getOptions())
+              .getTwoByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
+      try (final SelectionVector2 sv2 = new SelectionVector2(allocator); ) {
 
         sv2.allocateNew(count);
         // create full sv2.
         int x = 0;
-        for(long mem = sv2.memoryAddress(); mem < sv2.memoryAddress() + count * 2; mem+=2){
+        for (long mem = sv2.memoryAddress(); mem < sv2.memoryAddress() + count * 2; mem += 2) {
           PlatformDependent.putShort(mem, (short) (char) x);
           x++;
         }
@@ -97,48 +92,45 @@ public class TestCopierRoundTrip extends BaseTestOperator {
         copy(copiers, sv2);
 
         out.setValueCount(count);
-        for(int i =0; i < count; i++){
+        for (int i = 0; i < count; i++) {
           assertEquals(in.getObject(i), out.getObject(i));
         }
       }
     }
   }
 
-
   @Test
-  public void intAppend(){
+  public void intAppend() {
     final int count = 1024;
-    try(
-      IntVector in = new IntVector("in", allocator);
-      IntVector out = new IntVector("out", allocator);
-    ){
+    try (IntVector in = new IntVector("in", allocator);
+        IntVector out = new IntVector("out", allocator); ) {
 
       in.allocateNew(count);
-      for(int i = 0; i < count; i++){
-        if(i % 5 == 0){
+      for (int i = 0; i < count; i++) {
+        if (i % 5 == 0) {
           in.setSafe(i, i);
         }
       }
       in.setValueCount(count);
 
-      List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getTwoByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
-      try(
-        final SelectionVector2 sv2 = new SelectionVector2(allocator);
-      ){
+      List<FieldBufferCopier> copiers =
+          new FieldBufferCopierFactory(testContext.getOptions())
+              .getTwoByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
+      try (final SelectionVector2 sv2 = new SelectionVector2(allocator); ) {
 
         sv2.allocateNew(count / 2);
         // set alternate elements.
         int x = 0;
-        for(long mem = sv2.memoryAddress(); mem < sv2.memoryAddress() + count; mem+=2){
+        for (long mem = sv2.memoryAddress(); mem < sv2.memoryAddress() + count; mem += 2) {
           PlatformDependent.putShort(mem, (short) (char) x);
           x += 2;
         }
-        sv2.setRecordCount(count/2);
+        sv2.setRecordCount(count / 2);
 
         append(copiers, sv2);
 
         out.setValueCount(count / 2);
-        for(int i =0; i < count / 2; i++){
+        for (int i = 0; i < count / 2; i++) {
           assertEquals(in.getObject(i * 2), out.getObject(i));
         }
       }
@@ -146,31 +138,29 @@ public class TestCopierRoundTrip extends BaseTestOperator {
   }
 
   @Test
-  public void bigintRoundtrip(){
+  public void bigintRoundtrip() {
     final int count = 1024;
-    try(
-      BigIntVector in = new BigIntVector("in", allocator);
-      BigIntVector out = new BigIntVector("out", allocator);
-        ){
+    try (BigIntVector in = new BigIntVector("in", allocator);
+        BigIntVector out = new BigIntVector("out", allocator); ) {
 
       in.allocateNew(count);
 
-      for(int i = 0; i < count; i++){
-        if(i % 5 == 0){
+      for (int i = 0; i < count; i++) {
+        if (i % 5 == 0) {
           in.setSafe(i, i);
         }
       }
       in.setValueCount(count);
 
-      List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getTwoByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
-      try(
-          final SelectionVector2 sv2 = new SelectionVector2(allocator);
-          ){
+      List<FieldBufferCopier> copiers =
+          new FieldBufferCopierFactory(testContext.getOptions())
+              .getTwoByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
+      try (final SelectionVector2 sv2 = new SelectionVector2(allocator); ) {
 
         sv2.allocateNew(count);
         // create full sv2.
         int x = 0;
-        for(long mem = sv2.memoryAddress(); mem < sv2.memoryAddress() + count * 2; mem+=2){
+        for (long mem = sv2.memoryAddress(); mem < sv2.memoryAddress() + count * 2; mem += 2) {
           PlatformDependent.putShort(mem, (short) (char) x);
           x++;
         }
@@ -178,7 +168,7 @@ public class TestCopierRoundTrip extends BaseTestOperator {
         copy(copiers, sv2);
 
         out.setValueCount(count);
-        for(int i =0; i < count; i++){
+        for (int i = 0; i < count; i++) {
           assertEquals(in.getObject(i), out.getObject(i));
         }
       }
@@ -186,39 +176,37 @@ public class TestCopierRoundTrip extends BaseTestOperator {
   }
 
   @Test
-  public void bigintAppend(){
+  public void bigintAppend() {
     final int count = 1024;
-    try(
-      BigIntVector in = new BigIntVector("in", allocator);
-      BigIntVector out = new BigIntVector("out", allocator);
-    ){
+    try (BigIntVector in = new BigIntVector("in", allocator);
+        BigIntVector out = new BigIntVector("out", allocator); ) {
 
       in.allocateNew(count);
 
-      for(int i = 0; i < count; i++){
-        if(i % 5 == 0){
+      for (int i = 0; i < count; i++) {
+        if (i % 5 == 0) {
           in.setSafe(i, i);
         }
       }
       in.setValueCount(count);
 
-      List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getTwoByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
-      try(
-        final SelectionVector2 sv2 = new SelectionVector2(allocator);
-      ){
+      List<FieldBufferCopier> copiers =
+          new FieldBufferCopierFactory(testContext.getOptions())
+              .getTwoByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
+      try (final SelectionVector2 sv2 = new SelectionVector2(allocator); ) {
 
         sv2.allocateNew(count / 2);
         // set alternate elements.
         int x = 0;
-        for(long mem = sv2.memoryAddress(); mem < sv2.memoryAddress() + count; mem+=2){
+        for (long mem = sv2.memoryAddress(); mem < sv2.memoryAddress() + count; mem += 2) {
           PlatformDependent.putShort(mem, (short) (char) x);
           x += 2;
         }
-        sv2.setRecordCount(count/2);
+        sv2.setRecordCount(count / 2);
         append(copiers, sv2);
 
         out.setValueCount(count / 2);
-        for(int i =0; i < count / 2; i++){
+        for (int i = 0; i < count / 2; i++) {
           assertEquals(in.getObject(i * 2), out.getObject(i));
         }
       }
@@ -226,32 +214,30 @@ public class TestCopierRoundTrip extends BaseTestOperator {
   }
 
   @Test
-  public void varcharRoundtrip(){
+  public void varcharRoundtrip() {
     final int count = 1024;
-    try(
-      VarCharVector in = new VarCharVector("in", allocator);
-      VarCharVector out = new VarCharVector("out", allocator);
-        ){
+    try (VarCharVector in = new VarCharVector("in", allocator);
+        VarCharVector out = new VarCharVector("out", allocator); ) {
 
       in.allocateNew(count * 8, count);
 
-      for(int i = 0; i < count; i++){
-        if(i % 5 == 0){
+      for (int i = 0; i < count; i++) {
+        if (i % 5 == 0) {
           byte[] data = ("hello-" + i).getBytes(UTF_8);
           in.setSafe(i, data, 0, data.length);
         }
       }
       in.setValueCount(count);
 
-      List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getTwoByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
-      try(
-          final SelectionVector2 sv2 = new SelectionVector2(allocator);
-          ){
+      List<FieldBufferCopier> copiers =
+          new FieldBufferCopierFactory(testContext.getOptions())
+              .getTwoByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
+      try (final SelectionVector2 sv2 = new SelectionVector2(allocator); ) {
 
         sv2.allocateNew(count);
         // create full sv2.
         int x = 0;
-        for(long mem = sv2.memoryAddress(); mem < sv2.memoryAddress() + count * 2; mem+=2){
+        for (long mem = sv2.memoryAddress(); mem < sv2.memoryAddress() + count * 2; mem += 2) {
           PlatformDependent.putShort(mem, (short) (char) x);
           x++;
         }
@@ -260,7 +246,7 @@ public class TestCopierRoundTrip extends BaseTestOperator {
         copy(copiers, sv2);
 
         out.setValueCount(count);
-        for(int i =0; i < count; i++){
+        for (int i = 0; i < count; i++) {
           assertEquals(in.getObject(i), out.getObject(i));
         }
       }
@@ -268,41 +254,39 @@ public class TestCopierRoundTrip extends BaseTestOperator {
   }
 
   @Test
-  public void varcharAppend(){
+  public void varcharAppend() {
     final int count = 1024;
-    try(
-      VarCharVector in = new VarCharVector("in", allocator);
-      VarCharVector out = new VarCharVector("out", allocator);
-    ){
+    try (VarCharVector in = new VarCharVector("in", allocator);
+        VarCharVector out = new VarCharVector("out", allocator); ) {
 
       in.allocateNew(count * 8, count);
 
-      for(int i = 0; i < count; i++){
-        if(i % 5 == 0){
+      for (int i = 0; i < count; i++) {
+        if (i % 5 == 0) {
           byte[] data = ("hello-" + i).getBytes(UTF_8);
           in.setSafe(i, data, 0, data.length);
         }
       }
       in.setValueCount(count);
 
-      List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getTwoByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
-      try(
-        final SelectionVector2 sv2 = new SelectionVector2(allocator);
-      ){
+      List<FieldBufferCopier> copiers =
+          new FieldBufferCopierFactory(testContext.getOptions())
+              .getTwoByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
+      try (final SelectionVector2 sv2 = new SelectionVector2(allocator); ) {
 
         sv2.allocateNew(count / 2);
         // set alternate elements.
         int x = 0;
-        for(long mem = sv2.memoryAddress(); mem < sv2.memoryAddress() + count; mem+=2){
+        for (long mem = sv2.memoryAddress(); mem < sv2.memoryAddress() + count; mem += 2) {
           PlatformDependent.putShort(mem, (short) (char) x);
           x += 2;
         }
 
-        sv2.setRecordCount(count/2);
+        sv2.setRecordCount(count / 2);
         append(copiers, sv2);
 
         out.setValueCount(count / 2);
-        for(int i =0; i < count / 2; i++){
+        for (int i = 0; i < count / 2; i++) {
           assertEquals(in.getObject(i * 2), out.getObject(i));
         }
       }
@@ -313,19 +297,20 @@ public class TestCopierRoundTrip extends BaseTestOperator {
   public void structRoundtrip() {
     final int count = 1024;
 
-    final FieldType structType = CompleteType.struct(
-      CompleteType.VARCHAR.toField("string"),
-      CompleteType.INT.toField("integer")
-    ).toField("struct").getFieldType();
+    final FieldType structType =
+        CompleteType.struct(
+                CompleteType.VARCHAR.toField("string"), CompleteType.INT.toField("integer"))
+            .toField("struct")
+            .getFieldType();
 
-    try (
-      StructVector in = new StructVector("in", allocator, structType, null);
-      StructVector out = new StructVector("out", allocator, structType, null);
-      ArrowBuf tempBuf = allocator.buffer(2048);
-    ) {
+    try (StructVector in = new StructVector("in", allocator, structType, null);
+        StructVector out = new StructVector("out", allocator, structType, null);
+        ArrowBuf tempBuf = allocator.buffer(2048); ) {
 
-      Field stringField = new Field("string", new FieldType(true, new ArrowType.Utf8(), null), null);
-      Field intField = new Field("integer", new FieldType(true, new ArrowType.Int(32, true), null), null);
+      Field stringField =
+          new Field("string", new FieldType(true, new ArrowType.Utf8(), null), null);
+      Field intField =
+          new Field("integer", new FieldType(true, new ArrowType.Int(32, true), null), null);
 
       in.initializeChildrenFromFields(ImmutableList.of(stringField, intField));
       out.initializeChildrenFromFields(ImmutableList.of(stringField, intField));
@@ -348,10 +333,10 @@ public class TestCopierRoundTrip extends BaseTestOperator {
       }
       in.setValueCount(count);
 
-      List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getTwoByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
-      try (
-        final SelectionVector2 sv2 = new SelectionVector2(allocator);
-      ) {
+      List<FieldBufferCopier> copiers =
+          new FieldBufferCopierFactory(testContext.getOptions())
+              .getTwoByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
+      try (final SelectionVector2 sv2 = new SelectionVector2(allocator); ) {
 
         sv2.allocateNew(count);
         // create full sv2.
@@ -375,19 +360,20 @@ public class TestCopierRoundTrip extends BaseTestOperator {
   public void structAppend() {
     final int count = 1024;
 
-    final FieldType structType = CompleteType.struct(
-      CompleteType.VARCHAR.toField("string"),
-      CompleteType.INT.toField("integer")
-    ).toField("struct").getFieldType();
+    final FieldType structType =
+        CompleteType.struct(
+                CompleteType.VARCHAR.toField("string"), CompleteType.INT.toField("integer"))
+            .toField("struct")
+            .getFieldType();
 
-    try (
-      StructVector in = new StructVector("in", allocator, structType, null);
-      StructVector out = new StructVector("out", allocator, structType, null);
-      ArrowBuf tempBuf = allocator.buffer(2048);
-    ) {
+    try (StructVector in = new StructVector("in", allocator, structType, null);
+        StructVector out = new StructVector("out", allocator, structType, null);
+        ArrowBuf tempBuf = allocator.buffer(2048); ) {
 
-      Field stringField = new Field("string", new FieldType(true, new ArrowType.Utf8(), null), null);
-      Field intField = new Field("integer", new FieldType(true, new ArrowType.Int(32, true), null), null);
+      Field stringField =
+          new Field("string", new FieldType(true, new ArrowType.Utf8(), null), null);
+      Field intField =
+          new Field("integer", new FieldType(true, new ArrowType.Int(32, true), null), null);
 
       in.initializeChildrenFromFields(ImmutableList.of(stringField, intField));
       out.initializeChildrenFromFields(ImmutableList.of(stringField, intField));
@@ -410,10 +396,10 @@ public class TestCopierRoundTrip extends BaseTestOperator {
       }
       in.setValueCount(count);
 
-      List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getTwoByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
-      try (
-        final SelectionVector2 sv2 = new SelectionVector2(allocator);
-      ) {
+      List<FieldBufferCopier> copiers =
+          new FieldBufferCopierFactory(testContext.getOptions())
+              .getTwoByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
+      try (final SelectionVector2 sv2 = new SelectionVector2(allocator); ) {
 
         sv2.allocateNew(count / 2);
         // set alternate elements.
@@ -438,12 +424,14 @@ public class TestCopierRoundTrip extends BaseTestOperator {
   public void boolInsideListRoundtrip() {
     final int count = 1024;
 
-    final FieldType listType = new CompleteType(ArrowType.List.INSTANCE, ImmutableList.of(CompleteType.BIT.toField("bool"))).toField("list").getFieldType();
+    final FieldType listType =
+        new CompleteType(
+                ArrowType.List.INSTANCE, ImmutableList.of(CompleteType.BIT.toField("bool")))
+            .toField("list")
+            .getFieldType();
 
-    try (
-      ListVector in = new ListVector("in", allocator, listType, null);
-      ListVector out = new ListVector("out", allocator, listType, null);
-    ) {
+    try (ListVector in = new ListVector("in", allocator, listType, null);
+        ListVector out = new ListVector("out", allocator, listType, null); ) {
 
       Field intField = new Field("bool", new FieldType(true, new ArrowType.Bool(), null), null);
 
@@ -469,10 +457,10 @@ public class TestCopierRoundTrip extends BaseTestOperator {
       in.getOffsetBuffer().setInt(count * ListVector.OFFSET_WIDTH, offsetVal + 1);
       in.setValueCount(count);
 
-      List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getTwoByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
-      try (
-        final SelectionVector2 sv2 = new SelectionVector2(allocator);
-      ) {
+      List<FieldBufferCopier> copiers =
+          new FieldBufferCopierFactory(testContext.getOptions())
+              .getTwoByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
+      try (final SelectionVector2 sv2 = new SelectionVector2(allocator); ) {
 
         sv2.allocateNew(count);
         // create full sv2.
@@ -495,12 +483,14 @@ public class TestCopierRoundTrip extends BaseTestOperator {
   public void boolInsideListAppend() {
     final int count = 1024;
 
-    final FieldType listType = new CompleteType(ArrowType.List.INSTANCE, ImmutableList.of(CompleteType.BIT.toField("bool"))).toField("list").getFieldType();
+    final FieldType listType =
+        new CompleteType(
+                ArrowType.List.INSTANCE, ImmutableList.of(CompleteType.BIT.toField("bool")))
+            .toField("list")
+            .getFieldType();
 
-    try (
-      ListVector in = new ListVector("in", allocator, listType, null);
-      ListVector out = new ListVector("out", allocator, listType, null);
-    ) {
+    try (ListVector in = new ListVector("in", allocator, listType, null);
+        ListVector out = new ListVector("out", allocator, listType, null); ) {
 
       Field intField = new Field("bool", new FieldType(true, new ArrowType.Bool(), null), null);
 
@@ -526,10 +516,10 @@ public class TestCopierRoundTrip extends BaseTestOperator {
       in.getOffsetBuffer().setInt(count * ListVector.OFFSET_WIDTH, offsetVal + 1);
       in.setValueCount(count);
 
-      List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getTwoByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
-      try (
-        final SelectionVector2 sv2 = new SelectionVector2(allocator);
-      ) {
+      List<FieldBufferCopier> copiers =
+          new FieldBufferCopierFactory(testContext.getOptions())
+              .getTwoByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
+      try (final SelectionVector2 sv2 = new SelectionVector2(allocator); ) {
 
         sv2.allocateNew(count / 2);
         // set alternate elements.
@@ -554,14 +544,17 @@ public class TestCopierRoundTrip extends BaseTestOperator {
   public void intInsideListRoundtrip() {
     final int count = 1024;
 
-    final FieldType listType = new CompleteType(ArrowType.List.INSTANCE, ImmutableList.of(CompleteType.INT.toField("integer"))).toField("list").getFieldType();
+    final FieldType listType =
+        new CompleteType(
+                ArrowType.List.INSTANCE, ImmutableList.of(CompleteType.INT.toField("integer")))
+            .toField("list")
+            .getFieldType();
 
-    try (
-      ListVector in = new ListVector("in", allocator, listType, null);
-      ListVector out = new ListVector("out", allocator, listType, null);
-    ) {
+    try (ListVector in = new ListVector("in", allocator, listType, null);
+        ListVector out = new ListVector("out", allocator, listType, null); ) {
 
-      Field intField = new Field("integer", new FieldType(true, new ArrowType.Int(32, true), null), null);
+      Field intField =
+          new Field("integer", new FieldType(true, new ArrowType.Int(32, true), null), null);
 
       in.initializeChildrenFromFields(ImmutableList.of(intField));
       out.initializeChildrenFromFields(ImmutableList.of(intField));
@@ -585,10 +578,10 @@ public class TestCopierRoundTrip extends BaseTestOperator {
       in.getOffsetBuffer().setInt(count * ListVector.OFFSET_WIDTH, offsetVal + 1);
       in.setValueCount(count);
 
-      List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getTwoByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
-      try (
-        final SelectionVector2 sv2 = new SelectionVector2(allocator);
-      ) {
+      List<FieldBufferCopier> copiers =
+          new FieldBufferCopierFactory(testContext.getOptions())
+              .getTwoByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
+      try (final SelectionVector2 sv2 = new SelectionVector2(allocator); ) {
 
         sv2.allocateNew(count);
         // create full sv2.
@@ -611,14 +604,17 @@ public class TestCopierRoundTrip extends BaseTestOperator {
   public void intInsideListAppend() {
     final int count = 1024;
 
-    final FieldType listType = new CompleteType(ArrowType.List.INSTANCE, ImmutableList.of(CompleteType.INT.toField("integer"))).toField("list").getFieldType();
+    final FieldType listType =
+        new CompleteType(
+                ArrowType.List.INSTANCE, ImmutableList.of(CompleteType.INT.toField("integer")))
+            .toField("list")
+            .getFieldType();
 
-    try (
-      ListVector in = new ListVector("in", allocator, listType, null);
-      ListVector out = new ListVector("out", allocator, listType, null);
-    ) {
+    try (ListVector in = new ListVector("in", allocator, listType, null);
+        ListVector out = new ListVector("out", allocator, listType, null); ) {
 
-      Field intField = new Field("integer", new FieldType(true, new ArrowType.Int(32, true), null), null);
+      Field intField =
+          new Field("integer", new FieldType(true, new ArrowType.Int(32, true), null), null);
 
       in.initializeChildrenFromFields(ImmutableList.of(intField));
       out.initializeChildrenFromFields(ImmutableList.of(intField));
@@ -642,10 +638,10 @@ public class TestCopierRoundTrip extends BaseTestOperator {
       in.getOffsetBuffer().setInt(count * ListVector.OFFSET_WIDTH, offsetVal + 1);
       in.setValueCount(count);
 
-      List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getTwoByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
-      try (
-        final SelectionVector2 sv2 = new SelectionVector2(allocator);
-      ) {
+      List<FieldBufferCopier> copiers =
+          new FieldBufferCopierFactory(testContext.getOptions())
+              .getTwoByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
+      try (final SelectionVector2 sv2 = new SelectionVector2(allocator); ) {
 
         sv2.allocateNew(count / 2);
         // set alternate elements.
@@ -670,14 +666,17 @@ public class TestCopierRoundTrip extends BaseTestOperator {
   public void decimalInsideListRoundtrip() {
     final int count = 1024;
 
-    final FieldType listType = new CompleteType(ArrowType.List.INSTANCE, ImmutableList.of(CompleteType.DECIMAL.toField("decimal"))).toField("list").getFieldType();
+    final FieldType listType =
+        new CompleteType(
+                ArrowType.List.INSTANCE, ImmutableList.of(CompleteType.DECIMAL.toField("decimal")))
+            .toField("list")
+            .getFieldType();
 
-    try (
-      ListVector in = new ListVector("in", allocator, listType, null);
-      ListVector out = new ListVector("out", allocator, listType, null);
-    ) {
+    try (ListVector in = new ListVector("in", allocator, listType, null);
+        ListVector out = new ListVector("out", allocator, listType, null); ) {
 
-      Field intField = new Field("decimal", new FieldType(true, new ArrowType.Decimal(38, 10, 128), null), null);
+      Field intField =
+          new Field("decimal", new FieldType(true, new ArrowType.Decimal(38, 10, 128), null), null);
 
       in.initializeChildrenFromFields(ImmutableList.of(intField));
       out.initializeChildrenFromFields(ImmutableList.of(intField));
@@ -691,7 +690,9 @@ public class TestCopierRoundTrip extends BaseTestOperator {
           offsetVal = i / 5;
           in.getOffsetBuffer().setInt(i * ListVector.OFFSET_WIDTH, offsetVal);
           DecimalVector childVector = (DecimalVector) in.getDataVector();
-          childVector.setSafe(childVector.getValueCount(), new BigDecimal("1234567891234567891234567891.0123456789"));
+          childVector.setSafe(
+              childVector.getValueCount(),
+              new BigDecimal("1234567891234567891234567891.0123456789"));
           childVector.setValueCount(childVector.getValueCount() + 1);
         } else {
           in.setNull(i);
@@ -701,10 +702,10 @@ public class TestCopierRoundTrip extends BaseTestOperator {
       in.getOffsetBuffer().setInt(count * ListVector.OFFSET_WIDTH, offsetVal + 1);
       in.setValueCount(count);
 
-      List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getTwoByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
-      try (
-        final SelectionVector2 sv2 = new SelectionVector2(allocator);
-      ) {
+      List<FieldBufferCopier> copiers =
+          new FieldBufferCopierFactory(testContext.getOptions())
+              .getTwoByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
+      try (final SelectionVector2 sv2 = new SelectionVector2(allocator); ) {
 
         sv2.allocateNew(count);
         // create full sv2.
@@ -727,14 +728,17 @@ public class TestCopierRoundTrip extends BaseTestOperator {
   public void decimalInsideListAppend() {
     final int count = 1024;
 
-    final FieldType listType = new CompleteType(ArrowType.List.INSTANCE, ImmutableList.of(CompleteType.DECIMAL.toField("decimal"))).toField("list").getFieldType();
+    final FieldType listType =
+        new CompleteType(
+                ArrowType.List.INSTANCE, ImmutableList.of(CompleteType.DECIMAL.toField("decimal")))
+            .toField("list")
+            .getFieldType();
 
-    try (
-      ListVector in = new ListVector("in", allocator, listType, null);
-      ListVector out = new ListVector("out", allocator, listType, null);
-    ) {
+    try (ListVector in = new ListVector("in", allocator, listType, null);
+        ListVector out = new ListVector("out", allocator, listType, null); ) {
 
-      Field intField = new Field("decimal", new FieldType(true, new ArrowType.Decimal(38, 10, 128), null), null);
+      Field intField =
+          new Field("decimal", new FieldType(true, new ArrowType.Decimal(38, 10, 128), null), null);
 
       in.initializeChildrenFromFields(ImmutableList.of(intField));
       out.initializeChildrenFromFields(ImmutableList.of(intField));
@@ -748,7 +752,9 @@ public class TestCopierRoundTrip extends BaseTestOperator {
           offsetVal = i / 5;
           in.getOffsetBuffer().setInt(i * ListVector.OFFSET_WIDTH, offsetVal);
           DecimalVector childVector = (DecimalVector) in.getDataVector();
-          childVector.setSafe(childVector.getValueCount(), new BigDecimal("1234567891234567891234567891.0123456789"));
+          childVector.setSafe(
+              childVector.getValueCount(),
+              new BigDecimal("1234567891234567891234567891.0123456789"));
           childVector.setValueCount(childVector.getValueCount() + 1);
         } else {
           in.setNull(i);
@@ -758,10 +764,10 @@ public class TestCopierRoundTrip extends BaseTestOperator {
       in.getOffsetBuffer().setInt(count * ListVector.OFFSET_WIDTH, offsetVal + 1);
       in.setValueCount(count);
 
-      List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getTwoByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
-      try (
-        final SelectionVector2 sv2 = new SelectionVector2(allocator);
-      ) {
+      List<FieldBufferCopier> copiers =
+          new FieldBufferCopierFactory(testContext.getOptions())
+              .getTwoByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
+      try (final SelectionVector2 sv2 = new SelectionVector2(allocator); ) {
 
         sv2.allocateNew(count / 2);
         // set alternate elements.
@@ -786,14 +792,17 @@ public class TestCopierRoundTrip extends BaseTestOperator {
   public void varcharInsideListRoundtrip() {
     final int count = 1024;
 
-    final FieldType listType = new CompleteType(ArrowType.List.INSTANCE, ImmutableList.of(CompleteType.VARCHAR.toField("string"))).toField("list").getFieldType();
+    final FieldType listType =
+        new CompleteType(
+                ArrowType.List.INSTANCE, ImmutableList.of(CompleteType.VARCHAR.toField("string")))
+            .toField("list")
+            .getFieldType();
 
-    try (
-      ListVector in = new ListVector("in", allocator, listType, null);
-      ListVector out = new ListVector("out", allocator, listType, null);
-    ) {
+    try (ListVector in = new ListVector("in", allocator, listType, null);
+        ListVector out = new ListVector("out", allocator, listType, null); ) {
 
-      Field stringField = new Field("string", new FieldType(true, new ArrowType.Utf8(), null), null);
+      Field stringField =
+          new Field("string", new FieldType(true, new ArrowType.Utf8(), null), null);
 
       in.initializeChildrenFromFields(ImmutableList.of(stringField));
       out.initializeChildrenFromFields(ImmutableList.of(stringField));
@@ -819,10 +828,10 @@ public class TestCopierRoundTrip extends BaseTestOperator {
       in.getOffsetBuffer().setInt(count * ListVector.OFFSET_WIDTH, offsetVal + 2);
       in.setValueCount(count);
 
-      List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getTwoByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
-      try (
-        final SelectionVector2 sv2 = new SelectionVector2(allocator);
-      ) {
+      List<FieldBufferCopier> copiers =
+          new FieldBufferCopierFactory(testContext.getOptions())
+              .getTwoByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
+      try (final SelectionVector2 sv2 = new SelectionVector2(allocator); ) {
 
         sv2.allocateNew(count);
         // create full sv2.
@@ -846,14 +855,17 @@ public class TestCopierRoundTrip extends BaseTestOperator {
   public void varcharInsideListAppend() {
     final int count = 1024;
 
-    final FieldType listType = new CompleteType(ArrowType.List.INSTANCE, ImmutableList.of(CompleteType.VARCHAR.toField("string"))).toField("list").getFieldType();
+    final FieldType listType =
+        new CompleteType(
+                ArrowType.List.INSTANCE, ImmutableList.of(CompleteType.VARCHAR.toField("string")))
+            .toField("list")
+            .getFieldType();
 
-    try (
-      ListVector in = new ListVector("in", allocator, listType, null);
-      ListVector out = new ListVector("out", allocator, listType, null);
-    ) {
+    try (ListVector in = new ListVector("in", allocator, listType, null);
+        ListVector out = new ListVector("out", allocator, listType, null); ) {
 
-      Field stringField = new Field("string", new FieldType(true, new ArrowType.Utf8(), null), null);
+      Field stringField =
+          new Field("string", new FieldType(true, new ArrowType.Utf8(), null), null);
 
       in.initializeChildrenFromFields(ImmutableList.of(stringField));
       out.initializeChildrenFromFields(ImmutableList.of(stringField));
@@ -879,10 +891,10 @@ public class TestCopierRoundTrip extends BaseTestOperator {
       in.getOffsetBuffer().setInt(count * ListVector.OFFSET_WIDTH, offsetVal + 2);
       in.setValueCount(count);
 
-      List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getTwoByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
-      try (
-        final SelectionVector2 sv2 = new SelectionVector2(allocator);
-      ) {
+      List<FieldBufferCopier> copiers =
+          new FieldBufferCopierFactory(testContext.getOptions())
+              .getTwoByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
+      try (final SelectionVector2 sv2 = new SelectionVector2(allocator); ) {
 
         sv2.allocateNew(count / 2);
         // set alternate elements.
@@ -907,14 +919,17 @@ public class TestCopierRoundTrip extends BaseTestOperator {
   public void bigintInsideListRoundtrip() {
     final int count = 1024;
 
-    final FieldType listType = new CompleteType(ArrowType.List.INSTANCE, ImmutableList.of(CompleteType.BIGINT.toField("bigInt"))).toField("list").getFieldType();
+    final FieldType listType =
+        new CompleteType(
+                ArrowType.List.INSTANCE, ImmutableList.of(CompleteType.BIGINT.toField("bigInt")))
+            .toField("list")
+            .getFieldType();
 
-    try (
-      ListVector in = new ListVector("in", allocator, listType, null);
-      ListVector out = new ListVector("out", allocator, listType, null);
-    ) {
+    try (ListVector in = new ListVector("in", allocator, listType, null);
+        ListVector out = new ListVector("out", allocator, listType, null); ) {
 
-      Field bigIntField = new Field("integer", new FieldType(true, new ArrowType.Int(64, true), null), null);
+      Field bigIntField =
+          new Field("integer", new FieldType(true, new ArrowType.Int(64, true), null), null);
 
       in.initializeChildrenFromFields(ImmutableList.of(bigIntField));
       out.initializeChildrenFromFields(ImmutableList.of(bigIntField));
@@ -938,10 +953,10 @@ public class TestCopierRoundTrip extends BaseTestOperator {
       in.getOffsetBuffer().setInt(count * ListVector.OFFSET_WIDTH, offsetVal + 1);
       in.setValueCount(count);
 
-      List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getTwoByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
-      try (
-        final SelectionVector2 sv2 = new SelectionVector2(allocator);
-      ) {
+      List<FieldBufferCopier> copiers =
+          new FieldBufferCopierFactory(testContext.getOptions())
+              .getTwoByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
+      try (final SelectionVector2 sv2 = new SelectionVector2(allocator); ) {
 
         sv2.allocateNew(count);
         // create full sv2.
@@ -965,14 +980,17 @@ public class TestCopierRoundTrip extends BaseTestOperator {
   public void bigintInsideListAppend() {
     final int count = 1024;
 
-    final FieldType listType = new CompleteType(ArrowType.List.INSTANCE, ImmutableList.of(CompleteType.BIGINT.toField("bigInt"))).toField("list").getFieldType();
+    final FieldType listType =
+        new CompleteType(
+                ArrowType.List.INSTANCE, ImmutableList.of(CompleteType.BIGINT.toField("bigInt")))
+            .toField("list")
+            .getFieldType();
 
-    try (
-      ListVector in = new ListVector("in", allocator, listType, null);
-      ListVector out = new ListVector("out", allocator, listType, null);
-    ) {
+    try (ListVector in = new ListVector("in", allocator, listType, null);
+        ListVector out = new ListVector("out", allocator, listType, null); ) {
 
-      Field bigIntField = new Field("integer", new FieldType(true, new ArrowType.Int(64, true), null), null);
+      Field bigIntField =
+          new Field("integer", new FieldType(true, new ArrowType.Int(64, true), null), null);
 
       in.initializeChildrenFromFields(ImmutableList.of(bigIntField));
       out.initializeChildrenFromFields(ImmutableList.of(bigIntField));
@@ -996,10 +1014,10 @@ public class TestCopierRoundTrip extends BaseTestOperator {
       in.getOffsetBuffer().setInt(count * ListVector.OFFSET_WIDTH, offsetVal + 1);
       in.setValueCount(count);
 
-      List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getTwoByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
-      try (
-        final SelectionVector2 sv2 = new SelectionVector2(allocator);
-      ) {
+      List<FieldBufferCopier> copiers =
+          new FieldBufferCopierFactory(testContext.getOptions())
+              .getTwoByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
+      try (final SelectionVector2 sv2 = new SelectionVector2(allocator); ) {
 
         sv2.allocateNew(count / 2);
         // set alternate elements.
@@ -1024,22 +1042,29 @@ public class TestCopierRoundTrip extends BaseTestOperator {
   public void structInsideListRoundtrip() {
     final int count = 1024;
 
-    final Field structType = CompleteType.struct(
-      CompleteType.VARCHAR.toField("string"),
-      CompleteType.INT.toField("integer")
-    ).toField("struct");
+    final Field structType =
+        CompleteType.struct(
+                CompleteType.VARCHAR.toField("string"), CompleteType.INT.toField("integer"))
+            .toField("struct");
 
-    final FieldType listType = new CompleteType(ArrowType.List.INSTANCE, ImmutableList.of(structType)).toField("list").getFieldType();
+    final FieldType listType =
+        new CompleteType(ArrowType.List.INSTANCE, ImmutableList.of(structType))
+            .toField("list")
+            .getFieldType();
 
-    try (
-      ListVector in = new ListVector("in", allocator, listType, null);
-      ListVector out = new ListVector("out", allocator, listType, null);
-      ArrowBuf tempBuf = allocator.buffer(2048);
-    ) {
+    try (ListVector in = new ListVector("in", allocator, listType, null);
+        ListVector out = new ListVector("out", allocator, listType, null);
+        ArrowBuf tempBuf = allocator.buffer(2048); ) {
 
-      Field intField = new Field("integer", new FieldType(true, new ArrowType.Int(32, true), null), null);
-      Field stringField = new Field("string", new FieldType(true, new ArrowType.Utf8(), null), null);
-      Field structField = new Field("struct", new FieldType(true, new ArrowType.Struct(), null), ImmutableList.of(stringField, intField));
+      Field intField =
+          new Field("integer", new FieldType(true, new ArrowType.Int(32, true), null), null);
+      Field stringField =
+          new Field("string", new FieldType(true, new ArrowType.Utf8(), null), null);
+      Field structField =
+          new Field(
+              "struct",
+              new FieldType(true, new ArrowType.Struct(), null),
+              ImmutableList.of(stringField, intField));
 
       in.initializeChildrenFromFields(ImmutableList.of(structField));
       out.initializeChildrenFromFields(ImmutableList.of(structField));
@@ -1073,10 +1098,10 @@ public class TestCopierRoundTrip extends BaseTestOperator {
       in.getOffsetBuffer().setInt(count * ListVector.OFFSET_WIDTH, outerOffsetVal + 2);
       in.setValueCount(count);
 
-      List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getTwoByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
-      try (
-        final SelectionVector2 sv2 = new SelectionVector2(allocator);
-      ) {
+      List<FieldBufferCopier> copiers =
+          new FieldBufferCopierFactory(testContext.getOptions())
+              .getTwoByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
+      try (final SelectionVector2 sv2 = new SelectionVector2(allocator); ) {
 
         sv2.allocateNew(count);
         // create full sv2.
@@ -1100,22 +1125,29 @@ public class TestCopierRoundTrip extends BaseTestOperator {
   public void structInsideListAppend() {
     final int count = 1024;
 
-    final Field structType = CompleteType.struct(
-      CompleteType.VARCHAR.toField("string"),
-      CompleteType.INT.toField("integer")
-    ).toField("struct");
+    final Field structType =
+        CompleteType.struct(
+                CompleteType.VARCHAR.toField("string"), CompleteType.INT.toField("integer"))
+            .toField("struct");
 
-    final FieldType listType = new CompleteType(ArrowType.List.INSTANCE, ImmutableList.of(structType)).toField("list").getFieldType();
+    final FieldType listType =
+        new CompleteType(ArrowType.List.INSTANCE, ImmutableList.of(structType))
+            .toField("list")
+            .getFieldType();
 
-    try (
-      ListVector in = new ListVector("in", allocator, listType, null);
-      ListVector out = new ListVector("out", allocator, listType, null);
-      ArrowBuf tempBuf = allocator.buffer(2048);
-    ) {
+    try (ListVector in = new ListVector("in", allocator, listType, null);
+        ListVector out = new ListVector("out", allocator, listType, null);
+        ArrowBuf tempBuf = allocator.buffer(2048); ) {
 
-      Field intField = new Field("integer", new FieldType(true, new ArrowType.Int(32, true), null), null);
-      Field stringField = new Field("string", new FieldType(true, new ArrowType.Utf8(), null), null);
-      Field structField = new Field("struct", new FieldType(true, new ArrowType.Struct(), null), ImmutableList.of(stringField, intField));
+      Field intField =
+          new Field("integer", new FieldType(true, new ArrowType.Int(32, true), null), null);
+      Field stringField =
+          new Field("string", new FieldType(true, new ArrowType.Utf8(), null), null);
+      Field structField =
+          new Field(
+              "struct",
+              new FieldType(true, new ArrowType.Struct(), null),
+              ImmutableList.of(stringField, intField));
 
       in.initializeChildrenFromFields(ImmutableList.of(structField));
       out.initializeChildrenFromFields(ImmutableList.of(structField));
@@ -1149,10 +1181,10 @@ public class TestCopierRoundTrip extends BaseTestOperator {
       in.getOffsetBuffer().setInt(count * ListVector.OFFSET_WIDTH, outerOffsetVal + 2);
       in.setValueCount(count);
 
-      List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getTwoByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
-      try (
-        final SelectionVector2 sv2 = new SelectionVector2(allocator);
-      ) {
+      List<FieldBufferCopier> copiers =
+          new FieldBufferCopierFactory(testContext.getOptions())
+              .getTwoByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
+      try (final SelectionVector2 sv2 = new SelectionVector2(allocator); ) {
 
         sv2.allocateNew(count / 2);
         // set alternate elements.
@@ -1177,15 +1209,27 @@ public class TestCopierRoundTrip extends BaseTestOperator {
   public void listInsideListRoundtrip() {
     final int count = 1024;
 
-    final FieldType outerlistType = new CompleteType(ArrowType.List.INSTANCE, ImmutableList.of(new CompleteType(ArrowType.List.INSTANCE, ImmutableList.of(CompleteType.INT.toField("integer"))).toField("innerList"))).toField("outerList").getFieldType();
+    final FieldType outerlistType =
+        new CompleteType(
+                ArrowType.List.INSTANCE,
+                ImmutableList.of(
+                    new CompleteType(
+                            ArrowType.List.INSTANCE,
+                            ImmutableList.of(CompleteType.INT.toField("integer")))
+                        .toField("innerList")))
+            .toField("outerList")
+            .getFieldType();
 
-    try (
-      ListVector in = new ListVector("in", allocator, outerlistType, null);
-      ListVector out = new ListVector("out", allocator, outerlistType, null);
-    ) {
+    try (ListVector in = new ListVector("in", allocator, outerlistType, null);
+        ListVector out = new ListVector("out", allocator, outerlistType, null); ) {
 
-      Field intField = new Field("integer", new FieldType(true, new ArrowType.Int(32, true), null), null);
-      Field innerList = new Field("innerList", new FieldType(true, new ArrowType.List(), null), ImmutableList.of(intField));
+      Field intField =
+          new Field("integer", new FieldType(true, new ArrowType.Int(32, true), null), null);
+      Field innerList =
+          new Field(
+              "innerList",
+              new FieldType(true, new ArrowType.List(), null),
+              ImmutableList.of(intField));
 
       in.initializeChildrenFromFields(ImmutableList.of(innerList));
       out.initializeChildrenFromFields(ImmutableList.of(innerList));
@@ -1203,7 +1247,9 @@ public class TestCopierRoundTrip extends BaseTestOperator {
           ListVector childVector = (ListVector) in.getDataVector();
           for (int j = 0; j < 2; j++) {
             childVector.setNotNull(childBufTracker++);
-            childVector.getOffsetBuffer().setInt((outerOffsetVal + j) * ListVector.OFFSET_WIDTH, (outerOffsetVal + j) * 2);
+            childVector
+                .getOffsetBuffer()
+                .setInt((outerOffsetVal + j) * ListVector.OFFSET_WIDTH, (outerOffsetVal + j) * 2);
           }
           // Set the underlying int data vector inside the child vector
           IntVector innerDataVector = (IntVector) childVector.getDataVector();
@@ -1218,14 +1264,16 @@ public class TestCopierRoundTrip extends BaseTestOperator {
           in.getOffsetBuffer().setInt(i * ListVector.OFFSET_WIDTH, outerOffsetVal + 2);
         }
       }
-      in.getDataVector().getOffsetBuffer().setInt((count / 5 * 2 + 2) * ListVector.OFFSET_WIDTH, (count / 5 * 2 + 2) * 2);
+      in.getDataVector()
+          .getOffsetBuffer()
+          .setInt((count / 5 * 2 + 2) * ListVector.OFFSET_WIDTH, (count / 5 * 2 + 2) * 2);
       in.getOffsetBuffer().setInt(count * ListVector.OFFSET_WIDTH, outerOffsetVal + 2);
       in.setValueCount(count);
 
-      List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getTwoByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
-      try (
-        final SelectionVector2 sv2 = new SelectionVector2(allocator);
-      ) {
+      List<FieldBufferCopier> copiers =
+          new FieldBufferCopierFactory(testContext.getOptions())
+              .getTwoByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
+      try (final SelectionVector2 sv2 = new SelectionVector2(allocator); ) {
 
         sv2.allocateNew(count);
         // create full sv2.
@@ -1249,15 +1297,27 @@ public class TestCopierRoundTrip extends BaseTestOperator {
   public void listInsideListAppend() {
     final int count = 1024;
 
-    final FieldType outerlistType = new CompleteType(ArrowType.List.INSTANCE, ImmutableList.of(new CompleteType(ArrowType.List.INSTANCE, ImmutableList.of(CompleteType.INT.toField("integer"))).toField("innerList"))).toField("outerList").getFieldType();
+    final FieldType outerlistType =
+        new CompleteType(
+                ArrowType.List.INSTANCE,
+                ImmutableList.of(
+                    new CompleteType(
+                            ArrowType.List.INSTANCE,
+                            ImmutableList.of(CompleteType.INT.toField("integer")))
+                        .toField("innerList")))
+            .toField("outerList")
+            .getFieldType();
 
-    try (
-      ListVector in = new ListVector("in", allocator, outerlistType, null);
-      ListVector out = new ListVector("out", allocator, outerlistType, null);
-    ) {
+    try (ListVector in = new ListVector("in", allocator, outerlistType, null);
+        ListVector out = new ListVector("out", allocator, outerlistType, null); ) {
 
-      Field intField = new Field("integer", new FieldType(true, new ArrowType.Int(32, true), null), null);
-      Field innerList = new Field("innerList", new FieldType(true, new ArrowType.List(), null), ImmutableList.of(intField));
+      Field intField =
+          new Field("integer", new FieldType(true, new ArrowType.Int(32, true), null), null);
+      Field innerList =
+          new Field(
+              "innerList",
+              new FieldType(true, new ArrowType.List(), null),
+              ImmutableList.of(intField));
 
       in.initializeChildrenFromFields(ImmutableList.of(innerList));
       out.initializeChildrenFromFields(ImmutableList.of(innerList));
@@ -1275,7 +1335,9 @@ public class TestCopierRoundTrip extends BaseTestOperator {
           ListVector childVector = (ListVector) in.getDataVector();
           for (int j = 0; j < 2; j++) {
             childVector.setNotNull(childBufTracker++);
-            childVector.getOffsetBuffer().setInt((outerOffsetVal + j) * ListVector.OFFSET_WIDTH, (outerOffsetVal + j) * 2);
+            childVector
+                .getOffsetBuffer()
+                .setInt((outerOffsetVal + j) * ListVector.OFFSET_WIDTH, (outerOffsetVal + j) * 2);
           }
           // Set the underlying int data vector inside the child vector
           IntVector innerDataVector = (IntVector) childVector.getDataVector();
@@ -1290,14 +1352,16 @@ public class TestCopierRoundTrip extends BaseTestOperator {
           in.getOffsetBuffer().setInt(i * ListVector.OFFSET_WIDTH, outerOffsetVal + 2);
         }
       }
-      in.getDataVector().getOffsetBuffer().setInt((count / 5 * 2 + 2) * ListVector.OFFSET_WIDTH, (count / 5 * 2 + 2) * 2);
+      in.getDataVector()
+          .getOffsetBuffer()
+          .setInt((count / 5 * 2 + 2) * ListVector.OFFSET_WIDTH, (count / 5 * 2 + 2) * 2);
       in.getOffsetBuffer().setInt(count * ListVector.OFFSET_WIDTH, outerOffsetVal + 2);
       in.setValueCount(count);
 
-      List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getTwoByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
-      try (
-        final SelectionVector2 sv2 = new SelectionVector2(allocator);
-      ) {
+      List<FieldBufferCopier> copiers =
+          new FieldBufferCopierFactory(testContext.getOptions())
+              .getTwoByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
+      try (final SelectionVector2 sv2 = new SelectionVector2(allocator); ) {
 
         sv2.allocateNew(count / 2);
         // set alternate elements.

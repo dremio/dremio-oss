@@ -16,7 +16,6 @@
 package com.dremio.exec.planner.logical.rewrite.sargable;
 
 import java.math.BigDecimal;
-
 import org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.rex.RexLiteral;
@@ -24,15 +23,16 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlOperator;
 
 /**
+ *
+ *
  * <pre>
  * Extract each component of a filter expr with SARGableStandardForm for
  * - MONTHS_BETWEEN(date_timestamp_expression1 string, date_timestamp_expression2 string) = rhsNode
  * </pre>
  */
 public class MonthsBetweenShiftTransformer extends ShiftTransformer {
-  public MonthsBetweenShiftTransformer(RelOptCluster relOptCluster,
-                                       StandardForm stdForm,
-                                       SqlOperator sqlOperator) {
+  public MonthsBetweenShiftTransformer(
+      RelOptCluster relOptCluster, StandardForm stdForm, SqlOperator sqlOperator) {
     super(relOptCluster, stdForm, sqlOperator);
   }
 
@@ -50,7 +50,8 @@ public class MonthsBetweenShiftTransformer extends ShiftTransformer {
       if (isIntegerValue(num)) {
         return SARGableRexUtils.toInterval((RexLiteral) rhs, TimeUnit.MONTH, rexBuilder);
       } else {
-        return SARGableRexUtils.toInterval((long) (num.doubleValue() * 30.0), TimeUnit.DAY, rexBuilder);
+        return SARGableRexUtils.toInterval(
+            (long) (num.doubleValue() * 30.0), TimeUnit.DAY, rexBuilder);
       }
     }
     return null;

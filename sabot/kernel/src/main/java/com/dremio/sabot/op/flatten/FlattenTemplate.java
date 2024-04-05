@@ -15,10 +15,14 @@
  */
 package com.dremio.sabot.op.flatten;
 
+import com.dremio.exec.exception.SchemaChangeException;
+import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
+import com.dremio.exec.record.VectorAccessible;
+import com.dremio.sabot.exec.context.FunctionContext;
+import com.dremio.sabot.op.project.Projector.ComplexWriterCreator;
+import com.google.common.collect.ImmutableList;
 import java.util.List;
-
 import javax.inject.Named;
-
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.complex.BaseRepeatedValueVector;
 import org.apache.arrow.vector.complex.RepeatedValueVector;
@@ -26,13 +30,6 @@ import org.apache.arrow.vector.util.OversizedAllocationException;
 import org.apache.arrow.vector.util.TransferPair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.dremio.exec.exception.SchemaChangeException;
-import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
-import com.dremio.exec.record.VectorAccessible;
-import com.dremio.sabot.exec.context.FunctionContext;
-import com.dremio.sabot.op.project.Projector.ComplexWriterCreator;
-import com.google.common.collect.ImmutableList;
 
 public abstract class FlattenTemplate implements Flattener {
   private static final Logger logger = LoggerFactory.getLogger(FlattenTemplate.class);
@@ -48,7 +45,8 @@ public abstract class FlattenTemplate implements Flattener {
   private long outputLimit;
   private long outputMemoryLimit;
 
-  // this allows for groups to be written between batches if we run out of space, for cases where we have finished
+  // this allows for groups to be written between batches if we run out of space, for cases where we
+  // have finished
   // a batch on the boundary it will be set to 0
   private int innerValueIndex;
   private int currentInnerValueIndex;
@@ -68,14 +66,16 @@ public abstract class FlattenTemplate implements Flattener {
   }
 
   @Override
-  public final int flattenRecords(final int recordCount, final int firstOutputIndex,
-      final Flattener.Monitor monitor) {
+  public final int flattenRecords(
+      final int recordCount, final int firstOutputIndex, final Flattener.Monitor monitor) {
     switch (svMode) {
       case FOUR_BYTE:
-        throw new UnsupportedOperationException("Flatten does not support selection vector inputs.");
+        throw new UnsupportedOperationException(
+            "Flatten does not support selection vector inputs.");
 
       case TWO_BYTE:
-        throw new UnsupportedOperationException("Flatten does not support selection vector inputs.");
+        throw new UnsupportedOperationException(
+            "Flatten does not support selection vector inputs.");
 
       case NONE:
         if (innerValueIndex == -1) {
@@ -87,13 +87,15 @@ public abstract class FlattenTemplate implements Flattener {
         int valueIndexLocal = valueIndex;
         int innerValueIndexLocal = innerValueIndex;
         int currentInnerValueIndexLocal = currentInnerValueIndex;
-        outer: {
+        outer:
+        {
           int outputIndex = firstOutputIndex;
           int recordsThisCall = 0;
           final int valueCount = fieldToFlatten.getValueCount();
-          for ( ; valueIndexLocal < valueCount; valueIndexLocal++) {
-            final int innerValueCount = ((BaseRepeatedValueVector)fieldToFlatten).getInnerValueCountAt(valueIndexLocal);
-            for ( ; innerValueIndexLocal < innerValueCount; innerValueIndexLocal++) {
+          for (; valueIndexLocal < valueCount; valueIndexLocal++) {
+            final int innerValueCount =
+                ((BaseRepeatedValueVector) fieldToFlatten).getInnerValueCountAt(valueIndexLocal);
+            for (; innerValueIndexLocal < innerValueCount; innerValueIndexLocal++) {
               // If we've hit the batch size limit, stop and flush what we've got so far.
               if (recordsThisCall == outputLimit) {
                 if (bigRecords) {
@@ -153,11 +155,11 @@ public abstract class FlattenTemplate implements Flattener {
                     bigRecordsBufferSize = monitor.getBufferSizeFor(1);
                   } else {
 
-                  /*
-                   * This will differ from what the allocator reports because of
-                   * overhead. But the allocator check is much cheaper to do, so we
-                   * only compute this at selected times.
-                   */
+                    /*
+                     * This will differ from what the allocator reports because of
+                     * overhead. But the allocator check is much cheaper to do, so we
+                     * only compute this at selected times.
+                     */
                     bigRecordsBufferSize = monitor.getBufferSizeFor(recordsThisCall);
                   }
                   // Stop and flush.
@@ -168,9 +170,13 @@ public abstract class FlattenTemplate implements Flattener {
               try {
                 doEval(valueIndexLocal, outputIndex);
               } catch (OversizedAllocationException ex) {
-                // unable to flatten due to a soft buffer overflow. split the batch here and resume execution.
-                logger.debug("Reached allocation limit. Splitting the batch at input index: {} - inner index: {} - current completed index: {}",
-                    valueIndexLocal, innerValueIndexLocal, currentInnerValueIndexLocal) ;
+                // unable to flatten due to a soft buffer overflow. split the batch here and resume
+                // execution.
+                logger.debug(
+                    "Reached allocation limit. Splitting the batch at input index: {} - inner index: {} - current completed index: {}",
+                    valueIndexLocal,
+                    innerValueIndexLocal,
+                    currentInnerValueIndexLocal);
 
                 /*
                  * TODO
@@ -205,30 +211,28 @@ public abstract class FlattenTemplate implements Flattener {
   }
 
   /**
-   * Determine if the current batch record limit needs to be adjusted (when handling
-   * bigRecord mode). If so, adjust the limit, and return true, otherwise return false.
+   * Determine if the current batch record limit needs to be adjusted (when handling bigRecord
+   * mode). If so, adjust the limit, and return true, otherwise return false.
    *
-   * <p>If the limit is adjusted, it will always be adjusted down, because we need to operate
-   * based on the largest sized record we've ever seen.</p>
+   * <p>If the limit is adjusted, it will always be adjusted down, because we need to operate based
+   * on the largest sized record we've ever seen.
    *
-   * <p>If the limit is adjusted, then the current batch should be flushed, because
-   * continuing would lead to going over the large memory limit that has already been
-   * established.</p>
+   * <p>If the limit is adjusted, then the current batch should be flushed, because continuing would
+   * lead to going over the large memory limit that has already been established.
    *
-   * @param multiplier Multiply currently used memory (according to the monitor) before
-   *   checking against past memory limits. This allows for checking the currently used
-   *   memory after processing a fraction of the expected batch limit, but using that as
-   *   a predictor of the full batch's size. For example, if this is checked after half
-   *   the batch size limit's records are processed, then using a multiplier of two will
-   *   do the check under the assumption that processing the full batch limit will use
-   *   twice as much memory.
+   * @param multiplier Multiply currently used memory (according to the monitor) before checking
+   *     against past memory limits. This allows for checking the currently used memory after
+   *     processing a fraction of the expected batch limit, but using that as a predictor of the
+   *     full batch's size. For example, if this is checked after half the batch size limit's
+   *     records are processed, then using a multiplier of two will do the check under the
+   *     assumption that processing the full batch limit will use twice as much memory.
    * @param monitor the Flattener.Monitor instance to use for the current memory usage check
    * @param recordsThisCall the number of records processed so far during this call to
-   *   flattenRecords().
+   *     flattenRecords().
    * @return true if the batch size limit was adjusted, false otherwise
    */
-  private boolean adjustBatchLimits(final int multiplier, final Flattener.Monitor monitor,
-      final int recordsThisCall) {
+  private boolean adjustBatchLimits(
+      final int multiplier, final Flattener.Monitor monitor, final int recordsThisCall) {
     assert bigRecords : "adjusting batch limits when no big records";
     final int bufferSize = multiplier * monitor.getBufferSizeFor(recordsThisCall);
 
@@ -260,23 +264,35 @@ public abstract class FlattenTemplate implements Flattener {
      * just go down to one record per batch. We need to check for that on
      * outputLimit anyway, in order to make sure that we make progress.
      */
-    final int newLimit = (int)
-        (outputLimit * (2.0 * ((double) bigRecordsBufferSize) - bufferSize) / bigRecordsBufferSize);
+    final int newLimit =
+        (int)
+            (outputLimit
+                * (2.0 * ((double) bigRecordsBufferSize) - bufferSize)
+                / bigRecordsBufferSize);
     outputLimit = Math.max(1, newLimit);
     return true;
   }
 
   @Override
-  public final void setup(BufferAllocator allocator, FunctionContext context, VectorAccessible incoming, VectorAccessible outgoing,
-                          List<TransferPair> transfers, ComplexWriterCreator complexWriterCollector,
-                          long outputMemoryLimit, long outputBatchSize)  throws SchemaChangeException{
+  public final void setup(
+      BufferAllocator allocator,
+      FunctionContext context,
+      VectorAccessible incoming,
+      VectorAccessible outgoing,
+      List<TransferPair> transfers,
+      ComplexWriterCreator complexWriterCollector,
+      long outputMemoryLimit,
+      long outputBatchSize)
+      throws SchemaChangeException {
 
     this.svMode = incoming.getSchema().getSelectionVectorMode();
     switch (svMode) {
       case FOUR_BYTE:
-        throw new UnsupportedOperationException("Flatten does not support selection vector inputs.");
+        throw new UnsupportedOperationException(
+            "Flatten does not support selection vector inputs.");
       case TWO_BYTE:
-        throw new UnsupportedOperationException("Flatten does not support selection vector inputs.");
+        throw new UnsupportedOperationException(
+            "Flatten does not support selection vector inputs.");
     }
     this.transfers = ImmutableList.copyOf(transfers);
     outputAllocator = allocator;
@@ -291,6 +307,11 @@ public abstract class FlattenTemplate implements Flattener {
     this.currentInnerValueIndex = 0;
   }
 
-  public abstract void doSetup(@Named("context") FunctionContext context, @Named("incoming") VectorAccessible incoming, @Named("outgoing") VectorAccessible outgoing, @Named("writerCreator") ComplexWriterCreator writerCreator);
+  public abstract void doSetup(
+      @Named("context") FunctionContext context,
+      @Named("incoming") VectorAccessible incoming,
+      @Named("outgoing") VectorAccessible outgoing,
+      @Named("writerCreator") ComplexWriterCreator writerCreator);
+
   public abstract boolean doEval(@Named("inIndex") int inIndex, @Named("outIndex") int outIndex);
 }

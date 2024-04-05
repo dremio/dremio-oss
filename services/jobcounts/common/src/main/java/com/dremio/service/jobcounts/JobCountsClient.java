@@ -15,21 +15,18 @@
  */
 package com.dremio.service.jobcounts;
 
-import javax.inject.Provider;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.service.Service;
 import com.dremio.service.grpc.GrpcChannelBuilderFactory;
-
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import javax.inject.Provider;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * Client that redirects requests to either the local job service instance (software), or
- * the remote one (service).
+ * Client that redirects requests to either the local job service instance (software), or the remote
+ * one (service).
  */
 public class JobCountsClient implements Service {
   private static final Logger logger = LoggerFactory.getLogger(JobCountsClient.class);
@@ -42,8 +39,9 @@ public class JobCountsClient implements Service {
   private JobCountsServiceGrpc.JobCountsServiceStub asyncStub;
   private JobCountsServiceGrpc.JobCountsServiceFutureStub futureStub;
 
-  public JobCountsClient(GrpcChannelBuilderFactory grpcFactory,
-                         Provider<CoordinationProtos.NodeEndpoint> selfEndpoint) {
+  public JobCountsClient(
+      GrpcChannelBuilderFactory grpcFactory,
+      Provider<CoordinationProtos.NodeEndpoint> selfEndpoint) {
     this.grpcFactory = grpcFactory;
     this.selfEndpoint = selfEndpoint;
   }
@@ -53,18 +51,20 @@ public class JobCountsClient implements Service {
     ManagedChannelBuilder<?> builder;
 
     if (JobCountsRpcUtils.getJobCountsHostname() == null) {
-      builder = JobCountsRpcUtils.newLocalChannelBuilder(grpcFactory,
-        selfEndpoint.get().getFabricPort());
+      builder =
+          JobCountsRpcUtils.newLocalChannelBuilder(grpcFactory, selfEndpoint.get().getFabricPort());
     } else {
-      builder = grpcFactory.newManagedChannelBuilder(
-        JobCountsRpcUtils.getJobCountsHostname(),
-        JobCountsRpcUtils.getJobCountsPort());
+      builder =
+          grpcFactory.newManagedChannelBuilder(
+              JobCountsRpcUtils.getJobCountsHostname(), JobCountsRpcUtils.getJobCountsPort());
     }
 
-    channel = builder.maxInboundMetadataSize(Integer.MAX_VALUE)
-      .maxInboundMessageSize(Integer.MAX_VALUE)
-      .usePlaintext()
-      .build();
+    channel =
+        builder
+            .maxInboundMetadataSize(Integer.MAX_VALUE)
+            .maxInboundMessageSize(Integer.MAX_VALUE)
+            .usePlaintext()
+            .build();
 
     blockingStub = JobCountsServiceGrpc.newBlockingStub(channel);
     asyncStub = JobCountsServiceGrpc.newStub(channel);

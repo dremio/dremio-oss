@@ -15,13 +15,8 @@
  */
 package com.dremio.exec.physical.config;
 
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
-import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.ScanFilter;
 import com.dremio.exec.store.iceberg.OptimizeManifestsTableFunctionContext;
@@ -32,33 +27,44 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-
 import io.protostuff.ByteString;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
 
-
-/**
- * Table function context
- * Extend this class to add props related to specific table function
- */
-
+/** Table function context Extend this class to add props related to specific table function */
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY)
 @JsonSubTypes({
   @JsonSubTypes.Type(value = FooterReaderTableFunctionContext.class, name = "footer-reader"),
   @JsonSubTypes.Type(value = BoostTableFunctionContext.class, name = "boost"),
   @JsonSubTypes.Type(value = ManifestScanTableFunctionContext.class, name = "manifest-scan"),
-  @JsonSubTypes.Type(value = PartitionTransformTableFunctionContext.class, name = "partition-transform-table"),
+  @JsonSubTypes.Type(
+      value = PartitionTransformTableFunctionContext.class,
+      name = "partition-transform-table"),
   @JsonSubTypes.Type(value = EasyScanTableFunctionContext.class, name = "easy-scan-table-function"),
-  @JsonSubTypes.Type(value = DeletedFilesMetadataTableFunctionContext.class, name = "deleted-files-metadata-table-function"),
-  @JsonSubTypes.Type(value = OptimizeManifestsTableFunctionContext.class, name = "optimize-manifests"),
+  @JsonSubTypes.Type(
+      value = DeletedFilesMetadataTableFunctionContext.class,
+      name = "deleted-files-metadata-table-function"),
+  @JsonSubTypes.Type(
+      value = OptimizeManifestsTableFunctionContext.class,
+      name = "optimize-manifests"),
   @JsonSubTypes.Type(value = DirListingTableFunctionContext.class, name = "dir-listing"),
-  @JsonSubTypes.Type(value = IcebergSnapshotsScanTableFunctionContext.class, name = "snapshots-scan"),
-  @JsonSubTypes.Type(value = CarryForwardAwareTableFunctionContext.class, name = "carry-forward-enabled-context"),
+  @JsonSubTypes.Type(
+      value = IcebergSnapshotsScanTableFunctionContext.class,
+      name = "snapshots-scan"),
+  @JsonSubTypes.Type(
+      value = CarryForwardAwareTableFunctionContext.class,
+      name = "carry-forward-enabled-context"),
   @JsonSubTypes.Type(value = IcebergLocationFinderFunctionContext.class, name = "location-finder"),
-  @JsonSubTypes.Type(value = IncrementalRefreshJoinKeyTableFunctionContext.class, name = "incremental-refresh-join-key-table"),
-  @JsonSubTypes.Type(value = OrphanFileDeleteTableFunctionContext.class, name = "orphan-file-delete")
-}
-)
+  @JsonSubTypes.Type(
+      value = IncrementalRefreshJoinKeyTableFunctionContext.class,
+      name = "incremental-refresh-join-key-table"),
+  @JsonSubTypes.Type(
+      value = OrphanFileDeleteTableFunctionContext.class,
+      name = "orphan-file-delete"),
+  @JsonSubTypes.Type(value = SplitProducerTableFunctionContext.class, name = "split-production")
+})
 public class TableFunctionContext {
   private final List<SchemaPath> columns;
   private final ScanFilter scanFilter;
@@ -67,7 +73,6 @@ public class TableFunctionContext {
   private final FileConfig formatSettings;
   private final List<String> partitionColumns;
   private final List<List<String>> tablePath;
-  private final List<GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns;
   private final ByteString extendedProperty;
   private final boolean arrowCachingEnabled;
   private final BatchSchema fullSchema;
@@ -79,24 +84,24 @@ public class TableFunctionContext {
   private final Map<String, Integer> colIdMap;
   private final ParquetScanRowGroupFilter rowGroupFilter;
 
-
-  public TableFunctionContext(@JsonProperty("formatSettings") FileConfig formatSettings,
-                              @JsonProperty("schema") BatchSchema fullSchema,
-                              @JsonProperty("tableschema") BatchSchema tableSchema,
-                              @JsonProperty("referencedTables") List<List<String>> tablePath,
-                              @JsonProperty("scanFilter") ScanFilter scanFilter,
-                              @JsonProperty("rowGroupFilter") ParquetScanRowGroupFilter rowGroupFilter,
-                              @JsonProperty("pluginId") StoragePluginId pluginId,
-                              @JsonProperty("internalTablePluginId") StoragePluginId internalTablePluginId,
-                              @JsonProperty("columns") List<SchemaPath> columns,
-                              @JsonProperty("partitionColumns") List<String> partitionColumns,
-                              @JsonProperty("globalDictionaryEncodedColumns") List<GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns,
-                              @JsonProperty("extendedProperty") ByteString extendedProperty,
-                              @JsonProperty("arrowCachingEnabled") boolean arrowCachingEnabled,
-                              @JsonProperty("convertedIcebergDataset") boolean isConvertedIcebergDataset,
-                              @JsonProperty("icebergMetadata") boolean isIcebergMetadata,
-                              @JsonProperty("userDefinedSchemaSettings") UserDefinedSchemaSettings userDefinedSchemaSettings,
-                              @JsonProperty("colIdMap") Map<String, Integer> colIdMap) {
+  public TableFunctionContext(
+      @JsonProperty("formatSettings") FileConfig formatSettings,
+      @JsonProperty("schema") BatchSchema fullSchema,
+      @JsonProperty("tableschema") BatchSchema tableSchema,
+      @JsonProperty("referencedTables") List<List<String>> tablePath,
+      @JsonProperty("scanFilter") ScanFilter scanFilter,
+      @JsonProperty("rowGroupFilter") ParquetScanRowGroupFilter rowGroupFilter,
+      @JsonProperty("pluginId") StoragePluginId pluginId,
+      @JsonProperty("internalTablePluginId") StoragePluginId internalTablePluginId,
+      @JsonProperty("columns") List<SchemaPath> columns,
+      @JsonProperty("partitionColumns") List<String> partitionColumns,
+      @JsonProperty("extendedProperty") ByteString extendedProperty,
+      @JsonProperty("arrowCachingEnabled") boolean arrowCachingEnabled,
+      @JsonProperty("convertedIcebergDataset") boolean isConvertedIcebergDataset,
+      @JsonProperty("icebergMetadata") boolean isIcebergMetadata,
+      @JsonProperty("userDefinedSchemaSettings")
+          UserDefinedSchemaSettings userDefinedSchemaSettings,
+      @JsonProperty("colIdMap") Map<String, Integer> colIdMap) {
     this.fullSchema = fullSchema;
     this.tableSchema = tableSchema;
     this.referencedTables = tablePath;
@@ -108,7 +113,6 @@ public class TableFunctionContext {
     this.pluginId = pluginId;
     this.internalTablePluginId = internalTablePluginId;
     this.partitionColumns = partitionColumns;
-    this.globalDictionaryEncodedColumns = globalDictionaryEncodedColumns;
     this.extendedProperty = extendedProperty;
     this.arrowCachingEnabled = arrowCachingEnabled;
     this.isConvertedIcebergDataset = isConvertedIcebergDataset;
@@ -117,50 +121,67 @@ public class TableFunctionContext {
     this.colIdMap = colIdMap;
   }
 
-  public TableFunctionContext(FileConfig formatSettings,
-                              BatchSchema fullSchema,
-                              BatchSchema tableSchema,
-                              List<List<String>> tablePath,
-                              ScanFilter scanFilter,
-                              ParquetScanRowGroupFilter rowGroupFilter,
-                              StoragePluginId pluginId,
-                              StoragePluginId internalTablePluginId,
-                              List<SchemaPath> columns,
-                              List<String> partitionColumns,
-                              List<GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns,
-                              ByteString extendedProperty,
-                              boolean arrowCachingEnabled,
-                              boolean isConvertedIcebergDataset,
-                              boolean isIcebergMetadata,
-                              UserDefinedSchemaSettings userDefinedSchemaSettings) {
-    this(formatSettings, fullSchema, tableSchema, tablePath, scanFilter, rowGroupFilter, pluginId, internalTablePluginId, columns, partitionColumns, globalDictionaryEncodedColumns, extendedProperty, arrowCachingEnabled, isConvertedIcebergDataset, isIcebergMetadata, userDefinedSchemaSettings, null);
+  public TableFunctionContext(
+      FileConfig formatSettings,
+      BatchSchema fullSchema,
+      BatchSchema tableSchema,
+      List<List<String>> tablePath,
+      ScanFilter scanFilter,
+      ParquetScanRowGroupFilter rowGroupFilter,
+      StoragePluginId pluginId,
+      StoragePluginId internalTablePluginId,
+      List<SchemaPath> columns,
+      List<String> partitionColumns,
+      ByteString extendedProperty,
+      boolean arrowCachingEnabled,
+      boolean isConvertedIcebergDataset,
+      boolean isIcebergMetadata,
+      UserDefinedSchemaSettings userDefinedSchemaSettings) {
+    this(
+        formatSettings,
+        fullSchema,
+        tableSchema,
+        tablePath,
+        scanFilter,
+        rowGroupFilter,
+        pluginId,
+        internalTablePluginId,
+        columns,
+        partitionColumns,
+        extendedProperty,
+        arrowCachingEnabled,
+        isConvertedIcebergDataset,
+        isIcebergMetadata,
+        userDefinedSchemaSettings,
+        null);
   }
 
-  public TableFunctionContext(BatchSchema batchSchema, List<SchemaPath> columns, boolean isIcebergMetadata) {
-    this(null,
-      batchSchema,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      columns,
-      null,
-      null,
-      null,
-      false,
-      false,
-      isIcebergMetadata,
-      null,
-      null);
+  public TableFunctionContext(
+      BatchSchema batchSchema, List<SchemaPath> columns, boolean isIcebergMetadata) {
+    this(
+        null,
+        batchSchema,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        columns,
+        null,
+        null,
+        false,
+        false,
+        isIcebergMetadata,
+        null,
+        null);
   }
 
   public TableFunctionContext(BatchSchema batchSchema, List<SchemaPath> columns) {
     this(batchSchema, columns, false);
   }
 
-  public FileConfig getFormatSettings(){
+  public FileConfig getFormatSettings() {
     return formatSettings;
   }
 
@@ -183,7 +204,8 @@ public class TableFunctionContext {
   public ScanFilter getScanFilter() {
     return scanFilter;
   }
-  public ParquetScanRowGroupFilter getRowGroupFilter(){
+
+  public ParquetScanRowGroupFilter getRowGroupFilter() {
     return rowGroupFilter;
   }
 
@@ -193,10 +215,6 @@ public class TableFunctionContext {
 
   public StoragePluginId getInternalTablePluginId() {
     return internalTablePluginId;
-  }
-
-  public List<GlobalDictionaryFieldInfo> getGlobalDictionaryEncodedColumns() {
-    return globalDictionaryEncodedColumns;
   }
 
   public boolean isArrowCachingEnabled() {

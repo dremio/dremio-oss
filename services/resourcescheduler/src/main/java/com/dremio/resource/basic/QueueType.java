@@ -15,9 +15,7 @@
  */
 package com.dremio.resource.basic;
 
-/**
- * QueueType for basic resource management
- */
+/** QueueType for basic resource management */
 public enum QueueType {
   // TODO figure out split between capacities for below queues
   SMALL(30D),

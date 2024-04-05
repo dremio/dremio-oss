@@ -17,14 +17,6 @@ package com.dremio.exec.store.dfs;
 
 import static com.dremio.exec.store.metadatarefresh.MetadataRefreshExecConstants.METADATA_STORAGE_PLUGIN_NAME;
 
-import java.util.List;
-import java.util.stream.Collectors;
-
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.iceberg.Snapshot;
-import org.apache.iceberg.Table;
-import org.apache.iceberg.types.Types;
-
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.SchemaConfig;
@@ -38,10 +30,23 @@ import com.dremio.io.file.Path;
 import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import java.util.List;
+import java.util.stream.Collectors;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.iceberg.Snapshot;
+import org.apache.iceberg.Table;
+import org.apache.iceberg.types.Types;
 
 public class AddColumn extends ColumnOperations {
 
-  public AddColumn(NamespaceKey table, SabotContext context, DatasetConfig datasetConfig, SchemaConfig schemaConfig, IcebergModel model, Path path, StoragePlugin storagePlugin) {
+  public AddColumn(
+      NamespaceKey table,
+      SabotContext context,
+      DatasetConfig datasetConfig,
+      SchemaConfig schemaConfig,
+      IcebergModel model,
+      Path path,
+      StoragePlugin storagePlugin) {
     super(table, context, datasetConfig, schemaConfig, model, path, storagePlugin);
   }
 
@@ -56,29 +61,43 @@ public class AddColumn extends ColumnOperations {
       return;
     }
 
-    //perform validations
+    // perform validations
     checkUserSchemaEnabled();
-    checkPartitionColumnsValidation(fieldsToAdd.stream().map(Field::getName).collect(Collectors.toList()));
+    checkPartitionColumnsValidation(
+        fieldsToAdd.stream().map(Field::getName).collect(Collectors.toList()));
 
     BatchSchema oldSchema = BatchSchema.deserialize(datasetConfig.getRecordSchema());
     newSchema = oldSchema.addColumns(fieldsToAdd);
     computeDroppedAndUpdatedColumns(newSchema);
 
-    Boolean internalIcebergTable  = DatasetHelper.isInternalIcebergTable(datasetConfig);
+    Boolean internalIcebergTable = DatasetHelper.isInternalIcebergTable(datasetConfig);
 
     if (internalIcebergTable) {
       String metadataTableName = getMetadataTableName();
-      FileSystemPlugin<?> metaStoragePlugin = context.getCatalogService().getSource(METADATA_STORAGE_PLUGIN_NAME);
+      FileSystemPlugin<?> metaStoragePlugin =
+          context.getCatalogService().getSource(METADATA_STORAGE_PLUGIN_NAME);
 
       IcebergModel icebergModel = metaStoragePlugin.getIcebergModel();
 
-      IcebergTableIdentifier tableIdentifier = icebergModel.getTableIdentifier(
-        metaStoragePlugin.resolveTablePathToValidPath(metadataTableName).toString());
+      IcebergTableIdentifier tableIdentifier =
+          icebergModel.getTableIdentifier(
+              metaStoragePlugin.resolveTablePathToValidPath(metadataTableName).toString());
 
-      IcebergOpCommitter opCommitter = icebergModel.getAlterTableCommitter(tableIdentifier, AlterOperationType.ADD, newDroppedCols, newModifiedCols, null, fieldsToAdd);
+      IcebergOpCommitter opCommitter =
+          icebergModel.getAlterTableCommitter(
+              tableIdentifier,
+              AlterOperationType.ADD,
+              newDroppedCols,
+              newModifiedCols,
+              null,
+              fieldsToAdd);
 
       Snapshot snapshot = opCommitter.commit();
-      updateDatasetConfigWithIcebergMetadata(opCommitter.getRootPointer(), snapshot.snapshotId(), opCommitter.getCurrentSpecMap(), opCommitter.getCurrentSchema());
+      updateDatasetConfigWithIcebergMetadata(
+          opCommitter.getRootPointer(),
+          snapshot.snapshotId(),
+          opCommitter.getCurrentSpecMap(),
+          opCommitter.getCurrentSchema());
 
       Table icebergTable = ((AlterTableCommitter) opCommitter).getIcebergTable();
       reloadSchemaAndDroppedAndUpdatedColumns(icebergTable);

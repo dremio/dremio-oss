@@ -16,12 +16,19 @@
 
 package com.dremio.exec.planner.physical.visitor;
 
+import com.dremio.exec.planner.StarColumnHelper;
+import com.dremio.exec.planner.physical.LeafPrel;
+import com.dremio.exec.planner.physical.Prel;
+import com.dremio.exec.planner.physical.ProjectAllowDupPrel;
+import com.dremio.exec.planner.physical.ProjectPrel;
+import com.dremio.exec.planner.physical.ScreenPrel;
+import com.dremio.exec.planner.physical.WriterPrel;
+import com.google.common.collect.Lists;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicLong;
-
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.rules.ProjectRemoveRule;
 import org.apache.calcite.rel.type.RelDataType;
@@ -31,16 +38,7 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.util.Pair;
 
-import com.dremio.exec.planner.StarColumnHelper;
-import com.dremio.exec.planner.physical.LeafPrel;
-import com.dremio.exec.planner.physical.Prel;
-import com.dremio.exec.planner.physical.ProjectAllowDupPrel;
-import com.dremio.exec.planner.physical.ProjectPrel;
-import com.dremio.exec.planner.physical.ScreenPrel;
-import com.dremio.exec.planner.physical.WriterPrel;
-import com.google.common.collect.Lists;
-
-public class StarColumnConverter extends BasePrelVisitor<Prel, Void, RuntimeException>{
+public class StarColumnConverter extends BasePrelVisitor<Prel, Void, RuntimeException> {
 
   private static final AtomicLong tableNumber = new AtomicLong(0);
 
@@ -65,7 +63,8 @@ public class StarColumnConverter extends BasePrelVisitor<Prel, Void, RuntimeExce
     //   - DO NOT insert any project for prefix handling under Screen.
 
     // The following condtions should apply when prefix is required
-    //   Any non-SCAN prel produces regular column / expression AND star column, multiple star columns.
+    //   Any non-SCAN prel produces regular column / expression AND star column, multiple star
+    // columns.
     // This is because we have to use prefix to distinguish columns expanded
     // from star column, from those regular column referenced in the query.
 
@@ -112,17 +111,25 @@ public class StarColumnConverter extends BasePrelVisitor<Prel, Void, RuntimeExce
 
     List<RexNode> exprs = Lists.newArrayList();
     for (int i = 0; i < origRowType.getFieldCount(); i++) {
-      RexNode expr = child.getCluster().getRexBuilder().makeInputRef(origRowType.getFieldList().get(i).getType(), i);
+      RexNode expr =
+          child
+              .getCluster()
+              .getRexBuilder()
+              .makeInputRef(origRowType.getFieldList().get(i).getType(), i);
       exprs.add(expr);
     }
 
-    RelDataType newRowType = RexUtil.createStructType(child.getCluster().getTypeFactory(), exprs, origRowType.getFieldNames());
+    RelDataType newRowType =
+        RexUtil.createStructType(
+            child.getCluster().getTypeFactory(), exprs, origRowType.getFieldNames());
 
-    int fieldCount = prel.getRowType().isStruct()? prel.getRowType().getFieldCount():1;
+    int fieldCount = prel.getRowType().isStruct() ? prel.getRowType().getFieldCount() : 1;
 
     // Insert PUS/PUW : remove the prefix and keep the original field name.
     if (fieldCount > 1) { // // no point in allowing duplicates if we only have one column
-      proj = ProjectAllowDupPrel.create(child.getCluster(), child.getTraitSet(), child, exprs, newRowType);
+      proj =
+          ProjectAllowDupPrel.create(
+              child.getCluster(), child.getTraitSet(), child, exprs, newRowType);
     } else {
       proj = ProjectPrel.create(child.getCluster(), child.getTraitSet(), child, exprs, newRowType);
     }
@@ -130,13 +137,15 @@ public class StarColumnConverter extends BasePrelVisitor<Prel, Void, RuntimeExce
     children.add(proj);
     return (Prel) prel.copy(prel.getTraitSet(), children);
   }
-      @Override
+
+  @Override
   public Prel visitProject(ProjectPrel prel, Void value) throws RuntimeException {
     ProjectPrel proj = prel;
 
     // Require prefix rename : there exists other expression, in addition to a star column.
-    if (!prefixedForStar  // not set yet.
-        && StarColumnHelper.containsStarColumnInProject(prel.getInput().getRowType(), proj.getProjects())
+    if (!prefixedForStar // not set yet.
+        && StarColumnHelper.containsStarColumnInProject(
+            prel.getInput().getRowType(), proj.getProjects())
         && prel.getRowType().getFieldNames().size() > 1) {
       prefixedForStar = true;
     }
@@ -149,7 +158,8 @@ public class StarColumnConverter extends BasePrelVisitor<Prel, Void, RuntimeExce
 
     List<String> fieldNames = Lists.newArrayList();
 
-    for (Pair<String, RexNode> pair : Pair.zip(prel.getRowType().getFieldNames(), proj.getProjects())) {
+    for (Pair<String, RexNode> pair :
+        Pair.zip(prel.getRowType().getFieldNames(), proj.getProjects())) {
       if (pair.right instanceof RexInputRef) {
         String name = child.getRowType().getFieldNames().get(((RexInputRef) pair.right).getIndex());
         fieldNames.add(name);
@@ -161,9 +171,12 @@ public class StarColumnConverter extends BasePrelVisitor<Prel, Void, RuntimeExce
     // Make sure the field names are unique : no allow of duplicate field names in a rowType.
     fieldNames = makeUniqueNames(fieldNames);
 
-    RelDataType rowType = RexUtil.createStructType(prel.getCluster().getTypeFactory(), proj.getProjects(), fieldNames);
+    RelDataType rowType =
+        RexUtil.createStructType(
+            prel.getCluster().getTypeFactory(), proj.getProjects(), fieldNames);
 
-    ProjectPrel newProj = (ProjectPrel) proj.copy(proj.getTraitSet(), child, proj.getProjects(), rowType);
+    ProjectPrel newProj =
+        (ProjectPrel) proj.copy(proj.getTraitSet(), child, proj.getProjects(), rowType);
 
     if (ProjectRemoveRule.isTrivial(newProj)) {
       return (Prel) child;
@@ -175,7 +188,7 @@ public class StarColumnConverter extends BasePrelVisitor<Prel, Void, RuntimeExce
   @Override
   public Prel visitPrel(Prel prel, Void value) throws RuntimeException {
     // Require prefix rename : there exists other expression, in addition to a star column.
-    if (!prefixedForStar  // not set yet.
+    if (!prefixedForStar // not set yet.
         && StarColumnHelper.containsStarColumn(prel.getRowType())
         && prel.getRowType().getFieldNames().size() > 1) {
       prefixedForStar = true;
@@ -192,13 +205,14 @@ public class StarColumnConverter extends BasePrelVisitor<Prel, Void, RuntimeExce
 
   @Override
   public Prel visitLeaf(LeafPrel scanPrel, Void value) throws RuntimeException {
-    if (StarColumnHelper.containsStarColumn(scanPrel.getRowType()) && prefixedForStar ) {
+    if (StarColumnHelper.containsStarColumn(scanPrel.getRowType()) && prefixedForStar) {
       prefixedForStarUsed = true;
 
       List<RexNode> exprs = Lists.newArrayList();
 
       for (RelDataTypeField field : scanPrel.getRowType().getFieldList()) {
-        RexNode expr = scanPrel.getCluster().getRexBuilder().makeInputRef(field.getType(), field.getIndex());
+        RexNode expr =
+            scanPrel.getCluster().getRexBuilder().makeInputRef(field.getType(), field.getIndex());
         exprs.add(expr);
       }
 
@@ -208,15 +222,19 @@ public class StarColumnConverter extends BasePrelVisitor<Prel, Void, RuntimeExce
 
       for (String name : scanPrel.getRowType().getFieldNames()) {
         if (StarColumnHelper.isNonPrefixedStarColumn(name)) {
-          fieldNames.add("T" +  tableId + StarColumnHelper.PREFIX_DELIMITER + name);  // Add prefix to * column.
+          fieldNames.add(
+              "T" + tableId + StarColumnHelper.PREFIX_DELIMITER + name); // Add prefix to * column.
         } else {
-          fieldNames.add(name);  // Keep regular column as it is.
+          fieldNames.add(name); // Keep regular column as it is.
         }
       }
-      RelDataType rowType = RexUtil.createStructType(scanPrel.getCluster().getTypeFactory(), exprs, fieldNames);
+      RelDataType rowType =
+          RexUtil.createStructType(scanPrel.getCluster().getTypeFactory(), exprs, fieldNames);
 
       // insert a PAS.
-      ProjectPrel proj = ProjectPrel.create(scanPrel.getCluster(), scanPrel.getTraitSet(), scanPrel, exprs, rowType);
+      ProjectPrel proj =
+          ProjectPrel.create(
+              scanPrel.getCluster(), scanPrel.getTraitSet(), scanPrel, exprs, rowType);
 
       return proj;
     } else {
@@ -226,10 +244,13 @@ public class StarColumnConverter extends BasePrelVisitor<Prel, Void, RuntimeExce
 
   private List<String> makeUniqueNames(List<String> names) {
 
-    // We have to search the set of original names, plus the set of unique names that will be used finally .
+    // We have to search the set of original names, plus the set of unique names that will be used
+    // finally .
     // Eg : the original names : ( C1, C1, C10 )
-    // There are two C1, we may rename C1 to C10, however, this new name will conflict with the original C10.
-    // That means we should pick a different name that does not conflict with the original names, in additional
+    // There are two C1, we may rename C1 to C10, however, this new name will conflict with the
+    // original C10.
+    // That means we should pick a different name that does not conflict with the original names, in
+    // additional
     // to make sure it's unique in the set of unique names.
 
     Set<String> uniqueNames = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
@@ -240,9 +261,9 @@ public class StarColumnConverter extends BasePrelVisitor<Prel, Void, RuntimeExce
 
     for (String s : names) {
       if (uniqueNames.contains(s)) {
-        for (int i = 0; ; i++ ) {
+        for (int i = 0; ; i++) {
           s = s + i;
-          if (! origNames.contains(s) && ! uniqueNames.contains(s)) {
+          if (!origNames.contains(s) && !uniqueNames.contains(s)) {
             break;
           }
         }
@@ -253,5 +274,4 @@ public class StarColumnConverter extends BasePrelVisitor<Prel, Void, RuntimeExce
 
     return newNames;
   }
-
 }

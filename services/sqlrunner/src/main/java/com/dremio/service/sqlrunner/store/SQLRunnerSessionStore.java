@@ -15,14 +15,11 @@
  */
 package com.dremio.service.sqlrunner.store;
 
-import java.util.Optional;
-
 import com.dremio.service.Service;
 import com.dremio.service.sqlrunner.proto.SQLRunnerSessionProto.SQLRunnerSession;
+import java.util.Optional;
 
-/**
- * TransientStoreProvider for UserSession service
- */
+/** TransientStoreProvider for UserSession service */
 public interface SQLRunnerSessionStore extends Service {
 
   /**

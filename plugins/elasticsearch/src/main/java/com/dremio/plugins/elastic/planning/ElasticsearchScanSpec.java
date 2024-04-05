@@ -20,9 +20,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Objects;
 
-/**
- * Scan specification for reading from Elastic.
- */
+/** Scan specification for reading from Elastic. */
 public class ElasticsearchScanSpec {
 
   private final String query;
@@ -65,7 +63,8 @@ public class ElasticsearchScanSpec {
       return false;
     }
     ElasticsearchScanSpec castOther = (ElasticsearchScanSpec) other;
-    return Objects.equal(query, castOther.query) && Objects.equal(fetch, castOther.fetch)
+    return Objects.equal(query, castOther.query)
+        && Objects.equal(fetch, castOther.fetch)
         && Objects.equal(resource, castOther.resource);
   }
 
@@ -76,8 +75,10 @@ public class ElasticsearchScanSpec {
 
   @Override
   public String toString() {
-    return MoreObjects.toStringHelper(this).add("query", query).add("fetch", fetch).add("resource", resource)
+    return MoreObjects.toStringHelper(this)
+        .add("query", query)
+        .add("fetch", fetch)
+        .add("resource", resource)
         .toString();
   }
-
 }

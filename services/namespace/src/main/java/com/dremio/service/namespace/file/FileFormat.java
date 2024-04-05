@@ -17,8 +17,6 @@ package com.dremio.service.namespace.file;
 
 import static java.lang.String.format;
 
-import java.util.List;
-
 import com.dremio.common.utils.SqlUtils;
 import com.dremio.service.namespace.file.proto.AvroFileConfig;
 import com.dremio.service.namespace.file.proto.DeltalakeFileConfig;
@@ -40,15 +38,13 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.ImmutableBiMap;
-
 import io.protostuff.ByteString;
 import io.protostuff.LinkedBuffer;
 import io.protostuff.ProtobufIOUtil;
 import io.protostuff.Schema;
+import java.util.List;
 
-/**
- * Format settings for a file along with the data and transformations.
- */
+/** Format settings for a file along with the data and transformations. */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
 @JsonSubTypes({
   @Type(value = TextFileConfig.class, name = "Text"),
@@ -64,25 +60,25 @@ import io.protostuff.Schema;
 })
 public abstract class FileFormat {
 
-  @JsonIgnore
-  private final LinkedBuffer buffer = LinkedBuffer.allocate(512);
+  @JsonIgnore private final LinkedBuffer buffer = LinkedBuffer.allocate(512);
 
-  private static final BiMap<String, FileType> extensionToType = new ImmutableBiMap.Builder<String, FileType>()
-    .put("csv", FileType.CSV)
-    .put("tsv", FileType.TSV)
-    .put("txt", FileType.TEXT)
-    .put("psv", FileType.PSV)
-    .put("json", FileType.JSON)
-    .put("avro", FileType.AVRO)
-    .put("parquet", FileType.PARQUET)
-    .put("iceberg", FileType.ICEBERG)
-    .put("delta", FileType.DELTA)
-    .put("xlsx", FileType.EXCEL)
-    .put("xls", FileType.XLS)
-    .put("unknown", FileType.UNKNOWN)
-    .put("dremarrow1", FileType.ARROW)
-    .put("log", FileType.HTTP_LOG)
-    .build();
+  private static final BiMap<String, FileType> extensionToType =
+      new ImmutableBiMap.Builder<String, FileType>()
+          .put("csv", FileType.CSV)
+          .put("tsv", FileType.TSV)
+          .put("txt", FileType.TEXT)
+          .put("psv", FileType.PSV)
+          .put("json", FileType.JSON)
+          .put("avro", FileType.AVRO)
+          .put("parquet", FileType.PARQUET)
+          .put("iceberg", FileType.ICEBERG)
+          .put("delta", FileType.DELTA)
+          .put("xlsx", FileType.EXCEL)
+          .put("xls", FileType.XLS)
+          .put("unknown", FileType.UNKNOWN)
+          .put("dremarrow1", FileType.ARROW)
+          .put("log", FileType.HTTP_LOG)
+          .build();
 
   private String name;
   private String owner;
@@ -113,17 +109,35 @@ public abstract class FileFormat {
       case CSV:
       case TSV:
       case PSV:
-        final TextFileConfig textFileConfig = (TextFileConfig)this;
+        final TextFileConfig textFileConfig = (TextFileConfig) this;
         stringBuilder.append("type => 'text', ");
-        stringBuilder.append(format("fieldDelimiter => %s, ", SqlUtils.stringLiteral(textFileConfig.getFieldDelimiter())));
-        stringBuilder.append(format("comment => %s, ", SqlUtils.stringLiteral(singleChar(textFileConfig.getComment()))));
+        stringBuilder.append(
+            format(
+                "fieldDelimiter => %s, ",
+                SqlUtils.stringLiteral(textFileConfig.getFieldDelimiter())));
+        stringBuilder.append(
+            format(
+                "comment => %s, ",
+                SqlUtils.stringLiteral(singleChar(textFileConfig.getComment()))));
         // escape is special word needs quotes around it.
-        stringBuilder.append(format("%1$sescape%1$s => %2$s, ", SqlUtils.QUOTE, SqlUtils.stringLiteral(singleChar(textFileConfig.getEscape()))));
-        stringBuilder.append(format("quote => %s, ", SqlUtils.stringLiteral(singleChar(textFileConfig.getQuote()))));
-        stringBuilder.append(format("lineDelimiter => %s, ", SqlUtils.stringLiteral(textFileConfig.getLineDelimiter())));
-        stringBuilder.append(format("extractHeader => %s, ", textFileConfig.getExtractHeader().toString()));
-        stringBuilder.append(format("skipFirstLine => %s, ", textFileConfig.getSkipFirstLine().toString()));
-        stringBuilder.append(format("autoGenerateColumnNames => %s, ", textFileConfig.getAutoGenerateColumnNames().toString()));
+        stringBuilder.append(
+            format(
+                "%1$sescape%1$s => %2$s, ",
+                SqlUtils.QUOTE, SqlUtils.stringLiteral(singleChar(textFileConfig.getEscape()))));
+        stringBuilder.append(
+            format("quote => %s, ", SqlUtils.stringLiteral(singleChar(textFileConfig.getQuote()))));
+        stringBuilder.append(
+            format(
+                "lineDelimiter => %s, ",
+                SqlUtils.stringLiteral(textFileConfig.getLineDelimiter())));
+        stringBuilder.append(
+            format("extractHeader => %s, ", textFileConfig.getExtractHeader().toString()));
+        stringBuilder.append(
+            format("skipFirstLine => %s, ", textFileConfig.getSkipFirstLine().toString()));
+        stringBuilder.append(
+            format(
+                "autoGenerateColumnNames => %s, ",
+                textFileConfig.getAutoGenerateColumnNames().toString()));
         stringBuilder.append(format("trimHeader => %s", textFileConfig.getTrimHeader().toString()));
         return stringBuilder.toString();
 
@@ -144,30 +158,39 @@ public abstract class FileFormat {
 
       case HTTP_LOG:
       case UNKNOWN:
-        throw new UnsupportedOperationException("HTTP LOG and UNKNOWN file formats are not supported");
+        throw new UnsupportedOperationException(
+            "HTTP LOG and UNKNOWN file formats are not supported");
 
-      case EXCEL: {
-        final ExcelFileConfig excelFileConfig = (ExcelFileConfig) this;
-        stringBuilder.append("type => 'excel', ");
-        if (excelFileConfig.getSheetName() != null) {
-          stringBuilder.append(format("sheet => %s, ", SqlUtils.stringLiteral(excelFileConfig.getSheetName())));
+      case EXCEL:
+        {
+          final ExcelFileConfig excelFileConfig = (ExcelFileConfig) this;
+          stringBuilder.append("type => 'excel', ");
+          if (excelFileConfig.getSheetName() != null) {
+            stringBuilder.append(
+                format("sheet => %s, ", SqlUtils.stringLiteral(excelFileConfig.getSheetName())));
+          }
+          stringBuilder.append(
+              format("extractHeader => %s, ", excelFileConfig.getExtractHeader().toString()));
+          stringBuilder.append(
+              format("hasMergedCells => %s, ", excelFileConfig.getHasMergedCells().toString()));
+          stringBuilder.append("xls => false ");
+          return stringBuilder.toString();
         }
-        stringBuilder.append(format("extractHeader => %s, ", excelFileConfig.getExtractHeader().toString()));
-        stringBuilder.append(format("hasMergedCells => %s, ", excelFileConfig.getHasMergedCells().toString()));
-        stringBuilder.append("xls => false ");
-        return stringBuilder.toString();
-      }
-      case XLS: {
-        final XlsFileConfig xlsFileConfig = (XlsFileConfig) this;
-        stringBuilder.append("type => 'excel', ");
-        if (xlsFileConfig.getSheetName() != null) {
-          stringBuilder.append(format("sheet => %s, ", SqlUtils.stringLiteral(xlsFileConfig.getSheetName())));
+      case XLS:
+        {
+          final XlsFileConfig xlsFileConfig = (XlsFileConfig) this;
+          stringBuilder.append("type => 'excel', ");
+          if (xlsFileConfig.getSheetName() != null) {
+            stringBuilder.append(
+                format("sheet => %s, ", SqlUtils.stringLiteral(xlsFileConfig.getSheetName())));
+          }
+          stringBuilder.append(
+              format("extractHeader => %s, ", xlsFileConfig.getExtractHeader().toString()));
+          stringBuilder.append(
+              format("hasMergedCells => %s, ", xlsFileConfig.getHasMergedCells().toString()));
+          stringBuilder.append("xls => true ");
+          return stringBuilder.toString();
         }
-        stringBuilder.append(format("extractHeader => %s, ", xlsFileConfig.getExtractHeader().toString()));
-        stringBuilder.append(format("hasMergedCells => %s, ", xlsFileConfig.getHasMergedCells().toString()));
-        stringBuilder.append("xls => true ");
-        return stringBuilder.toString();
-      }
 
       default:
         throw new IllegalArgumentException("Invalid file format type " + getFileType());
@@ -231,7 +254,7 @@ public abstract class FileFormat {
   }
 
   @JsonIgnore
-  @SuppressWarnings({ "rawtypes", "unchecked" })
+  @SuppressWarnings({"rawtypes", "unchecked"})
   public FileConfig asFileConfig() {
     buffer.clear();
     FileConfig fc = new FileConfig();
@@ -276,8 +299,10 @@ public abstract class FileFormat {
     if (fileType == FileType.CSV || fileType == FileType.TSV || fileType == FileType.PSV) {
       fileType = FileType.TEXT;
     }
-    final Class<? extends FileFormat> fileFormatClass = FileFormatDefinitions.CLASS_TYPES.get(fileType);
-    final Schema<FileFormat> schema = (Schema<FileFormat>) FileFormatDefinitions.SCHEMAS.get(fileFormatClass);
+    final Class<? extends FileFormat> fileFormatClass =
+        FileFormatDefinitions.CLASS_TYPES.get(fileType);
+    final Schema<FileFormat> schema =
+        (Schema<FileFormat>) FileFormatDefinitions.SCHEMAS.get(fileFormatClass);
 
     final FileFormat fileFormat = schema.newMessage();
     if (fileConfig.getExtendedConfig() != null) {
@@ -335,6 +360,6 @@ public abstract class FileFormat {
       return FileType.UNKNOWN;
     }
     final FileType fileType = extensionToType.get(extensions.get(0));
-    return fileType == null? FileType.UNKNOWN: fileType;
+    return fileType == null ? FileType.UNKNOWN : fileType;
   }
 }

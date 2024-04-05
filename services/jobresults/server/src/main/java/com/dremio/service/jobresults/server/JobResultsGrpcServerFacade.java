@@ -15,13 +15,6 @@
  */
 package com.dremio.service.jobresults.server;
 
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-
-import javax.inject.Provider;
-
 import com.dremio.common.SerializedExecutor;
 import com.dremio.common.concurrent.ContextMigratingExecutorService;
 import com.dremio.common.utils.protos.QueryIdHelper;
@@ -37,39 +30,45 @@ import com.dremio.service.jobresults.JobResultsServiceGrpc;
 import com.dremio.services.jobresults.common.JobResultsRequestWrapper;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
-
 import io.grpc.stub.StreamObserver;
-import io.opentracing.Tracer;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import javax.inject.Provider;
 
-/**
- * Job Results gRPC service.
- */
-public class JobResultsGrpcServerFacade extends JobResultsServiceGrpc.JobResultsServiceImplBase implements CloseableBindableService {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(JobResultsGrpcServerFacade.class);
+/** Job Results gRPC service. */
+public class JobResultsGrpcServerFacade extends JobResultsServiceGrpc.JobResultsServiceImplBase
+    implements CloseableBindableService {
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(JobResultsGrpcServerFacade.class);
 
   private Provider<ExecToCoordResultsHandler> execToCoordResultsHandlerProvider;
   private final Provider<MaestroForwarder> forwarder;
   private final ExecutorService threadPool;
   private final SerializedExecutor serializedExecutor;
 
-  public JobResultsGrpcServerFacade(Provider<ExecToCoordResultsHandler> execToCoordResultsHandlerProvider,
-                                    Provider<MaestroForwarder> forwarder, Tracer tracer) {
+  public JobResultsGrpcServerFacade(
+      Provider<ExecToCoordResultsHandler> execToCoordResultsHandlerProvider,
+      Provider<MaestroForwarder> forwarder) {
     this.execToCoordResultsHandlerProvider = execToCoordResultsHandlerProvider;
     this.forwarder = forwarder;
-    ExecutorService threadPoolInternal = new ThreadPoolExecutor(10, Integer.MAX_VALUE,
-      60L, TimeUnit.SECONDS,
-      new SynchronousQueue<Runnable>());
+    ExecutorService threadPoolInternal =
+        new ThreadPoolExecutor(
+            10, Integer.MAX_VALUE, 60L, TimeUnit.SECONDS, new SynchronousQueue<Runnable>());
     threadPool = new ContextMigratingExecutorService<>(threadPoolInternal);
-    serializedExecutor = new SerializedExecutor("jobResults", threadPool, false) {
-      @Override
-      protected void runException(Runnable command, Throwable t) {
-        logger.error("exception handling results", t);
-      }
-    };
+    serializedExecutor =
+        new SerializedExecutor("jobResults", threadPool, false) {
+          @Override
+          protected void runException(Runnable command, Throwable t) {
+            logger.error("exception handling results", t);
+          }
+        };
   }
 
   @Override
-  public StreamObserver<JobResultsRequest> jobResults(StreamObserver<JobResultsResponse> responseObserver) {
+  public StreamObserver<JobResultsRequest> jobResults(
+      StreamObserver<JobResultsResponse> responseObserver) {
 
     return new StreamObserver<JobResultsRequest>() {
       private Pointer<String> queryIdProvider = new Pointer<String>(null);
@@ -95,12 +94,14 @@ public class JobResultsGrpcServerFacade extends JobResultsServiceGrpc.JobResults
    * Only one of {@param request} or {@param requestWrapper} should be non-null
    */
   @SuppressWarnings("DremioGRPCStreamObserverOnError")
-  private void onNextHandler(JobResultsRequest request,
-                             JobResultsRequestWrapper requestWrapper,
-                             Pointer<String> queryId,
-                             StreamObserver<JobResultsResponse> responseObserver) {
-    Preconditions.checkArgument(request == null ^ requestWrapper == null,
-      "Either request or requestWrapper should be non-null.");
+  private void onNextHandler(
+      JobResultsRequest request,
+      JobResultsRequestWrapper requestWrapper,
+      Pointer<String> queryId,
+      StreamObserver<JobResultsResponse> responseObserver) {
+    Preconditions.checkArgument(
+        request == null ^ requestWrapper == null,
+        "Either request or requestWrapper should be non-null.");
     long sequenceId;
     UserBitShared.QueryData queryHeader;
 
@@ -115,33 +116,37 @@ public class JobResultsGrpcServerFacade extends JobResultsServiceGrpc.JobResults
     queryId.value = QueryIdHelper.getQueryId(queryHeader.getQueryId());
 
     try {
-      JobResultsGrpcLocalResponseSender sender = new JobResultsGrpcLocalResponseSender(
-        responseObserver,
-        sequenceId,
-        queryId.value);
+      JobResultsGrpcLocalResponseSender sender =
+          new JobResultsGrpcLocalResponseSender(responseObserver, sequenceId, queryId.value);
 
       // unblock the stream and allow it process the next message since the same request
       // thread is used for all batches in the stream.
       // use a serialized executor to make sure batches are processed in order.
-      serializedExecutor.execute( () -> {
-        try {
-          if (request != null) {
-            // When request is received from executor to one of coordinator, forwarding may or may not be needed.
-            // By passing "data" as null, we skip populating "data" from request into direct-memory in case
-            // request has to be forwarded to foreman coordinator.
-            execToCoordResultsHandlerProvider.get().dataArrived(request.getHeader(), null, request, sender);
-          } else {
-            boolean forwaded = execToCoordResultsHandlerProvider.get().dataArrived(requestWrapper, sender);
-            if (!forwaded) {
-              // attempt manager has taken a ref to write to client
-              // release now to not leak
-              requestWrapper.close();
+      serializedExecutor.execute(
+          () -> {
+            try {
+              if (request != null) {
+                // When request is received from executor to one of coordinator, forwarding may or
+                // may not be needed.
+                // By passing "data" as null, we skip populating "data" from request into
+                // direct-memory in case
+                // request has to be forwarded to foreman coordinator.
+                execToCoordResultsHandlerProvider
+                    .get()
+                    .dataArrived(request.getHeader(), null, request, sender);
+              } else {
+                boolean forwaded =
+                    execToCoordResultsHandlerProvider.get().dataArrived(requestWrapper, sender);
+                if (!forwaded) {
+                  // attempt manager has taken a ref to write to client
+                  // release now to not leak
+                  requestWrapper.close();
+                }
+              }
+            } catch (RpcException e) {
+              Throwables.propagate(e);
             }
-          }
-        } catch (RpcException e) {
-          Throwables.propagate(e);
-        }
-      });
+          });
     } catch (Exception ex) {
       logger.error("Failed to handle result for queryId {}", queryId, ex);
       responseObserver.onError(ex);
@@ -149,18 +154,21 @@ public class JobResultsGrpcServerFacade extends JobResultsServiceGrpc.JobResults
   }
 
   @SuppressWarnings("DremioGRPCStreamObserverOnError")
-  private void onErrorHandler(String queryId, Throwable t, StreamObserver<JobResultsResponse> responseObserver) {
+  private void onErrorHandler(
+      String queryId, Throwable t, StreamObserver<JobResultsResponse> responseObserver) {
     logger.error("JobResultsService stream failed with error ", t);
     forwarder.get().resultsError(queryId, t);
     responseObserver.onError(t);
   }
 
-  private void onCompletedHandler(String queryId, StreamObserver<JobResultsResponse> responseObserver) {
+  private void onCompletedHandler(
+      String queryId, StreamObserver<JobResultsResponse> responseObserver) {
     forwarder.get().resultsCompleted(queryId);
     responseObserver.onCompleted();
   }
 
-  public StreamObserver<JobResultsRequestWrapper> getRequestWrapperStreamObserver(StreamObserver<JobResultsResponse> responseObserver) {
+  public StreamObserver<JobResultsRequestWrapper> getRequestWrapperStreamObserver(
+      StreamObserver<JobResultsResponse> responseObserver) {
     return new StreamObserver<JobResultsRequestWrapper>() {
       private Pointer<String> queryIdProvider = new Pointer<String>(null);
 
@@ -182,7 +190,5 @@ public class JobResultsGrpcServerFacade extends JobResultsServiceGrpc.JobResults
   }
 
   @Override
-  public void close() throws Exception {
-  }
-
+  public void close() throws Exception {}
 }

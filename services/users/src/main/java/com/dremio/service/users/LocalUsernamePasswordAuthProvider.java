@@ -15,27 +15,21 @@
  */
 package com.dremio.service.users;
 
-import javax.inject.Provider;
-
-import org.jetbrains.annotations.NotNull;
-
 import com.dremio.authenticator.AuthException;
 import com.dremio.authenticator.AuthProvider;
 import com.dremio.authenticator.AuthRequest;
 import com.dremio.authenticator.AuthResult;
+import javax.inject.Provider;
+import org.jetbrains.annotations.NotNull;
 
-/**
- * Validate username/local password
- */
+/** Validate username/local password */
 public class LocalUsernamePasswordAuthProvider implements AuthProvider {
   public static final String TOKEN_TYPE = "local_password";
   private final Provider<SimpleUserService> simpleUserServiceProvider;
 
   private SimpleUserService simpleUserService;
 
-  public LocalUsernamePasswordAuthProvider(
-    Provider<SimpleUserService> simpleUserServiceProvider
-  ) {
+  public LocalUsernamePasswordAuthProvider(Provider<SimpleUserService> simpleUserServiceProvider) {
     this.simpleUserServiceProvider = simpleUserServiceProvider;
   }
 
@@ -44,17 +38,13 @@ public class LocalUsernamePasswordAuthProvider implements AuthProvider {
     simpleUserService = simpleUserServiceProvider.get();
   }
 
-  /**
-   * Returns true if token type is supported
-   */
+  /** Returns true if token type is supported */
   @Override
   public boolean isSupported(String tokenType) {
     return TOKEN_TYPE.equalsIgnoreCase(tokenType);
   }
 
-  /**
-   * Validates user credentials (password/token).
-   */
+  /** Validates user credentials (password/token). */
   @Override
   @NotNull
   public AuthResult validate(AuthRequest request) throws AuthException {
@@ -62,12 +52,12 @@ public class LocalUsernamePasswordAuthProvider implements AuthProvider {
     final String password = request.getToken();
     try {
       final com.dremio.service.users.AuthResult authResult =
-        simpleUserService.authenticate(userName, password);
+          simpleUserService.authenticate(userName, password);
       return AuthResult.builder()
-        .setUserName(authResult.getUserName())
-        .setUserId(authResult.getUserId())
-        .setTokenType(TOKEN_TYPE)
-        .build();
+          .setUserName(authResult.getUserName())
+          .setUserId(authResult.getUserId())
+          .setTokenType(TOKEN_TYPE)
+          .build();
     } catch (UserLoginException e) {
       throw new AuthException(request, e);
     }

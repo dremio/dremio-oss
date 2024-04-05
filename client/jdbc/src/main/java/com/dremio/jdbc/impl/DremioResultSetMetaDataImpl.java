@@ -16,24 +16,19 @@
 
 package com.dremio.jdbc.impl;
 
+import com.dremio.jdbc.AlreadyClosedSqlException;
+import com.dremio.jdbc.InvalidParameterSqlException;
 import java.sql.SQLException;
-
 import org.apache.calcite.avatica.AvaticaResultSetMetaData;
 import org.apache.calcite.avatica.AvaticaStatement;
 import org.apache.calcite.avatica.Meta;
-
-import com.dremio.jdbc.AlreadyClosedSqlException;
-import com.dremio.jdbc.InvalidParameterSqlException;
-
 
 public class DremioResultSetMetaDataImpl extends AvaticaResultSetMetaData {
 
   private final AvaticaStatement statement;
 
-
-  public DremioResultSetMetaDataImpl(AvaticaStatement statement,
-                                    Object query,
-                                    Meta.Signature signature) {
+  public DremioResultSetMetaDataImpl(
+      AvaticaStatement statement, Object query, Meta.Signature signature) {
     super(statement, query, signature);
     this.statement = statement;
   }
@@ -41,31 +36,31 @@ public class DremioResultSetMetaDataImpl extends AvaticaResultSetMetaData {
   /**
    * Throws AlreadyClosedSqlException if the associated ResultSet is closed.
    *
-   * @throws  AlreadyClosedSqlException  if ResultSet is closed
-   * @throws  SQLException  if error in checking ResultSet's status
+   * @throws AlreadyClosedSqlException if ResultSet is closed
+   * @throws SQLException if error in checking ResultSet's status
    */
-  private void throwIfClosed() throws AlreadyClosedSqlException,
-                                      SQLException {
+  private void throwIfClosed() throws AlreadyClosedSqlException, SQLException {
     // Statement.isClosed() call is to avoid exception from getResultSet().
     if (statement.isClosed()
-        || (statement.getResultSet() != null // result set doesn't exist for prepared statement cases
+        || (statement.getResultSet()
+                != null // result set doesn't exist for prepared statement cases
             && statement.getResultSet().isClosed())) {
-        throw new AlreadyClosedSqlException(
-            "ResultSetMetaData's ResultSet is already closed." );
+      throw new AlreadyClosedSqlException("ResultSetMetaData's ResultSet is already closed.");
     }
   }
 
   private void throwIfClosedOrOutOfBounds(int columnNumber)
-      throws InvalidParameterSqlException,
-             SQLException {
+      throws InvalidParameterSqlException, SQLException {
     throwIfClosed();
     if (1 > columnNumber || columnNumber > getColumnCount()) {
       throw new InvalidParameterSqlException(
-          "Column number " + columnNumber + " out of range of from 1 through "
-          + getColumnCount() + " (column count)");
+          "Column number "
+              + columnNumber
+              + " out of range of from 1 through "
+              + getColumnCount()
+              + " (column count)");
     }
   }
-
 
   // Note:  Using dynamic proxies would reduce the quantity (450?) of method
   // overrides by eliminating those that exist solely to check whether the
@@ -204,5 +199,4 @@ public class DremioResultSetMetaDataImpl extends AvaticaResultSetMetaData {
     throwIfClosedOrOutOfBounds(columnNumber);
     return super.getColumnClassName(columnNumber);
   }
-
 }

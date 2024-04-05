@@ -17,22 +17,21 @@ package com.dremio.dac.server;
 
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON_TYPE;
 
-import java.io.IOException;
-
-import javax.ws.rs.container.ContainerRequestContext;
-import javax.ws.rs.container.ContainerResponseContext;
-import javax.ws.rs.container.ContainerResponseFilter;
-import javax.ws.rs.core.MultivaluedMap;
-
 import com.dremio.dac.explore.model.DataJsonOutput;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.jaxrs.cfg.EndpointConfigBase;
 import com.fasterxml.jackson.jaxrs.cfg.ObjectWriterInjector;
 import com.fasterxml.jackson.jaxrs.cfg.ObjectWriterModifier;
+import java.io.IOException;
+import javax.ws.rs.container.ContainerRequestContext;
+import javax.ws.rs.container.ContainerResponseContext;
+import javax.ws.rs.container.ContainerResponseFilter;
+import javax.ws.rs.core.MultivaluedMap;
 
 /**
- * A filter that forces job data to write numbers as strings if {@code headerKey} is presented in request headers
+ * A filter that forces job data to write numbers as strings if {@code headerKey} is presented in
+ * request headers
  */
 public class JSONJobDataFilter implements ContainerResponseFilter {
 
@@ -43,21 +42,28 @@ public class JSONJobDataFilter implements ContainerResponseFilter {
     }
 
     @Override
-    public ObjectWriter modify(EndpointConfigBase<?> endpoint, MultivaluedMap<String, Object> responseHeaders,
-                               Object valueToWrite, ObjectWriter w, JsonGenerator g) throws IOException {
+    public ObjectWriter modify(
+        EndpointConfigBase<?> endpoint,
+        MultivaluedMap<String, Object> responseHeaders,
+        Object valueToWrite,
+        ObjectWriter w,
+        JsonGenerator g)
+        throws IOException {
       ObjectWriter writer = super.modify(endpoint, responseHeaders, valueToWrite, w, g);
 
       return DataJsonOutput.setNumbersAsStrings(writer, true);
     }
-  };
+  }
+  ;
 
   @Override
-  public void filter(ContainerRequestContext requestContext, ContainerResponseContext responseContext)
-    throws IOException {
+  public void filter(
+      ContainerRequestContext requestContext, ContainerResponseContext responseContext)
+      throws IOException {
 
     if (!APPLICATION_JSON_TYPE.equals(responseContext.getMediaType())
-      || !WebServer.X_DREMIO_JOB_DATA_NUMBERS_AS_STRINGS_SUPPORTED_VALUE
-        .equals(requestContext.getHeaderString(WebServer.X_DREMIO_JOB_DATA_NUMBERS_AS_STRINGS))) {
+        || !WebServer.X_DREMIO_JOB_DATA_NUMBERS_AS_STRINGS_SUPPORTED_VALUE.equals(
+            requestContext.getHeaderString(WebServer.X_DREMIO_JOB_DATA_NUMBERS_AS_STRINGS))) {
       return;
     }
 

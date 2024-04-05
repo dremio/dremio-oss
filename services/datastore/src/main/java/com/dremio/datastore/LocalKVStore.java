@@ -15,10 +15,6 @@
  */
 package com.dremio.datastore;
 
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-
 import com.dremio.datastore.api.Document;
 import com.dremio.datastore.api.FindByRange;
 import com.dremio.datastore.api.ImmutableFindByRange;
@@ -26,10 +22,11 @@ import com.dremio.datastore.api.IncrementCounter;
 import com.dremio.datastore.api.KVStore;
 import com.google.common.base.Objects;
 import com.google.common.collect.Iterables;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
-/**
- * Local KVStore implementation. (runs on master node)
- */
+/** Local KVStore implementation. (runs on master node) */
 public class LocalKVStore<K, V> implements KVStore<K, V> {
 
   private final CoreKVStore<K, V> coreKVStore;
@@ -47,7 +44,7 @@ public class LocalKVStore<K, V> implements KVStore<K, V> {
     return coreKVStore.getAdmin();
   }
 
-  protected KVStoreTuple<V> buildValue(V  value) {
+  protected KVStoreTuple<V> buildValue(V value) {
     return coreKVStore.newValue().setObject(value);
   }
 
@@ -66,17 +63,17 @@ public class LocalKVStore<K, V> implements KVStore<K, V> {
 
   @Override
   public Iterable<Document<K, V>> get(List<K> keys, GetOption... options) {
-    final List<KVStoreTuple<K>> convertedKeys = keys.stream()
-      .map(this::buildKey)
-      .collect(Collectors.toList());
+    final List<KVStoreTuple<K>> convertedKeys =
+        keys.stream().map(this::buildKey).collect(Collectors.toList());
 
-    final Iterable<Document<KVStoreTuple<K>, KVStoreTuple<V>>> convertedValues = coreKVStore.get(convertedKeys);
+    final Iterable<Document<KVStoreTuple<K>, KVStoreTuple<V>>> convertedValues =
+        coreKVStore.get(convertedKeys);
 
     return Iterables.transform(convertedValues, this::fromDocument);
   }
 
   @Override
-  public Document<K,V> put(K key, V value, PutOption... options) {
+  public Document<K, V> put(K key, V value, PutOption... options) {
     return fromDocument(coreKVStore.put(buildKey(key), buildValue(value), options));
   }
 
@@ -92,29 +89,31 @@ public class LocalKVStore<K, V> implements KVStore<K, V> {
 
   @Override
   public Iterable<Document<K, V>> find(FindByRange<K> find, FindOption... options) {
-    final FindByRange<KVStoreTuple<K>> convertedRange = new ImmutableFindByRange.Builder<KVStoreTuple<K>>()
-      .setStart(buildKey(find.getStart()))
-      .setIsStartInclusive(find.isStartInclusive())
-      .setEnd(buildKey(find.getEnd()))
-      .setIsEndInclusive(find.isEndInclusive())
-      .build();
+    final FindByRange<KVStoreTuple<K>> convertedRange =
+        new ImmutableFindByRange.Builder<KVStoreTuple<K>>()
+            .setStart(buildKey(find.getStart()))
+            .setIsStartInclusive(find.isStartInclusive())
+            .setEnd(buildKey(find.getEnd()))
+            .setIsEndInclusive(find.isEndInclusive())
+            .build();
 
     return Iterables.transform(coreKVStore.find(convertedRange, options), this::fromDocument);
   }
 
   @Override
-  public void bulkIncrement(Map<K, List<IncrementCounter>> keysToIncrement, IncrementOption option) {
-    final Map<KVStoreTuple<K>, List<IncrementCounter>> convertedKeys = keysToIncrement.entrySet().stream()
-      .collect(Collectors.toMap(e -> buildKey(e.getKey()), Map.Entry::getValue));
+  public void bulkIncrement(
+      Map<K, List<IncrementCounter>> keysToIncrement, IncrementOption option) {
+    final Map<KVStoreTuple<K>, List<IncrementCounter>> convertedKeys =
+        keysToIncrement.entrySet().stream()
+            .collect(Collectors.toMap(e -> buildKey(e.getKey()), Map.Entry::getValue));
     coreKVStore.bulkIncrement(convertedKeys, option);
   }
 
   @Override
-  public void bulkDelete(List<K> keysToDelete) {
-    final List<KVStoreTuple<K>> convertedKeys = keysToDelete.stream()
-      .map(this::buildKey)
-      .collect(Collectors.toList());
-    coreKVStore.bulkDelete(convertedKeys);
+  public void bulkDelete(List<K> keysToDelete, DeleteOption... deleteOptions) {
+    final List<KVStoreTuple<K>> convertedKeys =
+        keysToDelete.stream().map(this::buildKey).collect(Collectors.toList());
+    coreKVStore.bulkDelete(convertedKeys, deleteOptions);
   }
 
   @Override
@@ -163,11 +162,11 @@ public class LocalKVStore<K, V> implements KVStore<K, V> {
         return false;
       }
 
-      Document<?,?> e = (Document<?,?>) o;
+      Document<?, ?> e = (Document<?, ?>) o;
 
       return getKey().equals(e.getKey())
-        && getValue().equals(e.getValue())
-        && Objects.equal(getTag(), e.getTag());
+          && getValue().equals(e.getValue())
+          && Objects.equal(getTag(), e.getTag());
     }
 
     @Override

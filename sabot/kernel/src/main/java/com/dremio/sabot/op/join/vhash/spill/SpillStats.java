@@ -57,11 +57,11 @@ public class SpillStats {
     heapSpillCount++;
   }
 
-  public void incrementOOBSends(){
+  public void incrementOOBSends() {
     oobSends++;
   }
 
-  public int getOOBSends(){
+  public int getOOBSends() {
     return oobSends;
   }
 

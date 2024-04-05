@@ -16,22 +16,21 @@
 
 package org.apache.arrow.vector;
 
+import com.google.common.base.Preconditions;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.util.CommonUtil;
 import org.apache.arrow.vector.util.OversizedAllocationException;
 
-import com.google.common.base.Preconditions;
-
 /**
- * A minimal stub over ArrowBuf for simple usages of non-nullable scalar vector
- * like functions -- get, set, etc. An example usage is the deltas vector in Parquet
- * reader where we want to perform get(), set(), getValueCount(), setValueCount()
- * functions on integer elements in ArrowBuf.
+ * A minimal stub over ArrowBuf for simple usages of non-nullable scalar vector like functions --
+ * get, set, etc. An example usage is the deltas vector in Parquet reader where we want to perform
+ * get(), set(), getValueCount(), setValueCount() functions on integer elements in ArrowBuf.
  */
 public abstract class AbstractVector implements AutoCloseable {
   public static final int INITIAL_VALUE_ALLOCATION = 4096;
-  public static final int MAX_ALLOCATION_SIZE = Integer.getInteger("max_bytes", Integer.MAX_VALUE).intValue();
+  public static final int MAX_ALLOCATION_SIZE =
+      Integer.getInteger("max_bytes", Integer.MAX_VALUE).intValue();
   private int allocationSizeInBytes;
   private final String name;
   protected final BufferAllocator allocator;
@@ -49,26 +48,27 @@ public abstract class AbstractVector implements AutoCloseable {
   }
 
   public int getValueCapacity() {
-    return (int)((dataBuffer.capacity() * 1.0) / typeWidth);
+    return (int) ((dataBuffer.capacity() * 1.0) / typeWidth);
   }
 
   public void setInitialCapacity(int valueCount) {
-    long size = 1L * (long)valueCount * typeWidth;
-    if(size > (long)MAX_ALLOCATION_SIZE) {
-      throw new OversizedAllocationException("Requested amount of memory is more than max allowed allocation size");
+    long size = 1L * (long) valueCount * typeWidth;
+    if (size > (long) MAX_ALLOCATION_SIZE) {
+      throw new OversizedAllocationException(
+          "Requested amount of memory is more than max allowed allocation size");
     } else {
-      this.allocationSizeInBytes = (int)size;
+      this.allocationSizeInBytes = (int) size;
     }
   }
 
   public void allocateNew() {
     clear();
-    this.allocateBytes((long)allocationSizeInBytes);
+    this.allocateBytes((long) allocationSizeInBytes);
   }
 
   public void allocateNew(int valueCount) {
     clear();
-    this.allocateBytes((long)(valueCount * typeWidth));
+    this.allocateBytes((long) (valueCount * typeWidth));
   }
 
   public void reset() {
@@ -77,10 +77,11 @@ public abstract class AbstractVector implements AutoCloseable {
   }
 
   private void allocateBytes(long size) {
-    if(size > (long)MAX_ALLOCATION_SIZE) {
-      throw new OversizedAllocationException("Requested amount of memory is more than max allowed allocation size");
+    if (size > (long) MAX_ALLOCATION_SIZE) {
+      throw new OversizedAllocationException(
+          "Requested amount of memory is more than max allowed allocation size");
     } else {
-      int curSize = (int)size;
+      int curSize = (int) size;
       clear();
       dataBuffer = this.allocator.buffer(curSize);
       dataBuffer.readerIndex(0);
@@ -100,8 +101,8 @@ public abstract class AbstractVector implements AutoCloseable {
   }
 
   /**
-   * Allocs max(currentCapacity * 2, prevAllocSize, defaultAllocSize)
-   * If this is called after clear(), allocs allocationSizeInBytes which is the size of previous allocation
+   * Allocs max(currentCapacity * 2, prevAllocSize, defaultAllocSize) If this is called after
+   * clear(), allocs allocationSizeInBytes which is the size of previous allocation
    */
   public void reAlloc() {
     long currentBufferCapacity = dataBuffer.capacity();
@@ -116,16 +117,17 @@ public abstract class AbstractVector implements AutoCloseable {
     }
 
     newAllocationSize = CommonUtil.nextPowerOfTwo(newAllocationSize);
-    if(newAllocationSize > (long)MAX_ALLOCATION_SIZE) {
-      throw new OversizedAllocationException("Unable to expand the buffer. Max allowed buffer size is reached.");
+    if (newAllocationSize > (long) MAX_ALLOCATION_SIZE) {
+      throw new OversizedAllocationException(
+          "Unable to expand the buffer. Max allowed buffer size is reached.");
     } else {
-      ArrowBuf newBuf = this.allocator.buffer((int)newAllocationSize);
+      ArrowBuf newBuf = this.allocator.buffer((int) newAllocationSize);
       newBuf.setZero(0, newBuf.capacity());
       newBuf.setBytes(0, dataBuffer, 0, currentBufferCapacity);
       newBuf.writerIndex(dataBuffer.writerIndex());
       dataBuffer.getReferenceManager().release(1);
       dataBuffer = newBuf;
-      allocationSizeInBytes = (int)newAllocationSize;
+      allocationSizeInBytes = (int) newAllocationSize;
     }
   }
 
@@ -133,10 +135,9 @@ public abstract class AbstractVector implements AutoCloseable {
     dataBuffer.setZero(0, dataBuffer.capacity());
   }
 
-
   public void setValueCount(int valueCount) {
     this.valueCount = valueCount;
-    while(valueCount > getValueCapacity()) {
+    while (valueCount > getValueCapacity()) {
       reAlloc();
     }
     dataBuffer.writerIndex(valueCount * typeWidth);
@@ -148,8 +149,11 @@ public abstract class AbstractVector implements AutoCloseable {
 
   public void transferTo(SimpleIntVector target) {
     target.clear();
-    target.dataBuffer = this.dataBuffer.getReferenceManager().transferOwnership(this.dataBuffer,
-      target.allocator).getTransferredBuffer();
+    target.dataBuffer =
+        this.dataBuffer
+            .getReferenceManager()
+            .transferOwnership(this.dataBuffer, target.allocator)
+            .getTransferredBuffer();
     target.dataBuffer.writerIndex(this.dataBuffer.writerIndex());
     this.clear();
   }

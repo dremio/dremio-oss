@@ -15,11 +15,6 @@
  */
 package com.dremio.datastore;
 
-import javax.inject.Provider;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.datastore.RemoteDataStoreProtobuf.ContainsRequest;
 import com.dremio.datastore.RemoteDataStoreProtobuf.ContainsResponse;
 import com.dremio.datastore.RemoteDataStoreProtobuf.DeleteRequest;
@@ -45,10 +40,11 @@ import com.dremio.services.fabric.simple.SendEndpoint;
 import com.dremio.services.fabric.simple.SendEndpointCreator;
 import com.dremio.services.fabric.simple.SentResponseMessage;
 import com.google.protobuf.MessageLite;
+import javax.inject.Provider;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.BufferAllocator;
 
-/**
- * Rpc Service. Registers protocol and creates endpoints to master node.
- */
+/** Rpc Service. Registers protocol and creates endpoints to master node. */
 public class DatastoreRpcService {
   private static final int TYPE_GET = 1;
   private static final int TYPE_CONTAINS = 2;
@@ -70,83 +66,126 @@ public class DatastoreRpcService {
   private SendEndpointCreator<DeleteRequest, DeleteResponse> deleteEndpointCreator;
   private SendEndpointCreator<GetStoreRequest, GetStoreResponse> getStoreEndpointCreator;
 
-  public DatastoreRpcService(Provider<NodeEndpoint> masterNode,
-                             FabricService fabricService, BufferAllocator allocator,
-                             final DefaultDataStoreRpcHandler handler,
-                             final long timeoutInSecs) throws RpcException {
+  public DatastoreRpcService(
+      Provider<NodeEndpoint> masterNode,
+      FabricService fabricService,
+      BufferAllocator allocator,
+      final DefaultDataStoreRpcHandler handler,
+      final long timeoutInSecs)
+      throws RpcException {
     master = masterNode;
 
     // Register endpoints for communicating with master
-    final ProtocolBuilder builder = ProtocolBuilder.builder().allocator(allocator).name("datastore-rpc").protocolId(4).timeout(timeoutInSecs * 1000);
+    final ProtocolBuilder builder =
+        ProtocolBuilder.builder()
+            .allocator(allocator)
+            .name("datastore-rpc")
+            .protocolId(4)
+            .timeout(timeoutInSecs * 1000);
 
-    getEndpointCreator = builder.register(TYPE_GET,
-      new AbstractReceiveHandler<GetRequest, GetResponse>(GetRequest.getDefaultInstance(), GetResponse.getDefaultInstance()) {
-        @Override
-        public SentResponseMessage<GetResponse> handle(GetRequest request, ArrowBuf dBody) throws RpcException {
-          return new SentResponseMessage<>(handler.get(request));
-        }
-      });
+    getEndpointCreator =
+        builder.register(
+            TYPE_GET,
+            new AbstractReceiveHandler<GetRequest, GetResponse>(
+                GetRequest.getDefaultInstance(), GetResponse.getDefaultInstance()) {
+              @Override
+              public SentResponseMessage<GetResponse> handle(GetRequest request, ArrowBuf dBody)
+                  throws RpcException {
+                return new SentResponseMessage<>(handler.get(request));
+              }
+            });
 
-    containsEndpointCreator = builder.register(TYPE_CONTAINS,
-      new AbstractReceiveHandler<ContainsRequest, ContainsResponse>(ContainsRequest.getDefaultInstance(), ContainsResponse.getDefaultInstance()) {
-        @Override
-        public SentResponseMessage<ContainsResponse> handle(ContainsRequest request, ArrowBuf dBody) throws RpcException {
-          return new SentResponseMessage<>(handler.contains(request));
-        }
-      });
+    containsEndpointCreator =
+        builder.register(
+            TYPE_CONTAINS,
+            new AbstractReceiveHandler<ContainsRequest, ContainsResponse>(
+                ContainsRequest.getDefaultInstance(), ContainsResponse.getDefaultInstance()) {
+              @Override
+              public SentResponseMessage<ContainsResponse> handle(
+                  ContainsRequest request, ArrowBuf dBody) throws RpcException {
+                return new SentResponseMessage<>(handler.contains(request));
+              }
+            });
 
-    getCountsEndpointCreator = builder.register(TYPE_GET_COUNTS,
-      new AbstractReceiveHandler<GetCountsRequest, GetCountsResponse>(GetCountsRequest.getDefaultInstance(), GetCountsResponse.getDefaultInstance()) {
-        @Override
-        public SentResponseMessage<GetCountsResponse> handle(GetCountsRequest request, ArrowBuf dBody) throws RpcException {
-          return new SentResponseMessage<>(handler.getCounts(request));
-        }
-      });
+    getCountsEndpointCreator =
+        builder.register(
+            TYPE_GET_COUNTS,
+            new AbstractReceiveHandler<GetCountsRequest, GetCountsResponse>(
+                GetCountsRequest.getDefaultInstance(), GetCountsResponse.getDefaultInstance()) {
+              @Override
+              public SentResponseMessage<GetCountsResponse> handle(
+                  GetCountsRequest request, ArrowBuf dBody) throws RpcException {
+                return new SentResponseMessage<>(handler.getCounts(request));
+              }
+            });
 
-    findEndpointCreator = builder.register(TYPE_FIND,
-      new AbstractReceiveHandler<FindRequest, FindResponse>(FindRequest.getDefaultInstance(), FindResponse.getDefaultInstance()) {
-        @Override
-        public SentResponseMessage<FindResponse> handle(FindRequest request, ArrowBuf dBody) throws RpcException {
-          return new SentResponseMessage<>(handler.find(request));
-        }
-      });
-    searchEndpointCreator = builder.register(TYPE_SEARCH,
-      new AbstractReceiveHandler<SearchRequest, SearchResponse>(SearchRequest.getDefaultInstance(), SearchResponse.getDefaultInstance()) {
-        @Override
-        public SentResponseMessage<SearchResponse> handle(SearchRequest request, ArrowBuf dBody) throws RpcException {
-          return new SentResponseMessage<>(handler.search(request));
-        }
-      });
+    findEndpointCreator =
+        builder.register(
+            TYPE_FIND,
+            new AbstractReceiveHandler<FindRequest, FindResponse>(
+                FindRequest.getDefaultInstance(), FindResponse.getDefaultInstance()) {
+              @Override
+              public SentResponseMessage<FindResponse> handle(FindRequest request, ArrowBuf dBody)
+                  throws RpcException {
+                return new SentResponseMessage<>(handler.find(request));
+              }
+            });
+    searchEndpointCreator =
+        builder.register(
+            TYPE_SEARCH,
+            new AbstractReceiveHandler<SearchRequest, SearchResponse>(
+                SearchRequest.getDefaultInstance(), SearchResponse.getDefaultInstance()) {
+              @Override
+              public SentResponseMessage<SearchResponse> handle(
+                  SearchRequest request, ArrowBuf dBody) throws RpcException {
+                return new SentResponseMessage<>(handler.search(request));
+              }
+            });
 
-    putEndpointCreator = builder.register(TYPE_PUT,
-      new AbstractReceiveHandler<PutRequest, PutResponse>(PutRequest.getDefaultInstance(), PutResponse.getDefaultInstance()) {
-        @Override
-        public SentResponseMessage<PutResponse> handle(PutRequest request, ArrowBuf dBody) throws RpcException {
-          return new SentResponseMessage<>(handler.put(request));
-        }
-      });
+    putEndpointCreator =
+        builder.register(
+            TYPE_PUT,
+            new AbstractReceiveHandler<PutRequest, PutResponse>(
+                PutRequest.getDefaultInstance(), PutResponse.getDefaultInstance()) {
+              @Override
+              public SentResponseMessage<PutResponse> handle(PutRequest request, ArrowBuf dBody)
+                  throws RpcException {
+                return new SentResponseMessage<>(handler.put(request));
+              }
+            });
 
-    deleteEndpointCreator = builder.register(TYPE_DELETE,
-      new AbstractReceiveHandler<DeleteRequest, DeleteResponse>(DeleteRequest.getDefaultInstance(), DeleteResponse.getDefaultInstance()) {
-        @Override
-        public SentResponseMessage<DeleteResponse> handle(DeleteRequest request, ArrowBuf dBody) throws RpcException {
-          return new SentResponseMessage<>(handler.delete(request));
-        }
-      });
+    deleteEndpointCreator =
+        builder.register(
+            TYPE_DELETE,
+            new AbstractReceiveHandler<DeleteRequest, DeleteResponse>(
+                DeleteRequest.getDefaultInstance(), DeleteResponse.getDefaultInstance()) {
+              @Override
+              public SentResponseMessage<DeleteResponse> handle(
+                  DeleteRequest request, ArrowBuf dBody) throws RpcException {
+                return new SentResponseMessage<>(handler.delete(request));
+              }
+            });
 
-    getStoreEndpointCreator = builder.register(TYPE_GET_STORE,
-      new AbstractReceiveHandler<GetStoreRequest, GetStoreResponse>(GetStoreRequest.getDefaultInstance(), GetStoreResponse.getDefaultInstance()) {
-        @Override
-        public SentResponseMessage<GetStoreResponse> handle(GetStoreRequest request, ArrowBuf dBody) throws RpcException {
-          return new SentResponseMessage<>(handler.getStore(request));
-        }
-      });
+    getStoreEndpointCreator =
+        builder.register(
+            TYPE_GET_STORE,
+            new AbstractReceiveHandler<GetStoreRequest, GetStoreResponse>(
+                GetStoreRequest.getDefaultInstance(), GetStoreResponse.getDefaultInstance()) {
+              @Override
+              public SentResponseMessage<GetStoreResponse> handle(
+                  GetStoreRequest request, ArrowBuf dBody) throws RpcException {
+                return new SentResponseMessage<>(handler.getStore(request));
+              }
+            });
 
     builder.register(fabricService);
   }
 
-  private <Req extends MessageLite, Resp extends MessageLite, T extends SendEndpointCreator<Req, Resp>>
-  SendEndpoint<Req, Resp> newEndpoint(T creator) throws RpcException {
+  private <
+          Req extends MessageLite,
+          Resp extends MessageLite,
+          T extends SendEndpointCreator<Req, Resp>>
+      SendEndpoint<Req, Resp> newEndpoint(T creator) throws RpcException {
     NodeEndpoint masterNode = master.get();
     if (masterNode == null) {
       throw new RpcException("master node is down");
@@ -166,7 +205,8 @@ public class DatastoreRpcService {
     return newEndpoint(findEndpointCreator);
   }
 
-  public SendEndpoint<GetCountsRequest, GetCountsResponse> getGetCountsEndpoint() throws RpcException {
+  public SendEndpoint<GetCountsRequest, GetCountsResponse> getGetCountsEndpoint()
+      throws RpcException {
     return newEndpoint(getCountsEndpointCreator);
   }
 
@@ -185,5 +225,4 @@ public class DatastoreRpcService {
   public SendEndpoint<GetStoreRequest, GetStoreResponse> getGetStoreEndpoint() throws RpcException {
     return newEndpoint(getStoreEndpointCreator);
   }
-
 }

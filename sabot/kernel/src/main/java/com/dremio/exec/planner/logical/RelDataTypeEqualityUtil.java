@@ -18,17 +18,17 @@ package com.dremio.exec.planner.logical;
 import org.apache.calcite.rel.type.RelDataType;
 
 /**
- * Util class for determining if two RelDataTypes are equal under certain conditions.
- * For example, we can compare them with and without the nullability and precision.
+ * Util class for determining if two RelDataTypes are equal under certain conditions. For example,
+ * we can compare them with and without the nullability and precision.
  */
 public final class RelDataTypeEqualityUtil {
   private RelDataTypeEqualityUtil() {}
 
   public static boolean areEquals(
-    RelDataType first,
-    RelDataType second,
-    boolean considerPrecision,
-    boolean considerNullability) {
+      RelDataType first,
+      RelDataType second,
+      boolean considerPrecision,
+      boolean considerNullability) {
     if ((first == null) && (second == null)) {
       return true;
     }
@@ -51,15 +51,13 @@ public final class RelDataTypeEqualityUtil {
     }
 
     return areEquals(
-      first.getComponentType(),
-      second.getComponentType(),
-      considerPrecision,
-      considerNullability);
+        first.getComponentType(),
+        second.getComponentType(),
+        considerPrecision,
+        considerNullability);
   }
 
-  public static boolean areEquals(
-    RelDataType first,
-    RelDataType second) {
+  public static boolean areEquals(RelDataType first, RelDataType second) {
     return areEquals(first, second, true, true);
   }
 }

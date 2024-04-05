@@ -15,24 +15,6 @@
  */
 package com.dremio.dac.server.socket;
 
-import java.io.IOException;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
-
-import javax.inject.Provider;
-
-import org.eclipse.jetty.websocket.api.Session;
-import org.eclipse.jetty.websocket.api.annotations.OnWebSocketClose;
-import org.eclipse.jetty.websocket.api.annotations.OnWebSocketConnect;
-import org.eclipse.jetty.websocket.api.annotations.OnWebSocketError;
-import org.eclipse.jetty.websocket.api.annotations.OnWebSocketMessage;
-import org.eclipse.jetty.websocket.api.annotations.WebSocket;
-import org.eclipse.jetty.websocket.servlet.ServletUpgradeRequest;
-import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
-import org.eclipse.jetty.websocket.servlet.WebSocketCreator;
-import org.eclipse.jetty.websocket.servlet.WebSocketServlet;
-import org.eclipse.jetty.websocket.servlet.WebSocketServletFactory;
-
 import com.dremio.dac.model.usergroup.UserName;
 import com.dremio.dac.server.socket.SocketMessage.JobDetailsUpdate;
 import com.dremio.dac.server.socket.SocketMessage.JobProgressUpdate;
@@ -54,13 +36,27 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.base.Preconditions;
+import java.io.IOException;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
+import javax.inject.Provider;
+import org.eclipse.jetty.websocket.api.Session;
+import org.eclipse.jetty.websocket.api.annotations.OnWebSocketClose;
+import org.eclipse.jetty.websocket.api.annotations.OnWebSocketConnect;
+import org.eclipse.jetty.websocket.api.annotations.OnWebSocketError;
+import org.eclipse.jetty.websocket.api.annotations.OnWebSocketMessage;
+import org.eclipse.jetty.websocket.api.annotations.WebSocket;
+import org.eclipse.jetty.websocket.servlet.ServletUpgradeRequest;
+import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
+import org.eclipse.jetty.websocket.servlet.WebSocketCreator;
+import org.eclipse.jetty.websocket.servlet.WebSocketServlet;
+import org.eclipse.jetty.websocket.servlet.WebSocketServletFactory;
 
-/**
- * Servlet managing websockets.
- */
+/** Servlet managing websockets. */
 @SuppressWarnings("serial")
 public class SocketServlet extends WebSocketServlet {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SocketServlet.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(SocketServlet.class);
 
   static final long SOCKET_TIMEOUT_MS = 5 * 60 * 1000;
 
@@ -72,7 +68,10 @@ public class SocketServlet extends WebSocketServlet {
   private final TokenManager tokenManager;
   private final Provider<OptionManager> optionManager;
 
-  public SocketServlet(JobsService jobsService, final TokenManager tokenManager, Provider<OptionManager> optionManager) {
+  public SocketServlet(
+      JobsService jobsService,
+      final TokenManager tokenManager,
+      Provider<OptionManager> optionManager) {
     this.jobsService = jobsService;
     this.tokenManager = Preconditions.checkNotNull(tokenManager, "token manager is required");
     this.reader = JSONUtil.mapper().readerFor(SocketMessage.class);
@@ -122,9 +121,7 @@ public class SocketServlet extends WebSocketServlet {
     return null;
   }
 
-  /**
-   * Individual socket between client and server.
-   */
+  /** Individual socket between client and server. */
   @WebSocket(maxTextMessageSize = 128 * 1024)
   public class DremioSocket {
 
@@ -164,11 +161,13 @@ public class SocketServlet extends WebSocketServlet {
         } else if (msg instanceof SocketMessage.ListenReflectionJobDetails) {
           JobId id = ((SocketMessage.ListenReflectionJobDetails) msg).getId();
           String reflectionId = ((SocketMessage.ListenReflectionJobDetails) msg).getReflectionId();
-          jobsService.registerReflectionJobListener(id, user.getName(), reflectionId, new DetailsListener(id, this));
+          jobsService.registerReflectionJobListener(
+              id, user.getName(), reflectionId, new DetailsListener(id, this));
         } else if (msg instanceof SocketMessage.ListenReflectionJobProgress) {
           JobId id = ((SocketMessage.ListenReflectionJobProgress) msg).getId();
           String reflectionId = ((SocketMessage.ListenReflectionJobProgress) msg).getReflectionId();
-          jobsService.registerReflectionJobListener(id, user.getName(), reflectionId, new ProgressListener(id, this));
+          jobsService.registerReflectionJobListener(
+              id, user.getName(), reflectionId, new ProgressListener(id, this));
         }
 
       } catch (Exception e) {
@@ -192,7 +191,9 @@ public class SocketServlet extends WebSocketServlet {
     public void send(Payload payload) {
       if (session != null && session.isOpen()) {
         try {
-          session.getRemote().sendString(writer.writeValueAsString(new SocketMessage(payload)), null);
+          session
+              .getRemote()
+              .sendString(writer.writeValueAsString(new SocketMessage(payload)), null);
         } catch (JsonProcessingException e) {
           logger.warn("Failure while writing socket message.", e);
         }
@@ -202,7 +203,6 @@ public class SocketServlet extends WebSocketServlet {
     public long getSocketId() {
       return socketId;
     }
-
   }
 
   private class DetailsListener implements ExternalStatusListener {
@@ -218,13 +218,15 @@ public class SocketServlet extends WebSocketServlet {
 
     @Override
     public void queryProgressed(JobSummary jobSummary) {
-      final JobDetailsUpdate update = new JobDetailsUpdate(JobsProtoUtil.toStuff(jobSummary.getJobId()));
+      final JobDetailsUpdate update =
+          new JobDetailsUpdate(JobsProtoUtil.toStuff(jobSummary.getJobId()));
       socket.send(update);
     }
 
     @Override
     public void queryCompleted(JobSummary jobSummary) {
-      final JobDetailsUpdate update = new JobDetailsUpdate(JobsProtoUtil.toStuff(jobSummary.getJobId()));
+      final JobDetailsUpdate update =
+          new JobDetailsUpdate(JobsProtoUtil.toStuff(jobSummary.getJobId()));
       socket.send(update);
     }
   }
@@ -266,14 +268,16 @@ public class SocketServlet extends WebSocketServlet {
 
     @Override
     public void queryProgressed(JobSummary jobSummary) {
-        final SocketMessage.JobProgressUpdateForNewUI update = new SocketMessage.JobProgressUpdateForNewUI(jobSummary, true);
-        socket.send(update);
+      final SocketMessage.JobProgressUpdateForNewUI update =
+          new SocketMessage.JobProgressUpdateForNewUI(jobSummary, true);
+      socket.send(update);
     }
 
     @Override
     public void queryCompleted(JobSummary jobSummary) {
-        final SocketMessage.JobProgressUpdateForNewUI update = new SocketMessage.JobProgressUpdateForNewUI(jobSummary,true);
-        socket.send(update);
+      final SocketMessage.JobProgressUpdateForNewUI update =
+          new SocketMessage.JobProgressUpdateForNewUI(jobSummary, true);
+      socket.send(update);
     }
   }
 
@@ -290,13 +294,17 @@ public class SocketServlet extends WebSocketServlet {
 
     @Override
     public void queryProgressed(JobSummary jobSummary) {
-      final JobRecordsUpdate update = new JobRecordsUpdate(JobsProtoUtil.toStuff(jobSummary.getJobId()), jobSummary.getRecordCount());
+      final JobRecordsUpdate update =
+          new JobRecordsUpdate(
+              JobsProtoUtil.toStuff(jobSummary.getJobId()), jobSummary.getRecordCount());
       socket.send(update);
     }
 
     @Override
     public void queryCompleted(JobSummary jobSummary) {
-      final JobRecordsUpdate update = new JobRecordsUpdate(JobsProtoUtil.toStuff(jobSummary.getJobId()), jobSummary.getRecordCount());
+      final JobRecordsUpdate update =
+          new JobRecordsUpdate(
+              JobsProtoUtil.toStuff(jobSummary.getJobId()), jobSummary.getRecordCount());
       socket.send(update);
     }
   }

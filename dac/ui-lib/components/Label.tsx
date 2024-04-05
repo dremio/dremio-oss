@@ -48,7 +48,7 @@ export const Label = (props: LabelProps) => {
             className={clsx(
               classes?.help,
               "margin-top--half",
-              "dremio-label__help"
+              "dremio-label__help",
             )}
           >
             {helpText}
@@ -63,7 +63,7 @@ export const Label = (props: LabelProps) => {
               name="interface/information"
               class={clsx(
                 classes?.icon,
-                "dremio-label__helpIcon margin-left--half"
+                "dremio-label__helpIcon margin-left--half",
               )}
             />
           </Tooltip>
@@ -76,7 +76,7 @@ export const Label = (props: LabelProps) => {
       className={clsx(
         classes?.root,
         "dremio-label flex",
-        helpVariant === "tooltip" ? "--alignCenter" : "dremio-label-inline"
+        helpVariant === "tooltip" ? "--alignCenter" : "dremio-label-inline",
       )}
     >
       <div className={clsx(classes?.label, "dremio-label__text")}>{value}</div>

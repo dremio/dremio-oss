@@ -15,18 +15,15 @@
  */
 package com.dremio.context;
 
+import com.google.common.collect.ImmutableMap;
+import io.grpc.Metadata;
 import java.util.Map;
 import java.util.UUID;
 
-import com.google.common.collect.ImmutableMap;
-
-import io.grpc.Metadata;
-
-/**
- * Tenant context.
- */
+/** Tenant context. */
 public class TenantContext implements SerializableContext {
-  public static final RequestContext.Key<TenantContext> CTX_KEY = RequestContext.newKey("tenant_ctx_key");
+  public static final RequestContext.Key<TenantContext> CTX_KEY =
+      RequestContext.newKey("tenant_ctx_key");
   // The default tenant id used in product.
   public static final String DEFAULT_PRODUCT_PROJECT_ID = "77a89f85-c936-4f42-ab21-2ee90e9609b8";
   // The default tenant id used in service (for testing)
@@ -34,13 +31,13 @@ public class TenantContext implements SerializableContext {
   public static final String DEFAULT_SERVICE_ORG_ID = "77a89f85-c936-4f42-ab21-2ee90e96099b";
 
   public static final TenantContext DEFAULT_SERVICE_CONTEXT =
-    new TenantContext(DEFAULT_SERVICE_PROJECT_ID, DEFAULT_SERVICE_ORG_ID);
+      new TenantContext(DEFAULT_SERVICE_PROJECT_ID, DEFAULT_SERVICE_ORG_ID);
 
   // Note: These are public for use in annotating traces.
   public static final Metadata.Key<String> PROJECT_ID_HEADER_KEY =
-    Metadata.Key.of("x-dremio-project-id-key", Metadata.ASCII_STRING_MARSHALLER);
+      Metadata.Key.of("x-dremio-project-id-key", Metadata.ASCII_STRING_MARSHALLER);
   public static final Metadata.Key<String> ORG_ID_HEADER_KEY =
-    Metadata.Key.of("x-dremio-org-id-key", Metadata.ASCII_STRING_MARSHALLER);
+      Metadata.Key.of("x-dremio-org-id-key", Metadata.ASCII_STRING_MARSHALLER);
 
   private final UUID projectId;
   private final UUID orgId;
@@ -68,12 +65,11 @@ public class TenantContext implements SerializableContext {
     @Override
     public RequestContext deserialize(final Map<String, String> headers, RequestContext builder) {
       if (headers.containsKey(PROJECT_ID_HEADER_KEY.name())
-        && headers.containsKey(ORG_ID_HEADER_KEY.name())) {
+          && headers.containsKey(ORG_ID_HEADER_KEY.name())) {
         return builder.with(
-          TenantContext.CTX_KEY,
-          new TenantContext(
-            headers.get(PROJECT_ID_HEADER_KEY.name()),
-            headers.get(ORG_ID_HEADER_KEY.name())));
+            TenantContext.CTX_KEY,
+            new TenantContext(
+                headers.get(PROJECT_ID_HEADER_KEY.name()), headers.get(ORG_ID_HEADER_KEY.name())));
       }
 
       return builder;

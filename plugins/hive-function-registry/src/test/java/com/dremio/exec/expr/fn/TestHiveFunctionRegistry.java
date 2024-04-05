@@ -15,12 +15,10 @@
  */
 package com.dremio.exec.expr.fn;
 
+import com.dremio.test.DremioTest;
 import java.util.HashSet;
 import java.util.Set;
-
 import org.junit.Test;
-
-import com.dremio.test.DremioTest;
 
 public class TestHiveFunctionRegistry extends DremioTest {
 
@@ -29,8 +27,6 @@ public class TestHiveFunctionRegistry extends DremioTest {
     HiveFunctionRegistry registry = new HiveFunctionRegistry(CLASSPATH_SCAN_RESULT);
     Set<String> allFuncs = new HashSet<>(registry.getMethodsUDF().keySet());
     allFuncs.addAll(registry.getMethodsGenericUDF().keySet());
-    allFuncs.stream().map(String::toLowerCase)
-      .sorted()
-      .forEach(System.out::println);
+    allFuncs.stream().map(String::toLowerCase).sorted().forEach(System.out::println);
   }
 }

@@ -15,6 +15,4 @@
  */
 package com.dremio.sabot.op.spi;
 
-public class BasicOperator {
-
-}
+public class BasicOperator {}

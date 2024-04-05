@@ -19,14 +19,13 @@ import static com.dremio.services.nessie.grpc.GrpcExceptionMapper.handleNessieNo
 import static com.dremio.services.nessie.grpc.ProtoUtil.refFromProto;
 import static com.dremio.services.nessie.grpc.ProtoUtil.toProto;
 
+import com.dremio.services.nessie.grpc.api.TreeServiceGrpc.TreeServiceBlockingStub;
 import org.projectnessie.api.v1.params.GetReferenceParams;
 import org.projectnessie.api.v1.params.GetReferenceParamsBuilder;
 import org.projectnessie.client.api.GetReferenceBuilder;
 import org.projectnessie.error.NessieNotFoundException;
 import org.projectnessie.model.FetchOption;
 import org.projectnessie.model.Reference;
-
-import com.dremio.services.nessie.grpc.api.TreeServiceGrpc.TreeServiceBlockingStub;
 
 final class GrpcGetReference implements GetReferenceBuilder {
 
@@ -52,8 +51,6 @@ final class GrpcGetReference implements GetReferenceBuilder {
   @Override
   public Reference get() throws NessieNotFoundException {
     return handleNessieNotFoundEx(
-      () ->
-        refFromProto(
-          stub.getReferenceByName(toProto(builder.build()))));
+        () -> refFromProto(stub.getReferenceByName(toProto(builder.build()))));
   }
 }

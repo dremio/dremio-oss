@@ -19,32 +19,34 @@ import static com.dremio.exec.store.ischema.InfoSchemaConstants.CATS_COL_CATALOG
 import static com.dremio.exec.store.ischema.InfoSchemaConstants.CATS_COL_CATALOG_DESCRIPTION;
 import static com.dremio.exec.store.ischema.InfoSchemaConstants.CATS_COL_CATALOG_NAME;
 
-import java.nio.file.Paths;
-import java.util.List;
-
-import org.junit.Ignore;
-import org.junit.Test;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.TestBuilder;
 import com.dremio.common.util.TestTools;
 import com.google.common.collect.ImmutableList;
+import java.nio.file.Paths;
+import java.util.List;
+import org.junit.Ignore;
+import org.junit.Test;
 
 /**
- * Contains tests for
- * -- InformationSchema
- * -- Queries on InformationSchema such as SHOW TABLES, SHOW SCHEMAS or DESCRIBE table
- * -- USE schema
- * -- SHOW FILES
+ * Contains tests for -- InformationSchema -- Queries on InformationSchema such as SHOW TABLES, SHOW
+ * SCHEMAS or DESCRIBE table -- USE schema -- SHOW FILES
  */
 public class TestInfoSchema extends BaseTestQuery {
 
-  private static final String[] baselineColNames = {"COLUMN_NAME", "DATA_TYPE", "IS_NULLABLE", "NUMERIC_PRECISION",
-    "NUMERIC_SCALE", "EXTENDED_PROPERTIES", "MASKING_POLICY", "SORT_ORDER_PRIORITY"};
-
+  private static final String[] baselineColNames = {
+    "COLUMN_NAME",
+    "DATA_TYPE",
+    "IS_NULLABLE",
+    "NUMERIC_PRECISION",
+    "NUMERIC_SCALE",
+    "EXTENDED_PROPERTIES",
+    "MASKING_POLICY",
+    "SORT_ORDER_PRIORITY"
+  };
 
   @Test
-  public void selectFromAllTables() throws Exception{
+  public void selectFromAllTables() throws Exception {
     test("select * from INFORMATION_SCHEMA.SCHEMATA");
     test("select * from INFORMATION_SCHEMA.CATALOGS");
     test("select * from INFORMATION_SCHEMA.VIEWS");
@@ -57,44 +59,45 @@ public class TestInfoSchema extends BaseTestQuery {
     testBuilder()
         .sqlQuery("SELECT * FROM INFORMATION_SCHEMA.CATALOGS")
         .unOrdered()
-        .baselineColumns(CATS_COL_CATALOG_NAME, CATS_COL_CATALOG_DESCRIPTION, CATS_COL_CATALOG_CONNECT)
+        .baselineColumns(
+            CATS_COL_CATALOG_NAME, CATS_COL_CATALOG_DESCRIPTION, CATS_COL_CATALOG_CONNECT)
         .baselineValues("DREMIO", "The internal metadata used by Dremio", "")
         .go();
   }
 
   @Test
-  public void showTablesFromDb() throws Exception{
+  public void showTablesFromDb() throws Exception {
     final List<String[]> expected =
         ImmutableList.of(
-            new String[] { "INFORMATION_SCHEMA", "VIEWS" },
-            new String[] { "INFORMATION_SCHEMA", "COLUMNS" },
-            new String[] { "INFORMATION_SCHEMA", "TABLES" },
-            new String[] { "INFORMATION_SCHEMA", "CATALOGS" },
-            new String[] { "INFORMATION_SCHEMA", "SCHEMATA" }
-        );
+            new String[] {"INFORMATION_SCHEMA", "VIEWS"},
+            new String[] {"INFORMATION_SCHEMA", "COLUMNS"},
+            new String[] {"INFORMATION_SCHEMA", "TABLES"},
+            new String[] {"INFORMATION_SCHEMA", "CATALOGS"},
+            new String[] {"INFORMATION_SCHEMA", "SCHEMATA"});
 
-    final TestBuilder t1 = testBuilder()
-        .sqlQuery("SHOW TABLES FROM INFORMATION_SCHEMA")
-        .unOrdered()
-        .baselineColumns("TABLE_SCHEMA", "TABLE_NAME");
-    for(String[] expectedRow : expected) {
+    final TestBuilder t1 =
+        testBuilder()
+            .sqlQuery("SHOW TABLES FROM INFORMATION_SCHEMA")
+            .unOrdered()
+            .baselineColumns("TABLE_SCHEMA", "TABLE_NAME");
+    for (String[] expectedRow : expected) {
       t1.baselineValues(expectedRow);
     }
     t1.go();
 
-    final TestBuilder t2 = testBuilder()
-        .sqlQuery("SHOW TABLES IN INFORMATION_SCHEMA")
-        .unOrdered()
-        .baselineColumns("TABLE_SCHEMA", "TABLE_NAME");
-    for(String[] expectedRow : expected) {
+    final TestBuilder t2 =
+        testBuilder()
+            .sqlQuery("SHOW TABLES IN INFORMATION_SCHEMA")
+            .unOrdered()
+            .baselineColumns("TABLE_SCHEMA", "TABLE_NAME");
+    for (String[] expectedRow : expected) {
       t2.baselineValues(expectedRow);
     }
     t2.go();
   }
 
-
   @Test
-  public void showTablesLike() throws Exception{
+  public void showTablesLike() throws Exception {
     testBuilder()
         .sqlQuery("SHOW TABLES LIKE '%CH%'")
         .unOrdered()
@@ -106,43 +109,37 @@ public class TestInfoSchema extends BaseTestQuery {
 
   @Test
   @Ignore("I think the results might be fine")
-  public void showDatabases() throws Exception{
+  public void showDatabases() throws Exception {
     final List<String[]> expected =
-      ImmutableList.of(
-        new String[] { "dfs.default" },
-        new String[] { "dfs.root" },
-        new String[] { "dfs.tmp" },
-        new String[] { "cp.default" },
-        new String[] { "sys" },
-        new String[] { "dfs_test.home" },
-        new String[] { "dfs_test.default" },
-        new String[] { "dfs_test.tmp" },
-        new String[] { "INFORMATION_SCHEMA" }
-      );
+        ImmutableList.of(
+            new String[] {"dfs.default"},
+            new String[] {"dfs.root"},
+            new String[] {"dfs.tmp"},
+            new String[] {"cp.default"},
+            new String[] {"sys"},
+            new String[] {"dfs_test.home"},
+            new String[] {"dfs_test.default"},
+            new String[] {"dfs_test.tmp"},
+            new String[] {"INFORMATION_SCHEMA"});
 
     test("show databases");
-    final TestBuilder t1 = testBuilder()
-        .sqlQuery("SHOW DATABASES")
-        .unOrdered()
-        .baselineColumns("SCHEMA_NAME");
-    for(String[] expectedRow : expected) {
+    final TestBuilder t1 =
+        testBuilder().sqlQuery("SHOW DATABASES").unOrdered().baselineColumns("SCHEMA_NAME");
+    for (String[] expectedRow : expected) {
       t1.baselineValues(expectedRow);
     }
     t1.go();
 
-    final TestBuilder t2 = testBuilder()
-        .sqlQuery("SHOW SCHEMAS")
-        .unOrdered()
-        .baselineColumns("SCHEMA_NAME");
-    for(String[] expectedRow : expected) {
+    final TestBuilder t2 =
+        testBuilder().sqlQuery("SHOW SCHEMAS").unOrdered().baselineColumns("SCHEMA_NAME");
+    for (String[] expectedRow : expected) {
       t2.baselineValues(expectedRow);
     }
     t2.go();
   }
 
-
   @Test
-  public void showDatabasesLike() throws Exception{
+  public void showDatabasesLike() throws Exception {
     testBuilder()
         .sqlQuery("SHOW DATABASES LIKE '%mat%'")
         .unOrdered()
@@ -152,20 +149,21 @@ public class TestInfoSchema extends BaseTestQuery {
   }
 
   @Test
-  public void describeTable() throws Exception{
+  public void describeTable() throws Exception {
     testBuilder()
         .sqlQuery("DESCRIBE CATALOGS")
         .unOrdered()
         .optionSettingQueriesForTestQuery("USE INFORMATION_SCHEMA")
         .baselineColumns(baselineColNames)
         .baselineValues("CATALOG_NAME", "CHARACTER VARYING", "YES", null, null, "[]", null, null)
-        .baselineValues("CATALOG_DESCRIPTION", "CHARACTER VARYING", "YES", null, null, "[]", null, null)
+        .baselineValues(
+            "CATALOG_DESCRIPTION", "CHARACTER VARYING", "YES", null, null, "[]", null, null)
         .baselineValues("CATALOG_CONNECT", "CHARACTER VARYING", "YES", null, null, "[]", null, null)
         .go();
   }
 
   @Test
-  public void describeTableWithSchema() throws Exception{
+  public void describeTableWithSchema() throws Exception {
     testBuilder()
         .sqlQuery("DESCRIBE INFORMATION_SCHEMA.\"TABLES\"")
         .unOrdered()
@@ -179,7 +177,7 @@ public class TestInfoSchema extends BaseTestQuery {
 
   @Ignore("DX-2490")
   @Test
-  public void describeWhenSameTableNameExistsInMultipleSchemas() throws Exception{
+  public void describeWhenSameTableNameExistsInMultipleSchemas() throws Exception {
     try {
       test("USE dfs_test.tmp");
       test("CREATE OR REPLACE VIEW \"TABLES\" AS SELECT full_name FROM cp.\"employee.json\"");
@@ -207,7 +205,7 @@ public class TestInfoSchema extends BaseTestQuery {
   }
 
   @Test
-  public void describeTableWithColumnName() throws Exception{
+  public void describeTableWithColumnName() throws Exception {
     testBuilder()
         .sqlQuery("DESCRIBE \"TABLES\" TABLE_CATALOG")
         .unOrdered()
@@ -218,7 +216,7 @@ public class TestInfoSchema extends BaseTestQuery {
   }
 
   @Test
-  public void describeTableWithSchemaAndColumnName() throws Exception{
+  public void describeTableWithSchemaAndColumnName() throws Exception {
     testBuilder()
         .sqlQuery("DESCRIBE INFORMATION_SCHEMA.\"TABLES\" TABLE_CATALOG")
         .unOrdered()
@@ -229,7 +227,7 @@ public class TestInfoSchema extends BaseTestQuery {
 
   @Ignore("DX-2290")
   @Test
-  public void describeTableWithColQualifier() throws Exception{
+  public void describeTableWithColQualifier() throws Exception {
     testBuilder()
         .sqlQuery("DESCRIBE COLUMNS 'TABLE%'")
         .unOrdered()
@@ -243,7 +241,7 @@ public class TestInfoSchema extends BaseTestQuery {
 
   @Ignore("DX-2290")
   @Test
-  public void describeTableWithSchemaAndColQualifier() throws Exception{
+  public void describeTableWithSchemaAndColQualifier() throws Exception {
     testBuilder()
         .sqlQuery("DESCRIBE INFORMATION_SCHEMA.SCHEMATA 'SCHEMA%'")
         .unOrdered()
@@ -254,9 +252,12 @@ public class TestInfoSchema extends BaseTestQuery {
   }
 
   @Test
-  public void defaultSchemaDfs() throws Exception{
+  public void defaultSchemaDfs() throws Exception {
     testBuilder()
-        .sqlQuery(String.format("SELECT R_REGIONKEY FROM \"%s/sample-data/region.parquet\" LIMIT 1", Paths.get(TestTools.getWorkingPath()).getParent().getParent()))
+        .sqlQuery(
+            String.format(
+                "SELECT R_REGIONKEY FROM \"%s/sample-data/region.parquet\" LIMIT 1",
+                Paths.get(TestTools.getWorkingPath()).getParent().getParent()))
         .unOrdered()
         .optionSettingQueriesForTestQuery("USE dfs")
         .baselineColumns("R_REGIONKEY")
@@ -265,7 +266,7 @@ public class TestInfoSchema extends BaseTestQuery {
   }
 
   @Test
-  public void defaultSchemaClasspath() throws Exception{
+  public void defaultSchemaClasspath() throws Exception {
     testBuilder()
         .sqlQuery("SELECT full_name FROM \"employee.json\" LIMIT 1")
         .unOrdered()
@@ -275,9 +276,8 @@ public class TestInfoSchema extends BaseTestQuery {
         .go();
   }
 
-
   @Test
-  public void queryFromNonDefaultSchema() throws Exception{
+  public void queryFromNonDefaultSchema() throws Exception {
     testBuilder()
         .sqlQuery("SELECT full_name FROM cp.\"employee.json\" LIMIT 1")
         .unOrdered()
@@ -288,7 +288,7 @@ public class TestInfoSchema extends BaseTestQuery {
   }
 
   @Test
-  public void useSchema() throws Exception{
+  public void useSchema() throws Exception {
     testBuilder()
         .sqlQuery("USE dfs")
         .unOrdered()
@@ -298,25 +298,25 @@ public class TestInfoSchema extends BaseTestQuery {
   }
 
   @Test
-  public void useSubSchemaWithinSchema() throws Exception{
+  public void useSubSchemaWithinSchema() throws Exception {
     testBuilder()
         .sqlQuery("USE dfs_test")
         .unOrdered()
         .baselineColumns("ok", "summary")
         .baselineValues(true, "Default schema changed to [dfs_test]")
         .go();
-
   }
 
   @Test
-  public void useSchemaNegative() throws Exception{
-    errorMsgTestHelper("USE invalid.schema",
-      "Schema [invalid.schema] is not valid with respect to either root schema or current default schema.");
+  public void useSchemaNegative() throws Exception {
+    errorMsgTestHelper(
+        "USE invalid.schema",
+        "Schema [invalid.schema] is not valid with respect to either root schema or current default schema.");
   }
 
   @Ignore("Sensitive to tmp directory changes during execution.")
   @Test
-  public void showFilesWithDefaultSchema() throws Exception{
+  public void showFilesWithDefaultSchema() throws Exception {
     test("USE dfs_test.\"default\"");
     test("SHOW FILES FROM \"tmp\"");
   }

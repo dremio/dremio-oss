@@ -20,10 +20,7 @@ import com.dremio.sabot.exec.ExecToCoordTunnelCreator;
 import com.dremio.service.maestroservice.MaestroClient;
 import com.dremio.service.maestroservice.MaestroClientFactory;
 
-
-/**
- * Software (i.e. on-prem product) version of the client factory.
- */
+/** Software (i.e. on-prem product) version of the client factory. */
 public class MaestroSoftwareClientFactory implements MaestroClientFactory {
   private final ExecToCoordTunnelCreator tunnelCreator;
 
@@ -37,12 +34,8 @@ public class MaestroSoftwareClientFactory implements MaestroClientFactory {
   }
 
   @Override
-  public void start() throws Exception {
-
-  }
+  public void start() throws Exception {}
 
   @Override
-  public void close() throws Exception {
-
-  }
+  public void close() throws Exception {}
 }

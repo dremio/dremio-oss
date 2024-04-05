@@ -16,13 +16,12 @@
 
 package com.dremio.exec.planner.physical.filter;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import com.dremio.exec.physical.config.RuntimeFilterProbeTarget;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import java.util.ArrayList;
+import java.util.List;
 
 @JsonTypeName("runtime-filter")
 public class RuntimeFilterInfo {
@@ -31,11 +30,11 @@ public class RuntimeFilterInfo {
 
   @JsonCreator
   public RuntimeFilterInfo(
-      @JsonProperty("runtimeFilterProbeTargets")List<RuntimeFilterProbeTarget> runtimeFilterProbeTargets,
+      @JsonProperty("runtimeFilterProbeTargets")
+          List<RuntimeFilterProbeTarget> runtimeFilterProbeTargets,
       @JsonProperty("broadcastJoin") boolean isBroadcastJoin) {
-    this.runtimeFilterProbeTargets = runtimeFilterProbeTargets == null
-      ? new ArrayList<>(0)
-      : runtimeFilterProbeTargets;
+    this.runtimeFilterProbeTargets =
+        runtimeFilterProbeTargets == null ? new ArrayList<>(0) : runtimeFilterProbeTargets;
     this.isBroadcastJoin = isBroadcastJoin;
   }
 
@@ -55,21 +54,19 @@ public class RuntimeFilterInfo {
     return runtimeFilterProbeTargets.toString();
   }
 
-
   public static class Builder {
     private List<RuntimeFilterProbeTarget> runtimeFilterProbeTargets;
     private boolean isBroadcastJoin;
 
-    public Builder() {
-    }
+    public Builder() {}
 
     public Builder setRuntimeFilterProbeTargets(
-      List<RuntimeFilterProbeTarget> runtimeFilterProbeTargets) {
+        List<RuntimeFilterProbeTarget> runtimeFilterProbeTargets) {
       this.runtimeFilterProbeTargets = runtimeFilterProbeTargets;
       return this;
     }
 
-    public Builder isBroadcastJoin (boolean isBroadcastJoin) {
+    public Builder isBroadcastJoin(boolean isBroadcastJoin) {
       this.isBroadcastJoin = isBroadcastJoin;
       return this;
     }
@@ -77,6 +74,5 @@ public class RuntimeFilterInfo {
     public RuntimeFilterInfo build() {
       return new RuntimeFilterInfo(runtimeFilterProbeTargets, isBroadcastJoin);
     }
-
   }
 }

@@ -15,28 +15,26 @@
  */
 package com.dremio.sabot.exec.heap;
 
-/**
- * Interface used by operators to add or remove heap memory participants.
- */
+/** Interface used by operators to add or remove heap memory participants. */
 public interface HeapLowMemController {
   /**
-   * Adds a heap memory participant whose heap memory overhead can be continuously tracked. Such participants
-   * are assumed to be continuously growing its heap proportional to incoming data batches.
+   * Adds a heap memory participant whose heap memory overhead can be continuously tracked. Such
+   * participants are assumed to be continuously growing its heap proportional to incoming data
+   * batches.
    *
    * @param participantId a uniqueId that uniquely identifies a participant
-   * @param participantOverhead the heap overhead per batch for this participant. Note that this is just a number that
-   *                            signifies a comparative overhead (i.e fatness) w.r.t other participants and need not
-   *                            be an exact heap usage number. For e.g number of column vectors in a batch could be a
-   *                            good fatness indicator.
-   *
-   * @return  an interface for the participant to update its continuous growth.
+   * @param participantOverhead the heap overhead per batch for this participant. Note that this is
+   *     just a number that signifies a comparative overhead (i.e fatness) w.r.t other participants
+   *     and need not be an exact heap usage number. For e.g number of column vectors in a batch
+   *     could be a good fatness indicator.
+   * @return an interface for the participant to update its continuous growth.
    */
   HeapLowMemParticipant addParticipant(String participantId, int participantOverhead);
 
   /**
-   * Removes this participant. Called by the participant when the participant is done with using heap.
-   * For a partition within a spilling operator, this typically coincides with either a spilling event or a
-   * state machine change event from consumption to production.
+   * Removes this participant. Called by the participant when the participant is done with using
+   * heap. For a partition within a spilling operator, this typically coincides with either a
+   * spilling event or a state machine change event from consumption to production.
    *
    * @param participantId Id that uniquely identifies the participant.
    */

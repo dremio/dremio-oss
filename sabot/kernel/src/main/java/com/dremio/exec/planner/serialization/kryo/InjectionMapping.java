@@ -15,16 +15,15 @@
  */
 package com.dremio.exec.planner.serialization.kryo;
 
-import java.util.Map;
-import java.util.Optional;
-
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
+import java.util.Map;
+import java.util.Optional;
 
 public class InjectionMapping {
   private final Map<Class, Injection> mapping = Maps.newHashMap();
 
-  protected InjectionMapping() { }
+  protected InjectionMapping() {}
 
   public Optional<Injection> findInjection(final Class klazz) {
     Class current = klazz;
@@ -41,7 +40,8 @@ public class InjectionMapping {
   private void addInjections(final Iterable<Injection> injections) {
     Preconditions.checkNotNull(injections, "injections are required");
     for (final Injection injection : injections) {
-      mapping.put(injection.getType(), Preconditions.checkNotNull(injection, "injection is required"));
+      mapping.put(
+          injection.getType(), Preconditions.checkNotNull(injection, "injection is required"));
     }
   }
 

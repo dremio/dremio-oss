@@ -18,9 +18,7 @@ package com.dremio.dac.model.folder;
 import org.junit.Assert;
 import org.junit.Test;
 
-/**
- * DatasetPath tests
- */
+/** DatasetPath tests */
 public class TestFolderPath {
 
   @Test

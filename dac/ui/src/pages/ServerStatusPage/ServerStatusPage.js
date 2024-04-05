@@ -18,15 +18,12 @@ import Immutable from "immutable";
 import { connect } from "react-redux";
 import { replace } from "react-router-redux";
 import urlParse from "url-parse";
-import clsx from "clsx";
-import * as classes from "@app/uiTheme/radium/replacingRadiumPseudoClasses.module.less";
 import moment from "@app/utils/dayjs";
 
 import PropTypes from "prop-types";
 
 import LoginTitle from "pages/AuthenticationPage/components/LoginTitle";
-import SimpleButton from "components/Buttons/SimpleButton";
-
+import { Button } from "dremio-ui-lib/components";
 import { getViewState } from "selectors/resources";
 
 import { SERVER_STATUS_OK } from "@app/constants/serverStatus";
@@ -116,17 +113,13 @@ export class ServerStatusPage extends PureComponent {
       <div id="status-page" style={styles.base}>
         <div style={styles.content}>
           <LoginTitle subTitle={this.getSubTitle()} />
-          <SimpleButton
+          <Button
             disabled={this.props.checkViewState.get("isInProgress")}
-            buttonStyle="primary"
-            className={clsx({
-              [classes["primaryButtonPsuedoClasses"]]:
-                !this.props.checkViewState.get("isInProgress"),
-            })}
+            variant="primary"
             onClick={this.onUpdateClick}
           >
             Check Now
-          </SimpleButton>
+          </Button>
           {this.renderCheckTime()}
         </div>
       </div>

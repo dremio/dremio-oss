@@ -16,7 +16,6 @@
 package com.dremio.exec.planner.sql.handlers.direct;
 
 import java.util.List;
-
 import org.apache.calcite.sql.SqlNode;
 
 public interface SqlDirectHandler<T> {

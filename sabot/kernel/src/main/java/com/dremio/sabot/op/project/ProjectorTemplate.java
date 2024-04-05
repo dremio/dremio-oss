@@ -15,18 +15,15 @@
  */
 package com.dremio.sabot.op.project;
 
-import java.util.List;
-
-import javax.inject.Named;
-
-import org.apache.arrow.vector.util.TransferPair;
-
 import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.selection.SelectionVector2;
 import com.dremio.sabot.exec.context.FunctionContext;
 import com.google.common.collect.ImmutableList;
+import java.util.List;
+import javax.inject.Named;
+import org.apache.arrow.vector.util.TransferPair;
 
 public abstract class ProjectorTemplate implements Projector {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ProjectorTemplate.class);
@@ -35,52 +32,61 @@ public abstract class ProjectorTemplate implements Projector {
   private SelectionVector2 vector2;
   private SelectionVectorMode svMode;
 
-  public ProjectorTemplate() throws SchemaChangeException {
-  }
+  public ProjectorTemplate() throws SchemaChangeException {}
 
   @Override
   public final void projectRecords(final int recordCount) {
     switch (svMode) {
+      case TWO_BYTE:
+        for (int i = 0; i < recordCount; i++) {
+          doEval(vector2.getIndex(i), i);
+        }
+        return;
 
-    case TWO_BYTE:
-      for (int i = 0; i < recordCount; i++) {
-        doEval(vector2.getIndex(i), i);
-      }
-      return;
-
-    case NONE:
-      for (int i = 0; i < recordCount; i++) {
-        doEval(i, i);
-      }
-      for (TransferPair t : transfers) {
+      case NONE:
+        for (int i = 0; i < recordCount; i++) {
+          doEval(i, i);
+        }
+        for (TransferPair t : transfers) {
           t.transfer();
-      }
-      return;
+        }
+        return;
 
-    case FOUR_BYTE:
-    default:
-      throw new UnsupportedOperationException();
+      case FOUR_BYTE:
+      default:
+        throw new UnsupportedOperationException();
     }
   }
 
   @Override
-  public final void setup(FunctionContext context, VectorAccessible incoming, VectorAccessible outgoing, List<TransferPair> transfers, ComplexWriterCreator writerCreator)  throws SchemaChangeException{
+  public final void setup(
+      FunctionContext context,
+      VectorAccessible incoming,
+      VectorAccessible outgoing,
+      List<TransferPair> transfers,
+      ComplexWriterCreator writerCreator)
+      throws SchemaChangeException {
 
     this.svMode = incoming.getSchema().getSelectionVectorMode();
     switch (svMode) {
-    case NONE:
-      break;
-    case TWO_BYTE:
-      this.vector2 = incoming.getSelectionVector2();
-      break;
-    default:
-      throw new UnsupportedOperationException("Unsupported selection vector mode "+ svMode.name());
+      case NONE:
+        break;
+      case TWO_BYTE:
+        this.vector2 = incoming.getSelectionVector2();
+        break;
+      default:
+        throw new UnsupportedOperationException(
+            "Unsupported selection vector mode " + svMode.name());
     }
     this.transfers = ImmutableList.copyOf(transfers);
     doSetup(context, incoming, outgoing, writerCreator);
   }
 
-  public abstract void doSetup(@Named("context") FunctionContext context, @Named("incoming") VectorAccessible incoming, @Named("outgoing") VectorAccessible outgoing, @Named("writerCreator") ComplexWriterCreator writerCreator);
-  public abstract void doEval(@Named("inIndex") int inIndex, @Named("outIndex") int outIndex);
+  public abstract void doSetup(
+      @Named("context") FunctionContext context,
+      @Named("incoming") VectorAccessible incoming,
+      @Named("outgoing") VectorAccessible outgoing,
+      @Named("writerCreator") ComplexWriterCreator writerCreator);
 
+  public abstract void doEval(@Named("inIndex") int inIndex, @Named("outIndex") int outIndex);
 }

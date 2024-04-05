@@ -18,14 +18,11 @@ package com.dremio.exec.store.dfs;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
-import java.util.Collection;
-
-import org.junit.Test;
-
 import com.dremio.exec.ExecTest;
 import com.dremio.exec.store.easy.text.TextFormatPlugin.TextFormatConfig;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-
+import java.util.Collection;
+import org.junit.Test;
 
 public class TestFormatPluginOptionExtractor extends ExecTest {
 
@@ -39,21 +36,26 @@ public class TestFormatPluginOptionExtractor extends ExecTest {
         case "text":
           assertEquals(TextFormatConfig.class, d.pluginConfigClass);
           assertEquals(
-              "(type: String, lineDelimiter: String, fieldDelimiter: String, quote: String, escape: String, " +
-                  "comment: String, skipFirstLine: boolean, extractHeader: boolean, " +
-                  "autoGenerateColumnNames: boolean, trimHeader: boolean, skipLines: int, outputExtension: String)",
-              d.presentParams()
-          );
+              "(type: String, lineDelimiter: String, fieldDelimiter: String, quote: String, escape: String, "
+                  + "comment: String, skipFirstLine: boolean, extractHeader: boolean, "
+                  + "autoGenerateColumnNames: boolean, trimHeader: boolean, skipLines: int, outputExtension: String)",
+              d.presentParams());
           break;
         case "named":
           assertEquals(NamedFormatPluginConfig.class, d.pluginConfigClass);
           assertEquals("(type: String, name: String)", d.presentParams());
           break;
         case "json":
-          assertEquals(d.typeName, "(type: String, outputExtension: String, prettyPrint: boolean)", d.presentParams());
+          assertEquals(
+              d.typeName,
+              "(type: String, outputExtension: String, prettyPrint: boolean)",
+              d.presentParams());
           break;
         case "parquet":
-          assertEquals(d.typeName, "(type: String, autoCorrectCorruptDates: boolean, outputExtension: String)", d.presentParams());
+          assertEquals(
+              d.typeName,
+              "(type: String, autoCorrectCorruptDates: boolean, outputExtension: String)",
+              d.presentParams());
           break;
         case "arrow":
           assertEquals(d.typeName, "(type: String, outputExtension: String)", d.presentParams());
@@ -63,15 +65,22 @@ public class TestFormatPluginOptionExtractor extends ExecTest {
           assertEquals(d.typeName, "(type: String)", d.presentParams());
           break;
         case "excel":
-          assertEquals(d.typeName, "(type: String, sheet: String, extractHeader: boolean, hasMergedCells: boolean, xls: boolean)",
+          assertEquals(
+              d.typeName,
+              "(type: String, sheet: String, extractHeader: boolean, hasMergedCells: boolean, xls: boolean)",
               d.presentParams());
           break;
         case "iceberg":
-          assertEquals(d.typeName, "(type: String, outputExtension: String, metaStoreType: IcebergMetaStoreType, dataFormatType: FileType, dataFormatConfig: FormatPluginConfig)",
-            d.presentParams());
+          assertEquals(
+              d.typeName,
+              "(type: String, outputExtension: String, metaStoreType: IcebergMetaStoreType, dataFormatType: FileType, dataFormatConfig: FormatPluginConfig)",
+              d.presentParams());
           break;
         case "delta":
-          assertEquals(d.typeName, "(type: String, dataFormatType: FileType, dataFormatConfig: FormatPluginConfig)", d.presentParams());
+          assertEquals(
+              d.typeName,
+              "(type: String, dataFormatType: FileType, dataFormatConfig: FormatPluginConfig)",
+              d.presentParams());
           break;
         default:
           fail("add validation for format plugin type " + d.typeName);

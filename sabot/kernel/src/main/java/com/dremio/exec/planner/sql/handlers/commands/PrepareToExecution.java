@@ -18,9 +18,7 @@ package com.dremio.exec.planner.sql.handlers.commands;
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.planner.observer.AttemptObserver;
 
-/**
- * Go from prepare to execution.
- */
+/** Go from prepare to execution. */
 public class PrepareToExecution extends AsyncCommand {
 
   private final PreparedPlan plan;
@@ -52,5 +50,4 @@ public class PrepareToExecution extends AsyncCommand {
   public String getDescription() {
     return "execute; query";
   }
-
 }

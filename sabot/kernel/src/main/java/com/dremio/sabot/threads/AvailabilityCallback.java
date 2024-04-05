@@ -15,9 +15,7 @@
  */
 package com.dremio.sabot.threads;
 
-/**
- * Interface that is infomred when all shared resources become available.
- */
+/** Interface that is infomred when all shared resources become available. */
 public interface AvailabilityCallback {
   public void nowAvailable();
 }

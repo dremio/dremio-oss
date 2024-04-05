@@ -15,32 +15,28 @@
  */
 package com.dremio.dac.server;
 
+import com.dremio.dac.daemon.ServerHealthMonitor;
 import java.io.IOException;
-
 import javax.inject.Inject;
 import javax.ws.rs.container.ContainerRequestContext;
 import javax.ws.rs.container.ContainerRequestFilter;
 import javax.ws.rs.container.PreMatching;
 import javax.ws.rs.core.Response;
 
-import com.dremio.dac.daemon.ServerHealthMonitor;
-
-/**
- * Throws 503 if server is not available
- */
+/** Throws 503 if server is not available */
 @PreMatching
 public class ServerStatusRequestFilter implements ContainerRequestFilter {
-  @Inject
-  private javax.inject.Provider<ServerHealthMonitor> serverHealthMonitor;
+  @Inject private javax.inject.Provider<ServerHealthMonitor> serverHealthMonitor;
 
-  public ServerStatusRequestFilter() {
-  }
+  public ServerStatusRequestFilter() {}
 
   @Override
   public void filter(ContainerRequestContext requestContext) throws IOException {
     if (!serverHealthMonitor.get().isHealthy()) {
-      requestContext.abortWith(Response.status(Response.Status.SERVICE_UNAVAILABLE).entity(
-        serverHealthMonitor.get().getStatus()).build());
+      requestContext.abortWith(
+          Response.status(Response.Status.SERVICE_UNAVAILABLE)
+              .entity(serverHealthMonitor.get().getStatus())
+              .build());
     }
   }
 }

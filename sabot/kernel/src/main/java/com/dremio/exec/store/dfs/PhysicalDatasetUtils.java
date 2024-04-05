@@ -15,9 +15,6 @@
  */
 package com.dremio.exec.store.dfs;
 
-import java.util.Collections;
-import java.util.List;
-
 import com.dremio.common.logical.FormatPluginConfig;
 import com.dremio.exec.store.deltalake.DeltaLakeFormatConfig;
 import com.dremio.exec.store.deltalake.DeltaLakeFormatPlugin;
@@ -46,12 +43,16 @@ import com.dremio.service.namespace.file.proto.ParquetFileConfig;
 import com.dremio.service.namespace.file.proto.TextFileConfig;
 import com.dremio.service.namespace.file.proto.UnknownFileConfig;
 import com.dremio.service.namespace.file.proto.XlsFileConfig;
+import java.util.Collections;
+import java.util.List;
 
 /**
- * Utility methods to talk to physical dataset service and convert dac format settings to Dremio format plugins.
+ * Utility methods to talk to physical dataset service and convert dac format settings to Dremio
+ * format plugins.
  */
 public class PhysicalDatasetUtils {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PhysicalDatasetUtils.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(PhysicalDatasetUtils.class);
 
   private static ParquetFormatConfig toParquetFormatConfig(ParquetFileConfig fileConfig) {
     ParquetFormatConfig parquetFormatConfig = new ParquetFormatConfig();
@@ -62,15 +63,16 @@ public class PhysicalDatasetUtils {
   /**
    * Convert file format settings from dac to Dremio.
    *
-   * NOTE TO DEVELOPERS: Make sure this method in sync with the below {@link #toFileFormat} method. If a new parameter
-   * is added to FileConfig, make sure the parameter is added to the FormatPluginConfig here, and vice versa in
-   * {@link #toFileFormat} method.
+   * <p>NOTE TO DEVELOPERS: Make sure this method in sync with the below {@link #toFileFormat}
+   * method. If a new parameter is added to FileConfig, make sure the parameter is added to the
+   * FormatPluginConfig here, and vice versa in {@link #toFileFormat} method.
    *
    * @param fileConfig Format settings set by user in DAC
    * @param extensions list of extensions found for a table
    * @return {@code FormatPluginConfig} that should be used for creating Dremio table.
    */
-  public static FormatPluginConfig toFormatPlugin(final FileConfig fileConfig, final List<String> extensions) {
+  public static FormatPluginConfig toFormatPlugin(
+      final FileConfig fileConfig, final List<String> extensions) {
     assert extensions != null : "TextFormatConfig.extensions should never be null";
 
     switch (fileConfig.getType()) {
@@ -78,7 +80,8 @@ public class PhysicalDatasetUtils {
       case CSV:
       case TSV:
       case PSV:
-        final TextFileConfig textFileConfig = (TextFileConfig)TextFileConfig.getForFile(fileConfig);
+        final TextFileConfig textFileConfig =
+            (TextFileConfig) TextFileConfig.getForFile(fileConfig);
         final TextFormatConfig textFormatConfig = new TextFormatConfig();
 
         textFormatConfig.comment = textFileConfig.getComment();
@@ -94,58 +97,69 @@ public class PhysicalDatasetUtils {
         textFormatConfig.trimHeader = textFileConfig.getTrimHeader();
         return textFormatConfig;
       case JSON:
-        final JSONFormatPlugin.JSONFormatConfig jsonFormatConfig = new JSONFormatPlugin.JSONFormatConfig();
+        final JSONFormatPlugin.JSONFormatConfig jsonFormatConfig =
+            new JSONFormatPlugin.JSONFormatConfig();
         jsonFormatConfig.extensions = extensions;
         return jsonFormatConfig;
       case PARQUET:
-        final ParquetFileConfig parquetFileConfig = (ParquetFileConfig)com.dremio.service.namespace.file.FileFormat.getForFile(fileConfig);
+        final ParquetFileConfig parquetFileConfig =
+            (ParquetFileConfig) com.dremio.service.namespace.file.FileFormat.getForFile(fileConfig);
         return toParquetFormatConfig(parquetFileConfig);
       case ARROW:
         return new ArrowFormatPluginConfig();
-      case EXCEL: {
-        final ExcelFileConfig excelFileConfig = (ExcelFileConfig) ExcelFileConfig.getForFile(fileConfig);
-        final ExcelFormatPluginConfig excelFormatPluginConfig = new ExcelFormatPluginConfig(false);
+      case EXCEL:
+        {
+          final ExcelFileConfig excelFileConfig =
+              (ExcelFileConfig) ExcelFileConfig.getForFile(fileConfig);
+          final ExcelFormatPluginConfig excelFormatPluginConfig =
+              new ExcelFormatPluginConfig(false);
 
-        excelFormatPluginConfig.sheet = excelFileConfig.getSheetName();
-        excelFormatPluginConfig.extractHeader = excelFileConfig.getExtractHeader();
-        excelFormatPluginConfig.hasMergedCells = excelFileConfig.getHasMergedCells();
-        return excelFormatPluginConfig;
-      }
-      case XLS: {
-        final XlsFileConfig xlsFileConfig = (XlsFileConfig) XlsFileConfig.getForFile(fileConfig);
-        final ExcelFormatPluginConfig excelFormatPluginConfig = new ExcelFormatPluginConfig(true);
+          excelFormatPluginConfig.sheet = excelFileConfig.getSheetName();
+          excelFormatPluginConfig.extractHeader = excelFileConfig.getExtractHeader();
+          excelFormatPluginConfig.hasMergedCells = excelFileConfig.getHasMergedCells();
+          return excelFormatPluginConfig;
+        }
+      case XLS:
+        {
+          final XlsFileConfig xlsFileConfig = (XlsFileConfig) XlsFileConfig.getForFile(fileConfig);
+          final ExcelFormatPluginConfig excelFormatPluginConfig = new ExcelFormatPluginConfig(true);
 
-        excelFormatPluginConfig.sheet = xlsFileConfig.getSheetName();
-        excelFormatPluginConfig.extractHeader = xlsFileConfig.getExtractHeader();
-        excelFormatPluginConfig.hasMergedCells = xlsFileConfig.getHasMergedCells();
-        return excelFormatPluginConfig;
-      }
+          excelFormatPluginConfig.sheet = xlsFileConfig.getSheetName();
+          excelFormatPluginConfig.extractHeader = xlsFileConfig.getExtractHeader();
+          excelFormatPluginConfig.hasMergedCells = xlsFileConfig.getHasMergedCells();
+          return excelFormatPluginConfig;
+        }
       case HTTP_LOG:
         break;
       case ICEBERG:
-        IcebergFileConfig icebergFileConfig = (IcebergFileConfig)com.dremio.service.namespace.file.FileFormat.getForFile(fileConfig);
+        IcebergFileConfig icebergFileConfig =
+            (IcebergFileConfig) com.dremio.service.namespace.file.FileFormat.getForFile(fileConfig);
         if (icebergFileConfig.getDataFormatTypeList() == null) {
           // preview sends an empty entry.
           icebergFileConfig.setMetaStoreType(IcebergMetaStoreType.HDFS);
           icebergFileConfig.setDataFormatTypeList(Collections.singletonList(FileType.PARQUET));
           icebergFileConfig.setParquetDataFormat(new ParquetFileConfig());
-        } else if (icebergFileConfig.getDataFormatTypeList().size() != 1 ||
-          icebergFileConfig.getDataFormatTypeList().get(0) != FileType.PARQUET ||
-          icebergFileConfig.getMetaStoreType() != IcebergMetaStoreType.HDFS) {
+        } else if (icebergFileConfig.getDataFormatTypeList().size() != 1
+            || icebergFileConfig.getDataFormatTypeList().get(0) != FileType.PARQUET
+            || icebergFileConfig.getMetaStoreType() != IcebergMetaStoreType.HDFS) {
           return null;
         }
 
         final IcebergFormatConfig icebergFormatConfig = new IcebergFormatConfig();
         icebergFormatConfig.setDataFormatType(icebergFileConfig.getDataFormatTypeList().get(0));
         icebergFormatConfig.setMetaStoreType(icebergFileConfig.getMetaStoreType());
-        icebergFormatConfig.setDataFormatConfig(toParquetFormatConfig(icebergFileConfig.getParquetDataFormat()));
+        icebergFormatConfig.setDataFormatConfig(
+            toParquetFormatConfig(icebergFileConfig.getParquetDataFormat()));
         return icebergFormatConfig;
       case DELTA:
-        DeltalakeFileConfig deltalakeFileConfig = (DeltalakeFileConfig) com.dremio.service.namespace.file.FileFormat.getForFile(fileConfig);
+        DeltalakeFileConfig deltalakeFileConfig =
+            (DeltalakeFileConfig)
+                com.dremio.service.namespace.file.FileFormat.getForFile(fileConfig);
         deltalakeFileConfig.setParquetDataFormat(new ParquetFileConfig());
 
         final DeltaLakeFormatConfig deltaLakeFormatConfig = new DeltaLakeFormatConfig();
-        deltaLakeFormatConfig.setDataFormatConfig(toParquetFormatConfig(deltalakeFileConfig.getParquetDataFormat()));
+        deltaLakeFormatConfig.setDataFormatConfig(
+            toParquetFormatConfig(deltalakeFileConfig.getParquetDataFormat()));
         return deltaLakeFormatConfig;
       default:
         break;
@@ -160,16 +174,16 @@ public class PhysicalDatasetUtils {
   /**
    * Convert Dremio's format plugin config to dac's format settings.
    *
-   * NOTE TO DEVELOPERS: Make sure this method in sync with the above {@link #toFormatPlugin} method. If a new
-   * parameter is added to FormatPlugin, make sure the parameter is added to the FileFormat here, and vice versa in
-   * {@link #toFormatPlugin} method.
+   * <p>NOTE TO DEVELOPERS: Make sure this method in sync with the above {@link #toFormatPlugin}
+   * method. If a new parameter is added to FormatPlugin, make sure the parameter is added to the
+   * FileFormat here, and vice versa in {@link #toFormatPlugin} method.
    *
    * @param formatPlugin format plugin used to create the table
    * @return {@code FileFormat} for corresponding format plugin, null if not found.
    */
   public static FileFormat toFileFormat(FormatPlugin formatPlugin) {
     if (formatPlugin instanceof ParquetFormatPlugin) {
-      ParquetFormatPlugin parquetFormatPlugin = (ParquetFormatPlugin)formatPlugin;
+      ParquetFormatPlugin parquetFormatPlugin = (ParquetFormatPlugin) formatPlugin;
       return toParquetFileConfig(parquetFormatPlugin.getConfig());
     }
     if (formatPlugin instanceof JSONFormatPlugin) {
@@ -195,7 +209,8 @@ public class PhysicalDatasetUtils {
       return textFileConfig;
     }
     if (formatPlugin instanceof ExcelFormatPlugin) {
-      final ExcelFormatPluginConfig excelFormatPluginConfig = (ExcelFormatPluginConfig)formatPlugin.getConfig();
+      final ExcelFormatPluginConfig excelFormatPluginConfig =
+          (ExcelFormatPluginConfig) formatPlugin.getConfig();
       if (excelFormatPluginConfig.xls) {
         final XlsFileConfig xlsFileConfig = new XlsFileConfig();
         xlsFileConfig.setExtractHeader(excelFormatPluginConfig.extractHeader);
@@ -211,19 +226,22 @@ public class PhysicalDatasetUtils {
       }
     }
     if (formatPlugin instanceof IcebergFormatPlugin) {
-      IcebergFormatPlugin icebergFormatPlugin = (IcebergFormatPlugin)formatPlugin;
+      IcebergFormatPlugin icebergFormatPlugin = (IcebergFormatPlugin) formatPlugin;
       IcebergFormatConfig icebergFormatConfig = icebergFormatPlugin.getConfig();
       return new IcebergFileConfig()
-        .setMetaStoreType(icebergFormatConfig.getMetaStoreType())
-        .setDataFormatTypeList(Collections.singletonList(icebergFormatConfig.getDataFormatType()))
-        .setParquetDataFormat(toParquetFileConfig((ParquetFormatConfig)icebergFormatConfig.getDataFormatConfig()));
+          .setMetaStoreType(icebergFormatConfig.getMetaStoreType())
+          .setDataFormatTypeList(Collections.singletonList(icebergFormatConfig.getDataFormatType()))
+          .setParquetDataFormat(
+              toParquetFileConfig((ParquetFormatConfig) icebergFormatConfig.getDataFormatConfig()));
     }
-    if(formatPlugin instanceof DeltaLakeFormatPlugin) {
-      DeltaLakeFormatPlugin deltaLakeFormatPlugin = (DeltaLakeFormatPlugin)formatPlugin;
+    if (formatPlugin instanceof DeltaLakeFormatPlugin) {
+      DeltaLakeFormatPlugin deltaLakeFormatPlugin = (DeltaLakeFormatPlugin) formatPlugin;
       DeltaLakeFormatConfig deltaLakeFormatConfig = deltaLakeFormatPlugin.getConfig();
 
       return new DeltalakeFileConfig()
-              .setParquetDataFormat(toParquetFileConfig((ParquetFormatConfig)deltaLakeFormatConfig.getDataFormatConfig()));
+          .setParquetDataFormat(
+              toParquetFileConfig(
+                  (ParquetFormatConfig) deltaLakeFormatConfig.getDataFormatConfig()));
     }
     return new UnknownFileConfig();
   }

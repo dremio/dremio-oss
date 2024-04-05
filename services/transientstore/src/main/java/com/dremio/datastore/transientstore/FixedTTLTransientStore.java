@@ -15,33 +15,33 @@
  */
 package com.dremio.datastore.transientstore;
 
+import com.dremio.datastore.api.Document;
+import com.dremio.datastore.api.KVStore;
+import com.dremio.datastore.api.options.KVStoreOptionUtility;
+import com.dremio.datastore.api.options.VersionOption;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import com.dremio.datastore.api.Document;
-import com.dremio.datastore.api.KVStore;
-import com.dremio.datastore.api.options.KVStoreOptionUtility;
-import com.dremio.datastore.api.options.VersionOption;
-
 /**
  * A wrapper for TransientStore that enforces a fixed TTL set on object creation.
+ *
  * @param <K> the key to store
  * @param <V> the value to store
- * @param <D> the TransientStore that is having a fixed TTL enforced.
  */
-public class FixedTTLTransientStore<K, V, D extends TransientStore<K, V>> implements TransientStore<K, V> {
-  private final D delegate;
+public class FixedTTLTransientStore<K, V> implements TransientStore<K, V> {
+  private final TransientStore<K, V> delegate;
   // Time to live in seconds
   private final int ttl;
 
   /**
    * A wrapper providing fixed ttl to D.
+   *
    * @param delegate the object on which a fixed TTL is being forced.
    * @param ttl Time to live in seconds
    */
-  public FixedTTLTransientStore(D delegate, int ttl) {
+  public FixedTTLTransientStore(TransientStore<K, V> delegate, int ttl) {
     this.delegate = delegate;
     this.ttl = ttl;
   }

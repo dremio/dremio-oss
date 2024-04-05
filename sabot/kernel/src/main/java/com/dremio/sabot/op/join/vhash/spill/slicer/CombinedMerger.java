@@ -15,15 +15,11 @@
  */
 package com.dremio.sabot.op.join.vhash.spill.slicer;
 
+import com.dremio.sabot.op.join.vhash.spill.pool.Page;
 import java.util.List;
-
 import org.apache.arrow.vector.FieldVector;
 
-import com.dremio.sabot.op.join.vhash.spill.pool.Page;
-
-/**
- * wrapper over multiple mergers.
- */
+/** wrapper over multiple mergers. */
 public class CombinedMerger implements Merger {
   private final List<Merger> mergers;
 

@@ -15,26 +15,27 @@
  */
 package com.dremio.exec.server.options;
 
-import java.util.Iterator;
-import java.util.Map;
-
 import com.dremio.options.OptionList;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidatorListing;
 import com.dremio.options.OptionValue;
 import com.dremio.options.OptionValue.OptionType;
 import com.dremio.options.impl.BaseOptionManager;
+import java.util.Iterator;
+import java.util.Map;
 
 /**
- * {@link OptionManager} that hold options in memory rather than in a persistent store. Option stored in
- * {@link SessionOptionManagerImpl}, {@link QueryOptionManager}, and {@link FragmentOptionManager} are held in memory
- * (see {@link #options}) whereas {@link SystemOptionManager} stores options in a persistent store.
+ * {@link OptionManager} that hold options in memory rather than in a persistent store. Option
+ * stored in {@link SessionOptionManagerImpl}, {@link QueryOptionManager}, and {@link
+ * FragmentOptionManager} are held in memory (see {@link #options}) whereas {@link
+ * SystemOptionManager} stores options in a persistent store.
  */
 public abstract class InMemoryOptionManager extends BaseOptionManager {
 
   protected final Map<String, OptionValue> options;
 
-  protected InMemoryOptionManager(final OptionValidatorListing optionValidatorListing, final Map<String, OptionValue> options) {
+  protected InMemoryOptionManager(
+      final OptionValidatorListing optionValidatorListing, final Map<String, OptionValue> options) {
     super(optionValidatorListing);
     this.options = options;
   }
@@ -85,5 +86,4 @@ public abstract class InMemoryOptionManager extends BaseOptionManager {
   public Iterator<OptionValue> iterator() {
     return options.values().iterator();
   }
-
 }

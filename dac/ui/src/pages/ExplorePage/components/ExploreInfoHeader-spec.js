@@ -158,15 +158,15 @@ describe("ExploreInfoHeader", () => {
       const node = shallow(
         instance.renderLeftPartOfHeader(
           commonProps.dataset.delete("datasetType"),
-          false
-        )
+          false,
+        ),
       );
       expect(node.find("div")).to.have.length(1);
     });
 
     it("should render dataset label when dataset has datasetType present", () => {
       const node = shallow(
-        instance.renderLeftPartOfHeader(commonProps.dataset, false)
+        instance.renderLeftPartOfHeader(commonProps.dataset, false),
       );
       expect(node.find(".title-wrap").children()).to.have.length(1);
     });
@@ -178,7 +178,7 @@ describe("ExploreInfoHeader", () => {
       const node = shallow(instance.renderDatasetLabel(commonProps.dataset));
       expect(node.find("FontIcon")).to.have.length(1);
       expect(node.find("EllipsedText").props().text).to.be.contains(
-        'New Query{"0":{"id":"Dataset.Edited"}}'
+        'New Query{"0":{"id":"Dataset.Edited"}}',
       );
     });
 
@@ -187,10 +187,10 @@ describe("ExploreInfoHeader", () => {
       const node = shallow(instance.renderDatasetLabel(commonProps.dataset));
       expect(node.find("FontIcon")).to.have.length(1);
       expect(node.find("EllipsedText").props().text).to.be.contains(
-        "New Query"
+        "New Query",
       );
       expect(node.find("EllipsedText").props().text).to.be.not.contains(
-        "(edited)"
+        "(edited)",
       );
     });
   });

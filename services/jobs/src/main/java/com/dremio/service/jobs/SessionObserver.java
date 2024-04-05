@@ -17,15 +17,11 @@ package com.dremio.service.jobs;
 
 import com.dremio.sabot.rpc.user.UserSession;
 
-/**
- * Observer for handling session based properties.
- */
+/** Observer for handling session based properties. */
 interface SessionObserver {
   SessionObserver NO_OP = new SessionObserver() {};
 
-  /**
-   * Called when the job is completed
-   */
+  /** Called when the job is completed */
   default void onCompleted() {}
 
   /**

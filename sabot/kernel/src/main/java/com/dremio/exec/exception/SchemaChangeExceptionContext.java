@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.exception;
 
-import java.util.List;
-
 import com.dremio.common.exceptions.JsonAdditionalExceptionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
@@ -24,6 +22,7 @@ import com.dremio.exec.record.BatchSchema;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
+import java.util.List;
 
 /**
  * Contextual information needed to transfer schema change information in a {@link UserException} of
@@ -35,8 +34,9 @@ public class SchemaChangeExceptionContext extends JsonAdditionalExceptionContext
   private final List<String> tableSchemaPath;
   private final BatchSchema newSchema;
 
-  public SchemaChangeExceptionContext(@JsonProperty("tableSchemaPath") List<String> tableSchemaPath,
-                                      @JsonProperty("newSchema") BatchSchema newSchema) {
+  public SchemaChangeExceptionContext(
+      @JsonProperty("tableSchemaPath") List<String> tableSchemaPath,
+      @JsonProperty("newSchema") BatchSchema newSchema) {
     this.tableSchemaPath = tableSchemaPath;
     this.newSchema = newSchema;
   }
@@ -65,13 +65,15 @@ public class SchemaChangeExceptionContext extends JsonAdditionalExceptionContext
   }
 
   /**
-   * Deserialize the rawAdditionalContext from a UserException into a new AdditionalExceptionContext.
+   * Deserialize the rawAdditionalContext from a UserException into a new
+   * AdditionalExceptionContext.
    *
    * @param ex A UserException containing serialized AdditionalExceptionContext data.
    * @return A new AdditionalExceptionContext of the serialized type.
    */
   public static SchemaChangeExceptionContext fromUserException(UserException ex) {
-    Preconditions.checkState(ex.getErrorType() == ErrorType.SCHEMA_CHANGE, "exception type mismatch");
+    Preconditions.checkState(
+        ex.getErrorType() == ErrorType.SCHEMA_CHANGE, "exception type mismatch");
     return JsonAdditionalExceptionContext.fromUserException(SchemaChangeExceptionContext.class, ex);
   }
 }

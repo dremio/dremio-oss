@@ -15,35 +15,39 @@
  */
 package com.dremio.exec.planner.serializer;
 
-import java.util.Map;
-
-import org.apache.calcite.rel.RelNode;
-
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
+import java.lang.reflect.InvocationTargetException;
+import java.util.Map;
+import org.apache.calcite.rel.RelNode;
 
-/**
- * Holds a list of all the RelNodeSerde's available within a ScanResult.
- */
+/** Holds a list of all the RelNodeSerde's available within a ScanResult. */
 class RelSerdeRegistry {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(RelSerdeRegistry.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(RelSerdeRegistry.class);
 
-  private Map<Class<?>, RelNodeSerde<? extends RelNode,?>> serdesFromLogical;
+  private Map<Class<?>, RelNodeSerde<? extends RelNode, ?>> serdesFromLogical;
   private Map<String, RelNodeSerde<?, ?>> protoHolders;
 
-  @SuppressWarnings({ "rawtypes" })
+  @SuppressWarnings({"rawtypes"})
   public RelSerdeRegistry(ScanResult result) {
     ImmutableMap.Builder<Class<?>, RelNodeSerde<?, ?>> serdesFromLogical = ImmutableMap.builder();
     ImmutableMap.Builder<String, RelNodeSerde<?, ?>> protoHolders = ImmutableMap.builder();
 
-    for(Class<? extends RelNodeSerde> s : result.getImplementations(RelNodeSerde.class)) {
+    for (Class<? extends RelNodeSerde> s : result.getImplementations(RelNodeSerde.class)) {
       try {
-       RelNodeSerde<?, ?> serde = s.newInstance();
-       serdesFromLogical.put(serde.getRelClass(), serde);
-       protoHolders.put("type.googleapis.com/" + serde.getDefaultInstance().getDescriptorForType().getFullName(), serde);
-      } catch (InstantiationException | IllegalAccessException e) {
+        RelNodeSerde<?, ?> serde = s.getDeclaredConstructor().newInstance();
+        serdesFromLogical.put(serde.getRelClass(), serde);
+        protoHolders.put(
+            "type.googleapis.com/"
+                + serde.getDefaultInstance().getDescriptorForType().getFullName(),
+            serde);
+      } catch (InstantiationException
+          | IllegalAccessException
+          | InvocationTargetException
+          | NoSuchMethodException e) {
         logger.warn("Unable to instantiate {}", s.getName(), e);
       }
     }
@@ -52,17 +56,19 @@ class RelSerdeRegistry {
     this.protoHolders = protoHolders.build();
   }
 
-  public Iterable<String> getProtoNames(){
+  public Iterable<String> getProtoNames() {
     return protoHolders.keySet();
   }
 
   @SuppressWarnings("unchecked")
-  public <T extends RelNode> RelNodeSerde<T, ?> getSerdeByRelNodeClass(Class<T> clazz){
-    return (RelNodeSerde<T, ?>) Preconditions.checkNotNull(serdesFromLogical.get(clazz), "Unable to find RelNodeSerde for %s.", clazz.getName());
+  public <T extends RelNode> RelNodeSerde<T, ?> getSerdeByRelNodeClass(Class<T> clazz) {
+    return (RelNodeSerde<T, ?>)
+        Preconditions.checkNotNull(
+            serdesFromLogical.get(clazz), "Unable to find RelNodeSerde for %s.", clazz.getName());
   }
 
   public RelNodeSerde<?, ?> getSerdeByTypeString(String type) {
-    return Preconditions.checkNotNull(protoHolders.get(type), "Unable to find RelNodeSerde for %s", type);
-
+    return Preconditions.checkNotNull(
+        protoHolders.get(type), "Unable to find RelNodeSerde for %s", type);
   }
 }

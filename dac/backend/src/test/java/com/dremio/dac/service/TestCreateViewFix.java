@@ -18,10 +18,6 @@ package com.dremio.dac.service;
 import static java.util.concurrent.TimeUnit.MINUTES;
 import static org.junit.Assert.assertTrue;
 
-import java.util.concurrent.Semaphore;
-
-import org.junit.Test;
-
 import com.dremio.common.VM;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.model.spaces.SpacePath;
@@ -33,10 +29,10 @@ import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
+import java.util.concurrent.Semaphore;
+import org.junit.Test;
 
-/**
- * Validates that the fix for DX-17635 works.
- */
+/** Validates that the fix for DX-17635 works. */
 public class TestCreateViewFix extends BaseTestServer {
 
   @Test
@@ -44,26 +40,33 @@ public class TestCreateViewFix extends BaseTestServer {
     // create a test space
     final String testSpace = "test_space";
     final SpaceConfig config = new SpaceConfig().setName(testSpace);
-    l(NamespaceService.class).addOrUpdateSpace(new SpacePath(config.getName()).toNamespaceKey(), config);
+    l(NamespaceService.class)
+        .addOrUpdateSpace(new SpacePath(config.getName()).toNamespaceKey(), config);
 
     // submit enough "CREATE VDS" queries to saturate the command pool
     final int numVds = VM.availableProcessors();
     Semaphore semaphore = new Semaphore(0);
     for (int i = 0; i < numVds; i++) {
-      final String query = String.format("CREATE VDS %s.vds%d AS SELECT * FROM INFORMATION_SCHEMA.CATALOGS", testSpace, i);
-      Thread thread = new Thread(() -> {
-        submitJobAndWaitUntilCompletion(
-          JobRequest.newBuilder()
-            .setSqlQuery(new SqlQuery(query, SampleDataPopulator.DEFAULT_USER_NAME))
-            .setQueryType(QueryType.UI_INTERNAL_RUN)
-            .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
-            .build());
-        semaphore.release();
-      });
+      final String query =
+          String.format(
+              "CREATE VDS %s.vds%d AS SELECT * FROM INFORMATION_SCHEMA.CATALOGS", testSpace, i);
+      Thread thread =
+          new Thread(
+              () -> {
+                submitJobAndWaitUntilCompletion(
+                    JobRequest.newBuilder()
+                        .setSqlQuery(new SqlQuery(query, SampleDataPopulator.DEFAULT_USER_NAME))
+                        .setQueryType(QueryType.UI_INTERNAL_RUN)
+                        .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+                        .build());
+                semaphore.release();
+              });
       thread.start();
     }
 
     // all submitted jobs should complete
-    assertTrue("Not all submitted jobs completed after 1 minute", semaphore.tryAcquire(numVds, 1, MINUTES));
+    assertTrue(
+        "Not all submitted jobs completed after 1 minute",
+        semaphore.tryAcquire(numVds, 1, MINUTES));
   }
 }

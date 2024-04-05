@@ -15,20 +15,17 @@
  */
 package com.dremio.service.grpc;
 
+import com.dremio.common.SerializedExecutor;
+import io.grpc.stub.ServerCallStreamObserver;
 import java.util.concurrent.Executor;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.common.SerializedExecutor;
-
-import io.grpc.stub.ServerCallStreamObserver;
-
 /**
-  * Abstract handler which is invoked every time the peer is ready to receive more messages.
-  *
-  * @param <V> response type
-  */
+ * Abstract handler which is invoked every time the peer is ready to receive more messages.
+ *
+ * @param <V> response type
+ */
 public class OnReadyRunnableHandler<V> implements Runnable {
   private static final Logger logger = LoggerFactory.getLogger(OnReadyRunnableHandler.class);
 
@@ -39,12 +36,11 @@ public class OnReadyRunnableHandler<V> implements Runnable {
   private final Runnable onCancelRunnable;
 
   public OnReadyRunnableHandler(
-    String requestType,
-    Executor executor,
-    ServerCallStreamObserver<V> streamObserver,
-    Runnable onReadyRunnable,
-    Runnable onCancelRunnable
-  ) {
+      String requestType,
+      Executor executor,
+      ServerCallStreamObserver<V> streamObserver,
+      Runnable onReadyRunnable,
+      Runnable onCancelRunnable) {
     this.executor = new OnReadyEventExecutor(requestType, executor);
     this.responseObserver = streamObserver;
     this.onReadyRunnable = onReadyRunnable;
@@ -59,7 +55,8 @@ public class OnReadyRunnableHandler<V> implements Runnable {
   public void run() {
     if (!responseObserver.isReady()) {
       // see CallStreamObserver#setOnReadyHandler
-      // handle spurious notifications: although handled in handleStreamReady, this avoids volatile reads
+      // handle spurious notifications: although handled in handleStreamReady, this avoids volatile
+      // reads
       return;
     }
 
@@ -68,8 +65,8 @@ public class OnReadyRunnableHandler<V> implements Runnable {
 
   /**
    * Serializes execution of {@code #onReady} events, and offloads request handling.
-   * <p>
-   * This ensures there is no write contention (including errors).
+   *
+   * <p>This ensures there is no write contention (including errors).
    */
   private final class OnReadyEventExecutor extends SerializedExecutor<Runnable> {
 

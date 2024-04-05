@@ -18,9 +18,7 @@ package com.dremio.dac.service.search;
 import com.dremio.dac.proto.model.collaboration.CollaborationTag;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 
-/**
- * SearchContainer
- */
+/** SearchContainer */
 public class SearchContainer {
   private final NameSpaceContainer namespaceContainer;
   private CollaborationTag collaborationTag;

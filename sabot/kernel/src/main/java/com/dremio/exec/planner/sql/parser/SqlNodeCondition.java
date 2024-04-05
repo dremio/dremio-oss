@@ -18,11 +18,11 @@ package com.dremio.exec.planner.sql.parser;
 import org.apache.calcite.sql.SqlNode;
 
 public interface SqlNodeCondition {
-    /**
-     * Evaluates a condition for a given expression.
-     *
-     * @param sqlNode Expression
-     * @return result of evaluating the condition
-     */
-    boolean test(SqlNode sqlNode);
+  /**
+   * Evaluates a condition for a given expression.
+   *
+   * @param sqlNode Expression
+   * @return result of evaluating the condition
+   */
+  boolean test(SqlNode sqlNode);
 }

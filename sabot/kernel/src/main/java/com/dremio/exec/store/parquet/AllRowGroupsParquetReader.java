@@ -15,17 +15,6 @@
  */
 package com.dremio.exec.store.parquet;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Queue;
-
-import org.apache.arrow.memory.OutOfMemoryException;
-import org.apache.arrow.vector.ValueVector;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.ExecConstants;
@@ -38,10 +27,20 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.google.common.base.Preconditions;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Queue;
+import org.apache.arrow.memory.OutOfMemoryException;
+import org.apache.arrow.vector.ValueVector;
 
 /**
- * A Parquet reader implementation which reads all row groups in a Parquet file.  This can be used in situations
- * where it is not possible to process the file in splits, such as with Iceberg delete files.
+ * A Parquet reader implementation which reads all row groups in a Parquet file. This can be used in
+ * situations where it is not possible to process the file in splits, such as with Iceberg delete
+ * files.
  */
 public class AllRowGroupsParquetReader implements RecordReader {
 
@@ -66,19 +65,20 @@ public class AllRowGroupsParquetReader implements RecordReader {
   private OutputMutator outputMutator;
 
   public AllRowGroupsParquetReader(
-    OperatorContext context,
-    Path path,
-    List<String> dataset,
-    FileSystem fs,
-    InputStreamProviderFactory inputStreamProviderFactory,
-    ParquetReaderFactory parquetReaderFactory,
-    BatchSchema schema,
-    ParquetScanProjectedColumns projectedColumns,
-    ParquetFilters filters,
-    ParquetReaderOptions parquetReaderOptions) {
+      OperatorContext context,
+      Path path,
+      List<String> dataset,
+      FileSystem fs,
+      InputStreamProviderFactory inputStreamProviderFactory,
+      ParquetReaderFactory parquetReaderFactory,
+      BatchSchema schema,
+      ParquetScanProjectedColumns projectedColumns,
+      ParquetFilters filters,
+      ParquetReaderOptions parquetReaderOptions) {
 
     this.context = context;
-    this.path = fs.supportsPathsWithScheme() ? path : Path.of(Path.getContainerSpecificRelativePath(path));
+    this.path =
+        fs.supportsPathsWithScheme() ? path : Path.of(Path.getContainerSpecificRelativePath(path));
     this.dataset = dataset;
     this.inputStreamProviderFactory = inputStreamProviderFactory;
     this.parquetReaderFactory = parquetReaderFactory;
@@ -142,43 +142,48 @@ public class AllRowGroupsParquetReader implements RecordReader {
 
     advanceToNextInputStreamProvider();
 
-    ParquetProtobuf.ParquetDatasetSplitScanXAttr readEntry = ParquetProtobuf.ParquetDatasetSplitScanXAttr.newBuilder()
-      .setPath(fileAttributes.getPath().toString())
-      .setStart(0)
-      .setLength(fileAttributes.size())
-      .setFileLength(fileAttributes.size())
-      .setLastModificationTime(fileAttributes.lastModifiedTime().toMillis())
-      .setRowGroupIndex(currentRowGroupIndex)
-      .build();
+    ParquetProtobuf.ParquetDatasetSplitScanXAttr readEntry =
+        ParquetProtobuf.ParquetDatasetSplitScanXAttr.newBuilder()
+            .setPath(fileAttributes.getPath().toString())
+            .setStart(0)
+            .setLength(fileAttributes.size())
+            .setFileLength(fileAttributes.size())
+            .setLastModificationTime(fileAttributes.lastModifiedTime().toMillis())
+            .setRowGroupIndex(currentRowGroupIndex)
+            .build();
 
-    SchemaDerivationHelper schemaHelper = SchemaDerivationHelper.builder()
-      .noSchemaLearning(schema)
-      .readInt96AsTimeStamp(parquetReaderOptions.isReadInt96AsTimestampEnabled())
-      .dateCorruptionStatus(ParquetReaderUtility.DateCorruptionStatus.META_SHOWS_NO_CORRUPTION)
-      .mapDataTypeEnabled(context.getOptions().getOption(ExecConstants.ENABLE_MAP_DATA_TYPE))
-      .build();
+    SchemaDerivationHelper schemaHelper =
+        SchemaDerivationHelper.builder()
+            .noSchemaLearning(schema)
+            .readInt96AsTimeStamp(parquetReaderOptions.isReadInt96AsTimestampEnabled())
+            .dateCorruptionStatus(
+                ParquetReaderUtility.DateCorruptionStatus.META_SHOWS_NO_CORRUPTION)
+            .mapDataTypeEnabled(context.getOptions().getOption(ExecConstants.ENABLE_MAP_DATA_TYPE))
+            .build();
 
-    UnifiedParquetReader reader = new UnifiedParquetReader(
-      context,
-      parquetReaderFactory,
-      schema,
-      projectedColumns,
-      null,
-      filters,
-      parquetReaderFactory.newFilterCreator(context, ParquetReaderFactory.ManagedSchemaType.ICEBERG, null,
-        context.getAllocator()),
-      ParquetDictionaryConvertor.DEFAULT,
-      readEntry,
-      fs,
-      footer,
-      null,
-      schemaHelper,
-      parquetReaderOptions.isVectorizationEnabled(),
-      parquetReaderOptions.isDetailedTracingEnabled(),
-      false,
-      currentInputStreamProvider,
-      new ArrayList<>(),
-      false);
+    UnifiedParquetReader reader =
+        new UnifiedParquetReader(
+            context,
+            parquetReaderFactory,
+            schema,
+            projectedColumns,
+            filters,
+            parquetReaderFactory.newFilterCreator(
+                context,
+                ParquetReaderFactory.ManagedSchemaType.ICEBERG,
+                null,
+                context.getAllocator()),
+            ParquetDictionaryConvertor.DEFAULT,
+            readEntry,
+            fs,
+            footer,
+            schemaHelper,
+            parquetReaderOptions.isVectorizationEnabled(),
+            parquetReaderOptions.isDetailedTracingEnabled(),
+            false,
+            currentInputStreamProvider,
+            new ArrayList<>(),
+            false);
     reader.setIgnoreSchemaLearning(true);
 
     RecordReader last = currentReader;
@@ -235,8 +240,9 @@ public class AllRowGroupsParquetReader implements RecordReader {
       }
 
       int rowGroupCount = footer.getBlocks().size();
-      while (prefetchRowGroupIndex < rowGroupCount &&
-        inputStreamProviderPrefetchQueue.size() < parquetReaderOptions.getNumSplitsToPrefetch()) {
+      while (prefetchRowGroupIndex < rowGroupCount
+          && inputStreamProviderPrefetchQueue.size()
+              < parquetReaderOptions.getNumSplitsToPrefetch()) {
         inputStreamProviderPrefetchQueue.add(createInputStreamProvider(prefetchRowGroupIndex++));
       }
     }
@@ -247,23 +253,30 @@ public class AllRowGroupsParquetReader implements RecordReader {
       if (fileAttributes == null) {
         fileAttributes = fs.getFileAttributes(path);
       }
-      // footer and currentInputStreamProvider will be null if we're creating the provider for the first row group
+      // footer and currentInputStreamProvider will be null if we're creating the provider for the
+      // first row group
       return inputStreamProviderFactory.create(
-        fs,
-        context,
-        path,
-        fileAttributes.size(),
-        fileAttributes.size(),
-        projectedColumns,
-        footer,
-        currentInputStreamProvider,
-        f -> rowGroupIndex,
-        false,
-        dataset,
-        fileAttributes.lastModifiedTime().toMillis(),
-        false,
-        true, filters, parquetReaderFactory.newFilterCreator(context, ParquetReaderFactory.ManagedSchemaType.ICEBERG, null, context.getAllocator()),
-        InputStreamProviderFactory.DEFAULT_NON_PARTITION_COLUMN_RF);
+          fs,
+          context,
+          path,
+          fileAttributes.size(),
+          fileAttributes.size(),
+          projectedColumns,
+          footer,
+          currentInputStreamProvider,
+          f -> rowGroupIndex,
+          false,
+          dataset,
+          fileAttributes.lastModifiedTime().toMillis(),
+          false,
+          true,
+          filters,
+          parquetReaderFactory.newFilterCreator(
+              context,
+              ParquetReaderFactory.ManagedSchemaType.ICEBERG,
+              null,
+              context.getAllocator()),
+          InputStreamProviderFactory.DEFAULT_NON_PARTITION_COLUMN_RF);
     } catch (IOException ex) {
       throw new UncheckedIOException(ex);
     }

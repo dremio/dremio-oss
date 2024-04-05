@@ -17,16 +17,14 @@ package com.dremio.dac.daemon;
 
 import static org.junit.Assume.assumeTrue;
 
-import java.util.List;
-import java.util.concurrent.Future;
-
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.Test;
-
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.exec.ExecConstants;
 import com.google.common.io.Resources;
+import java.util.List;
+import java.util.concurrent.Future;
+import org.junit.Assert;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
 /**
  * TestExprsCachePrewarmService tests the cached projector expressions are built on exectuor startup
@@ -38,12 +36,14 @@ public class TestExprCachePrewarmService extends BaseTestServer {
   public static void init() throws Exception {
     // ignore the tests if not multinode.
     assumeTrue(isMultinode());
-    System.setProperty(ExecConstants.CODE_CACHE_LOCATION_PROP, Resources.getResource("prewarmfiles/").getPath());
+    System.setProperty(
+        ExecConstants.CODE_CACHE_LOCATION_PROP, Resources.getResource("prewarmfiles/").getPath());
     System.setProperty(ExecConstants.CODE_CACHE_PREWARM_PROP, "true");
     BaseTestServer.init();
     System.clearProperty(ExecConstants.CODE_CACHE_LOCATION_PROP);
     System.clearProperty(ExecConstants.CODE_CACHE_PREWARM_PROP);
-    exprCachePrewarmService = getExecutorDaemon().getBindingProvider().lookup(ExprCachePrewarmService.class);
+    exprCachePrewarmService =
+        getExecutorDaemon().getBindingProvider().lookup(ExprCachePrewarmService.class);
   }
 
   @Test

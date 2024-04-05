@@ -42,7 +42,6 @@ import config from "@inject/utils/config";
 import { REFLECTION_ARCTIC_ENABLED } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
 import { TableOptimizationWrapper } from "@inject/pages/ArcticCatalog/components/ArcticCatalogDataItemSettings/ArcticTableOptimization/TableOptimizationWrapper/TableOptimizationWrapper";
 import ArcticEntityPrivilegesWrapper from "@inject/pages/ArcticCatalog/components/ArcticCatalogDataItemSettings/ArcticEntityPrivileges/ArcticEntityPrivilegesWrapper/ArcticEntityPrivilegesWrapper";
-import { ARCTIC_ENTITY_PRIVILEGES } from "@inject/featureFlags/flags/ARCTIC_ENTITY_PRIVILEGES";
 
 const COMPACTION = "COMPACTION";
 const DATASET_SETTINGS_VIEW_ID = "DATASET_SETTINGS_VIEW_ID";
@@ -88,7 +87,7 @@ export class DatasetSettings extends PureComponent {
         .loadDatasetForDatasetType(
           datasetType,
           datasetUrl,
-          DATASET_SETTINGS_VIEW_ID
+          DATASET_SETTINGS_VIEW_ID,
         )
         .then((response) => {
           if (!response.error) {
@@ -149,7 +148,7 @@ export class DatasetSettings extends PureComponent {
 
   updateFormDirtyState = (isFormDirty) => {
     this.setState({ isFormDirty }, () =>
-      this.props.updateFormDirtyState(isFormDirty)
+      this.props.updateFormDirtyState(isFormDirty),
     );
   };
 
@@ -171,7 +170,7 @@ export class DatasetSettings extends PureComponent {
 
   getFullPath = createSelector(
     (fullPathImmutable) => fullPathImmutable,
-    (path) => (path ? path.toJS() : null)
+    (path) => (path ? path.toJS() : null),
   );
 
   renderContent() {
@@ -254,7 +253,7 @@ export class DatasetSettings extends PureComponent {
 
     contentRenderers = this.extendContentRenderers(
       contentRenderers,
-      commonProps
+      commonProps,
     );
     const activeTab = this.getActiveTab();
     return contentRenderers[activeTab] && contentRenderers[activeTab]();
@@ -292,8 +291,6 @@ const mapStateToProps = (state, { isHomePage }) => {
   const sourceName = loc.split("/")[2] || "";
   const source = selectSourceByName(sourceName)(state);
   const isAdmin = state.privileges?.organization?.isAdmin;
-  const enableArcticEntityPrivileges =
-    state.featureFlag?.[ARCTIC_ENTITY_PRIVILEGES] === "ENABLED";
   // Entity could be stored in different places of redux state, depending on current page
   // Entity is used to be stored in resources, but now for home page it is stored in separate place.
   // We need support both options. At this moment an only place where entity is stored in resources
@@ -311,7 +308,6 @@ const mapStateToProps = (state, { isHomePage }) => {
     source,
     location,
     isAdmin,
-    enableArcticEntityPrivileges,
     entity: entityId
       ? finalEntitySelector(state, entityId, entityType)
       : getDataset(state, version),

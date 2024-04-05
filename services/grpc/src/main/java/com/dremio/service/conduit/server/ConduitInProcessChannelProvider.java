@@ -15,27 +15,24 @@
  */
 package com.dremio.service.conduit.server;
 
-import javax.inject.Inject;
-import javax.inject.Provider;
-
 import com.dremio.context.RequestContext;
 import com.dremio.service.Service;
 import com.dremio.service.grpc.ContextualizedClientInterceptor;
-
 import io.grpc.Channel;
 import io.grpc.ManagedChannel;
 import io.grpc.inprocess.InProcessChannelBuilder;
+import javax.inject.Inject;
+import javax.inject.Provider;
 
-/**
- * A channel to the in-process conduit server
- */
+/** A channel to the in-process conduit server */
 public class ConduitInProcessChannelProvider implements Service {
   private ManagedChannel inProcessChannel;
   private final String inProcessServerName;
   private final Provider<RequestContext> requestContextProvider;
 
   @Inject
-  public ConduitInProcessChannelProvider(String inProcessServerName, Provider<RequestContext> requestContextProvider) {
+  public ConduitInProcessChannelProvider(
+      String inProcessServerName, Provider<RequestContext> requestContextProvider) {
     this.inProcessServerName = inProcessServerName;
     this.requestContextProvider = requestContextProvider;
   }
@@ -43,8 +40,12 @@ public class ConduitInProcessChannelProvider implements Service {
   @Override
   public void start() throws Exception {
     inProcessChannel =
-      InProcessChannelBuilder.forName(inProcessServerName).usePlaintext().intercept(
-        ContextualizedClientInterceptor.buildSingleTenantClientInterceptorWithDefaults(requestContextProvider)).build();
+        InProcessChannelBuilder.forName(inProcessServerName)
+            .usePlaintext()
+            .intercept(
+                ContextualizedClientInterceptor.buildSingleTenantClientInterceptorWithDefaults(
+                    requestContextProvider))
+            .build();
   }
 
   public Channel getInProcessChannelToConduit() {

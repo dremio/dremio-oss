@@ -15,23 +15,22 @@
  */
 package com.dremio.common;
 
+import com.dremio.context.RequestContext;
+import com.google.common.base.Preconditions;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
-
 import javax.inject.Provider;
-
-import com.dremio.context.RequestContext;
-import com.google.common.base.Preconditions;
 
 /**
  * Handles wakeup events for the various managers.
  *
- * Ensures only a single instance of the manager is running and that no wakeup event is lost.
+ * <p>Ensures only a single instance of the manager is running and that no wakeup event is lost.
  */
 public class WakeupHandler {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(WakeupHandler.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(WakeupHandler.class);
 
   private final AtomicBoolean wakeup = new AtomicBoolean();
   private final AtomicBoolean running = new AtomicBoolean();
@@ -56,34 +55,36 @@ public class WakeupHandler {
     if (!wakeup.compareAndSet(false, true)) {
       return CompletableFuture.completedFuture(null);
     }
-    // following check if not necessary. It helps not submitting a thread if the manager is already running
+    // following check if not necessary. It helps not submitting a thread if the manager is already
+    // running
     if (running.get()) {
       return CompletableFuture.completedFuture(null);
     }
 
-    return executor.submit(new Runnable() {
+    return executor.submit(
+        new Runnable() {
 
-      @Override
-      public void run() {
-        while (wakeup.get()) {
-          if (!running.compareAndSet(false, true)) {
-            return; // another thread is already running the manager
-          }
+          @Override
+          public void run() {
+            while (wakeup.get()) {
+              if (!running.compareAndSet(false, true)) {
+                return; // another thread is already running the manager
+              }
 
-          try {
-            wakeup.set(false);
-            if (requestContextProvider != null) {
-              requestContextProvider.get().run(() -> manager.run());
-            } else {
-              manager.run();
+              try {
+                wakeup.set(false);
+                if (requestContextProvider != null) {
+                  requestContextProvider.get().run(() -> manager.run());
+                } else {
+                  manager.run();
+                }
+              } finally {
+                running.set(false);
+              }
             }
-          } finally {
-            running.set(false);
+            // thread can only exit if both wakeup and running are set to false. This ensures we
+            // never miss a wakeup event
           }
-        }
-        // thread can only exit if both wakeup and running are set to false. This ensures we never miss a wakeup event
-      }
-
-    });
+        });
   }
 }

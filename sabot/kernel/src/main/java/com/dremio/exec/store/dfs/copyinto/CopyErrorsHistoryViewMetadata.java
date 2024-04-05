@@ -15,13 +15,13 @@
  */
 package com.dremio.exec.store.dfs.copyinto;
 
+import com.dremio.exec.store.dfs.system.SystemIcebergViewMetadata;
 import org.apache.iceberg.Schema;
 
-import com.dremio.exec.store.dfs.system.SystemIcebergViewMetadata;
-
 /**
- * {@code CopyErrorsHistoryViewMetadata} represents the metadata for a view of the "copy_errors_history" table in the system schema.
- * It extends {@link SystemIcebergViewMetadata} and includes information about the view's schema, schema version, and table name.
+ * {@code CopyErrorsHistoryViewMetadata} represents the metadata for a view of the
+ * "copy_errors_history" table in the system schema. It extends {@link SystemIcebergViewMetadata}
+ * and includes information about the view's schema, schema version, and table name.
  */
 public class CopyErrorsHistoryViewMetadata extends SystemIcebergViewMetadata {
   public CopyErrorsHistoryViewMetadata(Schema schema, long schemaVersion, String tableName) {

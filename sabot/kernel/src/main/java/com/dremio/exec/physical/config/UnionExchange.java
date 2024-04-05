@@ -15,9 +15,6 @@
  */
 package com.dremio.exec.physical.config;
 
-import java.util.Collection;
-import java.util.List;
-
 import com.dremio.exec.physical.EndpointAffinity;
 import com.dremio.exec.physical.PhysicalOperatorSetupException;
 import com.dremio.exec.physical.base.AbstractExchange;
@@ -33,8 +30,10 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.options.OptionManager;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
+import java.util.Collection;
+import java.util.List;
 
-public class UnionExchange extends AbstractExchange{
+public class UnionExchange extends AbstractExchange {
 
   private final OptionManager optionManager;
 
@@ -55,11 +54,13 @@ public class UnionExchange extends AbstractExchange{
   }
 
   @Override
-  public Supplier<Collection<EndpointAffinity>> getReceiverEndpointAffinity(Supplier<Collection<NodeEndpoint>> senderFragmentEndpointsSupplier) {
+  public Supplier<Collection<EndpointAffinity>> getReceiverEndpointAffinity(
+      Supplier<Collection<NodeEndpoint>> senderFragmentEndpointsSupplier) {
     return () -> {
       Collection<NodeEndpoint> senderFragmentEndpoints = senderFragmentEndpointsSupplier.get();
-      Preconditions.checkArgument(senderFragmentEndpoints != null && senderFragmentEndpoints.size() > 0,
-        "Sender fragment endpoint list should not be empty");
+      Preconditions.checkArgument(
+          senderFragmentEndpoints != null && senderFragmentEndpoints.size() > 0,
+          "Sender fragment endpoint list should not be empty");
 
       return getDefaultAffinityMap(senderFragmentEndpoints);
     };
@@ -71,27 +72,37 @@ public class UnionExchange extends AbstractExchange{
   }
 
   @Override
-  protected void setupReceivers(List<NodeEndpoint> receiverLocations) throws PhysicalOperatorSetupException {
-    Preconditions.checkArgument(receiverLocations.size() == 1,
-        "Union Exchange only supports a single receiver endpoint.");
+  protected void setupReceivers(List<NodeEndpoint> receiverLocations)
+      throws PhysicalOperatorSetupException {
+    Preconditions.checkArgument(
+        receiverLocations.size() == 1, "Union Exchange only supports a single receiver endpoint.");
 
     super.setupReceivers(receiverLocations);
   }
 
   @Override
-  public Sender getSender(int minorFragmentId, PhysicalOperator child, EndpointsIndex.Builder indexBuilder) {
-    return new SingleSender(senderProps, schema, child, receiverMajorFragmentId,
-      indexBuilder.addFragmentEndpoint(0, receiverLocations.get(0)));
+  public Sender getSender(
+      int minorFragmentId, PhysicalOperator child, EndpointsIndex.Builder indexBuilder) {
+    return new SingleSender(
+        senderProps,
+        schema,
+        child,
+        receiverMajorFragmentId,
+        indexBuilder.addFragmentEndpoint(0, receiverLocations.get(0)));
   }
 
   @Override
   public Receiver getReceiver(int minorFragmentId, EndpointsIndex.Builder indexBuilder) {
-    return new UnorderedReceiver(receiverProps, schema, senderMajorFragmentId, PhysicalOperatorUtil.getIndexOrderedEndpoints(senderLocations, indexBuilder), false);
+    return new UnorderedReceiver(
+        receiverProps,
+        schema,
+        senderMajorFragmentId,
+        PhysicalOperatorUtil.getIndexOrderedEndpoints(senderLocations, indexBuilder),
+        false);
   }
 
   @Override
   protected PhysicalOperator getNewWithChild(PhysicalOperator child) {
     return new UnionExchange(props, senderProps, receiverProps, schema, child, optionManager);
   }
-
 }

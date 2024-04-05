@@ -17,18 +17,14 @@ package com.dremio.telemetry.api;
 
 import static org.junit.Assert.assertEquals;
 
+import com.dremio.telemetry.api.Telemetry.ExceptionWatcher;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
-
 import org.junit.Before;
 import org.junit.Test;
 
-import com.dremio.telemetry.api.Telemetry.ExceptionWatcher;
-
-/**
- * Tests Telemetry.ExceptionWatcher to ensure exceptions will only be reported once.
- */
+/** Tests Telemetry.ExceptionWatcher to ensure exceptions will only be reported once. */
 public class TestExceptionWatcher {
 
   private static final class TestConsumer implements Consumer<Exception> {
@@ -72,7 +68,6 @@ public class TestExceptionWatcher {
       assertEquals(expecteds[i].getMessage(), testConsumer.calledWith.get(i).getMessage());
     }
   }
-
 
   @Test
   public void invokesCallableOnlyOnFirstOccurrenceOfFailureType() {

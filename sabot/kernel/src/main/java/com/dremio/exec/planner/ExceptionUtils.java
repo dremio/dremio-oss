@@ -15,24 +15,23 @@
  */
 package com.dremio.exec.planner;
 
-import org.slf4j.Logger;
-
 import com.dremio.common.exceptions.UserCancellationException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.proto.CoordinationProtos;
+import org.slf4j.Logger;
 
 public final class ExceptionUtils {
 
-  private ExceptionUtils(){
-  }
+  private ExceptionUtils() {}
 
-  public static void throwUserException(String message,
-                                        Throwable t,
-                                        PlannerSettings plannerSettings,
-                                        PlannerPhase phase,
-                                        UserException.AttemptCompletionState attemptCompletionState,
-                                        Logger logger) {
+  public static void throwUserException(
+      String message,
+      Throwable t,
+      PlannerSettings plannerSettings,
+      PlannerPhase phase,
+      UserException.AttemptCompletionState attemptCompletionState,
+      Logger logger) {
     UserException.Builder builder;
     if (t != null) {
       builder = UserException.planError(t);
@@ -57,5 +56,21 @@ public final class ExceptionUtils {
 
   public static void throwUserCancellationException(PlannerSettings plannerSettings) {
     throw new UserCancellationException(plannerSettings.getCancelReason());
+  }
+
+  public static String collapseExceptionMessages(Throwable throwable) {
+    StringBuilder sb = new StringBuilder();
+
+    while (throwable != null) {
+      String message = throwable.getMessage();
+      if (message != null) {
+        sb.append(message).append(' ');
+      }
+      Throwable cause = throwable.getCause();
+      throwable = cause != throwable ? cause : null;
+    }
+
+    sb.deleteCharAt(sb.length() - 1);
+    return sb.toString();
   }
 }

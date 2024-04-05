@@ -15,19 +15,6 @@
  */
 package com.dremio.exec.planner.physical;
 
-import java.io.IOException;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.AbstractRelNode;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.RelWriter;
-import org.apache.calcite.rel.metadata.RelMetadataQuery;
-import org.apache.calcite.rel.type.RelDataType;
-
 import com.dremio.common.JSONOptions;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.config.Values;
@@ -39,20 +26,39 @@ import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators.LongValidator;
 import com.dremio.options.TypeValidators.PositiveLongValidator;
+import java.io.IOException;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.AbstractRelNode;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.RelWriter;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.apache.calcite.rel.type.RelDataType;
 
 @Options
 public class ValuesPrel extends AbstractRelNode implements LeafPrel {
 
-  public static final LongValidator RESERVE = new PositiveLongValidator("planner.op.values.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
-  public static final LongValidator LIMIT = new PositiveLongValidator("planner.op.values.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
+  public static final LongValidator RESERVE =
+      new PositiveLongValidator("planner.op.values.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
+  public static final LongValidator LIMIT =
+      new PositiveLongValidator("planner.op.values.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
 
   @SuppressWarnings("unused")
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ValuesPrel.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ValuesPrel.class);
 
   private JSONOptions content;
   private final double rowCount;
 
-  public ValuesPrel(RelOptCluster cluster, RelTraitSet traitSet, RelDataType rowType, JSONOptions content, double rowCount) {
+  public ValuesPrel(
+      RelOptCluster cluster,
+      RelTraitSet traitSet,
+      RelDataType rowType,
+      JSONOptions content,
+      double rowCount) {
     super(cluster, traitSet);
     this.rowType = rowType;
     this.content = content;
@@ -81,10 +87,7 @@ public class ValuesPrel extends AbstractRelNode implements LeafPrel {
   @Override
   public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
     BatchSchema schema = CalciteArrowHelper.fromCalciteRowTypeJson(this.getRowType());
-    return new Values(
-        creator.props(this, null, schema, RESERVE, LIMIT),
-        schema,
-        content);
+    return new Values(creator.props(this, null, schema, RESERVE, LIMIT), schema, content);
   }
 
   @Override
@@ -98,7 +101,8 @@ public class ValuesPrel extends AbstractRelNode implements LeafPrel {
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(PrelVisitor<T, X, E> logicalVisitor, X value) throws E {
+  public <T, X, E extends Throwable> T accept(PrelVisitor<T, X, E> logicalVisitor, X value)
+      throws E {
     return logicalVisitor.visitLeaf(this, value);
   }
 
@@ -116,7 +120,6 @@ public class ValuesPrel extends AbstractRelNode implements LeafPrel {
   public boolean needsFinalColumnReordering() {
     return false;
   }
-
 
   @Override
   public int getMaxParallelizationWidth() {

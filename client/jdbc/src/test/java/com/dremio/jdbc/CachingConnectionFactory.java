@@ -17,13 +17,9 @@ package com.dremio.jdbc;
 
 import java.sql.SQLException;
 
-/**
- * A connection factory that caches connections.
- */
+/** A connection factory that caches connections. */
 public interface CachingConnectionFactory extends ConnectionFactory {
 
-  /**
-   * Closes all open connections in this factory's cache.
-   */
+  /** Closes all open connections in this factory's cache. */
   void closeConnections() throws SQLException;
 }

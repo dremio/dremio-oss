@@ -15,19 +15,18 @@
  */
 package com.dremio.dac.explore.model;
 
-import java.util.List;
-
 import com.dremio.dac.util.JSONUtil;
 import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonGetter;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.List;
 
-/**
- * The list of recent history items
- */
-@JsonIgnoreProperties(value={"tipVersion"}, allowGetters=true)
+/** The list of recent history items */
+@JsonIgnoreProperties(
+    value = {"tipVersion"},
+    allowGetters = true)
 public class History {
 
   // occ version
@@ -47,8 +46,7 @@ public class History {
       @JsonProperty("items") List<HistoryItem> items,
       @JsonProperty("currentDatasetVersion") DatasetVersion currentDatasetVersion,
       @JsonProperty("version") Long version,
-      @JsonProperty("isEdited") boolean edited
-      ) {
+      @JsonProperty("isEdited") boolean edited) {
     super();
     this.items = items;
     this.currentDatasetVersion = currentDatasetVersion;

@@ -15,14 +15,13 @@
  */
 package com.dremio.service.jobs;
 
+import com.google.common.base.Throwables;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-import com.google.common.base.Throwables;
-
 /**
- * {@link JobStatusListener} that can block until the job is done successfully or not.
- * If the job fails, calling {@link #await()} will throw an exception
+ * {@link JobStatusListener} that can block until the job is done successfully or not. If the job
+ * fails, calling {@link #await()} will throw an exception
  */
 public class CompletionListener implements JobStatusListener {
   private final CountDownLatch latch = new CountDownLatch(1);
@@ -40,7 +39,6 @@ public class CompletionListener implements JobStatusListener {
     this(true);
   }
 
-
   /**
    * @return true if the job completed successfully, false if failed or was cancelled
    */
@@ -50,6 +48,7 @@ public class CompletionListener implements JobStatusListener {
 
   /**
    * blocks until the job finishes successfully or not
+   *
    * @throws Exception if the job failed
    */
   public void await() throws Exception {
@@ -61,8 +60,8 @@ public class CompletionListener implements JobStatusListener {
   }
 
   /**
-   * blocks until the job finishes successfully or not
-   * if job failed with a checked exception, throws the exception wrapped into RuntimeException
+   * blocks until the job finishes successfully or not if job failed with a checked exception,
+   * throws the exception wrapped into RuntimeException
    */
   public void awaitUnchecked() {
     try {
@@ -116,5 +115,4 @@ public class CompletionListener implements JobStatusListener {
   public String getCancelledReason() {
     return cancelledReason;
   }
-
 }

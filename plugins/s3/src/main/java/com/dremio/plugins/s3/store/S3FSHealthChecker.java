@@ -17,15 +17,6 @@ package com.dremio.plugins.s3.store;
 
 import static com.dremio.common.utils.PathUtils.removeLeadingSlash;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.nio.file.AccessMode;
-import java.util.Set;
-
-import org.apache.hadoop.conf.Configuration;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.ListObjectsV2Request;
 import com.amazonaws.services.s3.model.ListObjectsV2Result;
@@ -33,10 +24,15 @@ import com.dremio.exec.util.FSHealthChecker;
 import com.dremio.io.file.Path;
 import com.dremio.plugins.util.CloseableResource;
 import com.google.common.annotations.VisibleForTesting;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.nio.file.AccessMode;
+import java.util.Set;
+import org.apache.hadoop.conf.Configuration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * S3 implementation of FSHealthChecker used by storage plugins.
- */
+/** S3 implementation of FSHealthChecker used by storage plugins. */
 public class S3FSHealthChecker implements FSHealthChecker {
 
   private static final Logger logger = LoggerFactory.getLogger(S3FSHealthChecker.class);
@@ -57,8 +53,7 @@ public class S3FSHealthChecker implements FSHealthChecker {
       if (response.getKeyCount() < 1 && !request.getPrefix().isEmpty()) {
         throw new FileNotFoundException("Path not found: " + path);
       }
-    } catch (Exception e)
-    {
+    } catch (Exception e) {
       logger.error("Error while listing S3 objects in " + path, e);
       throw new IOException(e);
     }

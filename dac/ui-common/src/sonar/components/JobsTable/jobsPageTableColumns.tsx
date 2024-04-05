@@ -71,7 +71,7 @@ export const jobsPageTableColumns = (
   renderJobLink?: (job: any) => React.ReactElement,
   renderDataset?: (row: any) => React.ReactElement,
   renderSQL?: (sql: string) => React.ReactElement,
-  isSoftware?: boolean
+  isSoftware?: boolean,
 ): Column<any>[] => {
   const jobColumnLabels = getJobColumnLabels();
   const { t } = getIntlContext();
@@ -282,7 +282,7 @@ export const jobsPageTableColumns = (
           return <Skeleton width="17ch" />;
         }
         const planningPhase = row.data.durationDetails?.find(
-          (phase: any) => phase.phaseName === "PLANNING"
+          (phase: any) => phase.phaseName === "PLANNING",
         );
         return planningPhase ? (
           <DurationCell duration={Number(planningPhase.phaseDuration)} />

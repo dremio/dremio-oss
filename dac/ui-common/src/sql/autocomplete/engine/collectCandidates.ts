@@ -49,6 +49,15 @@ const DISCARD_TOKEN_RULES = new Set([
   LiveEditParser.RULE_invalidAs,
   LiveEditParser.RULE_contextVariable, // either unsupported functions or present in sqlFunctions list
   LiveEditParser.RULE_unusedExtension, // artifact from javacc use gated behind parsing exception
+  // The following is ignored so that identifier expressions such as tbl.^ in SELECT tbl.^ collect the candidate
+  // identifier segment rule as expression2b -> expression3 -> atomicRowExpression -> compoundIdentifier ->
+  // simpleIdentifier -> identifierSegment, and not expression2b -> rowExpressionExtension -> simpleIdentifier ->
+  // identifierSegment, since the expression2b grammar is ambiguous. We want the former so that the trailing dot is
+  // interpreted as the DOT in compoundIdentifier, and the collected rule list is for the compoundIdentifier, which is
+  // necessary so the analyzedIdentifier is identified as a compound column identifier with prefix "tbl", to be able to
+  // correctly relativize the suggestions.
+  // This can be removed if/when https://github.com/mike-lischke/antlr4-c3/issues/40#issuecomment-1732124123 is done.
+  LiveEditParser.RULE_rowExpressionExtension,
 ]);
 /** These tokens have matching sqlFunctions entries */
 const EXCLUDED_FUNCTION_TOKENS = new Set([
@@ -107,13 +116,13 @@ export function collectCandidates(
   parser: LiveEditParser,
   tokenIndex: number,
   priorTerminal: TerminalNode | undefined,
-  queryParseTree: ParserRuleContext
+  queryParseTree: ParserRuleContext,
 ): Candidates {
   const candidates = collectCandidatesC3(
     false,
     parser,
     tokenIndex,
-    queryParseTree
+    queryParseTree,
   );
   if (hasValidExpressionSuggestion(candidates, priorTerminal)) {
     // Expand the expression to valid (non-function name) keywords
@@ -121,7 +130,7 @@ export function collectCandidates(
       true,
       parser,
       tokenIndex,
-      queryParseTree
+      queryParseTree,
     );
     for (const [tokenType, tokenList] of expandedCandidates.tokens) {
       candidates.tokens.set(tokenType, tokenList);
@@ -141,7 +150,7 @@ function collectCandidatesC3(
   collectExpressionTokens: boolean,
   parser: LiveEditParser,
   tokenIndex: number,
-  queryParseTree: ParserRuleContext
+  queryParseTree: ParserRuleContext,
 ): CandidatesCollection {
   const core = new CodeCompletionCore(parser);
   const rulesToCollect: number[] = [
@@ -162,7 +171,7 @@ function collectCandidatesC3(
 
 function hasValidExpressionSuggestion(
   candidates: CandidatesCollection,
-  priorTerminal: TerminalNode | undefined
+  priorTerminal: TerminalNode | undefined,
 ): boolean {
   if (!candidates.rules.has(EXPRESSION_RULE)) {
     return false;
@@ -179,7 +188,7 @@ function hasValidExpressionSuggestion(
 // (they're mostly ignored)
 function expressionSuggestionIsValid(
   expressionRuleList: number[],
-  priorTerminal: TerminalNode | undefined
+  priorTerminal: TerminalNode | undefined,
 ): boolean {
   if (!priorTerminal) {
     // Expressions cannot start a query (E.g. "FLOOR(1)"")
@@ -249,11 +258,11 @@ function expressionSuggestionIsValid(
 }
 
 const functionsResult = (
-  rules: CandidatesCollection["rules"]
+  rules: CandidatesCollection["rules"],
 ): Candidates["functions"] => ({ isViable: rules.has(FUNCTION_NAME_RULE) });
 
 const identifiersResult = (
-  rules: CandidatesCollection["rules"]
+  rules: CandidatesCollection["rules"],
 ): Candidates["identifiers"] => {
   const identifierCandidate = rules.get(IDENTIFIER_RULE);
   if (!identifierCandidate) {
@@ -262,16 +271,16 @@ const identifiersResult = (
   const identifierIdx: number | undefined =
     indexOf(
       identifierCandidate.ruleList,
-      LiveEditParser.RULE_compoundIdentifier
+      LiveEditParser.RULE_compoundIdentifier,
     ) ??
     indexOf(
       identifierCandidate.ruleList,
-      LiveEditParser.RULE_simpleIdentifier
+      LiveEditParser.RULE_simpleIdentifier,
     ) ??
     indexOf(identifierCandidate.ruleList, LiveEditParser.RULE_identifier);
   if (identifierIdx == undefined) {
     getLogger().warn(
-      "Unexpected identifier rule list: " + identifierCandidate.ruleList
+      "Unexpected identifier rule list: " + identifierCandidate.ruleList,
     );
     return { isViable: false };
   }

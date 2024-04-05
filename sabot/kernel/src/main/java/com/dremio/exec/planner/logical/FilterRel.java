@@ -15,14 +15,12 @@
  */
 package com.dremio.exec.planner.logical;
 
+import com.dremio.exec.planner.common.FilterRelBase;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Filter;
 import org.apache.calcite.rex.RexNode;
-
-import com.dremio.exec.planner.common.FilterRelBase;
-
 
 public class FilterRel extends FilterRelBase implements Rel {
 
@@ -32,7 +30,12 @@ public class FilterRel extends FilterRelBase implements Rel {
     this(cluster, traits, child, condition, false);
   }
 
-  public FilterRel(RelOptCluster cluster, RelTraitSet traits, RelNode child, RexNode condition, boolean alreadyPushedDown) {
+  public FilterRel(
+      RelOptCluster cluster,
+      RelTraitSet traits,
+      RelNode child,
+      RexNode condition,
+      boolean alreadyPushedDown) {
     super(LOGICAL, cluster, traits, child, condition);
     this.alreadyPushedDown = alreadyPushedDown;
   }
@@ -47,7 +50,7 @@ public class FilterRel extends FilterRelBase implements Rel {
   }
 
   public static FilterRel create(RelNode child, RexNode condition) {
-    return new FilterRel(child.getCluster(), child.getTraitSet(), child, condition)  ;
+    return new FilterRel(child.getCluster(), child.getTraitSet(), child, condition);
   }
 
   @Override

@@ -16,7 +16,10 @@
 
 import { useEffect, type MutableRefObject, useRef } from "react";
 
-export const useScrollObserver = (ref: MutableRefObject<HTMLElement>, cb: () => void) => {
+export const useScrollObserver = (
+  ref: MutableRefObject<HTMLElement>,
+  cb: () => void,
+) => {
   const cbRef = useRef(cb);
   cbRef.current = cb;
   useEffect(() => {
@@ -24,7 +27,7 @@ export const useScrollObserver = (ref: MutableRefObject<HTMLElement>, cb: () => 
     const handleEvent = () => cbRef.current();
     el.addEventListener("scroll", handleEvent, { passive: true });
     return () => {
-      el.removeEventListener("scroll", handleEvent)
-    }
-  }, [ref])
-}
+      el.removeEventListener("scroll", handleEvent);
+    };
+  }, [ref]);
+};

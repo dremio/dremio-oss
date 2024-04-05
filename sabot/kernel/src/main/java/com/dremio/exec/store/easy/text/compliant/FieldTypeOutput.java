@@ -15,16 +15,12 @@
  */
 package com.dremio.exec.store.easy.text.compliant;
 
-import java.util.List;
-
-import org.apache.arrow.vector.ValueVector;
-
 import com.dremio.common.exceptions.FieldSizeLimitExceptionHelper;
 import com.dremio.exec.exception.SchemaChangeException;
+import java.util.List;
+import org.apache.arrow.vector.ValueVector;
 
-/**
- * Abstract Class, responsible for generating record batches for text file inputs.
- */
+/** Abstract Class, responsible for generating record batches for text file inputs. */
 abstract class FieldTypeOutput extends TextOutput {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FieldTypeOutput.class);
 
@@ -50,8 +46,8 @@ abstract class FieldTypeOutput extends TextOutput {
   protected boolean isValidationMode = false;
 
   /**
-   * We initialize and add the varchar vector for each incoming field in this
-   * constructor.
+   * We initialize and add the varchar vector for each incoming field in this constructor.
+   *
    * @param sizeLimit Maximum size for an individual field
    * @throws SchemaChangeException
    */
@@ -62,9 +58,7 @@ abstract class FieldTypeOutput extends TextOutput {
     this.fieldBytes = new byte[sizeLimit];
   }
 
-  /**
-   * Start a new record batch. Resets all pointers
-   */
+  /** Start a new record batch. Resets all pointers */
   @Override
   public void startBatch() {
     this.recordCount = 0;
@@ -97,17 +91,19 @@ abstract class FieldTypeOutput extends TextOutput {
       return;
     }
 
-    FieldSizeLimitExceptionHelper.checkSizeLimit(currentDataPointer+1, maxCellLimit, currentFieldIndex, logger);
+    FieldSizeLimitExceptionHelper.checkSizeLimit(
+        currentDataPointer + 1, maxCellLimit, currentFieldIndex, logger);
     fieldBytes[currentDataPointer++] = data;
-    rowHasData =true;
+    rowHasData = true;
   }
 
   @Override
   public boolean endField() {
     fieldOpen = false;
-    FieldSizeLimitExceptionHelper.checkSizeLimit(currentDataPointer, maxCellLimit, currentFieldIndex, logger);
+    FieldSizeLimitExceptionHelper.checkSizeLimit(
+        currentDataPointer, maxCellLimit, currentFieldIndex, logger);
 
-    if(collect) {
+    if (collect) {
       assert isValidationMode || currentVector != null;
       writeValueInCurrentVector(recordCount, fieldBytes, 0, currentDataPointer);
     }
@@ -119,15 +115,17 @@ abstract class FieldTypeOutput extends TextOutput {
     return currentFieldIndex < maxField;
   }
 
-  protected abstract void writeValueInCurrentVector(int index, byte[] fieldBytes, int startIndex, int endIndex);
+  protected abstract void writeValueInCurrentVector(
+      int index, byte[] fieldBytes, int startIndex, int endIndex);
+
   @Override
   public boolean endEmptyField() {
     return endField();
   }
 
- @Override
+  @Override
   public void finishRecord() {
-    if(fieldOpen){
+    if (fieldOpen) {
       endField();
     }
 
@@ -143,7 +141,6 @@ abstract class FieldTypeOutput extends TextOutput {
         this.vectors[i].setValueCount(recordCount);
       }
     }
-
   }
 
   @Override
@@ -165,5 +162,4 @@ abstract class FieldTypeOutput extends TextOutput {
   public void setFieldCurrentDataPointer(int currentDataPointer) {
     this.currentDataPointer = currentDataPointer;
   }
-
- }
+}

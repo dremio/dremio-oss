@@ -15,9 +15,7 @@
  */
 package com.dremio.service.nessie;
 
-/**
- * Creates the KV store for Named References.
- */
+/** Creates the KV store for Named References. */
 public class NessieRefNamesStoreBuilder extends AbstractNessieStoreBuilder {
   public NessieRefNamesStoreBuilder() {
     super("nessie_reference_names");

@@ -15,15 +15,12 @@
  */
 package com.dremio.sabot.op.writer;
 
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import java.util.List;
-
 import javax.annotation.Nullable;
-
 import org.apache.arrow.vector.holders.VarBinaryHolder;
 import org.apache.arrow.vector.holders.VarCharHolder;
 import org.immutables.value.Value;
-
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
 @JsonDeserialize(builder = ImmutableWriterCommitterRecord.Builder.class)
 @Value.Immutable

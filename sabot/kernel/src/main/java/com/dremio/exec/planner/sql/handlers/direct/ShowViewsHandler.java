@@ -21,15 +21,9 @@ import static com.dremio.exec.planner.sql.handlers.direct.ShowHandlerUtil.getVer
 import static com.dremio.exec.planner.sql.handlers.direct.ShowHandlerUtil.validate;
 import static java.util.Objects.requireNonNull;
 
-import java.util.List;
-import java.util.Objects;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-
-import org.apache.calcite.sql.SqlNode;
-
+import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.catalog.model.VersionContext;
+import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogUtil;
@@ -43,9 +37,16 @@ import com.dremio.exec.work.foreman.ForemanSetupException;
 import com.dremio.options.OptionResolver;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.namespace.NamespaceKey;
+import java.util.List;
+import java.util.Objects;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import org.apache.calcite.sql.SqlNode;
 
 public class ShowViewsHandler implements SqlDirectHandler<ShowViewsHandler.ShowViewResult> {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ShowViewsHandler.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ShowViewsHandler.class);
 
   private final Catalog catalog;
   private final OptionResolver optionResolver;
@@ -61,18 +62,34 @@ public class ShowViewsHandler implements SqlDirectHandler<ShowViewsHandler.ShowV
   public List<ShowViewResult> toResult(String sql, SqlNode sqlNode) throws Exception {
     SqlShowViews sqlShowViews = SqlNodeUtil.unwrap(sqlNode, SqlShowViews.class);
 
-    final NamespaceKey sourcePath = VersionedHandlerUtils.resolveSourceNameAsNamespaceKey(
-      sqlShowViews.getSourceName(),
-      userSession.getDefaultSchemaPath());
+    final NamespaceKey sourcePath =
+        VersionedHandlerUtils.resolveSourceNameAsNamespaceKey(
+            sqlShowViews.getSourceName(), userSession.getDefaultSchemaPath());
     final String sourceName = sourcePath.getRoot();
-    validate(sourcePath, catalog);
+    VersionContext statementSourceVersion =
+        ReferenceTypeUtils.map(
+            sqlShowViews.getRefType(), sqlShowViews.getRefValue(), sqlShowViews.getTimestamp());
+    final VersionContext sessionVersion =
+        userSession.getSessionVersionForSource(sourceName).orElse(VersionContext.NOT_SPECIFIED);
+    final VersionContext sourceVersion = statementSourceVersion.orElse(sessionVersion);
+    CatalogEntityKey sourceKey =
+        CatalogEntityKey.newBuilder()
+            .keyComponents(sourcePath.getPathComponents())
+            .tableVersionContext(TableVersionContext.of(sourceVersion))
+            .build();
+    validate(sourceKey, catalog);
 
-    if(CatalogUtil.requestedPluginSupportsVersionedTables(sourcePath, catalog)) {
-      return showVersionedViews(sqlNode, sourcePath);
+    if (CatalogUtil.requestedPluginSupportsVersionedTables(sourcePath, catalog)) {
+      return showVersionedViews(
+          sqlNode,
+          CatalogEntityKey.newBuilder()
+              .keyComponents(sourcePath.getPathComponents())
+              .tableVersionContext(TableVersionContext.of(sourceVersion))
+              .build());
     } else {
       throw UserException.unsupportedError()
-        .message("Source %s does not support show views.", sourceName)
-        .build(logger);
+          .message("Source %s does not support show views.", sourceName)
+          .build(logger);
     }
   }
 
@@ -81,40 +98,39 @@ public class ShowViewsHandler implements SqlDirectHandler<ShowViewsHandler.ShowV
     return ShowViewResult.class;
   }
 
-  private List<ShowViewResult> showVersionedViews(SqlNode sqlNode, NamespaceKey sourcePath) throws ForemanSetupException {
+  private List<ShowViewResult> showVersionedViews(SqlNode sqlNode, CatalogEntityKey sourcePath)
+      throws ForemanSetupException {
     checkVersionedFeatureEnabled(optionResolver, "SHOW VIEWS syntax is not supported.");
 
     final SqlShowViews showViews = requireNonNull(SqlNodeUtil.unwrap(sqlNode, SqlShowViews.class));
 
-    final String sourceName = sourcePath.getRoot();
-    final VersionContext statementSourceVersion =
-      ReferenceTypeUtils.map(showViews.getRefType(), showViews.getRefValue(), showViews.getTimestamp());
-    final VersionContext sessionVersion = userSession.getSessionVersionForSource(sourceName);
-    final VersionContext sourceVersion = statementSourceVersion.orElse(sessionVersion);
-
     final Pattern likePattern = SqlNodeUtil.getPattern(showViews.getLikePattern());
     final Matcher m = likePattern.matcher("");
-    final VersionedPlugin versionedPlugin = getVersionedPlugin(sourceName, catalog);
+    final VersionedPlugin versionedPlugin = getVersionedPlugin(sourcePath.getRootEntity(), catalog);
     final List<String> path = sourcePath.getPathWithoutRoot();
-    try
-    {
-      return versionedPlugin.listViewsIncludeNested(
-          path,
-          sourceVersion)
-        .filter(view -> m.reset(view.getName()).matches())
-        .map(entry ->
-          new ShowViewResult(
-            concatSourceNameAndNamespace(sourceName, entry.getNamespace()),
-            entry.getName()))
-        .collect(Collectors.toList());
+    try {
+      return versionedPlugin
+          .listViewsIncludeNested(path, sourcePath.getTableVersionContext().asVersionContext())
+          .filter(view -> m.reset(view.getName()).matches())
+          .map(
+              entry ->
+                  new ShowViewResult(
+                      concatSourceNameAndNamespace(
+                          sourcePath.getRootEntity(), entry.getNamespace()),
+                      entry.getName()))
+          .collect(Collectors.toList());
     } catch (ReferenceConflictException e) {
       throw UserException.validationError(e)
-        .message("%s has conflict on source %s.", sourceVersion, sourceName)
-        .buildSilently();
+          .message(
+              "%s has conflict on source %s.",
+              sourcePath.getTableVersionContext().asVersionContext(), sourcePath.getRootEntity())
+          .buildSilently();
     } catch (ReferenceNotFoundException e) {
       throw UserException.validationError(e)
-        .message("%s not found on source %s.", sourceVersion, sourceName)
-        .buildSilently();
+          .message(
+              "%s not found on source %s.",
+              sourcePath.getTableVersionContext().asVersionContext(), sourcePath.getRootEntity())
+          .buildSilently();
     }
   }
 
@@ -147,10 +163,14 @@ public class ShowViewsHandler implements SqlDirectHandler<ShowViewsHandler.ShowV
 
     @Override
     public String toString() {
-      return "ShowViewResult{" +
-        "VIEW_PATH='" + VIEW_PATH + '\'' +
-        ", VIEW_NAME='" + VIEW_NAME + '\'' +
-        '}';
+      return "ShowViewResult{"
+          + "VIEW_PATH='"
+          + VIEW_PATH
+          + '\''
+          + ", VIEW_NAME='"
+          + VIEW_NAME
+          + '\''
+          + '}';
     }
   }
 }

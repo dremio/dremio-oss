@@ -47,7 +47,7 @@ export class AutocompleteEngine {
   constructor(
     liveEditParsingEngine: LiveEditParsingEngine,
     autocompleteApi: AutocompleteApi,
-    sqlFunctions: SQLFunction[]
+    sqlFunctions: SQLFunction[],
   ) {
     this.liveEditParsingEngine = liveEditParsingEngine;
     this.containerFetcher = new ContainerFetcher(autocompleteApi);
@@ -59,7 +59,7 @@ export class AutocompleteEngine {
   async generateCompletionItems(
     linesContent: string[],
     queryPosition: CursorQueryPosition,
-    queryContext: string[]
+    queryContext: string[],
   ): Promise<monaco.languages.CompletionItem[]> {
     const { tokenStream, lexer, parseTree, parser, errors } =
       this.liveEditParsingEngine.run(linesContent);
@@ -73,7 +73,7 @@ export class AutocompleteEngine {
     const tokenSuggestions: SuggestionInfo = this.getTokenSuggestions(
       parseTree,
       parser,
-      queryPosition
+      queryPosition,
     );
 
     let identifierSuggestions: GetIdentifierSuggestionsResult | undefined =
@@ -83,7 +83,7 @@ export class AutocompleteEngine {
         tokenSuggestions.identifiers,
         tokenSuggestions.cursorInfo,
         tokenStream,
-        queryContext
+        queryContext,
       );
     }
 
@@ -93,13 +93,13 @@ export class AutocompleteEngine {
   private getTokenSuggestions(
     queryParseTree: ParserRuleContext,
     parser: LiveEditParser,
-    position: CursorQueryPosition
+    position: CursorQueryPosition,
   ): SuggestionInfo {
     return new TokenSuggestions(
       queryParseTree,
       parser,
       position,
-      this.sqlFunctions
+      this.sqlFunctions,
     ).get();
   }
 
@@ -107,7 +107,7 @@ export class AutocompleteEngine {
     identifiers: IdentifierCandidate,
     cursorInfo: CursorInfo,
     tokenStream: CommonTokenStream,
-    queryContext: string[]
+    queryContext: string[],
   ): Promise<GetIdentifierSuggestionsResult | undefined> {
     const analyzedIdentifier = analyzeIdentifier(identifiers, cursorInfo);
     if (!analyzedIdentifier) {
@@ -119,7 +119,7 @@ export class AutocompleteEngine {
       tokenStream,
       this.containerFetcher,
       this.columnFetcher,
-      queryContext
+      queryContext,
     ).get();
   }
 }

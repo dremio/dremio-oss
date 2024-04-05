@@ -21,7 +21,7 @@ import org.apache.calcite.plan.RelOptRuleOperand;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 
-public abstract class Prule extends RelOptRule{
+public abstract class Prule extends RelOptRule {
   public Prule(RelOptRuleOperand operand, String description) {
     super(operand, description);
   }
@@ -30,19 +30,18 @@ public abstract class Prule extends RelOptRule{
     super(operand);
   }
 
-  public static RelNode convert(RelNode rel, RelTraitSet toTraits){
+  public static RelNode convert(RelNode rel, RelTraitSet toTraits) {
     toTraits = toTraits.simplify();
 
     PlannerSettings settings = PrelUtil.getSettings(rel.getCluster());
-    if(settings.isSingleMode()){
+    if (settings.isSingleMode()) {
       toTraits = toTraits.replace(DistributionTrait.ANY);
     }
 
     return RelOptRule.convert(rel, toTraits.simplify());
   }
 
-  public static boolean isSingleMode(RelOptRuleCall call){
+  public static boolean isSingleMode(RelOptRuleCall call) {
     return PrelUtil.getPlannerSettings(call.getPlanner()).isSingleMode();
   }
-
 }

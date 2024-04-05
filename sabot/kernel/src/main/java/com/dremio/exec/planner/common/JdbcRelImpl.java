@@ -15,26 +15,22 @@
  */
 package com.dremio.exec.planner.common;
 
+import com.dremio.exec.catalog.StoragePluginId;
+import com.google.common.base.Preconditions;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-
 import org.apache.calcite.plan.CopyWithCluster.CopyToCluster;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.sql.validate.SqlValidatorUtil;
 import org.apache.calcite.tools.RelBuilder;
 
-import com.dremio.exec.catalog.StoragePluginId;
-import com.google.common.base.Preconditions;
-
-/**
- * Relational expression to push down to jdbc source
- */
+/** Relational expression to push down to jdbc source */
 public interface JdbcRelImpl extends RelNode, CopyToCluster {
 
   /**
-   * Get the plugin ID from the JDBC node. A null plugin ID implies that the operation is agnostic to which
-   * JDBC data source it is executing on. (Currently only VALUES nodes).
+   * Get the plugin ID from the JDBC node. A null plugin ID implies that the operation is agnostic
+   * to which JDBC data source it is executing on. (Currently only VALUES nodes).
    *
    * @return The plugin ID, or null if the operation is data source agnostic.
    */
@@ -52,7 +48,8 @@ public interface JdbcRelImpl extends RelNode, CopyToCluster {
     final List<RelNode> revertedInputs = new ArrayList<>();
     for (int i = 0; i < inputs.size(); i++) {
       final RelNode input = inputs.get(i);
-      Preconditions.checkState(input instanceof JdbcRelImpl,
+      Preconditions.checkState(
+          input instanceof JdbcRelImpl,
           String.format("%s (#%d) is not a JdbcRelImpl", input.getClass().getSimpleName(), i));
       revertedInputs.add(((JdbcRelImpl) input).revert(builder));
     }
@@ -61,8 +58,9 @@ public interface JdbcRelImpl extends RelNode, CopyToCluster {
   }
 
   /**
-   * Return the logical {@link RelNode} version of this node, assuming that the given inputs are converted to logical
-   * {@link RelNode}. Typically, consumers of this interface use {@link #revert()}.
+   * Return the logical {@link RelNode} version of this node, assuming that the given inputs are
+   * converted to logical {@link RelNode}. Typically, consumers of this interface use {@link
+   * #revert()}.
    *
    * @param revertedInputs input {@link RelNode RelNodes}
    * @param builder builder to use for revert {@link RelNode RelNodes}

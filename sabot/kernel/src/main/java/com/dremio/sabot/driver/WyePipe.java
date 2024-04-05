@@ -23,9 +23,7 @@ import com.dremio.sabot.op.spi.Operator.Producer;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 
-/**
- * A pipe that has two sources (left and right) and one sink
- */
+/** A pipe that has two sources (left and right) and one sink */
 class WyePipe extends Pipe {
   private Pipe upstreamLeft;
   private Pipe upstreamRight;
@@ -52,81 +50,84 @@ class WyePipe extends Pipe {
     try {
       switch (downstream.getState()) {
 
-      // want to consume from upstream, need to either consume or return not ready upstream.
-      case CAN_CONSUME_L: {
-        switch(left.getState().getMasterState()) {
-        case CAN_PRODUCE:
-          int records = left.outputData();
-          if(records > 0){
-            downstream.consumeDataLeft(records);
+          // want to consume from upstream, need to either consume or return not ready upstream.
+        case CAN_CONSUME_L:
+          {
+            switch (left.getState().getMasterState()) {
+              case CAN_PRODUCE:
+                int records = left.outputData();
+                if (records > 0) {
+                  downstream.consumeDataLeft(records);
+                }
+                return Result.PUMPED;
+              case DONE:
+                downstream.noMoreToConsumeLeft();
+                upstreamLeft = null;
+                return upstreamRight == null ? Result.DONE : Result.NOT_READY_UPSTREAM;
+              default:
+                return Result.NOT_READY_UPSTREAM;
+            }
           }
-          return Result.PUMPED;
-        case DONE:
-          downstream.noMoreToConsumeLeft();
-          upstreamLeft = null;
-          return upstreamRight == null ? Result.DONE : Result.NOT_READY_UPSTREAM;
-        default:
-          return Result.NOT_READY_UPSTREAM;
-        }
-      }
 
-
-      // want to consume from upstream, need to either consume or return not ready upstream.
-      case CAN_CONSUME_R: {
-        switch(right.getState().getMasterState()) {
-        case CAN_PRODUCE:
-          int records = right.outputData();
-          if(records > 0){
-            downstream.consumeDataRight(records);
+          // want to consume from upstream, need to either consume or return not ready upstream.
+        case CAN_CONSUME_R:
+          {
+            switch (right.getState().getMasterState()) {
+              case CAN_PRODUCE:
+                int records = right.outputData();
+                if (records > 0) {
+                  downstream.consumeDataRight(records);
+                }
+                return Result.PUMPED;
+              case DONE:
+                downstream.noMoreToConsumeRight();
+                upstreamRight = null;
+                return Result.PUMPED;
+              default:
+                return Result.NOT_READY_UPSTREAM;
+            }
           }
-          return Result.PUMPED;
+
+          // need to produce before doing anything else.
+        case CAN_PRODUCE:
+          return Result.NOT_READY_DOWNSTREAM;
+
         case DONE:
-          downstream.noMoreToConsumeRight();
-          upstreamRight = null;
-          return Result.PUMPED;
+          return Result.DONE;
+
+        case NEEDS_SETUP:
         default:
-          return Result.NOT_READY_UPSTREAM;
-        }
+          throw new IllegalStateException();
       }
-
-      // need to produce before doing anything else.
-      case CAN_PRODUCE:
-        return Result.NOT_READY_DOWNSTREAM;
-
-      case DONE:
-        return Result.DONE;
-
-      case NEEDS_SETUP:
-      default:
-        throw new IllegalStateException();
-
-      }
-    }catch(Exception ex){
+    } catch (Exception ex) {
       throw new PipeFailure(this, ex);
     }
   }
 
   @Override
-  public <DOWN, UP, EXCEP extends Exception> UP accept(Visitor<DOWN, UP, EXCEP> visitor, DOWN down) throws EXCEP {
+  public <DOWN, UP, EXCEP extends Exception> UP accept(Visitor<DOWN, UP, EXCEP> visitor, DOWN down)
+      throws EXCEP {
     return visitor.visitWyePipe(this, down);
   }
 
   @Override
   public Pipe getRequiredUpstream() {
     switch (downstream.getState()) {
-    case CAN_CONSUME_L:
-      return upstreamLeft;
-    case CAN_CONSUME_R:
-      return upstreamRight;
-    default:
-      return null;
+      case CAN_CONSUME_L:
+        return upstreamLeft;
+      case CAN_CONSUME_R:
+        return upstreamRight;
+      default:
+        return null;
     }
   }
 
   @Override
   public VectorAccessible setup() throws Exception {
-    final VectorAccessible leftData = upstreamLeft == null ? left.accept(new SetupVisitor(), null) : upstreamLeft.setup();
-    final VectorAccessible rightData = upstreamRight == null ? right.accept(new SetupVisitor(), null) : upstreamRight.setup();
+    final VectorAccessible leftData =
+        upstreamLeft == null ? left.accept(new SetupVisitor(), null) : upstreamLeft.setup();
+    final VectorAccessible rightData =
+        upstreamRight == null ? right.accept(new SetupVisitor(), null) : upstreamRight.setup();
     return downstream.setup(leftData, rightData);
   }
 
@@ -134,21 +135,20 @@ class WyePipe extends Pipe {
     final VectorAccessible input = pipe != null ? pipe.setup() : null;
 
     final VectorAccessible output = operator.accept(new SetupVisitor(), input);
-    try{
+    try {
       output.getSchema();
-    }catch(Exception ex){
+    } catch (Exception ex) {
       throw new Exception("SqlOperatorImpl didn't return a valid schema. " + operator, ex);
     }
     return output;
   }
 
-
   @Override
   public String toString() {
     return MoreObjects.toStringHelper(this)
-      .add("left", left)
-      .add("right", right)
-      .add("downstream", downstream)
-      .toString();
+        .add("left", left)
+        .add("right", right)
+        .add("downstream", downstream)
+        .toString();
   }
 }

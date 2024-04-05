@@ -32,16 +32,6 @@ import static com.dremio.service.reflection.store.ReflectionIndexKeys.REFRESH_SE
 import static com.google.common.base.Predicates.and;
 import static com.google.common.base.Predicates.notNull;
 
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.Map;
-import java.util.Map.Entry;
-
-import javax.annotation.Nullable;
-import javax.inject.Provider;
-
-import org.apache.calcite.util.Pair;
-
 import com.dremio.common.types.MinorType;
 import com.dremio.datastore.SearchTypes;
 import com.dremio.datastore.SearchTypes.SearchFieldSorting;
@@ -74,67 +64,82 @@ import com.google.common.base.Suppliers;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.Map;
+import java.util.Map.Entry;
+import javax.annotation.Nullable;
+import javax.inject.Provider;
+import org.apache.calcite.util.Pair;
 
-/**
- * store reflection materialization entries
- */
+/** store reflection materialization entries */
 public class MaterializationStore {
 
   private static final String MATERIALIZATION_TABLE_NAME = "materialization_store";
   private static final String REFRESH_TABLE_NAME = "refresh_store";
 
-  private static final SearchFieldSorting LAST_REFRESH = SearchTypes.SearchFieldSorting.newBuilder()
-      .setType(FieldType.LONG)
-      .setField(ReflectionIndexKeys.REFRESH_CREATE.getIndexFieldName())
-      .setOrder(SortOrder.DESCENDING)
-      .build();
+  private static final SearchFieldSorting LAST_REFRESH =
+      SearchTypes.SearchFieldSorting.newBuilder()
+          .setType(FieldType.LONG)
+          .setField(ReflectionIndexKeys.REFRESH_CREATE.getIndexFieldName())
+          .setOrder(SortOrder.DESCENDING)
+          .build();
 
-  private static final SearchFieldSorting LAST_REFRESH_SUBMIT = SearchTypes.SearchFieldSorting.newBuilder()
-    .setType(FieldType.LONG)
-    .setField(ReflectionIndexKeys.MATERIALIZATION_INIT_REFRESH_SUBMIT.getIndexFieldName())
-    .setOrder(SortOrder.DESCENDING)
-    .build();
+  private static final SearchFieldSorting LAST_REFRESH_SUBMIT =
+      SearchTypes.SearchFieldSorting.newBuilder()
+          .setType(FieldType.LONG)
+          .setField(ReflectionIndexKeys.MATERIALIZATION_INIT_REFRESH_SUBMIT.getIndexFieldName())
+          .setOrder(SortOrder.DESCENDING)
+          .build();
 
-  private static final SearchFieldSorting MATERIALIZATION_MODIFIED_AT_SORT = SearchTypes.SearchFieldSorting.newBuilder()
-    .setType(FieldType.LONG)
-    .setField(ReflectionIndexKeys.MATERIALIZATION_MODIFIED_AT.getIndexFieldName())
-    .setOrder(SortOrder.ASCENDING)
-    .build();
+  private static final SearchFieldSorting MATERIALIZATION_MODIFIED_AT_SORT =
+      SearchTypes.SearchFieldSorting.newBuilder()
+          .setType(FieldType.LONG)
+          .setField(ReflectionIndexKeys.MATERIALIZATION_MODIFIED_AT.getIndexFieldName())
+          .setOrder(SortOrder.ASCENDING)
+          .build();
 
-  private final Supplier<LegacyIndexedStore<MaterializationId, Materialization>> materializationStore;
+  private final Supplier<LegacyIndexedStore<MaterializationId, Materialization>>
+      materializationStore;
   private final Supplier<LegacyIndexedStore<RefreshId, Refresh>> refreshStore;
 
-  private static final Function<Map.Entry<MaterializationId, Materialization>, Materialization> GET_MATERIALIZATION = new Function<Map.Entry<MaterializationId, Materialization>, Materialization>() {
-    @Nullable
-    @Override
-    public Materialization apply(@Nullable Map.Entry<MaterializationId, Materialization> entry) {
-      Materialization value = entry == null ? null : entry.getValue();
-      materializationGoalVersionUpdate(value);
-      return value;
-    }
-  };
+  private static final Function<Map.Entry<MaterializationId, Materialization>, Materialization>
+      GET_MATERIALIZATION =
+          new Function<Map.Entry<MaterializationId, Materialization>, Materialization>() {
+            @Nullable
+            @Override
+            public Materialization apply(
+                @Nullable Map.Entry<MaterializationId, Materialization> entry) {
+              Materialization value = entry == null ? null : entry.getValue();
+              materializationGoalVersionUpdate(value);
+              return value;
+            }
+          };
 
   public MaterializationStore(final Provider<LegacyKVStoreProvider> provider) {
     Preconditions.checkNotNull(provider, "kvStore provider required");
-    this.materializationStore = Suppliers.memoize(new Supplier<LegacyIndexedStore<MaterializationId, Materialization>>() {
-      @Override
-      public LegacyIndexedStore<MaterializationId, Materialization> get() {
-        return provider.get().getStore(MaterializationStoreCreator.class);
-      }
-    });
+    this.materializationStore =
+        Suppliers.memoize(
+            new Supplier<LegacyIndexedStore<MaterializationId, Materialization>>() {
+              @Override
+              public LegacyIndexedStore<MaterializationId, Materialization> get() {
+                return provider.get().getStore(MaterializationStoreCreator.class);
+              }
+            });
 
-    this.refreshStore = Suppliers.memoize(new Supplier<LegacyIndexedStore<RefreshId, Refresh>>() {
-      @Override
-      public LegacyIndexedStore<RefreshId, Refresh> get() {
-        return provider.get().getStore(RefreshStoreCreator.class);
-      }
-    });
+    this.refreshStore =
+        Suppliers.memoize(
+            new Supplier<LegacyIndexedStore<RefreshId, Refresh>>() {
+              @Override
+              public LegacyIndexedStore<RefreshId, Refresh> get() {
+                return provider.get().getStore(RefreshStoreCreator.class);
+              }
+            });
   }
 
   private Iterable<Materialization> findByIndex(IndexKey key, String value) {
     final SearchTypes.SearchQuery query = newTermQuery(key, value);
-    final LegacyFindByCondition condition = new LegacyFindByCondition()
-      .setCondition(query);
+    final LegacyFindByCondition condition = new LegacyFindByCondition().setCondition(query);
     return Iterables.transform(materializationStore.get().find(condition), GET_MATERIALIZATION);
   }
 
@@ -145,14 +150,18 @@ public class MaterializationStore {
     long outputRecords = 0;
     int numFiles = 0;
     // Get a list of refreshes in descending order (highest ordinal first).
-    // If one of the refreshes was compacted, then ignore other refreshes before it, because the reflection was optimized.
-    ImmutableList<Refresh> refreshes = getRefreshes(materialization).toSortedList(Comparator.comparingInt(Refresh::getSeriesOrdinal)).reverse();
-    for(Refresh r : refreshes) {
+    // If one of the refreshes was compacted, then ignore other refreshes before it, because the
+    // reflection was optimized.
+    ImmutableList<Refresh> refreshes =
+        getRefreshes(materialization)
+            .toSortedList(Comparator.comparingInt(Refresh::getSeriesOrdinal))
+            .reverse();
+    for (Refresh r : refreshes) {
       footprint += r.getMetrics().getFootprint();
       originalCost += r.getMetrics().getOriginalCost();
       outputRecords += r.getJob().getOutputRecords();
       numFiles += r.getMetrics().getNumFiles();
-      if(r.getCompacted()) {
+      if (r.getCompacted()) {
         break;
       }
     }
@@ -176,34 +185,38 @@ public class MaterializationStore {
       return Collections.emptyList();
     }
 
-    final LegacyFindByCondition condition = new LegacyFindByCondition()
-      .setCondition(and(
-        newTermQuery(REFRESH_REFLECTION_ID, id.getId()),
-        newTermQuery(REFRESH_SERIES_ID, seriesId)
-      ));
+    final LegacyFindByCondition condition =
+        new LegacyFindByCondition()
+            .setCondition(
+                and(
+                    newTermQuery(REFRESH_REFLECTION_ID, id.getId()),
+                    newTermQuery(REFRESH_SERIES_ID, seriesId)));
 
-    return FluentIterable.from(refreshStore.get().find(condition)).transform(new Function<Entry<RefreshId, Refresh>, Refresh>() {
-      @Override
-      public Refresh apply(Entry<RefreshId, Refresh> refreshIdRefreshEntry) {
-        return inlineUpgrade(refreshIdRefreshEntry.getValue());
-      }
-    });
+    return FluentIterable.from(refreshStore.get().find(condition))
+        .transform(
+            new Function<Entry<RefreshId, Refresh>, Refresh>() {
+              @Override
+              public Refresh apply(Entry<RefreshId, Refresh> refreshIdRefreshEntry) {
+                return inlineUpgrade(refreshIdRefreshEntry.getValue());
+              }
+            });
   }
 
   public Refresh getMostRecentRefresh(ReflectionId reflectionId, Long seriesId) {
-    if(seriesId == null) {
+    if (seriesId == null) {
       return null;
     }
-    final LegacyFindByCondition condition = new LegacyFindByCondition()
-        .addSorting(LAST_REFRESH)
-        .setLimit(1)
-        .setCondition(and(
-          newTermQuery(ReflectionIndexKeys.REFRESH_REFLECTION_ID, reflectionId.getId()),
-          newTermQuery(ReflectionIndexKeys.REFRESH_SERIES_ID, seriesId)
-        ));
+    final LegacyFindByCondition condition =
+        new LegacyFindByCondition()
+            .addSorting(LAST_REFRESH)
+            .setLimit(1)
+            .setCondition(
+                and(
+                    newTermQuery(ReflectionIndexKeys.REFRESH_REFLECTION_ID, reflectionId.getId()),
+                    newTermQuery(ReflectionIndexKeys.REFRESH_SERIES_ID, seriesId)));
 
     Entry<RefreshId, Refresh> entry = Iterables.getFirst(refreshStore.get().find(condition), null);
-    if(entry == null) {
+    if (entry == null) {
       return null;
     }
 
@@ -211,7 +224,8 @@ public class MaterializationStore {
   }
 
   private Refresh inlineUpgrade(Refresh old) {
-    if ((old.getUpdateId() == null) && (old.getLegacyUpdateId() != null)) { // Do inline upgrade for updateId field
+    if ((old.getUpdateId() == null)
+        && (old.getLegacyUpdateId() != null)) { // Do inline upgrade for updateId field
       UpdateId updateId = new UpdateId();
       updateId.setLongUpdateId(old.getLegacyUpdateId());
       updateId.setType(MinorType.BIGINT);
@@ -221,32 +235,37 @@ public class MaterializationStore {
   }
 
   public FluentIterable<Refresh> getRefreshesByReflectionId(ReflectionId reflectionId) {
-    final LegacyFindByCondition condition = new LegacyFindByCondition()
-      .setCondition(
-        newTermQuery(ReflectionIndexKeys.REFRESH_REFLECTION_ID, reflectionId.getId()));
+    final LegacyFindByCondition condition =
+        new LegacyFindByCondition()
+            .setCondition(
+                newTermQuery(ReflectionIndexKeys.REFRESH_REFLECTION_ID, reflectionId.getId()));
 
-    return FluentIterable.from(refreshStore.get().find(condition)).transform(new Function<Entry<RefreshId, Refresh>, Refresh>() {
-      @Override
-      public Refresh apply(Entry<RefreshId, Refresh> refreshIdRefreshEntry) {
-        return inlineUpgrade(refreshIdRefreshEntry.getValue());
-      }
-    });
+    return FluentIterable.from(refreshStore.get().find(condition))
+        .transform(
+            new Function<Entry<RefreshId, Refresh>, Refresh>() {
+              @Override
+              public Refresh apply(Entry<RefreshId, Refresh> refreshIdRefreshEntry) {
+                return inlineUpgrade(refreshIdRefreshEntry.getValue());
+              }
+            });
   }
 
   public Materialization getMostRecentMaterialization(ReflectionId id, Long seriesId) {
-    if(seriesId == null) {
+    if (seriesId == null) {
       return null;
     }
-    final LegacyFindByCondition condition = new LegacyFindByCondition()
-      .addSorting(LAST_REFRESH_SUBMIT)
-      .setLimit(1)
-      .setCondition(and(
-        newTermQuery(ReflectionIndexKeys.MATERIALIZATION_REFLECTION_ID, id.getId()),
-        newTermQuery(ReflectionIndexKeys.MATERIALIZATION_SERIES_ID, seriesId)
-      ));
+    final LegacyFindByCondition condition =
+        new LegacyFindByCondition()
+            .addSorting(LAST_REFRESH_SUBMIT)
+            .setLimit(1)
+            .setCondition(
+                and(
+                    newTermQuery(ReflectionIndexKeys.MATERIALIZATION_REFLECTION_ID, id.getId()),
+                    newTermQuery(ReflectionIndexKeys.MATERIALIZATION_SERIES_ID, seriesId)));
 
-    Entry<MaterializationId, Materialization> entry = Iterables.getFirst(materializationStore.get().find(condition), null);
-    if(entry == null) {
+    Entry<MaterializationId, Materialization> entry =
+        Iterables.getFirst(materializationStore.get().find(condition), null);
+    if (entry == null) {
       return null;
     }
 
@@ -259,22 +278,33 @@ public class MaterializationStore {
     Long seriesId = materialization.getSeriesId();
     Integer seriesOrdinal = materialization.getSeriesOrdinal();
 
-    if(seriesId == null || seriesOrdinal == null) {
+    if (seriesId == null || seriesOrdinal == null) {
       return FluentIterable.from(ImmutableList.<Refresh>of());
     }
 
-    final LegacyFindByCondition condition = new LegacyFindByCondition()
-        .setCondition(and(
-          newTermQuery(ReflectionIndexKeys.REFRESH_REFLECTION_ID, materialization.getReflectionId().getId()),
-          newTermQuery(ReflectionIndexKeys.REFRESH_SERIES_ID, seriesId),
-          newRangeInt(ReflectionIndexKeys.REFRESH_SERIES_ORDINAL.getIndexFieldName(), 0, seriesOrdinal, true, true)
-        ));
-      return FluentIterable.from(refreshStore.get().find(condition)).transform(new Function<Entry<RefreshId, Refresh>, Refresh>(){
+    final LegacyFindByCondition condition =
+        new LegacyFindByCondition()
+            .setCondition(
+                and(
+                    newTermQuery(
+                        ReflectionIndexKeys.REFRESH_REFLECTION_ID,
+                        materialization.getReflectionId().getId()),
+                    newTermQuery(ReflectionIndexKeys.REFRESH_SERIES_ID, seriesId),
+                    newRangeInt(
+                        ReflectionIndexKeys.REFRESH_SERIES_ORDINAL.getIndexFieldName(),
+                        0,
+                        seriesOrdinal,
+                        true,
+                        true)));
+    return FluentIterable.from(refreshStore.get().find(condition))
+        .transform(
+            new Function<Entry<RefreshId, Refresh>, Refresh>() {
 
-        @Override
-        public Refresh apply(Entry<RefreshId, Refresh> input) {
-          return inlineUpgrade(input.getValue());
-        }});
+              @Override
+              public Refresh apply(Entry<RefreshId, Refresh> input) {
+                return inlineUpgrade(input.getValue());
+              }
+            });
   }
 
   public Iterable<Refresh> getRefreshesExclusivelyOwnedBy(final Materialization m) {
@@ -283,7 +313,8 @@ public class MaterializationStore {
       return refreshes;
     }
 
-    final Materialization mostRecent = getMostRecentMaterialization(m.getReflectionId(), m.getSeriesId());
+    final Materialization mostRecent =
+        getMostRecentMaterialization(m.getReflectionId(), m.getSeriesId());
     if (mostRecent != null && !mostRecent.getId().equals(m.getId())) {
       return Collections.emptyList();
     }
@@ -292,12 +323,14 @@ public class MaterializationStore {
   }
 
   public Iterable<Refresh> getAllRefreshes() {
-    return FluentIterable.from(refreshStore.get().find()).transform(new Function<Entry<RefreshId, Refresh>, Refresh>() {
-      @Override
-      public Refresh apply(Entry<RefreshId, Refresh> refreshIdRefreshEntry) {
-        return inlineUpgrade(refreshIdRefreshEntry.getValue());
-      }
-    });
+    return FluentIterable.from(refreshStore.get().find())
+        .transform(
+            new Function<Entry<RefreshId, Refresh>, Refresh>() {
+              @Override
+              public Refresh apply(Entry<RefreshId, Refresh> refreshIdRefreshEntry) {
+                return inlineUpgrade(refreshIdRefreshEntry.getValue());
+              }
+            });
   }
 
   public Materialization getLastMaterializationDone(final ReflectionId id) {
@@ -313,15 +346,16 @@ public class MaterializationStore {
   }
 
   public Materialization getLastMaterialization(final ReflectionId id) {
-    final LegacyFindByCondition condition = new LegacyFindByCondition()
-      .addSorting(LAST_REFRESH_SUBMIT)
-      .setLimit(1)
-      .setCondition(and(
-        newTermQuery(ReflectionIndexKeys.MATERIALIZATION_REFLECTION_ID, id.getId())
-      ));
+    final LegacyFindByCondition condition =
+        new LegacyFindByCondition()
+            .addSorting(LAST_REFRESH_SUBMIT)
+            .setLimit(1)
+            .setCondition(
+                and(newTermQuery(ReflectionIndexKeys.MATERIALIZATION_REFLECTION_ID, id.getId())));
 
-    Entry<MaterializationId, Materialization> entry = Iterables.getFirst(materializationStore.get().find(condition), null);
-    if(entry == null) {
+    Entry<MaterializationId, Materialization> entry =
+        Iterables.getFirst(materializationStore.get().find(condition), null);
+    if (entry == null) {
       return null;
     }
 
@@ -331,22 +365,25 @@ public class MaterializationStore {
   }
 
   /**
-   * Gets the previous materialization for a reflection.
-   * So if there is a materialization currently executing, it will return not the currently running one
-   * but the previous run materialization regardless of status
+   * Gets the previous materialization for a reflection. So if there is a materialization currently
+   * executing, it will return not the currently running one but the previous run materialization
+   * regardless of status
+   *
    * @param id reflection id
    * @return the previous materialization (not the current one but the one right before it).
    */
   public Materialization getPreviousMaterialization(final ReflectionId id) {
-    final LegacyFindByCondition condition = new LegacyFindByCondition()
-      .addSorting(LAST_REFRESH_SUBMIT)
-      .setLimit(2)
-      .setCondition(and(
-        newTermQuery(ReflectionIndexKeys.MATERIALIZATION_REFLECTION_ID, id.getId())
-      ));
-    //the currently running materialization is at position 0, we use position 1 to get the previous run
-    Entry<MaterializationId, Materialization> entry = Iterables.get(materializationStore.get().find(condition), 1);
-    if(entry == null) {
+    final LegacyFindByCondition condition =
+        new LegacyFindByCondition()
+            .addSorting(LAST_REFRESH_SUBMIT)
+            .setLimit(2)
+            .setCondition(
+                and(newTermQuery(ReflectionIndexKeys.MATERIALIZATION_REFLECTION_ID, id.getId())));
+    // the currently running materialization is at position 0, we use position 1 to get the previous
+    // run
+    Entry<MaterializationId, Materialization> entry =
+        Iterables.get(materializationStore.get().find(condition), 1);
+    if (entry == null) {
       return null;
     }
 
@@ -367,17 +404,20 @@ public class MaterializationStore {
     return find(reflectionId);
   }
 
-  private Materialization findLastMaterializationByState(final ReflectionId id, final MaterializationState state) {
-    final LegacyFindByCondition condition = new LegacyFindByCondition()
-      .addSorting(LAST_REFRESH_SUBMIT)
-      .setLimit(1)
-      .setCondition(and(
-        newTermQuery(ReflectionIndexKeys.MATERIALIZATION_REFLECTION_ID, id.getId()),
-        newTermQuery(ReflectionIndexKeys.MATERIALIZATION_STATE, state.name())
-      ));
+  private Materialization findLastMaterializationByState(
+      final ReflectionId id, final MaterializationState state) {
+    final LegacyFindByCondition condition =
+        new LegacyFindByCondition()
+            .addSorting(LAST_REFRESH_SUBMIT)
+            .setLimit(1)
+            .setCondition(
+                and(
+                    newTermQuery(ReflectionIndexKeys.MATERIALIZATION_REFLECTION_ID, id.getId()),
+                    newTermQuery(ReflectionIndexKeys.MATERIALIZATION_STATE, state.name())));
 
-    Entry<MaterializationId, Materialization> entry = Iterables.getFirst(materializationStore.get().find(condition), null);
-    if(entry == null) {
+    Entry<MaterializationId, Materialization> entry =
+        Iterables.getFirst(materializationStore.get().find(condition), null);
+    if (entry == null) {
       return null;
     }
 
@@ -390,11 +430,17 @@ public class MaterializationStore {
    * @return all DONE materializations that expire after the passed timestamp
    */
   public Iterable<Materialization> getAllDoneWhen(long expiresAfter) {
-    final LegacyFindByCondition condition = new LegacyFindByCondition()
-      .setCondition(and(
-        newTermQuery(MATERIALIZATION_STATE, MaterializationState.DONE.name()),
-        newRangeLong(MATERIALIZATION_EXPIRATION.getIndexFieldName(), expiresAfter, Long.MAX_VALUE, false, true)
-      ));
+    final LegacyFindByCondition condition =
+        new LegacyFindByCondition()
+            .setCondition(
+                and(
+                    newTermQuery(MATERIALIZATION_STATE, MaterializationState.DONE.name()),
+                    newRangeLong(
+                        MATERIALIZATION_EXPIRATION.getIndexFieldName(),
+                        expiresAfter,
+                        Long.MAX_VALUE,
+                        false,
+                        true)));
     return Iterables.transform(materializationStore.get().find(condition), GET_MATERIALIZATION);
   }
 
@@ -402,48 +448,67 @@ public class MaterializationStore {
    * @return all DONE materializations that expire before the passed timestamp
    */
   public Iterable<Materialization> getAllExpiredWhen(long expiresBefore) {
-    final LegacyFindByCondition condition = new LegacyFindByCondition()
-      .setCondition(and(
-        newTermQuery(MATERIALIZATION_STATE, MaterializationState.DONE.name()),
-        newRangeLong(MATERIALIZATION_EXPIRATION.getIndexFieldName(), 0L, expiresBefore, true, true)
-      ));
+    final LegacyFindByCondition condition =
+        new LegacyFindByCondition()
+            .setCondition(
+                and(
+                    newTermQuery(MATERIALIZATION_STATE, MaterializationState.DONE.name()),
+                    newRangeLong(
+                        MATERIALIZATION_EXPIRATION.getIndexFieldName(),
+                        0L,
+                        expiresBefore,
+                        true,
+                        true)));
     return Iterables.transform(materializationStore.get().find(condition), GET_MATERIALIZATION);
   }
 
   public Iterable<Materialization> getAllDone(ReflectionId id) {
-    final LegacyFindByCondition condition = new LegacyFindByCondition()
-      .setCondition(and(
-        newTermQuery(MATERIALIZATION_STATE, MaterializationState.DONE.name()),
-        newTermQuery(MATERIALIZATION_REFLECTION_ID, id.getId())
-      ));
+    final LegacyFindByCondition condition =
+        new LegacyFindByCondition()
+            .setCondition(
+                and(
+                    newTermQuery(MATERIALIZATION_STATE, MaterializationState.DONE.name()),
+                    newTermQuery(MATERIALIZATION_REFLECTION_ID, id.getId())));
     return Iterables.transform(materializationStore.get().find(condition), GET_MATERIALIZATION);
   }
 
   public Iterable<Materialization> getAllDone(ReflectionId id, long expiresAfter) {
-    final LegacyFindByCondition condition = new LegacyFindByCondition()
-      .setCondition(and(
-        newTermQuery(MATERIALIZATION_STATE, MaterializationState.DONE.name()),
-        newTermQuery(MATERIALIZATION_REFLECTION_ID, id.getId()),
-        newRangeLong(MATERIALIZATION_EXPIRATION.getIndexFieldName(), expiresAfter, Long.MAX_VALUE, false, true)
-      ));
+    final LegacyFindByCondition condition =
+        new LegacyFindByCondition()
+            .setCondition(
+                and(
+                    newTermQuery(MATERIALIZATION_STATE, MaterializationState.DONE.name()),
+                    newTermQuery(MATERIALIZATION_REFLECTION_ID, id.getId()),
+                    newRangeLong(
+                        MATERIALIZATION_EXPIRATION.getIndexFieldName(),
+                        expiresAfter,
+                        Long.MAX_VALUE,
+                        false,
+                        true)));
     return Iterables.transform(materializationStore.get().find(condition), GET_MATERIALIZATION);
   }
 
   /**
    * @return all materializations deprecated before the passed timestamp
    */
-  public Iterable<Materialization> getDeletableEntriesModifiedBefore(long timestamp, int numEntries) {
-    final LegacyFindByCondition condition = new LegacyFindByCondition()
-      .addSorting(MATERIALIZATION_MODIFIED_AT_SORT)
-      .setLimit(numEntries)
-      .setCondition(and(
-        or(
-          newTermQuery(MATERIALIZATION_STATE, MaterializationState.DEPRECATED.name()),
-          newTermQuery(MATERIALIZATION_STATE, MaterializationState.CANCELED.name()),
-          newTermQuery(MATERIALIZATION_STATE, MaterializationState.FAILED.name())
-        ),
-        newRangeLong(MATERIALIZATION_MODIFIED_AT.getIndexFieldName(), 0L, timestamp, false, true)
-      ));
+  public Iterable<Materialization> getDeletableEntriesModifiedBefore(
+      long timestamp, int numEntries) {
+    final LegacyFindByCondition condition =
+        new LegacyFindByCondition()
+            .addSorting(MATERIALIZATION_MODIFIED_AT_SORT)
+            .setLimit(numEntries)
+            .setCondition(
+                and(
+                    or(
+                        newTermQuery(MATERIALIZATION_STATE, MaterializationState.DEPRECATED.name()),
+                        newTermQuery(MATERIALIZATION_STATE, MaterializationState.CANCELED.name()),
+                        newTermQuery(MATERIALIZATION_STATE, MaterializationState.FAILED.name())),
+                    newRangeLong(
+                        MATERIALIZATION_MODIFIED_AT.getIndexFieldName(),
+                        0L,
+                        timestamp,
+                        false,
+                        true)));
     return Iterables.transform(materializationStore.get().find(condition), GET_MATERIALIZATION);
   }
 
@@ -473,14 +538,17 @@ public class MaterializationStore {
   }
 
   public Iterable<Materialization> find(final ReflectionId id) {
-    return Iterables.filter(findByIndex(MATERIALIZATION_REFLECTION_ID, id.getId()),
-      and(notNull(), new Predicate<Materialization>() {
-        @Override
-        public boolean apply(Materialization m) {
-          materializationGoalVersionUpdate(m);
-          return id.equals(m.getReflectionId());
-        }
-      }));
+    return Iterables.filter(
+        findByIndex(MATERIALIZATION_REFLECTION_ID, id.getId()),
+        and(
+            notNull(),
+            new Predicate<Materialization>() {
+              @Override
+              public boolean apply(Materialization m) {
+                materializationGoalVersionUpdate(m);
+                return id.equals(m.getReflectionId());
+              }
+            }));
   }
 
   public void delete(MaterializationId id) {
@@ -491,7 +559,8 @@ public class MaterializationStore {
     refreshStore.get().delete(id);
   }
 
-  private static final class MaterializationVersionExtractor implements VersionExtractor<Materialization> {
+  private static final class MaterializationVersionExtractor
+      implements VersionExtractor<Materialization> {
     @Override
     public String getTag(Materialization value) {
       return value.getTag();
@@ -503,7 +572,8 @@ public class MaterializationStore {
     }
   }
 
-  private static final class MaterializationConverter implements DocumentConverter<MaterializationId, Materialization> {
+  private static final class MaterializationConverter
+      implements DocumentConverter<MaterializationId, Materialization> {
     private Integer version = 0;
 
     @Override
@@ -540,41 +610,45 @@ public class MaterializationStore {
     }
   }
 
-  /**
-   * {@link MaterializationStore} creator
-   */
-  public static final class MaterializationStoreCreator implements LegacyIndexedStoreCreationFunction<MaterializationId, Materialization> {
+  /** {@link MaterializationStore} creator */
+  public static final class MaterializationStoreCreator
+      implements LegacyIndexedStoreCreationFunction<MaterializationId, Materialization> {
     @Override
-    public LegacyIndexedStore<MaterializationId, Materialization> build(LegacyStoreBuildingFactory factory) {
-      return factory.<MaterializationId, Materialization>newStore()
-        .name(MATERIALIZATION_TABLE_NAME)
-        .keyFormat(Format.ofProtostuff(MaterializationId.class))
-        .valueFormat(Format.ofProtostuff(Materialization.class))
-        .versionExtractor(MaterializationVersionExtractor.class)
-        .buildIndexed(new MaterializationConverter());
+    public LegacyIndexedStore<MaterializationId, Materialization> build(
+        LegacyStoreBuildingFactory factory) {
+      return factory
+          .<MaterializationId, Materialization>newStore()
+          .name(MATERIALIZATION_TABLE_NAME)
+          .keyFormat(Format.ofProtostuff(MaterializationId.class))
+          .valueFormat(Format.ofProtostuff(Materialization.class))
+          .versionExtractor(MaterializationVersionExtractor.class)
+          .buildIndexed(new MaterializationConverter());
     }
   }
 
-  /**
-   * {@link Refresh} store creator
-   */
-  public static final class RefreshStoreCreator implements LegacyIndexedStoreCreationFunction<RefreshId, Refresh> {
+  /** {@link Refresh} store creator */
+  public static final class RefreshStoreCreator
+      implements LegacyIndexedStoreCreationFunction<RefreshId, Refresh> {
     @Override
     public LegacyIndexedStore<RefreshId, Refresh> build(LegacyStoreBuildingFactory factory) {
-      return factory.<RefreshId, Refresh>newStore()
-        .name(REFRESH_TABLE_NAME)
-        .keyFormat(Format.ofProtostuff(RefreshId.class))
-        .valueFormat(Format.ofProtostuff(Refresh.class))
-        .buildIndexed(new RefreshConverter());
+      return factory
+          .<RefreshId, Refresh>newStore()
+          .name(REFRESH_TABLE_NAME)
+          .keyFormat(Format.ofProtostuff(RefreshId.class))
+          .valueFormat(Format.ofProtostuff(Refresh.class))
+          .buildIndexed(new RefreshConverter());
     }
   }
 
   public static void materializationGoalVersionUpdate(Materialization value) {
-    if(value == null) {
+    if (value == null) {
       return;
     }
-    if(Strings.isNullOrEmpty(value.getReflectionGoalVersion())) {
-      String version = value.getLegacyReflectionGoalVersion() == null ? null : Long.toString(value.getLegacyReflectionGoalVersion());
+    if (Strings.isNullOrEmpty(value.getReflectionGoalVersion())) {
+      String version =
+          value.getLegacyReflectionGoalVersion() == null
+              ? null
+              : Long.toString(value.getLegacyReflectionGoalVersion());
       value.setReflectionGoalVersion(version);
     }
   }

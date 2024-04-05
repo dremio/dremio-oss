@@ -15,26 +15,22 @@
  */
 package com.dremio.services.nessie.grpc.client;
 
+import com.dremio.services.nessie.grpc.client.impl.GrpcApiImpl;
+import com.google.common.base.Preconditions;
+import io.grpc.ClientInterceptor;
+import io.grpc.ManagedChannel;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Function;
-
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLParameters;
-
 import org.projectnessie.client.NessieClientBuilder;
 import org.projectnessie.client.api.NessieApi;
 import org.projectnessie.client.api.NessieApiV2;
 import org.projectnessie.client.auth.NessieAuthentication;
-
-import com.dremio.services.nessie.grpc.client.impl.GrpcApiImpl;
-import com.google.common.base.Preconditions;
-
-import io.grpc.ClientInterceptor;
-import io.grpc.ManagedChannel;
 
 /**
  * A builder class that creates a {@link NessieApi} via {@link GrpcClientBuilder#builder()}. Note
@@ -44,8 +40,7 @@ import io.grpc.ManagedChannel;
  */
 public final class GrpcClientBuilder implements NessieClientBuilder {
 
-  private GrpcClientBuilder() {
-  }
+  private GrpcClientBuilder() {}
 
   private ManagedChannel channel;
   private boolean shutdownChannel = false;
@@ -126,7 +121,7 @@ public final class GrpcClientBuilder implements NessieClientBuilder {
    * NessieApi} instance is closed.
    *
    * @param shutdownChannel if set to <code>true</code>, the provided channel will be shut down when
-   *                        the {@link NessieApi} instance is closed.
+   *     the {@link NessieApi} instance is closed.
    * @return {@code this}
    */
   public GrpcClientBuilder shutdownChannel(boolean shutdownChannel) {
@@ -135,12 +130,14 @@ public final class GrpcClientBuilder implements NessieClientBuilder {
   }
 
   /**
-   * Adds the provided {@link ClientInterceptor}s to the stubs generated when making calls to the gRPC server.
+   * Adds the provided {@link ClientInterceptor}s to the stubs generated when making calls to the
+   * gRPC server.
    *
-   * @param clientInterceptors The {@link ClientInterceptor}s to use when make calss to the gRPC server.
+   * @param clientInterceptors The {@link ClientInterceptor}s to use when make calss to the gRPC
+   *     server.
    * @return {@code this}
    */
-  public GrpcClientBuilder withInterceptors(ClientInterceptor...clientInterceptors) {
+  public GrpcClientBuilder withInterceptors(ClientInterceptor... clientInterceptors) {
     this.clientInterceptors.clear();
     this.clientInterceptors.addAll(Arrays.asList(clientInterceptors));
     return this;
@@ -159,7 +156,7 @@ public final class GrpcClientBuilder implements NessieClientBuilder {
   @Override
   public GrpcClientBuilder withAuthenticationFromConfig(Function<String, String> configuration) {
     throw new UnsupportedOperationException(
-      "withAuthenticationFromConfig is not supported for gRPC");
+        "withAuthenticationFromConfig is not supported for gRPC");
   }
 
   @Override
@@ -184,12 +181,14 @@ public final class GrpcClientBuilder implements NessieClientBuilder {
     Preconditions.checkArgument(channel != null, "Channel must be configured");
 
     if (apiVersion.isAssignableFrom(NessieApiV2.class)) {
-      Preconditions.checkArgument(apiVersion.isInterface(),
-        "must not use a concrete class for the apiVersion parameter");
-      return (API) new GrpcApiImpl(channel, shutdownChannel, clientInterceptors.toArray(new ClientInterceptor[0]));
+      Preconditions.checkArgument(
+          apiVersion.isInterface(), "must not use a concrete class for the apiVersion parameter");
+      return (API)
+          new GrpcApiImpl(
+              channel, shutdownChannel, clientInterceptors.toArray(new ClientInterceptor[0]));
     }
 
     throw new IllegalArgumentException(
-      String.format("API version %s is not supported.", apiVersion.getName()));
+        String.format("API version %s is not supported.", apiVersion.getName()));
   }
 }

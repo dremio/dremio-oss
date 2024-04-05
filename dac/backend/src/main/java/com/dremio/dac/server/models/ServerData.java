@@ -15,11 +15,11 @@
  */
 package com.dremio.dac.server.models;
 
-
 /**
- * A POJO which represents a server configuration that is injected in a html page and used by UI code
+ * A POJO which represents a server configuration that is injected in a html page and used by UI
+ * code
  *
- * <b>IMPORTANT!!!</b> if you change any field name you must change UI code respectively
+ * <p><b>IMPORTANT!!!</b> if you change any field name you must change UI code respectively
  */
 public class ServerData {
   private final String serverEnvironment;
@@ -166,7 +166,6 @@ public class ServerData {
     return crossSourceDisabled;
   }
 
-
   public long getDownloadRecordsLimit() {
     return downloadRecordsLimit;
   }
@@ -191,7 +190,9 @@ public class ServerData {
     return allowDownload;
   }
 
-  public boolean isAllowFormatting() { return allowFormatting; }
+  public boolean isAllowFormatting() {
+    return allowFormatting;
+  }
 
   public boolean isUseNewDatasetNavigation() {
     return useNewDatasetNavigation;
@@ -201,9 +202,7 @@ public class ServerData {
     return showNewJobsTables;
   }
 
-  /**
-   * A builder for server data
-   */
+  /** A builder for server data */
   public static class Builder {
     private String serverEnvironment;
     private String serverStatus;
@@ -234,8 +233,7 @@ public class ServerData {
     private boolean useNewDatasetNavigation;
     private boolean showNewJobsTables;
 
-    protected Builder() {
-    }
+    protected Builder() {}
 
     protected Builder(Builder builder) {
       this.serverEnvironment = builder.serverEnvironment;
@@ -308,7 +306,8 @@ public class ServerData {
       return this;
     }
 
-    public Builder setSubhourAccelerationPoliciesEnabled(boolean subhourAccelerationPoliciesEnabled) {
+    public Builder setSubhourAccelerationPoliciesEnabled(
+        boolean subhourAccelerationPoliciesEnabled) {
       this.subhourAccelerationPoliciesEnabled = subhourAccelerationPoliciesEnabled;
       return this;
     }

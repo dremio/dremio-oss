@@ -15,13 +15,6 @@
  */
 package com.dremio.exec.store.dfs;
 
-import java.util.List;
-
-import javax.inject.Provider;
-import javax.validation.constraints.Max;
-import javax.validation.constraints.Min;
-import javax.validation.constraints.NotBlank;
-
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.DefaultCtasFormatSelection;
 import com.dremio.exec.catalog.conf.DisplayMetadata;
@@ -32,15 +25,25 @@ import com.dremio.exec.server.SabotContext;
 import com.dremio.io.file.Path;
 import com.dremio.options.OptionManager;
 import com.fasterxml.jackson.annotation.JsonIgnore;
-
 import io.protostuff.Tag;
+import java.util.List;
+import javax.inject.Provider;
+import javax.validation.constraints.Max;
+import javax.validation.constraints.Min;
+import javax.validation.constraints.NotBlank;
 
 @SourceType(value = "HDFS", uiConfig = "hdfs-layout.json")
 public class HDFSConf extends FileSystemConf<HDFSConf, HDFSStoragePlugin> {
   public enum ShortCircuitFlag {
-    @Tag(1) @DisplayMetadata(label = "HDFS Default") SYSTEM,
-    @Tag(2) @DisplayMetadata(label = "Enabled") ENABLED,
-    @Tag(3) @DisplayMetadata(label = "Disabled") DISABLED;
+    @Tag(1)
+    @DisplayMetadata(label = "HDFS Default")
+    SYSTEM,
+    @Tag(2)
+    @DisplayMetadata(label = "Enabled")
+    ENABLED,
+    @Tag(3)
+    @DisplayMetadata(label = "Disabled")
+    DISABLED;
   }
 
   @NotBlank
@@ -94,7 +97,9 @@ public class HDFSConf extends FileSystemConf<HDFSConf, HDFSStoragePlugin> {
   @Tag(14)
   @NotMetadataImpacting
   @Min(value = 1, message = "Max percent of total available cache space must be between 1 and 100")
-  @Max(value = 100, message = "Max percent of total available cache space must be between 1 and 100")
+  @Max(
+      value = 100,
+      message = "Max percent of total available cache space must be between 1 and 100")
   @DisplayMetadata(label = "Max percent of total available cache space to use when possible")
   public int maxCacheSpacePct = 100;
 
@@ -107,6 +112,7 @@ public class HDFSConf extends FileSystemConf<HDFSConf, HDFSStoragePlugin> {
   @NotMetadataImpacting
   @DisplayMetadata(label = "Enable partition column inference")
   public boolean isPartitionInferenceEnabled = false;
+
   @Override
   public Path getPath() {
     return Path.of(rootPath);
@@ -171,8 +177,8 @@ public class HDFSConf extends FileSystemConf<HDFSConf, HDFSStoragePlugin> {
   }
 
   @Override
-  public HDFSStoragePlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> idProvider) {
+  public HDFSStoragePlugin newPlugin(
+      SabotContext context, String name, Provider<StoragePluginId> idProvider) {
     return new HDFSStoragePlugin(this, context, name, idProvider);
   }
-
 }

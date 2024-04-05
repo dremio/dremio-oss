@@ -15,17 +15,6 @@
  */
 package com.dremio.exec.planner.physical;
 
-import java.io.IOException;
-import java.util.Iterator;
-import java.util.List;
-
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.RelWriter;
-import org.apache.calcite.rel.metadata.RelMetadataQuery;
-import org.apache.calcite.rel.type.RelDataType;
-
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.TableFormatWriterOptions;
@@ -39,12 +28,23 @@ import com.dremio.exec.store.RecordWriter;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators.LongValidator;
 import com.dremio.options.TypeValidators.PositiveLongValidator;
+import java.io.IOException;
+import java.util.Iterator;
+import java.util.List;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.RelWriter;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.apache.calcite.rel.type.RelDataType;
 
 @Options
 public class WriterPrel extends WriterRelBase implements Prel {
 
-  public static final LongValidator RESERVE = new PositiveLongValidator("planner.op.writer.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
-  public static final LongValidator LIMIT = new PositiveLongValidator("planner.op.writer.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
+  public static final LongValidator RESERVE =
+      new PositiveLongValidator("planner.op.writer.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
+  public static final LongValidator LIMIT =
+      new PositiveLongValidator("planner.op.writer.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
 
   public static final String PARTITION_COMPARATOR_FIELD = "P_A_R_T_I_T_I_O_N_C_O_M_P_A_R_A_T_O_R";
   public static final String BUCKET_NUMBER_FIELD = "P_A_R_T_I_T_I_O_N_N_U_M_B_E_R";
@@ -53,7 +53,12 @@ public class WriterPrel extends WriterRelBase implements Prel {
   private final RelDataType expectedInboundRowType;
   private final TableFormatWriterOptions tableFormatWriterOptions;
 
-  public WriterPrel(RelOptCluster cluster, RelTraitSet traits, RelNode child, CreateTableEntry createTableEntry, RelDataType expectedInboundRowType) {
+  public WriterPrel(
+      RelOptCluster cluster,
+      RelTraitSet traits,
+      RelNode child,
+      CreateTableEntry createTableEntry,
+      RelDataType expectedInboundRowType) {
     super(Prel.PHYSICAL, cluster, traits, child, createTableEntry);
     this.expectedInboundRowType = expectedInboundRowType;
     this.tableFormatWriterOptions = createTableEntry.getOptions().getTableFormatOptions();
@@ -61,17 +66,18 @@ public class WriterPrel extends WriterRelBase implements Prel {
 
   @Override
   public WriterPrel copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new WriterPrel(getCluster(), traitSet, sole(inputs), getCreateTableEntry(), expectedInboundRowType);
+    return new WriterPrel(
+        getCluster(), traitSet, sole(inputs), getCreateTableEntry(), expectedInboundRowType);
   }
 
   @Override
   public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
-     PhysicalOperator child = ((Prel) this.getInput()).getPhysicalOperator(creator);
+    PhysicalOperator child = ((Prel) this.getInput()).getPhysicalOperator(creator);
 
-    return getCreateTableEntry().getWriter(
-        creator.props(this, creator.getContext().getQueryUserName(), RecordWriter.SCHEMA),
-        child
-        );
+    return getCreateTableEntry()
+        .getWriter(
+            creator.props(this, creator.getContext().getQueryUserName(), RecordWriter.SCHEMA),
+            child);
   }
 
   @Override
@@ -80,7 +86,8 @@ public class WriterPrel extends WriterRelBase implements Prel {
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(PrelVisitor<T, X, E> logicalVisitor, X value) throws E {
+  public <T, X, E extends Throwable> T accept(PrelVisitor<T, X, E> logicalVisitor, X value)
+      throws E {
     return logicalVisitor.visitWriter(this, value);
   }
 
@@ -88,7 +95,6 @@ public class WriterPrel extends WriterRelBase implements Prel {
   public SelectionVectorMode[] getSupportedEncodings() {
     return SelectionVectorMode.DEFAULT;
   }
-
 
   @Override
   public SelectionVectorMode getEncoding() {
@@ -106,28 +112,40 @@ public class WriterPrel extends WriterRelBase implements Prel {
 
   @Override
   public double estimateRowCount(RelMetadataQuery mq) {
-    double estimateInputRowCount = super.estimateRowCount(mq);  //Count estimate from input
+    double estimateInputRowCount = super.estimateRowCount(mq); // Count estimate from input
     BatchSchema schema = CalciteArrowHelper.fromCalciteRowType(getExpectedInboundRowType());
 
-    long parquetFileSize = PrelUtil.getPlannerSettings(getCluster().getPlanner()).getOptions()
+    long parquetFileSize =
+        PrelUtil.getPlannerSettings(getCluster().getPlanner())
+            .getOptions()
             .getOption(ExecConstants.PARQUET_SPLIT_SIZE_VALIDATOR);
-    int listEstimate = (int) PrelUtil.getPlannerSettings(getCluster().getPlanner()).getOptions()
-            .getOption(ExecConstants.BATCH_LIST_SIZE_ESTIMATE);
-    int variableField = (int) PrelUtil.getPlannerSettings(getCluster().getPlanner()).getOptions()
-            .getOption(ExecConstants.BATCH_VARIABLE_FIELD_SIZE_ESTIMATE);
+    int listEstimate =
+        (int)
+            PrelUtil.getPlannerSettings(getCluster().getPlanner())
+                .getOptions()
+                .getOption(ExecConstants.BATCH_LIST_SIZE_ESTIMATE);
+    int variableField =
+        (int)
+            PrelUtil.getPlannerSettings(getCluster().getPlanner())
+                .getOptions()
+                .getOption(ExecConstants.BATCH_VARIABLE_FIELD_SIZE_ESTIMATE);
     int estimatedRowSize = schema.estimateRecordSize(listEstimate, variableField);
 
     double numRecords = Math.ceil(parquetFileSize / estimatedRowSize) + 1;
 
-    return Math.max(10, estimateInputRowCount / numRecords) * PrelUtil.getPlannerSettings(
-            getCluster().getPlanner()).getOptions()
+    return Math.max(10, estimateInputRowCount / numRecords)
+        * PrelUtil.getPlannerSettings(getCluster().getPlanner())
+            .getOptions()
             .getOption(ExecConstants.PARQUET_FILES_ESTIMATE_SCALING_FACTOR_VALIDATOR);
   }
 
   @Override
   public RelWriter explainTerms(RelWriter pw) {
     return super.explainTerms(pw)
-      .itemIf("target_file_size_bytes", tableFormatWriterOptions.getTargetFileSize(),
-        tableFormatWriterOptions != null && tableFormatWriterOptions.getTargetFileSize() != null);
+        .itemIf(
+            "target_file_size_bytes",
+            tableFormatWriterOptions.getTargetFileSize(),
+            tableFormatWriterOptions != null
+                && tableFormatWriterOptions.getTargetFileSize() != null);
   }
 }

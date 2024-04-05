@@ -15,15 +15,6 @@
  */
 package com.dremio.exec.planner.serialization.kryo.serializers;
 
-import java.util.EnumMap;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-
-import org.apache.calcite.runtime.FlatLists;
-import org.apache.calcite.util.ImmutableNullableList;
-
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.io.Input;
@@ -39,13 +30,17 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.collect.UnmodifiableIterator;
+import java.util.EnumMap;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import org.apache.calcite.runtime.FlatLists;
+import org.apache.calcite.util.ImmutableNullableList;
 
-/**
- * Majority of these are adopted from https://github.com/magro/kryo-serializers
- */
+/** Majority of these are adopted from https://github.com/magro/kryo-serializers */
 public final class ImmutableCollectionSerializers {
-  private ImmutableCollectionSerializers() {
-  }
+  private ImmutableCollectionSerializers() {}
 
   public static void register(final Kryo kryo) {
     // register list
@@ -79,7 +74,8 @@ public final class ImmutableCollectionSerializers {
     }
 
     @Override
-    public ImmutableList<Object> read(final Kryo kryo, final Input input, final Class<ImmutableList<Object>> type) {
+    public ImmutableList<Object> read(
+        final Kryo kryo, final Input input, final Class<ImmutableList<Object>> type) {
       final int size = input.readInt(true);
       final Object[] values = new Object[size];
 
@@ -98,7 +94,11 @@ public final class ImmutableCollectionSerializers {
       kryo.register(ImmutableList.class, serializer);
       kryo.register(ImmutableList.of().getClass(), serializer);
       kryo.register(ImmutableList.of(Integer.valueOf(1)).getClass(), serializer);
-      kryo.register(ImmutableList.of(Integer.valueOf(1), Integer.valueOf(2), Integer.valueOf(3)).subList(1, 2).getClass(), serializer);
+      kryo.register(
+          ImmutableList.of(Integer.valueOf(1), Integer.valueOf(2), Integer.valueOf(3))
+              .subList(1, 2)
+              .getClass(),
+          serializer);
       kryo.register(ImmutableList.of().reverse().getClass(), serializer);
       kryo.register(Lists.charactersOf("dremio").getClass(), serializer);
 
@@ -109,7 +109,6 @@ public final class ImmutableCollectionSerializers {
       kryo.register(table.values().getClass(), serializer);
     }
   }
-
 
   public static final class ImmutableSetSerializer extends Serializer<ImmutableSet<Object>> {
     private static final boolean ACCEPTS_NULL = false;
@@ -131,7 +130,8 @@ public final class ImmutableCollectionSerializers {
     }
 
     @Override
-    public ImmutableSet<Object> read(final Kryo kryo, final Input input, final Class<ImmutableSet<Object>> type) {
+    public ImmutableSet<Object> read(
+        final Kryo kryo, final Input input, final Class<ImmutableSet<Object>> type) {
       final int size = input.readInt(true);
 
       final ImmutableSet.Builder builder = ImmutableSet.builder();
@@ -150,14 +150,17 @@ public final class ImmutableCollectionSerializers {
       kryo.register(ImmutableSet.class, setSerializer);
       kryo.register(ImmutableSet.of().getClass(), setSerializer);
       kryo.register(ImmutableSet.of(Integer.valueOf(1)).getClass(), setSerializer);
-      kryo.register(ImmutableSet.of(Integer.valueOf(1), Integer.valueOf(2), Integer.valueOf(3)).getClass(), setSerializer);
-      kryo.register(Sets.immutableEnumSet(SomeEnum.A, new SomeEnum[]{SomeEnum.B, SomeEnum.C}).getClass(), setSerializer);
+      kryo.register(
+          ImmutableSet.of(Integer.valueOf(1), Integer.valueOf(2), Integer.valueOf(3)).getClass(),
+          setSerializer);
+      kryo.register(
+          Sets.immutableEnumSet(SomeEnum.A, new SomeEnum[] {SomeEnum.B, SomeEnum.C}).getClass(),
+          setSerializer);
     }
-
   }
 
-
-  public static class ImmutableMapSerializer extends Serializer<ImmutableMap<Object, ? extends Object>> {
+  public static class ImmutableMapSerializer
+      extends Serializer<ImmutableMap<Object, ? extends Object>> {
 
     private static final boolean ACCEPTS_NULL = true;
     private static final boolean IMMUTABLE = true;
@@ -167,12 +170,14 @@ public final class ImmutableCollectionSerializers {
     }
 
     @Override
-    public void write(Kryo kryo, Output output, ImmutableMap<Object, ? extends Object> immutableMap) {
+    public void write(
+        Kryo kryo, Output output, ImmutableMap<Object, ? extends Object> immutableMap) {
       kryo.writeObject(output, Maps.newHashMap(immutableMap));
     }
 
     @Override
-    public ImmutableMap<Object, Object> read(Kryo kryo, Input input, Class<ImmutableMap<Object, ? extends Object>> type) {
+    public ImmutableMap<Object, Object> read(
+        Kryo kryo, Input input, Class<ImmutableMap<Object, ? extends Object>> type) {
       Map map = kryo.readObject(input, HashMap.class);
       final ImmutableMap<Object, Object> result = ImmutableMap.copyOf(map);
       kryo.reference(result);
@@ -180,8 +185,8 @@ public final class ImmutableCollectionSerializers {
     }
 
     /**
-     * Creates a new {@link ImmutableMapSerializer} and registers its serializer
-     * for the several ImmutableMap related classes.
+     * Creates a new {@link ImmutableMapSerializer} and registers its serializer for the several
+     * ImmutableMap related classes.
      *
      * @param kryo the {@link Kryo} instance to set the serializer on
      */
@@ -196,21 +201,23 @@ public final class ImmutableCollectionSerializers {
       kryo.register(ImmutableMap.of(o1, o1).getClass(), serializer);
       kryo.register(ImmutableMap.of(o1, o1, o2, o2).getClass(), serializer);
 
-      final Map<SomeEnum,Object> enumMap = new EnumMap<>(SomeEnum.class);
+      final Map<SomeEnum, Object> enumMap = new EnumMap<>(SomeEnum.class);
       for (final SomeEnum e : SomeEnum.values()) {
         enumMap.put(e, o1);
       }
 
       kryo.register(ImmutableMap.copyOf(enumMap).getClass(), serializer);
     }
-
   }
 
   /**
-   * Need to use List instead of ImmutableNullableList because ImmutableNullableList.copyOf() can return ImmutableList.
+   * Need to use List instead of ImmutableNullableList because ImmutableNullableList.copyOf() can
+   * return ImmutableList.
    */
   public class ImmutableNullableListSerializer extends Serializer<List> {
-    { setImmutable(true); }
+    {
+      setImmutable(true);
+    }
 
     @Override
     public void write(Kryo kryo, Output output, List object) {
@@ -236,7 +243,8 @@ public final class ImmutableCollectionSerializers {
   }
 
   private enum SomeEnum {
-    A, B, C
+    A,
+    B,
+    C
   }
-
 }

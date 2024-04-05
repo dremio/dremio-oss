@@ -15,22 +15,17 @@
  */
 package com.dremio.dac.server;
 
+import com.dremio.dac.proto.model.dataset.TransformGroupBy;
 import java.util.List;
-
 import javax.validation.ConstraintValidator;
 import javax.validation.ConstraintValidatorContext;
 
-import com.dremio.dac.proto.model.dataset.TransformGroupBy;
-
-/**
- * Validator for TransformGroupByConstraint
- * TODO: make it generic
- */
-public class TransformGroupByValidator implements ConstraintValidator<TransformGroupByConstraint, TransformGroupBy> {
+/** Validator for TransformGroupByConstraint TODO: make it generic */
+public class TransformGroupByValidator
+    implements ConstraintValidator<TransformGroupByConstraint, TransformGroupBy> {
 
   @Override
-  public void initialize(TransformGroupByConstraint constraintAnnotation) {
-  }
+  public void initialize(TransformGroupByConstraint constraintAnnotation) {}
 
   @Override
   public boolean isValid(TransformGroupBy groupBy, ConstraintValidatorContext context) {

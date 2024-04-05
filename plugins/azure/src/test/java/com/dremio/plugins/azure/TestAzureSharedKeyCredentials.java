@@ -20,23 +20,21 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import com.azure.core.util.CoreUtils;
+import com.azure.core.util.UserAgentUtil;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Ticker;
+import com.microsoft.azure.storage.core.Base64;
 import java.util.Map;
-
 import org.asynchttpclient.Request;
 import org.asynchttpclient.RequestBuilder;
 import org.asynchttpclient.util.HttpConstants;
 import org.junit.Before;
 import org.junit.Test;
 
-import com.azure.core.util.CoreUtils;
-import com.azure.core.util.UserAgentUtil;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Ticker;
-import com.microsoft.azure.storage.core.Base64;
-
 /**
- * Tests for AzureSharedKeyCredentials.
- * These credentials use the headers, URI and keys and creates a HMAC from all of these to prepare the token.
+ * Tests for AzureSharedKeyCredentials. These credentials use the headers, URI and keys and creates
+ * a HMAC from all of these to prepare the token.
  */
 public class TestAzureSharedKeyCredentials {
   private final String mockAccount = "mock-account";
@@ -52,7 +50,8 @@ public class TestAzureSharedKeyCredentials {
   @Test
   public void testGetAuthzHeaderValue() {
     String authzHeaderValue = credentials.getAuthzHeaderValue(prepareTestRequest());
-    assertEquals("SharedKey mock-account:ZwovG4J+nCDc3w58WPei6fvJBQsO96YojteJncy0wwI=", authzHeaderValue);
+    assertEquals(
+        "SharedKey mock-account:ZwovG4J+nCDc3w58WPei6fvJBQsO96YojteJncy0wwI=", authzHeaderValue);
   }
 
   @Test
@@ -63,34 +62,38 @@ public class TestAzureSharedKeyCredentials {
 
   @Test
   public void testNotExpired() {
-    Ticker ticker = new Ticker() {
-      private final long millis = System.currentTimeMillis()
-        - AzureSharedKeyCredentials.SECRET_TTL + 100;
-      @Override
-      public long read() {
-        return millis;
-      }
-    };
+    Ticker ticker =
+        new Ticker() {
+          private final long millis =
+              System.currentTimeMillis() - AzureSharedKeyCredentials.SECRET_TTL + 100;
 
-    credentials.setSecret(new AzureSharedKeyCredentials.LookupResult(
-      mockAccount, mockKey, ticker.read()));
+          @Override
+          public long read() {
+            return millis;
+          }
+        };
+
+    credentials.setSecret(
+        new AzureSharedKeyCredentials.LookupResult(mockAccount, mockKey, ticker.read()));
 
     assertFalse(credentials.checkAndUpdateToken());
   }
 
   @Test
   public void testExpired() {
-    Ticker ticker = new Ticker() {
-      private final long millis = System.currentTimeMillis()
-        - AzureSharedKeyCredentials.SECRET_TTL - 100;
-      @Override
-      public long read() {
-        return millis;
-      }
-    };
+    Ticker ticker =
+        new Ticker() {
+          private final long millis =
+              System.currentTimeMillis() - AzureSharedKeyCredentials.SECRET_TTL - 100;
 
-    credentials.setSecret(new AzureSharedKeyCredentials.LookupResult(
-      mockAccount, mockKey, ticker.read()));
+          @Override
+          public long read() {
+            return millis;
+          }
+        };
+
+    credentials.setSecret(
+        new AzureSharedKeyCredentials.LookupResult(mockAccount, mockKey, ticker.read()));
 
     assertTrue(credentials.checkAndUpdateToken());
   }
@@ -98,22 +101,29 @@ public class TestAzureSharedKeyCredentials {
   @Test
   public void testCredentialsUpdate() {
     // Test credentials are updated and correct
-    assertEquals("credentials were not updated or do not match", mockKey, credentials.getSecret().getSecret());
+    assertEquals(
+        "credentials were not updated or do not match",
+        mockKey,
+        credentials.getSecret().getSecret());
   }
 
   private Request prepareTestRequest() {
-    final Map<String, String> properties = CoreUtils.getProperties("META-INF/maven/com.azure/azure-storage-common/pom.properties");
+    final Map<String, String> properties =
+        CoreUtils.getProperties("META-INF/maven/com.azure/azure-storage-common/pom.properties");
     final String sdkVersion = properties.getOrDefault("version", "Unknown");
-    Preconditions.checkArgument(!"Unknown".equalsIgnoreCase(sdkVersion), "SDK Version cannot be unknown.");
+    Preconditions.checkArgument(
+        !"Unknown".equalsIgnoreCase(sdkVersion), "SDK Version cannot be unknown.");
     return new RequestBuilder(HttpConstants.Methods.GET)
-      .addHeader("Date", "Tue, 31 Dec 2019 07:18:50 GMT")
-      .addHeader("Content-Length", 0)
-      .addHeader("x-ms-version", "2019-02-02")
-      .addHeader("x-ms-client-request-id", "b2a11e2a-65a7-48ed-a643-229255139452")
-      .addHeader("User-Agent", UserAgentUtil.toUserAgentString(null, "azure-storage-blob", sdkVersion, null))
-      .addHeader("x-ms-range", String.format("bytes=%d-%d", 25, 125))
-      .addHeader("If-Unmodified-Since", "Tue, 15 Dec 2019 07:18:50 GMT")
-      .setUrl("https://account.blob.core.windows.net/container/directory%2Ffile_00.parquet")
-      .build();
+        .addHeader("Date", "Tue, 31 Dec 2019 07:18:50 GMT")
+        .addHeader("Content-Length", 0)
+        .addHeader("x-ms-version", "2019-02-02")
+        .addHeader("x-ms-client-request-id", "b2a11e2a-65a7-48ed-a643-229255139452")
+        .addHeader(
+            "User-Agent",
+            UserAgentUtil.toUserAgentString(null, "azure-storage-blob", sdkVersion, null))
+        .addHeader("x-ms-range", String.format("bytes=%d-%d", 25, 125))
+        .addHeader("If-Unmodified-Since", "Tue, 15 Dec 2019 07:18:50 GMT")
+        .setUrl("https://account.blob.core.windows.net/container/directory%2Ffile_00.parquet")
+        .build();
   }
 }

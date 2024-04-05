@@ -20,46 +20,9 @@ import static com.dremio.io.file.UriSchemes.HDFS_SCHEME;
 import static com.dremio.io.file.UriSchemes.MAPRFS_SCHEME;
 import static com.dremio.io.file.UriSchemes.WEBHDFS_SCHEME;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.net.URI;
-import java.nio.file.AccessMode;
-import java.nio.file.DirectoryStream;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.nio.file.ProviderMismatchException;
-import java.nio.file.attribute.PosixFilePermission;
-import java.nio.file.attribute.PosixFilePermissions;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentMap;
-import java.util.function.Predicate;
-
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.BlockLocation;
-import org.apache.hadoop.fs.FSDataInputStream;
-import org.apache.hadoop.fs.FSDataOutputStream;
-import org.apache.hadoop.fs.FSError;
-import org.apache.hadoop.fs.FileAlreadyExistsException;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.LocatedFileStatus;
-import org.apache.hadoop.fs.PathFilter;
-import org.apache.hadoop.fs.RemoteIterator;
-import org.apache.hadoop.fs.permission.FsAction;
-import org.apache.hadoop.fs.permission.FsPermission;
-import org.apache.hadoop.security.AccessControlException;
-
 import com.dremio.common.VM;
 import com.dremio.common.util.Closeable;
 import com.dremio.common.util.concurrent.ContextClassLoaderSwapper;
-import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.exec.hadoop.MayProvideAsyncStream;
 import com.dremio.exec.store.LocalSyncableFileSystem;
 import com.dremio.exec.store.dfs.DremioFileSystemCache;
@@ -81,16 +44,51 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.net.URI;
+import java.nio.file.AccessMode;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.ProviderMismatchException;
+import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentMap;
+import java.util.function.Predicate;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.BlockLocation;
+import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FSError;
+import org.apache.hadoop.fs.FileAlreadyExistsException;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.LocatedFileStatus;
+import org.apache.hadoop.fs.PathFilter;
+import org.apache.hadoop.fs.RemoteIterator;
+import org.apache.hadoop.fs.permission.FsAction;
+import org.apache.hadoop.fs.permission.FsPermission;
+import org.apache.hadoop.security.AccessControlException;
 
 /**
  * FileSystemWrapper is the wrapper around the actual FileSystem implementation.
  *
- * If {@link OperatorStats} are provided it returns an instrumented FSDataInputStream to
- * measure IO wait time and tracking file open/close operations.
+ * <p>If {@link OperatorStats} are provided it returns an instrumented FSDataInputStream to measure
+ * IO wait time and tracking file open/close operations.
  */
 public class DremioHadoopFileSystemWrapper
-  implements com.dremio.io.file.FileSystem, OpenFileTracker {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DremioHadoopFileSystemWrapper.class);
+    implements com.dremio.io.file.FileSystem, OpenFileTracker {
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(DremioHadoopFileSystemWrapper.class);
   private static final boolean TRACKING_ENABLED = VM.areAssertsEnabled();
 
   private static final DremioFileSystemCache DREMIO_FS_CACHE = new DremioFileSystemCache();
@@ -111,18 +109,25 @@ public class DremioHadoopFileSystemWrapper
   private final boolean enableAsync;
   private final boolean mustSwapContextClassLoader;
 
-  public DremioHadoopFileSystemWrapper(org.apache.hadoop.fs.Path path, Configuration fsConf, OperatorStats operatorStats, boolean enableAsync, FileSystem fileSystem) throws IOException {
+  public DremioHadoopFileSystemWrapper(
+      org.apache.hadoop.fs.Path path,
+      Configuration fsConf,
+      OperatorStats operatorStats,
+      boolean enableAsync,
+      FileSystem fileSystem)
+      throws IOException {
     this(fsConf, fileSystem, operatorStats, enableAsync);
   }
 
-  public DremioHadoopFileSystemWrapper(Configuration fsConf, FileSystem fs, OperatorStats operatorStats, boolean enableAsync) {
+  public DremioHadoopFileSystemWrapper(
+      Configuration fsConf, FileSystem fs, OperatorStats operatorStats, boolean enableAsync) {
     this.underlyingFs = fs;
     this.operatorStats = operatorStats;
     this.isMapRfs = isMapRfs(underlyingFs);
     this.isNAS = isNAS(underlyingFs);
     this.isHDFS = isHDFS(underlyingFs);
     this.enableAsync = enableAsync;
-    if(operatorStats != null) {
+    if (operatorStats != null) {
       operatorStats.createMetadataReadIOStats();
     }
     this.mustSwapContextClassLoader = !(fs instanceof ContextClassLoaderAware);
@@ -139,7 +144,8 @@ public class DremioHadoopFileSystemWrapper
 
   private static boolean isNAS(FileSystem fs) {
     try {
-      return fs instanceof LocalSyncableFileSystem || FILE_SCHEME.equals(fs.getScheme().toLowerCase(Locale.ROOT));
+      return fs instanceof LocalSyncableFileSystem
+          || FILE_SCHEME.equals(fs.getScheme().toLowerCase(Locale.ROOT));
     } catch (UnsupportedOperationException e) {
       // part of the check
     }
@@ -158,7 +164,8 @@ public class DremioHadoopFileSystemWrapper
 
   // See DX-15492
   private void openNonExistentFileInPath(org.apache.hadoop.fs.Path f) throws IOException {
-    org.apache.hadoop.fs.Path nonExistentFile = f.suffix(NON_EXISTENT_FILE_SUFFIX + NON_EXISTENT_FILE_COUNTER++);
+    org.apache.hadoop.fs.Path nonExistentFile =
+        f.suffix(NON_EXISTENT_FILE_SUFFIX + NON_EXISTENT_FILE_COUNTER++);
 
     try (FSDataInputStream is = underlyingFs.open(nonExistentFile)) {
       // trigger an exception
@@ -198,15 +205,13 @@ public class DremioHadoopFileSystemWrapper
     underlyingFs.access(f, mode);
   }
 
-  /**
-   * If OperatorStats are provided return a instrumented {@link FSDataInputStream}.
-   */
+  /** If OperatorStats are provided return a instrumented {@link FSDataInputStream}. */
   @Override
   public FSInputStream open(Path f) throws IOException {
     try (Closeable closeable = swapClassLoader();
         WaitRecorder recorder = OperatorStats.getMetadataWaitRecorder(operatorStats, f)) {
       return newFSDataInputStreamWrapper(f, openFile(f));
-    } catch(FSError e) {
+    } catch (FSError e) {
       throw propagateFSError(e);
     }
   }
@@ -221,7 +226,7 @@ public class DremioHadoopFileSystemWrapper
     try (Closeable closeable = swapClassLoader();
         WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return newFSDataOutputStreamWrapper(underlyingFs.create(toHadoopPath(f)), f.toString());
-    } catch(FSError e) {
+    } catch (FSError e) {
       throw propagateFSError(e);
     }
   }
@@ -230,10 +235,11 @@ public class DremioHadoopFileSystemWrapper
   public FSOutputStream create(Path f, boolean overwrite) throws IOException {
     try (Closeable closeable = swapClassLoader();
         WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
-      return newFSDataOutputStreamWrapper(underlyingFs.create(toHadoopPath(f), overwrite), f.toString());
-    } catch(FSError e) {
+      return newFSDataOutputStreamWrapper(
+          underlyingFs.create(toHadoopPath(f), overwrite), f.toString());
+    } catch (FSError e) {
       throw propagateFSError(e);
-    } catch(FileAlreadyExistsException e) {
+    } catch (FileAlreadyExistsException e) {
       throw new java.nio.file.FileAlreadyExistsException(e.getMessage());
     }
   }
@@ -248,7 +254,7 @@ public class DremioHadoopFileSystemWrapper
         throw new FileNotFoundException("File " + f + " does not exist");
       }
       return new HadoopFileStatusWrapper(result);
-    } catch(FSError e) {
+    } catch (FSError e) {
       throw propagateFSError(e);
     }
   }
@@ -258,7 +264,7 @@ public class DremioHadoopFileSystemWrapper
     try (Closeable closeable = swapClassLoader();
         WaitRecorder recorder = OperatorStats.getMetadataWaitRecorder(operatorStats, p)) {
       underlyingFs.setPermission(toHadoopPath(p), toFsPermission(permissions));
-    } catch(FSError e) {
+    } catch (FSError e) {
       throw propagateFSError(e);
     }
   }
@@ -266,7 +272,7 @@ public class DremioHadoopFileSystemWrapper
   @Override
   @SuppressWarnings("unchecked")
   public <T> T unwrap(Class<T> clazz) {
-    if(clazz.isAssignableFrom(underlyingFs.getClass())) {
+    if (clazz.isAssignableFrom(underlyingFs.getClass())) {
       return (T) underlyingFs;
     }
 
@@ -278,7 +284,7 @@ public class DremioHadoopFileSystemWrapper
     try (Closeable closeable = swapClassLoader();
         WaitRecorder recorder = OperatorStats.getMetadataWaitRecorder(operatorStats, f)) {
       return underlyingFs.mkdirs(toHadoopPath(f), toFsPermission(permissions));
-    } catch(FSError e) {
+    } catch (FSError e) {
       throw propagateFSError(e);
     }
   }
@@ -289,8 +295,12 @@ public class DremioHadoopFileSystemWrapper
       if (openedFiles.size() != 0) {
         final StringBuffer errMsgBuilder = new StringBuffer();
 
-        errMsgBuilder.append(String.format("Not all files opened using this FileSystem are closed. " + "There are" +
-            " still [%d] files open.\n", openedFiles.size()));
+        errMsgBuilder.append(
+            String.format(
+                "Not all files opened using this FileSystem are closed. "
+                    + "There are"
+                    + " still [%d] files open.\n",
+                openedFiles.size()));
 
         for (DebugStackTrace stackTrace : openedFiles.values()) {
           stackTrace.addToStringBuilder(errMsgBuilder);
@@ -314,7 +324,7 @@ public class DremioHadoopFileSystemWrapper
         throw new IOException("The specified folder path exists and is not a folder.");
       }
       return false;
-    } catch(FSError e) {
+    } catch (FSError e) {
       throw propagateFSError(e);
     }
   }
@@ -324,26 +334,30 @@ public class DremioHadoopFileSystemWrapper
     try (Closeable closeable = swapClassLoader();
         WaitRecorder recorder = OperatorStats.getMetadataWaitRecorder(operatorStats, f)) {
       return new ArrayDirectoryStream(underlyingFs.listStatus(toHadoopPath(f)));
-    } catch(FSError e) {
+    } catch (FSError e) {
       throw propagateFSError(e);
     }
   }
 
   @Override
-  public DirectoryStream<FileAttributes> list(Path f, Predicate<Path> filter) throws FileNotFoundException, IOException {
+  public DirectoryStream<FileAttributes> list(Path f, Predicate<Path> filter)
+      throws FileNotFoundException, IOException {
     try (Closeable closeable = swapClassLoader();
         WaitRecorder recorder = OperatorStats.getMetadataWaitRecorder(operatorStats, f)) {
-      return new ArrayDirectoryStream(underlyingFs.listStatus(toHadoopPath(f), toPathFilter(filter)));
-    } catch(FSError e) {
+      return new ArrayDirectoryStream(
+          underlyingFs.listStatus(toHadoopPath(f), toPathFilter(filter)));
+    } catch (FSError e) {
       throw propagateFSError(e);
     }
   }
 
   @Override
-  public DirectoryStream<FileAttributes> listFiles(Path f, boolean recursive) throws FileNotFoundException, IOException {
+  public DirectoryStream<FileAttributes> listFiles(Path f, boolean recursive)
+      throws FileNotFoundException, IOException {
     try (Closeable closeable = swapClassLoader();
         WaitRecorder recorder = OperatorStats.getMetadataWaitRecorder(operatorStats, f)) {
-      return new FetchOnDemandDirectoryStream(underlyingFs.listFiles(toHadoopPath(f), recursive), f, operatorStats);
+      return new FetchOnDemandDirectoryStream(
+          underlyingFs.listFiles(toHadoopPath(f), recursive), f, operatorStats);
     } catch (FSError e) {
       throw propagateFSError(e);
     }
@@ -354,8 +368,9 @@ public class DremioHadoopFileSystemWrapper
       throws FileNotFoundException, IOException {
     try (Closeable closeable = swapClassLoader();
         WaitRecorder recorder = OperatorStats.getMetadataWaitRecorder(operatorStats, pattern)) {
-      return new ArrayDirectoryStream(underlyingFs.globStatus(toHadoopPath(pattern), toPathFilter(filter)));
-    } catch(FSError e) {
+      return new ArrayDirectoryStream(
+          underlyingFs.globStatus(toHadoopPath(pattern), toPathFilter(filter)));
+    } catch (FSError e) {
       throw propagateFSError(e);
     }
   }
@@ -365,7 +380,7 @@ public class DremioHadoopFileSystemWrapper
     try (Closeable closeable = swapClassLoader();
         WaitRecorder recorder = OperatorStats.getMetadataWaitRecorder(operatorStats, dst)) {
       return underlyingFs.rename(toHadoopPath(src), toHadoopPath(dst));
-    } catch(FSError e) {
+    } catch (FSError e) {
       throw propagateFSError(e);
     }
   }
@@ -375,7 +390,7 @@ public class DremioHadoopFileSystemWrapper
     try (Closeable closeable = swapClassLoader();
         WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return underlyingFs.delete(toHadoopPath(f), recursive);
-    } catch(FSError e) {
+    } catch (FSError e) {
       throw propagateFSError(e);
     }
   }
@@ -391,7 +406,7 @@ public class DremioHadoopFileSystemWrapper
         forceRefresh(f);
         exists = underlyingFs.exists(p);
       }
-    } catch(FSError e) {
+    } catch (FSError e) {
       throw propagateFSError(e);
     }
     return exists;
@@ -408,7 +423,7 @@ public class DremioHadoopFileSystemWrapper
         forceRefresh(f);
         exists = underlyingFs.isDirectory(p);
       }
-    } catch(FSError e) {
+    } catch (FSError e) {
       throw propagateFSError(e);
     }
     return exists;
@@ -425,7 +440,7 @@ public class DremioHadoopFileSystemWrapper
         forceRefresh(f);
         exists = underlyingFs.isFile(p);
       }
-    } catch(FSError e) {
+    } catch (FSError e) {
       throw propagateFSError(e);
     }
     return exists;
@@ -442,7 +457,8 @@ public class DremioHadoopFileSystemWrapper
   }
 
   @Override
-  public Iterable<FileBlockLocation> getFileBlockLocations(FileAttributes file, long start, long len) throws IOException {
+  public Iterable<FileBlockLocation> getFileBlockLocations(
+      FileAttributes file, long start, long len) throws IOException {
     if (!(file instanceof HadoopFileStatusWrapper)) {
       throw new ProviderMismatchException();
     }
@@ -451,46 +467,49 @@ public class DremioHadoopFileSystemWrapper
     try (Closeable closeable = swapClassLoader();
         WaitRecorder recorder = OperatorStats.getMetadataWaitRecorder(operatorStats, p)) {
       return toFileBlockLocations(() -> underlyingFs.getFileBlockLocations(status, start, len));
-    } catch(FSError e) {
+    } catch (FSError e) {
       throw propagateFSError(e);
     }
   }
 
   @Override
-  public Iterable<FileBlockLocation> getFileBlockLocations(Path p, long start, long len) throws IOException {
+  public Iterable<FileBlockLocation> getFileBlockLocations(Path p, long start, long len)
+      throws IOException {
     try (Closeable closeable = swapClassLoader();
         WaitRecorder recorder = OperatorStats.getMetadataWaitRecorder(operatorStats, p)) {
-      return toFileBlockLocations(() -> underlyingFs.getFileBlockLocations(toHadoopPath(p), start, len));
-    } catch(FSError e) {
+      return toFileBlockLocations(
+          () -> underlyingFs.getFileBlockLocations(toHadoopPath(p), start, len));
+    } catch (FSError e) {
       throw propagateFSError(e);
     }
   }
 
   @Override
-  public void access(final Path path, final Set<AccessMode> mode) throws AccessControlException, FileNotFoundException, IOException {
+  public void access(final Path path, final Set<AccessMode> mode)
+      throws AccessControlException, FileNotFoundException, IOException {
     try (Closeable closeable = swapClassLoader();
         WaitRecorder recorder = OperatorStats.getMetadataWaitRecorder(operatorStats, path)) {
       checkAccessAllowed(toHadoopPath(path), toFsAction(mode));
-    } catch(FSError e) {
+    } catch (FSError e) {
       throw propagateFSError(e);
     }
   }
 
   private void forceRefresh(Path f) {
     /*
-      In some cases, especially for NFS, the directory lookup is from the cache. So, a
-      new file/directory created in another client may not be seen by this client.
-      Now, NFS must adhere to close-to-open consistency.  Hence opening is a way to force
-      a refresh of the attribute cache.
+     In some cases, especially for NFS, the directory lookup is from the cache. So, a
+     new file/directory created in another client may not be seen by this client.
+     Now, NFS must adhere to close-to-open consistency.  Hence opening is a way to force
+     a refresh of the attribute cache.
 
-      This uses Java File APIs directly.
-     */
+     This uses Java File APIs directly.
+    */
     java.nio.file.Path p = Paths.get(f.toString());
 
     /*
-      n level of directories may be created in the executor. To refresh, the base directory
-      the coordinator is aware of needs to be refreshed. The default level is 2.
-     */
+     n level of directories may be created in the executor. To refresh, the base directory
+     the coordinator is aware of needs to be refreshed. The default level is 2.
+    */
     for (int i = 0; i < FORCE_REFRESH_LEVELS_VALUE; i++) {
       p = p.getParent();
       if (p == null) {
@@ -504,7 +523,7 @@ public class DremioHadoopFileSystemWrapper
         already known to the client refreshes the directory tree.
       */
       try (DirectoryStream<java.nio.file.Path> ignore = Files.newDirectoryStream(p)) {
-        return; //return if there is no exception, i.e. it was found
+        return; // return if there is no exception, i.e. it was found
       } catch (IOException e) {
         logger.trace("Refresh failed", e);
       }
@@ -551,7 +570,8 @@ public class DremioHadoopFileSystemWrapper
 
   @Override
   public void fileOpened(Path path, FSInputStream fsDataInputStream) {
-    openedFiles.put(fsDataInputStream, new DebugStackTrace(path, Thread.currentThread().getStackTrace()));
+    openedFiles.put(
+        fsDataInputStream, new DebugStackTrace(path, Thread.currentThread().getStackTrace()));
   }
 
   @Override
@@ -577,10 +597,12 @@ public class DremioHadoopFileSystemWrapper
   }
 
   @Override
-  public AsyncByteReader getAsyncByteReader(AsyncByteReader.FileKey fileKey, Map<String, String> options) throws IOException {
+  public AsyncByteReader getAsyncByteReader(
+      AsyncByteReader.FileKey fileKey, Map<String, String> options) throws IOException {
     final org.apache.hadoop.fs.Path path = toHadoopPath(fileKey.getPath());
     if (underlyingFs instanceof MayProvideAsyncStream) {
-      return ((MayProvideAsyncStream) underlyingFs).getAsyncByteReader(path, fileKey.getVersion(),options);
+      return ((MayProvideAsyncStream) underlyingFs)
+          .getAsyncByteReader(path, fileKey.getVersion(), options);
     } else if (underlyingFs instanceof DremioFileSystem) {
       return ((DremioFileSystem) underlyingFs).getAsyncByteReader(fileKey, operatorStats, options);
     } else {
@@ -597,9 +619,11 @@ public class DremioHadoopFileSystemWrapper
     private final List<FileAttributes> delegate;
 
     private ArrayDirectoryStream(FileStatus[] statuses) {
-      delegate = statuses != null
-          ? ImmutableList.copyOf(Iterables.transform(Arrays.asList(statuses), HadoopFileStatusWrapper::new))
-          : Collections.emptyList();
+      delegate =
+          statuses != null
+              ? ImmutableList.copyOf(
+                  Iterables.transform(Arrays.asList(statuses), HadoopFileStatusWrapper::new))
+              : Collections.emptyList();
     }
 
     @Override
@@ -608,38 +632,43 @@ public class DremioHadoopFileSystemWrapper
     }
 
     @Override
-    public void close() throws IOException {
-    }
+    public void close() throws IOException {}
   }
 
   private final class FetchOnDemandDirectoryStream implements DirectoryStream<FileAttributes> {
     private final Iterator<FileAttributes> convertedIterator;
 
-    public FetchOnDemandDirectoryStream(RemoteIterator<LocatedFileStatus> statuses, Path p, OperatorStats stats) {
+    public FetchOnDemandDirectoryStream(
+        RemoteIterator<LocatedFileStatus> statuses, Path p, OperatorStats stats) {
 
-      convertedIterator = new Iterator<FileAttributes>() {
-        @Override
-        public boolean hasNext() {
-          try (Closeable closeable = swapClassLoader();
-              WaitRecorder metaRecorder = OperatorStats.getMetadataWaitRecorder(stats, p)) {
-            return statuses.hasNext();
-          } catch (IOException e) {
-            logger.error("IO exception in FetchOnDemandDirectoryStream while performing hasNext on RemoteIterator", e);
-            throw new RuntimeException(e.getCause());
-          }
-        }
+      convertedIterator =
+          new Iterator<FileAttributes>() {
+            @Override
+            public boolean hasNext() {
+              try (Closeable closeable = swapClassLoader();
+                  WaitRecorder metaRecorder = OperatorStats.getMetadataWaitRecorder(stats, p)) {
+                return statuses.hasNext();
+              } catch (IOException e) {
+                logger.error(
+                    "IO exception in FetchOnDemandDirectoryStream while performing hasNext on RemoteIterator",
+                    e);
+                throw new RuntimeException(e.getCause());
+              }
+            }
 
-        @Override
-        public FileAttributes next() {
-          try (Closeable closeable = swapClassLoader();
-              WaitRecorder metaRecorder = OperatorStats.getMetadataWaitRecorder(stats, p)){
-            return new HadoopFileStatusWrapper(statuses.next());
-          } catch (IOException e) {
-            logger.error("IO exception in FetchOnDemandDirectoryStream in fetching next fileAttribute ", e);
-            throw new RuntimeException(e.getCause());
-          }
-        }
-      };
+            @Override
+            public FileAttributes next() {
+              try (Closeable closeable = swapClassLoader();
+                  WaitRecorder metaRecorder = OperatorStats.getMetadataWaitRecorder(stats, p)) {
+                return new HadoopFileStatusWrapper(statuses.next());
+              } catch (IOException e) {
+                logger.error(
+                    "IO exception in FetchOnDemandDirectoryStream in fetching next fileAttribute ",
+                    e);
+                throw new RuntimeException(e.getCause());
+              }
+            }
+          };
     }
 
     @Override
@@ -648,8 +677,7 @@ public class DremioHadoopFileSystemWrapper
     }
 
     @Override
-    public void close() throws IOException {
-    }
+    public void close() throws IOException {}
   }
 
   public static class DebugStackTrace {
@@ -666,7 +694,8 @@ public class DremioHadoopFileSystemWrapper
       sb.append(path.toString());
       sb.append("' opened at callstack:\n");
 
-      // add all stack elements except the top three as they point to FileSystemWrapper.open() and inner stack elements.
+      // add all stack elements except the top three as they point to FileSystemWrapper.open() and
+      // inner stack elements.
       for (int i = 3; i < elements.length; i++) {
         sb.append("\t");
         sb.append(elements[i]);
@@ -676,42 +705,49 @@ public class DremioHadoopFileSystemWrapper
     }
   }
 
-  com.dremio.io.FSInputStream newFSDataInputStreamWrapper(Path f, final FSDataInputStream is) throws IOException {
+  com.dremio.io.FSInputStream newFSDataInputStreamWrapper(Path f, final FSDataInputStream is)
+      throws IOException {
     try {
-      return (operatorStats != null) ?
-        com.dremio.exec.store.hive.exec.dfs.FSDataInputStreamWithStatsWrapper.of(is, operatorStats, true, f.toString()) :
-        com.dremio.exec.store.hive.exec.dfs.FSDataInputStreamWrapper.of(is);
-    } catch(FSError e) {
+      return (operatorStats != null)
+          ? com.dremio.exec.store.hive.exec.dfs.FSDataInputStreamWithStatsWrapper.of(
+              is, operatorStats, true, f.toString())
+          : com.dremio.exec.store.hive.exec.dfs.FSDataInputStreamWrapper.of(is);
+    } catch (FSError e) {
       throw propagateFSError(e);
     }
   }
 
-  com.dremio.io.FSOutputStream newFSDataOutputStreamWrapper(final FSDataOutputStream os, String filePath) throws IOException {
+  com.dremio.io.FSOutputStream newFSDataOutputStreamWrapper(
+      final FSDataOutputStream os, String filePath) throws IOException {
     try {
-      return (operatorStats != null) ?
-        new com.dremio.exec.store.hive.exec.dfs.FSDataOutputStreamWithStatsWrapper(os, operatorStats, filePath) :
-        new com.dremio.exec.store.hive.exec.dfs.FSDataOutputStreamWrapper(os);
-    } catch(FSError e) {
+      return (operatorStats != null)
+          ? new com.dremio.exec.store.hive.exec.dfs.FSDataOutputStreamWithStatsWrapper(
+              os, operatorStats, filePath)
+          : new com.dremio.exec.store.hive.exec.dfs.FSDataOutputStreamWrapper(os);
+    } catch (FSError e) {
       throw propagateFSError(e);
     }
   }
 
-
-  FSInputStream newFSDataInputStreamWrapper(Path f, final FSDataInputStream is, boolean recordWaitTime) throws IOException {
+  FSInputStream newFSDataInputStreamWrapper(
+      Path f, final FSDataInputStream is, boolean recordWaitTime) throws IOException {
     FSInputStream result;
     if (operatorStats != null) {
-      result = com.dremio.exec.store.hive.exec.dfs.FSDataInputStreamWithStatsWrapper.of(is, operatorStats, recordWaitTime, f.toString());
+      result =
+          com.dremio.exec.store.hive.exec.dfs.FSDataInputStreamWithStatsWrapper.of(
+              is, operatorStats, recordWaitTime, f.toString());
     } else {
       result = com.dremio.exec.store.hive.exec.dfs.FSDataInputStreamWrapper.of(is);
     }
     if (TRACKING_ENABLED) {
-      result = new FilterFSInputStream(result) {
-        @Override
-        public void close() throws IOException {
-          fileClosed(this);
-          super.close();
-        }
-      };
+      result =
+          new FilterFSInputStream(result) {
+            @Override
+            public void close() throws IOException {
+              fileClosed(this);
+              super.close();
+            }
+          };
       fileOpened(f, result);
     }
     return result;
@@ -719,20 +755,20 @@ public class DremioHadoopFileSystemWrapper
 
   @VisibleForTesting
   static FsAction toFsAction(Set<AccessMode> mode) {
-    final char[] perms = new char[] { '-', '-', '-'};
-    for(AccessMode m: mode) {
-      switch(m) {
-      case READ:
-        perms[0] = 'r';
-        break;
+    final char[] perms = new char[] {'-', '-', '-'};
+    for (AccessMode m : mode) {
+      switch (m) {
+        case READ:
+          perms[0] = 'r';
+          break;
 
-      case WRITE:
-        perms[1] = 'w';
-        break;
+        case WRITE:
+          perms[1] = 'w';
+          break;
 
-      case EXECUTE:
-        perms[2] = 'x';
-        break;
+        case EXECUTE:
+          perms[2] = 'x';
+          break;
       }
     }
     return FsAction.getFsAction(new String(perms));
@@ -765,23 +801,26 @@ public class DremioHadoopFileSystemWrapper
     V call() throws IOException;
   }
 
-  private static Iterable<FileBlockLocation> toFileBlockLocations(IOCallable<BlockLocation[]> call) throws IOException {
+  private static Iterable<FileBlockLocation> toFileBlockLocations(IOCallable<BlockLocation[]> call)
+      throws IOException {
     final BlockLocation[] blocks = call.call();
     final List<FileBlockLocation> results = new ArrayList<>(blocks.length);
-    for(BlockLocation block: blocks) {
-      results.add(new SimpleFileBlockLocation(block.getOffset(), block.getLength(), ImmutableList.copyOf(block.getHosts())));
+    for (BlockLocation block : blocks) {
+      results.add(
+          new SimpleFileBlockLocation(
+              block.getOffset(), block.getLength(), ImmutableList.copyOf(block.getHosts())));
     }
     return results;
   }
 
   /**
-   * Swaps the current thread's context class loader to the plugin class loader, if necessary.  If the underlying
-   * filesystem implements ContextClassLoaderAware, the responsibility to swap to the correct class loader is
-   * delegated to that filesystem.
+   * Swaps the current thread's context class loader to the plugin class loader, if necessary. If
+   * the underlying filesystem implements ContextClassLoaderAware, the responsibility to swap to the
+   * correct class loader is delegated to that filesystem.
    */
   private Closeable swapClassLoader() {
-    return mustSwapContextClassLoader ?
-        ContextClassLoaderSwapper.swapClassLoader(DremioHadoopFileSystemWrapper.class) :
-        () -> {};
+    return mustSwapContextClassLoader
+        ? ContextClassLoaderSwapper.swapClassLoader(DremioHadoopFileSystemWrapper.class)
+        : () -> {};
   }
 }

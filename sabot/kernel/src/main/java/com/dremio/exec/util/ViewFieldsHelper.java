@@ -17,31 +17,28 @@ package com.dremio.exec.util;
 
 import static com.dremio.common.util.MajorTypeHelper.getMajorTypeForField;
 
-import java.util.List;
-
-import org.apache.arrow.flatbuf.Field;
-import org.apache.calcite.sql.type.SqlTypeName;
-
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.util.MajorTypeHelper;
 import com.dremio.exec.planner.sql.TypeInferenceUtils;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.namespace.DatasetHelper;
+import com.dremio.service.namespace.dataset.DatasetMetadata;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.ViewFieldType;
 import com.google.common.collect.Lists;
 import com.google.flatbuffers.FlatBufferBuilder;
-
 import io.protostuff.ByteString;
+import java.util.List;
+import org.apache.arrow.flatbuf.Field;
+import org.apache.calcite.sql.type.SqlTypeName;
 
-/**
- * Extract view fields from dataset
- */
+/** Extract view fields from dataset */
 public final class ViewFieldsHelper {
 
   /**
    * Get view fields from dataset config as it is in the batch schema.
+   *
    * @param config dataset config
    * @return List of view fields
    */
@@ -57,15 +54,39 @@ public final class ViewFieldsHelper {
     return null;
   }
 
+  /**
+   * Get view fields from dataset metadat as it is in the batch schema.
+   *
+   * @param metadata dataset metadata
+   * @return List of view fields
+   */
+  public static List<ViewFieldType> getViewFields(DatasetMetadata metadata) {
+    final ByteString schemaBytes = DatasetHelper.getSchemaBytes(metadata);
+    final boolean virtualDataset = metadata.getType() == DatasetType.VIRTUAL_DATASET;
+    if (schemaBytes == null && virtualDataset) {
+      return metadata.getVirtualDataset().getSqlFieldsList();
+    }
+    if (schemaBytes != null) {
+      return getBatchSchemaFields(BatchSchema.deserialize(schemaBytes.toByteArray()));
+    }
+    return null;
+  }
+
   public static List<ViewFieldType> getBatchSchemaFields(final BatchSchema batchSchema) {
     final List<ViewFieldType> fields = Lists.newArrayList();
     for (int i = 0; i < batchSchema.getFieldCount(); i++) {
       final org.apache.arrow.vector.types.pojo.Field field = batchSchema.getColumn(i);
       final ViewFieldType viewField =
-        new ViewFieldType(field.getName(), TypeInferenceUtils.getCalciteTypeFromMinorType(MajorTypeHelper.getMajorTypeForField(field).getMinorType()).toString());
+          new ViewFieldType(
+              field.getName(),
+              TypeInferenceUtils.getCalciteTypeFromMinorType(
+                      MajorTypeHelper.getMajorTypeForField(field).getMinorType())
+                  .toString());
 
       final CompleteType completeType = CompleteType.fromField(field);
-      final SqlTypeName sqlTypeName = TypeInferenceUtils.getCalciteTypeFromMinorType(getMajorTypeForField(field).getMinorType());
+      final SqlTypeName sqlTypeName =
+          TypeInferenceUtils.getCalciteTypeFromMinorType(
+              getMajorTypeForField(field).getMinorType());
 
       viewField.setPrecision(completeType.getPrecision());
       viewField.setScale(completeType.getScale());
@@ -74,9 +95,9 @@ public final class ViewFieldsHelper {
       viewField.setSerializedField(ByteString.copyFrom(serializeField(field)));
 
       // TODO (AH)
-      //viewField.setStartUnit();
-      //viewField.setEndUnit();
-      //viewField.setFractionalSecondPrecision();
+      // viewField.setStartUnit();
+      // viewField.setEndUnit();
+      // viewField.setFractionalSecondPrecision();
       fields.add(viewField);
     }
     return fields;
@@ -90,7 +111,8 @@ public final class ViewFieldsHelper {
 
   public static org.apache.arrow.vector.types.pojo.Field deserializeField(ByteString bytes) {
     Field field = Field.getRootAsField(bytes.asReadOnlyByteBuffer());
-    org.apache.arrow.vector.types.pojo.Field f = org.apache.arrow.vector.types.pojo.Field.convertField(field);
+    org.apache.arrow.vector.types.pojo.Field f =
+        org.apache.arrow.vector.types.pojo.Field.convertField(field);
     return f;
   }
 }

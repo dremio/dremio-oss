@@ -15,18 +15,16 @@
  */
 package com.dremio.sabot.op.join.nlje;
 
-import java.util.List;
-
-import org.apache.arrow.vector.util.TransferPair;
-
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.exec.expr.ClassProducer;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
+import java.util.List;
+import org.apache.arrow.vector.util.TransferPair;
 
 /**
- * A matcher that just returns the probe side of the dataset. This is used when we're doing a LEFT join and there were
- * no build batches.
+ * A matcher that just returns the probe side of the dataset. This is used when we're doing a LEFT
+ * join and there were no build batches.
  */
 class StraightThroughMatcher implements JoinMatcher {
 
@@ -42,8 +40,8 @@ class StraightThroughMatcher implements JoinMatcher {
 
   @Override
   public int output() {
-    if(records > 0) {
-      for(TransferPair p : probeTransfers) {
+    if (records > 0) {
+      for (TransferPair p : probeTransfers) {
         p.transfer();
       }
       output.setAllCount(records);
@@ -73,9 +71,12 @@ class StraightThroughMatcher implements JoinMatcher {
   }
 
   @Override
-  public void setup(LogicalExpression expr, ClassProducer classProducer, VectorAccessible probe, VectorAccessible build)
-      throws Exception {
-  }
+  public void setup(
+      LogicalExpression expr,
+      ClassProducer classProducer,
+      VectorAccessible probe,
+      VectorAccessible build)
+      throws Exception {}
 
   @Override
   public void startNextProbe(int records) {
@@ -88,7 +89,5 @@ class StraightThroughMatcher implements JoinMatcher {
   }
 
   @Override
-  public void close() {
-  }
-
+  public void close() {}
 }

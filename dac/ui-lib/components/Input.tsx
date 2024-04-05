@@ -8,14 +8,23 @@ type InputProps = Omit<HTMLProps<HTMLInputElement>, "prefix"> & {
   wrapperRef?: any;
   clearable?: boolean;
   prefix?: JSX.Element;
+  textPrefix?: string;
   suffix?: JSX.Element;
 };
 
 export const Input = forwardRef<HTMLInputElement, InputProps>((props, ref) => {
   const inputEl = useRef(null);
   const [internalValue, setInternalValue] = useState(props.value);
-  const { wrapperRef, clearable, prefix, suffix, style, className, ...rest } =
-    props;
+  const {
+    wrapperRef,
+    clearable,
+    prefix,
+    textPrefix,
+    suffix,
+    style,
+    className,
+    ...rest
+  } = props;
   const handleClear = (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -30,7 +39,11 @@ export const Input = forwardRef<HTMLInputElement, InputProps>((props, ref) => {
       style={style}
       {...(wrapperRef && { ref: wrapperRef })}
     >
-      {prefix}
+      {textPrefix ? (
+        <div className="form-control__prefix">{textPrefix}</div>
+      ) : (
+        prefix
+      )}
       <input
         ref={mergeRefs([ref, inputEl])}
         {...rest}

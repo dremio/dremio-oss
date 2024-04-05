@@ -28,7 +28,7 @@ const TAB_SIZE_SPACES = 4;
 export abstract class BaseQueryParser<
   P extends Parser,
   L extends Lexer,
-  C extends ParserRuleContext
+  C extends ParserRuleContext,
 > {
   protected tokenStream: CommonTokenStream;
   protected parser: P;
@@ -38,7 +38,7 @@ export abstract class BaseQueryParser<
     query: string,
     lexerErrorListener?: ANTLRErrorListener<any>,
     parserErrorListener?: ANTLRErrorListener<any>,
-    omitDefaultErrorListeners?: boolean
+    omitDefaultErrorListeners?: boolean,
   ) {
     const sql = query.replace("\t", " ".repeat(TAB_SIZE_SPACES));
     const inputStream = CharStreams.fromString(sql);

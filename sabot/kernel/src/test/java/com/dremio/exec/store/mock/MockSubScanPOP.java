@@ -15,10 +15,6 @@
  */
 package com.dremio.exec.store.mock;
 
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.physical.base.AbstractBase;
 import com.dremio.exec.physical.base.OpProps;
@@ -35,6 +31,9 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
 
 @JsonTypeName("mock-sub-scan")
 public class MockSubScanPOP extends AbstractBase implements SubScan {
@@ -66,7 +65,8 @@ public class MockSubScanPOP extends AbstractBase implements SubScan {
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value) throws E{
+  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value)
+      throws E {
     return physicalVisitor.visitSubScan(this, value);
   }
 
@@ -75,7 +75,6 @@ public class MockSubScanPOP extends AbstractBase implements SubScan {
   public PhysicalOperator getNewWithChildren(List<PhysicalOperator> children) {
     Preconditions.checkArgument(children.isEmpty());
     return new MockSubScanPOP(this.props, url, readEntries);
-
   }
 
   @Override
@@ -101,11 +100,14 @@ public class MockSubScanPOP extends AbstractBase implements SubScan {
   @Override
   @JsonIgnore
   public List<SchemaPath> getColumns() {
-    return Lists.transform(MockGroupScanPOP.getColumns(readEntries), new Function<String, SchemaPath>(){
-      @Override
-      public SchemaPath apply(String input) {
-        return SchemaPath.getSimplePath(input);
-      }});
+    return Lists.transform(
+        MockGroupScanPOP.getColumns(readEntries),
+        new Function<String, SchemaPath>() {
+          @Override
+          public SchemaPath apply(String input) {
+            return SchemaPath.getSimplePath(input);
+          }
+        });
   }
 
   @Override

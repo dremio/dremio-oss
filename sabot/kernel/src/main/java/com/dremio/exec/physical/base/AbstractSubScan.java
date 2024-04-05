@@ -15,11 +15,6 @@
  */
 package com.dremio.exec.physical.base;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.graph.GraphVisitor;
 import com.dremio.exec.planner.fragment.MinorDataReader;
@@ -29,27 +24,26 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
 
-public abstract class AbstractSubScan extends AbstractBase implements SubScan, OpWithMinorSpecificAttrs, Cloneable {
+public abstract class AbstractSubScan extends AbstractBase
+    implements SubScan, OpWithMinorSpecificAttrs, Cloneable {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AbstractSubScan.class);
 
   private final BatchSchema fullSchema;
   private final Collection<List<String>> referencedTables;
 
   public AbstractSubScan(
-      OpProps props,
-      BatchSchema fullSchema,
-      Collection<List<String>> referencedTables) {
+      OpProps props, BatchSchema fullSchema, Collection<List<String>> referencedTables) {
     super(props);
     this.fullSchema = fullSchema;
     this.referencedTables = referencedTables;
   }
 
-  public AbstractSubScan(
-      OpProps props,
-      BatchSchema fullSchema,
-      List<String> tablePath
-      ) {
+  public AbstractSubScan(OpProps props, BatchSchema fullSchema, List<String> tablePath) {
     super(props);
     this.fullSchema = fullSchema;
     if (tablePath == null) {
@@ -60,7 +54,8 @@ public abstract class AbstractSubScan extends AbstractBase implements SubScan, O
   }
 
   @JsonIgnore
-  @Deprecated // TODO: SubScan implementations use factory methods (@JsonCreator) that need this method
+  @Deprecated // TODO: SubScan implementations use factory methods (@JsonCreator) that need this
+  // method
   public List<String> getTableSchemaPath() {
     final Collection<List<String>> paths = getReferencedTables();
     if (paths.isEmpty()) {
@@ -81,16 +76,18 @@ public abstract class AbstractSubScan extends AbstractBase implements SubScan, O
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value) throws E {
+  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value)
+      throws E {
     return physicalVisitor.visitSubScan(this, value);
   }
 
   @Override
-  public PhysicalOperator getNewWithChildren(List<PhysicalOperator> children) throws ExecutionSetupException {
+  public PhysicalOperator getNewWithChildren(List<PhysicalOperator> children)
+      throws ExecutionSetupException {
     assert children == null || children.isEmpty();
 
     try {
-      return (PhysicalOperator)this.clone();
+      return (PhysicalOperator) this.clone();
     } catch (CloneNotSupportedException e) {
       throw new ExecutionSetupException("failed when cloning", e);
     }

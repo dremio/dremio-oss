@@ -22,12 +22,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
-/**
- * Classes that can be put in the Distributed Cache must implement this interface.
- */
-public interface Serializable extends Externalizable{
+/** Classes that can be put in the Distributed Cache must implement this interface. */
+public interface Serializable extends Externalizable {
   public void read(DataInput input) throws IOException;
+
   public void readFromStream(InputStream input) throws IOException;
+
   public void write(DataOutput output) throws IOException;
+
   public void writeToStream(OutputStream output) throws IOException;
 }

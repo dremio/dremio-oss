@@ -18,9 +18,9 @@ package com.dremio.exec.planner.cost;
 import static com.dremio.exec.planner.cost.RelMdDistinctRowCount.getDistinctRowCountFromEstimateRowCount;
 import static com.dremio.exec.planner.cost.RelMdDistinctRowCount.getDistinctRowCountFromTableMetadata;
 
+import com.dremio.exec.store.sys.statistics.StatisticsService;
 import java.util.List;
 import java.util.Optional;
-
 import org.apache.calcite.plan.volcano.RelSubset;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Aggregate;
@@ -45,18 +45,16 @@ import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.ImmutableBitSet.Builder;
 import org.apache.calcite.util.Util;
 
-import com.dremio.exec.store.sys.statistics.StatisticsService;
-
 /**
- * RelMdPopulationSize supplies a default implementation of
- * {@link RelMetadataQuery#getPopulationSize} for the standard logical algebra.
+ * RelMdPopulationSize supplies a default implementation of {@link
+ * RelMetadataQuery#getPopulationSize} for the standard logical algebra.
  */
-public class RelMdPopulationSize
-  implements MetadataHandler<PopulationSize> {
-  private static final RelMdPopulationSize INSTANCE = new RelMdPopulationSize(StatisticsService.NO_OP);
+public class RelMdPopulationSize implements MetadataHandler<PopulationSize> {
+  private static final RelMdPopulationSize INSTANCE =
+      new RelMdPopulationSize(StatisticsService.NO_OP);
   public static final RelMetadataProvider SOURCE =
-    ReflectiveRelMetadataProvider.reflectiveSource(
-      BuiltInMethod.POPULATION_SIZE.method, INSTANCE);
+      ReflectiveRelMetadataProvider.reflectiveSource(
+          BuiltInMethod.POPULATION_SIZE.method, INSTANCE);
 
   private final StatisticsService statisticsService;
   private boolean isNoOp;
@@ -78,29 +76,26 @@ public class RelMdPopulationSize
   public Double getPopulationSize(TableScan rel, RelMetadataQuery mq, ImmutableBitSet groupKey) {
     if (DremioRelMdUtil.isStatisticsEnabled(rel.getCluster().getPlanner(), isNoOp)) {
       RexNode cond = rel.getCluster().getRexBuilder().makeLiteral(true);
-      return Optional.ofNullable(getDistinctRowCountFromTableMetadata(rel, mq, groupKey, cond, statisticsService))
-        .orElse(getDistinctRowCountFromEstimateRowCount(rel, mq, groupKey, cond));
+      return Optional.ofNullable(
+              getDistinctRowCountFromTableMetadata(rel, mq, groupKey, cond, statisticsService))
+          .orElse(getDistinctRowCountFromEstimateRowCount(rel, mq, groupKey, cond));
     }
     return null;
   }
 
-  public Double getPopulationSize(Filter rel, RelMetadataQuery mq,
-                                  ImmutableBitSet groupKey) {
+  public Double getPopulationSize(Filter rel, RelMetadataQuery mq, ImmutableBitSet groupKey) {
     return mq.getPopulationSize(rel.getInput(), groupKey);
   }
 
-  public Double getPopulationSize(Sort rel, RelMetadataQuery mq,
-                                  ImmutableBitSet groupKey) {
+  public Double getPopulationSize(Sort rel, RelMetadataQuery mq, ImmutableBitSet groupKey) {
     return mq.getPopulationSize(rel.getInput(), groupKey);
   }
 
-  public Double getPopulationSize(Exchange rel, RelMetadataQuery mq,
-                                  ImmutableBitSet groupKey) {
+  public Double getPopulationSize(Exchange rel, RelMetadataQuery mq, ImmutableBitSet groupKey) {
     return mq.getPopulationSize(rel.getInput(), groupKey);
   }
 
-  public Double getPopulationSize(Union rel, RelMetadataQuery mq,
-                                  ImmutableBitSet groupKey) {
+  public Double getPopulationSize(Union rel, RelMetadataQuery mq, ImmutableBitSet groupKey) {
     Double population = 0.0;
     for (RelNode input : rel.getInputs()) {
       Double subPop = mq.getPopulationSize(input, groupKey);
@@ -112,33 +107,28 @@ public class RelMdPopulationSize
     return population;
   }
 
-  public Double getPopulationSize(Join rel, RelMetadataQuery mq,
-                                  ImmutableBitSet groupKey) {
+  public Double getPopulationSize(Join rel, RelMetadataQuery mq, ImmutableBitSet groupKey) {
     return RelMdUtil.getJoinPopulationSize(mq, rel, groupKey);
   }
 
-  public Double getPopulationSize(Aggregate rel, RelMetadataQuery mq,
-                                  ImmutableBitSet groupKey) {
+  public Double getPopulationSize(Aggregate rel, RelMetadataQuery mq, ImmutableBitSet groupKey) {
     Builder childKey = ImmutableBitSet.builder();
     RelMdUtil.setAggChildKeys(groupKey, rel, childKey);
     return mq.getPopulationSize(rel.getInput(), childKey.build());
   }
 
-  public Double getPopulationSize(Values rel, RelMetadataQuery mq,
-                                  ImmutableBitSet groupKey) {
+  public Double getPopulationSize(Values rel, RelMetadataQuery mq, ImmutableBitSet groupKey) {
     // assume half the rows are duplicates
     return rel.estimateRowCount(mq) / 2;
   }
 
-  public Double getPopulationSize(Project rel, RelMetadataQuery mq,
-                                  ImmutableBitSet groupKey) {
+  public Double getPopulationSize(Project rel, RelMetadataQuery mq, ImmutableBitSet groupKey) {
     Builder baseCols = ImmutableBitSet.builder();
     Builder projCols = ImmutableBitSet.builder();
     List<RexNode> projExprs = rel.getProjects();
     RelMdUtil.splitCols(projExprs, groupKey, baseCols, projCols);
 
-    Double population =
-      mq.getPopulationSize(rel.getInput(), baseCols.build());
+    Double population = mq.getPopulationSize(rel.getInput(), baseCols.build());
     if (population == null) {
       return null;
     }
@@ -150,8 +140,7 @@ public class RelMdPopulationSize
     }
 
     for (int bit : projCols.build()) {
-      Double subRowCount =
-        RelMdUtil.cardOfProjExpr(mq, rel, projExprs.get(bit));
+      Double subRowCount = RelMdUtil.cardOfProjExpr(mq, rel, projExprs.get(bit));
       if (subRowCount == null) {
         return null;
       }
@@ -164,14 +153,13 @@ public class RelMdPopulationSize
     return RelMdUtil.numDistinctVals(population, mq.getRowCount(rel));
   }
 
-  /** Catch-all implementation for
-   * {@link PopulationSize#getPopulationSize(ImmutableBitSet)},
-   * invoked using reflection.
+  /**
+   * Catch-all implementation for {@link PopulationSize#getPopulationSize(ImmutableBitSet)}, invoked
+   * using reflection.
    *
    * @see RelMetadataQuery#getPopulationSize(RelNode, ImmutableBitSet)
    */
-  public Double getPopulationSize(RelNode rel, RelMetadataQuery mq,
-                                  ImmutableBitSet groupKey) {
+  public Double getPopulationSize(RelNode rel, RelMetadataQuery mq, ImmutableBitSet groupKey) {
     // if the keys are unique, return the row count; otherwise, we have
     // no further information on which to return any legitimate value
 

@@ -15,13 +15,6 @@
  */
 package com.dremio.dac.model.sources;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
 import com.dremio.dac.model.common.AddressableResource;
 import com.dremio.dac.model.common.ResourcePath;
 import com.dremio.dac.model.common.RootEntity;
@@ -31,11 +24,17 @@ import com.dremio.service.namespace.physicaldataset.proto.PhysicalDatasetConfig;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
-/**
- * Raw dataset/table
- */
-@JsonIgnoreProperties(value={"links"}, allowGetters=true)
+/** Raw dataset/table */
+@JsonIgnoreProperties(
+    value = {"links"},
+    allowGetters = true)
 public class PhysicalDataset implements AddressableResource {
 
   private final PhysicalDatasetConfig datasetConfig;
@@ -46,11 +45,11 @@ public class PhysicalDataset implements AddressableResource {
 
   @JsonCreator
   public PhysicalDataset(
-    @JsonProperty("resourcePath") PhysicalDatasetResourcePath resourcePath,
-    @JsonProperty("datasetName") PhysicalDatasetName datasetName,
-    @JsonProperty("datasetConfig") PhysicalDatasetConfig datasetConfig,
-    @JsonProperty("jobCount") Integer jobCount,
-    @JsonProperty("tags") List<String> tags) {
+      @JsonProperty("resourcePath") PhysicalDatasetResourcePath resourcePath,
+      @JsonProperty("datasetName") PhysicalDatasetName datasetName,
+      @JsonProperty("datasetConfig") PhysicalDatasetConfig datasetConfig,
+      @JsonProperty("jobCount") Integer jobCount,
+      @JsonProperty("tags") List<String> tags) {
     this.resourcePath = resourcePath;
     this.datasetName = datasetName;
     this.datasetConfig = datasetConfig;
@@ -82,35 +81,32 @@ public class PhysicalDataset implements AddressableResource {
     Map<String, String> links = new HashMap<>();
     links.put("self", datasetPath.toUrlPath());
     links.put("query", datasetPath.getQueryUrlPath());
-    final JobFilters jobFilters = new JobFilters()
-      .addFilter(JobIndexKeys.ALL_DATASETS, datasetPath.toString())
-      .addFilter(JobIndexKeys.QUERY_TYPE, JobIndexKeys.UI, JobIndexKeys.EXTERNAL);
+    final JobFilters jobFilters =
+        new JobFilters()
+            .addFilter(JobIndexKeys.ALL_DATASETS, datasetPath.toString())
+            .addFilter(JobIndexKeys.QUERY_TYPE, JobIndexKeys.UI, JobIndexKeys.EXTERNAL);
     links.put("jobs", jobFilters.toUrl());
     return links;
   }
 
-  public static PhysicalDataset newInstance(RootEntity rootEntity,
-                                            List<String> folderNamespace,
-                                            String folderName,
-                                            String id) {
-    List<String> fullPathList = Stream.of(
-        Stream.of(rootEntity.getName()),
-        folderNamespace.stream(),
-        Stream.of(folderName))
-      .reduce(Stream::concat)
-      .orElseThrow(IllegalStateException::new)
-      .collect(Collectors.toList());
+  public static PhysicalDataset newInstance(
+      RootEntity rootEntity, List<String> folderNamespace, String folderName, String id) {
+    List<String> fullPathList =
+        Stream.of(Stream.of(rootEntity.getName()), folderNamespace.stream(), Stream.of(folderName))
+            .reduce(Stream::concat)
+            .orElseThrow(IllegalStateException::new)
+            .collect(Collectors.toList());
 
     final PhysicalDatasetPath path = new PhysicalDatasetPath(fullPathList);
 
     return new PhysicalDataset(
-      new PhysicalDatasetResourcePath(path),
-      new PhysicalDatasetName(path.getFileName().getName()),
-      new PhysicalDatasetConfig()
-        .setId((id == null) ? UUID.randomUUID().toString() : id)
-        .setFullPathList(fullPathList),
-      null,
-      null);
+        new PhysicalDatasetResourcePath(path),
+        new PhysicalDatasetName(path.getFileName().getName()),
+        new PhysicalDatasetConfig()
+            .setId((id == null) ? UUID.randomUUID().toString() : id)
+            .setFullPathList(fullPathList),
+        null,
+        null);
   }
 
   public List<String> getTags() {

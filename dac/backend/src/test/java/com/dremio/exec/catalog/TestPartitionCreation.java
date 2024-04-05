@@ -17,58 +17,30 @@ package com.dremio.exec.catalog;
 
 import static org.junit.Assert.assertTrue;
 
-import java.util.List;
-
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.RootAllocatorFactory;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Test;
-
 import com.dremio.BaseTestQuery;
-import com.dremio.common.AutoCloseables;
-import com.dremio.dac.service.flight.FlightCloseableBindableService;
 import com.dremio.exec.ExecConstants;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
-import com.dremio.service.conduit.server.ConduitServiceRegistry;
-import com.dremio.service.conduit.server.ConduitServiceRegistryImpl;
-import com.dremio.service.sysflight.SysFlightProducer;
-import com.dremio.service.sysflight.SystemTableManagerImpl;
-import com.dremio.test.DremioTest;
-import com.google.inject.AbstractModule;
+import java.util.List;
+import org.junit.AfterClass;
+import org.junit.Test;
 
 public class TestPartitionCreation extends BaseTestQuery {
-  @ClassRule
-  public static final TestSysFlightResource SYS_FLIGHT_RESOURCE = new TestSysFlightResource();
 
-  private static AutoCloseable disableUnlimitedSplitsSupportFlags;
-
-  @BeforeClass
-  public static final void setupDefaultTestCluster() throws Exception {
-    // register the SysFlight service on conduit
-    // and inject it in SabotNode.
-    SABOT_NODE_RULE.register(new AbstractModule() {
-      @Override
-      protected void configure() {
-        final ConduitServiceRegistry conduitServiceRegistry = new ConduitServiceRegistryImpl();
-        BufferAllocator rootAllocator = RootAllocatorFactory.newRoot(DremioTest.DEFAULT_SABOT_CONFIG);
-        BufferAllocator testAllocator = rootAllocator.newChildAllocator("test-sysflight-Plugin", 0, Long.MAX_VALUE);
-        FlightCloseableBindableService flightService = new FlightCloseableBindableService(testAllocator,
-          new SysFlightProducer(() -> new SystemTableManagerImpl(testAllocator, SYS_FLIGHT_RESOURCE::getTablesProvider)), null, null);
-        conduitServiceRegistry.registerService(flightService);
-        bind(ConduitServiceRegistry.class).toInstance(conduitServiceRegistry);
-      }
-    });
-    BaseTestQuery.setupDefaultTestCluster();
-    TestSysFlightResource.addSysFlightPlugin(nodes[0]);
-    disableUnlimitedSplitsSupportFlags = disableUnlimitedSplitsSupportFlags();
-    setSystemOption(ExecConstants.ENABLE_ICEBERG_SORT_ORDER, "true");
-  }
+  private static final String FAKE_SYSOPTIONS_TABLE =
+      "(SELECT * FROM (VALUES\n"
+          + "('name01', 'LONG', 'SYSTEM', 'DEFAULT', null, null),\n"
+          + "('name02', 'BOOLEAN', 'SYSTEM', 'DEFAULT', true, null),\n"
+          + "('name03', 'BOOLEAN', 'SYSTEM', 'DEFAULT', true, null),\n"
+          + "('name04', 'BOOLEAN', 'SYSTEM', 'DEFAULT', false, null),\n"
+          + "('name05', 'STRING', 'SYSTEM', 'DEFAULT', null, ''),\n"
+          + "('name06', 'DOUBLE', 'SYSTEM', 'DEFAULT', null, null),\n"
+          + "('name07', 'LONG', 'SYSTEM', 'DEFAULT', null, null),\n"
+          + "('name08', 'BOOLEAN', 'SYSTEM', 'DEFAULT', true, null),\n"
+          + "('name09', 'STRING', 'SYSTEM', 'DEFAULT', null, null)\n"
+          + ") as sys_options(name, kind, type, status, bool_val, string_val))";
 
   @AfterClass
   public static void resetFlags() throws Exception {
-    AutoCloseables.close(disableUnlimitedSplitsSupportFlags);
     resetSystemOption(ExecConstants.ENABLE_ICEBERG_SORT_ORDER.getOptionName());
   }
 
@@ -81,41 +53,44 @@ public class TestPartitionCreation extends BaseTestQuery {
 
     // confirm that the data has been properly partitioned
     testBuilder()
-      .unOrdered()
-      .sqlQuery("SELECT COUNT(*) c FROM dfs_test.\"nulls/0_DREMIO_DEFAULT_NULL_PARTITION__\"")
-      .baselineColumns("c")
-      .baselineValues(3L)
-      .go();
+        .unOrdered()
+        .sqlQuery("SELECT COUNT(*) c FROM dfs_test.\"nulls/0_DREMIO_DEFAULT_NULL_PARTITION__\"")
+        .baselineColumns("c")
+        .baselineValues(3L)
+        .go();
   }
 
   @Test
   public void testPartitionOnColumnWithNulls() throws Exception {
     final String input = "cp.\"ctas_with_partition/mixed_partition.parquet\"";
-    final String ctas = "CREATE TABLE dfs_test.nulls_mixed PARTITION BY (A) AS SELECT * FROM " + input;
+    final String ctas =
+        "CREATE TABLE dfs_test.nulls_mixed PARTITION BY (A) AS SELECT * FROM " + input;
     runSQL(ctas);
 
     // confirm that the data has been properly partitioned
     testBuilder()
-      .unOrdered()
-      .sqlQuery("SELECT count(*) c FROM dfs_test.\"nulls_mixed/2_a\"")
-      .baselineColumns("c")
-      .baselineValues(1L)
-      .go();
-    testBuilder()
-      .unOrdered()
-      .sqlQuery("SELECT count(*) c FROM dfs_test.\"nulls_mixed/3_b\"")
-      .baselineColumns("c")
-      .baselineValues(1L)
-      .go();
-    testBuilder()
-      .unOrdered()
-      .sqlQuery("SELECT count(*) c FROM dfs_test.\"nulls_mixed/4_DREMIO_DEFAULT_NULL_PARTITION__\"")
-      .baselineColumns("c")
-      .baselineValues(1L)
-      .go();
+        .unOrdered()
+        .sqlQuery("SELECT count(*) c FROM dfs_test.\"nulls_mixed/2_a\"")
+        .baselineColumns("c")
+        .baselineValues(1L)
+        .go();
     testBuilder()
         .unOrdered()
-        .sqlQuery("SELECT count(*) c FROM dfs_test.\"nulls_mixed/0_DREMIO_DEFAULT_EMPTY_VALUE_PARTITION__\"")
+        .sqlQuery("SELECT count(*) c FROM dfs_test.\"nulls_mixed/3_b\"")
+        .baselineColumns("c")
+        .baselineValues(1L)
+        .go();
+    testBuilder()
+        .unOrdered()
+        .sqlQuery(
+            "SELECT count(*) c FROM dfs_test.\"nulls_mixed/4_DREMIO_DEFAULT_NULL_PARTITION__\"")
+        .baselineColumns("c")
+        .baselineValues(1L)
+        .go();
+    testBuilder()
+        .unOrdered()
+        .sqlQuery(
+            "SELECT count(*) c FROM dfs_test.\"nulls_mixed/0_DREMIO_DEFAULT_EMPTY_VALUE_PARTITION__\"")
         .baselineColumns("c")
         .baselineValues(2L)
         .go();
@@ -130,59 +105,69 @@ public class TestPartitionCreation extends BaseTestQuery {
 
     // confirm that the data has been properly partitioned
     testBuilder()
-      .unOrdered()
-      .sqlQuery("SELECT count(*) c FROM dfs_test.\"nulls_int/0_0\"")
-      .baselineColumns("c")
-      .baselineValues(2L)
-      .go();
+        .unOrdered()
+        .sqlQuery("SELECT count(*) c FROM dfs_test.\"nulls_int/0_0\"")
+        .baselineColumns("c")
+        .baselineValues(2L)
+        .go();
     testBuilder()
-      .unOrdered()
-      .sqlQuery("SELECT count(*) c FROM dfs_test.\"nulls_int/2_DREMIO_DEFAULT_NULL_PARTITION__\"")
-      .baselineColumns("c")
-      .baselineValues(3L)
-      .go();
+        .unOrdered()
+        .sqlQuery("SELECT count(*) c FROM dfs_test.\"nulls_int/2_DREMIO_DEFAULT_NULL_PARTITION__\"")
+        .baselineColumns("c")
+        .baselineValues(3L)
+        .go();
   }
-
 
   @Test
   public void testPartitionNegativeValue() throws Exception {
-    final String ctas = "create table dfs_test.ctas_with_negative_part partition by (float_val) as select name, -float_val as float_val from sys.options where float_val is not null";
+    final String ctas =
+        "create table dfs_test.ctas_with_negative_part partition by (float_val) as SELECT * FROM (VALUES('name01', -0.0),('name02', -0.0),('name03', -3.0),('name04', -50.0),('name05', -50.0),('name06', -50.0),('name07', -100.0)) as sys_options(name, float_val)";
     runSQL(ctas);
     testBuilder()
-      .unOrdered()
-      .sqlQuery("SELECT count(*) c FROM dfs_test.\"ctas_with_negative_part\"")
-      .baselineColumns("c")
-      .sqlBaselineQuery("select count(*) c from sys.options where float_val is not null")
-      .go();
+        .unOrdered()
+        .sqlQuery("SELECT count(*) c FROM dfs_test.\"ctas_with_negative_part\"")
+        .baselineColumns("c")
+        .baselineValues(7L) // 7 rows generated above
+        .go();
   }
 
   @Test
   public void testPartitionHash() throws Exception {
     try {
       setSessionOption(ExecConstants.SLICE_TARGET, "1");
-      final String input = "sys.options";
-      final String tableName = "dfs_test.hashpartitiontable";
 
-      final String query = "CREATE TABLE " + tableName + " PARTITION BY (TYPE, KIND) as SELECT * FROM " + input;
+      final String tableName = "dfs_test.hashpartitiontable";
+      final String query =
+          "CREATE TABLE "
+              + tableName
+              + " PARTITION BY (TYPE, KIND) as SELECT * FROM "
+              + FAKE_SYSOPTIONS_TABLE;
       runSQL(query);
 
       testBuilder()
-        .unOrdered()
-        .sqlQuery("SELECT name, kind, type, status, num_val, string_val FROM " + tableName)
-        .sqlBaselineQuery("SELECT name, kind, type, status, num_val, string_val FROM " + input)
-        .go();
+          .unOrdered()
+          .sqlQuery("SELECT name, kind, type, status, bool_val, string_val FROM " + tableName)
+          .sqlBaselineQuery(
+              "SELECT name, kind, type, status, bool_val, string_val FROM " + FAKE_SYSOPTIONS_TABLE)
+          .go();
 
       final String tableName2 = "dfs_test.hashpartitiontable2";
-      final String query2 = "CREATE TABLE " + tableName2 + " HASH PARTITION BY (TYPE, KIND) as SELECT * FROM " + input;
+      final String query2 =
+          "CREATE TABLE "
+              + tableName2
+              + " HASH PARTITION BY (TYPE, KIND) as SELECT * FROM "
+              + FAKE_SYSOPTIONS_TABLE;
       runSQL(query2);
       testBuilder()
-        .unOrdered()
-        .sqlQuery("SELECT name, kind, type, status, num_val, string_val FROM " + tableName2)
-        .sqlBaselineQuery("SELECT name, kind, type, status, num_val, string_val FROM " + input)
-        .go();
+          .unOrdered()
+          .sqlQuery("SELECT name, kind, type, status, bool_val, string_val FROM " + tableName2)
+          .sqlBaselineQuery(
+              "SELECT name, kind, type, status, bool_val, string_val FROM " + FAKE_SYSOPTIONS_TABLE)
+          .go();
 
     } finally {
-      setSessionOption(ExecConstants.SLICE_TARGET, String.valueOf(ExecConstants.SLICE_TARGET_DEFAULT));
+      setSessionOption(
+          ExecConstants.SLICE_TARGET, String.valueOf(ExecConstants.SLICE_TARGET_DEFAULT));
     }
   }
 
@@ -190,53 +175,72 @@ public class TestPartitionCreation extends BaseTestQuery {
   public void testPartitionRoundRobin() throws Exception {
     try {
       setSessionOption(ExecConstants.SLICE_TARGET, "1");
-      final String input = "sys.options";
       final String tableName = "dfs_test.roundrobintable";
 
-      final String query = "CREATE TABLE " + tableName + " PARTITION BY (TYPE, KIND) as SELECT * FROM " + input;
+      final String query =
+          "CREATE TABLE "
+              + tableName
+              + " PARTITION BY (TYPE, KIND) as SELECT * FROM "
+              + FAKE_SYSOPTIONS_TABLE;
       runSQL(query);
 
       testBuilder()
-        .unOrdered()
-        .sqlQuery("SELECT name, kind, type, status, num_val, string_val FROM " + tableName)
-        .sqlBaselineQuery("SELECT name, kind, type, status, num_val, string_val FROM " + input)
-        .go();
+          .unOrdered()
+          .sqlQuery("SELECT name, kind, type, status, bool_val, string_val FROM " + tableName)
+          .sqlBaselineQuery(
+              "SELECT name, kind, type, status, bool_val, string_val FROM " + FAKE_SYSOPTIONS_TABLE)
+          .go();
 
       final String tableName2 = "dfs_test.roundrobintable2";
-      final String query2 = "CREATE TABLE " + tableName2 + " ROUNDROBIN PARTITION BY (TYPE, KIND) as SELECT * FROM " + input;
+      final String query2 =
+          "CREATE TABLE "
+              + tableName2
+              + " ROUNDROBIN PARTITION BY (TYPE, KIND) as SELECT * FROM "
+              + FAKE_SYSOPTIONS_TABLE;
       runSQL(query2);
       testBuilder()
-        .unOrdered()
-        .sqlQuery("SELECT name, kind, type, status, num_val, string_val FROM " + tableName2)
-        .sqlBaselineQuery("SELECT name, kind, type, status, num_val, string_val FROM " + input)
-        .go();
+          .unOrdered()
+          .sqlQuery("SELECT name, kind, type, status, bool_val, string_val FROM " + tableName2)
+          .sqlBaselineQuery(
+              "SELECT name, kind, type, status, bool_val, string_val FROM " + FAKE_SYSOPTIONS_TABLE)
+          .go();
 
     } finally {
-      setSessionOption(ExecConstants.SLICE_TARGET, String.valueOf(ExecConstants.SLICE_TARGET_DEFAULT));
+      setSessionOption(
+          ExecConstants.SLICE_TARGET, String.valueOf(ExecConstants.SLICE_TARGET_DEFAULT));
     }
   }
 
   @Test
   public void testPartitionCreation() throws Exception {
-    test("create table dfs_test.mypart0 PARTITION BY (TYPE, KIND) STORE AS (type => 'TEXT', fieldDelimiter => ',') as select * from sys.options");
-    test("create table dfs_test.mypart1 DISTRIBUTE BY (kind) LOCALSORT BY (NAME) STORE AS (type => 'TEXT', fieldDelimiter => ',') as select * from sys.options");
-    test("create table dfs_test.mypart2 PARTITION BY (TYPE) DISTRIBUTE BY (kind) LOCALSORT BY (NAME) STORE AS (type => 'TEXT', fieldDelimiter => ',') as select * from sys.options");
-    test("create table dfs_test.mypart3 PARTITION BY (kind) STORE AS (type => 'TEXT', fieldDelimiter => ',') as select * from sys.options");
+    test(
+        "create table dfs_test.mypart0 PARTITION BY (TYPE, KIND) STORE AS (type => 'TEXT', fieldDelimiter => ',') as select * from "
+            + FAKE_SYSOPTIONS_TABLE);
+    test(
+        "create table dfs_test.mypart1 DISTRIBUTE BY (kind) LOCALSORT BY (NAME) STORE AS (type => 'TEXT', fieldDelimiter => ',') as select * from "
+            + FAKE_SYSOPTIONS_TABLE);
+    test(
+        "create table dfs_test.mypart2 PARTITION BY (TYPE) DISTRIBUTE BY (kind) LOCALSORT BY (NAME) STORE AS (type => 'TEXT', fieldDelimiter => ',') as select * from "
+            + FAKE_SYSOPTIONS_TABLE);
+    test(
+        "create table dfs_test.mypart3 PARTITION BY (kind) STORE AS (type => 'TEXT', fieldDelimiter => ',') as select * from "
+            + FAKE_SYSOPTIONS_TABLE);
   }
 
   @Test
   public void testDistributionBuckets() throws Exception {
-    List<QueryDataBatch> result = testSqlWithResults("create table dfs_test.options_name DISTRIBUTE BY (name) STORE AS (type => 'TEXT', fieldDelimiter => ',') as select * from sys.options");
+    List<QueryDataBatch> result =
+        testSqlWithResults(
+            "create table dfs_test.options_name DISTRIBUTE BY (name) STORE AS (type => 'TEXT', fieldDelimiter => ',') as select * from "
+                + FAKE_SYSOPTIONS_TABLE);
 
     // Expect DISTRIBUTE BY to give multiple rows, i.e. multiple files
     int recordCount = 0;
-    for (QueryDataBatch batch: result) {
+    for (QueryDataBatch batch : result) {
       recordCount += batch.getHeader().getDef().getRecordCount();
       batch.close();
     }
 
     assertTrue(recordCount > 1);
-
   }
-
 }

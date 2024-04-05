@@ -15,20 +15,22 @@
  */
 package com.dremio.exec.sql;
 
+import com.dremio.BaseTestQuery;
 import org.junit.Test;
 
-import com.dremio.BaseTestQuery;
-
 public class TestSimpleCastFunctions extends BaseTestQuery {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestSimpleCastFunctions.class);
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(TestSimpleCastFunctions.class);
 
   @Test
   public void castFromBoolean() throws Exception {
-    test("select cast(false as varchar(5)), cast(true as varchar(4)), cast((1 < 5) as varchar(4)) from INFORMATION_SCHEMA.CATALOGS limit 1;");
+    test(
+        "select cast(false as varchar(5)), cast(true as varchar(4)), cast((1 < 5) as varchar(4)) from INFORMATION_SCHEMA.CATALOGS limit 1;");
   }
 
   @Test
   public void castToBoolean() throws Exception {
-    test("select cast('false' as boolean), cast('true' as boolean) from INFORMATION_SCHEMA.CATALOGS limit 1;");
+    test(
+        "select cast('false' as boolean), cast('true' as boolean) from INFORMATION_SCHEMA.CATALOGS limit 1;");
   }
 }

@@ -15,15 +15,14 @@
  */
 package com.dremio.exec.physical.impl.writer;
 
+import com.dremio.BaseTestQuery;
+import com.dremio.exec.ExecConstants;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
-
-import com.dremio.BaseTestQuery;
-import com.dremio.exec.ExecConstants;
 
 public class TestParquetWriterEmptyFiles extends BaseTestQuery {
 
@@ -58,15 +57,16 @@ public class TestParquetWriterEmptyFiles extends BaseTestQuery {
     runSQL("alter session set \"planner.slice_target\" = 1");
 
     try {
-      final String query = "SELECT position_id FROM cp.\"employee.json\" WHERE position_id IN (15, 16) GROUP BY position_id";
+      final String query =
+          "SELECT position_id FROM cp.\"employee.json\" WHERE position_id IN (15, 16) GROUP BY position_id";
       test("CREATE TABLE dfs_test.%s AS %s", outputFile, query);
 
       // this query will fail if an "empty" file was created
       testBuilder()
-        .unOrdered()
-        .sqlQuery("SELECT * FROM dfs_test.%s", outputFile)
-        .sqlBaselineQuery(query)
-        .go();
+          .unOrdered()
+          .sqlQuery("SELECT * FROM dfs_test.%s", outputFile)
+          .sqlBaselineQuery(query)
+          .go();
     } finally {
       runSQL("alter session set \"planner.slice_target\" = " + ExecConstants.SLICE_TARGET_DEFAULT);
       deleteTableIfExists(outputFile);
@@ -88,13 +88,15 @@ public class TestParquetWriterEmptyFiles extends BaseTestQuery {
 
       // this query will fail if an "empty" file was created
       testBuilder()
-        .unOrdered()
-        .sqlQuery("SELECT * FROM dfs_test.%s", outputFile)
-        .sqlBaselineQuery(query)
-        .go();
+          .unOrdered()
+          .sqlQuery("SELECT * FROM dfs_test.%s", outputFile)
+          .sqlBaselineQuery(query)
+          .go();
     } finally {
       // restore the session option
-      test("ALTER SESSION SET \"store.parquet.block-size\" = %d", ExecConstants.PARQUET_BLOCK_SIZE_VALIDATOR.getDefault().getNumVal());
+      test(
+          "ALTER SESSION SET \"store.parquet.block-size\" = %d",
+          ExecConstants.PARQUET_BLOCK_SIZE_VALIDATOR.getDefault().getNumVal());
       deleteTableIfExists(outputFile);
     }
   }

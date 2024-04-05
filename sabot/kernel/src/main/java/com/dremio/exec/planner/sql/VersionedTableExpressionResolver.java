@@ -15,8 +15,9 @@
  */
 package com.dremio.exec.planner.sql;
 
+import com.dremio.exec.planner.sql.parser.SqlVersionedTableMacroCall;
+import com.dremio.sabot.exec.context.ContextInformation;
 import java.util.List;
-
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexExecutor;
 import org.apache.calcite.rex.RexUtil;
@@ -26,23 +27,24 @@ import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.sql2rel.SqlToRelConverter;
 
-import com.dremio.exec.planner.sql.parser.SqlVersionedTableMacroCall;
-
 /**
- * Performs an independent validation & constant folding pass on versioned table expressions.  This ensures we
- * can provide a resolved TableVersionContext to the catalog API for all such versioned table references during
- * the core SQL validation pass.
+ * Performs an independent validation & constant folding pass on versioned table expressions. This
+ * ensures we can provide a resolved TableVersionContext to the catalog API for all such versioned
+ * table references during the core SQL validation pass.
  */
 public class VersionedTableExpressionResolver {
 
   private final SqlValidator validator;
   private final RexBuilder rexBuilder;
   private final RexExecutor rexExecutor;
+  private final ContextInformation contextInformation;
 
-  public VersionedTableExpressionResolver(SqlValidator validator, RexBuilder rexBuilder) {
+  public VersionedTableExpressionResolver(
+      SqlValidator validator, RexBuilder rexBuilder, ContextInformation contextInformation) {
     this.validator = validator;
     this.rexBuilder = rexBuilder;
     this.rexExecutor = RexUtil.EXECUTOR;
+    this.contextInformation = contextInformation;
   }
 
   public void resolve(SqlToRelConverter converter, SqlNode node) {
@@ -62,7 +64,10 @@ public class VersionedTableExpressionResolver {
     }
   }
 
-  private void resolvedVersionedTableMacroCall(SqlToRelConverter converter, SqlVersionedTableMacroCall call) {
-    call.getTableVersionSpec().resolve(validator, converter, rexExecutor, rexBuilder);
+  private void resolvedVersionedTableMacroCall(
+      SqlToRelConverter converter, SqlVersionedTableMacroCall call) {
+    call.getSqlTableVersionSpec()
+        .getTableVersionSpec()
+        .resolve(validator, converter, rexExecutor, rexBuilder, contextInformation);
   }
 }

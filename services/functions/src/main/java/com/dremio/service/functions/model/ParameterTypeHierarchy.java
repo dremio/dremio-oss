@@ -16,51 +16,39 @@
 
 package com.dremio.service.functions.model;
 
-import java.util.Optional;
-
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import java.util.Optional;
 
 public class ParameterTypeHierarchy {
-  private static final ImmutableMap<ParameterType, ImmutableSet<ParameterType>> tree = new ImmutableMap.Builder<ParameterType, ImmutableSet<ParameterType>>()
-    .put(
-      ParameterType.ANY,
-      ImmutableSet.of(
-        ParameterType.PRIMITIVE,
-        ParameterType.SEMISTRUCTURED))
-    .put(
-      ParameterType.PRIMITIVE,
-      ImmutableSet.of(
-        ParameterType.BOOLEAN,
-        ParameterType.NUMERIC,
-        ParameterType.STRING,
-        ParameterType.DATEANDTIME))
-    .put(
-      ParameterType.STRING,
-      ImmutableSet.of(
-        ParameterType.BYTES,
-        ParameterType.CHARACTERS))
-    .put(
-      ParameterType.NUMERIC,
-      ImmutableSet.of(
-        ParameterType.FLOAT,
-        ParameterType.DECIMAL,
-        ParameterType.DOUBLE,
-        ParameterType.INT,
-        ParameterType.BIGINT))
-    .put(
-      ParameterType.DATEANDTIME,
-      ImmutableSet.of(
-        ParameterType.DATE,
-        ParameterType.TIME,
-        ParameterType.TIMESTAMP/*,
+  private static final ImmutableMap<ParameterType, ImmutableSet<ParameterType>> tree =
+      new ImmutableMap.Builder<ParameterType, ImmutableSet<ParameterType>>()
+          .put(
+              ParameterType.ANY,
+              ImmutableSet.of(ParameterType.PRIMITIVE, ParameterType.SEMISTRUCTURED))
+          .put(
+              ParameterType.PRIMITIVE,
+              ImmutableSet.of(
+                  ParameterType.BOOLEAN,
+                  ParameterType.NUMERIC,
+                  ParameterType.STRING,
+                  ParameterType.DATEANDTIME))
+          .put(ParameterType.STRING, ImmutableSet.of(ParameterType.BYTES, ParameterType.CHARACTERS))
+          .put(
+              ParameterType.NUMERIC,
+              ImmutableSet.of(
+                  ParameterType.FLOAT,
+                  ParameterType.DECIMAL,
+                  ParameterType.DOUBLE,
+                  ParameterType.INT,
+                  ParameterType.BIGINT))
+          .put(
+              ParameterType.DATEANDTIME,
+              ImmutableSet.of(ParameterType.DATE, ParameterType.TIME, ParameterType.TIMESTAMP /*,
         ParameterType.INTERVAL*/))
-    .put(
-      ParameterType.SEMISTRUCTURED,
-      ImmutableSet.of(
-        ParameterType.ARRAY,
-        ParameterType.MAP))
-    .build();
+          .put(
+              ParameterType.SEMISTRUCTURED, ImmutableSet.of(ParameterType.ARRAY, ParameterType.MAP))
+          .build();
 
   public static Optional<ImmutableSet<ParameterType>> getChildren(ParameterType parameterType) {
     return Optional.ofNullable(tree.get(parameterType));
@@ -87,9 +75,6 @@ public class ParameterTypeHierarchy {
       return false;
     }
 
-    return optionalChildren
-      .get()
-      .stream()
-      .anyMatch(child -> isDescendantOf(child, b));
+    return optionalChildren.get().stream().anyMatch(child -> isDescendantOf(child, b));
   }
 }

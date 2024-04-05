@@ -25,8 +25,6 @@ sqlSelectKeywords :   ;
 
 sqlInsertKeywords :   ;
 
-extendedBuiltinFunctionCall : unusedExtension  ;
-
 floorCeilOptions : standardFloorCeilOptions  ;
 
 exprOrJoinOrOrderedQuery : 
@@ -116,10 +114,13 @@ sqlStmt :
     | sqlCreateFolder
     | sqlDropFolder
     | sqlShowCreate
-    | sqlCreatePipe
     | sqlShowTableProperties
+    | sqlAlterPipe
+    | sqlCreatePipe
     | sqlDescribePipe
+    | sqlDropPipe
     | sqlShowPipes
+    | sqlTriggerPipe
     | sqlSetOption
     | sqlAlter
     | orderedQueryOrExpr
@@ -139,7 +140,7 @@ sqlShowTableProperties : SHOW TBLPROPERTIES compoundIdentifier  ;
 
 sqlShowSchemas : SHOW (DATABASES | SCHEMAS) (LIKE stringLiteral)?  ;
 
-sqlDescribeTable : (DESCRIBE | DESC) compoundIdentifier compoundIdentifier?  ;
+sqlDescribeTable : (DESCRIBE TABLE | DESCRIBE | DESC) compoundIdentifier aTVersionSpec? compoundIdentifier?  ;
 
 sqlUseSchema : USE compoundIdentifier  ;
 
@@ -198,22 +199,15 @@ parsePartitionTransformList : LPAREN parsePartitionTransform (COMMA parsePartiti
 
 parseTableProperty : stringLiteral EQ stringLiteral  ;
 
-sqlCopyInto : COPY INTO compoundIdentifier FROM stringLiteral (FILES LPAREN literal (COMMA literal)* RPAREN | REGEX stringLiteral)? (FILE_FORMAT literal)? (LPAREN parseCopyIntoOptions (COMMA parseCopyIntoOptions)* RPAREN)?  ;
+sqlCreateTable : CREATE TABLE (IF NOT EXISTS)? compoundIdentifier tableElementListWithMasking? writeableAtVersionSpec? ((STRIPED | HASH | ROUNDROBIN)? PARTITION BY parsePartitionTransformList)? (DISTRIBUTE BY parseRequiredFieldList)? (LOCALSORT BY parseRequiredFieldList)? (TBLPROPERTIES LPAREN parseTableProperty (COMMA parseTableProperty)* RPAREN)? (LOCATION stringLiteral)? (STORE AS LPAREN arg0 (COMMA arg)* RPAREN)? (WITH SINGLE WRITER)? (ROW ACCESS POLICY policy)? (AS orderedQueryOrExpr)?  ;
 
-parseCopyIntoOptions : 
-    (DATE_FORMAT | TIME_FORMAT | TIMESTAMP_FORMAT | TRIM_SPACE | RECORD_DELIMITER | FIELD_DELIMITER | QUOTE_CHAR | ESCAPE_CHAR | EMPTY_AS_NULL | ON_ERROR | EXTRACT_HEADER | SKIP_LINES) literal
-    | NULL_IF LPAREN literal (COMMA literal)* RPAREN
-      ;
+sqlInsertTable : INSERT INTO compoundIdentifier writeableAtVersionSpec? tableElementList? orderedQueryOrExpr  ;
 
-sqlCreateTable : CREATE TABLE (IF NOT EXISTS)? compoundIdentifier tableElementListWithMasking? (AT (REF | REFERENCE | BRANCH) simpleIdentifier)? ((STRIPED | HASH | ROUNDROBIN)? PARTITION BY parsePartitionTransformList)? (DISTRIBUTE BY parseRequiredFieldList)? (LOCALSORT BY parseRequiredFieldList)? (TBLPROPERTIES LPAREN parseTableProperty (COMMA parseTableProperty)* RPAREN)? (LOCATION stringLiteral)? (STORE AS LPAREN arg0 (COMMA arg)* RPAREN)? (WITH SINGLE WRITER)? (ROW ACCESS POLICY policy)? (AS orderedQueryOrExpr)?  ;
+sqlDeleteFromTable : DELETE FROM compoundIdentifier writeableAtVersionSpec? (AS? simpleIdentifier)? (USING fromClause)? whereOpt  ;
 
-sqlInsertTable : INSERT INTO compoundIdentifier aTBranchVersionOrReferenceSpec? tableElementList? orderedQueryOrExpr  ;
+sqlUpdateTable : UPDATE compoundIdentifier writeableAtVersionSpec? (AS? simpleIdentifier)? SET simpleIdentifier EQ expression (COMMA simpleIdentifier EQ expression)* (FROM fromClause)? whereOpt  ;
 
-sqlDeleteFromTable : DELETE FROM compoundIdentifier aTBranchVersionOrReferenceSpec? (AS? simpleIdentifier)? (USING fromClause)? whereOpt  ;
-
-sqlUpdateTable : UPDATE compoundIdentifier aTBranchVersionOrReferenceSpec? (AS? simpleIdentifier)? SET simpleIdentifier EQ expression (COMMA simpleIdentifier EQ expression)* (FROM fromClause)? whereOpt  ;
-
-sqlMergeIntoTable : MERGE INTO compoundIdentifier aTBranchVersionOrReferenceSpec? (AS? simpleIdentifier)? USING tableRef ON expression (dremioWhenMatchedClause dremioWhenNotMatchedClause? | dremioWhenNotMatchedClause)  ;
+sqlMergeIntoTable : MERGE INTO compoundIdentifier writeableAtVersionSpec? (AS? simpleIdentifier)? USING tableRef ON expression (dremioWhenMatchedClause dremioWhenNotMatchedClause? | dremioWhenNotMatchedClause)  ;
 
 dremioWhenMatchedClause : WHEN MATCHED THEN UPDATE SET (STAR | simpleIdentifier EQ expression (COMMA simpleIdentifier EQ expression)*)  ;
 
@@ -269,15 +263,9 @@ sqlCreateFolder : CREATE FOLDER (IF NOT EXISTS)? compoundIdentifier (AT (REF | R
 
 sqlDropFolder : DROP FOLDER (IF NOT EXISTS)? compoundIdentifier (AT BRANCH simpleIdentifier)?  ;
 
-sqlCreatePipe : CREATE PIPE simpleIdentifier (NOTIFICATION_PROVIDER simpleIdentifier NOTIFICATION_QUEUE_REFERENCE simpleIdentifier)? AS sqlCopyInto  ;
-
-sqlDescribePipe : (DESCRIBE | DESC) PIPE simpleIdentifier  ;
-
-sqlShowPipes : SHOW PIPES  ;
-
 sqlShowCreate : SHOW CREATE (VIEW | TABLE) compoundIdentifier (AT (REF | REFERENCE | BRANCH | TAG | COMMIT) simpleIdentifier)?  ;
 
-sqlAccel : ALTER (SOURCE simpleIdentifier REFRESH STATUS | SPACE simpleIdentifier ROUTE (ALL REFLECTIONS | REFLECTIONS) sqlAlterDatasetReflectionRouting | FOLDER compoundIdentifier ROUTE (ALL REFLECTIONS | REFLECTIONS) sqlAlterDatasetReflectionRouting | (TABLE | VDS | VIEW | PDS | DATASET) compoundIdentifier aTVersionSpec? (ADD ROW ACCESS POLICY policy | DROP ROW ACCESS POLICY policy | ADD PRIMARY KEY parseRequiredFieldList | DROP PRIMARY KEY | ROUTE (ALL REFLECTIONS | REFLECTIONS) sqlAlterDatasetReflectionRouting | SET TBLPROPERTIES LPAREN parseTableProperty (COMMA parseTableProperty)* RPAREN | UNSET TBLPROPERTIES LPAREN stringLiteralCommaList RPAREN | ADD (COLUMNS tableElementList | PARTITION FIELD parsePartitionTransform) | (CHANGE | ALTER | MODIFY) COLUMN? simpleIdentifier (typedElement | SET MASKING POLICY policy | UNSET MASKING POLICY policyWithoutArgs | sqlSetOption) | DROP (REFLECTION sqlDropReflection | PARTITION FIELD parsePartitionTransform | COLUMN? simpleIdentifier) | CREATE (AGGREGATE REFLECTION simpleIdentifier sqlCreateAggReflection | RAW REFLECTION simpleIdentifier sqlCreateRawReflection | EXTERNAL REFLECTION simpleIdentifier sqlAddExternalReflection) | FORGET METADATA | REFRESH METADATA (FOR ALL (FILES | PARTITIONS) | FOR FILES parseRequiredFilesList | FOR PARTITIONS parseRequiredPartitionList)? (AUTO PROMOTION | AVOID PROMOTION)? (FORCE UPDATE | LAZY UPDATE)? (DELETE WHEN MISSING | MAINTAIN WHEN MISSING)? | ENABLE (SCHEMA LEARNING | APPROXIMATE STATS | (RAW | AGGREGATE) ACCELERATION) | DISABLE (SCHEMA LEARNING | APPROXIMATE STATS | (RAW | AGGREGATE) ACCELERATION) | LOCALSORT BY parseRequiredFieldList | sqlSetOption))  ;
+sqlAccel : ALTER (SOURCE simpleIdentifier REFRESH STATUS | SPACE simpleIdentifier ROUTE (ALL REFLECTIONS | REFLECTIONS) sqlAlterDatasetReflectionRouting | FOLDER compoundIdentifier ROUTE (ALL REFLECTIONS | REFLECTIONS) sqlAlterDatasetReflectionRouting | (TABLE | VDS | VIEW | PDS | DATASET) compoundIdentifier aTVersionSpec? (ADD ROW ACCESS POLICY policy | DROP ROW ACCESS POLICY policy | ADD PRIMARY KEY parseRequiredFieldList | DROP PRIMARY KEY | ROUTE (ALL REFLECTIONS | REFLECTIONS) sqlAlterDatasetReflectionRouting | SET TBLPROPERTIES LPAREN parseTableProperty (COMMA parseTableProperty)* RPAREN | UNSET TBLPROPERTIES LPAREN stringLiteralCommaList RPAREN | ADD (COLUMNS tableElementList | PARTITION FIELD parsePartitionTransform) | (CHANGE | ALTER | MODIFY) COLUMN? simpleIdentifier (typedElement | SET MASKING POLICY policy | UNSET MASKING POLICY policyWithoutArgs | sqlSetOption) | DROP (REFLECTION sqlDropReflection | PARTITION FIELD parsePartitionTransform | COLUMN? simpleIdentifier) | CREATE (AGGREGATE REFLECTION simpleIdentifier sqlCreateAggReflection | RAW REFLECTION simpleIdentifier sqlCreateRawReflection | EXTERNAL REFLECTION simpleIdentifier sqlAddExternalReflection) | REFRESH REFLECTIONS | FORGET METADATA | REFRESH METADATA (FOR ALL (FILES | PARTITIONS) | FOR FILES parseRequiredFilesList | FOR PARTITIONS parseRequiredPartitionList)? (AUTO PROMOTION | AVOID PROMOTION)? (FORCE UPDATE | LAZY UPDATE)? (DELETE WHEN MISSING | MAINTAIN WHEN MISSING)? | ENABLE (SCHEMA LEARNING | APPROXIMATE STATS | (RAW | AGGREGATE) ACCELERATION) | DISABLE (SCHEMA LEARNING | APPROXIMATE STATS | (RAW | AGGREGATE) ACCELERATION) | LOCALSORT BY parseRequiredFieldList | sqlSetOption))  ;
 
 parseRequiredFilesList : LPAREN stringLiteralCommaList RPAREN  ;
 
@@ -341,7 +329,7 @@ sqlExplainJson : EXPLAIN JSON simpleIdentifier? FOR sqlQueryOrDml  ;
 
 sqlGrant : GRANT (OWNERSHIP sqlGrantOwnership | ROLE sqlGrantRole | sqlGrantPrivilege)  ;
 
-sqlGrantPrivilege : privilegeCommaList ON ((SYSTEM | PROJECT) | (PDS | TABLE) compoundIdentifier (AT parseReferenceType simpleIdentifier)? | (VDS | VIEW) compoundIdentifier (AT parseReferenceType simpleIdentifier)? | FUNCTION compoundIdentifier | (FOLDER | SCHEMA) compoundIdentifier | SOURCE simpleIdentifier | SPACE simpleIdentifier | ORG | CATALOG simpleIdentifier | CLOUD simpleIdentifier | ENGINE simpleIdentifier | IDENTITY PROVIDER simpleIdentifier | OAUTH APPLICATION simpleIdentifier | EXTERNAL TOKENS PROVIDER simpleIdentifier | SCRIPT simpleIdentifier | ALL DATASETS IN ((FOLDER | SCHEMA) compoundIdentifier | SOURCE simpleIdentifier | SPACE simpleIdentifier | CATALOG simpleIdentifier)) TO parseGranteeType simpleIdentifier  ;
+sqlGrantPrivilege : privilegeCommaList ON ((SYSTEM | PROJECT) | (PDS | TABLE) compoundIdentifier (AT parseReferenceType simpleIdentifier)? | (VDS | VIEW) compoundIdentifier (AT parseReferenceType simpleIdentifier)? | FUNCTION compoundIdentifier | FOLDER compoundIdentifier (AT parseReferenceType simpleIdentifier)? | SCHEMA compoundIdentifier | SOURCE simpleIdentifier | SPACE simpleIdentifier | ORG | CATALOG simpleIdentifier | CLOUD simpleIdentifier | ENGINE simpleIdentifier | IDENTITY PROVIDER simpleIdentifier | OAUTH APPLICATION simpleIdentifier | EXTERNAL TOKENS PROVIDER simpleIdentifier | SCRIPT simpleIdentifier | ALL DATASETS IN ((FOLDER | SCHEMA) compoundIdentifier | SOURCE simpleIdentifier | SPACE simpleIdentifier | CATALOG simpleIdentifier)) TO parseGranteeType simpleIdentifier  ;
 
 parseReferenceType : 
     REF
@@ -363,11 +351,14 @@ privilege :
     | ALTER REFLECTION
     | ALTER
     | SELECT
+    | READ METADATA
     | VIEW REFLECTION
     | VIEW
     | MODIFY
     | MANAGE GRANTS
     | CREATE TABLE
+    | CREATE VIEW
+    | CREATE FOLDER
     | DROP
     | EXTERNAL QUERY
     | OWNERSHIP
@@ -395,7 +386,7 @@ privilege :
     | ALL
       ;
 
-sqlRevoke : REVOKE privilegeCommaList ON ((SYSTEM | PROJECT) | (PDS | TABLE) compoundIdentifier (AT parseReferenceType simpleIdentifier)? | (VDS | VIEW) compoundIdentifier (AT parseReferenceType simpleIdentifier)? | FUNCTION compoundIdentifier | (FOLDER | SCHEMA) compoundIdentifier | SOURCE simpleIdentifier | CATALOG simpleIdentifier | SPACE simpleIdentifier | ORG | CLOUD simpleIdentifier | ENGINE simpleIdentifier | IDENTITY PROVIDER simpleIdentifier | OAUTH APPLICATION simpleIdentifier | EXTERNAL TOKENS PROVIDER simpleIdentifier | SCRIPT simpleIdentifier | ALL DATASETS IN ((FOLDER | SCHEMA) compoundIdentifier | SOURCE simpleIdentifier | SPACE simpleIdentifier | CATALOG simpleIdentifier)) FROM parseGranteeType simpleIdentifier  ;
+sqlRevoke : REVOKE privilegeCommaList ON ((SYSTEM | PROJECT) | (PDS | TABLE) compoundIdentifier (AT parseReferenceType simpleIdentifier)? | (VDS | VIEW) compoundIdentifier (AT parseReferenceType simpleIdentifier)? | FUNCTION compoundIdentifier | FOLDER compoundIdentifier (AT parseReferenceType simpleIdentifier)? | SCHEMA compoundIdentifier | SOURCE simpleIdentifier | CATALOG simpleIdentifier | SPACE simpleIdentifier | ORG | CLOUD simpleIdentifier | ENGINE simpleIdentifier | IDENTITY PROVIDER simpleIdentifier | OAUTH APPLICATION simpleIdentifier | EXTERNAL TOKENS PROVIDER simpleIdentifier | SCRIPT simpleIdentifier | ALL DATASETS IN ((FOLDER | SCHEMA) compoundIdentifier | SOURCE simpleIdentifier | SPACE simpleIdentifier | CATALOG simpleIdentifier)) FROM parseGranteeType simpleIdentifier  ;
 
 sqlGrantOwnership : ON (USER simpleIdentifier | (PDS | TABLE) compoundIdentifier | (VDS | VIEW) compoundIdentifier | FUNCTION compoundIdentifier | (FOLDER | SCHEMA) compoundIdentifier | SPACE simpleIdentifier | SOURCE simpleIdentifier | PROJECT | ORG | CLOUD simpleIdentifier | CATALOG simpleIdentifier | ENGINE simpleIdentifier | ROLE simpleIdentifier | IDENTITY PROVIDER simpleIdentifier | OAUTH APPLICATION simpleIdentifier | EXTERNAL TOKENS PROVIDER simpleIdentifier) TO parseGranteeType simpleIdentifier  ;
 
@@ -435,11 +426,30 @@ sqlAssignBranch : ALTER BRANCH simpleIdentifier ASSIGN (REF | REFERENCE | BRANCH
 
 sqlAssignTag : ALTER TAG simpleIdentifier ASSIGN (REF | REFERENCE | BRANCH | TAG | COMMIT) simpleIdentifier (AS OF stringLiteral)? (IN simpleIdentifier)?  ;
 
-tableWithVersionContext : AT (SNAPSHOT stringLiteral | BRANCH simpleIdentifier | TAG simpleIdentifier | COMMIT simpleIdentifier | (REF | REFERENCE) simpleIdentifier | expression) (AS OF stringLiteral)?  ;
+tableWithVersionContext : aTVersionSpec  ;
 
-aTVersionSpec : AT (SNAPSHOT stringLiteral | BRANCH simpleIdentifier | TAG simpleIdentifier | COMMIT simpleIdentifier | (REF | REFERENCE) simpleIdentifier | expression)  ;
+aTVersionSpec : AT (SNAPSHOT stringLiteral | BRANCH simpleIdentifier | TAG simpleIdentifier | COMMIT simpleIdentifier | (REF | REFERENCE) simpleIdentifier | expression) (AS OF stringLiteral)?  ;
 
-aTBranchVersionOrReferenceSpec : AT (BRANCH simpleIdentifier | (REF | REFERENCE) simpleIdentifier)  ;
+writeableAtVersionSpec : AT (BRANCH simpleIdentifier | (REF | REFERENCE) simpleIdentifier)  ;
+
+sqlCopyInto : COPY INTO compoundIdentifier tableWithVersionContext? FROM stringLiteral (FILES LPAREN literal (COMMA literal)* RPAREN | REGEX stringLiteral)? (FILE_FORMAT literal)? (LPAREN parseCopyIntoOptions (COMMA parseCopyIntoOptions)* RPAREN)?  ;
+
+parseCopyIntoOptions :
+    (DATE_FORMAT | TIME_FORMAT | TIMESTAMP_FORMAT | TRIM_SPACE | RECORD_DELIMITER | FIELD_DELIMITER | QUOTE_CHAR | ESCAPE_CHAR | EMPTY_AS_NULL | ON_ERROR | EXTRACT_HEADER | SKIP_LINES) literal
+    | NULL_IF LPAREN literal (COMMA literal)* RPAREN
+      ;
+
+sqlCreatePipe : CREATE PIPE (IF NOT EXISTS)? simpleIdentifier (DEDUPE_LOOKBACK_PERIOD unsignedNumericLiteral)? (NOTIFICATION_PROVIDER simpleIdentifier NOTIFICATION_QUEUE_REFERENCE simpleIdentifier)? AS sqlCopyInto  ;
+
+sqlAlterPipe : ALTER PIPE simpleIdentifier (DEDUPE_LOOKBACK_PERIOD unsignedNumericLiteral)? AS sqlCopyInto  ;
+
+sqlDropPipe : DROP PIPE simpleIdentifier  ;
+
+sqlDescribePipe : (DESCRIBE | DESC) PIPE simpleIdentifier  ;
+
+sqlShowPipes : SHOW PIPES  ;
+
+sqlTriggerPipe : TRIGGER PIPE simpleIdentifier (FOR BATCH simpleIdentifier)?  ;
 
 parenthesizedKeyValueOptionCommaList : LPAREN (keyValueOption (COMMA keyValueOption)*)? RPAREN  ;
 
@@ -467,7 +477,7 @@ sqlProcedureCall : CALL namedRoutineCall  ;
 
 namedRoutineCall : compoundIdentifier LPAREN (arg0 (COMMA arg)*)? RPAREN  ;
 
-whenMatchedClause : WHEN MATCHED THEN UPDATE SET simpleIdentifier EQ expression (COMMA simpleIdentifier EQ expression)*  ;
+whenMatchedClause : WHEN MATCHED THEN UPDATE SET compoundIdentifier EQ expression (COMMA compoundIdentifier EQ expression)*  ;
 
 whenNotMatchedClause : WHEN NOT MATCHED THEN INSERT sqlInsertKeywords parenthesizedSimpleIdentifierList? LPAREN? VALUES rowConstructor RPAREN?  ;
 
@@ -507,7 +517,7 @@ tableRef1 : tableRef3  ;
 
 tableRef2 : tableRef3  ;
 
-tableRef3 : (tableRefWithHintsOpt tableWithVersionContext? (EXTEND? extendList)? tableOverOpt matchRecognizeOpt? | LATERAL? parenthesizedExpression tableOverOpt matchRecognizeOpt? | UNNEST parenthesizedQueryOrCommaList (WITH ORDINALITY)? | LATERAL? tableFunctionCall tableWithVersionContext? | extendedTableRef) pivot? unpivot? (AS? simpleIdentifier parenthesizedSimpleIdentifierList?)? tablesample?  ;
+tableRef3 : (tableRefWithHintsOpt tableWithVersionContext? (EXTEND? extendList)? tableOverOpt snapshot? matchRecognize? | LATERAL? parenthesizedExpression tableOverOpt matchRecognize? | UNNEST parenthesizedQueryOrCommaList (WITH ORDINALITY)? | LATERAL? tableFunctionCall tableWithVersionContext? | extendedTableRef) pivot? unpivot? (AS? simpleIdentifier parenthesizedSimpleIdentifierList?)? tablesample?  ;
 
 tablesample : TABLESAMPLE (SUBSTITUTE LPAREN stringLiteral RPAREN | (BERNOULLI | SYSTEM) LPAREN unsignedNumericLiteral RPAREN (REPEATABLE LPAREN intLiteral RPAREN)?)  ;
 
@@ -577,7 +587,9 @@ unpivot : UNPIVOT (INCLUDE NULLS | EXCLUDE NULLS)? LPAREN simpleIdentifierOrList
 
 unpivotValue : simpleIdentifierOrList (AS rowConstructor)?  ;
 
-matchRecognizeOpt : MATCH_RECOGNIZE LPAREN (PARTITION BY expressionCommaList)? orderBy? (MEASURES measureColumnCommaList)? (ONE ROW PER MATCH | ALL ROWS PER MATCH)? (AFTER MATCH SKIP_ (TO (NEXT ROW | FIRST simpleIdentifier | LAST? simpleIdentifier) | PAST LAST ROW))? PATTERN LPAREN CARET? patternExpression DOLLAR? RPAREN (WITHIN intervalLiteral)? (SUBSET subsetDefinitionCommaList)? DEFINE patternDefinitionCommaList RPAREN  ;
+snapshot : FOR SYSTEM_TIME AS OF expression  ;
+
+matchRecognize : MATCH_RECOGNIZE LPAREN (PARTITION BY expressionCommaList)? orderBy? (MEASURES measureColumnCommaList)? (ONE ROW PER MATCH | ALL ROWS PER MATCH)? (AFTER MATCH SKIP_ (TO (NEXT ROW | FIRST simpleIdentifier | LAST? simpleIdentifier) | PAST LAST ROW))? PATTERN LPAREN CARET? patternExpression DOLLAR? RPAREN (WITHIN intervalLiteral)? (SUBSET subsetDefinitionCommaList)? DEFINE patternDefinitionCommaList RPAREN  ;
 
 measureColumnCommaList : measureColumn (COMMA measureColumn)*  ;
 
@@ -623,7 +635,7 @@ leafQueryOrExpr :
 
 expression : expression2  ;
 
-expression2b : prefixRowOperator* expression3 (DOT identifier)*  ;
+expression2b : prefixRowOperator* expression3 (DOT rowExpressionExtension)*  ;
 
 expression2 : expression2b (((NOT IN | IN | comp (SOME | ANY | ALL)) parenthesizedQueryOrCommaList | (NOT BETWEEN (SYMMETRIC | ASYMMETRIC)? | BETWEEN (SYMMETRIC | ASYMMETRIC)?) expression2b | NOT? ((LIKE ALL | LIKE ANY | LIKE SOME) parenthesizedQueryOrCommaList | (LIKE | SIMILAR TO) expression2 (ESCAPE expression3)?) | binaryRowOperator expression2b | LBRACKET expression RBRACKET (DOT simpleIdentifier)* | postfixRowOperator)+)?  ;
 
@@ -659,6 +671,8 @@ unsignedNumericLiteralOrParam :
     unsignedNumericLiteral
     | dynamicParam
       ;
+
+rowExpressionExtension : simpleIdentifier (LPAREN STAR RPAREN | LPAREN RPAREN | functionParameterList)?  ;
 
 atomicRowExpression : 
     literal
@@ -755,12 +769,16 @@ intervalQualifier :
       ;
 
 timeUnit : 
-    SECOND
+    MICROSECOND
+    | MILLISECOND
+    | SECOND
     | MINUTE
     | HOUR
     | DAY
     | DOW
     | DOY
+    | ISODOW
+    | ISOYEAR
     | WEEK
     | MONTH
     | QUARTER
@@ -945,7 +963,6 @@ builtinFunctionCall :
     | TRIM LPAREN ((BOTH | TRAILING | LEADING)? expression? (FROM | RPAREN))? expression RPAREN
     | timestampAddFunctionCall
     | timestampDiffFunctionCall
-    | extendedBuiltinFunctionCall
     | matchRecognizeFunctionCall
     | jsonExistsFunctionCall
     | jsonValueFunctionCall
@@ -964,11 +981,9 @@ jsonReturningClause : RETURNING dataType  ;
 
 jsonOutputClause : jsonReturningClause (FORMAT jsonRepresentation)?  ;
 
-jsonValueExpression : expression jsonInputClause?  ;
-
 jsonPathSpec : stringLiteral  ;
 
-jsonApiCommonSyntax : jsonValueExpression COMMA expression (PASSING jsonValueExpression AS simpleIdentifier (COMMA jsonValueExpression AS simpleIdentifier)*)?  ;
+jsonApiCommonSyntax : expression COMMA expression (PASSING expression AS simpleIdentifier (COMMA expression AS simpleIdentifier)*)?  ;
 
 jsonExistsErrorBehavior : 
     TRUE
@@ -995,7 +1010,7 @@ jsonQueryFunctionCall : JSON_QUERY LPAREN jsonApiCommonSyntax (jsonQueryWrapperB
 
 jsonName : expression  ;
 
-jsonNameAndValue : KEY? jsonName (VALUE | COLON) jsonValueExpression  ;
+jsonNameAndValue : KEY? jsonName (VALUE | COLON) expression  ;
 
 jsonConstructorNullClause : 
     NULL ON NULL
@@ -1006,9 +1021,11 @@ jsonObjectFunctionCall : JSON_OBJECT LPAREN (jsonNameAndValue (COMMA jsonNameAnd
 
 jsonObjectAggFunctionCall : JSON_OBJECTAGG LPAREN jsonNameAndValue jsonConstructorNullClause? RPAREN  ;
 
-jsonArrayFunctionCall : JSON_ARRAY LPAREN (jsonValueExpression (COMMA jsonValueExpression)*)? jsonConstructorNullClause? RPAREN  ;
+jsonArrayFunctionCall : JSON_ARRAY LPAREN (expression (COMMA expression)*)? jsonConstructorNullClause? RPAREN  ;
 
-jsonArrayAggFunctionCall : JSON_ARRAYAGG LPAREN jsonValueExpression jsonConstructorNullClause? RPAREN  ;
+jsonArrayAggOrderByClause : orderBy?  ;
+
+jsonArrayAggFunctionCall : JSON_ARRAYAGG LPAREN expression jsonArrayAggOrderByClause jsonConstructorNullClause? RPAREN withinGroup?  ;
 
 timestampAddFunctionCall : TIMESTAMPADD LPAREN timestampInterval COMMA expression COMMA expression RPAREN  ;
 
@@ -1028,7 +1045,14 @@ matchRecognizeNavigationLogical : (RUNNING | FINAL)? (FIRST | LAST) LPAREN expre
 
 matchRecognizeNavigationPhysical : (PREV | NEXT) LPAREN expression (COMMA numericLiteral)? RPAREN  ;
 
-namedFunctionCall : SPECIFIC? functionName (LPAREN STAR RPAREN | LPAREN RPAREN | functionParameterList) (WITHIN GROUP LPAREN orderBy RPAREN)? (FILTER LPAREN WHERE expression RPAREN)? (OVER (simpleIdentifier | windowSpecification))?  ;
+nullTreatment :
+    IGNORE NULLS
+    | RESPECT NULLS
+      ;
+
+withinGroup : WITHIN GROUP LPAREN orderBy RPAREN  ;
+
+namedFunctionCall : SPECIFIC? functionName (LPAREN STAR RPAREN | LPAREN RPAREN | functionParameterList) nullTreatment? withinGroup? (FILTER LPAREN WHERE expression RPAREN)? (OVER (simpleIdentifier | windowSpecification))?  ;
 
 standardFloorCeilOptions : LPAREN expression (TO timeUnit)? RPAREN (OVER (simpleIdentifier | windowSpecification))?  ;
 
@@ -1167,7 +1191,10 @@ prefixRowOperator :
     | EXISTS
       ;
 
-postfixRowOperator : IS (A SET | NOT (NULL | TRUE | FALSE | UNKNOWN | A SET | EMPTY | JSON VALUE | JSON OBJECT | JSON ARRAY | JSON SCALAR | JSON) | (NULL | TRUE | FALSE | UNKNOWN | EMPTY | JSON VALUE | JSON OBJECT | JSON ARRAY | JSON SCALAR | JSON))  ;
+postfixRowOperator :
+    IS (A SET | NOT (NULL | TRUE | FALSE | UNKNOWN | A SET | EMPTY | JSON VALUE | JSON OBJECT | JSON ARRAY | JSON SCALAR | JSON) | (NULL | TRUE | FALSE | UNKNOWN | EMPTY | JSON VALUE | JSON OBJECT | JSON ARRAY | JSON SCALAR | JSON))
+    | FORMAT jsonRepresentation
+      ;
 
 nonReservedKeyWord : 
     nonReservedKeyWord0of3
@@ -1177,144 +1204,14 @@ nonReservedKeyWord :
 
 nonReservedKeyWord0of3 : 
     A
-    | ACCESS
-    | ADD
-    | AGGREGATE
-    | APPLICATION
-    | APPROXIMATE
-    | ASSIGN
-    | ATTRIBUTE
-    | AVOID
-    | BIN_PACK
-    | BREADTH
-    | CASCADE
-    | CENTURY
-    | CHARACTERISTICS
-    | CHARACTER_SET_NAME
-    | CLEAR
-    | COLLATION
-    | COLLATION_SCHEMA
-    | COLUMN_NAME
-    | COMMIT
-    | CONFIGURE
-    | CONSOLIDATED
-    | CONSTRAINT_NAME
-    | CONTINUE
-    | DATABASE
-    | DATETIME_INTERVAL_CODE
-    | DEFAULTS
-    | DEFINED
-    | DEPTH
-    | DESCRIPTION
-    | DIMENSIONS
-    | DISPLAY
-    | DOW
-    | DYNAMIC_FUNCTION_CODE
-    | EPOCH
-    | EXCLUDING
-    | FINAL
-    | FOLLOWING
-    | FORTRAN
-    | FUNCTIONS
-    | GENERATED
-    | GOTO
-    | HASH
-    | IMMEDIATE
-    | INCLUDING
-    | INPUT
-    | INTO
-    | JAVA
-    | K
-    | KEY_TYPE
-    | LAYOUT
-    | LENGTH
-    | LIST
-    | LOCATOR
-    | M
-    | MANIFESTS
-    | MATCHED
-    | MAX_FILE_SIZE_MB
-    | MESSAGE_LENGTH
-    | MICROSECOND
-    | MIN_FILE_SIZE_MB
-    | MODIFY
-    | MUMPS
-    | NANOSECOND
-    | NULLABLE
-    | OAUTH
-    | OPERATE
-    | ORDERING
-    | OTHERS
-    | OWNERSHIP
-    | PARAMETER_NAME
-    | PARAMETER_SPECIFIC_NAME
-    | PASCAL
-    | PAST
-    | PLACING
-    | POLICY
-    | PRIOR
-    | PROMOTION
-    | QUARTER
-    | RAW
-    | REFLECTION
-    | REPEATABLE
-    | RESTRICT
-    | RETURNED_OCTET_LENGTH
-    | ROLE
-    | ROUTINE
-    | ROUTINE_SCHEMA
-    | SCHEMA
-    | SCOPE_NAME
-    | SECURITY
-    | SERIALIZABLE
-    | SESSION
-    | SINGLE
-    | SORT
-    | SPECIFIC_NAME
-    | SQL_BIT
-    | SQL_CHAR
-    | SQL_DECIMAL
-    | SQL_INTEGER
-    | SQL_INTERVAL_DAY_TO_MINUTE
-    | SQL_INTERVAL_HOUR_TO_MINUTE
-    | SQL_INTERVAL_MINUTE_TO_SECOND
-    | SQL_INTERVAL_YEAR
-    | SQL_LONGVARCHAR
-    | SQL_NCLOB
-    | SQL_REAL
-    | SQL_TIMESTAMP
-    | SQL_TSI_FRAC_SECOND
-    | SQL_TSI_MINUTE
-    | SQL_TSI_SECOND
-    | SQL_VARBINARY
-    | STATEMENT
-    | STORE
-    | STRUCTURE
-    | SUBSTITUTE
-    | TAGS
-    | TIES
-    | TOP_LEVEL_COUNT
-    | TRANSACTIONS_ACTIVE
-    | TRANSFORM
-    | TRIGGER_NAME
-    | UNBOUNDED
-    | UNNAMED
-    | USER_DEFINED_TYPE_CATALOG
-    | USER_DEFINED_TYPE_SCHEMA
-    | VIEW
-    | WORK
-    | WRITER
-      ;
-
-nonReservedKeyWord1of3 : 
-    ABSOLUTE
-    | ACTION
-    | ADMIN
-    | ALTER
-    | APPLY
-    | ARROW
-    | ASSERTION
-    | ATTRIBUTES
+    | ACCELERATION
+    | ADA
+    | AFTER
+    | ALWAYS
+    | APPROX
+    | ASC
+    | ASSIGNMENT
+    | AUTO
     | BEFORE
     | BRANCH
     | C
@@ -1327,58 +1224,63 @@ nonReservedKeyWord1of3 :
     | COLUMN
     | COMMAND_FUNCTION
     | COMMITTED
-    | CONNECTION
-    | CONSTRAINTS
+    | CONFIGURE
+    | CONSOLIDATED
     | CONSTRAINT_SCHEMA
-    | CURSOR_NAME
-    | DATASET
-    | DATETIME_INTERVAL_PRECISION
-    | DEFERRABLE
-    | DEFINER
-    | DERIVED
-    | DESCRIPTOR
-    | DISABLE
-    | DISTRIBUTE
-    | DOY
-    | ENABLE
+    | CONTINUE
+    | DATABASE
+    | DATETIME_INTERVAL_CODE
+    | DEFAULTS
+    | DEFINED
+    | DEPTH
+    | DESCRIPTION
+    | DIMENSIONS
+    | DISPLAY
+    | DOW
+    | DYNAMIC_FUNCTION_CODE
+    | ENGINE
     | EXCEPTION
     | EXECUTE
     | FIRST
     | FORCE
-    | FOUND
-    | G
-    | GEOMETRY
-    | GRANTED
-    | HIERARCHY
-    | IMMEDIATELY
+    | FORTRAN
+    | FUNCTIONS
+    | GENERATED
+    | GOTO
+    | HASH
+    | IGNORE
+    | IMPLEMENTATION
     | INCREMENT
     | INSTANCE
     | INVOKER
-    | JOB
-    | KEY
-    | LABEL
-    | LAZY
-    | LEVEL
-    | LOCALSORT
-    | LOG
-    | MAINTAIN
-    | MAP
-    | MATERIALIZATION
-    | MEASURES
-    | MESSAGE_OCTET_LENGTH
-    | MILLENNIUM
-    | MIN_INPUT_FILES
-    | MONITOR
-    | NAME
-    | NESTING
-    | NULLS
-    | OBJECT
-    | OPTION
-    | ORDINALITY
-    | OUTPUT
-    | PAD
-    | PARAMETER_ORDINAL_POSITION
-    | PARAMETER_SPECIFIC_SCHEMA
+    | ISOYEAR
+    | JSON
+    | JSON_LENGTH
+    | K
+    | KEY_TYPE
+    | LAYOUT
+    | LENGTH
+    | LIST
+    | LOCATOR
+    | M
+    | MANIFESTS
+    | MATCHED
+    | MAX_FILE_SIZE_MB
+    | MESSAGE_LENGTH
+    | MICROSECOND
+    | MINVALUE
+    | MISSING
+    | MORE_
+    | NAMES
+    | NORMALIZED
+    | NUMBER
+    | OCTETS
+    | OPTIONS
+    | ORG
+    | OVERRIDING
+    | PARAMETER_MODE
+    | PARAMETER_SPECIFIC_CATALOG
+    | PARTIAL
     | PASSTHROUGH
     | PATH
     | PLAN
@@ -1389,11 +1291,12 @@ nonReservedKeyWord1of3 :
     | READ
     | REFLECTIONS
     | REPLACE
-    | RETURNED_CARDINALITY
-    | RETURNED_SQLSTATE
-    | ROUNDROBIN
-    | ROUTINE_CATALOG
-    | ROW_COUNT
+    | RESTRICT
+    | RETURNED_OCTET_LENGTH
+    | REWRITE
+    | ROUTE
+    | ROUTINE_NAME
+    | SCALAR
     | SCHEMA_NAME
     | SCOPE_SCHEMA
     | SELF
@@ -1427,25 +1330,28 @@ nonReservedKeyWord1of3 :
     | TOKENS
     | TRANSACTIONS_COMMITTED
     | TRANSFORMS
-    | TRIGGER_SCHEMA
-    | UNCOMMITTED
-    | UPLOAD
-    | USER_DEFINED_TYPE_CODE
-    | VDS
-    | VIEWS
-    | WRAPPER
-    | XML
+    | TRIGGER_NAME
+    | UNBOUNDED
+    | UNDER
+    | USAGE
+    | USER_DEFINED_TYPE_NAME
+    | UTF16
+    | VERSION
+    | WEEK
+    | WRITE
+    | ZONE
       ;
 
-nonReservedKeyWord2of3 : 
-    ACCELERATION
-    | ADA
-    | AFTER
-    | ALWAYS
-    | APPROX
-    | ASC
-    | ASSIGNMENT
-    | AUTO
+nonReservedKeyWord1of3 :
+    ABSENT
+    | ACCESS
+    | ADD
+    | AGGREGATE
+    | APPLICATION
+    | APPROXIMATE
+    | ASSIGN
+    | ATTRIBUTE
+    | AVOID
     | BERNOULLI
     | BRANCHES
     | CACHE
@@ -1458,58 +1364,63 @@ nonReservedKeyWord2of3 :
     | COLUMNS
     | COMMAND_FUNCTION_CODE
     | CONDITION_NUMBER
-    | CONNECTION_NAME
+    | CONNECTION
     | CONSTRAINT_CATALOG
-    | CONSTRUCTOR
-    | DATA
-    | DATASETS
-    | DECADE
-    | DEFERRED
-    | DEGREE
-    | DESC
-    | DIAGNOSTICS
-    | DISPATCH
-    | DOMAIN
-    | DYNAMIC_FUNCTION
-    | ENGINE
+    | CONSTRAINTS
+    | CURSOR_NAME
+    | DATASET
+    | DATETIME_INTERVAL_PRECISION
+    | DEFERRABLE
+    | DEFINER
+    | DERIVED
+    | DESCRIPTOR
+    | DISABLE
+    | DISTRIBUTE
+    | DOY
+    | ENABLE
+    | EPOCH
     | EXCLUDE
     | FIELD
     | FOLDER
     | FORGET
-    | FRAC_SECOND
-    | GENERAL
-    | GO
-    | GRANTS
-    | HISTORY
-    | IMPLEMENTATION
+    | FOUND
+    | G
+    | GEOMETRY
+    | GRANTED
+    | HIERARCHY
+    | IMMEDIATE
+    | INCLUDE
     | INITIALLY
     | INSTANTIABLE
     | ISOLATION
-    | JSON
-    | KEY_MEMBER
-    | LAST
-    | LEARNING
-    | LIBRARY
-    | LOCATION
-    | LOGS
-    | MANAGE
-    | MASKING
-    | MAXVALUE
-    | MERGE
-    | MESSAGE_TEXT
-    | MINVALUE
-    | MISSING
-    | MORE_
-    | NAMES
-    | NORMALIZED
-    | NUMBER
-    | OCTETS
-    | OPTIONS
-    | ORG
-    | OVERRIDING
-    | PARAMETER_MODE
-    | PARAMETER_SPECIFIC_CATALOG
-    | PARTIAL
+    | JAVA
+    | JSON_DEPTH
+    | JSON_PRETTY
+    | KEY
+    | LABEL
+    | LAZY
+    | LEVEL
+    | LOCALSORT
+    | LOG
+    | MAINTAIN
+    | MAP
+    | MATERIALIZATION
+    | MEASURES
+    | MESSAGE_OCTET_LENGTH
+    | MILLENNIUM
+    | MIN_FILE_SIZE_MB
+    | MODIFY
+    | MUMPS
+    | NANOSECOND
+    | NULLABLE
+    | OAUTH
+    | OPERATE
+    | ORDERING
+    | OTHERS
+    | OWNERSHIP
+    | PARAMETER_NAME
+    | PARAMETER_SPECIFIC_NAME
+    | PASCAL
     | PASSWORD
     | PDS
     | PLI
@@ -1519,11 +1430,12 @@ nonReservedKeyWord2of3 :
     | QUEUE
     | REFERENCE
     | RELATIVE
-    | RESTART
-    | RETURNED_LENGTH
-    | REWRITE
-    | ROUTE
-    | ROUTINE_NAME
+    | RESPECT
+    | RETURNED_CARDINALITY
+    | RETURNED_SQLSTATE
+    | ROLE
+    | ROUTINE
+    | ROUTINE_SCHEMA
     | SCALE
     | SCOPE_CATALOGS
     | SECTION
@@ -1557,15 +1469,155 @@ nonReservedKeyWord2of3 :
     | TIMESTAMPDIFF
     | TRANSACTION
     | TRANSACTIONS_ROLLED_BACK
+    | TRIGGER
+    | TRIGGER_SCHEMA
+    | UNCOMMITTED
+    | UNNAMED
+    | USER_DEFINED_TYPE_CATALOG
+    | USER_DEFINED_TYPE_SCHEMA
+    | UTF32
+    | VIEW
+    | WORK
+    | WRITER
+      ;
+
+nonReservedKeyWord2of3 :
+    ABSOLUTE
+    | ACTION
+    | ADMIN
+    | ALTER
+    | APPLY
+    | ARROW
+    | ASSERTION
+    | ATTRIBUTES
+    | BATCH
+    | BIN_PACK
+    | BREADTH
+    | CASCADE
+    | CENTURY
+    | CHARACTERISTICS
+    | CHARACTER_SET_NAME
+    | CLEAR
+    | COLLATION
+    | COLLATION_SCHEMA
+    | COLUMN_NAME
+    | COMMIT
+    | CONDITIONAL
+    | CONNECTION_NAME
+    | CONSTRAINT_NAME
+    | CONSTRUCTOR
+    | DATA
+    | DATASETS
+    | DECADE
+    | DEFERRED
+    | DEGREE
+    | DESC
+    | DIAGNOSTICS
+    | DISPATCH
+    | DOMAIN
+    | DYNAMIC_FUNCTION
+    | ENCODING
+    | ERROR
+    | EXCLUDING
+    | FINAL
+    | FOLLOWING
+    | FORMAT
+    | FRAC_SECOND
+    | GENERAL
+    | GO
+    | GRANTS
+    | HISTORY
+    | IMMEDIATELY
+    | INCLUDING
+    | INPUT
+    | INTO
+    | ISODOW
+    | JOB
+    | JSON_KEYS
+    | JSON_TYPE
+    | KEY_MEMBER
+    | LAST
+    | LEARNING
+    | LIBRARY
+    | LOCATION
+    | LOGS
+    | MANAGE
+    | MASKING
+    | MAXVALUE
+    | MERGE
+    | MESSAGE_TEXT
+    | MILLISECOND
+    | MIN_INPUT_FILES
+    | MONITOR
+    | NAME
+    | NESTING
+    | NULLS
+    | OBJECT
+    | OPTION
+    | ORDINALITY
+    | OUTPUT
+    | PAD
+    | PARAMETER_ORDINAL_POSITION
+    | PARAMETER_SPECIFIC_SCHEMA
+    | PASSING
+    | PAST
+    | PLACING
+    | POLICY
+    | PRIOR
+    | PROMOTION
+    | QUARTER
+    | RAW
+    | REFLECTION
+    | REPEATABLE
+    | RESTART
+    | RETURNED_LENGTH
+    | RETURNING
+    | ROUNDROBIN
+    | ROUTINE_CATALOG
+    | ROW_COUNT
+    | SCHEMA
+    | SCOPE_NAME
+    | SECURITY
+    | SERIALIZABLE
+    | SESSION
+    | SINGLE
+    | SORT
+    | SPECIFIC_NAME
+    | SQL_BIT
+    | SQL_CHAR
+    | SQL_DECIMAL
+    | SQL_INTEGER
+    | SQL_INTERVAL_DAY_TO_MINUTE
+    | SQL_INTERVAL_HOUR_TO_MINUTE
+    | SQL_INTERVAL_MINUTE_TO_SECOND
+    | SQL_INTERVAL_YEAR
+    | SQL_LONGVARCHAR
+    | SQL_NCLOB
+    | SQL_REAL
+    | SQL_TIMESTAMP
+    | SQL_TSI_FRAC_SECOND
+    | SQL_TSI_MINUTE
+    | SQL_TSI_SECOND
+    | SQL_VARBINARY
+    | STATEMENT
+    | STORE
+    | STRUCTURE
+    | SUBSTITUTE
+    | TAGS
+    | TIES
+    | TOP_LEVEL_COUNT
+    | TRANSACTIONS_ACTIVE
+    | TRANSFORM
     | TRIGGER_CATALOG
     | TYPE
-    | UNDER
-    | USAGE
-    | USER_DEFINED_TYPE_NAME
-    | VERSION
-    | WEEK
-    | WRITE
-    | ZONE
+    | UNCONDITIONAL
+    | UPLOAD
+    | USER_DEFINED_TYPE_CODE
+    | UTF8
+    | VDS
+    | VIEWS
+    | WRAPPER
+    | XML
       ;
 
 unusedExtension : ZONE  ;

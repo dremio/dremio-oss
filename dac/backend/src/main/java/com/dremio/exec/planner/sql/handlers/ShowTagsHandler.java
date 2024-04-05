@@ -17,12 +17,6 @@ package com.dremio.exec.planner.sql.handlers;
 
 import static java.util.Objects.requireNonNull;
 
-import java.util.List;
-import java.util.stream.Collectors;
-
-import org.apache.calcite.sql.SqlIdentifier;
-import org.apache.calcite.sql.SqlNode;
-
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.VersionedPlugin;
 import com.dremio.exec.planner.sql.handlers.direct.SqlNodeUtil;
@@ -31,11 +25,15 @@ import com.dremio.exec.store.ReferenceInfo;
 import com.dremio.exec.work.foreman.ForemanSetupException;
 import com.dremio.options.OptionResolver;
 import com.dremio.sabot.rpc.user.UserSession;
+import java.util.List;
+import java.util.stream.Collectors;
+import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlNode;
 
 /**
  * Handler to show source's tags.
  *
- * SHOW TAGS [ IN sourceName ]
+ * <p>SHOW TAGS [ IN sourceName ]
  */
 public class ShowTagsHandler extends BaseVersionHandler<ReferenceInfo> {
 
@@ -47,15 +45,14 @@ public class ShowTagsHandler extends BaseVersionHandler<ReferenceInfo> {
   }
 
   @Override
-  public List<ReferenceInfo> toResult(String sql, SqlNode sqlNode)
-      throws ForemanSetupException {
+  public List<ReferenceInfo> toResult(String sql, SqlNode sqlNode) throws ForemanSetupException {
     checkFeatureEnabled("SHOW TAGS syntax is not supported.");
 
     final SqlShowTags showTags = requireNonNull(SqlNodeUtil.unwrap(sqlNode, SqlShowTags.class));
     final SqlIdentifier sourceIdentifier = showTags.getSourceName();
-    final String sourceName = VersionedHandlerUtils.resolveSourceName(
-      sourceIdentifier,
-      userSession.getDefaultSchemaPath());
+    final String sourceName =
+        VersionedHandlerUtils.resolveSourceName(
+            sourceIdentifier, userSession.getDefaultSchemaPath());
 
     final VersionedPlugin versionedPlugin = getVersionedPlugin(sourceName);
     return versionedPlugin.listTags().collect(Collectors.toList());

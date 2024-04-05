@@ -15,6 +15,7 @@
  */
 import { useSupportFlag } from "@app/exports/endpoints/SupportFlags/getSupportFlag";
 import { SQLRUNNER_TABS_UI } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
+import { forwardRef } from "react";
 
 export const useMultiTabIsEnabled = () => {
   const [enabled, loading] = useSupportFlag(SQLRUNNER_TABS_UI);
@@ -27,10 +28,15 @@ export const MultiTabIsEnabledProvider = (props: any) => {
   return props.children;
 };
 
-export const withIsMultiTabEnabled =
-  <T,>(WrappedComponent: React.ComponentClass) =>
-  (props: T) => {
+export const withIsMultiTabEnabled = <T,>(
+  WrappedComponent: React.ComponentClass,
+) =>
+  forwardRef((props: T, ref: any) => {
     return (
-      <WrappedComponent isMultiTabEnabled={useMultiTabIsEnabled()} {...props} />
+      <WrappedComponent
+        isMultiTabEnabled={useMultiTabIsEnabled()}
+        {...props}
+        ref={ref}
+      />
     );
-  };
+  });

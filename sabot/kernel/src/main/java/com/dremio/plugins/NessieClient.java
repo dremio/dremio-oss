@@ -15,18 +15,6 @@
  */
 package com.dremio.plugins;
 
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.Callable;
-import java.util.stream.Stream;
-
-import javax.annotation.Nullable;
-
-import org.apache.iceberg.viewdepoc.ViewVersionMetadata;
-import org.projectnessie.client.api.NessieApiV2;
-import org.projectnessie.model.IcebergView;
-
 import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
@@ -41,10 +29,17 @@ import com.dremio.exec.store.ReferenceNotFoundByTimestampException;
 import com.dremio.exec.store.ReferenceNotFoundException;
 import com.dremio.exec.store.ReferenceTypeConflictException;
 import com.dremio.exec.store.iceberg.model.IcebergCommitOrigin;
+import com.dremio.exec.store.iceberg.viewdepoc.ViewVersionMetadata;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.stream.Stream;
+import javax.annotation.Nullable;
+import org.projectnessie.client.api.NessieApiV2;
+import org.projectnessie.model.IcebergView;
 
-/**
- * Client interface to communicate with Nessie.
- */
+/** Client interface to communicate with Nessie. */
 public interface NessieClient extends AutoCloseable {
 
   /**
@@ -60,40 +55,33 @@ public interface NessieClient extends AutoCloseable {
    * @throws ReferenceNotFoundException If the given reference cannot be found
    * @throws NoDefaultBranchException If the Nessie server does not have a default branch set
    * @throws ReferenceTypeConflictException If the requested version type does not match the server
-   * @throws ReferenceNotFoundByTimestampException If the given reference cannot be found via timestamp
+   * @throws ReferenceNotFoundByTimestampException If the given reference cannot be found via
+   *     timestamp
    */
   ResolvedVersionContext resolveVersionContext(VersionContext versionContext);
 
   /**
-   * Executor enabled method for retrieving resolveVersionContext. JobID is used for referencing the context.
+   * Executor enabled method for retrieving resolveVersionContext. JobID is used for referencing the
+   * context.
    */
   ResolvedVersionContext resolveVersionContext(VersionContext versionContext, String jobId);
 
-  /**
-   * Checks that a commit hash exists in Nessie.
-   */
+  /** Checks that a commit hash exists in Nessie. */
   boolean commitExists(String commitHash);
 
-  /**
-   * List all branches.
-   */
+  /** List all branches. */
   Stream<ReferenceInfo> listBranches();
 
-  /**
-   * List all tags.
-   */
+  /** List all tags. */
   Stream<ReferenceInfo> listTags();
 
-  /**
-   * List all references (both branches and tags).
-   */
+  /** List all references (both branches and tags). */
   Stream<ReferenceInfo> listReferences();
 
   /**
    * List all changes for the given version.
    *
    * @param version If the version is NOT_SPECIFIED, the default branch is used (if it exists)
-   *
    * @throws ReferenceNotFoundException If the given reference cannot be found
    * @throws NoDefaultBranchException If the Nessie server does not have a default branch set
    * @throws ReferenceTypeConflictException If the requested version type does not match the server
@@ -107,13 +95,13 @@ public interface NessieClient extends AutoCloseable {
 
   enum ContentMode {
     /**
-     * content of loaded entries will be needed for the current operation
-     * (i.e. post-processing of entries)
+     * content of loaded entries will be needed for the current operation (i.e. post-processing of
+     * entries)
      */
     ENTRY_WITH_CONTENT,
     /**
-     * content of loaded entries is not interesting for the current operation
-     * (basic information like id, name etc. is sufficient)
+     * content of loaded entries is not interesting for the current operation (basic information
+     * like id, name etc. is sufficient)
      */
     ENTRY_METADATA_ONLY
   }
@@ -122,34 +110,33 @@ public interface NessieClient extends AutoCloseable {
    * List all entries under the given path and subpaths for the given version.
    *
    * @param catalogPath Acts as the namespace filter. It will act as the root namespace.
-   * @param resolvedVersion If the version is NOT_SPECIFIED, the default branch is used (if it exists).
+   * @param resolvedVersion If the version is NOT_SPECIFIED, the default branch is used (if it
+   *     exists).
    * @param nestingMode whether to include nested elements
    * @param contentMode whether the actual entry content should be loaded
    * @param contentTypeFilter optional content type to filter for (null or empty means no filtering)
    * @param celFilter optional CEL filter
-   *
    * @throws ReferenceNotFoundException If the given reference cannot be found.
    * @throws NoDefaultBranchException If the Nessie server does not have a default branch set.
    * @throws ReferenceTypeConflictException If the requested version does not match the server.
    */
   Stream<ExternalNamespaceEntry> listEntries(
-    @Nullable List<String> catalogPath,
-    ResolvedVersionContext resolvedVersion,
-    NestingMode nestingMode,
-    ContentMode contentMode,
-    @Nullable Set<ExternalNamespaceEntry.Type> contentTypeFilter,
-    @Nullable String celFilter
-  );
+      @Nullable List<String> catalogPath,
+      ResolvedVersionContext resolvedVersion,
+      NestingMode nestingMode,
+      ContentMode contentMode,
+      @Nullable Set<ExternalNamespaceEntry.Type> contentTypeFilter,
+      @Nullable String celFilter);
 
   /**
    * Create a namespace by the given path for the given version.
    *
    * @param namespacePathList the namespace we are going to create.
-   * @param version           If the version is NOT_SPECIFIED, the default branch is used (if it exists).
+   * @param version If the version is NOT_SPECIFIED, the default branch is used (if it exists).
    * @throws NessieNamespaceAlreadyExistsException If the namespace already exists.
-   * @throws ReferenceNotFoundException            If the given source reference cannot be found
-   * @throws NoDefaultBranchException              If the Nessie server does not have a default branch set
-   * @throws ReferenceTypeConflictException        If the requested version type does not match the server
+   * @throws ReferenceNotFoundException If the given source reference cannot be found
+   * @throws NoDefaultBranchException If the Nessie server does not have a default branch set
+   * @throws ReferenceTypeConflictException If the requested version type does not match the server
    */
   void createNamespace(List<String> namespacePathList, VersionContext version);
 
@@ -158,7 +145,6 @@ public interface NessieClient extends AutoCloseable {
    *
    * @param namespacePathList the namespace we are going to delete.
    * @param version If the version is NOT_SPECIFIED, the default branch is used (if it exists).
-   *
    * @throws ReferenceNotFoundException If the given source reference cannot be found
    * @throws UserException If the nessie namespace is not empty
    */
@@ -168,7 +154,6 @@ public interface NessieClient extends AutoCloseable {
    * Create a branch from the given source reference.
    *
    * @param sourceVersion If the version is NOT_SPECIFIED, the default branch is used (if it exists)
-   *
    * @throws ReferenceAlreadyExistsException If the reference already exists.
    * @throws ReferenceNotFoundException If the given source reference cannot be found
    * @throws NoDefaultBranchException If the Nessie server does not have a default branch set
@@ -180,7 +165,6 @@ public interface NessieClient extends AutoCloseable {
    * Create a tag from the given source reference.
    *
    * @param sourceVersion If the version is NOT_SPECIFIED, the default branch is used (if it exists)
-   *
    * @throws ReferenceAlreadyExistsException If the reference already exists
    * @throws ReferenceNotFoundException If the given source reference cannot be found
    * @throws NoDefaultBranchException If the Nessie server does not have a default branch set
@@ -219,7 +203,8 @@ public interface NessieClient extends AutoCloseable {
    *
    * @param branchName The branch we want to update the reference
    * @param sourceVersion The source reference name
-   * @throws ReferenceConflictException If the branch hash or source reference hash changes during update
+   * @throws ReferenceConflictException If the branch hash or source reference hash changes during
+   *     update
    * @throws ReferenceNotFoundException If the given branch or source reference cannot be found
    */
   void assignBranch(String branchName, VersionContext sourceVersion);
@@ -229,7 +214,8 @@ public interface NessieClient extends AutoCloseable {
    *
    * @param tagName The tag we want to update the reference
    * @param sourceVersion The source reference name
-   * @throws ReferenceConflictException If the tag hash or source reference hash changes during update
+   * @throws ReferenceConflictException If the tag hash or source reference hash changes during
+   *     update
    * @throws ReferenceNotFoundException If the given tag or source reference cannot be found
    */
   void assignTag(String tagName, VersionContext sourceVersion);
@@ -237,54 +223,52 @@ public interface NessieClient extends AutoCloseable {
   /**
    * Commits to the table.
    *
-   * @param catalogKey                The catalog key
-   * @param newMetadataLocation       The new metadata location for the give catalog key
+   * @param catalogKey The catalog key
+   * @param newMetadataLocation The new metadata location for the give catalog key
    * @param nessieClientTableMetadata The table metadata
-   * @param version                   The source reference name
-   * @param baseContentId             The content id of the object that we started the commit operation on
-   * @param commitOrigin              Info about the origin of the commit i.e. "CREATE VIEW", "INSERT TABLE"
-   * @param jobId                     The JobId of the query
-   * @param userName                  The username executing the query
-   *                                  Note : JobId param is only used when Executor calls this API. It sends the jobId to the controlplane
-   *                                  to  lookup the userId .
-   * @throws ReferenceConflictException If the tag hash or source reference hash changes during update
+   * @param version The source reference name
+   * @param baseContentId The content id of the object that we started the commit operation on
+   * @param commitOrigin Info about the origin of the commit i.e. "CREATE VIEW", "INSERT TABLE"
+   * @param jobId The JobId of the query
+   * @param userName The username executing the query Note : JobId param is only used when Executor
+   *     calls this API. It sends the jobId to the controlplane to lookup the userId .
+   * @throws ReferenceConflictException If the tag hash or source reference hash changes during
+   *     update
    * @throws ReferenceNotFoundException If the given tag or source reference cannot be found*
    */
   void commitTable(
-    List<String> catalogKey,
-    String newMetadataLocation,
-    NessieClientTableMetadata nessieClientTableMetadata,
-    ResolvedVersionContext version,
-    String baseContentId,
-    @Nullable IcebergCommitOrigin commitOrigin,
-    String jobId,
-    String userName);
+      List<String> catalogKey,
+      String newMetadataLocation,
+      NessieClientTableMetadata nessieClientTableMetadata,
+      ResolvedVersionContext version,
+      String baseContentId,
+      @Nullable IcebergCommitOrigin commitOrigin,
+      String jobId,
+      String userName);
 
   void commitView(
-    List<String> catalogKey,
-    String newMetadataLocation,
-    IcebergView icebergView,
-    ViewVersionMetadata metadata,
-    String dialect,
-    ResolvedVersionContext version,
-    String baseContentId,
-    @Nullable IcebergCommitOrigin commitOrigin,
-    String userName);
+      List<String> catalogKey,
+      String newMetadataLocation,
+      IcebergView icebergView,
+      ViewVersionMetadata metadata,
+      String dialect,
+      ResolvedVersionContext version,
+      String baseContentId,
+      @Nullable IcebergCommitOrigin commitOrigin,
+      String userName);
 
   void deleteCatalogEntry(
-    List<String> catalogKey,
-    VersionedPlugin.EntityType entityType,
-    ResolvedVersionContext version,
-    String userName
-  );
+      List<String> catalogKey,
+      VersionedPlugin.EntityType entityType,
+      ResolvedVersionContext version,
+      String userName);
 
-  Optional<NessieContent> getContent(List<String> catalogKey, ResolvedVersionContext version, String jobId);
+  Optional<NessieContent> getContent(
+      List<String> catalogKey, ResolvedVersionContext version, String jobId);
 
   NessieApiV2 getNessieApi();
 
-  /**
-   * Call within the NessieClient context
-   */
+  /** Call within the NessieClient context */
   <T> T callWithContext(String jobId, Callable<T> callable) throws Exception;
 
   // Overridden to remove 'throws Exception' as per NessieApi interface

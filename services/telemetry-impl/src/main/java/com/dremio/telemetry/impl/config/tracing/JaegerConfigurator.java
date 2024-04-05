@@ -15,28 +15,25 @@
  */
 package com.dremio.telemetry.impl.config.tracing;
 
-import java.util.Objects;
-
 import com.dremio.telemetry.api.config.ConfigModule;
 import com.dremio.telemetry.api.config.TracerConfigurator;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-
 import io.jaegertracing.Configuration;
 import io.jaegertracing.Configuration.ReporterConfiguration;
 import io.jaegertracing.Configuration.SamplerConfiguration;
 import io.jaegertracing.Configuration.SenderConfiguration;
 import io.opentracing.Tracer;
+import java.util.Objects;
 
 /**
  * Configurator for the jaeger tracing backend.
  *
- * name - service name.
- * type - the trace sampling mode
- * param - the associated parameter. For instance, const and param=1 means all traces are sampled.
- *         ratelimiting and param=2 means 2 traces per second are sampled.
- * logSpans - jaeger logs span finishes. Different than sampling strategy. Sample strategy reports full traces.
+ * <p>name - service name. type - the trace sampling mode param - the associated parameter. For
+ * instance, const and param=1 means all traces are sampled. ratelimiting and param=2 means 2 traces
+ * per second are sampled. logSpans - jaeger logs span finishes. Different than sampling strategy.
+ * Sample strategy reports full traces.
  */
 @JsonTypeName("jaeger")
 public class JaegerConfigurator extends TracerConfigurator {
@@ -44,22 +41,22 @@ public class JaegerConfigurator extends TracerConfigurator {
   private final String name;
   private final String type; // [const | probabilistic | ratelimiting | remote]
   private final Double param;
-  private final boolean logSpans; // "Jaeger will simply log the fact that a span was finished, usually by printing the trace and span ID and the operation name."
+  private final boolean
+      logSpans; // "Jaeger will simply log the fact that a span was finished, usually by printing
+  // the trace and span ID and the operation name."
   private final String mgrEndpoint;
   private final String agentHost;
   private final Integer agentPort;
 
-
   @JsonCreator
   public JaegerConfigurator(
-    @JsonProperty("serviceName") String name,
-    @JsonProperty("samplerType") String type,
-    @JsonProperty("samplerParam") Double param,
-    @JsonProperty("logSpans") boolean logSpans,
-    @JsonProperty("agentHost") String agentHost,
-    @JsonProperty("agentPort") int agentPort,
-    @JsonProperty("samplerEndpoint") String mgrEndpoint
-  ) {
+      @JsonProperty("serviceName") String name,
+      @JsonProperty("samplerType") String type,
+      @JsonProperty("samplerParam") Double param,
+      @JsonProperty("logSpans") boolean logSpans,
+      @JsonProperty("agentHost") String agentHost,
+      @JsonProperty("agentPort") int agentPort,
+      @JsonProperty("samplerEndpoint") String mgrEndpoint) {
     super();
     this.name = name;
     this.type = type;
@@ -85,18 +82,17 @@ public class JaegerConfigurator extends TracerConfigurator {
     }
     JaegerConfigurator j = (JaegerConfigurator) other;
     return Objects.equals(j.logSpans, logSpans)
-      && Objects.equals(j.name, name)
-      && Objects.equals(j.param, param)
-      && Objects.equals(j.type, type)
-      && Objects.equals(j.agentHost, agentHost)
-      && Objects.equals(j.agentPort, agentPort)
-      && Objects.equals(j.mgrEndpoint, mgrEndpoint);
+        && Objects.equals(j.name, name)
+        && Objects.equals(j.param, param)
+        && Objects.equals(j.type, type)
+        && Objects.equals(j.agentHost, agentHost)
+        && Objects.equals(j.agentPort, agentPort)
+        && Objects.equals(j.mgrEndpoint, mgrEndpoint);
   }
 
   @Override
   public Tracer getTracer() {
-    SamplerConfiguration sampleConf = SamplerConfiguration.fromEnv()
-      .withType(type);
+    SamplerConfiguration sampleConf = SamplerConfiguration.fromEnv().withType(type);
 
     if (param != null) {
       sampleConf.withParam(param);
@@ -106,29 +102,23 @@ public class JaegerConfigurator extends TracerConfigurator {
       sampleConf.withManagerHostPort(mgrEndpoint);
     }
 
-    ReporterConfiguration reportConf = ReporterConfiguration.fromEnv()
-      .withLogSpans(logSpans);
+    ReporterConfiguration reportConf = ReporterConfiguration.fromEnv().withLogSpans(logSpans);
 
     if (agentHost != null) {
-      SenderConfiguration senderConf = SenderConfiguration.fromEnv()
-        .withAgentHost(agentHost)
-        .withAgentPort(agentPort);
+      SenderConfiguration senderConf =
+          SenderConfiguration.fromEnv().withAgentHost(agentHost).withAgentPort(agentPort);
       reportConf.withSender(senderConf);
     }
 
-    Configuration config = new Configuration(name)
-      .withReporter(reportConf)
-      .withSampler(sampleConf);
+    Configuration config = new Configuration(name).withReporter(reportConf).withSampler(sampleConf);
 
-    // If the user gets rid of their tracer config and then puts it back, we want to get a fresh tracer since the old
+    // If the user gets rid of their tracer config and then puts it back, we want to get a fresh
+    // tracer since the old
     // one will be closed.
     return config.getTracer();
   }
 
-  /**
-   * Module that may be added to a jackson object mapper
-   * so it can parse jaeger config.
-   */
+  /** Module that may be added to a jackson object mapper so it can parse jaeger config. */
   public static class Module extends ConfigModule {
     @Override
     public void setupModule(SetupContext context) {

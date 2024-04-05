@@ -17,20 +17,18 @@ package com.dremio.exec.planner.sql.handlers.direct;
 
 import static com.dremio.exec.ExecConstants.ENABLE_USE_VERSION_SYNTAX;
 
-import java.util.List;
-
+import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.VersionedPlugin;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.options.OptionResolver;
-import com.dremio.service.namespace.NamespaceKey;
+import java.util.List;
 
 class ShowHandlerUtil {
   // prevent instantiation
-  private ShowHandlerUtil() {
-  }
+  private ShowHandlerUtil() {}
 
   static VersionedPlugin getVersionedPlugin(String sourceName, Catalog catalog) {
     final StoragePlugin storagePlugin;
@@ -43,29 +41,31 @@ class ShowHandlerUtil {
       }
       // Source was not found (probably wrong type, like home)
       throw UserException.unsupportedError()
-        .message("Source %s does not support versioning.", sourceName).buildSilently();
+          .message("Source %s does not support versioning.", sourceName)
+          .buildSilently();
     }
 
-    if (!(storagePlugin instanceof VersionedPlugin)) {
+    if (!(storagePlugin.isWrapperFor(VersionedPlugin.class))) {
       throw UserException.unsupportedError()
-        .message("Source %s does not support versioning.", sourceName).buildSilently();
+          .message("Source %s does not support versioning.", sourceName)
+          .buildSilently();
     }
 
-    return (VersionedPlugin) storagePlugin;
+    return storagePlugin.unwrap(VersionedPlugin.class);
   }
 
-  static void validate(NamespaceKey sourcePath, Catalog catalog) {
-    if (sourcePath == null) {
+  static void validate(CatalogEntityKey sourceKey, Catalog catalog) {
+    if (sourceKey == null) {
       // If the default schema is a root schema, throw an error to select a default schema
       throw UserException.validationError()
-        .message("No default schema selected. Select a schema using 'USE schema' command.")
-        .buildSilently();
+          .message("No default schema selected. Select a schema using 'USE schema' command.")
+          .buildSilently();
     }
 
-    if (!catalog.containerExists(new NamespaceKey(sourcePath.getRoot()))) {
+    if (!catalog.containerExists(sourceKey)) {
       throw UserException.validationError()
-        .message("Source %s does not exist.", sourcePath.getRoot())
-        .buildSilently();
+          .message("Source %s does not exist.", sourceKey.toString())
+          .buildSilently();
     }
   }
 

@@ -17,6 +17,7 @@ package com.dremio.exec.planner.sql.convertlet;
 
 import static com.dremio.exec.planner.sql.DremioSqlOperatorTable.ARRAY_AVG;
 
+import com.dremio.exec.planner.sql.DremioSqlOperatorTable;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
@@ -24,13 +25,10 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-import com.dremio.exec.planner.sql.DremioSqlOperatorTable;
-
-/**
- * Convertlet to rewrite ARRAY_AVG(arr) as ARRAY_SUM(arr) / ARRAY_LENGTH(arr)
- */
+/** Convertlet to rewrite ARRAY_AVG(arr) as ARRAY_SUM(arr) / ARRAY_LENGTH(arr) */
 public final class ArrayAvgConvertlet implements FunctionConvertlet {
-  public static final FunctionConvertlet INSTANCE = new NullableArrayFunctionConvertlet(new ArrayAvgConvertlet());
+  public static final FunctionConvertlet INSTANCE =
+      new NullableArrayFunctionConvertlet(new ArrayAvgConvertlet());
 
   private ArrayAvgConvertlet() {}
 
@@ -48,16 +46,19 @@ public final class ArrayAvgConvertlet implements FunctionConvertlet {
     RelDataType defaultDecimal = rexBuilder.getTypeFactory().createSqlType(SqlTypeName.DECIMAL);
 
     RexNode arr = call.getOperands().get(0);
-    RexNode arraySum = rexBuilder.makeCast(
-      defaultDecimal,
-      rexBuilder.makeCall(DremioSqlOperatorTable.ARRAY_SUM, arr));
-    RexNode arrayLength = rexBuilder.makeCast(
-      defaultDecimal,
-      rexBuilder.makeCall(DremioSqlOperatorTable.CARDINALITY, arr));
+    RexNode arraySum =
+        rexBuilder.makeCast(
+            defaultDecimal, rexBuilder.makeCall(DremioSqlOperatorTable.ARRAY_SUM, arr));
+    RexNode arrayLength =
+        rexBuilder.makeCast(
+            defaultDecimal, rexBuilder.makeCall(DremioSqlOperatorTable.CARDINALITY, arr));
     RexNode arrayAverage = rexBuilder.makeCall(SqlStdOperatorTable.DIVIDE, arraySum, arrayLength);
-    RexNode isDivisionByZero = rexBuilder.makeCall(SqlStdOperatorTable.EQUALS, arrayLength, rexBuilder.makeZeroLiteral(defaultDecimal));
+    RexNode isDivisionByZero =
+        rexBuilder.makeCall(
+            SqlStdOperatorTable.EQUALS, arrayLength, rexBuilder.makeZeroLiteral(defaultDecimal));
     RexNode nullLiteral = rexBuilder.makeNullLiteral(arrayAverage.getType());
-    RexNode caseForDivisionByZero = rexBuilder.makeCall(SqlStdOperatorTable.CASE, isDivisionByZero, nullLiteral, arrayAverage);
+    RexNode caseForDivisionByZero =
+        rexBuilder.makeCall(SqlStdOperatorTable.CASE, isDivisionByZero, nullLiteral, arrayAverage);
 
     return (RexCall) caseForDivisionByZero;
   }

@@ -15,16 +15,13 @@
  */
 package com.dremio.plugins;
 
+import com.dremio.exec.catalog.VersionedPlugin.EntityType;
 import java.util.List;
 import java.util.Optional;
-
 import javax.annotation.Nullable;
-
 import org.projectnessie.model.Content;
 import org.projectnessie.model.IcebergTable;
 import org.projectnessie.model.IcebergView;
-
-import com.dremio.exec.catalog.VersionedPlugin.EntityType;
 
 public final class NessieContent {
   private final List<String> catalogKey;
@@ -34,12 +31,11 @@ public final class NessieContent {
   private final @Nullable String viewDialect;
 
   public NessieContent(
-    List<String> catalogKey,
-    String contentId,
-    EntityType entityType,
-    @Nullable String metadataLocation,
-    @Nullable String viewDialect
-  ) {
+      List<String> catalogKey,
+      String contentId,
+      EntityType entityType,
+      @Nullable String metadataLocation,
+      @Nullable String viewDialect) {
     this.catalogKey = catalogKey;
     this.contentId = contentId;
     this.entityType = entityType;
@@ -59,28 +55,23 @@ public final class NessieContent {
     return entityType;
   }
 
-  /**
-   * only available for iceberg table or views
-   */
+  /** only available for iceberg table or views */
   public Optional<String> getMetadataLocation() {
     return Optional.ofNullable(metadataLocation);
   }
 
-  /**
-   * only available for some iceberg views
-   */
+  /** only available for some iceberg views */
   public Optional<String> getViewDialect() {
     return Optional.ofNullable(viewDialect);
   }
 
   public static NessieContent buildFromRawContent(List<String> catalogKey, Content rawContent) {
     return new NessieContent(
-      catalogKey,
-      rawContent.getId(),
-      extractVersionedEntityType(rawContent),
-      extractMetadataLocation(rawContent),
-      extractViewDialect(rawContent)
-    );
+        catalogKey,
+        rawContent.getId(),
+        extractVersionedEntityType(rawContent),
+        extractMetadataLocation(rawContent),
+        extractViewDialect(rawContent));
   }
 
   private static EntityType extractVersionedEntityType(Content content) {

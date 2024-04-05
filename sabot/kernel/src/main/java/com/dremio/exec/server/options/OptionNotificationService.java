@@ -15,20 +15,20 @@
  */
 package com.dremio.exec.server.options;
 
-import javax.inject.Provider;
-
 import com.dremio.options.OptionChangeNotification;
 import com.dremio.options.OptionNotificationServiceGrpc;
 import com.google.protobuf.Empty;
-
 import io.grpc.stub.StreamObserver;
+import javax.inject.Provider;
 
 /**
- * OptionNotificationService received a request from a coordinator after it performs a change on system option
- * and fetch the system option from kv store for cached option refresh.
+ * OptionNotificationService received a request from a coordinator after it performs a change on
+ * system option and fetch the system option from kv store for cached option refresh.
  */
-public class OptionNotificationService extends OptionNotificationServiceGrpc.OptionNotificationServiceImplBase {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(OptionNotificationService.class);
+public class OptionNotificationService
+    extends OptionNotificationServiceGrpc.OptionNotificationServiceImplBase {
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(OptionNotificationService.class);
 
   private final Provider<SystemOptionManager> systemOptionManagerProvider;
 
@@ -38,7 +38,8 @@ public class OptionNotificationService extends OptionNotificationServiceGrpc.Opt
 
   @Override
   @SuppressWarnings("DremioGRPCStreamObserverOnError")
-  public void systemOptionFetch(OptionChangeNotification request, StreamObserver<Empty> responseObserver) {
+  public void systemOptionFetch(
+      OptionChangeNotification request, StreamObserver<Empty> responseObserver) {
     logger.debug("SystemOptionChangeNotificationRequest received: {}", request);
     try {
       (systemOptionManagerProvider.get()).populateCache();

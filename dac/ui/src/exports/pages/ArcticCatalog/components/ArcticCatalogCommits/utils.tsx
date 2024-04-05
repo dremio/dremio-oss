@@ -15,10 +15,8 @@
  */
 
 import { FormattedMessage } from "react-intl";
-// @ts-ignore
-import { Button } from "dremio-ui-lib";
+import { Button } from "dremio-ui-lib/components";
 import { ArcticCatalogTabsType } from "@app/exports/pages/ArcticCatalog/ArcticCatalog";
-
 import * as classes from "@app/exports/components/ArcticTableHeader/ArcticTableHeader.module.less";
 
 export const getGoToDataButton = (
@@ -26,12 +24,11 @@ export const getGoToDataButton = (
 ) => {
   return (
     <Button
-      color="secondary"
+      variant="secondary"
       onClick={() => handlePush("data")}
-      disableMargin
       className={classes["arctic-table-header__header-button"]}
     >
-      <dremio-icon name="interface/goto-dataset" />
+      <dremio-icon name="interface/goto-dataset" alt="" />
       <FormattedMessage id="ArcticCatalog.Commits.GoToData" />
     </Button>
   );

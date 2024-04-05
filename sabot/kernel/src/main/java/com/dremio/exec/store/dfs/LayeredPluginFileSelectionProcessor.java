@@ -15,12 +15,11 @@
  */
 package com.dremio.exec.store.dfs;
 
-import java.io.IOException;
-
 import com.dremio.exec.store.file.proto.FileProtobuf;
 import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
+import java.io.IOException;
 
 public class LayeredPluginFileSelectionProcessor implements FileSelectionProcessor {
 
@@ -35,11 +34,13 @@ public class LayeredPluginFileSelectionProcessor implements FileSelectionProcess
   @Override
   public FileProtobuf.FileUpdateKey generateUpdateKey() throws IOException {
     final Path datasetRoot = Path.of(fileSelection.getSelectionRoot());
-    final FileProtobuf.FileUpdateKey.Builder updateKeyBuilder = FileProtobuf.FileUpdateKey.newBuilder();
+    final FileProtobuf.FileUpdateKey.Builder updateKeyBuilder =
+        FileProtobuf.FileUpdateKey.newBuilder();
     final FileAttributes rootAttributes = fs.getFileAttributes(datasetRoot);
 
     if (rootAttributes.isDirectory()) {
-      updateKeyBuilder.addCachedEntities(FileProtobuf.FileSystemCachedEntity.newBuilder()
+      updateKeyBuilder.addCachedEntities(
+          FileProtobuf.FileSystemCachedEntity.newBuilder()
               .setPath(rootAttributes.getPath().toString())
               .setLastModificationTime(rootAttributes.lastModifiedTime().toMillis())
               .build());

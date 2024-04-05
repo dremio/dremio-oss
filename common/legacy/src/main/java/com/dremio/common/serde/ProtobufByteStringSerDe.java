@@ -15,13 +15,6 @@
  */
 package com.dremio.common.serde;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.nio.charset.StandardCharsets;
-
-import org.slf4j.Logger;
-
 import com.fasterxml.jackson.core.JsonGenerationException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
@@ -29,30 +22,30 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.google.common.io.ByteSource;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.ByteString.Output;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+import org.slf4j.Logger;
 
-/**
- * Utility class to serialize/deserialize objects to/from {@link ByteString}.
- */
+/** Utility class to serialize/deserialize objects to/from {@link ByteString}. */
 public final class ProtobufByteStringSerDe {
 
-  /**
-   * Interface to compress/decompress data to ByteString
-   */
+  /** Interface to compress/decompress data to ByteString */
   public interface Codec {
-    /**
-     * No compression
-     */
-    public static final Codec NONE = new Codec() {
-      @Override
-      public OutputStream compress(OutputStream output) {
-        return output;
-      }
+    /** No compression */
+    public static final Codec NONE =
+        new Codec() {
+          @Override
+          public OutputStream compress(OutputStream output) {
+            return output;
+          }
 
-      @Override
-      public InputStream decompress(InputStream input) {
-        return input;
-      }
-    };
+          @Override
+          public InputStream decompress(InputStream input) {
+            return input;
+          }
+        };
 
     /**
      * Wrap the provided output for compression
@@ -72,11 +65,12 @@ public final class ProtobufByteStringSerDe {
   }
 
   /**
-   * Serialize the given value to byte string using the given mapper, employing the given codec algorithm.
+   * Serialize the given value to byte string using the given mapper, employing the given codec
+   * algorithm.
    *
    * @param mapper object mapper
-   * @param value  value to serialize
-   * @param codec  codec
+   * @param value value to serialize
+   * @param codec codec
    * @return serialized bytes
    * @throws JsonGenerationException in case of serialization errors
    */
@@ -87,9 +81,7 @@ public final class ProtobufByteStringSerDe {
     try {
       final OutputStream os = codec.compress(output);
       try {
-        mapper.writer()
-            .without(SerializationFeature.INDENT_OUTPUT)
-            .writeValue(os, value);
+        mapper.writer().without(SerializationFeature.INDENT_OUTPUT).writeValue(os, value);
       } finally {
         os.close();
       }
@@ -103,26 +95,29 @@ public final class ProtobufByteStringSerDe {
   }
 
   /**
-   * Deserialize the given byte string to an object using the given reader, employing the given codec algorithm.
+   * Deserialize the given byte string to an object using the given reader, employing the given
+   * codec algorithm.
    *
-   * @param reader     object reader
+   * @param reader object reader
    * @param byteString byte string to deserialize
-   * @param codec      codec
-   * @param logger     logger
-   * @param <T>        object type of the deserialized object
+   * @param codec codec
+   * @param logger logger
+   * @param <T> object type of the deserialized object
    * @return deserialized object
    * @throws IOException in case of deserialization errors
    */
-  public static <T> T readValue(ObjectReader reader, ByteString byteString, Codec codec, Logger logger)
-      throws IOException {
+  public static <T> T readValue(
+      ObjectReader reader, ByteString byteString, Codec codec, Logger logger) throws IOException {
 
     if (logger.isTraceEnabled()) {
       // Costly conversion to UTF-8. Avoid if possible
-      ByteSource bs = new ByteSource() {
-        @Override
-        public InputStream openStream() throws IOException {
-          return codec.decompress(byteString.newInput());
-        }};
+      ByteSource bs =
+          new ByteSource() {
+            @Override
+            public InputStream openStream() throws IOException {
+              return codec.decompress(byteString.newInput());
+            }
+          };
       final String value = bs.asCharSource(StandardCharsets.UTF_8).read();
       logger.trace("Attempting to read {}", value);
 
@@ -136,6 +131,5 @@ public final class ProtobufByteStringSerDe {
     }
   }
 
-  private ProtobufByteStringSerDe() {
-  }
+  private ProtobufByteStringSerDe() {}
 }

@@ -20,9 +20,14 @@ import static com.dremio.exec.store.iceberg.model.IcebergConstants.DELETED_DATA_
 import static com.dremio.sabot.op.writer.WriterCommitterOperator.Metric.SNAPSHOT_COMMIT_STATUS;
 import static com.dremio.sabot.op.writer.WriterCommitterOperator.SnapshotCommitStatus.COMMITTED;
 
+import com.dremio.exec.record.BatchSchema;
+import com.dremio.sabot.exec.context.OperatorStats;
+import com.dremio.sabot.op.writer.WriterCommitterOperator.SnapshotCommitStatus;
+import com.dremio.sabot.op.writer.WriterCommitterOutputHandler;
+import com.google.common.collect.ImmutableMap;
+import com.google.protobuf.ByteString;
 import java.util.Map;
 import java.util.Optional;
-
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DeleteFile;
 import org.apache.iceberg.ManifestFile;
@@ -31,21 +36,14 @@ import org.apache.iceberg.Schema;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.io.FileIO;
 
-import com.dremio.exec.record.BatchSchema;
-import com.dremio.sabot.exec.context.OperatorStats;
-import com.dremio.sabot.op.writer.WriterCommitterOperator.SnapshotCommitStatus;
-import com.dremio.sabot.op.writer.WriterCommitterOutputHandler;
-import com.google.protobuf.ByteString;
-
-/**
- * Implementations of this interface commit an iceberg transaction
- */
+/** Implementations of this interface commit an iceberg transaction */
 public interface IcebergOpCommitter {
-  String CONCURRENT_DML_OPERATION_ERROR = "Concurrent DML operation has updated the table, please retry.";
+  String CONCURRENT_OPERATION_ERROR = "Concurrent operation has updated the table, please retry.";
 
   /**
-   * Commits the Iceberg operation
-   * @Param Access to output handler, for cases when committer wants to write custom output
+   * Commits the Iceberg operation @Param Access to output handler, for cases when committer wants
+   * to write custom output
+   *
    * @return new Snapshot that gets created as part of commit operation
    */
   default Snapshot commit(WriterCommitterOutputHandler outputHandler) {
@@ -53,14 +51,16 @@ public interface IcebergOpCommitter {
   }
 
   /**
-   * Commits the Iceberg operation
-   * @Param outgoing Access to outgoing container in case committer wants to write custom output
+   * Commits the Iceberg operation @Param outgoing Access to outgoing container in case committer
+   * wants to write custom output
+   *
    * @return new Snapshot that gets created as part of commit operation
    */
   Snapshot commit();
 
   /**
    * Stores the DataFile instance to delete during commit operation
+   *
    * @param icebergDeleteDatafile DataFile instance to delete from table
    * @throws UnsupportedOperationException
    */
@@ -68,29 +68,34 @@ public interface IcebergOpCommitter {
 
   /**
    * Stores the DeleteFile instance to delete during commit operation
+   *
    * @param icebergDeleteDeletefile DeleteFile instance to delete from table
    * @throws UnsupportedOperationException
    */
-  default void consumeDeleteDeleteFile(DeleteFile icebergDeleteDeletefile) throws UnsupportedOperationException {
+  default void consumeDeleteDeleteFile(DeleteFile icebergDeleteDeletefile)
+      throws UnsupportedOperationException {
     throw new UnsupportedOperationException();
   }
 
   /**
    * Stores data file path to delete during commit operation
+   *
    * @param icebergDeleteDatafilePath The path to data file to delete from table
    * @throws UnsupportedOperationException
    */
-  void consumeDeleteDataFilePath(String icebergDeleteDatafilePath) throws UnsupportedOperationException;
+  void consumeDeleteDataFilePath(String icebergDeleteDatafilePath)
+      throws UnsupportedOperationException;
 
   /**
    * Stores the manifest file instance to include during commit operation
+   *
    * @param manifestFile ManifestFile instance to include in table
    */
   void consumeManifestFile(ManifestFile manifestFile);
 
   /**
-   * Stores the data file instance to include during the rewrite operation.
-   * Consuming data files is not supported where consuming manifests are possible.
+   * Stores the data file instance to include during the rewrite operation. Consuming data files is
+   * not supported where consuming manifests are possible.
    *
    * @param addDataFile
    * @throws UnsupportedOperationException
@@ -101,50 +106,54 @@ public interface IcebergOpCommitter {
 
   /**
    * Stores the new schema to use during commit operation
+   *
    * @param newSchema new schema of the table
    */
   void updateSchema(BatchSchema newSchema);
 
   /**
    * Gets the current root pointer of the table
+   *
    * @return current metadata location of the table
    */
   String getRootPointer();
 
   /**
    * Gets the current spec map of the table
+   *
    * @return current spec map of the table
    */
   Map<Integer, PartitionSpec> getCurrentSpecMap();
 
   /**
    * Gets the current Schema of the table
+   *
    * @return current schema of the table
    */
   Schema getCurrentSchema();
 
   /**
    * Checks is iceberg table is updated or not
-   * @return  true when the committer detectects iceberg table root pointer
+   *
+   * @return true when the committer detectects iceberg table root pointer
    */
   boolean isIcebergTableUpdated();
 
   default void updateReadSignature(ByteString newReadSignature) {}
 
-  /**
-   * Cleanup in case of exceptions during commit
-   */
+  /** Cleanup in case of exceptions during commit */
   default void cleanup(FileIO fileIO) {}
 
-  /**
-   * Writes operator stats if a new snapshot is created
-   */
-  static void writeSnapshotStats(OperatorStats stats, SnapshotCommitStatus commitStatus, Snapshot snapshot) {
+  /** Writes operator stats if a new snapshot is created */
+  static void writeSnapshotStats(
+      OperatorStats stats, SnapshotCommitStatus commitStatus, Snapshot snapshot) {
     stats.addLongStat(SNAPSHOT_COMMIT_STATUS, commitStatus.value());
 
     if (commitStatus.equals(COMMITTED) && snapshot != null) {
-      long addedFiles = Optional.ofNullable(snapshot.summary().get(ADDED_DATA_FILES)).map(Long::parseLong).orElse(0L);
-      long removedFiles = Optional.ofNullable(snapshot.summary().get(DELETED_DATA_FILES)).map(Long::parseLong).orElse(0L);
+      Map<String, String> summary =
+          Optional.ofNullable(snapshot.summary()).orElseGet(ImmutableMap::of);
+      long addedFiles = Long.parseLong(summary.getOrDefault(ADDED_DATA_FILES, "0"));
+      long removedFiles = Long.parseLong(summary.getOrDefault(DELETED_DATA_FILES, "0"));
       stats.recordAddedFiles(addedFiles);
       stats.recordRemovedFiles(removedFiles);
     }

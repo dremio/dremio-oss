@@ -34,8 +34,6 @@ import org.junit.runners.Parameterized;
 @RunWith(Parameterized.class)
 public class ITHiveVerifyPartition extends LazyDataGeneratingHiveTestBase {
 
-  private static AutoCloseable enableUnlimitedSplitsSupportFlags;
-
   private final String format;
   private static final String tableName = "v2_partition_verify_test_";
 
@@ -54,14 +52,12 @@ public class ITHiveVerifyPartition extends LazyDataGeneratingHiveTestBase {
   @BeforeClass
   public static void setup() throws Exception {
     dataGenerator.generateTestData(ITHiveVerifyPartition::generateTestData);
-    enableUnlimitedSplitsSupportFlags = enableUnlimitedSplitsSupportFlags();
   }
 
   @AfterClass
   public static void disableV2Flow() throws Exception {
     dataGenerator.executeDDL("DROP TABLE IF EXISTS " + tableName + "orc");
     dataGenerator.executeDDL("DROP TABLE IF EXISTS " + tableName + "parquet");
-    enableUnlimitedSplitsSupportFlags.close();
   }
 
   @Test

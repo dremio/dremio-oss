@@ -19,14 +19,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.util.Collections;
-
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-
 import com.dremio.common.utils.PathUtils;
 import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.SourceMetadata;
@@ -50,6 +42,12 @@ import com.dremio.service.namespace.source.proto.MetadataPolicy;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.source.proto.UpdateMode;
 import com.dremio.test.DremioTest;
+import java.util.Collections;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 public class TestMetadataSynchronizer {
 
@@ -68,18 +66,22 @@ public class TestMetadataSynchronizer {
 
   @BeforeAll
   public static void setup() throws Exception {
-    LegacyKVStoreProvider kvStoreProvider = LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT);
+    LegacyKVStoreProvider kvStoreProvider =
+        LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT);
     kvStoreProvider.start();
     namespaceService = new NamespaceServiceImpl(kvStoreProvider, new CatalogStatusEventsImpl());
     sourceKey = new NamespaceKey(SOURCE);
     sourceConfig = NamespaceTestUtils.addSource(namespaceService, SOURCE);
-    metadataPolicy = new MetadataPolicy().setDatasetUpdateMode(UpdateMode.PREFETCH_QUERIED).setDeleteUnavailableDatasets(true);
-    final OptionValidatorListing optionValidatorListing = new OptionValidatorListingImpl(DremioTest.CLASSPATH_SCAN_RESULT);
+    metadataPolicy =
+        new MetadataPolicy()
+            .setDatasetUpdateMode(UpdateMode.PREFETCH_QUERIED)
+            .setDeleteUnavailableDatasets(true);
+    final OptionValidatorListing optionValidatorListing =
+        new OptionValidatorListingImpl(DremioTest.CLASSPATH_SCAN_RESULT);
     optionManager = new DefaultOptionManager(optionValidatorListing);
     datasetSaver = new DatasetSaverImpl(namespaceService, (NamespaceKey key) -> {}, optionManager);
-    retrievalOptions = DatasetRetrievalOptions.DEFAULT.toBuilder()
-      .setDeleteUnavailableDatasets(true)
-      .build();
+    retrievalOptions =
+        DatasetRetrievalOptions.DEFAULT.toBuilder().setDeleteUnavailableDatasets(true).build();
   }
 
   @BeforeEach
@@ -89,20 +91,31 @@ public class TestMetadataSynchronizer {
 
   @AfterEach
   public void cleanupTest() throws Exception {
-    namespaceService.deleteSourceChildren(sourceKey, sourceConfig.getTag(), (DatasetConfig datasetConfig) -> {});
+    namespaceService.deleteSourceChildren(
+        sourceKey, sourceConfig.getTag(), (DatasetConfig datasetConfig) -> {});
   }
 
   @Test
-  public void validateSourceDatasetsNotDeletedWhenListDatasetHandlesThrows() throws NamespaceException, ConnectorException {
+  public void validateSourceDatasetsNotDeletedWhenListDatasetHandlesThrows()
+      throws NamespaceException, ConnectorException {
     ManagedStoragePlugin.MetadataBridge bridge = mock(ManagedStoragePlugin.MetadataBridge.class);
     SupportsListingDatasets sourceMetadata = mock(TestSourceMetadata.class);
-    when(sourceMetadata.listDatasetHandles(any())).thenThrow(new ConnectorException("Source error"));
-    when(bridge.getMetadata()).thenReturn((SourceMetadata)sourceMetadata);
-    final MetadataSynchronizer synchronizeRun = new MetadataSynchronizer(namespaceService, sourceKey,
-      bridge, metadataPolicy, datasetSaver, retrievalOptions, optionManager);
+    when(sourceMetadata.listDatasetHandles(any()))
+        .thenThrow(new ConnectorException("Source error"));
+    when(bridge.getMetadata()).thenReturn((SourceMetadata) sourceMetadata);
+    final MetadataSynchronizer synchronizeRun =
+        new MetadataSynchronizer(
+            namespaceService,
+            sourceKey,
+            bridge,
+            metadataPolicy,
+            datasetSaver,
+            retrievalOptions,
+            optionManager);
     synchronizeRun.setup();
     synchronizeRun.go();
-    Assertions.assertNotNull(namespaceService.getDataset(new NamespaceKey(PathUtils.parseFullPath(TABLE))));
+    Assertions.assertNotNull(
+        namespaceService.getDataset(new NamespaceKey(PathUtils.parseFullPath(TABLE))));
     Assertions.assertEquals(1, namespaceService.getAllDatasetsCount(sourceKey));
   }
 
@@ -111,12 +124,21 @@ public class TestMetadataSynchronizer {
     ManagedStoragePlugin.MetadataBridge bridge = mock(ManagedStoragePlugin.MetadataBridge.class);
     SupportsListingDatasets sourceMetadata = mock(TestSourceMetadata.class);
     when(sourceMetadata.listDatasetHandles(any())).thenReturn(Collections::emptyIterator);
-    when(bridge.getMetadata()).thenReturn((SourceMetadata)sourceMetadata);
-    final MetadataSynchronizer synchronizeRun = new MetadataSynchronizer(namespaceService, sourceKey,
-      bridge, metadataPolicy, datasetSaver, retrievalOptions, optionManager);
+    when(bridge.getMetadata()).thenReturn((SourceMetadata) sourceMetadata);
+    final MetadataSynchronizer synchronizeRun =
+        new MetadataSynchronizer(
+            namespaceService,
+            sourceKey,
+            bridge,
+            metadataPolicy,
+            datasetSaver,
+            retrievalOptions,
+            optionManager);
     synchronizeRun.setup();
     synchronizeRun.go();
-    Assertions.assertThrows(NamespaceNotFoundException.class, () -> namespaceService.getDataset(new NamespaceKey(PathUtils.parseFullPath(TABLE))));
+    Assertions.assertThrows(
+        NamespaceNotFoundException.class,
+        () -> namespaceService.getDataset(new NamespaceKey(PathUtils.parseFullPath(TABLE))));
     Assertions.assertEquals(0, namespaceService.getAllDatasetsCount(sourceKey));
   }
 }

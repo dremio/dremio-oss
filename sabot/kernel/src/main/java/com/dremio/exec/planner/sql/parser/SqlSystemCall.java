@@ -18,13 +18,10 @@ package com.dremio.exec.planner.sql.parser;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-/**
- * Marker interface for system calls
- */
+/** Marker interface for system calls */
 public abstract class SqlSystemCall extends SqlCall {
 
   protected SqlSystemCall(SqlParserPos pos) {
     super(pos);
   }
-
 }

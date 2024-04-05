@@ -17,6 +17,10 @@ package com.dremio.exec.planner.sql;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.planner.types.SqlTypeFactoryImpl;
+import com.dremio.exec.record.BatchSchema;
+import com.google.common.collect.ImmutableSet;
 import org.apache.arrow.vector.types.IntervalUnit;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -24,46 +28,52 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.junit.Test;
 
-import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.planner.types.SqlTypeFactoryImpl;
-import com.dremio.exec.record.BatchSchema;
-import com.google.common.collect.ImmutableSet;
-
-/**
- * Tests for methods in CalciteArrowHelper.
- */
+/** Tests for methods in CalciteArrowHelper. */
 public class TestCalciteArrowHelper {
   private static final Field UTF8_FIELD = Field.nullable("utf8_field", ArrowType.Utf8.INSTANCE);
   private static final Field NULL_FIELD = Field.nullable("null_field", ArrowType.Null.INSTANCE);
-  private static final Field INTERVAL_DAY_TIME_FIELD = Field.nullable("interval_field_day", new ArrowType.Interval(IntervalUnit.DAY_TIME));
-  private static final Field INTERVAL_YEAR_MONTH_FIELD = Field.nullable("interval_field_year", new ArrowType.Interval(IntervalUnit.YEAR_MONTH));
+  private static final Field INTERVAL_DAY_TIME_FIELD =
+      Field.nullable("interval_field_day", new ArrowType.Interval(IntervalUnit.DAY_TIME));
+  private static final Field INTERVAL_YEAR_MONTH_FIELD =
+      Field.nullable("interval_field_year", new ArrowType.Interval(IntervalUnit.YEAR_MONTH));
 
   private static final ImmutableSet<String> blackList = ImmutableSet.of("utf8_field");
 
-  private static final BatchSchema schema = BatchSchema.newBuilder()
-    .addField(UTF8_FIELD)
-    .addField(NULL_FIELD)
-    .build();
+  private static final BatchSchema schema =
+      BatchSchema.newBuilder().addField(UTF8_FIELD).addField(NULL_FIELD).build();
 
-  private static final BatchSchema intervalSchema = BatchSchema.newBuilder()
-    .addField(UTF8_FIELD)
-    .addField(INTERVAL_DAY_TIME_FIELD)
-    .addField(INTERVAL_YEAR_MONTH_FIELD)
-    .build();
+  private static final BatchSchema intervalSchema =
+      BatchSchema.newBuilder()
+          .addField(UTF8_FIELD)
+          .addField(INTERVAL_DAY_TIME_FIELD)
+          .addField(INTERVAL_YEAR_MONTH_FIELD)
+          .build();
 
   @Test
   public void testToCalciteRecordRowTypeWithoutFiltering() {
     // Get actual results.
-    RelDataType actual = CalciteArrowHelper.wrap(schema).toCalciteRecordType(
-      SqlTypeFactoryImpl.INSTANCE, null, PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
+    RelDataType actual =
+        CalciteArrowHelper.wrap(schema)
+            .toCalciteRecordType(
+                SqlTypeFactoryImpl.INSTANCE,
+                null,
+                PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
 
     // Create expected results.
     RelDataTypeFactory.FieldInfoBuilder expected =
-      new RelDataTypeFactory.FieldInfoBuilder(SqlTypeFactoryImpl.INSTANCE);
-    expected.add(UTF8_FIELD.getName(),
-      CalciteArrowHelper.toCalciteType(UTF8_FIELD, SqlTypeFactoryImpl.INSTANCE, PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal()));
-    expected.add(NULL_FIELD.getName(),
-      CalciteArrowHelper.toCalciteType(NULL_FIELD, SqlTypeFactoryImpl.INSTANCE, PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal()));
+        new RelDataTypeFactory.FieldInfoBuilder(SqlTypeFactoryImpl.INSTANCE);
+    expected.add(
+        UTF8_FIELD.getName(),
+        CalciteArrowHelper.toCalciteType(
+            UTF8_FIELD,
+            SqlTypeFactoryImpl.INSTANCE,
+            PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal()));
+    expected.add(
+        NULL_FIELD.getName(),
+        CalciteArrowHelper.toCalciteType(
+            NULL_FIELD,
+            SqlTypeFactoryImpl.INSTANCE,
+            PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal()));
 
     assertThat(actual).isEqualTo(expected.build());
   }
@@ -71,15 +81,22 @@ public class TestCalciteArrowHelper {
   @Test
   public void testToCalciteRecordRowTypeWithTypeIdFiltering() {
     // Get actual results.
-    RelDataType actual = CalciteArrowHelper.wrap(schema).toCalciteRecordType(
-      SqlTypeFactoryImpl.INSTANCE,
-      (Field f) -> (f.getType().getTypeID() != ArrowType.Null.TYPE_TYPE), PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
+    RelDataType actual =
+        CalciteArrowHelper.wrap(schema)
+            .toCalciteRecordType(
+                SqlTypeFactoryImpl.INSTANCE,
+                (Field f) -> (f.getType().getTypeID() != ArrowType.Null.TYPE_TYPE),
+                PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
 
     // Create expected results.
     RelDataTypeFactory.FieldInfoBuilder expected =
-      new RelDataTypeFactory.FieldInfoBuilder(SqlTypeFactoryImpl.INSTANCE);
-    expected.add(UTF8_FIELD.getName(),
-      CalciteArrowHelper.toCalciteType(UTF8_FIELD, SqlTypeFactoryImpl.INSTANCE, PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal()));
+        new RelDataTypeFactory.FieldInfoBuilder(SqlTypeFactoryImpl.INSTANCE);
+    expected.add(
+        UTF8_FIELD.getName(),
+        CalciteArrowHelper.toCalciteType(
+            UTF8_FIELD,
+            SqlTypeFactoryImpl.INSTANCE,
+            PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal()));
 
     assertThat(actual).isEqualTo(expected.build());
   }
@@ -87,34 +104,57 @@ public class TestCalciteArrowHelper {
   @Test
   public void testToCalciteRecordRowTypeWithNameFiltering() {
     // Get actual results.
-    RelDataType actual = CalciteArrowHelper.wrap(schema).toCalciteRecordType(
-      SqlTypeFactoryImpl.INSTANCE,
-      (Field f) -> !(blackList.contains(f.getName())), PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
+    RelDataType actual =
+        CalciteArrowHelper.wrap(schema)
+            .toCalciteRecordType(
+                SqlTypeFactoryImpl.INSTANCE,
+                (Field f) -> !(blackList.contains(f.getName())),
+                PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
 
     // Create expected results.
     RelDataTypeFactory.FieldInfoBuilder expected =
-      new RelDataTypeFactory.FieldInfoBuilder(SqlTypeFactoryImpl.INSTANCE);
-    expected.add(NULL_FIELD.getName(),
-      CalciteArrowHelper.toCalciteType(NULL_FIELD, SqlTypeFactoryImpl.INSTANCE, PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal()));
+        new RelDataTypeFactory.FieldInfoBuilder(SqlTypeFactoryImpl.INSTANCE);
+    expected.add(
+        NULL_FIELD.getName(),
+        CalciteArrowHelper.toCalciteType(
+            NULL_FIELD,
+            SqlTypeFactoryImpl.INSTANCE,
+            PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal()));
 
     assertThat(actual).isEqualTo(expected.build());
   }
+
   @Test
   public void testToCalciteRecordRowTypeWithInterval() {
     // Get actual results.
-    RelDataType actual = CalciteArrowHelper.wrap(intervalSchema).toCalciteRecordType(
-      SqlTypeFactoryImpl.INSTANCE, null, PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
+    RelDataType actual =
+        CalciteArrowHelper.wrap(intervalSchema)
+            .toCalciteRecordType(
+                SqlTypeFactoryImpl.INSTANCE,
+                null,
+                PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
 
     // Create expected results.
     RelDataTypeFactory.FieldInfoBuilder expected =
-      new RelDataTypeFactory.FieldInfoBuilder(SqlTypeFactoryImpl.INSTANCE);
-    expected.add(UTF8_FIELD.getName(),
-      CalciteArrowHelper.toCalciteType(UTF8_FIELD, SqlTypeFactoryImpl.INSTANCE, PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal()));
-    expected.add(INTERVAL_DAY_TIME_FIELD.getName(),
-      CalciteArrowHelper.toCalciteType(INTERVAL_DAY_TIME_FIELD, SqlTypeFactoryImpl.INSTANCE, PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal()));
-    expected.add(INTERVAL_YEAR_MONTH_FIELD.getName(),
-      CalciteArrowHelper.toCalciteType(INTERVAL_YEAR_MONTH_FIELD, SqlTypeFactoryImpl.INSTANCE, PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal()));
+        new RelDataTypeFactory.FieldInfoBuilder(SqlTypeFactoryImpl.INSTANCE);
+    expected.add(
+        UTF8_FIELD.getName(),
+        CalciteArrowHelper.toCalciteType(
+            UTF8_FIELD,
+            SqlTypeFactoryImpl.INSTANCE,
+            PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal()));
+    expected.add(
+        INTERVAL_DAY_TIME_FIELD.getName(),
+        CalciteArrowHelper.toCalciteType(
+            INTERVAL_DAY_TIME_FIELD,
+            SqlTypeFactoryImpl.INSTANCE,
+            PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal()));
+    expected.add(
+        INTERVAL_YEAR_MONTH_FIELD.getName(),
+        CalciteArrowHelper.toCalciteType(
+            INTERVAL_YEAR_MONTH_FIELD,
+            SqlTypeFactoryImpl.INSTANCE,
+            PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal()));
     assertThat(actual).isEqualTo(expected.build());
   }
-
 }

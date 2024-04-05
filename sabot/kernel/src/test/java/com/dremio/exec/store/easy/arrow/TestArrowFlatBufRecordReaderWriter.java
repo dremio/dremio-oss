@@ -18,17 +18,6 @@ package com.dremio.exec.store.easy.arrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.io.File;
-import java.util.List;
-
-import org.apache.arrow.vector.AllocationHelper;
-import org.apache.arrow.vector.IntVector;
-import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.VarBinaryVector;
-import org.apache.hadoop.conf.Configuration;
-import org.junit.Assert;
-import org.junit.Test;
-
 import com.dremio.exec.ExecTest;
 import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.exec.record.VectorContainer;
@@ -42,6 +31,15 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.scan.VectorContainerMutator;
 import com.google.common.collect.Lists;
 import com.google.common.io.Files;
+import java.io.File;
+import java.util.List;
+import org.apache.arrow.vector.AllocationHelper;
+import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.VarBinaryVector;
+import org.apache.hadoop.conf.Configuration;
+import org.junit.Assert;
+import org.junit.Test;
 
 public class TestArrowFlatBufRecordReaderWriter extends ExecTest {
 
@@ -52,8 +50,7 @@ public class TestArrowFlatBufRecordReaderWriter extends ExecTest {
     final List<ValueVector> vectorList = Lists.newArrayList();
 
     try (final IntVector intVector = new IntVector("int", allocator);
-         final VarBinaryVector binVector =
-           new VarBinaryVector("binary", allocator)) {
+        final VarBinaryVector binVector = new VarBinaryVector("binary", allocator)) {
       AllocationHelper.allocate(intVector, 4, 4);
       AllocationHelper.allocate(binVector, 4, 5);
       vectorList.add(intVector);
@@ -77,7 +74,6 @@ public class TestArrowFlatBufRecordReaderWriter extends ExecTest {
       container.buildSchema();
       container.setRecordCount(RECORD_COUNT);
 
-
       Configuration conf = new Configuration();
       conf.set(org.apache.hadoop.fs.FileSystem.FS_DEFAULT_NAME_KEY, "file:///");
 
@@ -89,11 +85,23 @@ public class TestArrowFlatBufRecordReaderWriter extends ExecTest {
         when(context.getAllocator()).thenReturn(allocator);
 
         // Create recordwriter
-        FSOutputStream outputStream = fs.create(Path.of(tempDir.getAbsolutePath()).resolve("arrowfile"));
+        FSOutputStream outputStream =
+            fs.create(Path.of(tempDir.getAbsolutePath()).resolve("arrowfile"));
         ArrowFlatBufRecordWriter recordWriter = new ArrowFlatBufRecordWriter(context, outputStream);
 
-        RecordWriter.WriteStatsListener byteCountListener = (b) -> { };
-        RecordWriter.OutputEntryListener fileWriteListener = (recordCount, fileSize, path, metadata, partitionNumber, icebergMetadata, schema, partition, operationType, partitionValue, rejectedRecordCount) -> { };
+        RecordWriter.WriteStatsListener byteCountListener = (b) -> {};
+        RecordWriter.OutputEntryListener fileWriteListener =
+            (recordCount,
+                fileSize,
+                path,
+                metadata,
+                partitionNumber,
+                icebergMetadata,
+                schema,
+                partition,
+                operationType,
+                partitionValue,
+                rejectedRecordCount) -> {};
         recordWriter.setup(container, fileWriteListener, byteCountListener);
 
         recordWriter.writeBatch(0, container.getRecordCount());
@@ -104,12 +112,11 @@ public class TestArrowFlatBufRecordReaderWriter extends ExecTest {
 
         VectorContainer outgoing = new VectorContainer(allocator);
 
-
         // create record reader;
         Path p = Path.of(tempDir.getAbsolutePath()).resolve("arrowfile");
         FSInputStream is = fs.open(Path.of(tempDir.getAbsolutePath()).resolve("arrowfile"));
         long size = fs.getFileAttributes(p).size();
-        ArrowFlatBufRecordReader recordReader = new ArrowFlatBufRecordReader(context, is , size);
+        ArrowFlatBufRecordReader recordReader = new ArrowFlatBufRecordReader(context, is, size);
 
         VectorContainerMutator mutator = new VectorContainerMutator(outgoing);
         recordReader.setup(mutator);
@@ -151,14 +158,14 @@ public class TestArrowFlatBufRecordReaderWriter extends ExecTest {
 
     // write arrow file having multiple batches with varying batch counts
     try (final FileSystem fs = HadoopFileSystem.get(org.apache.hadoop.fs.FileSystem.get(conf));
-         FSOutputStream outputStream = fs.create(Path.of(tempDir.getAbsolutePath()).resolve("arrowfile"));
-         ArrowFlatBufRecordWriter recordWriter = new ArrowFlatBufRecordWriter(context, outputStream);) {
+        FSOutputStream outputStream =
+            fs.create(Path.of(tempDir.getAbsolutePath()).resolve("arrowfile"));
+        ArrowFlatBufRecordWriter recordWriter =
+            new ArrowFlatBufRecordWriter(context, outputStream); ) {
 
-      for(int batchNo = 1; batchNo <= batchCount; ++batchNo) {
-        try(final IntVector intVector = new IntVector("int", allocator);
-            final VarBinaryVector binVector =
-              new VarBinaryVector("binary", allocator);
-
+      for (int batchNo = 1; batchNo <= batchCount; ++batchNo) {
+        try (final IntVector intVector = new IntVector("int", allocator);
+            final VarBinaryVector binVector = new VarBinaryVector("binary", allocator);
             VectorContainer container = new VectorContainer()) {
           final List<ValueVector> vectorList = Lists.newArrayList();
           vectorList.add(intVector);
@@ -168,16 +175,26 @@ public class TestArrowFlatBufRecordReaderWriter extends ExecTest {
           int batchSize = batchNo * 13;
           for (int row = 0; row < batchSize; ++row) {
             intVector.setSafe(row, row * batchNo);
-            String strValue = "A-"+ row +"-"+batchNo;
+            String strValue = "A-" + row + "-" + batchNo;
             binVector.setSafe(row, strValue.getBytes(), 0, strValue.length());
           }
 
           container.setAllCount(batchSize);
           container.setRecordCount(batchSize);
 
-          RecordWriter.WriteStatsListener byteCountListener = (b) -> { };
-          RecordWriter.OutputEntryListener fileWriteListener = (
-            recordCount, fileSize, path, metadata, partitionNumber, icebergMetadata, schema, partition, operationType, partitionValue, rejectedRecordCount) -> { };
+          RecordWriter.WriteStatsListener byteCountListener = (b) -> {};
+          RecordWriter.OutputEntryListener fileWriteListener =
+              (recordCount,
+                  fileSize,
+                  path,
+                  metadata,
+                  partitionNumber,
+                  icebergMetadata,
+                  schema,
+                  partition,
+                  operationType,
+                  partitionValue,
+                  rejectedRecordCount) -> {};
           recordWriter.setup(container, fileWriteListener, byteCountListener);
 
           recordWriter.writeBatch(0, container.getRecordCount());
@@ -188,11 +205,12 @@ public class TestArrowFlatBufRecordReaderWriter extends ExecTest {
     // create arrow file reader and check expected batch counts
     Path p = Path.of(tempDir.getAbsolutePath()).resolve("arrowfile");
     try (final FileSystem fs = HadoopFileSystem.get(org.apache.hadoop.fs.FileSystem.get(conf));
-         FSInputStream is = fs.open(Path.of(tempDir.getAbsolutePath()).resolve("arrowfile"));
-         VectorContainer outgoing = new VectorContainer(allocator);) {
+        FSInputStream is = fs.open(Path.of(tempDir.getAbsolutePath()).resolve("arrowfile"));
+        VectorContainer outgoing = new VectorContainer(allocator); ) {
 
       long size = fs.getFileAttributes(p).size();
-      try (ArrowFlatBufRecordReader recordReader = new ArrowFlatBufRecordReader(context, is, size)) {
+      try (ArrowFlatBufRecordReader recordReader =
+          new ArrowFlatBufRecordReader(context, is, size)) {
         VectorContainerMutator mutator = new VectorContainerMutator(outgoing);
         recordReader.setup(mutator);
         Assert.assertEquals(batchCount, recordReader.getBatchCount());
@@ -200,7 +218,7 @@ public class TestArrowFlatBufRecordReaderWriter extends ExecTest {
           Assert.assertEquals((batchNo + 1) * 13, recordReader.getRecordBatchSize(batchNo));
         }
 
-        for(int batchNo = 1; batchNo <= batchCount; ++batchNo) {
+        for (int batchNo = 1; batchNo <= batchCount; ++batchNo) {
           recordReader.next();
           for (VectorWrapper<?> w : outgoing) {
             try (ValueVector vv = w.getValueVector()) {
@@ -209,7 +227,7 @@ public class TestArrowFlatBufRecordReaderWriter extends ExecTest {
               for (int row = 0; row < values; row++) {
                 final Object o = vv.getObject(row);
                 if (o instanceof byte[]) {
-                  String strValue = "A-"+ row +"-"+batchNo;
+                  String strValue = "A-" + row + "-" + batchNo;
                   Assert.assertArrayEquals(strValue.getBytes(), (byte[]) o);
                 } else {
                   Assert.assertEquals(row * batchNo, ((Integer) o).intValue());
@@ -218,10 +236,6 @@ public class TestArrowFlatBufRecordReaderWriter extends ExecTest {
             }
           }
         }
-
-
-
-
       }
     }
   }

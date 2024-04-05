@@ -19,12 +19,10 @@ import com.dremio.options.OptionResolver;
 import com.dremio.test.shams.ShamOptionResolver;
 import com.google.common.collect.ImmutableMap;
 
-/**
- * Builds an option resolver based on specs.
- */
+/** Builds an option resolver based on specs. */
 public final class OptionResolverSpecBuilder {
 
-  private OptionResolverSpecBuilder() { }
+  private OptionResolverSpecBuilder() {}
 
   public static OptionResolver build(OptionResolverSpec optionResolverSpec) {
     return new ShamOptionResolver(
@@ -33,5 +31,4 @@ public final class OptionResolverSpecBuilder {
         optionResolverSpec.longOptions,
         ImmutableMap.of());
   }
-
 }

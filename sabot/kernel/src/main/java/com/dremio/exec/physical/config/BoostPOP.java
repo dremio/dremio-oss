@@ -15,14 +15,10 @@
  */
 package com.dremio.exec.physical.config;
 
-import java.util.Collections;
-import java.util.List;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.SubScanWithProjection;
-import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.SplitAndPartitionInfo;
@@ -32,8 +28,9 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-
 import io.protostuff.ByteString;
+import java.util.Collections;
+import java.util.List;
 
 @JsonTypeName("boost-parquet")
 public class BoostPOP extends SubScanWithProjection {
@@ -42,31 +39,28 @@ public class BoostPOP extends SubScanWithProjection {
   private final FileConfig formatSettings;
   private final List<String> partitionColumns;
   private final List<List<String>> tablePath;
-  private final List<GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns;
   private final ByteString extendedProperty;
   private final List<SplitAndPartitionInfo> splits;
   private final boolean unlimitedSplitsBoost;
 
   @JsonCreator
   public BoostPOP(
-    @JsonProperty("props") OpProps props,
-    @JsonProperty("formatSettings") FileConfig formatSettings,
-    @JsonProperty("splits") List<SplitAndPartitionInfo> splits,
-    @JsonProperty("schema") BatchSchema fullSchema,
-    @JsonProperty("referencedTables") List<List<String>> tablePath,
-    @JsonProperty("pluginId") StoragePluginId pluginId,
-    @JsonProperty("columns") List<SchemaPath> columns,
-    @JsonProperty("partitionColumns") List<String> partitionColumns,
-    @JsonProperty("globalDictionaryEncodedColumns") List<GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns,
-    @JsonProperty("extendedProperty") ByteString extendedProperty,
-    @JsonProperty("unlimitedSplitsBoost") boolean unlimitedSplitsBoost) {
+      @JsonProperty("props") OpProps props,
+      @JsonProperty("formatSettings") FileConfig formatSettings,
+      @JsonProperty("splits") List<SplitAndPartitionInfo> splits,
+      @JsonProperty("schema") BatchSchema fullSchema,
+      @JsonProperty("referencedTables") List<List<String>> tablePath,
+      @JsonProperty("pluginId") StoragePluginId pluginId,
+      @JsonProperty("columns") List<SchemaPath> columns,
+      @JsonProperty("partitionColumns") List<String> partitionColumns,
+      @JsonProperty("extendedProperty") ByteString extendedProperty,
+      @JsonProperty("unlimitedSplitsBoost") boolean unlimitedSplitsBoost) {
     super(props, fullSchema, tablePath, columns);
     this.formatSettings = formatSettings;
     this.splits = splits;
     this.tablePath = tablePath;
     this.pluginId = pluginId;
     this.partitionColumns = partitionColumns;
-    this.globalDictionaryEncodedColumns = globalDictionaryEncodedColumns;
     this.extendedProperty = extendedProperty;
     this.unlimitedSplitsBoost = unlimitedSplitsBoost;
   }
@@ -76,7 +70,7 @@ public class BoostPOP extends SubScanWithProjection {
     return false;
   }
 
-  public FileConfig getFormatSettings(){
+  public FileConfig getFormatSettings() {
     return formatSettings;
   }
 
@@ -104,10 +98,6 @@ public class BoostPOP extends SubScanWithProjection {
     return unlimitedSplitsBoost;
   }
 
-  public List<GlobalDictionaryFieldInfo> getGlobalDictionaryEncodedColumns() {
-    return globalDictionaryEncodedColumns;
-  }
-
   @JsonIgnore
   @Override
   public int getOperatorType() {
@@ -116,33 +106,30 @@ public class BoostPOP extends SubScanWithProjection {
 
   public ParquetSubScan asParquetSubScan() {
     return new ParquetSubScan(
-      props,
-      formatSettings,
-      splits,
-      getFullSchema(),
-      tablePath,
-      null,
-      pluginId,
-      getColumns(),
-      partitionColumns,
-      globalDictionaryEncodedColumns,
-      extendedProperty,
-      true);
+        props,
+        formatSettings,
+        splits,
+        getFullSchema(),
+        tablePath,
+        null,
+        pluginId,
+        getColumns(),
+        partitionColumns,
+        extendedProperty,
+        true);
   }
 
   public BoostPOP withEmptyColumnsToBoost() {
     return new BoostPOP(
-      this.props,
-      this.formatSettings,
-      this.splits,
-      getFullSchema(),
-      tablePath,
-      pluginId,
-      Collections.emptyList(),
-      partitionColumns,
-      globalDictionaryEncodedColumns,
-      extendedProperty,
-      unlimitedSplitsBoost);
+        this.props,
+        this.formatSettings,
+        this.splits,
+        getFullSchema(),
+        tablePath,
+        pluginId,
+        Collections.emptyList(),
+        partitionColumns,
+        extendedProperty,
+        unlimitedSplitsBoost);
   }
-
 }

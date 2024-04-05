@@ -59,25 +59,6 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-import java.io.File;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
-import java.util.TreeSet;
-import java.util.concurrent.Callable;
-import java.util.regex.Pattern;
-
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.core.GenericType;
-import javax.ws.rs.core.Response.Status;
-
-import org.junit.Before;
-import org.junit.Ignore;
-import org.junit.Rule;
-import org.junit.Test;
-
 import com.dremio.common.util.DremioVersionInfo;
 import com.dremio.dac.explore.model.CellPOJO;
 import com.dremio.dac.explore.model.Column;
@@ -202,14 +183,27 @@ import com.dremio.test.TemporarySystemProperties;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import java.io.File;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.concurrent.Callable;
+import java.util.regex.Pattern;
+import javax.ws.rs.client.Entity;
+import javax.ws.rs.core.GenericType;
+import javax.ws.rs.core.Response.Status;
+import org.junit.Before;
+import org.junit.Ignore;
+import org.junit.Rule;
+import org.junit.Test;
 
-/**
- * Explore integration tests
- */
+/** Explore integration tests */
 public class TestServerExplore extends BaseTestServer {
 
-  @Rule
-  public final TemporarySystemProperties properties = new TemporarySystemProperties();
+  @Rule public final TemporarySystemProperties properties = new TemporarySystemProperties();
 
   @Before
   public void setup() throws Exception {
@@ -220,21 +214,29 @@ public class TestServerExplore extends BaseTestServer {
   public void testSaveUsingAncestorName() throws Exception {
     setSpace();
 
-    saveAs(createDatasetFromParent("cp.\"tpch/supplier.parquet\"").getDataset(), new DatasetPath("spacefoo.boo"));
+    saveAs(
+        createDatasetFromParent("cp.\"tpch/supplier.parquet\"").getDataset(),
+        new DatasetPath("spacefoo.boo"));
     saveAs(createDatasetFromParent("spacefoo.boo").getDataset(), new DatasetPath("spacefoo.boo2"));
 
     // spacefoo.boo is an ancestor, we expect the following request to fail
-    saveAsExpectError(createDatasetFromParent("spacefoo.boo2").getDataset(), new DatasetPath("spacefoo.boo"));
+    saveAsExpectError(
+        createDatasetFromParent("spacefoo.boo2").getDataset(), new DatasetPath("spacefoo.boo"));
   }
 
   @Test
   public void testTableauPhysical() throws Exception {
-    testBIEndpoint("tableau", () -> {
-      final OptionManager optionManager = l(ContextService.class).get().getOptionManager();
-      optionManager.setOption(OptionValue.createBoolean(OptionValue.OptionType.SYSTEM,
-        TableauResource.CLIENT_TOOLS_TABLEAU.getOptionName(), true));
-      return null;
-    });
+    testBIEndpoint(
+        "tableau",
+        () -> {
+          final OptionManager optionManager = l(ContextService.class).get().getOptionManager();
+          optionManager.setOption(
+              OptionValue.createBoolean(
+                  OptionValue.OptionType.SYSTEM,
+                  TableauResource.CLIENT_TOOLS_TABLEAU.getOptionName(),
+                  true));
+          return null;
+        });
   }
 
   @Test
@@ -246,10 +248,13 @@ public class TestServerExplore extends BaseTestServer {
   public void testSaveUsingParentName() throws Exception {
     setSpace();
 
-    saveAs(createDatasetFromParent("cp.\"tpch/supplier.parquet\"").getDataset(), new DatasetPath("spacefoo.boo"));
+    saveAs(
+        createDatasetFromParent("cp.\"tpch/supplier.parquet\"").getDataset(),
+        new DatasetPath("spacefoo.boo"));
 
     // spacefoo.boo is a parent, we expect the following request to fail
-    saveAsExpectError(createDatasetFromParent("spacefoo.boo").getDataset(), new DatasetPath("spacefoo.boo"));
+    saveAsExpectError(
+        createDatasetFromParent("spacefoo.boo").getDataset(), new DatasetPath("spacefoo.boo"));
   }
 
   @Test
@@ -260,7 +265,9 @@ public class TestServerExplore extends BaseTestServer {
 
     DatasetUI dataset = getDataset(datasetPath);
     assertEquals("/dataset/" + datasetPath, resourcePath(dataset));
-    assertEquals("/dataset/" + datasetPath + "/version/" + dataset.getDatasetVersion(), versionedResourcePath(dataset));
+    assertEquals(
+        "/dataset/" + datasetPath + "/version/" + dataset.getDatasetVersion(),
+        versionedResourcePath(dataset));
 
     // Fetch the dataset by dataset resource path (gets the last saved version)
     DatasetUI dataset2 = getDataset(getDatasetPath(dataset));
@@ -326,25 +333,44 @@ public class TestServerExplore extends BaseTestServer {
     final DatasetVersionMutator datasetService = newDatasetVersionMutator();
 
     final DatasetPath datasetPath = new DatasetPath("spacefoo.folderbar.folderbaz.datasetbuzz");
-    DatasetUI datasetUI = createDatasetFromSQLAndSave(datasetPath,
-        "select s_suppkey, s_name from cp.\"tpch/supplier.parquet\"", Collections.<String>emptyList());
+    DatasetUI datasetUI =
+        createDatasetFromSQLAndSave(
+            datasetPath,
+            "select s_suppkey, s_name from cp.\"tpch/supplier.parquet\"",
+            Collections.<String>emptyList());
 
-    datasetUI = transform(datasetUI, new TransformConvertCase("s_name", UPPER_CASE, "foo", true)).getDataset();
+    datasetUI =
+        transform(datasetUI, new TransformConvertCase("s_name", UPPER_CASE, "foo", true))
+            .getDataset();
 
     // Get the versioned dataset and verify that the field origins are set correctly.
-    VirtualDatasetUI virtualDatasetUI = datasetService.getVersion(datasetPath, datasetUI.getDatasetVersion());
+    VirtualDatasetUI virtualDatasetUI =
+        datasetService.getVersion(datasetPath, datasetUI.getDatasetVersion());
     List<FieldOrigin> fieldOrigins = virtualDatasetUI.getFieldOriginsList();
-    validateFieldOrigin(fieldOrigins.get(0), "s_suppkey", asList("cp", "tpch/supplier.parquet"), false, "s_suppkey");
-    validateFieldOrigin(fieldOrigins.get(1), "foo", asList("cp", "tpch/supplier.parquet"), true, "s_name");
+    validateFieldOrigin(
+        fieldOrigins.get(0),
+        "s_suppkey",
+        asList("cp", "tpch/supplier.parquet"),
+        false,
+        "s_suppkey");
+    validateFieldOrigin(
+        fieldOrigins.get(1), "foo", asList("cp", "tpch/supplier.parquet"), true, "s_name");
 
     // Get the last saved dataset and verify that the field origins are set correctly
     virtualDatasetUI = datasetService.get(datasetPath);
     fieldOrigins = virtualDatasetUI.getFieldOriginsList();
-    validateFieldOrigin(fieldOrigins.get(0), "s_suppkey", asList("cp", "tpch/supplier.parquet"), false, "s_suppkey");
-    validateFieldOrigin(fieldOrigins.get(1), "s_name", asList("cp", "tpch/supplier.parquet"), false, "s_name");
+    validateFieldOrigin(
+        fieldOrigins.get(0),
+        "s_suppkey",
+        asList("cp", "tpch/supplier.parquet"),
+        false,
+        "s_suppkey");
+    validateFieldOrigin(
+        fieldOrigins.get(1), "s_name", asList("cp", "tpch/supplier.parquet"), false, "s_name");
   }
 
-  private void validateFieldOrigin(FieldOrigin fieldOrigin, String name, List<String> table, boolean derived, String col) {
+  private void validateFieldOrigin(
+      FieldOrigin fieldOrigin, String name, List<String> table, boolean derived, String col) {
     assertEquals(name, fieldOrigin.getName());
     Origin oi = fieldOrigin.getOriginsList().iterator().next();
     assertEquals(col, oi.getColumnName());
@@ -359,7 +385,8 @@ public class TestServerExplore extends BaseTestServer {
     SourceUI source = new SourceUI();
     source.setName("testNAS");
     source.setConfig(nas);
-    source.setMetadataPolicy(UIMetadataPolicy.of(CatalogService.DEFAULT_METADATA_POLICY_WITH_AUTO_PROMOTE));
+    source.setMetadataPolicy(
+        UIMetadataPolicy.of(CatalogService.DEFAULT_METADATA_POLICY_WITH_AUTO_PROMOTE));
 
     final SourceService sourceService = newSourceService();
     sourceService.registerSourceWithRuntime(source);
@@ -403,58 +430,69 @@ public class TestServerExplore extends BaseTestServer {
 
     doc("get extract cards recommendation");
     Selection selection = new Selection("s_name", "tic tac toe", 4, 3);
-    ExtractCards card = expectSuccess(
-            getBuilder(
-                getAPIv2().path(versionedResourcePath(dataset) + "/extract")
-            ).buildPost(entity(selection, JSON)),
+    ExtractCards card =
+        expectSuccess(
+            getBuilder(getAPIv2().path(versionedResourcePath(dataset) + "/extract"))
+                .buildPost(entity(selection, JSON)),
             ExtractCards.class);
 
     List<ExtractCard> cards = card.getCards();
     assertFalse(cards.toString(), cards.isEmpty());
     for (ExtractCard c : cards) {
-      DatasetsUtil.accept(c.getRule(),
-        new ExtractRuleVisitor<Void>() {
-          @Override
-          public Void visit(ExtractRulePattern extractRulePattern) throws Exception {
-            assertNotNull(extractRulePattern.getPattern());
-            assertTrue(extractRulePattern.getIndex() > 0);
-            assertNotNull(extractRulePattern.getIndexType());
-            return null;
-          }
+      DatasetsUtil.accept(
+          c.getRule(),
+          new ExtractRuleVisitor<Void>() {
+            @Override
+            public Void visit(ExtractRulePattern extractRulePattern) throws Exception {
+              assertNotNull(extractRulePattern.getPattern());
+              assertTrue(extractRulePattern.getIndex() > 0);
+              assertNotNull(extractRulePattern.getIndexType());
+              return null;
+            }
 
-          @Override
-          public Void visit(ExtractRulePosition position) throws Exception {
-            assertNotNull(position);
-            return null;
-          }
-        });
+            @Override
+            public Void visit(ExtractRulePosition position) throws Exception {
+              assertNotNull(position);
+              return null;
+            }
+          });
 
       doc("preview extract cards");
       @SuppressWarnings("deprecation") // checking backward compatibility
-      ExtractCard card2 = expectSuccess(
-          getBuilder(
-              getAPIv2().path(versionedResourcePath(dataset) + "/extract_preview")
-          ).buildPost(entity(new ExtractPreviewReq(selection, c.getRule()), JSON)),
-          ExtractCard.class);
+      ExtractCard card2 =
+          expectSuccess(
+              getBuilder(getAPIv2().path(versionedResourcePath(dataset) + "/extract_preview"))
+                  .buildPost(entity(new ExtractPreviewReq(selection, c.getRule()), JSON)),
+              ExtractCard.class);
       assertEquals(c, card2);
     }
-    ExtractRule rule = DatasetsUtil.position(
-      new Offset(1, Direction.FROM_THE_START), new Offset(3, Direction.FROM_THE_END));
+    ExtractRule rule =
+        DatasetsUtil.position(
+            new Offset(1, Direction.FROM_THE_START), new Offset(3, Direction.FROM_THE_END));
     {
       doc("transform extract keep original col");
-      DatasetUI dataset2 = transform(dataset, new TransformExtract("s_name", "extracted", rule, false)).getDataset();
-      assertContains("s_name, case when length(substr(s_name, 2, length(s_name) - 4)) > 0 then substr(s_name, 2, length(s_name) - 4) else null end as extracted", dataset2.getSql().toLowerCase());
+      DatasetUI dataset2 =
+          transform(dataset, new TransformExtract("s_name", "extracted", rule, false)).getDataset();
+      assertContains(
+          "s_name, case when length(substr(s_name, 2, length(s_name) - 4)) > 0 then substr(s_name, 2, length(s_name) - 4) else null end as extracted",
+          dataset2.getSql().toLowerCase());
     }
     {
       doc("transform extract drop original col");
-      DatasetUI dataset3 = transform(dataset, new TransformExtract("s_name", "extracted", rule, true)).getDataset();
-      assertContains("s_suppkey, case when length(substr(s_name, 2, length(s_name) - 4)) > 0 then substr(s_name, 2, length(s_name) - 4) else null end as extracted", dataset3.getSql().toLowerCase());
+      DatasetUI dataset3 =
+          transform(dataset, new TransformExtract("s_name", "extracted", rule, true)).getDataset();
+      assertContains(
+          "s_suppkey, case when length(substr(s_name, 2, length(s_name) - 4)) > 0 then substr(s_name, 2, length(s_name) - 4) else null end as extracted",
+          dataset3.getSql().toLowerCase());
     }
     ExtractRule rule2 = DatasetsUtil.pattern("\\d+", 2, IndexType.INDEX);
     {
       doc("transform extract with pattern");
-      DatasetUI dataset4 = transform(dataset, new TransformExtract("s_name", "extracted", rule2, true)).getDataset();
-      assertContains("extract_pattern(s_name, \'\\d+\', 2, \'index\') as extracted", dataset4.getSql().toLowerCase());
+      DatasetUI dataset4 =
+          transform(dataset, new TransformExtract("s_name", "extracted", rule2, true)).getDataset();
+      assertContains(
+          "extract_pattern(s_name, \'\\d+\', 2, \'index\') as extracted",
+          dataset4.getSql().toLowerCase());
     }
   }
 
@@ -467,10 +505,10 @@ public class TestServerExplore extends BaseTestServer {
 
     doc("get replace cards recommendation");
     Selection selection = new Selection("address", "tic tac toe", 4, 3);
-    ReplaceCards card = expectSuccess(
-            getBuilder(
-                getAPIv2().path(versionedResourcePath(dataset) + "/replace")
-            ).buildPost(entity(selection, JSON)),
+    ReplaceCards card =
+        expectSuccess(
+            getBuilder(getAPIv2().path(versionedResourcePath(dataset) + "/replace"))
+                .buildPost(entity(selection, JSON)),
             ReplaceCards.class);
     List<Card<ReplacePatternRule>> cards = card.getCards();
     assertFalse(cards.toString(), cards.isEmpty());
@@ -490,22 +528,19 @@ public class TestServerExplore extends BaseTestServer {
     assertEquals(asList("Contains tac", "Contains tac ignore case"), actual);
 
     ReplacePatternRule rule =
-            new ReplacePatternRule(STARTS_WITH)
-                    .setIgnoreCase(false)
-                    .setSelectionPattern("foo");
+        new ReplacePatternRule(STARTS_WITH).setIgnoreCase(false).setSelectionPattern("foo");
     {
       doc("show replace card after edit");
-      @SuppressWarnings("deprecation")     // checking backward compatibility
-      ReplacePatternCard card2 = expectSuccess(
-          getBuilder(
-              getAPIv2().path(versionedResourcePath(dataset) + "/replace_preview")
-          ).buildPost(entity(new ReplacePreviewReq(selection, rule), JSON)),
-          ReplacePatternCard.class);
+      @SuppressWarnings("deprecation") // checking backward compatibility
+      ReplacePatternCard card2 =
+          expectSuccess(
+              getBuilder(getAPIv2().path(versionedResourcePath(dataset) + "/replace_preview"))
+                  .buildPost(entity(new ReplacePreviewReq(selection, rule), JSON)),
+              ReplacePatternCard.class);
       assertEquals("Starts with foo", card2.getDescription());
     }
     FieldReplacePattern replace =
-            new FieldReplacePattern(rule, SELECTION)
-                    .setReplacementValue("bar");
+        new FieldReplacePattern(rule, SELECTION).setReplacementValue("bar");
     {
       doc("transform replace preview");
       InitialPendingTransformResponse preview =
@@ -516,19 +551,30 @@ public class TestServerExplore extends BaseTestServer {
     }
     {
       doc("transform replace");
-      DatasetUI dataset2 = transform(dataset, new TransformField("address", "foo", false, replace.wrap())).getDataset();
-      assertContains("case when regexp_like(address, '^\\qfoo\\e.*?') then regexp_replace(address, '^\\qfoo\\e', 'bar') else address end as foo".toLowerCase(),
+      DatasetUI dataset2 =
+          transform(dataset, new TransformField("address", "foo", false, replace.wrap()))
+              .getDataset();
+      assertContains(
+          "case when regexp_like(address, '^\\qfoo\\e.*?') then regexp_replace(address, '^\\qfoo\\e', 'bar') else address end as foo"
+              .toLowerCase(),
           dataset2.getSql().toLowerCase());
     }
     {
       doc("show replace values card after edit");
-      ReplaceValuesPreviewReq replaceReqBody = new ReplaceValuesPreviewReq(selection,
-          Arrays.asList("1530 Hamilton Rd Bethel Park, PA 15234", "301 S Hills Vlg Pittsburg, PA 15241", null), false);
-      ReplaceValuesCard card2 = expectSuccess(
-        getBuilder(
-          getAPIv2().path(versionedResourcePath(dataset) + "/replace_values_preview")
-        ).buildPost(entity(replaceReqBody, JSON)),
-        ReplaceValuesCard.class);
+      ReplaceValuesPreviewReq replaceReqBody =
+          new ReplaceValuesPreviewReq(
+              selection,
+              Arrays.asList(
+                  "1530 Hamilton Rd Bethel Park, PA 15234",
+                  "301 S Hills Vlg Pittsburg, PA 15241",
+                  null),
+              false);
+      ReplaceValuesCard card2 =
+          expectSuccess(
+              getBuilder(
+                      getAPIv2().path(versionedResourcePath(dataset) + "/replace_values_preview"))
+                  .buildPost(entity(replaceReqBody, JSON)),
+              ReplaceValuesCard.class);
       assertEquals(3, card2.getMatchedValues());
     }
   }
@@ -536,9 +582,10 @@ public class TestServerExplore extends BaseTestServer {
   // helper method to check the given value with count exists in list of histogram values
   private void validateHgValue(String value, int count, List<HistogramValue> hgValues) {
     boolean found = false;
-    for(HistogramValue hgValue : hgValues) {
+    for (HistogramValue hgValue : hgValues) {
 
-      if ((value == null ? hgValue.getValue() == null : value.equals(hgValue.getValue())) && count == hgValue.getCount()) {
+      if ((value == null ? hgValue.getValue() == null : value.equals(hgValue.getValue()))
+          && count == hgValue.getCount()) {
         found = true;
         break;
       }
@@ -556,10 +603,10 @@ public class TestServerExplore extends BaseTestServer {
 
     doc("get replace cards recommendation");
     Selection selection = new Selection("user", "abc", 1, 1);
-    ReplaceCards card = expectSuccess(
-            getBuilder(
-                getAPIv2().path(versionedResourcePath(dataset) + "/replace")
-            ).buildPost(entity(selection, JSON)),
+    ReplaceCards card =
+        expectSuccess(
+            getBuilder(getAPIv2().path(versionedResourcePath(dataset) + "/replace"))
+                .buildPost(entity(selection, JSON)),
             ReplaceCards.class);
     List<Card<ReplacePatternRule>> cards = card.getCards();
     List<String> actual = new ArrayList<>();
@@ -569,19 +616,18 @@ public class TestServerExplore extends BaseTestServer {
     assertEquals(asList("Contains b", "Contains b ignore case"), actual);
 
     ReplacePatternRule rule =
-            new ReplacePatternRule(STARTS_WITH)
-                    .setIgnoreCase(false)
-                    .setSelectionPattern("a");
+        new ReplacePatternRule(STARTS_WITH).setIgnoreCase(false).setSelectionPattern("a");
 
     FieldReplacePattern replace =
-            new FieldReplacePattern(rule, SELECTION)
-                    .setReplacementValue("bar");
+        new FieldReplacePattern(rule, SELECTION).setReplacementValue("bar");
     {
       doc("transform replace");
-      DatasetUI dataset2 = transform(dataset, new TransformField("user", "foo", false, replace.wrap())).getDataset();
+      DatasetUI dataset2 =
+          transform(dataset, new TransformField("user", "foo", false, replace.wrap())).getDataset();
       assertContains(
-        "case when regexp_like(\"json/users.json\".\"user\", '^\\qa\\e.*?') then regexp_replace(\"json/users.json\".\"user\", '^\\qa\\e', 'bar') else \"json/users.json\".\"user\" end as foo".toLowerCase(),
-        dataset2.getSql().toLowerCase());
+          "case when regexp_like(\"json/users.json\".\"user\", '^\\qa\\e.*?') then regexp_replace(\"json/users.json\".\"user\", '^\\qa\\e', 'bar') else \"json/users.json\".\"user\" end as foo"
+              .toLowerCase(),
+          dataset2.getSql().toLowerCase());
     }
   }
 
@@ -595,56 +641,76 @@ public class TestServerExplore extends BaseTestServer {
   @Test
   public void testRenameCol() throws Exception {
     DatasetUI dataset = createDatasetFromParentAndSave("rename", "cp.\"tpch/supplier.parquet\"");
-    DatasetUI transformedDataset = transform(dataset, new TransformRename("s_name", "foo2")).getDataset();
+    DatasetUI transformedDataset =
+        transform(dataset, new TransformRename("s_name", "foo2")).getDataset();
     assertContains("s_name as foo2", transformedDataset.getSql().toLowerCase());
   }
 
   @Test
   public void testConvertCase() throws Exception {
-    DatasetUI dataset = createDatasetFromParentAndSave("convertCase", "cp.\"tpch/supplier.parquet\"");
+    DatasetUI dataset =
+        createDatasetFromParentAndSave("convertCase", "cp.\"tpch/supplier.parquet\"");
     DatasetUI transformedDataset =
-        transform(dataset, new TransformConvertCase("s_name", UPPER_CASE, "foo", true)).getDataset();
+        transform(dataset, new TransformConvertCase("s_name", UPPER_CASE, "foo", true))
+            .getDataset();
     assertContains("upper(s_name) as foo", transformedDataset.getSql().toLowerCase());
   }
 
   @Test
   public void testTrim() throws Exception {
     DatasetUI dataset = createDatasetFromParentAndSave("trim", "cp.\"tpch/supplier.parquet\"");
-    DatasetUI transformedDataset = transform(dataset, new TransformTrim("s_name", BOTH, "foo", true)).getDataset();
+    DatasetUI transformedDataset =
+        transform(dataset, new TransformTrim("s_name", BOTH, "foo", true)).getDataset();
     assertContains("trim(both ' ' from s_name) as foo", transformedDataset.getSql().toLowerCase());
   }
 
   @Test
   public void testBadTransform() throws Exception {
     DatasetUI dataset = createDatasetFromParentAndSave("bad", "cp.\"tpch/supplier.parquet\"");
-    ValidationErrorMessage result = expectError(
-      CLIENT_ERROR,
-      getBuilder(
-        getAPIv2().path(versionedResourcePath(dataset) + "/transformAndPreview")
-      ).buildPost(entity(new TransformDrop(null), JSON)),
-      ValidationErrorMessage.class);
-    assertEquals(asList("must not be blank"), result.getValidationErrorMessages().getFieldErrorMessages().get("droppedColumnName"));
+    ValidationErrorMessage result =
+        expectError(
+            CLIENT_ERROR,
+            getBuilder(getAPIv2().path(versionedResourcePath(dataset) + "/transformAndPreview"))
+                .buildPost(entity(new TransformDrop(null), JSON)),
+            ValidationErrorMessage.class);
+    assertEquals(
+        asList("must not be blank"),
+        result.getValidationErrorMessages().getFieldErrorMessages().get("droppedColumnName"));
   }
 
   @Test
   public void testBadSelection() throws Exception {
-    DatasetUI dataset = createDatasetFromParentAndSave("badSelection", "cp.\"json/extract_list.json\"");
+    DatasetUI dataset =
+        createDatasetFromParentAndSave("badSelection", "cp.\"json/extract_list.json\"");
     Selection selection = new Selection(null, null, -1, -1);
-    ValidationErrorMessage err = expectError(CLIENT_ERROR,
+    ValidationErrorMessage err =
+        expectError(
+            CLIENT_ERROR,
             getBuilder(getAPIv2().path(versionedResourcePath(dataset) + "/split"))
-                    .buildPost(entity(selection, JSON)),
+                .buildPost(entity(selection, JSON)),
             ValidationErrorMessage.class);
-    assertEquals(asList("must not be null"), err.getValidationErrorMessages().getFieldErrorMessages().get("colName"));
-    assertEquals(asList("must be greater than or equal to 0"), err.getValidationErrorMessages().getFieldErrorMessages().get("offset"));
-    assertEquals(asList("must be greater than or equal to 0"), err.getValidationErrorMessages().getFieldErrorMessages().get("length"));
-    assertEquals(err.getValidationErrorMessages().getFieldErrorMessages().toString(), 3, err.getValidationErrorMessages().getFieldErrorMessages().size());
+    assertEquals(
+        asList("must not be null"),
+        err.getValidationErrorMessages().getFieldErrorMessages().get("colName"));
+    assertEquals(
+        asList("must be greater than or equal to 0"),
+        err.getValidationErrorMessages().getFieldErrorMessages().get("offset"));
+    assertEquals(
+        asList("must be greater than or equal to 0"),
+        err.getValidationErrorMessages().getFieldErrorMessages().get("length"));
+    assertEquals(
+        err.getValidationErrorMessages().getFieldErrorMessages().toString(),
+        3,
+        err.getValidationErrorMessages().getFieldErrorMessages().size());
   }
 
   @Test
   public void testCalculatedField() throws Exception {
-    DatasetUI dataset = createDatasetFromParentAndSave("calculatedField", "cp.\"tpch/supplier.parquet\"");
+    DatasetUI dataset =
+        createDatasetFromParentAndSave("calculatedField", "cp.\"tpch/supplier.parquet\"");
     DatasetUI transformedDataset =
-        transform(dataset, new TransformAddCalculatedField("baz", "s_address", "1", false)).getDataset();
+        transform(dataset, new TransformAddCalculatedField("baz", "s_address", "1", false))
+            .getDataset();
 
     assertContains(" 1 as baz", transformedDataset.getSql().toLowerCase());
   }
@@ -652,58 +718,78 @@ public class TestServerExplore extends BaseTestServer {
   @Test
   public void testDateToText() throws Exception {
     testConvert(
-      "to_char(l_commitdate, 'MM.DD.YYYY') as foo",
-      new FieldConvertDateToText("MM.DD.YYYY"),
-      "l_commitdate", "cp.\"tpch/lineitem.parquet\"");
+        "to_char(l_commitdate, 'MM.DD.YYYY') as foo",
+        new FieldConvertDateToText("MM.DD.YYYY"),
+        "l_commitdate",
+        "cp.\"tpch/lineitem.parquet\"");
   }
 
   @Test
   public void testTextToDateTimeDefault() throws Exception {
-    JobDataFragment data = testConvert(
-      "to_timestamp(l_commitdate, 'YYYY-MM-DD') as foo",
-      new FieldConvertTextToDate("YYYY-MM-DD"),
-      "l_commitdate", "cp.\"tpch/lineitem.parquet\"");
+    JobDataFragment data =
+        testConvert(
+            "to_timestamp(l_commitdate, 'YYYY-MM-DD') as foo",
+            new FieldConvertTextToDate("YYYY-MM-DD"),
+            "l_commitdate",
+            "cp.\"tpch/lineitem.parquet\"");
     assertEquals(DATETIME, data.getColumn("foo").getType());
   }
 
   @Test
   public void testTextToDateTime() throws Exception {
-    JobDataFragment data = testConvert(
-      "to_timestamp(l_commitdate, 'YYYY-MM-DD') as foo",
-      new FieldConvertTextToDate("YYYY-MM-DD").setDesiredType(DATETIME),
-      "l_commitdate", "cp.\"tpch/lineitem.parquet\"");
+    JobDataFragment data =
+        testConvert(
+            "to_timestamp(l_commitdate, 'YYYY-MM-DD') as foo",
+            new FieldConvertTextToDate("YYYY-MM-DD").setDesiredType(DATETIME),
+            "l_commitdate",
+            "cp.\"tpch/lineitem.parquet\"");
     assertEquals(DATETIME, data.getColumn("foo").getType());
   }
 
   @Test
   public void testTextToDate() throws Exception {
-    JobDataFragment data = testConvert(
+    JobDataFragment data =
+        testConvert(
             "to_date(l_commitdate, 'YYYY-MM-DD') as foo",
             new FieldConvertTextToDate("YYYY-MM-DD").setDesiredType(DATE),
-            "l_commitdate", "cp.\"tpch/lineitem.parquet\"");
+            "l_commitdate",
+            "cp.\"tpch/lineitem.parquet\"");
     assertEquals(DATE, data.getColumn("foo").getType());
   }
 
   @Test
   public void testTextToTime() throws Exception {
-    JobDataFragment data = testConvert(
+    JobDataFragment data =
+        testConvert(
             "to_time(l_commitdate, 'YYYY-MM-DD') as foo",
             new FieldConvertTextToDate("YYYY-MM-DD").setDesiredType(TIME),
-            "l_commitdate", "cp.\"tpch/lineitem.parquet\"");
+            "l_commitdate",
+            "cp.\"tpch/lineitem.parquet\"");
     assertEquals(TIME, data.getColumn("foo").getType());
   }
 
   @Test
   public void testBinaryToTime() throws Exception {
-    DatasetUI dataset = createDatasetFromParentAndSave("convertBinaryToTime", "cp.\"tpch/lineitem.parquet\"");
+    DatasetUI dataset =
+        createDatasetFromParentAndSave("convertBinaryToTime", "cp.\"tpch/lineitem.parquet\"");
 
-    InitialPreviewResponse previewResponse2 = transform(dataset,
-        new TransformField("l_commitdate", "foo", true, new FieldSimpleConvertToType(BINARY).wrap()));
+    InitialPreviewResponse previewResponse2 =
+        transform(
+            dataset,
+            new TransformField(
+                "l_commitdate", "foo", true, new FieldSimpleConvertToType(BINARY).wrap()));
 
-    InitialPreviewResponse previewResponse3 = transform(previewResponse2.getDataset(),
-        new TransformField("foo", "foo2", true, new FieldConvertTextToDate("YYYY-MM-DD").setDesiredType(TIME).wrap()));
+    InitialPreviewResponse previewResponse3 =
+        transform(
+            previewResponse2.getDataset(),
+            new TransformField(
+                "foo",
+                "foo2",
+                true,
+                new FieldConvertTextToDate("YYYY-MM-DD").setDesiredType(TIME).wrap()));
 
-    assertContains("to_time(convert_to(l_commitdate ,'utf8'), 'yyyy-mm-dd') as foo2",
+    assertContains(
+        "to_time(convert_to(l_commitdate ,'utf8'), 'yyyy-mm-dd') as foo2",
         previewResponse3.getDataset().getSql().toLowerCase());
     JobDataFragment data = getData(previewResponse3.getPaginationUrl(), 0, 5);
 
@@ -715,172 +801,207 @@ public class TestServerExplore extends BaseTestServer {
   @Test
   public void testCase() throws Exception {
     testConvert(
-      "lower(s_name) as foo",
-      new FieldConvertCase(LOWER_CASE),
-      "s_name", "cp.\"tpch/supplier.parquet\"");
+        "lower(s_name) as foo",
+        new FieldConvertCase(LOWER_CASE),
+        "s_name",
+        "cp.\"tpch/supplier.parquet\"");
   }
 
   @Test
   public void testFloatToInteger() throws Exception {
     testConvert(
-      "cast(ceiling(s_acctbal) as integer) as foo",
-      new FieldConvertFloatToInteger(CEILING),
-      "s_acctbal", "cp.\"tpch/supplier.parquet\"");
+        "cast(ceiling(s_acctbal) as integer) as foo",
+        new FieldConvertFloatToInteger(CEILING),
+        "s_acctbal",
+        "cp.\"tpch/supplier.parquet\"");
   }
 
   @Test
   public void testFloatToDecimal() throws Exception {
     FieldTransformationBase t = new FieldConvertFloatToDecimal(1);
     DatasetUI dataset =
-        createDatasetFromParentAndSave("convert" + t.getClass().getSimpleName(), "cp.\"tpch/supplier.parquet\"");
-    expectError(CLIENT_ERROR,
-      getBuilder(
-        getAPIv2()
-          .path(versionedResourcePath(dataset))
-          .queryParam("newVersion", newVersion())
-      ).buildPost(entity(new TransformField("s_acctbal", "foo", true, t.wrap()), JSON)),
-      ValidationErrorMessage.class);
+        createDatasetFromParentAndSave(
+            "convert" + t.getClass().getSimpleName(), "cp.\"tpch/supplier.parquet\"");
+    expectError(
+        CLIENT_ERROR,
+        getBuilder(
+                getAPIv2()
+                    .path(versionedResourcePath(dataset))
+                    .queryParam("newVersion", newVersion()))
+            .buildPost(entity(new TransformField("s_acctbal", "foo", true, t.wrap()), JSON)),
+        ValidationErrorMessage.class);
   }
 
   @Test
   public void testListToJSON() throws Exception {
-    JobDataFragment data = testConvert(
-      "cast(convert_from(convert_to(s_name, 'json'), 'UTF8') as varchar) as foo",
-      new FieldConvertToJSON(),
-      "s_name", "cp.\"tpch/supplier.parquet\"");
+    JobDataFragment data =
+        testConvert(
+            "cast(convert_from(convert_to(s_name, 'json'), 'UTF8') as varchar) as foo",
+            new FieldConvertToJSON(),
+            "s_name",
+            "cp.\"tpch/supplier.parquet\"");
     assertEquals(TEXT, data.getColumn("foo").getType());
   }
 
   @Ignore("DX-5829")
   @Test
   public void testJSONToMap() throws Exception {
-    JobDataFragment data = testConvert(
+    JobDataFragment data =
+        testConvert(
             "convert_from(a, 'json') as foo",
             new FieldConvertFromJSON(),
-            "a", "cp.\"json/json.json\"");
+            "a",
+            "cp.\"json/json.json\"");
     assertEquals(STRUCT, data.getColumn("foo").getType());
   }
 
   @Test
   public void testListToText() throws Exception {
-    JobDataFragment data = testConvert(
-      "list_to_delimited_string(s_name, ',') as foo",
-      new FieldConvertListToText(","),
-      "s_name", "cp.\"tpch/supplier.parquet\"");
+    JobDataFragment data =
+        testConvert(
+            "list_to_delimited_string(s_name, ',') as foo",
+            new FieldConvertListToText(","),
+            "s_name",
+            "cp.\"tpch/supplier.parquet\"");
     assertEquals(TEXT, data.getColumn("foo").getType());
   }
 
   @Test
   public void testTextToBinary() throws Exception {
-    JobDataFragment data = testConvert(
+    JobDataFragment data =
+        testConvert(
             "convert_to(s_name ,'utf8') as foo",
             new FieldSimpleConvertToType(BINARY),
-            "s_name", "cp.\"tpch/supplier.parquet\"");
+            "s_name",
+            "cp.\"tpch/supplier.parquet\"");
     assertEquals(BINARY, data.getColumn("foo").getType());
   }
 
   @Test
   public void testFloatToText() throws Exception {
-    JobDataFragment data = testConvert(
+    JobDataFragment data =
+        testConvert(
             "cast(s_acctbal as varchar(2048)) as foo",
             new FieldSimpleConvertToType(TEXT),
-            "s_acctbal", "cp.\"tpch/supplier.parquet\"");
+            "s_acctbal",
+            "cp.\"tpch/supplier.parquet\"");
     assertEquals(TEXT, data.getColumn("foo").getType());
   }
 
   @Test
   public void testIntToFloat() throws Exception {
-    JobDataFragment data = testConvert(
+    JobDataFragment data =
+        testConvert(
             "cast(b as double) as foo",
             new FieldSimpleConvertToType(FLOAT),
-            "b", "cp.\"json/strings.json\"");
+            "b",
+            "cp.\"json/strings.json\"");
     assertEquals(FLOAT, data.getColumn("foo").getType());
   }
 
   @Test
   public void testDateToTimestamp() throws Exception {
-    JobDataFragment data = testConvert(
+    JobDataFragment data =
+        testConvert(
             "cast(l_commitdate as timestamp) as foo",
             new FieldSimpleConvertToType(DATETIME),
-            "l_commitdate", "cp.\"tpch/lineitem.parquet\"");
+            "l_commitdate",
+            "cp.\"tpch/lineitem.parquet\"");
     assertEquals(DATETIME, data.getColumn("foo").getType());
   }
 
   @Test
   public void testTimestampToTime() throws Exception {
-    JobDataFragment data = testConvert(
+    JobDataFragment data =
+        testConvert(
             "cast(cast(l_commitdate as timestamp) as time) as foo",
             new FieldSimpleConvertToType(TIME),
-            "l_commitdate", "cp.\"tpch/lineitem.parquet\"");
+            "l_commitdate",
+            "cp.\"tpch/lineitem.parquet\"");
     assertEquals(TIME, data.getColumn("foo").getType());
   }
 
   @Test
   public void testTextToInt() throws Exception {
-    JobDataFragment data = testConvert(
+    JobDataFragment data =
+        testConvert(
             "convert_to_integer(a, 1, 1, 0) as foo",
             new FieldConvertToTypeIfPossible(INTEGER, REPLACE_WITH_NULL),
-            "a", "cp.\"json/numbers.json\"");
+            "a",
+            "cp.\"json/numbers.json\"");
     assertEquals(INTEGER, data.getColumn("foo").getType());
   }
 
   @Test
   public void testTextToFloat() throws Exception {
-    JobDataFragment data = testConvert(
+    JobDataFragment data =
+        testConvert(
             "convert_to_float(c, 1, 1, 0) as foo",
             new FieldConvertToTypeIfPossible(FLOAT, REPLACE_WITH_NULL),
-            "c", "cp.\"json/numbers.json\"");
+            "c",
+            "cp.\"json/numbers.json\"");
     assertEquals(FLOAT, data.getColumn("foo").getType());
   }
 
   @Test
   public void testTextToIntRemoveInvalid() throws Exception {
-    JobDataFragment data = testConvert(
+    JobDataFragment data =
+        testConvert(
             "convert_to_integer(d, 1, 0, 0) as foo\nfrom cp.\"json/numbers.json\"\n where is_convertible_data(d, 1, 'integer')",
             new FieldConvertToTypeIfPossible(INTEGER, DELETE_RECORDS),
-            "d", "cp.\"json/numbers.json\"");
+            "d",
+            "cp.\"json/numbers.json\"");
     assertEquals(INTEGER, data.getColumn("foo").getType());
     validateData(data, "foo", "1", "2");
   }
 
   @Test
   public void testTextToFloatRemoveInvalid() throws Exception {
-    JobDataFragment data = testConvert(
+    JobDataFragment data =
+        testConvert(
             "convert_to_float(d, 1, 0, 0) as foo\nfrom cp.\"json/numbers.json\"\n where is_convertible_data(d, 1, 'float')",
             new FieldConvertToTypeIfPossible(FLOAT, DELETE_RECORDS),
-            "d", "cp.\"json/numbers.json\"");
+            "d",
+            "cp.\"json/numbers.json\"");
     assertEquals(FLOAT, data.getColumn("foo").getType());
-    validateData(data, "foo",
-      "0.1", "1.0", "0.2", "2.0", "1.0E-113");
+    validateData(data, "foo", "0.1", "1.0", "0.2", "2.0", "1.0E-113");
   }
 
   @Test
   public void testExtract2() throws Exception {
     testConvert(
-      "case when length(substr(s_name, 2, length(s_name) - 4)) > 0 then substr(s_name, 2, length(s_name) - 4) else null end as foo",
-      new FieldExtract(position(new Offset(1, FROM_THE_START), new Offset(3, FROM_THE_END))),
-      "s_name", "cp.\"tpch/supplier.parquet\"");
+        "case when length(substr(s_name, 2, length(s_name) - 4)) > 0 then substr(s_name, 2, length(s_name) - 4) else null end as foo",
+        new FieldExtract(position(new Offset(1, FROM_THE_START), new Offset(3, FROM_THE_END))),
+        "s_name",
+        "cp.\"tpch/supplier.parquet\"");
   }
 
   @Test
   public void testExtractMapReco() throws Exception {
-    DatasetUI dataset = createDatasetFromParentAndSave("extract_map", "cp.\"json/extract_map.json\"");
+    DatasetUI dataset =
+        createDatasetFromParentAndSave("extract_map", "cp.\"json/extract_map.json\"");
     doc("get extract cards recommendation");
     MapSelection selection = new MapSelection("a", asList("Tuesday"));
-    Cards<ExtractMapRule> card = expectSuccess(
+    Cards<ExtractMapRule> card =
+        expectSuccess(
             getBuilder(getAPIv2().path(versionedResourcePath(dataset) + "/extract_map"))
-                    .buildPost(entity(selection, JSON)),
-            new GenericType<Cards<ExtractMapRule>>() {
-            });
+                .buildPost(entity(selection, JSON)),
+            new GenericType<Cards<ExtractMapRule>>() {});
     List<Card<ExtractMapRule>> cards = card.getCards();
     assertFalse(cards.toString(), cards.isEmpty());
     assertEquals(cards.toString(), 1, cards.size());
     assertEquals("extract from map Tuesday", cards.get(0).getDescription());
 
-    Card<ExtractMapRule> cardPreview = expectSuccess(
-        getBuilder(getAPIv2().path(versionedResourcePath(dataset) + "/extract_struct_preview"))
-            .buildPost(entity(new PreviewReq<>(new MapSelection("a", asList("Monday")), new ExtractMapRule("Monday.close")), JSON)),
-        new GenericType<Card<ExtractMapRule>>() {});
+    Card<ExtractMapRule> cardPreview =
+        expectSuccess(
+            getBuilder(getAPIv2().path(versionedResourcePath(dataset) + "/extract_struct_preview"))
+                .buildPost(
+                    entity(
+                        new PreviewReq<>(
+                            new MapSelection("a", asList("Monday")),
+                            new ExtractMapRule("Monday.close")),
+                        JSON)),
+            new GenericType<Card<ExtractMapRule>>() {});
 
     final String cardPreviewString = cardPreview.toString();
     assertEquals(cardPreviewString, "extract from map Monday.close", cardPreview.getDescription());
@@ -891,12 +1012,14 @@ public class TestServerExplore extends BaseTestServer {
   @Test
   public void testExtractMap() throws Exception {
     doc("extract map");
-    JobDataFragment data = testConvert(
+    JobDataFragment data =
+        testConvert(
             "\"json/extract_map.json\".a.Tuesday as foo",
             new FieldExtractMap(new ExtractMapRule("Tuesday")),
-            "a", "cp.\"json/extract_map.json\"");
+            "a",
+            "cp.\"json/extract_map.json\"");
     assertEquals(data.toString(), 3, data.getReturnedRowCount());
-    for (int i=0; i<data.getReturnedRowCount(); i++) {
+    for (int i = 0; i < data.getReturnedRowCount(); i++) {
       assertEquals("{\"close\":\"19:00\",\"open\":\"10:00\"}", data.extractString("foo", i));
     }
   }
@@ -904,26 +1027,30 @@ public class TestServerExplore extends BaseTestServer {
   @Test
   public void testExtractMapNested() throws Exception {
     doc("extract map nested");
-    JobDataFragment data = testConvert(
+    JobDataFragment data =
+        testConvert(
             "\"json/extract_map.json\".a.Tuesday.\"close\" as foo",
             new FieldExtractMap(new ExtractMapRule("Tuesday.close")),
-            "a", "cp.\"json/extract_map.json\"");
+            "a",
+            "cp.\"json/extract_map.json\"");
     Column c = data.getColumn("foo");
     assertEquals(data.toString(), 3, data.getReturnedRowCount());
-    for (int i=0; i<data.getReturnedRowCount(); i++) {
+    for (int i = 0; i < data.getReturnedRowCount(); i++) {
       assertEquals("19:00", data.extractString(c.getName(), i));
     }
   }
 
   @Test
   public void testExtractList() throws Exception {
-    DatasetUI dataset = createDatasetFromParentAndSave("extract_list", "cp.\"json/extract_list.json\"");
+    DatasetUI dataset =
+        createDatasetFromParentAndSave("extract_list", "cp.\"json/extract_list.json\"");
 
     doc("get replace cards recommendation");
     Selection selection = new Selection("a", "[ \"foo\", \"bar\", \"baz\" ]", 10, 10);
-    ExtractListCards card = expectSuccess(
+    ExtractListCards card =
+        expectSuccess(
             getBuilder(getAPIv2().path(versionedResourcePath(dataset) + "/extract_list"))
-                    .buildPost(entity(selection, JSON)),
+                .buildPost(entity(selection, JSON)),
             ExtractListCards.class);
     List<ExtractListCard> cards = card.getCards();
     assertFalse(cards.toString(), cards.isEmpty());
@@ -932,45 +1059,44 @@ public class TestServerExplore extends BaseTestServer {
     for (ExtractListCard c : cards) {
       actual.add(c.getDescription());
     }
-    assertEquals(asList(
-      "Elements: 1 - 2",
-      "Elements: 1 - 0 (from the end)",
-      "Elements: 1 - 0 (both from the end)",
-      "Elements: 1 (from the end) - 2"),
-    actual);
+    assertEquals(
+        asList(
+            "Elements: 1 - 2",
+            "Elements: 1 - 0 (from the end)",
+            "Elements: 1 - 0 (both from the end)",
+            "Elements: 1 (from the end) - 2"),
+        actual);
 
-    Card<ExtractListRule> cardPreview = expectSuccess(
+    Card<ExtractListRule> cardPreview =
+        expectSuccess(
             getBuilder(getAPIv2().path(versionedResourcePath(dataset) + "/extract_list_preview"))
-                    .buildPost(entity(new PreviewReq<>(selection, new ExtractRuleSingle(1).wrap()), JSON)),
-            new GenericType<Card<ExtractListRule>>() {
-            });
+                .buildPost(
+                    entity(new PreviewReq<>(selection, new ExtractRuleSingle(1).wrap()), JSON)),
+            new GenericType<Card<ExtractListRule>>() {});
     assertEquals("Element: 1", cardPreview.getDescription());
 
     testConvert(
-            "a[1] as foo",
-            new FieldExtractList(new ExtractListRule(single).setSingle(new ExtractRuleSingle(1))),
-            "a", "cp.\"json/extract_list.json\"");
+        "a[1] as foo",
+        new FieldExtractList(new ExtractListRule(single).setSingle(new ExtractRuleSingle(1))),
+        "a",
+        "cp.\"json/extract_list.json\"");
 
     testConvert(
-      "sublist(a, 2, 3) as foo",
-      new FieldExtractList(
-        new ExtractListRule(multiple)
-          .setMultiple(
-            new ExtractRuleMultiple(
-              new ListSelection(
-                new Offset(1, FROM_THE_START),
-                new Offset(3, FROM_THE_START)
-              )
-            )
-          )
-      ),
-      "a", "cp.\"json/extract_list.json\"");
+        "sublist(a, 2, 3) as foo",
+        new FieldExtractList(
+            new ExtractListRule(multiple)
+                .setMultiple(
+                    new ExtractRuleMultiple(
+                        new ListSelection(
+                            new Offset(1, FROM_THE_START), new Offset(3, FROM_THE_START))))),
+        "a",
+        "cp.\"json/extract_list.json\"");
   }
 
   private void validateData(JobDataFragment data, String colName, String... values) {
     Column col = checkNotNull(data.getColumn(colName), data.getColumns());
     List<String> actual = new ArrayList<>();
-    for (int i=0; i<data.getReturnedRowCount(); i++) {
+    for (int i = 0; i < data.getReturnedRowCount(); i++) {
       actual.add(data.extractString(col.getName(), i));
     }
     List<String> expected = Arrays.asList(values);
@@ -980,25 +1106,26 @@ public class TestServerExplore extends BaseTestServer {
   @Test
   public void testReplace() throws Exception {
     testConvert(
-      "case when regexp_like(address, '^\\q10\\e.*?') then regexp_replace(address, '^\\q10\\e', 'bar') else address end as foo",
-      new FieldReplacePattern(
-        new ReplacePatternRule(STARTS_WITH)
-          .setIgnoreCase(false)
-          .setSelectionPattern("10"),
-        SELECTION)
-        .setReplacementValue("bar"),
-      "address", "cp.\"json/replace_example.json\"");
+        "case when regexp_like(address, '^\\q10\\e.*?') then regexp_replace(address, '^\\q10\\e', 'bar') else address end as foo",
+        new FieldReplacePattern(
+                new ReplacePatternRule(STARTS_WITH).setIgnoreCase(false).setSelectionPattern("10"),
+                SELECTION)
+            .setReplacementValue("bar"),
+        "address",
+        "cp.\"json/replace_example.json\"");
   }
 
   @Test
   public void testReplaceValues() throws Exception {
-    JobDataFragment data = testConvert(
-      "case\n  when a = 'a' then 'bar'\n  when a = 'efa' then 'bar'\n  else a\nend as foo",
-      new FieldReplaceValue(false)
-        .setReplacedValuesList(asList("a", "efa"))
-        .setReplacementValue("bar")
-        .setReplacementType(TEXT),
-      "a", "cp.\"json/strings.json\"");
+    JobDataFragment data =
+        testConvert(
+            "case\n  when a = 'a' then 'bar'\n  when a = 'efa' then 'bar'\n  else a\nend as foo",
+            new FieldReplaceValue(false)
+                .setReplacedValuesList(asList("a", "efa"))
+                .setReplacementValue("bar")
+                .setReplacementType(TEXT),
+            "a",
+            "cp.\"json/strings.json\"");
     //  { "a": "abc", "b": 0}
     //  { "a": "Ab", "b": 1}
     //  { "a": "a", "b": 2}
@@ -1006,76 +1133,79 @@ public class TestServerExplore extends BaseTestServer {
     //  { "a": "deab", "b": 4}
     //  { "a": "efa", "b": 5}
     //  { "b": 6}
-    validateData(data, "foo",
-      "abc", "Ab", "bar", "defabc", "deab", "bar", null);
+    validateData(data, "foo", "abc", "Ab", "bar", "defabc", "deab", "bar", null);
   }
 
   @Test
   public void testReplaceCustom() throws Exception {
-    JobDataFragment data = testConvert(
-      "case\n  when a = 'a' or a = 'efa' then 'bar'\n  else a\nend as foo",
-      new FieldReplaceCustom("a = 'a' or a = 'efa'")
-        .setReplacementValue("bar")
-        .setReplacementType(TEXT),
-      "a", "cp.\"json/strings.json\"");
-    validateData(data, "foo",
-      "abc", "Ab", "bar", "defabc", "deab", "bar", null);
+    JobDataFragment data =
+        testConvert(
+            "case\n  when a = 'a' or a = 'efa' then 'bar'\n  else a\nend as foo",
+            new FieldReplaceCustom("a = 'a' or a = 'efa'")
+                .setReplacementValue("bar")
+                .setReplacementType(TEXT),
+            "a",
+            "cp.\"json/strings.json\"");
+    validateData(data, "foo", "abc", "Ab", "bar", "defabc", "deab", "bar", null);
   }
 
   @Test
   public void testReplaceCustomInteger() throws Exception {
-    JobDataFragment data = testConvert(
+    JobDataFragment data =
+        testConvert(
             "case\n  when b = 1 then 123\n  else b\nend as foo",
-            new FieldReplaceCustom("b = 1")
-                    .setReplacementValue("123")
-                    .setReplacementType(INTEGER),
-            "b", "cp.\"json/strings.json\"");
-    validateData(data, "foo",
-      "0", "123", "2", "3", "4", "5", "6");
+            new FieldReplaceCustom("b = 1").setReplacementValue("123").setReplacementType(INTEGER),
+            "b",
+            "cp.\"json/strings.json\"");
+    validateData(data, "foo", "0", "123", "2", "3", "4", "5", "6");
   }
 
   @Test
   public void testReplaceIntValues() throws Exception {
-    JobDataFragment data = testConvert(
+    JobDataFragment data =
+        testConvert(
             "case\n  when b = 1 then 125\n  else b\nend as foo",
             new FieldReplaceValue(false)
-                    .setReplacedValuesList(Arrays.asList("1"))
-                    .setReplacementValue("125")
-                    .setReplacementType(INTEGER),
-            "b", "cp.\"json/strings.json\"");
-    validateData(data, "foo",
-            "0", "125", "2", "3", "4", "5", "6");
+                .setReplacedValuesList(Arrays.asList("1"))
+                .setReplacementValue("125")
+                .setReplacementType(INTEGER),
+            "b",
+            "cp.\"json/strings.json\"");
+    validateData(data, "foo", "0", "125", "2", "3", "4", "5", "6");
   }
 
   @Test
   public void testReplaceIntRange() throws Exception {
-    JobDataFragment data = testConvert(
+    JobDataFragment data =
+        testConvert(
             "case\n  when 1 < b AND 4 > b then 125\n  else b\nend as foo",
             new FieldReplaceRange(false)
-                    .setLowerBound("1")
-                    .setUpperBound("4")
-                    .setReplacementValue("125")
-                    .setReplacementType(INTEGER),
-            "b", "cp.\"json/strings.json\"");
-    validateData(data, "foo",
-            "0", "1", "125", "125", "4", "5", "6");
+                .setLowerBound("1")
+                .setUpperBound("4")
+                .setReplacementValue("125")
+                .setReplacementType(INTEGER),
+            "b",
+            "cp.\"json/strings.json\"");
+    validateData(data, "foo", "0", "1", "125", "125", "4", "5", "6");
   }
 
   @Test
   public void testReplaceDateRange() throws Exception {
     try (AutoCloseable ac = withSystemOption(ExecConstants.PARQUET_AUTO_CORRECT_DATES, "true")) {
-      JobDataFragment data = testConvert(
-        "case\n  when TIMESTAMP '1992-02-19 00:00:00.000' < l_shipdate AND TIMESTAMP '1998-10-29 00:00:00.000' > l_shipdate then TIMESTAMP '2014-03-26 08:24:33.000'\n  else l_shipdate\nend as foo",
-        new FieldReplaceRange(false)
-          .setLowerBound("1992-02-19 00:00:00.000")
-          .setUpperBound("1998-10-29 00:00:00.000")
-          .setReplacementValue("2014-03-26 08:24:33.000")
-          .setReplacementType(DATETIME),
-        "l_shipdate", "cp.\"tpch/lineitem.parquet\"");
+      JobDataFragment data =
+          testConvert(
+              "case\n  when TIMESTAMP '1992-02-19 00:00:00.000' < l_shipdate AND TIMESTAMP '1998-10-29 00:00:00.000' > l_shipdate then TIMESTAMP '2014-03-26 08:24:33.000'\n  else l_shipdate\nend as foo",
+              new FieldReplaceRange(false)
+                  .setLowerBound("1992-02-19 00:00:00.000")
+                  .setUpperBound("1998-10-29 00:00:00.000")
+                  .setReplacementValue("2014-03-26 08:24:33.000")
+                  .setReplacementType(DATETIME),
+              "l_shipdate",
+              "cp.\"tpch/lineitem.parquet\"");
 
       Column col = checkNotNull(data.getColumn("foo"), data.getColumns());
       Set<String> actual = new TreeSet<>();
-      for (int i=0; i<data.getReturnedRowCount(); i++) {
+      for (int i = 0; i < data.getReturnedRowCount(); i++) {
         actual.add(data.extractString(col.getName(), i).substring(0, 4));
       }
       assertEquals(new TreeSet<>(Arrays.asList("1992", "1998", "2014")), actual);
@@ -1086,12 +1216,13 @@ public class TestServerExplore extends BaseTestServer {
   public void testSplit() throws Exception {
     DatasetUI dataset = createDatasetFromParentAndSave("split", "cp.\"json/split.json\"");
     doc("get split cards recommendation");
-    Selection selection = new Selection("a", "Shopping, Home Services, Internet Service Providers, Mobi", 8, 1);
-    Cards<SplitRule> cards = expectSuccess(
+    Selection selection =
+        new Selection("a", "Shopping, Home Services, Internet Service Providers, Mobi", 8, 1);
+    Cards<SplitRule> cards =
+        expectSuccess(
             getBuilder(getAPIv2().path(versionedResourcePath(dataset) + "/split"))
-                    .buildPost(entity(selection, JSON)),
-            new GenericType<Cards<SplitRule>>() {
-            });
+                .buildPost(entity(selection, JSON)),
+            new GenericType<Cards<SplitRule>>() {});
     List<Card<SplitRule>> cardsList = cards.getCards();
     assertFalse(cardsList.toString(), cardsList.isEmpty());
     assertEquals(cardsList.toString(), 1, cardsList.size());
@@ -1101,53 +1232,57 @@ public class TestServerExplore extends BaseTestServer {
     }
     assertEquals(asList("Exactly matches \",\""), actual);
 
-    Card<SplitRule> card = expectSuccess(
+    Card<SplitRule> card =
+        expectSuccess(
             getBuilder(getAPIv2().path(versionedResourcePath(dataset) + "/split_preview"))
-                    .buildPost(entity(new PreviewReq<>(selection, new SplitRule(", ", exact, false)), JSON)),
-            new GenericType<Card<SplitRule>>() {
-            });
+                .buildPost(
+                    entity(new PreviewReq<>(selection, new SplitRule(", ", exact, false)), JSON)),
+            new GenericType<Card<SplitRule>>() {});
     assertEquals(card.toString(), "Exactly matches \", \"", card.getDescription());
 
     testConvert(
-            "regexp_split(a, '\\q,\\e', 'first', -1) as foo",
-            new FieldSplit(new SplitRule(",", exact, false), FIRST),
-            "a", "cp.\"json/split.json\"");
+        "regexp_split(a, '\\q,\\e', 'first', -1) as foo",
+        new FieldSplit(new SplitRule(",", exact, false), FIRST),
+        "a",
+        "cp.\"json/split.json\"");
     testConvert(
-            "regexp_split(a, '\\q, \\e', 'first', -1) as foo",
-            new FieldSplit(new SplitRule(", ", exact, false), FIRST),
-            "a", "cp.\"json/split.json\"");
+        "regexp_split(a, '\\q, \\e', 'first', -1) as foo",
+        new FieldSplit(new SplitRule(", ", exact, false), FIRST),
+        "a",
+        "cp.\"json/split.json\"");
     testConvert(
-            "regexp_split(a, ',.', 'all', 10) as foo",
-            new FieldSplit(new SplitRule(",.", regex, false), ALL).setMaxFields(10),
-            "a", "cp.\"json/split.json\"");
+        "regexp_split(a, ',.', 'all', 10) as foo",
+        new FieldSplit(new SplitRule(",.", regex, false), ALL).setMaxFields(10),
+        "a",
+        "cp.\"json/split.json\"");
     testConvert(
-            "regexp_split(a, ',.', 'index', 0) as foo",
-            new FieldSplit(new SplitRule(",.", regex, false), INDEX).setIndex(0),
-            "a", "cp.\"json/split.json\"");
+        "regexp_split(a, ',.', 'index', 0) as foo",
+        new FieldSplit(new SplitRule(",.", regex, false), INDEX).setIndex(0),
+        "a",
+        "cp.\"json/split.json\"");
   }
 
   @Test
   public void testUnnestList() throws Exception {
-    JobDataFragment data = testConvert(
-            "flatten(b) as foo",
-            new FieldUnnestList(),
-            "b", "cp.\"json/nested.json\"");
+    JobDataFragment data =
+        testConvert("flatten(b) as foo", new FieldUnnestList(), "b", "cp.\"json/nested.json\"");
     assertEquals(6, data.getReturnedRowCount());
   }
 
   @Test
   public void testUnnestGroupByList() throws Exception {
-    DatasetUI dataset = createDatasetFromParentAndSave("unnestAndGroupBy", "cp.\"json/nested.json\"");
+    DatasetUI dataset =
+        createDatasetFromParentAndSave("unnestAndGroupBy", "cp.\"json/nested.json\"");
 
     InitialPreviewResponse response2 =
         transform(dataset, new TransformField("b", "b", true, new FieldUnnestList().wrap()));
 
     InitialPreviewResponse response3 =
-        transform(response2.getDataset(),
+        transform(
+            response2.getDataset(),
             new TransformGroupBy()
                 .setColumnsDimensionsList(asList(new Dimension("b")))
-                .setColumnsMeasuresList(asList(new Measure(Count).setColumn("b")))
-        );
+                .setColumnsMeasuresList(asList(new Measure(Count).setColumn("b"))));
 
     JobDataFragment data = getData(response3.getPaginationUrl(), 0, 20);
     assertEquals(6, data.getReturnedRowCount());
@@ -1155,8 +1290,11 @@ public class TestServerExplore extends BaseTestServer {
 
   @Test
   public void testPreviewTransform() throws Exception {
-    DatasetUI dataset = createDatasetFromParentAndSave("datasetbuzz", "cp.\"tpch/supplier.parquet\"");
-    InitialPendingTransformResponse preview = transformPeek(dataset, new TransformConvertCase("s_name", ConvertCase.LOWER_CASE, "foo2", true));
+    DatasetUI dataset =
+        createDatasetFromParentAndSave("datasetbuzz", "cp.\"tpch/supplier.parquet\"");
+    InitialPendingTransformResponse preview =
+        transformPeek(
+            dataset, new TransformConvertCase("s_name", ConvertCase.LOWER_CASE, "foo2", true));
     assertContains("lower(s_name) as foo", preview.getSql().toLowerCase());
     Column foo2 = preview.getData().getColumn("foo2");
     Column s_name = preview.getData().getColumn("s_name");
@@ -1169,8 +1307,9 @@ public class TestServerExplore extends BaseTestServer {
   @Test
   public void testPreviewTransformSameName() throws Exception {
     DatasetUI dataset = createDatasetFromParentAndSave("same", "cp.\"tpch/supplier.parquet\"");
-    InitialPendingTransformResponse preview = transformPeek(dataset,
-        new TransformConvertCase("s_name", ConvertCase.LOWER_CASE, "s_name", true));
+    InitialPendingTransformResponse preview =
+        transformPeek(
+            dataset, new TransformConvertCase("s_name", ConvertCase.LOWER_CASE, "s_name", true));
     assertContains("s_name, lower(s_name) as \"s_name (new)\"", preview.getSql().toLowerCase());
     Column s_name = preview.getData().getColumn("s_name");
     Column s_name_new = preview.getData().getColumn("s_name (new)");
@@ -1180,11 +1319,13 @@ public class TestServerExplore extends BaseTestServer {
     assertEquals(asList("s_name (new)"), preview.getHighlightedColumns());
   }
 
+  private JobDataFragment testConvert(
+      String expected, FieldTransformationBase t, String field, String parent) throws Exception {
+    DatasetUI dataset =
+        createDatasetFromParentAndSave("convert" + t.getClass().getSimpleName(), parent);
 
-  private JobDataFragment testConvert(String expected, FieldTransformationBase t, String field, String parent) throws Exception {
-    DatasetUI dataset = createDatasetFromParentAndSave("convert" + t.getClass().getSimpleName(), parent);
-
-    InitialPreviewResponse previewResponse = transform(dataset, new TransformField(field, "foo", true, t.wrap()));
+    InitialPreviewResponse previewResponse =
+        transform(dataset, new TransformField(field, "foo", true, t.wrap()));
 
     assertContains(expected.toLowerCase(), previewResponse.getDataset().getSql().toLowerCase());
 
@@ -1199,7 +1340,10 @@ public class TestServerExplore extends BaseTestServer {
   public void testSaveDataset() throws Exception {
     setSpace();
 
-    expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(new com.dremio.dac.api.Space(null, "space1", null, null, null))), new GenericType<com.dremio.dac.api.Space>() {});
+    expectSuccess(
+        getBuilder(getPublicAPI(3).path("/catalog/"))
+            .buildPost(Entity.json(new com.dremio.dac.api.Space(null, "space1", null, null, null))),
+        new GenericType<com.dremio.dac.api.Space>() {});
     DatasetPath datasetPath = new DatasetPath("spacefoo.folderbar.folderbaz.datasetbuzz");
     doc("creating dataset");
     DatasetUI dataset = createDatasetFromParentAndSave(datasetPath, "cp.\"tpch/supplier.parquet\"");
@@ -1233,17 +1377,22 @@ public class TestServerExplore extends BaseTestServer {
 
     doc("sort multiple: s_name asc, s_suppkey desc");
     // transform another time to verify result
-    DatasetUI dsTransform2 = transform(dsGet1,
-        new TransformSorts()
-            .setColumnsList(asList(new Order("s_name", ASC), new Order("s_suppkey", DESC)))
-    ).getDataset();
+    DatasetUI dsTransform2 =
+        transform(
+                dsGet1,
+                new TransformSorts()
+                    .setColumnsList(asList(new Order("s_name", ASC), new Order("s_suppkey", DESC))))
+            .getDataset();
 
     assertContains("order by s_name asc, s_suppkey desc", dsTransform2.getSql().toLowerCase());
 
     // copy from dataset
     doc("copying existing dataset");
-    final DatasetUI dsCopied = expectSuccess(getBuilder(getAPIv2().path("dataset/space1.ds1-copied/copyFrom/space1.ds1")).
-            buildPut(Entity.json(new VirtualDatasetUI())), DatasetUI.class);
+    final DatasetUI dsCopied =
+        expectSuccess(
+            getBuilder(getAPIv2().path("dataset/space1.ds1-copied/copyFrom/space1.ds1"))
+                .buildPut(Entity.json(new VirtualDatasetUI())),
+            DatasetUI.class);
 
     assertEquals(dsPut1.getSql(), dsCopied.getSql());
 
@@ -1267,63 +1416,100 @@ public class TestServerExplore extends BaseTestServer {
   public void testSaveDatasetWrongFolder() throws Exception {
     setSpace();
 
-    expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(new com.dremio.dac.api.Space(null, "space1", null, null, null))), new GenericType<com.dremio.dac.api.Space>() {});
+    expectSuccess(
+        getBuilder(getPublicAPI(3).path("/catalog/"))
+            .buildPost(Entity.json(new com.dremio.dac.api.Space(null, "space1", null, null, null))),
+        new GenericType<com.dremio.dac.api.Space>() {});
     DatasetPath datasetPath = new DatasetPath("spacefoo.folderbar.folderblahz.datasetbuzz");
     InitialPreviewResponse preview = createDatasetFromParent("cp.\"tpch/supplier.parquet\"");
 
     expectStatus(
         Status.BAD_REQUEST,
         getBuilder(
-            getAPIv2().path(versionedResourcePath(preview.getDataset()) + "/save").queryParam("as", datasetPath))
-        .buildPost(entity("", JSON)));
-
+                getAPIv2()
+                    .path(versionedResourcePath(preview.getDataset()) + "/save")
+                    .queryParam("as", datasetPath))
+            .buildPost(entity("", JSON)));
   }
 
   @Test
   public void testVirtualDatasetWithNotNullFields() {
-    expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(new com.dremio.dac.api.Space(null, "space1", null, null, null))), new GenericType<com.dremio.dac.api.Space>() {});
+    expectSuccess(
+        getBuilder(getPublicAPI(3).path("/catalog/"))
+            .buildPost(Entity.json(new com.dremio.dac.api.Space(null, "space1", null, null, null))),
+        new GenericType<com.dremio.dac.api.Space>() {});
     final String pathName = "space1.v1";
     final DatasetPath numbersJsonPath = new DatasetPath(pathName);
-    DatasetUI numbersJsonVD = createDatasetFromSQLAndSave(numbersJsonPath,
-      "select row_number() over (order by a) as rnk, a from cp.\"json/numbers.json\"", ImmutableList.of("cp"));
-    final SqlQuery query = getQueryFromSQL(String.format("select t1.rnk, t1.a from %s t1 join %s t2 on t1.rnk = t2.rnk+1", pathName, pathName));
+    DatasetUI numbersJsonVD =
+        createDatasetFromSQLAndSave(
+            numbersJsonPath,
+            "select row_number() over (order by a) as rnk, a from cp.\"json/numbers.json\"",
+            ImmutableList.of("cp"));
+    final SqlQuery query =
+        getQueryFromSQL(
+            String.format(
+                "select t1.rnk, t1.a from %s t1 join %s t2 on t1.rnk = t2.rnk+1",
+                pathName, pathName));
     submitJobAndWaitUntilCompletion(JobRequest.newBuilder().setSqlQuery(query).build());
   }
 
   @Test
   public void testVirtualDatasetWithTimestampDiff() throws Exception {
-    expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(new com.dremio.dac.api.Space(null, "space1", null, null, null))), new GenericType<com.dremio.dac.api.Space>() {});
+    expectSuccess(
+        getBuilder(getPublicAPI(3).path("/catalog/"))
+            .buildPost(Entity.json(new com.dremio.dac.api.Space(null, "space1", null, null, null))),
+        new GenericType<com.dremio.dac.api.Space>() {});
     final String pathName = "space1.v1";
     final DatasetPath datetimePath = new DatasetPath(pathName);
-    DatasetUI dateTimeVD = createDatasetFromSQLAndSave(datetimePath,
-      "select timestampdiff(SECOND, datetime1, datetime2) as tsdiff from cp.\"json/datetime.json\"", ImmutableList.of("cp"));
+    DatasetUI dateTimeVD =
+        createDatasetFromSQLAndSave(
+            datetimePath,
+            "select timestampdiff(SECOND, datetime1, datetime2) as tsdiff from cp.\"json/datetime.json\"",
+            ImmutableList.of("cp"));
     final SqlQuery query = getQueryFromSQL(String.format("select * from %s", pathName));
     submitJobAndWaitUntilCompletion(JobRequest.newBuilder().setSqlQuery(query).build());
   }
 
   @Test
   public void testVirtualDatasetWithChar() {
-    expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(new com.dremio.dac.api.Space(null, "space1", null, null, null))), new GenericType<com.dremio.dac.api.Space>() {});
+    expectSuccess(
+        getBuilder(getPublicAPI(3).path("/catalog/"))
+            .buildPost(Entity.json(new com.dremio.dac.api.Space(null, "space1", null, null, null))),
+        new GenericType<com.dremio.dac.api.Space>() {});
     final String pathName = "space1.v1";
     final DatasetPath numbersJsonPath = new DatasetPath(pathName);
-    DatasetUI numbersJsonVD = createDatasetFromSQLAndSave(numbersJsonPath,
-      "select CASE WHEN a > 2 THEN 'less than 2' ELSE 'greater than 2' END as twoInfo, a from cp.\"json/numbers.json\"", ImmutableList.of("cp"));
+    DatasetUI numbersJsonVD =
+        createDatasetFromSQLAndSave(
+            numbersJsonPath,
+            "select CASE WHEN a > 2 THEN 'less than 2' ELSE 'greater than 2' END as twoInfo, a from cp.\"json/numbers.json\"",
+            ImmutableList.of("cp"));
     final SqlQuery query = getQueryFromSQL(String.format("select * from %s", pathName));
     submitJobAndWaitUntilCompletion(JobRequest.newBuilder().setSqlQuery(query).build());
 
-    final SqlQuery query2 = getQueryFromSQL(String.format("select count(*) from %s where a > 2", pathName));
+    final SqlQuery query2 =
+        getQueryFromSQL(String.format("select count(*) from %s where a > 2", pathName));
     submitJobAndWaitUntilCompletion(JobRequest.newBuilder().setSqlQuery(query2).build());
   }
 
   @Test
   public void testReapplyDataset() {
-    expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(new com.dremio.dac.api.Space(null, "space1", null, null, null))), new GenericType<com.dremio.dac.api.Space>() {});
-    expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(new com.dremio.dac.api.Space(null, "space2", null, null, null))), new GenericType<com.dremio.dac.api.Space>() {});
+    expectSuccess(
+        getBuilder(getPublicAPI(3).path("/catalog/"))
+            .buildPost(Entity.json(new com.dremio.dac.api.Space(null, "space1", null, null, null))),
+        new GenericType<com.dremio.dac.api.Space>() {});
+    expectSuccess(
+        getBuilder(getPublicAPI(3).path("/catalog/"))
+            .buildPost(Entity.json(new com.dremio.dac.api.Space(null, "space2", null, null, null))),
+        new GenericType<com.dremio.dac.api.Space>() {});
 
     DatasetPath d1Path = new DatasetPath("space1.ds1");
     DatasetPath d2Path = new DatasetPath("space1.ds2");
-    DatasetUI d1 = createDatasetFromSQLAndSave(d1Path, "select s_name, s_phone from cp.\"tpch/supplier.parquet\"", asList("cp"));
-    DatasetUI d2 = createDatasetFromSQLAndSave(d2Path, "select s_name, s_phone from cp.\"tpch/supplier.parquet\"", asList("cp"));
+    DatasetUI d1 =
+        createDatasetFromSQLAndSave(
+            d1Path, "select s_name, s_phone from cp.\"tpch/supplier.parquet\"", asList("cp"));
+    DatasetUI d2 =
+        createDatasetFromSQLAndSave(
+            d2Path, "select s_name, s_phone from cp.\"tpch/supplier.parquet\"", asList("cp"));
 
     doc("creating untitled from existing dataset");
     final DatasetUI d3 = createDatasetFromParent(d1Path.toNamespaceKey().toString()).getDataset();
@@ -1332,9 +1518,15 @@ public class TestServerExplore extends BaseTestServer {
     final DatasetUI d4 = getVersionedDataset(getDatasetVersionPath(d3));
 
     doc("applying transform to untitled ds");
-    final DatasetUI d5 = transform(d4,
-        new TransformField("s_phone", "s_phone_json", false, new FieldConvertToJSON().wrap())).getDataset();
-    assertContains("cast(convert_from(convert_to(s_phone, 'json'), 'utf8') as varchar) as s_phone_json", d5.getSql().toLowerCase());
+    final DatasetUI d5 =
+        transform(
+                d4,
+                new TransformField(
+                    "s_phone", "s_phone_json", false, new FieldConvertToJSON().wrap()))
+            .getDataset();
+    assertContains(
+        "cast(convert_from(convert_to(s_phone, 'json'), 'utf8') as varchar) as s_phone_json",
+        d5.getSql().toLowerCase());
 
     doc("verifying transformed ds");
     final DatasetUI d6 = getVersionedDataset(getDatasetVersionPath(d5));
@@ -1344,48 +1536,85 @@ public class TestServerExplore extends BaseTestServer {
     InitialPreviewResponse reapplyResult = reapply(getDatasetVersionPath(d6));
     final DatasetUI d7 = reapplyResult.getDataset();
     assertEquals(Arrays.asList("space1", "ds1"), d7.getFullPath());
-    assertEquals(reapplyResult.getHistory().getItems().size(), 1); // should be only data set creation. Transformation should be ignored
+    assertEquals(
+        reapplyResult.getHistory().getItems().size(),
+        1); // should be only data set creation. Transformation should be ignored
     HistoryItem firstHistoryItem = reapplyResult.getHistory().getItems().get(0);
     assertEquals(firstHistoryItem.getDataset(), d1Path);
     assertEquals(firstHistoryItem.getDatasetVersion(), d1.getDatasetVersion());
 
     doc("should fail to edit original sql for dataset that is created from sql");
-    expectError(CLIENT_ERROR, reapplyInvocation(getDatasetVersionPath(d2)), UserExceptionMapper.ErrorMessageWithContext.class);
+    expectError(
+        CLIENT_ERROR,
+        reapplyInvocation(getDatasetVersionPath(d2)),
+        UserExceptionMapper.ErrorMessageWithContext.class);
   }
 
-
   @Test
-  public void testReapplyAndSave(){
-    expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(new com.dremio.dac.api.Space(null, "reapplyAndSave", null, null, null))), new GenericType<com.dremio.dac.api.Space>() {});
+  public void testReapplyAndSave() {
+    expectSuccess(
+        getBuilder(getPublicAPI(3).path("/catalog/"))
+            .buildPost(
+                Entity.json(
+                    new com.dremio.dac.api.Space(null, "reapplyAndSave", null, null, null))),
+        new GenericType<com.dremio.dac.api.Space>() {});
     DatasetPath d1Path = new DatasetPath("reapplyAndSave.ds1");
-    createDatasetFromSQLAndSave(d1Path, "select s_name, s_phone from cp.\"tpch/supplier.parquet\"", asList("cp"));
+    createDatasetFromSQLAndSave(
+        d1Path, "select s_name, s_phone from cp.\"tpch/supplier.parquet\"", asList("cp"));
     final DatasetUI d2 = createDatasetFromParent("reapplyAndSave.ds1").getDataset();
 
     DatasetVersionResourcePath newVersion = getDatasetVersionPath(d2);
-    DatasetUIWithHistory reapply = expectSuccess(getBuilder(getAPIv2().path(newVersion.toString() + "/reapplyAndSave").queryParam("as", "reapplyAndSave.ds3")).buildPost(null), DatasetUIWithHistory.class);
+    DatasetUIWithHistory reapply =
+        expectSuccess(
+            getBuilder(
+                    getAPIv2()
+                        .path(newVersion.toString() + "/reapplyAndSave")
+                        .queryParam("as", "reapplyAndSave.ds3"))
+                .buildPost(null),
+            DatasetUIWithHistory.class);
     assertContains("supplier.parquet", reapply.getDataset().getSql());
     List<HistoryItem> historyItems = reapply.getHistory().getItems();
     assertEquals("Number of history items incorrect", 1, historyItems.size());
-    assertEquals(historyItems.get(0).getVersionedResourcePath().getVersion(), reapply.getDataset().getDatasetVersion());
-    assertEquals(historyItems.get(0).getDataset(), new DatasetPath(reapply.getDataset().getFullPath()));
+    assertEquals(
+        historyItems.get(0).getVersionedResourcePath().getVersion(),
+        reapply.getDataset().getDatasetVersion());
+    assertEquals(
+        historyItems.get(0).getDataset(), new DatasetPath(reapply.getDataset().getFullPath()));
   }
 
   @Test
-  public void testReapplyAndSaveWrongFolder(){
-    expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(new com.dremio.dac.api.Space(null, "reapplyAndSave", null, null, null))), new GenericType<com.dremio.dac.api.Space>() {});
+  public void testReapplyAndSaveWrongFolder() {
+    expectSuccess(
+        getBuilder(getPublicAPI(3).path("/catalog/"))
+            .buildPost(
+                Entity.json(
+                    new com.dremio.dac.api.Space(null, "reapplyAndSave", null, null, null))),
+        new GenericType<com.dremio.dac.api.Space>() {});
     DatasetPath d1Path = new DatasetPath("reapplyAndSave.ds1");
-    createDatasetFromSQLAndSave(d1Path, "select s_name, s_phone from cp.\"tpch/supplier.parquet\"", asList("cp"));
+    createDatasetFromSQLAndSave(
+        d1Path, "select s_name, s_phone from cp.\"tpch/supplier.parquet\"", asList("cp"));
     final DatasetUI d2 = createDatasetFromParent("reapplyAndSave.ds1").getDataset();
 
     DatasetVersionResourcePath newVersion = getDatasetVersionPath(d2);
-    expectStatus(Status.BAD_REQUEST, getBuilder(getAPIv2().path(newVersion.toString() + "/reapplyAndSave").queryParam("as", "reapplyAndSaveNotFound.ds3")).buildPost(null));
+    expectStatus(
+        Status.BAD_REQUEST,
+        getBuilder(
+                getAPIv2()
+                    .path(newVersion.toString() + "/reapplyAndSave")
+                    .queryParam("as", "reapplyAndSaveNotFound.ds3"))
+            .buildPost(null));
   }
-
 
   @Test
   public void testRenameDataset() throws Exception {
-    expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(new com.dremio.dac.api.Space(null, "space1", null, null, null))), new GenericType<com.dremio.dac.api.Space>() {});
-    expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(new com.dremio.dac.api.Space(null, "space2", null, null, null))), new GenericType<com.dremio.dac.api.Space>() {});
+    expectSuccess(
+        getBuilder(getPublicAPI(3).path("/catalog/"))
+            .buildPost(Entity.json(new com.dremio.dac.api.Space(null, "space1", null, null, null))),
+        new GenericType<com.dremio.dac.api.Space>() {});
+    expectSuccess(
+        getBuilder(getPublicAPI(3).path("/catalog/"))
+            .buildPost(Entity.json(new com.dremio.dac.api.Space(null, "space2", null, null, null))),
+        new GenericType<com.dremio.dac.api.Space>() {});
 
     doc("creating dataset");
     DatasetPath datasetPath = new DatasetPath("space1.ds1");
@@ -1427,12 +1656,13 @@ public class TestServerExplore extends BaseTestServer {
   @Test
   public void testGroupBy() throws Exception {
     DatasetUI dataset = createDatasetFromParentAndSave("groupBy", "cp.\"json/group_by.json\"");
-    DatasetUI dataset2 = transform(
-        dataset,
-        new TransformGroupBy()
-            .setColumnsDimensionsList(asList(new Dimension("a")))
-            .setColumnsMeasuresList(asList(new Measure(Count).setColumn("b")))
-    ).getDataset();
+    DatasetUI dataset2 =
+        transform(
+                dataset,
+                new TransformGroupBy()
+                    .setColumnsDimensionsList(asList(new Dimension("a")))
+                    .setColumnsMeasuresList(asList(new Measure(Count).setColumn("b"))))
+            .getDataset();
 
     assertContains("group by a", dataset2.getSql().toLowerCase());
     assertContains("a, count(b) as count_b", dataset2.getSql().toLowerCase());
@@ -1441,17 +1671,22 @@ public class TestServerExplore extends BaseTestServer {
   @Test
   public void testGroupByWithSortBy() throws Exception {
     DatasetUI dataset = createDatasetFromParentAndSave("groupBy", "cp.\"json/group_by.json\"");
-    DatasetUI datasetSort = transform(
-      dataset,
-      new TransformSorts()
-      .setColumnsList(asList(new Order("a", OrderDirection.ASC), new Order("c", OrderDirection.DESC)))
-    ).getDataset();
-    DatasetUI dataset2 = transform(
-      datasetSort,
-      new TransformGroupBy()
-        .setColumnsDimensionsList(asList(new Dimension("a")))
-        .setColumnsMeasuresList(asList(new Measure(Count).setColumn("b")))
-    ).getDataset();
+    DatasetUI datasetSort =
+        transform(
+                dataset,
+                new TransformSorts()
+                    .setColumnsList(
+                        asList(
+                            new Order("a", OrderDirection.ASC),
+                            new Order("c", OrderDirection.DESC))))
+            .getDataset();
+    DatasetUI dataset2 =
+        transform(
+                datasetSort,
+                new TransformGroupBy()
+                    .setColumnsDimensionsList(asList(new Dimension("a")))
+                    .setColumnsMeasuresList(asList(new Measure(Count).setColumn("b"))))
+            .getDataset();
 
     assertContains("group by a", dataset2.getSql().toLowerCase());
     assertContains("a, count(b) as count_b", dataset2.getSql().toLowerCase());
@@ -1462,17 +1697,22 @@ public class TestServerExplore extends BaseTestServer {
   @Test
   public void testGroupByWithSortByNoGroupBy() throws Exception {
     DatasetUI dataset = createDatasetFromParentAndSave("groupBy", "cp.\"json/group_by.json\"");
-    DatasetUI datasetSort = transform(
-      dataset,
-      new TransformSorts()
-        .setColumnsList(asList(new Order("a", OrderDirection.ASC), new Order("c", OrderDirection.DESC)))
-    ).getDataset();
-    DatasetUI dataset2 = transform(
-      datasetSort,
-      new TransformGroupBy()
-        .setColumnsDimensionsList(null)
-        .setColumnsMeasuresList(asList(new Measure(Count).setColumn("b")))
-    ).getDataset();
+    DatasetUI datasetSort =
+        transform(
+                dataset,
+                new TransformSorts()
+                    .setColumnsList(
+                        asList(
+                            new Order("a", OrderDirection.ASC),
+                            new Order("c", OrderDirection.DESC))))
+            .getDataset();
+    DatasetUI dataset2 =
+        transform(
+                datasetSort,
+                new TransformGroupBy()
+                    .setColumnsDimensionsList(null)
+                    .setColumnsMeasuresList(asList(new Measure(Count).setColumn("b"))))
+            .getDataset();
 
     assertNotContains("group by a", dataset2.getSql().toLowerCase());
     assertNotContains("a, count(b) as count_b", dataset2.getSql().toLowerCase());
@@ -1484,11 +1724,11 @@ public class TestServerExplore extends BaseTestServer {
   @Test
   public void testGroupByDimension() throws Exception {
     DatasetUI dataset = createDatasetFromParentAndSave("groupBy", "cp.\"json/group_by.json\"");
-    DatasetUI dataset2 = transform(
-      dataset,
-      new TransformGroupBy()
-        .setColumnsDimensionsList(asList(new Dimension("a")))
-    ).getDataset();
+    DatasetUI dataset2 =
+        transform(
+                dataset,
+                new TransformGroupBy().setColumnsDimensionsList(asList(new Dimension("a"))))
+            .getDataset();
 
     assertContains("group by a", dataset2.getSql().toLowerCase());
   }
@@ -1496,11 +1736,12 @@ public class TestServerExplore extends BaseTestServer {
   @Test
   public void testGroupByMeasure() throws Exception {
     DatasetUI dataset = createDatasetFromParentAndSave("groupBy", "cp.\"json/group_by.json\"");
-    DatasetUI dataset2 = transform(
-      dataset,
-      new TransformGroupBy()
-        .setColumnsMeasuresList(asList(new Measure(Count).setColumn("b")))
-    ).getDataset();
+    DatasetUI dataset2 =
+        transform(
+                dataset,
+                new TransformGroupBy()
+                    .setColumnsMeasuresList(asList(new Measure(Count).setColumn("b"))))
+            .getDataset();
     assertContains("count(b) as count_b", dataset2.getSql().toLowerCase());
   }
 
@@ -1509,19 +1750,19 @@ public class TestServerExplore extends BaseTestServer {
     DatasetUI dataset = createDatasetFromParentAndSave("groupBy", "cp.\"json/group_by.json\"");
     DatasetUI dataset2 =
         transform(
-            dataset,
-            new TransformGroupBy()
-                .setColumnsDimensionsList(asList(new Dimension("a")))
-                .setColumnsMeasuresList(asList(new Measure(Count).setColumn("b")))
-        ).getDataset();
+                dataset,
+                new TransformGroupBy()
+                    .setColumnsDimensionsList(asList(new Dimension("a")))
+                    .setColumnsMeasuresList(asList(new Measure(Count).setColumn("b"))))
+            .getDataset();
 
     DatasetUI dataset3 =
         transform(
-            dataset2,
-            new TransformGroupBy()
-                .setColumnsDimensionsList(asList(new Dimension("Count_b")))
-                .setColumnsMeasuresList(asList(new Measure(Count).setColumn("a")))
-        ).getDataset();
+                dataset2,
+                new TransformGroupBy()
+                    .setColumnsDimensionsList(asList(new Dimension("Count_b")))
+                    .setColumnsMeasuresList(asList(new Measure(Count).setColumn("a"))))
+            .getDataset();
 
     assertContains("group by a", dataset3.getSql().toLowerCase());
     assertContains("a, count(b) as count_b", dataset3.getSql().toLowerCase());
@@ -1532,12 +1773,13 @@ public class TestServerExplore extends BaseTestServer {
   @Test
   public void testGroupByCountStar() throws Exception {
     DatasetUI dataset = createDatasetFromParentAndSave("groupBy", "cp.\"json/group_by.json\"");
-    DatasetUI dataset2 = transform(
-        dataset,
-        new TransformGroupBy()
-            .setColumnsDimensionsList(asList(new Dimension("a")))
-            .setColumnsMeasuresList(asList(new Measure(Count_Star)))
-    ).getDataset();
+    DatasetUI dataset2 =
+        transform(
+                dataset,
+                new TransformGroupBy()
+                    .setColumnsDimensionsList(asList(new Dimension("a")))
+                    .setColumnsMeasuresList(asList(new Measure(Count_Star))))
+            .getDataset();
 
     assertContains("group by a", dataset2.getSql().toLowerCase());
     assertContains("a, count(*) as count_star", dataset2.getSql().toLowerCase());
@@ -1545,107 +1787,186 @@ public class TestServerExplore extends BaseTestServer {
 
   @Test
   public void testDatasets() throws Exception {
-    expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(new com.dremio.dac.api.Space(null, "space1", null, null, null))), new GenericType<com.dremio.dac.api.Space>() {});
-    expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(new com.dremio.dac.api.Space(null, "space2", null, null, null))), new GenericType<com.dremio.dac.api.Space>() {});
-    expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(new com.dremio.dac.api.Space(null, "space3", null, null, null))), new GenericType<com.dremio.dac.api.Space>() {});
+    expectSuccess(
+        getBuilder(getPublicAPI(3).path("/catalog/"))
+            .buildPost(Entity.json(new com.dremio.dac.api.Space(null, "space1", null, null, null))),
+        new GenericType<com.dremio.dac.api.Space>() {});
+    expectSuccess(
+        getBuilder(getPublicAPI(3).path("/catalog/"))
+            .buildPost(Entity.json(new com.dremio.dac.api.Space(null, "space2", null, null, null))),
+        new GenericType<com.dremio.dac.api.Space>() {});
+    expectSuccess(
+        getBuilder(getPublicAPI(3).path("/catalog/"))
+            .buildPost(Entity.json(new com.dremio.dac.api.Space(null, "space3", null, null, null))),
+        new GenericType<com.dremio.dac.api.Space>() {});
 
-    expectError(CLIENT_ERROR, getDatasetInvocation(new DatasetPath("space.myspace")), NotFoundErrorMessage.class);
+    expectError(
+        CLIENT_ERROR,
+        getDatasetInvocation(new DatasetPath("space.myspace")),
+        NotFoundErrorMessage.class);
 
-    createDatasetFromSQLAndSave(new DatasetPath("space1.ds2"),
-        "select s.s_name from cp.\"tpch/supplier.parquet\" s", asList("cp"));
-    createDatasetFromSQLAndSave(new DatasetPath("space2.ds1"),
-        "select s.s_name from cp.\"tpch/supplier.parquet\" s", asList("cp"));
-    createDatasetFromSQLAndSave(new DatasetPath("space2.ds2"),
-        "select s.s_name from cp.\"tpch/supplier.parquet\" s", asList("cp"));
-    createDatasetFromSQLAndSave(new DatasetPath("space3.ds3"),
-        "select s.s_name from cp.\"tpch/supplier.parquet\" s", asList("cp"));
-    createDatasetFromSQLAndSave(new DatasetPath("space2.ds3"),
-        "select s.s_name from cp.\"tpch/supplier.parquet\" s", asList("cp"));
+    createDatasetFromSQLAndSave(
+        new DatasetPath("space1.ds2"),
+        "select s.s_name from cp.\"tpch/supplier.parquet\" s",
+        asList("cp"));
+    createDatasetFromSQLAndSave(
+        new DatasetPath("space2.ds1"),
+        "select s.s_name from cp.\"tpch/supplier.parquet\" s",
+        asList("cp"));
+    createDatasetFromSQLAndSave(
+        new DatasetPath("space2.ds2"),
+        "select s.s_name from cp.\"tpch/supplier.parquet\" s",
+        asList("cp"));
+    createDatasetFromSQLAndSave(
+        new DatasetPath("space3.ds3"),
+        "select s.s_name from cp.\"tpch/supplier.parquet\" s",
+        asList("cp"));
+    createDatasetFromSQLAndSave(
+        new DatasetPath("space2.ds3"),
+        "select s.s_name from cp.\"tpch/supplier.parquet\" s",
+        asList("cp"));
 
-    final Space space1 = expectSuccess(getBuilder(getAPIv2().path("/space/space1")).buildGet(), Space.class);
+    final Space space1 =
+        expectSuccess(getBuilder(getAPIv2().path("/space/space1")).buildGet(), Space.class);
     assertEquals(1, space1.getContents().getDatasets().size());
 
-    final Space space2 = expectSuccess(getBuilder(getAPIv2().path("/space/space2")).buildGet(), Space.class);
+    final Space space2 =
+        expectSuccess(getBuilder(getAPIv2().path("/space/space2")).buildGet(), Space.class);
     assertEquals(3, space2.getContents().getDatasets().size());
 
-    final Space space3 = expectSuccess(getBuilder(getAPIv2().path("/space/space3")).buildGet(), Space.class);
+    final Space space3 =
+        expectSuccess(getBuilder(getAPIv2().path("/space/space3")).buildGet(), Space.class);
     assertEquals(1, space3.getContents().getDatasets().size());
   }
 
   @Test
   public void testCreateDatasets() throws Exception {
-    expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(new com.dremio.dac.api.Space(null, "spaceCreateDataset", null, null, null))), new GenericType<com.dremio.dac.api.Space>() {});
+    expectSuccess(
+        getBuilder(getPublicAPI(3).path("/catalog/"))
+            .buildPost(
+                Entity.json(
+                    new com.dremio.dac.api.Space(null, "spaceCreateDataset", null, null, null))),
+        new GenericType<com.dremio.dac.api.Space>() {});
     DatasetPath datasetPath = new DatasetPath("spaceCreateDataset.ds1");
-    DatasetUI ds1 = createDatasetFromSQLAndSave(datasetPath,
-        "select s.s_name from cp.\"tpch/supplier.parquet\" s", asList("cp"));
+    DatasetUI ds1 =
+        createDatasetFromSQLAndSave(
+            datasetPath, "select s.s_name from cp.\"tpch/supplier.parquet\" s", asList("cp"));
     DatasetConfig dataset = l(NamespaceService.class).getDataset(datasetPath.toNamespaceKey());
     assertEquals(ds1.getVersion(), dataset.getTag());
 
     getDataset(getDatasetPath(ds1));
 
-    DatasetUI ds2 = createDatasetFromParentAndSave(new DatasetPath("spaceCreateDataset.ds3"), getDatasetPath(ds1).toPathString());
+    DatasetUI ds2 =
+        createDatasetFromParentAndSave(
+            new DatasetPath("spaceCreateDataset.ds3"), getDatasetPath(ds1).toPathString());
     getDataset(getDatasetPath(ds2));
   }
 
   @Test
-  public void canReapplyIsCorrect(){
-    expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(new com.dremio.dac.api.Space(null, "canReapplyDataset", null, null, null))), new GenericType<com.dremio.dac.api.Space>() {});
-    InitialPreviewResponse createFromPhysical = createDatasetFromParent("cp.\"tpch/supplier.parquet\"");
+  public void canReapplyIsCorrect() {
+    expectSuccess(
+        getBuilder(getPublicAPI(3).path("/catalog/"))
+            .buildPost(
+                Entity.json(
+                    new com.dremio.dac.api.Space(null, "canReapplyDataset", null, null, null))),
+        new GenericType<com.dremio.dac.api.Space>() {});
+    InitialPreviewResponse createFromPhysical =
+        createDatasetFromParent("cp.\"tpch/supplier.parquet\"");
     List<String> displayFullPath = createFromPhysical.getDataset().getDisplayFullPath();
-    // datasets directly derived from other datasets should have their display path set to their parent
+    // datasets directly derived from other datasets should have their display path set to their
+    // parent
     assertEquals("cp", displayFullPath.get(0));
     assertEquals("tpch/supplier.parquet", displayFullPath.get(1));
-    assertEquals("Dataset derived directly from a physical dataset shouldn't be reappliable.", false, createFromPhysical.getDataset().canReapply());
+    assertEquals(
+        "Dataset derived directly from a physical dataset shouldn't be reappliable.",
+        false,
+        createFromPhysical.getDataset().canReapply());
 
-    InitialRunResponse runResponse = expectSuccess(getBuilder(
-      getAPIv2()
-        .path(new DatasetVersionResourcePath(
-          new DatasetPath(createFromPhysical.getDataset().getFullPath()),
-          createFromPhysical.getDataset().getDatasetVersion()).toString() + "/run")
-    ).buildGet(), InitialRunResponse.class);
+    InitialRunResponse runResponse =
+        expectSuccess(
+            getBuilder(
+                    getAPIv2()
+                        .path(
+                            new DatasetVersionResourcePath(
+                                        new DatasetPath(
+                                            createFromPhysical.getDataset().getFullPath()),
+                                        createFromPhysical.getDataset().getDatasetVersion())
+                                    .toString()
+                                + "/run"))
+                .buildGet(),
+            InitialRunResponse.class);
 
     displayFullPath = runResponse.getDataset().getDisplayFullPath();
     assertEquals("cp", displayFullPath.get(0));
     assertEquals("tpch/supplier.parquet", displayFullPath.get(1));
 
-    DatasetUI savedFromPhysical = saveAs(createFromPhysical.getDataset(), new DatasetPath("canReapplyDataset.myDataset")).getDataset();
-    assertEquals("Dataset that is saved should not be reappliable.", false, savedFromPhysical.canReapply());
+    DatasetUI savedFromPhysical =
+        saveAs(createFromPhysical.getDataset(), new DatasetPath("canReapplyDataset.myDataset"))
+            .getDataset();
+    assertEquals(
+        "Dataset that is saved should not be reappliable.", false, savedFromPhysical.canReapply());
 
-    InitialPreviewResponse transformedPhysical = transform(savedFromPhysical, new TransformSort("s_name", OrderDirection.ASC));
-    assertEquals("A dataset transformed from a !reappliable dataset should also not be reappliable.", false, transformedPhysical.getDataset().canReapply());
+    InitialPreviewResponse transformedPhysical =
+        transform(savedFromPhysical, new TransformSort("s_name", OrderDirection.ASC));
+    assertEquals(
+        "A dataset transformed from a !reappliable dataset should also not be reappliable.",
+        false,
+        transformedPhysical.getDataset().canReapply());
 
-    InitialPreviewResponse createFromVirtual = createDatasetFromParent("canReapplyDataset.myDataset");
-    assertEquals("Expected a new dataset based off a virtual dataset should be able to be reapplied.", true, createFromVirtual.getDataset().canReapply());
+    InitialPreviewResponse createFromVirtual =
+        createDatasetFromParent("canReapplyDataset.myDataset");
+    assertEquals(
+        "Expected a new dataset based off a virtual dataset should be able to be reapplied.",
+        true,
+        createFromVirtual.getDataset().canReapply());
 
-    InitialPreviewResponse transformedVirtual1 = transform(createFromVirtual.getDataset(), new TransformSort("s_name", OrderDirection.ASC));
-    assertEquals("Unsaved transformation derived from virtual dataset should be reappliable.", true, transformedVirtual1.getDataset().canReapply());
+    InitialPreviewResponse transformedVirtual1 =
+        transform(createFromVirtual.getDataset(), new TransformSort("s_name", OrderDirection.ASC));
+    assertEquals(
+        "Unsaved transformation derived from virtual dataset should be reappliable.",
+        true,
+        transformedVirtual1.getDataset().canReapply());
 
-    DatasetUI savedFromVirtual = saveAs(transformedVirtual1.getDataset(), new DatasetPath("canReapplyDataset.myDataset2")).getDataset();
-    assertEquals("Saved transformation derived from virtual dataset should not be reappliable.", false, savedFromVirtual.canReapply());
+    DatasetUI savedFromVirtual =
+        saveAs(transformedVirtual1.getDataset(), new DatasetPath("canReapplyDataset.myDataset2"))
+            .getDataset();
+    assertEquals(
+        "Saved transformation derived from virtual dataset should not be reappliable.",
+        false,
+        savedFromVirtual.canReapply());
 
-    InitialPreviewResponse transformedVirtual2 = transform(savedFromVirtual, new TransformSort("s_name", OrderDirection.ASC));
-    assertEquals("Unsaved transformation derived from virtual dataset that has name should not be reappliable (since it is named).", false, transformedVirtual2.getDataset().canReapply());
-
+    InitialPreviewResponse transformedVirtual2 =
+        transform(savedFromVirtual, new TransformSort("s_name", OrderDirection.ASC));
+    assertEquals(
+        "Unsaved transformation derived from virtual dataset that has name should not be reappliable (since it is named).",
+        false,
+        transformedVirtual2.getDataset().canReapply());
   }
 
   @Test
   public void testQueryExternal() throws Exception {
 
     // simple query
-    JobDataFragment data = expectSuccess(
+    JobDataFragment data =
+        expectSuccess(
             getBuilder(getAPIv2().path("sql"))
-                    .buildPost(entity(new CreateFromSQL("select * from cp.\"tpch/supplier.parquet\"", asList("cp")), JSON)),
-                    JobDataFragment.class);
+                .buildPost(
+                    entity(
+                        new CreateFromSQL(
+                            "select * from cp.\"tpch/supplier.parquet\"", asList("cp")),
+                        JSON)),
+            JobDataFragment.class);
     assertTrue(data.toString(), data.getColumns().size() > 0);
     assertTrue(data.toString(), data.getReturnedRowCount() > 0);
 
     // ds query
     DatasetUI dataset = createDatasetFromParentAndSave("querytest", "cp.\"tpch/supplier.parquet\"");
     String sql = "select * from " + getDatasetPath(dataset).toPathString();
-    JobDataFragment data2 = expectSuccess(
+    JobDataFragment data2 =
+        expectSuccess(
             getBuilder(getAPIv2().path("sql"))
-                    .buildPost(entity(new CreateFromSQL(sql, asList("cp")), JSON)),
-                    JobDataFragment.class);
+                .buildPost(entity(new CreateFromSQL(sql, asList("cp")), JSON)),
+            JobDataFragment.class);
     assertTrue(data2.toString(), data2.getColumns().size() > 0);
     assertTrue(data2.toString(), data2.getReturnedRowCount() > 0);
   }
@@ -1665,25 +1986,42 @@ public class TestServerExplore extends BaseTestServer {
 
     doc("Get dataset join recommendations join_reco");
 
-    recommendations = expectSuccess(getBuilder(getAPIv2().path(versionedResourcePath(ds) + "/join_recs"))
-            .buildGet(), JoinRecommendations.class);
+    recommendations =
+        expectSuccess(
+            getBuilder(getAPIv2().path(versionedResourcePath(ds) + "/join_recs")).buildGet(),
+            JoinRecommendations.class);
     assertEquals(0, recommendations.getRecommendations().size());
 
-    DatasetUI djointest = createDatasetFromParentAndSave(new DatasetPath(getRoot(dataset) + ".djointest"), getDatasetPath(dataset).toString());
+    DatasetUI djointest =
+        createDatasetFromParentAndSave(
+            new DatasetPath(getRoot(dataset) + ".djointest"), getDatasetPath(dataset).toString());
     final InitialPreviewResponse previewResponseA = getPreview(djointest);
     waitForJobComplete(previewResponseA.getJobId().getId());
 
     DatasetUI sibling = getDataset(getDatasetPath(djointest));
 
     // JOIN ... ON ... joins
-    expectSuccess(getBuilder(getAPIv2().path("/sql")).buildPost(json(new CreateFromSQL("SELECT * FROM " + a + " A INNER JOIN " + b + " B ON A.a = B.b", null))), JobDataFragment.class);
+    expectSuccess(
+        getBuilder(getAPIv2().path("/sql"))
+            .buildPost(
+                json(
+                    new CreateFromSQL(
+                        "SELECT * FROM " + a + " A INNER JOIN " + b + " B ON A.a = B.b", null))),
+        JobDataFragment.class);
 
     // WHERE based joins
-    expectSuccess(getBuilder(getAPIv2().path("/sql")).buildPost(json(new CreateFromSQL("SELECT * FROM " + a + " A, " + c + " C WHERE A.a = C.c", null))), JobDataFragment.class);
+    expectSuccess(
+        getBuilder(getAPIv2().path("/sql"))
+            .buildPost(
+                json(
+                    new CreateFromSQL(
+                        "SELECT * FROM " + a + " A, " + c + " C WHERE A.a = C.c", null))),
+        JobDataFragment.class);
 
-    recommendations = expectSuccess(
-        getBuilder(getAPIv2().path(versionedResourcePath(sibling) + "/join_recs")).buildGet(),
-        JoinRecommendations.class);
+    recommendations =
+        expectSuccess(
+            getBuilder(getAPIv2().path(versionedResourcePath(sibling) + "/join_recs")).buildGet(),
+            JoinRecommendations.class);
 
     assertEquals(2, recommendations.getRecommendations().size());
     JoinRecommendation r0 = recommendations.getRecommendations().get(0);
@@ -1699,48 +2037,50 @@ public class TestServerExplore extends BaseTestServer {
 
     TransformBase t1 =
         new TransformField()
-          .setSourceColumnName("datetime1")
-          .setNewColumnName("a1")
-          .setDropSourceColumn(true)
-          .setFieldTransformation(
-            new FieldConvertDateToNumber(NumberToDateFormat.JULIAN, DATETIME, INTEGER)
-              .wrap()
-          );
+            .setSourceColumnName("datetime1")
+            .setNewColumnName("a1")
+            .setDropSourceColumn(true)
+            .setFieldTransformation(
+                new FieldConvertDateToNumber(NumberToDateFormat.JULIAN, DATETIME, INTEGER).wrap());
 
     DatasetUI datasetDate = transform(dataset, t1).getDataset();
-    assertContains("cast(ceil(unix_timestamp(datetime1, 'yyyy-mm-dd hh24:mi:ss.fff') / 86400 + 2440587.5) as integer)", datasetDate.getSql().toLowerCase());
+    assertContains(
+        "cast(ceil(unix_timestamp(datetime1, 'yyyy-mm-dd hh24:mi:ss.fff') / 86400 + 2440587.5) as integer)",
+        datasetDate.getSql().toLowerCase());
 
-    DatasetUI datasetExcel = createDatasetFromParentAndSave("datasetExcel", "cp.\"json/datetime.json\"");
+    DatasetUI datasetExcel =
+        createDatasetFromParentAndSave("datasetExcel", "cp.\"json/datetime.json\"");
     TransformBase t2 =
         new TransformField()
             .setSourceColumnName("date1")
             .setNewColumnName("a1")
             .setDropSourceColumn(true)
             .setFieldTransformation(
-                new FieldConvertDateToNumber(NumberToDateFormat.EXCEL, DATE, INTEGER)
-                    .wrap()
-            );
+                new FieldConvertDateToNumber(NumberToDateFormat.EXCEL, DATE, INTEGER).wrap());
 
     DatasetUI datasetDate2 = transform(datasetExcel, t2).getDataset();
-    assertContains("cast(ceil(unix_timestamp(date1, 'yyyy-mm-dd') / 86400 + 25569) as integer)", datasetDate2.getSql().toLowerCase());
+    assertContains(
+        "cast(ceil(unix_timestamp(date1, 'yyyy-mm-dd') / 86400 + 25569) as integer)",
+        datasetDate2.getSql().toLowerCase());
 
-    DatasetUI datasetEpoch = createDatasetFromParentAndSave("datasetEpoch", "cp.\"json/datetime.json\"");
+    DatasetUI datasetEpoch =
+        createDatasetFromParentAndSave("datasetEpoch", "cp.\"json/datetime.json\"");
     TransformBase t3 =
         new TransformField()
-          .setSourceColumnName("time1")
-          .setNewColumnName("a1")
-          .setDropSourceColumn(true)
-          .setFieldTransformation(
-            new FieldConvertDateToNumber(NumberToDateFormat.EPOCH, TIME, FLOAT)
-              .wrap()
-          );
+            .setSourceColumnName("time1")
+            .setNewColumnName("a1")
+            .setDropSourceColumn(true)
+            .setFieldTransformation(
+                new FieldConvertDateToNumber(NumberToDateFormat.EPOCH, TIME, FLOAT).wrap());
 
     DatasetUI datasetDate3 = transform(datasetEpoch, t3).getDataset();
-    assertContains("unix_timestamp(time1, 'yyyy-mm-dd\"t\"hh24:mi:ss.ffftzo')", datasetDate3.getSql().toLowerCase());
+    assertContains(
+        "unix_timestamp(time1, 'yyyy-mm-dd\"t\"hh24:mi:ss.ffftzo')",
+        datasetDate3.getSql().toLowerCase());
   }
 
   @Test
-  public void testJoin() throws Exception{
+  public void testJoin() throws Exception {
 
     DatasetUI dataset = createDatasetFromParentAndSave("tbl1", "cp.\"json/numbers.json\"");
 
@@ -1748,10 +2088,14 @@ public class TestServerExplore extends BaseTestServer {
     join.setJoinType(JoinType.Inner);
     join.setJoinConditionsList(Arrays.asList(new JoinCondition("b", "b")));
     join.setRightTableFullPathList(dataset.getFullPath());
-    InitialPendingTransformResponse resp = expectSuccess(getBuilder(getAPIv2()
-        .path(versionedResourcePath(dataset) + "/transformPeek")
-        .queryParam("newVersion", "123456"))
-        .buildPost(entity(join, JSON)), InitialPendingTransformResponse.class);
+    InitialPendingTransformResponse resp =
+        expectSuccess(
+            getBuilder(
+                    getAPIv2()
+                        .path(versionedResourcePath(dataset) + "/transformPeek")
+                        .queryParam("newVersion", "123456"))
+                .buildPost(entity(join, JSON)),
+            InitialPendingTransformResponse.class);
   }
 
   @Ignore("Fails with Missing function implementation: [to_time(FLOAT8-OPTIONAL)]")
@@ -1766,8 +2110,8 @@ public class TestServerExplore extends BaseTestServer {
             .setFieldTransformation(
                 new FieldConvertNumberToDate()
                     .setDesiredType(DATE)
-                    .setFormat(NumberToDateFormat.EXCEL).wrap()
-            );
+                    .setFormat(NumberToDateFormat.EXCEL)
+                    .wrap());
 
     DatasetUI datasetDate = transform(dataset, t1).getDataset();
 
@@ -1783,8 +2127,7 @@ public class TestServerExplore extends BaseTestServer {
                 new FieldConvertNumberToDate()
                     .setDesiredType(TIME)
                     .setFormat(NumberToDateFormat.JULIAN)
-                    .wrap()
-            );
+                    .wrap());
 
     DatasetUI datasetTime = transform(dataset, t2).getDataset();
 
@@ -1796,7 +2139,8 @@ public class TestServerExplore extends BaseTestServer {
             .setSourceColumnName("a")
             .setNewColumnName("a1")
             .setDropSourceColumn(true)
-            .setFieldTransformation(new FieldConvertNumberToDate()
+            .setFieldTransformation(
+                new FieldConvertNumberToDate()
                     .setDesiredType(DATETIME)
                     .setFormat(NumberToDateFormat.EPOCH)
                     .wrap());
@@ -1807,34 +2151,42 @@ public class TestServerExplore extends BaseTestServer {
 
   @Test
   public void testConvertCalculatedField() throws Exception {
-    DatasetUI dataset = createDatasetFromParentAndSave("calculatedField", "cp.\"tpch/supplier.parquet\"");
-    DatasetUI dataset2 = transform(
-        dataset,
-        new TransformAddCalculatedField("baz", "s_address", "1", true)
-    ).getDataset();
+    DatasetUI dataset =
+        createDatasetFromParentAndSave("calculatedField", "cp.\"tpch/supplier.parquet\"");
+    DatasetUI dataset2 =
+        transform(dataset, new TransformAddCalculatedField("baz", "s_address", "1", true))
+            .getDataset();
 
     assertTrue(
-      Pattern.compile("select s_suppkey, s_name, 1 as baz, s_nationkey, s_phone, s_acctbal, s_comment\\s*\\n\\s*from")
-        .matcher(dataset2.getSql().toLowerCase()).find());
+        Pattern.compile(
+                "select s_suppkey, s_name, 1 as baz, s_nationkey, s_phone, s_acctbal, s_comment\\s*\\n\\s*from")
+            .matcher(dataset2.getSql().toLowerCase())
+            .find());
     // To address a variety of failures based on performing several transforms in a row, we added
-    // nesting in the case of all calculated fields. We do not currently parse the expression from the
-    // user to find out which columns are all referenced, so they may require nesting. This previously excluded
-    // string now appears in the subquery, but the include above has been updated to check for all expected columns
+    // nesting in the case of all calculated fields. We do not currently parse the expression from
+    // the
+    // user to find out which columns are all referenced, so they may require nesting. This
+    // previously excluded
+    // string now appears in the subquery, but the include above has been updated to check for all
+    // expected columns
     // in the outer select list, which does exclude s_address.
-    //assertNotContains("s_address", dataset2.getSql().toLowerCase());
+    // assertNotContains("s_address", dataset2.getSql().toLowerCase());
 
-    DatasetUI dataset3 = transform(
-        dataset2,
-        new TransformField().setFieldTransformation(
-            new FieldSimpleConvertToType(TEXT).wrap()).setSourceColumnName("baz")
-            .setNewColumnName("baz2")
-            .setDropSourceColumn(true)
-    ).getDataset();
+    DatasetUI dataset3 =
+        transform(
+                dataset2,
+                new TransformField()
+                    .setFieldTransformation(new FieldSimpleConvertToType(TEXT).wrap())
+                    .setSourceColumnName("baz")
+                    .setNewColumnName("baz2")
+                    .setDropSourceColumn(true))
+            .getDataset();
 
     assertContains("as varchar", dataset3.getSql().toLowerCase());
 
     DatasetUI dataset4 =
-        transform(dataset, new TransformAddCalculatedField("baz", "s_address", "2", false)).getDataset();
+        transform(dataset, new TransformAddCalculatedField("baz", "s_address", "2", false))
+            .getDataset();
 
     assertContains(" 2 as baz", dataset4.getSql().toLowerCase());
     assertContains("s_address, 2 as baz", dataset4.getSql().toLowerCase());
@@ -1842,9 +2194,9 @@ public class TestServerExplore extends BaseTestServer {
 
   @Test
   public void testNodeActivity() {
-    Nodes nodes =  expectSuccess(getBuilder(getAPIv2().path("/system/nodes"))
-            .buildGet(), Nodes.class);
-    if(isMultinode()){
+    Nodes nodes =
+        expectSuccess(getBuilder(getAPIv2().path("/system/nodes")).buildGet(), Nodes.class);
+    if (isMultinode()) {
       assertEquals(3, nodes.size());
       final Nodes.NodeInfo master = nodes.get(0);
       assertTrue(master.getIsMaster() && master.getIsCoordinator() && !master.getIsExecutor());
@@ -1852,19 +2204,23 @@ public class TestServerExplore extends BaseTestServer {
       assertTrue(!coord.getIsMaster() && coord.getIsCoordinator() && !coord.getIsExecutor());
       final Nodes.NodeInfo exec = nodes.get(2);
       assertTrue(!exec.getIsMaster() && !exec.getIsCoordinator() && exec.getIsExecutor());
-    }else {
+    } else {
       assertEquals("green", nodes.get(0).getStatus());
       assertEquals(1, nodes.size());
       final Nodes.NodeInfo masterExec = nodes.get(0);
-      assertTrue(masterExec.getIsMaster() && masterExec.getIsCoordinator() && masterExec.getIsExecutor());
+      assertTrue(
+          masterExec.getIsMaster() && masterExec.getIsCoordinator() && masterExec.getIsExecutor());
     }
-    assertTrue(nodes.stream().allMatch(node -> node.getVersion().equals(DremioVersionInfo.getVersion())));
+    assertTrue(
+        nodes.stream().allMatch(node -> node.getVersion().equals(DremioVersionInfo.getVersion())));
   }
 
   @Test
   public void testMemoryActivity() {
-    SystemResource.ResourceInfo resourceInfo =  expectSuccess(getBuilder(getAPIv2().path("/system/cluster-resource-info"))
-      .buildGet(), SystemResource.ResourceInfo.class);
+    SystemResource.ResourceInfo resourceInfo =
+        expectSuccess(
+            getBuilder(getAPIv2().path("/system/cluster-resource-info")).buildGet(),
+            SystemResource.ResourceInfo.class);
     assertNotNull(resourceInfo);
   }
 
@@ -1895,22 +2251,25 @@ public class TestServerExplore extends BaseTestServer {
     InitialPreviewResponse datasetResponse = createDatasetFromSQL(sql, context);
 
     // any transform will do
-    InitialPreviewResponse result = transform(datasetResponse.getDataset(), new TransformDrop("s_phone"));
+    InitialPreviewResponse result =
+        transform(datasetResponse.getDataset(), new TransformDrop("s_phone"));
 
     // should not get wrapped
     String newSql = result.getDataset().getSql();
     // no subquery => no parenthesis
-    assertFalse(newSql, newSql.contains("(") || newSql.contains(")") );
+    assertFalse(newSql, newSql.contains("(") || newSql.contains(")"));
   }
 
   @Test
   public void testEditDatasetContext() throws Exception {
-    List<String> context =  asList("cp");
+    List<String> context = asList("cp");
     // create dataset
     DatasetUI dataset = createDatasetFromParentAndSave("testds", "cp.\"tpch/supplier.parquet\"");
 
     // make some transform
-    TransformBase tb = new TransformUpdateSQL("select * from \"tpch/supplier.parquet\"").setSqlContextList(context);
+    TransformBase tb =
+        new TransformUpdateSQL("select * from \"tpch/supplier.parquet\"")
+            .setSqlContextList(context);
 
     InitialPreviewResponse dataset2Response = transform(dataset, tb);
 
@@ -1927,16 +2286,19 @@ public class TestServerExplore extends BaseTestServer {
 
   @Test
   public void testEditSQL() throws Exception {
-    List<String> context =  asList("cp");
+    List<String> context = asList("cp");
     // create dataset
     DatasetUI dataset = createDatasetFromParentAndSave("testds", "cp.\"tpch/supplier.parquet\"");
 
     // make some transform
-    TransformBase tb = new TransformUpdateSQL("select count(*) from \"tpch/supplier.parquet\"").setSqlContextList(context);
+    TransformBase tb =
+        new TransformUpdateSQL("select count(*) from \"tpch/supplier.parquet\"")
+            .setSqlContextList(context);
 
     InitialPreviewResponse dataset2Response = transform(dataset, tb);
 
-    assertEquals("select count(*) from \"tpch/supplier.parquet\"", dataset2Response.getDataset().getSql());
+    assertEquals(
+        "select count(*) from \"tpch/supplier.parquet\"", dataset2Response.getDataset().getSql());
     JobDataFragment data = getData(dataset2Response.getPaginationUrl(), 0, 200);
 
     String dataString = JSONUtil.toString(data);
@@ -1955,10 +2317,11 @@ public class TestServerExplore extends BaseTestServer {
     Selection selection = new Selection("s_phone", "27-918-335-1736", 3, 3);
 
     doc("get keeponly cards recommendation");
-    ReplaceCards card1 = expectSuccess(
-        getBuilder(getAPIv2().path(versionedResourcePath(dataset) + "/keeponly"))
-            .buildPost(entity(selection, JSON)),
-        ReplaceCards.class);
+    ReplaceCards card1 =
+        expectSuccess(
+            getBuilder(getAPIv2().path(versionedResourcePath(dataset) + "/keeponly"))
+                .buildPost(entity(selection, JSON)),
+            ReplaceCards.class);
     List<Card<ReplacePatternRule>> cards = card1.getCards();
     assertFalse(cards.toString(), cards.isEmpty());
     assertEquals(cards.toString(), 2, cards.size());
@@ -1969,10 +2332,11 @@ public class TestServerExplore extends BaseTestServer {
     assertEquals(asList("Matches regex \\d+", "Contains 918"), actual);
 
     doc("get exclude cards recommendation");
-    ReplaceCards card2 = expectSuccess(
-        getBuilder(getAPIv2().path(versionedResourcePath(dataset) + "/exclude"))
-            .buildPost(entity(selection, JSON)),
-        ReplaceCards.class);
+    ReplaceCards card2 =
+        expectSuccess(
+            getBuilder(getAPIv2().path(versionedResourcePath(dataset) + "/exclude"))
+                .buildPost(entity(selection, JSON)),
+            ReplaceCards.class);
     cards = card2.getCards();
     assertFalse(cards.toString(), cards.isEmpty());
     assertEquals(cards.toString(), 2, cards.size());
@@ -1985,15 +2349,17 @@ public class TestServerExplore extends BaseTestServer {
 
   @Test
   public void testCardGenOnEmptyTable() throws Exception {
-    InitialPreviewResponse previewDataset = createDatasetFromSQL("select * from sys.version where commit_id = ''", Lists.newArrayList("cp"));
+    InitialPreviewResponse previewDataset =
+        createDatasetFromSQL(
+            "select * from sys.version where commit_id = ''", Lists.newArrayList("cp"));
 
     Selection sel = new Selection("commit_id", "unused in test", 0, 3);
 
     expectSuccess(
-      getBuilder(getAPIv2().path(versionedResourcePath(previewDataset.getDataset()) + "/keeponly"))
-        .buildPost(entity(sel, JSON)),
-      new GenericType<ReplaceCards>() {}
-    );
+        getBuilder(
+                getAPIv2().path(versionedResourcePath(previewDataset.getDataset()) + "/keeponly"))
+            .buildPost(entity(sel, JSON)),
+        new GenericType<ReplaceCards>() {});
   }
 
   @Test // DX-3964
@@ -2014,11 +2380,11 @@ public class TestServerExplore extends BaseTestServer {
 
   private void helperTestReplaceValuesCard(DatasetUI datasetUI, String function, Selection sel) {
     doc(String.format("get %s card preview", function));
-    ReplaceCards cards = expectSuccess(
-        getBuilder(getAPIv2().path(versionedResourcePath(datasetUI) + "/" + function))
-            .buildPost(entity(sel, JSON)),
-        new GenericType<ReplaceCards>() {
-        });
+    ReplaceCards cards =
+        expectSuccess(
+            getBuilder(getAPIv2().path(versionedResourcePath(datasetUI) + "/" + function))
+                .buildPost(entity(sel, JSON)),
+            new GenericType<ReplaceCards>() {});
     assertEquals(1, cards.getValues().getMatchedValues());
     assertEquals(6, cards.getValues().getUnmatchedValues());
     assertEquals(7, cards.getValues().getAvailableValuesCount());
@@ -2028,25 +2394,26 @@ public class TestServerExplore extends BaseTestServer {
   public void testGetKeeponlyExcludeCard() throws Exception {
     DatasetUI dataset = createDatasetFromParentAndSave("testds", "cp.\"tpch/supplier.parquet\"");
 
-    PreviewReq<ReplacePatternRule, Selection> req = new PreviewReq<>(
-        new Selection("s_phone", "27-918-335-1736", 3, 3),
-        new ReplacePatternRule(CONTAINS).setIgnoreCase(false).setSelectionPattern("918"));
+    PreviewReq<ReplacePatternRule, Selection> req =
+        new PreviewReq<>(
+            new Selection("s_phone", "27-918-335-1736", 3, 3),
+            new ReplacePatternRule(CONTAINS).setIgnoreCase(false).setSelectionPattern("918"));
 
     doc("get keeponly card preview");
-    Card<ReplacePatternRule> card1 = expectSuccess(
-        getBuilder(getAPIv2().path(versionedResourcePath(dataset) + "/keeponly_preview"))
-            .buildPost(entity(req, JSON)),
-        new GenericType<Card<ReplacePatternRule>>() {
-        });
+    Card<ReplacePatternRule> card1 =
+        expectSuccess(
+            getBuilder(getAPIv2().path(versionedResourcePath(dataset) + "/keeponly_preview"))
+                .buildPost(entity(req, JSON)),
+            new GenericType<Card<ReplacePatternRule>>() {});
     assertEquals(card1.getMatchedCount(), 1);
     assertEquals(card1.getDescription(), "Contains 918");
 
     doc("get exclude card preview");
-    Card<ReplacePatternRule> card2 = expectSuccess(
-        getBuilder(getAPIv2().path(versionedResourcePath(dataset) + "/exclude_preview"))
-            .buildPost(entity(req, JSON)),
-        new GenericType<Card<ReplacePatternRule>>() {
-        });
+    Card<ReplacePatternRule> card2 =
+        expectSuccess(
+            getBuilder(getAPIv2().path(versionedResourcePath(dataset) + "/exclude_preview"))
+                .buildPost(entity(req, JSON)),
+            new GenericType<Card<ReplacePatternRule>>() {});
     assertEquals(card2.getMatchedCount(), 1);
     assertEquals(card2.getDescription(), "Contains 918");
   }
@@ -2055,23 +2422,27 @@ public class TestServerExplore extends BaseTestServer {
   public void testGetKeeponlyExcludeValuesCard() throws Exception {
     DatasetUI dataset = createDatasetFromParentAndSave("testds", "cp.\"tpch/supplier.parquet\"");
 
-    ReplaceValuesPreviewReq req = new ReplaceValuesPreviewReq(
-        new Selection("s_phone", "27-918-335-1736", 3, 3),
-        Arrays.asList("27-918-335-1736", "20-403-398-8662", "13-715-945-6730"), false);
+    ReplaceValuesPreviewReq req =
+        new ReplaceValuesPreviewReq(
+            new Selection("s_phone", "27-918-335-1736", 3, 3),
+            Arrays.asList("27-918-335-1736", "20-403-398-8662", "13-715-945-6730"),
+            false);
 
     doc("get keeponly card value preview");
-    ReplaceValuesCard card1 = expectSuccess(
-        getBuilder(getAPIv2().path(versionedResourcePath(dataset) + "/keeponly_values_preview"))
-            .buildPost(entity(req, JSON)),
-        ReplaceValuesCard.class);
+    ReplaceValuesCard card1 =
+        expectSuccess(
+            getBuilder(getAPIv2().path(versionedResourcePath(dataset) + "/keeponly_values_preview"))
+                .buildPost(entity(req, JSON)),
+            ReplaceValuesCard.class);
     assertEquals(card1.getMatchedValues(), 3);
     assertEquals(card1.getAvailableValuesCount(), 100);
 
     doc("get exclude card value preview");
-    ReplaceValuesCard card2 = expectSuccess(
-        getBuilder(getAPIv2().path(versionedResourcePath(dataset) + "/exclude_values_preview"))
-            .buildPost(entity(req, JSON)),
-        ReplaceValuesCard.class);
+    ReplaceValuesCard card2 =
+        expectSuccess(
+            getBuilder(getAPIv2().path(versionedResourcePath(dataset) + "/exclude_values_preview"))
+                .buildPost(entity(req, JSON)),
+            ReplaceValuesCard.class);
     assertEquals(card2.getMatchedValues(), 3);
     assertEquals(card2.getAvailableValuesCount(), 100);
   }
@@ -2084,95 +2455,102 @@ public class TestServerExplore extends BaseTestServer {
     System.setProperty(JobData.MAX_CELL_SIZE_KEY, "30");
     try {
 
-      DatasetUI dataset = createDatasetFromParentAndSave("cellTrunc", "cp.\"json/cell_truncation.json\"");
+      DatasetUI dataset =
+          createDatasetFromParentAndSave("cellTrunc", "cp.\"json/cell_truncation.json\"");
 
       final InitialPreviewResponse previewResponse = getPreview(dataset);
       waitForJobComplete(previewResponse.getJobId().getId());
-      final DataPOJO data = (DataPOJO) getData(previewResponse.getPaginationUrl(), 0, INITIAL_RESULTSET_SIZE);
+      final DataPOJO data =
+          (DataPOJO) getData(previewResponse.getPaginationUrl(), 0, INITIAL_RESULTSET_SIZE);
 
       List<CellPOJO> row0Cells = data.getRows().get(0).getRow();
-      fetchAndVerifyFullCellValue(row0Cells.get(1).getUrl(),
-          "very very very very very very very very very very long long string value 1"
-      );
+      fetchAndVerifyFullCellValue(
+          row0Cells.get(1).getUrl(),
+          "very very very very very very very very very very long long string value 1");
 
-      fetchAndVerifyFullCellValue(row0Cells.get(2).getUrl(),
+      fetchAndVerifyFullCellValue(
+          row0Cells.get(2).getUrl(),
           ImmutableMap.of(
               "innerCol1", 200,
               "innerCol2", 234.432,
               "innerCol3", "inner string col",
               "innerCol4", "2016-04-06",
-              "innerCol5", "another string"
-          )
-      );
+              "innerCol5", "another string"));
 
-      fetchAndVerifyFullCellValue(row0Cells.get(3).getUrl(),
-          ImmutableList.of("item 1", "item 2", "item 3", "item 4", "item 1", "item 2", "item 3", "item 4", "item 1")
-      );
+      fetchAndVerifyFullCellValue(
+          row0Cells.get(3).getUrl(),
+          ImmutableList.of(
+              "item 1", "item 2", "item 3", "item 4", "item 1", "item 2", "item 3", "item 4",
+              "item 1"));
 
       List<CellPOJO> row1Cells = data.getRows().get(1).getRow();
-      fetchAndVerifyFullCellValue(row1Cells.get(1).getUrl(),
-          "very very very very very very very very very very long long string value 2"
-      );
+      fetchAndVerifyFullCellValue(
+          row1Cells.get(1).getUrl(),
+          "very very very very very very very very very very long long string value 2");
 
-      fetchAndVerifyFullCellValue(row1Cells.get(2).getUrl(),
+      fetchAndVerifyFullCellValue(
+          row1Cells.get(2).getUrl(),
           ImmutableMap.of(
               "innerCol1", 400,
               "innerCol2", 434.432,
               "innerCol3", "inner string col",
               "innerCol4", "2016-04-06",
-              "innerCol5", "another string"
-          )
-      );
+              "innerCol5", "another string"));
 
-      fetchAndVerifyFullCellValue(row1Cells.get(3).getUrl(),
-          ImmutableList.of("item 5", "item 6", "item 7", "item 8", "item 1", "item 2", "item 3", "item 4", "item 1")
-      );
+      fetchAndVerifyFullCellValue(
+          row1Cells.get(3).getUrl(),
+          ImmutableList.of(
+              "item 5", "item 6", "item 7", "item 8", "item 1", "item 2", "item 3", "item 4",
+              "item 1"));
 
       List<CellPOJO> row2Cells = data.getRows().get(2).getRow();
-      fetchAndVerifyFullCellValue(row2Cells.get(1).getUrl(),
-          "very very very very very very very very very very long long string value 3"
-      );
+      fetchAndVerifyFullCellValue(
+          row2Cells.get(1).getUrl(),
+          "very very very very very very very very very very long long string value 3");
 
-      fetchAndVerifyFullCellValue(row2Cells.get(2).getUrl(),
+      fetchAndVerifyFullCellValue(
+          row2Cells.get(2).getUrl(),
           ImmutableMap.of(
               "innerCol1", 600,
               "innerCol2", 634.432,
               "innerCol3", "inner string col",
               "innerCol4", "2016-04-06",
-              "innerCol5", "another string"
-          )
-      );
+              "innerCol5", "another string"));
 
-      fetchAndVerifyFullCellValue(row2Cells.get(3).getUrl(),
-          ImmutableList.of("item 9", "item 10", "item 11", "item 12", "item 1", "item 2", "item 3", "item 4", "item 1")
-      );
+      fetchAndVerifyFullCellValue(
+          row2Cells.get(3).getUrl(),
+          ImmutableList.of(
+              "item 9", "item 10", "item 11", "item 12", "item 1", "item 2", "item 3", "item 4",
+              "item 1"));
 
-      fetchAndVerifyFullCellValue(row2Cells.get(4).getUrl(),
-          "long long long long long long long long long string value");
+      fetchAndVerifyFullCellValue(
+          row2Cells.get(4).getUrl(), "long long long long long long long long long string value");
 
       // Request additional data for preview and verify that cell fetch urls are still valid
       DataPOJO addtlData = (DataPOJO) getData(previewResponse.getPaginationUrl(), 2, 1);
 
       List<CellPOJO> addlRow = addtlData.getRows().get(0).getRow();
-      fetchAndVerifyFullCellValue(addlRow.get(1).getUrl(),
-          "very very very very very very very very very very long long string value 3"
-      );
+      fetchAndVerifyFullCellValue(
+          addlRow.get(1).getUrl(),
+          "very very very very very very very very very very long long string value 3");
 
-      fetchAndVerifyFullCellValue(addlRow.get(2).getUrl(),
+      fetchAndVerifyFullCellValue(
+          addlRow.get(2).getUrl(),
           ImmutableMap.of(
               "innerCol1", 600,
               "innerCol2", 634.432,
               "innerCol3", "inner string col",
               "innerCol4", "2016-04-06",
-              "innerCol5", "another string"
-          )
-      );
+              "innerCol5", "another string"));
 
-      fetchAndVerifyFullCellValue(addlRow.get(3).getUrl(),
-          ImmutableList.of("item 9", "item 10", "item 11", "item 12", "item 1", "item 2", "item 3", "item 4", "item 1")
-      );
+      fetchAndVerifyFullCellValue(
+          addlRow.get(3).getUrl(),
+          ImmutableList.of(
+              "item 9", "item 10", "item 11", "item 12", "item 1", "item 2", "item 3", "item 4",
+              "item 1"));
 
-      fetchAndVerifyFullCellValue(addlRow.get(4).getUrl(), "long long long long long long long long long string value");
+      fetchAndVerifyFullCellValue(
+          addlRow.get(4).getUrl(), "long long long long long long long long long string value");
     } finally {
       if (defaultMaxCellLength != null) {
         System.setProperty(JobData.MAX_CELL_SIZE_KEY, defaultMaxCellLength);
@@ -2187,8 +2565,10 @@ public class TestServerExplore extends BaseTestServer {
 
   @Test
   public void previewTableInSubschemaExposedAsTopLevelSchema() throws Exception {
-    // Namespace is cleaned up before the test. So make sure to create a home directory for the test user.
-    final NamespaceKey homeKey = new HomePath(HomeName.getUserHomePath(DEFAULT_USERNAME)).toNamespaceKey();
+    // Namespace is cleaned up before the test. So make sure to create a home directory for the test
+    // user.
+    final NamespaceKey homeKey =
+        new HomePath(HomeName.getUserHomePath(DEFAULT_USERNAME)).toNamespaceKey();
     final NamespaceService ns = l(NamespaceService.class);
     if (!ns.exists(homeKey, Type.HOME)) {
       final HomeConfig homeConfig = new HomeConfig().setOwner(DEFAULT_USERNAME);
@@ -2200,12 +2580,14 @@ public class TestServerExplore extends BaseTestServer {
     SourceUI source = new SourceUI();
     source.setName("testNAS");
     source.setConfig(nas);
-    source.setMetadataPolicy(UIMetadataPolicy.of(CatalogService.DEFAULT_METADATA_POLICY_WITH_AUTO_PROMOTE));
+    source.setMetadataPolicy(
+        UIMetadataPolicy.of(CatalogService.DEFAULT_METADATA_POLICY_WITH_AUTO_PROMOTE));
 
     final SourceService sourceService = newSourceService();
     sourceService.registerSourceWithRuntime(source);
 
-    InitialDataPreviewResponse resp = getPreview(new DatasetPath(asList("testNAS", "datasets", "users.json")));
+    InitialDataPreviewResponse resp =
+        getPreview(new DatasetPath(asList("testNAS", "datasets", "users.json")));
 
     // Now try to query the table as "testNAS.datasets"."users.json"
     createDatasetFromSQL("SELECT * FROM \"testNAS.datasets\".\"users.json\"", asList("cp"));
@@ -2213,50 +2595,58 @@ public class TestServerExplore extends BaseTestServer {
 
   @Test
   public void testReapplyForCopiedRenamedMovedDataset() throws Exception {
-    expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(new com.dremio.dac.api.Space(null, "space1", null, null, null))), new GenericType<com.dremio.dac.api.Space>() {});
-    expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(new com.dremio.dac.api.Space(null, "space2", null, null, null))), new GenericType<com.dremio.dac.api.Space>() {});
+    expectSuccess(
+        getBuilder(getPublicAPI(3).path("/catalog/"))
+            .buildPost(Entity.json(new com.dremio.dac.api.Space(null, "space1", null, null, null))),
+        new GenericType<com.dremio.dac.api.Space>() {});
+    expectSuccess(
+        getBuilder(getPublicAPI(3).path("/catalog/"))
+            .buildPost(Entity.json(new com.dremio.dac.api.Space(null, "space2", null, null, null))),
+        new GenericType<com.dremio.dac.api.Space>() {});
 
-    //create dataset
+    // create dataset
     DatasetPath datasetPath = new DatasetPath("space1.ds1");
     createDatasetFromParentAndSave(datasetPath, "cp.\"tpch/supplier.parquet\"");
 
-    //copy existing dataset
-    final DatasetUI dsCopied = expectSuccess(getBuilder(getAPIv2().path("dataset/space1.ds1-copied/copyFrom/space1.ds1")).
-      buildPut(Entity.json(new VirtualDatasetUI())), DatasetUI.class);
+    // copy existing dataset
+    final DatasetUI dsCopied =
+        expectSuccess(
+            getBuilder(getAPIv2().path("dataset/space1.ds1-copied/copyFrom/space1.ds1"))
+                .buildPut(Entity.json(new VirtualDatasetUI())),
+            DatasetUI.class);
     final DatasetUI dsGetCopied = getDataset(getDatasetPath(dsCopied));
 
-    //rename copied dataset
+    // rename copied dataset
     final DatasetUI dsPutRenamed = rename(getDatasetPath(dsGetCopied), "ds1-copied-renamed");
 
-    //move copied and renamed dataset
+    // move copied and renamed dataset
     DatasetPath renamedDatasetPath = getDatasetPath(dsPutRenamed);
     final DatasetPath newDest = new DatasetPath("space2.ds1-copied-moved");
     final DatasetUI dsPutMoved = move(renamedDatasetPath, newDest);
 
-    //should success to edit original sql for a dataset that is copied, moved, and renamed
+    // should success to edit original sql for a dataset that is copied, moved, and renamed
     final DatasetUI testDS = createDatasetFromParent("space2.ds1-copied-moved").getDataset();
     expectSuccess(reapplyInvocation(getDatasetVersionPath(testDS)));
   }
 
-  private void testBIEndpoint(String endpoint, Callable<Void> biToolSetupCallback) throws Exception {
+  private void testBIEndpoint(String endpoint, Callable<Void> biToolSetupCallback)
+      throws Exception {
     setSpace();
     // create dataset so we get a namespace entry for the physical dataset.
-    final DatasetUI ui = saveAs(
-      createDatasetFromParent("cp.\"tpch/supplier.parquet\"").getDataset(), new DatasetPath("spacefoo.boo")
-    ).getDataset();
+    final DatasetUI ui =
+        saveAs(
+                createDatasetFromParent("cp.\"tpch/supplier.parquet\"").getDataset(),
+                new DatasetPath("spacefoo.boo"))
+            .getDataset();
 
     if (biToolSetupCallback != null) {
       biToolSetupCallback.call();
     }
 
     expectSuccess(
-      getBuilder(
-        getAPIv2()
-          .path(endpoint)
-          .path(String.join("/", ui.getDisplayFullPath()))
-      )
-        .header("Accept", "*/*")
-        .header("host", "localhost")
-        .buildGet());
+        getBuilder(getAPIv2().path(endpoint).path(String.join("/", ui.getDisplayFullPath())))
+            .header("Accept", "*/*")
+            .header("host", "localhost")
+            .buildGet());
   }
 }

@@ -15,26 +15,22 @@
  */
 package com.dremio.datastore;
 
+import com.dremio.datastore.api.KVStoreProvider;
+import com.dremio.test.DremioTest;
 import org.junit.ClassRule;
 import org.junit.rules.TemporaryFolder;
 
-import com.dremio.datastore.api.KVStoreProvider;
-import com.dremio.test.DremioTest;
-
-/**
- * Test local mapdb kvstore.
- */
+/** Test local mapdb kvstore. */
 public class TestLocalKVStore<K, V> extends AbstractTestKVStore<K, V> {
-  @ClassRule
-  public static final TemporaryFolder tmpFolder = new TemporaryFolder();
-
+  @ClassRule public static final TemporaryFolder tmpFolder = new TemporaryFolder();
 
   private KVStoreProvider localKVStoreProvider;
 
   @Override
   public KVStoreProvider createKVStoreProvider() throws Exception {
-    localKVStoreProvider = new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT,
-      tmpFolder.getRoot().toString(), true, true);
+    localKVStoreProvider =
+        new LocalKVStoreProvider(
+            DremioTest.CLASSPATH_SCAN_RESULT, tmpFolder.getRoot().toString(), true, true);
     localKVStoreProvider.start();
     return localKVStoreProvider;
   }

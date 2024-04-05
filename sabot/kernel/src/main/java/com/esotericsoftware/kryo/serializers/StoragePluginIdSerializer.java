@@ -24,8 +24,8 @@ import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.io.Input;
 
 /**
- * Kryo serializer/deserializer with specialized code for handling deserialization of Hive
- * plugin configurations from versions older than 4.0.0
+ * Kryo serializer/deserializer with specialized code for handling deserialization of Hive plugin
+ * configurations from versions older than 4.0.0
  */
 public class StoragePluginIdSerializer extends InjectingSerializer<StoragePluginId> {
   public StoragePluginIdSerializer(Kryo kryo, InjectionMapping mapping) {
@@ -62,7 +62,8 @@ public class StoragePluginIdSerializer extends InjectingSerializer<StoragePlugin
       fields[StoragePluginId.CONFIG_INDEX_1].read(input, object); // config
 
       // Add custom serializer for the ConnectionConf that is aware of the SourceConfig.
-      fields[StoragePluginId.CONNECTION_INDEX_2].setSerializer(getConnectionConfDeserializer(object.getConfig()));
+      fields[StoragePluginId.CONNECTION_INDEX_2].setSerializer(
+          getConnectionConfDeserializer(object.getConfig()));
       fields[StoragePluginId.CONNECTION_INDEX_2].read(input, object); // connection
       fields[StoragePluginId.HASH_CODE_INDEX_3].read(input, object); // hashCode
 
@@ -74,7 +75,9 @@ public class StoragePluginIdSerializer extends InjectingSerializer<StoragePlugin
       }
       return object;
     } finally {
-      if (config.isOptimizedGenerics() && getGenericsScope() != null && kryo.getGenericsResolver() != null) {
+      if (config.isOptimizedGenerics()
+          && getGenericsScope() != null
+          && kryo.getGenericsResolver() != null) {
         // Pop the scope for generics
         kryo.getGenericsResolver().popScope();
       }

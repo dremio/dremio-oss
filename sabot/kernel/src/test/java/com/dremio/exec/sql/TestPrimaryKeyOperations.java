@@ -20,10 +20,15 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import com.dremio.BaseTestQuery;
+import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.store.iceberg.model.IcebergCatalogType;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ImmutableList;
 import java.io.File;
 import java.util.List;
 import java.util.Map;
-
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.commons.io.FileUtils;
@@ -32,17 +37,7 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import com.dremio.BaseTestQuery;
-import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.store.iceberg.model.IcebergCatalogType;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.ImmutableList;
-
-/**
- * Test class for primary key add/drop operations
- * and verify iceberg metadata.
- */
+/** Test class for primary key add/drop operations and verify iceberg metadata. */
 public class TestPrimaryKeyOperations extends BaseTestQuery {
 
   protected static String finalIcebergMetadataLocation;
@@ -65,23 +60,19 @@ public class TestPrimaryKeyOperations extends BaseTestQuery {
         createTable(testSchema, tableName);
 
         final String primaryKey = "r_regionkey";
-        final String addPrimaryKeySql = String.format("" +
-            "alter table %s.%s add primary key (%s)",
-          testSchema, tableName, primaryKey);
+        final String addPrimaryKeySql =
+            String.format(
+                "" + "alter table %s.%s add primary key (%s)", testSchema, tableName, primaryKey);
         runSQL(addPrimaryKeySql);
 
         verifyIcebergMetadataProperties(
-          tableName,
-          ImmutableList.of(Field.nullable(primaryKey, new ArrowType.Int(32, true))));
+            tableName, ImmutableList.of(Field.nullable(primaryKey, new ArrowType.Int(32, true))));
 
-        final String dropPrimaryKeySql = String.format("" +
-            "alter table %s.%s drop primary key",
-          testSchema, tableName);
+        final String dropPrimaryKeySql =
+            String.format("" + "alter table %s.%s drop primary key", testSchema, tableName);
         runSQL(dropPrimaryKeySql);
 
-        verifyIcebergMetadataProperties(
-          tableName,
-          ImmutableList.of());
+        verifyIcebergMetadataProperties(tableName, ImmutableList.of());
 
         dropTable(testSchema, tableName);
       } finally {
@@ -99,11 +90,11 @@ public class TestPrimaryKeyOperations extends BaseTestQuery {
 
         // Try to add a non-existent primary key.
         final String primaryKey = "blah_blah";
-        final String addPrimaryKeySql = String.format("" +
-            "alter table %s.%s add primary key (%s)",
-          testSchema, tableName, primaryKey);
+        final String addPrimaryKeySql =
+            String.format(
+                "" + "alter table %s.%s add primary key (%s)", testSchema, tableName, primaryKey);
         assertThatThrownBy(() -> runSQL(addPrimaryKeySql))
-          .hasMessageContaining(String.format("Column %s not found", primaryKey));
+            .hasMessageContaining(String.format("Column %s not found", primaryKey));
 
         dropTable(testSchema, tableName);
       } finally {
@@ -120,11 +111,10 @@ public class TestPrimaryKeyOperations extends BaseTestQuery {
         createTable(testSchema, tableName);
 
         // Try to drop a primary key when there is none added.
-        final String dropPrimaryKeySql = String.format("" +
-            "alter table %s.%s drop primary key",
-          testSchema, tableName);
+        final String dropPrimaryKeySql =
+            String.format("" + "alter table %s.%s drop primary key", testSchema, tableName);
         assertThatThrownBy(() -> runSQL(dropPrimaryKeySql))
-          .hasMessageContaining("No primary key to drop");
+            .hasMessageContaining("No primary key to drop");
 
         dropTable(testSchema, tableName);
       } finally {
@@ -134,9 +124,10 @@ public class TestPrimaryKeyOperations extends BaseTestQuery {
   }
 
   private void createTable(String testSchema, String tableName) throws Exception {
-    final String createTableQuery = String.format("" +
-        "CREATE TABLE %s.%s as SELECT * from cp.\"tpch/region.parquet\"",
-      testSchema, tableName);
+    final String createTableQuery =
+        String.format(
+            "" + "CREATE TABLE %s.%s as SELECT * from cp.\"tpch/region.parquet\"",
+            testSchema, tableName);
     test(createTableQuery);
   }
 
@@ -146,8 +137,9 @@ public class TestPrimaryKeyOperations extends BaseTestQuery {
   }
 
   private void verifyIcebergMetadataProperties(String tableName, List<Field> fields) {
-    Table icebergTable = getIcebergTable(new File(finalIcebergMetadataLocation, tableName),
-      IcebergCatalogType.HADOOP);
+    Table icebergTable =
+        getIcebergTable(
+            new File(finalIcebergMetadataLocation, tableName), IcebergCatalogType.HADOOP);
     Map<String, String> properties = icebergTable.properties();
     assertTrue(properties.containsKey(DREMIO_PRIMARY_KEY));
 

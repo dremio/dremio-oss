@@ -19,14 +19,6 @@ import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
-
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
-
 import com.dremio.BaseTestQuery.QueryIdCapturingListener;
 import com.dremio.QueryTestUtil;
 import com.dremio.dac.server.BaseTestServer;
@@ -42,16 +34,18 @@ import com.dremio.service.job.JobSummary;
 import com.dremio.service.job.JobsServiceGrpc;
 import com.dremio.service.job.JobsServiceGrpc.JobsServiceStub;
 import com.dremio.service.job.proto.JobId;
-
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
-
-/**
- * Tests for Job progress updates of External jobs (submitted through JDBC/ODBC clients)
- */
+/** Tests for Job progress updates of External jobs (submitted through JDBC/ODBC clients) */
 public class TestExternalJobProgressUpdates extends BaseTestServer {
   protected static final String DEFAULT_USERNAME = SampleDataPopulator.DEFAULT_USER_NAME;
   private static String query;
@@ -63,16 +57,17 @@ public class TestExternalJobProgressUpdates extends BaseTestServer {
   @BeforeClass
   public static void setUp() throws Exception {
     final String name = InProcessServerBuilder.generateName();
-    server = InProcessServerBuilder.forName(name)
-      .directExecutor()
-      .addService(new JobsServiceAdapter(p(LocalJobsService.class)))
-      .addService(new Chronicle(p(LocalJobsService.class), () -> getSabotContext().getExecutorService()))
-      .build();
+    server =
+        InProcessServerBuilder.forName(name)
+            .directExecutor()
+            .addService(new JobsServiceAdapter(p(LocalJobsService.class)))
+            .addService(
+                new Chronicle(
+                    p(LocalJobsService.class), () -> getSabotContext().getExecutorService()))
+            .build();
     server.start();
 
-    channel = InProcessChannelBuilder.forName(name)
-      .directExecutor()
-      .build();
+    channel = InProcessChannelBuilder.forName(name).directExecutor().build();
     asyncStub = JobsServiceGrpc.newStub(channel);
 
     query = readResourceAsString("tpch_quoted.sql");
@@ -111,8 +106,10 @@ public class TestExternalJobProgressUpdates extends BaseTestServer {
     }
 
     public boolean isCompleted() {
-      JobState state = stateList.get(stateList.size()-1);
-      return (state == JobState.COMPLETED || state == JobState.CANCELED || state == JobState.FAILED);
+      JobState state = stateList.get(stateList.size() - 1);
+      return (state == JobState.COMPLETED
+          || state == JobState.CANCELED
+          || state == JobState.FAILED);
     }
   }
 
@@ -123,10 +120,8 @@ public class TestExternalJobProgressUpdates extends BaseTestServer {
 
   private Job getJob(JobId jobId) throws Exception {
     try {
-      GetJobRequest getJobRequest = GetJobRequest.newBuilder()
-        .setJobId(jobId)
-        .setUserName(SYSTEM_USERNAME)
-        .build();
+      GetJobRequest getJobRequest =
+          GetJobRequest.newBuilder().setJobId(jobId).setUserName(SYSTEM_USERNAME).build();
       return l(LocalJobsService.class).getJob(getJobRequest);
     } catch (JobNotFoundException e) {
       return null;
@@ -134,13 +129,12 @@ public class TestExternalJobProgressUpdates extends BaseTestServer {
   }
 
   private void pauseAndResume(Class clazz, String descriptor) throws Exception {
-    final String controls = Controls.newBuilder()
-      .addPause(clazz, descriptor)
-      .build();
+    final String controls = Controls.newBuilder().addPause(clazz, descriptor).build();
 
     ControlsInjectionUtil.setControls(getRpcClient(), controls);
     QueryIdCapturingListener capturingListener = new QueryIdCapturingListener();
-    final AwaitableUserResultsListener listener = new AwaitableUserResultsListener(capturingListener);
+    final AwaitableUserResultsListener listener =
+        new AwaitableUserResultsListener(capturingListener);
     QueryTestUtil.testWithListener(getRpcClient(), UserBitShared.QueryType.SQL, query, listener);
 
     // wait till we have a queryId
@@ -176,7 +170,9 @@ public class TestExternalJobProgressUpdates extends BaseTestServer {
     }
 
     assertEquals(QueryState.COMPLETED, queryState);
-    assertEquals(JobState.COMPLETED, stateListener.getStateList().get(stateListener.getStateList().size()-1));
+    assertEquals(
+        JobState.COMPLETED,
+        stateListener.getStateList().get(stateListener.getStateList().size() - 1));
     // checks progress updates for intermediate states
     assertTrue(stateListener.getStateList().size() > 2);
   }

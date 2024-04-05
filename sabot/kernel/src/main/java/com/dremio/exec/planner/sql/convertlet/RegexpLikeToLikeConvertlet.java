@@ -17,8 +17,8 @@ package com.dremio.exec.planner.sql.convertlet;
 
 import static com.dremio.exec.planner.sql.DremioSqlOperatorTable.REGEXP_LIKE;
 
+import com.google.common.collect.ImmutableSet;
 import java.util.Set;
-
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexLiteral;
@@ -26,43 +26,36 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 
-import com.google.common.collect.ImmutableSet;
-
 /**
- * "REGEXP_LIKE is similar to the LIKE condition,
- * except REGEXP_LIKE performs regular expression matching instead of the simple pattern matching performed by LIKE."
+ * "REGEXP_LIKE is similar to the LIKE condition, except REGEXP_LIKE performs regular expression
+ * matching instead of the simple pattern matching performed by LIKE."
  *
- * We noticed that for simple patterns LIKE performs about twice as fast as REGEXP_LIKE.
- * This is most likely due to the fact that LIKE is running less code, since it has a simpler pattern language.
+ * <p>We noticed that for simple patterns LIKE performs about twice as fast as REGEXP_LIKE. This is
+ * most likely due to the fact that LIKE is running less code, since it has a simpler pattern
+ * language.
  *
- * Since we don't have access to either implementation
- * we can instead write a rule to use LIKE in place of REGEXP_LIKE in certain scenarios.
+ * <p>Since we don't have access to either implementation we can instead write a rule to use LIKE in
+ * place of REGEXP_LIKE in certain scenarios.
  *
- * REGEXP_LIKE has the following special characters +, *, ?, ^, $, (, ), [, ], {, }, |, \
- * which means that none of the other characters have special meaning.
- * If a pattern doesn't have any special characters, then we can safely convert REGEXP_LIKE to LIKE.
+ * <p>REGEXP_LIKE has the following special characters +, *, ?, ^, $, (, ), [, ], {, }, |, \ which
+ * means that none of the other characters have special meaning. If a pattern doesn't have any
+ * special characters, then we can safely convert REGEXP_LIKE to LIKE.
  *
- * For example:
+ * <p>For example:
  *
- *  SELECT *
- *  FROM EMP
- *  WHERE REGEXP_LIKE(name, 'asdf')
+ * <p>SELECT * FROM EMP WHERE REGEXP_LIKE(name, 'asdf')
  *
- * Can we rewritten to:
+ * <p>Can we rewritten to:
  *
- * SELECT *
- * FROM EMP
- * WHERE LIKE(name, '%asdf%')
+ * <p>SELECT * FROM EMP WHERE LIKE(name, '%asdf%')
  */
 public final class RegexpLikeToLikeConvertlet implements FunctionConvertlet {
   public static final RegexpLikeToLikeConvertlet INSTANCE = new RegexpLikeToLikeConvertlet();
 
   private RegexpLikeToLikeConvertlet() {}
 
-  private static final Set<Character> SPECIAL_CHARACTERS = ImmutableSet.of(
-    '.', '+', '*', '?',
-    '^','$', '(', ')',
-    '[', ']', '{', '}', '|', '\\');
+  private static final Set<Character> SPECIAL_CHARACTERS =
+      ImmutableSet.of('.', '+', '*', '?', '^', '$', '(', ')', '[', ']', '{', '}', '|', '\\');
 
   @Override
   public boolean matches(RexCall call) {
@@ -76,7 +69,7 @@ public final class RegexpLikeToLikeConvertlet implements FunctionConvertlet {
       return false;
     }
 
-    String pattern = ((RexLiteral)call.getOperands().get(1)).getValueAs(String.class);
+    String pattern = ((RexLiteral) call.getOperands().get(1)).getValueAs(String.class);
     for (int i = 0; i < pattern.length(); i++) {
       Character patternCharacter = pattern.charAt(i);
       if (SPECIAL_CHARACTERS.contains(patternCharacter)) {
@@ -89,7 +82,7 @@ public final class RegexpLikeToLikeConvertlet implements FunctionConvertlet {
 
   @Override
   public RexCall convertCall(ConvertletContext cx, RexCall call) {
-    String pattern = ((RexLiteral)call.getOperands().get(1)).getValueAs(String.class);
+    String pattern = ((RexLiteral) call.getOperands().get(1)).getValueAs(String.class);
     RexBuilder rexBuilder = cx.getRexBuilder();
     RexNode sourceString = call.getOperands().get(0);
     RexNode newPattern = rexBuilder.makeLiteral("%" + pattern + "%");

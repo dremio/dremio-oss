@@ -17,30 +17,6 @@ package com.dremio.dac.api;
 
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
-
-import javax.annotation.security.RolesAllowed;
-import javax.inject.Inject;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.DefaultValue;
-import javax.ws.rs.GET;
-import javax.ws.rs.InternalServerErrorException;
-import javax.ws.rs.NotFoundException;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.util.DremioVersionInfo;
 import com.dremio.dac.annotations.APIResource;
 import com.dremio.dac.annotations.Secured;
@@ -55,12 +31,31 @@ import com.dremio.service.jobs.JobsService;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.annotations.VisibleForTesting;
-
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
+import javax.annotation.security.RolesAllowed;
+import javax.inject.Inject;
+import javax.ws.rs.Consumes;
+import javax.ws.rs.DefaultValue;
+import javax.ws.rs.GET;
+import javax.ws.rs.InternalServerErrorException;
+import javax.ws.rs.NotFoundException;
+import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * Resource for daily job statistics.
- * represents the below tuple for the last 10 days:
- * (date , job_type , count)
+ * Resource for daily job statistics. represents the below tuple for the last 10 days: (date ,
+ * job_type , count)
  */
 @APIResource
 @Secured
@@ -72,7 +67,7 @@ public class DailyJobStatsResource {
   private static final Logger logger = LoggerFactory.getLogger(DailyJobStatsResource.class);
   private static final String FILTER = "(st=gt=%d;st=lt=%d)";
   private static final String DREMIO_EDITION_FORMAT = "dremio-%s-%s";
-  private static final int STAT_DURATION = 10; //stats are for 10 days by default
+  private static final int STAT_DURATION = 10; // stats are for 10 days by default
 
   private static final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
   private static final SimpleDateFormat sdf2 = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
@@ -84,10 +79,7 @@ public class DailyJobStatsResource {
 
   @Inject
   public DailyJobStatsResource(
-    JobsService jobsService,
-    EditionProvider editionProvider,
-    OptionManager optionManager
-  ) {
+      JobsService jobsService, EditionProvider editionProvider, OptionManager optionManager) {
     this.jobsService = jobsService;
     this.edition = editionProvider.getEdition();
     this.optionManager = optionManager;
@@ -95,9 +87,10 @@ public class DailyJobStatsResource {
 
   @GET
   @RolesAllowed({"admin", "user"})
-  public DailyJobStats getStats(@QueryParam("start") @DefaultValue("0") long startEpoch ,
-                              @QueryParam("end") @DefaultValue("0") long endEpoch,
-                              @QueryParam("onlyDateWiseTotals") @DefaultValue("false") String onlyDateWiseTotals) {
+  public DailyJobStats getStats(
+      @QueryParam("start") @DefaultValue("0") long startEpoch,
+      @QueryParam("end") @DefaultValue("0") long endEpoch,
+      @QueryParam("onlyDateWiseTotals") @DefaultValue("false") String onlyDateWiseTotals) {
     if (!optionManager.getOption(ExecConstants.ENABLE_DEPRECATED_JOBS_USER_STATS_API)) {
       throw new NotFoundException("/cluster/jobstats is not supported");
     }
@@ -107,30 +100,36 @@ public class DailyJobStatsResource {
     return createStats(startEpoch, endEpoch);
   }
 
-  private DailyJobStatsResource.DailyJobStats createStatsWithonlyDateWiseTotals(long startEpoch, long endEpoch) {
+  private DailyJobStatsResource.DailyJobStats createStatsWithonlyDateWiseTotals(
+      long startEpoch, long endEpoch) {
     List<Map<String, Object>> result = Collections.synchronizedList(new ArrayList<>());
 
     try {
-      Consumer<Long[]> consumer = (pair) -> {
-        long iterStartDate = pair[0];
-        long iterEndDate = pair[1];
-        logger.debug("StartTime: {}, EndTime:{}", sdf2.format(new Date(iterStartDate)), sdf2.format(new Date(iterEndDate)));
+      Consumer<Long[]> consumer =
+          (pair) -> {
+            long iterStartDate = pair[0];
+            long iterEndDate = pair[1];
+            logger.debug(
+                "StartTime: {}, EndTime:{}",
+                sdf2.format(new Date(iterStartDate)),
+                sdf2.format(new Date(iterEndDate)));
 
-        JobStatsRequest jobStatsRequest = JobStatsRequest.newBuilder()
-          .setStartDate(StatsUtils.convert(iterStartDate))
-          .setEndDate(StatsUtils.convert(iterEndDate))
-          .addJobStatsType(JobStats.Type.DAILY_JOBS)
-          .build();
-        JobStats jobStats = jobsService.getJobStats(jobStatsRequest);
+            JobStatsRequest jobStatsRequest =
+                JobStatsRequest.newBuilder()
+                    .setStartDate(StatsUtils.convert(iterStartDate))
+                    .setEndDate(StatsUtils.convert(iterEndDate))
+                    .addJobStatsType(JobStats.Type.DAILY_JOBS)
+                    .build();
+            JobStats jobStats = jobsService.getJobStats(jobStatsRequest);
 
-        long total = jobStats.getCountsList().stream().mapToInt(x -> x.getCount()).sum();
-        if (total > 0) {
-          Map<String, Object> countMap = new HashMap<>();
-          result.add(countMap);
-          countMap.put("date", sdf.format(new java.util.Date(iterStartDate)));
-          countMap.put("total", total);
-        }
-      };
+            long total = jobStats.getCountsList().stream().mapToInt(x -> x.getCount()).sum();
+            if (total > 0) {
+              Map<String, Object> countMap = new HashMap<>();
+              result.add(countMap);
+              countMap.put("date", sdf.format(new java.util.Date(iterStartDate)));
+              countMap.put("total", total);
+            }
+          };
 
       StatsUtils.executeDateWise(startEpoch, endEpoch, consumer);
 
@@ -147,10 +146,11 @@ public class DailyJobStatsResource {
   private DailyJobStatsResource.DailyJobStats createStats(long startEpoch, long endEpoch) {
     try {
       final SearchJobsRequest.Builder requestBuilder = SearchJobsRequest.newBuilder();
-      final String filter = createJobFilter(startEpoch,endEpoch);
+      final String filter = createJobFilter(startEpoch, endEpoch);
       requestBuilder.setFilterString(filter);
 
-      final DailyJobStats stats = aggregateJobResults(jobsService.searchJobs(requestBuilder.build()));
+      final DailyJobStats stats =
+          aggregateJobResults(jobsService.searchJobs(requestBuilder.build()));
       return stats;
     } catch (Exception err) {
       logger.error("DailyJobStats failed: " + err.getMessage());
@@ -170,10 +170,10 @@ public class DailyJobStatsResource {
 
     final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
 
-    //mapping of date to per-jobType stats
+    // mapping of date to per-jobType stats
     final Map<String, Map<String, Object>> results = new HashMap<>();
 
-    for(final JobSummary jobSummary : jobs) {
+    for (final JobSummary jobSummary : jobs) {
       final String dateKey = sdf.format(new Date(jobSummary.getStartTime()));
       final String jobType = jobSummary.getQueryType().name();
 
@@ -182,8 +182,8 @@ public class DailyJobStatsResource {
         jobTypeCounter = new HashMap<>();
       }
       jobTypeCounter.putIfAbsent("date", dateKey);
-      jobTypeCounter.put("total", (Long)jobTypeCounter.getOrDefault("total", 0L) + 1L);
-      jobTypeCounter.put(jobType, (Long)jobTypeCounter.getOrDefault(jobType, 0L) + 1L);
+      jobTypeCounter.put("total", (Long) jobTypeCounter.getOrDefault("total", 0L) + 1L);
+      jobTypeCounter.put(jobType, (Long) jobTypeCounter.getOrDefault(jobType, 0L) + 1L);
 
       results.put(dateKey, jobTypeCounter);
     }
@@ -194,16 +194,13 @@ public class DailyJobStatsResource {
     return dailyJobStats;
   }
 
-
-  /**
-   * holds the response of the REST call
-   */
+  /** holds the response of the REST call */
   public static class DailyJobStats {
     private String edition;
-    private List<Map<String, Object>>  jobStats;
+    private List<Map<String, Object>> jobStats;
+
     @JsonCreator
-    DailyJobStats(
-      @JsonProperty("jobStats") List<Map<String, Object>> jobStats) {
+    DailyJobStats(@JsonProperty("jobStats") List<Map<String, Object>> jobStats) {
       this.jobStats = jobStats;
     }
 

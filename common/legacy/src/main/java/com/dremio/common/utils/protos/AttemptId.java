@@ -18,9 +18,7 @@ package com.dremio.common.utils.protos;
 import com.dremio.exec.proto.UserBitShared.ExternalId;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 
-/**
- * represents a single attempt ID. It's a combination of an external QueryId + an attempt number
- */
+/** represents a single attempt ID. It's a combination of an external QueryId + an attempt number */
 public class AttemptId {
 
   private static final int MASK = 0xFF;
@@ -32,9 +30,7 @@ public class AttemptId {
     this(ExternalIdHelper.generateExternalId(), 0);
   }
 
-  /**
-   * AttemptId = externalId + attempt #
-   */
+  /** AttemptId = externalId + attempt # */
   public AttemptId(final ExternalId externalId, int attempt) {
     assert ExternalIdHelper.isValid(externalId) : "not a valid externalId";
     assert attempt >= 0 && attempt < 256 : "invalid attempt# " + attempt;
@@ -49,10 +45,7 @@ public class AttemptId {
     final long part1 = externalId.getPart1();
     final long part2 = externalId.getPart2();
 
-    return QueryId.newBuilder()
-            .setPart1(part1)
-            .setPart2(part2 + ((byte) attempt & MASK))
-            .build();
+    return QueryId.newBuilder().setPart1(part1).setPart2(part2 + ((byte) attempt & MASK)).build();
   }
 
   public ExternalId getExternalId() {
@@ -70,6 +63,7 @@ public class AttemptId {
 
   /**
    * Convert an external id to an attempt id, assuming this is its first attempt
+   *
    * @param externalId
    * @return
    */
@@ -79,6 +73,7 @@ public class AttemptId {
 
   /**
    * Convert a query id to an attempt id
+   *
    * @param queryId
    * @return
    */

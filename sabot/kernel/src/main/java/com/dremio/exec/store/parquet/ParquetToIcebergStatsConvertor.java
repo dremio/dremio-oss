@@ -17,13 +17,14 @@ package com.dremio.exec.store.parquet;
 
 import static org.apache.iceberg.types.Conversions.toByteBuffer;
 
+import com.dremio.exec.ExecConstants;
+import com.dremio.sabot.exec.context.OperatorContext;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
 import org.apache.iceberg.Metrics;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.expressions.Literal;
@@ -36,14 +37,10 @@ import org.apache.parquet.hadoop.metadata.ColumnPath;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import org.apache.parquet.schema.PrimitiveType;
 
-import com.dremio.exec.ExecConstants;
-import com.dremio.sabot.exec.context.OperatorContext;
-
-/**
- * Class to support stats conversions from Parquet types to Iceberg types.
- */
+/** Class to support stats conversions from Parquet types to Iceberg types. */
 public class ParquetToIcebergStatsConvertor {
-  public static Metrics toMetrics(OperatorContext context, ParquetMetadata metadata, Schema fileSchema) {
+  public static Metrics toMetrics(
+      OperatorContext context, ParquetMetadata metadata, Schema fileSchema) {
     long rowCount = 0;
     Map<Integer, Long> columnSizes = new HashMap<>();
     Map<Integer, Long> valueCounts = new HashMap<>();
@@ -72,10 +69,17 @@ public class ParquetToIcebergStatsConvertor {
           missingStats.add(fieldId);
         } else if (!stats.isEmpty()) {
           nullValueCounts.merge(fieldId, stats.getNumNulls(), (x, y) -> y + stats.getNumNulls());
-          boolean icebergMinMaxEnabled = context.getOptions().getOption(ExecConstants.ENABLE_ICEBERG_MIN_MAX);
+          boolean icebergMinMaxEnabled =
+              context.getOptions().getOption(ExecConstants.ENABLE_ICEBERG_MIN_MAX);
           if (icebergMinMaxEnabled && stats.hasNonNullValue()) {
-            updateMin(lowerBounds, fieldId, toLiteral(field.type(), column.getPrimitiveType(), stats.genericGetMin()));
-            updateMax(upperBounds, fieldId, toLiteral(field.type(), column.getPrimitiveType(), stats.genericGetMax()));
+            updateMin(
+                lowerBounds,
+                fieldId,
+                toLiteral(field.type(), column.getPrimitiveType(), stats.genericGetMin()));
+            updateMax(
+                upperBounds,
+                fieldId,
+                toLiteral(field.type(), column.getPrimitiveType(), stats.genericGetMax()));
           }
         }
       }
@@ -88,15 +92,22 @@ public class ParquetToIcebergStatsConvertor {
       upperBounds.remove(fieldId);
     }
     // The column's Statistics does not have nan values api. Put empty map for 'nanValueCounts'.
-    return new Metrics(rowCount, columnSizes, valueCounts, nullValueCounts, new HashMap<>(),
-      toBufferMap(fileSchema, lowerBounds), toBufferMap(fileSchema, upperBounds));
+    return new Metrics(
+        rowCount,
+        columnSizes,
+        valueCounts,
+        nullValueCounts,
+        new HashMap<>(),
+        toBufferMap(fileSchema, lowerBounds),
+        toBufferMap(fileSchema, upperBounds));
   }
 
   private static boolean isNestedType(ColumnPath columnPath) {
     return columnPath.size() != 1;
   }
 
-  private static Literal<Object> toLiteral(Type type, PrimitiveType primitiveType, Comparable comparable) {
+  private static Literal<Object> toLiteral(
+      Type type, PrimitiveType primitiveType, Comparable comparable) {
     return ParquetToIcebergLiteralConvertor.fromParquetPrimitive(type, primitiveType, comparable);
   }
 
@@ -119,7 +130,9 @@ public class ParquetToIcebergStatsConvertor {
   private static Map<Integer, ByteBuffer> toBufferMap(Schema schema, Map<Integer, Literal<?>> map) {
     Map<Integer, ByteBuffer> bufferMap = new HashMap<>();
     for (Map.Entry<Integer, Literal<?>> entry : map.entrySet()) {
-      bufferMap.put(entry.getKey(), toByteBuffer(schema.findType(entry.getKey()).typeId(), entry.getValue().value()));
+      bufferMap.put(
+          entry.getKey(),
+          toByteBuffer(schema.findType(entry.getKey()).typeId(), entry.getValue().value()));
     }
     return bufferMap;
   }

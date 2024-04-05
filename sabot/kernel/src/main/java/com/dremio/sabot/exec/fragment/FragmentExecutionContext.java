@@ -15,6 +15,7 @@
  */
 package com.dremio.sabot.exec.fragment;
 
+import com.dremio.common.concurrent.NamedThreadFactory;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.proto.CoordExecRPC;
@@ -22,26 +23,47 @@ import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.StoragePlugin;
 import com.google.common.util.concurrent.ListenableFuture;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 
-/**
- * Information required for some specialized scan purposes.
- */
+/** Information required for some specialized scan purposes. */
 public class FragmentExecutionContext {
-
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(FragmentExecutionContext.class);
+  private static final Executor cancelExecutor =
+      Executors.newSingleThreadExecutor(new NamedThreadFactory("cancel-thread"));
   private final NodeEndpoint foreman;
   private final CatalogService sources;
   private final ListenableFuture<Boolean> cancelled;
   private final CoordExecRPC.QueryContextInformation queryContextInformation;
+  private final AtomicBoolean fragmentCancelled;
 
-  public FragmentExecutionContext(NodeEndpoint foreman, CatalogService sources, ListenableFuture<Boolean> cancelled, CoordExecRPC.QueryContextInformation context) {
+  public FragmentExecutionContext(
+      NodeEndpoint foreman,
+      CatalogService sources,
+      ListenableFuture<Boolean> cancelled,
+      CoordExecRPC.QueryContextInformation context) {
     super();
     this.foreman = foreman;
     this.sources = sources;
     this.cancelled = cancelled;
+    fragmentCancelled = new AtomicBoolean(false);
+
+    // Add a listener to set the fragmentCancelled to true when the fragment is set to cancel in
+    // FragmentExecutor
+    cancelled.addListener(
+        new Runnable() {
+          @Override
+          public void run() {
+            fragmentCancelled.set(true);
+          }
+        },
+        cancelExecutor);
     this.queryContextInformation = context;
   }
 
-  public NodeEndpoint getForemanEndpoint(){
+  public NodeEndpoint getForemanEndpoint() {
     return foreman;
   }
 
@@ -50,9 +72,10 @@ public class FragmentExecutionContext {
   }
 
   @SuppressWarnings("unchecked")
-  public <T extends StoragePlugin> T getStoragePlugin(StoragePluginId pluginId) throws ExecutionSetupException {
+  public <T extends StoragePlugin> T getStoragePlugin(StoragePluginId pluginId)
+      throws ExecutionSetupException {
     StoragePlugin plugin = sources.getSource(pluginId);
-    if(plugin == null){
+    if (plugin == null) {
       return null;
     }
     return (T) plugin;
@@ -60,5 +83,9 @@ public class FragmentExecutionContext {
 
   public CoordExecRPC.QueryContextInformation getQueryContextInformation() {
     return queryContextInformation;
+  }
+
+  public boolean isCancelled() {
+    return fragmentCancelled.get();
   }
 }

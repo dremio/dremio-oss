@@ -15,16 +15,7 @@
  */
 package com.dremio.dac.server;
 
-
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
-
-import java.util.Optional;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-
-import org.apache.arrow.memory.BufferAllocator;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.dremio.common.exceptions.GrpcExceptionUtil;
 import com.dremio.common.exceptions.UserException;
@@ -57,46 +48,65 @@ import com.dremio.service.jobs.PlanTransformationListener;
 import com.dremio.service.jobs.SqlQuery;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
-
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
+import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import org.apache.arrow.memory.BufferAllocator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * Helper methods around {@link com.dremio.service.jobs.JobsService} for testing purposes
- */
+/** Helper methods around {@link com.dremio.service.jobs.JobsService} for testing purposes */
 public final class JobsServiceTestUtils {
 
   private static final Logger logger = LoggerFactory.getLogger(JobsServiceTestUtils.class);
 
-  private JobsServiceTestUtils() {
-  }
+  private JobsServiceTestUtils() {}
 
-  /**
-   * Submits a Job and returns a {@link JobDataFragment} for a given range of data
-   */
-  public static JobDataFragment submitJobAndGetData(JobsService jobsService, JobRequest request, int offset,
-                                                           int limit, BufferAllocator allocator) {
-    final JobSubmission jobSubmission = submitJobAndWaitUntilCompletion(jobsService, request, JobStatusListener.NO_OP);
-    return JobDataWrapper.getJobData(jobsService, allocator, jobSubmission.getJobId(), jobSubmission.getSessionId(), offset, limit);
+  /** Submits a Job and returns a {@link JobDataFragment} for a given range of data */
+  public static JobDataFragment submitJobAndGetData(
+      JobsService jobsService,
+      JobRequest request,
+      int offset,
+      int limit,
+      BufferAllocator allocator) {
+    final JobSubmission jobSubmission =
+        submitJobAndWaitUntilCompletion(jobsService, request, JobStatusListener.NO_OP);
+    return JobDataWrapper.getJobData(
+        jobsService,
+        allocator,
+        jobSubmission.getJobId(),
+        jobSubmission.getSessionId(),
+        offset,
+        limit);
   }
 
   static JobId submitAndWaitUntilSubmitted(JobsService jobsService, JobRequest request) {
     return submitAndWaitUntilSubmitted(jobsService, request, JobStatusListener.NO_OP);
   }
 
-  static JobId submitAndWaitUntilSubmitted(JobsService jobsService, JobRequest request, JobStatusListener listener) {
+  static JobId submitAndWaitUntilSubmitted(
+      JobsService jobsService, JobRequest request, JobStatusListener listener) {
     final JobSubmittedListener submitListener = new JobSubmittedListener();
-    final JobSubmission jobSubmission = jobsService.submitJob(toSubmitJobRequest(request), new MultiJobStatusListener(submitListener, listener));
+    final JobSubmission jobSubmission =
+        jobsService.submitJob(
+            toSubmitJobRequest(request), new MultiJobStatusListener(submitListener, listener));
     submitListener.await();
     return jobSubmission.getJobId();
   }
+
   public static JobId submitJobAndWaitUntilCompletion(JobsService jobsService, JobRequest request) {
-    return submitJobAndWaitUntilCompletion(jobsService, request, JobStatusListener.NO_OP).getJobId();
+    return submitJobAndWaitUntilCompletion(jobsService, request, JobStatusListener.NO_OP)
+        .getJobId();
   }
 
-  public static JobSubmission submitJobAndWaitUntilCompletion(JobsService jobsService, JobRequest request, JobStatusListener listener) {
+  public static JobSubmission submitJobAndWaitUntilCompletion(
+      JobsService jobsService, JobRequest request, JobStatusListener listener) {
     final CompletionListener completionListener = new CompletionListener();
-    final JobSubmission jobSubmission = jobsService.submitJob(toSubmitJobRequest(request), new MultiJobStatusListener(completionListener, listener));
+    final JobSubmission jobSubmission =
+        jobsService.submitJob(
+            toSubmitJobRequest(request), new MultiJobStatusListener(completionListener, listener));
     final JobId jobId = jobSubmission.getJobId();
     try {
       completionListener.await();
@@ -104,14 +114,15 @@ public final class JobsServiceTestUtils {
       // If job did not finish, most likely we encountered an interrupt.
       // We need to cancel job in this case so that resources can be cleaned up properly.
       if (!(completionListener.isCompleted()
-        || completionListener.getCancelledReason() != null
-        || completionListener.getException() != null)) {
+          || completionListener.getCancelledReason() != null
+          || completionListener.getException() != null)) {
         try {
-          jobsService.cancel(CancelJobRequest.newBuilder()
-            .setUsername(SYSTEM_USERNAME)
-            .setJobId(JobsProtoUtil.toBuf(jobId))
-            .setReason("Query did not finish")
-            .build());
+          jobsService.cancel(
+              CancelJobRequest.newBuilder()
+                  .setUsername(SYSTEM_USERNAME)
+                  .setJobId(JobsProtoUtil.toBuf(jobId))
+                  .setReason("Query did not finish")
+                  .build());
         } catch (Exception ex2) {
           logger.error("Failed to cancel query " + jobId, ex2);
         }
@@ -126,19 +137,23 @@ public final class JobsServiceTestUtils {
   }
 
   /**
-   * Submits query and waits specified milliseconds for completion
-   * returns true if query completes in time else cancels job and returns false
+   * Submits query and waits specified milliseconds for completion returns true if query completes
+   * in time else cancels job and returns false
+   *
    * @param jobsService
    * @param request
    * @param timeOut
    * @throws Exception
    */
-  public static boolean submitJobAndCancelOnTimeout(JobsService jobsService, JobRequest request, long timeOut) throws Exception {
+  public static boolean submitJobAndCancelOnTimeout(
+      JobsService jobsService, JobRequest request, long timeOut) throws Exception {
     final CompletionListener completionListener = new CompletionListener();
-    final JobId jobId = jobsService.submitJob(toSubmitJobRequest(request), completionListener).getJobId();
+    final JobId jobId =
+        jobsService.submitJob(toSubmitJobRequest(request), completionListener).getJobId();
     completionListener.await(timeOut, TimeUnit.MILLISECONDS);
     if (!completionListener.isCompleted()) {
-      jobsService.cancel(CancelJobRequest.newBuilder()
+      jobsService.cancel(
+          CancelJobRequest.newBuilder()
               .setUsername(SYSTEM_USERNAME)
               .setJobId(JobsProtoUtil.toBuf(jobId))
               .setReason("Query did not finish in " + timeOut + "ms")
@@ -148,16 +163,14 @@ public final class JobsServiceTestUtils {
     return true;
   }
 
-  /**
-   * Submit to the server directly and listen.
-   */
+  /** Submit to the server directly and listen. */
   public static JobSubmission getJobSubmissionAfterJobCompletion(
       LocalJobsService jobsService,
       JobRequest request,
-      PlanTransformationListener planTransformationListener
-  ) {
+      PlanTransformationListener planTransformationListener) {
     final CompletionObserver observer = new CompletionObserver();
-    final JobSubmission jobSubmission = jobsService.submitJob(toSubmitJobRequest(request), observer, planTransformationListener);
+    final JobSubmission jobSubmission =
+        jobsService.submitJob(toSubmitJobRequest(request), observer, planTransformationListener);
     observer.awaitUnchecked(); // this will throw if the job fails
     if (!observer.isCompleted()) {
       throw new RuntimeException("Job has been cancelled");
@@ -165,16 +178,15 @@ public final class JobsServiceTestUtils {
     return jobSubmission;
   }
 
-  public static JobId submitJobAndWaitUntilCompletion(LocalJobsService jobsService,
-                                                              JobRequest request,
-                                                              PlanTransformationListener planTransformationListener) {
-    return getJobSubmissionAfterJobCompletion(jobsService, request, planTransformationListener).getJobId();
+  public static JobId submitJobAndWaitUntilCompletion(
+      LocalJobsService jobsService,
+      JobRequest request,
+      PlanTransformationListener planTransformationListener) {
+    return getJobSubmissionAfterJobCompletion(jobsService, request, planTransformationListener)
+        .getJobId();
   }
 
-
-  /**
-   * Observes for completion.
-   */
+  /** Observes for completion. */
   private static final class CompletionObserver implements StreamObserver<JobEvent> {
     private final CountDownLatch latch = new CountDownLatch(1);
 
@@ -195,7 +207,8 @@ public final class JobsServiceTestUtils {
     @Override
     public void onError(Throwable t) {
       if (t instanceof StatusRuntimeException) {
-        final Optional<UserException> ue = GrpcExceptionUtil.fromStatusRuntimeException((StatusRuntimeException) t);
+        final Optional<UserException> ue =
+            GrpcExceptionUtil.fromStatusRuntimeException((StatusRuntimeException) t);
         if (ue.isPresent()) {
           ex = ue.get();
         } else {
@@ -208,8 +221,7 @@ public final class JobsServiceTestUtils {
     }
 
     @Override
-    public void onCompleted() {
-    }
+    public void onCompleted() {}
 
     boolean isCompleted() {
       return completed;
@@ -230,49 +242,52 @@ public final class JobsServiceTestUtils {
     }
   }
 
-  static UserBitShared.QueryProfile getQueryProfile(JobsService jobsService, JobRequest request) throws Exception {
+  static UserBitShared.QueryProfile getQueryProfile(JobsService jobsService, JobRequest request)
+      throws Exception {
     final JobId jobId = submitJobAndWaitUntilCompletion(jobsService, request);
     return jobsService.getProfile(
-      QueryProfileRequest.newBuilder()
-        .setJobId(JobsProtoUtil.toBuf(jobId))
-        .setUserName(request.getSqlQuery().getUsername())
-        .setAttempt(0)
-        .build());
+        QueryProfileRequest.newBuilder()
+            .setJobId(JobsProtoUtil.toBuf(jobId))
+            .setUserName(request.getSqlQuery().getUsername())
+            .setAttempt(0)
+            .build());
   }
 
-  public static void setSystemOption(JobsService jobsService, String optionName, String optionValue) {
+  public static void setSystemOption(
+      JobsService jobsService, String optionName, String optionValue) {
     final String query = String.format("ALTER SYSTEM SET \"%s\"=%s", optionName, optionValue);
-    submitJobAndWaitUntilCompletion(jobsService,
-      JobRequest.newBuilder()
-        .setSqlQuery(new SqlQuery(query, SampleDataPopulator.DEFAULT_USER_NAME))
-        .setQueryType(QueryType.UI_INTERNAL_RUN)
-        .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
-        .build());
+    submitJobAndWaitUntilCompletion(
+        jobsService,
+        JobRequest.newBuilder()
+            .setSqlQuery(new SqlQuery(query, SampleDataPopulator.DEFAULT_USER_NAME))
+            .setQueryType(QueryType.UI_INTERNAL_RUN)
+            .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+            .build());
   }
 
   static void resetSystemOption(JobsService jobsService, String optionName) {
     final String query = String.format("ALTER SYSTEM RESET \"%s\"", optionName);
-    submitJobAndWaitUntilCompletion(jobsService,
-      JobRequest.newBuilder()
-        .setSqlQuery(new SqlQuery(query, SampleDataPopulator.DEFAULT_USER_NAME))
-        .setQueryType(QueryType.UI_INTERNAL_RUN)
-        .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
-        .build());
+    submitJobAndWaitUntilCompletion(
+        jobsService,
+        JobRequest.newBuilder()
+            .setSqlQuery(new SqlQuery(query, SampleDataPopulator.DEFAULT_USER_NAME))
+            .setQueryType(QueryType.UI_INTERNAL_RUN)
+            .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+            .build());
   }
 
-  /**
-   * Converts jobRequest to SubmitJobRequest to avoid refactoring in tests
-   */
+  /** Converts jobRequest to SubmitJobRequest to avoid refactoring in tests */
   public static SubmitJobRequest toSubmitJobRequest(JobRequest jobRequest) {
-    final SubmitJobRequest.Builder jobRequestBuilder = SubmitJobRequest.newBuilder()
-      .setSqlQuery(JobsProtoUtil.toBuf(jobRequest.getSqlQuery()))
-      .setQueryType(JobsProtoUtil.toBuf(jobRequest.getQueryType()))
-      .setRunInSameThread(jobRequest.runInSameThread())
-      .setStreamResultsMode(jobRequest.isStreamResultsMode());
+    final SubmitJobRequest.Builder jobRequestBuilder =
+        SubmitJobRequest.newBuilder()
+            .setSqlQuery(JobsProtoUtil.toBuf(jobRequest.getSqlQuery()))
+            .setQueryType(JobsProtoUtil.toBuf(jobRequest.getQueryType()))
+            .setRunInSameThread(jobRequest.runInSameThread())
+            .setStreamResultsMode(jobRequest.isStreamResultsMode());
 
     if (jobRequest.getRequestType() == JobRequest.RequestType.DOWNLOAD) {
       final DownloadSettings.Builder downloadSettingsBuilder = DownloadSettings.newBuilder();
-      if (!Strings.isNullOrEmpty(jobRequest.getDownloadId()))  {
+      if (!Strings.isNullOrEmpty(jobRequest.getDownloadId())) {
         downloadSettingsBuilder.setDownloadId(jobRequest.getDownloadId());
       }
       if (!Strings.isNullOrEmpty(jobRequest.getFileName())) {
@@ -281,12 +296,15 @@ public final class JobsServiceTestUtils {
       downloadSettingsBuilder.setRunInSingleThread(jobRequest.runInSingleThread());
       jobRequestBuilder.setDownloadSettings(downloadSettingsBuilder);
     } else if (jobRequest.getRequestType() == JobRequest.RequestType.MATERIALIZATION) {
-      final MaterializationSettings.Builder materializationSettingsBuilder = MaterializationSettings.newBuilder();
+      final MaterializationSettings.Builder materializationSettingsBuilder =
+          MaterializationSettings.newBuilder();
       if (jobRequest.getMaterializationSummary() != null) {
-        materializationSettingsBuilder.setMaterializationSummary(JobsProtoUtil.toBuf(jobRequest.getMaterializationSummary()));
+        materializationSettingsBuilder.setMaterializationSummary(
+            JobsProtoUtil.toBuf(jobRequest.getMaterializationSummary()));
       }
       if (jobRequest.getSubstitutionSettings() != null) {
-        materializationSettingsBuilder.setSubstitutionSettings(JobsProtoUtil.toBuf(jobRequest.getSubstitutionSettings()));
+        materializationSettingsBuilder.setSubstitutionSettings(
+            JobsProtoUtil.toBuf(jobRequest.getSubstitutionSettings()));
       }
       jobRequestBuilder.setMaterializationSettings(materializationSettingsBuilder);
     }
@@ -295,7 +313,8 @@ public final class JobsServiceTestUtils {
       jobRequestBuilder.setUsername(jobRequest.getUsername());
     }
 
-    final VersionedDatasetPath.Builder versionedDatasetPathBuilder = VersionedDatasetPath.newBuilder();
+    final VersionedDatasetPath.Builder versionedDatasetPathBuilder =
+        VersionedDatasetPath.newBuilder();
     if (jobRequest.getDatasetPathComponents() != null) {
       versionedDatasetPathBuilder.addAllPath(jobRequest.getDatasetPathComponents());
     }

@@ -18,9 +18,7 @@ package com.dremio;
 import com.dremio.exec.proto.UserBitShared.QueryData;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 
-/**
- * Results returned by TestBuilder class for further verification of a query.
- */
+/** Results returned by TestBuilder class for further verification of a query. */
 public class TestResult {
   private final QueryData header;
 
@@ -28,7 +26,11 @@ public class TestResult {
     this.header = header;
   }
 
-  public QueryId getQueryId() { return header.getQueryId(); }
+  public QueryId getQueryId() {
+    return header.getQueryId();
+  }
 
-  public int getRowCount() { return header.getRowCount(); }
+  public int getRowCount() {
+    return header.getRowCount();
+  }
 }

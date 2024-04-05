@@ -15,10 +15,10 @@
  */
 package com.dremio.exec.planner.physical.visitor;
 
+import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rex.RexBuilder;
@@ -35,8 +35,6 @@ import org.apache.calcite.rex.RexRangeRef;
 import org.apache.calcite.rex.RexVisitorImpl;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
-
 public class RexVisitorComplexExprSplitter extends RexVisitorImpl<RexNode> {
 
   final RelDataTypeFactory factory;
@@ -45,7 +43,8 @@ public class RexVisitorComplexExprSplitter extends RexVisitorImpl<RexNode> {
   final List<RexNode> complexExprs;
   int lastUsedIndex;
 
-  public RexVisitorComplexExprSplitter(RelOptCluster cluster, FunctionImplementationRegistry funcReg, int firstUnused) {
+  public RexVisitorComplexExprSplitter(
+      RelOptCluster cluster, FunctionImplementationRegistry funcReg, int firstUnused) {
     super(true);
     this.factory = cluster.getTypeFactory();
     this.builder = cluster.getRexBuilder();
@@ -54,7 +53,7 @@ public class RexVisitorComplexExprSplitter extends RexVisitorImpl<RexNode> {
     this.lastUsedIndex = firstUnused;
   }
 
-  public  List<RexNode> getComplexExprs() {
+  public List<RexNode> getComplexExprs() {
     return complexExprs;
   }
 
@@ -93,9 +92,15 @@ public class RexVisitorComplexExprSplitter extends RexVisitorImpl<RexNode> {
       newOps.add(operand.accept(this));
     }
     if (funcReg.isFunctionComplexOutput(functionName)) {
-      RexNode ret = builder.makeInputRef( factory.createTypeWithNullability(factory.createSqlType(SqlTypeName.ANY), true), lastUsedIndex);
+      RexNode ret =
+          builder.makeInputRef(
+              factory.createTypeWithNullability(factory.createSqlType(SqlTypeName.ANY), true),
+              lastUsedIndex);
       lastUsedIndex++;
-      complexExprs.add(call.clone(factory.createTypeWithNullability(factory.createSqlType(SqlTypeName.ANY), true), newOps));
+      complexExprs.add(
+          call.clone(
+              factory.createTypeWithNullability(factory.createSqlType(SqlTypeName.ANY), true),
+              newOps));
       return ret;
     }
     return call.clone(call.getType(), newOps);
@@ -116,11 +121,13 @@ public class RexVisitorComplexExprSplitter extends RexVisitorImpl<RexNode> {
     return fieldAccess;
   }
 
-// Only top level complex expression will be detected by this visitor
-// For eg - COMPLEX1(COMPLEX2, 3) only Complex1 will be detected and inner COMPLEX 2 will not be detected
-  public static class TopLevelComplexFilterExpression extends RexVisitorComplexExprSplitter{
+  // Only top level complex expression will be detected by this visitor
+  // For eg - COMPLEX1(COMPLEX2, 3) only Complex1 will be detected and inner COMPLEX 2 will not be
+  // detected
+  public static class TopLevelComplexFilterExpression extends RexVisitorComplexExprSplitter {
 
-    public TopLevelComplexFilterExpression(RelOptCluster cluster, FunctionImplementationRegistry funcReg, int firstUnused) {
+    public TopLevelComplexFilterExpression(
+        RelOptCluster cluster, FunctionImplementationRegistry funcReg, int firstUnused) {
       super(cluster, funcReg, firstUnused);
     }
 
@@ -129,12 +136,20 @@ public class RexVisitorComplexExprSplitter extends RexVisitorImpl<RexNode> {
 
       String functionName = call.getOperator().getName();
 
-      if (funcReg.isFunctionComplexOutput(functionName) ||
-        // Dremio Filter cannot handle item on list Also Item is a type of complexOutput but it is not a function in functionRegistry
-        functionName.toLowerCase(Locale.ROOT).equals("item")) {
-        RexNode ret = builder.makeInputRef( factory.createTypeWithNullability(factory.createSqlType(SqlTypeName.ANY), true), lastUsedIndex);
+      if (funcReg.isFunctionComplexOutput(functionName)
+          ||
+          // Dremio Filter cannot handle item on list Also Item is a type of complexOutput but it is
+          // not a function in functionRegistry
+          functionName.toLowerCase(Locale.ROOT).equals("item")) {
+        RexNode ret =
+            builder.makeInputRef(
+                factory.createTypeWithNullability(factory.createSqlType(SqlTypeName.ANY), true),
+                lastUsedIndex);
         lastUsedIndex++;
-        complexExprs.add(call.clone(factory.createTypeWithNullability(factory.createSqlType(SqlTypeName.ANY), true), call.getOperands()));
+        complexExprs.add(
+            call.clone(
+                factory.createTypeWithNullability(factory.createSqlType(SqlTypeName.ANY), true),
+                call.getOperands()));
         return ret;
       }
       List<RexNode> newOps = new ArrayList<>();
@@ -143,7 +158,5 @@ public class RexVisitorComplexExprSplitter extends RexVisitorImpl<RexNode> {
       }
       return call.clone(call.getType(), newOps);
     }
-
   }
-
 }

@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.planner.fragment;
 
-import java.util.List;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.physical.base.AbstractPhysicalVisitor;
 import com.dremio.exec.physical.base.Exchange;
@@ -25,22 +23,23 @@ import com.dremio.exec.physical.base.OpWithMinorSpecificAttrs;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.google.common.collect.Lists;
+import java.util.List;
 
 /*
  * Visitor to populate all minor-specific attributes from each operator.
  */
-public class MinorDataPopulator extends AbstractPhysicalVisitor<PhysicalOperator, MinorDataReader, ExecutionSetupException> {
+public class MinorDataPopulator
+    extends AbstractPhysicalVisitor<PhysicalOperator, MinorDataReader, ExecutionSetupException> {
   private static final MinorDataPopulator INSTANCE = new MinorDataPopulator();
 
-  public MinorDataPopulator() {
-  }
+  public MinorDataPopulator() {}
 
   public static PhysicalOperator populate(
-    FragmentHandle handle,
-    PhysicalOperator root,
-    MinorDataSerDe serDe,
-    MinorAttrsMap map,
-    PlanFragmentsIndex index)
+      FragmentHandle handle,
+      PhysicalOperator root,
+      MinorDataSerDe serDe,
+      MinorAttrsMap map,
+      PlanFragmentsIndex index)
       throws ExecutionSetupException {
 
     // Create an instance of the reader for de-serializing the attributes.
@@ -51,23 +50,29 @@ public class MinorDataPopulator extends AbstractPhysicalVisitor<PhysicalOperator
   }
 
   @Override
-  public PhysicalOperator visitExchange(Exchange exchange, MinorDataReader reader) throws ExecutionSetupException {
+  public PhysicalOperator visitExchange(Exchange exchange, MinorDataReader reader)
+      throws ExecutionSetupException {
     throw new ExecutionSetupException(
-      "Exchange type operator not expected in serialized plan, found " + exchange.getClass().getCanonicalName());
+        "Exchange type operator not expected in serialized plan, found "
+            + exchange.getClass().getCanonicalName());
   }
 
   @SuppressWarnings("unchecked")
   @Override
-  public PhysicalOperator visitGroupScan(@SuppressWarnings("rawtypes") GroupScan groupScan, MinorDataReader reader) throws ExecutionSetupException {
+  public PhysicalOperator visitGroupScan(
+      @SuppressWarnings("rawtypes") GroupScan groupScan, MinorDataReader reader)
+      throws ExecutionSetupException {
     throw new ExecutionSetupException(
-      "GroupScan type operator not expected in serialized plan, found " + groupScan.getClass().getCanonicalName());
+        "GroupScan type operator not expected in serialized plan, found "
+            + groupScan.getClass().getCanonicalName());
   }
 
   @Override
-  public PhysicalOperator visitOp(PhysicalOperator op, MinorDataReader reader)  throws ExecutionSetupException {
+  public PhysicalOperator visitOp(PhysicalOperator op, MinorDataReader reader)
+      throws ExecutionSetupException {
     // create children and populate their attributes.
     List<PhysicalOperator> children = Lists.newArrayList();
-    for (PhysicalOperator child : op){
+    for (PhysicalOperator child : op) {
       children.add(child.accept(this, reader));
     }
 
@@ -77,12 +82,11 @@ public class MinorDataPopulator extends AbstractPhysicalVisitor<PhysicalOperator
       if (newOp instanceof OpWithMinorSpecificAttrs) {
         assert op != newOp;
 
-        ((OpWithMinorSpecificAttrs)newOp).populateMinorSpecificAttrs(reader);
+        ((OpWithMinorSpecificAttrs) newOp).populateMinorSpecificAttrs(reader);
       }
     } catch (Exception e) {
       throw new ExecutionSetupException("Failed to populate minor specific attributes", e);
     }
     return newOp;
   }
-
 }

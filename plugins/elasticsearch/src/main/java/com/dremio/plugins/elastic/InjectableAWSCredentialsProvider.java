@@ -15,14 +15,13 @@
  */
 package com.dremio.plugins.elastic;
 
-import org.glassfish.jersey.spi.Contract;
-
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSCredentialsProvider;
+import org.glassfish.jersey.spi.Contract;
 
 /**
- * Wrapper class required to inject AWSCredentialsProviders using Jersey.
- * With Jersey HK2, arbitrary interfaces cannot be registered and must be annotated with @Contract.
+ * Wrapper class required to inject AWSCredentialsProviders using Jersey. With Jersey HK2, arbitrary
+ * interfaces cannot be registered and must be annotated with @Contract.
  */
 @Contract
 public class InjectableAWSCredentialsProvider implements AWSCredentialsProvider {

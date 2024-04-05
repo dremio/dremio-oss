@@ -16,13 +16,6 @@
 
 package com.dremio.exec.planner.physical;
 
-import java.io.IOException;
-import java.util.List;
-
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelNode;
-
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.config.UnorderedDeMuxExchange;
@@ -31,18 +24,32 @@ import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators.LongValidator;
 import com.dremio.options.TypeValidators.PositiveLongValidator;
+import java.io.IOException;
+import java.util.List;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelNode;
 
 @Options
 public class UnorderedDeMuxExchangePrel extends ExchangePrel {
 
-  public static final LongValidator RECEIVER_RESERVE = new PositiveLongValidator("planner.op.receiver.demux.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
-  public static final LongValidator RECEIVER_LIMIT = new PositiveLongValidator("planner.op.receiver.demux.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
-  public static final LongValidator SENDER_RESERVE = new PositiveLongValidator("planner.op.sender.demux.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
-  public static final LongValidator SENDER_LIMIT = new PositiveLongValidator("planner.op.sender.demux.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
+  public static final LongValidator RECEIVER_RESERVE =
+      new PositiveLongValidator(
+          "planner.op.receiver.demux.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
+  public static final LongValidator RECEIVER_LIMIT =
+      new PositiveLongValidator(
+          "planner.op.receiver.demux.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
+  public static final LongValidator SENDER_RESERVE =
+      new PositiveLongValidator(
+          "planner.op.sender.demux.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
+  public static final LongValidator SENDER_LIMIT =
+      new PositiveLongValidator(
+          "planner.op.sender.demux.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
 
   private final List<DistributionField> fields;
 
-  public UnorderedDeMuxExchangePrel(RelOptCluster cluster, RelTraitSet traits, RelNode child, List<DistributionField> fields) {
+  public UnorderedDeMuxExchangePrel(
+      RelOptCluster cluster, RelTraitSet traits, RelNode child, List<DistributionField> fields) {
     super(cluster, traits, child);
     this.fields = fields;
   }
@@ -59,9 +66,20 @@ public class UnorderedDeMuxExchangePrel extends ExchangePrel {
     PhysicalOperator childPOP = child.getPhysicalOperator(creator);
 
     final OpProps props = creator.props(this, null, childPOP.getProps().getSchema());
-    final int senderOperatorId = OpProps.buildOperatorId(childPOP.getProps().getMajorFragmentId(), 0);
-    final OpProps senderProps = creator.props(senderOperatorId, this, null, props.getSchema(), SENDER_RESERVE, SENDER_LIMIT, props.getCost() * 0.01);
-    final OpProps receiverProps = creator.props(this, null, props.getSchema(), RECEIVER_RESERVE, RECEIVER_LIMIT, props.getCost() * 0.5);
+    final int senderOperatorId =
+        OpProps.buildOperatorId(childPOP.getProps().getMajorFragmentId(), 0);
+    final OpProps senderProps =
+        creator.props(
+            senderOperatorId,
+            this,
+            null,
+            props.getSchema(),
+            SENDER_RESERVE,
+            SENDER_LIMIT,
+            props.getCost() * 0.01);
+    final OpProps receiverProps =
+        creator.props(
+            this, null, props.getSchema(), RECEIVER_RESERVE, RECEIVER_LIMIT, props.getCost() * 0.5);
 
     return new UnorderedDeMuxExchange(
         props,

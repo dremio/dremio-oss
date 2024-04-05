@@ -15,6 +15,8 @@
  */
 package com.dremio.service.scheduler;
 
+import com.dremio.exec.proto.CoordinationProtos;
+import com.google.common.base.Stopwatch;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Queue;
@@ -25,19 +27,16 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
-import com.dremio.exec.proto.CoordinationProtos;
-import com.google.common.base.Stopwatch;
-
 /**
  * Does periodic info logging (summary) of events happening every few minute(s).
- * <p>
- * If no events happen for the given period, nothing will be logged. Only important events are tracked and logged.
- * By logging periodically, the danger of info logging while holding a mutex and associated performance problems
- * are eliminated.
- * </p>
+ *
+ * <p>If no events happen for the given period, nothing will be logged. Only important events are
+ * tracked and logged. By logging periodically, the danger of info logging while holding a mutex and
+ * associated performance problems are eliminated.
  */
 final class TaskInfoLogger implements SchedulerEvents, AutoCloseable {
-  private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(TaskInfoLogger.class);
+  private static final org.slf4j.Logger LOGGER =
+      org.slf4j.LoggerFactory.getLogger(TaskInfoLogger.class);
   private static final int LOG_INTERVAL_SECONDS = 120;
   private final ClusteredSingletonCommon schedulerCommon;
   private final Map<String, PerTaskInfoLogger> allTasks;
@@ -54,16 +53,25 @@ final class TaskInfoLogger implements SchedulerEvents, AutoCloseable {
   }
 
   void start() {
-    logTask = schedulerCommon.getSchedulePool().scheduleAtFixedRate(this::logSummary, LOG_INTERVAL_SECONDS,
-      LOG_INTERVAL_SECONDS, TimeUnit.SECONDS);
+    logTask =
+        schedulerCommon
+            .getSchedulePool()
+            .scheduleAtFixedRate(
+                this::logSummary, LOG_INTERVAL_SECONDS, LOG_INTERVAL_SECONDS, TimeUnit.SECONDS);
   }
 
   void logSummary() {
     if (membershipChanged.compareAndSet(true, false)) {
       LOGGER.info(
-        "Service Info: Name = {}, Version = {}, Endpoint = {}, Instance count = {}, Run Path = {}, Done Path = {}",
-        schedulerCommon.getFqServiceName(), schedulerCommon.getServiceVersion(), schedulerCommon.getThisEndpoint(),
-        currentMembership, schedulerCommon.getStealFqPath(), schedulerCommon.getVersionedDoneFqPath());
+          "Service Info: Name = {}, Version = {}, Endpoint = {}, Instance count = {}, Run Path = {}, Done Path = {},"
+              + "Versioned Done Path = {}",
+          schedulerCommon.getFqServiceName(),
+          schedulerCommon.getServiceVersion(),
+          schedulerCommon.getThisEndpoint(),
+          currentMembership,
+          schedulerCommon.getStealFqPath(),
+          schedulerCommon.getUnVersionedDoneFqPath(),
+          schedulerCommon.getVersionedDoneFqPath());
     }
     allTasks.values().forEach(PerTaskInfoLogger::logEvents);
   }
@@ -71,6 +79,11 @@ final class TaskInfoLogger implements SchedulerEvents, AutoCloseable {
   @Override
   public PerTaskEvents addTask(PerTaskSchedule schedule) {
     return allTasks.computeIfAbsent(schedule.getTaskName(), (k) -> new PerTaskInfoLogger(schedule));
+  }
+
+  @Override
+  public void hitUnexpectedError() {
+    // nothing to log
   }
 
   @Override
@@ -153,7 +166,9 @@ final class TaskInfoLogger implements SchedulerEvents, AutoCloseable {
     @Override
     public void contractError() {
       // do immediate logging at warning level as this should never happen
-      LOGGER.warn("Internal Error: Unexpected run without having a booking for task {}", schedule.getTaskName());
+      LOGGER.warn(
+          "Internal Error: Unexpected run without having a booking for task {}",
+          schedule.getTaskName());
     }
 
     @Override
@@ -165,7 +180,8 @@ final class TaskInfoLogger implements SchedulerEvents, AutoCloseable {
     @Override
     public void runEnded(boolean success) {
       this.runTimeWatch.stop();
-      this.averageElapsedTime = this.runTimeWatch.elapsed(TimeUnit.MILLISECONDS) / this.numRunsSoFar.get();
+      this.averageElapsedTime =
+          this.runTimeWatch.elapsed(TimeUnit.MILLISECONDS) / this.numRunsSoFar.get();
     }
 
     @Override
@@ -205,12 +221,12 @@ final class TaskInfoLogger implements SchedulerEvents, AutoCloseable {
 
     @Override
     public void recoveryMonitoringStarted() {
-      // not logged
+      this.currentLogEventQ.add(new DefaultLogEvent(LogEventType.RECOVERY_MONITORING_STARTED));
     }
 
     @Override
     public void recoveryMonitoringStopped() {
-      // not logged
+      this.currentLogEventQ.add(new DefaultLogEvent(LogEventType.RECOVERY_MONITORING_STOPPED));
     }
 
     @Override
@@ -230,7 +246,7 @@ final class TaskInfoLogger implements SchedulerEvents, AutoCloseable {
 
     @Override
     public void addedToDeathWatch() {
-      // not logged
+      this.currentLogEventQ.add(new DefaultLogEvent(LogEventType.ADDED_TO_DEATH_WATCH));
     }
 
     @Override
@@ -256,8 +272,11 @@ final class TaskInfoLogger implements SchedulerEvents, AutoCloseable {
       final boolean running = runTimeWatch.isRunning();
       if (numRuns > lastLoggedNumRuns || running) {
         lastLoggedNumRuns = numRuns;
-        LOGGER.info("Clustered Singleton Task {} Run Information: Running = {}, Average Run Time Millis = {}",
-          schedule.getTaskName(), running, averageElapsedTime);
+        LOGGER.info(
+            "Clustered Singleton Task {} Run Information: Running = {}, Average Run Time Millis = {}",
+            schedule.getTaskName(),
+            running,
+            averageElapsedTime);
       }
     }
   }
@@ -281,7 +300,8 @@ final class TaskInfoLogger implements SchedulerEvents, AutoCloseable {
     }
 
     String getLogString(String taskName) {
-      return String.format(logEventType.getFormatString(), Instant.ofEpochMilli(timeStamp), taskName);
+      return String.format(
+          logEventType.getFormatString(), Instant.ofEpochMilli(timeStamp), taskName);
     }
   }
 
@@ -301,8 +321,11 @@ final class TaskInfoLogger implements SchedulerEvents, AutoCloseable {
 
     @Override
     String getLogString(String taskName) {
-      return String.format(getLogEventType().getFormatString(), Instant.ofEpochMilli(getEventTimeStamp()), taskName,
-        totalTimeInRunSetMillis);
+      return String.format(
+          getLogEventType().getFormatString(),
+          Instant.ofEpochMilli(getEventTimeStamp()),
+          taskName,
+          totalTimeInRunSetMillis);
     }
   }
 
@@ -316,8 +339,11 @@ final class TaskInfoLogger implements SchedulerEvents, AutoCloseable {
 
     @Override
     String getLogString(String taskName) {
-      return String.format(getLogEventType().getFormatString(), Instant.ofEpochMilli(getEventTimeStamp()),
-        taskName, reason.getName());
+      return String.format(
+          getLogEventType().getFormatString(),
+          Instant.ofEpochMilli(getEventTimeStamp()),
+          taskName,
+          reason.getName());
     }
   }
 
@@ -331,8 +357,12 @@ final class TaskInfoLogger implements SchedulerEvents, AutoCloseable {
 
     @Override
     String getLogString(String taskName) {
-      return String.format(getLogEventType().getFormatString(), Instant.ofEpochMilli(getEventTimeStamp()),
-        taskName, ownerEndpoint.getAddress(), ownerEndpoint.getFabricPort());
+      return String.format(
+          getLogEventType().getFormatString(),
+          Instant.ofEpochMilli(getEventTimeStamp()),
+          taskName,
+          ownerEndpoint.getAddress(),
+          ownerEndpoint.getFabricPort());
     }
   }
 
@@ -346,8 +376,11 @@ final class TaskInfoLogger implements SchedulerEvents, AutoCloseable {
 
     @Override
     String getLogString(String taskName) {
-      return String.format(getLogEventType().getFormatString(), Instant.ofEpochMilli(getEventTimeStamp()),
-        taskName, newSchedule);
+      return String.format(
+          getLogEventType().getFormatString(),
+          Instant.ofEpochMilli(getEventTimeStamp()),
+          taskName,
+          newSchedule);
     }
   }
 
@@ -357,13 +390,18 @@ final class TaskInfoLogger implements SchedulerEvents, AutoCloseable {
     RECOVERED("%s : Task %s successfully recovered"),
     RECOVERY_REJECTED("%s : Recovery rejected for task %s due to %s "),
     SCHEDULE_MODIFIED("%s : Schedule Modified for task %s. New Scheduled Details : %s"),
-    ADDED_TO_RUN_SET("%s : Relinquished control of Task %s and added to run set due to high load locally"),
+    ADDED_TO_RUN_SET(
+        "%s : Relinquished control of Task %s and added to run set due to high load locally"),
     REMOVED_FROM_RUN_SET("%s : Gained control of Task %s and removed from run set after %dms"),
     RUN_ON_DEATH("%s: Task %s ran due to death of an instance"),
     TASK_OWNER_QUERY("%s: Current owner for task %s is %s:%d"),
     TASK_NO_OWNER_FOUND("%s: No current owner for task %s"),
     TASK_OWNER_QUERY_FAILED("%s: Could not ascertain current owner for task %s due to bad data"),
-    RUN_ON_DEATH_FAILED("%s: Task %s could not get booking to run on death of an instance");
+    RUN_ON_DEATH_FAILED("%s: Task %s could not get booking to run on death of an instance"),
+    ADDED_TO_DEATH_WATCH("%s: Task %s added to death watch set"),
+    RECOVERY_MONITORING_STARTED("%s: Recovery monitoring started for task %s"),
+    RECOVERY_MONITORING_STOPPED("%s: Recovery monitoring stopped for task %s");
+
     private final String formatString;
 
     LogEventType(String formatString) {
@@ -374,5 +412,4 @@ final class TaskInfoLogger implements SchedulerEvents, AutoCloseable {
       return formatString;
     }
   }
-
 }

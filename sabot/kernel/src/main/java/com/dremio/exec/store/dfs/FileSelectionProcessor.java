@@ -15,13 +15,10 @@
  */
 package com.dremio.exec.store.dfs;
 
+import com.dremio.exec.store.file.proto.FileProtobuf;
 import java.io.IOException;
 
-import com.dremio.exec.store.file.proto.FileProtobuf;
-
-/**
- * Performs FormatPlugin specific duties on the FileSelection objects
- */
+/** Performs FormatPlugin specific duties on the FileSelection objects */
 public interface FileSelectionProcessor {
 
   /**
@@ -33,8 +30,9 @@ public interface FileSelectionProcessor {
   FileProtobuf.FileUpdateKey generateUpdateKey() throws IOException;
 
   /**
-   * Return a new normalised version of FileSelection, apt for plugin's usage. Eg. regular format plugins require file
-   * entries after removing the directories.
+   * Return a new normalised version of FileSelection, apt for plugin's usage. Eg. regular format
+   * plugins require file entries after removing the directories.
+   *
    * @param fileSelection
    * @return
    * @throws IOException

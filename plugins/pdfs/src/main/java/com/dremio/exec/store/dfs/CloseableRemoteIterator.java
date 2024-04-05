@@ -21,13 +21,13 @@ import java.io.UncheckedIOException;
 import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
-
 import org.apache.hadoop.fs.RemoteIterator;
 
 /**
- * Remote iterator that wraps the given stream and supports {@link Closeable} for closing that stream.
- * <p>
- * Implicitly closes the wrapped stream on {@link #hasNext} check that returns {@code false}.
+ * Remote iterator that wraps the given stream and supports {@link Closeable} for closing that
+ * stream.
+ *
+ * <p>Implicitly closes the wrapped stream on {@link #hasNext} check that returns {@code false}.
  *
  * @param <T> value type
  */

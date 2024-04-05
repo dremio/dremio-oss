@@ -15,8 +15,9 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import java.util.List;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -26,29 +27,35 @@ import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
-
 public class SqlAccelToggle extends SqlSystemCall {
 
-  public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("ACCEL_TOGGLE", SqlKind.OTHER_DDL) {
-    @Override
-    public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 4, "SqlAccelToggle.createCall() has to get 4 operands!");
-      return new SqlAccelToggle(pos,
-        (SqlIdentifier) operands[0],
-        (SqlLiteral) operands[1],
-        (SqlLiteral) operands[2],
-        (SqlTableVersionSpec) operands[3]);
-    }
-  };
+  public static final SqlSpecialOperator OPERATOR =
+      new SqlSpecialOperator("ACCEL_TOGGLE", SqlKind.OTHER_DDL) {
+        @Override
+        public SqlCall createCall(
+            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+          Preconditions.checkArgument(
+              operands.length == 4, "SqlAccelToggle.createCall() has to get 4 operands!");
+          return new SqlAccelToggle(
+              pos,
+              (SqlIdentifier) operands[0],
+              (SqlLiteral) operands[1],
+              (SqlLiteral) operands[2],
+              (SqlTableVersionSpec) operands[3]);
+        }
+      };
 
   private final SqlIdentifier tblName;
   private final SqlLiteral raw;
   private final SqlLiteral enable;
   private final SqlTableVersionSpec tableVersionSpec;
 
-  public SqlAccelToggle(SqlParserPos pos, SqlIdentifier tblName, SqlLiteral raw, SqlLiteral enable, SqlTableVersionSpec tableVersionSpec) {
+  public SqlAccelToggle(
+      SqlParserPos pos,
+      SqlIdentifier tblName,
+      SqlLiteral raw,
+      SqlLiteral enable,
+      SqlTableVersionSpec tableVersionSpec) {
     super(pos);
     this.tblName = tblName;
     this.raw = raw;
@@ -81,5 +88,4 @@ public class SqlAccelToggle extends SqlSystemCall {
   public SqlOperator getOperator() {
     return OPERATOR;
   }
-
 }

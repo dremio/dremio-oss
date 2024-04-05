@@ -16,20 +16,19 @@
 package com.dremio.common.perf;
 
 /*
-  A global, thread-safe registrar keeping a book of all threads which are eligible for stats collection.
- */
+ A global, thread-safe registrar keeping a book of all threads which are eligible for stats collection.
+*/
 public class StatsCollectionEligibilityRegistrar {
   private static final ThreadLocal<Boolean> eligibleThreads = new ThreadLocal<>();
 
-  /**
-   * Adds the current thread to the registry of threads eligible for stats collection
-   */
+  /** Adds the current thread to the registry of threads eligible for stats collection */
   public static void addSelf() {
     eligibleThreads.set(true);
   }
 
   /**
-   * Checks if the current thread is eligible for stats collection by checking the {@code ThreadLocal} object.
+   * Checks if the current thread is eligible for stats collection by checking the {@code
+   * ThreadLocal} object.
    *
    * @return true if the current thread is eligible for stats collection, false otherwise
    */

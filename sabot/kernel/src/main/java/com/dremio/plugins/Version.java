@@ -17,9 +17,7 @@ package com.dremio.plugins;
 
 import static java.lang.String.format;
 
-/**
- * Version
- */
+/** Version */
 public class Version implements Comparable<Version> {
   private final int major;
   private final int minor;
@@ -48,7 +46,7 @@ public class Version implements Comparable<Version> {
     String[] components = s.split("\\.");
 
     int major = 0, minor = 0, patch = 0;
-    switch(components.length) {
+    switch (components.length) {
       case 3:
         patch = Integer.parseInt(components[2]);
         // fall through

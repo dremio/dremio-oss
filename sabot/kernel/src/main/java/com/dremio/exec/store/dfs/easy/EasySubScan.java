@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.store.dfs.easy;
 
-import java.util.List;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.OpProps;
@@ -34,12 +32,10 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.ImmutableList;
-
 import io.protostuff.ByteString;
+import java.util.List;
 
-/**
- * Easy sub scan.
- */
+/** Easy sub scan. */
 @JsonTypeName("easy-sub-scan")
 public class EasySubScan extends SubScanWithProjection {
   private static final String SPLITS_ATTRIBUTE_KEY = "easy-sub-scan-splits";
@@ -52,22 +48,21 @@ public class EasySubScan extends SubScanWithProjection {
   private final List<String> partitionColumns;
   private final IcebergExtendedProp icebergExtendedProp;
 
-  @JsonIgnore
-  private List<SplitAndPartitionInfo> splits;
+  @JsonIgnore private List<SplitAndPartitionInfo> splits;
 
   public EasySubScan(
-    OpProps props,
-    FileConfig config,
-    List<SplitAndPartitionInfo> splits,
-    BatchSchema fullSchema,
-    List<String> tablePath,
-    StoragePluginId pluginId,
-    StoragePluginId datasourcePluginId,
-    List<SchemaPath> columns,
-    List<String> partitionColumns,
-    ByteString extendedProperty,
-    IcebergExtendedProp icebergExtendedProp,
-    UserDefinedSchemaSettings userDefinedSchemaSettings) {
+      OpProps props,
+      FileConfig config,
+      List<SplitAndPartitionInfo> splits,
+      BatchSchema fullSchema,
+      List<String> tablePath,
+      StoragePluginId pluginId,
+      StoragePluginId datasourcePluginId,
+      List<SchemaPath> columns,
+      List<String> partitionColumns,
+      ByteString extendedProperty,
+      IcebergExtendedProp icebergExtendedProp,
+      UserDefinedSchemaSettings userDefinedSchemaSettings) {
     super(props, fullSchema, (tablePath == null) ? null : ImmutableList.of(tablePath), columns);
     this.fileConfig = config;
     this.splits = splits;
@@ -80,35 +75,60 @@ public class EasySubScan extends SubScanWithProjection {
   }
 
   public EasySubScan(
-    OpProps props,
-    FileConfig config,
-    List<SplitAndPartitionInfo> splits,
-    BatchSchema fullSchema,
-    List<String> tablePath,
-    StoragePluginId pluginId,
-    StoragePluginId datasourcePluginId,
-    List<SchemaPath> columns,
-    List<String> partitionColumns,
-    ByteString extendedProperty,
-    IcebergExtendedProp icebergExtendedProp) {
-    this(props, config, splits, fullSchema, tablePath, pluginId, datasourcePluginId, columns, partitionColumns, extendedProperty, icebergExtendedProp, null);
+      OpProps props,
+      FileConfig config,
+      List<SplitAndPartitionInfo> splits,
+      BatchSchema fullSchema,
+      List<String> tablePath,
+      StoragePluginId pluginId,
+      StoragePluginId datasourcePluginId,
+      List<SchemaPath> columns,
+      List<String> partitionColumns,
+      ByteString extendedProperty,
+      IcebergExtendedProp icebergExtendedProp) {
+    this(
+        props,
+        config,
+        splits,
+        fullSchema,
+        tablePath,
+        pluginId,
+        datasourcePluginId,
+        columns,
+        partitionColumns,
+        extendedProperty,
+        icebergExtendedProp,
+        null);
   }
 
   @JsonCreator
   public EasySubScan(
-    @JsonProperty("props") OpProps props,
-    @JsonProperty("settings") FileConfig config,
-    @JsonProperty("fullSchema") BatchSchema fullSchema,
-    @JsonProperty("tableSchemaPath") List<String> tablePath,
-    @JsonProperty("pluginId") StoragePluginId pluginId,
-    @JsonProperty("datasourcePluginId") StoragePluginId datasourcePluginId,
-    @JsonProperty("columns") List<SchemaPath> columns,
-    @JsonProperty("partitionColumns") List<String> partitionColumns,
-    @JsonProperty("extendedProperty") ByteString extendedProperty,
-    @JsonProperty("icebergExtendedProperties") IcebergExtendedProp icebergExtendedProp,
-    @JsonProperty("userDefinedSchemaSettings") UserDefinedSchemaSettings userDefinedSchemaSettings) {
+      @JsonProperty("props") OpProps props,
+      @JsonProperty("settings") FileConfig config,
+      @JsonProperty("fullSchema") BatchSchema fullSchema,
+      @JsonProperty("tableSchemaPath") List<String> tablePath,
+      @JsonProperty("pluginId") StoragePluginId pluginId,
+      @JsonProperty("datasourcePluginId") StoragePluginId datasourcePluginId,
+      @JsonProperty("columns") List<SchemaPath> columns,
+      @JsonProperty("partitionColumns") List<String> partitionColumns,
+      @JsonProperty("extendedProperty") ByteString extendedProperty,
+      @JsonProperty("icebergExtendedProperties") IcebergExtendedProp icebergExtendedProp,
+      @JsonProperty("userDefinedSchemaSettings")
+          UserDefinedSchemaSettings userDefinedSchemaSettings) {
 
-    this(props, config, null, fullSchema, tablePath, pluginId, datasourcePluginId, columns, partitionColumns, extendedProperty, icebergExtendedProp, userDefinedSchemaSettings);
+    this(
+        props,
+        config,
+        null,
+        fullSchema,
+        tablePath,
+        pluginId,
+        datasourcePluginId,
+        columns,
+        partitionColumns,
+        extendedProperty,
+        icebergExtendedProp,
+        userDefinedSchemaSettings);
   }
 
   public List<SplitAndPartitionInfo> getSplits() {

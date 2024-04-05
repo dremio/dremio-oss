@@ -15,12 +15,11 @@
  */
 package com.dremio.common.expression;
 
+import com.dremio.common.expression.visitors.ExprVisitor;
+import com.google.common.collect.ImmutableList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
-
-import com.dremio.common.expression.visitors.ExprVisitor;
-import com.google.common.collect.ImmutableList;
 
 public class FunctionCall extends LogicalExpressionBase implements Iterable<LogicalExpression> {
   private final String name;
@@ -43,7 +42,7 @@ public class FunctionCall extends LogicalExpressionBase implements Iterable<Logi
   }
 
   @Override
-  public <T, V, E extends Exception> T accept(ExprVisitor<T, V, E> visitor, V value) throws E{
+  public <T, V, E extends Exception> T accept(ExprVisitor<T, V, E> visitor, V value) throws E {
     return visitor.visitFunctionCall(this, value);
   }
 
@@ -60,14 +59,16 @@ public class FunctionCall extends LogicalExpressionBase implements Iterable<Logi
   @Override
   public CompleteType getCompleteType() {
     throw new UnsupportedOperationException(
-      "No return type as FunctionCall is not a materialized expression");
+        "No return type as FunctionCall is not a materialized expression");
   }
 
   @Override
   public String toString() {
     final int maxLen = 10;
-    return "FunctionCall [func=" + name + ", args="
-      + (args != null ? args.subList(0, Math.min(args.size(), maxLen)) : null) + "]";
+    return "FunctionCall [func="
+        + name
+        + ", args="
+        + (args != null ? args.subList(0, Math.min(args.size(), maxLen)) : null)
+        + "]";
   }
-
 }

@@ -18,18 +18,14 @@ package com.dremio.config;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 
+import com.dremio.test.TemporarySystemProperties;
 import org.junit.Rule;
 import org.junit.Test;
 
-import com.dremio.test.TemporarySystemProperties;
-
-/**
- * Test Dremio Config.
- */
+/** Test Dremio Config. */
 public class TestDremioConfig {
 
-  @Rule
-  public final TemporarySystemProperties properties = new TemporarySystemProperties();
+  @Rule public final TemporarySystemProperties properties = new TemporarySystemProperties();
 
   @Test
   public void initialize() {
@@ -51,7 +47,9 @@ public class TestDremioConfig {
 
     // check overriden setting that uses
     assertEquals("/tmp/crazydir/db", config.getString(DremioConfig.DB_PATH_STRING));
-    assertEquals("pdfs:///tmp/crazydir/pdfs/accelerator", config.getString(DremioConfig.ACCELERATOR_PATH_STRING));
+    assertEquals(
+        "pdfs:///tmp/crazydir/pdfs/accelerator",
+        config.getString(DremioConfig.ACCELERATOR_PATH_STRING));
   }
 
   @Test
@@ -67,15 +65,17 @@ public class TestDremioConfig {
     // check overriden setting that uses
     assertEquals("/tmp/foobar/db", config.getString(DremioConfig.DB_PATH_STRING));
     assertEquals("pdfs:///tmp/foobar/dist", config.getString(DremioConfig.DIST_WRITE_PATH_STRING));
-    assertEquals("pdfs:///tmp/foobar/dist/accelerator", config.getString(DremioConfig.ACCELERATOR_PATH_STRING));
+    assertEquals(
+        "pdfs:///tmp/foobar/dist/accelerator",
+        config.getString(DremioConfig.ACCELERATOR_PATH_STRING));
   }
 
   /**
-   * Make sure that we're overriding options provided in a user config even if
-   * that user config doesn't set that value.
+   * Make sure that we're overriding options provided in a user config even if that user config
+   * doesn't set that value.
    */
   @Test
-  public void systemOverFile(){
+  public void systemOverFile() {
     // clear relevant parameters.
     final String path = "my.fave.path";
     properties.set(DremioConfig.DB_PATH_STRING, path);
@@ -86,7 +86,6 @@ public class TestDremioConfig {
     assertEquals(path, config.getString(DremioConfig.DB_PATH_STRING));
   }
 
-
   @Test
   public void arrayProperties() throws Exception {
     DremioConfig config = DremioConfig.create(getClass().getResource("/test-dremio3.conf"));
@@ -96,23 +95,25 @@ public class TestDremioConfig {
     properties.set(DremioConfig.SPILLING_PATH_STRING, path);
     DremioConfig configNew = DremioConfig.create(getClass().getResource("/test-dremio.conf"));
     assertEquals(path, configNew.getStringList(DremioConfig.SPILLING_PATH_STRING).toString());
-    assertEquals(config.getStringList(DremioConfig.SPILLING_PATH_STRING), configNew.getStringList(DremioConfig
-        .SPILLING_PATH_STRING));
+    assertEquals(
+        config.getStringList(DremioConfig.SPILLING_PATH_STRING),
+        configNew.getStringList(DremioConfig.SPILLING_PATH_STRING));
   }
 
   @Test
   public void badProperty() {
     assertThatThrownBy(() -> DremioConfig.create(getClass().getResource("/test-dremio2.conf")))
-      .isInstanceOf(RuntimeException.class)
-      .hasMessageContaining("mistyped-property");
+        .isInstanceOf(RuntimeException.class)
+        .hasMessageContaining("mistyped-property");
   }
 
   @Test
   public void appOverride() {
 
-    DremioConfig config = DremioConfig.create()
-        .withValue(DremioConfig.EMBEDDED_MASTER_ZK_ENABLED_BOOL, false)
-        .withValue(DremioConfig.LOCAL_WRITE_PATH_STRING, "/tmp/crazydir");
+    DremioConfig config =
+        DremioConfig.create()
+            .withValue(DremioConfig.EMBEDDED_MASTER_ZK_ENABLED_BOOL, false)
+            .withValue(DremioConfig.LOCAL_WRITE_PATH_STRING, "/tmp/crazydir");
 
     // check simple setting
     assertEquals(false, config.getBoolean(DremioConfig.EMBEDDED_MASTER_ZK_ENABLED_BOOL));
@@ -129,7 +130,6 @@ public class TestDremioConfig {
     properties.set(name, "true");
     assertEquals(true, DremioConfig.create().getBoolean(DremioConfig.DEBUG_AUTOPORT_BOOL));
   }
-
 
   @Test
   public void newSystemProp() {
@@ -150,6 +150,7 @@ public class TestDremioConfig {
 
     // set setting one way so we make sure we don't depend on external settings.
     properties.set(name, "my.special.path");
-    assertEquals("my.special.path/db", DremioConfig.create().getString(DremioConfig.DB_PATH_STRING));
+    assertEquals(
+        "my.special.path/db", DremioConfig.create().getString(DremioConfig.DB_PATH_STRING));
   }
 }

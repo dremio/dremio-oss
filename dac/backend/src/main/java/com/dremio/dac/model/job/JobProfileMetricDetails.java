@@ -24,7 +24,6 @@ public class JobProfileMetricDetails {
     this.displayCode = displayCode;
   }
 
-
   public boolean getIsDisplayed() {
     return isDisplayed;
   }

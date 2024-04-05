@@ -20,43 +20,6 @@ import static com.dremio.exec.store.metadatarefresh.MetadataRefreshUtils.metadat
 import static com.dremio.io.file.PathFilters.NO_HIDDEN_FILES;
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InterruptedIOException;
-import java.io.OutputStream;
-import java.net.URI;
-import java.nio.file.AccessMode;
-import java.nio.file.DirectoryStream;
-import java.nio.file.attribute.PosixFilePermission;
-import java.security.PrivilegedExceptionAction;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.EnumSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
-
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-import javax.inject.Provider;
-
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.calcite.schema.Function;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.security.AccessControlException;
-import org.apache.hadoop.security.UserGroupInformation;
-import org.apache.hadoop.util.ReflectionUtils;
-import org.apache.iceberg.PartitionSpec;
-import org.apache.iceberg.Table;
-import org.apache.iceberg.TableOperations;
-import org.apache.iceberg.io.FileIO;
-
 import com.dremio.cache.AuthorizationCacheException;
 import com.dremio.cache.AuthorizationCacheService;
 import com.dremio.catalog.model.ResolvedVersionContext;
@@ -155,7 +118,6 @@ import com.dremio.exec.store.iceberg.model.IcebergModel;
 import com.dremio.exec.store.iceberg.model.IcebergOpCommitter;
 import com.dremio.exec.store.iceberg.model.IcebergTableIdentifier;
 import com.dremio.exec.store.iceberg.model.IcebergTableLoader;
-import com.dremio.exec.store.metadatarefresh.MetadataRefreshUtils;
 import com.dremio.exec.store.metadatarefresh.UnlimitedSplitsFileDatasetHandle;
 import com.dremio.exec.store.metadatarefresh.dirlisting.DirListingRecordReader;
 import com.dremio.exec.store.metadatarefresh.footerread.FooterReadTableFunction;
@@ -214,71 +176,126 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.protobuf.InvalidProtocolBufferException;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InterruptedIOException;
+import java.io.OutputStream;
+import java.net.URI;
+import java.nio.file.AccessMode;
+import java.nio.file.DirectoryStream;
+import java.nio.file.attribute.PosixFilePermission;
+import java.security.PrivilegedExceptionAction;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import javax.inject.Provider;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.calcite.schema.Function;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.security.AccessControlException;
+import org.apache.hadoop.security.UserGroupInformation;
+import org.apache.hadoop.util.ReflectionUtils;
+import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.Table;
+import org.apache.iceberg.TableOperations;
+import org.apache.iceberg.io.FileIO;
 
-/**
- * Storage plugin for file system
- */
-public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements StoragePlugin, MutablePlugin,
-  SupportsReadSignature, AuthorizationCacheService, SupportsInternalIcebergTable, SupportsIcebergRootPointer,
-  SupportsIcebergMutablePlugin, SupportsTypeCoercionsAndUpPromotions, SupportsMetadataVerify {
+/** Storage plugin for file system */
+public class FileSystemPlugin<C extends FileSystemConf<C, ?>>
+    implements StoragePlugin,
+        MutablePlugin,
+        SupportsReadSignature,
+        AuthorizationCacheService,
+        SupportsInternalIcebergTable,
+        SupportsIcebergRootPointer,
+        SupportsIcebergMutablePlugin,
+        SupportsTypeCoercionsAndUpPromotions,
+        SupportsMetadataVerify {
   /**
-   * Default {@link Configuration} instance. Use this instance through {@link #getNewFsConf()} to create new copies
-   * of {@link Configuration} objects.
+   * Default {@link Configuration} instance. Use this instance through {@link #getNewFsConf()} to
+   * create new copies of {@link Configuration} objects.
    */
   private static final Configuration DEFAULT_CONFIGURATION = new Configuration();
+
   static {
-    DEFAULT_CONFIGURATION.set(HadoopFileSystem.HADOOP_SECURITY_CREDENTIAL_PROVIDER_PATH, HadoopFileSystem.DREMIO_CREDENTIAL_PROVIDER_PATH);
+    DEFAULT_CONFIGURATION.set(
+        HadoopFileSystem.HADOOP_SECURITY_CREDENTIAL_PROVIDER_PATH,
+        HadoopFileSystem.DREMIO_CREDENTIAL_PROVIDER_PATH);
   }
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FileSystemPlugin.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(FileSystemPlugin.class);
 
-  private static final BooleanCapabilityValue REQUIRES_HARD_AFFINITY = new BooleanCapabilityValue(SourceCapabilities.REQUIRES_HARD_AFFINITY, true);
+  private static final BooleanCapabilityValue REQUIRES_HARD_AFFINITY =
+      new BooleanCapabilityValue(SourceCapabilities.REQUIRES_HARD_AFFINITY, true);
 
   private static final int PERMISSION_CHECK_TASK_BATCH_SIZE = 10;
 
   @SuppressWarnings("NoGuavaCacheUsage") // TODO: fix as part of DX-51884
-  private final LoadingCache<String, org.apache.hadoop.fs.FileSystem> hadoopFS = CacheBuilder.newBuilder()
-      .softValues()
-      .removalListener(new RemovalListener<String, org.apache.hadoop.fs.FileSystem>() {
-        @Override
-        public void onRemoval(RemovalNotification<String, org.apache.hadoop.fs.FileSystem> notification) {
-          try {
-            notification.getValue().close();
-          } catch (IOException e) {
-            // Ignore
-            logger.debug("Could not close filesystem", e);
-          }
-        }
-      })
-      .build(new CacheLoader<String, org.apache.hadoop.fs.FileSystem>() {
-        @Override
-        public org.apache.hadoop.fs.FileSystem load(String user) throws Exception {
-          // If the request proxy user is same as process user name or same as system user, return the process UGI.
-          final UserGroupInformation loginUser = UserGroupInformation.getLoginUser();
-          final UserGroupInformation ugi;
-          if (user.equals(loginUser.getUserName()) || SYSTEM_USERNAME.equals(user)) {
-            ugi = loginUser;
-          } else {
-            ugi = UserGroupInformation.createProxyUser(user, loginUser);
-          }
+  private final LoadingCache<String, org.apache.hadoop.fs.FileSystem> hadoopFS =
+      CacheBuilder.newBuilder()
+          .softValues()
+          .removalListener(
+              new RemovalListener<String, org.apache.hadoop.fs.FileSystem>() {
+                @Override
+                public void onRemoval(
+                    RemovalNotification<String, org.apache.hadoop.fs.FileSystem> notification) {
+                  try {
+                    notification.getValue().close();
+                  } catch (IOException e) {
+                    // Ignore
+                    logger.debug("Could not close filesystem", e);
+                  }
+                }
+              })
+          .build(
+              new CacheLoader<String, org.apache.hadoop.fs.FileSystem>() {
+                @Override
+                public org.apache.hadoop.fs.FileSystem load(String user) throws Exception {
+                  // If the request proxy user is same as process user name or same as system user,
+                  // return the process UGI.
+                  final UserGroupInformation loginUser = UserGroupInformation.getLoginUser();
+                  final UserGroupInformation ugi;
+                  if (user.equals(loginUser.getUserName()) || SYSTEM_USERNAME.equals(user)) {
+                    ugi = loginUser;
+                  } else {
+                    ugi = UserGroupInformation.createProxyUser(user, loginUser);
+                  }
 
-          final PrivilegedExceptionAction<org.apache.hadoop.fs.FileSystem> fsFactory = () -> {
-            // Do not use FileSystem#newInstance(Configuration) as it adds filesystem into the Hadoop cache :(
-            // Mimic instead Hadoop FileSystem#createFileSystem() method
-            final URI uri = org.apache.hadoop.fs.FileSystem.getDefaultUri(fsConf);
-            final Class<? extends org.apache.hadoop.fs.FileSystem> fsClass = org.apache.hadoop.fs.FileSystem.getFileSystemClass(uri.getScheme(), fsConf);
-            final org.apache.hadoop.fs.FileSystem fs = ReflectionUtils.newInstance(fsClass, fsConf);
-            fs.initialize(uri, fsConf);
-            return fs;
-          };
+                  final PrivilegedExceptionAction<org.apache.hadoop.fs.FileSystem> fsFactory =
+                      () -> {
+                        // Do not use FileSystem#newInstance(Configuration) as it adds filesystem
+                        // into the Hadoop cache :(
+                        // Mimic instead Hadoop FileSystem#createFileSystem() method
+                        final URI uri = org.apache.hadoop.fs.FileSystem.getDefaultUri(fsConf);
+                        final Class<? extends org.apache.hadoop.fs.FileSystem> fsClass =
+                            org.apache.hadoop.fs.FileSystem.getFileSystemClass(
+                                uri.getScheme(), fsConf);
+                        final org.apache.hadoop.fs.FileSystem fs =
+                            ReflectionUtils.newInstance(fsClass, fsConf);
+                        fs.initialize(uri, fsConf);
+                        return fs;
+                      };
 
-          try {
-            return ugi.doAs(fsFactory);
-          } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-          }
-        };
-      });
+                  try {
+                    return ugi.doAs(fsFactory);
+                  } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                  }
+                }
+                ;
+              });
 
   private final String name;
   private final LogicalPlanPersistence lpPersistance;
@@ -297,7 +314,11 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
   private CompressionCodecFactory codecFactory;
   protected FSHealthChecker fsHealthChecker;
 
-  public FileSystemPlugin(final C config, final SabotContext context, final String name, Provider<StoragePluginId> idProvider) {
+  public FileSystemPlugin(
+      final C config,
+      final SabotContext context,
+      final String name,
+      Provider<StoragePluginId> idProvider) {
     this.name = name;
     this.config = config;
     this.idProvider = idProvider;
@@ -307,7 +328,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     this.basePath = config.getPath();
   }
 
-  public C getConfig(){
+  public C getConfig() {
     return config;
   }
 
@@ -317,11 +338,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
   }
 
   public boolean supportsIcebergTables() {
-    return getIcebergSupportFlag() && ctasToUseIceberg();
-  }
-
-  protected boolean ctasToUseIceberg() {
-    return context.getOptionManager().getOption(ExecConstants.CTAS_CAN_USE_ICEBERG);
+    return getIcebergSupportFlag();
   }
 
   @Override
@@ -345,12 +362,9 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
   }
 
   @Override
-  public boolean allowUnlimitedSplits(DatasetHandle handle, DatasetConfig datasetConfig, String user) {
+  public boolean allowUnlimitedSplits(
+      DatasetHandle handle, DatasetConfig datasetConfig, String user) {
 
-    if (!MetadataRefreshUtils.unlimitedSplitsSupportEnabled(context.getOptionManager())) {
-      logger.debug("Not using unlimited splits for {} since required support keys are not enabled", handle.getDatasetPath().toString());
-      return false;
-    }
     if (!metadataSourceAvailable(context.getCatalogService())) {
       return false;
     }
@@ -362,10 +376,14 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
         fileType = Optional.ofNullable(physicalDataset.getFormatSettings().getType());
       }
     }
-    boolean isParquetTable = fileType.map(type -> type == FileType.PARQUET)
-      .orElseGet(() -> isParquetTable(handle.getDatasetPath().getComponents(), user));
+    boolean isParquetTable =
+        fileType
+            .map(type -> type == FileType.PARQUET)
+            .orElseGet(() -> isParquetTable(handle.getDatasetPath().getComponents(), user));
     if (!isParquetTable) {
-      logger.debug("Not using unlimited splits for {} since dataset is not a parquet dataset", handle.getDatasetPath().toString());
+      logger.debug(
+          "Not using unlimited splits for {} since dataset is not a parquet dataset",
+          handle.getDatasetPath().toString());
     }
     return isParquetTable;
   }
@@ -374,7 +392,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     try {
 
       Optional<FileSelection> optionalFileSelection =
-        generateFileSelectionForPathComponents(new NamespaceKey(tablePathComponents), user);
+          generateFileSelectionForPathComponents(new NamespaceKey(tablePathComponents), user);
       if (!optionalFileSelection.isPresent()) {
         return false;
       }
@@ -394,23 +412,30 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
       }
 
       Optional<FileFormat> fileFormatMatch = findFileFormatMatch(fs, firstFile.get());
-      return fileFormatMatch.filter(fileFormat -> fileFormat.getFileType() == FileType.PARQUET).isPresent();
+      return fileFormatMatch
+          .filter(fileFormat -> fileFormat.getFileType() == FileType.PARQUET)
+          .isPresent();
 
     } catch (Exception e) {
       throw UserException.ioExceptionError(e)
-        .message("Unknown format type for table '%s'", String.join(".", tablePathComponents))
-        .buildSilently();
+          .message("Unknown format type for table '%s'", String.join(".", tablePathComponents))
+          .buildSilently();
     }
   }
 
   @Override
   public void runRefreshQuery(String refreshQuery, String user) throws Exception {
-    context.getJobsRunner().get().runQueryAsJob(refreshQuery, user, QUERY_TYPE_METADATA_REFRESH, null);
+    context
+        .getJobsRunner()
+        .get()
+        .runQueryAsJob(refreshQuery, user, QUERY_TYPE_METADATA_REFRESH, null);
   }
 
   @Override
   public SourceCapabilities getSourceCapabilities() {
-    return systemUserFS.isPdfs() ? new SourceCapabilities(REQUIRES_HARD_AFFINITY) : SourceCapabilities.NONE;
+    return systemUserFS.isPdfs()
+        ? new SourceCapabilities(REQUIRES_HARD_AFFINITY)
+        : SourceCapabilities.NONE;
   }
 
   public static final Configuration getNewFsConf() {
@@ -436,22 +461,31 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
   }
 
   @Override
-  public BlockBasedSplitGenerator.SplitCreator createSplitCreator(OperatorContext context, byte[] extendedBytes, boolean isInternalIcebergTable) {
+  public BlockBasedSplitGenerator.SplitCreator createSplitCreator(
+      OperatorContext context, byte[] extendedBytes, boolean isInternalIcebergTable) {
     return new ParquetSplitCreator(context, true);
   }
 
   @Override
-  public ScanTableFunction createScanTableFunction(FragmentExecutionContext fec, OperatorContext context, OpProps props, TableFunctionConfig functionConfig)
-  {
+  public ScanTableFunction createScanTableFunction(
+      FragmentExecutionContext fec,
+      OperatorContext context,
+      OpProps props,
+      TableFunctionConfig functionConfig) {
     return new ParquetScanTableFunction(fec, context, props, functionConfig);
   }
 
   @Override
-  public AbstractRefreshPlanBuilder createRefreshDatasetPlanBuilder(SqlHandlerConfig config, SqlRefreshDataset sqlRefreshDataset, UnlimitedSplitsMetadataProvider metadataProvider, boolean isFullRefresh) {
+  public AbstractRefreshPlanBuilder createRefreshDatasetPlanBuilder(
+      SqlHandlerConfig config,
+      SqlRefreshDataset sqlRefreshDataset,
+      UnlimitedSplitsMetadataProvider metadataProvider,
+      boolean isFullRefresh) {
     if (isFullRefresh) {
       return new FileSystemFullRefreshPlanBuilder(config, sqlRefreshDataset, metadataProvider);
     } else {
-      return new FileSystemRefreshIncrementalPlanBuilder(config, sqlRefreshDataset, metadataProvider);
+      return new FileSystemRefreshIncrementalPlanBuilder(
+          config, sqlRefreshDataset, metadataProvider);
     }
   }
 
@@ -466,17 +500,20 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
   }
 
   @Override
-  public FileSystem createFS(String filePath, String userName, OperatorContext operatorContext) throws IOException {
+  public FileSystem createFS(String filePath, String userName, OperatorContext operatorContext)
+      throws IOException {
     return createFS(userName, operatorContext);
   }
 
   @Override
-  public FileSystem createFSWithAsyncOptions(String filePath, String userName, OperatorContext operatorContext) throws IOException {
+  public FileSystem createFSWithAsyncOptions(
+      String filePath, String userName, OperatorContext operatorContext) throws IOException {
     return createFS(userName, operatorContext);
   }
 
   @Override
-  public FileSystem createFSWithoutHDFSCache(String filePath, String userName, OperatorContext operatorContext) throws IOException {
+  public FileSystem createFSWithoutHDFSCache(
+      String filePath, String userName, OperatorContext operatorContext) throws IOException {
     return createFS(userName, operatorContext);
   }
 
@@ -484,12 +521,21 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     return createFS(userName, operatorContext, false);
   }
 
-  public FileSystem createFS(String userName, OperatorContext operatorContext, boolean metadata) throws IOException {
-    return context.getFileSystemWrapper().wrap(newFileSystem(userName, operatorContext), name, config, operatorContext,
-        isAsyncEnabledForQuery(operatorContext) && getConfig().isAsyncEnabled(), metadata);
+  public FileSystem createFS(String userName, OperatorContext operatorContext, boolean metadata)
+      throws IOException {
+    return context
+        .getFileSystemWrapper()
+        .wrap(
+            newFileSystem(userName, operatorContext),
+            name,
+            config,
+            operatorContext,
+            isAsyncEnabledForQuery(operatorContext) && getConfig().isAsyncEnabled(),
+            metadata);
   }
 
-  protected FileSystem newFileSystem(String userName, OperatorContext operatorContext) throws IOException {
+  protected FileSystem newFileSystem(String userName, OperatorContext operatorContext)
+      throws IOException {
     // Create underlying filesystem
     if (Strings.isNullOrEmpty(userName)) {
       throw new IllegalArgumentException("Invalid value for user name");
@@ -504,7 +550,9 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
       throw new RuntimeException(cause != null ? cause : e);
     }
 
-    return HadoopFileSystem.get(fs, (operatorContext == null) ? null : operatorContext.getStats(),
+    return HadoopFileSystem.get(
+        fs,
+        (operatorContext == null) ? null : operatorContext.getStats(),
         isAsyncEnabledForQuery(operatorContext) && getConfig().isAsyncEnabled());
   }
 
@@ -522,7 +570,9 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
       hadoopFS.invalidate(userOrGroup);
     } catch (Exception e) {
       logger.debug(e.getMessage());
-      throw new AuthorizationCacheException(String.format("Encountered an issue invalidating authorization cached for '%s'", userOrGroup));
+      throw new AuthorizationCacheException(
+          String.format(
+              "Encountered an issue invalidating authorization cached for '%s'", userOrGroup));
     }
   }
 
@@ -532,19 +582,22 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
       hadoopFS.invalidateAll();
     } catch (Exception e) {
       logger.debug(e.getMessage());
-      throw new AuthorizationCacheException("Encountered an issue invalidating all authorizations cached");
+      throw new AuthorizationCacheException(
+          "Encountered an issue invalidating all authorizations cached");
     }
   }
 
-  public Iterable<String> getSubPartitions(List<String> table,
-                                           List<String> partitionColumns,
-                                           List<String> partitionValues,
-                                           SchemaConfig schemaConfig
-  ) throws PartitionNotFoundException {
+  public Iterable<String> getSubPartitions(
+      List<String> table,
+      List<String> partitionColumns,
+      List<String> partitionValues,
+      SchemaConfig schemaConfig)
+      throws PartitionNotFoundException {
     List<FileAttributes> fileAttributesList;
     try {
       Path fullPath = PathUtils.toFSPath(resolveTableNameToValidPath(table));
-      try(DirectoryStream<FileAttributes> stream = createFS(schemaConfig.getUserName()).list(fullPath, NO_HIDDEN_FILES)) {
+      try (DirectoryStream<FileAttributes> stream =
+          createFS(schemaConfig.getUserName()).list(fullPath, NO_HIDDEN_FILES)) {
         // Need to copy the content of the stream before closing
         fileAttributesList = Lists.newArrayList(stream);
       }
@@ -556,7 +609,12 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
 
   @Override
   public Class<? extends StoragePluginRulesFactory> getRulesFactoryClass() {
-    return context.getConfig().getClass("dremio.plugins.dfs.rulesfactory", StoragePluginRulesFactory.class, FileSystemRulesFactory.class);
+    return context
+        .getConfig()
+        .getClass(
+            "dremio.plugins.dfs.rulesfactory",
+            StoragePluginRulesFactory.class,
+            FileSystemRulesFactory.class);
   }
 
   @Override
@@ -564,7 +622,8 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     if (systemUserFS == null) {
       return SourceState.NOT_AVAILABLE;
     }
-    if (systemUserFS.isPdfs() || ClassPathFileSystem.SCHEME.equals(systemUserFS.getUri().getScheme())) {
+    if (systemUserFS.isPdfs()
+        || ClassPathFileSystem.SCHEME.equals(systemUserFS.getUri().getScheme())) {
       return SourceState.GOOD;
     }
     try {
@@ -602,21 +661,33 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
       } catch (FileNotFoundException e) {
         return null;
       } catch (IOException e) {
-        logger.warn("Failure while trying to list view tables in workspace [{}]", tableSchemaPath, e);
+        logger.warn(
+            "Failure while trying to list view tables in workspace [{}]", tableSchemaPath, e);
       }
 
       if (f != null && f.getType() == DotFileType.VIEW) {
         try {
-          return new ViewTable(new NamespaceKey(tableSchemaPath), f.getView(lpPersistance), CatalogUser.from(f.getOwner()), null);
+          return new ViewTable(
+              new NamespaceKey(tableSchemaPath),
+              f.getView(lpPersistance),
+              CatalogUser.from(f.getOwner()),
+              null);
         } catch (AccessControlException e) {
           if (!schemaConfig.getIgnoreAuthErrors()) {
             logger.debug(e.getMessage());
             throw UserException.permissionError(e)
-              .message("Not authorized to read view [%s] in schema %s", tableSchemaPath.get(tableSchemaPath.size() - 1), tableSchemaPath.subList(0, tableSchemaPath.size() - 1))
-              .build(logger);
+                .message(
+                    "Not authorized to read view [%s] in schema %s",
+                    tableSchemaPath.get(tableSchemaPath.size() - 1),
+                    tableSchemaPath.subList(0, tableSchemaPath.size() - 1))
+                .build(logger);
           }
         } catch (IOException e) {
-          logger.warn("Failure while trying to load {}.view.meta file in workspace [{}]", tableSchemaPath.get(tableSchemaPath.size() - 1), tableSchemaPath.subList(0, tableSchemaPath.size() - 1), e);
+          logger.warn(
+              "Failure while trying to load {}.view.meta file in workspace [{}]",
+              tableSchemaPath.get(tableSchemaPath.size() - 1),
+              tableSchemaPath.subList(0, tableSchemaPath.size() - 1),
+              e);
         }
       }
     } catch (UnsupportedOperationException e) {
@@ -627,13 +698,13 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
   }
 
   /**
-   * Helper method which resolves the table name to actual file/folder on the filesystem.
-   * If the resolved path refers to an entity not under the base of the source then a permission error is thrown.
+   * Helper method which resolves the table name to actual file/folder on the filesystem. If the
+   * resolved path refers to an entity not under the base of the source then a permission error is
+   * thrown.
    *
-   * Ex. For given source named "dfs" which has base path of "/base" tableSchemaPath
-   *    [dfs, tmp, a] -> "/base/tmp/a"
-   *    [dfs, "/tmp/b"] -> "/base/tmp/b"
-   *    [dfs, "value", tbl] -> "/base/value/tbl"
+   * <p>Ex. For given source named "dfs" which has base path of "/base" tableSchemaPath [dfs, tmp,
+   * a] -> "/base/tmp/a" [dfs, "/tmp/b"] -> "/base/tmp/b" [dfs, "value", tbl] -> "/base/value/tbl"
+   *
    * @param tableSchemaPath
    * @return
    */
@@ -641,32 +712,39 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
   public List<String> resolveTableNameToValidPath(List<String> tableSchemaPath) {
     List<String> fullPath = new ArrayList<>();
     fullPath.addAll(PathUtils.toPathComponents(basePath));
-    for (String pathComponent : tableSchemaPath.subList(1 /* need to skip the source name */, tableSchemaPath.size())) {
+    for (String pathComponent :
+        tableSchemaPath.subList(1 /* need to skip the source name */, tableSchemaPath.size())) {
       fullPath.add(PathUtils.removeQuotes(pathComponent));
     }
-    if (context.getOptionManager().getOption(ExecConstants.FS_PATH_TRAVERSAL_PREVENTION_ENABLED)) {
-      PathUtils.verifyNoDirectoryTraversal(fullPath, () ->
-        UserException.permissionError()
-          .message("Not allowed to perform directory traversal").addContext("Path", fullPath.toString()).buildSilently());
-    }
+    PathUtils.verifyNoDirectoryTraversal(
+        fullPath,
+        () ->
+            UserException.permissionError()
+                .message("Not allowed to perform directory traversal")
+                .addContext("Path", fullPath.toString())
+                .buildSilently());
     PathUtils.verifyNoAccessOutsideBase(basePath, PathUtils.toFSPath(fullPath));
     return fullPath;
   }
 
   /**
-   * Resolve given table path relative to source resolve it to a valid path in filesystem.
-   * If the resolved path refers to an entity not under the base of the source then a permission error is thrown.
+   * Resolve given table path relative to source resolve it to a valid path in filesystem. If the
+   * resolved path refers to an entity not under the base of the source then a permission error is
+   * thrown.
+   *
    * @param tablePath
    * @return
    */
   public Path resolveTablePathToValidPath(String tablePath) {
     String relativePathClean = PathUtils.removeLeadingSlash(tablePath);
     Path combined = basePath.resolve(relativePathClean);
-    if (context.getOptionManager().getOption(ExecConstants.FS_PATH_TRAVERSAL_PREVENTION_ENABLED)) {
-      PathUtils.verifyNoDirectoryTraversal(ImmutableList.of(tablePath), () ->
-        UserException.permissionError()
-          .message("Not allowed to perform directory traversal").addContext("Path", tablePath.toString()).buildSilently());
-    }
+    PathUtils.verifyNoDirectoryTraversal(
+        ImmutableList.of(tablePath),
+        () ->
+            UserException.permissionError()
+                .message("Not allowed to perform directory traversal")
+                .addContext("Path", tablePath.toString())
+                .buildSilently());
     PathUtils.verifyNoAccessOutsideBase(basePath, combined);
     return combined;
   }
@@ -676,23 +754,34 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
       TableInstance instance,
       boolean ignoreAuthErrors,
       String user,
-      int maxLeafColumns
-  ) throws Exception {
+      int maxLeafColumns)
+      throws Exception {
     final FormatPluginConfig fconfig = optionExtractor.createConfigForTable(instance);
-    final DatasetRetrievalOptions options = DatasetRetrievalOptions.DEFAULT.toBuilder()
-        .setIgnoreAuthzErrors(ignoreAuthErrors)
-        .setMaxMetadataLeafColumns(maxLeafColumns)
-        .build();
+    final DatasetRetrievalOptions options =
+        DatasetRetrievalOptions.DEFAULT.toBuilder()
+            .setIgnoreAuthzErrors(ignoreAuthErrors)
+            .setMaxMetadataLeafColumns(maxLeafColumns)
+            .build();
 
-    return getDatasetWithFormat(datasetPath, new PreviousDatasetInfo(null, null, null, null, null, true), fconfig, options, user);
+    return getDatasetWithFormat(
+        datasetPath,
+        new PreviousDatasetInfo(null, null, null, null, null, true),
+        fconfig,
+        options,
+        user);
   }
 
-  protected FileDatasetHandle getDatasetWithFormat(NamespaceKey datasetPath, PreviousDatasetInfo oldConfig, FormatPluginConfig formatPluginConfig,
-                                                       DatasetRetrievalOptions retrievalOptions, String user) throws Exception {
+  protected FileDatasetHandle getDatasetWithFormat(
+      NamespaceKey datasetPath,
+      PreviousDatasetInfo oldConfig,
+      FormatPluginConfig formatPluginConfig,
+      DatasetRetrievalOptions retrievalOptions,
+      String user)
+      throws Exception {
     try {
       Optional<FileSelection> selection = generateFileSelectionForPathComponents(datasetPath, user);
 
-      if(!selection.isPresent()) {
+      if (!selection.isPresent()) {
         return null;
       }
 
@@ -703,39 +792,66 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
 
       if (formatPluginConfig != null) {
         FormatPlugin formatPlugin = formatCreator.getFormatPluginByConfig(formatPluginConfig);
-        if(formatPlugin == null){
+        if (formatPlugin == null) {
           formatPlugin = formatCreator.newFormatPlugin(formatPluginConfig);
         }
-        FileSelectionProcessor fileSelectionProcessor = formatPlugin.getFileSelectionProcessor(fs, fileSelection);
+        FileSelectionProcessor fileSelectionProcessor =
+            formatPlugin.getFileSelectionProcessor(fs, fileSelection);
 
-        FileSelection normalizedFileSelection = fileSelectionProcessor.normalizeForPlugin(fileSelection);
+        FileSelection normalizedFileSelection =
+            fileSelectionProcessor.normalizeForPlugin(fileSelection);
         final FileUpdateKey updateKey = fileSelectionProcessor.generateUpdateKey();
         if (fileSelection.isExpanded() && fileSelection.isEmpty()) {
           return null;
         }
 
-        DatasetType type = fs.isDirectory(Path.of(normalizedFileSelection.getSelectionRoot())) ? DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER : DatasetType.PHYSICAL_DATASET_SOURCE_FILE;
-        datasetAccessor = formatPlugin.getDatasetAccessor(type, oldConfig, fs, normalizedFileSelection, this, datasetPath,
-            updateKey, retrievalOptions.maxMetadataLeafColumns(), retrievalOptions.getTimeTravelRequest());
+        DatasetType type =
+            fs.isDirectory(Path.of(normalizedFileSelection.getSelectionRoot()))
+                ? DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER
+                : DatasetType.PHYSICAL_DATASET_SOURCE_FILE;
+        datasetAccessor =
+            formatPlugin.getDatasetAccessor(
+                type,
+                oldConfig,
+                fs,
+                normalizedFileSelection,
+                this,
+                datasetPath,
+                updateKey,
+                retrievalOptions.maxMetadataLeafColumns(),
+                retrievalOptions.getTimeTravelRequest());
       }
 
-      if (datasetAccessor == null &&
-          retrievalOptions.autoPromote()) {
+      if (datasetAccessor == null && retrievalOptions.autoPromote()) {
         boolean formatFound = false;
         for (final FormatMatcher matcher : matchers) {
           try {
-            final FileSelectionProcessor fileSelectionProcessor = matcher.getFormatPlugin().getFileSelectionProcessor(fs, fileSelection);
+            final FileSelectionProcessor fileSelectionProcessor =
+                matcher.getFormatPlugin().getFileSelectionProcessor(fs, fileSelection);
             if (matcher.matches(fs, fileSelection, codecFactory)) {
               formatFound = true;
-              final DatasetType type = fs.isDirectory(Path.of(fileSelection.getSelectionRoot()))
-                      ? DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER : DatasetType.PHYSICAL_DATASET_SOURCE_FILE;
+              final DatasetType type =
+                  fs.isDirectory(Path.of(fileSelection.getSelectionRoot()))
+                      ? DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER
+                      : DatasetType.PHYSICAL_DATASET_SOURCE_FILE;
 
-              final FileSelection normalizedFileSelection = fileSelectionProcessor.normalizeForPlugin(fileSelection);
+              final FileSelection normalizedFileSelection =
+                  fileSelectionProcessor.normalizeForPlugin(fileSelection);
               final FileUpdateKey updateKey = fileSelectionProcessor.generateUpdateKey();
 
-              datasetAccessor = matcher.getFormatPlugin()
-                  .getDatasetAccessor(type, oldConfig, fs, normalizedFileSelection, this, datasetPath,
-                      updateKey, retrievalOptions.maxMetadataLeafColumns(), retrievalOptions.getTimeTravelRequest());
+              datasetAccessor =
+                  matcher
+                      .getFormatPlugin()
+                      .getDatasetAccessor(
+                          type,
+                          oldConfig,
+                          fs,
+                          normalizedFileSelection,
+                          this,
+                          datasetPath,
+                          updateKey,
+                          retrievalOptions.maxMetadataLeafColumns(),
+                          retrievalOptions.getTimeTravelRequest());
               if (datasetAccessor != null) {
                 break;
               }
@@ -746,10 +862,12 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
         }
 
         if (!formatFound) {
-          String errorMessage = String.format("The file format for '%s' could not be identified. In order for automatic format detection to succeed, " +
-            "files must include a file extension. Alternatively, manual promotion can be used to explicitly specify the format.", datasetPath.getSchemaPath());
-          throw UserException.unsupportedError()
-            .message(errorMessage).buildSilently();
+          String errorMessage =
+              String.format(
+                  "The file format for '%s' could not be identified. In order for automatic format detection to succeed, "
+                      + "files must include a file extension. Alternatively, manual promotion can be used to explicitly specify the format.",
+                  datasetPath.getSchemaPath());
+          throw UserException.unsupportedError().message(errorMessage).buildSilently();
         }
       }
 
@@ -759,8 +877,8 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
       if (!retrievalOptions.ignoreAuthzErrors()) {
         logger.debug(e.getMessage());
         throw UserException.permissionError(e)
-          .message("Not authorized to read table %s at path ", datasetPath)
-          .build(logger);
+            .message("Not authorized to read table %s at path ", datasetPath)
+            .build(logger);
       }
     } catch (IOException e) {
       logger.debug("Failed to create table {}", datasetPath, e);
@@ -770,9 +888,15 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
   }
 
   // Try to match against a layered format. If these is no match, returns null.
-  public Optional<FileFormat> findLayeredFormatMatch(FileSystem fs, FileSelection /**unexpanded*/ fileSelection) throws IOException {
+  public Optional<FileFormat> findLayeredFormatMatch(
+      FileSystem fs,
+      FileSelection
+          /** unexpanded */
+          fileSelection)
+      throws IOException {
     Preconditions.checkNotNull(fileSelection, "fileSelection");
-    Preconditions.checkArgument(fileSelection.isNotExpanded(), "Expected NOT_EXPANDED file selection");
+    Preconditions.checkArgument(
+        fileSelection.isNotExpanded(), "Expected NOT_EXPANDED file selection");
     for (final FormatMatcher matcher : matchers) {
       if (!matcher.getFormatPlugin().isLayered()) {
         continue;
@@ -784,7 +908,8 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     return Optional.empty();
   }
 
-  public Optional<FileFormat> findFileFormatMatch(FileSystem fs, FileAttributes attributes) throws IOException {
+  public Optional<FileFormat> findFileFormatMatch(FileSystem fs, FileAttributes attributes)
+      throws IOException {
     for (final FormatMatcher matcher : matchers) {
       if (matcher.matches(fs, attributes, codecFactory)) {
         return Optional.of(PhysicalDatasetUtils.toFileFormat(matcher.getFormatPlugin()));
@@ -802,15 +927,15 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
       }
     }
 
-    if (!Strings.isNullOrEmpty(config.getConnection())) {
-      org.apache.hadoop.fs.FileSystem.setDefaultUri(fsConf, config.getConnection());
+    if (!Strings.isNullOrEmpty(getConnection())) {
+      org.apache.hadoop.fs.FileSystem.setDefaultUri(fsConf, getConnection());
     }
 
-    Map<String,String> map =  ImmutableMap.of(
+    Map<String, String> map =
+        ImmutableMap.of(
             "fs.classpath.impl", ClassPathFileSystem.class.getName(),
-            "fs.dremio-local.impl", LocalSyncableFileSystem.class.getName()
-    );
-    for(Entry<String, String> prop : map.entrySet()) {
+            "fs.dremio-local.impl", LocalSyncableFileSystem.class.getName());
+    for (Entry<String, String> prop : map.entrySet()) {
       fsConf.set(prop.getKey(), prop.getValue());
     }
 
@@ -824,11 +949,15 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     matchers.addAll(formatCreator.getFormatMatchers());
     layeredMatchers.addAll(formatCreator.getLayeredFormatMatchers());
 
-//    boolean footerNoSeek = contetMutext.getOptionManager().getOption(ExecConstants.PARQUET_FOOTER_NOSEEK);
-    // NOTE: Add fallback format matcher if given in the configuration. Make sure fileMatchers is an order-preserving list.
+    //    boolean footerNoSeek =
+    // contetMutext.getOptionManager().getOption(ExecConstants.PARQUET_FOOTER_NOSEEK);
+    // NOTE: Add fallback format matcher if given in the configuration. Make sure fileMatchers is an
+    // order-preserving list.
     this.systemUserFS = createFS(SYSTEM_USERNAME);
     dropFileMatchers = matchers.subList(0, matchers.size());
-    this.fsHealthChecker = FSHealthChecker.getInstance(config.getPath(), config.getConnection(), getFsConf()).orElse((p,m) -> healthCheck(p, m));
+    this.fsHealthChecker =
+        FSHealthChecker.getInstance(config.getPath(), getConnection(), getFsConf())
+            .orElse((p, m) -> healthCheck(p, m));
 
     createIfNecessary();
   }
@@ -839,31 +968,34 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
 
   /**
    * Create the supporting directory for this plugin if it doesn't yet exist.
+   *
    * @throws IOException
    */
   private void createIfNecessary() throws IOException {
-    if(!config.createIfMissing()) {
+    if (!config.createIfMissing()) {
       return;
     }
 
     try {
-      // no need to exists here as FileSystemWrapper does an exists check and this is a noop if already existing.
+      // no need to exists here as FileSystemWrapper does an exists check and this is a noop if
+      // already existing.
       systemUserFS.mkdirs(config.getPath());
     } catch (IOException ex) {
       try {
-        if(systemUserFS.exists(config.getPath())) {
+        if (systemUserFS.exists(config.getPath())) {
           // race creation, ignore.
           return;
         }
 
       } catch (IOException existsFailure) {
-        // we're doing the check above to detect a race condition. if we fail, ignore the failure and just fall through to throwing the originally caught exception.
+        // we're doing the check above to detect a race condition. if we fail, ignore the failure
+        // and just fall through to throwing the originally caught exception.
         ex.addSuppressed(existsFailure);
       }
 
-      throw new IOException(String.format("Failure to create directory %s.", config.getPath().toString()), ex);
+      throw new IOException(
+          String.format("Failure to create directory %s.", config.getPath().toString()), ex);
     }
-
   }
 
   public FormatPlugin getFormatPlugin(String name) {
@@ -896,9 +1028,14 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
 
         try {
           Stopwatch stopwatch = Stopwatch.createStarted();
-          final List<Boolean> accessPermissions = TimedRunnable.run("check access permission for " + key, logger, permissionCheckTasks, 16);
+          final List<Boolean> accessPermissions =
+              TimedRunnable.run(
+                  "check access permission for " + key, logger, permissionCheckTasks, 16);
           stopwatch.stop();
-          logger.debug("Checking access permission for {} took {} ms", key, stopwatch.elapsed(TimeUnit.MILLISECONDS));
+          logger.debug(
+              "Checking access permission for {} took {} ms",
+              key,
+              stopwatch.elapsed(TimeUnit.MILLISECONDS));
           for (Boolean permission : accessPermissions) {
             if (!permission) {
               return false;
@@ -906,9 +1043,10 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
           }
         } catch (FileNotFoundException fnfe) {
           throw UserException.invalidMetadataError(fnfe)
-            .addContext(fnfe.getMessage())
-            .setAdditionalExceptionContext(new InvalidMetadataErrorContext(ImmutableList.of(key.getPathComponents())))
-            .buildSilently();
+              .addContext(fnfe.getMessage())
+              .setAdditionalExceptionContext(
+                  new InvalidMetadataErrorContext(ImmutableList.of(key.getPathComponents())))
+              .buildSilently();
         } catch (IOException ioe) {
           throw new RuntimeException("Failed to check access permission", ioe);
         }
@@ -918,10 +1056,14 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
   }
 
   // Check if all sub directories can be listed/read
-  private Collection<FsPermissionTask> getUpdateKeyPermissionTasks(DatasetConfig datasetConfig, FileSystem userFs) {
+  private Collection<FsPermissionTask> getUpdateKeyPermissionTasks(
+      DatasetConfig datasetConfig, FileSystem userFs) {
     FileUpdateKey fileUpdateKey;
     try {
-      fileUpdateKey = LegacyProtobufSerializer.parseFrom(FileUpdateKey.PARSER, datasetConfig.getReadDefinition().getReadSignature().toByteArray());
+      fileUpdateKey =
+          LegacyProtobufSerializer.parseFrom(
+              FileUpdateKey.PARSER,
+              datasetConfig.getReadDefinition().getReadSignature().toByteArray());
     } catch (InvalidProtocolBufferException e) {
       throw new RuntimeException("Cannot read file update key", e);
     }
@@ -932,7 +1074,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     final Set<AccessMode> access;
     final List<Path> batch = Lists.newArrayList();
 
-    //DX-7850 : remove once solution for maprfs is found
+    // DX-7850 : remove once solution for maprfs is found
     if (userFs.isMapRfs()) {
       access = EnumSet.of(AccessMode.READ);
     } else {
@@ -954,22 +1096,40 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
   }
 
   // Check if all splits are accessible
-  private Collection<FsPermissionTask> getSplitPermissionTasks(DatasetConfig datasetConfig, FileSystem userFs, String user) {
-    final SplitsPointer splitsPointer = DatasetSplitsPointer.of(context.getNamespaceService(user), datasetConfig);
-    final boolean isParquet = DatasetHelper.hasParquetDataFiles(datasetConfig.getPhysicalDataset().getFormatSettings());
-    Boolean isIcebergMetaData = datasetConfig.getPhysicalDataset() != null ? datasetConfig.getPhysicalDataset().getIcebergMetadataEnabled() : Boolean.FALSE;
-    logger.debug("Checking iceberg enabled or not for this physical dataset with value: {} . ", isIcebergMetaData);
+  private Collection<FsPermissionTask> getSplitPermissionTasks(
+      DatasetConfig datasetConfig, FileSystem userFs, String user) {
+    final SplitsPointer splitsPointer =
+        DatasetSplitsPointer.of(context.getNamespaceService(user), datasetConfig);
+    final boolean isParquet =
+        DatasetHelper.hasParquetDataFiles(datasetConfig.getPhysicalDataset().getFormatSettings());
+    Boolean isIcebergMetaData =
+        datasetConfig.getPhysicalDataset() != null
+            ? datasetConfig.getPhysicalDataset().getIcebergMetadataEnabled()
+            : Boolean.FALSE;
+    logger.debug(
+        "Checking iceberg enabled or not for this physical dataset with value: {} . ",
+        isIcebergMetaData);
     final List<FsPermissionTask> fsPermissionTasks = Lists.newArrayList();
     final List<Path> batch = Lists.newArrayList();
 
-    for (PartitionChunkMetadata partitionChunkMetadata: splitsPointer.getPartitionChunks()) {
+    for (PartitionChunkMetadata partitionChunkMetadata : splitsPointer.getPartitionChunks()) {
       for (DatasetSplit split : partitionChunkMetadata.getDatasetSplits()) {
         final Path filePath;
         try {
           if (isParquet && !Boolean.TRUE.equals(isIcebergMetaData)) {
-            filePath = Path.of(LegacyProtobufSerializer.parseFrom(ParquetDatasetSplitXAttr.PARSER, split.getSplitExtendedProperty().toByteArray()).getPath());
+            filePath =
+                Path.of(
+                    LegacyProtobufSerializer.parseFrom(
+                            ParquetDatasetSplitXAttr.PARSER,
+                            split.getSplitExtendedProperty().toByteArray())
+                        .getPath());
           } else {
-            filePath = Path.of(LegacyProtobufSerializer.parseFrom(EasyDatasetSplitXAttr.PARSER, split.getSplitExtendedProperty().toByteArray()).getPath());
+            filePath =
+                Path.of(
+                    LegacyProtobufSerializer.parseFrom(
+                            EasyDatasetSplitXAttr.PARSER,
+                            split.getSplitExtendedProperty().toByteArray())
+                        .getPath());
           }
         } catch (InvalidProtocolBufferException e) {
           throw new RuntimeException("Could not deserialize split info", e);
@@ -978,7 +1138,8 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
         batch.add(filePath);
         if (batch.size() == PERMISSION_CHECK_TASK_BATCH_SIZE) {
           // make a copy of batch
-          fsPermissionTasks.add(new FsPermissionTask(userFs, new ArrayList<>(batch), EnumSet.of(AccessMode.READ)));
+          fsPermissionTasks.add(
+              new FsPermissionTask(userFs, new ArrayList<>(batch), EnumSet.of(AccessMode.READ)));
           batch.clear();
         }
       }
@@ -993,10 +1154,10 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
 
   @Nonnull
   @Override
-  public Optional<DatasetMetadataVerifyResult> verifyMetadata(DatasetHandle datasetHandle, MetadataVerifyRequest metadataVerifyRequest) {
+  public Optional<DatasetMetadataVerifyResult> verifyMetadata(
+      DatasetHandle datasetHandle, MetadataVerifyRequest metadataVerifyRequest) {
     if (datasetHandle instanceof MetadataVerifyHandle) {
-      return datasetHandle.unwrap(MetadataVerifyHandle.class)
-        .verifyMetadata(metadataVerifyRequest);
+      return datasetHandle.unwrap(MetadataVerifyHandle.class).verifyMetadata(metadataVerifyRequest);
     }
     return Optional.empty();
   }
@@ -1022,7 +1183,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
 
     @Override
     protected Boolean runInner() throws Exception {
-      for (Path cachedEntityPath:  cachedEntityPaths) {
+      for (Path cachedEntityPath : cachedEntityPaths) {
         try {
           userFs.access(cachedEntityPath, permission);
         } catch (AccessControlException ace) {
@@ -1044,7 +1205,8 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
   }
 
   @Override
-  public boolean isMetadataValidityCheckRecentEnough(Long lastMetadataValidityCheckTime, Long currentTime, OptionManager optionManager) {
+  public boolean isMetadataValidityCheckRecentEnough(
+      Long lastMetadataValidityCheckTime, Long currentTime, OptionManager optionManager) {
     return true;
   }
 
@@ -1061,11 +1223,17 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
   }
 
   @Override
-  public MetadataValidity validateMetadata(BytesOutput signature, DatasetHandle datasetHandle, DatasetMetadata metadata,
-      ValidateMetadataOption... options) throws DatasetNotFoundException {
-      //Delegate the staleness check for metadata to the DataAccessors
-      boolean metadataStale = ((FileDatasetHandle)datasetHandle).metadataValid(signature, datasetHandle, metadata, systemUserFS);
-      return metadataStale ? MetadataValidity.VALID : MetadataValidity.INVALID;
+  public MetadataValidity validateMetadata(
+      BytesOutput signature,
+      DatasetHandle datasetHandle,
+      DatasetMetadata metadata,
+      ValidateMetadataOption... options)
+      throws DatasetNotFoundException {
+    // Delegate the staleness check for metadata to the DataAccessors
+    boolean metadataStale =
+        ((FileDatasetHandle) datasetHandle)
+            .metadataValid(signature, datasetHandle, metadata, systemUserFS);
+    return metadataStale ? MetadataValidity.VALID : MetadataValidity.INVALID;
   }
 
   public SabotContext getContext() {
@@ -1080,25 +1248,28 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
   }
 
   @Override
-  public boolean createOrUpdateView(NamespaceKey tableSchemaPath,
-                                    SchemaConfig schemaConfig,
-                                    View view,
-                                    ViewOptions viewOptions) throws IOException {
+  public boolean createOrUpdateView(
+      NamespaceKey tableSchemaPath, SchemaConfig schemaConfig, View view, ViewOptions viewOptions)
+      throws IOException {
     if (!Boolean.getBoolean(DremioConfig.LEGACY_STORE_VIEWS_ENABLED)) {
       throw UserException.parseError()
-        .message("Unable to create or update view. Filesystem views are not supported.")
-        .build(logger);
-    } else if (!getMutability().hasMutationCapability(MutationType.VIEW, schemaConfig.isSystemUser())) {
+          .message("Unable to create or update view. Filesystem views are not supported.")
+          .build(logger);
+    } else if (!getMutability()
+        .hasMutationCapability(MutationType.VIEW, schemaConfig.isSystemUser())) {
       throw UserException.parseError()
-        .message("Unable to create or update view. Schema [%s] is immutable for this user.", tableSchemaPath.getParent())
-        .build(logger);
+          .message(
+              "Unable to create or update view. Schema [%s] is immutable for this user.",
+              tableSchemaPath.getParent())
+          .build(logger);
     }
 
     Path viewPath = getViewPath(tableSchemaPath.getPathComponents());
     FileSystem fs = createFS(schemaConfig.getUserName());
     boolean replaced = fs.exists(viewPath);
     final Set<PosixFilePermission> viewPerms =
-            MorePosixFilePermissions.fromOctalMode(schemaConfig.getOption(ExecConstants.NEW_VIEW_DEFAULT_PERMS_KEY).getStringVal());
+        MorePosixFilePermissions.fromOctalMode(
+            schemaConfig.getOption(ExecConstants.NEW_VIEW_DEFAULT_PERMS_KEY).getStringVal());
     try (OutputStream stream = FileSystemUtils.create(fs, viewPath, viewPerms)) {
       lpPersistance.getMapper().writeValue(stream, view);
     }
@@ -1106,18 +1277,22 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
   }
 
   @Override
-  public void dropView(NamespaceKey tableSchemaPath, ViewOptions viewOptions, SchemaConfig schemaConfig) throws IOException {
+  public void dropView(
+      NamespaceKey tableSchemaPath, ViewOptions viewOptions, SchemaConfig schemaConfig)
+      throws IOException {
     if (!Boolean.getBoolean(DremioConfig.LEGACY_STORE_VIEWS_ENABLED)) {
       throw UserException.parseError()
-        .message("Unable to drop view. Filesystem views are not supported.")
-        .build(logger);
-    } else if (!getMutability().hasMutationCapability(MutationType.VIEW, schemaConfig.isSystemUser())) {
+          .message("Unable to drop view. Filesystem views are not supported.")
+          .build(logger);
+    } else if (!getMutability()
+        .hasMutationCapability(MutationType.VIEW, schemaConfig.isSystemUser())) {
       throw UserException.parseError()
-        .message("Unable to drop view. Schema [%s] is immutable for this user.", this.name)
-        .build(logger);
+          .message("Unable to drop view. Schema [%s] is immutable for this user.", this.name)
+          .build(logger);
     }
 
-    createFS(schemaConfig.getUserName()).delete(getViewPath(tableSchemaPath.getPathComponents()), false);
+    createFS(schemaConfig.getUserName())
+        .delete(getViewPath(tableSchemaPath.getPathComponents()), false);
   }
 
   private Path getViewPath(List<String> tableSchemaPath) {
@@ -1134,7 +1309,6 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
   public List<Function> getFunctions(List<String> tableSchemaPath, SchemaConfig schemaConfig) {
     return optionExtractor.getFunctions(tableSchemaPath, this, schemaConfig);
   }
-
 
   private FormatMatcher findMatcher(FileSystem fs, FileSelection file) {
     FormatMatcher matcher = null;
@@ -1159,16 +1333,16 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
       return true;
     }
 
-    for(FileAttributes attributes : noDir.getFileAttributesList()) {
+    for (FileAttributes attributes : noDir.getFileAttributesList()) {
       FileSelection subSelection = FileSelection.create(attributes);
       if (matcher == null) {
         matcher = findMatcher(fs, subSelection);
-        if(matcher == null) {
+        if (matcher == null) {
           return false;
         }
       }
 
-      if(!matcher.matches(fs, subSelection, codecFactory)) {
+      if (!matcher.matches(fs, subSelection, codecFactory)) {
         return false;
       }
     }
@@ -1176,25 +1350,28 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
   }
 
   /**
-   * We check if the table contains homogeneous file formats that Dremio can read. Once the checks are performed
-   * we rename the file to start with an "_". After the rename we issue a recursive delete of the directory.
+   * We check if the table contains homogeneous file formats that Dremio can read. Once the checks
+   * are performed we rename the file to start with an "_". After the rename we issue a recursive
+   * delete of the directory.
    */
   @Override
-  public void dropTable(NamespaceKey tableSchemaPath, SchemaConfig schemaConfig, TableMutationOptions tableMutationOptions) {
-    if(!getMutability().hasMutationCapability(MutationType.TABLE, schemaConfig.isSystemUser())) {
+  public void dropTable(
+      NamespaceKey tableSchemaPath,
+      SchemaConfig schemaConfig,
+      TableMutationOptions tableMutationOptions) {
+    if (!getMutability().hasMutationCapability(MutationType.TABLE, schemaConfig.isSystemUser())) {
       throw UserException.parseError()
-        .message("Unable to drop table. Schema [%s] is immutable for this user.", this.name)
-        .build(logger);
+          .message("Unable to drop table. Schema [%s] is immutable for this user.", this.name)
+          .build(logger);
     }
 
     FileSystem fs;
     try {
       fs = createFS(schemaConfig.getUserName());
     } catch (IOException e) {
-      throw UserException
-        .ioExceptionError(e)
-        .message("Failed to access filesystem: " + e.getMessage())
-        .build(logger);
+      throw UserException.ioExceptionError(e)
+          .message("Failed to access filesystem: " + e.getMessage())
+          .build(logger);
     }
 
     List<String> fullPath = resolveTableNameToValidPath(tableSchemaPath.getPathComponents());
@@ -1202,80 +1379,107 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     try {
       // ICEBERG or DELTALAKE
       boolean isLayeredTable = tableMutationOptions != null && tableMutationOptions.isLayered();
-      // The fileSelection is used in the isHomogenous() check below to prevent accidental deletion of folders with files of mixed format
-      fileSelection = isLayeredTable ? FileSelection.createNotExpanded(fs, fullPath) : FileSelection.create(tableSchemaPath.getName(), fs, fullPath, FileDatasetHandle.getMaxFilesLimit(context));
+      // The fileSelection is used in the isHomogenous() check below to prevent accidental deletion
+      // of folders with files of mixed format
+      fileSelection =
+          isLayeredTable
+              ? FileSelection.createNotExpanded(fs, fullPath)
+              : FileSelection.create(
+                  tableSchemaPath.getName(),
+                  fs,
+                  fullPath,
+                  FileDatasetHandle.getMaxFilesLimit(context));
     } catch (IOException e) {
       throw new RuntimeException(
-        String.format("Unable to drop table [%s]. %s", SqlUtils.quotedCompound(tableSchemaPath.getPathComponents()), e.getMessage()));
+          String.format(
+              "Unable to drop table [%s]. %s",
+              SqlUtils.quotedCompound(tableSchemaPath.getPathComponents()), e.getMessage()));
     }
 
     if (fileSelection == null) {
-      throw UserException
-          .validationError()
-          .message(String.format("Table [%s] not found", SqlUtils.quotedCompound(tableSchemaPath.getPathComponents())))
+      throw UserException.validationError()
+          .message(
+              String.format(
+                  "Table [%s] not found",
+                  SqlUtils.quotedCompound(tableSchemaPath.getPathComponents())))
           .build(logger);
     }
 
     try {
-      if (tableMutationOptions != null && !tableMutationOptions.isLayered() && !isHomogeneous(fs, fileSelection)) {
+      if (tableMutationOptions != null
+          && !tableMutationOptions.isLayered()
+          && !isHomogeneous(fs, fileSelection)) {
         if (!context.getNamespaceService(schemaConfig.getUserName()).exists(tableSchemaPath)) {
-          throw UserException
-            .validationError()
-            .message(String.format("Unable to drop table. The specified table [%s] could not be found", SqlUtils.quotedCompound(tableSchemaPath.getPathComponents())))
-            .build(logger);
+          throw UserException.validationError()
+              .message(
+                  String.format(
+                      "Unable to drop table. The specified table [%s] could not be found",
+                      SqlUtils.quotedCompound(tableSchemaPath.getPathComponents())))
+              .build(logger);
         }
-        throw UserException
-                .validationError()
-                .message("Table contains different file formats. \n" +
-                        "Drop Table is only supported for directories that contain homogeneous file formats consumable by Dremio")
-                .build(logger);
+        throw UserException.validationError()
+            .message(
+                "Table contains different file formats. \n"
+                    + "Drop Table is only supported for directories that contain homogeneous file formats consumable by Dremio")
+            .build(logger);
       }
 
       final Path fsPath = PathUtils.toFSPath(fullPath);
 
       if (!fs.delete(fsPath, true)) {
         throw UserException.ioExceptionError()
-            .message("Failed to drop table: %s", PathUtils.constructFullPath(tableSchemaPath.getPathComponents()))
+            .message(
+                "Failed to drop table: %s",
+                PathUtils.constructFullPath(tableSchemaPath.getPathComponents()))
             .build(logger);
       }
       if (tableMutationOptions != null && tableMutationOptions.shouldDeleteCatalogEntry()) {
-          deleteIcebergTableRootPointer(schemaConfig.getUserName(), fsPath);
+        deleteIcebergTableRootPointer(schemaConfig.getUserName(), fsPath);
       }
     } catch (AccessControlException e) {
-      throw UserException
-              .permissionError(e)
-              .message("Unauthorized to drop table")
-              .build(logger);
+      throw UserException.permissionError(e).message("Unauthorized to drop table").build(logger);
     } catch (IOException e) {
-      throw UserException
-              .dataWriteError(e)
-              .message("Failed to drop table: " + e.getMessage())
-              .build(logger);
+      throw UserException.dataWriteError(e)
+          .message("Failed to drop table: " + e.getMessage())
+          .build(logger);
     }
   }
 
   @Override
-  public void alterTable(NamespaceKey tableSchemaPath, DatasetConfig datasetConfig, AlterTableOption alterTableOption,
-                         SchemaConfig schemaConfig, TableMutationOptions tableMutationOptions) {
+  public void alterTable(
+      NamespaceKey tableSchemaPath,
+      DatasetConfig datasetConfig,
+      AlterTableOption alterTableOption,
+      SchemaConfig schemaConfig,
+      TableMutationOptions tableMutationOptions) {
     IcebergModel icebergModel = getIcebergModel();
-    icebergModel.alterTable(icebergModel.getTableIdentifier(validateAndGetPath(tableSchemaPath, schemaConfig.getUserName()).toString()), alterTableOption);
+    icebergModel.alterTable(
+        icebergModel.getTableIdentifier(
+            validateAndGetPath(tableSchemaPath, schemaConfig.getUserName()).toString()),
+        alterTableOption);
   }
 
   @Override
-  public void truncateTable(NamespaceKey key, SchemaConfig schemaConfig, TableMutationOptions tableMutationOptions) {
+  public void truncateTable(
+      NamespaceKey key, SchemaConfig schemaConfig, TableMutationOptions tableMutationOptions) {
     IcebergModel icebergModel = getIcebergModel();
-    icebergModel.truncateTable(icebergModel.getTableIdentifier(validateAndGetPath(key, schemaConfig.getUserName()).toString()));
+    icebergModel.truncateTable(
+        icebergModel.getTableIdentifier(
+            validateAndGetPath(key, schemaConfig.getUserName()).toString()));
   }
 
   @Override
-  public void rollbackTable(NamespaceKey tableSchemaPath,
-                            DatasetConfig datasetConfig,
-                            SchemaConfig schemaConfig,
-                            RollbackOption rollbackOption,
-                            TableMutationOptions tableMutationOptions) {
+  public void rollbackTable(
+      NamespaceKey tableSchemaPath,
+      DatasetConfig datasetConfig,
+      SchemaConfig schemaConfig,
+      RollbackOption rollbackOption,
+      TableMutationOptions tableMutationOptions) {
     IcebergModel icebergModel = getIcebergModel();
     icebergModel.rollbackTable(
-      icebergModel.getTableIdentifier(validateAndGetPath(tableSchemaPath, schemaConfig.getUserName()).toString()), rollbackOption);
+        icebergModel.getTableIdentifier(
+            validateAndGetPath(tableSchemaPath, schemaConfig.getUserName()).toString()),
+        rollbackOption);
   }
 
   public void deleteIcebergTableRootPointer(String userName, Path icebergTablePath) {
@@ -1284,97 +1488,149 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
       FileSystem fs = createFS(userName);
       FileIO fileIO = createIcebergFileIO(fs, null, null, null, null);
       IcebergModel icebergModel = getIcebergModel(fileIO, null);
-      icebergModel.deleteTableRootPointer(icebergModel.getTableIdentifier(String.valueOf(icebergTablePath)));
+      icebergModel.deleteTableRootPointer(
+          icebergModel.getTableIdentifier(String.valueOf(icebergTablePath)));
 
     } catch (IOException e) {
-      throw UserException
-        .ioExceptionError(e)
-        .message("Failed to access filesystem: " + e.getMessage())
-        .build(logger);
+      throw UserException.ioExceptionError(e)
+          .message("Failed to access filesystem: " + e.getMessage())
+          .build(logger);
     } catch (Exception e) {
-      String message = String.format("There was an error while cleaning up respective root pointer entry residing at %s.", basePath);
+      String message =
+          String.format(
+              "There was an error while cleaning up respective root pointer entry residing at %s.",
+              basePath);
       logger.error(message, e);
       throw new RuntimeException(e);
     }
-
   }
 
   @Override
-  public void addColumns(NamespaceKey key,
-                         DatasetConfig datasetConfig,
-                         SchemaConfig schemaConfig,
-                         List<Field> columnsToAdd,
-                         TableMutationOptions tableMutationOptions) {
-    AddColumn columnOperations = new AddColumn(key, context, datasetConfig, schemaConfig, getIcebergModel(), validateAndGetPath(key, schemaConfig.getUserName()), this);
+  public void addColumns(
+      NamespaceKey key,
+      DatasetConfig datasetConfig,
+      SchemaConfig schemaConfig,
+      List<Field> columnsToAdd,
+      TableMutationOptions tableMutationOptions) {
+    AddColumn columnOperations =
+        new AddColumn(
+            key,
+            context,
+            datasetConfig,
+            schemaConfig,
+            getIcebergModel(),
+            validateAndGetPath(key, schemaConfig.getUserName()),
+            this);
     columnOperations.performOperation(columnsToAdd);
   }
 
   @Override
-  public void dropColumn(NamespaceKey table,
-                         DatasetConfig datasetConfig,
-                         SchemaConfig schemaConfig,
-                         String columnToDrop,
-                         TableMutationOptions tableMutationOptions) {
-    DropColumn columnOperations = new DropColumn(table, context, datasetConfig, schemaConfig, getIcebergModel(), validateAndGetPath(table, schemaConfig.getUserName()), this);
+  public void dropColumn(
+      NamespaceKey table,
+      DatasetConfig datasetConfig,
+      SchemaConfig schemaConfig,
+      String columnToDrop,
+      TableMutationOptions tableMutationOptions) {
+    DropColumn columnOperations =
+        new DropColumn(
+            table,
+            context,
+            datasetConfig,
+            schemaConfig,
+            getIcebergModel(),
+            validateAndGetPath(table, schemaConfig.getUserName()),
+            this);
     columnOperations.performOperation(columnToDrop);
   }
 
   @Override
-  public void changeColumn(NamespaceKey table,
-                           DatasetConfig datasetConfig,
-                           SchemaConfig schemaConfig,
-                           String columnToChange,
-                           Field fieldFromSql,
-                           TableMutationOptions tableMutationOptions) {
-    ChangeColumn columnOperations = new ChangeColumn(table, context, datasetConfig, schemaConfig, getIcebergModel(), validateAndGetPath(table, schemaConfig.getUserName()), this);
+  public void changeColumn(
+      NamespaceKey table,
+      DatasetConfig datasetConfig,
+      SchemaConfig schemaConfig,
+      String columnToChange,
+      Field fieldFromSql,
+      TableMutationOptions tableMutationOptions) {
+    ChangeColumn columnOperations =
+        new ChangeColumn(
+            table,
+            context,
+            datasetConfig,
+            schemaConfig,
+            getIcebergModel(),
+            validateAndGetPath(table, schemaConfig.getUserName()),
+            this);
     columnOperations.performOperation(columnToChange, fieldFromSql);
   }
 
   @Override
-  public void addPrimaryKey(NamespaceKey table,
-                            DatasetConfig datasetConfig,
-                            SchemaConfig schemaConfig,
-                            List<Field> columns,
-                            ResolvedVersionContext versionContext) {
-    AddPrimaryKey op = new AddPrimaryKey(table, context, datasetConfig, schemaConfig, getIcebergModel(), validateAndGetPath(table, schemaConfig.getUserName()), this);
+  public void addPrimaryKey(
+      NamespaceKey table,
+      DatasetConfig datasetConfig,
+      SchemaConfig schemaConfig,
+      List<Field> columns,
+      ResolvedVersionContext versionContext) {
+    AddPrimaryKey op =
+        new AddPrimaryKey(
+            table,
+            context,
+            datasetConfig,
+            schemaConfig,
+            getIcebergModel(),
+            validateAndGetPath(table, schemaConfig.getUserName()),
+            this);
     op.performOperation(columns);
   }
 
   @Override
-  public void dropPrimaryKey(NamespaceKey table,
-                             DatasetConfig datasetConfig,
-                             SchemaConfig schemaConfig,
-                             ResolvedVersionContext versionContext) {
-    DropPrimaryKey op = new DropPrimaryKey(table, context, datasetConfig, schemaConfig, getIcebergModel(), validateAndGetPath(table, schemaConfig.getUserName()), this);
+  public void dropPrimaryKey(
+      NamespaceKey table,
+      DatasetConfig datasetConfig,
+      SchemaConfig schemaConfig,
+      ResolvedVersionContext versionContext) {
+    DropPrimaryKey op =
+        new DropPrimaryKey(
+            table,
+            context,
+            datasetConfig,
+            schemaConfig,
+            getIcebergModel(),
+            validateAndGetPath(table, schemaConfig.getUserName()),
+            this);
     op.performOperation();
   }
 
   @Override
-  public List<String> getPrimaryKey(NamespaceKey table,
-                                    DatasetConfig datasetConfig,
-                                    SchemaConfig schemaConfig,
-                                    ResolvedVersionContext versionContext,
-                                    boolean saveInKvStore) {
+  public List<String> getPrimaryKey(
+      NamespaceKey table,
+      DatasetConfig datasetConfig,
+      SchemaConfig schemaConfig,
+      ResolvedVersionContext versionContext,
+      boolean saveInKvStore) {
     if (IcebergUtils.isPrimaryKeySupported(datasetConfig)) {
-      return IcebergUtils.validateAndGeneratePrimaryKey(this, context, table, datasetConfig, schemaConfig, versionContext, saveInKvStore);
+      return IcebergUtils.validateAndGeneratePrimaryKey(
+          this, context, table, datasetConfig, schemaConfig, versionContext, saveInKvStore);
     } else {
       return null;
     }
   }
 
   @Override
-  public List<String> getPrimaryKeyFromMetadata(NamespaceKey table,
-                                                DatasetConfig datasetConfig,
-                                                SchemaConfig schemaConfig,
-                                                ResolvedVersionContext versionContext,
-                                                boolean saveInKvStore) {
+  public List<String> getPrimaryKeyFromMetadata(
+      NamespaceKey table,
+      DatasetConfig datasetConfig,
+      SchemaConfig schemaConfig,
+      ResolvedVersionContext versionContext,
+      boolean saveInKvStore) {
     final String userName = schemaConfig.getUserName();
     final IcebergModel icebergModel;
     final Path path;
     if (DatasetHelper.isInternalIcebergTable(datasetConfig)) {
-      final FileSystemPlugin<?> metaStoragePlugin = context.getCatalogService().getSource(METADATA_STORAGE_PLUGIN_NAME);
+      final FileSystemPlugin<?> metaStoragePlugin =
+          context.getCatalogService().getSource(METADATA_STORAGE_PLUGIN_NAME);
       icebergModel = metaStoragePlugin.getIcebergModel();
-      String metadataTableName = datasetConfig.getPhysicalDataset().getIcebergMetadata().getTableUuid();
+      String metadataTableName =
+          datasetConfig.getPhysicalDataset().getIcebergMetadata().getTableUuid();
       path = metaStoragePlugin.resolveTablePathToValidPath(metadataTableName);
     } else if (DatasetHelper.isIcebergDataset(datasetConfig)) {
       // Native iceberg table
@@ -1387,35 +1643,54 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     } else {
       return null;
     }
-    return IcebergUtils.getPrimaryKey(icebergModel, path.toString(), table, datasetConfig, userName, this, context, saveInKvStore);
+    return IcebergUtils.getPrimaryKey(
+        icebergModel,
+        path.toString(),
+        table,
+        datasetConfig,
+        userName,
+        this,
+        context,
+        saveInKvStore);
   }
 
   @Override
-  public boolean toggleSchemaLearning(NamespaceKey table, SchemaConfig schemaConfig, boolean enableSchemaLearning) {
+  public boolean toggleSchemaLearning(
+      NamespaceKey table, SchemaConfig schemaConfig, boolean enableSchemaLearning) {
 
-    if(!context.getOptionManager().getOption(ExecConstants.ENABLE_INTERNAL_SCHEMA)) {
-      throw UserException.unsupportedError().message("Modifications to internal schema's are not allowed. Contact dremio support to enable option user managed schema's ")
-        .buildSilently();
+    if (!context.getOptionManager().getOption(ExecConstants.ENABLE_INTERNAL_SCHEMA)) {
+      throw UserException.unsupportedError()
+          .message(
+              "Modifications to internal schema's are not allowed. Contact dremio support to enable option user managed schema's ")
+          .buildSilently();
     }
 
     DatasetConfig datasetConfig;
     try {
       datasetConfig = context.getNamespaceService(schemaConfig.getUserName()).getDataset(table);
     } catch (NamespaceException e) {
-      throw UserException.dataReadError().message(String.format("Dataset %s not found", table.toString())).buildSilently();
+      throw UserException.dataReadError(e)
+          .message(String.format("Dataset %s not found", table.toString()))
+          .buildSilently();
     }
     boolean isParquetTableWithUnlimitedSplits = DatasetHelper.isInternalIcebergTable(datasetConfig);
     boolean isJSONTable = DatasetHelper.isJsonDataset(datasetConfig);
     if (!isParquetTableWithUnlimitedSplits && !isJSONTable) {
       return false;
     }
-    UserDefinedSchemaSettings internalSchemaSettings = datasetConfig.getPhysicalDataset().getInternalSchemaSettings();
+    UserDefinedSchemaSettings internalSchemaSettings =
+        datasetConfig.getPhysicalDataset().getInternalSchemaSettings();
     if (internalSchemaSettings == null) {
       internalSchemaSettings = new UserDefinedSchemaSettings();
     }
-    datasetConfig.getPhysicalDataset().setInternalSchemaSettings(internalSchemaSettings.setSchemaLearningEnabled(enableSchemaLearning));
+    datasetConfig
+        .getPhysicalDataset()
+        .setInternalSchemaSettings(
+            internalSchemaSettings.setSchemaLearningEnabled(enableSchemaLearning));
     try {
-      context.getNamespaceService(schemaConfig.getUserName()).addOrUpdateDataset(table, datasetConfig);
+      context
+          .getNamespaceService(schemaConfig.getUserName())
+          .addOrUpdateDataset(table, datasetConfig);
     } catch (NamespaceException e) {
       throw new RuntimeException(e);
     }
@@ -1423,45 +1698,74 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
   }
 
   @Override
-  public void alterSortOrder(NamespaceKey table, DatasetConfig datasetConfig, BatchSchema schema, SchemaConfig schemaConfig, List<String> sortOrderColumns, TableMutationOptions tableMutationOptions) {
+  public void alterSortOrder(
+      NamespaceKey table,
+      DatasetConfig datasetConfig,
+      BatchSchema schema,
+      SchemaConfig schemaConfig,
+      List<String> sortOrderColumns,
+      TableMutationOptions tableMutationOptions) {
     if (!context.getOptionManager().getOption(ExecConstants.ENABLE_INTERNAL_SCHEMA)) {
-      throw UserException.unsupportedError().message("Modifications to internal schema's are not allowed. Contact dremio support to enable option user managed schema's")
-        .buildSilently();
+      throw UserException.unsupportedError()
+          .message(
+              "Modifications to internal schema's are not allowed. Contact dremio support to enable option user managed schema's")
+          .buildSilently();
     }
 
     if (DatasetHelper.isInternalIcebergTable(datasetConfig)) {
-      throw new RuntimeException("Sort Order alterations are not supported on Internal Iceberg Tables");
+      throw new RuntimeException(
+          "Sort Order alterations are not supported on Internal Iceberg Tables");
     }
 
     IcebergModel icebergModel = getIcebergModel();
-    icebergModel.replaceSortOrder(icebergModel.getTableIdentifier(validateAndGetPath(table, schemaConfig.getUserName()).toString()), sortOrderColumns);
+    icebergModel.replaceSortOrder(
+        icebergModel.getTableIdentifier(
+            validateAndGetPath(table, schemaConfig.getUserName()).toString()),
+        sortOrderColumns);
   }
 
   @Override
-  public void updateTableProperties(NamespaceKey table, DatasetConfig datasetConfig, BatchSchema schema, SchemaConfig schemaConfig, Map<String, String> tableProperties, TableMutationOptions tableMutationOptions, boolean isRemove) {
+  public void updateTableProperties(
+      NamespaceKey table,
+      DatasetConfig datasetConfig,
+      BatchSchema schema,
+      SchemaConfig schemaConfig,
+      Map<String, String> tableProperties,
+      TableMutationOptions tableMutationOptions,
+      boolean isRemove) {
     if (!context.getOptionManager().getOption(ExecConstants.ENABLE_INTERNAL_SCHEMA)) {
-      throw UserException.unsupportedError().message("Modifications to internal schema's are not allowed. Contact dremio support to enable option user managed schema's")
-        .buildSilently();
+      throw UserException.unsupportedError()
+          .message(
+              "Modifications to internal schema's are not allowed. Contact dremio support to enable option user managed schema's")
+          .buildSilently();
     }
 
     if (DatasetHelper.isInternalIcebergTable(datasetConfig)) {
-      throw new RuntimeException("Update Table Properties are not supported on Internal Iceberg Tables");
+      throw new RuntimeException(
+          "Update Table Properties are not supported on Internal Iceberg Tables");
     }
 
     IcebergModel icebergModel = getIcebergModel();
     if (isRemove) {
       List<String> propertyNameList = new ArrayList<>(tableProperties.keySet());
-      icebergModel.removeTableProperties(icebergModel.getTableIdentifier(validateAndGetPath(table, schemaConfig.getUserName()).toString()), propertyNameList);
+      icebergModel.removeTableProperties(
+          icebergModel.getTableIdentifier(
+              validateAndGetPath(table, schemaConfig.getUserName()).toString()),
+          propertyNameList);
     } else {
-      icebergModel.updateTableProperties(icebergModel.getTableIdentifier(validateAndGetPath(table, schemaConfig.getUserName()).toString()), tableProperties);
+      icebergModel.updateTableProperties(
+          icebergModel.getTableIdentifier(
+              validateAndGetPath(table, schemaConfig.getUserName()).toString()),
+          tableProperties);
     }
   }
 
   private void validate(NamespaceKey table, String userName) {
-    if (!getMutability().hasMutationCapability(MutationType.TABLE, userName.equals(SystemUser.SYSTEM_USERNAME))) {
+    if (!getMutability()
+        .hasMutationCapability(MutationType.TABLE, userName.equals(SystemUser.SYSTEM_USERNAME))) {
       throw UserException.parseError()
-        .message("Unable to modify table. Schema [%s] is immutable for this user.", this.name)
-        .buildSilently();
+          .message("Unable to modify table. Schema [%s] is immutable for this user.", this.name)
+          .buildSilently();
     }
   }
 
@@ -1470,10 +1774,9 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     try {
       fs = createFS(userName);
     } catch (IOException e) {
-      throw UserException
-        .ioExceptionError(e)
-        .message("Failed to access filesystem: " + e.getMessage())
-        .buildSilently();
+      throw UserException.ioExceptionError(e)
+          .message("Failed to access filesystem: " + e.getMessage())
+          .buildSilently();
     }
 
     final String tableName = getTableName(table);
@@ -1482,16 +1785,14 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
 
     try {
       if (!fs.exists(path)) {
-        throw UserException
-          .validationError()
-          .message("Unable to find table, path [%s] doesn't exist.", path)
-          .buildSilently();
+        throw UserException.validationError()
+            .message("Unable to find table, path [%s] doesn't exist.", path)
+            .buildSilently();
       }
     } catch (IOException e) {
-      throw UserException
-        .ioExceptionError(e)
-        .message("Failed to check if directory [%s] exists: %s", path, e.getMessage())
-        .buildSilently();
+      throw UserException.ioExceptionError(e)
+          .message("Failed to check if directory [%s] exists: %s", path, e.getMessage())
+          .buildSilently();
     }
     return path;
   }
@@ -1501,20 +1802,19 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     return getPath(table, userName);
   }
 
-
-  /**
-   * Fetches a single item from the filesystem plugin
-   */
+  /** Fetches a single item from the filesystem plugin */
   public SchemaEntity get(List<String> path, String userName) {
     try {
-      final FileAttributes fileAttributes = createFS(userName).getFileAttributes(PathUtils.toFSPath(resolveTableNameToValidPath(path)));
+      final FileAttributes fileAttributes =
+          createFS(userName)
+              .getFileAttributes(PathUtils.toFSPath(resolveTableNameToValidPath(path)));
 
       final Set<List<String>> tableNames = Sets.newHashSet();
       final NamespaceService ns = context.getNamespaceService(userName);
       final NamespaceKey folderNSKey = new NamespaceKey(path);
 
       if (ns.exists(folderNSKey)) {
-        for(NameSpaceContainer entity : ns.list(folderNSKey)) {
+        for (NameSpaceContainer entity : ns.list(folderNSKey)) {
           if (entity.getType() == Type.DATASET) {
             tableNames.add(resolveTableNameToValidPath(entity.getDataset().getFullPathList()));
           }
@@ -1530,7 +1830,9 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
 
   public List<SchemaEntity> list(List<String> folderPath, String userName) {
     try {
-      final List<FileAttributes> files = Lists.newArrayList(createFS(userName).list(PathUtils.toFSPath(resolveTableNameToValidPath(folderPath))));
+      final List<FileAttributes> files =
+          Lists.newArrayList(
+              createFS(userName).list(PathUtils.toFSPath(resolveTableNameToValidPath(folderPath))));
       final Set<List<String>> tableNames = Sets.newHashSet();
       final NamespaceService ns = context.getNamespaceService(userName);
       final NamespaceKey folderNSKey = new NamespaceKey(folderPath);
@@ -1539,21 +1841,24 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
         return ImmutableList.of();
       }
       if (ns.exists(folderNSKey)) {
-        for(NameSpaceContainer entity : ns.list(folderNSKey)) {
+        for (NameSpaceContainer entity : ns.list(folderNSKey)) {
           if (entity.getType() == Type.DATASET) {
             tableNames.add(resolveTableNameToValidPath(entity.getDataset().getFullPathList()));
           }
         }
       }
 
-      Iterable<SchemaEntity> itr = Iterables.transform(files, new com.google.common.base.Function<FileAttributes, SchemaEntity>() {
-        @Nullable
-        @Override
-        public SchemaEntity apply(@Nullable FileAttributes input) {
-          List<String> p = PathUtils.toPathComponents(input.getPath());
-          return getSchemaEntity(input, tableNames, p);
-        }
-      });
+      Iterable<SchemaEntity> itr =
+          Iterables.transform(
+              files,
+              new com.google.common.base.Function<FileAttributes, SchemaEntity>() {
+                @Nullable
+                @Override
+                public SchemaEntity apply(@Nullable FileAttributes input) {
+                  List<String> p = PathUtils.toPathComponents(input.getPath());
+                  return getSchemaEntity(input, tableNames, p);
+                }
+              });
       return ImmutableList.<SchemaEntity>builder().addAll(itr).build();
     } catch (IOException e) {
       throw new RuntimeException(e);
@@ -1562,7 +1867,8 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     }
   }
 
-  private SchemaEntity getSchemaEntity(FileAttributes fileAttributes, Set<List<String>> tableNames, List<String> p) {
+  private SchemaEntity getSchemaEntity(
+      FileAttributes fileAttributes, Set<List<String>> tableNames, List<String> p) {
     SchemaEntityType entityType;
 
     if (fileAttributes.isDirectory()) {
@@ -1579,20 +1885,24 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
       }
     }
 
-    return new SchemaEntity(PathUtils.getQuotedFileName(fileAttributes.getPath()), entityType, fileAttributes.owner().getName());
+    return new SchemaEntity(
+        PathUtils.getQuotedFileName(fileAttributes.getPath()),
+        entityType,
+        fileAttributes.owner().getName());
   }
 
   public SchemaMutability getMutability() {
     return config.getSchemaMutability();
   }
 
-  public FormatPluginConfig createConfigForTable(String tableName, Map<String, Object> storageOptions) {
+  public FormatPluginConfig createConfigForTable(
+      String tableName, Map<String, Object> storageOptions) {
     return optionExtractor.createConfigForTable(tableName, storageOptions);
   }
 
   public static String getTableName(final NamespaceKey key) {
     final String tableName;
-    if(key.size() == 2) {
+    if (key.size() == 2) {
       tableName = key.getLeaf();
     } else {
       List<String> subString = key.getPathComponents().subList(1, key.size());
@@ -1602,12 +1912,17 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
   }
 
   @Override
-  public void createEmptyTable(NamespaceKey tableSchemaPath, final SchemaConfig config, BatchSchema batchSchema,
-                               final WriterOptions writerOptions) {
-    if(!getMutability().hasMutationCapability(MutationType.TABLE, config.isSystemUser())) {
+  public void createEmptyTable(
+      NamespaceKey tableSchemaPath,
+      final SchemaConfig config,
+      BatchSchema batchSchema,
+      final WriterOptions writerOptions) {
+    if (!getMutability().hasMutationCapability(MutationType.TABLE, config.isSystemUser())) {
       throw UserException.parseError()
-        .message("Unable to create table. Schema [%s] is immutable for this user.", tableSchemaPath.getParent())
-        .buildSilently();
+          .message(
+              "Unable to create table. Schema [%s] is immutable for this user.",
+              tableSchemaPath.getParent())
+          .buildSilently();
     }
 
     final String tableName = getTableName(tableSchemaPath);
@@ -1615,32 +1930,61 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     Path path = resolveTablePathToValidPath(tableName);
 
     try {
-      if(systemUserFS.exists(path)) {
-        throw UserException.validationError().message("Folder already exists at path: %s.", tableSchemaPath).buildSilently();
+      if (systemUserFS.exists(path)) {
+        throw UserException.validationError()
+            .message("Folder already exists at path: %s.", tableSchemaPath)
+            .buildSilently();
       }
     } catch (IOException e) {
-      throw UserException.validationError(e).message("Failure to check if table already exists at path %s.", tableSchemaPath).buildSilently();
+      throw UserException.validationError(e)
+          .message("Failure to check if table already exists at path %s.", tableSchemaPath)
+          .buildSilently();
     }
 
     IcebergModel icebergModel = getIcebergModel();
-    PartitionSpec partitionSpec = Optional.ofNullable(writerOptions.getTableFormatOptions().getIcebergSpecificOptions()
-        .getIcebergTableProps()).map(props -> props.getDeserializedPartitionSpec()).orElse(null);
-    Map<String, String> tableProperties = Optional.of(writerOptions.getTableFormatOptions().getIcebergSpecificOptions()
-      .getIcebergTableProps()).map(props -> props.getTableProperties()).orElse(Collections.emptyMap());
-    IcebergOpCommitter icebergOpCommitter = icebergModel.getCreateTableCommitter(tableName,
-            icebergModel.getTableIdentifier(path.toString()), batchSchema,
-            writerOptions.getPartitionColumns(), null, partitionSpec, writerOptions.getDeserializedSortOrder(), tableProperties);
+    PartitionSpec partitionSpec =
+        Optional.ofNullable(
+                writerOptions
+                    .getTableFormatOptions()
+                    .getIcebergSpecificOptions()
+                    .getIcebergTableProps())
+            .map(props -> props.getDeserializedPartitionSpec())
+            .orElse(null);
+    Map<String, String> tableProperties =
+        Optional.of(
+                writerOptions
+                    .getTableFormatOptions()
+                    .getIcebergSpecificOptions()
+                    .getIcebergTableProps())
+            .map(props -> props.getTableProperties())
+            .orElse(Collections.emptyMap());
+    IcebergOpCommitter icebergOpCommitter =
+        icebergModel.getCreateTableCommitter(
+            tableName,
+            icebergModel.getTableIdentifier(path.toString()),
+            batchSchema,
+            writerOptions.getPartitionColumns(),
+            null,
+            partitionSpec,
+            writerOptions.getDeserializedSortOrder(),
+            tableProperties);
     icebergOpCommitter.commit();
   }
 
   @Override
-  public CreateTableEntry createNewTable(NamespaceKey tableSchemaPath, SchemaConfig config, IcebergTableProps icebergTableProps,
-                                         WriterOptions writerOptions, Map<String, Object> storageOptions,
-                                         boolean isResultsTable) {
-    if(!getMutability().hasMutationCapability(MutationType.TABLE, config.isSystemUser())) {
+  public CreateTableEntry createNewTable(
+      NamespaceKey tableSchemaPath,
+      SchemaConfig config,
+      IcebergTableProps icebergTableProps,
+      WriterOptions writerOptions,
+      Map<String, Object> storageOptions,
+      boolean isResultsTable) {
+    if (!getMutability().hasMutationCapability(MutationType.TABLE, config.isSystemUser())) {
       throw UserException.parseError()
-        .message("Unable to create table. Schema [%s] is immutable for this user.", tableSchemaPath.getParent())
-        .build(logger);
+          .message(
+              "Unable to create table. Schema [%s] is immutable for this user.",
+              tableSchemaPath.getParent())
+          .build(logger);
     }
 
     final String tableName = getTableName(tableSchemaPath);
@@ -1650,71 +1994,84 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
       final String storage = config.getOptions().getOption(ExecConstants.OUTPUT_FORMAT_VALIDATOR);
       formatPlugin = getFormatPlugin(storage);
       if (formatPlugin == null) {
-        throw new UnsupportedOperationException(String.format("Unsupported format '%s' in '%s'", storage, tableSchemaPath));
+        throw new UnsupportedOperationException(
+            String.format("Unsupported format '%s' in '%s'", storage, tableSchemaPath));
       }
     } else {
       final FormatPluginConfig formatConfig = createConfigForTable(tableName, storageOptions);
       formatPlugin = getFormatPlugin(formatConfig);
     }
 
-    final String userName = this.config.isImpersonationEnabled() ? config.getUserName() : SystemUser.SYSTEM_USERNAME;
+    final String userName =
+        this.config.isImpersonationEnabled() ? config.getUserName() : SystemUser.SYSTEM_USERNAME;
 
     // check that there is no directory at the described path.
     Path path = resolveTablePathToValidPath(tableName);
     try {
-      if (icebergTableProps == null || icebergTableProps.getIcebergOpType() == IcebergCommandType.CREATE) {
+      if (icebergTableProps == null
+          || icebergTableProps.getIcebergOpType() == IcebergCommandType.CREATE) {
         /**
-         * Do not check for existence of jobsResults table for Pdfs.
-         * The path includes a Unique UUID for storing jobResults, it is not necessary to check for existence
-         * for Pdfs. Pdfs's working set comprises of all executors(engines) and it verifies existence on all
-         * engines, irrespective of whether an engine is the engine on which query is being run or for even
-         * queries that are run only on the coordinator.
-         * The creates issues where the elastics engines that are not in use are
-         *being stopped/started. To avoid such cases, the check for existence of JobResults directory is not done.
+         * Do not check for existence of jobsResults table for Pdfs. The path includes a Unique UUID
+         * for storing jobResults, it is not necessary to check for existence for Pdfs. Pdfs's
+         * working set comprises of all executors(engines) and it verifies existence on all engines,
+         * irrespective of whether an engine is the engine on which query is being run or for even
+         * queries that are run only on the coordinator. The creates issues where the elastics
+         * engines that are not in use are being stopped/started. To avoid such cases, the check for
+         * existence of JobResults directory is not done.
          */
         if (!isResultsTable || !systemUserFS.isPdfs()) {
           if (systemUserFS.exists(path)) {
-            throw UserException.validationError().message("Folder already exists at path: %s.", tableSchemaPath).build(logger);
+            throw UserException.validationError()
+                .message("Folder already exists at path: %s.", tableSchemaPath)
+                .build(logger);
           }
         }
       } else if (icebergTableProps.getIcebergOpType() == IcebergCommandType.INSERT) {
         if (!systemUserFS.exists(path)) {
-          throw UserException.validationError().message("Table folder does not exists at path: %s.", tableSchemaPath).build(logger);
+          throw UserException.validationError()
+              .message("Table folder does not exists at path: %s.", tableSchemaPath)
+              .build(logger);
         }
       }
     } catch (IOException e) {
-      throw UserException.validationError(e).message("Failure to check if table already exists at path %s.", tableSchemaPath).build(logger);
+      throw UserException.validationError(e)
+          .message("Failure to check if table already exists at path %s.", tableSchemaPath)
+          .build(logger);
     }
 
     if (icebergTableProps != null) {
       icebergTableProps = new IcebergTableProps(icebergTableProps);
       icebergTableProps.setTableLocation(path.toString());
       icebergTableProps.setTableName(tableName);
-      Preconditions.checkState(icebergTableProps.getUuid() != null &&
-        !icebergTableProps.getUuid().isEmpty(), "Unexpected state. UUID must be set");
+      Preconditions.checkState(
+          icebergTableProps.getUuid() != null && !icebergTableProps.getUuid().isEmpty(),
+          "Unexpected state. UUID must be set");
       path = path.resolve(icebergTableProps.getUuid());
-      return new CreateParquetTableEntry(userName, this,
-        path.toString(), icebergTableProps, writerOptions, tableSchemaPath);
+      return new CreateParquetTableEntry(
+          userName, this, path.toString(), icebergTableProps, writerOptions, tableSchemaPath);
     }
 
     return new EasyFileSystemCreateTableEntry(
-      userName,
-      this,
-      formatPlugin,
-      path.toString(),
-      icebergTableProps,
-      writerOptions,
-      tableSchemaPath);
+        userName,
+        this,
+        formatPlugin,
+        path.toString(),
+        icebergTableProps,
+        writerOptions,
+        tableSchemaPath);
   }
 
   @Override
-  public Writer getWriter(PhysicalOperator child, String location, WriterOptions options, OpProps props) throws IOException {
-    throw new IllegalStateException("The ctas entry for a file system plugin should invoke get writer on the format plugin directly.");
+  public Writer getWriter(
+      PhysicalOperator child, String location, WriterOptions options, OpProps props)
+      throws IOException {
+    throw new IllegalStateException(
+        "The ctas entry for a file system plugin should invoke get writer on the format plugin directly.");
   }
 
   @Override
-  public Optional<DatasetHandle> getDatasetHandle(EntityPath datasetPath, GetDatasetOption... options)
-      throws ConnectorException {
+  public Optional<DatasetHandle> getDatasetHandle(
+      EntityPath datasetPath, GetDatasetOption... options) throws ConnectorException {
     BatchSchema currentSchema = CurrentSchemaOption.getSchema(options);
     FileConfig fileConfig = FileConfigOption.getFileConfig(options);
     List<String> sortColumns = SortColumnsOption.getSortColumns(options);
@@ -1724,41 +2081,46 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
 
     FormatPluginConfig formatPluginConfig = null;
     if (fileConfig != null) {
-      formatPluginConfig = PhysicalDatasetUtils.toFormatPlugin(fileConfig, Collections.<String>emptyList());
+      formatPluginConfig =
+          PhysicalDatasetUtils.toFormatPlugin(fileConfig, Collections.<String>emptyList());
     }
 
-    InternalMetadataTableOption internalMetadataTableOption = InternalMetadataTableOption.getInternalMetadataTableOption(options);
+    InternalMetadataTableOption internalMetadataTableOption =
+        InternalMetadataTableOption.getInternalMetadataTableOption(options);
     if (internalMetadataTableOption != null) {
-      TimeTravelOption.TimeTravelRequest timeTravelRequest = Optional.ofNullable(TimeTravelOption.getTimeTravelOption(options))
-        .map(TimeTravelOption::getTimeTravelRequest)
-        .orElse(null);
-      return getDatasetHandleForInternalMetadataTable(datasetPath, formatPluginConfig, timeTravelRequest, internalMetadataTableOption);
+      TimeTravelOption.TimeTravelRequest timeTravelRequest =
+          Optional.ofNullable(TimeTravelOption.getTimeTravelOption(options))
+              .map(TimeTravelOption::getTimeTravelRequest)
+              .orElse(null);
+      return getDatasetHandleForInternalMetadataTable(
+          datasetPath, formatPluginConfig, timeTravelRequest, internalMetadataTableOption);
     }
 
     Optional<DatasetHandle> handle = Optional.empty();
 
     try {
-      handle = getDatasetHandleForNewRefresh(
-        MetadataObjectsUtils.toNamespaceKey(datasetPath),
-        fileConfig,
-        DatasetRetrievalOptions.of(options));
+      handle =
+          getDatasetHandleForNewRefresh(
+              MetadataObjectsUtils.toNamespaceKey(datasetPath),
+              fileConfig,
+              DatasetRetrievalOptions.of(options));
     } catch (AccessControlException e) {
       if (!DatasetRetrievalOptions.of(options).ignoreAuthzErrors()) {
         logger.debug(e.getMessage());
         throw UserException.permissionError(e)
-          .message("Not authorized to read table %s at path ", datasetPath)
-          .build(logger);
+            .message("Not authorized to read table %s at path ", datasetPath)
+            .build(logger);
       }
     } catch (IOException e) {
       logger.debug("Failed to create table {}", datasetPath, e);
     }
 
-    if(handle.isPresent()) {
+    if (handle.isPresent()) {
       // handle is UnlimitedSplitsDatasetHandle, dataset is parquet
-      if(DatasetRetrievalOptions.of(options).autoPromote() ) {
+      if (DatasetRetrievalOptions.of(options).autoPromote()) {
         // autoPromote will allow this handle to work, regardless whether dataset is/is-not promoted
         return handle;
-      } else if(fileConfig != null){
+      } else if (fileConfig != null) {
         // dataset has already been promoted
         return handle;
       } else {
@@ -1767,10 +2129,22 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
       }
     }
 
-    final PreviousDatasetInfo pdi = new PreviousDatasetInfo(fileConfig, currentSchema, sortColumns, droppedColumns, updatedColumns, isSchemaLearningEnabled);
+    final PreviousDatasetInfo pdi =
+        new PreviousDatasetInfo(
+            fileConfig,
+            currentSchema,
+            sortColumns,
+            droppedColumns,
+            updatedColumns,
+            isSchemaLearningEnabled);
     try {
-      return Optional.ofNullable(getDatasetWithFormat(MetadataObjectsUtils.toNamespaceKey(datasetPath), pdi,
-          formatPluginConfig, DatasetRetrievalOptions.of(options), SystemUser.SYSTEM_USERNAME));
+      return Optional.ofNullable(
+          getDatasetWithFormat(
+              MetadataObjectsUtils.toNamespaceKey(datasetPath),
+              pdi,
+              formatPluginConfig,
+              DatasetRetrievalOptions.of(options),
+              SystemUser.SYSTEM_USERNAME));
     } catch (Exception e) {
       Throwables.propagateIfPossible(e, ConnectorException.class);
       throw new ConnectorException(e);
@@ -1779,25 +2153,21 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
 
   @Override
   public DatasetMetadata getDatasetMetadata(
-      DatasetHandle datasetHandle,
-      PartitionChunkListing chunkListing,
-      GetMetadataOption... options
-  ) throws ConnectorException {
-    return datasetHandle.unwrap(FileDatasetHandle.class)
-        .getDatasetMetadata(options);
-  }
-
-  @Override
-  public PartitionChunkListing listPartitionChunks(DatasetHandle datasetHandle, ListPartitionChunkOption... options)
+      DatasetHandle datasetHandle, PartitionChunkListing chunkListing, GetMetadataOption... options)
       throws ConnectorException {
-    return datasetHandle.unwrap(FileDatasetHandle.class)
-        .listPartitionChunks(options);
+    return datasetHandle.unwrap(FileDatasetHandle.class).getDatasetMetadata(options);
   }
 
   @Override
-  public BytesOutput provideSignature(DatasetHandle datasetHandle, DatasetMetadata metadata) throws ConnectorException {
-    return datasetHandle.unwrap(FileDatasetHandle.class)
-        .provideSignature(metadata);
+  public PartitionChunkListing listPartitionChunks(
+      DatasetHandle datasetHandle, ListPartitionChunkOption... options) throws ConnectorException {
+    return datasetHandle.unwrap(FileDatasetHandle.class).listPartitionChunks(options);
+  }
+
+  @Override
+  public BytesOutput provideSignature(DatasetHandle datasetHandle, DatasetMetadata metadata)
+      throws ConnectorException {
+    return datasetHandle.unwrap(FileDatasetHandle.class).provideSignature(metadata);
   }
 
   @Override
@@ -1816,8 +2186,8 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
   }
 
   @Override
-  public IcebergModel getIcebergModel(IcebergTableProps tableProps, String userName, OperatorContext context,
-      FileIO fileIO) {
+  public IcebergModel getIcebergModel(
+      IcebergTableProps tableProps, String userName, OperatorContext context, FileIO fileIO) {
     return getIcebergModel(fileIO, context);
   }
 
@@ -1832,20 +2202,26 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
 
   @Override
   public boolean isIcebergMetadataValid(DatasetConfig config, NamespaceKey key) {
-    if (config.getPhysicalDataset().getIcebergMetadata() == null ||
-            config.getPhysicalDataset().getIcebergMetadata().getMetadataFileLocation() == null ||
-            config.getPhysicalDataset().getIcebergMetadata().getMetadataFileLocation().isEmpty()) {
+    if (config.getPhysicalDataset().getIcebergMetadata() == null
+        || config.getPhysicalDataset().getIcebergMetadata().getMetadataFileLocation() == null
+        || config.getPhysicalDataset().getIcebergMetadata().getMetadataFileLocation().isEmpty()) {
       return false;
     }
-    Path existingRootPointer = Path.of(config.getPhysicalDataset().getIcebergMetadata().getMetadataFileLocation());
+    Path existingRootPointer =
+        Path.of(config.getPhysicalDataset().getIcebergMetadata().getMetadataFileLocation());
     final String rootFolder = existingRootPointer.getParent().getParent().toString();
     IcebergModel icebergModel = getIcebergModel();
-    IcebergTableLoader icebergTableLoader = icebergModel.getIcebergTableLoader(icebergModel.getTableIdentifier(rootFolder));
-    final String latestRootPointer = Path.getContainerSpecificRelativePath(Path.of(icebergTableLoader.getRootPointer()));
+    IcebergTableLoader icebergTableLoader =
+        icebergModel.getIcebergTableLoader(icebergModel.getTableIdentifier(rootFolder));
+    final String latestRootPointer =
+        Path.getContainerSpecificRelativePath(Path.of(icebergTableLoader.getRootPointer()));
 
     if (!latestRootPointer.equals(existingRootPointer.toString())) {
-      logger.debug("Iceberg Dataset {} metadata is not valid. Existing root pointer in catalog: {}. Latest Iceberg table root pointer: {}.",
-        key, existingRootPointer, latestRootPointer);
+      logger.debug(
+          "Iceberg Dataset {} metadata is not valid. Existing root pointer in catalog: {}. Latest Iceberg table root pointer: {}.",
+          key,
+          existingRootPointer,
+          latestRootPointer);
       return false;
     }
     return true;
@@ -1857,31 +2233,50 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
   }
 
   @Override
-  public TableOperations createIcebergTableOperations(FileIO fileIO, String queryUserName, IcebergTableIdentifier tableIdentifier) {
+  public TableOperations createIcebergTableOperations(
+      FileIO fileIO, String queryUserName, IcebergTableIdentifier tableIdentifier) {
     return new IcebergHadoopTableOperations(
-        new org.apache.hadoop.fs.Path(((IcebergHadoopTableIdentifier)tableIdentifier).getTableFolder()),
-        getFsConfCopy(), fileIO);
+        new org.apache.hadoop.fs.Path(
+            ((IcebergHadoopTableIdentifier) tableIdentifier).getTableFolder()),
+        getFsConfCopy(),
+        fileIO);
   }
 
   @Override
-  public FileIO createIcebergFileIO(FileSystem fs, OperatorContext context, List<String> dataset,
-      String datasourcePluginUID, Long fileLength) {
-    return new DremioFileIO(fs, context, dataset, datasourcePluginUID, fileLength,
+  public FileIO createIcebergFileIO(
+      FileSystem fs,
+      OperatorContext context,
+      List<String> dataset,
+      String datasourcePluginUID,
+      Long fileLength) {
+    return new DremioFileIO(
+        fs,
+        context,
+        dataset,
+        datasourcePluginUID,
+        fileLength,
         new HadoopFileSystemConfigurationAdapter(fsConf));
   }
 
   @Override
-  public FooterReadTableFunction getFooterReaderTableFunction(FragmentExecutionContext fec, OperatorContext context, OpProps props, TableFunctionConfig functionConfig) {
+  public FooterReadTableFunction getFooterReaderTableFunction(
+      FragmentExecutionContext fec,
+      OperatorContext context,
+      OpProps props,
+      TableFunctionConfig functionConfig) {
     return new FooterReadTableFunction(fec, context, props, functionConfig);
   }
 
-  public Optional<DatasetHandle> getDatasetHandleForNewRefresh(NamespaceKey datasetPath, FileConfig fileConfig, DatasetRetrievalOptions retrievalOptions) throws IOException {
-    if (!MetadataRefreshUtils.unlimitedSplitsSupportEnabled(context.getOptionManager()) || !metadataSourceAvailable(context.getCatalogService())) {
+  public Optional<DatasetHandle> getDatasetHandleForNewRefresh(
+      NamespaceKey datasetPath, FileConfig fileConfig, DatasetRetrievalOptions retrievalOptions)
+      throws IOException {
+    if (!metadataSourceAvailable(context.getCatalogService())) {
       return Optional.empty();
     }
 
-    Optional<FileSelection> selection = generateFileSelectionForPathComponents(datasetPath, SystemUser.SYSTEM_USERNAME);
-    if(!selection.isPresent()) {
+    Optional<FileSelection> selection =
+        generateFileSelectionForPathComponents(datasetPath, SystemUser.SYSTEM_USERNAME);
+    if (!selection.isPresent()) {
       return Optional.empty();
     }
 
@@ -1889,14 +2284,22 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     if ((fileConfig != null) && (fileConfig.getType() != FileType.UNKNOWN)) {
       parquetDataset = fileConfig.getType() == FileType.PARQUET;
     } else {
-      parquetDataset = isParquetTable(MetadataObjectsUtils.toEntityPath(datasetPath).getComponents(), SystemUser.SYSTEM_USERNAME);
+      parquetDataset =
+          isParquetTable(
+              MetadataObjectsUtils.toEntityPath(datasetPath).getComponents(),
+              SystemUser.SYSTEM_USERNAME);
     }
-    return parquetDataset ? Optional.of(new UnlimitedSplitsFileDatasetHandle(DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER, datasetPath)) : Optional.empty();
+    return parquetDataset
+        ? Optional.of(
+            new UnlimitedSplitsFileDatasetHandle(
+                DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER, datasetPath))
+        : Optional.empty();
   }
 
-  public Optional<FileSelection> generateFileSelectionForPathComponents(NamespaceKey datasetPath, String user) throws IOException {
-    if(datasetPath.size() <= 1){
-      return Optional.empty();  // not a valid table schema path
+  public Optional<FileSelection> generateFileSelectionForPathComponents(
+      NamespaceKey datasetPath, String user) throws IOException {
+    if (datasetPath.size() <= 1) {
+      return Optional.empty(); // not a valid table schema path
     }
 
     final List<String> fullPath = resolveTableNameToValidPath(datasetPath.getPathComponents());
@@ -1906,11 +2309,14 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     String tableName = datasetPath.getName();
 
     if (fileSelection == null) {
-      fileSelection = FileSelection.createWithFullSchemaNotExpanded(fs, PathUtils.toFSPathString(parentSchemaPath), tableName);
+      fileSelection =
+          FileSelection.createWithFullSchemaNotExpanded(
+              fs, PathUtils.toFSPathString(parentSchemaPath), tableName);
       if (fileSelection == null) {
         return Optional.empty(); // no table found
       } else {
-        // table name is a full schema path (tableau use case), parse it and append it to schemapath.
+        // table name is a full schema path (tableau use case), parse it and append it to
+        // schemapath.
         final List<String> tableNamePathComponents = PathUtils.parseFullPath(tableName);
         tableName = tableNamePathComponents.remove(tableNamePathComponents.size() - 1);
       }
@@ -1928,36 +2334,51 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
   }
 
   @Override
-  public DirListingRecordReader createDirListRecordReader(OperatorContext context,
-                                                            FileSystem fs,
-                                                            DirListInputSplitProto.DirListInputSplit dirListInputSplit,
-                                                            boolean isRecursive,
-                                                            BatchSchema tableSchema,
-                                                            List<PartitionProtobuf.PartitionValue> partitionValues) {
+  public DirListingRecordReader createDirListRecordReader(
+      OperatorContext context,
+      FileSystem fs,
+      DirListInputSplitProto.DirListInputSplit dirListInputSplit,
+      boolean isRecursive,
+      BatchSchema tableSchema,
+      List<PartitionProtobuf.PartitionValue> partitionValues) {
 
-    return new DirListingRecordReader(context, fs, dirListInputSplit, isRecursive, tableSchema, partitionValues, true, isPartitionInferenceEnabled());
+    return new DirListingRecordReader(
+        context,
+        fs,
+        dirListInputSplit,
+        isRecursive,
+        tableSchema,
+        partitionValues,
+        true,
+        isPartitionInferenceEnabled());
   }
 
   private Optional<DatasetHandle> getDatasetHandleForInternalMetadataTable(
-    EntityPath datasetPath,
-    FormatPluginConfig formatPluginConfig,
-    TimeTravelOption.TimeTravelRequest timeTravelRequest,
-    InternalMetadataTableOption internalMetadataTableOption) throws ConnectorException {
+      EntityPath datasetPath,
+      FormatPluginConfig formatPluginConfig,
+      TimeTravelOption.TimeTravelRequest timeTravelRequest,
+      InternalMetadataTableOption internalMetadataTableOption)
+      throws ConnectorException {
 
-    final Supplier<Table> tableSupplier = Suppliers.memoize(
-      () -> {
-        final FileSystemPlugin<?> metaStoragePlugin = context.getCatalogService().getSource(METADATA_STORAGE_PLUGIN_NAME);
-        final IcebergModel icebergModel = metaStoragePlugin.getIcebergModel();
-        final Path path = metaStoragePlugin.resolveTablePathToValidPath(internalMetadataTableOption.getInternalMetadataTableName());
-        final IcebergTableIdentifier tableIdentifier = icebergModel.getTableIdentifier(path.toString());
-        final Table icebergTable = icebergModel.getIcebergTable(tableIdentifier);
-        return icebergTable;
-      }
-    );
+    final Supplier<Table> tableSupplier =
+        Suppliers.memoize(
+            () -> {
+              final FileSystemPlugin<?> metaStoragePlugin =
+                  context.getCatalogService().getSource(METADATA_STORAGE_PLUGIN_NAME);
+              final IcebergModel icebergModel = metaStoragePlugin.getIcebergModel();
+              final Path path =
+                  metaStoragePlugin.resolveTablePathToValidPath(
+                      internalMetadataTableOption.getInternalMetadataTableName());
+              final IcebergTableIdentifier tableIdentifier =
+                  icebergModel.getTableIdentifier(path.toString());
+              final Table icebergTable = icebergModel.getIcebergTable(tableIdentifier);
+              return icebergTable;
+            });
     final TableSnapshotProvider tableSnapshotProvider =
-      TimeTravelProcessors.getTableSnapshotProvider(datasetPath.getComponents(), timeTravelRequest);
+        TimeTravelProcessors.getTableSnapshotProvider(
+            datasetPath.getComponents(), timeTravelRequest);
     final TableSchemaProvider tableSchemaProvider =
-      TimeTravelProcessors.getTableSchemaProvider(timeTravelRequest);
+        TimeTravelProcessors.getTableSchemaProvider(timeTravelRequest);
     FileSystem fs;
     try {
       fs = createFS(SystemUser.SYSTEM_USERNAME);
@@ -1966,10 +2387,22 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
       throw new ConnectorException(e);
     }
     FormatPlugin formatPlugin = formatCreator.getFormatPluginByConfig(formatPluginConfig);
-    if (formatPlugin == null){
+    if (formatPlugin == null) {
       formatPlugin = formatCreator.newFormatPlugin(formatPluginConfig);
     }
-    return Optional.of(new IcebergExecutionDatasetAccessor(datasetPath, tableSupplier, this.getFsConfCopy(),
-      formatPlugin, fs, tableSnapshotProvider, this, tableSchemaProvider));
+    return Optional.of(
+        new IcebergExecutionDatasetAccessor(
+            datasetPath,
+            tableSupplier,
+            this.getFsConfCopy(),
+            formatPlugin,
+            fs,
+            tableSnapshotProvider,
+            this,
+            tableSchemaProvider));
+  }
+
+  public String getConnection() {
+    return config.getConnection();
   }
 }

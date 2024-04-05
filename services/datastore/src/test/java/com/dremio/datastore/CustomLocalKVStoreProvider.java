@@ -15,39 +15,41 @@
  */
 package com.dremio.datastore;
 
-import java.util.Collections;
-import java.util.Set;
-import java.util.function.Supplier;
-
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.datastore.api.KVStore;
 import com.dremio.datastore.api.StoreCreationFunction;
 import com.dremio.datastore.utility.StoreLoader;
 import com.google.common.collect.ImmutableMap;
+import java.util.Collections;
+import java.util.Set;
+import java.util.function.Supplier;
 
 /**
- * An extension of LocalKVStoreProvider which loads the stores
- * from a set of StoreCreators instead of ScanResult.
+ * An extension of LocalKVStoreProvider which loads the stores from a set of StoreCreators instead
+ * of ScanResult.
  */
-public class CustomLocalKVStoreProvider extends LocalKVStoreProvider{
+public class CustomLocalKVStoreProvider extends LocalKVStoreProvider {
   private final Set<Class<? extends StoreCreationFunction>> storeCreators;
-  private static final ScanResult EMPTY_SCANRESULT = new ScanResult(
-    Collections.EMPTY_LIST,
-    Collections.EMPTY_LIST,
-    Collections.EMPTY_LIST,
-    Collections.EMPTY_LIST,
-    Collections.EMPTY_LIST);
+  private static final ScanResult EMPTY_SCANRESULT =
+      new ScanResult(
+          Collections.EMPTY_LIST,
+          Collections.EMPTY_LIST,
+          Collections.EMPTY_LIST,
+          Collections.EMPTY_LIST,
+          Collections.EMPTY_LIST);
 
-  public CustomLocalKVStoreProvider(Set<Class<? extends StoreCreationFunction>> storeCreators,
-                                    String baseDirectory,
-                                    boolean inMemory,
-                                    boolean timed){
+  public CustomLocalKVStoreProvider(
+      Set<Class<? extends StoreCreationFunction>> storeCreators,
+      String baseDirectory,
+      boolean inMemory,
+      boolean timed) {
     super(EMPTY_SCANRESULT, baseDirectory, inMemory, timed);
     this.storeCreators = storeCreators;
   }
 
   @Override
-  protected Supplier<ImmutableMap<Class<? extends StoreCreationFunction<?, ?, ?>>, KVStore<?, ?>>> getStoreProvider(){
+  protected Supplier<ImmutableMap<Class<? extends StoreCreationFunction<?, ?, ?>>, KVStore<?, ?>>>
+      getStoreProvider() {
     return () -> StoreLoader.buildStores(storeCreators, super::newStore);
   }
 }

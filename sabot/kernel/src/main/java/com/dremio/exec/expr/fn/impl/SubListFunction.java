@@ -15,13 +15,6 @@
  */
 package com.dremio.exec.expr.fn.impl;
 
-import java.util.List;
-
-import org.apache.arrow.vector.complex.reader.FieldReader;
-import org.apache.arrow.vector.complex.writer.BaseWriter.ComplexWriter;
-import org.apache.arrow.vector.holders.NullableIntHolder;
-import org.apache.arrow.vector.types.pojo.ArrowType;
-
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.exec.expr.SimpleFunction;
@@ -32,28 +25,34 @@ import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
 import com.dremio.exec.expr.fn.OutputDerivation;
 import com.google.common.base.Preconditions;
+import java.util.List;
+import org.apache.arrow.vector.complex.reader.FieldReader;
+import org.apache.arrow.vector.complex.writer.BaseWriter.ComplexWriter;
+import org.apache.arrow.vector.holders.NullableIntHolder;
+import org.apache.arrow.vector.types.pojo.ArrowType;
 
 public class SubListFunction {
 
   /**
    * Extract the given range of elements for input list.
    *
-   * Parameters:
-   * 1. in : input column as field reader
-   * 2. offset : 1-based starting element index (inclusive) (negative if the direction is from the end)
-   * 3. length : max number of elements from the start
+   * <p>Parameters: 1. in : input column as field reader 2. offset : 1-based starting element index
+   * (inclusive) (negative if the direction is from the end) 3. length : max number of elements from
+   * the start
    */
-  @FunctionTemplate(name = "sublist", scope = FunctionScope.SIMPLE, nulls = NullHandling.INTERNAL, derivation = SubListOutputDerivation.class)
+  @FunctionTemplate(
+      name = "sublist",
+      scope = FunctionScope.SIMPLE,
+      nulls = NullHandling.INTERNAL,
+      derivation = SubListOutputDerivation.class)
   public static class SubList implements SimpleFunction {
     @Param private FieldReader in;
     @Param private NullableIntHolder start; // Inclusive
     @Param private NullableIntHolder length; // Max number of elements from start
     @Output private ComplexWriter out;
 
-
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
     public void eval() {
@@ -64,15 +63,16 @@ public class SubListFunction {
 
       if (in.getMinorType() != org.apache.arrow.vector.types.Types.MinorType.LIST) {
         throw new UnsupportedOperationException(
-            String.format("'sublist' is supported only on LIST type input. Given input type : %s",
-                in.getMinorType().toString()
-            )
-        );
+            String.format(
+                "'sublist' is supported only on LIST type input. Given input type : %s",
+                in.getMinorType().toString()));
       }
-      org.apache.arrow.vector.complex.impl.UnionListReader listReader = (org.apache.arrow.vector.complex.impl.UnionListReader) in;
+      org.apache.arrow.vector.complex.impl.UnionListReader listReader =
+          (org.apache.arrow.vector.complex.impl.UnionListReader) in;
       final int size = listReader.size();
 
-      final int startPosition = com.dremio.exec.expr.fn.impl.SubListFunction.resolveOffset(start.value, size);
+      final int startPosition =
+          com.dremio.exec.expr.fn.impl.SubListFunction.resolveOffset(start.value, size);
       if (size == 0 || length.value <= 0 || startPosition <= 0 || startPosition > size) {
         // return if
         // 1. the input list is empty
@@ -85,7 +85,7 @@ public class SubListFunction {
       int currentPosition = 1;
       listWriter.startList();
       while (listReader.next() && currentPosition < startPosition + length.value) {
-        if(currentPosition >= startPosition){
+        if (currentPosition >= startPosition) {
           com.dremio.exec.expr.fn.impl.array.ArrayHelper.copyListElements(listReader, listWriter);
         }
         currentPosition++;
@@ -110,10 +110,7 @@ public class SubListFunction {
       CompleteType type = args.get(0).getCompleteType();
       Preconditions.checkArgument(type.getChildren().size() == 1);
 
-      return new CompleteType(
-        ArrowType.List.INSTANCE,
-        type.getChildren().get(0)
-      );
+      return new CompleteType(ArrowType.List.INSTANCE, type.getChildren().get(0));
     }
   }
 }

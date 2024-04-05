@@ -15,14 +15,6 @@
  */
 package com.dremio.exec.store;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-
-import org.apache.arrow.vector.BaseVariableWidthVector;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.util.TransferPair;
-
 import com.carrotsearch.hppc.IntHashSet;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.expression.FieldReference;
@@ -39,11 +31,17 @@ import com.dremio.sabot.op.scan.ScanOperator;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+import org.apache.arrow.vector.BaseVariableWidthVector;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.util.TransferPair;
 
 /**
- * This class is responsible for truncating varchar column values to match
- * with column length specified in Hive schema.
- * This class sets up and runs projector on each fixed-length varchar field
+ * This class is responsible for truncating varchar column values to match with column length
+ * specified in Hive schema. This class sets up and runs projector on each fixed-length varchar
+ * field
  */
 public class VarcharTruncationReader implements AutoCloseable {
   private final int truncLen;
@@ -60,28 +58,48 @@ public class VarcharTruncationReader implements AutoCloseable {
     TypeProtos.MajorType majorType = typeCoercion.getType(field);
     FieldReference inputRef = FieldReference.getWithQuotedRef(field.getName());
     this.truncLen = majorType.getWidth();
-    this.castExpr = new NamedExpression(FunctionCallFactory.createCast(majorType, inputRef), inputRef);
+    this.castExpr =
+        new NamedExpression(FunctionCallFactory.createCast(majorType, inputRef), inputRef);
     this.noCastExpr = new NamedExpression(inputRef, inputRef);
   }
 
-  public void setupProjector(OperatorContext context,
-                             Stopwatch javaCodeGenWatch,
-                             Stopwatch gandivaCodeGenWatch,
-                             VectorContainer incoming,
-                             ExpressionEvaluationOptions projectorOptions, VectorContainer projectorOutput) {
+  public void setupProjector(
+      OperatorContext context,
+      Stopwatch javaCodeGenWatch,
+      Stopwatch gandivaCodeGenWatch,
+      VectorContainer incoming,
+      ExpressionEvaluationOptions projectorOptions,
+      VectorContainer projectorOutput) {
 
     try {
       BatchSchema targetSchema = BatchSchema.newBuilder().addField(field).build();
 
-      ExpressionSplitter varcharSplitter = ProjectOperator.createSplitterWithExpressions(incoming, Collections.singletonList(castExpr),
-        null, null, null, context, projectorOptions, projectorOutput, targetSchema);
+      ExpressionSplitter varcharSplitter =
+          ProjectOperator.createSplitterWithExpressions(
+              incoming,
+              Collections.singletonList(castExpr),
+              null,
+              null,
+              null,
+              context,
+              projectorOptions,
+              projectorOutput,
+              targetSchema);
       varcharSplitter.setupProjector(projectorOutput, javaCodeGenWatch, gandivaCodeGenWatch);
       this.splitter = varcharSplitter;
 
       IntHashSet transferFieldIds = new IntHashSet();
       List<TransferPair> transfers = Lists.newArrayList();
-      ProjectOperator.createSplitterWithExpressions(incoming, Collections.singletonList(noCastExpr),
-        transfers, null, transferFieldIds, context, projectorOptions, projectorOutput, targetSchema);
+      ProjectOperator.createSplitterWithExpressions(
+          incoming,
+          Collections.singletonList(noCastExpr),
+          transfers,
+          null,
+          transferFieldIds,
+          context,
+          projectorOptions,
+          projectorOutput,
+          targetSchema);
       if (!transfers.isEmpty()) {
         this.transferPair = transfers.get(0);
       }
@@ -90,10 +108,13 @@ public class VarcharTruncationReader implements AutoCloseable {
     }
   }
 
-  public void runProjector(BaseVariableWidthVector vector, int recordCount,
-                           OperatorContext context,
-                           Stopwatch javaCodeGenWatch,
-                           Stopwatch gandivaCodeGenWatch) throws Exception {
+  public void runProjector(
+      BaseVariableWidthVector vector,
+      int recordCount,
+      OperatorContext context,
+      Stopwatch javaCodeGenWatch,
+      Stopwatch gandivaCodeGenWatch)
+      throws Exception {
     if (transferPair == null) {
       return;
     }
@@ -107,8 +128,11 @@ public class VarcharTruncationReader implements AutoCloseable {
       javaCodeGenWatch.stop();
       context.getStats().addLongStat(ScanOperator.Metric.TOTAL_HIVE_PARQUET_TRANSFER_VARCHAR, 1);
     }
-    context.getStats().addLongStat(ScanOperator.Metric.HIVE_PARQUET_CHECK_VARCHAR_CAST_TIME_NS,
-      varcharCheckCastWatch.elapsed(TimeUnit.NANOSECONDS));
+    context
+        .getStats()
+        .addLongStat(
+            ScanOperator.Metric.HIVE_PARQUET_CHECK_VARCHAR_CAST_TIME_NS,
+            varcharCheckCastWatch.elapsed(TimeUnit.NANOSECONDS));
     varcharCheckCastWatch.reset();
   }
 

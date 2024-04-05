@@ -24,11 +24,18 @@ import com.dremio.sabot.rpc.user.UserSession;
 
 public interface UserWorker {
 
-  void submitWork(ExternalId externalId, UserSession session,
-    UserResponseHandler responseHandler, UserRequest request, TerminationListenerRegistry registry);
+  void submitWork(
+      ExternalId externalId,
+      UserSession session,
+      UserResponseHandler responseHandler,
+      UserRequest request,
+      TerminationListenerRegistry registry);
 
-  default void submitWork(UserSession session, UserResponseHandler responseHandler,
-      UserRequest request, TerminationListenerRegistry registry) {
+  default void submitWork(
+      UserSession session,
+      UserResponseHandler responseHandler,
+      UserRequest request,
+      TerminationListenerRegistry registry) {
     submitWork(ExternalIdHelper.generateExternalId(), session, responseHandler, request, registry);
   }
 
@@ -37,5 +44,4 @@ public interface UserWorker {
   Ack resumeQuery(ExternalId query);
 
   OptionManager getSystemOptions();
-
 }

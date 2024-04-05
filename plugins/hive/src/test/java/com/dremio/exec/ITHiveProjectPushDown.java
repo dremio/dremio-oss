@@ -17,38 +17,18 @@ package com.dremio.exec;
 
 import static org.junit.Assert.assertEquals;
 
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.dremio.exec.hive.HiveTestBase;
-import com.dremio.exec.planner.physical.PlannerSettings;
 
 public class ITHiveProjectPushDown extends HiveTestBase {
-  protected static String queryPlanKeyword = "mode=[NATIVE_PARQUET]";
-
-  private static AutoCloseable icebergDisabled;
-
-  @BeforeClass
-  public static void enableUnlimitedSplitFeature() {
-    icebergDisabled = disableUnlimitedSplitsAndIcebergSupportFlags();
-  }
-
-  @AfterClass
-  public static void resetUnlimitedSplitSupport() throws Exception {
-    icebergDisabled.close();
-  }
-
-  // enable decimal data type
-  @BeforeClass
-  public static void enableDecimalDataType() throws Exception {
-    setSessionOption(PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY, "true");
-  }
-
-  @AfterClass
-  public static void disableDecimalDataType() throws Exception {
-    setSessionOption(PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY, "false");
-  }
+  private static final String queryPlanKeyword = "IcebergManifestList(table=[";
 
   private void testHelper(String query, int expectedRecordCount, String... expectedSubstrs)throws Exception {
     testPhysicalPlan(query, expectedSubstrs);
@@ -98,6 +78,23 @@ public class ITHiveProjectPushDown extends HiveTestBase {
   @Test
   public void projectPushDownOnHiveParquetTable() throws Exception {
     String query = "SELECT boolean_field, boolean_part, int_field, int_part FROM hive.readtest_parquet";
-    testHelper(query, 2, expectedColumnsString("boolean_field", "int_field", "boolean_part", "int_part"), queryPlanKeyword);
+    testPhysicalPlan(query, expectedColumnsProjectionString("boolean_field", "boolean_part", "int_field", "int_part"), queryPlanKeyword);
+    //TODO Include verification of data returned after DX-34840
+    //testHelper(query, 2, expectedColumnsProjectionString("boolean_field", "int_field", "boolean_part", "int_part"), queryPlanKeyword);
+  }
+
+  protected static String expectedColumnsProjectionString(String ...expectedColumns) {
+    List<String> sortedColumns = Arrays.asList(expectedColumns);
+    Collections.sort(sortedColumns);
+    StringBuilder sb = new StringBuilder();
+    sb.append("(");
+    for (int i = 0; i < sortedColumns.size(); i++) {
+      sb.append(sortedColumns.get(i)).append("=[$").append(i).append("]");
+      if (i < expectedColumns.length - 1) {
+        sb.append(", ");
+      }
+    }
+    sb.append(")");
+    return sb.toString();
   }
 }

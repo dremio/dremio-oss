@@ -18,7 +18,6 @@ package com.dremio.exec.hive;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.ql.CommandNeedRetryException;
 import org.apache.hadoop.hive.ql.Driver;
@@ -28,8 +27,9 @@ import org.apache.hadoop.hive.ql.session.SessionState;
 public class HiveTestUtilities {
 
   /**
-   * Execute the give <i>query</i> on given <i>hiveDriver</i> instance. If a {@link CommandNeedRetryException}
-   * exception is thrown, it tries upto 3 times before returning failure.
+   * Execute the give <i>query</i> on given <i>hiveDriver</i> instance. If a {@link
+   * CommandNeedRetryException} exception is thrown, it tries upto 3 times before returning failure.
+   *
    * @param hiveDriver
    * @param query
    */
@@ -41,7 +41,7 @@ public class HiveTestUtilities {
     Exception cause = null;
     try {
       response = hiveDriver.run(query);
-    } catch(CommandNeedRetryException retryEx) {
+    } catch (CommandNeedRetryException retryEx) {
       if (--retryCount == 0) {
         failed = true;
         cause = retryEx;
@@ -51,9 +51,12 @@ public class HiveTestUtilities {
       cause = ex;
     }
 
-    if (failed || response.getResponseCode() != 0 ) {
-      throw new RuntimeException(String.format("Failed to execute command '%s', errorMsg = '%s'",
-          query, (response != null ? response.getErrorMessage() : "")), cause);
+    if (failed || response.getResponseCode() != 0) {
+      throw new RuntimeException(
+          String.format(
+              "Failed to execute command '%s', errorMsg = '%s'",
+              query, (response != null ? response.getErrorMessage() : "")),
+          cause);
     }
   }
 

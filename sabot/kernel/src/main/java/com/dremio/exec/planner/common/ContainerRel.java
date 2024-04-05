@@ -18,7 +18,8 @@ package com.dremio.exec.planner.common;
 import org.apache.calcite.rel.RelNode;
 
 /**
- * Interface that indicates that this class is a container for a Rel sub tree and exposes this sub tree
+ * Interface that indicates that this class is a container for a Rel sub tree and exposes this sub
+ * tree
  */
 public interface ContainerRel {
   RelNode getSubTree();

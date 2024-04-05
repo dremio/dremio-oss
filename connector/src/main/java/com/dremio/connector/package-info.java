@@ -14,7 +14,5 @@
  * limitations under the License.
  */
 
-/**
- * This package contains Service Provider Interface for source connectors.
- */
+/** This package contains Service Provider Interface for source connectors. */
 package com.dremio.connector;

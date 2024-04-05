@@ -17,31 +17,25 @@ package com.dremio.exec.catalog;
 
 import static org.junit.Assert.assertEquals;
 
+import com.dremio.connector.metadata.DatasetMetadata;
+import com.dremio.connector.metadata.DatasetStats;
+import com.dremio.exec.planner.cost.ScanCostFactor;
+import com.dremio.exec.record.BatchSchema;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import java.util.Optional;
-
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Before;
 import org.junit.Test;
 
-import com.dremio.connector.metadata.DatasetMetadata;
-import com.dremio.connector.metadata.DatasetStats;
-import com.dremio.exec.planner.cost.ScanCostFactor;
-import com.dremio.exec.record.BatchSchema;
-import com.dremio.service.namespace.dataset.proto.DatasetConfig;
-
-/**
- * Test information schema catalog.
- */
+/** Test information schema catalog. */
 public class TestMetadataObjectUtils {
   private static final BatchSchema BATCH_SCHEMA =
-    BatchSchema.of(Field.nullablePrimitive("field", ArrowType.Bool.INSTANCE));
+      BatchSchema.of(Field.nullablePrimitive("field", ArrowType.Bool.INSTANCE));
   private DatasetConfig oldConfig;
 
-  /**
-   * Dummy class for testing with a DatasetMetadata instance
-   */
+  /** Dummy class for testing with a DatasetMetadata instance */
   abstract static class DummyDatasetMetadata implements DatasetMetadata {
     @Override
     public Schema getRecordSchema() {
@@ -51,39 +45,42 @@ public class TestMetadataObjectUtils {
 
   @Before
   public void setUp() {
-    oldConfig = new DatasetConfig()
-      .setSchemaVersion(1);
+    oldConfig = new DatasetConfig().setSchemaVersion(1);
   }
 
   @Test
   public void testOverrideExtendedHasRowCountSupplied() {
-    final DatasetMetadata datasetMetadata = new DummyDatasetMetadata() {
-      @Override
-      public DatasetStats getDatasetStats() {
-        // This should should throw when asking for record count.
-        return DatasetStats.of(ScanCostFactor.OTHER.getFactor());
-      }
-    };
+    final DatasetMetadata datasetMetadata =
+        new DummyDatasetMetadata() {
+          @Override
+          public DatasetStats getDatasetStats() {
+            // This should should throw when asking for record count.
+            return DatasetStats.of(ScanCostFactor.OTHER.getFactor());
+          }
+        };
 
     final long expectedRecordCount = 999L;
-    MetadataObjectsUtils.overrideExtended(oldConfig, datasetMetadata, Optional.empty(), expectedRecordCount, 1000);
+    MetadataObjectsUtils.overrideExtended(
+        oldConfig, datasetMetadata, Optional.empty(), expectedRecordCount, 1000);
 
-    assertEquals(expectedRecordCount, (long) oldConfig.getReadDefinition().getScanStats().getRecordCount());
+    assertEquals(
+        expectedRecordCount, (long) oldConfig.getReadDefinition().getScanStats().getRecordCount());
   }
 
   @Test
   public void testOverrideExtendedDoesNotHaveRowCountSupplied() {
     final long expectedRecordCount = 800L;
-    final DatasetMetadata datasetMetadata = new DummyDatasetMetadata() {
-      @Override
-      public DatasetStats getDatasetStats() {
-        // This should should throw when asking for record count.
-        return DatasetStats.of(expectedRecordCount, ScanCostFactor.OTHER.getFactor());
-      }
-    };
+    final DatasetMetadata datasetMetadata =
+        new DummyDatasetMetadata() {
+          @Override
+          public DatasetStats getDatasetStats() {
+            // This should should throw when asking for record count.
+            return DatasetStats.of(expectedRecordCount, ScanCostFactor.OTHER.getFactor());
+          }
+        };
 
     MetadataObjectsUtils.overrideExtended(oldConfig, datasetMetadata, Optional.empty(), -1L, 1000);
-    assertEquals(expectedRecordCount, (long) oldConfig.getReadDefinition().getScanStats().getRecordCount());
+    assertEquals(
+        expectedRecordCount, (long) oldConfig.getReadDefinition().getScanStats().getRecordCount());
   }
-
 }

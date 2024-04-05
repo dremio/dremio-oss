@@ -15,21 +15,18 @@
  */
 package com.dremio.dac.api;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 import com.dremio.common.util.DremioVersionInfo;
 import com.dremio.service.job.JobAndUserStats;
 import com.dremio.service.job.JobCountByQueryType;
 import com.dremio.service.job.UniqueUsersCountByQueryType;
 import com.fasterxml.jackson.annotation.JsonAnyGetter;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
-/**
- * Job and user stats response.
- */
+/** Job and user stats response. */
 public class JobAndUserStatsResponse {
 
   private static String DREMIO_EDITION_FORMAT = "dremio-%s-%s";
@@ -70,7 +67,8 @@ public class JobAndUserStatsResponse {
       this.total = total;
       this.detailedStats = new HashMap<>();
       for (JobCountByQueryType jobCountByQueryType : jobCountByQueryTypes) {
-        detailedStats.put(jobCountByQueryType.getQueryType().toString(), jobCountByQueryType.getJobCount());
+        detailedStats.put(
+            jobCountByQueryType.getQueryType().toString(), jobCountByQueryType.getJobCount());
       }
     }
 
@@ -93,12 +91,15 @@ public class JobAndUserStatsResponse {
     private final Long total;
     private final Map<String, Long> detailedStats;
 
-    public UserStat(String date, Long total, List<UniqueUsersCountByQueryType> uniqueUsersCountByQueryTypes) {
+    public UserStat(
+        String date, Long total, List<UniqueUsersCountByQueryType> uniqueUsersCountByQueryTypes) {
       this.date = date;
       this.total = total;
       this.detailedStats = new HashMap<>();
       for (UniqueUsersCountByQueryType uniqueUsersCountByQueryType : uniqueUsersCountByQueryTypes) {
-        detailedStats.put(uniqueUsersCountByQueryType.getQueryType().toString(), (long) uniqueUsersCountByQueryType.getUniqueUsersList().size());
+        detailedStats.put(
+            uniqueUsersCountByQueryType.getQueryType().toString(),
+            (long) uniqueUsersCountByQueryType.getUniqueUsersList().size());
       }
     }
 
@@ -119,7 +120,8 @@ public class JobAndUserStatsResponse {
   public static class WeeklyUserStat extends UserStat {
     private final String week;
 
-    public WeeklyUserStat(String date, Long total, List<UniqueUsersCountByQueryType> uniqueUsersCountByQueryTypes) {
+    public WeeklyUserStat(
+        String date, Long total, List<UniqueUsersCountByQueryType> uniqueUsersCountByQueryTypes) {
       super(date, total, uniqueUsersCountByQueryTypes);
       this.week = date;
     }
@@ -138,7 +140,8 @@ public class JobAndUserStatsResponse {
   public static class MonthlyUserStat extends UserStat {
     private final String month;
 
-    public MonthlyUserStat(String date, Long total, List<UniqueUsersCountByQueryType> uniqueUsersCountByQueryTypes) {
+    public MonthlyUserStat(
+        String date, Long total, List<UniqueUsersCountByQueryType> uniqueUsersCountByQueryTypes) {
       super(date, total, uniqueUsersCountByQueryTypes);
       this.month = date;
     }
@@ -178,7 +181,8 @@ public class JobAndUserStatsResponse {
 
   public void setStats(com.dremio.service.job.JobAndUserStats stats) {
     for (com.dremio.service.job.JobAndUserStat stat : stats.getStatsList()) {
-      this.stats.add(new SummarizedStat(stat.getDate(), stat.getTotalJobs(), stat.getTotalUniqueUsers()));
+      this.stats.add(
+          new SummarizedStat(stat.getDate(), stat.getTotalJobs(), stat.getTotalUniqueUsers()));
     }
   }
 
@@ -199,7 +203,8 @@ public class JobAndUserStatsResponse {
       if (stat.getTotalJobs() == 0) {
         continue;
       }
-      jobStats.add(new JobStat(stat.getDate(), stat.getTotalJobs(), stat.getJobCountByQueryTypeList()));
+      jobStats.add(
+          new JobStat(stat.getDate(), stat.getTotalJobs(), stat.getJobCountByQueryTypeList()));
     }
   }
 
@@ -212,7 +217,11 @@ public class JobAndUserStatsResponse {
       if (stat.getIsWeeklyStat() || stat.getIsMonthlyStat() || stat.getTotalJobs() == 0) {
         continue;
       }
-      userStatsByDate.add(new UserStat(stat.getDate(), stat.getTotalUniqueUsers(), stat.getUniqueUsersCountByQueryTypeList()));
+      userStatsByDate.add(
+          new UserStat(
+              stat.getDate(),
+              stat.getTotalUniqueUsers(),
+              stat.getUniqueUsersCountByQueryTypeList()));
     }
   }
 
@@ -225,7 +234,11 @@ public class JobAndUserStatsResponse {
       if (!stat.getIsWeeklyStat()) {
         continue;
       }
-      userStatsByWeek.add(new WeeklyUserStat(stat.getDate(), stat.getTotalUniqueUsers(), stat.getUniqueUsersCountByQueryTypeList()));
+      userStatsByWeek.add(
+          new WeeklyUserStat(
+              stat.getDate(),
+              stat.getTotalUniqueUsers(),
+              stat.getUniqueUsersCountByQueryTypeList()));
     }
   }
 
@@ -238,13 +251,19 @@ public class JobAndUserStatsResponse {
       if (!stat.getIsMonthlyStat()) {
         continue;
       }
-      userStatsByMonth.add(new MonthlyUserStat(stat.getDate(), stat.getTotalUniqueUsers(), stat.getUniqueUsersCountByQueryTypeList()));
+      userStatsByMonth.add(
+          new MonthlyUserStat(
+              stat.getDate(),
+              stat.getTotalUniqueUsers(),
+              stat.getUniqueUsersCountByQueryTypeList()));
     }
   }
 
-  public static JobAndUserStatsResponse createJobAndUserStatsResource(JobAndUserStats jobAndUserStats, String edition, boolean detailedStats) {
+  public static JobAndUserStatsResponse createJobAndUserStatsResource(
+      JobAndUserStats jobAndUserStats, String edition, boolean detailedStats) {
     JobAndUserStatsResponse jobAndUserStatsResponse = new JobAndUserStatsResponse();
-    jobAndUserStatsResponse.setEdition(String.format(DREMIO_EDITION_FORMAT, edition, DremioVersionInfo.getVersion()));
+    jobAndUserStatsResponse.setEdition(
+        String.format(DREMIO_EDITION_FORMAT, edition, DremioVersionInfo.getVersion()));
     if (!detailedStats) {
       jobAndUserStatsResponse.setStats(jobAndUserStats);
     } else {
@@ -255,5 +274,4 @@ public class JobAndUserStatsResponse {
     }
     return jobAndUserStatsResponse;
   }
-
 }

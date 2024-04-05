@@ -102,7 +102,7 @@ describe("FilterSelectMenu", () => {
       wrapper.setProps({ selectedValues: Immutable.List([1]) });
       expect(
         wrapper.instance().getUnselectedItems(commonProps.items, [1], "")
-      ).to.eql([commonProps.items[0], commonProps.items[1]]);
+      ).to.eql([commonProps.items[1], commonProps.items[0]]);
     });
 
     it("should filter results based on pattern and case insensitive", () => {

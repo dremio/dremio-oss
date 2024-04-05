@@ -15,18 +15,16 @@
  */
 package com.dremio.exec.store.parquet2;
 
-import java.util.Collection;
-import java.util.List;
-
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.parquet.schema.GroupType;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.store.parquet.ParquetColumnResolver;
 import com.dremio.exec.store.parquet.SchemaDerivationHelper;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.google.common.base.Function;
+import java.util.Collection;
+import java.util.List;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.parquet.schema.GroupType;
 
 public class UnionGroupConverter extends ParquetGroupConverter {
 
@@ -57,8 +55,7 @@ public class UnionGroupConverter extends ParquetGroupConverter {
             return name;
           }
         },
-        schemaHelper
-    );
+        schemaHelper);
 
     this.writerProvider = writerProvider;
 

@@ -16,12 +16,6 @@
 
 package com.dremio.connector.sample;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-
-import org.apache.arrow.vector.types.pojo.Schema;
-
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.DatasetMetadata;
 import com.dremio.connector.metadata.DatasetSplit;
@@ -30,12 +24,12 @@ import com.dremio.connector.metadata.EntityPath;
 import com.dremio.connector.metadata.PartitionChunk;
 import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.connector.metadata.PartitionValue;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import org.apache.arrow.vector.types.pojo.Schema;
 
-/**
- *
- * implementation of class DatasetHandle
- *
- */
+/** implementation of class DatasetHandle */
 final class SampleHandleImpl implements DatasetHandle, DatasetMetadata, PartitionChunkListing {
   private final DatasetMetadata datasetMetadata;
   private final EntityPath datasetPath;
@@ -44,16 +38,12 @@ final class SampleHandleImpl implements DatasetHandle, DatasetMetadata, Partitio
 
   @Override
   public DatasetStats getDatasetStats() {
-    return (datasetMetadata == null ?
-      null :
-      datasetMetadata.getDatasetStats());
+    return (datasetMetadata == null ? null : datasetMetadata.getDatasetStats());
   }
 
   @Override
   public Schema getRecordSchema() {
-    return (datasetMetadata == null) ?
-    null :
-    datasetMetadata.getRecordSchema();
+    return (datasetMetadata == null) ? null : datasetMetadata.getRecordSchema();
   }
 
   @Override
@@ -66,8 +56,11 @@ final class SampleHandleImpl implements DatasetHandle, DatasetMetadata, Partitio
     return partitionChunks.iterator();
   }
 
-  private SampleHandleImpl(DatasetMetadata datasetMetadata, EntityPath datasetPath,
-                           List<PartitionChunk> partitionChunks, List<String> partitionColumns) {
+  private SampleHandleImpl(
+      DatasetMetadata datasetMetadata,
+      EntityPath datasetPath,
+      List<PartitionChunk> partitionChunks,
+      List<String> partitionColumns) {
     this.datasetMetadata = datasetMetadata;
     this.datasetPath = datasetPath;
     this.partitionChunks = partitionChunks;
@@ -75,27 +68,34 @@ final class SampleHandleImpl implements DatasetHandle, DatasetMetadata, Partitio
   }
 
   static SampleHandleImpl of(DatasetMetadata datasetMetadata, EntityPath entityPath) {
-    return new SampleHandleImpl(datasetMetadata,
-      entityPath,
-      new ArrayList<>(),
-      (datasetMetadata.getPartitionColumns() == null ?
-        new ArrayList<>() : datasetMetadata.getPartitionColumns()));
+    return new SampleHandleImpl(
+        datasetMetadata,
+        entityPath,
+        new ArrayList<>(),
+        (datasetMetadata.getPartitionColumns() == null
+            ? new ArrayList<>()
+            : datasetMetadata.getPartitionColumns()));
   }
 
-  static SampleHandleImpl of(DatasetMetadata datasetMetadata, EntityPath entityPath, List<PartitionChunk> partitionChunks) {
-    return new SampleHandleImpl(datasetMetadata,
-      entityPath,
-      partitionChunks,
-      (datasetMetadata.getPartitionColumns() == null ?
-        new ArrayList<>() : datasetMetadata.getPartitionColumns()));
+  static SampleHandleImpl of(
+      DatasetMetadata datasetMetadata,
+      EntityPath entityPath,
+      List<PartitionChunk> partitionChunks) {
+    return new SampleHandleImpl(
+        datasetMetadata,
+        entityPath,
+        partitionChunks,
+        (datasetMetadata.getPartitionColumns() == null
+            ? new ArrayList<>()
+            : datasetMetadata.getPartitionColumns()));
   }
 
-  static SampleHandleImpl of(DatasetMetadata datasetMetadata, EntityPath entityPath,
-                             List<PartitionChunk> partitionChunks, List<String> partitionColumns) {
-    return new SampleHandleImpl(datasetMetadata,
-      entityPath,
-      partitionChunks,
-      partitionColumns);
+  static SampleHandleImpl of(
+      DatasetMetadata datasetMetadata,
+      EntityPath entityPath,
+      List<PartitionChunk> partitionChunks,
+      List<String> partitionColumns) {
+    return new SampleHandleImpl(datasetMetadata, entityPath, partitionChunks, partitionColumns);
   }
 
   DatasetMetadata getDatasetMetadata() {
@@ -103,7 +103,8 @@ final class SampleHandleImpl implements DatasetHandle, DatasetMetadata, Partitio
   }
 
   void addPartitionChunk() {
-    this.partitionChunks.add(PartitionChunk.of(new ArrayList<PartitionValue>(), new ArrayList<DatasetSplit>()));
+    this.partitionChunks.add(
+        PartitionChunk.of(new ArrayList<PartitionValue>(), new ArrayList<DatasetSplit>()));
   }
 
   void addPartitionChunk(PartitionChunk partitionChunk) {
@@ -120,8 +121,6 @@ final class SampleHandleImpl implements DatasetHandle, DatasetMetadata, Partitio
 
   @Override
   public List<String> getPartitionColumns() {
-    return datasetMetadata == null ?
-      partitionColumns :
-      datasetMetadata.getPartitionColumns();
+    return datasetMetadata == null ? partitionColumns : datasetMetadata.getPartitionColumns();
   }
 }

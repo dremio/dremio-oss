@@ -18,7 +18,6 @@ package com.dremio.exec.planner;
 
 import java.util.List;
 import java.util.Map;
-
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
@@ -32,7 +31,7 @@ public class StarColumnHelper {
   public static final String PREFIXED_STAR_COLUMN = PREFIX_DELIMITER + STAR_COLUMN;
 
   public static boolean containsStarColumn(RelDataType type) {
-    if (! type.isStruct()) {
+    if (!type.isStruct()) {
       return false;
     }
 
@@ -47,8 +46,9 @@ public class StarColumnHelper {
     return false;
   }
 
-  public static boolean containsStarColumnInProject(RelDataType inputRowType, List<RexNode> projExprs) {
-    if (! inputRowType.isStruct()) {
+  public static boolean containsStarColumnInProject(
+      RelDataType inputRowType, List<RexNode> projExprs) {
+    if (!inputRowType.isStruct()) {
       return false;
     }
 
@@ -66,7 +66,8 @@ public class StarColumnHelper {
   }
 
   public static boolean isPrefixedStarColumn(String fieldName) {
-    return fieldName.indexOf(PREFIXED_STAR_COLUMN) > 0 ; // the delimiter * starts at none-zero position.
+    return fieldName.indexOf(PREFIXED_STAR_COLUMN)
+        > 0; // the delimiter * starts at none-zero position.
   }
 
   public static boolean isNonPrefixedStarColumn(String fieldName) {
@@ -82,7 +83,7 @@ public class StarColumnHelper {
   // viewed as a regular column, and does not require prefix. If user put an alias, then,
   // the project will have (C1 + C2 + 10) -> alias.
   public static boolean isRegularColumnOrExp(String fieldName) {
-    return ! isStarColumn(fieldName);
+    return !isStarColumn(fieldName);
   }
 
   public static String extractStarColumnPrefix(String fieldName) {
@@ -93,22 +94,23 @@ public class StarColumnHelper {
   }
 
   public static String extractColumnPrefix(String fieldName) {
-    if (fieldName.indexOf(PREFIX_DELIMITER) >=0) {
+    if (fieldName.indexOf(PREFIX_DELIMITER) >= 0) {
       return fieldName.substring(0, fieldName.indexOf(PREFIX_DELIMITER));
     } else {
       return "";
     }
   }
 
-  // Given a set of prefixes, check if a regular column is subsumed by any of the prefixed star column in the set.
+  // Given a set of prefixes, check if a regular column is subsumed by any of the prefixed star
+  // column in the set.
   public static boolean subsumeColumn(Map<String, String> prefixMap, String fieldName) {
     String prefix = extractColumnPrefix(fieldName);
 
     if (isRegularColumnOrExp(fieldName)) {
-      return false;  // regular column or expression is not subsumed by any star column.
+      return false; // regular column or expression is not subsumed by any star column.
     } else {
-      return prefixMap.containsKey(prefix) && ! fieldName.equals(prefixMap.get(prefix)); // t1*0 is subsumed by t1*.
+      return prefixMap.containsKey(prefix)
+          && !fieldName.equals(prefixMap.get(prefix)); // t1*0 is subsumed by t1*.
     }
   }
-
 }

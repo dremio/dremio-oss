@@ -15,21 +15,17 @@
  */
 package com.dremio.exec.util;
 
-import java.util.Objects;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.Objects;
 
-/**
- * Basic serializable implementation of Long range.
- */
+/** Basic serializable implementation of Long range. */
 public class LongRange {
   private long minInclusive;
   private long maxInclusive;
 
   @JsonCreator
-  public LongRange(
-    @JsonProperty("min") long minInclusive, @JsonProperty("max") long maxInclusive) {
+  public LongRange(@JsonProperty("min") long minInclusive, @JsonProperty("max") long maxInclusive) {
     this.minInclusive = minInclusive;
     this.maxInclusive = maxInclusive;
   }

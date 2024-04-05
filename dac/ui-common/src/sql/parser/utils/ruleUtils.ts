@@ -19,7 +19,7 @@ import { TerminalNode } from "antlr4ts/tree/TerminalNode";
 
 export function findAncestorOfType<T extends RuleContext>(
   context: TerminalNode | RuleContext,
-  predicate: (ruleContext: RuleContext) => ruleContext is T
+  predicate: (ruleContext: RuleContext) => ruleContext is T,
 ): T | undefined {
   let ruleContext: RuleContext | undefined = context._parent?.ruleContext;
   while (ruleContext) {
@@ -33,7 +33,7 @@ export function findAncestorOfType<T extends RuleContext>(
 
 export function findAncestor(
   context: TerminalNode | RuleContext,
-  predicate: (ruleContext: RuleContext) => boolean
+  predicate: (ruleContext: RuleContext) => boolean,
 ): RuleContext | undefined {
   let ruleContext: RuleContext | undefined = context._parent?.ruleContext;
   while (ruleContext) {

@@ -16,12 +16,16 @@
 
 package com.dremio.exec.expr.fn.ItemsSketch;
 
-
+import com.dremio.exec.expr.AggrFunction;
+import com.dremio.exec.expr.annotations.FunctionTemplate;
+import com.dremio.exec.expr.annotations.Output;
+import com.dremio.exec.expr.annotations.Param;
+import com.dremio.exec.expr.annotations.Workspace;
+import com.dremio.options.OptionResolver;
+import com.google.common.collect.ImmutableList;
 import java.io.Serializable;
 import java.util.List;
-
 import javax.inject.Inject;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.holders.IntHolder;
 import org.apache.arrow.vector.holders.NullableBigIntHolder;
@@ -52,36 +56,23 @@ import org.apache.datasketches.ArrayOfLongsSerDe;
 import org.apache.datasketches.ArrayOfNumbersSerDe;
 import org.apache.datasketches.ArrayOfStringsSerDe;
 
-import com.dremio.exec.expr.AggrFunction;
-import com.dremio.exec.expr.annotations.FunctionTemplate;
-import com.dremio.exec.expr.annotations.Output;
-import com.dremio.exec.expr.annotations.Param;
-import com.dremio.exec.expr.annotations.Workspace;
-import com.dremio.options.OptionResolver;
-import com.google.common.collect.ImmutableList;
-
 @SuppressWarnings({"deprecation"})
 public class ItemsSketchFunctions {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ItemsSketchFunctions.class);
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ItemsSketchFunctions.class);
   public static final String FUNCTION_NAME = "ITEMS_SKETCH";
 
-  /**
-   * Computes the items_sketch for a column of doubles
-   */
-  @FunctionTemplate(name = ItemsSketchFunctions.FUNCTION_NAME, scope = FunctionTemplate.FunctionScope.POINT_AGGREGATE)
+  /** Computes the items_sketch for a column of doubles */
+  @FunctionTemplate(
+      name = ItemsSketchFunctions.FUNCTION_NAME,
+      scope = FunctionTemplate.FunctionScope.POINT_AGGREGATE)
   public static class NullableIntegerItemsSketchFunction implements AggrFunction {
-    @Param
-    private NullableIntHolder in;
-    @Workspace
-    private ObjectHolder sketch;
-    @Output
-    private NullableVarBinaryHolder out;
-    @Inject
-    private ArrowBuf buffer;
-    @Workspace
-    IntHolder maxSize;
-    @Inject
-    OptionResolver options;
+    @Param private NullableIntHolder in;
+    @Workspace private ObjectHolder sketch;
+    @Output private NullableVarBinaryHolder out;
+    @Inject private ArrowBuf buffer;
+    @Workspace IntHolder maxSize;
+    @Inject OptionResolver options;
 
     @Override
     public void setup() {
@@ -99,8 +90,10 @@ public class ItemsSketchFunctions {
 
     @Override
     public void output() {
-      org.apache.datasketches.frequencies.ItemsSketch<Number> itemsSketch = ((org.apache.datasketches.frequencies.ItemsSketch<Number>) sketch.obj);
-      byte[] serialized = itemsSketch.toByteArray(new org.apache.datasketches.ArrayOfNumbersSerDe());
+      org.apache.datasketches.frequencies.ItemsSketch<Number> itemsSketch =
+          ((org.apache.datasketches.frequencies.ItemsSketch<Number>) sketch.obj);
+      byte[] serialized =
+          itemsSketch.toByteArray(new org.apache.datasketches.ArrayOfNumbersSerDe());
       buffer = buffer.reallocIfNeeded(serialized.length);
       out.buffer = buffer;
       out.start = 0;
@@ -115,20 +108,16 @@ public class ItemsSketchFunctions {
     }
   }
 
-  @FunctionTemplate(name = ItemsSketchFunctions.FUNCTION_NAME, scope = FunctionTemplate.FunctionScope.POINT_AGGREGATE)
+  @FunctionTemplate(
+      name = ItemsSketchFunctions.FUNCTION_NAME,
+      scope = FunctionTemplate.FunctionScope.POINT_AGGREGATE)
   public static class NullableBigIntItemsSketchFunction implements AggrFunction {
-    @Param
-    private NullableBigIntHolder in;
-    @Workspace
-    private ObjectHolder sketch;
-    @Output
-    private NullableVarBinaryHolder out;
-    @Inject
-    private ArrowBuf buffer;
-    @Workspace
-    IntHolder maxSize;
-    @Inject
-    OptionResolver options;
+    @Param private NullableBigIntHolder in;
+    @Workspace private ObjectHolder sketch;
+    @Output private NullableVarBinaryHolder out;
+    @Inject private ArrowBuf buffer;
+    @Workspace IntHolder maxSize;
+    @Inject OptionResolver options;
 
     @Override
     public void setup() {
@@ -146,7 +135,8 @@ public class ItemsSketchFunctions {
 
     @Override
     public void output() {
-      org.apache.datasketches.frequencies.ItemsSketch<Long> itemsSketch = ((org.apache.datasketches.frequencies.ItemsSketch<Long>) sketch.obj);
+      org.apache.datasketches.frequencies.ItemsSketch<Long> itemsSketch =
+          ((org.apache.datasketches.frequencies.ItemsSketch<Long>) sketch.obj);
       byte[] serialized = itemsSketch.toByteArray(new org.apache.datasketches.ArrayOfLongsSerDe());
       buffer = buffer.reallocIfNeeded(serialized.length);
       out.buffer = buffer;
@@ -162,20 +152,16 @@ public class ItemsSketchFunctions {
     }
   }
 
-  @FunctionTemplate(name = ItemsSketchFunctions.FUNCTION_NAME, scope = FunctionTemplate.FunctionScope.POINT_AGGREGATE)
+  @FunctionTemplate(
+      name = ItemsSketchFunctions.FUNCTION_NAME,
+      scope = FunctionTemplate.FunctionScope.POINT_AGGREGATE)
   public static class NullableInternalDayItemsSketchFunction implements AggrFunction {
-    @Param
-    private NullableIntervalDayHolder in;
-    @Workspace
-    private ObjectHolder sketch;
-    @Output
-    private NullableVarBinaryHolder out;
-    @Inject
-    private ArrowBuf buffer;
-    @Workspace
-    IntHolder maxSize;
-    @Inject
-    OptionResolver options;
+    @Param private NullableIntervalDayHolder in;
+    @Workspace private ObjectHolder sketch;
+    @Output private NullableVarBinaryHolder out;
+    @Inject private ArrowBuf buffer;
+    @Workspace IntHolder maxSize;
+    @Inject OptionResolver options;
 
     @Override
     public void setup() {
@@ -187,14 +173,17 @@ public class ItemsSketchFunctions {
     @Override
     public void add() {
       if (in.isSet == 1) {
-        ((org.apache.datasketches.frequencies.ItemsSketch<Number>) sketch.obj).update(in.milliseconds);
+        ((org.apache.datasketches.frequencies.ItemsSketch<Number>) sketch.obj)
+            .update(in.milliseconds);
       }
     }
 
     @Override
     public void output() {
-      org.apache.datasketches.frequencies.ItemsSketch<Number> itemsSketch = (org.apache.datasketches.frequencies.ItemsSketch<Number>) sketch.obj;
-      byte[] serialized = itemsSketch.toByteArray(new org.apache.datasketches.ArrayOfNumbersSerDe());
+      org.apache.datasketches.frequencies.ItemsSketch<Number> itemsSketch =
+          (org.apache.datasketches.frequencies.ItemsSketch<Number>) sketch.obj;
+      byte[] serialized =
+          itemsSketch.toByteArray(new org.apache.datasketches.ArrayOfNumbersSerDe());
       buffer = buffer.reallocIfNeeded(serialized.length);
       out.buffer = buffer;
       out.start = 0;
@@ -209,20 +198,16 @@ public class ItemsSketchFunctions {
     }
   }
 
-  @FunctionTemplate(name = ItemsSketchFunctions.FUNCTION_NAME, scope = FunctionTemplate.FunctionScope.POINT_AGGREGATE)
+  @FunctionTemplate(
+      name = ItemsSketchFunctions.FUNCTION_NAME,
+      scope = FunctionTemplate.FunctionScope.POINT_AGGREGATE)
   public static class NullableIntervalYearsItemsSketchFunction implements AggrFunction {
-    @Param
-    private NullableIntervalYearHolder in;
-    @Workspace
-    private ObjectHolder sketch;
-    @Output
-    private NullableVarBinaryHolder out;
-    @Inject
-    private ArrowBuf buffer;
-    @Workspace
-    IntHolder maxSize;
-    @Inject
-    OptionResolver options;
+    @Param private NullableIntervalYearHolder in;
+    @Workspace private ObjectHolder sketch;
+    @Output private NullableVarBinaryHolder out;
+    @Inject private ArrowBuf buffer;
+    @Workspace IntHolder maxSize;
+    @Inject OptionResolver options;
 
     @Override
     public void setup() {
@@ -240,8 +225,10 @@ public class ItemsSketchFunctions {
 
     @Override
     public void output() {
-      org.apache.datasketches.frequencies.ItemsSketch<Number> itemsSketch = (org.apache.datasketches.frequencies.ItemsSketch<Number>) sketch.obj;
-      byte[] serialized = itemsSketch.toByteArray(new org.apache.datasketches.ArrayOfNumbersSerDe());
+      org.apache.datasketches.frequencies.ItemsSketch<Number> itemsSketch =
+          (org.apache.datasketches.frequencies.ItemsSketch<Number>) sketch.obj;
+      byte[] serialized =
+          itemsSketch.toByteArray(new org.apache.datasketches.ArrayOfNumbersSerDe());
       buffer = buffer.reallocIfNeeded(serialized.length);
       out.buffer = buffer;
       out.start = 0;
@@ -256,20 +243,16 @@ public class ItemsSketchFunctions {
     }
   }
 
-  @FunctionTemplate(name = ItemsSketchFunctions.FUNCTION_NAME, scope = FunctionTemplate.FunctionScope.POINT_AGGREGATE)
+  @FunctionTemplate(
+      name = ItemsSketchFunctions.FUNCTION_NAME,
+      scope = FunctionTemplate.FunctionScope.POINT_AGGREGATE)
   public static class NullableFloat4ItemsSketchFunction implements AggrFunction {
-    @Param
-    private NullableFloat4Holder in;
-    @Workspace
-    private ObjectHolder sketch;
-    @Output
-    private NullableVarBinaryHolder out;
-    @Inject
-    private ArrowBuf buffer;
-    @Workspace
-    IntHolder maxSize;
-    @Inject
-    OptionResolver options;
+    @Param private NullableFloat4Holder in;
+    @Workspace private ObjectHolder sketch;
+    @Output private NullableVarBinaryHolder out;
+    @Inject private ArrowBuf buffer;
+    @Workspace IntHolder maxSize;
+    @Inject OptionResolver options;
 
     @Override
     public void setup() {
@@ -287,8 +270,10 @@ public class ItemsSketchFunctions {
 
     @Override
     public void output() {
-      org.apache.datasketches.frequencies.ItemsSketch<Number> itemsSketch = (org.apache.datasketches.frequencies.ItemsSketch<Number>) sketch.obj;
-      byte[] serialized = itemsSketch.toByteArray(new org.apache.datasketches.ArrayOfNumbersSerDe());
+      org.apache.datasketches.frequencies.ItemsSketch<Number> itemsSketch =
+          (org.apache.datasketches.frequencies.ItemsSketch<Number>) sketch.obj;
+      byte[] serialized =
+          itemsSketch.toByteArray(new org.apache.datasketches.ArrayOfNumbersSerDe());
       buffer = buffer.reallocIfNeeded(serialized.length);
       out.buffer = buffer;
       out.start = 0;
@@ -303,20 +288,16 @@ public class ItemsSketchFunctions {
     }
   }
 
-  @FunctionTemplate(name = ItemsSketchFunctions.FUNCTION_NAME, scope = FunctionTemplate.FunctionScope.POINT_AGGREGATE)
+  @FunctionTemplate(
+      name = ItemsSketchFunctions.FUNCTION_NAME,
+      scope = FunctionTemplate.FunctionScope.POINT_AGGREGATE)
   public static class NullableFloat8ItemsSketchFunction implements AggrFunction {
-    @Param
-    private NullableFloat8Holder in;
-    @Workspace
-    private ObjectHolder sketch;
-    @Output
-    private NullableVarBinaryHolder out;
-    @Inject
-    private ArrowBuf buffer;
-    @Workspace
-    IntHolder maxSize;
-    @Inject
-    OptionResolver options;
+    @Param private NullableFloat8Holder in;
+    @Workspace private ObjectHolder sketch;
+    @Output private NullableVarBinaryHolder out;
+    @Inject private ArrowBuf buffer;
+    @Workspace IntHolder maxSize;
+    @Inject OptionResolver options;
 
     @Override
     public void setup() {
@@ -334,8 +315,10 @@ public class ItemsSketchFunctions {
 
     @Override
     public void output() {
-      org.apache.datasketches.frequencies.ItemsSketch<Double> itemsSketch = (org.apache.datasketches.frequencies.ItemsSketch<Double>) sketch.obj;
-      byte[] serialized = itemsSketch.toByteArray(new org.apache.datasketches.ArrayOfDoublesSerDe());
+      org.apache.datasketches.frequencies.ItemsSketch<Double> itemsSketch =
+          (org.apache.datasketches.frequencies.ItemsSketch<Double>) sketch.obj;
+      byte[] serialized =
+          itemsSketch.toByteArray(new org.apache.datasketches.ArrayOfDoublesSerDe());
       buffer = buffer.reallocIfNeeded(serialized.length);
       out.buffer = buffer;
       out.start = 0;
@@ -350,20 +333,16 @@ public class ItemsSketchFunctions {
     }
   }
 
-  @FunctionTemplate(name = ItemsSketchFunctions.FUNCTION_NAME, scope = FunctionTemplate.FunctionScope.POINT_AGGREGATE)
+  @FunctionTemplate(
+      name = ItemsSketchFunctions.FUNCTION_NAME,
+      scope = FunctionTemplate.FunctionScope.POINT_AGGREGATE)
   public static class NullableDateItemsSketchFunction implements AggrFunction {
-    @Param
-    private NullableDateMilliHolder in;
-    @Workspace
-    private ObjectHolder sketch;
-    @Output
-    private NullableVarBinaryHolder out;
-    @Inject
-    private ArrowBuf buffer;
-    @Workspace
-    IntHolder maxSize;
-    @Inject
-    OptionResolver options;
+    @Param private NullableDateMilliHolder in;
+    @Workspace private ObjectHolder sketch;
+    @Output private NullableVarBinaryHolder out;
+    @Inject private ArrowBuf buffer;
+    @Workspace IntHolder maxSize;
+    @Inject OptionResolver options;
 
     @Override
     public void setup() {
@@ -381,7 +360,8 @@ public class ItemsSketchFunctions {
 
     @Override
     public void output() {
-      org.apache.datasketches.frequencies.ItemsSketch<Long> itemsSketch = (org.apache.datasketches.frequencies.ItemsSketch<Long>) sketch.obj;
+      org.apache.datasketches.frequencies.ItemsSketch<Long> itemsSketch =
+          (org.apache.datasketches.frequencies.ItemsSketch<Long>) sketch.obj;
       byte[] serialized = itemsSketch.toByteArray(new org.apache.datasketches.ArrayOfLongsSerDe());
       buffer = buffer.reallocIfNeeded(serialized.length);
       out.buffer = buffer;
@@ -397,21 +377,16 @@ public class ItemsSketchFunctions {
     }
   }
 
-
-  @FunctionTemplate(name = ItemsSketchFunctions.FUNCTION_NAME, scope = FunctionTemplate.FunctionScope.POINT_AGGREGATE)
+  @FunctionTemplate(
+      name = ItemsSketchFunctions.FUNCTION_NAME,
+      scope = FunctionTemplate.FunctionScope.POINT_AGGREGATE)
   public static class NullableTimeItemsSketchFunction implements AggrFunction {
-    @Param
-    private NullableTimeMilliHolder in;
-    @Workspace
-    private ObjectHolder sketch;
-    @Output
-    private NullableVarBinaryHolder out;
-    @Inject
-    private ArrowBuf buffer;
-    @Workspace
-    IntHolder maxSize;
-    @Inject
-    OptionResolver options;
+    @Param private NullableTimeMilliHolder in;
+    @Workspace private ObjectHolder sketch;
+    @Output private NullableVarBinaryHolder out;
+    @Inject private ArrowBuf buffer;
+    @Workspace IntHolder maxSize;
+    @Inject OptionResolver options;
 
     @Override
     public void setup() {
@@ -423,14 +398,17 @@ public class ItemsSketchFunctions {
     @Override
     public void add() {
       if (in.isSet == 1) {
-        ((org.apache.datasketches.frequencies.ItemsSketch<Number>) sketch.obj).update((long)in.value);
+        ((org.apache.datasketches.frequencies.ItemsSketch<Number>) sketch.obj)
+            .update((long) in.value);
       }
     }
 
     @Override
     public void output() {
-      org.apache.datasketches.frequencies.ItemsSketch<Number> itemsSketch = ((org.apache.datasketches.frequencies.ItemsSketch<Number>) sketch.obj);
-      byte[] serialized = itemsSketch.toByteArray(new org.apache.datasketches.ArrayOfNumbersSerDe());
+      org.apache.datasketches.frequencies.ItemsSketch<Number> itemsSketch =
+          ((org.apache.datasketches.frequencies.ItemsSketch<Number>) sketch.obj);
+      byte[] serialized =
+          itemsSketch.toByteArray(new org.apache.datasketches.ArrayOfNumbersSerDe());
       buffer = buffer.reallocIfNeeded(serialized.length);
       out.buffer = buffer;
       out.start = 0;
@@ -445,20 +423,16 @@ public class ItemsSketchFunctions {
     }
   }
 
-  @FunctionTemplate(name = ItemsSketchFunctions.FUNCTION_NAME, scope = FunctionTemplate.FunctionScope.POINT_AGGREGATE)
+  @FunctionTemplate(
+      name = ItemsSketchFunctions.FUNCTION_NAME,
+      scope = FunctionTemplate.FunctionScope.POINT_AGGREGATE)
   public static class NullableTimeStampItemsSketchFunction implements AggrFunction {
-    @Param
-    private NullableTimeStampMilliHolder in;
-    @Workspace
-    private ObjectHolder sketch;
-    @Output
-    private NullableVarBinaryHolder out;
-    @Inject
-    private ArrowBuf buffer;
-    @Workspace
-    IntHolder maxSize;
-    @Inject
-    OptionResolver options;
+    @Param private NullableTimeStampMilliHolder in;
+    @Workspace private ObjectHolder sketch;
+    @Output private NullableVarBinaryHolder out;
+    @Inject private ArrowBuf buffer;
+    @Workspace IntHolder maxSize;
+    @Inject OptionResolver options;
 
     @Override
     public void setup() {
@@ -476,7 +450,8 @@ public class ItemsSketchFunctions {
 
     @Override
     public void output() {
-      org.apache.datasketches.frequencies.ItemsSketch<Long> itemsSketch = ((org.apache.datasketches.frequencies.ItemsSketch<Long>) sketch.obj);
+      org.apache.datasketches.frequencies.ItemsSketch<Long> itemsSketch =
+          ((org.apache.datasketches.frequencies.ItemsSketch<Long>) sketch.obj);
       byte[] serialized = itemsSketch.toByteArray(new org.apache.datasketches.ArrayOfLongsSerDe());
       buffer = buffer.reallocIfNeeded(serialized.length);
       out.buffer = buffer;
@@ -492,20 +467,16 @@ public class ItemsSketchFunctions {
     }
   }
 
-  @FunctionTemplate(name = ItemsSketchFunctions.FUNCTION_NAME, scope = FunctionTemplate.FunctionScope.POINT_AGGREGATE)
+  @FunctionTemplate(
+      name = ItemsSketchFunctions.FUNCTION_NAME,
+      scope = FunctionTemplate.FunctionScope.POINT_AGGREGATE)
   public static class NullableBitItemsSketchFunction implements AggrFunction {
-    @Param
-    private NullableBitHolder in;
-    @Workspace
-    private ObjectHolder sketch;
-    @Output
-    private NullableVarBinaryHolder out;
-    @Inject
-    private ArrowBuf buffer;
-    @Workspace
-    IntHolder maxSize;
-    @Inject
-    OptionResolver options;
+    @Param private NullableBitHolder in;
+    @Workspace private ObjectHolder sketch;
+    @Output private NullableVarBinaryHolder out;
+    @Inject private ArrowBuf buffer;
+    @Workspace IntHolder maxSize;
+    @Inject OptionResolver options;
 
     @Override
     public void setup() {
@@ -517,14 +488,17 @@ public class ItemsSketchFunctions {
     @Override
     public void add() {
       if (in.isSet == 1) {
-        ((org.apache.datasketches.frequencies.ItemsSketch<Boolean>) sketch.obj).update(in.value == 1);
+        ((org.apache.datasketches.frequencies.ItemsSketch<Boolean>) sketch.obj)
+            .update(in.value == 1);
       }
     }
 
     @Override
     public void output() {
-      org.apache.datasketches.frequencies.ItemsSketch<Boolean> itemsSketch = ((org.apache.datasketches.frequencies.ItemsSketch<Boolean>) sketch.obj);
-      byte[] serialized = itemsSketch.toByteArray(new org.apache.datasketches.ArrayOfBooleansSerDe());
+      org.apache.datasketches.frequencies.ItemsSketch<Boolean> itemsSketch =
+          ((org.apache.datasketches.frequencies.ItemsSketch<Boolean>) sketch.obj);
+      byte[] serialized =
+          itemsSketch.toByteArray(new org.apache.datasketches.ArrayOfBooleansSerDe());
       buffer = buffer.reallocIfNeeded(serialized.length);
       out.buffer = buffer;
       out.start = 0;
@@ -539,20 +513,16 @@ public class ItemsSketchFunctions {
     }
   }
 
-  @FunctionTemplate(name = ItemsSketchFunctions.FUNCTION_NAME, scope = FunctionTemplate.FunctionScope.POINT_AGGREGATE)
+  @FunctionTemplate(
+      name = ItemsSketchFunctions.FUNCTION_NAME,
+      scope = FunctionTemplate.FunctionScope.POINT_AGGREGATE)
   public static class NullableVarCharItemsSketchFunction implements AggrFunction {
-    @Param
-    private NullableVarCharHolder in;
-    @Workspace
-    private ObjectHolder sketch;
-    @Output
-    private NullableVarBinaryHolder out;
-    @Inject
-    private ArrowBuf buffer;
-    @Workspace
-    IntHolder maxSize;
-    @Inject
-    OptionResolver options;
+    @Param private NullableVarCharHolder in;
+    @Workspace private ObjectHolder sketch;
+    @Output private NullableVarBinaryHolder out;
+    @Inject private ArrowBuf buffer;
+    @Workspace IntHolder maxSize;
+    @Inject OptionResolver options;
 
     @Override
     public void setup() {
@@ -564,15 +534,19 @@ public class ItemsSketchFunctions {
     @Override
     public void add() {
       if (in.isSet == 1) {
-        ((org.apache.datasketches.frequencies.ItemsSketch<String>) sketch.obj).update(
-          com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(in.start, in.end, in.buffer));
+        ((org.apache.datasketches.frequencies.ItemsSketch<String>) sketch.obj)
+            .update(
+                com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(
+                    in.start, in.end, in.buffer));
       }
     }
 
     @Override
     public void output() {
-      org.apache.datasketches.frequencies.ItemsSketch<String> itemsSketch = ((org.apache.datasketches.frequencies.ItemsSketch<String>) sketch.obj);
-      byte[] serialized = itemsSketch.toByteArray(new org.apache.datasketches.ArrayOfStringsSerDe());
+      org.apache.datasketches.frequencies.ItemsSketch<String> itemsSketch =
+          ((org.apache.datasketches.frequencies.ItemsSketch<String>) sketch.obj);
+      byte[] serialized =
+          itemsSketch.toByteArray(new org.apache.datasketches.ArrayOfStringsSerDe());
       buffer = buffer.reallocIfNeeded(serialized.length);
       out.buffer = buffer;
       out.start = 0;
@@ -587,23 +561,17 @@ public class ItemsSketchFunctions {
     }
   }
 
-  /**
-   * Merges the items_sketches to produce a new items_sketch
-   */
-  @FunctionTemplate(name = "items_sketch_merge_number", scope = FunctionTemplate.FunctionScope.POINT_AGGREGATE)
+  /** Merges the items_sketches to produce a new items_sketch */
+  @FunctionTemplate(
+      name = "items_sketch_merge_number",
+      scope = FunctionTemplate.FunctionScope.POINT_AGGREGATE)
   public static class NullableVarBinaryItemsSketchMergeNumber implements AggrFunction {
-    @Param
-    private NullableVarBinaryHolder in;
-    @Workspace
-    private ObjectHolder sketch;
-    @Output
-    private NullableVarBinaryHolder out;
-    @Inject
-    private ArrowBuf buffer;
-    @Workspace
-    IntHolder maxSize;
-    @Inject
-    OptionResolver options;
+    @Param private NullableVarBinaryHolder in;
+    @Workspace private ObjectHolder sketch;
+    @Output private NullableVarBinaryHolder out;
+    @Inject private ArrowBuf buffer;
+    @Workspace IntHolder maxSize;
+    @Inject OptionResolver options;
 
     @Override
     public void setup() {
@@ -615,16 +583,23 @@ public class ItemsSketchFunctions {
     @Override
     public void add() {
       if (in.isSet == 1) {
-        org.apache.datasketches.frequencies.ItemsSketch<Number> itemsSketch = org.apache.datasketches.frequencies.ItemsSketch.getInstance(
-           org.apache.datasketches.memory.Memory.wrap(in.buffer.nioBuffer(in.start, in.end - in.start).order(java.nio.ByteOrder.nativeOrder())), new org.apache.datasketches.ArrayOfNumbersSerDe());
+        org.apache.datasketches.frequencies.ItemsSketch<Number> itemsSketch =
+            org.apache.datasketches.frequencies.ItemsSketch.getInstance(
+                org.apache.datasketches.memory.Memory.wrap(
+                    in.buffer
+                        .nioBuffer(in.start, in.end - in.start)
+                        .order(java.nio.ByteOrder.nativeOrder())),
+                new org.apache.datasketches.ArrayOfNumbersSerDe());
         ((org.apache.datasketches.frequencies.ItemsSketch<Number>) sketch.obj).merge(itemsSketch);
       }
     }
 
     @Override
     public void output() {
-      org.apache.datasketches.frequencies.ItemsSketch<Number> itemsSketch = ((org.apache.datasketches.frequencies.ItemsSketch<Number>) sketch.obj);
-      byte[] serialized = itemsSketch.toByteArray(new org.apache.datasketches.ArrayOfNumbersSerDe());
+      org.apache.datasketches.frequencies.ItemsSketch<Number> itemsSketch =
+          ((org.apache.datasketches.frequencies.ItemsSketch<Number>) sketch.obj);
+      byte[] serialized =
+          itemsSketch.toByteArray(new org.apache.datasketches.ArrayOfNumbersSerDe());
       buffer = buffer.reallocIfNeeded(serialized.length);
       out.buffer = buffer;
       out.start = 0;
@@ -639,20 +614,16 @@ public class ItemsSketchFunctions {
     }
   }
 
-  @FunctionTemplate(name = "items_sketch_merge_double", scope = FunctionTemplate.FunctionScope.POINT_AGGREGATE)
+  @FunctionTemplate(
+      name = "items_sketch_merge_double",
+      scope = FunctionTemplate.FunctionScope.POINT_AGGREGATE)
   public static class NullableVarBinaryItemsSketchMergeDouble implements AggrFunction {
-    @Param
-    private NullableVarBinaryHolder in;
-    @Workspace
-    private ObjectHolder sketch;
-    @Output
-    private NullableVarBinaryHolder out;
-    @Inject
-    private ArrowBuf buffer;
-    @Workspace
-    IntHolder maxSize;
-    @Inject
-    OptionResolver options;
+    @Param private NullableVarBinaryHolder in;
+    @Workspace private ObjectHolder sketch;
+    @Output private NullableVarBinaryHolder out;
+    @Inject private ArrowBuf buffer;
+    @Workspace IntHolder maxSize;
+    @Inject OptionResolver options;
 
     @Override
     public void setup() {
@@ -664,16 +635,23 @@ public class ItemsSketchFunctions {
     @Override
     public void add() {
       if (in.isSet == 1) {
-        org.apache.datasketches.frequencies.ItemsSketch<Double> itemsSketch = org.apache.datasketches.frequencies.ItemsSketch.getInstance(
-          org.apache.datasketches.memory.Memory.wrap(in.buffer.nioBuffer(in.start, in.end - in.start).order(java.nio.ByteOrder.nativeOrder())), new org.apache.datasketches.ArrayOfDoublesSerDe());
+        org.apache.datasketches.frequencies.ItemsSketch<Double> itemsSketch =
+            org.apache.datasketches.frequencies.ItemsSketch.getInstance(
+                org.apache.datasketches.memory.Memory.wrap(
+                    in.buffer
+                        .nioBuffer(in.start, in.end - in.start)
+                        .order(java.nio.ByteOrder.nativeOrder())),
+                new org.apache.datasketches.ArrayOfDoublesSerDe());
         ((org.apache.datasketches.frequencies.ItemsSketch<Double>) sketch.obj).merge(itemsSketch);
       }
     }
 
     @Override
     public void output() {
-      org.apache.datasketches.frequencies.ItemsSketch<Double> itemsSketch = ((org.apache.datasketches.frequencies.ItemsSketch<Double>) sketch.obj);
-      byte[] serialized = itemsSketch.toByteArray(new org.apache.datasketches.ArrayOfDoublesSerDe());
+      org.apache.datasketches.frequencies.ItemsSketch<Double> itemsSketch =
+          ((org.apache.datasketches.frequencies.ItemsSketch<Double>) sketch.obj);
+      byte[] serialized =
+          itemsSketch.toByteArray(new org.apache.datasketches.ArrayOfDoublesSerDe());
       buffer = buffer.reallocIfNeeded(serialized.length);
       out.buffer = buffer;
       out.start = 0;
@@ -688,20 +666,16 @@ public class ItemsSketchFunctions {
     }
   }
 
-  @FunctionTemplate(name = "items_sketch_merge_varchar", scope = FunctionTemplate.FunctionScope.POINT_AGGREGATE)
+  @FunctionTemplate(
+      name = "items_sketch_merge_varchar",
+      scope = FunctionTemplate.FunctionScope.POINT_AGGREGATE)
   public static class NullableVarBinaryItemsSketchMergeVarchar implements AggrFunction {
-    @Param
-    private NullableVarBinaryHolder in;
-    @Workspace
-    private ObjectHolder sketch;
-    @Output
-    private NullableVarBinaryHolder out;
-    @Inject
-    private ArrowBuf buffer;
-    @Workspace
-    IntHolder maxSize;
-    @Inject
-    OptionResolver options;
+    @Param private NullableVarBinaryHolder in;
+    @Workspace private ObjectHolder sketch;
+    @Output private NullableVarBinaryHolder out;
+    @Inject private ArrowBuf buffer;
+    @Workspace IntHolder maxSize;
+    @Inject OptionResolver options;
 
     @Override
     public void setup() {
@@ -713,16 +687,23 @@ public class ItemsSketchFunctions {
     @Override
     public void add() {
       if (in.isSet == 1) {
-        org.apache.datasketches.frequencies.ItemsSketch<String> itemsSketch = org.apache.datasketches.frequencies.ItemsSketch.getInstance(
-          org.apache.datasketches.memory.Memory.wrap(in.buffer.nioBuffer(in.start, in.end - in.start).order(java.nio.ByteOrder.nativeOrder())), new org.apache.datasketches.ArrayOfStringsSerDe());
+        org.apache.datasketches.frequencies.ItemsSketch<String> itemsSketch =
+            org.apache.datasketches.frequencies.ItemsSketch.getInstance(
+                org.apache.datasketches.memory.Memory.wrap(
+                    in.buffer
+                        .nioBuffer(in.start, in.end - in.start)
+                        .order(java.nio.ByteOrder.nativeOrder())),
+                new org.apache.datasketches.ArrayOfStringsSerDe());
         ((org.apache.datasketches.frequencies.ItemsSketch<String>) sketch.obj).merge(itemsSketch);
       }
     }
 
     @Override
     public void output() {
-      org.apache.datasketches.frequencies.ItemsSketch<String> itemsSketch = ((org.apache.datasketches.frequencies.ItemsSketch<String>) sketch.obj);
-      byte[] serialized = itemsSketch.toByteArray(new org.apache.datasketches.ArrayOfStringsSerDe());
+      org.apache.datasketches.frequencies.ItemsSketch<String> itemsSketch =
+          ((org.apache.datasketches.frequencies.ItemsSketch<String>) sketch.obj);
+      byte[] serialized =
+          itemsSketch.toByteArray(new org.apache.datasketches.ArrayOfStringsSerDe());
       buffer = buffer.reallocIfNeeded(serialized.length);
       out.buffer = buffer;
       out.start = 0;
@@ -737,20 +718,16 @@ public class ItemsSketchFunctions {
     }
   }
 
-  @FunctionTemplate(name = "items_sketch_merge_long", scope = FunctionTemplate.FunctionScope.POINT_AGGREGATE)
+  @FunctionTemplate(
+      name = "items_sketch_merge_long",
+      scope = FunctionTemplate.FunctionScope.POINT_AGGREGATE)
   public static class NullableVarBinaryItemsSketchMergeLong implements AggrFunction {
-    @Param
-    private NullableVarBinaryHolder in;
-    @Workspace
-    private ObjectHolder sketch;
-    @Output
-    private NullableVarBinaryHolder out;
-    @Inject
-    private ArrowBuf buffer;
-    @Workspace
-    IntHolder maxSize;
-    @Inject
-    OptionResolver options;
+    @Param private NullableVarBinaryHolder in;
+    @Workspace private ObjectHolder sketch;
+    @Output private NullableVarBinaryHolder out;
+    @Inject private ArrowBuf buffer;
+    @Workspace IntHolder maxSize;
+    @Inject OptionResolver options;
 
     @Override
     public void setup() {
@@ -762,15 +739,21 @@ public class ItemsSketchFunctions {
     @Override
     public void add() {
       if (in.isSet == 1) {
-        org.apache.datasketches.frequencies.ItemsSketch<Long> itemsSketch = org.apache.datasketches.frequencies.ItemsSketch.getInstance(
-          org.apache.datasketches.memory.Memory.wrap(in.buffer.nioBuffer(in.start, in.end - in.start).order(java.nio.ByteOrder.nativeOrder())), new org.apache.datasketches.ArrayOfLongsSerDe());
+        org.apache.datasketches.frequencies.ItemsSketch<Long> itemsSketch =
+            org.apache.datasketches.frequencies.ItemsSketch.getInstance(
+                org.apache.datasketches.memory.Memory.wrap(
+                    in.buffer
+                        .nioBuffer(in.start, in.end - in.start)
+                        .order(java.nio.ByteOrder.nativeOrder())),
+                new org.apache.datasketches.ArrayOfLongsSerDe());
         ((org.apache.datasketches.frequencies.ItemsSketch<Long>) sketch.obj).merge(itemsSketch);
       }
     }
 
     @Override
     public void output() {
-      org.apache.datasketches.frequencies.ItemsSketch<Long> itemsSketch = ((org.apache.datasketches.frequencies.ItemsSketch<Long>) sketch.obj);
+      org.apache.datasketches.frequencies.ItemsSketch<Long> itemsSketch =
+          ((org.apache.datasketches.frequencies.ItemsSketch<Long>) sketch.obj);
       byte[] serialized = itemsSketch.toByteArray(new org.apache.datasketches.ArrayOfLongsSerDe());
       buffer = buffer.reallocIfNeeded(serialized.length);
       out.buffer = buffer;
@@ -786,21 +769,16 @@ public class ItemsSketchFunctions {
     }
   }
 
-
-  @FunctionTemplate(name = "items_sketch_merge_boolean", scope = FunctionTemplate.FunctionScope.POINT_AGGREGATE)
+  @FunctionTemplate(
+      name = "items_sketch_merge_boolean",
+      scope = FunctionTemplate.FunctionScope.POINT_AGGREGATE)
   public static class NullableVarBinaryItemsSketchMergeBoolean implements AggrFunction {
-    @Param
-    private NullableVarBinaryHolder in;
-    @Workspace
-    private ObjectHolder sketch;
-    @Output
-    private NullableVarBinaryHolder out;
-    @Inject
-    private ArrowBuf buffer;
-    @Workspace
-    IntHolder maxSize;
-    @Inject
-    OptionResolver options;
+    @Param private NullableVarBinaryHolder in;
+    @Workspace private ObjectHolder sketch;
+    @Output private NullableVarBinaryHolder out;
+    @Inject private ArrowBuf buffer;
+    @Workspace IntHolder maxSize;
+    @Inject OptionResolver options;
 
     @Override
     public void setup() {
@@ -812,16 +790,23 @@ public class ItemsSketchFunctions {
     @Override
     public void add() {
       if (in.isSet == 1) {
-        org.apache.datasketches.frequencies.ItemsSketch<Boolean> itemsSketch = org.apache.datasketches.frequencies.ItemsSketch.getInstance(
-          org.apache.datasketches.memory.Memory.wrap(in.buffer.nioBuffer(in.start, in.end - in.start).order(java.nio.ByteOrder.nativeOrder())), new org.apache.datasketches.ArrayOfBooleansSerDe());
+        org.apache.datasketches.frequencies.ItemsSketch<Boolean> itemsSketch =
+            org.apache.datasketches.frequencies.ItemsSketch.getInstance(
+                org.apache.datasketches.memory.Memory.wrap(
+                    in.buffer
+                        .nioBuffer(in.start, in.end - in.start)
+                        .order(java.nio.ByteOrder.nativeOrder())),
+                new org.apache.datasketches.ArrayOfBooleansSerDe());
         ((org.apache.datasketches.frequencies.ItemsSketch<Boolean>) sketch.obj).merge(itemsSketch);
       }
     }
 
     @Override
     public void output() {
-      org.apache.datasketches.frequencies.ItemsSketch<Boolean> itemsSketch = ((org.apache.datasketches.frequencies.ItemsSketch<Boolean>) sketch.obj);
-      byte[] serialized = itemsSketch.toByteArray(new org.apache.datasketches.ArrayOfBooleansSerDe());
+      org.apache.datasketches.frequencies.ItemsSketch<Boolean> itemsSketch =
+          ((org.apache.datasketches.frequencies.ItemsSketch<Boolean>) sketch.obj);
+      byte[] serialized =
+          itemsSketch.toByteArray(new org.apache.datasketches.ArrayOfBooleansSerDe());
       buffer = buffer.reallocIfNeeded(serialized.length);
       out.buffer = buffer;
       out.start = 0;
@@ -840,15 +825,16 @@ public class ItemsSketchFunctions {
     private final RelDataType type;
 
     public SqlItemsSketchMergeNumbersAggFunction(RelDataType type) {
-      super("items_sketch_merge_number",
-        null,
-        SqlKind.OTHER_FUNCTION,
-        ReturnTypes.ARG0, // use the inferred return type of SqlCountAggFunction
-        null,
-        OperandTypes.BINARY,
-        SqlFunctionCategory.USER_DEFINED_FUNCTION,
-        false,
-        false);
+      super(
+          "items_sketch_merge_number",
+          null,
+          SqlKind.OTHER_FUNCTION,
+          ReturnTypes.ARG0, // use the inferred return type of SqlCountAggFunction
+          null,
+          OperandTypes.BINARY,
+          SqlFunctionCategory.USER_DEFINED_FUNCTION,
+          false,
+          false);
 
       this.type = type;
     }
@@ -870,15 +856,16 @@ public class ItemsSketchFunctions {
     private final RelDataType type;
 
     public SqlItemsSketchMergeLongAggFunction(RelDataType type) {
-      super("items_sketch_merge_long",
-        null,
-        SqlKind.OTHER_FUNCTION,
-        ReturnTypes.ARG0, // use the inferred return type of SqlCountAggFunction
-        null,
-        OperandTypes.BINARY,
-        SqlFunctionCategory.USER_DEFINED_FUNCTION,
-        false,
-        false);
+      super(
+          "items_sketch_merge_long",
+          null,
+          SqlKind.OTHER_FUNCTION,
+          ReturnTypes.ARG0, // use the inferred return type of SqlCountAggFunction
+          null,
+          OperandTypes.BINARY,
+          SqlFunctionCategory.USER_DEFINED_FUNCTION,
+          false,
+          false);
 
       this.type = type;
     }
@@ -900,15 +887,16 @@ public class ItemsSketchFunctions {
     private final RelDataType type;
 
     public SqlItemsSketchMergeBooleanAggFunction(RelDataType type) {
-      super("items_sketch_merge_boolean",
-        null,
-        SqlKind.OTHER_FUNCTION,
-        ReturnTypes.ARG0, // use the inferred return type of SqlCountAggFunction
-        null,
-        OperandTypes.BINARY,
-        SqlFunctionCategory.USER_DEFINED_FUNCTION,
-        false,
-        false);
+      super(
+          "items_sketch_merge_boolean",
+          null,
+          SqlKind.OTHER_FUNCTION,
+          ReturnTypes.ARG0, // use the inferred return type of SqlCountAggFunction
+          null,
+          OperandTypes.BINARY,
+          SqlFunctionCategory.USER_DEFINED_FUNCTION,
+          false,
+          false);
 
       this.type = type;
     }
@@ -930,15 +918,16 @@ public class ItemsSketchFunctions {
     private final RelDataType type;
 
     public SqlItemsSketchMergeVarCharAggFunction(RelDataType type) {
-      super("items_sketch_merge_varchar",
-        null,
-        SqlKind.OTHER_FUNCTION,
-        ReturnTypes.ARG0, // use the inferred return type of SqlCountAggFunction
-        null,
-        OperandTypes.BINARY,
-        SqlFunctionCategory.USER_DEFINED_FUNCTION,
-        false,
-        false);
+      super(
+          "items_sketch_merge_varchar",
+          null,
+          SqlKind.OTHER_FUNCTION,
+          ReturnTypes.ARG0, // use the inferred return type of SqlCountAggFunction
+          null,
+          OperandTypes.BINARY,
+          SqlFunctionCategory.USER_DEFINED_FUNCTION,
+          false,
+          false);
 
       this.type = type;
     }
@@ -960,15 +949,16 @@ public class ItemsSketchFunctions {
     private final RelDataType type;
 
     public SqlItemsSketchMergeDoubleAggFunction(RelDataType type) {
-      super("items_sketch_merge_double",
-        null,
-        SqlKind.OTHER_FUNCTION,
-        ReturnTypes.ARG0, // use the inferred return type of SqlCountAggFunction
-        null,
-        OperandTypes.BINARY,
-        SqlFunctionCategory.USER_DEFINED_FUNCTION,
-        false,
-        false);
+      super(
+          "items_sketch_merge_double",
+          null,
+          SqlKind.OTHER_FUNCTION,
+          ReturnTypes.ARG0, // use the inferred return type of SqlCountAggFunction
+          null,
+          OperandTypes.BINARY,
+          SqlFunctionCategory.USER_DEFINED_FUNCTION,
+          false,
+          false);
 
       this.type = type;
     }
@@ -986,29 +976,31 @@ public class ItemsSketchFunctions {
     }
   }
 
-  public static ArrayOfItemsSerDe<? extends Serializable> getSerdeFromSqlTypeName(SqlTypeName typeName) {
+  public static ArrayOfItemsSerDe<? extends Serializable> getSerdeFromSqlTypeName(
+      SqlTypeName typeName) {
     switch (typeName) {
-    case BOOLEAN:
-      return new ArrayOfBooleansSerDe();
-    case DOUBLE:
-    case DECIMAL:
-      return new ArrayOfDoublesSerDe();
-    case VARCHAR:
-      return new ArrayOfStringsSerDe();
-    case FLOAT:
-    case INTEGER:
-    case SMALLINT:
-    case TINYINT:
-    case VARBINARY:
-    case INTERVAL_DAY:
-    case TIME:
-      return new ArrayOfNumbersSerDe();
-    case BIGINT:
-    case DATE:
-    case TIMESTAMP:
-      return new ArrayOfLongsSerDe();
-    default:
-      throw new UnsupportedOperationException(String.format("Cannot Create Serde for type %s.", typeName.getName()));
+      case BOOLEAN:
+        return new ArrayOfBooleansSerDe();
+      case DOUBLE:
+      case DECIMAL:
+        return new ArrayOfDoublesSerDe();
+      case VARCHAR:
+        return new ArrayOfStringsSerDe();
+      case FLOAT:
+      case INTEGER:
+      case SMALLINT:
+      case TINYINT:
+      case VARBINARY:
+      case INTERVAL_DAY:
+      case TIME:
+        return new ArrayOfNumbersSerDe();
+      case BIGINT:
+      case DATE:
+      case TIMESTAMP:
+        return new ArrayOfLongsSerDe();
+      default:
+        throw new UnsupportedOperationException(
+            String.format("Cannot Create Serde for type %s.", typeName.getName()));
     }
   }
 }

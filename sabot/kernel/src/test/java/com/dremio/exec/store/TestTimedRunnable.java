@@ -17,28 +17,24 @@ package com.dremio.exec.store;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.io.IOException;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TestRule;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.TestTools;
 import com.dremio.test.DremioTest;
 import com.google.common.collect.Lists;
+import java.io.IOException;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TestRule;
 
-/**
- * Unit testing for {@link TimedRunnable}.
- */
+/** Unit testing for {@link TimedRunnable}. */
 @org.junit.Ignore("takes way too long...")
 public class TestTimedRunnable extends DremioTest {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestTimedRunnable.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(TestTimedRunnable.class);
 
-  @Rule
-  public final TestRule timeoutRule = TestTools.getTimeoutRule(3, TimeUnit.MINUTES); // 3mins
+  @Rule public final TestRule timeoutRule = TestTools.getTimeoutRule(3, TimeUnit.MINUTES); // 3mins
 
   private static class TestTask extends TimedRunnable<Void> {
     final long sleepTime; // sleep time in ms
@@ -67,7 +63,7 @@ public class TestTimedRunnable extends DremioTest {
   public void withoutAnyTasksTriggeringTimeout() throws Exception {
     List<TimedRunnable<Void>> tasks = Lists.newArrayList();
 
-    for(int i=0; i<100; i++){
+    for (int i = 0; i < 100; i++) {
       tasks.add(new TestTask(2000));
     }
 
@@ -87,12 +83,13 @@ public class TestTimedRunnable extends DremioTest {
     }
 
     assertThatThrownBy(
-      () -> TimedRunnable.run("Execution with some tasks triggering timeout", logger, tasks, 16))
-      .isInstanceOf(UserException.class)
-      .hasMessageContaining(
-        "Waited for 93750ms, but tasks for 'Execution with some tasks triggering timeout' are not "
-          +
-          "complete. Total runnable size 100, parallelism 16.");
+            () ->
+                TimedRunnable.run(
+                    "Execution with some tasks triggering timeout", logger, tasks, 16))
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining(
+            "Waited for 93750ms, but tasks for 'Execution with some tasks triggering timeout' are not "
+                + "complete. Total runnable size 100, parallelism 16.");
   }
 
   @Test
@@ -111,7 +108,7 @@ public class TestTimedRunnable extends DremioTest {
   public void withOverriddenHighTimeout() throws Exception {
     List<TimedRunnable<Void>> tasks = Lists.newArrayList();
 
-    for(int i=0; i<10; i++){
+    for (int i = 0; i < 10; i++) {
       tasks.add(new TestTask(20_000));
     }
 

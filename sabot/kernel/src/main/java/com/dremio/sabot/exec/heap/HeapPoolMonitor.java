@@ -22,7 +22,8 @@ import java.lang.management.MemoryPoolMXBean;
  * Removes the entry once the heap memory pool usage goes below the threshold.
  */
 final class HeapPoolMonitor {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HeapPoolMonitor.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(HeapPoolMonitor.class);
   private static final long GB = 1024 * 1024 * 1024;
 
   private final MemoryPoolMXBean pool;
@@ -33,16 +34,21 @@ final class HeapPoolMonitor {
   private long currentVeryLowMemThreshold;
   private long backToNormalThreshold;
 
-  HeapPoolMonitor(int currentLowMemThresholdPercent, MemoryPoolMXBean pool, boolean thresholdCrossed) {
+  HeapPoolMonitor(
+      int currentLowMemThresholdPercent, MemoryPoolMXBean pool, boolean thresholdCrossed) {
     this.pool = pool;
     final long max = pool.getUsage().getMax();
     this.sizeFactor = Math.max((int) (max / GB), 2);
     computeThresholds(currentLowMemThresholdPercent, max);
     this.notificationCount = (thresholdCrossed) ? 1 : 0;
     this.checkCount = 0;
-    logger.info("Memory pool `{}` added for low memory monitoring. " +
-        "Low mem Threshold Range is {} to {} with size factor {}", pool.getName(), currentLowMemThreshold,
-      currentVeryLowMemThreshold, sizeFactor);
+    logger.info(
+        "Memory pool `{}` added for low memory monitoring. "
+            + "Low mem Threshold Range is {} to {} with size factor {}",
+        pool.getName(),
+        currentLowMemThreshold,
+        currentVeryLowMemThreshold,
+        sizeFactor);
   }
 
   int getSizeFactor() {
@@ -51,15 +57,16 @@ final class HeapPoolMonitor {
 
   /**
    * Checks and returns the memory availability state of this pool.
-   * <p>
-   * Assumed to be protected under pool lock
-   * </p>
+   *
+   * <p>Assumed to be protected under pool lock
+   *
    * @return Available memory state of this pool
    */
   MemoryState checkMemoryState(MemoryState currentState) {
     checkCount++;
     final long currentUsed = pool.getUsage().getUsed();
-    final long lowMemThresholdToCheck = currentState.getSeverity() > 0 ? backToNormalThreshold : currentLowMemThreshold;
+    final long lowMemThresholdToCheck =
+        currentState.getSeverity() > 0 ? backToNormalThreshold : currentLowMemThreshold;
     if (currentUsed >= currentVeryLowMemThreshold) {
       return (notificationCount > 0 || checkCount > 2) ? MemoryState.VERY_LOW : MemoryState.LOW;
     }
@@ -74,9 +81,8 @@ final class HeapPoolMonitor {
 
   /**
    * Increments when notified again while the pool is in this state. Indicates memory pressure.
-   * <p>
-   * Assumed to be protected under pool lock
-   * </p>
+   *
+   * <p>Assumed to be protected under pool lock
    */
   void handleThresholdCrossedNotification() {
     this.notificationCount++;

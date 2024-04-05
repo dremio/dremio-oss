@@ -17,19 +17,6 @@ package com.dremio.dac.server;
 
 import static com.dremio.dac.server.ContextualizedResourceMethodInvocationHandlerProvider.USER_CONTEXT_ATTRIBUTE;
 
-import java.util.List;
-import java.util.Map;
-
-import javax.annotation.Priority;
-import javax.inject.Inject;
-import javax.ws.rs.NotAuthorizedException;
-import javax.ws.rs.Priorities;
-import javax.ws.rs.container.ContainerRequestContext;
-import javax.ws.rs.container.ContainerRequestFilter;
-import javax.ws.rs.container.ResourceInfo;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.ext.Provider;
-
 import com.dremio.common.collections.Tuple;
 import com.dremio.context.UserContext;
 import com.dremio.dac.annotations.Secured;
@@ -43,10 +30,19 @@ import com.dremio.service.users.User;
 import com.dremio.service.users.UserNotFoundException;
 import com.dremio.service.users.UserService;
 import com.google.common.base.Preconditions;
+import java.util.List;
+import java.util.Map;
+import javax.annotation.Priority;
+import javax.inject.Inject;
+import javax.ws.rs.NotAuthorizedException;
+import javax.ws.rs.Priorities;
+import javax.ws.rs.container.ContainerRequestContext;
+import javax.ws.rs.container.ContainerRequestFilter;
+import javax.ws.rs.container.ResourceInfo;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.ext.Provider;
 
-/**
- * Read cookie from request and validate it.
- */
+/** Read cookie from request and validate it. */
 @Secured
 @Provider
 @Priority(Priorities.AUTHENTICATION)
@@ -56,59 +52,59 @@ public class DACAuthFilter implements ContainerRequestFilter {
   @Inject private TokenManager tokenManager;
   @Inject private ResourceInfo resourceInfo;
 
-  public DACAuthFilter() {
-  }
+  public DACAuthFilter() {}
 
   @Override
   public void filter(ContainerRequestContext requestContext) {
     try {
       final UserName userName = getUserNameFromToken(requestContext);
       final User userConfig = userService.get().getUser(userName.getName());
-      requestContext.setSecurityContext(new DACSecurityContext(userName, userConfig, requestContext));
-      requestContext.setProperty(USER_CONTEXT_ATTRIBUTE, new UserContext(userConfig.getUID().getId()));
+      requestContext.setSecurityContext(
+          new DACSecurityContext(userName, userConfig, requestContext));
+      requestContext.setProperty(
+          USER_CONTEXT_ATTRIBUTE, new UserContext(userConfig.getUID().getId()));
     } catch (UserNotFoundException | NotAuthorizedException e) {
       requestContext.abortWith(Response.status(Response.Status.UNAUTHORIZED).build());
     }
   }
 
   /**
-   * If temporary access resource:
-   *   1. get temp token from query param and validate temp token
-   *   2. if not present fallback to header, then try validate temp token. If fails, fall back to validate token
-   * If not a temporary resource:
-   *   1. get token from auth header and validate token
+   * If temporary access resource: 1. get temp token from query param and validate temp token 2. if
+   * not present fallback to header, then try validate temp token. If fails, fall back to validate
+   * token If not a temporary resource: 1. get token from auth header and validate token
+   *
    * @param requestContext request-specific information
    * @return UserName
    * @throws NotAuthorizedException if validation fails
    */
-  protected UserName getUserNameFromToken(ContainerRequestContext requestContext) throws NotAuthorizedException {
+  protected UserName getUserNameFromToken(ContainerRequestContext requestContext)
+      throws NotAuthorizedException {
     final UserName userName;
     try {
       TokenDetails tokenDetails;
       final String uriPath = requestContext.getUriInfo().getRequestUri().getPath();
-      final Map<String, List<String>> queryParams = requestContext.getUriInfo().getQueryParameters();
-      if (resourceInfo.getResourceMethod() != null && resourceInfo.getResourceMethod().isAnnotationPresent(TemporaryAccess.class)) {
+      final Map<String, List<String>> queryParams =
+          requestContext.getUriInfo().getQueryParameters();
+      if (resourceInfo.getResourceMethod() != null
+          && resourceInfo.getResourceMethod().isAnnotationPresent(TemporaryAccess.class)) {
         String temporaryToken = TokenUtils.getTemporaryToken(requestContext);
         if (temporaryToken != null) {
-          tokenDetails = tokenManager.validateTemporaryToken(
-            temporaryToken,
-            uriPath,
-            queryParams);
+          tokenDetails = tokenManager.validateTemporaryToken(temporaryToken, uriPath, queryParams);
         } else {
-          final Tuple<TokenUtils.TokenType, String> tokenTuple = TokenUtils.getAuthHeaderToken(requestContext);
+          final Tuple<TokenUtils.TokenType, String> tokenTuple =
+              TokenUtils.getAuthHeaderToken(requestContext);
           Preconditions.checkArgument(tokenTuple != null);
           temporaryToken = tokenTuple.second;
           try {
-            tokenDetails = tokenManager.validateTemporaryToken(
-              temporaryToken,
-              uriPath,
-              queryParams);
+            tokenDetails =
+                tokenManager.validateTemporaryToken(temporaryToken, uriPath, queryParams);
           } catch (IllegalArgumentException e) {
             tokenDetails = tokenManager.validateToken(temporaryToken);
           }
         }
       } else {
-        final Tuple<TokenUtils.TokenType, String> tokenTuple = TokenUtils.getAuthHeaderToken(requestContext);
+        final Tuple<TokenUtils.TokenType, String> tokenTuple =
+            TokenUtils.getAuthHeaderToken(requestContext);
         Preconditions.checkArgument(tokenTuple != null);
         tokenDetails = tokenManager.validateToken(tokenTuple.second);
       }
@@ -120,5 +116,4 @@ public class DACAuthFilter implements ContainerRequestFilter {
       throw new NotAuthorizedException(e);
     }
   }
-
 }

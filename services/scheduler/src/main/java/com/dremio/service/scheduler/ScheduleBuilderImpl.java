@@ -18,6 +18,8 @@ package com.dremio.service.scheduler;
 import static com.dremio.service.scheduler.Schedule.Builder;
 import static com.dremio.service.scheduler.Schedule.ClusteredSingletonBuilder;
 
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
@@ -27,12 +29,7 @@ import java.time.temporal.Temporal;
 import java.time.temporal.TemporalAdjuster;
 import java.time.temporal.TemporalAmount;
 
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
-
-/**
- * Builder to create simple {@code Schedule} instances
- */
+/** Builder to create simple {@code Schedule} instances */
 final class ScheduleBuilderImpl implements Builder {
   private final TemporalAmount amount;
   private Instant start;
@@ -82,8 +79,7 @@ final class ScheduleBuilderImpl implements Builder {
   }
 
   /**
-   * Combine temporal adjusters by executing them sequentially.
-   * Order matters obviously...
+   * Combine temporal adjusters by executing them sequentially. Order matters obviously...
    *
    * @param adjusters the adjusters to combine
    * @return an adjuster
@@ -100,18 +96,17 @@ final class ScheduleBuilderImpl implements Builder {
   }
 
   /**
-   * A temporal adjuster which leaves the temporal untouched.
-   * In a Java8 world, this helper can probably be removed safely
-   * and replaced by identity
+   * A temporal adjuster which leaves the temporal untouched. In a Java8 world, this helper can
+   * probably be removed safely and replaced by identity
    */
   static final TemporalAdjuster NO_ADJUSTMENT = temporal -> temporal;
 
   /**
-   * Wraps an adjuster to round the temporal to the next period if the adjusted time is before
-   * the temporal instant.
+   * Wraps an adjuster to round the temporal to the next period if the adjusted time is before the
+   * temporal instant.
    *
-   * @param amount   the amount to add to the adjusted time if before the temporal argument of
-   *                 {@code TemporarlAdjuster#adjustInto()} is after the adjusted time
+   * @param amount the amount to add to the adjusted time if before the temporal argument of {@code
+   *     TemporarlAdjuster#adjustInto()} is after the adjusted time
    * @param adjuster the adjuster to wrap
    * @return an adjuster
    */
@@ -119,8 +114,8 @@ final class ScheduleBuilderImpl implements Builder {
     return temporal -> {
       Temporal adjusted = temporal.with(adjuster);
       return (ChronoUnit.NANOS.between(temporal, adjusted) >= 0)
-        ? adjusted
-        : temporal.plus(amount).with(adjuster);
+          ? adjusted
+          : temporal.plus(amount).with(adjuster);
     };
   }
 
@@ -135,7 +130,8 @@ final class ScheduleBuilderImpl implements Builder {
     ChronoField.DAY_OF_MONTH.checkValidIntValue(dayOfMonth);
 
     return temporal -> {
-      long adjustedDayOfMonth = Math.min(dayOfMonth, temporal.range(ChronoField.DAY_OF_MONTH).getMaximum());
+      long adjustedDayOfMonth =
+          Math.min(dayOfMonth, temporal.range(ChronoField.DAY_OF_MONTH).getMaximum());
       return temporal.with(ChronoField.DAY_OF_MONTH, adjustedDayOfMonth);
     };
   }
@@ -147,13 +143,12 @@ final class ScheduleBuilderImpl implements Builder {
    * @return interval
    */
   static int checkInterval(int interval) {
-    Preconditions.checkArgument(interval > 0, "interval should be greater than 0, was %s", interval);
+    Preconditions.checkArgument(
+        interval > 0, "interval should be greater than 0, was %s", interval);
     return interval;
   }
 
-  /**
-   * The following methods are only for package local builders
-   */
+  /** The following methods are only for package local builders */
   void setZoneId(ZoneId zoneId) {
     this.zoneId = zoneId;
   }
@@ -177,5 +172,4 @@ final class ScheduleBuilderImpl implements Builder {
   ZoneId getZoneId() {
     return zoneId;
   }
-
 }

@@ -29,7 +29,7 @@ type CursorRelativePosition =
 export function isInComment(
   queryPosition: CursorQueryPosition,
   tokens: Token[],
-  lexerMode: number
+  lexerMode: number,
 ): boolean {
   for (const token of tokens) {
     const relativePosition = cursorRelativePosition(queryPosition, token);
@@ -47,7 +47,7 @@ export function isInComment(
 
 function isMultiLineCommentToken(
   tokenType: number,
-  lexerMode: number
+  lexerMode: number,
 ): boolean {
   return (
     // If we are after an unclosed multiline comment (e.g. /*  ^EOF) we need to check
@@ -64,7 +64,7 @@ function isSingleLineCommentToken(tokenType: number): boolean {
 
 function cursorRelativePosition(
   queryPosition: CursorQueryPosition,
-  token: Token
+  token: Token,
 ): CursorRelativePosition {
   const tokenTextLines: string[] = token.text?.split("\n") || [];
   if (tokenTextLines[tokenTextLines.length - 1] == "") {

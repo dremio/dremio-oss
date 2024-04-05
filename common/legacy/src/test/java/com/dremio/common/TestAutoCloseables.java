@@ -21,12 +21,9 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.io.IOException;
-
 import org.junit.Test;
 
-/**
- * Tests for {@link AutoCloseables}
- */
+/** Tests for {@link AutoCloseables} */
 public class TestAutoCloseables {
   @Test
   public void testClose() {
@@ -37,11 +34,10 @@ public class TestAutoCloseables {
 
     try {
       AutoCloseables.close(
-        () -> r1.closeWithException(new IOException("R1 exception")),
-        () -> r2.closeWithException(null),
-        () -> r3.closeWithException(new RuntimeException("R3 exception")),
-        () -> r4.closeWithException(null)
-      );
+          () -> r1.closeWithException(new IOException("R1 exception")),
+          () -> r2.closeWithException(null),
+          () -> r3.closeWithException(new RuntimeException("R3 exception")),
+          () -> r4.closeWithException(null));
 
       fail("Expected exception");
     } catch (Exception e) {
@@ -54,30 +50,30 @@ public class TestAutoCloseables {
   public void testCloseWithExpectedException() throws IOException {
     Resource r1 = new Resource();
     Resource r2 = new Resource();
-    AutoCloseables.close(IOException.class,
-      () -> r1.closeWithException(new IOException("R1 exception")),
-      () -> r2.closeWithException(new RuntimeException("R3 exception"))
-    );
+    AutoCloseables.close(
+        IOException.class,
+        () -> r1.closeWithException(new IOException("R1 exception")),
+        () -> r2.closeWithException(new RuntimeException("R3 exception")));
   }
 
   @Test(expected = RuntimeException.class)
   public void testCloseWithExpectedRuntimeException() throws IOException {
     Resource r1 = new Resource();
     Resource r2 = new Resource();
-    AutoCloseables.close(IOException.class,
-      () -> r1.closeWithException(new RuntimeException("R1 exception")),
-      () -> r2.closeWithException(new IOException("R3 exception"))
-    );
+    AutoCloseables.close(
+        IOException.class,
+        () -> r1.closeWithException(new RuntimeException("R1 exception")),
+        () -> r2.closeWithException(new IOException("R3 exception")));
   }
 
   @Test(expected = IOException.class)
   public void testCloseWithExpectedWrappedException() throws IOException {
     Resource r1 = new Resource();
     Resource r2 = new Resource();
-    AutoCloseables.close(IOException.class,
-      () -> r1.closeWithException(new Exception("R1 exception")),
-      () -> r2.closeWithException(new Exception("R3 exception"))
-    );
+    AutoCloseables.close(
+        IOException.class,
+        () -> r1.closeWithException(new Exception("R1 exception")),
+        () -> r2.closeWithException(new Exception("R3 exception")));
   }
 
   private final class Resource {

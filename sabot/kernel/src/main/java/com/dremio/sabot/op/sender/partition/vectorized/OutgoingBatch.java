@@ -15,14 +15,6 @@
  */
 package com.dremio.sabot.op.sender.partition.vectorized;
 
-import java.util.List;
-
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.FieldVector;
-import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.VarBinaryVector;
-import org.apache.arrow.vector.VarCharVector;
-
 import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.physical.config.HashPartitionSender;
 import com.dremio.exec.proto.ExecProtos;
@@ -37,12 +29,17 @@ import com.dremio.sabot.op.sender.SenderLatencyTracker;
 import com.dremio.sabot.op.sender.partition.PartitionSenderOperator.Metric;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+import java.util.List;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.VarBinaryVector;
+import org.apache.arrow.vector.VarCharVector;
 
 /**
  * Manages one outgoing receiver:<br>
- * Copy is done in 2 consecutive batches (A and B) so that we can delay flushing
- * until the end of a copy pass.
- * Handles batch flushing and vector allocations
+ * Copy is done in 2 consecutive batches (A and B) so that we can delay flushing until the end of a
+ * copy pass. Handles batch flushing and vector allocations
  */
 public class OutgoingBatch extends VectorContainer {
   private final AccountingExecTunnel tunnel;
@@ -63,15 +60,26 @@ public class OutgoingBatch extends VectorContainer {
 
   /** tracks how many rows will be copied in current pass */
   private int preCopyIdx;
+
   /** true if receiver finished */
   private volatile boolean dropAll;
+
   private final SenderLatencyTracker senderLatencyTracker;
 
-  OutgoingBatch(int batchIdx, int nextBatchIdx, int maxRecords, final VectorAccessible incoming,
-                BufferAllocator allocator, AccountingExecTunnel tunnel, HashPartitionSender config,
-                OperatorContext context, int oppositeMinorFragmentId, OperatorStats stats,
-                SenderLatencyTracker senderLatencyTracker) {
-    Preconditions.checkArgument(maxRecords <= Character.MAX_VALUE, "maxRecords cannot exceed " + Character.MAX_VALUE);
+  OutgoingBatch(
+      int batchIdx,
+      int nextBatchIdx,
+      int maxRecords,
+      final VectorAccessible incoming,
+      BufferAllocator allocator,
+      AccountingExecTunnel tunnel,
+      HashPartitionSender config,
+      OperatorContext context,
+      int oppositeMinorFragmentId,
+      OperatorStats stats,
+      SenderLatencyTracker senderLatencyTracker) {
+    Preconditions.checkArgument(
+        maxRecords <= Character.MAX_VALUE, "maxRecords cannot exceed " + Character.MAX_VALUE);
     this.batchIdx = batchIdx;
     this.nextBatchIdx = nextBatchIdx;
     this.maxRecords = maxRecords;
@@ -136,22 +144,24 @@ public class OutgoingBatch extends VectorContainer {
     assert preCopyIdx >= 0 && preCopyIdx < maxRecords : "invalid preCopyIdx: " + preCopyIdx;
 
     preCopyIdx++;
-    return (batchIdx << 16) | (preCopyIdx-1);
+    return (batchIdx << 16) | (preCopyIdx - 1);
   }
 
-  /**
-   * Receiver finished. Do not send anymore batches
-   */
+  /** Receiver finished. Do not send anymore batches */
   void terminate() {
     dropAll = true;
   }
 
   public void flush() {
     if (dropAll) {
-      // If we are in dropAll mode, we still want to copy the data, because we can't stop copying a single outgoing
-      // batch with out stopping all outgoing batches. Other option is check for status of dropAll before copying
-      // every single record in copy method which has the overhead for every record all the time. Resetting the output
-      // count, reusing the same buffers and copying has overhead only for outgoing batches whose receiver has
+      // If we are in dropAll mode, we still want to copy the data, because we can't stop copying a
+      // single outgoing
+      // batch with out stopping all outgoing batches. Other option is check for status of dropAll
+      // before copying
+      // every single record in copy method which has the overhead for every record all the time.
+      // Resetting the output
+      // count, reusing the same buffers and copying has overhead only for outgoing batches whose
+      // receiver has
       // terminated.
       preCopyIdx = 0;
       return;
@@ -175,13 +185,14 @@ public class OutgoingBatch extends VectorContainer {
     }
 
     final ExecProtos.FragmentHandle handle = context.getFragmentHandle();
-    FragmentWritableBatch writableBatch = FragmentWritableBatch.create(
-      handle.getQueryId(),
-      handle.getMajorFragmentId(),
-      handle.getMinorFragmentId(),
-      config.getReceiverMajorFragmentId(),
-      this,
-      oppositeMinorFragmentId);
+    FragmentWritableBatch writableBatch =
+        FragmentWritableBatch.create(
+            handle.getQueryId(),
+            handle.getMajorFragmentId(),
+            handle.getMinorFragmentId(),
+            config.getReceiverMajorFragmentId(),
+            this,
+            oppositeMinorFragmentId);
 
     updateStats(writableBatch);
 

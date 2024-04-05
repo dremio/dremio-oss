@@ -15,9 +15,6 @@
  */
 package com.dremio.common.logical.data;
 
-import java.util.Collection;
-import java.util.List;
-
 import com.dremio.common.graph.GraphValue;
 import com.dremio.common.logical.ValidationError;
 import com.dremio.common.logical.data.visitors.LogicalVisitor;
@@ -27,6 +24,8 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import java.util.Collection;
+import java.util.List;
 
 @JsonPropertyOrder({"@id", "memo", "input"}) // op will always be first since it is wrapped.
 @JsonIdentityInfo(generator = ObjectIdGenerators.IntSequenceGenerator.class, property = "@id")
@@ -41,7 +40,8 @@ public interface LogicalOperator extends GraphValue<LogicalOperator> {
    * @param logicalVisitor
    * @return
    */
-  public <T, X, E extends Throwable> T accept(LogicalVisitor<T, X, E> logicalVisitor, X value) throws E;
+  public <T, X, E extends Throwable> T accept(LogicalVisitor<T, X, E> logicalVisitor, X value)
+      throws E;
 
   public void registerAsSubscriber(LogicalOperator operator);
 

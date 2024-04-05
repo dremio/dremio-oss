@@ -15,13 +15,14 @@
  */
 package com.dremio.exec.planner.logical;
 
+import com.dremio.exec.planner.common.MoreRelOptUtil;
+import com.google.common.collect.ImmutableList;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Collectors;
-
 import org.apache.calcite.linq4j.Ord;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
@@ -40,15 +41,13 @@ import org.apache.calcite.tools.RelBuilder.GroupKey;
 import org.apache.calcite.tools.RelBuilderFactory;
 import org.apache.calcite.util.ImmutableBitSet;
 
-import com.dremio.exec.planner.common.MoreRelOptUtil;
-import com.google.common.collect.ImmutableList;
-
-
 public class RollupWithBridgeExchangeRule extends RelOptRule {
   public static final RelOptRule INSTANCE = new RollupWithBridgeExchangeRule();
   private final RelBuilderFactory factory;
+
   public RollupWithBridgeExchangeRule() {
-    super(RelOptHelper.some(AggregateRel.class, RelOptHelper.any(RelNode.class)), "GroupingSetsRule");
+    super(
+        RelOptHelper.some(AggregateRel.class, RelOptHelper.any(RelNode.class)), "GroupingSetsRule");
     this.factory = DremioRelFactories.LOGICAL_BUILDER;
   }
 
@@ -56,13 +55,14 @@ public class RollupWithBridgeExchangeRule extends RelOptRule {
   public boolean matches(RelOptRuleCall call) {
     Aggregate agg = call.rel(0);
     if (agg.getGroupSets() == null || agg.getGroupSets().size() <= 1) {
-    return false;
+      return false;
     }
     if (!isRollup(agg.getGroupSets())) {
       return false;
     }
     return true;
   }
+
   @Override
   public void onMatch(RelOptRuleCall call) {
     Aggregate agg = call.rel(0);
@@ -81,20 +81,28 @@ public class RollupWithBridgeExchangeRule extends RelOptRule {
       ImmutableBitSet groupSet = groupSetIterator.next();
       aggregate(groupSet, agg, relBuilder, false, groupCount);
       groupCount = groupSet.cardinality();
-      BridgeExchangeRel bridge = new BridgeExchangeRel(agg.getCluster(), agg.getTraitSet(), relBuilder.build(), id);
+      BridgeExchangeRel bridge =
+          new BridgeExchangeRel(agg.getCluster(), agg.getTraitSet(), relBuilder.build(), id);
       bridgeRowType = bridge.getRowType();
       relBuilder.push(bridge);
       project(agg, agg.getGroupSet(), agg.getCluster().getRexBuilder(), relBuilder);
     }
     while (groupSetIterator.hasNext()) {
-      BridgeReaderRel bridgeReader = new BridgeReaderRel(agg.getCluster(), agg.getTraitSet(), bridgeRowType, relBuilder.peek().estimateRowCount(mq), id);
+      BridgeReaderRel bridgeReader =
+          new BridgeReaderRel(
+              agg.getCluster(),
+              agg.getTraitSet(),
+              bridgeRowType,
+              relBuilder.peek().estimateRowCount(mq),
+              id);
       relBuilder.push(bridgeReader);
       ImmutableBitSet groupSet = groupSetIterator.next();
       aggregate(groupSet, agg, relBuilder, true, groupCount);
       groupCount = groupSet.cardinality();
       if (groupSetIterator.hasNext()) {
         id = Long.toHexString(System.nanoTime());
-        BridgeExchangeRel bridge = new BridgeExchangeRel(agg.getCluster(), agg.getTraitSet(), relBuilder.build(), id);
+        BridgeExchangeRel bridge =
+            new BridgeExchangeRel(agg.getCluster(), agg.getTraitSet(), relBuilder.build(), id);
         bridgeRowType = bridge.getRowType();
         relBuilder.push(bridge);
       }
@@ -109,7 +117,7 @@ public class RollupWithBridgeExchangeRule extends RelOptRule {
     if (groupSets.size() <= 1) {
       return false;
     }
-    for (int i  = 1; i < groupSets.size(); i++) {
+    for (int i = 1; i < groupSets.size(); i++) {
       ImmutableBitSet s1 = groupSets.get(i - 1);
       ImmutableBitSet s2 = groupSets.get(i);
       if (!s1.contains(s2)) {
@@ -118,42 +126,55 @@ public class RollupWithBridgeExchangeRule extends RelOptRule {
     }
     return true;
   }
+
   public static boolean isGrouping(AggregateCall call) {
-    return call.getAggregation().getKind() == SqlKind.GROUPING_ID || call.getAggregation().getKind() == SqlKind.GROUPING;
-  }
-  private static List<AggregateCall> transformAggCalls(List<AggregateCall> calls, boolean transform, int offset) {
-    List<AggregateCall> groupingRemoved = calls.stream().filter(c -> !isGrouping(c)).collect(Collectors.toList());
-    return Ord.zip(groupingRemoved).stream()
-      .map(call -> {
-        AggregateCall c = call.e;
-        SqlAggFunction func = c.getAggregation();
-        if (transform && c.getAggregation().getKind() == SqlKind.COUNT) {
-          func = SqlStdOperatorTable.SUM0;
-        }
-        List<Integer> args;
-        if (transform) {
-          args = Collections.singletonList(offset + call.i);
-        } else {
-          args = c.getArgList();
-        }
-        return AggregateCall.create(
-          func,
-          c.isDistinct(),
-          c.isApproximate(),
-          args,
-          c.filterArg,
-          c.collation,
-          c.getType(),
-          c.getName());
-      })
-      .collect(Collectors.toList());
+    return call.getAggregation().getKind() == SqlKind.GROUPING_ID
+        || call.getAggregation().getKind() == SqlKind.GROUPING;
   }
 
-  private static void aggregate(ImmutableBitSet groupSet, Aggregate agg, RelBuilder relBuilder, boolean transform, int groupCount) {
+  private static List<AggregateCall> transformAggCalls(
+      List<AggregateCall> calls, boolean transform, int offset) {
+    List<AggregateCall> groupingRemoved =
+        calls.stream().filter(c -> !isGrouping(c)).collect(Collectors.toList());
+    return Ord.zip(groupingRemoved).stream()
+        .map(
+            call -> {
+              AggregateCall c = call.e;
+              SqlAggFunction func = c.getAggregation();
+              if (transform && c.getAggregation().getKind() == SqlKind.COUNT) {
+                func = SqlStdOperatorTable.SUM0;
+              }
+              List<Integer> args;
+              if (transform) {
+                args = Collections.singletonList(offset + call.i);
+              } else {
+                args = c.getArgList();
+              }
+              return AggregateCall.create(
+                  func,
+                  c.isDistinct(),
+                  c.isApproximate(),
+                  args,
+                  c.filterArg,
+                  c.collation,
+                  c.getType(),
+                  c.getName());
+            })
+        .collect(Collectors.toList());
+  }
+
+  private static void aggregate(
+      ImmutableBitSet groupSet,
+      Aggregate agg,
+      RelBuilder relBuilder,
+      boolean transform,
+      int groupCount) {
     GroupKey groupKey = relBuilder.groupKey(groupSet);
     relBuilder.aggregate(groupKey, transformAggCalls(agg.getAggCallList(), transform, groupCount));
   }
-  private static void project(Aggregate agg, ImmutableBitSet groupSet, RexBuilder rexBuilder, RelBuilder relBuilder) {
+
+  private static void project(
+      Aggregate agg, ImmutableBitSet groupSet, RexBuilder rexBuilder, RelBuilder relBuilder) {
     List<RexNode> projects = new ArrayList<>();
     for (int i = 0; i < agg.getGroupSet().cardinality(); i++) {
       if (groupSet.get(i)) {
@@ -170,7 +191,9 @@ public class RollupWithBridgeExchangeRule extends RelOptRule {
         long grouping = grouping(agg.getAggCallList().get(i), groupSet);
         projects.add(rexBuilder.makeBigintLiteral(BigDecimal.valueOf(grouping)));
       } else {
-        projects.add(new RexInputRef(inputRef, agg.getRowType().getFieldList().get(aggGroupSetSize + i).getType()));
+        projects.add(
+            new RexInputRef(
+                inputRef, agg.getRowType().getFieldList().get(aggGroupSetSize + i).getType()));
         inputRef++;
       }
     }

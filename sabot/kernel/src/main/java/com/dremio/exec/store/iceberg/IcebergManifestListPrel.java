@@ -15,25 +15,11 @@
  */
 package com.dremio.exec.store.iceberg;
 
-import java.io.IOException;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Optional;
-
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.AbstractRelNode;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.RelWriter;
-import org.apache.calcite.rel.metadata.RelMetadataQuery;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.iceberg.expressions.Expression;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.ops.SnapshotDiffContext;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.planner.common.ScanRelBase;
+import com.dremio.exec.planner.common.TableMetadataConsumer;
 import com.dremio.exec.planner.fragment.DistributionAffinity;
 import com.dremio.exec.planner.physical.LeafPrel;
 import com.dremio.exec.planner.physical.PhysicalPlanCreator;
@@ -46,132 +32,177 @@ import com.dremio.options.TypeValidators;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.IcebergMetadata;
 import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
+import java.io.IOException;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Optional;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.AbstractRelNode;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.RelWriter;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.iceberg.expressions.Expression;
 
-/**
- * Iceberg manifest list reader prel
- */
+/** Iceberg manifest list reader prel */
 @Options
-public class IcebergManifestListPrel extends AbstractRelNode  implements LeafPrel {
+public class IcebergManifestListPrel extends AbstractRelNode
+    implements LeafPrel, TableMetadataConsumer {
 
-    public static final TypeValidators.LongValidator RESERVE = new TypeValidators.PositiveLongValidator("planner.op.scan.iceberg.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
-    public static final TypeValidators.LongValidator LIMIT = new TypeValidators.PositiveLongValidator("planner.op.scan.iceberg.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
+  public static final TypeValidators.LongValidator RESERVE =
+      new TypeValidators.PositiveLongValidator(
+          "planner.op.scan.iceberg.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
+  public static final TypeValidators.LongValidator LIMIT =
+      new TypeValidators.PositiveLongValidator(
+          "planner.op.scan.iceberg.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
 
-    protected final TableMetadata tableMetadata;
-    private final BatchSchema schema;
-    private final List<SchemaPath> projectedColumns;
-    private final RelDataType relDataType;
-    private final Expression icebergExpression;
-    private final ManifestContentType manifestContent;
+  protected final TableMetadata tableMetadata;
+  private final BatchSchema schema;
+  private final List<SchemaPath> projectedColumns;
+  private final RelDataType relDataType;
+  private final Expression icebergExpression;
+  private final ManifestContentType manifestContent;
 
-    public IcebergManifestListPrel(
-        RelOptCluster cluster,
-        RelTraitSet traitSet,
-        TableMetadata tableMetadata,
-        BatchSchema schema,
-        List<SchemaPath> projectedColumns,
-        RelDataType relDataType,
-        Expression icebergExpression,
-        ManifestContentType manifestContent) {
+  public IcebergManifestListPrel(
+      RelOptCluster cluster,
+      RelTraitSet traitSet,
+      TableMetadata tableMetadata,
+      BatchSchema schema,
+      List<SchemaPath> projectedColumns,
+      RelDataType relDataType,
+      Expression icebergExpression,
+      ManifestContentType manifestContent) {
 
-        super(cluster, traitSet);
-        this.tableMetadata = tableMetadata;
-        this.schema = schema;
-        this.projectedColumns = projectedColumns;
-        this.relDataType = relDataType;
-        this.icebergExpression = icebergExpression;
-        this.manifestContent = manifestContent;
-    }
+    super(cluster, traitSet);
+    this.tableMetadata = tableMetadata;
+    this.schema = schema;
+    this.projectedColumns = projectedColumns;
+    this.relDataType = relDataType;
+    this.icebergExpression = icebergExpression;
+    this.manifestContent = manifestContent;
+  }
 
-    @Override
-    public double estimateRowCount(RelMetadataQuery mq) {
-      return 1;
-    }
+  @Override
+  public double estimateRowCount(RelMetadataQuery mq) {
+    return 1;
+  }
 
-    @Override
-    public Iterator<Prel> iterator() {
-        return Collections.emptyIterator();
-    }
+  @Override
+  public Iterator<Prel> iterator() {
+    return Collections.emptyIterator();
+  }
 
-    @Override
-    public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
-        return new IcebergGroupScan(
-            creator.props(this, tableMetadata.getUser(), schema, RESERVE, LIMIT),
-            tableMetadata,
-            projectedColumns,
-            icebergExpression,
-            manifestContent);
-    }
+  @Override
+  public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
+    return new IcebergGroupScan(
+        creator.props(this, tableMetadata.getUser(), schema, RESERVE, LIMIT),
+        tableMetadata,
+        projectedColumns,
+        icebergExpression,
+        manifestContent);
+  }
 
-    @Override
-    public Prel copy(RelTraitSet traitSet, List<RelNode> inputs) {
-        return new IcebergManifestListPrel(getCluster(), getTraitSet(), tableMetadata, schema, projectedColumns,
-            relDataType, icebergExpression, manifestContent);
-    }
+  @Override
+  public Prel copy(RelTraitSet traitSet, List<RelNode> inputs) {
+    return new IcebergManifestListPrel(
+        getCluster(),
+        getTraitSet(),
+        tableMetadata,
+        schema,
+        projectedColumns,
+        relDataType,
+        icebergExpression,
+        manifestContent);
+  }
 
-    @Override
-    protected Object clone() throws CloneNotSupportedException {
-        return super.clone();
-    }
+  @Override
+  protected Object clone() throws CloneNotSupportedException {
+    return super.clone();
+  }
 
-    @Override
-    public <T, X, E extends Throwable> T accept(PrelVisitor<T, X, E> logicalVisitor, X value) throws E {
-        return logicalVisitor.visitLeaf(this, value);
-    }
+  @Override
+  public <T, X, E extends Throwable> T accept(PrelVisitor<T, X, E> logicalVisitor, X value)
+      throws E {
+    return logicalVisitor.visitLeaf(this, value);
+  }
 
-    @Override
-    public BatchSchema.SelectionVectorMode[] getSupportedEncodings() {
-        return BatchSchema.SelectionVectorMode.DEFAULT;
-    }
+  @Override
+  public BatchSchema.SelectionVectorMode[] getSupportedEncodings() {
+    return BatchSchema.SelectionVectorMode.DEFAULT;
+  }
 
-    @Override
-    public BatchSchema.SelectionVectorMode getEncoding() {
-        return BatchSchema.SelectionVectorMode.NONE;
-    }
+  @Override
+  public BatchSchema.SelectionVectorMode getEncoding() {
+    return BatchSchema.SelectionVectorMode.NONE;
+  }
 
-    @Override
-    public boolean needsFinalColumnReordering() {
-        return false;
-    }
+  @Override
+  public boolean needsFinalColumnReordering() {
+    return false;
+  }
 
-    @Override
-    public int getMaxParallelizationWidth() {
-        // read manifest list file using single thread
-        return 1;
-    }
+  @Override
+  public int getMaxParallelizationWidth() {
+    // read manifest list file using single thread
+    return 1;
+  }
 
-    @Override
-    public int getMinParallelizationWidth() {
-        return 1;
-    }
+  @Override
+  public int getMinParallelizationWidth() {
+    return 1;
+  }
 
-    @Override
-    public DistributionAffinity getDistributionAffinity() {
-        return DistributionAffinity.NONE;
-    }
+  @Override
+  public DistributionAffinity getDistributionAffinity() {
+    return DistributionAffinity.NONE;
+  }
 
-    @Override
-    protected RelDataType deriveRowType() {
-        return relDataType;
-    }
+  @Override
+  protected RelDataType deriveRowType() {
+    return relDataType;
+  }
 
   @Override
   public RelWriter explainTerms(RelWriter pw) {
-    pw = ScanRelBase.explainScanRel(pw, tableMetadata, projectedColumns, 1.0, SnapshotDiffContext.NO_SNAPSHOT_DIFF);
+    pw =
+        ScanRelBase.explainScanRel(
+            pw, tableMetadata, projectedColumns, 1.0, SnapshotDiffContext.NO_SNAPSHOT_DIFF);
 
     /* To avoid NPE in the method chain Optional is used*/
-    Optional<String> metadataLocation = Optional.ofNullable(tableMetadata.getDatasetConfig())
-      .map(DatasetConfig::getPhysicalDataset)
-      .map(PhysicalDataset::getIcebergMetadata)
-      .map(IcebergMetadata::getMetadataFileLocation);
+    Optional<String> metadataLocation =
+        Optional.ofNullable(tableMetadata.getDatasetConfig())
+            .map(DatasetConfig::getPhysicalDataset)
+            .map(PhysicalDataset::getIcebergMetadata)
+            .map(IcebergMetadata::getMetadataFileLocation);
 
-      if (metadataLocation.isPresent()) {
-          pw.item("metadataFileLocation", metadataLocation.get());
-      }
-      if (icebergExpression != null) {
-          pw.item("ManifestList Filter Expression ", icebergExpression.toString());
-      }
-      pw.item("manifestContent", manifestContent);
+    if (metadataLocation.isPresent()) {
+      pw.item("metadataFileLocation", metadataLocation.get());
+    }
+    if (icebergExpression != null) {
+      pw.item("ManifestList Filter Expression ", icebergExpression.toString());
+    }
+    pw.item("manifestContent", manifestContent);
 
-      return pw;
+    return pw;
+  }
+
+  @Override
+  public TableMetadata getTableMetadata() {
+    return tableMetadata;
+  }
+
+  @Override
+  public TableMetadataConsumer applyTableMetadata(TableMetadata tableMetadata) {
+    return new IcebergManifestListPrel(
+        getCluster(),
+        traitSet,
+        tableMetadata,
+        schema,
+        projectedColumns,
+        relDataType,
+        icebergExpression,
+        manifestContent);
   }
 }

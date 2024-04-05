@@ -15,9 +15,7 @@
  */
 package com.dremio.exec.store.iceberg.model;
 
-/**
- * Type of the Iceberg command
- */
+/** Type of the Iceberg command */
 public enum IcebergCommandType {
   CREATE, // create a table
   INSERT, // Insert into a table
@@ -31,5 +29,5 @@ public enum IcebergCommandType {
   PARTIAL_METADATA_REFRESH, // incrementally refresh partitions
   OPTIMIZE, // Optimize Iceberg Table
   ROLLBACK, // Rollback a table
-  VACUUM    // Vacuum a table
+  VACUUM // Vacuum a table
 }

@@ -15,30 +15,32 @@
  */
 package com.dremio.sabot.memory;
 
-import java.util.List;
-
 import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.sabot.op.spi.Operator;
+import java.util.List;
 
 /**
- * Tasks managed by the MemoryArbiter should implement this interface. This
- * interface contains methods that the MemoryArbiter needs to manage tasks
+ * Tasks managed by the MemoryArbiter should implement this interface. This interface contains
+ * methods that the MemoryArbiter needs to manage tasks
  */
 public interface MemoryArbiterTask {
   /**
    * Obtains a unique taskId for each task
+   *
    * @return
    */
   String getTaskId();
 
   /**
    * Returns the memory used by the task
+   *
    * @return
    */
   long getUsedMemory();
 
   /**
    * Returns the memory grant in bytes assigned to this task
+   *
    * @return
    */
   long getMemoryGrant();
@@ -51,8 +53,8 @@ public interface MemoryArbiterTask {
   void setMemoryGrant(long memoryGrantInBytes);
 
   /**
-   * @return Return a non-empty list shrinkable operators associated with this task.
-   * If there are no shrinkable operators, return an empty list
+   * @return Return a non-empty list shrinkable operators associated with this task. If there are no
+   *     shrinkable operators, return an empty list
    */
   List<MemoryTaskAndShrinkableOperator> getShrinkableOperators();
 
@@ -60,10 +62,12 @@ public interface MemoryArbiterTask {
    * Request the shrinkable operator to shrink memory usage
    *
    * @param shrinkableOperator The operator that needs to shrink memory usage
-   * @param currentShrinkableMemory The amount of shrinkable memory reported by the shrinkable operator
+   * @param currentShrinkableMemory The amount of shrinkable memory reported by the shrinkable
+   *     operator
    * @throws Exception
    */
-  void shrinkMemory(Operator.ShrinkableOperator shrinkableOperator, long currentShrinkableMemory) throws Exception;
+  void shrinkMemory(Operator.ShrinkableOperator shrinkableOperator, long currentShrinkableMemory)
+      throws Exception;
 
   /**
    * Returns true if the shrinkable operator is already shrinking memory
@@ -75,21 +79,17 @@ public interface MemoryArbiterTask {
     return false;
   }
 
-  /**
-   * This task is blocked on memory
-   */
-  default void blockOnMemory() {
-  }
+  /** This task is blocked on memory */
+  default void blockOnMemory() {}
 
-  /**
-   * Memory may be available and this task is now unblocked
-   */
-  default void unblockOnMemory() {
-  }
+  /** Memory may be available and this task is now unblocked */
+  default void unblockOnMemory() {}
 
   default long getBlockedOnMemoryStartTime() {
     return 0;
   }
 
-  default QueryId getQueryId() { return null; }
+  default QueryId getQueryId() {
+    return null;
+  }
 }

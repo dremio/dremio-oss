@@ -15,16 +15,15 @@
  */
 package com.dremio.exec.expr.fn.impl;
 
-import org.apache.arrow.vector.holders.NullableBigIntHolder;
-import org.apache.arrow.vector.holders.NullableFloat4Holder;
-import org.apache.arrow.vector.holders.NullableFloat8Holder;
-import org.apache.arrow.vector.holders.NullableIntHolder;
-
 import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.FunctionTemplate.FunctionScope;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
+import org.apache.arrow.vector.holders.NullableBigIntHolder;
+import org.apache.arrow.vector.holders.NullableFloat4Holder;
+import org.apache.arrow.vector.holders.NullableFloat8Holder;
+import org.apache.arrow.vector.holders.NullableIntHolder;
 
 /*
  * Class contains hash64 function definitions for different data types.
@@ -35,17 +34,17 @@ import com.dremio.exec.expr.annotations.Param;
  * to hash to the same node, this is why we cast all numeric values to double before performing the actual hash.
  */
 public class Hash64AsDouble {
-  @FunctionTemplate(name = "hash64AsDouble", scope = FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.INTERNAL)
+  @FunctionTemplate(
+      name = "hash64AsDouble",
+      scope = FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.INTERNAL)
   public static class NullableFloatHash implements SimpleFunction {
 
-    @Param
-    NullableFloat4Holder in;
-    @Output
-    NullableBigIntHolder out;
+    @Param NullableFloat4Holder in;
+    @Output NullableBigIntHolder out;
 
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
     public void eval() {
@@ -58,17 +57,17 @@ public class Hash64AsDouble {
     }
   }
 
-  @FunctionTemplate(name = "hash64AsDouble", scope = FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.INTERNAL)
+  @FunctionTemplate(
+      name = "hash64AsDouble",
+      scope = FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.INTERNAL)
   public static class NullableDoubleHash implements SimpleFunction {
 
-    @Param
-    NullableFloat8Holder in;
-    @Output
-    NullableBigIntHolder out;
+    @Param NullableFloat8Holder in;
+    @Output NullableBigIntHolder out;
 
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
     public void eval() {
@@ -81,17 +80,17 @@ public class Hash64AsDouble {
     }
   }
 
-  @FunctionTemplate(name = "hash64AsDouble", scope = FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.INTERNAL)
+  @FunctionTemplate(
+      name = "hash64AsDouble",
+      scope = FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.INTERNAL)
   public static class NullableBigIntHash implements SimpleFunction {
 
-    @Param
-    NullableBigIntHolder in;
-    @Output
-    NullableBigIntHolder out;
+    @Param NullableBigIntHolder in;
+    @Output NullableBigIntHolder out;
 
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
     public void eval() {
@@ -104,16 +103,16 @@ public class Hash64AsDouble {
     }
   }
 
-  @FunctionTemplate(name = "hash64AsDouble", scope = FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.INTERNAL)
+  @FunctionTemplate(
+      name = "hash64AsDouble",
+      scope = FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.INTERNAL)
   public static class NullableIntHash implements SimpleFunction {
-    @Param
-    NullableIntHolder in;
-    @Output
-    NullableBigIntHolder out;
+    @Param NullableIntHolder in;
+    @Output NullableBigIntHolder out;
 
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
     public void eval() {
@@ -125,5 +124,4 @@ public class Hash64AsDouble {
       }
     }
   }
-
 }

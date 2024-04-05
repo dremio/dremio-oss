@@ -15,22 +15,19 @@
  */
 package com.dremio.context;
 
+import com.google.common.collect.ImmutableMap;
+import io.grpc.Metadata;
 import java.util.Map;
 import java.util.UUID;
 
-import com.google.common.collect.ImmutableMap;
-
-import io.grpc.Metadata;
-
-/**
- * A context representing the active Catalog.
- */
+/** A context representing the active Catalog. */
 public class CatalogContext implements SerializableContext {
-  public static final RequestContext.Key<CatalogContext> CTX_KEY = RequestContext.newKey("catalog_ctx_key");
+  public static final RequestContext.Key<CatalogContext> CTX_KEY =
+      RequestContext.newKey("catalog_ctx_key");
   public static final String DEFAULT_SERVICE_CATALOG_ID = "0a41079c-920c-4a28-aae7-21ed5ad440a6";
 
   public static final Metadata.Key<String> CATALOG_ID_HEADER_KEY =
-    Metadata.Key.of("x-dremio-catalog-id-key", Metadata.ASCII_STRING_MARSHALLER);
+      Metadata.Key.of("x-dremio-catalog-id-key", Metadata.ASCII_STRING_MARSHALLER);
 
   private final UUID catalogId;
 
@@ -52,8 +49,7 @@ public class CatalogContext implements SerializableContext {
     public RequestContext deserialize(final Map<String, String> headers, RequestContext builder) {
       if (headers.containsKey(CATALOG_ID_HEADER_KEY.name())) {
         return builder.with(
-          CatalogContext.CTX_KEY,
-          new CatalogContext(headers.get(CATALOG_ID_HEADER_KEY.name())));
+            CatalogContext.CTX_KEY, new CatalogContext(headers.get(CATALOG_ID_HEADER_KEY.name())));
       }
 
       return builder;

@@ -15,10 +15,6 @@
  */
 package com.dremio.exec.planner.logical;
 
-import java.util.Collection;
-import java.util.Map;
-import java.util.Set;
-
 import com.dremio.common.expression.CaseExpression;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.SchemaPath;
@@ -43,28 +39,34 @@ import com.dremio.common.logical.data.visitors.AbstractLogicalVisitor;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import java.util.Collection;
+import java.util.Map;
+import java.util.Set;
 
 /**
- * This visitor will walk a logical plan and record in a map the list of field references associated to each scan. These
- * can then be used to update scan object to appear to be explicitly fielded for optimization purposes.
+ * This visitor will walk a logical plan and record in a map the list of field references associated
+ * to each scan. These can then be used to update scan object to appear to be explicitly fielded for
+ * optimization purposes.
  */
-public class ScanFieldDeterminer extends AbstractLogicalVisitor<Void, ScanFieldDeterminer.FieldList, RuntimeException> {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ScanFieldDeterminer.class);
+public class ScanFieldDeterminer
+    extends AbstractLogicalVisitor<Void, ScanFieldDeterminer.FieldList, RuntimeException> {
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ScanFieldDeterminer.class);
 
   private FieldReferenceFinder finder = new FieldReferenceFinder();
   private Map<Scan, FieldList> scanFields = Maps.newHashMap();
 
-
-  public static Map<Scan, FieldList> getFieldLists(LogicalPlan plan){
+  public static Map<Scan, FieldList> getFieldLists(LogicalPlan plan) {
     Collection<SinkOperator> ops = plan.getGraph().getRoots();
-    Preconditions.checkArgument(ops.size() == 1, "Scan Field determiner currently only works with plans that have a single root.");
+    Preconditions.checkArgument(
+        ops.size() == 1,
+        "Scan Field determiner currently only works with plans that have a single root.");
     ScanFieldDeterminer sfd = new ScanFieldDeterminer();
     ops.iterator().next().accept(sfd, new FieldList());
     return sfd.scanFields;
   }
 
-  private ScanFieldDeterminer(){
-  }
+  private ScanFieldDeterminer() {}
 
   public static class FieldList {
     private Set<SchemaPath> projected = Sets.newHashSet();
@@ -190,11 +192,12 @@ public class ScanFieldDeterminer extends AbstractLogicalVisitor<Void, ScanFieldD
     return null;
   }
 
-
   /**
-   * Search through a LogicalExpression, finding all internal schema path references and returning them in a set.
+   * Search through a LogicalExpression, finding all internal schema path references and returning
+   * them in a set.
    */
-  private class FieldReferenceFinder extends AbstractExprVisitor<Set<SchemaPath>, Void, RuntimeException> {
+  private class FieldReferenceFinder
+      extends AbstractExprVisitor<Set<SchemaPath>, Void, RuntimeException> {
 
     @Override
     public Set<SchemaPath> visitSchemaPath(SchemaPath path, Void value) {
@@ -213,7 +216,8 @@ public class ScanFieldDeterminer extends AbstractLogicalVisitor<Void, ScanFieldD
     }
 
     @Override
-    public Set<SchemaPath> visitCaseExpression(CaseExpression caseExpression, Void value) throws RuntimeException {
+    public Set<SchemaPath> visitCaseExpression(CaseExpression caseExpression, Void value)
+        throws RuntimeException {
       return visitUnknown(caseExpression, value);
     }
   }

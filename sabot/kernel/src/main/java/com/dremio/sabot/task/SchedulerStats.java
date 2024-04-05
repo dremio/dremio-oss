@@ -18,24 +18,16 @@ package com.dremio.sabot.task;
 /**
  * Gets and clears collected stats on demand.
  *
- * <p>
- * Assumption: Currently Get stats as a printable/loggable string. In the future we can get it as a Json or
- * protobuf objects
- * </p>
+ * <p>Assumption: Currently Get stats as a printable/loggable string. In the future we can get it as
+ * a Json or protobuf objects
  */
 public interface SchedulerStats {
-  /**
-   * Does a fast dirty check to see if system is idle but has stats in the last cycle
-   */
+  /** Does a fast dirty check to see if system is idle but has stats in the last cycle */
   boolean currentlyIdleAndHasStats();
 
-  /**
-   * Gets stats as a well formed loggable string.
-   */
+  /** Gets stats as a well formed loggable string. */
   String getStats(boolean force);
 
-  /**
-   * Clears stats.
-   */
+  /** Clears stats. */
   void clearStats();
 }

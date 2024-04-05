@@ -15,11 +15,6 @@
  */
 package com.dremio.service.reflection.store;
 
-import java.util.List;
-import java.util.Map;
-
-import javax.inject.Provider;
-
 import com.dremio.datastore.VersionExtractor;
 import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.datastore.api.LegacyKVStoreCreationFunction;
@@ -35,10 +30,12 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.FluentIterable;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import javax.inject.Provider;
 
-/**
- * stores the dependency graph
- */
+/** stores the dependency graph */
 public class DependenciesStore {
   private static final String TABLE_NAME = "dependencies";
 
@@ -46,58 +43,72 @@ public class DependenciesStore {
 
   public DependenciesStore(final Provider<LegacyKVStoreProvider> provider) {
     Preconditions.checkNotNull(provider, "kvstore provider required");
-    store  =Suppliers.memoize(new Supplier<LegacyKVStore<ReflectionId, ReflectionDependencies>>() {
-      @Override
-      public LegacyKVStore<ReflectionId, ReflectionDependencies> get() {
-        return provider.get().getStore(StoreCreator.class);
-      }
-    });
+    store =
+        Suppliers.memoize(
+            new Supplier<LegacyKVStore<ReflectionId, ReflectionDependencies>>() {
+              @Override
+              public LegacyKVStore<ReflectionId, ReflectionDependencies> get() {
+                return provider.get().getStore(StoreCreator.class);
+              }
+            });
   }
 
   public void save(ReflectionId id, Iterable<DependencyEntry> dependencies) {
     store.get().delete(id);
-    List<ReflectionDependencyEntry> entries = FluentIterable.from(dependencies)
-      .transform(new Function<DependencyEntry, ReflectionDependencyEntry>() {
-        @Override
-        public ReflectionDependencyEntry apply(DependencyEntry entry) {
-          return entry.toProtobuf();
-        }
-      }).toList();
-    store.get().put(id, new ReflectionDependencies()
-      .setId(id)
-      .setEntryList(entries));
+    List<ReflectionDependencyEntry> entries =
+        FluentIterable.from(dependencies)
+            .transform(
+                new Function<DependencyEntry, ReflectionDependencyEntry>() {
+                  @Override
+                  public ReflectionDependencyEntry apply(DependencyEntry entry) {
+                    return entry.toProtobuf();
+                  }
+                })
+            .toList();
+    store.get().put(id, new ReflectionDependencies().setId(id).setEntryList(entries));
   }
 
   public Iterable<Map.Entry<ReflectionId, ReflectionDependencies>> getAll() {
     return store.get().find();
   }
 
+  public List<DependencyEntry> get(ReflectionId reflectionId) {
+    List<ReflectionDependencyEntry> dependencies = store.get().get(reflectionId).getEntryList();
+    return dependencies.stream()
+        .map(dependency -> DependencyEntry.of(dependency))
+        .collect(Collectors.toList());
+  }
+
   public void delete(ReflectionId reflectionId) {
     store.get().delete(reflectionId);
   }
 
-  private static final class DependenciesVersionExtractor implements VersionExtractor<ReflectionDependencies> {
-    @Override public String getTag(ReflectionDependencies value) {
+  private static final class DependenciesVersionExtractor
+      implements VersionExtractor<ReflectionDependencies> {
+    @Override
+    public String getTag(ReflectionDependencies value) {
       return value.getTag();
     }
 
-    @Override public void setTag(ReflectionDependencies value, String tag) {
+    @Override
+    public void setTag(ReflectionDependencies value, String tag) {
       value.setTag(tag);
     }
   }
 
-  /**
-   * {@link DependenciesStore} creator
-   */
-  public static final class StoreCreator implements LegacyKVStoreCreationFunction<ReflectionId, ReflectionDependencies> {
+  /** {@link DependenciesStore} creator */
+  public static final class StoreCreator
+      implements LegacyKVStoreCreationFunction<ReflectionId, ReflectionDependencies> {
     @Override
-    public LegacyKVStore<ReflectionId, ReflectionDependencies> build(LegacyStoreBuildingFactory factory) {
-      return factory.<ReflectionId, ReflectionDependencies>newStore()
-        .name(TABLE_NAME)
-        .keyFormat(Format.ofProtostuff(ReflectionId.class))
-        .valueFormat(Format.ofProtostuff(ReflectionDependencies.class))
-        .versionExtractor(DependenciesVersionExtractor.class)
-        .build();
+    public LegacyKVStore<ReflectionId, ReflectionDependencies> build(
+        LegacyStoreBuildingFactory factory) {
+      return factory
+          .<ReflectionId, ReflectionDependencies>newStore()
+          .name(TABLE_NAME)
+          .keyFormat(Format.ofProtostuff(ReflectionId.class))
+          .valueFormat(Format.ofProtostuff(ReflectionDependencies.class))
+          .versionExtractor(DependenciesVersionExtractor.class)
+          .build();
     }
   }
 }

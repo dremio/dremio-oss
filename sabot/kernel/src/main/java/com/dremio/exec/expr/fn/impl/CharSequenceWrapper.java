@@ -21,20 +21,17 @@ import java.nio.charset.CharacterCodingException;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CoderResult;
 import java.nio.charset.StandardCharsets;
-
 import org.apache.arrow.memory.ArrowBuf;
 
 /**
- * A CharSequence is a readable sequence of char values. This interface provides
- * uniform, read-only access to many different kinds of char sequences. A char
- * value represents a character in the Basic Multilingual Plane (BMP) or a
- * surrogate. Refer to Unicode Character Representation for details.<br>
- * Specifically this implementation of the CharSequence adapts a Dremio
- * {@link ArrowBuf} to the CharSequence. The implementation is meant to be
- * re-used that is allocated once and then passed ArrowBuf to adapt. This can be
- * handy to exploit API that consume CharSequence avoiding the need to create
- * string objects.
- *
+ * A CharSequence is a readable sequence of char values. This interface provides uniform, read-only
+ * access to many different kinds of char sequences. A char value represents a character in the
+ * Basic Multilingual Plane (BMP) or a surrogate. Refer to Unicode Character Representation for
+ * details.<br>
+ * Specifically this implementation of the CharSequence adapts a Dremio {@link ArrowBuf} to the
+ * CharSequence. The implementation is meant to be re-used that is allocated once and then passed
+ * ArrowBuf to adapt. This can be handy to exploit API that consume CharSequence avoiding the need
+ * to create string objects.
  */
 public class CharSequenceWrapper implements CharSequence {
 
@@ -54,8 +51,7 @@ public class CharSequenceWrapper implements CharSequence {
   // Indicates that the current byte buffer contains only ascii chars
   private boolean usAscii;
 
-  public CharSequenceWrapper() {
-  }
+  public CharSequenceWrapper() {}
 
   public CharSequenceWrapper(int start, int end, ArrowBuf buffer) {
     setBuffer(start, end, buffer);
@@ -78,13 +74,10 @@ public class CharSequenceWrapper implements CharSequence {
   }
 
   /**
-   * When using the Java regex {@link Matcher} the subSequence is only called
-   * when capturing groups. Dremio does not currently use capture groups in the
-   * UDF so this method is not required.<br>
-   * It could be implemented by creating a new CharSequenceWrapper however
-   * this would imply newly allocated objects which is what this wrapper tries
-   * to avoid.
-   *
+   * When using the Java regex {@link Matcher} the subSequence is only called when capturing groups.
+   * Dremio does not currently use capture groups in the UDF so this method is not required.<br>
+   * It could be implemented by creating a new CharSequenceWrapper however this would imply newly
+   * allocated objects which is what this wrapper tries to avoid.
    */
   @Override
   public CharSequence subSequence(int start, int end) {
@@ -92,9 +85,9 @@ public class CharSequenceWrapper implements CharSequence {
   }
 
   /**
-   * Set the ArrowBuf to adapt to a CharSequence. This method can be used to
-   * replace any previous ArrowBuf thus avoiding recreating the
-   * CharSequenceWrapper and thus re-using the CharSequenceWrapper object.
+   * Set the ArrowBuf to adapt to a CharSequence. This method can be used to replace any previous
+   * ArrowBuf thus avoiding recreating the CharSequenceWrapper and thus re-using the
+   * CharSequenceWrapper object.
    *
    * @param start
    * @param end
@@ -131,6 +124,7 @@ public class CharSequenceWrapper implements CharSequence {
 
   /**
    * Test if the buffer contains only ASCII bytes.
+   *
    * @param start
    * @param end
    * @param buffer
@@ -140,15 +134,14 @@ public class CharSequenceWrapper implements CharSequence {
     for (int i = start; i < end; i++) {
       byte bb = buffer.getByte(i);
       if (bb < 0) {
-        //System.out.printf("Not a ASCII byte 0x%02X\n", bb);
+        // System.out.printf("Not a ASCII byte 0x%02X\n", bb);
         return false;
       }
     }
     return true;
   }
-  /**
-   * Initialize the charbuffer and decoder if they are not yet initialized.
-   */
+
+  /** Initialize the charbuffer and decoder if they are not yet initialized. */
   private void initCharBuffer() {
     if (charBuffer == null) {
       charBuffer = CharBuffer.allocate(INITIAL_CHAR_BUF);
@@ -160,6 +153,7 @@ public class CharSequenceWrapper implements CharSequence {
 
   /**
    * Decode the buffer using the CharsetDecoder.
+   *
    * @param byteBuf
    * @return false if failed because the charbuffer was not big enough
    * @throws RuntimeException if it fails for encoding errors
@@ -185,27 +179,25 @@ public class CharSequenceWrapper implements CharSequence {
     return true;
   }
 
-
   /**
-   * Grow the charbuffer making sure not to overflow size integer. Note
-   * this grows in the same manner as the ArrayList that is it adds 50%
-   * to the current size.
+   * Grow the charbuffer making sure not to overflow size integer. Note this grows in the same
+   * manner as the ArrayList that is it adds 50% to the current size.
    */
   private void growCharBuffer() {
     // overflow-conscious code
     int oldCapacity = charBuffer.capacity();
-    //System.out.println("old capacity " + oldCapacity);
+    // System.out.println("old capacity " + oldCapacity);
     int newCapacity = oldCapacity + (oldCapacity >> 1);
     if (newCapacity < 0) {
       newCapacity = Integer.MAX_VALUE;
     }
-    //System.out.println("new capacity " + newCapacity);
+    // System.out.println("new capacity " + newCapacity);
     charBuffer = CharBuffer.allocate(newCapacity);
   }
 
   /**
-   * The regexp_replace function is implemented in a way to avoid the call to toString()
-   * not to uselessly create a string object.
+   * The regexp_replace function is implemented in a way to avoid the call to toString() not to
+   * uselessly create a string object.
    */
   @Override
   public String toString() {

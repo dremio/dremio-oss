@@ -15,18 +15,14 @@
  */
 package com.dremio.exec.planner.serialization.kryo.serializers;
 
-import java.net.URI;
-import java.net.URISyntaxException;
-
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
+import java.net.URI;
+import java.net.URISyntaxException;
 
-
-/**
- * Holds serializers for standard java objects.
- */
+/** Holds serializers for standard java objects. */
 public final class JavaSerializers {
 
   public static void register(final Kryo kryo) {
@@ -47,7 +43,8 @@ public final class JavaSerializers {
       try {
         return new URI(uriString);
       } catch (final URISyntaxException e) {
-        throw new RuntimeException(String.format("unable to deserialize URI from uri string: %s", uriString), e);
+        throw new RuntimeException(
+            String.format("unable to deserialize URI from uri string: %s", uriString), e);
       }
     }
   }

@@ -15,6 +15,31 @@
  */
 package com.dremio.exec.catalog.conf;
 
+import com.dremio.common.SuppressForbidden;
+import com.dremio.exec.catalog.ConnectionReader;
+import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.StoragePlugin;
+import com.dremio.service.namespace.AbstractConnectionConf;
+import com.dremio.service.namespace.SupportsDecoratingSecrets;
+import com.dremio.services.credentials.CredentialsException;
+import com.dremio.services.credentials.CredentialsService;
+import com.dremio.services.credentials.CredentialsServiceUtils;
+import com.dremio.services.credentials.SecretsCreator;
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.jsontype.NamedType;
+import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.google.common.base.Defaults;
+import com.google.common.base.Predicate;
+import com.google.common.base.Strings;
+import com.google.common.base.Throwables;
+import io.protostuff.ByteString;
+import io.protostuff.LinkedBuffer;
+import io.protostuff.ProtobufIOUtil;
+import io.protostuff.Schema;
 import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
@@ -27,49 +52,34 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-
+import java.util.Set;
 import javax.inject.Provider;
-
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
-
-import com.dremio.exec.catalog.ConnectionReader;
-import com.dremio.exec.catalog.StoragePluginId;
-import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.store.StoragePlugin;
-import com.dremio.service.namespace.AbstractConnectionConf;
-import com.dremio.services.credentials.CredentialsException;
-import com.dremio.services.credentials.CredentialsService;
-import com.fasterxml.jackson.annotation.JsonAutoDetect;
-import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.jsontype.NamedType;
-import com.google.common.base.Defaults;
-import com.google.common.base.Predicate;
-import com.google.common.base.Strings;
-import com.google.common.base.Throwables;
-
-import io.protostuff.ByteString;
-import io.protostuff.LinkedBuffer;
-import io.protostuff.ProtobufIOUtil;
-import io.protostuff.Schema;
 
 /**
  * Abstract class describing a Source Configuration.
  *
- * Note, we disable getters/setters for Jackson because we should be interacting directly with
+ * <p>Note, we disable getters/setters for Jackson because we should be interacting directly with
  * fields (same as proto encoding). We also avoid using @JsonIgnore annotation as it causes problems
  * when used in tandem with field serialization.
  *
- * We also are claiming that we use JsonTypeName resolution but that isn't actually true. We are
+ * <p>We also are claiming that we use JsonTypeName resolution but that isn't actually true. We are
  * using pre-registration using the registerSubTypes() method below to ensure that everything is
  * named correctly. The SourceType(value=<name>) annotation parameter is what is used for
  * serialization/deserialization in JSON.
  */
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.EXTERNAL_PROPERTY, property = "type")
-@JsonAutoDetect(fieldVisibility=Visibility.PUBLIC_ONLY, getterVisibility=Visibility.NONE, isGetterVisibility=Visibility.NONE, setterVisibility=Visibility.NONE)
-public abstract class ConnectionConf<T extends ConnectionConf<T, P>, P extends StoragePlugin> implements AbstractConnectionConf, Externalizable {
+@JsonTypeInfo(
+    use = JsonTypeInfo.Id.NAME,
+    include = JsonTypeInfo.As.EXTERNAL_PROPERTY,
+    property = "type")
+@JsonAutoDetect(
+    fieldVisibility = Visibility.PUBLIC_ONLY,
+    getterVisibility = Visibility.NONE,
+    isGetterVisibility = Visibility.NONE,
+    setterVisibility = Visibility.NONE)
+public abstract class ConnectionConf<T extends ConnectionConf<T, P>, P extends StoragePlugin>
+    implements AbstractConnectionConf, Externalizable, SupportsDecoratingSecrets {
   private final transient Schema<T> schema;
   public static final String USE_EXISTING_SECRET_VALUE = "$DREMIO_EXISTING_VALUE$";
 
@@ -79,19 +89,25 @@ public abstract class ConnectionConf<T extends ConnectionConf<T, P>, P extends S
   }
 
   public void clearSecrets() {
-    clear(new Predicate<Field>() {
-      @Override
-      public boolean apply(Field field) {
-        return field.isAnnotationPresent(Secret.class);
-      }}, true);
+    clear(
+        new Predicate<Field>() {
+          @Override
+          public boolean apply(Field field) {
+            return field.isAnnotationPresent(Secret.class);
+          }
+        },
+        true);
   }
 
   public void clearNotMetadataImpacting() {
-    clear(new Predicate<Field>() {
-      @Override
-      public boolean apply(Field field) {
-        return field.isAnnotationPresent(NotMetadataImpacting.class);
-      }}, false);
+    clear(
+        new Predicate<Field>() {
+          @Override
+          public boolean apply(Field field) {
+            return field.isAnnotationPresent(NotMetadataImpacting.class);
+          }
+        },
+        false);
   }
 
   /**
@@ -102,9 +118,9 @@ public abstract class ConnectionConf<T extends ConnectionConf<T, P>, P extends S
    */
   private void clear(Predicate<Field> predicate, boolean isSecret) {
     try {
-      for(Field field : FieldUtils.getAllFields(getClass())) {
-        if(predicate.apply(field)) {
-          //if field is a secret property list, clear all sensitive property values within the list
+      for (Field field : FieldUtils.getAllFields(getClass())) {
+        if (predicate.apply(field)) {
+          // if field is a secret property list, clear all sensitive property values within the list
           if (isSecret && isPropertyList(field)) {
             final List<Property> propertyList = (List<Property>) field.get(this);
             if (CollectionUtils.isNotEmpty(propertyList)) {
@@ -124,6 +140,14 @@ public abstract class ConnectionConf<T extends ConnectionConf<T, P>, P extends S
             } else {
               field.set(this, USE_EXISTING_SECRET_VALUE);
             }
+          } else if ((isSecret && (field.getType().equals(SecretRef.class)))) {
+            final SecretRef value = (SecretRef) field.get(this);
+
+            if (SecretRef.isNullOrEmpty(value)) {
+              field.set(this, null);
+            } else {
+              field.set(this, SecretRef.EXISTING_VALUE);
+            }
           } else {
             Object defaultValue = Defaults.defaultValue(field.getType());
             field.set(this, defaultValue);
@@ -136,7 +160,8 @@ public abstract class ConnectionConf<T extends ConnectionConf<T, P>, P extends S
   }
 
   /**
-   * Applies secret values from existingConf to the connectionConf if they are set to {@link USE_EXISTING_SECRET_VALUE}.
+   * Applies secret values from existingConf to the connectionConf if they are set to {@link
+   * USE_EXISTING_SECRET_VALUE}.
    *
    * @param existingConf
    */
@@ -148,14 +173,14 @@ public abstract class ConnectionConf<T extends ConnectionConf<T, P>, P extends S
 
       try {
 
-        //apply secrets for field type List<Property>
+        // apply secrets for field type List<Property>
         if (isPropertyList(field)) {
           List<Property> thisPropertyList = (List<Property>) field.get(this);
           if (thisPropertyList == null) {
             continue;
           }
 
-          //convert existing properties into map for easy access
+          // convert existing properties into map for easy access
           List<Property> existingPropertyList = (List<Property>) field.get(existingConf);
           Map<String, Property> existingPropertyMap = new HashMap<>();
           if (existingPropertyList != null) {
@@ -164,7 +189,7 @@ public abstract class ConnectionConf<T extends ConnectionConf<T, P>, P extends S
             }
           }
 
-          //generate new property list. Apply secrets where applicable
+          // generate new property list. Apply secrets where applicable
           List<Property> appliedPropertyList = new LinkedList<>();
           for (Property prop : thisPropertyList) {
             if (prop.value.equals(USE_EXISTING_SECRET_VALUE)) {
@@ -176,8 +201,13 @@ public abstract class ConnectionConf<T extends ConnectionConf<T, P>, P extends S
 
           field.set(this, appliedPropertyList);
 
-        //apply secrets for field type String
-        } else if (field.getType().equals(String.class) && USE_EXISTING_SECRET_VALUE.equals(field.get(this))) {
+          // apply secrets for field type String
+        } else if (field.getType().equals(String.class)
+            && USE_EXISTING_SECRET_VALUE.equals(field.get(this))) {
+          field.set(this, field.get(existingConf));
+          // apply secrets for field type SecretRef
+        } else if (field.getType().equals(SecretRef.class)
+            && SecretRef.EXISTING_VALUE.equals(field.get(this))) {
           field.set(this, field.get(existingConf));
         }
       } catch (IllegalAccessException e) {
@@ -187,53 +217,108 @@ public abstract class ConnectionConf<T extends ConnectionConf<T, P>, P extends S
   }
 
   /**
-   * Resolves secrets on the conf via the credentials service. This first clones the conf,
-   * then resolves the secrets on the clone, and returns the resolved (cloned) conf. The
-   * original conf should remain unchanged. The new resolved conf should be treated with
-   * care as it will contain the resolved secret (i.e. should never be persisted).
+   * Mutates this conf such SecretRefs such that secretRefs are resolvable via CredentialsService.
    */
-  public T resolveSecrets(CredentialsService credentialsService) {
+  @Override
+  public ConnectionConf<?, ?> decorateSecrets(CredentialsService credentialsService) {
+    for (Field field : FieldUtils.getAllFields(getClass())) {
+      if (field.getType().equals(SecretRef.class)) {
+        try {
+          final Object secretRef = field.get(this);
+          if (secretRef instanceof SupportsDecoratingSecrets) {
+            ((SupportsDecoratingSecrets) secretRef).decorateSecrets(credentialsService);
+          }
+          field.set(this, secretRef);
+        } catch (IllegalAccessException e) {
+          throw Throwables.propagate(e);
+        }
+      }
+    }
+    return this;
+  }
+
+  /**
+   * Mutates this conf such SecretRefs are encrypted to secret uris. This has no effect on null,
+   * empty, or non-SecretRef secrets.
+   *
+   * @param secretsCreator a SecretCreator that wil always encrypt the password by the system
+   * @param filter condition to encrypt the secret
+   * @return true if any source secret(s) have been encrypted. False if no plain-text secret to
+   *     encrypt and no error occurs.
+   */
+  public boolean encryptSecrets(
+      SecretsCreator secretsCreator, java.util.function.Predicate<String> filter) {
+    boolean didEncryptionHappen = false;
+    for (Field field : FieldUtils.getAllFields(getClass())) {
+      if (SecretRef.class.isAssignableFrom(field.getType())) {
+        try {
+          final SecretRef secretRef = (SecretRef) field.get(this);
+          if (SecretRef.isNullOrEmpty(secretRef) || !(secretRef instanceof SecretRefImpl)) {
+            continue;
+          }
+          didEncryptionHappen |= ((SecretRefImpl) secretRef).encrypt(secretsCreator, filter);
+          field.set(this, secretRef);
+        } catch (IllegalAccessException e) {
+          throw Throwables.propagate(e);
+        } catch (CredentialsException e) {
+          throw new RuntimeException(e);
+        }
+      }
+    }
+    return didEncryptionHappen;
+  }
+
+  /**
+   * Resolves secrets on the conf via the credentials service. This first clones the conf, then
+   * resolves the secrets on the clone, and returns the resolved (cloned) conf. The original conf
+   * should remain unchanged.
+   *
+   * <p>The resultant ConnectionConf should be treated with extreme care and discarded immediately
+   * after use. Note that only String secrets are resolved; SecretRefs are assumed to be able to
+   * resolve themselves. TODO (DX-88117): Remove this handling after full SecretRef/property
+   * migration
+   *
+   * <p>
+   *
+   * @param credentialsService to resolve secrets with
+   * @param schemes a whitelist set of schemas to resolve, if null resolve all secrets.
+   * @return ConnectionConf with resolved secrets
+   */
+  @SuppressForbidden // We are resolving secrets so the resultant Secrets will be unsafe
+  public T resolveSecrets(CredentialsService credentialsService, Set<String> schemes) {
     final T resolvedConf = this.clone();
     for (Field field : FieldUtils.getAllFields(resolvedConf.getClass())) {
-      if (field.getAnnotation(Secret.class) == null) {
+      if (!field.isAnnotationPresent(Secret.class)) {
         continue;
       }
       try {
-
-        //resolve secrets for field type List<Property>
+        // resolve secrets for field type List<Property>
         if (isPropertyList(field)) {
           final List<Property> fieldList = (List<Property>) field.get(resolvedConf);
-          if (CollectionUtils.isNotEmpty(fieldList)) {
-            List<Property> resolvedSecretList = new LinkedList<>();
-            for (Property prop : fieldList) {
-              String resolvedSecretProp;
-              try {
-                resolvedSecretProp = credentialsService.lookup(prop.value);
-              } catch (IllegalArgumentException e) {
-                // If field is not a valid URI, fallback to treating it as a regular password
-                resolvedSecretProp = prop.value;
-              } catch (CredentialsException e) {
-                throw new RuntimeException(e);
-              }
-              resolvedSecretList.add(new Property(prop.name, resolvedSecretProp));
-            }
-            field.set(resolvedConf, resolvedSecretList);
+          if (CollectionUtils.isEmpty(fieldList)) {
+            continue;
           }
-        } else if (field.getType().equals(String.class)) { ////resolve Secrets for field type String
+          List<Property> resolvedSecretList = new LinkedList<>();
+          for (Property prop : fieldList) {
+            resolvedSecretList.add(
+                new Property(
+                    prop.name, doSafeCredentialsLookup(credentialsService, prop.value, schemes)));
+          }
+          field.set(resolvedConf, resolvedSecretList);
+        } else if (field.getType().equals(String.class)) { // resolve Secrets for field type String
           final String fieldString = (String) field.get(resolvedConf);
           if (Strings.isNullOrEmpty(fieldString)) {
             continue;
           }
-          String resolvedSecret;
-          try {
-            resolvedSecret = credentialsService.lookup(fieldString);
-          } catch (IllegalArgumentException e) {
-            // If field is not a valid URI, fallback to treating it as a regular password
-            resolvedSecret = fieldString;
-          } catch (CredentialsException e) {
-            throw new RuntimeException(e);
+          field.set(
+              resolvedConf, doSafeCredentialsLookup(credentialsService, fieldString, schemes));
+        } else if (field.getType().equals(SecretRef.class)) {
+          // No need to resolve SecretRefs, they will resolve themselves.
+          final SecretRef fieldSecret = (SecretRef) field.get(resolvedConf);
+          if (fieldSecret instanceof SupportsDecoratingSecrets) {
+            // Cloning ConnectionConf would have wiped references to CredentialsService
+            ((SupportsDecoratingSecrets) fieldSecret).decorateSecrets(credentialsService);
           }
-          field.set(resolvedConf, resolvedSecret);
         }
       } catch (IllegalAccessException e) {
         throw new RuntimeException(e);
@@ -243,8 +328,27 @@ public abstract class ConnectionConf<T extends ConnectionConf<T, P>, P extends S
   }
 
   /**
-   * checks if field Type is a List of Property objects
+   * Lookup secret on credentials service treating, but also treats invalid URIs as regular password
    */
+  private String doSafeCredentialsLookup(
+      CredentialsService credentialsService, String pattern, Set<String> schemes) {
+    try {
+      if (schemes == null) {
+        return credentialsService.lookup(pattern);
+      }
+      if (schemes.contains(CredentialsServiceUtils.safeURICreate(pattern).getScheme())) {
+        return credentialsService.lookup(pattern);
+      } else {
+        return pattern;
+      }
+    } catch (IllegalArgumentException ignored) {
+      return pattern;
+    } catch (CredentialsException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  /** checks if field Type is a List of Property objects */
   private boolean isPropertyList(Field field) {
     Type fieldType = field.getGenericType();
     if (fieldType instanceof ParameterizedType) {
@@ -258,6 +362,10 @@ public abstract class ConnectionConf<T extends ConnectionConf<T, P>, P extends S
   }
 
   public static void registerSubTypes(ObjectMapper mapper, ConnectionReader connectionReader) {
+    // SecretRef Serializer
+    mapper.registerModule(
+        new SimpleModule().addSerializer(SecretRef.class, new SecretRefSerializer()));
+    // ConnectionConf subtypes
     for (Class<?> c : connectionReader.getAllConnectionConfs().values()) {
       NamedType nt = new NamedType(c, c.getAnnotation(SourceType.class).value());
       mapper.registerSubtypes(nt);
@@ -266,15 +374,15 @@ public abstract class ConnectionConf<T extends ConnectionConf<T, P>, P extends S
 
   @Override
   public boolean equals(Object other) {
-    if(other == null || !(other instanceof ConnectionConf) ) {
+    if (other == null || !(other instanceof ConnectionConf)) {
       return false;
     }
     final ConnectionConf<?, ?> o = (ConnectionConf<?, ?>) other;
 
-    if(!o.getType().equals(getType())) {
+    if (!o.getType().equals(getType())) {
       return false;
     }
-    return Arrays.equals(toBytes(),  o.toBytes());
+    return Arrays.equals(toBytes(), o.toBytes());
   }
 
   @Override
@@ -284,9 +392,13 @@ public abstract class ConnectionConf<T extends ConnectionConf<T, P>, P extends S
 
   @SuppressWarnings("unchecked")
   public byte[] toBytes() {
-    return ProtobufIOUtil.toByteArray( (T) this, schema, LinkedBuffer.allocate() );
+    return ProtobufIOUtil.toByteArray((T) this, schema, LinkedBuffer.allocate());
   }
 
+  /**
+   * Clone this ConnectionConf, beware this only clones serializable aspects of the ConnectionConf.
+   * Any decorated CredentialsServices will not be cloned.
+   */
   @Override
   public final T clone() {
     byte[] bytes = toBytes();
@@ -296,10 +408,12 @@ public abstract class ConnectionConf<T extends ConnectionConf<T, P>, P extends S
   }
 
   /**
-   * Indicates whether the other conf is equal to this one, ignoring fields that do not impact metadata.
+   * Indicates whether the other conf is equal to this one, ignoring fields that do not impact
+   * metadata.
    *
    * @param other connection conf
-   * @return true if this connection conf equals other conf, ignoring fields that do not impact metadata
+   * @return true if this connection conf equals other conf, ignoring fields that do not impact
+   *     metadata
    */
   public final boolean equalsIgnoringNotMetadataImpacting(ConnectionConf<?, ?> other) {
     final ConnectionConf<?, ?> existingConf = clone();
@@ -323,10 +437,16 @@ public abstract class ConnectionConf<T extends ConnectionConf<T, P>, P extends S
     return Arrays.hashCode(toBytes());
   }
 
-  public abstract P newPlugin(final SabotContext context, final String name, Provider<StoragePluginId> pluginIdProvider);
+  public abstract P newPlugin(
+      final SabotContext context, final String name, Provider<StoragePluginId> pluginIdProvider);
 
-  // Use this if newPlugin logic need to know that if source is created or modified, which is identified using influxSourcePred.
-  public P newPlugin(final SabotContext context, final String name, Provider<StoragePluginId> pluginIdProvider, java.util.function.Predicate<String> influxSourcePred) {
+  // Use this if newPlugin logic need to know that if source is created or modified, which is
+  // identified using influxSourcePred.
+  public P newPlugin(
+      final SabotContext context,
+      final String name,
+      Provider<StoragePluginId> pluginIdProvider,
+      java.util.function.Predicate<String> influxSourcePred) {
     return newPlugin(context, name, pluginIdProvider);
   }
 
@@ -347,5 +467,4 @@ public abstract class ConnectionConf<T extends ConnectionConf<T, P>, P extends S
     T obj = (T) this;
     ProtobufIOUtil.mergeDelimitedFrom(in, obj, schema);
   }
-
 }

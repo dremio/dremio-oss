@@ -13,8 +13,5 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/**
- * Meta-data persistence format, used for views and other cluster-wide
- * persistent state.
- */
+/** Meta-data persistence format, used for views and other cluster-wide persistent state. */
 package com.dremio.exec.dotfile;

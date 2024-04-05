@@ -18,7 +18,7 @@ import Immutable from "immutable";
 import { abilities } from "utils/datasetUtils";
 import datasetSettingsConfig from "@inject/pages/HomePage/components/modals/DatasetSettings/datasetSettingsConfig";
 import { isVersionedSource } from "@app/utils/sourceUtils";
-import { NESSIE, ARCTIC } from "@app/constants/sourceTypes";
+import { ARCTIC } from "@app/constants/sourceTypes";
 import { REFLECTION_ARCTIC_ENABLED } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
 import {
   getDatasetReferenceFromId,
@@ -35,15 +35,8 @@ export default function (input) {
     },
 
     getTabs() {
-      const {
-        entity,
-        intl,
-        source,
-        isAdmin,
-        enableArcticEntityPrivileges,
-        supportFlags,
-        isDatasetReflectionPage,
-      } = this.props;
+      const { entity, intl, source, supportFlags, isDatasetReflectionPage } =
+        this.props;
 
       if (!entity) {
         return new Immutable.OrderedMap();
@@ -53,7 +46,7 @@ export default function (input) {
       const map = [];
       const { canEditFormat, canSetAccelerationUpdates } = abilities(
         entity,
-        entity.get("entityType")
+        entity.get("entityType"),
       );
 
       const arcticReflectionsEnabled =
@@ -91,11 +84,10 @@ export default function (input) {
             t("Arctic.Table.Settings.Optimization"),
           ],
         source?.type === ARCTIC &&
-          enableArcticEntityPrivileges &&
           !isOnCommitOrTag(datasetReference) && [
             "entityPrivileges",
             t("Arctic.Table.Settings.Privileges"),
-          ]
+          ],
       );
 
       return new Immutable.OrderedMap(map);

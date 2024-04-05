@@ -15,9 +15,12 @@
  */
 package com.dremio.sabot.op.fromjson;
 
+import com.dremio.exec.planner.physical.Prel;
+import com.dremio.exec.planner.physical.ProjectPrel;
+import com.dremio.exec.planner.physical.visitor.BasePrelVisitor;
+import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
@@ -26,17 +29,12 @@ import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexShuttle;
 
-import com.dremio.exec.planner.physical.Prel;
-import com.dremio.exec.planner.physical.ProjectPrel;
-import com.dremio.exec.planner.physical.visitor.BasePrelVisitor;
-import com.google.common.collect.Lists;
-
 /**
- * A lot of our rewrites for CONVERT_FROM assume that the function call exists at the root of the rexnode.
- * For example: CONVERT_FROM(x) is fine, but FOO(CONVERT_FROM(x)) is not fine.
- * This code rewrites:
+ * A lot of our rewrites for CONVERT_FROM assume that the function call exists at the root of the
+ * rexnode. For example: CONVERT_FROM(x) is fine, but FOO(CONVERT_FROM(x)) is not fine. This code
+ * rewrites:
  *
- * FOO(CONVERT_FROM(x)) to FOO($0) where $0 is CONVERT_FROM(x)
+ * <p>FOO(CONVERT_FROM(x)) to FOO($0) where $0 is CONVERT_FROM(x)
  */
 public final class ConvertFromUnnester extends BasePrelVisitor<Prel, Void, RuntimeException> {
   private static final ConvertFromUnnester INSTANCE = new ConvertFromUnnester();
@@ -65,21 +63,26 @@ public final class ConvertFromUnnester extends BasePrelVisitor<Prel, Void, Runti
     List<RexNode> replacements = new ArrayList<>();
     List<RexNode> convertFroms = new ArrayList<>();
     for (RexNode project : projects) {
-      ConvertFromJsonReplacer replacer = new ConvertFromJsonReplacer(topRel.getCluster().getRexBuilder(), rewrittenInput.getRowType().getFieldCount() + convertFroms.size());
+      ConvertFromJsonReplacer replacer =
+          new ConvertFromJsonReplacer(
+              topRel.getCluster().getRexBuilder(),
+              rewrittenInput.getRowType().getFieldCount() + convertFroms.size());
       RexNode replacment = project.accept(replacer);
       replacements.add(replacment);
       convertFroms.addAll(replacer.convertFroms);
     }
 
     if (convertFroms.isEmpty()) {
-      return topRel.copy(topRel.getTraitSet(), rewrittenInput, topRel.getProjects(), topRel.getRowType());
+      return topRel.copy(
+          topRel.getTraitSet(), rewrittenInput, topRel.getProjects(), topRel.getRowType());
     }
 
-    RelDataTypeFactory.FieldInfoBuilder builder = topRel
-      .getCluster()
-      .getTypeFactory()
-      .builder()
-      .addAll(rewrittenInput.getRowType().getFieldList());
+    RelDataTypeFactory.FieldInfoBuilder builder =
+        topRel
+            .getCluster()
+            .getTypeFactory()
+            .builder()
+            .addAll(rewrittenInput.getRowType().getFieldList());
     for (int i = 0; i < convertFroms.size(); i++) {
       builder.add("replacement" + i, convertFroms.get(i).getType());
     }
@@ -93,18 +96,16 @@ public final class ConvertFromUnnester extends BasePrelVisitor<Prel, Void, Runti
 
     newProjects.addAll(convertFroms);
 
-    ProjectPrel newChild = ProjectPrel.create(
-      topRel.getCluster(),
-      rewrittenInput.getTraitSet(),
-      rewrittenInput,
-      newProjects,
-      newRelDataType);
-    ProjectPrel newTopRel = ProjectPrel.create(
-      topRel.getCluster(),
-      topRel.getTraitSet(),
-      newChild,
-      replacements,
-      topRel.getRowType());
+    ProjectPrel newChild =
+        ProjectPrel.create(
+            topRel.getCluster(),
+            rewrittenInput.getTraitSet(),
+            rewrittenInput,
+            newProjects,
+            newRelDataType);
+    ProjectPrel newTopRel =
+        ProjectPrel.create(
+            topRel.getCluster(), topRel.getTraitSet(), newChild, replacements, topRel.getRowType());
     return newTopRel;
   }
 
@@ -121,9 +122,12 @@ public final class ConvertFromUnnester extends BasePrelVisitor<Prel, Void, Runti
 
     @Override
     public RexNode visitCall(RexCall call) {
-      boolean noConvertFrom = call.getOperands()
-        .stream()
-        .noneMatch(operand -> operand instanceof RexCall && ((RexCall) operand).op.getName().equalsIgnoreCase("convert_fromjson"));
+      boolean noConvertFrom =
+          call.getOperands().stream()
+              .noneMatch(
+                  operand ->
+                      operand instanceof RexCall
+                          && ((RexCall) operand).op.getName().equalsIgnoreCase("convert_fromjson"));
       if (noConvertFrom) {
         return super.visitCall(call);
       }
@@ -131,7 +135,9 @@ public final class ConvertFromUnnester extends BasePrelVisitor<Prel, Void, Runti
       List<RexNode> rewrittenOperands = new ArrayList<>();
       for (RexNode operand : call.getOperands()) {
         RexNode rewrittenOperand;
-        boolean isConvertFrom = operand instanceof RexCall && ((RexCall) operand).op.getName().equalsIgnoreCase("convert_fromjson");
+        boolean isConvertFrom =
+            operand instanceof RexCall
+                && ((RexCall) operand).op.getName().equalsIgnoreCase("convert_fromjson");
         if (!isConvertFrom) {
           rewrittenOperand = operand.accept(this);
         } else {

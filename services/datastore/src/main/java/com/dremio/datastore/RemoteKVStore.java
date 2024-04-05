@@ -17,10 +17,6 @@ package com.dremio.datastore;
 
 import static java.lang.String.format;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-
 import com.dremio.datastore.api.Document;
 import com.dremio.datastore.api.FindByRange;
 import com.dremio.datastore.api.ImmutableDocument;
@@ -40,11 +36,12 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.protobuf.ByteString;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
-/**
- * Remote KVStore. Caches store id received from master.
- */
-public class RemoteKVStore <K, V> implements KVStore<K, V> {
+/** Remote KVStore. Caches store id received from master. */
+public class RemoteKVStore<K, V> implements KVStore<K, V> {
 
   private static final String METRIC_PREFIX = "kvstore.remote";
 
@@ -74,15 +71,18 @@ public class RemoteKVStore <K, V> implements KVStore<K, V> {
     this.client = client;
     this.storeId = storeId;
     this.helper = helper;
-    this.keyConverter = (Converter<K, byte[]>) helper.getKeyFormat().apply(ByteSerializerFactory.INSTANCE);
-    this.valueConverter = (Converter<V, byte[]>) helper.getValueFormat().apply(ByteSerializerFactory.INSTANCE);
+    this.keyConverter =
+        (Converter<K, byte[]>) helper.getKeyFormat().apply(ByteSerializerFactory.INSTANCE);
+    this.valueConverter =
+        (Converter<V, byte[]>) helper.getValueFormat().apply(ByteSerializerFactory.INSTANCE);
     metrics = registerMetrics();
   }
 
   private Map<Stats, Timer> registerMetrics() {
     final ImmutableMap.Builder<Stats, Timer> builder = ImmutableMap.builder();
     for (Stats stat : Stats.values()) {
-      final Timer timer = Metrics.newTimer(Metrics.join(METRIC_PREFIX, stat.name()), ResetType.NEVER);
+      final Timer timer =
+          Metrics.newTimer(Metrics.join(METRIC_PREFIX, stat.name()), ResetType.NEVER);
       builder.put(stat, timer);
     }
     return builder.build();
@@ -111,7 +111,7 @@ public class RemoteKVStore <K, V> implements KVStore<K, V> {
   }
 
   @Override
-  public Document<K, V> get(K key, GetOption ... options) {
+  public Document<K, V> get(K key, GetOption... options) {
     try (TimerContext timer = time(Stats.GET)) {
       final Document<ByteString, ByteString> document = client.get(storeId, convertKey(key));
       return convertDocument(document);
@@ -150,7 +150,8 @@ public class RemoteKVStore <K, V> implements KVStore<K, V> {
       }
       return Lists.transform(client.get(storeId, keyLists), this::convertDocument);
     } catch (RpcException e) {
-      throw new DatastoreException(format("Failed to get multiple values from store id: %s", getStoreId()), e);
+      throw new DatastoreException(
+          format("Failed to get multiple values from store id: %s", getStoreId()), e);
     }
   }
 
@@ -167,7 +168,13 @@ public class RemoteKVStore <K, V> implements KVStore<K, V> {
     try (TimerContext timer = time(Stats.PUT)) {
       final Optional<PutOption> option = KVStoreOptionUtility.getCreateOrVersionOption(options);
       if (option.isPresent()) {
-        tag = client.put(storeId, convertKey(key), convertValue(value), putRequestDocumentWriter, option.get());
+        tag =
+            client.put(
+                storeId,
+                convertKey(key),
+                convertValue(value),
+                putRequestDocumentWriter,
+                option.get());
       } else {
         tag = client.put(storeId, convertKey(key), convertValue(value), putRequestDocumentWriter);
       }
@@ -182,7 +189,8 @@ public class RemoteKVStore <K, V> implements KVStore<K, V> {
     try (TimerContext timer = time(Stats.CONTAINS)) {
       return client.contains(storeId, convertKey(key));
     } catch (RpcException e) {
-      throw new DatastoreException(format("Failed to check contains for store id: %s", getStoreId()), e);
+      throw new DatastoreException(
+          format("Failed to check contains for store id: %s", getStoreId()), e);
     }
   }
 
@@ -198,33 +206,35 @@ public class RemoteKVStore <K, V> implements KVStore<K, V> {
 
   @Override
   public Iterable<Document<K, V>> find(FindByRange<K> find, FindOption... options) {
-    final RemoteDataStoreProtobuf.FindRequest.Builder request = RemoteDataStoreProtobuf.FindRequest.newBuilder()
-      .setStoreId(storeId);
+    final RemoteDataStoreProtobuf.FindRequest.Builder request =
+        RemoteDataStoreProtobuf.FindRequest.newBuilder().setStoreId(storeId);
 
     if (find.getStart() != null) {
-      request.setStart(convertKey(find.getStart()))
-        .setIncludeStart(find.isStartInclusive());
+      request.setStart(convertKey(find.getStart())).setIncludeStart(find.isStartInclusive());
     }
     if (find.getEnd() != null) {
-      request.setEnd(convertKey(find.getEnd()))
-        .setIncludeEnd(find.isEndInclusive());
+      request.setEnd(convertKey(find.getEnd())).setIncludeEnd(find.isEndInclusive());
     }
 
     try (TimerContext timer = time(Stats.FIND_BY_RANGE)) {
       return Iterables.transform(client.find(request.build()), this::convertDocument);
     } catch (RpcException e) {
-      throw new DatastoreException(format("Failed to find by range for store id: %s", getStoreId()), e);
+      throw new DatastoreException(
+          format("Failed to find by range for store id: %s", getStoreId()), e);
     }
   }
 
   @Override
-  public void bulkIncrement(Map<K, List<IncrementCounter>> keysToIncrement, IncrementOption option) {
+  public void bulkIncrement(
+      Map<K, List<IncrementCounter>> keysToIncrement, IncrementOption option) {
     throw new UnsupportedOperationException("Bulk increment operation is not supported.");
   }
 
   @Override
-  public void bulkDelete(List<K> keysToDelete) {
-    throw new UnsupportedOperationException("Bulk delete operation is not supported.");
+  public void bulkDelete(List<K> keysToDelete, DeleteOption... deleteOptions) {
+    for (K key : keysToDelete) {
+      delete(key, deleteOptions);
+    }
   }
 
   @Override
@@ -256,8 +266,8 @@ public class RemoteKVStore <K, V> implements KVStore<K, V> {
   }
 
   protected Document<K, V> convertDocument(Document<ByteString, ByteString> document) {
-    return (document != null)? createDocumentFromBytes(document.getKey(),
-      document.getValue(), document.getTag()) : null;
+    return (document != null)
+        ? createDocumentFromBytes(document.getKey(), document.getValue(), document.getTag())
+        : null;
   }
-
 }

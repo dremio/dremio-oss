@@ -15,21 +15,19 @@
  */
 package com.dremio.service.functions.snippets;
 
-import java.util.Optional;
-
 import com.google.common.base.Preconditions;
+import java.util.Optional;
 
 /**
  * A placeholder in the VSCode Snippet:
  *
- * https://code.visualstudio.com/docs/editor/userdefinedsnippets#_placeholders
+ * <p>https://code.visualstudio.com/docs/editor/userdefinedsnippets#_placeholders
  *
- * placeholder ::= '${' int ':' any '}'
+ * <p>placeholder ::= '${' int ':' any '}'
  */
 public final class Placeholder extends SnippetElement {
   private final int index;
   private final SnippetElement snippetElement;
-
 
   public Placeholder(int index, SnippetElement snippetElement) {
     Preconditions.checkNotNull(snippetElement);

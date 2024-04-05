@@ -15,12 +15,9 @@
  */
 package com.dremio.provision.yarn.service;
 
-
 import com.dremio.provision.service.ProvisioningHandlingException;
 
-/**
- * YARN Related Execution Exception
- */
+/** YARN Related Execution Exception */
 public class YarnProvisioningHandlingException extends ProvisioningHandlingException {
 
   public YarnProvisioningHandlingException(String message) {

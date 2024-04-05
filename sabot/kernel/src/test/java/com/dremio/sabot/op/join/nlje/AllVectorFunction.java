@@ -15,20 +15,26 @@
  */
 package com.dremio.sabot.op.join.nlje;
 
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.exec.record.VectorAccessible;
+import org.apache.arrow.memory.BufferAllocator;
 
 /**
- * A DualRange vector function that generates a VectorRange that is the same as InputRange to test DualRange
- * functionality in the NLJEOperator.
+ * A DualRange vector function that generates a VectorRange that is the same as InputRange to test
+ * DualRange functionality in the NLJEOperator.
  */
 public class AllVectorFunction implements DualRangeFunctionFactory {
 
   @Override
-  public DualRange create(BufferAllocator allocator, VectorAccessible left, VectorAccessible right,
-      int targetOutputSize, int targetGeneratedAtOnce, int[] buildCounts, LogicalExpression vectorExpression) throws Exception {
+  public DualRange create(
+      BufferAllocator allocator,
+      VectorAccessible left,
+      VectorAccessible right,
+      int targetOutputSize,
+      int targetGeneratedAtOnce,
+      int[] buildCounts,
+      LogicalExpression vectorExpression)
+      throws Exception {
     // work on one probe at a time.
     VectorRange vectorRange = new VectorRange(targetGeneratedAtOnce, targetOutputSize);
     Iter iter = new Iter(targetGeneratedAtOnce, buildCounts, vectorRange);
@@ -42,11 +48,7 @@ public class AllVectorFunction implements DualRangeFunctionFactory {
     private final VectorRange output;
     private IndexRange incomingRange;
 
-    public Iter(
-        int targetGeneratedAtOnce,
-        int[] buildCounts,
-        VectorRange output
-        ) {
+    public Iter(int targetGeneratedAtOnce, int[] buildCounts, VectorRange output) {
       this.incomingRange = new IndexRange(targetGeneratedAtOnce, buildCounts);
       this.output = output;
     }
@@ -75,9 +77,14 @@ public class AllVectorFunction implements DualRangeFunctionFactory {
       int outputIndex = 0;
 
       for (int probeIndex = probeStart; probeIndex < probeEnd; probeIndex++) {
-        for(int buildIndex = 0; buildIndex < buildMax; buildIndex++) {
+        for (int buildIndex = 0; buildIndex < buildMax; buildIndex++) {
           int compoundBuildIndex = (buildBatchIndex << 16) | (buildIndex & 65535);
-          VectorRange.set(probeOutputAddr, buildOutputAddr, outputIndex, (short) probeIndex, compoundBuildIndex);
+          VectorRange.set(
+              probeOutputAddr,
+              buildOutputAddr,
+              outputIndex,
+              (short) probeIndex,
+              compoundBuildIndex);
           outputIndex++;
         }
       }

@@ -17,30 +17,25 @@ package com.dremio.jdbc.test;
 
 import static org.slf4j.LoggerFactory.getLogger;
 
+import com.dremio.common.util.TestTools;
+import com.dremio.jdbc.Driver;
 import java.sql.Connection;
 import java.util.concurrent.TimeUnit;
-
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestRule;
 import org.slf4j.Logger;
 
-import com.dremio.common.util.TestTools;
-import com.dremio.jdbc.Driver;
-
-
 /**
-* Test for DRILL-1735:  Closing local JDBC connection didn't shut down
-* local node to free resources (plus QueryResultBatch buffer allocation leak
-* in DremioCursor.next(), lack of Metrics reset, vectors buffer leak under
-* DremioCursor/DremioResultSet, and other problems).
-*/
+ * Test for DRILL-1735: Closing local JDBC connection didn't shut down local node to free resources
+ * (plus QueryResultBatch buffer allocation leak in DremioCursor.next(), lack of Metrics reset,
+ * vectors buffer leak under DremioCursor/DremioResultSet, and other problems).
+ */
 public class Bug1735ConnectionCloseTest extends JdbcTestQueryBase {
-  static final Logger logger = getLogger( Bug1735ConnectionCloseTest.class );
+  static final Logger logger = getLogger(Bug1735ConnectionCloseTest.class);
 
-  @Rule
-  public final TestRule timeoutRule = TestTools.getTimeoutRule(120, TimeUnit.SECONDS);
+  @Rule public final TestRule timeoutRule = TestTools.getTimeoutRule(120, TimeUnit.SECONDS);
 
   // Basic sanity test (too small to detect original connection close problem
   // but would detect QueryResultBatch release and metrics problems).
@@ -49,34 +44,34 @@ public class Bug1735ConnectionCloseTest extends JdbcTestQueryBase {
 
   @Test
   public void testCloseDoesntLeakResourcesBasic() throws Exception {
-    for ( int i = 1; i <= SMALL_ITERATION_COUNT; i++ ) {
-      logger.info( "iteration " + i + ":" );
-      System.out.println( "iteration " + i + ":" );
-      Connection connection = new Driver().connect( sabotNode.getJDBCConnectionString(),
-                                                    JdbcAssert.getDefaultProperties() );
+    for (int i = 1; i <= SMALL_ITERATION_COUNT; i++) {
+      logger.info("iteration " + i + ":");
+      System.out.println("iteration " + i + ":");
+      Connection connection =
+          new Driver()
+              .connect(sabotNode.getJDBCConnectionString(), JdbcAssert.getDefaultProperties());
       connection.close();
     }
   }
-
 
   // Test large enough to detect connection close problem (at least on
   // developer's machine).
 
   private static final int LARGE_ITERATION_COUNT = 1000;
 
-  @Ignore( "Normally suppressed because slow" )
+  @Ignore("Normally suppressed because slow")
   @Test
   public void testCloseDoesntLeakResourcesMany() throws Exception {
-    for ( int i = 1; i <= LARGE_ITERATION_COUNT; i++ ) {
-      logger.info( "iteration " + i + ":" );
-      System.out.println( "iteration " + i + ":" );
+    for (int i = 1; i <= LARGE_ITERATION_COUNT; i++) {
+      logger.info("iteration " + i + ":");
+      System.out.println("iteration " + i + ":");
 
       // (Note: Can't use JdbcTest's connect(...) because it returns connection
       // that doesn't really close.
-      Connection connection = new Driver().connect( sabotNode.getJDBCConnectionString(),
-                                                    JdbcAssert.getDefaultProperties() );
+      Connection connection =
+          new Driver()
+              .connect(sabotNode.getJDBCConnectionString(), JdbcAssert.getDefaultProperties());
       connection.close();
     }
   }
-
 }

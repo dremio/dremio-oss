@@ -15,9 +15,16 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.ops.QueryContext;
+import com.dremio.exec.planner.sql.handlers.direct.SqlDirectHandler;
+import com.dremio.options.OptionResolver;
+import com.dremio.sabot.rpc.user.UserSession;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import java.lang.reflect.Constructor;
 import java.util.List;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -28,21 +35,11 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.catalog.Catalog;
-import com.dremio.exec.ops.QueryContext;
-import com.dremio.exec.planner.sql.handlers.direct.SqlDirectHandler;
-import com.dremio.options.OptionResolver;
-import com.dremio.sabot.rpc.user.UserSession;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
-
 /**
  * Lists commit logs under a source.
  *
- * SHOW LOG[S]
- * [ AT ( REF[ERENCE] | BRANCH | TAG | COMMIT ) refValue [AS OF timestamp] ]
- * [ IN sourceName ]
+ * <p>SHOW LOG[S] [ AT ( REF[ERENCE] | BRANCH | TAG | COMMIT ) refValue [AS OF timestamp] ] [ IN
+ * sourceName ]
  */
 public final class SqlShowLogs extends SqlVersionSourceRefBase {
   public static final SqlSpecialOperator OPERATOR =
@@ -51,8 +48,7 @@ public final class SqlShowLogs extends SqlVersionSourceRefBase {
         public SqlCall createCall(
             SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
           Preconditions.checkArgument(
-              operands.length == 5,
-              "SqlShowLogs.createCall() has to get 5 operands!");
+              operands.length == 5, "SqlShowLogs.createCall() has to get 5 operands!");
           return new SqlShowLogs(
               pos,
               ((SqlLiteral) operands[0]).symbolValue(ReferenceType.class),
@@ -85,7 +81,7 @@ public final class SqlShowLogs extends SqlVersionSourceRefBase {
   public List<SqlNode> getOperandList() {
     List<SqlNode> ops = Lists.newArrayList();
     SqlLiteral refTypeSqlLiteral = null;
-    if(getRefType() != null) { // SqlLiteral.createSymbol has asserts preventing null parameters.
+    if (getRefType() != null) { // SqlLiteral.createSymbol has asserts preventing null parameters.
       refTypeSqlLiteral = SqlLiteral.createSymbol(getRefType(), SqlParserPos.ZERO);
     }
     ops.add(refTypeSqlLiteral);
@@ -112,12 +108,11 @@ public final class SqlShowLogs extends SqlVersionSourceRefBase {
   public SqlDirectHandler<?> toDirectHandler(QueryContext context) {
     try {
       final Class<?> cl = Class.forName("com.dremio.exec.planner.sql.handlers.ShowLogsHandler");
-      final Constructor<?> ctor = cl.getConstructor(Catalog.class, OptionResolver.class, UserSession.class);
+      final Constructor<?> ctor =
+          cl.getConstructor(Catalog.class, OptionResolver.class, UserSession.class);
 
-      return (SqlDirectHandler<?>) ctor.newInstance(
-        context.getCatalog(),
-        context.getOptions(),
-        context.getSession());
+      return (SqlDirectHandler<?>)
+          ctor.newInstance(context.getCatalog(), context.getOptions(), context.getSession());
     } catch (ClassNotFoundException e) {
       throw UserException.unsupportedError(e)
           .message("SHOW LOGS action is not supported.")

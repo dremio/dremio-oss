@@ -38,7 +38,5 @@ public class ParquetReaderStats {
   public long timeDictPagesDecompressed;
   public long timePagesDecompressed;
 
-  public ParquetReaderStats() {
-  }
-
+  public ParquetReaderStats() {}
 }

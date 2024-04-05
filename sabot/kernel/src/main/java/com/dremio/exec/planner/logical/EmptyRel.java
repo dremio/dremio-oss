@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.planner.logical;
 
+import com.dremio.exec.record.BatchSchema;
 import org.apache.calcite.plan.CopyWithCluster;
 import org.apache.calcite.plan.CopyWithCluster.CopyToCluster;
 import org.apache.calcite.plan.RelOptCluster;
@@ -27,13 +28,12 @@ import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 
-import com.dremio.exec.record.BatchSchema;
-
 public class EmptyRel extends AbstractRelNode implements Rel, CopyToCluster {
 
   private final BatchSchema schema;
 
-  public EmptyRel(RelOptCluster cluster, RelTraitSet traitSet, RelDataType rowType, BatchSchema schema) {
+  public EmptyRel(
+      RelOptCluster cluster, RelTraitSet traitSet, RelDataType rowType, BatchSchema schema) {
     super(cluster, traitSet.replace(LOGICAL));
     this.schema = schema;
     this.rowType = rowType;
@@ -41,7 +41,9 @@ public class EmptyRel extends AbstractRelNode implements Rel, CopyToCluster {
 
   @Override
   public RelWriter explainTerms(RelWriter pw) {
-    return pw.item("schema", schema.toString());
+    return super.explainTerms(pw)
+        .item("type", rowType)
+        .itemIf("type", rowType.getFieldList(), pw.nest());
   }
 
   @Override

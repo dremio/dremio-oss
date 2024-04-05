@@ -23,16 +23,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
-import java.io.File;
-
-import org.apache.hadoop.conf.Configuration;
-import org.apache.iceberg.TableProperties;
-import org.apache.iceberg.exceptions.NotFoundException;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
-import org.mockito.Mock;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.hadoop.HadoopFileSystem;
@@ -49,17 +39,23 @@ import com.dremio.sabot.op.tablefunction.TableFunctionOperator;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Resources;
+import java.io.File;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.iceberg.TableProperties;
+import org.apache.iceberg.exceptions.NotFoundException;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Test;
+import org.mockito.Mock;
 
-/**
- * Tests for {@link IcebergLocationFinderTableFunction}
- */
+/** Tests for {@link IcebergLocationFinderTableFunction} */
 public class TestIcebergLocationFinderTableFunction extends BaseTestTableFunction {
 
   private static final Configuration CONF = new Configuration();
   private static FileSystem fs;
-  @Mock
-  private StoragePluginId pluginId;
-  @Mock(extraInterfaces = { SupportsIcebergRootPointer.class })
+  @Mock private StoragePluginId pluginId;
+
+  @Mock(extraInterfaces = {SupportsIcebergRootPointer.class})
   private SupportsIcebergMutablePlugin plugin;
 
   @BeforeClass
@@ -73,49 +69,66 @@ public class TestIcebergLocationFinderTableFunction extends BaseTestTableFunctio
     when(plugin.createFSWithAsyncOptions(anyString(), anyString(), any())).thenReturn(fs);
     when(plugin.getFsConfCopy()).thenReturn(CONF);
     when(plugin.createIcebergFileIO(any(), any(), any(), any(), any()))
-      .thenReturn(new DremioFileIO(fs, null, null, null, null,
-        new HadoopFileSystemConfigurationAdapter(CONF)));
+        .thenReturn(
+            new DremioFileIO(
+                fs, null, null, null, null, new HadoopFileSystemConfigurationAdapter(CONF)));
   }
 
   @Test
   public void testTableLocationFinder() throws Exception {
-    Table input = t(
-      th(SystemSchemas.METADATA_FILE_PATH),
-      tr(Resources.getResource("iceberg/empty_table/metadata/v1.metadata.json").toURI().toString()),
-      tr(Resources.getResource("iceberg/empty_table/metadata/v1.gc_disabled.metadata.json").toURI().toString()), // should get skipped
-      tr(Resources.getResource("iceberg/partitionednation/metadata/v1.metadata.json").toURI().toString()),
-      tr(Resources.getResource("iceberg/v2/orders/metadata/v1.metadata.json").toURI().toString())
-    );
+    Table input =
+        t(
+            th(SystemSchemas.METADATA_FILE_PATH),
+            tr(
+                Resources.getResource("iceberg/empty_table/metadata/v1.metadata.json")
+                    .toURI()
+                    .toString()),
+            tr(
+                Resources.getResource("iceberg/empty_table/metadata/v1.gc_disabled.metadata.json")
+                    .toURI()
+                    .toString()), // should get skipped
+            tr(
+                Resources.getResource("iceberg/partitionednation/metadata/v1.metadata.json")
+                    .toURI()
+                    .toString()),
+            tr(
+                Resources.getResource("iceberg/v2/orders/metadata/v1.metadata.json")
+                    .toURI()
+                    .toString()));
 
-    Table output = t(
-      th(SystemSchemas.TABLE_LOCATION),
-      tr("/tmp/empty_iceberg"),
-      tr("/tmp/iceberg"),
-      tr("/tmp/iceberg-test-tables/v2/orders")
-    );
+    Table output =
+        t(
+            th(SystemSchemas.TABLE_LOCATION),
+            tr("/tmp/empty_iceberg"),
+            tr("/tmp/iceberg"),
+            tr("/tmp/iceberg-test-tables/v2/orders"));
 
     validateSingle(getPop(), TableFunctionOperator.class, input, output, 3);
   }
 
   @Test
   public void testTableLocationFinderContinueOnError() throws Exception {
-    Table input = t(
-      th(SystemSchemas.METADATA_FILE_PATH),
-      tr(Resources.getResource("iceberg/empty_table/metadata/v1.metadata.json").toURI().toString()),
-      tr(new File("iceberg/v2/path/does/not/exist.metadata.json").toURI().toString()),
-      tr(Resources.getResource("iceberg/partitionednation/metadata/v1.metadata.json").toURI().toString())
-    );
+    Table input =
+        t(
+            th(SystemSchemas.METADATA_FILE_PATH),
+            tr(
+                Resources.getResource("iceberg/empty_table/metadata/v1.metadata.json")
+                    .toURI()
+                    .toString()),
+            tr(new File("iceberg/v2/path/does/not/exist.metadata.json").toURI().toString()),
+            tr(
+                Resources.getResource("iceberg/partitionednation/metadata/v1.metadata.json")
+                    .toURI()
+                    .toString()));
 
-    Table output = t(
-      th(SystemSchemas.TABLE_LOCATION),
-      tr("/tmp/empty_iceberg"),
-      tr("/tmp/iceberg")
-    );
+    Table output =
+        t(th(SystemSchemas.TABLE_LOCATION), tr("/tmp/empty_iceberg"), tr("/tmp/iceberg"));
 
     validateSingle(getPop(true), TableFunctionOperator.class, input, output, 3);
 
-    assertThatThrownBy(() -> validateSingle(getPop(false), TableFunctionOperator.class, input, output, 3))
-      .isInstanceOf(NotFoundException.class);
+    assertThatThrownBy(
+            () -> validateSingle(getPop(false), TableFunctionOperator.class, input, output, 3))
+        .isInstanceOf(NotFoundException.class);
   }
 
   private TableFunctionPOP getPop() {
@@ -124,15 +137,16 @@ public class TestIcebergLocationFinderTableFunction extends BaseTestTableFunctio
 
   private TableFunctionPOP getPop(boolean continueOnError) {
     return new TableFunctionPOP(
-      PROPS,
-      null,
-      new TableFunctionConfig(
-        TableFunctionConfig.FunctionType.ICEBERG_TABLE_LOCATION_FINDER,
-        true,
-        new IcebergLocationFinderFunctionContext(pluginId,
-          SystemSchemas.TABLE_LOCATION_SCHEMA,
-          ImmutableList.of(SchemaPath.getSimplePath(SystemSchemas.TABLE_LOCATION)),
-          ImmutableMap.of(TableProperties.GC_ENABLED, Boolean.FALSE.toString()),
-          continueOnError)));
+        PROPS,
+        null,
+        new TableFunctionConfig(
+            TableFunctionConfig.FunctionType.ICEBERG_TABLE_LOCATION_FINDER,
+            true,
+            new IcebergLocationFinderFunctionContext(
+                pluginId,
+                SystemSchemas.TABLE_LOCATION_SCHEMA,
+                ImmutableList.of(SchemaPath.getSimplePath(SystemSchemas.TABLE_LOCATION)),
+                ImmutableMap.of(TableProperties.GC_ENABLED, Boolean.FALSE.toString()),
+                continueOnError)));
   }
 }

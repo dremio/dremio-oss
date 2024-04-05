@@ -17,12 +17,6 @@ package com.dremio.exec.planner.sql.handlers;
 
 import static java.util.Objects.requireNonNull;
 
-import java.util.Collections;
-import java.util.List;
-
-import org.apache.calcite.sql.SqlIdentifier;
-import org.apache.calcite.sql.SqlNode;
-
 import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.VersionedPlugin;
@@ -35,16 +29,20 @@ import com.dremio.exec.store.ReferenceConflictException;
 import com.dremio.exec.store.ReferenceNotFoundException;
 import com.dremio.exec.work.foreman.ForemanSetupException;
 import com.dremio.sabot.rpc.user.UserSession;
+import java.util.Collections;
+import java.util.List;
+import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlNode;
 
 /**
  * Handler for updating the reference to the given branch.
  *
- * ALTER BRANCH branchName ASSIGN
- * ( REF[ERENCE] | BRANCH | TAG | COMMIT ) refValue [AS OF timestamp]
- * [ IN sourceName ]
+ * <p>ALTER BRANCH branchName ASSIGN ( REF[ERENCE] | BRANCH | TAG | COMMIT ) refValue [AS OF
+ * timestamp] [ IN sourceName ]
  */
 public class AssignBranchHandler extends BaseVersionHandler<SimpleCommandResult> {
   private final UserSession userSession;
+
   public AssignBranchHandler(QueryContext context) {
     super(context.getCatalog(), context.getOptions());
     this.userSession = requireNonNull(context.getSession());
@@ -56,14 +54,15 @@ public class AssignBranchHandler extends BaseVersionHandler<SimpleCommandResult>
     checkFeatureEnabled("ALTER BRANCH ASSIGN syntax is not supported.");
 
     final SqlAssignBranch assignBranch =
-       requireNonNull(SqlNodeUtil.unwrap(sqlNode, SqlAssignBranch.class));
+        requireNonNull(SqlNodeUtil.unwrap(sqlNode, SqlAssignBranch.class));
     final SqlIdentifier sourceIdentifier = assignBranch.getSourceName();
-    final String sourceName = VersionedHandlerUtils.resolveSourceName(
-      sourceIdentifier,
-      userSession.getDefaultSchemaPath());
+    final String sourceName =
+        VersionedHandlerUtils.resolveSourceName(
+            sourceIdentifier, userSession.getDefaultSchemaPath());
 
-    final VersionContext statementVersion =
-      ReferenceTypeUtils.map(assignBranch.getRefType(), assignBranch.getRefValue(), assignBranch.getTimestamp());
+    VersionContext statementVersion =
+        ReferenceTypeUtils.map(
+            assignBranch.getRefType(), assignBranch.getRefValue(), assignBranch.getTimestamp());
     final String branchName = requireNonNull(assignBranch.getBranchName()).toString();
 
     final VersionedPlugin versionedPlugin = getVersionedPlugin(sourceName);
@@ -85,8 +84,7 @@ public class AssignBranchHandler extends BaseVersionHandler<SimpleCommandResult>
 
     return Collections.singletonList(
         SimpleCommandResult.successful(
-            "Assigned %s to branch %s on source %s.",
-            statementVersion, branchName, sourceName));
+            "Assigned %s to branch %s on source %s.", statementVersion, branchName, sourceName));
   }
 
   @Override

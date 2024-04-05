@@ -15,13 +15,6 @@
  */
 package com.dremio.sabot.op.boost;
 
-import java.io.IOException;
-import java.util.List;
-
-import org.apache.arrow.vector.ValueVector;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.store.RecordWriter;
@@ -32,7 +25,11 @@ import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf;
 import com.google.common.base.Preconditions;
-
+import java.io.IOException;
+import java.util.List;
+import org.apache.arrow.vector.ValueVector;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ArrowColumnWriter implements AutoCloseable {
 
@@ -47,14 +44,26 @@ public class ArrowColumnWriter implements AutoCloseable {
   public boolean isClosed = false;
   private BoostedFileSystem boostedFS;
 
-  public ArrowColumnWriter(ParquetProtobuf.ParquetDatasetSplitScanXAttr splitXAttr, String column, OperatorContext context,
-                           BoostedFileSystem boostedFS, List<String> dataset) throws IOException {
+  public ArrowColumnWriter(
+      ParquetProtobuf.ParquetDatasetSplitScanXAttr splitXAttr,
+      String column,
+      OperatorContext context,
+      BoostedFileSystem boostedFS,
+      List<String> dataset)
+      throws IOException {
     this.column = column;
     this.splitPath = splitXAttr.getPath();
     this.rowGroupIndex = splitXAttr.getRowGroupIndex();
-    this.fileKey = AsyncByteReader.FileKey.of(Path.of(splitPath), Long.toString(splitXAttr.getLastModificationTime()), AsyncByteReader.FileKey.FileType.OTHER, dataset);
+    this.fileKey =
+        AsyncByteReader.FileKey.of(
+            Path.of(splitPath),
+            Long.toString(splitXAttr.getLastModificationTime()),
+            AsyncByteReader.FileKey.FileType.OTHER,
+            dataset);
     this.boostedFS = boostedFS;
-    recordWriter = new ArrowFlatBufRecordWriter(context, boostedFS.createBoostFile(fileKey, rowGroupIndex, column));
+    recordWriter =
+        new ArrowFlatBufRecordWriter(
+            context, boostedFS.createBoostFile(fileKey, rowGroupIndex, column));
     this.outputVectorContainer = context.createOutputVectorContainer();
   }
 
@@ -63,7 +72,8 @@ public class ArrowColumnWriter implements AutoCloseable {
     outputVectorContainer.add(columnVector);
     outputVectorContainer.buildSchema();
     RecordWriter.WriteStatsListener byteCountListener = (b) -> {};
-    RecordWriter.OutputEntryListener fileWriteListener = (a, b, c, d, e, f, g, partition, h, p, r) -> {};
+    RecordWriter.OutputEntryListener fileWriteListener =
+        (a, b, c, d, e, f, g, partition, h, p, r) -> {};
     recordWriter.setup(outputVectorContainer, fileWriteListener, byteCountListener);
   }
 
@@ -74,14 +84,15 @@ public class ArrowColumnWriter implements AutoCloseable {
 
   @Override
   public void close() throws Exception {
-    if(!isClosed) {
+    if (!isClosed) {
       AutoCloseables.close(recordWriter); // file write is done on closing RecordWriter
       isClosed = true;
     }
   }
 
   public void commit() throws IOException {
-    Preconditions.checkArgument(isClosed, "Attempted to commit boost file before finishing writing");
+    Preconditions.checkArgument(
+        isClosed, "Attempted to commit boost file before finishing writing");
     boostedFS.commitBoostFile(fileKey, rowGroupIndex, column);
   }
 
@@ -90,8 +101,8 @@ public class ArrowColumnWriter implements AutoCloseable {
       AutoCloseables.close(recordWriter);
       boostedFS.abortBoostFile(fileKey, rowGroupIndex, column);
     } catch (Exception ex) {
-      logger.error("Failure while cancelling boosting of column [{}] of split [{}]", column, splitPath, ex);
+      logger.error(
+          "Failure while cancelling boosting of column [{}] of split [{}]", column, splitPath, ex);
     }
   }
-
 }

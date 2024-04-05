@@ -17,18 +17,6 @@ package com.dremio.sabot.op.join.vhash;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.TimeUnit;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.FieldVector;
-import org.apache.arrow.vector.SimpleBigIntVector;
-import org.apache.commons.collections4.CollectionUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.physical.config.RuntimeFilterProbeTarget;
 import com.dremio.exec.util.BloomFilter;
@@ -37,8 +25,17 @@ import com.dremio.sabot.op.common.ht2.PivotDef;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.koloboke.collect.hash.HashConfig;
-
 import io.netty.util.internal.PlatformDependent;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.SimpleBigIntVector;
+import org.apache.commons.collections4.CollectionUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class EightByteInnerLeftProbeOff implements JoinTable {
   private static final Logger logger = LoggerFactory.getLogger(EightByteInnerLeftProbeOff.class);
@@ -61,7 +58,12 @@ public class EightByteInnerLeftProbeOff implements JoinTable {
   private final Stopwatch buildHashComputationWatch = Stopwatch.createUnstarted();
   private final Stopwatch probeHashComputationWatch = Stopwatch.createUnstarted();
 
-  public EightByteInnerLeftProbeOff(BufferAllocator allocator, int initialSize, PivotDef probeDef, PivotDef buildDef, boolean isEqualForNullKey){
+  public EightByteInnerLeftProbeOff(
+      BufferAllocator allocator,
+      int initialSize,
+      PivotDef probeDef,
+      PivotDef buildDef,
+      boolean isEqualForNullKey) {
     Preconditions.checkArgument(probeDef.getFixedPivots().size() == 1);
     Preconditions.checkArgument(buildDef.getFixedPivots().size() == 1);
     this.allocator = allocator;
@@ -85,7 +87,7 @@ public class EightByteInnerLeftProbeOff implements JoinTable {
     final long finalWordAddr = srcDataAddr + (wordCount * WORD_BITS * EIGHT_BYTE);
     long outputAddr = output.memoryAddress();
 
-    try(SimpleBigIntVector hashValues = new SimpleBigIntVector("hashvalues", allocator)) {
+    try (SimpleBigIntVector hashValues = new SimpleBigIntVector("hashvalues", allocator)) {
       hashValues.allocateNew(count);
       final long hashValueVectorAddr = hashValues.getBufferAddress();
 
@@ -120,26 +122,31 @@ public class EightByteInnerLeftProbeOff implements JoinTable {
           hashValueAddress += (WORD_BITS * EIGHT_BYTE);
           for (int i = 0; i < WORD_BITS; i++, outputAddr += FOUR_BYTE) {
             // for null key, call map.insertNull to insert null key,
-            //it will return the ordinal of existing null key if null key already inserted in hash table.
+            // it will return the ordinal of existing null key if null key already inserted in hash
+            // table.
             PlatformDependent.putInt(outputAddr, map.insertNull());
           }
         } else if (bitValues == ALL_SET) {
           // CASE 2: all set, skip individual checks.
           for (int i = 0; i < WORD_BITS; i++, srcDataAddr += EIGHT_BYTE, outputAddr += FOUR_BYTE) {
             final int keyHash = (int) PlatformDependent.getLong(hashValueAddress);
-            PlatformDependent.putInt(outputAddr, map.insert(PlatformDependent.getLong(srcDataAddr), keyHash));
+            PlatformDependent.putInt(
+                outputAddr, map.insert(PlatformDependent.getLong(srcDataAddr), keyHash));
             hashValueAddress += EIGHT_BYTE;
           }
         } else {
-          // CASE 3: some nulls, some not, update each value to zero or the value, depending on the null bit.
+          // CASE 3: some nulls, some not, update each value to zero or the value, depending on the
+          // null bit.
           for (int i = 0; i < WORD_BITS; i++, srcDataAddr += EIGHT_BYTE, outputAddr += FOUR_BYTE) {
             final int bitVal = ((int) (bitValues >>> i)) & 1;
             if (bitVal == 1) {
               final int keyHash = (int) PlatformDependent.getLong(hashValueAddress);
-              PlatformDependent.putInt(outputAddr, map.insert(PlatformDependent.getLong(srcDataAddr), keyHash));
+              PlatformDependent.putInt(
+                  outputAddr, map.insert(PlatformDependent.getLong(srcDataAddr), keyHash));
             } else {
               // for null key, call map.insertNull to insert null key,
-              // it will return the ordinal of existing null key if null key already inserted in hash table.
+              // it will return the ordinal of existing null key if null key already inserted in
+              // hash table.
               PlatformDependent.putInt(outputAddr, map.insertNull());
             }
             hashValueAddress += EIGHT_BYTE;
@@ -155,26 +162,34 @@ public class EightByteInnerLeftProbeOff implements JoinTable {
           // noop (all nulls).
           for (int i = 0; i < remainCount; i++, outputAddr += FOUR_BYTE) {
             // for null key, call map.insertNull to insert null key,
-            // it will return the ordinal of existing null key if null key already inserted in hash table.
+            // it will return the ordinal of existing null key if null key already inserted in hash
+            // table.
             PlatformDependent.putInt(outputAddr, map.insertNull());
           }
         } else if (bitValues == ALL_SET) {
           // all set,
-          for (int i = 0; i < remainCount; i++, srcDataAddr += EIGHT_BYTE, outputAddr += FOUR_BYTE) {
+          for (int i = 0;
+              i < remainCount;
+              i++, srcDataAddr += EIGHT_BYTE, outputAddr += FOUR_BYTE) {
             final int keyHash = (int) PlatformDependent.getLong(hashValueAddress);
-            PlatformDependent.putInt(outputAddr, map.insert(PlatformDependent.getLong(srcDataAddr), keyHash));
+            PlatformDependent.putInt(
+                outputAddr, map.insert(PlatformDependent.getLong(srcDataAddr), keyHash));
             hashValueAddress += EIGHT_BYTE;
           }
         } else {
           // some nulls,
-          for (int i = 0; i < remainCount; i++, srcDataAddr += EIGHT_BYTE, outputAddr += FOUR_BYTE) {
+          for (int i = 0;
+              i < remainCount;
+              i++, srcDataAddr += EIGHT_BYTE, outputAddr += FOUR_BYTE) {
             final int bitVal = ((int) (bitValues >>> i)) & 1;
             if (bitVal == 1) {
               final int keyHash = (int) PlatformDependent.getLong(hashValueAddress);
-              PlatformDependent.putInt(outputAddr, map.insert(PlatformDependent.getLong(srcDataAddr), keyHash));
+              PlatformDependent.putInt(
+                  outputAddr, map.insert(PlatformDependent.getLong(srcDataAddr), keyHash));
             } else {
               // for null key, call map.insertNull to insert null key,
-              //it will return the ordinal of existing null key if null key already inserted in hash table.
+              // it will return the ordinal of existing null key if null key already inserted in
+              // hash table.
               PlatformDependent.putInt(outputAddr, map.insertNull());
             }
             hashValueAddress += EIGHT_BYTE;
@@ -200,7 +215,7 @@ public class EightByteInnerLeftProbeOff implements JoinTable {
     final int wordCount = (count - remainCount) / WORD_BITS;
     final long finalWordAddr = srcDataAddr + (wordCount * WORD_BITS * EIGHT_BYTE);
 
-    try(SimpleBigIntVector hashValues = new SimpleBigIntVector("hashvalues", allocator)) {
+    try (SimpleBigIntVector hashValues = new SimpleBigIntVector("hashvalues", allocator)) {
       hashValues.allocateNew(count);
       final long hashValueVectorAddr = hashValues.getBufferAddress();
 
@@ -218,7 +233,8 @@ public class EightByteInnerLeftProbeOff implements JoinTable {
           srcDataAddr += (WORD_BITS * EIGHT_BYTE);
           // skip corresponding hashvalues
           hashValueAddress += (WORD_BITS * EIGHT_BYTE);
-          // if null keys are equal, get the ordinal of null key in hash table, otherwise set to NO_MATCH.
+          // if null keys are equal, get the ordinal of null key in hash table, otherwise set to
+          // NO_MATCH.
           final int nullKeyId = isEqualForNullKey ? map.getNull() : LBlockHashTableEight.NO_MATCH;
           for (int i = 0; i < WORD_BITS; i++, outputAddr += FOUR_BYTE) {
             PlatformDependent.putInt(outputAddr, nullKeyId);
@@ -227,18 +243,22 @@ public class EightByteInnerLeftProbeOff implements JoinTable {
           // all set, skip individual checks.
           for (int i = 0; i < WORD_BITS; i++, srcDataAddr += EIGHT_BYTE, outputAddr += FOUR_BYTE) {
             final int keyHash = (int) PlatformDependent.getLong(hashValueAddress);
-            PlatformDependent.putInt(outputAddr, map.get(PlatformDependent.getLong(srcDataAddr), keyHash));
+            PlatformDependent.putInt(
+                outputAddr, map.get(PlatformDependent.getLong(srcDataAddr), keyHash));
             hashValueAddress += EIGHT_BYTE;
           }
         } else {
-          // some nulls, some not, update each value to zero or the value, depending on the null bit.
-          // if null keys are equal, get the ordinal of null key in hash table, otherwise set to NO_MATCH.
+          // some nulls, some not, update each value to zero or the value, depending on the null
+          // bit.
+          // if null keys are equal, get the ordinal of null key in hash table, otherwise set to
+          // NO_MATCH.
           final int nullKeyId = isEqualForNullKey ? map.getNull() : LBlockHashTableEight.NO_MATCH;
           for (int i = 0; i < WORD_BITS; i++, srcDataAddr += EIGHT_BYTE, outputAddr += FOUR_BYTE) {
             final int bitVal = ((int) (bitValues >>> i)) & 1;
-            if(bitVal == 1){
+            if (bitVal == 1) {
               final int keyHash = (int) PlatformDependent.getLong(hashValueAddress);
-              PlatformDependent.putInt(outputAddr, map.get(PlatformDependent.getLong(srcDataAddr), keyHash));
+              PlatformDependent.putInt(
+                  outputAddr, map.get(PlatformDependent.getLong(srcDataAddr), keyHash));
             } else {
               PlatformDependent.putInt(outputAddr, nullKeyId);
             }
@@ -249,31 +269,39 @@ public class EightByteInnerLeftProbeOff implements JoinTable {
       }
 
       // do the remaining bits..
-      if(remainCount > 0) {
+      if (remainCount > 0) {
         final long bitValues = PlatformDependent.getLong(srcBitsAddr);
         if (bitValues == NONE_SET) {
           // noop (all nulls).
-          // if null keys are equal, get the ordinal of null key in hash table, otherwise set to NO_MATCH.
+          // if null keys are equal, get the ordinal of null key in hash table, otherwise set to
+          // NO_MATCH.
           final int nullKeyId = isEqualForNullKey ? map.getNull() : LBlockHashTableEight.NO_MATCH;
           for (int i = 0; i < remainCount; i++, outputAddr += FOUR_BYTE) {
             PlatformDependent.putInt(outputAddr, nullKeyId);
           }
         } else if (bitValues == ALL_SET) {
           // all set,
-          for (int i = 0; i < remainCount; i++, srcDataAddr += EIGHT_BYTE, outputAddr += FOUR_BYTE) {
+          for (int i = 0;
+              i < remainCount;
+              i++, srcDataAddr += EIGHT_BYTE, outputAddr += FOUR_BYTE) {
             final int keyHash = (int) PlatformDependent.getLong(hashValueAddress);
-            PlatformDependent.putInt(outputAddr, map.get(PlatformDependent.getLong(srcDataAddr), keyHash));
+            PlatformDependent.putInt(
+                outputAddr, map.get(PlatformDependent.getLong(srcDataAddr), keyHash));
             hashValueAddress += EIGHT_BYTE;
           }
         } else {
           // some nulls,
-          // if null keys are equal, get the ordinal of null key in hash table, otherwise set to NO_MATCH.
+          // if null keys are equal, get the ordinal of null key in hash table, otherwise set to
+          // NO_MATCH.
           final int nullKeyId = isEqualForNullKey ? map.getNull() : LBlockHashTableEight.NO_MATCH;
-          for (int i = 0; i < remainCount; i++, srcDataAddr += EIGHT_BYTE, outputAddr += FOUR_BYTE) {
+          for (int i = 0;
+              i < remainCount;
+              i++, srcDataAddr += EIGHT_BYTE, outputAddr += FOUR_BYTE) {
             final int bitVal = ((int) (bitValues >>> i)) & 1;
-            if(bitVal == 1){
+            if (bitVal == 1) {
               final int keyHash = (int) PlatformDependent.getLong(hashValueAddress);
-              PlatformDependent.putInt(outputAddr, map.get(PlatformDependent.getLong(srcDataAddr), keyHash));
+              PlatformDependent.putInt(
+                  outputAddr, map.get(PlatformDependent.getLong(srcDataAddr), keyHash));
             } else {
               PlatformDependent.putInt(outputAddr, nullKeyId);
             }
@@ -327,12 +355,12 @@ public class EightByteInnerLeftProbeOff implements JoinTable {
   }
 
   @Override
-  public long getBuildHashComputationTime(TimeUnit unit){
+  public long getBuildHashComputationTime(TimeUnit unit) {
     return buildHashComputationWatch.elapsed(unit);
   }
 
   @Override
-  public long getProbeHashComputationTime(TimeUnit unit){
+  public long getProbeHashComputationTime(TimeUnit unit) {
     return probeHashComputationWatch.elapsed(unit);
   }
 
@@ -352,7 +380,8 @@ public class EightByteInnerLeftProbeOff implements JoinTable {
   }
 
   @Override
-  public void prepareBloomFilters(PartitionColFilters partitionColFilters, boolean sizeDynamically) {
+  public void prepareBloomFilters(
+      PartitionColFilters partitionColFilters, boolean sizeDynamically) {
     List<RuntimeFilterProbeTarget> probeTargets = partitionColFilters.getProbeTargets();
 
     for (int i = 0; i < probeTargets.size(); i++) {
@@ -363,15 +392,21 @@ public class EightByteInnerLeftProbeOff implements JoinTable {
 
       try {
         /* Close previously created bloomFilters */
-        Optional<BloomFilter> bloomFilter = partitionColFilters.getBloomFilter(i, probeTargets.get(i));
+        Optional<BloomFilter> bloomFilter =
+            partitionColFilters.getBloomFilter(i, probeTargets.get(i));
         AutoCloseables.closeNoChecked(bloomFilter.orElse(null));
         partitionColFilters.setBloomFilter(i, probeTargets.get(i), Optional.empty());
 
-        checkArgument(fieldNames.size() == 1,
-          "VECTORIZED_BIGINT mode supports only a single field of type bigint. Found more: %s", fieldNames);
+        checkArgument(
+            fieldNames.size() == 1,
+            "VECTORIZED_BIGINT mode supports only a single field of type bigint. Found more: %s",
+            fieldNames);
 
         if (!fieldNames.get(0).equalsIgnoreCase(build.getName())) {
-          logger.debug("The required field name {} is not available in the build pivot fields {}. Skipping the filter.", fieldNames.get(0), build.getName());
+          logger.debug(
+              "The required field name {} is not available in the build pivot fields {}. Skipping the filter.",
+              fieldNames.get(0),
+              build.getName());
         } else {
           bloomFilter = map.prepareBloomFilter(sizeDynamically);
           partitionColFilters.setBloomFilter(i, probeTargets.get(i), bloomFilter);

@@ -15,12 +15,11 @@
  */
 package com.dremio.exec.compile.sig;
 
+import com.dremio.common.expression.CompleteType;
+import com.dremio.common.expression.LogicalExpression;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
-
-import com.dremio.common.expression.CompleteType;
-import com.dremio.common.expression.LogicalExpression;
 
 public interface ConstantExtractor {
   default boolean isLarge(int threshold) {

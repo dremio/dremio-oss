@@ -32,35 +32,6 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.when;
 
-import java.net.URI;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-
-import javax.inject.Provider;
-
-import org.apache.hadoop.yarn.conf.YarnConfiguration;
-import org.apache.twill.api.ResourceReport;
-import org.apache.twill.api.RunId;
-import org.apache.twill.api.ServiceController;
-import org.apache.twill.api.TwillController;
-import org.apache.twill.api.TwillRunResources;
-import org.apache.twill.api.TwillRunnerService;
-import org.apache.twill.api.logging.LogEntry;
-import org.apache.twill.internal.DefaultTwillRunResources;
-import org.apache.twill.internal.RunIds;
-import org.apache.twill.internal.utils.Resources;
-import org.junit.Rule;
-import org.junit.Test;
-import org.mockito.Mockito;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
-import org.slf4j.Logger;
-
 import com.dremio.common.nodes.NodeProvider;
 import com.dremio.config.DremioConfig;
 import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
@@ -91,27 +62,56 @@ import com.dremio.test.DremioTest;
 import com.dremio.test.TemporarySystemProperties;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import javax.inject.Provider;
+import org.apache.hadoop.yarn.conf.YarnConfiguration;
+import org.apache.twill.api.ResourceReport;
+import org.apache.twill.api.RunId;
+import org.apache.twill.api.ServiceController;
+import org.apache.twill.api.TwillController;
+import org.apache.twill.api.TwillRunResources;
+import org.apache.twill.api.TwillRunnerService;
+import org.apache.twill.api.logging.LogEntry;
+import org.apache.twill.internal.DefaultTwillRunResources;
+import org.apache.twill.internal.RunIds;
+import org.apache.twill.internal.utils.Resources;
+import org.junit.Rule;
+import org.junit.Test;
+import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
+import org.slf4j.Logger;
 
-/**
- * Class to test YarnService
- */
+/** Class to test YarnService */
 public class TestYarnService {
 
-  @Rule
-  public final TemporarySystemProperties properties = new TemporarySystemProperties();
+  @Rule public final TemporarySystemProperties properties = new TemporarySystemProperties();
 
   @Test
   public void testStartCluster() throws Exception {
     assumeNonMaprProfile();
 
     YarnController controller = Mockito.mock(YarnController.class);
-    YarnService yarnService = new YarnService(new TestListener(), controller, Mockito.mock(NodeProvider.class));
+    YarnService yarnService =
+        new YarnService(new TestListener(), controller, Mockito.mock(NodeProvider.class));
     Cluster cluster = new Cluster();
     cluster.setState(ClusterState.CREATED);
     cluster.setStateChangeTime(System.currentTimeMillis());
     cluster.setId(new ClusterId(UUID.randomUUID().toString()));
     ClusterConfig clusterConfig = new ClusterConfig();
-    clusterConfig.setClusterSpec(new ClusterSpec().setContainerCount(2).setMemoryMBOffHeap(4096).setMemoryMBOnHeap(4096).setVirtualCoreCount(2));
+    clusterConfig.setClusterSpec(
+        new ClusterSpec()
+            .setContainerCount(2)
+            .setMemoryMBOffHeap(4096)
+            .setMemoryMBOnHeap(4096)
+            .setVirtualCoreCount(2));
     List<Property> propertyList = new ArrayList<>();
     propertyList.add(new Property(FS_DEFAULT_NAME_KEY, "hdfs://name-node:8020"));
     propertyList.add(new Property(RM_HOSTNAME, "resource-manager"));
@@ -134,12 +134,12 @@ public class TestYarnService {
     ResourceReport resourceReport = Mockito.mock(ResourceReport.class);
 
     when(controller.startCluster(any(YarnConfiguration.class), any(List.class)))
-      .thenReturn(twillController);
+        .thenReturn(twillController);
     when(twillController.getRunId()).thenReturn(runId);
     when(twillController.getResourceReport()).thenReturn(resourceReport);
 
     ClusterEnriched clusterEnriched = yarnService.startCluster(cluster);
-    assertNull(null,clusterEnriched.getRunTimeInfo());
+    assertNull(null, clusterEnriched.getRunTimeInfo());
 
     assertEquals(ClusterState.STARTING, cluster.getState());
     assertNotNull(cluster.getRunId());
@@ -151,13 +151,19 @@ public class TestYarnService {
     assumeNonMaprProfile();
 
     YarnController controller = Mockito.mock(YarnController.class);
-    YarnService yarnService = new YarnService(new TestListener(), controller, Mockito.mock(NodeProvider.class));
+    YarnService yarnService =
+        new YarnService(new TestListener(), controller, Mockito.mock(NodeProvider.class));
     Cluster cluster = new Cluster();
     cluster.setState(ClusterState.CREATED);
     cluster.setStateChangeTime(System.currentTimeMillis());
     cluster.setId(new ClusterId(UUID.randomUUID().toString()));
     ClusterConfig clusterConfig = new ClusterConfig();
-    clusterConfig.setClusterSpec(new ClusterSpec().setContainerCount(2).setMemoryMBOffHeap(4096).setMemoryMBOnHeap(4096).setVirtualCoreCount(2));
+    clusterConfig.setClusterSpec(
+        new ClusterSpec()
+            .setContainerCount(2)
+            .setMemoryMBOffHeap(4096)
+            .setMemoryMBOnHeap(4096)
+            .setVirtualCoreCount(2));
     clusterConfig.setIsSecure(false);
     clusterConfig.setDistroType(DistroType.MAPR);
     List<Property> propertyList = new ArrayList<>();
@@ -177,12 +183,16 @@ public class TestYarnService {
     assertEquals("resource-manager", yarnConfig.get(RM_HOSTNAME));
     assertEquals("pdfs:///data/mydata/pdfs", yarnConfig.get(DremioConfig.DIST_WRITE_PATH_STRING));
 
-    assertEquals("/opt/mapr/conf/mapr.login.conf", yarnConfig.get(YarnDefaultsConfigurator.JAVA_LOGIN));
+    assertEquals(
+        "/opt/mapr/conf/mapr.login.conf", yarnConfig.get(YarnDefaultsConfigurator.JAVA_LOGIN));
     assertEquals("false", yarnConfig.get(YarnDefaultsConfigurator.ZK_SASL_CLIENT));
     assertEquals("Client_simple", yarnConfig.get(YarnDefaultsConfigurator.ZK_SASL_CLIENT_CONFIG));
-    assertEquals("com.mapr.security.simplesasl.SimpleSaslProvider", yarnConfig.get(YarnDefaultsConfigurator.ZK_SASL_PROVIDER));
-    assertEquals("[\"maprfs:///var/mapr/local/${NM_HOST}/mapred/spill\"]", yarnConfig.get(YarnDefaultsConfigurator
-      .SPILL_PATH));
+    assertEquals(
+        "com.mapr.security.simplesasl.SimpleSaslProvider",
+        yarnConfig.get(YarnDefaultsConfigurator.ZK_SASL_PROVIDER));
+    assertEquals(
+        "[\"maprfs:///var/mapr/local/${NM_HOST}/mapred/spill\"]",
+        yarnConfig.get(YarnDefaultsConfigurator.SPILL_PATH));
 
     // MapR security ON
     Cluster myCluster = createCluster();
@@ -190,12 +200,16 @@ public class TestYarnService {
     YarnConfiguration myYarnConfig = new YarnConfiguration();
     yarnService.updateYarnConfiguration(myCluster, myYarnConfig);
 
-    assertEquals("/opt/mapr/conf/mapr.login.conf", myYarnConfig.get(YarnDefaultsConfigurator.JAVA_LOGIN));
+    assertEquals(
+        "/opt/mapr/conf/mapr.login.conf", myYarnConfig.get(YarnDefaultsConfigurator.JAVA_LOGIN));
     assertEquals("false", myYarnConfig.get(YarnDefaultsConfigurator.ZK_SASL_CLIENT));
     assertEquals("Client", myYarnConfig.get(YarnDefaultsConfigurator.ZK_SASL_CLIENT_CONFIG));
-    assertEquals("com.mapr.security.maprsasl.MaprSaslProvider", myYarnConfig.get(YarnDefaultsConfigurator.ZK_SASL_PROVIDER));
-    assertEquals("[\"maprfs:///var/mapr/local/${NM_HOST}/mapred/spill\"]", myYarnConfig.get(YarnDefaultsConfigurator
-      .SPILL_PATH));
+    assertEquals(
+        "com.mapr.security.maprsasl.MaprSaslProvider",
+        myYarnConfig.get(YarnDefaultsConfigurator.ZK_SASL_PROVIDER));
+    assertEquals(
+        "[\"maprfs:///var/mapr/local/${NM_HOST}/mapred/spill\"]",
+        myYarnConfig.get(YarnDefaultsConfigurator.SPILL_PATH));
 
     // HDP security OFF
 
@@ -210,7 +224,8 @@ public class TestYarnService {
     assumeNonMaprProfile();
 
     YarnController controller = Mockito.mock(YarnController.class);
-    YarnService yarnService = new YarnService(new TestListener(), controller, Mockito.mock(NodeProvider.class));
+    YarnService yarnService =
+        new YarnService(new TestListener(), controller, Mockito.mock(NodeProvider.class));
 
     properties.clear(MAPR_IMPALA_RA_THROTTLE);
     properties.clear(MAPR_MAX_RA_STREAMS);
@@ -220,12 +235,16 @@ public class TestYarnService {
     YarnConfiguration myYarnConfig = new YarnConfiguration();
     yarnService.updateYarnConfiguration(myCluster, myYarnConfig);
 
-    assertEquals("/opt/mapr/conf/mapr.login.conf", myYarnConfig.get(YarnDefaultsConfigurator.JAVA_LOGIN));
+    assertEquals(
+        "/opt/mapr/conf/mapr.login.conf", myYarnConfig.get(YarnDefaultsConfigurator.JAVA_LOGIN));
     assertEquals("false", myYarnConfig.get(YarnDefaultsConfigurator.ZK_SASL_CLIENT));
     assertEquals("Client", myYarnConfig.get(YarnDefaultsConfigurator.ZK_SASL_CLIENT_CONFIG));
-    assertEquals("com.mapr.security.maprsasl.MaprSaslProvider", myYarnConfig.get(YarnDefaultsConfigurator.ZK_SASL_PROVIDER));
-    assertEquals("[\"maprfs:///var/mapr/local/${NM_HOST}/mapred/spill\"]", myYarnConfig.get(YarnDefaultsConfigurator
-      .SPILL_PATH));
+    assertEquals(
+        "com.mapr.security.maprsasl.MaprSaslProvider",
+        myYarnConfig.get(YarnDefaultsConfigurator.ZK_SASL_PROVIDER));
+    assertEquals(
+        "[\"maprfs:///var/mapr/local/${NM_HOST}/mapred/spill\"]",
+        myYarnConfig.get(YarnDefaultsConfigurator.SPILL_PATH));
     assertEquals("0", myYarnConfig.get(NETTY_MAX_DIRECT_MEMORY));
     assertNull(myYarnConfig.get(MAPR_IMPALA_RA_THROTTLE));
     assertNull(myYarnConfig.get(MAPR_MAX_RA_STREAMS));
@@ -235,12 +254,17 @@ public class TestYarnService {
     YarnConfiguration myYarnConfigOff = new YarnConfiguration();
     yarnService.updateYarnConfiguration(myClusterOff, myYarnConfigOff);
 
-    assertEquals("/opt/mapr/conf/mapr.login.conf", myYarnConfigOff.get(YarnDefaultsConfigurator.JAVA_LOGIN));
+    assertEquals(
+        "/opt/mapr/conf/mapr.login.conf", myYarnConfigOff.get(YarnDefaultsConfigurator.JAVA_LOGIN));
     assertEquals("false", myYarnConfigOff.get(YarnDefaultsConfigurator.ZK_SASL_CLIENT));
-    assertEquals("Client_simple", myYarnConfigOff.get(YarnDefaultsConfigurator.ZK_SASL_CLIENT_CONFIG));
-    assertEquals("com.mapr.security.simplesasl.SimpleSaslProvider", myYarnConfigOff.get(YarnDefaultsConfigurator.ZK_SASL_PROVIDER));
-    assertEquals("[\"maprfs:///var/mapr/local/${NM_HOST}/mapred/spill\"]", myYarnConfigOff.get(YarnDefaultsConfigurator
-      .SPILL_PATH));
+    assertEquals(
+        "Client_simple", myYarnConfigOff.get(YarnDefaultsConfigurator.ZK_SASL_CLIENT_CONFIG));
+    assertEquals(
+        "com.mapr.security.simplesasl.SimpleSaslProvider",
+        myYarnConfigOff.get(YarnDefaultsConfigurator.ZK_SASL_PROVIDER));
+    assertEquals(
+        "[\"maprfs:///var/mapr/local/${NM_HOST}/mapred/spill\"]",
+        myYarnConfigOff.get(YarnDefaultsConfigurator.SPILL_PATH));
     assertEquals("0", myYarnConfigOff.get(NETTY_MAX_DIRECT_MEMORY));
     assertNull(myYarnConfigOff.get(MAPR_IMPALA_RA_THROTTLE));
     assertNull(myYarnConfigOff.get(MAPR_MAX_RA_STREAMS));
@@ -251,7 +275,8 @@ public class TestYarnService {
     assumeNonMaprProfile();
 
     YarnController controller = Mockito.mock(YarnController.class);
-    YarnService yarnService = new YarnService(new TestListener(), controller, Mockito.mock(NodeProvider.class));
+    YarnService yarnService =
+        new YarnService(new TestListener(), controller, Mockito.mock(NodeProvider.class));
 
     properties.set("MAPR_IMPALA_RA_THROTTLE", "");
     properties.set("MAPR_MAX_RA_STREAMS", "123");
@@ -261,12 +286,16 @@ public class TestYarnService {
     YarnConfiguration myYarnConfig = new YarnConfiguration();
     yarnService.updateYarnConfiguration(myCluster, myYarnConfig);
 
-    assertEquals("/opt/mapr/conf/mapr.login.conf", myYarnConfig.get(YarnDefaultsConfigurator.JAVA_LOGIN));
+    assertEquals(
+        "/opt/mapr/conf/mapr.login.conf", myYarnConfig.get(YarnDefaultsConfigurator.JAVA_LOGIN));
     assertEquals("false", myYarnConfig.get(YarnDefaultsConfigurator.ZK_SASL_CLIENT));
     assertEquals("Client", myYarnConfig.get(YarnDefaultsConfigurator.ZK_SASL_CLIENT_CONFIG));
-    assertEquals("com.mapr.security.maprsasl.MaprSaslProvider", myYarnConfig.get(YarnDefaultsConfigurator.ZK_SASL_PROVIDER));
-    assertEquals("[\"maprfs:///var/mapr/local/${NM_HOST}/mapred/spill\"]", myYarnConfig.get(YarnDefaultsConfigurator
-      .SPILL_PATH));
+    assertEquals(
+        "com.mapr.security.maprsasl.MaprSaslProvider",
+        myYarnConfig.get(YarnDefaultsConfigurator.ZK_SASL_PROVIDER));
+    assertEquals(
+        "[\"maprfs:///var/mapr/local/${NM_HOST}/mapred/spill\"]",
+        myYarnConfig.get(YarnDefaultsConfigurator.SPILL_PATH));
     assertEquals("0", myYarnConfig.get(NETTY_MAX_DIRECT_MEMORY));
     assertEquals("", myYarnConfig.get(MAPR_IMPALA_RA_THROTTLE));
     assertEquals("123", myYarnConfig.get(MAPR_MAX_RA_STREAMS));
@@ -276,16 +305,20 @@ public class TestYarnService {
     YarnConfiguration myYarnConfigOff = new YarnConfiguration();
     yarnService.updateYarnConfiguration(myClusterOff, myYarnConfigOff);
 
-    assertEquals("/opt/mapr/conf/mapr.login.conf", myYarnConfigOff.get(YarnDefaultsConfigurator.JAVA_LOGIN));
+    assertEquals(
+        "/opt/mapr/conf/mapr.login.conf", myYarnConfigOff.get(YarnDefaultsConfigurator.JAVA_LOGIN));
     assertEquals("false", myYarnConfigOff.get(YarnDefaultsConfigurator.ZK_SASL_CLIENT));
-    assertEquals("Client_simple", myYarnConfigOff.get(YarnDefaultsConfigurator.ZK_SASL_CLIENT_CONFIG));
-    assertEquals("com.mapr.security.simplesasl.SimpleSaslProvider", myYarnConfigOff.get(YarnDefaultsConfigurator.ZK_SASL_PROVIDER));
-    assertEquals("[\"maprfs:///var/mapr/local/${NM_HOST}/mapred/spill\"]", myYarnConfigOff.get(YarnDefaultsConfigurator
-      .SPILL_PATH));
+    assertEquals(
+        "Client_simple", myYarnConfigOff.get(YarnDefaultsConfigurator.ZK_SASL_CLIENT_CONFIG));
+    assertEquals(
+        "com.mapr.security.simplesasl.SimpleSaslProvider",
+        myYarnConfigOff.get(YarnDefaultsConfigurator.ZK_SASL_PROVIDER));
+    assertEquals(
+        "[\"maprfs:///var/mapr/local/${NM_HOST}/mapred/spill\"]",
+        myYarnConfigOff.get(YarnDefaultsConfigurator.SPILL_PATH));
     assertEquals("0", myYarnConfigOff.get(NETTY_MAX_DIRECT_MEMORY));
     assertEquals("", myYarnConfigOff.get(MAPR_IMPALA_RA_THROTTLE));
     assertEquals("123", myYarnConfigOff.get(MAPR_MAX_RA_STREAMS));
-
   }
 
   @Test
@@ -293,7 +326,8 @@ public class TestYarnService {
     assumeNonMaprProfile();
 
     YarnController controller = Mockito.mock(YarnController.class);
-    YarnService yarnService = new YarnService(new TestListener(), controller, Mockito.mock(NodeProvider.class));
+    YarnService yarnService =
+        new YarnService(new TestListener(), controller, Mockito.mock(NodeProvider.class));
 
     Cluster myCluster = createCluster();
     myCluster.getClusterConfig().setDistroType(DistroType.HDP).setIsSecure(true);
@@ -304,7 +338,8 @@ public class TestYarnService {
     assertNull(myYarnConfig.get(YarnDefaultsConfigurator.ZK_SASL_CLIENT));
     assertNull(myYarnConfig.get(YarnDefaultsConfigurator.ZK_SASL_CLIENT_CONFIG));
     assertNull(myYarnConfig.get(YarnDefaultsConfigurator.ZK_SASL_PROVIDER));
-    assertEquals("[\"file:///tmp/dremio/spill\"]", myYarnConfig.get(YarnDefaultsConfigurator.SPILL_PATH));
+    assertEquals(
+        "[\"file:///tmp/dremio/spill\"]", myYarnConfig.get(YarnDefaultsConfigurator.SPILL_PATH));
     assertEquals("0", myYarnConfig.get(NETTY_MAX_DIRECT_MEMORY));
 
     Cluster myClusterOff = createCluster();
@@ -316,7 +351,8 @@ public class TestYarnService {
     assertNull(myYarnConfig.get(YarnDefaultsConfigurator.ZK_SASL_CLIENT));
     assertNull(myYarnConfig.get(YarnDefaultsConfigurator.ZK_SASL_CLIENT_CONFIG));
     assertNull(myYarnConfig.get(YarnDefaultsConfigurator.ZK_SASL_PROVIDER));
-    assertEquals("[\"file:///tmp/dremio/spill\"]", myYarnConfig.get(YarnDefaultsConfigurator.SPILL_PATH));
+    assertEquals(
+        "[\"file:///tmp/dremio/spill\"]", myYarnConfig.get(YarnDefaultsConfigurator.SPILL_PATH));
     assertEquals("0", myYarnConfigOff.get(NETTY_MAX_DIRECT_MEMORY));
   }
 
@@ -325,7 +361,8 @@ public class TestYarnService {
     assumeNonMaprProfile();
 
     YarnController controller = Mockito.mock(YarnController.class);
-    YarnService yarnService = new YarnService(new TestListener(), controller, Mockito.mock(NodeProvider.class));
+    YarnService yarnService =
+        new YarnService(new TestListener(), controller, Mockito.mock(NodeProvider.class));
 
     Cluster myCluster = createCluster();
     List<Property> props = myCluster.getClusterConfig().getSubPropertyList();
@@ -342,19 +379,26 @@ public class TestYarnService {
     assertEquals("/abc/bcd", myYarnConfig.get(YarnDefaultsConfigurator.SPILL_PATH));
   }
 
-    @Test
+  @Test
   public void testMemoryLimit() throws Exception {
     Provider provider = Mockito.mock(Provider.class);
-    ProvisioningService service = new ProvisioningServiceImpl(DremioConfig.create(), provider, Mockito.mock(NodeProvider.class), null, null, null);
+    ProvisioningService service =
+        new ProvisioningServiceImpl(
+            DremioConfig.create(), provider, Mockito.mock(NodeProvider.class), null, null, null);
 
     ClusterConfig clusterConfig = new ClusterConfig();
     clusterConfig.setClusterType(ClusterType.YARN);
-    clusterConfig.setClusterSpec(new ClusterSpec().setContainerCount(2).setMemoryMBOffHeap(2048).setMemoryMBOnHeap(4096).setVirtualCoreCount(2));
+    clusterConfig.setClusterSpec(
+        new ClusterSpec()
+            .setContainerCount(2)
+            .setMemoryMBOffHeap(2048)
+            .setMemoryMBOnHeap(4096)
+            .setVirtualCoreCount(2));
 
     try {
       service.createCluster(clusterConfig);
       fail("Should throw not enough memory exception");
-    } catch(ProvisioningHandlingException phe) {
+    } catch (ProvisioningHandlingException phe) {
       // ok
     } catch (Exception e) {
       fail("Exception thrown should be of type: ProvisioningHandlingException");
@@ -364,27 +408,34 @@ public class TestYarnService {
   @Test
   public void testStartServiceFailure() throws Exception {
     assumeNonMaprProfile();
-    try(
-      final LegacyKVStoreProvider kvstore =
+    try (final LegacyKVStoreProvider kvstore =
         LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT)) {
       SingletonRegistry registry = new SingletonRegistry();
       registry.bind(LegacyKVStoreProvider.class, kvstore);
       registry.start();
-      ProvisioningService service = new ProvisioningServiceImpl(DremioConfig.create(), registry.provider(LegacyKVStoreProvider.class), Mockito.mock(NodeProvider.class), DremioTest
-        .CLASSPATH_SCAN_RESULT, DirectProvider.wrap(null), DirectProvider.wrap(null));
+      ProvisioningService service =
+          new ProvisioningServiceImpl(
+              DremioConfig.create(),
+              registry.provider(LegacyKVStoreProvider.class),
+              Mockito.mock(NodeProvider.class),
+              DremioTest.CLASSPATH_SCAN_RESULT,
+              DirectProvider.wrap(null),
+              DirectProvider.wrap(null));
       service.start();
       final ClusterConfig clusterConfig = new ClusterConfig();
       clusterConfig.setName("DremioDaemon");
       clusterConfig.setClusterType(ClusterType.YARN);
-      clusterConfig.setClusterSpec(new ClusterSpec()
-        .setMemoryMBOffHeap(4096)
-        .setMemoryMBOnHeap(4096)
-        .setContainerCount(2)
-        .setVirtualCoreCount(2));
+      clusterConfig.setClusterSpec(
+          new ClusterSpec()
+              .setMemoryMBOffHeap(4096)
+              .setMemoryMBOnHeap(4096)
+              .setContainerCount(2)
+              .setVirtualCoreCount(2));
       List<Property> propertyList = new ArrayList<>();
       propertyList.add(new Property(FS_DEFAULT_NAME_KEY, "hdfs://name-node:8020"));
       propertyList.add(new Property(RM_HOSTNAME, "resource-manager"));
-      propertyList.add(new Property(DremioConfig.DIST_WRITE_PATH_STRING, "pdfs:///data/mydata/pdfs"));
+      propertyList.add(
+          new Property(DremioConfig.DIST_WRITE_PATH_STRING, "pdfs:///data/mydata/pdfs"));
       clusterConfig.setSubPropertyList(propertyList);
 
       try {
@@ -400,19 +451,20 @@ public class TestYarnService {
   @Test
   public void testMemorySplit() throws Exception {
     assumeNonMaprProfile();
-    try (
-      final LegacyKVStoreProvider kvstore =
+    try (final LegacyKVStoreProvider kvstore =
         LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT)) {
       SingletonRegistry registry = new SingletonRegistry();
       registry.bind(LegacyKVStoreProvider.class, kvstore);
       registry.start();
-      ProvisioningService service = Mockito.spy(new ProvisioningServiceImpl(
-        DremioConfig.create(),
-        registry.provider(LegacyKVStoreProvider.class),
-        Mockito.mock(NodeProvider.class),
-        DremioTest.CLASSPATH_SCAN_RESULT,
-        DirectProvider.wrap(null),
-        DirectProvider.wrap(null)));
+      ProvisioningService service =
+          Mockito.spy(
+              new ProvisioningServiceImpl(
+                  DremioConfig.create(),
+                  registry.provider(LegacyKVStoreProvider.class),
+                  Mockito.mock(NodeProvider.class),
+                  DremioTest.CLASSPATH_SCAN_RESULT,
+                  DirectProvider.wrap(null),
+                  DirectProvider.wrap(null)));
       service.start();
       ProvisioningResource resource = new ProvisioningResource(service);
 
@@ -421,15 +473,17 @@ public class TestYarnService {
       props.add(new Property(FS_DEFAULT_NAME_KEY, "hdfs://name-node:8020"));
       props.add(new Property("yarn.resourcemanager.hostname", "resource-manager"));
 
-      ClusterCreateRequest createRequest = ClusterCreateRequest.builder()
-          .setClusterType(ClusterType.YARN)
-          .setDynamicConfig(DynamicConfig.builder().setContainerCount(2).build())
-          .setYarnProps(YarnPropsApi.builder()
-              .setVirtualCoreCount(2)
-              .setMemoryMB(8192)
-              .setSubPropertyList(props)
-              .build())
-          .build();
+      ClusterCreateRequest createRequest =
+          ClusterCreateRequest.builder()
+              .setClusterType(ClusterType.YARN)
+              .setDynamicConfig(DynamicConfig.builder().setContainerCount(2).build())
+              .setYarnProps(
+                  YarnPropsApi.builder()
+                      .setVirtualCoreCount(2)
+                      .setMemoryMB(8192)
+                      .setSubPropertyList(props)
+                      .build())
+              .build();
       doReturn(new ClusterEnriched()).when(service).startCluster(any(ClusterId.class));
       try {
         resource.createCluster(createRequest);
@@ -438,14 +492,17 @@ public class TestYarnService {
         // but it is not subject of the test here
       }
       LegacyKVStore<ClusterId, Cluster> store =
-        registry.provider(LegacyKVStoreProvider.class).get().getStore(ProvisioningServiceImpl.ProvisioningStoreCreator.class);
+          registry
+              .provider(LegacyKVStoreProvider.class)
+              .get()
+              .getStore(ProvisioningServiceImpl.ProvisioningStoreCreator.class);
       Iterable<Map.Entry<ClusterId, Cluster>> entries = store.find();
       assertTrue(entries.iterator().hasNext());
       int count = 0;
       for (Map.Entry<ClusterId, Cluster> entry : entries) {
         Cluster clusterEntry = entry.getValue();
         int offHeap = clusterEntry.getClusterConfig().getClusterSpec().getMemoryMBOffHeap();
-        assertEquals(8192-2048, offHeap);
+        assertEquals(8192 - 2048, offHeap);
         int onHeap = clusterEntry.getClusterConfig().getClusterSpec().getMemoryMBOnHeap();
         assertEquals(2048, onHeap);
         count++;
@@ -461,7 +518,8 @@ public class TestYarnService {
     YarnController controller = Mockito.mock(YarnController.class);
 
     final TestListener listener = new TestListener();
-    YarnService yarnService = new YarnService(listener, controller, Mockito.mock(NodeProvider.class));
+    YarnService yarnService =
+        new YarnService(listener, controller, Mockito.mock(NodeProvider.class));
 
     final Cluster cluster = createCluster();
 
@@ -470,57 +528,66 @@ public class TestYarnService {
     ResourceReport resourceReport = Mockito.mock(ResourceReport.class);
 
     when(controller.startCluster(any(YarnConfiguration.class), any(List.class)))
-      .thenReturn(twillController);
+        .thenReturn(twillController);
     when(twillController.getRunId()).thenReturn(runId);
     when(twillController.getResourceReport()).thenReturn(resourceReport);
 
-    final Future<? extends ServiceController> futureController1 = Executors.newSingleThreadExecutor()
-      .submit(new Runnable() {
-        @Override
-        public void run() {
+    final Future<? extends ServiceController> futureController1 =
+        Executors.newSingleThreadExecutor()
+            .submit(
+                new Runnable() {
+                  @Override
+                  public void run() {}
+                },
+                twillController);
 
-        }
-      }, twillController
-    );
-
-    doAnswer(new Answer<Future<? extends ServiceController>>() {
-      @Override
-      public Future<? extends ServiceController> answer(InvocationOnMock invocationOnMock) throws Throwable {
-        return futureController1;
-      }
-    }).when(twillController).terminate();
-
+    doAnswer(
+            new Answer<Future<? extends ServiceController>>() {
+              @Override
+              public Future<? extends ServiceController> answer(InvocationOnMock invocationOnMock)
+                  throws Throwable {
+                return futureController1;
+              }
+            })
+        .when(twillController)
+        .terminate();
 
     final YarnService.OnRunningRunnable onRunning = yarnService.new OnRunningRunnable(cluster);
-    doAnswer(new Answer<Void>() {
-      @Override
-      public Void answer(InvocationOnMock invocation) {
-        try {
-          Thread.sleep(100);
-          onRunning.run();
-          System.out.println("run");
-        } catch (InterruptedException e) {
-          e.printStackTrace();
-        }
-        return null;
-      }
-    }).when(twillController).onRunning(any(Runnable.class), any(Executor.class));
+    doAnswer(
+            new Answer<Void>() {
+              @Override
+              public Void answer(InvocationOnMock invocation) {
+                try {
+                  Thread.sleep(100);
+                  onRunning.run();
+                  System.out.println("run");
+                } catch (InterruptedException e) {
+                  e.printStackTrace();
+                }
+                return null;
+              }
+            })
+        .when(twillController)
+        .onRunning(any(Runnable.class), any(Executor.class));
 
     final YarnService.OnTerminatingRunnable onTerminating =
-      yarnService.new OnTerminatingRunnable(cluster, twillController);
-    doAnswer(new Answer<Void>() {
-      @Override
-      public Void answer(InvocationOnMock invocation) {
-        try {
-          Thread.sleep(1000);
-          onTerminating.run();
-          System.out.println("terminate");
-        } catch (InterruptedException e) {
-          e.printStackTrace();
-        }
-        return null;
-      }
-    }).when(twillController).onTerminated(any(Runnable.class), any(Executor.class));
+        yarnService.new OnTerminatingRunnable(cluster, twillController);
+    doAnswer(
+            new Answer<Void>() {
+              @Override
+              public Void answer(InvocationOnMock invocation) {
+                try {
+                  Thread.sleep(1000);
+                  onTerminating.run();
+                  System.out.println("terminate");
+                } catch (InterruptedException e) {
+                  e.printStackTrace();
+                }
+                return null;
+              }
+            })
+        .when(twillController)
+        .onTerminated(any(Runnable.class), any(Executor.class));
 
     cluster.setState(ClusterState.CREATED);
     cluster.setStateChangeTime(System.currentTimeMillis());
@@ -537,7 +604,8 @@ public class TestYarnService {
     YarnController controller = Mockito.mock(YarnController.class);
 
     final TestListener listener = new TestListener();
-    YarnService yarnService = new YarnService(listener, controller, Mockito.mock(NodeProvider.class));
+    YarnService yarnService =
+        new YarnService(listener, controller, Mockito.mock(NodeProvider.class));
 
     final Cluster cluster = createCluster();
     cluster.setDesiredState(ClusterState.RUNNING);
@@ -547,58 +615,67 @@ public class TestYarnService {
     ResourceReport resourceReport = Mockito.mock(ResourceReport.class);
 
     when(controller.startCluster(any(YarnConfiguration.class), any(List.class)))
-      .thenReturn(twillController);
+        .thenReturn(twillController);
     when(twillController.getRunId()).thenReturn(runId);
     when(twillController.getResourceReport()).thenReturn(resourceReport);
 
-    final Future<? extends ServiceController> futureController1 = Executors.newSingleThreadExecutor()
-      .submit(new Runnable() {
-                @Override
-                public void run() {
+    final Future<? extends ServiceController> futureController1 =
+        Executors.newSingleThreadExecutor()
+            .submit(
+                new Runnable() {
+                  @Override
+                  public void run() {}
+                },
+                twillController);
 
-                }
-              }, twillController
-      );
-
-    doAnswer(new Answer<Future<? extends ServiceController>>() {
-      @Override
-      public Future<? extends ServiceController> answer(InvocationOnMock invocationOnMock) throws Throwable {
-        return futureController1;
-      }
-    }).when(twillController).terminate();
-
+    doAnswer(
+            new Answer<Future<? extends ServiceController>>() {
+              @Override
+              public Future<? extends ServiceController> answer(InvocationOnMock invocationOnMock)
+                  throws Throwable {
+                return futureController1;
+              }
+            })
+        .when(twillController)
+        .terminate();
 
     final YarnService.OnRunningRunnable onRunning = yarnService.new OnRunningRunnable(cluster);
-    doAnswer(new Answer<Void>() {
-      @Override
-      public Void answer(InvocationOnMock invocation) {
-        try {
-          Thread.sleep(100);
-          onRunning.run();
-          System.out.println("run");
-        } catch (InterruptedException e) {
-          e.printStackTrace();
-        }
-        return null;
-      }
-    }).when(twillController).onRunning(any(Runnable.class), any(Executor.class));
+    doAnswer(
+            new Answer<Void>() {
+              @Override
+              public Void answer(InvocationOnMock invocation) {
+                try {
+                  Thread.sleep(100);
+                  onRunning.run();
+                  System.out.println("run");
+                } catch (InterruptedException e) {
+                  e.printStackTrace();
+                }
+                return null;
+              }
+            })
+        .when(twillController)
+        .onRunning(any(Runnable.class), any(Executor.class));
 
     final YarnService.OnTerminatingRunnable onTerminatingNoOP =
-      yarnService.new OnTerminatingRunnable(cluster, twillController);
-    doAnswer(new Answer<Void>() {
-      @Override
-      public Void answer(InvocationOnMock invocation) {
-        try {
-          Thread.sleep(1000);
-          cluster.setState(ClusterState.FAILED);
-          cluster.setStateChangeTime(System.currentTimeMillis());
-          cluster.setError("My error");
-        } catch (InterruptedException e) {
-          e.printStackTrace();
-        }
-        return null;
-      }
-    }).when(twillController).onTerminated(any(Runnable.class), any(Executor.class));
+        yarnService.new OnTerminatingRunnable(cluster, twillController);
+    doAnswer(
+            new Answer<Void>() {
+              @Override
+              public Void answer(InvocationOnMock invocation) {
+                try {
+                  Thread.sleep(1000);
+                  cluster.setState(ClusterState.FAILED);
+                  cluster.setStateChangeTime(System.currentTimeMillis());
+                  cluster.setError("My error");
+                } catch (InterruptedException e) {
+                  e.printStackTrace();
+                }
+                return null;
+              }
+            })
+        .when(twillController)
+        .onTerminated(any(Runnable.class), any(Executor.class));
 
     ClusterEnriched clusterEnriched = yarnService.startCluster(cluster);
     assertEquals(ClusterState.FAILED, clusterEnriched.getCluster().getState());
@@ -613,7 +690,8 @@ public class TestYarnService {
     YarnController controller = Mockito.mock(YarnController.class);
 
     final TestListener listener = new TestListener();
-    YarnService yarnService = new YarnService(listener, controller, Mockito.mock(NodeProvider.class));
+    YarnService yarnService =
+        new YarnService(listener, controller, Mockito.mock(NodeProvider.class));
     TwillRunnerService twillRunnerService = Mockito.mock(TwillRunnerService.class);
 
     final Cluster cluster = createCluster();
@@ -624,27 +702,30 @@ public class TestYarnService {
     ResourceReport resourceReport = Mockito.mock(ResourceReport.class);
 
     when(controller.startCluster(any(YarnConfiguration.class), any(List.class)))
-      .thenReturn(twillController);
+        .thenReturn(twillController);
     when(twillController.getRunId()).thenReturn(runId);
     when(twillController.getResourceReport()).thenReturn(resourceReport);
     when(controller.getTwillService(cluster.getId())).thenReturn(twillRunnerService);
-    when(twillRunnerService.lookup(DacDaemonYarnApplication.YARN_APPLICATION_NAME_DEFAULT, runId)).thenReturn(twillController);
-
+    when(twillRunnerService.lookup(DacDaemonYarnApplication.YARN_APPLICATION_NAME_DEFAULT, runId))
+        .thenReturn(twillController);
 
     final YarnService.OnRunningRunnable onRunning = yarnService.new OnRunningRunnable(cluster);
-    doAnswer(new Answer<Void>() {
-      @Override
-      public Void answer(InvocationOnMock invocation) {
-        try {
-          Thread.sleep(100);
-          onRunning.run();
-          System.out.println("run");
-        } catch (InterruptedException e) {
-          e.printStackTrace();
-        }
-        return null;
-      }
-    }).when(twillController).onRunning(any(Runnable.class), any(Executor.class));
+    doAnswer(
+            new Answer<Void>() {
+              @Override
+              public Void answer(InvocationOnMock invocation) {
+                try {
+                  Thread.sleep(100);
+                  onRunning.run();
+                  System.out.println("run");
+                } catch (InterruptedException e) {
+                  e.printStackTrace();
+                }
+                return null;
+              }
+            })
+        .when(twillController)
+        .onRunning(any(Runnable.class), any(Executor.class));
 
     ClusterEnriched clusterEnriched = yarnService.startCluster(cluster);
 
@@ -654,45 +735,55 @@ public class TestYarnService {
     assertEquals(runId.getId(), dRunId.getId());
 
     // supposedly process stopped and restarted before any termination happened
-    YarnService yarnServiceNew = new YarnService(listener, controller, Mockito.mock(NodeProvider.class));
+    YarnService yarnServiceNew =
+        new YarnService(listener, controller, Mockito.mock(NodeProvider.class));
     assertTrue(yarnServiceNew.terminatingThreads.isEmpty());
 
-    final Future<? extends ServiceController> futureController1 = Executors.newSingleThreadExecutor()
-      .submit(new Runnable() {
-                @Override
-                public void run() {
-                  try {
-                    // let the test run
-                    Thread.sleep(1000);
-                  } catch (InterruptedException e) {
-                    e.printStackTrace();
+    final Future<? extends ServiceController> futureController1 =
+        Executors.newSingleThreadExecutor()
+            .submit(
+                new Runnable() {
+                  @Override
+                  public void run() {
+                    try {
+                      // let the test run
+                      Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                      e.printStackTrace();
+                    }
                   }
-                }
-              }, twillController
-      );
+                },
+                twillController);
 
-    doAnswer(new Answer<Future<? extends ServiceController>>() {
-      @Override
-      public Future<? extends ServiceController> answer(InvocationOnMock invocationOnMock) throws Throwable {
-        return futureController1;
-      }
-    }).when(twillController).terminate();
+    doAnswer(
+            new Answer<Future<? extends ServiceController>>() {
+              @Override
+              public Future<? extends ServiceController> answer(InvocationOnMock invocationOnMock)
+                  throws Throwable {
+                return futureController1;
+              }
+            })
+        .when(twillController)
+        .terminate();
 
     final YarnService.OnTerminatingRunnable onTerminating =
-      yarnService.new OnTerminatingRunnable(cluster, twillController);
-    doAnswer(new Answer<Void>() {
-      @Override
-      public Void answer(InvocationOnMock invocation) {
-        try {
-          Thread.sleep(10);
-          onTerminating.run();
-          System.out.println("terminate");
-        } catch (InterruptedException e) {
-          e.printStackTrace();
-        }
-        return null;
-      }
-    }).when(twillController).onTerminated(any(Runnable.class), any(Executor.class));
+        yarnService.new OnTerminatingRunnable(cluster, twillController);
+    doAnswer(
+            new Answer<Void>() {
+              @Override
+              public Void answer(InvocationOnMock invocation) {
+                try {
+                  Thread.sleep(10);
+                  onTerminating.run();
+                  System.out.println("terminate");
+                } catch (InterruptedException e) {
+                  e.printStackTrace();
+                }
+                return null;
+              }
+            })
+        .when(twillController)
+        .onTerminated(any(Runnable.class), any(Executor.class));
 
     yarnServiceNew.stopCluster(cluster);
     assertEquals(1, yarnServiceNew.terminatingThreads.size());
@@ -710,13 +801,15 @@ public class TestYarnService {
     myCluster.setStateChangeTime(System.currentTimeMillis());
 
     YarnController controller = Mockito.mock(YarnController.class);
-    YarnService yarnService = new YarnService(new TestListener(), controller, Mockito.mock(NodeProvider.class));
+    YarnService yarnService =
+        new YarnService(new TestListener(), controller, Mockito.mock(NodeProvider.class));
 
     TwillController twillController = Mockito.mock(TwillController.class);
     RunId runId = RunIds.generate();
 
-    when(controller.startCluster(any(YarnConfiguration.class), eq(myCluster.getClusterConfig().getSubPropertyList())))
-      .thenReturn(twillController);
+    when(controller.startCluster(
+            any(YarnConfiguration.class), eq(myCluster.getClusterConfig().getSubPropertyList())))
+        .thenReturn(twillController);
     when(twillController.getRunId()).thenReturn(runId);
 
     myCluster.setRunId(new com.dremio.provision.RunId(runId.getId()));
@@ -730,7 +823,8 @@ public class TestYarnService {
     assumeNonMaprProfile();
 
     YarnController controller = Mockito.mock(YarnController.class);
-    YarnService yarnService = new YarnService(new TestListener(), controller, Mockito.mock(NodeProvider.class));
+    YarnService yarnService =
+        new YarnService(new TestListener(), controller, Mockito.mock(NodeProvider.class));
     Cluster cluster = new Cluster();
     cluster.setState(ClusterState.CREATED);
     cluster.setStateChangeTime(System.currentTimeMillis());
@@ -746,10 +840,30 @@ public class TestYarnService {
     cluster.setRunId(new com.dremio.provision.RunId(runId.toString()));
     YarnConfiguration yarnConfig = new YarnConfiguration();
 
-    List<ClusterSpec> specs = Lists.asList(new ClusterSpec().setContainerCount(2).setMemoryMBOffHeap(96000).setMemoryMBOnHeap(4096).setVirtualCoreCount(2),
-      new ClusterSpec[] {new ClusterSpec().setContainerCount(2).setMemoryMBOffHeap(96023).setMemoryMBOnHeap(1234).setVirtualCoreCount(2),
-      new ClusterSpec().setContainerCount(2).setMemoryMBOffHeap(8192).setMemoryMBOnHeap(4096).setVirtualCoreCount(2),
-      new ClusterSpec().setContainerCount(2).setMemoryMBOffHeap(72000).setMemoryMBOnHeap(8192).setVirtualCoreCount(2)});
+    List<ClusterSpec> specs =
+        Lists.asList(
+            new ClusterSpec()
+                .setContainerCount(2)
+                .setMemoryMBOffHeap(96000)
+                .setMemoryMBOnHeap(4096)
+                .setVirtualCoreCount(2),
+            new ClusterSpec[] {
+              new ClusterSpec()
+                  .setContainerCount(2)
+                  .setMemoryMBOffHeap(96023)
+                  .setMemoryMBOnHeap(1234)
+                  .setVirtualCoreCount(2),
+              new ClusterSpec()
+                  .setContainerCount(2)
+                  .setMemoryMBOffHeap(8192)
+                  .setMemoryMBOnHeap(4096)
+                  .setVirtualCoreCount(2),
+              new ClusterSpec()
+                  .setContainerCount(2)
+                  .setMemoryMBOffHeap(72000)
+                  .setMemoryMBOnHeap(8192)
+                  .setVirtualCoreCount(2)
+            });
 
     for (ClusterSpec spec : specs) {
       clusterConfig.setClusterSpec(spec);
@@ -762,10 +876,16 @@ public class TestYarnService {
       } else {
         assertEquals(0.1, yarnConfig.getDouble(HEAP_RESERVED_MIN_RATIO, 0), 10e-9);
       }
-      assertEquals(onHeapMemory,
-        Resources.computeMaxHeapSize(offHeapMemory + onHeapMemory, offHeapMemory, yarnConfig.getDouble(HEAP_RESERVED_MIN_RATIO, 0)));
-      assertEquals(onHeapMemory, yarnConfig.getInt(DacDaemonYarnApplication.YARN_MEMORY_ON_HEAP, 0));
-      assertEquals(offHeapMemory, yarnConfig.getInt(DacDaemonYarnApplication.YARN_MEMORY_OFF_HEAP, 0));
+      assertEquals(
+          onHeapMemory,
+          Resources.computeMaxHeapSize(
+              offHeapMemory + onHeapMemory,
+              offHeapMemory,
+              yarnConfig.getDouble(HEAP_RESERVED_MIN_RATIO, 0)));
+      assertEquals(
+          onHeapMemory, yarnConfig.getInt(DacDaemonYarnApplication.YARN_MEMORY_ON_HEAP, 0));
+      assertEquals(
+          offHeapMemory, yarnConfig.getInt(DacDaemonYarnApplication.YARN_MEMORY_OFF_HEAP, 0));
       assertEquals(offHeapMemory, yarnConfig.getInt(JAVA_RESERVED_MEMORY_MB, 0));
     }
   }
@@ -775,13 +895,19 @@ public class TestYarnService {
     assumeNonMaprProfile();
 
     YarnController controller = Mockito.mock(YarnController.class);
-    YarnService yarnService = new YarnService(new TestListener(), controller, Mockito.mock(NodeProvider.class));
+    YarnService yarnService =
+        new YarnService(new TestListener(), controller, Mockito.mock(NodeProvider.class));
     Cluster cluster = new Cluster();
     cluster.setState(ClusterState.CREATED);
     cluster.setStateChangeTime(System.currentTimeMillis());
     cluster.setId(new ClusterId(UUID.randomUUID().toString()));
     ClusterConfig clusterConfig = new ClusterConfig();
-    clusterConfig.setClusterSpec(new ClusterSpec().setContainerCount(2).setMemoryMBOffHeap(4096).setMemoryMBOnHeap(4096).setVirtualCoreCount(2));
+    clusterConfig.setClusterSpec(
+        new ClusterSpec()
+            .setContainerCount(2)
+            .setMemoryMBOffHeap(4096)
+            .setMemoryMBOnHeap(4096)
+            .setVirtualCoreCount(2));
     List<Property> propertyList = new ArrayList<>();
     propertyList.add(new Property(FS_DEFAULT_NAME_KEY, "hdfs://name-node:8020"));
     propertyList.add(new Property(RM_HOSTNAME, "resource-manager"));
@@ -802,12 +928,15 @@ public class TestYarnService {
       resources.add(createResource(i));
     }
 
-    when(controller.startCluster(any(YarnConfiguration.class), eq(cluster.getClusterConfig().getSubPropertyList())))
-      .thenReturn(twillController);
+    when(controller.startCluster(
+            any(YarnConfiguration.class), eq(cluster.getClusterConfig().getSubPropertyList())))
+        .thenReturn(twillController);
     when(controller.getTwillService(cluster.getId())).thenReturn(twillRunnerService);
     when(twillController.getRunId()).thenReturn(runId);
-    when(resourceReport.getRunnableResources(DacDaemonYarnApplication.YARN_RUNNABLE_NAME)).thenReturn(resources);
-    when(twillRunnerService.lookup(DacDaemonYarnApplication.YARN_APPLICATION_NAME_DEFAULT, runId)).thenReturn(twillController);
+    when(resourceReport.getRunnableResources(DacDaemonYarnApplication.YARN_RUNNABLE_NAME))
+        .thenReturn(resources);
+    when(twillRunnerService.lookup(DacDaemonYarnApplication.YARN_APPLICATION_NAME_DEFAULT, runId))
+        .thenReturn(twillController);
     when(twillController.getResourceReport()).thenReturn(resourceReport);
 
     ClusterEnriched clusterEnriched = yarnService.getClusterInfo(cluster);
@@ -823,15 +952,21 @@ public class TestYarnService {
   }
 
   @Test
-  public void testTimelineServiceIsDisabledByDefault(){
+  public void testTimelineServiceIsDisabledByDefault() {
     YarnController controller = Mockito.mock(YarnController.class);
-    YarnService yarnService = new YarnService(new TestListener(), controller, Mockito.mock(NodeProvider.class));
+    YarnService yarnService =
+        new YarnService(new TestListener(), controller, Mockito.mock(NodeProvider.class));
     Cluster cluster = new Cluster();
     cluster.setState(ClusterState.CREATED);
     cluster.setStateChangeTime(System.currentTimeMillis());
     cluster.setId(new ClusterId(UUID.randomUUID().toString()));
     ClusterConfig clusterConfig = new ClusterConfig();
-    clusterConfig.setClusterSpec(new ClusterSpec().setContainerCount(2).setMemoryMBOffHeap(4096).setMemoryMBOnHeap(4096).setVirtualCoreCount(2));
+    clusterConfig.setClusterSpec(
+        new ClusterSpec()
+            .setContainerCount(2)
+            .setMemoryMBOffHeap(4096)
+            .setMemoryMBOnHeap(4096)
+            .setVirtualCoreCount(2));
     List<Property> propertyList = new ArrayList<>();
     clusterConfig.setSubPropertyList(propertyList);
     RunId runId = RunIds.generate();
@@ -846,24 +981,33 @@ public class TestYarnService {
 
     // Test that it can be overwritten
     yarnConfig.setBoolean(YarnConfiguration.TIMELINE_SERVICE_ENABLED, false);
-    cluster.getClusterConfig().getSubPropertyList().add(new Property(YarnConfiguration.TIMELINE_SERVICE_ENABLED, "true"));
+    cluster
+        .getClusterConfig()
+        .getSubPropertyList()
+        .add(new Property(YarnConfiguration.TIMELINE_SERVICE_ENABLED, "true"));
     yarnService.updateYarnConfiguration(cluster, yarnConfig);
     assertTrue(yarnConfig.getBoolean(YarnConfiguration.TIMELINE_SERVICE_ENABLED, false));
   }
 
   private DefaultTwillRunResources createResource(int seed) {
-    DefaultTwillRunResources resource = new DefaultTwillRunResources(seed,
-      "container_e04_1487533082952_0033_01_00000"+seed,
-      2, 8192, 4096, "container-host", 0, ImmutableMap.of(Logger.ROOT_LOGGER_NAME,LogEntry.Level.INFO));
+    DefaultTwillRunResources resource =
+        new DefaultTwillRunResources(
+            seed,
+            "container_e04_1487533082952_0033_01_00000" + seed,
+            2,
+            8192,
+            4096,
+            "container-host",
+            0,
+            ImmutableMap.of(Logger.ROOT_LOGGER_NAME, LogEntry.Level.INFO));
 
     return resource;
   }
 
   private static class TestListener implements ProvisioningStateListener {
 
-    TestListener() {
+    TestListener() {}
 
-    }
     @Override
     public void started(Cluster cluster) throws ProvisioningHandlingException {
       // noop
@@ -886,7 +1030,12 @@ public class TestYarnService {
     cluster.setStateChangeTime(System.currentTimeMillis());
     cluster.setId(new ClusterId(UUID.randomUUID().toString()));
     ClusterConfig clusterConfig = new ClusterConfig();
-    clusterConfig.setClusterSpec(new ClusterSpec().setContainerCount(2).setMemoryMBOffHeap(4096).setMemoryMBOnHeap(4096).setVirtualCoreCount(2));
+    clusterConfig.setClusterSpec(
+        new ClusterSpec()
+            .setContainerCount(2)
+            .setMemoryMBOffHeap(4096)
+            .setMemoryMBOnHeap(4096)
+            .setVirtualCoreCount(2));
     List<Property> propertyList = new ArrayList<>();
     propertyList.add(new Property(FS_DEFAULT_NAME_KEY, "hdfs://name-node:8020"));
     propertyList.add(new Property(RM_HOSTNAME, "resource-manager"));

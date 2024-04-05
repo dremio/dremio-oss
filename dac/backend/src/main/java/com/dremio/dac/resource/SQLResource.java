@@ -15,16 +15,6 @@
  */
 package com.dremio.dac.resource;
 
-import javax.annotation.security.RolesAllowed;
-import javax.inject.Inject;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.GET;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.SecurityContext;
-
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.explore.model.CreateFromSQL;
@@ -45,10 +35,17 @@ import com.dremio.service.job.proto.JobSubmission;
 import com.dremio.service.jobs.CompletionListener;
 import com.dremio.service.jobs.JobsService;
 import com.google.common.base.Preconditions;
+import javax.annotation.security.RolesAllowed;
+import javax.inject.Inject;
+import javax.ws.rs.Consumes;
+import javax.ws.rs.GET;
+import javax.ws.rs.POST;
+import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.SecurityContext;
 
-/**
- * The REST resource that serves a query API, SQL autocomplete, & a functions list.
- */
+/** The REST resource that serves a query API, SQL autocomplete, & a functions list. */
 @RestResource
 @Secured
 @RolesAllowed({"admin", "user"})
@@ -61,19 +58,17 @@ public class SQLResource extends BaseResourceWithAllocator {
 
   @Inject
   public SQLResource(
-    SabotContext sabotContext,
-    JobsService jobs,
-    SecurityContext securityContext,
-    BufferAllocatorFactory allocatorFactory,
-    ProjectOptionManager projectOptionManager,
-    CatalogServiceHelper catalogServiceHelper) {
+      SabotContext sabotContext,
+      JobsService jobs,
+      SecurityContext securityContext,
+      BufferAllocatorFactory allocatorFactory,
+      ProjectOptionManager projectOptionManager,
+      CatalogServiceHelper catalogServiceHelper) {
     super(allocatorFactory);
     this.jobs = jobs;
     this.securityContext = securityContext;
-    this.functionsListService = new FunctionsListService(
-      sabotContext,
-      securityContext,
-      projectOptionManager);
+    this.functionsListService =
+        new FunctionsListService(sabotContext, securityContext, projectOptionManager);
     this.catalogServiceHelper = catalogServiceHelper;
   }
 
@@ -82,32 +77,34 @@ public class SQLResource extends BaseResourceWithAllocator {
   @Produces(MediaType.APPLICATION_JSON)
   @Deprecated
   public JobDataFragment query(CreateFromSQL sql) {
-    final SqlQuery sqlQuery = JobRequestUtil.createSqlQuery(
-        sql.getSql(),
-        sql.getContext(),
-        securityContext.getUserPrincipal().getName(),
-        sql.getEngineName(),
-        null,
-        sql.getReferences());
+    final SqlQuery sqlQuery =
+        JobRequestUtil.createSqlQuery(
+            sql.getSql(),
+            sql.getContext(),
+            securityContext.getUserPrincipal().getName(),
+            sql.getEngineName(),
+            null,
+            sql.getReferences());
 
     // Pagination is not supported in this API, so we need to truncate the results to 500 records
     final CompletionListener listener = new CompletionListener();
 
-    final JobSubmission jobSubmission = jobs.submitJob(
-      SubmitJobRequest.newBuilder()
-          .setSqlQuery(sqlQuery)
-          .setQueryType(QueryType.REST)
-          .build(),
-      listener);
+    final JobSubmission jobSubmission =
+        jobs.submitJob(
+            SubmitJobRequest.newBuilder()
+                .setSqlQuery(sqlQuery)
+                .setQueryType(QueryType.REST)
+                .build(),
+            listener);
 
     listener.awaitUnchecked();
 
     return new JobDataWrapper(
-          jobs,
-          jobSubmission.getJobId(),
-          jobSubmission.getSessionId(),
-          securityContext.getUserPrincipal().getName())
-      .truncate(getOrCreateAllocator("query"), 500);
+            jobs,
+            jobSubmission.getJobId(),
+            jobSubmission.getSessionId(),
+            securityContext.getUserPrincipal().getName())
+        .truncate(getOrCreateAllocator("query"), 500);
   }
 
   @POST
@@ -117,10 +114,7 @@ public class SQLResource extends BaseResourceWithAllocator {
   public AutocompleteResponse getSuggestions(AutocompleteRequest request) {
     Preconditions.checkNotNull(request);
 
-    return AutocompleteProxy.getSuggestions(
-      catalogServiceHelper,
-      request
-    );
+    return AutocompleteProxy.getSuggestions(catalogServiceHelper, request);
   }
 
   @GET

@@ -15,16 +15,13 @@
  */
 package com.dremio.exec.planner.logical;
 
+import com.dremio.exec.calcite.logical.FlattenCrel;
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.rel.RelNode;
 
-import com.dremio.exec.calcite.logical.FlattenCrel;
-
-/**
- * Converts FlattenCrel in Calcite's Convention.NONE to LOGICAL.
- */
+/** Converts FlattenCrel in Calcite's Convention.NONE to LOGICAL. */
 public class FlattenRule extends RelOptRule {
 
   public static FlattenRule INSTANCE = new FlattenRule();
@@ -36,13 +33,17 @@ public class FlattenRule extends RelOptRule {
   @Override
   public void onMatch(RelOptRuleCall call) {
     final FlattenCrel flattenRel = call.rel(0);
-    final RelNode convertedInput = convert(flattenRel.getInput(), flattenRel.getInput().getTraitSet().plus(Rel.LOGICAL).simplify());
-    call.transformTo(new FlattenRel(
-        flattenRel.getCluster(),
-        flattenRel.getInput().getTraitSet().plus(Rel.LOGICAL),
-        convertedInput,
-        flattenRel.getToFlatten(),
-        flattenRel.getAliases(),
-        flattenRel.getNumProjectsPushed()));
+    final RelNode convertedInput =
+        convert(
+            flattenRel.getInput(),
+            flattenRel.getInput().getTraitSet().plus(Rel.LOGICAL).simplify());
+    call.transformTo(
+        new FlattenRel(
+            flattenRel.getCluster(),
+            flattenRel.getInput().getTraitSet().plus(Rel.LOGICAL),
+            convertedInput,
+            flattenRel.getToFlatten(),
+            flattenRel.getAliases(),
+            flattenRel.getNumProjectsPushed()));
   }
 }

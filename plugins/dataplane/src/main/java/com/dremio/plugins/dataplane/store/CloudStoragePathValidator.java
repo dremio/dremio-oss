@@ -20,12 +20,16 @@ import java.util.regex.Pattern;
 @SuppressWarnings("JavadocLinkAsPlainText") // To keep javadocs simple in editor
 public final class CloudStoragePathValidator {
 
-  private static final String AWS_S3_BUCKET_NAME_REGEX = "[a-z0-9](?!.*\\.\\.)[a-z0-9.\\-]{1,61}[a-z0-9]";
+  private static final String AWS_S3_BUCKET_NAME_REGEX =
+      "[a-z0-9](?!.*\\.\\.)[a-z0-9.\\-]{1,61}[a-z0-9]";
   // Warning: only a basic check for forward slashes, not full validation
   private static final String AWS_S3_FOLDER_NAME_REGEX = "/[^/]+";
 
-  private static final Pattern AWS_S3_BUCKET_NAME_PATTERN = Pattern.compile(String.format("^%s$", AWS_S3_BUCKET_NAME_REGEX));
-  private static final Pattern AWS_S3_ROOT_PATH_PATTERN = Pattern.compile(String.format("^/?(%s)(%s)*/?$", AWS_S3_BUCKET_NAME_REGEX, AWS_S3_FOLDER_NAME_REGEX));
+  private static final Pattern AWS_S3_BUCKET_NAME_PATTERN =
+      Pattern.compile(String.format("^%s$", AWS_S3_BUCKET_NAME_REGEX));
+  private static final Pattern AWS_S3_ROOT_PATH_PATTERN =
+      Pattern.compile(
+          String.format("^/?(%s)(%s)*/?$", AWS_S3_BUCKET_NAME_REGEX, AWS_S3_FOLDER_NAME_REGEX));
 
   private static final String AZURE_STORAGE_ACCOUNT_REGEX = "[a-z0-9]{3,24}";
   private static final String AZURE_STORAGE_CONTAINER_REGEX = "[a-z0-9](?!.*--)[a-zA-Z0-9-]{2,62}";
@@ -33,15 +37,19 @@ public final class CloudStoragePathValidator {
   private static final String AZURE_STORAGE_DIRECTORY_REGEX = "/[^/]+";
 
   private static final Pattern AZURE_STORAGE_ACCOUNT_PATTERN =
-    Pattern.compile(String.format("^%s$", AZURE_STORAGE_ACCOUNT_REGEX));
+      Pattern.compile(String.format("^%s$", AZURE_STORAGE_ACCOUNT_REGEX));
   private static final Pattern AZURE_STORAGE_CONTAINER_PATTERN =
-    Pattern.compile(String.format("^%s$", AZURE_STORAGE_CONTAINER_REGEX));
+      Pattern.compile(String.format("^%s$", AZURE_STORAGE_CONTAINER_REGEX));
   private static final Pattern AZURE_ROOT_PATH_PATTERN =
-    Pattern.compile(String.format("^/?(%s)(%s)*/?$", AZURE_STORAGE_CONTAINER_REGEX, AZURE_STORAGE_DIRECTORY_REGEX));
+      Pattern.compile(
+          String.format(
+              "^/?(%s)(%s)*/?$", AZURE_STORAGE_CONTAINER_REGEX, AZURE_STORAGE_DIRECTORY_REGEX));
 
   private CloudStoragePathValidator() {}
 
   /**
+   *
+   *
    * <pre>
    * Checks to see if a given bucket name is valid.
    *
@@ -62,10 +70,15 @@ public final class CloudStoragePathValidator {
    * </pre>
    */
   public static boolean isValidAwsS3BucketName(String bucketName) {
+    if (bucketName == null) {
+      return false;
+    }
     return AWS_S3_BUCKET_NAME_PATTERN.matcher(bucketName).find();
   }
 
   /**
+   *
+   *
    * <pre>
    * Checks to see if a given AWS S3 root path is valid.
    *
@@ -74,10 +87,15 @@ public final class CloudStoragePathValidator {
    * </pre>
    */
   public static boolean isValidAwsS3RootPath(String rootPath) {
+    if (rootPath == null) {
+      return false;
+    }
     return AWS_S3_ROOT_PATH_PATTERN.matcher(rootPath).find();
   }
 
   /**
+   *
+   *
    * <pre>
    * Checks to see if a given storage account name is valid.
    *
@@ -88,10 +106,15 @@ public final class CloudStoragePathValidator {
    * </pre>
    */
   public static boolean isValidAzureStorageAccountName(String storageAccountName) {
+    if (storageAccountName == null) {
+      return false;
+    }
     return AZURE_STORAGE_ACCOUNT_PATTERN.matcher(storageAccountName).find();
   }
 
   /**
+   *
+   *
    * <pre>
    * Checks to see if a given storage container name is valid.
    *
@@ -105,10 +128,15 @@ public final class CloudStoragePathValidator {
    * </pre>
    */
   public static boolean isValidAzureStorageContainerName(String storageContainerName) {
+    if (storageContainerName == null) {
+      return false;
+    }
     return AZURE_STORAGE_CONTAINER_PATTERN.matcher(storageContainerName).find();
   }
 
   /**
+   *
+   *
    * <pre>
    * Checks to see if a given Azure root path is valid.
    *
@@ -120,6 +148,9 @@ public final class CloudStoragePathValidator {
    * </pre>
    */
   public static boolean isValidAzureStorageRootPath(String rootPath) {
+    if (rootPath == null) {
+      return false;
+    }
     return AZURE_ROOT_PATH_PATTERN.matcher(rootPath).find();
   }
 }

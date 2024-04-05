@@ -16,7 +16,6 @@
 package com.dremio.exec.rpc;
 
 import com.google.common.util.concurrent.ListenableFuture;
-
 import io.netty.buffer.ByteBuf;
 
 public interface RpcFuture<T> extends ListenableFuture<T> {

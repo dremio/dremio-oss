@@ -16,35 +16,32 @@
 package com.dremio.exec.expr.fn.impl;
 
 /**
- * Code copied from optiq (https://github.com/julianhyde/optiq).
- * Thanks goes to Julian Hyde and other contributors of optiq.
+ * Code copied from optiq (https://github.com/julianhyde/optiq). Thanks goes to Julian Hyde and
+ * other contributors of optiq.
  */
-
 import com.dremio.exec.expr.fn.FunctionErrorContext;
 
 /**
- * Utilities for converting SQL {@code LIKE} and {@code SIMILAR} operators
- * to regular expressions.
+ * Utilities for converting SQL {@code LIKE} and {@code SIMILAR} operators to regular expressions.
  */
-
 public class RegexpUtil {
   private static final String JAVA_REGEX_SPECIALS = "[]()|^-+*?{}$\\.";
   private static final String SQL_SIMILAR_SPECIALS = "[]()|^-+*_%?{}";
-  private static final String [] REG_CHAR_CLASSES = {
-      "[:ALPHA:]", "\\p{Alpha}",
-      "[:alpha:]", "\\p{Alpha}",
-      "[:UPPER:]", "\\p{Upper}",
-      "[:upper:]", "\\p{Upper}",
-      "[:LOWER:]", "\\p{Lower}",
-      "[:lower:]", "\\p{Lower}",
-      "[:DIGIT:]", "\\d",
-      "[:digit:]", "\\d",
-      "[:SPACE:]", " ",
-      "[:space:]", " ",
-      "[:WHITESPACE:]", "\\s",
-      "[:whitespace:]", "\\s",
-      "[:ALNUM:]", "\\p{Alnum}",
-      "[:alnum:]", "\\p{Alnum}"
+  private static final String[] REG_CHAR_CLASSES = {
+    "[:ALPHA:]", "\\p{Alpha}",
+    "[:alpha:]", "\\p{Alpha}",
+    "[:UPPER:]", "\\p{Upper}",
+    "[:upper:]", "\\p{Upper}",
+    "[:LOWER:]", "\\p{Lower}",
+    "[:lower:]", "\\p{Lower}",
+    "[:DIGIT:]", "\\d",
+    "[:digit:]", "\\d",
+    "[:SPACE:]", " ",
+    "[:space:]", " ",
+    "[:WHITESPACE:]", "\\s",
+    "[:whitespace:]", "\\s",
+    "[:ALNUM:]", "\\p{Alnum}",
+    "[:alnum:]", "\\p{Alnum}"
   };
 
   public static class RegexException extends RuntimeException {
@@ -66,24 +63,17 @@ public class RegexpUtil {
     }
   }
 
-  /**
-   * Translates a SQL LIKE pattern to Java regex pattern. No escape char.
-   */
+  /** Translates a SQL LIKE pattern to Java regex pattern. No escape char. */
   public static String sqlToRegexLike(String sqlPattern) {
-    return sqlToRegexLike(sqlPattern, (char)0);
+    return sqlToRegexLike(sqlPattern, (char) 0);
   }
 
-  /**
-   * Translates a SQL LIKE pattern to Java regex pattern. No escape char.
-   */
+  /** Translates a SQL LIKE pattern to Java regex pattern. No escape char. */
   public static String sqlToRegexLike(String sqlPattern, FunctionErrorContext errCtx) {
     return sqlToRegexLike(sqlPattern, null, errCtx);
   }
 
-  /**
-   * Translates a SQL LIKE pattern to Java regex pattern, with optional
-   * escape string.
-   */
+  /** Translates a SQL LIKE pattern to Java regex pattern, with optional escape string. */
   public static String sqlToRegexLike(String sqlPattern, CharSequence escapeStr) {
     final char escapeChar;
     if (escapeStr != null) {
@@ -97,28 +87,23 @@ public class RegexpUtil {
     return sqlToRegexLike(sqlPattern, escapeChar);
   }
 
-  /**
-   * Translates a SQL LIKE pattern to Java regex pattern, with optional
-   * escape string.
-   */
-  public static String sqlToRegexLike(String sqlPattern, CharSequence escapeStr, FunctionErrorContext errCtx) {
+  /** Translates a SQL LIKE pattern to Java regex pattern, with optional escape string. */
+  public static String sqlToRegexLike(
+      String sqlPattern, CharSequence escapeStr, FunctionErrorContext errCtx) {
     try {
       return sqlToRegexLike(sqlPattern, escapeStr);
     } catch (RegexException e) {
-      throw errCtx.error()
-        .message(e.getMessage())
-        .addContext("position %d", e.getPosition())
-        .addContext("pattern", e.getPattern())
-        .build();
+      throw errCtx
+          .error()
+          .message(e.getMessage())
+          .addContext("position %d", e.getPosition())
+          .addContext("pattern", e.getPattern())
+          .build();
     }
   }
 
-  /**
-   * Translates a SQL LIKE pattern to Java regex pattern.
-   */
-  public static String sqlToRegexLike(
-      String sqlPattern,
-      char escapeChar) {
+  /** Translates a SQL LIKE pattern to Java regex pattern. */
+  public static String sqlToRegexLike(String sqlPattern, char escapeChar) {
     int i;
     final int len = sqlPattern.length();
     final StringBuilder javaPattern = new StringBuilder(len + len);
@@ -132,9 +117,7 @@ public class RegexpUtil {
           throw invalidEscapeSequence(sqlPattern, i);
         }
         char nextChar = sqlPattern.charAt(i + 1);
-        if ((nextChar == '_')
-            || (nextChar == '%')
-            || (nextChar == escapeChar)) {
+        if ((nextChar == '_') || (nextChar == '%') || (nextChar == escapeChar)) {
           javaPattern.append(nextChar);
           i++;
         } else {
@@ -160,9 +143,7 @@ public class RegexpUtil {
     return new RegexException("Invalid escape sequence", s, i);
   }
 
-  private static void similarEscapeRuleChecking(
-      String sqlPattern,
-      char escapeChar) {
+  private static void similarEscapeRuleChecking(String sqlPattern, char escapeChar) {
     if (escapeChar == 0) {
       return;
     }
@@ -175,8 +156,7 @@ public class RegexpUtil {
             throw invalidEscapeSequence(sqlPattern, i);
           }
           char c = sqlPattern.charAt(i + 1);
-          if ((SQL_SIMILAR_SPECIALS.indexOf(c) < 0)
-              && (c != escapeChar)) {
+          if ((SQL_SIMILAR_SPECIALS.indexOf(c) < 0) && (c != escapeChar)) {
             throw invalidEscapeSequence(sqlPattern, i);
           }
         }
@@ -196,17 +176,12 @@ public class RegexpUtil {
     }
   }
 
-  private static RuntimeException invalidRegularExpression(
-      String pattern, int i) {
-    return new RuntimeException(
-        "Invalid regular expression '" + pattern + "'");
+  private static RuntimeException invalidRegularExpression(String pattern, int i) {
+    return new RuntimeException("Invalid regular expression '" + pattern + "'");
   }
 
   private static int sqlSimilarRewriteCharEnumeration(
-      String sqlPattern,
-      StringBuilder javaPattern,
-      int pos,
-      char escapeChar) {
+      String sqlPattern, StringBuilder javaPattern, int pos, char escapeChar) {
     int i;
     for (i = pos + 1; i < sqlPattern.length(); i++) {
       char c = sqlPattern.charAt(i);
@@ -253,27 +228,18 @@ public class RegexpUtil {
     return i - 1;
   }
 
-  /**
-   * Translates a SQL SIMILAR pattern to Java regex pattern. No escape char.
-   */
+  /** Translates a SQL SIMILAR pattern to Java regex pattern. No escape char. */
   public static String sqlToRegexSimilar(String sqlPattern) {
     return sqlToRegexSimilar(sqlPattern, (char) 0);
   }
 
-  /**
-   * Translates a SQL SIMILAR pattern to Java regex pattern. No escape char.
-   */
+  /** Translates a SQL SIMILAR pattern to Java regex pattern. No escape char. */
   public static String sqlToRegexSimilar(String sqlPattern, FunctionErrorContext errCtx) {
     return sqlToRegexSimilar(sqlPattern, (char) 0, errCtx);
   }
 
-  /**
-   * Translates a SQL SIMILAR pattern to Java regex pattern, with optional
-   * escape string.
-   */
-  public static String sqlToRegexSimilar(
-      String sqlPattern,
-      CharSequence escapeStr) {
+  /** Translates a SQL SIMILAR pattern to Java regex pattern, with optional escape string. */
+  public static String sqlToRegexSimilar(String sqlPattern, CharSequence escapeStr) {
     final char escapeChar;
     if (escapeStr != null) {
       if (escapeStr.length() != 1) {
@@ -286,41 +252,40 @@ public class RegexpUtil {
     return sqlToRegexSimilar(sqlPattern, escapeChar);
   }
 
-  public static String sqlToRegexSimilar(String sqlPattern, CharSequence escapeStr, FunctionErrorContext errCtx) {
+  public static String sqlToRegexSimilar(
+      String sqlPattern, CharSequence escapeStr, FunctionErrorContext errCtx) {
     try {
       return sqlToRegexSimilar(sqlPattern, escapeStr);
     } catch (RegexException e) {
-      throw errCtx.error()
-        .message(e.getMessage())
-        .addContext("position %d", e.getPosition())
-        .addContext("pattern", e.getPattern())
-        .build();
+      throw errCtx
+          .error()
+          .message(e.getMessage())
+          .addContext("position %d", e.getPosition())
+          .addContext("pattern", e.getPattern())
+          .build();
     }
   }
 
-  public static String sqlToRegexSimilar(String pattern, char escapeChar, FunctionErrorContext errCtx) {
+  public static String sqlToRegexSimilar(
+      String pattern, char escapeChar, FunctionErrorContext errCtx) {
     try {
       return sqlToRegexSimilar(pattern, escapeChar);
     } catch (RegexException e) {
-      throw errCtx.error()
-        .message(e.getMessage())
-        .addContext("position %d", e.getPosition())
-        .addContext("pattern", e.getPattern())
-        .build();
+      throw errCtx
+          .error()
+          .message(e.getMessage())
+          .addContext("position %d", e.getPosition())
+          .addContext("pattern", e.getPattern())
+          .build();
     }
   }
 
-  /**
-   * Translates SQL SIMILAR pattern to Java regex pattern.
-   */
-  public static String sqlToRegexSimilar(
-      String sqlPattern,
-      char escapeChar) {
+  /** Translates SQL SIMILAR pattern to Java regex pattern. */
+  public static String sqlToRegexSimilar(String sqlPattern, char escapeChar) {
     similarEscapeRuleChecking(sqlPattern, escapeChar);
 
     boolean insideCharacterEnumeration = false;
-    final StringBuilder javaPattern =
-        new StringBuilder(sqlPattern.length() * 2);
+    final StringBuilder javaPattern = new StringBuilder(sqlPattern.length() * 2);
     final int len = sqlPattern.length();
     for (int i = 0; i < len; i++) {
       char c = sqlPattern.charAt(i);
@@ -347,40 +312,36 @@ public class RegexpUtil {
         i++; // we already process the next char.
       } else {
         switch (c) {
-        case '_':
-          javaPattern.append('.');
-          break;
-        case '%':
-          javaPattern.append('.');
-          javaPattern.append('*');
-          break;
-        case '[':
-          javaPattern.append('[');
-          insideCharacterEnumeration = true;
-          i = sqlSimilarRewriteCharEnumeration(
-              sqlPattern,
-              javaPattern,
-              i,
-              escapeChar);
-          break;
-        case ']':
-          if (!insideCharacterEnumeration) {
-            throw invalidRegularExpression(sqlPattern, i);
-          }
-          insideCharacterEnumeration = false;
-          javaPattern.append(']');
-          break;
-        case '\\':
-          javaPattern.append("\\\\");
-          break;
-        case '$':
+          case '_':
+            javaPattern.append('.');
+            break;
+          case '%':
+            javaPattern.append('.');
+            javaPattern.append('*');
+            break;
+          case '[':
+            javaPattern.append('[');
+            insideCharacterEnumeration = true;
+            i = sqlSimilarRewriteCharEnumeration(sqlPattern, javaPattern, i, escapeChar);
+            break;
+          case ']':
+            if (!insideCharacterEnumeration) {
+              throw invalidRegularExpression(sqlPattern, i);
+            }
+            insideCharacterEnumeration = false;
+            javaPattern.append(']');
+            break;
+          case '\\':
+            javaPattern.append("\\\\");
+            break;
+          case '$':
 
-          // $ is special character in java regex, but regular in
-          // SQL regex.
-          javaPattern.append("\\$");
-          break;
-        default:
-          javaPattern.append(c);
+            // $ is special character in java regex, but regular in
+            // SQL regex.
+            javaPattern.append("\\$");
+            break;
+          default:
+            javaPattern.append(c);
         }
       }
     }

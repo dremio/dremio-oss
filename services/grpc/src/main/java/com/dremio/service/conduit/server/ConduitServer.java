@@ -16,15 +16,6 @@
 
 package com.dremio.service.conduit.server;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-
-import javax.inject.Provider;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.service.Service;
 import com.dremio.service.grpc.CloseableBindableService;
@@ -33,7 +24,6 @@ import com.dremio.ssl.SSLEngineFactory;
 import com.dremio.telemetry.utils.TracerFacade;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-
 import io.grpc.BindableService;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
@@ -44,10 +34,14 @@ import io.grpc.netty.NettyServerBuilder;
 import io.grpc.util.TransmitStatusRuntimeExceptionInterceptor;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.opentracing.contrib.grpc.TracingServerInterceptor;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import javax.inject.Provider;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * Conduit server.
- */
+/** Conduit server. */
 public class ConduitServer implements Service {
   private static final Logger logger = LoggerFactory.getLogger(ConduitServer.class);
   private final Provider<ConduitServiceRegistry> registryProvider;
@@ -60,13 +54,11 @@ public class ConduitServer implements Service {
   private volatile Server server = null;
   private volatile Server inProcesServer = null;
 
-
   public ConduitServer(
-    Provider<ConduitServiceRegistry> registryProvider,
-    int port,
-    Optional<SSLEngineFactory> sslEngineFactory,
-    String inProcessServerName
-  ) {
+      Provider<ConduitServiceRegistry> registryProvider,
+      int port,
+      Optional<SSLEngineFactory> sslEngineFactory,
+      String inProcessServerName) {
     this.registryProvider = registryProvider;
     this.sslEngineFactory = sslEngineFactory;
     this.serverBuilder = NettyServerBuilder.forPort(port);
@@ -75,11 +67,10 @@ public class ConduitServer implements Service {
   }
 
   public ConduitServer(
-    Provider<ConduitServiceRegistry> registryProvider,
-    ServerBuilder serverBuilder,
-    Optional<SSLEngineFactory> sslEngineFactory,
-    String inProcessServerName
-  ) {
+      Provider<ConduitServiceRegistry> registryProvider,
+      ServerBuilder serverBuilder,
+      Optional<SSLEngineFactory> sslEngineFactory,
+      String inProcessServerName) {
     this.registryProvider = registryProvider;
     this.sslEngineFactory = sslEngineFactory;
     this.serverBuilder = serverBuilder;
@@ -96,11 +87,14 @@ public class ConduitServer implements Service {
       inProcessServerBuilder.addService(service);
     }
 
-    final TracingServerInterceptor tracingServerInterceptor = TracingServerInterceptor.newBuilder().withTracer(TracerFacade.INSTANCE.getTracer()).build();
+    final TracingServerInterceptor tracingServerInterceptor =
+        TracingServerInterceptor.newBuilder().withTracer(TracerFacade.INSTANCE.getTracer()).build();
     serverBuilder.intercept(tracingServerInterceptor);
-    serverBuilder.intercept(ContextualizedServerInterceptor.buildBasicContextualizedServerInterceptor());
+    serverBuilder.intercept(
+        ContextualizedServerInterceptor.buildBasicContextualizedServerInterceptor());
     inProcessServerBuilder.intercept(tracingServerInterceptor);
-    inProcessServerBuilder.intercept(ContextualizedServerInterceptor.buildBasicContextualizedServerInterceptor());
+    inProcessServerBuilder.intercept(
+        ContextualizedServerInterceptor.buildBasicContextualizedServerInterceptor());
 
     for (CloseableBindableService closeableService : registry.getCloseableServiceList()) {
       logger.debug("Conduit service being added {}", closeableService.getClass().getName());
@@ -109,20 +103,26 @@ public class ConduitServer implements Service {
       closeableServices.add(closeableService);
     }
 
-    for (ServerServiceDefinition serverServiceDefinition : registry.getServerServiceDefinitionList()) {
+    for (ServerServiceDefinition serverServiceDefinition :
+        registry.getServerServiceDefinitionList()) {
       serverBuilder.addService(serverServiceDefinition);
       inProcessServerBuilder.addService(serverServiceDefinition);
     }
 
-    registry.getFallbackHandler().ifPresent(fallbackRegistry -> serverBuilder.fallbackHandlerRegistry(fallbackRegistry));
+    registry
+        .getFallbackHandler()
+        .ifPresent(fallbackRegistry -> serverBuilder.fallbackHandlerRegistry(fallbackRegistry));
 
-    serverBuilder.maxInboundMetadataSize(Integer.MAX_VALUE).maxInboundMessageSize(Integer.MAX_VALUE)
-      .intercept(TransmitStatusRuntimeExceptionInterceptor.instance());
+    serverBuilder
+        .maxInboundMetadataSize(Integer.MAX_VALUE)
+        .maxInboundMessageSize(Integer.MAX_VALUE)
+        .intercept(TransmitStatusRuntimeExceptionInterceptor.instance());
 
     if (sslEngineFactory.isPresent()) {
       final SslContextBuilder contextBuilder = sslEngineFactory.get().newServerContextBuilder();
       // add gRPC overrides using #configure
-      ((NettyServerBuilder)serverBuilder).sslContext(GrpcSslContexts.configure(contextBuilder).build());
+      ((NettyServerBuilder) serverBuilder)
+          .sslContext(GrpcSslContexts.configure(contextBuilder).build());
     }
     server = serverBuilder.build();
     inProcesServer = inProcessServerBuilder.build();

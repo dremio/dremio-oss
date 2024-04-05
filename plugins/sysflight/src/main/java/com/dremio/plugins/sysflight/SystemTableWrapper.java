@@ -15,8 +15,6 @@
  */
 package com.dremio.plugins.sysflight;
 
-import java.util.Iterator;
-
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.DatasetMetadata;
 import com.dremio.connector.metadata.DatasetStats;
@@ -24,16 +22,17 @@ import com.dremio.connector.metadata.EntityPath;
 import com.dremio.connector.metadata.PartitionChunk;
 import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.exec.record.BatchSchema;
+import java.util.Iterator;
 
 /**
  * Wrapper class for around System table handlers.
  *
- * Use {@link SystemTableWrapper#wrap(T)} to create instances
+ * <p>Use {@link SystemTableWrapper#wrap(T)} to create instances
  *
  * @param <T> a system table handler
  */
 final class SystemTableWrapper<T extends DatasetHandle & DatasetMetadata & PartitionChunkListing>
-  implements DatasetHandle, DatasetMetadata, PartitionChunkListing {
+    implements DatasetHandle, DatasetMetadata, PartitionChunkListing {
 
   private final T systemTable;
 
@@ -67,7 +66,8 @@ final class SystemTableWrapper<T extends DatasetHandle & DatasetMetadata & Parti
    * @param systemTable the systemTable
    * @return the wrapped instance, or directly the systemTable if already wrapped
    */
-  static <T extends DatasetHandle & DatasetMetadata & PartitionChunkListing> SystemTableWrapper wrap(final T systemTable) {
+  static <T extends DatasetHandle & DatasetMetadata & PartitionChunkListing>
+      SystemTableWrapper wrap(final T systemTable) {
     // No need to wrap if already implementing SystemTableWrapper
     if (systemTable instanceof SystemTableWrapper) {
       return (SystemTableWrapper) systemTable;

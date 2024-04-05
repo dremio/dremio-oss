@@ -20,5 +20,4 @@ import com.dremio.connector.metadata.MetadataOption;
 /**
  * Marker interface for an option that is passed to {@link SupportsReadSignature#validateMetadata}.
  */
-public interface ValidateMetadataOption extends MetadataOption {
-}
+public interface ValidateMetadataOption extends MetadataOption {}

@@ -15,8 +15,6 @@
  */
 package com.dremio.dac.cmd.upgrade;
 
-import java.util.Map.Entry;
-
 import com.dremio.common.Version;
 import com.dremio.dac.cmd.AdminLogger;
 import com.dremio.datastore.api.LegacyIndexedStore;
@@ -26,19 +24,21 @@ import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobResult;
 import com.dremio.service.jobs.JobsStoreCreator;
 import com.google.common.collect.ImmutableList;
+import java.util.Map.Entry;
 
 /**
- * Remove the schema stored in Arrow file footers of job results in KV store (See DX-12627) to reduce the KV store
- * size
+ * Remove the schema stored in Arrow file footers of job results in KV store (See DX-12627) to
+ * reduce the KV store size
  */
 public class MinimizeJobResultsMetadata extends UpgradeTask implements LegacyUpgradeTask {
 
-
-  //DO NOT MODIFY
+  // DO NOT MODIFY
   static final String taskUUID = "c33400d9-fa65-47e2-b99a-5c3db12d8f84";
 
   public MinimizeJobResultsMetadata() {
-    super("Delete schema stored in arrow footers of job results in KV Store", ImmutableList.of(DeleteHive121BasedInputSplits.taskUUID));
+    super(
+        "Delete schema stored in arrow footers of job results in KV Store",
+        ImmutableList.of(DeleteHive121BasedInputSplits.taskUUID));
   }
 
   @Override
@@ -53,7 +53,8 @@ public class MinimizeJobResultsMetadata extends UpgradeTask implements LegacyUpg
 
   @Override
   public void upgrade(UpgradeContext context) throws Exception {
-    final LegacyIndexedStore<JobId, JobResult> store = context.getLegacyKVStoreProvider().getStore(JobsStoreCreator.class);
+    final LegacyIndexedStore<JobId, JobResult> store =
+        context.getLegacyKVStoreProvider().getStore(JobsStoreCreator.class);
 
     AdminLogger.log("  Minimizing job results metadata");
     try {
@@ -64,7 +65,9 @@ public class MinimizeJobResultsMetadata extends UpgradeTask implements LegacyUpg
         }
 
         for (JobAttempt attempt : jobResult.getAttemptsList()) {
-          if (attempt == null || attempt.getInfo() == null || attempt.getInfo().getResultMetadataList() == null) {
+          if (attempt == null
+              || attempt.getInfo() == null
+              || attempt.getInfo().getResultMetadataList() == null) {
             continue;
           }
           for (ArrowFileMetadata metadata : attempt.getInfo().getResultMetadataList()) {

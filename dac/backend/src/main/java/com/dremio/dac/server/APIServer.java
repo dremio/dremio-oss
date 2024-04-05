@@ -15,18 +15,15 @@
  */
 package com.dremio.dac.server;
 
+import com.dremio.common.perf.Timer;
+import com.dremio.common.scanner.persistence.ScanResult;
+import com.dremio.dac.annotations.APIResource;
 import org.glassfish.jersey.CommonProperties;
 import org.glassfish.jersey.internal.util.PropertiesHelper;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.server.ServerProperties;
 
-import com.dremio.common.perf.Timer;
-import com.dremio.common.scanner.persistence.ScanResult;
-import com.dremio.dac.annotations.APIResource;
-
-/**
- * Dremio Rest API Server.
- */
+/** Dremio Rest API Server. */
 public class APIServer extends ResourceConfig {
   public APIServer(ScanResult result) {
     try (Timer.TimedBlock b = Timer.time("new APIServer")) {
@@ -59,8 +56,9 @@ public class APIServer extends ResourceConfig {
     // PROPERTIES
     property(ServerProperties.RESPONSE_SET_STATUS_OVER_SEND_ERROR, "true");
 
-    final String disableMoxy = PropertiesHelper.getPropertyNameForRuntime(CommonProperties.MOXY_JSON_FEATURE_DISABLE,
-      getConfiguration().getRuntimeType());
+    final String disableMoxy =
+        PropertiesHelper.getPropertyNameForRuntime(
+            CommonProperties.MOXY_JSON_FEATURE_DISABLE, getConfiguration().getRuntimeType());
     property(disableMoxy, true);
   }
 }

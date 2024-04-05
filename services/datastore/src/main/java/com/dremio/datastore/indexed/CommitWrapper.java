@@ -16,9 +16,9 @@
 package com.dremio.datastore.indexed;
 
 /**
- * Wrapper around the index commit operation. To be used in a try-with-resources block, use {@link #open}
- * before the commit operation to get a {@link CommitCloser} that should be {@link CommitCloser#close closed}
- * after the commit operation.
+ * Wrapper around the index commit operation. To be used in a try-with-resources block, use {@link
+ * #open} before the commit operation to get a {@link CommitCloser} that should be {@link
+ * CommitCloser#close closed} after the commit operation.
  */
 public interface CommitWrapper {
 
@@ -30,28 +30,20 @@ public interface CommitWrapper {
    */
   CommitCloser open(String storeName);
 
-  /**
-   * Commit closer.
-   */
+  /** Commit closer. */
   abstract class CommitCloser implements AutoCloseable {
 
     private boolean succeeded = false;
 
-    /**
-     * Must be invoked on successful commit.
-     */
+    /** Must be invoked on successful commit. */
     public void succeeded() {
       succeeded = true;
     }
 
-    /**
-     * Callback on successful close.
-     */
+    /** Callback on successful close. */
     protected abstract void onClose();
 
-    /**
-     * Close the wrapper after committing.
-     */
+    /** Close the wrapper after committing. */
     @Override
     public void close() {
       if (succeeded) {
@@ -60,12 +52,11 @@ public interface CommitWrapper {
     }
   }
 
-  /**
-   * Sink implementation.
-   */
-  CommitWrapper NO_OP = storeName -> new CommitCloser() {
-    @Override
-    public void onClose() {
-    }
-  };
+  /** Sink implementation. */
+  CommitWrapper NO_OP =
+      storeName ->
+          new CommitCloser() {
+            @Override
+            public void onClose() {}
+          };
 }

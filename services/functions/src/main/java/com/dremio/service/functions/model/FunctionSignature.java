@@ -15,22 +15,17 @@
  */
 package com.dremio.service.functions.model;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import javax.annotation.Nullable;
-
-import org.immutables.value.Value;
-
 import com.dremio.service.functions.snippets.Snippet;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.google.common.collect.ImmutableList;
+import java.util.ArrayList;
+import java.util.List;
+import javax.annotation.Nullable;
+import org.immutables.value.Value;
 
-/**
- * The signature for a function.
- */
+/** The signature for a function. */
 @Value.Immutable
 @Value.Style(stagedBuilder = true)
 @JsonSerialize(as = ImmutableFunctionSignature.class)
@@ -38,11 +33,15 @@ import com.google.common.collect.ImmutableList;
 @JsonInclude(JsonInclude.Include.NON_ABSENT)
 public abstract class FunctionSignature {
   public abstract ParameterType getReturnType();
+
   public abstract ImmutableList<Parameter> getParameters();
+
   @Nullable
   public abstract String getDescription();
+
   @Nullable
   public abstract List<SampleCode> getSampleCodes();
+
   @Nullable
   public abstract Snippet getSnippetOverride();
 
@@ -51,16 +50,12 @@ public abstract class FunctionSignature {
   }
 
   public static FunctionSignature create(ParameterType returnType, Parameter... parameters) {
-    return builder()
-      .returnType(returnType)
-      .addParameters(parameters)
-      .build();
+    return builder().returnType(returnType).addParameters(parameters).build();
   }
 
   @Override
   public String toString() {
-    StringBuilder stringBuilder = new StringBuilder()
-      .append("(");
+    StringBuilder stringBuilder = new StringBuilder().append("(");
 
     for (int i = 0; i < getParameters().size(); i++) {
       if (i != 0) {
@@ -71,16 +66,11 @@ public abstract class FunctionSignature {
       stringBuilder.append(parameter);
     }
 
-    stringBuilder
-      .append(")")
-      .append(" -> ")
-      .append(getReturnType());
+    stringBuilder.append(")").append(" -> ").append(getReturnType());
 
     Snippet snippetOverride = getSnippetOverride();
     if (getSnippetOverride() != null) {
-      stringBuilder
-        .append("\n\t")
-        .append(snippetOverride);
+      stringBuilder.append("\n\t").append(snippetOverride);
     }
 
     return stringBuilder.toString();
@@ -110,9 +100,9 @@ public abstract class FunctionSignature {
     }
 
     return FunctionSignature.builder()
-      .returnType(ParameterType.valueOf(returnTypeString))
-      .addAllParameters(parameterList)
-      .snippetOverride(snippetOverride)
-      .build();
+        .returnType(ParameterType.valueOf(returnTypeString))
+        .addAllParameters(parameterList)
+        .snippetOverride(snippetOverride)
+        .build();
   }
 }

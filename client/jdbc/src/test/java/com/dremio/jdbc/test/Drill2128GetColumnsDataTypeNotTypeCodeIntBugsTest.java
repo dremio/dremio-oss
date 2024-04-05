@@ -18,6 +18,8 @@ package com.dremio.jdbc.test;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.dremio.common.util.TestTools;
+import com.dremio.jdbc.JdbcWithServerTestBase;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -25,14 +27,10 @@ import java.sql.Types;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestRule;
-
-import com.dremio.common.util.TestTools;
-import com.dremio.jdbc.JdbcWithServerTestBase;
 
 /**
  * Basic (spot-check/incomplete) tests for DRILL-2128 bugs (many DatabaseMetaData.getColumns(...)
@@ -42,8 +40,7 @@ public class Drill2128GetColumnsDataTypeNotTypeCodeIntBugsTest extends JdbcWithS
 
   private static DatabaseMetaData dbMetadata;
 
-  @Rule
-  public final TestRule timeoutRule = TestTools.getTimeoutRule(120, TimeUnit.SECONDS);
+  @Rule public final TestRule timeoutRule = TestTools.getTimeoutRule(120, TimeUnit.SECONDS);
 
   @BeforeClass
   public static void setUpConnection() throws SQLException {
@@ -74,60 +71,59 @@ public class Drill2128GetColumnsDataTypeNotTypeCodeIntBugsTest extends JdbcWithS
       assertThat(typeCode2).isEqualTo(typeCode1);
 
       // Type code should be one of java.sql.Types.*:
-      List<Integer> typeCodes = Arrays.asList(Types.ARRAY,
-        Types.BIGINT,
-        Types.BINARY,
-        Types.BIT,
-        Types.BLOB,
-        Types.BOOLEAN,
-        Types.CHAR,
-        Types.CLOB,
-        Types.DATALINK,
-        Types.DATE,
-        Types.DECIMAL,
-        Types.DISTINCT,
-        Types.DOUBLE,
-        Types.FLOAT,
-        Types.INTEGER,
-        Types.JAVA_OBJECT,
-        Types.LONGNVARCHAR,
-        Types.LONGVARBINARY,
-        Types.LONGVARCHAR,
-        Types.NCHAR,
-        Types.NCLOB,
-        // TODO:  Resolve:  Is it not clear whether Types.NULL can re-
-        // present a type (e.g., the type of NULL), or whether a column
-        // can ever have that type, and therefore whether Types.NULL
-        // can appear.  Currently, exclude NULL so we'll notice if it
-        // does appear:
-        // NoTypes.NULL.
-        Types.NUMERIC,
-        Types.NVARCHAR,
-        Types.OTHER,
-        Types.REAL,
-        Types.REF,
-        Types.ROWID,
-        Types.SMALLINT,
-        Types.SQLXML,
-        Types.STRUCT,
-        Types.TIME,
-        Types.TIMESTAMP,
-        Types.TINYINT,
-        Types.VARBINARY,
-        Types.VARCHAR);
+      List<Integer> typeCodes =
+          Arrays.asList(
+              Types.ARRAY,
+              Types.BIGINT,
+              Types.BINARY,
+              Types.BIT,
+              Types.BLOB,
+              Types.BOOLEAN,
+              Types.CHAR,
+              Types.CLOB,
+              Types.DATALINK,
+              Types.DATE,
+              Types.DECIMAL,
+              Types.DISTINCT,
+              Types.DOUBLE,
+              Types.FLOAT,
+              Types.INTEGER,
+              Types.JAVA_OBJECT,
+              Types.LONGNVARCHAR,
+              Types.LONGVARBINARY,
+              Types.LONGVARCHAR,
+              Types.NCHAR,
+              Types.NCLOB,
+              // TODO:  Resolve:  Is it not clear whether Types.NULL can re-
+              // present a type (e.g., the type of NULL), or whether a column
+              // can ever have that type, and therefore whether Types.NULL
+              // can appear.  Currently, exclude NULL so we'll notice if it
+              // does appear:
+              // NoTypes.NULL.
+              Types.NUMERIC,
+              Types.NVARCHAR,
+              Types.OTHER,
+              Types.REAL,
+              Types.REF,
+              Types.ROWID,
+              Types.SMALLINT,
+              Types.SQLXML,
+              Types.STRUCT,
+              Types.TIME,
+              Types.TIMESTAMP,
+              Types.TINYINT,
+              Types.VARBINARY,
+              Types.VARCHAR);
       assertThat(typeCodes).contains(typeCode1);
     } while (columns.next());
   }
 
-  /**
-   * Basic test that column TYPE_NAME exists and is strings (such "INTEGER").
-   */
+  /** Basic test that column TYPE_NAME exists and is strings (such "INTEGER"). */
   @Test
   public void testColumn_TYPE_NAME_isString() throws Exception {
     // Get metadata for some INTEGER column.
     final ResultSet columns =
-      dbMetadata.getColumns(null, "INFORMATION_SCHEMA", "COLUMNS",
-        "ORDINAL_POSITION");
+        dbMetadata.getColumns(null, "INFORMATION_SCHEMA", "COLUMNS", "ORDINAL_POSITION");
     assertThat(columns.next()).isTrue();
 
     // TYPE_NAME should be character string for type name "INTEGER", so
@@ -136,8 +132,7 @@ public class Drill2128GetColumnsDataTypeNotTypeCodeIntBugsTest extends JdbcWithS
     final String typeName1 = columns.getString("TYPE_NAME");
     assertThat(typeName1).isEqualTo("INTEGER");
 
-    assertThatThrownBy(() -> columns.getInt("TYPE_NAME"))
-      .isInstanceOf(SQLException.class);
+    assertThatThrownBy(() -> columns.getInt("TYPE_NAME")).isInstanceOf(SQLException.class);
 
     // TYPE_NAME should be at ordinal position 6 (seemingly):
     assertThat(columns.getMetaData().getColumnLabel(6)).isEqualTo("TYPE_NAME");

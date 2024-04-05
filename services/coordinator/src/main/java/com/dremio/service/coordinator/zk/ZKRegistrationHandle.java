@@ -15,18 +15,19 @@
  */
 package com.dremio.service.coordinator.zk;
 
-import org.apache.curator.x.discovery.ServiceInstance;
-
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.service.coordinator.RegistrationHandle;
+import org.apache.curator.x.discovery.ServiceInstance;
 
 class ZKRegistrationHandle implements RegistrationHandle {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ZKRegistrationHandle.class);
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ZKRegistrationHandle.class);
 
   private final ZKServiceSet zkServiceSet;
   private final ServiceInstance<NodeEndpoint> serviceInstance;
 
-  public ZKRegistrationHandle(ZKServiceSet zkServiceSet, ServiceInstance<NodeEndpoint> serviceInstance) {
+  public ZKRegistrationHandle(
+      ZKServiceSet zkServiceSet, ServiceInstance<NodeEndpoint> serviceInstance) {
     super();
     this.zkServiceSet = zkServiceSet;
     this.serviceInstance = serviceInstance;

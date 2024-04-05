@@ -54,3 +54,7 @@ button.dremio-icon-button {
   border: none;
   color: inherit;
 }
+
+a.dremio-icon-button:focus-visible {
+  outline: -webkit-focus-ring-color auto 1px !important;
+}

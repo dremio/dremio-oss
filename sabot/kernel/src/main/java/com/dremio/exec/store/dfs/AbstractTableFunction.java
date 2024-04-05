@@ -23,18 +23,14 @@ import com.dremio.exec.record.VectorContainer;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.tablefunction.TableFunction;
 
-/**
- * Common base class for table functions
- */
+/** Common base class for table functions */
 public abstract class AbstractTableFunction implements TableFunction {
   protected VectorAccessible incoming;
   protected VectorContainer outgoing;
   protected final TableFunctionConfig functionConfig;
   protected final OperatorContext context;
 
-
-  public AbstractTableFunction(OperatorContext context,
-                               TableFunctionConfig functionConfig) {
+  public AbstractTableFunction(OperatorContext context, TableFunctionConfig functionConfig) {
     this.context = context;
     this.functionConfig = functionConfig;
   }

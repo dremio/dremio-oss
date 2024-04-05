@@ -19,6 +19,10 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import com.dremio.common.util.TestTools;
+import com.dremio.exec.compile.ClassTransformer.ClassNames;
+import com.dremio.exec.exception.ClassTransformationException;
+import com.google.common.collect.ImmutableList;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
@@ -26,7 +30,6 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.Collections;
 import java.util.Locale;
-
 import javax.tools.JavaCompiler;
 import javax.tools.JavaCompiler.CompilationTask;
 import javax.tools.JavaFileObject.Kind;
@@ -34,7 +37,6 @@ import javax.tools.SimpleJavaFileObject;
 import javax.tools.StandardJavaFileManager;
 import javax.tools.StandardLocation;
 import javax.tools.ToolProvider;
-
 import org.codehaus.commons.compiler.CompileException;
 import org.junit.Assume;
 import org.junit.BeforeClass;
@@ -42,18 +44,10 @@ import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import com.dremio.common.util.TestTools;
-import com.dremio.exec.compile.ClassTransformer.ClassNames;
-import com.dremio.exec.exception.ClassTransformationException;
-import com.google.common.collect.ImmutableList;
-
-/**
- * Test classloading issues with {@code JDKClassCompiler} and {@code JaninoClassCompiler}
- */
+/** Test classloading issues with {@code JDKClassCompiler} and {@code JaninoClassCompiler} */
 public class TestClassCompilers {
 
-  @ClassRule
-  public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
+  @ClassRule public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
 
   /*
    * Classes are compiled independently into classes/ directory
@@ -68,40 +62,59 @@ public class TestClassCompilers {
 
     classes = TEMP_FOLDER.newFolder("classes");
 
-    StandardJavaFileManager fileManager = javaCompiler.getStandardFileManager(null, Locale.ROOT, UTF_8);
+    StandardJavaFileManager fileManager =
+        javaCompiler.getStandardFileManager(null, Locale.ROOT, UTF_8);
     fileManager.setLocation(StandardLocation.CLASS_OUTPUT, ImmutableList.of(classes));
 
-    SimpleJavaFileObject compilationUnit = new SimpleJavaFileObject(URI.create("FooTest.java"), Kind.SOURCE) {
-      private final String fooTestSource = TestTools.readTestResourceAsString("com/dremio/exec/compile/FooTest.java");
-      @Override
-      public CharSequence getCharContent(boolean ignoreEncodingErrors) throws IOException {
-        return fooTestSource;
-      }
-    };
+    SimpleJavaFileObject compilationUnit =
+        new SimpleJavaFileObject(URI.create("FooTest.java"), Kind.SOURCE) {
+          private final String fooTestSource =
+              TestTools.readTestResourceAsString("com/dremio/exec/compile/FooTest.java");
 
-    CompilationTask task = javaCompiler.getTask(null, fileManager, null, Collections.<String>emptyList(), null, ImmutableList.of(compilationUnit));
+          @Override
+          public CharSequence getCharContent(boolean ignoreEncodingErrors) throws IOException {
+            return fooTestSource;
+          }
+        };
+
+    CompilationTask task =
+        javaCompiler.getTask(
+            null,
+            fileManager,
+            null,
+            Collections.<String>emptyList(),
+            null,
+            ImmutableList.of(compilationUnit));
     assertTrue(task.call());
   }
 
   @Test
-  public void testJDKCompilation() throws IOException, ClassTransformationException, CompileException, ClassNotFoundException {
-    try(URLClassLoader classLoader = new URLClassLoader(new URL[] { classes.toURI().toURL()}, null)) {
+  public void testJDKCompilation()
+      throws IOException, ClassTransformationException, CompileException, ClassNotFoundException {
+    try (URLClassLoader classLoader =
+        new URLClassLoader(new URL[] {classes.toURI().toURL()}, null)) {
       JDKClassCompiler jdkClassCompiler = JDKClassCompiler.newInstance(classLoader);
       testCompilation(jdkClassCompiler);
     }
   }
 
   @Test
-  public void testJaninoCompilation() throws IOException, ClassTransformationException, CompileException, ClassNotFoundException {
-    try(URLClassLoader classLoader = new URLClassLoader(new URL[] { classes.toURI().toURL()}, null)) {
+  public void testJaninoCompilation()
+      throws IOException, ClassTransformationException, CompileException, ClassNotFoundException {
+    try (URLClassLoader classLoader =
+        new URLClassLoader(new URL[] {classes.toURI().toURL()}, null)) {
       JaninoClassCompiler janinoClassCompiler = new JaninoClassCompiler(classLoader);
       testCompilation(janinoClassCompiler);
     }
   }
 
-  private void testCompilation(ClassCompiler compiler) throws IOException, ClassTransformationException, CompileException, ClassNotFoundException {
-    String barTestSource = TestTools.readTestResourceAsString("com/dremio/exec/compile/BarTest.java");
+  private void testCompilation(ClassCompiler compiler)
+      throws IOException, ClassTransformationException, CompileException, ClassNotFoundException {
+    String barTestSource =
+        TestTools.readTestResourceAsString("com/dremio/exec/compile/BarTest.java");
 
-    assertNotNull(compiler.getClassByteCode(new ClassNames("com.dremio.exec.compile.BarTest"), barTestSource, true));
+    assertNotNull(
+        compiler.getClassByteCode(
+            new ClassNames("com.dremio.exec.compile.BarTest"), barTestSource, true));
   }
 }

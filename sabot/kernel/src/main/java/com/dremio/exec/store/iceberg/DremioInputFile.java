@@ -15,21 +15,19 @@
  */
 package com.dremio.exec.store.iceberg;
 
+import com.dremio.exec.store.dfs.FileSystemConfigurationAdapter;
+import com.dremio.io.file.Path;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.UncheckedIOException;
-
 import org.apache.iceberg.exceptions.NotFoundException;
 import org.apache.iceberg.io.InputFile;
 import org.apache.iceberg.io.SeekableInputStream;
 
-import com.dremio.exec.store.dfs.FileSystemConfigurationAdapter;
-import com.dremio.io.file.Path;
-
 /**
- * DremioInputFile is a dremio implementation of Iceberg InputFile interface.
- * It uses Dremio implementation of FileSystem to leverage several existing
- * functionalities like tracking IO time, Caching, Async read aheads where necessary.
+ * DremioInputFile is a dremio implementation of Iceberg InputFile interface. It uses Dremio
+ * implementation of FileSystem to leverage several existing functionalities like tracking IO time,
+ * Caching, Async read aheads where necessary.
  */
 public class DremioInputFile implements InputFile {
 
@@ -40,12 +38,14 @@ public class DremioInputFile implements InputFile {
   private final Long mtime;
   private final String locationWithScheme;
 
-  public DremioInputFile(DremioFileIO io, Path path, Long fileSize, Long mtime, FileSystemConfigurationAdapter conf) {
+  public DremioInputFile(
+      DremioFileIO io, Path path, Long fileSize, Long mtime, FileSystemConfigurationAdapter conf) {
     this.io = io;
     this.path = path;
     this.fileSize = fileSize;
     this.mtime = mtime;
-    this.locationWithScheme = IcebergUtils.getValidIcebergPath(path.toString(), conf, io.getFs().getScheme());
+    this.locationWithScheme =
+        IcebergUtils.getValidIcebergPath(path.toString(), conf, io.getFs().getScheme());
   }
 
   @Override
@@ -54,7 +54,8 @@ public class DremioInputFile implements InputFile {
       try {
         fileSize = io.getFs().getFileAttributes(path).size();
       } catch (IOException e) {
-        throw new UncheckedIOException(String.format("Failed to get file attributes for file: %s", path), e);
+        throw new UncheckedIOException(
+            String.format("Failed to get file attributes for file: %s", path), e);
       }
     }
 
@@ -68,16 +69,28 @@ public class DremioInputFile implements InputFile {
   @Override
   public SeekableInputStream newStream() {
     try {
-      SeekableInputStreamFactory factory = io.getContext() == null || io.getDataset() == null ?
-          SeekableInputStreamFactory.DEFAULT :
-          io.getContext().getConfig().getInstance(SeekableInputStreamFactory.KEY, SeekableInputStreamFactory.class,
-              SeekableInputStreamFactory.DEFAULT);
-      return factory.getStream(io.getFs(), io.getContext(),
-          path, fileSize, mtime, io.getDataset(), io.getDatasourcePluginUID());
+      SeekableInputStreamFactory factory =
+          io.getContext() == null || io.getDataset() == null
+              ? SeekableInputStreamFactory.DEFAULT
+              : io.getContext()
+                  .getConfig()
+                  .getInstance(
+                      SeekableInputStreamFactory.KEY,
+                      SeekableInputStreamFactory.class,
+                      SeekableInputStreamFactory.DEFAULT);
+      return factory.getStream(
+          io.getFs(),
+          io.getContext(),
+          path,
+          fileSize,
+          mtime,
+          io.getDataset(),
+          io.getDatasourcePluginUID());
     } catch (FileNotFoundException e) {
       throw new NotFoundException(e, "Path %s not found.", path);
     } catch (IOException e) {
-      throw new UncheckedIOException(String.format("Failed to create new input stream for file: %s", path), e);
+      throw new UncheckedIOException(
+          String.format("Failed to create new input stream for file: %s", path), e);
     }
   }
 
@@ -91,7 +104,8 @@ public class DremioInputFile implements InputFile {
     try {
       return io.getFs().exists(path);
     } catch (IOException e) {
-      throw new UncheckedIOException(String.format("Failed to check existence of file: %s", path), e);
+      throw new UncheckedIOException(
+          String.format("Failed to check existence of file: %s", path), e);
     }
   }
 }

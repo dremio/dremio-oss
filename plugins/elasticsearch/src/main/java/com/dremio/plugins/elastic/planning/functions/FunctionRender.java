@@ -15,14 +15,13 @@
  */
 package com.dremio.plugins.elastic.planning.functions;
 
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-
 import com.dremio.plugins.elastic.ElasticsearchConstants;
 import com.dremio.plugins.elastic.planning.rules.SchemaField.NullReference;
 import com.dremio.plugins.elastic.planning.rules.SchemaField.ReferenceType;
 import com.google.common.collect.ImmutableList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 public class FunctionRender {
   public static final String EMPTY = ".empty";
@@ -52,12 +51,13 @@ public class FunctionRender {
 
   /**
    * Renders this as null guarded.
+   *
    * @param nullReplacement is the value to return when a null value is caught
-   * @param variationDetected true, if there is field variation for indexes in alias;
-   *                          false, otherwise.
+   * @param variationDetected true, if there is field variation for indexes in alias; false,
+   *     otherwise.
    * @return a null guarded version of the provided script.
    */
-  public String getNullGuardedScript(String nullReplacement, boolean variationDetected){
+  public String getNullGuardedScript(String nullReplacement, boolean variationDetected) {
     List<NullReference> inputListToCheck = ImmutableList.copyOf(nulls);
     Set<NullReference> checkRepeats = new HashSet<>();
     String toReturn = "";
@@ -71,9 +71,9 @@ public class FunctionRender {
         if (checkRepeats.size() > 0) {
           toReturn += EQ_OR;
         }
-        if(toCheck.getReferenceType() == ReferenceType.SOURCE){
+        if (toCheck.getReferenceType() == ReferenceType.SOURCE) {
           toReturn += toCheck.getValue() + EQ_NULL;
-        }else if (toCheck.getReferenceType() == ReferenceType.DOC){
+        } else if (toCheck.getReferenceType() == ReferenceType.DOC) {
           if (variationDetected) {
             // Adds doc.containsKey check to avoid the no field found error.
             toReturn += EQ_NOT;
@@ -83,8 +83,9 @@ public class FunctionRender {
             toReturn += EQ_OR;
           }
           toReturn += toCheck.getValue() + EMPTY;
-        }else{
-          throw new UnsupportedOperationException("Unknown reference type." + toCheck.getReferenceType());
+        } else {
+          throw new UnsupportedOperationException(
+              "Unknown reference type." + toCheck.getReferenceType());
         }
         checkRepeats.add(toCheck);
       }

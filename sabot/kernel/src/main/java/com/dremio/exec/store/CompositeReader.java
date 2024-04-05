@@ -24,20 +24,26 @@ import com.dremio.sabot.op.scan.OutputMutator;
 import com.google.common.base.Stopwatch;
 
 /**
- * This is main class that does coercion of fields.
- * It separates input fields into primitive and complex, then processes them
- * using respective coercion readers
+ * This is main class that does coercion of fields. It separates input fields into primitive and
+ * complex, then processes them using respective coercion readers
  */
 public class CompositeReader implements AutoCloseable {
   private final ComplexTypeReader complexTypeReader;
   private final PrimitiveTypeReader primitiveTypeReader;
 
-  public CompositeReader(SampleMutator mutator, OperatorContext context, TypeCoercion typeCoercion,
-                         Stopwatch javaCodeGenWatch, Stopwatch gandivaCodeGenWatch, BatchSchema originalSchema) {
-    this.primitiveTypeReader = new PrimitiveTypeReader(mutator,
-      context, typeCoercion, javaCodeGenWatch, gandivaCodeGenWatch, originalSchema);
-    this.complexTypeReader = new ComplexTypeReader(context, mutator,
-      typeCoercion, javaCodeGenWatch, gandivaCodeGenWatch);
+  public CompositeReader(
+      SampleMutator mutator,
+      OperatorContext context,
+      TypeCoercion typeCoercion,
+      Stopwatch javaCodeGenWatch,
+      Stopwatch gandivaCodeGenWatch,
+      BatchSchema originalSchema) {
+    this.primitiveTypeReader =
+        new PrimitiveTypeReader(
+            mutator, context, typeCoercion, javaCodeGenWatch, gandivaCodeGenWatch, originalSchema);
+    this.complexTypeReader =
+        new ComplexTypeReader(
+            context, mutator, typeCoercion, javaCodeGenWatch, gandivaCodeGenWatch);
   }
 
   @Override
@@ -45,8 +51,11 @@ public class CompositeReader implements AutoCloseable {
     AutoCloseables.close(complexTypeReader, primitiveTypeReader);
   }
 
-  public void setupProjector(OutputMutator output, VectorContainer incoming,
-                             ExpressionEvaluationOptions projectorOptions, VectorContainer projectorOutput) {
+  public void setupProjector(
+      OutputMutator output,
+      VectorContainer incoming,
+      ExpressionEvaluationOptions projectorOptions,
+      VectorContainer projectorOutput) {
     this.primitiveTypeReader.setupProjector(incoming, projectorOptions, projectorOutput);
     this.complexTypeReader.setupProjector(output, incoming, projectorOptions, projectorOutput);
   }

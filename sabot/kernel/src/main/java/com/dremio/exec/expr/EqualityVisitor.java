@@ -15,9 +15,6 @@
  */
 package com.dremio.exec.expr;
 
-import java.util.Iterator;
-import java.util.List;
-
 import com.dremio.common.expression.BooleanOperator;
 import com.dremio.common.expression.CaseExpression;
 import com.dremio.common.expression.CastExpression;
@@ -43,11 +40,15 @@ import com.dremio.common.expression.ValueExpressions.QuotedString;
 import com.dremio.common.expression.ValueExpressions.TimeExpression;
 import com.dremio.common.expression.ValueExpressions.TimeStampExpression;
 import com.dremio.common.expression.visitors.AbstractExprVisitor;
+import java.util.Iterator;
+import java.util.List;
 
-public class EqualityVisitor extends AbstractExprVisitor<Boolean,LogicalExpression,RuntimeException> {
+public class EqualityVisitor
+    extends AbstractExprVisitor<Boolean, LogicalExpression, RuntimeException> {
 
   @Override
-  public Boolean visitFunctionCall(FunctionCall call, LogicalExpression value) throws RuntimeException {
+  public Boolean visitFunctionCall(FunctionCall call, LogicalExpression value)
+      throws RuntimeException {
     if (!(value instanceof FunctionCall)) {
       return false;
     }
@@ -61,7 +62,8 @@ public class EqualityVisitor extends AbstractExprVisitor<Boolean,LogicalExpressi
   }
 
   @Override
-  public Boolean visitFunctionHolderExpression(FunctionHolderExpression holder, LogicalExpression value) throws RuntimeException {
+  public Boolean visitFunctionHolderExpression(
+      FunctionHolderExpression holder, LogicalExpression value) throws RuntimeException {
     if (!(value instanceof FunctionHolderExpression)) {
       return false;
     }
@@ -78,7 +80,8 @@ public class EqualityVisitor extends AbstractExprVisitor<Boolean,LogicalExpressi
   }
 
   @Override
-  public Boolean visitCaseExpression(CaseExpression caseExpression, LogicalExpression value) throws RuntimeException {
+  public Boolean visitCaseExpression(CaseExpression caseExpression, LogicalExpression value)
+      throws RuntimeException {
     if (!(value instanceof CaseExpression)) {
       return false;
     }
@@ -86,7 +89,8 @@ public class EqualityVisitor extends AbstractExprVisitor<Boolean,LogicalExpressi
   }
 
   @Override
-  public Boolean visitIfExpression(IfExpression ifExpr, LogicalExpression value) throws RuntimeException {
+  public Boolean visitIfExpression(IfExpression ifExpr, LogicalExpression value)
+      throws RuntimeException {
     if (!(value instanceof IfExpression)) {
       return false;
     }
@@ -94,7 +98,8 @@ public class EqualityVisitor extends AbstractExprVisitor<Boolean,LogicalExpressi
   }
 
   @Override
-  public Boolean visitBooleanOperator(BooleanOperator call, LogicalExpression value) throws RuntimeException {
+  public Boolean visitBooleanOperator(BooleanOperator call, LogicalExpression value)
+      throws RuntimeException {
     if (!(value instanceof BooleanOperator)) {
       return false;
     }
@@ -113,7 +118,8 @@ public class EqualityVisitor extends AbstractExprVisitor<Boolean,LogicalExpressi
   }
 
   @Override
-  public Boolean visitIntConstant(IntExpression intExpr, LogicalExpression value) throws RuntimeException {
+  public Boolean visitIntConstant(IntExpression intExpr, LogicalExpression value)
+      throws RuntimeException {
     if (!(value instanceof IntExpression)) {
       return false;
     }
@@ -121,7 +127,8 @@ public class EqualityVisitor extends AbstractExprVisitor<Boolean,LogicalExpressi
   }
 
   @Override
-  public Boolean visitFloatConstant(FloatExpression fExpr, LogicalExpression value) throws RuntimeException {
+  public Boolean visitFloatConstant(FloatExpression fExpr, LogicalExpression value)
+      throws RuntimeException {
     if (!(value instanceof FloatExpression)) {
       return false;
     }
@@ -129,7 +136,8 @@ public class EqualityVisitor extends AbstractExprVisitor<Boolean,LogicalExpressi
   }
 
   @Override
-  public Boolean visitLongConstant(LongExpression intExpr, LogicalExpression value) throws RuntimeException {
+  public Boolean visitLongConstant(LongExpression intExpr, LogicalExpression value)
+      throws RuntimeException {
     if (!(value instanceof LongExpression)) {
       return false;
     }
@@ -137,7 +145,8 @@ public class EqualityVisitor extends AbstractExprVisitor<Boolean,LogicalExpressi
   }
 
   @Override
-  public Boolean visitDateConstant(DateExpression intExpr, LogicalExpression value) throws RuntimeException {
+  public Boolean visitDateConstant(DateExpression intExpr, LogicalExpression value)
+      throws RuntimeException {
     if (!(value instanceof DateExpression)) {
       return false;
     }
@@ -145,7 +154,8 @@ public class EqualityVisitor extends AbstractExprVisitor<Boolean,LogicalExpressi
   }
 
   @Override
-  public Boolean visitTimeConstant(TimeExpression intExpr, LogicalExpression value) throws RuntimeException {
+  public Boolean visitTimeConstant(TimeExpression intExpr, LogicalExpression value)
+      throws RuntimeException {
     if (!(value instanceof TimeExpression)) {
       return false;
     }
@@ -153,7 +163,8 @@ public class EqualityVisitor extends AbstractExprVisitor<Boolean,LogicalExpressi
   }
 
   @Override
-  public Boolean visitTimeStampConstant(TimeStampExpression intExpr, LogicalExpression value) throws RuntimeException {
+  public Boolean visitTimeStampConstant(TimeStampExpression intExpr, LogicalExpression value)
+      throws RuntimeException {
     if (!(value instanceof TimeStampExpression)) {
       return false;
     }
@@ -161,7 +172,8 @@ public class EqualityVisitor extends AbstractExprVisitor<Boolean,LogicalExpressi
   }
 
   @Override
-  public Boolean visitIntervalYearConstant(IntervalYearExpression intExpr, LogicalExpression value) throws RuntimeException {
+  public Boolean visitIntervalYearConstant(IntervalYearExpression intExpr, LogicalExpression value)
+      throws RuntimeException {
     if (!(value instanceof IntervalYearExpression)) {
       return false;
     }
@@ -169,7 +181,8 @@ public class EqualityVisitor extends AbstractExprVisitor<Boolean,LogicalExpressi
   }
 
   @Override
-  public Boolean visitIntervalDayConstant(IntervalDayExpression intExpr, LogicalExpression value) throws RuntimeException {
+  public Boolean visitIntervalDayConstant(IntervalDayExpression intExpr, LogicalExpression value)
+      throws RuntimeException {
     if (!(value instanceof IntervalDayExpression)) {
       return false;
     }
@@ -178,15 +191,18 @@ public class EqualityVisitor extends AbstractExprVisitor<Boolean,LogicalExpressi
   }
 
   @Override
-  public Boolean visitDecimalConstant(DecimalExpression decExpr, LogicalExpression value) throws RuntimeException {
+  public Boolean visitDecimalConstant(DecimalExpression decExpr, LogicalExpression value)
+      throws RuntimeException {
     if (!(value instanceof DecimalExpression)) {
       return false;
     }
-    return decExpr.getDecimal().equals(((DecimalExpression) value).getDecimal()) && decExpr.getPrecision() == ((DecimalExpression) value).getPrecision();
+    return decExpr.getDecimal().equals(((DecimalExpression) value).getDecimal())
+        && decExpr.getPrecision() == ((DecimalExpression) value).getPrecision();
   }
 
   @Override
-  public Boolean visitDoubleConstant(DoubleExpression dExpr, LogicalExpression value) throws RuntimeException {
+  public Boolean visitDoubleConstant(DoubleExpression dExpr, LogicalExpression value)
+      throws RuntimeException {
     if (!(value instanceof DoubleExpression)) {
       return false;
     }
@@ -194,7 +210,8 @@ public class EqualityVisitor extends AbstractExprVisitor<Boolean,LogicalExpressi
   }
 
   @Override
-  public Boolean visitBooleanConstant(BooleanExpression e, LogicalExpression value) throws RuntimeException {
+  public Boolean visitBooleanConstant(BooleanExpression e, LogicalExpression value)
+      throws RuntimeException {
     if (!(value instanceof BooleanExpression)) {
       return false;
     }
@@ -202,7 +219,8 @@ public class EqualityVisitor extends AbstractExprVisitor<Boolean,LogicalExpressi
   }
 
   @Override
-  public Boolean visitQuotedStringConstant(QuotedString e, LogicalExpression value) throws RuntimeException {
+  public Boolean visitQuotedStringConstant(QuotedString e, LogicalExpression value)
+      throws RuntimeException {
     if (!(value instanceof QuotedString)) {
       return false;
     }
@@ -210,7 +228,8 @@ public class EqualityVisitor extends AbstractExprVisitor<Boolean,LogicalExpressi
   }
 
   @Override
-  public Boolean visitNullExpression(NullExpression e, LogicalExpression value) throws RuntimeException {
+  public Boolean visitNullExpression(NullExpression e, LogicalExpression value)
+      throws RuntimeException {
     if (!(value instanceof NullExpression)) {
       return false;
     }
@@ -218,7 +237,8 @@ public class EqualityVisitor extends AbstractExprVisitor<Boolean,LogicalExpressi
   }
 
   @Override
-  public Boolean visitCastExpression(CastExpression e, LogicalExpression value) throws RuntimeException {
+  public Boolean visitCastExpression(CastExpression e, LogicalExpression value)
+      throws RuntimeException {
     if (!(value instanceof CastExpression)) {
       return false;
     }
@@ -229,7 +249,8 @@ public class EqualityVisitor extends AbstractExprVisitor<Boolean,LogicalExpressi
   }
 
   @Override
-  public Boolean visitConvertExpression(ConvertExpression e, LogicalExpression value) throws RuntimeException {
+  public Boolean visitConvertExpression(ConvertExpression e, LogicalExpression value)
+      throws RuntimeException {
     if (!(value instanceof ConvertExpression)) {
       return false;
     }
@@ -240,7 +261,8 @@ public class EqualityVisitor extends AbstractExprVisitor<Boolean,LogicalExpressi
   }
 
   @Override
-  public Boolean visitNullConstant(TypedNullConstant e, LogicalExpression value) throws RuntimeException {
+  public Boolean visitNullConstant(TypedNullConstant e, LogicalExpression value)
+      throws RuntimeException {
     if (!(value instanceof TypedNullConstant)) {
       return false;
     }
@@ -248,36 +270,38 @@ public class EqualityVisitor extends AbstractExprVisitor<Boolean,LogicalExpressi
   }
 
   @Override
-  public Boolean visitUnknown(LogicalExpression e, LogicalExpression value) throws RuntimeException {
+  public Boolean visitUnknown(LogicalExpression e, LogicalExpression value)
+      throws RuntimeException {
     if (e instanceof ValueVectorReadExpression && value instanceof ValueVectorReadExpression) {
-      return visitValueVectorReadExpression((ValueVectorReadExpression) e, (ValueVectorReadExpression) value);
+      return visitValueVectorReadExpression(
+          (ValueVectorReadExpression) e, (ValueVectorReadExpression) value);
     } else if (e instanceof InExpression && value instanceof InExpression) {
       return visitInExpression((InExpression) e, (InExpression) value);
-    } else if(e instanceof ValueVectorWriteExpression && value instanceof ValueVectorWriteExpression) {
-      return visitValueVectorWriteExpression((ValueVectorWriteExpression) e, (ValueVectorWriteExpression) value);
+    } else if (e instanceof ValueVectorWriteExpression
+        && value instanceof ValueVectorWriteExpression) {
+      return visitValueVectorWriteExpression(
+          (ValueVectorWriteExpression) e, (ValueVectorWriteExpression) value);
     }
     return false;
   }
 
-  /**
-   * An in expression is equal if it has the same eval block and equal constants.
-   */
+  /** An in expression is equal if it has the same eval block and equal constants. */
   private Boolean visitInExpression(InExpression e1, InExpression e2) {
-    if(!e1.getEval().accept(this, e2)) {
+    if (!e1.getEval().accept(this, e2)) {
       return false;
     }
 
-    if(e1.getConstants().size() != e2.getConstants().size()) {
+    if (e1.getConstants().size() != e2.getConstants().size()) {
       return false;
     }
     final List<LogicalExpression> le1 = e1.getConstants();
     final List<LogicalExpression> le2 = e2.getConstants();
     final int size = le1.size();
 
-    for(int i = 0; i < size; i++) {
+    for (int i = 0; i < size; i++) {
       LogicalExpression se1 = le1.get(i);
       LogicalExpression se2 = le2.get(i);
-      if(!se1.accept(this, se2)) {
+      if (!se1.accept(this, se2)) {
         return false;
       }
     }
@@ -285,15 +309,17 @@ public class EqualityVisitor extends AbstractExprVisitor<Boolean,LogicalExpressi
     return true;
   }
 
-  private Boolean visitValueVectorReadExpression(ValueVectorReadExpression e, ValueVectorReadExpression value) {
+  private Boolean visitValueVectorReadExpression(
+      ValueVectorReadExpression e, ValueVectorReadExpression value) {
     return e.getTypedFieldId().equals(value.getTypedFieldId());
   }
 
-  private Boolean visitValueVectorWriteExpression(ValueVectorWriteExpression e, ValueVectorWriteExpression value) {
-    return e.getFieldId().equals(value.getFieldId()) && e.isSafe() == value.isSafe()
-                                && e.getChild().accept(this, value.getChild());
+  private Boolean visitValueVectorWriteExpression(
+      ValueVectorWriteExpression e, ValueVectorWriteExpression value) {
+    return e.getFieldId().equals(value.getFieldId())
+        && e.isSafe() == value.isSafe()
+        && e.getChild().accept(this, value.getChild());
   }
-
 
   private boolean checkChildren(LogicalExpression thisExpr, LogicalExpression thatExpr) {
     Iterator<LogicalExpression> theseIterator = thisExpr.iterator();

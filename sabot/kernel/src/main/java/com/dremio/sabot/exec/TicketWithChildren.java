@@ -15,16 +15,14 @@
  */
 package com.dremio.sabot.exec;
 
-import java.util.concurrent.atomic.AtomicInteger;
-
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.apache.arrow.memory.BufferAllocator;
 
 /**
- * Allows for tracking of child allocators, such that when the last child allocator is closed, the allocator associated
- * with this TicketWithChildren can be closed too
+ * Allows for tracking of child allocators, such that when the last child allocator is closed, the
+ * allocator associated with this TicketWithChildren can be closed too
  */
 public class TicketWithChildren implements AutoCloseable {
   protected final BufferAllocator allocator;
@@ -37,23 +35,27 @@ public class TicketWithChildren implements AutoCloseable {
   }
 
   public void reserve() {
-    Preconditions.checkState(!closed, "Trying to reserve from a closed ticket: %s", allocator.getName());
+    Preconditions.checkState(
+        !closed, "Trying to reserve from a closed ticket: %s", allocator.getName());
     childCount.incrementAndGet();
   }
 
   public BufferAllocator getAllocator() {
-    //Preconditions.checkState(!closed, "Trying to access a closed ticket: %s", allocator.getName());
+    // Preconditions.checkState(!closed, "Trying to access a closed ticket: %s",
+    // allocator.getName());
     return allocator;
   }
 
   public boolean release() {
-    Preconditions.checkState(!closed, "Trying to release from a closed ticket: %s", allocator.getName());
+    Preconditions.checkState(
+        !closed, "Trying to release from a closed ticket: %s", allocator.getName());
     return childCount.decrementAndGet() == 0;
   }
 
   @Override
   public void close() throws Exception {
-    Preconditions.checkState(!closed, "Trying to close an already closed ticket: %s", allocator.getName());
+    Preconditions.checkState(
+        !closed, "Trying to close an already closed ticket: %s", allocator.getName());
     closed = true;
     allocator.close();
   }

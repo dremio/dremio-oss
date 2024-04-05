@@ -17,6 +17,7 @@
 /**
  * This package contains metadata part of the source connector SPI.
  *
- * {@link com.dremio.connector.metadata.SourceMetadata} is used by the catalog to gather metadata from a source.
+ * <p>{@link com.dremio.connector.metadata.SourceMetadata} is used by the catalog to gather metadata
+ * from a source.
  */
 package com.dremio.connector.metadata;

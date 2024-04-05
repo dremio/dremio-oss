@@ -66,7 +66,10 @@ class DescribeFieldTransformation extends FieldTransformationVisitor<String> {
 
   @Override
   public String visit(FieldExtract extract) throws Exception {
-    return "Extract " + ExtractRecommender.describe(extract.getRule()) + " from " + field.getSourceColumnName();
+    return "Extract "
+        + ExtractRecommender.describe(extract.getRule())
+        + " from "
+        + field.getSourceColumnName();
   }
 
   @Override
@@ -131,8 +134,9 @@ class DescribeFieldTransformation extends FieldTransformationVisitor<String> {
 
   @Override
   public String visit(FieldReplaceRange replaceRange) throws Exception {
-    return format("Replace range %s, %s in %s", replaceRange.getLowerBound(), replaceRange.getUpperBound(),
-        field.getSourceColumnName());
+    return format(
+        "Replace range %s, %s in %s",
+        replaceRange.getLowerBound(), replaceRange.getUpperBound(), field.getSourceColumnName());
   }
 
   @Override
@@ -152,19 +156,24 @@ class DescribeFieldTransformation extends FieldTransformationVisitor<String> {
 
   @Override
   public String visit(FieldSimpleConvertToType toType) throws Exception {
-    return format("Convert %s to %s", field.getSourceColumnName(), toType.getDataType().name().toLowerCase());
+    return format(
+        "Convert %s to %s", field.getSourceColumnName(), toType.getDataType().name().toLowerCase());
   }
 
   @Override
   public String visit(FieldConvertToTypeIfPossible toTypeIfPossible) throws Exception {
-    return format("Convert %s to %s", field.getSourceColumnName(),
-        toTypeIfPossible.getDesiredType().name().toLowerCase());
+    return format(
+        "Convert %s to %s",
+        field.getSourceColumnName(), toTypeIfPossible.getDesiredType().name().toLowerCase());
   }
 
   @Override
   public String visit(FieldConvertToTypeWithPatternIfPossible toTypeIfPossible) throws Exception {
-    return format("Convert %s to %s with pattern %s", field.getSourceColumnName(),
-      toTypeIfPossible.getDesiredType().name().toLowerCase(), toTypeIfPossible.getPattern());
+    return format(
+        "Convert %s to %s with pattern %s",
+        field.getSourceColumnName(),
+        toTypeIfPossible.getDesiredType().name().toLowerCase(),
+        toTypeIfPossible.getPattern());
   }
 
   @Override
@@ -172,40 +181,38 @@ class DescribeFieldTransformation extends FieldTransformationVisitor<String> {
     return format("Auto-detect JSON in %s", field.getSourceColumnName());
   }
 
-
   private static String describeConvertCase(ConvertCase c, String columnName) {
     String display;
     switch (c) {
-    case LOWER_CASE:
-      display = "lower case";
-      break;
-    case UPPER_CASE:
-      display = "upper case";
-      break;
-    case TITLE_CASE:
-      display = "title case";
-      break;
-    default:
-      throw new UnsupportedOperationException("Unknown case " + c);
+      case LOWER_CASE:
+        display = "lower case";
+        break;
+      case UPPER_CASE:
+        display = "upper case";
+        break;
+      case TITLE_CASE:
+        display = "title case";
+        break;
+      default:
+        throw new UnsupportedOperationException("Unknown case " + c);
     }
     return "Convert case of " + columnName + " to " + display;
   }
 
-
   private static String describeTrim(String columnName, TrimType trimType) {
     String display;
     switch (trimType) {
-    case BOTH:
-      display = "on both sides";
-      break;
-    case LEFT:
-      display = "on the left";
-      break;
-    case RIGHT:
-      display = "on the right";
-      break;
-    default:
-      throw new UnsupportedOperationException("Unknown trim " + trimType);
+      case BOTH:
+        display = "on both sides";
+        break;
+      case LEFT:
+        display = "on the left";
+        break;
+      case RIGHT:
+        display = "on the right";
+        break;
+      default:
+        throw new UnsupportedOperationException("Unknown trim " + trimType);
     }
     return "Trim " + columnName + " " + display;
   }

@@ -53,6 +53,21 @@ export class AddProvisionModal extends Component {
     updateFormDirtyState: PropTypes.func,
   };
 
+  constructor(props) {
+    super(props);
+
+    this.state = {
+      initialProvision: Immutable.Map(),
+    };
+  }
+
+  componentDidMount() {
+    const { provision } = this.props;
+
+    // store the engine info to avoid resetting the form if the engine changes while editing
+    this.setState({ initialProvision: provision });
+  }
+
   getProvisionVersion(props) {
     return props.provision.get("version");
   }
@@ -61,8 +76,8 @@ export class AddProvisionModal extends Component {
     const { clusterType } = this.props;
     return Immutable.fromJS(
       PROVISION_MANAGERS.find(
-        (manager) => manager.clusterType === clusterType
-      ) || {}
+        (manager) => manager.clusterType === clusterType,
+      ) || {},
     );
   }
 
@@ -90,7 +105,7 @@ export class AddProvisionModal extends Component {
         cancel: reject,
         text: [
           laDeprecated(
-            "Saving these settings requires a restart of the engine. Existing jobs will be halted."
+            "Saving these settings requires a restart of the engine. Existing jobs will be halted.",
           ),
           laDeprecated("Are you sure you want to continue?"),
         ],
@@ -100,7 +115,7 @@ export class AddProvisionModal extends Component {
 
   editProvision(values) {
     return ApiUtils.attachFormSubmitHandlers(
-      this.props.editProvision(values, VIEW_ID)
+      this.props.editProvision(values, VIEW_ID),
     ).then(() => this.props.hide(null, true));
   }
 
@@ -113,7 +128,7 @@ export class AddProvisionModal extends Component {
       return this.editProvision(values);
     }
     return ApiUtils.attachFormSubmitHandlers(
-      this.props.createProvision(values, VIEW_ID)
+      this.props.createProvision(values, VIEW_ID),
     ).then(() => this.props.hide(null, true));
   };
 
@@ -126,13 +141,14 @@ export class AddProvisionModal extends Component {
   }
 
   render() {
-    const { isOpen, hide, updateFormDirtyState, provision, clusterType } =
-      this.props;
+    const { isOpen, hide, updateFormDirtyState, clusterType } = this.props;
+    const { initialProvision } = this.state;
+
     const title = this.getModalTitle();
     const clusterTypeForm = clusterType && provisioningForms[clusterType];
     invariant(
       !clusterType || clusterTypeForm,
-      `clusterType (${clusterType}) not a valid provisioningForm type`
+      `clusterType (${clusterType}) not a valid provisioningForm type`,
     );
 
     return (
@@ -149,7 +165,7 @@ export class AddProvisionModal extends Component {
             onCancel: hide,
             style: styles.formBody,
             getConflictedValues: this.getProvisionVersion,
-            provision,
+            provision: initialProvision,
             updateFormDirtyState,
           })
         ) : (

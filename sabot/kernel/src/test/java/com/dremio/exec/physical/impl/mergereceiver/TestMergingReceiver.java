@@ -18,13 +18,6 @@ package com.dremio.exec.physical.impl.mergereceiver;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import java.util.List;
-
-import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.junit.Ignore;
-import org.junit.Test;
-
 import com.dremio.exec.client.DremioClient;
 import com.dremio.exec.pop.PopUnitTestBase;
 import com.dremio.exec.proto.UserBitShared.QueryData;
@@ -34,21 +27,31 @@ import com.dremio.exec.server.SabotNode;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.local.LocalClusterCoordinator;
+import java.util.List;
+import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.junit.Ignore;
+import org.junit.Test;
 
 @Ignore("DX-3872")
 public class TestMergingReceiver extends PopUnitTestBase {
 
   @Test
   public void twoBitTwoExchange() throws Exception {
-    try (final ClusterCoordinator clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
-         final SabotNode bit1 = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, true);
-         final SabotNode bit2 = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, false);
-         final DremioClient client = new DremioClient(DEFAULT_SABOT_CONFIG, clusterCoordinator);) {
+    try (final ClusterCoordinator clusterCoordinator =
+            LocalClusterCoordinator.newRunningCoordinator();
+        final SabotNode bit1 =
+            new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, true);
+        final SabotNode bit2 =
+            new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, false);
+        final DremioClient client = new DremioClient(DEFAULT_SABOT_CONFIG, clusterCoordinator); ) {
       bit1.run();
       bit2.run();
       client.connect();
-      final List<QueryDataBatch> results = client.runQuery(com.dremio.exec.proto.UserBitShared.QueryType.PHYSICAL,
-        readResourceAsString("/mergerecv/merging_receiver.json"));
+      final List<QueryDataBatch> results =
+          client.runQuery(
+              com.dremio.exec.proto.UserBitShared.QueryType.PHYSICAL,
+              readResourceAsString("/mergerecv/merging_receiver.json"));
       int count = 0;
       final RecordBatchLoader batchLoader = new RecordBatchLoader(client.getRecordAllocator());
       // print the results
@@ -66,17 +69,21 @@ public class TestMergingReceiver extends PopUnitTestBase {
 
   @Test
   public void testMultipleProvidersMixedSizes() throws Exception {
-    try (final ClusterCoordinator clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
-         final SabotNode bit1 = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, true);
-         final SabotNode bit2 = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, false);
-         final DremioClient client = new DremioClient(DEFAULT_SABOT_CONFIG, clusterCoordinator);) {
+    try (final ClusterCoordinator clusterCoordinator =
+            LocalClusterCoordinator.newRunningCoordinator();
+        final SabotNode bit1 =
+            new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, true);
+        final SabotNode bit2 =
+            new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, false);
+        final DremioClient client = new DremioClient(DEFAULT_SABOT_CONFIG, clusterCoordinator); ) {
 
       bit1.run();
       bit2.run();
       client.connect();
       final List<QueryDataBatch> results =
-          client.runQuery(com.dremio.exec.proto.UserBitShared.QueryType.PHYSICAL,
-            readResourceAsString("/mergerecv/multiple_providers.json"));
+          client.runQuery(
+              com.dremio.exec.proto.UserBitShared.QueryType.PHYSICAL,
+              readResourceAsString("/mergerecv/multiple_providers.json"));
       int count = 0;
       final RecordBatchLoader batchLoader = new RecordBatchLoader(client.getRecordAllocator());
       // print the results
@@ -90,7 +97,7 @@ public class TestMergingReceiver extends PopUnitTestBase {
           final ValueVector vv = vw.getValueVector();
           final Field materializedField = vv.getField();
           final int numValues = vv.getValueCount();
-          for(int valueIdx = 0; valueIdx < numValues; ++valueIdx) {
+          for (int valueIdx = 0; valueIdx < numValues; ++valueIdx) {
             if (materializedField.getName().equals("blue")) {
               Long val = (Long) vv.getObject(valueIdx);
               if (val != null) {
@@ -113,17 +120,21 @@ public class TestMergingReceiver extends PopUnitTestBase {
 
   @Test
   public void handleEmptyBatch() throws Exception {
-    try (final ClusterCoordinator clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
-         final SabotNode bit1 = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, true);
-         final SabotNode bit2 = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, false);
-         final DremioClient client = new DremioClient(DEFAULT_SABOT_CONFIG, clusterCoordinator);) {
+    try (final ClusterCoordinator clusterCoordinator =
+            LocalClusterCoordinator.newRunningCoordinator();
+        final SabotNode bit1 =
+            new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, true);
+        final SabotNode bit2 =
+            new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, false);
+        final DremioClient client = new DremioClient(DEFAULT_SABOT_CONFIG, clusterCoordinator); ) {
 
       bit1.run();
       bit2.run();
       client.connect();
       final List<QueryDataBatch> results =
-          client.runQuery(com.dremio.exec.proto.UserBitShared.QueryType.PHYSICAL,
-            readResourceAsString("/mergerecv/empty_batch.json"));
+          client.runQuery(
+              com.dremio.exec.proto.UserBitShared.QueryType.PHYSICAL,
+              readResourceAsString("/mergerecv/empty_batch.json"));
       int count = 0;
       final RecordBatchLoader batchLoader = new RecordBatchLoader(client.getRecordAllocator());
       // print the results

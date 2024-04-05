@@ -21,18 +21,32 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Closeable thread poll.
+ * Closeable thread pool. This is basically Executors.newCachedThreadPool() but also using a
+ * NamedThreadFactory and calling awaitTermination on close.
  */
 public class CloseableThreadPool extends ThreadPoolExecutor implements CloseableExecutorService {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CloseableThreadPool.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(CloseableThreadPool.class);
 
   public CloseableThreadPool(String name) {
-    super(0, Integer.MAX_VALUE, 60L, TimeUnit.SECONDS, new SynchronousQueue<Runnable>(), new NamedThreadFactory(name));
+    super(
+        0,
+        Integer.MAX_VALUE,
+        60L,
+        TimeUnit.SECONDS,
+        new SynchronousQueue<>(),
+        new NamedThreadFactory(name));
   }
 
   public CloseableThreadPool(String name, int corePoolSize, RejectedExecutionHandler handler) {
-    super(corePoolSize, corePoolSize, 60L, TimeUnit.SECONDS, new SynchronousQueue<>(), new NamedThreadFactory(name),
-      handler);
+    super(
+        corePoolSize,
+        corePoolSize,
+        60L,
+        TimeUnit.SECONDS,
+        new SynchronousQueue<>(),
+        new NamedThreadFactory(name),
+        handler);
   }
 
   @Override
@@ -47,5 +61,4 @@ public class CloseableThreadPool extends ThreadPoolExecutor implements Closeable
   public void close() {
     CloseableSchedulerThreadPool.close(this, logger);
   }
-
 }

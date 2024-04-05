@@ -23,9 +23,7 @@ package com.dremio.exec.store.ischema.writers;
  */
 interface FieldWriter<V> {
 
-  /**
-   * Allocate the underlying vector.
-   */
+  /** Allocate the underlying vector. */
   void allocate();
 
   /**

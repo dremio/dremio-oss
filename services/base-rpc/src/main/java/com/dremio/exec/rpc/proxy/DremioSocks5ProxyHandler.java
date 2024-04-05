@@ -16,11 +16,6 @@
  */
 package com.dremio.exec.rpc.proxy;
 
-import java.net.InetSocketAddress;
-import java.net.SocketAddress;
-import java.util.Arrays;
-import java.util.Collections;
-
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.socksx.v5.DefaultSocks5CommandRequest;
@@ -42,14 +37,19 @@ import io.netty.handler.proxy.ProxyConnectException;
 import io.netty.handler.proxy.ProxyHandler;
 import io.netty.util.NetUtil;
 import io.netty.util.internal.StringUtil;
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
+import java.util.Arrays;
+import java.util.Collections;
 
 public class DremioSocks5ProxyHandler extends ProxyHandler {
   private static final String PROTOCOL = "socks5";
   private static final String AUTH_PASSWORD = "password";
-  private static final Socks5InitialRequest INIT_REQUEST_NO_AUTH = new DefaultSocks5InitialRequest(Collections.singletonList(Socks5AuthMethod.NO_AUTH));
-  private static final Socks5InitialRequest INIT_REQUEST_PASSWORD = new DefaultSocks5InitialRequest(
-    Arrays.asList(Socks5AuthMethod.NO_AUTH, Socks5AuthMethod.PASSWORD)
-  );
+  private static final Socks5InitialRequest INIT_REQUEST_NO_AUTH =
+      new DefaultSocks5InitialRequest(Collections.singletonList(Socks5AuthMethod.NO_AUTH));
+  private static final Socks5InitialRequest INIT_REQUEST_PASSWORD =
+      new DefaultSocks5InitialRequest(
+          Arrays.asList(Socks5AuthMethod.NO_AUTH, Socks5AuthMethod.PASSWORD));
   private final String username;
   private final String password;
   private String decoderName;
@@ -72,10 +72,12 @@ public class DremioSocks5ProxyHandler extends ProxyHandler {
     this.username = username;
     this.password = password;
   }
+
   @Override
   public String protocol() {
     return "socks5";
   }
+
   @Override
   public String authScheme() {
     return this.socksAuthMethod() == Socks5AuthMethod.PASSWORD ? "password" : "none";
@@ -115,16 +117,19 @@ public class DremioSocks5ProxyHandler extends ProxyHandler {
 
   @Override
   protected Object newInitialMessage(ChannelHandlerContext ctx) throws Exception {
-    return this.socksAuthMethod() == Socks5AuthMethod.PASSWORD ? INIT_REQUEST_PASSWORD : INIT_REQUEST_NO_AUTH;
+    return this.socksAuthMethod() == Socks5AuthMethod.PASSWORD
+        ? INIT_REQUEST_PASSWORD
+        : INIT_REQUEST_NO_AUTH;
   }
 
   @Override
   protected boolean handleResponse(ChannelHandlerContext ctx, Object response) throws Exception {
     if (response instanceof Socks5InitialResponse) {
-      Socks5InitialResponse res = (Socks5InitialResponse)response;
+      Socks5InitialResponse res = (Socks5InitialResponse) response;
       Socks5AuthMethod authMethod = this.socksAuthMethod();
       if (res.authMethod() != Socks5AuthMethod.NO_AUTH && res.authMethod() != authMethod) {
-        throw new ProxyConnectException(this.exceptionMessage("unexpected authMethod: " + res.authMethod()));
+        throw new ProxyConnectException(
+            this.exceptionMessage("unexpected authMethod: " + res.authMethod()));
       } else {
         if (authMethod == Socks5AuthMethod.NO_AUTH) {
           this.sendConnectCommand(ctx);
@@ -133,16 +138,18 @@ public class DremioSocks5ProxyHandler extends ProxyHandler {
             throw new Error();
           }
 
-          ctx.pipeline().replace(this.decoderName, this.decoderName, new Socks5PasswordAuthResponseDecoder());
+          ctx.pipeline()
+              .replace(this.decoderName, this.decoderName, new Socks5PasswordAuthResponseDecoder());
           this.sendToProxyServer(
-            new DefaultSocks5PasswordAuthRequest(this.username != null ? this.username : "", this.password != null ? this.password : "")
-          );
+              new DefaultSocks5PasswordAuthRequest(
+                  this.username != null ? this.username : "",
+                  this.password != null ? this.password : ""));
         }
 
         return false;
       }
     } else if (response instanceof Socks5PasswordAuthResponse) {
-      Socks5PasswordAuthResponse res = (Socks5PasswordAuthResponse)response;
+      Socks5PasswordAuthResponse res = (Socks5PasswordAuthResponse) response;
       if (res.status() != Socks5PasswordAuthStatus.SUCCESS) {
         throw new ProxyConnectException(this.exceptionMessage("authStatus: " + res.status()));
       } else {
@@ -150,7 +157,7 @@ public class DremioSocks5ProxyHandler extends ProxyHandler {
         return false;
       }
     } else {
-      Socks5CommandResponse res = (Socks5CommandResponse)response;
+      Socks5CommandResponse res = (Socks5CommandResponse) response;
       if (res.status() != Socks5CommandStatus.SUCCESS) {
         throw new ProxyConnectException(this.exceptionMessage("status: " + res.status()));
       } else {
@@ -171,7 +178,7 @@ public class DremioSocks5ProxyHandler extends ProxyHandler {
   }
 
   private void sendConnectCommand(ChannelHandlerContext ctx) throws Exception {
-    InetSocketAddress raddr = (InetSocketAddress)this.destinationAddress();
+    InetSocketAddress raddr = (InetSocketAddress) this.destinationAddress();
     Socks5AddressType addrType;
     String rhost;
     if (raddr.isUnresolved()) {
@@ -183,7 +190,8 @@ public class DremioSocks5ProxyHandler extends ProxyHandler {
         addrType = Socks5AddressType.IPv4;
       } else {
         if (!NetUtil.isValidIpV6Address(rhost)) {
-          throw new ProxyConnectException(this.exceptionMessage("unknown address type: " + StringUtil.simpleClassName(rhost)));
+          throw new ProxyConnectException(
+              this.exceptionMessage("unknown address type: " + StringUtil.simpleClassName(rhost)));
         }
 
         addrType = Socks5AddressType.IPv6;
@@ -191,6 +199,8 @@ public class DremioSocks5ProxyHandler extends ProxyHandler {
     }
 
     ctx.pipeline().replace(this.decoderName, this.decoderName, new Socks5CommandResponseDecoder());
-    this.sendToProxyServer(new DefaultSocks5CommandRequest(Socks5CommandType.CONNECT, addrType, rhost, raddr.getPort()));
+    this.sendToProxyServer(
+        new DefaultSocks5CommandRequest(
+            Socks5CommandType.CONNECT, addrType, rhost, raddr.getPort()));
   }
 }

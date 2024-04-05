@@ -19,8 +19,7 @@ import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.extensions.SupportsMetadataVerify;
 
 /**
- * Marker interface for a metadata verify request that is passed to
- * {@link SupportsMetadataVerify#verifyMetadata(DatasetHandle, MetadataVerifyRequest)}.
+ * Marker interface for a metadata verify request that is passed to {@link
+ * SupportsMetadataVerify#verifyMetadata(DatasetHandle, MetadataVerifyRequest)}.
  */
-public interface MetadataVerifyRequest {
-}
+public interface MetadataVerifyRequest {}

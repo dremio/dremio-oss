@@ -16,23 +16,21 @@
 
 package com.dremio.exec.planner.sql.handlers;
 
-import java.util.Optional;
-
-import org.apache.calcite.tools.RuleSet;
-
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.acceleration.MaterializationList;
+import com.dremio.exec.planner.events.PlannerEventBus;
+import com.dremio.exec.planner.events.PlannerEventBusImpl;
 import com.dremio.exec.planner.normalizer.PlannerBaseComponentImpl;
 import com.dremio.exec.planner.normalizer.PlannerBaseModule;
 import com.dremio.exec.planner.normalizer.PlannerNormalizerComponent;
-import com.dremio.exec.planner.normalizer.PlannerNormalizerModule;
 import com.dremio.exec.planner.normalizer.RelNormalizerTransformer;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.observer.AttemptObservers;
 import com.dremio.exec.planner.sql.SqlConverter;
-
+import java.util.Optional;
+import org.apache.calcite.tools.RuleSet;
 
 public class SqlHandlerConfig {
 
@@ -41,26 +39,45 @@ public class SqlHandlerConfig {
   private final AttemptObservers observer;
   private final MaterializationList materializations;
   private final RelNormalizerTransformer relNormalizerTransformer;
+  private final PlannerEventBus plannerEventBus;
 
-  public SqlHandlerConfig(QueryContext context, SqlConverter converter, AttemptObserver observer,
+  public SqlHandlerConfig(
+      QueryContext context,
+      SqlConverter converter,
+      AttemptObserver observer,
       MaterializationList materializations) {
+    this(
+        context,
+        converter,
+        toAttemptObservers(observer),
+        materializations,
+        new PlannerEventBusImpl());
+  }
+
+  private SqlHandlerConfig(
+      QueryContext context,
+      SqlConverter converter,
+      AttemptObservers observer,
+      MaterializationList materializations,
+      PlannerEventBus plannerEventBus) {
     super();
     this.context = context;
     this.converter = converter;
-    this.observer = AttemptObservers.of(observer);
+    this.observer = observer;
     this.materializations = materializations;
-    PlannerNormalizerComponent plannerNormalizerComponent = PlannerNormalizerComponent.build(
-      PlannerBaseComponentImpl.build(
-        new PlannerBaseModule(),
-        converter.getSettings(),
-        converter.getFunctionImplementationRegistry(),
-        converter.getFunctionContext(),
-        converter.getOpTab(),
-        converter,
-        observer
-      ),
-      new PlannerNormalizerModule()
-    );
+    this.plannerEventBus = plannerEventBus;
+
+    PlannerNormalizerComponent plannerNormalizerComponent =
+        context.createPlannerNormalizerComponent(
+            PlannerBaseComponentImpl.build(
+                new PlannerBaseModule(),
+                converter.getSettings(),
+                converter.getFunctionImplementationRegistry(),
+                converter.getFunctionContext(),
+                converter.getOpTab(),
+                converter,
+                observer,
+                plannerEventBus));
     this.relNormalizerTransformer = plannerNormalizerComponent.getRelNormalizerTransformer();
   }
 
@@ -68,7 +85,7 @@ public class SqlHandlerConfig {
     return context;
   }
 
-  public AttemptObserver getObserver() {
+  public AttemptObservers getObserver() {
     return observer;
   }
 
@@ -79,7 +96,7 @@ public class SqlHandlerConfig {
   public RuleSet getRules(PlannerPhase phase) {
     return PlannerPhase.mergedRuleSets(
         context.getInjectedRules(phase),
-        phase.getRules(context, converter),
+        phase.getRules(context),
         context.getCatalogService().getStorageRules(context, phase));
   }
 
@@ -87,8 +104,10 @@ public class SqlHandlerConfig {
     return context.getScanResult();
   }
 
-  public SqlHandlerConfig cloneWithNewObserver(AttemptObserver replacementObserver){
-    return new SqlHandlerConfig(this.context, this.converter, replacementObserver, this.materializations);
+  public SqlHandlerConfig cloneWithNewObserver(AttemptObserver replacementObserver) {
+    AttemptObservers observer = toAttemptObservers(replacementObserver);
+    return new SqlHandlerConfig(
+        this.context, this.converter, observer, this.materializations, this.plannerEventBus);
   }
 
   public SqlConverter getConverter() {
@@ -101,5 +120,15 @@ public class SqlHandlerConfig {
 
   public RelNormalizerTransformer getRelNormalizerTransformer() {
     return relNormalizerTransformer;
+  }
+
+  public PlannerEventBus getPlannerEventBus() {
+    return plannerEventBus;
+  }
+
+  private static AttemptObservers toAttemptObservers(AttemptObserver observer) {
+    return observer instanceof AttemptObservers
+        ? (AttemptObservers) observer
+        : AttemptObservers.of(observer);
   }
 }

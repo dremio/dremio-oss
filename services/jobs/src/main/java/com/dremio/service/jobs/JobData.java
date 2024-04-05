@@ -18,19 +18,15 @@ package com.dremio.service.jobs;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.SessionId;
 
-/**
- * Holds job results. Could be partial or complete job results.
- */
+/** Holds job results. Could be partial or complete job results. */
 public interface JobData extends AutoCloseable {
 
-  /**
-   * Approximate maximum getReturnedRowCount of the JSON serialized value of a cell.
-   */
+  /** Approximate maximum getReturnedRowCount of the JSON serialized value of a cell. */
   String MAX_CELL_SIZE_KEY = "cellSizeLimit";
 
   /**
-   * Create a data object that contains the results in given range. If the range contains no values, a JobData object
-   * containing no results is returned.
+   * Create a data object that contains the results in given range. If the range contains no values,
+   * a JobData object containing no results is returned.
    *
    * @param offset Number of starting row to include in output
    * @param limit Max number of rows starting from offset.
@@ -40,30 +36,32 @@ public interface JobData extends AutoCloseable {
 
   /**
    * Create a new data object that truncates the results to at max given rows.
+   *
    * @param maxRows
    */
   JobDataFragment truncate(int maxRows);
 
   /**
    * Get the {@link JobId} of job that produced the results in this object.
+   *
    * @return
    */
   JobId getJobId();
 
   /**
    * Get the {@link SessionId} of job that produced the results in this object.
+   *
    * @return
    */
   SessionId getSessionId();
 
   /**
    * Return the table path where the job results are stored.
+   *
    * @return
    */
   String getJobResultsTable();
 
-  /**
-   * Load the data
-   */
+  /** Load the data */
   void loadIfNecessary();
 }

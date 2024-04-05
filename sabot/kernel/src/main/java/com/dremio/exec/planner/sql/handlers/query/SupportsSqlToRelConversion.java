@@ -21,14 +21,15 @@ import org.apache.calcite.prepare.Prepare;
 import org.apache.calcite.rel.RelNode;
 
 /**
- * Used by the SqlNodes to indicate they support RelNode conversions.
- * This is primarily used as a choice by simple SqlNodes, where conversion would result into a single RelNode output.
+ * Used by the SqlNodes to indicate they support RelNode conversions. This is primarily used as a
+ * choice by simple SqlNodes, where conversion would result into a single RelNode output.
  */
 public interface SupportsSqlToRelConversion {
 
-  /**
-   * Returns RelRoot for the given node
-   */
-  RelNode convertToRel(RelOptCluster cluster, Prepare.CatalogReader catalogReader, RelNode input,
-                       RelOptTable.ToRelContext relContext);
+  /** Returns RelRoot for the given node */
+  RelNode convertToRel(
+      RelOptCluster cluster,
+      Prepare.CatalogReader catalogReader,
+      RelNode input,
+      RelOptTable.ToRelContext relContext);
 }

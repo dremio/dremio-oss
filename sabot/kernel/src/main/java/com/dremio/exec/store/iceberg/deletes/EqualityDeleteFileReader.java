@@ -17,15 +17,6 @@ package com.dremio.exec.store.iceberg.deletes;
 
 import static com.dremio.sabot.op.common.ht2.LBlockHashTable.ORDINAL_SIZE;
 
-import java.util.List;
-import java.util.stream.Collectors;
-
-import javax.annotation.concurrent.NotThreadSafe;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.FieldVector;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
@@ -34,9 +25,16 @@ import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.SampleMutator;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.google.common.base.Preconditions;
+import java.util.List;
+import java.util.stream.Collectors;
+import javax.annotation.concurrent.NotThreadSafe;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.FieldVector;
 
 /**
- * This class allows for creation of an {@link EqualityDeleteHashTable} from a {@link RecordReader} instance.
+ * This class allows for creation of an {@link EqualityDeleteHashTable} from a {@link RecordReader}
+ * instance.
  */
 @NotThreadSafe
 public class EqualityDeleteFileReader implements AutoCloseable {
@@ -48,9 +46,14 @@ public class EqualityDeleteFileReader implements AutoCloseable {
   private RecordReader reader;
   private SampleMutator mutator;
 
-  public EqualityDeleteFileReader(OperatorContext context, RecordReader reader, BatchSchema schema,
-      List<SchemaPath> equalityFields, long recordCount) {
-    Preconditions.checkArgument(recordCount < Integer.MAX_VALUE,
+  public EqualityDeleteFileReader(
+      OperatorContext context,
+      RecordReader reader,
+      BatchSchema schema,
+      List<SchemaPath> equalityFields,
+      long recordCount) {
+    Preconditions.checkArgument(
+        recordCount < Integer.MAX_VALUE,
         String.format(
             "Equality delete files with greater than %d records are not supported. File: %s, record count: %d",
             Integer.MAX_VALUE - 1, reader.getFilePath(), recordCount));
@@ -73,14 +76,18 @@ public class EqualityDeleteFileReader implements AutoCloseable {
     try {
       reader.allocate(mutator.getFieldVectorMap());
 
-      List<FieldVector> equalityVectors = mutator.getVectors().stream()
-          .map(v -> (FieldVector) v)
-          .collect(Collectors.toList());
+      List<FieldVector> equalityVectors =
+          mutator.getVectors().stream().map(v -> (FieldVector) v).collect(Collectors.toList());
 
-      try (
-          EqualityDeleteHashTable.Builder builder = new EqualityDeleteHashTable.Builder(
-              context.getAllocator(), equalityFields, equalityVectors, tableSize, context.getTargetBatchSize());
-          ArrowBuf outOrdinals = context.getAllocator().buffer((long) context.getTargetBatchSize() * ORDINAL_SIZE)) {
+      try (EqualityDeleteHashTable.Builder builder =
+              new EqualityDeleteHashTable.Builder(
+                  context.getAllocator(),
+                  equalityFields,
+                  equalityVectors,
+                  tableSize,
+                  context.getTargetBatchSize());
+          ArrowBuf outOrdinals =
+              context.getAllocator().buffer((long) context.getTargetBatchSize() * ORDINAL_SIZE)) {
 
         int records;
         while ((records = reader.next()) > 0) {
@@ -102,8 +109,8 @@ public class EqualityDeleteFileReader implements AutoCloseable {
     mutator = null;
   }
 
-  private static SampleMutator createMutator(BufferAllocator allocator, BatchSchema schema,
-      List<SchemaPath> equalityFields) {
+  private static SampleMutator createMutator(
+      BufferAllocator allocator, BatchSchema schema, List<SchemaPath> equalityFields) {
     SampleMutator mutator = new SampleMutator(allocator);
     schema.materializeVectors(equalityFields, mutator);
     mutator.getContainer().buildSchema();

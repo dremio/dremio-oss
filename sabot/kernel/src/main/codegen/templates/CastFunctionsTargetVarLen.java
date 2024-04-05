@@ -55,7 +55,7 @@ public class Cast${type.from}${type.to} implements SimpleFunction{
 
   public void eval() {
     buffer = buffer.reallocIfNeeded((int) len.value);
-    String istr = (new ${type.javaType}(in.value)).toString();
+    String istr = ${type.javaType}.toString(in.value);
     out.buffer = buffer;
     out.start = 0;
     out.end = Math.min((int)len.value, istr.length()); // truncate if target type has length smaller than that of input's string     

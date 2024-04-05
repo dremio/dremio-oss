@@ -15,10 +15,6 @@
  */
 package com.dremio.sabot.op.sort.external;
 
-import org.apache.arrow.memory.OutOfMemoryException;
-import org.junit.Assert;
-import org.junit.Test;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.ExecConstants;
@@ -26,18 +22,24 @@ import com.dremio.exec.planner.physical.SortPrel;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.testing.Controls;
 import com.dremio.exec.testing.ControlsInjectionUtil;
+import org.apache.arrow.memory.OutOfMemoryException;
+import org.junit.Assert;
+import org.junit.Test;
 
 public class TestOOMHandling extends BaseTestQuery {
 
   /**
    * query should fail during in-memory sort, as no memory available to sort the records
+   *
    * @throws Exception
    */
   @Test
   public void testExternalSortWithOOM() throws Exception {
-    final String controlsString = Controls.newBuilder()
-      .addException(MemoryRun.class, MemoryRun.INJECTOR_OOM_ON_SORT, OutOfMemoryException.class)
-      .build();
+    final String controlsString =
+        Controls.newBuilder()
+            .addException(
+                MemoryRun.class, MemoryRun.INJECTOR_OOM_ON_SORT, OutOfMemoryException.class)
+            .build();
     ControlsInjectionUtil.setControls(client, controlsString);
 
     String query = "select l_orderkey from cp.\"tpch/lineitem.parquet\" order by l_orderkey desc";
@@ -51,14 +53,17 @@ public class TestOOMHandling extends BaseTestQuery {
       // Verify that query has hit the injected out-of-memory exception.
       UserBitShared.DremioPBError error = uex.getOrCreatePBError(false);
       Assert.assertEquals(UserBitShared.DremioPBError.ErrorType.RESOURCE, error.getErrorType());
-      Assert.assertTrue("Error message isn't related to memory error",
-        uex.getMessage().contains(UserException.MEMORY_ERROR_MSG));
-      Assert.assertTrue("Error doesn't have context", uex.getMessage().contains("Allocator dominators:"));
+      Assert.assertTrue(
+          "Error message isn't related to memory error",
+          uex.getMessage().contains(UserException.MEMORY_ERROR_MSG));
+      Assert.assertTrue(
+          "Error doesn't have context", uex.getMessage().contains("Allocator dominators:"));
     }
   }
 
   /**
    * query should fail during spill, as copier cant copy any records
+   *
    * @throws Exception
    */
   @Test
@@ -66,14 +71,17 @@ public class TestOOMHandling extends BaseTestQuery {
     final long simulatedMemoryLimit = 10 * 1024 * 1024;
     final long simulatedMemoryReservation = simulatedMemoryLimit - 1024;
 
-    final String controlsString = Controls.newBuilder()
-      .addException(DiskRunManager.class, DiskRunManager.INJECTOR_OOM_SPILL, OutOfMemoryException.class)
-      .build();
+    final String controlsString =
+        Controls.newBuilder()
+            .addException(
+                DiskRunManager.class, DiskRunManager.INJECTOR_OOM_SPILL, OutOfMemoryException.class)
+            .build();
 
-    try(AutoCloseable ac = withOption(ExecConstants.EXTERNAL_SORT_ENABLE_MICRO_SPILL, true);
+    try (AutoCloseable ac = withOption(ExecConstants.EXTERNAL_SORT_ENABLE_MICRO_SPILL, true);
         AutoCloseable with = withOption(SortPrel.LIMIT, simulatedMemoryLimit);
         AutoCloseable withres = withOption(SortPrel.RESERVE, simulatedMemoryReservation);
-        AutoCloseable noMemoryArbiter = withOption(ExecConstants.ENABLE_SPILLABLE_OPERATORS, false)){
+        AutoCloseable noMemoryArbiter =
+            withOption(ExecConstants.ENABLE_SPILLABLE_OPERATORS, false)) {
 
       // run metadata refresh first so that controls injection happens during below SELECT query
       // instead of internal REFRESH DATASET query
@@ -81,12 +89,12 @@ public class TestOOMHandling extends BaseTestQuery {
 
       ControlsInjectionUtil.setControls(client, controlsString);
 
-      //query taken from TestSort
-      test("CREATE TABLE dfs_test.test_sort PARTITION BY (l_modline, l_moddate) AS " +
-        "SELECT l.*, l_shipdate - ((EXTRACT(DAY FROM l_shipdate) - 1) * INTERVAL '1' DAY) l_moddate, " +
-        "MOD(l_linenumber,3) l_modline " +
-        "FROM cp.\"tpch/lineitem.parquet\" l ORDER BY l_moddate"
-      );
+      // query taken from TestSort
+      test(
+          "CREATE TABLE dfs_test.test_sort PARTITION BY (l_modline, l_moddate) AS "
+              + "SELECT l.*, l_shipdate - ((EXTRACT(DAY FROM l_shipdate) - 1) * INTERVAL '1' DAY) l_moddate, "
+              + "MOD(l_linenumber,3) l_modline "
+              + "FROM cp.\"tpch/lineitem.parquet\" l ORDER BY l_moddate");
 
       // Should never reach here.
       Assert.fail("Query did not hit the injected out-of-memory exception in FragmentExecutor#run");
@@ -94,9 +102,11 @@ public class TestOOMHandling extends BaseTestQuery {
       // Verify that query has hit the injected out-of-memory exception.
       UserBitShared.DremioPBError error = uex.getOrCreatePBError(false);
       Assert.assertEquals(UserBitShared.DremioPBError.ErrorType.RESOURCE, error.getErrorType());
-      Assert.assertTrue("Error message isn't related to memory error",
-        uex.getMessage().contains(UserException.MEMORY_ERROR_MSG));
-      Assert.assertTrue("Error doesn't have context", uex.getMessage().contains("Allocator dominators:"));
+      Assert.assertTrue(
+          "Error message isn't related to memory error",
+          uex.getMessage().contains(UserException.MEMORY_ERROR_MSG));
+      Assert.assertTrue(
+          "Error doesn't have context", uex.getMessage().contains("Allocator dominators:"));
     }
   }
 }

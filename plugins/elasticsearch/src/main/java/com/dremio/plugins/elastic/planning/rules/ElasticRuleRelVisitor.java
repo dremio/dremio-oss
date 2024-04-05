@@ -15,25 +15,21 @@
  */
 package com.dremio.plugins.elastic.planning.rules;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.ListIterator;
-
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.RelVisitor;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rex.RexNode;
-
 import com.dremio.exec.planner.common.MoreRelOptUtil.SubsetRemover;
 import com.dremio.plugins.elastic.planning.rels.ElasticsearchFilter;
 import com.dremio.plugins.elastic.planning.rels.ElasticsearchPrel;
 import com.dremio.plugins.elastic.planning.rels.ElasticsearchProject;
 import com.dremio.plugins.elastic.planning.rels.ElasticsearchSample;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.ListIterator;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.RelVisitor;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rex.RexNode;
 
-/**
- * Visits the elasticsearch subtree and collapses the tree.
- */
+/** Visits the elasticsearch subtree and collapses the tree. */
 public abstract class ElasticRuleRelVisitor extends RelVisitor {
   protected RexNode filterExprs = null;
   protected List<RexNode> projectExprs = null;
@@ -48,7 +44,9 @@ public abstract class ElasticRuleRelVisitor extends RelVisitor {
   }
 
   public abstract void processFilter(ElasticsearchFilter filter);
+
   public abstract void processProject(ElasticsearchProject project);
+
   public abstract void processSample(ElasticsearchSample node);
 
   public ElasticRuleRelVisitor go() {
@@ -82,24 +80,37 @@ public abstract class ElasticRuleRelVisitor extends RelVisitor {
   public ElasticsearchPrel getConvertedTree() {
     ElasticsearchPrel subTree = (ElasticsearchPrel) this.child;
 
-
     if (filterExprs != null) {
-      subTree = new ElasticsearchFilter(subTree.getCluster(), subTree.getTraitSet(), subTree, filterExprs, subTree.getPluginId());
+      subTree =
+          new ElasticsearchFilter(
+              subTree.getCluster(),
+              subTree.getTraitSet(),
+              subTree,
+              filterExprs,
+              subTree.getPluginId());
     }
 
     if (projectExprs != null) {
-      subTree = new ElasticsearchProject(subTree.getCluster(), subTree.getTraitSet(), subTree, projectExprs, projectDataType, subTree.getPluginId());
+      subTree =
+          new ElasticsearchProject(
+              subTree.getCluster(),
+              subTree.getTraitSet(),
+              subTree,
+              projectExprs,
+              projectDataType,
+              subTree.getPluginId());
     }
 
     if (parents != null && !parents.isEmpty()) {
       ListIterator<ElasticsearchPrel> iterator = parents.listIterator(parents.size());
       while (iterator.hasPrevious()) {
         final ElasticsearchPrel parent = iterator.previous();
-        subTree = (ElasticsearchPrel) parent.copy(parent.getTraitSet(), Collections.singletonList((RelNode) subTree));
+        subTree =
+            (ElasticsearchPrel)
+                parent.copy(parent.getTraitSet(), Collections.singletonList((RelNode) subTree));
       }
     }
 
     return subTree;
   }
-
 }

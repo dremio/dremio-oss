@@ -15,14 +15,13 @@
  */
 package com.dremio.exec.planner.type;
 
+import com.dremio.exec.planner.sql.DremioSqlOperatorTable;
+import com.dremio.exec.planner.types.SqlTypeFactoryImpl;
+import com.google.common.collect.Lists;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Assert;
 import org.junit.Test;
-
-import com.dremio.exec.planner.sql.DremioSqlOperatorTable;
-import com.dremio.exec.planner.types.SqlTypeFactoryImpl;
-import com.google.common.collect.Lists;
 
 public class DremioRelDataTypeFactoryTest {
   private static final SqlTypeFactoryImpl TYPE_FACTORY = SqlTypeFactoryImpl.INSTANCE;
@@ -31,7 +30,9 @@ public class DremioRelDataTypeFactoryTest {
   public void testDecimalTruncateReturnTypeInference() {
     RelDataType operand1 = TYPE_FACTORY.createSqlType(SqlTypeName.DECIMAL, 28, 12);
     RelDataType operand2 = TYPE_FACTORY.createSqlType(SqlTypeName.INTEGER);
-    RelDataType dataType = DremioSqlOperatorTable.TRUNCATE.inferReturnType(TYPE_FACTORY, Lists.newArrayList(new RelDataType[]{operand1, operand2}));
+    RelDataType dataType =
+        DremioSqlOperatorTable.TRUNCATE.inferReturnType(
+            TYPE_FACTORY, Lists.newArrayList(new RelDataType[] {operand1, operand2}));
     Assert.assertEquals(SqlTypeName.DECIMAL, dataType.getSqlTypeName());
     Assert.assertEquals(16, dataType.getPrecision());
     Assert.assertEquals(0, dataType.getScale());
@@ -41,12 +42,13 @@ public class DremioRelDataTypeFactoryTest {
   public void testDecimalRoundReturnTypeInference() {
     RelDataType operand1 = TYPE_FACTORY.createSqlType(SqlTypeName.DECIMAL, 28, 12);
     RelDataType operand2 = TYPE_FACTORY.createSqlType(SqlTypeName.INTEGER);
-    RelDataType dataType = DremioSqlOperatorTable.ROUND.inferReturnType(TYPE_FACTORY, Lists.newArrayList(new RelDataType[]{operand1, operand2}));
+    RelDataType dataType =
+        DremioSqlOperatorTable.ROUND.inferReturnType(
+            TYPE_FACTORY, Lists.newArrayList(new RelDataType[] {operand1, operand2}));
     Assert.assertEquals(SqlTypeName.DECIMAL, dataType.getSqlTypeName());
     // The precision is one above the value to handle if the significant figure changes.
     // For instance ROUND(9.9 as DECIMAL(2, 1)) should result in 10 AS DECIMAL(2, 0)
     Assert.assertEquals(17, dataType.getPrecision());
     Assert.assertEquals(0, dataType.getScale());
   }
-
 }

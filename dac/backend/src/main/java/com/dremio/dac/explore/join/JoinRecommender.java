@@ -18,9 +18,7 @@ package com.dremio.dac.explore.join;
 import com.dremio.dac.explore.model.Dataset;
 import com.dremio.dac.explore.model.JoinRecommendations;
 
-/**
- * Join recommender
- */
+/** Join recommender */
 public interface JoinRecommender {
   public JoinRecommendations recommendJoins(Dataset dataset);
 }

@@ -15,34 +15,29 @@
  */
 package com.dremio.exec.store.mfunctions;
 
+import com.dremio.exec.planner.logical.Rel;
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.convert.ConverterRule;
 
-import com.dremio.exec.planner.logical.Rel;
-
-/**
- * Rule to convert MFunctionQueryScanCrel nodes to MFunctionQueryScanDrel nodes.
- */
+/** Rule to convert MFunctionQueryScanCrel nodes to MFunctionQueryScanDrel nodes. */
 public final class MFunctionQueryScanRule extends ConverterRule {
 
   public static MFunctionQueryScanRule INSTANCE = new MFunctionQueryScanRule();
 
   public MFunctionQueryScanRule() {
-    super(MFunctionQueryScanCrel.class, Convention.NONE, Rel.LOGICAL,
-      "MFunctionQueryScanRule");
+    super(MFunctionQueryScanCrel.class, Convention.NONE, Rel.LOGICAL, "MFunctionQueryScanRule");
   }
 
   @Override
   public RelNode convert(RelNode relNode) {
     final MFunctionQueryScanCrel node = (MFunctionQueryScanCrel) relNode;
     return new MFunctionQueryScanDrel(
-      node.getCluster(),
-      node.getTraitSet().replace(Rel.LOGICAL),
-      node.getRowType(),
-      node.getTableMetadata(),
-      node.getUser(),
-      node.metadataLocation);
+        node.getCluster(),
+        node.getTraitSet().replace(Rel.LOGICAL),
+        node.getRowType(),
+        node.getTableMetadata(),
+        node.getUser(),
+        node.metadataLocation);
   }
-
 }

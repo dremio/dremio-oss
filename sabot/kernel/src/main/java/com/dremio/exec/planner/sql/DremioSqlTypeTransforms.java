@@ -21,21 +21,21 @@ import org.apache.calcite.sql.SqlOperatorBinding;
 import org.apache.calcite.sql.type.SqlTypeTransform;
 import org.apache.calcite.sql.type.SqlTypeTransforms;
 
-/**
- * Extension to Calcite's SqlTypeTransforms
- */
+/** Extension to Calcite's SqlTypeTransforms */
 public class DremioSqlTypeTransforms extends SqlTypeTransforms {
-  private DremioSqlTypeTransforms() { }
+  private DremioSqlTypeTransforms() {}
 
   /**
-   * Parameter type-inference transform strategy where a derived type is transformed into the same type,
-   * but with max precision.
+   * Parameter type-inference transform strategy where a derived type is transformed into the same
+   * type, but with max precision.
    */
-  public static final SqlTypeTransform MAX_PRECISION = new SqlTypeTransform() {
-    @Override
-    public RelDataType transformType(SqlOperatorBinding opBinding, RelDataType typeToTransform) {
-      RelDataTypeFactory relDataTypeFactory = opBinding.getTypeFactory();
-      return relDataTypeFactory.createSqlType(typeToTransform.getSqlTypeName());
-    }
-  };
+  public static final SqlTypeTransform MAX_PRECISION =
+      new SqlTypeTransform() {
+        @Override
+        public RelDataType transformType(
+            SqlOperatorBinding opBinding, RelDataType typeToTransform) {
+          RelDataTypeFactory relDataTypeFactory = opBinding.getTypeFactory();
+          return relDataTypeFactory.createSqlType(typeToTransform.getSqlTypeName());
+        }
+      };
 }

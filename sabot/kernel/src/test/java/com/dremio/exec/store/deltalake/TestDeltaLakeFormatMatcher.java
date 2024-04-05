@@ -20,30 +20,24 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
+import com.dremio.exec.hadoop.HadoopFileSystem;
+import com.dremio.exec.store.dfs.FileSelection;
+import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.Path;
 import java.io.File;
-
 import org.apache.hadoop.conf.Configuration;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import com.dremio.exec.hadoop.HadoopFileSystem;
-import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.store.dfs.FileSelection;
-import com.dremio.io.file.FileSystem;
-import com.dremio.io.file.Path;
-
 public class TestDeltaLakeFormatMatcher {
 
-  @Rule
-  public TemporaryFolder tempDir = new TemporaryFolder();
+  @Rule public TemporaryFolder tempDir = new TemporaryFolder();
 
   @Test
   public void matches() throws Exception {
     DeltaLakeFormatPlugin plugin = mock(DeltaLakeFormatPlugin.class, RETURNS_DEEP_STUBS);
-    when(plugin.getContext().getOptionManager().getOption(PlannerSettings.ENABLE_DELTALAKE)).thenReturn(true);
 
     DeltaLakeFormatMatcher matcher = new DeltaLakeFormatMatcher(plugin);
     FileSystem fs = HadoopFileSystem.getLocal(new Configuration());
@@ -61,7 +55,7 @@ public class TestDeltaLakeFormatMatcher {
     File lastCheckpoint = new File(deltaLog, "_last_checkpoint");
     lastCheckpoint.createNewFile();
 
-    //add
+    // add
     File commitJson = new File(deltaLog, "00000000.json");
     commitJson.createNewFile();
 
@@ -77,7 +71,6 @@ public class TestDeltaLakeFormatMatcher {
   @Test
   public void testAccessDenied() throws Exception {
     DeltaLakeFormatPlugin plugin = mock(DeltaLakeFormatPlugin.class, RETURNS_DEEP_STUBS);
-    when(plugin.getContext().getOptionManager().getOption(PlannerSettings.ENABLE_DELTALAKE)).thenReturn(true);
 
     DeltaLakeFormatMatcher matcher = new DeltaLakeFormatMatcher(plugin);
     FileSystem fs = HadoopFileSystem.getLocal(new Configuration());
@@ -92,7 +85,7 @@ public class TestDeltaLakeFormatMatcher {
     File lastCheckpoint = new File(deltaLog, "_last_checkpoint");
     lastCheckpoint.createNewFile();
 
-    //add commit file
+    // add commit file
     File commitJson = new File(deltaLog, "000001.json");
     commitJson.createNewFile();
 
@@ -100,39 +93,13 @@ public class TestDeltaLakeFormatMatcher {
 
     assertTrue(matcher.matches(fs, fileSelection, null));
 
-    //Setting readable again so is cleaned up after test
+    // Setting readable again so is cleaned up after test
     deltaLog.setReadable(true);
-  }
-
-  @Test
-  public void deltaLakeNotEnabled() throws Exception {
-    DeltaLakeFormatPlugin plugin = mock(DeltaLakeFormatPlugin.class, RETURNS_DEEP_STUBS);
-    when(plugin.getContext().getOptionManager().getOption(PlannerSettings.ENABLE_DELTALAKE)).thenReturn(false);
-
-    DeltaLakeFormatMatcher matcher = new DeltaLakeFormatMatcher(plugin);
-    FileSystem fs = HadoopFileSystem.getLocal(new Configuration());
-    File root = tempDir.newFolder();
-    FileSelection fileSelection = FileSelection.createNotExpanded(fs, Path.of(root.toURI()));
-
-    // empty "_delta_log" folder
-    File deltaLog = new File(root, "_delta_log");
-    deltaLog.mkdir();
-
-    // add "_last_checkpoint"
-    File lastCheckpoint = new File(deltaLog, "_last_checkpoint");
-    lastCheckpoint.createNewFile();
-
-    //add commit file
-    File commitJson = new File(deltaLog, "000001.json");
-    commitJson.createNewFile();
-
-    assertFalse(matcher.matches(fs, fileSelection, null));
   }
 
   @Test
   public void testNonDirectoryRoot() throws Exception {
     DeltaLakeFormatPlugin plugin = mock(DeltaLakeFormatPlugin.class, RETURNS_DEEP_STUBS);
-    when(plugin.getContext().getOptionManager().getOption(PlannerSettings.ENABLE_DELTALAKE)).thenReturn(true);
 
     DeltaLakeFormatMatcher matcher = new DeltaLakeFormatMatcher(plugin);
     FileSystem fs = HadoopFileSystem.getLocal(new Configuration());
@@ -145,5 +112,4 @@ public class TestDeltaLakeFormatMatcher {
 
     assertFalse(matcher.matches(fs, fileSelection, null));
   }
-
 }

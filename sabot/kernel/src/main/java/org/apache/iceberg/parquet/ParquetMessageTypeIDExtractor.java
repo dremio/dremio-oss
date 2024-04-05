@@ -17,18 +17,17 @@ package org.apache.iceberg.parquet;
 
 import org.apache.parquet.schema.MessageType;
 
-/**
- * This class reuses Iceberg's MessageTypeToType.
- */
+/** This class reuses Iceberg's MessageTypeToType. */
 public class ParquetMessageTypeIDExtractor extends MessageTypeToType {
   public ParquetMessageTypeIDExtractor() {
     super(null);
   }
 
   /**
-   *  Calling hasIds on instance of this class
-   *  returns false if parquet file schema has no IDs defined for columns.
-   *  When it returns true, method, getAliases of this instance returns the column to ID mapping
+   * Calling hasIds on instance of this class returns false if parquet file schema has no IDs
+   * defined for columns. When it returns true, method, getAliases of this instance returns the
+   * column to ID mapping
+   *
    * @param fileSchema parquet file schema
    * @return true if parquet file schema has IDs for column names
    */

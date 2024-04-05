@@ -18,13 +18,6 @@ package com.dremio.exec.store.iceberg;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.when;
 
-import java.io.File;
-import java.util.Collections;
-
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.exec.record.BatchSchema;
@@ -32,10 +25,14 @@ import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.iceberg.hadoop.IcebergHadoopModel;
 import com.dremio.exec.store.iceberg.model.IcebergOpCommitter;
 import com.dremio.io.file.Path;
+import java.io.File;
+import java.util.Collections;
+import org.junit.ClassRule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 public class TestIcebergHadoopCommand {
-  @ClassRule
-  public static final TemporaryFolder tempDir = new TemporaryFolder();
+  @ClassRule public static final TemporaryFolder tempDir = new TemporaryFolder();
 
   @Test
   public void testCreateOperation() {
@@ -45,10 +42,17 @@ public class TestIcebergHadoopCommand {
     FileSystemPlugin fileSystemPlugin = BaseTestQuery.getMockedFileSystemPlugin();
     IcebergHadoopModel icebergHadoopModel = new IcebergHadoopModel(fileSystemPlugin);
     when(fileSystemPlugin.getIcebergModel()).thenReturn(icebergHadoopModel);
-    IcebergOpCommitter createTableCommitter = icebergHadoopModel.getCreateTableCommitter(
-            tableName, icebergHadoopModel.getTableIdentifier(Path.of(tempDir.getRoot().getPath()).resolve(tableName).toString()),
-      schema,
-      null, null, null, null, Collections.emptyMap());
+    IcebergOpCommitter createTableCommitter =
+        icebergHadoopModel.getCreateTableCommitter(
+            tableName,
+            icebergHadoopModel.getTableIdentifier(
+                Path.of(tempDir.getRoot().getPath()).resolve(tableName).toString()),
+            schema,
+            null,
+            null,
+            null,
+            null,
+            Collections.emptyMap());
     createTableCommitter.commit();
 
     File tableFolder = new File(tempDir.getRoot(), tableName);
@@ -58,6 +62,4 @@ public class TestIcebergHadoopCommand {
     assertTrue(new File(metadataFolder, "v1.metadata.json").exists()); // snapshot metadata
     assertTrue(new File(metadataFolder, "version-hint.text").exists()); // root pointer file
   }
-
-
 }

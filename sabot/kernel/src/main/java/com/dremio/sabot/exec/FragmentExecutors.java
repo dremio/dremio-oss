@@ -15,26 +15,11 @@
  */
 package com.dremio.sabot.exec;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-
-import javax.annotation.Nullable;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.memory.DremioRootAllocator;
+import com.dremio.common.memory.MemoryDebugInfo;
 import com.dremio.common.util.LoadingCacheWithExpiry;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.ExecConstants;
@@ -65,6 +50,7 @@ import com.dremio.sabot.exec.fragment.OutOfBandMessage;
 import com.dremio.sabot.exec.rpc.IncomingDataBatch;
 import com.dremio.sabot.memory.MemoryArbiter;
 import com.dremio.sabot.task.AsyncTaskWrapper;
+import com.dremio.sabot.task.TaskMonitorObserver;
 import com.dremio.sabot.task.TaskPool;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
@@ -76,17 +62,34 @@ import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Sets;
 import com.google.protobuf.Empty;
-
 import io.grpc.stub.StreamObserver;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import javax.annotation.Nullable;
+import org.apache.arrow.memory.BufferAllocator;
 
-/**
- * A type of map used to help manage fragments.
- */
-public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecutor> {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FragmentExecutors.class);
+/** A type of map used to help manage fragments. */
+public class FragmentExecutors
+    implements AutoCloseable, Iterable<FragmentExecutor>, TaskMonitorObserver {
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(FragmentExecutors.class);
   private static final Response OK = new Response(RpcType.ACK, Acks.OK);
 
   private final LoadingCacheWithExpiry<FragmentHandle, FragmentHandler> handlers;
+  private final Set<FragmentHandle> fragmentsRequestingCancellation =
+      Collections.synchronizedSet(new HashSet<>());
   private final AtomicInteger numRunningFragments = new AtomicInteger();
 
   private final TaskPool pool;
@@ -97,41 +100,50 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
   private final OptionManager options;
   private final MemoryArbiter memoryArbiter;
 
+  private final BufferAllocator allocator;
+
   public FragmentExecutors(
-    final BootStrapContext context,
-    final SabotConfig sabotConfig,
-    final QueriesClerk clerk,
-    final MaestroProxy maestroProxy,
-    final ExitCallback callback,
-    final TaskPool pool,
-    final OptionManager options) {
+      final BootStrapContext context,
+      final SabotConfig sabotConfig,
+      final QueriesClerk clerk,
+      final MaestroProxy maestroProxy,
+      final ExitCallback callback,
+      final TaskPool pool,
+      final OptionManager options) {
     this.maestroProxy = maestroProxy;
     this.callback = callback;
     this.pool = pool;
-    this.evictionDelayMillis = TimeUnit.SECONDS.toMillis(
-      options.getOption(ExecConstants.FRAGMENT_CACHE_EVICTION_DELAY_S));
+    this.evictionDelayMillis =
+        TimeUnit.SECONDS.toMillis(options.getOption(ExecConstants.FRAGMENT_CACHE_EVICTION_DELAY_S));
 
-    this.handlers = new LoadingCacheWithExpiry<>("fragment-handler",
-      new CacheLoader<FragmentHandle, FragmentHandler>() {
-        @Override
-        public FragmentHandler load(FragmentHandle key) throws Exception {
-          // Underlying loading cache's refresh() calls reload() on this
-          // cacheLoader, which indirectly calls this load() method.
-          // So new FragmentHandler should not be created, instead
-          // existing handler should be used. This will avoid using
-          // extra heap memory.
-          FragmentHandler exitingFragmentHandler = handlers.getIfPresent(key);
-          if(exitingFragmentHandler == null) {
-            return new FragmentHandler(key, evictionDelayMillis);
-          }
-          return exitingFragmentHandler;
-        }
-      },
-      null, evictionDelayMillis);
+    this.handlers =
+        new LoadingCacheWithExpiry<>(
+            "fragment-handler",
+            new CacheLoader<FragmentHandle, FragmentHandler>() {
+              @Override
+              public FragmentHandler load(FragmentHandle key) throws Exception {
+                // Underlying loading cache's refresh() calls reload() on this
+                // cacheLoader, which indirectly calls this load() method.
+                // So new FragmentHandler should not be created, instead
+                // existing handler should be used. This will avoid using
+                // extra heap memory.
+                FragmentHandler exitingFragmentHandler = handlers.getIfPresent(key);
+                if (exitingFragmentHandler == null) {
+                  return new FragmentHandler(key, evictionDelayMillis);
+                }
+                return exitingFragmentHandler;
+              }
+            },
+            null,
+            evictionDelayMillis);
 
     this.warnMaxTime = (int) options.getOption(ExecConstants.SLICING_WARN_MAX_RUNTIME_MS);
     this.options = options;
-    this.memoryArbiter = MemoryArbiter.newInstance(sabotConfig, (DremioRootAllocator) context.getAllocator(), this, clerk, options);
+    this.allocator = context.getAllocator();
+    this.memoryArbiter =
+        MemoryArbiter.newInstance(
+            sabotConfig, (DremioRootAllocator) this.allocator, this, clerk, options);
+    this.pool.getTaskMonitor().addObserver(this);
   }
 
   @VisibleForTesting
@@ -142,18 +154,38 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
   @Override
   public Iterator<FragmentExecutor> iterator() {
     return Iterators.unmodifiableIterator(
-      FluentIterable
-        .from(handlers.asMap().values())
-        .transform(new Function<FragmentHandler, FragmentExecutor>() {
-          @Nullable
-          @Override
-          public FragmentExecutor apply(FragmentHandler input) {
-            return input.getExecutor();
-          }
-        })
-        .filter(Predicates.<FragmentExecutor>notNull())
-        .iterator()
-    );
+        FluentIterable.from(handlers.asMap().values())
+            .transform(
+                new Function<FragmentHandler, FragmentExecutor>() {
+                  @Nullable
+                  @Override
+                  public FragmentExecutor apply(FragmentHandler input) {
+                    return input.getExecutor();
+                  }
+                })
+            .filter(Predicates.<FragmentExecutor>notNull())
+            .iterator());
+  }
+
+  @Override
+  public void observeTaskMonitorEvent() {
+    // monitor cancelled fragments
+    long currentTimeMs = System.currentTimeMillis();
+    FragmentHandle[] cancelledFragments =
+        fragmentsRequestingCancellation.toArray(new FragmentHandle[0]);
+    for (FragmentHandle fragmentHandle : cancelledFragments) {
+      FragmentHandler handler = handlers.getIfPresent(fragmentHandle);
+      if (handler == null) {
+        continue;
+      }
+
+      FragmentExecutor fragmentExecutor = handler.getExecutor();
+      if (fragmentExecutor == null) {
+        continue;
+      }
+
+      fragmentExecutor.logDebugInfoForCancelledTasks(currentTimeMs);
+    }
   }
 
   /**
@@ -163,10 +195,15 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
     return numRunningFragments.get();
   }
 
-  public void startFragments(final InitializeFragments fragments, final FragmentExecutorBuilder builder,
-                             final StreamObserver<Empty> sender, final NodeEndpoint identity) {
-    final SchedulingInfo schedulingInfo = fragments.hasSchedulingInfo() ? fragments.getSchedulingInfo() : null;
-    QueryStarterImpl queryStarter = new QueryStarterImpl(fragments, builder, sender, identity, schedulingInfo);
+  public void startFragments(
+      final InitializeFragments fragments,
+      final FragmentExecutorBuilder builder,
+      final StreamObserver<Empty> sender,
+      final NodeEndpoint identity) {
+    final SchedulingInfo schedulingInfo =
+        fragments.hasSchedulingInfo() ? fragments.getSchedulingInfo() : null;
+    QueryStarterImpl queryStarter =
+        new QueryStarterImpl(fragments, builder, sender, identity, schedulingInfo);
     builder.buildAndStartQuery(queryStarter.getFirstFragment(), schedulingInfo, queryStarter);
   }
 
@@ -189,7 +226,9 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
   }
 
   @VisibleForTesting
-  void activateFragment(FragmentHandle handle) { handlers.getUnchecked(handle).activate(); }
+  void activateFragment(FragmentHandle handle) {
+    handlers.getUnchecked(handle).activate();
+  }
 
   /*
    * Cancel all fragments for the specified query.
@@ -206,12 +245,14 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
   }
 
   /**
-   * Determine queries to be cancelled based on activeQueryList and
-   * cancel those queries. See implementation for actual algo.
+   * Determine queries to be cancelled based on activeQueryList and cancel those queries. See
+   * implementation for actual algo.
+   *
    * @param activeQueryList
    * @param clerk
    */
-  public void reconcileActiveQueries(CoordExecRPC.ActiveQueryList activeQueryList, QueriesClerk clerk) {
+  public void reconcileActiveQueries(
+      CoordExecRPC.ActiveQueryList activeQueryList, QueriesClerk clerk) {
     Set<QueryId> queryIdsToCancel = maestroProxy.reconcileActiveQueries(activeQueryList);
     cancelFragments(queryIdsToCancel, clerk);
   }
@@ -219,7 +260,7 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
   @VisibleForTesting
   void cancelFragments(Set<QueryId> queryIdsToCancel, QueriesClerk clerk) {
     logger.debug("# queries to be cancelled:{}", queryIdsToCancel);
-    for(QueryId queryId: queryIdsToCancel) {
+    for (QueryId queryId : queryIdsToCancel) {
       logger.info("cancelling queryId:{} as determined using ActiveQueryList.", queryId);
       cancelFragments(queryId, clerk);
     }
@@ -231,21 +272,35 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
    * @param queryId
    * @param clerk
    */
-  public void failFragments(QueryId queryId, QueriesClerk clerk, Throwable throwable, String failContext) {
+  public void failFragments(
+      QueryId queryId,
+      QueriesClerk clerk,
+      Throwable throwable,
+      String failContext,
+      String extraDebugInfo) {
     for (FragmentTicket fragmentTicket : clerk.getFragmentTickets(queryId)) {
-      failFragment(fragmentTicket.getHandle(), throwable, failContext);
+      failFragment(fragmentTicket.getHandle(), throwable, failContext, extraDebugInfo);
     }
   }
 
   @VisibleForTesting
-  void cancelFragment(FragmentHandle handle) { handlers.getUnchecked(handle).cancel(); }
+  void cancelFragment(FragmentHandle handle) {
+    handlers.getUnchecked(handle).cancel();
+    fragmentsRequestingCancellation.add(handle);
+  }
 
-  void failFragment(FragmentHandle handle, Throwable throwable, String failContext) {
-    UserException.Builder builder = UserException
-      .resourceError(throwable)
-      .message(UserException.MEMORY_ERROR_MSG);
+  void failFragment(
+      FragmentHandle handle, Throwable throwable, String failContext, String extraDebugInfo) {
+    UserException.Builder builder =
+        UserException.resourceError(throwable).message(UserException.MEMORY_ERROR_MSG);
     if (failContext != null && !failContext.isEmpty()) {
       builder = builder.addContext(failContext);
+    }
+    if (extraDebugInfo != null && !extraDebugInfo.isEmpty()) {
+      builder =
+          builder.addContext(
+              "\nAllocator dominators:\n" + MemoryDebugInfo.getSummaryFromRoot(this.allocator, 2));
+      builder = builder.addContext(extraDebugInfo);
     }
     handlers.getUnchecked(handle).fail(builder.buildSilently());
   }
@@ -258,40 +313,54 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
     handlers.getUnchecked(handle).handle(completion);
   }
 
-  public void handle(FragmentHandle handle, IncomingDataBatch batch) throws IOException, FragmentSetupException {
+  public void handle(FragmentHandle handle, IncomingDataBatch batch)
+      throws IOException, FragmentSetupException {
     handlers.getUnchecked(handle).handle(batch);
   }
 
   public void handle(OutOfBandMessage message) {
-    for(Integer minorFragmentId : message.getTargetMinorFragmentIds()) {
-      FragmentHandle handle = FragmentHandle.newBuilder().setQueryId(message.getQueryId()).setMajorFragmentId(message.getMajorFragmentId()).setMinorFragmentId(minorFragmentId).build();
+    for (Integer minorFragmentId : message.getTargetMinorFragmentIds()) {
+      FragmentHandle handle =
+          FragmentHandle.newBuilder()
+              .setQueryId(message.getQueryId())
+              .setMajorFragmentId(message.getMajorFragmentId())
+              .setMinorFragmentId(minorFragmentId)
+              .build();
       handlers.getUnchecked(handle).handle(message);
     }
   }
 
   @Override
   public void close() throws Exception {
-    // we could call handlers.cleanUp() to remove all expired elements but we don't really care as we may still log a warning
-    // anyway for fragments that finished less than 10 minutes ago (see FragmentHandler.EVICTION_DELAY_MS)
+    // we could call handlers.cleanUp() to remove all expired elements but we don't really care as
+    // we may still log a warning
+    // anyway for fragments that finished less than 10 minutes ago (see
+    // FragmentHandler.EVICTION_DELAY_MS)
 
     // retrieve all handlers that are either still running or didn't start at all
-    Collection<FragmentHandler> unexpiredHandlers = FluentIterable
-      .from(handlers.asMap().values())
-      .filter(new Predicate<FragmentHandler>() {
-        @Override
-        public boolean apply(FragmentHandler input) {
-          return !input.hasStarted() || input.isRunning();
-        }
-      }).toList();
+    Collection<FragmentHandler> unexpiredHandlers =
+        FluentIterable.from(handlers.asMap().values())
+            .filter(
+                new Predicate<FragmentHandler>() {
+                  @Override
+                  public boolean apply(FragmentHandler input) {
+                    return !input.hasStarted() || input.isRunning();
+                  }
+                })
+            .toList();
 
     if (unexpiredHandlers.size() > 0) {
-      logger.warn("Closing FragmentExecutors but there are {} fragments that are either running or never started.", unexpiredHandlers.size());
+      logger.warn(
+          "Closing FragmentExecutors but there are {} fragments that are either running or never started.",
+          unexpiredHandlers.size());
       if (logger.isDebugEnabled()) {
         for (final FragmentHandler handler : unexpiredHandlers) {
           final FragmentExecutor executor = handler.getExecutor();
           if (executor != null) {
-            logger.debug("Fragment still running: {} status: {}", QueryIdHelper.getQueryIdentifier(handler.getHandle()),
-              executor.getStatus());
+            logger.debug(
+                "Fragment still running: {} status: {}",
+                QueryIdHelper.getQueryIdentifier(handler.getHandle()),
+                executor.getStatus());
           } else {
             handler.checkStateAndLogIfNecessary();
           }
@@ -302,7 +371,8 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
     AutoCloseables.close(handlers, memoryArbiter);
   }
 
-  public void startFragmentOnLocal(PlanFragmentFull planFragmentFull, FragmentExecutorBuilder fragmentExecutorBuilder) {
+  public void startFragmentOnLocal(
+      PlanFragmentFull planFragmentFull, FragmentExecutorBuilder fragmentExecutorBuilder) {
     CoordExecRPC.InitializeFragments.Builder fb = CoordExecRPC.InitializeFragments.newBuilder();
     CoordExecRPC.PlanFragmentSet.Builder setB = fb.getFragmentSetBuilder();
     setB.addMajor(planFragmentFull.getMajor());
@@ -320,20 +390,24 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
     UserBitShared.QueryId queryId = planFragmentFull.getHandle().getQueryId();
     maestroProxy.doNotTrack(queryId);
 
-    startFragments(initializeFragments, fragmentExecutorBuilder, new StreamObserver<Empty>() {
-      @Override
-      public void onNext(Empty empty) {}
+    startFragments(
+        initializeFragments,
+        fragmentExecutorBuilder,
+        new StreamObserver<Empty>() {
+          @Override
+          public void onNext(Empty empty) {}
 
-      @Override
-      public void onError(Throwable throwable) {
-        logger.error("Unable to execute query", throwable);
-      }
+          @Override
+          public void onError(Throwable throwable) {
+            logger.error("Unable to execute query", throwable);
+          }
 
-      @Override
-      public void onCompleted() {
-        logger.info("Completed executing query");
-      }
-    }, fragmentExecutorBuilder.getNodeEndpoint());
+          @Override
+          public void onCompleted() {
+            logger.info("Completed executing query");
+          }
+        },
+        fragmentExecutorBuilder.getNodeEndpoint());
 
     activateFragments(queryId, fragmentExecutorBuilder.getClerk());
   }
@@ -341,14 +415,12 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
   public QueryId getQueryIdForLocalQuery() {
     UUID queryUUID = UUID.randomUUID();
     return UserBitShared.QueryId.newBuilder()
-      .setPart1(queryUUID.getMostSignificantBits())
-      .setPart2(queryUUID.getLeastSignificantBits())
-      .build();
+        .setPart1(queryUUID.getMostSignificantBits())
+        .setPart2(queryUUID.getLeastSignificantBits())
+        .build();
   }
 
-  /**
-   * Initializes a query. Starts
-   */
+  /** Initializes a query. Starts */
   private class QueryStarterImpl implements QueryStarter {
     final InitializeFragments initializeFragments;
     final FragmentExecutorBuilder builder;
@@ -360,34 +432,44 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
     final boolean useWeightBasedScheduling;
     final boolean useMemoryArbiter;
 
-    QueryStarterImpl(final InitializeFragments initializeFragments, final FragmentExecutorBuilder builder,
-                     final StreamObserver<Empty> sender, final NodeEndpoint identity, final SchedulingInfo schedulingInfo) {
+    QueryStarterImpl(
+        final InitializeFragments initializeFragments,
+        final FragmentExecutorBuilder builder,
+        final StreamObserver<Empty> sender,
+        final NodeEndpoint identity,
+        final SchedulingInfo schedulingInfo) {
       this.initializeFragments = initializeFragments;
       this.builder = builder;
       this.sender = sender;
       this.identity = identity;
       this.schedulingInfo = schedulingInfo;
-      this.fragmentReader = new CachedFragmentReader(builder.getPlanReader(),
-        new PlanFragmentsIndex(initializeFragments.getFragmentSet().getEndpointsIndexList(),
-          initializeFragments.getFragmentSet().getAttrList()));
+      this.fragmentReader =
+          new CachedFragmentReader(
+              builder.getPlanReader(),
+              new PlanFragmentsIndex(
+                  initializeFragments.getFragmentSet().getEndpointsIndexList(),
+                  initializeFragments.getFragmentSet().getAttrList()));
       final List<PlanFragmentFull> fragmentFulls = new ArrayList<>();
 
       // Create a map of the major fragments.
       PlanFragmentSet set = initializeFragments.getFragmentSet();
-      Map<Integer, PlanFragmentMajor> map = FluentIterable.from(set.getMajorList())
-        .uniqueIndex(major -> major.getHandle().getMajorFragmentId());
+      Map<Integer, PlanFragmentMajor> map =
+          FluentIterable.from(set.getMajorList())
+              .uniqueIndex(major -> major.getHandle().getMajorFragmentId());
 
       // Build the full fragments.
-      set.getMinorList().forEach(
-        minor -> {
-          PlanFragmentMajor major = map.get(minor.getMajorFragmentId());
-          Preconditions.checkNotNull(major,
-            "Missing major fragment for major id" + minor.getMajorFragmentId());
+      set.getMinorList()
+          .forEach(
+              minor -> {
+                PlanFragmentMajor major = map.get(minor.getMajorFragmentId());
+                Preconditions.checkNotNull(
+                    major, "Missing major fragment for major id" + minor.getMajorFragmentId());
 
-          fragmentFulls.add(new PlanFragmentFull(major, minor));
-        });
+                fragmentFulls.add(new PlanFragmentFull(major, minor));
+              });
       this.fullFragments = Collections.unmodifiableList(fragmentFulls);
-      this.useWeightBasedScheduling = options.getOption(ExecConstants.SHOULD_ASSIGN_FRAGMENT_PRIORITY);
+      this.useWeightBasedScheduling =
+          options.getOption(ExecConstants.SHOULD_ASSIGN_FRAGMENT_PRIORITY);
       this.useMemoryArbiter = options.getOption(ExecConstants.ENABLE_SPILLABLE_OPERATORS);
     }
 
@@ -419,7 +501,8 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
       UserRpcException userRpcException = null;
       Set<FragmentHandle> fragmentHandlesForQuery = Sets.newHashSet();
       try {
-        if (!maestroProxy.tryStartQuery(queryId, queryTicket, initializeFragments.getQuerySentTime())) {
+        if (!maestroProxy.tryStartQuery(
+            queryId, queryTicket, initializeFragments.getQuerySentTime())) {
           boolean isDuplicateStart = maestroProxy.isQueryStarted(queryId);
           if (isDuplicateStart) {
             // duplicate op, do nothing.
@@ -432,14 +515,20 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
         Map<Integer, Integer> priorityToWeightMap = buildPriorityToWeightMap();
 
         for (PlanFragmentFull fragment : fullFragments) {
-          FragmentExecutor fe = buildFragment(queryTicket, fragment, priorityToWeightMap.getOrDefault(fragment.getMajor().getFragmentExecWeight(), 1), schedulingInfo);
+          FragmentExecutor fe =
+              buildFragment(
+                  queryTicket,
+                  fragment,
+                  priorityToWeightMap.getOrDefault(fragment.getMajor().getFragmentExecWeight(), 1),
+                  schedulingInfo);
           fragmentHandlesForQuery.add(fe.getHandle());
           fragmentExecutors.add(fe);
         }
       } catch (UserRpcException e) {
         userRpcException = e;
       } catch (Exception e) {
-        userRpcException = new UserRpcException(NodeEndpoint.getDefaultInstance(), "Remote message leaked.", e);
+        userRpcException =
+            new UserRpcException(NodeEndpoint.getDefaultInstance(), "Remote message leaked.", e);
       } finally {
         if (fragmentHandlesForQuery.size() > 0) {
           maestroProxy.initFragmentHandlesForQuery(queryId, fragmentHandlesForQuery);
@@ -471,7 +560,8 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
       if (e instanceof UserRpcException) {
         sender.onError((UserRpcException) e);
       } else {
-        final UserRpcException genericException = new UserRpcException(NodeEndpoint.getDefaultInstance(), "Remote message leaked.", e);
+        final UserRpcException genericException =
+            new UserRpcException(NodeEndpoint.getDefaultInstance(), "Remote message leaked.", e);
         sender.onError(genericException);
       }
     }
@@ -483,9 +573,10 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
         return priorityToWeightMap;
       }
 
-      for(PlanFragmentFull fragment : fullFragments) {
+      for (PlanFragmentFull fragment : fullFragments) {
         int fragmentWeight = fragment.getMajor().getFragmentExecWeight();
-        priorityToWeightMap.put(fragmentWeight, Math.min(fragmentWeight, QueryTicket.MAX_EXPECTED_SIZE));
+        priorityToWeightMap.put(
+            fragmentWeight, Math.min(fragmentWeight, QueryTicket.MAX_EXPECTED_SIZE));
       }
       return priorityToWeightMap;
     }
@@ -497,10 +588,12 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
           return -1;
         }
         if (e2.getFragmentWeight() == e1.getFragmentWeight()) {
-          // when priorities are equal, order the fragments based on leaf first and then descending order
+          // when priorities are equal, order the fragments based on leaf first and then descending
+          // order
           // of major fragment number. This ensures fragments are started in order of dependency
           if (e2.isLeafFragment() == e1.isLeafFragment()) {
-            return Integer.compare(e2.getHandle().getMajorFragmentId(), e1.getHandle().getMajorFragmentId());
+            return Integer.compare(
+                e2.getHandle().getMajorFragmentId(), e1.getHandle().getMajorFragmentId());
           } else {
             return e1.isLeafFragment() ? -1 : 1;
           }
@@ -509,60 +602,84 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
       };
     }
 
-    private FragmentExecutor buildFragment(final QueryTicket queryTicket, final PlanFragmentFull fragment,
-      final int schedulingWeight, final SchedulingInfo schedulingInfo) throws UserRpcException {
+    private FragmentExecutor buildFragment(
+        final QueryTicket queryTicket,
+        final PlanFragmentFull fragment,
+        final int schedulingWeight,
+        final SchedulingInfo schedulingInfo)
+        throws UserRpcException {
 
       if (fragment.getMajor().getFragmentExecWeight() <= 0) {
-        logger.info("Received remote fragment start instruction for {}", QueryIdHelper.getQueryIdentifier(fragment.getHandle()));
+        logger.info(
+            "Received remote fragment start instruction for {}",
+            QueryIdHelper.getQueryIdentifier(fragment.getHandle()));
       } else {
-        logger.info("Received remote fragment start instruction for {} with assigned weight {} and scheduling weight {}",
-          QueryIdHelper.getQueryIdentifier(fragment.getHandle()), fragment.getMajor().getFragmentExecWeight(), schedulingWeight);
+        logger.info(
+            "Received remote fragment start instruction for {} with assigned weight {} and scheduling weight {}",
+            QueryIdHelper.getQueryIdentifier(fragment.getHandle()),
+            fragment.getMajor().getFragmentExecWeight(),
+            schedulingWeight);
       }
 
       try {
         final EventProvider eventProvider = getEventProvider(fragment.getHandle());
-        return builder.build(queryTicket, fragment, schedulingWeight, useMemoryArbiter ? memoryArbiter : null, eventProvider, schedulingInfo, fragmentReader);
+        return builder.build(
+            queryTicket,
+            fragment,
+            schedulingWeight,
+            useMemoryArbiter ? memoryArbiter : null,
+            eventProvider,
+            schedulingInfo,
+            fragmentReader);
       } catch (final Exception e) {
         throw new UserRpcException(identity, "Failure while trying to start remote fragment", e);
       } catch (final OutOfMemoryError t) {
         if (t.getMessage().startsWith("Direct buffer")) {
-          throw new UserRpcException(identity, "Out of direct memory while trying to start remote fragment", t);
+          throw new UserRpcException(
+              identity, "Out of direct memory while trying to start remote fragment", t);
         } else {
           throw t;
         }
       }
     }
 
-    public void startFragment(final FragmentExecutor executor) {
+    void startFragment(final FragmentExecutor executor) {
       final FragmentHandle fragmentHandle = executor.getHandle();
       numRunningFragments.incrementAndGet();
       final FragmentHandler handler = handlers.getUnchecked(fragmentHandle);
 
       // Create the task wrapper before adding the fragment to the list
       // of running fragments
-      logger.debug("Starting fragment; Task weight W = {} H = {}", executor.getFragmentWeight(), executor.getHandle());
-      final AsyncTaskWrapper task = new AsyncTaskWrapper(
-        executor.getSchedulingWeight(),
-        executor.getSchedulingGroup(),
-        executor.asAsyncTask(),
-        new AutoCloseable() {
+      if (logger.isDebugEnabled()) {
+        logger.debug(
+            "Starting fragment; Task weight W = {} H = {}",
+            executor.getFragmentWeight(),
+            QueryIdHelper.getQueryIdentifier(executor.getHandle()));
+      }
+      final AsyncTaskWrapper task =
+          new AsyncTaskWrapper(
+              executor.getSchedulingWeight(),
+              executor.getSchedulingGroup(),
+              executor.asAsyncTask(),
+              new AutoCloseable() {
 
-          @Override
-          public void close() throws Exception {
-            numRunningFragments.decrementAndGet();
-            if (useMemoryArbiter) {
-              memoryArbiter.taskDone(executor);
-            }
-            handler.invalidate();
+                @Override
+                public void close() throws Exception {
+                  fragmentsRequestingCancellation.remove(fragmentHandle);
+                  numRunningFragments.decrementAndGet();
+                  if (useMemoryArbiter) {
+                    memoryArbiter.taskDone(executor);
+                  }
+                  handler.invalidate();
 
-            maestroProxy.markQueryAsDone(handler.getHandle().getQueryId());
+                  maestroProxy.markQueryAsDone(handler.getHandle().getQueryId());
 
-            if (callback != null) {
-              callback.indicateIfSafeToExit();
-            }
-          }
-        },
-        warnMaxTime);
+                  if (callback != null) {
+                    callback.indicateIfSafeToExit();
+                  }
+                }
+              },
+              warnMaxTime);
 
       handler.setExecutor(executor);
       pool.execute(task);

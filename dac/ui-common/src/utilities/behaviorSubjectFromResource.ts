@@ -1,4 +1,3 @@
-
 /*
  * Copyright (C) 2017-2019 Dremio Corporation
  *
@@ -20,10 +19,10 @@ import { BehaviorSubject } from "rxjs";
 
 export const behaviorSubjectFromResource = <T>(resource: SmartResource<T>) => {
   const $behaviorSubject = new BehaviorSubject(resource.getResource().value);
-  resource.subscribe(next => {
+  resource.subscribe((next) => {
     if (next.status === "success") {
-      $behaviorSubject.next(next.value)
+      $behaviorSubject.next(next.value);
     }
-  })
+  });
   return $behaviorSubject;
-}
+};

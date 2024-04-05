@@ -19,16 +19,14 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 
+import com.dremio.common.SuppressForbidden;
 import java.sql.Date;
 import java.util.Calendar;
 import java.util.TimeZone;
-
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.DateMilliVector;
 import org.junit.Before;
 import org.junit.Test;
-
-import com.dremio.common.SuppressForbidden;
 
 @SuppressForbidden
 public class TestDateMilliAccessor {
@@ -65,23 +63,28 @@ public class TestDateMilliAccessor {
     assertEquals(NON_NULL_VALUE, accessor.getObject(0));
   }
 
-  @Test(expected=NullPointerException.class)
+  @Test(expected = NullPointerException.class)
   public void testNullCalendar() throws InvalidAccessException {
     accessor.getDate(0, null);
   }
 
-  @Test(expected=NullPointerException.class)
+  @Test(expected = NullPointerException.class)
   public void testCreationWithNullTimeZone() {
     new DateMilliAccessor(valueVector, null);
   }
 
   @Test
   public void testGetDate() throws Exception {
-    assertEquals(new Date(NON_NULL_VALUE.getTime() - PST_CALENDAR.getTimeZone().getOffset(NON_NULL_VALUE.getTime())),
-      accessor.getDate(0, PST_CALENDAR));
+    assertEquals(
+        new Date(
+            NON_NULL_VALUE.getTime()
+                - PST_CALENDAR.getTimeZone().getOffset(NON_NULL_VALUE.getTime())),
+        accessor.getDate(0, PST_CALENDAR));
     assertEquals(NON_NULL_VALUE, accessor.getDate(0, UTC_CALENDAR));
-    assertEquals(new Date(DST_VALUE.getTime() - PST_CALENDAR.getTimeZone().getOffset(DST_VALUE.getTime())).getTime(),
-      accessor.getDate(1, PST_CALENDAR).getTime());
+    assertEquals(
+        new Date(DST_VALUE.getTime() - PST_CALENDAR.getTimeZone().getOffset(DST_VALUE.getTime()))
+            .getTime(),
+        accessor.getDate(1, PST_CALENDAR).getTime());
     assertEquals(DST_VALUE, accessor.getDate(1, UTC_CALENDAR));
   }
 }

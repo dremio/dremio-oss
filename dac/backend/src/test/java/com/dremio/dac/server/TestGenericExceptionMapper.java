@@ -19,22 +19,18 @@ import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.dremio.dac.service.errors.ConflictException;
+import com.dremio.service.users.UserNotFoundException;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.security.AccessControlException;
-
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Request;
 import javax.ws.rs.core.UriInfo;
-
 import org.junit.BeforeClass;
 import org.junit.Test;
-
-import com.dremio.dac.service.errors.ConflictException;
-import com.dremio.service.users.UserNotFoundException;
-
-import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
 
 public class TestGenericExceptionMapper {
   private static GenericExceptionMapper gem;
@@ -51,26 +47,47 @@ public class TestGenericExceptionMapper {
   @Test
   public void testUnHandledException() {
     // Exception we do not do special handling for in GenericExceptionMapper
-    assertEquals("foo", ((GenericErrorMessage) gem.toResponse(
-      new RuntimeException("foo")).getEntity()).getErrorMessage());
-    assertEquals(GenericErrorMessage.GENERIC_ERROR_MSG, ((GenericErrorMessage)
-      gem.toResponse(new RuntimeException("")).getEntity()).getErrorMessage());
+    assertEquals(
+        "foo",
+        ((GenericErrorMessage) gem.toResponse(new RuntimeException("foo")).getEntity())
+            .getErrorMessage());
+    assertEquals(
+        GenericErrorMessage.GENERIC_ERROR_MSG,
+        ((GenericErrorMessage) gem.toResponse(new RuntimeException("")).getEntity())
+            .getErrorMessage());
   }
 
   @Test
   public void testHandledException() {
     // Exception we do special handling for in GenericExceptionMapper
-    assertEquals("foo", ((GenericErrorMessage)gem.toResponse(
-      new WebApplicationException("foo")).getEntity()).getErrorMessage());
-    assertEquals("foo", ((GenericErrorMessage)gem.toResponse(
-      new ConflictException("foo")).getEntity()).getErrorMessage());
-    assertEquals("User 'foo' not found", ((GenericErrorMessage)
-      gem.toResponse(new UserNotFoundException("foo")).getEntity()).getErrorMessage());
-    assertEquals("foo", ((GenericErrorMessage)gem.toResponse(
-      new AccessControlException("foo")).getEntity()).getErrorMessage());
-    assertEquals("PERMISSION_DENIED: foo", ((GenericErrorMessage)
-      gem.toResponse(new StatusRuntimeException(Status.PERMISSION_DENIED.withDescription("foo"))).getEntity()).getErrorMessage());
-    assertEquals("NOT_FOUND: foo", ((GenericErrorMessage)
-      gem.toResponse(new StatusRuntimeException(Status.NOT_FOUND.withDescription("foo"))).getEntity()).getErrorMessage());
+    assertEquals(
+        "foo",
+        ((GenericErrorMessage) gem.toResponse(new WebApplicationException("foo")).getEntity())
+            .getErrorMessage());
+    assertEquals(
+        "foo",
+        ((GenericErrorMessage) gem.toResponse(new ConflictException("foo")).getEntity())
+            .getErrorMessage());
+    assertEquals(
+        "User 'foo' not found",
+        ((GenericErrorMessage) gem.toResponse(new UserNotFoundException("foo")).getEntity())
+            .getErrorMessage());
+    assertEquals(
+        "foo",
+        ((GenericErrorMessage) gem.toResponse(new AccessControlException("foo")).getEntity())
+            .getErrorMessage());
+    assertEquals(
+        "PERMISSION_DENIED: foo",
+        ((GenericErrorMessage)
+                gem.toResponse(
+                        new StatusRuntimeException(Status.PERMISSION_DENIED.withDescription("foo")))
+                    .getEntity())
+            .getErrorMessage());
+    assertEquals(
+        "NOT_FOUND: foo",
+        ((GenericErrorMessage)
+                gem.toResponse(new StatusRuntimeException(Status.NOT_FOUND.withDescription("foo")))
+                    .getEntity())
+            .getErrorMessage());
   }
 }

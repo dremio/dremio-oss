@@ -17,10 +17,10 @@ package com.dremio.exec.planner.common;
 
 import static com.dremio.exec.planner.sql.DremioSqlOperatorTable.ARRAY_AGG;
 
+import com.google.common.collect.ImmutableList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptPlanner;
@@ -34,17 +34,19 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.util.ImmutableBitSet;
 
-import com.google.common.collect.ImmutableList;
-
-
-/**
- * Base class for logical and physical Aggregations implemented in Dremio
- */
+/** Base class for logical and physical Aggregations implemented in Dremio */
 public abstract class AggregateRelBase extends Aggregate {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AggregateRelBase.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(AggregateRelBase.class);
 
-  protected AggregateRelBase(RelOptCluster cluster, RelTraitSet traits, RelNode child,
-      ImmutableBitSet groupSet, List<ImmutableBitSet> groupSets, List<AggregateCall> aggCalls) throws InvalidRelException {
+  protected AggregateRelBase(
+      RelOptCluster cluster,
+      RelTraitSet traits,
+      RelNode child,
+      ImmutableBitSet groupSet,
+      List<ImmutableBitSet> groupSets,
+      List<AggregateCall> aggCalls)
+      throws InvalidRelException {
     super(cluster, traits, child, groupSet, groupSets, aggCalls);
   }
 
@@ -52,7 +54,8 @@ public abstract class AggregateRelBase extends Aggregate {
     return traitSet.replace(RelCollationTraitDef.INSTANCE, ImmutableList.of());
   }
 
-  @Override public double estimateRowCount(RelMetadataQuery mq) {
+  @Override
+  public double estimateRowCount(RelMetadataQuery mq) {
     // Assume that each sort column has 90% of the value count.
     // Therefore one sort column has .10 * rowCount,
     // 2 sort columns give .19 * rowCount.
@@ -70,8 +73,7 @@ public abstract class AggregateRelBase extends Aggregate {
   }
 
   @Override
-  public RelOptCost computeSelfCost(RelOptPlanner planner,
-                                    RelMetadataQuery mq) {
+  public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
     if (getGroupSets().size() > 1) {
       return planner.getCostFactory().makeInfiniteCost();
     }
@@ -79,20 +81,25 @@ public abstract class AggregateRelBase extends Aggregate {
   }
 
   public boolean containsSupportedListAggregation() {
-    return containsListAggregation() && aggCalls.stream().anyMatch(this::isSupportedListAggregation);
+    return containsListAggregation()
+        && aggCalls.stream().anyMatch(this::isSupportedListAggregation);
   }
 
   public boolean containsListAggregation() {
-    return aggCalls.stream().anyMatch(aggregateCall -> SqlKind.LISTAGG.equals(aggregateCall.getAggregation().getKind()));
+    return aggCalls.stream()
+        .anyMatch(
+            aggregateCall -> SqlKind.LISTAGG.equals(aggregateCall.getAggregation().getKind()));
   }
 
   public boolean containsArrayAgg() {
-    return aggCalls.stream().anyMatch(aggregateCall -> aggregateCall.getAggregation().equals(ARRAY_AGG));
+    return aggCalls.stream()
+        .anyMatch(aggregateCall -> aggregateCall.getAggregation().equals(ARRAY_AGG));
   }
 
   public boolean isSupportedListAggregation(AggregateCall call) {
     // Currently, we only support order by for the column used as list_agg argument.
     final Set<Integer> args = new HashSet<>(call.getArgList());
-    return call.getCollation().getFieldCollations().stream().allMatch(collation -> args.contains(collation.getFieldIndex()));
+    return call.getCollation().getFieldCollations().stream()
+        .allMatch(collation -> args.contains(collation.getFieldIndex()));
   }
 }

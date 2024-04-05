@@ -19,21 +19,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.util.Arrays;
-
-import javax.inject.Provider;
-
-import org.apache.hadoop.conf.Configuration;
-import org.junit.Test;
-
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.test.DremioTest;
+import java.util.Arrays;
+import javax.inject.Provider;
+import org.apache.hadoop.conf.Configuration;
+import org.junit.Test;
 
-/**
- * Unit tests for {@code HDFSStoragePlugin}
- */
+/** Unit tests for {@code HDFSStoragePlugin} */
 public class TestHDFSStoragePlugin extends DremioTest {
 
   @Test
@@ -46,11 +41,16 @@ public class TestHDFSStoragePlugin extends DremioTest {
 
     SabotContext context = mock(SabotContext.class);
     when(context.getClasspathScan()).thenReturn(DremioTest.CLASSPATH_SCAN_RESULT);
-    final FileSystemWrapper fileSystemWrapper = (fs, storageId, pluginConf, operatorContext, enableAsync, isMetadataEnabled) -> fs;
+    final FileSystemWrapper fileSystemWrapper =
+        (fs, storageId, pluginConf, operatorContext, enableAsync, isMetadataEnabled) -> fs;
     when(context.getFileSystemWrapper()).thenReturn(fileSystemWrapper);
 
-    Provider<StoragePluginId> idProvider = () -> { return new StoragePluginId(null, conf, null); };
-    try(HDFSStoragePlugin fileSystemPlugin = new HDFSStoragePlugin(conf, context, "test-plugin", idProvider)) {
+    Provider<StoragePluginId> idProvider =
+        () -> {
+          return new StoragePluginId(null, conf, null);
+        };
+    try (HDFSStoragePlugin fileSystemPlugin =
+        new HDFSStoragePlugin(conf, context, "test-plugin", idProvider)) {
       fileSystemPlugin.start();
 
       final Configuration fsConf = fileSystemPlugin.getFsConf();

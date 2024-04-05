@@ -20,11 +20,17 @@ import static com.dremio.sabot.Fixtures.th;
 import static com.dremio.sabot.Fixtures.tr;
 import static org.junit.Assert.assertEquals;
 
+import com.dremio.common.AutoCloseables;
+import com.dremio.common.expression.CompleteType;
+import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.record.VectorAccessible;
+import com.dremio.exec.record.VectorContainer;
+import com.dremio.sabot.Fixtures.DataRow;
+import com.google.common.base.Preconditions;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.VarCharVector;
@@ -35,17 +41,9 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.util.JsonStringArrayList;
 
-import com.dremio.common.AutoCloseables;
-import com.dremio.common.expression.CompleteType;
-import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.record.VectorAccessible;
-import com.dremio.exec.record.VectorContainer;
-import com.dremio.sabot.Fixtures.DataRow;
-import com.google.common.base.Preconditions;
-
 /**
- * Generates 2 integer fields: ID and VALUE that are randomly set in a way it makes it easy to assert
- * if a given batch is correctly ordered
+ * Generates 2 integer fields: ID and VALUE that are randomly set in a way it makes it easy to
+ * assert if a given batch is correctly ordered
  */
 public class CustomGenerator implements Generator {
 
@@ -80,11 +78,8 @@ public class CustomGenerator implements Generator {
     listValues = listOfLists(numRows);
     this.uniqueIds = uniqueIds;
 
-    BatchSchema schema = BatchSchema.newBuilder()
-            .addField(ID)
-            .addField(VALUE)
-            .addField(MYLIST)
-            .build();
+    BatchSchema schema =
+        BatchSchema.newBuilder().addField(ID).addField(VALUE).addField(MYLIST).build();
 
     container = VectorContainer.create(allocator, schema);
     id = container.addOrGet(ID);
@@ -99,7 +94,7 @@ public class CustomGenerator implements Generator {
     for (int i = 0; i < size; i++) {
       final JsonStringArrayList<Long> list = new JsonStringArrayList<>(INNER_LIST_SIZE);
       for (int j = 0; j < INNER_LIST_SIZE; j++) {
-        list.add((long)j + i);
+        list.add((long) j + i);
       }
       listOfLists.add(list);
     }
@@ -204,9 +199,9 @@ public class CustomGenerator implements Generator {
         int rowId = sortedRowIds.get(index);
         String value = values.get(rowId);
         assertEquals("non matching ID at row " + index, rowId, idVector.get(i));
-        assertEquals("non matching VALUE at row " + index, value, valueVector.getObject(i).toString());
+        assertEquals(
+            "non matching VALUE at row " + index, value, valueVector.getObject(i).toString());
       }
     }
-
   }
 }

@@ -21,9 +21,7 @@ import com.dremio.datastore.generator.supplier.UniqueSupplierOptions;
 import com.dremio.datastore.generator.supplier.fixed.FixedLengthByteContainerSupplier;
 import com.dremio.datastore.generator.supplier.variable.VarLengthByteContainerSupplier;
 
-/**
- * Factory to supply the correct unique ByteContainer supplierOption.
- */
+/** Factory to supply the correct unique ByteContainer supplierOption. */
 public class ByteContainerSupplierFactory {
   private final UniqueSupplierOptions supplierOption;
 
@@ -32,13 +30,14 @@ public class ByteContainerSupplierFactory {
   }
 
   public UniqueSupplier<ByteContainer> createSupplier(String prefix) {
-    switch(supplierOption) {
+    switch (supplierOption) {
       case FIXED_LENGTH:
         return new FixedLengthByteContainerSupplier(prefix);
       case VARIABLE_LENGTH:
         return new VarLengthByteContainerSupplier(prefix);
       default:
-        throw new UnsupportedOperationException(String.format("Unsupported supplierOption %s.", supplierOption.name()));
+        throw new UnsupportedOperationException(
+            String.format("Unsupported supplierOption %s.", supplierOption.name()));
     }
   }
 }

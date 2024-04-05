@@ -66,7 +66,7 @@ public class GMathFunctions{
 
       <#if func.funcName=='truncate' || func.funcName=='trunc'>
       <#if type.roundingRequired ??>
-      java.math.BigDecimal bd = java.math.BigDecimal.valueOf(in.value).setScale(0, java.math.BigDecimal.ROUND_DOWN);
+      java.math.BigDecimal bd = java.math.BigDecimal.valueOf(in.value).setScale(0, java.math.RoundingMode.DOWN);
       out.value = <#if type.extraCast ??>(${type.extraCast})</#if>bd.${type.castType}Value();
       <#else>
       out.value = (${type.castType}) (in.value);</#if>
@@ -100,7 +100,7 @@ public class GMathFunctions{
     public void eval() {
 	<#if func.funcName == 'div'>
 	<#if type.roundingRequired ??>
-    java.math.BigDecimal bdOut = java.math.BigDecimal.valueOf(input1.value ${func.javaFunc} input2.value).setScale(0, java.math.BigDecimal.ROUND_DOWN);
+    java.math.BigDecimal bdOut = java.math.BigDecimal.valueOf(input1.value ${func.javaFunc} input2.value).setScale(0, java.math.RoundingMode.DOWN);
     out.value = bdOut.${type.castType}Value();
     <#else>
     out.value = (${type.castType}) ( input1.value ${func.javaFunc} input2.value);

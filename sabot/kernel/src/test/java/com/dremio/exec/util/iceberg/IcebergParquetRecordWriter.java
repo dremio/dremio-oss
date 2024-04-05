@@ -15,8 +15,8 @@
  */
 package com.dremio.exec.util.iceberg;
 
+import com.google.common.collect.ImmutableMap;
 import java.util.function.Function;
-
 import org.apache.commons.lang3.function.TriConsumer;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.Schema;
@@ -24,8 +24,6 @@ import org.apache.iceberg.StructLike;
 import org.apache.parquet.hadoop.api.WriteSupport;
 import org.apache.parquet.io.api.RecordConsumer;
 import org.apache.parquet.schema.MessageType;
-
-import com.google.common.collect.ImmutableMap;
 
 public class IcebergParquetRecordWriter<T extends StructLike> extends WriteSupport<T> {
 
@@ -35,10 +33,9 @@ public class IcebergParquetRecordWriter<T extends StructLike> extends WriteSuppo
   RecordConsumer recordConsumer;
 
   public IcebergParquetRecordWriter(
-    final Schema schema,
-    final Function<Schema, MessageType> schemaConverter,
-    final TriConsumer<Schema, RecordConsumer, T> recordWriter
-  ) {
+      final Schema schema,
+      final Function<Schema, MessageType> schemaConverter,
+      final TriConsumer<Schema, RecordConsumer, T> recordWriter) {
     this.schema = schema;
     this.type = schemaConverter.apply(schema);
     this.recordWriter = recordWriter;

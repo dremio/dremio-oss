@@ -23,6 +23,6 @@ public class OptimizerException extends ForemanSetupException {
   }
 
   public OptimizerException(String s) {
-        super(s);
-    }
+    super(s);
+  }
 }

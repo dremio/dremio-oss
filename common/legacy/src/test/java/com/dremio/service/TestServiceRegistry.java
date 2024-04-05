@@ -18,12 +18,9 @@ package com.dremio.service;
 import static org.junit.Assert.fail;
 
 import java.util.Objects;
-
 import org.junit.Test;
 
-/**
- * ServiceRegistry tests.
- */
+/** ServiceRegistry tests. */
 public class TestServiceRegistry {
 
   // fake service class
@@ -33,13 +30,12 @@ public class TestServiceRegistry {
     private TestService(String key) {
       this.key = key;
     }
-    @Override
-    public void close() {
-    }
 
     @Override
-    public void start() {
-    }
+    public void close() {}
+
+    @Override
+    public void start() {}
 
     @Override
     public String toString() {
@@ -50,6 +46,7 @@ public class TestServiceRegistry {
     public int hashCode() {
       return Objects.hash(key);
     }
+
     @Override
     public boolean equals(Object obj) {
       if (this == obj) {

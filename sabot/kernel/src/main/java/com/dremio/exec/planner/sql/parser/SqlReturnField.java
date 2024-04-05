@@ -20,9 +20,7 @@ import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-/**
- * Defines a column in a tabular function return spec.
- */
+/** Defines a column in a tabular function return spec. */
 public final class SqlReturnField extends SqlNodeList {
   private SqlIdentifier name;
   private SqlComplexDataTypeSpec spec;

@@ -15,37 +15,40 @@
  */
 package com.dremio.exec.planner.logical;
 
+import com.dremio.exec.planner.common.WriterRelBase;
+import com.dremio.exec.planner.sql.parser.DmlUtils;
 import java.util.List;
-
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.TableModify;
 import org.apache.calcite.rel.type.RelDataType;
 
-import com.dremio.exec.planner.common.WriterRelBase;
-import com.dremio.exec.planner.sql.parser.DmlUtils;
-
 public class WriterRel extends WriterRelBase implements Rel {
 
   private final RelDataType expectedInboundRowType;
 
-  public WriterRel(RelOptCluster cluster, RelTraitSet traitSet, RelNode input, CreateTableEntry createTableEntry, RelDataType expectedInboundRowType) {
+  public WriterRel(
+      RelOptCluster cluster,
+      RelTraitSet traitSet,
+      RelNode input,
+      CreateTableEntry createTableEntry,
+      RelDataType expectedInboundRowType) {
     super(LOGICAL, cluster, traitSet, input, createTableEntry);
     this.expectedInboundRowType = expectedInboundRowType;
     if (DmlUtils.isInsertOperation(createTableEntry)) {
-      rowType = DmlUtils.evaluateOutputRowType(getInput(), getCluster(), TableModify.Operation.INSERT);
+      rowType =
+          DmlUtils.evaluateOutputRowType(getInput(), getCluster(), TableModify.Operation.INSERT);
     }
   }
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new WriterRel(getCluster(), traitSet, sole(inputs), getCreateTableEntry(), expectedInboundRowType);
+    return new WriterRel(
+        getCluster(), traitSet, sole(inputs), getCreateTableEntry(), expectedInboundRowType);
   }
 
   public RelDataType getExpectedInboundRowType() {
     return expectedInboundRowType;
   }
-
-
 }

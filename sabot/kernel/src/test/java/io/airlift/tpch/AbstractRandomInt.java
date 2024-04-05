@@ -40,17 +40,15 @@ public abstract class AbstractRandomInt {
   private int usage;
 
   /**
-   * Creates a new random number generator with the specified seed and specified
-   * number of random values per row.
+   * Creates a new random number generator with the specified seed and specified number of random
+   * values per row.
    */
   public AbstractRandomInt(long seed, int expectedUsagePerRow) {
     this.seed = seed;
     this.expectedUsagePerRow = expectedUsagePerRow;
   }
 
-  /**
-   * Get a random value between lowValue (inclusive) and highValue (inclusive).
-   */
+  /** Get a random value between lowValue (inclusive) and highValue (inclusive). */
   protected int nextInt(int lowValue, int highValue) {
     nextRand();
 
@@ -77,9 +75,9 @@ public abstract class AbstractRandomInt {
   }
 
   /**
-   * Advances the random number generator to the start of the sequence for the
-   * next row. Each row uses a specified number of random values, so the random
-   * number generator can be quickly advanced for partitioned data sets.
+   * Advances the random number generator to the start of the sequence for the next row. Each row
+   * uses a specified number of random values, so the random number generator can be quickly
+   * advanced for partitioned data sets.
    */
   public void rowFinished() {
     advanceSeed(expectedUsagePerRow - usage);
@@ -87,8 +85,8 @@ public abstract class AbstractRandomInt {
   }
 
   /**
-   * Advance the specified number of rows. Advancing to a specific row is needed
-   * for partitioned data sets.
+   * Advance the specified number of rows. Advancing to a specific row is needed for partitioned
+   * data sets.
    */
   public void advanceRows(long rowCount) {
     // finish the current row

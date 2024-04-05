@@ -15,9 +15,16 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.ops.QueryContext;
+import com.dremio.exec.planner.sql.handlers.direct.SqlDirectHandler;
+import com.dremio.sabot.rpc.user.UserSession;
+import com.dremio.service.namespace.NamespaceKey;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import java.lang.reflect.Constructor;
 import java.util.List;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -28,52 +35,40 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.catalog.Catalog;
-import com.dremio.exec.ops.QueryContext;
-import com.dremio.exec.planner.sql.handlers.direct.SqlDirectHandler;
-import com.dremio.sabot.rpc.user.UserSession;
-import com.dremio.service.namespace.NamespaceKey;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
-
 /**
- * Implements SQL CREATE FOLDERS to create folder under Nessie Repository. Represents
- * statements like:
- * CREATE FOLDER [ IF NOT EXISTS ] [source.]parentFolderName[.childFolder]
- * [ AT ( REF[ERENCE) | BRANCH | TAG | COMMIT ) refValue ]
+ * Implements SQL CREATE FOLDERS to create folder under Nessie Repository. Represents statements
+ * like: CREATE FOLDER [ IF NOT EXISTS ] [source.]parentFolderName[.childFolder] [ AT ( REF[ERENCE)
+ * | BRANCH | TAG | COMMIT ) refValue ]
  */
-
 public class SqlCreateFolder extends SqlCall {
   private static final SqlLiteral sqlLiteralNull = SqlLiteral.createNull(SqlParserPos.ZERO);
 
   public static final SqlSpecialOperator OPERATOR =
-    new SqlSpecialOperator("CREATE_FOLDER", SqlKind.OTHER) {
-      @Override
-      public SqlCall createCall(
-        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-        Preconditions.checkArgument(
-          operands.length == 4,
-          "SqlCreateFolder.createCall() has to get 4 operands!");
-        return new SqlCreateFolder(
-          pos,
-          (SqlLiteral) operands[0],
-          (SqlIdentifier) operands[1],
-          ((SqlLiteral) operands[2]).symbolValue(ReferenceType.class),
-          (SqlIdentifier) operands[3]);
-      }
-    };
+      new SqlSpecialOperator("CREATE_FOLDER", SqlKind.OTHER) {
+        @Override
+        public SqlCall createCall(
+            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+          Preconditions.checkArgument(
+              operands.length == 4, "SqlCreateFolder.createCall() has to get 4 operands!");
+          return new SqlCreateFolder(
+              pos,
+              (SqlLiteral) operands[0],
+              (SqlIdentifier) operands[1],
+              ((SqlLiteral) operands[2]).symbolValue(ReferenceType.class),
+              (SqlIdentifier) operands[3]);
+        }
+      };
   private final SqlLiteral ifNotExists;
   private final SqlIdentifier folderName;
   private final ReferenceType refType;
   private final SqlIdentifier refValue;
 
   public SqlCreateFolder(
-    SqlParserPos pos,
-    SqlLiteral ifNotExists,
-    SqlIdentifier folderName,
-    ReferenceType refType,
-    SqlIdentifier refValue) {
+      SqlParserPos pos,
+      SqlLiteral ifNotExists,
+      SqlIdentifier folderName,
+      ReferenceType refType,
+      SqlIdentifier refValue) {
     super(pos);
     this.ifNotExists = ifNotExists;
     this.folderName = Preconditions.checkNotNull(folderName);
@@ -141,13 +136,11 @@ public class SqlCreateFolder extends SqlCall {
       final Class<?> cl = Class.forName("com.dremio.exec.planner.sql.handlers.CreateFolderHandler");
       final Constructor<?> ctor = cl.getConstructor(Catalog.class, UserSession.class);
 
-      return (SqlDirectHandler<?>) ctor.newInstance(
-        context.getCatalog(),
-        context.getSession());
+      return (SqlDirectHandler<?>) ctor.newInstance(context.getCatalog(), context.getSession());
     } catch (ClassNotFoundException e) {
       throw UserException.unsupportedError(e)
-        .message("CREATE FOLDER action is not supported.")
-        .buildSilently();
+          .message("CREATE FOLDER action is not supported.")
+          .buildSilently();
     } catch (ReflectiveOperationException e) {
       throw new RuntimeException(e);
     }

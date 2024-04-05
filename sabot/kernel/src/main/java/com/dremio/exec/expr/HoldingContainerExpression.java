@@ -21,8 +21,9 @@ import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.visitors.ExprVisitor;
 import com.dremio.exec.expr.ClassGenerator.HoldingContainer;
 
-public class HoldingContainerExpression implements LogicalExpression{
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HoldingContainerExpression.class);
+public class HoldingContainerExpression implements LogicalExpression {
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(HoldingContainerExpression.class);
 
   final HoldingContainer container;
   // was pushed in 3.0 have to retain this so that serde does not break.
@@ -44,19 +45,17 @@ public class HoldingContainerExpression implements LogicalExpression{
     return visitor.visitUnknown(this, value);
   }
 
-
   public HoldingContainer getContainer() {
     return container;
   }
 
   @Override
   public int getSelfCost() {
-    return 0;  // TODO
+    return 0; // TODO
   }
 
   @Override
   public int getCumulativeCost() {
     return 0; // TODO
   }
-
 }

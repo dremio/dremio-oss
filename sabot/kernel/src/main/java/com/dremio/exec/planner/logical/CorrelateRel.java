@@ -27,23 +27,27 @@ import org.apache.calcite.util.ImmutableBitSet;
 public class CorrelateRel extends Correlate implements Rel {
 
   public CorrelateRel(
-    RelOptCluster cluster,
-    RelTraitSet traits,
-    RelNode left,
-    RelNode right,
-    CorrelationId correlationId,
-    ImmutableBitSet requiredColumns,
-    JoinRelType joinType) {
+      RelOptCluster cluster,
+      RelTraitSet traits,
+      RelNode left,
+      RelNode right,
+      CorrelationId correlationId,
+      ImmutableBitSet requiredColumns,
+      JoinRelType joinType) {
     super(cluster, traits, left, right, correlationId, requiredColumns, joinType);
     assert getConvention() == LOGICAL;
   }
 
   @Override
-  public Correlate copy(RelTraitSet traitSet,
-    RelNode left, RelNode right, CorrelationId correlationId,
-    ImmutableBitSet requiredColumns, JoinRelType joinType) {
-    return new CorrelateRel(getCluster(), traitSet, left, right,
-      correlationId, requiredColumns, joinType);
+  public Correlate copy(
+      RelTraitSet traitSet,
+      RelNode left,
+      RelNode right,
+      CorrelationId correlationId,
+      ImmutableBitSet requiredColumns,
+      JoinRelType joinType) {
+    return new CorrelateRel(
+        getCluster(), traitSet, left, right, correlationId, requiredColumns, joinType);
   }
 
   @Override

@@ -15,36 +15,37 @@
  */
 package com.dremio.sabot.op.receiver;
 
-import java.util.Queue;
-
 import com.dremio.sabot.exec.rpc.AckSender;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Queues;
+import java.util.Queue;
 
 public class ResponseSenderQueue {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ResponseSenderQueue.class);
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ResponseSenderQueue.class);
 
   private Queue<AckSender> q = Queues.newConcurrentLinkedQueue();
 
-  public void enqueueResponse(AckSender sender){
+  public void enqueueResponse(AckSender sender) {
     q.add(sender);
   }
 
-  public void flushResponses(){
+  public void flushResponses() {
     flushResponses(Integer.MAX_VALUE);
   }
 
   /**
    * Flush only up to a count responses
+   *
    * @param count
    * @return
    */
-  public int flushResponses(int count){
+  public int flushResponses(int count) {
     logger.trace("queue.size: {}, count: {}", q.size(), count);
     int i = 0;
-    while(!q.isEmpty() && i < count){
+    while (!q.isEmpty() && i < count) {
       AckSender s = q.poll();
-      if(s != null){
+      if (s != null) {
         s.sendOk();
       }
       i++;

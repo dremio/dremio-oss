@@ -15,17 +15,13 @@
  */
 package com.dremio.ssl;
 
+import io.netty.buffer.ByteBufAllocator;
+import io.netty.handler.ssl.SslContextBuilder;
 import java.util.Optional;
-
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLException;
 
-import io.netty.buffer.ByteBufAllocator;
-import io.netty.handler.ssl.SslContextBuilder;
-
-/**
- * Factory to create {@link SSLEngine}.
- */
+/** Factory to create {@link SSLEngine}. */
 public interface SSLEngineFactory {
 
   /**
@@ -35,8 +31,11 @@ public interface SSLEngineFactory {
    * @return ssl engine factory
    * @throws SSLException if creation fails
    */
-  public static Optional<SSLEngineFactory> create(Optional<SSLConfig> sslConfig) throws SSLException {
-    return sslConfig.isPresent() ? Optional.of(new SSLEngineFactoryImpl(sslConfig.get())) : Optional.empty();
+  public static Optional<SSLEngineFactory> create(Optional<SSLConfig> sslConfig)
+      throws SSLException {
+    return sslConfig.isPresent()
+        ? Optional.of(new SSLEngineFactoryImpl(sslConfig.get()))
+        : Optional.empty();
   }
 
   /**
@@ -51,8 +50,8 @@ public interface SSLEngineFactory {
    * Creates a {@link SSLEngine} to be used on server-side of SSL negotiation.
    *
    * @param allocator allocator
-   * @param peerHost  peer hostname
-   * @param peerPort  peer port
+   * @param peerHost peer hostname
+   * @param peerPort peer port
    * @return server-side SSL engine
    * @throws SSLException if there are any errors creating the engine
    */
@@ -71,12 +70,11 @@ public interface SSLEngineFactory {
    * Create a {@link SSLEngine} to be used on client-side of SSL negotiation.
    *
    * @param allocator allocator
-   * @param peerHost  peer hostname
-   * @param peerPort  peer port
+   * @param peerHost peer hostname
+   * @param peerPort peer port
    * @return client-side SSL engine
    * @throws SSLException if there are any errors creating the engine
    */
   SSLEngine newClientEngine(ByteBufAllocator allocator, String peerHost, int peerPort)
       throws SSLException;
-
 }

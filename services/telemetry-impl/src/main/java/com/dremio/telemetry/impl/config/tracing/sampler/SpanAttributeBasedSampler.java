@@ -15,8 +15,6 @@
  */
 package com.dremio.telemetry.impl.config.tracing.sampler;
 
-import java.util.List;
-
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.trace.SpanKind;
@@ -25,10 +23,9 @@ import io.opentelemetry.sdk.trace.data.LinkData;
 import io.opentelemetry.sdk.trace.samplers.Sampler;
 import io.opentelemetry.sdk.trace.samplers.SamplingDecision;
 import io.opentelemetry.sdk.trace.samplers.SamplingResult;
+import java.util.List;
 
-/**
- * A Simple sampler that bases its decision on the existence of the given Attribute in the Span.
- */
+/** A Simple sampler that bases its decision on the existence of the given Attribute in the Span. */
 public class SpanAttributeBasedSampler implements Sampler {
   private AttributeKey<Boolean> attributeKey;
   private Sampler rootSampler;
@@ -43,14 +40,19 @@ public class SpanAttributeBasedSampler implements Sampler {
   }
 
   @Override
-  public SamplingResult shouldSample(Context parentContext, String traceId,
-                                     String name, SpanKind spanKind,
-                                     Attributes attributes, List<LinkData> parentLinks) {
+  public SamplingResult shouldSample(
+      Context parentContext,
+      String traceId,
+      String name,
+      SpanKind spanKind,
+      Attributes attributes,
+      List<LinkData> parentLinks) {
     Boolean attributeValue = attributes.get(attributeKey);
     if (attributeValue != null && attributeValue) {
       return SamplingResult.create(SamplingDecision.RECORD_AND_SAMPLE);
     }
-    return this.rootSampler.shouldSample(parentContext, traceId, name, spanKind, attributes, parentLinks);
+    return this.rootSampler.shouldSample(
+        parentContext, traceId, name, spanKind, attributes, parentLinks);
   }
 
   @Override

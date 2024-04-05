@@ -20,13 +20,6 @@ import static com.dremio.dac.proto.model.dataset.ExtractListRuleType.single;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.lang.String.format;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.explore.JSONElementLocator.ArrayJsonPathElement;
 import com.dremio.dac.explore.JSONElementLocator.JsonPath;
@@ -40,20 +33,28 @@ import com.dremio.dac.proto.model.dataset.ExtractRuleSingle;
 import com.dremio.dac.proto.model.dataset.ListSelection;
 import com.dremio.dac.proto.model.dataset.Offset;
 import com.dremio.dac.service.errors.ClientErrorException;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * Extract list transformation recommendation suggestions and generating examples and number of matches in sample data
- * for each recommendation.
+ * Extract list transformation recommendation suggestions and generating examples and number of
+ * matches in sample data for each recommendation.
  */
 public class ExtractListRecommender extends Recommender<ExtractListRule, Selection> {
   private static final Logger logger = LoggerFactory.getLogger(ExtractListRecommender.class);
 
   @Override
   public List<ExtractListRule> getRules(Selection selection, DataType selColType) {
-    checkArgument(selColType == DataType.LIST, "Extract list items is supported only on LIST type columns");
+    checkArgument(
+        selColType == DataType.LIST, "Extract list items is supported only on LIST type columns");
     JsonSelection jsonSelection;
     try {
-      jsonSelection = new JSONElementLocator(selection.getCellText()).locate(selection.getOffset(), selection.getOffset() + selection.getLength());
+      jsonSelection =
+          new JSONElementLocator(selection.getCellText())
+              .locate(selection.getOffset(), selection.getOffset() + selection.getLength());
     } catch (IOException e) {
       throw new ClientErrorException(String.format("invalid JSON: %s", selection.getCellText()), e);
     }
@@ -66,16 +67,14 @@ public class ExtractListRecommender extends Recommender<ExtractListRule, Selecti
       rules.add(new ExtractListRule(single).setSingle(new ExtractRuleSingle(start.getPosition())));
     } else {
       ListSelection[] selections = {
-          new ListSelection(fromTheStart(start), fromTheStart(end)),
-          new ListSelection(fromTheStart(start), fromTheEnd(end)),
-          new ListSelection(fromTheEnd(start), fromTheStart(end)),
-          new ListSelection(fromTheEnd(start), fromTheEnd(end))
+        new ListSelection(fromTheStart(start), fromTheStart(end)),
+        new ListSelection(fromTheStart(start), fromTheEnd(end)),
+        new ListSelection(fromTheEnd(start), fromTheStart(end)),
+        new ListSelection(fromTheEnd(start), fromTheEnd(end))
       };
       for (ListSelection listSelection : selections) {
-        rules.add((new ExtractListRule(multiple)
-            .setMultiple(
-                new ExtractRuleMultiple(listSelection)
-            )));
+        rules.add(
+            (new ExtractListRule(multiple).setMultiple(new ExtractRuleMultiple(listSelection))));
       }
     }
 
@@ -96,7 +95,8 @@ public class ExtractListRecommender extends Recommender<ExtractListRule, Selecti
     }
   }
 
-  private static class ExtractListSingleTransformRuleWrapper extends TransformRuleWrapper<ExtractListRule> {
+  private static class ExtractListSingleTransformRuleWrapper
+      extends TransformRuleWrapper<ExtractListRule> {
     private final ExtractListRule rule;
 
     ExtractListSingleTransformRuleWrapper(ExtractListRule rule) {
@@ -116,7 +116,8 @@ public class ExtractListRecommender extends Recommender<ExtractListRule, Selecti
 
     @Override
     public String getExampleFunctionExpr(String input) {
-      throw new UnsupportedOperationException("Example generation is not supported for extract list transform.");
+      throw new UnsupportedOperationException(
+          "Example generation is not supported for extract list transform.");
     }
 
     @Override
@@ -135,7 +136,8 @@ public class ExtractListRecommender extends Recommender<ExtractListRule, Selecti
     }
   }
 
-  private static class ExtractListMultipleTransformRuleWrapper extends TransformRuleWrapper<ExtractListRule> {
+  private static class ExtractListMultipleTransformRuleWrapper
+      extends TransformRuleWrapper<ExtractListRule> {
     private final ExtractListRule rule;
 
     ExtractListMultipleTransformRuleWrapper(ExtractListRule rule) {
@@ -157,18 +159,19 @@ public class ExtractListRecommender extends Recommender<ExtractListRule, Selecti
 
     @Override
     public String getExampleFunctionExpr(String input) {
-      throw new UnsupportedOperationException("Example generation is not supported for extract list transform.");
+      throw new UnsupportedOperationException(
+          "Example generation is not supported for extract list transform.");
     }
 
     @Override
     public String getFunctionExpr(String expr, Object... args) {
       final ListSelection sel = rule.getMultiple().getSelection();
-      return String.format("%s(%s, %d, %s)",
+      return String.format(
+          "%s(%s, %d, %s)",
           "sublist",
           expr,
           getOffset(sel.getStart()),
-          getLength(expr, sel.getStart(), sel.getEnd())
-      );
+          getLength(expr, sel.getStart(), sel.getEnd()));
     }
 
     @Override
@@ -179,7 +182,7 @@ public class ExtractListRecommender extends Recommender<ExtractListRule, Selecti
     @Override
     public String describe() {
       ListSelection s = rule.getMultiple().getSelection();
-      return ExtractRecommender.describePlacement(s.getStart(), s.getEnd()) ;
+      return ExtractRecommender.describePlacement(s.getStart(), s.getEnd());
     }
   }
 
@@ -200,7 +203,9 @@ public class ExtractListRecommender extends Recommender<ExtractListRule, Selecti
 
   private static int getOffset(Offset start) {
     // sublist takes offset in range [1, length]
-    return start.getDirection() == Direction.FROM_THE_END ? -1 * (start.getValue() + 1) : (start.getValue() + 1);
+    return start.getDirection() == Direction.FROM_THE_END
+        ? -1 * (start.getValue() + 1)
+        : (start.getValue() + 1);
   }
 
   private static String getLength(String expr, Offset start, Offset end) {

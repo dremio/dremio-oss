@@ -15,29 +15,29 @@
  */
 package com.dremio.sabot.op.sort.external;
 
-import java.io.IOException;
-
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.exec.compile.TemplateClassDefinition;
 import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.sabot.exec.context.FunctionContext;
 import com.dremio.sabot.op.sort.external.DiskRunManager.DiskRunIterator;
+import java.io.IOException;
+import org.apache.arrow.memory.BufferAllocator;
 
 public interface PriorityQueueCopier extends AutoCloseable, MovingCopier {
   static final long INITIAL_ALLOCATION = 10000000;
   static final long MAX_ALLOCATION = 20000000;
 
-  static final TemplateClassDefinition<PriorityQueueCopier> TEMPLATE_DEFINITION = new TemplateClassDefinition<>(PriorityQueueCopier.class, PriorityQueueCopierTemplate.class);
+  static final TemplateClassDefinition<PriorityQueueCopier> TEMPLATE_DEFINITION =
+      new TemplateClassDefinition<>(PriorityQueueCopier.class, PriorityQueueCopierTemplate.class);
 
   void setup(
       FunctionContext context,
       BufferAllocator allocator,
       DiskRunIterator[] iterators,
       VectorAccessible incoming,
-      VectorContainer outgoing) throws SchemaChangeException, IOException ;
+      VectorContainer outgoing)
+      throws SchemaChangeException, IOException;
 
   @Override
   int copy(int targetRecordCount);

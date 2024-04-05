@@ -15,12 +15,6 @@
  */
 package com.dremio.sabot.op.receiver;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.exec.planner.fragment.EndpointsIndex;
@@ -39,6 +33,10 @@ import com.dremio.sabot.threads.sharedres.SharedResourceType;
 import com.dremio.service.spill.SpillService;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import org.apache.arrow.memory.BufferAllocator;
 
 public abstract class AbstractDataCollector implements DataCollector {
 
@@ -60,18 +58,18 @@ public abstract class AbstractDataCollector implements DataCollector {
    * @param context
    */
   public AbstractDataCollector(
-    SharedResourceGroup resourceGroup,
-    boolean isDiscrete,
-    Collector collector,
-    final int bufferCapacity,
-    BufferAllocator allocator,
-    SabotConfig config,
-    OptionManager options,
-    FragmentHandle handle,
-    FragmentWorkQueue workQueue,
-    TunnelProvider tunnelProvider,
-    SpillService spillService,
-    EndpointsIndex endpointsIndex) {
+      SharedResourceGroup resourceGroup,
+      boolean isDiscrete,
+      Collector collector,
+      final int bufferCapacity,
+      BufferAllocator allocator,
+      SabotConfig config,
+      OptionManager options,
+      FragmentHandle handle,
+      FragmentWorkQueue workQueue,
+      TunnelProvider tunnelProvider,
+      SpillService spillService,
+      EndpointsIndex endpointsIndex) {
     Preconditions.checkNotNull(collector);
     Preconditions.checkNotNull(endpointsIndex);
     this.config = collector;
@@ -82,15 +80,17 @@ public abstract class AbstractDataCollector implements DataCollector {
     this.completionMessages = new CompletionMessageSender[incomingStreams];
 
     // Create fragmentId to index that is within the range [0, incoming.size()-1]
-    // We use this mapping to find objects belonging to the fragment in buffers and remainders arrays.
+    // We use this mapping to find objects belonging to the fragment in buffers and remainders
+    // arrays.
     fragmentMap = new ArrayWrappedIntIntMap();
     int index = 0;
-    for (MinorFragmentIndexEndpoint fragment: collector.getIncomingMinorFragmentIndexList()) {
+    for (MinorFragmentIndexEndpoint fragment : collector.getIncomingMinorFragmentIndexList()) {
       fragmentMap.put(fragment.getMinorFragmentId(), index);
 
       // save completion messages for later.
       NodeEndpoint endpoint = endpointsIndex.getNodeEndpoint(fragment.getEndpointIndex());
-      completionMessages[index] = new CompletionMessageSender(endpoint, fragment.getMinorFragmentId());
+      completionMessages[index] =
+          new CompletionMessageSender(endpoint, fragment.getMinorFragmentId());
       index++;
     }
 
@@ -99,16 +99,46 @@ public abstract class AbstractDataCollector implements DataCollector {
     if (isDiscrete) {
       buffers = new RawBatchBuffer[collector.getIncomingMinorFragmentIndexCount()];
       List<MinorFragmentIndexEndpoint> fragments = collector.getIncomingMinorFragmentIndexList();
-      try (AutoCloseables.RollbackCloseable rollbackCloseable = new AutoCloseables.RollbackCloseable()){
+      try (AutoCloseables.RollbackCloseable rollbackCloseable =
+          new AutoCloseables.RollbackCloseable()) {
         for (MinorFragmentIndexEndpoint fragment : fragments) {
           NodeEndpoint endpoint = endpointsIndex.getNodeEndpoint(fragment.getEndpointIndex());
-          final String name = String.format("nway-recv-%s-%s:%d:%d", spooling ? "spool" : "mem", endpoint.getAddress(), collector.getOppositeMajorFragmentId(), fragment.getMinorFragmentId());
-          final SharedResource resource = resourceGroup.createResource(name, spooling ? SharedResourceType.NWAY_RECV_SPOOL_BUFFER : SharedResourceType.NWAY_RECV_MEM_BUFFER);
+          final String name =
+              String.format(
+                  "nway-recv-%s-%s:%d:%d",
+                  spooling ? "spool" : "mem",
+                  endpoint.getAddress(),
+                  collector.getOppositeMajorFragmentId(),
+                  fragment.getMinorFragmentId());
+          final SharedResource resource =
+              resourceGroup.createResource(
+                  name,
+                  spooling
+                      ? SharedResourceType.NWAY_RECV_SPOOL_BUFFER
+                      : SharedResourceType.NWAY_RECV_MEM_BUFFER);
           final RawBatchBuffer buffer;
           if (spooling) {
-            buffer = new SpoolingRawBatchBuffer(resource, config, options, workQueue, handle, spillService, allocator, bufferCapacity, collector.getOppositeMajorFragmentId(), fragment.getMinorFragmentId());
+            buffer =
+                new SpoolingRawBatchBuffer(
+                    resource,
+                    config,
+                    options,
+                    workQueue,
+                    handle,
+                    spillService,
+                    allocator,
+                    bufferCapacity,
+                    collector.getOppositeMajorFragmentId(),
+                    fragment.getMinorFragmentId());
           } else {
-            buffer = new UnlimitedRawBatchBuffer(resource, options, handle, allocator, bufferCapacity, collector.getOppositeMajorFragmentId());
+            buffer =
+                new UnlimitedRawBatchBuffer(
+                    resource,
+                    options,
+                    handle,
+                    allocator,
+                    bufferCapacity,
+                    collector.getOppositeMajorFragmentId());
           }
           rollbackCloseable.add(buffer);
           buffer.init();
@@ -120,13 +150,39 @@ public abstract class AbstractDataCollector implements DataCollector {
       }
     } else {
       buffers = new RawBatchBuffer[1];
-      final String name = String.format("unordered-spooling-recv-%s-%d:*", spooling ? "spool" : "mem", collector.getOppositeMajorFragmentId());
-      final SharedResource resource = resourceGroup.createResource(name, spooling ? SharedResourceType.UNORDERED_RECV_SPOOL_BUFFER : SharedResourceType.UNORDERED_RECV_MEM_BUFFER);
+      final String name =
+          String.format(
+              "unordered-spooling-recv-%s-%d:*",
+              spooling ? "spool" : "mem", collector.getOppositeMajorFragmentId());
+      final SharedResource resource =
+          resourceGroup.createResource(
+              name,
+              spooling
+                  ? SharedResourceType.UNORDERED_RECV_SPOOL_BUFFER
+                  : SharedResourceType.UNORDERED_RECV_MEM_BUFFER);
       final RawBatchBuffer buffer;
       if (spooling) {
-        buffer = new SpoolingRawBatchBuffer(resource, config, options, workQueue, handle, spillService, allocator, bufferCapacity, collector.getOppositeMajorFragmentId(), 0);
+        buffer =
+            new SpoolingRawBatchBuffer(
+                resource,
+                config,
+                options,
+                workQueue,
+                handle,
+                spillService,
+                allocator,
+                bufferCapacity,
+                collector.getOppositeMajorFragmentId(),
+                0);
       } else {
-        buffer = new UnlimitedRawBatchBuffer(resource, options, handle, allocator, bufferCapacity, collector.getOppositeMajorFragmentId());
+        buffer =
+            new UnlimitedRawBatchBuffer(
+                resource,
+                options,
+                handle,
+                allocator,
+                bufferCapacity,
+                collector.getOppositeMajorFragmentId());
       }
       buffers[0] = buffer;
       buffers[0].init();
@@ -139,10 +195,9 @@ public abstract class AbstractDataCollector implements DataCollector {
   }
 
   @Override
-  public RawBatchBuffer[] getBuffers(){
+  public RawBatchBuffer[] getBuffers() {
     return buffers;
   }
-
 
   @Override
   public void streamCompleted(int minorFragmentId) {
@@ -156,7 +211,6 @@ public abstract class AbstractDataCollector implements DataCollector {
     getBuffer(minorFragmentId).enqueue(batch);
   }
 
-
   @Override
   public int getTotalIncomingFragments() {
     return incomingStreams;
@@ -166,33 +220,34 @@ public abstract class AbstractDataCollector implements DataCollector {
 
   @Override
   public synchronized void close() throws Exception {
-    if(!closed){
+    if (!closed) {
 
       final List<AutoCloseable> closeables = new ArrayList<>();
       closeables.addAll(Arrays.asList(buffers));
 
-      closeables.add(new AutoCloseable() {
+      closeables.add(
+          new AutoCloseable() {
 
-        @Override
-        public void close() throws Exception {
-          // we may close before we received the last message. In this
-          // situation, we need to send everybody a finished message.
-          // We can optimize this to only do so in the situation where the query
-          // isn't currently failing. In those cases, the Foreman will already
-          // be cleaning up.
-          for (int i = 0; i < completionMessages.length; i++) {
-            completionMessages[i].informUpstreamIfNecessary();
-          }
-        }
+            @Override
+            public void close() throws Exception {
+              // we may close before we received the last message. In this
+              // situation, we need to send everybody a finished message.
+              // We can optimize this to only do so in the situation where the query
+              // isn't currently failing. In those cases, the Foreman will already
+              // be cleaning up.
+              for (int i = 0; i < completionMessages.length; i++) {
+                completionMessages[i].informUpstreamIfNecessary();
+              }
+            }
+          });
 
-      });
-
-      closeables.add(new AutoCloseable() {
-        @Override
-        public void close() throws Exception {
-          closed = true;
-        }
-      });
+      closeables.add(
+          new AutoCloseable() {
+            @Override
+            public void close() throws Exception {
+              closed = true;
+            }
+          });
 
       AutoCloseables.close(closeables);
     }
@@ -210,23 +265,24 @@ public abstract class AbstractDataCollector implements DataCollector {
       this.sendingMinorFragmentId = sendingMinorFragmentId;
     }
 
-    public void informUpstreamIfNecessary(){
-      if(!done){
-        final FinishedReceiver message = FinishedReceiver.newBuilder()
-          .setReceiver(handle)
-          .setSender(FragmentHandle.newBuilder()
-                       .setQueryId(handle.getQueryId())
-                       .setMajorFragmentId(config.getOppositeMajorFragmentId())
-                       .setMinorFragmentId(sendingMinorFragmentId))
-          .build();
+    public void informUpstreamIfNecessary() {
+      if (!done) {
+        final FinishedReceiver message =
+            FinishedReceiver.newBuilder()
+                .setReceiver(handle)
+                .setSender(
+                    FragmentHandle.newBuilder()
+                        .setQueryId(handle.getQueryId())
+                        .setMajorFragmentId(config.getOppositeMajorFragmentId())
+                        .setMinorFragmentId(sendingMinorFragmentId))
+                .build();
         tunnelProvider.getExecTunnel(sendingNode).informReceiverFinished(message);
         done = true;
       }
     }
 
-    public void markDone(){
+    public void markDone() {
       done = true;
     }
-
   }
 }

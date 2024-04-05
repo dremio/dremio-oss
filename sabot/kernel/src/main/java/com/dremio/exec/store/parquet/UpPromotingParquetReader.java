@@ -15,21 +15,9 @@
  */
 package com.dremio.exec.store.parquet;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-
-import org.apache.arrow.memory.OutOfMemoryException;
-import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.parquet.hadoop.metadata.BlockMetaData;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
-import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.RuntimeFilter;
@@ -38,13 +26,23 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf.ParquetDatasetSplitScanXAttr;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.dremio.service.namespace.dataset.proto.UserDefinedSchemaSettings;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import org.apache.arrow.memory.OutOfMemoryException;
+import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.parquet.hadoop.metadata.BlockMetaData;
 
 /**
- * Parquet reader for datasets. This will be an inner reader of a
- * coercion reader to support up promotion of column data types.
+ * Parquet reader for datasets. This will be an inner reader of a coercion reader to support up
+ * promotion of column data types.
  */
 public class UpPromotingParquetReader implements RecordReader {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(UpPromotingParquetReader.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(UpPromotingParquetReader.class);
   private final FileSystem fs;
   private final boolean vectorize;
   private final OperatorContext context;
@@ -52,7 +50,6 @@ public class UpPromotingParquetReader implements RecordReader {
   private final MutableParquetMetadata footer;
   private final boolean enableDetailedTracing;
   private final boolean supportsColocatedReads;
-  private final GlobalDictionaries dictionaries;
   private final ParquetReaderFactory readerFactory;
   private final SchemaDerivationHelper schemaHelper;
   private final ParquetColumnResolver columnResolver;
@@ -60,7 +57,6 @@ public class UpPromotingParquetReader implements RecordReader {
   private final InputStreamProvider inputStreamProvider;
   private final ParquetScanProjectedColumns projectedColumns;
   private final ParquetFilters filters;
-  private final Map<String, GlobalDictionaryFieldInfo> globalDictionaryFieldInfoMap;
   private final String filePath;
   private final List<String> tableSchemaPath;
   private final boolean isSchemaLearningDisabledByUser;
@@ -70,13 +66,23 @@ public class UpPromotingParquetReader implements RecordReader {
 
   private List<RuntimeFilter> runtimeFilters = new ArrayList<>();
 
-  public UpPromotingParquetReader(OperatorContext context, ParquetReaderFactory readerFactory,
-                                  BatchSchema tableSchema, ParquetScanProjectedColumns projectedColumns,
-                                  Map<String, GlobalDictionaryFieldInfo> globalDictionaryFieldInfoMap,
-                                  ParquetFilters filters, ParquetDatasetSplitScanXAttr readEntry,
-                                  FileSystem fs, MutableParquetMetadata footer, String filePath, List<String> tableSchemaPath, GlobalDictionaries dictionaries,
-                                  SchemaDerivationHelper schemaHelper, boolean vectorize, boolean enableDetailedTracing,
-                                  boolean supportsColocatedReads, InputStreamProvider inputStreamProvider, UserDefinedSchemaSettings userDefinedSchemaSettings) {
+  public UpPromotingParquetReader(
+      OperatorContext context,
+      ParquetReaderFactory readerFactory,
+      BatchSchema tableSchema,
+      ParquetScanProjectedColumns projectedColumns,
+      ParquetFilters filters,
+      ParquetDatasetSplitScanXAttr readEntry,
+      FileSystem fs,
+      MutableParquetMetadata footer,
+      String filePath,
+      List<String> tableSchemaPath,
+      SchemaDerivationHelper schemaHelper,
+      boolean vectorize,
+      boolean enableDetailedTracing,
+      boolean supportsColocatedReads,
+      InputStreamProvider inputStreamProvider,
+      UserDefinedSchemaSettings userDefinedSchemaSettings) {
     this.fs = fs;
     this.footer = footer;
     this.filePath = filePath;
@@ -85,7 +91,6 @@ public class UpPromotingParquetReader implements RecordReader {
     this.vectorize = vectorize;
     this.readEntry = readEntry;
     this.tableSchema = tableSchema;
-    this.dictionaries = dictionaries;
     this.schemaHelper = schemaHelper;
     this.readerFactory = readerFactory;
     this.projectedColumns = projectedColumns;
@@ -93,52 +98,69 @@ public class UpPromotingParquetReader implements RecordReader {
     this.inputStreamProvider = inputStreamProvider;
     this.enableDetailedTracing = enableDetailedTracing;
     this.supportsColocatedReads = supportsColocatedReads;
-    this.globalDictionaryFieldInfoMap = globalDictionaryFieldInfoMap;
     this.columnResolver = projectedColumns.getColumnResolver(footer.getFileMetaData().getSchema());
-    if (userDefinedSchemaSettings != null && userDefinedSchemaSettings.getDroppedColumns() != null) {
-      droppedColumns = BatchSchema.deserialize(userDefinedSchemaSettings.getDroppedColumns()).getFields();
+    if (userDefinedSchemaSettings != null
+        && userDefinedSchemaSettings.getDroppedColumns() != null) {
+      droppedColumns =
+          BatchSchema.deserialize(userDefinedSchemaSettings.getDroppedColumns()).getFields();
     }
-    if (userDefinedSchemaSettings != null && userDefinedSchemaSettings.getModifiedColumns() != null) {
-      updatedColumns = BatchSchema.deserialize(userDefinedSchemaSettings.getModifiedColumns()).getFields();
+    if (userDefinedSchemaSettings != null
+        && userDefinedSchemaSettings.getModifiedColumns() != null) {
+      updatedColumns =
+          BatchSchema.deserialize(userDefinedSchemaSettings.getModifiedColumns()).getFields();
     }
-    this.isSchemaLearningDisabledByUser = userDefinedSchemaSettings != null && !userDefinedSchemaSettings.getSchemaLearningEnabled();
+    this.isSchemaLearningDisabledByUser =
+        userDefinedSchemaSettings != null && !userDefinedSchemaSettings.getSchemaLearningEnabled();
   }
 
   public void setupMutator(OutputMutator outputMutator) {
-    MutatorSetupManager mutatorSetupManager = new MutatorSetupManager(context, tableSchema, footer, filePath, tableSchemaPath, schemaHelper, columnResolver);
-    AdditionalColumnResolver additionalColumnResolver = new AdditionalColumnResolver(tableSchema, columnResolver);
+    MutatorSetupManager mutatorSetupManager =
+        new MutatorSetupManager(
+            context, tableSchema, footer, filePath, tableSchemaPath, schemaHelper, columnResolver);
+    AdditionalColumnResolver additionalColumnResolver =
+        new AdditionalColumnResolver(tableSchema, columnResolver);
 
-    logger.debug("F[setupMutator] Footer size is {} for file {}, current row group index is {}",(footer.getBlocks() == null)? -1:footer.getBlocks().size(), filePath, readEntry.getRowGroupIndex());
+    logger.debug(
+        "F[setupMutator] Footer size is {} for file {}, current row group index is {}",
+        (footer.getBlocks() == null) ? -1 : footer.getBlocks().size(),
+        filePath,
+        readEntry.getRowGroupIndex());
     BlockMetaData block = footer.getBlocks().get(readEntry.getRowGroupIndex());
-    Collection<SchemaPath> resolvedColumns = additionalColumnResolver.resolveColumns(block.getColumns());
-    mutatorSetupManager.setupMutator(outputMutator, resolvedColumns, droppedColumns, updatedColumns, isSchemaLearningDisabledByUser);
+    Collection<SchemaPath> resolvedColumns =
+        additionalColumnResolver.resolveColumns(block.getColumns());
+    mutatorSetupManager.setupMutator(
+        outputMutator,
+        resolvedColumns,
+        droppedColumns,
+        updatedColumns,
+        isSchemaLearningDisabledByUser);
   }
 
   @Override
   public void setup(OutputMutator output) throws ExecutionSetupException {
 
     List<SchemaPath> projectedParquetColumns = columnResolver.getProjectedParquetColumns();
-    OutputMutatorHelper.addFooterFieldsToOutputMutator(output, schemaHelper, footer, projectedParquetColumns);
+    OutputMutatorHelper.addFooterFieldsToOutputMutator(
+        output, schemaHelper, footer, projectedParquetColumns);
 
-    this.currentReader = new UnifiedParquetReader(
-      context,
-      readerFactory,
-      tableSchema,
-      projectedColumns,
-      globalDictionaryFieldInfoMap,
-      filters,
-      readerFactory.newFilterCreator(context, null, null, context.getAllocator()),
-      ParquetDictionaryConvertor.DEFAULT,
-      readEntry,
-      fs,
-      footer,
-      dictionaries,
-      schemaHelper,
-      vectorize,
-      enableDetailedTracing,
-      supportsColocatedReads,
-      inputStreamProvider,
-      new ArrayList<>());
+    this.currentReader =
+        new UnifiedParquetReader(
+            context,
+            readerFactory,
+            tableSchema,
+            projectedColumns,
+            filters,
+            readerFactory.newFilterCreator(context, null, null, context.getAllocator()),
+            ParquetDictionaryConvertor.DEFAULT,
+            readEntry,
+            fs,
+            footer,
+            schemaHelper,
+            vectorize,
+            enableDetailedTracing,
+            supportsColocatedReads,
+            inputStreamProvider,
+            new ArrayList<>());
     runtimeFilters.forEach(currentReader::addRuntimeFilter);
     currentReader.setIgnoreSchemaLearning(this.isSchemaLearningDisabledByUser);
     currentReader.setup(output);
@@ -182,5 +204,10 @@ public class UpPromotingParquetReader implements RecordReader {
   @Override
   public List<SchemaPath> getColumnsToBoost() {
     return currentReader.getColumnsToBoost();
+  }
+
+  @Override
+  public String getFilePath() {
+    return filePath;
   }
 }

@@ -17,9 +17,5 @@ package com.dremio.partitionstats.storeprovider;
 
 import com.dremio.datastore.transientstore.TransientStoreProvider;
 
-/**
- * Interface of store provider for partition stats cache.
- */
-public interface PartitionStatsCacheStoreProvider extends TransientStoreProvider {
-
-}
+/** Interface of store provider for partition stats cache. */
+public interface PartitionStatsCacheStoreProvider extends TransientStoreProvider {}

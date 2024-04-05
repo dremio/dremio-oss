@@ -20,9 +20,7 @@ import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidatorListing;
 import com.dremio.options.OptionValue.OptionType;
 
-/**
- * {@link OptionManager} that holds options within {@link com.dremio.exec.ops.QueryContext}.
- */
+/** {@link OptionManager} that holds options within {@link com.dremio.exec.ops.QueryContext}. */
 public class QueryOptionManager extends InMemoryOptionManager {
 
   public QueryOptionManager(final OptionValidatorListing optionValidatorListing) {

@@ -18,18 +18,14 @@ package com.dremio.service.namespace;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.google.common.annotations.VisibleForTesting;
 
-/**
- * Helper class to generate unsafe dataset split ids
- */
+/** Helper class to generate unsafe dataset split ids */
 @VisibleForTesting
 public final class UnsafeDatasetSplitIdHelper {
 
-  private UnsafeDatasetSplitIdHelper() {
-  }
-
+  private UnsafeDatasetSplitIdHelper() {}
 
   public static PartitionChunkId of(DatasetConfig config, String key) {
-    return PartitionChunkId.ofUnsafe(config.getId(), config.getReadDefinition().getSplitVersion(), key);
+    return PartitionChunkId.ofUnsafe(
+        config.getId(), config.getReadDefinition().getSplitVersion(), key);
   }
-
 }

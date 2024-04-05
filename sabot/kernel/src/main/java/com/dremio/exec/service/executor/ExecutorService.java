@@ -17,7 +17,5 @@ package com.dremio.exec.service.executor;
 
 import com.dremio.service.executorservice.ExecutorServiceGrpc;
 
-/**
- * Marker class to inject a no-op implementation (vs) valid handler.
- */
+/** Marker class to inject a no-op implementation (vs) valid handler. */
 public class ExecutorService extends ExecutorServiceGrpc.ExecutorServiceImplBase {}

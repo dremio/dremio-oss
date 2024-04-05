@@ -16,6 +16,7 @@
 package com.dremio.exec.store.hive.orc;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.sql.Date;
 import java.sql.Timestamp;
 import java.time.LocalDate;
@@ -127,7 +128,7 @@ class ORCSearchArgumentGenerator extends RexVisitorImpl<Object> {
   }
 
   private static long getLong(RexLiteral literal) {
-    return ((BigDecimal) literal.getValue()).setScale(0, BigDecimal.ROUND_HALF_UP).longValue();
+    return ((BigDecimal) literal.getValue()).setScale(0, RoundingMode.HALF_UP).longValue();
   }
 
   private static double getDouble(RexLiteral literal) {

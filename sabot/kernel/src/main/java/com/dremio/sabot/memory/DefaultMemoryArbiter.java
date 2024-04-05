@@ -15,58 +15,53 @@
  */
 package com.dremio.sabot.memory;
 
-import org.apache.arrow.memory.RootAllocator;
-
 import com.dremio.common.config.SabotConfig;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.FragmentExecutors;
 import com.dremio.sabot.exec.QueriesClerk;
+import org.apache.arrow.memory.RootAllocator;
 
-/**
- * This class has a default implementation of the MemoryArbiter
- */
+/** This class has a default implementation of the MemoryArbiter */
 public class DefaultMemoryArbiter implements MemoryArbiter {
-  public DefaultMemoryArbiter(RootAllocator rootAllocator) {
-  }
+  public DefaultMemoryArbiter(RootAllocator rootAllocator) {}
 
   @Override
-  public void taskDone(MemoryArbiterTask memoryArbiterTask) {
-  }
+  public void taskDone(MemoryArbiterTask memoryArbiterTask) {}
 
   @Override
-  public void startTask(MemoryArbiterTask memoryArbiterTask){
-  }
+  public void startTask(MemoryArbiterTask memoryArbiterTask) {}
 
-  /**
-   * The requested memory is always granted
-   */
+  /** The requested memory is always granted */
   @Override
   public boolean acquireMemoryGrant(MemoryArbiterTask memoryArbiterTask, long memoryGrantInBytes) {
     return true;
   }
 
   @Override
-  public void releaseMemoryGrant(MemoryArbiterTask memoryArbiterTask) {
-  }
+  public void releaseMemoryGrant(MemoryArbiterTask memoryArbiterTask) {}
 
   @Override
-  public boolean removeFromBlocked(MemoryArbiterTask memoryArbiterTask){
+  public boolean removeFromBlocked(MemoryArbiterTask memoryArbiterTask) {
     return true;
   }
 
   @Override
-  public void addTaskToQueue(MemoryArbiterTask memoryArbiterTask){
-  }
+  public void removeFromSpilling(MemoryTaskAndShrinkableOperator memoryTaskAndShrinkableOperator) {}
 
   @Override
-  public void close() throws Exception {
-  }
+  public void addTaskToQueue(MemoryArbiterTask memoryArbiterTask) {}
+
+  @Override
+  public void close() throws Exception {}
 
   public static class Factory implements MemoryArbiterFactory {
     @Override
-    public MemoryArbiter newInstance(SabotConfig sabotConfig, RootAllocator rootAllocator,
-                                     FragmentExecutors fragmentExecutors, QueriesClerk clerk,
-                                     OptionManager options) {
+    public MemoryArbiter newInstance(
+        SabotConfig sabotConfig,
+        RootAllocator rootAllocator,
+        FragmentExecutors fragmentExecutors,
+        QueriesClerk clerk,
+        OptionManager options) {
       return new DefaultMemoryArbiter(rootAllocator);
     }
   }

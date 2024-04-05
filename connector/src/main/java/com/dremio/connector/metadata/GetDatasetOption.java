@@ -19,5 +19,4 @@ package com.dremio.connector.metadata;
  * Marker interface for an option that is passed to {@link SourceMetadata#getDatasetHandle} or
  * {@link SupportsListingDatasets#listDatasetHandles}.
  */
-public interface GetDatasetOption extends MetadataOption {
-}
+public interface GetDatasetOption extends MetadataOption {}

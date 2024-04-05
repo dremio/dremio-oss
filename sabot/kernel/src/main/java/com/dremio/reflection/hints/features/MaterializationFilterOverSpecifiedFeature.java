@@ -16,25 +16,21 @@
 package com.dremio.reflection.hints.features;
 
 import java.util.Objects;
-
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexUtil;
 
 /**
- * Example 1:
- * User Query Filter: A AND B
- * Materialization Filter: A AND C
- * <p>
- * Example 2:
- * User Query Filter: A
- * Materialization Filter: B
+ * Example 1: User Query Filter: A AND B Materialization Filter: A AND C
+ *
+ * <p>Example 2: User Query Filter: A Materialization Filter: B
  */
 public class MaterializationFilterOverSpecifiedFeature implements HintFeature {
   private RexNode materializationFilter;
   private RelDataType datasetRowType;
 
-  public MaterializationFilterOverSpecifiedFeature(RexNode materializationFilter, RelDataType datasetRowType) {
+  public MaterializationFilterOverSpecifiedFeature(
+      RexNode materializationFilter, RelDataType datasetRowType) {
     this.materializationFilter = materializationFilter;
     this.datasetRowType = datasetRowType;
   }
@@ -65,8 +61,9 @@ public class MaterializationFilterOverSpecifiedFeature implements HintFeature {
 
   @Override
   public String toString() {
-    return "MaterializationFilterOverSpecified{" +
-        "materializationFilter=" + materializationFilter +
-        '}';
+    return "MaterializationFilterOverSpecified{"
+        + "materializationFilter="
+        + materializationFilter
+        + '}';
   }
 }

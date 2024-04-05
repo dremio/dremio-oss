@@ -17,13 +17,9 @@ package com.dremio.service.coordinator.zk;
 
 import org.apache.curator.test.KillSession;
 
-/**
- * Helper class to kill a ZooKeeper session
- */
+/** Helper class to kill a ZooKeeper session */
 public final class KillZkSession {
-  private KillZkSession() {
-
-  }
+  private KillZkSession() {}
 
   /**
    * Kill the given ZK session
@@ -31,7 +27,14 @@ public final class KillZkSession {
    * @param clusterCoordinator the cluster coordinator owning the session
    */
   public static void kill(ZKClusterCoordinator clusterCoordinator) throws Exception {
-    KillSession.kill(clusterCoordinator.getZkClient().getZooKeeperClient(), clusterCoordinator.getZkClient().getConnectionString());
+    KillSession.kill(
+        clusterCoordinator.getZkClient().getZooKeeperClient(),
+        clusterCoordinator.getZkClient().getConnectionString());
   }
 
+  /** Inject a session expiration */
+  public static void injectSessionExpiration(ZKClusterCoordinator clusterCoordinator)
+      throws Exception {
+    clusterCoordinator.getZkClient().getZooKeeperClient().getTestable().injectSessionExpiration();
+  }
 }

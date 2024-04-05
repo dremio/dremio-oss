@@ -23,7 +23,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
-
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
@@ -32,9 +31,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Monitors periodically and cleans up after dead executors.
  *
- * <p>
- * This is enabled only if periodic monitoring is turned on (DCS excluded).
- * </p>
+ * <p>This is enabled only if periodic monitoring is turned on (DCS excluded).
  */
 final class TemporaryFolderMonitor {
   private static final Logger logger = LoggerFactory.getLogger(TemporaryFolderMonitor.class);
@@ -51,9 +48,13 @@ final class TemporaryFolderMonitor {
 
   private int currentCycle = 0;
 
-  TemporaryFolderMonitor(Supplier<ExecutorId> thisExecutor, Supplier<Set<ExecutorId>> availableExecutors,
-                         String purpose, int stalenessLimitSeconds, int unhealthyCyclesBeforeDelete,
-                         FileSystemHelper fsWrapper) {
+  TemporaryFolderMonitor(
+      Supplier<ExecutorId> thisExecutor,
+      Supplier<Set<ExecutorId>> availableExecutors,
+      String purpose,
+      int stalenessLimitSeconds,
+      int unhealthyCyclesBeforeDelete,
+      FileSystemHelper fsWrapper) {
     this.thisExecutor = thisExecutor;
     this.availableExecutors = availableExecutors;
     this.purpose = purpose;
@@ -83,17 +84,20 @@ final class TemporaryFolderMonitor {
     otherExecutors.removeAll(aliveExecutors);
     for (final ExecutorId executor : otherExecutors) {
       logger.debug("this executor = {}, other executor = {}", myId, executor);
-      healthMap.compute(executor, (k, v) -> {
-        if (v == null) {
-          final HealthTracker tracker = new HealthTracker(executor, currentCycle,
-            currentCycle + minUnhealthyCyclesBeforeDelete);
-          expiryChecker.addLast(tracker);
-          return tracker;
-        } else {
-          v.incrementCycle();
-          return v;
-        }
-      });
+      healthMap.compute(
+          executor,
+          (k, v) -> {
+            if (v == null) {
+              final HealthTracker tracker =
+                  new HealthTracker(
+                      executor, currentCycle, currentCycle + minUnhealthyCyclesBeforeDelete);
+              expiryChecker.addLast(tracker);
+              return tracker;
+            } else {
+              v.incrementCycle();
+              return v;
+            }
+          });
     }
 
     // process the elements whose expiry cycle has crossed the current cycle
@@ -103,7 +107,8 @@ final class TemporaryFolderMonitor {
       if (next.isEligibleForDelete()) {
         // we can safely check this executor directory for deletion now
         for (final Path rootPath : managedRootPaths) {
-          fsWrapper.safeCleanDirectory(rootPath, next.getExecutorId().toPrefix(purpose), stalenessLimitSeconds);
+          fsWrapper.safeCleanDirectory(
+              rootPath, next.getExecutorId().toPrefix(purpose), stalenessLimitSeconds);
         }
       }
     }
@@ -112,12 +117,14 @@ final class TemporaryFolderMonitor {
   private Set<ExecutorId> getExecutorsHavingFolders(ExecutorId myId) {
     final Set<ExecutorId> discoveredExecutors = new HashSet<>();
     for (final Path rootPath : managedRootPaths) {
-      fsWrapper.visitNonEmptyDirectory(rootPath, fileStatus -> {
-        final ExecutorId id = extractExecutorId(fileStatus);
-        if (id != null && !id.equals(myId)) {
-          discoveredExecutors.add(id);
-        }
-      });
+      fsWrapper.visitNonEmptyDirectory(
+          rootPath,
+          fileStatus -> {
+            final ExecutorId id = extractExecutorId(fileStatus);
+            if (id != null && !id.equals(myId)) {
+              discoveredExecutors.add(id);
+            }
+          });
     }
     return discoveredExecutors;
   }
@@ -127,8 +134,10 @@ final class TemporaryFolderMonitor {
       return null;
     }
     final String[] executorId = fileStatus.getPath().getName().split(ExecutorId.PREFIX_DELIMITER);
-    if (executorId.length != 3 || !executorId[0].equals(purpose) || executorId[1].isEmpty() ||
-      executorId[2].isEmpty()) {
+    if (executorId.length != 3
+        || !executorId[0].equals(purpose)
+        || executorId[1].isEmpty()
+        || executorId[2].isEmpty()) {
       return null;
     }
     try {

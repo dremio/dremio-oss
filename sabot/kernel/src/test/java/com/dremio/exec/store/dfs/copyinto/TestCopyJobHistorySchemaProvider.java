@@ -58,8 +58,10 @@ public class TestCopyJobHistorySchemaProvider {
   @ParameterizedTest
   @ValueSource(ints = {2})
   public void testGetUnsupportedVersion(int unsupportedSchemaVersion) {
-    assertThrows("Unsupported copy_job_history table schema version. Currently supported schema version are: 1",
-      UnsupportedOperationException.class, () -> CopyJobHistoryTableSchemaProvider.getSchema(unsupportedSchemaVersion));
+    assertThrows(
+        "Unsupported copy_job_history table schema version. Currently supported schema version are: 1",
+        UnsupportedOperationException.class,
+        () -> CopyJobHistoryTableSchemaProvider.getSchema(unsupportedSchemaVersion));
   }
 
   @ParameterizedTest

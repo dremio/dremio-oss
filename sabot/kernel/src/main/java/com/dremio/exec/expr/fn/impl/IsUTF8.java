@@ -15,27 +15,32 @@
  */
 package com.dremio.exec.expr.fn.impl;
 
-import org.apache.arrow.vector.holders.BitHolder;
-import org.apache.arrow.vector.holders.VarCharHolder;
-
 import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
+import org.apache.arrow.vector.holders.BitHolder;
+import org.apache.arrow.vector.holders.VarCharHolder;
 
 // Check if the input varchar is a UTF-8 string (i.e., all its characters are UTF-8 characters)
 @SuppressWarnings("unused")
-@FunctionTemplate(name = "is_UTF8", scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.NULL_IF_NULL)
+@FunctionTemplate(
+    name = "is_UTF8",
+    scope = FunctionTemplate.FunctionScope.SIMPLE,
+    nulls = FunctionTemplate.NullHandling.NULL_IF_NULL)
 public class IsUTF8 implements SimpleFunction {
-  @Param  VarCharHolder in;
+  @Param VarCharHolder in;
   @Output BitHolder out;
 
   @Override
-  public void setup() { }
+  public void setup() {}
 
   @Override
   public void eval() {
-    out.value = (com.dremio.exec.expr.fn.impl.GuavaUtf8.isUtf8(io.netty.buffer.NettyArrowBuf.unwrapBuffer(in.buffer), in.start, in.end) ? 1
-      : 0);
+    out.value =
+        (com.dremio.exec.expr.fn.impl.GuavaUtf8.isUtf8(
+                io.netty.buffer.NettyArrowBuf.unwrapBuffer(in.buffer), in.start, in.end)
+            ? 1
+            : 0);
   }
 }

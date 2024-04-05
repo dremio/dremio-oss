@@ -15,20 +15,16 @@
  */
 package com.dremio.exec.store.sys.udf;
 
-import java.sql.Timestamp;
-
 import com.dremio.exec.proto.FunctionRPC;
 import com.dremio.service.Service;
 import com.dremio.service.namespace.function.proto.FunctionConfig;
 import com.dremio.service.namespace.function.proto.FunctionDefinition;
+import java.sql.Timestamp;
 
-/**
- * Exposes the Udf store to the execution engine
- */
+/** Exposes the Udf store to the execution engine */
 public interface UserDefinedFunctionService extends Service {
 
   Iterable<FunctionInfo> functionInfos();
-
 
   class FunctionInfo {
     public final String argList;
@@ -39,14 +35,14 @@ public interface UserDefinedFunctionService extends Service {
     public final Timestamp modifiedAt;
     public String owner;
 
-
-    public FunctionInfo(String name,
-      String sql,
-      String argList,
-      String returnType,
-      Timestamp createdAt,
-      Timestamp modifiedAt,
-      String owner) {
+    public FunctionInfo(
+        String name,
+        String sql,
+        String argList,
+        String returnType,
+        Timestamp createdAt,
+        Timestamp modifiedAt,
+        String owner) {
       this.argList = argList;
       this.name = name;
       this.sql = sql;
@@ -56,46 +52,60 @@ public interface UserDefinedFunctionService extends Service {
       this.owner = owner;
     }
 
-    public void setOwner(String owner){
+    public void setOwner(String owner) {
       this.owner = owner;
     }
 
     public boolean isValid() {
-      return name!=null;
+      return name != null;
     }
 
     public static FunctionInfo fromProto(FunctionRPC.FunctionInfo functionInfo) {
 
-      return new FunctionInfo(functionInfo.getName(),
-        functionInfo.getSql(),
-        functionInfo.getArgList(),
-        functionInfo.getReturnType(),
-        new Timestamp(functionInfo.getCreatedAt()) ,
-        new Timestamp(functionInfo.getLastModifiedAt()),
-        functionInfo.getOwner());
+      return new FunctionInfo(
+          functionInfo.getName(),
+          functionInfo.getSql(),
+          functionInfo.getArgList(),
+          functionInfo.getReturnType(),
+          new Timestamp(functionInfo.getCreatedAt()),
+          new Timestamp(functionInfo.getLastModifiedAt()),
+          functionInfo.getOwner());
     }
 
     public FunctionRPC.FunctionInfo toProto() {
-     return  FunctionRPC.FunctionInfo.newBuilder()
-      .setName((name == null)? "null": name)
-      .setSql((sql == null) ? "null": sql)
-      .setArgList((argList == null) ? "null" : argList)
-      .setReturnType((returnType == null) ?"null" : returnType )
-      .setCreatedAt(createdAt.getTime()).build();
+      return FunctionRPC.FunctionInfo.newBuilder()
+          .setName((name == null) ? "null" : name)
+          .setSql((sql == null) ? "null" : sql)
+          .setArgList((argList == null) ? "null" : argList)
+          .setReturnType((returnType == null) ? "null" : returnType)
+          .setCreatedAt(createdAt.getTime())
+          .build();
     }
   }
 
-  static FunctionInfo  getFunctionInfoFromConfig(FunctionConfig functionConfig){
-    final FunctionDefinition functionDefinition = functionConfig.getFunctionDefinitionsList() == null ? FunctionDefinition.getDefaultInstance() :
-      functionConfig.getFunctionDefinitionsList().isEmpty() ? FunctionDefinition.getDefaultInstance() : functionConfig.getFunctionDefinitionsList().get(0);
+  static FunctionInfo getFunctionInfoFromConfig(FunctionConfig functionConfig) {
+    final FunctionDefinition functionDefinition =
+        functionConfig.getFunctionDefinitionsList() == null
+            ? FunctionDefinition.getDefaultInstance()
+            : functionConfig.getFunctionDefinitionsList().isEmpty()
+                ? FunctionDefinition.getDefaultInstance()
+                : functionConfig.getFunctionDefinitionsList().get(0);
     return new FunctionInfo(
-      (functionConfig.getName() != null)? functionConfig.getName() : null,
-      (functionDefinition.getFunctionBody() != null && functionDefinition.getFunctionBody().getRawBody() != null)?
-        functionDefinition.getFunctionBody().getRawBody() : null,
-      (functionDefinition.getFunctionArgList() != null)? functionDefinition.getFunctionArgList().toString() : null ,
-      (functionConfig.getReturnType() != null) ? functionConfig.getReturnType().toString() : null,
-      (functionConfig.getCreatedAt() != null) ? new Timestamp(functionConfig.getCreatedAt()) : null,
-     (functionConfig.getLastModified() != null) ? new Timestamp(functionConfig.getLastModified()) : null,
-      null);
+        (functionConfig.getName() != null) ? functionConfig.getName() : null,
+        (functionDefinition.getFunctionBody() != null
+                && functionDefinition.getFunctionBody().getRawBody() != null)
+            ? functionDefinition.getFunctionBody().getRawBody()
+            : null,
+        (functionDefinition.getFunctionArgList() != null)
+            ? functionDefinition.getFunctionArgList().toString()
+            : null,
+        (functionConfig.getReturnType() != null) ? functionConfig.getReturnType().toString() : null,
+        (functionConfig.getCreatedAt() != null)
+            ? new Timestamp(functionConfig.getCreatedAt())
+            : null,
+        (functionConfig.getLastModified() != null)
+            ? new Timestamp(functionConfig.getLastModified())
+            : null,
+        null);
   }
 }

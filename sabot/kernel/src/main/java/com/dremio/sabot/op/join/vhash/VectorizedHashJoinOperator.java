@@ -17,22 +17,6 @@ package com.dremio.sabot.op.join.vhash;
 
 import static com.dremio.sabot.op.join.vhash.PartitionColFilters.BLOOMFILTER_MAX_SIZE;
 
-import java.util.ArrayList;
-import java.util.BitSet;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.OutOfMemoryException;
-import org.apache.arrow.vector.FieldVector;
-import org.apache.arrow.vector.VarBinaryVector;
-import org.apache.arrow.vector.VarCharVector;
-import org.apache.calcite.rel.core.JoinRelType;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
@@ -65,12 +49,26 @@ import com.dremio.sabot.op.spi.DualInputOperator;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
-
 import io.netty.util.internal.PlatformDependent;
+import java.util.ArrayList;
+import java.util.BitSet;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.OutOfMemoryException;
+import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.VarBinaryVector;
+import org.apache.arrow.vector.VarCharVector;
+import org.apache.calcite.rel.core.JoinRelType;
 
 public class VectorizedHashJoinOperator implements DualInputOperator {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(VectorizedHashJoinOperator.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(VectorizedHashJoinOperator.class);
 
   public enum Mode {
     UNKNOWN,
@@ -94,7 +92,8 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
 
   // A structure that parallels the
   private final List<ArrowBuf> startIndices = new ArrayList<>();
-  // Array of bitvectors. Keeps track of keys on the build side that matched any key on the probe side
+  // Array of bitvectors. Keeps track of keys on the build side that matched any key on the probe
+  // side
   private final List<MatchBitSet> keyMatchBitVectors = new ArrayList<>();
   // Max index(ordinal) in hash table and start indices
   private int maxHashTableIndex = -1;
@@ -150,17 +149,24 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
   private PartitionColFilters partitionColFilters = null;
   private NonPartitionColFilters nonPartitionColFilters = null;
 
-  public VectorizedHashJoinOperator(OperatorContext context, HashJoinPOP popConfig) throws OutOfMemoryException {
+  public VectorizedHashJoinOperator(OperatorContext context, HashJoinPOP popConfig)
+      throws OutOfMemoryException {
     this.context = context;
     this.config = popConfig;
     this.joinType = popConfig.getJoinType();
     this.outgoing = new VectorContainer(context.getAllocator());
-    final Set<Integer> allMinorFragments = context.getAssignments().stream().flatMap(a -> a.getMinorFragmentIdList().stream())
-              .collect(Collectors.toSet()); // all minor fragments across all assignments
-    this.runtimeFilterEnabled = RuntimeFilterUtil.shouldFragBuildRuntimeFilters(
-      config.getRuntimeFilterInfo(), context.getFragmentHandle().getMinorFragmentId());
-    this.filterManager = new RuntimeFilterManager(context.getAllocator(),
-      RuntimeFilterUtil.getRuntimeValFilterCap(context), allMinorFragments);
+    final Set<Integer> allMinorFragments =
+        context.getAssignments().stream()
+            .flatMap(a -> a.getMinorFragmentIdList().stream())
+            .collect(Collectors.toSet()); // all minor fragments across all assignments
+    this.runtimeFilterEnabled =
+        RuntimeFilterUtil.shouldFragBuildRuntimeFilters(
+            config.getRuntimeFilterInfo(), context.getFragmentHandle().getMinorFragmentId());
+    this.filterManager =
+        new RuntimeFilterManager(
+            context.getAllocator(),
+            RuntimeFilterUtil.getRuntimeValFilterCap(context),
+            allMinorFragments);
   }
 
   @Override
@@ -198,19 +204,22 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
      * Only for VECTORIZED_GENERIC
      */
     final List<FieldVector> probeKeyFieldVectorList = new ArrayList<>();
-    for (int i = 0;i < right.getSchema().getFieldCount(); i++) {
+    for (int i = 0; i < right.getSchema().getFieldCount(); i++) {
       probeKeyFieldVectorList.add(null);
     }
 
-    Mode mode = context.getOptions().getOption(ExecConstants.ENABLE_VECTORIZED_HASHJOIN_SPECIFIC) ? Mode.VECTORIZED_BIGINT : Mode.VECTORIZED_GENERIC;
+    Mode mode =
+        context.getOptions().getOption(ExecConstants.ENABLE_VECTORIZED_HASHJOIN_SPECIFIC)
+            ? Mode.VECTORIZED_BIGINT
+            : Mode.VECTORIZED_GENERIC;
     int fieldIndex = 0;
 
-    if(config.getConditions().size() != 1){
+    if (config.getConditions().size() != 1) {
       mode = Mode.VECTORIZED_GENERIC;
     }
 
     boolean isEqualForNullKey = false;
-    for(JoinCondition c : config.getConditions()){
+    for (JoinCondition c : config.getConditions()) {
       final FieldVector build = getField(right, c.getRight());
       buildFields.add(new FieldVectorPair(build, build));
       final FieldVector probe = getField(left, c.getLeft());
@@ -231,26 +240,26 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
       /* Collect the build side keys in output, which will be used to create PivotDef for unpivot in projectBuildNonMatches
        * Only for VECTORIZED_GENERIC, we should do it because we don't know the final mode
        */
-      final FieldVector buildOutput = outgoing.getValueAccessorById(FieldVector.class, fieldId).getValueVector();
+      final FieldVector buildOutput =
+          outgoing.getValueAccessorById(FieldVector.class, fieldId).getValueVector();
       buildOutputFields.add(new FieldVectorPair(buildOutput, buildOutput));
 
       final Comparator joinComparator = JoinUtils.checkAndReturnSupportedJoinComparator(c);
-      switch(joinComparator){
-      case EQUALS:
-        requiredBits.set(fieldIndex);
-        break;
-      case IS_NOT_DISTINCT_FROM:
-        // null keys are equal
-        isEqualForNullKey = true;
-        break;
-      case NONE:
-        throw new UnsupportedOperationException();
-      default:
-        break;
-
+      switch (joinComparator) {
+        case EQUALS:
+          requiredBits.set(fieldIndex);
+          break;
+        case IS_NOT_DISTINCT_FROM:
+          // null keys are equal
+          isEqualForNullKey = true;
+          break;
+        case NONE:
+          throw new UnsupportedOperationException();
+        default:
+          break;
       }
 
-      switch(CompleteType.fromField(build.getField()).toMinorType()){
+      switch (CompleteType.fromField(build.getField()).toMinorType()) {
         case BIGINT:
         case DATE:
         case FLOAT8:
@@ -260,30 +269,29 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
         default:
           mode = Mode.VECTORIZED_GENERIC;
           break;
-
       }
       fieldIndex++;
     }
 
-    for(VectorWrapper<?> w : right){
+    for (VectorWrapper<?> w : right) {
       final FieldVector v = (FieldVector) w.getValueVector();
-      if(v instanceof VarBinaryVector || v instanceof VarCharVector){
+      if (v instanceof VarBinaryVector || v instanceof VarCharVector) {
         buildVectorsToValidate.add(v);
       }
     }
 
-    for(VectorWrapper<?> w : left){
+    for (VectorWrapper<?> w : left) {
       final FieldVector v = (FieldVector) w.getValueVector();
-      if(v instanceof VarBinaryVector || v instanceof VarCharVector){
+      if (v instanceof VarBinaryVector || v instanceof VarCharVector) {
         probeVectorsToValidate.add(v);
       }
     }
 
     int i = 0;
 
-    for(VectorWrapper<?> w : outgoing){
+    for (VectorWrapper<?> w : outgoing) {
       final FieldVector v = (FieldVector) w.getValueVector();
-      if(i < right.getSchema().getFieldCount()){
+      if (i < right.getSchema().getFieldCount()) {
         if ((mode == Mode.VECTORIZED_GENERIC) && isKeyBits.get(i)) {
           /* The corresponding field is key, so the fields in build side and probe side will
            * be added to probeIncomingKeys and buildOutputKeys. They will be used to create
@@ -309,37 +317,58 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
 
     this.comparator = new NullComparator(requiredBits, probePivot.getBitCount());
 
-    Preconditions.checkArgument(probePivot.getBlockWidth() == buildPivot.getBlockWidth(),
-      "Block width of build [%s] and probe pivots are not equal [%s].",
-      buildPivot.getBlockWidth(), probePivot.getBlockWidth());
-    Preconditions.checkArgument(probePivot.getVariableCount() == buildPivot.getVariableCount(),
-      "Variable column count of build [%s] and probe pivots are not equal [%s].",
-      buildPivot.getVariableCount(), probePivot.getVariableCount());
-    Preconditions.checkArgument(probePivot.getBitCount() == buildPivot.getBitCount(),
-      "Bit width of build [%s] and probe pivots are not equal [%s].",
-      buildPivot.getBitCount(), probePivot.getBitCount());
+    Preconditions.checkArgument(
+        probePivot.getBlockWidth() == buildPivot.getBlockWidth(),
+        "Block width of build [%s] and probe pivots are not equal [%s].",
+        buildPivot.getBlockWidth(),
+        probePivot.getBlockWidth());
+    Preconditions.checkArgument(
+        probePivot.getVariableCount() == buildPivot.getVariableCount(),
+        "Variable column count of build [%s] and probe pivots are not equal [%s].",
+        buildPivot.getVariableCount(),
+        probePivot.getVariableCount());
+    Preconditions.checkArgument(
+        probePivot.getBitCount() == buildPivot.getBitCount(),
+        "Bit width of build [%s] and probe pivots are not equal [%s].",
+        buildPivot.getBitCount(),
+        probePivot.getBitCount());
 
     this.mode = mode;
-    switch(mode){
+    switch (mode) {
       case VECTORIZED_BIGINT:
-        // For only one eight byte key, we keep key in hyper container, so we don't need to unpivot the key
+        // For only one eight byte key, we keep key in hyper container, so we don't need to unpivot
+        // the key
         this.buildUnpivot = null;
         // Create the hyper container that all the fields, including key, will be added
         hyperContainer = new ExpandableHyperContainer(context.getAllocator(), right.getSchema());
         // Create eight byte key hash table to improve the performance for only one eight byte key
-        this.table = new EightByteInnerLeftProbeOff(context.getAllocator(),
-          (int)context.getOptions().getOption(ExecConstants.MIN_HASH_TABLE_SIZE),
-          probePivot, buildPivot, isEqualForNullKey);
+        this.table =
+            new EightByteInnerLeftProbeOff(
+                context.getAllocator(),
+                (int) context.getOptions().getOption(ExecConstants.MIN_HASH_TABLE_SIZE),
+                probePivot,
+                buildPivot,
+                isEqualForNullKey);
         break;
       case VECTORIZED_GENERIC:
         // Create the PivotDef for unpivot in projectBuildNonMatches
         this.buildUnpivot = PivotBuilder.getBlockDefinition(buildOutputFields);
-        // Create the hyper container with isKeyBits that indicates which field is key and will not be added to hyper container
-        hyperContainer = new ExpandableHyperContainer(context.getAllocator(), right.getSchema(), isKeyBits);
+        // Create the hyper container with isKeyBits that indicates which field is key and will not
+        // be added to hyper container
+        hyperContainer =
+            new ExpandableHyperContainer(context.getAllocator(), right.getSchema(), isKeyBits);
         // Create generic hash table
-        this.table = new BlockJoinTable(buildPivot, probePivot, context.getAllocator(), comparator,
-          (int)context.getOptions().getOption(ExecConstants.MIN_HASH_TABLE_SIZE), INITIAL_VAR_FIELD_AVERAGE_SIZE,
-          context.getConfig(), context.getOptions(), runtimeFilterEnabled);
+        this.table =
+            new BlockJoinTable(
+                buildPivot,
+                probePivot,
+                context.getAllocator(),
+                comparator,
+                (int) context.getOptions().getOption(ExecConstants.MIN_HASH_TABLE_SIZE),
+                INITIAL_VAR_FIELD_AVERAGE_SIZE,
+                context.getConfig(),
+                context.getOptions(),
+                runtimeFilterEnabled);
         break;
       default:
         throw new UnsupportedOperationException();
@@ -352,21 +381,23 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
   }
 
   // Get ids for a field
-  private int[] getFieldIds(VectorAccessible accessible, LogicalExpression expr){
+  private int[] getFieldIds(VectorAccessible accessible, LogicalExpression expr) {
     final LogicalExpression materialized = context.getClassProducer().materialize(expr, accessible);
-    if(!(materialized instanceof ValueVectorReadExpression)){
+    if (!(materialized instanceof ValueVectorReadExpression)) {
       throw new IllegalStateException("Only direct references allowed.");
     }
     return ((ValueVectorReadExpression) materialized).getFieldId().getFieldIds();
   }
 
   // Get the field vector of a field
-  private FieldVector getField(VectorAccessible accessible, LogicalExpression expr){
-    return accessible.getValueAccessorById(FieldVector.class, getFieldIds(accessible, expr)).getValueVector();
+  private FieldVector getField(VectorAccessible accessible, LogicalExpression expr) {
+    return accessible
+        .getValueAccessorById(FieldVector.class, getFieldIds(accessible, expr))
+        .getValueVector();
   }
 
   // Get the id of a field
-  private int getFieldId(VectorAccessible accessible, LogicalExpression expr){
+  private int getFieldId(VectorAccessible accessible, LogicalExpression expr) {
     return getFieldIds(accessible, expr)[0];
   }
 
@@ -374,8 +405,9 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
   public void consumeDataRight(int records) throws Exception {
     state.is(State.CAN_CONSUME_R);
 
-    // ensure that none of the variable length vectors are corrupt so we can avoid doing bounds checking later.
-    for(FieldVector v : buildVectorsToValidate){
+    // ensure that none of the variable length vectors are corrupt so we can avoid doing bounds
+    // checking later.
+    for (FieldVector v : buildVectorsToValidate) {
       VariableLengthValidator.validateVariable(v, records);
     }
 
@@ -385,8 +417,9 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
     BuildInfo info = new BuildInfo(newLinksBuffer(records), records);
     buildInfoList.add(info);
 
-    try(ArrowBuf offsets = context.getAllocator().buffer(records * 4);
-        AutoCloseable traceBuf = debugInsertion ? table.traceStart(records) : AutoCloseables.noop()) {
+    try (ArrowBuf offsets = context.getAllocator().buffer(records * 4);
+        AutoCloseable traceBuf =
+            debugInsertion ? table.traceStart(records) : AutoCloseables.noop()) {
       table.insert(offsets, records);
 
       linkWatch.start();
@@ -405,7 +438,8 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
 
     if (buildBatchIndex < 0) {
       throw UserException.unsupportedError()
-          .message("HashJoin doesn't support more than %d (Integer.MAX_VALUE) number of batches on build side",
+          .message(
+              "HashJoin doesn't support more than %d (Integer.MAX_VALUE) number of batches on build side",
               Integer.MAX_VALUE)
           .build(logger);
     }
@@ -413,8 +447,10 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
     updateStats();
   }
 
-  private void setLinks(long indexAddr, final int buildBatch, final int records){
-    for (int incomingRecordIndex = 0; incomingRecordIndex < records; incomingRecordIndex++, indexAddr += 4) {
+  private void setLinks(long indexAddr, final int buildBatch, final int records) {
+    for (int incomingRecordIndex = 0;
+        incomingRecordIndex < records;
+        incomingRecordIndex++, indexAddr += 4) {
       final int hashTableIndex = PlatformDependent.getInt(indexAddr);
 
       if (hashTableIndex == -1) {
@@ -431,7 +467,7 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
        * denotes the global index where the key for this record is
        * stored in the hash table
        */
-      int hashTableBatch  = hashTableIndex >>> 16;
+      int hashTableBatch = hashTableIndex >>> 16;
       int hashTableOffset = hashTableIndex & BATCH_MASK;
 
       if (hashTableIndex > maxHashTableIndex) {
@@ -444,7 +480,8 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
       }
 
       ArrowBuf startIndex = startIndices.get(hashTableBatch);
-      final long startIndexMemStart = startIndex.memoryAddress() + hashTableOffset * HashTable.BUILD_RECORD_LINK_SIZE;
+      final long startIndexMemStart =
+          startIndex.memoryAddress() + hashTableOffset * HashTable.BUILD_RECORD_LINK_SIZE;
 
       // If head of the list is empty, insert current index at this position
       final int linkBatch = PlatformDependent.getInt(startIndexMemStart);
@@ -460,7 +497,8 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
         hashTableOffset = Short.toUnsignedInt(PlatformDependent.getShort(startIndexMemStart + 4));
 
         final ArrowBuf firstLink = buildInfoList.get(hashTableBatch).getLinks();
-        final long firstLinkMemStart = firstLink.memoryAddress() + hashTableOffset * HashTable.BUILD_RECORD_LINK_SIZE;
+        final long firstLinkMemStart =
+            firstLink.memoryAddress() + hashTableOffset * HashTable.BUILD_RECORD_LINK_SIZE;
 
         final int firstLinkBatch = PlatformDependent.getInt(firstLinkMemStart);
 
@@ -471,10 +509,12 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
           /* Insert the current value as the first link and
            * make the current first link as its next
            */
-          final int firstLinkOffset = Short.toUnsignedInt(PlatformDependent.getShort(firstLinkMemStart + 4));
+          final int firstLinkOffset =
+              Short.toUnsignedInt(PlatformDependent.getShort(firstLinkMemStart + 4));
 
           final ArrowBuf nextLink = buildInfoList.get(buildBatch).getLinks();
-          final long nextLinkMemStart = nextLink.memoryAddress() + incomingRecordIndex * HashTable.BUILD_RECORD_LINK_SIZE;
+          final long nextLinkMemStart =
+              nextLink.memoryAddress() + incomingRecordIndex * HashTable.BUILD_RECORD_LINK_SIZE;
 
           PlatformDependent.putInt(nextLinkMemStart, firstLinkBatch);
           PlatformDependent.putShort(nextLinkMemStart + 4, (short) firstLinkOffset);
@@ -489,32 +529,34 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
   }
 
   @VisibleForTesting
-  public void updateStats(){
+  public void updateStats() {
     final TimeUnit ns = TimeUnit.NANOSECONDS;
     final OperatorStats stats = context.getStats();
 
     if (table != null) {
       stats.setLongStat(Metric.NUM_ENTRIES, table.size());
-      stats.setLongStat(Metric.NUM_BUCKETS,  table.capacity());
+      stats.setLongStat(Metric.NUM_BUCKETS, table.capacity());
       stats.setLongStat(Metric.NUM_RESIZING, table.getRehashCount());
       stats.setLongStat(Metric.RESIZING_TIME_NANOS, table.getRehashTime(ns));
       stats.setLongStat(Metric.PIVOT_TIME_NANOS, table.getBuildPivotTime(ns));
-      stats.setLongStat(Metric.INSERT_TIME_NANOS, table.getInsertTime(ns) - table.getRehashTime(ns));
+      stats.setLongStat(
+          Metric.INSERT_TIME_NANOS, table.getInsertTime(ns) - table.getRehashTime(ns));
       stats.setLongStat(Metric.HASHCOMPUTATION_TIME_NANOS, table.getBuildHashComputationTime(ns));
       stats.setLongStat(Metric.RUNTIME_FILTER_DROP_COUNT, filterManager.getFilterDropCount());
-      stats.setLongStat(Metric.RUNTIME_COL_FILTER_DROP_COUNT, filterManager.getSubFilterDropCount());
+      stats.setLongStat(
+          Metric.RUNTIME_COL_FILTER_DROP_COUNT, filterManager.getSubFilterDropCount());
 
       stats.setLongStat(Metric.PROBE_PIVOT_NANOS, table.getProbePivotTime(ns));
       stats.setLongStat(Metric.PROBE_FIND_NANOS, table.getProbeFindTime(ns));
-      stats.setLongStat(Metric.PROBE_HASHCOMPUTATION_TIME_NANOS, table.getProbeHashComputationTime(ns));
-
+      stats.setLongStat(
+          Metric.PROBE_HASHCOMPUTATION_TIME_NANOS, table.getProbeHashComputationTime(ns));
     }
 
     stats.setLongStat(Metric.VECTORIZED, mode.ordinal());
     stats.setLongStat(Metric.LINK_TIME_NANOS, linkWatch.elapsed(ns));
     stats.setLongStat(Metric.DUPLICATE_BUILD_RECORD_COUNT, duplicateBuildRecordCount);
 
-    if(probe != null){
+    if (probe != null) {
       stats.setLongStat(Metric.PROBE_LIST_NANOS, probe.getProbeListTime());
       stats.setLongStat(Metric.PROBE_COPY_NANOS, probe.getProbeCopyTime());
       stats.setLongStat(Metric.BUILD_COPY_NANOS, probe.getBuildCopyTime());
@@ -525,7 +567,8 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
       stats.setLongStat(Metric.OUTPUT_RECORDS, outputRecords);
 
       stats.setLongStat(Metric.EXTRA_CONDITION_EVALUATION_COUNT, probe.getEvaluationCount());
-      stats.setLongStat(Metric.EXTRA_CONDITION_EVALUATION_MATCHED, probe.getEvaluationMatchedCount());
+      stats.setLongStat(
+          Metric.EXTRA_CONDITION_EVALUATION_MATCHED, probe.getEvaluationMatchedCount());
       stats.setLongStat(Metric.EXTRA_CONDITION_SETUP_NANOS, probe.getSetupNanos());
     }
   }
@@ -534,7 +577,8 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
   public void noMoreToConsumeRight() throws Exception {
     state.is(State.CAN_CONSUME_R);
 
-    if (runtimeFilterEnabled && (!config.getRuntimeFilterInfo().isBroadcastJoin() || table.size() > 0)) {
+    if (runtimeFilterEnabled
+        && (!config.getRuntimeFilterInfo().isBroadcastJoin() || table.size() > 0)) {
       // for shuffled hash join case, need push runtime filer even though build side
       // size is 0, because merge points are waiting for runtime filter pieces from all
       // siblings.
@@ -573,8 +617,9 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
   public void consumeDataLeft(int records) throws Exception {
     state.is(State.CAN_CONSUME_L);
 
-    // ensure that none of the variable length vectors are corrupt so we can avoid doing bounds checking later.
-    for(FieldVector v : probeVectorsToValidate){
+    // ensure that none of the variable length vectors are corrupt so we can avoid doing bounds
+    // checking later.
+    for (FieldVector v : probeVectorsToValidate) {
       VariableLengthValidator.validateVariable(v, records);
     }
 
@@ -587,7 +632,7 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
 
     updateStats();
 
-    if(!finishedProbe){
+    if (!finishedProbe) {
       final int probedRecords = probe.probeBatch(left.getRecordCount());
       outputRecords += Math.abs(probedRecords);
       if (probedRecords > -1) {
@@ -616,7 +661,7 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
     state.is(State.CAN_CONSUME_L);
 
     finishedProbe = true;
-    if(joinType == JoinRelType.FULL || joinType == JoinRelType.RIGHT){
+    if (joinType == JoinRelType.FULL || joinType == JoinRelType.RIGHT) {
       // if we need to project build records that didn't match, make sure we do so.
       state = State.CAN_PRODUCE;
     } else {
@@ -624,16 +669,17 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
     }
   }
 
-
   public ArrowBuf newLinksBuffer(int recordCount) {
     // Each link is 6 bytes.
-    // First 4 bytes are used to identify the batch and remaining 2 bytes for record within the batch.
-    final ArrowBuf linkBuf = context.getAllocator().buffer(recordCount * HashTable.BUILD_RECORD_LINK_SIZE);
+    // First 4 bytes are used to identify the batch and remaining 2 bytes for record within the
+    // batch.
+    final ArrowBuf linkBuf =
+        context.getAllocator().buffer(recordCount * HashTable.BUILD_RECORD_LINK_SIZE);
 
     // Initialize the buffer. Write -1 (int) in the first four bytes.
     long bufOffset = linkBuf.memoryAddress();
     final long maxBufOffset = bufOffset + recordCount * HashTable.BUILD_RECORD_LINK_SIZE;
-    for(; bufOffset < maxBufOffset; bufOffset += HashTable.BUILD_RECORD_LINK_SIZE) {
+    for (; bufOffset < maxBufOffset; bufOffset += HashTable.BUILD_RECORD_LINK_SIZE) {
       PlatformDependent.putInt(bufOffset, INDEX_EMPTY);
     }
 
@@ -641,26 +687,36 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
   }
 
   @Override
-  public <OUT, IN, EXCEP extends Throwable> OUT accept(OperatorVisitor<OUT, IN, EXCEP> visitor, IN value) throws EXCEP {
+  public <OUT, IN, EXCEP extends Throwable> OUT accept(
+      OperatorVisitor<OUT, IN, EXCEP> visitor, IN value) throws EXCEP {
     return visitor.visitDualInput(this, value);
   }
 
   @VisibleForTesting
   public PartitionColFilters createPartitionColFilters() {
-    final long bloomFilterSize = config.getRuntimeFilterInfo().isBroadcastJoin() ?
-      Math.min(BloomFilter.getOptimalSize(table.size()), BLOOMFILTER_MAX_SIZE) : BLOOMFILTER_MAX_SIZE;
+    final long bloomFilterSize =
+        config.getRuntimeFilterInfo().isBroadcastJoin()
+            ? Math.min(BloomFilter.getOptimalSize(table.size()), BLOOMFILTER_MAX_SIZE)
+            : BLOOMFILTER_MAX_SIZE;
     final int maxKeySize = RuntimeFilterUtil.getRuntimeFilterKeyMaxSize(context);
 
-    return new PartitionColFilters(context.getAllocator(), config.getRuntimeFilterInfo().getRuntimeFilterProbeTargets(),
-      buildPivot, bloomFilterSize, maxKeySize);
+    return new PartitionColFilters(
+        context.getAllocator(),
+        config.getRuntimeFilterInfo().getRuntimeFilterProbeTargets(),
+        buildPivot,
+        bloomFilterSize,
+        maxKeySize);
   }
 
   @VisibleForTesting
   public NonPartitionColFilters createNonPartitionColFilters() {
     final int maxElements = RuntimeFilterUtil.getRuntimeValFilterCap(context);
 
-    return new NonPartitionColFilters(context.getAllocator(),
-      config.getRuntimeFilterInfo().getRuntimeFilterProbeTargets(), buildPivot, maxElements);
+    return new NonPartitionColFilters(
+        context.getAllocator(),
+        config.getRuntimeFilterInfo().getRuntimeFilterProbeTargets(),
+        buildPivot,
+        maxElements);
   }
 
   protected void tryPushRuntimeFilter() {
@@ -693,8 +749,13 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
     try {
       /* Step 5. Prepare and send runtimeFilters to scan operator */
       logger.debug("Preparing and sending runtimeFilters...");
-      RuntimeFilterUtil.prepareAndSendRuntimeFilters(filterManager, config.getRuntimeFilterInfo(),
-        partitionColFilters, nonPartitionColFilters, context, config);
+      RuntimeFilterUtil.prepareAndSendRuntimeFilters(
+          filterManager,
+          config.getRuntimeFilterInfo(),
+          partitionColFilters,
+          nonPartitionColFilters,
+          context,
+          config);
     } catch (Exception e) {
       // This is just an optimisation. Hence, we don't throw the error further.
       logger.warn("Error while processing runtime join filter", e);
@@ -705,10 +766,11 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
        */
       try {
         filterTime.stop();
-        logger.debug("Time taken for preparation of join runtime filter at major fragment {}, minor fragment {} is {}ms",
-          context.getFragmentHandle().getMajorFragmentId(),
-          context.getFragmentHandle().getMinorFragmentId(),
-          filterTime.elapsed(TimeUnit.MILLISECONDS));
+        logger.debug(
+            "Time taken for preparation of join runtime filter at major fragment {}, minor fragment {} is {}ms",
+            context.getFragmentHandle().getMajorFragmentId(),
+            context.getFragmentHandle().getMinorFragmentId(),
+            filterTime.elapsed(TimeUnit.MILLISECONDS));
       } catch (RuntimeException e) {
         logger.debug("Error while recording the time for runtime filter preparation", e);
       }

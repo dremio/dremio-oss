@@ -15,28 +15,24 @@
  */
 package com.dremio.exec.store.easy.excel.xls.poi;
 
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Set;
-
-import org.apache.poi.poifs.filesystem.Entry;
-
 import com.dremio.exec.store.easy.excel.xls.BlockStore;
 import com.dremio.exec.store.easy.excel.xls.properties.DirectoryProperty;
 import com.dremio.exec.store.easy.excel.xls.properties.DocumentProperty;
 import com.dremio.exec.store.easy.excel.xls.properties.Property;
 import com.google.common.collect.Maps;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Set;
+import org.apache.poi.poifs.filesystem.Entry;
 
-/**
- * Simplified implementation of {@link org.apache.poi.poifs.filesystem.DirectoryNode}
- */
+/** Simplified implementation of {@link org.apache.poi.poifs.filesystem.DirectoryNode} */
 public class DirectoryNode extends EntryNode {
 
-
   // Map of Entry instances, keyed by their names
-  private final Map<String,Entry> byname = Maps.newHashMap();
+  private final Map<String, Entry> byname = Maps.newHashMap();
 
-  public DirectoryNode(final DirectoryProperty property, DirectoryNode parent, final BlockStore blockStore) {
+  public DirectoryNode(
+      final DirectoryProperty property, DirectoryNode parent, final BlockStore blockStore) {
     super(property, parent);
 
     Iterator<Property> iter = property.getChildren();
@@ -53,7 +49,6 @@ public class DirectoryNode extends EntryNode {
       }
       byname.put(childNode.getName(), childNode);
     }
-
   }
 
   public Set<String> getEntryNames() {
@@ -64,13 +59,10 @@ public class DirectoryNode extends EntryNode {
    * get a specified Entry by name
    *
    * @param name the name of the Entry to obtain.
-   *
-   * @return the specified Entry, if it is directly contained in
-   *         this DirectoryEntry
-   *
-   * @exception IllegalStateException if no Entry with the specified name exists in this DirectoryEntry
+   * @return the specified Entry, if it is directly contained in this DirectoryEntry
+   * @exception IllegalStateException if no Entry with the specified name exists in this
+   *     DirectoryEntry
    */
-
   public Entry getEntry(final String name) {
     Entry rval = null;
 
@@ -82,5 +74,4 @@ public class DirectoryNode extends EntryNode {
     }
     return rval;
   }
-
 }

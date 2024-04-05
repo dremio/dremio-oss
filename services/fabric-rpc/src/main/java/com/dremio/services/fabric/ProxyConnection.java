@@ -15,8 +15,6 @@
  */
 package com.dremio.services.fabric;
 
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.exec.rpc.RemoteConnection;
 import com.dremio.exec.rpc.RpcConfig;
 import com.dremio.exec.rpc.RpcException;
@@ -27,16 +25,16 @@ import com.dremio.services.fabric.proto.FabricProto.RpcType;
 import com.google.protobuf.Internal.EnumLite;
 import com.google.protobuf.MessageLite;
 import com.google.protobuf.Parser;
-
 import io.netty.buffer.ByteBuf;
+import org.apache.arrow.memory.BufferAllocator;
 
 /**
- * An artificial connection that allows us to reuse the command model for
- * existing users of that model but pass through a conversion layer to be used
- * for messaging.
+ * An artificial connection that allows us to reuse the command model for existing users of that
+ * model but pass through a conversion layer to be used for messaging.
  */
 public class ProxyConnection extends RemoteConnection {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ProxyConnection.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ProxyConnection.class);
 
   private final RpcConfig rpcConfig;
   private final FabricConnection connection;
@@ -61,7 +59,12 @@ public class ProxyConnection extends RemoteConnection {
       Class<RECEIVE> clazz,
       ByteBuf... dataBodies) {
     assert rpcConfig.checkSend(rpcType, protobufBody.getClass(), clazz);
-    connection.send(new ProxyListener<RECEIVE>(outcomeListener), RpcType.MESSAGE, msg(rpcType, protobufBody), FabricMessage.class, dataBodies);
+    connection.send(
+        new ProxyListener<RECEIVE>(outcomeListener),
+        RpcType.MESSAGE,
+        msg(rpcType, protobufBody),
+        FabricMessage.class,
+        dataBodies);
   }
 
   public <SEND extends MessageLite, RECEIVE extends MessageLite> void sendUnsafe(
@@ -71,10 +74,15 @@ public class ProxyConnection extends RemoteConnection {
       Class<RECEIVE> clazz,
       ByteBuf... dataBodies) {
     assert rpcConfig.checkSend(rpcType, protobufBody.getClass(), clazz);
-    connection.sendUnsafe(new ProxyListener<RECEIVE>(outcomeListener), RpcType.MESSAGE, msg(rpcType, protobufBody), FabricMessage.class, dataBodies);
+    connection.sendUnsafe(
+        new ProxyListener<RECEIVE>(outcomeListener),
+        RpcType.MESSAGE,
+        msg(rpcType, protobufBody),
+        FabricMessage.class,
+        dataBodies);
   }
 
-  private <SEND extends MessageLite> FabricMessage msg(EnumLite rpcType, SEND protobufBody){
+  private <SEND extends MessageLite> FabricMessage msg(EnumLite rpcType, SEND protobufBody) {
     return FabricMessage.newBuilder()
         .setProtocolId(protocol.getProtocolId())
         .setInnerRpcType(rpcType.getNumber())
@@ -98,13 +106,13 @@ public class ProxyConnection extends RemoteConnection {
     @SuppressWarnings("unchecked")
     @Override
     public void success(FabricMessage value, ByteBuf buffer) {
-      try{
+      try {
         MessageLite m = protocol.getResponseDefaultInstance(value.getInnerRpcType());
         assert rpcConfig.checkReceive(value.getInnerRpcType(), m.getClass());
         Parser<?> parser = m.getParserForType();
         Object convertedValue = parser.parseFrom(value.getMessage());
         innerListener.success((RECEIVE) convertedValue, buffer);
-      }catch(Exception ex){
+      } catch (Exception ex) {
         logger.error("Failure", ex);
         innerListener.failed(new RpcException(ex));
       }
@@ -114,6 +122,5 @@ public class ProxyConnection extends RemoteConnection {
     public void interrupted(InterruptedException e) {
       innerListener.interrupted(e);
     }
-
   }
 }

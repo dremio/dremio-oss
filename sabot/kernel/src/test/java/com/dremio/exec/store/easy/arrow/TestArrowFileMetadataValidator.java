@@ -19,13 +19,11 @@ import static com.dremio.exec.store.easy.arrow.ArrowFileReader.toBean;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import java.util.Collections;
-
-import org.junit.Test;
-
 import com.dremio.common.types.TypeProtos;
 import com.dremio.common.types.Types;
 import com.dremio.exec.proto.beans.SerializedField;
+import java.util.Collections;
+import org.junit.Test;
 
 public class TestArrowFileMetadataValidator {
 
@@ -38,8 +36,8 @@ public class TestArrowFileMetadataValidator {
   @Test
   public void testContainsUnionWithSingleUnionField() {
     // arrange
-    final SerializedField unionField = new SerializedField().setMajorType(
-      toBean(Types.required(TypeProtos.MinorType.UNION)));
+    final SerializedField unionField =
+        new SerializedField().setMajorType(toBean(Types.required(TypeProtos.MinorType.UNION)));
 
     // assert
     assertTrue(ArrowFileMetadataValidator.containsUnion(unionField));
@@ -48,8 +46,8 @@ public class TestArrowFileMetadataValidator {
   @Test
   public void testContainsUnionWithSingleNonUnionField() {
     // arrange
-    final SerializedField nonUnionField = new SerializedField().setMajorType(
-      toBean(Types.required(TypeProtos.MinorType.BIGINT)));
+    final SerializedField nonUnionField =
+        new SerializedField().setMajorType(toBean(Types.required(TypeProtos.MinorType.BIGINT)));
 
     // assert
     assertFalse(ArrowFileMetadataValidator.containsUnion(nonUnionField));
@@ -58,10 +56,10 @@ public class TestArrowFileMetadataValidator {
   @Test
   public void testContainsUnionWithParentUnionField() {
     // arrange
-    final SerializedField parentUnionField = new SerializedField().setMajorType(
-      toBean(Types.required(TypeProtos.MinorType.UNION)));
-    final SerializedField childNonUnionField = new SerializedField().setMajorType(
-      toBean(Types.required(TypeProtos.MinorType.INT)));
+    final SerializedField parentUnionField =
+        new SerializedField().setMajorType(toBean(Types.required(TypeProtos.MinorType.UNION)));
+    final SerializedField childNonUnionField =
+        new SerializedField().setMajorType(toBean(Types.required(TypeProtos.MinorType.INT)));
     parentUnionField.setChildList(Collections.singletonList(childNonUnionField));
 
     // assert
@@ -71,10 +69,10 @@ public class TestArrowFileMetadataValidator {
   @Test
   public void testContainsUnionWithChildUnionField() {
     // arrange
-    final SerializedField parentNonUnionField = new SerializedField().setMajorType(
-      toBean(Types.required(TypeProtos.MinorType.VARCHAR)));
-    final SerializedField childUnionField = new SerializedField().setMajorType(
-      toBean(Types.required(TypeProtos.MinorType.UNION)));
+    final SerializedField parentNonUnionField =
+        new SerializedField().setMajorType(toBean(Types.required(TypeProtos.MinorType.VARCHAR)));
+    final SerializedField childUnionField =
+        new SerializedField().setMajorType(toBean(Types.required(TypeProtos.MinorType.UNION)));
     parentNonUnionField.setChildList(Collections.singletonList(childUnionField));
 
     // assert

@@ -15,21 +15,6 @@
  */
 package com.dremio.service.functions;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.FileAlreadyExistsException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.Set;
-import java.util.stream.Collectors;
-
-import org.apache.calcite.sql.SqlFunction;
-import org.apache.calcite.sql.SqlOperatorTable;
-import org.junit.Assert;
-import org.junit.Test;
-
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.scanner.ClassPathScanner;
 import com.dremio.common.scanner.persistence.ScanResult;
@@ -51,36 +36,50 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
 import com.google.common.io.Resources;
+import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.FileAlreadyExistsException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Set;
+import java.util.stream.Collectors;
+import org.apache.calcite.sql.SqlFunction;
+import org.apache.calcite.sql.SqlOperatorTable;
+import org.junit.Assert;
+import org.junit.Test;
 
 /**
- * Test to assert that all the functions in the system are in one of two states:
- * 1) Documented
- * 2) To Be Documented
+ * Test to assert that all the functions in the system are in one of two states: 1) Documented 2) To
+ * Be Documented
  *
- * If a new function is detected, then we create a yaml spec for it and the developer is responsible for one of:
- * 1) Documenting the function and moving it to function_specs/documented or
+ * <p>If a new function is detected, then we create a yaml spec for it and the developer is
+ * responsible for one of: 1) Documenting the function and moving it to function_specs/documented or
  * 2) Just moving the function to function_specs/undocumented and let the doc writers know.
  */
 public final class FunctionListCoverageTest {
   private static final SabotConfig SABOT_CONFIG = SabotConfig.create();
   private static final ScanResult SCAN_RESULT = ClassPathScanner.fromPrescan(SABOT_CONFIG);
-  private static final FunctionImplementationRegistry FUNCTION_IMPLEMENTATION_REGISTRY = FunctionImplementationRegistry.create(
-    SABOT_CONFIG,
-    SCAN_RESULT);
-  private static final SqlOperatorTable OPERATOR_TABLE = DremioCompositeSqlOperatorTable.create(FUNCTION_IMPLEMENTATION_REGISTRY);
+  private static final FunctionImplementationRegistry FUNCTION_IMPLEMENTATION_REGISTRY =
+      FunctionImplementationRegistry.create(SABOT_CONFIG, SCAN_RESULT);
+  private static final SqlOperatorTable OPERATOR_TABLE =
+      DremioCompositeSqlOperatorTable.create(FUNCTION_IMPLEMENTATION_REGISTRY);
 
-  private static final FunctionFactory FUNCTION_FACTORY = FunctionFactory.makeFunctionFactory(OPERATOR_TABLE);
+  private static final FunctionFactory FUNCTION_FACTORY =
+      FunctionFactory.makeFunctionFactory(OPERATOR_TABLE);
 
-  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper(
-      new YAMLFactory()
-        .disable(YAMLGenerator.Feature.SPLIT_LINES)
-        .disable(YAMLGenerator.Feature.CANONICAL_OUTPUT)
-        .enable(YAMLGenerator.Feature.INDENT_ARRAYS))
-    .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
-      .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
-      .registerModule(new JavaTimeModule())
-    .registerModule(new GuavaModule())
-    .registerModule(new Jdk8Module());
+  private static final ObjectMapper OBJECT_MAPPER =
+      new ObjectMapper(
+              new YAMLFactory()
+                  .disable(YAMLGenerator.Feature.SPLIT_LINES)
+                  .disable(YAMLGenerator.Feature.CANONICAL_OUTPUT)
+                  .enable(YAMLGenerator.Feature.INDENT_ARRAYS))
+          .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
+          .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+          .registerModule(new JavaTimeModule())
+          .registerModule(new GuavaModule())
+          .registerModule(new Jdk8Module());
 
   @Test
   public void assertCoverage() throws IOException {
@@ -91,65 +90,61 @@ public final class FunctionListCoverageTest {
       Assert.assertNull(reason);
     }
 
-    // These are functions that are new to the system and need to be documented or at least marked as undocumented.
+    // These are functions that are new to the system and need to be documented or at least marked
+    // as undocumented.
     Set<String> newToSystem = Sets.difference(allFunctions, knownFunctions);
     if (!newToSystem.isEmpty()) {
       for (String name : newToSystem) {
-        Function functionSpec = FunctionMerger
-          .merge(
-            OPERATOR_TABLE
-              .getOperatorList()
-              .stream()
-              .filter(sqlOperator -> sqlOperator instanceof SqlFunction)
-              .map(sqlOperator -> (SqlFunction) sqlOperator)
-              .filter(sqlFunction -> sqlFunction.getName().equalsIgnoreCase(name))
-              .map(FUNCTION_FACTORY::fromSqlFunction)
-              .collect(ImmutableList.toImmutableList()));
+        Function functionSpec =
+            FunctionMerger.merge(
+                OPERATOR_TABLE.getOperatorList().stream()
+                    .filter(sqlOperator -> sqlOperator instanceof SqlFunction)
+                    .map(sqlOperator -> (SqlFunction) sqlOperator)
+                    .filter(sqlFunction -> sqlFunction.getName().equalsIgnoreCase(name))
+                    .map(FUNCTION_FACTORY::fromSqlFunction)
+                    .collect(ImmutableList.toImmutableList()));
         writeFunction(functionSpec);
       }
 
-      Assert.fail("" +
-        "Functions that are neither documented nor undocumented have been detected.\n" +
-        "Take the yaml files in services/functions/target/missing_function_specs \n" +
-        "and move to either services/functions/src/main/resources/function_specs/documented \n" +
-        "or services/functions/src/main/resources/function_specs/undocumented.\n" +
-        "The following are new to the system: " + String.join("\n", newToSystem.stream().sorted().collect(Collectors.toList())));
+      Assert.fail(
+          ""
+              + "Functions that are neither documented nor undocumented have been detected.\n"
+              + "Take the yaml files in services/functions/target/missing_function_specs \n"
+              + "and move to either services/functions/src/main/resources/function_specs/documented \n"
+              + "or services/functions/src/main/resources/function_specs/undocumented.\n"
+              + "The following are new to the system: "
+              + String.join("\n", newToSystem.stream().sorted().collect(Collectors.toList())));
     }
   }
 
   private static Set<String> getAllFunctions() {
-    return OPERATOR_TABLE
-      .getOperatorList()
-      .stream()
-      .filter(sqlOperator -> sqlOperator instanceof SqlFunction)
-      .map(sqlOperator -> (SqlFunction) sqlOperator)
-      .map(sqlOperator -> sqlOperator.getName().toUpperCase())
-      .filter(functionName -> !ExcludedFunctions.shouldExcludeFunction(functionName))
-      .collect(Collectors.toSet());
+    return OPERATOR_TABLE.getOperatorList().stream()
+        .filter(sqlOperator -> sqlOperator instanceof SqlFunction)
+        .map(sqlOperator -> (SqlFunction) sqlOperator)
+        .map(sqlOperator -> sqlOperator.getName().toUpperCase())
+        .filter(functionName -> !ExcludedFunctions.shouldExcludeFunction(functionName))
+        .collect(Collectors.toSet());
   }
 
   private static void writeFunction(Function functionSpec) throws IOException {
     functionSpec = populateDefaults(functionSpec);
 
-    Path missingFunctionSpecPath = Paths.get("target",
-      "missing_function_specs",
-      functionSpec.getName() + ".yaml");
+    Path missingFunctionSpecPath =
+        Paths.get("target", "missing_function_specs", functionSpec.getName() + ".yaml");
 
     try {
       Files.createDirectories(missingFunctionSpecPath.getParent());
     } catch (FileAlreadyExistsException exception) {
-      //Do nothing
+      // Do nothing
     }
 
     try {
       Files.createFile(Files.createFile(missingFunctionSpecPath));
     } catch (FileAlreadyExistsException exception) {
-      //Do nothing
+      // Do nothing
     }
 
-    OBJECT_MAPPER.writeValue(
-      new File(missingFunctionSpecPath.toUri().getPath()),
-      functionSpec);
+    OBJECT_MAPPER.writeValue(new File(missingFunctionSpecPath.toUri().getPath()), functionSpec);
 
     // Prepend the license header
     Path LICENSE_HEADER_PATH = Paths.get(Resources.getResource("goldenfiles/header.txt").getPath());
@@ -161,43 +156,37 @@ public final class FunctionListCoverageTest {
 
   private static Function populateDefaults(Function function) {
     return Function.builder()
-      .name(function.getName())
-      .addAllSignatures(
-        function
-          .getSignatures()
-          .stream()
-          .map(FunctionListCoverageTest::populateDefaults)
-          .collect(Collectors.toList()))
-      .description("<DESCRIPTION GOES HERE>")
-      .functionCategories(ImmutableList.of())
-      .build();
+        .name(function.getName())
+        .addAllSignatures(
+            function.getSignatures().stream()
+                .map(FunctionListCoverageTest::populateDefaults)
+                .collect(Collectors.toList()))
+        .description("<DESCRIPTION GOES HERE>")
+        .functionCategories(ImmutableList.of())
+        .build();
   }
 
   private static FunctionSignature populateDefaults(FunctionSignature functionSignature) {
     return FunctionSignature.builder()
-      .returnType(functionSignature.getReturnType())
-      .addAllParameters(
-        functionSignature
-          .getParameters()
-          .stream()
-          .map(FunctionListCoverageTest::populateDefaults)
-          .collect(Collectors.toList()))
-      .description("<DESCRIPTION GOES HERE>")
-      .sampleCodes(
-        ImmutableList.of(
-          SampleCode.create(
-            "<SAMPLE CALL GOES HERE>",
-            "<SAMPLE RETURN GOES HERE>")))
-      .build();
+        .returnType(functionSignature.getReturnType())
+        .addAllParameters(
+            functionSignature.getParameters().stream()
+                .map(FunctionListCoverageTest::populateDefaults)
+                .collect(Collectors.toList()))
+        .description("<DESCRIPTION GOES HERE>")
+        .sampleCodes(
+            ImmutableList.of(
+                SampleCode.create("<SAMPLE CALL GOES HERE>", "<SAMPLE RETURN GOES HERE>")))
+        .build();
   }
 
   private static Parameter populateDefaults(Parameter parameter) {
     return Parameter.builder()
-      .kind(parameter.getKind())
-      .type(parameter.getType())
-      .name("<PARAMETER NAME GOES HERE>")
-      .format("<PARAMETER FORMAT GOES HERE>")
-      .description("<PARAMETER DESCRIPTION GOES HERE>")
-      .build();
+        .kind(parameter.getKind())
+        .type(parameter.getType())
+        .name("<PARAMETER NAME GOES HERE>")
+        .format("<PARAMETER FORMAT GOES HERE>")
+        .description("<PARAMETER DESCRIPTION GOES HERE>")
+        .build();
   }
 }

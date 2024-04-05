@@ -22,15 +22,16 @@ import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.sabot.threads.SendingMonitor;
 
 /**
- * Wrapper around a {@link com.dremio.sabot.rpc.user.UserRPCServer.UserClientConnection} that tracks the status of batches
- * sent to User.
+ * Wrapper around a {@link com.dremio.sabot.rpc.user.UserRPCServer.UserClientConnection} that tracks
+ * the status of batches sent to User.
  */
 public class AccountingCoordinatorConnection {
   private final AttemptObserver observer;
   private final SendingMonitor sendMonitor;
   private final RpcOutcomeListener<Ack> statusHandler;
 
-  public AccountingCoordinatorConnection(AttemptObserver observer, SendingMonitor sendMonitor, RpcOutcomeListener<Ack> statusHandler) {
+  public AccountingCoordinatorConnection(
+      AttemptObserver observer, SendingMonitor sendMonitor, RpcOutcomeListener<Ack> statusHandler) {
     this.observer = observer;
     this.sendMonitor = sendMonitor;
     this.statusHandler = statusHandler;

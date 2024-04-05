@@ -15,8 +15,6 @@
  */
 package com.dremio.sabot.op.receiver;
 
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.common.config.SabotConfig;
 import com.dremio.exec.planner.fragment.EndpointsIndex;
 import com.dremio.exec.proto.CoordExecRPC.Collector;
@@ -26,18 +24,38 @@ import com.dremio.sabot.exec.fragment.FragmentWorkQueue;
 import com.dremio.sabot.exec.rpc.TunnelProvider;
 import com.dremio.sabot.threads.sharedres.SharedResourceGroup;
 import com.dremio.service.spill.SpillService;
+import org.apache.arrow.memory.BufferAllocator;
 
-public class MergingCollector extends AbstractDataCollector{
+public class MergingCollector extends AbstractDataCollector {
 
-  public MergingCollector(SharedResourceGroup resourceGroup, Collector collector, BufferAllocator allocator,
-                          SabotConfig config, OptionManager options, FragmentHandle handle,
-                          FragmentWorkQueue workQueue, TunnelProvider tunnelProvider, SpillService spillService, EndpointsIndex endpointsIndex) {
-    super(resourceGroup, false, collector, collector.getIncomingMinorFragmentIndexCount(), allocator, config, options, handle, workQueue, tunnelProvider, spillService, endpointsIndex);
+  public MergingCollector(
+      SharedResourceGroup resourceGroup,
+      Collector collector,
+      BufferAllocator allocator,
+      SabotConfig config,
+      OptionManager options,
+      FragmentHandle handle,
+      FragmentWorkQueue workQueue,
+      TunnelProvider tunnelProvider,
+      SpillService spillService,
+      EndpointsIndex endpointsIndex) {
+    super(
+        resourceGroup,
+        false,
+        collector,
+        collector.getIncomingMinorFragmentIndexCount(),
+        allocator,
+        config,
+        options,
+        handle,
+        workQueue,
+        tunnelProvider,
+        spillService,
+        endpointsIndex);
   }
 
   @Override
   protected RawBatchBuffer getBuffer(int minorFragmentId) {
     return buffers[0];
   }
-
 }

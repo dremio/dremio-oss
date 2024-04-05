@@ -16,15 +16,10 @@
 package com.dremio.test.zookeeper;
 
 import java.io.IOException;
-
 import org.apache.zookeeper.ZooKeeper;
 import org.junit.rules.ExternalResource;
 
-
-
-/**
- * Test ZK Serve JUnit ruler.
- */
+/** Test ZK Serve JUnit ruler. */
 public class ZkTestServerRule extends ExternalResource {
   private final ZkTestServer testingServer;
 
@@ -65,5 +60,4 @@ public class ZkTestServerRule extends ExternalResource {
   public String getConnectionString() {
     return testingServer.getConnectionString();
   }
-
 }

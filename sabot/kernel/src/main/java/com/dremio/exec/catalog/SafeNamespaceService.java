@@ -15,11 +15,6 @@
  */
 package com.dremio.exec.catalog;
 
-import java.io.IOException;
-import java.util.ConcurrentModificationException;
-import java.util.List;
-import java.util.Map.Entry;
-
 import com.dremio.connector.metadata.DatasetSplit;
 import com.dremio.connector.metadata.PartitionChunk;
 import com.dremio.datastore.SearchTypes.SearchQuery;
@@ -34,24 +29,31 @@ import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.namespace.NamespaceService;
+import com.dremio.service.namespace.NamespaceType;
 import com.dremio.service.namespace.PartitionChunkId;
 import com.dremio.service.namespace.PartitionChunkId.SplitOrphansRetentionPolicy;
 import com.dremio.service.namespace.PartitionChunkMetadata;
+import com.dremio.service.namespace.dataset.DatasetMetadata;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.function.proto.FunctionConfig;
 import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.proto.NameSpaceContainer.Type;
+import com.dremio.service.namespace.source.SourceMetadata;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.space.proto.FolderConfig;
 import com.dremio.service.namespace.space.proto.HomeConfig;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
-
 import io.opentelemetry.instrumentation.annotations.WithSpan;
+import java.io.IOException;
+import java.util.ConcurrentModificationException;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 
 /**
- * A decorator for namespace service that only does operations underneath a safe runner to avoid making changes when
- * we shouldn't.
+ * A decorator for namespace service that only does operations underneath a safe runner to avoid
+ * making changes when we shouldn't.
  */
 class SafeNamespaceService implements NamespaceService {
   private final NamespaceService delegate;
@@ -93,19 +95,22 @@ class SafeNamespaceService implements NamespaceService {
   }
 
   @Override
-  public void addOrUpdateFunction(NamespaceKey arg0, FunctionConfig arg1, NamespaceAttribute... arg2)
-    throws NamespaceException {
+  public void addOrUpdateFunction(
+      NamespaceKey arg0, FunctionConfig arg1, NamespaceAttribute... arg2)
+      throws NamespaceException {
     runner.doSafe(() -> delegate.addOrUpdateFunction(arg0, arg1, arg2));
   }
 
   @Override
-  public void canSourceConfigBeSaved(SourceConfig arg0, SourceConfig arg1, NamespaceAttribute... arg2)
+  public void canSourceConfigBeSaved(
+      SourceConfig arg0, SourceConfig arg1, NamespaceAttribute... arg2)
       throws ConcurrentModificationException, NamespaceException {
     runner.doSafe(() -> delegate.canSourceConfigBeSaved(arg0, arg1, arg2));
   }
 
   @Override
-  public void deleteDataset(NamespaceKey arg0, String arg1, NamespaceAttribute... arg2) throws NamespaceException {
+  public void deleteDataset(NamespaceKey arg0, String arg1, NamespaceAttribute... arg2)
+      throws NamespaceException {
     runner.doSafe(() -> delegate.deleteDataset(arg0, arg1, arg2));
   }
 
@@ -130,12 +135,14 @@ class SafeNamespaceService implements NamespaceService {
   }
 
   @Override
-  public void deleteSourceWithCallBack(NamespaceKey arg0, String arg1, DeleteCallback arg2) throws NamespaceException {
+  public void deleteSourceWithCallBack(NamespaceKey arg0, String arg1, DeleteCallback arg2)
+      throws NamespaceException {
     runner.doSafe(() -> delegate.deleteSourceWithCallBack(arg0, arg1, arg2));
   }
 
   @Override
-  public void deleteSourceChildren(NamespaceKey arg0, String arg1, DeleteCallback arg2 ) throws NamespaceException {
+  public void deleteSourceChildren(NamespaceKey arg0, String arg1, DeleteCallback arg2)
+      throws NamespaceException {
     runner.doSafe(() -> delegate.deleteSourceChildren(arg0, arg1, arg2));
   }
 
@@ -185,6 +192,11 @@ class SafeNamespaceService implements NamespaceService {
   }
 
   @Override
+  public Map<NamespaceKey, NamespaceType> getDatasetNamespaceTypes(NamespaceKey... datasetPaths) {
+    return runner.doSafe(() -> delegate.getDatasetNamespaceTypes(datasetPaths));
+  }
+
+  @Override
   public Iterable<PartitionChunkMetadata> findSplits(LegacyFindByCondition arg0) {
     return runner.doSafeIterable(() -> delegate.findSplits(arg0));
   }
@@ -221,17 +233,26 @@ class SafeNamespaceService implements NamespaceService {
   }
 
   @Override
-  public DatasetConfigAndEntitiesOnPath getDatasetAndEntitiesOnPath(NamespaceKey arg0) throws NamespaceException {
+  @WithSpan
+  public DatasetMetadata getDatasetMetadata(NamespaceKey arg0) throws NamespaceException {
+    return runner.doSafe(() -> DatasetMetadata.from(delegate.getDataset(arg0)));
+  }
+
+  @Override
+  public DatasetConfigAndEntitiesOnPath getDatasetAndEntitiesOnPath(NamespaceKey arg0)
+      throws NamespaceException {
     return runner.doSafe(() -> delegate.getDatasetAndEntitiesOnPath(arg0));
   }
 
   @Override
-  public BoundedDatasetCount getDatasetCount(NamespaceKey arg0, long arg1, int arg2) throws NamespaceException {
+  public BoundedDatasetCount getDatasetCount(NamespaceKey arg0, long arg1, int arg2)
+      throws NamespaceException {
     return runner.doSafe(() -> delegate.getDatasetCount(arg0, arg1, arg2));
   }
 
   @Override
-  public List<NameSpaceContainer> getEntities(List<NamespaceKey> arg0) throws NamespaceNotFoundException {
+  public List<NameSpaceContainer> getEntities(List<NamespaceKey> arg0)
+      throws NamespaceNotFoundException {
     return runner.doSafe(() -> delegate.getEntities(arg0));
   }
 
@@ -242,7 +263,7 @@ class SafeNamespaceService implements NamespaceService {
 
   @Override
   public List<NameSpaceContainer> getEntitiesByIds(List<String> arg0)
-    throws NamespaceNotFoundException {
+      throws NamespaceNotFoundException {
     return runner.doSafe(() -> delegate.getEntitiesByIds(arg0));
   }
 
@@ -284,6 +305,12 @@ class SafeNamespaceService implements NamespaceService {
   }
 
   @Override
+  @WithSpan
+  public SourceMetadata getSourceMetadata(NamespaceKey arg0) throws NamespaceException {
+    return runner.doSafe(() -> SourceMetadata.from(delegate.getSource(arg0)));
+  }
+
+  @Override
   public SourceConfig getSourceById(String arg0) throws NamespaceException {
     return runner.doSafe(() -> delegate.getSourceById(arg0));
   }
@@ -304,7 +331,7 @@ class SafeNamespaceService implements NamespaceService {
   }
 
   @Override
-  public FunctionConfig getFunction(NamespaceKey arg0) throws NamespaceException{
+  public FunctionConfig getFunction(NamespaceKey arg0) throws NamespaceException {
     return runner.doSafe(() -> delegate.getFunction(arg0));
   }
 
@@ -329,8 +356,10 @@ class SafeNamespaceService implements NamespaceService {
   }
 
   @Override
-  public DatasetMetadataSaver newDatasetMetadataSaver(NamespaceKey arg0, EntityId arg1, SplitCompression arg2, long arg3, boolean arg4) {
-    final DatasetMetadataSaver delegate = runner.doSafe(() -> this.delegate.newDatasetMetadataSaver(arg0, arg1, arg2, arg3, arg4));
+  public DatasetMetadataSaver newDatasetMetadataSaver(
+      NamespaceKey arg0, EntityId arg1, SplitCompression arg2, long arg3, boolean arg4) {
+    final DatasetMetadataSaver delegate =
+        runner.doSafe(() -> this.delegate.newDatasetMetadataSaver(arg0, arg1, arg2, arg3, arg4));
     return new DatasetMetadataSaver() {
 
       @Override
@@ -349,25 +378,22 @@ class SafeNamespaceService implements NamespaceService {
       }
 
       @Override
-      public void saveDataset(DatasetConfig arg0, boolean arg1, NamespaceAttribute... arg2) throws NamespaceException {
+      public void saveDataset(DatasetConfig arg0, boolean arg1, NamespaceAttribute... arg2)
+          throws NamespaceException {
         runner.doSafe(() -> delegate.saveDataset(arg0, arg1, arg2));
       }
-
     };
-
   }
 
   @Override
-  public DatasetConfig renameDataset(NamespaceKey arg0, NamespaceKey arg1) throws NamespaceException {
+  public DatasetConfig renameDataset(NamespaceKey arg0, NamespaceKey arg1)
+      throws NamespaceException {
     return runner.doSafe(() -> delegate.renameDataset(arg0, arg1));
   }
 
   @Override
-  public boolean tryCreatePhysicalDataset(NamespaceKey arg0, DatasetConfig arg1, NamespaceAttribute... arg2)
-      throws NamespaceException {
+  public boolean tryCreatePhysicalDataset(
+      NamespaceKey arg0, DatasetConfig arg1, NamespaceAttribute... arg2) throws NamespaceException {
     return runner.doSafe(() -> delegate.tryCreatePhysicalDataset(arg0, arg1, arg2));
   }
-
-
-
 }

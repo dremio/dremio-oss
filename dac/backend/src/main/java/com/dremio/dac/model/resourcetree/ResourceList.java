@@ -15,22 +15,18 @@
  */
 package com.dremio.dac.model.resourcetree;
 
-import java.util.List;
-
 import com.dremio.dac.model.resourcetree.ResourceTreeEntity.ResourceType;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.List;
 
-/**
- * Resources listed under a folder/space/source/home.
- */
+/** Resources listed under a folder/space/source/home. */
 public class ResourceList {
   private final List<ResourceTreeEntity> resources;
 
   @JsonCreator
-  public ResourceList(
-    @JsonProperty("resources") List<ResourceTreeEntity> resources) {
+  public ResourceList(@JsonProperty("resources") List<ResourceTreeEntity> resources) {
     this.resources = resources;
   }
 

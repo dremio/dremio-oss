@@ -15,12 +15,6 @@
  */
 package com.dremio.service.jobtelemetry.server;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
 import com.dremio.exec.proto.CoordExecRPC.ExecutorQueryProfile;
 import com.dremio.exec.proto.CoordExecRPC.FragmentStatus;
 import com.dremio.exec.proto.CoordExecRPC.NodePhaseStatus;
@@ -31,10 +25,13 @@ import com.dremio.exec.proto.UserBitShared.NodePhaseProfile;
 import com.dremio.exec.proto.UserBitShared.NodeQueryProfile;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.google.common.base.Preconditions;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
-/**
- * Merger for all portions of a query profile.
- */
+/** Merger for all portions of a query profile. */
 final class ProfileMerger {
   private final QueryProfile planningProfile;
   private final QueryProfile tailProfile;
@@ -44,7 +41,9 @@ final class ProfileMerger {
   private int totalFragments;
   private int finishedFragments;
 
-  private ProfileMerger(QueryProfile planningProfile, QueryProfile tailProfile,
+  private ProfileMerger(
+      QueryProfile planningProfile,
+      QueryProfile tailProfile,
       Stream<ExecutorQueryProfile> executorProfiles) {
     this.planningProfile = planningProfile;
     this.tailProfile = tailProfile;
@@ -53,20 +52,26 @@ final class ProfileMerger {
   }
 
   private List<MajorFragmentProfile.Builder> createEmptyPhaseProfiles() {
-    Map<Integer, Integer> phaseWeights = executorQueryProfiles.stream()
-      .flatMap(executorProfile -> executorProfile.getNodeStatus().getPhaseStatusList().stream())
-      .collect(Collectors.toMap(NodePhaseStatus::getMajorFragmentId,
-        (v) -> (v.hasPhaseWeight() ? v.getPhaseWeight() : -1), (v1, v2) -> v1 >= 0 ? v1 : v2));
+    Map<Integer, Integer> phaseWeights =
+        executorQueryProfiles.stream()
+            .flatMap(
+                executorProfile -> executorProfile.getNodeStatus().getPhaseStatusList().stream())
+            .collect(
+                Collectors.toMap(
+                    NodePhaseStatus::getMajorFragmentId,
+                    (v) -> (v.hasPhaseWeight() ? v.getPhaseWeight() : -1),
+                    (v1, v2) -> v1 >= 0 ? v1 : v2));
 
     // find the max major fragment id.
     // this should work even if the phase list, and the fragment list are inconsistent.
     int maxPhaseId = phaseWeights.keySet().stream().mapToInt(x -> x).max().orElse(-1);
 
-    int maxFragmentPhaseId = executorQueryProfiles.stream()
-      .flatMap(executorProfile -> executorProfile.getFragmentsList().stream())
-      .mapToInt(frag -> frag.getHandle().getMajorFragmentId())
-      .max()
-      .orElse(-1);
+    int maxFragmentPhaseId =
+        executorQueryProfiles.stream()
+            .flatMap(executorProfile -> executorProfile.getFragmentsList().stream())
+            .mapToInt(frag -> frag.getHandle().getMajorFragmentId())
+            .max()
+            .orElse(-1);
 
     maxPhaseId = Integer.max(maxPhaseId, maxFragmentPhaseId);
 
@@ -74,9 +79,7 @@ final class ProfileMerger {
     List<MajorFragmentProfile.Builder> phaseList = new ArrayList<>();
     for (int i = 0; i <= maxPhaseId; i++) {
       final int phaseWeight = phaseWeights.getOrDefault(i, -1);
-      MajorFragmentProfile.Builder mfb = MajorFragmentProfile
-        .newBuilder()
-        .setMajorFragmentId(i);
+      MajorFragmentProfile.Builder mfb = MajorFragmentProfile.newBuilder().setMajorFragmentId(i);
       if (phaseWeight > 0) {
         mfb = mfb.setPhaseWeight(phaseWeight);
       }
@@ -85,8 +88,10 @@ final class ProfileMerger {
     return phaseList;
   }
 
-  static QueryProfile merge(QueryProfile planningProfile, QueryProfile tailProfile,
-    Stream<ExecutorQueryProfile> executorProfiles) {
+  static QueryProfile merge(
+      QueryProfile planningProfile,
+      QueryProfile tailProfile,
+      Stream<ExecutorQueryProfile> executorProfiles) {
 
     return new ProfileMerger(planningProfile, tailProfile, executorProfiles).merge();
   }
@@ -113,15 +118,14 @@ final class ProfileMerger {
     maxTotalFragments = Math.max(maxTotalFragments, totalFragments);
 
     return builder
-      .addAllNodeProfile(nodeProfiles)
-      .addAllFragmentProfile(
-        phaseProfiles.stream()
-          .map(MajorFragmentProfile.Builder::build)
-          .collect(Collectors.toList())
-      )
-      .setTotalFragments(maxTotalFragments)
-      .setFinishedFragments(finishedFragments)
-      .build();
+        .addAllNodeProfile(nodeProfiles)
+        .addAllFragmentProfile(
+            phaseProfiles.stream()
+                .map(MajorFragmentProfile.Builder::build)
+                .collect(Collectors.toList()))
+        .setTotalFragments(maxTotalFragments)
+        .setFinishedFragments(finishedFragments)
+        .build();
   }
 
   private void processExecutorProfile(ExecutorQueryProfile executorProfile) {
@@ -133,13 +137,12 @@ final class ProfileMerger {
     final NodeQueryStatus status = executorProfile.getNodeStatus();
 
     nodeProfiles.add(
-      NodeQueryProfile.newBuilder()
-        .setEndpoint(executorProfile.getEndpoint())
-        .setMaxMemoryUsed(status.getMaxMemoryUsed())
-        .setTimeEnqueuedBeforeSubmitMs(status.getTimeEnqueuedBeforeSubmitMs())
-        .setNumberOfCores(status.getNumberOfCores())
-        .build()
-    );
+        NodeQueryProfile.newBuilder()
+            .setEndpoint(executorProfile.getEndpoint())
+            .setMaxMemoryUsed(status.getMaxMemoryUsed())
+            .setTimeEnqueuedBeforeSubmitMs(status.getTimeEnqueuedBeforeSubmitMs())
+            .setNumberOfCores(status.getNumberOfCores())
+            .build());
   }
 
   private void updatePhaseProfiles(ExecutorQueryProfile executorProfile) {
@@ -147,10 +150,11 @@ final class ProfileMerger {
     for (NodePhaseStatus nodePhaseStatus : executorProfile.getNodeStatus().getPhaseStatusList()) {
       int phaseId = nodePhaseStatus.getMajorFragmentId();
 
-      NodePhaseProfile nodePhaseProfile = NodePhaseProfile.newBuilder()
-        .setEndpoint(executorProfile.getEndpoint())
-        .setMaxMemoryUsed(nodePhaseStatus.getMaxMemoryUsed())
-        .build();
+      NodePhaseProfile nodePhaseProfile =
+          NodePhaseProfile.newBuilder()
+              .setEndpoint(executorProfile.getEndpoint())
+              .setMaxMemoryUsed(nodePhaseStatus.getMaxMemoryUsed())
+              .build();
       phaseProfiles.get(phaseId).addNodePhaseProfile(nodePhaseProfile);
     }
 
@@ -168,7 +172,7 @@ final class ProfileMerger {
 
   private boolean isTerminal(FragmentState state) {
     return (state == FragmentState.FINISHED
-      || state == FragmentState.FAILED
-      || state == FragmentState.CANCELLED);
+        || state == FragmentState.FAILED
+        || state == FragmentState.CANCELLED);
   }
 }

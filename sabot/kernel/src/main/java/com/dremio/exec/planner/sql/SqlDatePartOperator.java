@@ -15,11 +15,13 @@
  */
 package com.dremio.exec.planner.sql;
 
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
 import org.apache.calcite.avatica.util.TimeUnitRange;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
@@ -42,27 +44,25 @@ import org.apache.calcite.sql2rel.SqlRexContext;
 import org.apache.calcite.sql2rel.SqlRexConvertlet;
 import org.apache.calcite.util.NlsString;
 
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
-
 public class SqlDatePartOperator extends SqlFunction {
 
-  private static final Map<String, TimeUnitRange> VALID_PERIODS = ImmutableMap.<String, TimeUnitRange>builder()
-      .put("second",TimeUnitRange.SECOND)
-      .put("minute", TimeUnitRange.MINUTE)
-      .put("hour", TimeUnitRange.HOUR)
-      .put("day", TimeUnitRange.DAY)
-      .put("month", TimeUnitRange.MONTH)
-      .put("year", TimeUnitRange.YEAR)
-      .put("century", TimeUnitRange.CENTURY)
-      .put("decade", TimeUnitRange.DECADE)
-      .put("dow", TimeUnitRange.DOW)
-      .put("doy", TimeUnitRange.DOY)
-      .put("epoch", TimeUnitRange.EPOCH)
-      .put("millennium", TimeUnitRange.MILLENNIUM)
-      .put("quarter", TimeUnitRange.QUARTER)
-      .put("week", TimeUnitRange.WEEK).build();
+  private static final Map<String, TimeUnitRange> VALID_PERIODS =
+      ImmutableMap.<String, TimeUnitRange>builder()
+          .put("second", TimeUnitRange.SECOND)
+          .put("minute", TimeUnitRange.MINUTE)
+          .put("hour", TimeUnitRange.HOUR)
+          .put("day", TimeUnitRange.DAY)
+          .put("month", TimeUnitRange.MONTH)
+          .put("year", TimeUnitRange.YEAR)
+          .put("century", TimeUnitRange.CENTURY)
+          .put("decade", TimeUnitRange.DECADE)
+          .put("dow", TimeUnitRange.DOW)
+          .put("doy", TimeUnitRange.DOY)
+          .put("epoch", TimeUnitRange.EPOCH)
+          .put("millennium", TimeUnitRange.MILLENNIUM)
+          .put("quarter", TimeUnitRange.QUARTER)
+          .put("week", TimeUnitRange.WEEK)
+          .build();
 
   public static final SqlRexConvertlet CONVERTLET = new DatePartConvertlet();
 
@@ -81,9 +81,8 @@ public class SqlDatePartOperator extends SqlFunction {
                 OperandTypes.family(SqlTypeFamily.DATETIME),
                 OperandTypes.family(SqlTypeFamily.DATETIME_INTERVAL),
                 OperandTypes.family(SqlTypeFamily.INTERVAL_DAY_TIME),
-                OperandTypes.family(SqlTypeFamily.INTERVAL_YEAR_MONTH))
-            ),
-            SqlFunctionCategory.SYSTEM);
+                OperandTypes.family(SqlTypeFamily.INTERVAL_YEAR_MONTH))),
+        SqlFunctionCategory.SYSTEM);
   }
 
   private static class DatePartConvertlet implements SqlRexConvertlet {
@@ -93,7 +92,7 @@ public class SqlDatePartOperator extends SqlFunction {
       final RexBuilder rexBuilder = cx.getRexBuilder();
 
       final SqlLiteral literal = (SqlLiteral) call.getOperandList().get(0);
-      final String value = ((NlsString)literal.getValue()).getValue();
+      final String value = ((NlsString) literal.getValue()).getValue();
       TimeUnitRange range = VALID_PERIODS.get(value.toLowerCase());
       Preconditions.checkNotNull(range, "Unhandle range type: %s.", value);
       List<RexNode> exprs = new ArrayList<>();
@@ -102,11 +101,11 @@ public class SqlDatePartOperator extends SqlFunction {
       exprs.add(cx.convertExpression(call.getOperandList().get(1)));
 
       RelDataTypeFactory typeFactory = cx.getTypeFactory();
-      final RelDataType returnType
-          = typeFactory.createTypeWithNullability(typeFactory.createSqlType(SqlTypeName.BIGINT), exprs.get(1).getType().isNullable());
+      final RelDataType returnType =
+          typeFactory.createTypeWithNullability(
+              typeFactory.createSqlType(SqlTypeName.BIGINT), exprs.get(1).getType().isNullable());
       return rexBuilder.makeCall(returnType, SqlStdOperatorTable.EXTRACT, exprs);
     }
-
   }
 
   public static class EnumeratedListChecker extends LiteralOperandTypeChecker {
@@ -119,11 +118,11 @@ public class SqlDatePartOperator extends SqlFunction {
     }
 
     @Override
-    public boolean checkSingleOperandType(SqlCallBinding callBinding, SqlNode node,
-        int iFormalOperand, boolean throwOnFailure) {
+    public boolean checkSingleOperandType(
+        SqlCallBinding callBinding, SqlNode node, int iFormalOperand, boolean throwOnFailure) {
 
       // check that the input is a literal.
-      if(!super.checkSingleOperandType(callBinding, node, iFormalOperand, throwOnFailure)) {
+      if (!super.checkSingleOperandType(callBinding, node, iFormalOperand, throwOnFailure)) {
         return false;
       }
 
@@ -135,29 +134,26 @@ public class SqlDatePartOperator extends SqlFunction {
         return true;
       }
 
-      if(!(typeName == SqlTypeName.CHAR || typeName == SqlTypeName.VARCHAR)) {
-        if(throwOnFailure) {
+      if (!(typeName == SqlTypeName.CHAR || typeName == SqlTypeName.VARCHAR)) {
+        if (throwOnFailure) {
           throw callBinding.newValidationSignatureError();
         }
         return false;
       }
 
       final SqlLiteral literal = (SqlLiteral) node;
-      final String value = ((NlsString)literal.getValue()).getValue();
-      if(validStrings.contains(value.toLowerCase())) {
+      final String value = ((NlsString) literal.getValue()).getValue();
+      if (validStrings.contains(value.toLowerCase())) {
         return true;
       }
 
-      if(throwOnFailure) {
+      if (throwOnFailure) {
         throw callBinding.newValidationSignatureError();
-        //throw new SqlValidatorException(String.format("DATE_PART function only accepts the following values for a date type: %s.", Joiner.on(", ").join(validStrings)), null);
+        // throw new SqlValidatorException(String.format("DATE_PART function only accepts the
+        // following values for a date type: %s.", Joiner.on(", ").join(validStrings)), null);
       }
 
       return false;
     }
   }
-
-
-
-
 }

@@ -20,6 +20,7 @@ import com.dremio.connector.metadata.options.FlagMetadataOption;
 
 public class AutoPromoteOption implements FlagMetadataOption, GetDatasetOption {
   private final boolean autoPromote;
+
   public AutoPromoteOption(boolean autoPromote) {
     this.autoPromote = autoPromote;
   }

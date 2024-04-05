@@ -16,22 +16,20 @@
 
 package com.dremio.exec.maestro;
 
+import com.dremio.exec.catalog.conf.Property;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.dremio.exec.catalog.conf.Property;
-
-/**
- * A service providing GlobalKeys
- */
+/** A service providing GlobalKeys */
 public interface GlobalKeysService {
 
-  GlobalKeysService NO_OP = new GlobalKeysService() {
-    @Override
-    public List<Property> getGlobalKeys() {
-      return new ArrayList<>();
-    }
-  };
+  GlobalKeysService NO_OP =
+      new GlobalKeysService() {
+        @Override
+        public List<Property> getGlobalKeys() {
+          return new ArrayList<>();
+        }
+      };
 
   List<Property> getGlobalKeys();
 }

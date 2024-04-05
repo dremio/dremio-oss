@@ -15,17 +15,6 @@
  */
 package com.dremio.exec.store.sys;
 
-import java.io.IOException;
-import java.util.List;
-import java.util.Optional;
-
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelOptTable;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.hint.RelHint;
-import org.apache.calcite.rel.type.RelDataType;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.connector.metadata.EntityPath;
 import com.dremio.exec.catalog.StoragePluginId;
@@ -37,25 +26,47 @@ import com.dremio.exec.planner.physical.ScanPrelBase;
 import com.dremio.exec.store.TableMetadata;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import java.io.IOException;
+import java.util.List;
+import java.util.Optional;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptTable;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.hint.RelHint;
+import org.apache.calcite.rel.type.RelDataType;
 
-/**
- * Physical scan operator.
- */
+/** Physical scan operator. */
 public class SystemScanPrel extends ScanPrelBase {
 
   private final SystemTable systemTable;
   private final int executorCount;
   private final StoragePluginId pluginId;
 
-  public SystemScanPrel(RelOptCluster cluster, RelTraitSet traitSet, RelOptTable table, TableMetadata dataset,
-                        List<SchemaPath> projectedColumns, double observedRowcountAdjustment, List<RelHint> hints,
-                        List<Info> runtimeFilters) {
-    super(cluster, traitSet, table, dataset.getStoragePluginId(), dataset, projectedColumns, observedRowcountAdjustment,
-          hints, runtimeFilters);
+  public SystemScanPrel(
+      RelOptCluster cluster,
+      RelTraitSet traitSet,
+      RelOptTable table,
+      TableMetadata dataset,
+      List<SchemaPath> projectedColumns,
+      double observedRowcountAdjustment,
+      List<RelHint> hints,
+      List<Info> runtimeFilters) {
+    super(
+        cluster,
+        traitSet,
+        table,
+        dataset.getStoragePluginId(),
+        dataset,
+        projectedColumns,
+        observedRowcountAdjustment,
+        hints,
+        runtimeFilters);
 
     final EntityPath datasetPath = new EntityPath(dataset.getName().getPathComponents());
     final Optional<SystemTable> systemTable = SystemStoragePlugin.getDataset(datasetPath);
-    Preconditions.checkArgument(systemTable.isPresent(), "Unexpected system table path: %s", datasetPath);
+    Preconditions.checkArgument(
+        systemTable.isPresent(), "Unexpected system table path: %s", datasetPath);
     this.systemTable = systemTable.get();
 
     this.executorCount = PrelUtil.getPlannerSettings(cluster).getExecutorCount();
@@ -63,15 +74,31 @@ public class SystemScanPrel extends ScanPrelBase {
   }
 
   @VisibleForTesting
-  public SystemScanPrel(RelOptCluster cluster, RelTraitSet traitSet, RelOptTable table, TableMetadata dataset,
-                        List<SchemaPath> projectedColumns, double observedRowcountAdjustment, List<RelHint> hints,
-                        RelDataType rowType, List<Info> runtimeFilters) {
-    super(cluster, traitSet, table, dataset.getStoragePluginId(), dataset, projectedColumns, observedRowcountAdjustment,
-          hints, runtimeFilters);
+  public SystemScanPrel(
+      RelOptCluster cluster,
+      RelTraitSet traitSet,
+      RelOptTable table,
+      TableMetadata dataset,
+      List<SchemaPath> projectedColumns,
+      double observedRowcountAdjustment,
+      List<RelHint> hints,
+      RelDataType rowType,
+      List<Info> runtimeFilters) {
+    super(
+        cluster,
+        traitSet,
+        table,
+        dataset.getStoragePluginId(),
+        dataset,
+        projectedColumns,
+        observedRowcountAdjustment,
+        hints,
+        runtimeFilters);
 
     final EntityPath datasetPath = new EntityPath(dataset.getName().getPathComponents());
     final Optional<SystemTable> systemTable = SystemStoragePlugin.getDataset(datasetPath);
-    Preconditions.checkArgument(systemTable.isPresent(), "Unexpected system table path: %s", datasetPath);
+    Preconditions.checkArgument(
+        systemTable.isPresent(), "Unexpected system table path: %s", datasetPath);
     this.systemTable = systemTable.get();
 
     this.executorCount = PrelUtil.getPlannerSettings(cluster).getExecutorCount();
@@ -96,22 +123,43 @@ public class SystemScanPrel extends ScanPrelBase {
 
   @Override
   public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
-    return new SystemGroupScan(creator.props(this, getTableMetadata().getUser(),
-                                             getTableMetadata().getSchema().maskAndReorder(getProjectedColumns()), null,
-                                             null), systemTable, getProjectedColumns(), pluginId, executorCount);
+    return new SystemGroupScan(
+        creator.props(
+            this,
+            getTableMetadata().getUser(),
+            getTableMetadata().getSchema().maskAndReorder(getProjectedColumns()),
+            null,
+            null),
+        systemTable,
+        getProjectedColumns(),
+        pluginId,
+        executorCount);
   }
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
     Preconditions.checkArgument(inputs == null || inputs.size() == 0);
-    return new SystemScanPrel(getCluster(), traitSet, getTable(), getTableMetadata(), getProjectedColumns(),
-                              getCostAdjustmentFactor(), getHints(), getRuntimeFilters());
+    return new SystemScanPrel(
+        getCluster(),
+        traitSet,
+        getTable(),
+        getTableMetadata(),
+        getProjectedColumns(),
+        getCostAdjustmentFactor(),
+        getHints(),
+        getRuntimeFilters());
   }
 
   @Override
   public SystemScanPrel cloneWithProject(List<SchemaPath> projection) {
-    return new SystemScanPrel(getCluster(), getTraitSet(), getTable(), getTableMetadata(), projection,
-                              getCostAdjustmentFactor(), getHints(), getRuntimeFilters());
+    return new SystemScanPrel(
+        getCluster(),
+        getTraitSet(),
+        getTable(),
+        getTableMetadata(),
+        projection,
+        getCostAdjustmentFactor(),
+        getHints(),
+        getRuntimeFilters());
   }
-
 }

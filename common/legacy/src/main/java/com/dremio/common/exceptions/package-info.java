@@ -13,7 +13,5 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/**
- * Various exceptions used in logical, physical and execution contexts.
- */
+/** Various exceptions used in logical, physical and execution contexts. */
 package com.dremio.common.exceptions;

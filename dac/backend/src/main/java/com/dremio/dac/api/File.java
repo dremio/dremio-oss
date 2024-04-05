@@ -15,16 +15,13 @@
  */
 package com.dremio.dac.api;
 
-import java.util.List;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.Iterables;
+import java.util.List;
 
-/**
- * File
- */
+/** File */
 public class File implements CatalogEntity {
   private final String id;
   private final List<String> path;

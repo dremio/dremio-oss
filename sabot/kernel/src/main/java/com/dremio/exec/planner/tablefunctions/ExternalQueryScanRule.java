@@ -15,34 +15,34 @@
  */
 package com.dremio.exec.planner.tablefunctions;
 
+import com.dremio.exec.planner.logical.Rel;
+import com.dremio.exec.tablefunctions.ExternalQueryScanCrel;
+import com.dremio.exec.tablefunctions.ExternalQueryScanDrel;
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.convert.ConverterRule;
 
-import com.dremio.exec.planner.logical.Rel;
-import com.dremio.exec.tablefunctions.ExternalQueryScanCrel;
-import com.dremio.exec.tablefunctions.ExternalQueryScanDrel;
-
-/**
- * Rule to convert ExternalQueryScanCrel nodes to ExternalQueryScanDrel nodes.
- */
+/** Rule to convert ExternalQueryScanCrel nodes to ExternalQueryScanDrel nodes. */
 public final class ExternalQueryScanRule extends ConverterRule {
   public static final ExternalQueryScanRule INSTANCE = new ExternalQueryScanRule();
 
   private ExternalQueryScanRule() {
-    super(ExternalQueryScanCrel.class, Convention.NONE, Rel.LOGICAL,
-      "ExternalQueryScanCrelConverter");
+    super(
+        ExternalQueryScanCrel.class,
+        Convention.NONE,
+        Rel.LOGICAL,
+        "ExternalQueryScanCrelConverter");
   }
 
   @Override
   public RelNode convert(RelNode relNode) {
     final ExternalQueryScanCrel node = (ExternalQueryScanCrel) relNode;
     return new ExternalQueryScanDrel(
-      node.getCluster(),
-      node.getTraitSet().replace(Rel.LOGICAL),
-      node.getRowType(),
-      node.getPluginId(),
-      node.getSql(),
-      node.getBatchSchema());
+        node.getCluster(),
+        node.getTraitSet().replace(Rel.LOGICAL),
+        node.getRowType(),
+        node.getPluginId(),
+        node.getSql(),
+        node.getBatchSchema());
   }
 }

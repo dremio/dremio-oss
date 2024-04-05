@@ -20,9 +20,7 @@ import com.dremio.datastore.generator.supplier.UniqueSupplierOptions;
 import com.dremio.datastore.generator.supplier.fixed.FixedLengthStringSupplier;
 import com.dremio.datastore.generator.supplier.variable.VarLengthStringSupplier;
 
-/**
- * Factory to supply the correct unique String supplier.
- */
+/** Factory to supply the correct unique String supplier. */
 public class StringSupplierFactory {
   private final UniqueSupplierOptions supplier;
 
@@ -31,13 +29,14 @@ public class StringSupplierFactory {
   }
 
   public UniqueSupplier<String> createSupplier(String prefix) {
-    switch(supplier) {
+    switch (supplier) {
       case VARIABLE_LENGTH:
         return new VarLengthStringSupplier(prefix);
       case FIXED_LENGTH:
         return new FixedLengthStringSupplier(prefix);
       default:
-        throw new UnsupportedOperationException(String.format("Unsupported supplier option %s.", supplier.name()));
+        throw new UnsupportedOperationException(
+            String.format("Unsupported supplier option %s.", supplier.name()));
     }
   }
 }

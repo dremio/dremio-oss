@@ -17,20 +17,6 @@ package com.dremio.exec.expr.fn.interpreter;
 
 import static com.dremio.common.util.MajorTypeHelper.getArrowMinorType;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-
-import javax.annotation.Nullable;
-import javax.inject.Inject;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.vector.ValueHolderHelper;
-import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.holders.BitHolder;
-import org.apache.arrow.vector.holders.NullableBitHolder;
-import org.apache.arrow.vector.holders.ValueHolder;
-import org.apache.arrow.vector.types.Types.MinorType;
-
 import com.dremio.common.SuppressForbidden;
 import com.dremio.common.expression.BooleanOperator;
 import com.dremio.common.expression.CaseExpression;
@@ -59,21 +45,42 @@ import com.dremio.exec.record.VectorAccessible;
 import com.dremio.sabot.exec.context.FunctionContext;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import javax.annotation.Nullable;
+import javax.inject.Inject;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.vector.ValueHolderHelper;
+import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.holders.BitHolder;
+import org.apache.arrow.vector.holders.NullableBitHolder;
+import org.apache.arrow.vector.holders.ValueHolder;
+import org.apache.arrow.vector.types.Types.MinorType;
 
 public class InterpreterEvaluator {
 
-  public static ValueHolder evaluateConstantExpr(FunctionContext functionContext, LogicalExpression expr) {
+  public static ValueHolder evaluateConstantExpr(
+      FunctionContext functionContext, LogicalExpression expr) {
     InitVisitor initVisitor = new InitVisitor(functionContext);
     EvalVisitor evalVisitor = new EvalVisitor(null, functionContext);
     expr.accept(initVisitor, null);
     return expr.accept(evalVisitor, -1);
   }
 
-  public static void evaluate(VectorAccessible incoming, FunctionContext functionContext, ValueVector outVV, LogicalExpression expr) {
+  public static void evaluate(
+      VectorAccessible incoming,
+      FunctionContext functionContext,
+      ValueVector outVV,
+      LogicalExpression expr) {
     evaluate(incoming.getRecordCount(), functionContext, incoming, outVV, expr);
   }
 
-  public static void evaluate(int recordCount, FunctionContext functionContext, VectorAccessible incoming, ValueVector outVV, LogicalExpression expr) {
+  public static void evaluate(
+      int recordCount,
+      FunctionContext functionContext,
+      VectorAccessible incoming,
+      ValueVector outVV,
+      LogicalExpression expr) {
 
     InitVisitor initVisitor = new InitVisitor(functionContext);
     EvalVisitor evalVisitor = new EvalVisitor(incoming, functionContext);
@@ -86,10 +93,10 @@ public class InterpreterEvaluator {
     }
 
     outVV.setValueCount(recordCount);
-
   }
 
-  private static class InitVisitor extends AbstractExprVisitor<LogicalExpression, VectorAccessible, RuntimeException> {
+  private static class InitVisitor
+      extends AbstractExprVisitor<LogicalExpression, VectorAccessible, RuntimeException> {
 
     private FunctionContext functionContext;
 
@@ -100,9 +107,11 @@ public class InterpreterEvaluator {
 
     @SuppressForbidden
     @Override
-    public LogicalExpression visitFunctionHolderExpression(FunctionHolderExpression holderExpr, VectorAccessible incoming) {
-      if (! (holderExpr.getHolder() instanceof SimpleFunctionHolder)) {
-        throw new UnsupportedOperationException("Only Dremio simple UDF can be used in interpreter mode!");
+    public LogicalExpression visitFunctionHolderExpression(
+        FunctionHolderExpression holderExpr, VectorAccessible incoming) {
+      if (!(holderExpr.getHolder() instanceof SimpleFunctionHolder)) {
+        throw new UnsupportedOperationException(
+            "Only Dremio simple UDF can be used in interpreter mode!");
       }
 
       SimpleFunctionHolder holder = (SimpleFunctionHolder) holderExpr.getHolder();
@@ -115,15 +124,19 @@ public class InterpreterEvaluator {
         SimpleFunction interpreter = holder.createInterpreter();
         Field[] fields = interpreter.getClass().getDeclaredFields();
         for (Field f : fields) {
-          if ( f.getAnnotation(Inject.class) != null ) {
+          if (f.getAnnotation(Inject.class) != null) {
             f.setAccessible(true);
             Class<?> fieldType = f.getType();
             if (FunctionContext.INJECTABLE_GETTER_METHODS.get(fieldType) != null) {
-              Method method = functionContext.getClass().getMethod(FunctionContext.INJECTABLE_GETTER_METHODS.get(fieldType));
+              Method method =
+                  functionContext
+                      .getClass()
+                      .getMethod(FunctionContext.INJECTABLE_GETTER_METHODS.get(fieldType));
               f.set(interpreter, method.invoke(functionContext));
             } else {
               // Invalid injectable type provided, this should have been caught in FunctionConverter
-              throw new IllegalArgumentException("Invalid injectable type requested in UDF: " + fieldType.getSimpleName());
+              throw new IllegalArgumentException(
+                  "Invalid injectable type requested in UDF: " + fieldType.getSimpleName());
             }
           } else { // do nothing with non-inject fields here
             continue;
@@ -134,12 +147,14 @@ public class InterpreterEvaluator {
         return holderExpr;
 
       } catch (Exception ex) {
-        throw new RuntimeException("Error in evaluating function of " + holderExpr.getName() + ": ", ex);
+        throw new RuntimeException(
+            "Error in evaluating function of " + holderExpr.getName() + ": ", ex);
       }
     }
 
     @Override
-    public LogicalExpression visitUnknown(LogicalExpression e, VectorAccessible incoming) throws RuntimeException {
+    public LogicalExpression visitUnknown(LogicalExpression e, VectorAccessible incoming)
+        throws RuntimeException {
       for (LogicalExpression child : e) {
         child.accept(this, incoming);
       }
@@ -148,8 +163,8 @@ public class InterpreterEvaluator {
     }
   }
 
-
-  public static class EvalVisitor extends AbstractExprVisitor<ValueHolder, Integer, RuntimeException> {
+  public static class EvalVisitor
+      extends AbstractExprVisitor<ValueHolder, Integer, RuntimeException> {
     private VectorAccessible incoming;
     private FunctionContext functionContext;
 
@@ -169,42 +184,50 @@ public class InterpreterEvaluator {
     }
 
     @Override
-    public ValueHolder visitSchemaPath(SchemaPath path,Integer value) throws RuntimeException {
+    public ValueHolder visitSchemaPath(SchemaPath path, Integer value) throws RuntimeException {
       return visitUnknown(path, value);
     }
 
     @Override
-    public ValueHolder visitDateConstant(ValueExpressions.DateExpression dateExpr,Integer value) throws RuntimeException {
+    public ValueHolder visitDateConstant(ValueExpressions.DateExpression dateExpr, Integer value)
+        throws RuntimeException {
       return ValueHolderHelper.getDateMilliHolder(dateExpr.getDate());
     }
 
     @Override
-    public ValueHolder visitTimeConstant(ValueExpressions.TimeExpression timeExpr,Integer value) throws RuntimeException {
+    public ValueHolder visitTimeConstant(ValueExpressions.TimeExpression timeExpr, Integer value)
+        throws RuntimeException {
       return ValueHolderHelper.getTimeMilliHolder(timeExpr.getTime());
     }
 
     @Override
-    public ValueHolder visitTimeStampConstant(ValueExpressions.TimeStampExpression timestampExpr,Integer value) throws RuntimeException {
+    public ValueHolder visitTimeStampConstant(
+        ValueExpressions.TimeStampExpression timestampExpr, Integer value) throws RuntimeException {
       return ValueHolderHelper.getTimeStampMilliHolder(timestampExpr.getTimeStamp());
     }
 
     @Override
-    public ValueHolder visitIntervalYearConstant(ValueExpressions.IntervalYearExpression intExpr,Integer value) throws RuntimeException {
+    public ValueHolder visitIntervalYearConstant(
+        ValueExpressions.IntervalYearExpression intExpr, Integer value) throws RuntimeException {
       return ValueHolderHelper.getIntervalYearHolder(intExpr.getIntervalYear());
     }
 
     @Override
-    public ValueHolder visitIntervalDayConstant(ValueExpressions.IntervalDayExpression intExpr,Integer value) throws RuntimeException {
-      return ValueHolderHelper.getIntervalDayHolder(intExpr.getIntervalDay(), intExpr.getIntervalMillis());
+    public ValueHolder visitIntervalDayConstant(
+        ValueExpressions.IntervalDayExpression intExpr, Integer value) throws RuntimeException {
+      return ValueHolderHelper.getIntervalDayHolder(
+          intExpr.getIntervalDay(), intExpr.getIntervalMillis());
     }
 
     @Override
-    public ValueHolder visitBooleanConstant(ValueExpressions.BooleanExpression e,Integer value) throws RuntimeException {
+    public ValueHolder visitBooleanConstant(ValueExpressions.BooleanExpression e, Integer value)
+        throws RuntimeException {
       return ValueHolderHelper.getBitHolder(e.getBoolean() ? 1 : 0);
     }
 
     @Override
-    public ValueHolder visitNullConstant(TypedNullConstant e,Integer value) throws RuntimeException {
+    public ValueHolder visitNullConstant(TypedNullConstant e, Integer value)
+        throws RuntimeException {
       // create a value holder for the given type, defaults to NULL value if not set
       return TypeHelper.createValueHolder(getArrowMinorType(e.getCompleteType().toMinorType()));
     }
@@ -212,27 +235,32 @@ public class InterpreterEvaluator {
     // TODO - review what to do with these
     // **********************************
     @Override
-    public ValueHolder visitConvertExpression(ConvertExpression e,Integer value) throws RuntimeException {
+    public ValueHolder visitConvertExpression(ConvertExpression e, Integer value)
+        throws RuntimeException {
       return visitUnknown(e, value);
     }
 
     @Override
-    public ValueHolder visitNullExpression(NullExpression e,Integer value) throws RuntimeException {
+    public ValueHolder visitNullExpression(NullExpression e, Integer value)
+        throws RuntimeException {
       return visitUnknown(e, value);
     }
+
     // TODO - review what to do with these (2 functions above)
-    //********************************************
+    // ********************************************
 
     @SuppressForbidden
     @Override
-    public ValueHolder visitFunctionHolderExpression(FunctionHolderExpression holderExpr, Integer inIndex) {
-      if (! (holderExpr.getHolder() instanceof SimpleFunctionHolder)) {
-        throw new UnsupportedOperationException("Only Dremio simple UDF can be used in interpreter mode!");
+    public ValueHolder visitFunctionHolderExpression(
+        FunctionHolderExpression holderExpr, Integer inIndex) {
+      if (!(holderExpr.getHolder() instanceof SimpleFunctionHolder)) {
+        throw new UnsupportedOperationException(
+            "Only Dremio simple UDF can be used in interpreter mode!");
       }
 
       SimpleFunctionHolder holder = (SimpleFunctionHolder) holderExpr.getHolder();
 
-      ValueHolder [] args = new ValueHolder [holderExpr.args.size()];
+      ValueHolder[] args = new ValueHolder[holderExpr.args.size()];
       for (int i = 0; i < holderExpr.args.size(); i++) {
         args[i] = holderExpr.args.get(i).accept(this, inIndex);
         // In case function use "NULL_IF_NULL" policy.
@@ -241,7 +269,8 @@ public class InterpreterEvaluator {
           if (holder.getParameters()[i].getOldType().getMode() == DataMode.REQUIRED) {
             // Case 1.1 : argument is null, return null value holder directly.
             if (TypeHelper.isNull(args[i])) {
-              return TypeHelper.createValueHolder(getArrowMinorType(holderExpr.getCompleteType().toMinorType()));
+              return TypeHelper.createValueHolder(
+                  getArrowMinorType(holderExpr.getCompleteType().toMinorType()));
             } else {
               // Case 1.2: argument is nullable but not null value, deNullify it.
               args[i] = TypeHelper.deNullify(args[i]);
@@ -263,11 +292,15 @@ public class InterpreterEvaluator {
       }
 
       try {
-        SimpleFunction interpreter =  ((FunctionHolderExpr) holderExpr).getInterpreter();
+        SimpleFunction interpreter = ((FunctionHolderExpr) holderExpr).getInterpreter();
 
-        Preconditions.checkArgument(interpreter != null, "interpreter could not be null when use interpreted model to evaluate function " + holder.getRegisteredNames()[0]);
+        Preconditions.checkArgument(
+            interpreter != null,
+            "interpreter could not be null when use interpreted model to evaluate function "
+                + holder.getRegisteredNames()[0]);
 
-        // the current input index to assign into the next available parameter, found using the @Param notation
+        // the current input index to assign into the next available parameter, found using the
+        // @Param notation
         // the order parameters are declared in the java class for the Function is meaningful
         int currParameterIndex = 0;
         Field outField = null;
@@ -275,13 +308,13 @@ public class InterpreterEvaluator {
           Field[] fields = interpreter.getClass().getDeclaredFields();
           for (Field f : fields) {
             // if this is annotated as a parameter to the function
-            if ( f.getAnnotation(Param.class) != null ) {
+            if (f.getAnnotation(Param.class) != null) {
               f.setAccessible(true);
               if (currParameterIndex < args.length) {
                 f.set(interpreter, args[currParameterIndex]);
               }
               currParameterIndex++;
-            } else if ( f.getAnnotation(Output.class) != null ) {
+            } else if (f.getAnnotation(Output.class) != null) {
               f.setAccessible(true);
               outField = f;
               // create an instance of the holder for the output to be stored in
@@ -289,16 +322,18 @@ public class InterpreterEvaluator {
             }
           }
         } catch (IllegalAccessException e) {
-            throw new RuntimeException(e);
+          throw new RuntimeException(e);
         }
-        if (args.length != currParameterIndex ) {
+        if (args.length != currParameterIndex) {
           throw new IllegalArgumentException(
-              String.format("Wrong number of parameters provided to interpreted expression evaluation " +
-                  "for function %s, expected %d parameters, but received %d.",
+              String.format(
+                  "Wrong number of parameters provided to interpreted expression evaluation "
+                      + "for function %s, expected %d parameters, but received %d.",
                   holderExpr.getName(), currParameterIndex, args.length));
         }
         if (outField == null) {
-          throw new IllegalArgumentException("Malformed Function without a return type: " + holderExpr.getName());
+          throw new IllegalArgumentException(
+              "Malformed Function without a return type: " + holderExpr.getName());
         }
         interpreter.setup();
         interpreter.eval();
@@ -314,7 +349,6 @@ public class InterpreterEvaluator {
       } catch (Exception ex) {
         throw new RuntimeException("Error in evaluating function of " + holderExpr.getName(), ex);
       }
-
     }
 
     @Override
@@ -322,18 +356,21 @@ public class InterpreterEvaluator {
       // Apply short circuit evaluation to boolean operator.
       if (op.getName().equals("booleanAnd")) {
         return visitBooleanAnd(op, inIndex);
-      }else if(op.getName().equals("booleanOr")) {
+      } else if (op.getName().equals("booleanOr")) {
         return visitBooleanOr(op, inIndex);
       } else {
-        throw new UnsupportedOperationException("BooleanOperator can only be booleanAnd, booleanOr. You are using " + op.getName());
+        throw new UnsupportedOperationException(
+            "BooleanOperator can only be booleanAnd, booleanOr. You are using " + op.getName());
       }
     }
 
     @Override
-    public ValueHolder visitIfExpression(IfExpression ifExpr, Integer inIndex) throws RuntimeException {
+    public ValueHolder visitIfExpression(IfExpression ifExpr, Integer inIndex)
+        throws RuntimeException {
       ValueHolder condHolder = ifExpr.ifCondition.condition.accept(this, inIndex);
 
-      Preconditions.checkArgument (condHolder instanceof BitHolder || condHolder instanceof NullableBitHolder,
+      Preconditions.checkArgument(
+          condHolder instanceof BitHolder || condHolder instanceof NullableBitHolder,
           "IfExpression's condition does not have type of BitHolder or NullableBitHolder.");
 
       Trivalent flag = isBitOn(condHolder);
@@ -345,17 +382,20 @@ public class InterpreterEvaluator {
         case NULL:
           return ifExpr.elseExpression.accept(this, inIndex);
         default:
-          throw new UnsupportedOperationException("No other possible choice. Something is not right");
+          throw new UnsupportedOperationException(
+              "No other possible choice. Something is not right");
       }
     }
 
     @Override
-    public ValueHolder visitCaseExpression(CaseExpression caseExpression, Integer inIndex) throws RuntimeException {
+    public ValueHolder visitCaseExpression(CaseExpression caseExpression, Integer inIndex)
+        throws RuntimeException {
       for (CaseExpression.CaseConditionNode condition : caseExpression.caseConditions) {
         ValueHolder condHolder = condition.whenExpr.accept(this, inIndex);
 
-        Preconditions.checkArgument(condHolder instanceof BitHolder || condHolder instanceof NullableBitHolder,
-          "CaseExpression's condition does not have type of BitHolder or NullableBitHolder.");
+        Preconditions.checkArgument(
+            condHolder instanceof BitHolder || condHolder instanceof NullableBitHolder,
+            "CaseExpression's condition does not have type of BitHolder or NullableBitHolder.");
 
         Trivalent flag = isBitOn(condHolder);
         if (flag == Trivalent.TRUE) {
@@ -366,41 +406,53 @@ public class InterpreterEvaluator {
     }
 
     @Override
-    public ValueHolder visitIntConstant(ValueExpressions.IntExpression e, Integer inIndex) throws RuntimeException {
+    public ValueHolder visitIntConstant(ValueExpressions.IntExpression e, Integer inIndex)
+        throws RuntimeException {
       return ValueHolderHelper.getIntHolder(e.getInt());
     }
 
     @Override
-    public ValueHolder visitFloatConstant(ValueExpressions.FloatExpression fExpr, Integer value) throws RuntimeException {
+    public ValueHolder visitFloatConstant(ValueExpressions.FloatExpression fExpr, Integer value)
+        throws RuntimeException {
       return ValueHolderHelper.getFloat4Holder(fExpr.getFloat());
     }
 
     @Override
-    public ValueHolder visitLongConstant(ValueExpressions.LongExpression intExpr, Integer value) throws RuntimeException {
+    public ValueHolder visitLongConstant(ValueExpressions.LongExpression intExpr, Integer value)
+        throws RuntimeException {
       return ValueHolderHelper.getBigIntHolder(intExpr.getLong());
     }
 
     @Override
-    public ValueHolder visitDoubleConstant(ValueExpressions.DoubleExpression dExpr, Integer value) throws RuntimeException {
+    public ValueHolder visitDoubleConstant(ValueExpressions.DoubleExpression dExpr, Integer value)
+        throws RuntimeException {
       return ValueHolderHelper.getFloat8Holder(dExpr.getDouble());
     }
 
     @Override
-    public ValueHolder visitDecimalConstant(ValueExpressions.DecimalExpression dExpr, Integer value) throws RuntimeException {
-      return ValueHolderHelper.getNullableDecimalHolder(getManagedBufferIfAvailable(), dExpr.getDecimal(), dExpr.getPrecision(), dExpr.getScale());
+    public ValueHolder visitDecimalConstant(ValueExpressions.DecimalExpression dExpr, Integer value)
+        throws RuntimeException {
+      return ValueHolderHelper.getNullableDecimalHolder(
+          getManagedBufferIfAvailable(),
+          dExpr.getDecimal(),
+          dExpr.getPrecision(),
+          dExpr.getScale());
     }
 
     @Override
-    public ValueHolder visitQuotedStringConstant(final ValueExpressions.QuotedString e, Integer value) throws RuntimeException {
-      return getConstantValueHolder(e.value, getArrowMinorType(e.getCompleteType().toMinorType()), new Function<ArrowBuf, ValueHolder>() {
-        @Nullable
-        @Override
-        public ValueHolder apply(ArrowBuf buffer) {
-          return ValueHolderHelper.getVarCharHolder(buffer, e.value);
-        }
-      });
+    public ValueHolder visitQuotedStringConstant(
+        final ValueExpressions.QuotedString e, Integer value) throws RuntimeException {
+      return getConstantValueHolder(
+          e.value,
+          getArrowMinorType(e.getCompleteType().toMinorType()),
+          new Function<ArrowBuf, ValueHolder>() {
+            @Nullable
+            @Override
+            public ValueHolder apply(ArrowBuf buffer) {
+              return ValueHolderHelper.getVarCharHolder(buffer, e.value);
+            }
+          });
     }
-
 
     @Override
     public ValueHolder visitUnknown(LogicalExpression e, Integer inIndex) throws RuntimeException {
@@ -409,17 +461,19 @@ public class InterpreterEvaluator {
       } else {
         return super.visitUnknown(e, inIndex);
       }
-
     }
 
-    protected ValueHolder visitValueVectorReadExpression(ValueVectorReadExpression e, Integer inIndex)
-        throws RuntimeException {
+    protected ValueHolder visitValueVectorReadExpression(
+        ValueVectorReadExpression e, Integer inIndex) throws RuntimeException {
       CompleteType ct = e.getCompleteType();
 
-      if(!ct.isScalar()){
+      if (!ct.isScalar()) {
         throw new RuntimeException("Unable to read value.");
       }
-      ValueVector vv = incoming.getValueAccessorById(ct.getValueVectorClass(), e.getFieldId().getFieldIds()).getValueVector();
+      ValueVector vv =
+          incoming
+              .getValueAccessorById(ct.getValueVectorClass(), e.getFieldId().getFieldIds())
+              .getValueVector();
       return TypeHelper.getValue(vv, inIndex.intValue());
     }
 
@@ -435,7 +489,7 @@ public class InterpreterEvaluator {
     //          2) if none argument is false, but at least one is null, return null.
     //          3) finally, return true (finalValue).
     private ValueHolder visitBooleanAnd(BooleanOperator op, Integer inIndex) {
-      ValueHolder [] args = new ValueHolder [op.args.size()];
+      ValueHolder[] args = new ValueHolder[op.args.size()];
       boolean hasNull = false;
       for (int i = 0; i < op.args.size(); i++) {
         args[i] = op.args.get(i).accept(this, inIndex);
@@ -469,7 +523,7 @@ public class InterpreterEvaluator {
     //    null    false    null
     //    null    null     null
     private ValueHolder visitBooleanOr(BooleanOperator op, Integer inIndex) {
-      ValueHolder [] args = new ValueHolder [op.args.size()];
+      ValueHolder[] args = new ValueHolder[op.args.size()];
       boolean hasNull = false;
       for (int i = 0; i < op.args.size(); i++) {
         args[i] = op.args.get(i).accept(this, inIndex);
@@ -502,12 +556,15 @@ public class InterpreterEvaluator {
     }
 
     private Trivalent isBitOn(ValueHolder holder) {
-      Preconditions.checkArgument(holder instanceof BitHolder || holder instanceof NullableBitHolder,
+      Preconditions.checkArgument(
+          holder instanceof BitHolder || holder instanceof NullableBitHolder,
           "Input does not have type of BitHolder or NullableBitHolder.");
 
-      if ( (holder instanceof BitHolder && ((BitHolder) holder).value == 1)) {
+      if ((holder instanceof BitHolder && ((BitHolder) holder).value == 1)) {
         return Trivalent.TRUE;
-      } else if (holder instanceof NullableBitHolder && ((NullableBitHolder) holder).isSet == 1 && ((NullableBitHolder) holder).value == 1) {
+      } else if (holder instanceof NullableBitHolder
+          && ((NullableBitHolder) holder).isSet == 1
+          && ((NullableBitHolder) holder).value == 1) {
         return Trivalent.TRUE;
       } else if (holder instanceof NullableBitHolder && ((NullableBitHolder) holder).isSet == 0) {
         return Trivalent.NULL;
@@ -516,10 +573,9 @@ public class InterpreterEvaluator {
       }
     }
 
-    private ValueHolder getConstantValueHolder(String value, MinorType type, Function<ArrowBuf, ValueHolder> holderInitializer) {
+    private ValueHolder getConstantValueHolder(
+        String value, MinorType type, Function<ArrowBuf, ValueHolder> holderInitializer) {
       return functionContext.getConstantValueHolder(value, type, holderInitializer);
     }
-
   }
-
 }

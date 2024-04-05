@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.planner.common;
 
+import com.dremio.exec.planner.cost.DremioCost.Factory;
+import com.dremio.exec.planner.physical.PrelUtil;
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
@@ -24,28 +26,23 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.SingleRel;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
-import com.dremio.exec.planner.cost.DremioCost.Factory;
-import com.dremio.exec.planner.physical.PrelUtil;
-
-/**
- * Base class for logical and physical Screen implemented in Dremio
- */
+/** Base class for logical and physical Screen implemented in Dremio */
 public abstract class ScreenRelBase extends SingleRel {
 
-  public ScreenRelBase(Convention convention, RelOptCluster cluster, RelTraitSet traitSet, RelNode input) {
+  public ScreenRelBase(
+      Convention convention, RelOptCluster cluster, RelTraitSet traitSet, RelNode input) {
     super(cluster, traitSet, input);
     assert input.getConvention() == convention;
   }
 
   @Override
   public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery relMetadataQuery) {
-    if(PrelUtil.getSettings(getCluster()).useDefaultCosting()) {
+    if (PrelUtil.getSettings(getCluster()).useDefaultCosting()) {
       return super.computeSelfCost(planner, relMetadataQuery).multiplyBy(.1);
     }
     // by default, assume cost is proportional to number of rows
     double rowCount = relMetadataQuery.getRowCount(this);
-    Factory costFactory = (Factory)planner.getCostFactory();
+    Factory costFactory = (Factory) planner.getCostFactory();
     return costFactory.makeCost(rowCount, rowCount, 0, 0).multiplyBy(0.1);
   }
-
 }

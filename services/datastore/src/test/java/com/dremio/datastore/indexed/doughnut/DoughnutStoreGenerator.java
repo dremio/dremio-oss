@@ -20,9 +20,7 @@ import com.dremio.datastore.generator.factory.StringSupplierFactory;
 import com.dremio.datastore.generator.supplier.UniqueSupplier;
 import com.dremio.datastore.generator.supplier.UniqueSupplierOptions;
 
-/**
- * Used to generate data for a doughnut store
- */
+/** Used to generate data for a doughnut store */
 public class DoughnutStoreGenerator implements DataGenerator<String, Doughnut> {
   private final UniqueSupplier<String> nextKey;
   private final UniqueSupplier<String> nextValue;

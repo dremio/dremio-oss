@@ -15,14 +15,11 @@
  */
 package com.dremio.provision.service;
 
-import java.util.Set;
-
 import com.dremio.provision.ClusterType;
 import com.dremio.provision.DistroType;
+import java.util.Set;
 
-/**
- * Iface to configure defaults
- */
+/** Iface to configure defaults */
 public interface ProvisioningDefaultsConfigurator {
 
   ClusterType getType();
@@ -30,5 +27,4 @@ public interface ProvisioningDefaultsConfigurator {
   Set<String> getDefaultPropertiesNames();
 
   DistroTypeConfigurator getDistroTypeDefaultsConfigurator(DistroType dType, boolean isSecurityOn);
-
 }

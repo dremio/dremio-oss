@@ -18,26 +18,26 @@ package com.dremio.exec.fn.impl;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import java.util.List;
-
-import org.apache.arrow.vector.ValueVector;
-import org.junit.Ignore;
-import org.junit.Test;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.exec.proto.UserBitShared.QueryType;
 import com.dremio.exec.record.RecordBatchLoader;
 import com.dremio.exec.record.VectorWrapper;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
+import java.util.List;
+import org.apache.arrow.vector.ValueVector;
+import org.junit.Ignore;
+import org.junit.Test;
 
 @Ignore("DX-3872")
 public class TestAggregateFunction extends BaseTestQuery {
 
   public void runTest(Object[] values, String planPath, String dataPath) throws Throwable {
 
-    List<QueryDataBatch> results = client.runQuery(QueryType.PHYSICAL,
-      readResourceAsString(planPath).replace("#{TEST_FILE}", dataPath));
-    try (RecordBatchLoader batchLoader = new RecordBatchLoader(nodes[0].getContext().getAllocator())) {
+    List<QueryDataBatch> results =
+        client.runQuery(
+            QueryType.PHYSICAL, readResourceAsString(planPath).replace("#{TEST_FILE}", dataPath));
+    try (RecordBatchLoader batchLoader =
+        new RecordBatchLoader(nodes[0].getContext().getAllocator())) {
       QueryDataBatch batch = results.get(1);
       assertTrue(batchLoader.load(batch.getHeader().getDef(), batch.getData()));
 
@@ -46,7 +46,6 @@ public class TestAggregateFunction extends BaseTestQuery {
         ValueVector vv = v.getValueVector();
         assertEquals(values[i++], (vv.getObject(0)));
       }
-
     }
 
     for (QueryDataBatch b : results) {
@@ -58,7 +57,9 @@ public class TestAggregateFunction extends BaseTestQuery {
   public void testSortDate() throws Throwable {
     String planPath = "/functions/test_stddev_variance.json";
     String dataPath = "/simple_stddev_variance_input.json";
-    Double[] expectedValues = {2.0d, 2.138089935299395d, 2.138089935299395d, 4.0d, 4.571428571428571d, 4.571428571428571d};
+    Double[] expectedValues = {
+      2.0d, 2.138089935299395d, 2.138089935299395d, 4.0d, 4.571428571428571d, 4.571428571428571d
+    };
 
     runTest(expectedValues, planPath, dataPath);
   }
@@ -67,9 +68,18 @@ public class TestAggregateFunction extends BaseTestQuery {
   public void testCovarianceCorrelation() throws Throwable {
     String planPath = "/functions/test_covariance.json";
     String dataPath = "/covariance_input.json";
-    Double[] expectedValues = {4.571428571428571d, 4.857142857142857d, -6.000000000000002d, 4.0d , 4.25d, -5.250000000000002d, 1.0d, 0.9274260335029677d, -1.0000000000000004d};
+    Double[] expectedValues = {
+      4.571428571428571d,
+      4.857142857142857d,
+      -6.000000000000002d,
+      4.0d,
+      4.25d,
+      -5.250000000000002d,
+      1.0d,
+      0.9274260335029677d,
+      -1.0000000000000004d
+    };
 
     runTest(expectedValues, planPath, dataPath);
   }
-
 }

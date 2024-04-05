@@ -23,7 +23,8 @@ import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 
 public final class ArrayConcatConvertlet implements FunctionConvertlet {
-  public static final FunctionConvertlet INSTANCE = new NullableArrayFunctionConvertlet(new ArrayConcatConvertlet());
+  public static final FunctionConvertlet INSTANCE =
+      new NullableArrayFunctionConvertlet(new ArrayConcatConvertlet());
 
   private ArrayConcatConvertlet() {}
 
@@ -35,28 +36,24 @@ public final class ArrayConcatConvertlet implements FunctionConvertlet {
   @Override
   public RexCall convertCall(ConvertletContext cx, RexCall call) {
     /*
-      If a user writes a query like:
+     If a user writes a query like:
 
-      SELECT ARRAY_CONCAT(ARRAY[1, 2, 3], ARRAY[4, 5, 6], ARRAY[7, 8, 9])
+     SELECT ARRAY_CONCAT(ARRAY[1, 2, 3], ARRAY[4, 5, 6], ARRAY[7, 8, 9])
 
-      Then we get a runtime error, since our execution for ARRAY_CONCAT only supports 2 parameters.
-      (There is no variadic function in execution).
+     Then we get a runtime error, since our execution for ARRAY_CONCAT only supports 2 parameters.
+     (There is no variadic function in execution).
 
-      One solution is to just nest the arguments:
+     One solution is to just nest the arguments:
 
-      SELECT ARRAY_CONCAT(ARRAY_CONCAT(ARRAY[1, 2, 3], ARRAY[4, 5, 6]), ARRAY[7, 8, 9])
-     */
+     SELECT ARRAY_CONCAT(ARRAY_CONCAT(ARRAY[1, 2, 3], ARRAY[4, 5, 6]), ARRAY[7, 8, 9])
+    */
     RexBuilder rexBuilder = cx.getRexBuilder();
 
-    RexNode nestedArrayConcat = rexBuilder.makeCall(
-      ARRAY_CAT,
-      call.getOperands().get(0),
-      call.getOperands().get(1));
+    RexNode nestedArrayConcat =
+        rexBuilder.makeCall(ARRAY_CAT, call.getOperands().get(0), call.getOperands().get(1));
     for (int i = 2; i < call.getOperands().size(); i++) {
-      nestedArrayConcat = rexBuilder.makeCall(
-        ARRAY_CAT,
-        nestedArrayConcat,
-        call.getOperands().get(i));
+      nestedArrayConcat =
+          rexBuilder.makeCall(ARRAY_CAT, nestedArrayConcat, call.getOperands().get(i));
     }
 
     return (RexCall) nestedArrayConcat;

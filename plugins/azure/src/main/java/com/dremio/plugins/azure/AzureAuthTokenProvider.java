@@ -18,23 +18,21 @@ package com.dremio.plugins.azure;
 
 import org.asynchttpclient.Request;
 
-/**
- * Implementation should provide the value of Authorization header
- */
+/** Implementation should provide the value of Authorization header */
 public interface AzureAuthTokenProvider {
 
   /**
-   * Checks whether token is about to expire or is already expired
-   * If it is either of the scenarios, method updates the token and returns true
-   * Otherwise, the token remains unchanged and method returns false
+   * Checks whether token is about to expire or is already expired If it is either of the scenarios,
+   * method updates the token and returns true Otherwise, the token remains unchanged and method
+   * returns false
    *
    * @return
    */
   boolean checkAndUpdateToken();
 
   /**
-   * Should return the value of Authorization header.
-   * The value should be prefixed with token type. Example "Bearer <token>"
+   * Should return the value of Authorization header. The value should be prefixed with token type.
+   * Example "Bearer <token>"
    *
    * @param req
    * @return

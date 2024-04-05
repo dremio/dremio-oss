@@ -17,12 +17,16 @@ package com.dremio.plugins.dataplane;
 
 public final class CredentialsProviderConstants {
 
-  public static final String ACCESS_KEY_PROVIDER = "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider";
-  public static final String NONE_PROVIDER = "org.apache.hadoop.fs.s3a.AnonymousAWSCredentialsProvider";
-  public static final String ASSUME_ROLE_PROVIDER = "com.dremio.plugins.s3.store.STSCredentialProviderV1";
-  public static final String EC2_METADATA_PROVIDER = "com.amazonaws.auth.InstanceProfileCredentialsProvider";
-  public static final String AWS_PROFILE_PROVIDER = "com.dremio.plugins.s3.store.AWSProfileCredentialsProviderV1";
+  public static final String ACCESS_KEY_PROVIDER =
+      "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider";
+  public static final String NONE_PROVIDER =
+      "org.apache.hadoop.fs.s3a.AnonymousAWSCredentialsProvider";
+  public static final String ASSUME_ROLE_PROVIDER =
+      "com.dremio.plugins.s3.store.STSCredentialProviderV1";
+  public static final String EC2_METADATA_PROVIDER =
+      "com.amazonaws.auth.InstanceProfileCredentialsProvider";
+  public static final String AWS_PROFILE_PROVIDER =
+      "com.dremio.plugins.s3.store.AWSProfileCredentialsProviderV1";
 
   private CredentialsProviderConstants() {}
-
 }

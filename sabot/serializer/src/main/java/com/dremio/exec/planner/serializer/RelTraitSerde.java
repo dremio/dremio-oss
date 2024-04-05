@@ -15,16 +15,13 @@
  */
 package com.dremio.exec.planner.serializer;
 
+import com.dremio.plan.serialization.PRelTrait;
+import com.google.common.base.Preconditions;
 import org.apache.calcite.plan.RelTrait;
 import org.apache.calcite.rel.RelCollation;
 import org.apache.commons.lang3.NotImplementedException;
 
-import com.dremio.plan.serialization.PRelTrait;
-import com.google.common.base.Preconditions;
-
-/**
- * Serde for RelTrait.
- */
+/** Serde for RelTrait. */
 public final class RelTraitSerde {
   private RelTraitSerde() {}
 
@@ -45,10 +42,11 @@ public final class RelTraitSerde {
     Preconditions.checkNotNull(relTrait);
 
     PRelTrait pRelTrait;
-    if(relTrait instanceof RelCollation) {
-      pRelTrait = PRelTrait.newBuilder()
-        .setCollation(RelCollationSerde.toProto((RelCollation)relTrait))
-        .build();
+    if (relTrait instanceof RelCollation) {
+      pRelTrait =
+          PRelTrait.newBuilder()
+              .setCollation(RelCollationSerde.toProto((RelCollation) relTrait))
+              .build();
     } else {
       throw new NotImplementedException("Don't know how to handle this RelTrait.");
     }

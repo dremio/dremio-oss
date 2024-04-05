@@ -25,13 +25,22 @@ public class FieldInfo {
   final Object[] values;
   final TypeProtos.MinorType type;
 
-  FieldInfo(String parquetType, String name, int bitLength, Object[] values,
-      TypeProtos.MinorType type, ParquetTestProperties props){
+  FieldInfo(
+      String parquetType,
+      String name,
+      int bitLength,
+      Object[] values,
+      TypeProtos.MinorType type,
+      ParquetTestProperties props) {
     this.parquetType = parquetType;
     this.name = name;
-    this.bitLength  = bitLength;
-    this.numberOfPages = Math.max(1,
-        (int) Math.ceil( ((long) props.recordsPerRowGroup) * bitLength / 8.0 / props.bytesPerPage));
+    this.bitLength = bitLength;
+    this.numberOfPages =
+        Math.max(
+            1,
+            (int)
+                Math.ceil(
+                    ((long) props.recordsPerRowGroup) * bitLength / 8.0 / props.bytesPerPage));
 
     // generator is designed to use 3 values
     if (values.length != 3) {

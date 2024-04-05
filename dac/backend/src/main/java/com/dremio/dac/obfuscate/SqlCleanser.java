@@ -15,10 +15,12 @@
  */
 package com.dremio.dac.obfuscate;
 
+import com.dremio.exec.calcite.SqlNodes;
+import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.planner.sql.ParserConfig;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
-
 import org.apache.calcite.avatica.util.Quoting;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlCharStringLiteral;
@@ -34,18 +36,20 @@ import org.apache.calcite.sql.SqlWithItem;
 import org.apache.calcite.sql.parser.SqlParser;
 import org.apache.calcite.sql.util.SqlShuttle;
 
-import com.dremio.exec.calcite.SqlNodes;
-import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.planner.sql.ParserConfig;
-
 /**
- * Tool to redact the identifiers and string literals in a sql statement
- * This is package-protected and all usages should be via ObfuscationUtils because this does not
- * check whether to obfuscate or not.
+ * Tool to redact the identifiers and string literals in a sql statement This is package-protected
+ * and all usages should be via ObfuscationUtils because this does not check whether to obfuscate or
+ * not.
  */
 class SqlCleanser {
-  private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(SqlCleanser.class);
-  private static final ParserConfig CONFIG = new ParserConfig(Quoting.DOUBLE_QUOTE, 1000, true, PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
+  private static final org.slf4j.Logger LOGGER =
+      org.slf4j.LoggerFactory.getLogger(SqlCleanser.class);
+  private static final ParserConfig CONFIG =
+      new ParserConfig(
+          Quoting.DOUBLE_QUOTE,
+          1000,
+          true,
+          PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
 
   private final FromVisitor fromVisitor = new FromVisitor();
   private final IdentifierAndLiteralFinder finder = new IdentifierAndLiteralFinder();
@@ -60,7 +64,8 @@ class SqlCleanser {
       SqlNode cleansedTree = sqlNodeList.get(0).accept(cleanser.fromVisitor);
       cleansedSql = SqlNodes.toSQLString(cleansedTree);
     } catch (Exception e) {
-      String errorMsg = "Exception while parsing sql, so obfuscating whole sql with a random hex string. ";
+      String errorMsg =
+          "Exception while parsing sql, so obfuscating whole sql with a random hex string. ";
       LOGGER.error(errorMsg, e);
       cleansedSql = errorMsg + ObfuscationUtils.obfuscatePartial(sql);
     }
@@ -71,18 +76,18 @@ class SqlCleanser {
     @Override
     public SqlNode visit(SqlCall call) {
       switch (call.getKind()) {
-      case SELECT:
-        return processSelect((SqlSelect) call);
-      case JOIN:
-        return processJoin((SqlJoin) call);
-      case ORDER_BY:
-        return processOrderBy((SqlOrderBy) call);
-      case WITH:
-        return processWith((SqlWith) call);
-      case WITH_ITEM:
-        return processWithItem((SqlWithItem) call);
-      default:
-        return super.visit(call);
+        case SELECT:
+          return processSelect((SqlSelect) call);
+        case JOIN:
+          return processJoin((SqlJoin) call);
+        case ORDER_BY:
+          return processOrderBy((SqlOrderBy) call);
+        case WITH:
+          return processWith((SqlWith) call);
+        case WITH_ITEM:
+          return processWithItem((SqlWithItem) call);
+        default:
+          return super.visit(call);
       }
     }
 
@@ -92,7 +97,10 @@ class SqlCleanser {
         return id;
       }
 
-      List<String> redactedNames = id.names.stream().map(s -> Integer.toHexString(s.toLowerCase().hashCode())).collect(Collectors.toList());
+      List<String> redactedNames =
+          id.names.stream()
+              .map(s -> Integer.toHexString(s.toLowerCase().hashCode()))
+              .collect(Collectors.toList());
       return new SqlIdentifier(redactedNames, id.getCollation(), id.getParserPosition(), null);
     }
 
@@ -175,10 +183,10 @@ class SqlCleanser {
     @Override
     public SqlNode visit(SqlCall call) {
       switch (call.getKind()) {
-      case SELECT:
-      case JOIN:
-        return call.accept(fromVisitor);
-      default:
+        case SELECT:
+        case JOIN:
+          return call.accept(fromVisitor);
+        default:
       }
       return super.visit(call);
     }
@@ -192,7 +200,10 @@ class SqlCleanser {
         SqlCharStringLiteral charStringLiteral = (SqlCharStringLiteral) literal;
         String value = charStringLiteral.toValue();
         String newValue = "literal_" + Integer.toHexString(value.hashCode());
-        return SqlLiteral.createCharString(newValue, charStringLiteral.getNlsString().getCharsetName(), literal.getParserPosition());
+        return SqlLiteral.createCharString(
+            newValue,
+            charStringLiteral.getNlsString().getCharsetName(),
+            literal.getParserPosition());
       }
       return literal;
     }
@@ -206,7 +217,9 @@ class SqlCleanser {
       for (int i = 0; i < names.size() - 1; i++) {
         names.set(i, Integer.toHexString(names.get(i).toLowerCase().hashCode()));
       }
-      names.set(names.size() - 1, "field_" + Integer.toHexString(names.get(names.size() - 1).toLowerCase().hashCode()));
+      names.set(
+          names.size() - 1,
+          "field_" + Integer.toHexString(names.get(names.size() - 1).toLowerCase().hashCode()));
       return new SqlIdentifier(names, id.getCollation(), id.getParserPosition(), null);
     }
   }

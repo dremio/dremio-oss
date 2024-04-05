@@ -18,19 +18,19 @@ package com.dremio.common.expression.visitors;
 import com.google.errorprone.annotations.FormatMethod;
 
 public class ExpressionValidationError {
-    private final String message;
+  private final String message;
 
-    @FormatMethod
-    public ExpressionValidationError(String format, Object... args) {
-      this(String.format(format, args));
-    }
+  @FormatMethod
+  public ExpressionValidationError(String format, Object... args) {
+    this(String.format(format, args));
+  }
 
-    public ExpressionValidationError(String message) {
-        this.message = message;
-    }
+  public ExpressionValidationError(String message) {
+    this.message = message;
+  }
 
-    @Override
-    public String toString() {
-        return message;
-    }
+  @Override
+  public String toString() {
+    return message;
+  }
 }

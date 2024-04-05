@@ -17,9 +17,7 @@ package com.dremio.service.functions.snippets;
 
 import java.util.Optional;
 
-/**
- * AST for this grammar: https://code.visualstudio.com/docs/editor/userdefinedsnippets#_grammar
- */
+/** AST for this grammar: https://code.visualstudio.com/docs/editor/userdefinedsnippets#_grammar */
 public abstract class SnippetElement {
   public static Optional<SnippetElement> tryParse(String text) {
     if (text.isEmpty()) {

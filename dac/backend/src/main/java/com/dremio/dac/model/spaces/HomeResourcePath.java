@@ -18,14 +18,11 @@ package com.dremio.dac.model.spaces;
 
 import static java.util.Arrays.asList;
 
-import java.util.List;
-
 import com.dremio.dac.model.common.ResourcePath;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import java.util.List;
 
-/**
- * "/home/@user"
- */
+/** "/home/@user" */
 public class HomeResourcePath extends ResourcePath {
 
   private final HomeName home;
@@ -38,7 +35,8 @@ public class HomeResourcePath extends ResourcePath {
   public HomeResourcePath(String homePath) {
     List<String> path = parse(homePath, "home");
     if (path.size() != 1) {
-      throw new IllegalArgumentException("path should be of form: /home/@{homeName}, found " + homePath);
+      throw new IllegalArgumentException(
+          "path should be of form: /home/@{homeName}, found " + homePath);
     }
     this.home = new HomeName(path.get(0));
   }

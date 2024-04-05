@@ -15,23 +15,6 @@
  */
 package com.dremio.plugins.elastic.planning.rels;
 
-import java.io.IOException;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
-
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelOptCost;
-import org.apache.calcite.plan.RelOptPlanner;
-import org.apache.calcite.plan.RelOptTable;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.core.Project;
-import org.apache.calcite.rel.metadata.RelMetadataQuery;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rex.RexNode;
-
 import com.dremio.common.expression.CompleteType;
 import com.dremio.elastic.proto.ElasticReaderProto.ElasticSpecialType;
 import com.dremio.exec.catalog.StoragePluginId;
@@ -51,32 +34,66 @@ import com.dremio.plugins.elastic.ElasticsearchConf;
 import com.dremio.plugins.elastic.ElasticsearchStoragePlugin;
 import com.dremio.plugins.elastic.planning.rules.ProjectAnalyzer;
 import com.dremio.plugins.elastic.planning.rules.SchemaField;
+import java.io.IOException;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Set;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptCost;
+import org.apache.calcite.plan.RelOptPlanner;
+import org.apache.calcite.plan.RelOptTable;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.core.Project;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rex.RexNode;
 
 public class ElasticsearchProject extends ProjectRelBase implements ElasticsearchPrel {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ElasticsearchProject.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ElasticsearchProject.class);
 
   private final boolean needsScript;
   private final boolean scriptsEnabled;
   private final StoragePluginId pluginId;
 
-  public ElasticsearchProject(RelOptCluster cluster, RelTraitSet traits, RelNode input, List<? extends RexNode> projects, RelDataType rowType, StoragePluginId pluginId) {
+  public ElasticsearchProject(
+      RelOptCluster cluster,
+      RelTraitSet traits,
+      RelNode input,
+      List<? extends RexNode> projects,
+      RelDataType rowType,
+      StoragePluginId pluginId) {
     super(Prel.PHYSICAL, cluster, traits, input, projects, rowType);
     this.needsScript = !MoreRelOptUtil.isSimpleColumnSelection(this);
     this.pluginId = pluginId;
-    this.scriptsEnabled = ElasticsearchConf.createElasticsearchConf(pluginId.getConnectionConf()).isScriptsEnabled();
+    this.scriptsEnabled =
+        ElasticsearchConf.createElasticsearchConf(pluginId.getConnectionConf()).isScriptsEnabled();
   }
 
-  public boolean canPushdown(ElasticIntermediateScanPrel scan, FunctionLookupContext functionLookupContext, Set<ElasticSpecialType> disallowedSpecialTypes){
-    ElasticsearchConf config = ElasticsearchConf.createElasticsearchConf(scan.getPluginId().getConnectionConf());
+  public boolean canPushdown(
+      ElasticIntermediateScanPrel scan,
+      FunctionLookupContext functionLookupContext,
+      Set<ElasticSpecialType> disallowedSpecialTypes) {
+    ElasticsearchConf config =
+        ElasticsearchConf.createElasticsearchConf(scan.getPluginId().getConnectionConf());
     final boolean scriptsEnabled = config.isScriptsEnabled();
     final boolean painlessAllowed = config.isUsePainless();
-    final boolean supportsV5Features = pluginId.getCapabilities().getCapability(ElasticsearchStoragePlugin.ENABLE_V5_FEATURES);
+    final boolean supportsV5Features =
+        pluginId.getCapabilities().getCapability(ElasticsearchStoragePlugin.ENABLE_V5_FEATURES);
     for (RexNode originalExpression : getProjects()) {
       try {
         final RexNode expr = SchemaField.convert(originalExpression, scan, disallowedSpecialTypes);
-        ProjectAnalyzer.getScript(expr, painlessAllowed, supportsV5Features, scriptsEnabled, true,
-            config.isAllowPushdownOnNormalizedOrAnalyzedFields(), false);
+        ProjectAnalyzer.getScript(
+            expr,
+            painlessAllowed,
+            supportsV5Features,
+            scriptsEnabled,
+            true,
+            config.isAllowPushdownOnNormalizedOrAnalyzedFields(),
+            false);
       } catch (Exception e) {
         logger.debug("Exception while attempting pushdown.", e);
         return false;
@@ -100,10 +117,8 @@ public class ElasticsearchProject extends ProjectRelBase implements Elasticsearc
     if (inputTable == null) {
       return false;
     }
-    return MoreRelOptUtil.containIdentity(getProjects(),
-      getRowType(),
-      inputTable.getRowType(),
-      String::compareTo);
+    return MoreRelOptUtil.containIdentity(
+        getProjects(), getRowType(), inputTable.getRowType(), String::compareTo);
   }
 
   public boolean getNeedsScript() {
@@ -124,8 +139,10 @@ public class ElasticsearchProject extends ProjectRelBase implements Elasticsearc
   }
 
   @Override
-  public Project copy(RelTraitSet relTraitSet, RelNode relNode, List<RexNode> list, RelDataType relDataType) {
-    return new ElasticsearchProject(this.getCluster(), relTraitSet, relNode, list, relDataType, pluginId);
+  public Project copy(
+      RelTraitSet relTraitSet, RelNode relNode, List<RexNode> list, RelDataType relDataType) {
+    return new ElasticsearchProject(
+        this.getCluster(), relTraitSet, relNode, list, relDataType, pluginId);
   }
 
   @Override
@@ -163,7 +180,8 @@ public class ElasticsearchProject extends ProjectRelBase implements Elasticsearc
     final ElasticsearchPrel child = (ElasticsearchPrel) getInput();
     final BatchSchema childSchema = child.getSchema(context);
     ParseContext parseContext = new ParseContext(PrelUtil.getSettings(getCluster()));
-    return ExpressionTreeMaterializer.materializeFields(getProjectExpressions(parseContext), childSchema, context)
+    return ExpressionTreeMaterializer.materializeFields(
+            getProjectExpressions(parseContext), childSchema, context)
         .setSelectionVectorMode(childSchema.getSelectionVectorMode())
         .build();
   }

@@ -15,42 +15,45 @@
  */
 package com.dremio.authenticator;
 
-/**
- * Exception thrown by {@link AuthProvider} and {@link Authenticator}.
- */
+/** Exception thrown by {@link AuthProvider} and {@link Authenticator}. */
 public class AuthException extends Exception {
 
   /**
-   * Helper method for including the auth request and exception's message in the error message
-   * and propagating the original exception.
+   * Helper method for including the auth request and exception's message in the error message and
+   * propagating the original exception.
    */
   public AuthException(AuthRequest authRequest, Exception e) {
-    super(String.format("Authentication failed for user %s with type %s for resource %s. Reason: %s",
-      authRequest.getUsername(), authRequest.getTokenType(),
-      authRequest.getResource(), e.getMessage()), e);
+    super(
+        String.format(
+            "Authentication failed for user %s with type %s for resource %s. Reason: %s",
+            authRequest.getUsername(),
+            authRequest.getTokenType(),
+            authRequest.getResource(),
+            e.getMessage()),
+        e);
   }
 
   /**
-   * Helper method for including the auth request in the error message and a specific instruction for the end user.
-   * Usually this is used when no need to propagate the original exception or the original exception has been handled by the server.
+   * Helper method for including the auth request in the error message and a specific instruction
+   * for the end user. Usually this is used when no need to propagate the original exception or the
+   * original exception has been handled by the server.
    */
   public AuthException(AuthRequest authRequest, String error) {
-    super(String.format("Authentication failed for user %s with type %s for resource %s. Reason: %s",
-      authRequest.getUsername(), authRequest.getTokenType(),
-      authRequest.getResource(), error));
+    super(
+        String.format(
+            "Authentication failed for user %s with type %s for resource %s. Reason: %s",
+            authRequest.getUsername(),
+            authRequest.getTokenType(),
+            authRequest.getResource(),
+            error));
   }
 
-  /**
-   * Helper method for including an invalid user's username in the error message.
-   */
+  /** Helper method for including an invalid user's username in the error message. */
   public AuthException(String username) {
-    super(String.format("User %s was either not found or in an inactive state.",
-      username));
+    super(String.format("User %s was either not found or in an inactive state.", username));
   }
 
-  /**
-   * Helper method for propagating the original exception.
-   */
+  /** Helper method for propagating the original exception. */
   public AuthException(Exception e) {
     super(e);
   }

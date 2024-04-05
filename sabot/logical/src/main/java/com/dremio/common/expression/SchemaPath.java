@@ -15,12 +15,6 @@
  */
 package com.dremio.common.expression;
 
-import java.io.IOException;
-
-import org.antlr.runtime.ANTLRStringStream;
-import org.antlr.runtime.CommonTokenStream;
-import org.antlr.runtime.RecognitionException;
-
 import com.dremio.common.expression.PathSegment.ArraySegment;
 import com.dremio.common.expression.PathSegment.NameSegment;
 import com.dremio.common.expression.parser.ExprLexer;
@@ -33,11 +27,14 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import com.google.common.base.Preconditions;
+import java.io.IOException;
+import org.antlr.runtime.ANTLRStringStream;
+import org.antlr.runtime.CommonTokenStream;
+import org.antlr.runtime.RecognitionException;
 
 public class SchemaPath extends BasePath implements LogicalExpression, Comparable<SchemaPath> {
   // Unused but required for Kryo deserialization as it used to exist pre 4.2.
-  @Deprecated
-  private EvaluationType evaluationType;
+  @Deprecated private EvaluationType evaluationType;
 
   public static SchemaPath getSimplePath(String name) {
     return getCompoundPath(name);
@@ -54,7 +51,7 @@ public class SchemaPath extends BasePath implements LogicalExpression, Comparabl
 
   @Override
   public PathSegment getLastSegment() {
-    PathSegment s= rootSegment;
+    PathSegment s = rootSegment;
     while (s.getChild() != null) {
       s = s.getChild();
     }
@@ -76,6 +73,7 @@ public class SchemaPath extends BasePath implements LogicalExpression, Comparabl
 
   /**
    * A simple is a path where there are no repeated elements outside the lowest level of the path.
+   *
    * @return Whether this path is a simple path.
    */
   @Override
@@ -109,7 +107,7 @@ public class SchemaPath extends BasePath implements LogicalExpression, Comparabl
   }
 
   public SchemaPath getParent() {
-    if(rootSegment.isLastPath()){
+    if (rootSegment.isLastPath()) {
       return null;
     }
     return new SchemaPath(rootSegment.cloneWithoutChild());
@@ -192,8 +190,8 @@ public class SchemaPath extends BasePath implements LogicalExpression, Comparabl
         CommonTokenStream tokens = new CommonTokenStream(lexer);
         ExprParser parser = new ExprParser(tokens);
 
-        //TODO: move functionregistry and error collector to injectables.
-        //ctxt.findInjectableValue(valueId, forProperty, beanInstance)
+        // TODO: move functionregistry and error collector to injectables.
+        // ctxt.findInjectableValue(valueId, forProperty, beanInstance)
         parse_return ret = parser.parse();
 
         // ret.e.resolveAndValidate(expr, errorCollector);
@@ -206,7 +204,6 @@ public class SchemaPath extends BasePath implements LogicalExpression, Comparabl
         throw new RuntimeException(e);
       }
     }
-
   }
 
   @Override

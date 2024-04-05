@@ -15,13 +15,6 @@
  */
 package com.dremio.exec.catalog;
 
-import java.lang.reflect.Modifier;
-import java.util.Collection;
-import java.util.Map;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.exec.catalog.conf.ConnectionConf;
@@ -35,16 +28,18 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-
 import io.protostuff.ByteString;
 import io.protostuff.LinkedBuffer;
 import io.protostuff.ProtobufIOUtil;
 import io.protostuff.ProtostuffIOUtil;
 import io.protostuff.Schema;
+import java.lang.reflect.Modifier;
+import java.util.Collection;
+import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * Resolves concrete ConnectionConf types using Classpath Scanning.
- */
+/** Resolves concrete ConnectionConf types using Classpath Scanning. */
 public class ConnectionReaderImpl implements ConnectionReader {
 
   private static final Logger logger = LoggerFactory.getLogger(ConnectionReaderImpl.class);
@@ -55,27 +50,35 @@ public class ConnectionReaderImpl implements ConnectionReader {
   private final ImmutableMap<String, Class<? extends ConnectionConf<?, ?>>> connectionConfClasses;
 
   /**
-   * Note: Not intended for direct use. Instead, use {@link ConnectionReader#of(ScanResult, SabotConfig)}
+   * Note: Not intended for direct use. Instead, use {@link ConnectionReader#of(ScanResult,
+   * SabotConfig)}
    */
   ConnectionReaderImpl(ImmutableMap<String, Schema<? extends ConnectionConf<?, ?>>> schemaByName) {
     this.schemaByName = schemaByName;
 
-    final ImmutableMap.Builder<String, Class<? extends ConnectionConf<?, ?>>> builder = ImmutableMap.builder();
+    final ImmutableMap.Builder<String, Class<? extends ConnectionConf<?, ?>>> builder =
+        ImmutableMap.builder();
     schemaByName.entrySet().stream()
-      .forEach(entry -> builder.put(entry.getKey(), (Class<? extends ConnectionConf<?, ?>>) entry.getValue().typeClass()));
+        .forEach(
+            entry ->
+                builder.put(
+                    entry.getKey(),
+                    (Class<? extends ConnectionConf<?, ?>>) entry.getValue().typeClass()));
     this.connectionConfClasses = builder.build();
   }
 
-  @SuppressWarnings("unused")  // Note: used by reflection, from ConnectionReader.of()
+  @SuppressWarnings("unused") // Note: used by reflection, from ConnectionReader.of()
   public static ConnectionReader makeReader(ScanResult scanResult) {
-    Collection<Class<? extends ConnectionConf<?, ?>>> sourceCandidates = getCandidateSources(scanResult);
-    ImmutableMap.Builder<String, Schema<? extends ConnectionConf<?, ?>>> stringMap = ImmutableMap.builder();
+    Collection<Class<? extends ConnectionConf<?, ?>>> sourceCandidates =
+        getCandidateSources(scanResult);
+    ImmutableMap.Builder<String, Schema<? extends ConnectionConf<?, ?>>> stringMap =
+        ImmutableMap.builder();
     for (Class<? extends ConnectionConf<?, ?>> input : sourceCandidates) {
       SourceType type = input.getAnnotation(SourceType.class);
       try {
         Schema<? extends ConnectionConf<?, ?>> schema = ConnectionSchema.getSchema(input);
         stringMap.put(type.value(), schema);
-      } catch(Exception ex) {
+      } catch (Exception ex) {
         throw new RuntimeException("failure trying to read source conf: " + input.getName(), ex);
       }
     }
@@ -83,16 +86,21 @@ public class ConnectionReaderImpl implements ConnectionReader {
   }
 
   /**
-   * Returns a collection of candidate sources -- i.e., any class that has the @SourceType annotation
+   * Returns a collection of candidate sources -- i.e., any class that has the @SourceType
+   * annotation
    */
-  protected static Collection<Class<? extends ConnectionConf<?, ?>>> getCandidateSources(ScanResult scanResult) {
-    ImmutableList.Builder<Class<? extends ConnectionConf<?, ?>>> candidates = new ImmutableList.Builder<>();
-    for(Class<?> input : scanResult.getAnnotatedClasses(SourceType.class)) {
+  protected static Collection<Class<? extends ConnectionConf<?, ?>>> getCandidateSources(
+      ScanResult scanResult) {
+    ImmutableList.Builder<Class<? extends ConnectionConf<?, ?>>> candidates =
+        new ImmutableList.Builder<>();
+    for (Class<?> input : scanResult.getAnnotatedClasses(SourceType.class)) {
       try {
         if (Modifier.isAbstract(input.getModifiers())
-          || Modifier.isInterface(input.getModifiers())
-          || !ConnectionConf.class.isAssignableFrom(input)) {
-          logger.warn("Failure trying to recognize SourceConf for {}. Expected a concrete implementation of SourceConf.", input.getName());
+            || Modifier.isInterface(input.getModifiers())
+            || !ConnectionConf.class.isAssignableFrom(input)) {
+          logger.warn(
+              "Failure trying to recognize SourceConf for {}. Expected a concrete implementation of SourceConf.",
+              input.getName());
           continue;
         }
       } catch (Exception e) {
@@ -107,10 +115,12 @@ public class ConnectionReaderImpl implements ConnectionReader {
 
   @SuppressWarnings("unchecked")
   @Override
-  public <T extends AbstractConnectionConf> T getConnectionConf(String typeName, ByteString bytesS) {
+  public <T extends AbstractConnectionConf> T getConnectionConf(
+      String typeName, ByteString bytesS) {
     Schema<T> schema = (Schema<T>) schemaByName.get(typeName);
-    if(schema == null) {
-      throw new MissingSourceTypeException(typeName, String.format("Unable to find handler for source of type [%s].", typeName));
+    if (schema == null) {
+      throw new MissingSourceTypeException(
+          typeName, String.format("Unable to find handler for source of type [%s].", typeName));
     }
 
     T conf = schema.newMessage();
@@ -122,7 +132,8 @@ public class ConnectionReaderImpl implements ConnectionReader {
   @Override
   public ConnectionConf<?, ?> getConnectionConf(SourceConfig config) {
     try {
-      return (ConnectionConf<?, ?>) getConnectionConf(ConnectionReader.toType(config), config.getConfig());
+      return (ConnectionConf<?, ?>)
+          getConnectionConf(ConnectionReader.toType(config), config.getConfig());
     } catch (MissingSourceTypeException sourceTypeEx) {
       final MissingPluginConf missingPluginConf = new MissingPluginConf();
       missingPluginConf.errorMessage = sourceTypeEx.getMessage();
@@ -138,7 +149,8 @@ public class ConnectionReaderImpl implements ConnectionReader {
   }
 
   /**
-   * Returns the given source config as a string, without secret fields. Useful in error messages and debug logs.
+   * Returns the given source config as a string, without secret fields. Useful in error messages
+   * and debug logs.
    *
    * @param sourceConfig source config
    * @return source config as string, without secret fields
@@ -146,8 +158,9 @@ public class ConnectionReaderImpl implements ConnectionReader {
   @Override
   public String toStringWithoutSecrets(SourceConfig sourceConfig) {
     try {
-      final byte[] bytes = ProtostuffIOUtil.toByteArray(sourceConfig, SourceConfig.getSchema(),
-          LinkedBuffer.allocate());
+      final byte[] bytes =
+          ProtostuffIOUtil.toByteArray(
+              sourceConfig, SourceConfig.getSchema(), LinkedBuffer.allocate());
       final SourceConfig clone = new SourceConfig();
       ProtostuffIOUtil.mergeFrom(bytes, clone, SourceConfig.getSchema());
 
@@ -156,9 +169,7 @@ public class ConnectionReaderImpl implements ConnectionReader {
       clone.setConfig(null);
 
       final StringBuilder sb = new StringBuilder();
-      sb.append("[source: ")
-          .append(clone.toString())
-          .append(", connection: ");
+      sb.append("[source: ").append(clone.toString()).append(", connection: ");
       try {
         sb.append(mapper.writeValueAsString(conf));
       } catch (JsonProcessingException ignored) {

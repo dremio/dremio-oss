@@ -16,60 +16,47 @@
 
 package com.dremio.service.reflection;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-
-import org.junit.Assert;
-import org.junit.Test;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.service.reflection.proto.ReflectionField;
 import com.dremio.service.reflection.refresh.RefreshHandler;
 import com.google.common.collect.ImmutableMap;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import org.junit.Assert;
+import org.junit.Test;
 
-/**
- * tests for {@link RefreshHandler}
- */
+/** tests for {@link RefreshHandler} */
 public class TestWriterOptionManager {
 
-  @Test public void testValidateAndPluckNames(){
-    List<ReflectionField> fields = Arrays.asList(
-      new ReflectionField()
-        .setName("my_name")
-    );
+  @Test
+  public void testValidateAndPluckNames() {
+    List<ReflectionField> fields = Arrays.asList(new ReflectionField().setName("my_name"));
     Map<String, String> knownFields = ImmutableMap.of("my_name", "my_name");
 
     WriterOptionManager subject = WriterOptionManager.Instance;
 
-    List<String> actual = subject.validateAndPluckNames(WriterOptionManager.toStringListReflectionField(fields), knownFields);
+    List<String> actual =
+        subject.validateAndPluckNames(
+            WriterOptionManager.toStringListReflectionField(fields), knownFields);
 
-    Assert.assertEquals(
-      Arrays.asList(
-        "my_name"
-      ),
-      actual
-    );
+    Assert.assertEquals(Arrays.asList("my_name"), actual);
   }
 
-  @Test public void testValidateAndPluckNameMissing(){
-    List<ReflectionField> fields = Arrays.asList(
-      new ReflectionField()
-        .setName("Unknown Field")
-    );
+  @Test
+  public void testValidateAndPluckNameMissing() {
+    List<ReflectionField> fields = Arrays.asList(new ReflectionField().setName("Unknown Field"));
     Map<String, String> knownFields = ImmutableMap.of("my field", "my field");
 
     WriterOptionManager subject = WriterOptionManager.Instance;
 
-
     try {
-      subject.validateAndPluckNames(WriterOptionManager.toStringListReflectionField(fields), knownFields);
+      subject.validateAndPluckNames(
+          WriterOptionManager.toStringListReflectionField(fields), knownFields);
       Assert.fail("Expected exception for unknown field");
     } catch (UserException userException) {
       Assert.assertEquals(
-        "Unable to find field ReflectionField{name=Unknown Field}.",
-        userException.getMessage()
-      );
+          "Unable to find field ReflectionField{name=Unknown Field}.", userException.getMessage());
     }
   }
 }

@@ -20,8 +20,15 @@ import static com.dremio.common.TestProfileHelper.isMaprProfile;
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 import static org.junit.Assert.assertEquals;
 
+import com.dremio.exec.ExecConstants;
+import com.dremio.exec.catalog.CatalogServiceImpl;
+import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.store.dfs.InternalFileConf;
+import com.dremio.exec.store.dfs.SchemaMutability;
+import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.source.proto.MetadataPolicy;
+import com.dremio.service.namespace.source.proto.SourceConfig;
 import java.net.URISyntaxException;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -31,22 +38,13 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import com.dremio.exec.ExecConstants;
-import com.dremio.exec.catalog.CatalogServiceImpl;
-import com.dremio.exec.store.CatalogService;
-import com.dremio.exec.store.dfs.InternalFileConf;
-import com.dremio.exec.store.dfs.SchemaMutability;
-import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.namespace.source.proto.MetadataPolicy;
-import com.dremio.service.namespace.source.proto.SourceConfig;
-
 public class TestImpersonationMetadataRefresh extends BaseTestImpersonation {
   private static final String USER = "dremioTestUser1";
   private static final String GROUP = "dremioTestGrp1";
   private static Configuration configuration;
 
   static {
-    UserGroupInformation.createUserForTesting(USER, new String[]{GROUP});
+    UserGroupInformation.createUserForTesting(USER, new String[] {GROUP});
   }
 
   @BeforeClass
@@ -59,17 +57,22 @@ public class TestImpersonationMetadataRefresh extends BaseTestImpersonation {
   @AfterClass
   public static void removeMiniDfsBasedStorage() throws Exception {
     /*
-     JUnit assume() call results in AssumptionViolatedException, which is handled by JUnit with a goal to ignore
-     the test having the assume() call. Multiple assume() calls, or other exceptions coupled with a single assume()
-     call, result in multiple exceptions, which aren't handled by JUnit, leading to test deemed to be failed.
-     We thus use isMaprProfile() check instead of assumeNonMaprProfile() here.
-     */
+    JUnit assume() call results in AssumptionViolatedException, which is handled by JUnit with a goal to ignore
+    the test having the assume() call. Multiple assume() calls, or other exceptions coupled with a single assume()
+    call, result in multiple exceptions, which aren't handled by JUnit, leading to test deemed to be failed.
+    We thus use isMaprProfile() check instead of assumeNonMaprProfile() here.
+    */
     if (isMaprProfile()) {
       return;
     }
 
-    SourceConfig config = getSabotContext().getNamespaceService(SYSTEM_USERNAME).getSource(new NamespaceKey(MINIDFS_STORAGE_PLUGIN_NAME));
-    ((CatalogServiceImpl) getSabotContext().getCatalogService()).getSystemUserCatalog().deleteSource(config);
+    SourceConfig config =
+        getSabotContext()
+            .getNamespaceService(SYSTEM_USERNAME)
+            .getSource(new NamespaceKey(MINIDFS_STORAGE_PLUGIN_NAME));
+    ((CatalogServiceImpl) getSabotContext().getCatalogService())
+        .getSystemUserCatalog()
+        .deleteSource(config);
     stopMiniDfsCluster();
   }
 
@@ -88,7 +91,8 @@ public class TestImpersonationMetadataRefresh extends BaseTestImpersonation {
       // wait for for cached metadata to expire
       Thread.sleep(10);
 
-      // run simple query again - records should be half this size as one parquet file has been removed
+      // run simple query again - records should be half this size as one parquet file has been
+      // removed
       assertEquals(recordCount / 2, getRecordCount(testSqlWithResults(query)));
     }
   }
@@ -114,14 +118,16 @@ public class TestImpersonationMetadataRefresh extends BaseTestImpersonation {
     SourceConfig config = new SourceConfig();
     config.setName(MINIDFS_STORAGE_PLUGIN_NAME);
     config.setConnectionConf(conf);
-    config.setMetadataPolicy(new MetadataPolicy()
-        .setAuthTtlMs(5L)
-        .setAutoPromoteDatasets(true)
-        .setDatasetDefinitionExpireAfterMs(1_000_000L));
+    config.setMetadataPolicy(
+        new MetadataPolicy()
+            .setAuthTtlMs(5L)
+            .setAutoPromoteDatasets(true)
+            .setDatasetDefinitionExpireAfterMs(1_000_000L));
     ((CatalogServiceImpl) catalogService).getSystemUserCatalog().createSource(config);
   }
 
   private static Path getSampleParquetFilePath() throws URISyntaxException {
-    return new Path(TestImpersonationMetadataRefresh.class.getResource("/parquet/singlets.parquet").toURI());
+    return new Path(
+        TestImpersonationMetadataRefresh.class.getResource("/parquet/singlets.parquet").toURI());
   }
 }

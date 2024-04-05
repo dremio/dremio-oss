@@ -20,11 +20,12 @@ import org.junit.Test;
 
 public class TestCaseSensitivity extends BaseTestQuery {
 
-  @Test //DRILL-4707
+  @Test // DRILL-4707
   public void testCaseSenWhenQueryTwoDiffCols() throws Exception {
     // 1st column integer, 2nd column varchar
     testBuilder()
-        .sqlQuery("select n_nationkey as XYZ, n_name as xyz FROM cp.\"tpch/nation.parquet\" order by n_nationkey limit 1")
+        .sqlQuery(
+            "select n_nationkey as XYZ, n_name as xyz FROM cp.\"tpch/nation.parquet\" order by n_nationkey limit 1")
         .ordered()
         .baselineColumns("XYZ", "xyz0")
         .baselineValues(0, "ALGERIA")
@@ -33,7 +34,8 @@ public class TestCaseSensitivity extends BaseTestQuery {
 
     // both columns integer type
     testBuilder()
-        .sqlQuery("select n_nationkey as XYZ, n_regionkey as xyz FROM cp.\"tpch/nation.parquet\" order by n_nationkey limit 1")
+        .sqlQuery(
+            "select n_nationkey as XYZ, n_regionkey as xyz FROM cp.\"tpch/nation.parquet\" order by n_nationkey limit 1")
         .ordered()
         .baselineColumns("XYZ", "xyz0")
         .baselineValues(0, 0)
@@ -42,12 +44,12 @@ public class TestCaseSensitivity extends BaseTestQuery {
 
     // join two tables. 1st column integer, 2nd column varchar
     testBuilder()
-        .sqlQuery("select n.n_nationkey as XYZ, r.r_name as xyz from cp.\"tpch/nation.parquet\" n, cp.\"tpch/region.parquet\" r where n.n_regionkey = r.r_regionkey order by n.n_nationkey limit 1")
+        .sqlQuery(
+            "select n.n_nationkey as XYZ, r.r_name as xyz from cp.\"tpch/nation.parquet\" n, cp.\"tpch/region.parquet\" r where n.n_regionkey = r.r_regionkey order by n.n_nationkey limit 1")
         .ordered()
         .baselineColumns("XYZ", "xyz0")
         .baselineValues(0, "AFRICA")
         .build()
         .run();
   }
-
 }

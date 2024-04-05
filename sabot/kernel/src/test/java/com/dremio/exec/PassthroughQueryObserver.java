@@ -41,10 +41,8 @@ public class PassthroughQueryObserver extends AbstractAttemptObserver {
     connection.sendData(outcomeListener, result);
   }
 
-
   @Override
   public void attemptCompletion(UserResult result) {
     connection.sendResult(new BaseRpcOutcomeListener<Ack>(), result.toQueryResult());
   }
-
 }

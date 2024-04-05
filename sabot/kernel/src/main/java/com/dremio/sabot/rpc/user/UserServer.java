@@ -15,13 +15,6 @@
  */
 package com.dremio.sabot.rpc.user;
 
-import java.util.Optional;
-import java.util.concurrent.ExecutorService;
-
-import javax.inject.Provider;
-
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.authenticator.Authenticator;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.SabotConfig;
@@ -37,12 +30,16 @@ import com.dremio.service.Service;
 import com.dremio.service.users.UserService;
 import com.dremio.telemetry.api.metrics.Metrics;
 import com.google.common.base.Preconditions;
-
 import io.netty.channel.EventLoopGroup;
 import io.opentracing.Tracer;
+import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import javax.inject.Provider;
+import org.apache.arrow.memory.BufferAllocator;
 
 /**
- * Manages the lifecycle of a {@link UserRPCServer}, which allows for communication with non-web clients.
+ * Manages the lifecycle of a {@link UserRPCServer}, which allows for communication with non-web
+ * clients.
  */
 public class UserServer implements Service {
 
@@ -64,17 +61,16 @@ public class UserServer implements Service {
   private volatile int port = -1;
 
   public UserServer(
-    DremioConfig config,
-    Provider<ExecutorService> executorService,
-    Provider<BufferAllocator> bufferAllocator,
-    Provider<? extends Authenticator> authenticatorProvider,
-    Provider<UserService> userServiceProvider,
-    Provider<NodeEndpoint> nodeEndpointProvider,
-    Provider<UserWorker> worker,
-    boolean allowPortHunting,
-    Tracer tracer,
-    Provider<OptionValidatorListing> optionValidatorProvider
-  ) {
+      DremioConfig config,
+      Provider<ExecutorService> executorService,
+      Provider<BufferAllocator> bufferAllocator,
+      Provider<? extends Authenticator> authenticatorProvider,
+      Provider<UserService> userServiceProvider,
+      Provider<NodeEndpoint> nodeEndpointProvider,
+      Provider<UserWorker> worker,
+      boolean allowPortHunting,
+      Tracer tracer,
+      Provider<OptionValidatorListing> optionValidatorProvider) {
     this.config = config;
     this.executorService = executorService;
     this.bufferAllocator = bufferAllocator;
@@ -88,21 +84,25 @@ public class UserServer implements Service {
   }
 
   public int getPort() {
-    Preconditions.checkArgument(port != -1, "Server port cannot be requested before UserRPCServer is started.");
+    Preconditions.checkArgument(
+        port != -1, "Server port cannot be requested before UserRPCServer is started.");
     return port;
   }
 
   @Override
   public void start() throws Exception {
     final SabotConfig sabotConfig = config.getSabotConfig();
-    allocator = bufferAllocator.get()
-        .newChildAllocator(
-            "rpc:user",
-            sabotConfig.getLong("dremio.exec.rpc.user.server.memory.reservation"),
-          sabotConfig.getLong("dremio.exec.rpc.user.server.memory.maximum"));
+    allocator =
+        bufferAllocator
+            .get()
+            .newChildAllocator(
+                "rpc:user",
+                sabotConfig.getLong("dremio.exec.rpc.user.server.memory.reservation"),
+                sabotConfig.getLong("dremio.exec.rpc.user.server.memory.maximum"));
 
-    final EventLoopGroup eventLoopGroup = TransportCheck
-        .createEventLoopGroup(sabotConfig.getInt(ExecConstants.USER_SERVER_RPC_THREADS), "UserServer-");
+    final EventLoopGroup eventLoopGroup =
+        TransportCheck.createEventLoopGroup(
+            sabotConfig.getInt(ExecConstants.USER_SERVER_RPC_THREADS), "UserServer-");
     eventLoopCloseable = new EventLoopCloseable(eventLoopGroup);
 
     server = newUserRPCServer(eventLoopGroup);
@@ -110,7 +110,7 @@ public class UserServer implements Service {
     Metrics.newGauge("rpc.user.current", allocator::getAllocatedMemory);
     Metrics.newGauge("rpc.user.peak", allocator::getPeakMemoryAllocation);
     int initialPort = sabotConfig.getInt(DremioClient.INITIAL_USER_PORT);
-    if(allowPortHunting){
+    if (allowPortHunting) {
       initialPort += 333;
     }
 
@@ -173,5 +173,4 @@ public class UserServer implements Service {
   protected Provider<OptionValidatorListing> getOptionValidatorProvider() {
     return optionValidatorProvider;
   }
-
 }

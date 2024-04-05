@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.planner.sql;
 
+import com.google.common.base.Objects;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
@@ -26,38 +27,43 @@ import org.apache.calcite.sql.type.OperandTypes;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-import com.google.common.base.Objects;
-
 public class SqlFlattenOperator extends SqlFunction {
 
   private int index;
 
   public SqlFlattenOperator(int index) {
-    super(new SqlIdentifier("FLATTEN", SqlParserPos.ZERO),
-      new SqlReturnTypeInference() {
-        @Override
-        public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
-          final RelDataType operandType = opBinding.getOperandType(0);
-          if (operandType instanceof ArraySqlType) {
-            return ((ArraySqlType) operandType).getComponentType();
-          } else {
-            // Since we don't have any way of knowing if the output of the flatten is nullable, we should always assume it is.
-            // This is especially important when accelerating a count(column) query, because the normalizer will convert it to
-            // a count(1) if it thinks this column is non-nullable, and then remove the flatten altogether. This is actually a
-            // problem with the fact that flatten is not really a project operator (because it can output more than one row per input).
-            return opBinding.getTypeFactory()
-              .createTypeWithNullability(opBinding.getTypeFactory().createSqlType(SqlTypeName.ANY),true);
+    super(
+        new SqlIdentifier("FLATTEN", SqlParserPos.ZERO),
+        new SqlReturnTypeInference() {
+          @Override
+          public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
+            final RelDataType operandType = opBinding.getOperandType(0);
+            if (operandType instanceof ArraySqlType) {
+              return ((ArraySqlType) operandType).getComponentType();
+            } else {
+              // Since we don't have any way of knowing if the output of the flatten is nullable, we
+              // should always assume it is.
+              // This is especially important when accelerating a count(column) query, because the
+              // normalizer will convert it to
+              // a count(1) if it thinks this column is non-nullable, and then remove the flatten
+              // altogether. This is actually a
+              // problem with the fact that flatten is not really a project operator (because it can
+              // output more than one row per input).
+              return opBinding
+                  .getTypeFactory()
+                  .createTypeWithNullability(
+                      opBinding.getTypeFactory().createSqlType(SqlTypeName.ANY), true);
+            }
           }
-        }
-      },
-      null,
-      OperandTypes.ARRAY,
-      null,
-      SqlFunctionCategory.USER_DEFINED_FUNCTION);
+        },
+        null,
+        OperandTypes.ARRAY,
+        null,
+        SqlFunctionCategory.USER_DEFINED_FUNCTION);
     this.index = index;
   }
 
-  public SqlFlattenOperator withIndex(int index){
+  public SqlFlattenOperator withIndex(int index) {
     return new SqlFlattenOperator(index);
   }
 
@@ -75,7 +81,7 @@ public class SqlFlattenOperator extends SqlFunction {
     return Objects.hashCode(index);
   }
 
-  public int getIndex(){
+  public int getIndex() {
     return index;
   }
 
@@ -85,5 +91,4 @@ public class SqlFlattenOperator extends SqlFunction {
   public boolean isDeterministic() {
     return false;
   }
-
 }

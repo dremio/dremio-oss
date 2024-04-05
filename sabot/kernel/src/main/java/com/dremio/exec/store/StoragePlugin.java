@@ -15,13 +15,6 @@
  */
 package com.dremio.exec.store;
 
-import java.io.IOException;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-
-import org.apache.calcite.schema.Function;
-
 import com.dremio.common.Wrapper;
 import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.SourceMetadata;
@@ -36,63 +29,68 @@ import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.google.common.base.Preconditions;
-
 import io.protostuff.ByteString;
+import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import org.apache.calcite.schema.Function;
 
-/**
- * Registry that's used to register a source with catalog service.
- */
+/** Registry that's used to register a source with catalog service. */
 public interface StoragePlugin extends Service, SourceMetadata, Wrapper {
-  Serializer<DatasetConfig, byte[]> DATASET_CONFIG_SERIALIZER = Serializer.of(DatasetConfig.getSchema());
+  Serializer<DatasetConfig, byte[]> DATASET_CONFIG_SERIALIZER =
+      Serializer.of(DatasetConfig.getSchema());
 
   /**
-   * Whether the given user can access the entity at the given location
-   * according to the underlying source. This will always return true for
-   * non-impersonated sources. For impersonated sources this will consult the
-   * underlying source. No caching should be done in the plugin.
-   * If dataset config doesn't have complete information needed to check access permission
-   * always return true.
+   * Whether the given user can access the entity at the given location according to the underlying
+   * source. This will always return true for non-impersonated sources. For impersonated sources
+   * this will consult the underlying source. No caching should be done in the plugin. If dataset
+   * config doesn't have complete information needed to check access permission always return true.
    *
-   * @param user
-   *          username to validate.
-   * @param key
-   *          path to validate.
-   * @param datasetConfig
-   *          dataset properties
+   * @param user username to validate.
+   * @param key path to validate.
+   * @param datasetConfig dataset properties
    * @return True if user has access.
    */
   boolean hasAccessPermission(String user, NamespaceKey key, DatasetConfig datasetConfig);
 
   /**
    * Get current state for source.
+   *
    * @return
    */
   SourceState getState();
 
   /**
-   * Get the convention for this source instance. This allows the source's rules to choose to match only this source's convention.
+   * Get the convention for this source instance. This allows the source's rules to choose to match
+   * only this source's convention.
+   *
    * @return
    */
   SourceCapabilities getSourceCapabilities();
 
   /**
    * Retrieves table function implementations based on give table schema path and schema config.
+   *
    * @param tableSchemaPath the table schema path.
    * @param schemaConfig the schema config.
-   * @return a list of table functions implemented for this storage plugin. Returns an empty list by default.
+   * @return a list of table functions implemented for this storage plugin. Returns an empty list by
+   *     default.
    */
   default List<Function> getFunctions(List<String> tableSchemaPath, SchemaConfig schemaConfig) {
     return Collections.emptyList();
   }
 
   /**
-   * Create a new DatasetConfig based on a merger of a new schema and the DatasetConfig of this source.
+   * Create a new DatasetConfig based on a merger of a new schema and the DatasetConfig of this
+   * source.
    *
    * @param oldConfig The current DatasetConfiguration.
    * @param newSchema The newly detected BatchSchema.
    * @return The DatasetConfig resulting from the merger of the old config with the new schema.
    */
-  default DatasetConfig createDatasetConfigFromSchema(DatasetConfig oldConfig, BatchSchema newSchema) {
+  default DatasetConfig createDatasetConfigFromSchema(
+      DatasetConfig oldConfig, BatchSchema newSchema) {
     Preconditions.checkNotNull(oldConfig);
     Preconditions.checkNotNull(newSchema);
 
@@ -103,7 +101,8 @@ public interface StoragePlugin extends Service, SourceMetadata, Wrapper {
       merge = mergeSchemas(oldConfig, newSchema);
     }
 
-    DatasetConfig newConfig = DATASET_CONFIG_SERIALIZER.deserialize(DATASET_CONFIG_SERIALIZER.serialize(oldConfig));
+    DatasetConfig newConfig =
+        DATASET_CONFIG_SERIALIZER.deserialize(DATASET_CONFIG_SERIALIZER.serialize(oldConfig));
     newConfig.setRecordSchema(ByteString.copyFrom(merge.serialize()));
 
     return newConfig;
@@ -118,21 +117,23 @@ public interface StoragePlugin extends Service, SourceMetadata, Wrapper {
 
   /**
    * Converts a byte string to a list of column extended properties grouped by column name.
+   *
    * @param bytes the byte string to parse
    * @return the column extended properties grouped by column name
    */
-  default Map<String, List<ColumnExtendedProperty>> parseColumnExtendedProperties(ByteString bytes) throws ConnectorException {
+  default Map<String, List<ColumnExtendedProperty>> parseColumnExtendedProperties(ByteString bytes)
+      throws ConnectorException {
     return null;
   }
 
   /**
-   * Get the factory class for rules for this source registry. Is designed to
-   * ensure that rules don't have reference access to their underlying storage
-   * plugin. Rules are created for each plugin instance
+   * Get the factory class for rules for this source registry. Is designed to ensure that rules
+   * don't have reference access to their underlying storage plugin. Rules are created for each
+   * plugin instance
    *
    * @return A class that has a zero-arg constructor for generating rules.
    */
-  Class<? extends StoragePluginRulesFactory>  getRulesFactoryClass();
+  Class<? extends StoragePluginRulesFactory> getRulesFactoryClass();
 
   @Override
   void start() throws IOException;

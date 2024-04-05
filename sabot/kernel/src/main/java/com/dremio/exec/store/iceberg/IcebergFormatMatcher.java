@@ -15,11 +15,6 @@
  */
 package com.dremio.exec.store.iceberg;
 
-import java.io.IOException;
-import java.util.regex.Pattern;
-
-import org.apache.hadoop.security.AccessControlException;
-
 import com.dremio.exec.store.dfs.FileSelection;
 import com.dremio.exec.store.dfs.FormatMatcher;
 import com.dremio.exec.store.dfs.FormatPlugin;
@@ -27,19 +22,19 @@ import com.dremio.io.CompressionCodecFactory;
 import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
+import java.io.IOException;
+import java.util.regex.Pattern;
+import org.apache.hadoop.security.AccessControlException;
 
 /**
  * Matcher for iceberg format. We expect :
  *
- * a. directory with name "metadata",
- *  (and)
- * b. file with pattern v\d*.metadata.json in (a)
- *  (and)
+ * <p>a. directory with name "metadata", (and) b. file with pattern v\d*.metadata.json in (a) (and)
  * c. file with name "version-hint.text" in (a)
- *
  */
 public class IcebergFormatMatcher extends FormatMatcher {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(IcebergFormatMatcher.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(IcebergFormatMatcher.class);
   public static final String METADATA_DIR_NAME = "metadata";
   private static final Pattern METADATA_FILE_PATTERN = Pattern.compile("v\\d*\\.metadata\\.json$");
   private static final String VERSION_HINT_FILE_NAME = "version-hint.text";
@@ -50,16 +45,19 @@ public class IcebergFormatMatcher extends FormatMatcher {
   }
 
   @Override
-  public FormatPlugin getFormatPlugin()  {
+  public FormatPlugin getFormatPlugin() {
     return this.plugin;
   }
 
   @Override
-  public boolean matches(FileSystem fs, FileSelection fileSelection, CompressionCodecFactory codecFactory) throws IOException {
+  public boolean matches(
+      FileSystem fs, FileSelection fileSelection, CompressionCodecFactory codecFactory)
+      throws IOException {
     return isIcebergTable(fs, fileSelection.getSelectionRoot());
   }
 
-  public boolean isFileSystemSupportedIcebergTable(FileSystem fs, String tableRootPath) throws IOException {
+  public boolean isFileSystemSupportedIcebergTable(FileSystem fs, String tableRootPath)
+      throws IOException {
     if (!isIcebergTable(fs, tableRootPath)) {
       return false;
     }
@@ -84,7 +82,8 @@ public class IcebergFormatMatcher extends FormatMatcher {
       Path metaDir = Path.of(tableRootPath).resolve(METADATA_DIR_NAME);
       return fs.isDirectory(metaDir);
     } catch (AccessControlException ex) {
-      // HadoopFileSystem::isDirectory throws AccessControlException if the root itself is not a directory.
+      // HadoopFileSystem::isDirectory throws AccessControlException if the root itself is not a
+      // directory.
       return false;
     }
   }

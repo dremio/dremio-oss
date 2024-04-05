@@ -16,9 +16,7 @@
 
 package com.dremio.service.userpreferences;
 
-/**
- * Exception when more entites than threshold are added in prefernce list
- */
+/** Exception when more entites than threshold are added in prefernce list */
 public class EntityThresholdReachedException extends Exception {
   public EntityThresholdReachedException(long threshold, String type) {
     super(String.format("Maximum %s entities can be added in %s list.", threshold, type));

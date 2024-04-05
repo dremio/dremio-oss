@@ -17,22 +17,6 @@ package com.dremio.exec.maestro;
 
 import static org.mockito.Mockito.*;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-
-import org.jetbrains.annotations.NotNull;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.InOrder;
-import org.mockito.Mock;
-import org.mockito.Mockito;
-import org.mockito.junit.MockitoJUnitRunner;
-
 import com.dremio.common.concurrent.CloseableSchedulerThreadPool;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.exec.catalog.Catalog;
@@ -66,43 +50,47 @@ import com.dremio.service.executor.ExecutorServiceClient;
 import com.dremio.service.executor.ExecutorServiceClientFactory;
 import com.google.common.collect.ImmutableSet;
 import com.google.protobuf.Empty;
-
 import io.grpc.stub.StreamObserver;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import org.jetbrains.annotations.NotNull;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.InOrder;
+import org.mockito.Mock;
+import org.mockito.Mockito;
+import org.mockito.junit.MockitoJUnitRunner;
 
 @RunWith(MockitoJUnitRunner.Silent.class)
 public class TestFragmentTracker {
-  private final QueryId queryId = QueryId
-    .newBuilder()
-    .setPart1(123L)
-    .setPart2(456L)
-    .build();
+  private final QueryId queryId = QueryId.newBuilder().setPart1(123L).setPart2(456L).build();
 
   private final NodeEndpoint selfEndpoint =
-    NodeEndpoint.newBuilder().setAddress("host1").setFabricPort(12345).build();
+      NodeEndpoint.newBuilder().setAddress("host1").setFabricPort(12345).build();
 
   private CloseableSchedulerThreadPool closeableSchedulerThreadPool;
 
-  @Mock
-  private QueryContext context;
+  @Mock private QueryContext context;
 
-  @Mock
-  private CompletionListener completionListener;
+  @Mock private CompletionListener completionListener;
 
-  @Mock
-  private AttemptObserver observer;
+  @Mock private AttemptObserver observer;
 
-  @Mock
-  private Catalog catalog;
+  @Mock private Catalog catalog;
 
-  @Mock
-  private ClusterCoordinator coordinator;
+  @Mock private ClusterCoordinator coordinator;
 
-  @Mock
-  private OptionManager optionManager;
+  @Mock private OptionManager optionManager;
 
   @Before
   public void setUp() {
-    this.closeableSchedulerThreadPool = new CloseableSchedulerThreadPool("cancel-fragment-retry-",1);
+    this.closeableSchedulerThreadPool =
+        new CloseableSchedulerThreadPool("cancel-fragment-retry-", 1);
 
     // Boilerplate
     when(context.getQueryUserName()).thenReturn("myuser");
@@ -113,27 +101,25 @@ public class TestFragmentTracker {
 
     when(optionManager.getOption(eq(ExecutorSetService.DREMIO_VERSION_CHECK))).thenReturn(true);
 
-    when(coordinator.getServiceSet(Role.EXECUTOR)).thenReturn(new ServiceSet() {
-      @Override
-      public RegistrationHandle register(NodeEndpoint endpoint) {
-        return null;
-      }
+    when(coordinator.getServiceSet(Role.EXECUTOR))
+        .thenReturn(
+            new ServiceSet() {
+              @Override
+              public RegistrationHandle register(NodeEndpoint endpoint) {
+                return null;
+              }
 
-      @Override
-      public Collection<NodeEndpoint> getAvailableEndpoints() {
-        return Collections.singletonList(selfEndpoint);
-      }
+              @Override
+              public Collection<NodeEndpoint> getAvailableEndpoints() {
+                return Collections.singletonList(selfEndpoint);
+              }
 
-      @Override
-      public void addNodeStatusListener(NodeStatusListener listener) {
+              @Override
+              public void addNodeStatusListener(NodeStatusListener listener) {}
 
-      }
-
-      @Override
-      public void removeNodeStatusListener(NodeStatusListener listener) {
-
-      }
-    });
+              @Override
+              public void removeNodeStatusListener(NodeStatusListener listener) {}
+            });
   }
 
   @After
@@ -145,26 +131,42 @@ public class TestFragmentTracker {
   public void testCancelFragmentsHelper() throws Exception {
     int maxErrorCount = 1;
     ExecutorServiceClient mockExecutorServiceClient = getExecutorServiceClient(maxErrorCount);
-    ExecutorServiceClientFactory executorServiceClientFactory = Mockito.mock(ExecutorServiceClientFactory.class);
-    doReturn(mockExecutorServiceClient).when(executorServiceClientFactory).getClientForEndpoint(any());
-    FragmentTracker fragmentTracker = new FragmentTracker(queryId, completionListener, queryCloser,
-      executorServiceClientFactory, new LocalExecutorSetService(DirectProvider.wrap(coordinator),
-      DirectProvider.wrap(optionManager)), closeableSchedulerThreadPool);
-    final NodeEndpoint nodeEndpoint = NodeEndpoint.newBuilder().setAddress("host").setFabricPort(0).build();
-    PlanFragmentFull fragment = new PlanFragmentFull(
-      PlanFragmentMajor.newBuilder()
-        .setHandle(FragmentHandle.newBuilder().setMajorFragmentId(0).setQueryId(queryId).build())
-        .build(),
-      PlanFragmentMinor.newBuilder()
-        .setAssignment(nodeEndpoint)
-        .build());
-    ExecutionPlan executionPlan = new ExecutionPlan(queryId, new Screen(OpProps.prototype(), null), 0, Collections
-      .singletonList(fragment), null);
-    observer.planCompleted(executionPlan);
+    ExecutorServiceClientFactory executorServiceClientFactory =
+        Mockito.mock(ExecutorServiceClientFactory.class);
+    doReturn(mockExecutorServiceClient)
+        .when(executorServiceClientFactory)
+        .getClientForEndpoint(any());
+    FragmentTracker fragmentTracker =
+        new FragmentTracker(
+            queryId,
+            completionListener,
+            queryCloser,
+            executorServiceClientFactory,
+            new LocalExecutorSetService(
+                DirectProvider.wrap(coordinator), DirectProvider.wrap(optionManager)),
+            closeableSchedulerThreadPool);
+    final NodeEndpoint nodeEndpoint =
+        NodeEndpoint.newBuilder().setAddress("host").setFabricPort(0).build();
+    PlanFragmentFull fragment =
+        new PlanFragmentFull(
+            PlanFragmentMajor.newBuilder()
+                .setHandle(
+                    FragmentHandle.newBuilder().setMajorFragmentId(0).setQueryId(queryId).build())
+                .build(),
+            PlanFragmentMinor.newBuilder().setAssignment(nodeEndpoint).build());
+    ExecutionPlan executionPlan =
+        new ExecutionPlan(
+            queryId,
+            new Screen(OpProps.prototype(), null),
+            0,
+            Collections.singletonList(fragment),
+            null);
+    observer.planCompleted(executionPlan, null);
     fragmentTracker.populate(executionPlan.getFragments(), new ResourceSchedulingDecisionInfo());
-    CoordExecRPC.CancelFragments fragments = CoordExecRPC.CancelFragments.newBuilder().setQueryId(queryId).build();
-    FragmentTracker.SignalListener listener = fragmentTracker.getResponseObserver(nodeEndpoint,
-      fragments);
+    CoordExecRPC.CancelFragments fragments =
+        CoordExecRPC.CancelFragments.newBuilder().setQueryId(queryId).build();
+    FragmentTracker.SignalListener listener =
+        fragmentTracker.getResponseObserver(nodeEndpoint, fragments);
     fragmentTracker.cancelFragmentsHelper(fragments, nodeEndpoint, listener);
     Thread.sleep(3000);
     Assert.assertTrue("Should have completed", listener.isCompleted());
@@ -176,29 +178,46 @@ public class TestFragmentTracker {
     int maxErrorCount = 10;
     CountDownLatch latch = new CountDownLatch(1);
     ExecutorServiceClient mockExecutorServiceClient = getExecutorServiceClient(maxErrorCount);
-    ExecutorServiceClientFactory executorServiceClientFactory = Mockito.mock(ExecutorServiceClientFactory.class);
-    doReturn(mockExecutorServiceClient).when(executorServiceClientFactory).getClientForEndpoint(any());
-    FragmentTracker fragmentTracker = new FragmentTracker(queryId, completionListener,() -> {
-      latch.countDown();
-    }, executorServiceClientFactory, new LocalExecutorSetService(DirectProvider.wrap(coordinator),
-      DirectProvider.wrap(optionManager)), closeableSchedulerThreadPool);
-    final NodeEndpoint nodeEndpoint = NodeEndpoint.newBuilder().setAddress("host").setFabricPort(0).build();
-    PlanFragmentFull fragment = new PlanFragmentFull(
-      PlanFragmentMajor.newBuilder()
-        .setHandle(FragmentHandle.newBuilder().setMajorFragmentId(0).setQueryId(queryId).build())
-        .build(),
-      PlanFragmentMinor.newBuilder()
-        .setAssignment(nodeEndpoint)
-        .build());
-    ExecutionPlan executionPlan = new ExecutionPlan(queryId, new Screen(OpProps.prototype(), null), 0, Collections
-      .singletonList(fragment), null);
-    observer.planCompleted(executionPlan);
+    ExecutorServiceClientFactory executorServiceClientFactory =
+        Mockito.mock(ExecutorServiceClientFactory.class);
+    doReturn(mockExecutorServiceClient)
+        .when(executorServiceClientFactory)
+        .getClientForEndpoint(any());
+    FragmentTracker fragmentTracker =
+        new FragmentTracker(
+            queryId,
+            completionListener,
+            () -> {
+              latch.countDown();
+            },
+            executorServiceClientFactory,
+            new LocalExecutorSetService(
+                DirectProvider.wrap(coordinator), DirectProvider.wrap(optionManager)),
+            closeableSchedulerThreadPool);
+    final NodeEndpoint nodeEndpoint =
+        NodeEndpoint.newBuilder().setAddress("host").setFabricPort(0).build();
+    PlanFragmentFull fragment =
+        new PlanFragmentFull(
+            PlanFragmentMajor.newBuilder()
+                .setHandle(
+                    FragmentHandle.newBuilder().setMajorFragmentId(0).setQueryId(queryId).build())
+                .build(),
+            PlanFragmentMinor.newBuilder().setAssignment(nodeEndpoint).build());
+    ExecutionPlan executionPlan =
+        new ExecutionPlan(
+            queryId,
+            new Screen(OpProps.prototype(), null),
+            0,
+            Collections.singletonList(fragment),
+            null);
+    observer.planCompleted(executionPlan, null);
     fragmentTracker.populate(executionPlan.getFragments(), new ResourceSchedulingDecisionInfo());
-    CoordExecRPC.CancelFragments fragments = CoordExecRPC.CancelFragments.newBuilder().setQueryId(queryId).build();
-    FragmentTracker.SignalListener listener = fragmentTracker.getResponseObserver(nodeEndpoint,
-      fragments);
+    CoordExecRPC.CancelFragments fragments =
+        CoordExecRPC.CancelFragments.newBuilder().setQueryId(queryId).build();
+    FragmentTracker.SignalListener listener =
+        fragmentTracker.getResponseObserver(nodeEndpoint, fragments);
     fragmentTracker.cancelFragmentsHelper(fragments, nodeEndpoint, listener);
-    boolean completed  = latch.await(10, TimeUnit.SECONDS);
+    boolean completed = latch.await(10, TimeUnit.SECONDS);
     Assert.assertTrue("Query should be closed.", completed);
     Assert.assertTrue("Should have errored out", !listener.isCompleted());
     Assert.assertTrue("Should have retried twice and stopped.", listener.getRetryAttempt() == 2);
@@ -207,69 +226,78 @@ public class TestFragmentTracker {
   @NotNull
   private ExecutorServiceClient getExecutorServiceClient(int maxErrorCount) {
     return new ExecutorServiceClient() {
-        int errorCount = 0;
-        @Override
-        public void startFragments(CoordExecRPC.InitializeFragments initializeFragments, StreamObserver<Empty> responseObserver) {
+      int errorCount = 0;
 
+      @Override
+      public void startFragments(
+          CoordExecRPC.InitializeFragments initializeFragments,
+          StreamObserver<Empty> responseObserver) {}
+
+      @Override
+      public void activateFragments(
+          CoordExecRPC.ActivateFragments activateFragments,
+          StreamObserver<Empty> responseObserver) {}
+
+      @Override
+      @SuppressWarnings("DremioGRPCStreamObserverOnError")
+      public void cancelFragments(
+          CoordExecRPC.CancelFragments cancelFragments, StreamObserver<Empty> responseObserver) {
+        if (errorCount == maxErrorCount) {
+          responseObserver.onCompleted();
+        } else {
+          errorCount++;
+          responseObserver.onError(new RuntimeException());
         }
+      }
 
-        @Override
-        public void activateFragments(CoordExecRPC.ActivateFragments activateFragments, StreamObserver<Empty> responseObserver) {
+      @Override
+      public void getNodeStats(
+          Empty empty, StreamObserver<CoordExecRPC.NodeStatResp> responseObserver) {}
 
-        }
+      @Override
+      public void reconcileActiveQueries(
+          CoordExecRPC.ActiveQueryList activeQueryList,
+          StreamObserver<Empty> emptyStreamObserver) {}
 
-        @Override
-        @SuppressWarnings("DremioGRPCStreamObserverOnError")
-        public void cancelFragments(CoordExecRPC.CancelFragments cancelFragments, StreamObserver<Empty> responseObserver) {
-          if (errorCount == maxErrorCount) {
-            responseObserver.onCompleted();
-          } else {
-            errorCount++;
-            responseObserver.onError(new RuntimeException());
-          }
-        }
-
-        @Override
-        public void getNodeStats(Empty empty, StreamObserver<CoordExecRPC.NodeStatResp> responseObserver) {
-
-        }
-
-        @Override
-        public void reconcileActiveQueries(CoordExecRPC.ActiveQueryList activeQueryList, StreamObserver<Empty> emptyStreamObserver) {
-
-        }
-
-        @Override
-        public void propagatePluginChange(CoordExecRPC.SourceWrapper sourceWrapper, StreamObserver<Empty> emptyStreamObserver) {
-
-        }
-      };
+      @Override
+      public void propagatePluginChange(
+          CoordExecRPC.SourceWrapper sourceWrapper, StreamObserver<Empty> emptyStreamObserver) {}
+    };
   }
 
   /**
-   * Check that a dead node doesn't not trigger a successful query notification if
-   * node managing the last major fragments (see DX-10956)
+   * Check that a dead node doesn't not trigger a successful query notification if node managing the
+   * last major fragments (see DX-10956)
    */
-
   @Test
   public void testNodeDead() {
     InOrder inOrder = Mockito.inOrder(completionListener);
-    FragmentTracker fragmentTracker = new FragmentTracker(queryId, completionListener,
-      () -> {}, null,
-      new LocalExecutorSetService(DirectProvider.wrap(coordinator),
-                                  DirectProvider.wrap(optionManager)), closeableSchedulerThreadPool);
+    FragmentTracker fragmentTracker =
+        new FragmentTracker(
+            queryId,
+            completionListener,
+            () -> {},
+            null,
+            new LocalExecutorSetService(
+                DirectProvider.wrap(coordinator), DirectProvider.wrap(optionManager)),
+            closeableSchedulerThreadPool);
 
-    PlanFragmentFull fragment = new PlanFragmentFull(
-      PlanFragmentMajor.newBuilder()
-        .setHandle(FragmentHandle.newBuilder().setMajorFragmentId(0).setQueryId(queryId).build())
-        .build(),
-      PlanFragmentMinor.newBuilder()
-        .setAssignment(selfEndpoint)
-        .build());
+    PlanFragmentFull fragment =
+        new PlanFragmentFull(
+            PlanFragmentMajor.newBuilder()
+                .setHandle(
+                    FragmentHandle.newBuilder().setMajorFragmentId(0).setQueryId(queryId).build())
+                .build(),
+            PlanFragmentMinor.newBuilder().setAssignment(selfEndpoint).build());
 
-    ExecutionPlan executionPlan = new ExecutionPlan(queryId, new Screen(OpProps.prototype(), null), 0, Collections
-      .singletonList(fragment), null);
-    observer.planCompleted(executionPlan);
+    ExecutionPlan executionPlan =
+        new ExecutionPlan(
+            queryId,
+            new Screen(OpProps.prototype(), null),
+            0,
+            Collections.singletonList(fragment),
+            null);
+    observer.planCompleted(executionPlan, null);
     fragmentTracker.populate(executionPlan.getFragments(), new ResourceSchedulingDecisionInfo());
 
     // Notify node is dead
@@ -285,46 +313,61 @@ public class TestFragmentTracker {
   @Test
   public void testNodeDeadWithVerboseEndpoint() {
     InOrder inOrder = Mockito.inOrder(completionListener);
-    FragmentTracker fragmentTracker = new FragmentTracker(queryId, completionListener,
-      () -> {}, null,
-      new LocalExecutorSetService(DirectProvider.wrap(coordinator),
-                                  DirectProvider.wrap(optionManager)), closeableSchedulerThreadPool);
+    FragmentTracker fragmentTracker =
+        new FragmentTracker(
+            queryId,
+            completionListener,
+            () -> {},
+            null,
+            new LocalExecutorSetService(
+                DirectProvider.wrap(coordinator), DirectProvider.wrap(optionManager)),
+            closeableSchedulerThreadPool);
 
-    PlanFragmentFull fragment = new PlanFragmentFull(
-      PlanFragmentMajor.newBuilder()
-        .setHandle(FragmentHandle.newBuilder().setMajorFragmentId(0).setQueryId(queryId).build())
-        .build(),
-      PlanFragmentMinor.newBuilder()
-        .setAssignment(selfEndpoint)
-        .build());
+    PlanFragmentFull fragment =
+        new PlanFragmentFull(
+            PlanFragmentMajor.newBuilder()
+                .setHandle(
+                    FragmentHandle.newBuilder().setMajorFragmentId(0).setQueryId(queryId).build())
+                .build(),
+            PlanFragmentMinor.newBuilder().setAssignment(selfEndpoint).build());
 
-    ExecutionPlan executionPlan = new ExecutionPlan(queryId, new Screen(OpProps.prototype(), null), 0, Collections
-      .singletonList(fragment), null);
-    observer.planCompleted(executionPlan);
+    ExecutionPlan executionPlan =
+        new ExecutionPlan(
+            queryId,
+            new Screen(OpProps.prototype(), null),
+            0,
+            Collections.singletonList(fragment),
+            null);
+    observer.planCompleted(executionPlan, null);
     fragmentTracker.populate(executionPlan.getFragments(), new ResourceSchedulingDecisionInfo());
 
     // Notify node is dead, with verbose endpoint
-    NodeEndpoint verboseEndpoint = NodeEndpoint.newBuilder()
-      .mergeFrom(selfEndpoint)
-      .setNodeTag("mytag")
-      .setAvailableCores(10)
-      .build();
+    NodeEndpoint verboseEndpoint =
+        NodeEndpoint.newBuilder()
+            .mergeFrom(selfEndpoint)
+            .setNodeTag("mytag")
+            .setAvailableCores(10)
+            .build();
     fragmentTracker.handleFailedNodes(ImmutableSet.of(verboseEndpoint));
 
     inOrder.verify(completionListener).failed(any(Exception.class));
     inOrder.verify(completionListener).succeeded();
   }
 
-  @Mock
-  Runnable queryCloser;
+  @Mock Runnable queryCloser;
 
   @Test
   public void testEmptyFragmentList() {
     InOrder inOrder = Mockito.inOrder(completionListener, queryCloser);
-    FragmentTracker fragmentTracker = new FragmentTracker(queryId, completionListener,
-      queryCloser, null,
-      new LocalExecutorSetService(DirectProvider.wrap(coordinator),
-                                  DirectProvider.wrap(optionManager)), closeableSchedulerThreadPool);
+    FragmentTracker fragmentTracker =
+        new FragmentTracker(
+            queryId,
+            completionListener,
+            queryCloser,
+            null,
+            new LocalExecutorSetService(
+                DirectProvider.wrap(coordinator), DirectProvider.wrap(optionManager)),
+            closeableSchedulerThreadPool);
 
     fragmentTracker.populate(Collections.emptyList(), new ResourceSchedulingDecisionInfo());
 

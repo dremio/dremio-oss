@@ -15,9 +15,7 @@
  */
 package com.dremio.service.namespace;
 
-/**
- * Namespace specific exception.
- */
+/** Namespace specific exception. */
 public class NamespaceNotFoundException extends NamespaceException {
   private static final long serialVersionUID = 1L;
 

@@ -18,12 +18,13 @@ package com.dremio.exec.store;
 import java.io.ByteArrayInputStream;
 import java.io.EOFException;
 import java.io.IOException;
-
 import org.apache.hadoop.fs.PositionedReadable;
 import org.apache.hadoop.fs.Seekable;
 
-public class ResourceInputStream extends ByteArrayInputStream implements Seekable, PositionedReadable {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ResourceInputStream.class);
+public class ResourceInputStream extends ByteArrayInputStream
+    implements Seekable, PositionedReadable {
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ResourceInputStream.class);
 
   public ResourceInputStream(byte[] bytes) {
     super(bytes);
@@ -41,21 +42,21 @@ public class ResourceInputStream extends ByteArrayInputStream implements Seekabl
   public int read(long position, byte[] b, int off, int len) {
     int start = (int) position;
     if (b == null) {
-        throw new NullPointerException();
+      throw new NullPointerException();
     } else if (off < 0 || len < 0 || len > b.length - off) {
-        throw new IndexOutOfBoundsException();
+      throw new IndexOutOfBoundsException();
     }
 
     if (start >= count) {
-        return -1;
+      return -1;
     }
 
     int avail = count - start;
     if (len > avail) {
-        len = avail;
+      len = avail;
     }
     if (len <= 0) {
-        return 0;
+      return 0;
     }
     System.arraycopy(buf, start, b, off, len);
     return len;
@@ -95,5 +96,4 @@ public class ResourceInputStream extends ByteArrayInputStream implements Seekabl
       throw new EOFException();
     }
   }
-
 }

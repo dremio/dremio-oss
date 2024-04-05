@@ -17,34 +17,30 @@ package com.dremio.common.utils;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import com.dremio.common.exceptions.UserException;
+import com.fasterxml.jackson.core.JsonEncoding;
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonParser;
+import io.protostuff.GraphIOUtil;
+import io.protostuff.JsonIOUtils;
+import io.protostuff.Message;
+import io.protostuff.Schema;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 
-import com.dremio.common.exceptions.UserException;
-import com.fasterxml.jackson.core.JsonEncoding;
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.core.JsonParser;
-
-import io.protostuff.GraphIOUtil;
-import io.protostuff.JsonIOUtils;
-import io.protostuff.Message;
-import io.protostuff.Schema;
-
-/**
- * Utility methods for protostuff
- *
- */
+/** Utility methods for protostuff */
 public final class ProtostuffUtil {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ProtostuffUtil.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ProtostuffUtil.class);
 
   private ProtostuffUtil() {}
 
   /**
-   * Clone  a Protostuff object
+   * Clone a Protostuff object
    *
    * @param t the protobuf message to copy
    * @return a deep copy of {@code t}
@@ -61,13 +57,13 @@ public final class ProtostuffUtil {
       return newMessage;
     } catch (IOException e) {
       throw UserException.dataReadError(e)
-        .message("Failure decoding object, please ensure that you ran dremio-admin upgrade on Dremio.")
-        .build(logger);
+          .message(
+              "Failure decoding object, please ensure that you ran dremio-admin upgrade on Dremio.")
+          .build(logger);
     }
   }
 
   /**
-   *
    * @param to immutable
    * @param from immutable
    * @param <T>
@@ -83,7 +79,6 @@ public final class ProtostuffUtil {
     return cloneTo;
   }
 
-
   /**
    * Convert a JSON stream into a Java object
    *
@@ -92,12 +87,13 @@ public final class ProtostuffUtil {
    * @param schema the Protostuff schema for the object
    * @param numeric if true, use field id as key
    */
-  public static <T> void fromJSON(byte[] data, T message, Schema<T> schema, boolean numeric) throws IOException {
+  public static <T> void fromJSON(byte[] data, T message, Schema<T> schema, boolean numeric)
+      throws IOException {
     // Configure a parser to intepret non-numeric numbers like NaN correctly
     // although non-standard JSON.
-    try(JsonParser parser = JsonIOUtils
-        .newJsonParser(null, data, 0, data.length)
-        .enable(JsonParser.Feature.ALLOW_NON_NUMERIC_NUMBERS)) {
+    try (JsonParser parser =
+        JsonIOUtils.newJsonParser(null, data, 0, data.length)
+            .enable(JsonParser.Feature.ALLOW_NON_NUMERIC_NUMBERS)) {
       JsonIOUtils.mergeFrom(parser, message, schema, numeric);
     }
   }
@@ -125,10 +121,12 @@ public final class ProtostuffUtil {
    * @param schema the protostuff schema for the message
    * @param numeric if true, use field id as keys
    */
-  public static <T> void toJSON(OutputStream out, T message, Schema<T> schema,
-          boolean numeric) throws IOException {
+  public static <T> void toJSON(OutputStream out, T message, Schema<T> schema, boolean numeric)
+      throws IOException {
     try (JsonGenerator jsonGenerator =
-           JsonIOUtils.DEFAULT_JSON_FACTORY.createGenerator(out, JsonEncoding.UTF8).disable(JsonGenerator.Feature.QUOTE_NON_NUMERIC_NUMBERS)) {
+        JsonIOUtils.DEFAULT_JSON_FACTORY
+            .createGenerator(out, JsonEncoding.UTF8)
+            .disable(JsonGenerator.Feature.QUOTE_NON_NUMERIC_NUMBERS)) {
       JsonIOUtils.writeTo(jsonGenerator, message, schema, numeric);
     }
   }
@@ -142,7 +140,7 @@ public final class ProtostuffUtil {
    * @return a JSON string
    */
   public static <T> String toJSON(T message, Schema<T> schema, boolean numeric) {
-    try(java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream()) {
+    try (java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream()) {
       toJSON(baos, message, schema, numeric);
       return new String(baos.toByteArray(), UTF_8);
     } catch (IOException e) {

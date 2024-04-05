@@ -19,6 +19,7 @@ import com.google.common.collect.ImmutableList;
 
 public final class Cursor {
   public static final String CURSOR_CHARACTER = "\07";
+
   private Cursor() {}
 
   public static boolean tokenEndsWithCursor(DremioToken token) {
@@ -47,9 +48,8 @@ public final class Cursor {
 
   public static ImmutableList<DremioToken> tokenizeWithCursor(String corpus, int cursorPosition) {
     // Add the bell character which is never used in valid sql to represent the cursor.
-    String corpusWithCursor = new StringBuilder(corpus)
-      .insert(cursorPosition, CURSOR_CHARACTER)
-      .toString();
+    String corpusWithCursor =
+        new StringBuilder(corpus).insert(cursorPosition, CURSOR_CHARACTER).toString();
 
     ImmutableList<DremioToken> tokens = SqlQueryTokenizer.tokenize(corpusWithCursor);
     return tokens;

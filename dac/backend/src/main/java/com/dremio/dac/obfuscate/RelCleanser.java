@@ -15,6 +15,8 @@
  */
 package com.dremio.dac.obfuscate;
 
+import com.dremio.common.utils.PathUtils;
+import com.google.common.collect.ImmutableSet;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -26,22 +28,27 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.dremio.common.utils.PathUtils;
-import com.google.common.collect.ImmutableSet;
-
 /**
- * Tool to redact the identifiers and string literals in a Rel tree
- * This is package-protected and all usages should be via ObfuscationUtils because this does not
- * check whether to obfuscate or not.
+ * Tool to redact the identifiers and string literals in a Rel tree This is package-protected and
+ * all usages should be via ObfuscationUtils because this does not check whether to obfuscate or
+ * not.
  */
 class RelCleanser {
-  private static final Pattern PROJECT_PATTERN = Pattern.compile("(Logical)?Project(Rel|Prel)?\\((?<project>.*)\\)");
-  private static final Pattern AGG_PATTERN = Pattern.compile("(Logical)?Aggregate(Rel|Prel)?\\(group=\\[\\{.*?\\}\\], (?<aggs>.*)\\)");
-  private static final Pattern FILTER_PATTERN = Pattern.compile("(Logical)?Filter(Rel|Prel)?\\(condition=\\[(?<condition>.*?)\\]\\)");
-  private static final Pattern SCAN_PATTERN = Pattern.compile("Scan(Crel|Drel|Rel|Prel)?\\(table=\\[(?<table>.*?)\\], columns=\\[(?<columns>.*?)\\].*?(filters=\\[\\[(?<filter>.*)\\]\\])?\\)");
-  private static final Pattern EXPANSION_NODE_PATTERN = Pattern.compile("Expansion(Leaf)?Node\\(path=\\[(?<path>.*?)\\]\\)");
-  private static final Pattern RECORD_TYPE_PATTERN = Pattern.compile("RecordType\\((?<recordType>.*)\\):");
-  private static final Pattern WRITER_PATTERN = Pattern.compile("WriterCommitter\\(final=\\[(?<finalLocation>.*?)\\]");
+  private static final Pattern PROJECT_PATTERN =
+      Pattern.compile("(Logical)?Project(Rel|Prel)?\\((?<project>.*)\\)");
+  private static final Pattern AGG_PATTERN =
+      Pattern.compile("(Logical)?Aggregate(Rel|Prel)?\\(group=\\[\\{.*?\\}\\], (?<aggs>.*)\\)");
+  private static final Pattern FILTER_PATTERN =
+      Pattern.compile("(Logical)?Filter(Rel|Prel)?\\(condition=\\[(?<condition>.*?)\\]\\)");
+  private static final Pattern SCAN_PATTERN =
+      Pattern.compile(
+          "Scan(Crel|Drel|Rel|Prel)?\\(table=\\[(?<table>.*?)\\], columns=\\[(?<columns>.*?)\\].*?(filters=\\[\\[(?<filter>.*)\\]\\])?\\)");
+  private static final Pattern EXPANSION_NODE_PATTERN =
+      Pattern.compile("Expansion(Leaf)?Node\\(path=\\[(?<path>.*?)\\]\\)");
+  private static final Pattern RECORD_TYPE_PATTERN =
+      Pattern.compile("RecordType\\((?<recordType>.*)\\):");
+  private static final Pattern WRITER_PATTERN =
+      Pattern.compile("WriterCommitter\\(final=\\[(?<finalLocation>.*?)\\]");
 
   public static String redactRelTree(String relTree) {
     BufferedReader reader = new BufferedReader(new StringReader(relTree));
@@ -89,7 +96,13 @@ class RelCleanser {
     if (recordTypeMatcher.find()) {
       String recordType = recordTypeMatcher.group("recordType");
       String redactedRecordtype = processRecordType(recordType);
-      redactedRel = new StringBuilder(redactedRel).replace(recordTypeMatcher.start("recordType"), recordTypeMatcher.end("recordType"), redactedRecordtype).toString();
+      redactedRel =
+          new StringBuilder(redactedRel)
+              .replace(
+                  recordTypeMatcher.start("recordType"),
+                  recordTypeMatcher.end("recordType"),
+                  redactedRecordtype)
+              .toString();
     }
     return redactedRel;
   }
@@ -120,6 +133,7 @@ class RelCleanser {
   }
 
   private static final Pattern LITERAL_PATTERN = Pattern.compile("'(?<literal>[^']*)'");
+
   private static String processExpression(String expr) {
     String result = expr;
     int idx = 0;
@@ -143,7 +157,9 @@ class RelCleanser {
     return result;
   }
 
-  private static final Pattern PARQUET_FILTER_PATTERN = Pattern.compile("Filter on `(?<field1>[^`]*)`:.*?`(?<field2>[^`]*)`.*?'(?<cond>[^']*)'");
+  private static final Pattern PARQUET_FILTER_PATTERN =
+      Pattern.compile("Filter on `(?<field1>[^`]*)`:.*?`(?<field2>[^`]*)`.*?'(?<cond>[^']*)'");
+
   private static String processParquetFilter(String filter) {
     String replacement = filter;
     String[] groups = new String[] {"field1", "field2", "cond"};
@@ -156,7 +172,10 @@ class RelCleanser {
         int start = matcher.start(group);
         int end = matcher.end(group);
         String s = matcher.group(group);
-        replacement = new StringBuilder(replacement).replace(start, end, isField[i] ? redactField(s) : redactLiteral(s)).toString();
+        replacement =
+            new StringBuilder(replacement)
+                .replace(start, end, isField[i] ? redactField(s) : redactLiteral(s))
+                .toString();
       }
     }
 
@@ -190,11 +209,13 @@ class RelCleanser {
     if (whitelisted.contains(pathElements.get(0))) {
       return table;
     }
-    List<String> redactedElements = ObfuscationUtils.obfuscate(pathElements, RelCleanser::redactPathElement);
+    List<String> redactedElements =
+        ObfuscationUtils.obfuscate(pathElements, RelCleanser::redactPathElement);
     return PathUtils.constructFullPath(redactedElements);
   }
 
   private static final Pattern COLUMN_PATTERN = Pattern.compile("`(?<column>[^`]*)`");
+
   private static String processColumns(String columns) {
     Matcher matcher = COLUMN_PATTERN.matcher(columns);
     List<String> redactedColumns = new ArrayList<>();
@@ -219,18 +240,23 @@ class RelCleanser {
     return new StringBuilder(rel).replace(start, end, redactedProjects).toString();
   }
 
-  private static final Pattern FIELDTYPE_PATTERN = Pattern.compile("(?<type>(VARCHAR|VARBINARY)\\(\\d*\\)|INTEGER|BIGINT|DATE|TIMESTAMP|FLOAT|DOUBLE|BOOLEAN|ANY) (?<name>[^,]*)(, )?");
+  private static final Pattern FIELDTYPE_PATTERN =
+      Pattern.compile(
+          "(?<type>(VARCHAR|VARBINARY)\\(\\d*\\)|INTEGER|BIGINT|DATE|TIMESTAMP|FLOAT|DOUBLE|BOOLEAN|ANY) (?<name>[^,]*)(, )?");
+
   private static String processRecordType(String recordType) {
     Matcher matcher = FIELDTYPE_PATTERN.matcher(recordType);
     List<String> fieldTypes = new ArrayList<>();
     while (matcher.find()) {
-      String fieldType = String.join(" ", matcher.group("type"), redactField(matcher.group("name")));
+      String fieldType =
+          String.join(" ", matcher.group("type"), redactField(matcher.group("name")));
       fieldTypes.add(fieldType);
     }
     return String.join(", ", fieldTypes);
   }
 
   private static final Pattern PROJECTS_PATTERN = Pattern.compile("(?<project>.*?=\\[.*?])(, )?");
+
   private static String processProjects(String projects) {
     Matcher matcher = PROJECTS_PATTERN.matcher(projects);
     List<String> newProjects = new ArrayList<>();
@@ -240,7 +266,9 @@ class RelCleanser {
     return String.join(", ", newProjects);
   }
 
-  private static final Pattern PROJECT_EXPR_PATTERN = Pattern.compile("(?<name>.*?)=\\[(?<expr>.*)]");
+  private static final Pattern PROJECT_EXPR_PATTERN =
+      Pattern.compile("(?<name>.*?)=\\[(?<expr>.*)]");
+
   private static String processProject(String project) {
     Matcher matcher = PROJECT_EXPR_PATTERN.matcher(project);
     if (matcher.find()) {
@@ -283,5 +311,4 @@ class RelCleanser {
   private static String redactString(String string) {
     return Integer.toHexString(string.hashCode());
   }
-
 }

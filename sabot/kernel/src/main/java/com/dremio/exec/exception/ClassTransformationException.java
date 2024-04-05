@@ -15,15 +15,16 @@
  */
 package com.dremio.exec.exception;
 
-public class ClassTransformationException extends RuntimeException{
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ClassTransformationException.class);
+public class ClassTransformationException extends RuntimeException {
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ClassTransformationException.class);
 
   public ClassTransformationException() {
     super();
   }
 
-  public ClassTransformationException(String message, Throwable cause, boolean enableSuppression,
-      boolean writableStackTrace) {
+  public ClassTransformationException(
+      String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
     super(message, cause, enableSuppression, writableStackTrace);
   }
 
@@ -38,6 +39,4 @@ public class ClassTransformationException extends RuntimeException{
   public ClassTransformationException(Throwable cause) {
     super(cause);
   }
-
-
 }

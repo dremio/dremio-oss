@@ -18,9 +18,7 @@ package com.dremio.service.coordinator.zk;
 import com.dremio.configfeature.ConfigFeatureProvider;
 import com.dremio.service.coordinator.CoordinatorLostHandle;
 
-/**
- * ZK Configuration
- */
+/** ZK Configuration */
 public interface ZKClusterConfig {
   int getConnectionTimeoutMilliSecs();
 

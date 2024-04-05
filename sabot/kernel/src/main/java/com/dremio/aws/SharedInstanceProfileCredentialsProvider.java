@@ -20,21 +20,23 @@ import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.InstanceProfileCredentialsProvider;
 
 /**
- * A shared instance of {@link InstanceProfileCredentialsProvider} to avoid creating too
- * many instances at once and sending too many queries to the metadata server.
+ * A shared instance of {@link InstanceProfileCredentialsProvider} to avoid creating too many
+ * instances at once and sending too many queries to the metadata server.
  */
 public class SharedInstanceProfileCredentialsProvider implements AwsCredentialsProvider {
   // Internal instance holder to lazy create the singleton
-  // Singleton pattern was chosen as InstanceProfileCredentialsProvider automatically handles periodic
+  // Singleton pattern was chosen as InstanceProfileCredentialsProvider automatically handles
+  // periodic
   // refresh of credentials so the number of HTTP requests to the metadata server are quite limited
   private static final class Holder {
-    // This instance should be closed once unused but since its lifetime is bound to the jvm, nothing
+    // This instance should be closed once unused but since its lifetime is bound to the jvm,
+    // nothing
     // special is done.
-    private static final AwsCredentialsProvider INSTANCE = InstanceProfileCredentialsProvider.create();
+    private static final AwsCredentialsProvider INSTANCE =
+        InstanceProfileCredentialsProvider.create();
   }
 
-  public SharedInstanceProfileCredentialsProvider() {
-  }
+  public SharedInstanceProfileCredentialsProvider() {}
 
   @Override
   public AwsCredentials resolveCredentials() {

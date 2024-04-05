@@ -22,12 +22,19 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import com.dremio.BaseTestQuery;
+import com.dremio.common.exceptions.UserException;
+import com.dremio.connector.metadata.PartitionChunk;
+import com.dremio.connector.metadata.PartitionValue;
+import com.dremio.exec.hadoop.HadoopFileSystem;
+import com.dremio.exec.proto.UserBitShared;
+import com.dremio.exec.store.iceberg.model.IcebergModel;
+import com.google.common.collect.ImmutableList;
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.iceberg.AppendFiles;
@@ -49,15 +56,6 @@ import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import com.dremio.BaseTestQuery;
-import com.dremio.common.exceptions.UserException;
-import com.dremio.connector.metadata.PartitionChunk;
-import com.dremio.connector.metadata.PartitionValue;
-import com.dremio.exec.hadoop.HadoopFileSystem;
-import com.dremio.exec.proto.UserBitShared;
-import com.dremio.exec.store.iceberg.model.IcebergModel;
-import com.google.common.collect.ImmutableList;
-
 public class TestIcebergPartitions extends BaseTestQuery {
   private static FileSystem fs;
   private static Configuration conf;
@@ -66,8 +64,7 @@ public class TestIcebergPartitions extends BaseTestQuery {
   private Schema schema;
   private PartitionSpec spec;
 
-  @ClassRule
-  public static final TemporaryFolder tempDir = new TemporaryFolder();
+  @ClassRule public static final TemporaryFolder tempDir = new TemporaryFolder();
 
   @BeforeClass
   public static void init() throws Exception {
@@ -79,33 +76,31 @@ public class TestIcebergPartitions extends BaseTestQuery {
 
   @Before
   public void setUp() {
-    schema = new Schema(
-      NestedField.optional(1, ID, Types.IntegerType.get()),
-      NestedField.optional(2, NAME, Types.StringType.get())
-    );
+    schema =
+        new Schema(
+            NestedField.optional(1, ID, Types.IntegerType.get()),
+            NestedField.optional(2, NAME, Types.StringType.get()));
 
-    spec = PartitionSpec
-      .builderFor(schema)
-      .identity(ID)
-      .identity(NAME)
-      .build();
+    spec = PartitionSpec.builderFor(schema).identity(ID).identity(NAME).build();
   }
 
-  private DataFile createDataFile(File dir, String fileName, int idValue, String nameValue,
-    int recordCount) throws IOException {
+  private DataFile createDataFile(
+      File dir, String fileName, int idValue, String nameValue, int recordCount)
+      throws IOException {
     File dataFile = new File(dir, fileName);
     dataFile.createNewFile();
 
     return DataFiles.builder(spec)
-      .withInputFile(Files.localInput(dataFile))
-      .withPartitionPath(ID + "=" + idValue + "/" + NAME + "=" + nameValue)
-      .withRecordCount(recordCount)
-      .withFormat(FileFormat.PARQUET)
-      .build();
+        .withInputFile(Files.localInput(dataFile))
+        .withPartitionPath(ID + "=" + idValue + "/" + NAME + "=" + nameValue)
+        .withRecordCount(recordCount)
+        .withFormat(FileFormat.PARQUET)
+        .build();
   }
 
   private PartitionChunk findPartition(List<PartitionChunk> chunks, int idValue, String nameValue) {
-    List<PartitionValue> expected = Arrays.asList(PartitionValue.of(ID, idValue), PartitionValue.of(NAME, nameValue));
+    List<PartitionValue> expected =
+        Arrays.asList(PartitionValue.of(ID, idValue), PartitionValue.of(NAME, nameValue));
     for (PartitionChunk chunk : chunks) {
       if (chunk.getPartitionValues().equals(expected)) {
         return chunk;
@@ -117,20 +112,19 @@ public class TestIcebergPartitions extends BaseTestQuery {
   @Test
   public void testHasNonIdentityPartitionColumns() {
     PartitionSpec partitionSpec = spec;
-    assertFalse("all partition columns should be 'identity'", hasNonIdentityPartitionColumns(partitionSpec));
+    assertFalse(
+        "all partition columns should be 'identity'",
+        hasNonIdentityPartitionColumns(partitionSpec));
 
-    partitionSpec = PartitionSpec
-      .builderFor(schema)
-      .truncate(ID, 2)
-      .identity(NAME)
-      .build();
-    assertTrue("there is one partition column is not 'identity'", hasNonIdentityPartitionColumns(partitionSpec));
+    partitionSpec = PartitionSpec.builderFor(schema).truncate(ID, 2).identity(NAME).build();
+    assertTrue(
+        "there is one partition column is not 'identity'",
+        hasNonIdentityPartitionColumns(partitionSpec));
 
-    partitionSpec = PartitionSpec
-      .builderFor(schema)
-      .truncate(ID, 2)
-      .build();
-    assertTrue("there is one partition column is not 'identity'", hasNonIdentityPartitionColumns(partitionSpec));
+    partitionSpec = PartitionSpec.builderFor(schema).truncate(ID, 2).build();
+    assertTrue(
+        "there is one partition column is not 'identity'",
+        hasNonIdentityPartitionColumns(partitionSpec));
   }
 
   @Test
@@ -141,8 +135,10 @@ public class TestIcebergPartitions extends BaseTestQuery {
     Table table = tables.create(schema, spec, root.getAbsolutePath());
 
     // test empty table.
-    IcebergTableInfo tableInfo = new IcebergTableWrapper(getSabotContext(),
-      HadoopFileSystem.get(fs), icebergModel, root.getAbsolutePath()).getTableInfo();
+    IcebergTableInfo tableInfo =
+        new IcebergTableWrapper(
+                getSabotContext(), HadoopFileSystem.get(fs), icebergModel, root.getAbsolutePath())
+            .getTableInfo();
     assertEquals(tableInfo.getRecordCount(), 0);
 
     List<String> expectedColumns = Arrays.asList(ID, NAME);
@@ -161,21 +157,27 @@ public class TestIcebergPartitions extends BaseTestQuery {
     appendFiles.commit();
     transaction.commitTransaction();
 
-    tableInfo = new IcebergTableWrapper(getSabotContext(),
-      HadoopFileSystem.get(fs), icebergModel, root.getAbsolutePath()).getTableInfo();
+    tableInfo =
+        new IcebergTableWrapper(
+                getSabotContext(), HadoopFileSystem.get(fs), icebergModel, root.getAbsolutePath())
+            .getTableInfo();
     assertEquals(1500, tableInfo.getRecordCount());
     assertEquals(2, ImmutableList.copyOf(tableInfo.getPartitionChunkListing().iterator()).size());
 
     // validate first partition
     final AtomicLong recordCount = new AtomicLong(0);
-    PartitionChunk p1 = findPartition(ImmutableList.copyOf(tableInfo.getPartitionChunkListing().iterator()), 1, "jack");
+    PartitionChunk p1 =
+        findPartition(
+            ImmutableList.copyOf(tableInfo.getPartitionChunkListing().iterator()), 1, "jack");
     assertNotNull(p1);
     assertEquals(2, p1.getSplitCount());
     p1.getSplits().iterator().forEachRemaining(x -> recordCount.addAndGet(x.getRecordCount()));
     assertEquals(300, recordCount.intValue());
 
     // validate second partition
-    PartitionChunk p2 = findPartition(ImmutableList.copyOf(tableInfo.getPartitionChunkListing().iterator()), 2, "jill");
+    PartitionChunk p2 =
+        findPartition(
+            ImmutableList.copyOf(tableInfo.getPartitionChunkListing().iterator()), 2, "jill");
     assertNotNull(p2);
 
     assertEquals(3, p2.getSplitCount());
@@ -189,10 +191,7 @@ public class TestIcebergPartitions extends BaseTestQuery {
     File root = tempDir.newFolder();
     IcebergModel icebergModel = getIcebergModel(TEMP_SCHEMA_HADOOP);
     HadoopTables tables = new HadoopTables(conf);
-    PartitionSpec partitionSpec = PartitionSpec
-        .builderFor(schema)
-        .bucket(NAME, 2)
-        .build();
+    PartitionSpec partitionSpec = PartitionSpec.builderFor(schema).bucket(NAME, 2).build();
     Table table = tables.create(schema, partitionSpec, root.getAbsolutePath());
 
     // Append some data files.
@@ -207,18 +206,30 @@ public class TestIcebergPartitions extends BaseTestQuery {
     transaction.commitTransaction();
 
     try {
-      IcebergTableInfo tableInfo = new IcebergTableWrapper(getSabotContext(),
-          HadoopFileSystem.get(fs), icebergModel, root.getAbsolutePath()).getTableInfo();
-      fail("Expected error while reading metadata of iceberg table with non-identity partition field");
+      IcebergTableInfo tableInfo =
+          new IcebergTableWrapper(
+                  getSabotContext(), HadoopFileSystem.get(fs), icebergModel, root.getAbsolutePath())
+              .getTableInfo();
+      fail(
+          "Expected error while reading metadata of iceberg table with non-identity partition field");
     } catch (Exception ex) {
       Assert.assertTrue("UserException expected", ex instanceof UserException);
       UserException uex = ((UserException) ex);
-      Assert.assertEquals("Invalid ErrorType. Expected " + UserBitShared.DremioPBError.ErrorType.UNSUPPORTED_OPERATION
-              + " but got " + uex.getErrorType(), UserBitShared.DremioPBError.ErrorType.UNSUPPORTED_OPERATION, uex.getErrorType());
+      Assert.assertEquals(
+          "Invalid ErrorType. Expected "
+              + UserBitShared.DremioPBError.ErrorType.UNSUPPORTED_OPERATION
+              + " but got "
+              + uex.getErrorType(),
+          UserBitShared.DremioPBError.ErrorType.UNSUPPORTED_OPERATION,
+          uex.getErrorType());
       String expectedErrorMsg = "Column values and partition values are not same for [name] column";
-      Assert.assertTrue("Expected message to contain " + expectedErrorMsg + " but was "
-          + uex.getOriginalMessage() + " instead", uex.getOriginalMessage().contains(expectedErrorMsg));
+      Assert.assertTrue(
+          "Expected message to contain "
+              + expectedErrorMsg
+              + " but was "
+              + uex.getOriginalMessage()
+              + " instead",
+          uex.getOriginalMessage().contains(expectedErrorMsg));
     }
   }
-
 }

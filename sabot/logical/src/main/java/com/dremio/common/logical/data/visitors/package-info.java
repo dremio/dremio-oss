@@ -13,7 +13,5 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/**
- * Visitors for Dremio logical plan graphs.
- */
+/** Visitors for Dremio logical plan graphs. */
 package com.dremio.common.logical.data.visitors;

@@ -15,19 +15,16 @@
  */
 package com.dremio.datastore.indexed;
 
-import java.util.Collections;
-import java.util.Map;
-import java.util.function.Function;
-
 import com.dremio.datastore.SearchTypes;
 import com.dremio.datastore.SearchTypes.SearchFieldSorting;
 import com.dremio.datastore.SearchTypes.SearchQuery;
 import com.dremio.datastore.SearchTypes.SortOrder;
 import com.google.common.base.Preconditions;
+import java.util.Collections;
+import java.util.Map;
+import java.util.function.Function;
 
-/**
- * Search key which is a part of document stored in lucene.
- */
+/** Search key which is a part of document stored in lucene. */
 public final class IndexKey {
   private final String shortName;
   private final String indexFieldName;
@@ -40,15 +37,24 @@ public final class IndexKey {
   public static final String LOWER_CASE_SUFFIX = "_LC";
 
   /**
-   * Sample use case, if index key is of enum type with index on enum's number value, converter can be used for required
-   * conversion from enum's name to number before applying filter on it
-   * @throws com.dremio.datastore.EnumSearchValueNotFoundException if no enum found corresponding to input string
+   * Sample use case, if index key is of enum type with index on enum's number value, converter can
+   * be used for required conversion from enum's name to number before applying filter on it
+   *
+   * @throws com.dremio.datastore.EnumSearchValueNotFoundException if no enum found corresponding to
+   *     input string
    */
   private final Function converter;
 
-  private IndexKey(String shortName, String indexFieldName, Class<?> valueType, SearchFieldSorting.FieldType sortedValueType,
-                   boolean includeInSearchAllFields, boolean stored, Map<String, SearchQuery> reservedValues,
-                   Boolean canContainMultipleValues, Function converter) {
+  private IndexKey(
+      String shortName,
+      String indexFieldName,
+      Class<?> valueType,
+      SearchFieldSorting.FieldType sortedValueType,
+      boolean includeInSearchAllFields,
+      boolean stored,
+      Map<String, SearchQuery> reservedValues,
+      Boolean canContainMultipleValues,
+      Function converter) {
     this.shortName = shortName;
     this.indexFieldName = indexFieldName;
     this.valueType = valueType;
@@ -105,7 +111,7 @@ public final class IndexKey {
     return converter;
   }
 
-  public SearchFieldSorting toSortField(SortOrder order){
+  public SearchFieldSorting toSortField(SortOrder order) {
     Preconditions.checkArgument(isSorted());
     return SearchFieldSorting.newBuilder()
         .setField(indexFieldName)
@@ -122,15 +128,14 @@ public final class IndexKey {
     return new Builder(shortName, indexFieldName, valueType);
   }
 
-  public static Builder newBuilder(String shortName, String indexFieldName, Class<?> valueType, Function converter) {
+  public static Builder newBuilder(
+      String shortName, String indexFieldName, Class<?> valueType, Function converter) {
     Builder builder = newBuilder(shortName, indexFieldName, valueType);
     builder.setConverter(converter);
     return builder;
   }
 
-  /**
-   * IndexKey Builder
-   */
+  /** IndexKey Builder */
   public static class Builder {
     private final String shortName;
     private final String indexFieldName;
@@ -178,7 +183,16 @@ public final class IndexKey {
     }
 
     public IndexKey build() {
-      return new IndexKey(shortName, indexFieldName, valueType, sortedValueType, includeInSearchAllFields, stored, reservedValues, canContainMultipleValues, converter);
+      return new IndexKey(
+          shortName,
+          indexFieldName,
+          valueType,
+          sortedValueType,
+          includeInSearchAllFields,
+          stored,
+          reservedValues,
+          canContainMultipleValues,
+          converter);
     }
   }
 }

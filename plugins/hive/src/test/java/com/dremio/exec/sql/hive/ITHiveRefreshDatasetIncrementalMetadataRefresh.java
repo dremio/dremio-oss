@@ -68,7 +68,6 @@ public class ITHiveRefreshDatasetIncrementalMetadataRefresh extends LazyDataGene
 
   private static FileSystem fs;
   protected static String finalIcebergMetadataLocation;
-  private static AutoCloseable enableUnlimitedSplitsSupportFlags;
 
   @Rule
   public final TestRule timeoutRule = TestTools.getTimeoutRule(250, TimeUnit.SECONDS);
@@ -79,12 +78,10 @@ public class ITHiveRefreshDatasetIncrementalMetadataRefresh extends LazyDataGene
     LazyDataGeneratingHiveTestBase.generateHiveWithoutData();
     finalIcebergMetadataLocation = getDfsTestTmpSchemaLocation();
     fs = setupLocalFS();
-    enableUnlimitedSplitsSupportFlags = enableUnlimitedSplitsSupportFlags();
   }
 
   @AfterClass
   public static void close() throws Exception {
-    enableUnlimitedSplitsSupportFlags.close();
   }
 
   @After

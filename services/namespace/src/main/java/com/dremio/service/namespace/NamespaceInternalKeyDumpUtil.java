@@ -15,17 +15,16 @@
  */
 package com.dremio.service.namespace;
 
-import java.util.Arrays;
-
 import com.dremio.common.utils.PathUtils;
+import java.util.Arrays;
 
 /**
  * Utility class for methods used in debugging and tests.
  *
- * These methods should only be used in debugging and testing, not in production.
+ * <p>These methods should only be used in debugging and testing, not in production.
  */
 final class NamespaceInternalKeyDumpUtil {
-  private NamespaceInternalKeyDumpUtil(){}
+  private NamespaceInternalKeyDumpUtil() {}
 
   /**
    * Converts a key in bytes to a NamespaceInternalKey Object.
@@ -46,7 +45,7 @@ final class NamespaceInternalKeyDumpUtil {
    */
   static int prefixBytesToInt(byte[] prefix) {
     int number = 0;
-    for (int i = 0; i <  NamespaceInternalKey.PREFIX_BYTES_SIZE ; ++i) {
+    for (int i = 0; i < NamespaceInternalKey.PREFIX_BYTES_SIZE; ++i) {
       number <<= 8;
       number ^= (prefix[i] & 0xFF);
     }
@@ -130,15 +129,18 @@ final class NamespaceInternalKeyDumpUtil {
 
   private static int indexOfDelimiterPrefixStart(byte[] array, int offset) {
     outer:
-    for (int i = offset; i < array.length - NamespaceInternalKey.DELIMITER_PREFIX_DELIMITER_BYTES_SIZE + 1; i++) {
+    for (int i = offset;
+        i < array.length - NamespaceInternalKey.DELIMITER_PREFIX_DELIMITER_BYTES_SIZE + 1;
+        i++) {
       for (int j = 0; j < NamespaceInternalKey.DELIMITER_BYTES.length; j++) {
         if (array[i + j] != NamespaceInternalKey.DELIMITER_BYTES[j]) {
           continue outer;
         }
       }
       // found the delimiter, now skip past the prefix number and then look for delimiter again
-      final int newI = i + NamespaceInternalKey.DELIMITER_BYTES.length + NamespaceInternalKey.PREFIX_BYTES_SIZE;
-      for(int j=0; j < NamespaceInternalKey.DELIMITER_BYTES.length; j++) {
+      final int newI =
+          i + NamespaceInternalKey.DELIMITER_BYTES.length + NamespaceInternalKey.PREFIX_BYTES_SIZE;
+      for (int j = 0; j < NamespaceInternalKey.DELIMITER_BYTES.length; j++) {
         if (array[newI + j] != NamespaceInternalKey.DELIMITER_BYTES[j]) {
           continue outer;
         }
@@ -150,11 +152,11 @@ final class NamespaceInternalKeyDumpUtil {
 
   private static int extractLevelFromDelimiterPrefix(byte[] keyBytes, int delimiterStart) {
     return prefixBytesToInt(
-      Arrays.copyOfRange(
-        keyBytes,
-        delimiterStart +NamespaceInternalKey. DELIMITER_BYTES.length,
-        delimiterStart + NamespaceInternalKey.DELIMITER_BYTES.length + NamespaceInternalKey.PREFIX_BYTES_SIZE
-      )
-    );
+        Arrays.copyOfRange(
+            keyBytes,
+            delimiterStart + NamespaceInternalKey.DELIMITER_BYTES.length,
+            delimiterStart
+                + NamespaceInternalKey.DELIMITER_BYTES.length
+                + NamespaceInternalKey.PREFIX_BYTES_SIZE));
   }
 }

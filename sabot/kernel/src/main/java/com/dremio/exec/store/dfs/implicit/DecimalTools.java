@@ -15,9 +15,8 @@
  */
 package com.dremio.exec.store.dfs.implicit;
 
-import java.math.BigDecimal;
-
 import com.google.common.base.Preconditions;
+import java.math.BigDecimal;
 
 public class DecimalTools {
 
@@ -25,7 +24,7 @@ public class DecimalTools {
   private static final byte NEG = -1;
   private static final byte POS = 0;
 
-  private DecimalTools(){}
+  private DecimalTools() {}
 
   public static void main(String[] args) {
     print("0");
@@ -35,23 +34,22 @@ public class DecimalTools {
     print("0.1");
   }
 
-  private static void print(String str){
+  private static void print(String str) {
     System.out.println(toBinary(signExtend16(new BigDecimal(str).unscaledValue().toByteArray())));
   }
 
-  public static byte[] signExtend16(byte[] bytes){
+  public static byte[] signExtend16(byte[] bytes) {
     Preconditions.checkArgument(bytes.length > 0, "Byte width needs to be 16 bytes or less.");
     Preconditions.checkArgument(bytes.length <= 16, "Byte width needs to be at least 1 byte.");
-    if(bytes.length < 16){
+    if (bytes.length < 16) {
       byte[] newBytes = new byte[16];
       System.arraycopy(bytes, 0, newBytes, 16 - bytes.length, bytes.length);
       byte replace = (bytes[0] & SIGN_MASK) == SIGN_MASK ? NEG : POS;
-      for(int i = 0; i < newBytes.length - bytes.length; i++){
+      for (int i = 0; i < newBytes.length - bytes.length; i++) {
         newBytes[i] = replace;
       }
 
       return newBytes;
-
     }
     return bytes;
   }

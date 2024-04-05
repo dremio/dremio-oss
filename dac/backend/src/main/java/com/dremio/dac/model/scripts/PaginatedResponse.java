@@ -16,22 +16,17 @@
 
 package com.dremio.dac.model.scripts;
 
-import java.util.List;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.List;
 
-/**
- * PaginatedResponse class
- */
+/** PaginatedResponse class */
 public class PaginatedResponse<T> {
   private final Long total;
   private final List<T> data;
 
   @JsonCreator
-  public PaginatedResponse(
-    @JsonProperty("total") long total,
-    @JsonProperty("data") List<T> data) {
+  public PaginatedResponse(@JsonProperty("total") long total, @JsonProperty("data") List<T> data) {
     this.total = total;
     this.data = data;
   }
@@ -43,5 +38,4 @@ public class PaginatedResponse<T> {
   public List<T> getData() {
     return data;
   }
-
 }

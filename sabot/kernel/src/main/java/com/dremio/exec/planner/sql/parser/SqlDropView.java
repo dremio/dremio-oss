@@ -15,8 +15,9 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.dremio.service.namespace.NamespaceKey;
+import com.google.common.collect.Lists;
 import java.util.List;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -27,23 +28,22 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.dremio.service.namespace.NamespaceKey;
-import com.google.common.collect.Lists;
-
 public class SqlDropView extends SqlCall {
   private static final SqlLiteral sqlLiteralNull = SqlLiteral.createNull(SqlParserPos.ZERO);
 
-  public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("DROP_VIEW", SqlKind.DROP_VIEW) {
-    @Override
-    public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      return new SqlDropView(
-        pos,
-        (SqlIdentifier) operands[0],
-        (SqlLiteral) operands[1],
-        ((SqlLiteral) operands[2]).symbolValue(ReferenceType.class),
-        (SqlIdentifier) operands[3]);
-    }
-  };
+  public static final SqlSpecialOperator OPERATOR =
+      new SqlSpecialOperator("DROP_VIEW", SqlKind.DROP_VIEW) {
+        @Override
+        public SqlCall createCall(
+            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+          return new SqlDropView(
+              pos,
+              (SqlIdentifier) operands[0],
+              (SqlLiteral) operands[1],
+              ((SqlLiteral) operands[2]).symbolValue(ReferenceType.class),
+              (SqlIdentifier) operands[3]);
+        }
+      };
 
   private SqlIdentifier viewName;
   private boolean shouldErrorIfViewDoesNotExist;
@@ -51,20 +51,20 @@ public class SqlDropView extends SqlCall {
   private SqlIdentifier refValue;
 
   public SqlDropView(
-    SqlParserPos pos,
-    SqlIdentifier viewName,
-    SqlLiteral shouldErrorIfViewDoesNotExist,
-    ReferenceType referenceType,
-    SqlIdentifier refValue) {
+      SqlParserPos pos,
+      SqlIdentifier viewName,
+      SqlLiteral shouldErrorIfViewDoesNotExist,
+      ReferenceType referenceType,
+      SqlIdentifier refValue) {
     this(pos, viewName, shouldErrorIfViewDoesNotExist.booleanValue(), referenceType, refValue);
   }
 
   public SqlDropView(
-    SqlParserPos pos,
-    SqlIdentifier viewName,
-    boolean shouldErrorIfViewDoesNotExist,
-    ReferenceType referenceType,
-    SqlIdentifier refValue) {
+      SqlParserPos pos,
+      SqlIdentifier viewName,
+      boolean shouldErrorIfViewDoesNotExist,
+      ReferenceType referenceType,
+      SqlIdentifier refValue) {
     super(pos);
     this.viewName = viewName;
     this.shouldErrorIfViewDoesNotExist = shouldErrorIfViewDoesNotExist;
@@ -82,7 +82,10 @@ public class SqlDropView extends SqlCall {
     List<SqlNode> ops = Lists.newArrayList();
     ops.add(viewName);
     ops.add(SqlLiteral.createBoolean(shouldErrorIfViewDoesNotExist, SqlParserPos.ZERO));
-    ops.add(getRefType() == null ? sqlLiteralNull: SqlLiteral.createSymbol(getRefType(), SqlParserPos.ZERO));
+    ops.add(
+        getRefType() == null
+            ? sqlLiteralNull
+            : SqlLiteral.createSymbol(getRefType(), SqlParserPos.ZERO));
     ops.add(refValue);
     return ops;
   }
@@ -118,5 +121,4 @@ public class SqlDropView extends SqlCall {
   public boolean shouldErrorIfViewDoesNotExist() {
     return shouldErrorIfViewDoesNotExist;
   }
-
 }

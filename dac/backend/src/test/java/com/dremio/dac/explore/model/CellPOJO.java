@@ -15,14 +15,14 @@
  */
 package com.dremio.dac.explore.model;
 
-import java.util.Objects;
-
 import com.dremio.dac.proto.model.dataset.DataType;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.Objects;
 
 /**
- * A cell containing a value in the data grid. For testing purposes only to deserialize the result output from server.
+ * A cell containing a value in the data grid. For testing purposes only to deserialize the result
+ * output from server.
  */
 public class CellPOJO {
   private final Object value;
@@ -30,7 +30,10 @@ public class CellPOJO {
   private final String url;
 
   @JsonCreator
-  public CellPOJO(@JsonProperty("v") Object value, @JsonProperty("t") DataType type, @JsonProperty("u") String url) {
+  public CellPOJO(
+      @JsonProperty("v") Object value,
+      @JsonProperty("t") DataType type,
+      @JsonProperty("u") String url) {
     this.value = value;
     this.type = type;
     this.url = url;
@@ -69,8 +72,8 @@ public class CellPOJO {
     }
     CellPOJO other = (CellPOJO) obj;
 
-    return Objects.equals(type, other.type) &&
-        Objects.equals(value, other.value) &&
-        Objects.equals(url, other.url);
+    return Objects.equals(type, other.type)
+        && Objects.equals(value, other.value)
+        && Objects.equals(url, other.url);
   }
 }

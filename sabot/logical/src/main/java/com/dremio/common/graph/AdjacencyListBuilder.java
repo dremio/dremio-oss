@@ -18,8 +18,9 @@ package com.dremio.common.graph;
 import java.util.HashMap;
 import java.util.Map;
 
- class AdjacencyListBuilder<V extends GraphValue<V>> implements GraphVisitor<V> {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AdjacencyListBuilder.class);
+class AdjacencyListBuilder<V extends GraphValue<V>> implements GraphVisitor<V> {
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(AdjacencyListBuilder.class);
 
   private Map<V, AdjacencyList<V>.Node> ops = new HashMap<V, AdjacencyList<V>.Node>();
   private final AdjacencyList<V> parent;
@@ -39,8 +40,7 @@ import java.util.Map;
   }
 
   @Override
-  public void leave(V o) {
-  }
+  public void leave(V o) {}
 
   @Override
   public boolean visit(V o) {
@@ -57,7 +57,7 @@ import java.util.Map;
   }
 
   public AdjacencyList<V> getAdjacencyList() {
-//    logger.debug("Values; {}", ops.values().toArray());
+    //    logger.debug("Values; {}", ops.values().toArray());
     AdjacencyList<V> a = new AdjacencyList<V>();
 
     for (AdjacencyList<V>.Node from : ops.values()) {
@@ -65,10 +65,8 @@ import java.util.Map;
         AdjacencyList<V>.Node to = ops.get(t);
         a.addEdge(from, to, 0);
       }
-
     }
     a.fix(true);
     return a;
   }
-
 }

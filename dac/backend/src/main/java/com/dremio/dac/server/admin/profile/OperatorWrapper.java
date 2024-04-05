@@ -17,21 +17,6 @@ package com.dremio.dac.server.admin.profile;
 
 import static com.dremio.dac.server.admin.profile.HostProcessingRateUtil.computeRecordProcessingRate;
 
-import java.io.IOException;
-import java.math.BigDecimal;
-import java.math.BigInteger;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
-
-import org.apache.commons.collections4.CollectionUtils;
-import org.apache.commons.lang3.ArrayUtils;
-import org.apache.commons.lang3.tuple.ImmutablePair;
-
 import com.dremio.exec.ops.OperatorMetricRegistry;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
@@ -43,19 +28,36 @@ import com.dremio.exec.proto.UserBitShared.OperatorProfile;
 import com.dremio.exec.proto.UserBitShared.RunTimeFilterDetailsInfoInScan;
 import com.dremio.exec.proto.UserBitShared.SlowIOInfo;
 import com.dremio.exec.proto.UserBitShared.StreamProfile;
+import com.dremio.sabot.driver.SmartOp;
 import com.dremio.sabot.op.aggregate.vectorized.HashAggStats;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Table;
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.ArrayUtils;
+import org.apache.commons.lang3.tuple.ImmutablePair;
 
 /**
- * Wrapper class for profiles of ALL operator instances of the same operator type within a major fragment.
+ * Wrapper class for profiles of ALL operator instances of the same operator type within a major
+ * fragment.
  */
 public class OperatorWrapper {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(OperatorWrapper.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(OperatorWrapper.class);
 
   private final int major;
-  private final List<ImmutablePair<OperatorProfile, Integer>> ops; // operator profile --> minor fragment number
+  private final List<ImmutablePair<OperatorProfile, Integer>>
+      ops; // operator profile --> minor fragment number
   private final OperatorProfile firstProfile;
   private final CoreOperatorType operatorType;
   private final String operatorName;
@@ -64,11 +66,12 @@ public class OperatorWrapper {
   private final Table<Integer, Integer, String> majorMinorHostTable;
   private final Set<HostProcessingRate> hostProcessingRateSet;
 
-  public OperatorWrapper(int major,
-                         List<ImmutablePair<OperatorProfile, Integer>> ops,
-                         CoreOperatorTypeMetricsMap coreOperatorTypeMetricsMap,
-                         Table<Integer, Integer, String> majorMinorHostTable,
-                         Set<HostProcessingRate> hostProcessingRateSet) {
+  public OperatorWrapper(
+      int major,
+      List<ImmutablePair<OperatorProfile, Integer>> ops,
+      CoreOperatorTypeMetricsMap coreOperatorTypeMetricsMap,
+      Table<Integer, Integer, String> majorMinorHostTable,
+      Set<HostProcessingRate> hostProcessingRateSet) {
     Preconditions.checkArgument(ops.size() > 0);
     this.major = major;
     this.majorMinorHostTable = majorMinorHostTable;
@@ -76,7 +79,9 @@ public class OperatorWrapper {
     firstProfile = ops.get(0).getLeft();
     operatorType = CoreOperatorType.valueOf(firstProfile.getOperatorType());
     operatorName = operatorType == null ? "UNKNOWN_OPERATOR" : operatorType.toString();
-    this.coreOperatorTypeMetricsMap = Optional.ofNullable(coreOperatorTypeMetricsMap).orElse(OperatorMetricRegistry.getCoreOperatorTypeMetricsMap());
+    this.coreOperatorTypeMetricsMap =
+        Optional.ofNullable(coreOperatorTypeMetricsMap)
+            .orElse(OperatorMetricRegistry.getCoreOperatorTypeMetricsMap());
     this.ops = ops;
     size = ops.size();
   }
@@ -90,26 +95,71 @@ public class OperatorWrapper {
     return String.format("operator-%d-%d", major, ops.get(0).getLeft().getOperatorId());
   }
 
-  public static final String[] OPERATOR_COLUMNS = {"Thread", "Setup Time", "Process Time", "Wait Time",
-    "Max Batches", "Max Records", "Peak Memory", "Hostname", "Record Processing Rate"};
+  public static final String[] OPERATOR_COLUMNS = {
+    "Thread",
+    "Setup Time",
+    "Process Time",
+    "Wait Time",
+    "Max Batches",
+    "Max Records",
+    "Peak Memory",
+    "Hostname",
+    "Record Processing Rate",
+    "Operator State",
+    "Last Schedule Time"
+  };
 
-  public static final String[] OPERATORS_OVERVIEW_COLUMNS = {"SqlOperatorImpl ID", "Type", "Min Setup Time", "Avg Setup Time",
-    "Max Setup Time", "Min Process Time", "Avg Process Time", "Max Process Time", "Min Wait Time", "Avg Wait Time",
-    "Max Wait Time", "Avg Peak Memory", "Max Peak Memory"};
+  public static final String[] OPERATORS_OVERVIEW_COLUMNS = {
+    "SqlOperatorImpl ID",
+    "Type",
+    "Min Setup Time",
+    "Avg Setup Time",
+    "Max Setup Time",
+    "Min Process Time",
+    "Avg Process Time",
+    "Max Process Time",
+    "Min Wait Time",
+    "Avg Wait Time",
+    "Max Wait Time",
+    "Avg Peak Memory",
+    "Max Peak Memory"
+  };
 
-  public static final String[] SPLIT_INFO_COLUMNS = { "Split Output Name", "Split Evaluated in Gandiva",
-    "Split Depends On", "Split Expression", "LLVM Optimized" };
+  public static final String[] SPLIT_INFO_COLUMNS = {
+    "Split Output Name",
+    "Split Evaluated in Gandiva",
+    "Split Depends On",
+    "Split Expression",
+    "LLVM Optimized"
+  };
 
-  public static final String[] HOST_METRICS_COLUMNS = { "Hostname", "Num Threads", "Total Max Records",
-    "Total Process Time", "Record Processing Rate" };
+  public static final String[] HOST_METRICS_COLUMNS = {
+    "Hostname", "Num Threads", "Total Max Records", "Total Process Time", "Record Processing Rate"
+  };
 
-  public static final String[] SLOW_IO_INFO_COLUMNS = { "FilePath" , "IO Time (ns)", "IO Size", "Offset", "Operation Type"};
+  public static final String[] SLOW_IO_INFO_COLUMNS = {
+    "FilePath", "IO Time (ns)", "IO Size", "Offset", "Operation Type"
+  };
 
-  public static final String[] RUNTIMEFILTER_INFO_COLUMNS_IN_JOIN = {"Probe Target", "Is Partitioned Column",
-    "Is Non Partitioned Column", "Probe Field Name", "(Approx) Number Of Values", "Number of Hashfunctions"};
+  public static final String[] RUNTIMEFILTER_INFO_COLUMNS_IN_JOIN = {
+    "Probe Target",
+    "Is Partitioned Column",
+    "Is Non Partitioned Column",
+    "Probe Field Name",
+    "(Approx) Number Of Values",
+    "Number of Hashfunctions"
+  };
 
-  private static final String[] RUNTIMEFILTER_INFO_COLUMNS_IN_SCAN = {"Minor Fragment Id", "Join Source", "Is Partitioned Column",
-    "Probe Field Name", "(Approx) Number Of Values", "Number of Hashfunctions", "Output Records Before Pruning", "Is Dropped"};
+  private static final String[] RUNTIMEFILTER_INFO_COLUMNS_IN_SCAN = {
+    "Minor Fragment Id",
+    "Join Source",
+    "Is Partitioned Column",
+    "Probe Field Name",
+    "(Approx) Number Of Values",
+    "Number of Hashfunctions",
+    "Output Records Before Pruning",
+    "Is Dropped"
+  };
 
   public void addSummary(TableBuilder tb) {
     try {
@@ -129,25 +179,32 @@ public class OperatorWrapper {
         memSum += profile.getPeakLocalMemoryAllocated();
       }
 
-      final ImmutablePair<OperatorProfile, Integer> shortSetup = Collections.min(ops, Comparators.setupTime);
-      final ImmutablePair<OperatorProfile, Integer> longSetup = Collections.max(ops, Comparators.setupTime);
+      final ImmutablePair<OperatorProfile, Integer> shortSetup =
+          Collections.min(ops, Comparators.setupTime);
+      final ImmutablePair<OperatorProfile, Integer> longSetup =
+          Collections.max(ops, Comparators.setupTime);
       tb.appendNanos(shortSetup.getLeft().getSetupNanos());
       tb.appendNanos(Math.round(setupSum / size));
       tb.appendNanos(longSetup.getLeft().getSetupNanos());
 
-      final ImmutablePair<OperatorProfile, Integer> shortProcess = Collections.min(ops, Comparators.processTime);
-      final ImmutablePair<OperatorProfile, Integer> longProcess = Collections.max(ops, Comparators.processTime);
+      final ImmutablePair<OperatorProfile, Integer> shortProcess =
+          Collections.min(ops, Comparators.processTime);
+      final ImmutablePair<OperatorProfile, Integer> longProcess =
+          Collections.max(ops, Comparators.processTime);
       tb.appendNanos(shortProcess.getLeft().getProcessNanos());
       tb.appendNanos(Math.round(processSum / size));
       tb.appendNanos(longProcess.getLeft().getProcessNanos());
 
-      final ImmutablePair<OperatorProfile, Integer> shortWait = Collections.min(ops, Comparators.waitTime);
-      final ImmutablePair<OperatorProfile, Integer> longWait = Collections.max(ops, Comparators.waitTime);
+      final ImmutablePair<OperatorProfile, Integer> shortWait =
+          Collections.min(ops, Comparators.waitTime);
+      final ImmutablePair<OperatorProfile, Integer> longWait =
+          Collections.max(ops, Comparators.waitTime);
       tb.appendNanos(shortWait.getLeft().getWaitNanos());
       tb.appendNanos(Math.round(waitSum / size));
       tb.appendNanos(longWait.getLeft().getWaitNanos());
 
-      final ImmutablePair<OperatorProfile, Integer> peakMem = Collections.max(ops, Comparators.operatorPeakMemory);
+      final ImmutablePair<OperatorProfile, Integer> peakMem =
+          Collections.max(ops, Comparators.operatorPeakMemory);
       tb.appendBytes(Math.round(memSum / size));
       tb.appendBytes(peakMem.getLeft().getPeakLocalMemoryAllocated());
     } catch (IOException e) {
@@ -193,7 +250,8 @@ public class OperatorWrapper {
       int minor = ip.getRight();
       OperatorProfile op = ip.getLeft();
 
-      String path = new OperatorPathBuilder().setMajor(major).setMinor(minor).setOperator(op).build();
+      String path =
+          new OperatorPathBuilder().setMajor(major).setMinor(minor).setOperator(op).build();
       builder.appendString(path);
       builder.appendNanos(op.getSetupNanos());
       builder.appendNanos(op.getProcessNanos());
@@ -212,9 +270,17 @@ public class OperatorWrapper {
 
       String hostname = majorMinorHostTable.get(major, minor);
       builder.appendString(hostname);
-      BigDecimal recordProcessingRate = computeRecordProcessingRate(BigInteger.valueOf(maxRecords),
-                                                                    BigInteger.valueOf(op.getProcessNanos()));
+      BigDecimal recordProcessingRate =
+          computeRecordProcessingRate(
+              BigInteger.valueOf(maxRecords), BigInteger.valueOf(op.getProcessNanos()));
       builder.appendFormattedInteger(recordProcessingRate.longValue());
+      if (op.hasOperatorState()) {
+        builder.appendString(SmartOp.masterStateToStr(op.getOperatorState()));
+        builder.appendTime(op.getLastScheduleTime());
+      } else {
+        builder.appendString("");
+        builder.appendTime(0);
+      }
       builder.endEntry();
     }
 
@@ -228,7 +294,7 @@ public class OperatorWrapper {
     generator.writeFieldName("hostMetrics");
     JsonBuilder builder = new JsonBuilder(generator, HOST_METRICS_COLUMNS);
 
-    for(HostProcessingRate hpr: hostProcessingRateSet) {
+    for (HostProcessingRate hpr : hostProcessingRateSet) {
       builder.startEntry();
       builder.appendString(hpr.getHostname());
       builder.appendFormattedInteger(hpr.getNumThreads().longValue());
@@ -240,7 +306,9 @@ public class OperatorWrapper {
     builder.end();
   }
 
-  private void addSlowIO(JsonBuilder builder, List<SlowIOInfo> info, String type, int emptyDetailsCount) throws IOException {
+  private void addSlowIO(
+      JsonBuilder builder, List<SlowIOInfo> info, String type, int emptyDetailsCount)
+      throws IOException {
     for (SlowIOInfo ioInfo : info) {
       builder.startEntry();
       fillEmptyDetails(builder, emptyDetailsCount);
@@ -253,7 +321,9 @@ public class OperatorWrapper {
     }
   }
 
-  private void addRuntimeFilterInScanInfo(JsonBuilder builder, List<RunTimeFilterDetailsInfoInScan> info, int emptyDetailsCount) throws IOException {
+  private void addRuntimeFilterInScanInfo(
+      JsonBuilder builder, List<RunTimeFilterDetailsInfoInScan> info, int emptyDetailsCount)
+      throws IOException {
     for (RunTimeFilterDetailsInfoInScan runTimeFilterInfo : info) {
       builder.startEntry();
       builder.appendInteger(runTimeFilterInfo.getMinorFragmentId());
@@ -283,7 +353,8 @@ public class OperatorWrapper {
       return;
     }
 
-    final Integer[] metricIds = OperatorMetricRegistry.getMetricIds(coreOperatorTypeMetricsMap, operatorType.getNumber());
+    final Integer[] metricIds =
+        OperatorMetricRegistry.getMetricIds(coreOperatorTypeMetricsMap, operatorType.getNumber());
 
     if (metricIds.length == 0) {
       return;
@@ -296,8 +367,12 @@ public class OperatorWrapper {
     Map<Integer, Integer> metricIdToMetricTableColumnIndex = new HashMap<Integer, Integer>();
     int i = 1;
     for (final int metricId : metricIds) {
-      Optional<MetricDef> metric = OperatorMetricRegistry.getMetricById(coreOperatorTypeMetricsMap, operatorType.getNumber(), metricId);
-      assert metric.isPresent(); // Since metric id was retrieved from map, doing a reverse lookup shouldn't fail.
+      Optional<MetricDef> metric =
+          OperatorMetricRegistry.getMetricById(
+              coreOperatorTypeMetricsMap, operatorType.getNumber(), metricId);
+      assert metric
+          .isPresent(); // Since metric id was retrieved from map, doing a reverse lookup shouldn't
+      // fail.
       metricIdToMetricTableColumnIndex.put(metricId, i - 1);
       metricsTableColumnNames[i++] = metric.get().getName();
     }
@@ -310,11 +385,11 @@ public class OperatorWrapper {
       final OperatorProfile op = ip.getLeft();
 
       builder.appendString(
-        new OperatorPathBuilder()
-          .setMajor(major)
-          .setMinor(ip.getRight())
-          .setOperator(op)
-          .build());
+          new OperatorPathBuilder()
+              .setMajor(major)
+              .setMinor(ip.getRight())
+              .setOperator(op)
+              .build());
 
       final boolean isHashAgg = operatorType.getNumber() == CoreOperatorType.HASH_AGGREGATE_VALUE;
       final boolean toSkip = isHashAgg && renderingOldProfiles(op);
@@ -333,14 +408,16 @@ public class OperatorWrapper {
             values[metricId] = metric.getDoubleValue();
           }
         } else {
-          Optional<Integer> columnIndex = Optional.ofNullable(metricIdToMetricTableColumnIndex.get(metric.getMetricId()));
-          columnIndex.ifPresent(index -> {
-            if (metric.hasLongValue()) {
-              values[index] = metric.getLongValue();
-            } else if (metric.hasDoubleValue()) {
-              values[index] = metric.getDoubleValue();
-            }
-          });
+          Optional<Integer> columnIndex =
+              Optional.ofNullable(metricIdToMetricTableColumnIndex.get(metric.getMetricId()));
+          columnIndex.ifPresent(
+              index -> {
+                if (metric.hasLongValue()) {
+                  values[index] = metric.getLongValue();
+                } else if (metric.hasDoubleValue()) {
+                  values[index] = metric.getDoubleValue();
+                }
+              });
         }
       }
 
@@ -371,10 +448,11 @@ public class OperatorWrapper {
       return;
     }
 
-    List<OperatorProfile> foundOps = ops.stream()
-      .filter(p -> p.getLeft().hasDetails())
-      .map(ImmutablePair::getLeft)
-      .collect(Collectors.toList());
+    List<OperatorProfile> foundOps =
+        ops.stream()
+            .filter(p -> p.getLeft().hasDetails())
+            .map(ImmutablePair::getLeft)
+            .collect(Collectors.toList());
 
     if (foundOps.isEmpty()) {
       return;
@@ -401,26 +479,32 @@ public class OperatorWrapper {
         builder.endEntry();
       }
       builder.end();
-    } else if (CollectionUtils.isNotEmpty(foundOps.get(0).getDetails().getRuntimefilterDetailsInfosList() )) {
+    } else if (CollectionUtils.isNotEmpty(
+        foundOps.get(0).getDetails().getRuntimefilterDetailsInfosList())) {
       JsonBuilder builder = new JsonBuilder(generator, RUNTIMEFILTER_INFO_COLUMNS_IN_JOIN);
-        for(UserBitShared.RunTimeFilterDetailsInfo runTimeFilterInfo: foundOps.get(0).getDetails().getRuntimefilterDetailsInfosList()) {
-          builder.startEntry();
-          builder.appendString(runTimeFilterInfo.getProbeTarget());
-          builder.appendString(Boolean.toString(runTimeFilterInfo.getIsPartitionedCoulmn()));
-          builder.appendString(Boolean.toString(runTimeFilterInfo.getIsNonPartitionedColumn()));
-          builder.appendString(String.join(",", runTimeFilterInfo.getProbeFieldNamesList()));
-          builder.appendInteger(runTimeFilterInfo.getNumberOfValues());
-          builder.appendInteger(runTimeFilterInfo.getNumberOfHashFunctions());
-          builder.endEntry();
-        }
+      for (UserBitShared.RunTimeFilterDetailsInfo runTimeFilterInfo :
+          foundOps.get(0).getDetails().getRuntimefilterDetailsInfosList()) {
+        builder.startEntry();
+        builder.appendString(runTimeFilterInfo.getProbeTarget());
+        builder.appendString(Boolean.toString(runTimeFilterInfo.getIsPartitionedCoulmn()));
+        builder.appendString(Boolean.toString(runTimeFilterInfo.getIsNonPartitionedColumn()));
+        builder.appendString(String.join(",", runTimeFilterInfo.getProbeFieldNamesList()));
+        builder.appendInteger(runTimeFilterInfo.getNumberOfValues());
+        builder.appendInteger(runTimeFilterInfo.getNumberOfHashFunctions());
+        builder.endEntry();
+      }
       builder.end();
     } else if (isRuntimeFilterInScanInfoPresent(foundOps)) {
       @SuppressWarnings("checkstyle:LocalFinalVariableName")
-      final String[] SCAN_INFO_COLUMNS = ArrayUtils.addAll(RUNTIMEFILTER_INFO_COLUMNS_IN_SCAN, SLOW_IO_INFO_COLUMNS);
+      final String[] SCAN_INFO_COLUMNS =
+          ArrayUtils.addAll(RUNTIMEFILTER_INFO_COLUMNS_IN_SCAN, SLOW_IO_INFO_COLUMNS);
       int columnsCount = SCAN_INFO_COLUMNS.length;
       JsonBuilder builder = new JsonBuilder(generator, SCAN_INFO_COLUMNS);
       for (OperatorProfile op : foundOps) {
-        addRuntimeFilterInScanInfo(builder, op.getDetails().getRuntimefilterDetailsInfosInScanList(), columnsCount - RUNTIMEFILTER_INFO_COLUMNS_IN_SCAN.length);
+        addRuntimeFilterInScanInfo(
+            builder,
+            op.getDetails().getRuntimefilterDetailsInfosInScanList(),
+            columnsCount - RUNTIMEFILTER_INFO_COLUMNS_IN_SCAN.length);
       }
       addSlowIOToBuilder(builder, foundOps, columnsCount - SLOW_IO_INFO_COLUMNS.length);
       builder.end();
@@ -431,10 +515,13 @@ public class OperatorWrapper {
     }
   }
 
-  private void addSlowIOToBuilder(JsonBuilder builder, List<OperatorProfile> foundOps, int emptyDetailsCount) throws IOException {
-    for (OperatorProfile op :  foundOps) {
+  private void addSlowIOToBuilder(
+      JsonBuilder builder, List<OperatorProfile> foundOps, int emptyDetailsCount)
+      throws IOException {
+    for (OperatorProfile op : foundOps) {
       addSlowIO(builder, op.getDetails().getSlowIoInfosList(), "Data IO", emptyDetailsCount);
-      addSlowIO(builder, op.getDetails().getSlowMetadataIoInfosList(), "Metadata IO", emptyDetailsCount);
+      addSlowIO(
+          builder, op.getDetails().getSlowMetadataIoInfosList(), "Metadata IO", emptyDetailsCount);
     }
   }
 

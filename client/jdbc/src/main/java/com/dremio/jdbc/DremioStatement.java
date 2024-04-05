@@ -18,19 +18,17 @@ package com.dremio.jdbc;
 import java.sql.SQLException;
 import java.sql.Statement;
 
-
 /**
  * Dremio-specific {@link Statement}.
+ *
  * @see #unwrap
  */
 public interface DremioStatement extends Statement {
   /**
    * {@inheritDoc}
-   * <p>
-   *   <strong>Dremio</strong>: Does not throw SQLException.
-   * </p>
+   *
+   * <p><strong>Dremio</strong>: Does not throw SQLException.
    */
   @Override
   boolean isClosed() throws SQLException;
-
 }

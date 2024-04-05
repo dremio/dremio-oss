@@ -15,11 +15,15 @@
  */
 package com.dremio.exec.cache;
 
+import com.dremio.exec.ExecTest;
+import com.dremio.exec.record.VectorContainer;
+import com.dremio.exec.record.VectorWrapper;
+import com.google.common.collect.Lists;
+import com.google.common.io.Files;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.AllocationHelper;
@@ -36,13 +40,6 @@ import org.apache.hadoop.fs.Path;
 import org.junit.Assert;
 import org.junit.Test;
 
-import com.dremio.exec.ExecTest;
-import com.dremio.exec.record.VectorContainer;
-import com.dremio.exec.record.VectorWrapper;
-import com.google.common.collect.Lists;
-import com.google.common.io.Files;
-
-
 public class TestVectorAccessibleFlatBufSerializable extends ExecTest {
 
   @Test
@@ -50,8 +47,7 @@ public class TestVectorAccessibleFlatBufSerializable extends ExecTest {
     final List<ValueVector> vectorList = Lists.newArrayList();
 
     try (final IntVector intVector = new IntVector("int", allocator);
-         final VarBinaryVector binVector =
-           new VarBinaryVector("binary", allocator)) {
+        final VarBinaryVector binVector = new VarBinaryVector("binary", allocator)) {
       AllocationHelper.allocate(intVector, 4, 4);
       AllocationHelper.allocate(binVector, 4, 5);
       vectorList.add(intVector);
@@ -75,7 +71,8 @@ public class TestVectorAccessibleFlatBufSerializable extends ExecTest {
       container.buildSchema();
       container.setRecordCount(4);
 
-      VectorAccessibleFlatBufSerializable writeSerializable = new VectorAccessibleFlatBufSerializable(container, allocator);
+      VectorAccessibleFlatBufSerializable writeSerializable =
+          new VectorAccessibleFlatBufSerializable(container, allocator);
 
       Configuration conf = new Configuration();
       conf.set(FileSystem.FS_DEFAULT_NAME_KEY, "file:///");
@@ -89,12 +86,12 @@ public class TestVectorAccessibleFlatBufSerializable extends ExecTest {
         }
 
         container.zeroVectors();
-        VectorAccessibleFlatBufSerializable readSerializable = new VectorAccessibleFlatBufSerializable(container, allocator);
+        VectorAccessibleFlatBufSerializable readSerializable =
+            new VectorAccessibleFlatBufSerializable(container, allocator);
         try (final FSDataInputStream in = fs.open(path)) {
           readSerializable.readFromStream(in);
         }
       }
-
 
       Assert.assertEquals(4, container.getRecordCount());
       for (VectorWrapper<?> w : container) {
@@ -123,7 +120,8 @@ public class TestVectorAccessibleFlatBufSerializable extends ExecTest {
       listVector.allocateNew();
 
       // write data to vector
-      // [[0, 0, 0, 0, 0, null], [0, 1, 2, 3, 4, null], [0, 2, 4, 6, 8, null], [null, null, null, null, null],
+      // [[0, 0, 0, 0, 0, null], [0, 1, 2, 3, 4, null], [0, 2, 4, 6, 8, null], [null, null, null,
+      // null, null],
       // [0, null, 2, null, 4, null], null]
 
       UnionListWriter writer = listVector.getWriter();
@@ -143,8 +141,8 @@ public class TestVectorAccessibleFlatBufSerializable extends ExecTest {
       }
       writer.startList();
       writer.setPosition(4);
-      for(int i = 0; i < 6; i++) {
-        if(i%2 == 0) {
+      for (int i = 0; i < 6; i++) {
+        if (i % 2 == 0) {
           writer.writeInt(i);
         } else {
           writer.writeNull();
@@ -165,8 +163,8 @@ public class TestVectorAccessibleFlatBufSerializable extends ExecTest {
       container.buildSchema();
       container.setRecordCount(6);
 
-
-      VectorAccessibleFlatBufSerializable writeSerializable = new VectorAccessibleFlatBufSerializable(container, allocator);
+      VectorAccessibleFlatBufSerializable writeSerializable =
+          new VectorAccessibleFlatBufSerializable(container, allocator);
 
       Configuration conf = new Configuration();
       conf.set(FileSystem.FS_DEFAULT_NAME_KEY, "file:///");
@@ -184,7 +182,8 @@ public class TestVectorAccessibleFlatBufSerializable extends ExecTest {
           writeSerializable.writeToStream(out);
         }
 
-        VectorAccessibleFlatBufSerializable readSerializable = new VectorAccessibleFlatBufSerializable(readContainer, allocator);
+        VectorAccessibleFlatBufSerializable readSerializable =
+            new VectorAccessibleFlatBufSerializable(readContainer, allocator);
         try (final FSDataInputStream in = fs.open(path)) {
           readSerializable.readFromStream(in);
         }
@@ -203,13 +202,12 @@ public class TestVectorAccessibleFlatBufSerializable extends ExecTest {
 
       Assert.assertEquals(6, readContainer.getRecordCount());
       for (VectorWrapper<?> w : readContainer) {
-        try (ListVector vv = (ListVector)w.getValueVector()) {
+        try (ListVector vv = (ListVector) w.getValueVector()) {
           for (int i = 0; i < listVector.getValueCount(); i++) {
             Assert.assertTrue(listVector.getObject(i).equals(expectedOutPut.get(i)));
           }
         }
       }
-
     }
   }
 }

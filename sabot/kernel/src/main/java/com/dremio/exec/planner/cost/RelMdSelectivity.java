@@ -15,6 +15,11 @@
  */
 package com.dremio.exec.planner.cost;
 
+import com.dremio.exec.planner.common.ScanRelBase;
+import com.dremio.exec.planner.physical.TableFunctionPrel;
+import com.dremio.exec.store.TableMetadata;
+import com.dremio.exec.store.sys.statistics.StatisticsService;
+import com.google.common.base.MoreObjects;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -22,7 +27,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.volcano.RelSubset;
 import org.apache.calcite.rel.RelNode;
@@ -47,20 +51,13 @@ import org.apache.calcite.util.Util;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.exec.planner.common.ScanRelBase;
-import com.dremio.exec.planner.physical.TableFunctionPrel;
-import com.dremio.exec.store.TableMetadata;
-import com.dremio.exec.store.sys.statistics.StatisticsService;
-import com.google.common.base.MoreObjects;
-
 public class RelMdSelectivity extends org.apache.calcite.rel.metadata.RelMdSelectivity {
   private static final Logger logger = LoggerFactory.getLogger(RelMdSelectivity.class);
 
   private static final RelMdSelectivity INSTANCE = new RelMdSelectivity(StatisticsService.NO_OP);
 
   public static final RelMetadataProvider SOURCE =
-    ReflectiveRelMetadataProvider.reflectiveSource(
-      BuiltInMethod.SELECTIVITY.method, INSTANCE);
+      ReflectiveRelMetadataProvider.reflectiveSource(BuiltInMethod.SELECTIVITY.method, INSTANCE);
 
   private final StatisticsService statisticsService;
   private boolean isNoOp;
@@ -69,13 +66,25 @@ public class RelMdSelectivity extends org.apache.calcite.rel.metadata.RelMdSelec
   private static final double LIKE_PREDICATE_SELECTIVITY = 0.05;
 
   public static final Set<SqlKind> RANGE_PREDICATE =
-    EnumSet.of(
-      SqlKind.LESS_THAN, SqlKind.GREATER_THAN,
-      SqlKind.LESS_THAN_OR_EQUAL, SqlKind.GREATER_THAN_OR_EQUAL);
+      EnumSet.of(
+          SqlKind.LESS_THAN, SqlKind.GREATER_THAN,
+          SqlKind.LESS_THAN_OR_EQUAL, SqlKind.GREATER_THAN_OR_EQUAL);
 
   public static final Set<SqlKind> SUPPORTED_REX_INPUT_PREDICATE =
-    EnumSet.of(SqlKind.IN, SqlKind.LIKE, SqlKind.NOT_EQUALS, SqlKind.EQUALS, SqlKind.GREATER_THAN, SqlKind.GREATER_THAN_OR_EQUAL, SqlKind.LESS_THAN, SqlKind.LESS_THAN_OR_EQUAL,
-      SqlKind.AND, SqlKind.OR, SqlKind.IN, SqlKind.NOT_IN, SqlKind.BETWEEN);
+      EnumSet.of(
+          SqlKind.IN,
+          SqlKind.LIKE,
+          SqlKind.NOT_EQUALS,
+          SqlKind.EQUALS,
+          SqlKind.GREATER_THAN,
+          SqlKind.GREATER_THAN_OR_EQUAL,
+          SqlKind.LESS_THAN,
+          SqlKind.LESS_THAN_OR_EQUAL,
+          SqlKind.AND,
+          SqlKind.OR,
+          SqlKind.IN,
+          SqlKind.NOT_IN,
+          SqlKind.BETWEEN);
 
   public RelMdSelectivity(StatisticsService statisticsService) {
     this.statisticsService = statisticsService;
@@ -104,7 +113,7 @@ public class RelMdSelectivity extends org.apache.calcite.rel.metadata.RelMdSelec
   }
 
   @Override
-  public Double  getSelectivity(Join rel, RelMetadataQuery mq, RexNode predicate) {
+  public Double getSelectivity(Join rel, RelMetadataQuery mq, RexNode predicate) {
     if (DremioRelMdUtil.isStatisticsEnabled(rel.getCluster().getPlanner(), isNoOp)) {
       double sel = 1.0;
       if ((predicate == null) || predicate.isAlwaysTrue()) {
@@ -117,7 +126,16 @@ public class RelMdSelectivity extends org.apache.calcite.rel.metadata.RelMdSelec
       List<RexNode> rightFilters = new ArrayList<>();
       List<RexNode> joinFilters = new ArrayList<>();
       List<RexNode> predList = RelOptUtil.conjunctions(predicate);
-      RelOptUtil.classifyFilters(rel, predList, joinType, joinType == JoinRelType.INNER, !joinType.generatesNullsOnLeft(), !joinType.generatesNullsOnRight(), joinFilters, leftFilters, rightFilters);
+      RelOptUtil.classifyFilters(
+          rel,
+          predList,
+          joinType,
+          joinType == JoinRelType.INNER,
+          !joinType.generatesNullsOnLeft(),
+          !joinType.generatesNullsOnRight(),
+          joinFilters,
+          leftFilters,
+          rightFilters);
       leftPred = RexUtil.composeConjunction(rexBuilder, leftFilters, true);
       rightPred = RexUtil.composeConjunction(rexBuilder, rightFilters, true);
       for (RelNode child : rel.getInputs()) {
@@ -133,7 +151,8 @@ public class RelMdSelectivity extends org.apache.calcite.rel.metadata.RelMdSelec
           sel *= mq.getSelectivity(child, rightPred);
         }
       }
-      //ToDo: The JoinFilters are based on the inputs but the original filter might be based on the output
+      // ToDo: The JoinFilters are based on the inputs but the original filter might be based on the
+      // output
       sel *= guessSelectivity(RexUtil.composeConjunction(rexBuilder, joinFilters, false));
       // The remaining filters that could not be passed to the left, right or Join
       sel *= guessSelectivity(RexUtil.composeConjunction(rexBuilder, predList, false));
@@ -142,10 +161,10 @@ public class RelMdSelectivity extends org.apache.calcite.rel.metadata.RelMdSelec
     return super.getSelectivity(rel, mq, predicate);
   }
 
-  public Double getSelectivity(RelSubset rel, RelMetadataQuery mq,
-                                RexNode predicate) {
+  public Double getSelectivity(RelSubset rel, RelMetadataQuery mq, RexNode predicate) {
     if (DremioRelMdUtil.isStatisticsEnabled(rel.getCluster().getPlanner(), isNoOp)) {
-      return mq.getSelectivity(MoreObjects.firstNonNull(rel.getBest(), rel.getOriginal()), predicate);
+      return mq.getSelectivity(
+          MoreObjects.firstNonNull(rel.getBest(), rel.getOriginal()), predicate);
     }
     return super.getSelectivity(rel, mq, predicate);
   }
@@ -169,23 +188,33 @@ public class RelMdSelectivity extends org.apache.calcite.rel.metadata.RelMdSelec
         List<String> fields = rel.getRowType().getFieldNames();
         return getScanSelectivityInternal(tableMetadata, predicate, fields, rexBuilder);
       } catch (Exception e) {
-        logger.trace(String.format("Exception %s occured while getting Scan Selectivity For rel %s" ,e.toString(),rel.toString()));
+        logger.trace(
+            String.format(
+                "Exception %s occured while getting Scan Selectivity For rel %s",
+                e.toString(), rel.toString()));
         return super.getSelectivity(rel, mq, predicate);
       }
     }
     return super.getSelectivity(rel, mq, predicate);
   }
 
-  private double getScanSelectivityInternal(TableMetadata tableMetadata, RexNode predicate, List<String> fieldNames, RexBuilder rexBuilder) {
+  private double getScanSelectivityInternal(
+      TableMetadata tableMetadata,
+      RexNode predicate,
+      List<String> fieldNames,
+      RexBuilder rexBuilder) {
     double sel = 1.0;
     if ((predicate == null) || predicate.isAlwaysTrue()) {
       return sel;
     }
     List<RexNode> conjuncts1 = RelOptUtil.conjunctions(predicate);
-    // a Set that holds range predicates that are combined based on whether they are defined on the same column
+    // a Set that holds range predicates that are combined based on whether they are defined on the
+    // same column
     Set<RexNode> combinedRangePredicates = new HashSet<>();
     // pre-process the conjuncts such that predicates on the same column are grouped together
-    List<RexNode> conjuncts2 = preprocessSimpleRangePredicates(conjuncts1, fieldNames, rexBuilder, combinedRangePredicates);
+    List<RexNode> conjuncts2 =
+        preprocessSimpleRangePredicates(
+            conjuncts1, fieldNames, rexBuilder, combinedRangePredicates);
     for (RexNode pred : conjuncts2) {
       double orSel = 0;
       for (RexNode orPred : RelOptUtil.disjunctions(pred)) {
@@ -199,7 +228,11 @@ public class RelMdSelectivity extends org.apache.calcite.rel.metadata.RelMdSelec
           orSel += computeNotEqualsSelectivity(tableMetadata, orPred, fieldNames);
         } else if (orPred.isA(SqlKind.LIKE)) {
           // LIKE selectivity is 5% more than a similar equality predicate, capped at CALCITE guess
-          orSel += Math.min(computeEqualsSelectivity(tableMetadata, orPred, fieldNames) + LIKE_PREDICATE_SELECTIVITY, guessSelectivity(orPred));
+          orSel +=
+              Math.min(
+                  computeEqualsSelectivity(tableMetadata, orPred, fieldNames)
+                      + LIKE_PREDICATE_SELECTIVITY,
+                  guessSelectivity(orPred));
         } else if (orPred.isA(SqlKind.NOT)) {
           RexNode childOp = ((RexCall) orPred).getOperands().get(0);
           orSel += 1.0 - getScanSelectivityInternal(tableMetadata, childOp, fieldNames, rexBuilder);
@@ -226,19 +259,24 @@ public class RelMdSelectivity extends org.apache.calcite.rel.metadata.RelMdSelec
     if (logger.isTraceEnabled()) {
       logger.trace(String.format("Using guess for predicate [%s]", orPred.toString()));
     }
-    //CALCITE guess
+    // CALCITE guess
     return RelMdUtil.guessSelectivity(orPred);
   }
 
   // Use histogram if available for the range predicate selectivity
-  private double computeRangeSelectivity(TableMetadata tableMetadata, RexNode orPred, List<String> fieldNames) {
+  private double computeRangeSelectivity(
+      TableMetadata tableMetadata, RexNode orPred, List<String> fieldNames) {
     String col = getColumn(orPred, fieldNames);
     if (col != null) {
       StatisticsService.Histogram histogram = statisticsService.getHistogram(col, tableMetadata);
       if (histogram != null && histogram.isTDigestSet()) {
         Long rowCount = statisticsService.getRowCount(tableMetadata.getName());
         Long nullCount = statisticsService.getNullCount(col, tableMetadata.getName());
-        Double sel = (rowCount != null && nullCount != null && rowCount != 0) ? histogram.estimatedRangeSelectivity(orPred) * (1 - (nullCount.doubleValue() / rowCount)) : histogram.estimatedRangeSelectivity(orPred);
+        Double sel =
+            (rowCount != null && nullCount != null && rowCount != 0)
+                ? histogram.estimatedRangeSelectivity(orPred)
+                    * (1 - (nullCount.doubleValue() / rowCount))
+                : histogram.estimatedRangeSelectivity(orPred);
         if (sel != null) {
           return sel;
         }
@@ -247,16 +285,16 @@ public class RelMdSelectivity extends org.apache.calcite.rel.metadata.RelMdSelec
     return guessSelectivity(orPred);
   }
 
-
-  private double computeEqualsSelectivity(TableMetadata tableMetadata, RexNode orPred, List<String> fieldNames) {
+  private double computeEqualsSelectivity(
+      TableMetadata tableMetadata, RexNode orPred, List<String> fieldNames) {
     String col = getColumn(orPred, fieldNames);
     if (col != null) {
       StatisticsService.Histogram histogram = statisticsService.getHistogram(col, tableMetadata);
       Long rowCount = statisticsService.getRowCount(tableMetadata.getName());
-      if( histogram != null && histogram.isItemsSketchSet() && rowCount != null ){
+      if (histogram != null && histogram.isItemsSketchSet() && rowCount != null) {
         Long count = histogram.estimatedPointSelectivity(orPred);
-        if(count != null && rowCount != 0){
-          return count.doubleValue()/rowCount.doubleValue();
+        if (count != null && rowCount != 0) {
+          return count.doubleValue() / rowCount.doubleValue();
         }
       }
       Long ndv = statisticsService.getNDV(col, tableMetadata.getName());
@@ -267,15 +305,16 @@ public class RelMdSelectivity extends org.apache.calcite.rel.metadata.RelMdSelec
     return guessSelectivity(orPred);
   }
 
-  private double computeNotEqualsSelectivity(TableMetadata tableMetadata, RexNode orPred, List<String> fieldNames) {
+  private double computeNotEqualsSelectivity(
+      TableMetadata tableMetadata, RexNode orPred, List<String> fieldNames) {
     String col = getColumn(orPred, fieldNames);
     if (col != null) {
       StatisticsService.Histogram histogram = statisticsService.getHistogram(col, tableMetadata);
       Long rowCount = statisticsService.getRowCount(tableMetadata.getName());
-      if( histogram != null && histogram.isItemsSketchSet() && rowCount != null ) {
+      if (histogram != null && histogram.isItemsSketchSet() && rowCount != null) {
         Long count = histogram.estimatedPointSelectivity(orPred);
-        if(count != null && rowCount != 0){
-          return 1.0 - count.doubleValue()/rowCount.doubleValue();
+        if (count != null && rowCount != 0) {
+          return 1.0 - count.doubleValue() / rowCount.doubleValue();
         }
       }
       Long ndv = statisticsService.getNDV(col, tableMetadata.getName());
@@ -286,41 +325,41 @@ public class RelMdSelectivity extends org.apache.calcite.rel.metadata.RelMdSelec
     return guessSelectivity(orPred);
   }
 
-  private double computeNullSelectivity(TableMetadata tableMetadata, RexNode orPred, List<String> fieldNames) {
+  private double computeNullSelectivity(
+      TableMetadata tableMetadata, RexNode orPred, List<String> fieldNames) {
     String col = getColumn(orPred, fieldNames);
     if (col != null) {
       Long nullCount = statisticsService.getNullCount(col, tableMetadata.getName());
       Long rowCount = statisticsService.getRowCount(tableMetadata.getName());
       if (nullCount != null && rowCount != null) {
         // Cap selectivity below Calcite Guess
-        return Math.min(nullCount.doubleValue() / rowCount,
-          RelMdUtil.guessSelectivity(orPred));
+        return Math.min(nullCount.doubleValue() / rowCount, RelMdUtil.guessSelectivity(orPred));
       }
     }
     return guessSelectivity(orPred);
   }
 
-  private double computeNotNullSelectivity(TableMetadata tableMetadata, RexNode orPred, List<String> fieldNames) {
+  private double computeNotNullSelectivity(
+      TableMetadata tableMetadata, RexNode orPred, List<String> fieldNames) {
     String col = getColumn(orPred, fieldNames);
     if (col != null) {
       Long nullCount = statisticsService.getNullCount(col, tableMetadata.getName());
       Long rowCount = statisticsService.getRowCount(tableMetadata.getName());
       if (nullCount != null && rowCount != null) {
         // Cap selectivity below Calcite Guess
-        return Math.min(1.0 - (nullCount.doubleValue() / rowCount),
-          RelMdUtil.guessSelectivity(orPred));
+        return Math.min(
+            1.0 - (nullCount.doubleValue() / rowCount), RelMdUtil.guessSelectivity(orPred));
       }
     }
     return guessSelectivity(orPred);
   }
-
 
   /**
-   * Process the range predicates and combine all Simple range predicates defined on the same column into a single conjunct.
-   * <p>
-   * For example:  a > 10 AND b < 50 AND c > 20 AND a < 70
-   * Will be combined into 3 conjuncts: (a > 10 AND a < 70), (b < 50), (c > 20)
-   * </p>
+   * Process the range predicates and combine all Simple range predicates defined on the same column
+   * into a single conjunct.
+   *
+   * <p>For example: a > 10 AND b < 50 AND c > 20 AND a < 70 Will be combined into 3 conjuncts: (a >
+   * 10 AND a < 70), (b < 50), (c > 20)
    *
    * @param conjuncts
    * @param fieldNames
@@ -328,16 +367,19 @@ public class RelMdSelectivity extends org.apache.calcite.rel.metadata.RelMdSelec
    * @param combinedRangePredicates
    * @return A list of predicates that includes the newly created predicate
    */
-  private List<RexNode> preprocessSimpleRangePredicates
-  (List<RexNode> conjuncts, List<String> fieldNames, RexBuilder rexBuilder,
-   Set<RexNode> combinedRangePredicates) {
+  private List<RexNode> preprocessSimpleRangePredicates(
+      List<RexNode> conjuncts,
+      List<String> fieldNames,
+      RexBuilder rexBuilder,
+      Set<RexNode> combinedRangePredicates) {
     Map<String, List<RexNode>> colToRangePredicateMap = new HashMap<>();
     List<RexNode> nonRangePredList = new ArrayList<RexNode>();
     for (RexNode pred : conjuncts) {
       if (pred.isA(RANGE_PREDICATE) && !isMultiColumnPredicate(pred)) {
         String col = getColumn(pred, fieldNames);
         if (col != null) {
-          List<RexNode> predList = colToRangePredicateMap.computeIfAbsent(col, s -> new ArrayList<>());
+          List<RexNode> predList =
+              colToRangePredicateMap.computeIfAbsent(col, s -> new ArrayList<>());
           predList.add(pred);
         } else {
           nonRangePredList.add(pred);
@@ -378,8 +420,9 @@ public class RelMdSelectivity extends org.apache.calcite.rel.metadata.RelMdSelec
         return fieldNames.get(colIdx);
       } else {
         if (logger.isTraceEnabled()) {
-          logger.trace(String.format("No input reference $[%s] found for predicate [%s]",
-            colIdx, orPred.toString()));
+          logger.trace(
+              String.format(
+                  "No input reference $[%s] found for predicate [%s]", colIdx, orPred.toString()));
         }
       }
     }
@@ -389,60 +432,63 @@ public class RelMdSelectivity extends org.apache.calcite.rel.metadata.RelMdSelec
   private static RexInputRef findRexInputRef(final RexNode node) {
     try {
       RexVisitor<Void> visitor =
-        new RexVisitorImpl<Void>(true) {
-          @Override
-          public Void visitCall(RexCall call) {
-            if (!call.isA(SUPPORTED_REX_INPUT_PREDICATE)) {
-              return null;
+          new RexVisitorImpl<Void>(true) {
+            @Override
+            public Void visitCall(RexCall call) {
+              if (!call.isA(SUPPORTED_REX_INPUT_PREDICATE)) {
+                return null;
+              }
+              switch (call.getKind()) {
+                case AND:
+                case OR:
+                  for (RexNode child : call.getOperands()) {
+                    child.accept(this);
+                  }
+                  break;
+                case NOT_EQUALS:
+                case EQUALS:
+                case GREATER_THAN:
+                case GREATER_THAN_OR_EQUAL:
+                case LESS_THAN_OR_EQUAL:
+                case LESS_THAN:
+                  // only 2 operands
+                  assert (call.getOperands().size() == 2);
+                  if ((call.getOperands().get(0) instanceof RexInputRef)
+                      && !(call.getOperands().get(1) instanceof RexInputRef)) {
+                    throw new Util.FoundOne(call.getOperands().get(0));
+                  }
+                  if ((call.getOperands().get(1) instanceof RexInputRef)
+                      && !(call.getOperands().get(0) instanceof RexInputRef)) {
+                    throw new Util.FoundOne(call.getOperands().get(1));
+                  }
+                  break;
+                case LIKE:
+                case IN:
+                case BETWEEN:
+                case NOT_IN:
+                  // ToDO:  Histogram does not support these operations for now, so add tests when
+                  // it does
+                  int cnt = 0;
+                  RexInputRef found = null;
+                  for (RexNode child : call.getOperands()) {
+                    if (child instanceof RexInputRef) {
+                      found = (RexInputRef) child;
+                      cnt++;
+                    }
+                  }
+                  if (cnt == 1 && found != null) {
+                    throw new Util.FoundOne(found);
+                  }
+                  break;
+              }
+              return super.visitCall(call);
             }
-            switch (call.getKind()) {
-            case AND:
-            case OR:
-              for (RexNode child : call.getOperands()) {
-                child.accept(this);
-              }
-              break;
-            case NOT_EQUALS:
-            case EQUALS:
-            case GREATER_THAN:
-            case GREATER_THAN_OR_EQUAL:
-            case LESS_THAN_OR_EQUAL:
-            case LESS_THAN:
-              // only 2 operands
-              assert(call.getOperands().size() == 2);
-              if((call.getOperands().get(0) instanceof RexInputRef) && !(call.getOperands().get(1) instanceof RexInputRef)){
-                throw new Util.FoundOne(call.getOperands().get(0));
-              }
-              if((call.getOperands().get(1) instanceof RexInputRef) && !(call.getOperands().get(0) instanceof RexInputRef)){
-                throw new Util.FoundOne(call.getOperands().get(1));
-              }
-              break;
-            case LIKE:
-            case IN:
-            case BETWEEN:
-            case NOT_IN:
-              // ToDO:  Histogram does not support these operations for now, so add tests when it does
-              int cnt = 0;
-              RexInputRef found = null;
-              for (RexNode child: call.getOperands()){
-                if(child instanceof RexInputRef){
-                  found = (RexInputRef) child;
-                  cnt++;
-                }
-              }
-              if(cnt ==1 && found != null){
-                throw new Util.FoundOne(found);
-              }
-              break;
-            }
-            return super.visitCall(call);
-          }
 
-          @Override
-          public Void visitInputRef(RexInputRef inputRef) {
-            throw new Util.FoundOne(inputRef);
-          }
-        };
+            @Override
+            public Void visitInputRef(RexInputRef inputRef) {
+              throw new Util.FoundOne(inputRef);
+            }
+          };
       node.accept(visitor);
       return null;
     } catch (Util.FoundOne e) {
@@ -455,15 +501,14 @@ public class RelMdSelectivity extends org.apache.calcite.rel.metadata.RelMdSelec
 
     Set<Integer> rexRefs = new HashSet<Integer>();
     RexVisitor<Void> visitor =
-      new RexVisitorImpl<Void>(true) {
-        @Override
-        public Void visitInputRef(RexInputRef inputRef) {
-          rexRefs.add(inputRef.hashCode());
-          return super.visitInputRef(inputRef);
-        }
-      };
+        new RexVisitorImpl<Void>(true) {
+          @Override
+          public Void visitInputRef(RexInputRef inputRef) {
+            rexRefs.add(inputRef.hashCode());
+            return super.visitInputRef(inputRef);
+          }
+        };
     node.accept(visitor);
     return rexRefs.size() > 1;
   }
-
 }

@@ -17,28 +17,6 @@ package com.dremio.exec.store.dfs;
 
 import static com.dremio.exec.util.VectorUtil.getVectorFromSchemaPath;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
-import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-import java.util.stream.Stream;
-
-import org.apache.arrow.vector.IntVector;
-import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.complex.StructVector;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.util.TransferPair;
-import org.apache.commons.lang3.tuple.Pair;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.config.DremioConfig;
@@ -75,15 +53,37 @@ import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import com.google.common.hash.Hashing;
 import com.google.common.net.HostAndPort;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
+import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.complex.StructVector;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.util.TransferPair;
+import org.apache.commons.lang3.tuple.Pair;
 
 /**
- * SplitAssignmentTableFunction is responsible for assigning the splits to the downstream fragment endpoints
- * The incoming batch is expected to contain a varbinary column named "splitsIdentity" that contains
- * block location information of the splits. The outgoing batch contains a single additional int column apart from the
- * incoming batch called "E_X_P_R_H_A_S_H_F_I_E_L_D" which contains the target fragment index for that particular split.
+ * SplitAssignmentTableFunction is responsible for assigning the splits to the downstream fragment
+ * endpoints The incoming batch is expected to contain a varbinary column named "splitsIdentity"
+ * that contains block location information of the splits. The outgoing batch contains a single
+ * additional int column apart from the incoming batch called "E_X_P_R_H_A_S_H_F_I_E_L_D" which
+ * contains the target fragment index for that particular split.
  */
 public class SplitAssignmentTableFunction extends AbstractTableFunction {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SplitAssignmentTableFunction.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(SplitAssignmentTableFunction.class);
   private static final long REPEAT_LOG_THRESHOLD = Duration.ofMinutes(30).toMillis();
   private static long lastLoggedSetupExceptionTime;
 
@@ -94,7 +94,8 @@ public class SplitAssignmentTableFunction extends AbstractTableFunction {
   private boolean assigned = false;
   private final List<NodeEndpoint> nodeEndpoints;
   private final Map<HostAndPort, NodeEndpoint> hostAndPortToEndpointMap;
-  private final Multimap<HostAndPort, NodeEndpoint> hostToEndpointMap;  // only keep the host information in this map
+  private final Multimap<HostAndPort, NodeEndpoint>
+      hostToEndpointMap; // only keep the host information in this map
   private List<SplitWork> splitWorkList;
   private final double balanceFactor;
   private final RendezvousHash<RendezvousPageHasher.PathOffset, ComparableEndpoint> hasher;
@@ -105,10 +106,16 @@ public class SplitAssignmentTableFunction extends AbstractTableFunction {
   private Pointer<BlockLocationsCacheManager> cacheManagerPointer;
   private FileSystem fs;
 
-  public SplitAssignmentTableFunction(FragmentExecutionContext fec, OperatorContext context, OpProps props, TableFunctionConfig functionConfig) throws ExecutionSetupException {
+  public SplitAssignmentTableFunction(
+      FragmentExecutionContext fec,
+      OperatorContext context,
+      OpProps props,
+      TableFunctionConfig functionConfig)
+      throws ExecutionSetupException {
     super(context, functionConfig);
 
-    if (functionConfig.getFunctionContext().isIcebergMetadata() && functionConfig.getFunctionContext().getInternalTablePluginId() != null) {
+    if (functionConfig.getFunctionContext().isIcebergMetadata()
+        && functionConfig.getFunctionContext().getInternalTablePluginId() != null) {
       this.pluginId = functionConfig.getFunctionContext().getInternalTablePluginId();
       this.plugin = fec.getStoragePlugin(pluginId);
     } else {
@@ -117,27 +124,40 @@ public class SplitAssignmentTableFunction extends AbstractTableFunction {
     }
     this.props = props;
 
-    nodeEndpoints = context.getMinorFragmentEndpoints()
-      .stream()
-      .sorted(Comparator.comparing(MinorFragmentEndpoint::getMinorFragmentId))
-      .map(MinorFragmentEndpoint::getEndpoint)
-      .collect(Collectors.toList());
+    nodeEndpoints =
+        context.getMinorFragmentEndpoints().stream()
+            .sorted(Comparator.comparing(MinorFragmentEndpoint::getMinorFragmentId))
+            .map(MinorFragmentEndpoint::getEndpoint)
+            .collect(Collectors.toList());
 
-    hostAndPortToEndpointMap = nodeEndpoints
-      .stream()
-      .collect(Collectors.toMap(e -> HostAndPort.fromParts(e.getAddress(), e.getFabricPort()), Function.identity(), (a, b) -> a));
+    hostAndPortToEndpointMap =
+        nodeEndpoints.stream()
+            .collect(
+                Collectors.toMap(
+                    e -> HostAndPort.fromParts(e.getAddress(), e.getFabricPort()),
+                    Function.identity(),
+                    (a, b) -> a));
     hostToEndpointMap = ArrayListMultimap.create();
-    hostAndPortToEndpointMap.entrySet()
-      .forEach(e -> hostToEndpointMap.put(HostAndPort.fromHost(e.getKey().getHost()), e.getValue()));
+    hostAndPortToEndpointMap
+        .entrySet()
+        .forEach(
+            e -> hostToEndpointMap.put(HostAndPort.fromHost(e.getKey().getHost()), e.getValue()));
 
-    Set<ComparableEndpoint> comparableEndpoints = nodeEndpoints.stream()
-      .map(n -> new ComparableEndpoint(HostAndPort.fromParts(n.getAddress(), n.getFabricPort())))
-      .collect(Collectors.toSet());
-    hasher = new RendezvousHash<>(
-      Hashing.murmur3_128(),
-      (k, f) -> f.putString(k.getPath(), StandardCharsets.UTF_8).putLong(k.getOffset()),
-      (n, f) -> f.putString(n.hostPort.getHost(), StandardCharsets.UTF_8).putInt(n.hostPort.getPort()),
-      comparableEndpoints);
+    Set<ComparableEndpoint> comparableEndpoints =
+        nodeEndpoints.stream()
+            .map(
+                n ->
+                    new ComparableEndpoint(
+                        HostAndPort.fromParts(n.getAddress(), n.getFabricPort())))
+            .collect(Collectors.toSet());
+    hasher =
+        new RendezvousHash<>(
+            Hashing.murmur3_128(),
+            (k, f) -> f.putString(k.getPath(), StandardCharsets.UTF_8).putLong(k.getOffset()),
+            (n, f) ->
+                f.putString(n.hostPort.getHost(), StandardCharsets.UTF_8)
+                    .putInt(n.hostPort.getPort()),
+            comparableEndpoints);
     balanceFactor = context.getOptions().getOption(ExecConstants.ASSIGNMENT_CREATOR_BALANCE_FACTOR);
   }
 
@@ -148,7 +168,8 @@ public class SplitAssignmentTableFunction extends AbstractTableFunction {
     functionConfig.getOutputSchema().getFields().forEach(f -> outgoing.addOrGet(f));
     outgoing.buildSchema(BatchSchema.SelectionVectorMode.NONE);
     hashVector = (IntVector) getVectorFromSchemaPath(outgoing, HashPrelUtil.HASH_EXPR_NAME);
-    inputSplitIdentities = (StructVector) getVectorFromSchemaPath(incoming, RecordReader.SPLIT_IDENTITY);
+    inputSplitIdentities =
+        (StructVector) getVectorFromSchemaPath(incoming, RecordReader.SPLIT_IDENTITY);
 
     for (Field field : incoming.getSchema()) {
       ValueVector vvIn = getVectorFromSchemaPath(incoming, field.getName());
@@ -177,7 +198,7 @@ public class SplitAssignmentTableFunction extends AbstractTableFunction {
 
     String lastPath = null;
     PartitionProtobuf.BlockLocationsList lastBlockLocations = null;
-    for(int record=0; record<batchSize; ++record) {
+    for (int record = 0; record < batchSize; ++record) {
       if (inputSplitIdentities.isNull(record)) {
         continue;
       }
@@ -199,9 +220,10 @@ public class SplitAssignmentTableFunction extends AbstractTableFunction {
       blockLocationsLists.add(lastBlockLocations);
     }
 
-    splitWorkList = IntStream.range(0, splitIdentities.size())
-      .mapToObj(i -> new SplitWork(splitIdentities.get(i), blockLocationsLists.get(i), i))
-      .collect(Collectors.toList());
+    splitWorkList =
+        IntStream.range(0, splitIdentities.size())
+            .mapToObj(i -> new SplitWork(splitIdentities.get(i), blockLocationsLists.get(i), i))
+            .collect(Collectors.toList());
   }
 
   @Override
@@ -214,10 +236,12 @@ public class SplitAssignmentTableFunction extends AbstractTableFunction {
     Preconditions.checkArgument(recordCount <= maxRecords);
 
     AssignmentCreator2.getMappings(nodeEndpoints, splitWorkList, balanceFactor)
-      .asMap().entrySet().stream()
-      .flatMap(e -> e.getValue().stream().map(k -> Pair.of(k.rowIndex, e.getKey())))
-      .sorted(Comparator.comparing(Pair::getLeft))
-      .forEach(p -> hashVector.setSafe(p.getLeft(), p.getRight()));
+        .asMap()
+        .entrySet()
+        .stream()
+        .flatMap(e -> e.getValue().stream().map(k -> Pair.of(k.rowIndex, e.getKey())))
+        .sorted(Comparator.comparing(Pair::getLeft))
+        .forEach(p -> hashVector.setSafe(p.getLeft(), p.getRight()));
     transfers.forEach(TransferPair::transfer);
     outgoing.setAllCount(recordCount);
     assigned = true;
@@ -225,8 +249,7 @@ public class SplitAssignmentTableFunction extends AbstractTableFunction {
   }
 
   @Override
-  public void closeRow() throws Exception {
-  }
+  public void closeRow() throws Exception {}
 
   @Override
   public void close() throws Exception {
@@ -258,7 +281,8 @@ public class SplitAssignmentTableFunction extends AbstractTableFunction {
          *    - cacheManagerPointer will be non-null. This object will not be created again.
          *    - files will not be cached
          */
-        BlockLocationsCacheManager cacheManager = BlockLocationsCacheManager.newInstance(getFs(filePath), id, dremioConfig, context);
+        BlockLocationsCacheManager cacheManager =
+            BlockLocationsCacheManager.newInstance(getFs(filePath), id, dremioConfig, context);
         cacheManagerPointer = new Pointer<>(cacheManager);
       } catch (InitializationException e) {
         logJudiciously(e);
@@ -298,28 +322,59 @@ public class SplitAssignmentTableFunction extends AbstractTableFunction {
     private final int rowIndex;
     private final List<EndpointAffinity> affinity;
 
-    SplitWork(SplitIdentity splitIdentity, PartitionProtobuf.BlockLocationsList blockLocationsList, int rowIndex) {
+    SplitWork(
+        SplitIdentity splitIdentity,
+        PartitionProtobuf.BlockLocationsList blockLocationsList,
+        int rowIndex) {
       this.splitIdentity = splitIdentity;
       this.rowIndex = rowIndex;
       this.affinity = deriveAffinity(splitIdentity, blockLocationsList);
     }
 
-    private List<EndpointAffinity> deriveAffinity(SplitIdentity splitIdentity, PartitionProtobuf.BlockLocationsList blockLocations) {
+    private List<EndpointAffinity> deriveAffinity(
+        SplitIdentity splitIdentity, PartitionProtobuf.BlockLocationsList blockLocations) {
       if (blockLocations != null && blockLocations.getBlockLocationsCount() != 0) {
-        List<EndpointsAffinity> affinities = HostAffinityComputer.computeSortedAffinitiesForSplit(splitIdentity.getOffset(), splitIdentity.getLength(), blockLocations.getBlockLocationsList());
-        boolean isInstanceAffinity = !affinities.isEmpty() && affinities.get(0).isInstanceAffinity();
+        List<EndpointsAffinity> affinities =
+            HostAffinityComputer.computeSortedAffinitiesForSplit(
+                splitIdentity.getOffset(),
+                splitIdentity.getLength(),
+                blockLocations.getBlockLocationsList());
+        boolean isInstanceAffinity =
+            !affinities.isEmpty() && affinities.get(0).isInstanceAffinity();
 
-        Set<HostAndPort> hostAndPortsSet = isInstanceAffinity ? hostAndPortToEndpointMap.keySet() : hostToEndpointMap.keySet();
-        return affinities
-          .stream()
-          .filter(a -> hostAndPortsSet.contains(a.getHostAndPort()))
-          .flatMap(a -> isInstanceAffinity ? Stream.of(new EndpointAffinity(a.getHostAndPort(), hostAndPortToEndpointMap.get(a.getHostAndPort()), a.getAffinity(), false, Integer.MAX_VALUE))
-            : hostToEndpointMap.get(a.getHostAndPort()).stream().map(endpoint -> new EndpointAffinity(a.getHostAndPort(), endpoint, a.getAffinity(), false, Integer.MAX_VALUE)))
-          .collect(Collectors.toList());
+        Set<HostAndPort> hostAndPortsSet =
+            isInstanceAffinity ? hostAndPortToEndpointMap.keySet() : hostToEndpointMap.keySet();
+        return affinities.stream()
+            .filter(a -> hostAndPortsSet.contains(a.getHostAndPort()))
+            .flatMap(
+                a ->
+                    isInstanceAffinity
+                        ? Stream.of(
+                            new EndpointAffinity(
+                                a.getHostAndPort(),
+                                hostAndPortToEndpointMap.get(a.getHostAndPort()),
+                                a.getAffinity(),
+                                false,
+                                Integer.MAX_VALUE))
+                        : hostToEndpointMap.get(a.getHostAndPort()).stream()
+                            .map(
+                                endpoint ->
+                                    new EndpointAffinity(
+                                        a.getHostAndPort(),
+                                        endpoint,
+                                        a.getAffinity(),
+                                        false,
+                                        Integer.MAX_VALUE)))
+            .collect(Collectors.toList());
       } else {
-        ComparableEndpoint comparableEndpoint = hasher.get(new RendezvousPageHasher.PathOffset(splitIdentity.getPath(), splitIdentity.getOffset()));
+        ComparableEndpoint comparableEndpoint =
+            hasher.get(
+                new RendezvousPageHasher.PathOffset(
+                    splitIdentity.getPath(), splitIdentity.getOffset()));
         NodeEndpoint nodeEndpoint = hostAndPortToEndpointMap.get(comparableEndpoint.hostPort);
-        return Collections.singletonList(new EndpointAffinity(comparableEndpoint.hostPort, nodeEndpoint, 1.0, false, Integer.MAX_VALUE));
+        return Collections.singletonList(
+            new EndpointAffinity(
+                comparableEndpoint.hostPort, nodeEndpoint, 1.0, false, Integer.MAX_VALUE));
       }
     }
 

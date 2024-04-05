@@ -15,10 +15,9 @@
  */
 package com.dremio.common.expression;
 
-import java.util.Iterator;
-
 import com.dremio.common.expression.visitors.ExprVisitor;
 import com.google.common.base.Preconditions;
+import java.util.Iterator;
 
 public final class IfExpression extends LogicalExpressionBase {
   public static final boolean ALLOW_MIXED_DECIMALS = true;
@@ -27,23 +26,23 @@ public final class IfExpression extends LogicalExpressionBase {
   public final LogicalExpression elseExpression;
   public final CompleteType outputType;
 
-  private IfExpression(IfCondition conditions, LogicalExpression elseExpression, CompleteType outputType) {
+  private IfExpression(
+      IfCondition conditions, LogicalExpression elseExpression, CompleteType outputType) {
     this.ifCondition = conditions;
     this.elseExpression = elseExpression;
     this.outputType = outputType;
   }
 
-  public static class IfCondition{
+  public static class IfCondition {
     public final LogicalExpression condition;
     public final LogicalExpression expression;
 
     public IfCondition(LogicalExpression condition, LogicalExpression expression) {
-      //logger.debug("Generating IfCondition {}, {}", condition, expression);
+      // logger.debug("Generating IfCondition {}, {}", condition, expression);
 
       this.condition = condition;
       this.expression = expression;
     }
-
   }
 
   @Override
@@ -58,7 +57,7 @@ public final class IfExpression extends LogicalExpressionBase {
 
     public Builder setElse(LogicalExpression elseExpression) {
       this.elseExpression = elseExpression;
-            return this;
+      return this;
     }
 
     public Builder setIfCondition(IfCondition conditions) {
@@ -71,11 +70,10 @@ public final class IfExpression extends LogicalExpressionBase {
       return this;
     }
 
-    public IfExpression build(){
+    public IfExpression build() {
       Preconditions.checkNotNull(conditions);
       return new IfExpression(conditions, elseExpression, outputType);
     }
-
   }
 
   @Override
@@ -84,7 +82,10 @@ public final class IfExpression extends LogicalExpressionBase {
       return outputType;
     }
 
-    return ifCondition.expression.getCompleteType().merge(elseExpression.getCompleteType(), ALLOW_MIXED_DECIMALS);
+    return ifCondition
+        .expression
+        .getCompleteType()
+        .merge(elseExpression.getCompleteType(), ALLOW_MIXED_DECIMALS);
   }
 
   public static Builder newBuilder() {
@@ -95,6 +96,7 @@ public final class IfExpression extends LogicalExpressionBase {
   public Iterator<LogicalExpression> iterator() {
     return new Iterator<LogicalExpression>() {
       private int currentExprIdx = 0;
+
       @Override
       public boolean hasNext() {
         return currentExprIdx < 3;
@@ -131,7 +133,6 @@ public final class IfExpression extends LogicalExpressionBase {
       i++;
     }
 
-    return (int) (cost / i) ;
+    return (int) (cost / i);
   }
-
 }

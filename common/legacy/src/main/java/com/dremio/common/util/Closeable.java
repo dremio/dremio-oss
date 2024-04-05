@@ -15,12 +15,9 @@
  */
 package com.dremio.common.util;
 
-/**
- * An AutoCloseable that doesn't throw an exception.
- */
+/** An AutoCloseable that doesn't throw an exception. */
 public interface Closeable extends java.lang.AutoCloseable {
 
   @Override
   void close();
-
 }

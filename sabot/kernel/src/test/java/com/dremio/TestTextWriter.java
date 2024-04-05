@@ -15,19 +15,17 @@
  */
 package com.dremio;
 
+import com.dremio.exec.ExecConstants;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import com.dremio.exec.ExecConstants;
-
-/**
- *
- */
+/** */
 public class TestTextWriter extends PlanTestBase {
   @Before
   public void setupOptions() throws Exception {
-    testNoResult("ALTER SESSION SET \"%s\" = true", ExecConstants.ENABLE_VERBOSE_ERRORS.getOptionName());
+    testNoResult(
+        "ALTER SESSION SET \"%s\" = true", ExecConstants.ENABLE_VERBOSE_ERRORS.getOptionName());
   }
 
   @After
@@ -41,18 +39,30 @@ public class TestTextWriter extends PlanTestBase {
     final String valB = "b,2";
     final String valC = "\"c,3,3\"";
     final String valD = "d,\"4";
-    final String testValues = "(values('" + valA + "'), ('" + valB + "'), ('" + valC + "'), ('" + valD + "')) as t(testvals)";
-    test("create table dfs_test.commas STORE AS (type => 'text', fieldDelimiter => ',') WITH SINGLE WRITER AS select trim(testvals) as testvals from " + testValues);
+    final String testValues =
+        "(values('"
+            + valA
+            + "'), ('"
+            + valB
+            + "'), ('"
+            + valC
+            + "'), ('"
+            + valD
+            + "')) as t(testvals)";
+    test(
+        "create table dfs_test.commas STORE AS (type => 'text', fieldDelimiter => ',') WITH SINGLE WRITER AS select trim(testvals) as testvals from "
+            + testValues);
     testBuilder()
-      .sqlQuery("select * from table(dfs_test.commas(type => 'text', fieldDelimiter => ',', extractHeader => true, skipFirstLine => false, autoGenerateColumnNames => true, trimHeader => true))")
-      .unOrdered()
-      .baselineColumns("testvals")
-      .baselineValues(valA)
-      .baselineValues(valB)
-      .baselineValues(valC)
-      .baselineValues(valD)
-      .build()
-      .run();
+        .sqlQuery(
+            "select * from table(dfs_test.commas(type => 'text', fieldDelimiter => ',', extractHeader => true, skipFirstLine => false, autoGenerateColumnNames => true, trimHeader => true))")
+        .unOrdered()
+        .baselineColumns("testvals")
+        .baselineValues(valA)
+        .baselineValues(valB)
+        .baselineValues(valC)
+        .baselineValues(valD)
+        .build()
+        .run();
   }
 
   @Test
@@ -61,18 +71,30 @@ public class TestTextWriter extends PlanTestBase {
     final String valB = "b\nb";
     final String valC = "ccc";
     final String valD = "d\"dd";
-    final String testValues = "(values('" + valA + "'), ('" + valB + "'), ('" + valC + "'), ('" + valD + "')) as t(testvals)";
-    test("create table dfs_test.line_breaks STORE AS (type => 'text', fieldDelimiter => ',', lineDelimiter => '\n') WITH SINGLE WRITER AS select trim(testvals) as testvals from " + testValues);
+    final String testValues =
+        "(values('"
+            + valA
+            + "'), ('"
+            + valB
+            + "'), ('"
+            + valC
+            + "'), ('"
+            + valD
+            + "')) as t(testvals)";
+    test(
+        "create table dfs_test.line_breaks STORE AS (type => 'text', fieldDelimiter => ',', lineDelimiter => '\n') WITH SINGLE WRITER AS select trim(testvals) as testvals from "
+            + testValues);
     testBuilder()
-      .sqlQuery("select * from table(dfs_test.line_breaks(type => 'text', fieldDelimiter => ',', lineDelimiter => '\n', extractHeader => true, skipFirstLine => false, autoGenerateColumnNames => true, trimHeader => true))")
-      .unOrdered()
-      .baselineColumns("testvals")
-      .baselineValues(valA)
-      .baselineValues(valB)
-      .baselineValues(valC)
-      .baselineValues(valD)
-      .build()
-      .run();
+        .sqlQuery(
+            "select * from table(dfs_test.line_breaks(type => 'text', fieldDelimiter => ',', lineDelimiter => '\n', extractHeader => true, skipFirstLine => false, autoGenerateColumnNames => true, trimHeader => true))")
+        .unOrdered()
+        .baselineColumns("testvals")
+        .baselineValues(valA)
+        .baselineValues(valB)
+        .baselineValues(valC)
+        .baselineValues(valD)
+        .build()
+        .run();
   }
 
   @Test
@@ -82,17 +104,29 @@ public class TestTextWriter extends PlanTestBase {
     final String valB = "b\nb";
     final String valC = "ccc";
     final String valD = "d\"dd";
-    final String testValues = "(values('" + valA + "'), ('" + valB + "'), ('" + valC + "'), ('" + valD + "')) as t(testvals)";
-    test("create table dfs_test.alt_line_breaks STORE AS (type => 'text', fieldDelimiter => ',', lineDelimiter => '\r\n') WITH SINGLE WRITER AS select trim(testvals) as testvals from " + testValues);
+    final String testValues =
+        "(values('"
+            + valA
+            + "'), ('"
+            + valB
+            + "'), ('"
+            + valC
+            + "'), ('"
+            + valD
+            + "')) as t(testvals)";
+    test(
+        "create table dfs_test.alt_line_breaks STORE AS (type => 'text', fieldDelimiter => ',', lineDelimiter => '\r\n') WITH SINGLE WRITER AS select trim(testvals) as testvals from "
+            + testValues);
     testBuilder()
-      .sqlQuery("select * from table(dfs_test.alt_line_breaks(type => 'text', fieldDelimiter => ',', lineDelimiter => '\r\n', extractHeader => true, skipFirstLine => false, autoGenerateColumnNames => true, trimHeader => true))")
-      .unOrdered()
-      .baselineColumns("testvals")
-      .baselineValues(valA)
-      .baselineValues(valB)
-      .baselineValues(valC)
-      .baselineValues(valD)
-      .build()
-      .run();
+        .sqlQuery(
+            "select * from table(dfs_test.alt_line_breaks(type => 'text', fieldDelimiter => ',', lineDelimiter => '\r\n', extractHeader => true, skipFirstLine => false, autoGenerateColumnNames => true, trimHeader => true))")
+        .unOrdered()
+        .baselineColumns("testvals")
+        .baselineValues(valA)
+        .baselineValues(valB)
+        .baselineValues(valC)
+        .baselineValues(valD)
+        .build()
+        .run();
   }
 }

@@ -16,18 +16,17 @@
 package com.dremio.sabot.op.common.ht2;
 
 import com.google.common.base.Preconditions;
-
 import io.netty.util.internal.PlatformDependent;
 
 public final class HashComputation {
   private static final int EIGHT_BYTES = 8;
 
-  private static final long fixedKeyHashCode(long keyDataAddr, int dataWidth, long seed){
+  private static final long fixedKeyHashCode(long keyDataAddr, int dataWidth, long seed) {
     return mix(XXH64.xxHash64(keyDataAddr, dataWidth, seed));
   }
 
-  private static final long keyHashCode(long keyDataAddr, int dataWidth, final long keyVarAddr,
-                                        int varDataLen, long seed){
+  private static final long keyHashCode(
+      long keyDataAddr, int dataWidth, final long keyVarAddr, int varDataLen, long seed) {
     final long fixedValue = XXH64.xxHash64(keyDataAddr, dataWidth, seed);
     return mix(XXH64.xxHash64(keyVarAddr + 4, varDataLen, fixedValue));
   }
@@ -63,7 +62,8 @@ public final class HashComputation {
         keyVarAddr = keyVarVectorAddr + keyVarOffset;
         keyVarLen = PlatformDependent.getInt(keyVarAddr);
         // check bound of the var section
-        Preconditions.checkState(keyVarOffset + LBlockHashTable.VAR_OFFSET_SIZE + keyVarLen <= keyVarVectorSize);
+        Preconditions.checkState(
+            keyVarOffset + LBlockHashTable.VAR_OFFSET_SIZE + keyVarLen <= keyVarVectorSize);
         keyHash = keyHashCode(blockAddr, dataWidth, keyVarAddr, keyVarLen, blockChunk.seed);
         PlatformDependent.putLong(hashValueAddress, keyHash);
         hashValueAddress += EIGHT_BYTES;
@@ -73,13 +73,16 @@ public final class HashComputation {
 
   /**
    * Used for hash computation by EightByteInnerLeftProbeOff in Vectorized Hash Join
+   *
    * @param hashValueAddress starting address of the buffer that stores the hashvalues.
    * @param srcDataAddr starting address of the source data (keys).
    * @param count number of records
    */
   public static final void computeHash(long hashValueAddress, long srcDataAddr, final int count) {
     final long maxDataAddr = srcDataAddr + (count * EIGHT_BYTES);
-    for (long keyAddr = srcDataAddr; keyAddr < maxDataAddr; keyAddr += EIGHT_BYTES, hashValueAddress += EIGHT_BYTES) {
+    for (long keyAddr = srcDataAddr;
+        keyAddr < maxDataAddr;
+        keyAddr += EIGHT_BYTES, hashValueAddress += EIGHT_BYTES) {
       final long key = PlatformDependent.getLong(keyAddr);
       final long keyHash = computeHash(key);
       PlatformDependent.putLong(hashValueAddress, keyHash);
@@ -87,9 +90,9 @@ public final class HashComputation {
   }
 
   /**
-   * Computes hash for a 64 bit key.
-   * This code is borrowed from LHash.java for
-   * extending the implementation to 64 bit hashvalues.
+   * Computes hash for a 64 bit key. This code is borrowed from LHash.java for extending the
+   * implementation to 64 bit hashvalues.
+   *
    * @param key input key for the hash computation
    * @return 64 bit hashvalue.
    */
@@ -99,9 +102,7 @@ public final class HashComputation {
     return (h ^ h >> 16);
   }
 
-  /**
-   * Taken directly from koloboke
-   */
+  /** Taken directly from koloboke */
   private static long mix(long hash) {
     return (hash & 0x7FFFFFFFFFFFFFFFL);
   }

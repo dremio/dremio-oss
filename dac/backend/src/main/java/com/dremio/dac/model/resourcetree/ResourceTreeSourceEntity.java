@@ -15,18 +15,16 @@
  */
 package com.dremio.dac.model.resourcetree;
 
-import java.io.UnsupportedEncodingException;
-
 import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.source.proto.SourceConfig;
+import java.io.UnsupportedEncodingException;
 
-/**
- * Container object for source
- */
+/** Container object for source */
 public class ResourceTreeSourceEntity extends ResourceTreeEntity {
   private final SourceState state;
 
-  public ResourceTreeSourceEntity(SourceConfig sourceConfig, SourceState sourceState) throws UnsupportedEncodingException {
+  public ResourceTreeSourceEntity(SourceConfig sourceConfig, SourceState sourceState)
+      throws UnsupportedEncodingException {
     super(sourceConfig);
     state = sourceState;
   }

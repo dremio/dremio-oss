@@ -81,8 +81,8 @@ export function* handleStartDatasetDownload({ meta }) {
         yield put(
           addNotification(
             laDeprecated("Error preparing job download."),
-            "error"
-          )
+            "error",
+          ),
         );
         return;
       }

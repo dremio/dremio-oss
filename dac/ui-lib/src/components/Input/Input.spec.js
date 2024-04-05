@@ -61,13 +61,13 @@ describe("Formik Input", () => {
 
   it("adds the classes passed as props to respective elements", () => {
     expect(wrapper.find("div.input-root").props().className).toEqual(
-      expect.stringContaining("sample-root-class")
+      expect.stringContaining("sample-root-class"),
     );
     expect(wrapper.find(Label).props().className).toEqual(
-      expect.stringContaining("sample-label-class")
+      expect.stringContaining("sample-label-class"),
     );
     expect(wrapper.find("input").props().className).toEqual(
-      expect.stringContaining("sample-input-class")
+      expect.stringContaining("sample-input-class"),
     );
   });
 
@@ -93,7 +93,7 @@ describe("Formik Input", () => {
     const errorWrapper = getShallowWrapper(errorProps);
     expect(errorWrapper.find(FormValidationMessage).exists()).toBe(true);
     expect(errorWrapper.find(FormValidationMessage).props().children).toBe(
-      "Required"
+      "Required",
     );
   });
 
@@ -121,7 +121,7 @@ describe("Formik Input", () => {
     const errorWrapper = getShallowWrapper(errorProps);
     expect(errorWrapper.find(FormValidationMessage).exists()).toBe(true);
     expect(errorWrapper.find(FormValidationMessage).props().children).toBe(
-      "Required"
+      "Required",
     );
   });
 

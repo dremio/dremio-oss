@@ -19,10 +19,7 @@ import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.work.rpc.CoordToExecTunnelCreator;
 import com.dremio.service.executor.ExecutorServiceClientFactory;
 
-/**
- * Product version of the client factory.
- * The executor client provided uses netty for transport.
- */
+/** Product version of the client factory. The executor client provided uses netty for transport. */
 public class ExecutorServiceProductClientFactory implements ExecutorServiceClientFactory {
   private final CoordToExecTunnelCreator tunnelCreator;
 
@@ -31,17 +28,14 @@ public class ExecutorServiceProductClientFactory implements ExecutorServiceClien
   }
 
   @Override
-  public void start() throws Exception {
-
-  }
+  public void start() throws Exception {}
 
   @Override
-  public void close() throws Exception {
-
-  }
+  public void close() throws Exception {}
 
   @Override
-  public ExecutorServiceProductClient getClientForEndpoint(CoordinationProtos.NodeEndpoint endpoint) {
+  public ExecutorServiceProductClient getClientForEndpoint(
+      CoordinationProtos.NodeEndpoint endpoint) {
     return new ExecutorServiceProductClient(tunnelCreator, endpoint);
   }
 }

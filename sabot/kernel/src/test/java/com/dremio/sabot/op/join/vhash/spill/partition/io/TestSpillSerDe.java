@@ -19,25 +19,6 @@ import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 
-import java.io.File;
-import java.util.ArrayList;
-import java.util.List;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.AllocationHelper;
-import org.apache.arrow.vector.FieldVector;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.calcite.util.ImmutableBitSet;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.expression.BasePath;
 import com.dremio.exec.ExecTest;
@@ -67,15 +48,31 @@ import com.dremio.service.spill.SpillService;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.io.Files;
-
 import io.airlift.tpch.GenerationDefinition;
 import io.airlift.tpch.TpchGenerator;
 import io.netty.util.internal.PlatformDependent;
+import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.AllocationHelper;
+import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.calcite.util.ImmutableBitSet;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.Test;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
 /**
- * Test the hash-join spill writer/reader code :
- * - Writes batches of records, with some columns pivoted and some non-pivoted
- * - Reads back the same batches & verifies they are the same as those that were written.
+ * Test the hash-join spill writer/reader code : - Writes batches of records, with some columns
+ * pivoted and some non-pivoted - Reads back the same batches & verifies they are the same as those
+ * that were written.
  */
 public class TestSpillSerDe extends ExecTest {
   private static SpillManager spillManager;
@@ -92,13 +89,18 @@ public class TestSpillSerDe extends ExecTest {
     final SpillDirectory spillDirectory = new SpillDirectory(path, fs);
 
     SpillService spillService = mock(SpillService.class);
-    doAnswer(new Answer<SpillDirectory>() {
-      @Override
-      public SpillDirectory answer(InvocationOnMock invocationOnMock) throws Throwable {
-        return spillDirectory;
-      }
-    }).when(spillService).getSpillSubdir(any(String.class));
-    spillManager = new SpillManager(ImmutableList.of(path.getName()), null, "test", spillService, "testSpill", null);
+    doAnswer(
+            new Answer<SpillDirectory>() {
+              @Override
+              public SpillDirectory answer(InvocationOnMock invocationOnMock) throws Throwable {
+                return spillDirectory;
+              }
+            })
+        .when(spillService)
+        .getSpillSubdir(any(String.class));
+    spillManager =
+        new SpillManager(
+            ImmutableList.of(path.getName()), null, "test", spillService, "testSpill", null);
   }
 
   @AfterClass
@@ -136,12 +138,31 @@ public class TestSpillSerDe extends ExecTest {
     check(GenerationDefinition.TpchTable.CUSTOMER, 0.1, 64_000, 4095, 1, "c_custkey");
   }
 
-  private void check(GenerationDefinition.TpchTable table, double scale, int pageSize, int batchSize, int numPivotColumns, String... columns) throws Exception {
-    Fixtures.Table expected = TpchGenerator.singleGenerator(table, scale, getAllocator(), columns).toTable(batchSize);
-    check(expected, pageSize, batchSize, numPivotColumns, TpchGenerator.singleGenerator(table, scale, allocator, columns));
+  private void check(
+      GenerationDefinition.TpchTable table,
+      double scale,
+      int pageSize,
+      int batchSize,
+      int numPivotColumns,
+      String... columns)
+      throws Exception {
+    Fixtures.Table expected =
+        TpchGenerator.singleGenerator(table, scale, getAllocator(), columns).toTable(batchSize);
+    check(
+        expected,
+        pageSize,
+        batchSize,
+        numPivotColumns,
+        TpchGenerator.singleGenerator(table, scale, allocator, columns));
   }
 
-  private void check(Fixtures.Table expected, int pageSize, int batchSize, int numPivotColumns, Generator generator) throws Exception {
+  private void check(
+      Fixtures.Table expected,
+      int pageSize,
+      int batchSize,
+      int numPivotColumns,
+      Generator generator)
+      throws Exception {
     final String fileName = "batches";
 
     try (AutoCloseables.RollbackCloseable rc = new AutoCloseables.RollbackCloseable(true)) {
@@ -151,67 +172,104 @@ public class TestSpillSerDe extends ExecTest {
       List<FieldVectorPair> pivotVectorPairs = new ArrayList<>();
       for (int i = 0; i < numPivotColumns; ++i) {
         Field pivotColumn = generator.getOutput().getSchema().getColumn(i);
-        int fieldId = generator.getOutput().getSchema().getFieldId(BasePath.getSimple(pivotColumn.getName())).getFieldIds()[0];
-        FieldVector pivotVector = rc.add(generator.getOutput().getValueAccessorById(FieldVector.class, fieldId).getValueVector());
+        int fieldId =
+            generator
+                .getOutput()
+                .getSchema()
+                .getFieldId(BasePath.getSimple(pivotColumn.getName()))
+                .getFieldIds()[0];
+        FieldVector pivotVector =
+            rc.add(
+                generator
+                    .getOutput()
+                    .getValueAccessorById(FieldVector.class, fieldId)
+                    .getValueVector());
         FieldVector unpivotVector = rc.add(pivotColumn.createVector(allocator));
         pivotVectorPairs.add(new FieldVectorPair(pivotVector, unpivotVector));
       }
       PivotDef pivotDef = PivotBuilder.getBlockDefinition(pivotVectorPairs);
 
-      ImmutableBitSet unpivotedBitSet = ImmutableBitSet.range(numPivotColumns, generator.getOutput().getSchema().getFieldCount());
+      ImmutableBitSet unpivotedBitSet =
+          ImmutableBitSet.range(numPivotColumns, generator.getOutput().getSchema().getFieldCount());
 
       final PagePool pool = rc.add(new PagePool(getAllocator(), pageSize, 0));
 
       // stream data to spill file
-      SpillManager.SpillFile spillFile = streamToOutput(fileName, generator, batchSize, pivotDef,  unpivotedBitSet, pool);
+      SpillManager.SpillFile spillFile =
+          streamToOutput(fileName, generator, batchSize, pivotDef, unpivotedBitSet, pool);
 
       // read back from the spill file
-      List<SpillChunk> chunks = readAllFromInput(spillFile, generator.getOutput(), pivotDef, unpivotedBitSet, pool);
+      List<SpillChunk> chunks =
+          readAllFromInput(spillFile, generator.getOutput(), pivotDef, unpivotedBitSet, pool);
       rc.addAll(chunks);
 
-      // The pivoted data is present in the fixed/variable blocks, while the container has the unpivoted data.
+      // The pivoted data is present in the fixed/variable blocks, while the container has the
+      // unpivoted data.
       // Combine the two & create actual record batches.
       final List<RecordBatchData> actual = new ArrayList<>();
-      chunks.forEach(chunk -> {
-        // populate vectors from the pivoted data
-        for (FieldVectorPair pair : pivotVectorPairs) {
-          AllocationHelper.allocate(pair.getOutgoing(), chunk.getNumRecords(), 15);
-        }
-        Unpivots.unpivotToAllocedOutput(pivotDef, chunk.getFixed().memoryAddress(), chunk.getVariable().memoryAddress(),
-          0, chunk.getNumRecords(), 0);
-        for (FieldVectorPair pair : pivotVectorPairs) {
-          pair.getOutgoing().setValueCount(chunk.getNumRecords());
-        }
+      chunks.forEach(
+          chunk -> {
+            // populate vectors from the pivoted data
+            for (FieldVectorPair pair : pivotVectorPairs) {
+              AllocationHelper.allocate(pair.getOutgoing(), chunk.getNumRecords(), 15);
+            }
+            Unpivots.unpivotToAllocedOutput(
+                pivotDef,
+                chunk.getFixed().memoryAddress(),
+                chunk.getVariable().memoryAddress(),
+                0,
+                chunk.getNumRecords(),
+                0);
+            for (FieldVectorPair pair : pivotVectorPairs) {
+              pair.getOutgoing().setValueCount(chunk.getNumRecords());
+            }
 
-        VectorContainer combined = new VectorContainer(allocator);
-        // add pivoted vectors to container
-        for (FieldVectorPair pair : pivotVectorPairs) {
-          combined.add(pair.getOutgoing());
-        }
-        // add unpivoted vectors to container
-        for (VectorWrapper<?> it : chunk.getContainer()) {
-          combined.add(it.getValueVector());
-        }
-        combined.buildSchema();
-        combined.setRecordCount(chunk.getNumRecords());
+            VectorContainer combined = new VectorContainer(allocator);
+            // add pivoted vectors to container
+            for (FieldVectorPair pair : pivotVectorPairs) {
+              combined.add(pair.getOutgoing());
+            }
+            // add unpivoted vectors to container
+            for (VectorWrapper<?> it : chunk.getContainer()) {
+              combined.add(it.getValueVector());
+            }
+            combined.buildSchema();
+            combined.setRecordCount(chunk.getNumRecords());
 
-        RecordBatchData batchData = rc.add(new RecordBatchData(combined, getAllocator()));
-        actual.add(batchData);
-      });
+            RecordBatchData batchData = rc.add(new RecordBatchData(combined, getAllocator()));
+            actual.add(batchData);
+          });
 
       // compare actual with expected
       expected.checkValid(actual);
     }
   }
 
-  private SpillManager.SpillFile streamToOutput(String fileName, Generator generator, int batchSize, PivotDef pivotDef, ImmutableBitSet unpivotedColumns,
-                                                PagePool pool) throws Exception {
+  private SpillManager.SpillFile streamToOutput(
+      String fileName,
+      Generator generator,
+      int batchSize,
+      PivotDef pivotDef,
+      ImmutableBitSet unpivotedColumns,
+      PagePool pool)
+      throws Exception {
     try (ArrowBuf sv2Buf = getFilledSV2(getAllocator(), batchSize);
-         FixedBlockVector pivotedFixed = new FixedBlockVector(getAllocator(), pivotDef.getBlockWidth());
-         VariableBlockVector pivotedVariable = new VariableBlockVector(getAllocator(), pivotDef.getVariableCount())) {
+        FixedBlockVector pivotedFixed =
+            new FixedBlockVector(getAllocator(), pivotDef.getBlockWidth());
+        VariableBlockVector pivotedVariable =
+            new VariableBlockVector(getAllocator(), pivotDef.getVariableCount())) {
 
-      try (SpillWriter writer = new SpillWriter(spillManager, new SpillSerializableImpl(), fileName, pool, sv2Buf,
-           generator.getOutput(), unpivotedColumns, pivotedFixed, pivotedVariable)) {
+      try (SpillWriter writer =
+          new SpillWriter(
+              spillManager,
+              new SpillSerializableImpl(),
+              fileName,
+              pool,
+              sv2Buf,
+              generator.getOutput(),
+              unpivotedColumns,
+              pivotedFixed,
+              pivotedVariable)) {
         int records;
         while ((records = generator.next(batchSize)) != 0) {
           pivotedFixed.reset();
@@ -225,8 +283,13 @@ public class TestSpillSerDe extends ExecTest {
     }
   }
 
-  private List<SpillChunk> readAllFromInput(SpillManager.SpillFile spillFile, VectorAccessible incoming,
-                                            PivotDef pivotDef, ImmutableBitSet unpivotedColumns, PagePool pool) throws Exception {
+  private List<SpillChunk> readAllFromInput(
+      SpillManager.SpillFile spillFile,
+      VectorAccessible incoming,
+      PivotDef pivotDef,
+      ImmutableBitSet unpivotedColumns,
+      PagePool pool)
+      throws Exception {
     int index = 0;
     List<Field> unpivotedFields = new ArrayList<>();
     for (VectorWrapper<?> vector : incoming) {
@@ -236,7 +299,14 @@ public class TestSpillSerDe extends ExecTest {
       ++index;
     }
 
-    try (BatchCombiningSpillReader reader = new BatchCombiningSpillReader(spillFile, new SpillSerializableImpl(), pool, pivotDef, new BatchSchema(unpivotedFields), 4095)) {
+    try (BatchCombiningSpillReader reader =
+        new BatchCombiningSpillReader(
+            spillFile,
+            new SpillSerializableImpl(),
+            pool,
+            pivotDef,
+            new BatchSchema(unpivotedFields),
+            4095)) {
       return Lists.newArrayList(reader);
     }
   }
@@ -245,7 +315,7 @@ public class TestSpillSerDe extends ExecTest {
     ArrowBuf buf = allocator.buffer((long) SelectionVector2.RECORD_SIZE * batchSize);
     long addr = buf.memoryAddress();
     for (int i = 0; i < batchSize; ++i) {
-      PlatformDependent.putShort(addr, (short)i);
+      PlatformDependent.putShort(addr, (short) i);
       addr += SelectionVector2.RECORD_SIZE;
     }
     return buf;

@@ -16,12 +16,6 @@
 
 package com.dremio.service.userpreferences;
 
-import java.util.Optional;
-import java.util.function.Supplier;
-
-import javax.inject.Inject;
-import javax.inject.Provider;
-
 import com.dremio.datastore.SearchTypes;
 import com.dremio.datastore.api.Document;
 import com.dremio.datastore.api.DocumentConverter;
@@ -35,16 +29,19 @@ import com.dremio.datastore.indexed.IndexKey;
 import com.dremio.service.userpreferences.proto.UserPreferenceProto.UserPreference;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Suppliers;
+import java.util.Optional;
+import java.util.function.Supplier;
+import javax.inject.Inject;
+import javax.inject.Provider;
 
-/**
- * UserPreferenceStore implementation
- */
+/** UserPreferenceStore implementation */
 public class UserPreferenceStoreImpl implements UserPreferenceStore {
 
   private static final String STORE_NAME = "user_preference";
-  private static final IndexKey USER_ID = IndexKey.newBuilder("userId", "USER_ID", String.class)
-    .setSortedValueType(SearchTypes.SearchFieldSorting.FieldType.STRING)
-    .build();
+  private static final IndexKey USER_ID =
+      IndexKey.newBuilder("userId", "USER_ID", String.class)
+          .setSortedValueType(SearchTypes.SearchFieldSorting.FieldType.STRING)
+          .build();
   private final Provider<KVStoreProvider> kvStoreProvider;
   private Supplier<IndexedStore<String, UserPreference>> store;
 
@@ -56,14 +53,13 @@ public class UserPreferenceStoreImpl implements UserPreferenceStore {
 
   @Override
   public void start() throws Exception {
-    store = Suppliers.memoize(() -> kvStoreProvider.get()
-      .getStore(UserPreferenceStoreImpl.StoreCreator.class));
+    store =
+        Suppliers.memoize(
+            () -> kvStoreProvider.get().getStore(UserPreferenceStoreImpl.StoreCreator.class));
   }
 
   @Override
-  public void close() throws Exception {
-
-  }
+  public void close() throws Exception {}
 
   @Override
   public Optional<UserPreference> get(String userId) {
@@ -82,29 +78,28 @@ public class UserPreferenceStoreImpl implements UserPreferenceStore {
     return doc.getValue();
   }
 
-  /**
-   * StoreCreator
-   */
-  public static final class StoreCreator implements IndexedStoreCreationFunction<String, UserPreference> {
+  /** StoreCreator */
+  public static final class StoreCreator
+      implements IndexedStoreCreationFunction<String, UserPreference> {
 
     @Override
     public IndexedStore<String, UserPreference> build(StoreBuildingFactory factory) {
-      return factory.<String, UserPreference>newStore()
-        .name(STORE_NAME)
-        .keyFormat(Format.ofString())
-        .valueFormat(Format.ofProtobuf(UserPreference.class))
-        .buildIndexed(new UserPreferenceDocumentConverter());
+      return factory
+          .<String, UserPreference>newStore()
+          .name(STORE_NAME)
+          .keyFormat(Format.ofString())
+          .valueFormat(Format.ofProtobuf(UserPreference.class))
+          .buildIndexed(new UserPreferenceDocumentConverter());
     }
   }
 
-  static final class UserPreferenceDocumentConverter implements DocumentConverter<String, UserPreference> {
+  static final class UserPreferenceDocumentConverter
+      implements DocumentConverter<String, UserPreference> {
 
     private final Integer version = 0;
 
     @Override
-    public void convert(DocumentWriter writer,
-                        String key,
-                        UserPreference record) {
+    public void convert(DocumentWriter writer, String key, UserPreference record) {
       writer.write(USER_ID, record.getUserId());
     }
 
@@ -113,5 +108,4 @@ public class UserPreferenceStoreImpl implements UserPreferenceStore {
       return version;
     }
   }
-
 }

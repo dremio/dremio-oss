@@ -18,9 +18,7 @@ package com.dremio.service.maestroservice;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.service.Service;
 
-/**
- * Factory interface that injects the right client.
- */
+/** Factory interface that injects the right client. */
 public interface MaestroClientFactory extends Service {
   public MaestroClient getMaestroClient(CoordinationProtos.NodeEndpoint endpoint);
 }

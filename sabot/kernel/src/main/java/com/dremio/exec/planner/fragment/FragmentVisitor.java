@@ -15,7 +15,6 @@
  */
 package com.dremio.exec.planner.fragment;
 
-
 public interface FragmentVisitor<T, V> {
   public T visit(Fragment n, V extra);
 }

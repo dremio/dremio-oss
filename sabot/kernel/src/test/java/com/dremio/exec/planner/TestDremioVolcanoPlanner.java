@@ -24,9 +24,18 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.dremio.exec.physical.base.PhysicalOperator;
+import com.dremio.exec.planner.acceleration.substitution.SubstitutionProvider;
+import com.dremio.exec.planner.cost.DremioCost;
+import com.dremio.exec.planner.logical.Rel;
+import com.dremio.exec.planner.physical.PhysicalPlanCreator;
+import com.dremio.exec.planner.physical.Prel;
+import com.dremio.exec.planner.physical.visitor.PrelVisitor;
+import com.dremio.exec.planner.types.SqlTypeFactoryImpl;
+import com.dremio.exec.record.BatchSchema;
+import com.google.common.collect.ImmutableSet;
 import java.io.IOException;
 import java.util.Iterator;
-
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
@@ -43,34 +52,27 @@ import org.apache.calcite.rex.RexBuilder;
 import org.jetbrains.annotations.NotNull;
 import org.junit.Test;
 
-import com.dremio.exec.physical.base.PhysicalOperator;
-import com.dremio.exec.planner.acceleration.substitution.SubstitutionProvider;
-import com.dremio.exec.planner.cost.DremioCost;
-import com.dremio.exec.planner.logical.Rel;
-import com.dremio.exec.planner.physical.PhysicalPlanCreator;
-import com.dremio.exec.planner.physical.Prel;
-import com.dremio.exec.planner.physical.visitor.PrelVisitor;
-import com.dremio.exec.planner.types.SqlTypeFactoryImpl;
-import com.dremio.exec.record.BatchSchema;
-import com.google.common.collect.ImmutableSet;
-
 public class TestDremioVolcanoPlanner {
 
   /**
-   * Verify that we can de-reference planning objects in DremioVolcanoPlanner so that they can be garbage collected.
+   * Verify that we can de-reference planning objects in DremioVolcanoPlanner so that they can be
+   * garbage collected.
    */
   @Test
   public void testDispose() {
     SubstitutionProvider provider = mock(SubstitutionProvider.class);
     when(provider.findSubstitutions(any())).thenCallRealMethod();
     when(provider.getMatchedReflections()).thenReturn(ImmutableSet.of("m1"));
-    DremioVolcanoPlanner planner = DremioVolcanoPlanner.of(new DremioCost.Factory(), TestDremioPlanners.getSettings(1_000, 100), provider, null);
+    DremioVolcanoPlanner planner =
+        DremioVolcanoPlanner.of(
+            new DremioCost.Factory(), TestDremioPlanners.getSettings(1_000, 100), provider, null);
 
     // Logical planning with reflections
     planner.setPlannerPhase(PlannerPhase.LOGICAL);
     planner.addRule(new LogicalRelRule());
     planner.addRule(new PhysicalRelRule());
-    RelOptCluster cluster = RelOptCluster.create(planner, new RexBuilder(SqlTypeFactoryImpl.INSTANCE));
+    RelOptCluster cluster =
+        RelOptCluster.create(planner, new RexBuilder(SqlTypeFactoryImpl.INSTANCE));
     RelNode noneRel = new NoneRel(cluster);
     RelNode convertedRel = planner.changeTraits(noneRel, cluster.traitSetOf(Rel.LOGICAL));
     planner.setRoot(convertedRel);
@@ -85,7 +87,8 @@ public class TestDremioVolcanoPlanner {
     planner.setRoot(convertedRel);
     result = planner.findBestExp();
     assertEquals(Prel.PHYSICAL, result.getConvention());
-    // Substitution doesn't happen for physical planning so we just get back same matches from logical planning
+    // Substitution doesn't happen for physical planning so we just get back same matches from
+    // logical planning
     assertEquals(1, planner.getMatchedReflections().size());
     assertTrue(planner.getMatchedReflections().contains("m1"));
 
@@ -121,8 +124,7 @@ public class TestDremioVolcanoPlanner {
     }
 
     @Override
-    public RelOptCost computeSelfCost(RelOptPlanner planner,
-                                      RelMetadataQuery mq) {
+    public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
       return planner.getCostFactory().makeTinyCost();
     }
 
@@ -130,8 +132,8 @@ public class TestDremioVolcanoPlanner {
     protected RelDataType deriveRowType() {
       final RelDataTypeFactory typeFactory = getCluster().getTypeFactory();
       return new RelDataTypeFactory.Builder(getCluster().getTypeFactory())
-        .add("none", typeFactory.createJavaType(Void.TYPE))
-        .build();
+          .add("none", typeFactory.createJavaType(Void.TYPE))
+          .build();
     }
 
     @Override
@@ -163,8 +165,7 @@ public class TestDremioVolcanoPlanner {
     }
 
     @Override
-    public RelOptCost computeSelfCost(RelOptPlanner planner,
-                                      RelMetadataQuery mq) {
+    public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
       return planner.getCostFactory().makeTinyCost();
     }
 
@@ -172,8 +173,8 @@ public class TestDremioVolcanoPlanner {
     protected RelDataType deriveRowType() {
       final RelDataTypeFactory typeFactory = getCluster().getTypeFactory();
       return new RelDataTypeFactory.Builder(getCluster().getTypeFactory())
-        .add("none", typeFactory.createJavaType(Void.TYPE))
-        .build();
+          .add("none", typeFactory.createJavaType(Void.TYPE))
+          .build();
     }
 
     @Override
@@ -187,7 +188,8 @@ public class TestDremioVolcanoPlanner {
     }
 
     @Override
-    public <T, X, E extends Throwable> T accept(PrelVisitor<T, X, E> logicalVisitor, X value) throws E {
+    public <T, X, E extends Throwable> T accept(PrelVisitor<T, X, E> logicalVisitor, X value)
+        throws E {
       return null;
     }
 
@@ -212,7 +214,4 @@ public class TestDremioVolcanoPlanner {
       return null;
     }
   }
-
-
-
 }

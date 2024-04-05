@@ -19,8 +19,14 @@ import static com.dremio.sabot.op.join.vhash.VectorizedProbe.SKIP;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertEquals;
 
+import com.dremio.common.expression.CompleteType;
+import com.dremio.sabot.BaseTestOperator;
+import com.dremio.sabot.op.copier.ConditionalFieldBufferCopier6Util;
+import com.dremio.sabot.op.copier.FieldBufferCopier;
+import com.dremio.sabot.op.copier.FieldBufferCopierFactory;
+import com.google.common.collect.ImmutableList;
+import io.netty.util.internal.PlatformDependent;
 import java.util.List;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.AllocationHelper;
 import org.apache.arrow.vector.BitVector;
@@ -35,20 +41,11 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.junit.Test;
 
-import com.dremio.common.expression.CompleteType;
-import com.dremio.sabot.BaseTestOperator;
-import com.dremio.sabot.op.copier.ConditionalFieldBufferCopier6Util;
-import com.dremio.sabot.op.copier.FieldBufferCopier;
-import com.dremio.sabot.op.copier.FieldBufferCopierFactory;
-import com.google.common.collect.ImmutableList;
-
-import io.netty.util.internal.PlatformDependent;
-
 public class TestConditionalCopier6RoundTrip extends BaseTestOperator {
   private static final int SV6_SIZE = 6;
 
-  private static void copy(List<FieldBufferCopier> copiers, long offsetAddr, int count){
-    for(FieldBufferCopier fbc : copiers){
+  private static void copy(List<FieldBufferCopier> copiers, long offsetAddr, int count) {
+    for (FieldBufferCopier fbc : copiers) {
       fbc.copy(offsetAddr, count);
     }
   }
@@ -61,7 +58,8 @@ public class TestConditionalCopier6RoundTrip extends BaseTestOperator {
     }
   }
 
-  private void fillSV6FullWithAlternateSkip(ArrowBuf sv6, int firstBatchCount, int secondBatchCount) {
+  private void fillSV6FullWithAlternateSkip(
+      ArrowBuf sv6, int firstBatchCount, int secondBatchCount) {
     int totalCount = firstBatchCount + secondBatchCount;
     for (int idx = 0; idx < totalCount; ++idx) {
       long mem = sv6.memoryAddress() + idx * SV6_SIZE;
@@ -72,11 +70,12 @@ public class TestConditionalCopier6RoundTrip extends BaseTestOperator {
       int batchIdx = idx < firstBatchCount ? 0 : 1;
       int recordIdxInBatch = idx < firstBatchCount ? idx : idx - firstBatchCount;
       PlatformDependent.putInt(mem, batchIdx);
-      PlatformDependent.putShort(mem + 4, (short)recordIdxInBatch);
+      PlatformDependent.putShort(mem + 4, (short) recordIdxInBatch);
     }
   }
 
-  private void fillSV6AlternateWithAlternateSkip(ArrowBuf sv6, int firstBatchCount, int secondBatchCount) {
+  private void fillSV6AlternateWithAlternateSkip(
+      ArrowBuf sv6, int firstBatchCount, int secondBatchCount) {
     int totalCount = (firstBatchCount + secondBatchCount) / 2;
     for (int idx = 0; idx < totalCount; ++idx) {
       long mem = sv6.memoryAddress() + idx * SV6_SIZE;
@@ -88,17 +87,15 @@ public class TestConditionalCopier6RoundTrip extends BaseTestOperator {
       int batchIdx = actualIdx < firstBatchCount ? 0 : 1;
       int recordIdxInBatch = actualIdx < firstBatchCount ? actualIdx : actualIdx - firstBatchCount;
       PlatformDependent.putInt(mem, batchIdx);
-      PlatformDependent.putShort(mem + 4, (short)recordIdxInBatch);
+      PlatformDependent.putShort(mem + 4, (short) recordIdxInBatch);
     }
   }
 
   @Test
-  public void intRoundTrip(){
-    try(
-      IntVector in1 = new IntVector("in1", allocator);
-      IntVector in2 = new IntVector("in2", allocator);
-      IntVector out = new IntVector("out", allocator);
-    ){
+  public void intRoundTrip() {
+    try (IntVector in1 = new IntVector("in1", allocator);
+        IntVector in2 = new IntVector("in2", allocator);
+        IntVector out = new IntVector("out", allocator); ) {
       IntVector[] in = {in1, in2};
       int[] count = {512, 512};
 
@@ -114,10 +111,10 @@ public class TestConditionalCopier6RoundTrip extends BaseTestOperator {
       }
 
       int totalCount = count[0] + count[1];
-      List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getSixByteConditionalCopiers(ImmutableList.of(in), ImmutableList.of(out));
-      try(
-        final ArrowBuf sv6 = allocator.buffer(SV6_SIZE * totalCount);
-      ){
+      List<FieldBufferCopier> copiers =
+          new FieldBufferCopierFactory(testContext.getOptions())
+              .getSixByteConditionalCopiers(ImmutableList.of(in), ImmutableList.of(out));
+      try (final ArrowBuf sv6 = allocator.buffer(SV6_SIZE * totalCount); ) {
         // create full sv6.
         fillSV6FullWithAlternateSkip(sv6, count[0], count[1]);
 
@@ -129,19 +126,18 @@ public class TestConditionalCopier6RoundTrip extends BaseTestOperator {
         for (int idx = 0; idx < totalCount; ++idx) {
           int batchIdx = idx < count[0] ? 0 : 1;
           int recordIdxInBatch = idx < count[0] ? idx : idx - count[0];
-          assertEquals(idx % 2 == 0 ? null : in[batchIdx].getObject(recordIdxInBatch), out.getObject(idx));
+          assertEquals(
+              idx % 2 == 0 ? null : in[batchIdx].getObject(recordIdxInBatch), out.getObject(idx));
         }
       }
     }
   }
 
   @Test
-  public void intAppend(){
-    try(
-      IntVector in1 = new IntVector("in1", allocator);
-      IntVector in2 = new IntVector("in2", allocator);
-      IntVector out = new IntVector("out", allocator);
-    ){
+  public void intAppend() {
+    try (IntVector in1 = new IntVector("in1", allocator);
+        IntVector in2 = new IntVector("in2", allocator);
+        IntVector out = new IntVector("out", allocator); ) {
 
       IntVector[] in = {in1, in2};
       int[] count = {512, 512};
@@ -159,10 +155,10 @@ public class TestConditionalCopier6RoundTrip extends BaseTestOperator {
 
       // set alternate elements.
       int totalCount = (count[0] + count[1]) / 2;
-      List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getSixByteConditionalCopiers(ImmutableList.of(in), ImmutableList.of(out));
-      try(
-        final ArrowBuf sv6 = allocator.buffer(SV6_SIZE * totalCount);
-      ){
+      List<FieldBufferCopier> copiers =
+          new FieldBufferCopierFactory(testContext.getOptions())
+              .getSixByteConditionalCopiers(ImmutableList.of(in), ImmutableList.of(out));
+      try (final ArrowBuf sv6 = allocator.buffer(SV6_SIZE * totalCount); ) {
         fillSV6AlternateWithAlternateSkip(sv6, count[0], count[1]);
 
         // do the copy
@@ -175,19 +171,18 @@ public class TestConditionalCopier6RoundTrip extends BaseTestOperator {
           int batchIdx = actualIdx < count[0] ? 0 : 1;
           int recordIdxInBatch = actualIdx < count[0] ? actualIdx : actualIdx - count[0];
 
-          assertEquals(idx % 2 == 0 ? null : in[batchIdx].getObject(recordIdxInBatch), out.getObject(idx));
+          assertEquals(
+              idx % 2 == 0 ? null : in[batchIdx].getObject(recordIdxInBatch), out.getObject(idx));
         }
       }
     }
   }
 
   @Test
-  public void varcharRoundTrip(){
-    try(
-      VarCharVector in1 = new VarCharVector("in1", allocator);
-      VarCharVector in2 = new VarCharVector("in2", allocator);
-      VarCharVector out = new VarCharVector("out", allocator);
-    ){
+  public void varcharRoundTrip() {
+    try (VarCharVector in1 = new VarCharVector("in1", allocator);
+        VarCharVector in2 = new VarCharVector("in2", allocator);
+        VarCharVector out = new VarCharVector("out", allocator); ) {
       VarCharVector[] in = {in1, in2};
       int[] count = {512, 512};
 
@@ -204,10 +199,10 @@ public class TestConditionalCopier6RoundTrip extends BaseTestOperator {
       }
 
       int totalCount = count[0] + count[1];
-      List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getSixByteConditionalCopiers(ImmutableList.of(in), ImmutableList.of(out));
-      try(
-        final ArrowBuf sv6 = allocator.buffer(SV6_SIZE * totalCount);
-      ){
+      List<FieldBufferCopier> copiers =
+          new FieldBufferCopierFactory(testContext.getOptions())
+              .getSixByteConditionalCopiers(ImmutableList.of(in), ImmutableList.of(out));
+      try (final ArrowBuf sv6 = allocator.buffer(SV6_SIZE * totalCount); ) {
         // create full sv6.
         fillSV6FullWithAlternateSkip(sv6, count[0], count[1]);
 
@@ -219,19 +214,18 @@ public class TestConditionalCopier6RoundTrip extends BaseTestOperator {
         for (int idx = 0; idx < totalCount; ++idx) {
           int batchIdx = idx < count[0] ? 0 : 1;
           int recordIdxInBatch = idx < count[0] ? idx : idx - count[0];
-          assertEquals(idx % 2 == 0 ? null : in[batchIdx].getObject(recordIdxInBatch), out.getObject(idx));
+          assertEquals(
+              idx % 2 == 0 ? null : in[batchIdx].getObject(recordIdxInBatch), out.getObject(idx));
         }
       }
     }
   }
 
   @Test
-  public void varcharAppend(){
-    try(
-      VarCharVector in1 = new VarCharVector("in1", allocator);
-      VarCharVector in2 = new VarCharVector("in2", allocator);
-      VarCharVector out = new VarCharVector("out", allocator);
-    ){
+  public void varcharAppend() {
+    try (VarCharVector in1 = new VarCharVector("in1", allocator);
+        VarCharVector in2 = new VarCharVector("in2", allocator);
+        VarCharVector out = new VarCharVector("out", allocator); ) {
       VarCharVector[] in = {in1, in2};
       int[] count = {512, 512};
 
@@ -249,10 +243,10 @@ public class TestConditionalCopier6RoundTrip extends BaseTestOperator {
 
       // set alternate elements.
       int totalCount = (count[0] + count[1]) / 2;
-      List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getSixByteConditionalCopiers(ImmutableList.of(in), ImmutableList.of(out));
-      try(
-        final ArrowBuf sv6 = allocator.buffer(SV6_SIZE * totalCount);
-      ){
+      List<FieldBufferCopier> copiers =
+          new FieldBufferCopierFactory(testContext.getOptions())
+              .getSixByteConditionalCopiers(ImmutableList.of(in), ImmutableList.of(out));
+      try (final ArrowBuf sv6 = allocator.buffer(SV6_SIZE * totalCount); ) {
         fillSV6AlternateWithAlternateSkip(sv6, count[0], count[1]);
 
         // do the copy
@@ -265,19 +259,18 @@ public class TestConditionalCopier6RoundTrip extends BaseTestOperator {
           int batchIdx = actualIdx < count[0] ? 0 : 1;
           int recordIdxInBatch = actualIdx < count[0] ? actualIdx : actualIdx - count[0];
 
-          assertEquals(idx % 2 == 0 ? null : in[batchIdx].getObject(recordIdxInBatch), out.getObject(idx));
+          assertEquals(
+              idx % 2 == 0 ? null : in[batchIdx].getObject(recordIdxInBatch), out.getObject(idx));
         }
       }
     }
   }
 
   @Test
-  public void bitAppend(){
-    try(
-      BitVector in1 = new BitVector("in1", allocator);
-      BitVector in2 = new BitVector("in2", allocator);
-      BitVector out = new BitVector("out", allocator);
-    ){
+  public void bitAppend() {
+    try (BitVector in1 = new BitVector("in1", allocator);
+        BitVector in2 = new BitVector("in2", allocator);
+        BitVector out = new BitVector("out", allocator); ) {
       BitVector[] in = {in1, in2};
       int[] count = {512, 512};
 
@@ -294,10 +287,10 @@ public class TestConditionalCopier6RoundTrip extends BaseTestOperator {
 
       // set alternate elements.
       int totalCount = (count[0] + count[1]) / 2;
-      List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getSixByteConditionalCopiers(ImmutableList.of(in), ImmutableList.of(out));
-      try(
-        final ArrowBuf sv6 = allocator.buffer(SV6_SIZE * totalCount);
-      ){
+      List<FieldBufferCopier> copiers =
+          new FieldBufferCopierFactory(testContext.getOptions())
+              .getSixByteConditionalCopiers(ImmutableList.of(in), ImmutableList.of(out));
+      try (final ArrowBuf sv6 = allocator.buffer(SV6_SIZE * totalCount); ) {
         fillSV6AlternateWithAlternateSkip(sv6, count[0], count[1]);
 
         // do the copy
@@ -310,19 +303,18 @@ public class TestConditionalCopier6RoundTrip extends BaseTestOperator {
           int batchIdx = actualIdx < count[0] ? 0 : 1;
           int recordIdxInBatch = actualIdx < count[0] ? actualIdx : actualIdx - count[0];
 
-          assertEquals(idx % 2 == 0 ? null : in[batchIdx].getObject(recordIdxInBatch), out.getObject(idx));
+          assertEquals(
+              idx % 2 == 0 ? null : in[batchIdx].getObject(recordIdxInBatch), out.getObject(idx));
         }
       }
     }
   }
 
   @Test
-  public void decimalAppend(){
-    try(
-      DecimalVector in1 = new DecimalVector("in1", allocator, 28, 4);
-      DecimalVector in2 = new DecimalVector("in2", allocator, 28, 4);
-      DecimalVector out = new DecimalVector("out", allocator, 28, 4);
-    ){
+  public void decimalAppend() {
+    try (DecimalVector in1 = new DecimalVector("in1", allocator, 28, 4);
+        DecimalVector in2 = new DecimalVector("in2", allocator, 28, 4);
+        DecimalVector out = new DecimalVector("out", allocator, 28, 4); ) {
 
       DecimalVector[] in = {in1, in2};
       int[] count = {512, 512};
@@ -340,10 +332,10 @@ public class TestConditionalCopier6RoundTrip extends BaseTestOperator {
 
       // set alternate elements.
       int totalCount = (count[0] + count[1]) / 2;
-      List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getSixByteConditionalCopiers(ImmutableList.of(in), ImmutableList.of(out));
-      try(
-        final ArrowBuf sv6 = allocator.buffer(SV6_SIZE * totalCount);
-      ){
+      List<FieldBufferCopier> copiers =
+          new FieldBufferCopierFactory(testContext.getOptions())
+              .getSixByteConditionalCopiers(ImmutableList.of(in), ImmutableList.of(out));
+      try (final ArrowBuf sv6 = allocator.buffer(SV6_SIZE * totalCount); ) {
         fillSV6AlternateWithAlternateSkip(sv6, count[0], count[1]);
 
         // do the copy
@@ -356,7 +348,8 @@ public class TestConditionalCopier6RoundTrip extends BaseTestOperator {
           int batchIdx = actualIdx < count[0] ? 0 : 1;
           int recordIdxInBatch = actualIdx < count[0] ? actualIdx : actualIdx - count[0];
 
-          assertEquals(idx % 2 == 0 ? null : in[batchIdx].getObject(recordIdxInBatch), out.getObject(idx));
+          assertEquals(
+              idx % 2 == 0 ? null : in[batchIdx].getObject(recordIdxInBatch), out.getObject(idx));
         }
       }
     }
@@ -364,20 +357,21 @@ public class TestConditionalCopier6RoundTrip extends BaseTestOperator {
 
   @Test
   public void structRoundtrip() {
-    final FieldType structType = CompleteType.struct(
-      CompleteType.VARCHAR.toField("string"),
-      CompleteType.INT.toField("integer")
-    ).toField("struct").getFieldType();
+    final FieldType structType =
+        CompleteType.struct(
+                CompleteType.VARCHAR.toField("string"), CompleteType.INT.toField("integer"))
+            .toField("struct")
+            .getFieldType();
 
-    try (
-      StructVector in1 = new StructVector("in1", allocator, structType, null);
-      StructVector in2 = new StructVector("in2", allocator, structType, null);
-      StructVector out = new StructVector("out", allocator, structType, null);
-      ArrowBuf tempBuf = allocator.buffer(2048);
-    ) {
+    try (StructVector in1 = new StructVector("in1", allocator, structType, null);
+        StructVector in2 = new StructVector("in2", allocator, structType, null);
+        StructVector out = new StructVector("out", allocator, structType, null);
+        ArrowBuf tempBuf = allocator.buffer(2048); ) {
 
-      Field stringField = new Field("string", new FieldType(true, new ArrowType.Utf8(), null), null);
-      Field intField = new Field("integer", new FieldType(true, new ArrowType.Int(32, true), null), null);
+      Field stringField =
+          new Field("string", new FieldType(true, new ArrowType.Utf8(), null), null);
+      Field intField =
+          new Field("integer", new FieldType(true, new ArrowType.Int(32, true), null), null);
 
       StructVector[] in = {in1, in2};
       int[] count = {512, 512};
@@ -403,10 +397,10 @@ public class TestConditionalCopier6RoundTrip extends BaseTestOperator {
       }
 
       out.initializeChildrenFromFields(ImmutableList.of(stringField, intField));
-      List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getSixByteConditionalCopiers(ImmutableList.of(in), ImmutableList.of(out));
-      try (
-        final ArrowBuf sv6 = allocator.buffer(SV6_SIZE * totalCount);
-      ) {
+      List<FieldBufferCopier> copiers =
+          new FieldBufferCopierFactory(testContext.getOptions())
+              .getSixByteConditionalCopiers(ImmutableList.of(in), ImmutableList.of(out));
+      try (final ArrowBuf sv6 = allocator.buffer(SV6_SIZE * totalCount); ) {
         fillSV6FullWithAlternateSkip(sv6, count[0], count[1]);
 
         // do the copy
@@ -417,7 +411,8 @@ public class TestConditionalCopier6RoundTrip extends BaseTestOperator {
         for (int idx = 0; idx < totalCount; ++idx) {
           int batchIdx = idx < count[0] ? 0 : 1;
           int recordIdxInBatch = idx < count[0] ? idx : idx - count[0];
-          assertEquals(idx % 2 == 0 ? null : in[batchIdx].getObject(recordIdxInBatch), out.getObject(idx));
+          assertEquals(
+              idx % 2 == 0 ? null : in[batchIdx].getObject(recordIdxInBatch), out.getObject(idx));
         }
       }
     }
@@ -425,20 +420,21 @@ public class TestConditionalCopier6RoundTrip extends BaseTestOperator {
 
   @Test
   public void structAppend() {
-    final FieldType structType = CompleteType.struct(
-      CompleteType.VARCHAR.toField("string"),
-      CompleteType.INT.toField("integer")
-    ).toField("struct").getFieldType();
+    final FieldType structType =
+        CompleteType.struct(
+                CompleteType.VARCHAR.toField("string"), CompleteType.INT.toField("integer"))
+            .toField("struct")
+            .getFieldType();
 
-    try (
-      StructVector in1 = new StructVector("in1", allocator, structType, null);
-      StructVector in2 = new StructVector("in2", allocator, structType, null);
-      StructVector out = new StructVector("out", allocator, structType, null);
-      ArrowBuf tempBuf = allocator.buffer(2048)
-    ) {
+    try (StructVector in1 = new StructVector("in1", allocator, structType, null);
+        StructVector in2 = new StructVector("in2", allocator, structType, null);
+        StructVector out = new StructVector("out", allocator, structType, null);
+        ArrowBuf tempBuf = allocator.buffer(2048)) {
 
-      Field stringField = new Field("string", new FieldType(true, new ArrowType.Utf8(), null), null);
-      Field intField = new Field("integer", new FieldType(true, new ArrowType.Int(32, true), null), null);
+      Field stringField =
+          new Field("string", new FieldType(true, new ArrowType.Utf8(), null), null);
+      Field intField =
+          new Field("integer", new FieldType(true, new ArrowType.Int(32, true), null), null);
 
       StructVector[] in = {in1, in2};
       int[] count = {512, 512};
@@ -464,10 +460,10 @@ public class TestConditionalCopier6RoundTrip extends BaseTestOperator {
 
       out.initializeChildrenFromFields(ImmutableList.of(stringField, intField));
       int totalCount = (count[0] + count[1]) / 2;
-      List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getSixByteConditionalCopiers(ImmutableList.of(in), ImmutableList.of(out));
-      try (
-        final ArrowBuf sv6 = allocator.buffer(SV6_SIZE * totalCount);
-      ) {
+      List<FieldBufferCopier> copiers =
+          new FieldBufferCopierFactory(testContext.getOptions())
+              .getSixByteConditionalCopiers(ImmutableList.of(in), ImmutableList.of(out));
+      try (final ArrowBuf sv6 = allocator.buffer(SV6_SIZE * totalCount); ) {
         // set alternate elements.
         fillSV6AlternateWithAlternateSkip(sv6, count[0], count[1]);
 
@@ -481,7 +477,8 @@ public class TestConditionalCopier6RoundTrip extends BaseTestOperator {
           int batchIdx = actualIdx < count[0] ? 0 : 1;
           int recordIdxInBatch = actualIdx < count[0] ? actualIdx : actualIdx - count[0];
 
-          assertEquals(idx % 2 == 0 ? null : in[batchIdx].getObject(recordIdxInBatch), out.getObject(idx));
+          assertEquals(
+              idx % 2 == 0 ? null : in[batchIdx].getObject(recordIdxInBatch), out.getObject(idx));
         }
       }
     }
@@ -491,7 +488,7 @@ public class TestConditionalCopier6RoundTrip extends BaseTestOperator {
     for (int idx = 0; idx < batchCount; ++idx) {
       long mem = sv6.memoryAddress() + idx * SV6_SIZE;
       PlatformDependent.putInt(mem, batchIdx);
-      PlatformDependent.putShort(mem + 4, (short)idx);
+      PlatformDependent.putShort(mem + 4, (short) idx);
     }
   }
 
@@ -504,13 +501,11 @@ public class TestConditionalCopier6RoundTrip extends BaseTestOperator {
 
   // Simulate 3 partitions, with the intermediate partition having an empty table.
   @Test
-  public void intAppendWithEmpty(){
-    try(
-      IntVector in0 = new IntVector("in0", allocator);
-      IntVector in1 = new IntVector("in1", allocator);
-      IntVector in2 = new IntVector("in2", allocator);
-      IntVector out = new IntVector("out", allocator);
-    ){
+  public void intAppendWithEmpty() {
+    try (IntVector in0 = new IntVector("in0", allocator);
+        IntVector in1 = new IntVector("in1", allocator);
+        IntVector in2 = new IntVector("in2", allocator);
+        IntVector out = new IntVector("out", allocator); ) {
 
       IntVector[] in = {in0, in1, in2};
       int countPerBatch = 512;
@@ -527,16 +522,18 @@ public class TestConditionalCopier6RoundTrip extends BaseTestOperator {
       }
 
       int totalCount = countPerBatch * 3;
-      List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getSixByteConditionalCopiers(ImmutableList.of(in), ImmutableList.of(out));
-      List<FieldBufferCopier> emptyCopiers = ConditionalFieldBufferCopier6Util.getEmptySourceFourByteCopiers(ImmutableList.<FieldVector>of(out));
-      try(
-        @SuppressWarnings("checkstyle:LocalFinalVariableName")
-        final ArrowBuf sv6_0 = allocator.buffer(SV6_SIZE * countPerBatch);
-        @SuppressWarnings("checkstyle:LocalFinalVariableName")
-        final ArrowBuf sv6_1 = allocator.buffer(SV6_SIZE * countPerBatch);
-        @SuppressWarnings("checkstyle:LocalFinalVariableName")
-        final ArrowBuf sv6_2 = allocator.buffer(SV6_SIZE * countPerBatch);
-      ){
+      List<FieldBufferCopier> copiers =
+          new FieldBufferCopierFactory(testContext.getOptions())
+              .getSixByteConditionalCopiers(ImmutableList.of(in), ImmutableList.of(out));
+      List<FieldBufferCopier> emptyCopiers =
+          ConditionalFieldBufferCopier6Util.getEmptySourceFourByteCopiers(
+              ImmutableList.<FieldVector>of(out));
+      try (@SuppressWarnings("checkstyle:LocalFinalVariableName")
+              final ArrowBuf sv6_0 = allocator.buffer(SV6_SIZE * countPerBatch);
+          @SuppressWarnings("checkstyle:LocalFinalVariableName")
+              final ArrowBuf sv6_1 = allocator.buffer(SV6_SIZE * countPerBatch);
+          @SuppressWarnings("checkstyle:LocalFinalVariableName")
+              final ArrowBuf sv6_2 = allocator.buffer(SV6_SIZE * countPerBatch); ) {
         fillSV6Full(sv6_0, 0, countPerBatch);
         fillSV6AllSkip(sv6_1, 1, countPerBatch);
         fillSV6Full(sv6_2, 2, countPerBatch);
@@ -562,7 +559,8 @@ public class TestConditionalCopier6RoundTrip extends BaseTestOperator {
           int batchIdx = idx / countPerBatch;
           int recordIdxInBatch = idx % countPerBatch;
 
-          assertEquals(batchIdx == 1 ? null : in[batchIdx].getObject(recordIdxInBatch), out.getObject(idx));
+          assertEquals(
+              batchIdx == 1 ? null : in[batchIdx].getObject(recordIdxInBatch), out.getObject(idx));
         }
       }
     }
@@ -570,13 +568,11 @@ public class TestConditionalCopier6RoundTrip extends BaseTestOperator {
 
   // Simulate 3 partitions, with the intermediate partition having an empty table.
   @Test
-  public void varcharAppendWithEmpty(){
-    try(
-      VarCharVector in0 = new VarCharVector("in0", allocator);
-      VarCharVector in1 = new VarCharVector("in1", allocator);
-      VarCharVector in2 = new VarCharVector("in2", allocator);
-      VarCharVector out = new VarCharVector("out", allocator);
-    ){
+  public void varcharAppendWithEmpty() {
+    try (VarCharVector in0 = new VarCharVector("in0", allocator);
+        VarCharVector in1 = new VarCharVector("in1", allocator);
+        VarCharVector in2 = new VarCharVector("in2", allocator);
+        VarCharVector out = new VarCharVector("out", allocator); ) {
 
       VarCharVector[] in = {in0, in1, in2};
       int countPerBatch = 512;
@@ -594,13 +590,15 @@ public class TestConditionalCopier6RoundTrip extends BaseTestOperator {
       }
 
       int totalCount = countPerBatch * 3;
-      List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getSixByteConditionalCopiers(ImmutableList.of(in), ImmutableList.of(out));
-      List<FieldBufferCopier> emptyCopiers = ConditionalFieldBufferCopier6Util.getEmptySourceFourByteCopiers(ImmutableList.<FieldVector>of(out));
-      try(
-        final ArrowBuf sv6_0 = allocator.buffer(SV6_SIZE * countPerBatch);
-        final ArrowBuf sv6_1 = allocator.buffer(SV6_SIZE * countPerBatch);
-        final ArrowBuf sv6_2 = allocator.buffer(SV6_SIZE * countPerBatch);
-      ){
+      List<FieldBufferCopier> copiers =
+          new FieldBufferCopierFactory(testContext.getOptions())
+              .getSixByteConditionalCopiers(ImmutableList.of(in), ImmutableList.of(out));
+      List<FieldBufferCopier> emptyCopiers =
+          ConditionalFieldBufferCopier6Util.getEmptySourceFourByteCopiers(
+              ImmutableList.<FieldVector>of(out));
+      try (final ArrowBuf sv6_0 = allocator.buffer(SV6_SIZE * countPerBatch);
+          final ArrowBuf sv6_1 = allocator.buffer(SV6_SIZE * countPerBatch);
+          final ArrowBuf sv6_2 = allocator.buffer(SV6_SIZE * countPerBatch); ) {
         fillSV6Full(sv6_0, 0, countPerBatch);
         fillSV6AllSkip(sv6_1, 1, countPerBatch);
         fillSV6Full(sv6_2, 2, countPerBatch);
@@ -626,7 +624,8 @@ public class TestConditionalCopier6RoundTrip extends BaseTestOperator {
           int batchIdx = idx / countPerBatch;
           int recordIdxInBatch = idx % countPerBatch;
 
-          assertEquals(batchIdx == 1 ? null : in[batchIdx].getObject(recordIdxInBatch), out.getObject(idx));
+          assertEquals(
+              batchIdx == 1 ? null : in[batchIdx].getObject(recordIdxInBatch), out.getObject(idx));
         }
       }
     }
@@ -634,21 +633,22 @@ public class TestConditionalCopier6RoundTrip extends BaseTestOperator {
 
   // Simulate 3 partitions, with the intermediate partition having an empty table.
   @Test
-  public void structAppendWithEmpty(){
-    final FieldType structType = CompleteType.struct(
-      CompleteType.VARCHAR.toField("string"),
-      CompleteType.INT.toField("integer")
-    ).toField("struct").getFieldType();
+  public void structAppendWithEmpty() {
+    final FieldType structType =
+        CompleteType.struct(
+                CompleteType.VARCHAR.toField("string"), CompleteType.INT.toField("integer"))
+            .toField("struct")
+            .getFieldType();
 
-    try(
-      ArrowBuf tempBuf = allocator.buffer(2048);
-      StructVector in0 = new StructVector("in0", allocator, structType, null);
-      StructVector in1 = new StructVector("in1", allocator, structType, null);
-      StructVector in2 = new StructVector("in2", allocator, structType, null);
-      StructVector out = new StructVector("out", allocator, structType, null);
-    ){
-      Field stringField = new Field("string", new FieldType(true, new ArrowType.Utf8(), null), null);
-      Field intField = new Field("integer", new FieldType(true, new ArrowType.Int(32, true), null), null);
+    try (ArrowBuf tempBuf = allocator.buffer(2048);
+        StructVector in0 = new StructVector("in0", allocator, structType, null);
+        StructVector in1 = new StructVector("in1", allocator, structType, null);
+        StructVector in2 = new StructVector("in2", allocator, structType, null);
+        StructVector out = new StructVector("out", allocator, structType, null); ) {
+      Field stringField =
+          new Field("string", new FieldType(true, new ArrowType.Utf8(), null), null);
+      Field intField =
+          new Field("integer", new FieldType(true, new ArrowType.Int(32, true), null), null);
 
       StructVector[] in = {in0, in1, in2};
       int countPerBatch = 512;
@@ -673,13 +673,15 @@ public class TestConditionalCopier6RoundTrip extends BaseTestOperator {
       }
 
       int totalCount = countPerBatch * 3;
-      List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getSixByteConditionalCopiers(ImmutableList.of(in), ImmutableList.of(out));
-      List<FieldBufferCopier> emptyCopiers = ConditionalFieldBufferCopier6Util.getEmptySourceFourByteCopiers(ImmutableList.<FieldVector>of(out));
-      try(
-        final ArrowBuf sv6_0 = allocator.buffer(SV6_SIZE * countPerBatch);
-        final ArrowBuf sv6_1 = allocator.buffer(SV6_SIZE * countPerBatch);
-        final ArrowBuf sv6_2 = allocator.buffer(SV6_SIZE * countPerBatch);
-      ){
+      List<FieldBufferCopier> copiers =
+          new FieldBufferCopierFactory(testContext.getOptions())
+              .getSixByteConditionalCopiers(ImmutableList.of(in), ImmutableList.of(out));
+      List<FieldBufferCopier> emptyCopiers =
+          ConditionalFieldBufferCopier6Util.getEmptySourceFourByteCopiers(
+              ImmutableList.<FieldVector>of(out));
+      try (final ArrowBuf sv6_0 = allocator.buffer(SV6_SIZE * countPerBatch);
+          final ArrowBuf sv6_1 = allocator.buffer(SV6_SIZE * countPerBatch);
+          final ArrowBuf sv6_2 = allocator.buffer(SV6_SIZE * countPerBatch); ) {
         fillSV6Full(sv6_0, 0, countPerBatch);
         fillSV6AllSkip(sv6_1, 1, countPerBatch);
         fillSV6Full(sv6_2, 2, countPerBatch);
@@ -705,7 +707,8 @@ public class TestConditionalCopier6RoundTrip extends BaseTestOperator {
           int batchIdx = idx / countPerBatch;
           int recordIdxInBatch = idx % countPerBatch;
 
-          assertEquals(batchIdx == 1 ? null : in[batchIdx].getObject(recordIdxInBatch), out.getObject(idx));
+          assertEquals(
+              batchIdx == 1 ? null : in[batchIdx].getObject(recordIdxInBatch), out.getObject(idx));
         }
       }
     }

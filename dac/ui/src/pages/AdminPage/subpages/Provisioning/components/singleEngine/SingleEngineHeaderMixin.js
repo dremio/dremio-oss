@@ -13,8 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Button } from "dremio-ui-lib";
-import * as ButtonTypes from "@app/components/Buttons/ButtonTypes";
+import { Button } from "dremio-ui-lib/components";
 import EngineStatus from "@app/pages/AdminPage/subpages/Provisioning/components/EngineStatus";
 import { intl } from "@app/utils/intl";
 
@@ -29,17 +28,13 @@ export default function (input) {
     renderButtons(styles, isReadOnly) {
       return (
         <Button
-          style={{
-            width: 110,
-            marginTop: 5,
-            marginLeft: 10,
-          }}
+          className="ml-1"
+          variant="secondary"
           onClick={this.onEdit}
           disabled={isReadOnly}
-          color={ButtonTypes.UI_LIB_PRIMARY}
-          disableMargin
-          text={intl.formatMessage({ id: "Common.Edit.Settings" })}
-        />
+        >
+          {intl.formatMessage({ id: "Common.Edit.Settings" })}
+        </Button>
       );
     },
   });

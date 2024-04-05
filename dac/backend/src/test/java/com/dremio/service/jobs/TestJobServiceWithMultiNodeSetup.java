@@ -21,22 +21,6 @@ import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Properties;
-import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
-
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.QueryTestUtil;
 import com.dremio.common.exceptions.UserRemoteException;
@@ -71,18 +55,27 @@ import com.dremio.service.job.proto.JobId;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.Files;
 import com.google.common.io.Resources;
-
 import io.grpc.ManagedChannel;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Properties;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
-
-/**
- * starts master & slave co-ordinators with jobservices on both.
- */
-public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
-  @ClassRule
-  public static final TemporaryFolder temp = new TemporaryFolder();
+/** starts master & slave co-ordinators with jobservices on both. */
+public class TestJobServiceWithMultiNodeSetup extends BaseTestServer {
+  @ClassRule public static final TemporaryFolder temp = new TemporaryFolder();
 
   private final DatasetPath ds1 = new DatasetPath("s.ds1");
   private static String query1;
@@ -95,14 +88,17 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
     // set the log path so we can read logs and confirm that is working.
     final File jsonFolder = temp.newFolder("json");
     jsonFolder.mkdir();
-    Files.copy(new File(Resources.getResource("support/server.json").getPath()), new File(jsonFolder, "server.json"));
+    Files.copy(
+        new File(Resources.getResource("support/server.json").getPath()),
+        new File(jsonFolder, "server.json"));
     System.setProperty(SupportService.DREMIO_LOG_PATH_PROPERTY, temp.getRoot().toString());
 
     // now start server.
     BaseTestServer.init();
     populateInitialData();
     query1 = readResourceAsString("tpch_quoted.sql");
-    LocalJobsService localJobsService = getMasterDremioDaemon().getBindingProvider().lookup(LocalJobsService.class);
+    LocalJobsService localJobsService =
+        getMasterDremioDaemon().getBindingProvider().lookup(LocalJobsService.class);
     localJobsService.getLocalAbandonedJobsHandler().reschedule(100);
     localJobsService = getCurrentDremioDaemon().getBindingProvider().lookup(LocalJobsService.class);
     localJobsService.getLocalAbandonedJobsHandler().reschedule(100);
@@ -126,10 +122,11 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
     }
 
     final int port = server.getPort();
-    final CoordinationProtos.NodeEndpoint target = CoordinationProtos.NodeEndpoint.newBuilder()
-      .setAddress("127.0.0.1")
-      .setConduitPort(port)
-      .build();
+    final CoordinationProtos.NodeEndpoint target =
+        CoordinationProtos.NodeEndpoint.newBuilder()
+            .setAddress("127.0.0.1")
+            .setConduitPort(port)
+            .build();
 
     final ManagedChannel channel = conduitProvider.getOrCreateChannel(target);
     return channel;
@@ -138,19 +135,27 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
   private DremioClient getDremioClient(boolean master) throws Exception {
     DremioClient dremioClient = new DremioClient(true);
     if (master) {
-      final UserServer server = getMasterDremioDaemon().getBindingProvider().lookup(UserServer.class);
-      dremioClient.connect(new Properties(){{
-        put("direct", "localhost:" + server.getPort());
-        put("user", "dremio");
-        put("password", "dremio123");
-      }});
+      final UserServer server =
+          getMasterDremioDaemon().getBindingProvider().lookup(UserServer.class);
+      dremioClient.connect(
+          new Properties() {
+            {
+              put("direct", "localhost:" + server.getPort());
+              put("user", "dremio");
+              put("password", "dremio123");
+            }
+          });
     } else {
-      final UserServer server = getCurrentDremioDaemon().getBindingProvider().lookup(UserServer.class);
-      dremioClient.connect(new Properties(){{
-        put("direct", "localhost:" + server.getPort());
-        put("user", "dremio");
-        put("password", "dremio123");
-      }});
+      final UserServer server =
+          getCurrentDremioDaemon().getBindingProvider().lookup(UserServer.class);
+      dremioClient.connect(
+          new Properties() {
+            {
+              put("direct", "localhost:" + server.getPort());
+              put("user", "dremio");
+              put("password", "dremio123");
+            }
+          });
     }
 
     return dremioClient;
@@ -169,18 +174,18 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
   }
 
   private ChronicleGrpc.ChronicleBlockingStub getSlaveChronicleStub() {
-    final ManagedChannel channel  = getChannelToCoord(false);
+    final ManagedChannel channel = getChannelToCoord(false);
     final ChronicleGrpc.ChronicleBlockingStub stub = ChronicleGrpc.newBlockingStub(channel);
     return stub;
   }
 
   private ChronicleGrpc.ChronicleBlockingStub getMasterChronicleStub() {
-    final ManagedChannel channel  = getChannelToCoord(true);
+    final ManagedChannel channel = getChannelToCoord(true);
     final ChronicleGrpc.ChronicleBlockingStub stub = ChronicleGrpc.newBlockingStub(channel);
     return stub;
   }
 
-  //submit the job on slave & pull profile from master
+  // submit the job on slave & pull profile from master
   @Test
   public void testGetProfileOnMaster() throws InterruptedException {
     JobsServiceGrpc.JobsServiceStub stubToSubmit = getSlaveJobsServiceStub();
@@ -188,7 +193,7 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
     testGetProfile(stubToSubmit, jobDetailsStub);
   }
 
-  //submit the job on master & pull profile from slave
+  // submit the job on master & pull profile from slave
   @Test
   public void testGetProfileOnSlave() throws InterruptedException {
     JobsServiceGrpc.JobsServiceStub stubToSubmit = getMasterJobsServiceStub();
@@ -196,21 +201,27 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
     testGetProfile(stubToSubmit, jobDetailsStub);
   }
 
-
-  private void testGetProfile(JobsServiceGrpc.JobsServiceStub stubToSubmit, ChronicleGrpc.ChronicleBlockingStub jobDetailsStub) throws InterruptedException {
+  private void testGetProfile(
+      JobsServiceGrpc.JobsServiceStub stubToSubmit,
+      ChronicleGrpc.ChronicleBlockingStub jobDetailsStub)
+      throws InterruptedException {
     // issue job submit
     final JobSubmittedListener submittedListener = new JobSubmittedListener();
     final CompletionListener listener = new CompletionListener();
-    final JobStatusListenerAdapter adapter = new JobStatusListenerAdapter(new MultiJobStatusListener(listener, submittedListener));
+    final JobStatusListenerAdapter adapter =
+        new JobStatusListenerAdapter(new MultiJobStatusListener(listener, submittedListener));
     stubToSubmit.submitJob(
-      SubmitJobRequest.newBuilder()
-        .setSqlQuery(JobsProtoUtil.toBuf(getQueryFromSQL("select * from LocalFS1.\"dac-sample1.json\" ")))
-        .setQueryType(QueryType.UI_RUN)
-        .setVersionedDataset(VersionedDatasetPath.newBuilder()
-          .addAllPath(ds1.toNamespaceKey().getPathComponents())
-          .build())
-        .build(),
-      adapter);
+        SubmitJobRequest.newBuilder()
+            .setSqlQuery(
+                JobsProtoUtil.toBuf(
+                    getQueryFromSQL("select * from LocalFS1.\"dac-sample1.json\" ")))
+            .setQueryType(QueryType.UI_RUN)
+            .setVersionedDataset(
+                VersionedDatasetPath.newBuilder()
+                    .addAllPath(ds1.toNamespaceKey().getPathComponents())
+                    .build())
+            .build(),
+        adapter);
 
     // wait for it to be submitted
     submittedListener.await();
@@ -218,9 +229,10 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
     Thread.sleep(1000);
     final JobId id = adapter.getJobSubmission().getJobId();
 
-    final QueryProfileRequest req = QueryProfileRequest.newBuilder().setAttempt(0).setJobId(JobsProtoUtil.toBuf(id)).build();
-    //poll for the profile while the query is running
-    while(true) {
+    final QueryProfileRequest req =
+        QueryProfileRequest.newBuilder().setAttempt(0).setJobId(JobsProtoUtil.toBuf(id)).build();
+    // poll for the profile while the query is running
+    while (true) {
       final UserBitShared.QueryProfile qp = jobDetailsStub.getProfile(req);
       final UserBitShared.QueryResult.QueryState queryState = qp.getState();
       if (queryState == UserBitShared.QueryResult.QueryState.RUNNING) {
@@ -236,7 +248,7 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
     }
   }
 
-  //submit the job on slave & pull profile from master
+  // submit the job on slave & pull profile from master
   @Test
   public void testGetProfileNotFoundOnSameCoordinator() throws InterruptedException {
     JobsServiceGrpc.JobsServiceStub stubToSubmit = getMasterJobsServiceStub();
@@ -244,7 +256,7 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
     testGetProfileNotFound(stubToSubmit, jobDetailsStub);
   }
 
-  //submit the job on master & pull profile from slave
+  // submit the job on master & pull profile from slave
   @Test
   public void testGetProfileNotFoundOnDifferentCoordinator() throws InterruptedException {
     JobsServiceGrpc.JobsServiceStub stubToSubmit = getMasterJobsServiceStub();
@@ -252,40 +264,46 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
     testGetProfileNotFound(stubToSubmit, jobDetailsStub);
   }
 
-  private void testGetProfileNotFound(JobsServiceGrpc.JobsServiceStub stubToSubmit, ChronicleGrpc.ChronicleBlockingStub jobDetailsStub) throws InterruptedException {
+  private void testGetProfileNotFound(
+      JobsServiceGrpc.JobsServiceStub stubToSubmit,
+      ChronicleGrpc.ChronicleBlockingStub jobDetailsStub)
+      throws InterruptedException {
     // issue job submit
     final JobSubmittedListener submittedListener = new JobSubmittedListener();
     final CompletionListener listener = new CompletionListener();
-    final JobStatusListenerAdapter adapter = new JobStatusListenerAdapter(new MultiJobStatusListener(listener, submittedListener));
+    final JobStatusListenerAdapter adapter =
+        new JobStatusListenerAdapter(new MultiJobStatusListener(listener, submittedListener));
     stubToSubmit.submitJob(
-      SubmitJobRequest.newBuilder()
-        .setSqlQuery(JobsProtoUtil.toBuf(getQueryFromSQL("select * from LocalFS1.\"dac-sample1.json\" ")))
-        .setQueryType(QueryType.UI_RUN)
-        .setVersionedDataset(VersionedDatasetPath.newBuilder()
-          .addAllPath(ds1.toNamespaceKey().getPathComponents())
-          .build())
-        .build(),
-      adapter);
-    //Don't wait for it to be submitted
+        SubmitJobRequest.newBuilder()
+            .setSqlQuery(
+                JobsProtoUtil.toBuf(
+                    getQueryFromSQL("select * from LocalFS1.\"dac-sample1.json\" ")))
+            .setQueryType(QueryType.UI_RUN)
+            .setVersionedDataset(
+                VersionedDatasetPath.newBuilder()
+                    .addAllPath(ds1.toNamespaceKey().getPathComponents())
+                    .build())
+            .build(),
+        adapter);
+    // Don't wait for it to be submitted
     final JobId id = adapter.getJobSubmission().getJobId();
 
-    final QueryProfileRequest req = QueryProfileRequest.newBuilder().setAttempt(0).setJobId(JobsProtoUtil.toBuf(id)).build();
-    Exception ex = assertThrows(StatusRuntimeException.class,
-      () -> jobDetailsStub.getProfile(req));
-    assertEquals(String.format("INVALID_ARGUMENT: Unable to get query profile. Profile not found for the given queryId."), ex.getMessage());
+    final QueryProfileRequest req =
+        QueryProfileRequest.newBuilder().setAttempt(0).setJobId(JobsProtoUtil.toBuf(id)).build();
+    Exception ex = assertThrows(StatusRuntimeException.class, () -> jobDetailsStub.getProfile(req));
+    assertEquals(
+        String.format(
+            "INVALID_ARGUMENT: Unable to get query profile. Profile not found for the given queryId."),
+        ex.getMessage());
   }
 
-  /**
-   * Submits job on the slave & subscribes to events on the master
-   */
+  /** Submits job on the slave & subscribes to events on the master */
   @Test
   public void testListenerOnMaster() throws InterruptedException {
     testListenerOn(false);
   }
 
-  /**
-   * Submits job on the master & subscribes to events on the slave
-   */
+  /** Submits job on the master & subscribes to events on the slave */
   @Test
   public void testListenerOnSlave() throws InterruptedException {
     testListenerOn(true);
@@ -316,7 +334,8 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
   }
 
   /**
-   * @param submitJobToMaster: if true, submission is done on master & subscription on slave or vice versa.
+   * @param submitJobToMaster: if true, submission is done on master & subscription on slave or vice
+   *     versa.
    */
   private void testListenerOn(boolean submitJobToMaster) throws InterruptedException {
     JobsServiceGrpc.JobsServiceStub stubToSubmit = null;
@@ -332,16 +351,20 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
     // issue job submit
     final JobSubmittedListener submittedListener = new JobSubmittedListener();
     final CompletionListener listener = new CompletionListener();
-    final JobStatusListenerAdapter adapter = new JobStatusListenerAdapter(new MultiJobStatusListener(listener, submittedListener));
+    final JobStatusListenerAdapter adapter =
+        new JobStatusListenerAdapter(new MultiJobStatusListener(listener, submittedListener));
     stubToSubmit.submitJob(
-      SubmitJobRequest.newBuilder()
-        .setSqlQuery(JobsProtoUtil.toBuf(getQueryFromSQL("select * from LocalFS1.\"dac-sample1.json\" limit 150")))
-        .setQueryType(QueryType.UI_RUN)
-        .setVersionedDataset(VersionedDatasetPath.newBuilder()
-          .addAllPath(ds1.toNamespaceKey().getPathComponents())
-          .build())
-        .build(),
-      adapter);
+        SubmitJobRequest.newBuilder()
+            .setSqlQuery(
+                JobsProtoUtil.toBuf(
+                    getQueryFromSQL("select * from LocalFS1.\"dac-sample1.json\" limit 150")))
+            .setQueryType(QueryType.UI_RUN)
+            .setVersionedDataset(
+                VersionedDatasetPath.newBuilder()
+                    .addAllPath(ds1.toNamespaceKey().getPathComponents())
+                    .build())
+            .build(),
+        adapter);
 
     // wait for it to be submitted
     submittedListener.await();
@@ -356,13 +379,14 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
 
     Assert.assertFalse(dummyJobEventListener.withError);
     Assert.assertFalse(dummyJobEventListener.jobEvents.isEmpty());
-    final JobEvent event = dummyJobEventListener.jobEvents.get(dummyJobEventListener.jobEvents.size() - 1);
+    final JobEvent event =
+        dummyJobEventListener.jobEvents.get(dummyJobEventListener.jobEvents.size() - 1);
     Assert.assertEquals(event.getFinalJobSummary().getJobState(), JobState.COMPLETED);
   }
 
-
   /**
-   * @param submitJobToMaster: if true, submission is done on master & details on slave or vice versa.
+   * @param submitJobToMaster: if true, submission is done on master & details on slave or vice
+   *     versa.
    */
   private void testJobDetailsOn(boolean submitJobToMaster) throws InterruptedException {
     JobsServiceGrpc.JobsServiceStub stubToSubmit = null;
@@ -381,26 +405,31 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
     // submit job
     final JobSubmittedListener submittedListener = new JobSubmittedListener();
     final CompletionListener listener = new CompletionListener();
-    final JobStatusListenerAdapter adapter = new JobStatusListenerAdapter(new MultiJobStatusListener(listener, submittedListener));
+    final JobStatusListenerAdapter adapter =
+        new JobStatusListenerAdapter(new MultiJobStatusListener(listener, submittedListener));
     stubToSubmit.submitJob(
-      SubmitJobRequest.newBuilder()
-        .setSqlQuery(JobsProtoUtil.toBuf(getQueryFromSQL("select * from LocalFS1.\"dac-sample1.json\" limit 150")))
-        .setQueryType(QueryType.UI_RUN)
-        .setVersionedDataset(VersionedDatasetPath.newBuilder()
-          .addAllPath(ds1.toNamespaceKey().getPathComponents())
-          .build())
-        .build(),
-      adapter);
+        SubmitJobRequest.newBuilder()
+            .setSqlQuery(
+                JobsProtoUtil.toBuf(
+                    getQueryFromSQL("select * from LocalFS1.\"dac-sample1.json\" limit 150")))
+            .setQueryType(QueryType.UI_RUN)
+            .setVersionedDataset(
+                VersionedDatasetPath.newBuilder()
+                    .addAllPath(ds1.toNamespaceKey().getPathComponents())
+                    .build())
+            .build(),
+        adapter);
 
     // wait for it to submit
     submittedListener.await();
     final JobId id = adapter.getJobSubmission().getJobId();
 
     // get details from the other node
-    final JobDetailsRequest jobDetailsRequest = JobDetailsRequest.newBuilder()
-      .setJobId(JobsProtoUtil.toBuf(id))
-      .setUserName(SYSTEM_USERNAME)
-      .build();
+    final JobDetailsRequest jobDetailsRequest =
+        JobDetailsRequest.newBuilder()
+            .setJobId(JobsProtoUtil.toBuf(id))
+            .setUserName(SYSTEM_USERNAME)
+            .build();
 
     JobDetails jobDetails = jobDetailsStub.getJobDetails(jobDetailsRequest);
     Assert.assertTrue(jobDetails.getAttemptsCount() >= 1);
@@ -416,12 +445,14 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
       jobDetails = jobDetailsStub.getJobDetails(jobDetailsRequest);
     }
 
-    Assert.assertTrue(jobDetails.getAttempts(jobDetails.getAttemptsCount() - 1).getStats().getOutputRecords() == 100);
+    Assert.assertTrue(
+        jobDetails.getAttempts(jobDetails.getAttemptsCount() - 1).getStats().getOutputRecords()
+            == 100);
   }
 
-
   /**
-   * @param submitJobToMaster: if true, submission is done on master & summary on slave or vice versa.
+   * @param submitJobToMaster: if true, submission is done on master & summary on slave or vice
+   *     versa.
    */
   private void testJobSummaryOn(boolean submitJobToMaster) throws Exception {
     JobsServiceGrpc.JobsServiceStub stubToSubmit = null;
@@ -440,33 +471,41 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
     // submit job
     final JobSubmittedListener submittedListener = new JobSubmittedListener();
     final CompletionListener listener = new CompletionListener();
-    final JobStatusListenerAdapter adapter = new JobStatusListenerAdapter(new MultiJobStatusListener(listener, submittedListener));
+    final JobStatusListenerAdapter adapter =
+        new JobStatusListenerAdapter(new MultiJobStatusListener(listener, submittedListener));
     stubToSubmit.submitJob(
-      SubmitJobRequest.newBuilder()
-        .setSqlQuery(JobsProtoUtil.toBuf(getQueryFromSQL("select * from LocalFS1.\"dac-sample1.json\" limit 150")))
-        .setQueryType(QueryType.UI_RUN)
-        .setVersionedDataset(VersionedDatasetPath.newBuilder()
-          .addAllPath(ds1.toNamespaceKey().getPathComponents())
-          .build())
-        .build(),
-      adapter);
+        SubmitJobRequest.newBuilder()
+            .setSqlQuery(
+                JobsProtoUtil.toBuf(
+                    getQueryFromSQL("select * from LocalFS1.\"dac-sample1.json\" limit 150")))
+            .setQueryType(QueryType.UI_RUN)
+            .setVersionedDataset(
+                VersionedDatasetPath.newBuilder()
+                    .addAllPath(ds1.toNamespaceKey().getPathComponents())
+                    .build())
+            .build(),
+        adapter);
 
     // 2. wait for it to be submitted
     submittedListener.await();
     final JobId id = adapter.getJobSubmission().getJobId();
 
-    final JobSummaryRequest jobSummaryRequest = JobSummaryRequest.newBuilder()
-      .setJobId(JobsProtoUtil.toBuf(id))
-      .setUserName(SYSTEM_USERNAME)
-      .build();
+    final JobSummaryRequest jobSummaryRequest =
+        JobSummaryRequest.newBuilder()
+            .setJobId(JobsProtoUtil.toBuf(id))
+            .setUserName(SYSTEM_USERNAME)
+            .build();
 
     // 3. wait for it to complete
     listener.await();
 
     JobSummary summary = jobSummaryStub.getJobSummary(jobSummaryRequest);
-    final int finalStateIdx = summary.getStateListCount()-1;
-    Assert.assertFalse(summary.getStateList(finalStateIdx).getState() == UserBitShared.AttemptEvent.State.CANCELED);
-    Assert.assertFalse(summary.getStateList(finalStateIdx).getState() == UserBitShared.AttemptEvent.State.FAILED);
+    final int finalStateIdx = summary.getStateListCount() - 1;
+    Assert.assertFalse(
+        summary.getStateList(finalStateIdx).getState()
+            == UserBitShared.AttemptEvent.State.CANCELED);
+    Assert.assertFalse(
+        summary.getStateList(finalStateIdx).getState() == UserBitShared.AttemptEvent.State.FAILED);
     Assert.assertTrue(summary.getNumAttempts() >= 1);
 
     if (summary.getJobState() != JobState.COMPLETED) {
@@ -485,9 +524,9 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
     Assert.assertEquals(summary.getOutputRecords(), 100);
   }
 
-
   /**
-   * @param submitJobToMaster: if true, submission is done on master & search on slave or vice versa.
+   * @param submitJobToMaster: if true, submission is done on master & search on slave or vice
+   *     versa.
    */
   private void testJobSearchOn(boolean submitJobToMaster) throws InterruptedException {
     JobsServiceGrpc.JobsServiceStub stubToSubmit = null;
@@ -506,24 +545,30 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
     // submit job
     final JobSubmittedListener submittedListener = new JobSubmittedListener();
     final CompletionListener listener = new CompletionListener();
-    final JobStatusListenerAdapter adapter = new JobStatusListenerAdapter(new MultiJobStatusListener(listener, submittedListener));
+    final JobStatusListenerAdapter adapter =
+        new JobStatusListenerAdapter(new MultiJobStatusListener(listener, submittedListener));
     stubToSubmit.submitJob(
-      SubmitJobRequest.newBuilder()
-        .setSqlQuery(JobsProtoUtil.toBuf(getQueryFromSQL("select * from LocalFS1.\"dac-sample1.json\" limit 150")))
-        .setQueryType(QueryType.UI_RUN)
-        .setVersionedDataset(VersionedDatasetPath.newBuilder()
-          .addAllPath(ds1.toNamespaceKey().getPathComponents())
-          .build())
-        .build(),
-      adapter);
+        SubmitJobRequest.newBuilder()
+            .setSqlQuery(
+                JobsProtoUtil.toBuf(
+                    getQueryFromSQL("select * from LocalFS1.\"dac-sample1.json\" limit 150")))
+            .setQueryType(QueryType.UI_RUN)
+            .setVersionedDataset(
+                VersionedDatasetPath.newBuilder()
+                    .addAllPath(ds1.toNamespaceKey().getPathComponents())
+                    .build())
+            .build(),
+        adapter);
 
     // wait for it to be submitted
     submittedListener.await();
     final JobId id = adapter.getJobSubmission().getJobId();
 
-    final SearchJobsRequest searchJobsRequest = SearchJobsRequest.newBuilder()
-      .setFilterString("(jst==RUNNING,jst==ENGINE_START,jst==QUEUED,jst==SETUP,jst==COMPLETED)")
-      .build();
+    final SearchJobsRequest searchJobsRequest =
+        SearchJobsRequest.newBuilder()
+            .setFilterString(
+                "(jst==RUNNING,jst==ENGINE_START,jst==QUEUED,jst==SETUP,jst==COMPLETED)")
+            .build();
 
     final CountDownLatch queryLatch = new CountDownLatch(1);
     final DummyJobEventListener dummyJobEventListener = new DummyJobEventListener(queryLatch);
@@ -532,7 +577,8 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
     boolean found = false;
     while (queryLatch.getCount() > 0) {
       // search as the job progresses
-      final List<JobSummary> jobSummaries = ImmutableList.copyOf(jobSummaryStub.searchJobs(searchJobsRequest));
+      final List<JobSummary> jobSummaries =
+          ImmutableList.copyOf(jobSummaryStub.searchJobs(searchJobsRequest));
       if (jobSummaries.size() > 0) {
         for (JobSummary summary : jobSummaries) {
           if (JobsProtoUtil.toStuff(summary.getJobId()).equals(id)) {
@@ -545,7 +591,8 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
 
     if (!found) {
       // search once more, in case the query finished very quickly
-      final List<JobSummary> jobSummaries = ImmutableList.copyOf(jobSummaryStub.searchJobs(searchJobsRequest));
+      final List<JobSummary> jobSummaries =
+          ImmutableList.copyOf(jobSummaryStub.searchJobs(searchJobsRequest));
       for (JobSummary summary : jobSummaries) {
         if (JobsProtoUtil.toStuff(summary.getJobId()).equals(id)) {
           found = true;
@@ -566,7 +613,6 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
     testJobSearchOn(false);
   }
 
-
   // helper class, to wait for the job submission
   private class DummyJobStatusListener implements JobStatusListener {
     private final CountDownLatch latch;
@@ -585,7 +631,7 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
   private class DummyJobEventListener implements StreamObserver<JobEvent> {
     private boolean withError = false;
     private Throwable t;
-    private final  CountDownLatch latch;
+    private final CountDownLatch latch;
     private List<JobEvent> jobEvents = new ArrayList<>();
 
     public DummyJobEventListener(CountDownLatch latch) {
@@ -614,16 +660,23 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
     Assert.assertSame(jobSummary.getJobState(), JobState.FAILED);
     Assert.assertNotNull(jobSummary.getFailureInfo());
     Assert.assertTrue(jobSummary.getEndTime() > jobSummary.getStartTime());
-    Assert.assertTrue(jobSummary.getFailureInfo().contains("Query failed due to kvstore or network errors. Details and profile information for this job may be partial or missing."));
+    Assert.assertTrue(
+        jobSummary
+            .getFailureInfo()
+            .contains(
+                "Query failed due to kvstore or network errors. Details and profile information for this job may be partial or missing."));
   }
 
-  private void injectProfileException(String controls, String expectedDesc, boolean master) throws Exception {
+  private void injectProfileException(String controls, String expectedDesc, boolean master)
+      throws Exception {
     JobId jobId = null;
     try {
       DremioClient dremioClient = getDremioClient(master);
       ControlsInjectionUtil.setControls(dremioClient, controls);
-      BaseTestQuery.QueryIdCapturingListener capturingListener = new BaseTestQuery.QueryIdCapturingListener();
-      final AwaitableUserResultsListener listener = new AwaitableUserResultsListener(capturingListener);
+      BaseTestQuery.QueryIdCapturingListener capturingListener =
+          new BaseTestQuery.QueryIdCapturingListener();
+      final AwaitableUserResultsListener listener =
+          new AwaitableUserResultsListener(capturingListener);
       QueryTestUtil.testWithListener(dremioClient, UserBitShared.QueryType.SQL, query1, listener);
 
       // wait till we have a queryId
@@ -640,22 +693,28 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
 
     Assert.assertNotNull(jobId);
 
-    JobSummary jobSummary = getMasterChronicleStub().getJobSummary(
-      JobSummaryRequest.newBuilder()
-        .setJobId(JobsProtoUtil.toBuf(jobId))
-        .setUserName(DEFAULT_USERNAME)
-        .build());
+    JobSummary jobSummary =
+        getMasterChronicleStub()
+            .getJobSummary(
+                JobSummaryRequest.newBuilder()
+                    .setJobId(JobsProtoUtil.toBuf(jobId))
+                    .setUserName(DEFAULT_USERNAME)
+                    .build());
 
     validateFailedJob(jobSummary);
-    Assert.assertEquals(JobsServiceUtil.getLastEventState(jobSummary), AttemptEvent.State.COMPLETED);
+    Assert.assertEquals(
+        JobsServiceUtil.getLastEventState(jobSummary), AttemptEvent.State.COMPLETED);
   }
 
   @Test
   public void testTailProfileFailedStateMaster() throws Exception {
-    final String controls = Controls.newBuilder()
-      .addException(AttemptManager.class, AttemptManager.INJECTOR_TAIL_PROFLE_ERROR,
-        RuntimeException.class)
-      .build();
+    final String controls =
+        Controls.newBuilder()
+            .addException(
+                AttemptManager.class,
+                AttemptManager.INJECTOR_TAIL_PROFLE_ERROR,
+                RuntimeException.class)
+            .build();
 
     injectProfileException(controls, AttemptManager.INJECTOR_TAIL_PROFLE_ERROR, true);
   }
@@ -664,8 +723,10 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
     JobId jobId = null;
     DremioClient dremioClient = getDremioClient(master);
     ControlsInjectionUtil.setControls(dremioClient, controls);
-    BaseTestQuery.QueryIdCapturingListener capturingListener = new BaseTestQuery.QueryIdCapturingListener();
-    final AwaitableUserResultsListener listener = new AwaitableUserResultsListener(capturingListener);
+    BaseTestQuery.QueryIdCapturingListener capturingListener =
+        new BaseTestQuery.QueryIdCapturingListener();
+    final AwaitableUserResultsListener listener =
+        new AwaitableUserResultsListener(capturingListener);
     QueryTestUtil.testWithListener(dremioClient, UserBitShared.QueryType.SQL, query1, listener);
 
     // wait till we have a queryId
@@ -680,14 +741,17 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
     Assert.assertNotNull(jobId);
 
     while (true) {
-      JobSummary jobSummary = getMasterChronicleStub().getJobSummary(
-        JobSummaryRequest.newBuilder()
-          .setJobId(JobsProtoUtil.toBuf(jobId))
-          .setUserName(DEFAULT_USERNAME)
-          .build());
-      if(jobSummary.getJobState() == JobState.FAILED) {
+      JobSummary jobSummary =
+          getMasterChronicleStub()
+              .getJobSummary(
+                  JobSummaryRequest.newBuilder()
+                      .setJobId(JobsProtoUtil.toBuf(jobId))
+                      .setUserName(DEFAULT_USERNAME)
+                      .build());
+      if (jobSummary.getJobState() == JobState.FAILED) {
         validateFailedJob(jobSummary);
-        Assert.assertEquals(JobsServiceUtil.getLastEventState(jobSummary), AttemptEvent.State.FAILED);
+        Assert.assertEquals(
+            JobsServiceUtil.getLastEventState(jobSummary), AttemptEvent.State.FAILED);
         break;
       }
       Thread.sleep(50);
@@ -696,30 +760,39 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
 
   @Test
   public void testAttemptCompletionFailedStateMaster() throws Exception {
-    final String controls = Controls.newBuilder()
-      .addException(LocalJobsService.class, LocalJobsService.INJECTOR_ATTEMPT_COMPLETION_ERROR,
-        IOException.class)
-      .build();
+    final String controls =
+        Controls.newBuilder()
+            .addException(
+                LocalJobsService.class,
+                LocalJobsService.INJECTOR_ATTEMPT_COMPLETION_ERROR,
+                IOException.class)
+            .build();
 
     injectAttemptCompletionException(controls, true);
   }
 
   @Test
   public void testAttemptCompletionFailedStateSlave() throws Exception {
-    final String controls = Controls.newBuilder()
-      .addException(LocalJobsService.class, LocalJobsService.INJECTOR_ATTEMPT_COMPLETION_ERROR,
-        IOException.class)
-      .build();
+    final String controls =
+        Controls.newBuilder()
+            .addException(
+                LocalJobsService.class,
+                LocalJobsService.INJECTOR_ATTEMPT_COMPLETION_ERROR,
+                IOException.class)
+            .build();
 
     injectAttemptCompletionException(controls, false);
   }
 
-  private void submitQuery(boolean master, String controls, CompletableFuture<JobId> future) throws Exception {
+  private void submitQuery(boolean master, String controls, CompletableFuture<JobId> future)
+      throws Exception {
     JobId jobId = null;
     DremioClient dremioClient = getDremioClient(master);
     ControlsInjectionUtil.setControls(dremioClient, controls);
-    BaseTestQuery.QueryIdCapturingListener capturingListener = new BaseTestQuery.QueryIdCapturingListener();
-    final AwaitableUserResultsListener listener = new AwaitableUserResultsListener(capturingListener);
+    BaseTestQuery.QueryIdCapturingListener capturingListener =
+        new BaseTestQuery.QueryIdCapturingListener();
+    final AwaitableUserResultsListener listener =
+        new AwaitableUserResultsListener(capturingListener);
     QueryTestUtil.testWithListener(dremioClient, UserBitShared.QueryType.SQL, query1, listener);
 
     // wait till we have a queryId
@@ -740,48 +813,54 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
     // submit job on master
     CompletableFuture<JobId> masterJobFuture = new CompletableFuture<>();
     CompletableFuture<JobId> slaveJobFuture = new CompletableFuture<>();
-    CompletableFuture.runAsync(()-> {
-        try {
-          submitQuery(true, controls, masterJobFuture);
-        } catch (Exception e) {
-        }
-      }
-    );
+    CompletableFuture.runAsync(
+        () -> {
+          try {
+            submitQuery(true, controls, masterJobFuture);
+          } catch (Exception e) {
+          }
+        });
 
-    CompletableFuture.runAsync(()-> {
-        try {
-          submitQuery(false, controls, slaveJobFuture);
-        } catch (Exception e) {
-        }
-      }
-    );
+    CompletableFuture.runAsync(
+        () -> {
+          try {
+            submitQuery(false, controls, slaveJobFuture);
+          } catch (Exception e) {
+          }
+        });
 
     JobId masterJobId = masterJobFuture.get();
     JobId slaveJobId = slaveJobFuture.get();
 
     while (true) {
-      JobSummary jobSummary = getMasterChronicleStub().getJobSummary(
-        JobSummaryRequest.newBuilder()
-          .setJobId(JobsProtoUtil.toBuf(masterJobId))
-          .setUserName(DEFAULT_USERNAME)
-          .build());
-      if(jobSummary.getJobState() == JobState.FAILED) {
+      JobSummary jobSummary =
+          getMasterChronicleStub()
+              .getJobSummary(
+                  JobSummaryRequest.newBuilder()
+                      .setJobId(JobsProtoUtil.toBuf(masterJobId))
+                      .setUserName(DEFAULT_USERNAME)
+                      .build());
+      if (jobSummary.getJobState() == JobState.FAILED) {
         validateFailedJob(jobSummary);
-        Assert.assertEquals(JobsServiceUtil.getLastEventState(jobSummary), AttemptEvent.State.FAILED);
+        Assert.assertEquals(
+            JobsServiceUtil.getLastEventState(jobSummary), AttemptEvent.State.FAILED);
         break;
       }
       Thread.sleep(50);
     }
 
     while (true) {
-      JobSummary jobSummary = getMasterChronicleStub().getJobSummary(
-        JobSummaryRequest.newBuilder()
-          .setJobId(JobsProtoUtil.toBuf(slaveJobId))
-          .setUserName(DEFAULT_USERNAME)
-          .build());
-      if(jobSummary.getJobState() == JobState.FAILED) {
+      JobSummary jobSummary =
+          getMasterChronicleStub()
+              .getJobSummary(
+                  JobSummaryRequest.newBuilder()
+                      .setJobId(JobsProtoUtil.toBuf(slaveJobId))
+                      .setUserName(DEFAULT_USERNAME)
+                      .build());
+      if (jobSummary.getJobState() == JobState.FAILED) {
         validateFailedJob(jobSummary);
-        Assert.assertEquals(JobsServiceUtil.getLastEventState(jobSummary), AttemptEvent.State.FAILED);
+        Assert.assertEquals(
+            JobsServiceUtil.getLastEventState(jobSummary), AttemptEvent.State.FAILED);
         break;
       }
       Thread.sleep(50);
@@ -790,10 +869,13 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
 
   @Test
   public void testAttemptCompletionFailedStateBoth() throws Exception {
-    final String controls = Controls.newBuilder()
-      .addException(LocalJobsService.class, LocalJobsService.INJECTOR_ATTEMPT_COMPLETION_ERROR,
-        IOException.class)
-      .build();
+    final String controls =
+        Controls.newBuilder()
+            .addException(
+                LocalJobsService.class,
+                LocalJobsService.INJECTOR_ATTEMPT_COMPLETION_ERROR,
+                IOException.class)
+            .build();
 
     injectAttemptCompletionException(controls);
   }

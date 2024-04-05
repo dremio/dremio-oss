@@ -22,15 +22,20 @@ import com.dremio.exec.store.SplitsPointer;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 
 /**
- * table_files requires its own TableMetadata , since its using different relnodes like ScanCrel. A separate TableMetadata helps to identify correct Prel Nodes
- * TableFilesFunctionScanPrule needs an identifier.
+ * table_files requires its own TableMetadata , since its using different relnodes like ScanCrel. A
+ * separate TableMetadata helps to identify correct Prel Nodes TableFilesFunctionScanPrule needs an
+ * identifier.
  */
 public class TableFilesFunctionTableMetadata extends TableMetadataImpl {
 
   private final BatchSchema schema;
 
-  public TableFilesFunctionTableMetadata(StoragePluginId pluginId, DatasetConfig config, String user, BatchSchema schema,
-                                         SplitsPointer splitsPointer) {
+  public TableFilesFunctionTableMetadata(
+      StoragePluginId pluginId,
+      DatasetConfig config,
+      String user,
+      BatchSchema schema,
+      SplitsPointer splitsPointer) {
     super(pluginId, config, user, splitsPointer, null);
     this.schema = schema;
   }
@@ -39,5 +44,4 @@ public class TableFilesFunctionTableMetadata extends TableMetadataImpl {
   public BatchSchema getSchema() {
     return schema;
   }
-
 }

@@ -16,8 +16,18 @@
 package com.dremio.jdbc.test;
 
 import static com.dremio.test.DremioTest.CLASSPATH_SCAN_RESULT;
-import static com.dremio.test.DremioTest.DEFAULT_SABOT_CONFIG;
 
+import com.dremio.common.logical.LogicalPlan;
+import com.dremio.common.logical.data.LogicalOperator;
+import com.dremio.exec.planner.PhysicalPlanReaderTestFactory;
+import com.dremio.jdbc.ConnectionFactory;
+import com.dremio.jdbc.ConnectionInfo;
+import com.dremio.sabot.rpc.user.UserSession;
+import com.google.common.base.Function;
+import com.google.common.base.Predicate;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.ImmutableSet.Builder;
+import com.google.common.collect.Iterables;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
@@ -31,25 +41,10 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.function.Consumer;
-
 import org.apache.calcite.linq4j.Ord;
 import org.junit.Assert;
 
-import com.dremio.common.logical.LogicalPlan;
-import com.dremio.common.logical.data.LogicalOperator;
-import com.dremio.exec.planner.PhysicalPlanReaderTestFactory;
-import com.dremio.jdbc.ConnectionFactory;
-import com.dremio.jdbc.ConnectionInfo;
-import com.dremio.sabot.rpc.user.UserSession;
-import com.google.common.base.Function;
-import com.google.common.base.Predicate;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.ImmutableSet.Builder;
-import com.google.common.collect.Iterables;
-
-/**
- * Fluent interface for writing JDBC and query-planning tests.
- */
+/** Fluent interface for writing JDBC and query-planning tests. */
 public class JdbcAssert {
 
   private static ConnectionFactory factory = null;
@@ -59,10 +54,9 @@ public class JdbcAssert {
   }
 
   /**
-   * Returns default bag of properties that is passed to JDBC connection.
-   * By default, includes options to:
-   *   - turn off the web server
-   *   - indicate DremioConnectionImpl to set up dfs_test.tmp schema location to an exclusive dir just for this test jvm
+   * Returns default bag of properties that is passed to JDBC connection. By default, includes
+   * options to: - turn off the web server - indicate DremioConnectionImpl to set up dfs_test.tmp
+   * schema location to an exclusive dir just for this test jvm
    */
   public static Properties getDefaultProperties() {
     final Properties properties = new Properties();
@@ -71,7 +65,8 @@ public class JdbcAssert {
     return properties;
   }
 
-  public static ModelAndSchema withModel(final String url, final String model, final String schema) {
+  public static ModelAndSchema withModel(
+      final String url, final String model, final String schema) {
     final Properties info = getDefaultProperties();
     info.setProperty("schema", schema);
     info.setProperty("model", "inline:" + model);
@@ -111,7 +106,10 @@ public class JdbcAssert {
     final List<Ord<String>> columns = columnLabels(resultSet);
     while (resultSet.next()) {
       for (Ord<String> column : columns) {
-        buf.append(column.i == 1 ? "" : "; ").append(column.e).append("=").append(resultSet.getObject(column.i));
+        buf.append(column.i == 1 ? "" : "; ")
+            .append(column.e)
+            .append("=")
+            .append(resultSet.getObject(column.i));
       }
       buf.append("\n");
     }
@@ -124,7 +122,10 @@ public class JdbcAssert {
     while (resultSet.next()) {
       StringBuilder buf = new StringBuilder();
       for (Ord<String> column : columns) {
-        buf.append(column.i == 1 ? "" : "; ").append(column.e).append("=").append(resultSet.getObject(column.i));
+        buf.append(column.i == 1 ? "" : "; ")
+            .append(column.e)
+            .append("=")
+            .append(resultSet.getObject(column.i));
       }
       builder.add(buf.toString());
       buf.setLength(0);
@@ -139,7 +140,10 @@ public class JdbcAssert {
     while (resultSet.next()) {
       buf.setLength(0);
       for (Ord<String> column : columns) {
-        buf.append(column.i == 1 ? "" : "; ").append(column.e).append("=").append(resultSet.getObject(column.i));
+        buf.append(column.i == 1 ? "" : "; ")
+            .append(column.e)
+            .append("=")
+            .append(resultSet.getObject(column.i));
       }
       list.add(buf.toString());
     }
@@ -159,14 +163,16 @@ public class JdbcAssert {
     private final Properties info;
     private final ConnectionFactoryAdapter adapter;
 
-    public ModelAndSchema(final String url, final Properties info, final ConnectionFactory factory) {
+    public ModelAndSchema(
+        final String url, final Properties info, final ConnectionFactory factory) {
       this.info = info;
-      this.adapter = new ConnectionFactoryAdapter() {
-        @Override
-        public Connection createConnection() throws Exception {
-          return factory.getConnection(new ConnectionInfo(url, ModelAndSchema.this.info));
-        }
-      };
+      this.adapter =
+          new ConnectionFactoryAdapter() {
+            @Override
+            public Connection createConnection() throws Exception {
+              return factory.getConnection(new ConnectionInfo(url, ModelAndSchema.this.info));
+            }
+          };
     }
 
     public TestDataConnection sql(String sql) {
@@ -195,9 +201,7 @@ public class JdbcAssert {
       this.sql = sql;
     }
 
-    /**
-     * Checks that the current SQL statement returns the expected result.
-     */
+    /** Checks that the current SQL statement returns the expected result. */
     public TestDataConnection returns(String expected) throws Exception {
       Connection connection = null;
       Statement statement = null;
@@ -210,7 +214,8 @@ public class JdbcAssert {
         resultSet.close();
 
         if (!expected.equals(result)) {
-          Assert.fail(String.format("Generated string:\n%s\ndoes not match:\n%s", result, expected));
+          Assert.fail(
+              String.format("Generated string:\n%s\ndoes not match:\n%s", result, expected));
         }
         return this;
       } finally {
@@ -248,8 +253,8 @@ public class JdbcAssert {
     }
 
     /**
-     * Checks that the current SQL statement returns the expected result lines. Lines are compared unordered; the test
-     * succeeds if the query returns these lines in any order.
+     * Checks that the current SQL statement returns the expected result lines. Lines are compared
+     * unordered; the test succeeds if the query returns these lines in any order.
      */
     public TestDataConnection returnsUnordered(String... expecteds) throws Exception {
       Connection connection = null;
@@ -258,7 +263,8 @@ public class JdbcAssert {
         connection = adapter.createConnection();
         statement = connection.createStatement();
         ResultSet resultSet = statement.executeQuery(sql);
-        Assert.assertEquals(unsortedList(Arrays.asList(expecteds)), unsortedList(JdbcAssert.toStrings(resultSet)));
+        Assert.assertEquals(
+            unsortedList(Arrays.asList(expecteds)), unsortedList(JdbcAssert.toStrings(resultSet)));
         resultSet.close();
         return this;
       } finally {
@@ -311,7 +317,9 @@ public class JdbcAssert {
         statement = connection.prepareStatement(sql);
         statement.close();
         final String plan = plan0[0].trim();
-        return LogicalPlan.parse(PhysicalPlanReaderTestFactory.defaultLogicalPlanPersistence(DEFAULT_SABOT_CONFIG, CLASSPATH_SCAN_RESULT), plan);
+        return LogicalPlan.parse(
+            PhysicalPlanReaderTestFactory.defaultLogicalPlanPersistence(CLASSPATH_SCAN_RESULT),
+            plan);
       } catch (Exception e) {
         throw new RuntimeException(e);
       } finally {
@@ -334,12 +342,15 @@ public class JdbcAssert {
     }
 
     public <T extends LogicalOperator> T planContains(final Class<T> operatorClazz) {
-      return (T) Iterables.find(logicalPlan().getSortedOperators(), new Predicate<LogicalOperator>() {
-        @Override
-        public boolean apply(LogicalOperator input) {
-          return input.getClass().equals(operatorClazz);
-        }
-      });
+      return (T)
+          Iterables.find(
+              logicalPlan().getSortedOperators(),
+              new Predicate<LogicalOperator>() {
+                @Override
+                public boolean apply(LogicalOperator input) {
+                  return input.getClass().equals(operatorClazz);
+                }
+              });
     }
   }
 

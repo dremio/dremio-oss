@@ -15,39 +15,46 @@
  */
 package com.dremio.exec.store.parquet;
 
-import java.util.Map;
-
-import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.io.file.FileSystem;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf;
 
 /**
- * Parquet reader for Iceberg datasets. This will be an inner reader of a
- * coercion reader to support up promotion of column data types.
+ * Parquet reader for Iceberg datasets. This will be an inner reader of a coercion reader to support
+ * up promotion of column data types.
  */
 public class IcebergParquetReader extends TransactionalTableParquetReader {
 
   public IcebergParquetReader(
-    OperatorContext context,
-    ParquetReaderFactory readerFactory,
-    BatchSchema tableSchema,
-    ParquetScanProjectedColumns projectedColumns,
-    Map<String, GlobalDictionaryFieldInfo> globalDictionaryFieldInfoMap,
-    IcebergParquetFilters filters,
-    ParquetProtobuf.ParquetDatasetSplitScanXAttr readEntry,
-    FileSystem fs,
-    MutableParquetMetadata footer,
-    GlobalDictionaries dictionaries,
-    SchemaDerivationHelper schemaHelper,
-    boolean vectorize,
-    boolean enableDetailedTracing,
-    boolean supportsColocatedReads,
-    InputStreamProvider inputStreamProvider,
-    boolean isConvertedIcebergDataset) {
-    super(context, readerFactory, tableSchema, projectedColumns, globalDictionaryFieldInfoMap, filters,
-            readEntry, fs, footer, dictionaries, schemaHelper, vectorize, enableDetailedTracing, supportsColocatedReads,
-            inputStreamProvider, isConvertedIcebergDataset);
+      OperatorContext context,
+      ParquetReaderFactory readerFactory,
+      BatchSchema tableSchema,
+      ParquetScanProjectedColumns projectedColumns,
+      IcebergParquetFilters filters,
+      ParquetProtobuf.ParquetDatasetSplitScanXAttr readEntry,
+      FileSystem fs,
+      MutableParquetMetadata footer,
+      SchemaDerivationHelper schemaHelper,
+      boolean vectorize,
+      boolean enableDetailedTracing,
+      boolean supportsColocatedReads,
+      InputStreamProvider inputStreamProvider,
+      boolean isConvertedIcebergDataset) {
+    super(
+        context,
+        readerFactory,
+        tableSchema,
+        projectedColumns,
+        filters,
+        readEntry,
+        fs,
+        footer,
+        schemaHelper,
+        vectorize,
+        enableDetailedTracing,
+        supportsColocatedReads,
+        inputStreamProvider,
+        isConvertedIcebergDataset);
   }
 }

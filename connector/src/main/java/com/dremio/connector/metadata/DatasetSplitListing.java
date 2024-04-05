@@ -17,9 +17,7 @@ package com.dremio.connector.metadata;
 
 import java.util.Iterator;
 
-/**
- * Listing of dataset splits.
- */
+/** Listing of dataset splits. */
 public interface DatasetSplitListing {
 
   /**
@@ -28,5 +26,4 @@ public interface DatasetSplitListing {
    * @return iterator of dataset splits
    */
   Iterator<? extends DatasetSplit> iterator();
-
 }

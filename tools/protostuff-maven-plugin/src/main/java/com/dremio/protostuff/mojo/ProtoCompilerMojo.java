@@ -22,11 +22,12 @@ import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.Mojo;
 
-/**
- * A Mojo mirror of Protostuff mojo, making execute thread-safe
- *
- */
-@Mojo(name = "compile", configurator = "include-project-dependencies", requiresDependencyResolution = COMPILE_PLUS_RUNTIME, threadSafe = true)
+/** A Mojo mirror of Protostuff mojo, making execute thread-safe */
+@Mojo(
+    name = "compile",
+    configurator = "include-project-dependencies",
+    requiresDependencyResolution = COMPILE_PLUS_RUNTIME,
+    threadSafe = true)
 public class ProtoCompilerMojo extends io.protostuff.mojo.ProtoCompilerMojo {
 
   private static final Object LOCK = new Object();
@@ -34,7 +35,7 @@ public class ProtoCompilerMojo extends io.protostuff.mojo.ProtoCompilerMojo {
   @Override
   public void execute() throws MojoExecutionException, MojoFailureException {
     synchronized (LOCK) {
-     super.execute();
+      super.execute();
     }
   }
 }

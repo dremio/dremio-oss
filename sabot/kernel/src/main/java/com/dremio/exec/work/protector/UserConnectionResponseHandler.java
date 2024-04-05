@@ -33,12 +33,13 @@ public class UserConnectionResponseHandler implements UserResponseHandler {
 
   @Override
   public void completed(UserResult result) {
-    client.sendResult(new BaseRpcOutcomeListener<Ack>(), ErrorCompatibility.convertIfNecessary(result.toQueryResult()));
+    client.sendResult(
+        new BaseRpcOutcomeListener<Ack>(),
+        ErrorCompatibility.convertIfNecessary(result.toQueryResult()));
   }
 
   @Override
   public void sendData(RpcOutcomeListener<Ack> outcomeListener, QueryWritableBatch result) {
     client.sendData(outcomeListener, result);
   }
-
 }

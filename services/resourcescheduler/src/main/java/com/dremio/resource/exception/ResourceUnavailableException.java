@@ -16,7 +16,8 @@
 package com.dremio.resource.exception;
 
 /**
- * Resource unavailable exception. This exception is treated as an internal cancellation, and not a query failure.
+ * Resource unavailable exception. This exception is treated as an internal cancellation, and not a
+ * query failure.
  */
 public class ResourceUnavailableException extends ResourceAllocationException {
 

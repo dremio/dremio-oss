@@ -18,23 +18,21 @@ package com.dremio.plugins;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators;
 
-/**
- * System options for NessieClient.
- */
+/** System options for NessieClient. */
 @Options
 public final class NessieClientOptions {
 
   public static final TypeValidators.PositiveLongValidator NESSIE_CONTENT_CACHE_SIZE_ITEMS =
-    new TypeValidators.PositiveLongValidator(
-      "plugins.dataplane.nessie_content_cache.size_items",
-      1_000_000_000,
-      10_000);
+      new TypeValidators.PositiveLongValidator(
+          "plugins.dataplane.nessie_content_cache.size_items", 1_000_000_000, 10_000);
 
   public static final TypeValidators.PositiveLongValidator NESSIE_CONTENT_CACHE_TTL_MINUTES =
-    new TypeValidators.PositiveLongValidator(
-      "plugins.dataplane.nessie_content_cache.ttl_minutes",
-      1_000_000_000,
-      60 /* One hour */);
+      new TypeValidators.PositiveLongValidator(
+          "plugins.dataplane.nessie_content_cache.ttl_minutes", 1_000_000_000, 60 /* One hour */);
+
+  public static final TypeValidators.BooleanValidator BYPASS_CONTENT_CACHE =
+      new TypeValidators.BooleanValidator(
+          "plugins.dataplane.nessie_content_cache.bypass_cache", false);
 
   private NessieClientOptions() {}
 }

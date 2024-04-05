@@ -18,13 +18,12 @@ package com.dremio.dac.service.errors;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response;
 
-
-/**
- * Exception to indicate
- */
+/** Exception to indicate */
 public class InvalidReflectionJobException extends WebApplicationException {
   public InvalidReflectionJobException(String jobId, String reflectionId) {
-    super(String.format("Reflection [%s] is not processed by job [%s]", reflectionId, jobId), Response.Status.NOT_FOUND);
+    super(
+        String.format("Reflection [%s] is not processed by job [%s]", reflectionId, jobId),
+        Response.Status.NOT_FOUND);
   }
 
   public InvalidReflectionJobException(Exception e) {

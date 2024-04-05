@@ -15,7 +15,7 @@
  */
 
 /**
- * Tracing proxy JDBC driver.  Traces calls to another JDBC driver.
+ * Tracing proxy JDBC driver. Traces calls to another JDBC driver.
  *
  * @see com.dremio.jdbc.proxy.TracingProxyDriver
  */

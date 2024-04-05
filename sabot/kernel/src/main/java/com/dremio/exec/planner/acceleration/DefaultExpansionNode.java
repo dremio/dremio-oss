@@ -15,29 +15,31 @@
  */
 package com.dremio.exec.planner.acceleration;
 
+import com.dremio.catalog.model.dataset.TableVersionContext;
+import com.dremio.service.namespace.NamespaceKey;
 import java.util.List;
-
 import org.apache.calcite.plan.CopyWithCluster;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
 
-import com.dremio.catalog.model.dataset.TableVersionContext;
-import com.dremio.service.namespace.NamespaceKey;
-
-/**
-  * Represents a location where the query was expanded from a VDS to a default reflection
-  */
+/** Represents a location where the query was expanded from a VDS to a default reflection */
 public class DefaultExpansionNode extends ExpansionNode {
-  protected DefaultExpansionNode(NamespaceKey path, RelDataType rowType, RelOptCluster cluster, RelTraitSet traits, RelNode input,
-                                 boolean contextSensitive, TableVersionContext versionContext) {
-    super(path, rowType, cluster, traits, input, contextSensitive, versionContext);
+  protected DefaultExpansionNode(
+      NamespaceKey path,
+      RelDataType rowType,
+      RelOptCluster cluster,
+      RelTraitSet traits,
+      RelNode input,
+      TableVersionContext versionContext) {
+    super(path, rowType, cluster, traits, input, versionContext);
   }
 
-  public static DefaultExpansionNode wrap(NamespaceKey path, RelNode node, RelDataType rowType,
-                                          boolean contextSensitive, TableVersionContext versionContext) {
-    return new DefaultExpansionNode(path, rowType, node.getCluster(), node.getTraitSet(), node, contextSensitive, versionContext);
+  public static DefaultExpansionNode wrap(
+      NamespaceKey path, RelNode node, RelDataType rowType, TableVersionContext versionContext) {
+    return new DefaultExpansionNode(
+        path, rowType, node.getCluster(), node.getTraitSet(), node, versionContext);
   }
 
   @Override
@@ -47,13 +49,18 @@ public class DefaultExpansionNode extends ExpansionNode {
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new DefaultExpansionNode(getPath(), rowType, this.getCluster(), traitSet, inputs.get(0),
-      isContextSensitive(), getVersionContext());
+    return new DefaultExpansionNode(
+        getPath(), rowType, this.getCluster(), traitSet, inputs.get(0), getVersionContext());
   }
 
   @Override
   public RelNode copyWith(CopyWithCluster copier) {
-    return new DefaultExpansionNode(getPath(), rowType, copier.getCluster(), copier.copyOf(getTraitSet()),
-      getInput().accept(copier), isContextSensitive(), getVersionContext());
+    return new DefaultExpansionNode(
+        getPath(),
+        rowType,
+        copier.getCluster(),
+        copier.copyOf(getTraitSet()),
+        getInput().accept(copier),
+        getVersionContext());
   }
 }

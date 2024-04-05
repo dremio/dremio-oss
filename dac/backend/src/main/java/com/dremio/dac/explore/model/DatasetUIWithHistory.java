@@ -18,15 +18,14 @@ package com.dremio.dac.explore.model;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-/**
- * Response of doing a reapply and save.
- */
+/** Response of doing a reapply and save. */
 public class DatasetUIWithHistory {
   private final DatasetUI dataset;
   private final History history;
 
   @JsonCreator
-  public DatasetUIWithHistory(@JsonProperty("dataset") DatasetUI dataset, @JsonProperty("history") History history) {
+  public DatasetUIWithHistory(
+      @JsonProperty("dataset") DatasetUI dataset, @JsonProperty("history") History history) {
     super();
     this.dataset = dataset;
     this.history = history;
@@ -41,6 +40,4 @@ public class DatasetUIWithHistory {
   public History getHistory() {
     return history;
   }
-
-
 }

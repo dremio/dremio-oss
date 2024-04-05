@@ -39,7 +39,7 @@ FormikSelect.propTypes = {
     PropTypes.shape({
       label: PropTypes.node,
       value: PropTypes.string,
-    })
+    }),
   ).isRequired,
   style: PropTypes.object,
 };

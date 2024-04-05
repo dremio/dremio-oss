@@ -24,13 +24,6 @@ import static com.dremio.dac.util.DatasetsUtil.position;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.lang.String.format;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.regex.Matcher;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.explore.PatternMatchUtils.CharType;
 import com.dremio.dac.explore.PatternMatchUtils.Match;
@@ -45,17 +38,23 @@ import com.dremio.dac.proto.model.dataset.ExtractRulePosition;
 import com.dremio.dac.proto.model.dataset.Offset;
 import com.dremio.dac.util.DatasetsUtil;
 import com.dremio.dac.util.DatasetsUtil.ExtractRuleVisitor;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.regex.Matcher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * Extract transformation recommendation suggestions and generating examples and number of matches in sample data
- * for each recommendation.
+ * Extract transformation recommendation suggestions and generating examples and number of matches
+ * in sample data for each recommendation.
  */
 public class ExtractRecommender extends Recommender<ExtractRule, Selection> {
   private static final Logger logger = LoggerFactory.getLogger(ExtractRecommender.class);
 
   @Override
   public List<ExtractRule> getRules(Selection selection, DataType selColType) {
-    checkArgument(selColType == DataType.TEXT, "Extract text is supported only on TEXT type columns");
+    checkArgument(
+        selColType == DataType.TEXT, "Extract text is supported only on TEXT type columns");
 
     if (selection.getLength() <= 0) {
       throw UserException.validationError()
@@ -90,8 +89,12 @@ public class ExtractRecommender extends Recommender<ExtractRule, Selection> {
     int total = selection.getCellText().length();
     List<ExtractRule> rules = new ArrayList<>();
     rules.add(position(new Offset(start, FROM_THE_START), new Offset(end, FROM_THE_START)));
-    rules.add(position(new Offset(start, FROM_THE_START), new Offset(total - end - 1, FROM_THE_END)));
-    rules.add(position(new Offset(total - start - 1, FROM_THE_END), new Offset(total - end - 1, FROM_THE_END)));
+    rules.add(
+        position(new Offset(start, FROM_THE_START), new Offset(total - end - 1, FROM_THE_END)));
+    rules.add(
+        position(
+            new Offset(total - start - 1, FROM_THE_END),
+            new Offset(total - end - 1, FROM_THE_END)));
     return rules;
   }
 
@@ -103,7 +106,8 @@ public class ExtractRecommender extends Recommender<ExtractRule, Selection> {
     String selected = cellText.substring(start, end);
     for (CharType charType : PatternMatchUtils.CharType.values()) {
       boolean startIsCharType = start == 0 ? false : charType.isTypeOf(cellText.charAt(start - 1));
-      boolean endIsCharType = end == cellText.length() ? false : charType.isTypeOf(cellText.charAt(end));
+      boolean endIsCharType =
+          end == cellText.length() ? false : charType.isTypeOf(cellText.charAt(end));
       boolean selectionIsCharType = charType.isTypeOf(selected);
       if (!startIsCharType && !endIsCharType && selectionIsCharType) {
         Matcher matcher = charType.matcher(cellText);
@@ -151,13 +155,13 @@ public class ExtractRecommender extends Recommender<ExtractRule, Selection> {
       if (patternRule.getIgnoreCase() != null && patternRule.getIgnoreCase()) {
         pattern = "(?i)(?u)" + pattern;
       }
-      return String.format("%s(%s, %s, %d, %s)",
+      return String.format(
+          "%s(%s, %s, %d, %s)",
           functionName,
           inputExpr,
           stringLiteral(pattern),
           patternRule.getIndex(),
-          stringLiteral(patternRule.getIndexType().name())
-      );
+          stringLiteral(patternRule.getIndexType().name()));
     }
 
     @Override
@@ -185,32 +189,37 @@ public class ExtractRecommender extends Recommender<ExtractRule, Selection> {
 
     @Override
     public String getExampleFunctionExpr(String input) {
-      return format("%s(%s, %d, %s)",
+      return format(
+          "%s(%s, %d, %s)",
           ExtractPosition.GEN_EXAMPLE,
           input,
           getOffset(rule.getPosition().getStartIndex()),
-          getLength(input, rule.getPosition().getStartIndex(), rule.getPosition().getEndIndex())
-      );
+          getLength(input, rule.getPosition().getStartIndex(), rule.getPosition().getEndIndex()));
     }
 
     @Override
     public String getFunctionExpr(String expr, Object... args) {
       String function = getSubStrFunction(expr);
 
-      // filter out the empty strings. Substr returns empty string when offsets are invalid in input.
+      // filter out the empty strings. Substr returns empty string when offsets are invalid in
+      // input.
       return String.format("CASE WHEN length(%s) > 0 THEN %s ELSE NULL END", function, function);
     }
 
     private String getSubStrFunction(String inputExpr) {
       ExtractRulePosition position = rule.getPosition();
-      return format("substr(%s, %d, %s)", inputExpr,
+      return format(
+          "substr(%s, %d, %s)",
+          inputExpr,
           getOffset(position.getStartIndex()),
           getLength(inputExpr, position.getStartIndex(), position.getEndIndex()));
     }
 
     private static int getOffset(Offset start) {
       // Substr takes offset in range [1, length]
-      return start.getDirection() == Direction.FROM_THE_END ? -1 * (start.getValue() + 1) : (start.getValue() + 1);
+      return start.getDirection() == Direction.FROM_THE_END
+          ? -1 * (start.getValue() + 1)
+          : (start.getValue() + 1);
     }
 
     private static String getLength(String expr, Offset start, Offset end) {
@@ -292,7 +301,8 @@ public class ExtractRecommender extends Recommender<ExtractRule, Selection> {
         }
         break;
       default:
-        throw new UnsupportedOperationException("unknown index type " + extractRulePattern.getIndexType());
+        throw new UnsupportedOperationException(
+            "unknown index type " + extractRulePattern.getIndexType());
     }
 
     if (extractRulePattern.getIgnoreCase() != null && extractRulePattern.getIgnoreCase()) {
@@ -304,22 +314,25 @@ public class ExtractRecommender extends Recommender<ExtractRule, Selection> {
 
   /**
    * Generates a Human readable description from a rule
+   *
    * @param rule the rule
    * @return the description
    */
   public static String describe(ExtractRule rule) {
-    return DatasetsUtil.accept(rule, new ExtractRuleVisitor<String>() {
-      @Override
-      public String visit(ExtractRulePattern extractRulePattern) throws Exception {
-        return describeExtractRulePattern(extractRulePattern);
-      }
+    return DatasetsUtil.accept(
+        rule,
+        new ExtractRuleVisitor<String>() {
+          @Override
+          public String visit(ExtractRulePattern extractRulePattern) throws Exception {
+            return describeExtractRulePattern(extractRulePattern);
+          }
 
-      @Override
-      public String visit(ExtractRulePosition position) throws Exception {
-        Offset start = position.getStartIndex();
-        Offset end = position.getEndIndex();
-        return describePlacement(start, end);
-      }
-    });
+          @Override
+          public String visit(ExtractRulePosition position) throws Exception {
+            Offset start = position.getStartIndex();
+            Offset end = position.getEndIndex();
+            return describePlacement(start, end);
+          }
+        });
   }
 }

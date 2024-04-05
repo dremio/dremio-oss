@@ -19,6 +19,13 @@ import static com.dremio.sabot.Fixtures.t;
 import static com.dremio.sabot.Fixtures.th;
 import static com.dremio.sabot.Fixtures.tr;
 
+import com.dremio.common.AutoCloseables;
+import com.dremio.common.expression.CompleteType;
+import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.record.SchemaBuilder;
+import com.dremio.exec.record.VectorAccessible;
+import com.dremio.exec.record.VectorContainer;
+import com.google.common.base.Preconditions;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -27,7 +34,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
@@ -41,21 +47,14 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.commons.lang3.RandomStringUtils;
 
-import com.dremio.common.AutoCloseables;
-import com.dremio.common.expression.CompleteType;
-import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.record.SchemaBuilder;
-import com.dremio.exec.record.VectorAccessible;
-import com.dremio.exec.record.VectorContainer;
-import com.google.common.base.Preconditions;
-
-/**
- * custom data generator for large number of accumulators in the schema
- */
+/** custom data generator for large number of accumulators in the schema */
 public class CustomHashAggDataGeneratorLargeAccum implements Generator {
-  private static final FieldType DECIMAL_FIELD_TYPE = FieldType.nullable(new ArrowType.Decimal(38, 9, 128));
-  private static final ArrowType.Decimal DECIMAL_ARROWTYPE = (ArrowType.Decimal) DECIMAL_FIELD_TYPE.getType();
-  private static final CompleteType DECIMAL_COMPLETE_TYPE = new CompleteType(DECIMAL_ARROWTYPE, new ArrayList<>());
+  private static final FieldType DECIMAL_FIELD_TYPE =
+      FieldType.nullable(new ArrowType.Decimal(38, 9, 128));
+  private static final ArrowType.Decimal DECIMAL_ARROWTYPE =
+      (ArrowType.Decimal) DECIMAL_FIELD_TYPE.getType();
+  private static final CompleteType DECIMAL_COMPLETE_TYPE =
+      new CompleteType(DECIMAL_ARROWTYPE, new ArrayList<>());
 
   private static final Field INT_KEY = CompleteType.INT.toField("INT_KEY");
   private static final Field BIGINT_KEY = CompleteType.BIGINT.toField("BIGINT_KEY");
@@ -113,24 +112,25 @@ public class CustomHashAggDataGeneratorLargeAccum implements Generator {
   private int batches;
   private final Map<Key, Value> aggregatedResults = new HashMap<>();
 
-  public CustomHashAggDataGeneratorLargeAccum(final int numRows, final BufferAllocator allocator, final int numAccum)
-  {
+  public CustomHashAggDataGeneratorLargeAccum(
+      final int numRows, final BufferAllocator allocator, final int numAccum) {
     this.numRows = numRows;
     this.numAccum = numAccum;
-    this.batches = numRows/BATCH_SIZE;
+    this.batches = numRows / BATCH_SIZE;
     this.createBigSchemaAndInputContainer(allocator);
     this.buildInputTableDataAndResultset();
   }
 
   private void createBigSchemaAndInputContainer(final BufferAllocator allocator) {
     SchemaBuilder schemaBuilder = BatchSchema.newBuilder();
-    schemaBuilder.addField(INT_KEY)
-      .addField(BIGINT_KEY)
-      .addField(VARCHAR_KEY)
-      .addField(FLOAT_KEY)
-      .addField(DOUBLE_KEY)
-      .addField(BOOLEAN_KEY)
-      .addField(DECIMAL_KEY);
+    schemaBuilder
+        .addField(INT_KEY)
+        .addField(BIGINT_KEY)
+        .addField(VARCHAR_KEY)
+        .addField(FLOAT_KEY)
+        .addField(DOUBLE_KEY)
+        .addField(BOOLEAN_KEY)
+        .addField(DECIMAL_KEY);
     for (int i = 0; i < this.numAccum; ++i) {
       schemaBuilder = schemaBuilder.addField(CompleteType.INT.toField("INT_MEASURE_" + i));
     }
@@ -177,7 +177,7 @@ public class CustomHashAggDataGeneratorLargeAccum implements Generator {
       decimalKey.setSafe(i, decimalKeyValues[absoluteRecordIndex]);
 
       // populate vectors in incoming batch for accumulator column data
-      for (int j = 0 ; j < this.numAccum; ++j) {
+      for (int j = 0; j < this.numAccum; ++j) {
         this.accumList.get(j).setSafe(i, intMeasureValues[absoluteRecordIndex]);
       }
     }
@@ -191,11 +191,25 @@ public class CustomHashAggDataGeneratorLargeAccum implements Generator {
     Iterator iterator = aggregatedResults.entrySet().iterator();
     int row = 0;
     while (iterator.hasNext()) {
-      final Map.Entry<CustomHashAggDataGeneratorLargeAccum.Key, CustomHashAggDataGeneratorLargeAccum.Value> pair = (Map.Entry<CustomHashAggDataGeneratorLargeAccum.Key, CustomHashAggDataGeneratorLargeAccum.Value>)iterator.next();
+      final Map.Entry<
+              CustomHashAggDataGeneratorLargeAccum.Key, CustomHashAggDataGeneratorLargeAccum.Value>
+          pair =
+              (Map.Entry<
+                      CustomHashAggDataGeneratorLargeAccum.Key,
+                      CustomHashAggDataGeneratorLargeAccum.Value>)
+                  iterator.next();
       final CustomHashAggDataGeneratorLargeAccum.Key k = pair.getKey();
       final CustomHashAggDataGeneratorLargeAccum.Value v = pair.getValue();
-      List<Object> keys = new ArrayList<>(
-        Arrays.asList(k.intKey, k.bigintKey, k.varKey, Float.intBitsToFloat(k.floatKey), Double.longBitsToDouble(k.doubleKey), k.booleanKey, k.decimalKey));
+      List<Object> keys =
+          new ArrayList<>(
+              Arrays.asList(
+                  k.intKey,
+                  k.bigintKey,
+                  k.varKey,
+                  Float.intBitsToFloat(k.floatKey),
+                  Double.longBitsToDouble(k.doubleKey),
+                  k.booleanKey,
+                  k.decimalKey));
       List<Long> metrics = Collections.nCopies(this.numAccum, v.sumInt);
       keys.addAll(metrics);
       rows[row] = tr(keys.toArray());
@@ -255,8 +269,8 @@ public class CustomHashAggDataGeneratorLargeAccum implements Generator {
           /* key columns */
           if (i < pos + GROUP_INTERVAL_PER_BATCH) {
             /* generate unique key column values */
-            intKeyValues[i] = intKeyValues[i-1] + 1;
-            bigintKeyValues[i] = bigintKeyValues[i-1] + 1L;
+            intKeyValues[i] = intKeyValues[i - 1] + 1;
+            bigintKeyValues[i] = bigintKeyValues[i - 1] + 1L;
             varKeyValues[i] = VARCHAR_BASEVALUE + RandomStringUtils.randomAlphabetic(10);
             floatKeyValues[i] = floatKeyValues[i - 1] + 1.0f;
             doubleKeyValues[i] = doubleKeyValues[i - 1] + 1.0D;
@@ -274,13 +288,19 @@ public class CustomHashAggDataGeneratorLargeAccum implements Generator {
           }
 
           /* measure columns */
-          intMeasureValues[i] = intMeasureValues[i-1] + INT_INCREMENT;
+          intMeasureValues[i] = intMeasureValues[i - 1] + INT_INCREMENT;
         }
 
         /* compute the hashagg results as we build the data */
-        final CustomHashAggDataGeneratorLargeAccum.Key k = new CustomHashAggDataGeneratorLargeAccum.Key(intKeyValues[i], bigintKeyValues[i], varKeyValues[i],
-          Float.floatToIntBits(floatKeyValues[i]), Double.doubleToLongBits(doubleKeyValues[i]),
-          booleanKeyValues[i], decimalKeyValues[i]);
+        final CustomHashAggDataGeneratorLargeAccum.Key k =
+            new CustomHashAggDataGeneratorLargeAccum.Key(
+                intKeyValues[i],
+                bigintKeyValues[i],
+                varKeyValues[i],
+                Float.floatToIntBits(floatKeyValues[i]),
+                Double.doubleToLongBits(doubleKeyValues[i]),
+                booleanKeyValues[i],
+                decimalKeyValues[i]);
         CustomHashAggDataGeneratorLargeAccum.Value v = aggregatedResults.get(k);
         if (v == null) {
           v = new CustomHashAggDataGeneratorLargeAccum.Value(intMeasureValues[i]);
@@ -291,7 +311,8 @@ public class CustomHashAggDataGeneratorLargeAccum implements Generator {
       }
       batch++;
     }
-    Preconditions.checkArgument(aggregatedResults.size() == (GROUPS_PER_BATCH * batches), "result table built incorrectly");
+    Preconditions.checkArgument(
+        aggregatedResults.size() == (GROUPS_PER_BATCH * batches), "result table built incorrectly");
   }
 
   @Override
@@ -308,8 +329,13 @@ public class CustomHashAggDataGeneratorLargeAccum implements Generator {
     private final boolean booleanKey;
     private final BigDecimal decimalKey;
 
-    Key(final int intKey, final long bigintKey, final String varKey,
-        final int floatKey, final long doubleKey, final boolean booleanKey,
+    Key(
+        final int intKey,
+        final long bigintKey,
+        final String varKey,
+        final int floatKey,
+        final long doubleKey,
+        final boolean booleanKey,
         final BigDecimal decimalKey) {
       this.intKey = intKey;
       this.bigintKey = bigintKey;
@@ -321,15 +347,22 @@ public class CustomHashAggDataGeneratorLargeAccum implements Generator {
     }
 
     @Override
-    public boolean equals (Object other) {
+    public boolean equals(Object other) {
       if (!(other instanceof CustomHashAggDataGeneratorLargeAccum.Key)) {
         return false;
       }
 
-      final CustomHashAggDataGeneratorLargeAccum.Key k = (CustomHashAggDataGeneratorLargeAccum.Key)other;
-      return (this.intKey == k.intKey) && (this.bigintKey == k.bigintKey) && (this.varKey.equals(k.varKey))
-        && (this.floatKey == ((CustomHashAggDataGeneratorLargeAccum.Key) other).floatKey) && this.doubleKey == ((CustomHashAggDataGeneratorLargeAccum.Key) other).doubleKey
-        && (this.booleanKey == ((CustomHashAggDataGeneratorLargeAccum.Key) other).booleanKey) && (this.decimalKey.compareTo(((CustomHashAggDataGeneratorLargeAccum.Key) other).decimalKey) == 0);
+      final CustomHashAggDataGeneratorLargeAccum.Key k =
+          (CustomHashAggDataGeneratorLargeAccum.Key) other;
+      return (this.intKey == k.intKey)
+          && (this.bigintKey == k.bigintKey)
+          && (this.varKey.equals(k.varKey))
+          && (this.floatKey == ((CustomHashAggDataGeneratorLargeAccum.Key) other).floatKey)
+          && this.doubleKey == ((CustomHashAggDataGeneratorLargeAccum.Key) other).doubleKey
+          && (this.booleanKey == ((CustomHashAggDataGeneratorLargeAccum.Key) other).booleanKey)
+          && (this.decimalKey.compareTo(
+                  ((CustomHashAggDataGeneratorLargeAccum.Key) other).decimalKey)
+              == 0);
     }
 
     @Override
@@ -348,6 +381,7 @@ public class CustomHashAggDataGeneratorLargeAccum implements Generator {
 
   private static class Value {
     private long sumInt;
+
     Value(final long in) {
       this.sumInt = in;
     }
@@ -356,6 +390,8 @@ public class CustomHashAggDataGeneratorLargeAccum implements Generator {
       this.sumInt += in;
     }
 
-    long get() { return this.sumInt; }
+    long get() {
+      return this.sumInt;
+    }
   }
 }

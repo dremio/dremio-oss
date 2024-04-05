@@ -15,9 +15,5 @@
  */
 package com.dremio.exec.physical.base;
 
-
-/**
- * Describes the root operation within a particular Fragment. This includes things Sender nodes.
- */
-public interface FragmentRoot extends PhysicalOperator {
-}
+/** Describes the root operation within a particular Fragment. This includes things Sender nodes. */
+public interface FragmentRoot extends PhysicalOperator {}

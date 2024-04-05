@@ -15,18 +15,6 @@
  */
 package com.dremio.sabot.op.boost;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-
-import org.apache.arrow.vector.VarCharVector;
-import org.apache.arrow.vector.types.pojo.ArrowType;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.types.pojo.FieldType;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.physical.base.OpProps;
@@ -46,6 +34,16 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf;
 import com.google.common.base.Preconditions;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import org.apache.arrow.vector.VarCharVector;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class BoostTableFunction extends ParquetScanTableFunction {
 
@@ -53,7 +51,8 @@ public class BoostTableFunction extends ParquetScanTableFunction {
   private List<String> columnsToBoost = new ArrayList();
   private BoostedFileSystem boostedFS;
   private final List<ArrowColumnWriter> currentWriters;
-  private List<String> dataset = functionConfig.getFunctionContext().getReferencedTables().iterator().next();
+  private List<String> dataset =
+      functionConfig.getFunctionContext().getReferencedTables().iterator().next();
   private RecordReaderIterator recordReaderIterator;
   private VectorContainer boostOutputContainer;
   private VarCharVector columnVector;
@@ -61,14 +60,21 @@ public class BoostTableFunction extends ParquetScanTableFunction {
   // specifies schema of BoostOperator output
   static String COLUMN = "Column";
 
-  public static BatchSchema SCHEMA = BatchSchema.newBuilder()
-    .addField(new Field(COLUMN, FieldType.nullable(new ArrowType.Utf8()), Collections.emptyList()))
-    .setSelectionVectorMode(BatchSchema.SelectionVectorMode.NONE)
-    .build();
+  public static BatchSchema SCHEMA =
+      BatchSchema.newBuilder()
+          .addField(
+              new Field(COLUMN, FieldType.nullable(new ArrowType.Utf8()), Collections.emptyList()))
+          .setSelectionVectorMode(BatchSchema.SelectionVectorMode.NONE)
+          .build();
 
   Field COLUMN_FIELD = SCHEMA.getColumn(0);
 
-  public BoostTableFunction(FragmentExecutionContext fec, OperatorContext context, OpProps props, TableFunctionConfig functionConfig) throws ExecutionSetupException {
+  public BoostTableFunction(
+      FragmentExecutionContext fec,
+      OperatorContext context,
+      OpProps props,
+      TableFunctionConfig functionConfig)
+      throws ExecutionSetupException {
     super(fec, context, props, functionConfig);
     this.fec = fec;
     this.props = props;
@@ -86,8 +92,9 @@ public class BoostTableFunction extends ParquetScanTableFunction {
   @Override
   public VectorAccessible setup(VectorAccessible accessible) throws Exception {
     super.setup(accessible);
-    FileSystem fs ;
-    FileSystemPlugin<?> plugin = fec.getStoragePlugin(functionConfig.getFunctionContext().getPluginId());
+    FileSystem fs;
+    FileSystemPlugin<?> plugin =
+        fec.getStoragePlugin(functionConfig.getFunctionContext().getPluginId());
 
     try {
       fs = plugin.createFS(props.getUserName(), context);
@@ -120,7 +127,10 @@ public class BoostTableFunction extends ParquetScanTableFunction {
       try {
         writer.write(rowsProcessed);
       } catch (IOException ex) {
-        logger.error("Failed to write record batch of column [{}] to boost file, skipping column", writer.column, ex);
+        logger.error(
+            "Failed to write record batch of column [{}] to boost file, skipping column",
+            writer.column,
+            ex);
         writer.abort();
         failedWriters.add(writer);
       }
@@ -136,21 +146,28 @@ public class BoostTableFunction extends ParquetScanTableFunction {
 
   @Override
   public void close() throws Exception {
-    BoostTableFunctionContext boostTableFunctionContext = (BoostTableFunctionContext) functionConfig.getFunctionContext();
+    BoostTableFunctionContext boostTableFunctionContext =
+        (BoostTableFunctionContext) functionConfig.getFunctionContext();
     context.getSpillService().deleteSpillSubdirs(boostTableFunctionContext.getSplitDir());
     super.close();
   }
 
   private void setUpNewWriters() {
-    ParquetProtobuf.ParquetDatasetSplitScanXAttr splitXAttr = getRecordReaderIterator().getCurrentSplitXAttr();
+    ParquetProtobuf.ParquetDatasetSplitScanXAttr splitXAttr =
+        getRecordReaderIterator().getCurrentSplitXAttr();
     Preconditions.checkArgument(splitXAttr != null, "splitXAttr can not be null");
     for (String columnName : columnsToBoost) {
       ArrowColumnWriter arrowColumnWriter;
       try {
-        arrowColumnWriter = new ArrowColumnWriter(splitXAttr, columnName, context, boostedFS, dataset);
+        arrowColumnWriter =
+            new ArrowColumnWriter(splitXAttr, columnName, context, boostedFS, dataset);
         arrowColumnWriter.setup(fieldVectorMap.get(columnName.toLowerCase()));
       } catch (IOException ex) {
-        logger.debug("Failed to initialize column writer to boost column [{}] of split [{}] due to {}. Skipping column.", columnName, splitXAttr.getPath(), ex.getMessage());
+        logger.debug(
+            "Failed to initialize column writer to boost column [{}] of split [{}] due to {}. Skipping column.",
+            columnName,
+            splitXAttr.getPath(),
+            ex.getMessage());
         continue;
       }
       currentWriters.add(arrowColumnWriter);
@@ -163,9 +180,13 @@ public class BoostTableFunction extends ParquetScanTableFunction {
       try {
         currentWriter.close();
         currentWriter.commit();
-        logger.debug("Boosted column [{}] of split [{}]", currentWriter.column, currentWriter.splitPath);
+        logger.debug(
+            "Boosted column [{}] of split [{}]", currentWriter.column, currentWriter.splitPath);
       } catch (Exception ex) {
-        logger.error("Failure while committing boost file of column [{}] of split [{}]", currentWriter.column, currentWriter.splitPath);
+        logger.error(
+            "Failure while committing boost file of column [{}] of split [{}]",
+            currentWriter.column,
+            currentWriter.splitPath);
         failedWriters.add(currentWriter);
       }
     }
@@ -195,7 +216,8 @@ public class BoostTableFunction extends ParquetScanTableFunction {
 
   @Override
   protected void setSplitReaderCreatorIterator() throws IOException, ExecutionSetupException {
-    splitReaderCreatorIterator = new ParquetSplitReaderCreatorIterator(fec, context, props, functionConfig, true, true);
+    splitReaderCreatorIterator =
+        new ParquetSplitReaderCreatorIterator(fec, context, props, functionConfig, true, true);
   }
 
   @Override

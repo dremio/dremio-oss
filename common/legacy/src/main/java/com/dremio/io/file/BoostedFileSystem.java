@@ -15,53 +15,59 @@
  */
 package com.dremio.io.file;
 
-import java.io.IOException;
-import java.util.List;
-
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.common.collections.Tuple;
 import com.dremio.io.AsyncByteReader;
 import com.dremio.io.FSInputStream;
 import com.dremio.io.FSOutputStream;
+import java.io.IOException;
+import java.util.List;
+import org.apache.arrow.memory.BufferAllocator;
 
 /**
  * This interface used to boost access to Parquet files
  *
- * For Creating a Boosted Stream/File,  the algorithm to follow:
- *  1. createBoostFile: This returns a FSOutputStream.
- *  2. write data using the FSOutputStream.
- *  3. on completion or failure, close the FSOutputStream.
- *  4. if successfully written : commit using
- *    commitBoostFile(//args same as used for createBoostFile).
- *    else on failure: abort using
- *    abortBoostFile(//args same as used for createBoostFile).
+ * <p>For Creating a Boosted Stream/File, the algorithm to follow: 1. createBoostFile: This returns
+ * a FSOutputStream. 2. write data using the FSOutputStream. 3. on completion or failure, close the
+ * FSOutputStream. 4. if successfully written : commit using commitBoostFile(//args same as used for
+ * createBoostFile). else on failure: abort using abortBoostFile(//args same as used for
+ * createBoostFile).
  *
- *
- * For Reading from a Boosted File do:
- * 1. getBoostFile(): It returns either a null or a FSInputStream.
- * If FSInputStream is received use it to do the reads.
+ * <p>For Reading from a Boosted File do: 1. getBoostFile(): It returns either a null or a
+ * FSInputStream. If FSInputStream is received use it to do the reads.
  */
-
 public interface BoostedFileSystem {
   /**
-   * For a given tuple <ParquetFilePath, RowGroupID, ColumnName, Version> open a Stream to write CachedFile.
+   * For a given tuple <ParquetFilePath, RowGroupID, ColumnName, Version> open a Stream to write
+   * CachedFile.
    */
-  FSOutputStream createBoostFile(AsyncByteReader.FileKey fileKey, long offset, String columnName) throws IOException;
+  FSOutputStream createBoostFile(AsyncByteReader.FileKey fileKey, long offset, String columnName)
+      throws IOException;
 
   /**
-   * For a given tuple <ParquetFilePath, RowGroupID, ColumnName, Version> open a Stream to read CachedFile.
+   * For a given tuple <ParquetFilePath, RowGroupID, ColumnName, Version> open a Stream to read
+   * CachedFile.
+   *
    * @return
    */
-  Tuple<FSInputStream, Long> getBoostFile(AsyncByteReader.FileKey fileKey, long offset, String columnName, List<AsyncByteReader.ReaderStat> stats, BufferAllocator allocator) throws IOException;
+  Tuple<FSInputStream, Long> getBoostFile(
+      AsyncByteReader.FileKey fileKey,
+      long offset,
+      String columnName,
+      List<AsyncByteReader.ReaderStat> stats,
+      BufferAllocator allocator)
+      throws IOException;
 
   /**
-   * For a given tuple <ParquetFilePath, RowGroupID, ColumnName, Version> commit any inFlight instances.
+   * For a given tuple <ParquetFilePath, RowGroupID, ColumnName, Version> commit any inFlight
+   * instances.
    */
-  void commitBoostFile(AsyncByteReader.FileKey fileKey, long offset, String columnName) throws IOException;
+  void commitBoostFile(AsyncByteReader.FileKey fileKey, long offset, String columnName)
+      throws IOException;
 
   /**
-   * For a given tuple <ParquetFilePath, RowGroupID, ColumnName, Version> abort any inFlight instances.
+   * For a given tuple <ParquetFilePath, RowGroupID, ColumnName, Version> abort any inFlight
+   * instances.
    */
-  void abortBoostFile(AsyncByteReader.FileKey fileKey, long offset, String columnName) throws IOException;
+  void abortBoostFile(AsyncByteReader.FileKey fileKey, long offset, String columnName)
+      throws IOException;
 }

@@ -15,12 +15,11 @@
  */
 package com.dremio.service.coordinator;
 
-/**
- * Provides number of participants for elections
- */
+/** Provides number of participants for elections */
 public interface ElectionRegistrationHandle extends AutoCloseable {
   /**
-   Get the number of election participants in this Election.
+   * Get the number of election participants in this Election.
+   *
    * @return
    */
   int instanceCount();
@@ -28,16 +27,15 @@ public interface ElectionRegistrationHandle extends AutoCloseable {
   /**
    * Unregister the handle
    *
-   * Close the handle, causing elections to close
+   * <p>Close the handle, causing elections to close
    */
   @Override
   void close();
 
   /**
-   * Expose a object that clients can use to synchronize
-   * access to the election
+   * Expose a object that clients can use to synchronize access to the election
+   *
    * @return
    */
   Object synchronizer();
-
 }

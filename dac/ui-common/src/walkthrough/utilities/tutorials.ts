@@ -35,7 +35,7 @@ export const markTutorialCompleted = (tutorialId: string): void => {
 
   localStorage.setItem(
     COMPLETED_TUTORIALS,
-    JSON.stringify([...completedTutorials, tutorialId])
+    JSON.stringify([...completedTutorials, tutorialId]),
   );
 };
 

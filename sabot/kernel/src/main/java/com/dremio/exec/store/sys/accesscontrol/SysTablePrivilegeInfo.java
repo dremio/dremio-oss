@@ -15,9 +15,7 @@
  */
 package com.dremio.exec.store.sys.accesscontrol;
 
-/**
- * System table entry for a privilege.
- */
+/** System table entry for a privilege. */
 public class SysTablePrivilegeInfo {
   public final String grantee_type;
   public final String grantee;
@@ -25,11 +23,8 @@ public class SysTablePrivilegeInfo {
   public final String object;
   public final String privilege;
 
-  public SysTablePrivilegeInfo(String grantee_type,
-                               String grantee,
-                               String object_type,
-                               String object,
-                               String privilege) {
+  public SysTablePrivilegeInfo(
+      String grantee_type, String grantee, String object_type, String object, String privilege) {
     this.grantee_type = grantee_type;
     this.grantee = grantee;
     this.object_type = object_type;

@@ -15,15 +15,11 @@
  */
 package com.dremio.exec.store.easy.excel.xls.poi;
 
+import com.dremio.exec.store.easy.excel.xls.properties.Property;
 import org.apache.poi.poifs.filesystem.DirectoryEntry;
 import org.apache.poi.poifs.filesystem.Entry;
 
-import com.dremio.exec.store.easy.excel.xls.properties.Property;
-
-/**
- * Simplified implementation of {@link org.apache.poi.poifs.filesystem.EntryNode}
- */
-
+/** Simplified implementation of {@link org.apache.poi.poifs.filesystem.EntryNode} */
 public abstract class EntryNode implements Entry {
 
   // the DocumentProperty backing this object
@@ -33,16 +29,15 @@ public abstract class EntryNode implements Entry {
   private DirectoryNode parent;
 
   /**
-   * create a DocumentNode. This method is not public by design; it
-   * is intended strictly for the internal use of extending classes
+   * create a DocumentNode. This method is not public by design; it is intended strictly for the
+   * internal use of extending classes
    *
    * @param property the Property for this Entry
    * @param parent the parent of this entry
    */
-
   protected EntryNode(final Property property, final DirectoryNode parent) {
     this.property = property;
-    this.parent   = parent;
+    this.parent = parent;
   }
 
   /**
@@ -50,9 +45,7 @@ public abstract class EntryNode implements Entry {
    *
    * @return the property backing this entry
    */
-
-  protected Property getProperty()
-  {
+  protected Property getProperty() {
     return property;
   }
 
@@ -61,13 +54,12 @@ public abstract class EntryNode implements Entry {
    *
    * @return true if so, else false
    */
-
   protected boolean isRoot() {
     // only the root Entry has no parent ...
     return (parent == null);
   }
 
-    /* ********** START implementation of Entry ********** */
+  /* ********** START implementation of Entry ********** */
 
   /**
    * get the name of the Entry
@@ -75,8 +67,7 @@ public abstract class EntryNode implements Entry {
    * @return name
    */
   @Override
-  public String getName()
-  {
+  public String getName() {
     return property.getName();
   }
 
@@ -86,8 +77,7 @@ public abstract class EntryNode implements Entry {
    * @return true if the Entry is a DirectoryEntry, else false
    */
   @Override
-  public boolean isDirectoryEntry()
-  {
+  public boolean isDirectoryEntry() {
     return false;
   }
 
@@ -97,14 +87,13 @@ public abstract class EntryNode implements Entry {
    * @return true if the Entry is a DocumentEntry, else false
    */
   @Override
-  public boolean isDocumentEntry()
-  {
+  public boolean isDocumentEntry() {
     return false;
   }
 
   /**
-   * get this Entry's parent (the DocumentEntry that owns this
-   * Entry). All Entry objects, except the root Entry, has a parent.
+   * get this Entry's parent (the DocumentEntry that owns this Entry). All Entry objects, except the
+   * root Entry, has a parent.
    *
    * @return this Entry's parent; null iff this is the root Entry
    */
@@ -114,14 +103,13 @@ public abstract class EntryNode implements Entry {
   }
 
   /**
-   * Delete this Entry. This operation should succeed, but there are
-   * special circumstances when it will not:
+   * Delete this Entry. This operation should succeed, but there are special circumstances when it
+   * will not:
    *
-   * If this Entry is the root of the Entry tree, it cannot be
-   * deleted, as there is no way to create another one.
+   * <p>If this Entry is the root of the Entry tree, it cannot be deleted, as there is no way to
+   * create another one.
    *
-   * If this Entry is a directory, it cannot be deleted unless it is
-   * empty.
+   * <p>If this Entry is a directory, it cannot be deleted unless it is empty.
    *
    * @return true if the Entry was successfully deleted, else false
    */
@@ -130,24 +118,20 @@ public abstract class EntryNode implements Entry {
     throw new IllegalStateException("Not Supported");
   }
 
-
   /**
    * Rename this Entry. This operation will fail if:
    *
-   * There is a sibling Entry (i.e., an Entry whose parent is the
-   * same as this Entry's parent) with the same name.
+   * <p>There is a sibling Entry (i.e., an Entry whose parent is the same as this Entry's parent)
+   * with the same name.
    *
-   * This Entry is the root of the Entry tree. Its name is dictated
-   * by the Filesystem and many not be changed.
+   * <p>This Entry is the root of the Entry tree. Its name is dictated by the Filesystem and many
+   * not be changed.
    *
    * @param newName the new name for this Entry
-   *
    * @return true if the operation succeeded, else false
    */
-
   @Override
   public boolean renameTo(final String newName) {
     throw new IllegalStateException("Not Supported");
   }
-
 }

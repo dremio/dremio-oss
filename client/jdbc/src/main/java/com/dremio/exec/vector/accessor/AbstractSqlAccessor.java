@@ -29,91 +29,90 @@ public abstract class AbstractSqlAccessor implements SqlAccessor {
   public abstract boolean isNull(int rowOffset);
 
   @Override
-  public BigDecimal getBigDecimal(int rowOffset) throws InvalidAccessException{
+  public BigDecimal getBigDecimal(int rowOffset) throws InvalidAccessException {
     throw newInvalidAccessException("BigDecimal");
   }
 
   @Override
-  public boolean getBoolean(int rowOffset) throws InvalidAccessException{
+  public boolean getBoolean(int rowOffset) throws InvalidAccessException {
     throw newInvalidAccessException("boolean");
   }
 
   @Override
-  public byte getByte(int rowOffset) throws InvalidAccessException{
+  public byte getByte(int rowOffset) throws InvalidAccessException {
     throw newInvalidAccessException("byte");
   }
 
   @Override
-  public byte[] getBytes(int rowOffset) throws InvalidAccessException{
+  public byte[] getBytes(int rowOffset) throws InvalidAccessException {
     throw newInvalidAccessException("byte[]");
   }
 
   @Override
-  public Date getDate(int rowOffset, Calendar calendar) throws InvalidAccessException{
+  public Date getDate(int rowOffset, Calendar calendar) throws InvalidAccessException {
     throw newInvalidAccessException("Date");
   }
 
   @Override
-  public double getDouble(int rowOffset) throws InvalidAccessException{
+  public double getDouble(int rowOffset) throws InvalidAccessException {
     throw newInvalidAccessException("double");
   }
 
   @Override
-  public float getFloat(int rowOffset) throws InvalidAccessException{
+  public float getFloat(int rowOffset) throws InvalidAccessException {
     throw newInvalidAccessException("float");
   }
 
   @Override
-  public int getInt(int rowOffset) throws InvalidAccessException{
+  public int getInt(int rowOffset) throws InvalidAccessException {
     throw newInvalidAccessException("int");
   }
 
   @Override
-  public long getLong(int rowOffset) throws InvalidAccessException{
+  public long getLong(int rowOffset) throws InvalidAccessException {
     throw newInvalidAccessException("long");
   }
 
   @Override
-  public short getShort(int rowOffset) throws InvalidAccessException{
+  public short getShort(int rowOffset) throws InvalidAccessException {
     throw newInvalidAccessException("short");
   }
 
   @Override
-  public InputStream getStream(int rowOffset) throws InvalidAccessException{
+  public InputStream getStream(int rowOffset) throws InvalidAccessException {
     throw newInvalidAccessException("InputStream");
   }
 
   @Override
-  public char getChar(int rowOffset) throws InvalidAccessException{
+  public char getChar(int rowOffset) throws InvalidAccessException {
     throw newInvalidAccessException("Char");
   }
 
   @Override
-  public Reader getReader(int rowOffset) throws InvalidAccessException{
+  public Reader getReader(int rowOffset) throws InvalidAccessException {
     throw newInvalidAccessException("Reader");
   }
 
   @Override
-  public String getString(int rowOffset) throws InvalidAccessException{
+  public String getString(int rowOffset) throws InvalidAccessException {
     Object o = getObject(rowOffset);
     return o != null ? o.toString() : null;
   }
 
   @Override
-  public Time getTime(int rowOffset, Calendar calendar) throws InvalidAccessException{
+  public Time getTime(int rowOffset, Calendar calendar) throws InvalidAccessException {
     throw newInvalidAccessException("Time");
   }
 
   @Override
-  public Timestamp getTimestamp(int rowOffset, Calendar calendar) throws InvalidAccessException{
+  public Timestamp getTimestamp(int rowOffset, Calendar calendar) throws InvalidAccessException {
     throw newInvalidAccessException("Timestamp");
   }
-
 
   private InvalidAccessException newInvalidAccessException(String name) {
     return new InvalidAccessException(
         String.format(
             "Requesting value of type %s for an object of type %s:%s is not allowed.",
-             name, getType().getMinorType().name(), getType().getMode().name()));
+            name, getType().getMinorType().name(), getType().getMode().name()));
   }
 }

@@ -16,24 +16,18 @@
 
 package com.dremio.exec.store.ischema.writers;
 
-import java.util.Iterator;
-import java.util.Set;
-
 import com.dremio.exec.store.ischema.metadata.InformationSchemaMetadata;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.dremio.service.catalog.Schema;
+import java.util.Iterator;
+import java.util.Set;
 
-/**
- * Writes "INFORMATION_SCHEMA"."SCHEMATA" table.
- */
+/** Writes "INFORMATION_SCHEMA"."SCHEMATA" table. */
 public class SchemataTableWriter extends TableWriter<Schema> {
   private final String catalogNameOverride;
 
   public SchemataTableWriter(
-    Iterator<Schema> messageIterator,
-    Set<String> selectedFields,
-    String catalogNameOverride
-  ) {
+      Iterator<Schema> messageIterator, Set<String> selectedFields, String catalogNameOverride) {
     super(messageIterator, selectedFields);
 
     this.catalogNameOverride = catalogNameOverride;
@@ -41,12 +35,17 @@ public class SchemataTableWriter extends TableWriter<Schema> {
 
   @Override
   public void init(OutputMutator outputMutator) {
-    addStringWriter(InformationSchemaMetadata.CATALOG_NAME, outputMutator,
-      catalogNameOverride != null ? ignored -> catalogNameOverride : Schema::getCatalogName);
+    addStringWriter(
+        InformationSchemaMetadata.CATALOG_NAME,
+        outputMutator,
+        catalogNameOverride != null ? ignored -> catalogNameOverride : Schema::getCatalogName);
     addStringWriter(InformationSchemaMetadata.SCHEMA_NAME, outputMutator, Schema::getSchemaName);
     addStringWriter(InformationSchemaMetadata.SCHEMA_OWNER, outputMutator, Schema::getSchemaOwner);
-    addStringWriter(InformationSchemaMetadata.TYPE, outputMutator, schema -> schema.getSchemaType().name());
-    addStringWriter(InformationSchemaMetadata.IS_MUTABLE, outputMutator,
-      schema -> schema.getIsMutable() ? "YES" : "NO");
+    addStringWriter(
+        InformationSchemaMetadata.TYPE, outputMutator, schema -> schema.getSchemaType().name());
+    addStringWriter(
+        InformationSchemaMetadata.IS_MUTABLE,
+        outputMutator,
+        schema -> schema.getIsMutable() ? "YES" : "NO");
   }
 }

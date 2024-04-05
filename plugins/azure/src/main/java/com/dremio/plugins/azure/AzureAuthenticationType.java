@@ -15,26 +15,25 @@
  */
 package com.dremio.plugins.azure;
 
+import com.dremio.exec.catalog.conf.DisplayMetadata;
+import io.protostuff.Tag;
 import java.util.List;
 
-import com.dremio.exec.catalog.conf.DisplayMetadata;
-
-import io.protostuff.Tag;
-
 /**
- * Authentication type for Azure Storage Accounts.
- * ACCESS_KEY uses credentials, AZURE_ACTIVE_DIRECTORY uses OAuth tokens.
+ * Authentication type for Azure Storage Accounts. ACCESS_KEY uses credentials,
+ * AZURE_ACTIVE_DIRECTORY uses OAuth tokens.
  */
-
 public enum AzureAuthenticationType {
-  @Tag(1) @DisplayMetadata(label = "Shared access key")
+  @Tag(1)
+  @DisplayMetadata(label = "Shared access key")
   ACCESS_KEY {
     @Override
     public List<String> getUniqueProperties() {
       return AzureStorageConf.KEY_AUTH_PROPS;
     }
   },
-  @Tag(2) @DisplayMetadata(label = "Azure Active Directory")
+  @Tag(2)
+  @DisplayMetadata(label = "Azure Active Directory")
   AZURE_ACTIVE_DIRECTORY {
     @Override
     public List<String> getUniqueProperties() {

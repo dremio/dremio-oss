@@ -15,8 +15,8 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.dremio.service.namespace.NamespaceKey;
 import java.util.List;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -28,17 +28,14 @@ import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.ImmutableNullableList;
 
-import com.dremio.service.namespace.NamespaceKey;
-
-/**
- * SQL node tree for <code>FORGET TABLE table_identifier </code>
- */
+/** SQL node tree for <code>FORGET TABLE table_identifier </code> */
 public class SqlForgetTable extends SqlSystemCall {
 
   public static final SqlSpecialOperator OPERATOR =
       new SqlSpecialOperator("FORGET_TABLE", SqlKind.OTHER) {
-        @Override public SqlCall createCall(SqlLiteral functionQualifier,
-            SqlParserPos pos, SqlNode... operands) {
+        @Override
+        public SqlCall createCall(
+            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
           return new SqlForgetTable(pos, (SqlIdentifier) operands[0]);
         }
       };
@@ -51,7 +48,8 @@ public class SqlForgetTable extends SqlSystemCall {
     this.table = table;
   }
 
-  @Override public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+  @Override
+  public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
     writer.keyword("ALTER");
     writer.keyword("TABLE");
     table.unparse(writer, leftPrec, rightPrec);
@@ -59,7 +57,8 @@ public class SqlForgetTable extends SqlSystemCall {
     writer.keyword("METADATA");
   }
 
-  @Override public void setOperand(int i, SqlNode operand) {
+  @Override
+  public void setOperand(int i, SqlNode operand) {
     switch (i) {
       case 0:
         table = (SqlIdentifier) operand;
@@ -69,11 +68,13 @@ public class SqlForgetTable extends SqlSystemCall {
     }
   }
 
-  @Override public SqlOperator getOperator() {
+  @Override
+  public SqlOperator getOperator() {
     return OPERATOR;
   }
 
-  @Override public List<SqlNode> getOperandList() {
+  @Override
+  public List<SqlNode> getOperandList() {
     return ImmutableNullableList.<SqlNode>of(table);
   }
 
@@ -81,5 +82,7 @@ public class SqlForgetTable extends SqlSystemCall {
     return new NamespaceKey(table.names);
   }
 
-  public SqlIdentifier getTable() { return table; }
+  public SqlIdentifier getTable() {
+    return table;
+  }
 }

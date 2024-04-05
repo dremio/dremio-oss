@@ -15,38 +15,38 @@
  */
 package com.dremio.exec.store.schedule;
 
-import java.util.Iterator;
-
 import com.carrotsearch.hppc.ObjectLongHashMap;
 import com.carrotsearch.hppc.cursors.ObjectLongCursor;
 import com.google.common.net.HostAndPort;
+import java.util.Iterator;
 
-public class EndpointByteMapImpl implements EndpointByteMap{
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(EndpointByteMapImpl.class);
+public class EndpointByteMapImpl implements EndpointByteMap {
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(EndpointByteMapImpl.class);
 
   private final ObjectLongHashMap<HostAndPort> map = new ObjectLongHashMap<>();
 
   private long maxBytes;
 
   @Override
-  public boolean isSet(HostAndPort endpoint){
+  public boolean isSet(HostAndPort endpoint) {
     return map.containsKey(endpoint);
   }
 
   @Override
-  public long get(HostAndPort endpoint){
+  public long get(HostAndPort endpoint) {
     return map.get(endpoint);
   }
 
   @Override
-  public boolean isEmpty(){
+  public boolean isEmpty() {
     return map.isEmpty();
   }
 
   @Override
-  public void add(HostAndPort endpoint, long bytes){
+  public void add(HostAndPort endpoint, long bytes) {
     assert endpoint != null;
-    maxBytes = Math.max(maxBytes, map.putOrAdd(endpoint, bytes, bytes)+1);
+    maxBytes = Math.max(maxBytes, map.putOrAdd(endpoint, bytes, bytes) + 1);
   }
 
   @Override
@@ -58,6 +58,4 @@ public class EndpointByteMapImpl implements EndpointByteMap{
   public Iterator<ObjectLongCursor<HostAndPort>> iterator() {
     return map.iterator();
   }
-
-
 }

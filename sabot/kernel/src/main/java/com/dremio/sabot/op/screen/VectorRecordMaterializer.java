@@ -15,17 +15,17 @@
  */
 package com.dremio.sabot.op.screen;
 
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.exec.proto.UserBitShared.QueryData;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.WritableBatch;
 import com.dremio.sabot.exec.context.OperatorContext;
+import org.apache.arrow.memory.BufferAllocator;
 
-public class VectorRecordMaterializer implements RecordMaterializer{
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(VectorRecordMaterializer.class);
+public class VectorRecordMaterializer implements RecordMaterializer {
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(VectorRecordMaterializer.class);
 
   private QueryId queryId;
   private VectorAccessible incoming;
@@ -43,10 +43,12 @@ public class VectorRecordMaterializer implements RecordMaterializer{
 
     final WritableBatch w = WritableBatch.get(incoming).transfer(allocator);
 
-    QueryData header = QueryData.newBuilder() //
-        .setQueryId(queryId) //
-        .setRowCount(count) //
-        .setDef(w.getDef()).build();
+    QueryData header =
+        QueryData.newBuilder() //
+            .setQueryId(queryId) //
+            .setRowCount(count) //
+            .setDef(w.getDef())
+            .build();
     QueryWritableBatch batch = new QueryWritableBatch(header, w.getBuffers());
     return batch;
   }

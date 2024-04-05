@@ -15,30 +15,30 @@
  */
 package com.dremio.exec.hadoop;
 
+import com.dremio.io.AsyncByteReader;
 import java.io.IOException;
 import java.util.Map;
-
 import org.apache.hadoop.fs.Path;
 
-import com.dremio.io.AsyncByteReader;
-
-public /**
- * An addon interface for Hadoop FileSystems that support an async reader stream.
- */
+public
+/** An addon interface for Hadoop FileSystems that support an async reader stream. */
 interface MayProvideAsyncStream {
 
   /**
    * Whether this FileSystem may support async reads.
+   *
    * @return true if async reads are supported for the given file.
    */
   boolean supportsAsync();
 
   /**
    * For a given file key, get an AsyncByteReader.
+   *
    * @param path path for which async reader is requested
    * @param options
    * @return async reader
    * @throws IOException if async reader cannot be instantiated
    */
-  AsyncByteReader getAsyncByteReader(Path path, String version, Map<String, String> options) throws IOException;
+  AsyncByteReader getAsyncByteReader(Path path, String version, Map<String, String> options)
+      throws IOException;
 }

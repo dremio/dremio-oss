@@ -19,33 +19,6 @@ import static com.dremio.exec.store.IcebergExpiryMetric.NUM_ACCESS_DENIED;
 import static com.dremio.exec.store.IcebergExpiryMetric.NUM_NOT_FOUND;
 import static com.dremio.exec.store.IcebergExpiryMetric.NUM_PARTIAL_FAILURES;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-import java.util.Queue;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Stream;
-
-import org.apache.iceberg.TableMetadata;
-import org.apache.iceberg.TableMetadataParser;
-import org.apache.iceberg.catalog.Namespace;
-import org.apache.iceberg.catalog.TableIdentifier;
-import org.apache.iceberg.exceptions.NotFoundException;
-import org.apache.iceberg.nessie.NessieIcebergClient;
-import org.projectnessie.client.api.NessieApiV2;
-import org.projectnessie.error.NessieNotFoundException;
-import org.projectnessie.model.Content;
-import org.projectnessie.model.EntriesResponse;
-import org.projectnessie.model.IcebergTable;
-import org.projectnessie.model.Reference;
-import org.projectnessie.model.Reference.ReferenceType;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
@@ -64,6 +37,31 @@ import com.dremio.plugins.dataplane.store.DataplanePlugin;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.google.common.base.Stopwatch;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+import java.util.Queue;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
+import org.apache.iceberg.TableMetadata;
+import org.apache.iceberg.TableMetadataParser;
+import org.apache.iceberg.catalog.Namespace;
+import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.exceptions.NotFoundException;
+import org.apache.iceberg.nessie.NessieIcebergClient;
+import org.projectnessie.client.api.NessieApiV2;
+import org.projectnessie.error.NessieNotFoundException;
+import org.projectnessie.model.Content;
+import org.projectnessie.model.EntriesResponse;
+import org.projectnessie.model.IcebergTable;
+import org.projectnessie.model.Reference;
+import org.projectnessie.model.Reference.ReferenceType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /*
  * Nessie version of {@link IcebergExpirySnapshotsReader} which goes over all the Nessie tables across all the refs
@@ -75,7 +73,8 @@ import com.google.common.base.Stopwatch;
 public class NessieIcebergExpirySnapshotsReader extends IcebergExpirySnapshotsReader {
 
   public static final String FS_EXPIRY_PARALLELISM_CONF_KEY = "vacuum.expiry_action.parallelism";
-  private static final Logger LOGGER = LoggerFactory.getLogger(NessieIcebergExpirySnapshotsReader.class);
+  private static final Logger LOGGER =
+      LoggerFactory.getLogger(NessieIcebergExpirySnapshotsReader.class);
 
   private final NessieApiV2 nessieApi;
   private CompletableFuture<?> producer;
@@ -83,18 +82,23 @@ public class NessieIcebergExpirySnapshotsReader extends IcebergExpirySnapshotsRe
 
   private final Semaphore slots;
 
-
-  public NessieIcebergExpirySnapshotsReader(OperatorContext context,
-                                            SupportsIcebergMutablePlugin icebergMutablePlugin, OpProps props,
-                                            SnapshotsScanOptions snapshotsScanOptions) {
+  public NessieIcebergExpirySnapshotsReader(
+      OperatorContext context,
+      SupportsIcebergMutablePlugin icebergMutablePlugin,
+      OpProps props,
+      SnapshotsScanOptions snapshotsScanOptions) {
     super(context, icebergMutablePlugin, props, snapshotsScanOptions);
     DataplanePlugin plugin = (DataplanePlugin) icebergMutablePlugin;
     this.nessieApi = plugin.getNessieApi();
 
-    // Limit the parallel expiry threads based on filesystem's limits. Take minimum of all supported filesystem implementations.
+    // Limit the parallel expiry threads based on filesystem's limits. Take minimum of all supported
+    // filesystem implementations.
     // Since S3 is the only supported FS, using that value.
-    int maxParallelism = plugin.getProperty(FS_EXPIRY_PARALLELISM_CONF_KEY).map(Integer::parseInt)
-      .orElse(S3ConnectionConstants.DEFAULT_MAX_THREADS / 2);
+    int maxParallelism =
+        plugin
+            .getProperty(FS_EXPIRY_PARALLELISM_CONF_KEY)
+            .map(Integer::parseInt)
+            .orElse(S3ConnectionConstants.DEFAULT_MAX_THREADS / 2);
     this.slots = new Semaphore(maxParallelism);
     this.expiryActionsQueue = new ConcurrentLinkedQueue<>();
   }
@@ -106,51 +110,88 @@ public class NessieIcebergExpirySnapshotsReader extends IcebergExpirySnapshotsRe
   }
 
   private void initializeProducer() {
-    producer = CompletableFuture.runAsync(() -> {
-      try {
-        RequestContext requestContext = RequestContext.current().with(JobIdContext.CTX_KEY,
-          new JobIdContext(QueryIdHelper.getQueryId(context.getFragmentHandle().getQueryId())));
+    producer =
+        CompletableFuture.runAsync(
+            () -> {
+              try {
+                RequestContext requestContext =
+                    RequestContext.current()
+                        .with(
+                            JobIdContext.CTX_KEY,
+                            new JobIdContext(
+                                QueryIdHelper.getQueryId(
+                                    context.getFragmentHandle().getQueryId())));
 
-        requestContext.callStream(() -> nessieApi.getAllReferences().stream()
-            .filter(r -> ReferenceType.BRANCH.equals(r.getType()))
-            .flatMap(this::listTables))
-          .forEach(tableHolder -> {
-            try {
-              slots.acquire();
-              expiryActionsQueue.offer(
-                CompletableFuture.supplyAsync(() -> prepareExpiryAction(tableHolder), context.getExecutor()));
-            } catch (InterruptedException e) {
-              throw new RuntimeException(e);
-            }
-          });
+                requestContext
+                    .callStream(
+                        () ->
+                            nessieApi.getAllReferences().stream()
+                                .filter(r -> ReferenceType.BRANCH.equals(r.getType()))
+                                .flatMap(this::listTables))
+                    .forEach(
+                        tableHolder -> {
+                          try {
+                            slots.acquire();
+                            expiryActionsQueue.offer(
+                                CompletableFuture.supplyAsync(
+                                    () -> prepareExpiryAction(tableHolder), context.getExecutor()));
+                          } catch (InterruptedException e) {
+                            throw new RuntimeException(e);
+                          }
+                        });
 
-        // Ensure at-least 1 element in the queue so consumer doesn't wait indefinitely
-        expiryActionsQueue.offer(CompletableFuture.completedFuture(Optional.empty()));
-      } catch (Exception e) {
-        throw UserException.dataReadError(e).message("Error while expiring snapshots.").build();
-      }
-    }, context.getExecutor());
+                // Ensure at-least 1 element in the queue so consumer doesn't wait indefinitely
+                expiryActionsQueue.offer(CompletableFuture.completedFuture(Optional.empty()));
+              } catch (Exception e) {
+                throw UserException.dataReadError(e)
+                    .message("Error while expiring snapshots.")
+                    .build();
+              }
+            },
+            context.getExecutor());
   }
 
   private Optional<IcebergExpiryAction> prepareExpiryAction(IcebergTableInfo tableHolder) {
-    String tableId = String.format("%s AT %s", tableHolder.getTableId().name(), tableHolder.getVersionContext().getRefName());
+    String tableId =
+        String.format(
+            "%s AT %s",
+            tableHolder.getTableId().name(), tableHolder.getVersionContext().getRefName());
     Stopwatch tracker = Stopwatch.createStarted();
     boolean status = false;
     try {
       IcebergTable table = tableHolder.getTable();
       String metadataLocation = table.getMetadataLocation();
       String tableName = tableHolder.getTableId().name();
-      String namespace = Optional.ofNullable(tableHolder.getTableId().namespace())
-        .map(Namespace::toString).orElse(null);
+      String namespace =
+          Optional.ofNullable(tableHolder.getTableId().namespace())
+              .map(Namespace::toString)
+              .orElse(null);
       ResolvedVersionContext tableVersionContext = tableHolder.getVersionContext();
 
       super.setupFsIfNecessary(metadataLocation);
       TableMetadata tableMetadata = TableMetadataParser.read(io, metadataLocation);
-      VacuumOptions options = new VacuumOptions(true, false,
-        snapshotsScanOptions.getOlderThanInMillis(), snapshotsScanOptions.getRetainLast(), null, null);
+      VacuumOptions options =
+          new VacuumOptions(
+              true,
+              false,
+              snapshotsScanOptions.getOlderThanInMillis(),
+              snapshotsScanOptions.getRetainLast(),
+              null,
+              null);
 
-      Optional<IcebergExpiryAction> ret = Optional.of(new NessieIcebergExpiryAction(icebergMutablePlugin, props,
-        context, options, tableMetadata, tableName, namespace, tableVersionContext, io, true));
+      Optional<IcebergExpiryAction> ret =
+          Optional.of(
+              new NessieIcebergExpiryAction(
+                  icebergMutablePlugin,
+                  props,
+                  context,
+                  options,
+                  tableMetadata,
+                  tableName,
+                  namespace,
+                  tableVersionContext,
+                  io,
+                  true));
       status = true;
       return ret;
     } catch (NotFoundException nfe) {
@@ -168,7 +209,11 @@ public class NessieIcebergExpirySnapshotsReader extends IcebergExpirySnapshotsRe
         throw e;
       }
     } finally {
-      LOGGER.info("Table expiry {} status {}, time taken was {}ms", tableId, status, tracker.elapsed(TimeUnit.MILLISECONDS));
+      LOGGER.info(
+          "Table expiry {} status {}, time taken was {}ms",
+          tableId,
+          status,
+          tracker.elapsed(TimeUnit.MILLISECONDS));
       slots.release();
     }
   }
@@ -177,13 +222,15 @@ public class NessieIcebergExpirySnapshotsReader extends IcebergExpirySnapshotsRe
   protected void setupNextExpiryAction() {
     try {
       currentExpiryAction = null;
-      while(!expiryActionsQueue.isEmpty() || !producer.isDone()) {
-        CompletableFuture<Optional<IcebergExpiryAction>> optionalNextExpiryActionFuture = expiryActionsQueue.poll();
+      while (!expiryActionsQueue.isEmpty() || !producer.isDone()) {
+        CompletableFuture<Optional<IcebergExpiryAction>> optionalNextExpiryActionFuture =
+            expiryActionsQueue.poll();
         if (optionalNextExpiryActionFuture == null) {
           // Queue is empty, producer is lagging
           continue;
         }
-        Optional<IcebergExpiryAction> optionalNextExpiryAction = optionalNextExpiryActionFuture.get();
+        Optional<IcebergExpiryAction> optionalNextExpiryAction =
+            optionalNextExpiryActionFuture.get();
         if (optionalNextExpiryAction.isPresent()) {
           currentExpiryAction = optionalNextExpiryAction.get();
           return;
@@ -219,14 +266,20 @@ public class NessieIcebergExpirySnapshotsReader extends IcebergExpirySnapshotsRe
   }
 
   private Stream<IcebergTableInfo> listTables(Reference branch) {
-    NessieIcebergClient nessieIcebergClient = new NessieIcebergClient(nessieApi, branch.getName(),
-        branch.getHash(), Collections.emptyMap());
+    NessieIcebergClient nessieIcebergClient =
+        new NessieIcebergClient(
+            nessieApi, branch.getName(), branch.getHash(), Collections.emptyMap());
     try {
       return nessieApi.getEntries().reference(branch).stream()
-          .filter(e -> Content.Type.ICEBERG_TABLE == e.getType()).map(this::toIdentifier)
+          .filter(e -> Content.Type.ICEBERG_TABLE == e.getType())
+          .map(this::toIdentifier)
           .map(id -> new IcebergTableInfo(branch, id, nessieIcebergClient.table(id)));
     } catch (NessieNotFoundException e) {
-      throw UserException.dataReadError(e).message("Nessie reference %s not found. Please re-run the query; avoid conflicting Nessie operations while the job is in progress.", branch.getName()).build();
+      throw UserException.dataReadError(e)
+          .message(
+              "Nessie reference %s not found. Please re-run the query; avoid conflicting Nessie operations while the job is in progress.",
+              branch.getName())
+          .build();
     }
   }
 
@@ -242,7 +295,8 @@ public class NessieIcebergExpirySnapshotsReader extends IcebergExpirySnapshotsRe
     private final TableIdentifier tableId;
 
     private IcebergTableInfo(Reference reference, TableIdentifier tableId, IcebergTable table) {
-      this.versionContext = ResolvedVersionContext.ofBranch(reference.getName(), reference.getHash());
+      this.versionContext =
+          ResolvedVersionContext.ofBranch(reference.getName(), reference.getHash());
       this.tableId = tableId;
       this.table = table;
     }

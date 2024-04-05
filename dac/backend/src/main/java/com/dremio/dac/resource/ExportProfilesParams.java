@@ -19,23 +19,16 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-
-/**
- * Export profiles paremeters
- */
+/** Export profiles paremeters */
 public class ExportProfilesParams {
 
-  /**
-   * Export output format.
-   */
+  /** Export output format. */
   public static enum ExportFormatType {
     ZIP,
     JSON
   }
 
-  /**
-   * Lists a behaviour for a case, when output file already exists
-   */
+  /** Lists a behaviour for a case, when output file already exists */
   public static enum WriteFileMode {
     FAIL_IF_EXISTS,
     OVERWRITE,
@@ -52,12 +45,12 @@ public class ExportProfilesParams {
 
   @JsonCreator
   public ExportProfilesParams(
-    @JsonProperty("outputFilePath") String outputFilePath,
-    @JsonProperty("writeMode") WriteFileMode writeFileMode,
-    @JsonProperty("fromDate") Long fromDate,
-    @JsonProperty("toDate") Long toDate,
-    @JsonProperty("outputFormatType") ExportFormatType outputFormatType,
-    @JsonProperty("chunkSize") int chunkSize) {
+      @JsonProperty("outputFilePath") String outputFilePath,
+      @JsonProperty("writeMode") WriteFileMode writeFileMode,
+      @JsonProperty("fromDate") Long fromDate,
+      @JsonProperty("toDate") Long toDate,
+      @JsonProperty("outputFormatType") ExportFormatType outputFormatType,
+      @JsonProperty("chunkSize") int chunkSize) {
     this.outputFilePath = outputFilePath;
     this.writeMode = writeFileMode;
     this.fromDate = fromDate;

@@ -15,8 +15,6 @@
  */
 package com.dremio.service.reflection;
 
-import java.io.IOException;
-
 import com.dremio.common.utils.protos.BlackListOutput;
 import com.dremio.common.utils.protos.HasherOutput;
 import com.dremio.service.reflection.proto.Materialization;
@@ -24,8 +22,8 @@ import com.dremio.service.reflection.proto.ReflectionEntry;
 import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.dremio.service.reflection.proto.ReflectionGoalHash;
 import com.google.common.base.Preconditions;
-
 import io.protostuff.Output;
+import java.io.IOException;
 
 /***
  * Checks if a Materialization or Reflection is derived from a particular ReflectionGoal.
@@ -33,11 +31,18 @@ import io.protostuff.Output;
 public class ReflectionGoalChecker {
   public static final ReflectionGoalChecker Instance = new ReflectionGoalChecker();
 
-  private final java.util.function.Function<Output, Output> reflectionGoalMaterializationBlackLister =
-    new BlackListOutput.Builder()
-      .blacklist(ReflectionGoal.getSchema(),
-        "createdAt", "modifiedAt", "tag", "arrowCachingEnabled", "version", "name")
-      .build(ReflectionGoal.getSchema());
+  private final java.util.function.Function<Output, Output>
+      reflectionGoalMaterializationBlackLister =
+          new BlackListOutput.Builder()
+              .blacklist(
+                  ReflectionGoal.getSchema(),
+                  "createdAt",
+                  "modifiedAt",
+                  "tag",
+                  "arrowCachingEnabled",
+                  "version",
+                  "name")
+              .build(ReflectionGoal.getSchema());
 
   /***
    * Generaters a hash for the current configuration of a ReflectionGoal that are used to generate a Materialization or
@@ -46,20 +51,19 @@ public class ReflectionGoalChecker {
    * @param reflectionGoal
    * @return
    */
-  public ReflectionGoalHash calculateReflectionGoalVersion(ReflectionGoal reflectionGoal){
+  public ReflectionGoalHash calculateReflectionGoalVersion(ReflectionGoal reflectionGoal) {
     HasherOutput hasherOutput = new HasherOutput();
     Output blackListedOutput = reflectionGoalMaterializationBlackLister.apply(hasherOutput);
     try {
       reflectionGoal.writeTo(blackListedOutput, reflectionGoal);
-      return new ReflectionGoalHash()
-        .setHash(hasherOutput.getHasher().hash().toString());
+      return new ReflectionGoalHash().setHash(hasherOutput.getHasher().hash().toString());
     } catch (IOException ioException) {
       throw new RuntimeException(ioException);
     }
   }
 
-  public boolean checkHash(ReflectionGoal goal, ReflectionEntry entry){
-    if(null == entry.getReflectionGoalHash()){
+  public boolean checkHash(ReflectionGoal goal, ReflectionEntry entry) {
+    if (null == entry.getReflectionGoalHash()) {
       return false;
     }
     return entry.getReflectionGoalHash().equals(calculateReflectionGoalVersion(goal));
@@ -71,8 +75,7 @@ public class ReflectionGoalChecker {
 
   public boolean isEqual(ReflectionGoal goal, String version) {
     Preconditions.checkNotNull(version);
-    return version.equals(goal.getTag())
-      || version.equals(String.valueOf(goal.getVersion()));
+    return version.equals(goal.getTag()) || version.equals(String.valueOf(goal.getVersion()));
   }
 
   // Verify the given ReflectionGoal matches the given goal version from a separate KV Store.
@@ -82,7 +85,7 @@ public class ReflectionGoalChecker {
     return Instance.isEqual(goal, materialization.getReflectionGoalVersion());
   }
 
-  public static boolean checkGoal(ReflectionGoal goal, ReflectionEntry entry){
+  public static boolean checkGoal(ReflectionGoal goal, ReflectionEntry entry) {
     return Instance.isEqual(goal, entry.getGoalVersion());
   }
 }

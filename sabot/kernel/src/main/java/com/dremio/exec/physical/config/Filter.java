@@ -47,7 +47,8 @@ public class Filter extends AbstractSingle {
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value) throws E{
+  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value)
+      throws E {
     return physicalVisitor.visitFilter(this, value);
   }
 
@@ -60,5 +61,4 @@ public class Filter extends AbstractSingle {
   public int getOperatorType() {
     return CoreOperatorType.FILTER_VALUE;
   }
-
 }

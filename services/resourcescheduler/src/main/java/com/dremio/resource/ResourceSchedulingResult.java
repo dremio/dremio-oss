@@ -15,34 +15,28 @@
  */
 package com.dremio.resource;
 
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ForkJoinPool;
-
-import org.checkerframework.checker.nullness.qual.Nullable;
-
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ForkJoinPool;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
-/**
- * Result of resource allocation call
- */
+/** Result of resource allocation call */
 public class ResourceSchedulingResult {
   private final CompletableFuture<ResourceSet> resourceSetFuture;
   private final ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo;
 
   public ResourceSchedulingResult(
-    ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo,
-    CompletableFuture<ResourceSet> resourceSetFuture
-  ) {
+      ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo,
+      CompletableFuture<ResourceSet> resourceSetFuture) {
     this.resourceSchedulingDecisionInfo = resourceSchedulingDecisionInfo;
     this.resourceSetFuture = resourceSetFuture;
   }
 
   public ResourceSchedulingResult(
-    ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo,
-    ListenableFuture<ResourceSet> resourceSetFuture
-  ) {
+      ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo,
+      ListenableFuture<ResourceSet> resourceSetFuture) {
     this.resourceSchedulingDecisionInfo = resourceSchedulingDecisionInfo;
     this.resourceSetFuture = toCompletableFuture(resourceSetFuture);
   }
@@ -56,26 +50,30 @@ public class ResourceSchedulingResult {
   }
 
   private <T> CompletableFuture<T> toCompletableFuture(ListenableFuture<T> future) {
-    CompletableFuture<T> completable = new CompletableFuture<T>() {
-      @Override
-      public boolean cancel(boolean mayInterrupt) {
-        boolean result = future.cancel(mayInterrupt);
-        super.cancel(mayInterrupt);
-        return result;
-      }
-    };
+    CompletableFuture<T> completable =
+        new CompletableFuture<T>() {
+          @Override
+          public boolean cancel(boolean mayInterrupt) {
+            boolean result = future.cancel(mayInterrupt);
+            super.cancel(mayInterrupt);
+            return result;
+          }
+        };
 
-    Futures.addCallback(future, new FutureCallback<T>() {
-      @Override
-      public void onSuccess(@Nullable T result) {
-        completable.complete(result);
-      }
+    Futures.addCallback(
+        future,
+        new FutureCallback<T>() {
+          @Override
+          public void onSuccess(@Nullable T result) {
+            completable.complete(result);
+          }
 
-      @Override
-      public void onFailure(Throwable throwable) {
-        completable.completeExceptionally(throwable);
-      }
-    }, ForkJoinPool.commonPool());
+          @Override
+          public void onFailure(Throwable throwable) {
+            completable.completeExceptionally(throwable);
+          }
+        },
+        ForkJoinPool.commonPool());
     return completable;
   }
 }

@@ -15,11 +15,6 @@
  */
 package com.dremio.exec.store.dfs;
 
-import java.util.List;
-
-import javax.inject.Provider;
-import javax.validation.constraints.NotBlank;
-
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.DefaultCtasFormatSelection;
 import com.dremio.exec.catalog.conf.DisplayMetadata;
@@ -31,8 +26,10 @@ import com.dremio.io.file.Path;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
-
 import io.protostuff.Tag;
+import java.util.List;
+import javax.inject.Provider;
+import javax.validation.constraints.NotBlank;
 
 @SourceType(value = "MAPRFS", label = "MapR-FS", uiConfig = "mapr-fs-layout.json")
 public class MapRConf extends FileSystemConf<MapRConf, FileSystemPlugin<MapRConf>> {
@@ -113,7 +110,8 @@ public class MapRConf extends FileSystemConf<MapRConf, FileSystemPlugin<MapRConf
   }
 
   @Override
-  public FileSystemPlugin<MapRConf> newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
+  public FileSystemPlugin<MapRConf> newPlugin(
+      SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
     return new FileSystemPlugin<>(this, context, name, pluginIdProvider);
   }
 
@@ -121,5 +119,4 @@ public class MapRConf extends FileSystemConf<MapRConf, FileSystemPlugin<MapRConf
   public String getDefaultCtasFormat() {
     return defaultCtasFormat.getDefaultCtasFormat();
   }
-
 }

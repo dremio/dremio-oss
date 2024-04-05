@@ -18,15 +18,16 @@ package com.dremio.plugins.azure;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators.BooleanValidator;
 
-/**
- * System Options for Azure Storage
- */
+/** System Options for Azure Storage */
 @Options
 public class AzureStorageOptions {
 
-  // If enabled, use the asynchronous interface for files. If disabled, use the hadoop file interface.
-  public static final BooleanValidator ASYNC_READS = new BooleanValidator("store.azure.async", true);
+  // If enabled, use the asynchronous interface for files. If disabled, use the hadoop file
+  // interface.
+  public static final BooleanValidator ASYNC_READS =
+      new BooleanValidator("store.azure.async", true);
 
   // If enabled, compute MD5 checksums when reading data from V2 or Blob storage.
-  public static final BooleanValidator ENABLE_CHECKSUM = new BooleanValidator("store.azure.checksum", false);
+  public static final BooleanValidator ENABLE_CHECKSUM =
+      new BooleanValidator("store.azure.checksum", true);
 }

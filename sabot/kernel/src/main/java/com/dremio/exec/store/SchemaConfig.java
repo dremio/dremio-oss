@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.store;
 
-import org.apache.calcite.schema.SchemaPlus;
-
 import com.dremio.exec.catalog.CatalogIdentity;
 import com.dremio.exec.ops.ViewExpansionContext;
 import com.dremio.options.OptionManager;
@@ -27,10 +25,9 @@ import com.dremio.service.users.SystemUser;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
+import org.apache.calcite.schema.SchemaPlus;
 
-/**
- * Contains information needed by Catalog implementations
- */
+/** Contains information needed by Catalog implementations */
 public class SchemaConfig {
   private final AuthorizationContext authContext;
   private final boolean exposeInternalSources;
@@ -56,6 +53,7 @@ public class SchemaConfig {
 
   /**
    * Create new builder.
+   *
    * @param subject Subject accessing the storage sources.
    */
   public static Builder newBuilder(final CatalogIdentity subject) {
@@ -79,6 +77,7 @@ public class SchemaConfig {
       this.viewExpansionContext = viewExpansionContext;
       return this;
     }
+
     public Builder setIgnoreAuthErrors(boolean ignoreAuthErrors) {
       this.ignoreAuthErrors = ignoreAuthErrors;
       return this;
@@ -127,10 +126,9 @@ public class SchemaConfig {
   }
 
   /**
-   * @return User whom to impersonate as while creating {@link SchemaPlus} instances
-   * interact with the underlying storage.
-   *
-   * TODO: move to passing subject around vs the username.
+   * @return User whom to impersonate as while creating {@link SchemaPlus} instances interact with
+   *     the underlying storage.
+   *     <p>TODO: move to passing subject around vs the username.
    */
   public String getUserName() {
     return authContext.getSubject().getName();
@@ -141,8 +139,8 @@ public class SchemaConfig {
   }
 
   /**
-   * @return Should ignore if authorization errors are reported while {@link SchemaPlus}
-   * instances interact with the underlying storage.
+   * @return Should ignore if authorization errors are reported while {@link SchemaPlus} instances
+   *     interact with the underlying storage.
    */
   public boolean getIgnoreAuthErrors() {
     return authContext.getIgnoreAuthErrors();
@@ -171,5 +169,4 @@ public class SchemaConfig {
   public Predicate<DatasetConfig> getDatasetValidityChecker() {
     return validityChecker;
   }
-
 }

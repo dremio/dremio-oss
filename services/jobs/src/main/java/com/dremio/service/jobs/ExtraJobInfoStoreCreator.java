@@ -15,8 +15,6 @@
  */
 package com.dremio.service.jobs;
 
-import java.util.Date;
-
 import com.dremio.datastore.api.DocumentConverter;
 import com.dremio.datastore.api.DocumentWriter;
 import com.dremio.datastore.api.LegacyIndexedStore;
@@ -26,22 +24,28 @@ import com.dremio.datastore.format.Format;
 import com.dremio.datastore.indexed.IndexKey;
 import com.dremio.service.job.proto.ExtraJobInfo;
 import com.dremio.service.job.proto.JobId;
+import java.util.Date;
 
-/**
- * Creator for ExtraJobinfo store.
- */
-public class ExtraJobInfoStoreCreator implements LegacyIndexedStoreCreationFunction<JobId, ExtraJobInfo> {
+/** Creator for ExtraJobinfo store. */
+public class ExtraJobInfoStoreCreator
+    implements LegacyIndexedStoreCreationFunction<JobId, ExtraJobInfo> {
   public static final String NAME = "extraJobInfo";
-  public static final IndexKey EXTRA_JOB_INFO_TTL_EXPIRY = IndexKey.newBuilder("ttl", "expireAt", Date.class).build();
+  public static final IndexKey EXTRA_JOB_INFO_TTL_EXPIRY =
+      IndexKey.newBuilder("ttl", "expireAt", Date.class).build();
+
   @SuppressWarnings("unchecked")
   @Override
   public LegacyIndexedStore<JobId, ExtraJobInfo> build(LegacyStoreBuildingFactory factory) {
-    return factory.<JobId, ExtraJobInfo>newStore().name(NAME).keyFormat(Format.wrapped(JobId.class, JobId::getId, JobId::new, Format.ofString()))
-      .valueFormat(Format.ofProtostuff(ExtraJobInfo.class))
-      .buildIndexed(new ExtraJobInfoConverter());
+    return factory
+        .<JobId, ExtraJobInfo>newStore()
+        .name(NAME)
+        .keyFormat(Format.wrapped(JobId.class, JobId::getId, JobId::new, Format.ofString()))
+        .valueFormat(Format.ofProtostuff(ExtraJobInfo.class))
+        .buildIndexed(new ExtraJobInfoConverter());
   }
 
-  private static final class ExtraJobInfoConverter implements DocumentConverter<JobId, ExtraJobInfo> {
+  private static final class ExtraJobInfoConverter
+      implements DocumentConverter<JobId, ExtraJobInfo> {
     private Integer version = 1;
 
     @Override

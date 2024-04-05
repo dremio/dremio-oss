@@ -18,12 +18,11 @@ package com.dremio.exec.store.parquet;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
-import org.junit.Assert;
-import org.junit.Test;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.proto.UserBitShared;
+import org.junit.Assert;
+import org.junit.Test;
 
 public class TestMetadataRefreshForParquet extends BaseTestQuery {
 
@@ -31,11 +30,14 @@ public class TestMetadataRefreshForParquet extends BaseTestQuery {
 
   @Test
   public void columnLimitExceeded() throws Exception {
-    final String query = String.format(
-        "select t1.amount, t1.\"date\", t1.marketing_info, t1.\"time\", t1.trans_id, t1.trans_info, t1.user_info " +
-            "from %s t1", DATAFILE);
+    final String query =
+        String.format(
+            "select t1.amount, t1.\"date\", t1.marketing_info, t1.\"time\", t1.trans_id, t1.trans_info, t1.user_info "
+                + "from %s t1",
+            DATAFILE);
 
-    try (AutoCloseable closeable = setSystemOptionWithAutoReset("store.plugin.max_metadata_leaf_columns", "2")) {
+    try (AutoCloseable closeable =
+        setSystemOptionWithAutoReset("store.plugin.max_metadata_leaf_columns", "2")) {
       test(query);
       fail("query should have failed");
     } catch (UserException e) {

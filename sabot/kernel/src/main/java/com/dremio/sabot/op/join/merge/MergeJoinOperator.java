@@ -17,12 +17,6 @@ package com.dremio.sabot.op.join.merge;
 
 import static com.dremio.exec.compile.sig.GeneratorMapping.GM;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.calcite.rel.core.JoinRelType;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.CompleteType;
@@ -50,10 +44,14 @@ import com.sun.codemodel.JConditional;
 import com.sun.codemodel.JExpr;
 import com.sun.codemodel.JExpression;
 import com.sun.codemodel.JVar;
+import java.util.ArrayList;
+import java.util.List;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.calcite.rel.core.JoinRelType;
 
 /**
- * MergeJoinOperator assumes both left and right input is already sorted by join conditions,
- * and merge them.
+ * MergeJoinOperator assumes both left and right input is already sorted by join conditions, and
+ * merge them.
  */
 public class MergeJoinOperator implements DualInputOperator {
 
@@ -102,34 +100,34 @@ public class MergeJoinOperator implements DualInputOperator {
     // TODO: logic here can be simplified
     if (compareFinished) {
       switch (joinType) {
-      case INNER:
-        done();
-        break;
-      case LEFT:
-        if (noMoreLeft) {
+        case INNER:
           done();
-        } else {
-          state = comparator.finishNonMatching() ? State.CAN_CONSUME_L : State.CAN_PRODUCE;
-        }
-        break;
-      case RIGHT:
-        if (noMoreRight) {
-          done();
-        } else {
-          state = comparator.finishNonMatching() ? State.CAN_CONSUME_R : State.CAN_PRODUCE;
-        }
-        break;
-      case FULL:
-        if (!noMoreLeft) {
-          state = comparator.finishNonMatching() ? State.CAN_CONSUME_L : State.CAN_PRODUCE;
-        } else if (!noMoreRight) {
-          state = comparator.finishNonMatching() ? State.CAN_CONSUME_R : State.CAN_PRODUCE;
-        } else {
-          done();
-        }
-        break;
-      default:
-        throw new IllegalStateException("Unsupported join type");
+          break;
+        case LEFT:
+          if (noMoreLeft) {
+            done();
+          } else {
+            state = comparator.finishNonMatching() ? State.CAN_CONSUME_L : State.CAN_PRODUCE;
+          }
+          break;
+        case RIGHT:
+          if (noMoreRight) {
+            done();
+          } else {
+            state = comparator.finishNonMatching() ? State.CAN_CONSUME_R : State.CAN_PRODUCE;
+          }
+          break;
+        case FULL:
+          if (!noMoreLeft) {
+            state = comparator.finishNonMatching() ? State.CAN_CONSUME_L : State.CAN_PRODUCE;
+          } else if (!noMoreRight) {
+            state = comparator.finishNonMatching() ? State.CAN_CONSUME_R : State.CAN_PRODUCE;
+          } else {
+            done();
+          }
+          break;
+        default:
+          throw new IllegalStateException("Unsupported join type");
       }
     } else {
       // because we may come to this state from CAN_PRODUCE, we attempt to continue
@@ -157,7 +155,8 @@ public class MergeJoinOperator implements DualInputOperator {
   }
 
   @Override
-  public <OUT, IN, EXCEP extends Throwable> OUT accept(OperatorVisitor<OUT, IN, EXCEP> visitor, IN value) throws EXCEP {
+  public <OUT, IN, EXCEP extends Throwable> OUT accept(
+      OperatorVisitor<OUT, IN, EXCEP> visitor, IN value) throws EXCEP {
     return visitor.visitDualInput(this, value);
   }
 
@@ -211,8 +210,9 @@ public class MergeJoinOperator implements DualInputOperator {
       return;
     }
 
-    Preconditions.checkState(getInternalState() == InternalState.OUT_OF_LOOPS ||
-        getInternalState() == InternalState.IN_OUTER_LOOP,
+    Preconditions.checkState(
+        getInternalState() == InternalState.OUT_OF_LOOPS
+            || getInternalState() == InternalState.IN_OUTER_LOOP,
         "Reach unknown internal state");
     // end of INNER JOIN, move to produce to flush output buffer
     state = State.CAN_PRODUCE;
@@ -231,19 +231,20 @@ public class MergeJoinOperator implements DualInputOperator {
     }
 
     switch (getInternalState()) {
-    case OUT_OF_LOOPS:
-      // end of INNER JOIN, move to produce to flush output buffer
-      state = State.CAN_PRODUCE;
-      compareFinished = true;
-      break;
-    case IN_INNER_LOOP:
-      // for this r, we have reached the end of right table
-      // we continue matching, the logic to handle end of right table
-      // in inner loop exits in the comparator
-      state = continueMatching();
-      break;
-    default:
-      throw new IllegalStateException(String.format("Reach unknown internal state: %s", getInternalState()));
+      case OUT_OF_LOOPS:
+        // end of INNER JOIN, move to produce to flush output buffer
+        state = State.CAN_PRODUCE;
+        compareFinished = true;
+        break;
+      case IN_INNER_LOOP:
+        // for this r, we have reached the end of right table
+        // we continue matching, the logic to handle end of right table
+        // in inner loop exits in the comparator
+        state = continueMatching();
+        break;
+      default:
+        throw new IllegalStateException(
+            String.format("Reach unknown internal state: %s", getInternalState()));
     }
   }
 
@@ -285,7 +286,9 @@ public class MergeJoinOperator implements DualInputOperator {
       }
 
       // special logic for reaching the end of right table in inner loop
-      if (getInternalState() == InternalState.IN_INNER_LOOP && noMoreRight && !rightIterator.hasNext()) {
+      if (getInternalState() == InternalState.IN_INNER_LOOP
+          && noMoreRight
+          && !rightIterator.hasNext()) {
         return State.CAN_CONSUME_R;
       }
 
@@ -304,7 +307,8 @@ public class MergeJoinOperator implements DualInputOperator {
   }
 
   private void generateComparator() {
-    final CodeGenerator<MergeJoinComparator> cg = context.getClassProducer().createGenerator(MergeJoinComparator.TEMPLATE_DEFINITION);
+    final CodeGenerator<MergeJoinComparator> cg =
+        context.getClassProducer().createGenerator(MergeJoinComparator.TEMPLATE_DEFINITION);
     final ClassGenerator<MergeJoinComparator> g = cg.getRoot();
     final ClassProducer producer = context.getClassProducer();
 
@@ -312,17 +316,20 @@ public class MergeJoinOperator implements DualInputOperator {
     final GeneratorMapping projectMapping = GM("doSetup", "doProject", null, null);
 
     // TODO: why pass two mappings?
-    final MappingSet mainMappingSet = new MappingSet( (String) null, null, compareMapping, compareMapping);
+    final MappingSet mainMappingSet =
+        new MappingSet((String) null, null, compareMapping, compareMapping);
     final MappingSet leftCompareMappingSet =
         new MappingSet("leftIndex", null, "leftBatch", "outgoing", compareMapping, compareMapping);
     final MappingSet rightCompareMappingSet =
-        new MappingSet("rightIndex", null, "rightBatch", "outgoing", compareMapping, compareMapping);
+        new MappingSet(
+            "rightIndex", null, "rightBatch", "outgoing", compareMapping, compareMapping);
 
     final MappingSet leftProjectMappingSet =
-        new MappingSet("leftIndex", "outIndex", "leftBatch", "outgoing", projectMapping, projectMapping);
+        new MappingSet(
+            "leftIndex", "outIndex", "leftBatch", "outgoing", projectMapping, projectMapping);
     final MappingSet rightProjectMappingSet =
-        new MappingSet("rightIndex", "outIndex", "rightBatch", "outgoing", projectMapping, projectMapping);
-
+        new MappingSet(
+            "rightIndex", "outIndex", "rightBatch", "outgoing", projectMapping, projectMapping);
 
     // create left and right logical expressions
     LogicalExpression[] leftExpr = new LogicalExpression[conditions.size()];
@@ -332,10 +339,12 @@ public class MergeJoinOperator implements DualInputOperator {
     int outputFieldId = 0;
 
     g.setMappingSet(rightProjectMappingSet);
-    JConditional jcRightNotMatched = g.getEvalBlock()._if(JExpr.direct("rightIndex").ne(JExpr.lit(-1)));
+    JConditional jcRightNotMatched =
+        g.getEvalBlock()._if(JExpr.direct("rightIndex").ne(JExpr.lit(-1)));
 
     g.setMappingSet(leftProjectMappingSet);
-    JConditional jcLeftNotMatched = g.getEvalBlock()._if(JExpr.direct("leftIndex").ne(JExpr.lit(-1)));
+    JConditional jcLeftNotMatched =
+        g.getEvalBlock()._if(JExpr.direct("leftIndex").ne(JExpr.lit(-1)));
 
     {
       int fieldId = 0;
@@ -347,10 +356,16 @@ public class MergeJoinOperator implements DualInputOperator {
         final CompleteType fieldType = CompleteType.fromField(field);
         {
           g.setMappingSet(rightProjectMappingSet);
-          JVar inVV = g.declareVectorValueSetupAndMember("rightBatch", new TypedFieldId(fieldType, false, fieldId));
-          JVar outVV = g.declareVectorValueSetupAndMember("outgoing",
-              new TypedFieldId(fieldType, false, outputFieldId));
-          jcRightNotMatched._then().add(outVV.invoke("copyFromSafe").arg(recordIndexWithinBatch).arg(outIndex).arg(inVV));
+          JVar inVV =
+              g.declareVectorValueSetupAndMember(
+                  "rightBatch", new TypedFieldId(fieldType, false, fieldId));
+          JVar outVV =
+              g.declareVectorValueSetupAndMember(
+                  "outgoing", new TypedFieldId(fieldType, false, outputFieldId));
+          jcRightNotMatched
+              ._then()
+              .add(
+                  outVV.invoke("copyFromSafe").arg(recordIndexWithinBatch).arg(outIndex).arg(inVV));
         }
 
         fieldId++;
@@ -368,10 +383,16 @@ public class MergeJoinOperator implements DualInputOperator {
         final CompleteType fieldType = CompleteType.fromField(field);
         {
           g.setMappingSet(leftProjectMappingSet);
-          JVar inVV = g.declareVectorValueSetupAndMember("leftBatch", new TypedFieldId(fieldType, false, fieldId));
-          JVar outVV = g.declareVectorValueSetupAndMember("outgoing",
-              new TypedFieldId(fieldType, false, outputFieldId));
-          jcLeftNotMatched._then().add(outVV.invoke("copyFromSafe").arg(recordIndexWithinBatch).arg(outIndex).arg(inVV));
+          JVar inVV =
+              g.declareVectorValueSetupAndMember(
+                  "leftBatch", new TypedFieldId(fieldType, false, fieldId));
+          JVar outVV =
+              g.declareVectorValueSetupAndMember(
+                  "outgoing", new TypedFieldId(fieldType, false, outputFieldId));
+          jcLeftNotMatched
+              ._then()
+              .add(
+                  outVV.invoke("copyFromSafe").arg(recordIndexWithinBatch).arg(outIndex).arg(inVV));
         }
 
         fieldId++;
@@ -398,19 +419,22 @@ public class MergeJoinOperator implements DualInputOperator {
       g.setMappingSet(mainMappingSet);
 
       final boolean nullsEqual =
-          JoinUtils.checkAndReturnSupportedJoinComparator(conditions.get(i)) == Comparator.IS_NOT_DISTINCT_FROM;
+          JoinUtils.checkAndReturnSupportedJoinComparator(conditions.get(i))
+              == Comparator.IS_NOT_DISTINCT_FROM;
       final boolean nullsHigh = true; /* TODO null_high, should use upstream config */
       final boolean ascSorted = true; // TODO: ASC or DESC order sorted?
 
       // handle case when null != null
       if (!nullsEqual) {
         JConditional jc;
-        jc = g.getEvalBlock()._if(left.getIsSet().eq(JExpr.lit(0)).cand(right.getIsSet().eq(JExpr.lit(0))));
+        jc =
+            g.getEvalBlock()
+                ._if(left.getIsSet().eq(JExpr.lit(0)).cand(right.getIsSet().eq(JExpr.lit(0))));
         jc._then()._return(JExpr.lit(-1)); // ordering does not really matter in null comparison
       }
 
-      LogicalExpression fh = FunctionGenerationHelper.getOrderingComparator(nullsHigh,
-          left, right, producer);
+      LogicalExpression fh =
+          FunctionGenerationHelper.getOrderingComparator(nullsHigh, left, right, producer);
       HoldingContainer out = g.addExpr(fh, ClassGenerator.BlockCreateMode.MERGE);
 
       // now we have the compare_to value in "out"
@@ -427,15 +451,20 @@ public class MergeJoinOperator implements DualInputOperator {
     g.getEvalBlock()._return(JExpr.lit(0));
 
     comparator = cg.getImplementationClass();
-    comparator.setupMergeJoin(context.getClassProducer().getFunctionContext(),
-        joinType, leftIterator, rightIterator, outgoing, context.getTargetBatchSize());
+    comparator.setupMergeJoin(
+        context.getClassProducer().getFunctionContext(),
+        joinType,
+        leftIterator,
+        rightIterator,
+        outgoing,
+        context.getTargetBatchSize());
   }
 
-  public static class Creator implements DualInputOperator.Creator<MergeJoinPOP>{
+  public static class Creator implements DualInputOperator.Creator<MergeJoinPOP> {
     @Override
-    public DualInputOperator create(OperatorContext context, MergeJoinPOP config) throws ExecutionSetupException {
+    public DualInputOperator create(OperatorContext context, MergeJoinPOP config)
+        throws ExecutionSetupException {
       return new MergeJoinOperator(context, config);
     }
-
   }
 }

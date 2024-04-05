@@ -17,44 +17,29 @@
 /**
  * MergeJoinOperator and its supporting classes.
  *
- * MergeJoinOperator implements the following merge-stage algorithm, in
- * the case of inner join:
+ * <p>MergeJoinOperator implements the following merge-stage algorithm, in the case of inner join:
  *
- * R as left table, S as right table
+ * <p>R as left table, S as right table
  *
- * while not done {
- *   while (r < s) { advance r, yield <r, null> if left or full join }
- *   while (r > s) { advance s, yield <null, s> if right or full join }
+ * <p>while not done { while (r < s) { advance r, yield <r, null> if left or full join } while (r >
+ * s) { advance s, yield <null, s> if right or full join }
  *
- *   mark s // save start of “block”
+ * <p>mark s // save start of “block”
  *
- *   while (r == s) {
- *     // Outer loop over r
- *     while (r == s) {
- *       // Inner loop over s
- *       yield <r, s>
- *       advance s
- *     }
+ * <p>while (r == s) { // Outer loop over r while (r == s) { // Inner loop over s yield <r, s>
+ * advance s }
  *
- *     advance r
- *     if (r == (s at marked position)) {
- *       reset s to mark
- *     } else {
- *       break
- *     }
- *   }
- * }
+ * <p>advance r if (r == (s at marked position)) { reset s to mark } else { break } } }
  *
- * On the high level, the algorithm is implemented by these classes:
+ * <p>On the high level, the algorithm is implemented by these classes:
  *
- * MergeJoinOperator: handle batching APIs
+ * <p>MergeJoinOperator: handle batching APIs
  *
- * MarkedAsyncIterator: keep marked positions across batches and store them internally
+ * <p>MarkedAsyncIterator: keep marked positions across batches and store them internally
  *
- * MergeJoinComparator: handles the looping logic in the algorithm
+ * <p>MergeJoinComparator: handles the looping logic in the algorithm
  *
- * The looping logic is reflected in InternalState of MergeJoinComparator, while batching is
+ * <p>The looping logic is reflected in InternalState of MergeJoinComparator, while batching is
  * reflected in State of SortMergeJoinComparator
- *
  */
 package com.dremio.sabot.op.join.merge;

@@ -15,12 +15,6 @@
  */
 package com.dremio.common.logical.data;
 
-import java.util.Iterator;
-import java.util.List;
-
-import org.apache.calcite.rel.RelFieldCollation.Direction;
-import org.apache.calcite.rel.RelFieldCollation.NullDirection;
-
 import com.dremio.common.expression.FieldReference;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.logical.data.visitors.LogicalVisitor;
@@ -31,6 +25,10 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
+import java.util.Iterator;
+import java.util.List;
+import org.apache.calcite.rel.RelFieldCollation.Direction;
+import org.apache.calcite.rel.RelFieldCollation.NullDirection;
 
 @JsonTypeName("order")
 public class Order extends SingleInputOperator {
@@ -39,7 +37,9 @@ public class Order extends SingleInputOperator {
   private final FieldReference within;
 
   @JsonCreator
-  public Order(@JsonProperty("within") FieldReference within, @JsonProperty("orderings") List<Ordering> orderings) {
+  public Order(
+      @JsonProperty("within") FieldReference within,
+      @JsonProperty("orderings") List<Ordering> orderings) {
     this.orderings = orderings;
     this.within = within;
   }
@@ -52,56 +52,61 @@ public class Order extends SingleInputOperator {
     return within;
   }
 
-    @Override
-    public <T, X, E extends Throwable> T accept(LogicalVisitor<T, X, E> logicalVisitor, X value) throws E {
-        return logicalVisitor.visitOrder(this, value);
-    }
+  @Override
+  public <T, X, E extends Throwable> T accept(LogicalVisitor<T, X, E> logicalVisitor, X value)
+      throws E {
+    return logicalVisitor.visitOrder(this, value);
+  }
 
-    @Override
-    public Iterator<LogicalOperator> iterator() {
-        return Iterators.singletonIterator(getInput());
-    }
+  @Override
+  public Iterator<LogicalOperator> iterator() {
+    return Iterators.singletonIterator(getInput());
+  }
 
-
-  /**
-   * Representation of a SQL &lt;sort specification>.
-   */
+  /** Representation of a SQL &lt;sort specification>. */
   public static class Ordering {
 
     private final LogicalExpression expr;
+
     /** Net &lt;ordering specification>. */
     private final Direction direction;
+
     /** Net &lt;null ordering> */
     private final NullDirection nullOrdering;
-    /** The values in the plans for ordering specification are ASC, DESC, not the
-     * full words featured in the calcite {@link Direction} Enum, need to map between them. */
+
+    /**
+     * The values in the plans for ordering specification are ASC, DESC, not the full words featured
+     * in the calcite {@link Direction} Enum, need to map between them.
+     */
     private static ImmutableMap<String, Direction> DREMIO_TO_CALCITE_DIR_MAPPING =
         ImmutableMap.<String, Direction>builder()
-        .put("ASC", Direction.ASCENDING)
-        .put("DESC", Direction.DESCENDING).build();
+            .put("ASC", Direction.ASCENDING)
+            .put("DESC", Direction.DESCENDING)
+            .build();
+
     private static ImmutableMap<String, NullDirection> DREMIO_TO_CALCITE_NULL_DIR_MAPPING =
         ImmutableMap.<String, NullDirection>builder()
             .put("FIRST", NullDirection.FIRST)
             .put("LAST", NullDirection.LAST)
-            .put("UNSPECIFIED", NullDirection.UNSPECIFIED).build();
+            .put("UNSPECIFIED", NullDirection.UNSPECIFIED)
+            .build();
 
     /**
      * Constructs a sort specification.
-     * @param  expr  ...
-     * @param  strOrderingSpec  the &lt;ordering specification> as string;
-     *             allowed values: {@code "ASC"}, {@code "DESC"}, {@code null};
-     *             null specifies default &lt;ordering specification>
-     *                   ({@code "ASC"} / {@link Direction#ASCENDING})
-     * @param  strNullOrdering   the &lt;null ordering> as string;
-     *             allowed values: {@code "FIRST"}, {@code "LAST"},
-     *             {@code "UNSPECIFIED"}, {@code null};
-     *             null specifies default &lt;null ordering>
-     *             (omitted / {@link NullDirection#UNSPECIFIED}, interpreted later)
+     *
+     * @param expr ...
+     * @param strOrderingSpec the &lt;ordering specification> as string; allowed values: {@code
+     *     "ASC"}, {@code "DESC"}, {@code null}; null specifies default &lt;ordering specification>
+     *     ({@code "ASC"} / {@link Direction#ASCENDING})
+     * @param strNullOrdering the &lt;null ordering> as string; allowed values: {@code "FIRST"},
+     *     {@code "LAST"}, {@code "UNSPECIFIED"}, {@code null}; null specifies default &lt;null
+     *     ordering> (omitted / {@link NullDirection#UNSPECIFIED}, interpreted later)
      */
     @JsonCreator
-    public Ordering( @JsonProperty("order") String strOrderingSpec,
-                     @JsonProperty("expr") LogicalExpression expr,
-                     @JsonProperty("nullDirection") String strNullOrdering ) {
+    public Ordering(
+        @JsonProperty("order") String strOrderingSpec,
+        @JsonProperty("expr") LogicalExpression expr,
+        @JsonProperty("nullDirection") String strNullOrdering) {
       this.expr = expr;
       this.direction = getOrderingSpecFromString(strOrderingSpec);
       this.nullOrdering = getNullOrderingFromString(strNullOrdering);
@@ -117,35 +122,46 @@ public class Order extends SingleInputOperator {
       this(direction, e, NullDirection.FIRST);
     }
 
-    private static Direction getOrderingSpecFromString( String strDirection ) {
+    private static Direction getOrderingSpecFromString(String strDirection) {
       Direction dir = DREMIO_TO_CALCITE_DIR_MAPPING.get(strDirection);
       if (dir != null || strDirection == null) {
         return filterSupportedDirections(dir);
       } else {
         throw new IllegalArgumentException(
             "Unknown <ordering specification> string (not \"ASC\", \"DESC\", "
-                + "or null): \"" + strDirection + "\"" );
+                + "or null): \""
+                + strDirection
+                + "\"");
       }
     }
 
-    private static NullDirection getNullOrderingFromString( String strNullOrdering ) {
+    private static NullDirection getNullOrderingFromString(String strNullOrdering) {
       NullDirection nullDir = DREMIO_TO_CALCITE_NULL_DIR_MAPPING.get(strNullOrdering);
       if (nullDir != null || strNullOrdering == null) {
         return filterSupportedNullDirections(nullDir);
       } else {
         throw new IllegalArgumentException(
             "Internal error:  Unknown <null ordering> string (not "
-                + "\"" + NullDirection.FIRST.name() + "\", "
-                + "\"" + NullDirection.LAST.name() + "\", or "
-                + "\"" + NullDirection.UNSPECIFIED.name() + "\" or null): "
-                + "\"" + strNullOrdering + "\"" );
+                + "\""
+                + NullDirection.FIRST.name()
+                + "\", "
+                + "\""
+                + NullDirection.LAST.name()
+                + "\", or "
+                + "\""
+                + NullDirection.UNSPECIFIED.name()
+                + "\" or null): "
+                + "\""
+                + strNullOrdering
+                + "\"");
       }
     }
 
     /**
-     * Disallows unsupported values for ordering direction (provided by Calcite but not implemented by Dremio)
+     * Disallows unsupported values for ordering direction (provided by Calcite but not implemented
+     * by Dremio)
      *
-     * Provides a default value of ASCENDING in the case of a null.
+     * <p>Provides a default value of ASCENDING in the case of a null.
      *
      * @param direction
      * @return - a sanitized direction value
@@ -153,26 +169,28 @@ public class Order extends SingleInputOperator {
     private static Direction filterSupportedDirections(Direction direction) {
       if (direction == null || direction == Direction.ASCENDING) {
         return Direction.ASCENDING;
-      } else if (Direction.DESCENDING.equals( direction) ) {
+      } else if (Direction.DESCENDING.equals(direction)) {
         return direction;
       } else {
         throw new IllegalArgumentException(
             "Unknown <ordering specification> string (not \"ASC\", \"DESC\", "
-            + "or null): \"" + direction + "\"" );
+                + "or null): \""
+                + direction
+                + "\"");
       }
     }
 
     /**
-     * Disallows unsupported values for null ordering (provided by Calcite but not implemented by Dremio),
-     * currently all values are supported.
+     * Disallows unsupported values for null ordering (provided by Calcite but not implemented by
+     * Dremio), currently all values are supported.
      *
-     * Provides a default value of UNSPECIFIED in the case of a null.
+     * <p>Provides a default value of UNSPECIFIED in the case of a null.
      *
      * @param nullDirection
      * @return - a sanitized direction value
      */
     private static NullDirection filterSupportedNullDirections(NullDirection nullDirection) {
-      if ( null == nullDirection) {
+      if (null == nullDirection) {
         return NullDirection.UNSPECIFIED;
       }
       switch (nullDirection) {
@@ -183,21 +201,31 @@ public class Order extends SingleInputOperator {
         default:
           throw new RuntimeException(
               "Internal error:  Unknown <null ordering> string (not "
-                  + "\"" + NullDirection.FIRST.name() + "\", "
-                  + "\"" + NullDirection.LAST.name() + "\", or "
-                  + "\"" + NullDirection.UNSPECIFIED.name() + "\" or null): "
-                  + "\"" + nullDirection + "\"" );
+                  + "\""
+                  + NullDirection.FIRST.name()
+                  + "\", "
+                  + "\""
+                  + NullDirection.LAST.name()
+                  + "\", or "
+                  + "\""
+                  + NullDirection.UNSPECIFIED.name()
+                  + "\" or null): "
+                  + "\""
+                  + nullDirection
+                  + "\"");
       }
-   }
+    }
 
     @Override
     public String toString() {
-      return
-          super.toString()
+      return super.toString()
           + "[ "
-          + " expr = " + expr
-          + ", direction = " + direction
-          + ", nullOrdering = " + nullOrdering
+          + " expr = "
+          + expr
+          + ", direction = "
+          + direction
+          + ", nullOrdering = "
+          + nullOrdering
           + "] ";
     }
 
@@ -212,15 +240,20 @@ public class Order extends SingleInputOperator {
 
     public String getOrder() {
       switch (direction) {
-      case ASCENDING:
-        return Direction.ASCENDING.shortString;
-      case DESCENDING:
-        return Direction.DESCENDING.shortString;
-      default:
-        throw new RuntimeException(
-            "Unexpected " + Direction.class.getName() + " value other than "
-            + Direction.ASCENDING + " or " + Direction.DESCENDING + ": "
-            + direction );
+        case ASCENDING:
+          return Direction.ASCENDING.shortString;
+        case DESCENDING:
+          return Direction.DESCENDING.shortString;
+        default:
+          throw new RuntimeException(
+              "Unexpected "
+                  + Direction.class.getName()
+                  + " value other than "
+                  + Direction.ASCENDING
+                  + " or "
+                  + Direction.DESCENDING
+                  + ": "
+                  + direction);
       }
     }
 
@@ -231,56 +264,60 @@ public class Order extends SingleInputOperator {
     /**
      * Reports whether NULL sorts high or low in this ordering.
      *
-     * @return
-     * {@code true}  if NULL sorts higher than any other value;
-     * {@code false} if NULL sorts lower  than any other value
+     * @return {@code true} if NULL sorts higher than any other value; {@code false} if NULL sorts
+     *     lower than any other value
      */
     public boolean nullsSortHigh() {
       final boolean nullsHigh;
 
       switch (nullOrdering) {
+        case UNSPECIFIED:
+          // Default:  NULL sorts high: like NULLS LAST if ASC, FIRST if DESC.
+          nullsHigh = true;
+          break;
 
-      case UNSPECIFIED:
-        // Default:  NULL sorts high: like NULLS LAST if ASC, FIRST if DESC.
-        nullsHigh = true;
-        break;
+        case FIRST:
+          // FIRST: NULL sorts low with ASC, high with DESC.
+          nullsHigh = Direction.DESCENDING == getDirection();
+          break;
 
-      case FIRST:
-        // FIRST: NULL sorts low with ASC, high with DESC.
-        nullsHigh = Direction.DESCENDING == getDirection();
-        break;
+        case LAST:
+          // LAST: NULL sorts high with ASC, low with DESC.
+          nullsHigh = Direction.ASCENDING == getDirection();
+          break;
 
-      case LAST:
-        // LAST: NULL sorts high with ASC, low with DESC.
-        nullsHigh = Direction.ASCENDING == getDirection();
-        break;
-
-      default:
-        throw new RuntimeException(
-            "Unexpected " + NullDirection.class.getName() + " value other than "
-            + NullDirection.FIRST + ", " + NullDirection.LAST + " or " + NullDirection.UNSPECIFIED + ": "
-            + nullOrdering );
+        default:
+          throw new RuntimeException(
+              "Unexpected "
+                  + NullDirection.class.getName()
+                  + " value other than "
+                  + NullDirection.FIRST
+                  + ", "
+                  + NullDirection.LAST
+                  + " or "
+                  + NullDirection.UNSPECIFIED
+                  + ": "
+                  + nullOrdering);
       }
 
       return nullsHigh;
     }
-
   }
 
-  public static Builder builder(){
+  public static Builder builder() {
     return new Builder();
   }
 
-  public static class Builder extends AbstractSingleBuilder<Order, Builder>{
+  public static class Builder extends AbstractSingleBuilder<Order, Builder> {
     private List<Ordering> orderings = Lists.newArrayList();
     private FieldReference within;
 
-    public Builder setWithin(FieldReference within){
+    public Builder setWithin(FieldReference within) {
       this.within = within;
       return this;
     }
 
-    public Builder addOrdering(Direction direction, LogicalExpression e, NullDirection collation){
+    public Builder addOrdering(Direction direction, LogicalExpression e, NullDirection collation) {
       orderings.add(new Ordering(direction, e, collation));
       return this;
     }
@@ -289,7 +326,5 @@ public class Order extends SingleInputOperator {
     public Order internalBuild() {
       return new Order(within, orderings);
     }
-
-
   }
 }

@@ -33,7 +33,7 @@ import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector.PrimitiveCategory;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.*;
 
-import java.lang.UnsupportedOperationException;
+import java.lang.reflect.InvocationTargetException;
 import java.sql.Timestamp;
 import java.util.HashMap;
 import java.util.Map;
@@ -60,23 +60,31 @@ public class ObjectInspectorHelper {
       if (mode == DataMode.REQUIRED) {
         if (OIMAP_REQUIRED.containsKey(minorType)) {
           if (varCharToStringReplacement && minorType == MinorType.VARCHAR) {
-            return (ObjectInspector) ((Class) OIMAP_REQUIRED.get(minorType).toArray()[1]).newInstance();
+            return ((Class<? extends ObjectInspector>) OIMAP_REQUIRED.get(minorType).toArray()[1])
+                .getDeclaredConstructor()
+                .newInstance();
           } else {
-            return (ObjectInspector) ((Class) OIMAP_REQUIRED.get(minorType).toArray()[0]).newInstance();
+            return ((Class<? extends ObjectInspector>) OIMAP_REQUIRED.get(minorType).toArray()[0])
+                .getDeclaredConstructor()
+                .newInstance();
           }
         }
       } else if (mode == DataMode.OPTIONAL) {
         if (OIMAP_OPTIONAL.containsKey(minorType)) {
           if (varCharToStringReplacement && minorType == MinorType.VARCHAR) {
-            return (ObjectInspector) ((Class) OIMAP_OPTIONAL.get(minorType).toArray()[1]).newInstance();
+            return ((Class<? extends ObjectInspector>) OIMAP_OPTIONAL.get(minorType).toArray()[1])
+                .getDeclaredConstructor()
+                .newInstance();
           } else {
-            return (ObjectInspector) ((Class) OIMAP_OPTIONAL.get(minorType).toArray()[0]).newInstance();
+            return ((Class<? extends ObjectInspector>) OIMAP_OPTIONAL.get(minorType).toArray()[0])
+                .getDeclaredConstructor()
+                .newInstance();
           }
         }
       } else {
         throw new UnsupportedOperationException("Repeated types are not supported as arguement to Hive UDFs");
       }
-    } catch(InstantiationException | IllegalAccessException e) {
+    } catch(InstantiationException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
       throw new RuntimeException("Failed to instantiate ObjectInspector", e);
     }
 

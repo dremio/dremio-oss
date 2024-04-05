@@ -18,15 +18,13 @@ package com.dremio.exec.sql;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import com.dremio.PlanTestBase;
+import com.dremio.common.exceptions.UserException;
 import java.io.File;
-
 import org.apache.commons.io.FileUtils;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-
-import com.dremio.PlanTestBase;
-import com.dremio.common.exceptions.UserException;
 
 public class TestCreateWIthColumnLimit extends PlanTestBase {
 
@@ -43,7 +41,12 @@ public class TestCreateWIthColumnLimit extends PlanTestBase {
   @Test
   public void columnLimitExceededSelectStar() throws Exception {
     String tableName = "columnLimit1";
-    String ctasQuery = "create table " + TEMP_SCHEMA + "." + tableName + " AS select * from INFORMATION_SCHEMA.CATALOGS";
+    String ctasQuery =
+        "create table "
+            + TEMP_SCHEMA
+            + "."
+            + tableName
+            + " AS select * from INFORMATION_SCHEMA.CATALOGS";
     try {
       test(ctasQuery);
       fail("query should have failed");
@@ -55,7 +58,12 @@ public class TestCreateWIthColumnLimit extends PlanTestBase {
   @Test
   public void columnLimitExceededSelectCols() throws Exception {
     String tableName = "columnLimit2";
-    String ctasQuery = "create table " + TEMP_SCHEMA + "." + tableName + " AS select CATALOG_NAME, CATALOG_DESCRIPTION, CATALOG_CONNECT from INFORMATION_SCHEMA.CATALOGS";
+    String ctasQuery =
+        "create table "
+            + TEMP_SCHEMA
+            + "."
+            + tableName
+            + " AS select CATALOG_NAME, CATALOG_DESCRIPTION, CATALOG_CONNECT from INFORMATION_SCHEMA.CATALOGS";
     try {
       test(ctasQuery);
       fail("query should have failed");
@@ -66,7 +74,10 @@ public class TestCreateWIthColumnLimit extends PlanTestBase {
 
   @Test
   public void columnLimitExceededSelectLessColsShouldPass() throws Exception {
-    String ctasQuery = "create table " + TEMP_SCHEMA + ".columnLimit3 AS select CATALOG_NAME, CATALOG_DESCRIPTION from INFORMATION_SCHEMA.CATALOGS";
+    String ctasQuery =
+        "create table "
+            + TEMP_SCHEMA
+            + ".columnLimit3 AS select CATALOG_NAME, CATALOG_DESCRIPTION from INFORMATION_SCHEMA.CATALOGS";
     test(ctasQuery);
   }
 
@@ -74,7 +85,8 @@ public class TestCreateWIthColumnLimit extends PlanTestBase {
   public void columnLimitExceededCreateEmpty() throws Exception {
     final String tableName = "columnLimit4";
     try (AutoCloseable c = enableIcebergTables()) {
-      String createCommandSql = "create table " + TEMP_SCHEMA + "." + tableName + "(id int, id1 int, id2 int)";
+      String createCommandSql =
+          "create table " + TEMP_SCHEMA + "." + tableName + "(id int, id1 int, id2 int)";
       test(createCommandSql);
       fail("query should have failed");
     } catch (UserException e) {
@@ -83,5 +95,4 @@ public class TestCreateWIthColumnLimit extends PlanTestBase {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
     }
   }
-
 }

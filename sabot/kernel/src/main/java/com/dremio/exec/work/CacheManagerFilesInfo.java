@@ -17,9 +17,7 @@ package com.dremio.exec.work;
 
 import java.sql.Timestamp;
 
-/**
- * This is the schema for sys."cache_manager_files"
- */
+/** This is the schema for sys."cache_manager_files" */
 public class CacheManagerFilesInfo {
   public final String hostname;
   public final String plugin;
@@ -29,7 +27,14 @@ public class CacheManagerFilesInfo {
   public final long offset;
   public final Timestamp atime;
 
-  public CacheManagerFilesInfo(String hostname, String plugin, String dataset, String path, String version, long offset, Timestamp atime) {
+  public CacheManagerFilesInfo(
+      String hostname,
+      String plugin,
+      String dataset,
+      String path,
+      String version,
+      long offset,
+      Timestamp atime) {
     this.hostname = hostname;
     this.plugin = plugin;
     this.dataset = dataset;

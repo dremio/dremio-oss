@@ -17,16 +17,13 @@ package com.dremio.dac.server;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import org.junit.Test;
-
 import com.dremio.dac.model.sources.SourceUI;
 import com.dremio.dac.model.spaces.Space;
 import com.dremio.dac.service.errors.ClientErrorException;
 import com.dremio.file.FileName;
+import org.junit.Test;
 
-/**
- * Test input validation
- */
+/** Test input validation */
 public class TestInputValidation {
 
   @Test
@@ -64,7 +61,7 @@ public class TestInputValidation {
 
   private void checkError(Object o) {
     assertThatThrownBy(() -> new InputValidation().validate(o))
-      .isInstanceOf(ClientErrorException.class);
+        .isInstanceOf(ClientErrorException.class);
   }
 
   private void checkError(Object o, boolean shouldFail) {

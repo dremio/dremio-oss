@@ -15,16 +15,13 @@
  */
 package com.dremio.dac.cmd.upgrade;
 
-import java.util.List;
-import java.util.Map;
-
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import java.util.List;
+import java.util.Map;
 
-/**
- * To sort UpgrateTasks based on dependencies - topological sort
- */
+/** To sort UpgrateTasks based on dependencies - topological sort */
 public final class UpgradeTaskDependencyResolver {
 
   private Map<String, UpgradeTask> uuidToTask = Maps.newHashMap();
@@ -37,12 +34,13 @@ public final class UpgradeTaskDependencyResolver {
 
   /**
    * To sort data based on dependencies
+   *
    * @return topologically sorted tasks
    */
   public List<UpgradeTask> topologicalTasksSort() {
     List<String> resolved = Lists.newArrayList();
 
-    for(UpgradeTask task : uuidToTask.values()) {
+    for (UpgradeTask task : uuidToTask.values()) {
       visit(task, resolved, Lists.newArrayList());
     }
 
@@ -59,7 +57,7 @@ public final class UpgradeTaskDependencyResolver {
     }
     if (unresolved.contains(task.getTaskUUID())) {
       throw new IllegalStateException(
-        String.format("Dependencies loop detected: %s", task.getTaskName()));
+          String.format("Dependencies loop detected: %s", task.getTaskName()));
     }
     unresolved.add(task.getTaskUUID());
     for (String dep : task.getDependencies()) {

@@ -18,11 +18,6 @@ package com.dremio.service.usersessions;
 import static com.dremio.service.usersessions.GrpcUserSessionConverter.fromProtoBuf;
 import static com.dremio.service.usersessions.GrpcUserSessionConverter.toProtoBuf;
 
-import java.util.ConcurrentModificationException;
-import java.util.UUID;
-
-import javax.inject.Provider;
-
 import com.dremio.datastore.api.Document;
 import com.dremio.datastore.api.KVStore;
 import com.dremio.datastore.api.options.VersionOption;
@@ -32,18 +27,21 @@ import com.dremio.exec.proto.UserSessionProtobuf.UserSessionRPC;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.usersessions.store.UserSessionStoreProvider;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import java.util.ConcurrentModificationException;
+import java.util.UUID;
+import javax.inject.Provider;
 
-/**
- * A store of UserSessions that can be shared between coordinators.
- */
+/** A store of UserSessions that can be shared between coordinators. */
 public class UserSessionServiceImpl implements UserSessionService {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(UserSessionServiceImpl.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(UserSessionServiceImpl.class);
 
   private final Provider<UserSessionStoreProvider> userSessionStoreProvider;
   private final Provider<Integer> ttlProvider;
   private TransientStore<String, UserSessionRPC> userSessionStore;
 
-  public UserSessionServiceImpl(Provider<UserSessionStoreProvider> userSessionStoreProvider, Provider<Integer> ttlProvider) {
+  public UserSessionServiceImpl(
+      Provider<UserSessionStoreProvider> userSessionStoreProvider, Provider<Integer> ttlProvider) {
     this.userSessionStoreProvider = userSessionStoreProvider;
     this.ttlProvider = ttlProvider;
   }
@@ -51,12 +49,14 @@ public class UserSessionServiceImpl implements UserSessionService {
   @Override
   public void start() throws Exception {
     final int ttlInSeconds = ttlProvider.get();
-    this.userSessionStore = this.userSessionStoreProvider.get().getStore(Format.ofString(), Format.ofProtobuf(UserSessionRPC.class), ttlInSeconds);
+    this.userSessionStore =
+        this.userSessionStoreProvider
+            .get()
+            .getStore(Format.ofString(), Format.ofProtobuf(UserSessionRPC.class), ttlInSeconds);
   }
 
   @Override
-  public void close() throws Exception {
-  }
+  public void close() throws Exception {}
 
   @Override
   public SessionIdAndVersion putSession(UserSession session) {
@@ -64,7 +64,8 @@ public class UserSessionServiceImpl implements UserSessionService {
     try {
       final UserSessionRPC serializedUserSession = toProtoBuf(session);
 
-      Document<String, UserSessionRPC> doc = this.userSessionStore.put(key, serializedUserSession, KVStore.PutOption.CREATE);
+      Document<String, UserSessionRPC> doc =
+          this.userSessionStore.put(key, serializedUserSession, KVStore.PutOption.CREATE);
       return new SessionIdAndVersion(doc.getKey(), VersionOption.from(doc));
     } catch (JsonProcessingException je) {
       throw new RuntimeException("failed to serialize the user session", je);
@@ -72,7 +73,8 @@ public class UserSessionServiceImpl implements UserSessionService {
   }
 
   @Override
-  public VersionOption updateSession(String sessionId, VersionOption version, UserSession newSession) {
+  public VersionOption updateSession(
+      String sessionId, VersionOption version, UserSession newSession) {
     UserSessionRPC serializedUserSession;
 
     try {
@@ -82,10 +84,12 @@ public class UserSessionServiceImpl implements UserSessionService {
     }
 
     try {
-      return VersionOption.from(this.userSessionStore.put(sessionId, serializedUserSession, version));
+      return VersionOption.from(
+          this.userSessionStore.put(sessionId, serializedUserSession, version));
     } catch (ConcurrentModificationException concurrentModificationException) {
 
-      // if the version we would insert and the version that is in the store are the same then no change is needed
+      // if the version we would insert and the version that is in the store are the same then no
+      // change is needed
       final Document<String, UserSessionRPC> doc = this.userSessionStore.get(sessionId);
       if (doc == null || !serializedUserSession.equals(doc.getValue())) {
         throw concurrentModificationException;
@@ -111,5 +115,4 @@ public class UserSessionServiceImpl implements UserSessionService {
       return null;
     }
   }
-
 }

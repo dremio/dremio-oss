@@ -15,16 +15,6 @@
  */
 package org.apache.arrow.vector.complex;
 
-import java.util.HashMap;
-import java.util.Map;
-
-import org.apache.arrow.vector.types.pojo.ArrowType;
-import org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID;
-import org.apache.arrow.vector.types.pojo.ArrowType.Struct;
-import org.apache.arrow.vector.types.pojo.ArrowType.Union;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.types.pojo.Schema;
-
 import com.dremio.common.expression.AbstractArrowTypeVisitor;
 import com.dremio.common.expression.BasePath;
 import com.dremio.common.expression.CompleteType;
@@ -32,12 +22,22 @@ import com.dremio.common.expression.PathSegment;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.exec.record.TypedFieldId;
+import java.util.HashMap;
+import java.util.Map;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID;
+import org.apache.arrow.vector.types.pojo.ArrowType.Struct;
+import org.apache.arrow.vector.types.pojo.ArrowType.Union;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.Schema;
 
 public final class FieldIdUtil2 {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FieldIdUtil2.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(FieldIdUtil2.class);
 
-  private static TypedFieldId getFieldIdIfMatchesUnion(Field field, TypedFieldId.Builder builder, boolean addToBreadCrumb, PathSegment seg) {
+  private static TypedFieldId getFieldIdIfMatchesUnion(
+      Field field, TypedFieldId.Builder builder, boolean addToBreadCrumb, PathSegment seg) {
     if (seg == null) {
       if (addToBreadCrumb) {
         builder.intermediateType(CompleteType.fromField(field));
@@ -62,12 +62,12 @@ public final class FieldIdUtil2 {
     return null;
   }
 
-  public static TypedFieldId getFieldId(BatchSchema schema, BasePath path){
+  public static TypedFieldId getFieldId(BatchSchema schema, BasePath path) {
     final boolean isHyper = schema.getSelectionVectorMode() == SelectionVectorMode.FOUR_BYTE;
     return getFieldId(schema, path, isHyper);
   }
 
-  public static TypedFieldId getFieldId(Schema schema, BasePath path, boolean isHyper){
+  public static TypedFieldId getFieldId(Schema schema, BasePath path, boolean isHyper) {
     int i = 0;
     for (Field f : schema.getFields()) {
       TypedFieldId id = getFieldId(f, i, path, isHyper);
@@ -79,73 +79,80 @@ public final class FieldIdUtil2 {
     return null;
   }
 
-  public static TypedFieldId getFieldId(final Field field, final int id, final BasePath expectedPath, final boolean hyper) {
-    if (!expectedPath.getRootSegment().getNameSegment().getPath().equalsIgnoreCase(field.getName())) {
+  public static TypedFieldId getFieldId(
+      final Field field, final int id, final BasePath expectedPath, final boolean hyper) {
+    if (!expectedPath
+        .getRootSegment()
+        .getNameSegment()
+        .getPath()
+        .equalsIgnoreCase(field.getName())) {
       return null;
     }
     final PathSegment seg = expectedPath.getRootSegment();
-
 
     final TypedFieldId.Builder builder = TypedFieldId.newBuilder();
     if (hyper) {
       builder.hyper();
     }
 
-    return field.getType().accept(new AbstractArrowTypeVisitor<TypedFieldId>(){
+    return field
+        .getType()
+        .accept(
+            new AbstractArrowTypeVisitor<TypedFieldId>() {
 
-      @Override
-      public TypedFieldId visit(Struct incoming) {
-        // we're looking for a multi path.
-        builder.intermediateType(CompleteType.fromField(field));
-        builder.addId(id);
-        return getFieldIdIfMatches(field, builder, true, expectedPath.getRootSegment().getChild());
-      }
+              @Override
+              public TypedFieldId visit(Struct incoming) {
+                // we're looking for a multi path.
+                builder.intermediateType(CompleteType.fromField(field));
+                builder.addId(id);
+                return getFieldIdIfMatches(
+                    field, builder, true, expectedPath.getRootSegment().getChild());
+              }
 
-      @Override
-      public TypedFieldId visit(org.apache.arrow.vector.types.pojo.ArrowType.List incoming) {
-        builder.intermediateType(CompleteType.fromField(field));
-        builder.addId(id);
-        builder.isListOrUnionInPath(true);
-        return getFieldIdIfMatches(field, builder, true, expectedPath.getRootSegment().getChild());
-      }
+              @Override
+              public TypedFieldId visit(
+                  org.apache.arrow.vector.types.pojo.ArrowType.List incoming) {
+                builder.intermediateType(CompleteType.fromField(field));
+                builder.addId(id);
+                builder.isListOrUnionInPath(true);
+                return getFieldIdIfMatches(
+                    field, builder, true, expectedPath.getRootSegment().getChild());
+              }
 
-      @Override
-      public TypedFieldId visit(Union incoming) {
-        builder.addId(id).remainder(expectedPath.getRootSegment().getChild());
-        builder.isListOrUnionInPath(true);
-        CompleteType type = CompleteType.fromField(field);
-        builder.intermediateType(type);
-        if (seg.isLastPath()) {
-          builder.finalType(type);
-          return builder.build();
-        } else {
-          return getFieldIdIfMatchesUnion(field, builder, false, seg.getChild());
-        }
-      }
+              @Override
+              public TypedFieldId visit(Union incoming) {
+                builder.addId(id).remainder(expectedPath.getRootSegment().getChild());
+                builder.isListOrUnionInPath(true);
+                CompleteType type = CompleteType.fromField(field);
+                builder.intermediateType(type);
+                if (seg.isLastPath()) {
+                  builder.finalType(type);
+                  return builder.build();
+                } else {
+                  return getFieldIdIfMatchesUnion(field, builder, false, seg.getChild());
+                }
+              }
 
-      @Override
-      protected TypedFieldId visitGeneric(ArrowType type) {
-        builder.intermediateType(CompleteType.fromField(field));
-        builder.addId(id);
-        builder.finalType(CompleteType.fromField(field));
-        if (seg.isLastPath()) {
-          return builder.build();
-        } else {
-          PathSegment child = seg.getChild();
-          if (child.isArray() && child.isLastPath()) {
-            builder.remainder(child);
-            builder.withIndex();
-            builder.finalType(CompleteType.fromField(field));
-            return builder.build();
-          } else {
-            return null;
-          }
-
-        }
-      }
-
-    });
-
+              @Override
+              protected TypedFieldId visitGeneric(ArrowType type) {
+                builder.intermediateType(CompleteType.fromField(field));
+                builder.addId(id);
+                builder.finalType(CompleteType.fromField(field));
+                if (seg.isLastPath()) {
+                  return builder.build();
+                } else {
+                  PathSegment child = seg.getChild();
+                  if (child.isArray() && child.isLastPath()) {
+                    builder.remainder(child);
+                    builder.withIndex();
+                    builder.finalType(CompleteType.fromField(field));
+                    return builder.build();
+                  } else {
+                    return null;
+                  }
+                }
+              }
+            });
   }
 
   private static TypedFieldId getFieldIdIfMatches(
@@ -173,11 +180,12 @@ public final class FieldIdUtil2 {
           builder.isListOrUnionInPath(true);
           builder.listVector();
         } else {
-          throw new UnsupportedOperationException("FieldIdUtil does not support field of type " + field.getType());
+          throw new UnsupportedOperationException(
+              "FieldIdUtil does not support field of type " + field.getType());
         }
         builder //
-                .withIndex() //
-                .finalType(type);
+            .withIndex() //
+            .finalType(type);
 
         // remainder starts with the 1st array segment in BasePath.
         // only set remainder when it's the only array segment.
@@ -201,11 +209,12 @@ public final class FieldIdUtil2 {
 
     final Field inner;
     if (typeType == ArrowTypeID.Struct) {
-      if(seg.isArray()){
+      if (seg.isArray()) {
         builder.isListOrUnionInPath(true);
         return null;
       }
-      FieldWithOrdinal ford = getChildField(field, seg.isArray() ? null : seg.getNameSegment().getPath());
+      FieldWithOrdinal ford =
+          getChildField(field, seg.isArray() ? null : seg.getNameSegment().getPath());
       if (ford == null) {
         return null;
       }
@@ -218,12 +227,13 @@ public final class FieldIdUtil2 {
       builder.isListOrUnionInPath(true);
       inner = field.getChildren().get(0);
     } else {
-      throw new UnsupportedOperationException("FieldIdUtil does not support field of type " + field.getType());
+      throw new UnsupportedOperationException(
+          "FieldIdUtil does not support field of type " + field.getType());
     }
 
     final ArrowTypeID innerTypeType = inner.getType().getTypeID();
     if (innerTypeType == ArrowTypeID.List || innerTypeType == ArrowTypeID.Struct) {
-      if(innerTypeType == ArrowTypeID.List) {
+      if (innerTypeType == ArrowTypeID.List) {
         builder.isListOrUnionInPath(true);
       }
       return getFieldIdIfMatches(inner, builder, addToBreadCrumb, seg.getChild());
@@ -232,7 +242,7 @@ public final class FieldIdUtil2 {
       return getFieldIdIfMatchesUnion(inner, builder, addToBreadCrumb, seg.getChild());
     } else {
       if (seg.isNamed()) {
-        if(addToBreadCrumb) {
+        if (addToBreadCrumb) {
           builder.intermediateType(CompleteType.fromField(inner));
         }
         builder.finalType(CompleteType.fromField(inner));
@@ -252,7 +262,8 @@ public final class FieldIdUtil2 {
           builder.finalType(CompleteType.fromField(inner));
           return builder.build();
         } else {
-          logger.warn("You tried to request a complex type inside a scalar object or path or type is wrong.");
+          logger.warn(
+              "You tried to request a complex type inside a scalar object or path or type is wrong.");
           return null;
         }
       }
@@ -262,7 +273,7 @@ public final class FieldIdUtil2 {
   private static FieldWithOrdinal getChildField(Field f, String name) {
     Map<String, FieldWithOrdinal> children = new HashMap<>();
     int i = 0;
-    for(Field child : f.getChildren()){
+    for (Field child : f.getChildren()) {
       children.put(child.getName().toLowerCase(), new FieldWithOrdinal(child, i));
       i++;
     }

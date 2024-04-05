@@ -21,14 +21,11 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.LocalDate;
 
-/**
- * Utils for date time compare used in support bundle
- */
+/** Utils for date time compare used in support bundle */
 public class DateTimeUtils {
 
   public static final DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
@@ -43,9 +40,7 @@ public class DateTimeUtils {
     throw new ParseException("Date yyyy-MM-dd not found in " + str, 0);
   }
 
-  /**
-   * check if timestamp is within today in zone
-   */
+  /** check if timestamp is within today in zone */
   public static boolean isToday(long timestamp, DateTimeZone zone) {
     if (timestamp == 0) { // 0 implies query is running now
       return true;
@@ -56,12 +51,14 @@ public class DateTimeUtils {
 
   /**
    * check if target is within leftBound inclusively and rightBound inclusively
+   *
    * @param str string that container date info in format of yyyy-mm-dd
    * @param leftBound
    * @param rightBound
    * @return
    */
-  public static boolean isBetweenDay(String str, long leftBound, long rightBound, DateTimeZone zone) {
+  public static boolean isBetweenDay(
+      String str, long leftBound, long rightBound, DateTimeZone zone) {
     Date target;
     try {
       target = getDateFromString(str);
@@ -77,7 +74,7 @@ public class DateTimeUtils {
 
     LocalDate rightBoundDate = new DateTime(rightBound, zone).toLocalDate();
 
-    return !targetDate.isBefore(leftBoundDate) && !targetDate.isAfter(rightBoundDate); // today >= leftBound and today <= rightBound
+    return !targetDate.isBefore(leftBoundDate)
+        && !targetDate.isAfter(rightBoundDate); // today >= leftBound and today <= rightBound
   }
-
 }

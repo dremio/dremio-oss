@@ -15,9 +15,7 @@
  */
 package com.dremio.telemetry.api.metrics;
 
-/**
- * Rate monitoring interface.
- */
+/** Rate monitoring interface. */
 public interface Meter {
   void mark(String... tags);
 }

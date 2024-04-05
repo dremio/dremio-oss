@@ -15,23 +15,32 @@
  */
 package com.dremio.sabot.op.aggregate.vectorized;
 
-
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BaseValueVector;
 import org.apache.arrow.vector.FieldVector;
-
 
 /*
  * This is the aggregator for LOCAL_LISTAGG, similar to other aggregate accumulators.
  * This accumulator is used in the first phase of the HashAgg.
  */
 public class LocalListAggAccumulator extends ListAggAccumulator {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(LocalListAggAccumulator.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(LocalListAggAccumulator.class);
 
-  public LocalListAggAccumulator(FieldVector incomingValues, FieldVector transferVector, int maxValuesPerBatch, BufferAllocator computationVectorAllocator,
-                                 AccumulatorBuilder.ListAggParams listAggParams, BaseValueVector tempAccumulator) {
-    super(incomingValues, transferVector, maxValuesPerBatch, computationVectorAllocator,
-      listAggParams, tempAccumulator);
+  public LocalListAggAccumulator(
+      FieldVector incomingValues,
+      FieldVector transferVector,
+      int maxValuesPerBatch,
+      BufferAllocator computationVectorAllocator,
+      AccumulatorBuilder.ListAggParams listAggParams,
+      BaseValueVector tempAccumulator) {
+    super(
+        incomingValues,
+        transferVector,
+        maxValuesPerBatch,
+        computationVectorAllocator,
+        listAggParams,
+        tempAccumulator);
   }
 
   @Override
@@ -42,10 +51,11 @@ public class LocalListAggAccumulator extends ListAggAccumulator {
   @Override
   public void output(int startBatchIndex, int[] recordsInBatches) {
     outputToListVector(startBatchIndex, recordsInBatches);
- }
+  }
 
   @Override
-  public void accumulate(final long memoryAddr, final int count, final int bitsInChunk, final int chunkOffsetMask) {
+  public void accumulate(
+      final long memoryAddr, final int count, final int bitsInChunk, final int chunkOffsetMask) {
     accumulateFromVarWidthVector(memoryAddr, count, bitsInChunk, chunkOffsetMask);
   }
 }

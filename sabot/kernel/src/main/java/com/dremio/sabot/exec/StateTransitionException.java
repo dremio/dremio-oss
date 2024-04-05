@@ -20,7 +20,11 @@ public class StateTransitionException extends RuntimeException {
     super();
   }
 
-  public StateTransitionException(final String message, final Throwable cause, final boolean enableSuppression, final boolean writableStackTrace) {
+  public StateTransitionException(
+      final String message,
+      final Throwable cause,
+      final boolean enableSuppression,
+      final boolean writableStackTrace) {
     super(message, cause, enableSuppression, writableStackTrace);
   }
 

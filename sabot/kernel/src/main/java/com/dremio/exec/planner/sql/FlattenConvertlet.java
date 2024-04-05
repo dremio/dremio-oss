@@ -17,7 +17,6 @@ package com.dremio.exec.planner.sql;
 
 import java.util.LinkedList;
 import java.util.List;
-
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlNode;
@@ -28,8 +27,7 @@ public class FlattenConvertlet implements SqlRexConvertlet {
 
   public static final FlattenConvertlet INSTANCE = new FlattenConvertlet();
 
-  private FlattenConvertlet() {
-  }
+  private FlattenConvertlet() {}
 
   /*
    * Convert Flatten operators into distinct flatten calls.
@@ -43,9 +41,8 @@ public class FlattenConvertlet implements SqlRexConvertlet {
       exprs.add(cx.convertExpression(node));
     }
 
-    SqlFlattenOperator indexedOperator = operator.withIndex(((SqlValidatorImpl)cx.getValidator()).nextFlattenIndex());
+    SqlFlattenOperator indexedOperator =
+        operator.withIndex(((SqlValidatorImpl) cx.getValidator()).nextFlattenIndex());
     return cx.getRexBuilder().makeCall(indexedOperator, exprs);
   }
-
-
 }

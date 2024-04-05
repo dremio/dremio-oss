@@ -19,17 +19,15 @@ import static java.util.Arrays.asList;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertNotSame;
 
-import java.io.IOException;
-import java.util.Collection;
-import java.util.Random;
-
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-
 import com.google.protobuf.ByteOutput;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.UnsafeByteOperations;
+import java.io.IOException;
+import java.util.Collection;
+import java.util.Random;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 /**
  * Test {@link ByteOutput} implementation with various payload sizes through UnsafeByteOperations.
@@ -49,7 +47,7 @@ public class TestOptimisticByteOutputUnsafeByteOperations {
     return bytes;
   }
 
-  @Parameterized.Parameters(name="TestOptimisticByteOutputUnsafeByteOperations-Payload-{0}")
+  @Parameterized.Parameters(name = "TestOptimisticByteOutputUnsafeByteOperations-Payload-{0}")
   public static Collection<Integer> sizes() {
     return asList(0, 1, 2, 3, 100, 255, 512, 1024, 256000, 1000000);
   }

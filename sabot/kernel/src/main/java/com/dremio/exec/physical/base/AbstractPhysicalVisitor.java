@@ -20,7 +20,6 @@ import com.dremio.exec.physical.config.AbstractTableFunctionPOP;
 import com.dremio.exec.physical.config.BridgeExchange;
 import com.dremio.exec.physical.config.BridgeFileReader;
 import com.dremio.exec.physical.config.BroadcastSender;
-import com.dremio.exec.physical.config.DictionaryLookupPOP;
 import com.dremio.exec.physical.config.EmptyValues;
 import com.dremio.exec.physical.config.Filter;
 import com.dremio.exec.physical.config.FlattenPOP;
@@ -45,14 +44,15 @@ import com.dremio.exec.physical.config.WindowPOP;
 import com.dremio.exec.physical.config.WriterCommitterPOP;
 import com.dremio.sabot.op.fromjson.ConvertFromJsonPOP;
 
-public abstract class AbstractPhysicalVisitor<T, X, E extends Throwable> implements PhysicalVisitor<T, X, E> {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AbstractPhysicalVisitor.class);
+public abstract class AbstractPhysicalVisitor<T, X, E extends Throwable>
+    implements PhysicalVisitor<T, X, E> {
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(AbstractPhysicalVisitor.class);
 
   @Override
-  public T visitExchange(Exchange exchange, X value) throws E{
+  public T visitExchange(Exchange exchange, X value) throws E {
     return visitOp(exchange, value);
   }
-
 
   @Override
   public T visitWriterCommiter(WriterCommitterPOP commiter, X value) throws E {
@@ -70,7 +70,7 @@ public abstract class AbstractPhysicalVisitor<T, X, E extends Throwable> impleme
   }
 
   @Override
-  public T visitFilter(Filter filter, X value) throws E{
+  public T visitFilter(Filter filter, X value) throws E {
     return visitOp(filter, value);
   }
 
@@ -80,13 +80,8 @@ public abstract class AbstractPhysicalVisitor<T, X, E extends Throwable> impleme
   }
 
   @Override
-  public T visitProject(Project project, X value) throws E{
+  public T visitProject(Project project, X value) throws E {
     return visitOp(project, value);
-  }
-
-  @Override
-  public T visitDictionaryLookup(DictionaryLookupPOP dictionaryLookupPOP, X value) throws E {
-    return visitOp(dictionaryLookupPOP, value);
   }
 
   @Override
@@ -95,7 +90,7 @@ public abstract class AbstractPhysicalVisitor<T, X, E extends Throwable> impleme
   }
 
   @Override
-  public T visitSort(AbstractSort sort, X value) throws E{
+  public T visitSort(AbstractSort sort, X value) throws E {
     return visitOp(sort, value);
   }
 
@@ -130,22 +125,21 @@ public abstract class AbstractPhysicalVisitor<T, X, E extends Throwable> impleme
   }
 
   @Override
-  public T visitGroupScan(GroupScan groupScan, X value) throws E{
+  public T visitGroupScan(GroupScan groupScan, X value) throws E {
     return visitOp(groupScan, value);
   }
 
   @Override
-  public T visitSubScan(SubScan subScan, X value) throws E{
+  public T visitSubScan(SubScan subScan, X value) throws E {
     return visitOp(subScan, value);
   }
 
   @Override
-  public T visitStore(Store store, X value) throws E{
+  public T visitStore(Store store, X value) throws E {
     return visitOp(store, value);
   }
 
-
-  public T visitChildren(PhysicalOperator op, X value) throws E{
+  public T visitChildren(PhysicalOperator op, X value) throws E {
     for (PhysicalOperator child : op) {
       child.accept(this, value);
     }
@@ -238,10 +232,10 @@ public abstract class AbstractPhysicalVisitor<T, X, E extends Throwable> impleme
   }
 
   @Override
-  public T visitOp(PhysicalOperator op, X value) throws E{
-    throw new UnsupportedOperationException(String.format(
-        "The PhysicalVisitor of type %s does not currently support visiting the PhysicalOperator type %s.", this
-            .getClass().getCanonicalName(), op.getClass().getCanonicalName()));
+  public T visitOp(PhysicalOperator op, X value) throws E {
+    throw new UnsupportedOperationException(
+        String.format(
+            "The PhysicalVisitor of type %s does not currently support visiting the PhysicalOperator type %s.",
+            this.getClass().getCanonicalName(), op.getClass().getCanonicalName()));
   }
-
 }

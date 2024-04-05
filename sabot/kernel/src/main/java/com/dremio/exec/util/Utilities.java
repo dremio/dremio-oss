@@ -15,9 +15,6 @@
  */
 package com.dremio.exec.util;
 
-import java.util.List;
-import java.util.Locale;
-
 import com.dremio.common.util.JodaDateUtility;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.proto.CoordExecRPC.FragmentPriority;
@@ -29,26 +26,31 @@ import com.dremio.exec.proto.UserBitShared.WorkloadClass;
 import com.dremio.exec.proto.UserBitShared.WorkloadType;
 import com.dremio.exec.proto.UserProtos.QueryPriority;
 import com.google.common.collect.Lists;
+import java.util.List;
+import java.util.Locale;
 
 public class Utilities {
-    /*
-     * From the context, get the query id, major fragment id, minor fragment id. This will be used as the file name to
-     * which we will dump the incoming buffer data
-     */
-  public static String getFileNameForQueryFragment(FragmentHandle handle, String location, String tag) {
+  /*
+   * From the context, get the query id, major fragment id, minor fragment id. This will be used as the file name to
+   * which we will dump the incoming buffer data
+   */
+  public static String getFileNameForQueryFragment(
+      FragmentHandle handle, String location, String tag) {
 
     String qid = QueryIdHelper.getQueryId(handle.getQueryId());
 
     int majorFragmentId = handle.getMajorFragmentId();
     int minorFragmentId = handle.getMinorFragmentId();
 
-    String fileName = String.format("%s//%s_%s_%s_%s", location, qid, majorFragmentId, minorFragmentId, tag);
+    String fileName =
+        String.format("%s//%s_%s_%s_%s", location, qid, majorFragmentId, minorFragmentId, tag);
 
     return fileName;
   }
 
   /**
    * Compares two lists' (unordered) content without needing elements to be Comparable.
+   *
    * @param A list to compare
    * @param B list to compare
    * @return true iff A and B have the same elements
@@ -73,6 +75,7 @@ public class Utilities {
   public static QueryContextInformation createQueryContextInfo(final String defaultSchemaName) {
     return createQueryContextInfo(defaultSchemaName, null, Long.MAX_VALUE, null);
   }
+
   /**
    * Create QueryContextInformation with given <i>defaultSchemaName</i>. Rest of the members of the
    * QueryContextInformation is derived from the current state of the process.
@@ -80,36 +83,43 @@ public class Utilities {
    * @param defaultSchemaName
    * @return
    */
-  public static QueryContextInformation createQueryContextInfo(final String defaultSchemaName, QueryPriority priority, long maxAllocation, QueryId lastQueryId) {
+  public static QueryContextInformation createQueryContextInfo(
+      final String defaultSchemaName,
+      QueryPriority priority,
+      long maxAllocation,
+      QueryId lastQueryId) {
     final long queryStartTime = System.currentTimeMillis();
     final int timeZone = JodaDateUtility.getIndex(System.getProperty("user.timezone"));
     FragmentPriority.Builder priorityBuilder = FragmentPriority.newBuilder();
-    if(priority != null){
+    if (priority != null) {
       priorityBuilder.setWorkloadClass(priority.getWorkloadClass());
     } else {
       priorityBuilder.setWorkloadClass(WorkloadClass.GENERAL);
     }
 
-    QueryContextInformation.Builder builder = QueryContextInformation.newBuilder()
-      .setDefaultSchemaName(defaultSchemaName)
-      .setQueryStartTime(queryStartTime)
-      .setTimeZone(timeZone)
-      .setPriority(priorityBuilder)
-      .setQueryMaxAllocation(maxAllocation);
+    QueryContextInformation.Builder builder =
+        QueryContextInformation.newBuilder()
+            .setDefaultSchemaName(defaultSchemaName)
+            .setQueryStartTime(queryStartTime)
+            .setTimeZone(timeZone)
+            .setPriority(priorityBuilder)
+            .setQueryMaxAllocation(maxAllocation);
 
     return (lastQueryId == null ? builder : builder.setLastQueryId(lastQueryId)).build();
   }
 
-  public static WorkloadType getWorkloadType(QueryPriority queryPriority, UserBitShared.RpcEndpointInfos clientInfos) {
-    if (queryPriority == null ||
-      queryPriority.getWorkloadType() == null ||
-      WorkloadType.UNKNOWN.equals(queryPriority.getWorkloadType())) {
+  public static WorkloadType getWorkloadType(
+      QueryPriority queryPriority, UserBitShared.RpcEndpointInfos clientInfos) {
+    if (queryPriority == null
+        || queryPriority.getWorkloadType() == null
+        || WorkloadType.UNKNOWN.equals(queryPriority.getWorkloadType())) {
       return getByClientType(clientInfos);
     }
     return queryPriority.getWorkloadType();
   }
 
-  public static UserBitShared.WorkloadType getByClientType(UserBitShared.RpcEndpointInfos clientInfos) {
+  public static UserBitShared.WorkloadType getByClientType(
+      UserBitShared.RpcEndpointInfos clientInfos) {
     if (clientInfos == null) {
       return WorkloadType.UNKNOWN;
     }
@@ -135,7 +145,7 @@ public class Utilities {
   }
 
   public static String getHumanReadableWorkloadType(WorkloadType workloadType) {
-    switch(workloadType) {
+    switch (workloadType) {
       case DDL:
         return "DDL"; // not yet configurable via UI
       case INTERNAL_RUN:
@@ -173,6 +183,7 @@ public class Utilities {
   }
 
   public static boolean isAccelerationType(final String queryType) {
-    return queryType != null && queryType.equals(getHumanReadableWorkloadType(WorkloadType.ACCELERATOR));
+    return queryType != null
+        && queryType.equals(getHumanReadableWorkloadType(WorkloadType.ACCELERATOR));
   }
 }

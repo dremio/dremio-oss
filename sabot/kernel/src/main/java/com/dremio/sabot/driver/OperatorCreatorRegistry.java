@@ -15,13 +15,6 @@
  */
 package com.dremio.sabot.driver;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.scanner.persistence.ScanResult;
@@ -36,11 +29,18 @@ import com.dremio.sabot.op.spi.SingleInputOperator;
 import com.dremio.sabot.op.spi.TerminalOperator;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
 
 @SuppressWarnings("unchecked")
 public class OperatorCreatorRegistry implements OperatorCreator {
 
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(OperatorCreatorRegistry.class);
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(OperatorCreatorRegistry.class);
 
   @SuppressWarnings("rawtypes")
   private final ImmutableMap<Class<?>, SingleInputOperator.Creator> singleInputCreators;
@@ -66,53 +66,88 @@ public class OperatorCreatorRegistry implements OperatorCreator {
   }
 
   @Override
-  public <T extends PhysicalOperator> SingleInputOperator getSingleInputOperator(OperatorContext context, T operator) throws ExecutionSetupException {
-    SingleInputOperator.Creator<T> creator = (SingleInputOperator.Creator<T>) singleInputCreators
-        .get(operator.getClass());
-    Preconditions.checkNotNull(creator, "Unable to find creator for operator of type %s with configuration %s", operator.getClass().getName(), operator.toString());
+  public <T extends PhysicalOperator> SingleInputOperator getSingleInputOperator(
+      OperatorContext context, T operator) throws ExecutionSetupException {
+    SingleInputOperator.Creator<T> creator =
+        (SingleInputOperator.Creator<T>) singleInputCreators.get(operator.getClass());
+    Preconditions.checkNotNull(
+        creator,
+        "Unable to find creator for operator of type %s with configuration %s",
+        operator.getClass().getName(),
+        operator.toString());
     return creator.create(context, (T) operator);
   }
 
   @Override
-  public <T extends PhysicalOperator> SingleInputOperator getSingleInputOperator(FragmentExecutionContext fec, OperatorContext context, T operator) throws ExecutionSetupException {
-    SingleInputOperator.Creator<T> creator = (SingleInputOperator.Creator<T>) singleInputCreators
-            .get(operator.getClass());
-    Preconditions.checkNotNull(creator, "Unable to find creator for operator of type %s with configuration %s", operator.getClass().getName(), operator.toString());
+  public <T extends PhysicalOperator> SingleInputOperator getSingleInputOperator(
+      FragmentExecutionContext fec, OperatorContext context, T operator)
+      throws ExecutionSetupException {
+    SingleInputOperator.Creator<T> creator =
+        (SingleInputOperator.Creator<T>) singleInputCreators.get(operator.getClass());
+    Preconditions.checkNotNull(
+        creator,
+        "Unable to find creator for operator of type %s with configuration %s",
+        operator.getClass().getName(),
+        operator.toString());
     return creator.create(fec, context, (T) operator);
   }
 
   @Override
-  public <T extends PhysicalOperator> DualInputOperator getDualInputOperator(OperatorContext context, T operator) throws ExecutionSetupException {
-    DualInputOperator.Creator<T> creator = (DualInputOperator.Creator<T>) dualInputCreators.get(operator.getClass());
-    Preconditions.checkNotNull(creator, "Unable to find creator for operator of type %s with configuration %s", operator.getClass().getName(), operator.toString());
+  public <T extends PhysicalOperator> DualInputOperator getDualInputOperator(
+      OperatorContext context, T operator) throws ExecutionSetupException {
+    DualInputOperator.Creator<T> creator =
+        (DualInputOperator.Creator<T>) dualInputCreators.get(operator.getClass());
+    Preconditions.checkNotNull(
+        creator,
+        "Unable to find creator for operator of type %s with configuration %s",
+        operator.getClass().getName(),
+        operator.toString());
     return creator.create(context, (T) operator);
   }
 
   @Override
-  public <T extends PhysicalOperator> TerminalOperator getTerminalOperator(TunnelProvider provider, OperatorContext context, T operator) throws ExecutionSetupException {
-    TerminalOperator.Creator<T> creator = (TerminalOperator.Creator<T>) terminalCreators.get(operator.getClass());
-    Preconditions.checkNotNull(creator, "Unable to find creator for operator of type %s with configuration %s", operator.getClass().getName(), operator.toString());
+  public <T extends PhysicalOperator> TerminalOperator getTerminalOperator(
+      TunnelProvider provider, OperatorContext context, T operator) throws ExecutionSetupException {
+    TerminalOperator.Creator<T> creator =
+        (TerminalOperator.Creator<T>) terminalCreators.get(operator.getClass());
+    Preconditions.checkNotNull(
+        creator,
+        "Unable to find creator for operator of type %s with configuration %s",
+        operator.getClass().getName(),
+        operator.toString());
     return creator.create(provider, context, (T) operator);
   }
 
   @Override
-  public <T extends PhysicalOperator> ProducerOperator getProducerOperator(FragmentExecutionContext fec, OperatorContext context, T operator) throws ExecutionSetupException {
-    ProducerOperator.Creator<T> creator = (ProducerOperator.Creator<T>) producerCreators.get(operator.getClass());
-    Preconditions.checkNotNull(creator, "Unable to find creator for operator of type %s with configuration %s", operator.getClass().getName(), operator.toString());
+  public <T extends PhysicalOperator> ProducerOperator getProducerOperator(
+      FragmentExecutionContext fec, OperatorContext context, T operator)
+      throws ExecutionSetupException {
+    ProducerOperator.Creator<T> creator =
+        (ProducerOperator.Creator<T>) producerCreators.get(operator.getClass());
+    Preconditions.checkNotNull(
+        creator,
+        "Unable to find creator for operator of type %s with configuration %s",
+        operator.getClass().getName(),
+        operator.toString());
     return creator.create(fec, context, (T) operator);
   }
 
   @Override
-  public <T extends PhysicalOperator> ProducerOperator getReceiverOperator(BatchStreamProvider buffers,
-      OperatorContext context, T operator) throws ExecutionSetupException {
-    ProducerOperator.ReceiverCreator<T> creator = (ProducerOperator.ReceiverCreator<T>) receiverCreators.get(operator.getClass());
-    Preconditions.checkNotNull(creator, "Unable to find creator for operator of type %s with configuration %s", operator.getClass().getName(), operator.toString());
+  public <T extends PhysicalOperator> ProducerOperator getReceiverOperator(
+      BatchStreamProvider buffers, OperatorContext context, T operator)
+      throws ExecutionSetupException {
+    ProducerOperator.ReceiverCreator<T> creator =
+        (ProducerOperator.ReceiverCreator<T>) receiverCreators.get(operator.getClass());
+    Preconditions.checkNotNull(
+        creator,
+        "Unable to find creator for operator of type %s with configuration %s",
+        operator.getClass().getName(),
+        operator.toString());
     return creator.create(buffers, context, (T) operator);
   }
 
-
-
-  private <T> ImmutableMap<Class<?>, T> getImplementors(ScanResult scanResult, Class<T> baseInterface) {
+  private <T> ImmutableMap<Class<?>, T> getImplementors(
+      ScanResult scanResult, Class<T> baseInterface) {
     final Map<Class<?>, T> map = new HashMap<>();
 
     Set<Class<? extends T>> providerClasses = scanResult.getImplementations(baseInterface);
@@ -122,7 +157,8 @@ public class OperatorCreatorRegistry implements OperatorCreator {
       while (!interfaceFound && !(c.equals(java.lang.Object.class))) {
         final Type[] ifaces = c.getGenericInterfaces(); // never returns null
         for (Type iface : ifaces) {
-          if (!(iface instanceof ParameterizedType && ((ParameterizedType) iface).getRawType().equals(baseInterface))) {
+          if (!(iface instanceof ParameterizedType
+              && ((ParameterizedType) iface).getRawType().equals(baseInterface))) {
             continue;
           }
           final Type[] args = ((ParameterizedType) iface).getActualTypeArguments();
@@ -136,20 +172,25 @@ public class OperatorCreatorRegistry implements OperatorCreator {
                 Object old = map.put((Class<?>) args[0], newInstance);
                 if (old != null) {
                   throw UserException.functionError()
-                      .message("Duplicate OperatorCreator [%s, %s] found for PhysicalOperator %s",
-                          old.getClass().getCanonicalName(), operatorClass.getCanonicalName(),
+                      .message(
+                          "Duplicate OperatorCreator [%s, %s] found for PhysicalOperator %s",
+                          old.getClass().getCanonicalName(),
+                          operatorClass.getCanonicalName(),
                           ((Class<?>) args[0]).getCanonicalName())
                       .build(logger);
                 }
                 constructorFound = true;
               } catch (Exception ex) {
-                logger.warn("Failure while creating OperatorCreator. Constructor declaring class {}.",
-                    constructor.getDeclaringClass().getName(), ex);
+                logger.warn(
+                    "Failure while creating OperatorCreator. Constructor declaring class {}.",
+                    constructor.getDeclaringClass().getName(),
+                    ex);
               }
             }
           }
           if (!constructorFound) {
-            logger.debug("Skipping registration of OperatorCreator {} as it doesn't have a default constructor",
+            logger.debug(
+                "Skipping registration of OperatorCreator {} as it doesn't have a default constructor",
                 operatorClass.getCanonicalName());
           }
         }
@@ -158,5 +199,4 @@ public class OperatorCreatorRegistry implements OperatorCreator {
     }
     return ImmutableMap.copyOf(map);
   }
-
 }

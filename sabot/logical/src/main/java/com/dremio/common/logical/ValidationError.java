@@ -15,14 +15,14 @@
  */
 package com.dremio.common.logical;
 
-public class ValidationError extends RuntimeException{
+public class ValidationError extends RuntimeException {
 
   public ValidationError() {
     super();
   }
 
-
-  public ValidationError(String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
+  public ValidationError(
+      String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
     super(message, cause, enableSuppression, writableStackTrace);
   }
 
@@ -37,5 +37,4 @@ public class ValidationError extends RuntimeException{
   public ValidationError(Throwable cause) {
     super(cause);
   }
-
 }

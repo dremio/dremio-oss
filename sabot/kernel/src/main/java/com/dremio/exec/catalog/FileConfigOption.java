@@ -15,16 +15,16 @@
  */
 package com.dremio.exec.catalog;
 
-import java.util.stream.Stream;
-
 import com.dremio.connector.metadata.GetDatasetOption;
 import com.dremio.connector.metadata.GetMetadataOption;
 import com.dremio.connector.metadata.ListPartitionChunkOption;
 import com.dremio.connector.metadata.MetadataOption;
 import com.dremio.service.namespace.file.proto.FileConfig;
+import java.util.stream.Stream;
 
 @Deprecated
-public class FileConfigOption implements GetMetadataOption, GetDatasetOption, ListPartitionChunkOption {
+public class FileConfigOption
+    implements GetMetadataOption, GetDatasetOption, ListPartitionChunkOption {
 
   private final FileConfig fileConfig;
 
@@ -37,6 +37,10 @@ public class FileConfigOption implements GetMetadataOption, GetDatasetOption, Li
   }
 
   public static FileConfig getFileConfig(MetadataOption... options) {
-    return Stream.of(options).filter(o -> o instanceof FileConfigOption).findFirst().map(o -> ((FileConfigOption) o).getFileConfig()).orElse(null);
+    return Stream.of(options)
+        .filter(o -> o instanceof FileConfigOption)
+        .findFirst()
+        .map(o -> ((FileConfigOption) o).getFileConfig())
+        .orElse(null);
   }
 }

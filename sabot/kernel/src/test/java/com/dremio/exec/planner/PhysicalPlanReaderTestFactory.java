@@ -15,12 +15,7 @@
  */
 package com.dremio.exec.planner;
 
-import javax.inject.Provider;
-
-import org.mockito.Mockito;
-
 import com.dremio.common.config.LogicalPlanPersistence;
-import com.dremio.common.config.SabotConfig;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.proto.CoordinationProtos;
@@ -28,27 +23,33 @@ import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.service.DirectProvider;
 import com.dremio.test.DremioTest;
+import javax.inject.Provider;
+import org.mockito.Mockito;
 
 public class PhysicalPlanReaderTestFactory {
 
-  public static LogicalPlanPersistence defaultLogicalPlanPersistence(SabotConfig c, ScanResult scanResult) {
-    return new LogicalPlanPersistence(c, scanResult);
+  public static LogicalPlanPersistence defaultLogicalPlanPersistence(ScanResult scanResult) {
+    return new LogicalPlanPersistence(scanResult);
   }
 
   public static PhysicalPlanReader defaultPhysicalPlanReader(
-      SabotConfig c,
-      ScanResult scanResult,
-      Provider<CatalogService> catalogService) {
+      ScanResult scanResult, Provider<CatalogService> catalogService) {
     SabotContext sabotContext = Mockito.mock(SabotContext.class);
     Mockito.when(sabotContext.getConnectionReaderProvider())
-      .thenReturn(DirectProvider.wrap(ConnectionReader.of(DremioTest.CLASSPATH_SCAN_RESULT, DremioTest.DEFAULT_SABOT_CONFIG)));
+        .thenReturn(
+            DirectProvider.wrap(
+                ConnectionReader.of(
+                    DremioTest.CLASSPATH_SCAN_RESULT, DremioTest.DEFAULT_SABOT_CONFIG)));
     return new PhysicalPlanReader(
-        c, scanResult, new LogicalPlanPersistence(c, scanResult),
+        scanResult,
+        new LogicalPlanPersistence(scanResult),
         CoordinationProtos.NodeEndpoint.getDefaultInstance(),
-        catalogService, sabotContext);
+        catalogService,
+        sabotContext);
   }
-  public static PhysicalPlanReader defaultPhysicalPlanReader(SabotConfig c, ScanResult scanResult) {
-    return defaultPhysicalPlanReader(c, scanResult, DirectProvider.<CatalogService>wrap(null));
+
+  public static PhysicalPlanReader defaultPhysicalPlanReader(ScanResult scanResult) {
+    return defaultPhysicalPlanReader(scanResult, DirectProvider.<CatalogService>wrap(null));
   }
 
   public static PhysicalPlanReader defaultPhysicalPlanReader(SabotContext c) {
@@ -56,15 +57,12 @@ public class PhysicalPlanReaderTestFactory {
   }
 
   public static PhysicalPlanReader defaultPhysicalPlanReader(
-      SabotContext c,
-      Provider<CatalogService> catalogService) {
+      SabotContext c, Provider<CatalogService> catalogService) {
     return new PhysicalPlanReader(
-        c.getConfig(),
         c.getClasspathScan(),
         c.getLpPersistence(),
         CoordinationProtos.NodeEndpoint.getDefaultInstance(),
         catalogService,
         Mockito.mock(SabotContext.class));
   }
-
 }

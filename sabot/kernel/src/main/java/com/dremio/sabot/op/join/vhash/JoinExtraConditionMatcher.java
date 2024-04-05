@@ -15,20 +15,18 @@
  */
 package com.dremio.sabot.op.join.vhash;
 
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
-
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.exec.record.ExpandableHyperContainer;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.google.common.base.Stopwatch;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
-/**
- * Implements HashJoinExtraMatcher using Java code to build and evaluate the expression.
- */
+/** Implements HashJoinExtraMatcher using Java code to build and evaluate the expression. */
 public class JoinExtraConditionMatcher implements HashJoinExtraMatcher {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(JoinExtraConditionMatcher.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(JoinExtraConditionMatcher.class);
 
   private final LogicalExpression extraCondition;
   private final OperatorContext context;
@@ -42,9 +40,12 @@ public class JoinExtraConditionMatcher implements HashJoinExtraMatcher {
 
   private ExtraConditionEvaluator matchGenerator;
 
-  public JoinExtraConditionMatcher(OperatorContext context, LogicalExpression extraCondition,
-                                   Map<String, String> build2ProbeKeys,
-                                   VectorAccessible probeBatch, ExpandableHyperContainer buildBatch) {
+  public JoinExtraConditionMatcher(
+      OperatorContext context,
+      LogicalExpression extraCondition,
+      Map<String, String> build2ProbeKeys,
+      VectorAccessible probeBatch,
+      ExpandableHyperContainer buildBatch) {
     this.extraCondition = extraCondition;
     this.context = context;
     this.probeBatch = probeBatch;
@@ -57,17 +58,20 @@ public class JoinExtraConditionMatcher implements HashJoinExtraMatcher {
   @Override
   public void setup() {
     setupWatch.start();
-    matchGenerator = ExtraConditionEvaluator.generate(extraCondition, context.getClassProducer(), probeBatch,
-      buildBatch, build2ProbeKeys);
+    matchGenerator =
+        ExtraConditionEvaluator.generate(
+            extraCondition, context.getClassProducer(), probeBatch, buildBatch, build2ProbeKeys);
     matchGenerator.setup(context.getFunctionContext(), probeBatch, buildBatch);
     setupWatch.stop();
   }
 
   @Override
-  public boolean checkCurrentMatch(int currentProbeIndex, int currentLinkBatch, int currentLinkOffset) {
+  public boolean checkCurrentMatch(
+      int currentProbeIndex, int currentLinkBatch, int currentLinkOffset) {
     this.totalEvaluations++;
-    final boolean matched = matchGenerator.doEval(currentProbeIndex,
-      (currentLinkBatch << 16) | (currentLinkOffset & 65535));
+    final boolean matched =
+        matchGenerator.doEval(
+            currentProbeIndex, (currentLinkBatch << 16) | (currentLinkOffset & 65535));
     if (matched) {
       this.totalMatches++;
     }

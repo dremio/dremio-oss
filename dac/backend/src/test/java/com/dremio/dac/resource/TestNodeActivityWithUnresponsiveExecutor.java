@@ -17,15 +17,6 @@ package com.dremio.dac.resource;
 
 import static org.junit.Assert.assertEquals;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import javax.inject.Provider;
-import javax.ws.rs.core.SecurityContext;
-
-import org.junit.Test;
-import org.mockito.Mockito;
-
 import com.dremio.dac.model.system.Nodes;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.server.BufferAllocatorFactory;
@@ -35,45 +26,58 @@ import com.dremio.exec.server.options.ProjectOptionManager;
 import com.dremio.service.executor.ExecutorServiceClientFactory;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.services.fabric.api.FabricService;
+import java.util.ArrayList;
+import java.util.List;
+import javax.inject.Provider;
+import javax.ws.rs.core.SecurityContext;
+import org.junit.Test;
+import org.mockito.Mockito;
 
-/**
- * Tests {@link SystemResource} API
- */
+/** Tests {@link SystemResource} API */
 public class TestNodeActivityWithUnresponsiveExecutor extends BaseTestServer {
   @Test
   public void testNodeActivityWithUnresponsiveExecutor() throws Exception {
     Provider<SabotContext> context = Mockito.spy(p(SabotContext.class));
     SabotContext sabotContext = Mockito.spy(l(SabotContext.class));
     Mockito.when(context.get()).thenReturn(sabotContext);
-    Provider<ExecutorServiceClientFactory> executorServiceClientFactoryProvider = Mockito.spy(p(ExecutorServiceClientFactory.class));
-    SystemResource systemResource = new SystemResource(context,
-      p(FabricService.class),
-      p(JobsService.class),
-      executorServiceClientFactoryProvider,
-      l(SecurityContext.class),
-      l(BufferAllocatorFactory.class),
-      l(ProjectOptionManager.class)
-      );
+    Provider<ExecutorServiceClientFactory> executorServiceClientFactoryProvider =
+        Mockito.spy(p(ExecutorServiceClientFactory.class));
+    SystemResource systemResource =
+        new SystemResource(
+            context,
+            p(FabricService.class),
+            p(JobsService.class),
+            executorServiceClientFactoryProvider,
+            l(SecurityContext.class),
+            l(BufferAllocatorFactory.class),
+            l(ProjectOptionManager.class));
     List<CoordinationProtos.NodeEndpoint> executors = new ArrayList<>(sabotContext.getExecutors());
     String fakeAddress = "0.0.0.0";
-    CoordinationProtos.NodeEndpoint unresponsiveEp = CoordinationProtos.NodeEndpoint.newBuilder()
-      .setAddress(fakeAddress)
-      .setAvailableCores(1)
-      .setFabricPort(1)
-      .setConduitPort(1)
-      .setDremioVersion(executors.get(0).getDremioVersion()).build();
+    CoordinationProtos.NodeEndpoint unresponsiveEp =
+        CoordinationProtos.NodeEndpoint.newBuilder()
+            .setAddress(fakeAddress)
+            .setAvailableCores(1)
+            .setFabricPort(1)
+            .setConduitPort(1)
+            .setDremioVersion(executors.get(0).getDremioVersion())
+            .build();
     executors.add(unresponsiveEp);
 
     Mockito.when(sabotContext.getExecutors()).thenReturn(executors);
 
     List<Nodes.NodeInfo> nodes = systemResource.getNodes();
-    assertEquals(1, nodes.stream().filter(node -> {
-        if (fakeAddress.equals(node.getIp()) && "red".equals(node.getStatus())) {
-          if (node.getDetails() != null) {
-            return node.getDetails().contains(Nodes.NodeDetails.NO_RESPONSE.getValue());
-          }
-        }
-        return false;
-      }).count());
+    assertEquals(
+        1,
+        nodes.stream()
+            .filter(
+                node -> {
+                  if (fakeAddress.equals(node.getIp()) && "red".equals(node.getStatus())) {
+                    if (node.getDetails() != null) {
+                      return node.getDetails().contains(Nodes.NodeDetails.NO_RESPONSE.getValue());
+                    }
+                  }
+                  return false;
+                })
+            .count());
   }
 }

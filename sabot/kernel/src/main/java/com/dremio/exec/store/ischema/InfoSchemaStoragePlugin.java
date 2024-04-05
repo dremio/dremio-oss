@@ -15,10 +15,6 @@
  */
 package com.dremio.exec.store.ischema;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
-
 import com.dremio.connector.metadata.BytesOutput;
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.DatasetHandleListing;
@@ -43,13 +39,17 @@ import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableMap;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
 
-public class InfoSchemaStoragePlugin implements StoragePlugin, SupportsReadSignature, SupportsListingDatasets {
+public class InfoSchemaStoragePlugin
+    implements StoragePlugin, SupportsReadSignature, SupportsListingDatasets {
   public static String NAME = "INFORMATION_SCHEMA";
 
   static final ImmutableMap<String, InformationSchemaTable> TABLE_MAP =
-    FluentIterable.from(InformationSchemaTable.values())
-      .uniqueIndex(input -> input.name().toLowerCase());
+      FluentIterable.from(InformationSchemaTable.values())
+          .uniqueIndex(input -> input.name().toLowerCase());
 
   private final SabotContext context;
 
@@ -83,12 +83,10 @@ public class InfoSchemaStoragePlugin implements StoragePlugin, SupportsReadSigna
   }
 
   @Override
-  public void close() {
-  }
+  public void close() {}
 
   @Override
-  public void start() {
-  }
+  public void start() {}
 
   @Override
   public SourceCapabilities getSourceCapabilities() {
@@ -101,7 +99,8 @@ public class InfoSchemaStoragePlugin implements StoragePlugin, SupportsReadSigna
   }
 
   @Override
-  public Optional<DatasetHandle> getDatasetHandle(EntityPath datasetPath, GetDatasetOption... options) {
+  public Optional<DatasetHandle> getDatasetHandle(
+      EntityPath datasetPath, GetDatasetOption... options) {
     if (datasetPath.size() != 2) {
       return Optional.empty();
     }
@@ -118,13 +117,13 @@ public class InfoSchemaStoragePlugin implements StoragePlugin, SupportsReadSigna
   public DatasetMetadata getDatasetMetadata(
       DatasetHandle datasetHandle,
       PartitionChunkListing chunkListing,
-      GetMetadataOption... options
-  ) {
+      GetMetadataOption... options) {
     return datasetHandle.unwrap(InformationSchemaTable.class);
   }
 
   @Override
-  public PartitionChunkListing listPartitionChunks(DatasetHandle datasetHandle, ListPartitionChunkOption... options) {
+  public PartitionChunkListing listPartitionChunks(
+      DatasetHandle datasetHandle, ListPartitionChunkOption... options) {
     return datasetHandle.unwrap(InformationSchemaTable.class);
   }
 
@@ -143,8 +142,7 @@ public class InfoSchemaStoragePlugin implements StoragePlugin, SupportsReadSigna
       BytesOutput signature,
       DatasetHandle datasetHandle,
       DatasetMetadata metadata,
-      ValidateMetadataOption... options
-  ) {
+      ValidateMetadataOption... options) {
     return MetadataValidity.VALID;
   }
 }

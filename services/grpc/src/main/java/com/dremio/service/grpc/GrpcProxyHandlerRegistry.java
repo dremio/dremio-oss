@@ -15,17 +15,15 @@
  */
 package com.dremio.service.grpc;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.function.Predicate;
-
 import com.google.common.io.ByteStreams;
-
 import io.grpc.HandlerRegistry;
 import io.grpc.MethodDescriptor;
 import io.grpc.ServerCallHandler;
 import io.grpc.ServerMethodDefinition;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.function.Predicate;
 
 public class GrpcProxyHandlerRegistry extends HandlerRegistry {
 
@@ -33,7 +31,8 @@ public class GrpcProxyHandlerRegistry extends HandlerRegistry {
   private final ServerCallHandler<byte[], byte[]> handler;
   private final Predicate<String> criteria;
 
-  public GrpcProxyHandlerRegistry(ServerCallHandler<byte[], byte[]> handler, Predicate<String> criteria) {
+  public GrpcProxyHandlerRegistry(
+      ServerCallHandler<byte[], byte[]> handler, Predicate<String> criteria) {
     this.handler = handler;
     this.criteria = criteria;
   }
@@ -41,11 +40,11 @@ public class GrpcProxyHandlerRegistry extends HandlerRegistry {
   @Override
   public ServerMethodDefinition<?, ?> lookupMethod(String methodName, String authority) {
     if (criteria.test(methodName)) {
-      MethodDescriptor<byte[], byte[]> methodDescriptor
-          = MethodDescriptor.newBuilder(byteMarshaller, byteMarshaller)
-          .setFullMethodName(methodName)
-          .setType(MethodDescriptor.MethodType.UNKNOWN)
-          .build();
+      MethodDescriptor<byte[], byte[]> methodDescriptor =
+          MethodDescriptor.newBuilder(byteMarshaller, byteMarshaller)
+              .setFullMethodName(methodName)
+              .setType(MethodDescriptor.MethodType.UNKNOWN)
+              .build();
       return ServerMethodDefinition.create(methodDescriptor, handler);
     }
     return null;

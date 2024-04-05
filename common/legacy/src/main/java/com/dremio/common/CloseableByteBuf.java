@@ -15,13 +15,10 @@
  */
 package com.dremio.common;
 
+import io.netty.buffer.ByteBuf;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import io.netty.buffer.ByteBuf;
-
-/**
- * Class that wraps a bytebuf to make it closeable.
- */
+/** Class that wraps a bytebuf to make it closeable. */
 public class CloseableByteBuf implements AutoCloseable {
   private final ByteBuf buf;
   private final AtomicBoolean closed = new AtomicBoolean(false);
@@ -33,9 +30,8 @@ public class CloseableByteBuf implements AutoCloseable {
 
   @Override
   public void close() throws Exception {
-    if(closed.compareAndSet(false, true)){
+    if (closed.compareAndSet(false, true)) {
       buf.release();
     }
   }
-
 }

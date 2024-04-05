@@ -22,8 +22,7 @@ import com.dremio.exec.proto.UserBitShared.OperatorProfile;
 /**
  * Utility class for creating fully qualified operator IDs
  *
- * The IDs include the number for the major and minor fragments under
- * which the operator appears.
+ * <p>The IDs include the number for the major and minor fragments under which the operator appears.
  */
 public class OperatorPathBuilder {
   private static final String OPERATOR_PATH_PATTERN = "%s-%s-%s";

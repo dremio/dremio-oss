@@ -15,9 +15,7 @@
  */
 package com.dremio.plugins.elastic.planning.rules;
 
-/**
- * Indicates that an expression was unable to be analyzed.
- */
+/** Indicates that an expression was unable to be analyzed. */
 public class ExpressionNotAnalyzableException extends Exception {
 
   public ExpressionNotAnalyzableException(String message, Throwable cause) {

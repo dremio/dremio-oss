@@ -15,34 +15,35 @@
  */
 package com.dremio.exec.planner.physical;
 
-import org.apache.calcite.plan.RelOptRuleCall;
-import org.apache.calcite.rel.RelNode;
-
 import com.dremio.exec.catalog.DremioPrepareTable;
 import com.dremio.exec.ops.OptimizerRulesContext;
 import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.planner.logical.RelOptHelper;
 import com.dremio.exec.planner.logical.TableModifyRel;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
+import org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.calcite.rel.RelNode;
 
-/**
- * Generate physical plan for a FileSystemTableModifyPrule
- */
+/** Generate physical plan for a FileSystemTableModifyPrule */
 public class FileSystemTableModifyPrule extends TableModifyPruleBase {
 
   public FileSystemTableModifyPrule(OptimizerRulesContext context) {
-    super(RelOptHelper.some(TableModifyRel.class, Rel.LOGICAL, RelOptHelper.any(RelNode.class)),
-      "Prel.FileSystemTableModifyPrule", context);
+    super(
+        RelOptHelper.some(TableModifyRel.class, Rel.LOGICAL, RelOptHelper.any(RelNode.class)),
+        "Prel.FileSystemTableModifyPrule",
+        context);
   }
 
   @Override
   public boolean matches(RelOptRuleCall call) {
-    return call.<TableModifyRel>rel(0).getCreateTableEntry().getPlugin() instanceof FileSystemPlugin;
+    return call.<TableModifyRel>rel(0).getCreateTableEntry().getPlugin()
+        instanceof FileSystemPlugin;
   }
 
   @Override
   public void onMatch(RelOptRuleCall call) {
-    onMatch(call,
-      ((DremioPrepareTable) call.<TableModifyRel>rel(0).getTable()).getTable().getDataset());
+    onMatch(
+        call,
+        ((DremioPrepareTable) call.<TableModifyRel>rel(0).getTable()).getTable().getDataset());
   }
 }

@@ -16,12 +16,13 @@
 package com.dremio.telemetry.api.metrics;
 
 /**
- * Extension point to create counters and timers that don't
- * rely on a static method, making it ideal to mock.
+ * Extension point to create counters and timers that don't rely on a static method, making it ideal
+ * to mock.
  */
 interface MetricsProvider {
   /**
    * Creates a counter with the provided name.
+   *
    * @param name The name of the counter.
    * @return A counter.
    */
@@ -29,6 +30,7 @@ interface MetricsProvider {
 
   /**
    * Creates a timer with the provided name.
+   *
    * @param name The name of the timer.
    * @return A timer.
    */

@@ -18,7 +18,8 @@ package com.dremio.sabot.op.receiver;
 import com.dremio.exec.proto.ExecRPC;
 
 public class ReceiverLatencyTracker {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ReceiverLatencyTracker.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ReceiverLatencyTracker.class);
 
   private long sumQueueMillis;
   private long maxQueueMillis;

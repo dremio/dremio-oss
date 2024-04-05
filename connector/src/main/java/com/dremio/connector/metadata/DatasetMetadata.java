@@ -18,15 +18,15 @@ package com.dremio.connector.metadata;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-
 import org.apache.arrow.vector.types.pojo.Schema;
 
 /**
  * Interface for a connector to provide detailed metadata about a dataset.
- * <p>
- * For a particular dataset in the source, values returned by the getters may change from request to request.
- * However, implementations must be internally consistent. For example, a column name returned by
- * {@link #getPartitionColumns} should be present in the schema returned by {@link #getRecordSchema}.
+ *
+ * <p>For a particular dataset in the source, values returned by the getters may change from request
+ * to request. However, implementations must be internally consistent. For example, a column name
+ * returned by {@link #getPartitionColumns} should be present in the schema returned by {@link
+ * #getRecordSchema}.
  */
 public interface DatasetMetadata extends Unwrappable {
 
@@ -38,8 +38,8 @@ public interface DatasetMetadata extends Unwrappable {
   DatasetStats getDatasetStats();
 
   /**
-   * Transactional table queries first scan manifest files, then the data files. Override this method to set stats
-   * associated with manifest scan
+   * Transactional table queries first scan manifest files, then the data files. Override this
+   * method to set stats associated with manifest scan
    *
    * @return dataset stats, not null
    */
@@ -73,8 +73,8 @@ public interface DatasetMetadata extends Unwrappable {
   }
 
   /**
-   * Get any additional information about the dataset. This will be provided by the catalog to other modules that
-   * request the catalog about the dataset, so any custom state could be returned.
+   * Get any additional information about the dataset. This will be provided by the catalog to other
+   * modules that request the catalog about the dataset, so any custom state could be returned.
    *
    * @return extra information, not null
    */
@@ -114,7 +114,8 @@ public interface DatasetMetadata extends Unwrappable {
    * @return dataset metadata
    */
   static DatasetMetadata of(DatasetStats stats, Schema schema, BytesOutput extraInfo) {
-    return of(stats, schema, Collections.emptyList(), Collections.emptyList(), extraInfo, new byte[0]);
+    return of(
+        stats, schema, Collections.emptyList(), Collections.emptyList(), extraInfo, new byte[0]);
   }
 
   /**
@@ -128,12 +129,11 @@ public interface DatasetMetadata extends Unwrappable {
    * @return dataset metadata
    */
   static DatasetMetadata of(
-          DatasetStats stats,
-          Schema schema,
-          List<String> partitionColumns,
-          List<String> sortColumns,
-          BytesOutput extraInfo
-  ) {
+      DatasetStats stats,
+      Schema schema,
+      List<String> partitionColumns,
+      List<String> sortColumns,
+      BytesOutput extraInfo) {
     return of(stats, schema, partitionColumns, sortColumns, extraInfo, new byte[0]);
   }
 
@@ -154,8 +154,7 @@ public interface DatasetMetadata extends Unwrappable {
       List<String> partitionColumns,
       List<String> sortColumns,
       BytesOutput extraInfo,
-      byte[] icebergMetadaa
-  ) {
+      byte[] icebergMetadaa) {
     Objects.requireNonNull(stats, "dataset stats is required");
     Objects.requireNonNull(schema, "schema is required");
     Objects.requireNonNull(partitionColumns, "partition columns is required");
@@ -163,6 +162,7 @@ public interface DatasetMetadata extends Unwrappable {
     Objects.requireNonNull(extraInfo, "extra info is required");
     Objects.requireNonNull(icebergMetadaa, "iceberg metadata is required");
 
-    return new DatasetMetadataImpl(stats, schema, partitionColumns, sortColumns, extraInfo, icebergMetadaa);
+    return new DatasetMetadataImpl(
+        stats, schema, partitionColumns, sortColumns, extraInfo, icebergMetadaa);
   }
 }

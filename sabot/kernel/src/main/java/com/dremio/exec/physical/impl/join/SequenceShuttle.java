@@ -16,49 +16,49 @@
 package com.dremio.exec.physical.impl.join;
 
 public class SequenceShuttle {
-//
-//  public void consume(int records){
-//
-//  }
-//
-//  public boolean withinSequence(){
-//
-//  }
-//
-//  /**
-//   * Get the next sequence of repetitive values.
-//   *
-//   * @param noMoreBatches
-//   *          Whether or not further batches may be available. The
-//   *          SequenceShuttle will not declare a sequence complete until a new
-//   *          sequence is started or a sequence cannot continue since there are
-//   *          no further batches.
-//   * @return Whether the next sequence is currently available.
-//   */
-//  public boolean nextSequence(boolean noMoreBatches){
-//    // returning false means
-//  }
-//
-//  /**
-//   * Whether this sequence has further items.
-//   * @return
-//   */
-//  public boolean hasNext(){
-//
-//  }
-//
-//  /**
-//   * Position to next item in the current sequence.
-//   */
-//  public void nextIndex(){
-//
-//  }
-//
-//  /**
-//   * What the current sequence index is.
-//   * @return The index of the sequence in the 'live' container.
-//   */
-//  public int currentIndex(){
-//
-//  }
+  //
+  //  public void consume(int records){
+  //
+  //  }
+  //
+  //  public boolean withinSequence(){
+  //
+  //  }
+  //
+  //  /**
+  //   * Get the next sequence of repetitive values.
+  //   *
+  //   * @param noMoreBatches
+  //   *          Whether or not further batches may be available. The
+  //   *          SequenceShuttle will not declare a sequence complete until a new
+  //   *          sequence is started or a sequence cannot continue since there are
+  //   *          no further batches.
+  //   * @return Whether the next sequence is currently available.
+  //   */
+  //  public boolean nextSequence(boolean noMoreBatches){
+  //    // returning false means
+  //  }
+  //
+  //  /**
+  //   * Whether this sequence has further items.
+  //   * @return
+  //   */
+  //  public boolean hasNext(){
+  //
+  //  }
+  //
+  //  /**
+  //   * Position to next item in the current sequence.
+  //   */
+  //  public void nextIndex(){
+  //
+  //  }
+  //
+  //  /**
+  //   * What the current sequence index is.
+  //   * @return The index of the sequence in the 'live' container.
+  //   */
+  //  public int currentIndex(){
+  //
+  //  }
 }

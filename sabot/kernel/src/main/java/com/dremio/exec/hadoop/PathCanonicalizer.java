@@ -16,26 +16,22 @@
 package com.dremio.exec.hadoop;
 
 import java.io.IOException;
-
 import org.apache.hadoop.fs.Path;
-
 
 /**
  * Interface designed mainly as a hack for PDFS.
  *
- * FileSystems implementing this interface might not allow direct write
- * but requires path to be canonicalized beforehand.
- * Canonicalized paths are guaranteed to be stable and to be usable
- * for both reads and writes.
+ * <p>FileSystems implementing this interface might not allow direct write but requires path to be
+ * canonicalized beforehand. Canonicalized paths are guaranteed to be stable and to be usable for
+ * both reads and writes.
  */
 public interface PathCanonicalizer {
 
   /**
-   * Rewrites the provided path so that the filesystem would allow for write
-   * operations.
+   * Rewrites the provided path so that the filesystem would allow for write operations.
    *
-   * The same path can also be used to read, and should be considered the canonical
-   * version of the original path.
+   * <p>The same path can also be used to read, and should be considered the canonical version of
+   * the original path.
    *
    * @param p the original path
    * @return a path allowing for write operations (possibly the same path)

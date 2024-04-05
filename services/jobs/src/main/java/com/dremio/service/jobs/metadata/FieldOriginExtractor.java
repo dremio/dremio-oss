@@ -17,36 +17,35 @@ package com.dremio.service.jobs.metadata;
 
 import static java.lang.String.format;
 
+import com.dremio.service.namespace.dataset.proto.FieldOrigin;
+import com.dremio.service.namespace.dataset.proto.Origin;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.metadata.RelColumnOrigin;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 
-import com.dremio.service.namespace.dataset.proto.FieldOrigin;
-import com.dremio.service.namespace.dataset.proto.Origin;
-
 /**
- * Extract field origin information from a query.
- * A parent dataset is a dataset referred to by a query.
- * Here we return the mapping of fields to columns in parent datasets (their origin).
+ * Extract field origin information from a query. A parent dataset is a dataset referred to by a
+ * query. Here we return the mapping of fields to columns in parent datasets (their origin).
  */
 public class FieldOriginExtractor {
 
   /**
    * extract origins of the fields
+   *
    * @param graph the root node of the query
    * @param rowType the rowType after validation
    * @return the origins of the fields in the query. at the same index as the original rowType
    */
   public static List<FieldOrigin> getFieldOrigins(RelNode graph, RelDataType rowType) {
     if (graph.getRowType().getFieldCount() != rowType.getFieldCount()) {
-      throw new IllegalArgumentException(format(
-          "graph and rowType should have the same field count:\ngraph: %s\nrowType: %s",
-          graph, rowType));
+      throw new IllegalArgumentException(
+          format(
+              "graph and rowType should have the same field count:\ngraph: %s\nrowType: %s",
+              graph, rowType));
     }
     List<FieldOrigin> definitions = new ArrayList<>();
     RelMetadataQuery query = graph.getCluster().getMetadataQuery();

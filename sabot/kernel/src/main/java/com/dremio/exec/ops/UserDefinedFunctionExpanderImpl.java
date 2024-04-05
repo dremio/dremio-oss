@@ -15,23 +15,23 @@
  */
 package com.dremio.exec.ops;
 
-import java.util.HashMap;
-import java.util.Map;
-
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.core.Project;
-import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.rex.RexSubQuery;
-import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.sql.SqlSelect;
-
 import com.dremio.exec.catalog.udf.DremioScalarUserDefinedFunction;
 import com.dremio.exec.catalog.udf.DremioTabularUserDefinedFunction;
 import com.dremio.exec.catalog.udf.DremioUserDefinedFunction;
 import com.dremio.exec.planner.sql.SqlConverter;
-import com.dremio.exec.planner.sql.SqlValidatorAndToRelContext;
 import com.dremio.exec.store.sys.udf.FunctionOperatorTable;
 import com.google.common.collect.ImmutableList;
+import java.util.HashMap;
+import java.util.Map;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.core.Project;
+import org.apache.calcite.rel.core.Values;
+import org.apache.calcite.rex.RexInputRef;
+import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexSubQuery;
+import org.apache.calcite.rex.RexVisitorImpl;
+import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlSelect;
 
 public class UserDefinedFunctionExpanderImpl implements UserDefinedFunctionExpander {
 
@@ -57,24 +57,58 @@ public class UserDefinedFunctionExpanderImpl implements UserDefinedFunctionExpan
     return scalar;
   }
 
-  private RexNode expandScalarImplementation(DremioScalarUserDefinedFunction dremioScalarUserDefinedFunction) {
-    RelNode functionPlan = parseAndValidate(dremioScalarUserDefinedFunction, parse(dremioScalarUserDefinedFunction));
+  private RexNode expandScalarImplementation(
+      DremioScalarUserDefinedFunction dremioScalarUserDefinedFunction) {
+    RelNode functionPlan =
+        parseAndValidate(dremioScalarUserDefinedFunction, parse(dremioScalarUserDefinedFunction));
+    // We always convert scalar UDFs to SQL queries / plans
+    // One quirk to this is that we only allow for a single (hence scalar) expression
+    // But the plan returns a whole table (but with only 1 column ever)
+    // and only 1 row (we check for this at creation time).
 
-    if (functionPlan instanceof Project) {
-      // We always convert scalar UDFs to SQL queries / plans
-      // One quirk to this is that we only allow for a single (hence scalar) expression
-      // But the plan returns a whole table (but with only 1 column ever)
-      // So we just strip out the only project node.
-      Project project = (Project) functionPlan;
-      assert project.getProjects().size() == 1;
-      return project.getProjects().get(0);
+    // We have two scenarios:
+
+    // 2) Queries With From Clause: SELECT AGG_FUNCTION() FROM blah WHERE blah2
+    // For these other queries we can convert the whole plan into a RexNode
+    // by wrapping it in a RexSubQuery.
+    // The expansion and decorrelation logic will handle this node.
+    RexNode subquery = RexSubQuery.scalar(functionPlan, null);
+
+    // 1) Queries Without From Clause: SELECT a * b
+    // The parser represents these this query as:
+    // LogicalProject(EXPR$0=[*(a, b)])
+    //  LogicalValues(tuples=[[{ 0 }]])
+    // Basically it's a project with the single expression on top of a VALUES with single row.
+    // We want to match on that and return just the "a * b" RexNode.
+    if (!(functionPlan instanceof Project)) {
+      return subquery;
     }
 
-    return RexSubQuery.scalar(functionPlan, null);
+    Project project = (Project) functionPlan;
+    if (!(project.getInput() instanceof Values)) {
+      return subquery;
+    }
+
+    Values values = (Values) project.getInput();
+    if (values.getTuples().size() != 1) {
+      return subquery;
+    }
+
+    if (values.getTuples().get(0).size() != 1) {
+      return subquery;
+    }
+
+    RexNode expr = project.getProjects().get(0);
+    if (IllegalScalarExpression.isIllegalScalarExpression(expr)) {
+      return subquery;
+    }
+
+    return expr;
   }
 
   @Override
-  public RelNode expandTabularFunction(DremioTabularUserDefinedFunction tabularUserDefinedFunction) {
+  public RelNode expandTabularFunction(
+      DremioTabularUserDefinedFunction tabularUserDefinedFunction) {
     RelNode cachedValue = tabularCache.get(tabularUserDefinedFunction);
     if (cachedValue != null) {
       return cachedValue;
@@ -85,23 +119,26 @@ public class UserDefinedFunctionExpanderImpl implements UserDefinedFunctionExpan
     return tabular;
   }
 
-  private RelNode expandTabularFunctionImplementation(DremioTabularUserDefinedFunction tabularUserDefinedFunction) {
+  private RelNode expandTabularFunctionImplementation(
+      DremioTabularUserDefinedFunction tabularUserDefinedFunction) {
     return parseAndValidate(
-      tabularUserDefinedFunction,
-      sqlConverter.parse(tabularUserDefinedFunction.getFunctionSql()));
+        tabularUserDefinedFunction,
+        sqlConverter.parse(tabularUserDefinedFunction.getFunctionSql()));
   }
 
-  private RelNode parseAndValidate(DremioUserDefinedFunction dremioUserDefinedFunction, SqlNode functionExpression) {
+  private RelNode parseAndValidate(
+      DremioUserDefinedFunction dremioUserDefinedFunction, SqlNode functionExpression) {
     // TODO: Use the cached function plan to avoid this reparsing logic
-    return SqlValidatorAndToRelContext
-      .builder(sqlConverter)
-      .withSchemaPath(ImmutableList.of())
-      .withUser(dremioUserDefinedFunction.getOwner())
-      .withContextualSqlOperatorTable(new FunctionOperatorTable(
-        dremioUserDefinedFunction.getName(),
-        dremioUserDefinedFunction.getParameters()))
-      .build()
-      .validateAndConvertForExpression(functionExpression);
+    return sqlConverter
+        .getUserQuerySqlValidatorAndToRelContextBuilderFactory()
+        .builder()
+        .withSchemaPath(ImmutableList.of())
+        .withUser(dremioUserDefinedFunction.getOwner())
+        .withContextualSqlOperatorTable(
+            new FunctionOperatorTable(
+                dremioUserDefinedFunction.getName(), dremioUserDefinedFunction.getParameters()))
+        .build()
+        .validateAndConvertForExpression(functionExpression);
   }
 
   private SqlSelect parse(DremioUserDefinedFunction dremioScalarUserDefinedFunction) {
@@ -119,5 +156,32 @@ public class UserDefinedFunctionExpanderImpl implements UserDefinedFunctionExpan
     assert sqlNode instanceof SqlSelect;
     SqlSelect sqlSelect = (SqlSelect) sqlNode;
     return sqlSelect;
+  }
+
+  private static final class IllegalScalarExpression extends RexVisitorImpl<Boolean> {
+    private static final IllegalScalarExpression INSTANCE = new IllegalScalarExpression();
+
+    private IllegalScalarExpression() {
+      // Call the parent constructor with a flag indicating that the visitor should go deep.
+      super(true);
+    }
+
+    @Override
+    public Boolean visitInputRef(RexInputRef inputRef) {
+      // We could encounter a project expr like:
+      // PROJECT parse_date($0)
+      //   VALUES ("2010 05 02")
+      // And we don't want to return the refinputref
+      return true;
+    }
+
+    public static boolean isIllegalScalarExpression(RexNode expr) {
+      Boolean value = expr.accept(INSTANCE);
+      if (value == null) {
+        return false;
+      }
+
+      return value;
+    }
   }
 }

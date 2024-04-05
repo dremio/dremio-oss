@@ -22,30 +22,26 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.nio.charset.StandardCharsets;
-import java.util.Collections;
-
-import org.apache.lucene.document.Document;
-import org.apache.lucene.index.Term;
-import org.junit.BeforeClass;
-import org.junit.Test;
-
 import com.dremio.datastore.api.DocumentConverter;
 import com.dremio.datastore.api.DocumentWriter;
 import com.dremio.datastore.format.Format;
 import com.dremio.datastore.indexed.IndexKey;
 import com.dremio.datastore.indexed.LuceneSearchIndex;
+import java.nio.charset.StandardCharsets;
+import java.util.Collections;
+import org.apache.lucene.document.Document;
+import org.apache.lucene.index.Term;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
-/**
- * Test re-indexer.
- */
+/** Test re-indexer. */
 public class TestReIndexer {
   private static final String storeName = "test-store";
   private static final byte[] one = "one".getBytes(StandardCharsets.UTF_8);
   private static final byte[] two = "two".getBytes(StandardCharsets.UTF_8);
 
-  private static final IndexKey indexKey = IndexKey.newBuilder("test", "TEST", String.class).setStored(true)
-    .build();
+  private static final IndexKey indexKey =
+      IndexKey.newBuilder("test", "TEST", String.class).setStored(true).build();
 
   private static final class TestConverter implements DocumentConverter<String, String> {
 
@@ -58,8 +54,6 @@ public class TestReIndexer {
     public Integer getVersion() {
       return 0;
     }
-
-
   }
 
   private static ReIndexer reIndexer;
@@ -71,26 +65,32 @@ public class TestReIndexer {
     indexManager = mock(IndexManager.class);
     store = mock(CoreIndexedStore.class);
 
-    final StoreBuilderHelper<String, String> helper = new StoreBuilderHelper<String, String>()
-      .name(storeName)
-      .documentConverter(new TestConverter())
-      .keyFormat(Format.ofString())
-      .valueFormat(Format.ofString());
+    final StoreBuilderHelper<String, String> helper =
+        new StoreBuilderHelper<String, String>()
+            .name(storeName)
+            .documentConverter(new TestConverter())
+            .keyFormat(Format.ofString())
+            .valueFormat(Format.ofString());
 
-    reIndexer = new ReIndexer(indexManager,
-        Collections.singletonMap(storeName, new CoreStoreProviderImpl.StoreWithId<String, String>(helper, store)));
+    reIndexer =
+        new ReIndexer(
+            indexManager,
+            Collections.singletonMap(
+                storeName, new CoreStoreProviderImpl.StoreWithId<String, String>(helper, store)));
   }
 
   @Test
   public void add() throws Exception {
     LuceneSearchIndex index = mock(LuceneSearchIndex.class);
     final boolean[] added = {false};
-    doAnswer(invocation -> {
-      added[0] = true;
-      return null;
-    }).when(index).update(any(Term.class), any(Document.class));
-    when(indexManager.getIndex(same(storeName)))
-        .thenReturn(index);
+    doAnswer(
+            invocation -> {
+              added[0] = true;
+              return null;
+            })
+        .when(index)
+        .update(any(Term.class), any(Document.class));
+    when(indexManager.getIndex(same(storeName))).thenReturn(index);
 
     reIndexer.put(storeName, one, two);
 
@@ -101,12 +101,14 @@ public class TestReIndexer {
   public void delete() throws Exception {
     LuceneSearchIndex index = mock(LuceneSearchIndex.class);
     final boolean[] deleted = {false};
-    doAnswer(invocation -> {
-      deleted[0] = true;
-      return null;
-    }).when(index).deleteDocuments(any(Term.class));
-    when(indexManager.getIndex(same(storeName)))
-        .thenReturn(index);
+    doAnswer(
+            invocation -> {
+              deleted[0] = true;
+              return null;
+            })
+        .when(index)
+        .deleteDocuments(any(Term.class));
+    when(indexManager.getIndex(same(storeName))).thenReturn(index);
 
     reIndexer.delete(storeName, one);
 

@@ -15,9 +15,7 @@
  */
 package com.dremio.datastore.generator.supplier;
 
-/**
- * Generates doubles starting at Float.MIN_VALUE.
- */
+/** Generates doubles starting at Float.MIN_VALUE. */
 public class DoubleSupplier implements UniqueSupplier<Double> {
   private double nextDouble = Double.MIN_VALUE;
 

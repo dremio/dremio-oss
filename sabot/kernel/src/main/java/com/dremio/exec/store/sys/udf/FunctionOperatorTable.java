@@ -15,10 +15,11 @@
  */
 package com.dremio.exec.store.sys.udf;
 
+import com.dremio.exec.catalog.udf.UserDefinedFunctionArgumentOperator;
+import com.google.common.collect.Iterables;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
-
 import org.apache.calcite.schema.FunctionParameter;
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlIdentifier;
@@ -27,21 +28,20 @@ import org.apache.calcite.sql.SqlOperatorTable;
 import org.apache.calcite.sql.SqlSyntax;
 import org.apache.calcite.sql.validate.SqlNameMatcher;
 
-import com.dremio.exec.catalog.udf.UserDefinedFunctionArgumentOperator;
-import com.google.common.collect.Iterables;
-
 public class FunctionOperatorTable implements SqlOperatorTable {
   private final List<SqlOperator> functionParameterList;
 
-  public FunctionOperatorTable(String udfName,
-    List<FunctionParameter> functionParameters) {
-    this.functionParameterList = functionParameters
-      .stream()
-      .map(parameter -> UserDefinedFunctionArgumentOperator.createArgumentOperator(udfName, parameter))
-      .collect(Collectors.toList());
+  public FunctionOperatorTable(String udfName, List<FunctionParameter> functionParameters) {
+    this.functionParameterList =
+        functionParameters.stream()
+            .map(
+                parameter ->
+                    UserDefinedFunctionArgumentOperator.createArgumentOperator(udfName, parameter))
+            .collect(Collectors.toList());
   }
 
-  @Override public void lookupOperatorOverloads(
+  @Override
+  public void lookupOperatorOverloads(
       SqlIdentifier opName,
       SqlFunctionCategory category,
       SqlSyntax syntax,
@@ -49,9 +49,7 @@ public class FunctionOperatorTable implements SqlOperatorTable {
       SqlNameMatcher nameMatcher) {
     if (category != SqlFunctionCategory.USER_DEFINED_FUNCTION && category != null) {
       return;
-    } else if(syntax != SqlSyntax.FUNCTION
-      || opName == null
-      || opName.names.size() != 1) {
+    } else if (syntax != SqlSyntax.FUNCTION || opName == null || opName.names.size() != 1) {
       return;
     }
 
@@ -61,11 +59,13 @@ public class FunctionOperatorTable implements SqlOperatorTable {
         .forEach(operatorList::add);
   }
 
-  @Override public List<SqlOperator> getOperatorList() {
+  @Override
+  public List<SqlOperator> getOperatorList() {
     return functionParameterList;
   }
 
-  @Override public boolean equals(Object o) {
+  @Override
+  public boolean equals(Object o) {
     if (this == o) {
       return true;
     }
@@ -76,7 +76,8 @@ public class FunctionOperatorTable implements SqlOperatorTable {
     return functionParameterList.equals(that.functionParameterList);
   }
 
-  @Override public int hashCode() {
+  @Override
+  public int hashCode() {
     return Objects.hash(functionParameterList);
   }
 }

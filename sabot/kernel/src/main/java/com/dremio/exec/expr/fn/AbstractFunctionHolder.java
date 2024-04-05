@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.expr.fn;
 
-import java.util.List;
-
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.FunctionHolderExpression;
 import com.dremio.common.expression.LogicalExpression;
@@ -25,16 +23,29 @@ import com.dremio.exec.expr.ClassGenerator;
 import com.dremio.exec.expr.ClassGenerator.HoldingContainer;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.sun.codemodel.JVar;
+import java.util.List;
 
 public abstract class AbstractFunctionHolder implements FunctionHolder {
 
-  public abstract JVar[] renderStart(ClassGenerator<?> g, CompleteType resolvedOutput, HoldingContainer[] inputVariables, FunctionErrorContext errorContext);
+  public abstract JVar[] renderStart(
+      ClassGenerator<?> g,
+      CompleteType resolvedOutput,
+      HoldingContainer[] inputVariables,
+      FunctionErrorContext errorContext);
 
-  public void renderMiddle(ClassGenerator<?> g, CompleteType resolvedOutput, HoldingContainer[] inputVariables, JVar[] workspaceJVars) {
+  public void renderMiddle(
+      ClassGenerator<?> g,
+      CompleteType resolvedOutput,
+      HoldingContainer[] inputVariables,
+      JVar[] workspaceJVars) {
     // default implementation is add no code
   }
 
-  public abstract HoldingContainer renderEnd(ClassGenerator<?> g, CompleteType resolvedOutput, HoldingContainer[] inputVariables, JVar[] workspaceJVars);
+  public abstract HoldingContainer renderEnd(
+      ClassGenerator<?> g,
+      CompleteType resolvedOutput,
+      HoldingContainer[] inputVariables,
+      JVar[] workspaceJVars);
 
   public boolean isNested() {
     return false;
@@ -65,18 +76,18 @@ public abstract class AbstractFunctionHolder implements FunctionHolder {
 
   /**
    * Does this function always return the same type, no matter the inputs?
+   *
    * @return true if yes
    */
   public abstract boolean isReturnTypeIndependent();
 
-  /**
-   * The final return type even if it is dependent on input;
-   */
+  /** The final return type even if it is dependent on input; */
   public abstract CompleteType getReturnType(final List<LogicalExpression> args);
 
   /**
-   * Returns how the method handles null inputs.
-   * For e.g. isNotNull would be NULL_NEVER, add(a+b) would NULL IF NULL.
+   * Returns how the method handles null inputs. For e.g. isNotNull would be NULL_NEVER, add(a+b)
+   * would NULL IF NULL.
+   *
    * @return the appropriate null handling for the method.
    */
   public abstract FunctionTemplate.NullHandling getNullHandling();

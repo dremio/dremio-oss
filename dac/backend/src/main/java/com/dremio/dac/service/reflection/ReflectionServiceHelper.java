@@ -16,13 +16,7 @@
 package com.dremio.dac.service.reflection;
 
 import static com.dremio.exec.catalog.CatalogOptions.REFLECTION_VERSIONED_SOURCE_ENABLED;
-
-import java.util.List;
-import java.util.Optional;
-
-import javax.inject.Inject;
-
-import org.apache.calcite.util.Pair;
+import static com.dremio.service.reflection.ReflectionOptions.REFLECTION_SCHEDULE_POLICY_ENABLED;
 
 import com.dremio.dac.api.Reflection;
 import com.dremio.dac.service.errors.ReflectionNotFound;
@@ -40,12 +34,13 @@ import com.dremio.service.reflection.proto.MaterializationMetrics;
 import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.dremio.service.reflection.proto.ReflectionId;
 import com.google.common.collect.Iterables;
-
 import io.opentelemetry.instrumentation.annotations.WithSpan;
+import java.util.List;
+import java.util.Optional;
+import javax.inject.Inject;
+import org.apache.calcite.util.Pair;
 
-/**
- * Reflection service helper
- */
+/** Reflection service helper */
 public class ReflectionServiceHelper {
   private final ReflectionAdministrationService.Factory reflectionAdministrationServiceFactory;
   private final ReflectionStatusService reflectionStatusService;
@@ -53,13 +48,14 @@ public class ReflectionServiceHelper {
 
   @Inject
   public ReflectionServiceHelper(
-    ReflectionAdministrationService.Factory reflectionAdministrationServiceFactory,
-    ReflectionStatusService reflectionStatusService,
-    OptionManager optionManager) {
+      ReflectionAdministrationService.Factory reflectionAdministrationServiceFactory,
+      ReflectionStatusService reflectionStatusService,
+      OptionManager optionManager) {
     this.reflectionAdministrationServiceFactory = reflectionAdministrationServiceFactory;
     this.reflectionStatusService = reflectionStatusService;
     this.optionManager = optionManager;
   }
+
   public ReflectionAdministrationService getReflectionAdministrationService() {
     return reflectionAdministrationServiceFactory.get(ReflectionContext.SYSTEM_USER_CONTEXT);
   }
@@ -96,7 +92,8 @@ public class ReflectionServiceHelper {
 
   public ReflectionGoal updateReflection(ReflectionGoal goal) {
     isVersionedSourceEnabled(goal.getDatasetId());
-    Optional<ReflectionGoal> existingGoal = getReflectionAdministrationService().getGoal(goal.getId());
+    Optional<ReflectionGoal> existingGoal =
+        getReflectionAdministrationService().getGoal(goal.getId());
 
     if (!existingGoal.isPresent()) {
       throw new ReflectionNotFound(goal.getId().getId());
@@ -112,7 +109,8 @@ public class ReflectionServiceHelper {
   }
 
   public void removeReflection(String id) {
-    Optional<ReflectionGoal> goal = getReflectionAdministrationService().getGoal(new ReflectionId(id));
+    Optional<ReflectionGoal> goal =
+        getReflectionAdministrationService().getGoal(new ReflectionId(id));
 
     if (goal.isPresent()) {
       getReflectionAdministrationService().remove(goal.get());
@@ -125,26 +123,35 @@ public class ReflectionServiceHelper {
     getReflectionAdministrationService().clearAll();
   }
 
+  public void retryUnavailableReflections() {
+    getReflectionAdministrationService().retryUnavailable();
+  }
+
   /**
    * If reflection has a done materialization, returns the current size in bytes and output records
+   *
    * @param id
    * @return
-  */
+   */
   public Pair<Long, Long> getCurrentSize(String id) {
-    final ReflectionAdministrationService reflectionAdministrationService = getReflectionAdministrationService();
+    final ReflectionAdministrationService reflectionAdministrationService =
+        getReflectionAdministrationService();
     ReflectionId reflectionId = new ReflectionId(id);
-    Optional<Materialization> materialization = reflectionAdministrationService.getLastDoneMaterialization(reflectionId);
+    Optional<Materialization> materialization =
+        reflectionAdministrationService.getLastDoneMaterialization(reflectionId);
     if (materialization.isPresent()) {
-      Pair<MaterializationMetrics, Long> metrics = getReflectionStatusService().getReflectionSize(materialization.get());
+      Pair<MaterializationMetrics, Long> metrics =
+          getReflectionStatusService().getReflectionSize(materialization.get());
       return Pair.of(metrics.left.getFootprint(), metrics.right);
     }
-    return Pair.of(0L ,0L);
+    return Pair.of(0L, 0L);
   }
 
   public long getTotalSize(String id) {
     long total = 0;
 
-    final ReflectionAdministrationService reflectionAdministrationService = getReflectionAdministrationService();
+    final ReflectionAdministrationService reflectionAdministrationService =
+        getReflectionAdministrationService();
     ReflectionId reflectionId = new ReflectionId(id);
     if (reflectionAdministrationService.getLastDoneMaterialization(reflectionId).isPresent()) {
       total = getReflectionStatusService().getTotalReflectionSize(reflectionId);
@@ -182,20 +189,28 @@ public class ReflectionServiceHelper {
   public Reflection newReflection(ReflectionGoal goal) {
     final String goalId = goal.getId().getId();
     Pair<Long, Long> currentSize = getCurrentSize(goalId);
-    return new Reflection(goal, getStatusForReflection(goalId), currentSize.left, getTotalSize(goalId));
+    return new Reflection(
+        goal, getStatusForReflection(goalId), currentSize.left, getTotalSize(goalId));
   }
 
   public boolean doesDatasetHaveReflection(String datasetId) {
-    return Iterables.size(getReflectionAdministrationService().getReflectionsByDatasetId(datasetId)) > 0;
+    return Iterables.size(getReflectionAdministrationService().getReflectionsByDatasetId(datasetId))
+        > 0;
   }
 
   public void isVersionedSourceEnabled(String datasetId) {
-    if (!optionManager.getOption(REFLECTION_VERSIONED_SOURCE_ENABLED) && VersionedDatasetId.isVersionedDatasetId(datasetId)) {
+    if (!optionManager.getOption(REFLECTION_VERSIONED_SOURCE_ENABLED)
+        && VersionedDatasetId.isVersionedDatasetId(datasetId)) {
       throw new UnsupportedOperationException("Versioned source does not support reflection.");
     }
   }
 
   public boolean isIncrementalRefreshBySnapshotEnabled(DatasetConfig datasetConfig) {
-    return IncrementalUpdateServiceUtils.isIncrementalRefreshBySnapshotEnabled(datasetConfig, optionManager);
+    return IncrementalUpdateServiceUtils.isIncrementalRefreshBySnapshotEnabled(
+        datasetConfig, optionManager);
+  }
+
+  public boolean isRefreshSchedulePolicyEnabled() {
+    return optionManager.getOption(REFLECTION_SCHEDULE_POLICY_ENABLED);
   }
 }

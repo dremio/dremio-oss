@@ -19,10 +19,9 @@ package com.dremio.exec.expr;
 import com.sun.codemodel.JBlock;
 
 /**
- * Uses this class to keep track # of Dremio Logical Expressions that are
- * put to JBlock.
+ * Uses this class to keep track # of Dremio Logical Expressions that are put to JBlock.
  *
- * JBlock is final class; we could not extend JBlock directly.
+ * <p>JBlock is final class; we could not extend JBlock directly.
  */
 public class SizedJBlock {
   private final JBlock block;
@@ -38,11 +37,10 @@ public class SizedJBlock {
   }
 
   public void incCounter() {
-    this.count ++;
+    this.count++;
   }
 
   public int getCount() {
     return this.count;
   }
-
 }

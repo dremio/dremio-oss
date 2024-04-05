@@ -20,9 +20,7 @@ import com.dremio.exec.server.options.CachingOptionResolver;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionResolver;
 
-/**
- * Holds options associated with code generation.
- */
+/** Holds options associated with code generation. */
 public class CompilationOptions {
 
   private final OptionResolver optionResolver;

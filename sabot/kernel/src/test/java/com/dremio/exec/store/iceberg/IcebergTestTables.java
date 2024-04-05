@@ -15,6 +15,12 @@
  */
 package com.dremio.exec.store.iceberg;
 
+import com.dremio.BaseTestQuery;
+import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.store.iceberg.deletes.PositionalDeleteFileReader;
+import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableList;
+import com.google.common.io.Resources;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -25,7 +31,6 @@ import java.nio.file.StandardCopyOption;
 import java.util.Collections;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
-
 import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.TimeUnit;
 import org.apache.arrow.vector.types.Types;
@@ -35,54 +40,87 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
-import com.dremio.BaseTestQuery;
-import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.store.iceberg.deletes.PositionalDeleteFileReader;
-import com.google.common.collect.ImmutableList;
-import com.google.common.io.Resources;
-
-/**
- * Helper class for preparing Iceberg tables for tests.
- */
+/** Helper class for preparing Iceberg tables for tests. */
 public class IcebergTestTables {
 
-  public static Supplier<Table> NATION = () -> getTable("iceberg/nation", "dfs_hadoop", "/tmp/iceberg");
-  public static Supplier<Table> PARTITIONED_NATION = () -> getTable("iceberg/partitionednation", "dfs_hadoop", "/tmp/iceberg");
+  public static Supplier<Table> NATION =
+      () -> getTable("iceberg/nation", "dfs_hadoop", "/tmp/iceberg");
+  public static Supplier<Table> PARTITIONED_NATION =
+      () -> getTable("iceberg/partitionednation", "dfs_hadoop", "/tmp/iceberg");
 
-  public static Supplier<Table> V2_MULTI_ROWGROUP_ORDERS_WITH_DELETES = () ->
-    getTable("iceberg/v2/multi_rowgroup_orders_with_deletes",
-      "dfs_static_test_hadoop",
-      "/tmp/iceberg-test-tables",
-      "/v2/multi_rowgroup_orders_with_deletes");
-  public static Supplier<Table> V2_ORDERS = () -> getTable("iceberg/v2/orders",
-      "dfs_static_test_hadoop",
-      "/tmp/iceberg-test-tables",
-      "/v2/orders");
-  public static Supplier<Table> PRODUCTS_WITH_EQ_DELETES = () -> getTable(
-      "iceberg/v2/products_with_eq_deletes",
-      "dfs_static_test_hadoop",
-      "/tmp/iceberg-test-tables",
-      "/v2/products_with_eq_deletes");
+  public static Supplier<Table> INCONSISTENT_PARTITIONS =
+      () ->
+          getTable(
+              "iceberg/internal_metadata_inconsistent_partitions", "dfs_hadoop", "/tmp/iceberg");
 
-  public static BatchSchema V2_ORDERS_SCHEMA = new BatchSchema(ImmutableList.of(
-    Field.nullable("order_id", new ArrowType.Int(32, true)),
-    Field.nullable("order_year", new ArrowType.Int(32, true)),
-    Field.nullable("order_date", new ArrowType.Timestamp(TimeUnit.MILLISECOND, null)),
-    Field.nullable("product_name", new ArrowType.Utf8()),
-    Field.nullable("amount", new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE))));
+  public static Supplier<Table> V2_MULTI_ROWGROUP_ORDERS_WITH_DELETES =
+      () ->
+          getTable(
+              "iceberg/v2/multi_rowgroup_orders_with_deletes",
+              "dfs_static_test_hadoop",
+              "/tmp/iceberg-test-tables",
+              "/v2/multi_rowgroup_orders_with_deletes");
 
-  public static BatchSchema PRODUCTS_SCHEMA = new BatchSchema(ImmutableList.of(
-      Field.nullable("product_id", Types.MinorType.INT.getType()),
-      Field.nullable("name", Types.MinorType.VARCHAR.getType()),
-      Field.nullable("category", Types.MinorType.VARCHAR.getType()),
-      Field.nullable("color", Types.MinorType.VARCHAR.getType()),
-      Field.nullable("created_date", Types.MinorType.DATEMILLI.getType()),
-      Field.nullable("weight", Types.MinorType.FLOAT8.getType()),
-      Field.nullable("quantity", Types.MinorType.INT.getType())));
+  public static Supplier<Table> V2_MULTI_ROWGROUP_ORDERS_WITH_DELETES_LONG_PATH =
+      () ->
+          getTable(
+              "iceberg/v2/longDir"
+                  + Strings.repeat("0", 100)
+                  + "/longDir_1_"
+                  + Strings.repeat("0", 100)
+                  + "/longDir_2_"
+                  + Strings.repeat("0", 100)
+                  + "/multi_rowgroup_orders_with_deletes",
+              "dfs_static_test_hadoop",
+              "/tmp/iceberg-test-tables",
+              "/v2/longDir"
+                  + Strings.repeat("0", 100)
+                  + "/longDir_1_"
+                  + Strings.repeat("0", 100)
+                  + "/longDir_2_"
+                  + Strings.repeat("0", 100)
+                  + "/multi_rowgroup_orders_with_deletes");
+
+  public static Supplier<Table> V2_ORDERS =
+      () ->
+          getTable(
+              "iceberg/v2/orders",
+              "dfs_static_test_hadoop",
+              "/tmp/iceberg-test-tables",
+              "/v2/orders");
+  public static Supplier<Table> PRODUCTS_WITH_EQ_DELETES =
+      () ->
+          getTable(
+              "iceberg/v2/products_with_eq_deletes",
+              "dfs_static_test_hadoop",
+              "/tmp/iceberg-test-tables",
+              "/v2/products_with_eq_deletes");
+
+  public static BatchSchema V2_ORDERS_SCHEMA =
+      new BatchSchema(
+          ImmutableList.of(
+              Field.nullable("order_id", new ArrowType.Int(32, true)),
+              Field.nullable("order_year", new ArrowType.Int(32, true)),
+              Field.nullable("order_date", new ArrowType.Timestamp(TimeUnit.MILLISECOND, null)),
+              Field.nullable("product_name", new ArrowType.Utf8()),
+              Field.nullable(
+                  "amount", new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE))));
+
+  public static BatchSchema PRODUCTS_SCHEMA =
+      new BatchSchema(
+          ImmutableList.of(
+              Field.nullable("product_id", Types.MinorType.INT.getType()),
+              Field.nullable("name", Types.MinorType.VARCHAR.getType()),
+              Field.nullable("category", Types.MinorType.VARCHAR.getType()),
+              Field.nullable("color", Types.MinorType.VARCHAR.getType()),
+              Field.nullable("created_date", Types.MinorType.DATEMILLI.getType()),
+              Field.nullable("weight", Types.MinorType.FLOAT8.getType()),
+              Field.nullable("quantity", Types.MinorType.INT.getType())));
 
   public static BatchSchema V2_ORDERS_DELETE_FILE_SCHEMA = PositionalDeleteFileReader.SCHEMA;
 
-  private static Table getTable(String resourcePath, String source, String sourceRoot, String location) {
+  private static Table getTable(
+      String resourcePath, String source, String sourceRoot, String location) {
     try {
       return new Table(resourcePath, source, sourceRoot, location);
     } catch (Exception ex) {
@@ -102,7 +140,8 @@ public class IcebergTestTables {
     private final String tableName;
     private AutoCloseable icebergOptionsScope;
 
-    public Table(String resourcePath, String source, String sourceRoot, String location) throws Exception {
+    public Table(String resourcePath, String source, String sourceRoot, String location)
+        throws Exception {
       Configuration conf = new Configuration();
       conf.set("fs.default.name", "local");
       this.fs = FileSystem.get(conf);
@@ -142,23 +181,28 @@ public class IcebergTestTables {
       fs.mkdirs(path);
 
       URI resource = Resources.getResource(src).toURI();
-      // if resources are in a jar and not exploded on disk, we need to use a filesystem wrapper on top of the jar
+      // if resources are in a jar and not exploded on disk, we need to use a filesystem wrapper on
+      // top of the jar
       // to enumerate files in the table directory
       if (resource.getScheme().equals("jar")) {
-        try (java.nio.file.FileSystem fileSystem = FileSystems.newFileSystem(resource, Collections.emptyMap())) {
-          src = !src.startsWith("/") ?  "/" + src : src;
+        try (java.nio.file.FileSystem fileSystem =
+            FileSystems.newFileSystem(resource, Collections.emptyMap())) {
+          src = !src.startsWith("/") ? "/" + src : src;
           java.nio.file.Path srcDir = fileSystem.getPath(src);
           try (Stream<java.nio.file.Path> stream = Files.walk(srcDir)) {
-            stream.forEach(source -> {
-              java.nio.file.Path dest = Paths.get(testRoot).resolve(Paths.get(srcDir.relativize(source).toString()));
-              copy(source, dest);
-            });
+            stream.forEach(
+                source -> {
+                  java.nio.file.Path dest =
+                      Paths.get(testRoot).resolve(Paths.get(srcDir.relativize(source).toString()));
+                  copy(source, dest);
+                });
           }
         }
       } else {
         java.nio.file.Path srcDir = Paths.get(resource);
         try (Stream<java.nio.file.Path> stream = Files.walk(srcDir)) {
-          stream.forEach(source -> copy(source, Paths.get(testRoot).resolve(srcDir.relativize(source))));
+          stream.forEach(
+              source -> copy(source, Paths.get(testRoot).resolve(srcDir.relativize(source))));
         }
       }
     }

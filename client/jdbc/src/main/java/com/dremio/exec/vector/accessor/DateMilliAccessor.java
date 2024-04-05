@@ -15,19 +15,17 @@
  */
 package com.dremio.exec.vector.accessor;
 
+import com.dremio.common.types.TypeProtos.MajorType;
+import com.dremio.common.types.TypeProtos.MinorType;
+import com.dremio.common.types.Types;
+import com.google.common.base.Preconditions;
 import java.sql.Date;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Calendar;
 import java.util.TimeZone;
-
 import org.apache.arrow.vector.DateMilliVector;
-
-import com.dremio.common.types.TypeProtos.MajorType;
-import com.dremio.common.types.TypeProtos.MinorType;
-import com.dremio.common.types.Types;
-import com.google.common.base.Preconditions;
 
 public class DateMilliAccessor extends AbstractSqlAccessor {
 
@@ -75,7 +73,10 @@ public class DateMilliAccessor extends AbstractSqlAccessor {
     LocalDateTime ldt = ac.getObject(index);
     if (tz != defaultTimeZone) {
       final long arrowMillis = ac.get(index);
-      ldt = ldt.minus(tz.getOffset(arrowMillis) - defaultTimeZone.getOffset(arrowMillis), ChronoUnit.MILLIS);
+      ldt =
+          ldt.minus(
+              tz.getOffset(arrowMillis) - defaultTimeZone.getOffset(arrowMillis),
+              ChronoUnit.MILLIS);
     }
 
     return new Date(Timestamp.valueOf(ldt).getTime());

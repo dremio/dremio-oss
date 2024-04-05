@@ -15,18 +15,15 @@
  */
 package com.dremio.common.arrow;
 
-import java.io.IOException;
-import java.util.Map;
-
-import org.apache.arrow.vector.types.pojo.Schema;
-
 import com.dremio.common.serde.BackwardCompatibleSchemaDe;
 import com.google.common.base.Preconditions;
+import java.io.IOException;
+import java.util.Map;
+import org.apache.arrow.vector.types.pojo.Schema;
 
 /**
- * To be used instead of Arrow Schema to deserialize JSON based Schema
- * as it can contain old data that current version of Arrow (as of Dremio 2.1.0)
- * does not support
+ * To be used instead of Arrow Schema to deserialize JSON based Schema as it can contain old data
+ * that current version of Arrow (as of Dremio 2.1.0) does not support
  */
 public final class DremioArrowSchema {
 
@@ -34,8 +31,8 @@ public final class DremioArrowSchema {
   public static final String DREMIO_ARROW_SCHEMA_2_1 = "dremio.arrow.schema.2.1";
 
   /**
-   * To parse Arrow Schema parsed from JSON
-   * compatible with Arrow used in pre Dremio 2.1.0
+   * To parse Arrow Schema parsed from JSON compatible with Arrow used in pre Dremio 2.1.0
+   *
    * @param json
    * @return
    * @throws IOException
@@ -45,8 +42,8 @@ public final class DremioArrowSchema {
   }
 
   /**
-   * To parse Arrow Schema from JSON based on property
-   * existing in Parquet Footer Metadata
+   * To parse Arrow Schema from JSON based on property existing in Parquet Footer Metadata
+   *
    * @param properties
    * @return
    * @throws IOException
@@ -72,7 +69,6 @@ public final class DremioArrowSchema {
   }
 
   /**
-   *
    * @param properties
    * @return true if parquet file footer properties contain arrow schema
    */

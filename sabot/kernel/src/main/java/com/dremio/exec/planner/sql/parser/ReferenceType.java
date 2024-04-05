@@ -15,9 +15,7 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
-/**
- * Reference type used by versioned SQL.
- */
+/** Reference type used by versioned SQL. */
 public enum ReferenceType {
   REFERENCE,
   BRANCH,

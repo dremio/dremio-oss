@@ -15,18 +15,16 @@
  */
 package com.dremio.plugins.elastic.mapping;
 
-import java.util.List;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.elastic.proto.ElasticReaderProto.ElasticAnnotation;
 import com.dremio.elastic.proto.ElasticReaderProto.ElasticSpecialType;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableMap;
+import java.util.List;
 
 /**
- * Additional information about fields within Elasticsearch that are beyond what
- * Dremio typically needs for schema operation. Used during both planning and
- * execution.
+ * Additional information about fields within Elasticsearch that are beyond what Dremio typically
+ * needs for schema operation. Used during both planning and execution.
  */
 public final class FieldAnnotation {
 
@@ -40,14 +38,15 @@ public final class FieldAnnotation {
 
   private FieldAnnotation(ElasticAnnotation annotation) {
     super();
-    this.path = SchemaPath.getCompoundPath(FluentIterable.from(annotation.getPathList()).toArray(String.class));
+    this.path =
+        SchemaPath.getCompoundPath(
+            FluentIterable.from(annotation.getPathList()).toArray(String.class));
     this.analyzed = annotation.hasAnalyzed() && annotation.getAnalyzed();
     this.notIndexed = annotation.hasNotIndexed() && annotation.getNotIndexed();
     this.normalized = annotation.hasNormalized() && annotation.getNormalized();
     this.docValueMissing = annotation.hasDocValueMissing() && annotation.getDocValueMissing();
     this.dateFormats = annotation.getDateFormatsList();
     this.specialType = annotation.hasSpecialType() ? annotation.getSpecialType() : null;
-
   }
 
   public SchemaPath getPath() {
@@ -82,11 +81,11 @@ public final class FieldAnnotation {
     return specialType == ElasticSpecialType.GEO_POINT;
   }
 
-  public boolean hasSpecialType(){
+  public boolean hasSpecialType() {
     return specialType != null;
   }
 
-  public ElasticSpecialType getSpecialType(){
+  public ElasticSpecialType getSpecialType() {
     return specialType;
   }
 
@@ -98,9 +97,10 @@ public final class FieldAnnotation {
     return dateFormats;
   }
 
-  public static ImmutableMap<SchemaPath, FieldAnnotation> getAnnotationMap(List<ElasticAnnotation> annotations){
+  public static ImmutableMap<SchemaPath, FieldAnnotation> getAnnotationMap(
+      List<ElasticAnnotation> annotations) {
     final ImmutableMap.Builder<SchemaPath, FieldAnnotation> annotationMapB = ImmutableMap.builder();
-    for(ElasticAnnotation a : annotations) {
+    for (ElasticAnnotation a : annotations) {
       FieldAnnotation fa = new FieldAnnotation(a);
       annotationMapB.put(fa.getPath(), fa);
     }

@@ -15,8 +15,8 @@
  */
 package com.dremio.exec.store.iceberg.model;
 
+import com.dremio.BaseTestQuery;
 import java.io.File;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.TableOperations;
 import org.assertj.core.api.Assertions;
@@ -25,11 +25,8 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.mockito.Mockito;
 
-import com.dremio.BaseTestQuery;
-
 public class TestIcebergBaseCommand extends BaseTestQuery {
-  @Rule
-  public TemporaryFolder folder = new TemporaryFolder();
+  @Rule public TemporaryFolder folder = new TemporaryFolder();
 
   private final TableOperations tableOperations = Mockito.mock(TableOperations.class);
 
@@ -44,12 +41,17 @@ public class TestIcebergBaseCommand extends BaseTestQuery {
   public void testMissingRootPointer() {
     File tableFolder = new File(folder.getRoot(), "testMissingRootPointer");
     MockCommand cmd = new MockCommand(tableFolder);
-    Assertions.assertThatThrownBy(cmd::getRootPointer).hasMessageContaining("testMissingRootPointer");
+    Assertions.assertThatThrownBy(cmd::getRootPointer)
+        .hasMessageContaining("testMissingRootPointer");
   }
 
   private class MockCommand extends IcebergBaseCommand {
     public MockCommand(File tableFolder) {
-      super(new Configuration(), tableFolder.getAbsolutePath(), TestIcebergBaseCommand.this.tableOperations, null);
+      super(
+          new Configuration(),
+          tableFolder.getAbsolutePath(),
+          TestIcebergBaseCommand.this.tableOperations,
+          null);
     }
   }
 }

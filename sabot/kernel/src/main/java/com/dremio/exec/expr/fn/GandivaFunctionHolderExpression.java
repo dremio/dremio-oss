@@ -15,36 +15,37 @@
  */
 package com.dremio.exec.expr.fn;
 
-import java.util.List;
-
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.EvaluationType;
 import com.dremio.common.expression.FunctionHolderExpression;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.fn.FunctionHolder;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
+import java.util.List;
 
-public class GandivaFunctionHolderExpression extends FunctionHolderExpression implements
-  Iterable<LogicalExpression> {
+public class GandivaFunctionHolderExpression extends FunctionHolderExpression
+    implements Iterable<LogicalExpression> {
   private GandivaFunctionHolder holder;
   // was pushed in 3.0 have to retain this so that serde does not break.
   private final EvaluationType evaluationType;
-  public GandivaFunctionHolderExpression(String nameUsed, GandivaFunctionHolder holder, List<LogicalExpression> args) {
-      super(nameUsed, args);
-      this.holder = holder;
+
+  public GandivaFunctionHolderExpression(
+      String nameUsed, GandivaFunctionHolder holder, List<LogicalExpression> args) {
+    super(nameUsed, args);
+    this.holder = holder;
     this.evaluationType = new EvaluationType();
     evaluationType.addEvaluationType(EvaluationType.ExecutionType.JAVA);
   }
 
   @Override
   public CompleteType getCompleteType() {
-      return holder.getReturnType(args);
-    }
+    return holder.getReturnType(args);
+  }
 
   @Override
   public FunctionHolder getHolder() {
-      return holder;
-    }
+    return holder;
+  }
 
   @Override
   public boolean isAggregating() {
@@ -60,8 +61,8 @@ public class GandivaFunctionHolderExpression extends FunctionHolderExpression im
 
   @Override
   public boolean isRandom() {
-      return false;
-    }
+    return false;
+  }
 
   @Override
   public GandivaFunctionHolderExpression copy(List<LogicalExpression> args) {

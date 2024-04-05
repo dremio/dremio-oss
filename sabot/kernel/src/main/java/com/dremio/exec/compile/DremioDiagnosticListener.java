@@ -18,24 +18,25 @@ package com.dremio.exec.compile;
 import javax.tools.Diagnostic;
 import javax.tools.DiagnosticListener;
 import javax.tools.JavaFileObject;
-
 import org.codehaus.commons.compiler.CompileException;
 import org.codehaus.commons.compiler.Location;
 
 /* package */
 final class DremioDiagnosticListener implements DiagnosticListener<JavaFileObject> {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DremioDiagnosticListener.class);
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(DremioDiagnosticListener.class);
 
   @Override
   public void report(Diagnostic<? extends JavaFileObject> diagnostic) {
     if (diagnostic.getKind() == javax.tools.Diagnostic.Kind.ERROR) {
       String message = diagnostic.toString() + " (" + diagnostic.getCode() + ")";
       logger.error(message);
-      Location loc = new Location( //
-        (diagnostic.getSource() != null) ? diagnostic.getSource().toString() : "", //
-          (short) diagnostic.getLineNumber(), //
-          (short) diagnostic.getColumnNumber() //
-      );
+      Location loc =
+          new Location( //
+              (diagnostic.getSource() != null) ? diagnostic.getSource().toString() : "", //
+              (short) diagnostic.getLineNumber(), //
+              (short) diagnostic.getColumnNumber() //
+              );
       // Wrap the exception in a RuntimeException, because "report()"
       // does not declare checked exceptions.
       throw new RuntimeException(new CompileException(message, loc));
@@ -43,5 +44,4 @@ final class DremioDiagnosticListener implements DiagnosticListener<JavaFileObjec
       logger.trace(diagnostic.toString() + " (" + diagnostic.getCode() + ")");
     }
   }
-
 }

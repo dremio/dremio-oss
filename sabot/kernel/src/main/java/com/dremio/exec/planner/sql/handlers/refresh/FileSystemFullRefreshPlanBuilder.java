@@ -15,10 +15,6 @@
  */
 package com.dremio.exec.planner.sql.handlers.refresh;
 
-import java.io.IOException;
-import java.util.Collections;
-import java.util.Optional;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.DatasetSplit;
@@ -45,13 +41,17 @@ import com.dremio.service.namespace.dirlist.proto.DirListInputSplitProto;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.dremio.service.namespace.file.proto.FileType;
 import com.dremio.service.users.SystemUser;
+import java.io.IOException;
+import java.util.Collections;
+import java.util.Optional;
 
-/**
- * FilesystemFull builds plan for filesystems in case of full refresh.
- */
+/** FilesystemFull builds plan for filesystems in case of full refresh. */
 public class FileSystemFullRefreshPlanBuilder extends AbstractRefreshPlanBuilder {
 
-  public FileSystemFullRefreshPlanBuilder(SqlHandlerConfig config, SqlRefreshDataset sqlRefreshDataset, UnlimitedSplitsMetadataProvider metadataProvider) {
+  public FileSystemFullRefreshPlanBuilder(
+      SqlHandlerConfig config,
+      SqlRefreshDataset sqlRefreshDataset,
+      UnlimitedSplitsMetadataProvider metadataProvider) {
     super(config, sqlRefreshDataset, metadataProvider);
     FileSystemPlugin fsPlugin = (FileSystemPlugin) plugin;
     Optional<FileSelection> fileSelectionOptional;
@@ -62,44 +62,59 @@ public class FileSystemFullRefreshPlanBuilder extends AbstractRefreshPlanBuilder
     }
     // this is required because datasetPath created in AbstractRefreshPlanBuilder may be invalid
     // for ex. when table name has DOT character
-    datasetPath = Path.of(fileSelectionOptional.orElseThrow(
-        () -> UserException.invalidMetadataError().message("Table %s not found", tableNSKey).buildSilently())
-      .getSelectionRoot());
+    datasetPath =
+        Path.of(
+            fileSelectionOptional
+                .orElseThrow(
+                    () ->
+                        UserException.invalidMetadataError()
+                            .message("Table %s not found", tableNSKey)
+                            .buildSilently())
+                .getSelectionRoot());
     readSignatureEnabled = fsPlugin.supportReadSignature(null, isFileDataset);
-    logger.debug("Doing a filesystem full refresh on dataset. Dataset's full path is {}", datasetPath);
+    logger.debug(
+        "Doing a filesystem full refresh on dataset. Dataset's full path is {}", datasetPath);
   }
 
   @Override
   protected void checkAndUpdateIsFileDataset() {
     try {
-      this.isFileDataset = this.plugin.createFS(datasetPath.toString(), SystemUser.SYSTEM_USERNAME, null).isFile(datasetPath);
+      this.isFileDataset =
+          this.plugin
+              .createFS(datasetPath.toString(), SystemUser.SYSTEM_USERNAME, null)
+              .isFile(datasetPath);
     } catch (IOException e) {
-      throw new IllegalArgumentException("Failed to parse datasetPath to File.",e);
+      throw new IllegalArgumentException("Failed to parse datasetPath to File.", e);
     }
   }
 
   @Override
   protected DatasetConfig setupDatasetConfig() {
     datasetFileType = FileType.PARQUET;
-    DatasetConfig config  = super.setupDatasetConfig();
+    DatasetConfig config = super.setupDatasetConfig();
     final FileConfig format = new FileConfig();
     format.setType(datasetFileType);
     config.getPhysicalDataset().setFormatSettings(format);
     checkAndUpdateIsFileDataset();
-    DatasetType datasetType = super.isFileDataset ? DatasetType.PHYSICAL_DATASET_SOURCE_FILE: DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER;
+    DatasetType datasetType =
+        super.isFileDataset
+            ? DatasetType.PHYSICAL_DATASET_SOURCE_FILE
+            : DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER;
     config.setType(datasetType);
     config.getReadDefinition().getScanStats().setScanFactor(ScanCostFactor.PARQUET.getFactor());
     return config;
   }
 
   @Override
-  public PartitionChunkListing listPartitionChunks(DatasetRetrievalOptions datasetRetrievalOptions) throws ConnectorException {
-    DirListInputSplitProto.DirListInputSplit dirListInputSplit = DirListInputSplitProto.DirListInputSplit.newBuilder()
-      .setRootPath(datasetPath.toString())
-      .setOperatingPath(datasetPath.toString())
-      .setReadSignature(Long.MAX_VALUE)
-      .setIsFile(super.isFileDataset)
-      .build();
+  public PartitionChunkListing listPartitionChunks(DatasetRetrievalOptions datasetRetrievalOptions)
+      throws ConnectorException {
+    DirListInputSplitProto.DirListInputSplit dirListInputSplit =
+        DirListInputSplitProto.DirListInputSplit.newBuilder()
+            .setRootPath(datasetPath.toString())
+            .setOperatingPath(datasetPath.toString())
+            .setReadSignature(Long.MAX_VALUE)
+            .setIsFile(super.isFileDataset)
+            .build();
 
     DatasetSplit split = DatasetSplit.of(Collections.emptyList(), 1, 1, dirListInputSplit::writeTo);
     PartitionChunkListingImpl partitionChunkListing = new PartitionChunkListingImpl();
@@ -109,15 +124,25 @@ public class FileSystemFullRefreshPlanBuilder extends AbstractRefreshPlanBuilder
   }
 
   @Override
-  public void setupMetadataForPlanning(PartitionChunkListing partitionChunkListing, DatasetRetrievalOptions retrievalOptions) {
+  public void setupMetadataForPlanning(
+      PartitionChunkListing partitionChunkListing, DatasetRetrievalOptions retrievalOptions) {
     tableSchema = metadataProvider.getTableSchema();
     partitionCols = metadataProvider.getPartitionColumns();
 
-    SplitsPointer splitsPointer = MaterializedSplitsPointer.of(0, convertToPartitionChunkMetadata(partitionChunkListing, datasetConfig), 1);
+    SplitsPointer splitsPointer =
+        MaterializedSplitsPointer.of(
+            0, convertToPartitionChunkMetadata(partitionChunkListing, datasetConfig), 1);
 
-    refreshExecTableMetadata = new RefreshExecTableMetadata(storagePluginId, datasetConfig, userName, splitsPointer, tableSchema, null);
+    refreshExecTableMetadata =
+        new RefreshExecTableMetadata(
+            storagePluginId, datasetConfig, userName, splitsPointer, tableSchema, null);
     final NamespaceTable nsTable = new NamespaceTable(refreshExecTableMetadata, true);
-    SqlValidatorAndToRelContext sqlValidatorAndToRelContext = SqlValidatorAndToRelContext.builder(config.getConverter()).build();
+    SqlValidatorAndToRelContext sqlValidatorAndToRelContext =
+        config
+            .getConverter()
+            .getExpansionSqlValidatorAndToRelContextBuilderFactory()
+            .builder()
+            .build();
     final DremioCatalogReader catalogReader = sqlValidatorAndToRelContext.getDremioCatalogReader();
     this.table = new DremioPrepareTable(catalogReader, JavaTypeFactoryImpl.INSTANCE, nsTable);
   }

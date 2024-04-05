@@ -16,6 +16,7 @@
 
 @use "components/avatar-group";
 @use "components/avatar";
+@use "components/bar";
 @use "components/button-group";
 @use "components/button";
 @use "components/card";
@@ -36,6 +37,7 @@
 @use "components/layout-stack";
 @use "components/link";
 @use "components/listbox";
+@use "components/loaders";
 @use "components/focus";
 @use "components/form-control";
 @use "components/modal-container";
@@ -45,6 +47,7 @@
 @use "components/scroll-shadow";
 @use "components/section";
 @use "components/section-message";
+@use "components/section-tabs";
 @use "components/segmented-control";
 @use "components/skeleton";
 @use "components/spinner-overlay";
@@ -57,3 +60,4 @@
 @use "components/label.scss";
 @use "components/dataset-summary-overlay.scss";
 @use "components/tabpanel.scss";
+@use "components/visualization-legend";

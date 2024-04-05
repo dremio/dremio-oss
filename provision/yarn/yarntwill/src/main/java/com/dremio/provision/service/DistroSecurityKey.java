@@ -18,9 +18,7 @@ package com.dremio.provision.service;
 import com.dremio.provision.DistroType;
 import com.google.common.base.Objects;
 
-/**
- * Class to create a Key to get Yarn defaults per distro/security combination
- */
+/** Class to create a Key to get Yarn defaults per distro/security combination */
 public class DistroSecurityKey {
   private final DistroType dType;
   private final boolean isSecurityOn;

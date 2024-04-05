@@ -17,17 +17,6 @@ package com.dremio.sabot.exec.context;
 
 import static com.dremio.common.perf.StatsCollectionEligibilityRegistrar.isEligible;
 
-import java.text.NumberFormat;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
-
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.carrotsearch.hppc.IntDoubleHashMap;
 import com.carrotsearch.hppc.IntLongHashMap;
 import com.carrotsearch.hppc.cursors.IntDoubleCursor;
@@ -46,11 +35,20 @@ import com.dremio.exec.proto.UserBitShared.SlowIOInfo;
 import com.dremio.exec.proto.UserBitShared.StreamProfile;
 import com.dremio.io.file.Path;
 import com.dremio.sabot.op.scan.ScanOperator;
-
+import com.dremio.sabot.op.spi.Operator;
 import de.vandermeer.asciitable.v2.V2_AsciiTable;
 import de.vandermeer.asciitable.v2.render.V2_AsciiTableRenderer;
 import de.vandermeer.asciitable.v2.render.WidthAbsoluteEven;
 import de.vandermeer.asciitable.v2.themes.V2_E_TableThemes;
+import java.text.NumberFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
+import org.apache.arrow.memory.BufferAllocator;
 
 public class OperatorStats {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(OperatorStats.class);
@@ -86,6 +84,7 @@ public class OperatorStats {
 
     private static final int Size = State.values().length;
   }
+
   private State currentState = State.NONE;
   private State savedState = State.NONE;
 
@@ -102,7 +101,9 @@ public class OperatorStats {
   private List<SlowIOInfo> slowIoInfos = new ArrayList<>();
   private List<SlowIOInfo> slowMetadataIoInfos = new ArrayList<>();
   private final List<ParquetDecodingDetailsInfo> parquetDecodingDetailsInfos = new ArrayList<>();
-
+  // This is enum value of Operator.MasterState
+  private int masterState;
+  private long lastScheduleTime;
 
   // Need this wrapper so that the caller don't have to handle exception from close().
   public interface WaitRecorder extends AutoCloseable {
@@ -185,25 +186,46 @@ public class OperatorStats {
     return writeIOStats;
   }
 
-  public OperatorStats(OpProfileDef def, BufferAllocator allocator){
-    this(def.getOperatorId(), def.getOperatorType(), def.getIncomingCount(), allocator, Long.MAX_VALUE, def.operatorSubType);
+  public OperatorStats(OpProfileDef def, BufferAllocator allocator) {
+    this(
+        def.getOperatorId(),
+        def.getOperatorType(),
+        def.getIncomingCount(),
+        allocator,
+        Long.MAX_VALUE,
+        def.operatorSubType);
   }
 
-  public OperatorStats(OpProfileDef def, BufferAllocator allocator, long warnIOTimeThreshold){
-    this(def.getOperatorId(), def.getOperatorType(), def.getIncomingCount(), allocator, warnIOTimeThreshold, def.operatorSubType);
+  public OperatorStats(OpProfileDef def, BufferAllocator allocator, long warnIOTimeThreshold) {
+    this(
+        def.getOperatorId(),
+        def.getOperatorType(),
+        def.getIncomingCount(),
+        allocator,
+        warnIOTimeThreshold,
+        def.operatorSubType);
   }
 
   /**
-   * Copy constructor to be able to create a copy of existing stats object shell and use it independently
-   * this is useful if stats have to be updated in different threads, since it is not really
-   * possible to update such stats as waitNanos, setupNanos and processingNanos across threads
+   * Copy constructor to be able to create a copy of existing stats object shell and use it
+   * independently this is useful if stats have to be updated in different threads, since it is not
+   * really possible to update such stats as waitNanos, setupNanos and processingNanos across
+   * threads
+   *
    * @param original - OperatorStats object to create a copy from
-   * @param isClean - flag to indicate whether to start with clean state indicators or inherit those from original object
+   * @param isClean - flag to indicate whether to start with clean state indicators or inherit those
+   *     from original object
    */
   public OperatorStats(OperatorStats original, boolean isClean) {
-    this(original.operatorId, original.operatorType, original.inputCount, original.allocator, original.warnIOTimeThreshold, original.operatorSubType);
+    this(
+        original.operatorId,
+        original.operatorType,
+        original.inputCount,
+        original.allocator,
+        original.warnIOTimeThreshold,
+        original.operatorSubType);
 
-    if ( !isClean ) {
+    if (!isClean) {
       currentState = original.currentState;
       savedState = original.savedState;
 
@@ -211,7 +233,13 @@ public class OperatorStats {
     }
   }
 
-  private OperatorStats(int operatorId, int operatorType, int inputCount, BufferAllocator allocator, long warnIOTimeThreshold, int operatorSubType) {
+  private OperatorStats(
+      int operatorId,
+      int operatorType,
+      int inputCount,
+      BufferAllocator allocator,
+      long warnIOTimeThreshold,
+      int operatorSubType) {
     super();
     this.allocator = allocator;
     this.operatorId = operatorId;
@@ -222,24 +250,28 @@ public class OperatorStats {
     this.sizeInBytesReceivedByInput = new long[inputCount];
     this.warnIOTimeThreshold = warnIOTimeThreshold;
     this.operatorSubType = operatorSubType;
+    this.masterState = 0;
   }
 
-  public int getOperatorId(){
+  public int getOperatorId() {
     return operatorId;
   }
 
-  public int getOperatorType(){
+  public int getOperatorType() {
     return operatorType;
   }
 
-  private String assertionError(String msg){
-    return String.format("Failure while %s for operator id %d. Currently have currentState:%s savedState:%s", msg, operatorId, currentState.name(), savedState.name());
+  private String assertionError(String msg) {
+    return String.format(
+        "Failure while %s for operator id %d. Currently have currentState:%s savedState:%s",
+        msg, operatorId, currentState.name(), savedState.name());
   }
+
   /**
-   * OperatorStats merger - to merge stats from other OperatorStats
-   * this is needed in case some processing is multithreaded that needs to have
-   * separate OperatorStats to deal with
-   * WARN - this will only work for metrics that can be added
+   * OperatorStats merger - to merge stats from other OperatorStats this is needed in case some
+   * processing is multithreaded that needs to have separate OperatorStats to deal with WARN - this
+   * will only work for metrics that can be added
+   *
    * @param from - OperatorStats from where to merge to "this"
    * @return OperatorStats - for convenience so one can merge multiple stats in one go
    */
@@ -262,9 +294,7 @@ public class OperatorStats {
     return this;
   }
 
-  /**
-   * Clear stats
-   */
+  /** Clear stats */
   public void clear() {
     Arrays.fill(stateNanos, 01);
     longMetrics.clear();
@@ -293,18 +323,35 @@ public class OperatorStats {
   }
 
   public void stopSetup() {
-    assert currentState == State.SETUP :  assertionError("stopping setup");
+    assert currentState == State.SETUP : assertionError("stopping setup");
     stopState();
     startState(State.PROCESSING);
   }
 
+  // Use this method to account the processing time in OperatorStats
   public void startProcessing() {
-    assert currentState == State.NONE :  assertionError("starting processing");
+    assert currentState == State.NONE : assertionError("starting processing");
+    startState(State.PROCESSING);
+  }
+
+  // use this method to account the processing time and record the OperatorState of the operator in
+  // OperatorStats. Primarily called from SmartOp.
+  public void startProcessing(Operator.OperatorState<?> state) {
+    assert currentState == State.NONE : assertionError("starting processing");
+    this.masterState = state.getMasterState().ordinal();
+    lastScheduleTime = System.currentTimeMillis();
     startState(State.PROCESSING);
   }
 
   public void stopProcessing() {
     assert currentState == State.PROCESSING : assertionError("stopping processing");
+    stopState();
+  }
+
+  public void stopProcessing(Operator.OperatorState<?> state) {
+    assert currentState == State.PROCESSING : assertionError("stopping processing");
+    this.masterState = state.getMasterState().ordinal();
+    lastScheduleTime = System.currentTimeMillis();
     stopState();
   }
 
@@ -324,8 +371,8 @@ public class OperatorStats {
   }
 
   public void moveProcessingToWait(long nanos) {
-    this.stateNanos[State.WAIT.ordinal()]+=nanos;
-    this.stateNanos[State.PROCESSING.ordinal()]-=nanos;
+    this.stateNanos[State.WAIT.ordinal()] += nanos;
+    this.stateNanos[State.PROCESSING.ordinal()] -= nanos;
   }
 
   /*
@@ -360,21 +407,24 @@ public class OperatorStats {
   }
 
   public OperatorProfile getProfile(boolean withDetails) {
-    final OperatorProfile.Builder b = OperatorProfile //
-      .newBuilder() //
-      .setOperatorType(operatorType) //
-      .setOperatorId(operatorId) //
-      .setSetupNanos(getSetupNanos()) //
-      .setProcessNanos(getProcessingNanos())
-      .setWaitNanos(getWaitNanos())
-      .setOperatorSubtype(operatorSubType)
-      .setOutputRecords(outputRecords)
-      .setOutputBytes(outputSizeInBytes)
-      .setAddedFiles(addedFilesCount)
-      .setRemovedFiles(removedFilesCount);
-
+    final OperatorProfile.Builder b =
+        OperatorProfile //
+            .newBuilder() //
+            .setOperatorType(operatorType) //
+            .setOperatorId(operatorId) //
+            .setSetupNanos(getSetupNanos()) //
+            .setProcessNanos(getProcessingNanos())
+            .setWaitNanos(getWaitNanos())
+            .setOperatorSubtype(operatorSubType)
+            .setOutputRecords(outputRecords)
+            .setOutputBytes(outputSizeInBytes)
+            .setAddedFiles(addedFilesCount)
+            .setRemovedFiles(removedFilesCount)
+            .setOperatorState(masterState)
+            .setLastScheduleTime(lastScheduleTime);
     if (allocator != null) {
-      b.setPeakLocalMemoryAllocated(Long.max(allocator.getPeakMemoryAllocation(), allocator.getInitReservation()));
+      b.setPeakLocalMemoryAllocated(
+          Long.max(allocator.getPeakMemoryAllocation(), allocator.getInitReservation()));
     }
     if (withDetails && (profileDetails != null)) {
       b.setDetails(profileDetails);
@@ -394,7 +444,7 @@ public class OperatorStats {
       return outputRecords;
     } else {
       long recordsProcessed = 0;
-      for(int i = 0; i < recordsReceivedByInput.length; i++) {
+      for (int i = 0; i < recordsReceivedByInput.length; i++) {
         recordsProcessed += recordsReceivedByInput[i];
       }
       return recordsProcessed;
@@ -402,21 +452,20 @@ public class OperatorStats {
   }
 
   public void addStreamProfile(OperatorProfile.Builder builder) {
-    if(recordOutput) {
+    if (recordOutput) {
       builder.addInputProfile(
-        StreamProfile.newBuilder()
-          .setBatches(numberOfBatches)
-          .setRecords(outputRecords)
-          .setSize(outputSizeInBytes));
+          StreamProfile.newBuilder()
+              .setBatches(numberOfBatches)
+              .setRecords(outputRecords)
+              .setSize(outputSizeInBytes));
       return;
     }
-    for(int i = 0; i < recordsReceivedByInput.length; i++){
+    for (int i = 0; i < recordsReceivedByInput.length; i++) {
       builder.addInputProfile(
           StreamProfile.newBuilder()
               .setBatches(batchesReceivedByInput[i])
               .setRecords(recordsReceivedByInput[i])
-              .setSize(sizeInBytesReceivedByInput[i])
-      );
+              .setSize(sizeInBytesReceivedByInput[i]));
     }
   }
 
@@ -441,7 +490,6 @@ public class OperatorStats {
     public void apply(int key, long value) {
       builder.addMetric(MetricValue.newBuilder().setMetricId(key).setLongValue(value));
     }
-
   }
 
   public void addLongMetrics(OperatorProfile.Builder builder) {
@@ -462,31 +510,31 @@ public class OperatorStats {
     public void apply(int key, double value) {
       builder.addMetric(MetricValue.newBuilder().setMetricId(key).setDoubleValue(value));
     }
-
   }
+
   public void addDoubleMetrics(OperatorProfile.Builder builder) {
     if (doubleMetrics.size() > 0) {
       doubleMetrics.forEach(new DoubleProc(builder));
     }
   }
 
-  public void addLongStat(MetricDef metric, long value){
+  public void addLongStat(MetricDef metric, long value) {
     longMetrics.putOrAdd(metric.metricId(), value, value);
   }
 
-  public void addDoubleStat(MetricDef metric, double value){
+  public void addDoubleStat(MetricDef metric, double value) {
     doubleMetrics.putOrAdd(metric.metricId(), value, value);
   }
 
-  public void setLongStat(MetricDef metric, long value){
+  public void setLongStat(MetricDef metric, long value) {
     longMetrics.put(metric.metricId(), value);
   }
 
-  public long getLongStat(MetricDef metric){
+  public long getLongStat(MetricDef metric) {
     return longMetrics.get(metric.metricId());
   }
 
-  public void setDoubleStat(MetricDef metric, double value){
+  public void setDoubleStat(MetricDef metric, double value) {
     doubleMetrics.put(metric.metricId(), value);
   }
 
@@ -508,6 +556,7 @@ public class OperatorStats {
 
   /**
    * Adjust waitNanos based on client calculations
+   *
    * @param waitNanosOffset - could be negative as well as positive
    */
   public void adjustWaitNanos(long waitNanosOffset) {
@@ -522,7 +571,8 @@ public class OperatorStats {
     return this.profileDetails;
   }
 
-  public void addRuntimeFilterDetailsInScan(List<RunTimeFilterDetailsInfoInScan> runtimeFilterDetails) {
+  public void addRuntimeFilterDetailsInScan(
+      List<RunTimeFilterDetailsInfoInScan> runtimeFilterDetails) {
     runtimeFilterDetailsInScan.addAll(runtimeFilterDetails);
   }
 
@@ -534,42 +584,47 @@ public class OperatorStats {
     this.slowMetadataIoInfos.addAll(slowMetadataIoInfos);
   }
 
-  public void addParquetDecodingDetailsInfos(List<ParquetDecodingDetailsInfo> parquetDecodingDetailsInfos) {
+  public void addParquetDecodingDetailsInfos(
+      List<ParquetDecodingDetailsInfo> parquetDecodingDetailsInfos) {
     this.parquetDecodingDetailsInfos.addAll(parquetDecodingDetailsInfos);
   }
 
   @Override
-  public String toString(){
+  public String toString() {
     String[] names = OperatorMetricRegistry.getMetricNames(operatorType);
     StringBuilder sb = new StringBuilder();
 
     final V2_AsciiTable outputTable = new V2_AsciiTable();
     outputTable.addRule();
-    outputTable.addRow(String.format("Metrics for operator %s", CoreOperatorType.values()[operatorType]), String.format("id: %d.", operatorId));
+    outputTable.addRow(
+        String.format("Metrics for operator %s", CoreOperatorType.values()[operatorType]),
+        String.format("id: %d.", operatorId));
     outputTable.addRule();
     outputTable.addRow("metric", "value");
     outputTable.addRow("Setup time", NumberFormat.getInstance().format(getSetupNanos()) + " ns");
-    outputTable.addRow("Processing time", NumberFormat.getInstance().format(getProcessingNanos()) + " ns");
+    outputTable.addRow(
+        "Processing time", NumberFormat.getInstance().format(getProcessingNanos()) + " ns");
 
-    for(int i =0; i < inputCount; i++){
-      outputTable.addRow(String.format("Input[%d] Records", i) , NumberFormat.getInstance().format(recordsReceivedByInput[i]) + " records");
+    for (int i = 0; i < inputCount; i++) {
+      outputTable.addRow(
+          String.format("Input[%d] Records", i),
+          NumberFormat.getInstance().format(recordsReceivedByInput[i]) + " records");
     }
 
-
-    if(!longMetrics.isEmpty() || !doubleMetrics.isEmpty()){
+    if (!longMetrics.isEmpty() || !doubleMetrics.isEmpty()) {
       outputTable.addRule();
-      outputTable.addRow("Custom Metrics","");
+      outputTable.addRow("Custom Metrics", "");
       outputTable.addRule();
 
-      for(int i =0; i < names.length; i++){
-        if(longMetrics.containsKey(i)){
+      for (int i = 0; i < names.length; i++) {
+        if (longMetrics.containsKey(i)) {
           long value = longMetrics.get(i);
-          if(value != 0){
+          if (value != 0) {
             outputTable.addRow(names[i], NumberFormat.getInstance().format(value));
           }
-        }else if(doubleMetrics.containsKey(i)){
+        } else if (doubleMetrics.containsKey(i)) {
           double value = doubleMetrics.get(i);
-          if(value != 0){
+          if (value != 0) {
             outputTable.addRow(names[i], NumberFormat.getInstance().format(value));
           }
         }
@@ -590,11 +645,11 @@ public class OperatorStats {
   public static WaitRecorder getWaitRecorder(OperatorStats operatorStats) {
     if (operatorStats == null || !isEligible() || !operatorStats.checkAndStartWait()) {
       /*
-        Return a NO_OP_RECORDER if any of the conditions are met:
-        1. If the operatorStats is missing
-        2. If the thread this method is invoked from is not eligible for stats collection
-        3. If operatorStats is already in WAIT state
-       */
+       Return a NO_OP_RECORDER if any of the conditions are met:
+       1. If the operatorStats is missing
+       2. If the thread this method is invoked from is not eligible for stats collection
+       3. If operatorStats is already in WAIT state
+      */
       return NO_OP_RECORDER;
     } else {
       return operatorStats.recorder;
@@ -602,14 +657,15 @@ public class OperatorStats {
   }
 
   public static WaitRecorder getMetadataWaitRecorder(OperatorStats operatorStats, Path path) {
-      if(operatorStats == null || path == null) {
-        return NO_OP_RECORDER;
-      } else {
-        return operatorStats.createMetadataWaitRecorder(path.toString(), OperatorStats.getWaitRecorder(operatorStats));
-      }
+    if (operatorStats == null || path == null) {
+      return NO_OP_RECORDER;
+    } else {
+      return operatorStats.createMetadataWaitRecorder(
+          path.toString(), OperatorStats.getWaitRecorder(operatorStats));
+    }
   }
 
-  private void updateIOStats(IOStats ioStats, long elapsed, String filePath, long n, long offset){
+  private void updateIOStats(IOStats ioStats, long elapsed, String filePath, long n, long offset) {
     if (ioStats == null) {
       return;
     }
@@ -621,12 +677,13 @@ public class OperatorStats {
 
     if (elapsed >= TimeUnit.MILLISECONDS.toNanos(warnIOTimeThreshold)) {
       synchronized (ioStats.slowIOInfoList) {
-        ioStats.slowIOInfoList.add(SlowIOInfo.newBuilder()
-          .setFilePath(filePath)
-          .setIoTime(elapsed)
-          .setIoSize(n)
-          .setIoOffset(offset)
-          .build());
+        ioStats.slowIOInfoList.add(
+            SlowIOInfo.newBuilder()
+                .setFilePath(filePath)
+                .setIoTime(elapsed)
+                .setIoSize(n)
+                .setIoOffset(offset)
+                .build());
       }
     }
   }
@@ -640,7 +697,7 @@ public class OperatorStats {
   }
 
   public void updateReadIOStatsMetadata(long elapsed, String path) {
-    updateIOStats(metadataReadIOStats, elapsed, path, 0, 0 );
+    updateIOStats(metadataReadIOStats, elapsed, path, 0, 0);
   }
 
   public void setReadIOStats() {
@@ -649,22 +706,27 @@ public class OperatorStats {
 
     OperatorProfileDetails.Builder profileDetailsBuilder = OperatorProfileDetails.newBuilder();
 
-
     if (ioStats != null) {
-      long minIOReadTime = ioStats.minIOTime.longValue() <= ioStats.maxIOTime.longValue() ? ioStats.minIOTime.longValue() : 0;
-      setLongStat(ScanOperator.Metric.MIN_IO_READ_TIME_NS, minIOReadTime);
+      setLongStat(ScanOperator.Metric.MIN_IO_READ_TIME_NS, ioStats.minIOTime.longValue());
       setLongStat(ScanOperator.Metric.MAX_IO_READ_TIME_NS, ioStats.maxIOTime.longValue());
-      setLongStat(ScanOperator.Metric.AVG_IO_READ_TIME_NS, ioStats.numIO.get() == 0 ? 0 : ioStats.totalIOTime.longValue() / ioStats.numIO.get());
-      addLongStat(ScanOperator.Metric.NUM_IO_READ, ioStats.numIO.longValue());
+      setLongStat(
+          ScanOperator.Metric.AVG_IO_READ_TIME_NS,
+          ioStats.numIO.get() == 0 ? 0 : ioStats.totalIOTime.longValue() / ioStats.numIO.get());
+      setLongStat(ScanOperator.Metric.NUM_IO_READ, ioStats.numIO.longValue());
       profileDetailsBuilder.addAllSlowIoInfos(ioStats.slowIOInfoList);
     }
 
-    if(ioStatsMetadata != null) {
-      long minMetadataIOReadTime = ioStatsMetadata.minIOTime.longValue() <= ioStatsMetadata.maxIOTime.longValue() ? ioStatsMetadata.minIOTime.longValue() : 0;
-      addLongStat(ScanOperator.Metric.MIN_METADATA_IO_READ_TIME_NS, minMetadataIOReadTime);
-      addLongStat(ScanOperator.Metric.MAX_METADATA_IO_READ_TIME_NS, ioStatsMetadata.maxIOTime.longValue());
-      addLongStat(ScanOperator.Metric.AVG_METADATA_IO_READ_TIME_NS, ioStatsMetadata.numIO.get() == 0 ? 0 : ioStatsMetadata.totalIOTime.longValue() / ioStatsMetadata.numIO.get());
-      addLongStat(ScanOperator.Metric.NUM_METADATA_IO_READ, ioStatsMetadata.numIO.longValue());
+    if (ioStatsMetadata != null) {
+      setLongStat(
+          ScanOperator.Metric.MIN_METADATA_IO_READ_TIME_NS, ioStatsMetadata.minIOTime.longValue());
+      setLongStat(
+          ScanOperator.Metric.MAX_METADATA_IO_READ_TIME_NS, ioStatsMetadata.maxIOTime.longValue());
+      setLongStat(
+          ScanOperator.Metric.AVG_METADATA_IO_READ_TIME_NS,
+          ioStatsMetadata.numIO.get() == 0
+              ? 0
+              : ioStatsMetadata.totalIOTime.longValue() / ioStatsMetadata.numIO.get());
+      setLongStat(ScanOperator.Metric.NUM_METADATA_IO_READ, ioStatsMetadata.numIO.longValue());
       profileDetailsBuilder.addAllSlowMetadataIoInfos(ioStatsMetadata.slowIOInfoList);
     }
 
@@ -678,7 +740,7 @@ public class OperatorStats {
     setProfileDetails(profileDetailsBuilder.build());
   }
 
-  public void setSlowIoInfosInProfile(){
+  public void setSlowIoInfosInProfile() {
     OperatorProfileDetails.Builder profileDetailsBuilder = getProfileDetails().toBuilder();
     profileDetailsBuilder.clearSlowIoInfos();
     profileDetailsBuilder.addAllSlowIoInfos(slowIoInfos);
@@ -689,10 +751,10 @@ public class OperatorStats {
 
   public void setParquetDecodingDetailsInfosInProfile() {
     setProfileDetails(
-      getProfileDetails().toBuilder()
-        .clearParquetDecodingDetailsInfo()
-        .addAllParquetDecodingDetailsInfo(parquetDecodingDetailsInfos)
-        .build());
+        getProfileDetails().toBuilder()
+            .clearParquetDecodingDetailsInfo()
+            .addAllParquetDecodingDetailsInfo(parquetDecodingDetailsInfos)
+            .build());
   }
 
   public void setRecordOutput(boolean recordOutput) {

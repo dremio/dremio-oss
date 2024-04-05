@@ -15,6 +15,12 @@
  */
 package com.dremio.exec.planner.sql;
 
+import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.record.BatchSchema;
+import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelOptTable.ToRelContext;
 import org.apache.calcite.rel.RelNode;
@@ -25,16 +31,7 @@ import org.apache.calcite.schema.Schema.TableType;
 import org.apache.calcite.schema.Statistic;
 import org.apache.calcite.schema.Statistics;
 
-import com.dremio.exec.catalog.DremioTable;
-import com.dremio.exec.record.BatchSchema;
-import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.namespace.dataset.proto.DatasetConfig;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
-
-/**
- * An mocked version of DremioTable that takes a NamespaceKey and RelDataType for injection.
- */
+/** An mocked version of DremioTable that takes a NamespaceKey and RelDataType for injection. */
 public class MockDremioTable implements DremioTable {
   private final NamespaceKey key;
   private final RelDataType relDataType;
@@ -95,21 +92,17 @@ public class MockDremioTable implements DremioTable {
    */
   @Override
   public RelNode toRel(ToRelContext context, RelOptTable relOptTable) {
-    return LogicalTableScan.create(
-      context.getCluster(),
-      relOptTable,
-      ImmutableList.of());
+    return LogicalTableScan.create(context.getCluster(), relOptTable, ImmutableList.of());
   }
 
   /**
    * Returns this table's row type.
    *
-   * <p>This is a struct type whose
-   * fields describe the names and types of the columns in this table.</p>
+   * <p>This is a struct type whose fields describe the names and types of the columns in this
+   * table.
    *
-   * <p>The implementer must use the type factory provided. This ensures that
-   * the type is converted into a canonical form; other equal types in the same
-   * query will use the same object.</p>
+   * <p>The implementer must use the type factory provided. This ensures that the type is converted
+   * into a canonical form; other equal types in the same query will use the same object.
    *
    * @param typeFactory Type factory with which to create the type
    * @return Row type
@@ -119,17 +112,13 @@ public class MockDremioTable implements DremioTable {
     return this.relDataType;
   }
 
-  /**
-   * Returns a provider of statistics about this table.
-   */
+  /** Returns a provider of statistics about this table. */
   @Override
   public Statistic getStatistic() {
     return Statistics.UNKNOWN;
   }
 
-  /**
-   * Type of table.
-   */
+  /** Type of table. */
   @Override
   public TableType getJdbcTableType() {
     return TableType.TABLE;
@@ -137,8 +126,6 @@ public class MockDremioTable implements DremioTable {
 
   public static MockDremioTable create(NamespaceKey key, RelDataType relDataType) {
     return new MockDremioTable(
-      key,
-      relDataType,
-      CalciteArrowHelper.fromCalciteRowType(relDataType));
+        key, relDataType, CalciteArrowHelper.fromCalciteRowType(relDataType));
   }
 }

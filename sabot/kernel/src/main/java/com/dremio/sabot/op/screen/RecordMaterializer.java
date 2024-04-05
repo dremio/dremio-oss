@@ -15,11 +15,9 @@
  */
 package com.dremio.sabot.op.screen;
 
-
 import com.dremio.common.utils.protos.QueryWritableBatch;
 
 public interface RecordMaterializer {
 
   public QueryWritableBatch convertNext(int count);
-
 }

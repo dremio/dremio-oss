@@ -15,13 +15,10 @@
  */
 package com.dremio.service;
 
+import com.dremio.service.BinderImpl.Binding;
 import javax.inject.Provider;
 
-import com.dremio.service.BinderImpl.Binding;
-
-/**
- * Interface that allows retrieval of providers
- */
+/** Interface that allows retrieval of providers */
 public interface BindingProvider extends Iterable<Binding<?>> {
 
   <T> Provider<T> provider(final Class<T> iface);

@@ -15,35 +15,28 @@
  */
 package com.dremio.exec.planner.serializer.logical;
 
+import com.dremio.exec.planner.serializer.RelFieldCollationSerde;
+import com.dremio.exec.planner.serializer.RelNodeSerde;
+import com.dremio.plan.serialization.PLogicalSort;
 import java.util.List;
 import java.util.stream.Collectors;
-
 import org.apache.calcite.rel.RelCollations;
 import org.apache.calcite.rel.RelFieldCollation;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.logical.LogicalSort;
 import org.apache.calcite.rex.RexNode;
 
-import com.dremio.exec.planner.serializer.RelFieldCollationSerde;
-import com.dremio.exec.planner.serializer.RelNodeSerde;
-import com.dremio.plan.serialization.PLogicalSort;
-
-/**
- * Serde for LogicalSort
- */
+/** Serde for LogicalSort */
 public final class LogicalSortSerde implements RelNodeSerde<LogicalSort, PLogicalSort> {
   @Override
   public PLogicalSort serialize(LogicalSort sort, RelToProto s) {
-    PLogicalSort.Builder builder = PLogicalSort
-        .newBuilder()
-        .setInput(s.toProto(sort.getInput()))
-        .addAllCollation(
-          sort
-            .collation
-            .getFieldCollations()
-            .stream()
-            .map(RelFieldCollationSerde::toProto)
-            .collect(Collectors.toList()));
+    PLogicalSort.Builder builder =
+        PLogicalSort.newBuilder()
+            .setInput(s.toProto(sort.getInput()))
+            .addAllCollation(
+                sort.collation.getFieldCollations().stream()
+                    .map(RelFieldCollationSerde::toProto)
+                    .collect(Collectors.toList()));
 
     if (sort.fetch != null) {
       builder.setFetch(s.toProto(sort.fetch));
@@ -59,13 +52,12 @@ public final class LogicalSortSerde implements RelNodeSerde<LogicalSort, PLogica
   @Override
   public LogicalSort deserialize(PLogicalSort node, RelFromProto s) {
     RelNode input = s.toRel(node.getInput());
-    List<RelFieldCollation> fieldCollations = node
-      .getCollationList()
-      .stream()
-      .map(RelFieldCollationSerde::fromProto)
-      .collect(Collectors.toList());
+    List<RelFieldCollation> fieldCollations =
+        node.getCollationList().stream()
+            .map(RelFieldCollationSerde::fromProto)
+            .collect(Collectors.toList());
     RexNode offset = node.hasOffset() ? s.toRex(node.getOffset()) : null;
     RexNode fetch = node.hasFetch() ? s.toRex(node.getFetch()) : null;
-    return LogicalSort.create(input, RelCollations.of(fieldCollations), offset , fetch);
+    return LogicalSort.create(input, RelCollations.of(fieldCollations), offset, fetch);
   }
 }

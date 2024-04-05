@@ -20,21 +20,35 @@ class TableBuilder extends ProfileBuilder {
   private int w = 0;
   private int width;
 
+  enum Alignment {
+    CENTER,
+    LEFT,
+    RIGHT,
+    JUSTIFY,
+    DEFAULT
+  }
+
   public TableBuilder(final String[] columns) {
+    this(columns, Alignment.DEFAULT);
+  }
+
+  public TableBuilder(final String[] columns, Alignment alignment) {
     sb = new StringBuilder();
     width = columns.length;
+    String textAlignment = getTextAlignment(alignment);
+    String headerAlign = getHeaderAlignment(alignment);
 
     getFormat().setMaximumFractionDigits(3);
 
-    sb.append("<table class=\"table text-right\">\n<thead>\n<tr>");
+    sb.append("<table class=\"table ").append(textAlignment).append("\">\n<thead>\n<tr>");
     for (final String cn : columns) {
-      sb.append("<th>" + cn + "</th>");
+      sb.append(headerAlign).append(cn).append("</th>");
     }
     sb.append("</thead>\n</tr>\n");
   }
 
   @Override
-  public void appendCell(final String s) {
+  public ProfileBuilder appendCell(final String s) {
     if (w == 0) {
       sb.append("<tr>");
     }
@@ -43,6 +57,7 @@ class TableBuilder extends ProfileBuilder {
       sb.append("</tr>\n");
       w = 0;
     }
+    return this;
   }
 
   public void appendRepeated(final String s, final int n) {
@@ -56,5 +71,36 @@ class TableBuilder extends ProfileBuilder {
     rv = sb.append("\n</table>").toString();
     sb = null;
     return rv;
+  }
+
+  String getTextAlignment(Alignment alignment) {
+    switch (alignment) {
+      case CENTER:
+        return "text-center";
+      case LEFT:
+        return "text-left";
+      case JUSTIFY:
+        return "text-justify";
+      case RIGHT:
+      case DEFAULT:
+      default:
+        return "text-right";
+    }
+  }
+
+  String getHeaderAlignment(Alignment alignment) {
+    switch (alignment) {
+      case CENTER:
+        return "<th style=\"text-align:center;\">";
+      case LEFT:
+        return "<th style=\"text-align:left;\">";
+      case RIGHT:
+        return "<th style=\"text-align:right;\">";
+      case JUSTIFY:
+        return "<th style=\"text-align:justify;\">";
+      case DEFAULT:
+      default:
+        return "<th>";
+    }
   }
 }

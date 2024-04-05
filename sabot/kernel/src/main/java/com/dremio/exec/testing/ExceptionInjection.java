@@ -15,19 +15,18 @@
  */
 package com.dremio.exec.testing;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
-
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 
 /**
- * Injection for a single exception. Specifies how many times to inject it, and how many times to skip
- * injecting it before the first injection. This class is used internally for tracking injected
- * exceptions; injected exceptions are specified via the
- * {@link com.dremio.exec.ExecConstants#NODE_CONTROL_INJECTIONS} session option.
+ * Injection for a single exception. Specifies how many times to inject it, and how many times to
+ * skip injecting it before the first injection. This class is used internally for tracking injected
+ * exceptions; injected exceptions are specified via the {@link
+ * com.dremio.exec.ExecConstants#NODE_CONTROL_INJECTIONS} session option.
  */
 @JsonAutoDetect(fieldVisibility = Visibility.ANY)
 public class ExceptionInjection extends Injection {
@@ -35,13 +34,15 @@ public class ExceptionInjection extends Injection {
   private final Class<? extends Throwable> exceptionClass;
 
   @JsonCreator // ensures instances are created only through JSON
-  private ExceptionInjection(@JsonProperty("address") final String address,
-                             @JsonProperty("port") final int port,
-                             @JsonProperty("siteClass") final String siteClass,
-                             @JsonProperty("desc") final String desc,
-                             @JsonProperty("nSkip") final int nSkip,
-                             @JsonProperty("nFire") final int nFire,
-                             @JsonProperty("exceptionClass") String classString) throws InjectionConfigurationException {
+  private ExceptionInjection(
+      @JsonProperty("address") final String address,
+      @JsonProperty("port") final int port,
+      @JsonProperty("siteClass") final String siteClass,
+      @JsonProperty("desc") final String desc,
+      @JsonProperty("nSkip") final int nSkip,
+      @JsonProperty("nFire") final int nFire,
+      @JsonProperty("exceptionClass") String classString)
+      throws InjectionConfigurationException {
     super(address, port, siteClass, desc, nSkip, nFire);
     final Class<?> clazz;
     try {
@@ -65,7 +66,7 @@ public class ExceptionInjection extends Injection {
    * @return the exception to throw, or null if it isn't time to throw it
    */
   private Throwable constructException() {
-    if (! injectNow()) {
+    if (!injectNow()) {
       return null;
     }
 
@@ -81,7 +82,10 @@ public class ExceptionInjection extends Injection {
     final Throwable throwable;
     try {
       throwable = (Throwable) constructor.newInstance(getDesc());
-    } catch (InstantiationException | IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
+    } catch (InstantiationException
+        | IllegalAccessException
+        | IllegalArgumentException
+        | InvocationTargetException e) {
       // this should not throw; validated already.
       throw new IllegalStateException("Couldn't construct exception instance.", e);
     }
@@ -92,7 +96,8 @@ public class ExceptionInjection extends Injection {
   /**
    * Throw the unchecked exception specified by this injection.
    *
-   * @throws IllegalStateException if it's time to throw, and the injection specified a checked exception
+   * @throws IllegalStateException if it's time to throw, and the injection specified a checked
+   *     exception
    */
   public void throwUnchecked() {
     final Throwable throwable = constructException();
@@ -116,9 +121,9 @@ public class ExceptionInjection extends Injection {
    * Throw the checked exception specified by this injection.
    *
    * @param exceptionClass the class of the exception to throw
-   * @throws T                     if it is time to throw the exception
+   * @throws T if it is time to throw the exception
    * @throws IllegalStateException if it is time to throw the exception, and the exception's class
-   *                               is incompatible with the class specified by the injection
+   *     is incompatible with the class specified by the injection
    */
   public <T extends Throwable> void throwChecked(final Class<T> exceptionClass) throws T {
     final Throwable throwable = constructException();
@@ -131,7 +136,11 @@ public class ExceptionInjection extends Injection {
       throw exception;
     }
 
-    throw new IllegalStateException("Constructed Throwable(" + throwable.getClass().getName()
-      + ") is incompatible with exceptionClass(" + exceptionClass.getName() + ")");
+    throw new IllegalStateException(
+        "Constructed Throwable("
+            + throwable.getClass().getName()
+            + ") is incompatible with exceptionClass("
+            + exceptionClass.getName()
+            + ")");
   }
 }

@@ -20,10 +20,9 @@ import com.dremio.datastore.api.KVStoreCreationFunction;
 import com.dremio.datastore.api.StoreBuildingFactory;
 import com.dremio.datastore.format.Format;
 
-/**
- * Creates the NamedReference KV store for Nessie.
- */
-public class NessieRefKVStoreBuilder implements KVStoreCreationFunction<NessieRefKVStoreBuilder.NamedRef, String> {
+/** Creates the NamedReference KV store for Nessie. */
+public class NessieRefKVStoreBuilder
+    implements KVStoreCreationFunction<NessieRefKVStoreBuilder.NamedRef, String> {
   static final String TABLE_NAME = "nessieRef";
   static final String BRANCH_PREFIX = "B|";
   static final String TAG_PREFIX = "T|";
@@ -66,11 +65,17 @@ public class NessieRefKVStoreBuilder implements KVStoreCreationFunction<NessieRe
 
   @Override
   public KVStore<NessieRefKVStoreBuilder.NamedRef, String> build(StoreBuildingFactory factory) {
-    return factory.<NessieRefKVStoreBuilder.NamedRef, String>newStore()
-      .name(TABLE_NAME)
-      .keyFormat(Format.wrapped(NessieRefKVStoreBuilder.NamedRef.class, k -> k.encode(), NessieRefKVStoreBuilder::decodeNamedRef, Format.ofString()))
-      .valueFormat(Format.ofString())
-      .build();
+    return factory
+        .<NessieRefKVStoreBuilder.NamedRef, String>newStore()
+        .name(TABLE_NAME)
+        .keyFormat(
+            Format.wrapped(
+                NessieRefKVStoreBuilder.NamedRef.class,
+                k -> k.encode(),
+                NessieRefKVStoreBuilder::decodeNamedRef,
+                Format.ofString()))
+        .valueFormat(Format.ofString())
+        .build();
   }
 
   static NessieRefKVStoreBuilder.NamedRef decodeNamedRef(String encoded) {

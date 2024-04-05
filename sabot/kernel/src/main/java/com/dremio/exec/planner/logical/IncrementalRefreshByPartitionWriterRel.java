@@ -15,22 +15,20 @@
  */
 package com.dremio.exec.planner.logical;
 
+import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.ops.OptimizerRulesContext;
+import com.dremio.exec.ops.SnapshotDiffContext;
 import java.util.List;
-
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
 
-import com.dremio.exec.catalog.DremioTable;
-import com.dremio.exec.ops.OptimizerRulesContext;
-import com.dremio.exec.ops.SnapshotDiffContext;
-
 /**
  * A class used to signify that the current WriterRel is used for Incremental Refresh by Partition
- * That means that we will possibly have some files deleted in addition to all the added files
- * We use this class to pass some additional parameters needed to generate the delete plan
+ * That means that we will possibly have some files deleted in addition to all the added files We
+ * use this class to pass some additional parameters needed to generate the delete plan
  */
 public class IncrementalRefreshByPartitionWriterRel extends WriterRel {
   private final OptimizerRulesContext context;
@@ -38,20 +36,35 @@ public class IncrementalRefreshByPartitionWriterRel extends WriterRel {
   private final RelOptTable table;
   private final SnapshotDiffContext snapshotDiffContext;
 
-  public IncrementalRefreshByPartitionWriterRel(final RelOptCluster cluster, final RelTraitSet traitSet, final RelNode input,
-                                                final CreateTableEntry createTableEntry, final RelDataType expectedInboundRowType,
-                                                final OptimizerRulesContext context, final DremioTable oldReflection,
-                                                final RelOptTable table, final SnapshotDiffContext snapshotDiffContext) {
+  public IncrementalRefreshByPartitionWriterRel(
+      final RelOptCluster cluster,
+      final RelTraitSet traitSet,
+      final RelNode input,
+      final CreateTableEntry createTableEntry,
+      final RelDataType expectedInboundRowType,
+      final OptimizerRulesContext context,
+      final DremioTable oldReflection,
+      final RelOptTable table,
+      final SnapshotDiffContext snapshotDiffContext) {
     super(cluster, traitSet, input, createTableEntry, expectedInboundRowType);
     this.context = context;
     this.oldReflection = oldReflection;
     this.table = table;
     this.snapshotDiffContext = snapshotDiffContext;
   }
+
   @Override
   public RelNode copy(final RelTraitSet traitSet, final List<RelNode> inputs) {
-    return new IncrementalRefreshByPartitionWriterRel(getCluster(), traitSet, sole(inputs),
-      getCreateTableEntry(), getExpectedInboundRowType(), context, oldReflection, table, snapshotDiffContext);
+    return new IncrementalRefreshByPartitionWriterRel(
+        getCluster(),
+        traitSet,
+        sole(inputs),
+        getCreateTableEntry(),
+        getExpectedInboundRowType(),
+        context,
+        oldReflection,
+        table,
+        snapshotDiffContext);
   }
 
   public OptimizerRulesContext getContext() {

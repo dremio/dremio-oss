@@ -17,15 +17,6 @@ package com.dremio.exec.store.iceberg;
 
 import static com.dremio.exec.util.VectorUtil.getVectorFromSchemaPath;
 
-import java.nio.charset.StandardCharsets;
-import java.util.Map;
-
-import org.apache.arrow.vector.VarCharVector;
-import org.apache.iceberg.TableMetadata;
-import org.apache.iceberg.TableMetadataParser;
-import org.apache.iceberg.exceptions.NotFoundException;
-import org.apache.iceberg.io.FileIO;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.config.IcebergLocationFinderFunctionContext;
@@ -37,13 +28,19 @@ import com.dremio.exec.store.dfs.AbstractTableFunction;
 import com.dremio.io.file.FileSystem;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
+import java.nio.charset.StandardCharsets;
+import java.util.Map;
+import org.apache.arrow.vector.VarCharVector;
+import org.apache.iceberg.TableMetadata;
+import org.apache.iceberg.TableMetadataParser;
+import org.apache.iceberg.exceptions.NotFoundException;
+import org.apache.iceberg.io.FileIO;
 
-/**
- * Table function to return the table location by reading the metadata.
- */
+/** Table function to return the table location by reading the metadata. */
 public class IcebergLocationFinderTableFunction extends AbstractTableFunction {
 
-  private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(IcebergLocationFinderTableFunction.class);
+  private static final org.slf4j.Logger LOGGER =
+      org.slf4j.LoggerFactory.getLogger(IcebergLocationFinderTableFunction.class);
   private VarCharVector metadataLocationVector;
   private VarCharVector tableLocationVector;
   private int inputIndex;
@@ -54,26 +51,37 @@ public class IcebergLocationFinderTableFunction extends AbstractTableFunction {
   private final Map<String, String> tablePropertiesSkipCriteria;
   private final boolean continueOnError;
 
-  public IcebergLocationFinderTableFunction(FragmentExecutionContext fec, OperatorContext context, OpProps props, TableFunctionConfig functionConfig) {
+  public IcebergLocationFinderTableFunction(
+      FragmentExecutionContext fec,
+      OperatorContext context,
+      OpProps props,
+      TableFunctionConfig functionConfig) {
     super(context, functionConfig);
     this.fragmentExecutionContext = fec;
     this.props = props;
-    this.tablePropertiesSkipCriteria = ((IcebergLocationFinderFunctionContext)functionConfig.getFunctionContext()).getTablePropertiesSkipCriteria();
-    continueOnError = ((IcebergLocationFinderFunctionContext) functionConfig.getFunctionContext()).continueOnError();
+    this.tablePropertiesSkipCriteria =
+        ((IcebergLocationFinderFunctionContext) functionConfig.getFunctionContext())
+            .getTablePropertiesSkipCriteria();
+    continueOnError =
+        ((IcebergLocationFinderFunctionContext) functionConfig.getFunctionContext())
+            .continueOnError();
   }
 
   @Override
   public VectorAccessible setup(VectorAccessible incoming) throws Exception {
     VectorContainer outgoing = (VectorContainer) super.setup(incoming);
-    SupportsIcebergMutablePlugin storagePlugin = fragmentExecutionContext.getStoragePlugin(functionConfig.getFunctionContext().getPluginId());
+    SupportsIcebergMutablePlugin storagePlugin =
+        fragmentExecutionContext.getStoragePlugin(
+            functionConfig.getFunctionContext().getPluginId());
     FileSystem fs = storagePlugin.createFS(null, props.getUserName(), context);
     this.fileIO = storagePlugin.createIcebergFileIO(fs, null, null, null, null);
 
-    this.metadataLocationVector = (VarCharVector) getVectorFromSchemaPath(incoming, SystemSchemas.METADATA_FILE_PATH);
-    this.tableLocationVector = (VarCharVector) getVectorFromSchemaPath(outgoing, SystemSchemas.TABLE_LOCATION);
+    this.metadataLocationVector =
+        (VarCharVector) getVectorFromSchemaPath(incoming, SystemSchemas.METADATA_FILE_PATH);
+    this.tableLocationVector =
+        (VarCharVector) getVectorFromSchemaPath(outgoing, SystemSchemas.TABLE_LOCATION);
 
     return outgoing;
-
   }
 
   @Override
@@ -93,14 +101,18 @@ public class IcebergLocationFinderTableFunction extends AbstractTableFunction {
     try {
       TableMetadata tableMetadata = TableMetadataParser.read(fileIO, metadataLocation);
       if (tablePropertiesSkipCriteria.entrySet().stream()
-        .anyMatch(e -> tableMetadata.properties().containsKey(e.getKey()) &&
-          e.getValue().equals(tableMetadata.properties().get(e.getKey())))) {
+          .anyMatch(
+              e ->
+                  tableMetadata.properties().containsKey(e.getKey())
+                      && e.getValue().equals(tableMetadata.properties().get(e.getKey())))) {
         return 0;
       }
-      this.tableLocationVector.setSafe(startOutIndex, tableMetadata.location().getBytes(StandardCharsets.UTF_8));
+      this.tableLocationVector.setSafe(
+          startOutIndex, tableMetadata.location().getBytes(StandardCharsets.UTF_8));
     } catch (UserException | NotFoundException e) {
       if (continueOnError) {
-        LOGGER.warn("Skipping table due to exception while getting table location: " + metadataLocation, e);
+        LOGGER.warn(
+            "Skipping table due to exception while getting table location: " + metadataLocation, e);
         return 0;
       } else {
         throw e;

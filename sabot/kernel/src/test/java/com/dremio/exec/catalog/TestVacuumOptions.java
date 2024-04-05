@@ -21,9 +21,7 @@ import static org.mockito.Mockito.when;
 
 import org.junit.Test;
 
-/**
- * Tests for {@link VacuumOptions}
- */
+/** Tests for {@link VacuumOptions} */
 public class TestVacuumOptions {
 
   @Test
@@ -36,5 +34,4 @@ public class TestVacuumOptions {
     assertThat(vacuumCatalogOptions.getOlderThanInMillis()).isEqualTo(100L);
     assertThat(vacuumCatalogOptions.getGracePeriodInMillis()).isEqualTo(0);
   }
-
 }

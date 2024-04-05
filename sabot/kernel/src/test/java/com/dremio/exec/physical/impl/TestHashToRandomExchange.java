@@ -17,34 +17,37 @@ package com.dremio.exec.physical.impl;
 
 import static org.junit.Assert.assertEquals;
 
-import java.util.List;
-
-import org.junit.Ignore;
-import org.junit.Test;
-
 import com.dremio.exec.client.DremioClient;
 import com.dremio.exec.pop.PopUnitTestBase;
 import com.dremio.exec.server.SabotNode;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.local.LocalClusterCoordinator;
+import java.util.List;
+import org.junit.Ignore;
+import org.junit.Test;
 
 @Ignore("DX-3872")
 public class TestHashToRandomExchange extends PopUnitTestBase {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestHashToRandomExchange.class);
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(TestHashToRandomExchange.class);
 
   @Test
   public void twoBitTwoExchangeTwoEntryRun() throws Exception {
     try (ClusterCoordinator clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
-         SabotNode bit1 = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, true);
-         SabotNode bit2 = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, false);
-         DremioClient client = new DremioClient(DEFAULT_SABOT_CONFIG, clusterCoordinator)) {
+        SabotNode bit1 =
+            new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, true);
+        SabotNode bit2 =
+            new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, false);
+        DremioClient client = new DremioClient(DEFAULT_SABOT_CONFIG, clusterCoordinator)) {
 
       bit1.run();
       bit2.run();
       client.connect();
-      List<QueryDataBatch> results = client.runQuery(com.dremio.exec.proto.UserBitShared.QueryType.PHYSICAL,
-        readResourceAsString("/sender/hash_exchange.json"));
+      List<QueryDataBatch> results =
+          client.runQuery(
+              com.dremio.exec.proto.UserBitShared.QueryType.PHYSICAL,
+              readResourceAsString("/sender/hash_exchange.json"));
       int count = 0;
       for (QueryDataBatch b : results) {
         if (b.getHeader().getRowCount() != 0) {
@@ -55,5 +58,4 @@ public class TestHashToRandomExchange extends PopUnitTestBase {
       assertEquals(200, count);
     }
   }
-
 }

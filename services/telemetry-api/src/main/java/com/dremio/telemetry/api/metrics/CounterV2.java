@@ -15,9 +15,7 @@
  */
 package com.dremio.telemetry.api.metrics;
 
-/**
- * Prometheus Counter abstraction.
- */
+/** Prometheus Counter abstraction. */
 public interface CounterV2 {
   void increment(String... labels);
 }

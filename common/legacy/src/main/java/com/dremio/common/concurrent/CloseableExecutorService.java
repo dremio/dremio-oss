@@ -17,9 +17,5 @@ package com.dremio.common.concurrent;
 
 import java.util.concurrent.ExecutorService;
 
-/**
- * These two interfaces are commonly combined.
- * An example would be a closable thread pool.
- */
-public interface CloseableExecutorService extends AutoCloseable, ExecutorService {
-}
+/** These two interfaces are commonly combined. An example would be a closable thread pool. */
+public interface CloseableExecutorService extends AutoCloseable, ExecutorService {}

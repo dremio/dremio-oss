@@ -15,6 +15,8 @@
  */
 package com.dremio.sabot.exec.heap;
 
+import com.dremio.common.UncaughtExceptionHandlers;
+import com.dremio.sabot.exec.HeapLowMemListener;
 import java.lang.management.MemoryPoolMXBean;
 import java.util.PriorityQueue;
 import java.util.concurrent.TimeUnit;
@@ -22,27 +24,26 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
-import com.dremio.common.UncaughtExceptionHandlers;
-import com.dremio.sabot.exec.HeapLowMemListener;
-
 /**
  * Low memory controller that understands operations and heap usage patterns of spilling operators.
  *
- * <p>
- * Spilling operators further divides incoming batches to partitions (either memory or disk). The memory partitions
- * almost always incurs metadata overhead that continuously grows proportional to the number of batches it processes
- * (as it has to keep metadata such as arrow buffers and field vectors in java heap, while the data pointed by arrow
- * buffers maybe in direct memory). The heap overhead per incoming batch is directly proportional to the number of
- * columns in the incoming and/or outgoing schema of the operator.
- * </p>
+ * <p>Spilling operators further divides incoming batches to partitions (either memory or disk). The
+ * memory partitions almost always incurs metadata overhead that continuously grows proportional to
+ * the number of batches it processes (as it has to keep metadata such as arrow buffers and field
+ * vectors in java heap, while the data pointed by arrow buffers maybe in direct memory). The heap
+ * overhead per incoming batch is directly proportional to the number of columns in the incoming
+ * and/or outgoing schema of the operator.
  */
 public class SpillingOperatorHeapController implements HeapLowMemController, AutoCloseable {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SpillingOperatorHeapController.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(SpillingOperatorHeapController.class);
   private static final int MAX_TRACKER_SLOTS = 128;
   private static final int MAX_TRACKER_SLOT_MASK = MAX_TRACKER_SLOTS - 1;
   private static final int PER_TRACKER_RANGE_SHIFT = 5;
-  private static final int MAX_OVERHEAD_NUMBER = MAX_TRACKER_SLOTS * (2 << (PER_TRACKER_RANGE_SHIFT - 1));
+  private static final int MAX_OVERHEAD_NUMBER =
+      MAX_TRACKER_SLOTS * (2 << (PER_TRACKER_RANGE_SHIFT - 1));
   private static final int DEFAULT_THRESHOLD_PERCENTAGE = 75;
+
   private enum PoolEvent {
     ACTIVATE,
     DEACTIVATE,
@@ -84,7 +85,8 @@ public class SpillingOperatorHeapController implements HeapLowMemController, Aut
   }
 
   @Override
-  public synchronized HeapLowMemParticipant addParticipant(String participantId, int participantOverhead) {
+  public synchronized HeapLowMemParticipant addParticipant(
+      String participantId, int participantOverhead) {
     if (totalParticipants.getAndIncrement() == 0) {
       // we have at least one participant. activate pool monitoring
       notifyGenericPoolEvent(PoolEvent.ACTIVATE);
@@ -155,18 +157,20 @@ public class SpillingOperatorHeapController implements HeapLowMemController, Aut
     }
   }
 
-  private synchronized void chooseVictimAndTriggerSpilling(MemoryState memoryState, int sizeFactor) {
+  private synchronized void chooseVictimAndTriggerSpilling(
+      MemoryState memoryState, int sizeFactor) {
     int victimsSoFar = 0;
     int maxAllowedVictims = computeAllowedVictims(memoryState);
     logger.info("Choosing {} Victims. Memory state is {}", maxAllowedVictims, memoryState.name());
     if (maxAllowedVictims > 0) {
       for (int idx : fattestFirst) {
-        if ((idx < widthLowerBoundIndex && memoryState.getSeverity() <= 1) ||
-          (idx == 0 && memoryState.getSeverity() <= 2)) {
+        if ((idx < widthLowerBoundIndex && memoryState.getSeverity() <= 1)
+            || (idx == 0 && memoryState.getSeverity() <= 2)) {
           break;
         }
         final int victimsLeft = maxAllowedVictims - victimsSoFar;
-        logger.debug("[{}] -> Choosing {} Victims. Memory state {}", idx, victimsLeft, memoryState.name());
+        logger.debug(
+            "[{}] -> Choosing {} Victims. Memory state {}", idx, victimsLeft, memoryState.name());
         victimsSoFar += trackers[idx].chooseVictims(victimsLeft, memoryState, sizeFactor);
         if (victimsSoFar >= maxAllowedVictims) {
           break;
@@ -177,9 +181,12 @@ public class SpillingOperatorHeapController implements HeapLowMemController, Aut
   }
 
   private int computeAllowedVictims(MemoryState memoryState) {
-    final int firstLowerBound = memoryState.getSeverity() <= 1 ? MAX_TRACKER_SLOTS : widthLowerBoundIndex;
-    final int secondLowerBound = (memoryState.getSeverity() <= 1 ? widthLowerBoundIndex :
-      (memoryState.getSeverity() == 2) ? 1 : 0);
+    final int firstLowerBound =
+        memoryState.getSeverity() <= 1 ? MAX_TRACKER_SLOTS : widthLowerBoundIndex;
+    final int secondLowerBound =
+        (memoryState.getSeverity() <= 1
+            ? widthLowerBoundIndex
+            : (memoryState.getSeverity() == 2) ? 1 : 0);
     int prev = 0;
     int total = 0;
     for (int idx : fattestFirst) {
@@ -231,8 +238,9 @@ public class SpillingOperatorHeapController implements HeapLowMemController, Aut
   }
 
   private static int toIndex(int overhead) {
-    return (overhead >= MAX_OVERHEAD_NUMBER) ? MAX_TRACKER_SLOTS :
-      (overhead >> PER_TRACKER_RANGE_SHIFT) & MAX_TRACKER_SLOT_MASK;
+    return (overhead >= MAX_OVERHEAD_NUMBER)
+        ? MAX_TRACKER_SLOTS
+        : (overhead >> PER_TRACKER_RANGE_SHIFT) & MAX_TRACKER_SLOT_MASK;
   }
 
   @Override
@@ -252,7 +260,8 @@ public class SpillingOperatorHeapController implements HeapLowMemController, Aut
     }
 
     @Override
-    public void changeLowMemOptions(long newThresholdPercentage, long newAggressiveWidthLowerBound) {
+    public void changeLowMemOptions(
+        long newThresholdPercentage, long newAggressiveWidthLowerBound) {
       currentLowMemThresholdPercentage = (int) newThresholdPercentage;
       widthLowerBoundIndex = toIndex((int) newAggressiveWidthLowerBound);
       notifyGenericPoolEvent(PoolEvent.THRESHOLD_CHANGE);

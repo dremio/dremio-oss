@@ -35,8 +35,9 @@ public class GrpcTracerFacade implements Tracer {
   }
 
   private Tracer getTracer() {
-    return tracer.getTracer() instanceof OpenCensusTracerAdapter ? NoopTracerFactory.create() :
-      tracer;
+    return tracer.getTracer() instanceof OpenCensusTracerAdapter
+        ? NoopTracerFactory.create()
+        : tracer;
   }
 
   @Override

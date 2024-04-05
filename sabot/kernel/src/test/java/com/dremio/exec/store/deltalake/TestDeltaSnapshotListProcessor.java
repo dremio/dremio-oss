@@ -19,14 +19,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import com.dremio.common.exceptions.UserException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
-
 import org.junit.Test;
-
-import com.dremio.common.exceptions.UserException;
 
 public class TestDeltaSnapshotListProcessor {
 
@@ -50,9 +48,12 @@ public class TestDeltaSnapshotListProcessor {
     DeltaSnapshotListProcessor processor = new DeltaSnapshotListProcessor();
 
     List<DeltaLogSnapshot> finalSnaphosts = processor.findValidSnapshots(list);
-    List<Long> actualSnapshotVersions = finalSnaphosts.stream().map(x -> x.getVersionId()).collect(Collectors.toList());
+    List<Long> actualSnapshotVersions =
+        finalSnaphosts.stream().map(x -> x.getVersionId()).collect(Collectors.toList());
 
-    assertEquals(actualSnapshotVersions, Arrays.asList(30L, 29L, 28L, 27L, 26L, 25L, 24L, 23L, 22L, 21L, 20L));
+    assertEquals(
+        actualSnapshotVersions,
+        Arrays.asList(30L, 29L, 28L, 27L, 26L, 25L, 24L, 23L, 22L, 21L, 20L));
   }
 
   @Test
@@ -61,8 +62,8 @@ public class TestDeltaSnapshotListProcessor {
     DeltaSnapshotListProcessor processor = new DeltaSnapshotListProcessor();
 
     assertThatThrownBy(() -> processor.findValidSnapshots(list))
-      .isInstanceOf(IllegalStateException.class)
-      .hasMessage("Commit log is empty");
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessage("Commit log is empty");
   }
 
   @Test
@@ -72,16 +73,18 @@ public class TestDeltaSnapshotListProcessor {
 
     List<DeltaLogSnapshot> finalSnaphosts = processor.findValidSnapshots(list);
 
-    List<Long> actualSnapshotVersions = finalSnaphosts.stream().map(x -> x.getVersionId()).collect(Collectors.toList());
+    List<Long> actualSnapshotVersions =
+        finalSnaphosts.stream().map(x -> x.getVersionId()).collect(Collectors.toList());
 
-    assertEquals(actualSnapshotVersions,Arrays.asList(30L, 29L, 28L, 27L, 26L));
+    assertEquals(actualSnapshotVersions, Arrays.asList(30L, 29L, 28L, 27L, 26L));
   }
 
   @Test(expected = IllegalStateException.class)
   public void missingVersionZero() {
     List<DeltaLogSnapshot> list = generate(Arrays.asList(0, 1, 2, 3, 4, 5), Arrays.asList(), 30);
-    //Since we don't have a checkpoint file then we should have commit json 0. In all other cases we should have
-    //atleast one checkpoint file present
+    // Since we don't have a checkpoint file then we should have commit json 0. In all other cases
+    // we should have
+    // atleast one checkpoint file present
 
     DeltaSnapshotListProcessor processor = new DeltaSnapshotListProcessor();
     try {
@@ -93,11 +96,12 @@ public class TestDeltaSnapshotListProcessor {
     }
   }
 
-  private List<DeltaLogSnapshot> generate(List<Integer> removeSnapshots, List<Integer> checkpointSnaphosts, Integer total) {
+  private List<DeltaLogSnapshot> generate(
+      List<Integer> removeSnapshots, List<Integer> checkpointSnaphosts, Integer total) {
     ArrayList<DeltaLogSnapshot> snapshots = new ArrayList<>();
 
-    for(int i = 0; i <= total; i++) {
-      if(!removeSnapshots.contains(i)) {
+    for (int i = 0; i <= total; i++) {
+      if (!removeSnapshots.contains(i)) {
         boolean isCheckpoint = checkpointSnaphosts.contains(i);
         DeltaLogSnapshot s = new DeltaLogSnapshot("UNKNOWN", 0, 0, 0, 0, 0, isCheckpoint);
         s.setVersionId(i);

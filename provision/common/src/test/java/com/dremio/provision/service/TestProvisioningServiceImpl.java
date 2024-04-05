@@ -22,14 +22,6 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.util.Collections;
-
-import org.junit.Assert;
-import org.junit.Test;
-import org.mockito.ArgumentCaptor;
-import org.mockito.InOrder;
-import org.mockito.Mockito;
-
 import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.provision.Cluster;
@@ -39,33 +31,33 @@ import com.dremio.provision.ClusterId;
 import com.dremio.provision.ClusterState;
 import com.dremio.provision.ClusterType;
 import com.dremio.test.DremioTest;
+import java.util.Collections;
+import org.junit.Assert;
+import org.junit.Test;
+import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
+import org.mockito.Mockito;
 
-/**
- * Test ProvisioningServiceImpl
- */
+/** Test ProvisioningServiceImpl */
 public class TestProvisioningServiceImpl extends DremioTest {
 
   @Test
   public void testStartWithNoProviders() throws Exception {
     // SETUP
     LegacyKVStore<ClusterId, Cluster> kvStore = mock(LegacyKVStore.class);
-    when(kvStore.find())
-      .thenReturn(Collections.emptyList());
+    when(kvStore.find()).thenReturn(Collections.emptyList());
 
     LegacyKVStoreProvider legacyKVStore = mock(LegacyKVStoreProvider.class);
     when(legacyKVStore.getStore(ProvisioningServiceImpl.ProvisioningStoreCreator.class))
-      .thenReturn(kvStore);
+        .thenReturn(kvStore);
 
     ProvisioningServiceImpl subject =
-      spy(new ProvisioningServiceImpl(
-        Collections.emptyMap(),
-        () -> legacyKVStore
-      ));
+        spy(new ProvisioningServiceImpl(Collections.emptyMap(), () -> legacyKVStore));
 
-    //TEST
+    // TEST
     subject.start();
 
-    //ASSERT
+    // ASSERT
     verify(subject).syncClusters();
   }
 
@@ -73,27 +65,27 @@ public class TestProvisioningServiceImpl extends DremioTest {
   public void testStartWithProviderThatDoesNotHaveDefaultCluster() throws Exception {
     // SETUP
     LegacyKVStore<ClusterId, Cluster> kvStore = mock(LegacyKVStore.class);
-    when(kvStore.find())
-      .thenReturn(Collections.emptyList());
+    when(kvStore.find()).thenReturn(Collections.emptyList());
 
     LegacyKVStoreProvider legacyKVStore = mock(LegacyKVStoreProvider.class);
     when(legacyKVStore.getStore(ProvisioningServiceImpl.ProvisioningStoreCreator.class))
-      .thenReturn(kvStore);
+        .thenReturn(kvStore);
 
-    ProvisioningServiceDelegate provisioningServiceDelegate = mock(ProvisioningServiceDelegate.class);
+    ProvisioningServiceDelegate provisioningServiceDelegate =
+        mock(ProvisioningServiceDelegate.class);
 
     ProvisioningServiceImpl subject =
-      spy(new ProvisioningServiceImpl(
-        Collections.singletonMap(ClusterType.values()[0], provisioningServiceDelegate),
-        () -> legacyKVStore
-      ));
+        spy(
+            new ProvisioningServiceImpl(
+                Collections.singletonMap(ClusterType.values()[0], provisioningServiceDelegate),
+                () -> legacyKVStore));
 
-    //TEST
+    // TEST
     subject.start();
 
-    //ASSERT
+    // ASSERT
     // Start the delegator then check for a default cluster
-    InOrder order = inOrder(provisioningServiceDelegate,subject);
+    InOrder order = inOrder(provisioningServiceDelegate, subject);
     order.verify(provisioningServiceDelegate).start();
     order.verify(provisioningServiceDelegate).defaultCluster();
     order.verify(subject).syncClusters();
@@ -104,41 +96,34 @@ public class TestProvisioningServiceImpl extends DremioTest {
   public void testStartWithProviderWithDefaultCluster() throws Exception {
     // SETUP
     ClusterType clusterType = ClusterType.values()[0];
-    ClusterConfig clusterConfig = new ClusterConfig(clusterType)
-      .setName("ClusterConfigName");
-    Cluster cluster = new Cluster()
-      .setClusterConfig(clusterConfig);
-    Cluster cluster2 = new Cluster()
-      .setClusterConfig(clusterConfig);
+    ClusterConfig clusterConfig = new ClusterConfig(clusterType).setName("ClusterConfigName");
+    Cluster cluster = new Cluster().setClusterConfig(clusterConfig);
+    Cluster cluster2 = new Cluster().setClusterConfig(clusterConfig);
 
     LegacyKVStore<ClusterId, Cluster> kvStore = mock(LegacyKVStore.class);
-    when(kvStore.get(any(ClusterId.class)))
-      .thenReturn(cluster);
-    when(kvStore.find())
-      .thenReturn(Collections.emptyList());
+    when(kvStore.get(any(ClusterId.class))).thenReturn(cluster);
+    when(kvStore.find()).thenReturn(Collections.emptyList());
 
     LegacyKVStoreProvider legacyKVStore = mock(LegacyKVStoreProvider.class);
     when(legacyKVStore.getStore(ProvisioningServiceImpl.ProvisioningStoreCreator.class))
-      .thenReturn(kvStore);
+        .thenReturn(kvStore);
 
-
-    ProvisioningServiceDelegate provisioningServiceDelegate = mock(ProvisioningServiceDelegate.class);
-    when(provisioningServiceDelegate.defaultCluster())
-      .thenReturn(clusterConfig);
+    ProvisioningServiceDelegate provisioningServiceDelegate =
+        mock(ProvisioningServiceDelegate.class);
+    when(provisioningServiceDelegate.defaultCluster()).thenReturn(clusterConfig);
     when(provisioningServiceDelegate.startCluster(cluster))
-      .thenReturn(new ClusterEnriched(cluster2));
+        .thenReturn(new ClusterEnriched(cluster2));
 
     ProvisioningServiceImpl subject =
-      spy(
-        new ProvisioningServiceImpl(
-          Collections.singletonMap(clusterType, provisioningServiceDelegate),
-          () -> legacyKVStore
-        ));
+        spy(
+            new ProvisioningServiceImpl(
+                Collections.singletonMap(clusterType, provisioningServiceDelegate),
+                () -> legacyKVStore));
 
-    //TEST
+    // TEST
     subject.start();
 
-    //ASSERT
+    // ASSERT
     ArgumentCaptor<Cluster> clusterCapture = ArgumentCaptor.forClass(Cluster.class);
     ArgumentCaptor<ClusterId> clusterIdCapture = ArgumentCaptor.forClass(ClusterId.class);
     ArgumentCaptor<ClusterId> clusterIdCapture2 = ArgumentCaptor.forClass(ClusterId.class);
@@ -155,7 +140,7 @@ public class TestProvisioningServiceImpl extends DremioTest {
     order.verify(subject).syncClusters();
 
     Assert.assertEquals(clusterIdCapture.getValue().getId(), clusterIdCapture2.getValue().getId());
-    Assert.assertEquals(clusterConfig,clusterCapture.getValue().getClusterConfig());
+    Assert.assertEquals(clusterConfig, clusterCapture.getValue().getClusterConfig());
     Assert.assertEquals(ClusterState.RUNNING, clusterCapture.getValue().getDesiredState());
   }
 }

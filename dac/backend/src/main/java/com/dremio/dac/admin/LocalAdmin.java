@@ -17,12 +17,6 @@ package com.dremio.dac.admin;
 
 import static java.lang.String.format;
 
-import java.security.Principal;
-
-import javax.ws.rs.core.SecurityContext;
-
-import org.apache.hadoop.conf.Configuration;
-
 import com.dremio.dac.daemon.DACDaemon;
 import com.dremio.dac.homefiles.HomeFileTool;
 import com.dremio.dac.resource.ExportProfilesParams;
@@ -35,11 +29,11 @@ import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.exec.server.ContextService;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
+import java.security.Principal;
+import javax.ws.rs.core.SecurityContext;
+import org.apache.hadoop.conf.Configuration;
 
-/**
- * Singleton LocalAdmin class
- */
-
+/** Singleton LocalAdmin class */
 public final class LocalAdmin {
 
   private static final LocalAdmin INSTANCE = new LocalAdmin();
@@ -52,7 +46,7 @@ public final class LocalAdmin {
   }
 
   public boolean isLocalAdmin() {
-    if(daemon == null) {
+    if (daemon == null) {
       return false;
     }
     return daemon != null;
@@ -67,38 +61,40 @@ public final class LocalAdmin {
   }
 
   private HomeFileTool getHomeFileTool() throws UnsupportedOperationException {
-    daemon.getBindingCreator().bindIfUnbound(SecurityContext.class, new SecurityContext() {
-      @Override
-      public Principal getUserPrincipal() {
-        return null;
-      }
+    daemon
+        .getBindingCreator()
+        .bindIfUnbound(
+            SecurityContext.class,
+            new SecurityContext() {
+              @Override
+              public Principal getUserPrincipal() {
+                return null;
+              }
 
-      @Override
-      public boolean isUserInRole(String s) {
-        return false;
-      }
+              @Override
+              public boolean isUserInRole(String s) {
+                return false;
+              }
 
-      @Override
-      public boolean isSecure() {
-        return false;
-      }
+              @Override
+              public boolean isSecure() {
+                return false;
+              }
 
-      @Override
-      public String getAuthenticationScheme() {
-        return null;
-      }
-    });
+              @Override
+              public String getAuthenticationScheme() {
+                return null;
+              }
+            });
     return daemon.getBindingProvider().lookup(HomeFileTool.class);
   }
 
-  public void exportProfiles(ExportProfilesParams params)
-    throws Exception {
+  public void exportProfiles(ExportProfilesParams params) throws Exception {
     if (!isLocalAdmin()) {
       throw new UnsupportedOperationException("This operation is only supported to local admin");
     }
     ProfilesExporter exporter = ExportProfilesResource.getExporter(params);
-    System.out.println(exporter.export(getKVStoreProvider())
-      .retrieveStats(null, null, false));
+    System.out.println(exporter.export(getKVStoreProvider()).retrieveStats(null, null, false));
   }
 
   public void backup(String path, String binaryStr, String includeProfilesStr) throws Exception {
@@ -112,12 +108,24 @@ public final class LocalAdmin {
     }
     final FileSystem fs = HadoopFileSystem.get(backupDir, new Configuration());
     BackupRestoreUtil.checkOrCreateDirectory(fs, backupDir);
-    BackupRestoreUtil.BackupOptions options = new BackupRestoreUtil.BackupOptions(path,
-      Boolean.parseBoolean(binaryStr), Boolean.parseBoolean(includeProfilesStr), "", "", "");
-    BackupRestoreUtil.BackupStats backupStats = BackupRestoreUtil.createBackup(fs, options,
-      getKVStoreProvider().unwrap(LocalKVStoreProvider.class), LocalAdmin.getInstance().getHomeFileTool().getConfForBackup(),
-      null);
-    System.out.println(format("Backup created at %s, dremio tables %d, uploaded files %d",
-    backupStats.getBackupPath(), backupStats.getTables(), backupStats.getFiles()));
+    BackupRestoreUtil.BackupOptions options =
+        new BackupRestoreUtil.BackupOptions(
+            path,
+            Boolean.parseBoolean(binaryStr),
+            Boolean.parseBoolean(includeProfilesStr),
+            "",
+            "",
+            "");
+    BackupRestoreUtil.BackupStats backupStats =
+        BackupRestoreUtil.createBackup(
+            fs,
+            options,
+            getKVStoreProvider().unwrap(LocalKVStoreProvider.class),
+            LocalAdmin.getInstance().getHomeFileTool().getConfForBackup(),
+            null);
+    System.out.println(
+        format(
+            "Backup created at %s, dremio tables %d, uploaded files %d",
+            backupStats.getBackupPath(), backupStats.getTables(), backupStats.getFiles()));
   }
 }

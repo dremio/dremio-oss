@@ -25,7 +25,7 @@ const actions = crudFactory(resourceName);
 /**
  * load settings
  * @param {string[]} requiredSettings - a list of setting keys that must be returned from server
- * @param {bool} includeSetSettings - set to true, if you neeed to receive a settings that were *
+ * @param {bool} includeSetSettings - set to true, if you neeed to receive a settings that were
  * changed by any user
  * @param {string} viewId
  * @returns setting values for all {@see requiredSettings} + settings that were altered by the users

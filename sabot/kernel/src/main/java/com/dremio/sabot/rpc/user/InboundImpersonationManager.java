@@ -15,17 +15,14 @@
  */
 package com.dremio.sabot.rpc.user;
 
-/**
- * Impersonation manager interface
- */
+/** Impersonation manager interface */
 public interface InboundImpersonationManager {
   /**
-   * Check if the current session user, as a proxy user, is authorized to impersonate the given target user
-   * based on the system's impersonation policies.
+   * Check if the current session user, as a proxy user, is authorized to impersonate the given
+   * target user based on the system's impersonation policies.
    *
    * @param targetName target user name
-   * @param session    user session
+   * @param session user session
    */
   void replaceUserOnSession(String targetName, UserSession session);
-
 }

@@ -23,6 +23,7 @@ import org.junit.Before;
 public class TestParquetWriterSchemaFallback extends TestParquetWriter {
 
   private AutoCloseable ac;
+
   @Before
   public void setUp() throws Exception {
     ac = withSystemOption(PARQUET_TEST_SCHEMA_FALLBACK_ONLY_VALIDATOR, true);

@@ -38,6 +38,5 @@ export const listItem = {
 
 export const link = {
   overflow: "hidden",
-  textDecoration: "none",
   color: "var(--dremio--color--text--main)",
 };

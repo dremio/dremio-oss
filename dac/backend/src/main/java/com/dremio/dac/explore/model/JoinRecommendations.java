@@ -15,14 +15,11 @@
  */
 package com.dremio.dac.explore.model;
 
+import com.dremio.dac.util.JSONUtil;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.dremio.dac.util.JSONUtil;
-
-/**
- * Wrapper for list of join recommendations
- */
+/** Wrapper for list of join recommendations */
 public class JoinRecommendations {
   private List<JoinRecommendation> recommendations;
 

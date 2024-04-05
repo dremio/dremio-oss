@@ -15,19 +15,13 @@
  */
 package com.dremio.service.jobs;
 
-import java.util.Iterator;
-import java.util.concurrent.Executor;
-
-import javax.inject.Provider;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.datastore.EnumSearchValueNotFoundException;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.service.grpc.OnReadyHandler;
 import com.dremio.service.job.ActiveJobSummary;
 import com.dremio.service.job.ChronicleGrpc;
+import com.dremio.service.job.HasAtLeastOneJobRequest;
+import com.dremio.service.job.HasAtLeastOneJobResponse;
 import com.dremio.service.job.JobAndUserStats;
 import com.dremio.service.job.JobAndUserStatsRequest;
 import com.dremio.service.job.JobCounts;
@@ -54,9 +48,13 @@ import com.dremio.service.job.UniqueUserStatsRequest;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
 import com.google.protobuf.Empty;
-
 import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
+import java.util.Iterator;
+import java.util.concurrent.Executor;
+import javax.inject.Provider;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Adapts {@link LocalJobsService} point lookup methods to {@link ChronicleGrpc.ChronicleImplBase}
@@ -78,7 +76,8 @@ public class Chronicle extends ChronicleGrpc.ChronicleImplBase {
   }
 
   @Override
-  public void getJobDetails(JobDetailsRequest request, StreamObserver<JobDetails> responseObserver) {
+  public void getJobDetails(
+      JobDetailsRequest request, StreamObserver<JobDetails> responseObserver) {
     handleUnaryCall(getJobsService()::getJobDetails, request, responseObserver);
   }
 
@@ -93,23 +92,27 @@ public class Chronicle extends ChronicleGrpc.ChronicleImplBase {
   }
 
   @Override
-  public void getUniqueUserStats(UniqueUserStatsRequest request, StreamObserver<UniqueUserStats> responseObserver) {
+  public void getUniqueUserStats(
+      UniqueUserStatsRequest request, StreamObserver<UniqueUserStats> responseObserver) {
     handleUnaryCall(getJobsService()::getUniqueUserStats, request, responseObserver);
   }
 
   @Override
-  public void getJobAndUserStats(JobAndUserStatsRequest request, StreamObserver<JobAndUserStats> responseObserver) {
+  public void getJobAndUserStats(
+      JobAndUserStatsRequest request, StreamObserver<JobAndUserStats> responseObserver) {
     handleUnaryCall(getJobsService()::getJobAndUserStats, request, responseObserver);
   }
 
   @Override
-  public void getProfile(QueryProfileRequest request, StreamObserver<UserBitShared.QueryProfile> responseObserver) {
+  public void getProfile(
+      QueryProfileRequest request, StreamObserver<UserBitShared.QueryProfile> responseObserver) {
     handleUnaryCall(getJobsService()::getProfile, request, responseObserver);
   }
 
   @Override
   public void searchJobs(SearchJobsRequest request, StreamObserver<JobSummary> responseObserver) {
-    final ServerCallStreamObserver<JobSummary> streamObserver = (ServerCallStreamObserver<JobSummary>) responseObserver;
+    final ServerCallStreamObserver<JobSummary> streamObserver =
+        (ServerCallStreamObserver<JobSummary>) responseObserver;
 
     final Iterator<JobSummary> jobs = getJobsService().searchJobs(request).iterator();
     final class SearchJobs extends OnReadyHandler<JobSummary> {
@@ -124,50 +127,57 @@ public class Chronicle extends ChronicleGrpc.ChronicleImplBase {
   }
 
   @Override
-  public void getActiveJobs(com.dremio.service.job.ActiveJobsRequest request,
-                            io.grpc.stub.StreamObserver<ActiveJobSummary> responseObserver) {
-    final ServerCallStreamObserver<ActiveJobSummary> streamObserver = (ServerCallStreamObserver<ActiveJobSummary>) responseObserver;
-    final Iterator<ActiveJobSummary> wrapperIterator = new Iterator<ActiveJobSummary>() {
-      // skip nulls
-      private final Iterator<ActiveJobSummary> inner = getJobsService().getActiveJobs(request).iterator();
-      private ActiveJobSummary prefetched;
-      private boolean isFirst = true;
+  public void getActiveJobs(
+      com.dremio.service.job.ActiveJobsRequest request,
+      io.grpc.stub.StreamObserver<ActiveJobSummary> responseObserver) {
+    final ServerCallStreamObserver<ActiveJobSummary> streamObserver =
+        (ServerCallStreamObserver<ActiveJobSummary>) responseObserver;
+    final Iterator<ActiveJobSummary> wrapperIterator =
+        new Iterator<ActiveJobSummary>() {
+          // skip nulls
+          private final Iterator<ActiveJobSummary> inner =
+              getJobsService().getActiveJobs(request).iterator();
+          private ActiveJobSummary prefetched;
+          private boolean isFirst = true;
 
-      @Override
-      public boolean hasNext() {
-        if (isFirst) {
-          prefetch();
-          isFirst = false;
-        }
-        return prefetched != null;
-      }
+          @Override
+          public boolean hasNext() {
+            if (isFirst) {
+              prefetch();
+              isFirst = false;
+            }
+            return prefetched != null;
+          }
 
-      @Override
-      public ActiveJobSummary next() {
-        ActiveJobSummary ret = prefetched;
-        prefetch();
-        return ret;
-      }
+          @Override
+          public ActiveJobSummary next() {
+            ActiveJobSummary ret = prefetched;
+            prefetch();
+            return ret;
+          }
 
-      private void prefetch() {
-        prefetched = null;
-        try {
-          while (inner.hasNext()) {
-            prefetched = inner.next();
-            // skip nulls
-            if (prefetched != null) {
-              return;
+          private void prefetch() {
+            prefetched = null;
+            try {
+              while (inner.hasNext()) {
+                prefetched = inner.next();
+                // skip nulls
+                if (prefetched != null) {
+                  return;
+                }
+              }
+            } catch (EnumSearchValueNotFoundException ex) {
+              LOGGER.info(
+                  "Got EnumSearchValueNotFoundException returning empty response, query {}",
+                  request.getQuery(),
+                  ex);
+              // ignore exception, returning here ends the iterator.
+            } catch (Exception ex) {
+              LOGGER.error("Exception while fetching active jobs for request {}", request, ex);
+              throw ex;
             }
           }
-        } catch (EnumSearchValueNotFoundException ex) {
-          LOGGER.info("Got EnumSearchValueNotFoundException returning empty response, query {}", request.getQuery(), ex);
-          // ignore exception, returning here ends the iterator.
-        } catch (Exception ex) {
-          LOGGER.error("Exception while fetching active jobs for request {}", request, ex);
-          throw ex;
-        }
-      }
-    };
+        };
 
     final class ActiveJobs extends OnReadyHandler<ActiveJobSummary> {
       ActiveJobs() {
@@ -181,50 +191,57 @@ public class Chronicle extends ChronicleGrpc.ChronicleImplBase {
   }
 
   @Override
-  public void getRecentJobs(com.dremio.service.job.RecentJobsRequest request,
-                            io.grpc.stub.StreamObserver<RecentJobSummary> responseObserver) {
-    final ServerCallStreamObserver<RecentJobSummary> streamObserver = (ServerCallStreamObserver<RecentJobSummary>) responseObserver;
-    final Iterator<RecentJobSummary> wrapperIterator = new Iterator<RecentJobSummary>() {
-      // skip nulls
-      private final Iterator<RecentJobSummary> inner = getJobsService().getRecentJobs(request).iterator();
-      private RecentJobSummary prefetched;
-      private boolean isFirst = true;
+  public void getRecentJobs(
+      com.dremio.service.job.RecentJobsRequest request,
+      io.grpc.stub.StreamObserver<RecentJobSummary> responseObserver) {
+    final ServerCallStreamObserver<RecentJobSummary> streamObserver =
+        (ServerCallStreamObserver<RecentJobSummary>) responseObserver;
+    final Iterator<RecentJobSummary> wrapperIterator =
+        new Iterator<RecentJobSummary>() {
+          // skip nulls
+          private final Iterator<RecentJobSummary> inner =
+              getJobsService().getRecentJobs(request).iterator();
+          private RecentJobSummary prefetched;
+          private boolean isFirst = true;
 
-      @Override
-      public boolean hasNext() {
-        if (isFirst) {
-          prefetch();
-          isFirst = false;
-        }
-        return prefetched != null;
-      }
+          @Override
+          public boolean hasNext() {
+            if (isFirst) {
+              prefetch();
+              isFirst = false;
+            }
+            return prefetched != null;
+          }
 
-      @Override
-      public RecentJobSummary next() {
-        RecentJobSummary ret = prefetched;
-        prefetch();
-        return ret;
-      }
+          @Override
+          public RecentJobSummary next() {
+            RecentJobSummary ret = prefetched;
+            prefetch();
+            return ret;
+          }
 
-      private void prefetch() {
-        prefetched = null;
-        try {
-          while (inner.hasNext()) {
-            prefetched = inner.next();
-            // skip nulls
-            if (prefetched != null) {
-              return;
+          private void prefetch() {
+            prefetched = null;
+            try {
+              while (inner.hasNext()) {
+                prefetched = inner.next();
+                // skip nulls
+                if (prefetched != null) {
+                  return;
+                }
+              }
+            } catch (EnumSearchValueNotFoundException ex) {
+              LOGGER.info(
+                  "Got EnumSearchValueNotFoundException returning empty response, query {}",
+                  request.getQuery(),
+                  ex);
+              // ignore exception, returning here ends the iterator.
+            } catch (Exception ex) {
+              LOGGER.error("Exception while fetching recent jobs for request {}", request, ex);
+              throw ex;
             }
           }
-        } catch (EnumSearchValueNotFoundException ex) {
-          LOGGER.info("Got EnumSearchValueNotFoundException returning empty response, query {}", request.getQuery(), ex);
-          // ignore exception, returning here ends the iterator.
-        } catch (Exception ex) {
-          LOGGER.error("Exception while fetching recent jobs for request {}", request, ex);
-          throw ex;
-        }
-      }
-    };
+        };
 
     final class RecentJobs extends OnReadyHandler<RecentJobSummary> {
       RecentJobs() {
@@ -238,8 +255,10 @@ public class Chronicle extends ChronicleGrpc.ChronicleImplBase {
   }
 
   @Override
-  public void getJobsForParent(JobsWithParentDatasetRequest request, StreamObserver<JobDetails> responseObserver) {
-    final ServerCallStreamObserver<JobDetails> streamObserver = (ServerCallStreamObserver<JobDetails>) responseObserver;
+  public void getJobsForParent(
+      JobsWithParentDatasetRequest request, StreamObserver<JobDetails> responseObserver) {
+    final ServerCallStreamObserver<JobDetails> streamObserver =
+        (ServerCallStreamObserver<JobDetails>) responseObserver;
 
     final Iterator<JobDetails> jobs = getJobsService().getJobsForParent(request).iterator();
     final class GetJobsForParent extends OnReadyHandler<JobDetails> {
@@ -254,12 +273,14 @@ public class Chronicle extends ChronicleGrpc.ChronicleImplBase {
   }
 
   @Override
-  public void getJobSummary(JobSummaryRequest request, StreamObserver<JobSummary> responseObserver) {
+  public void getJobSummary(
+      JobSummaryRequest request, StreamObserver<JobSummary> responseObserver) {
     handleUnaryCall(getJobsService()::getJobSummary, request, responseObserver);
   }
 
   @Override
-  public void storeJobResult(StoreJobResultRequest request, StreamObserver<Empty> responseObserver) {
+  public void storeJobResult(
+      StoreJobResultRequest request, StreamObserver<Empty> responseObserver) {
     try {
       getJobsService().recordJobResult(request);
     } catch (Exception e) {
@@ -272,22 +293,30 @@ public class Chronicle extends ChronicleGrpc.ChronicleImplBase {
   }
 
   @Override
-  public void getReflectionJobSummary(ReflectionJobSummaryRequest request, StreamObserver<JobSummary> responseObserver) {
+  public void getReflectionJobSummary(
+      ReflectionJobSummaryRequest request, StreamObserver<JobSummary> responseObserver) {
     handleUnaryCall(getJobsService()::getReflectionJobSummary, request, responseObserver);
   }
 
   @Override
-  public void getReflectionJobDetails(ReflectionJobDetailsRequest request, StreamObserver<JobDetails> responseObserver) {
+  public void getReflectionJobDetails(
+      ReflectionJobDetailsRequest request, StreamObserver<JobDetails> responseObserver) {
     handleUnaryCall(getJobsService()::getReflectionJobDetails, request, responseObserver);
   }
 
   @Override
-  public void searchReflectionJobs(SearchReflectionJobsRequest request, StreamObserver<JobSummary> responseObserver) {
-    final ServerCallStreamObserver<JobSummary> streamObserver = (ServerCallStreamObserver<JobSummary>) responseObserver;
+  public void searchReflectionJobs(
+      SearchReflectionJobsRequest request, StreamObserver<JobSummary> responseObserver) {
+    final ServerCallStreamObserver<JobSummary> streamObserver =
+        (ServerCallStreamObserver<JobSummary>) responseObserver;
     final class SearchReflectionJobs extends OnReadyHandler<JobSummary> {
       SearchReflectionJobs() {
-        super("search-reflection-jobs", Chronicle.this.executor.get(), streamObserver,
-          new ErrorConvertingIterator<>(() -> getJobsService().searchReflectionJobs(request).iterator()));
+        super(
+            "search-reflection-jobs",
+            Chronicle.this.executor.get(),
+            streamObserver,
+            new ErrorConvertingIterator<>(
+                () -> getJobsService().searchReflectionJobs(request).iterator()));
       }
     }
 
@@ -297,13 +326,22 @@ public class Chronicle extends ChronicleGrpc.ChronicleImplBase {
   }
 
   @Override
-  public void getReflectionJobProfile(ReflectionJobProfileRequest request, StreamObserver<UserBitShared.QueryProfile> responseObserver) {
+  public void getReflectionJobProfile(
+      ReflectionJobProfileRequest request,
+      StreamObserver<UserBitShared.QueryProfile> responseObserver) {
     handleUnaryCall(getJobsService()::getReflectionJobProfile, request, responseObserver);
   }
 
   @Override
-  public void getNodeStatus(NodeStatusRequest request, StreamObserver<NodeStatusResponse> responseObserver) {
+  public void getNodeStatus(
+      NodeStatusRequest request, StreamObserver<NodeStatusResponse> responseObserver) {
     handleUnaryCall(getJobsService()::getNodeStatus, request, responseObserver);
+  }
+
+  @Override
+  public void hasAtLeastOneJob(
+      HasAtLeastOneJobRequest request, StreamObserver<HasAtLeastOneJobResponse> responseObserver) {
+    handleUnaryCall(getJobsService()::hasAtLeastOneJob, request, responseObserver);
   }
 
   private static class ErrorConvertingIterator<E> implements Iterator<E> {
@@ -344,14 +382,14 @@ public class Chronicle extends ChronicleGrpc.ChronicleImplBase {
    * Handles a unary call synchronously.
    *
    * @param function function that can apply the request
-   * @param request  request
+   * @param request request
    * @param observer response observer
-   * @param <T>      request type
-   * @param <R>      response type
-   * @param <E>      exception type
+   * @param <T> request type
+   * @param <R> response type
+   * @param <E> exception type
    */
-  private static <T, R, E extends Exception>
-  void handleUnaryCall(ThrowingFunction<T, R, E> function, T request, StreamObserver<R> observer) {
+  private static <T, R, E extends Exception> void handleUnaryCall(
+      ThrowingFunction<T, R, E> function, T request, StreamObserver<R> observer) {
     final R r;
     try {
       r = function.apply(request);
@@ -363,6 +401,7 @@ public class Chronicle extends ChronicleGrpc.ChronicleImplBase {
     observer.onNext(r);
     observer.onCompleted();
   }
+
   /**
    * Function that throws.
    *

@@ -28,48 +28,63 @@ import static java.util.Collections.singletonList;
 import static org.apache.calcite.rel.RelFieldCollation.Direction.DESCENDING;
 import static org.apache.calcite.rel.RelFieldCollation.NullDirection.FIRST;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-
-import org.junit.Test;
-
 import com.dremio.common.logical.data.NamedExpression;
 import com.dremio.common.logical.data.Order;
 import com.dremio.exec.physical.config.WindowPOP;
 import com.dremio.exec.physical.config.WindowPOP.Bound;
+import com.dremio.exec.physical.config.WindowPOP.BoundType;
 import com.dremio.sabot.BaseTestOperator;
 import com.dremio.sabot.Fixtures;
 import com.dremio.sabot.Fixtures.Table;
 import com.dremio.sabot.op.windowframe.WindowFrameOperator;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import org.junit.Test;
 
 public class TestWindowOperator extends BaseTestOperator {
 
   private WindowPOP createWindowPOP(boolean withPartitionBy, boolean withOrderBy) {
-    List<NamedExpression> withins = withPartitionBy ? singletonList(n("position_id")) : Collections.<NamedExpression>emptyList();
-    List<NamedExpression> aggregations = withOrderBy ?
-      Arrays.asList(
-        n("sum(salary)", "sum"),
-        n("count(position_id)", "count"),
-        n("row_number()", "row_number"),
-        n("rank()", "rank"),
-        n("dense_rank()", "dense_rank"),
-        n("cume_dist()", "cume_dist"),
-        n("percent_rank()", "percent_rank")
-      )
-      :
-      Arrays.asList(n("sum(salary)", "sum"), n("count(position_id)", "count"));
-    List<Order.Ordering> orderings = withOrderBy ? singletonList(ordering("sub", DESCENDING, FIRST)) : Collections.<Order.Ordering>emptyList();
-    return new WindowPOP(PROPS, null, withins, aggregations, orderings, false, new Bound(true, Long.MIN_VALUE), new Bound(false, 0));
+    List<NamedExpression> withins =
+        withPartitionBy
+            ? singletonList(n("position_id"))
+            : Collections.<NamedExpression>emptyList();
+    List<NamedExpression> aggregations =
+        withOrderBy
+            ? Arrays.asList(
+                n("sum(salary)", "sum"),
+                n("count(position_id)", "count"),
+                n("row_number()", "row_number"),
+                n("rank()", "rank"),
+                n("dense_rank()", "dense_rank"),
+                n("cume_dist()", "cume_dist"),
+                n("percent_rank()", "percent_rank"))
+            : Arrays.asList(n("sum(salary)", "sum"), n("count(position_id)", "count"));
+    List<Order.Ordering> orderings =
+        withOrderBy
+            ? singletonList(ordering("sub", DESCENDING, FIRST))
+            : Collections.<Order.Ordering>emptyList();
+    return new WindowPOP(
+        PROPS,
+        null,
+        withins,
+        aggregations,
+        orderings,
+        false,
+        new Bound(true, Integer.MAX_VALUE, BoundType.FOLLOWING),
+        new Bound(false, 0, BoundType.FOLLOWING));
   }
 
-  private void validateWindow(DataPar[] dataDef, boolean withPartitionBy, boolean withOrderBy) throws Exception {
+  private void validateWindow(DataPar[] dataDef, boolean withPartitionBy, boolean withOrderBy)
+      throws Exception {
     final WindowPOP window = createWindowPOP(withPartitionBy, withOrderBy);
     final Table input = t(WindowGenerator.header, generateInput(dataDef));
-    validateSingle(window, WindowFrameOperator.class, input, generateOutput(dataDef, withOrderBy), 20);
+    validateSingle(
+        window, WindowFrameOperator.class, input, generateOutput(dataDef, withOrderBy), 20);
   }
 
-  private void runTests(DataPar[] withPartitionDef, DataPar[] withoutPartitionDef) throws Exception {
+  private void runTests(DataPar[] withPartitionDef, DataPar[] withoutPartitionDef)
+      throws Exception {
     validateWindow(withPartitionDef, true, true);
     validateWindow(withPartitionDef, true, false);
     validateWindow(withoutPartitionDef, false, true);
@@ -108,17 +123,23 @@ public class TestWindowOperator extends BaseTestOperator {
 
   @Test // DRILL-4657
   public void test4657() throws Exception {
-    // SELECT row_number() OVER(ORDER BY position_id) rn, rank() OVER(ORDER BY position_id) rnk FROM dfs.\"%s/window/b3.p2\"
-    final WindowPOP window = new WindowPOP(PROPS, null,
-      Collections.<NamedExpression>emptyList(), // withins
-      Arrays.asList(n("row_number()", "rn"), n("rank()", "rnk")), // aggregations
-      singletonList(ordering("position_id", DESCENDING, FIRST)), // ordering
-      false, new Bound(true, Long.MIN_VALUE), new Bound(false, 0));
+    // SELECT row_number() OVER(ORDER BY position_id) rn, rank() OVER(ORDER BY position_id) rnk FROM
+    // dfs.\"%s/window/b3.p2\"
+    final WindowPOP window =
+        new WindowPOP(
+            PROPS,
+            null,
+            Collections.<NamedExpression>emptyList(), // withins
+            Arrays.asList(n("row_number()", "rn"), n("rank()", "rnk")), // aggregations
+            singletonList(ordering("position_id", DESCENDING, FIRST)), // ordering
+            false,
+            new Bound(true, Integer.MAX_VALUE, BoundType.FOLLOWING),
+            new Bound(false, 0, BoundType.FOLLOWING));
 
     final DataPar[] partitions = dataB3P2(true);
     final Table input = Fixtures.split(WindowGenerator.header, 20, generateInput(partitions));
-    final Table output = Fixtures.t(WindowGenerator.header4657, WindowGenerator.generateOutput4657(partitions));
+    final Table output =
+        Fixtures.t(WindowGenerator.header4657, WindowGenerator.generateOutput4657(partitions));
     validateSingle(window, WindowFrameOperator.class, input, output, 20);
   }
-
 }

@@ -32,19 +32,15 @@ public class Screen extends AbstractStore implements Root {
 
   private boolean silent;
 
-  public Screen(
-    OpProps props,
-    PhysicalOperator child
-  ) {
+  public Screen(OpProps props, PhysicalOperator child) {
     super(props, child);
   }
 
   @JsonCreator
   public Screen(
-    @JsonProperty("props") OpProps props,
-    @JsonProperty("child") PhysicalOperator child,
-    @JsonProperty("silent") boolean silent
-  ) {
+      @JsonProperty("props") OpProps props,
+      @JsonProperty("child") PhysicalOperator child,
+      @JsonProperty("silent") boolean silent) {
     this(props, child);
     this.silent = silent;
   }
@@ -59,7 +55,8 @@ public class Screen extends AbstractStore implements Root {
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value) throws E {
+  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value)
+      throws E {
     return physicalVisitor.visitScreen(this, value);
   }
 
@@ -67,5 +64,4 @@ public class Screen extends AbstractStore implements Root {
   public int getOperatorType() {
     return CoreOperatorType.SCREEN_VALUE;
   }
-
 }

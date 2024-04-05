@@ -15,13 +15,9 @@
  */
 package com.dremio.exec.catalog;
 
-import java.util.List;
-import java.util.stream.Stream;
-
-import javax.annotation.Nullable;
-
 import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.catalog.model.VersionContext;
+import com.dremio.common.Wrapper;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.store.ChangeInfo;
 import com.dremio.exec.store.NessieNamespaceAlreadyExistsException;
@@ -40,14 +36,13 @@ import com.dremio.service.catalog.Table;
 import com.dremio.service.catalog.TableSchema;
 import com.dremio.service.catalog.View;
 import com.dremio.service.namespace.NamespaceKey;
+import java.util.List;
+import java.util.stream.Stream;
+import javax.annotation.Nullable;
 
-/**
- * Versioning-specific methods for the Catalog interface.
- */
-public interface VersionedPlugin {
-  /**
-   Supported version entity types in Sonar
-   */
+/** Versioning-specific methods for the Catalog interface. */
+public interface VersionedPlugin extends Wrapper {
+  /** Supported version entity types in Sonar */
   public enum EntityType {
     UNKNOWN,
     ICEBERG_TABLE,
@@ -59,101 +54,83 @@ public interface VersionedPlugin {
    * Resolves a version context with the underlying versioned catalog server.
    *
    * @throws ReferenceNotFoundException If the given reference cannot be found
-   * @throws NoDefaultBranchException If the versioned catalog server does not have a default branch set
+   * @throws NoDefaultBranchException If the versioned catalog server does not have a default branch
+   *     set
    * @throws ReferenceTypeConflictException If the requested version type does not match the server
-   * @throws ReferenceNotFoundByTimestampException If the given reference cannot be found via timestamp
+   * @throws ReferenceNotFoundByTimestampException If the given reference cannot be found via
+   *     timestamp
    */
-  ResolvedVersionContext resolveVersionContext(VersionContext versionContext) throws ReferenceNotFoundException, NoDefaultBranchException, ReferenceConflictException;
+  ResolvedVersionContext resolveVersionContext(VersionContext versionContext)
+      throws ReferenceNotFoundException, NoDefaultBranchException, ReferenceConflictException;
 
   /**
    * List all table entries under the given path and subpaths for the given version.
    *
    * @param catalogPath Acts as the namespace filter. It will act as the root namespace.
    * @param version If the version is NOT_SPECIFIED, the default branch is used (if it exists).
-   *
    * @throws ReferenceNotFoundException If the given reference cannot be found.
    * @throws NoDefaultBranchException If the Nessie server does not have a default branch set.
    * @throws ReferenceTypeConflictException If the requested version does not match the server.
    */
-  Stream<ExternalNamespaceEntry> listTablesIncludeNested(List<String> catalogPath, VersionContext version);
+  Stream<ExternalNamespaceEntry> listTablesIncludeNested(
+      List<String> catalogPath, VersionContext version);
 
   /**
    * List all view entries under the given path and subpaths for the given version.
    *
    * @param catalogPath Acts as the namespace filter. It will act as the root namespace.
    * @param version If the version is NOT_SPECIFIED, the default branch is used (if it exists).
-   *
    * @throws ReferenceNotFoundException If the given reference cannot be found.
    * @throws NoDefaultBranchException If the Nessie server does not have a default branch set.
    * @throws ReferenceTypeConflictException If the requested version does not match the server.
    */
-  Stream<ExternalNamespaceEntry> listViewsIncludeNested(List<String> catalogPath, VersionContext version);
+  Stream<ExternalNamespaceEntry> listViewsIncludeNested(
+      List<String> catalogPath, VersionContext version);
 
-  /**
-   * Gets DataplaneTableInfo object that is being used in sys."tables"
-   */
+  /** Gets DataplaneTableInfo object that is being used in sys."tables" */
   Stream<DataplaneTableInfo> getAllTableInfo();
 
-  /**
-   * Gets DataplaneViewInfo object that is being used in sys.views
-   */
+  /** Gets DataplaneViewInfo object that is being used in sys.views */
   Stream<DataplaneViewInfo> getAllViewInfo();
 
-  /**
-   * Gets Table object that is being used in INFORMATION_SCHEMA."TABLES"
-   */
+  /** Gets Table object that is being used in INFORMATION_SCHEMA."TABLES" */
   Stream<Table> getAllInformationSchemaTableInfo(SearchQuery searchQuery);
 
-  /**
-   * Gets View object that is being used in INFORMATION_SCHEMA.VIEWS
-   */
+  /** Gets View object that is being used in INFORMATION_SCHEMA.VIEWS */
   Stream<View> getAllInformationSchemaViewInfo(SearchQuery searchQuery);
 
-  /**
-   * Gets Schema object that is being used in INFORMATION_SCHEMA.SCHEMATA
-   */
+  /** Gets Schema object that is being used in INFORMATION_SCHEMA.SCHEMATA */
   Stream<Schema> getAllInformationSchemaSchemataInfo(SearchQuery searchQuery);
 
-  /**
-   * Gets TableSchema object that is being used in INFORMATION_SCHEMA.COLUMNS
-   */
+  /** Gets TableSchema object that is being used in INFORMATION_SCHEMA.COLUMNS */
   Stream<TableSchema> getAllInformationSchemaColumnInfo(SearchQuery searchQuery);
 
   /*
    * Gets the type of object - eg type of Table, type of View etc
    */
-  @Nullable EntityType getType(List<String> catalogKey, ResolvedVersionContext version);
+  @Nullable
+  EntityType getType(List<String> catalogKey, ResolvedVersionContext version);
 
-  /**
-   * Gets contentId for the given key and version
-   */
-  @Nullable String getContentId(List<String> catalogKey, ResolvedVersionContext version);
+  /** Gets contentId for the given key and version */
+  @Nullable
+  String getContentId(List<String> catalogKey, ResolvedVersionContext version);
 
-  /**
-   * Checks that a commit hash exists in the server.
-   */
+  /** Checks that a commit hash exists in the server. */
   boolean commitExists(String commitHash);
 
-  /**
-   * List all branches.
-   */
+  /** List all branches. */
   Stream<ReferenceInfo> listBranches();
 
-  /**
-   * List all tags.
-   */
+  /** List all tags. */
   Stream<ReferenceInfo> listTags();
 
-  /**
-   * List all references (both branches and tags).
-   */
+  /** List all references (both branches and tags). */
   Stream<ReferenceInfo> listReferences();
 
   /**
    * List all changes for the given version.
    *
    * @param version If the version is NOT_SPECIFIED, the default branch is used (if it exists)
-   *
    * @throws ReferenceNotFoundException If the given reference cannot be found
    * @throws NoDefaultBranchException If the Nessie server does not have a default branch set
    * @throws ReferenceTypeConflictException If the requested version type does not match the server
@@ -165,32 +142,31 @@ public interface VersionedPlugin {
    *
    * @param catalogPath Acts as the namespace filter. It will scope entries to this namespace.
    * @param version If the version is NOT_SPECIFIED, the default branch is used (if it exists).
-   *
    * @throws ReferenceNotFoundException If the given reference cannot be found
    * @throws NoDefaultBranchException If the Nessie server does not have a default branch set
    * @throws ReferenceTypeConflictException If the requested version type does not match the server
    */
   Stream<ExternalNamespaceEntry> listEntries(List<String> catalogPath, VersionContext version)
-    throws ReferenceNotFoundException, NoDefaultBranchException, ReferenceConflictException;
+      throws ReferenceNotFoundException, NoDefaultBranchException, ReferenceConflictException;
 
   /**
    * List all entries under the given path and subpaths for the given version.
    *
    * @param catalogPath Acts as the namespace filter. It will act as the root namespace.
    * @param version If the version is NOT_SPECIFIED, the default branch is used (if it exists).
-   *
    * @throws ReferenceNotFoundException If the given reference cannot be found.
    * @throws NoDefaultBranchException If the Nessie server does not have a default branch set.
    * @throws ReferenceConflictException If the requested version does not match the server.
    */
-  Stream<ExternalNamespaceEntry> listEntriesIncludeNested(List<String> catalogPath, VersionContext version)
-    throws ReferenceNotFoundException, NoDefaultBranchException, ReferenceConflictException;
+  Stream<ExternalNamespaceEntry> listEntriesIncludeNested(
+      List<String> catalogPath, VersionContext version)
+      throws ReferenceNotFoundException, NoDefaultBranchException, ReferenceConflictException;
 
   /**
    * Create a namespace by the given path for the given version
+   *
    * @param namespaceKey The namespacekey that is used to create a folder in Nessie.
    * @param version If the version is NOT_SPECIFIED, the default branch is used (if it exists).
-   *
    * @throws NessieNamespaceAlreadyExistsException If the namespace already exists.
    * @throws ReferenceNotFoundException If the given reference cannot be found.
    * @throws NoDefaultBranchException If the Nessie server does not have a default branch set.
@@ -202,7 +178,6 @@ public interface VersionedPlugin {
    * Create a branch from the given source reference.
    *
    * @param sourceVersion If the version is NOT_SPECIFIED, the default branch is used (if it exists)
-   *
    * @throws ReferenceAlreadyExistsException If the reference already exists.
    * @throws ReferenceNotFoundException If the given source reference cannot be found
    * @throws NoDefaultBranchException If the Nessie server does not have a default branch set
@@ -214,7 +189,6 @@ public interface VersionedPlugin {
    * Create a tag from the given source reference.
    *
    * @param sourceVersion If the version is NOT_SPECIFIED, the default branch is used (if it exists)
-   *
    * @throws ReferenceAlreadyExistsException If the reference already exists
    * @throws ReferenceNotFoundException If the given source reference cannot be found
    * @throws NoDefaultBranchException If the Nessie server does not have a default branch set
@@ -243,7 +217,6 @@ public interface VersionedPlugin {
    *
    * @param sourceBranchName The source branch we are merging from
    * @param targetBranchName The target branch we are merging into
-   *
    * @throws ReferenceConflictException If the target branch hash changes during merging
    * @throws ReferenceNotFoundException If the source/target branch cannot be found
    */
@@ -254,55 +227,50 @@ public interface VersionedPlugin {
    *
    * @param branchName The branch we want to update the reference
    * @param sourceVersion The source reference name
-   *
-   * @throws ReferenceConflictException If the branch hash or source reference hash changes during update
+   * @throws ReferenceConflictException If the branch hash or source reference hash changes during
+   *     update
    * @throws ReferenceNotFoundException If the given branch or source reference cannot be found
    */
-
   void assignBranch(String branchName, VersionContext sourceVersion)
-    throws ReferenceConflictException, ReferenceNotFoundException;
+      throws ReferenceConflictException, ReferenceNotFoundException;
 
   /**
    * Update the reference for the given tag.
    *
    * @param tagName The tag we want to update the reference
    * @param sourceVersion The reference we want to update to
-   *
-   *
-   * @throws ReferenceConflictException If the tag hash or source reference hash changes during update
+   * @throws ReferenceConflictException If the tag hash or source reference hash changes during
+   *     update
    * @throws ReferenceNotFoundException If the given tag or source reference cannot be found
    */
-
-  void assignTag(String tagName,  VersionContext sourceVersion)
-    throws ReferenceConflictException, ReferenceNotFoundException;
+  void assignTag(String tagName, VersionContext sourceVersion)
+      throws ReferenceConflictException, ReferenceNotFoundException;
 
   /**
    * Deletes an Empty Folder by the given path for the given version
-   * @param namespaceKey The namespacekey that is used to create a folder in Nessie.
-   * @param sourceVersion If the version is NOT_SPECIFIED, the default branch is used (if it exists).
    *
+   * @param namespaceKey The namespacekey that is used to create a folder in Nessie.
+   * @param sourceVersion If the version is NOT_SPECIFIED, the default branch is used (if it
+   *     exists).
    * @throws ReferenceNotFoundException If the given reference cannot be found.
    * @throws UserException If the requested folder to be deleted is not empty.
    */
-
   void deleteFolder(NamespaceKey namespaceKey, VersionContext sourceVersion)
-    throws ReferenceNotFoundException, UserException;
+      throws ReferenceNotFoundException, UserException;
 
   /**
    * Gets the default branch for this plugin
+   *
    * @throws NoDefaultBranchException If the default branch cannot be found .
-   * @throws UnAuthenticatedException If Nessie configured with the plugin is unreachable due to authentication error.
+   * @throws UnAuthenticatedException If Nessie configured with the plugin is unreachable due to
+   *     authentication error.
    */
   String getDefaultBranch() throws NoDefaultBranchException, UnAuthenticatedException;
 
-  /**
-   * Gets the name of this plugin
-   */
+  /** Gets the name of this plugin */
   String getName();
 
-  /**
-   * Returns the catalog Id.
-   */
+  /** Returns the catalog Id. */
   default String getCatalogId() {
     return null;
   }

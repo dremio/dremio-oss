@@ -17,9 +17,10 @@ package com.dremio.common.rel2Sql.utilities;
 
 import static org.junit.Assert.assertTrue;
 
+import com.dremio.common.rel2sql.utilities.OrderByAliasProcessor;
+import com.google.common.collect.ImmutableList;
 import java.util.Collections;
 import java.util.List;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlLiteral;
@@ -32,12 +33,7 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.Litmus;
 import org.junit.Test;
 
-import com.dremio.common.rel2sql.utilities.OrderByAliasProcessor;
-import com.google.common.collect.ImmutableList;
-
-/**
- * Unit test class for {@code com.dremio.common.rel2sql.utilities.OrderByAliasProcessor}
- */
+/** Unit test class for {@code com.dremio.common.rel2sql.utilities.OrderByAliasProcessor} */
 public class TestOrderByAliasProcessor {
   private static final String TABLE_ALIAS = "t0";
   private static final String TABLE_ACCESSOR = "dremio_integer";
@@ -52,9 +48,9 @@ public class TestOrderByAliasProcessor {
     // order by dremio_integer.key
 
     testProcessSqlNodeInOrderBy(
-      SqlNodeList.of(newSqlIdentifier(TABLE_ACCESSOR, KEY_COL_NAME)),
-      Collections.emptyList(),
-      SqlNodeList.of(newSqlIdentifier(TABLE_ALIAS, KEY_COL_NAME)));
+        SqlNodeList.of(newSqlIdentifier(TABLE_ACCESSOR, KEY_COL_NAME)),
+        Collections.emptyList(),
+        SqlNodeList.of(newSqlIdentifier(TABLE_ALIAS, KEY_COL_NAME)));
   }
 
   @Test
@@ -63,9 +59,9 @@ public class TestOrderByAliasProcessor {
     // order by dremio_integer.key
 
     testProcessSqlNodeInOrderBy(
-      SqlNodeList.of(newSqlIdentifier(TABLE_ACCESSOR, KEY_COL_NAME)),
-      ImmutableList.of(newSqlIdentifier(TABLE_ACCESSOR, VAL_COL_NAME)),
-      SqlNodeList.of(newSqlIdentifier(TABLE_ALIAS, KEY_COL_NAME)));
+        SqlNodeList.of(newSqlIdentifier(TABLE_ACCESSOR, KEY_COL_NAME)),
+        ImmutableList.of(newSqlIdentifier(TABLE_ACCESSOR, VAL_COL_NAME)),
+        SqlNodeList.of(newSqlIdentifier(TABLE_ALIAS, KEY_COL_NAME)));
   }
 
   @Test
@@ -74,12 +70,14 @@ public class TestOrderByAliasProcessor {
     // order by dremio_integer.key
 
     testProcessSqlNodeInOrderBy(
-      SqlNodeList.of(newSqlIdentifier(TABLE_ACCESSOR, KEY_COL_NAME)),
-      ImmutableList.of(newSqlIdentifier(TABLE_ACCESSOR, VAL_COL_NAME),
-        newSqlCall(SqlStdOperatorTable.AS,
-          newSqlIdentifier(TABLE_ACCESSOR, KEY_COL_NAME),
-          newSqlIdentifier(KEY_COL_ALIAS))),
-      SqlNodeList.of(newSqlIdentifier(TABLE_ALIAS, KEY_COL_ALIAS)));
+        SqlNodeList.of(newSqlIdentifier(TABLE_ACCESSOR, KEY_COL_NAME)),
+        ImmutableList.of(
+            newSqlIdentifier(TABLE_ACCESSOR, VAL_COL_NAME),
+            newSqlCall(
+                SqlStdOperatorTable.AS,
+                newSqlIdentifier(TABLE_ACCESSOR, KEY_COL_NAME),
+                newSqlIdentifier(KEY_COL_ALIAS))),
+        SqlNodeList.of(newSqlIdentifier(TABLE_ALIAS, KEY_COL_ALIAS)));
   }
 
   @Test
@@ -90,12 +88,14 @@ public class TestOrderByAliasProcessor {
     SqlOperator desc = SqlStdOperatorTable.DESC;
 
     testProcessSqlNodeInOrderBy(
-      SqlNodeList.of(newSqlCall(desc, newSqlIdentifier(TABLE_ACCESSOR, KEY_COL_NAME))),
-      ImmutableList.of(newSqlIdentifier(TABLE_ACCESSOR, VAL_COL_NAME),
-        newSqlCall(SqlStdOperatorTable.AS,
-          newSqlIdentifier(TABLE_ACCESSOR, KEY_COL_NAME),
-          newSqlIdentifier(KEY_COL_ALIAS))),
-      SqlNodeList.of(newSqlCall(desc, newSqlIdentifier(TABLE_ALIAS, KEY_COL_ALIAS))));
+        SqlNodeList.of(newSqlCall(desc, newSqlIdentifier(TABLE_ACCESSOR, KEY_COL_NAME))),
+        ImmutableList.of(
+            newSqlIdentifier(TABLE_ACCESSOR, VAL_COL_NAME),
+            newSqlCall(
+                SqlStdOperatorTable.AS,
+                newSqlIdentifier(TABLE_ACCESSOR, KEY_COL_NAME),
+                newSqlIdentifier(KEY_COL_ALIAS))),
+        SqlNodeList.of(newSqlCall(desc, newSqlIdentifier(TABLE_ALIAS, KEY_COL_ALIAS))));
   }
 
   @Test
@@ -107,12 +107,18 @@ public class TestOrderByAliasProcessor {
     SqlOperator desc = SqlStdOperatorTable.DESC;
 
     testProcessSqlNodeInOrderBy(
-      SqlNodeList.of(newSqlCall(nullsFirst, newSqlCall(desc, newSqlIdentifier(TABLE_ACCESSOR, KEY_COL_NAME)))),
-      ImmutableList.of(newSqlIdentifier(TABLE_ACCESSOR, VAL_COL_NAME),
-        newSqlCall(SqlStdOperatorTable.AS,
-          newSqlIdentifier(TABLE_ACCESSOR, KEY_COL_NAME),
-          newSqlIdentifier(KEY_COL_ALIAS))),
-      SqlNodeList.of(newSqlCall(nullsFirst, newSqlCall(desc, newSqlIdentifier(TABLE_ALIAS, KEY_COL_ALIAS)))));
+        SqlNodeList.of(
+            newSqlCall(
+                nullsFirst, newSqlCall(desc, newSqlIdentifier(TABLE_ACCESSOR, KEY_COL_NAME)))),
+        ImmutableList.of(
+            newSqlIdentifier(TABLE_ACCESSOR, VAL_COL_NAME),
+            newSqlCall(
+                SqlStdOperatorTable.AS,
+                newSqlIdentifier(TABLE_ACCESSOR, KEY_COL_NAME),
+                newSqlIdentifier(KEY_COL_ALIAS))),
+        SqlNodeList.of(
+            newSqlCall(
+                nullsFirst, newSqlCall(desc, newSqlIdentifier(TABLE_ALIAS, KEY_COL_ALIAS)))));
   }
 
   @Test
@@ -124,12 +130,17 @@ public class TestOrderByAliasProcessor {
     SqlOperator desc = SqlStdOperatorTable.DESC;
 
     testProcessSqlNodeInOrderBy(
-      SqlNodeList.of(newSqlCall(nullsLast, newSqlCall(desc, newSqlIdentifier(TABLE_ACCESSOR, KEY_COL_NAME)))),
-      ImmutableList.of(newSqlIdentifier(TABLE_ACCESSOR, VAL_COL_NAME),
-        newSqlCall(SqlStdOperatorTable.AS,
-          newSqlIdentifier(TABLE_ACCESSOR, KEY_COL_NAME),
-          newSqlIdentifier(KEY_COL_ALIAS))),
-      SqlNodeList.of(newSqlCall(nullsLast, newSqlCall(desc, newSqlIdentifier(TABLE_ALIAS, KEY_COL_ALIAS)))));
+        SqlNodeList.of(
+            newSqlCall(
+                nullsLast, newSqlCall(desc, newSqlIdentifier(TABLE_ACCESSOR, KEY_COL_NAME)))),
+        ImmutableList.of(
+            newSqlIdentifier(TABLE_ACCESSOR, VAL_COL_NAME),
+            newSqlCall(
+                SqlStdOperatorTable.AS,
+                newSqlIdentifier(TABLE_ACCESSOR, KEY_COL_NAME),
+                newSqlIdentifier(KEY_COL_ALIAS))),
+        SqlNodeList.of(
+            newSqlCall(nullsLast, newSqlCall(desc, newSqlIdentifier(TABLE_ALIAS, KEY_COL_ALIAS)))));
   }
 
   @Test
@@ -140,19 +151,26 @@ public class TestOrderByAliasProcessor {
     SqlOperator isNull = SqlStdOperatorTable.IS_NULL;
 
     testProcessSqlNodeInOrderBy(
-      SqlNodeList.of(newSqlCase(
-        SqlNodeList.of(isNull.createCall(SqlParserPos.ZERO, newSqlIdentifier(TABLE_ACCESSOR, KEY_COL_NAME))),
-        SqlNodeList.of(SqlLiteral.createExactNumeric("1", SqlParserPos.ZERO)),
-        SqlNodeList.of(SqlLiteral.createExactNumeric("0", SqlParserPos.ZERO)))),
-      ImmutableList.of(newSqlIdentifier(TABLE_ACCESSOR, VAL_COL_NAME),
-        newSqlCall(SqlStdOperatorTable.AS,
-          newSqlIdentifier(TABLE_ACCESSOR, KEY_COL_NAME),
-          newSqlIdentifier(KEY_COL_ALIAS))),
-      SqlNodeList.of(newSqlCase(
-        SqlNodeList.of(isNull.createCall(SqlParserPos.ZERO, newSqlIdentifier(TABLE_ALIAS, KEY_COL_ALIAS))),
-        SqlNodeList.of(SqlLiteral.createExactNumeric("1", SqlParserPos.ZERO)),
-        SqlNodeList.of(SqlLiteral.createExactNumeric("0", SqlParserPos.ZERO))))
-    );
+        SqlNodeList.of(
+            newSqlCase(
+                SqlNodeList.of(
+                    isNull.createCall(
+                        SqlParserPos.ZERO, newSqlIdentifier(TABLE_ACCESSOR, KEY_COL_NAME))),
+                SqlNodeList.of(SqlLiteral.createExactNumeric("1", SqlParserPos.ZERO)),
+                SqlNodeList.of(SqlLiteral.createExactNumeric("0", SqlParserPos.ZERO)))),
+        ImmutableList.of(
+            newSqlIdentifier(TABLE_ACCESSOR, VAL_COL_NAME),
+            newSqlCall(
+                SqlStdOperatorTable.AS,
+                newSqlIdentifier(TABLE_ACCESSOR, KEY_COL_NAME),
+                newSqlIdentifier(KEY_COL_ALIAS))),
+        SqlNodeList.of(
+            newSqlCase(
+                SqlNodeList.of(
+                    isNull.createCall(
+                        SqlParserPos.ZERO, newSqlIdentifier(TABLE_ALIAS, KEY_COL_ALIAS))),
+                SqlNodeList.of(SqlLiteral.createExactNumeric("1", SqlParserPos.ZERO)),
+                SqlNodeList.of(SqlLiteral.createExactNumeric("0", SqlParserPos.ZERO)))));
   }
 
   @Test
@@ -164,22 +182,22 @@ public class TestOrderByAliasProcessor {
     SqlOperator nullsFirst = SqlStdOperatorTable.NULLS_FIRST;
 
     testProcessSqlNodeInOrderBy(
-      SqlNodeList.of(
-        newSqlCall(nullsFirst,
-          newSqlCall(desc, newSqlIdentifier(TABLE_ACCESSOR, KEY_COL_NAME))),
-        newSqlIdentifier(TABLE_ACCESSOR, VAL_COL_NAME)),
-      ImmutableList.of(
-        newSqlCall(SqlStdOperatorTable.AS,
-          newSqlIdentifier(TABLE_ACCESSOR, KEY_COL_NAME),
-          newSqlIdentifier(KEY_COL_ALIAS)),
-        newSqlCall(SqlStdOperatorTable.AS,
-          newSqlIdentifier(TABLE_ACCESSOR, VAL_COL_NAME),
-          newSqlIdentifier(VAL_COL_ALIAS))),
-      SqlNodeList.of(
-        newSqlCall(nullsFirst,
-          newSqlCall(desc, newSqlIdentifier(TABLE_ALIAS, KEY_COL_ALIAS))),
-        newSqlIdentifier(TABLE_ALIAS, VAL_COL_ALIAS))
-    );
+        SqlNodeList.of(
+            newSqlCall(
+                nullsFirst, newSqlCall(desc, newSqlIdentifier(TABLE_ACCESSOR, KEY_COL_NAME))),
+            newSqlIdentifier(TABLE_ACCESSOR, VAL_COL_NAME)),
+        ImmutableList.of(
+            newSqlCall(
+                SqlStdOperatorTable.AS,
+                newSqlIdentifier(TABLE_ACCESSOR, KEY_COL_NAME),
+                newSqlIdentifier(KEY_COL_ALIAS)),
+            newSqlCall(
+                SqlStdOperatorTable.AS,
+                newSqlIdentifier(TABLE_ACCESSOR, VAL_COL_NAME),
+                newSqlIdentifier(VAL_COL_ALIAS))),
+        SqlNodeList.of(
+            newSqlCall(nullsFirst, newSqlCall(desc, newSqlIdentifier(TABLE_ALIAS, KEY_COL_ALIAS))),
+            newSqlIdentifier(TABLE_ALIAS, VAL_COL_ALIAS)));
   }
 
   @Test
@@ -193,50 +211,50 @@ public class TestOrderByAliasProcessor {
     SqlOperator nullsLast = SqlStdOperatorTable.NULLS_LAST;
 
     testProcessSqlNodeInOrderBy(
-      SqlNodeList.of(
-        newSqlCase(
-          SqlNodeList.of(isNull.createCall(SqlParserPos.ZERO, newSqlIdentifier(TABLE_ACCESSOR, KEY_COL_NAME))),
-          SqlNodeList.of(SqlLiteral.createExactNumeric("1", SqlParserPos.ZERO)),
-          SqlNodeList.of(SqlLiteral.createExactNumeric("0", SqlParserPos.ZERO))),
-        newSqlCall(nullsLast,
-          newSqlCall(desc, newSqlIdentifier(TABLE_ACCESSOR, VAL_COL_NAME)))),
-      ImmutableList.of(
-        newSqlCall(SqlStdOperatorTable.AS,
-          newSqlIdentifier(TABLE_ACCESSOR, KEY_COL_NAME),
-          newSqlIdentifier(KEY_COL_ALIAS)),
-        newSqlCall(SqlStdOperatorTable.AS,
-          newSqlIdentifier(TABLE_ACCESSOR, VAL_COL_NAME),
-          newSqlIdentifier(VAL_COL_ALIAS))),
-      SqlNodeList.of(
-        newSqlCase(
-          SqlNodeList.of(isNull.createCall(SqlParserPos.ZERO, newSqlIdentifier(TABLE_ALIAS, KEY_COL_ALIAS))),
-          SqlNodeList.of(SqlLiteral.createExactNumeric("1", SqlParserPos.ZERO)),
-          SqlNodeList.of(SqlLiteral.createExactNumeric("0", SqlParserPos.ZERO))),
-        newSqlCall(nullsLast,
-          newSqlCall(desc, newSqlIdentifier(TABLE_ALIAS, VAL_COL_ALIAS))))
-    );
+        SqlNodeList.of(
+            newSqlCase(
+                SqlNodeList.of(
+                    isNull.createCall(
+                        SqlParserPos.ZERO, newSqlIdentifier(TABLE_ACCESSOR, KEY_COL_NAME))),
+                SqlNodeList.of(SqlLiteral.createExactNumeric("1", SqlParserPos.ZERO)),
+                SqlNodeList.of(SqlLiteral.createExactNumeric("0", SqlParserPos.ZERO))),
+            newSqlCall(
+                nullsLast, newSqlCall(desc, newSqlIdentifier(TABLE_ACCESSOR, VAL_COL_NAME)))),
+        ImmutableList.of(
+            newSqlCall(
+                SqlStdOperatorTable.AS,
+                newSqlIdentifier(TABLE_ACCESSOR, KEY_COL_NAME),
+                newSqlIdentifier(KEY_COL_ALIAS)),
+            newSqlCall(
+                SqlStdOperatorTable.AS,
+                newSqlIdentifier(TABLE_ACCESSOR, VAL_COL_NAME),
+                newSqlIdentifier(VAL_COL_ALIAS))),
+        SqlNodeList.of(
+            newSqlCase(
+                SqlNodeList.of(
+                    isNull.createCall(
+                        SqlParserPos.ZERO, newSqlIdentifier(TABLE_ALIAS, KEY_COL_ALIAS))),
+                SqlNodeList.of(SqlLiteral.createExactNumeric("1", SqlParserPos.ZERO)),
+                SqlNodeList.of(SqlLiteral.createExactNumeric("0", SqlParserPos.ZERO))),
+            newSqlCall(nullsLast, newSqlCall(desc, newSqlIdentifier(TABLE_ALIAS, VAL_COL_ALIAS)))));
   }
 
-
-  private SqlIdentifier newSqlIdentifier(String ... names) {
+  private SqlIdentifier newSqlIdentifier(String... names) {
     return new SqlIdentifier(ImmutableList.copyOf(names), SqlParserPos.ZERO);
   }
 
-  private SqlCall newSqlCall(SqlOperator operator, SqlNode ... operands) {
+  private SqlCall newSqlCall(SqlOperator operator, SqlNode... operands) {
     return operator.createCall(SqlParserPos.ZERO, operands);
   }
 
   private SqlCase newSqlCase(SqlNodeList whenList, SqlNodeList thenList, SqlNode elseClause) {
-    return new SqlCase(
-      SqlParserPos.ZERO,
-      null,
-      whenList,
-      thenList,
-      elseClause);
+    return new SqlCase(SqlParserPos.ZERO, null, whenList, thenList, elseClause);
   }
 
-  private void testProcessSqlNodeInOrderBy(SqlNodeList orderBy, List<SqlNode> selectList, SqlNodeList expectedResult) {
-    final OrderByAliasProcessor processor = new OrderByAliasProcessor(orderBy, TABLE_ALIAS, selectList);
+  private void testProcessSqlNodeInOrderBy(
+      SqlNodeList orderBy, List<SqlNode> selectList, SqlNodeList expectedResult) {
+    final OrderByAliasProcessor processor =
+        new OrderByAliasProcessor(orderBy, TABLE_ALIAS, selectList);
     assertTrue(processor.processOrderBy().equalsDeep(expectedResult, Litmus.IGNORE));
   }
 }

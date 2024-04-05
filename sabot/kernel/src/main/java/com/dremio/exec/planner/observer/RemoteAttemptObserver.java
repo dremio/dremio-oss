@@ -27,7 +27,6 @@ public class RemoteAttemptObserver extends AbstractAttemptObserver {
   private final UserResponseHandler handler;
   private final ExternalId externalId;
 
-
   public RemoteAttemptObserver(final ExternalId externalId, UserResponseHandler handler) {
     this.handler = handler;
     this.externalId = externalId;
@@ -37,5 +36,4 @@ public class RemoteAttemptObserver extends AbstractAttemptObserver {
   public void execDataArrived(RpcOutcomeListener<Ack> outcomeListener, QueryWritableBatch batch) {
     handler.sendData(outcomeListener, ExternalIdHelper.replaceQueryId(batch, externalId));
   }
-
 }

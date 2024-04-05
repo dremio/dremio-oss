@@ -18,14 +18,6 @@ package com.dremio.exec.store.dfs.implicit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-
-import org.apache.arrow.vector.types.Types;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.junit.Test;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.ExecTest;
 import com.dremio.exec.store.SplitAndPartitionInfo;
@@ -35,18 +27,25 @@ import com.dremio.test.specs.OptionResolverSpec;
 import com.dremio.test.specs.OptionResolverSpecBuilder;
 import com.google.common.collect.ImmutableMap;
 import com.google.protobuf.ByteString;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import org.apache.arrow.vector.types.Types;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.junit.Test;
 
 public class TestPartitionImplicitColumnValuesProvider extends ExecTest {
 
-  protected static final OptionResolver OPTION_RESOLVER = OptionResolverSpecBuilder.build(new OptionResolverSpec());
+  protected static final OptionResolver OPTION_RESOLVER =
+      OptionResolverSpecBuilder.build(new OptionResolverSpec());
   protected static final String IMPLICIT_1 = "implicit_1";
   protected static final String IMPLICIT_2 = "implicit_2";
   protected static final String IMPLICIT_3 = "implicit_3";
 
   @Test
   public void testBitPartition() {
-    Map<String, Field> implicitColumns = ImmutableMap.of(IMPLICIT_1,
-        Field.nullable(IMPLICIT_1, Types.MinorType.BIT.getType()));
+    Map<String, Field> implicitColumns =
+        ImmutableMap.of(IMPLICIT_1, Field.nullable(IMPLICIT_1, Types.MinorType.BIT.getType()));
     Map<String, Object> allImplicitValues = ImmutableMap.of(IMPLICIT_1, true);
 
     validate(implicitColumns, allImplicitValues, allImplicitValues);
@@ -54,8 +53,8 @@ public class TestPartitionImplicitColumnValuesProvider extends ExecTest {
 
   @Test
   public void testIntPartition() {
-    Map<String, Field> implicitColumns = ImmutableMap.of(IMPLICIT_1,
-        Field.nullable(IMPLICIT_1, Types.MinorType.INT.getType()));
+    Map<String, Field> implicitColumns =
+        ImmutableMap.of(IMPLICIT_1, Field.nullable(IMPLICIT_1, Types.MinorType.INT.getType()));
     Map<String, Object> allImplicitValues = ImmutableMap.of(IMPLICIT_1, 100);
 
     validate(implicitColumns, allImplicitValues, allImplicitValues);
@@ -63,8 +62,8 @@ public class TestPartitionImplicitColumnValuesProvider extends ExecTest {
 
   @Test
   public void testBigintPartition() {
-    Map<String, Field> implicitColumns = ImmutableMap.of(IMPLICIT_1,
-        Field.nullable(IMPLICIT_1, Types.MinorType.BIGINT.getType()));
+    Map<String, Field> implicitColumns =
+        ImmutableMap.of(IMPLICIT_1, Field.nullable(IMPLICIT_1, Types.MinorType.BIGINT.getType()));
     Map<String, Object> allImplicitValues = ImmutableMap.of(IMPLICIT_1, 100L);
 
     validate(implicitColumns, allImplicitValues, allImplicitValues);
@@ -72,8 +71,8 @@ public class TestPartitionImplicitColumnValuesProvider extends ExecTest {
 
   @Test
   public void testFloat4Partition() {
-    Map<String, Field> implicitColumns = ImmutableMap.of(IMPLICIT_1,
-        Field.nullable(IMPLICIT_1, Types.MinorType.FLOAT4.getType()));
+    Map<String, Field> implicitColumns =
+        ImmutableMap.of(IMPLICIT_1, Field.nullable(IMPLICIT_1, Types.MinorType.FLOAT4.getType()));
     Map<String, Object> allImplicitValues = ImmutableMap.of(IMPLICIT_1, 100.0f);
 
     validate(implicitColumns, allImplicitValues, allImplicitValues);
@@ -81,8 +80,8 @@ public class TestPartitionImplicitColumnValuesProvider extends ExecTest {
 
   @Test
   public void testFloat8Partition() {
-    Map<String, Field> implicitColumns = ImmutableMap.of(IMPLICIT_1,
-        Field.nullable(IMPLICIT_1, Types.MinorType.FLOAT8.getType()));
+    Map<String, Field> implicitColumns =
+        ImmutableMap.of(IMPLICIT_1, Field.nullable(IMPLICIT_1, Types.MinorType.FLOAT8.getType()));
     Map<String, Object> allImplicitValues = ImmutableMap.of(IMPLICIT_1, 100.0);
 
     validate(implicitColumns, allImplicitValues, allImplicitValues);
@@ -90,17 +89,18 @@ public class TestPartitionImplicitColumnValuesProvider extends ExecTest {
 
   @Test
   public void testBinaryPartition() {
-    Map<String, Field> implicitColumns = ImmutableMap.of(IMPLICIT_1,
-        Field.nullable(IMPLICIT_1, Types.MinorType.VARBINARY.getType()));
-    Map<String, Object> allImplicitValues = ImmutableMap.of(IMPLICIT_1, new byte[] { 0x00, 0x01 });
+    Map<String, Field> implicitColumns =
+        ImmutableMap.of(
+            IMPLICIT_1, Field.nullable(IMPLICIT_1, Types.MinorType.VARBINARY.getType()));
+    Map<String, Object> allImplicitValues = ImmutableMap.of(IMPLICIT_1, new byte[] {0x00, 0x01});
 
     validate(implicitColumns, allImplicitValues, allImplicitValues);
   }
 
   @Test
   public void testStringPartition() {
-    Map<String, Field> implicitColumns = ImmutableMap.of(IMPLICIT_1,
-        Field.nullable(IMPLICIT_1, Types.MinorType.VARCHAR.getType()));
+    Map<String, Field> implicitColumns =
+        ImmutableMap.of(IMPLICIT_1, Field.nullable(IMPLICIT_1, Types.MinorType.VARCHAR.getType()));
     Map<String, Object> allImplicitValues = ImmutableMap.of(IMPLICIT_1, "100");
 
     validate(implicitColumns, allImplicitValues, allImplicitValues);
@@ -108,30 +108,33 @@ public class TestPartitionImplicitColumnValuesProvider extends ExecTest {
 
   @Test
   public void testMultiplePartitions() {
-    Map<String, Field> implicitColumns = ImmutableMap.of(
-        IMPLICIT_1, Field.nullable(IMPLICIT_1, Types.MinorType.VARCHAR.getType()),
-        IMPLICIT_2, Field.nullable(IMPLICIT_2, Types.MinorType.INT.getType()),
-        IMPLICIT_3, Field.nullable(IMPLICIT_3, Types.MinorType.INT.getType()));
-    Map<String, Object> allImplicitValues = ImmutableMap.of(
-        IMPLICIT_1, "100",
-        IMPLICIT_2, 200,
-        IMPLICIT_3, 300);
+    Map<String, Field> implicitColumns =
+        ImmutableMap.of(
+            IMPLICIT_1, Field.nullable(IMPLICIT_1, Types.MinorType.VARCHAR.getType()),
+            IMPLICIT_2, Field.nullable(IMPLICIT_2, Types.MinorType.INT.getType()),
+            IMPLICIT_3, Field.nullable(IMPLICIT_3, Types.MinorType.INT.getType()));
+    Map<String, Object> allImplicitValues =
+        ImmutableMap.of(
+            IMPLICIT_1, "100",
+            IMPLICIT_2, 200,
+            IMPLICIT_3, 300);
 
     validate(implicitColumns, allImplicitValues, allImplicitValues);
   }
 
   @Test
   public void testPartialSelectWithMultiplePartitions() {
-    Map<String, Field> implicitColumns = ImmutableMap.of(
-        IMPLICIT_1, Field.nullable(IMPLICIT_1, Types.MinorType.VARCHAR.getType()),
-        IMPLICIT_3, Field.nullable(IMPLICIT_3, Types.MinorType.INT.getType()));
-    Map<String, Object> allImplicitValues = ImmutableMap.of(
-        IMPLICIT_1, "100",
-        IMPLICIT_2, 200,
-        IMPLICIT_3, 300);
-    Map<String, Object> expectedImplicitValues = ImmutableMap.of(
-        IMPLICIT_1, "100",
-        IMPLICIT_3, 300);
+    Map<String, Field> implicitColumns =
+        ImmutableMap.of(
+            IMPLICIT_1, Field.nullable(IMPLICIT_1, Types.MinorType.VARCHAR.getType()),
+            IMPLICIT_3, Field.nullable(IMPLICIT_3, Types.MinorType.INT.getType()));
+    Map<String, Object> allImplicitValues =
+        ImmutableMap.of(
+            IMPLICIT_1, "100",
+            IMPLICIT_2, 200,
+            IMPLICIT_3, 300);
+    Map<String, Object> expectedImplicitValues =
+        ImmutableMap.of(IMPLICIT_1, "100", IMPLICIT_3, 300);
 
     validate(implicitColumns, allImplicitValues, expectedImplicitValues);
   }
@@ -140,16 +143,19 @@ public class TestPartitionImplicitColumnValuesProvider extends ExecTest {
     return new PartitionImplicitColumnValuesProvider();
   }
 
-  protected void validate(Map<String, Field> implicitColumns, Map<String, Object> allImplicitValues,
+  protected void validate(
+      Map<String, Field> implicitColumns,
+      Map<String, Object> allImplicitValues,
       Map<String, Object> expectedImplicitValues) {
     SplitAndPartitionInfo partitionInfo = createSplitAndPartitionInfo(allImplicitValues);
     List<NameValuePair<?>> pairs = null;
     try {
-      pairs = getProvider().getImplicitColumnValues(getAllocator(), partitionInfo, implicitColumns, OPTION_RESOLVER);
-      Map<String, Object> actualValues = pairs.stream()
-          .collect(Collectors.toMap(
-              NameValuePair::getName,
-              NameValuePair::getValue));
+      pairs =
+          getProvider()
+              .getImplicitColumnValues(
+                  getAllocator(), partitionInfo, implicitColumns, OPTION_RESOLVER);
+      Map<String, Object> actualValues =
+          pairs.stream().collect(Collectors.toMap(NameValuePair::getName, NameValuePair::getValue));
       assertThat(actualValues).containsExactlyInAnyOrderEntriesOf(expectedImplicitValues);
     } finally {
       AutoCloseables.close(RuntimeException.class, pairs);
@@ -157,17 +163,20 @@ public class TestPartitionImplicitColumnValuesProvider extends ExecTest {
   }
 
   protected SplitAndPartitionInfo createSplitAndPartitionInfo(Map<String, Object> values) {
-    List<PartitionProtobuf.PartitionValue> partitionValues = values.entrySet().stream()
-        .map(entry -> createPartitionValue(entry.getKey(), entry.getValue()))
-        .collect(Collectors.toList());
-    PartitionProtobuf.NormalizedPartitionInfo partitionInfo = PartitionProtobuf.NormalizedPartitionInfo.newBuilder()
-        .addAllValues(partitionValues)
-        .build();
+    List<PartitionProtobuf.PartitionValue> partitionValues =
+        values.entrySet().stream()
+            .map(entry -> createPartitionValue(entry.getKey(), entry.getValue()))
+            .collect(Collectors.toList());
+    PartitionProtobuf.NormalizedPartitionInfo partitionInfo =
+        PartitionProtobuf.NormalizedPartitionInfo.newBuilder()
+            .addAllValues(partitionValues)
+            .build();
     return new SplitAndPartitionInfo(partitionInfo, null);
   }
 
   protected PartitionProtobuf.PartitionValue createPartitionValue(String column, Object value) {
-    PartitionProtobuf.PartitionValue.Builder builder = PartitionProtobuf.PartitionValue.newBuilder();
+    PartitionProtobuf.PartitionValue.Builder builder =
+        PartitionProtobuf.PartitionValue.newBuilder();
     builder.setColumn(column);
     if (value instanceof Boolean) {
       builder.setBitValue((boolean) value);

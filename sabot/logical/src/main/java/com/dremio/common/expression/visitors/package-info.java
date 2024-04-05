@@ -16,7 +16,7 @@
 /**
  * Visitors for validating or optimizing logical expressions.
  *
- * These visitors are used to provide feedback to users on invalid expressions
- * as well as some basic optimizations applied during planning.
+ * <p>These visitors are used to provide feedback to users on invalid expressions as well as some
+ * basic optimizations applied during planning.
  */
 package com.dremio.common.expression.visitors;

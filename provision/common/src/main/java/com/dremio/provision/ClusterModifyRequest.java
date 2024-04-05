@@ -14,16 +14,13 @@
  * limitations under the License.
  */
 package com.dremio.provision;
-import javax.validation.constraints.NotNull;
 
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import javax.validation.constraints.NotNull;
 import org.immutables.value.Value.Default;
 import org.immutables.value.Value.Immutable;
 
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-
-/**
- * Cluster modification
- */
+/** Cluster modification */
 @JsonDeserialize(builder = ImmutableClusterModifyRequest.Builder.class)
 @Immutable
 @ConsistentProps.Annotation
@@ -31,16 +28,21 @@ public interface ClusterModifyRequest extends ConsistentProps {
 
   String getName();
 
-  @NotNull String getId();
+  @NotNull
+  String getId();
 
   @Override
-  @NotNull ClusterType getClusterType();
+  @NotNull
+  ClusterType getClusterType();
 
-  @NotNull DynamicConfig getDynamicConfig();
+  @NotNull
+  DynamicConfig getDynamicConfig();
 
-  @NotNull String getTag();
+  @NotNull
+  String getTag();
 
-  @NotNull ClusterDesiredState getDesiredState();
+  @NotNull
+  ClusterDesiredState getDesiredState();
 
   @Override
   YarnPropsApi getYarnProps();
@@ -49,8 +51,13 @@ public interface ClusterModifyRequest extends ConsistentProps {
   AwsPropsApi getAwsProps();
 
   boolean isAllowAutoStart();
+
   boolean isAllowAutoStop();
-  @Default default long getShutdownInterval() { return 7_200_000; }
+
+  @Default
+  default long getShutdownInterval() {
+    return 7_200_000;
+  }
 
   public static ImmutableClusterModifyRequest.Builder builder() {
     return new ImmutableClusterModifyRequest.Builder();

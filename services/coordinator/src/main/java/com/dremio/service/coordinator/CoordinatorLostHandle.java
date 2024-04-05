@@ -17,24 +17,21 @@ package com.dremio.service.coordinator;
 
 import org.apache.curator.framework.state.ConnectionState;
 
-/**
- * Handler class that handles zk connection lost and master down
- */
+/** Handler class that handles zk connection lost and master down */
 public interface CoordinatorLostHandle {
-  CoordinatorLostHandle NO_OP = new CoordinatorLostHandle() {
-    @Override
-    public void handleConnectionState(ConnectionState state) {
-    }
+  CoordinatorLostHandle NO_OP =
+      new CoordinatorLostHandle() {
+        @Override
+        public void handleConnectionState(ConnectionState state) {}
 
-    @Override
-    public void handleMasterDown(TaskLeaderStatusListener listener) {
-    }
+        @Override
+        public void handleMasterDown(TaskLeaderStatusListener listener) {}
 
-    @Override
-    public boolean stateLoggingEnabled() {
-      return true;
-    }
-  };
+        @Override
+        public boolean stateLoggingEnabled() {
+          return true;
+        }
+      };
 
   void handleConnectionState(ConnectionState state);
 

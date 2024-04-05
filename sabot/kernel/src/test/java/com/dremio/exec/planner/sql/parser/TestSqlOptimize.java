@@ -23,7 +23,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.util.Optional;
-
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
@@ -42,7 +41,7 @@ public class TestSqlOptimize {
     assertTrue(parsed instanceof SqlOptimize);
     SqlOptimize optimizeParsed = (SqlOptimize) parsed;
 
-    optimizeParsed.setOperand(0, optimizeParsed.getTable().setName(0,"d"));
+    optimizeParsed.setOperand(0, optimizeParsed.getTable().setName(0, "d"));
     optimizeParsed.setOperand(3, SqlLiteral.createSymbol(CompactionType.SORT, SqlParserPos.ZERO));
     optimizeParsed.setOperand(4, new SqlIdentifier("e", SqlParserPos.ZERO));
     optimizeParsed.setOperand(5, SqlNodeList.of(new SqlIdentifier("f", SqlParserPos.ZERO)));
@@ -50,7 +49,8 @@ public class TestSqlOptimize {
 
     optimizeParsed.unparse(writer, 0, 0);
     String actualString = writer.toString();
-    String expectedString = "OPTIMIZE TABLE \"d\".\"b\".\"c\" USING SORT FOR PARTITIONS \"e\" (\"f\" = \"g\")";
+    String expectedString =
+        "OPTIMIZE TABLE \"d\".\"b\".\"c\" USING SORT FOR PARTITIONS \"e\" (\"f\" = \"g\")";
     assertEquals(expectedString, actualString);
   }
 
@@ -60,7 +60,7 @@ public class TestSqlOptimize {
     assertTrue(parsed instanceof SqlOptimize);
     SqlOptimize optimizeParsed = (SqlOptimize) parsed;
 
-    optimizeParsed.setOperand(0, optimizeParsed.getTable().setName(0,"d"));
+    optimizeParsed.setOperand(0, optimizeParsed.getTable().setName(0, "d"));
     optimizeParsed.setOperand(1, SqlLiteral.createBoolean(true, SqlParserPos.ZERO));
     optimizeParsed.setOperand(2, SqlLiteral.createBoolean(false, SqlParserPos.ZERO));
 
@@ -76,7 +76,7 @@ public class TestSqlOptimize {
     assertTrue(parsed instanceof SqlOptimize);
     SqlOptimize optimizeParsed = (SqlOptimize) parsed;
 
-    optimizeParsed.setOperand(0, optimizeParsed.getTable().setName(0,"d"));
+    optimizeParsed.setOperand(0, optimizeParsed.getTable().setName(0, "d"));
     optimizeParsed.setOperand(1, SqlLiteral.createBoolean(false, SqlParserPos.ZERO));
     optimizeParsed.setOperand(2, SqlLiteral.createBoolean(true, SqlParserPos.ZERO));
 
@@ -98,8 +98,12 @@ public class TestSqlOptimize {
     assertEquals(actualString, expectedUnparsedString);
 
     assertEquals("Table name does not match.", "a.b.c", optimizeParsed.getTable().toString());
-    assertTrue("RewriteManifests is incorrect.", optimizeParsed.getRewriteManifests().booleanValue());
-    assertEquals("Compaction type does not match,", CompactionType.BIN_PACK, optimizeParsed.getCompactionType());
+    assertTrue(
+        "RewriteManifests is incorrect.", optimizeParsed.getRewriteManifests().booleanValue());
+    assertEquals(
+        "Compaction type does not match,",
+        CompactionType.BIN_PACK,
+        optimizeParsed.getCompactionType());
   }
 
   @Test
@@ -114,8 +118,12 @@ public class TestSqlOptimize {
     assertEquals(actualString, expectedUnparsedString);
 
     assertEquals("Table name does not match.", "a.b.c", optimizeParsed.getTable().toString());
-    assertTrue("RewriteManifests is incorrect.", optimizeParsed.getRewriteManifests().booleanValue());
-    assertEquals("Compaction type does not match,", CompactionType.BIN_PACK, optimizeParsed.getCompactionType());
+    assertTrue(
+        "RewriteManifests is incorrect.", optimizeParsed.getRewriteManifests().booleanValue());
+    assertEquals(
+        "Compaction type does not match,",
+        CompactionType.BIN_PACK,
+        optimizeParsed.getCompactionType());
   }
 
   @Test
@@ -126,13 +134,21 @@ public class TestSqlOptimize {
 
     parsed.unparse(writer, 0, 0);
     String actualString = writer.toString();
-    String expectedUnparsedString = "OPTIMIZE TABLE \"a\".\"b\".\"c\" USING BIN_PACK (\"target_file_size_mb\" = 2)";
+    String expectedUnparsedString =
+        "OPTIMIZE TABLE \"a\".\"b\".\"c\" USING BIN_PACK (\"target_file_size_mb\" = 2)";
     assertEquals(actualString, expectedUnparsedString);
 
     assertEquals("Table name does not match.", "a.b.c", optimizeParsed.getTable().toString());
-    assertTrue("RewriteManifests is incorrect.", optimizeParsed.getRewriteManifests().booleanValue());
-    assertEquals("Compaction type does not match,", CompactionType.BIN_PACK, optimizeParsed.getCompactionType());
-    assertEquals("Options do not match.", "target_file_size_mb", optimizeParsed.getOptionNames().get(0).toString());
+    assertTrue(
+        "RewriteManifests is incorrect.", optimizeParsed.getRewriteManifests().booleanValue());
+    assertEquals(
+        "Compaction type does not match,",
+        CompactionType.BIN_PACK,
+        optimizeParsed.getCompactionType());
+    assertEquals(
+        "Options do not match.",
+        "target_file_size_mb",
+        optimizeParsed.getOptionNames().get(0).toString());
     assertEquals("Options do not match.", "2", optimizeParsed.getOptionValues().get(0).toString());
   }
 
@@ -148,60 +164,95 @@ public class TestSqlOptimize {
     assertEquals(actualString, expectedUnparsedString);
 
     assertEquals("Table name does not match.", "a.b.c", optimizeParsed.getTable().toString());
-    assertFalse("RewriteManifests is incorrect.", optimizeParsed.getRewriteManifests().booleanValue());
-    assertTrue("RewriteDataFiles is incorrect.", optimizeParsed.getRewriteDataFiles().booleanValue());
-    assertEquals("CompactionType does not match.", CompactionType.BIN_PACK, optimizeParsed.getCompactionType());
+    assertFalse(
+        "RewriteManifests is incorrect.", optimizeParsed.getRewriteManifests().booleanValue());
+    assertTrue(
+        "RewriteDataFiles is incorrect.", optimizeParsed.getRewriteDataFiles().booleanValue());
+    assertEquals(
+        "CompactionType does not match.",
+        CompactionType.BIN_PACK,
+        optimizeParsed.getCompactionType());
   }
 
   @Test
   public void testRewriteDataWithBinPackOptions() throws SqlParseException {
-    SqlNode parsed = parse("OPTIMIZE TABLE a.b.c REWRITE DATA USING BIN_PACK (target_file_size_mb=2)");
+    SqlNode parsed =
+        parse("OPTIMIZE TABLE a.b.c REWRITE DATA USING BIN_PACK (target_file_size_mb=2)");
     assertTrue(parsed instanceof SqlOptimize);
     SqlOptimize optimizeParsed = (SqlOptimize) parsed;
 
     parsed.unparse(writer, 0, 0);
     String actualString = writer.toString();
-    String expectedUnparsedString = "OPTIMIZE TABLE \"a\".\"b\".\"c\" REWRITE DATA USING BIN_PACK (\"target_file_size_mb\" = 2)";
+    String expectedUnparsedString =
+        "OPTIMIZE TABLE \"a\".\"b\".\"c\" REWRITE DATA USING BIN_PACK (\"target_file_size_mb\" = 2)";
     assertEquals(actualString, expectedUnparsedString);
 
     assertEquals("Table name does not match.", "a.b.c", optimizeParsed.getTable().toString());
-    assertFalse("RewriteManifests is incorrect.", optimizeParsed.getRewriteManifests().booleanValue());
-    assertEquals("CompactionType does not match.", CompactionType.BIN_PACK, optimizeParsed.getCompactionType());
-    assertEquals("Options do not match.", "target_file_size_mb", optimizeParsed.getOptionNames().get(0).toString());
+    assertFalse(
+        "RewriteManifests is incorrect.", optimizeParsed.getRewriteManifests().booleanValue());
+    assertEquals(
+        "CompactionType does not match.",
+        CompactionType.BIN_PACK,
+        optimizeParsed.getCompactionType());
+    assertEquals(
+        "Options do not match.",
+        "target_file_size_mb",
+        optimizeParsed.getOptionNames().get(0).toString());
     assertEquals("Options do not match.", "2", optimizeParsed.getOptionValues().get(0).toString());
-    assertEquals("Options not retrievable", 2L, optimizeParsed.getTargetFileSize().get().longValue());
+    assertEquals(
+        "Options not retrievable", 2L, optimizeParsed.getTargetFileSize().get().longValue());
   }
 
   @Test
   public void testRewriteDataWithBinPackMultipleOptions() throws SqlParseException {
-    SqlNode parsed = parse("OPTIMIZE TABLE a.b.c REWRITE DATA USING BIN_PACK (target_file_size_mb=2, min_input_files=5)");
+    SqlNode parsed =
+        parse(
+            "OPTIMIZE TABLE a.b.c REWRITE DATA USING BIN_PACK (target_file_size_mb=2, min_input_files=5)");
     assertTrue(parsed instanceof SqlOptimize);
     SqlOptimize optimizeParsed = (SqlOptimize) parsed;
 
     parsed.unparse(writer, 0, 0);
     String actualString = writer.toString();
-    String expectedUnparsedString = "OPTIMIZE TABLE \"a\".\"b\".\"c\" REWRITE DATA USING BIN_PACK (\"target_file_size_mb\" = 2, \"min_input_files\" = 5)";
+    String expectedUnparsedString =
+        "OPTIMIZE TABLE \"a\".\"b\".\"c\" REWRITE DATA USING BIN_PACK (\"target_file_size_mb\" = 2, \"min_input_files\" = 5)";
     assertEquals(actualString, expectedUnparsedString);
 
     assertEquals("Table name does not match.", "a.b.c", optimizeParsed.getTable().toString());
-    assertFalse("RewriteManifests is incorrect.", optimizeParsed.getRewriteManifests().booleanValue());
-    assertEquals("CompactionType does not match.", CompactionType.BIN_PACK, optimizeParsed.getCompactionType());
-    assertEquals("Options do not match.", "target_file_size_mb", optimizeParsed.getOptionNames().get(0).toString());
+    assertFalse(
+        "RewriteManifests is incorrect.", optimizeParsed.getRewriteManifests().booleanValue());
+    assertEquals(
+        "CompactionType does not match.",
+        CompactionType.BIN_PACK,
+        optimizeParsed.getCompactionType());
+    assertEquals(
+        "Options do not match.",
+        "target_file_size_mb",
+        optimizeParsed.getOptionNames().get(0).toString());
     assertEquals("Options do not match.", "2", optimizeParsed.getOptionValues().get(0).toString());
-    assertEquals("Options do not match.", "min_input_files", optimizeParsed.getOptionNames().get(1).toString());
+    assertEquals(
+        "Options do not match.",
+        "min_input_files",
+        optimizeParsed.getOptionNames().get(1).toString());
     assertEquals("Options do not match.", "5", optimizeParsed.getOptionValues().get(1).toString());
-    assertEquals("Options not retrievable", 2L, optimizeParsed.getTargetFileSize().get().longValue());
-    assertEquals("Options not retrievable", 5L, optimizeParsed.getMinInputFiles().get().longValue());
-    assertEquals("Unset options should be empty", Optional.empty(), optimizeParsed.getMaxFileSize());
-    assertEquals("Unset options should be empty", Optional.empty(), optimizeParsed.getMinFileSize());
+    assertEquals(
+        "Options not retrievable", 2L, optimizeParsed.getTargetFileSize().get().longValue());
+    assertEquals(
+        "Options not retrievable", 5L, optimizeParsed.getMinInputFiles().get().longValue());
+    assertEquals(
+        "Unset options should be empty", Optional.empty(), optimizeParsed.getMaxFileSize());
+    assertEquals(
+        "Unset options should be empty", Optional.empty(), optimizeParsed.getMinFileSize());
   }
 
   @Test
   public void testDataOptionsWithRewriteManifests() {
     assertThatThrownBy(() -> parse("OPTIMIZE TABLE a.b.c REWRITE MANIFESTS USING BIN_PACK"))
-      .isInstanceOf(SqlParseException.class);
+        .isInstanceOf(SqlParseException.class);
 
-    assertThatThrownBy(() -> parse("OPTIMIZE TABLE a.b.c REWRITE MANIFESTS (\"target_file_size_mb\" = 2, \"min_input_files\" = 5)"))
-      .isInstanceOf(SqlParseException.class);
+    assertThatThrownBy(
+            () ->
+                parse(
+                    "OPTIMIZE TABLE a.b.c REWRITE MANIFESTS (\"target_file_size_mb\" = 2, \"min_input_files\" = 5)"))
+        .isInstanceOf(SqlParseException.class);
   }
 }

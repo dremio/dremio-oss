@@ -15,13 +15,6 @@
  */
 package com.dremio.exec.store;
 
-import java.io.IOException;
-import java.util.Collection;
-import java.util.Collections;
-
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.types.pojo.FieldType;
-
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.types.Types;
@@ -32,10 +25,13 @@ import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.store.iceberg.IcebergPartitionData;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
+import java.io.IOException;
+import java.util.Collection;
+import java.util.Collections;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 
-/**
- * Record writer interface for writing a record batch to persistent storage.
- */
+/** Record writer interface for writing a record batch to persistent storage. */
 public interface RecordWriter extends AutoCloseable {
 
   String FRAGMENT_COLUMN = "Fragment";
@@ -48,25 +44,52 @@ public interface RecordWriter extends AutoCloseable {
   String FILE_SCHEMA_COLUMN = "fileschema";
   String PARTITION_DATA_COLUMN = "PartitionData";
   String OPERATION_TYPE_COLUMN = "OperationType";
-  String PARTITION_VALUE_COLUMN= "PartitionValue";
+  String PARTITION_VALUE_COLUMN = "PartitionValue";
   String REJECTED_RECORDS_COLUMN = "RejectedRecords";
 
-  BatchSchema SCHEMA = BatchSchema.newBuilder()
-      .addField(MajorTypeHelper.getFieldForNameAndMajorType(FRAGMENT_COLUMN, Types.optional(MinorType.VARCHAR)))
-      .addField(MajorTypeHelper.getFieldForNameAndMajorType(RECORDS_COLUMN, Types.optional(MinorType.BIGINT)))
-      .addField(MajorTypeHelper.getFieldForNameAndMajorType(PATH_COLUMN, Types.optional(MinorType.VARCHAR)))
-      .addField(MajorTypeHelper.getFieldForNameAndMajorType(METADATA_COLUMN, Types.optional(MinorType.VARBINARY)))
-      .addField(MajorTypeHelper.getFieldForNameAndMajorType(PARTITION_COLUMN, Types.optional(MinorType.INT)))
-      .addField(MajorTypeHelper.getFieldForNameAndMajorType(FILESIZE_COLUMN, Types.optional(MinorType.BIGINT)))
-      .addField(MajorTypeHelper.getFieldForNameAndMajorType(ICEBERG_METADATA_COLUMN, Types.optional(MinorType.VARBINARY)))
-      .addField(MajorTypeHelper.getFieldForNameAndMajorType(FILE_SCHEMA_COLUMN, Types.optional(MinorType.VARBINARY)))
-      .addField(new Field(PARTITION_DATA_COLUMN, FieldType.nullable(CompleteType.LIST.getType()), Collections.singletonList(
-        Field.nullable("$data$", CompleteType.VARBINARY.getType()))))
-      .addField(MajorTypeHelper.getFieldForNameAndMajorType(OPERATION_TYPE_COLUMN, Types.optional(MinorType.INT)))
-      .addField(MajorTypeHelper.getFieldForNameAndMajorType(PARTITION_VALUE_COLUMN, Types.optional(MinorType.VARCHAR)))
-      .addField(MajorTypeHelper.getFieldForNameAndMajorType(REJECTED_RECORDS_COLUMN, Types.optional(MinorType.BIGINT)))
-      .setSelectionVectorMode(SelectionVectorMode.NONE)
-      .build();
+  BatchSchema SCHEMA =
+      BatchSchema.newBuilder()
+          .addField(
+              MajorTypeHelper.getFieldForNameAndMajorType(
+                  FRAGMENT_COLUMN, Types.optional(MinorType.VARCHAR)))
+          .addField(
+              MajorTypeHelper.getFieldForNameAndMajorType(
+                  RECORDS_COLUMN, Types.optional(MinorType.BIGINT)))
+          .addField(
+              MajorTypeHelper.getFieldForNameAndMajorType(
+                  PATH_COLUMN, Types.optional(MinorType.VARCHAR)))
+          .addField(
+              MajorTypeHelper.getFieldForNameAndMajorType(
+                  METADATA_COLUMN, Types.optional(MinorType.VARBINARY)))
+          .addField(
+              MajorTypeHelper.getFieldForNameAndMajorType(
+                  PARTITION_COLUMN, Types.optional(MinorType.INT)))
+          .addField(
+              MajorTypeHelper.getFieldForNameAndMajorType(
+                  FILESIZE_COLUMN, Types.optional(MinorType.BIGINT)))
+          .addField(
+              MajorTypeHelper.getFieldForNameAndMajorType(
+                  ICEBERG_METADATA_COLUMN, Types.optional(MinorType.VARBINARY)))
+          .addField(
+              MajorTypeHelper.getFieldForNameAndMajorType(
+                  FILE_SCHEMA_COLUMN, Types.optional(MinorType.VARBINARY)))
+          .addField(
+              new Field(
+                  PARTITION_DATA_COLUMN,
+                  FieldType.nullable(CompleteType.LIST.getType()),
+                  Collections.singletonList(
+                      Field.nullable("$data$", CompleteType.VARBINARY.getType()))))
+          .addField(
+              MajorTypeHelper.getFieldForNameAndMajorType(
+                  OPERATION_TYPE_COLUMN, Types.optional(MinorType.INT)))
+          .addField(
+              MajorTypeHelper.getFieldForNameAndMajorType(
+                  PARTITION_VALUE_COLUMN, Types.optional(MinorType.VARCHAR)))
+          .addField(
+              MajorTypeHelper.getFieldForNameAndMajorType(
+                  REJECTED_RECORDS_COLUMN, Types.optional(MinorType.BIGINT)))
+          .setSelectionVectorMode(SelectionVectorMode.NONE)
+          .build();
 
   Field FRAGMENT = SCHEMA.getColumn(0);
   Field RECORDS = SCHEMA.getColumn(1);
@@ -82,25 +105,26 @@ public interface RecordWriter extends AutoCloseable {
   Field REJECTED_RECORDS = SCHEMA.getColumn(11);
 
   /**
-   *
    * @param incoming
-   * @param listener        Listener informed when an output entry has been written out
-   * @param statsListener   Listener informed on details of write(s) of record batches
+   * @param listener Listener informed when an output entry has been written out
+   * @param statsListener Listener informed on details of write(s) of record batches
    */
-  void setup(final VectorAccessible incoming, OutputEntryListener listener, WriteStatsListener statsListener) throws IOException;
+  void setup(
+      final VectorAccessible incoming,
+      OutputEntryListener listener,
+      WriteStatsListener statsListener)
+      throws IOException;
 
   /**
-   * Write the given record batch. It is callers responsibility to release the
-   * batch.
+   * Write the given record batch. It is callers responsibility to release the batch.
    *
    * @return Number of records written.
    */
-
   void startPartition(WritePartition partition) throws Exception;
 
   /**
-   * Write the given record batch. It is callers responsibility to release the
-   * batch.
+   * Write the given record batch. It is callers responsibility to release the batch.
+   *
    * @param offset The offset
    * @param length
    * @return
@@ -115,32 +139,36 @@ public interface RecordWriter extends AutoCloseable {
    */
   void abort() throws IOException;
 
-  default FileSystem getFs(){
+  default FileSystem getFs() {
     throw new UnsupportedOperationException("Unable to get filesystem");
   }
 
-  default Path getLocation(){
+  default Path getLocation() {
     throw new UnsupportedOperationException("Unable to get location");
   }
 
   /**
-   * Listener that is informed of any output entries that have been returned.
-   * Depending on the source, this could be files, a database path, etc.
+   * Listener that is informed of any output entries that have been returned. Depending on the
+   * source, this could be files, a database path, etc.
    */
   interface OutputEntryListener {
-    void recordsWritten(long recordCount, long fileSize, String path, byte[] metadata, Integer partitionNumber,
-                        byte[] icebergMetadata, byte[] schema, Collection<IcebergPartitionData> partition,
-                        Integer operationType, String partitionValue, long rejectedRecordCount);
+    void recordsWritten(
+        long recordCount,
+        long fileSize,
+        String path,
+        byte[] metadata,
+        Integer partitionNumber,
+        byte[] icebergMetadata,
+        byte[] schema,
+        Collection<IcebergPartitionData> partition,
+        Integer operationType,
+        String partitionValue,
+        long rejectedRecordCount);
   }
 
-  /**
-   * Listens to write details: number of bytes written, number of files written
-   */
+  /** Listens to write details: number of bytes written, number of files written */
   interface WriteStatsListener {
-    /**
-     * Record the act of writing 'byteCount' bytes to an output file
-     */
+    /** Record the act of writing 'byteCount' bytes to an output file */
     void bytesWritten(long byteCount);
   }
-
 }

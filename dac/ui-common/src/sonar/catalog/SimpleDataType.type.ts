@@ -33,4 +33,4 @@ export enum SimpleDataType {
   GEO,
   OTHER,
   STRUCT,
-};
+}

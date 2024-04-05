@@ -15,16 +15,15 @@
  */
 package com.dremio.dac.explore.model;
 
-import java.util.List;
-
 import com.dremio.dac.model.namespace.DatasetContainer;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.List;
 
 /**
- * Dataset information used in the right-hand panel on the UI in
- * a context associated with a particular dataset.
+ * Dataset information used in the right-hand panel on the UI in a context associated with a
+ * particular dataset.
  */
 public class DatasetDetails {
 
@@ -39,8 +38,7 @@ public class DatasetDetails {
       DatasetConfig datasetConfig,
       int jobCount,
       int descendants,
-      DatasetContainer parentDatasetContainer
-  ) {
+      DatasetContainer parentDatasetContainer) {
     this.displayFullPath = datasetConfig.getFullPathList();
     this.owner = datasetConfig.getOwner();
     this.jobCount = jobCount;

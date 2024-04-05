@@ -17,12 +17,11 @@ package com.dremio.common.util;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import com.google.common.io.Resources;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URL;
-
-import com.google.common.io.Resources;
 
 public class FileUtils {
   public static final char separatorChar = '/';
@@ -32,7 +31,7 @@ public class FileUtils {
   private static URL getResource(String fileName) throws IOException {
     try {
       return Resources.getResource(FileUtils.class, fileName);
-    } catch(IllegalArgumentException e) {
+    } catch (IllegalArgumentException e) {
       throw new FileNotFoundException(String.format("Unable to find file on path %s", fileName));
     }
   }

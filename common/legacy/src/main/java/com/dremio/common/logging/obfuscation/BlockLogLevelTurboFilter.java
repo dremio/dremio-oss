@@ -15,61 +15,56 @@
  */
 package com.dremio.common.logging.obfuscation;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import org.slf4j.Marker;
-
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.turbo.TurboFilter;
 import ch.qos.logback.core.spi.FilterReply;
+import java.util.ArrayList;
+import java.util.List;
+import org.slf4j.Marker;
 
 /**
- * CustomTurbofilter class for blocking log levels below threshold.
- * We find the logger's threshold and compare the level to this threshold. If the level is below this threshold we return FilterReply.ACCEPT , else we return FilterReply.DENY
- *  TRACE < DEBUG. < INFO < WARN < ERROR.
- *  To add a logger with a threshold, add the name of the logger and the threshold both comma separated in a logback.xml file, using appropriate tags.
+ * CustomTurbofilter class for blocking log levels below threshold. We find the logger's threshold
+ * and compare the level to this threshold. If the level is below this threshold we return
+ * FilterReply.ACCEPT , else we return FilterReply.DENY TRACE < DEBUG. < INFO < WARN < ERROR. To add
+ * a logger with a threshold, add the name of the logger and the threshold both comma separated in a
+ * logback.xml file, using appropriate tags.
  */
 public class BlockLogLevelTurboFilter extends TurboFilter {
 
-  //array that contain the name of the class of the logger and the threshold (comma separated)
+  // array that contain the name of the class of the logger and the threshold (comma separated)
   private List<String[]> packageThresholdLevel = new ArrayList<>();
-  //default- used for third party loggers
+  // default- used for third party loggers
   private Level defaultLogLevelThreshold;
   private boolean start = false;
 
-  private boolean matches(String classPath, String logger)
-  {
+  private boolean matches(String classPath, String logger) {
     int i;
-    for(i=0 ; i<classPath.length();i++)
-    {
-      if(logger.charAt(i)!=classPath.charAt(i))
-      {
+    for (i = 0; i < classPath.length(); i++) {
+      if (logger.charAt(i) != classPath.charAt(i)) {
         return false;
       }
     }
-    //if i is pointing to the end of the logger -> there is an exact match
-    if(i == logger.length())
-    {
+    // if i is pointing to the end of the logger -> there is an exact match
+    if (i == logger.length()) {
       return true;
     }
-    //classpath is a prefix of logger according to sl4j convention
-    if(logger.charAt(i) == '.')
-    {
+    // classpath is a prefix of logger according to sl4j convention
+    if (logger.charAt(i) == '.') {
       return true;
     }
     return false;
-
   }
 
-
   @Override
-  public FilterReply decide(Marker marker, Logger logger, Level level, String s, Object[] objects, Throwable throwable) {
+  public FilterReply decide(
+      Marker marker, Logger logger, Level level, String s, Object[] objects, Throwable throwable) {
 
     int maximumMatchingPackageLength = 0;
-    //we initialise longestMatchingPackageThreshold to the default threshold. Hence if no match is found we use the default
-    String[] longestMatchingPackageThreshold = new String[]{"defaultLog",defaultLogLevelThreshold.levelStr};
+    // we initialise longestMatchingPackageThreshold to the default threshold. Hence if no match is
+    // found we use the default
+    String[] longestMatchingPackageThreshold =
+        new String[] {"defaultLog", defaultLogLevelThreshold.levelStr};
     for (int i = 0; i < packageThresholdLevel.size(); i++) {
       if (matches(this.packageThresholdLevel.get(i)[0], logger.getName())) {
         if (this.packageThresholdLevel.get(i)[0].length() > maximumMatchingPackageLength) {
@@ -84,8 +79,6 @@ public class BlockLogLevelTurboFilter extends TurboFilter {
     }
 
     return FilterReply.NEUTRAL;
-
-
   }
 
   public void addPackageLogLevel(String packageLogLevel) {

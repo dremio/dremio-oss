@@ -30,10 +30,9 @@ package io.airlift.tpch;
 
 import static java.util.Locale.ENGLISH;
 
+import com.google.common.collect.ImmutableList;
 import java.math.BigDecimal;
 import java.util.List;
-
-import com.google.common.collect.ImmutableList;
 
 public final class GenerateUtils {
   //
@@ -50,7 +49,8 @@ public final class GenerateUtils {
     return rowCount;
   }
 
-  public static long calculateStartIndex(int scaleBase, double scaleFactor, int part, int partCount) {
+  public static long calculateStartIndex(
+      int scaleBase, double scaleFactor, int part, int partCount) {
     long totalRowCount = (long) (scaleBase * scaleFactor);
 
     long rowsPerPart = totalRowCount / partCount;
@@ -61,17 +61,17 @@ public final class GenerateUtils {
   // Date Utils
   //
 
-  /**
-   * The value of 1970-01-01 in the date generator system
-   */
+  /** The value of 1970-01-01 in the date generator system */
   public static final int GENERATED_DATE_EPOCH_OFFSET = 83966;
 
   public static final int MIN_GENERATE_DATE = 92001;
   private static final int CURRENT_DATE = 95168;
   public static final int TOTAL_DATE_RANGE = 2557;
 
-  private static final int[] MONTH_YEAR_DAY_START = new int[] { 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334,
-      365, };
+  private static final int[] MONTH_YEAR_DAY_START =
+      new int[] {
+        0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365,
+      };
 
   private static final List<String> DATE_STRING_INDEX = makeDateStringIndex();
 

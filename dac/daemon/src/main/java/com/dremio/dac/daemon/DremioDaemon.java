@@ -30,12 +30,10 @@ import com.dremio.dac.server.DACConfig;
 import com.dremio.exec.util.GuavaPatcher;
 import com.google.common.base.Preconditions;
 
-
-/**
- * Starts the Dremio daemon and inject dependencies
- */
+/** Starts the Dremio daemon and inject dependencies */
 public class DremioDaemon {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DremioDaemon.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(DremioDaemon.class);
 
   static {
     /*
@@ -61,13 +59,15 @@ public class DremioDaemon {
 
     @Override
     protected void ensureUpgradeSupported(Version storeVersion) {
-      // Check if store version is up to date, i.e store version is greater or equal to the greatest version
+      // Check if store version is up to date, i.e store version is greater or equal to the greatest
+      // version
       // of all upgrade tasks. If not, and if auto upgrade is not enabled, fail.
       if (!getDACConfig().isAutoUpgrade()) {
-          Preconditions.checkState(
-              UPGRADE_VERSION_ORDERING.compare(storeVersion, VERSION) >= 0,
-              "KVStore has an older version (%s) than the server (%s), please run the upgrade tool first",
-              storeVersion.getVersion(), VERSION.getVersion());
+        Preconditions.checkState(
+            UPGRADE_VERSION_ORDERING.compare(storeVersion, VERSION) >= 0,
+            "KVStore has an older version (%s) than the server (%s), please run the upgrade tool first",
+            storeVersion.getVersion(),
+            VERSION.getVersion());
       }
 
       // Check if store version is smaller or equal to the code version.
@@ -75,14 +75,17 @@ public class DremioDaemon {
       // Needed to be able to run multiple versions of Dremio on single version of KVStore
       if (getDACConfig().allowNewerKVStore) {
         if (UPGRADE_VERSION_ORDERING.compare(storeVersion, VERSION) > 0) {
-          logger.warn(String.format(
-            "This Dremio version %s is older then KVStore version %s", VERSION.getVersion(), storeVersion.getVersion()));
+          logger.warn(
+              String.format(
+                  "This Dremio version %s is older then KVStore version %s",
+                  VERSION.getVersion(), storeVersion.getVersion()));
         }
       } else {
         Preconditions.checkState(
-          UPGRADE_VERSION_ORDERING.compare(storeVersion, VERSION) <= 0,
-          "KVStore has a newer version (%s) than running Dremio server (%s)",
-          storeVersion.getVersion(), VERSION.getVersion());
+            UPGRADE_VERSION_ORDERING.compare(storeVersion, VERSION) <= 0,
+            "KVStore has a newer version (%s) than running Dremio server (%s)",
+            storeVersion.getVersion(),
+            VERSION.getVersion());
       }
     }
   }
@@ -100,7 +103,8 @@ public class DremioDaemon {
         autoUpgrade.run(false);
       }
 
-      final DACModule module = sabotConfig.getInstance(DAEMON_MODULE_CLASS, DACModule.class, DACDaemonModule.class);
+      final DACModule module =
+          sabotConfig.getInstance(DAEMON_MODULE_CLASS, DACModule.class, DACDaemonModule.class);
       try (final DACDaemon daemon = DACDaemon.newDremioDaemon(config, classPathScan, module)) {
         daemon.init();
         daemon.closeOnJVMShutDown();

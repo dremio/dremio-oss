@@ -19,14 +19,13 @@ import com.dremio.common.UserConstants;
 import com.dremio.service.users.proto.UID;
 
 /**
- * Class with info of the system user running the Dremio service. You can't login using the system user
- * credentials, but user can be used to assign access controls for system storage plugins etc.
+ * Class with info of the system user running the Dremio service. You can't login using the system
+ * user credentials, but user can be used to assign access controls for system storage plugins etc.
  */
 public class SystemUser {
-  /**
-   * System user running the Dremio service.
-   */
+  /** System user running the Dremio service. */
   public static final String SYSTEM_USERNAME = UserConstants.SYSTEM_USERNAME;
+
   public static final UID SYSTEM_UID = new UID(UserConstants.SYSTEM_ID);
 
   public static final User SYSTEM_USER =

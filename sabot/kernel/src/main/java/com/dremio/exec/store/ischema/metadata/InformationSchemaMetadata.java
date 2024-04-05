@@ -16,23 +16,20 @@
 
 package com.dremio.exec.store.ischema.metadata;
 
-import java.util.Set;
-import java.util.stream.Collectors;
-
-import org.apache.arrow.vector.types.pojo.Field;
-
 import com.dremio.common.expression.CompleteType;
 import com.dremio.exec.record.BatchSchema;
 import com.google.common.collect.ImmutableList;
+import java.util.Set;
+import java.util.stream.Collectors;
+import org.apache.arrow.vector.types.pojo.Field;
 
-/**
- * Captures metadata for tables in "INFORMATION_SCHEMA".
- */
+/** Captures metadata for tables in "INFORMATION_SCHEMA". */
 public final class InformationSchemaMetadata {
 
   // CATALOGS table
   public static final Field CATALOG_NAME = CompleteType.VARCHAR.toField("CATALOG_NAME");
-  public static final Field CATALOG_DESCRIPTION = CompleteType.VARCHAR.toField("CATALOG_DESCRIPTION");
+  public static final Field CATALOG_DESCRIPTION =
+      CompleteType.VARCHAR.toField("CATALOG_DESCRIPTION");
   public static final Field CATALOG_CONNECT = CompleteType.VARCHAR.toField("CATALOG_CONNECT");
 
   // SCHEMATA table
@@ -64,10 +61,13 @@ public final class InformationSchemaMetadata {
   public static final Field IS_NULLABLE = CompleteType.VARCHAR.toField("IS_NULLABLE");
   public static final Field DATA_TYPE = CompleteType.VARCHAR.toField("DATA_TYPE");
   public static final Field COLUMN_SIZE = CompleteType.INT.toField("COLUMN_SIZE");
-  public static final Field CHARACTER_MAXIMUM_LENGTH = CompleteType.INT.toField("CHARACTER_MAXIMUM_LENGTH");
-  public static final Field CHARACTER_OCTET_LENGTH = CompleteType.INT.toField("CHARACTER_OCTET_LENGTH");
+  public static final Field CHARACTER_MAXIMUM_LENGTH =
+      CompleteType.INT.toField("CHARACTER_MAXIMUM_LENGTH");
+  public static final Field CHARACTER_OCTET_LENGTH =
+      CompleteType.INT.toField("CHARACTER_OCTET_LENGTH");
   public static final Field NUMERIC_PRECISION = CompleteType.INT.toField("NUMERIC_PRECISION");
-  public static final Field NUMERIC_PRECISION_RADIX = CompleteType.INT.toField("NUMERIC_PRECISION_RADIX");
+  public static final Field NUMERIC_PRECISION_RADIX =
+      CompleteType.INT.toField("NUMERIC_PRECISION_RADIX");
   public static final Field NUMERIC_SCALE = CompleteType.INT.toField("NUMERIC_SCALE");
   public static final Field DATETIME_PRECISION = CompleteType.INT.toField("DATETIME_PRECISION");
   public static final Field INTERVAL_TYPE = CompleteType.VARCHAR.toField("INTERVAL_TYPE");
@@ -80,18 +80,35 @@ public final class InformationSchemaMetadata {
   private static final BatchSchema COLUMNS_SCHEMA;
 
   static {
-    CATALOGS_SCHEMA = new BatchSchema(
-      ImmutableList.of(CATALOG_NAME, CATALOG_DESCRIPTION, CATALOG_CONNECT));
-    SCHEMATA_SCHEMA = new BatchSchema(
-      ImmutableList.of(CATALOG_NAME, SCHEMA_NAME, SCHEMA_OWNER, TYPE, IS_MUTABLE));
-    TABLES_SCHEMA = new BatchSchema(
-      ImmutableList.of(TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE));
-    VIEWS_SCHEMA = new BatchSchema(
-      ImmutableList.of(TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, VIEW_DEFINITION));
-    COLUMNS_SCHEMA = new BatchSchema(
-      ImmutableList.of(TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, ORDINAL_POSITION, COLUMN_DEFAULT,
-        IS_NULLABLE, DATA_TYPE, COLUMN_SIZE, CHARACTER_MAXIMUM_LENGTH, CHARACTER_OCTET_LENGTH, NUMERIC_PRECISION,
-        NUMERIC_PRECISION_RADIX, NUMERIC_SCALE, DATETIME_PRECISION, INTERVAL_TYPE, INTERVAL_PRECISION));
+    CATALOGS_SCHEMA =
+        new BatchSchema(ImmutableList.of(CATALOG_NAME, CATALOG_DESCRIPTION, CATALOG_CONNECT));
+    SCHEMATA_SCHEMA =
+        new BatchSchema(
+            ImmutableList.of(CATALOG_NAME, SCHEMA_NAME, SCHEMA_OWNER, TYPE, IS_MUTABLE));
+    TABLES_SCHEMA =
+        new BatchSchema(ImmutableList.of(TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE));
+    VIEWS_SCHEMA =
+        new BatchSchema(ImmutableList.of(TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, VIEW_DEFINITION));
+    COLUMNS_SCHEMA =
+        new BatchSchema(
+            ImmutableList.of(
+                TABLE_CATALOG,
+                TABLE_SCHEMA,
+                TABLE_NAME,
+                COLUMN_NAME,
+                ORDINAL_POSITION,
+                COLUMN_DEFAULT,
+                IS_NULLABLE,
+                DATA_TYPE,
+                COLUMN_SIZE,
+                CHARACTER_MAXIMUM_LENGTH,
+                CHARACTER_OCTET_LENGTH,
+                NUMERIC_PRECISION,
+                NUMERIC_PRECISION_RADIX,
+                NUMERIC_SCALE,
+                DATETIME_PRECISION,
+                INTERVAL_TYPE,
+                INTERVAL_PRECISION));
   }
 
   public static BatchSchema getCatalogsSchema() {
@@ -115,12 +132,8 @@ public final class InformationSchemaMetadata {
   }
 
   public static Set<String> getAllFieldNames(BatchSchema recordSchema) {
-    return recordSchema.getFields()
-      .stream()
-      .map(Field::getName)
-      .collect(Collectors.toSet());
+    return recordSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
   }
 
-  private InformationSchemaMetadata() {
-  }
+  private InformationSchemaMetadata() {}
 }

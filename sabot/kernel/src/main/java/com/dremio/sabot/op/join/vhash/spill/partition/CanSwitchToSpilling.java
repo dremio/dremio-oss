@@ -36,6 +36,7 @@ public interface CanSwitchToSpilling {
 
   /**
    * Estimate of number of bytes that can be released by switching to spilling mode.
+   *
    * @return bytes that can be released.
    */
   long estimateSpillableBytes();

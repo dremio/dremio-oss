@@ -15,12 +15,6 @@
  */
 package com.dremio.service.jobs;
 
-import java.util.List;
-import java.util.Map;
-
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.calcite.util.Pair;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.util.DremioGetObject;
 import com.dremio.exec.record.BatchSchema;
@@ -30,10 +24,12 @@ import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.SessionId;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
+import java.util.List;
+import java.util.Map;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.calcite.util.Pair;
 
-/**
- * Part of job results
- */
+/** Part of job results */
 public class JobDataFragmentImpl implements JobDataFragment {
   private final JobId jobId;
   private final SessionId sessionId;
@@ -42,7 +38,11 @@ public class JobDataFragmentImpl implements JobDataFragment {
   // transient map to avoid constantly searching linear list.
   private final Map<String, Integer> nameToColumnIndex;
 
-  public JobDataFragmentImpl(final RecordBatches recordBatches, final int offsetInJobResults, final JobId jobId, SessionId sessionId) {
+  public JobDataFragmentImpl(
+      final RecordBatches recordBatches,
+      final int offsetInJobResults,
+      final JobId jobId,
+      SessionId sessionId) {
     this.recordBatches = recordBatches;
     this.jobId = jobId;
     this.sessionId = sessionId;
@@ -75,13 +75,14 @@ public class JobDataFragmentImpl implements JobDataFragment {
   }
 
   @Override
-  public Object extractValue(String column, int index){
+  public Object extractValue(String column, int index) {
     Pair<RecordBatchData, Integer> dataBatch = find(index);
     Integer columnIndex = nameToColumnIndex.get(column);
     if (columnIndex == null) {
       throw new IllegalArgumentException(String.format("Invalid column name %s", column));
     }
-    return DremioGetObject.getObject(dataBatch.getKey().getVectors().get(columnIndex), dataBatch.getValue());
+    return DremioGetObject.getObject(
+        dataBatch.getKey().getVectors().get(columnIndex), dataBatch.getValue());
   }
 
   private Pair<RecordBatchData, Integer> find(int index) {
@@ -91,7 +92,7 @@ public class JobDataFragmentImpl implements JobDataFragment {
 
     // Add the offset in the first batch
     int indexWorkspace = index;
-    for(RecordBatchHolder batchHolder : recordBatches.getBatches()) {
+    for (RecordBatchHolder batchHolder : recordBatches.getBatches()) {
       if (indexWorkspace < batchHolder.size()) {
         return new Pair<>(batchHolder.getData(), batchHolder.getStart() + indexWorkspace);
       }
@@ -102,15 +103,15 @@ public class JobDataFragmentImpl implements JobDataFragment {
 
   @Override
   @SuppressWarnings("unchecked")
-  public synchronized void close(){
-    try{
-      AutoCloseables.close( (List<AutoCloseable>) (Object) recordBatches.getBatches());
-    }catch(Exception ex){
+  public synchronized void close() {
+    try {
+      AutoCloseables.close((List<AutoCloseable>) (Object) recordBatches.getBatches());
+    } catch (Exception ex) {
       Throwables.propagate(ex);
     }
   }
 
-  private static Map<String, Integer> getColumnIndicesFromSchema(BatchSchema schema){
+  private static Map<String, Integer> getColumnIndicesFromSchema(BatchSchema schema) {
     ImmutableMap.Builder<String, Integer> columns = ImmutableMap.builder();
 
     for (int i = 0; i < schema.getFieldCount(); ++i) {

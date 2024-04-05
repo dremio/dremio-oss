@@ -21,17 +21,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
-import java.io.IOException;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
-
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.EntityPath;
@@ -51,10 +40,17 @@ import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.test.DremioTest;
 import com.google.common.collect.ImmutableList;
 import com.google.protobuf.ByteString;
+import java.io.IOException;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
-/**
- * Unit test of the dataset metadata saver, and the subsequent fetching of splits
- */
+/** Unit test of the dataset metadata saver, and the subsequent fetching of splits */
 public class TestDatasetMetadataSaver {
   private LegacyKVStoreProvider kvStoreProvider;
   private NamespaceService namespaceService;
@@ -62,8 +58,7 @@ public class TestDatasetMetadataSaver {
 
   @Before
   public void setup() throws Exception {
-    kvStoreProvider =
-        LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT);
+    kvStoreProvider = LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT);
     kvStoreProvider.start();
     namespaceService = new NamespaceServiceImpl(kvStoreProvider, new CatalogStatusEventsImpl());
   }
@@ -77,8 +72,7 @@ public class TestDatasetMetadataSaver {
   DatasetConfig convert(DatasetHandle handle, long splitVersion) {
     final DatasetConfig shallowConfig = new DatasetConfig();
 
-    shallowConfig.setId(new EntityId()
-      .setId(UUID.randomUUID().toString()));
+    shallowConfig.setId(new EntityId().setId(UUID.randomUUID().toString()));
     shallowConfig.setCreatedAt(System.currentTimeMillis());
     shallowConfig.setName(handle.getDatasetPath().getName());
     shallowConfig.setFullPathList(handle.getDatasetPath().getComponents());
@@ -91,9 +85,18 @@ public class TestDatasetMetadataSaver {
     return shallowConfig;
   }
 
-  void checkSplits(DatasetConfig dataset, int numPartitionChunksPerDataset, int numSplitsPerPartitionChunk, boolean quitBeforeSaving, boolean legacySplits) throws NamespaceException, IOException {
+  void checkSplits(
+      DatasetConfig dataset,
+      int numPartitionChunksPerDataset,
+      int numSplitsPerPartitionChunk,
+      boolean quitBeforeSaving,
+      boolean legacySplits)
+      throws NamespaceException, IOException {
     List<PartitionChunkMetadata> result =
-      ImmutableList.copyOf(namespaceService.findSplits(new LegacyIndexedStore.LegacyFindByCondition().setCondition(PartitionChunkId.getSplitsQuery(dataset))));
+        ImmutableList.copyOf(
+            namespaceService.findSplits(
+                new LegacyIndexedStore.LegacyFindByCondition()
+                    .setCondition(PartitionChunkId.getSplitsQuery(dataset))));
     assertEquals(numPartitionChunksPerDataset, result.size());
     Set<String> expectedSplits = new HashSet<>();
     for (int p = 0; p < numPartitionChunksPerDataset; p++) {
@@ -104,7 +107,9 @@ public class TestDatasetMetadataSaver {
     if (quitBeforeSaving || legacySplits) {
       assertNull(null, dataset.getTotalNumSplits());
     } else {
-      assertEquals(numPartitionChunksPerDataset * numSplitsPerPartitionChunk, dataset.getTotalNumSplits().longValue()); // NB unbox to avoid ambiguous assertEquals
+      assertEquals(
+          numPartitionChunksPerDataset * numSplitsPerPartitionChunk,
+          dataset.getTotalNumSplits().longValue()); // NB unbox to avoid ambiguous assertEquals
     }
     for (PartitionChunkMetadata pcm : result) {
       if (legacySplits) {
@@ -123,15 +128,30 @@ public class TestDatasetMetadataSaver {
     assertThat(expectedSplits).isEmpty();
   }
 
-  private void saveDataset(SampleSourceMetadata connector, DatasetHandle ds, DatasetConfig dsConfig, NamespaceKey dsPath,
-                           boolean quitBeforeSaving, boolean opportunisticSave, long maxSingleSplitPartitionchunks, boolean validateConsistency) throws NamespaceException, IOException {
-    try (DatasetMetadataSaver metadataSaver = namespaceService.newDatasetMetadataSaver(dsPath, dsConfig.getId(), currentCompression, maxSingleSplitPartitionchunks, validateConsistency)) {
+  private void saveDataset(
+      SampleSourceMetadata connector,
+      DatasetHandle ds,
+      DatasetConfig dsConfig,
+      NamespaceKey dsPath,
+      boolean quitBeforeSaving,
+      boolean opportunisticSave,
+      long maxSingleSplitPartitionchunks,
+      boolean validateConsistency)
+      throws NamespaceException, IOException {
+    try (DatasetMetadataSaver metadataSaver =
+        namespaceService.newDatasetMetadataSaver(
+            dsPath,
+            dsConfig.getId(),
+            currentCompression,
+            maxSingleSplitPartitionchunks,
+            validateConsistency)) {
       final PartitionChunkListing chunks = connector.listPartitionChunks(ds);
       final Iterator<? extends PartitionChunk> chunkIterator = chunks.iterator();
       while (chunkIterator.hasNext()) {
         final PartitionChunk chunk = chunkIterator.next();
 
-        final Iterator<? extends com.dremio.connector.metadata.DatasetSplit> splits = chunk.getSplits().iterator();
+        final Iterator<? extends com.dremio.connector.metadata.DatasetSplit> splits =
+            chunk.getSplits().iterator();
         while (splits.hasNext()) {
           final com.dremio.connector.metadata.DatasetSplit split = splits.next();
           metadataSaver.saveDatasetSplit(split);
@@ -145,11 +165,15 @@ public class TestDatasetMetadataSaver {
     }
   }
 
-
-  private void testSaveHelperWithCompression(int numPartitionChunksPerDataset, int numSplitsPerPartitionChunk,
-                                             NamespaceKey dsPath, boolean quitBeforeSaving,
-                                             NamespaceService.SplitCompression compression, long maxSingleSplitPartitionChunks,
-                                             boolean validateConsistency) throws NamespaceException, IOException {
+  private void testSaveHelperWithCompression(
+      int numPartitionChunksPerDataset,
+      int numSplitsPerPartitionChunk,
+      NamespaceKey dsPath,
+      boolean quitBeforeSaving,
+      NamespaceService.SplitCompression compression,
+      long maxSingleSplitPartitionChunks,
+      boolean validateConsistency)
+      throws NamespaceException, IOException {
     currentCompression = compression;
 
     final SampleSourceMetadata s1 = new SampleSourceMetadata();
@@ -160,22 +184,54 @@ public class TestDatasetMetadataSaver {
     final DatasetHandle ds = dsHandles.get(0);
     final DatasetConfig dsConfig = convert(ds, 1);
 
-    saveDataset(s1, ds, dsConfig, dsPath, quitBeforeSaving, false, maxSingleSplitPartitionChunks, validateConsistency);
+    saveDataset(
+        s1,
+        ds,
+        dsConfig,
+        dsPath,
+        quitBeforeSaving,
+        false,
+        maxSingleSplitPartitionChunks,
+        validateConsistency);
 
     if (quitBeforeSaving) {
       checkSplits(dsConfig, 0, 0, quitBeforeSaving, false);
     } else {
-      checkSplits(dsConfig, numPartitionChunksPerDataset, numSplitsPerPartitionChunk, quitBeforeSaving, false);
+      checkSplits(
+          dsConfig,
+          numPartitionChunksPerDataset,
+          numSplitsPerPartitionChunk,
+          quitBeforeSaving,
+          false);
       DatasetConfig datasetConfig = namespaceService.getDataset(dsPath);
       namespaceService.deleteDataset(dsPath, datasetConfig.getTag());
     }
   }
 
-  private void testSaveHelper(int numPartitionChunksPerDataset, int numSplitsPerPartitionChunk, NamespaceKey dsPath, boolean quitBeforeSaving, long maxSingleSplitPartitionChunks, boolean validateConsistency) throws NamespaceException, IOException {
-    testSaveHelperWithCompression(numPartitionChunksPerDataset, numSplitsPerPartitionChunk, dsPath, quitBeforeSaving,
-      NamespaceService.SplitCompression.UNCOMPRESSED, maxSingleSplitPartitionChunks, validateConsistency);
-    testSaveHelperWithCompression(numPartitionChunksPerDataset, numSplitsPerPartitionChunk, dsPath, quitBeforeSaving,
-      NamespaceService.SplitCompression.SNAPPY, maxSingleSplitPartitionChunks, validateConsistency);
+  private void testSaveHelper(
+      int numPartitionChunksPerDataset,
+      int numSplitsPerPartitionChunk,
+      NamespaceKey dsPath,
+      boolean quitBeforeSaving,
+      long maxSingleSplitPartitionChunks,
+      boolean validateConsistency)
+      throws NamespaceException, IOException {
+    testSaveHelperWithCompression(
+        numPartitionChunksPerDataset,
+        numSplitsPerPartitionChunk,
+        dsPath,
+        quitBeforeSaving,
+        NamespaceService.SplitCompression.UNCOMPRESSED,
+        maxSingleSplitPartitionChunks,
+        validateConsistency);
+    testSaveHelperWithCompression(
+        numPartitionChunksPerDataset,
+        numSplitsPerPartitionChunk,
+        dsPath,
+        quitBeforeSaving,
+        NamespaceService.SplitCompression.SNAPPY,
+        maxSingleSplitPartitionChunks,
+        validateConsistency);
   }
 
   // Single partition, single split
@@ -184,7 +240,13 @@ public class TestDatasetMetadataSaver {
     final int numPartitionChunksPerDataset = 1;
     final int numSplitsPerPartitionChunk = 1;
     final NamespaceKey dsPath = new NamespaceKey(asList("dataset_1_1"));
-    testSaveHelper(numPartitionChunksPerDataset, numSplitsPerPartitionChunk, dsPath, false, Long.MAX_VALUE, false);
+    testSaveHelper(
+        numPartitionChunksPerDataset,
+        numSplitsPerPartitionChunk,
+        dsPath,
+        false,
+        Long.MAX_VALUE,
+        false);
   }
 
   // Single partition, multiple splits
@@ -193,7 +255,13 @@ public class TestDatasetMetadataSaver {
     final int numPartitionChunksPerDataset = 1;
     final int numSplitsPerPartitionChunk = 5;
     final NamespaceKey dsPath = new NamespaceKey(asList("dataset_1_n"));
-    testSaveHelper(numPartitionChunksPerDataset, numSplitsPerPartitionChunk, dsPath, false, Long.MAX_VALUE, false);
+    testSaveHelper(
+        numPartitionChunksPerDataset,
+        numSplitsPerPartitionChunk,
+        dsPath,
+        false,
+        Long.MAX_VALUE,
+        false);
   }
 
   // Multiple partitions, single split
@@ -202,7 +270,13 @@ public class TestDatasetMetadataSaver {
     final int numPartitionChunksPerDataset = 3;
     final int numSplitsPerPartitionChunk = 1;
     final NamespaceKey dsPath = new NamespaceKey(asList("dataset_n_1"));
-    testSaveHelper(numPartitionChunksPerDataset, numSplitsPerPartitionChunk, dsPath, false, Long.MAX_VALUE, false);
+    testSaveHelper(
+        numPartitionChunksPerDataset,
+        numSplitsPerPartitionChunk,
+        dsPath,
+        false,
+        Long.MAX_VALUE,
+        false);
   }
 
   // Multiple partitions, single split with consistency validation
@@ -211,7 +285,13 @@ public class TestDatasetMetadataSaver {
     final int numPartitionChunksPerDataset = 3;
     final int numSplitsPerPartitionChunk = 1;
     final NamespaceKey dsPath = new NamespaceKey(asList("dataset_n_1"));
-    testSaveHelper(numPartitionChunksPerDataset, numSplitsPerPartitionChunk, dsPath, false, Long.MAX_VALUE, true);
+    testSaveHelper(
+        numPartitionChunksPerDataset,
+        numSplitsPerPartitionChunk,
+        dsPath,
+        false,
+        Long.MAX_VALUE,
+        true);
   }
 
   // Multiple partitions, multiple splits
@@ -220,7 +300,13 @@ public class TestDatasetMetadataSaver {
     final int numPartitionChunksPerDataset = 3;
     final int numSplitsPerPartitionChunk = 7;
     final NamespaceKey dsPath = new NamespaceKey(asList("dataset_m_n"));
-    testSaveHelper(numPartitionChunksPerDataset, numSplitsPerPartitionChunk, dsPath, false, Long.MAX_VALUE, false);
+    testSaveHelper(
+        numPartitionChunksPerDataset,
+        numSplitsPerPartitionChunk,
+        dsPath,
+        false,
+        Long.MAX_VALUE,
+        false);
   }
 
   // Multiple partitions, multiple splits with consistency validation
@@ -229,7 +315,13 @@ public class TestDatasetMetadataSaver {
     final int numPartitionChunksPerDataset = 3;
     final int numSplitsPerPartitionChunk = 7;
     final NamespaceKey dsPath = new NamespaceKey(asList("dataset_m_n"));
-    testSaveHelper(numPartitionChunksPerDataset, numSplitsPerPartitionChunk, dsPath, false, Long.MAX_VALUE, true);
+    testSaveHelper(
+        numPartitionChunksPerDataset,
+        numSplitsPerPartitionChunk,
+        dsPath,
+        false,
+        Long.MAX_VALUE,
+        true);
   }
 
   // Single partition, single split, fail to save
@@ -238,7 +330,13 @@ public class TestDatasetMetadataSaver {
     final int numPartitionChunksPerDataset = 1;
     final int numSplitsPerPartitionChunk = 1;
     final NamespaceKey dsPath = new NamespaceKey(asList("fail_1_1"));
-    testSaveHelper(numPartitionChunksPerDataset, numSplitsPerPartitionChunk, dsPath, true, Long.MAX_VALUE, false);
+    testSaveHelper(
+        numPartitionChunksPerDataset,
+        numSplitsPerPartitionChunk,
+        dsPath,
+        true,
+        Long.MAX_VALUE,
+        false);
   }
 
   // Single partition, multiple splits, fail to save
@@ -247,7 +345,13 @@ public class TestDatasetMetadataSaver {
     final int numPartitionChunksPerDataset = 1;
     final int numSplitsPerPartitionChunk = 5;
     final NamespaceKey dsPath = new NamespaceKey(asList("fail_1_n"));
-    testSaveHelper(numPartitionChunksPerDataset, numSplitsPerPartitionChunk, dsPath, true, Long.MAX_VALUE, false);
+    testSaveHelper(
+        numPartitionChunksPerDataset,
+        numSplitsPerPartitionChunk,
+        dsPath,
+        true,
+        Long.MAX_VALUE,
+        false);
   }
 
   // Multiple partitions, single split, fail to save
@@ -256,7 +360,13 @@ public class TestDatasetMetadataSaver {
     final int numPartitionChunksPerDataset = 3;
     final int numSplitsPerPartitionChunk = 1;
     final NamespaceKey dsPath = new NamespaceKey(asList("fail_n_1"));
-    testSaveHelper(numPartitionChunksPerDataset, numSplitsPerPartitionChunk, dsPath, true, Long.MAX_VALUE, false);
+    testSaveHelper(
+        numPartitionChunksPerDataset,
+        numSplitsPerPartitionChunk,
+        dsPath,
+        true,
+        Long.MAX_VALUE,
+        false);
   }
 
   // Multiple partitions, multiple splits
@@ -265,7 +375,13 @@ public class TestDatasetMetadataSaver {
     final int numPartitionChunksPerDataset = 3;
     final int numSplitsPerPartitionChunk = 7;
     final NamespaceKey dsPath = new NamespaceKey(asList("fail_m_n"));
-    testSaveHelper(numPartitionChunksPerDataset, numSplitsPerPartitionChunk, dsPath, true, Long.MAX_VALUE, false);
+    testSaveHelper(
+        numPartitionChunksPerDataset,
+        numSplitsPerPartitionChunk,
+        dsPath,
+        true,
+        Long.MAX_VALUE,
+        false);
   }
 
   // Test behavior when we have a legacy single split
@@ -275,8 +391,7 @@ public class TestDatasetMetadataSaver {
     long splitVersion = 17;
     final DatasetConfig dsConfig = new DatasetConfig();
 
-    dsConfig.setId(new EntityId()
-      .setId(UUID.randomUUID().toString()));
+    dsConfig.setId(new EntityId().setId(UUID.randomUUID().toString()));
     dsConfig.setCreatedAt(System.currentTimeMillis());
     dsConfig.setName(entityPath.getName());
     dsConfig.setFullPathList(entityPath.getComponents());
@@ -287,19 +402,18 @@ public class TestDatasetMetadataSaver {
     readDefinition.setSplitVersion(splitVersion);
     dsConfig.setReadDefinition(readDefinition);
 
-    PartitionProtobuf.PartitionChunk split = PartitionProtobuf.PartitionChunk.newBuilder()
-      .setSize(1)
-      .setRowCount(10)
-      .setSplitKey("legacy_1")
-      .setPartitionExtendedProperty(ByteString.copyFromUtf8("p0_s0"))
-      .addAffinities(PartitionProtobuf.Affinity
-        .newBuilder()
-        .setFactor(2.0)
-        .setHost("host")
-        .build())
-      .build();
+    PartitionProtobuf.PartitionChunk split =
+        PartitionProtobuf.PartitionChunk.newBuilder()
+            .setSize(1)
+            .setRowCount(10)
+            .setSplitKey("legacy_1")
+            .setPartitionExtendedProperty(ByteString.copyFromUtf8("p0_s0"))
+            .addAffinities(
+                PartitionProtobuf.Affinity.newBuilder().setFactor(2.0).setHost("host").build())
+            .build();
 
-    ((NamespaceServiceImpl)namespaceService).directInsertLegacySplit(dsConfig, split, splitVersion);
+    ((NamespaceServiceImpl) namespaceService)
+        .directInsertLegacySplit(dsConfig, split, splitVersion);
     checkSplits(dsConfig, 1, 1, false, true);
   }
 
@@ -311,8 +425,7 @@ public class TestDatasetMetadataSaver {
     long splitVersion = 17;
     final DatasetConfig dsConfig = new DatasetConfig();
 
-    dsConfig.setId(new EntityId()
-      .setId(UUID.randomUUID().toString()));
+    dsConfig.setId(new EntityId().setId(UUID.randomUUID().toString()));
     dsConfig.setCreatedAt(System.currentTimeMillis());
     dsConfig.setName(entityPath.getName());
     dsConfig.setFullPathList(entityPath.getComponents());
@@ -324,18 +437,17 @@ public class TestDatasetMetadataSaver {
     dsConfig.setReadDefinition(readDefinition);
 
     for (int p = 0; p < numPartitionChunksPerDataset; p++) {
-      PartitionProtobuf.PartitionChunk split = PartitionProtobuf.PartitionChunk.newBuilder()
-        .setSize(1)
-        .setRowCount(10)
-        .setSplitKey(String.format("legacy_%d", p))
-        .setPartitionExtendedProperty(ByteString.copyFromUtf8(String.format("p%d_s0", p)))
-        .addAffinities(PartitionProtobuf.Affinity
-          .newBuilder()
-          .setFactor(2.0)
-          .setHost("host")
-          .build())
-        .build();
-      ((NamespaceServiceImpl) namespaceService).directInsertLegacySplit(dsConfig, split, splitVersion);
+      PartitionProtobuf.PartitionChunk split =
+          PartitionProtobuf.PartitionChunk.newBuilder()
+              .setSize(1)
+              .setRowCount(10)
+              .setSplitKey(String.format("legacy_%d", p))
+              .setPartitionExtendedProperty(ByteString.copyFromUtf8(String.format("p%d_s0", p)))
+              .addAffinities(
+                  PartitionProtobuf.Affinity.newBuilder().setFactor(2.0).setHost("host").build())
+              .build();
+      ((NamespaceServiceImpl) namespaceService)
+          .directInsertLegacySplit(dsConfig, split, splitVersion);
     }
     checkSplits(dsConfig, numPartitionChunksPerDataset, 1, false, true);
   }
@@ -355,9 +467,9 @@ public class TestDatasetMetadataSaver {
 
     dsConfig.setId(new EntityId().setId("Bogus"));
     assertThatThrownBy(
-      () -> saveDataset(s, ds, dsConfig, dsPath, false, true, Long.MAX_VALUE, false))
-      .isInstanceOf(UserException.class)
-      .hasMessageContaining("There already exists an entity");
+            () -> saveDataset(s, ds, dsConfig, dsPath, false, true, Long.MAX_VALUE, false))
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining("There already exists an entity");
   }
 
   @Test
@@ -375,7 +487,10 @@ public class TestDatasetMetadataSaver {
     saveDataset(s, ds, dsConfig, dsPath, false, false, 5, false);
 
     List<PartitionChunkMetadata> partitionChunks =
-      ImmutableList.copyOf(namespaceService.findSplits(new LegacyIndexedStore.LegacyFindByCondition().setCondition(PartitionChunkId.getSplitsQuery(dsConfig))));
+        ImmutableList.copyOf(
+            namespaceService.findSplits(
+                new LegacyIndexedStore.LegacyFindByCondition()
+                    .setCondition(PartitionChunkId.getSplitsQuery(dsConfig))));
 
     // ensure only 5 partition chunks are saved with split
     assertEquals(partitionChunks.size(), 10);

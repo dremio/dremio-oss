@@ -15,19 +15,20 @@
  */
 package com.dremio.exec.planner.fragment;
 
+import com.dremio.exec.physical.base.AbstractPhysicalVisitor;
+import com.dremio.exec.physical.base.Exchange;
+import com.dremio.exec.physical.base.PhysicalOperator;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 
-import com.dremio.exec.physical.base.AbstractPhysicalVisitor;
-import com.dremio.exec.physical.base.Exchange;
-import com.dremio.exec.physical.base.PhysicalOperator;
-
 /**
- * Visitor for collecting external communicable fragment information across all operators within a fragment.
+ * Visitor for collecting external communicable fragment information across all operators within a
+ * fragment.
  */
-public class ExtCommunicableFragmentCollector extends AbstractPhysicalVisitor<Set<Integer>, Wrapper, RuntimeException>{
+public class ExtCommunicableFragmentCollector
+    extends AbstractPhysicalVisitor<Set<Integer>, Wrapper, RuntimeException> {
 
   @Override
   public Set<Integer> visitExchange(Exchange exchange, Wrapper node) {
@@ -36,16 +37,21 @@ public class ExtCommunicableFragmentCollector extends AbstractPhysicalVisitor<Se
       return Collections.emptySet();
     }
 
-    final Set<Integer> extCommunicableFragments = new HashSet<>(
-            Optional.ofNullable(exchange.getExtCommunicableMajorFragments()).orElse(Collections.emptySet()));
+    final Set<Integer> extCommunicableFragments =
+        new HashSet<>(
+            Optional.ofNullable(exchange.getExtCommunicableMajorFragments())
+                .orElse(Collections.emptySet()));
     extCommunicableFragments.addAll(exchange.getChild().accept(this, node));
     return extCommunicableFragments;
   }
 
   @Override
   public Set<Integer> visitOp(PhysicalOperator op, Wrapper node) {
-    final Set<Integer> extCommunicableFragments = new HashSet<>(Optional.ofNullable(op.getExtCommunicableMajorFragments()).orElse(Collections.emptySet()));
-    for(PhysicalOperator child : op){
+    final Set<Integer> extCommunicableFragments =
+        new HashSet<>(
+            Optional.ofNullable(op.getExtCommunicableMajorFragments())
+                .orElse(Collections.emptySet()));
+    for (PhysicalOperator child : op) {
       extCommunicableFragments.addAll(child.accept(this, node));
     }
     return extCommunicableFragments;

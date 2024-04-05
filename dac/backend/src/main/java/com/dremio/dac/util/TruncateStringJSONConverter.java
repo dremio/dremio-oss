@@ -15,13 +15,10 @@
  */
 package com.dremio.dac.util;
 
-
 import com.fasterxml.jackson.databind.util.StdConverter;
 import com.google.common.base.Strings;
 
-/**
- * A JSON serialization converter that truncates strings
- */
+/** A JSON serialization converter that truncates strings */
 public abstract class TruncateStringJSONConverter extends StdConverter<String, String> {
   private final int maxLength;
 

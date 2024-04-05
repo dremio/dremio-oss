@@ -15,9 +15,7 @@
  */
 package com.dremio.services.credentials;
 
-/**
- * Base class for all Credentials Provider exceptions.
- */
+/** Base class for all Credentials Provider exceptions. */
 public class CredentialsException extends Exception {
   private static final long serialVersionUID = 1L;
 

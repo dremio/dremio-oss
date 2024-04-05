@@ -19,15 +19,6 @@ import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
-import java.util.Collections;
-import java.util.List;
-
-import org.apache.calcite.rel.type.RelDataTypeField;
-import org.apache.calcite.sql.SqlNode;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.BeforeClass;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.exec.ExecTest;
 import com.dremio.exec.PassthroughQueryObserver;
@@ -43,6 +34,13 @@ import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.options.SessionOptionManagerImpl;
 import com.dremio.exec.store.iceberg.IcebergTestTables;
 import com.dremio.sabot.rpc.user.UserSession;
+import java.util.Collections;
+import java.util.List;
+import org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.calcite.sql.SqlNode;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.BeforeClass;
 
 public abstract class TestTableManagementBase extends BaseTestQuery {
   protected static IcebergTestTables.Table table;
@@ -51,38 +49,43 @@ public abstract class TestTableManagementBase extends BaseTestQuery {
   protected static int userColumnCount;
   protected static List<RelDataTypeField> userColumnList;
 
-  //===========================================================================
+  // ===========================================================================
   // Test class and Test cases setUp and tearDown
-  //===========================================================================
+  // ===========================================================================
   @BeforeClass
   public static void setUp() throws Exception {
     SabotContext context = getSabotContext();
 
-    UserSession session = UserSession.Builder.newBuilder()
-      .withSessionOptionManager(
-        new SessionOptionManagerImpl(getSabotContext().getOptionValidatorListing()),
-        getSabotContext().getOptionManager())
-      .withUserProperties(UserProtos.UserProperties.getDefaultInstance())
-      .withCredentials(UserBitShared.UserCredentials.newBuilder().setUserName(SYSTEM_USERNAME).build())
-      .setSupportComplexTypes(true)
-      .build();
+    UserSession session =
+        UserSession.Builder.newBuilder()
+            .withSessionOptionManager(
+                new SessionOptionManagerImpl(getSabotContext().getOptionValidatorListing()),
+                getSabotContext().getOptionManager())
+            .withUserProperties(UserProtos.UserProperties.getDefaultInstance())
+            .withCredentials(
+                UserBitShared.UserCredentials.newBuilder().setUserName(SYSTEM_USERNAME).build())
+            .setSupportComplexTypes(true)
+            .build();
 
-    final QueryContext queryContext = new QueryContext(session, context, UserBitShared.QueryId.getDefaultInstance());
+    final QueryContext queryContext =
+        new QueryContext(session, context, UserBitShared.QueryId.getDefaultInstance());
     queryContext.setGroupResourceInformation(context.getClusterResourceInformation());
-    final AttemptObserver observer = new PassthroughQueryObserver(ExecTest.mockUserClientConnection(null));
+    final AttemptObserver observer =
+        new PassthroughQueryObserver(ExecTest.mockUserClientConnection(null));
 
-    converter = new SqlConverter(
-      queryContext.getPlannerSettings(),
-      queryContext.getOperatorTable(),
-      queryContext,
-      queryContext.getMaterializationProvider(),
-      queryContext.getFunctionRegistry(),
-      queryContext.getSession(),
-      observer,
-      queryContext.getSubstitutionProviderFactory(),
-      queryContext.getConfig(),
-      queryContext.getScanResult(),
-      queryContext.getRelMetadataQuerySupplier());
+    converter =
+        new SqlConverter(
+            queryContext.getPlannerSettings(),
+            queryContext.getOperatorTable(),
+            queryContext,
+            queryContext.getMaterializationProvider(),
+            queryContext.getFunctionRegistry(),
+            queryContext.getSession(),
+            observer,
+            queryContext.getSubstitutionProviderFactory(),
+            queryContext.getConfig(),
+            queryContext.getScanResult(),
+            queryContext.getRelMetadataQuerySupplier());
 
     config = new SqlHandlerConfig(queryContext, converter, observer, null);
     userColumnList = getOriginalFieldList();
@@ -102,11 +105,13 @@ public abstract class TestTableManagementBase extends BaseTestQuery {
     table.close();
   }
 
-  protected static List<RelDataTypeField> getOriginalFieldList(){
-    final String select = "select * from " + IcebergTestTables.V2_ORDERS.get().getTableName() + " limit 1";
+  protected static List<RelDataTypeField> getOriginalFieldList() {
+    final String select =
+        "select * from " + IcebergTestTables.V2_ORDERS.get().getTableName() + " limit 1";
     try {
       final SqlNode node = converter.parse(select);
-      final ConvertedRelNode convertedRelNode = SqlToRelTransformer.validateAndConvertForDml(config, node, null);
+      final ConvertedRelNode convertedRelNode =
+          SqlToRelTransformer.validateAndConvertForDml(config, node, null);
       return convertedRelNode.getValidatedRowType().getFieldList();
     } catch (Exception ex) {
       fail(String.format("Query %s failed, exception: %s", select, ex));

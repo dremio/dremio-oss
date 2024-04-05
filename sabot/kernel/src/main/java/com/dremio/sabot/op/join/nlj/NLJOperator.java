@@ -15,11 +15,6 @@
  */
 package com.dremio.sabot.op.join.nlj;
 
-import java.io.IOException;
-import java.util.LinkedList;
-
-import org.apache.arrow.vector.types.pojo.Field;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.CompleteType;
@@ -42,12 +37,16 @@ import com.google.common.base.Preconditions;
 import com.sun.codemodel.JExpr;
 import com.sun.codemodel.JExpression;
 import com.sun.codemodel.JVar;
+import java.io.IOException;
+import java.util.LinkedList;
+import org.apache.arrow.vector.types.pojo.Field;
 
 /*
  * SqlOperatorImpl implementation for the nested loop join operator
  */
 public class NLJOperator implements DualInputOperator {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(NLJOperator.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(NLJOperator.class);
 
   // We accumulate all the batches on the right side in a hyper container.
   private ExpandableHyperContainer allRight;
@@ -115,7 +114,7 @@ public class NLJOperator implements DualInputOperator {
 
     logger.debug("Adding batch on right. {} records", right.getRecordCount());
     rightCounts.addLast(right.getRecordCount());
-    allRight.addBatch(batchCopy.getContainer());
+    allRight.addBatch(batchCopy.getVectorAccessible());
   }
 
   @Override
@@ -169,7 +168,8 @@ public class NLJOperator implements DualInputOperator {
       outgoing.allocateNew();
     }
 
-    final int outputIndex = nljWorker.emitRecords(currentOutputPosition, context.getTargetBatchSize());
+    final int outputIndex =
+        nljWorker.emitRecords(currentOutputPosition, context.getTargetBatchSize());
 
     logger.debug("outputIndex: {}", outputIndex);
 
@@ -200,19 +200,20 @@ public class NLJOperator implements DualInputOperator {
       state = State.CAN_CONSUME_L;
       return 0;
     }
-
   }
 
   @Override
-  public <OUT, IN, EXCEP extends Throwable> OUT accept(OperatorVisitor<OUT, IN, EXCEP> visitor, IN value) throws EXCEP {
+  public <OUT, IN, EXCEP extends Throwable> OUT accept(
+      OperatorVisitor<OUT, IN, EXCEP> visitor, IN value) throws EXCEP {
     return visitor.visitDualInput(this, value);
   }
 
   /**
-   * Method generates the runtime code needed for NLJ. Other than the setup method to set the input and output value
-   * vector references we implement two more methods
-   * 1. emitLeft()  -> Project record from the left side
-   * 2. emitRight() -> Project record from the right side (which is a hyper container)
+   * Method generates the runtime code needed for NLJ. Other than the setup method to set the input
+   * and output value vector references we implement two more methods 1. emitLeft() -> Project
+   * record from the left side 2. emitRight() -> Project record from the right side (which is a
+   * hyper container)
+   *
    * @return the runtime generated class that implements the NestedLoopJoin interface
    * @throws Exception
    * @throws IOException
@@ -221,17 +222,26 @@ public class NLJOperator implements DualInputOperator {
   private void setupWorker() throws Exception {
 
     final GeneratorMapping emitRight = GeneratorMapping.create("doSetup", "emitRight", null, null);
-    final GeneratorMapping emitRightConstant = GeneratorMapping.create("doSetup", "doSetup", null, null);
-    final MappingSet emitRightMapping = new MappingSet("rightCompositeIndex", "outIndex", "rightContainer", "outgoing",
-        emitRightConstant, emitRight);
+    final GeneratorMapping emitRightConstant =
+        GeneratorMapping.create("doSetup", "doSetup", null, null);
+    final MappingSet emitRightMapping =
+        new MappingSet(
+            "rightCompositeIndex",
+            "outIndex",
+            "rightContainer",
+            "outgoing",
+            emitRightConstant,
+            emitRight);
 
     final GeneratorMapping emitLeft = GeneratorMapping.create("doSetup", "emitLeft", null, null);
-    final GeneratorMapping emitLeftConstant = GeneratorMapping.create("doSetup", "doSetup", null, null);
-    final MappingSet emitLeftMapping = new MappingSet("leftIndex", "outIndex", "leftBatch", "outgoing",
-        emitLeftConstant, emitLeft);
+    final GeneratorMapping emitLeftConstant =
+        GeneratorMapping.create("doSetup", "doSetup", null, null);
+    final MappingSet emitLeftMapping =
+        new MappingSet(
+            "leftIndex", "outIndex", "leftBatch", "outgoing", emitLeftConstant, emitLeft);
 
-    final CodeGenerator<NLJWorker> nLJCodeGenerator = context.getClassProducer()
-        .createGenerator(NLJWorker.TEMPLATE_DEFINITION);
+    final CodeGenerator<NLJWorker> nLJCodeGenerator =
+        context.getClassProducer().createGenerator(NLJWorker.TEMPLATE_DEFINITION);
     final ClassGenerator<NLJWorker> nLJClassGenerator = nLJCodeGenerator.getRoot();
 
     int outputFieldId = 0;
@@ -250,12 +260,20 @@ public class NLJOperator implements DualInputOperator {
         // Add the vector to our output container
         outgoing.addOrGet(field);
 
-        JVar inVV = nLJClassGenerator.declareVectorValueSetupAndMember("rightContainer",
-            new TypedFieldId(fieldType, true, fieldId));
-        JVar outVV = nLJClassGenerator.declareVectorValueSetupAndMember("outgoing",
-            new TypedFieldId(fieldType, false, outputFieldId));
-        nLJClassGenerator.getEvalBlock().add(
-            outVV.invoke("copyFromSafe").arg(recordIndexWithinBatch).arg(outIndex).arg(inVV.component(batchIndex)));
+        JVar inVV =
+            nLJClassGenerator.declareVectorValueSetupAndMember(
+                "rightContainer", new TypedFieldId(fieldType, true, fieldId));
+        JVar outVV =
+            nLJClassGenerator.declareVectorValueSetupAndMember(
+                "outgoing", new TypedFieldId(fieldType, false, outputFieldId));
+        nLJClassGenerator
+            .getEvalBlock()
+            .add(
+                outVV
+                    .invoke("copyFromSafe")
+                    .arg(recordIndexWithinBatch)
+                    .arg(outIndex)
+                    .arg(inVV.component(batchIndex)));
 
         fieldId++;
         outputFieldId++;
@@ -275,12 +293,16 @@ public class NLJOperator implements DualInputOperator {
         // Add the vector to the output container
         outgoing.addOrGet(field);
 
-        JVar inVV = nLJClassGenerator.declareVectorValueSetupAndMember("leftBatch",
-            new TypedFieldId(fieldType, false, fieldId));
-        JVar outVV = nLJClassGenerator.declareVectorValueSetupAndMember("outgoing",
-            new TypedFieldId(fieldType, false, outputFieldId));
+        JVar inVV =
+            nLJClassGenerator.declareVectorValueSetupAndMember(
+                "leftBatch", new TypedFieldId(fieldType, false, fieldId));
+        JVar outVV =
+            nLJClassGenerator.declareVectorValueSetupAndMember(
+                "outgoing", new TypedFieldId(fieldType, false, outputFieldId));
 
-        nLJClassGenerator.getEvalBlock().add(outVV.invoke("copyFromSafe").arg(leftIndex).arg(outIndex).arg(inVV));
+        nLJClassGenerator
+            .getEvalBlock()
+            .add(outVV.invoke("copyFromSafe").arg(leftIndex).arg(outIndex).arg(inVV));
 
         fieldId++;
         outputFieldId++;
@@ -288,8 +310,8 @@ public class NLJOperator implements DualInputOperator {
     }
 
     nljWorker = nLJCodeGenerator.getImplementationClass();
-    nljWorker.setupNestedLoopJoin(context.getClassProducer().getFunctionContext(), left, allRight, rightCounts,
-        outgoing);
+    nljWorker.setupNestedLoopJoin(
+        context.getClassProducer().getFunctionContext(), left, allRight, rightCounts, outgoing);
   }
 
   @Override
@@ -299,14 +321,13 @@ public class NLJOperator implements DualInputOperator {
 
   public static class Creator implements DualInputOperator.Creator<NestedLoopJoinPOP> {
     @Override
-    public DualInputOperator create(OperatorContext context, NestedLoopJoinPOP config) throws ExecutionSetupException {
-      if(config.isVectorized()) {
+    public DualInputOperator create(OperatorContext context, NestedLoopJoinPOP config)
+        throws ExecutionSetupException {
+      if (config.isVectorized()) {
         return new NLJEOperator(context, config);
       }
 
       return new NLJOperator(context, config);
     }
-
   }
-
 }

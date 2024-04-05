@@ -27,40 +27,41 @@ import com.google.common.base.Preconditions;
 @JsonTypeName("values")
 public class Values extends SourceOperator {
 
-    private final JSONOptions content;
+  private final JSONOptions content;
 
-    @JsonCreator
-    public Values(@JsonProperty("content") JSONOptions content){
-        super();
-        this.content = content;
-        Preconditions.checkNotNull(content, "content attribute is required for source operator 'constant'.");
-    }
+  @JsonCreator
+  public Values(@JsonProperty("content") JSONOptions content) {
+    super();
+    this.content = content;
+    Preconditions.checkNotNull(
+        content, "content attribute is required for source operator 'constant'.");
+  }
 
-    public JSONOptions getContent() {
-        return content;
+  public JSONOptions getContent() {
+    return content;
+  }
+
+  @Override
+  public <T, X, E extends Throwable> T accept(LogicalVisitor<T, X, E> logicalVisitor, X value)
+      throws E {
+    return logicalVisitor.visitValues(this, value);
+  }
+
+  public static Builder builder() {
+    return new Builder();
+  }
+
+  public static class Builder extends AbstractBuilder<Values> {
+    private JSONOptions content;
+
+    public Builder content(JsonNode n) {
+      content = new JSONOptions(n, JsonLocation.NA);
+      return this;
     }
 
     @Override
-    public <T, X, E extends Throwable> T accept(LogicalVisitor<T, X, E> logicalVisitor, X value) throws E {
-      return logicalVisitor.visitValues(this, value);
+    public Values build() {
+      return new Values(content);
     }
-
-    public static Builder builder(){
-      return new Builder();
-    }
-
-    public static class Builder extends AbstractBuilder<Values>{
-      private JSONOptions content;
-
-      public Builder content(JsonNode n){
-        content = new JSONOptions(n, JsonLocation.NA);
-        return this;
-      }
-
-      @Override
-      public Values build() {
-        return new Values(content);
-      }
-    }
-
+  }
 }

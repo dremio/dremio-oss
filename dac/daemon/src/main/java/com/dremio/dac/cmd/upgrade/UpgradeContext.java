@@ -21,9 +21,7 @@ import com.dremio.datastore.api.KVStoreProvider;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.catalog.ConnectionReader;
 
-/**
- * contains all stores required by all upgrade tasks
- */
+/** contains all stores required by all upgrade tasks */
 public class UpgradeContext {
 
   private final KVStoreProvider kvStoreProvider;
@@ -33,12 +31,11 @@ public class UpgradeContext {
   private final ScanResult scanResult;
 
   UpgradeContext(
-    KVStoreProvider kvStoreProvider,
-    LegacyKVStoreProvider legacyKVStoreProvider,
-    LogicalPlanPersistence lpPersistence,
-    ConnectionReader connectionReader,
-    ScanResult scanResult
-  ) {
+      KVStoreProvider kvStoreProvider,
+      LegacyKVStoreProvider legacyKVStoreProvider,
+      LogicalPlanPersistence lpPersistence,
+      ConnectionReader connectionReader,
+      ScanResult scanResult) {
     this.kvStoreProvider = kvStoreProvider;
     this.legacyKVStoreProvider = legacyKVStoreProvider;
     this.lpPersistence = lpPersistence;

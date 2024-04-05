@@ -17,17 +17,15 @@ package com.dremio.exec.physical.impl;
 
 import static org.junit.Assert.assertEquals;
 
-import java.util.List;
-
-import org.junit.Ignore;
-import org.junit.Test;
-
 import com.dremio.exec.client.DremioClient;
 import com.dremio.exec.pop.PopUnitTestBase;
 import com.dremio.exec.server.SabotNode;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.local.LocalClusterCoordinator;
+import java.util.List;
+import org.junit.Ignore;
+import org.junit.Test;
 
 @Ignore("DX-3872")
 public class TestUnionExchange extends PopUnitTestBase {
@@ -36,15 +34,19 @@ public class TestUnionExchange extends PopUnitTestBase {
   @Test
   public void twoBitTwoExchangeTwoEntryRun() throws Exception {
     try (ClusterCoordinator clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
-         SabotNode bit1 = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, true);
-         SabotNode bit2 = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, false);
-         DremioClient client = new DremioClient(DEFAULT_SABOT_CONFIG, clusterCoordinator)) {
+        SabotNode bit1 =
+            new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, true);
+        SabotNode bit2 =
+            new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, false);
+        DremioClient client = new DremioClient(DEFAULT_SABOT_CONFIG, clusterCoordinator)) {
 
       bit1.run();
       bit2.run();
       client.connect();
-      List<QueryDataBatch> results = client.runQuery(com.dremio.exec.proto.UserBitShared.QueryType.PHYSICAL,
-        readResourceAsString("/sender/union_exchange.json"));
+      List<QueryDataBatch> results =
+          client.runQuery(
+              com.dremio.exec.proto.UserBitShared.QueryType.PHYSICAL,
+              readResourceAsString("/sender/union_exchange.json"));
       int count = 0;
       for (QueryDataBatch b : results) {
         if (b.getHeader().getRowCount() != 0) {
@@ -55,5 +57,4 @@ public class TestUnionExchange extends PopUnitTestBase {
       assertEquals(150, count);
     }
   }
-
 }

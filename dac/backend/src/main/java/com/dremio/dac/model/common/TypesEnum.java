@@ -20,14 +20,13 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-/**
- * To facilitate protostuff polymorphism and jackson mapping
- */
+/** To facilitate protostuff polymorphism and jackson mapping */
 @Target({ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
 public @interface TypesEnum {
   /** the enum listing all the possible subtypes */
   public Class<? extends Enum<?>> types();
+
   /** the format to generate the classname from the enum name (first letter will be capitalized) */
   public String format();
 }

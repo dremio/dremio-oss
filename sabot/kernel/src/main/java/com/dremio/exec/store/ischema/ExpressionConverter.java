@@ -15,9 +15,14 @@
  */
 package com.dremio.exec.store.ischema;
 
+import com.dremio.datastore.indexed.IndexKey;
+import com.dremio.service.catalog.SearchQuery;
+import com.dremio.service.namespace.DatasetIndexKeys;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import java.util.ArrayList;
 import java.util.List;
-
+import java.util.stream.Collectors;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
@@ -36,60 +41,74 @@ import org.apache.calcite.rex.RexSubQuery;
 import org.apache.calcite.rex.RexTableInputRef;
 import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.rex.RexVisitor;
-
-import com.dremio.datastore.indexed.IndexKey;
-import com.dremio.service.catalog.SearchQuery;
-import com.dremio.service.namespace.DatasetIndexKeys;
-import com.google.common.collect.ImmutableMap;
+import org.apache.calcite.sql.SqlFunction;
 
 /**
  * Enables conversion of a filter condition into a search query and remainder for pushdown purposes.
  */
 public final class ExpressionConverter {
-  private static final ImmutableMap<String, IndexKey> FIELDS = ImmutableMap.of(
-      "TABLE_SCHEMA".toLowerCase(), DatasetIndexKeys.UNQUOTED_SCHEMA,
-      "TABLE_NAME".toLowerCase(), DatasetIndexKeys.UNQUOTED_NAME,
-      "SCHEMA_NAME".toLowerCase(), DatasetIndexKeys.UNQUOTED_SCHEMA
-      // Don't support columns because the filtering pattern with lucene is too complex.
-      );
+  private static final ImmutableMap<String, IndexKey> FIELDS =
+      ImmutableMap.of(
+          "TABLE_SCHEMA".toLowerCase(), DatasetIndexKeys.UNQUOTED_SCHEMA,
+          "TABLE_NAME".toLowerCase(), DatasetIndexKeys.UNQUOTED_NAME,
+          "SCHEMA_NAME".toLowerCase(), DatasetIndexKeys.UNQUOTED_SCHEMA
+          // Don't support columns because the filtering pattern with lucene is too complex.
+          );
+  private static final ImmutableMap<String, IndexKey> LC_FIELDS =
+      ImmutableMap.of(
+          "TABLE_SCHEMA".toLowerCase(), DatasetIndexKeys.UNQUOTED_LC_SCHEMA,
+          "TABLE_NAME".toLowerCase(), DatasetIndexKeys.UNQUOTED_LC_NAME,
+          "SCHEMA_NAME".toLowerCase(), DatasetIndexKeys.UNQUOTED_LC_SCHEMA);
 
-  private ExpressionConverter() {
-  }
+  private static final ImmutableSet<String> INDEX_COMPATIBLE_FUNCTIONS =
+      ImmutableSet.of("LOWER", "UPPER", "LCASE", "UCASE");
 
-  public static PushdownResult pushdown(RexBuilder rexBuilder, RelDataType rowType, RexNode condition) {
+  private ExpressionConverter() {}
+
+  public static PushdownResult pushdown(
+      RexBuilder rexBuilder, RelDataType rowType, RexNode condition) {
     List<RexNode> conjuncts = RelOptUtil.conjunctions(condition);
-    List<RexNode> unused = new ArrayList<>();
-    List<SearchQuery> found = new ArrayList<>();
+    List<RexNode> remainders = new ArrayList<>();
+    List<NodePushdown> found = new ArrayList<>();
 
     Visitor visitor = new Visitor(rowType);
-    for(RexNode n : conjuncts) {
-      SearchQuery q = n.accept(visitor);
-      if(q == null) {
-        unused.add(n);
+    for (RexNode n : conjuncts) {
+      NodePushdown q = n.accept(visitor);
+      if (q == null) {
+        remainders.add(n);
       } else {
+        if (!q.isExactFilter()) {
+          // If we pushed down a filter to the scan, but that scan returns a superset of the real
+          // results, we need to maintain the filter in the query plan as well.
+          // E.g. for WHERE UPPER(TABLE_NAME) = 'abc', we push down LC_SEARCH_NAME=abc, but we still
+          // need to execute the filter so no rows get returned.
+          remainders.add(n);
+        }
         found.add(q);
       }
     }
 
-    if(found.isEmpty()) {
+    if (found.isEmpty()) {
       return new PushdownResult(null, condition);
     }
 
-    RexNode remainder = RexUtil.composeConjunction(rexBuilder, unused, true);
+    RexNode remainder = RexUtil.composeConjunction(rexBuilder, remainders, true);
 
-    if(found.size() == 1) {
-      return new PushdownResult(found.get(0), remainder);
+    if (found.size() == 1) {
+      return new PushdownResult(found.get(0).getQuery(), remainder);
     } else {
-      return new PushdownResult(SearchQuery.newBuilder()
-        .setAnd(SearchQuery.And.newBuilder()
-          .addAllClauses(found))
-        .build(),
-        remainder);
+      return new PushdownResult(
+          SearchQuery.newBuilder()
+              .setAnd(
+                  SearchQuery.And.newBuilder()
+                      .addAllClauses(
+                          found.stream().map(NodePushdown::getQuery).collect(Collectors.toList())))
+              .build(),
+          remainder);
     }
-
   }
 
-  private static class Visitor implements RexVisitor<SearchQuery>{
+  private static class Visitor implements RexVisitor<NodePushdown> {
 
     public Visitor(RelDataType rowType) {
       this.rowType = rowType;
@@ -98,178 +117,208 @@ public final class ExpressionConverter {
     private final RelDataType rowType;
 
     @Override
-    public SearchQuery visitInputRef(RexInputRef inputRef) {
+    public NodePushdown visitInputRef(RexInputRef inputRef) {
       return null;
     }
 
     @Override
-    public SearchQuery visitLocalRef(RexLocalRef localRef) {
+    public NodePushdown visitLocalRef(RexLocalRef localRef) {
       return null;
     }
 
     @Override
-    public SearchQuery visitLiteral(RexLiteral literal) {
+    public NodePushdown visitLiteral(RexLiteral literal) {
       return null;
     }
 
-
     @Override
-    public SearchQuery visitCall(RexCall call) {
-      final List<SearchQuery> subs = subs(call.getOperands());
+    public NodePushdown visitCall(RexCall call) {
+      final List<NodePushdown> subs = subs(call.getOperands());
 
       final LitInput bifunc = litInput(call);
-      switch(call.getKind()) {
-      case EQUALS:
-        if(bifunc == null) {
+      switch (call.getKind()) {
+        case EQUALS:
+          {
+            if (bifunc == null) {
+              return null;
+            }
+            SearchQuery query =
+                SearchQuery.newBuilder()
+                    .setEquals(
+                        SearchQuery.Equals.newBuilder()
+                            .setField(bifunc.field.getIndexFieldName())
+                            .setStringValue(bifunc.literal))
+                    .build();
+            return new NodePushdown(query, bifunc.isFunctionCall);
+          }
+        case AND:
+          {
+            if (subs == null) {
+              return null;
+            }
+
+            SearchQuery query =
+                SearchQuery.newBuilder()
+                    .setAnd(
+                        SearchQuery.And.newBuilder()
+                            .addAllClauses(
+                                subs.stream()
+                                    .map(NodePushdown::getQuery)
+                                    .collect(Collectors.toList())))
+                    .build();
+            return new NodePushdown(query, subs.stream().allMatch(NodePushdown::isExactFilter));
+          }
+        case OR:
+          {
+            if (subs == null) {
+              return null;
+            }
+
+            SearchQuery query =
+                SearchQuery.newBuilder()
+                    .setOr(
+                        SearchQuery.Or.newBuilder()
+                            .addAllClauses(
+                                subs.stream()
+                                    .map(NodePushdown::getQuery)
+                                    .collect(Collectors.toList())))
+                    .build();
+            return new NodePushdown(query, subs.stream().allMatch(NodePushdown::isExactFilter));
+
+            // Lucene doesn't handle NOT expressions well in some cases.
+            //      case NOT:
+            //        if(subs == null || subs.size() != 1) {
+            //          return null;
+            //        }
+            //        SearchQuery q = subs.get(0);
+            //        return SearchQueryUtils.not(subs.get(0));
+            //
+            //      case NOT_EQUALS:
+            //        if(bifunc == null) {
+            //          return null;
+            //        }
+            //        return SearchQueryUtils.not(SearchQueryUtils.newTermQuery(bifunc.field,
+            // bifunc.literal));
+          }
+        case LIKE:
+          return handleLike(call);
+
+        default:
           return null;
-        }
-        return SearchQuery.newBuilder()
-          .setEquals(SearchQuery.Equals.newBuilder()
-            .setField(bifunc.field.getIndexFieldName())
-            .setStringValue(bifunc.literal))
-          .build();
-
-      case AND:
-        if(subs == null) {
-          return null;
-        }
-
-        return SearchQuery.newBuilder()
-          .setAnd(SearchQuery.And.newBuilder()
-            .addAllClauses(subs))
-          .build();
-
-      case OR:
-        if(subs == null) {
-          return null;
-        }
-
-        return SearchQuery.newBuilder()
-          .setOr(SearchQuery.Or.newBuilder()
-            .addAllClauses(subs))
-          .build();
-
-// Lucene doesn't handle NOT expressions well in some cases.
-//      case NOT:
-//        if(subs == null || subs.size() != 1) {
-//          return null;
-//        }
-//        SearchQuery q = subs.get(0);
-//        return SearchQueryUtils.not(subs.get(0));
-//
-//      case NOT_EQUALS:
-//        if(bifunc == null) {
-//          return null;
-//        }
-//        return SearchQueryUtils.not(SearchQueryUtils.newTermQuery(bifunc.field, bifunc.literal));
-
-      case LIKE:
-        return handleLike(call);
-
-      default:
-        return null;
       }
-
     }
 
-    private SearchQuery handleLike(RexCall call) {
+    private NodePushdown handleLike(RexCall call) {
 
       List<RexNode> operands = call.getOperands();
 
       IndexKey indexKey = null;
       String pattern = null;
       String escape = null;
+      boolean caseSensitiveIndex = true;
 
-      switch(operands.size()) {
+      switch (operands.size()) {
+        case 3:
+          RexNode op3 = operands.get(2);
+          if (op3 instanceof RexLiteral) {
+            escape = ((RexLiteral) op3).getValue3().toString();
+          } else {
+            return null;
+          }
+          // fall through
 
-      case 3:
-        RexNode op3 = operands.get(2);
-        if(op3 instanceof RexLiteral) {
-          escape = ((RexLiteral) op3).getValue3().toString();
-        } else {
+        case 2:
+          RexNode op1 = operands.get(0);
+          if (op1 instanceof RexInputRef) {
+            RexInputRef input = ((RexInputRef) op1);
+            indexKey =
+                FIELDS.get(rowType.getFieldList().get(input.getIndex()).getName().toLowerCase());
+          } else if (op1 instanceof RexCall && isIndexCompatibleCall((RexCall) op1)) {
+            RexInputRef input = (RexInputRef) ((RexCall) op1).getOperands().get(0);
+            indexKey =
+                LC_FIELDS.get(rowType.getFieldList().get(input.getIndex()).getName().toLowerCase());
+            caseSensitiveIndex = false;
+          }
+          if (indexKey == null) {
+            return null;
+          }
+
+          RexNode op2 = operands.get(1);
+          if (op2 instanceof RexLiteral) {
+            pattern =
+                caseSensitiveIndex
+                    ? ((RexLiteral) op2).getValue3().toString()
+                    : ((RexLiteral) op2).getValue3().toString().toLowerCase();
+          } else {
+            return null;
+          }
+          break;
+
+        default:
           return null;
-        }
-        // fall through
-
-      case 2:
-        RexNode op1 = operands.get(0);
-        if(op1 instanceof RexInputRef) {
-          RexInputRef input = ((RexInputRef) op1);
-          indexKey = FIELDS.get(rowType.getFieldList().get(input.getIndex()).getName().toLowerCase());
-        }
-        if(indexKey == null) {
-          return null;
-        }
-
-        RexNode op2 = operands.get(1);
-        if(op2 instanceof RexLiteral) {
-          pattern = ((RexLiteral) op2).getValue3().toString();
-        } else {
-          return null;
-        }
-        break;
-
-      default:
-        return null;
       }
 
-      return SearchQuery.newBuilder()
-        .setLike(SearchQuery.Like.newBuilder()
-          .setField(indexKey.getIndexFieldName())
-          .setPattern(pattern)
-          .setEscape(escape == null ? "" : escape)
-          .setCaseInsensitive(false))
-        .build();
+      SearchQuery query =
+          SearchQuery.newBuilder()
+              .setLike(
+                  SearchQuery.Like.newBuilder()
+                      .setField(indexKey.getIndexFieldName())
+                      .setPattern(pattern)
+                      .setEscape(escape == null ? "" : escape)
+                      .setCaseInsensitive(false))
+              .build();
+      return new NodePushdown(query, caseSensitiveIndex);
     }
 
     @Override
-    public SearchQuery visitOver(RexOver over) {
+    public NodePushdown visitOver(RexOver over) {
       return null;
     }
 
     @Override
-    public SearchQuery visitCorrelVariable(RexCorrelVariable correlVariable) {
+    public NodePushdown visitCorrelVariable(RexCorrelVariable correlVariable) {
       return null;
     }
 
     @Override
-    public SearchQuery visitDynamicParam(RexDynamicParam dynamicParam) {
+    public NodePushdown visitDynamicParam(RexDynamicParam dynamicParam) {
       return null;
     }
 
     @Override
-    public SearchQuery visitRangeRef(RexRangeRef rangeRef) {
+    public NodePushdown visitRangeRef(RexRangeRef rangeRef) {
       return null;
     }
 
     @Override
-    public SearchQuery visitFieldAccess(RexFieldAccess fieldAccess) {
+    public NodePushdown visitFieldAccess(RexFieldAccess fieldAccess) {
       return fieldAccess.getReferenceExpr().accept(this);
     }
 
     @Override
-    public SearchQuery visitSubQuery(RexSubQuery subQuery) {
+    public NodePushdown visitSubQuery(RexSubQuery subQuery) {
       return null;
     }
 
     @Override
-    public SearchQuery visitPatternFieldRef(RexPatternFieldRef fieldRef) {
+    public NodePushdown visitPatternFieldRef(RexPatternFieldRef fieldRef) {
       return null;
     }
 
     @Override
-    public SearchQuery visitTableInputRef(RexTableInputRef fieldRef) {
+    public NodePushdown visitTableInputRef(RexTableInputRef fieldRef) {
       return null;
     }
 
     /**
      * Get an input that is a combination of two values, a literal and an index key.
+     *
      * @param call
      * @return Null if call does not match expected pattern. Otherwise the LitInput value.
      */
     private LitInput litInput(RexCall call) {
       List<RexNode> operands = call.getOperands();
-      if(operands.size() != 2) {
+      if (operands.size() != 2) {
         return null;
       }
 
@@ -278,77 +327,86 @@ public final class ExpressionConverter {
 
       RexLiteral literal = null;
       RexInputRef input = null;
-      boolean literalFirst = true;
+      boolean caseSensitiveIndex = true;
 
-      if(first instanceof RexLiteral) {
+      if (first instanceof RexLiteral) {
         literal = (RexLiteral) first;
-        if(second instanceof RexInputRef) {
+        if (second instanceof RexInputRef) {
           input = (RexInputRef) second;
-          literalFirst = true;
         } else {
           return null;
         }
       }
 
-      if(second instanceof RexLiteral) {
+      if (second instanceof RexLiteral) {
         literal = (RexLiteral) second;
-        if(first instanceof RexInputRef) {
+        if (first instanceof RexInputRef) {
           input = (RexInputRef) first;
-          literalFirst = false;
+        } else if (first instanceof RexCall && isIndexCompatibleCall((RexCall) first)) {
+          input = (RexInputRef) ((RexCall) first).getOperands().get(0);
+          caseSensitiveIndex = false;
         } else {
           return null;
         }
       }
 
-      if(input == null) {
+      if (input == null) {
         return null;
       }
 
-      IndexKey key = FIELDS.get(rowType.getFieldList().get(input.getIndex()).getName().toLowerCase());
+      IndexKey key =
+          caseSensitiveIndex
+              ? FIELDS.get(rowType.getFieldList().get(input.getIndex()).getName().toLowerCase())
+              : LC_FIELDS.get(rowType.getFieldList().get(input.getIndex()).getName().toLowerCase());
 
-      if(key == null) {
+      if (key == null) {
         return null;
       }
 
-      return new LitInput(literal.getValue3().toString(), key, literalFirst);
-
+      String literalStr =
+          caseSensitiveIndex
+              ? literal.getValue3().toString()
+              : literal.getValue3().toString().toLowerCase();
+      return new LitInput(literalStr, key, caseSensitiveIndex);
     }
 
-    private List<SearchQuery> subs(List<RexNode> ops){
-      List<SearchQuery> subQueries = new ArrayList<>();
-      for(RexNode n : ops) {
-        SearchQuery query = n.accept(this);
-        if(query == null) {
+    private List<NodePushdown> subs(List<RexNode> ops) {
+      List<NodePushdown> subQueries = new ArrayList<>();
+      for (RexNode n : ops) {
+        NodePushdown nodePushdown = n.accept(this);
+        if (nodePushdown == null) {
           return null;
         }
-        subQueries.add(query);
+        subQueries.add(nodePushdown);
       }
 
       return subQueries;
     }
 
-    /**
-     * An input that is a combination of two values, a literal and an index key.
-     *
-     * Also identifies if the literal was the first argument. Useful for GT,LT, etc.
-     */
-    private static class LitInput {
+    private static boolean isIndexCompatibleCall(RexCall rexCall) {
+      if (!(rexCall.op instanceof SqlFunction)) {
+        return false;
+      }
+      String funcName = rexCall.op.getName();
+      return INDEX_COMPATIBLE_FUNCTIONS.contains(funcName.toUpperCase());
+    }
+
+    /** An input that is a combination of two values, a literal and an index key. */
+    private static final class LitInput {
       private String literal;
       private IndexKey field;
-      @SuppressWarnings("unused") private boolean literalFirst;
+      private boolean isFunctionCall;
 
-      public LitInput(String literal, IndexKey field, boolean literalFirst) {
+      public LitInput(String literal, IndexKey field, boolean isFunctionCall) {
         super();
         this.literal = literal;
         this.field = field;
-        this.literalFirst = literalFirst;
+        this.isFunctionCall = isFunctionCall;
       }
-
     }
-
   }
 
-  public static class PushdownResult {
+  public static final class PushdownResult {
     private final SearchQuery query;
     private final RexNode remainder;
 
@@ -365,6 +423,23 @@ public final class ExpressionConverter {
     public RexNode getRemainder() {
       return remainder;
     }
+  }
 
+  private static final class NodePushdown {
+    private final SearchQuery query;
+    private final boolean isExactFilter;
+
+    public NodePushdown(SearchQuery query, boolean isExactFilter) {
+      this.query = query;
+      this.isExactFilter = isExactFilter;
+    }
+
+    private SearchQuery getQuery() {
+      return query;
+    }
+
+    private boolean isExactFilter() {
+      return isExactFilter;
+    }
   }
 }

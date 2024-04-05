@@ -17,12 +17,8 @@ package com.dremio.context;
 
 import com.google.common.collect.ImmutableMap;
 
-/**
- * Context object that can be serialized and deserialized for transport over the network.
- */
+/** Context object that can be serialized and deserialized for transport over the network. */
 public interface SerializableContext {
-  /**
-   * Serializes the contents of this context into the provided map builder.
-   */
+  /** Serializes the contents of this context into the provided map builder. */
   void serialize(ImmutableMap.Builder<String, String> builder);
 }

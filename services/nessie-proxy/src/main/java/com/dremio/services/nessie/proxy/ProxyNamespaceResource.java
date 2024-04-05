@@ -15,9 +15,10 @@
  */
 package com.dremio.services.nessie.proxy;
 
+import com.fasterxml.jackson.annotation.JsonView;
 import javax.enterprise.context.RequestScoped;
 import javax.inject.Inject;
-
+import javax.ws.rs.Path;
 import org.projectnessie.api.v1.http.HttpNamespaceApi;
 import org.projectnessie.api.v1.params.MultipleNamespacesParams;
 import org.projectnessie.api.v1.params.NamespaceParams;
@@ -36,28 +37,26 @@ import org.projectnessie.model.GetNamespacesResponse;
 import org.projectnessie.model.Namespace;
 import org.projectnessie.model.ser.Views;
 
-import com.fasterxml.jackson.annotation.JsonView;
-
-/**
- * Nessie Namespace-API REST endpoint that forwards via gRPC.
- */
+/** Nessie Namespace-API REST endpoint that forwards via gRPC. */
 @RequestScoped
+@Path("api/v1/namespaces")
 public class ProxyNamespaceResource implements HttpNamespaceApi {
 
   @SuppressWarnings("checkstyle:visibilityModifier")
   @Inject
   NessieApiV1 api;
 
-  public ProxyNamespaceResource() {
-  }
+  public ProxyNamespaceResource() {}
 
   @Override
   @JsonView(Views.V1.class)
   public Namespace createNamespace(NamespaceParams params, Namespace namespace)
-    throws NessieNamespaceAlreadyExistsException, NessieReferenceNotFoundException {
-    CreateNamespaceBuilder builder = api.createNamespace().refName(params.getRefName())
-      .namespace(params.getNamespace())
-      .properties(namespace.getProperties());
+      throws NessieNamespaceAlreadyExistsException, NessieReferenceNotFoundException {
+    CreateNamespaceBuilder builder =
+        api.createNamespace()
+            .refName(params.getRefName())
+            .namespace(params.getNamespace())
+            .properties(namespace.getProperties());
     if (null != params.getHashOnRef()) {
       builder.hashOnRef(params.getHashOnRef());
     }
@@ -67,9 +66,11 @@ public class ProxyNamespaceResource implements HttpNamespaceApi {
   @Override
   @JsonView(Views.V1.class)
   public void deleteNamespace(NamespaceParams params)
-    throws NessieReferenceNotFoundException, NessieNamespaceNotEmptyException, NessieNamespaceNotFoundException {
-    DeleteNamespaceBuilder builder = api.deleteNamespace().refName(params.getRefName())
-      .namespace(params.getNamespace());
+      throws NessieReferenceNotFoundException,
+          NessieNamespaceNotEmptyException,
+          NessieNamespaceNotFoundException {
+    DeleteNamespaceBuilder builder =
+        api.deleteNamespace().refName(params.getRefName()).namespace(params.getNamespace());
     if (null != params.getHashOnRef()) {
       builder.hashOnRef(params.getHashOnRef());
     }
@@ -79,9 +80,9 @@ public class ProxyNamespaceResource implements HttpNamespaceApi {
   @Override
   @JsonView(Views.V1.class)
   public Namespace getNamespace(NamespaceParams params)
-    throws NessieNamespaceNotFoundException, NessieReferenceNotFoundException {
-    GetNamespaceBuilder builder = api.getNamespace().refName(params.getRefName())
-      .namespace(params.getNamespace());
+      throws NessieNamespaceNotFoundException, NessieReferenceNotFoundException {
+    GetNamespaceBuilder builder =
+        api.getNamespace().refName(params.getRefName()).namespace(params.getNamespace());
     if (null != params.getHashOnRef()) {
       builder.hashOnRef(params.getHashOnRef());
     }
@@ -91,9 +92,8 @@ public class ProxyNamespaceResource implements HttpNamespaceApi {
   @Override
   @JsonView(Views.V1.class)
   public GetNamespacesResponse getNamespaces(MultipleNamespacesParams params)
-    throws NessieReferenceNotFoundException {
-    GetMultipleNamespacesBuilder builder = api.getMultipleNamespaces()
-      .refName(params.getRefName());
+      throws NessieReferenceNotFoundException {
+    GetMultipleNamespacesBuilder builder = api.getMultipleNamespaces().refName(params.getRefName());
     if (null != params.getNamespace()) {
       builder.namespace(params.getNamespace());
     }
@@ -106,9 +106,9 @@ public class ProxyNamespaceResource implements HttpNamespaceApi {
   @Override
   @JsonView(Views.V1.class)
   public void updateProperties(NamespaceParams params, NamespaceUpdate namespaceUpdate)
-    throws NessieNamespaceNotFoundException, NessieReferenceNotFoundException {
-    UpdateNamespaceBuilder builder = api.updateProperties().refName(params.getRefName())
-      .namespace(params.getNamespace());
+      throws NessieNamespaceNotFoundException, NessieReferenceNotFoundException {
+    UpdateNamespaceBuilder builder =
+        api.updateProperties().refName(params.getRefName()).namespace(params.getNamespace());
 
     if (namespaceUpdate.getPropertyRemovals() != null) {
       builder.removeProperties(namespaceUpdate.getPropertyRemovals());

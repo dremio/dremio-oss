@@ -19,7 +19,6 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-
 import org.apache.calcite.rel.RelFieldCollation;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Window;
@@ -27,9 +26,7 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.SqlKind;
 
-/**
- * Util class for Over
- */
+/** Util class for Over */
 public class WindowUtil {
 
   private WindowUtil() {}
@@ -55,7 +52,10 @@ public class WindowUtil {
           directions.add(SqlKind.NULLS_FIRST);
         }
 
-        RexFieldCollation rexCollation = new RexFieldCollation(w.getCluster().getRexBuilder().makeInputRef(input, collation.getFieldIndex()), directions);
+        RexFieldCollation rexCollation =
+            new RexFieldCollation(
+                w.getCluster().getRexBuilder().makeInputRef(input, collation.getFieldIndex()),
+                directions);
         orderKeys.add(rexCollation);
       }
 
@@ -65,40 +65,58 @@ public class WindowUtil {
       }
 
       // Create RexWindow
-      RexWindow window = new RexWindow(partitionKeys, orderKeys, group.lowerBound, group.upperBound, group.isRows);
+      RexWindow window =
+          new RexWindow(partitionKeys, orderKeys, group.lowerBound, group.upperBound, group.isRows);
 
       // For each window agg call, create rex over
       for (Window.RexWinAggCall winAggCall : group.aggCalls) {
 
-        RexShuttle replaceConstants = new RexShuttle() {
-          @Override public RexNode visitInputRef(RexInputRef inputRef) {
-            int index = inputRef.getIndex();
-            RexNode ref;
-            if (index > inputFieldCount - 1) {
-              ref = w.constants.get(index - inputFieldCount);
-            } else {
-              ref = inputRef;
-            }
-            return ref;
-          }
-        };
+        RexShuttle replaceConstants =
+            new RexShuttle() {
+              @Override
+              public RexNode visitInputRef(RexInputRef inputRef) {
+                int index = inputRef.getIndex();
+                RexNode ref;
+                if (index > inputFieldCount - 1) {
+                  ref = w.constants.get(index - inputFieldCount);
+                } else {
+                  ref = inputRef;
+                }
+                return ref;
+              }
+            };
         RexCall aggCall = (RexCall) winAggCall.accept(replaceConstants);
         SqlAggFunction aggFunction = (SqlAggFunction) winAggCall.getOperator();
-        RexOver over = new RexOver(winAggCall.getType(), aggFunction, aggCall.operands, window, winAggCall.distinct);
+        RexOver over =
+            new RexOver(
+                winAggCall.getType(),
+                aggFunction,
+                aggCall.operands,
+                window,
+                winAggCall.distinct,
+                winAggCall.ignoreNulls);
         rexOvers.add(over);
       }
     }
     return rexOvers;
   }
 
-  public static RexWindow createRexWindow(List<RexNode> partitionKeys, List<RexFieldCollation> orderKeys,
-                                 RexWindowBound lowerBound, RexWindowBound upperBound, boolean isRows) {
+  public static RexWindow createRexWindow(
+      List<RexNode> partitionKeys,
+      List<RexFieldCollation> orderKeys,
+      RexWindowBound lowerBound,
+      RexWindowBound upperBound,
+      boolean isRows) {
     return new RexWindow(partitionKeys, orderKeys, lowerBound, upperBound, isRows);
   }
 
-  public static RexOver createRexOver(RelDataType type, SqlAggFunction op,
-                                      List<RexNode> operands, RexWindow window,
-                                      boolean distinct) {
-    return new RexOver(type, op, operands, window, distinct);
+  public static RexOver createRexOver(
+      RelDataType type,
+      SqlAggFunction op,
+      List<RexNode> operands,
+      RexWindow window,
+      boolean distinct,
+      boolean ignoreNulls) {
+    return new RexOver(type, op, operands, window, distinct, ignoreNulls);
   }
 }

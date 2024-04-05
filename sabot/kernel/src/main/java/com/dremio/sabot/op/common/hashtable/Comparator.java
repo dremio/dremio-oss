@@ -15,9 +15,7 @@
  */
 package com.dremio.sabot.op.common.hashtable;
 
-/**
- * Comparator type. Used in Join and Aggregation operators.
- */
+/** Comparator type. Used in Join and Aggregation operators. */
 public enum Comparator {
   NONE, // No comparator
   EQUALS, // Equality comparator

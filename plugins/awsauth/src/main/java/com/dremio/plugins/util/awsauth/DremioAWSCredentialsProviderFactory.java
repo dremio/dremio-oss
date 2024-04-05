@@ -15,35 +15,36 @@
  */
 package com.dremio.plugins.util.awsauth;
 
+import com.amazonaws.auth.AWSCredentialsProvider;
 import java.io.IOException;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.s3a.Constants;
-
-import com.amazonaws.auth.AWSCredentialsProvider;
 
 /**
  * Factory to provide the appropriate AWSCredentialsProvider based on a Configuration.
  *
- * Note: This package can hopefully be used in the future to consolidate very
- * similar code in S3, Hive, and Glue plugins, but that was out of scope for
- * the current work.
+ * <p>Note: This package can hopefully be used in the future to consolidate very similar code in S3,
+ * Hive, and Glue plugins, but that was out of scope for the current work.
  */
 public final class DremioAWSCredentialsProviderFactory {
-  public static final String ACCESS_KEY_PROVIDER = "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider";
-  public static final String ASSUMED_ROLE_CREDENTIALS_PROVIDER = "fs.s3a.assumed.role.credentials.provider";
-  public static final String ASSUME_ROLE_PROVIDER = "com.dremio.plugins.s3.store.STSCredentialProviderV1";
-  public static final String EC2_METADATA_PROVIDER = "com.amazonaws.auth.InstanceProfileCredentialsProvider";
-  public static final String DREMIO_ASSUME_ROLE_PROVIDER = "com.dremio.service.coordinator.DremioAssumeRoleCredentialsProviderV1";
-  public static final String GLUE_DREMIO_ASSUME_ROLE_PROVIDER = "com.dremio.exec.store.hive.GlueDremioAssumeRoleCredentialsProviderV1";
-  public static final String AWS_PROFILE_PROVIDER = "com.dremio.plugins.s3.store.AWSProfileCredentialsProviderV1";
+  public static final String ACCESS_KEY_PROVIDER =
+      "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider";
+  public static final String ASSUMED_ROLE_CREDENTIALS_PROVIDER =
+      "fs.s3a.assumed.role.credentials.provider";
+  public static final String ASSUME_ROLE_PROVIDER =
+      "com.dremio.plugins.s3.store.STSCredentialProviderV1";
+  public static final String EC2_METADATA_PROVIDER =
+      "com.amazonaws.auth.InstanceProfileCredentialsProvider";
+  public static final String DREMIO_ASSUME_ROLE_PROVIDER =
+      "com.dremio.service.coordinator.DremioAssumeRoleCredentialsProviderV1";
+  public static final String GLUE_DREMIO_ASSUME_ROLE_PROVIDER =
+      "com.dremio.exec.store.hive.GlueDremioAssumeRoleCredentialsProviderV1";
+  public static final String AWS_PROFILE_PROVIDER =
+      "com.dremio.plugins.s3.store.AWSProfileCredentialsProviderV1";
 
-  private DremioAWSCredentialsProviderFactory() {
-  }
+  private DremioAWSCredentialsProviderFactory() {}
 
-  /**
-   * Constructs and returns the appropriate AWSCredentialsProvider.
-   */
+  /** Constructs and returns the appropriate AWSCredentialsProvider. */
   public static AWSCredentialsProvider getAWSCredentialsProvider(Configuration config) {
     switch (config.get(Constants.AWS_CREDENTIALS_PROVIDER)) {
       case ACCESS_KEY_PROVIDER:
@@ -73,7 +74,9 @@ public final class DremioAWSCredentialsProviderFactory {
         return new AWSProfileCredentialsProviderV1(config);
 
       default:
-        throw new IllegalStateException("Invalid AWSCredentialsProvider provided: " + config.get(Constants.AWS_CREDENTIALS_PROVIDER));
+        throw new IllegalStateException(
+            "Invalid AWSCredentialsProvider provided: "
+                + config.get(Constants.AWS_CREDENTIALS_PROVIDER));
     }
   }
 }

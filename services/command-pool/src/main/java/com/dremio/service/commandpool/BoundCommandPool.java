@@ -15,42 +15,49 @@
  */
 package com.dremio.service.commandpool;
 
+import com.dremio.common.concurrent.CloseableSchedulerThreadPool;
+import com.dremio.common.concurrent.ContextMigratingExecutorService;
+import com.dremio.common.concurrent.NamedThreadFactory;
+import com.dremio.telemetry.api.metrics.Metrics;
+import io.opentracing.Tracer;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-import com.dremio.common.concurrent.CloseableSchedulerThreadPool;
-import com.dremio.common.concurrent.ContextMigratingExecutorService;
-import com.dremio.common.concurrent.NamedThreadFactory;
-import com.dremio.telemetry.api.metrics.Metrics;
-
-import io.opentracing.Tracer;
-
 /**
  * Bound implementation of {@link CommandPool}.<br>
- *
- * Underlying thread pool uses a priority queue and relies on the {@link Command} comparator to define the priority.
+ * Underlying thread pool uses a priority queue and relies on the {@link Command} comparator to
+ * define the priority.
  */
 class BoundCommandPool implements CommandPool {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BoundCommandPool.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(BoundCommandPool.class);
 
   private final ContextMigratingExecutorService<ThreadPoolExecutor> executorService;
 
-
   BoundCommandPool(final int poolSize, Tracer tracer) {
-    this.executorService = new ContextMigratingExecutorService<>(new ThreadPoolExecutor(
-      poolSize, poolSize, // limited pool of threads
-      0, TimeUnit.SECONDS, // doesn't matter as number of threads never exceeds core size
-      new PriorityBlockingQueue<>(),
-      new NamedThreadFactory("bound-command")
-    ));
+    this.executorService =
+        new ContextMigratingExecutorService<>(
+            new ThreadPoolExecutor(
+                poolSize,
+                poolSize, // limited pool of threads
+                0,
+                TimeUnit.SECONDS, // doesn't matter as number of threads never exceeds core size
+                new PriorityBlockingQueue<>(),
+                new NamedThreadFactory("bound-command")));
   }
 
   @Override
-  public <V> CompletableFuture<V> submit(Priority priority, String descriptor, String spanName, Command<V> command, boolean runInSameThread) {
+  public <V> CompletableFuture<V> submit(
+      Priority priority,
+      String descriptor,
+      String spanName,
+      Command<V> command,
+      boolean runInSameThread) {
     final long time = System.currentTimeMillis();
-    final CommandWrapper<V> wrapper = new CommandWrapper<>(priority, descriptor, spanName, time, command);
+    final CommandWrapper<V> wrapper =
+        new CommandWrapper<>(priority, descriptor, spanName, time, command);
     logger.debug("command {} created", descriptor);
     if (runInSameThread) {
       logger.debug("running command {} in the same calling thread", descriptor);
@@ -63,8 +70,12 @@ class BoundCommandPool implements CommandPool {
 
   @Override
   public void start() throws Exception {
-    Metrics.newGauge(Metrics.join("jobs","command_pool", "active_threads"), () -> executorService.getDelegate().getActiveCount());
-    Metrics.newGauge(Metrics.join("jobs","command_pool", "queue_size"), () -> executorService.getDelegate().getQueue().size());
+    Metrics.newGauge(
+        Metrics.join("jobs", "command_pool", "active_threads"),
+        () -> executorService.getDelegate().getActiveCount());
+    Metrics.newGauge(
+        Metrics.join("jobs", "command_pool", "queue_size"),
+        () -> executorService.getDelegate().getQueue().size());
   }
 
   @Override

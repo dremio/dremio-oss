@@ -15,17 +15,14 @@
  */
 package com.dremio.exec.store.mfunctions;
 
+import com.dremio.exec.planner.logical.Rel;
+import com.dremio.exec.planner.physical.DistributionTrait;
+import com.dremio.exec.planner.physical.Prel;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.convert.ConverterRule;
 
-import com.dremio.exec.planner.logical.Rel;
-import com.dremio.exec.planner.physical.DistributionTrait;
-import com.dremio.exec.planner.physical.Prel;
-
-/**
- * Prule for metadata functions, covert  MFunctionQueryScanDrel to MFunctionQueryScanPrel
- */
+/** Prule for metadata functions, covert MFunctionQueryScanDrel to MFunctionQueryScanPrel */
 public final class MFunctionQueryScanPrule extends ConverterRule {
   public static RelOptRule INSTANCE = new MFunctionQueryScanPrule();
 
@@ -37,12 +34,11 @@ public final class MFunctionQueryScanPrule extends ConverterRule {
   public RelNode convert(RelNode rel) {
     MFunctionQueryScanDrel drel = (MFunctionQueryScanDrel) rel;
     return new MFunctionQueryScanPrel(
-      drel.getCluster(),
-      drel.getTraitSet().replace(Prel.PHYSICAL).replace(DistributionTrait.SINGLETON),
-      drel.getRowType(),
-      drel.getTableMetadata(),
-      drel.getUser(),
-      drel.metadataLocation);
+        drel.getCluster(),
+        drel.getTraitSet().replace(Prel.PHYSICAL).replace(DistributionTrait.SINGLETON),
+        drel.getRowType(),
+        drel.getTableMetadata(),
+        drel.getUser(),
+        drel.metadataLocation);
   }
-
 }

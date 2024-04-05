@@ -16,11 +16,10 @@
 
 package com.dremio.common.utils.protos;
 
-import java.util.List;
-import java.util.UUID;
-
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.UserBitShared.QueryId;
+import java.util.List;
+import java.util.UUID;
 
 /* Helper class around the QueryId protobuf */
 public class QueryIdHelper {
@@ -32,7 +31,10 @@ public class QueryIdHelper {
 
   public static QueryId getQueryIdFromString(final String queryId) {
     final UUID uuid = UUID.fromString(queryId);
-    return QueryId.newBuilder().setPart1(uuid.getMostSignificantBits()).setPart2(uuid.getLeastSignificantBits()).build();
+    return QueryId.newBuilder()
+        .setPart1(uuid.getMostSignificantBits())
+        .setPart2(uuid.getLeastSignificantBits())
+        .build();
   }
 
   public static String getQueryIdentifier(final FragmentHandle h) {
@@ -40,18 +42,23 @@ public class QueryIdHelper {
   }
 
   public static String getExecutorThreadName(final FragmentHandle fragmentHandle) {
-    return String.format("%s:frag:%s:%s",
+    return String.format(
+        "%s:frag:%s:%s",
         getQueryId(fragmentHandle.getQueryId()),
-        fragmentHandle.getMajorFragmentId(), fragmentHandle.getMinorFragmentId());
+        fragmentHandle.getMajorFragmentId(),
+        fragmentHandle.getMinorFragmentId());
   }
 
-  public static String getQueryIdentifiers(final QueryId queryId, final int majorFragmentId, final List<Integer> minorFragmentIds) {
-    final String fragmentIds = minorFragmentIds.size() == 1 ? minorFragmentIds.get(0).toString() : minorFragmentIds.toString();
+  public static String getQueryIdentifiers(
+      final QueryId queryId, final int majorFragmentId, final List<Integer> minorFragmentIds) {
+    final String fragmentIds =
+        minorFragmentIds.size() == 1
+            ? minorFragmentIds.get(0).toString()
+            : minorFragmentIds.toString();
     return getQueryId(queryId) + ":" + majorFragmentId + ":" + fragmentIds;
   }
 
   public static String getFragmentId(final FragmentHandle fragmentHandle) {
     return fragmentHandle.getMajorFragmentId() + ":" + fragmentHandle.getMinorFragmentId();
   }
-
 }

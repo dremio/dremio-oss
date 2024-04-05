@@ -15,15 +15,12 @@
  */
 package com.dremio.resource.common;
 
-import java.util.Set;
-
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.options.OptionManager;
 import com.dremio.service.coordinator.ClusterCoordinator;
+import java.util.Set;
 
-/**
- * To get SystemOptions from context
- */
+/** To get SystemOptions from context */
 public interface SabotSchedulingContext {
 
   OptionManager getOptionManager();

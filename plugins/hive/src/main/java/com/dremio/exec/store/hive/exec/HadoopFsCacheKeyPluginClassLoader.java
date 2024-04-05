@@ -28,6 +28,7 @@ public class HadoopFsCacheKeyPluginClassLoader {
   final Configuration conf;
   final URI uri;
   final String userName;
+  final boolean hdfsC3CacheEnabled;
 
   /**
    *  This key is used for the cache which loads FileSystem using the Plugin class loader to avoid class Cast exceptions
@@ -37,12 +38,13 @@ public class HadoopFsCacheKeyPluginClassLoader {
    * @param conf - configuration for creating FileSystem
    * @param userName - username tied to the FileSystem
    */
-  public HadoopFsCacheKeyPluginClassLoader(URI uri, Iterable<Map.Entry<String, String>> conf, String userName) {
+  public HadoopFsCacheKeyPluginClassLoader(URI uri, Iterable<Map.Entry<String, String>> conf, String userName, boolean hdfsC3CacheEnabled) {
     this.conf = (Configuration) conf;
     this.uri = uri;
     scheme = uri.getScheme() == null ? "" : StringUtils.toLowerCase(uri.getScheme());
     authority = uri.getAuthority() == null ? "" : StringUtils.toLowerCase(uri.getAuthority());
     this.userName = userName;
+    this.hdfsC3CacheEnabled = hdfsC3CacheEnabled;
   }
 
   public URI getUri() {
@@ -60,7 +62,7 @@ public class HadoopFsCacheKeyPluginClassLoader {
 
   @Override
   public int hashCode() {
-    return Objects.hash(scheme, authority, userName);
+    return Objects.hash(scheme, authority, userName, hdfsC3CacheEnabled);
   }
 
   @Override
@@ -75,7 +77,8 @@ public class HadoopFsCacheKeyPluginClassLoader {
     return
       com.google.common.base.Objects.equal(scheme, key.scheme) &&
         com.google.common.base.Objects.equal(authority, key.authority) &&
-          com.google.common.base.Objects.equal(userName, key.userName);
+        com.google.common.base.Objects.equal(userName, key.userName) &&
+        com.google.common.base.Objects.equal(hdfsC3CacheEnabled, key.hdfsC3CacheEnabled);
   }
 
   @Override

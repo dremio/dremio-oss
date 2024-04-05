@@ -22,9 +22,7 @@ import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
-/**
- * Tests for {@link SqlUtils}
- */
+/** Tests for {@link SqlUtils} */
 public class TestSqlUtils {
 
   @Test

@@ -15,6 +15,9 @@
  */
 package com.dremio.exec.planner.physical.relbuilder;
 
+import com.dremio.exec.planner.physical.HashJoinPrel;
+import com.dremio.exec.planner.physical.NestedLoopJoinPrel;
+import com.dremio.exec.planner.physical.Prel;
 import org.apache.calcite.plan.Context;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptSchema;
@@ -24,23 +27,23 @@ import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.tools.RelBuilder;
 
-import com.dremio.exec.planner.physical.HashJoinPrel;
-import com.dremio.exec.planner.physical.NestedLoopJoinPrel;
-import com.dremio.exec.planner.physical.Prel;
-
 public class PrelBuilder extends RelBuilder {
 
-  public PrelBuilder(Context context,
-    RelOptCluster cluster,
-    RelOptSchema relOptSchema) {
+  public PrelBuilder(Context context, RelOptCluster cluster, RelOptSchema relOptSchema) {
     super(context, cluster, relOptSchema);
   }
 
   public PrelBuilder nestedLoopJoin(JoinRelType joinType, RexNode condition) {
     RelNode right = build();
     RelNode left = build();
-    RelNode join = NestedLoopJoinPrel.create(cluster, left.getTraitSet().plus(RelCollations.EMPTY),
-        left, right, joinType, condition);
+    RelNode join =
+        NestedLoopJoinPrel.create(
+            cluster,
+            left.getTraitSet().plus(RelCollations.EMPTY),
+            left,
+            right,
+            joinType,
+            condition);
     push(join);
     return this;
   }
@@ -48,57 +51,73 @@ public class PrelBuilder extends RelBuilder {
   public PrelBuilder hashJoin(JoinRelType joinRelType, RexNode condition, RexNode extraConditions) {
     RelNode right = build();
     RelNode left = build();
-    RelNode join = HashJoinPrel.create(cluster, left.getTraitSet().plus(RelCollations.EMPTY),
-      left, right, condition, extraConditions, joinRelType);
+    RelNode join =
+        HashJoinPrel.create(
+            cluster,
+            left.getTraitSet().plus(RelCollations.EMPTY),
+            left,
+            right,
+            condition,
+            extraConditions,
+            joinRelType,
+            false);
     push(join);
     return this;
   }
 
-  //Overriding Return types
+  // Overriding Return types
 
-  @Override public PrelBuilder filter(RexNode... predicates) {
+  @Override
+  public PrelBuilder filter(RexNode... predicates) {
     super.filter(predicates);
     return this;
   }
 
-  @Override public PrelBuilder filter(Iterable<? extends RexNode> predicates) {
+  @Override
+  public PrelBuilder filter(Iterable<? extends RexNode> predicates) {
     super.filter(predicates);
     return this;
   }
 
-  @Override public PrelBuilder project(Iterable<? extends RexNode> nodes) {
+  @Override
+  public PrelBuilder project(Iterable<? extends RexNode> nodes) {
     super.project(nodes);
     return this;
   }
 
-  @Override public PrelBuilder project(Iterable<? extends RexNode> nodes,
-    Iterable<String> fieldNames) {
+  @Override
+  public PrelBuilder project(Iterable<? extends RexNode> nodes, Iterable<String> fieldNames) {
     super.project(nodes, fieldNames);
     return this;
   }
 
-  @Override public PrelBuilder project(Iterable<? extends RexNode> nodes,
-    Iterable<String> fieldNames, boolean force) {
+  @Override
+  public PrelBuilder project(
+      Iterable<? extends RexNode> nodes, Iterable<String> fieldNames, boolean force) {
     super.project(nodes, fieldNames, force);
     return this;
   }
 
-  @Override public PrelBuilder project(RexNode... nodes) {
+  @Override
+  public PrelBuilder project(RexNode... nodes) {
     super.project(nodes);
     return this;
   }
 
-  @Override public PrelBuilder scan(Iterable<String> tableNames) {
+  @Override
+  public PrelBuilder scan(Iterable<String> tableNames) {
     super.scan(tableNames);
     return this;
   }
 
-  @Override public PrelBuilder scan(String... tableNames) {
+  @Override
+  public PrelBuilder scan(String... tableNames) {
     super.scan(tableNames);
     return this;
   }
 
-  @Override public Prel build() {
-    return (Prel)super.build();
+  @Override
+  public Prel build() {
+    return (Prel) super.build();
   }
 }

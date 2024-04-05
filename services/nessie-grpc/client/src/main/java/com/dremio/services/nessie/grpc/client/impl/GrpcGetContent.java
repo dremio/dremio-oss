@@ -19,8 +19,8 @@ import static com.dremio.services.nessie.grpc.GrpcExceptionMapper.handleNessieNo
 import static com.dremio.services.nessie.grpc.ProtoUtil.fromProto;
 import static com.dremio.services.nessie.grpc.ProtoUtil.toProto;
 
+import com.dremio.services.nessie.grpc.api.ContentServiceGrpc.ContentServiceBlockingStub;
 import java.util.Map;
-
 import org.projectnessie.client.builder.BaseGetContentBuilder;
 import org.projectnessie.error.NessieContentNotFoundException;
 import org.projectnessie.error.NessieNotFoundException;
@@ -28,8 +28,6 @@ import org.projectnessie.model.Content;
 import org.projectnessie.model.ContentKey;
 import org.projectnessie.model.ContentResponse;
 import org.projectnessie.model.GetMultipleContentsResponse;
-
-import com.dremio.services.nessie.grpc.api.ContentServiceGrpc.ContentServiceBlockingStub;
 
 final class GrpcGetContent extends BaseGetContentBuilder {
 
@@ -48,12 +46,15 @@ final class GrpcGetContent extends BaseGetContentBuilder {
   public ContentResponse getSingle(ContentKey key) throws NessieNotFoundException {
     if (!request.build().getRequestedKeys().isEmpty()) {
       throw new IllegalStateException(
-        "Must not use getSingle() with key() or keys(), pass the single key to getSingle()");
+          "Must not use getSingle() with key() or keys(), pass the single key to getSingle()");
     }
 
-    GetMultipleContentsResponse multi = handleNessieNotFoundEx(
-      () -> fromProto(stub.getMultipleContents(
-        toProto(refName, hashOnRef, request.build().withRequestedKeys(key)))));
+    GetMultipleContentsResponse multi =
+        handleNessieNotFoundEx(
+            () ->
+                fromProto(
+                    stub.getMultipleContents(
+                        toProto(refName, hashOnRef, request.build().withRequestedKeys(key)))));
 
     Content content = multi.toContentsMap().get(key);
     if (content == null) {
@@ -61,13 +62,14 @@ final class GrpcGetContent extends BaseGetContentBuilder {
     }
 
     return ContentResponse.builder()
-      .content(content)
-      .effectiveReference(multi.getEffectiveReference()).build();
+        .content(content)
+        .effectiveReference(multi.getEffectiveReference())
+        .build();
   }
 
   @Override
   public GetMultipleContentsResponse getWithResponse() throws NessieNotFoundException {
     return handleNessieNotFoundEx(
-      () -> fromProto(stub.getMultipleContents(toProto(refName, hashOnRef, request.build()))));
+        () -> fromProto(stub.getMultipleContents(toProto(refName, hashOnRef, request.build()))));
   }
 }

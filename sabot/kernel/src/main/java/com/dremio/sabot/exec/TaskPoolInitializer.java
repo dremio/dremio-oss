@@ -15,8 +15,6 @@
  */
 package com.dremio.sabot.exec;
 
-import javax.inject.Provider;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.liveness.LiveHealthMonitor;
 import com.dremio.config.DremioConfig;
@@ -25,21 +23,18 @@ import com.dremio.sabot.task.TaskPool;
 import com.dremio.sabot.task.TaskPoolFactory;
 import com.dremio.sabot.task.TaskPools;
 import com.dremio.service.Service;
+import javax.inject.Provider;
 
-/**
- * Instantiates {@link TaskPool} and adds to the providers' registry
- */
+/** Instantiates {@link TaskPool} and adds to the providers' registry */
 public class TaskPoolInitializer implements Service, LiveHealthMonitor {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TaskPoolInitializer.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(TaskPoolInitializer.class);
   private final Provider<OptionManager> optionManager;
   private final DremioConfig dremioConfig;
 
   private TaskPool pool;
 
-  public TaskPoolInitializer(
-      Provider<OptionManager> optionManager,
-      DremioConfig dremioConfig
-  ) {
+  public TaskPoolInitializer(Provider<OptionManager> optionManager, DremioConfig dremioConfig) {
     this.optionManager = optionManager;
     this.dremioConfig = dremioConfig;
   }

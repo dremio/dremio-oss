@@ -28,7 +28,7 @@ import type { LiveEditLexer } from "../../../../../target/generated-sources/antl
 
 export function prepareQuery(
   queryWithCaret: string,
-  replaceChar?: string
+  replaceChar?: string,
 ): [query: string, caret: CursorQueryPosition] {
   const caretIndex = queryWithCaret.indexOf("^");
   const lineNum =
@@ -59,7 +59,7 @@ export function getAutocompleteParseTree(query: string): {
     query,
     lexerErrorListener,
     parserErrorListener,
-    true
+    true,
   ).parse();
   return { parseTree, commonTokenStream, parser, lexer };
 }

@@ -28,7 +28,12 @@ public enum MemoryState {
   private final int maxVictimsPercentage;
   private final int severity;
 
-  MemoryState(int waitTimeMillis, int maxOverheadFactor, int individualOverhead, int maxVictimsPercentage, int severity) {
+  MemoryState(
+      int waitTimeMillis,
+      int maxOverheadFactor,
+      int individualOverhead,
+      int maxVictimsPercentage,
+      int severity) {
     this.waitTimeMillis = waitTimeMillis;
     this.maxOverheadFactor = maxOverheadFactor;
     this.individualOverhead = (individualOverhead >= 0) ? individualOverhead : Integer.MAX_VALUE;

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-type ElementConfigJSON = {
+export type ElementConfigJSON = {
   propName: string;
   type: string;
   help?: {

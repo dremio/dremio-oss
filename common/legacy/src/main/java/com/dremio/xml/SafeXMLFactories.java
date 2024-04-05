@@ -15,6 +15,7 @@
  */
 package com.dremio.xml;
 
+import com.dremio.common.SuppressForbidden;
 import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
@@ -23,23 +24,19 @@ import javax.xml.parsers.SAXParserFactory;
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.transform.TransformerConfigurationException;
 import javax.xml.transform.TransformerFactory;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xml.sax.SAXException;
 import org.xml.sax.SAXNotRecognizedException;
 import org.xml.sax.SAXNotSupportedException;
 
-import com.dremio.common.SuppressForbidden;
-
 /**
- * A set of XML factory methods to create XML parsers not vulnerable against XXE
- * (XML eXternal Entity) and DoS attacks.
+ * A set of XML factory methods to create XML parsers not vulnerable against XXE (XML eXternal
+ * Entity) and DoS attacks.
  *
- * More details can be found in <a href=
+ * <p>More details can be found in <a href=
  * "https://cheatsheetseries.owasp.org/cheatsheets/XML_External_Entity_Prevention_Cheat_Sheet.html">OWASP
  * XML Prevention Cheat Sheet</a>
- *
  */
 public final class SafeXMLFactories {
   private static final Logger LOGGER = LoggerFactory.getLogger(SafeXMLFactories.class);
@@ -47,8 +44,8 @@ public final class SafeXMLFactories {
   private SafeXMLFactories() {}
 
   /**
-   * Creates a {@code SAXParserFactory} instance which does not try to access
-   * external entities or resolve DTD.
+   * Creates a {@code SAXParserFactory} instance which does not try to access external entities or
+   * resolve DTD.
    *
    * @return a new {@code SAXParserFactory} instance
    */
@@ -66,8 +63,13 @@ public final class SafeXMLFactories {
       factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
 
       factory.setXIncludeAware(false);
-    } catch (ParserConfigurationException | SAXNotSupportedException | SAXNotRecognizedException | IllegalArgumentException e) {
-      LOGGER.warn("XML SAX parser factory does not support disabling DTD/External Entities support which might cause some security issue", e);
+    } catch (ParserConfigurationException
+        | SAXNotSupportedException
+        | SAXNotRecognizedException
+        | IllegalArgumentException e) {
+      LOGGER.warn(
+          "XML SAX parser factory does not support disabling DTD/External Entities support which might cause some security issue",
+          e);
       return factory;
     }
 
@@ -75,8 +77,8 @@ public final class SafeXMLFactories {
   }
 
   /**
-   * Creates a {@code DocumentBuilderFactory} instance which does not try to access
-   * external entities or resolve DTD.
+   * Creates a {@code DocumentBuilderFactory} instance which does not try to access external
+   * entities or resolve DTD.
    *
    * @return a new {@code DocumentBuilderFactory} instance
    */
@@ -97,16 +99,18 @@ public final class SafeXMLFactories {
 
       factory.setXIncludeAware(false);
       factory.setExpandEntityReferences(false);
-    } catch (ParserConfigurationException  | IllegalArgumentException e) {
-      LOGGER.warn("XML DOM parser factory does not support disabling DTD/External Entities support which might cause some security issue", e);
+    } catch (ParserConfigurationException | IllegalArgumentException e) {
+      LOGGER.warn(
+          "XML DOM parser factory does not support disabling DTD/External Entities support which might cause some security issue",
+          e);
     }
 
     return factory;
   }
 
   /**
-   * Creates a {@code DocumentBuilderFactory} instance which does not try to access
-   * external entities or resolve DTD.
+   * Creates a {@code DocumentBuilderFactory} instance which does not try to access external
+   * entities or resolve DTD.
    *
    * @return a new {@code DocumentBuilderFactory} instance
    */
@@ -118,16 +122,18 @@ public final class SafeXMLFactories {
       factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
       factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
       factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_STYLESHEET, "");
-    } catch (TransformerConfigurationException  | IllegalArgumentException e) {
-      LOGGER.warn("XML Transformer factory does not support disabling DTD/External Entities support which might cause some security issue", e);
+    } catch (TransformerConfigurationException | IllegalArgumentException e) {
+      LOGGER.warn(
+          "XML Transformer factory does not support disabling DTD/External Entities support which might cause some security issue",
+          e);
     }
 
     return factory;
   }
 
   /**
-   * Creates a {@code XMLInputFactory} instance which does not try to access
-   * external entities or resolve DTD.
+   * Creates a {@code XMLInputFactory} instance which does not try to access external entities or
+   * resolve DTD.
    *
    * @return a new {@code XMLInputFactory} instance
    */
@@ -138,7 +144,9 @@ public final class SafeXMLFactories {
       factory.setProperty(XMLInputFactory.SUPPORT_DTD, false);
       factory.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, false);
     } catch (IllegalArgumentException e) {
-      LOGGER.warn("XML StaX parser factory does not support disabling DTD/External Entities support which might cause some security issue", e);
+      LOGGER.warn(
+          "XML StaX parser factory does not support disabling DTD/External Entities support which might cause some security issue",
+          e);
     }
     return factory;
   }
@@ -170,7 +178,9 @@ public final class SafeXMLFactories {
         parser.setProperty(XMLConstants.ACCESS_EXTERNAL_DTD, "");
         parser.setProperty(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
       } catch (SAXNotRecognizedException | SAXNotSupportedException | IllegalArgumentException e) {
-        LOGGER.warn("XML DOM parser does not support disabling DTD/External Entities support which might cause some security issue", e);
+        LOGGER.warn(
+            "XML DOM parser does not support disabling DTD/External Entities support which might cause some security issue",
+            e);
       }
 
       return parser;

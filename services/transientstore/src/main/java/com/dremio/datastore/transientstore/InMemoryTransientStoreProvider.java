@@ -17,22 +17,21 @@ package com.dremio.datastore.transientstore;
 
 import com.dremio.datastore.format.Format;
 
-/**
- * main implementation class for creating in memory stores.
- */
+/** main implementation class for creating in memory stores. */
 public class InMemoryTransientStoreProvider implements TransientStoreProvider {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(InMemoryTransientStoreProvider.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(InMemoryTransientStoreProvider.class);
 
   @Override
-  public <K, V, T extends TransientStore<K, V>> T getStore(Format<K> keyFormat, Format<V> valueFormat) {
+  public <K, V, T extends TransientStore<K, V>> T getStore(
+      Format<K> keyFormat, Format<V> valueFormat) {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public <K, V, T extends TransientStore<K, V>> T getStore(Format<K> keyFormat,
-                                                           Format<V> valueFormat,
-                                                           int ttl) {
-      return (T) new InMemoryTransientStore(ttl);
+  public <K, V, T extends TransientStore<K, V>> T getStore(
+      Format<K> keyFormat, Format<V> valueFormat, int ttl) {
+    return (T) new InMemoryTransientStore(ttl);
   }
 
   @Override

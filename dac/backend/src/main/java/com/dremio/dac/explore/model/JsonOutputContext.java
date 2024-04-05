@@ -15,9 +15,7 @@
  */
 package com.dremio.dac.explore.model;
 
-/**
- * Context to keep track of space usage and value truncation events.
- */
+/** Context to keep track of space usage and value truncation events. */
 public class JsonOutputContext {
   private int remaining;
   private boolean truncated;

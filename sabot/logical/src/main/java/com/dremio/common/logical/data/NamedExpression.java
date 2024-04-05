@@ -27,7 +27,8 @@ public class NamedExpression {
   private final FieldReference ref;
 
   @JsonCreator
-  public NamedExpression(@JsonProperty("expr") LogicalExpression expr, @JsonProperty("ref") FieldReference ref) {
+  public NamedExpression(
+      @JsonProperty("expr") LogicalExpression expr, @JsonProperty("ref") FieldReference ref) {
     super();
     this.expr = expr;
     this.ref = ref;
@@ -45,5 +46,4 @@ public class NamedExpression {
   public String toString() {
     return "NamedExpression [expr=" + expr + ", ref=" + ref + "]";
   }
-
 }

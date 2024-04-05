@@ -15,14 +15,11 @@
  */
 package com.dremio.exec.planner.acceleration.substitution;
 
+import com.dremio.exec.planner.RoutingShuttle;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.logical.LogicalCorrelate;
 
-import com.dremio.exec.planner.RoutingShuttle;
-
-/**
- * Shuttle that tells you whether LogicalCorrelate exists in the RelNode
- */
+/** Shuttle that tells you whether LogicalCorrelate exists in the RelNode */
 class CorrelateFinder extends RoutingShuttle {
 
   private boolean foundCorrelate = false;
@@ -41,5 +38,4 @@ class CorrelateFinder extends RoutingShuttle {
     foundCorrelate = true;
     return correlate; // No need to recurse any further.  We found our first completion state.
   }
-
 }

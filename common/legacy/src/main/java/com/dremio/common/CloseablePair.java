@@ -19,35 +19,33 @@ package com.dremio.common;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Closeable pair
- */
+/** Closeable pair */
 public class CloseablePair<K, V> implements AutoCloseable {
-    private final K k;
-    private final V v;
+  private final K k;
+  private final V v;
 
-    public CloseablePair(K k, V v) {
-        this.k = k;
-        this.v = v;
-    }
+  public CloseablePair(K k, V v) {
+    this.k = k;
+    this.v = v;
+  }
 
-    public K getLeft() {
-        return this.k;
-    }
+  public K getLeft() {
+    return this.k;
+  }
 
-    public V getRight() {
-        return this.v;
-    }
+  public V getRight() {
+    return this.v;
+  }
 
-    @Override
-    public void close() throws Exception {
-        final List<AutoCloseable> closeables = new ArrayList<>(2);
-        if (k != null && k instanceof AutoCloseable) {
-            closeables.add((AutoCloseable) k);
-        }
-        if (v != null && v instanceof AutoCloseable) {
-            closeables.add((AutoCloseable) v);
-        }
-        AutoCloseables.close(closeables);
+  @Override
+  public void close() throws Exception {
+    final List<AutoCloseable> closeables = new ArrayList<>(2);
+    if (k != null && k instanceof AutoCloseable) {
+      closeables.add((AutoCloseable) k);
     }
+    if (v != null && v instanceof AutoCloseable) {
+      closeables.add((AutoCloseable) v);
+    }
+    AutoCloseables.close(closeables);
+  }
 }

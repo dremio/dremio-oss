@@ -15,9 +15,7 @@
  */
 package com.dremio.service.jobs;
 
-/**
- * Thrown when session id is not found or expired.
- */
+/** Thrown when session id is not found or expired. */
 public class SessionNotFoundException extends RuntimeException {
   private final String sessionId;
 

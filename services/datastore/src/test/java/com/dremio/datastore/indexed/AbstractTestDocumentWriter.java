@@ -19,14 +19,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
+import com.dremio.datastore.api.DocumentWriter;
 import org.junit.Before;
 import org.junit.Test;
 
-import com.dremio.datastore.api.DocumentWriter;
-
-/**
- * Tests for DocumentWriter
- */
+/** Tests for DocumentWriter */
 public abstract class AbstractTestDocumentWriter<D extends DocumentWriter> {
   private D writer;
 
@@ -38,7 +35,9 @@ public abstract class AbstractTestDocumentWriter<D extends DocumentWriter> {
   protected abstract D createDocumentWriter();
 
   protected abstract void verifySingleIndexValue(D writer, IndexKey index, Object expectedValue);
+
   protected abstract void verifyMultiIndexValue(D writer, IndexKey index, Object... expectedValues);
+
   protected abstract void verifyNoValues(D writer, IndexKey index);
 
   @Test
@@ -46,7 +45,7 @@ public abstract class AbstractTestDocumentWriter<D extends DocumentWriter> {
     final IndexKey indexKey = newIndexKey(String.class, true);
     writer.write(indexKey, "testString1", "testString2");
 
-    verifyMultiIndexValue(writer, indexKey,  "testString1", "testString2");
+    verifyMultiIndexValue(writer, indexKey, "testString1", "testString2");
   }
 
   @Test
@@ -62,7 +61,7 @@ public abstract class AbstractTestDocumentWriter<D extends DocumentWriter> {
     final IndexKey indexKey = newIndexKey(Integer.class, false);
     writer.write(indexKey, 100);
 
-    verifySingleIndexValue(writer, indexKey,100);
+    verifySingleIndexValue(writer, indexKey, 100);
   }
 
   @Test
@@ -85,9 +84,10 @@ public abstract class AbstractTestDocumentWriter<D extends DocumentWriter> {
 
   @Test
   public void testMultiString() {
-    final IndexKey testKeyMultiple = IndexKey.newBuilder("testmulti","TEST_MULTI", String.class)
-      .setCanContainMultipleValues(true)
-      .build();
+    final IndexKey testKeyMultiple =
+        IndexKey.newBuilder("testmulti", "TEST_MULTI", String.class)
+            .setCanContainMultipleValues(true)
+            .build();
 
     writer.write(testKeyMultiple, "foo");
     writer.write(testKeyMultiple, "bar");
@@ -98,34 +98,34 @@ public abstract class AbstractTestDocumentWriter<D extends DocumentWriter> {
 
   @Test
   public void testSingleStringMultiValueAtOnce() {
-    final IndexKey testKey = IndexKey.newBuilder("test", "TEST", String.class)
-      .build();
+    final IndexKey testKey = IndexKey.newBuilder("test", "TEST", String.class).build();
 
     // Expect an IllegalStateException because testKey is a single key index and we are trying to
     // write multiple values to it.
     assertThatThrownBy(() -> writer.write(testKey, "foo", "bar"))
-      .isInstanceOf(IllegalStateException.class);
+        .isInstanceOf(IllegalStateException.class);
   }
 
   @Test
   public void testSingleStringMultiValueIteratively() {
-    final IndexKey testKey = IndexKey.newBuilder("test", "TEST", String.class)
-      .build();
+    final IndexKey testKey = IndexKey.newBuilder("test", "TEST", String.class).build();
 
     writer.write(testKey, "foo");
 
     // Expect an IllegalStateException because testKey is a single key index and we are trying to
-    // write multiple values to it (by issuing multiple calls to write, rather than a single write call with
+    // write multiple values to it (by issuing multiple calls to write, rather than a single write
+    // call with
     // multiple values).
     assertThatThrownBy(() -> writer.write(testKey, "bar"))
-      .isInstanceOf(IllegalStateException.class);
+        .isInstanceOf(IllegalStateException.class);
   }
 
   @Test
   public void testMultiNumeric() {
-    final IndexKey testKeyMultiple = IndexKey.newBuilder("testmulti", "TEST_MULTI", Integer.class)
-      .setCanContainMultipleValues(true)
-      .build();
+    final IndexKey testKeyMultiple =
+        IndexKey.newBuilder("testmulti", "TEST_MULTI", Integer.class)
+            .setCanContainMultipleValues(true)
+            .build();
 
     writer.write(testKeyMultiple, 1);
     writer.write(testKeyMultiple, 2);
@@ -135,57 +135,58 @@ public abstract class AbstractTestDocumentWriter<D extends DocumentWriter> {
 
   @Test
   public void testSingleNumericMultiValue() {
-    final IndexKey testKey = IndexKey.newBuilder("test", "TEST", Integer.class)
-      .build();
+    final IndexKey testKey = IndexKey.newBuilder("test", "TEST", Integer.class).build();
     writer.write(testKey, 1);
 
     // Expect an IllegalStateException because testKey is a single key index and we are trying to
-    // write multiple values to it (by issuing multiple calls to write, rather than a single write call with
+    // write multiple values to it (by issuing multiple calls to write, rather than a single write
+    // call with
     // multiple values).
-    assertThatThrownBy(() -> writer.write(testKey, 2))
-      .isInstanceOf(IllegalStateException.class);
+    assertThatThrownBy(() -> writer.write(testKey, 2)).isInstanceOf(IllegalStateException.class);
   }
 
   @Test
   public void testMultiByte() {
-    final IndexKey testKeyMultiple = IndexKey.newBuilder("testmulti","TEST_MULTI", String.class)
-      .setCanContainMultipleValues(true)
-      .build();
+    final IndexKey testKeyMultiple =
+        IndexKey.newBuilder("testmulti", "TEST_MULTI", String.class)
+            .setCanContainMultipleValues(true)
+            .build();
 
     writer.write(testKeyMultiple, new byte[] {0x01});
     writer.write(testKeyMultiple, new byte[] {0x02});
     writer.write(testKeyMultiple, new byte[] {0x03}, new byte[] {0x04});
 
-    verifyMultiIndexValue(writer, testKeyMultiple,
-      new byte[] {0x01},
-      new byte[] {0x02},
-      new byte[] {0x03},
-      new byte[] {0x04});
+    verifyMultiIndexValue(
+        writer,
+        testKeyMultiple,
+        new byte[] {0x01},
+        new byte[] {0x02},
+        new byte[] {0x03},
+        new byte[] {0x04});
   }
 
   @Test
   public void testSingleByteMultiValueAtOnce() {
-    final IndexKey testKey = IndexKey.newBuilder("test", "TEST", String.class)
-      .build();
+    final IndexKey testKey = IndexKey.newBuilder("test", "TEST", String.class).build();
 
     // Expect an IllegalStateException because testKey is a single key index and we are trying to
     // write multiple values to it.
     assertThatThrownBy(() -> writer.write(testKey, new byte[] {0x03}, new byte[] {0x04}))
-      .isInstanceOf(IllegalStateException.class);
+        .isInstanceOf(IllegalStateException.class);
   }
 
   @Test
   public void testSingleByteMultiValueIteratively() {
-    final IndexKey testKey = IndexKey.newBuilder("test", "TEST", String.class)
-      .build();
+    final IndexKey testKey = IndexKey.newBuilder("test", "TEST", String.class).build();
 
     writer.write(testKey, new byte[] {0x01});
 
     // Expect an IllegalStateException because testKey is a single key index and we are trying to
-    // write multiple values to it (by issuing multiple calls to write, rather than a single write call with
+    // write multiple values to it (by issuing multiple calls to write, rather than a single write
+    // call with
     // multiple values).
     assertThatThrownBy(() -> writer.write(testKey, new byte[] {0x01}))
-      .isInstanceOf(IllegalStateException.class);
+        .isInstanceOf(IllegalStateException.class);
   }
 
   @Test
@@ -223,7 +224,7 @@ public abstract class AbstractTestDocumentWriter<D extends DocumentWriter> {
 
   protected static void verifyHelper(Object expected, Object actual) {
     if (expected instanceof Double && actual instanceof Double) {
-      assertEquals((double)expected, (double)actual, 0.0000);
+      assertEquals((double) expected, (double) actual, 0.0000);
     } else if (expected instanceof byte[] && actual instanceof byte[]) {
       assertArrayEquals((byte[]) expected, (byte[]) actual);
     } else {
@@ -233,7 +234,7 @@ public abstract class AbstractTestDocumentWriter<D extends DocumentWriter> {
 
   protected static IndexKey newIndexKey(Class<?> type, boolean multiValue) {
     return IndexKey.newBuilder("value", "value", type)
-      .setCanContainMultipleValues(multiValue)
-      .build();
+        .setCanContainMultipleValues(multiValue)
+        .build();
   }
 }

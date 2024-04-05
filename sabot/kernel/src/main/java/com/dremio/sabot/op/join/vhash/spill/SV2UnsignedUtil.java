@@ -15,16 +15,12 @@
  */
 package com.dremio.sabot.op.join.vhash.spill;
 
-import org.apache.arrow.memory.ArrowBuf;
-
 import com.dremio.exec.record.selection.SelectionVector2;
 import com.google.common.base.Preconditions;
-
 import io.netty.util.internal.PlatformDependent;
+import org.apache.arrow.memory.ArrowBuf;
 
-/**
- * Utility class to do the proper casting for read/write to sv2.
- */
+/** Utility class to do the proper casting for read/write to sv2. */
 public final class SV2UnsignedUtil {
   public static int readAtIndex(ArrowBuf buf, int index) {
     return readAtOffset(buf, index * SelectionVector2.RECORD_SIZE);
@@ -40,7 +36,7 @@ public final class SV2UnsignedUtil {
 
   public static void writeAtOffset(ArrowBuf buf, int offset, int value) {
     Preconditions.checkArgument(value < 65536);
-    buf.setShort(offset, (short)value);
+    buf.setShort(offset, (short) value);
   }
 
   public static int readAtIndexUnsafe(long bufStartAddr, int index) {
@@ -56,7 +52,7 @@ public final class SV2UnsignedUtil {
   }
 
   public static void writeAtOffsetUnsafe(long bufStartAddr, int offset, int value) {
-    assert(value < 65536);
-    PlatformDependent.putShort(bufStartAddr + offset, (short)value);
+    assert (value < 65536);
+    PlatformDependent.putShort(bufStartAddr + offset, (short) value);
   }
 }

@@ -15,10 +15,14 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.dremio.exec.ops.QueryContext;
+import com.dremio.exec.planner.sql.handlers.direct.SimpleDirectHandler;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Throwables;
+import com.google.common.collect.Lists;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -29,12 +33,6 @@ import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
-
-import com.dremio.exec.ops.QueryContext;
-import com.dremio.exec.planner.sql.handlers.direct.SimpleDirectHandler;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
-import com.google.common.collect.Lists;
 
 /*
  * Implements SQL to grant privileges on all datasets under a catalog entity
@@ -50,28 +48,31 @@ public class SqlGrantOnAllDatasets extends SqlCall implements SimpleDirectHandle
   private final SqlLiteral granteeType;
   private final SqlIdentifier grantee;
 
-  public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("GRANT", SqlKind.OTHER) {
-    @Override
-    public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 5, "SqlGrantOnAllDatasets.createCall() has to get 5 operands!");
+  public static final SqlSpecialOperator OPERATOR =
+      new SqlSpecialOperator("GRANT", SqlKind.OTHER) {
+        @Override
+        public SqlCall createCall(
+            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+          Preconditions.checkArgument(
+              operands.length == 5, "SqlGrantOnAllDatasets.createCall() has to get 5 operands!");
 
-      return new SqlGrantOnAllDatasets(
-        pos,
-        (SqlNodeList) operands[0],
-        (SqlLiteral) operands[1],
-        (SqlIdentifier) operands[2],
-        (SqlLiteral) operands[3],
-        (SqlIdentifier) operands[4]
-      );
-    }
-  };
+          return new SqlGrantOnAllDatasets(
+              pos,
+              (SqlNodeList) operands[0],
+              (SqlLiteral) operands[1],
+              (SqlIdentifier) operands[2],
+              (SqlLiteral) operands[3],
+              (SqlIdentifier) operands[4]);
+        }
+      };
 
-  public SqlGrantOnAllDatasets(SqlParserPos pos,
-                               SqlNodeList privilegeList,
-                               SqlLiteral entityType,
-                               SqlIdentifier entity,
-                               SqlLiteral granteeType,
-                               SqlIdentifier grantee) {
+  public SqlGrantOnAllDatasets(
+      SqlParserPos pos,
+      SqlNodeList privilegeList,
+      SqlLiteral entityType,
+      SqlIdentifier entity,
+      SqlLiteral granteeType,
+      SqlIdentifier grantee) {
     super(pos);
 
     this.privilegeList = privilegeList;
@@ -110,17 +111,24 @@ public class SqlGrantOnAllDatasets extends SqlCall implements SimpleDirectHandle
     writer.keyword("IN");
 
     entityType.unparse(writer, 0, 0);
+    entity.unparse(writer, 0, 0);
     writer.keyword("TO");
+    granteeType.unparse(writer, 0, 0);
     grantee.unparse(writer, leftPrec, rightPrec);
   }
 
   @Override
   public SimpleDirectHandler toDirectHandler(QueryContext context) {
     try {
-      final Class<?> cl = Class.forName("com.dremio.exec.planner.sql.handlers.GrantOnAllDatasetsHandler");
+      final Class<?> cl =
+          Class.forName("com.dremio.exec.planner.sql.handlers.GrantOnAllDatasetsHandler");
       Constructor<?> ctor = cl.getConstructor(QueryContext.class);
       return (SimpleDirectHandler) ctor.newInstance(context);
-    } catch (InstantiationException | IllegalAccessException | ClassNotFoundException | NoSuchMethodException | InvocationTargetException e) {
+    } catch (InstantiationException
+        | IllegalAccessException
+        | ClassNotFoundException
+        | NoSuchMethodException
+        | InvocationTargetException e) {
       throw Throwables.propagate(e);
     }
   }

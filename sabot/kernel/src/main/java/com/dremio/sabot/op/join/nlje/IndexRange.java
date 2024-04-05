@@ -15,12 +15,12 @@
  */
 package com.dremio.sabot.op.join.nlje;
 
+import com.google.common.base.MoreObjects;
 import java.util.Arrays;
 
-import com.google.common.base.MoreObjects;
-
 /**
- * Encapsulates the state of output for a particular probe batch cartesian producted with a build batch index.
+ * Encapsulates the state of output for a particular probe batch cartesian producted with a build
+ * batch index.
  */
 class IndexRange extends DualRange {
 
@@ -44,11 +44,9 @@ class IndexRange extends DualRange {
     this.buildBatchIndex = buildBatchIndex;
   }
 
-  public IndexRange(
-      int maxInterCount,
-      int[] buildBatchSizes) {
+  public IndexRange(int maxInterCount, int[] buildBatchSizes) {
     int maxBuildCount = Arrays.stream(buildBatchSizes).max().orElse(0);
-    this.probeBatchSize = Math.min(1<<16, (int) (1.0d * maxInterCount)/maxBuildCount);
+    this.probeBatchSize = Math.min(1 << 16, (int) (1.0d * maxInterCount) / maxBuildCount);
     this.buildBatchIndex = 0;
     this.totalProbeRange = IntRange.of(0, buildBatchSizes[buildBatchIndex]);
     this.currentProbeRange = IntRange.of(0, Math.min(totalProbeRange.end, probeBatchSize));
@@ -76,19 +74,26 @@ class IndexRange extends DualRange {
   @Override
   public IndexRange nextOutput() {
     if (hasRemainingProbe()) {
-      final IntRange nextProbe = IntRange.of(currentProbeRange.end, Math.min(totalProbeRange.end, currentProbeRange.end + probeBatchSize));
-      return new IndexRange(totalProbeRange, nextProbe, probeBatchSize, buildBatchSizes, buildBatchIndex);
+      final IntRange nextProbe =
+          IntRange.of(
+              currentProbeRange.end,
+              Math.min(totalProbeRange.end, currentProbeRange.end + probeBatchSize));
+      return new IndexRange(
+          totalProbeRange, nextProbe, probeBatchSize, buildBatchSizes, buildBatchIndex);
     }
 
     if (hasRemainingBuild()) {
       int buildBatchIndex = this.buildBatchIndex + 1;
 
       // reset probe.
-      final IntRange initialProbe = IntRange.of(0, Math.min(probeBatchSize, totalProbeRange.size()));
-      return new IndexRange(totalProbeRange, initialProbe, probeBatchSize, buildBatchSizes, buildBatchIndex);
+      final IntRange initialProbe =
+          IntRange.of(0, Math.min(probeBatchSize, totalProbeRange.size()));
+      return new IndexRange(
+          totalProbeRange, initialProbe, probeBatchSize, buildBatchSizes, buildBatchIndex);
     }
 
-    return new IndexRange(totalProbeRange, IntRange.EMPTY, probeBatchSize, buildBatchSizes, buildBatchIndex);
+    return new IndexRange(
+        totalProbeRange, IntRange.EMPTY, probeBatchSize, buildBatchSizes, buildBatchIndex);
   }
 
   public int getProbeStart() {
@@ -124,11 +129,7 @@ class IndexRange extends DualRange {
   @Override
   public IndexRange startNextProbe(int probeRecords) {
     return new IndexRange(
-        IntRange.of(0, probeRecords),
-        IntRange.EMPTY,
-        probeBatchSize,
-        buildBatchSizes,
-        0);
+        IntRange.of(0, probeRecords), IntRange.EMPTY, probeBatchSize, buildBatchSizes, 0);
   }
 
   @Override
@@ -141,7 +142,5 @@ class IndexRange extends DualRange {
   }
 
   @Override
-  public void close() {
-  }
-
+  public void close() {}
 }

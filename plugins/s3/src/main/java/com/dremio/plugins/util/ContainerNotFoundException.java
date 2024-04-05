@@ -17,13 +17,10 @@ package com.dremio.plugins.util;
 
 import java.io.IOException;
 
-/**
- * Thrown if a container is not found.
- */
+/** Thrown if a container is not found. */
 public class ContainerNotFoundException extends IOException {
 
-  public ContainerNotFoundException() {
-  }
+  public ContainerNotFoundException() {}
 
   public ContainerNotFoundException(String message) {
     super(message);

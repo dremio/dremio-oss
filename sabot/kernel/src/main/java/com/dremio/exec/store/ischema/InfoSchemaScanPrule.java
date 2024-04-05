@@ -15,16 +15,13 @@
  */
 package com.dremio.exec.store.ischema;
 
-import org.apache.calcite.plan.RelOptRule;
-import org.apache.calcite.plan.RelOptRuleCall;
-
 import com.dremio.exec.planner.logical.RelOptHelper;
 import com.dremio.exec.planner.physical.Prel;
 import com.google.common.collect.ImmutableList;
+import org.apache.calcite.plan.RelOptRule;
+import org.apache.calcite.plan.RelOptRuleCall;
 
-/**
- * Rule that converts System logical to physical scan
- */
+/** Rule that converts System logical to physical scan */
 public class InfoSchemaScanPrule extends RelOptRule {
 
   public static final RelOptRule INSTANCE = new InfoSchemaScanPrule();
@@ -36,17 +33,17 @@ public class InfoSchemaScanPrule extends RelOptRule {
   @Override
   public void onMatch(RelOptRuleCall call) {
     InfoSchemaScanDrel logicalScan = call.rel(0);
-    InfoSchemaScanPrel physicalScan = new InfoSchemaScanPrel(
-        logicalScan.getCluster(),
-        logicalScan.getTraitSet().replace(Prel.PHYSICAL),
-        logicalScan.getTable(),
-        logicalScan.getTableMetadata(),
-        null,
-        logicalScan.getProjectedColumns(),
-        logicalScan.getObservedRowcountAdjustment(),
-        logicalScan.getHints(),
-        ImmutableList.of()
-        );
+    InfoSchemaScanPrel physicalScan =
+        new InfoSchemaScanPrel(
+            logicalScan.getCluster(),
+            logicalScan.getTraitSet().replace(Prel.PHYSICAL),
+            logicalScan.getTable(),
+            logicalScan.getTableMetadata(),
+            null,
+            logicalScan.getProjectedColumns(),
+            logicalScan.getObservedRowcountAdjustment(),
+            logicalScan.getHints(),
+            ImmutableList.of());
 
     call.transformTo(physicalScan);
   }

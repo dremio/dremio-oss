@@ -15,17 +15,14 @@
  */
 package com.dremio.exec.store;
 
+import com.google.common.base.Stopwatch;
 import java.io.FileNotFoundException;
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.concurrent.TimeUnit;
 
-import com.google.common.base.Stopwatch;
-
-/**
- * An input stream that keeps track of read time and read bytes.
- */
+/** An input stream that keeps track of read time and read bytes. */
 public class InputStreamWithStats extends FilterInputStream {
 
   private final Stopwatch read = Stopwatch.createUnstarted();
@@ -80,5 +77,4 @@ public class InputStreamWithStats extends FilterInputStream {
   public long getReadBytes() {
     return bytes;
   }
-
 }

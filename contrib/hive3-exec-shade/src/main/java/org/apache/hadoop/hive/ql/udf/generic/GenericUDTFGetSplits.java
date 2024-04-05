@@ -22,25 +22,23 @@ import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.udf.UDFType;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
+
 /**
- * Dummy for GenericUDTFGetSplits as the original depends on LLAP libraries that are excluded in hive3-exec-shade.
+ * Dummy for GenericUDTFGetSplits as the original depends on LLAP libraries that are excluded in
+ * hive3-exec-shade.
  */
-@Description(name = "get_splits", value = "_FUNC_(string,int) - "
-    + "Dummy UDTF.")
+@Description(name = "get_splits", value = "_FUNC_(string,int) - " + "Dummy UDTF.")
 @UDFType(deterministic = false)
 public class GenericUDTFGetSplits extends GenericUDTF {
 
   @Override
-  public StructObjectInspector initialize(ObjectInspector[] arguments)
-      throws UDFArgumentException {
+  public StructObjectInspector initialize(ObjectInspector[] arguments) throws UDFArgumentException {
     return null;
   }
 
   @Override
-  public void process(Object[] arguments) throws HiveException {
-  }
+  public void process(Object[] arguments) throws HiveException {}
 
   @Override
-  public void close() throws HiveException {
-  }
+  public void close() throws HiveException {}
 }

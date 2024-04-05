@@ -17,15 +17,6 @@ package com.dremio.exec.planner.fragment;
 
 import static org.junit.Assert.assertEquals;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-
-import org.junit.Before;
-import org.junit.Test;
-import org.mockito.Mockito;
-
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.exec.ExecTest;
 import com.dremio.exec.catalog.ConnectionReader;
@@ -41,28 +32,41 @@ import com.dremio.exec.store.CatalogService;
 import com.dremio.service.DirectProvider;
 import com.dremio.test.DremioTest;
 import com.google.protobuf.ByteString;
+import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import org.junit.Before;
+import org.junit.Test;
+import org.mockito.Mockito;
 
 public class TestMinorDataSerDe extends ExecTest {
   MinorDataSerDe serDe;
 
   @Before
   public void setup() {
-    LogicalPlanPersistence lpp = new LogicalPlanPersistence(DEFAULT_SABOT_CONFIG, CLASSPATH_SCAN_RESULT);
+    LogicalPlanPersistence lpp = new LogicalPlanPersistence(CLASSPATH_SCAN_RESULT);
     SabotContext sabotContext = Mockito.mock(SabotContext.class);
 
     Mockito.when(sabotContext.getConnectionReaderProvider())
-      .thenReturn(DirectProvider.wrap(ConnectionReader.of(DremioTest.CLASSPATH_SCAN_RESULT, DremioTest.DEFAULT_SABOT_CONFIG)));
-    PhysicalPlanReader reader = new PhysicalPlanReader(DEFAULT_SABOT_CONFIG, CLASSPATH_SCAN_RESULT, lpp, CoordinationProtos.NodeEndpoint.getDefaultInstance(), DirectProvider.wrap(Mockito.mock(CatalogService.class)), sabotContext);
+        .thenReturn(
+            DirectProvider.wrap(
+                ConnectionReader.of(
+                    DremioTest.CLASSPATH_SCAN_RESULT, DremioTest.DEFAULT_SABOT_CONFIG)));
+    PhysicalPlanReader reader =
+        new PhysicalPlanReader(
+            CLASSPATH_SCAN_RESULT,
+            lpp,
+            CoordinationProtos.NodeEndpoint.getDefaultInstance(),
+            DirectProvider.wrap(Mockito.mock(CatalogService.class)),
+            sabotContext);
     serDe = new MinorDataSerDe(reader, FragmentCodec.SNAPPY);
   }
 
-
   @Test
   public void serializeEndPoint() throws Exception {
-    MinorFragmentIndexEndpoint in = MinorFragmentIndexEndpoint.newBuilder()
-      .setMinorFragmentId(16)
-      .setEndpointIndex(8)
-      .build();
+    MinorFragmentIndexEndpoint in =
+        MinorFragmentIndexEndpoint.newBuilder().setMinorFragmentId(16).setEndpointIndex(8).build();
 
     ByteString buffer = serDe.serialize(in);
     MinorFragmentIndexEndpoint out = serDe.deserializeMinorFragmentIndexEndpoint(buffer);
@@ -72,17 +76,17 @@ public class TestMinorDataSerDe extends ExecTest {
   @Test
   public void serializeEndPointList() throws Exception {
     List<MinorFragmentIndexEndpoint> list =
-      IntStream.range(1, 8)
-        .mapToObj(x -> MinorFragmentIndexEndpoint
-          .newBuilder()
-          .setMinorFragmentId(x)
-          .setEndpointIndex(x * 2)
-          .build())
-        .collect(Collectors.toList());
+        IntStream.range(1, 8)
+            .mapToObj(
+                x ->
+                    MinorFragmentIndexEndpoint.newBuilder()
+                        .setMinorFragmentId(x)
+                        .setEndpointIndex(x * 2)
+                        .build())
+            .collect(Collectors.toList());
 
-    MinorFragmentIndexEndpointList in = MinorFragmentIndexEndpointList.newBuilder()
-      .addAllFrags(list)
-      .build();
+    MinorFragmentIndexEndpointList in =
+        MinorFragmentIndexEndpointList.newBuilder().addAllFrags(list).build();
 
     ByteString buffer = serDe.serialize(in);
     MinorFragmentIndexEndpointList out = serDe.deserializeMinorFragmentIndexEndpointList(buffer);
@@ -93,7 +97,7 @@ public class TestMinorDataSerDe extends ExecTest {
   public void serializeJson() throws Exception {
     TopN in = new TopN(OpProps.prototype(), null, 10, Collections.EMPTY_LIST, true);
     ByteString buffer = serDe.serializeObjectToJson(in);
-    TopN out  = serDe.deserializeObjectFromJson(TopN.class, buffer);
+    TopN out = serDe.deserializeObjectFromJson(TopN.class, buffer);
 
     assertEquals(in.getLimit(), out.getLimit());
     assertEquals(in.getReverse(), out.getReverse());

@@ -13,25 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- package com.dremio.exec.planner.sql.parser;
+package com.dremio.exec.planner.sql.parser;
 
 import static com.dremio.exec.planner.sql.DremioSqlOperatorTable.CONTAINS_OPERATOR;
 
+import com.dremio.common.types.TypeProtos.MajorType;
+import com.dremio.common.types.TypeProtos.MinorType;
+import com.dremio.common.types.Types;
 import java.util.Map;
-
 import org.apache.calcite.sql.SqlBasicCall;
 import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.dremio.common.types.TypeProtos.MajorType;
-import com.dremio.common.types.TypeProtos.MinorType;
-import com.dremio.common.types.Types;
-
 public class SqlContains {
   public static final MajorType RETURN_TYPE = Types.required(MinorType.BIT);
 
-  public static SqlNode getNode(SqlParserPos pos, Map<String, String> fieldMap, String queryString) {
+  public static SqlNode getNode(
+      SqlParserPos pos, Map<String, String> fieldMap, String queryString) {
     SqlNode[] operands = new SqlNode[fieldMap.size() + 1];
     for (String field : fieldMap.keySet()) {
       int index = Integer.parseInt(fieldMap.get(field).substring(1));

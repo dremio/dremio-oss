@@ -17,20 +17,16 @@ package com.dremio.service.flight;
 
 import static java.util.Arrays.asList;
 
+import com.dremio.service.flight.FlightClientUtils.FlightClientWrapper;
 import java.sql.SQLException;
 import java.util.Collection;
-
 import org.apache.arrow.flight.FlightInfo;
 import org.apache.arrow.flight.sql.FlightSqlClient;
 import org.junit.Before;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import com.dremio.service.flight.FlightClientUtils.FlightClientWrapper;
-
-/**
- * Base class for Flight SQL query execution tests.
- */
+/** Base class for Flight SQL query execution tests. */
 @RunWith(Parameterized.class)
 public abstract class AbstractTestFlightSqlServer extends AbstractTestFlightServer {
 
@@ -61,12 +57,14 @@ public abstract class AbstractTestFlightSqlServer extends AbstractTestFlightServ
   }
 
   private FlightInfo executePreparedStatement(String query) throws SQLException {
-    final FlightSqlClient.PreparedStatement preparedStatement = flightSqlClient.prepare(query, getCallOptions());
+    final FlightSqlClient.PreparedStatement preparedStatement =
+        flightSqlClient.prepare(query, getCallOptions());
     return preparedStatement.execute(getCallOptions());
   }
 
   @Override
-  public FlightInfo getFlightInfo(FlightClientWrapper flightClientWrapper, String query) throws SQLException {
+  public FlightInfo getFlightInfo(FlightClientWrapper flightClientWrapper, String query)
+      throws SQLException {
     switch (executionMode) {
       case STATEMENT:
         return executeStatement(query);

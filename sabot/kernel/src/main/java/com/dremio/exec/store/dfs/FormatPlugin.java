@@ -15,9 +15,6 @@
  */
 package com.dremio.exec.store.dfs;
 
-import java.io.IOException;
-import java.nio.file.DirectoryStream;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.logical.FormatPluginConfig;
 import com.dremio.connector.metadata.options.TimeTravelOption;
@@ -34,10 +31,10 @@ import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
+import java.io.IOException;
+import java.nio.file.DirectoryStream;
 
-/**
- * Similar to a storage engine but built specifically to work within a FileSystem context.
- */
+/** Similar to a storage engine but built specifically to work within a FileSystem context. */
 public interface FormatPlugin {
   public boolean supportsRead();
 
@@ -52,15 +49,23 @@ public interface FormatPlugin {
 
   /**
    * Indicates whether this FormatPlugin supports auto-partitioning for CTAS statements
+   *
    * @return true if auto-partitioning is supported
    */
   public boolean supportsAutoPartitioning();
 
   public FormatMatcher getMatcher();
 
-  public AbstractWriter getWriter(PhysicalOperator child, String location, FileSystemPlugin<?> plugin, WriterOptions options, OpProps props) throws IOException;
+  public AbstractWriter getWriter(
+      PhysicalOperator child,
+      String location,
+      FileSystemPlugin<?> plugin,
+      WriterOptions options,
+      OpProps props)
+      throws IOException;
 
   public FormatPluginConfig getConfig();
+
   public String getName();
 
   FileDatasetHandle getDatasetAccessor(
@@ -72,31 +77,28 @@ public interface FormatPlugin {
       NamespaceKey tableSchemaPath,
       FileUpdateKey updateKey,
       int maxLeafColumns,
-      TimeTravelOption.TimeTravelRequest timeTravelRequest
-  );
+      TimeTravelOption.TimeTravelRequest timeTravelRequest);
 
-  /**
-   * Get a record reader specifically for the purposes of previews.
-   */
-  public RecordReader getRecordReader(final OperatorContext context, final FileSystem dfs, final FileAttributes attributes) throws ExecutionSetupException;
+  /** Get a record reader specifically for the purposes of previews. */
+  public RecordReader getRecordReader(
+      final OperatorContext context, final FileSystem dfs, final FileAttributes attributes)
+      throws ExecutionSetupException;
 
-  default FileSelectionProcessor getFileSelectionProcessor(FileSystem fs, FileSelection fileSelection) {
+  default FileSelectionProcessor getFileSelectionProcessor(
+      FileSystem fs, FileSelection fileSelection) {
     return new DefaultFileSelectionProcessor(fs, fileSelection, getMaxFilesLimit());
   }
 
-  /**
-   * Get the files under a path for sample data purpose
-   */
+  /** Get the files under a path for sample data purpose */
   DirectoryStream<FileAttributes> getFilesForSamples(
-    FileSystem fs,
-    FileSystemPlugin<?> fsPlugin,
-    Path path
-  ) throws IOException, FileCountTooLargeException;
+      FileSystem fs, FileSystemPlugin<?> fsPlugin, Path path)
+      throws IOException, FileCountTooLargeException;
 
   /**
    * @return Returns the max number of files supported by this format plugin
    */
   default int getMaxFilesLimit() {
-    return Math.toIntExact(getContext().getOptionManager().getOption(FileDatasetHandle.DFS_MAX_FILES));
+    return Math.toIntExact(
+        getContext().getOptionManager().getOption(FileDatasetHandle.DFS_MAX_FILES));
   }
 }

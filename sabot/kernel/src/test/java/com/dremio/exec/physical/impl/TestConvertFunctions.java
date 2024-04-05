@@ -22,17 +22,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.VarCharVector;
-import org.apache.arrow.vector.util.JsonStringArrayList;
-import org.apache.arrow.vector.util.JsonStringHashMap;
-import org.junit.Test;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.expr.fn.FunctionErrorContext;
@@ -41,6 +30,15 @@ import com.dremio.exec.proto.UserBitShared.QueryType;
 import com.dremio.exec.record.RecordBatchLoader;
 import com.dremio.exec.util.ByteBufUtil.HadoopWritables;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.VarCharVector;
+import org.apache.arrow.vector.util.JsonStringArrayList;
+import org.apache.arrow.vector.util.JsonStringHashMap;
+import org.junit.Test;
 
 public class TestConvertFunctions extends BaseTestQuery {
 
@@ -51,14 +49,16 @@ public class TestConvertFunctions extends BaseTestQuery {
   public void testConvertFromConvertToInt() throws Exception {
     try {
       final String newTblName = "testConvertFromConvertToInt_tbl";
-      final String ctasQuery = String.format("CREATE TABLE %s.%s as \n" +
-          "SELECT convert_to(r_regionkey, 'INT') as ct \n" +
-          "FROM cp.\"tpch/region.parquet\"",
-          TEMP_SCHEMA, newTblName);
-      final String query = String.format("SELECT convert_from(ct, 'INT') as cf \n" +
-          "FROM %s.%s \n" +
-          "ORDER BY ct",
-          TEMP_SCHEMA, newTblName);
+      final String ctasQuery =
+          String.format(
+              "CREATE TABLE %s.%s as \n"
+                  + "SELECT convert_to(r_regionkey, 'INT') as ct \n"
+                  + "FROM cp.\"tpch/region.parquet\"",
+              TEMP_SCHEMA, newTblName);
+      final String query =
+          String.format(
+              "SELECT convert_from(ct, 'INT') as cf \n" + "FROM %s.%s \n" + "ORDER BY ct",
+              TEMP_SCHEMA, newTblName);
 
       test("alter session set \"planner.slice_target\" = 1");
       test(ctasQuery);
@@ -80,37 +80,28 @@ public class TestConvertFunctions extends BaseTestQuery {
 
   @Test
   public void testExplainConvertFromJSON() throws Exception {
-    final String subQuery = "SELECT CONVERT_FROM(list, 'JSON') AS L, CONVERT_FROM(map, 'JSON') AS M FROM cp.\"functions/conv/list_map.json\"";
+    final String subQuery =
+        "SELECT CONVERT_FROM(list, 'JSON') AS L, CONVERT_FROM(map, 'JSON') AS M FROM cp.\"functions/conv/list_map.json\"";
     final String query = "SELECT q.L[1] AS L1, q.M.f AS Mf FROM (" + subQuery + ") q";
     test("EXPLAIN PLAN FOR " + query);
   }
 
   @Test
   public void testFnConvert() throws Exception {
-    final String query = ""
-      + "SELECT {fn CONVERT('100', DOUBLE)} AS c1";
-    testBuilder()
-      .sqlQuery(query)
-      .unOrdered()
-      .baselineColumns("c1")
-      .baselineValues(100.0)
-      .go();
+    final String query = "" + "SELECT {fn CONVERT('100', DOUBLE)} AS c1";
+    testBuilder().sqlQuery(query).unOrdered().baselineColumns("c1").baselineValues(100.0).go();
   }
 
   @Test
   public void testQueryListFromMultipleConvertFromJSON() throws Exception {
-    final String subQuery = "SELECT CONVERT_FROM(list, 'JSON') AS L, CONVERT_FROM(map, 'JSON') AS M FROM cp.\"functions/conv/list_map.json\"";
+    final String subQuery =
+        "SELECT CONVERT_FROM(list, 'JSON') AS L, CONVERT_FROM(map, 'JSON') AS M FROM cp.\"functions/conv/list_map.json\"";
     final String query = "SELECT q.L[1] AS L1 FROM (" + subQuery + ") q";
 
     setEnableReAttempts(true);
     try {
       testRunAndPrint(QueryType.SQL, subQuery);
-      testBuilder()
-        .ordered()
-        .sqlQuery(query)
-        .baselineColumns("L1")
-        .baselineValues("b")
-        .go();
+      testBuilder().ordered().sqlQuery(query).baselineColumns("L1").baselineValues("b").go();
     } finally {
       setEnableReAttempts(false);
     }
@@ -118,18 +109,14 @@ public class TestConvertFunctions extends BaseTestQuery {
 
   @Test
   public void testQueryMapFromMultipleConvertFromJSON() throws Exception {
-    final String subQuery = "SELECT CONVERT_FROM(list, 'JSON') AS L, CONVERT_FROM(map, 'JSON') AS M FROM cp.\"functions/conv/list_map.json\"";
+    final String subQuery =
+        "SELECT CONVERT_FROM(list, 'JSON') AS L, CONVERT_FROM(map, 'JSON') AS M FROM cp.\"functions/conv/list_map.json\"";
     final String query = "SELECT q.M.f AS Mf FROM (" + subQuery + ") q";
 
     setEnableReAttempts(true);
     try {
       testRunAndPrint(QueryType.SQL, subQuery);
-      testBuilder()
-        .ordered()
-        .sqlQuery(query)
-        .baselineColumns("Mf")
-        .baselineValues(10L)
-        .go();
+      testBuilder().ordered().sqlQuery(query).baselineColumns("Mf").baselineValues(10L).go();
     } finally {
       setEnableReAttempts(false);
     }
@@ -137,46 +124,53 @@ public class TestConvertFunctions extends BaseTestQuery {
 
   @Test
   public void testQueryListMapFromMultipleConvertFromJSON() throws Exception {
-    final String subQuery = "SELECT CONVERT_FROM(list, 'JSON') AS L, CONVERT_FROM(map, 'JSON') AS M FROM cp.\"functions/conv/list_map.json\"";
+    final String subQuery =
+        "SELECT CONVERT_FROM(list, 'JSON') AS L, CONVERT_FROM(map, 'JSON') AS M FROM cp.\"functions/conv/list_map.json\"";
     final String query = "SELECT q.L[1] AS L1, q.M.f AS Mf FROM (" + subQuery + ") q";
 
     setEnableReAttempts(true);
     try {
       testRunAndPrint(QueryType.SQL, subQuery);
       testBuilder()
-        .ordered()
-        .sqlQuery(query)
-        .baselineColumns("L1", "Mf")
-        .baselineValues("b", 10L)
-        .go();
+          .ordered()
+          .sqlQuery(query)
+          .baselineColumns("L1", "Mf")
+          .baselineValues("b", 10L)
+          .go();
     } finally {
       setEnableReAttempts(false);
     }
   }
 
-  private String prepareConvertTestQuery(String inputFile, String inputField, String outputField, String ctasTable) throws Exception {
-    final String ctas = String.format("CREATE TABLE dfs_test.%s AS SELECT CONVERT_TO(%s, 'JSON') AS %s FROM %s",
-      ctasTable, inputField, outputField, inputFile);
+  private String prepareConvertTestQuery(
+      String inputFile, String inputField, String outputField, String ctasTable) throws Exception {
+    final String ctas =
+        String.format(
+            "CREATE TABLE dfs_test.%s AS SELECT CONVERT_TO(%s, 'JSON') AS %s FROM %s",
+            ctasTable, inputField, outputField, inputFile);
     runSQL(ctas);
-    return String.format("SELECT CONVERT_FROM(%s, 'JSON') AS %s FROM dfs_test.%s", outputField, outputField, ctasTable);
+    return String.format(
+        "SELECT CONVERT_FROM(%s, 'JSON') AS %s FROM dfs_test.%s",
+        outputField, outputField, ctasTable);
   }
 
   @Test
   public void test_JSON_convertTo_empty_null_lists() throws Exception {
-    final String query = prepareConvertTestQuery("cp.\"/json/null_list.json\"", "mylist", "list","null_list_json");
+    final String query =
+        prepareConvertTestQuery("cp.\"/json/null_list.json\"", "mylist", "list", "null_list_json");
     setEnableReAttempts(true);
     try {
       testBuilder()
-        .ordered()
-        .sqlQuery(query)
-        .baselineColumns("list")
-        .baselineValues(listOf("a", "b", "c"))
-        .baselineValues(((JsonStringArrayList<Object>) null))
-        .baselineValues(listOf())
-        .baselineValues(((JsonStringArrayList<Object>) null))
-        .baselineValues(listOf("a", "b", "c"))
-        .build()
-        .run();
+          .ordered()
+          .sqlQuery(query)
+          .baselineColumns("list")
+          .baselineValues(listOf("a", "b", "c"))
+          .baselineValues(((JsonStringArrayList<Object>) null))
+          .baselineValues(listOf())
+          .baselineValues(((JsonStringArrayList<Object>) null))
+          .baselineValues(listOf("a", "b", "c"))
+          .build()
+          .run();
     } finally {
       setEnableReAttempts(false);
     }
@@ -184,20 +178,21 @@ public class TestConvertFunctions extends BaseTestQuery {
 
   @Test
   public void test_JSON_convertTo_empty_null_maps() throws Exception {
-    final String query = prepareConvertTestQuery("cp.\"/json/null_map.json\"", "map", "map", "null_map_json");
+    final String query =
+        prepareConvertTestQuery("cp.\"/json/null_map.json\"", "map", "map", "null_map_json");
     setEnableReAttempts(true);
     try {
       testBuilder()
-        .ordered()
-        .sqlQuery(query)
-        .baselineColumns("map")
-        .baselineValues(mapOf("a", 1L, "b", 2L, "c", 3L))
-        .baselineValues(((JsonStringHashMap<String, Object>) null))
-        .baselineValues(mapOf())
-        .baselineValues(((JsonStringHashMap<String, Object>) null))
-        .baselineValues(mapOf("a", 1L, "b", 2L, "c", 3L))
-        .build()
-        .run();
+          .ordered()
+          .sqlQuery(query)
+          .baselineColumns("map")
+          .baselineValues(mapOf("a", 1L, "b", 2L, "c", 3L))
+          .baselineValues(((JsonStringHashMap<String, Object>) null))
+          .baselineValues(mapOf())
+          .baselineValues(((JsonStringHashMap<String, Object>) null))
+          .baselineValues(mapOf("a", 1L, "b", 2L, "c", 3L))
+          .build()
+          .run();
     } finally {
       setEnableReAttempts(false);
     }
@@ -205,39 +200,45 @@ public class TestConvertFunctions extends BaseTestQuery {
 
   @Test
   public void test_castConvertToEmptyListErrorDrill1416Part1() throws Exception {
-    final String query = prepareConvertTestQuery("cp.\"/store/json/input2.json\"", "rl[1]", "list_col", "input2_json");
+    final String query =
+        prepareConvertTestQuery(
+            "cp.\"/store/json/input2.json\"", "rl[1]", "list_col", "input2_json");
     String query2 = "SELECT CAST(list_col AS VARCHAR(100)) FROM dfs_test.input2_json";
 
     testBuilder()
-      .sqlQuery(query2)
-      .ordered()
-      .baselineColumns("EXPR$0")
-      .baselineValues("[ 4, 6 ]")
-      .baselineValues(new Object[] { null })
-      .baselineValues("[ 4, 6 ]")
-      .baselineValues("[ 4, 6 ]")
-      .build()
-      .run();
-
+        .sqlQuery(query2)
+        .ordered()
+        .baselineColumns("EXPR$0")
+        .baselineValues("[ 4, 6 ]")
+        .baselineValues(new Object[] {null})
+        .baselineValues("[ 4, 6 ]")
+        .baselineValues("[ 4, 6 ]")
+        .build()
+        .run();
   }
 
   @Test
   public void test_castConvertToEmptyListErrorDrill1416Part2() throws Exception {
-    final String query = prepareConvertTestQuery("cp.\"/store/json/json_project_null_object_from_list.json\"", "rl[1]", "map_col", "json_project_null_json");
+    final String query =
+        prepareConvertTestQuery(
+            "cp.\"/store/json/json_project_null_object_from_list.json\"",
+            "rl[1]",
+            "map_col",
+            "json_project_null_json");
 
     Object mapVal1 = mapOf("f1", 4L, "f2", 6L);
     Object mapVal2 = mapOf("f1", 11L);
     setEnableReAttempts(true);
     try {
       testBuilder()
-        .sqlQuery(query)
-        .unOrdered()
-        .baselineColumns("map_col")
-        .baselineValues(mapVal1)
-        .baselineValues((JsonStringHashMap<String, Object>) null)
-        .baselineValues(mapVal2)
-        .baselineValues(mapVal1)
-        .go();
+          .sqlQuery(query)
+          .unOrdered()
+          .baselineColumns("map_col")
+          .baselineValues(mapVal1)
+          .baselineValues((JsonStringHashMap<String, Object>) null)
+          .baselineValues(mapVal2)
+          .baselineValues(mapVal1)
+          .go();
     } finally {
       setEnableReAttempts(false);
     }
@@ -245,41 +246,30 @@ public class TestConvertFunctions extends BaseTestQuery {
 
   @Test
   public void testConvertToComplexJSON() throws Exception {
-    String query2 = "select cast(convert_to(rl[1], 'EXTENDEDJSON') as varchar(100)) as json_str from cp.\"/store/json/input2.json\"";
+    String query2 =
+        "select cast(convert_to(rl[1], 'EXTENDEDJSON') as varchar(100)) as json_str from cp.\"/store/json/input2.json\"";
 
     testBuilder()
-      .sqlQuery(query2)
-      .ordered()
-      .baselineColumns("json_str")
-      .baselineValues("[ {\n" +
-        "  \"$numberLong\" : 4\n" +
-        "}, {\n" +
-        "  \"$numberLong\" : 6\n" +
-        "} ]")
-      .baselineValues(null)
-      .baselineValues("[ {\n" +
-        "  \"$numberLong\" : 4\n" +
-        "}, {\n" +
-        "  \"$numberLong\" : 6\n" +
-        "} ]")
-      .baselineValues("[ {\n" +
-        "  \"$numberLong\" : 4\n" +
-        "}, {\n" +
-        "  \"$numberLong\" : 6\n" +
-        "} ]")
-      .build()
-      .run();
+        .sqlQuery(query2)
+        .ordered()
+        .baselineColumns("json_str")
+        .baselineValues(
+            "[ {\n" + "  \"$numberLong\" : 4\n" + "}, {\n" + "  \"$numberLong\" : 6\n" + "} ]")
+        .baselineValues(null)
+        .baselineValues(
+            "[ {\n" + "  \"$numberLong\" : 4\n" + "}, {\n" + "  \"$numberLong\" : 6\n" + "} ]")
+        .baselineValues(
+            "[ {\n" + "  \"$numberLong\" : 4\n" + "}, {\n" + "  \"$numberLong\" : 6\n" + "} ]")
+        .build()
+        .run();
 
     String result1 =
-        "[ {\n" +
-            "  \"$numberLong\" : 4\n" +
-            "}, {\n" +
-            "  \"$numberLong\" : 6\n" +
-            "} ]";
-    String[] result2 = new String[] { null };
+        "[ {\n" + "  \"$numberLong\" : 4\n" + "}, {\n" + "  \"$numberLong\" : 6\n" + "} ]";
+    String[] result2 = new String[] {null};
 
     testBuilder()
-        .sqlQuery("select cast(convert_from(convert_to(rl[1], 'EXTENDEDJSON'), 'UTF8') as varchar(100)) as json_str from cp.\"/store/json/input2.json\"")
+        .sqlQuery(
+            "select cast(convert_from(convert_to(rl[1], 'EXTENDEDJSON'), 'UTF8') as varchar(100)) as json_str from cp.\"/store/json/input2.json\"")
         .unOrdered()
         .baselineColumns("json_str")
         .baselineValues(result1)
@@ -287,16 +277,16 @@ public class TestConvertFunctions extends BaseTestQuery {
         .baselineValues(result1)
         .baselineValues(result1)
         .go();
-
   }
 
   @Test
   public void testFixedInts4SQL_from() throws Throwable {
-    verifySQL("select"
-           + "   convert_from(binary_string('\\xBE\\xBA\\xFE\\xCA'), 'INT')"
-           + " from"
-           + "   cp.\"employee.json\" LIMIT 1",
-            0xCAFEBABE);
+    verifySQL(
+        "select"
+            + "   convert_from(binary_string('\\xBE\\xBA\\xFE\\xCA'), 'INT')"
+            + " from"
+            + "   cp.\"employee.json\" LIMIT 1",
+        0xCAFEBABE);
   }
 
   @Test
@@ -304,16 +294,19 @@ public class TestConvertFunctions extends BaseTestQuery {
     test("alter session set \"store.json.all_text_mode\" = true");
     try {
       String testName = "testConvertDX14291";
-      Object[] result = getRunResult(QueryType.SQL, "select "
-          + " convert_from('{\"number_array\" : [200551,200513,200499,null,null]}', 'JSON') as number_array");
+      Object[] result =
+          getRunResult(
+              QueryType.SQL,
+              "select "
+                  + " convert_from('{\"number_array\" : [200551,200513,200499,null,null]}', 'JSON') as number_array");
       assertEquals(testName, 1, result.length);
       assertNotNull(testName, result[0]);
-      JsonStringHashMap hashMap = (JsonStringHashMap)result[0];
-      JsonStringArrayList values = (JsonStringArrayList)hashMap.get("number_array");
+      JsonStringHashMap hashMap = (JsonStringHashMap) result[0];
+      JsonStringArrayList values = (JsonStringArrayList) hashMap.get("number_array");
       Object[] actualResult = values.toArray();
       String[] expectedResult = new String[] {"200551", "200513", "200499", "null", "null"};
       assertEquals(testName, expectedResult.length, actualResult.length);
-      for(int i = 0; i < expectedResult.length; i++) {
+      for (int i = 0; i < expectedResult.length; i++) {
         assertEquals(testName, expectedResult[i], actualResult[i].toString());
       }
     } finally {
@@ -323,11 +316,9 @@ public class TestConvertFunctions extends BaseTestQuery {
 
   @Test
   public void testFixedInts4SQL_to() throws Throwable {
-    verifySQL("select"
-           + "   convert_to(-889275714, 'INT')"
-           + " from"
-           + "   cp.\"employee.json\" LIMIT 1",
-           new byte[] {(byte) 0xBE, (byte) 0xBA, (byte) 0xFE, (byte) 0xCA});
+    verifySQL(
+        "select" + "   convert_to(-889275714, 'INT')" + " from" + "   cp.\"employee.json\" LIMIT 1",
+        new byte[] {(byte) 0xBE, (byte) 0xBA, (byte) 0xFE, (byte) 0xCA});
   }
 
   @Test
@@ -375,17 +366,17 @@ public class TestConvertFunctions extends BaseTestQuery {
   @Test // DRILL-4862
   public void testBinaryString() throws Exception {
     final String[] queries = {
-        "SELECT convert_from(binary_string(key), 'INT_BE') as intkey \n" +
-            "FROM cp.\"functions/conv/conv.json\""
+      "SELECT convert_from(binary_string(key), 'INT_BE') as intkey \n"
+          + "FROM cp.\"functions/conv/conv.json\""
     };
 
-    for (String query: queries) {
+    for (String query : queries) {
       testBuilder()
           .sqlQuery(query)
           .ordered()
           .baselineColumns("intkey")
           .baselineValues(1244739896)
-          .baselineValues(new Object[] { null })
+          .baselineValues(new Object[] {null})
           .baselineValues(1313814865)
           .baselineValues(1852782897)
           .build()
@@ -407,35 +398,33 @@ public class TestConvertFunctions extends BaseTestQuery {
       "SELECT convert_from(binary_string('\\x41\\x20\\x42\\x20\\x43'), 'UTF8', 'X') as val FROM (values(1))",
     };
 
-    for (String query: queries) {
+    for (String query : queries) {
       testBuilder()
-        .sqlQuery(query)
-        .ordered()
-        .baselineColumns("val")
-        .baselineValues("A B C")
-        .build()
-        .run();
+          .sqlQuery(query)
+          .ordered()
+          .baselineColumns("val")
+          .baselineValues("A B C")
+          .build()
+          .run();
     }
 
-    // Now test without a constant expression -- repeating a previous test (testConvertToComplexJSON), only with
+    // Now test without a constant expression -- repeating a previous test
+    // (testConvertToComplexJSON), only with
     // an extra argument to convert_from
     String result1 =
-      "[ {\n" +
-        "  \"$numberLong\" : 4\n" +
-        "}, {\n" +
-        "  \"$numberLong\" : 6\n" +
-        "} ]";
-    String[] result2 = new String[] { null };
+        "[ {\n" + "  \"$numberLong\" : 4\n" + "}, {\n" + "  \"$numberLong\" : 6\n" + "} ]";
+    String[] result2 = new String[] {null};
 
     testBuilder()
-      .sqlQuery("select cast(convert_from(convert_to(rl[1], 'EXTENDEDJSON'), 'UTF8', '') as varchar(100)) as json_str from cp.\"/store/json/input2.json\"")
-      .unOrdered()
-      .baselineColumns("json_str")
-      .baselineValues(result1)
-      .baselineValues(result2)
-      .baselineValues(result1)
-      .baselineValues(result1)
-      .go();
+        .sqlQuery(
+            "select cast(convert_from(convert_to(rl[1], 'EXTENDEDJSON'), 'UTF8', '') as varchar(100)) as json_str from cp.\"/store/json/input2.json\"")
+        .unOrdered()
+        .baselineColumns("json_str")
+        .baselineValues(result1)
+        .baselineValues(result2)
+        .baselineValues(result1)
+        .baselineValues(result1)
+        .go();
   }
 
   @Test
@@ -447,24 +436,23 @@ public class TestConvertFunctions extends BaseTestQuery {
       "SELECT NOT is_utf8(convert_from(binary_string('\\x41\\x20\\x42\\x20\\x43\\xFC'), 'UTF8')) as val FROM (values(1))"
     };
 
-    for (String query: queries) {
+    for (String query : queries) {
       testBuilder()
-        .sqlQuery(query)
-        .ordered()
-        .baselineColumns("val")
-        .baselineValues(true)
-        .build()
-        .run();
+          .sqlQuery(query)
+          .ordered()
+          .baselineColumns("val")
+          .baselineValues(true)
+          .build()
+          .run();
     }
 
     testBuilder()
-      .sqlQuery("SELECT is_utf8(l_comment) as A FROM cp.\"tpch/lineitem.parquet\" LIMIT 1")
-      .ordered()
-      .baselineColumns("A")
-      .baselineValues(true)
-      .build()
-      .run();
-
+        .sqlQuery("SELECT is_utf8(l_comment) as A FROM cp.\"tpch/lineitem.parquet\" LIMIT 1")
+        .ordered()
+        .baselineColumns("A")
+        .baselineValues(true)
+        .build()
+        .run();
   }
 
   protected <T> void verifySQL(String sql, T expectedResults) throws Throwable {
@@ -476,12 +464,12 @@ public class TestConvertFunctions extends BaseTestQuery {
 
     List<Object> res = new ArrayList<>();
     RecordBatchLoader loader = new RecordBatchLoader(getAllocator());
-    for(QueryDataBatch result : resultList) {
+    for (QueryDataBatch result : resultList) {
       if (result.getData() != null) {
         loader.load(result.getHeader().getDef(), result.getData());
         ValueVector v = loader.iterator().next().getValueVector();
         for (int j = 0; j < v.getValueCount(); j++) {
-          if  (v instanceof VarCharVector) {
+          if (v instanceof VarCharVector) {
             res.add(new String(((VarCharVector) v).get(j)));
           } else {
             res.add(v.getObject(j));
@@ -495,7 +483,8 @@ public class TestConvertFunctions extends BaseTestQuery {
     return res.toArray();
   }
 
-  protected <T> void verifyResults(String expression, T expectedResults, Object[] actualResults) throws Exception {
+  protected <T> void verifyResults(String expression, T expectedResults, Object[] actualResults)
+      throws Exception {
     String testName = String.format("Expression: %s.", expression);
     assertEquals(testName, 1, actualResults.length);
     assertNotNull(testName, actualResults[0]);
@@ -528,9 +517,12 @@ public class TestConvertFunctions extends BaseTestQuery {
     } else if (expected instanceof double[] && actual instanceof double[]) {
       assertArrayEquals(message, (double[]) expected, (double[]) actual, DELTA);
     } else {
-      fail(String.format("%s: Error comparing arrays of type '%s' and '%s'",
-          message, expected.getClass().getName(), Optional.ofNullable(actual).map(o -> o.getClass().getName()).orElse("null")));
+      fail(
+          String.format(
+              "%s: Error comparing arrays of type '%s' and '%s'",
+              message,
+              expected.getClass().getName(),
+              Optional.ofNullable(actual).map(o -> o.getClass().getName()).orElse("null")));
     }
   }
-
 }

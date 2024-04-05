@@ -17,16 +17,14 @@ package com.dremio.service.namespace;
 
 import static java.util.Collections.unmodifiableList;
 
+import com.dremio.common.exceptions.UserException;
 import java.util.Arrays;
 import java.util.List;
 
-import com.dremio.common.exceptions.UserException;
-
-/**
- * Object representing a path along with a set of options
- */
+/** Object representing a path along with a set of options */
 public final class TableInstance {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TableInstance.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(TableInstance.class);
 
   private final TableSignature sig;
   private final List<Object> params;
@@ -36,8 +34,7 @@ public final class TableInstance {
     if (params.size() != sig.params.size()) {
       throw UserException.parseError()
           .message(
-              "should have as many params (%d) as signature (%d)",
-              params.size(), sig.params.size())
+              "should have as many params (%d) as signature (%d)", params.size(), sig.params.size())
           .addContext("table", sig.name)
           .build(logger);
     }
@@ -57,7 +54,11 @@ public final class TableInstance {
           sb.append(", ");
         }
         TableParamDef paramDef = sig.params.get(i);
-        sb.append(paramDef.name).append(": ").append(paramDef.type.getSimpleName()).append(" => ").append(param);
+        sb.append(paramDef.name)
+            .append(": ")
+            .append(paramDef.type.getSimpleName())
+            .append(" => ")
+            .append(param);
       }
     }
     sb.append(")");
@@ -77,14 +78,14 @@ public final class TableInstance {
     return Arrays.hashCode(toArray());
   }
 
-  public List<Object> getParams(){
+  public List<Object> getParams() {
     return params;
   }
 
   @Override
   public boolean equals(Object obj) {
     if (obj instanceof TableInstance) {
-      return Arrays.equals(this.toArray(), ((TableInstance)obj).toArray());
+      return Arrays.equals(this.toArray(), ((TableInstance) obj).toArray());
     }
     return false;
   }
@@ -98,9 +99,7 @@ public final class TableInstance {
     return objects;
   }
 
-  /**
-   * Signature of table that has multiple table parameters.
-   */
+  /** Signature of table that has multiple table parameters. */
   public static final class TableSignature {
     private final String name;
     private final List<TableParamDef> params;
@@ -134,7 +133,7 @@ public final class TableInstance {
     @Override
     public boolean equals(Object obj) {
       if (obj instanceof TableSignature) {
-        return Arrays.equals(this.toArray(), ((TableSignature)obj).toArray());
+        return Arrays.equals(this.toArray(), ((TableSignature) obj).toArray());
       }
       return false;
     }
@@ -145,9 +144,7 @@ public final class TableInstance {
     }
   }
 
-  /**
-   * Table function parameter
-   */
+  /** Table function parameter */
   public static final class TableParamDef {
     private final String name;
     private final Class<?> type;
@@ -191,7 +188,7 @@ public final class TableInstance {
     @Override
     public boolean equals(Object obj) {
       if (obj instanceof TableParamDef) {
-        return Arrays.equals(this.toArray(), ((TableParamDef)obj).toArray());
+        return Arrays.equals(this.toArray(), ((TableParamDef) obj).toArray());
       }
       return false;
     }

@@ -19,8 +19,6 @@ import static com.dremio.plugins.s3.store.S3StoragePlugin.AWS_PROFILE_PROVIDER;
 import static com.dremio.plugins.s3.store.S3StoragePlugin.EC2_METADATA_PROVIDER;
 import static com.dremio.plugins.s3.store.S3StoragePlugin.NONE_PROVIDER;
 
-import javax.inject.Provider;
-
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.AWSAuthenticationType;
 import com.dremio.exec.catalog.conf.DisplayMetadata;
@@ -28,12 +26,10 @@ import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.plugins.util.awsauth.AWSCredentialsConfigurator;
-
 import io.protostuff.Tag;
+import javax.inject.Provider;
 
-/**
- * Connection Configuration for S3.
- */
+/** Connection Configuration for S3. */
 @SourceType(value = "S3", label = "Amazon S3", uiConfig = "s3-layout.json")
 public class S3PluginConfig extends AbstractS3PluginConfig {
   @Tag(8)
@@ -44,10 +40,15 @@ public class S3PluginConfig extends AbstractS3PluginConfig {
   public String awsProfile;
 
   @Override
-  public S3StoragePlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
-    return new S3StoragePlugin(this, context, name, pluginIdProvider,
-            getS3CredentialsProvider(),
-            AWSAuthenticationType.NONE.equals(credentialType));
+  public S3StoragePlugin newPlugin(
+      SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
+    return new S3StoragePlugin(
+        this,
+        context,
+        name,
+        pluginIdProvider,
+        getS3CredentialsProvider(),
+        AWSAuthenticationType.NONE.equals(credentialType));
   }
 
   public AWSAuthenticationType getCredentialType() {
@@ -74,7 +75,8 @@ public class S3PluginConfig extends AbstractS3PluginConfig {
       case NONE:
         return properties -> NONE_PROVIDER;
       default:
-        throw new UnsupportedOperationException("Failure creating S3 connection. Unsupported credential type:" + credentialType);
+        throw new UnsupportedOperationException(
+            "Failure creating S3 connection. Unsupported credential type:" + credentialType);
     }
   }
 }

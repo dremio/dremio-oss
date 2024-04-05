@@ -25,23 +25,6 @@ import static com.dremio.provision.yarn.DacDaemonYarnApplication.YARN_CPU;
 import static com.dremio.provision.yarn.DacDaemonYarnApplication.YARN_MEMORY_OFF_HEAP;
 import static com.dremio.provision.yarn.DacDaemonYarnApplication.YARN_RUNNABLE_NAME;
 
-import java.io.IOException;
-import java.net.URL;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentMap;
-
-import org.apache.commons.lang3.StringEscapeUtils;
-import org.apache.hadoop.security.UserGroupInformation;
-import org.apache.hadoop.yarn.conf.YarnConfiguration;
-import org.apache.twill.api.ClassAcceptor;
-import org.apache.twill.api.TwillController;
-import org.apache.twill.api.TwillPreparer;
-import org.apache.twill.api.TwillRunnerService;
-import org.apache.twill.api.logging.LogEntry;
-import org.apache.twill.yarn.YarnTwillRunnerService;
-import org.slf4j.Logger;
-
 import com.dremio.common.VM;
 import com.dremio.config.DremioConfig;
 import com.dremio.provision.ClusterId;
@@ -53,21 +36,35 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
-
+import java.io.IOException;
+import java.net.URL;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentMap;
+import org.apache.commons.lang3.StringEscapeUtils;
+import org.apache.hadoop.security.UserGroupInformation;
+import org.apache.hadoop.yarn.conf.YarnConfiguration;
+import org.apache.twill.api.ClassAcceptor;
+import org.apache.twill.api.TwillController;
+import org.apache.twill.api.TwillPreparer;
+import org.apache.twill.api.TwillRunnerService;
+import org.apache.twill.api.logging.LogEntry;
+import org.apache.twill.yarn.YarnTwillRunnerService;
+import org.slf4j.Logger;
 
 /**
- * Class that allows to control Dremio YARN deployment
- * It is a singleton to start only single controller per process and only if needed
+ * Class that allows to control Dremio YARN deployment It is a singleton to start only single
+ * controller per process and only if needed
  */
 public class YarnController {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(YarnController.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(YarnController.class);
 
   @VisibleForTesting
-  final ConcurrentMap<ClusterId,TwillRunnerService> twillRunners = Maps.newConcurrentMap();
+  final ConcurrentMap<ClusterId, TwillRunnerService> twillRunners = Maps.newConcurrentMap();
 
-  @VisibleForTesting
-  final DremioConfig dremioConfig;
+  @VisibleForTesting final DremioConfig dremioConfig;
 
   public YarnController() {
     this(DremioConfig.create());
@@ -93,7 +90,8 @@ public class YarnController {
     String clusterId = yarnConfiguration.get(YARN_CLUSTER_ID);
     Preconditions.checkNotNull(clusterId, "Cluster ID can not be null");
     TwillRunnerService twillRunner = new YarnTwillRunnerService(yarnConfiguration, zkStr);
-    TwillRunnerService previousOne = twillRunners.putIfAbsent(new ClusterId(clusterId), twillRunner);
+    TwillRunnerService previousOne =
+        twillRunners.putIfAbsent(new ClusterId(clusterId), twillRunner);
     if (previousOne == null) {
       // start one we are planning to add - if it is already in collection it should be started
       twillRunner.start();
@@ -102,19 +100,21 @@ public class YarnController {
     return previousOne;
   }
 
-  public TwillController startCluster(YarnConfiguration yarnConfiguration, List<Property> propertyList) {
+  public TwillController startCluster(
+      YarnConfiguration yarnConfiguration, List<Property> propertyList) {
     TwillController tmpController = createPreparer(yarnConfiguration, propertyList).start();
     return tmpController;
   }
 
-  protected TwillPreparer createPreparer(YarnConfiguration yarnConfiguration, List<Property> propertyList) {
-    AppBundleRunnable.Arguments discoveryArgs = new AppBundleRunnable.Arguments(
-        YARN_BUNDLED_JAR_NAME,
-        "com.dremio.dac.daemon.YarnDaemon",
-        new String[] {});
+  protected TwillPreparer createPreparer(
+      YarnConfiguration yarnConfiguration, List<Property> propertyList) {
+    AppBundleRunnable.Arguments discoveryArgs =
+        new AppBundleRunnable.Arguments(
+            YARN_BUNDLED_JAR_NAME, "com.dremio.dac.daemon.YarnDaemon", new String[] {});
 
-    DacDaemonYarnApplication dacDaemonApp = new DacDaemonYarnApplication(dremioConfig, yarnConfiguration,
-      new DacDaemonYarnApplication.Environment());
+    DacDaemonYarnApplication dacDaemonApp =
+        new DacDaemonYarnApplication(
+            dremioConfig, yarnConfiguration, new DacDaemonYarnApplication.Environment());
 
     TwillRunnerService twillRunner = startTwillRunner(yarnConfiguration);
 
@@ -140,18 +140,23 @@ public class YarnController {
         envVars.put(prop.getKey(), prop.getValue());
       }
     }
-    String[] yarnClasspath = yarnConfiguration.getStrings(YarnConfiguration.YARN_APPLICATION_CLASSPATH,
-      YarnConfiguration.DEFAULT_YARN_APPLICATION_CLASSPATH);
-    final TwillPreparer preparer = twillRunner.prepare(dacDaemonApp)
-      .addLogHandler(new YarnTwillLogHandler())
-      .withApplicationClassPaths(yarnClasspath)
-      .withBundlerClassAcceptor(new HadoopClassExcluder())
-      .setLogLevels(ImmutableMap.of(Logger.ROOT_LOGGER_NAME, yarnContainerLogLevel()))
-      .withEnv(YARN_RUNNABLE_NAME, envVars)
-      .withMaxRetries(YARN_RUNNABLE_NAME, MAX_APP_RESTART_RETRIES)
-      .withArguments(YARN_RUNNABLE_NAME, discoveryArgs.toArray())
-      .setJVMOptions(YARN_RUNNABLE_NAME, prepareCommandOptions(yarnConfiguration, propertyList))
-      .withClassPaths(dacDaemonApp.getJarNames());
+    String[] yarnClasspath =
+        yarnConfiguration.getStrings(
+            YarnConfiguration.YARN_APPLICATION_CLASSPATH,
+            YarnConfiguration.DEFAULT_YARN_APPLICATION_CLASSPATH);
+    final TwillPreparer preparer =
+        twillRunner
+            .prepare(dacDaemonApp)
+            .addLogHandler(new YarnTwillLogHandler())
+            .withApplicationClassPaths(yarnClasspath)
+            .withBundlerClassAcceptor(new HadoopClassExcluder())
+            .setLogLevels(ImmutableMap.of(Logger.ROOT_LOGGER_NAME, yarnContainerLogLevel()))
+            .withEnv(YARN_RUNNABLE_NAME, envVars)
+            .withMaxRetries(YARN_RUNNABLE_NAME, MAX_APP_RESTART_RETRIES)
+            .withArguments(YARN_RUNNABLE_NAME, discoveryArgs.toArray())
+            .setJVMOptions(
+                YARN_RUNNABLE_NAME, prepareCommandOptions(yarnConfiguration, propertyList))
+            .withClassPaths(dacDaemonApp.getJarNames());
 
     String queue = yarnConfiguration.get(DacDaemonYarnApplication.YARN_QUEUE_NAME);
     if (queue != null) {
@@ -166,35 +171,42 @@ public class YarnController {
   }
 
   @VisibleForTesting
-  protected String prepareCommandOptions(YarnConfiguration yarnConfiguration, List<Property> propertyList) {
+  protected String prepareCommandOptions(
+      YarnConfiguration yarnConfiguration, List<Property> propertyList) {
 
     String directMemory = yarnConfiguration.get(YARN_MEMORY_OFF_HEAP);
 
-    final String jvmOptions = yarnConfiguration.get(DremioConfig.YARN_JVM_OPTIONS,
-      dremioConfig.getString(DremioConfig.YARN_JVM_OPTIONS));
+    final String jvmOptions =
+        yarnConfiguration.get(
+            DremioConfig.YARN_JVM_OPTIONS, dremioConfig.getString(DremioConfig.YARN_JVM_OPTIONS));
 
     String zkStr = dremioConfig.getString(DremioConfig.ZOOKEEPER_QUORUM);
     int defaultZkPort = dremioConfig.getInt(DremioConfig.EMBEDDED_MASTER_ZK_ENABLED_PORT_INT);
 
-    if (dremioConfig.getBoolean(DremioConfig.EMBEDDED_MASTER_ZK_ENABLED_BOOL) &&
-        zkStr.equals(String.format("localhost:%d", defaultZkPort))) {
+    if (dremioConfig.getBoolean(DremioConfig.EMBEDDED_MASTER_ZK_ENABLED_BOOL)
+        && zkStr.equals(String.format("localhost:%d", defaultZkPort))) {
       zkStr = String.format("%s:%d", dremioConfig.getThisNode(), defaultZkPort);
     }
 
-    final Map<String,String> basicJVMOptions = Maps.newHashMap();
+    final Map<String, String> basicJVMOptions = Maps.newHashMap();
     final Map<String, String> systemOptions = Maps.newHashMap();
 
     basicJVMOptions.put(DremioConfig.ZOOKEEPER_QUORUM, zkStr);
-    // note that DremioConfig.LOCAL_WRITE_PATH_STRING is unset; YarnDaemon creates the local write path on startup
-    basicJVMOptions.put(DremioConfig.DIST_WRITE_PATH_STRING, yarnConfiguration.get(DremioConfig.DIST_WRITE_PATH_STRING,
-      dremioConfig.getString(DremioConfig.DIST_WRITE_PATH_STRING)));
+    // note that DremioConfig.LOCAL_WRITE_PATH_STRING is unset; YarnDaemon creates the local write
+    // path on startup
+    basicJVMOptions.put(
+        DremioConfig.DIST_WRITE_PATH_STRING,
+        yarnConfiguration.get(
+            DremioConfig.DIST_WRITE_PATH_STRING,
+            dremioConfig.getString(DremioConfig.DIST_WRITE_PATH_STRING)));
     basicJVMOptions.put(DremioConfig.DEBUG_AUTOPORT_BOOL, "true");
     basicJVMOptions.put(DremioConfig.ENABLE_COORDINATOR_BOOL, "false");
     basicJVMOptions.put(DremioConfig.ENABLE_EXECUTOR_BOOL, "true");
     basicJVMOptions.put(DremioConfig.YARN_ENABLED_BOOL, "true");
     basicJVMOptions.put(MapRYarnDefaults.MAPR_IMPALA_RA_THROTTLE_BOOL, "true");
-    basicJVMOptions.put(MapRYarnDefaults.MAPR_MAX_RA_STREAMS, yarnConfiguration
-      .get(MapRYarnDefaults.MAPR_MAX_RA_STREAMS, "400"));
+    basicJVMOptions.put(
+        MapRYarnDefaults.MAPR_MAX_RA_STREAMS,
+        yarnConfiguration.get(MapRYarnDefaults.MAPR_MAX_RA_STREAMS, "400"));
     basicJVMOptions.put(VM.DREMIO_CPU_AVAILABLE_PROPERTY, yarnConfiguration.get(YARN_CPU));
     basicJVMOptions.put(DremioConfig.NETTY_REFLECTIONS_ACCESSIBLE, "true");
 
@@ -207,7 +219,7 @@ public class YarnController {
     }
 
     systemOptions.put("-XX:MaxDirectMemorySize", directMemory + "m");
-    if("1.8".equals(System.getProperty("java.specification.version"))){
+    if ("1.8".equals(System.getProperty("java.specification.version"))) {
       systemOptions.put("-XX:+PrintClassHistogramBeforeFullGC", "");
       systemOptions.put("-XX:+PrintClassHistogramAfterFullGC", "");
     }
@@ -220,7 +232,7 @@ public class YarnController {
       // if prop type is null (old property) and it starts with -X - it is a system prop
       // if prop type is SYSTEM_PROP - it is a system prop
       if ((prop.getType() == null && prop.getKey().startsWith("-X"))
-        || PropertyType.SYSTEM_PROP.equals(prop.getType())) {
+          || PropertyType.SYSTEM_PROP.equals(prop.getType())) {
         systemOptions.put(prop.getKey(), prop.getValue());
       } else {
         basicJVMOptions.put(prop.getKey(), prop.getValue());
@@ -228,7 +240,7 @@ public class YarnController {
     }
 
     StringBuilder basicJVMOptionsB = new StringBuilder();
-    for (Map.Entry<String,String> entry : basicJVMOptions.entrySet()) {
+    for (Map.Entry<String, String> entry : basicJVMOptions.entrySet()) {
       basicJVMOptionsB.append(" -D");
       basicJVMOptionsB.append(entry.getKey());
       if (!entry.getValue().isEmpty()) {
@@ -237,7 +249,7 @@ public class YarnController {
       }
     }
 
-    for (Map.Entry<String,String> entry : systemOptions.entrySet()) {
+    for (Map.Entry<String, String> entry : systemOptions.entrySet()) {
       basicJVMOptionsB.append(" ");
       basicJVMOptionsB.append(StringEscapeUtils.escapeJava(entry.getKey()));
       if (!entry.getValue().isEmpty()) {
@@ -253,8 +265,8 @@ public class YarnController {
     // then, pass the DREMIO_GC_OPTS to executor.
     // DREMIO_GC_OPTS can be overriden in dremio-env
     final String dremioGCOpts = getDremioGCOpts();
-    if(dremioGCOpts != null && !dremioGCOpts.isEmpty()) {
-      if(!basicJVMOptionsB.toString().matches(".*-XX:\\+Use.*GC.*")) {
+    if (dremioGCOpts != null && !dremioGCOpts.isEmpty()) {
+      if (!basicJVMOptionsB.toString().matches(".*-XX:\\+Use.*GC.*")) {
         basicJVMOptionsB.append(" " + dremioGCOpts);
       }
     }
@@ -285,21 +297,21 @@ public class YarnController {
   }
 
   private LogEntry.Level yarnContainerLogLevel() {
-      if (logger.isTraceEnabled()) {
-        return LogEntry.Level.TRACE;
-      }
-      if (logger.isDebugEnabled()) {
-        return LogEntry.Level.DEBUG;
-      }
-      if (logger.isInfoEnabled()) {
-        return LogEntry.Level.INFO;
-      }
-      if (logger.isWarnEnabled()) {
-        return LogEntry.Level.WARN;
-      }
-      if (logger.isErrorEnabled()) {
-        return LogEntry.Level.ERROR;
-      }
+    if (logger.isTraceEnabled()) {
+      return LogEntry.Level.TRACE;
+    }
+    if (logger.isDebugEnabled()) {
+      return LogEntry.Level.DEBUG;
+    }
+    if (logger.isInfoEnabled()) {
       return LogEntry.Level.INFO;
     }
+    if (logger.isWarnEnabled()) {
+      return LogEntry.Level.WARN;
+    }
+    if (logger.isErrorEnabled()) {
+      return LogEntry.Level.ERROR;
+    }
+    return LogEntry.Level.INFO;
+  }
 }

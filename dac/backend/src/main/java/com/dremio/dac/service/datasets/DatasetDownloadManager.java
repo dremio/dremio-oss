@@ -17,19 +17,10 @@ package com.dremio.dac.service.datasets;
 
 import static java.lang.String.format;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.DirectoryStream;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.utils.SqlUtils;
 import com.dremio.dac.explore.model.DownloadFormat;
 import com.dremio.dac.util.JobRequestUtil;
+import com.dremio.exec.planner.sql.parser.ParserUtil;
 import com.dremio.exec.store.easy.arrow.ArrowFileMetadata;
 import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
@@ -45,105 +36,178 @@ import com.dremio.service.job.proto.DownloadInfo;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.jobs.JobSubmittedListener;
 import com.dremio.service.jobs.JobsService;
-import com.dremio.service.namespace.NamespaceService;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.DirectoryStream;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * Schedule download jobs and read output of job for dataset download
- */
+/** Schedule download jobs and read output of job for dataset download */
 @Options
 public class DatasetDownloadManager {
   private static final Logger logger = LoggerFactory.getLogger(DatasetDownloadManager.class);
 
   public static final String DATASET_DOWNLOAD_STORAGE_PLUGIN = "__datasetDownload";
-  /**
-   * If set to true, download will request data from job results store directly for *NON-pdfs* job storages
-   */
-  public static final BooleanValidator DOWNLOAD_FROM_JOBS_STORE = new BooleanValidator("dac.download.from_jobs_store", true);
-  public static final RangeLongValidator DOWNLOAD_RECORDS_LIMIT = new RangeLongValidator("dac.download.records_limit", 0L, 1_000_000L, 1_000_000L);
 
-  private static final Map<DownloadFormat, String> extensions = ImmutableMap.of(
-    DownloadFormat.JSON, "json",
-    DownloadFormat.PARQUET, "parquet",
-    DownloadFormat.CSV, "csv",
-    DownloadFormat.TABLEAU_DATA_EXTRACT, "tde",
-    DownloadFormat.TABLEAU_DATA_SOURCE, "tds"
-  );
+  /**
+   * If set to true, download will request data from job results store directly for *NON-pdfs* job
+   * storages
+   */
+  public static final BooleanValidator DOWNLOAD_FROM_JOBS_STORE =
+      new BooleanValidator("dac.download.from_jobs_store", true);
+
+  /** If set to true, download will always request data directly from job results store */
+  public static final BooleanValidator DOWNLOAD_FROM_JOBS_STORE_ALWAYS =
+      new BooleanValidator("dac.download.from_jobs_store.always", false);
+
+  public static final RangeLongValidator DOWNLOAD_RECORDS_LIMIT =
+      new RangeLongValidator("dac.download.records_limit", 0L, 1_000_000L, 1_000_000L);
+
+  private static final Map<DownloadFormat, String> extensions =
+      ImmutableMap.of(
+          DownloadFormat.JSON, "json",
+          DownloadFormat.PARQUET, "parquet",
+          DownloadFormat.CSV, "csv",
+          DownloadFormat.TABLEAU_DATA_EXTRACT, "tde",
+          DownloadFormat.TABLEAU_DATA_SOURCE, "tds");
 
   private final JobsService jobsService;
-  private final NamespaceService namespaceService;
   private final FileSystem fs;
+
   @SuppressWarnings("checkstyle:VisibilityModifier")
   protected final Path storageLocation;
+
   private final boolean isJobResultsPDFSBased;
   private final OptionManager optionManager;
 
-  public DatasetDownloadManager(JobsService jobsService, NamespaceService namespaceService, Path storageLocation,
-    FileSystem fs, boolean isJobResultsPDFSBased, final OptionManager optionManager) {
+  public DatasetDownloadManager(
+      JobsService jobsService,
+      Path storageLocation,
+      FileSystem fs,
+      boolean isJobResultsPDFSBased,
+      final OptionManager optionManager) {
     this.jobsService = jobsService;
-    this.namespaceService = namespaceService;
     this.storageLocation = storageLocation;
     this.fs = fs;
     this.isJobResultsPDFSBased = isJobResultsPDFSBased;
     this.optionManager = optionManager;
   }
 
-  public static String getDownloadFileName(JobId jobId , DownloadFormat downloadFormat) {
+  public static String getDownloadFileName(JobId jobId, DownloadFormat downloadFormat) {
     return format("%s.%s", jobId.getId(), extensions.get(downloadFormat));
   }
 
-  public JobId scheduleDownload(List<String> datasetPath,
-    String sql,
-    DownloadFormat downloadFormat,
-    List<String> context,
-    String userName,
-    JobId jobId) {
+  public JobId scheduleDownload(
+      List<String> datasetPath,
+      String sql,
+      DownloadFormat downloadFormat,
+      List<String> context,
+      String userName,
+      JobId jobId) {
 
     final String downloadId = UUID.randomUUID().toString();
     final String fileName = getDownloadFileName(jobId, downloadFormat);
     final Path downloadFilePath = Path.of(downloadId);
-    final boolean getDataFromJobsResultsDirectly = this.optionManager.getOption(DOWNLOAD_FROM_JOBS_STORE) &&
-      !isJobResultsPDFSBased;
 
-    // we should read data directly from job result store whenever it is possible. For pdfs we could not guarantee
-    // an order in which we scan the results, that is why we need to use an original sql instead.
-    final String targetQuery = getDataFromJobsResultsDirectly ? format("SELECT * FROM sys.job_results.%s",
-      SqlUtils.quoteIdentifier(jobId.getId())): sql;
-
-    final String selectQuery;
-    final long limit = this.optionManager.getOption(DOWNLOAD_RECORDS_LIMIT);
-    if (limit != -1) {
-      selectQuery = format("SELECT * FROM (\n%s\n) LIMIT %d", targetQuery, limit);
-    } else {
-      selectQuery = format("\n%s\n", targetQuery);
-    }
-
-    String ctasSql = format("CREATE TABLE %s.%s STORE AS (%s) WITH SINGLE WRITER AS %s",
-      SqlUtils.quoteIdentifier(DATASET_DOWNLOAD_STORAGE_PLUGIN), SqlUtils.quoteIdentifier(downloadFilePath.toString()), getTableOptions(downloadFormat), selectQuery);
-
+    String ctasSql =
+        generateCtasSql(
+            shouldDownloadFromJobsStore(), sql, jobId.getId(), downloadFilePath, downloadFormat);
     final JobSubmittedListener listener = new JobSubmittedListener();
-    jobId = jobsService.submitJob(
-      SubmitJobRequest.newBuilder()
-        .setDownloadSettings(DownloadSettings.newBuilder()
-          .setDownloadId(downloadId)
-          .setFilename(fileName)
-          .build())
-        .setRunInSameThread(getDataFromJobsResultsDirectly)
-        .setQueryType(QueryType.UI_EXPORT)
-        .setSqlQuery(JobRequestUtil.createSqlQuery(ctasSql, context, userName))
-        .build(),
-      listener)
-    .getJobId();
+    jobId =
+        jobsService
+            .submitJob(
+                SubmitJobRequest.newBuilder()
+                    .setDownloadSettings(
+                        DownloadSettings.newBuilder()
+                            .setDownloadId(downloadId)
+                            .setFilename(fileName)
+                            .build())
+                    .setRunInSameThread(shouldDownloadFromJobsStore())
+                    .setQueryType(QueryType.UI_EXPORT)
+                    .setSqlQuery(JobRequestUtil.createSqlQuery(ctasSql, context, userName))
+                    .build(),
+                listener)
+            .getJobId();
     listener.await();
 
     logger.debug("Scheduled download job {} for {}", jobId.getId(), datasetPath);
     return jobId;
   }
 
-  public DownloadDataResponse getDownloadData(DownloadInfo downloadInfo,
-                                              List<ArrowFileMetadata> resultMetadataList) throws IOException {
+  boolean shouldDownloadFromJobsStore() {
+    if (this.optionManager.getOption(DOWNLOAD_FROM_JOBS_STORE_ALWAYS)) {
+      return true;
+    }
+    // we should read data directly from job result store whenever it is possible. For pdfs we could
+    // not guarantee
+    // an order in which we scan the results, that is why we need to re-run the original sql
+    // instead.
+    return this.optionManager.getOption(DOWNLOAD_FROM_JOBS_STORE) && !isJobResultsPDFSBased;
+  }
+
+  @VisibleForTesting
+  protected String generateCtasSql(
+      boolean getDataFromJobsResultsDirectly,
+      String originalSql,
+      String jobId,
+      Path downloadFilePath,
+      DownloadFormat downloadFormat) {
+    final long limit = this.optionManager.getOption(DOWNLOAD_RECORDS_LIMIT);
+    final String tableName =
+        getTableName(DATASET_DOWNLOAD_STORAGE_PLUGIN, downloadFilePath.toString());
+    final String tableOptions = getTableOptions(downloadFormat);
+    String ctasSql;
+
+    if (getDataFromJobsResultsDirectly) {
+      ctasSql = generateCtasSqlByDownloadingFromJobResults(tableName, tableOptions, jobId, limit);
+    } else {
+      ctasSql = generateCtasSqlByRerunningOriginalSql(tableName, tableOptions, originalSql, limit);
+      if (!ParserUtil.isValidQuery(ctasSql)) {
+        // When the CTAS sql is not valid, i.e. the original sql must be non-SELECT, download from
+        // the jobs store anyway
+        ctasSql = generateCtasSqlByDownloadingFromJobResults(tableName, tableOptions, jobId, limit);
+      }
+    }
+
+    return ctasSql;
+  }
+
+  private String generateCtasSqlByDownloadingFromJobResults(
+      String tableName, String tableOptions, String jobId, long limit) {
+    String ctasSql =
+        format(
+            "CREATE TABLE %s STORE AS (%s) WITH SINGLE WRITER AS SELECT * FROM sys.job_results.%s",
+            tableName, tableOptions, SqlUtils.quoteIdentifier(jobId));
+    // Limit must be a non-negative integer
+    if (limit >= 0) {
+      ctasSql += format(" LIMIT %d", limit);
+    }
+    return ctasSql;
+  }
+
+  private String generateCtasSqlByRerunningOriginalSql(
+      String tableName, String tableOptions, String originalSql, long limit) {
+    final String targetQuery;
+    // Limit must be a non-negative integer
+    if (limit >= 0) {
+      targetQuery = format("SELECT * FROM (\n%s\n) LIMIT %d", originalSql, limit);
+    } else {
+      targetQuery = format("\n%s\n", originalSql);
+    }
+    return format(
+        "CREATE TABLE %s STORE AS (%s) WITH SINGLE WRITER AS %s",
+        tableName, tableOptions, targetQuery);
+  }
+
+  public DownloadDataResponse getDownloadData(
+      DownloadInfo downloadInfo, List<ArrowFileMetadata> resultMetadataList) throws IOException {
     final Path jobDataDir = storageLocation.resolve(downloadInfo.getDownloadId());
     // NFS filesystems has delay before files written by executor shows up in the coordinator.
     // For NFS, fs.exists() will force a refresh if the file is not found
@@ -153,15 +217,25 @@ public class DatasetDownloadManager {
     try (final DirectoryStream<FileAttributes> stream = fs.list(jobDataDir)) {
       files = Lists.newArrayList(stream);
     }
-    Preconditions.checkArgument(files.size() == 1, format("Found %d files in download dir %s, must have only one file.", files.size(), jobDataDir));
+    Preconditions.checkArgument(
+        files.size() == 1,
+        format(
+            "Found %d files in download dir %s, must have only one file.",
+            files.size(), jobDataDir));
     final FileAttributes file = files.get(0);
-    return new DownloadDataResponse(fs.open(file.getPath()), downloadInfo.getFileName(), file.size());
+    return new DownloadDataResponse(
+        fs.open(file.getPath()), downloadInfo.getFileName(), file.size());
   }
 
   public void cleanupDownloadData(String downloadId) throws IOException {
     final Path jobDataDir = storageLocation.resolve(downloadId);
     logger.debug("Cleaning up data at {}", jobDataDir);
     fs.delete(jobDataDir, true);
+  }
+
+  public static String getTableName(String sourceName, String fileName) {
+    return format(
+        "%s.%s", SqlUtils.quoteIdentifier(sourceName), SqlUtils.quoteIdentifier(fileName));
   }
 
   public static String getTableOptions(DownloadFormat downloadFormat) {
@@ -177,13 +251,12 @@ public class DatasetDownloadManager {
       case TABLEAU_DATA_SOURCE:
         throw new UnsupportedOperationException("TDS format not supported by dataset download");
       default:
-        throw new IllegalArgumentException("Invalid dataset download file format " + downloadFormat);
+        throw new IllegalArgumentException(
+            "Invalid dataset download file format " + downloadFormat);
     }
   }
 
-  /**
-   * Download data response after job is complete.
-   */
+  /** Download data response after job is complete. */
   public static final class DownloadDataResponse {
     private final InputStream input;
     private final String fileName;

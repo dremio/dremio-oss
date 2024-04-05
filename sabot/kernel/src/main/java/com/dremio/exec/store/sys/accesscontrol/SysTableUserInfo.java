@@ -17,24 +17,24 @@ package com.dremio.exec.store.sys.accesscontrol;
 
 import java.util.Objects;
 
-/**
- * Schema for an entry in system table sys.roles.
- */
+/** Schema for an entry in system table sys.roles. */
 public class SysTableUserInfo {
   public final String user_name;
   public final UserSource source;
   public final String owner_name;
   public final String owner_type;
 
-
-  /**
-   * enum for sources of a role
-   */
+  /** enum for sources of a role */
   public enum UserSource {
-    LOCAL, EXTERNAL
+    LOCAL,
+    EXTERNAL
   }
 
-  public SysTableUserInfo(final String user_name, final UserSource source, final String owner_name, final String owner_type) {
+  public SysTableUserInfo(
+      final String user_name,
+      final UserSource source,
+      final String owner_name,
+      final String owner_type) {
     this.user_name = user_name;
     this.source = source;
     this.owner_name = owner_name;
@@ -66,8 +66,10 @@ public class SysTableUserInfo {
       return false;
     }
     final SysTableUserInfo that = (SysTableUserInfo) o;
-    return user_name.equals(that.user_name) && source.equals(that.source) && owner_name.equals(that.owner_name) &&
-      owner_type.equals(that.owner_type);
+    return user_name.equals(that.user_name)
+        && source.equals(that.source)
+        && owner_name.equals(that.owner_name)
+        && owner_type.equals(that.owner_type);
   }
 
   @Override
@@ -77,11 +79,19 @@ public class SysTableUserInfo {
 
   @Override
   public String toString() {
-    return "SysTableUserInfo{" +
-      "user_name='" + user_name + '\'' +
-      ", source='" + source + '\'' +
-      ", owner_name='" + owner_name + '\'' +
-      ", owner_type='" + owner_type + '\'' +
-      '}';
+    return "SysTableUserInfo{"
+        + "user_name='"
+        + user_name
+        + '\''
+        + ", source='"
+        + source
+        + '\''
+        + ", owner_name='"
+        + owner_name
+        + '\''
+        + ", owner_type='"
+        + owner_type
+        + '\''
+        + '}';
   }
 }

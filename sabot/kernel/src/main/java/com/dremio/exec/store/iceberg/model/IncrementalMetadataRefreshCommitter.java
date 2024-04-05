@@ -17,42 +17,6 @@ package com.dremio.exec.store.iceberg.model;
 
 import static com.dremio.common.exceptions.UserException.REFRESH_METADATA_FAILED_CONCURRENT_UPDATE_MSG;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-
-import org.apache.arrow.vector.types.pojo.ArrowType;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.iceberg.DataFile;
-import org.apache.iceberg.DremioManifestListReaderUtils;
-import org.apache.iceberg.ManifestFile;
-import org.apache.iceberg.PartitionSpec;
-import org.apache.iceberg.PartitionStatsFileLocations;
-import org.apache.iceberg.PartitionStatsMetadataUtil;
-import org.apache.iceberg.Schema;
-import org.apache.iceberg.Snapshot;
-import org.apache.iceberg.Table;
-import org.apache.iceberg.TableMetadata;
-import org.apache.iceberg.TableProperties;
-import org.apache.iceberg.exceptions.ValidationException;
-import org.apache.iceberg.io.FileIO;
-import org.apache.iceberg.types.Types;
-import org.apache.iceberg.util.Pair;
-import org.apache.iceberg.util.ThreadPools;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.types.SupportsTypeCoercionsAndUpPromotions;
 import com.dremio.exec.ExecConstants;
@@ -80,30 +44,68 @@ import com.dremio.service.namespace.file.proto.FileType;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.protobuf.ByteString;
-
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.iceberg.DataFile;
+import org.apache.iceberg.DremioManifestListReaderUtils;
+import org.apache.iceberg.ManifestFile;
+import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.PartitionStatsFileLocations;
+import org.apache.iceberg.PartitionStatsMetadataUtil;
+import org.apache.iceberg.Schema;
+import org.apache.iceberg.Snapshot;
+import org.apache.iceberg.Table;
+import org.apache.iceberg.TableMetadata;
+import org.apache.iceberg.TableProperties;
+import org.apache.iceberg.exceptions.ValidationException;
+import org.apache.iceberg.io.FileIO;
+import org.apache.iceberg.types.Types;
+import org.apache.iceberg.util.Pair;
+import org.apache.iceberg.util.ThreadPools;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * IcebergMetadataRefreshCommitter this committer has two update operation
- * DELETE Followed by INSERT
+ * IcebergMetadataRefreshCommitter this committer has two update operation DELETE Followed by INSERT
  */
-public class IncrementalMetadataRefreshCommitter implements IcebergOpCommitter, SupportsTypeCoercionsAndUpPromotions {
+public class IncrementalMetadataRefreshCommitter
+    implements IcebergOpCommitter, SupportsTypeCoercionsAndUpPromotions {
 
-  private static final Logger logger = LoggerFactory.getLogger(IncrementalMetadataRefreshCommitter.class);
-  private static final ControlsInjector injector = ControlsInjectorFactory.getInjector(IncrementalMetadataRefreshCommitter.class);
+  private static final Logger logger =
+      LoggerFactory.getLogger(IncrementalMetadataRefreshCommitter.class);
+  private static final ControlsInjector injector =
+      ControlsInjectorFactory.getInjector(IncrementalMetadataRefreshCommitter.class);
 
   @VisibleForTesting
-  public static final String INJECTOR_AFTER_ICEBERG_COMMIT_ERROR = "error-between-iceberg-commit-and-catalog-update";
-  @VisibleForTesting
-  public static final int MAX_NUM_SNAPSHOTS_TO_EXPIRE = 15;
+  public static final String INJECTOR_AFTER_ICEBERG_COMMIT_ERROR =
+      "error-between-iceberg-commit-and-catalog-update";
+
+  @VisibleForTesting public static final int MAX_NUM_SNAPSHOTS_TO_EXPIRE = 15;
 
   private static final int MIN_SNAPSHOTS_TO_KEEP = 5;
-  private static final int DEFAULT_THREAD_POOL_SIZE  = 4;
-  private static final ExecutorService EXECUTOR_SERVICE = ThreadPools.newWorkerPool(
-    "metadata-refresh-delete", DEFAULT_THREAD_POOL_SIZE);
+  private static final int DEFAULT_THREAD_POOL_SIZE = 4;
+  private static final ExecutorService EXECUTOR_SERVICE =
+      ThreadPools.newWorkerPool("metadata-refresh-delete", DEFAULT_THREAD_POOL_SIZE);
 
   private final long periodToKeepSnapshotsMs;
   private final String tableName;
@@ -133,19 +135,32 @@ public class IncrementalMetadataRefreshCommitter implements IcebergOpCommitter, 
   private final boolean isMetadataCleanEnabled;
   private final IcebergCommandType icebergOpType;
   private boolean enableUseDefaultPeriod = true; // For unit test purpose only
-  private int minSnapshotsToKeep = MIN_SNAPSHOTS_TO_KEEP ;
+  private int minSnapshotsToKeep = MIN_SNAPSHOTS_TO_KEEP;
   private final FileType fileType;
-  public IncrementalMetadataRefreshCommitter(OperatorContext operatorContext, String tableName, List<String> datasetPath, String tableLocation,
-                                             String tableUuid, BatchSchema batchSchema,
-                                             Configuration configuration, List<String> partitionColumnNames,
-                                             IcebergCommand icebergCommand, boolean isFileSystem,
-                                             DatasetCatalogGrpcClient datasetCatalogGrpcClient,
-                                             DatasetConfig datasetConfig, MutablePlugin plugin,
-                                             FileSystem fs, Long metadataExpireAfterMs, IcebergCommandType icebergOpType,
-                                             FileType fileType) {
+
+  public IncrementalMetadataRefreshCommitter(
+      OperatorContext operatorContext,
+      String tableName,
+      List<String> datasetPath,
+      String tableLocation,
+      String tableUuid,
+      BatchSchema batchSchema,
+      Configuration configuration,
+      List<String> partitionColumnNames,
+      IcebergCommand icebergCommand,
+      boolean isFileSystem,
+      DatasetCatalogGrpcClient datasetCatalogGrpcClient,
+      DatasetConfig datasetConfig,
+      MutablePlugin plugin,
+      FileSystem fs,
+      Long metadataExpireAfterMs,
+      IcebergCommandType icebergOpType,
+      FileType fileType) {
     Preconditions.checkState(icebergCommand != null, "Unexpected state");
-    Preconditions.checkNotNull(datasetCatalogGrpcClient, "Unexpected state: DatasetCatalogService client not provided");
-    Preconditions.checkNotNull(datasetConfig.getPhysicalDataset().getIcebergMetadata().getMetadataFileLocation());
+    Preconditions.checkNotNull(
+        datasetCatalogGrpcClient, "Unexpected state: DatasetCatalogService client not provided");
+    Preconditions.checkNotNull(
+        datasetConfig.getPhysicalDataset().getIcebergMetadata().getMetadataFileLocation());
     this.icebergCommand = icebergCommand;
     this.tableName = tableName;
     this.conf = configuration;
@@ -153,13 +168,16 @@ public class IncrementalMetadataRefreshCommitter implements IcebergOpCommitter, 
     this.client = datasetCatalogGrpcClient;
     this.datasetConfig = datasetConfig;
     this.fileType = fileType;
-    this.datasetCatalogRequestBuilder = DatasetCatalogRequestBuilder.forIncrementalMetadataRefresh (datasetPath,
-      tableLocation,
-      batchSchema,
-      partitionColumnNames,
-      datasetCatalogGrpcClient,
-      datasetConfig);
-    this.prevMetadataRootPointer = datasetConfig.getPhysicalDataset().getIcebergMetadata().getMetadataFileLocation();
+    this.datasetCatalogRequestBuilder =
+        DatasetCatalogRequestBuilder.forIncrementalMetadataRefresh(
+            datasetPath,
+            tableLocation,
+            batchSchema,
+            partitionColumnNames,
+            datasetCatalogGrpcClient,
+            datasetConfig);
+    this.prevMetadataRootPointer =
+        datasetConfig.getPhysicalDataset().getIcebergMetadata().getMetadataFileLocation();
     this.batchSchema = batchSchema;
     this.isFileSystem = isFileSystem;
     this.operatorStats = operatorContext.getStats();
@@ -167,16 +185,25 @@ public class IncrementalMetadataRefreshCommitter implements IcebergOpCommitter, 
     this.datasetPath = datasetPath;
     this.executionControls = operatorContext.getExecutionControls();
     this.plugin = plugin;
-    this.isMapDataTypeEnabled = operatorContext.getOptions().getOption(ExecConstants.ENABLE_MAP_DATA_TYPE);
+    this.isMapDataTypeEnabled =
+        operatorContext.getOptions().getOption(ExecConstants.ENABLE_MAP_DATA_TYPE);
     this.fs = fs;
     this.metadataExpireAfterMs = metadataExpireAfterMs;
-    this.isMetadataCleanEnabled = operatorContext.getOptions().getOption(ExecConstants.ENABLE_UNLIMITED_SPLITS_METADATA_CLEAN);
+    this.isMetadataCleanEnabled =
+        operatorContext
+            .getOptions()
+            .getOption(ExecConstants.ENABLE_UNLIMITED_SPLITS_METADATA_CLEAN);
     this.icebergOpType = icebergOpType;
-    this.periodToKeepSnapshotsMs = operatorContext.getOptions().getOption(ExecConstants.DEFAULT_PERIOD_TO_KEEP_SNAPSHOTS_MS);
+    this.periodToKeepSnapshotsMs =
+        operatorContext.getOptions().getOption(ExecConstants.DEFAULT_PERIOD_TO_KEEP_SNAPSHOTS_MS);
   }
 
   private boolean hasAnythingChanged() {
-    if ((newColumnTypes.size() + updatedColumnTypes.size() + deleteDataFilesList.size() + manifestFileList.size()) > 0) {
+    if ((newColumnTypes.size()
+            + updatedColumnTypes.size()
+            + deleteDataFilesList.size()
+            + manifestFileList.size())
+        > 0) {
       return true;
     }
 
@@ -254,30 +281,61 @@ public class IncrementalMetadataRefreshCommitter implements IcebergOpCommitter, 
       cleanSnapshotsAndMetadataFiles(table);
     }
 
-    injector.injectChecked(executionControls, INJECTOR_AFTER_ICEBERG_COMMIT_ERROR, UnsupportedOperationException.class);
-    long numRecords = Long.parseLong(table.currentSnapshot().summary().getOrDefault("total-records", "0"));
+    injector.injectChecked(
+        executionControls,
+        INJECTOR_AFTER_ICEBERG_COMMIT_ERROR,
+        UnsupportedOperationException.class);
+    Map<String, String> summary =
+        Optional.ofNullable(table.currentSnapshot())
+            .map(Snapshot::summary)
+            .orElseGet(ImmutableMap::of);
+    long numRecords = Long.parseLong(summary.getOrDefault("total-records", "0"));
     datasetCatalogRequestBuilder.setNumOfRecords(numRecords);
-    long numDataFiles = Long.parseLong(table.currentSnapshot().summary().getOrDefault("total-data-files", "0"));
+    long numDataFiles = Long.parseLong(summary.getOrDefault("total-data-files", "0"));
     datasetCatalogRequestBuilder.setNumOfDataFiles(numDataFiles);
-    ImmutableDremioFileAttrs partitionStatsFileAttrs = IcebergUtils.getPartitionStatsFileAttrs(getRootPointer(),
-        table.currentSnapshot().snapshotId(), icebergCommand.getFileIO());
-    datasetCatalogRequestBuilder.setIcebergMetadata(getRootPointer(), tableUuid, table.currentSnapshot().snapshotId(),
-        getCurrentSpecMap(), getCurrentSchema(), partitionStatsFileAttrs.fileName(),
-        partitionStatsFileAttrs.fileLength(), fileType);
-    BatchSchema newSchemaFromIceberg = SchemaConverter.getBuilder().setMapTypeEnabled(isMapDataTypeEnabled).build().fromIceberg(table.schema());
-    newSchemaFromIceberg = BatchSchema.newBuilder().addFields(newSchemaFromIceberg.getFields())
-      .addField(Field.nullable(IncrementalUpdateUtils.UPDATE_COLUMN, new ArrowType.Int(64, true))).build();
+    ImmutableDremioFileAttrs partitionStatsFileAttrs =
+        IcebergUtils.getPartitionStatsFileAttrs(
+            getRootPointer(), table.currentSnapshot().snapshotId(), icebergCommand.getFileIO());
+    datasetCatalogRequestBuilder.setIcebergMetadata(
+        getRootPointer(),
+        tableUuid,
+        table.currentSnapshot().snapshotId(),
+        getCurrentSpecMap(),
+        getCurrentSchema(),
+        partitionStatsFileAttrs.fileName(),
+        partitionStatsFileAttrs.fileLength(),
+        fileType);
+    BatchSchema newSchemaFromIceberg =
+        SchemaConverter.getBuilder()
+            .setMapTypeEnabled(isMapDataTypeEnabled)
+            .build()
+            .fromIceberg(table.schema());
+    newSchemaFromIceberg =
+        BatchSchema.newBuilder()
+            .addFields(newSchemaFromIceberg.getFields())
+            .addField(
+                Field.nullable(IncrementalUpdateUtils.UPDATE_COLUMN, new ArrowType.Int(64, true)))
+            .build();
     datasetCatalogRequestBuilder.overrideSchema(newSchemaFromIceberg);
-    logger.debug("Committed incremental metadata change of table {}. Updating Dataset Catalog store", tableName);
+    logger.debug(
+        "Committed incremental metadata change of table {}. Updating Dataset Catalog store",
+        tableName);
     try {
       client.getCatalogServiceApi().addOrUpdateDataset(datasetCatalogRequestBuilder.build());
     } catch (StatusRuntimeException sre) {
       if (sre.getStatus().getCode() == Status.Code.ABORTED) {
-        logger.error("Metadata refresh failed. Dataset: " + Arrays.toString(datasetPath.toArray())
-          + " TableLocation: " + tableLocation, sre);
-        // DX-84083: Iceberg commit succeeds. However, it fails to update the KV store. Because, Another concurrent
-        // metadata refresh query could already succeed and update the KV store and the dataset has a new tag.
-        // In this case, we don't delete consumed manifest files, as they are already used to construct the snapshot
+        logger.error(
+            "Metadata refresh failed. Dataset: "
+                + Arrays.toString(datasetPath.toArray())
+                + " TableLocation: "
+                + tableLocation,
+            sre);
+        // DX-84083: Iceberg commit succeeds. However, it fails to update the KV store. Because,
+        // Another concurrent
+        // metadata refresh query could already succeed and update the KV store and the dataset has
+        // a new tag.
+        // In this case, we don't delete consumed manifest files, as they are already used to
+        // construct the snapshot
         // in the metadata table.
         checkToThrowException(prevMetadataRootPointer, getRootPointer(), sre);
       } else {
@@ -290,9 +348,12 @@ public class IncrementalMetadataRefreshCommitter implements IcebergOpCommitter, 
   private void cleanSnapshotsAndMetadataFiles(Table targetTable) {
     long periodToKeepSnapshots;
     if (enableUseDefaultPeriod) {
-      // If the source has user-specified metadata expiration time, we intend to keep all snapshots are still valid.
-      periodToKeepSnapshots = metadataExpireAfterMs != null
-        ? Math.max(periodToKeepSnapshotsMs, metadataExpireAfterMs) : periodToKeepSnapshotsMs;
+      // If the source has user-specified metadata expiration time, we intend to keep all snapshots
+      // are still valid.
+      periodToKeepSnapshots =
+          metadataExpireAfterMs != null
+              ? Math.max(periodToKeepSnapshotsMs, metadataExpireAfterMs)
+              : periodToKeepSnapshotsMs;
     } else {
       Preconditions.checkNotNull(metadataExpireAfterMs, "Metadata expiry time not set.");
       periodToKeepSnapshots = metadataExpireAfterMs;
@@ -302,41 +363,51 @@ public class IncrementalMetadataRefreshCommitter implements IcebergOpCommitter, 
   }
 
   /**
-   * Clean the snapshots and delete orphan manifest list file paths and manifest file paths. Don't delete data files in
-   * the manifests, since data files belong to original tables.
+   * Clean the snapshots and delete orphan manifest list file paths and manifest file paths. Don't
+   * delete data files in the manifests, since data files belong to original tables.
    */
   @VisibleForTesting
-  public Pair<Set<String>, Long> cleanSnapshotsAndMetadataFiles(Table targetTable, long timestampExpiry) {
+  public Pair<Set<String>, Long> cleanSnapshotsAndMetadataFiles(
+      Table targetTable, long timestampExpiry) {
     Stopwatch stopwatch = Stopwatch.createStarted();
     // Clean the metadata files through setting table properties.
     setTablePropertyToCleanOldMetadataFiles(targetTable);
 
     TableMetadata tableMetadata = icebergCommand.getTableOps().refresh();
-    IcebergExpirySnapshotsCollector snapshotsCollector  = new IcebergExpirySnapshotsCollector(tableMetadata);
+    IcebergExpirySnapshotsCollector snapshotsCollector =
+        new IcebergExpirySnapshotsCollector(tableMetadata);
 
     // Collect the candidate snapshots to expire.
-    List<SnapshotEntry> candidateSnapshots = snapshotsCollector.collect(timestampExpiry, minSnapshotsToKeep).first();
+    List<SnapshotEntry> candidateSnapshots =
+        snapshotsCollector.collect(timestampExpiry, minSnapshotsToKeep).first();
 
-    // The existing metadata tables might already have lots of snapshots. We don't try to expire them one time,
+    // The existing metadata tables might already have lots of snapshots. We don't try to expire
+    // them one time,
     // because it could dramatically increase metadata refresh query time.
     // Instead, we only expire a small number of snapshots during one metadata refresh query.
-    int numSnapshotsToExpire = candidateSnapshots.size() < MAX_NUM_SNAPSHOTS_TO_EXPIRE ?
-      candidateSnapshots.size() : MAX_NUM_SNAPSHOTS_TO_EXPIRE;
+    int numSnapshotsToExpire =
+        candidateSnapshots.size() < MAX_NUM_SNAPSHOTS_TO_EXPIRE
+            ? candidateSnapshots.size()
+            : MAX_NUM_SNAPSHOTS_TO_EXPIRE;
 
     int numTotalSnapshots = Iterables.size(targetTable.snapshots());
     final int numSnapshotsRetain = numTotalSnapshots - numSnapshotsToExpire;
 
     // Call the api again to get the exact snapshots to expire.
-    List<SnapshotEntry> expiredSnapshots = snapshotsCollector.collect(timestampExpiry, numSnapshotsRetain).first();
+    List<SnapshotEntry> expiredSnapshots =
+        snapshotsCollector.collect(timestampExpiry, numSnapshotsRetain).first();
 
-    operatorStats.addLongStat(WriterCommitterOperator.Metric.NUM_TOTAL_SNAPSHOTS, numTotalSnapshots);
-    operatorStats.addLongStat(WriterCommitterOperator.Metric.NUM_EXPIRED_SNAPSHOTS, expiredSnapshots.size());
+    operatorStats.addLongStat(
+        WriterCommitterOperator.Metric.NUM_TOTAL_SNAPSHOTS, numTotalSnapshots);
+    operatorStats.addLongStat(
+        WriterCommitterOperator.Metric.NUM_EXPIRED_SNAPSHOTS, expiredSnapshots.size());
     if (expiredSnapshots.isEmpty()) {
       return Pair.of(Collections.emptySet(), 0L);
     }
 
     // Perform the expiry operation.
-    final List<SnapshotEntry> liveSnapshots = icebergCommand.expireSnapshots(timestampExpiry, numSnapshotsRetain);
+    final List<SnapshotEntry> liveSnapshots =
+        icebergCommand.expireSnapshots(timestampExpiry, numSnapshotsRetain);
 
     // Collect the orphan files.
     final FileIO io = targetTable.io();
@@ -345,15 +416,18 @@ public class IncrementalMetadataRefreshCommitter implements IcebergOpCommitter, 
       orphanFiles.addAll(collectFilesForSnapshot(io, entry, true));
     }
 
-    // Remove the files that are still used by the valid snapshots. We only need to keep the snapshots that are within
-    // certain amount of time. Because, other snapshots are expired and not valid for in-flight queries.
+    // Remove the files that are still used by the valid snapshots. We only need to keep the
+    // snapshots that are within
+    // certain amount of time. Because, other snapshots are expired and not valid for in-flight
+    // queries.
     Long numValidSnapshots = 0L;
     for (SnapshotEntry entry : liveSnapshots) {
       if (entry.getTimestampMillis() < timestampExpiry) {
         continue;
       }
       numValidSnapshots += 1L;
-      // Partition stats files are organized by snapshot. Don't need to check partitions stats files for the snapshots
+      // Partition stats files are organized by snapshot. Don't need to check partitions stats files
+      // for the snapshots
       // that we try to keep.
       orphanFiles.removeAll(collectFilesForSnapshot(io, entry, false));
     }
@@ -361,32 +435,44 @@ public class IncrementalMetadataRefreshCommitter implements IcebergOpCommitter, 
     // Remove orphan files
     IcebergUtils.removeOrphanFiles(fs, logger, EXECUTOR_SERVICE, orphanFiles);
     long clearTime = stopwatch.elapsed(TimeUnit.MILLISECONDS);
-    operatorStats.addLongStat(WriterCommitterOperator.Metric.NUM_ORPHAN_FILES_DELETED, orphanFiles.size());
-    operatorStats.addLongStat(WriterCommitterOperator.Metric.CLEAR_EXPIRE_SNAPSHOTS_TIME, clearTime);
-    operatorStats.addLongStat(WriterCommitterOperator.Metric.NUM_VALID_SNAPSHOTS, numValidSnapshots);
+    operatorStats.addLongStat(
+        WriterCommitterOperator.Metric.NUM_ORPHAN_FILES_DELETED, orphanFiles.size());
+    operatorStats.addLongStat(
+        WriterCommitterOperator.Metric.CLEAR_EXPIRE_SNAPSHOTS_TIME, clearTime);
+    operatorStats.addLongStat(
+        WriterCommitterOperator.Metric.NUM_VALID_SNAPSHOTS, numValidSnapshots);
     return Pair.of(orphanFiles, numValidSnapshots);
   }
 
-  private Set<String> collectFilesForSnapshot(FileIO io, SnapshotEntry entry, boolean includePartitionStats) {
+  private Set<String> collectFilesForSnapshot(
+      FileIO io, SnapshotEntry entry, boolean includePartitionStats) {
     Set<String> files = new HashSet<>();
     // Manifest list file
     files.add(entry.getManifestListPath());
     // Manifest files
     try {
-      DremioManifestListReaderUtils.read(io, entry.getManifestListPath()).stream().forEach(m -> files.add(m.path()));
+      DremioManifestListReaderUtils.read(io, entry.getManifestListPath()).stream()
+          .forEach(m -> files.add(m.path()));
     } catch (Exception e) {
       // Skip to read this manifest files from the manifest list file.
-      logger.warn("Can't successfully read the manifest list file: {}", entry.getManifestListPath(), e);
+      logger.warn(
+          "Can't successfully read the manifest list file: {}", entry.getManifestListPath(), e);
     }
 
     if (includePartitionStats) {
-      String partitionStatsMetadataFileName = PartitionStatsMetadataUtil.toFilename(entry.getSnapshotId());
-      String partitionStatsMetadataLocation = IcebergUtils.resolvePath(entry.getMetadataJsonPath(), partitionStatsMetadataFileName);
-      PartitionStatsFileLocations partitionStatsLocations = PartitionStatsMetadataUtil.readMetadata(io, partitionStatsMetadataLocation);
+      String partitionStatsMetadataFileName =
+          PartitionStatsMetadataUtil.toFilename(entry.getSnapshotId());
+      String partitionStatsMetadataLocation =
+          IcebergUtils.resolvePath(entry.getMetadataJsonPath(), partitionStatsMetadataFileName);
+      PartitionStatsFileLocations partitionStatsLocations =
+          PartitionStatsMetadataUtil.readMetadata(io, partitionStatsMetadataLocation);
       if (partitionStatsLocations != null) {
         // Partition stats have metadata file and partition files.
         files.add(partitionStatsMetadataLocation);
-        files.addAll(partitionStatsLocations.all().entrySet().stream().map(e -> e.getValue()).collect(Collectors.toList()));
+        files.addAll(
+            partitionStatsLocations.all().entrySet().stream()
+                .map(e -> e.getValue())
+                .collect(Collectors.toList()));
       }
     }
 
@@ -394,15 +480,18 @@ public class IncrementalMetadataRefreshCommitter implements IcebergOpCommitter, 
   }
 
   /**
-   *  For existing metadata tables, when they were created, those tables were not configured with the table property to
-   *  delete metadata files. We enabled the table property when refreshing metadata and trigger to delete metadata files.
-   *  However, the later configuration of this table property will not help to clean orphan metadata files.
+   * For existing metadata tables, when they were created, those tables were not configured with the
+   * table property to delete metadata files. We enabled the table property when refreshing metadata
+   * and trigger to delete metadata files. However, the later configuration of this table property
+   * will not help to clean orphan metadata files.
    */
   private void setTablePropertyToCleanOldMetadataFiles(Table targetTable) {
     Map<String, String> tblProperties = targetTable.properties();
     if (!tblProperties.containsKey(TableProperties.METADATA_DELETE_AFTER_COMMIT_ENABLED)
-      || tblProperties.get(TableProperties.METADATA_DELETE_AFTER_COMMIT_ENABLED).equalsIgnoreCase("false")) {
-      icebergCommand.updateProperties(FullMetadataRefreshCommitter.internalIcebergTableProperties, false);
+        || tblProperties
+            .get(TableProperties.METADATA_DELETE_AFTER_COMMIT_ENABLED)
+            .equalsIgnoreCase("false")) {
+      icebergCommand.updateProperties(FullMetadataRefreshCommitter.internalIcebergTableProperties);
     }
   }
 
@@ -423,17 +512,24 @@ public class IncrementalMetadataRefreshCommitter implements IcebergOpCommitter, 
       Table oldTable = null;
       if (!shouldCommit) {
         oldTable = this.icebergCommand.loadTable();
-        shouldCommit = oldTable.currentSnapshot().snapshotId() != client.getCatalogServiceApi()
-          .getDataset(GetDatasetRequest.newBuilder().addAllDatasetPath(datasetPath).build()).getIcebergMetadata().getSnapshotId();
+        shouldCommit =
+            oldTable.currentSnapshot().snapshotId()
+                != client
+                    .getCatalogServiceApi()
+                    .getDataset(
+                        GetDatasetRequest.newBuilder().addAllDatasetPath(datasetPath).build())
+                    .getIcebergMetadata()
+                    .getSnapshotId();
       }
-      if(shouldCommit) {
+      if (shouldCommit) {
         beginMetadataRefreshTransaction();
         performUpdates();
         endMetadataRefreshTransaction();
         return postCommitTransaction();
       } else {
         logger.debug("Nothing is changed for  table " + this.tableName + ", Skipping commit");
-        // Clean the metadata table's snapshots, if needed. Even, we don't increase new commits to the table.
+        // Clean the metadata table's snapshots, if needed. Even, we don't increase new commits to
+        // the table.
         if (isMetadataCleanEnabled) {
           cleanSnapshotsAndMetadataFiles(oldTable);
         }
@@ -441,31 +537,41 @@ public class IncrementalMetadataRefreshCommitter implements IcebergOpCommitter, 
       }
     } finally {
       long totalCommitTime = stopwatch.elapsed(TimeUnit.MILLISECONDS);
-      operatorStats.addLongStat(WriterCommitterOperator.Metric.ICEBERG_COMMIT_TIME, totalCommitTime);
+      operatorStats.addLongStat(
+          WriterCommitterOperator.Metric.ICEBERG_COMMIT_TIME, totalCommitTime);
     }
   }
 
   private void checkToThrowException(String rootPointer, String foundRootPointer, Throwable cause) {
     // The metadata table was updated by other incremental refresh queries. Skip this update.
-    String metadataFiles = String.format("Expected metadataRootPointer: %s, Found metadataRootPointer: %s.",
-      rootPointer, foundRootPointer);
+    String metadataFiles =
+        String.format(
+            "Expected metadataRootPointer: %s, Found metadataRootPointer: %s.",
+            rootPointer, foundRootPointer);
     logger.info("Concurrent operation has updated the table." + " " + metadataFiles);
-    // If the refresh query works on partitions, we should notify users the failure and re-run the query.
+    // If the refresh query works on partitions, we should notify users the failure and re-run the
+    // query.
     if (icebergOpType == IcebergCommandType.PARTIAL_METADATA_REFRESH) {
       throw UserException.concurrentModificationError(cause)
-        .message(REFRESH_METADATA_FAILED_CONCURRENT_UPDATE_MSG)
-        .build(logger);
+          .message(REFRESH_METADATA_FAILED_CONCURRENT_UPDATE_MSG)
+          .build(logger);
     }
   }
+
   private void cleanOrphans() {
     newColumnTypes.clear();
     updatedColumnTypes.clear();
     deleteDataFilesList.clear();
 
-    // Only need to delete manifest files. The data files that plan to be deleted should be cleaned by other
+    // Only need to delete manifest files. The data files that plan to be deleted should be cleaned
+    // by other
     // concurrent metadata refresh queries, which made successful commits.
     logger.info("Orphan manifest files to delete: {}", manifestFileList);
-    IcebergUtils.removeOrphanFiles(fs, logger, EXECUTOR_SERVICE, manifestFileList.stream().map(file -> file.path()).collect(Collectors.toSet()));
+    IcebergUtils.removeOrphanFiles(
+        fs,
+        logger,
+        EXECUTOR_SERVICE,
+        manifestFileList.stream().map(file -> file.path()).collect(Collectors.toSet()));
     manifestFileList.clear();
   }
 
@@ -480,69 +586,97 @@ public class IncrementalMetadataRefreshCommitter implements IcebergOpCommitter, 
   }
 
   @Override
-  public void consumeDeleteDataFilePath(String icebergDeleteDatafilePath) throws UnsupportedOperationException {
-    throw new UnsupportedOperationException("Deleting data file by path is not supported in metadata refresh Transaction");
+  public void consumeDeleteDataFilePath(String icebergDeleteDatafilePath)
+      throws UnsupportedOperationException {
+    throw new UnsupportedOperationException(
+        "Deleting data file by path is not supported in metadata refresh Transaction");
   }
 
   @Override
   public void updateSchema(BatchSchema newSchema) {
-    //handle update of columns from batch schema dropped columns and updated columns
-    if(datasetConfig.getPhysicalDataset().getInternalSchemaSettings() != null) {
+    // handle update of columns from batch schema dropped columns and updated columns
+    if (datasetConfig.getPhysicalDataset().getInternalSchemaSettings() != null) {
 
-      if(!datasetConfig.getPhysicalDataset().getInternalSchemaSettings().getSchemaLearningEnabled()) {
+      if (!datasetConfig
+          .getPhysicalDataset()
+          .getInternalSchemaSettings()
+          .getSchemaLearningEnabled()) {
         return;
       }
 
       List<Field> droppedColumns = new ArrayList<>();
-      if(datasetConfig.getPhysicalDataset().getInternalSchemaSettings().getDroppedColumns() != null) {
-        droppedColumns = BatchSchema.deserialize(datasetConfig.getPhysicalDataset().getInternalSchemaSettings().getDroppedColumns()).getFields();
+      if (datasetConfig.getPhysicalDataset().getInternalSchemaSettings().getDroppedColumns()
+          != null) {
+        droppedColumns =
+            BatchSchema.deserialize(
+                    datasetConfig
+                        .getPhysicalDataset()
+                        .getInternalSchemaSettings()
+                        .getDroppedColumns())
+                .getFields();
       }
 
       List<Field> updatedColumns = new ArrayList<>();
-      if(datasetConfig.getPhysicalDataset().getInternalSchemaSettings().getModifiedColumns() != null) {
-        updatedColumns = BatchSchema.deserialize(datasetConfig.getPhysicalDataset().getInternalSchemaSettings().getModifiedColumns()).getFields();
+      if (datasetConfig.getPhysicalDataset().getInternalSchemaSettings().getModifiedColumns()
+          != null) {
+        updatedColumns =
+            BatchSchema.deserialize(
+                    datasetConfig
+                        .getPhysicalDataset()
+                        .getInternalSchemaSettings()
+                        .getModifiedColumns())
+                .getFields();
       }
 
-      for(Field field : droppedColumns) {
+      for (Field field : droppedColumns) {
         newSchema = newSchema.dropField(field);
       }
 
-      Map<String, Field> originalFieldsMap = batchSchema.getFields().stream().collect(Collectors.toMap(x -> x.getName().toLowerCase(), Function.identity()));
+      Map<String, Field> originalFieldsMap =
+          batchSchema.getFields().stream()
+              .collect(Collectors.toMap(x -> x.getName().toLowerCase(), Function.identity()));
 
-      for(Field field : updatedColumns) {
-          if(field.getChildren().isEmpty()) {
-            newSchema = newSchema.changeTypeTopLevel(field);
-          } else {
-            //If complex we don't want schema learning on all fields. So
-            //we drop the new struct field and replace it with old struct from the original batch schema.
-            Field oldField = originalFieldsMap.get(field.getName().toLowerCase());
-            newSchema = newSchema.dropField(field.getName());
-            try {
-              newSchema = newSchema.mergeWithUpPromotion(BatchSchema.of(oldField), this);
-            }catch (NoSupportedUpPromotionOrCoercionException e) {
-              e.addDatasetPath(datasetPath);
-              throw UserException.unsupportedError(e).message(e.getMessage()).build(logger);
-            }
+      for (Field field : updatedColumns) {
+        if (field.getChildren().isEmpty()) {
+          newSchema = newSchema.changeTypeTopLevel(field);
+        } else {
+          // If complex we don't want schema learning on all fields. So
+          // we drop the new struct field and replace it with old struct from the original batch
+          // schema.
+          Field oldField = originalFieldsMap.get(field.getName().toLowerCase());
+          newSchema = newSchema.dropField(field.getName());
+          try {
+            newSchema = newSchema.mergeWithUpPromotion(BatchSchema.of(oldField), this);
+          } catch (NoSupportedUpPromotionOrCoercionException e) {
+            e.addDatasetPath(datasetPath);
+            throw UserException.unsupportedError(e).message(e.getMessage()).build(logger);
+          }
         }
       }
     }
 
-    SchemaConverter schemaConverter = SchemaConverter.getBuilder().setTableName(tableName).setMapTypeEnabled(isMapDataTypeEnabled).build();
+    SchemaConverter schemaConverter =
+        SchemaConverter.getBuilder()
+            .setTableName(tableName)
+            .setMapTypeEnabled(isMapDataTypeEnabled)
+            .build();
     Schema oldIcebergSchema = schemaConverter.toIcebergSchema(batchSchema);
     Schema newIcebergSchema = schemaConverter.toIcebergSchema(newSchema);
 
     List<Types.NestedField> oldFields = oldIcebergSchema.columns();
     List<Types.NestedField> newFields = newIcebergSchema.columns();
 
-    Map<String, Types.NestedField> nameToTypeOld = oldFields.stream().collect(Collectors.toMap(x -> x.name(), x -> x));
-    Map<String, Types.NestedField> nameToTypeNew = newFields.stream().collect(Collectors.toMap(x -> x.name(), x -> x));
+    Map<String, Types.NestedField> nameToTypeOld =
+        oldFields.stream().collect(Collectors.toMap(x -> x.name(), x -> x));
+    Map<String, Types.NestedField> nameToTypeNew =
+        newFields.stream().collect(Collectors.toMap(x -> x.name(), x -> x));
 
     /*
       Collecting updated and drop columns here. Columns must not be dropped for filesystem.
     */
     for (Map.Entry<String, Types.NestedField> entry : nameToTypeOld.entrySet()) {
       Types.NestedField newType = nameToTypeNew.get(entry.getKey());
-      if(newType != null && isColumnUpdated(newType, entry.getValue())) {
+      if (newType != null && isColumnUpdated(newType, entry.getValue())) {
         updatedColumnTypes.add(newType);
       }
     }
@@ -561,7 +695,8 @@ public class IncrementalMetadataRefreshCommitter implements IcebergOpCommitter, 
       }
     }
 
-    Comparator<Types.NestedField> fieldComparator = Comparator.comparing(Types.NestedField::fieldId);
+    Comparator<Types.NestedField> fieldComparator =
+        Comparator.comparing(Types.NestedField::fieldId);
     Collections.sort(newColumnTypes, fieldComparator);
     Collections.sort(updatedColumnTypes, fieldComparator);
     Collections.sort(dropColumns, fieldComparator);
@@ -605,8 +740,9 @@ public class IncrementalMetadataRefreshCommitter implements IcebergOpCommitter, 
     logger.debug("Updating read signature");
     datasetCatalogRequestBuilder.setReadSignature(newReadSignature);
   }
+
   @VisibleForTesting
-  public void disableUseDefaultPeriod () {
+  public void disableUseDefaultPeriod() {
     enableUseDefaultPeriod = false;
   }
 

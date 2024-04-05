@@ -17,9 +17,5 @@ package com.dremio.telemetry.api.config;
 
 import com.fasterxml.jackson.databind.module.SimpleModule;
 
-/**
- * Sub-class of SimpleModule so we may easily discover all dremio created modules.
- *
- */
-public class ConfigModule extends SimpleModule {
-}
+/** Sub-class of SimpleModule so we may easily discover all dremio created modules. */
+public class ConfigModule extends SimpleModule {}

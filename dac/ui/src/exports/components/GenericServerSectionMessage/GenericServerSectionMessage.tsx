@@ -17,6 +17,7 @@
 import { HttpError } from "../../errors/HttpError";
 import { SectionMessage } from "dremio-ui-lib/components";
 import { HttpErrorSupportInfo } from "../SupportInfo/SupportInfo";
+import { useLayoutEffect, useRef } from "react";
 
 const DEFAULT_MESSAGE = "An unexpected error occured.";
 const HELP_TEXT =
@@ -29,13 +30,19 @@ type Props = {
 
 export const GenericServerSectionMessage = (props: Props): JSX.Element => {
   const { error, title, ...rest } = props;
+  const ref = useRef<HTMLParagraphElement>(null);
+
+  useLayoutEffect(() => {
+    ref.current?.scrollIntoView?.();
+  }, []);
+
   return (
     <SectionMessage
       title={title || DEFAULT_MESSAGE}
       appearance="danger"
       {...rest}
     >
-      <p>{HELP_TEXT}</p>
+      <p ref={ref}>{HELP_TEXT}</p>
       <p>{<HttpErrorSupportInfo error={error} />}</p>
     </SectionMessage>
   );

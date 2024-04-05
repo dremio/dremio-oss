@@ -15,29 +15,27 @@
  */
 package com.dremio.exec.planner.serializer.logical;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import org.apache.calcite.rel.RelNode;
-
 import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.exec.planner.acceleration.DefaultExpansionNode;
 import com.dremio.exec.planner.serializer.RelNodeSerde;
 import com.dremio.plan.serialization.PDefaultExpansionNode;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.base.Strings;
+import java.util.ArrayList;
+import java.util.List;
+import org.apache.calcite.rel.RelNode;
 
-/**
- * Serde for {@link DefaultExpansionNode}
- */
-public final class DefaultExpansionNodeSerde implements RelNodeSerde<DefaultExpansionNode, PDefaultExpansionNode> {
+/** Serde for {@link DefaultExpansionNode} */
+public final class DefaultExpansionNodeSerde
+    implements RelNodeSerde<DefaultExpansionNode, PDefaultExpansionNode> {
   @Override
   public PDefaultExpansionNode serialize(DefaultExpansionNode expansionNode, RelToProto s) {
     List<String> path = expansionNode.getPath().getPathComponents();
-    PDefaultExpansionNode.Builder builder = PDefaultExpansionNode.newBuilder()
-      .setInput(s.toProto(expansionNode.getInput()))
-      .addAllPath(path)
-      .setContextSensitive(expansionNode.isContextSensitive());
+    PDefaultExpansionNode.Builder builder =
+        PDefaultExpansionNode.newBuilder()
+            .setInput(s.toProto(expansionNode.getInput()))
+            .addAllPath(path)
+            .setContextSensitive(false);
     if (expansionNode.getVersionContext() != null) {
       builder.setVersionContext(expansionNode.getVersionContext().serialize());
     }
@@ -48,7 +46,14 @@ public final class DefaultExpansionNodeSerde implements RelNodeSerde<DefaultExpa
   public DefaultExpansionNode deserialize(PDefaultExpansionNode node, RelFromProto s) {
     List<String> path = new ArrayList<>(node.getPathList());
     RelNode input = s.toRel(node.getInput());
-    return (DefaultExpansionNode) DefaultExpansionNode.wrap(new NamespaceKey(path), input, input.getRowType(),
-      node.getContextSensitive(), Strings.isNullOrEmpty(node.getVersionContext()) ? null : TableVersionContext.deserialize(node.getVersionContext()));
+    return (DefaultExpansionNode)
+        DefaultExpansionNode.wrap(
+            new NamespaceKey(path),
+            input,
+            input.getRowType(),
+            node.getContextSensitive(),
+            Strings.isNullOrEmpty(node.getVersionContext())
+                ? null
+                : TableVersionContext.deserialize(node.getVersionContext()));
   }
 }

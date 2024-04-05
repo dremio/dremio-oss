@@ -34,9 +34,10 @@ import { getViewStateFromAction } from "@app/reducers/resources/view";
 import { sonarEvents } from "dremio-ui-common/sonar/sonarEvents.js";
 import Immutable from "immutable";
 import { getLoggingContext } from "dremio-ui-common/contexts/LoggingContext.js";
+import { QueryRange } from "@app/utils/statements/statement";
 
 const logger = getLoggingContext().createLogger(
-  "sagas/performLoadDatasetNew.ts"
+  "sagas/performLoadDatasetNew.ts",
 );
 
 export function* listenToJobProgress(
@@ -51,7 +52,8 @@ export function* listenToJobProgress(
   curIndex: number,
   sessionId: string,
   viewId: string,
-  tabId: string
+  tabId: string,
+  queryRange?: QueryRange,
 ): any {
   let resetViewState = true;
   let raceResult;
@@ -77,8 +79,8 @@ export function* listenToJobProgress(
           isFailed: false,
           error: null,
         },
-        { tabId }
-      )
+        { tabId },
+      ),
     );
 
     raceResult = yield race({
@@ -94,7 +96,8 @@ export function* listenToJobProgress(
         curIndex,
         sessionId,
         viewId,
-        tabId
+        tabId,
+        queryRange,
       ),
       isLoadCanceled: take([CANCEL_TABLE_DATA_LOAD, TRANSFORM_PEEK_START]),
       locationChange: call(resetTableViewStateOnPageLeave),
@@ -120,7 +123,7 @@ export function* listenToJobProgress(
 export function* newLoadDataset(
   dataset: Immutable.Map<string, any>,
   viewId: string,
-  sessionId: string
+  sessionId: string,
 ): any {
   const location = yield select(getLocation);
   const { tipVersion } = location.query || {};
@@ -130,7 +133,7 @@ export function* newLoadDataset(
     dataset,
     viewId,
     tipVersion,
-    sessionId
+    sessionId,
     // Tabs: may need to send originalScriptId for meta
   );
 }

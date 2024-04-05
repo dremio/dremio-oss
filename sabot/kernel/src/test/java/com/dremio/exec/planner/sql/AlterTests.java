@@ -20,35 +20,35 @@ import static com.dremio.exec.planner.sql.DmlQueryTestUtils.testQueryValidateSta
 
 import org.apache.arrow.memory.BufferAllocator;
 
-/**
- * Alter Iceberg table tests
- */
+/** Alter Iceberg table tests */
 public class AlterTests extends ITDmlQueryBase {
-  public static void testAddColumnsNameWithDot(BufferAllocator allocator, String source) throws Exception {
-    try (DmlQueryTestUtils.Table table = createBasicTable(source,1, 1)) {
+  public static void testAddColumnsNameWithDot(BufferAllocator allocator, String source)
+      throws Exception {
+    try (DmlQueryTestUtils.Table table = createBasicTable(source, 1, 1)) {
 
       testQueryValidateStatusSummary(
-        allocator,
-        "ALTER TABLE %s ADD COLUMNS (\"column.with.dot\" int)",
-        new Object[]{table.fqn},
-        table,
-        true,
-        "New columns added.",
-        null);
+          allocator,
+          "ALTER TABLE %s ADD COLUMNS (\"column.with.dot\" int)",
+          new Object[] {table.fqn},
+          table,
+          true,
+          "New columns added.",
+          null);
     }
   }
 
-  public static void testChangeColumnNameWithDot(BufferAllocator allocator, String source) throws Exception {
-    try (DmlQueryTestUtils.Table table = createBasicTable(source,1, 1)) {
+  public static void testChangeColumnNameWithDot(BufferAllocator allocator, String source)
+      throws Exception {
+    try (DmlQueryTestUtils.Table table = createBasicTable(source, 1, 1)) {
 
       testQueryValidateStatusSummary(
-        allocator,
-        "ALTER TABLE %s CHANGE COLUMN \"%s\" \"column.with.dot\" INT",
-        new Object[]{table.fqn, table.columns[0]},
-        table,
-        true,
-        String.format("Column [%s] modified", table.columns[0]),
-        null);
+          allocator,
+          "ALTER TABLE %s CHANGE COLUMN \"%s\" \"column.with.dot\" INT",
+          new Object[] {table.fqn, table.columns[0]},
+          table,
+          true,
+          String.format("Column [%s] modified", table.columns[0]),
+          null);
     }
   }
 }

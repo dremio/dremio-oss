@@ -28,30 +28,6 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.io.FileWriter;
-import java.nio.file.DirectoryStream;
-import java.nio.file.Paths;
-import java.util.Arrays;
-import java.util.List;
-import java.util.UUID;
-
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.core.GenericType;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.SecurityContext;
-
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.hadoop.conf.Configuration;
-import org.glassfish.jersey.media.multipart.FormDataBodyPart;
-import org.glassfish.jersey.media.multipart.FormDataMultiPart;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-
 import com.dremio.common.util.FileUtils;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.common.utils.SqlUtils;
@@ -99,27 +75,48 @@ import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.space.proto.FolderConfig;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-
 import io.protostuff.ByteString;
+import java.io.FileWriter;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.List;
+import java.util.UUID;
+import javax.ws.rs.client.Entity;
+import javax.ws.rs.core.GenericType;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.SecurityContext;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.hadoop.conf.Configuration;
+import org.glassfish.jersey.media.multipart.FormDataBodyPart;
+import org.glassfish.jersey.media.multipart.FormDataMultiPart;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
-/**
- * Test home files.
- */
+/** Test home files. */
 public class TestHomeFiles extends BaseTestServer {
   private static final String HOME_NAME =
       HomeName.getUserHomePath(SampleDataPopulator.DEFAULT_USER_NAME).getName();
   private BufferAllocator allocator;
 
-  @Rule
-  public final TemporaryFolder temporaryFolder = new TemporaryFolder();
+  @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
   private FileSystem fs;
 
   @Before
   public void setup() throws Exception {
     clearAllDataExceptUser();
     getPopulator().populateTestUsers();
-    this.fs = l(HomeFileTool.class).getConfForBackup().getFilesystemAndCreatePaths(getCurrentDremioDaemon().getDACConfig().thisNode);
-    allocator = getSabotContext().getAllocator().newChildAllocator(getClass().getName(), 0, Long.MAX_VALUE);
+    this.fs =
+        l(HomeFileTool.class)
+            .getConfForBackup()
+            .getFilesystemAndCreatePaths(getCurrentDremioDaemon().getDACConfig().thisNode);
+    allocator =
+        getSabotContext().getAllocator().newChildAllocator(getClass().getName(), 0, Long.MAX_VALUE);
   }
 
   @After
@@ -137,7 +134,7 @@ public class TestHomeFiles extends BaseTestServer {
     assertEquals(1, files.size());
 
     final FileAttributes attributes = files.get(0);
-    int fileSize = (int)attributes.size();
+    int fileSize = (int) attributes.size();
     final byte[] data = new byte[fileSize];
     FSInputStream inputStream = fs.open(attributes.getPath());
     org.apache.hadoop.io.IOUtils.readFully(inputStream, data, 0, fileSize);
@@ -152,22 +149,30 @@ public class TestHomeFiles extends BaseTestServer {
 
   @Test
   public void testHome() throws Exception {
-    Home home = expectSuccess(getBuilder(getAPIv2().path("home/" + HOME_NAME)).buildGet(), Home.class);
+    Home home =
+        expectSuccess(getBuilder(getAPIv2().path("home/" + HOME_NAME)).buildGet(), Home.class);
     assertNotNull(home.getId());
 
     java.io.File inputFile = temporaryFolder.newFile("input.json");
-    try(FileWriter fileWriter = new FileWriter(inputFile)) {
+    try (FileWriter fileWriter = new FileWriter(inputFile)) {
       fileWriter.write("{\"person_id\": 1, \"salary\": 10}");
     }
 
     FormDataMultiPart form = new FormDataMultiPart();
-    FormDataBodyPart fileBody = new FormDataBodyPart("file", inputFile, MediaType.MULTIPART_FORM_DATA_TYPE);
+    FormDataBodyPart fileBody =
+        new FormDataBodyPart("file", inputFile, MediaType.MULTIPART_FORM_DATA_TYPE);
     form.bodyPart(fileBody);
     FormDataBodyPart fileNameBody = new FormDataBodyPart("fileName", "file1");
     form.bodyPart(fileNameBody);
     doc("upload file to staging");
-    File file1Staged = expectSuccess(getBuilder(getAPIv2().path("home/" + HOME_NAME + "/upload_start/").queryParam("extension", "json")).buildPost(
-      Entity.entity(form, form.getMediaType())), File.class);
+    File file1Staged =
+        expectSuccess(
+            getBuilder(
+                    getAPIv2()
+                        .path("home/" + HOME_NAME + "/upload_start/")
+                        .queryParam("extension", "json"))
+                .buildPost(Entity.entity(form, form.getMediaType())),
+            File.class);
     FileFormat file1StagedFormat = file1Staged.getFileFormat().getFileFormat();
     assertEquals("file1", file1StagedFormat.getName());
     assertEquals(asList(HOME_NAME, "file1"), file1StagedFormat.getFullPath());
@@ -179,26 +184,42 @@ public class TestHomeFiles extends BaseTestServer {
 
     // external query
     String fileLocation = PathUtils.toDottedPath(Path.of(file1StagedFormat.getLocation()));
-    SqlQuery query = new SqlQuery(format("select * from table(%s.%s (%s)) limit 500",
-      SqlUtils.quoteIdentifier(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME), fileLocation, file1StagedFormat.toTableOptions()), SampleDataPopulator.DEFAULT_USER_NAME);
+    SqlQuery query =
+        new SqlQuery(
+            format(
+                "select * from table(%s.%s (%s)) limit 500",
+                SqlUtils.quoteIdentifier(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME),
+                fileLocation,
+                file1StagedFormat.toTableOptions()),
+            SampleDataPopulator.DEFAULT_USER_NAME);
 
     doc("querying file");
-    try (final JobDataFragment truncData = submitJobAndGetData(l(JobsService.class),
-      JobRequest.newBuilder()
-        .setSqlQuery(query)
-        .setQueryType(QueryType.UI_PREVIEW)
-        .build(), 0, 500, allocator)) {
+    try (final JobDataFragment truncData =
+        submitJobAndGetData(
+            l(JobsService.class),
+            JobRequest.newBuilder().setSqlQuery(query).setQueryType(QueryType.UI_PREVIEW).build(),
+            0,
+            500,
+            allocator)) {
       assertEquals(1, truncData.getReturnedRowCount());
       assertEquals(2, truncData.getColumns().size());
     }
 
     doc("previewing staged file");
-    JobDataFragment data = expectSuccess(getBuilder(getAPIv2().path("/home/" + HOME_NAME + "/file_preview_unsaved/file1")).buildPost(Entity.json(file1StagedFormat)), JobDataFragment.class);
+    JobDataFragment data =
+        expectSuccess(
+            getBuilder(getAPIv2().path("/home/" + HOME_NAME + "/file_preview_unsaved/file1"))
+                .buildPost(Entity.json(file1StagedFormat)),
+            JobDataFragment.class);
     assertEquals(1, data.getReturnedRowCount());
     assertEquals(2, data.getColumns().size());
 
     // finish upload
-    File file1 = expectSuccess(getBuilder(getAPIv2().path("home/" + HOME_NAME + "/upload_finish/file1")).buildPost(Entity.json(file1StagedFormat)), File.class);
+    File file1 =
+        expectSuccess(
+            getBuilder(getAPIv2().path("home/" + HOME_NAME + "/upload_finish/file1"))
+                .buildPost(Entity.json(file1StagedFormat)),
+            File.class);
     FileFormat file1Format = file1.getFileFormat().getFileFormat();
     assertEquals("file1", file1Format.getName());
     assertEquals(asList(HOME_NAME, "file1"), file1Format.getFullPath());
@@ -214,8 +235,14 @@ public class TestHomeFiles extends BaseTestServer {
     form.bodyPart(new FormDataBodyPart("fileName", "file2"));
 
     doc("upload second file to staging");
-    File file2Staged = expectSuccess(getBuilder(getAPIv2().path("home/" + HOME_NAME + "/upload_start/").queryParam("extension", "json")).buildPost(
-      Entity.entity(form, form.getMediaType())), File.class);
+    File file2Staged =
+        expectSuccess(
+            getBuilder(
+                    getAPIv2()
+                        .path("home/" + HOME_NAME + "/upload_start/")
+                        .queryParam("extension", "json"))
+                .buildPost(Entity.entity(form, form.getMediaType())),
+            File.class);
     FileFormat file2StagedFormat = file2Staged.getFileFormat().getFileFormat();
 
     assertEquals("file2", file2StagedFormat.getName());
@@ -227,12 +254,20 @@ public class TestHomeFiles extends BaseTestServer {
 
     // cancel upload
     doc("cancel upload for second file");
-    expectSuccess(getBuilder(getAPIv2().path("home/" + HOME_NAME + "/upload_cancel/file2")).buildPost(Entity.json(file2StagedFormat)));
+    expectSuccess(
+        getBuilder(getAPIv2().path("home/" + HOME_NAME + "/upload_cancel/file2"))
+            .buildPost(Entity.json(file2StagedFormat)));
     checkFileDoesNotExist(file2StagedFormat.getLocation());
-    expectError(CLIENT_ERROR, getBuilder(getAPIv2().path("home/" + HOME_NAME + "/file/file2")).buildGet(), NotFoundErrorMessage.class);
+    expectError(
+        CLIENT_ERROR,
+        getBuilder(getAPIv2().path("home/" + HOME_NAME + "/file/file2")).buildGet(),
+        NotFoundErrorMessage.class);
 
     doc("getting a file");
-    File file2 = expectSuccess(getBuilder(getAPIv2().path("home/" + HOME_NAME + "/file/file1")).buildGet(), File.class);
+    File file2 =
+        expectSuccess(
+            getBuilder(getAPIv2().path("home/" + HOME_NAME + "/file/file1")).buildGet(),
+            File.class);
     FileFormat file2Format = file2.getFileFormat().getFileFormat();
 
     assertEquals("file1", file2Format.getName());
@@ -240,10 +275,18 @@ public class TestHomeFiles extends BaseTestServer {
     assertEquals(FileType.JSON, file2Format.getFileType());
 
     doc("querying file");
-    try (final JobDataFragment truncData = submitJobAndGetData(l(JobsService.class),
-      JobRequest.newBuilder()
-        .setSqlQuery(new SqlQuery("select * from \"" + HOME_NAME + "\".file1", SampleDataPopulator.DEFAULT_USER_NAME))
-        .build(), 0, 500, allocator)) {
+    try (final JobDataFragment truncData =
+        submitJobAndGetData(
+            l(JobsService.class),
+            JobRequest.newBuilder()
+                .setSqlQuery(
+                    new SqlQuery(
+                        "select * from \"" + HOME_NAME + "\".file1",
+                        SampleDataPopulator.DEFAULT_USER_NAME))
+                .build(),
+            0,
+            500,
+            allocator)) {
       assertEquals(1, truncData.getReturnedRowCount());
       assertEquals(2, truncData.getColumns().size());
     }
@@ -251,40 +294,63 @@ public class TestHomeFiles extends BaseTestServer {
     doc("creating a folder");
     String folderPath = "home/" + HOME_NAME + "/folder/";
 
-    final Folder putFolder1 = expectSuccess(getBuilder(getAPIv2().path(folderPath)).buildPost(Entity.json("{\"name\": \"f1\"}")), Folder.class);
+    final Folder putFolder1 =
+        expectSuccess(
+            getBuilder(getAPIv2().path(folderPath)).buildPost(Entity.json("{\"name\": \"f1\"}")),
+            Folder.class);
     assertEquals("f1", putFolder1.getName());
 
     doc("get folder");
-    Folder f1 = expectSuccess(getBuilder(getAPIv2().path("home/" + HOME_NAME + "/folder/f1")).buildGet(), Folder.class);
+    Folder f1 =
+        expectSuccess(
+            getBuilder(getAPIv2().path("home/" + HOME_NAME + "/folder/f1")).buildGet(),
+            Folder.class);
     assertEquals("f1", f1.getName());
-    Assert.assertArrayEquals(new String[]{HOME_NAME, "f1"}, f1.getFullPathList().toArray());
+    Assert.assertArrayEquals(new String[] {HOME_NAME, "f1"}, f1.getFullPathList().toArray());
   }
 
   @Test // DX-5410
   public void formatChangeForUploadedHomeFile() throws Exception {
     FormDataMultiPart form = new FormDataMultiPart();
-    FormDataBodyPart fileBody = new FormDataBodyPart("file", FileUtils.getResourceAsFile("/datasets/csv/pipe.csv"), MediaType.MULTIPART_FORM_DATA_TYPE);
+    FormDataBodyPart fileBody =
+        new FormDataBodyPart(
+            "file",
+            FileUtils.getResourceAsFile("/datasets/csv/pipe.csv"),
+            MediaType.MULTIPART_FORM_DATA_TYPE);
     form.bodyPart(fileBody);
     form.bodyPart(new FormDataBodyPart("fileName", "pipe"));
 
     doc("uploading a text file");
-    File file1 = expectSuccess(getBuilder(getAPIv2().path("home/" + HOME_NAME + "/upload_start/").queryParam("extension", "csv"))
-        .buildPost(Entity.entity(form, form.getMediaType())), File.class);
-    file1 = expectSuccess(getBuilder(getAPIv2().path("home/" + HOME_NAME + "/upload_finish/pipe"))
-        .buildPost(Entity.json(file1.getFileFormat().getFileFormat())), File.class);
+    File file1 =
+        expectSuccess(
+            getBuilder(
+                    getAPIv2()
+                        .path("home/" + HOME_NAME + "/upload_start/")
+                        .queryParam("extension", "csv"))
+                .buildPost(Entity.entity(form, form.getMediaType())),
+            File.class);
+    file1 =
+        expectSuccess(
+            getBuilder(getAPIv2().path("home/" + HOME_NAME + "/upload_finish/pipe"))
+                .buildPost(Entity.json(file1.getFileFormat().getFileFormat())),
+            File.class);
     final FileFormat defaultFileFormat = file1.getFileFormat().getFileFormat();
 
     assertTrue(defaultFileFormat instanceof TextFileConfig);
-    assertEquals(",", ((TextFileConfig)defaultFileFormat).getFieldDelimiter());
+    assertEquals(",", ((TextFileConfig) defaultFileFormat).getFieldDelimiter());
 
     doc("change the format settings of uploaded file");
-    final TextFileConfig newFileFormat = (TextFileConfig)defaultFileFormat;
+    final TextFileConfig newFileFormat = (TextFileConfig) defaultFileFormat;
     newFileFormat.setFieldDelimiter("|");
 
-    final FileFormat updatedFileFormat = expectSuccess(getBuilder(getAPIv2().path("home/" + HOME_NAME + "/file_format/pipe"))
-        .buildPut(Entity.json(newFileFormat)), FileFormatUI.class).getFileFormat();
+    final FileFormat updatedFileFormat =
+        expectSuccess(
+                getBuilder(getAPIv2().path("home/" + HOME_NAME + "/file_format/pipe"))
+                    .buildPut(Entity.json(newFileFormat)),
+                FileFormatUI.class)
+            .getFileFormat();
     assertTrue(updatedFileFormat instanceof TextFileConfig);
-    assertEquals("|", ((TextFileConfig)updatedFileFormat).getFieldDelimiter());
+    assertEquals("|", ((TextFileConfig) updatedFileFormat).getFieldDelimiter());
   }
 
   @Test
@@ -301,17 +367,39 @@ public class TestHomeFiles extends BaseTestServer {
   public void testUploadDisabled() throws Exception {
     try {
       // disable uploads
-      getSabotContext().getOptionManager().setOption(OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, UIOptions.ALLOW_FILE_UPLOADS.getOptionName(), false));
+      getSabotContext()
+          .getOptionManager()
+          .setOption(
+              OptionValue.createBoolean(
+                  OptionValue.OptionType.SYSTEM,
+                  UIOptions.ALLOW_FILE_UPLOADS.getOptionName(),
+                  false));
 
       FormDataMultiPart form = new FormDataMultiPart();
-      FormDataBodyPart fileBody = new FormDataBodyPart("file", FileUtils.getResourceAsFile("/datasets/csv/pipe.csv"), MediaType.MULTIPART_FORM_DATA_TYPE);
+      FormDataBodyPart fileBody =
+          new FormDataBodyPart(
+              "file",
+              FileUtils.getResourceAsFile("/datasets/csv/pipe.csv"),
+              MediaType.MULTIPART_FORM_DATA_TYPE);
       form.bodyPart(fileBody);
       form.bodyPart(new FormDataBodyPart("fileName", "pipe"));
 
-      expectStatus(Response.Status.FORBIDDEN, getBuilder(getAPIv2().path("home/" + HOME_NAME + "/upload_start/").queryParam("extension", "csv")).buildPost(Entity.entity(form, form.getMediaType())));
+      expectStatus(
+          Response.Status.FORBIDDEN,
+          getBuilder(
+                  getAPIv2()
+                      .path("home/" + HOME_NAME + "/upload_start/")
+                      .queryParam("extension", "csv"))
+              .buildPost(Entity.entity(form, form.getMediaType())));
     } finally {
       // re-enable uploads
-      getSabotContext().getOptionManager().setOption(OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, UIOptions.ALLOW_FILE_UPLOADS.getOptionName(), true));
+      getSabotContext()
+          .getOptionManager()
+          .setOption(
+              OptionValue.createBoolean(
+                  OptionValue.OptionType.SYSTEM,
+                  UIOptions.ALLOW_FILE_UPLOADS.getOptionName(),
+                  true));
     }
   }
 
@@ -320,16 +408,28 @@ public class TestHomeFiles extends BaseTestServer {
     final FileType fileType = isXLS ? FileType.XLS : FileType.EXCEL;
 
     FormDataMultiPart form = new FormDataMultiPart();
-    FormDataBodyPart fileBody = new FormDataBodyPart("file", FileUtils.getResourceAsFile("/testfiles/excel." + extension), MediaType.MULTIPART_FORM_DATA_TYPE);
+    FormDataBodyPart fileBody =
+        new FormDataBodyPart(
+            "file",
+            FileUtils.getResourceAsFile("/testfiles/excel." + extension),
+            MediaType.MULTIPART_FORM_DATA_TYPE);
     form.bodyPart(fileBody);
     form.bodyPart(new FormDataBodyPart("fileName", "excel"));
 
     doc("uploading excel file");
-    File file1 = expectSuccess(getBuilder(getAPIv2().path("home/" + HOME_NAME + "/upload_start/")
-        .queryParam("extension", extension))
-        .buildPost(Entity.entity(form, form.getMediaType())), File.class);
-    file1 = expectSuccess(getBuilder(getAPIv2().path("home/" + HOME_NAME + "/upload_finish/excel"))
-        .buildPost(Entity.json(file1.getFileFormat().getFileFormat())), File.class);
+    File file1 =
+        expectSuccess(
+            getBuilder(
+                    getAPIv2()
+                        .path("home/" + HOME_NAME + "/upload_start/")
+                        .queryParam("extension", extension))
+                .buildPost(Entity.entity(form, form.getMediaType())),
+            File.class);
+    file1 =
+        expectSuccess(
+            getBuilder(getAPIv2().path("home/" + HOME_NAME + "/upload_finish/excel"))
+                .buildPost(Entity.json(file1.getFileFormat().getFileFormat())),
+            File.class);
     FileFormat file1Format = file1.getFileFormat().getFileFormat();
 
     assertEquals("excel", file1Format.getName());
@@ -339,7 +439,10 @@ public class TestHomeFiles extends BaseTestServer {
     fileBody.cleanup();
 
     doc("getting a excel file");
-    File file2 = expectSuccess(getBuilder(getAPIv2().path("home/" + HOME_NAME + "/file/excel")).buildGet(), File.class);
+    File file2 =
+        expectSuccess(
+            getBuilder(getAPIv2().path("home/" + HOME_NAME + "/file/excel")).buildGet(),
+            File.class);
     FileFormat file2Format = file2.getFileFormat().getFileFormat();
 
     assertEquals("excel", file2Format.getName());
@@ -347,8 +450,18 @@ public class TestHomeFiles extends BaseTestServer {
     assertEquals(fileType, file2Format.getFileType());
 
     doc("querying excel file");
-    try (final JobDataFragment truncData = submitJobAndGetData(l(JobsService.class), JobRequest.newBuilder().setSqlQuery(new SqlQuery("select * from \"" + HOME_NAME + "\".\"excel\"", SampleDataPopulator.DEFAULT_USER_NAME)).build(),
-      0, 500, allocator)) {
+    try (final JobDataFragment truncData =
+        submitJobAndGetData(
+            l(JobsService.class),
+            JobRequest.newBuilder()
+                .setSqlQuery(
+                    new SqlQuery(
+                        "select * from \"" + HOME_NAME + "\".\"excel\"",
+                        SampleDataPopulator.DEFAULT_USER_NAME))
+                .build(),
+            0,
+            500,
+            allocator)) {
       assertEquals(6, truncData.getReturnedRowCount());
       assertEquals(5, truncData.getColumns().size());
     }
@@ -359,15 +472,28 @@ public class TestHomeFiles extends BaseTestServer {
     } else {
       ((XlsFileConfig) file2Format).setExtractHeader(true);
     }
-    JobDataFragment data = expectSuccess(getBuilder(getAPIv2().path("/home/" + HOME_NAME + "/file_preview/excel")).buildPost(Entity.json(file2Format)), JobDataFragment.class);
+    JobDataFragment data =
+        expectSuccess(
+            getBuilder(getAPIv2().path("/home/" + HOME_NAME + "/file_preview/excel"))
+                .buildPost(Entity.json(file2Format)),
+            JobDataFragment.class);
     assertEquals(5, data.getReturnedRowCount());
     assertEquals(5, data.getColumns().size());
   }
 
-  public static void uploadFile(HomeFileConf homeFileStore, Path inputFile, String name, String extension ,FileFormat fileFormat, FolderPath parent) throws Exception {
+  public static void uploadFile(
+      HomeFileConf homeFileStore,
+      Path inputFile,
+      String name,
+      String extension,
+      FileFormat fileFormat,
+      FolderPath parent)
+      throws Exception {
     FilePath filePath;
     if (parent == null) {
-      filePath = new FilePath(ImmutableList.of(HomeName.getUserHomePath(DEFAULT_USER_NAME).getName(), name));
+      filePath =
+          new FilePath(
+              ImmutableList.of(HomeName.getUserHomePath(DEFAULT_USER_NAME).getName(), name));
     } else {
       List<String> path = Lists.newArrayList(parent.toPathList());
       path.add(name);
@@ -380,10 +506,12 @@ public class TestHomeFiles extends BaseTestServer {
     final SecurityContext mockSecurityContext = mock(SecurityContext.class);
     when(mockSecurityContext.getUserPrincipal()).thenReturn(() -> DEFAULT_USER_NAME);
 
-    Path stagingLocation = new HomeFileTool(homeFileStore, fs, "localhost", mockSecurityContext)
-      .stageFile(filePath, extension, inputStream);
-    Path finalLocation = new HomeFileTool(homeFileStore, fs, "localhost", mockSecurityContext)
-      .saveFile(stagingLocation, filePath, extension);
+    Path stagingLocation =
+        new HomeFileTool(homeFileStore, fs, "localhost", mockSecurityContext)
+            .stageFile(filePath, extension, inputStream);
+    Path finalLocation =
+        new HomeFileTool(homeFileStore, fs, "localhost", mockSecurityContext)
+            .saveFile(stagingLocation, filePath, extension);
     inputStream.close();
 
     // create file in namespace
@@ -391,27 +519,40 @@ public class TestHomeFiles extends BaseTestServer {
     fileFormat.setFullPath(filePath.toPathList());
     fileFormat.setName(name);
     fileFormat.setLocation(finalLocation.toString());
-    DatasetConfig datasetConfig = DatasetsUtil.toDatasetConfig(fileFormat.asFileConfig(),
-        DatasetType.PHYSICAL_DATASET_HOME_FILE, null, new EntityId(UUID.randomUUID().toString()));
-    newCatalogService().getCatalog(MetadataRequestOptions.of(
-        SchemaConfig.newBuilder(CatalogUser.from(SYSTEM_USERNAME))
-            .build()))
-        .createOrUpdateDataset(newNamespaceService(), new NamespaceKey(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME),
-            filePath.toNamespaceKey(), datasetConfig);
+    DatasetConfig datasetConfig =
+        DatasetsUtil.toDatasetConfig(
+            fileFormat.asFileConfig(),
+            DatasetType.PHYSICAL_DATASET_HOME_FILE,
+            null,
+            new EntityId(UUID.randomUUID().toString()));
+    newCatalogService()
+        .getCatalog(
+            MetadataRequestOptions.of(
+                SchemaConfig.newBuilder(CatalogUser.from(SYSTEM_USERNAME)).build()))
+        .createOrUpdateDataset(
+            newNamespaceService(),
+            new NamespaceKey(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME),
+            filePath.toNamespaceKey(),
+            datasetConfig);
   }
 
   private void runTests(HomeFileConf homeFileStore) throws Exception {
     // text file
-    Path textFile = Path.of(FileUtils.getResourceAsFile("/datasets/text/comma.txt").getAbsolutePath());
-    uploadFile(homeFileStore, textFile, "comma", "txt", new TextFileConfig().setFieldDelimiter(","), null);
+    Path textFile =
+        Path.of(FileUtils.getResourceAsFile("/datasets/text/comma.txt").getAbsolutePath());
+    uploadFile(
+        homeFileStore, textFile, "comma", "txt", new TextFileConfig().setFieldDelimiter(","), null);
 
-    Path csvFile = Path.of(FileUtils.getResourceAsFile("/datasets/csv/comma.csv").getAbsolutePath());
-    uploadFile(homeFileStore, csvFile, "comma1", "csv", new TextFileConfig().setFieldDelimiter(","), null);
+    Path csvFile =
+        Path.of(FileUtils.getResourceAsFile("/datasets/csv/comma.csv").getAbsolutePath());
+    uploadFile(
+        homeFileStore, csvFile, "comma1", "csv", new TextFileConfig().setFieldDelimiter(","), null);
 
     Path jsonFile = Path.of(FileUtils.getResourceAsFile("/datasets/users.json").getAbsolutePath());
     uploadFile(homeFileStore, jsonFile, "users", "json", new JsonFileConfig(), null);
 
-    Path excelFile = Path.of(FileUtils.getResourceAsFile("/testfiles/excel.xlsx").getAbsolutePath());
+    Path excelFile =
+        Path.of(FileUtils.getResourceAsFile("/testfiles/excel.xlsx").getAbsolutePath());
     uploadFile(homeFileStore, excelFile, "excel", "xlsx", new ExcelFileConfig(), null);
 
     // query files
@@ -421,23 +562,43 @@ public class TestHomeFiles extends BaseTestServer {
     runQuery(l(JobsService.class), "excel", 6, 5, null, allocator);
 
     // add file to folder
-    FolderPath folderPath = new FolderPath(ImmutableList.of(HomeName.getUserHomePath(DEFAULT_USER_NAME).getName(), "testupload"));
-    newNamespaceService().addOrUpdateFolder(folderPath.toNamespaceKey(), new FolderConfig()
-      .setName("testupload")
-      .setFullPathList(folderPath.toPathList()));
+    FolderPath folderPath =
+        new FolderPath(
+            ImmutableList.of(HomeName.getUserHomePath(DEFAULT_USER_NAME).getName(), "testupload"));
+    newNamespaceService()
+        .addOrUpdateFolder(
+            folderPath.toNamespaceKey(),
+            new FolderConfig().setName("testupload").setFullPathList(folderPath.toPathList()));
 
-    uploadFile(homeFileStore, textFile, "comma", "txt", new TextFileConfig().setFieldDelimiter(","), folderPath);
+    uploadFile(
+        homeFileStore,
+        textFile,
+        "comma",
+        "txt",
+        new TextFileConfig().setFieldDelimiter(","),
+        folderPath);
     runQuery(l(JobsService.class), "comma", 4, 3, folderPath, allocator);
-
   }
 
   @Test
   public void testNASFileStore() throws Exception {
 
     final CatalogServiceImpl catalog = (CatalogServiceImpl) l(CatalogService.class);
-    final SourceConfig config = catalog.getManagedSource(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME).getId().getClonedConfig();
+    final SourceConfig config =
+        catalog
+            .getManagedSource(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME)
+            .getId()
+            .getClonedConfig();
     final ByteString oldConfig = config.getConfig();
-    final HomeFileConf nasHomeFileStore = new HomeFileConf(Path.of("file:///" + BaseTestServer.folder1.getRoot().toString() + "/" + "testNASFileStore/").toString(), "localhost");
+    final HomeFileConf nasHomeFileStore =
+        new HomeFileConf(
+            Path.of(
+                    "file:///"
+                        + BaseTestServer.folder1.getRoot().toString()
+                        + "/"
+                        + "testNASFileStore/")
+                .toString(),
+            "localhost");
     nasHomeFileStore.getFilesystemAndCreatePaths("localhost");
     config.setConnectionConf(nasHomeFileStore);
     catalog.getSystemUserCatalog().updateSource(config);
@@ -448,7 +609,11 @@ public class TestHomeFiles extends BaseTestServer {
     } finally {
       tool.clear();
       // reset plugin
-      SourceConfig backConfig = catalog.getManagedSource(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME).getId().getClonedConfig();
+      SourceConfig backConfig =
+          catalog
+              .getManagedSource(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME)
+              .getId()
+              .getClonedConfig();
       backConfig.setConfig(oldConfig);
       catalog.getSystemUserCatalog().updateSource(backConfig);
     }
@@ -456,7 +621,8 @@ public class TestHomeFiles extends BaseTestServer {
 
   @Test
   public void testPDFSFileStore() throws Exception {
-    FileSystemPlugin fsp = l(CatalogService.class).getSource(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME);
+    FileSystemPlugin fsp =
+        l(CatalogService.class).getSource(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME);
     HomeFileConf conf = (HomeFileConf) fsp.getConfig();
     HomeFileTool tool = l(HomeFileTool.class);
     try {
@@ -468,7 +634,8 @@ public class TestHomeFiles extends BaseTestServer {
 
   @Test
   public void testHomeUploadValidation() throws Exception {
-    Home home = expectSuccess(getBuilder(getAPIv2().path("home/" + HOME_NAME)).buildGet(), Home.class);
+    Home home =
+        expectSuccess(getBuilder(getAPIv2().path("home/" + HOME_NAME)).buildGet(), Home.class);
     assertNotNull(home.getId());
 
     String homeFileName = "file2";
@@ -479,13 +646,20 @@ public class TestHomeFiles extends BaseTestServer {
     }
 
     FormDataMultiPart form = new FormDataMultiPart();
-    FormDataBodyPart fileBody = new FormDataBodyPart("file", inputFile, MediaType.MULTIPART_FORM_DATA_TYPE);
+    FormDataBodyPart fileBody =
+        new FormDataBodyPart("file", inputFile, MediaType.MULTIPART_FORM_DATA_TYPE);
     form.bodyPart(fileBody);
     FormDataBodyPart fileNameBody = new FormDataBodyPart("fileName", homeFileName);
     form.bodyPart(fileNameBody);
     doc("upload file to staging");
-    File file1Staged = expectSuccess(getBuilder(getAPIv2().path("home/" + HOME_NAME + "/upload_start/").queryParam("extension", "json")).buildPost(
-      Entity.entity(form, form.getMediaType())), File.class);
+    File file1Staged =
+        expectSuccess(
+            getBuilder(
+                    getAPIv2()
+                        .path("home/" + HOME_NAME + "/upload_start/")
+                        .queryParam("extension", "json"))
+                .buildPost(Entity.entity(form, form.getMediaType())),
+            File.class);
     FileFormat file1StagedFormat = file1Staged.getFileFormat().getFileFormat();
     assertEquals(homeFileName, file1StagedFormat.getName());
     assertEquals(asList(HOME_NAME, homeFileName), file1StagedFormat.getFullPath());
@@ -495,8 +669,14 @@ public class TestHomeFiles extends BaseTestServer {
     file1StagedFormat.setLocation(inputFile.getParent());
 
     // the upload endpoints should fail given that the location is not correct
-    expectStatus(Response.Status.BAD_REQUEST, getBuilder(getAPIv2().path("/home/" + HOME_NAME + "/file_preview_unsaved/" + homeFileName)).buildPost(Entity.json(file1StagedFormat)));
-    expectStatus(Response.Status.BAD_REQUEST, getBuilder(getAPIv2().path("home/" + HOME_NAME + "/upload_finish/" + homeFileName)).buildPost(Entity.json(file1StagedFormat)));
+    expectStatus(
+        Response.Status.BAD_REQUEST,
+        getBuilder(getAPIv2().path("/home/" + HOME_NAME + "/file_preview_unsaved/" + homeFileName))
+            .buildPost(Entity.json(file1StagedFormat)));
+    expectStatus(
+        Response.Status.BAD_REQUEST,
+        getBuilder(getAPIv2().path("home/" + HOME_NAME + "/upload_finish/" + homeFileName))
+            .buildPost(Entity.json(file1StagedFormat)));
 
     fileBody.cleanup();
 
@@ -504,46 +684,71 @@ public class TestHomeFiles extends BaseTestServer {
     final FilePath filePath = new FilePath(Arrays.asList("@dremio", "filename"));
 
     // this is the root path for a user when staging files
-    java.nio.file.Path validRootPathForUser = Paths.get(tool.getStagingLocation(filePath, "json").getParent().toString());
+    java.nio.file.Path validRootPathForUser =
+        Paths.get(tool.getStagingLocation(filePath, "json").getParent().toString());
 
     // valid path
     assertTrue(tool.validStagingLocation(Path.of(validRootPathForUser.resolve("foo").toString())));
 
-    assertFalse(tool.validStagingLocation(Path.of(validRootPathForUser.resolve("foo/../../../../").toString())));
+    assertFalse(
+        tool.validStagingLocation(
+            Path.of(validRootPathForUser.resolve("foo/../../../../").toString())));
 
     assertFalse(tool.validStagingLocation(Path.of("/invalid/path")));
 
     // one level above the valid root, won't include the username and therefore invalid
-    assertFalse(tool.validStagingLocation(Path.of(validRootPathForUser.getParent().resolve("foo").toString())));
+    assertFalse(
+        tool.validStagingLocation(
+            Path.of(validRootPathForUser.getParent().resolve("foo").toString())));
   }
 
   @Test
   public void testPUTRequestOnHomefile() throws Exception {
-    final Home home = expectSuccess(getBuilder(getAPIv2().path("home/" + HOME_NAME)).buildGet(), Home.class);
+    final Home home =
+        expectSuccess(getBuilder(getAPIv2().path("home/" + HOME_NAME)).buildGet(), Home.class);
     assertNotNull(home.getId());
 
     final java.io.File inputFile = temporaryFolder.newFile("input.json");
-    try(FileWriter fileWriter = new FileWriter(inputFile)) {
+    try (FileWriter fileWriter = new FileWriter(inputFile)) {
       fileWriter.write("{\"person_id\": 1, \"salary\": 10}");
     }
     final String fileName = "file3";
     final FormDataMultiPart form = new FormDataMultiPart();
-    final FormDataBodyPart fileBody = new FormDataBodyPart("file", inputFile, MediaType.MULTIPART_FORM_DATA_TYPE);
+    final FormDataBodyPart fileBody =
+        new FormDataBodyPart("file", inputFile, MediaType.MULTIPART_FORM_DATA_TYPE);
     form.bodyPart(fileBody);
     final FormDataBodyPart fileNameBody = new FormDataBodyPart("fileName", fileName);
     form.bodyPart(fileNameBody);
     doc("upload file to staging");
-    final File file1Staged = expectSuccess(getBuilder(getAPIv2().path("home/" + HOME_NAME + "/upload_start/").queryParam("extension", "json")).buildPost(
-      Entity.entity(form, form.getMediaType())), File.class);
+    final File file1Staged =
+        expectSuccess(
+            getBuilder(
+                    getAPIv2()
+                        .path("home/" + HOME_NAME + "/upload_start/")
+                        .queryParam("extension", "json"))
+                .buildPost(Entity.entity(form, form.getMediaType())),
+            File.class);
     final FileFormat file1StagedFormat = file1Staged.getFileFormat().getFileFormat();
     assertEquals(fileName, file1StagedFormat.getName());
     assertEquals(asList(HOME_NAME, fileName), file1StagedFormat.getFullPath());
     assertEquals(FileType.JSON, file1StagedFormat.getFileType());
     // finish upload
-    expectSuccess(getBuilder(getAPIv2().path("home/" + HOME_NAME + "/upload_finish/" + fileName)).buildPost(Entity.json(file1StagedFormat)), File.class);
+    expectSuccess(
+        getBuilder(getAPIv2().path("home/" + HOME_NAME + "/upload_finish/" + fileName))
+            .buildPost(Entity.json(file1StagedFormat)),
+        File.class);
     fileBody.cleanup();
-    final Dataset dataset = expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/").path("by-path").path("/%40dremio/" + fileName)).buildGet(), new GenericType<Dataset>() {
-    });
-    expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/").path(dataset.getId())).buildPut(Entity.json(dataset)));
+    final Dataset dataset =
+        expectSuccess(
+            getBuilder(
+                    getPublicAPI(3)
+                        .path("/catalog/")
+                        .path("by-path")
+                        .path("/%40dremio/" + fileName))
+                .buildGet(),
+            new GenericType<Dataset>() {});
+    expectSuccess(
+        getBuilder(getPublicAPI(3).path("/catalog/").path(dataset.getId()))
+            .buildPut(Entity.json(dataset)));
   }
 }

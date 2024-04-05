@@ -19,12 +19,6 @@ import static com.dremio.service.namespace.dataset.proto.DatasetType.PHYSICAL_DA
 import static com.dremio.service.namespace.dataset.proto.DatasetType.VIRTUAL_DATASET;
 import static org.junit.Assert.assertEquals;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
-
-import org.junit.Test;
-
 import com.dremio.dac.model.spaces.HomeName;
 import com.dremio.dac.model.spaces.HomePath;
 import com.dremio.datastore.LocalKVStoreProvider;
@@ -39,11 +33,12 @@ import com.dremio.service.namespace.dataset.proto.VirtualDataset;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.space.proto.HomeConfig;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
+import org.junit.Test;
 
-
-/**
- * Test for Clean command
- */
+/** Test for Clean command */
 public class TestCleanDatasetOrphans extends CleanBaseTest {
 
   private static final List<String> TABLE_IN_HOME = Arrays.asList("@user1", "test-table");
@@ -54,14 +49,16 @@ public class TestCleanDatasetOrphans extends CleanBaseTest {
   private static final String SOURCE2 = "test-source2";
   private static final List<String> TABLE2 = Arrays.asList("test-source2", "test-table2");
 
-    @Test
-  public void testCleanDatasetOrphans() throws Exception{
+  @Test
+  public void testCleanDatasetOrphans() throws Exception {
     getCurrentDremioDaemon().close();
 
-    Optional<LocalKVStoreProvider> providerOptional = CmdUtils.getKVStoreProvider(getDACConfig().getConfig());
+    Optional<LocalKVStoreProvider> providerOptional =
+        CmdUtils.getKVStoreProvider(getDACConfig().getConfig());
     try (LocalKVStoreProvider provider = providerOptional.get()) {
       provider.start();
-      NamespaceService namespaceService = new NamespaceServiceImpl(provider.asLegacy(), new CatalogStatusEventsImpl());
+      NamespaceService namespaceService =
+          new NamespaceServiceImpl(provider.asLegacy(), new CatalogStatusEventsImpl());
 
       // Add a dataset to home space
       final NamespaceKey homeKey = new HomePath(HomeName.getUserHomePath("user1")).toNamespaceKey();
@@ -80,10 +77,7 @@ public class TestCleanDatasetOrphans extends CleanBaseTest {
 
       // Add a dataset to a space
       final NamespaceKey spaceKey = new NamespaceKey(SPACE);
-      SpaceConfig spaceConfig = new SpaceConfig()
-        .setId(null)
-        .setName(SPACE)
-        .setDescription("");
+      SpaceConfig spaceConfig = new SpaceConfig().setId(null).setName(SPACE).setDescription("");
       namespaceService.addOrUpdateSpace(spaceKey, spaceConfig);
 
       NamespaceKey datasetPath2 = new NamespaceKey(TABLE_IN_SPACE);
@@ -98,9 +92,7 @@ public class TestCleanDatasetOrphans extends CleanBaseTest {
 
       // Add dataset test-table1 to source test-source1
       NamespaceKey sourceKey1 = new NamespaceKey(SOURCE1);
-      SourceConfig sourceConfig1 = new SourceConfig()
-        .setName(SOURCE1)
-        .setCtime(100L);
+      SourceConfig sourceConfig1 = new SourceConfig().setName(SOURCE1).setCtime(100L);
       namespaceService.addOrUpdateSource(sourceKey1, sourceConfig1);
 
       NamespaceKey datasetPath3 = new NamespaceKey(TABLE1);
@@ -115,9 +107,7 @@ public class TestCleanDatasetOrphans extends CleanBaseTest {
 
       // Add dataset test-table2 to source test-source2
       NamespaceKey sourceKey2 = new NamespaceKey(SOURCE2);
-      SourceConfig sourceConfig2 = new SourceConfig()
-        .setName(SOURCE2)
-        .setCtime(100L);
+      SourceConfig sourceConfig2 = new SourceConfig().setName(SOURCE2).setCtime(100L);
       namespaceService.addOrUpdateSource(sourceKey2, sourceConfig2);
 
       NamespaceKey datasetPath4 = new NamespaceKey(TABLE2);
@@ -130,7 +120,8 @@ public class TestCleanDatasetOrphans extends CleanBaseTest {
       datasetConfig4.setPhysicalDataset(physicalDataset2);
       namespaceService.tryCreatePhysicalDataset(datasetPath4, datasetConfig4);
 
-      // Delete source test-source1 without deleting children.  test-source1.test-table1 becomes an orphan dataset
+      // Delete source test-source1 without deleting children.  test-source1.test-table1 becomes an
+      // orphan dataset
       namespaceService.deleteEntity(sourceKey1);
 
       int datasetsCount = namespaceService.getDatasets().size();

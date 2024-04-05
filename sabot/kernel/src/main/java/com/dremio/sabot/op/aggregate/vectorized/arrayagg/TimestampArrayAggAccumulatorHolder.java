@@ -19,9 +19,12 @@ package com.dremio.sabot.op.aggregate.vectorized.arrayagg;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.TimeStampMilliVector;
 
-public final class TimestampArrayAggAccumulatorHolder extends BaseArrayAggAccumulatorHolder<Long, TimeStampMilliVector> {
+public final class TimestampArrayAggAccumulatorHolder
+    extends BaseArrayAggAccumulatorHolder<Long, TimeStampMilliVector> {
   private final TimeStampMilliVector vector;
-  public TimestampArrayAggAccumulatorHolder(int maxValuesPerBatch, final BufferAllocator allocator) {
+
+  public TimestampArrayAggAccumulatorHolder(
+      int maxValuesPerBatch, final BufferAllocator allocator) {
     super(maxValuesPerBatch, allocator);
     vector = new TimeStampMilliVector("array_agg TimestampArrayAggAccumulatorHolder", allocator);
     vector.allocateNew(maxValuesPerBatch);
@@ -29,9 +32,9 @@ public final class TimestampArrayAggAccumulatorHolder extends BaseArrayAggAccumu
 
   @Override
   public long getSizeInBytes() {
-    return vector.getDataBuffer().getActualMemoryConsumed() +
-      vector.getValidityBuffer().getActualMemoryConsumed() +
-      super.getSizeInBytes();
+    return vector.getDataBuffer().getActualMemoryConsumed()
+        + vector.getValidityBuffer().getActualMemoryConsumed()
+        + super.getSizeInBytes();
   }
 
   @Override

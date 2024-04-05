@@ -15,19 +15,17 @@
  */
 package com.dremio.exec.store.dfs.copyinto;
 
+import com.google.common.collect.ImmutableList;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.types.Types;
 
-import com.google.common.collect.ImmutableList;
-
 /**
- * This class provides the schema definition for the copy_jobs_history table used in copy-into operation.
- * It defines the schema for different versions of the table.
+ * This class provides the schema definition for the copy_jobs_history table used in copy-into
+ * operation. It defines the schema for different versions of the table.
  */
 public final class CopyJobHistoryTableSchemaProvider {
 
-  private CopyJobHistoryTableSchemaProvider() {
-  }
+  private CopyJobHistoryTableSchemaProvider() {}
 
   private static final int EXECUTED_AT_COL_ID_V1_SCHEMA = 1;
   private static final int JOB_ID_COL_ID_V1_SCHEMA = 2;
@@ -39,20 +37,26 @@ public final class CopyJobHistoryTableSchemaProvider {
   private static final int FILE_FORMAT_COL_ID_V1_SCHEMA = 10;
 
   // Schema definition for schema version 1 of the copy_jobs_history table
-  private static final Schema ICEBERG_V1_TABLE_SCHEMA = new Schema(
-    ImmutableList.of(
-      Types.NestedField.required(EXECUTED_AT_COL_ID_V1_SCHEMA, "executed_at", Types.TimestampType.withZone()),
-      Types.NestedField.required(JOB_ID_COL_ID_V1_SCHEMA, "job_id", new Types.StringType()),
-      Types.NestedField.required(TABLE_NAME_COL_ID_V1_SCHEMA, "table_name", new Types.StringType()),
-      Types.NestedField.required(4, "records_loaded_count", new Types.LongType()),
-      Types.NestedField.required(5, "records_rejected_count", new Types.LongType()),
-      Types.NestedField.required(COPY_OPTIONS_COL_ID_V1_SCHEMA, "copy_options", new Types.StringType()),
-      Types.NestedField.required(USER_NAME_COL_ID_V1_SCHEMA, "user_name", new Types.StringType()),
-      Types.NestedField.required(BASE_SNAPSHOT_ID_COL_ID_V1_SCHEMA, "base_snapshot_id", new Types.LongType()),
-      Types.NestedField.required(STORAGE_LOCATION_COL_ID_V1_SCHEMA, "storage_location", new Types.StringType()),
-      Types.NestedField.required(FILE_FORMAT_COL_ID_V1_SCHEMA, "file_format", new Types.StringType())
-    )
-  );
+  private static final Schema ICEBERG_V1_TABLE_SCHEMA =
+      new Schema(
+          ImmutableList.of(
+              Types.NestedField.required(
+                  EXECUTED_AT_COL_ID_V1_SCHEMA, "executed_at", Types.TimestampType.withZone()),
+              Types.NestedField.required(JOB_ID_COL_ID_V1_SCHEMA, "job_id", new Types.StringType()),
+              Types.NestedField.required(
+                  TABLE_NAME_COL_ID_V1_SCHEMA, "table_name", new Types.StringType()),
+              Types.NestedField.required(4, "records_loaded_count", new Types.LongType()),
+              Types.NestedField.required(5, "records_rejected_count", new Types.LongType()),
+              Types.NestedField.required(
+                  COPY_OPTIONS_COL_ID_V1_SCHEMA, "copy_options", new Types.StringType()),
+              Types.NestedField.required(
+                  USER_NAME_COL_ID_V1_SCHEMA, "user_name", new Types.StringType()),
+              Types.NestedField.required(
+                  BASE_SNAPSHOT_ID_COL_ID_V1_SCHEMA, "base_snapshot_id", new Types.LongType()),
+              Types.NestedField.required(
+                  STORAGE_LOCATION_COL_ID_V1_SCHEMA, "storage_location", new Types.StringType()),
+              Types.NestedField.required(
+                  FILE_FORMAT_COL_ID_V1_SCHEMA, "file_format", new Types.StringType())));
 
   /**
    * Get the schema definition for the specified schema version of the copy_jobs_history table.
@@ -63,18 +67,22 @@ public final class CopyJobHistoryTableSchemaProvider {
    */
   public static Schema getSchema(long schemaVersion) {
     if (schemaVersion == 1) {
-        return ICEBERG_V1_TABLE_SCHEMA;
+      return ICEBERG_V1_TABLE_SCHEMA;
     }
     throw newUnsupportedSchemaVersionException(schemaVersion);
   }
 
-  private static UnsupportedOperationException newUnsupportedSchemaVersionException(long schemaVersion) {
-    return new UnsupportedOperationException("Unsupported copy_job_history table schema version:" +
-        schemaVersion + ". Currently supported schema versions are: 1");
+  private static UnsupportedOperationException newUnsupportedSchemaVersionException(
+      long schemaVersion) {
+    return new UnsupportedOperationException(
+        "Unsupported copy_job_history table schema version:"
+            + schemaVersion
+            + ". Currently supported schema versions are: 1");
   }
 
   /**
-   * Get the name of the column that stores user names in the "copy_job_history" table schema based on the schema version.
+   * Get the name of the column that stores user names in the "copy_job_history" table schema based
+   * on the schema version.
    *
    * @param schemaVersion The schema version of the "copy into error" table.
    * @return The name of the column that stores user names.
@@ -128,8 +136,10 @@ public final class CopyJobHistoryTableSchemaProvider {
     }
     throw newUnsupportedSchemaVersionException(schemaVersion);
   }
+
   /**
-   * Get the name of the column that stores execution timestamps in the "copy_job_history" table schema based on the schema version.
+   * Get the name of the column that stores execution timestamps in the "copy_job_history" table
+   * schema based on the schema version.
    *
    * @param schemaVersion The schema version of the "copy into error" table.
    * @return The name of the column that stores execution timestamps.
@@ -139,7 +149,8 @@ public final class CopyJobHistoryTableSchemaProvider {
     if (schemaVersion == 1) {
       return ICEBERG_V1_TABLE_SCHEMA.findColumnName(EXECUTED_AT_COL_ID_V1_SCHEMA);
     }
-    throw new UnsupportedOperationException("Unsupported copy_job_history table schema version." +
-      " Currently supported schema version are: 1");
+    throw new UnsupportedOperationException(
+        "Unsupported copy_job_history table schema version."
+            + " Currently supported schema version are: 1");
   }
 }

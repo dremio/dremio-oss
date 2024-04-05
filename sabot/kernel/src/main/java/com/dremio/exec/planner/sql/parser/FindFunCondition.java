@@ -16,15 +16,13 @@
 package com.dremio.exec.planner.sql.parser;
 
 import java.util.List;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlNode;
 
-/**
- * A condition that returns true if SqlNode has references to particular functions.
- */
+/** A condition that returns true if SqlNode has references to particular functions. */
 final class FindFunCondition implements SqlNodeCondition {
   private final List<String> functionNames;
+
   FindFunCondition(List<String> functionNames) {
     this.functionNames = functionNames;
   }
@@ -34,12 +32,11 @@ final class FindFunCondition implements SqlNodeCondition {
     return sqlNode instanceof SqlCall && checkOperator((SqlCall) sqlNode, functionNames, true);
   }
 
-  /**
-   * Checks recursively if operator and its operands are present in provided list of operators
-   */
+  /** Checks recursively if operator and its operands are present in provided list of operators */
   private boolean checkOperator(SqlCall sqlCall, List<String> operators, boolean checkOperator) {
     if (checkOperator) {
-      return operators.contains(sqlCall.getOperator().getName().toUpperCase()) || checkOperator(sqlCall, operators, false);
+      return operators.contains(sqlCall.getOperator().getName().toUpperCase())
+          || checkOperator(sqlCall, operators, false);
     }
     for (SqlNode sqlNode : sqlCall.getOperandList()) {
       if (!(sqlNode instanceof SqlCall)) {
@@ -51,5 +48,4 @@ final class FindFunCondition implements SqlNodeCondition {
     }
     return false;
   }
-
 }

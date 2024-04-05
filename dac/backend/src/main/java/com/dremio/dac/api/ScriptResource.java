@@ -18,9 +18,23 @@ package com.dremio.dac.api;
 
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.dac.annotations.RestResource;
+import com.dremio.dac.annotations.Secured;
+import com.dremio.dac.model.scripts.PaginatedResponse;
+import com.dremio.dac.model.scripts.ScriptData;
+import com.dremio.service.job.proto.JobId;
+import com.dremio.service.script.DuplicateScriptNameException;
+import com.dremio.service.script.MaxScriptsLimitReachedException;
+import com.dremio.service.script.ScriptNotAccessible;
+import com.dremio.service.script.ScriptNotFoundException;
+import com.dremio.service.script.ScriptService;
+import com.dremio.service.script.proto.ScriptProto;
+import com.dremio.service.users.UserNotFoundException;
+import com.dremio.service.users.UserService;
+import com.dremio.service.users.proto.UID;
 import java.util.List;
 import java.util.stream.Collectors;
-
 import javax.annotation.security.RolesAllowed;
 import javax.inject.Inject;
 import javax.ws.rs.BadRequestException;
@@ -39,21 +53,7 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.SecurityContext;
-
-import com.dremio.common.exceptions.UserException;
-import com.dremio.dac.annotations.RestResource;
-import com.dremio.dac.annotations.Secured;
-import com.dremio.dac.model.scripts.PaginatedResponse;
-import com.dremio.dac.model.scripts.ScriptData;
-import com.dremio.service.script.DuplicateScriptNameException;
-import com.dremio.service.script.MaxScriptsLimitReachedException;
-import com.dremio.service.script.ScriptNotAccessible;
-import com.dremio.service.script.ScriptNotFoundException;
-import com.dremio.service.script.ScriptService;
-import com.dremio.service.script.proto.ScriptProto;
-import com.dremio.service.users.UserNotFoundException;
-import com.dremio.service.users.UserService;
-import com.dremio.service.users.proto.UID;
+import org.apache.commons.lang3.StringUtils;
 
 @RestResource
 @Secured
@@ -63,24 +63,26 @@ import com.dremio.service.users.proto.UID;
 @Consumes(APPLICATION_JSON)
 public class ScriptResource {
   private static final org.slf4j.Logger logger =
-    org.slf4j.LoggerFactory.getLogger(ScriptResource.class);
+      org.slf4j.LoggerFactory.getLogger(ScriptResource.class);
   private final ScriptService scriptService;
   private final UserService userService;
 
   @Inject
-  public ScriptResource(ScriptService scriptService,
-                        @Context SecurityContext securityContext,
-                        UserService userService) {
+  public ScriptResource(
+      ScriptService scriptService,
+      @Context SecurityContext securityContext,
+      UserService userService) {
     this.scriptService = scriptService;
     this.userService = userService;
   }
 
   @GET
-  public PaginatedResponse<ScriptData> getScripts(@QueryParam("offset") Integer offset,
-                                                  @QueryParam("maxResults") Integer maxResults,
-                                                  @QueryParam("search") String search,
-                                                  @QueryParam("orderBy") String orderBy,
-                                                  @QueryParam("createdBy") String createdBy) {
+  public PaginatedResponse<ScriptData> getScripts(
+      @QueryParam("offset") Integer offset,
+      @QueryParam("maxResults") Integer maxResults,
+      @QueryParam("search") String search,
+      @QueryParam("orderBy") String orderBy,
+      @QueryParam("createdBy") String createdBy) {
     // validations and assigning default values
     final int finalOffset = (offset == null) ? 0 : offset;
     final int finalMaxResults = (maxResults == null) ? 25 : Math.min(maxResults, 1000);
@@ -90,10 +92,11 @@ public class ScriptResource {
     try {
       Long totalScripts = scriptService.getCountOfMatchingScripts(finalSearch, "", createdBy);
       List<ScriptData> scripts =
-        scriptService.getScripts(finalOffset, finalMaxResults, finalSearch, finalOrderBy, "", createdBy)
-          .parallelStream()
-          .map(this::fromScript)
-          .collect(Collectors.toList());
+          scriptService
+              .getScripts(finalOffset, finalMaxResults, finalSearch, finalOrderBy, "", createdBy)
+              .parallelStream()
+              .map(this::fromScript)
+              .collect(Collectors.toList());
       return new PaginatedResponse<>(totalScripts, scripts);
     } catch (Exception exception) {
       logger.error("GET on scripts failed.", exception);
@@ -137,7 +140,8 @@ public class ScriptResource {
     // check if script exists with given scriptId
     try {
       // update the script
-      return fromScript(scriptService.updateScript(scriptId, ScriptData.toScriptRequest(scriptData)));
+      return fromScript(
+          scriptService.updateScript(scriptId, ScriptData.toScriptRequest(scriptData)));
     } catch (ScriptNotFoundException exception) {
       logger.error(exception.getMessage(), exception);
       throw new NotFoundException(exception.getMessage());
@@ -199,15 +203,24 @@ public class ScriptResource {
     try {
       return User.fromUser(this.userService.getUser(new UID(userId)));
     } catch (UserNotFoundException e) {
-      logger.warn("User with id: {} is not found while fetching user info.",
-                  userId);
+      logger.warn("User with id: {} is not found while fetching user info.", userId);
       return new User(userId, null, null, null, null, null, null, null, true);
     }
   }
 
   private ScriptData fromScript(ScriptProto.Script script) {
-    return ScriptData.fromScriptWithUserInfo(script,
-                                             getUserInfoById(script.getCreatedBy()),
-                                             getUserInfoById(script.getModifiedBy()));
+    final List<String> jobResultUrls =
+        script.getJobIdsList().stream()
+            .map(
+                jobId ->
+                    StringUtils.isNotBlank(jobId)
+                        ? com.dremio.dac.resource.JobResource.getPaginationURL(new JobId(jobId))
+                        : "")
+            .collect(Collectors.toList());
+    return ScriptData.fromScriptWithUserInfo(
+        script,
+        jobResultUrls,
+        getUserInfoById(script.getCreatedBy()),
+        getUserInfoById(script.getModifiedBy()));
   }
 }

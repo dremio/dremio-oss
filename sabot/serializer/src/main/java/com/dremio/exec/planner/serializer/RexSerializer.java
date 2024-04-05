@@ -15,37 +15,6 @@
  */
 package com.dremio.exec.planner.serializer;
 
-import java.math.BigDecimal;
-import java.math.BigInteger;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.List;
-import java.util.stream.Collectors;
-
-import org.apache.calcite.rex.RexBuilder;
-import org.apache.calcite.rex.RexCall;
-import org.apache.calcite.rex.RexCorrelVariable;
-import org.apache.calcite.rex.RexDynamicParam;
-import org.apache.calcite.rex.RexFieldAccess;
-import org.apache.calcite.rex.RexInputRef;
-import org.apache.calcite.rex.RexLiteral;
-import org.apache.calcite.rex.RexLocalRef;
-import org.apache.calcite.rex.RexOver;
-import org.apache.calcite.rex.RexPatternFieldRef;
-import org.apache.calcite.rex.RexRangeRef;
-import org.apache.calcite.rex.RexSubQuery;
-import org.apache.calcite.rex.RexTableInputRef;
-import org.apache.calcite.rex.RexVariable;
-import org.apache.calcite.rex.RexVisitor;
-import org.apache.calcite.rex.RexWindow;
-import org.apache.calcite.rex.RexWindowBound;
-import org.apache.calcite.sql.SqlKind;
-import org.apache.calcite.sql.SqlOperator;
-import org.apache.calcite.util.DateString;
-import org.apache.calcite.util.NlsString;
-import org.apache.calcite.util.TimeString;
-import org.apache.calcite.util.TimestampString;
-
 import com.dremio.exec.planner.sql.SqlFlattenOperator;
 import com.dremio.plan.serialization.PBigDecimal;
 import com.dremio.plan.serialization.PBoundOption;
@@ -72,11 +41,38 @@ import com.dremio.plan.serialization.PRexWindowBoundUnbounded;
 import com.dremio.plan.serialization.PSymbol;
 import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.List;
+import java.util.stream.Collectors;
+import org.apache.calcite.rex.RexBuilder;
+import org.apache.calcite.rex.RexCall;
+import org.apache.calcite.rex.RexCorrelVariable;
+import org.apache.calcite.rex.RexDynamicParam;
+import org.apache.calcite.rex.RexFieldAccess;
+import org.apache.calcite.rex.RexInputRef;
+import org.apache.calcite.rex.RexLiteral;
+import org.apache.calcite.rex.RexLocalRef;
+import org.apache.calcite.rex.RexOver;
+import org.apache.calcite.rex.RexPatternFieldRef;
+import org.apache.calcite.rex.RexRangeRef;
+import org.apache.calcite.rex.RexSubQuery;
+import org.apache.calcite.rex.RexTableInputRef;
+import org.apache.calcite.rex.RexVariable;
+import org.apache.calcite.rex.RexVisitor;
+import org.apache.calcite.rex.RexWindow;
+import org.apache.calcite.rex.RexWindowBound;
+import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.util.DateString;
+import org.apache.calcite.util.NlsString;
+import org.apache.calcite.util.TimeString;
+import org.apache.calcite.util.TimestampString;
 
-/**
- * Serializer for RexNodes.
- */
-public final class RexSerializer implements RexVisitor<PRexNode>{
+/** Serializer for RexNodes. */
+public final class RexSerializer implements RexVisitor<PRexNode> {
 
   private final RexBuilder rexBuilder;
   private final TypeSerde typeSerializer;
@@ -85,10 +81,10 @@ public final class RexSerializer implements RexVisitor<PRexNode>{
   private final SqlOperatorSerde sqlOperatorSerde;
 
   public RexSerializer(
-    RexBuilder rexBuilder,
-    TypeSerde typeSerializer,
-    RelSerdeRegistry registry,
-    SqlOperatorSerde sqlOperatorSerde) {
+      RexBuilder rexBuilder,
+      TypeSerde typeSerializer,
+      RelSerdeRegistry registry,
+      SqlOperatorSerde sqlOperatorSerde) {
     super();
     this.rexBuilder = rexBuilder;
     this.typeSerializer = typeSerializer;
@@ -99,65 +95,68 @@ public final class RexSerializer implements RexVisitor<PRexNode>{
   @Override
   public PRexNode visitInputRef(RexInputRef inputRef) {
     return PRexNode.newBuilder()
-        .setRexInputRef(PRexInputRef.newBuilder()
-            .setDataType(typeSerializer.toProto(inputRef.getType()))
-            .setIndex(inputRef.getIndex()))
+        .setRexInputRef(
+            PRexInputRef.newBuilder()
+                .setDataType(typeSerializer.toProto(inputRef.getType()))
+                .setIndex(inputRef.getIndex()))
         .build();
   }
 
   @Override
   public PRexNode visitLocalRef(RexLocalRef localRef) {
     return PRexNode.newBuilder()
-        .setRexLocalRef(PRexLocalRef.newBuilder()
-            .setDataType(typeSerializer.toProto(localRef.getType()))
-            .setIndex(localRef.getIndex()))
+        .setRexLocalRef(
+            PRexLocalRef.newBuilder()
+                .setDataType(typeSerializer.toProto(localRef.getType()))
+                .setIndex(localRef.getIndex()))
         .build();
   }
 
   @Override
   public PRexNode visitLiteral(RexLiteral literal) {
-    PRexLiteral.Builder builder = PRexLiteral.newBuilder()
-      .setDataType(typeSerializer.toProto(literal.getType()))
-      .setTypeName(TypeSerde.toProto(literal.getTypeName()));
+    PRexLiteral.Builder builder =
+        PRexLiteral.newBuilder()
+            .setDataType(typeSerializer.toProto(literal.getType()))
+            .setTypeName(TypeSerde.toProto(literal.getTypeName()));
     builder = addValue(literal, builder);
     return PRexNode.newBuilder().setRexLiteral(builder).build();
   }
 
   private PRexLiteral.Builder addValue(RexLiteral literal, PRexLiteral.Builder builder) {
     Object value = literal.getValue3();
-    if(value == null) {
+    if (value == null) {
       return builder;
     }
 
-    if(value instanceof Calendar) {
+    if (value instanceof Calendar) {
       return builder.setLongValue(((Calendar) value).getTimeInMillis());
     }
 
-    if(value instanceof Boolean) {
+    if (value instanceof Boolean) {
       return builder.setBooleanValue((Boolean) value);
     }
 
-    if(value instanceof String) {
+    if (value instanceof String) {
       return builder.setStringValue((String) value);
     }
-    if(value instanceof org.apache.calcite.avatica.util.ByteString) {
+    if (value instanceof org.apache.calcite.avatica.util.ByteString) {
       return builder.setBinaryValue(
-        ByteString.copyFrom(((org.apache.calcite.avatica.util.ByteString) value).getBytes()));
+          ByteString.copyFrom(((org.apache.calcite.avatica.util.ByteString) value).getBytes()));
     }
 
-    if(value instanceof DateString) {
+    if (value instanceof DateString) {
       return builder.setLongValue(((DateString) value).getMillisSinceEpoch());
     }
 
-    if(value instanceof TimeString) {
+    if (value instanceof TimeString) {
       return builder.setLongValue(((TimeString) value).getMillisOfDay());
     }
 
-    if(value instanceof TimestampString) {
+    if (value instanceof TimestampString) {
       return builder.setLongValue(((TimestampString) value).getMillisSinceEpoch());
     }
 
-    if(value instanceof Long) {
+    if (value instanceof Long) {
       return builder.setLongValue((Long) value);
     }
 
@@ -169,14 +168,15 @@ public final class RexSerializer implements RexVisitor<PRexNode>{
       BigDecimal bigDecimal = (BigDecimal) value;
       BigInteger unscaledValue = bigDecimal.unscaledValue();
       return builder.setDecimalValue(
-        PBigDecimal.newBuilder()
-          .setScale(bigDecimal.scale())
-          .setTwosComplementValue(ByteString.copyFrom(unscaledValue.toByteArray()))
-          .build());
+          PBigDecimal.newBuilder()
+              .setScale(bigDecimal.scale())
+              .setTwosComplementValue(ByteString.copyFrom(unscaledValue.toByteArray()))
+              .build());
     }
 
     if (value instanceof NlsString) {
-      return builder.setStringValue(((NlsString) value).getValue())
+      return builder
+          .setStringValue(((NlsString) value).getValue())
           .setCharset(((NlsString) value).getCharsetName())
           .setCollation(typeSerializer.toProto(((NlsString) value).getCollation()));
     }
@@ -185,23 +185,20 @@ public final class RexSerializer implements RexVisitor<PRexNode>{
       Enum e = (Enum) value;
       String clazz = e.getClass().getName();
       String name = e.name();
-      return builder.setSymbolValue(
-        PSymbol.newBuilder()
-          .setClazz(clazz)
-          .setName(name)
-          .build());
+      return builder.setSymbolValue(PSymbol.newBuilder().setClazz(clazz).setName(name).build());
     }
 
-    throw new UnsupportedOperationException(String.format("Unhandled serialization for %s", value.getClass().getName()));
+    throw new UnsupportedOperationException(
+        String.format("Unhandled serialization for %s", value.getClass().getName()));
   }
 
   @Override
   public PRexNode visitCall(RexCall call) {
-    PRexCall.Builder builder = PRexCall.newBuilder()
-      .addAllOperands(call.getOperands().stream()
-        .map(o -> o.accept(this))
-        .collect(Collectors.toList()))
-      .setDataType(typeSerializer.toProto(call.getType()));
+    PRexCall.Builder builder =
+        PRexCall.newBuilder()
+            .addAllOperands(
+                call.getOperands().stream().map(o -> o.accept(this)).collect(Collectors.toList()))
+            .setDataType(typeSerializer.toProto(call.getType()));
     SqlOperator op = call.getOperator();
     builder.setSqlOperator(sqlOperatorSerde.toProto(op));
     if (op instanceof SqlFlattenOperator) {
@@ -216,121 +213,130 @@ public final class RexSerializer implements RexVisitor<PRexNode>{
 
     RexWindow w = over.getWindow();
 
-    if(w.getLowerBound() != null) {
+    if (w.getLowerBound() != null) {
       builder.setLowerBound(toProto(over.getWindow().getLowerBound()));
     }
 
-    if(w.getUpperBound() != null) {
+    if (w.getUpperBound() != null) {
       builder.setUpperBound(toProto(over.getWindow().getUpperBound()));
     }
 
-    List<PRexFieldCollation> collations = w.orderKeys.stream()
-      .map(rexFieldCollation -> PRexFieldCollation.newBuilder()
-        .setLeft(rexFieldCollation.left.accept(this))
-        .addAllRight(
-          rexFieldCollation.right
-            .stream()
-            .map(this::toProto).collect(Collectors.toList()))
-        .build())
-    .collect(Collectors.toList());
+    List<PRexFieldCollation> collations =
+        w.orderKeys.stream()
+            .map(
+                rexFieldCollation ->
+                    PRexFieldCollation.newBuilder()
+                        .setLeft(rexFieldCollation.left.accept(this))
+                        .addAllRight(
+                            rexFieldCollation.right.stream()
+                                .map(this::toProto)
+                                .collect(Collectors.toList()))
+                        .build())
+            .collect(Collectors.toList());
 
     builder
-      .addAllOrderKeys(collations)
-      .addAllPartitionKeys(w.partitionKeys.stream()
-        .map(p -> p.accept(this))
-        .collect(Collectors.toList()))
-      .setIsRows(w.isRows());
+        .addAllOrderKeys(collations)
+        .addAllPartitionKeys(
+            w.partitionKeys.stream().map(p -> p.accept(this)).collect(Collectors.toList()))
+        .setIsRows(w.isRows());
 
     return PRexNode.newBuilder()
         .setRexOver(
             PRexOver.newBuilder()
-            .addAllOperands(over.operands
-              .stream()
-              .map(p -> p.accept(this))
-              .collect(Collectors.toList()))
-            .setDataType(typeSerializer.toProto(over.getType()))
-            .setSqlOperator(sqlOperatorSerde.toProto(over.getOperator()))
-            .setRexWindow(builder))
+                .addAllOperands(
+                    over.operands.stream().map(p -> p.accept(this)).collect(Collectors.toList()))
+                .setDataType(typeSerializer.toProto(over.getType()))
+                .setSqlOperator(sqlOperatorSerde.toProto(over.getOperator()))
+                .setRexWindow(builder))
         .build();
   }
 
   private PRexWindowBound toProto(RexWindowBound bound) {
-    if(bound.isCurrentRow()) {
+    if (bound.isCurrentRow()) {
       return PRexWindowBound.newBuilder()
-        .setCurrentRow(PRexWindowBoundCurrentRow.newBuilder())
-        .build();
+          .setCurrentRow(PRexWindowBoundCurrentRow.newBuilder())
+          .build();
     }
 
     PRexNode offset = bound.getOffset() == null ? null : bound.getOffset().accept(this);
 
-    if(bound.isUnbounded()) {
+    if (bound.isUnbounded()) {
       return PRexWindowBound.newBuilder()
-          .setUnbounded(PRexWindowBoundUnbounded.newBuilder()
-              .setBoundOption(bound.isPreceding() ? PBoundOption.PRECEDING : PBoundOption.FOLLOWING))
+          .setUnbounded(
+              PRexWindowBoundUnbounded.newBuilder()
+                  .setBoundOption(
+                      bound.isPreceding() ? PBoundOption.PRECEDING : PBoundOption.FOLLOWING))
           .build();
     }
 
     return PRexWindowBound.newBuilder()
-        .setBounded(PRexWindowBoundBounded.newBuilder()
-            .setOffset(offset)
-            .setBoundOption(bound.isPreceding() ? PBoundOption.PRECEDING : PBoundOption.FOLLOWING))
+        .setBounded(
+            PRexWindowBoundBounded.newBuilder()
+                .setOffset(offset)
+                .setBoundOption(
+                    bound.isPreceding() ? PBoundOption.PRECEDING : PBoundOption.FOLLOWING))
         .build();
   }
 
   private PRexFieldCollation.PSortFlag toProto(SqlKind sqlKind) {
     switch (sqlKind) {
-    case DESCENDING:
-      return PRexFieldCollation.PSortFlag.DESCENDING;
-    case NULLS_FIRST:
-      return PRexFieldCollation.PSortFlag.NULLS_FIRST;
-    case NULLS_LAST:
-      return PRexFieldCollation.PSortFlag.NULLS_LAST;
-    default:
-      throw new UnsupportedOperationException("Unknown type: " + sqlKind);
+      case DESCENDING:
+        return PRexFieldCollation.PSortFlag.DESCENDING;
+      case NULLS_FIRST:
+        return PRexFieldCollation.PSortFlag.NULLS_FIRST;
+      case NULLS_LAST:
+        return PRexFieldCollation.PSortFlag.NULLS_LAST;
+      default:
+        throw new UnsupportedOperationException("Unknown type: " + sqlKind);
     }
   }
 
   @Override
   public PRexNode visitFieldAccess(RexFieldAccess fieldAccess) {
-    PRexFieldAccess pRexFieldAccess = PRexFieldAccess.newBuilder()
-      .setExpression(fieldAccess.getReferenceExpr().accept(this))
-      .setField(typeSerializer.toProto(fieldAccess.getField())).build();
+    PRexFieldAccess pRexFieldAccess =
+        PRexFieldAccess.newBuilder()
+            .setExpression(fieldAccess.getReferenceExpr().accept(this))
+            .setField(typeSerializer.toProto(fieldAccess.getField()))
+            .build();
     return PRexNode.newBuilder().setRexFieldAccess(pRexFieldAccess).build();
   }
 
   @Override
   public PRexNode visitCorrelVariable(RexCorrelVariable correlVariable) {
-    PRexCorrelVariable pRexCorrelVariable = PRexCorrelVariable.newBuilder()
-      .setCorrelationId(correlVariable.id.getId())
-      .setCorrelationName(correlVariable.getName())
-      .setDataType(typeSerializer.toProto(correlVariable.getType()))
-      .build();
+    PRexCorrelVariable pRexCorrelVariable =
+        PRexCorrelVariable.newBuilder()
+            .setCorrelationId(correlVariable.id.getId())
+            .setCorrelationName(correlVariable.getName())
+            .setDataType(typeSerializer.toProto(correlVariable.getType()))
+            .build();
     return PRexNode.newBuilder().setRexCorrelVariable(pRexCorrelVariable).build();
   }
 
   @Override
   public PRexNode visitDynamicParam(RexDynamicParam dynamicParam) {
-    PRexDynamicParam pRexDynamicParam = PRexDynamicParam.newBuilder()
-      .setRexVariable(this.visitRexVariable(dynamicParam))
-      .setIndex(dynamicParam.getIndex())
-      .build();
+    PRexDynamicParam pRexDynamicParam =
+        PRexDynamicParam.newBuilder()
+            .setRexVariable(this.visitRexVariable(dynamicParam))
+            .setIndex(dynamicParam.getIndex())
+            .build();
 
     return PRexNode.newBuilder().setRexDynamicParam(pRexDynamicParam).build();
   }
 
   private PRexVariable visitRexVariable(RexVariable rexVariable) {
     return PRexVariable.newBuilder()
-      .setType(this.typeSerializer.toProto(rexVariable.getType()))
-      .setName(rexVariable.getName())
-      .build();
+        .setType(this.typeSerializer.toProto(rexVariable.getType()))
+        .setName(rexVariable.getName())
+        .build();
   }
 
   @Override
   public PRexNode visitRangeRef(RexRangeRef rangeRef) {
-    PRexRangeRef pRexRangeRef = PRexRangeRef.newBuilder()
-      .setType(this.typeSerializer.toProto(rangeRef.getType()))
-      .setOffset(rangeRef.getOffset())
-      .build();
+    PRexRangeRef pRexRangeRef =
+        PRexRangeRef.newBuilder()
+            .setType(this.typeSerializer.toProto(rangeRef.getType()))
+            .setOffset(rangeRef.getOffset())
+            .build();
 
     return PRexNode.newBuilder().setRexRangeRef(pRexRangeRef).build();
   }
@@ -339,17 +345,16 @@ public final class RexSerializer implements RexVisitor<PRexNode>{
   public PRexNode visitSubQuery(RexSubQuery subQuery) {
     PRelList pRelList = RelSerializer.serializeList(registry, subQuery.rel, sqlOperatorSerde);
 
-    PRexSubQuery pRexSubQuery = PRexSubQuery.newBuilder()
-      .setDataType(typeSerializer.toProto(subQuery.getType()))
-      .addAllOperands(subQuery
-        .getOperands()
-        .stream()
-        .map(o -> o.accept(this))
-        .collect(Collectors.toList()))
-      .setSqlOperator(
-        sqlOperatorSerde.toProto(subQuery.getOperator()))
-      .addAllDetails(pRelList.getNodeList())
-      .build();
+    PRexSubQuery pRexSubQuery =
+        PRexSubQuery.newBuilder()
+            .setDataType(typeSerializer.toProto(subQuery.getType()))
+            .addAllOperands(
+                subQuery.getOperands().stream()
+                    .map(o -> o.accept(this))
+                    .collect(Collectors.toList()))
+            .setSqlOperator(sqlOperatorSerde.toProto(subQuery.getOperator()))
+            .addAllDetails(pRelList.getNodeList())
+            .build();
     return PRexNode.newBuilder().setRexSubquery(pRexSubQuery).build();
   }
 
@@ -361,14 +366,15 @@ public final class RexSerializer implements RexVisitor<PRexNode>{
   @Override
   public PRexNode visitPatternFieldRef(RexPatternFieldRef fieldRef) {
     return PRexNode.newBuilder()
-      .setRexPatternFieldRef(PRexPatternFieldRef.newBuilder()
-        .setAlpha(fieldRef.getAlpha())
-        .setRexInputRef(
-          PRexInputRef.newBuilder()
-            .setDataType(this.typeSerializer.toProto(fieldRef.getType()))
-            .setIndex(fieldRef.getIndex())
-            .build())
-        .build())
-      .build();
+        .setRexPatternFieldRef(
+            PRexPatternFieldRef.newBuilder()
+                .setAlpha(fieldRef.getAlpha())
+                .setRexInputRef(
+                    PRexInputRef.newBuilder()
+                        .setDataType(this.typeSerializer.toProto(fieldRef.getType()))
+                        .setIndex(fieldRef.getIndex())
+                        .build())
+                .build())
+        .build();
   }
 }

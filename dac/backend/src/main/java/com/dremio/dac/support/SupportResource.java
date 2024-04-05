@@ -17,9 +17,15 @@ package com.dremio.dac.support;
 
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
+import com.dremio.dac.annotations.RestResource;
+import com.dremio.dac.annotations.Secured;
+import com.dremio.dac.service.datasets.DatasetDownloadManager.DownloadDataResponse;
+import com.dremio.dac.service.errors.JobResourceNotFoundException;
+import com.dremio.service.job.proto.JobId;
+import com.dremio.service.jobs.JobNotFoundException;
+import com.dremio.service.users.UserNotFoundException;
 import java.io.IOException;
 import java.io.OutputStream;
-
 import javax.annotation.security.RolesAllowed;
 import javax.inject.Inject;
 import javax.ws.rs.Consumes;
@@ -33,23 +39,12 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.SecurityContext;
 import javax.ws.rs.core.StreamingOutput;
-
 import org.apache.hadoop.io.IOUtils;
 
-import com.dremio.dac.annotations.RestResource;
-import com.dremio.dac.annotations.Secured;
-import com.dremio.dac.service.datasets.DatasetDownloadManager.DownloadDataResponse;
-import com.dremio.dac.service.errors.JobResourceNotFoundException;
-import com.dremio.service.job.proto.JobId;
-import com.dremio.service.jobs.JobNotFoundException;
-import com.dremio.service.users.UserNotFoundException;
-
-/**
- * Resource for uploading support information to Dremio.
- */
+/** Resource for uploading support information to Dremio. */
 @RestResource
 @Secured
-@RolesAllowed({ "admin", "user" })
+@RolesAllowed({"admin", "user"})
 @Path("/support/{jobId}")
 public class SupportResource {
 
@@ -65,7 +60,8 @@ public class SupportResource {
 
   @POST
   @Produces(APPLICATION_JSON)
-  public SupportResponse submit(@PathParam("jobId") JobId jobId) throws IOException, UserNotFoundException {
+  public SupportResponse submit(@PathParam("jobId") JobId jobId)
+      throws IOException, UserNotFoundException {
     return supportService.uploadSupportRequest(context.getUserPrincipal().getName(), jobId);
   }
 
@@ -76,21 +72,24 @@ public class SupportResource {
       throws IOException, UserNotFoundException, JobResourceNotFoundException {
     final DownloadDataResponse response;
     try {
-      final ImmutableSupportRequest request = new ImmutableSupportRequest.Builder()
-        .setUserId(context.getUserPrincipal().getName())
-        .setJobId(jobId)
-        .build();
+      final ImmutableSupportRequest request =
+          new ImmutableSupportRequest.Builder()
+              .setUserId(context.getUserPrincipal().getName())
+              .setJobId(jobId)
+              .build();
       response = supportService.downloadSupportRequest(request);
     } catch (JobNotFoundException e) {
       throw JobResourceNotFoundException.fromJobNotFoundException(e);
     }
-    final StreamingOutput streamingOutput = new StreamingOutput() {
-      @Override
-      public void write(OutputStream output) throws IOException, WebApplicationException {
-        IOUtils.copyBytes(response.getInput(), output, 4096, true);
-      }
-    };
+    final StreamingOutput streamingOutput =
+        new StreamingOutput() {
+          @Override
+          public void write(OutputStream output) throws IOException, WebApplicationException {
+            IOUtils.copyBytes(response.getInput(), output, 4096, true);
+          }
+        };
     return Response.ok(streamingOutput, MediaType.APPLICATION_OCTET_STREAM)
-      .header("Content-Disposition", "attachment; filename=\"" + response.getFileName() + "\"").build();
+        .header("Content-Disposition", "attachment; filename=\"" + response.getFileName() + "\"")
+        .build();
   }
 }

@@ -15,19 +15,14 @@
  */
 package com.dremio.dac.server.tokens;
 
+import com.dremio.service.tokens.TokenDetails;
 import java.util.Objects;
 import java.util.function.Supplier;
-
 import javax.inject.Inject;
 import javax.ws.rs.container.ContainerRequestContext;
-
 import org.immutables.value.Value;
 
-import com.dremio.service.tokens.TokenDetails;
-
-/**
- * Required info of a token that is injectable into any resource.
- */
+/** Required info of a token that is injectable into any resource. */
 @Value.Immutable
 public interface TokenInfo {
   String getUsername();
@@ -37,7 +32,6 @@ public interface TokenInfo {
   static TokenInfo of(String username, long expiresAt) {
     return new ImmutableTokenInfo.Builder().setUsername(username).setExpiresAt(expiresAt).build();
   }
-
 
   /**
    * Set token information in the current request context
@@ -51,10 +45,7 @@ public interface TokenInfo {
     context.setProperty(Factory.CONTEXT_KEY, TokenInfo.of(token.username, token.expiresAt));
   }
 
-  /**
-   * Factory to extract TokenInfo from the current request context.
-   *
-   */
+  /** Factory to extract TokenInfo from the current request context. */
   class Factory implements Supplier<TokenInfo> {
     private static final String CONTEXT_KEY = "dremio.token.info";
 

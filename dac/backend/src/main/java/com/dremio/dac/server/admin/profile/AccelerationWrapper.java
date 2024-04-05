@@ -15,12 +15,6 @@
  */
 package com.dremio.dac.server.admin.profile;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.stream.Collectors;
-
 import com.dremio.common.utils.PathUtils;
 import com.dremio.dac.model.job.acceleration.ReflectionExplanationUI;
 import com.dremio.dac.model.job.acceleration.UiMapper;
@@ -30,12 +24,16 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableMap;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
-/**
- * Wrapper class for {@link AccelerationDetails}
- */
+/** Wrapper class for {@link AccelerationDetails} */
 public class AccelerationWrapper {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AccelerationWrapper.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(AccelerationWrapper.class);
 
   private final AccelerationDetails accelerationDetails;
   private final Map<String, ReflectionRelationship> relationshipMap;
@@ -48,7 +46,7 @@ public class AccelerationWrapper {
   public String getReflectionDatasetPath(String layoutId) {
     try {
       return PathUtils.constructFullPath(relationshipMap.get(layoutId).getDataset().getPathList());
-    }catch (Exception e) {
+    } catch (Exception e) {
       logger.warn("failed to get reflection dataset path", e);
       return "";
     }
@@ -60,7 +58,9 @@ public class AccelerationWrapper {
       ObjectMapper mapper = new ObjectMapper();
       JsonNode parsedJson = mapper.readTree(unparsedJson);
       JsonNode versionContext = parsedJson.get("versionContext");
-      return String.format(" [%s %s] ", versionContext.get("type").textValue(), versionContext.get("value").textValue());
+      return String.format(
+          " [%s %s] ",
+          versionContext.get("type").textValue(), versionContext.get("value").textValue());
     } catch (Exception e) {
       return " ";
     }
@@ -72,7 +72,7 @@ public class AccelerationWrapper {
 
   public List<ReflectionExplanationUI> getHintsForLayoutId(String layoutId) {
     ReflectionRelationship relationship = relationshipMap.getOrDefault(layoutId, null);
-    if(null == relationship || null == relationship.getReflectionExplanationList()){
+    if (null == relationship || null == relationship.getReflectionExplanationList()) {
       return Collections.emptyList();
     }
     return relationship.getReflectionExplanationList().stream()
@@ -83,7 +83,7 @@ public class AccelerationWrapper {
 
   public boolean isHintHiddenforLayoutId(String layoutId) {
     ReflectionRelationship relationship = relationshipMap.getOrDefault(layoutId, null);
-    if(null == relationship){
+    if (null == relationship) {
       return false;
     }
     return relationship.getHideHint();
@@ -102,11 +102,12 @@ public class AccelerationWrapper {
     return errors != null && !errors.isEmpty();
   }
 
-  private static Map<String, ReflectionRelationship> computeRelationships(AccelerationDetails details) {
+  private static Map<String, ReflectionRelationship> computeRelationships(
+      AccelerationDetails details) {
     if (details.getReflectionRelationshipsList() == null) {
       return ImmutableMap.of();
     }
     return FluentIterable.from(details.getReflectionRelationshipsList())
-      .uniqueIndex(input -> input.getReflection().getId().getId());
+        .uniqueIndex(input -> input.getReflection().getId().getId());
   }
 }

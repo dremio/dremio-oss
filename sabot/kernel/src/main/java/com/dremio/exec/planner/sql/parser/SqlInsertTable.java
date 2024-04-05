@@ -15,9 +15,15 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.planner.sql.PartitionTransform;
+import com.dremio.exec.planner.sql.SqlExceptionHelper;
+import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
+import com.dremio.service.namespace.NamespaceKey;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import java.util.List;
 import java.util.stream.Collectors;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlDialect;
 import org.apache.calcite.sql.SqlIdentifier;
@@ -31,33 +37,27 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.dremio.exec.catalog.DremioTable;
-import com.dremio.exec.planner.sql.PartitionTransform;
-import com.dremio.exec.planner.sql.SqlExceptionHelper;
-import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
-import com.dremio.service.namespace.NamespaceKey;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
-
 public class SqlInsertTable extends SqlInsert implements DataAdditionCmdCall, SqlDmlOperator {
 
   // Create a separate `extendedTargetTable` to handle extended columns, as there's
   // no way to set SqlInsert::targetTable without an assertion being thrown.
   private SqlNode extendedTargetTable;
 
-  public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("INSERT", SqlKind.INSERT) {
-    @Override
-    public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 4, "SqlInsertTable.createCall() has to get 4 operands!");
-      return new SqlInsertTable(
-        pos,
-        (SqlIdentifier) operands[0],
-        operands[1],
-        (SqlNodeList) operands[2],
-        (SqlTableVersionSpec) operands[3]
-      );
-    }
-  };
+  public static final SqlSpecialOperator OPERATOR =
+      new SqlSpecialOperator("INSERT", SqlKind.INSERT) {
+        @Override
+        public SqlCall createCall(
+            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+          Preconditions.checkArgument(
+              operands.length == 4, "SqlInsertTable.createCall() has to get 4 operands!");
+          return new SqlInsertTable(
+              pos,
+              (SqlIdentifier) operands[0],
+              operands[1],
+              (SqlNodeList) operands[2],
+              (SqlTableVersionSpec) operands[3]);
+        }
+      };
 
   private static final SqlLiteral sqlLiteralNull = SqlLiteral.createNull(SqlParserPos.ZERO);
 
@@ -66,13 +66,12 @@ public class SqlInsertTable extends SqlInsert implements DataAdditionCmdCall, Sq
   private final SqlNodeList insertFields;
   private final SqlTableVersionSpec sqlTableVersionSpec;
 
-
   public SqlInsertTable(
-    SqlParserPos pos,
-    SqlIdentifier tblName,
-    SqlNode query,
-    SqlNodeList insertFields,
-    SqlTableVersionSpec sqlTableVersionSpec) {
+      SqlParserPos pos,
+      SqlIdentifier tblName,
+      SqlNode query,
+      SqlNodeList insertFields,
+      SqlTableVersionSpec sqlTableVersionSpec) {
     super(pos, SqlNodeList.EMPTY, tblName, query, insertFields);
     this.tblName = tblName;
     this.query = query;
@@ -90,6 +89,11 @@ public class SqlInsertTable extends SqlInsert implements DataAdditionCmdCall, Sq
   @Override
   public SqlNode getTargetTable() {
     return extendedTargetTable == null ? super.getTargetTable() : extendedTargetTable;
+  }
+
+  @Override
+  public SqlNode getTargetTableWithoutExtendedCols() {
+    return super.getTargetTable();
   }
 
   @Override
@@ -150,8 +154,11 @@ public class SqlInsertTable extends SqlInsert implements DataAdditionCmdCall, Sq
   public List<String> getFieldNames() {
     for (SqlNode fieldNode : insertFields.getList()) {
       if (!(fieldNode instanceof SqlIdentifier)) {
-        throw SqlExceptionHelper.parseError("Column type specified", this.toSqlString(new SqlDialect(SqlDialect.EMPTY_CONTEXT)).getSql(),
-            fieldNode.getParserPosition()).buildSilently();
+        throw SqlExceptionHelper.parseError(
+                "Column type specified",
+                this.toSqlString(new SqlDialect(SqlDialect.EMPTY_CONTEXT)).getSql(),
+                fieldNode.getParserPosition())
+            .buildSilently();
       }
     }
     return insertFields.getList().stream().map(SqlNode::toString).collect(Collectors.toList());

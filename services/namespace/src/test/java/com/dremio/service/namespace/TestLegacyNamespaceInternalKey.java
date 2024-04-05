@@ -20,15 +20,13 @@ import static com.dremio.service.namespace.NamespaceInternalKeyDumpUtil.extractR
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import com.dremio.common.utils.PathUtils;
 import java.util.Arrays;
-
 import org.junit.Test;
 
-import com.dremio.common.utils.PathUtils;
-
 /**
- * Note: LegacyNamespaceInternalKey is no longer in used.
- *       These tests are for backwards compatibility references only.
+ * Note: LegacyNamespaceInternalKey is no longer in used. These tests are for backwards
+ * compatibility references only.
  */
 public class TestLegacyNamespaceInternalKey {
   private LegacyNamespaceInternalKey newKey(String path) {
@@ -38,7 +36,10 @@ public class TestLegacyNamespaceInternalKey {
   @Test
   public void testNamespaceIntToPrefix() {
     for (int n = 0; n < 1 << 16; ++n) {
-      assertEquals(n, NamespaceInternalKeyDumpUtil.prefixBytesToInt(LegacyNamespaceInternalKey.toPrefixBytes(n)));
+      assertEquals(
+          n,
+          NamespaceInternalKeyDumpUtil.prefixBytesToInt(
+              LegacyNamespaceInternalKey.toPrefixBytes(n)));
     }
   }
 

@@ -21,28 +21,30 @@ import com.google.errorprone.annotations.FormatMethod;
 
 public interface ErrorCollector extends AutoCloseable {
 
-    public void addGeneralError(String error);
+  public void addGeneralError(String error);
 
-    @FormatMethod
-    public void addGeneralError(String format, Object... args);
+  @FormatMethod
+  public void addGeneralError(String format, Object... args);
 
-    public void addUnexpectedArgumentType(String name, MajorType actual, MajorType[] expected, int argumentIndex);
+  public void addUnexpectedArgumentType(
+      String name, MajorType actual, MajorType[] expected, int argumentIndex);
 
-    public void addUnexpectedArgumentCount(int actual, Range<Integer> expected);
+  public void addUnexpectedArgumentCount(int actual, Range<Integer> expected);
 
-    public void addUnexpectedArgumentCount(int actual, int expected);
+  public void addUnexpectedArgumentCount(int actual, int expected);
 
-    public void addNonNumericType(MajorType actual);
+  public void addNonNumericType(MajorType actual);
 
-    public void addUnexpectedType(int index, MajorType actual);
+  public void addUnexpectedType(int index, MajorType actual);
 
-    public void addExpectedConstantValue(int actual, String s);
+  public void addExpectedConstantValue(int actual, String s);
 
-    boolean hasErrors();
+  boolean hasErrors();
 
-    public int getErrorCount();
+  public int getErrorCount();
 
-    @Override
-    public void close();
-    String toErrorString();
+  @Override
+  public void close();
+
+  String toErrorString();
 }

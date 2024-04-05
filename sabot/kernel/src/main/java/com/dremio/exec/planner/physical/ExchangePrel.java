@@ -16,11 +16,10 @@
 
 package com.dremio.exec.planner.physical;
 
+import com.dremio.exec.planner.physical.visitor.PrelVisitor;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
-
-import com.dremio.exec.planner.physical.visitor.PrelVisitor;
 
 public abstract class ExchangePrel extends SinglePrel {
 
@@ -29,8 +28,8 @@ public abstract class ExchangePrel extends SinglePrel {
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(PrelVisitor<T, X, E> logicalVisitor, X value) throws E {
+  public <T, X, E extends Throwable> T accept(PrelVisitor<T, X, E> logicalVisitor, X value)
+      throws E {
     return logicalVisitor.visitExchange(this, value);
   }
-
 }

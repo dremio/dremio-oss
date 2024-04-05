@@ -19,34 +19,10 @@ import static com.dremio.test.DremioTest.CLASSPATH_SCAN_RESULT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.nio.charset.StandardCharsets;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
-import java.util.stream.Stream;
-
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.projectnessie.model.ContentKey;
-import org.projectnessie.nessie.relocated.protobuf.ByteString;
-import org.projectnessie.versioned.BranchName;
-import org.projectnessie.versioned.Hash;
-import org.projectnessie.versioned.ReferenceNotFoundException;
-import org.projectnessie.versioned.persist.adapter.CommitLogEntry;
-import org.projectnessie.versioned.persist.adapter.ContentId;
-import org.projectnessie.versioned.persist.adapter.DatabaseAdapter;
-import org.projectnessie.versioned.persist.adapter.ImmutableCommitParams;
-import org.projectnessie.versioned.persist.adapter.KeyWithBytes;
-import org.projectnessie.versioned.persist.nontx.ImmutableAdjustableNonTransactionalDatabaseAdapterConfig;
-import org.projectnessie.versioned.persist.nontx.NonTransactionalDatabaseAdapterConfig;
-import org.slf4j.helpers.MessageFormatter;
-
 import com.dremio.common.SuppressForbidden;
 import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.datastore.api.IndexedStore;
+import com.dremio.service.embedded.catalog.EmbeddedUnversionedStore;
 import com.dremio.service.namespace.NamespaceServiceImpl.NamespaceStoreCreator;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
@@ -54,34 +30,32 @@ import com.dremio.service.namespace.dataset.proto.IcebergMetadata;
 import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
-import com.dremio.service.nessie.DatastoreDatabaseAdapterFactory;
-import com.dremio.service.nessie.ImmutableDatastoreDbConfig;
-import com.dremio.service.nessie.NessieDatastoreInstance;
 import com.dremio.service.nessie.maintenance.NessieRepoMaintenanceCommand.Options;
 import com.google.common.collect.ImmutableList;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.projectnessie.model.CommitMeta;
+import org.projectnessie.model.ContentKey;
+import org.projectnessie.model.IcebergTable;
+import org.projectnessie.versioned.BranchName;
+import org.projectnessie.versioned.Put;
+import org.slf4j.helpers.MessageFormatter;
 
 class TestNessieRepoMaintenanceCommand {
 
   private LocalKVStoreProvider storeProvider;
-  private DatabaseAdapter adapter;
+  private EmbeddedUnversionedStore store;
 
   @BeforeEach
   void createKVStore() throws Exception {
     storeProvider = new LocalKVStoreProvider(CLASSPATH_SCAN_RESULT, null, true, false); // in-memory
     storeProvider.start();
 
-    NonTransactionalDatabaseAdapterConfig adapterCfg = ImmutableAdjustableNonTransactionalDatabaseAdapterConfig
-      .builder()
-      .validateNamespaces(false)
-      .build();
-    NessieDatastoreInstance store = new NessieDatastoreInstance();
-    store.configure(new ImmutableDatastoreDbConfig.Builder().setStoreProvider(() -> storeProvider).build());
-    store.initialize();
-    adapter = new DatastoreDatabaseAdapterFactory().newBuilder()
-      .withConnector(store)
-      .withConfig(adapterCfg)
-      .build();
-    adapter.initializeRepo("main");
+    store = new EmbeddedUnversionedStore(() -> storeProvider);
   }
 
   @AfterEach
@@ -92,103 +66,67 @@ class TestNessieRepoMaintenanceCommand {
   }
 
   @Test
-  void testBasicPurgeExecution() throws Exception {
-    // This is just a smoke test. Functional test for this purge are in ITCommitLogMaintenance.
-    assertThat(NessieRepoMaintenanceCommand.execute(
-        storeProvider,
-        Options.parse(new String[]{"--purge-key-lists"})))
-      .contains("deletedKeyListEntities");
-  }
-
-  @Test
   void testListKeys() throws Exception {
     // Just a smoke test. This option is not meant for production use.
-    assertThat(NessieRepoMaintenanceCommand.execute(
-        storeProvider,
-        Options.parse(new String[]{"--list-keys"})))
-      .isNotNull();
+    NessieRepoMaintenanceCommand.execute(
+        storeProvider, Options.parse(new String[] {"--list-keys"}));
   }
 
   @Test
-  @SuppressForbidden // Nessie's relocated ByteString is required to interface with Nessie Database Adapters.
-  void testListLiveCommits() throws Exception {
-    Hash commit1 = adapter.commit(ImmutableCommitParams.builder()
-      .addPuts(KeyWithBytes.of(ContentKey.of("test1"), ContentId.of("id1"), (byte) 1, ByteString.EMPTY))
-      .toBranch(BranchName.of("main"))
-      .commitMetaSerialized(ByteString.copyFrom("test-meta", StandardCharsets.UTF_8))
-      .build())
-      .getCommitHash();
-
-    Hash commit2 = adapter.commit(ImmutableCommitParams.builder()
-      .addPuts(KeyWithBytes.of(ContentKey.of("ns2", "test2"), ContentId.of("id1"), (byte) 1, ByteString.EMPTY))
-      .toBranch(BranchName.of("main"))
-      .commitMetaSerialized(ByteString.copyFrom("test-meta", StandardCharsets.UTF_8))
-      .build())
-      .getCommitHash();
-
-    Function<Hash, Instant> commitTime = hash -> {
-      try (Stream<CommitLogEntry> logStream = adapter.commitLog(hash)) {
-        long ts = logStream.findFirst().map(CommitLogEntry::getCreatedTime).orElse(0L);
-        return Instant.ofEpochMilli(TimeUnit.MICROSECONDS.toMillis(ts));
-      } catch (ReferenceNotFoundException e) {
-        throw new RuntimeException(e);
-      }
-    };
-
-    List<String> log = new ArrayList<>();
-    assertThat(NessieRepoMaintenanceCommand.execute(
-        storeProvider,
-        Options.parse(new String[]{"--list-live-commits"}),
-        (msg, args) -> log.add(MessageFormatter.arrayFormat(msg, args).getMessage())))
-      .isNotNull();
-
-    // Note: reverse chronological order
-    assertThat(log).containsExactly(
-      String.format("%s: %s: ns2.test2", commit2.asString(), commitTime.apply(commit2)),
-      String.format("%s: %s: test1", commit1.asString(), commitTime.apply(commit1))
-    );
-
-    log.clear();
-    assertThat(NessieRepoMaintenanceCommand.execute(
-      storeProvider,
-      Options.parse(new String[]{"--list-keys"}),
-      (msg, args) -> log.add(MessageFormatter.arrayFormat(msg, args).getMessage())))
-      .isNotNull();
-
-    assertThat(log).containsExactly("ns2.test2", "test1");
-  }
-
-  @Test
-  @SuppressForbidden // Nessie's relocated ByteString is required to interface with Nessie Database Adapters.
+  @SuppressForbidden // Nessie's relocated ByteString is required to interface with Nessie Database
+  // Adapters.
   void testListObsoleteInternalKeys() throws Exception {
     String tableId2 = "8ec5373f-d2a6-4b1a-a870-e18046bbd6ae";
     String tableId3 = "34dadc3a-ae44-4e61-b78e-0295c089df70";
-    adapter.commit(ImmutableCommitParams.builder()
-      .addPuts(KeyWithBytes.of(ContentKey.of("test1"), ContentId.of("id1"), (byte) 1, ByteString.EMPTY))
-      .addPuts(KeyWithBytes.of(ContentKey.of("dremio.internal", "test2/" + tableId2), ContentId.of("id2"), (byte) 1, ByteString.EMPTY))
-      .addPuts(KeyWithBytes.of(ContentKey.of("dremio.internal", "test3/" + tableId3), ContentId.of("id2"), (byte) 1, ByteString.EMPTY))
-      .toBranch(BranchName.of("main"))
-      .commitMetaSerialized(ByteString.copyFrom("test-meta", StandardCharsets.UTF_8))
-      .build());
+    store.commit(
+        BranchName.of("main"),
+        Optional.empty(),
+        CommitMeta.fromMessage("test-meta"),
+        ImmutableList.of(
+            Put.of(ContentKey.of("test1"), IcebergTable.of("t1", 0, 0, 0, 0)),
+            Put.of(
+                ContentKey.of("dremio.internal", "test2/" + tableId2),
+                IcebergTable.of("t2", 0, 0, 0, 0)),
+            Put.of(
+                ContentKey.of("dremio.internal", "test3/" + tableId3),
+                IcebergTable.of("t3", 0, 0, 0, 0))));
 
-    IndexedStore<String, NameSpaceContainer> namespace = storeProvider.getStore(NamespaceStoreCreator.class);
+    IndexedStore<String, NameSpaceContainer> namespace =
+        storeProvider.getStore(NamespaceStoreCreator.class);
     IcebergMetadata metadata = new IcebergMetadata();
     metadata.setTableUuid(tableId3);
     metadata.setMetadataFileLocation("test-location");
-    namespace.put("dataset3", new NameSpaceContainer()
-      .setFullPathList(ImmutableList.of("ns", "dataset"))
-      .setType(NameSpaceContainer.Type.DATASET)
-      .setDataset(new DatasetConfig()
-        .setType(DatasetType.PHYSICAL_DATASET_SOURCE_FILE)
-        .setId(new EntityId("ds-id3"))
-        .setPhysicalDataset(new PhysicalDataset().setIcebergMetadata(metadata))));
+    namespace.put(
+        "dataset3",
+        new NameSpaceContainer()
+            .setFullPathList(ImmutableList.of("ns", "dataset"))
+            .setType(NameSpaceContainer.Type.DATASET)
+            .setDataset(
+                new DatasetConfig()
+                    .setType(DatasetType.PHYSICAL_DATASET_SOURCE_FILE)
+                    .setId(new EntityId("ds-id3"))
+                    .setPhysicalDataset(new PhysicalDataset().setIcebergMetadata(metadata))));
+
+    // Note: This DataSet has null TableUuid in IcebergMetadata, which represents a first-class
+    // Iceberg table,
+    // not a DataSet promoted from plain Parquet files.
+    namespace.put(
+        "dataset4",
+        new NameSpaceContainer()
+            .setFullPathList(ImmutableList.of("ns", "dataset4"))
+            .setType(NameSpaceContainer.Type.DATASET)
+            .setDataset(
+                new DatasetConfig()
+                    .setType(DatasetType.PHYSICAL_DATASET_SOURCE_FILE)
+                    .setId(new EntityId("ds-id4"))
+                    .setPhysicalDataset(
+                        new PhysicalDataset().setIcebergMetadata(new IcebergMetadata()))));
 
     List<String> log = new ArrayList<>();
-    assertThat(NessieRepoMaintenanceCommand.execute(
+    NessieRepoMaintenanceCommand.execute(
         storeProvider,
-        Options.parse(new String[]{"--list-obsolete-internal-keys"}),
-        (msg, args) -> log.add(MessageFormatter.arrayFormat(msg, args).getMessage())))
-      .isNotNull();
+        Options.parse(new String[] {"--list-obsolete-internal-keys"}),
+        (msg, args) -> log.add(MessageFormatter.arrayFormat(msg, args).getMessage()));
 
     // Note: "test1" is not an "internal" key, so it is not reported
     assertThat(log).containsExactly("dremio.internal|test2/8ec5373f-d2a6-4b1a-a870-e18046bbd6ae");
@@ -197,23 +135,30 @@ class TestNessieRepoMaintenanceCommand {
     IcebergMetadata metadata4 = new IcebergMetadata();
     metadata4.setTableUuid(tableId4);
     metadata4.setMetadataFileLocation("test-location");
-    namespace.put("dataset4", new NameSpaceContainer()
-      .setFullPathList(ImmutableList.of("ns", "dataset4"))
-      .setType(NameSpaceContainer.Type.DATASET)
-      .setDataset(new DatasetConfig()
-        .setType(DatasetType.PHYSICAL_DATASET_SOURCE_FILE)
-        .setId(new EntityId("ds-id4"))
-        .setPhysicalDataset(new PhysicalDataset().setIcebergMetadata(metadata4))));
+    namespace.put(
+        "dataset4",
+        new NameSpaceContainer()
+            .setFullPathList(ImmutableList.of("ns", "dataset4"))
+            .setType(NameSpaceContainer.Type.DATASET)
+            .setDataset(
+                new DatasetConfig()
+                    .setType(DatasetType.PHYSICAL_DATASET_SOURCE_FILE)
+                    .setId(new EntityId("ds-id4"))
+                    .setPhysicalDataset(new PhysicalDataset().setIcebergMetadata(metadata4))));
 
     log.clear();
-    assertThatThrownBy(() -> NessieRepoMaintenanceCommand.execute(
-      storeProvider,
-      Options.parse(new String[]{"--list-obsolete-internal-keys"}),
-      (msg, args) -> log.add(MessageFormatter.arrayFormat(msg, args).getMessage())))
-      .isInstanceOf(IllegalStateException.class)
-      .hasMessageContaining("Keys for some table IDs were not found");
+    assertThatThrownBy(
+            () ->
+                NessieRepoMaintenanceCommand.execute(
+                    storeProvider,
+                    Options.parse(new String[] {"--list-obsolete-internal-keys"}),
+                    (msg, args) -> log.add(MessageFormatter.arrayFormat(msg, args).getMessage())))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("Keys for some table IDs were not found");
 
-    assertThat(log).containsExactly("dremio.internal|test2/8ec5373f-d2a6-4b1a-a870-e18046bbd6ae",
-      "Live metadata table ID: e14e4ecb-d39c-4311-84fc-2127cc11f195 does not have a corresponding Nessie key");
+    assertThat(log)
+        .containsExactly(
+            "dremio.internal|test2/8ec5373f-d2a6-4b1a-a870-e18046bbd6ae",
+            "Live metadata table ID: e14e4ecb-d39c-4311-84fc-2127cc11f195 does not have a corresponding Nessie key");
   }
 }

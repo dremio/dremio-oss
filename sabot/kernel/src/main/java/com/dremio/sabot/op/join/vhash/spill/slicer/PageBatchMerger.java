@@ -15,23 +15,19 @@
  */
 package com.dremio.sabot.op.join.vhash.spill.slicer;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.StreamSupport;
-
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.BaseVariableWidthVector;
-import org.apache.arrow.vector.FieldVector;
-
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.VectorWrapper;
 import com.dremio.sabot.op.aggregate.vectorized.VariableLengthValidator;
 import com.dremio.sabot.op.join.vhash.spill.pool.Page;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.StreamSupport;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.BaseVariableWidthVector;
+import org.apache.arrow.vector.FieldVector;
 
-/**
- * Merger for page batches.
- */
+/** Merger for page batches. */
 public class PageBatchMerger {
   private final Merger merger;
 
@@ -58,9 +54,9 @@ public class PageBatchMerger {
     container.buildSchema();
 
     StreamSupport.stream(container.spliterator(), false)
-      .map(v -> ( (FieldVector) v.getValueVector()))
-      .filter(v -> (v instanceof BaseVariableWidthVector))
-      .forEach(v -> VariableLengthValidator.validateVariable(v, recordCount));
+        .map(v -> ((FieldVector) v.getValueVector()))
+        .filter(v -> (v instanceof BaseVariableWidthVector))
+        .forEach(v -> VariableLengthValidator.validateVariable(v, recordCount));
     // Useful for debugging, but has cost.
     // VectorValidator.validate(data.getContainer());
     return container;

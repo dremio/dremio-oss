@@ -62,7 +62,7 @@ const TextArea = (props) => {
   const textClass = clsx(
     { "--noResize": noResize },
     { "--singleLine": maxLines === 1 },
-    { "--error": hasError }
+    { "--error": hasError },
   );
 
   const handleMouseEnter = () => {

@@ -15,11 +15,19 @@
  */
 package com.dremio.exec.store.sys.udf;
 
-import java.io.IOException;
+import com.dremio.exec.catalog.udf.DremioScalarUserDefinedFunction;
+import com.dremio.exec.catalog.udf.DremioTabularUserDefinedFunction;
+import com.dremio.exec.catalog.udf.FunctionParameterImpl;
+import com.dremio.exec.ops.DelegatingPlannerCatalog;
+import com.dremio.exec.ops.DremioCatalogReader;
+import com.dremio.exec.ops.OptimizerRulesContext;
+import com.dremio.exec.ops.QueryContext;
+import com.dremio.exec.planner.serialization.DeserializationException;
+import com.dremio.exec.planner.serialization.RelSerializerFactory;
+import com.dremio.exec.planner.sql.DremioCompositeSqlOperatorTable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.sql.SqlOperator;
@@ -32,43 +40,27 @@ import org.apache.calcite.util.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.exec.catalog.udf.DremioScalarUserDefinedFunction;
-import com.dremio.exec.catalog.udf.DremioTabularUserDefinedFunction;
-import com.dremio.exec.catalog.udf.FunctionParameterImpl;
-import com.dremio.exec.ops.DelegatingPlannerCatalog;
-import com.dremio.exec.ops.DremioCatalogReader;
-import com.dremio.exec.ops.OptimizerRulesContext;
-import com.dremio.exec.ops.QueryContext;
-import com.dremio.exec.planner.serialization.DeserializationException;
-import com.dremio.exec.planner.serialization.RelSerializerFactory;
-import com.dremio.exec.planner.sql.DremioCompositeSqlOperatorTable;
-
 public final class UserDefinedFunctionPlanSerde {
   private static final Logger logger = LoggerFactory.getLogger(UserDefinedFunctionPlanSerde.class);
 
   private UserDefinedFunctionPlanSerde() {}
 
   public static RelNode deserialize(
-    byte[] serializedPlan,
-    RelOptCluster relOptCluster,
-    QueryContext context,
-    UserDefinedFunction udfForParameterResolution) throws DeserializationException {
-    Pair<DremioCatalogReader, SqlOperatorTable> catalogReaderAndOperatorTable = extractCatalogAndOperatorTable(
-      context,
-      udfForParameterResolution);
-    return RelSerializerFactory
-      .getPlanningFactory(context.getConfig(), context.getScanResult())
-      .getDeserializer(
-        relOptCluster,
-        catalogReaderAndOperatorTable.left,
-        catalogReaderAndOperatorTable.right)
-      .deserialize(serializedPlan);
+      byte[] serializedPlan,
+      RelOptCluster relOptCluster,
+      QueryContext context,
+      UserDefinedFunction udfForParameterResolution)
+      throws DeserializationException {
+    Pair<DremioCatalogReader, SqlOperatorTable> catalogReaderAndOperatorTable =
+        extractCatalogAndOperatorTable(context, udfForParameterResolution);
+    return RelSerializerFactory.getPlanningFactory(context.getConfig(), context.getScanResult())
+        .getDeserializer(
+            relOptCluster, catalogReaderAndOperatorTable.left, catalogReaderAndOperatorTable.right)
+        .deserialize(serializedPlan);
   }
 
   public static Optional<RelNode> tryDeserialize(
-    UserDefinedFunction udf,
-    RelOptCluster relOptCluster,
-    OptimizerRulesContext context) {
+      UserDefinedFunction udf, RelOptCluster relOptCluster, OptimizerRulesContext context) {
     if (udf.getSerializedFunctionPlan() == null) {
       return Optional.empty();
     }
@@ -83,11 +75,9 @@ public final class UserDefinedFunctionPlanSerde {
     }
 
     try {
-      RelNode deserializedPlan = UserDefinedFunctionPlanSerde.deserialize(
-        udf.getSerializedFunctionPlan(),
-        relOptCluster,
-        queryContext,
-        udf);
+      RelNode deserializedPlan =
+          UserDefinedFunctionPlanSerde.deserialize(
+              udf.getSerializedFunctionPlan(), relOptCluster, queryContext, udf);
       return Optional.of(deserializedPlan);
     } catch (DeserializationException ex) {
       logger.info("Failed to deserialize udf: " + udf.getName() + " with exception: " + ex);
@@ -96,65 +86,65 @@ public final class UserDefinedFunctionPlanSerde {
   }
 
   public static byte[] serialize(
-    RelNode deserializedPlan,
-    QueryContext context,
-    UserDefinedFunction udfForParameterResolution) {
-    Pair<DremioCatalogReader,SqlOperatorTable> catalogReaderAndOperatorTable = extractCatalogAndOperatorTable(
-      context,
-      udfForParameterResolution);
-    return RelSerializerFactory
-      .getPlanningFactory(context.getConfig(), context.getScanResult())
-      .getSerializer(deserializedPlan.getCluster(), catalogReaderAndOperatorTable.right)
-      .serializeToBytes(deserializedPlan);
+      RelNode deserializedPlan,
+      QueryContext context,
+      UserDefinedFunction udfForParameterResolution) {
+    Pair<DremioCatalogReader, SqlOperatorTable> catalogReaderAndOperatorTable =
+        extractCatalogAndOperatorTable(context, udfForParameterResolution);
+    return RelSerializerFactory.getPlanningFactory(context.getConfig(), context.getScanResult())
+        .getSerializer(deserializedPlan.getCluster(), catalogReaderAndOperatorTable.right)
+        .serializeToBytes(deserializedPlan);
   }
 
   private static Pair<DremioCatalogReader, SqlOperatorTable> extractCatalogAndOperatorTable(
-    QueryContext context,
-    UserDefinedFunction udfForParameterResolution) {
-    DremioCatalogReader dremioCatalogReader = new DremioCatalogReader(
-      DelegatingPlannerCatalog.newInstance(context.getCatalog()));
-    SqlOperatorTable parameterResolutionOperatorTable = new FunctionOperatorTable(
-      udfForParameterResolution.getName(),
-      FunctionParameterImpl.createParameters(udfForParameterResolution.getFunctionArgsList()));
+      QueryContext context, UserDefinedFunction udfForParameterResolution) {
+    DremioCatalogReader dremioCatalogReader =
+        new DremioCatalogReader(DelegatingPlannerCatalog.newInstance(context.getCatalog()));
+    SqlOperatorTable parameterResolutionOperatorTable =
+        new FunctionOperatorTable(
+            udfForParameterResolution.getName(),
+            FunctionParameterImpl.createParameters(
+                udfForParameterResolution.getFunctionArgsList()));
 
     List<SqlOperator> existingUserDefinedFunctions = new ArrayList<>();
-    try {
-      for (UserDefinedFunction userDefinedFunction : context.getCatalog().getAllFunctions()) {
-        SqlOperator sqlOperator = UserDefinedFunctionSqlOperator.create(userDefinedFunction);
+    for (UserDefinedFunction userDefinedFunction :
+        context.getUserDefinedFunctionCatalog().getAllFunctions()) {
+      SqlOperator sqlOperator = UserDefinedFunctionSqlOperator.create(userDefinedFunction);
 
-        SqlUserDefinedFunction sqlUserDefinedFunction;
-        if (userDefinedFunction.getReturnType().isStruct()) {
-          sqlUserDefinedFunction = new SqlUserDefinedTableFunction(
-            sqlOperator.getNameAsId(),
-            sqlOperator.getReturnTypeInference(),
-            sqlOperator.getOperandTypeInference(),
-            sqlOperator.getOperandTypeChecker(),
-            null,
-            new DremioTabularUserDefinedFunction(null, userDefinedFunction));
-        } else {
-          sqlUserDefinedFunction = new SqlUserDefinedFunction(
-            sqlOperator.getNameAsId(),
-            sqlOperator.getReturnTypeInference(),
-            sqlOperator.getOperandTypeInference(),
-            sqlOperator.getOperandTypeChecker(),
-            null,
-            new DremioScalarUserDefinedFunction(null, userDefinedFunction)
-          );
-        }
-
-        existingUserDefinedFunctions.add(sqlUserDefinedFunction);
+      SqlUserDefinedFunction sqlUserDefinedFunction;
+      if (userDefinedFunction.getReturnType().isStruct()) {
+        sqlUserDefinedFunction =
+            new SqlUserDefinedTableFunction(
+                sqlOperator.getNameAsId(),
+                sqlOperator.getReturnTypeInference(),
+                sqlOperator.getOperandTypeInference(),
+                sqlOperator.getOperandTypeChecker(),
+                null,
+                new DremioTabularUserDefinedFunction(null, userDefinedFunction));
+      } else {
+        sqlUserDefinedFunction =
+            new SqlUserDefinedFunction(
+                sqlOperator.getNameAsId(),
+                sqlOperator.getReturnTypeInference(),
+                sqlOperator.getOperandTypeInference(),
+                sqlOperator.getOperandTypeChecker(),
+                null,
+                new DremioScalarUserDefinedFunction(null, userDefinedFunction));
       }
-    } catch (IOException e) {
-      throw new RuntimeException(e);
+
+      existingUserDefinedFunctions.add(sqlUserDefinedFunction);
     }
 
-    SqlOperatorTable userDefinedFunctionOperatorTable = new ListSqlOperatorTable(existingUserDefinedFunctions);
+    SqlOperatorTable userDefinedFunctionOperatorTable =
+        new ListSqlOperatorTable(existingUserDefinedFunctions);
 
-    SqlOperatorTable dremioCompositeSqlOperatorTable = DremioCompositeSqlOperatorTable.create(context.getFunctionRegistry());
-    SqlOperatorTable dremioPlusUdfOperatorTable = ChainedSqlOperatorTable.of(
-      userDefinedFunctionOperatorTable,
-      parameterResolutionOperatorTable,
-      dremioCompositeSqlOperatorTable);
+    SqlOperatorTable dremioCompositeSqlOperatorTable =
+        DremioCompositeSqlOperatorTable.create(context.getFunctionRegistry());
+    SqlOperatorTable dremioPlusUdfOperatorTable =
+        ChainedSqlOperatorTable.of(
+            userDefinedFunctionOperatorTable,
+            parameterResolutionOperatorTable,
+            dremioCompositeSqlOperatorTable);
 
     return Pair.of(dremioCatalogReader, dremioPlusUdfOperatorTable);
   }

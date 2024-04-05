@@ -15,6 +15,9 @@
  */
 package com.dremio.exec.planner.logical;
 
+import com.dremio.exec.calcite.logical.FlattenCrel;
+import com.dremio.exec.planner.StatelessRelShuttleImpl;
+import com.google.common.collect.ImmutableList;
 import org.apache.calcite.rel.RelCollations;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Uncollect;
@@ -34,18 +37,11 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.ImmutableBitSet;
 
-import com.dremio.exec.calcite.logical.FlattenCrel;
-import com.dremio.exec.planner.StatelessRelShuttleImpl;
-import com.google.common.collect.ImmutableList;
-
-/**
- * Rule that converts a {@link Uncollect} to a Dremio "uncollect" (flatten) operation.
- */
+/** Rule that converts a {@link Uncollect} to a Dremio "uncollect" (flatten) operation. */
 public final class UncollectToFlattenConverter extends StatelessRelShuttleImpl {
   private static final UncollectToFlattenConverter INSTANCE = new UncollectToFlattenConverter();
 
-  private UncollectToFlattenConverter() {
-  }
+  private UncollectToFlattenConverter() {}
 
   public static RelNode convert(RelNode input) {
     return input.accept(INSTANCE);
@@ -77,63 +73,67 @@ public final class UncollectToFlattenConverter extends StatelessRelShuttleImpl {
     }
 
     String alias = project.getRowType().getFieldList().get(0).getName();
-    Uncollect rewrittenUncollect = Uncollect.create(
-      uncollect.getTraitSet(),
-      uncollect.getInput(),
-      uncollect.withOrdinality,
-      ImmutableList.of(alias));
+    Uncollect rewrittenUncollect =
+        Uncollect.create(
+            uncollect.getTraitSet(),
+            uncollect.getInput(),
+            uncollect.withOrdinality,
+            ImmutableList.of(alias));
 
     return visitUncollect(rewrittenUncollect);
   }
 
   public RelNode visitUncollect(Uncollect uncollect) {
     RelNode rewrittenInput = uncollect.getInput().accept(this);
-    RelNode flattenRelNode = FlattenCrel.create(
-      rewrittenInput,
-      0,
-      uncollect.getRowType().getFieldList().get(0).getName());
+    RelNode flattenRelNode =
+        FlattenCrel.create(
+            rewrittenInput,
+            ImmutableList.of(
+                rewrittenInput.getCluster().getRexBuilder().makeInputRef(rewrittenInput, 0)),
+            ImmutableList.of(uncollect.getRowType().getFieldList().get(0).getName()),
+            0);
 
     if (uncollect.withOrdinality) {
       // We need to enrich the flatten result with the row number
       RexBuilder rexBuilder = flattenRelNode.getCluster().getRexBuilder();
 
-      Window.RexWinAggCall rexWinAggCall = new Window.RexWinAggCall(
-        SqlStdOperatorTable.ROW_NUMBER,
-        rexBuilder
-          .getTypeFactory()
-          .createTypeWithNullability(
-            rexBuilder
-              .getTypeFactory()
-              .createSqlType(SqlTypeName.INTEGER),
-            false),
-        ImmutableList.of(),
-        0,
-        false);
+      Window.RexWinAggCall rexWinAggCall =
+          new Window.RexWinAggCall(
+              SqlStdOperatorTable.ROW_NUMBER,
+              rexBuilder
+                  .getTypeFactory()
+                  .createTypeWithNullability(
+                      rexBuilder.getTypeFactory().createSqlType(SqlTypeName.INTEGER), false),
+              ImmutableList.of(),
+              0,
+              false);
 
-      RelDataTypeFactory.FieldInfoBuilder windowRelDataTypeBuilder = rexBuilder.getTypeFactory().builder();
+      RelDataTypeFactory.FieldInfoBuilder windowRelDataTypeBuilder =
+          rexBuilder.getTypeFactory().builder();
       for (RelDataTypeField field : flattenRelNode.getRowType().getFieldList()) {
         windowRelDataTypeBuilder.add(field);
       }
 
-      RelDataType windowRelDataType = windowRelDataTypeBuilder
-        .add("ORDINALITY", rexWinAggCall.getType())
-        .build();
+      RelDataType windowRelDataType =
+          windowRelDataTypeBuilder.add("ORDINALITY", rexWinAggCall.getType()).build();
 
-      Window.Group group = new Window.Group(
-        ImmutableBitSet.of(),
-        true,
-        RexWindowBound.create(SqlWindow.createUnboundedPreceding(SqlParserPos.ZERO),null),
-        RexWindowBound.create(SqlWindow.createCurrentRow(SqlParserPos.ZERO),null),
-        RelCollations.of(),
-        ImmutableList.of(rexWinAggCall));
+      Window.Group group =
+          new Window.Group(
+              ImmutableBitSet.of(),
+              true,
+              RexWindowBound.create(SqlWindow.createUnboundedPreceding(SqlParserPos.ZERO), null),
+              RexWindowBound.create(SqlWindow.createCurrentRow(SqlParserPos.ZERO), null),
+              RelCollations.of(),
+              ImmutableList.of(rexWinAggCall));
 
-      flattenRelNode = new LogicalWindow(
-        flattenRelNode.getCluster(),
-        flattenRelNode.getTraitSet(),
-        flattenRelNode,
-        ImmutableList.of(),
-        windowRelDataType,
-        ImmutableList.of(group));
+      flattenRelNode =
+          new LogicalWindow(
+              flattenRelNode.getCluster(),
+              flattenRelNode.getTraitSet(),
+              flattenRelNode,
+              ImmutableList.of(),
+              windowRelDataType,
+              ImmutableList.of(group));
     }
 
     return flattenRelNode;

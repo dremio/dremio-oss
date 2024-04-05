@@ -16,24 +16,27 @@
 
 package com.dremio.sabot.op.join.vhash;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.commons.collections4.CollectionUtils;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.physical.config.RuntimeFilterProbeTarget;
 import com.dremio.exec.util.BloomFilter;
+import com.dremio.sabot.op.common.ht2.FixedBlockVector;
 import com.dremio.sabot.op.common.ht2.HashTable;
 import com.dremio.sabot.op.common.ht2.HashTableFilterUtil;
 import com.dremio.sabot.op.common.ht2.HashTableKeyReader;
 import com.dremio.sabot.op.common.ht2.PivotDef;
+import com.dremio.sabot.op.common.ht2.VariableBlockVector;
+import com.dremio.sabot.op.join.vhash.spill.partition.DiskPartitionFilterHelper;
 import com.google.common.base.Preconditions;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.commons.collections4.CollectionUtils;
 
 public class PartitionColFilters implements AutoCloseable {
-  private final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PartitionColFilters.class);
+  private final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(PartitionColFilters.class);
   public static final long BLOOMFILTER_MAX_SIZE = 2 * 1024 * 1024;
 
   private final List<PartitionColFilter> partitionColFilters;
@@ -44,8 +47,12 @@ public class PartitionColFilters implements AutoCloseable {
   private final long bloomFilterSize;
   private final int maxKeySize;
 
-  public PartitionColFilters(BufferAllocator allocator, List<RuntimeFilterProbeTarget> probeTargets,
-                             PivotDef pivotDef, long bloomFilterSize, int maxKeySize) {
+  public PartitionColFilters(
+      BufferAllocator allocator,
+      List<RuntimeFilterProbeTarget> probeTargets,
+      PivotDef pivotDef,
+      long bloomFilterSize,
+      int maxKeySize) {
     this.allocator = allocator.newChildAllocator("partition-col-filters", 0, allocator.getLimit());
     this.probeTargets = probeTargets;
     this.pivotDef = pivotDef;
@@ -61,19 +68,21 @@ public class PartitionColFilters implements AutoCloseable {
       RuntimeFilterProbeTarget probeTarget = probeTargets.get(i);
 
       if (CollectionUtils.isEmpty(probeTarget.getPartitionBuildTableKeys())) {
-        PartitionColFilter partitionColFilter = new PartitionColFilter(
-          probeTarget, Optional.empty(), null);
+        PartitionColFilter partitionColFilter =
+            new PartitionColFilter(probeTarget, Optional.empty(), null);
         partitionColFilters.add(partitionColFilter);
         logger.warn("Ignoring empty partition col filter(" + i + ")");
         continue;
       }
 
-      final BloomFilter bloomFilter = new BloomFilter(allocator, Thread.currentThread().getName(), bloomFilterSize);
-      HashTableKeyReader.Builder keyReaderBuilder = new HashTableKeyReader.Builder()
-        .setBufferAllocator(allocator)
-        .setFieldsToRead(probeTarget.getPartitionBuildTableKeys())
-        .setPivot(pivotDef)
-        .setMaxKeySize(maxKeySize);
+      final BloomFilter bloomFilter =
+          new BloomFilter(allocator, Thread.currentThread().getName(), bloomFilterSize);
+      HashTableKeyReader.Builder keyReaderBuilder =
+          new HashTableKeyReader.Builder()
+              .setBufferAllocator(allocator)
+              .setFieldsToRead(probeTarget.getPartitionBuildTableKeys())
+              .setPivot(pivotDef)
+              .setMaxKeySize(maxKeySize);
 
       try (AutoCloseables.RollbackCloseable closeOnError = new AutoCloseables.RollbackCloseable()) {
         bloomFilter.setup();
@@ -83,13 +92,14 @@ public class PartitionColFilters implements AutoCloseable {
 
         closeOnError.commit();
 
-        PartitionColFilter partitionColFilter = new PartitionColFilter(probeTarget,
-          Optional.of(bloomFilter), keyReader);
+        PartitionColFilter partitionColFilter =
+            new PartitionColFilter(probeTarget, Optional.of(bloomFilter), keyReader);
         partitionColFilters.add(partitionColFilter);
       } catch (Exception e) {
-        logger.warn("Unable to setup bloomfilter for " + probeTarget.getPartitionBuildTableKeys(), e);
-        PartitionColFilter partitionColFilter = new PartitionColFilter(
-          probeTarget, Optional.empty(), null);
+        logger.warn(
+            "Unable to setup bloomfilter for " + probeTarget.getPartitionBuildTableKeys(), e);
+        PartitionColFilter partitionColFilter =
+            new PartitionColFilter(probeTarget, Optional.empty(), null);
         partitionColFilters.add(partitionColFilter);
       }
     }
@@ -97,6 +107,7 @@ public class PartitionColFilters implements AutoCloseable {
     return partitionColFilters;
   }
 
+  // For in-memory partition
   public void prepareBloomFilters(HashTable hashTable) {
     for (int i = 0; i < partitionColFilters.size(); i++) {
       PartitionColFilter partitionColFilter = partitionColFilters.get(i);
@@ -108,7 +119,40 @@ public class PartitionColFilters implements AutoCloseable {
       RuntimeFilterProbeTarget probeTarget = partitionColFilter.getProbeTarget();
       HashTableKeyReader hashTableKeyReader = partitionColFilter.getHashTableKeyReader();
 
-      bloomFilter = HashTableFilterUtil.prepareBloomFilters(probeTarget, bloomFilter, hashTableKeyReader, hashTable);
+      bloomFilter =
+          HashTableFilterUtil.prepareBloomFilters(
+              probeTarget, bloomFilter, hashTableKeyReader, hashTable);
+      partitionColFilter.setBloomFilter(bloomFilter);
+    }
+  }
+
+  // For disk partition
+  public void prepareBloomFilters(
+      FixedBlockVector pivotedFixedBlockVector,
+      VariableBlockVector pivotedVariableBlockVector,
+      int pivotShift,
+      int records,
+      ArrowBuf sv2) {
+    for (int i = 0; i < partitionColFilters.size(); i++) {
+      PartitionColFilter partitionColFilter = partitionColFilters.get(i);
+      Optional<BloomFilter> bloomFilter = partitionColFilter.getBloomFilter();
+      if (!bloomFilter.isPresent()) {
+        continue;
+      }
+
+      RuntimeFilterProbeTarget probeTarget = partitionColFilter.getProbeTarget();
+      HashTableKeyReader hashTableKeyReader = partitionColFilter.getHashTableKeyReader();
+
+      bloomFilter =
+          DiskPartitionFilterHelper.prepareBloomFilters(
+              probeTarget,
+              bloomFilter,
+              hashTableKeyReader,
+              pivotedFixedBlockVector,
+              pivotedVariableBlockVector,
+              pivotShift,
+              records,
+              sv2);
       partitionColFilter.setBloomFilter(bloomFilter);
     }
   }
@@ -123,7 +167,8 @@ public class PartitionColFilters implements AutoCloseable {
     return partitionColFilter.getBloomFilter();
   }
 
-  public void setBloomFilter(int index, RuntimeFilterProbeTarget probeTarget, Optional<BloomFilter> bloomFilter) {
+  public void setBloomFilter(
+      int index, RuntimeFilterProbeTarget probeTarget, Optional<BloomFilter> bloomFilter) {
     PartitionColFilter partitionColFilter = partitionColFilters.get(index);
     Preconditions.checkState(partitionColFilter.getProbeTarget() == probeTarget);
     partitionColFilter.setBloomFilter(bloomFilter);
@@ -140,8 +185,10 @@ public class PartitionColFilters implements AutoCloseable {
     private Optional<BloomFilter> bloomFilter;
     private HashTableKeyReader hashTableKeyReader;
 
-    PartitionColFilter(RuntimeFilterProbeTarget probeTarget,
-                       Optional<BloomFilter> bloomFilter, HashTableKeyReader hashTableKeyReader) {
+    PartitionColFilter(
+        RuntimeFilterProbeTarget probeTarget,
+        Optional<BloomFilter> bloomFilter,
+        HashTableKeyReader hashTableKeyReader) {
       this.probeTarget = probeTarget;
       this.bloomFilter = bloomFilter;
       this.hashTableKeyReader = hashTableKeyReader;

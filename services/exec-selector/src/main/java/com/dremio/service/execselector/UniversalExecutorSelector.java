@@ -15,22 +15,20 @@
  */
 package com.dremio.service.execselector;
 
+import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
+import com.google.common.collect.ImmutableSet;
 import java.util.HashSet;
 import java.util.Set;
 
-import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
-import com.google.common.collect.ImmutableSet;
-
-/**
- * An executor selector that always returns the full set of nodes, regardless of the query size
- */
+/** An executor selector that always returns the full set of nodes, regardless of the query size */
 public class UniversalExecutorSelector implements ExecutorSelector {
   static final String EXECUTOR_SELECTOR_TYPE = "universal";
 
   private Set<NodeEndpoint> endpoints = new HashSet<>();
 
   @Override
-  public ExecutorSelectionHandle getExecutors(int desiredNumExecutors, ExecutorSelectionContext executorSelectionContext) {
+  public ExecutorSelectionHandle getExecutors(
+      int desiredNumExecutors, ExecutorSelectionContext executorSelectionContext) {
     return new ExecutorSelectionHandleImpl(ImmutableSet.copyOf(endpoints));
   }
 
@@ -52,6 +50,5 @@ public class UniversalExecutorSelector implements ExecutorSelector {
   }
 
   @Override
-  public void close() {
-  }
+  public void close() {}
 }

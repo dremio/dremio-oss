@@ -15,16 +15,16 @@
  */
 package com.dremio.exec.expr;
 
-import java.util.Iterator;
-
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.EvaluationType;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.visitors.ExprVisitor;
 import com.google.common.collect.Iterators;
+import java.util.Iterator;
 
 public class ReturnValueExpression implements LogicalExpression {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ReturnValueExpression.class);
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ReturnValueExpression.class);
 
   private LogicalExpression child;
   private boolean returnTrueOnOne;
@@ -72,12 +72,17 @@ public class ReturnValueExpression implements LogicalExpression {
 
   @Override
   public int getSelfCost() {
-    throw new UnsupportedOperationException(String.format("The type of %s doesn't currently support LogicalExpression.getSelfCost().", this.getClass().getCanonicalName()));
+    throw new UnsupportedOperationException(
+        String.format(
+            "The type of %s doesn't currently support LogicalExpression.getSelfCost().",
+            this.getClass().getCanonicalName()));
   }
 
   @Override
   public int getCumulativeCost() {
-    throw new UnsupportedOperationException(String.format("The type of %s doesn't currently support LogicalExpression.getCumulativeCost().", this.getClass().getCanonicalName()));
+    throw new UnsupportedOperationException(
+        String.format(
+            "The type of %s doesn't currently support LogicalExpression.getCumulativeCost().",
+            this.getClass().getCanonicalName()));
   }
-
 }

@@ -15,19 +15,16 @@
  */
 package com.dremio.provision;
 
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import javax.validation.constraints.NotNull;
-
 import org.immutables.value.Value.Immutable;
 
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-
-/**
- * Configuration that can be changed without restarting a cluster.
- */
+/** Configuration that can be changed without restarting a cluster. */
 @JsonDeserialize(builder = ImmutableDynamicConfig.Builder.class)
 @Immutable
 public interface DynamicConfig {
-  @NotNull int getContainerCount();
+  @NotNull
+  int getContainerCount();
 
   public static ImmutableDynamicConfig.Builder builder() {
     return new ImmutableDynamicConfig.Builder();

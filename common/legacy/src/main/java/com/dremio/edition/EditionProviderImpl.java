@@ -15,20 +15,15 @@
  */
 package com.dremio.edition;
 
+import com.dremio.common.util.DremioEdition;
 import java.util.Locale;
-
 import javax.inject.Inject;
 
-import com.dremio.common.util.DremioEdition;
-
-/**
- * Edition provider for providing dremio edition
- */
+/** Edition provider for providing dremio edition */
 public class EditionProviderImpl implements EditionProvider {
 
   @Inject
-  public EditionProviderImpl() {
-  }
+  public EditionProviderImpl() {}
 
   @Override
   public String getEdition() {

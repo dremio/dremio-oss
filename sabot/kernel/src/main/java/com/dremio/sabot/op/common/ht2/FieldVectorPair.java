@@ -16,7 +16,6 @@
 package com.dremio.sabot.op.common.ht2;
 
 import java.util.Objects;
-
 import org.apache.arrow.vector.FieldVector;
 
 public class FieldVectorPair {
@@ -28,9 +27,11 @@ public class FieldVectorPair {
     this.incoming = incoming;
     this.outgoing = outgoing;
   }
+
   public FieldVector getIncoming() {
     return incoming;
   }
+
   public FieldVector getOutgoing() {
     return outgoing;
   }
@@ -54,6 +55,4 @@ public class FieldVectorPair {
     FieldVectorPair other = (FieldVectorPair) obj;
     return Objects.equals(incoming, other.incoming) && Objects.equals(outgoing, other.outgoing);
   }
-
-
 }

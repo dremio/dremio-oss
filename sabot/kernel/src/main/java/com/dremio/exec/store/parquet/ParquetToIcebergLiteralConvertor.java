@@ -21,22 +21,21 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 import java.util.function.Function;
-
 import org.apache.iceberg.expressions.Literal;
 import org.apache.iceberg.types.Type;
 import org.apache.parquet.io.api.Binary;
 import org.apache.parquet.schema.PrimitiveType;
 
 /**
- * Class to support conversions from Parquet types to Iceberg types.
- * This class is an adaptation of the non-public {@code ParquetConversions} class in iceberg-parquet jar.
+ * Class to support conversions from Parquet types to Iceberg types. This class is an adaptation of
+ * the non-public {@code ParquetConversions} class in iceberg-parquet jar.
  */
 public class ParquetToIcebergLiteralConvertor {
-  private ParquetToIcebergLiteralConvertor() {
-  }
+  private ParquetToIcebergLiteralConvertor() {}
 
   @SuppressWarnings("unchecked")
-  public static <T> Literal<T> fromParquetPrimitive(Type type, PrimitiveType parquetType, Object value) {
+  public static <T> Literal<T> fromParquetPrimitive(
+      Type type, PrimitiveType parquetType, Object value) {
     switch (type.typeId()) {
       case BOOLEAN:
         return (Literal<T>) Literal.of((Boolean) value);
@@ -86,7 +85,7 @@ public class ParquetToIcebergLiteralConvertor {
               return bin -> new BigDecimal(new BigInteger(((Binary) bin).getBytes()), scale);
             default:
               throw new IllegalArgumentException(
-                "Unsupported primitive type for decimal: " + type.getPrimitiveTypeName());
+                  "Unsupported primitive type for decimal: " + type.getPrimitiveTypeName());
           }
         default:
       }

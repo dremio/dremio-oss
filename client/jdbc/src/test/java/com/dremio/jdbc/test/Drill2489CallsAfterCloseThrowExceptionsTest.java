@@ -20,6 +20,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 import static org.slf4j.LoggerFactory.getLogger;
 
+import com.dremio.jdbc.AlreadyClosedSqlException;
+import com.dremio.jdbc.Driver;
+import com.dremio.jdbc.JdbcTestBase;
+import com.dremio.jdbc.SabotNodeRule;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.sql.Connection;
@@ -33,42 +37,26 @@ import java.sql.SQLFeatureNotSupportedException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
-
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.slf4j.Logger;
 
-import com.dremio.jdbc.AlreadyClosedSqlException;
-import com.dremio.jdbc.Driver;
-import com.dremio.jdbc.JdbcTestBase;
-import com.dremio.jdbc.SabotNodeRule;
-
 /**
- * Test class for JDBC requirement that almost all methods throw
- * {@link SQLException} when called on a closed primary object (e.g.,
- * {@code Connection}, {@code ResultSet}, etc.).
- * <p>
- *   NOTE:  This test currently covers:
- *   {@link Connection},
- *   {@link Statement},
- *   {@link PreparedStatement},
- *   {@link ResultSet},
- *   {@link ResultSetMetadata}, and
- *   {@link DatabaseMetaData}.
- * </p>
- * <p>
- *   It does not cover unimplemented {@link CallableStatement} or any relevant
- *   secondary objects such as {@link Array} or {@link Struct}).
- * </p>
+ * Test class for JDBC requirement that almost all methods throw {@link SQLException} when called on
+ * a closed primary object (e.g., {@code Connection}, {@code ResultSet}, etc.).
+ *
+ * <p>NOTE: This test currently covers: {@link Connection}, {@link Statement}, {@link
+ * PreparedStatement}, {@link ResultSet}, {@link ResultSetMetadata}, and {@link DatabaseMetaData}.
+ *
+ * <p>It does not cover unimplemented {@link CallableStatement} or any relevant secondary objects
+ * such as {@link Array} or {@link Struct}).
  */
 public class Drill2489CallsAfterCloseThrowExceptionsTest extends JdbcTestBase {
-  @ClassRule
-  public static final SabotNodeRule sabotNode = new SabotNodeRule();
+  @ClassRule public static final SabotNodeRule sabotNode = new SabotNodeRule();
 
-  private static final Logger logger =
-      getLogger(Drill2489CallsAfterCloseThrowExceptionsTest.class);
+  private static final Logger logger = getLogger(Drill2489CallsAfterCloseThrowExceptionsTest.class);
 
   private static Connection closedConn;
   private static Connection openConn;
@@ -86,20 +74,20 @@ public class Drill2489CallsAfterCloseThrowExceptionsTest extends JdbcTestBase {
     // (Note: Can't use JdbcTest's connect(...) for this test class.)
 
     final Connection connToClose =
-        new Driver().connect(sabotNode.getJDBCConnectionString(),
-                             JdbcAssert.getDefaultProperties());
+        new Driver()
+            .connect(sabotNode.getJDBCConnectionString(), JdbcAssert.getDefaultProperties());
     final Connection connToKeep =
-        new Driver().connect(sabotNode.getJDBCConnectionString(),
-                             JdbcAssert.getDefaultProperties());
+        new Driver()
+            .connect(sabotNode.getJDBCConnectionString(), JdbcAssert.getDefaultProperties());
 
     final Statement plainStmtToClose = connToKeep.createStatement();
     final Statement plainStmtToKeep = connToKeep.createStatement();
     final PreparedStatement preparedStmtToClose =
         connToKeep.prepareStatement("VALUES 'PreparedStatement query'");
     assertThatThrownBy(() -> connToKeep.prepareCall("VALUES 'CallableStatement query'"))
-      .satisfiesAnyOf(
-        t -> assertThat(t).isInstanceOf(SQLException.class),
-        t -> assertThat(t).isInstanceOf(UnsupportedOperationException.class));
+        .satisfiesAnyOf(
+            t -> assertThat(t).isInstanceOf(SQLException.class),
+            t -> assertThat(t).isInstanceOf(UnsupportedOperationException.class));
 
     final ResultSet resultSetToCloseOnStmtToClose =
         plainStmtToClose.executeQuery("VALUES 'plain Statement query'");
@@ -108,10 +96,8 @@ public class Drill2489CallsAfterCloseThrowExceptionsTest extends JdbcTestBase {
         plainStmtToKeep.executeQuery("VALUES 'plain Statement query'");
     resultSetToCloseOnStmtToKeep.next();
 
-    final ResultSetMetaData rsmdForClosedStmt =
-        resultSetToCloseOnStmtToKeep.getMetaData();
-    final ResultSetMetaData rsmdForOpenStmt =
-        resultSetToCloseOnStmtToClose.getMetaData();
+    final ResultSetMetaData rsmdForClosedStmt = resultSetToCloseOnStmtToKeep.getMetaData();
+    final ResultSetMetaData rsmdForOpenStmt = resultSetToCloseOnStmtToClose.getMetaData();
 
     final DatabaseMetaData dbmd = connToClose.getMetaData();
 
@@ -199,38 +185,36 @@ public class Drill2489CallsAfterCloseThrowExceptionsTest extends JdbcTestBase {
   //     by JDBC or currently intended as partial Avatica workaround).
 
   /**
-   * Reflection-based checker of throwing of "already closed" exception by JDBC
-   * interfaces' implementation methods.
+   * Reflection-based checker of throwing of "already closed" exception by JDBC interfaces'
+   * implementation methods.
    *
-   * @param  <INTF>  JDBC interface type
+   * @param  <INTF> JDBC interface type
    */
   private abstract static class ThrowsClosedBulkChecker<INTF> {
     private final Class<INTF> jdbcIntf;
     private final INTF jdbcObject;
     protected final String normalClosedExceptionText;
 
-    private String methodLabel;  // for inter-method multi-return passing
-    private Object[] argsArray;  // for inter-method multi-return passing
+    private String methodLabel; // for inter-method multi-return passing
+    private Object[] argsArray; // for inter-method multi-return passing
 
     private final StringBuilder failureLinesBuf = new StringBuilder();
     private final StringBuilder successLinesBuf = new StringBuilder();
 
-
-    ThrowsClosedBulkChecker(final Class<INTF> jdbcIntf,
-                            final INTF jdbcObject,
-                            final String normalClosedExceptionText) {
+    ThrowsClosedBulkChecker(
+        final Class<INTF> jdbcIntf, final INTF jdbcObject, final String normalClosedExceptionText) {
       this.jdbcIntf = jdbcIntf;
       this.jdbcObject = jdbcObject;
       this.normalClosedExceptionText = normalClosedExceptionText;
     }
 
     /**
-     * Gets minimal value suitable for use as actual parameter value for given
-     * formal parameter type.
+     * Gets minimal value suitable for use as actual parameter value for given formal parameter
+     * type.
      */
     private static Object getDummyValueForType(Class<?> type) {
       final Object result;
-      if (! type.isPrimitive()) {
+      if (!type.isPrimitive()) {
         result = null;
       } else {
         if (type == boolean.class) {
@@ -251,22 +235,22 @@ public class Drill2489CallsAfterCloseThrowExceptionsTest extends JdbcTestBase {
           result = 0.0;
         } else {
           fail("Test needs to be updated to handle type " + type);
-          result = null;  // Not executed; for "final".
+          result = null; // Not executed; for "final".
         }
       }
       return result;
     }
 
     /**
-     * Assembles arguments array and method signature text for given method.
-     * Updates members args and methodLabel.
+     * Assembles arguments array and method signature text for given method. Updates members args
+     * and methodLabel.
      */
     private void makeArgsAndLabel(Method method) {
       final List<Object> argsList = new ArrayList<>();
       methodLabel = jdbcIntf.getSimpleName() + "." + method.getName() + "(";
       boolean first = true;
       for (Class<?> paramType : method.getParameterTypes()) {
-        if (! first) {
+        if (!first) {
           methodLabel += ", ";
         }
         first = false;
@@ -277,27 +261,21 @@ public class Drill2489CallsAfterCloseThrowExceptionsTest extends JdbcTestBase {
       argsArray = argsList.toArray();
     }
 
-    /**
-     * Reports whether it's okay if given method didn't throw any exception.
-     */
+    /** Reports whether it's okay if given method didn't throw any exception. */
     protected boolean isOkayNonthrowingMethod(Method method) {
-       return
-           "isClosed".equals(method.getName())
-           || "close".equals(method.getName());
+      return "isClosed".equals(method.getName()) || "close".equals(method.getName());
     }
 
     /**
-     * Reports whether it's okay if given method throw given exception (that is
-     * not preferred AlreadyClosedException with regular message).
+     * Reports whether it's okay if given method throw given exception (that is not preferred
+     * AlreadyClosedException with regular message).
      */
-    protected boolean isOkaySpecialCaseException(Method method,
-                                                 Throwable cause) {
+    protected boolean isOkaySpecialCaseException(Method method, Throwable cause) {
       return false;
     }
 
     /**
-     * Tests one method.
-     * (Disturbs members set by makeArgsAndLabel, but those shouldn't be used
+     * Tests one method. (Disturbs members set by makeArgsAndLabel, but those shouldn't be used
      * except by this method.)
      */
     private void testOneMethod(Method method) {
@@ -323,12 +301,11 @@ public class Drill2489CallsAfterCloseThrowExceptionsTest extends JdbcTestBase {
         final String resultLine = "- " + methodLabel + " threw <" + cause + ">\n";
 
         if (AlreadyClosedSqlException.class == cause.getClass()
-             && normalClosedExceptionText.equals(cause.getMessage())) {
+            && normalClosedExceptionText.equals(cause.getMessage())) {
           // Common good case--our preferred exception class with our message.
           successLinesBuf.append(resultLine);
         } else if (NullPointerException.class == cause.getClass()
-                  && (method.getName().equals("isWrapperFor")
-                      || method.getName().equals("unwrap"))) {
+            && (method.getName().equals("isWrapperFor") || method.getName().equals("unwrap"))) {
           // Known good-enough case--these methods don't throw already-closed
           // exception, but do throw NullPointerException because of the way
           // we call them (with null) and the way Avatica code implements them.
@@ -340,18 +317,23 @@ public class Drill2489CallsAfterCloseThrowExceptionsTest extends JdbcTestBase {
             successLinesBuf.append(resultLine);
           } else {
             final String badResultLine =
-                "- " + methodLabel + " threw <" + cause + "> instead"
-                + " of " + AlreadyClosedSqlException.class.getSimpleName()
-                + " with \""
-                + normalClosedExceptionText.replaceAll("\"", "\"\"")
-                + "\"" + "\n";
+                "- "
+                    + methodLabel
+                    + " threw <"
+                    + cause
+                    + "> instead"
+                    + " of "
+                    + AlreadyClosedSqlException.class.getSimpleName()
+                    + " with \""
+                    + normalClosedExceptionText.replaceAll("\"", "\"\"")
+                    + "\""
+                    + "\n";
             logger.trace("Failure: " + resultLine);
             failureLinesBuf.append(badResultLine);
           }
         }
       } catch (IllegalAccessException | IllegalArgumentException e) {
-        fail("Unexpected exception: " + e + ", cause = " + e.getCause()
-              + "  from " + method);
+        fail("Unexpected exception: " + e + ", cause = " + e.getCause() + "  from " + method);
       }
     }
 
@@ -383,20 +365,14 @@ public class Drill2489CallsAfterCloseThrowExceptionsTest extends JdbcTestBase {
 
     public String getReport() {
       final String report =
-          "Failures:\n"
-          + getFailureLines()
-          + "(Successes:\n"
-          + getSuccessLines()
-          + ")";
+          "Failures:\n" + getFailureLines() + "(Successes:\n" + getSuccessLines() + ")";
       return report;
     }
   } // class ThrowsClosedChecker<INTF>
 
-  private static class ClosedConnectionChecker
-      extends ThrowsClosedBulkChecker<Connection> {
+  private static class ClosedConnectionChecker extends ThrowsClosedBulkChecker<Connection> {
 
-    private static final String STATEMENT_CLOSED_MESSAGE =
-        "Connection is already closed.";
+    private static final String STATEMENT_CLOSED_MESSAGE = "Connection is already closed.";
 
     ClosedConnectionChecker(Class<Connection> intf, Connection jdbcObject) {
       super(intf, jdbcObject, STATEMENT_CLOSED_MESSAGE);
@@ -407,8 +383,7 @@ public class Drill2489CallsAfterCloseThrowExceptionsTest extends JdbcTestBase {
       final boolean result;
       if (super.isOkayNonthrowingMethod(method)) {
         result = true;
-      } else if (   method.getName().equals("beginRequest")
-               || method.getName().equals("endRequest")) {
+      } else if (method.getName().equals("beginRequest") || method.getName().equals("endRequest")) {
         // TODO: New Java 9 methods not implemented in Avatica.
         result = true;
       } else {
@@ -423,21 +398,18 @@ public class Drill2489CallsAfterCloseThrowExceptionsTest extends JdbcTestBase {
       if (super.isOkaySpecialCaseException(method, cause)) {
         result = true;
       } else if (SQLClientInfoException.class == cause.getClass()
-                && normalClosedExceptionText.equals(cause.getMessage())
-                && (   method.getName().equals("setClientInfo")
-                    || method.getName().equals("getClientInfo")
-                    )) {
+          && normalClosedExceptionText.equals(cause.getMessage())
+          && (method.getName().equals("setClientInfo")
+              || method.getName().equals("getClientInfo"))) {
         // Special good case--we had to use SQLClientInfoException from those.
         result = true;
       } else if (RuntimeException.class == cause.getClass()
-               && normalClosedExceptionText.equals(cause.getMessage())
-               && (   method.getName().equals("getCatalog")
-                   || method.getName().equals("getSchema")
-                   )) {
+          && normalClosedExceptionText.equals(cause.getMessage())
+          && (method.getName().equals("getCatalog") || method.getName().equals("getSchema"))) {
         // Special good-enough case--we had to use RuntimeException for now.
         result = true;
-      } else if (   method.getName().equals("setShardingKeyIfValid")
-               || method.getName().equals("setShardingKey")) {
+      } else if (method.getName().equals("setShardingKeyIfValid")
+          || method.getName().equals("setShardingKey")) {
         // TODO: New Java 9 methods not implemented in Avatica.
         result = true;
       } else {
@@ -460,11 +432,9 @@ public class Drill2489CallsAfterCloseThrowExceptionsTest extends JdbcTestBase {
     }
   }
 
-  private static class ClosedPlainStatementChecker
-      extends ThrowsClosedBulkChecker<Statement> {
+  private static class ClosedPlainStatementChecker extends ThrowsClosedBulkChecker<Statement> {
 
-    private static final String PLAIN_STATEMENT_CLOSED_MESSAGE =
-        "Statement is already closed.";
+    private static final String PLAIN_STATEMENT_CLOSED_MESSAGE = "Statement is already closed.";
 
     ClosedPlainStatementChecker(Class<Statement> intf, Statement jdbcObject) {
       super(intf, jdbcObject, PLAIN_STATEMENT_CLOSED_MESSAGE);
@@ -480,24 +450,24 @@ public class Drill2489CallsAfterCloseThrowExceptionsTest extends JdbcTestBase {
       final boolean result;
       if (super.isOkaySpecialCaseException(method, cause)) {
         result = true;
-      } else if (   method.getName().equals("executeLargeBatch")
-               || method.getName().equals("executeLargeUpdate")) {
+      } else if (method.getName().equals("executeLargeBatch")
+          || method.getName().equals("executeLargeUpdate")) {
         // TODO: New Java 8 methods not implemented in Avatica.
         result = true;
-      } else if (   method.getName().equals("enquoteLiteral")
-               || method.getName().equals("enquoteIdentifier")
-               || method.getName().equals("enquoteNCharLiteral")
-               || method.getName().equals("isSimpleIdentifier")) {
+      } else if (method.getName().equals("enquoteLiteral")
+          || method.getName().equals("enquoteIdentifier")
+          || method.getName().equals("enquoteNCharLiteral")
+          || method.getName().equals("isSimpleIdentifier")) {
         // TODO: New Java 9 methods not implemented in Avatica.
         result = true;
       } else if (RuntimeException.class == cause.getClass()
-               && normalClosedExceptionText.equals(cause.getMessage())
-               && (   method.getName().equals("getConnection")
-                   || method.getName().equals("getFetchDirection")
-                   || method.getName().equals("getFetchSize")
-                   || method.getName().equals("getMaxRows")
-                   || method.getName().equals("getLargeMaxRows") // TODO: Java 8
-                   )) {
+          && normalClosedExceptionText.equals(cause.getMessage())
+          && (method.getName().equals("getConnection")
+              || method.getName().equals("getFetchDirection")
+              || method.getName().equals("getFetchSize")
+              || method.getName().equals("getMaxRows")
+              || method.getName().equals("getLargeMaxRows") // TODO: Java 8
+          )) {
         // Special good-enough case--we had to use RuntimeException for now.
         result = true;
       } else {
@@ -525,8 +495,7 @@ public class Drill2489CallsAfterCloseThrowExceptionsTest extends JdbcTestBase {
     private static final String PREPAREDSTATEMENT_CLOSED_MESSAGE =
         "PreparedStatement is already closed.";
 
-    ClosedPreparedStatementChecker(Class<PreparedStatement> intf,
-                                   PreparedStatement jdbcObject) {
+    ClosedPreparedStatementChecker(Class<PreparedStatement> intf, PreparedStatement jdbcObject) {
       super(intf, jdbcObject, PREPAREDSTATEMENT_CLOSED_MESSAGE);
     }
 
@@ -541,27 +510,25 @@ public class Drill2489CallsAfterCloseThrowExceptionsTest extends JdbcTestBase {
       if (super.isOkaySpecialCaseException(method, cause)) {
         result = true;
       } else if (RuntimeException.class == cause.getClass()
-               && normalClosedExceptionText.equals(cause.getMessage())
-               && (   method.getName().equals("clearBatch")
-                   || method.getName().equals("getConnection")
-                   || method.getName().equals("getFetchDirection")
-                   || method.getName().equals("getFetchSize")
-                   || method.getName().equals("getMaxRows")
-                   || method.getName().equals("getMetaData")
-                   )) {
+          && normalClosedExceptionText.equals(cause.getMessage())
+          && (method.getName().equals("clearBatch")
+              || method.getName().equals("getConnection")
+              || method.getName().equals("getFetchDirection")
+              || method.getName().equals("getFetchSize")
+              || method.getName().equals("getMaxRows")
+              || method.getName().equals("getMetaData"))) {
         // Special good-enough case--we had to use RuntimeException for now.
         result = true;
-      } else if (  method.getName().equals("setObject")
-              || method.getName().equals("executeLargeUpdate")
-              || method.getName().equals("executeLargeBatch")
-              || method.getName().equals("getLargeMaxRows")
-              ) {
+      } else if (method.getName().equals("setObject")
+          || method.getName().equals("executeLargeUpdate")
+          || method.getName().equals("executeLargeBatch")
+          || method.getName().equals("getLargeMaxRows")) {
         // TODO: Java 8 methods not yet supported by Avatica.
         result = true;
-      } else if (   method.getName().equals("enquoteLiteral")
-               || method.getName().equals("enquoteIdentifier")
-               || method.getName().equals("enquoteNCharLiteral")
-               || method.getName().equals("isSimpleIdentifier")) {
+      } else if (method.getName().equals("enquoteLiteral")
+          || method.getName().equals("enquoteIdentifier")
+          || method.getName().equals("enquoteNCharLiteral")
+          || method.getName().equals("isSimpleIdentifier")) {
         // TODO: New Java 9 methods not implemented in Avatica.
         result = true;
       } else {
@@ -574,8 +541,7 @@ public class Drill2489CallsAfterCloseThrowExceptionsTest extends JdbcTestBase {
   @Test
   public void testclosedPreparedStmtOfOpenConnMethodsThrowRight() {
     ThrowsClosedBulkChecker<PreparedStatement> checker =
-        new ClosedPreparedStatementChecker(PreparedStatement.class,
-                                           closedPreparedStmtOfOpenConn);
+        new ClosedPreparedStatementChecker(PreparedStatement.class, closedPreparedStmtOfOpenConn);
 
     checker.testAllMethods();
 
@@ -584,11 +550,9 @@ public class Drill2489CallsAfterCloseThrowExceptionsTest extends JdbcTestBase {
     }
   }
 
-  private static class ClosedResultSetChecker
-      extends ThrowsClosedBulkChecker<ResultSet> {
+  private static class ClosedResultSetChecker extends ThrowsClosedBulkChecker<ResultSet> {
 
-    private static final String RESULTSET_CLOSED_MESSAGE =
-        "ResultSet is already closed.";
+    private static final String RESULTSET_CLOSED_MESSAGE = "ResultSet is already closed.";
 
     ClosedResultSetChecker(Class<ResultSet> intf, ResultSet jdbcObject) {
       super(intf, jdbcObject, RESULTSET_CLOSED_MESSAGE);
@@ -600,12 +564,12 @@ public class Drill2489CallsAfterCloseThrowExceptionsTest extends JdbcTestBase {
       if (super.isOkaySpecialCaseException(method, cause)) {
         result = true;
       } else if (RuntimeException.class == cause.getClass()
-               && normalClosedExceptionText.equals(cause.getMessage())
-               && method.getName().equals("getStatement")) {
+          && normalClosedExceptionText.equals(cause.getMessage())
+          && method.getName().equals("getStatement")) {
         // Special good-enough case--we had to use RuntimeException for now.
         result = true;
       } else if (SQLFeatureNotSupportedException.class == cause.getClass()
-               && (method.getName().equals("updateObject"))) {
+          && (method.getName().equals("updateObject"))) {
         // TODO: Java 8 methods not yet supported by Avatica.
         result = true;
       } else {
@@ -639,15 +603,13 @@ public class Drill2489CallsAfterCloseThrowExceptionsTest extends JdbcTestBase {
     }
   }
 
-
   private static class ClosedResultSetMetaDataChecker
       extends ThrowsClosedBulkChecker<ResultSetMetaData> {
 
     private static final String RESULTSETMETADATA_CLOSED_MESSAGE =
         "ResultSetMetaData's ResultSet is already closed.";
 
-    ClosedResultSetMetaDataChecker(Class<ResultSetMetaData> intf,
-                                   ResultSetMetaData jdbcObject) {
+    ClosedResultSetMetaDataChecker(Class<ResultSetMetaData> intf, ResultSetMetaData jdbcObject) {
       super(intf, jdbcObject, RESULTSETMETADATA_CLOSED_MESSAGE);
     }
   } // class ClosedResultSetMetaDataChecker
@@ -655,8 +617,8 @@ public class Drill2489CallsAfterCloseThrowExceptionsTest extends JdbcTestBase {
   @Test
   public void testClosedResultSetMetaDataMethodsThrowRight1() {
     ThrowsClosedBulkChecker<ResultSetMetaData> checker =
-        new ClosedResultSetMetaDataChecker(ResultSetMetaData.class,
-                                           resultSetMetaDataOfClosedResultSet);
+        new ClosedResultSetMetaDataChecker(
+            ResultSetMetaData.class, resultSetMetaDataOfClosedResultSet);
 
     checker.testAllMethods();
 
@@ -668,8 +630,7 @@ public class Drill2489CallsAfterCloseThrowExceptionsTest extends JdbcTestBase {
   @Test
   public void testClosedResultSetMetaDataMethodsThrowRight2() {
     ThrowsClosedBulkChecker<ResultSetMetaData> checker =
-        new ClosedResultSetMetaDataChecker(ResultSetMetaData.class,
-                                           resultSetMetaDataOfClosedStmt);
+        new ClosedResultSetMetaDataChecker(ResultSetMetaData.class, resultSetMetaDataOfClosedStmt);
 
     checker.testAllMethods();
 
@@ -678,22 +639,19 @@ public class Drill2489CallsAfterCloseThrowExceptionsTest extends JdbcTestBase {
     }
   }
 
-
   private static class ClosedDatabaseMetaDataChecker
       extends ThrowsClosedBulkChecker<DatabaseMetaData> {
 
     private static final String DATABASEMETADATA_CLOSED_MESSAGE =
         "DatabaseMetaData's Connection is already closed.";
 
-    ClosedDatabaseMetaDataChecker(Class<DatabaseMetaData> intf,
-                                  DatabaseMetaData jdbcObject) {
+    ClosedDatabaseMetaDataChecker(Class<DatabaseMetaData> intf, DatabaseMetaData jdbcObject) {
       super(intf, jdbcObject, DATABASEMETADATA_CLOSED_MESSAGE);
     }
 
     @Override
     protected boolean isOkayNonthrowingMethod(Method method) {
-      return
-          super.isOkayNonthrowingMethod(method)
+      return super.isOkayNonthrowingMethod(method)
           || method.getName().equals("getDriverMajorVersion")
           || method.getName().equals("getDriverMinorVersion")
           || method.getName().equals("getConnection")
@@ -710,8 +668,8 @@ public class Drill2489CallsAfterCloseThrowExceptionsTest extends JdbcTestBase {
       if (super.isOkaySpecialCaseException(method, cause)) {
         result = true;
       } else if (RuntimeException.class == cause.getClass()
-               && normalClosedExceptionText.equals(cause.getMessage())
-               && method.getName().equals("getResultSetHoldability")) {
+          && normalClosedExceptionText.equals(cause.getMessage())
+          && method.getName().equals("getResultSetHoldability")) {
         // Special good-enough case--we had to use RuntimeException for now.
         result = true;
       } else {
@@ -721,12 +679,10 @@ public class Drill2489CallsAfterCloseThrowExceptionsTest extends JdbcTestBase {
     }
   } // class ClosedDatabaseMetaDataChecker
 
-
   @Test
   public void testClosedDatabaseMetaDataMethodsThrowRight() {
     ThrowsClosedBulkChecker<DatabaseMetaData> checker =
-        new ClosedDatabaseMetaDataChecker(DatabaseMetaData.class,
-                                          databaseMetaDataOfClosedConn);
+        new ClosedDatabaseMetaDataChecker(DatabaseMetaData.class, databaseMetaDataOfClosedConn);
 
     checker.testAllMethods();
 

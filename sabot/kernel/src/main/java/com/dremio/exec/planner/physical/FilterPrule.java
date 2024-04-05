@@ -15,13 +15,12 @@
  */
 package com.dremio.exec.planner.physical;
 
+import com.dremio.exec.planner.logical.FilterRel;
+import com.dremio.exec.planner.logical.RelOptHelper;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
-
-import com.dremio.exec.planner.logical.FilterRel;
-import com.dremio.exec.planner.logical.RelOptHelper;
 
 public class FilterPrule extends Prule {
   public static final RelOptRule INSTANCE = new FilterPrule();
@@ -32,7 +31,7 @@ public class FilterPrule extends Prule {
 
   @Override
   public void onMatch(RelOptRuleCall call) {
-    final FilterRel  filter = (FilterRel) call.rel(0);
+    final FilterRel filter = (FilterRel) call.rel(0);
     final RelNode input = filter.getInput();
 
     RelTraitSet traits = input.getTraitSet().plus(Prel.PHYSICAL);
@@ -41,10 +40,14 @@ public class FilterPrule extends Prule {
     boolean transform = new Subset(call).go(filter, convertedInput);
 
     if (!transform) {
-      call.transformTo(new FilterPrel(filter.getCluster(), convertedInput.getTraitSet(), convertedInput, filter.getCondition()));
+      call.transformTo(
+          new FilterPrel(
+              filter.getCluster(),
+              convertedInput.getTraitSet(),
+              convertedInput,
+              filter.getCondition()));
     }
   }
-
 
   private class Subset extends SubsetTransformer<FilterRel, RuntimeException> {
 
@@ -56,6 +59,5 @@ public class FilterPrule extends Prule {
     public RelNode convertChild(FilterRel filter, RelNode rel) {
       return new FilterPrel(filter.getCluster(), rel.getTraitSet(), rel, filter.getCondition());
     }
-
   }
 }

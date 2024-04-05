@@ -62,7 +62,6 @@ class ModalForm extends Component {
     hideError: PropTypes.bool,
     leftAlignFooter: PropTypes.bool,
     hideCancel: PropTypes.bool,
-    showSpinnerAndText: PropTypes.bool,
 
     renderFooter: PropTypes.func,
   };
@@ -76,7 +75,6 @@ class ModalForm extends Component {
     cancelText: "Cancel",
     isNestedForm: false,
     isModal: true,
-    showSpinnerAndText: false,
   };
 
   state = {
@@ -127,7 +125,6 @@ class ModalForm extends Component {
       isModal,
       leftAlignFooter,
       hideCancel,
-      showSpinnerAndText,
       confirmButtonStyle,
       renderFooter,
     } = this.props;
@@ -172,7 +169,6 @@ class ModalForm extends Component {
           confirm={this.handleSubmissionEvent}
           leftAlign={leftAlignFooter}
           hideCancel={hideCancel}
-          showSpinnerAndText={showSpinnerAndText}
           confirmButtonStyle={confirmButtonStyle}
         />
       ),

@@ -15,29 +15,26 @@
  */
 package com.dremio.exec.planner.serializer.logical;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import org.apache.calcite.rel.RelNode;
-
 import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.exec.planner.acceleration.ExpansionNode;
 import com.dremio.exec.planner.serializer.RelNodeSerde;
 import com.dremio.plan.serialization.PExpansionNode;
 import com.dremio.service.namespace.NamespaceKey;
+import java.util.ArrayList;
+import java.util.List;
+import org.apache.calcite.rel.RelNode;
 
-/**
- * Serde for {@link ExpansionNode}
- */
+/** Serde for {@link ExpansionNode} */
 public final class ExpansionNodeSerde implements RelNodeSerde<ExpansionNode, PExpansionNode> {
   @Override
   public PExpansionNode serialize(ExpansionNode expansionNode, RelToProto s) {
     List<String> path = expansionNode.getPath().getPathComponents();
-    PExpansionNode.Builder builder = PExpansionNode.newBuilder()
-      .setInput(s.toProto(expansionNode.getInput()))
-      .addAllPath(path)
-      .setContextSensitive(expansionNode.isContextSensitive())
-      .setIsDefault(expansionNode.isDefault());
+    PExpansionNode.Builder builder =
+        PExpansionNode.newBuilder()
+            .setInput(s.toProto(expansionNode.getInput()))
+            .addAllPath(path)
+            .setContextSensitive(false)
+            .setIsDefault(expansionNode.isDefault());
     if (expansionNode.getVersionContext() != null) {
       builder.setVersionContext(expansionNode.getVersionContext().serialize());
     }
@@ -48,7 +45,14 @@ public final class ExpansionNodeSerde implements RelNodeSerde<ExpansionNode, PEx
   public ExpansionNode deserialize(PExpansionNode node, RelFromProto s) {
     List<String> path = new ArrayList<>(node.getPathList());
     RelNode input = s.toRel(node.getInput());
-    return (ExpansionNode) ExpansionNode.wrap(new NamespaceKey(path), input, input.getRowType(), node.getContextSensitive(),
-      node.getIsDefault(), node.getVersionContext() == null ?  null : TableVersionContext.deserialize(node.getVersionContext()));
+    return (ExpansionNode)
+        ExpansionNode.wrap(
+            new NamespaceKey(path),
+            input,
+            input.getRowType(),
+            node.getIsDefault(),
+            node.getVersionContext() == null
+                ? null
+                : TableVersionContext.deserialize(node.getVersionContext()));
   }
 }

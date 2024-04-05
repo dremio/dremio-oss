@@ -21,15 +21,6 @@ import static com.dremio.exec.store.SystemSchemas.METADATA_FILE_PATH;
 import static com.dremio.exec.store.SystemSchemas.SNAPSHOT_ID;
 import static com.dremio.exec.util.VectorUtil.getVectorFromSchemaPath;
 
-import java.nio.charset.StandardCharsets;
-import java.util.List;
-import java.util.Optional;
-
-import org.apache.arrow.vector.BigIntVector;
-import org.apache.arrow.vector.VarCharVector;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.iceberg.expressions.Expressions;
-
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.physical.config.TableFunctionContext;
@@ -42,12 +33,18 @@ import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.sabot.op.scan.MutatorSchemaChangeCallBack;
 import com.dremio.sabot.op.scan.ScanOperator.ScanMutator;
 import com.dremio.sabot.op.tablefunction.TableFunctionOperator;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Optional;
+import org.apache.arrow.vector.BigIntVector;
+import org.apache.arrow.vector.VarCharVector;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.iceberg.expressions.Expressions;
 
-/**
- * Table function for Iceberg manifest list file scan
- */
+/** Table function for Iceberg manifest list file scan */
 public class ManifestListScanTableFunction extends AbstractTableFunction {
-  private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(ManifestListScanTableFunction.class);
+  private static final org.slf4j.Logger LOGGER =
+      org.slf4j.LoggerFactory.getLogger(ManifestListScanTableFunction.class);
   private final FragmentExecutionContext fragmentExecutionContext;
   private final OperatorStats operatorStats;
   private final OpProps props;
@@ -67,10 +64,10 @@ public class ManifestListScanTableFunction extends AbstractTableFunction {
   private int inputIndex;
 
   public ManifestListScanTableFunction(
-    FragmentExecutionContext fragmentExecutionContext,
-    OperatorContext context,
-    OpProps props,
-    TableFunctionConfig functionConfig) {
+      FragmentExecutionContext fragmentExecutionContext,
+      OperatorContext context,
+      OpProps props,
+      TableFunctionConfig functionConfig) {
     super(context, functionConfig);
     this.fragmentExecutionContext = fragmentExecutionContext;
     this.props = props;
@@ -81,11 +78,14 @@ public class ManifestListScanTableFunction extends AbstractTableFunction {
   public VectorAccessible setup(VectorAccessible accessible) throws Exception {
     super.setup(accessible);
 
-    icebergMutablePlugin = fragmentExecutionContext.getStoragePlugin(functionConfig.getFunctionContext().getPluginId());
+    icebergMutablePlugin =
+        fragmentExecutionContext.getStoragePlugin(
+            functionConfig.getFunctionContext().getPluginId());
     tablePath = getDataset(functionConfig);
 
     inputMetadataLocation = (VarCharVector) getVectorFromSchemaPath(incoming, METADATA_FILE_PATH);
-    inputManifestListLocation = (VarCharVector) getVectorFromSchemaPath(incoming, MANIFEST_LIST_PATH);
+    inputManifestListLocation =
+        (VarCharVector) getVectorFromSchemaPath(incoming, MANIFEST_LIST_PATH);
     inputSnapshotId = (BigIntVector) getVectorFromSchemaPath(incoming, SNAPSHOT_ID);
 
     VectorContainer outgoing = (VectorContainer) super.setup(incoming);
@@ -109,9 +109,17 @@ public class ManifestListScanTableFunction extends AbstractTableFunction {
       byte[] manifestListPathBytes = inputManifestListLocation.get(inputIndex);
       String manifestListLocation = new String(manifestListPathBytes, StandardCharsets.UTF_8);
       if (StringUtils.isNotBlank(manifestListLocation)) {
-        manifestListRecordReader = new LeanIcebergManifestListRecordReader(context, manifestListLocation,
-          icebergMutablePlugin, tablePath,functionContext.getPluginId().getName(), functionContext.getFullSchema(),
-          props, functionContext.getPartitionColumns(), Optional.empty());
+        manifestListRecordReader =
+            new LeanIcebergManifestListRecordReader(
+                context,
+                manifestListLocation,
+                icebergMutablePlugin,
+                tablePath,
+                functionContext.getPluginId().getName(),
+                functionContext.getFullSchema(),
+                props,
+                functionContext.getPartitionColumns(),
+                Optional.empty());
       }
     } else {
       // Initialize the reader for the current processing snapshot id
@@ -119,16 +127,23 @@ public class ManifestListScanTableFunction extends AbstractTableFunction {
       String metadataLocation = new String(pathBytes, StandardCharsets.UTF_8);
       Long snapshotId = inputSnapshotId.get(inputIndex);
 
-      final IcebergExtendedProp icebergExtendedProp = new IcebergExtendedProp(
-        null,
-        IcebergSerDe.serializeToByteArray(Expressions.alwaysTrue()),
-        snapshotId,
-        null
-      );
+      final IcebergExtendedProp icebergExtendedProp =
+          new IcebergExtendedProp(
+              null, IcebergSerDe.serializeToByteArray(Expressions.alwaysTrue()), snapshotId, null);
 
-      manifestListRecordReader = new IcebergManifestListRecordReader(context, metadataLocation, icebergMutablePlugin,
-        tablePath, functionContext.getPluginId().getName(), functionContext.getFullSchema(), props,
-        functionContext.getPartitionColumns(), icebergExtendedProp, ManifestContentType.ALL);
+      manifestListRecordReader =
+          new IcebergManifestListRecordReader(
+              context,
+              metadataLocation,
+              icebergMutablePlugin,
+              tablePath,
+              functionContext.getPluginId().getName(),
+              functionContext.getFullSchema(),
+              props,
+              functionContext.getPartitionColumns(),
+              icebergExtendedProp,
+              ManifestContentType.ALL,
+              false);
     }
     manifestListRecordReader.setup(mutator);
     operatorStats.addLongStat(TableFunctionOperator.Metric.NUM_SNAPSHOT_IDS, 1L);

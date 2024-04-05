@@ -15,8 +15,6 @@
  */
 package com.dremio.sabot.exec.fragment;
 
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.proto.CoordExecRPC.FragmentStatus;
@@ -26,13 +24,15 @@ import com.dremio.exec.proto.UserBitShared.MinorFragmentProfile;
 import com.dremio.exec.proto.UserBitShared.OperatorProfile;
 import com.dremio.sabot.exec.MaestroProxy;
 import com.dremio.sabot.exec.context.FragmentStats;
+import org.apache.arrow.memory.BufferAllocator;
 
 /**
- * The status reporter is responsible for receiving changes in fragment state and propagating the status back to the
- * AttemptManager through a control tunnel.
+ * The status reporter is responsible for receiving changes in fragment state and propagating the
+ * status back to the AttemptManager through a control tunnel.
  */
 class FragmentStatusReporter {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FragmentStatusReporter.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(FragmentStatusReporter.class);
 
   private final FragmentHandle handle;
   private final int schedulingWeight;
@@ -55,8 +55,8 @@ class FragmentStatusReporter {
   }
 
   /**
-   * Returns a {@link FragmentStatus} with the given state. {@link FragmentStatus} has additional information like
-   * metrics, etc. that is gathered from the {@link FragmentContext}.
+   * Returns a {@link FragmentStatus} with the given state. {@link FragmentStatus} has additional
+   * information like metrics, etc. that is gathered from the {@link FragmentExecutor}.
    *
    * @param state the state to include in the status
    * @return the status
@@ -84,44 +84,49 @@ class FragmentStatusReporter {
     } else {
       b.setLastProgress(prevMinorFragmentProfile.getLastProgress());
     }
-
     status.setProfile(b);
     prevMinorFragmentProfile = status.getProfile();
     return status.build();
   }
 
   /**
-   * Reports the state change to the AttemptManager. The state is wrapped in a {@link FragmentStatus} that has additional
-   * information like metrics, etc. This additional information is gathered from the {@link FragmentContext}.
-   * NOTE: Use {@link #fail} to report state change to {@link FragmentState#FAILED}.
+   * Reports the state change to the AttemptManager. The state is wrapped in a {@link
+   * FragmentStatus} that has additional information like metrics, etc. This additional information
+   * is gathered from the {@link FragmentExecutor}. NOTE: Use {@link #fail} to report state change
+   * to {@link FragmentState#FAILED}.
    *
    * @param newState the new state
    */
   public void stateChanged(final FragmentState newState) {
     final FragmentStatus status = getStatus(newState, null);
-    logger.info("{} scheduling weight {}: State to report: {}", QueryIdHelper.getQueryIdentifier(handle), schedulingWeight, newState);
+    logger.info(
+        "{} scheduling weight {}: State to report: {}",
+        QueryIdHelper.getQueryIdentifier(handle),
+        schedulingWeight,
+        newState);
     switch (newState) {
-    case AWAITING_ALLOCATION:
-    case CANCELLATION_REQUESTED:
-    case CANCELLED:
-    case FINISHED:
-    case RUNNING:
-      notifyStatusChanged(status);
-      break;
-    case SENDING:
-      // no op.
-      break;
-    case FAILED:
-      // shouldn't get here since fail() should be called.
-    default:
-      throw new IllegalStateException(String.format("Received state changed event for unexpected state of %s.", newState));
+      case AWAITING_ALLOCATION:
+      case CANCELLATION_REQUESTED:
+      case CANCELLED:
+      case FINISHED:
+      case RUNNING:
+        notifyStatusChanged(status);
+        break;
+      case SENDING:
+        // no op.
+        break;
+      case FAILED:
+        // shouldn't get here since fail() should be called.
+      default:
+        throw new IllegalStateException(
+            String.format("Received state changed event for unexpected state of %s.", newState));
     }
   }
 
   /**
-   * {@link FragmentStatus} with the {@link FragmentState#FAILED} state is reported to the AttemptManager. The
-   * {@link FragmentStatus} has additional information like metrics, etc. that is gathered from the
-   * {@link FragmentContext}.
+   * {@link FragmentStatus} with the {@link FragmentState#FAILED} state is reported to the
+   * AttemptManager. The {@link FragmentStatus} has additional information like metrics, etc. that
+   * is gathered from the {@link FragmentExecutor}.
    *
    * @param ex the exception related to the failure
    */
@@ -154,8 +159,8 @@ class FragmentStatusReporter {
 
   private boolean madeProgress(final OperatorProfile prev, final OperatorProfile cur) {
     return prev.getInputProfileCount() != cur.getInputProfileCount()
-      || !prev.getInputProfileList().equals(cur.getInputProfileList())
-      || prev.getMetricCount() != cur.getMetricCount()
-      || !prev.getMetricList().equals(cur.getMetricList());
+        || !prev.getInputProfileList().equals(cur.getInputProfileList())
+        || prev.getMetricCount() != cur.getMetricCount()
+        || !prev.getMetricList().equals(cur.getMetricList());
   }
 }

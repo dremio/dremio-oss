@@ -17,7 +17,6 @@ package com.dremio.exec.planner.logical;
 
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptUtil;
@@ -27,7 +26,9 @@ public class MergeProjectForFlattenRule extends RelOptRule {
   public static final RelOptRule INSTANCE = new MergeProjectForFlattenRule();
 
   private MergeProjectForFlattenRule() {
-    super(RelOptHelper.some(ProjectForFlattenRel.class, RelOptHelper.any(ProjectForFlattenRel.class)), "MergeProjectForFlattenRule");
+    super(
+        RelOptHelper.some(ProjectForFlattenRel.class, RelOptHelper.any(ProjectForFlattenRel.class)),
+        "MergeProjectForFlattenRule");
   }
 
   @Override
@@ -36,15 +37,30 @@ public class MergeProjectForFlattenRule extends RelOptRule {
     ProjectForFlattenRel bottom = call.rel(1);
 
     try {
-      ProjectRel temporary = ProjectRel.create(bottom.getCluster(), bottom.getTraitSet(), bottom.getInput(), bottom.getProjExprs(), bottom.getRowType());
+      ProjectRel temporary =
+          ProjectRel.create(
+              bottom.getCluster(),
+              bottom.getTraitSet(),
+              bottom.getInput(),
+              bottom.getProjExprs(),
+              bottom.getRowType());
       List<RexNode> newProjExprs = RelOptUtil.pushPastProject(top.getProjExprs(), temporary);
-      List<RexNode> newItemExprs = new ArrayList<>(top.getStructuredColumnExprs().size() + bottom.getStructuredColumnExprs().size());
+      List<RexNode> newItemExprs =
+          new ArrayList<>(
+              top.getStructuredColumnExprs().size() + bottom.getStructuredColumnExprs().size());
       newItemExprs.addAll(RelOptUtil.pushPastProject(top.getStructuredColumnExprs(), temporary));
       newItemExprs.addAll(bottom.getStructuredColumnExprs());
 
-      ProjectForFlattenRel newProjectForFlatten = new ProjectForFlattenRel(
-        top.getCluster(), top.getTraitSet(), bottom.getInput(), top.getRowType(), newProjExprs, newItemExprs);
+      ProjectForFlattenRel newProjectForFlatten =
+          new ProjectForFlattenRel(
+              top.getCluster(),
+              top.getTraitSet(),
+              bottom.getInput(),
+              top.getRowType(),
+              newProjExprs,
+              newItemExprs);
       call.transformTo(newProjectForFlatten);
-    } catch (Exception | AssertionError ignored) {}
+    } catch (Exception | AssertionError ignored) {
+    }
   }
 }

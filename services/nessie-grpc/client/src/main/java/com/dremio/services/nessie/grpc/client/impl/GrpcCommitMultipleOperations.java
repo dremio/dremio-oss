@@ -19,8 +19,9 @@ import static com.dremio.services.nessie.grpc.GrpcExceptionMapper.handle;
 import static com.dremio.services.nessie.grpc.ProtoUtil.fromProto;
 import static com.dremio.services.nessie.grpc.ProtoUtil.toProto;
 
+import com.dremio.services.nessie.grpc.api.CommitRequest;
+import com.dremio.services.nessie.grpc.api.TreeServiceGrpc.TreeServiceBlockingStub;
 import java.util.List;
-
 import org.projectnessie.client.api.CommitMultipleOperationsBuilder;
 import org.projectnessie.client.builder.BaseCommitMultipleOperationsBuilder;
 import org.projectnessie.error.NessieConflictException;
@@ -30,9 +31,6 @@ import org.projectnessie.model.CommitMeta;
 import org.projectnessie.model.CommitResponse;
 import org.projectnessie.model.ImmutableOperations;
 import org.projectnessie.model.Operation;
-
-import com.dremio.services.nessie.grpc.api.CommitRequest;
-import com.dremio.services.nessie.grpc.api.TreeServiceGrpc.TreeServiceBlockingStub;
 
 final class GrpcCommitMultipleOperations extends BaseCommitMultipleOperationsBuilder {
 
@@ -81,18 +79,20 @@ final class GrpcCommitMultipleOperations extends BaseCommitMultipleOperationsBui
   }
 
   @Override
-  public CommitResponse commitWithResponse() throws NessieNotFoundException, NessieConflictException {
+  public CommitResponse commitWithResponse()
+      throws NessieNotFoundException, NessieConflictException {
     return handle(
-      () -> {
-        CommitRequest.Builder request = CommitRequest.newBuilder()
-          .setBranch(branchName)
-          .setCommitOperations(toProto(operations.build()));
+        () -> {
+          CommitRequest.Builder request =
+              CommitRequest.newBuilder()
+                  .setBranch(branchName)
+                  .setCommitOperations(toProto(operations.build()));
 
-        if (hash != null) {
-          request.setHash(hash);
-        }
+          if (hash != null) {
+            request.setHash(hash);
+          }
 
-        return fromProto(stub.commitMultipleOperations(request.build()));
-      });
+          return fromProto(stub.commitMultipleOperations(request.build()));
+        });
   }
 }

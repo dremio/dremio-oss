@@ -15,9 +15,7 @@
  */
 package com.dremio.service.nessie;
 
-/**
- * Creates the RefLog KV store for Nessie.
- */
+/** Creates the RefLog KV store for Nessie. */
 public class NessieRefLogStoreBuilder extends AbstractNessieStoreBuilder {
   public NessieRefLogStoreBuilder() {
     super("ref_log");

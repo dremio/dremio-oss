@@ -18,6 +18,7 @@ package com.dremio.exec.planner.normalizer.aggregaterewrite;
 
 import static com.dremio.exec.planner.sql.DremioSqlOperatorTable.ARRAY_AGG;
 
+import com.dremio.exec.planner.logical.RelOptHelper;
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
@@ -27,16 +28,15 @@ import org.apache.calcite.rel.logical.LogicalAggregate;
 import org.apache.calcite.rel.rules.AggregateExpandDistinctAggregatesRule;
 import org.apache.calcite.sql.SqlKind;
 
-import com.dremio.exec.planner.logical.RelOptHelper;
-
 public final class ArrayAggExpandDistinctAggregateRule extends RelOptRule {
-  public static final RelOptRule INSTANCE = new ArrayAggExpandDistinctAggregateRule(
-    AggregateExpandDistinctAggregatesRule.Config.JOIN);
+  public static final RelOptRule INSTANCE =
+      new ArrayAggExpandDistinctAggregateRule(AggregateExpandDistinctAggregatesRule.Config.JOIN);
   private final AggregateExpandDistinctAggregatesRule rule;
 
   private ArrayAggExpandDistinctAggregateRule(AggregateExpandDistinctAggregatesRule.Config config) {
-    super(RelOptHelper.some(LogicalAggregate.class, Convention.NONE, RelOptHelper.any(RelNode.class)),
-      "ArrayAggExpandDistinctAggregateRule");
+    super(
+        RelOptHelper.some(LogicalAggregate.class, Convention.NONE, RelOptHelper.any(RelNode.class)),
+        "ArrayAggExpandDistinctAggregateRule");
     rule = config.toRule();
   }
 
@@ -44,7 +44,8 @@ public final class ArrayAggExpandDistinctAggregateRule extends RelOptRule {
     if (!call.isDistinct()) {
       return false;
     }
-    return call.getAggregation().getKind() == SqlKind.LISTAGG && ARRAY_AGG.getName().equals(call.getAggregation().getName());
+    return call.getAggregation().getKind() == SqlKind.LISTAGG
+        && ARRAY_AGG.getName().equals(call.getAggregation().getName());
   }
 
   @Override

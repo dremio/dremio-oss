@@ -17,12 +17,6 @@ package com.dremio.service.namespace;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.stream.Collectors;
-
-import org.apache.commons.lang3.StringUtils;
-
 import com.dremio.common.utils.PathUtils;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -30,10 +24,12 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
+import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
+import org.apache.commons.lang3.StringUtils;
 
-/**
- * NamespaceKey describes list representation of dotted schema path.
- */
+/** NamespaceKey describes list representation of dotted schema path. */
 public class NamespaceKey {
   private static final Joiner DOT_JOINER = Joiner.on('.');
 
@@ -51,13 +47,16 @@ public class NamespaceKey {
   }
 
   @JsonCreator
-  public NamespaceKey(@JsonProperty("pathComponents") List<String> pathComponents, @JsonProperty("schemaPath") String schemaPath) {
+  public NamespaceKey(
+      @JsonProperty("pathComponents") List<String> pathComponents,
+      @JsonProperty("schemaPath") String schemaPath) {
     checkNotNull(pathComponents);
     this.pathComponents = ImmutableList.copyOf(pathComponents);
-    this.schemaPath = StringUtils.isEmpty(schemaPath) ? PathUtils.constructFullPath(pathComponents) : schemaPath;
+    this.schemaPath =
+        StringUtils.isEmpty(schemaPath) ? PathUtils.constructFullPath(pathComponents) : schemaPath;
   }
 
-  public int size(){
+  public int size() {
     return pathComponents.size();
   }
 
@@ -67,7 +66,8 @@ public class NamespaceKey {
 
   @JsonIgnore
   public NamespaceKey getChild(String name) {
-    return new NamespaceKey(ImmutableList.copyOf(Iterables.concat(pathComponents, ImmutableList.of(name))));
+    return new NamespaceKey(
+        ImmutableList.copyOf(Iterables.concat(pathComponents, ImmutableList.of(name))));
   }
 
   public String getSchemaPath() {
@@ -86,7 +86,8 @@ public class NamespaceKey {
 
   @JsonIgnore
   public NamespaceKey asLowerCase() {
-    return new NamespaceKey(pathComponents.stream().map(String::toLowerCase).collect(Collectors.toList()));
+    return new NamespaceKey(
+        pathComponents.stream().map(String::toLowerCase).collect(Collectors.toList()));
   }
 
   @Override

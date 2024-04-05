@@ -17,15 +17,14 @@ package com.dremio.exec.rpc;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
-import java.util.concurrent.TimeUnit;
-
 import com.google.common.base.Stopwatch;
-
 import io.netty.channel.EventLoopGroup;
+import java.util.concurrent.TimeUnit;
 
 public class EventLoopCloseable implements AutoCloseable {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(EventLoopCloseable.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(EventLoopCloseable.class);
 
   private final EventLoopGroup eventLoop;
 
@@ -50,10 +49,10 @@ public class EventLoopCloseable implements AutoCloseable {
     } catch (final InterruptedException e) {
       logger.warn("Failure while shutting down bootstrap context event loops.", e);
 
-      // Preserve evidence that the interruption occurred so that code higher up on the call stack can learn of the
+      // Preserve evidence that the interruption occurred so that code higher up on the call stack
+      // can learn of the
       // interruption and respond to it if it wants to.
       Thread.currentThread().interrupt();
     }
   }
-
 }

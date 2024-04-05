@@ -15,23 +15,19 @@
  */
 package com.dremio.dac.server;
 
+import com.fasterxml.jackson.databind.JsonMappingException;
 import java.util.Iterator;
-
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.ext.ExceptionMapper;
 
-import com.fasterxml.jackson.databind.JsonMappingException;
-
 /**
- * The default {@code com.fasterxml.jackson.jaxrs.base.JsonMappingExceptionMapper}
- * exposes internal class and package names when an incoming request contains input
- * that does not correctly map to the internal request object for the requested path
- * Example: the user supplied a value with the wrong type for a property, so a
- * JsonMappingException is thrown when we attempt to deserialize the request body.
- * This custom exception mapper generates responses that tell the user the path to
- * the invalid input in their JSON request without exposing internal details about
- * the system.
+ * The default {@code com.fasterxml.jackson.jaxrs.base.JsonMappingExceptionMapper} exposes internal
+ * class and package names when an incoming request contains input that does not correctly map to
+ * the internal request object for the requested path Example: the user supplied a value with the
+ * wrong type for a property, so a JsonMappingException is thrown when we attempt to deserialize the
+ * request body. This custom exception mapper generates responses that tell the user the path to the
+ * invalid input in their JSON request without exposing internal details about the system.
  */
 public class RestApiJsonMappingExceptionMapper implements ExceptionMapper<JsonMappingException> {
   @Override
@@ -57,9 +53,9 @@ public class RestApiJsonMappingExceptionMapper implements ExceptionMapper<JsonMa
 
   private Response errorResponse(String errorMessage) {
     return Response.status(Response.Status.BAD_REQUEST)
-      .entity(new GenericErrorMessage(errorMessage))
-      .type(MediaType.APPLICATION_JSON_TYPE)
-      .build();
+        .entity(new GenericErrorMessage(errorMessage))
+        .type(MediaType.APPLICATION_JSON_TYPE)
+        .build();
   }
 
   private String referenceToString(JsonMappingException.Reference ref) {

@@ -15,9 +15,6 @@
  */
 package com.dremio.plugins.elastic.planning;
 
-import java.util.List;
-import java.util.stream.Collectors;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.physical.base.AbstractGroupScan;
@@ -31,10 +28,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Objects;
 import com.google.common.collect.Iterables;
+import java.util.List;
+import java.util.stream.Collectors;
 
-/**
- * Elasticsearch group scan.
- */
+/** Elasticsearch group scan. */
 public class ElasticsearchGroupScan extends AbstractGroupScan {
 
   private final ElasticsearchScanSpec spec;
@@ -45,8 +42,7 @@ public class ElasticsearchGroupScan extends AbstractGroupScan {
       ElasticsearchScanSpec spec,
       TableMetadata table,
       List<SchemaPath> columns,
-      long rowCountEstimate
-      ) {
+      long rowCountEstimate) {
     super(props, table, columns);
     this.spec = spec;
     this.rowCountEstimate = rowCountEstimate;
@@ -59,10 +55,10 @@ public class ElasticsearchGroupScan extends AbstractGroupScan {
 
   @Override
   public SubScan getSpecificScan(List<SplitWork> work) throws ExecutionSetupException {
-    List<SplitAndPartitionInfo> splitWork = work
-      .stream()
-      .map(input -> input.getSplitAndPartitionInfo(true))
-      .collect(Collectors.toList());
+    List<SplitAndPartitionInfo> splitWork =
+        work.stream()
+            .map(input -> input.getSplitAndPartitionInfo(true))
+            .collect(Collectors.toList());
 
     return new ElasticsearchSubScan(
         getProps(),
@@ -72,8 +68,7 @@ public class ElasticsearchGroupScan extends AbstractGroupScan {
         getColumns(),
         Iterables.getOnlyElement(getReferencedTables()),
         getDataset().getSchema(),
-        getDataset().getReadDefinition().getExtendedProperty()
-        );
+        getDataset().getReadDefinition().getExtendedProperty());
   }
 
   @Override
@@ -87,7 +82,8 @@ public class ElasticsearchGroupScan extends AbstractGroupScan {
       return false;
     }
     ElasticsearchGroupScan castOther = (ElasticsearchGroupScan) other;
-    return Objects.equal(spec, castOther.spec) && Objects.equal(rowCountEstimate, castOther.rowCountEstimate);
+    return Objects.equal(spec, castOther.spec)
+        && Objects.equal(rowCountEstimate, castOther.rowCountEstimate);
   }
 
   @Override
@@ -97,8 +93,9 @@ public class ElasticsearchGroupScan extends AbstractGroupScan {
 
   @Override
   public String toString() {
-    return MoreObjects.toStringHelper(this).add("spec", spec).add("rowCountEstimate", rowCountEstimate).toString();
+    return MoreObjects.toStringHelper(this)
+        .add("spec", spec)
+        .add("rowCountEstimate", rowCountEstimate)
+        .toString();
   }
-
-
 }

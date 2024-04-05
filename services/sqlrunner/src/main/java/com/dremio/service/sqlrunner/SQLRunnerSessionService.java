@@ -15,12 +15,11 @@
  */
 package com.dremio.service.sqlrunner;
 
-/**
- * Defines the interface for SQLRunner Session services
- */
+/** Defines the interface for SQLRunner Session services */
 public interface SQLRunnerSessionService {
   /**
    * Returns the Sql Runner session.
+   *
    * @param userId the userId to retrieve
    * @return a SQLRunnerSession object containing the SQL Runner session of the user
    */
@@ -28,30 +27,33 @@ public interface SQLRunnerSessionService {
 
   /**
    * Update a SQl Runner session
+   *
    * @param newSession the SQL Runner session to put in the store
    */
-  SQLRunnerSession updateSession(SQLRunnerSession newSession) throws SQLRunnerSessionNotSupportedException;
+  SQLRunnerSession updateSession(SQLRunnerSession newSession)
+      throws SQLRunnerSessionNotSupportedException;
 
   /**
    * Update a SQl Runner session
+   *
    * @param userId the owner userId of the SQL Runner Session
    */
   void deleteSession(String userId) throws SQLRunnerSessionNotSupportedException;
 
   /**
    * Add a tab to SQl Runner session
+   *
    * @param userId the userId
    */
   SQLRunnerSession newTab(String userId, String scriptId);
 
   /**
    * Delete a tab in SQl Runner session
+   *
    * @param userId the userId to
    */
   void deleteTab(String userId, String scriptId);
 
-  /**
-   * Delete expired SQl Runner sessions
-   */
+  /** Delete expired SQl Runner sessions */
   int deleteExpired();
 }

@@ -16,45 +16,48 @@
 package com.dremio;
 
 import java.math.BigDecimal;
-
 import org.junit.Test;
 
 public class TestIsNotDistinctFromJoin extends PlanTestBase {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestIsNotDistinctFromJoin.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(TestIsNotDistinctFromJoin.class);
 
   @Test
   public void testINDF() throws Exception {
-    testPlanMatchingPatterns("SELECT \"t0\".\"l_returnflag\" AS \"returnflag\",\n" +
-      "  SUM( \"t1\".\"X_measure__2\") AS \"sum\"\n" +
-      "FROM ( \n" +
-      "  SELECT l_orderkey,\n" +
-      "    l_returnflag\n" +
-      "  FROM cp.\"tpch/lineitem.parquet\" l\n" +
-      "  WHERE ( l_linestatus = 'F')\n" +
-      "  GROUP BY l_orderkey, l_returnflag\n" +
-      ") \"t0\"\n" +
-      "  INNER JOIN ( \n" +
-      "  SELECT l_orderkey,\n" +
-      "    SUM( ( CASE WHEN ( ( {fn LCASE( l_comment )} = 'all') ) THEN l_extendedprice ELSE CAST( NULL AS INTEGER) END)) AS \"X_measure__2\"\n" +
-      "  FROM cp.\"tpch/lineitem.parquet\" l\n" +
-      "  GROUP BY l_orderkey\n" +
-      ") \"t1\" ON ( ( \"t0\".\"l_orderkey\" = \"t1\".\"l_orderkey\") OR ( ( \"t0\".\"l_orderkey\" IS NULL) AND ( \"t1\".\"l_orderkey\" IS NULL)))\n" +
-      "GROUP BY \"t0\".\"l_returnflag\"\n", new String[] {"IS NOT DISTINCT FROM"});
+    testPlanMatchingPatterns(
+        "SELECT \"t0\".\"l_returnflag\" AS \"returnflag\",\n"
+            + "  SUM( \"t1\".\"X_measure__2\") AS \"sum\"\n"
+            + "FROM ( \n"
+            + "  SELECT l_orderkey,\n"
+            + "    l_returnflag\n"
+            + "  FROM cp.\"tpch/lineitem.parquet\" l\n"
+            + "  WHERE ( l_linestatus = 'F')\n"
+            + "  GROUP BY l_orderkey, l_returnflag\n"
+            + ") \"t0\"\n"
+            + "  INNER JOIN ( \n"
+            + "  SELECT l_orderkey,\n"
+            + "    SUM( ( CASE WHEN ( ( {fn LCASE( l_comment )} = 'all') ) THEN l_extendedprice ELSE CAST( NULL AS INTEGER) END)) AS \"X_measure__2\"\n"
+            + "  FROM cp.\"tpch/lineitem.parquet\" l\n"
+            + "  GROUP BY l_orderkey\n"
+            + ") \"t1\" ON ( ( \"t0\".\"l_orderkey\" = \"t1\".\"l_orderkey\") OR ( ( \"t0\".\"l_orderkey\" IS NULL) AND ( \"t1\".\"l_orderkey\" IS NULL)))\n"
+            + "GROUP BY \"t0\".\"l_returnflag\"\n",
+        new String[] {"IS NOT DISTINCT FROM"});
   }
 
   @Test
   public void testDecimalCoercion() throws Exception {
-    String sql = "select t1.dec_38_0, t2.dec_38_2 from\n" +
-      "  cp.\"decimal/different_scale.parquet\" t1,\n" +
-      "  cp.\"decimal/different_scale.parquet\" t2\n" +
-      "where\n" +
-      "  t1.dec_38_0 is not distinct from t2.dec_38_2";
+    String sql =
+        "select t1.dec_38_0, t2.dec_38_2 from\n"
+            + "  cp.\"decimal/different_scale.parquet\" t1,\n"
+            + "  cp.\"decimal/different_scale.parquet\" t2\n"
+            + "where\n"
+            + "  t1.dec_38_0 is not distinct from t2.dec_38_2";
 
     testBuilder()
-      .sqlQuery(sql)
-      .unOrdered()
-      .baselineColumns("dec_38_0", "dec_38_2")
-      .baselineValues(new BigDecimal("1"), new BigDecimal("1.00"))
-      .go();
+        .sqlQuery(sql)
+        .unOrdered()
+        .baselineColumns("dec_38_0", "dec_38_2")
+        .baselineValues(new BigDecimal("1"), new BigDecimal("1.00"))
+        .go();
   }
 }

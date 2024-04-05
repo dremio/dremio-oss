@@ -15,43 +15,46 @@
  */
 package com.dremio.exec.planner.physical;
 
-import org.apache.calcite.plan.RelOptRule;
-import org.apache.calcite.plan.RelOptRuleCall;
-
 import com.dremio.exec.catalog.DremioPrepareTable;
 import com.dremio.exec.ops.OptimizerRulesContext;
 import com.dremio.exec.planner.CopyIntoPlanBuilder;
 import com.dremio.exec.planner.logical.CopyIntoTableRel;
 import com.dremio.exec.planner.logical.RelOptHelper;
 import com.dremio.exec.store.TableMetadata;
+import org.apache.calcite.plan.RelOptRule;
+import org.apache.calcite.plan.RelOptRuleCall;
 
-/**
- * A physical plan generator for 'COPY INTO'
- */
+/** A physical plan generator for 'COPY INTO' */
 public class CopyIntoTablePrule extends RelOptRule {
 
   private final OptimizerRulesContext context;
 
   public CopyIntoTablePrule(OptimizerRulesContext context) {
-    super(RelOptHelper.any(CopyIntoTableRel.class),"Prel.CopyIntoTablePrule");
+    super(RelOptHelper.any(CopyIntoTableRel.class), "Prel.CopyIntoTablePrule");
     this.context = context;
   }
 
   @Override
   public void onMatch(RelOptRuleCall call) {
     final CopyIntoTableRel copyIntoTableRel = call.rel(0);
-    call.transformTo(getPhysicalPlan(copyIntoTableRel, ((DremioPrepareTable) copyIntoTableRel.getTable()).getTable().getDataset()));
+    if (!copyIntoTableRel.getContext().isContinuousIngestionCopyTrigger()) {
+      call.transformTo(
+          getPhysicalPlan(
+              copyIntoTableRel,
+              ((DremioPrepareTable) copyIntoTableRel.getTable()).getTable().getDataset()));
+    }
   }
 
   public Prel getPhysicalPlan(CopyIntoTableRel copyIntoTableRel, TableMetadata tableMetadata) {
-    CopyIntoPlanBuilder planBuilder = new CopyIntoPlanBuilder(
-      copyIntoTableRel.getTable(),
-      copyIntoTableRel.getRowType(),
-      copyIntoTableRel.getCluster(),
-      copyIntoTableRel.getTraitSet().plus(Prel.PHYSICAL),
-      tableMetadata,
-      context,
-      copyIntoTableRel.getContext());
+    CopyIntoPlanBuilder planBuilder =
+        new CopyIntoPlanBuilder(
+            copyIntoTableRel.getTable(),
+            copyIntoTableRel.getRowType(),
+            copyIntoTableRel.getCluster(),
+            copyIntoTableRel.getTraitSet().plus(Prel.PHYSICAL),
+            tableMetadata,
+            context,
+            copyIntoTableRel.getContext());
 
     return planBuilder.buildPlan();
   }

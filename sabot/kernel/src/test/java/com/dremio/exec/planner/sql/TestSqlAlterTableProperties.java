@@ -17,11 +17,17 @@ package com.dremio.exec.planner.sql;
 
 import static org.junit.Assert.assertEquals;
 
+import com.dremio.BaseTestQuery;
+import com.dremio.common.exceptions.UserException;
+import com.dremio.common.utils.SqlUtils;
+import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.planner.sql.parser.SqlAlterTableProperties;
+import com.dremio.exec.proto.UserBitShared;
+import com.google.common.collect.Sets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
 import org.apache.calcite.config.NullCollation;
 import org.apache.calcite.sql.SqlDialect;
 import org.apache.calcite.sql.SqlKind;
@@ -30,31 +36,31 @@ import org.apache.calcite.sql.pretty.SqlPrettyWriter;
 import org.junit.Assert;
 import org.junit.Test;
 
-import com.dremio.BaseTestQuery;
-import com.dremio.common.exceptions.UserException;
-import com.dremio.common.utils.SqlUtils;
-import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.planner.sql.parser.SqlAlterTableProperties;
-import com.dremio.exec.proto.UserBitShared;
-import com.google.common.collect.Sets;
-
 public class TestSqlAlterTableProperties extends BaseTestQuery {
-  private final ParserConfig parserConfig = new ParserConfig(ParserConfig.QUOTING, 100,
+  private final ParserConfig parserConfig =
+      new ParserConfig(
+          ParserConfig.QUOTING,
+          100,
           PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
 
   @Test
   public void testParseMalformedQueries() throws Exception {
-    List<String> malformedQueries = new ArrayList<String>() {{
-      add("ALTER TABLE t1 SET TBLPROPERTIES ()");
-      add("ALTER TABLE t1 SET TBLPROPERTIES");
-      add("ALTER TABLE t1 SET TBLPROPERTIES ('property_name' = 'property_value', 'property_name1' = )");
-      add("ALTER TABLE t1 SET TBLPROPERTIES ('property_name' )");
-      add("ALTER TABLE t1 SET TBLPROPERTIES ('property_name', 'property_name1' )");
-      add("ALTER TABLE t1 UNSET TBLPROPERTIES ('property_name' = 'property_value')");
-      add("ALTER TABLE t1 UNSET TBLPROPERTIES ('property_name',  'property_name1' = )");
-      add("ALTER TABLE t1 SET TBLPROPERTIES ('property_name', 'property_name1' = 'property_value' )");
-      add("ALTER TABLE t1 SETUNSET TBLPROPERTIES ('property_name' )");
-    }};
+    List<String> malformedQueries =
+        new ArrayList<String>() {
+          {
+            add("ALTER TABLE t1 SET TBLPROPERTIES ()");
+            add("ALTER TABLE t1 SET TBLPROPERTIES");
+            add(
+                "ALTER TABLE t1 SET TBLPROPERTIES ('property_name' = 'property_value', 'property_name1' = )");
+            add("ALTER TABLE t1 SET TBLPROPERTIES ('property_name' )");
+            add("ALTER TABLE t1 SET TBLPROPERTIES ('property_name', 'property_name1' )");
+            add("ALTER TABLE t1 UNSET TBLPROPERTIES ('property_name' = 'property_value')");
+            add("ALTER TABLE t1 UNSET TBLPROPERTIES ('property_name',  'property_name1' = )");
+            add(
+                "ALTER TABLE t1 SET TBLPROPERTIES ('property_name', 'property_name1' = 'property_value' )");
+            add("ALTER TABLE t1 SETUNSET TBLPROPERTIES ('property_name' )");
+          }
+        };
 
     for (String malformedQuery : malformedQueries) {
       parseAndVerifyMalFormat(malformedQuery);
@@ -63,12 +69,16 @@ public class TestSqlAlterTableProperties extends BaseTestQuery {
 
   @Test
   public void testParseWellformedQueries() throws Exception {
-    List<String> wellformedQueries = new ArrayList<String>() {{
-      add("ALTER TABLE t1 SET TBLPROPERTIES ('property_name' = 'property_value')");
-      add("ALTER TABLE t1 SET TBLPROPERTIES ('property_name' = 'property_value', 'property_name1' = 'property_value1')");
-      add("ALTER TABLE t1 UNSET TBLPROPERTIES ('property_name')");
-      add("ALTER TABLE t1 UNSET TBLPROPERTIES ('property_name', 'property_name1')");
-    }};
+    List<String> wellformedQueries =
+        new ArrayList<String>() {
+          {
+            add("ALTER TABLE t1 SET TBLPROPERTIES ('property_name' = 'property_value')");
+            add(
+                "ALTER TABLE t1 SET TBLPROPERTIES ('property_name' = 'property_value', 'property_name1' = 'property_value1')");
+            add("ALTER TABLE t1 UNSET TBLPROPERTIES ('property_name')");
+            add("ALTER TABLE t1 UNSET TBLPROPERTIES ('property_name', 'property_name1')");
+          }
+        };
 
     for (String wellformedQuery : wellformedQueries) {
       parseAndVerifyWellFormat(wellformedQuery);
@@ -77,14 +87,19 @@ public class TestSqlAlterTableProperties extends BaseTestQuery {
 
   @Test
   public void testParseAndUnparse() throws Exception {
-    Map<String, String> queryExpectedStrings = new HashMap<String, String>() {{
-      put("ALTER TABLE t1 SET TBLPROPERTIES ('property_name' = 'property_value', 'property_name1' = 'property_value1')",
-              "ALTER TABLE \"t1\" SET TBLPROPERTIES ('property_name' = 'property_value', 'property_name1' = 'property_value1')");
-      put("ALTER TABLE t1 UNSET TBLPROPERTIES ('property_name', 'property_name1')",
-              "ALTER TABLE \"t1\" UNSET TBLPROPERTIES ('property_name', 'property_name1')");
-    }};
+    Map<String, String> queryExpectedStrings =
+        new HashMap<String, String>() {
+          {
+            put(
+                "ALTER TABLE t1 SET TBLPROPERTIES ('property_name' = 'property_value', 'property_name1' = 'property_value1')",
+                "ALTER TABLE \"t1\" SET TBLPROPERTIES ('property_name' = 'property_value', 'property_name1' = 'property_value1')");
+            put(
+                "ALTER TABLE t1 UNSET TBLPROPERTIES ('property_name', 'property_name1')",
+                "ALTER TABLE \"t1\" UNSET TBLPROPERTIES ('property_name', 'property_name1')");
+          }
+        };
 
-    for (Map.Entry<String,String> entry : queryExpectedStrings.entrySet())  {
+    for (Map.Entry<String, String> entry : queryExpectedStrings.entrySet()) {
       parseAndVerifyUnparse(entry.getKey(), entry.getValue());
     }
   }
@@ -101,7 +116,11 @@ public class TestSqlAlterTableProperties extends BaseTestQuery {
 
     // verify unParse
     SqlDialect DREMIO_DIALECT =
-            new SqlDialect(SqlDialect.DatabaseProduct.UNKNOWN, "Dremio", Character.toString(SqlUtils.QUOTE), NullCollation.FIRST);
+        new SqlDialect(
+            SqlDialect.DatabaseProduct.UNKNOWN,
+            "Dremio",
+            Character.toString(SqlUtils.QUOTE),
+            NullCollation.FIRST);
     SqlPrettyWriter writer = new SqlPrettyWriter(DREMIO_DIALECT);
     sqlNode.unparse(writer, 0, 0);
     String actual = writer.toString();

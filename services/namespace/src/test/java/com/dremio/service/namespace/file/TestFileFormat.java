@@ -17,18 +17,15 @@ package com.dremio.service.namespace.file;
 
 import static org.junit.Assert.assertTrue;
 
-import org.junit.Test;
-
 import com.dremio.service.namespace.file.proto.AvroFileConfig;
 import com.dremio.service.namespace.file.proto.ExcelFileConfig;
 import com.dremio.service.namespace.file.proto.JsonFileConfig;
 import com.dremio.service.namespace.file.proto.ParquetFileConfig;
 import com.dremio.service.namespace.file.proto.TextFileConfig;
 import com.dremio.service.namespace.file.proto.XlsFileConfig;
+import org.junit.Test;
 
-/**
- * FileFormat tests
- */
+/** FileFormat tests */
 public class TestFileFormat {
 
   private static void assertContains(String expectedContains, String string) {
@@ -129,7 +126,6 @@ public class TestFileFormat {
     String tableOptions = fileFormat.toTableOptions();
     assertContains("autoGenerateColumnNames => false", tableOptions);
   }
-
 
   @Test
   public void testDefaultJsonFileFormatOptions() throws Exception {

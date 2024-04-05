@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.physical.config;
 
-import java.util.List;
-
 import com.dremio.common.logical.data.Order.Ordering;
 import com.dremio.exec.physical.base.AbstractReceiver;
 import com.dremio.exec.physical.base.OpProps;
@@ -29,6 +27,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
+import java.util.List;
 
 // The goal of this operator is to produce outgoing batches with records
 // ordered according to the supplied expression.  Each incoming batch
@@ -36,7 +35,8 @@ import com.google.common.base.Preconditions;
 // batches.  This is accomplished by building and depleting a priority queue.
 @JsonTypeName("merging-receiver")
 public class MergingReceiverPOP extends AbstractReceiver {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MergingReceiverPOP.class);
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(MergingReceiverPOP.class);
 
   private final List<Ordering> orderings;
   private final List<MinorFragmentIndexEndpoint> senders;
@@ -48,8 +48,7 @@ public class MergingReceiverPOP extends AbstractReceiver {
       @JsonProperty("senderMajorFragmentId") int senderMajorFragmentId,
       @JsonProperty("senders") List<MinorFragmentIndexEndpoint> senders,
       @JsonProperty("spooling") boolean spooling,
-      @JsonProperty("orderings") List<Ordering> orderings
-      ) {
+      @JsonProperty("orderings") List<Ordering> orderings) {
     super(props, schema, senderMajorFragmentId, spooling);
     this.senders = senders;
     this.orderings = orderings;
@@ -61,14 +60,15 @@ public class MergingReceiverPOP extends AbstractReceiver {
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value) throws E {
+  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value)
+      throws E {
     return physicalVisitor.visitMergingReceiver(this, value);
   }
 
   @Override
   public final PhysicalOperator getNewWithChildren(List<PhysicalOperator> children) {
     Preconditions.checkArgument(children.isEmpty());
-    //rewriting is unnecessary since the inputs haven't changed.
+    // rewriting is unnecessary since the inputs haven't changed.
     return this;
   }
 
@@ -86,5 +86,4 @@ public class MergingReceiverPOP extends AbstractReceiver {
   public List<MinorFragmentIndexEndpoint> getProvidingEndpoints() {
     return senders;
   }
-
 }

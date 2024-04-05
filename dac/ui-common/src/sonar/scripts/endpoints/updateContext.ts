@@ -25,7 +25,7 @@ type path = paths["/scripts/{id}/update_context"]["put"];
 
 export const updateContext = (
   scriptId: path["parameters"]["path"]["id"],
-  body: path["requestBody"]["content"]["application/json"]
+  body: path["requestBody"]["content"]["application/json"],
 ): Promise<path["responses"]["200"]["content"]["application/json"]> => {
   scriptsLogger.debug(`Updating context for script ${scriptId}`);
 

@@ -15,9 +15,7 @@
  */
 package com.dremio.sabot.exec.cursors;
 
-/**
- * Interface for cursorManager factory.
- */
+/** Interface for cursorManager factory. */
 public interface FileCursorManagerFactory {
   /**
    * Get the cursor manager for the specified id.
@@ -27,8 +25,6 @@ public interface FileCursorManagerFactory {
    */
   FileCursorManager getManager(String uniqueId);
 
-  /**
-   * Notify that all registrations are done.
-   */
+  /** Notify that all registrations are done. */
   void notifyAllRegistrationsDone();
 }

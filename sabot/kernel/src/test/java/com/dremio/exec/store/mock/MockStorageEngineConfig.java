@@ -21,9 +21,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 
 @JsonTypeName(MockStorageEngineConfig.NAME)
-public class MockStorageEngineConfig extends StoragePluginConfigBase{
+public class MockStorageEngineConfig extends StoragePluginConfigBase {
 
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MockStorageEngineConfig.class);
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(MockStorageEngineConfig.class);
 
   private String url;
 
@@ -37,7 +38,6 @@ public class MockStorageEngineConfig extends StoragePluginConfigBase{
   public String getUrl() {
     return url;
   }
-
 
   @Override
   public boolean equals(Object o) {
@@ -61,5 +61,4 @@ public class MockStorageEngineConfig extends StoragePluginConfigBase{
   public int hashCode() {
     return url != null ? url.hashCode() : 0;
   }
-
 }

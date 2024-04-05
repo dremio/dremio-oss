@@ -15,16 +15,13 @@
  */
 package com.dremio.sabot.op.join.vhash.spill.io;
 
-import java.io.IOException;
-
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.sabot.op.join.vhash.spill.SpillStats;
 import com.dremio.sabot.op.join.vhash.spill.pool.PageSupplier;
 import com.dremio.sabot.op.sort.external.SpillManager;
+import java.io.IOException;
 
-/**
- * Wrapper over SpillSerializable that can track stats.
- */
+/** Wrapper over SpillSerializable that can track stats. */
 public class SpillSerializableWithStats implements SpillSerializable {
   private final SpillSerializable inner;
   private final SpillStats stats;
@@ -37,7 +34,8 @@ public class SpillSerializableWithStats implements SpillSerializable {
   }
 
   @Override
-  public long writeChunkToStream(SpillChunk chunk, SpillManager.SpillOutputStream output) throws IOException {
+  public long writeChunkToStream(SpillChunk chunk, SpillManager.SpillOutputStream output)
+      throws IOException {
     long startNanos = System.nanoTime();
     long ret = inner.writeChunkToStream(chunk, output);
     long bytesWritten = chunk.getUnpivotedSizeRounded() + chunk.getPivotedSizeRounded();
@@ -56,7 +54,11 @@ public class SpillSerializableWithStats implements SpillSerializable {
   }
 
   @Override
-  public SpillChunk readChunkFromStream(PageSupplier pageSupplier, BatchSchema unpivotedColumnsSchema, SpillManager.SpillInputStream input) throws IOException {
+  public SpillChunk readChunkFromStream(
+      PageSupplier pageSupplier,
+      BatchSchema unpivotedColumnsSchema,
+      SpillManager.SpillInputStream input)
+      throws IOException {
     long startNanos = System.nanoTime();
     SpillChunk chunk = inner.readChunkFromStream(pageSupplier, unpivotedColumnsSchema, input);
     if (chunk != null) {

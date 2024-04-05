@@ -15,9 +15,7 @@
  */
 package com.dremio.resource.common;
 
-/**
- * To provide reflection routing manager interface
- */
+/** To provide reflection routing manager interface */
 public interface ReflectionRoutingManager {
 
   default boolean checkQueueExists(String queueNameOrId) throws Exception {

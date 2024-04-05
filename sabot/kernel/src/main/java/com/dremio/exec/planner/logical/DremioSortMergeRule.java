@@ -16,7 +16,6 @@
 package com.dremio.exec.planner.logical;
 
 import java.math.BigDecimal;
-
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.rel.RelNode;
@@ -27,23 +26,23 @@ import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 
 /**
- * Copied from HiveSortMergeRule.
- * This rule will merge two Sort operators.
- * <p>
- * It is applied when the top match is a pure limit operation (no sorting).
- * <p>
- * If the bottom operator is not synthetic and does not contain a limit,
- * we currently bail out. Thus, we avoid a lot of unnecessary limit operations
- * in the middle of the execution plan that could create performance regressions.
+ * Copied from HiveSortMergeRule. This rule will merge two Sort operators.
+ *
+ * <p>It is applied when the top match is a pure limit operation (no sorting).
+ *
+ * <p>If the bottom operator is not synthetic and does not contain a limit, we currently bail out.
+ * Thus, we avoid a lot of unnecessary limit operations in the middle of the execution plan that
+ * could create performance regressions.
  */
 public class DremioSortMergeRule extends RelOptRule {
 
   public static final DremioSortMergeRule INSTANCE = new DremioSortMergeRule();
 
   private DremioSortMergeRule() {
-    super(RelOptRule.operand(LogicalSort.class, RelOptRule.operand(LogicalSort.class, any())),
-      DremioRelFactories.CALCITE_LOGICAL_BUILDER,
-      "DremioSortMergeRule");
+    super(
+        RelOptRule.operand(LogicalSort.class, RelOptRule.operand(LogicalSort.class, any())),
+        DremioRelFactories.CALCITE_LOGICAL_BUILDER,
+        "DremioSortMergeRule");
   }
 
   @Override
@@ -79,14 +78,18 @@ public class DremioSortMergeRule extends RelOptRule {
       if (topOffset + topLimit <= bottomLimit) {
         // 1. Fully contained
         // topOffset + topLimit <= bottomLimit
-        newOffset = bottomOffset + topOffset == 0 ? null :
-          rexBuilder.makeExactLiteral(BigDecimal.valueOf(bottomOffset + topOffset));
+        newOffset =
+            bottomOffset + topOffset == 0
+                ? null
+                : rexBuilder.makeExactLiteral(BigDecimal.valueOf(bottomOffset + topOffset));
         newLimit = topSort.fetch;
       } else if (topOffset < bottomLimit) {
         // 2. Partially contained
         // topOffset + topLimit > bottomLimit && topOffset < bottomLimit
-        newOffset = bottomOffset + topOffset == 0 ? null :
-          rexBuilder.makeExactLiteral(BigDecimal.valueOf(bottomOffset + topOffset));
+        newOffset =
+            bottomOffset + topOffset == 0
+                ? null
+                : rexBuilder.makeExactLiteral(BigDecimal.valueOf(bottomOffset + topOffset));
         newLimit = rexBuilder.makeExactLiteral(BigDecimal.valueOf(bottomLimit - topOffset));
       } else {
         // 3. Outside
@@ -100,8 +103,13 @@ public class DremioSortMergeRule extends RelOptRule {
       newLimit = topSort.fetch;
     }
 
-    final Sort newSort = bottomSort.copy(bottomSort.getTraitSet(),
-      bottomSort.getInput(), bottomSort.collation, newOffset, newLimit);
+    final Sort newSort =
+        bottomSort.copy(
+            bottomSort.getTraitSet(),
+            bottomSort.getInput(),
+            bottomSort.collation,
+            newOffset,
+            newLimit);
 
     call.transformTo(newSort);
   }

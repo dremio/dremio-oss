@@ -17,36 +17,8 @@ package com.dremio.exec.planner.normalizer;
 
 import org.apache.calcite.rel.RelNode;
 
-/**
- * Component for Normalizing {@link RelNode} to a common logical form.
- */
-public class PlannerNormalizerComponent {
+/** Component for Normalizing {@link RelNode} to a common logical form. */
+public interface PlannerNormalizerComponent {
 
-  private final RelNormalizerTransformer relNormalizerTransformer;
-
-  public PlannerNormalizerComponent(RelNormalizerTransformer relNormalizerTransformer) {
-    this.relNormalizerTransformer = relNormalizerTransformer;
-  }
-
-  public RelNormalizerTransformer getRelNormalizerTransformer() {
-    return relNormalizerTransformer;
-  }
-
-  public static PlannerNormalizerComponent build(
-    PlannerBaseComponent plannerBaseComponent,
-    PlannerNormalizerModule plannerNormalizerModule
-  ) {
-
-    NormalizerRuleSets normalizerRuleSet = plannerNormalizerModule.buildNormalizeRuleSets(
-      plannerBaseComponent.getPlannerSettings(),
-      plannerBaseComponent.getUserDefinedFunctionExpander(),
-      plannerBaseComponent.getFunctionContext().getContextInformation());
-
-    RelNormalizerTransformer relNormalizerTransformer = plannerNormalizerModule.buildRelNormalizerTransformer(
-      plannerBaseComponent.getHepPlannerRunner(),
-      normalizerRuleSet,
-      plannerBaseComponent.getPlannerSettings());
-
-    return new PlannerNormalizerComponent(relNormalizerTransformer);
-  }
+  RelNormalizerTransformer getRelNormalizerTransformer();
 }

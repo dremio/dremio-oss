@@ -18,50 +18,57 @@ package com.dremio.dac.explore.bi;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertTrue;
 
-import java.io.ByteArrayOutputStream;
-import java.lang.annotation.Annotation;
-import java.util.Arrays;
-
-import javax.ws.rs.core.MultivaluedHashMap;
-import javax.ws.rs.core.MultivaluedMap;
-
-import org.junit.Test;
-
 import com.dremio.dac.explore.DatasetTool;
 import com.dremio.dac.server.WebServer;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.ViewFieldType;
 import com.dremio.service.namespace.dataset.proto.VirtualDataset;
+import java.io.ByteArrayOutputStream;
+import java.lang.annotation.Annotation;
+import java.util.Arrays;
+import javax.ws.rs.core.MultivaluedHashMap;
+import javax.ws.rs.core.MultivaluedMap;
+import org.junit.Test;
 
-/**
- * Unit tests for {@link QlikAppMessageBodyGenerator}
- */
+/** Unit tests for {@link QlikAppMessageBodyGenerator} */
 public class TestQlikAppMessageBodyGenerator {
 
   @Test
   public void testGeneratedOutput() throws Exception {
     QlikAppMessageBodyGenerator generator = new QlikAppMessageBodyGenerator();
 
-    VirtualDataset dataset = new VirtualDataset()
-        .setSqlFieldsList(Arrays.asList(
-            new ViewFieldType("testdimension", "VARCHAR"),
-            new ViewFieldType("testdimension2", "CHAR"),
-            new ViewFieldType("testmeasure", "INTEGER"),
-            new ViewFieldType("testmeasure2", "REAL"),
-            new ViewFieldType("testdetail", "MAP"),
-            new ViewFieldType("testdetail2", "STRUCTURED")));
+    VirtualDataset dataset =
+        new VirtualDataset()
+            .setSqlFieldsList(
+                Arrays.asList(
+                    new ViewFieldType("testdimension", "VARCHAR"),
+                    new ViewFieldType("testdimension2", "CHAR"),
+                    new ViewFieldType("testmeasure", "INTEGER"),
+                    new ViewFieldType("testmeasure2", "REAL"),
+                    new ViewFieldType("testdetail", "MAP"),
+                    new ViewFieldType("testdetail2", "STRUCTURED")));
 
-    DatasetConfig datasetConfig = new DatasetConfig()
-        .setName("UNTITLED")
-        .setType(DatasetType.VIRTUAL_DATASET)
-        .setFullPathList(DatasetTool.TMP_DATASET_PATH.toPathList())
-        .setVirtualDataset(dataset);
+    DatasetConfig datasetConfig =
+        new DatasetConfig()
+            .setName("UNTITLED")
+            .setType(DatasetType.VIRTUAL_DATASET)
+            .setFullPathList(DatasetTool.TMP_DATASET_PATH.toPathList())
+            .setVirtualDataset(dataset);
 
     MultivaluedMap<String, Object> httpHeaders = new MultivaluedHashMap<>();
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    assertTrue(generator.isWriteable(datasetConfig.getClass(), null, null, WebServer.MediaType.TEXT_PLAIN_QLIK_APP_TYPE));
-    generator.writeTo(datasetConfig, DatasetConfig.class, null, new Annotation[] {}, WebServer.MediaType.TEXT_PLAIN_QLIK_APP_TYPE, httpHeaders, baos);
+    assertTrue(
+        generator.isWriteable(
+            datasetConfig.getClass(), null, null, WebServer.MediaType.TEXT_PLAIN_QLIK_APP_TYPE));
+    generator.writeTo(
+        datasetConfig,
+        DatasetConfig.class,
+        null,
+        new Annotation[] {},
+        WebServer.MediaType.TEXT_PLAIN_QLIK_APP_TYPE,
+        httpHeaders,
+        baos);
 
     String script = new String(baos.toByteArray(), UTF_8);
 
@@ -75,19 +82,33 @@ public class TestQlikAppMessageBodyGenerator {
   public void testQuoting() throws Exception {
     QlikAppMessageBodyGenerator generator = new QlikAppMessageBodyGenerator();
 
-    VirtualDataset dataset = new VirtualDataset()
-        .setSqlFieldsList(Arrays.asList(new ViewFieldType("testdimension", "VARCHAR"), new ViewFieldType("testmeasure", "INTEGER")));
+    VirtualDataset dataset =
+        new VirtualDataset()
+            .setSqlFieldsList(
+                Arrays.asList(
+                    new ViewFieldType("testdimension", "VARCHAR"),
+                    new ViewFieldType("testmeasure", "INTEGER")));
 
-    DatasetConfig datasetConfig = new DatasetConfig()
-        .setName("UNTITLED")
-        .setType(DatasetType.VIRTUAL_DATASET)
-        .setFullPathList(Arrays.asList("space", "folder.ext", "UNTITLED"))
-        .setVirtualDataset(dataset);
+    DatasetConfig datasetConfig =
+        new DatasetConfig()
+            .setName("UNTITLED")
+            .setType(DatasetType.VIRTUAL_DATASET)
+            .setFullPathList(Arrays.asList("space", "folder.ext", "UNTITLED"))
+            .setVirtualDataset(dataset);
 
     MultivaluedMap<String, Object> httpHeaders = new MultivaluedHashMap<>();
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    assertTrue(generator.isWriteable(datasetConfig.getClass(), null, null, WebServer.MediaType.TEXT_PLAIN_QLIK_APP_TYPE));
-    generator.writeTo(datasetConfig, DatasetConfig.class, null, new Annotation[] {}, WebServer.MediaType.TEXT_PLAIN_QLIK_APP_TYPE, httpHeaders, baos);
+    assertTrue(
+        generator.isWriteable(
+            datasetConfig.getClass(), null, null, WebServer.MediaType.TEXT_PLAIN_QLIK_APP_TYPE));
+    generator.writeTo(
+        datasetConfig,
+        DatasetConfig.class,
+        null,
+        new Annotation[] {},
+        WebServer.MediaType.TEXT_PLAIN_QLIK_APP_TYPE,
+        httpHeaders,
+        baos);
 
     String script = new String(baos.toByteArray(), UTF_8);
 
@@ -100,19 +121,33 @@ public class TestQlikAppMessageBodyGenerator {
   public void testFieldNamesWithSpaceQuoting() throws Exception {
     QlikAppMessageBodyGenerator generator = new QlikAppMessageBodyGenerator();
 
-    VirtualDataset dataset = new VirtualDataset()
-      .setSqlFieldsList(Arrays.asList(new ViewFieldType("test dimension", "VARCHAR"), new ViewFieldType("test \" measure", "INTEGER")));
+    VirtualDataset dataset =
+        new VirtualDataset()
+            .setSqlFieldsList(
+                Arrays.asList(
+                    new ViewFieldType("test dimension", "VARCHAR"),
+                    new ViewFieldType("test \" measure", "INTEGER")));
 
-    DatasetConfig datasetConfig = new DatasetConfig()
-      .setName("UNTITLED")
-      .setType(DatasetType.VIRTUAL_DATASET)
-      .setFullPathList(Arrays.asList("space", "folder.ext", "UNTITLED"))
-      .setVirtualDataset(dataset);
+    DatasetConfig datasetConfig =
+        new DatasetConfig()
+            .setName("UNTITLED")
+            .setType(DatasetType.VIRTUAL_DATASET)
+            .setFullPathList(Arrays.asList("space", "folder.ext", "UNTITLED"))
+            .setVirtualDataset(dataset);
 
     MultivaluedMap<String, Object> httpHeaders = new MultivaluedHashMap<>();
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    assertTrue(generator.isWriteable(datasetConfig.getClass(), null, null, WebServer.MediaType.TEXT_PLAIN_QLIK_APP_TYPE));
-    generator.writeTo(datasetConfig, DatasetConfig.class, null, new Annotation[] {}, WebServer.MediaType.TEXT_PLAIN_QLIK_APP_TYPE, httpHeaders, baos);
+    assertTrue(
+        generator.isWriteable(
+            datasetConfig.getClass(), null, null, WebServer.MediaType.TEXT_PLAIN_QLIK_APP_TYPE));
+    generator.writeTo(
+        datasetConfig,
+        DatasetConfig.class,
+        null,
+        new Annotation[] {},
+        WebServer.MediaType.TEXT_PLAIN_QLIK_APP_TYPE,
+        httpHeaders,
+        baos);
 
     String script = new String(baos.toByteArray(), UTF_8);
 
@@ -126,19 +161,33 @@ public class TestQlikAppMessageBodyGenerator {
   public void testQuoteInPathAndDatasetName() throws Exception {
     QlikAppMessageBodyGenerator generator = new QlikAppMessageBodyGenerator();
 
-    VirtualDataset dataset = new VirtualDataset()
-      .setSqlFieldsList(Arrays.asList(new ViewFieldType("test dimension", "VARCHAR"), new ViewFieldType("test \" measure", "INTEGER")));
+    VirtualDataset dataset =
+        new VirtualDataset()
+            .setSqlFieldsList(
+                Arrays.asList(
+                    new ViewFieldType("test dimension", "VARCHAR"),
+                    new ViewFieldType("test \" measure", "INTEGER")));
 
-    DatasetConfig datasetConfig = new DatasetConfig()
-      .setName("UNTITLED")
-      .setType(DatasetType.VIRTUAL_DATASET)
-      .setFullPathList(Arrays.asList("@dremio", "fol\"der.ext", "foo", "bar"))
-      .setVirtualDataset(dataset);
+    DatasetConfig datasetConfig =
+        new DatasetConfig()
+            .setName("UNTITLED")
+            .setType(DatasetType.VIRTUAL_DATASET)
+            .setFullPathList(Arrays.asList("@dremio", "fol\"der.ext", "foo", "bar"))
+            .setVirtualDataset(dataset);
 
     MultivaluedMap<String, Object> httpHeaders = new MultivaluedHashMap<>();
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    assertTrue(generator.isWriteable(datasetConfig.getClass(), null, null, WebServer.MediaType.TEXT_PLAIN_QLIK_APP_TYPE));
-    generator.writeTo(datasetConfig, DatasetConfig.class, null, new Annotation[] {}, WebServer.MediaType.TEXT_PLAIN_QLIK_APP_TYPE, httpHeaders, baos);
+    assertTrue(
+        generator.isWriteable(
+            datasetConfig.getClass(), null, null, WebServer.MediaType.TEXT_PLAIN_QLIK_APP_TYPE));
+    generator.writeTo(
+        datasetConfig,
+        DatasetConfig.class,
+        null,
+        new Annotation[] {},
+        WebServer.MediaType.TEXT_PLAIN_QLIK_APP_TYPE,
+        httpHeaders,
+        baos);
 
     String script = new String(baos.toByteArray(), UTF_8);
 
@@ -152,19 +201,30 @@ public class TestQlikAppMessageBodyGenerator {
   public void testSanitizing() throws Exception {
     QlikAppMessageBodyGenerator generator = new QlikAppMessageBodyGenerator();
 
-    VirtualDataset dataset = new VirtualDataset()
-      .setSqlFieldsList(Arrays.asList(new ViewFieldType("testdetail2", "STRUCTURED")));
+    VirtualDataset dataset =
+        new VirtualDataset()
+            .setSqlFieldsList(Arrays.asList(new ViewFieldType("testdetail2", "STRUCTURED")));
 
-    DatasetConfig datasetConfig = new DatasetConfig()
-      .setName("evil /!@ *-=+{}<>,~ characters")
-      .setType(DatasetType.VIRTUAL_DATASET)
-      .setFullPathList(DatasetTool.TMP_DATASET_PATH.toPathList())
-      .setVirtualDataset(dataset);
+    DatasetConfig datasetConfig =
+        new DatasetConfig()
+            .setName("evil /!@ *-=+{}<>,~ characters")
+            .setType(DatasetType.VIRTUAL_DATASET)
+            .setFullPathList(DatasetTool.TMP_DATASET_PATH.toPathList())
+            .setVirtualDataset(dataset);
 
     MultivaluedMap<String, Object> httpHeaders = new MultivaluedHashMap<>();
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    assertTrue(generator.isWriteable(datasetConfig.getClass(), null, null, WebServer.MediaType.TEXT_PLAIN_QLIK_APP_TYPE));
-    generator.writeTo(datasetConfig, DatasetConfig.class, null, new Annotation[] {}, WebServer.MediaType.TEXT_PLAIN_QLIK_APP_TYPE, httpHeaders, baos);
+    assertTrue(
+        generator.isWriteable(
+            datasetConfig.getClass(), null, null, WebServer.MediaType.TEXT_PLAIN_QLIK_APP_TYPE));
+    generator.writeTo(
+        datasetConfig,
+        DatasetConfig.class,
+        null,
+        new Annotation[] {},
+        WebServer.MediaType.TEXT_PLAIN_QLIK_APP_TYPE,
+        httpHeaders,
+        baos);
 
     String script = new String(baos.toByteArray(), UTF_8);
 

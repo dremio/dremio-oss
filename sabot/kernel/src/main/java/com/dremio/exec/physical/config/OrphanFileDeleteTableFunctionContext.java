@@ -15,26 +15,40 @@
  */
 package com.dremio.exec.physical.config;
 
-import java.util.List;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.record.BatchSchema;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import java.util.List;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonTypeName("orphan-file-delete")
 public class OrphanFileDeleteTableFunctionContext extends TableFunctionContext {
-  private final String tableLocation;   // The location should include file scheme info
+  private final String tableLocation; // The location should include file scheme info
 
   public OrphanFileDeleteTableFunctionContext(
-                              @JsonProperty("schema") BatchSchema fullSchema,
-                              @JsonProperty("pluginId") StoragePluginId pluginId,
-                              @JsonProperty("columns") List<SchemaPath> columns,
-                              @JsonProperty("tableLocation") String tableLocation) {
-    super(null, fullSchema, null, null, null, null, pluginId, null, columns, null, null, null, false, false, false, null);
+      @JsonProperty("schema") BatchSchema fullSchema,
+      @JsonProperty("pluginId") StoragePluginId pluginId,
+      @JsonProperty("columns") List<SchemaPath> columns,
+      @JsonProperty("tableLocation") String tableLocation) {
+    super(
+        null,
+        fullSchema,
+        null,
+        null,
+        null,
+        null,
+        pluginId,
+        null,
+        columns,
+        null,
+        null,
+        false,
+        false,
+        false,
+        null);
     this.tableLocation = tableLocation;
   }
 

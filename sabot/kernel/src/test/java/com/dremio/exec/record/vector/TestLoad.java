@@ -18,8 +18,14 @@ package com.dremio.exec.record.vector;
 import static org.apache.arrow.vector.types.Types.getMinorTypeForArrowType;
 import static org.junit.Assert.assertEquals;
 
+import com.dremio.exec.ExecTest;
+import com.dremio.exec.record.RecordBatchLoader;
+import com.dremio.exec.record.VectorWrapper;
+import com.dremio.exec.record.WritableBatch;
+import com.google.common.collect.Lists;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.NettyArrowBuf;
 import java.util.List;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.AllocationHelper;
 import org.apache.arrow.vector.GenerateSampleData;
@@ -29,19 +35,10 @@ import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.types.Types.MinorType;
 import org.junit.Test;
 
-import com.dremio.exec.ExecTest;
-import com.dremio.exec.record.RecordBatchLoader;
-import com.dremio.exec.record.VectorWrapper;
-import com.dremio.exec.record.WritableBatch;
-import com.google.common.collect.Lists;
-
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.NettyArrowBuf;
-
 public class TestLoad extends ExecTest {
 
   private static void log(Object obj) {
-    //no op
+    // no op
   }
 
   @Test

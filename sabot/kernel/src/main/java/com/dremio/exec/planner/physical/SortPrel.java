@@ -15,18 +15,6 @@
  */
 package com.dremio.exec.planner.physical;
 
-import java.io.IOException;
-import java.util.Iterator;
-
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelOptCost;
-import org.apache.calcite.plan.RelOptPlanner;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelCollation;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.metadata.RelMetadataQuery;
-import org.apache.calcite.rex.RexNode;
-
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.config.ExternalSort;
@@ -41,25 +29,52 @@ import com.dremio.options.TypeValidators.DoubleValidator;
 import com.dremio.options.TypeValidators.LongValidator;
 import com.dremio.options.TypeValidators.PositiveLongValidator;
 import com.dremio.options.TypeValidators.RangeDoubleValidator;
+import java.io.IOException;
+import java.util.Iterator;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptCost;
+import org.apache.calcite.plan.RelOptPlanner;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelCollation;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.apache.calcite.rex.RexNode;
 
 @Options
 public class SortPrel extends SortRelBase implements Prel {
 
-  public static final LongValidator RESERVE = new PositiveLongValidator("planner.op.sort.reserve_bytes", Long.MAX_VALUE, 20_000_000);
-  public static final LongValidator LIMIT = new PositiveLongValidator("planner.op.sort.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
-  public static final DoubleValidator FACTOR = new RangeDoubleValidator("planner.op.sort.factor", 0.0, 1000.0, 1.0d);
-  public static final BooleanValidator BOUNDED = new BooleanValidator("planner.op.sort.bounded", true);
+  public static final LongValidator RESERVE =
+      new PositiveLongValidator("planner.op.sort.reserve_bytes", Long.MAX_VALUE, 20_000_000);
+  public static final LongValidator LIMIT =
+      new PositiveLongValidator("planner.op.sort.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
+  public static final DoubleValidator FACTOR =
+      new RangeDoubleValidator("planner.op.sort.factor", 0.0, 1000.0, 1.0d);
+  public static final BooleanValidator BOUNDED =
+      new BooleanValidator("planner.op.sort.bounded", true);
 
   /** Creates a SortRel with offset and fetch. */
-  private SortPrel(RelOptCluster cluster, RelTraitSet traits, RelNode input, RelCollation collation, RexNode offset, RexNode fetch) {
+  private SortPrel(
+      RelOptCluster cluster,
+      RelTraitSet traits,
+      RelNode input,
+      RelCollation collation,
+      RexNode offset,
+      RexNode fetch) {
     super(cluster, traits, input, collation, offset, fetch);
   }
 
-  public static SortPrel create(RelOptCluster cluster, RelTraitSet traits, RelNode input, RelCollation collation) {
+  public static SortPrel create(
+      RelOptCluster cluster, RelTraitSet traits, RelNode input, RelCollation collation) {
     return create(cluster, traits, input, collation, null, null);
   }
 
-  public static SortPrel create(RelOptCluster cluster, RelTraitSet traits, RelNode input, RelCollation collation, RexNode offset, RexNode fetch) {
+  public static SortPrel create(
+      RelOptCluster cluster,
+      RelTraitSet traits,
+      RelNode input,
+      RelCollation collation,
+      RexNode offset,
+      RexNode fetch) {
     final RelTraitSet adjustedTraits = adjustTraits(traits, collation);
     // TODO: should distribution be adjusted too to match input?
     return new SortPrel(cluster, adjustedTraits, input, collation, offset, fetch);
@@ -67,8 +82,9 @@ public class SortPrel extends SortRelBase implements Prel {
 
   @Override
   public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery relMetadataQuery) {
-    if(PrelUtil.getSettings(getCluster()).useDefaultCosting()) {
-      //We use multiplier 0.05 for TopN operator, and 0.1 for Sort, to make TopN a preferred choice.
+    if (PrelUtil.getSettings(getCluster()).useDefaultCosting()) {
+      // We use multiplier 0.05 for TopN operator, and 0.1 for Sort, to make TopN a preferred
+      // choice.
       return super.computeSelfCost(planner, relMetadataQuery).multiplyBy(.1);
     }
 
@@ -76,14 +92,21 @@ public class SortPrel extends SortRelBase implements Prel {
     double inputRows = relMetadataQuery.getRowCount(child);
     // int  rowWidth = child.getRowType().getPrecision();
     int numSortFields = this.collation.getFieldCollations().size();
-    double cpuCost = DremioCost.COMPARE_CPU_COST * numSortFields * inputRows * (Math.log(inputRows)/Math.log(2));
-    double diskIOCost = 0; // assume in-memory for now until we enforce operator-level memory constraints
+    double cpuCost =
+        DremioCost.COMPARE_CPU_COST
+            * numSortFields
+            * inputRows
+            * (Math.log(inputRows) / Math.log(2));
+    double diskIOCost =
+        0; // assume in-memory for now until we enforce operator-level memory constraints
 
     // TODO: use rowWidth instead of avgFieldWidth * numFields
     // avgFieldWidth * numFields * inputRows
     double numFields = this.getRowType().getFieldCount();
-    long fieldWidth = PrelUtil.getPlannerSettings(planner).getOptions()
-      .getOption(ExecConstants.AVERAGE_FIELD_WIDTH);
+    long fieldWidth =
+        PrelUtil.getPlannerSettings(planner)
+            .getOptions()
+            .getOption(ExecConstants.AVERAGE_FIELD_WIDTH);
 
     double memCost = fieldWidth * numFields * inputRows;
 
@@ -97,15 +120,19 @@ public class SortPrel extends SortRelBase implements Prel {
 
     PhysicalOperator childPOP = child.getPhysicalOperator(creator);
     return new ExternalSort(
-        creator.props(this, null, childPOP.getProps().getSchema().clone(SelectionVectorMode.NONE), RESERVE, LIMIT)
-          .cloneWithBound(creator.getOptionManager().getOption(BOUNDED))
-          .cloneWithMemoryFactor(creator.getOptionManager().getOption(FACTOR))
-          .cloneWithMemoryExpensive(true)
-        ,
+        creator
+            .props(
+                this,
+                null,
+                childPOP.getProps().getSchema().clone(SelectionVectorMode.NONE),
+                RESERVE,
+                LIMIT)
+            .cloneWithBound(creator.getOptionManager().getOption(BOUNDED))
+            .cloneWithMemoryFactor(creator.getOptionManager().getOption(FACTOR))
+            .cloneWithMemoryExpensive(true),
         childPOP,
         PrelUtil.getOrdering(this.collation, getInput().getRowType()),
-        false
-        );
+        false);
   }
 
   @Override
@@ -124,7 +151,8 @@ public class SortPrel extends SortRelBase implements Prel {
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(PrelVisitor<T, X, E> logicalVisitor, X value) throws E {
+  public <T, X, E extends Throwable> T accept(PrelVisitor<T, X, E> logicalVisitor, X value)
+      throws E {
     return logicalVisitor.visitPrel(this, value);
   }
 
@@ -142,5 +170,4 @@ public class SortPrel extends SortRelBase implements Prel {
   public boolean needsFinalColumnReordering() {
     return true;
   }
-
 }

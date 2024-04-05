@@ -15,14 +15,13 @@
  */
 package com.dremio.exec.planner.sql.handlers;
 
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.tools.RelBuilderFactory;
-
 import com.dremio.exec.calcite.logical.JdbcCrel;
 import com.dremio.exec.planner.StatelessRelShuttleImpl;
 import com.dremio.exec.planner.common.JdbcRelImpl;
 import com.dremio.exec.planner.common.MoreRelOptUtil;
 import com.dremio.exec.planner.logical.JdbcRel;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.tools.RelBuilderFactory;
 
 class ConvertJdbcLogicalToJdbcRel extends StatelessRelShuttleImpl {
 
@@ -43,11 +42,15 @@ class ConvertJdbcLogicalToJdbcRel extends StatelessRelShuttleImpl {
       logical.replaceInput(0, subsetRemoved);
 
       if (logical.getPluginId() == null) {
-        // Reverts JdbcRelImpl nodes back to their original Logical rel. This is necessary to handle subtrees that
-        // contain a values operator. We try to pushdown these subtrees if they are joined with another subtree that
-        // is pushed down to a jdbc source. After the HEP planner is finished, if we see that there are isolated
+        // Reverts JdbcRelImpl nodes back to their original Logical rel. This is necessary to handle
+        // subtrees that
+        // contain a values operator. We try to pushdown these subtrees if they are joined with
+        // another subtree that
+        // is pushed down to a jdbc source. After the HEP planner is finished, if we see that there
+        // are isolated
         // branches that were not joined, we don't want to push them down, so we must revert.
-        return ((JdbcRelImpl) logical.getInput()).revert(factory.create(logical.getCluster(), null));
+        return ((JdbcRelImpl) logical.getInput())
+            .revert(factory.create(logical.getCluster(), null));
       }
 
       return new JdbcRel(logical.getCluster(), logical.getTraitSet(), logical.getInput());

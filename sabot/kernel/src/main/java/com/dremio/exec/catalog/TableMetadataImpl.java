@@ -15,9 +15,6 @@
  */
 package com.dremio.exec.catalog;
 
-import java.util.Iterator;
-import java.util.List;
-
 import com.dremio.datastore.SearchTypes.SearchQuery;
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.record.BatchSchema;
@@ -34,10 +31,10 @@ import com.dremio.service.namespace.file.proto.FileConfig;
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
+import java.util.Iterator;
+import java.util.List;
 
-/**
- * A pointer to a table exposed by the namespace service. May load lazily.
- */
+/** A pointer to a table exposed by the namespace service. May load lazily. */
 public class TableMetadataImpl implements TableMetadata {
   private final StoragePluginId pluginId;
   private final DatasetConfig config;
@@ -47,8 +44,12 @@ public class TableMetadataImpl implements TableMetadata {
 
   private BatchSchema schema;
 
-  public TableMetadataImpl(StoragePluginId pluginId, DatasetConfig config, String user,
-                           SplitsPointer splits, List<String> primaryKey) {
+  public TableMetadataImpl(
+      StoragePluginId pluginId,
+      DatasetConfig config,
+      String user,
+      SplitsPointer splits,
+      List<String> primaryKey) {
     this.pluginId = Preconditions.checkNotNull(pluginId);
     this.config = config;
     this.splits = splits;
@@ -58,7 +59,7 @@ public class TableMetadataImpl implements TableMetadata {
 
   @Override
   public String getVersion() {
-    if(config.getTag() == null) {
+    if (config.getTag() == null) {
       return null;
     }
 
@@ -88,7 +89,7 @@ public class TableMetadataImpl implements TableMetadata {
   @Override
   public TableMetadata prune(SearchQuery partitionFilterQuery) {
     SplitsPointer splits2 = splits.prune(partitionFilterQuery);
-    if(splits2 != splits){
+    if (splits2 != splits) {
       return new TableMetadataImpl(pluginId, config, user, splits2, primaryKey);
     }
     return this;
@@ -96,17 +97,25 @@ public class TableMetadataImpl implements TableMetadata {
 
   @Override
   public TableMetadata prune(Predicate<PartitionChunkMetadata> partitionPredicate) {
-    return new TableMetadataImpl(pluginId, config, user, splits.prune(partitionPredicate), primaryKey);
+    return new TableMetadataImpl(
+        pluginId, config, user, splits.prune(partitionPredicate), primaryKey);
   }
 
   @Override
   public TableMetadata prune(List<PartitionChunkMetadata> newPartitionChunks) {
-    return new TableMetadataImpl(pluginId, config, user, MaterializedSplitsPointer.prune(splits, newPartitionChunks), primaryKey);
+    return new TableMetadataImpl(
+        pluginId,
+        config,
+        user,
+        MaterializedSplitsPointer.prune(splits, newPartitionChunks),
+        primaryKey);
   }
 
   @Override
-  public String computeDigest(){
-    return String.format("%s|%s|%s|%s", splits.computeDigest(), pluginId.getName(), config.getId().getId(), getVersionContext());
+  public String computeDigest() {
+    return String.format(
+        "%s|%s|%s|%s",
+        splits.computeDigest(), pluginId.getName(), config.getId().getId(), getVersionContext());
   }
 
   @Override
@@ -141,7 +150,7 @@ public class TableMetadataImpl implements TableMetadata {
 
   @Override
   public BatchSchema getSchema() {
-    if(schema == null){
+    if (schema == null) {
       schema = CalciteArrowHelper.fromDataset(config);
     }
 
@@ -164,8 +173,10 @@ public class TableMetadataImpl implements TableMetadata {
       return false;
     }
     TableMetadataImpl castOther = (TableMetadataImpl) other;
-    return Objects.equal(schema, castOther.schema) && Objects.equal(pluginId, castOther.pluginId)
-        && Objects.equal(config, castOther.config) && Objects.equal(splits, castOther.splits);
+    return Objects.equal(schema, castOther.schema)
+        && Objects.equal(pluginId, castOther.pluginId)
+        && Objects.equal(config, castOther.config)
+        && Objects.equal(splits, castOther.splits);
   }
 
   @Override

@@ -17,9 +17,7 @@ package com.dremio.service.users;
 
 import com.dremio.service.users.proto.UID;
 
-/**
- * User interface
- */
+/** User interface */
 public interface User {
 
   UID getUID();

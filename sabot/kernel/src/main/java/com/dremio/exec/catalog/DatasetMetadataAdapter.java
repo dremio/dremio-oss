@@ -15,21 +15,17 @@
  */
 package com.dremio.exec.catalog;
 
-import java.util.Collections;
-import java.util.List;
-
 import com.dremio.connector.metadata.BytesOutput;
 import com.dremio.connector.metadata.DatasetMetadata;
 import com.dremio.connector.metadata.DatasetStats;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.google.common.annotations.VisibleForTesting;
-
 import io.protostuff.ByteString;
+import java.util.Collections;
+import java.util.List;
 
-/**
- * Adapts a {@link DatasetConfig} to behave like {@link DatasetMetadata}.
- */
+/** Adapts a {@link DatasetConfig} to behave like {@link DatasetMetadata}. */
 @VisibleForTesting
 public class DatasetMetadataAdapter implements DatasetMetadata {
 
@@ -43,17 +39,18 @@ public class DatasetMetadataAdapter implements DatasetMetadata {
     this.datasetConfig = datasetConfig;
 
     this.recordSchema = BatchSchema.deserialize(datasetConfig.getRecordSchema());
-    this.datasetStats = new DatasetStats() {
-      @Override
-      public long getRecordCount() {
-        return datasetConfig.getReadDefinition().getScanStats().getRecordCount();
-      }
+    this.datasetStats =
+        new DatasetStats() {
+          @Override
+          public long getRecordCount() {
+            return datasetConfig.getReadDefinition().getScanStats().getRecordCount();
+          }
 
-      @Override
-      public double getScanFactor() {
-        return datasetConfig.getReadDefinition().getScanStats().getScanFactor();
-      }
-    };
+          @Override
+          public double getScanFactor() {
+            return datasetConfig.getReadDefinition().getScanStats().getScanFactor();
+          }
+        };
   }
 
   @Override
@@ -84,5 +81,4 @@ public class DatasetMetadataAdapter implements DatasetMetadata {
   public BytesOutput getExtraInfo() {
     return os -> ByteString.writeTo(os, datasetConfig.getReadDefinition().getExtendedProperty());
   }
-
 }

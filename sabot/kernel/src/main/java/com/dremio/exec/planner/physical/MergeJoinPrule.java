@@ -15,8 +15,12 @@
  */
 package com.dremio.exec.planner.physical;
 
+import com.dremio.exec.planner.common.MoreRelOptUtil;
+import com.dremio.exec.planner.logical.JoinRel;
+import com.dremio.exec.planner.logical.RelOptHelper;
+import com.dremio.exec.work.foreman.UnsupportedRelOperatorException;
+import com.google.common.collect.Lists;
 import java.util.List;
-
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptRuleOperand;
@@ -31,19 +35,16 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.util.trace.CalciteTrace;
 import org.slf4j.Logger;
 
-import com.dremio.exec.planner.common.MoreRelOptUtil;
-import com.dremio.exec.planner.logical.JoinRel;
-import com.dremio.exec.planner.logical.RelOptHelper;
-import com.dremio.exec.work.foreman.UnsupportedRelOperatorException;
-import com.google.common.collect.Lists;
-
 public class MergeJoinPrule extends JoinPruleBase {
-  public static final RelOptRule DIST_INSTANCE = new MergeJoinPrule("Prel.MergeJoinDistPrule", RelOptHelper.any(JoinRel.class), true);
-  public static final RelOptRule BROADCAST_INSTANCE = new MergeJoinPrule("Prel.MergeJoinBroadcastPrule", RelOptHelper.any(JoinRel.class), false);
+  public static final RelOptRule DIST_INSTANCE =
+      new MergeJoinPrule("Prel.MergeJoinDistPrule", RelOptHelper.any(JoinRel.class), true);
+  public static final RelOptRule BROADCAST_INSTANCE =
+      new MergeJoinPrule("Prel.MergeJoinBroadcastPrule", RelOptHelper.any(JoinRel.class), false);
 
   protected static final Logger tracer = CalciteTrace.getPlannerTracer();
 
   final boolean isDist;
+
   private MergeJoinPrule(String name, RelOptRuleOperand operand, boolean isDist) {
     super(operand, name);
     this.isDist = isDist;
@@ -68,7 +69,8 @@ public class MergeJoinPrule extends JoinPruleBase {
     boolean hashSingleKey = PrelUtil.getPlannerSettings(call.getPlanner()).isHashSingleKey();
 
     // Check if we need to force a broadcast plan.
-    MoreRelOptUtil.BroadcastHintCollector hintCollector = new MoreRelOptUtil.BroadcastHintCollector();
+    MoreRelOptUtil.BroadcastHintCollector hintCollector =
+        new MoreRelOptUtil.BroadcastHintCollector();
     right.accept(hintCollector);
     boolean forceBroadcast = hintCollector.shouldBroadcast();
     try {
@@ -76,13 +78,14 @@ public class MergeJoinPrule extends JoinPruleBase {
       RelCollation collationRight = getCollation(join.getRightKeys());
 
       if (isDist) {
-        if (forceBroadcast)
-        {
-          // User has specified that we should be producing a broadcast plan. We need to confirm that is possible.
+        if (forceBroadcast) {
+          // User has specified that we should be producing a broadcast plan. We need to confirm
+          // that is possible.
           final RelMetadataQuery mq = join.getCluster().getMetadataQuery();
           final double probeRowCount = mq.getRowCount(left);
           final double buildRowCount = mq.getRowCount(right);
-          if (checkBroadcastConditions(join.getJoinType(), left, right, probeRowCount, buildRowCount, forceBroadcast)) {
+          if (checkBroadcastConditions(
+              join.getJoinType(), left, right, probeRowCount, buildRowCount, forceBroadcast)) {
             // It is possible to produce a broadcast plan, so skip on creating a dist both plan.
             return;
           }
@@ -93,8 +96,10 @@ public class MergeJoinPrule extends JoinPruleBase {
         final RelMetadataQuery mq = join.getCluster().getMetadataQuery();
         final double probeRowCount = mq.getRowCount(left);
         final double buildRowCount = mq.getRowCount(right);
-        if (checkBroadcastConditions(join.getJoinType(), left, right, probeRowCount, buildRowCount, forceBroadcast)) {
-          createBroadcastPlan(call, join, join.getCondition(), left, right, collationLeft, collationRight);
+        if (checkBroadcastConditions(
+            join.getJoinType(), left, right, probeRowCount, buildRowCount, forceBroadcast)) {
+          createBroadcastPlan(
+              call, join, join.getCondition(), left, right, collationLeft, collationRight);
         }
       }
 
@@ -104,22 +109,38 @@ public class MergeJoinPrule extends JoinPruleBase {
   }
 
   @Override
-  protected void createBroadcastPlan(final RelOptRuleCall call, final JoinRel join,
-                                     final RexNode joinCondition,
-                                     final RelNode left, final RelNode right,
-                                     final RelCollation collationLeft, final RelCollation collationRight) throws InvalidRelException {
+  protected void createBroadcastPlan(
+      final RelOptRuleCall call,
+      final JoinRel join,
+      final RexNode joinCondition,
+      final RelNode left,
+      final RelNode right,
+      final RelCollation collationLeft,
+      final RelCollation collationRight)
+      throws InvalidRelException {
 
     RelTraitSet traitsLeft = left.getTraitSet().plus(Prel.PHYSICAL);
     assert collationLeft != null && collationRight != null;
     traitsLeft = traitsLeft.plus(collationLeft);
-    RelTraitSet traitsRight = right.getTraitSet().plus(Prel.PHYSICAL).plus(collationRight).plus(DistributionTrait.BROADCAST);
+    RelTraitSet traitsRight =
+        right
+            .getTraitSet()
+            .plus(Prel.PHYSICAL)
+            .plus(collationRight)
+            .plus(DistributionTrait.BROADCAST);
     final RelNode convertedLeft = convert(left, traitsLeft);
     final RelNode convertedRight = convert(right, traitsRight);
-    call.transformTo(MergeJoinPrel.create(join.getCluster(), convertedLeft.getTraitSet(), convertedLeft, convertedRight, joinCondition,
-        join.getJoinType()));
+    call.transformTo(
+        MergeJoinPrel.create(
+            join.getCluster(),
+            convertedLeft.getTraitSet(),
+            convertedLeft,
+            convertedRight,
+            joinCondition,
+            join.getJoinType()));
   }
 
-  private RelCollation getCollation(List<Integer> keys){
+  private RelCollation getCollation(List<Integer> keys) {
     List<RelFieldCollation> fields = Lists.newArrayList();
     for (int key : keys) {
       fields.add(new RelFieldCollation(key));
@@ -128,20 +149,32 @@ public class MergeJoinPrule extends JoinPruleBase {
   }
 
   @Override
-  protected void createDistBothPlan(RelOptRuleCall call, JoinRel join,
-                                    RelNode left, RelNode right,
-                                    RelCollation collationLeft, RelCollation collationRight,
-                                    DistributionTrait hashLeftPartition, DistributionTrait hashRightPartition) throws InvalidRelException {
+  protected void createDistBothPlan(
+      RelOptRuleCall call,
+      JoinRel join,
+      RelNode left,
+      RelNode right,
+      RelCollation collationLeft,
+      RelCollation collationRight,
+      DistributionTrait hashLeftPartition,
+      DistributionTrait hashRightPartition)
+      throws InvalidRelException {
     assert collationLeft != null && collationRight != null;
-    RelTraitSet traitsLeft = left.getTraitSet().plus(Prel.PHYSICAL).plus(collationLeft).plus(hashLeftPartition);
-    RelTraitSet traitsRight = right.getTraitSet().plus(Prel.PHYSICAL).plus(collationRight).plus(hashRightPartition);
+    RelTraitSet traitsLeft =
+        left.getTraitSet().plus(Prel.PHYSICAL).plus(collationLeft).plus(hashLeftPartition);
+    RelTraitSet traitsRight =
+        right.getTraitSet().plus(Prel.PHYSICAL).plus(collationRight).plus(hashRightPartition);
 
     final RelNode convertedLeft = convert(left, traitsLeft);
     final RelNode convertedRight = convert(right, traitsRight);
 
     call.transformTo(
-      MergeJoinPrel.create(join.getCluster(), traitsLeft /* traits need to be consistent with row type */,
-      convertedLeft, convertedRight, join.getCondition(),
-      join.getJoinType()));
+        MergeJoinPrel.create(
+            join.getCluster(),
+            traitsLeft /* traits need to be consistent with row type */,
+            convertedLeft,
+            convertedRight,
+            join.getCondition(),
+            join.getJoinType()));
   }
 }

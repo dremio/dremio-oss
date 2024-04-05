@@ -18,7 +18,6 @@ package com.dremio.exec.vector.complex.fn;
 import com.fasterxml.jackson.core.io.SerializedString;
 
 public enum ExtendedType {
-
   BINARY(ExtendedTypeName.BINARY),
   TYPE(ExtendedTypeName.TYPE),
   DATE(ExtendedTypeName.DATE),
@@ -33,7 +32,4 @@ public enum ExtendedType {
   ExtendedType(String name) {
     this.serialized = new SerializedString(name);
   }
-
-
-
 }

@@ -15,15 +15,13 @@
  */
 package com.dremio.exec.store.easy.json.reader;
 
+import com.fasterxml.jackson.core.JsonToken;
 import java.io.IOException;
-
 import org.apache.arrow.vector.complex.writer.BaseWriter;
 
-import com.fasterxml.jackson.core.JsonToken;
-
 /**
- * JSON parser that just parses records and doesn't write to output.
- * This reader can unwrap a single root array record and treat it like a set of distinct records.
+ * JSON parser that just parses records and doesn't write to output. This reader can unwrap a single
+ * root array record and treat it like a set of distinct records.
  */
 public class CountingJsonReader extends BaseJsonProcessor {
 
@@ -71,7 +69,5 @@ public class CountingJsonReader extends BaseJsonProcessor {
   }
 
   @Override
-  public void ensureAtLeastOneField(BaseWriter.ComplexWriter writer) {
-
-  }
+  public void ensureAtLeastOneField(BaseWriter.ComplexWriter writer) {}
 }

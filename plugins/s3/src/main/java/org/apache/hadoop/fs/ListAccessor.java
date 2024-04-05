@@ -18,17 +18,14 @@ package org.apache.hadoop.fs;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 
-/**
- * Interface to access listLocatedStatus not directly inside a FileSystem subclass.
- */
+/** Interface to access listLocatedStatus not directly inside a FileSystem subclass. */
 public final class ListAccessor {
 
   private ListAccessor() {}
 
-  /**
-   * List located status delegation
-   */
-  public static RemoteIterator<LocatedFileStatus> listLocatedFileStatus(FileSystem fs, Path path, PathFilter filter) throws FileNotFoundException, IOException{
+  /** List located status delegation */
+  public static RemoteIterator<LocatedFileStatus> listLocatedFileStatus(
+      FileSystem fs, Path path, PathFilter filter) throws FileNotFoundException, IOException {
     return fs.listLocatedStatus(path, filter);
   }
 }

@@ -15,21 +15,16 @@
  */
 package com.dremio.exec.planner.serializer;
 
-import java.util.Properties;
-
-import org.apache.hadoop.conf.Configuration;
-import org.junit.BeforeClass;
-import org.junit.Test;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.hadoop.HadoopFileSystem;
+import java.util.Properties;
+import org.apache.hadoop.conf.Configuration;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
-
-/**
- * Ensure that the protobuf serializer is used when it is available on the path.
- */
+/** Ensure that the protobuf serializer is used when it is available on the path. */
 public class TestProtoExplainJson extends BaseTestQuery {
 
   @BeforeClass
@@ -37,7 +32,9 @@ public class TestProtoExplainJson extends BaseTestQuery {
     BaseTestQuery.setupDefaultTestCluster();
 
     final Properties properties = cloneDefaultTestConfigProperties();
-    properties.setProperty("dremio.planning.serializer", "com.dremio.exec.planner.serializer.ProtoRelSerializerFactory");
+    properties.setProperty(
+        "dremio.planning.serializer",
+        "com.dremio.exec.planner.serializer.ProtoRelSerializerFactory");
     config = SabotConfig.create(properties);
     openClient();
     localFs = HadoopFileSystem.getLocal(new Configuration());

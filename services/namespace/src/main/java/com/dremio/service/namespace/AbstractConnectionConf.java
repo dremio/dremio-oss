@@ -17,21 +17,20 @@ package com.dremio.service.namespace;
 
 import io.protostuff.ByteString;
 
-/**
- * Simple interface to allow SourceConfig to accept ConnectionConf objects directly.
- */
+/** Simple interface to allow SourceConfig to accept ConnectionConf objects directly. */
 public interface AbstractConnectionConf {
 
   /**
    * Get the type of the connection conf.
+   *
    * @return String type of source.
    */
   String getType();
 
   /**
    * Get the Protostuff ByteString for the connection configuration.
+   *
    * @return
    */
   ByteString toBytesString();
-
 }

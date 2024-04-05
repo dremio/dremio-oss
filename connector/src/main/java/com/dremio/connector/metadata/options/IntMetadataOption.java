@@ -17,9 +17,7 @@ package com.dremio.connector.metadata.options;
 
 import com.dremio.connector.metadata.MetadataOption;
 
-/**
- * Integer metadata option.
- */
+/** Integer metadata option. */
 public abstract class IntMetadataOption implements MetadataOption {
 
   private final int value;

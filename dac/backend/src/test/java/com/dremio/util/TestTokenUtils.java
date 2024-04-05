@@ -17,15 +17,11 @@ package com.dremio.util;
 
 import static org.junit.Assert.assertEquals;
 
+import com.dremio.dac.server.tokens.TokenUtils;
 import java.text.ParseException;
-
 import org.junit.Test;
 
-import com.dremio.dac.server.tokens.TokenUtils;
-
-/**
- * Tests for {@link TokenUtils}.
- */
+/** Tests for {@link TokenUtils}. */
 public class TestTokenUtils {
   @Test
   public void testGetBearerTokenFromAuthHeader() throws Exception {
@@ -36,7 +32,8 @@ public class TestTokenUtils {
 
   @Test
   public void testBearerTokenContainMultipleSpaces() throws Exception {
-    // At least one space between prefix and token. (doc: https://tools.ietf.org/html/rfc6750#section-2.1)
+    // At least one space between prefix and token. (doc:
+    // https://tools.ietf.org/html/rfc6750#section-2.1)
     assertEquals("a1.23Z.-_", TokenUtils.getBearerTokenFromAuthHeader("Bearer   a1.23Z.-_"));
   }
 

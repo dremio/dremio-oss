@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.catalog.udf;
 
+import com.dremio.exec.planner.types.SqlTypeFactoryImpl;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.schema.FunctionParameter;
 import org.apache.calcite.sql.SqlFunction;
@@ -24,20 +25,14 @@ import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSyntax;
 import org.apache.calcite.sql.type.OperandTypes;
 
-import com.dremio.exec.planner.types.SqlTypeFactoryImpl;
-
-/**
- * This is a work around since for creating a different rex node type
- */
+/** This is a work around since for creating a different rex node type */
 public class UserDefinedFunctionArgumentOperator {
-  public static SqlOperator createArgumentOperator(
-    String udfName,
-    FunctionParameter parameter) {
+  public static SqlOperator createArgumentOperator(String udfName, FunctionParameter parameter) {
     return new ScalarArgumentOperator(
-      udfName + "::" + parameter.getName(),
-      parameter.getName(),
-      parameter.getOrdinal(),
-      parameter.getType(SqlTypeFactoryImpl.INSTANCE));
+        udfName + "::" + parameter.getName(),
+        parameter.getName(),
+        parameter.getOrdinal(),
+        parameter.getType(SqlTypeFactoryImpl.INSTANCE));
   }
 
   public abstract static class ArgumentOperator extends SqlFunction {
@@ -45,17 +40,14 @@ public class UserDefinedFunctionArgumentOperator {
     private final RelDataType returnRelDataType;
 
     public ArgumentOperator(
-      int ordinal,
-      String name,
-      RelDataType returnRelDataType,
-      SqlFunctionCategory category) {
+        int ordinal, String name, RelDataType returnRelDataType, SqlFunctionCategory category) {
       super(
-        name,
-        SqlKind.OTHER_FUNCTION,
-        (sqlOperatorBinding)-> returnRelDataType,
-        null,
-        OperandTypes.NILADIC,
-        category);
+          name,
+          SqlKind.OTHER_FUNCTION,
+          (sqlOperatorBinding) -> returnRelDataType,
+          null,
+          OperandTypes.NILADIC,
+          category);
       this.ordinal = ordinal;
       this.returnRelDataType = returnRelDataType;
     }
@@ -69,7 +61,7 @@ public class UserDefinedFunctionArgumentOperator {
       return ordinal;
     }
 
-    public RelDataType getReturnRelDataType(){
+    public RelDataType getReturnRelDataType() {
       return returnRelDataType;
     }
   }
@@ -77,7 +69,9 @@ public class UserDefinedFunctionArgumentOperator {
 
 class ScalarArgumentOperator extends UserDefinedFunctionArgumentOperator.ArgumentOperator {
   public final String namePath;
-  public ScalarArgumentOperator(String namePath, String name, int ordinal, RelDataType relDataType) {
+
+  public ScalarArgumentOperator(
+      String namePath, String name, int ordinal, RelDataType relDataType) {
     super(ordinal, name, relDataType, SqlFunctionCategory.USER_DEFINED_FUNCTION);
     this.namePath = namePath;
   }

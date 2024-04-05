@@ -18,6 +18,7 @@ package com.dremio.sabot.op.join.vhash.spill.pool;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 
+import com.dremio.common.AutoCloseables;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
@@ -25,11 +26,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import com.dremio.common.AutoCloseables;
-
-/**
- * Test the Page system.
- */
+/** Test the Page system. */
 public class TestPage {
 
   private BufferAllocator allocator;
@@ -52,8 +49,7 @@ public class TestPage {
     PageImpl p = new PageImpl(1, allocator.buffer(0), buf -> {});
     p.initialRetain();
     // can't release when open.
-    assertThatThrownBy(p::deallocate)
-      .isInstanceOf(IllegalStateException.class);
+    assertThatThrownBy(p::deallocate).isInstanceOf(IllegalStateException.class);
   }
 
   @Test
@@ -68,8 +64,7 @@ public class TestPage {
   public void newPageNeg() {
     PageImpl p = new PageImpl(1, allocator.buffer(0), buf -> {});
     p.initialRetain();
-    assertThatThrownBy(p::toNewPage)
-      .isInstanceOf(IllegalStateException.class);
+    assertThatThrownBy(p::toNewPage).isInstanceOf(IllegalStateException.class);
   }
 
   @Test
@@ -86,8 +81,7 @@ public class TestPage {
     p.initialRetain();
     p.close();
 
-    assertThatThrownBy(() -> p.deadSlice(1))
-      .isInstanceOf(IllegalStateException.class);
+    assertThatThrownBy(() -> p.deadSlice(1)).isInstanceOf(IllegalStateException.class);
   }
 
   @Test
@@ -96,8 +90,7 @@ public class TestPage {
     p.initialRetain();
     p.close();
 
-    assertThatThrownBy(() -> p.slice(1))
-      .isInstanceOf(IllegalStateException.class);
+    assertThatThrownBy(() -> p.slice(1)).isInstanceOf(IllegalStateException.class);
   }
 
   @Test
@@ -106,8 +99,7 @@ public class TestPage {
     p.initialRetain();
     p.close();
 
-    assertThatThrownBy(p::getAddress)
-      .isInstanceOf(IllegalStateException.class);
+    assertThatThrownBy(p::getAddress).isInstanceOf(IllegalStateException.class);
   }
 
   @Test
@@ -116,8 +108,7 @@ public class TestPage {
     p.initialRetain();
     p.close();
 
-    assertThatThrownBy(p::getRemainingBytes)
-      .isInstanceOf(IllegalStateException.class);
+    assertThatThrownBy(p::getRemainingBytes).isInstanceOf(IllegalStateException.class);
   }
 
   @Test
@@ -166,8 +157,7 @@ public class TestPage {
       assertEquals(1, p.getRemainingBytes());
       p.deadSlice(1);
       assertEquals(0, p.getRemainingBytes());
-      assertThatThrownBy(() -> p.deadSlice(1))
-        .isInstanceOf(IllegalArgumentException.class);
+      assertThatThrownBy(() -> p.deadSlice(1)).isInstanceOf(IllegalArgumentException.class);
     } finally {
       p.close();
       p.deallocate();

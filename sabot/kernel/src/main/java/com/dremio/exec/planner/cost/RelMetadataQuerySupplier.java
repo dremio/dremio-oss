@@ -16,11 +16,7 @@
 package com.dremio.exec.planner.cost;
 
 import java.util.function.Supplier;
-
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
-/**
- * RelMetadataQuerySupplier
- */
-public interface RelMetadataQuerySupplier extends Supplier<RelMetadataQuery> {
-}
+/** RelMetadataQuerySupplier */
+public interface RelMetadataQuerySupplier extends Supplier<RelMetadataQuery> {}

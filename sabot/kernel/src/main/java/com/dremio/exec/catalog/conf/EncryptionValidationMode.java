@@ -17,9 +17,7 @@ package com.dremio.exec.catalog.conf;
 
 import io.protostuff.Tag;
 
-/**
- * Enumerates supported encryption verification modes used by most sources
- */
+/** Enumerates supported encryption verification modes used by most sources */
 public enum EncryptionValidationMode {
   @Tag(1)
   @DisplayMetadata(label = "Validate certificate and hostname")

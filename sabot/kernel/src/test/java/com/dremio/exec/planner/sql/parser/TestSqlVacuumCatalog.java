@@ -22,9 +22,7 @@ import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.parser.SqlParseException;
 import org.junit.Test;
 
-/**
- * Validates VACUUM CATALOG sql syntax
- */
+/** Validates VACUUM CATALOG sql syntax */
 public class TestSqlVacuumCatalog {
   @Test
   public void testDefaultCatalogOptions() throws SqlParseException {

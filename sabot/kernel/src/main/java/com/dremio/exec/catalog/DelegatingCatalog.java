@@ -15,18 +15,6 @@
  */
 package com.dremio.exec.catalog;
 
-import java.io.IOException;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-
-import javax.annotation.Nonnull;
-
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.calcite.schema.Function;
-
 import com.dremio.catalog.exception.UnsupportedForgetTableException;
 import com.dremio.catalog.model.CatalogEntityId;
 import com.dremio.catalog.model.CatalogEntityKey;
@@ -35,6 +23,8 @@ import com.dremio.catalog.model.VersionContext;
 import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.connector.metadata.AttributeValue;
+import com.dremio.datastore.SearchTypes;
+import com.dremio.datastore.api.LegacyIndexedStore;
 import com.dremio.exec.dotfile.View;
 import com.dremio.exec.physical.base.ViewOptions;
 import com.dremio.exec.physical.base.WriterOptions;
@@ -49,7 +39,6 @@ import com.dremio.exec.store.ReferenceConflictException;
 import com.dremio.exec.store.ReferenceNotFoundException;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.dfs.IcebergTableProps;
-import com.dremio.exec.store.sys.udf.UserDefinedFunction;
 import com.dremio.service.catalog.Schema;
 import com.dremio.service.catalog.SearchQuery;
 import com.dremio.service.catalog.Table;
@@ -57,19 +46,28 @@ import com.dremio.service.catalog.TableSchema;
 import com.dremio.service.namespace.NamespaceAttribute;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
+import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.google.common.base.Preconditions;
+import java.io.IOException;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import javax.annotation.Nonnull;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.calcite.schema.Function;
 
-/**
- * Delegating implementation of {@link Catalog}
- */
+/** Delegating implementation of {@link Catalog} */
 public abstract class DelegatingCatalog implements Catalog {
 
-  protected final Catalog delegate;
+  private final Catalog delegate;
 
   public DelegatingCatalog(Catalog delegate) {
     this.delegate = Preconditions.checkNotNull(delegate, "delegate catalog required");
@@ -81,8 +79,8 @@ public abstract class DelegatingCatalog implements Catalog {
   }
 
   @Override
-  public DremioTable getTableSnapshotNoResolve(NamespaceKey key, TableVersionContext context) {
-    return delegate.getTableSnapshotNoResolve(key, context);
+  public DremioTable getTableNoResolve(CatalogEntityKey catalogEntityKey) {
+    return delegate.getTableNoResolve(catalogEntityKey);
   }
 
   @Override
@@ -91,18 +89,20 @@ public abstract class DelegatingCatalog implements Catalog {
   }
 
   @Override
-  public void addOrUpdateDataset(NamespaceKey key, DatasetConfig dataset) throws NamespaceException {
+  public void addOrUpdateDataset(NamespaceKey key, DatasetConfig dataset)
+      throws NamespaceException {
     delegate.addOrUpdateDataset(key, dataset);
   }
 
   @Override
-  public void addPrimaryKey(NamespaceKey namespaceKey, List<String> columns, VersionContext statementSourceVersion, Catalog catalog) {
-    delegate.addPrimaryKey(namespaceKey, columns, statementSourceVersion, catalog);
+  public void addPrimaryKey(
+      NamespaceKey namespaceKey, List<String> columns, VersionContext statementSourceVersion) {
+    delegate.addPrimaryKey(namespaceKey, columns, statementSourceVersion);
   }
 
   @Override
-  public void dropPrimaryKey(NamespaceKey namespaceKey, VersionContext statementSourceVersion, Catalog catalog) {
-    delegate.dropPrimaryKey(namespaceKey, statementSourceVersion, catalog);
+  public void dropPrimaryKey(NamespaceKey namespaceKey, VersionContext statementSourceVersion) {
+    delegate.dropPrimaryKey(namespaceKey, statementSourceVersion);
   }
 
   @Override
@@ -131,8 +131,8 @@ public abstract class DelegatingCatalog implements Catalog {
   }
 
   @Override
-  public DremioTable getTableSnapshotForQuery(NamespaceKey key, TableVersionContext context) {
-    return delegate.getTableSnapshotForQuery(key, context);
+  public DremioTable getTableSnapshotForQuery(CatalogEntityKey catalogEntityKey) {
+    return delegate.getTableSnapshotForQuery(catalogEntityKey);
   }
 
   @Override
@@ -141,8 +141,8 @@ public abstract class DelegatingCatalog implements Catalog {
   }
 
   @Override
-  public DremioTable getTableSnapshot(NamespaceKey key, TableVersionContext context) {
-    return delegate.getTableSnapshot(key, context);
+  public DremioTable getTableSnapshot(CatalogEntityKey catalogEntityKey) {
+    return delegate.getTableSnapshot(catalogEntityKey);
   }
 
   @Override
@@ -166,7 +166,7 @@ public abstract class DelegatingCatalog implements Catalog {
   }
 
   @Override
-  public boolean containerExists(NamespaceKey path) {
+  public boolean containerExists(CatalogEntityKey path) {
     return delegate.containerExists(path);
   }
 
@@ -181,8 +181,7 @@ public abstract class DelegatingCatalog implements Catalog {
   }
 
   @Override
-  public Collection<Function> getFunctions(NamespaceKey path,
-                                           FunctionType functionType) {
+  public Collection<Function> getFunctions(NamespaceKey path, FunctionType functionType) {
     return delegate.getFunctions(path, functionType);
   }
 
@@ -212,28 +211,47 @@ public abstract class DelegatingCatalog implements Catalog {
   }
 
   @Override
-  public CreateTableEntry createNewTable(NamespaceKey key, IcebergTableProps icebergTableProps,
-                                         WriterOptions writerOptions, Map<String, Object> storageOptions) {
+  public Catalog resolveCatalogResetContext(String sourceName, VersionContext versionContext) {
+    return delegate.resolveCatalogResetContext(sourceName, versionContext);
+  }
+
+  @Override
+  public CreateTableEntry createNewTable(
+      NamespaceKey key,
+      IcebergTableProps icebergTableProps,
+      WriterOptions writerOptions,
+      Map<String, Object> storageOptions) {
     return delegate.createNewTable(key, icebergTableProps, writerOptions, storageOptions);
   }
 
   @Override
-  public CreateTableEntry createNewTable(NamespaceKey key, IcebergTableProps icebergTableProps, WriterOptions writerOptions, Map<String, Object> storageOptions, boolean isResultsTable) {
-    return delegate.createNewTable(key, icebergTableProps, writerOptions, storageOptions, isResultsTable);
+  public CreateTableEntry createNewTable(
+      NamespaceKey key,
+      IcebergTableProps icebergTableProps,
+      WriterOptions writerOptions,
+      Map<String, Object> storageOptions,
+      boolean isResultsTable) {
+    return delegate.createNewTable(
+        key, icebergTableProps, writerOptions, storageOptions, isResultsTable);
   }
 
   @Override
-  public void createEmptyTable(NamespaceKey key, BatchSchema batchSchema, WriterOptions writerOptions) {
+  public void createEmptyTable(
+      NamespaceKey key, BatchSchema batchSchema, WriterOptions writerOptions) {
     delegate.createEmptyTable(key, batchSchema, writerOptions);
   }
 
   @Override
-  public void createView(NamespaceKey key, View view, ViewOptions viewOptions, NamespaceAttribute... attributes) throws IOException {
+  public void createView(
+      NamespaceKey key, View view, ViewOptions viewOptions, NamespaceAttribute... attributes)
+      throws IOException {
     delegate.createView(key, view, viewOptions, attributes);
   }
 
   @Override
-  public void updateView(NamespaceKey key, View view, ViewOptions viewOptions, NamespaceAttribute... attributes) throws IOException {
+  public void updateView(
+      NamespaceKey key, View view, ViewOptions viewOptions, NamespaceAttribute... attributes)
+      throws IOException {
     delegate.updateView(key, view, viewOptions, attributes);
   }
 
@@ -253,7 +271,11 @@ public abstract class DelegatingCatalog implements Catalog {
   }
 
   @Override
-  public void alterTable(NamespaceKey key, DatasetConfig datasetConfig, AlterTableOption alterTableOption, TableMutationOptions tableMutationOptions) {
+  public void alterTable(
+      NamespaceKey key,
+      DatasetConfig datasetConfig,
+      AlterTableOption alterTableOption,
+      TableMutationOptions tableMutationOptions) {
     delegate.alterTable(key, datasetConfig, alterTableOption, tableMutationOptions);
   }
 
@@ -263,23 +285,41 @@ public abstract class DelegatingCatalog implements Catalog {
   }
 
   @Override
-  public void rollbackTable(NamespaceKey path, DatasetConfig datasetConfig, RollbackOption rollbackOption, TableMutationOptions tableMutationOptions) {
+  public void rollbackTable(
+      NamespaceKey path,
+      DatasetConfig datasetConfig,
+      RollbackOption rollbackOption,
+      TableMutationOptions tableMutationOptions) {
     delegate.rollbackTable(path, datasetConfig, rollbackOption, tableMutationOptions);
   }
 
   @Override
-  public void addColumns(NamespaceKey table, DatasetConfig datasetConfig, List<Field> colsToAdd, TableMutationOptions tableMutationOptions) {
+  public void addColumns(
+      NamespaceKey table,
+      DatasetConfig datasetConfig,
+      List<Field> colsToAdd,
+      TableMutationOptions tableMutationOptions) {
     delegate.addColumns(table, datasetConfig, colsToAdd, tableMutationOptions);
   }
 
   @Override
-  public void dropColumn(NamespaceKey table, DatasetConfig datasetConfig, String columnToDrop, TableMutationOptions tableMutationOptions) {
+  public void dropColumn(
+      NamespaceKey table,
+      DatasetConfig datasetConfig,
+      String columnToDrop,
+      TableMutationOptions tableMutationOptions) {
     delegate.dropColumn(table, datasetConfig, columnToDrop, tableMutationOptions);
   }
 
   @Override
-  public void changeColumn(NamespaceKey table, DatasetConfig datasetConfig, String columnToChange, Field fieldFromSqlColDeclaration, TableMutationOptions tableMutationOptions) {
-    delegate.changeColumn(table, datasetConfig, columnToChange, fieldFromSqlColDeclaration, tableMutationOptions);
+  public void changeColumn(
+      NamespaceKey table,
+      DatasetConfig datasetConfig,
+      String columnToChange,
+      Field fieldFromSqlColDeclaration,
+      TableMutationOptions tableMutationOptions) {
+    delegate.changeColumn(
+        table, datasetConfig, columnToChange, fieldFromSqlColDeclaration, tableMutationOptions);
   }
 
   @Override
@@ -288,17 +328,31 @@ public abstract class DelegatingCatalog implements Catalog {
   }
 
   @Override
-  public void updateTableProperties(NamespaceKey table, DatasetConfig datasetConfig, BatchSchema schema, Map<String, String> tableProperties, TableMutationOptions tableMutationOptions, boolean isRemove) {
-    delegate.updateTableProperties(table, datasetConfig, schema, tableProperties, tableMutationOptions, isRemove);
+  public void updateTableProperties(
+      NamespaceKey table,
+      DatasetConfig datasetConfig,
+      BatchSchema schema,
+      Map<String, String> tableProperties,
+      TableMutationOptions tableMutationOptions,
+      boolean isRemove) {
+    delegate.updateTableProperties(
+        table, datasetConfig, schema, tableProperties, tableMutationOptions, isRemove);
   }
 
   @Override
-  public void alterSortOrder(NamespaceKey table, DatasetConfig datasetConfig, BatchSchema schema, List<String> sortOrderColumns, TableMutationOptions tableMutationOptions) {
+  public void alterSortOrder(
+      NamespaceKey table,
+      DatasetConfig datasetConfig,
+      BatchSchema schema,
+      List<String> sortOrderColumns,
+      TableMutationOptions tableMutationOptions) {
     delegate.alterSortOrder(table, datasetConfig, schema, sortOrderColumns, tableMutationOptions);
   }
 
   @Override
-  public void createDataset(NamespaceKey key, com.google.common.base.Function<DatasetConfig, DatasetConfig> datasetMutator) {
+  public void createDataset(
+      NamespaceKey key,
+      com.google.common.base.Function<DatasetConfig, DatasetConfig> datasetMutator) {
     delegate.createDataset(key, datasetMutator);
   }
 
@@ -308,7 +362,10 @@ public abstract class DelegatingCatalog implements Catalog {
   }
 
   @Override
-  public UpdateStatus refreshDataset(NamespaceKey key, DatasetRetrievalOptions retrievalOptions, boolean isPrivilegeValidationNeeded) {
+  public UpdateStatus refreshDataset(
+      NamespaceKey key,
+      DatasetRetrievalOptions retrievalOptions,
+      boolean isPrivilegeValidationNeeded) {
     return delegate.refreshDataset(key, retrievalOptions, isPrivilegeValidationNeeded);
   }
 
@@ -318,13 +375,22 @@ public abstract class DelegatingCatalog implements Catalog {
   }
 
   @Override
-  public Iterable<String> getSubPartitions(NamespaceKey key, List<String> partitionColumns, List<String> partitionValues) throws PartitionNotFoundException {
+  public Iterable<String> getSubPartitions(
+      NamespaceKey key, List<String> partitionColumns, List<String> partitionValues)
+      throws PartitionNotFoundException {
     return delegate.getSubPartitions(key, partitionColumns, partitionValues);
   }
 
   @Override
-  public boolean createOrUpdateDataset(NamespaceService userNamespaceService, NamespaceKey source, NamespaceKey datasetPath, DatasetConfig datasetConfig, NamespaceAttribute... attributes) throws NamespaceException {
-    return delegate.createOrUpdateDataset(userNamespaceService, source, datasetPath, datasetConfig, attributes);
+  public boolean createOrUpdateDataset(
+      NamespaceService userNamespaceService,
+      NamespaceKey source,
+      NamespaceKey datasetPath,
+      DatasetConfig datasetConfig,
+      NamespaceAttribute... attributes)
+      throws NamespaceException {
+    return delegate.createOrUpdateDataset(
+        userNamespaceService, source, datasetPath, datasetConfig, attributes);
   }
 
   @Override
@@ -333,7 +399,8 @@ public abstract class DelegatingCatalog implements Catalog {
   }
 
   @Override
-  public void updateDatasetField(NamespaceKey datasetKey, String originField, CompleteType fieldSchema) {
+  public void updateDatasetField(
+      NamespaceKey datasetKey, String originField, CompleteType fieldSchema) {
     delegate.updateDatasetField(datasetKey, originField, fieldSchema);
   }
 
@@ -358,13 +425,17 @@ public abstract class DelegatingCatalog implements Catalog {
   }
 
   @Override
-  public boolean alterDataset(final CatalogEntityKey catalogEntityKey, final Map<String, AttributeValue> attributes) {
+  public boolean alterDataset(
+      final CatalogEntityKey catalogEntityKey, final Map<String, AttributeValue> attributes) {
     return delegate.alterDataset(catalogEntityKey, attributes);
   }
 
   @Override
-  public boolean alterColumnOption(final NamespaceKey key, String columnToChange,
-                                   final String attributeName, final AttributeValue attributeValue) {
+  public boolean alterColumnOption(
+      final NamespaceKey key,
+      String columnToChange,
+      final String attributeName,
+      final AttributeValue attributeValue) {
     return delegate.alterColumnOption(key, columnToChange, attributeName, attributeValue);
   }
 
@@ -394,7 +465,9 @@ public abstract class DelegatingCatalog implements Catalog {
   }
 
   @Override
-  public ResolvedVersionContext resolveVersionContext(String sourceName, VersionContext versionContext) throws ReferenceNotFoundException, NoDefaultBranchException, ReferenceConflictException {
+  public ResolvedVersionContext resolveVersionContext(
+      String sourceName, VersionContext versionContext)
+      throws ReferenceNotFoundException, NoDefaultBranchException, ReferenceConflictException {
     return delegate.resolveVersionContext(sourceName, versionContext);
   }
 
@@ -404,37 +477,8 @@ public abstract class DelegatingCatalog implements Catalog {
   }
 
   @Override
-  public void validateOwnership(NamespaceKey key) {
+  public void validateOwnership(CatalogEntityKey key) {
     delegate.validateOwnership(key);
-  }
-
-  @Override
-  public void createFunction(NamespaceKey key,
-                             UserDefinedFunction userDefinedFunction,
-                             NamespaceAttribute... attributes) throws IOException {
-    delegate.createFunction(key, userDefinedFunction, attributes);
-  }
-
-  @Override
-  public void updateFunction(NamespaceKey key,
-                             UserDefinedFunction userDefinedFunction,
-                             NamespaceAttribute... attributes) throws IOException {
-    delegate.updateFunction(key, userDefinedFunction, attributes);
-  }
-
-  @Override
-  public void dropFunction(NamespaceKey key) throws IOException {
-    delegate.dropFunction(key);
-  }
-
-  @Override
-  public UserDefinedFunction getFunction(NamespaceKey key) throws IOException {
-    return delegate.getFunction(key);
-  }
-
-  @Override
-  public Iterable<UserDefinedFunction> getAllFunctions() throws IOException {
-    return delegate.getAllFunctions();
   }
 
   @Override
@@ -459,12 +503,77 @@ public abstract class DelegatingCatalog implements Catalog {
 
   @Nonnull
   @Override
-  public Optional<TableMetadataVerifyResult> verifyTableMetadata(NamespaceKey key, TableMetadataVerifyRequest metadataVerifyRequest) {
+  public Optional<TableMetadataVerifyResult> verifyTableMetadata(
+      CatalogEntityKey key, TableMetadataVerifyRequest metadataVerifyRequest) {
     return delegate.verifyTableMetadata(key, metadataVerifyRequest);
   }
 
+  public Catalog getDelegate() {
+    return delegate;
+  }
+
+  //// Begin: NamespacePassthrough Methods
   @Override
   public boolean existsById(CatalogEntityId id) {
     return delegate.existsById(id);
   }
+
+  @Override
+  public List<NameSpaceContainer> getEntities(List<NamespaceKey> lookupKeys)
+      throws NamespaceNotFoundException {
+    return delegate.getEntities(lookupKeys);
+  }
+
+  @Override
+  public void addOrUpdateDataset(
+      NamespaceKey datasetPath, DatasetConfig dataset, NamespaceAttribute... attributes)
+      throws NamespaceException {
+    delegate.addOrUpdateDataset(datasetPath, dataset, attributes);
+  }
+
+  @Override
+  public DatasetConfig renameDataset(NamespaceKey oldDatasetPath, NamespaceKey newDatasetPath)
+      throws NamespaceException {
+    return delegate.renameDataset(oldDatasetPath, newDatasetPath);
+  }
+
+  @Override
+  public String getEntityIdByPath(NamespaceKey entityPath) throws NamespaceNotFoundException {
+    return delegate.getEntityIdByPath(entityPath);
+  }
+
+  @Override
+  public NameSpaceContainer getEntityByPath(NamespaceKey entityPath) throws NamespaceException {
+    return delegate.getEntityByPath(entityPath);
+  }
+
+  @Override
+  public DatasetConfig getDataset(NamespaceKey datasetPath) throws NamespaceException {
+    return delegate.getDataset(datasetPath);
+  }
+
+  @Override
+  public Iterable<NamespaceKey> getAllDatasets(final NamespaceKey parent)
+      throws NamespaceException {
+    return delegate.getAllDatasets(parent);
+  }
+
+  @Override
+  public void deleteDataset(
+      NamespaceKey datasetPath, String version, NamespaceAttribute... attributes)
+      throws NamespaceException {
+    delegate.deleteDataset(datasetPath, version, attributes);
+  }
+
+  @Override
+  public List<Integer> getCounts(SearchTypes.SearchQuery... queries) throws NamespaceException {
+    return delegate.getCounts(queries);
+  }
+
+  @Override
+  public Iterable<Map.Entry<NamespaceKey, NameSpaceContainer>> find(
+      LegacyIndexedStore.LegacyFindByCondition condition) {
+    return delegate.find(condition);
+  }
+  //// End: NamespacePassthrough Methods
 }

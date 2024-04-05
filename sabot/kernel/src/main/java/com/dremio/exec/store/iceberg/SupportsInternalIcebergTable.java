@@ -15,10 +15,6 @@
  */
 package com.dremio.exec.store.iceberg;
 
-import java.io.IOException;
-import java.util.List;
-import java.util.function.Predicate;
-
 import com.dremio.connector.metadata.DatasetMetadata;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.config.TableFunctionConfig;
@@ -43,10 +39,14 @@ import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
 import com.dremio.service.namespace.dirlist.proto.DirListInputSplitProto;
 import com.google.protobuf.ByteString;
+import java.io.IOException;
+import java.util.List;
+import java.util.function.Predicate;
 
 /**
- * This is an optional interface. When extended by an implementation of {@link StoragePlugin}, this is used to provide
- * information from such storage plugins that supports reading/writing from internally created Iceberg Tables by Dremio.
+ * This is an optional interface. When extended by an implementation of {@link StoragePlugin}, this
+ * is used to provide information from such storage plugins that supports reading/writing from
+ * internally created Iceberg Tables by Dremio.
  */
 public interface SupportsInternalIcebergTable extends SupportsUnlimitedSplits {
 
@@ -59,7 +59,8 @@ public interface SupportsInternalIcebergTable extends SupportsUnlimitedSplits {
    * @param userName user
    * @return file system, not null
    */
-  FileSystem createFS(String filePath, String userName, OperatorContext operatorContext) throws IOException;
+  FileSystem createFS(String filePath, String userName, OperatorContext operatorContext)
+      throws IOException;
 
   /**
    * Creates a new FileSystem instance for a given user using the file path provided.
@@ -68,66 +69,80 @@ public interface SupportsInternalIcebergTable extends SupportsUnlimitedSplits {
    * @param userName user
    * @return file system, not null
    */
-  FileSystem createFSWithAsyncOptions(String filePath, String userName, OperatorContext operatorContext) throws IOException;
+  FileSystem createFSWithAsyncOptions(
+      String filePath, String userName, OperatorContext operatorContext) throws IOException;
 
   /**
-   * Creates a new FileSystem instance for a given user using the file path provided.
-   * It doesn't use hadoop fs cache
+   * Creates a new FileSystem instance for a given user using the file path provided. It doesn't use
+   * hadoop fs cache
+   *
    * @param filePath file path
    * @param userName user
    * @return file system, not null
    */
-  FileSystem createFSWithoutHDFSCache(String filePath, String userName, OperatorContext operatorContext) throws IOException;
+  FileSystem createFSWithoutHDFSCache(
+      String filePath, String userName, OperatorContext operatorContext) throws IOException;
 
   /**
-   * Indicates that the plugin supports getting dataset metadata (partition spec, partition values, table schema)
-   * in the coordinator itself. Eg. for Hive plugin, we can get this info from Hive metastore.
+   * Indicates that the plugin supports getting dataset metadata (partition spec, partition values,
+   * table schema) in the coordinator itself. Eg. for Hive plugin, we can get this info from Hive
+   * metastore.
    */
   default boolean canGetDatasetMetadataInCoordinator() {
     return false;
   }
 
-  /**
-   * Resolves the table name to a valid path.
-   */
+  /** Resolves the table name to a valid path. */
   List<String> resolveTableNameToValidPath(List<String> tableSchemaPath);
 
-  /**
-   * Creates the plugin-specific split creator.
-   */
-  BlockBasedSplitGenerator.SplitCreator createSplitCreator(OperatorContext context, byte[] extendedBytes, boolean isInternalIcebergTable);
+  /** Creates the plugin-specific split creator. */
+  BlockBasedSplitGenerator.SplitCreator createSplitCreator(
+      OperatorContext context, byte[] extendedBytes, boolean isInternalIcebergTable);
 
-  /**
-   * Creates the plugin-specific Scan Table Function.
-   */
-  ScanTableFunction createScanTableFunction(FragmentExecutionContext fec, OperatorContext context, OpProps props, TableFunctionConfig functionConfig);
+  /** Creates the plugin-specific Scan Table Function. */
+  ScanTableFunction createScanTableFunction(
+      FragmentExecutionContext fec,
+      OperatorContext context,
+      OpProps props,
+      TableFunctionConfig functionConfig);
 
-  /**
-   * Creates the plugin-specific footer reader Table Function.
-   */
-  FooterReadTableFunction getFooterReaderTableFunction(FragmentExecutionContext fec, OperatorContext context, OpProps props, TableFunctionConfig functionConfig);
+  /** Creates the plugin-specific footer reader Table Function. */
+  FooterReadTableFunction getFooterReaderTableFunction(
+      FragmentExecutionContext fec,
+      OperatorContext context,
+      OpProps props,
+      TableFunctionConfig functionConfig);
 
-  AbstractRefreshPlanBuilder createRefreshDatasetPlanBuilder(SqlHandlerConfig config, SqlRefreshDataset sqlRefreshDataset, UnlimitedSplitsMetadataProvider metadataProvider, boolean isFullRefresh);
+  AbstractRefreshPlanBuilder createRefreshDatasetPlanBuilder(
+      SqlHandlerConfig config,
+      SqlRefreshDataset sqlRefreshDataset,
+      UnlimitedSplitsMetadataProvider metadataProvider,
+      boolean isFullRefresh);
 
-  DirListingRecordReader createDirListRecordReader(OperatorContext context,
-                                                   FileSystem fs,
-                                                   DirListInputSplitProto.DirListInputSplit dirListInputSplit,
-                                                   boolean isRecursive,
-                                                   BatchSchema tableSchema,
-                                                   List<PartitionProtobuf.PartitionValue> partitionValues);
+  DirListingRecordReader createDirListRecordReader(
+      OperatorContext context,
+      FileSystem fs,
+      DirListInputSplitProto.DirListInputSplit dirListInputSplit,
+      boolean isRecursive,
+      BatchSchema tableSchema,
+      List<PartitionProtobuf.PartitionValue> partitionValues);
 
-  default ReadSignatureProvider createReadSignatureProvider(ByteString existingReadSignature,
-                                                            final String dataTableRoot,
-                                                            final long queryStartTime,
-                                                            List<String> partitionPaths,
-                                                            Predicate<String> partitionExists,
-                                                            boolean isFullRefresh, boolean isPartialRefresh) {
+  default ReadSignatureProvider createReadSignatureProvider(
+      ByteString existingReadSignature,
+      final String dataTableRoot,
+      final long queryStartTime,
+      List<String> partitionPaths,
+      Predicate<String> partitionExists,
+      boolean isFullRefresh,
+      boolean isPartialRefresh) {
     if (isFullRefresh) {
       return new FullRefreshReadSignatureProvider(dataTableRoot, queryStartTime);
     } else if (isPartialRefresh) {
-      return new PartialRefreshReadSignatureProvider(existingReadSignature, dataTableRoot, queryStartTime, partitionExists);
+      return new PartialRefreshReadSignatureProvider(
+          existingReadSignature, dataTableRoot, queryStartTime, partitionExists);
     } else {
-      return new IncrementalRefreshReadSignatureProvider(existingReadSignature, dataTableRoot, queryStartTime, partitionExists);
+      return new IncrementalRefreshReadSignatureProvider(
+          existingReadSignature, dataTableRoot, queryStartTime, partitionExists);
     }
   }
 

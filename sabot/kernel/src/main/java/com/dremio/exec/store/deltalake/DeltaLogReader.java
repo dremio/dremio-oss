@@ -15,37 +15,40 @@
  */
 package com.dremio.exec.store.deltalake;
 
-import java.io.IOException;
-import java.util.List;
-
 import com.dremio.exec.server.SabotContext;
 import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.service.namespace.file.proto.FileType;
+import java.io.IOException;
+import java.util.List;
 
-/**
- * Reads one commit/checkpoint file for DeltaLake log files.
- */
+/** Reads one commit/checkpoint file for DeltaLake log files. */
 public interface DeltaLogReader {
 
-    static DeltaLogReader getInstance(FileType fileType) {
-        switch (fileType) {
-            case JSON:
-                return new DeltaLogCommitJsonReader();
-          case PARQUET:
-                return new DeltaLogCheckpointParquetReader();
-            default:
-                throw new IllegalArgumentException("Commit file type is not supported " + fileType);
-        }
+  static DeltaLogReader getInstance(FileType fileType) {
+    switch (fileType) {
+      case JSON:
+        return new DeltaLogCommitJsonReader();
+      case PARQUET:
+        return new DeltaLogCheckpointParquetReader();
+      default:
+        throw new IllegalArgumentException("Commit file type is not supported " + fileType);
     }
+  }
 
-    /**
-     * Parses the DeltaLake commit log file / checkpoint parquet
-     *
-     * @param fs
-     * @param fileAttributes List of File Attributes - Cannot be empty or null
-     * @return
-     */
-    DeltaLogSnapshot parseMetadata(Path rootFolder, SabotContext context, FileSystem fs, List<FileAttributes> fileAttributes, long version) throws IOException;
+  /**
+   * Parses the DeltaLake commit log file / checkpoint parquet
+   *
+   * @param fs
+   * @param fileAttributes List of File Attributes - Cannot be empty or null
+   * @return
+   */
+  DeltaLogSnapshot parseMetadata(
+      Path rootFolder,
+      SabotContext context,
+      FileSystem fs,
+      List<FileAttributes> fileAttributes,
+      long version)
+      throws IOException;
 }

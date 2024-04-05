@@ -20,20 +20,16 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import javax.inject.Provider;
-
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-
 import com.dremio.options.OptionManager;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.LocalExecutorSetService;
 import com.google.common.collect.ImmutableSet;
+import javax.inject.Provider;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
-/**
- * Unit test for the {@link UniversalExecutorSelector}
- */
+/** Unit test for the {@link UniversalExecutorSelector} */
 public class TestUniversalExecutorSelector {
   private ClusterCoordinator clusterCoordinator;
   private TestServiceSet serviceSet;
@@ -47,17 +43,18 @@ public class TestUniversalExecutorSelector {
     when(clusterCoordinator.getServiceSet(any())).thenReturn(serviceSet);
 
     optionManager = mock(OptionManager.class);
-    when(optionManager.getOption(eq(ExecutorSelectionService.EXECUTOR_SELECTION_TYPE))).thenReturn("universal");
+    when(optionManager.getOption(eq(ExecutorSelectionService.EXECUTOR_SELECTION_TYPE)))
+        .thenReturn("universal");
 
     final ExecutorSelectorFactory executorSelectorFactory = new ExecutorSelectorFactoryImpl();
 
     Provider<OptionManager> optionManagerProvider = () -> optionManager;
-    selectionService = new ExecutorSelectionServiceImpl(
-        () -> new LocalExecutorSetService(() -> clusterCoordinator,
-                                          optionManagerProvider),
-        optionManagerProvider,
-        () -> executorSelectorFactory,
-        new ExecutorSelectorProvider());
+    selectionService =
+        new ExecutorSelectionServiceImpl(
+            () -> new LocalExecutorSetService(() -> clusterCoordinator, optionManagerProvider),
+            optionManagerProvider,
+            () -> executorSelectorFactory,
+            new ExecutorSelectorProvider());
     selectionService.start();
   }
 

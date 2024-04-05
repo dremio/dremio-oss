@@ -15,25 +15,23 @@
  */
 package com.dremio.exec.store;
 
-import java.io.Serializable;
-import java.util.Objects;
-
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.NormalizedDatasetSplitInfo;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.NormalizedPartitionInfo;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.io.Serializable;
+import java.util.Objects;
 
-/**
- * Holder for the pair of Partition and split.
- */
+/** Holder for the pair of Partition and split. */
 public class SplitAndPartitionInfo implements Serializable {
   private final NormalizedPartitionInfo partitionInfo;
   private final NormalizedDatasetSplitInfo datasetSplitInfo;
 
   @JsonCreator
-  public SplitAndPartitionInfo(@JsonProperty("partitionInfo") final NormalizedPartitionInfo partitionInfo,
-                               @JsonProperty("splitInfo") final NormalizedDatasetSplitInfo datasetSplitInfo) {
-    this.partitionInfo =  partitionInfo;
+  public SplitAndPartitionInfo(
+      @JsonProperty("partitionInfo") final NormalizedPartitionInfo partitionInfo,
+      @JsonProperty("splitInfo") final NormalizedDatasetSplitInfo datasetSplitInfo) {
+    this.partitionInfo = partitionInfo;
     this.datasetSplitInfo = datasetSplitInfo;
   }
 
@@ -55,7 +53,8 @@ public class SplitAndPartitionInfo implements Serializable {
     }
 
     SplitAndPartitionInfo other = (SplitAndPartitionInfo) o;
-    return partitionInfo.equals(other.partitionInfo) && datasetSplitInfo.equals(other.datasetSplitInfo);
+    return partitionInfo.equals(other.partitionInfo)
+        && datasetSplitInfo.equals(other.datasetSplitInfo);
   }
 
   @Override

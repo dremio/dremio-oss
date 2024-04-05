@@ -15,19 +15,17 @@
  */
 package com.dremio.exec.planner.sql.handlers;
 
+import com.dremio.PlanTestBase;
 import org.junit.Test;
 
-import com.dremio.PlanTestBase;
-
-/**
- * Test preview queries should trim all columns which are not required during planning
- */
+/** Test preview queries should trim all columns which are not required during planning */
 public class TestTrimPreviewQueries extends PlanTestBase {
 
   @Test
   public void test() throws Exception {
     test("set planner.leaf_limit_enable = true");
-    final String sql = "SELECT * FROM (SELECT city from cp.\"sample/samples-samples-dremio-com-zips-json.json\")";
-    testPlanMatchingPatterns(sql, new String[]{"Screen", "Scan.*columns=\\[`city`\\]"});
+    final String sql =
+        "SELECT * FROM (SELECT city from cp.\"sample/samples-samples-dremio-com-zips-json.json\")";
+    testPlanMatchingPatterns(sql, new String[] {"Screen", "Scan.*columns=\\[`city`\\]"});
   }
 }

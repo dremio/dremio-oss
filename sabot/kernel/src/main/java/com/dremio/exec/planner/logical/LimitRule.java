@@ -45,14 +45,20 @@ public class LimitRule extends RelOptRule {
     final RelTraitSet incomingTraits = incomingSort.getTraitSet();
     RelNode input = incomingSort.getInput();
 
-    // if the calcite sort rel includes a collation and a limit, we need to create a copy the sort rel that excludes the
+    // if the calcite sort rel includes a collation and a limit, we need to create a copy the sort
+    // rel that excludes the
     // limit information.
     if (!incomingSort.getCollation().getFieldCollations().isEmpty()) {
       input = incomingSort.copy(incomingTraits, input, incomingSort.getCollation(), null, null);
     }
 
     RelNode convertedInput = convert(input, input.getTraitSet().plus(Rel.LOGICAL).simplify());
-    call.transformTo(LimitRel.create(incomingSort.getCluster(), convertedInput.getTraitSet().plus(Rel.LOGICAL), convertedInput, incomingSort.offset, incomingSort.fetch));
+    call.transformTo(
+        LimitRel.create(
+            incomingSort.getCluster(),
+            convertedInput.getTraitSet().plus(Rel.LOGICAL),
+            convertedInput,
+            incomingSort.offset,
+            incomingSort.fetch));
   }
-
 }

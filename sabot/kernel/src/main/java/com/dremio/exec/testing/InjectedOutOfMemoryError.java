@@ -16,7 +16,8 @@
 package com.dremio.exec.testing;
 
 /**
- * Special implementation of {@link OutOfMemoryError} that always passes "Direct buffer memory" as error message.
+ * Special implementation of {@link OutOfMemoryError} that always passes "Direct buffer memory" as
+ * error message.
  */
 @SuppressWarnings("unused")
 public class InjectedOutOfMemoryError extends OutOfMemoryError {

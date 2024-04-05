@@ -21,25 +21,11 @@ import static com.dremio.exec.store.ischema.InfoSchemaConstants.IS_CATALOG_NAME;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
-
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.RootAllocatorFactory;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Ignore;
-import org.junit.Test;
-
 import com.dremio.BaseTestQuery;
-import com.dremio.common.AutoCloseables;
 import com.dremio.common.concurrent.CloseableThreadPool;
 import com.dremio.common.concurrent.ContextMigratingExecutorService.ContextMigratingCloseableExecutorService;
 import com.dremio.dac.service.flight.FlightCloseableBindableService;
+import com.dremio.datastore.api.KVStoreProvider;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
 import com.dremio.exec.proto.UserProtos.CatalogMetadata;
 import com.dremio.exec.proto.UserProtos.ColumnMetadata;
@@ -54,52 +40,83 @@ import com.dremio.exec.proto.UserProtos.TableMetadata;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.service.conduit.server.ConduitServiceRegistry;
 import com.dremio.service.conduit.server.ConduitServiceRegistryImpl;
+import com.dremio.service.embedded.catalog.EmbeddedMetadataPointerService;
 import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.sysflight.SysFlightProducer;
 import com.dremio.service.sysflight.SystemTableManagerImpl;
 import com.dremio.test.DremioTest;
 import com.google.inject.AbstractModule;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Set;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.RootAllocatorFactory;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
+import org.junit.Ignore;
+import org.junit.Test;
 
-/**
- * Tests for metadata provider APIs.
- */
+/** Tests for metadata provider APIs. */
 public class TestMetadataProvider extends BaseTestQuery {
 
   @ClassRule
   public static final TestSysFlightResource SYS_FLIGHT_RESOURCE = new TestSysFlightResource();
 
-  private static AutoCloseable disableUnlimitedSplitsSupportFlags;
-
   @BeforeClass
   public static final void setupDefaultTestCluster() throws Exception {
     // register the SysFlight service on conduit
     // and inject it in SabotNode.
-    SABOT_NODE_RULE.register(new AbstractModule() {
-      @Override
-      protected void configure() {
-        final ConduitServiceRegistry conduitServiceRegistry = new ConduitServiceRegistryImpl();
-        BufferAllocator rootAllocator = RootAllocatorFactory.newRoot(DremioTest.DEFAULT_SABOT_CONFIG);
-        BufferAllocator testAllocator = rootAllocator.newChildAllocator("test-sysflight-Plugin", 0, Long.MAX_VALUE);
-        FlightCloseableBindableService flightService = new FlightCloseableBindableService(testAllocator,
-          new SysFlightProducer(() -> new SystemTableManagerImpl(testAllocator, SYS_FLIGHT_RESOURCE::getTablesProvider)), null, null);
-        conduitServiceRegistry.registerService(flightService);
-        conduitServiceRegistry.registerService(new InformationSchemaServiceImpl(getProvider(CatalogService.class),
-          () -> new ContextMigratingCloseableExecutorService<>(new CloseableThreadPool("TestMetadataProvider-"))));
-        bind(ConduitServiceRegistry.class).toInstance(conduitServiceRegistry);
-      }
-    });
+    SABOT_NODE_RULE.register(
+        new AbstractModule() {
+          @Override
+          protected void configure() {
+            final ConduitServiceRegistry conduitServiceRegistry = new ConduitServiceRegistryImpl();
+            BufferAllocator rootAllocator =
+                RootAllocatorFactory.newRoot(DremioTest.DEFAULT_SABOT_CONFIG);
+            BufferAllocator testAllocator =
+                rootAllocator.newChildAllocator("test-sysflight-Plugin", 0, Long.MAX_VALUE);
+            FlightCloseableBindableService flightService =
+                new FlightCloseableBindableService(
+                    testAllocator,
+                    new SysFlightProducer(
+                        () ->
+                            new SystemTableManagerImpl(
+                                testAllocator, SYS_FLIGHT_RESOURCE::getTablesProvider)),
+                    null,
+                    null);
+            conduitServiceRegistry.registerService(flightService);
+
+            EmbeddedMetadataPointerService nessieService =
+                new EmbeddedMetadataPointerService(getProvider(KVStoreProvider.class));
+            nessieService.getGrpcServices().forEach(conduitServiceRegistry::registerService);
+
+            final DatasetCatalogServiceImpl datasetCatalogServiceImpl =
+                new DatasetCatalogServiceImpl(
+                    getProvider(CatalogService.class), getProvider(NamespaceService.Factory.class));
+            bind(DatasetCatalogServiceImpl.class).toInstance(datasetCatalogServiceImpl);
+            conduitServiceRegistry.registerService(datasetCatalogServiceImpl);
+
+            conduitServiceRegistry.registerService(
+                new InformationSchemaServiceImpl(
+                    getProvider(CatalogService.class),
+                    () ->
+                        new ContextMigratingCloseableExecutorService<>(
+                            new CloseableThreadPool("TestMetadataProvider-"))));
+            bind(ConduitServiceRegistry.class).toInstance(conduitServiceRegistry);
+          }
+        });
     BaseTestQuery.setupDefaultTestCluster();
     TestSysFlightResource.addSysFlightPlugin(nodes[0]);
-    ((CatalogServiceImpl) getSabotContext().getCatalogService()).refreshSource(new NamespaceKey("sys"),
-      CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
+    ((CatalogServiceImpl) getSabotContext().getCatalogService())
+        .refreshSource(
+            new NamespaceKey("sys"),
+            CatalogService.REFRESH_EVERYTHING_NOW,
+            CatalogServiceImpl.UpdateType.FULL);
 
-    disableUnlimitedSplitsSupportFlags = disableUnlimitedSplitsSupportFlags();
     test("SELECT * from cp.\"tpch/customer.parquet\"");
-  }
-
-  @AfterClass
-  public static void resetFlags() throws Exception {
-    AutoCloseables.close(disableUnlimitedSplitsSupportFlags);
   }
 
   @Test
@@ -123,7 +140,9 @@ public class TestMetadataProvider extends BaseTestQuery {
     // test("SELECT * FROM INFORMATION_SCHEMA.CATALOGS " +
     //    "WHERE CATALOG_NAME LIKE '%DRE%' ESCAPE '\\'"); // SQL equivalent
     GetCatalogsResp resp =
-        client.getCatalogs(LikeFilter.newBuilder().setPattern("%DRE%").setEscape("\\").build()).get();
+        client
+            .getCatalogs(LikeFilter.newBuilder().setPattern("%DRE%").setEscape("\\").build())
+            .get();
 
     assertEquals(RequestStatus.OK, resp.getStatus());
     List<CatalogMetadata> catalogs = resp.getCatalogsList();
@@ -141,7 +160,10 @@ public class TestMetadataProvider extends BaseTestQuery {
     //     WHERE CATALOG_NAME LIKE '%DRIj\\\\hgjh%' ESCAPE '\\'"); // SQL equivalent
 
     GetCatalogsResp resp =
-        client.getCatalogs(LikeFilter.newBuilder().setPattern("%DRIj\\%hgjh%").setEscape("\\").build()).get();
+        client
+            .getCatalogs(
+                LikeFilter.newBuilder().setPattern("%DRIj\\%hgjh%").setEscape("\\").build())
+            .get();
 
     assertEquals(RequestStatus.OK, resp.getStatus());
     List<CatalogMetadata> catalogs = resp.getCatalogsList();
@@ -177,14 +199,15 @@ public class TestMetadataProvider extends BaseTestQuery {
       expectedSchemaNames.remove(schemeName);
     }
     assertEquals(expectedSchemaNames.size(), 0);
-
   }
 
   @Test
   public void schemasWithSchemaNameFilter() throws Exception {
-    // test("SELECT * FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME LIKE '%y%'"); // SQL equivalent
+    // test("SELECT * FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME LIKE '%y%'"); // SQL
+    // equivalent
 
-    GetSchemasResp resp = client.getSchemas(null, LikeFilter.newBuilder().setPattern("%y%").build()).get();
+    GetSchemasResp resp =
+        client.getSchemas(null, LikeFilter.newBuilder().setPattern("%y%").build()).get();
 
     assertEquals(RequestStatus.OK, resp.getStatus());
     List<SchemaMetadata> schemas = resp.getSchemasList();
@@ -196,9 +219,13 @@ public class TestMetadataProvider extends BaseTestQuery {
 
   @Test
   public void schemasWithSchemaNameFilterAndUnderscore() throws Exception {
-    // test("SELECT * FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME LIKE '%y%' ESCAPE '\'"); // SQL equivalent
+    // test("SELECT * FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME LIKE '%y%' ESCAPE '\'"); //
+    // SQL equivalent
 
-    GetSchemasResp resp = client.getSchemas(null, LikeFilter.newBuilder().setPattern("INFORMATION\\_SCHEMA").build()).get();
+    GetSchemasResp resp =
+        client
+            .getSchemas(null, LikeFilter.newBuilder().setPattern("INFORMATION\\_SCHEMA").build())
+            .get();
 
     assertEquals(RequestStatus.OK, resp.getStatus());
     List<SchemaMetadata> schemas = resp.getSchemasList();
@@ -215,9 +242,12 @@ public class TestMetadataProvider extends BaseTestQuery {
     // test("SELECT * FROM INFORMATION_SCHEMA.SCHEMATA " +
     //    "WHERE CATALOG_NAME LIKE '%RI%' AND SCHEMA_NAME LIKE '%y%'"); // SQL equivalent
 
-    GetSchemasResp resp = client.getSchemas(
-        LikeFilter.newBuilder().setPattern("%RI%").build(),
-        LikeFilter.newBuilder().setPattern("%dfs_test%").build()).get();
+    GetSchemasResp resp =
+        client
+            .getSchemas(
+                LikeFilter.newBuilder().setPattern("%RI%").build(),
+                LikeFilter.newBuilder().setPattern("%dfs_test%").build())
+            .get();
 
     assertEquals(RequestStatus.OK, resp.getStatus());
     List<SchemaMetadata> schemas = resp.getSchemasList();
@@ -275,7 +305,8 @@ public class TestMetadataProvider extends BaseTestQuery {
 
   @Test
   public void tablesWithTableFilter() throws Exception {
-    // test("SELECT * FROM INFORMATION_SCHEMA.\"TABLES\" WHERE TABLE_TYPE IN ('TABLE')"); // SQL equivalent
+    // test("SELECT * FROM INFORMATION_SCHEMA.\"TABLES\" WHERE TABLE_TYPE IN ('TABLE')"); // SQL
+    // equivalent
 
     GetTablesResp resp = client.getTables(null, null, null, Arrays.asList("TABLE")).get();
 
@@ -289,7 +320,8 @@ public class TestMetadataProvider extends BaseTestQuery {
 
   @Test
   public void tablesWithSystemTableFilter() throws Exception {
-    // test("SELECT * FROM INFORMATION_SCHEMA.\"TABLES\" WHERE TABLE_TYPE IN ('SYSTEM_TABLE')"); // SQL equivalent
+    // test("SELECT * FROM INFORMATION_SCHEMA.\"TABLES\" WHERE TABLE_TYPE IN ('SYSTEM_TABLE')"); //
+    // SQL equivalent
 
     GetTablesResp resp = client.getTables(null, null, null, Arrays.asList("SYSTEM_TABLE")).get();
 
@@ -333,10 +365,11 @@ public class TestMetadataProvider extends BaseTestQuery {
 
   @Test
   public void tablesWithTableNameFilter() throws Exception {
-    // test("SELECT * FROM INFORMATION_SCHEMA.\"TABLES\" WHERE TABLE_NAME LIKE '%o%'"); // SQL equivalent
+    // test("SELECT * FROM INFORMATION_SCHEMA.\"TABLES\" WHERE TABLE_NAME LIKE '%o%'"); // SQL
+    // equivalent
 
-    GetTablesResp resp = client.getTables(null, null,
-        LikeFilter.newBuilder().setPattern("%o%").build(), null).get();
+    GetTablesResp resp =
+        client.getTables(null, null, LikeFilter.newBuilder().setPattern("%o%").build(), null).get();
 
     assertEquals(RequestStatus.OK, resp.getStatus());
     List<TableMetadata> tables = resp.getTablesList();
@@ -368,12 +401,17 @@ public class TestMetadataProvider extends BaseTestQuery {
   @Test
   public void tablesWithTableNameFilterAndSchemaNameFilter() throws Exception {
     // test("SELECT * FROM INFORMATION_SCHEMA.\"TABLES\" " +
-    //    "WHERE TABLE_SCHEMA LIKE '%N\\_S%' ESCAPE '\\' AND TABLE_NAME LIKE '%o%'"); // SQL equivalent
+    //    "WHERE TABLE_SCHEMA LIKE '%N\\_S%' ESCAPE '\\' AND TABLE_NAME LIKE '%o%'"); // SQL
+    // equivalent
 
-    GetTablesResp resp = client.getTables(null,
-        LikeFilter.newBuilder().setPattern("%N\\_S%").setEscape("\\").build(),
-        LikeFilter.newBuilder().setPattern("%o%").build(),
-        null).get();
+    GetTablesResp resp =
+        client
+            .getTables(
+                null,
+                LikeFilter.newBuilder().setPattern("%N\\_S%").setEscape("\\").build(),
+                LikeFilter.newBuilder().setPattern("%o%").build(),
+                null)
+            .get();
 
     assertEquals(RequestStatus.OK, resp.getStatus());
     List<TableMetadata> tables = resp.getTablesList();
@@ -391,17 +429,27 @@ public class TestMetadataProvider extends BaseTestQuery {
     assertEquals(RequestStatus.OK, resp1.getStatus());
 
     final List<ColumnMetadata> columns1 = resp1.getColumnsList();
-    assertEquals(323, columns1.size());
-    assertTrue("incremental update column shouldn't be returned",
-      columns1.stream().noneMatch(input -> input.getColumnName().equals(IncrementalUpdateUtils.UPDATE_COLUMN)));
+    assertEquals(339, columns1.size());
+    assertTrue(
+        "incremental update column shouldn't be returned",
+        columns1.stream()
+            .noneMatch(
+                input -> input.getColumnName().equals(IncrementalUpdateUtils.UPDATE_COLUMN)));
   }
 
   @Test
   public void columnsWithColumnNameFilter() throws Exception {
-    // test("SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME LIKE '%\\_p%' ESCAPE '\\'"); // SQL equivalent
+    // test("SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME LIKE '%\\_p%' ESCAPE '\\'");
+    // // SQL equivalent
 
-    GetColumnsResp resp = client.getColumns(null, null, null,
-        LikeFilter.newBuilder().setPattern("%\\_p%").setEscape("\\").build()).get();
+    GetColumnsResp resp =
+        client
+            .getColumns(
+                null,
+                null,
+                null,
+                LikeFilter.newBuilder().setPattern("%\\_p%").setEscape("\\").build())
+            .get();
 
     assertEquals(RequestStatus.OK, resp.getStatus());
     List<ColumnMetadata> columns = resp.getColumnsList();
@@ -440,11 +488,17 @@ public class TestMetadataProvider extends BaseTestQuery {
   @Test
   public void columnsWithColumnNameFilterAndTableNameFilter() throws Exception {
     // test("SELECT * FROM INFORMATION_SCHEMA.COLUMNS
-    //     WHERE TABLE_NAME LIKE '%nodes' AND COLUMN_NAME LIKE '%\\_p%' ESCAPE '\\'"); // SQL equivalent
+    //     WHERE TABLE_NAME LIKE '%nodes' AND COLUMN_NAME LIKE '%\\_p%' ESCAPE '\\'"); // SQL
+    // equivalent
 
-    GetColumnsResp resp = client.getColumns(null, null,
-        LikeFilter.newBuilder().setPattern("%des").build(),
-        LikeFilter.newBuilder().setPattern("%\\_p%").setEscape("\\").build()).get();
+    GetColumnsResp resp =
+        client
+            .getColumns(
+                null,
+                null,
+                LikeFilter.newBuilder().setPattern("%des").build(),
+                LikeFilter.newBuilder().setPattern("%\\_p%").setEscape("\\").build())
+            .get();
 
     assertEquals(RequestStatus.OK, resp.getStatus());
     List<ColumnMetadata> columns = resp.getColumnsList();
@@ -461,11 +515,14 @@ public class TestMetadataProvider extends BaseTestQuery {
     //    "TABLE_CATALOG LIKE '%MIO' AND TABLE_SCHEMA LIKE 'sys' AND " +
     //    "TABLE_NAME LIKE '%nodes' AND COLUMN_NAME LIKE '%\\_p%' ESCAPE '\\'"); // SQL equivalent
 
-    GetColumnsResp resp = client.getColumns(
-        LikeFilter.newBuilder().setPattern("%MIO").build(),
-        LikeFilter.newBuilder().setPattern("sys").build(),
-        LikeFilter.newBuilder().setPattern("%des").build(),
-        LikeFilter.newBuilder().setPattern("%\\_p%").setEscape("\\").build()).get();
+    GetColumnsResp resp =
+        client
+            .getColumns(
+                LikeFilter.newBuilder().setPattern("%MIO").build(),
+                LikeFilter.newBuilder().setPattern("sys").build(),
+                LikeFilter.newBuilder().setPattern("%des").build(),
+                LikeFilter.newBuilder().setPattern("%\\_p%").setEscape("\\").build())
+            .get();
 
     assertEquals(RequestStatus.OK, resp.getStatus());
     List<ColumnMetadata> columns = resp.getColumnsList();
@@ -480,17 +537,25 @@ public class TestMetadataProvider extends BaseTestQuery {
   @Test
   public void refreshCompletionTimeAndDuration() throws Exception {
 
-    GetColumnsResp resp = client.getColumns(null, null, null,
-      LikeFilter.newBuilder().setPattern("%last_refresh\\_%").setEscape("\\").build()).get();
+    GetColumnsResp resp =
+        client
+            .getColumns(
+                null,
+                null,
+                null,
+                LikeFilter.newBuilder().setPattern("%last_refresh\\_%").setEscape("\\").build())
+            .get();
 
     assertEquals(RequestStatus.OK, resp.getStatus());
     List<ColumnMetadata> columns = resp.getColumnsList();
-    assertEquals(3, columns.size());
+    assertEquals(5, columns.size());
 
     Iterator<ColumnMetadata> iterator = columns.iterator();
     verifyColumn("sys", "materializations", "last_refresh_from_pds", iterator.next());
     verifyColumn("sys", "materializations", "last_refresh_finished", iterator.next());
     verifyColumn("sys", "materializations", "last_refresh_duration_millis", iterator.next());
+    verifyColumn("sys", "reflections", "last_refresh_duration_millis", iterator.next());
+    verifyColumn("sys", "reflections", "last_refresh_from_table", iterator.next());
   }
 
   /** Helper method to verify schema contents */
@@ -507,12 +572,11 @@ public class TestMetadataProvider extends BaseTestQuery {
   }
 
   /** Helper method to verify column contents */
-  private static void verifyColumn(String schemaName, String tableName, String columnName, ColumnMetadata column) {
+  private static void verifyColumn(
+      String schemaName, String tableName, String columnName, ColumnMetadata column) {
     assertEquals(IS_CATALOG_NAME, column.getCatalogName());
     assertEquals(schemaName, column.getSchemaName());
     assertEquals(tableName, column.getTableName());
     assertEquals(columnName, column.getColumnName());
   }
-
-
 }

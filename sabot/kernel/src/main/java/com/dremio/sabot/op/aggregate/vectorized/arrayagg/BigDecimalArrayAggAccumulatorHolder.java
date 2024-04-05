@@ -17,25 +17,30 @@
 package com.dremio.sabot.op.aggregate.vectorized.arrayagg;
 
 import java.math.BigDecimal;
-
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.DecimalVector;
 
-public final class BigDecimalArrayAggAccumulatorHolder extends BaseArrayAggAccumulatorHolder<BigDecimal, DecimalVector> {
+public final class BigDecimalArrayAggAccumulatorHolder
+    extends BaseArrayAggAccumulatorHolder<BigDecimal, DecimalVector> {
   private final DecimalVector vector;
-  public BigDecimalArrayAggAccumulatorHolder(final int maxValuesPerBatch, final BufferAllocator allocator,
-                                             DecimalVector inputVector) {
+
+  public BigDecimalArrayAggAccumulatorHolder(
+      final int maxValuesPerBatch, final BufferAllocator allocator, DecimalVector inputVector) {
     super(maxValuesPerBatch, allocator);
-    vector = new DecimalVector("array_agg BigDecimalArrayAggAccumulatorHolder", allocator,
-      inputVector.getPrecision(), inputVector.getScale());
+    vector =
+        new DecimalVector(
+            "array_agg BigDecimalArrayAggAccumulatorHolder",
+            allocator,
+            inputVector.getPrecision(),
+            inputVector.getScale());
     vector.allocateNew(maxValuesPerBatch);
   }
 
   @Override
   public long getSizeInBytes() {
-    return vector.getDataBuffer().getActualMemoryConsumed() +
-      vector.getValidityBuffer().getActualMemoryConsumed() +
-      super.getSizeInBytes();
+    return vector.getDataBuffer().getActualMemoryConsumed()
+        + vector.getValidityBuffer().getActualMemoryConsumed()
+        + super.getSizeInBytes();
   }
 
   @Override

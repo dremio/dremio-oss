@@ -27,60 +27,67 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.jar.JarFile;
-
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TestRule;
 import org.junit.rules.Timeout;
 
 /**
- * Test to check the content of the JDBC driver jar has been shaded properly.
- * Except for com.dremio.jdbc and org.slf4j classes, everything else should be under cdjd.
- * (stands for for com.dremio.jdbc driver) namespace.
+ * Test to check the content of the JDBC driver jar has been shaded properly. Except for
+ * com.dremio.jdbc and org.slf4j classes, everything else should be under cdjd. (stands for for
+ * com.dremio.jdbc driver) namespace.
  */
 public class ITValidateShadedJar {
-  private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(ITValidateShadedJar.class);
+  private static final org.slf4j.Logger LOGGER =
+      org.slf4j.LoggerFactory.getLogger(ITValidateShadedJar.class);
 
   private static File getJdbcFile() throws MalformedURLException {
     return new File(
-        String.format("%s../../target/dremio-jdbc-driver-%s.jar",
+        String.format(
+            "%s../../target/dremio-jdbc-driver-%s.jar",
             ClassLoader.getSystemClassLoader().getResource("").getFile(),
-            System.getProperty("project.version")
-            ));
+            System.getProperty("project.version")));
   }
 
   @ClassRule
-  public static final TestRule CLASS_TIMEOUT = Timeout.builder().withTimeout(2, TimeUnit.MINUTES).build();
+  public static final TestRule CLASS_TIMEOUT =
+      Timeout.builder().withTimeout(2, TimeUnit.MINUTES).build();
 
-  private static final List<String> ALLOWED_PREFIXES = Collections.unmodifiableList(Arrays.asList(
-      "com/dremio/jdbc/",
-      "cdjd/",
-      "org/slf4j/",
-      "META-INF/"));
+  private static final List<String> ALLOWED_PREFIXES =
+      Collections.unmodifiableList(
+          Arrays.asList("com/dremio/jdbc/", "cdjd/", "org/slf4j/", "META-INF/"));
 
-  private static final List<String> ALLOWED_FILES = Collections.unmodifiableList(Arrays.asList(
-      "CDJDLog4j-charsets.properties",
-      "git.properties",
-      "arrow-git.properties",
-      "dremio-jdbc.properties",
-      "dremio-reference.conf",
-      "sabot-default.conf",
-      "sabot-module.conf"));
+  private static final List<String> ALLOWED_FILES =
+      Collections.unmodifiableList(
+          Arrays.asList(
+              "CDJDLog4j-charsets.properties",
+              "git.properties",
+              "arrow-git.properties",
+              "dremio-jdbc.properties",
+              "dremio-reference.conf",
+              "sabot-default.conf",
+              "sabot-module.conf"));
 
   @Test
   public void validateShadedJar() throws IOException {
     // Validate the content of the jar to enforce all 3rd party dependencies have been shaded
     try (JarFile jar = new JarFile(getJdbcFile())) {
-      toIterator(jar.entries()).forEachRemaining(entry -> {
-        if (entry.isDirectory()) {
-          // skip directories
-          return;
-        }
-        assertThat(entry.getName())
-          .satisfiesAnyOf(
-            name -> assertThat(ALLOWED_PREFIXES).anySatisfy(x -> assertThat(name).startsWith(x)),
-            name -> assertThat(ALLOWED_FILES).anySatisfy(x -> assertThat(name).isEqualTo(x)));
-      });
+      toIterator(jar.entries())
+          .forEachRemaining(
+              entry -> {
+                if (entry.isDirectory()) {
+                  // skip directories
+                  return;
+                }
+                assertThat(entry.getName())
+                    .satisfiesAnyOf(
+                        name ->
+                            assertThat(ALLOWED_PREFIXES)
+                                .anySatisfy(x -> assertThat(name).startsWith(x)),
+                        name ->
+                            assertThat(ALLOWED_FILES)
+                                .anySatisfy(x -> assertThat(name).isEqualTo(x)));
+              });
     }
   }
 

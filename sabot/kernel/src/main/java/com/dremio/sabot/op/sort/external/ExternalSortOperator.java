@@ -17,16 +17,6 @@ package com.dremio.sabot.op.sort.external;
 
 import static com.dremio.exec.ExecConstants.ENABLE_SPILLABLE_OPERATORS;
 
-import java.io.IOException;
-import java.util.EnumSet;
-import java.util.List;
-
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.OutOfMemoryException;
-import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.util.TransferPair;
-import org.apache.calcite.rel.RelFieldCollation.Direction;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.AutoCloseables.RollbackCloseable;
 import com.dremio.common.exceptions.UserException;
@@ -64,48 +54,54 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.sun.codemodel.JConditional;
 import com.sun.codemodel.JExpr;
+import java.io.IOException;
+import java.util.EnumSet;
+import java.util.List;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.OutOfMemoryException;
+import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.util.TransferPair;
+import org.apache.calcite.rel.RelFieldCollation.Direction;
 
 /**
  * Primary algorithm:
  *
- * Multiple allocators:
- * - incoming data
- * - one allocator per batch
- * - simpleIntVector or treeVector
+ * <p>Multiple allocators: - incoming data - one allocator per batch - simpleIntVector or treeVector
  * - outputCopier (always holds reservation at least as much as x) -
  *
- * Each record batch group that comes in is:
- * - tracked in a QuickSorter and the whole set is sorted at the time a final list is requested
- *   (default mode)
- * - each batch is locally sorter, then added to a SplayTreeSorter of sv4 values (sv4), the
- *   SplayTree is traversed when the final list is requested (if SplaySort is enabled)
- * - (in either sort method case, the data-buffers used to track the row-indices in the batches
- *   are resized as new batches come in.)
+ * <p>Each record batch group that comes in is: - tracked in a QuickSorter and the whole set is
+ * sorted at the time a final list is requested (default mode) - each batch is locally sorter, then
+ * added to a SplayTreeSorter of sv4 values (sv4), the SplayTree is traversed when the final list is
+ * requested (if SplaySort is enabled) - (in either sort method case, the data-buffers used to track
+ * the row-indices in the batches are resized as new batches come in.)
  *
- * We ensure that we always have a reservation of at least maxBatchSize. This guarantees that we
+ * <p>We ensure that we always have a reservation of at least maxBatchSize. This guarantees that we
  * can spill.
  *
- * We spill to disk if any of the following conditions occurs: - OutOfMemory or Can't add max
+ * <p>We spill to disk if any of the following conditions occurs: - OutOfMemory or Can't add max
  * batch size reservation or Hit 64k batches
  *
- * When we spill, we do batch copies (guaranteed successful since we previously reserved memory
+ * <p>When we spill, we do batch copies (guaranteed successful since we previously reserved memory
  * to do the spills) to generate a new spill run. A DiskRun is written to disk.
  *
- * Once spilled to disk, we keep track of each spilled run (including the maximum batch size of
+ * <p>Once spilled to disk, we keep track of each spilled run (including the maximum batch size of
  * that run).
  *
- * Once we complete a number of runs, we determine a merge plan to complete the data merges.
- * (For now, the merge plan is always a simple priority queue n-way merge where n is the final
- * number of disk runs.)
- *
+ * <p>Once we complete a number of runs, we determine a merge plan to complete the data merges. (For
+ * now, the merge plan is always a simple priority queue n-way merge where n is the final number of
+ * disk runs.)
  */
 @Options
 public class ExternalSortOperator implements SingleInputOperator, ShrinkableOperator {
-  public static final BooleanValidator OOB_SORT_TRIGGER_ENABLED = new BooleanValidator("exec.operator.sort.oob_trigger_enabled", true);
-  public static final DoubleValidator OOB_SORT_SPILL_TRIGGER_FACTOR = new RangeDoubleValidator("exec.operator.sort.oob_trigger_factor", 0.0d, 10.0d, .75d);
-  public static final DoubleValidator OOB_SORT_SPILL_TRIGGER_HEADROOM_FACTOR = new RangeDoubleValidator("exec.operator.sort.oob_trigger_headroom_factor", 0.0d, 10.0d, .2d);
+  public static final BooleanValidator OOB_SORT_TRIGGER_ENABLED =
+      new BooleanValidator("exec.operator.sort.oob_trigger_enabled", true);
+  public static final DoubleValidator OOB_SORT_SPILL_TRIGGER_FACTOR =
+      new RangeDoubleValidator("exec.operator.sort.oob_trigger_factor", 0.0d, 10.0d, .75d);
+  public static final DoubleValidator OOB_SORT_SPILL_TRIGGER_HEADROOM_FACTOR =
+      new RangeDoubleValidator("exec.operator.sort.oob_trigger_headroom_factor", 0.0d, 10.0d, .2d);
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ExternalSortOperator.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ExternalSortOperator.class);
 
   public static final int MAX_BATCHES_PER_HYPERBATCH = 65535;
   public static final int MAX_BATCHES_PER_MEMORY_RUN = 32768;
@@ -132,9 +128,8 @@ public class ExternalSortOperator implements SingleInputOperator, ShrinkableOper
   private SortState prevSortState;
 
   /**
-   * Useful when micro-spilling is enabled.
-   * This flag indicates that spill was done due to consumeData (and not due
-   * to an OOB Message).
+   * Useful when micro-spilling is enabled. This flag indicates that spill was done due to
+   * consumeData (and not due to an OOB Message).
    */
   private boolean consumePendingIncomingBatch;
 
@@ -158,35 +153,41 @@ public class ExternalSortOperator implements SingleInputOperator, ShrinkableOper
     SPILL_IN_PROGRESS, // spill from memoryRun to disk
     COPIER_SPILL_IN_PROGRESS // spill from copier to disk
   }
-  public final boolean oobSpillNotificationsEnabled;
+
+  public static boolean oobSpillNotificationsEnabled;
 
   @Override
-  public State getState(){
+  public State getState() {
     return state;
   }
 
-  public ExternalSortOperator(OperatorContext context, ExternalSort popConfig) throws OutOfMemoryException {
+  public ExternalSortOperator(OperatorContext context, ExternalSort popConfig)
+      throws OutOfMemoryException {
     this.context = context;
     this.targetBatchSize = context.getTargetBatchSize();
     this.config = popConfig;
     this.producer = context.getClassProducer();
     this.allocator = context.getAllocator();
-    //not sending oob spill notifications to sibling minor fragments when MemoryArbiter is ON
-    oobSpillNotificationsEnabled = !(context.getOptions().getOption(ENABLE_SPILLABLE_OPERATORS)) && context.getOptions().getOption(OOB_SORT_TRIGGER_ENABLED);
-
+    // not sending oob spill notifications to sibling minor fragments when MemoryArbiter is ON
+    oobSpillNotificationsEnabled =
+        !(context.getOptions().getOption(ENABLE_SPILLABLE_OPERATORS))
+            && context.getOptions().getOption(OOB_SORT_TRIGGER_ENABLED);
   }
 
   @Override
   public VectorAccessible setup(VectorAccessible incoming) {
-    try(RollbackCloseable rollback = new RollbackCloseable()) {
+    try (RollbackCloseable rollback = new RollbackCloseable()) {
       this.tracer = new ExternalSortTracer();
       this.output = context.createOutputVectorContainer(incoming.getSchema());
 
       final OptionManager options = context.getOptions();
-      this.batchsizeMultiplier = (int) options.getOption(ExecConstants.EXTERNAL_SORT_BATCHSIZE_MULTIPLIER);
+      this.batchsizeMultiplier =
+          (int) options.getOption(ExecConstants.EXTERNAL_SORT_BATCHSIZE_MULTIPLIER);
       final int listSizeEstimate = (int) options.getOption(ExecConstants.BATCH_LIST_SIZE_ESTIMATE);
-      final int varFieldSizeEstimate = (int) options.getOption(ExecConstants.BATCH_VARIABLE_FIELD_SIZE_ESTIMATE);
-      final boolean compressSpilledBatch = options.getOption(ExecConstants.EXTERNAL_SORT_COMPRESS_SPILL_FILES);
+      final int varFieldSizeEstimate =
+          (int) options.getOption(ExecConstants.BATCH_VARIABLE_FIELD_SIZE_ESTIMATE);
+      final boolean compressSpilledBatch =
+          options.getOption(ExecConstants.EXTERNAL_SORT_COMPRESS_SPILL_FILES);
       this.enableSplaySort = options.getOption(ExecConstants.EXTERNAL_SORT_ENABLE_SPLAY_SORT);
       this.unconsumedRef = null;
       this.enableMicroSpill = options.getOption(ExecConstants.EXTERNAL_SORT_ENABLE_MICRO_SPILL);
@@ -194,28 +195,51 @@ public class ExternalSortOperator implements SingleInputOperator, ShrinkableOper
       this.prevState = null;
       this.prevSortState = null;
 
-      this.memoryRun = new MemoryRun(config, producer, context.getAllocator(), incoming.getSchema(), tracer,
-        batchsizeMultiplier, enableSplaySort, targetBatchSize, context.getExecutionControls());
+      this.memoryRun =
+          new MemoryRun(
+              config,
+              producer,
+              context.getAllocator(),
+              incoming.getSchema(),
+              tracer,
+              batchsizeMultiplier,
+              enableSplaySort,
+              targetBatchSize,
+              context.getExecutionControls());
       rollback.add(this.memoryRun);
 
       this.incoming = incoming;
       state = State.CAN_CONSUME;
 
       // estimate how much memory the outgoing batch will take in memory
-      final int estimatedRecordSize = incoming.getSchema().estimateRecordSize(listSizeEstimate, varFieldSizeEstimate);
+      final int estimatedRecordSize =
+          incoming.getSchema().estimateRecordSize(listSizeEstimate, varFieldSizeEstimate);
       final int targetBatchSizeInBytes = targetBatchSize * estimatedRecordSize;
 
-      this.diskRuns = new DiskRunManager(context.getConfig(), context.getOptions(), targetBatchSize, targetBatchSizeInBytes,
-        context.getFragmentHandle(), config.getProps().getLocalOperatorId(), context.getClassProducer(), allocator,
-        config.getOrderings(), incoming.getSchema(), compressSpilledBatch, tracer,
-        context.getSpillService(), context.getStats(), context.getExecutionControls());
+      this.diskRuns =
+          new DiskRunManager(
+              context.getConfig(),
+              context.getOptions(),
+              targetBatchSize,
+              targetBatchSizeInBytes,
+              context.getFragmentHandle(),
+              config.getProps().getLocalOperatorId(),
+              context.getClassProducer(),
+              allocator,
+              config.getOrderings(),
+              incoming.getSchema(),
+              compressSpilledBatch,
+              tracer,
+              context.getSpillService(),
+              context.getStats(),
+              context.getExecutionControls());
       rollback.add(this.diskRuns);
 
       tracer.setTargetBatchSize(targetBatchSize);
       tracer.setTargetBatchSizeInBytes(targetBatchSizeInBytes);
 
       rollback.commit();
-    } catch(Exception e) {
+    } catch (Exception e) {
       Throwables.propagate(e);
     }
 
@@ -225,15 +249,14 @@ public class ExternalSortOperator implements SingleInputOperator, ShrinkableOper
   @Override
   public void close() throws Exception {
     /**
-     * 'diskRuns' holds a ref to a VectorContainer, which is created by 'memoryRun'.
-     * Thus,'diskRuns' must be closed before 'memoryRun' so that all the buffers
-     * referred in the VectorContainer etc. are released first.
-     * Otherwise 'memoryRun' close would fail reporting memory leak.
+     * 'diskRuns' holds a ref to a VectorContainer, which is created by 'memoryRun'. Thus,'diskRuns'
+     * must be closed before 'memoryRun' so that all the buffers referred in the VectorContainer
+     * etc. are released first. Otherwise 'memoryRun' close would fail reporting memory leak.
      */
     AutoCloseables.close(copier, output, diskRuns, memoryRun, unconsumedRef);
     addDisplayStatsWithZeroValue(context, EnumSet.allOf(ExternalSortStats.Metric.class));
     updateStats(true);
-    }
+  }
 
   @VisibleForTesting
   public void setStateToCanConsume() {
@@ -249,24 +272,25 @@ public class ExternalSortOperator implements SingleInputOperator, ShrinkableOper
   @Override
   public void consumeData(int records) throws Exception {
     state.is(State.CAN_CONSUME);
-    //when micro-spilling is in progress, we never consume any data.
-    Preconditions.checkState(sortState != SortState.SPILL_IN_PROGRESS
-      && sortState != SortState.COPIER_SPILL_IN_PROGRESS);
+    // when micro-spilling is in progress, we never consume any data.
+    Preconditions.checkState(
+        sortState != SortState.SPILL_IN_PROGRESS
+            && sortState != SortState.COPIER_SPILL_IN_PROGRESS);
 
-    while(true){
+    while (true) {
       boolean added = memoryRun.addBatch(incoming);
-      if(!added){
+      if (!added) {
         notifyOthersOfSpill();
         if (!this.enableMicroSpill) {
           rotateRuns();
         } else {
           consumePendingIncomingBatch = true;
           transferIncomingBatch(records);
-          //start micro-spilling
+          // start micro-spilling
           startMicroSpilling();
           break;
         }
-      }else{
+      } else {
         break;
       }
     }
@@ -277,7 +301,7 @@ public class ExternalSortOperator implements SingleInputOperator, ShrinkableOper
   public void noMoreToConsume() throws Exception {
     state = State.CAN_PRODUCE;
 
-    if(diskRuns.isEmpty()){ // no spills
+    if (diskRuns.isEmpty()) { // no spills
 
       // we can return the existing (already sorted) data
       copier = memoryRun.closeToCopier(output, targetBatchSize);
@@ -294,8 +318,9 @@ public class ExternalSortOperator implements SingleInputOperator, ShrinkableOper
           try {
             memoryRun.closeToDisk(diskRuns);
           } catch (Exception ex) {
-            throw UserException.dataWriteError(ex).message("Failure while attempting to spill sort data to disk.")
-              .build(logger);
+            throw UserException.dataWriteError(ex)
+                .message("Failure while attempting to spill sort data to disk.")
+                .build(logger);
           }
         } else {
           startMicroSpilling();
@@ -323,10 +348,12 @@ public class ExternalSortOperator implements SingleInputOperator, ShrinkableOper
      * 4. in produce state with batches in copier (CAN_PRODUCE + COPY_FROM_MEMORY)
      */
 
-    return (state == State.CAN_CONSUME && !memoryRun.isEmpty() // only when having in-memory records, sorter's memory is shrinkable.
-      || (state == State.CAN_PRODUCE && sortState == SortState.SPILL_IN_PROGRESS)
-      || (state == State.CAN_PRODUCE && sortState == SortState.COPIER_SPILL_IN_PROGRESS)
-      || (state == State.CAN_PRODUCE && sortState == SortState.COPY_FROM_MEMORY));
+    return (state == State.CAN_CONSUME
+            && !memoryRun
+                .isEmpty() // only when having in-memory records, sorter's memory is shrinkable.
+        || (state == State.CAN_PRODUCE && sortState == SortState.SPILL_IN_PROGRESS)
+        || (state == State.CAN_PRODUCE && sortState == SortState.COPIER_SPILL_IN_PROGRESS)
+        || (state == State.CAN_PRODUCE && sortState == SortState.COPY_FROM_MEMORY));
   }
 
   @Override
@@ -334,7 +361,8 @@ public class ExternalSortOperator implements SingleInputOperator, ShrinkableOper
     long shrinkableMemory = 0;
 
     if (isShrinkable()) {
-      shrinkableMemory = allocator.getAllocatedMemory() - MemoryRun.INITIAL_COPY_ALLOCATOR_RESERVATION;
+      shrinkableMemory =
+          allocator.getAllocatedMemory() - MemoryRun.INITIAL_COPY_ALLOCATOR_RESERVATION;
     }
 
     if (shrinkableMemory < 0) {
@@ -346,34 +374,34 @@ public class ExternalSortOperator implements SingleInputOperator, ShrinkableOper
   @Override
   public boolean shrinkMemory(long size) throws Exception {
     if (!isShrinkable()) {
-      //shrinkable memory is reported as 0 in all other cases
+      // shrinkable memory is reported as 0 in all other cases
       return true;
     }
 
-    if(!enableMicroSpill){
+    if (!enableMicroSpill) {
       rotateRuns();
       return true;
     }
 
     if ((state == State.CAN_PRODUCE && sortState == SortState.COPY_FROM_MEMORY)
-      ||(state == State.CAN_PRODUCE && sortState == SortState.COPIER_SPILL_IN_PROGRESS)) {
+        || (state == State.CAN_PRODUCE && sortState == SortState.COPIER_SPILL_IN_PROGRESS)) {
 
-      if(sortState == SortState.COPY_FROM_MEMORY) {
+      if (sortState == SortState.COPY_FROM_MEMORY) {
         // sortState is COPY_FROM_MEMORY, records are moved to copier already.
         startMicroSpillingFromCopier();
       }
 
       boolean done = spillNextBatchFromCopier();
-      if (done){
+      if (done) {
         finishMicroSpillingFromCopier();
       }
       return done;
     }
 
     if (state == State.CAN_CONSUME
-      || (state == State.CAN_PRODUCE && sortState == SortState.SPILL_IN_PROGRESS)) {
+        || (state == State.CAN_PRODUCE && sortState == SortState.SPILL_IN_PROGRESS)) {
 
-      if(state == State.CAN_CONSUME) {
+      if (state == State.CAN_CONSUME) {
         startMicroSpilling();
       }
 
@@ -394,10 +422,14 @@ public class ExternalSortOperator implements SingleInputOperator, ShrinkableOper
     state = State.CAN_PRODUCE;
     sortState = SortState.COPIER_SPILL_IN_PROGRESS;
 
-    logger.info("State transition from (state:{}, sortState:{}) to (state:{}, sortState:{})",
-      prevState.name(), prevSortState.name(), state.name(), sortState.name());
+    logger.info(
+        "State transition from (state:{}, sortState:{}) to (state:{}, sortState:{})",
+        prevState.name(),
+        prevSortState.name(),
+        state.name(),
+        sortState.name());
 
-    //disk manager will re-use output VectorContainer, and spill records from it to disk.
+    // disk manager will re-use output VectorContainer, and spill records from it to disk.
     diskRuns.startMicroSpillingFromCopier(copier, output);
   }
 
@@ -406,9 +438,14 @@ public class ExternalSortOperator implements SingleInputOperator, ShrinkableOper
   }
 
   private void finishMicroSpillingFromCopier() throws Exception {
-    Preconditions.checkState(prevState == State.CAN_PRODUCE && prevSortState == SortState.COPY_FROM_MEMORY);
-    logger.info("State transition from (state:{}, sortState:{}) to (state:{}, sortState:{})",
-      state.name(), sortState.name(), State.CAN_PRODUCE, SortState.CONSOLIDATE);
+    Preconditions.checkState(
+        prevState == State.CAN_PRODUCE && prevSortState == SortState.COPY_FROM_MEMORY);
+    logger.info(
+        "State transition from (state:{}, sortState:{}) to (state:{}, sortState:{})",
+        state.name(),
+        sortState.name(),
+        State.CAN_PRODUCE,
+        SortState.CONSOLIDATE);
 
     // all records are on disk, restore sortState to CONSOLIDATE
     state = State.CAN_PRODUCE;
@@ -418,6 +455,7 @@ public class ExternalSortOperator implements SingleInputOperator, ShrinkableOper
 
   /**
    * Printing operator state for debug logs
+   *
    * @return
    */
   @Override
@@ -426,8 +464,8 @@ public class ExternalSortOperator implements SingleInputOperator, ShrinkableOper
   }
 
   /**
-   * Attempt to consolidate disk runs if necessary. If the diskRunManager indicates consolidation is complete, create
-   * the copier and update the sort state to COPY_FROM_DISK
+   * Attempt to consolidate disk runs if necessary. If the diskRunManager indicates consolidation is
+   * complete, create the copier and update the sort state to COPY_FROM_DISK
    */
   private void consolidateIfNecessary() {
     try {
@@ -436,8 +474,9 @@ public class ExternalSortOperator implements SingleInputOperator, ShrinkableOper
         sortState = SortState.COPY_FROM_DISK;
       }
     } catch (Exception ex) {
-      throw UserException.dataReadError(ex).message("Failure while attempting to read spill data from disk.")
-        .build(logger);
+      throw UserException.dataReadError(ex)
+          .message("Failure while attempting to read spill data from disk.")
+          .build(logger);
     }
   }
 
@@ -446,20 +485,20 @@ public class ExternalSortOperator implements SingleInputOperator, ShrinkableOper
   }
 
   @Override
-  public int outputData() throws Exception{
+  public int outputData() throws Exception {
     state.is(State.CAN_PRODUCE);
 
     if (sortState == SortState.SPILL_IN_PROGRESS) {
       final boolean done = memoryRun.spillNextBatch(diskRuns);
-      if (done) { //all batches spilled...
+      if (done) { // all batches spilled...
         finishMicroSpilling();
       }
       return 0;
     }
 
-    if(sortState == SortState.COPIER_SPILL_IN_PROGRESS){
+    if (sortState == SortState.COPIER_SPILL_IN_PROGRESS) {
       final boolean done = diskRuns.spillNextBatchFromCopier(copier, targetBatchSize);
-      if(done){
+      if (done) {
         finishMicroSpillingFromCopier();
       }
       return 0;
@@ -478,8 +517,10 @@ public class ExternalSortOperator implements SingleInputOperator, ShrinkableOper
     }
 
     if (sortState == SortState.COPY_FROM_DISK) {
-      // need to use the copierAllocator for the copy, because the copierAllocator is the one that reserves enough
-      // memory to copy the data. This requires using an intermedate VectorContainer. Now, we need to transfer the
+      // need to use the copierAllocator for the copy, because the copierAllocator is the one that
+      // reserves enough
+      // memory to copy the data. This requires using an intermedate VectorContainer. Now, we need
+      // to transfer the
       // the output data to the output VectorContainer
       diskRuns.transferOut(output, copied);
     }
@@ -499,7 +540,6 @@ public class ExternalSortOperator implements SingleInputOperator, ShrinkableOper
       }
       stats.setLongStat(ExternalSortStats.Metric.PEAK_BATCHES_IN_MEMORY, maxBatchesInMemory);
 
-
       stats.setLongStat(ExternalSortStats.Metric.OOB_SENDS, oobSends);
       stats.setLongStat(ExternalSortStats.Metric.OOB_RECEIVES, oobReceives);
       stats.setLongStat(ExternalSortStats.Metric.OOB_DROP_LOCAL, oobDropLocal);
@@ -516,67 +556,96 @@ public class ExternalSortOperator implements SingleInputOperator, ShrinkableOper
       stats.setLongStat(ExternalSortStats.Metric.SPILL_TIME_NANOS, diskRuns.spillTimeNanos());
       stats.setLongStat(ExternalSortStats.Metric.MERGE_TIME_NANOS, diskRuns.mergeTimeNanos());
       stats.setLongStat(ExternalSortStats.Metric.BATCHES_SPILLED, diskRuns.getBatchesSpilled());
-      stats.setLongStat(ExternalSortStats.Metric.UNCOMPRESSED_BYTES_READ, diskRuns.getAppReadBytes());
-      stats.setLongStat(ExternalSortStats.Metric.UNCOMPRESSED_BYTES_WRITTEN, diskRuns.getAppWriteBytes());
+      stats.setLongStat(
+          ExternalSortStats.Metric.UNCOMPRESSED_BYTES_READ, diskRuns.getAppReadBytes());
+      stats.setLongStat(
+          ExternalSortStats.Metric.UNCOMPRESSED_BYTES_WRITTEN, diskRuns.getAppWriteBytes());
       stats.setLongStat(ExternalSortStats.Metric.IO_BYTES_READ, diskRuns.getIOReadBytes());
-      stats.setLongStat(ExternalSortStats.Metric.TOTAL_SPILLED_DATA_SIZE, diskRuns.getIOWriteBytes());
-      // if we use the old encoding path, we don't get the io bytes so we'll behave similar to legacy, reporting pre-compressed size.
-      stats.setLongStat(ExternalSortStats.Metric.IO_BYTES_WRITTEN, diskRuns.getIOWriteBytes() == 0 ? diskRuns.getTotalDataSpilled() : diskRuns.getIOWriteBytes());
+      stats.setLongStat(
+          ExternalSortStats.Metric.TOTAL_SPILLED_DATA_SIZE, diskRuns.getIOWriteBytes());
+      // if we use the old encoding path, we don't get the io bytes so we'll behave similar to
+      // legacy, reporting pre-compressed size.
+      stats.setLongStat(
+          ExternalSortStats.Metric.IO_BYTES_WRITTEN,
+          diskRuns.getIOWriteBytes() == 0
+              ? diskRuns.getTotalDataSpilled()
+              : diskRuns.getIOWriteBytes());
       stats.setLongStat(ExternalSortStats.Metric.COMPRESSION_NANOS, diskRuns.getCompressionNanos());
-      stats.setLongStat(ExternalSortStats.Metric.DECOMPRESSION_NANOS, diskRuns.getDecompressionNanos());
+      stats.setLongStat(
+          ExternalSortStats.Metric.DECOMPRESSION_NANOS, diskRuns.getDecompressionNanos());
       stats.setLongStat(ExternalSortStats.Metric.IO_READ_WAIT_NANOS, diskRuns.getIOReadWait());
       stats.setLongStat(ExternalSortStats.Metric.IO_WRITE_WAIT_NANOS, diskRuns.getIOWriteWait());
-      stats.setLongStat(ExternalSortStats.Metric.OOM_ALLOCATE_COUNT, diskRuns.getOOMAllocateCount());
+      stats.setLongStat(
+          ExternalSortStats.Metric.OOM_ALLOCATE_COUNT, diskRuns.getOOMAllocateCount());
       stats.setLongStat(ExternalSortStats.Metric.OOM_COPY_COUNT, diskRuns.getOOMCopyCount());
       stats.setLongStat(ExternalSortStats.Metric.SPILL_COPY_NANOS, diskRuns.getSpillCopyNanos());
     }
-
   }
 
   private void rotateRuns() {
-    if(memoryRun.isEmpty()){
-      final String message = "Memory failed due to not enough memory to sort even one batch of records.";
+    if (memoryRun.isEmpty()) {
+      final String message =
+          "Memory failed due to not enough memory to sort even one batch of records.";
       tracer.setExternalSortAllocatorState(allocator);
       throw tracer.prepareAndThrowException(new OutOfMemoryException(message), null);
     }
 
     try {
       memoryRun.closeToDisk(diskRuns);
-      memoryRun = new MemoryRun(config, producer, allocator, incoming.getSchema(), tracer,
-        batchsizeMultiplier, enableSplaySort, targetBatchSize, context.getExecutionControls());
+      memoryRun =
+          new MemoryRun(
+              config,
+              producer,
+              allocator,
+              incoming.getSchema(),
+              tracer,
+              batchsizeMultiplier,
+              enableSplaySort,
+              targetBatchSize,
+              context.getExecutionControls());
     } catch (Exception e) {
       throw UserException.dataWriteError(e)
-        .message("Failure while attempting to spill sort data to disk.")
-        .build(logger);
+          .message("Failure while attempting to spill sort data to disk.")
+          .build(logger);
     }
   }
 
   private void startMicroSpilling() {
-    if(memoryRun.isEmpty()){
-      final String message = "Memory failed due to not enough memory to sort even one batch of records.";
+    if (memoryRun.isEmpty()) {
+      final String message =
+          "Memory failed due to not enough memory to sort even one batch of records.";
       tracer.setExternalSortAllocatorState(allocator);
       throw tracer.prepareAndThrowException(new OutOfMemoryException(message), null);
     }
 
     try {
-      //sorts the records & prepares the hypercontainer
+      // sorts the records & prepares the hypercontainer
       memoryRun.startMicroSpilling(diskRuns);
     } catch (Exception e) {
       throw UserException.memoryError(e)
-        .message("Failure while attempting to spill sort data to disk.")
-        .build(logger);
+          .message("Failure while attempting to spill sort data to disk.")
+          .build(logger);
     }
 
     transitionToMicroSpillState();
   }
 
   private void finishMicroSpilling() throws Exception {
-    memoryRun = new MemoryRun(config, producer, allocator, incoming.getSchema(), tracer,
-      batchsizeMultiplier, enableSplaySort, targetBatchSize, context.getExecutionControls());
+    memoryRun =
+        new MemoryRun(
+            config,
+            producer,
+            allocator,
+            incoming.getSchema(),
+            tracer,
+            batchsizeMultiplier,
+            enableSplaySort,
+            targetBatchSize,
+            context.getExecutionControls());
 
     if (consumePendingIncomingBatch) {
       Preconditions.checkState(this.unconsumedRef != null);
-      //add the previous pending batch, it must not fail now.
+      // add the previous pending batch, it must not fail now.
       final boolean added = memoryRun.addBatch(unconsumedRef);
       if (!added) {
         final String message = "ExternalSort: Failure adding single batch for sorter";
@@ -598,13 +667,21 @@ public class ExternalSortOperator implements SingleInputOperator, ShrinkableOper
     state = State.CAN_PRODUCE;
     sortState = SortState.SPILL_IN_PROGRESS;
 
-    logger.debug("State transition from (state:{}, sortState:{}) to (state:{}, sortState:{})",
-      prevState.name(), prevSortState.name(), state.name(), sortState.name());
+    logger.debug(
+        "State transition from (state:{}, sortState:{}) to (state:{}, sortState:{})",
+        prevState.name(),
+        prevSortState.name(),
+        state.name(),
+        sortState.name());
   }
 
   private void restorePreviousState() {
-    logger.debug("State transition from (state:{}, sortState:{}) to (state:{}, sortState:{})",
-      state.name(), sortState.name(), prevState.name(), prevSortState.name());
+    logger.debug(
+        "State transition from (state:{}, sortState:{}) to (state:{}, sortState:{})",
+        state.name(),
+        sortState.name(),
+        prevState.name(),
+        prevSortState.name());
 
     state = prevState;
     sortState = prevSortState;
@@ -631,32 +708,35 @@ public class ExternalSortOperator implements SingleInputOperator, ShrinkableOper
     unconsumedRef.buildSchema(incoming.getSchema().getSelectionVectorMode());
   }
 
+  //  @Override
+  //  public void reduceMemoryConsumption(long target) {
+  //    if(!memoryRun.isEmpty()){
+  //      rotateRuns();
+  //    }
+  //  }
 
-//  @Override
-//  public void reduceMemoryConsumption(long target) {
-//    if(!memoryRun.isEmpty()){
-//      rotateRuns();
-//    }
-//  }
-
-  /**
-   * When this operator starts spilling, notify others if the triggering is enabled.
-   */
+  /** When this operator starts spilling, notify others if the triggering is enabled. */
   private void notifyOthersOfSpill() {
-    if(!oobSpillNotificationsEnabled) {
+    if (!oobSpillNotificationsEnabled) {
       return;
     }
 
     try {
-      OutOfBandMessage.Payload payload = new OutOfBandMessage.Payload(ExtSortSpillNotificationMessage.newBuilder().setMemoryUse(allocator.getAllocatedMemory()).build());
-      for(CoordExecRPC.FragmentAssignment a : context.getAssignments()) {
-        OutOfBandMessage message = new OutOfBandMessage(
-          context.getFragmentHandle().getQueryId(),
-          context.getFragmentHandle().getMajorFragmentId(),
-          a.getMinorFragmentIdList(),
-          config.getProps().getOperatorId(),
-          context.getFragmentHandle().getMinorFragmentId(),
-          payload, true);
+      OutOfBandMessage.Payload payload =
+          new OutOfBandMessage.Payload(
+              ExtSortSpillNotificationMessage.newBuilder()
+                  .setMemoryUse(allocator.getAllocatedMemory())
+                  .build());
+      for (CoordExecRPC.FragmentAssignment a : context.getAssignments()) {
+        OutOfBandMessage message =
+            new OutOfBandMessage(
+                context.getFragmentHandle().getQueryId(),
+                context.getFragmentHandle().getMajorFragmentId(),
+                a.getMinorFragmentIdList(),
+                config.getProps().getOperatorId(),
+                context.getFragmentHandle().getMinorFragmentId(),
+                payload,
+                true);
 
         NodeEndpoint endpoint = context.getEndpointsIndex().getNodeEndpoint(a.getAssignmentIndex());
         context.getTunnelProvider().getExecTunnel(endpoint).sendOOBMessage(message);
@@ -664,23 +744,29 @@ public class ExternalSortOperator implements SingleInputOperator, ShrinkableOper
       oobSends++;
       updateStats(false);
       if (logger.isDebugEnabled()) {
-        logger.debug("notifyOthersOfSpill allocated memory {}. headroom {} oobsends {} oobreceives {}", allocator.getAllocatedMemory(), allocator.getHeadroom(), oobSends, oobReceives);
+        logger.debug(
+            "notifyOthersOfSpill allocated memory {}. headroom {} oobsends {} oobreceives {}",
+            allocator.getAllocatedMemory(),
+            allocator.getHeadroom(),
+            oobSends,
+            oobReceives);
       }
-    } catch(Exception ex) {
+    } catch (Exception ex) {
       logger.warn("Failure while attempting to notify others of spilling.", ex);
     }
   }
 
   /**
-   * When a out of band message arrives, spill if we're within a factor of the other operator that is spilling.
+   * When a out of band message arrives, spill if we're within a factor of the other operator that
+   * is spilling.
    */
   @Override
   public void workOnOOB(OutOfBandMessage message) {
 
     ++oobReceives;
 
-    //ignore self notification.
-    if(message.getSendingMinorFragmentId() == context.getFragmentHandle().getMinorFragmentId()) {
+    // ignore self notification.
+    if (message.getSendingMinorFragmentId() == context.getFragmentHandle().getMinorFragmentId()) {
       oobDropLocal++;
       return;
     }
@@ -691,18 +777,32 @@ public class ExternalSortOperator implements SingleInputOperator, ShrinkableOper
     }
 
     if (logger.isDebugEnabled()) {
-      logger.debug("workOnOOB allocated memory {}. headroom {} oobsends {} oobreceives {}", allocator.getAllocatedMemory(), allocator.getHeadroom(), oobSends, oobReceives);
+      logger.debug(
+          "workOnOOB allocated memory {}. headroom {} oobsends {} oobreceives {}",
+          allocator.getAllocatedMemory(),
+          allocator.getHeadroom(),
+          oobSends,
+          oobReceives);
     }
 
     // check to see if we're at the point where we want to spill.
-    final ExtSortSpillNotificationMessage spill = message.getPayload(ExtSortSpillNotificationMessage.PARSER);
+    final ExtSortSpillNotificationMessage spill =
+        message.getPayload(ExtSortSpillNotificationMessage.PARSER);
     final long allocatedMemoryBeforeSpilling = allocator.getAllocatedMemory();
     final double triggerFactor = context.getOptions().getOption(OOB_SORT_SPILL_TRIGGER_FACTOR);
-    final double headroomRemaining = allocator.getHeadroom() * 1.0d / (allocator.getHeadroom() + allocator.getAllocatedMemory());
-    if(allocatedMemoryBeforeSpilling < (spill.getMemoryUse() * triggerFactor) && headroomRemaining > context.getOptions().getOption(OOB_SORT_SPILL_TRIGGER_HEADROOM_FACTOR)) {
+    final double headroomRemaining =
+        allocator.getHeadroom() * 1.0d / (allocator.getHeadroom() + allocator.getAllocatedMemory());
+    if (allocatedMemoryBeforeSpilling < (spill.getMemoryUse() * triggerFactor)
+        && headroomRemaining
+            > context.getOptions().getOption(OOB_SORT_SPILL_TRIGGER_HEADROOM_FACTOR)) {
       if (logger.isDebugEnabled()) {
-        logger.debug("Skipping OOB spill trigger, current allocation is {}, which is not within the current factor of the spilling operator ({}) which has memory use of {}. Headroom is at {} which is greater than trigger headroom of {}",
-          allocatedMemoryBeforeSpilling, triggerFactor, spill.getMemoryUse(), headroomRemaining, context.getOptions().getOption(OOB_SORT_SPILL_TRIGGER_HEADROOM_FACTOR));
+        logger.debug(
+            "Skipping OOB spill trigger, current allocation is {}, which is not within the current factor of the spilling operator ({}) which has memory use of {}. Headroom is at {} which is greater than trigger headroom of {}",
+            allocatedMemoryBeforeSpilling,
+            triggerFactor,
+            spill.getMemoryUse(),
+            headroomRemaining,
+            context.getOptions().getOption(OOB_SORT_SPILL_TRIGGER_HEADROOM_FACTOR));
       }
       oobDropUnderThreshold++;
       return;
@@ -719,15 +819,36 @@ public class ExternalSortOperator implements SingleInputOperator, ShrinkableOper
   }
 
   @Override
-  public <OUT, IN, EXCEP extends Throwable> OUT accept(OperatorVisitor<OUT, IN, EXCEP> visitor, IN value) throws EXCEP {
+  public <OUT, IN, EXCEP extends Throwable> OUT accept(
+      OperatorVisitor<OUT, IN, EXCEP> visitor, IN value) throws EXCEP {
     return visitor.visitSingleInput(this, value);
   }
 
-  static void generateComparisons(ClassGenerator<?> g, VectorAccessible batch, Iterable<Ordering> orderings, ClassProducer producer) throws SchemaChangeException {
+  static void generateComparisons(
+      ClassGenerator<?> g,
+      VectorAccessible batch,
+      Iterable<Ordering> orderings,
+      ClassProducer producer)
+      throws SchemaChangeException {
 
-    final MappingSet mainMappingSet = new MappingSet( (String) null, null, ClassGenerator.DEFAULT_SCALAR_MAP, ClassGenerator.DEFAULT_SCALAR_MAP);
-    final MappingSet leftMappingSet = new MappingSet("leftIndex", null, ClassGenerator.DEFAULT_SCALAR_MAP, ClassGenerator.DEFAULT_SCALAR_MAP);
-    final MappingSet rightMappingSet = new MappingSet("rightIndex", null, ClassGenerator.DEFAULT_SCALAR_MAP, ClassGenerator.DEFAULT_SCALAR_MAP);
+    final MappingSet mainMappingSet =
+        new MappingSet(
+            (String) null,
+            null,
+            ClassGenerator.DEFAULT_SCALAR_MAP,
+            ClassGenerator.DEFAULT_SCALAR_MAP);
+    final MappingSet leftMappingSet =
+        new MappingSet(
+            "leftIndex",
+            null,
+            ClassGenerator.DEFAULT_SCALAR_MAP,
+            ClassGenerator.DEFAULT_SCALAR_MAP);
+    final MappingSet rightMappingSet =
+        new MappingSet(
+            "rightIndex",
+            null,
+            ClassGenerator.DEFAULT_SCALAR_MAP,
+            ClassGenerator.DEFAULT_SCALAR_MAP);
     g.setMappingSet(mainMappingSet);
 
     for (Ordering od : orderings) {
@@ -740,13 +861,14 @@ public class ExternalSortOperator implements SingleInputOperator, ShrinkableOper
       g.setMappingSet(mainMappingSet);
 
       // next we wrap the two comparison sides and add the expression block for the comparison.
-      LogicalExpression fh = FunctionGenerationHelper.getOrderingComparator(od.nullsSortHigh(), left, right, producer);
+      LogicalExpression fh =
+          FunctionGenerationHelper.getOrderingComparator(od.nullsSortHigh(), left, right, producer);
       HoldingContainer out = g.addExpr(fh, ClassGenerator.BlockCreateMode.MERGE);
       JConditional jc = g.getEvalBlock()._if(out.getValue().ne(JExpr.lit(0)));
 
       if (od.getDirection() == Direction.ASCENDING) {
         jc._then()._return(out.getValue());
-      }else{
+      } else {
         jc._then()._return(out.getValue().minus());
       }
       g.rotateBlock();
@@ -755,5 +877,4 @@ public class ExternalSortOperator implements SingleInputOperator, ShrinkableOper
     g.rotateBlock();
     g.getEvalBlock()._return(JExpr.lit(0));
   }
-
 }

@@ -19,7 +19,8 @@ import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 
 public final class ArrayContainsConvertlet implements FunctionConvertlet {
-  public static final FunctionConvertlet INSTANCE = new NullableArrayFunctionConvertlet(new ArrayContainsConvertlet());
+  public static final FunctionConvertlet INSTANCE =
+      new NullableArrayFunctionConvertlet(new ArrayContainsConvertlet());
 
   private ArrayContainsConvertlet() {}
 
@@ -35,9 +36,6 @@ public final class ArrayContainsConvertlet implements FunctionConvertlet {
     RexNode array = call.getOperands().get(0);
     RexNode item = call.getOperands().get(1);
 
-    return CorrelatedUnnestQueryBuilder.create(cx)
-      .unnest(array)
-      .noOp()
-      .in(item);
+    return CorrelatedUnnestQueryBuilder.create(cx).unnest(array).noOp().in(item);
   }
 }

@@ -15,14 +15,14 @@
  */
 package com.dremio.exec.store.hive;
 
-import org.junit.Test;
-
 import com.dremio.exec.hive.HiveTestBase;
+import org.junit.Test;
 
 public class ITHivePluginNameWithWhitespace extends HiveTestBase {
 
   @Test
   public void testQuery() throws Exception {
-    test("select * from \""+ HiveTestDataGenerator.HIVE_TEST_PLUGIN_NAME_WITH_WHITESPACE + "\".kv");
+    test(
+        "select * from \"" + HiveTestDataGenerator.HIVE_TEST_PLUGIN_NAME_WITH_WHITESPACE + "\".kv");
   }
 }

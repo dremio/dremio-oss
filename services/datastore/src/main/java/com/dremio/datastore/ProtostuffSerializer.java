@@ -15,17 +15,16 @@
  */
 package com.dremio.datastore;
 
-import java.io.IOException;
-
 import com.dremio.common.utils.ProtostuffUtil;
-
 import io.protostuff.LinkedBuffer;
 import io.protostuff.Message;
 import io.protostuff.ProtostuffIOUtil;
 import io.protostuff.Schema;
+import java.io.IOException;
 
 /**
  * a Serializer implementation for protostuff generated classes
+ *
  * @param <T> a protostuff generated class
  */
 public class ProtostuffSerializer<T extends Message> extends Serializer<T, byte[]> {
@@ -33,12 +32,13 @@ public class ProtostuffSerializer<T extends Message> extends Serializer<T, byte[
   private Schema<T> schema;
 
   // TODO: verify if this is necessary
-  private final ThreadLocal<LinkedBuffer> tl = new ThreadLocal<LinkedBuffer>() {
-    @Override
-    protected LinkedBuffer initialValue() {
-      return LinkedBuffer.allocate(256);
-    }
-  };
+  private final ThreadLocal<LinkedBuffer> tl =
+      new ThreadLocal<LinkedBuffer>() {
+        @Override
+        protected LinkedBuffer initialValue() {
+          return LinkedBuffer.allocate(256);
+        }
+      };
 
   public ProtostuffSerializer(Schema<T> schema) {
     this.schema = schema;

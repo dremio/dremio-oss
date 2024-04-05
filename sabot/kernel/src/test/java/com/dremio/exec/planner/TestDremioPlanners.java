@@ -17,8 +17,14 @@ package com.dremio.exec.planner;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.dremio.exec.planner.cost.DremioCost;
+import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.planner.types.SqlTypeFactoryImpl;
+import com.dremio.options.OptionResolver;
+import com.dremio.test.DremioTest;
+import com.dremio.test.specs.OptionResolverSpec;
+import com.dremio.test.specs.OptionResolverSpecBuilder;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
@@ -35,17 +41,7 @@ import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rex.RexBuilder;
 import org.junit.Test;
 
-import com.dremio.exec.planner.cost.DremioCost;
-import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.planner.types.SqlTypeFactoryImpl;
-import com.dremio.options.OptionResolver;
-import com.dremio.test.DremioTest;
-import com.dremio.test.specs.OptionResolverSpec;
-import com.dremio.test.specs.OptionResolverSpecBuilder;
-
-/**
- * Tests to check common features of Dremio planners
- */
+/** Tests to check common features of Dremio planners */
 public class TestDremioPlanners {
   public static class NoneRel extends AbstractRelNode {
     public NoneRel(RelOptCluster cluster) {
@@ -53,8 +49,7 @@ public class TestDremioPlanners {
     }
 
     @Override
-    public RelOptCost computeSelfCost(RelOptPlanner planner,
-                                      RelMetadataQuery mq) {
+    public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
       return planner.getCostFactory().makeInfiniteCost();
     }
 
@@ -62,8 +57,8 @@ public class TestDremioPlanners {
     protected RelDataType deriveRowType() {
       final RelDataTypeFactory typeFactory = getCluster().getTypeFactory();
       return new RelDataTypeFactory.Builder(getCluster().getTypeFactory())
-        .add("none", typeFactory.createJavaType(Void.TYPE))
-        .build();
+          .add("none", typeFactory.createJavaType(Void.TYPE))
+          .build();
     }
 
     @Override
@@ -90,10 +85,11 @@ public class TestDremioPlanners {
   }
 
   public static PlannerSettings getSettings(long timeoutMillis, int maxNodes) {
-    OptionResolver optionResolver = OptionResolverSpecBuilder.build(
-        new OptionResolverSpec()
-            .addOption(PlannerSettings.MAX_NODES_PER_PLAN, maxNodes)
-            .addOption(PlannerSettings.PLANNING_MAX_MILLIS, timeoutMillis));
+    OptionResolver optionResolver =
+        OptionResolverSpecBuilder.build(
+            new OptionResolverSpec()
+                .addOption(PlannerSettings.MAX_NODES_PER_PLAN, maxNodes)
+                .addOption(PlannerSettings.PLANNING_MAX_MILLIS, timeoutMillis));
 
     return new PlannerSettings(DremioTest.DEFAULT_SABOT_CONFIG, optionResolver, null);
   }
@@ -103,29 +99,37 @@ public class TestDremioPlanners {
 
     HepProgramBuilder builder = new HepProgramBuilder();
     builder.addRuleInstance(new LoopRule());
-    DremioHepPlanner planner = new DremioHepPlanner(builder.build(), getSettings(100, 25_000), new DremioCost.Factory(), PlannerPhase.LOGICAL, new MatchCountListener(0, 0, 0, false, null));
+    DremioHepPlanner planner =
+        new DremioHepPlanner(
+            builder.build(),
+            getSettings(100, 25_000),
+            new DremioCost.Factory(),
+            PlannerPhase.LOGICAL,
+            new MatchCountListener(0, 0, 0, null));
 
     checkCancelFlag(planner);
   }
 
-
   @Test
   public void checkThrowOnMaxNodes() {
-    DremioVolcanoPlanner planner = DremioVolcanoPlanner.of(new DremioCost.Factory(), getSettings(60_000, 10), a -> {
-    }, null);
+    DremioVolcanoPlanner planner =
+        DremioVolcanoPlanner.of(new DremioCost.Factory(), getSettings(60_000, 10), a -> {}, null);
     planner.setPlannerPhase(PlannerPhase.LOGICAL);
     planner.addRule(new LoopRule());
-    RelOptCluster cluster = RelOptCluster.create(planner, new RexBuilder(SqlTypeFactoryImpl.INSTANCE));
+    RelOptCluster cluster =
+        RelOptCluster.create(planner, new RexBuilder(SqlTypeFactoryImpl.INSTANCE));
     RelNode root = new NoneRel(cluster);
     planner.setRoot(root);
-    assertThatThrownBy(planner::findBestExp).hasMessageContaining("Job was canceled because the query is too complex. Please simplify the query.");
+    assertThatThrownBy(planner::findBestExp)
+        .hasMessageContaining(
+            "Job was canceled because the query is too complex. Please simplify the query.");
   }
 
   @Test
   public void testVolcanoPlannerCancelFlag() {
 
-    DremioVolcanoPlanner planner = DremioVolcanoPlanner.of(new DremioCost.Factory(), getSettings(100, 25_000), a -> {
-    }, null);
+    DremioVolcanoPlanner planner =
+        DremioVolcanoPlanner.of(new DremioCost.Factory(), getSettings(100, 25_000), a -> {}, null);
     planner.setPlannerPhase(PlannerPhase.LOGICAL);
     planner.addRule(new LoopRule());
 
@@ -133,10 +137,11 @@ public class TestDremioPlanners {
   }
 
   private void checkCancelFlag(RelOptPlanner planner) {
-    RelOptCluster cluster = RelOptCluster.create(planner, new RexBuilder(SqlTypeFactoryImpl.INSTANCE));
+    RelOptCluster cluster =
+        RelOptCluster.create(planner, new RexBuilder(SqlTypeFactoryImpl.INSTANCE));
     RelNode root = new NoneRel(cluster);
     planner.setRoot(root);
-    assertThatThrownBy(planner::findBestExp).hasMessageContaining("Query was cancelled because planning time exceeded");
+    assertThatThrownBy(planner::findBestExp)
+        .hasMessageContaining("Query was cancelled because planning time exceeded");
   }
-
 }

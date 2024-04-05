@@ -15,24 +15,19 @@
  */
 package com.dremio.dac.model.job;
 
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.SessionId;
+import org.apache.arrow.memory.BufferAllocator;
 
-/**
- * Holds job results. Could be partial or complete job results.
- */
+/** Holds job results. Could be partial or complete job results. */
 public interface JobData extends AutoCloseable {
 
-  /**
-   * Approximate maximum getReturnedRowCount of the JSON serialized value of a cell.
-   */
+  /** Approximate maximum getReturnedRowCount of the JSON serialized value of a cell. */
   String MAX_CELL_SIZE_KEY = "cellSizeLimit";
 
   /**
-   * Create a data object that contains the results in given range. If the range contains no values, a JobData object
-   * containing no results is returned.
+   * Create a data object that contains the results in given range. If the range contains no values,
+   * a JobData object containing no results is returned.
    *
    * @param allocator Allocator to accept data
    * @param offset Number of starting row to include in output
@@ -43,6 +38,7 @@ public interface JobData extends AutoCloseable {
 
   /**
    * Create a new data object that truncates the results to at max given rows.
+   *
    * @param allocator Allocator to accept data
    * @param maxRows
    */
@@ -50,18 +46,21 @@ public interface JobData extends AutoCloseable {
 
   /**
    * Get the {@link JobId} of job that produced the results in this object.
+   *
    * @return
    */
   JobId getJobId();
 
   /**
    * Get the {@link SessionId} of job that produced the results in this object.
+   *
    * @return
    */
   SessionId getSessionId();
 
   /**
    * Return the table path where the job results are stored.
+   *
    * @return
    */
   String getJobResultsTable();

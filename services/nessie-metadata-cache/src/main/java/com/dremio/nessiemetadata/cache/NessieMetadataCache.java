@@ -15,45 +15,13 @@
  */
 package com.dremio.nessiemetadata.cache;
 
-import java.util.Optional;
+import com.dremio.catalog.model.ResolvedVersionContext;
+import org.apache.commons.lang3.tuple.ImmutableTriple;
+import org.projectnessie.model.Content;
+import org.projectnessie.model.ContentKey;
 
-import com.dremio.datastore.api.Document;
-import com.dremio.datastore.format.Format;
-import com.dremio.datastore.transientstore.TransientStore;
-import com.dremio.nessiemetadata.storeprovider.NessieMetadataCacheStoreProvider;
-import com.dremio.service.Service;
-import com.google.inject.Provider;
+public interface NessieMetadataCache {
+  void delete(String userId);
 
-public class NessieMetadataCache implements Service {
-  private TransientStore<String, String> store;
-  private Provider<NessieMetadataCacheStoreProvider> storeProvider;
-
-  public NessieMetadataCache(Provider<NessieMetadataCacheStoreProvider> storeProvider) {
-    this.storeProvider = storeProvider;
-  }
-
-  public void invalidate(String userId) {
-    store.delete(userId);
-  }
-
-  public Optional<String> get(String userId) {
-    Document<String, String> doc = store.get(userId);
-    if (doc == null) {
-      return Optional.empty();
-    }
-    return Optional.of(doc.getValue());
-  }
-
-  public void put(String userId, String value) {
-    store.put(userId, value);
-  }
-
-  @Override
-  public void start() throws Exception {
-    store = storeProvider.get().getStore(Format.ofString(), Format.ofString());
-  }
-
-  @Override
-  public void close() throws Exception {
-  }
+  Content get(ImmutableTriple<ContentKey, ResolvedVersionContext, String> key);
 }

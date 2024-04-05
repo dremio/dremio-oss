@@ -16,10 +16,6 @@
 
 package com.dremio.exec.physical.config;
 
-import java.util.List;
-
-import org.apache.calcite.rex.RexWindowBound;
-
 import com.dremio.common.logical.data.NamedExpression;
 import com.dremio.common.logical.data.Order;
 import com.dremio.common.logical.data.Order.Ordering;
@@ -29,9 +25,10 @@ import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.PhysicalVisitor;
 import com.dremio.exec.proto.UserBitShared;
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import java.util.List;
+import org.apache.calcite.rex.RexWindowBound;
 
 @JsonTypeName("window")
 public class WindowPOP extends AbstractSingle {
@@ -40,8 +37,8 @@ public class WindowPOP extends AbstractSingle {
   private final List<NamedExpression> aggregations;
   private final List<Order.Ordering> orderings;
   private final boolean frameUnitsRows;
-  private final Bound start;
-  private final Bound end;
+  private final Bound lowerBound;
+  private final Bound upperBound;
 
   @JsonCreator
   public WindowPOP(
@@ -51,25 +48,26 @@ public class WindowPOP extends AbstractSingle {
       @JsonProperty("aggregations") List<NamedExpression> aggregations,
       @JsonProperty("orderings") List<Ordering> orderings,
       @JsonProperty("frameUnitsRows") boolean frameUnitsRows,
-      @JsonProperty("start") Bound start,
-      @JsonProperty("end") Bound end
-      ) {
+      @JsonProperty("lowerBound") Bound lowerBound,
+      @JsonProperty("upperBound") Bound upperBound) {
     super(props, child);
     this.withins = withins;
     this.aggregations = aggregations;
     this.orderings = orderings;
     this.frameUnitsRows = frameUnitsRows;
-    this.start = start;
-    this.end = end;
+    this.lowerBound = lowerBound;
+    this.upperBound = upperBound;
   }
 
   @Override
   protected PhysicalOperator getNewWithChild(PhysicalOperator child) {
-    return new WindowPOP(props, child, withins, aggregations, orderings, frameUnitsRows, start, end);
+    return new WindowPOP(
+        props, child, withins, aggregations, orderings, frameUnitsRows, lowerBound, upperBound);
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value) throws E {
+  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value)
+      throws E {
     return physicalVisitor.visitWindowFrame(this, value);
   }
 
@@ -78,12 +76,12 @@ public class WindowPOP extends AbstractSingle {
     return UserBitShared.CoreOperatorType.WINDOW_VALUE;
   }
 
-  public Bound getStart() {
-    return start;
+  public Bound getLowerBound() {
+    return lowerBound;
   }
 
-  public Bound getEnd() {
-    return end;
+  public Bound getUpperBound() {
+    return upperBound;
   }
 
   public List<NamedExpression> getAggregations() {
@@ -104,31 +102,55 @@ public class WindowPOP extends AbstractSingle {
 
   public static class Bound {
     private final boolean unbounded;
-    private final long offset;
+    private final int offset;
+    private final BoundType type;
 
     @JsonCreator
     public Bound(
         @JsonProperty("unbounded") boolean unbounded,
-        @JsonProperty("offset") long offset) {
+        @JsonProperty("offset") int offset,
+        @JsonProperty("type") BoundType type) {
       this.unbounded = unbounded;
       this.offset = offset;
+      this.type = type;
     }
 
     public boolean isUnbounded() {
       return unbounded;
     }
 
-    @JsonIgnore
-    public boolean isCurrent() {
-      return offset == 0;
+    public int getOffset() {
+      return offset;
     }
 
-    public long getOffset() {
-      return offset;
+    public BoundType getType() {
+      return type;
     }
   }
 
-  public static Bound newBound(RexWindowBound windowBound) {
-    return new Bound(windowBound.isUnbounded(), windowBound.isCurrentRow() ? 0 : Long.MIN_VALUE); //TODO: Get offset to work
+  public enum BoundType {
+    @JsonProperty("PRECEDING")
+    PRECEDING,
+    @JsonProperty("FOLLOWING")
+    FOLLOWING,
+    @JsonProperty("CURRENT_ROW")
+    CURRENT_ROW;
+
+    public static BoundType fromRexWindowBound(RexWindowBound bound) {
+      if (bound.isCurrentRow()) {
+        return CURRENT_ROW;
+      } else if (bound.isFollowing()) {
+        return FOLLOWING;
+      } else {
+        return PRECEDING;
+      }
+    }
+  }
+
+  public static Bound newBound(RexWindowBound windowBound, int offset) {
+    return new Bound(
+        windowBound.isUnbounded(),
+        windowBound.isCurrentRow() ? 0 : offset,
+        BoundType.fromRexWindowBound(windowBound));
   }
 }

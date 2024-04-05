@@ -15,27 +15,41 @@
  */
 package com.dremio.plugins.elastic.execution;
 
+import com.dremio.common.expression.SchemaPath;
 import java.io.IOException;
 import java.util.List;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.complex.writer.BaseWriter.ComplexWriter;
 import org.apache.calcite.util.Pair;
 
-import com.dremio.common.expression.SchemaPath;
-
 /**
- * Overrides {@link ElasticsearchJsonReader} to just return count instead of parsing the whole response.
+ * Overrides {@link ElasticsearchJsonReader} to just return count instead of parsing the whole
+ * response.
  */
 public class CountingElasticsearchJsonReader extends ElasticsearchJsonReader {
 
   private long recordCount;
 
-  public CountingElasticsearchJsonReader(ArrowBuf managedBuf, List<SchemaPath> columns, String resourceName,
-      FieldReadDefinition rootDefinition, boolean fieldsProjected, boolean metaUIDSelected, boolean metaIDSelected,
-      boolean metaTypeSelected, boolean metaIndexSelected) {
-    super(managedBuf, columns, resourceName, rootDefinition, fieldsProjected, metaUIDSelected, metaIDSelected,
-        metaTypeSelected, metaIndexSelected);
+  public CountingElasticsearchJsonReader(
+      ArrowBuf managedBuf,
+      List<SchemaPath> columns,
+      String resourceName,
+      FieldReadDefinition rootDefinition,
+      boolean fieldsProjected,
+      boolean metaUIDSelected,
+      boolean metaIDSelected,
+      boolean metaTypeSelected,
+      boolean metaIndexSelected) {
+    super(
+        managedBuf,
+        columns,
+        resourceName,
+        rootDefinition,
+        fieldsProjected,
+        metaUIDSelected,
+        metaIDSelected,
+        metaTypeSelected,
+        metaIndexSelected);
   }
 
   @Override

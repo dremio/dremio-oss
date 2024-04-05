@@ -17,12 +17,6 @@ package com.dremio.exec.store.parquet;
 
 import static com.dremio.exec.planner.common.MoreRelOptUtil.getInputRewriterFromProjectedFields;
 
-import java.util.List;
-
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rex.RexNode;
-
 import com.dremio.common.expression.ExpressionStringBuilder;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.SchemaPath;
@@ -32,15 +26,16 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Objects;
+import java.util.List;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rex.RexNode;
 
-/**
- * A parquet scan filter for row group pruning.
- */
+/** A parquet scan filter for row group pruning. */
 @JsonTypeName("ParquetScanRowGroupFilter")
 public class ParquetScanRowGroupFilter {
 
-  @JsonIgnore
-  private final RexNode rexFilter;
+  @JsonIgnore private final RexNode rexFilter;
   private final LogicalExpression expr;
 
   @JsonCreator
@@ -79,8 +74,13 @@ public class ParquetScanRowGroupFilter {
     return Objects.equal(getRexFilter(), that.getRexFilter());
   }
 
-  public ParquetScanRowGroupFilter applyProjection(List<SchemaPath> projection, RelDataType rowType, RelOptCluster cluster, BatchSchema batchSchema) {
-    final PrelUtil.InputRewriter inputRewriter = getInputRewriterFromProjectedFields(projection, rowType, batchSchema, cluster);
+  public ParquetScanRowGroupFilter applyProjection(
+      List<SchemaPath> projection,
+      RelDataType rowType,
+      RelOptCluster cluster,
+      BatchSchema batchSchema) {
+    final PrelUtil.InputRewriter inputRewriter =
+        getInputRewriterFromProjectedFields(projection, rowType, batchSchema, cluster);
     return new ParquetScanRowGroupFilter(getRexFilter().accept(inputRewriter), getExpr());
   }
 

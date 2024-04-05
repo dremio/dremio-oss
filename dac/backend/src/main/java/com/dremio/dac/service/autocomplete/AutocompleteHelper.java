@@ -15,15 +15,6 @@
  */
 package com.dremio.dac.service.autocomplete;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-import org.apache.arrow.vector.types.pojo.Field;
-
 import com.dremio.common.util.MajorTypeHelper;
 import com.dremio.dac.api.CatalogItem;
 import com.dremio.dac.explore.DataTypeUtil;
@@ -32,39 +23,61 @@ import com.dremio.dac.service.autocomplete.model.SuggestionEntity;
 import com.dremio.dac.service.autocomplete.model.SuggestionEntityType;
 import com.dremio.dac.service.autocomplete.model.SuggestionsType;
 import com.dremio.exec.store.ReferenceInfo;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import org.apache.arrow.vector.types.pojo.Field;
 
-/**
- * Manage Autocomplete logic for what's been returned for various types
- */
+/** Manage Autocomplete logic for what's been returned for various types */
 public final class AutocompleteHelper {
-  public static AutocompleteResponse buildContainerSuggestions(List<CatalogItem> matchingContainers) {
+  public static AutocompleteResponse buildContainerSuggestions(
+      List<CatalogItem> matchingContainers) {
     List<SuggestionEntity> suggestedContainers = new ArrayList<>();
     for (CatalogItem item : matchingContainers) {
       switch (item.getType()) {
-        case CONTAINER: {
-          suggestedContainers.add(new SuggestionEntity(item.getPath(), convertContainerTypeToSuggestionEntityType(item.getContainerType()).getType()));
-          break;
-        }
+        case CONTAINER:
+          {
+            suggestedContainers.add(
+                new SuggestionEntity(
+                    item.getPath(),
+                    convertContainerTypeToSuggestionEntityType(item.getContainerType()).getType()));
+            break;
+          }
 
-        case DATASET: {
-          suggestedContainers.add(new SuggestionEntity(item.getPath(), convertDatasetTypeToSuggestionEntityType(item.getDatasetType()).getType()));
-          break;
-        }
+        case DATASET:
+          {
+            suggestedContainers.add(
+                new SuggestionEntity(
+                    item.getPath(),
+                    convertDatasetTypeToSuggestionEntityType(item.getDatasetType()).getType()));
+            break;
+          }
 
-        case FILE: {
-          suggestedContainers.add(new SuggestionEntity(item.getPath(), SuggestionEntityType.FILE.getType()));
-          break;
-        }
+        case FILE:
+          {
+            suggestedContainers.add(
+                new SuggestionEntity(item.getPath(), SuggestionEntityType.FILE.getType()));
+            break;
+          }
 
-        default: {
-          throw new RuntimeException("Unknown type");
-        }
+        default:
+          {
+            throw new RuntimeException("Unknown type");
+          }
       }
     }
-    return new AutocompleteResponse(SuggestionsType.CONTAINER.getType(), suggestedContainers.size(), suggestedContainers.size(), suggestedContainers);
+    return new AutocompleteResponse(
+        SuggestionsType.CONTAINER.getType(),
+        suggestedContainers.size(),
+        suggestedContainers.size(),
+        suggestedContainers);
   }
 
-  private static SuggestionEntityType convertContainerTypeToSuggestionEntityType(CatalogItem.ContainerSubType type) {
+  private static SuggestionEntityType convertContainerTypeToSuggestionEntityType(
+      CatalogItem.ContainerSubType type) {
     switch (type) {
       case SPACE:
         return SuggestionEntityType.SPACE;
@@ -81,7 +94,8 @@ public final class AutocompleteHelper {
     }
   }
 
-  private static SuggestionEntityType convertDatasetTypeToSuggestionEntityType(CatalogItem.DatasetSubType type) {
+  private static SuggestionEntityType convertDatasetTypeToSuggestionEntityType(
+      CatalogItem.DatasetSubType type) {
     switch (type) {
       case VIRTUAL:
         return SuggestionEntityType.VIRTUAL;
@@ -95,21 +109,37 @@ public final class AutocompleteHelper {
     }
   }
 
-  public static AutocompleteResponse buildColumnSuggestions(Map<List<String>, List<Field>> matchingColumnsMap) {
+  public static AutocompleteResponse buildColumnSuggestions(
+      Map<List<String>, List<Field>> matchingColumnsMap) {
     List<SuggestionEntity> suggestedColumns = new ArrayList<>();
     for (List<String> catalogEntityKey : matchingColumnsMap.keySet()) {
       for (Field column : matchingColumnsMap.get(catalogEntityKey)) {
-        List<String> columnFullName = Stream.concat(catalogEntityKey.stream(), Stream.of(column.getName())).collect(Collectors.toList());
-        suggestedColumns.add(new SuggestionEntity(columnFullName, DataTypeUtil.getDataType(MajorTypeHelper.getMajorTypeForField(column)).toString()));
+        List<String> columnFullName =
+            Stream.concat(catalogEntityKey.stream(), Stream.of(column.getName()))
+                .collect(Collectors.toList());
+        suggestedColumns.add(
+            new SuggestionEntity(
+                columnFullName,
+                DataTypeUtil.getDataType(MajorTypeHelper.getMajorTypeForField(column)).toString()));
       }
     }
-    return new AutocompleteResponse(SuggestionsType.COLUMN.getType(), suggestedColumns.size(), suggestedColumns.size(), suggestedColumns);
+    return new AutocompleteResponse(
+        SuggestionsType.COLUMN.getType(),
+        suggestedColumns.size(),
+        suggestedColumns.size(),
+        suggestedColumns);
   }
 
-  public static AutocompleteResponse buildReferenceSuggestions(List<ReferenceInfo> matchingReferences, SuggestionsType refType) {
-    List<SuggestionEntity> suggestedReferences = matchingReferences.stream()
-      .map(entity -> new SuggestionEntity(Arrays.asList(entity.refName), entity.type))
-      .collect(Collectors.toList());
-    return new AutocompleteResponse(refType.getType(), suggestedReferences.size(), suggestedReferences.size(), suggestedReferences);
+  public static AutocompleteResponse buildReferenceSuggestions(
+      List<ReferenceInfo> matchingReferences, SuggestionsType refType) {
+    List<SuggestionEntity> suggestedReferences =
+        matchingReferences.stream()
+            .map(entity -> new SuggestionEntity(Arrays.asList(entity.refName), entity.type))
+            .collect(Collectors.toList());
+    return new AutocompleteResponse(
+        refType.getType(),
+        suggestedReferences.size(),
+        suggestedReferences.size(),
+        suggestedReferences);
   }
 }

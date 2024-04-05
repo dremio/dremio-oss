@@ -15,22 +15,23 @@
  */
 package com.dremio.service.namespace;
 
-import java.util.List;
-import java.util.Map;
-
 import com.dremio.datastore.SearchTypes;
 import com.dremio.datastore.api.LegacyIndexedStore;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
+import java.util.List;
+import java.util.Map;
 
 /**
- * Namespace operations for generic entities. If you are operating on a specific entity, use that entity's
- * NamespaceService.For example, if getting a function, use
- * {@link com.dremio.service.namespace.function.FunctionNamespaceService}.
+ * Namespace operations for generic entities. If you are operating on a specific entity, use that
+ * entity's NamespaceService.For example, if getting a function, use {@link
+ * com.dremio.service.namespace.function.FunctionNamespaceService}.
  */
 public interface EntityNamespaceService {
   //// READ
   boolean exists(NamespaceKey key, NameSpaceContainer.Type type);
+
   boolean exists(NamespaceKey key);
+
   boolean hasChildren(NamespaceKey key);
 
   /**
@@ -40,7 +41,9 @@ public interface EntityNamespaceService {
    * @return a data set entity id or null, if there is no entityPath by provided path
    */
   String getEntityIdByPath(NamespaceKey entityPath) throws NamespaceNotFoundException;
+
   NameSpaceContainer getEntityById(String id) throws NamespaceNotFoundException;
+
   List<NameSpaceContainer> getEntitiesByIds(List<String> ids) throws NamespaceNotFoundException;
 
   /**
@@ -53,34 +56,39 @@ public interface EntityNamespaceService {
 
   /**
    * Get multiple entities of given type
+   *
    * @param lookupKeys namespace keys
-   * @return list of namespace containers with null if no value found for a key.
-   *         Order of returned list matches with order of lookupKeys.
+   * @return list of namespace containers with null if no value found for a key. Order of returned
+   *     list matches with order of lookupKeys.
    * @throws NamespaceNotFoundException
    */
-  List<NameSpaceContainer> getEntities(List<NamespaceKey> lookupKeys) throws NamespaceNotFoundException;
+  List<NameSpaceContainer> getEntities(List<NamespaceKey> lookupKeys)
+      throws NamespaceNotFoundException;
 
   /**
    * Return list of counts matching each query
+   *
    * @param queries list of queries to perform search on
    * @return list of counts. Order of returned counts is same as order of queries.
    * @throws NamespaceException
    */
   List<Integer> getCounts(SearchTypes.SearchQuery... queries) throws NamespaceException;
+
   List<NameSpaceContainer> list(NamespaceKey entityPath) throws NamespaceException;
+
   Iterable<NameSpaceContainer> getAllDescendants(final NamespaceKey root);
 
   /**
    * Find entries by condition. If condition is not provided, returns all items.
+   *
    * @param condition
    * @return List of Key/Container entries.
    */
-  Iterable<Map.Entry<NamespaceKey, NameSpaceContainer>> find(LegacyIndexedStore.LegacyFindByCondition condition);
+  Iterable<Map.Entry<NamespaceKey, NameSpaceContainer>> find(
+      LegacyIndexedStore.LegacyFindByCondition condition);
 
   //// DELETE
-  /**
-   * Do not use. Leverage an entity-specific deletion.
-   */
+  /** Do not use. Leverage an entity-specific deletion. */
   @Deprecated
   void deleteEntity(NamespaceKey entityPath) throws NamespaceException;
 

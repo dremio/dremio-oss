@@ -15,9 +15,13 @@
  */
 package com.dremio.sabot.join.hash;
 
-
+import com.dremio.common.expression.CompleteType;
+import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.record.VectorAccessible;
+import com.dremio.exec.record.VectorContainer;
+import com.dremio.sabot.Generator;
+import com.google.common.collect.ImmutableList;
 import java.util.List;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BaseFixedWidthVector;
@@ -29,18 +33,11 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 
-import com.dremio.common.expression.CompleteType;
-import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.record.VectorAccessible;
-import com.dremio.exec.record.VectorContainer;
-import com.dremio.sabot.Generator;
-import com.google.common.collect.ImmutableList;
-
 /**
- * A vector cotainer containing following types of vectors -
- * IntVector, IntVector, StructVector
+ * A vector cotainer containing following types of vectors - IntVector, IntVector, StructVector
  *
- * Used for unit tests in {@link TestVHashJoinSpillBuildAndReplay}
+ * <p>Used for unit tests in {@link TestVHashJoinSpillBuildAndReplay}
+ *
  * @param <T>
  */
 class MixedColumnGenerator<T extends FieldVector> implements Generator {
@@ -51,7 +48,8 @@ class MixedColumnGenerator<T extends FieldVector> implements Generator {
   private final String postFix;
   private final BufferAllocator allocator;
 
-  public MixedColumnGenerator(final BufferAllocator allocator, final int rows, final int offset, final String postFix) {
+  public MixedColumnGenerator(
+      final BufferAllocator allocator, final int rows, final int offset, final String postFix) {
 
     this.allocator = allocator;
     this.rows = rows;
@@ -62,22 +60,24 @@ class MixedColumnGenerator<T extends FieldVector> implements Generator {
 
     final ImmutableList.Builder<T> vectorsBuilder = ImmutableList.builder();
 
-    final Field fieldIdLeft = new Field("id_"+ this.postFix, new FieldType(true,
-      new ArrowType.Int(32, true), null), null);
+    final Field fieldIdLeft =
+        new Field(
+            "id_" + this.postFix, new FieldType(true, new ArrowType.Int(32, true), null), null);
 
     final T idLeftVector = result.addOrGet(fieldIdLeft);
     vectorsBuilder.add(idLeftVector);
 
-    final Field fieldInt = new Field("int_" + this.postFix, new FieldType(true,
-      new ArrowType.Int(32, true), null), null);
+    final Field fieldInt =
+        new Field(
+            "int_" + this.postFix, new FieldType(true, new ArrowType.Int(32, true), null), null);
 
     final T intVector = result.addOrGet(fieldInt);
     vectorsBuilder.add(intVector);
 
-    final Field fieldStruct = CompleteType.struct(
-      CompleteType.VARCHAR.toField("child_string"),
-      CompleteType.INT.toField("child_int")
-    ).toField("struct_" + this.postFix);
+    final Field fieldStruct =
+        CompleteType.struct(
+                CompleteType.VARCHAR.toField("child_string"), CompleteType.INT.toField("child_int"))
+            .toField("struct_" + this.postFix);
 
     final T structVector = result.addOrGet(fieldStruct);
     vectorsBuilder.add(structVector);
@@ -89,6 +89,7 @@ class MixedColumnGenerator<T extends FieldVector> implements Generator {
 
   /**
    * Generate a new record.
+   *
    * @param records
    * @return
    */
@@ -106,9 +107,9 @@ class MixedColumnGenerator<T extends FieldVector> implements Generator {
       insertIntoIntVector(offset, offset, (BaseFixedWidthVector) vectors.get(0));
 
       int value = "left".equalsIgnoreCase(postFix) ? offset : offset + rows;
-      insertIntoIntVector( offset, value, (BaseFixedWidthVector) vectors.get(1));
+      insertIntoIntVector(offset, value, (BaseFixedWidthVector) vectors.get(1));
 
-      insertIntoStructVector(allocator, offset, value, (StructVector)vectors.get(2));
+      insertIntoStructVector(allocator, offset, value, (StructVector) vectors.get(2));
 
       offset++;
     }
@@ -116,7 +117,6 @@ class MixedColumnGenerator<T extends FieldVector> implements Generator {
     result.buildSchema();
     return count;
   }
-
 
   @Override
   public VectorAccessible getOutput() {
@@ -128,16 +128,21 @@ class MixedColumnGenerator<T extends FieldVector> implements Generator {
     result.close();
   }
 
-  private static void insertIntoIntVector(final int index, final int value, final BaseFixedWidthVector vector) {
-    IntVector vec = (IntVector)vector;
+  private static void insertIntoIntVector(
+      final int index, final int value, final BaseFixedWidthVector vector) {
+    IntVector vec = (IntVector) vector;
     vec.setSafe(index, value);
   }
 
-  private static void insertIntoStructVector(final BufferAllocator allocator, final int index, final int value, final StructVector vector) {
+  private static void insertIntoStructVector(
+      final BufferAllocator allocator,
+      final int index,
+      final int value,
+      final StructVector vector) {
 
     final NullableStructWriter structWriter = vector.getWriter();
 
-    try (final ArrowBuf tempBuf =  allocator.buffer(1024)) {
+    try (final ArrowBuf tempBuf = allocator.buffer(1024)) {
 
       structWriter.setPosition(index);
 
@@ -147,7 +152,7 @@ class MixedColumnGenerator<T extends FieldVector> implements Generator {
 
       final byte[] varCharVal = Integer.toString(value).getBytes();
       tempBuf.setBytes(0, varCharVal);
-      structWriter.varChar("child_string").writeVarChar(0, varCharVal.length,tempBuf);
+      structWriter.varChar("child_string").writeVarChar(0, varCharVal.length, tempBuf);
 
       structWriter.end();
     }

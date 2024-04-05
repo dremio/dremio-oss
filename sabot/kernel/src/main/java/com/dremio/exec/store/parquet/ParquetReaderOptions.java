@@ -18,9 +18,7 @@ package com.dremio.exec.store.parquet;
 import com.dremio.exec.ExecConstants;
 import com.dremio.options.OptionResolver;
 
-/**
- * Provides common options used in Parquet reader implementations.
- */
+/** Provides common options used in Parquet reader implementations. */
 public class ParquetReaderOptions {
 
   private boolean vectorizationEnabled;
@@ -81,15 +79,19 @@ public class ParquetReaderOptions {
 
     public Builder(OptionResolver optionResolver) {
       options = new ParquetReaderOptions();
-      options.vectorizationEnabled = optionResolver.getOption(ExecConstants.PARQUET_READER_VECTORIZE);
+      options.vectorizationEnabled =
+          optionResolver.getOption(ExecConstants.PARQUET_READER_VECTORIZE);
       options.autoCorrectCorruptDatesEnabled =
-        optionResolver.getOption(ExecConstants.PARQUET_AUTO_CORRECT_DATES_VALIDATOR);
+          optionResolver.getOption(ExecConstants.PARQUET_AUTO_CORRECT_DATES_VALIDATOR);
       options.readInt96AsTimestampEnabled =
-        optionResolver.getOption(ExecConstants.PARQUET_READER_INT96_AS_TIMESTAMP_VALIDATOR);
-      options.detailedTracingEnabled = optionResolver.getOption(ExecConstants.ENABLED_PARQUET_TRACING);
+          optionResolver.getOption(ExecConstants.PARQUET_READER_INT96_AS_TIMESTAMP_VALIDATOR);
+      options.detailedTracingEnabled =
+          optionResolver.getOption(ExecConstants.ENABLED_PARQUET_TRACING);
       options.prefetchingEnabled = optionResolver.getOption(ExecConstants.PREFETCH_READER);
-      options.numSplitsToPrefetch = (int) optionResolver.getOption(ExecConstants.NUM_SPLITS_TO_PREFETCH);
-      options.arrowCachingEnabled = optionResolver.getOption(ExecConstants.ENABLE_PARQUET_ARROW_CACHING);
+      options.numSplitsToPrefetch =
+          (int) optionResolver.getOption(ExecConstants.NUM_SPLITS_TO_PREFETCH);
+      options.arrowCachingEnabled =
+          optionResolver.getOption(ExecConstants.ENABLE_PARQUET_ARROW_CACHING);
     }
 
     public Builder enableVectorization(boolean value) {

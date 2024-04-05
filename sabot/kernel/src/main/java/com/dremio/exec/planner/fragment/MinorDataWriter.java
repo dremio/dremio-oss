@@ -15,11 +15,6 @@
  */
 package com.dremio.exec.planner.fragment;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.proto.CoordExecRPC.MinorAttr;
 import com.dremio.exec.proto.CoordExecRPC.MinorFragmentIndexEndpoint;
@@ -31,12 +26,15 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Preconditions;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.MessageLite;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 /**
- * Utility class to serialize and gather all minor-specific data.
- * - The attributes are stored as key, value pairs in either compressed-json or protobuf format.
- * - Repetitive entries like end-points are saved in the indexBuilder, and the index value is
- *   stored in the key-value pair.
+ * Utility class to serialize and gather all minor-specific data. - The attributes are stored as
+ * key, value pairs in either compressed-json or protobuf format. - Repetitive entries like
+ * end-points are saved in the indexBuilder, and the index value is stored in the key-value pair.
  */
 public class MinorDataWriter {
   private final FragmentHandle handle;
@@ -46,10 +44,10 @@ public class MinorDataWriter {
   private final Set<String> keySet = new HashSet<>();
 
   public MinorDataWriter(
-    FragmentHandle handle,
-    NodeEndpoint endpoint,
-    MinorDataSerDe serDe,
-    PlanFragmentsIndex.Builder indexBuilder) {
+      FragmentHandle handle,
+      NodeEndpoint endpoint,
+      MinorDataSerDe serDe,
+      PlanFragmentsIndex.Builder indexBuilder) {
 
     this.handle = handle;
     this.serDe = serDe;
@@ -66,27 +64,24 @@ public class MinorDataWriter {
   private void addEntry(OpProps props, String key, ByteString value) {
     int operatorId = props.getOperatorId();
 
-    Preconditions.checkState(!keySet.contains(operatorId + key),
-      "duplicate attribute operatorId " + operatorId + " key " + key + " in fragment " + handle);
+    Preconditions.checkState(
+        !keySet.contains(operatorId + key),
+        "duplicate attribute operatorId " + operatorId + " key " + key + " in fragment " + handle);
     keySet.add(operatorId + key);
 
-    attrList.add(MinorAttr.newBuilder()
-      .setName(key)
-      .setValue(value)
-      .setOperatorId(operatorId)
-      .build());
+    attrList.add(
+        MinorAttr.newBuilder().setName(key).setValue(value).setOperatorId(operatorId).build());
   }
 
-  public void writeMinorFragmentIndexEndpoint(OpProps props, String key, MinorFragmentIndexEndpoint endpoint) {
+  public void writeMinorFragmentIndexEndpoint(
+      OpProps props, String key, MinorFragmentIndexEndpoint endpoint) {
     addEntry(props, key, serDe.serialize(endpoint));
   }
 
-  public void writeMinorFragmentIndexEndpoints(OpProps props, String key, List<MinorFragmentIndexEndpoint> endpoints) {
+  public void writeMinorFragmentIndexEndpoints(
+      OpProps props, String key, List<MinorFragmentIndexEndpoint> endpoints) {
     MinorFragmentIndexEndpointList indexEndpointList =
-      MinorFragmentIndexEndpointList
-        .newBuilder()
-        .addAllFrags(endpoints)
-        .build();
+        MinorFragmentIndexEndpointList.newBuilder().addAllFrags(endpoints).build();
 
     addEntry(props, key, serDe.serialize(indexEndpointList));
   }
@@ -97,13 +92,14 @@ public class MinorDataWriter {
   }
 
   // Serialize pojo to compressed json, and save as kv pair.
-  public void writeJsonEntry(OpProps props, String key, Object object) throws JsonProcessingException {
-   addEntry(props, key, serDe.serializeObjectToJson(object));
+  public void writeJsonEntry(OpProps props, String key, Object object)
+      throws JsonProcessingException {
+    addEntry(props, key, serDe.serializeObjectToJson(object));
   }
 
   // Serialize split partition, and save as a kv pair in the shared attributes index.
-  public void writeSplitPartition(OpProps props, String key, NormalizedPartitionInfo partitionInfo) {
+  public void writeSplitPartition(
+      OpProps props, String key, NormalizedPartitionInfo partitionInfo) {
     sharedAttrsBuilder.addAttr(props, key, () -> serDe.serialize(partitionInfo));
   }
-
 }

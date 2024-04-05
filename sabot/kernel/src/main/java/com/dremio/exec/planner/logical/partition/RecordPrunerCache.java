@@ -19,9 +19,7 @@ import static com.dremio.proto.model.PartitionStats.PartitionStatsValue;
 
 import java.util.Optional;
 
-/**
- * Class providing cache functionality of split pruning for filter conditions in the query
- */
+/** Class providing cache functionality of split pruning for filter conditions in the query */
 public interface RecordPrunerCache {
   Optional<PartitionStatsValue> lookupCache() throws Exception;
 }

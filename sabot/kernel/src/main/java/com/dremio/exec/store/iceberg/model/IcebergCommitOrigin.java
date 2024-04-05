@@ -15,10 +15,9 @@
  */
 package com.dremio.exec.store.iceberg.model;
 
-import java.util.Locale;
-
 import com.dremio.exec.catalog.VersionedPlugin.EntityType;
 import com.google.common.base.Preconditions;
+import java.util.Locale;
 
 /**
  * Info about the origin of an iceberg commit i.e. CREATE_VIEW, INSERT_TABLE. Will be used to
@@ -53,68 +52,70 @@ public enum IcebergCommitOrigin {
 
   public static IcebergCommitOrigin fromCommandType(IcebergCommandType commandType) {
     switch (commandType) {
-    case CREATE:
-      return CREATE_TABLE;
-    case INSERT:
-      return INSERT_TABLE;
-    case MERGE:
-      return MERGE_TABLE;
-    case UPDATE:
-      return UPDATE_TABLE;
-    case DELETE:
-      return DELETE_TABLE;
-    case TRUNCATE:
-      return TRUNCATE_TABLE;
-    case METADATA:
-      return ALTER_TABLE;
-    case FULL_METADATA_REFRESH:
-      return FULL_METADATA_REFRESH;
-    case INCREMENTAL_METADATA_REFRESH:
-    case PARTIAL_METADATA_REFRESH:
-      return INCREMENTAL_METADATA_REFRESH;
-    case OPTIMIZE:
-      return OPTIMIZE_REWRITE_DATA_TABLE;
-    case ROLLBACK:
-      return ROLLBACK_TABLE;
-    case VACUUM:
-    default:
-      throw new IllegalArgumentException("Unable to translate commandType: " + commandType);
+      case CREATE:
+        return CREATE_TABLE;
+      case INSERT:
+        return INSERT_TABLE;
+      case MERGE:
+        return MERGE_TABLE;
+      case UPDATE:
+        return UPDATE_TABLE;
+      case DELETE:
+        return DELETE_TABLE;
+      case TRUNCATE:
+        return TRUNCATE_TABLE;
+      case METADATA:
+        return ALTER_TABLE;
+      case FULL_METADATA_REFRESH:
+        return FULL_METADATA_REFRESH;
+      case INCREMENTAL_METADATA_REFRESH:
+      case PARTIAL_METADATA_REFRESH:
+        return INCREMENTAL_METADATA_REFRESH;
+      case OPTIMIZE:
+        return OPTIMIZE_REWRITE_DATA_TABLE;
+      case ROLLBACK:
+        return ROLLBACK_TABLE;
+      case VACUUM:
+      default:
+        throw new IllegalArgumentException("Unable to translate commandType: " + commandType);
     }
   }
 
   private EntityType getEntityType() {
     switch (this) {
-    case CREATE_VIEW:
-    case ALTER_VIEW:
-    case DROP_VIEW:
-      return EntityType.ICEBERG_VIEW;
-    default:
-      return EntityType.ICEBERG_TABLE;
+      case CREATE_VIEW:
+      case ALTER_VIEW:
+      case DROP_VIEW:
+        return EntityType.ICEBERG_VIEW;
+      default:
+        return EntityType.ICEBERG_TABLE;
     }
   }
 
   private boolean isCreateOrDrop() {
     switch (this) {
-    case CREATE_TABLE:
-    case DROP_TABLE:
-    case CREATE_VIEW:
-    case DROP_VIEW:
-      return true;
-    default:
-      return false;
+      case CREATE_TABLE:
+      case DROP_TABLE:
+      case CREATE_VIEW:
+      case DROP_VIEW:
+        return true;
+      default:
+        return false;
     }
   }
 
   public String createCommitMessage(String catalogKey, EntityType entityType) {
     Preconditions.checkState(this != READ_ONLY);
     Preconditions.checkArgument(
-      entityType == EntityType.ICEBERG_TABLE || entityType == EntityType.ICEBERG_VIEW,
-      "Unsupported entity type %s for commit origin %s", entityType, this
-    );
+        entityType == EntityType.ICEBERG_TABLE || entityType == EntityType.ICEBERG_VIEW,
+        "Unsupported entity type %s for commit origin %s",
+        entityType,
+        this);
     Preconditions.checkArgument(
-      entityType.equals(getEntityType()),
-      "Mismatched entity type %s for commit origin %s", entityType, this
-    );
+        entityType.equals(getEntityType()),
+        "Mismatched entity type %s for commit origin %s",
+        entityType,
+        this);
     String operation = name().toUpperCase(Locale.ROOT).replace('_', ' ');
     if (!isCreateOrDrop()) {
       if (entityType == EntityType.ICEBERG_TABLE) {

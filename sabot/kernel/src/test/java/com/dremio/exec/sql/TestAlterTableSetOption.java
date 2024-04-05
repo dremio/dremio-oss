@@ -15,20 +15,18 @@
  */
 package com.dremio.exec.sql;
 
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.config.DremioConfig;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.test.TemporarySystemProperties;
 import com.dremio.test.UserExceptionAssert;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
 
 public class TestAlterTableSetOption extends BaseTestQuery {
 
-  @Rule
-  public TemporarySystemProperties properties = new TemporarySystemProperties();
+  @Rule public TemporarySystemProperties properties = new TemporarySystemProperties();
 
   @Before
   public void setup() {
@@ -37,26 +35,26 @@ public class TestAlterTableSetOption extends BaseTestQuery {
 
   @Test
   public void oldCmd() throws Exception {
-    errorMsgTestHelper("ALTER TABLE tbl ENABLE HIVE VARCHAR COMPATIBILITY", "Encountered \"ENABLE HIVE\"");
+    errorMsgTestHelper(
+        "ALTER TABLE tbl ENABLE HIVE VARCHAR COMPATIBILITY", "Encountered \"ENABLE HIVE\"");
   }
 
   @Test
   public void badSql() {
     String[] queries = {
-        "ALTER SESSION tbl SET hive.parquet.enforce_varchar_width = ON",
+      "ALTER SESSION tbl SET hive.parquet.enforce_varchar_width = ON",
     };
     for (String q : queries) {
-      UserExceptionAssert
-        .assertThatThrownBy(() -> test(q))
-        .hasErrorType(UserBitShared.DremioPBError.ErrorType.PARSE);
+      UserExceptionAssert.assertThatThrownBy(() -> test(q))
+          .hasErrorType(UserBitShared.DremioPBError.ErrorType.PARSE);
     }
   }
 
   @Test
   public void testOnNonTable() throws Exception {
     // sys table
-    errorMsgTestHelper("ALTER TABLE INFORMATION_SCHEMA.CATALOGS set INFORMATION_SCHEMA.CATALOG_NAME = 34",
+    errorMsgTestHelper(
+        "ALTER TABLE INFORMATION_SCHEMA.CATALOGS set INFORMATION_SCHEMA.CATALOG_NAME = 34",
         "Source [INFORMATION_SCHEMA] doesn't support modifying options");
   }
-
 }

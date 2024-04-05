@@ -27,31 +27,28 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.annotations.VisibleForTesting;
 
-/**
- * Messages sent and received on the websocket.
- */
+/** Messages sent and received on the websocket. */
 public class SocketMessage {
 
-  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.EXTERNAL_PROPERTY, property = "type")
+  @JsonTypeInfo(
+      use = JsonTypeInfo.Id.NAME,
+      include = JsonTypeInfo.As.EXTERNAL_PROPERTY,
+      property = "type")
   private final Payload payload;
 
   @JsonCreator
-  public SocketMessage(@JsonProperty("payload") Payload payload){
+  public SocketMessage(@JsonProperty("payload") Payload payload) {
     this.payload = payload;
   }
 
-  public Payload getPayload(){
+  public Payload getPayload() {
     return payload;
   }
 
-  /**
-   * Payload for a socket message
-   */
+  /** Payload for a socket message */
   public abstract static class Payload {}
 
-  /**
-   * Message from server > client informing client of connection information.
-   */
+  /** Message from server > client informing client of connection information. */
   @JsonTypeName("connection-established")
   public static class ConnectionEstablished extends Payload {
     private final long timeout;
@@ -91,19 +88,15 @@ public class SocketMessage {
       }
       return true;
     }
-
   }
 
-  /**
-   * Message from server > client informing client of update job details.
-   */
+  /** Message from server > client informing client of update job details. */
   @JsonTypeName("job-details")
   public static class JobDetailsUpdate extends Payload {
     private final JobId jobId;
 
     @JsonCreator
-    public JobDetailsUpdate(
-        @JsonProperty("jobId") JobId jobId) {
+    public JobDetailsUpdate(@JsonProperty("jobId") JobId jobId) {
       super();
       this.jobId = jobId;
     }
@@ -113,9 +106,7 @@ public class SocketMessage {
     }
   }
 
-  /**
-   * Message from server > client informing client of updated record count.
-   */
+  /** Message from server > client informing client of updated record count. */
   @JsonTypeName("job-records")
   public static class JobRecordsUpdate extends Payload {
     private final JobId id;
@@ -123,8 +114,7 @@ public class SocketMessage {
 
     @JsonCreator
     public JobRecordsUpdate(
-        @JsonProperty("id") JobId id,
-        @JsonProperty("recordCount") long recordCount) {
+        @JsonProperty("id") JobId id, @JsonProperty("recordCount") long recordCount) {
       super();
       this.id = id;
       this.recordCount = recordCount;
@@ -139,16 +129,13 @@ public class SocketMessage {
     }
   }
 
-  /**
-   * Message from client > server requesting record count updates.
-   */
+  /** Message from client > server requesting record count updates. */
   @JsonTypeName("job-records-listen")
   public static class ListenRecords extends Payload {
     private final JobId id;
 
     @JsonCreator
-    public ListenRecords(
-        @JsonProperty("id") JobId id) {
+    public ListenRecords(@JsonProperty("id") JobId id) {
       super();
       this.id = id;
     }
@@ -158,9 +145,7 @@ public class SocketMessage {
     }
   }
 
-  /**
-   * Message from server > client informing client updated job progress for history.
-   */
+  /** Message from server > client informing client updated job progress for history. */
   @JsonTypeName("job-progress")
   public static class JobProgressUpdate extends Payload {
     private final JobId id;
@@ -168,7 +153,8 @@ public class SocketMessage {
 
     @VisibleForTesting
     @JsonCreator
-    public JobProgressUpdate(@JsonProperty("id") JobId id, @JsonProperty("update") PartialJobListItem update) {
+    public JobProgressUpdate(
+        @JsonProperty("id") JobId id, @JsonProperty("update") PartialJobListItem update) {
       super();
       this.id = id;
       this.update = update;
@@ -196,14 +182,17 @@ public class SocketMessage {
 
     @VisibleForTesting
     @JsonCreator
-    public JobProgressUpdateForNewUI(@JsonProperty("id") JobId id, @JsonProperty("update") PartialJobListingItem update,boolean newJobUI) {
+    public JobProgressUpdateForNewUI(
+        @JsonProperty("id") JobId id,
+        @JsonProperty("update") PartialJobListingItem update,
+        boolean newJobUI) {
       super();
       this.id = id;
       this.update = update;
       this.newJobUi = newJobUI;
     }
 
-    public JobProgressUpdateForNewUI(JobSummary jobSummary,boolean newJobsUi) {
+    public JobProgressUpdateForNewUI(JobSummary jobSummary, boolean newJobsUi) {
       this.id = JobsProtoUtil.toStuff(jobSummary.getJobId());
       this.update = new PartialJobListingItem(ObfuscationUtils.obfuscate(jobSummary));
       this.newJobUi = newJobsUi;
@@ -222,9 +211,7 @@ public class SocketMessage {
     }
   }
 
-  /**
-   * Message from client > server requesting events about job progress.
-   */
+  /** Message from client > server requesting events about job progress. */
   @JsonTypeName("job-progress-listen")
   public static class ListenProgress extends Payload {
     private final JobId id;
@@ -240,9 +227,7 @@ public class SocketMessage {
     }
   }
 
-  /**
-   * Message from client > server requesting events about job progress.
-   */
+  /** Message from client > server requesting events about job progress. */
   @JsonTypeName("qv-job-progress-listen")
   public static class QVListenProgress extends Payload {
     private final JobId id;
@@ -258,17 +243,15 @@ public class SocketMessage {
     }
   }
 
-  /**
-   * Message from client > server requesting events about reflection job progress.
-   */
+  /** Message from client > server requesting events about reflection job progress. */
   @JsonTypeName("reflection-job-progress-listen")
   public static class ListenReflectionJobProgress extends Payload {
     private final JobId id;
     private final String reflectionId;
 
     @JsonCreator
-    public ListenReflectionJobProgress(@JsonProperty("id") JobId id,
-                          @JsonProperty("reflectionId") String reflectionId) {
+    public ListenReflectionJobProgress(
+        @JsonProperty("id") JobId id, @JsonProperty("reflectionId") String reflectionId) {
       super();
       this.id = id;
       this.reflectionId = reflectionId;
@@ -283,9 +266,7 @@ public class SocketMessage {
     }
   }
 
-  /**
-   * Message from client > server requesting events about job details.
-   */
+  /** Message from client > server requesting events about job details. */
   @JsonTypeName("job-details-listen")
   public static class ListenDetails extends Payload {
     private final JobId id;
@@ -299,20 +280,17 @@ public class SocketMessage {
     public JobId getId() {
       return id;
     }
-
   }
 
-  /**
-   * Message from client > server requesting events about job details.
-   */
+  /** Message from client > server requesting events about job details. */
   @JsonTypeName("reflection-job-details-listen")
   public static class ListenReflectionJobDetails extends Payload {
     private final JobId id;
     private final String reflectionId;
 
     @JsonCreator
-    public ListenReflectionJobDetails(@JsonProperty("id") JobId id,
-                         @JsonProperty("reflectionId") String reflectionId) {
+    public ListenReflectionJobDetails(
+        @JsonProperty("id") JobId id, @JsonProperty("reflectionId") String reflectionId) {
       super();
       this.id = id;
       this.reflectionId = reflectionId;
@@ -327,16 +305,11 @@ public class SocketMessage {
     }
   }
 
-  /**
-   * A ping message from client (for keep alive)
-   */
+  /** A ping message from client (for keep alive) */
   @JsonTypeName("ping")
-  public static class PingPayload extends Payload {
-  }
+  public static class PingPayload extends Payload {}
 
-  /**
-   * An error from server.
-   */
+  /** An error from server. */
   @JsonTypeName("error")
   public static class ErrorPayload extends Payload {
     private final String message;
@@ -347,26 +320,25 @@ public class SocketMessage {
       this.message = message;
     }
 
-    public String getMessage(){
+    public String getMessage() {
       return message;
     }
-
   }
 
-  public static Class<?>[] getImplClasses(){
+  public static Class<?>[] getImplClasses() {
     return new Class[] {
-        SocketMessage.ConnectionEstablished.class,
-        SocketMessage.JobDetailsUpdate.class,
-        SocketMessage.JobProgressUpdate.class,
-        SocketMessage.JobRecordsUpdate.class,
-        SocketMessage.ListenDetails.class,
-        SocketMessage.ListenProgress.class,
-        SocketMessage.ListenRecords.class,
-        SocketMessage.ErrorPayload.class,
-        SocketMessage.PingPayload.class,
-        SocketMessage.ListenReflectionJobProgress.class,
-        SocketMessage.ListenReflectionJobDetails.class,
-        SocketMessage.QVListenProgress.class,
-        };
+      SocketMessage.ConnectionEstablished.class,
+      SocketMessage.JobDetailsUpdate.class,
+      SocketMessage.JobProgressUpdate.class,
+      SocketMessage.JobRecordsUpdate.class,
+      SocketMessage.ListenDetails.class,
+      SocketMessage.ListenProgress.class,
+      SocketMessage.ListenRecords.class,
+      SocketMessage.ErrorPayload.class,
+      SocketMessage.PingPayload.class,
+      SocketMessage.ListenReflectionJobProgress.class,
+      SocketMessage.ListenReflectionJobDetails.class,
+      SocketMessage.QVListenProgress.class,
+    };
   }
 }

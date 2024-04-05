@@ -18,6 +18,7 @@ package com.dremio.dac.server.liveness;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import com.dremio.test.DremioTest;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -25,27 +26,22 @@ import java.nio.file.Paths;
 import java.nio.file.attribute.PosixFilePermission;
 import java.util.Set;
 import java.util.stream.Stream;
-
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import com.dremio.test.DremioTest;
-
-/**
- * Tests for ClasspathHealthMonitor
- */
+/** Tests for ClasspathHealthMonitor */
 public class TestClasspathHealthMonitor extends DremioTest {
 
-  @Rule
-  public final TemporaryFolder temporaryFolder = new TemporaryFolder();
+  @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
   @Test
   public void checkIsHealthy() throws IOException {
     Path folder1 = temporaryFolder.newFolder("abc").toPath();
     Path folder2 = temporaryFolder.newFolder("xyz").toPath();
 
-    ClasspathHealthMonitor classpathHealthMonitor =  ClasspathHealthMonitor.newInstance(Stream.of(folder1, folder2));
+    ClasspathHealthMonitor classpathHealthMonitor =
+        ClasspathHealthMonitor.newInstance(Stream.of(folder1, folder2));
     assertTrue(classpathHealthMonitor.isHealthy());
   }
 
@@ -55,7 +51,8 @@ public class TestClasspathHealthMonitor extends DremioTest {
     Path folder2 = temporaryFolder.newFolder("xyz").toPath();
     Path folder3 = Paths.get("/dev/null/nonexistent");
 
-    ClasspathHealthMonitor classpathHealthMonitor = ClasspathHealthMonitor.newInstance(Stream.of(folder1, folder2, folder3));
+    ClasspathHealthMonitor classpathHealthMonitor =
+        ClasspathHealthMonitor.newInstance(Stream.of(folder1, folder2, folder3));
     assertTrue(classpathHealthMonitor.isHealthy());
   }
 
@@ -65,7 +62,9 @@ public class TestClasspathHealthMonitor extends DremioTest {
     Path folder2 = temporaryFolder.newFolder("xyz").toPath();
     Path folder3 = temporaryFolder.newFolder("foo").toPath();
 
-    ClasspathHealthMonitor classpathHealthMonitor =  ClasspathHealthMonitor.newInstance(Stream.of(folder1, folder2, folder3.resolve("text.txt")));
+    ClasspathHealthMonitor classpathHealthMonitor =
+        ClasspathHealthMonitor.newInstance(
+            Stream.of(folder1, folder2, folder3.resolve("text.txt")));
     assertTrue(classpathHealthMonitor.isHealthy());
 
     Files.delete(folder3);
@@ -77,7 +76,8 @@ public class TestClasspathHealthMonitor extends DremioTest {
     Path folder1 = temporaryFolder.newFolder("abc").toPath();
     Path folder2 = temporaryFolder.newFolder("xyz").toPath();
 
-    ClasspathHealthMonitor classpathHealthMonitor = ClasspathHealthMonitor.newInstance(Stream.of(folder1, folder2));
+    ClasspathHealthMonitor classpathHealthMonitor =
+        ClasspathHealthMonitor.newInstance(Stream.of(folder1, folder2));
     assertTrue(classpathHealthMonitor.isHealthy());
 
     // Remove executable atttribute to folder
@@ -93,7 +93,8 @@ public class TestClasspathHealthMonitor extends DremioTest {
     Path folder1 = temporaryFolder.newFolder("abc").toPath();
     Path folder2 = temporaryFolder.newFolder("xyz").toPath();
 
-    ClasspathHealthMonitor classpathHealthMonitor = ClasspathHealthMonitor.newInstance(Stream.of(folder1, folder2));
+    ClasspathHealthMonitor classpathHealthMonitor =
+        ClasspathHealthMonitor.newInstance(Stream.of(folder1, folder2));
     assertTrue(classpathHealthMonitor.isHealthy());
     Files.delete(folder2);
     assertFalse(classpathHealthMonitor.isHealthy());

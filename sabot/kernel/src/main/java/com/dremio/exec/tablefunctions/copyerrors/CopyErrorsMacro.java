@@ -15,28 +15,28 @@
  */
 package com.dremio.exec.tablefunctions.copyerrors;
 
+import com.dremio.exec.catalog.SimpleCatalog;
+import com.dremio.exec.planner.sql.handlers.query.CopyErrorContext;
 import java.util.List;
-
 import org.apache.calcite.schema.FunctionParameter;
 import org.apache.calcite.schema.TableMacro;
 import org.apache.calcite.schema.TranslatableTable;
 import org.apache.calcite.schema.impl.ReflectiveFunctionBase;
 
-import com.dremio.exec.catalog.SimpleCatalog;
-import com.dremio.exec.planner.sql.handlers.query.CopyErrorContext;
-
 /**
- * {@link org.apache.calcite.schema.TableMacro} implementation entry point for copy_errors table function.
+ * {@link org.apache.calcite.schema.TableMacro} implementation entry point for copy_errors table
+ * function.
  */
 public final class CopyErrorsMacro implements TableMacro {
 
   public static final String MACRO_NAME = "copy_errors";
   private final SimpleCatalog<?> catalog;
-  static final List<FunctionParameter> FUNCTION_PARAMETERS = new ReflectiveFunctionBase.ParameterListBuilder()
-    .add(String.class, "table_name")
-    .add(String.class, "job_id", true)
-    .add(Boolean.class, "strict_consistency", true)
-    .build();
+  static final List<FunctionParameter> FUNCTION_PARAMETERS =
+      new ReflectiveFunctionBase.ParameterListBuilder()
+          .add(String.class, "table_name")
+          .add(String.class, "job_id", true)
+          .add(Boolean.class, "strict_consistency", true)
+          .build();
 
   public CopyErrorsMacro(SimpleCatalog<?> catalog) {
     this.catalog = catalog;
@@ -47,11 +47,9 @@ public final class CopyErrorsMacro implements TableMacro {
     // by default we enforce consistency check
     boolean strictConsistency = arguments.get(2) != null ? (Boolean) arguments.get(2) : true;
 
-    CopyErrorContext context = new CopyErrorContext(catalog,
-      (String) arguments.get(0),
-      (String) arguments.get(1),
-      strictConsistency
-    );
+    CopyErrorContext context =
+        new CopyErrorContext(
+            catalog, (String) arguments.get(0), (String) arguments.get(1), strictConsistency);
     return new CopyErrorsTranslatableTable(context);
   }
 
@@ -59,5 +57,4 @@ public final class CopyErrorsMacro implements TableMacro {
   public List<FunctionParameter> getParameters() {
     return FUNCTION_PARAMETERS;
   }
-
 }

@@ -15,32 +15,23 @@
  */
 package com.dremio.exec.store;
 
+import com.google.common.base.Stopwatch;
 import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.concurrent.TimeUnit;
 
-import com.google.common.base.Stopwatch;
-
-/**
- * An output stream that keeps track of write and close time, as well as bytes.
- */
+/** An output stream that keeps track of write and close time, as well as bytes. */
 @SuppressWarnings("checkstyle:VisibilityModifier")
 public class OutputStreamWithStats extends FilterOutputStream {
 
-  /**
-   * Write stopwatch
-   */
+  /** Write stopwatch */
   protected final Stopwatch write = Stopwatch.createUnstarted();
 
-  /**
-   * Read stopwatch
-   */
+  /** Read stopwatch */
   protected final Stopwatch close = Stopwatch.createUnstarted();
 
-  /**
-   * Number of bytes read.
-   */
+  /** Number of bytes read. */
   protected long bytes;
 
   public OutputStreamWithStats(OutputStream out) {
@@ -51,7 +42,7 @@ public class OutputStreamWithStats extends FilterOutputStream {
   public void write(int b) throws IOException {
     write.start();
     try {
-    out.write(b);
+      out.write(b);
     } finally {
       write.stop();
     }
@@ -95,5 +86,4 @@ public class OutputStreamWithStats extends FilterOutputStream {
   public long getCloseNanos() {
     return close.elapsed(TimeUnit.NANOSECONDS);
   }
-
 }

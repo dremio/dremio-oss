@@ -15,18 +15,15 @@
  */
 package com.dremio.service.namespace;
 
-import java.util.concurrent.atomic.AtomicLong;
-
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.Affinity;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.NormalizedPartitionInfo;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.PartitionChunk;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.PartitionValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.ByteString;
+import java.util.concurrent.atomic.AtomicLong;
 
-/**
- * Provides access to the members of a partition chunk proto
- */
+/** Provides access to the members of a partition chunk proto */
 public abstract class AbstractPartitionChunkMetadata implements PartitionChunkMetadata {
   private static final AtomicLong idGenerator = new AtomicLong(0L);
   private final PartitionChunk partitionChunk;
@@ -37,14 +34,14 @@ public abstract class AbstractPartitionChunkMetadata implements PartitionChunkMe
 
     // we need a unique key per partition (atleast at the operator level), which is used as a
     // reference key in the normalized splits. This works fine, but is a bit hacky.
-    this.normalizedPartitionInfo = NormalizedPartitionInfo
-      .newBuilder()
-      .setId(String.valueOf(idGenerator.incrementAndGet()))
-      .setSplitKey(partitionChunk.getSplitKey())
-      .setSize(partitionChunk.getSize())
-      .setExtendedProperty(partitionChunk.getPartitionExtendedProperty())
-      .addAllValues(partitionChunk.getPartitionValuesList())
-      .build();
+    this.normalizedPartitionInfo =
+        NormalizedPartitionInfo.newBuilder()
+            .setId(String.valueOf(idGenerator.incrementAndGet()))
+            .setSplitKey(partitionChunk.getSplitKey())
+            .setSize(partitionChunk.getSize())
+            .setExtendedProperty(partitionChunk.getPartitionExtendedProperty())
+            .addAllValues(partitionChunk.getPartitionValuesList())
+            .build();
   }
 
   protected PartitionChunk getPartitionChunk() {

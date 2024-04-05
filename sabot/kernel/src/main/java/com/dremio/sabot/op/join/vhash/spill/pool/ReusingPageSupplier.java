@@ -15,14 +15,11 @@ package com.dremio.sabot.op.join.vhash.spill.pool;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.util.RoundUtil;
+import org.apache.arrow.memory.BufferAllocator;
 
-/**
- * Page supplier that tries to re-use the page until the space is exhausted.
- */
+/** Page supplier that tries to re-use the page until the space is exhausted. */
 public class ReusingPageSupplier implements PageSupplier, AutoCloseable {
   private final PagePool pool;
   private Page current;

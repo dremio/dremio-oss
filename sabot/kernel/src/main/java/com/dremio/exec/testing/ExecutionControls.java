@@ -15,11 +15,6 @@
  */
 package com.dremio.exec.testing;
 
-import java.io.IOException;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
-
 import com.dremio.common.VM;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.ExecConstants;
@@ -35,12 +30,15 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.annotations.VisibleForTesting;
+import java.io.IOException;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 
-/**
- * Tracks the simulated controls that will be injected for testing purposes.
- */
+/** Tracks the simulated controls that will be injected for testing purposes. */
 public class ExecutionControls {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ExecutionControls.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ExecutionControls.class);
 
   // used to map JSON specified injections to POJOs
   private static ObjectMapper controlsOptionMapper;
@@ -55,22 +53,20 @@ public class ExecutionControls {
     setControlsOptionMapper(new ObjectMapper());
   }
 
-  // Jackson MixIn: an annotated class that is used only by Jackson's ObjectMapper to allow a list of injections to
+  // Jackson MixIn: an annotated class that is used only by Jackson's ObjectMapper to allow a list
+  // of injections to
   // hold various types of injections
-  @JsonTypeInfo(
-    use = JsonTypeInfo.Id.NAME,
-    include = JsonTypeInfo.As.PROPERTY,
-    property = "type")
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
   @JsonSubTypes({
     @Type(value = ExceptionInjection.class, name = "exception"),
     @Type(value = CountDownLatchInjectionImpl.class, name = "latch"),
-    @Type(value = PauseInjection.class, name = "pause")})
-  public abstract static class InjectionMixIn {
-  }
+    @Type(value = PauseInjection.class, name = "pause")
+  })
+  public abstract static class InjectionMixIn {}
 
   /**
-   * The JSON specified for the {@link com.dremio.exec.ExecConstants#NODE_CONTROL_INJECTIONS}
-   * option is validated using this class. Controls are short-lived options.
+   * The JSON specified for the {@link com.dremio.exec.ExecConstants#NODE_CONTROL_INJECTIONS} option
+   * is validated using this class. Controls are short-lived options.
    */
   public static class ControlsOptionValidator extends TypeValidator {
 
@@ -80,8 +76,8 @@ public class ExecutionControls {
      * Constructor for controls option validator.
      *
      * @param name the name of the validator
-     * @param def  the default JSON, specified as string
-     * @param ttl  the number of queries for which this option should be valid
+     * @param def the default JSON, specified as string
+     * @param ttl the number of queries for which this option should be valid
      */
     public ControlsOptionValidator(final String name, final String def, final int ttl) {
       super(name, OptionValue.Kind.STRING, OptionValue.createString(OptionType.SYSTEM, name, def));
@@ -111,15 +107,15 @@ public class ExecutionControls {
         validateControlsString(jsonString);
       } catch (final IOException e) {
         throw UserException.validationError()
-            .message(String.format("Invalid controls option string (%s) due to %s.", jsonString, e.getMessage()))
+            .message(
+                String.format(
+                    "Invalid controls option string (%s) due to %s.", jsonString, e.getMessage()))
             .build(logger);
       }
     }
   }
 
-  /**
-   * POJO used to parse JSON-specified controls.
-   */
+  /** POJO used to parse JSON-specified controls. */
   @VisibleForTesting
   public static class Controls {
     public Collection<? extends Injection> injections;
@@ -129,14 +125,10 @@ public class ExecutionControls {
     controlsOptionMapper.readValue(jsonString, Controls.class);
   }
 
-  /**
-   * The default value for controls.
-   */
+  /** The default value for controls. */
   public static final String DEFAULT_CONTROLS = "{}";
 
-  /**
-   * Caches the currently specified controls.
-   */
+  /** Caches the currently specified controls. */
   @JsonDeserialize(keyUsing = InjectionSiteKeyDeserializer.class)
   private final Map<InjectionSite, Injection> controls = new HashMap<>();
 
@@ -160,7 +152,8 @@ public class ExecutionControls {
       controls = controlsOptionMapper.readValue(opString, Controls.class);
     } catch (final IOException e) {
       // This never happens. opString must have been validated.
-      logger.warn("Could not parse injections. Injections must have been validated before this point.");
+      logger.warn(
+          "Could not parse injections. Injections must have been validated before this point.");
       throw new RuntimeException("Could not parse injections.", e);
     }
     if (controls.injections == null) {
@@ -169,7 +162,8 @@ public class ExecutionControls {
 
     logger.debug("Adding control injections: \n{}", opString);
     for (final Injection injection : controls.injections) {
-      this.controls.put(new InjectionSite(injection.getSiteClass(), injection.getDesc()), injection);
+      this.controls.put(
+          new InjectionSite(injection.getSiteClass(), injection.getDesc()), injection);
     }
   }
 
@@ -177,10 +171,12 @@ public class ExecutionControls {
    * Look for an exception injection matching the given injector, site descriptor, and endpoint.
    *
    * @param injector the injector, which indicates a class
-   * @param desc     the injection site description
-   * @return the exception injection, if there is one for the injector, site and endpoint; null otherwise
+   * @param desc the injection site description
+   * @return the exception injection, if there is one for the injector, site and endpoint; null
+   *     otherwise
    */
-  public ExceptionInjection lookupExceptionInjection(final ExecutionControlsInjector injector, final String desc) {
+  public ExceptionInjection lookupExceptionInjection(
+      final ExecutionControlsInjector injector, final String desc) {
     final Injection injection = lookupInjection(injector, desc);
     return injection != null ? (ExceptionInjection) injection : null;
   }
@@ -189,24 +185,27 @@ public class ExecutionControls {
    * Look for an pause injection matching the given injector, site descriptor, and endpoint.
    *
    * @param injector the injector, which indicates a class
-   * @param desc     the injection site description
-   * @return the pause injection, if there is one for the injector, site and endpoint; null otherwise
+   * @param desc the injection site description
+   * @return the pause injection, if there is one for the injector, site and endpoint; null
+   *     otherwise
    */
-  public PauseInjection lookupPauseInjection(final ExecutionControlsInjector injector, final String desc) {
+  public PauseInjection lookupPauseInjection(
+      final ExecutionControlsInjector injector, final String desc) {
     final Injection injection = lookupInjection(injector, desc);
     return injection != null ? (PauseInjection) injection : null;
   }
 
   /**
-   * Look for a count down latch injection matching the given injector, site descriptor, and endpoint.
+   * Look for a count down latch injection matching the given injector, site descriptor, and
+   * endpoint.
    *
    * @param injector the injector, which indicates a class
-   * @param desc     the injection site description
+   * @param desc the injection site description
    * @return the count down latch injection, if there is one for the injector, site and endpoint;
-   * otherwise, a latch that does nothing
+   *     otherwise, a latch that does nothing
    */
-  public CountDownLatchInjection lookupCountDownLatchInjection(final ExecutionControlsInjector injector,
-                                                               final String desc) {
+  public CountDownLatchInjection lookupCountDownLatchInjection(
+      final ExecutionControlsInjector injector, final String desc) {
     final Injection injection = lookupInjection(injector, desc);
     return injection != null ? (CountDownLatchInjection) injection : NoOpControlsInjector.LATCH;
   }

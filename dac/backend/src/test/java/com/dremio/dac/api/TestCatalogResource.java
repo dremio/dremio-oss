@@ -17,7 +17,6 @@ package com.dremio.dac.api;
 
 import static java.util.Arrays.asList;
 import static javax.ws.rs.core.Response.Status.BAD_REQUEST;
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -25,28 +24,6 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-
-import java.io.PrintStream;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
-
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.GenericType;
-import javax.ws.rs.core.Response;
-
-import org.apache.arrow.vector.types.pojo.ArrowType;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.TestTools;
@@ -60,17 +37,12 @@ import com.dremio.dac.server.FamilyExpectation;
 import com.dremio.dac.server.ValidationErrorMessage;
 import com.dremio.dac.service.catalog.CatalogServiceHelper;
 import com.dremio.dac.util.DatasetsUtil;
-import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogServiceImpl;
-import com.dremio.exec.catalog.CatalogUser;
-import com.dremio.exec.catalog.DremioTable;
-import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.dremio.exec.server.ContextService;
 import com.dremio.exec.store.CatalogService;
-import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.dfs.NASConf;
 import com.dremio.exec.store.dfs.PDFSConf;
 import com.dremio.io.file.Path;
@@ -99,14 +71,30 @@ import com.dremio.service.namespace.file.proto.FileType;
 import com.dremio.service.namespace.file.proto.JsonFileConfig;
 import com.dremio.service.namespace.file.proto.ParquetFileConfig;
 import com.dremio.service.namespace.proto.EntityId;
+import com.dremio.service.namespace.proto.RefreshPolicyType;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
-import com.dremio.service.users.SystemUser;
 import com.dremio.test.UserExceptionAssert;
 import com.google.common.collect.ImmutableList;
+import java.io.PrintStream;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+import javax.ws.rs.client.Entity;
+import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.GenericType;
+import javax.ws.rs.core.Response;
+import org.junit.After;
+import org.junit.AfterClass;
+import org.junit.Assert;
+import org.junit.BeforeClass;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
-/**
- * Tests for CatalogResource
- */
+/** Tests for CatalogResource */
 public class TestCatalogResource extends BaseTestServer {
   private static final String CATALOG_PATH = "/catalog/";
   private static final int SRC_INFORMATION_SCHEMA = 1;
@@ -135,7 +123,8 @@ public class TestCatalogResource extends BaseTestServer {
   @Test
   public void testListTopLevelCatalog() throws Exception {
     // home space always exists
-    int topLevelCount = newSourceService().getSources().size() + newNamespaceService().getSpaces().size() + 1;
+    int topLevelCount =
+        newSourceService().getSources().size() + newNamespaceService().getSpaces().size() + 1;
 
     ResponseList<CatalogItem> items = getRootEntities(null);
 
@@ -147,14 +136,13 @@ public class TestCatalogResource extends BaseTestServer {
 
     for (CatalogItem item : items.getData()) {
       if (item.getType() == CatalogItem.CatalogItemType.CONTAINER) {
-         if (item.getContainerType() == CatalogItem.ContainerSubType.HOME) {
-           homeCount++;
-         }
-
-        if (item.getContainerType() == CatalogItem.ContainerSubType.SPACE) {
-           spaceCount++;
+        if (item.getContainerType() == CatalogItem.ContainerSubType.HOME) {
+          homeCount++;
         }
 
+        if (item.getContainerType() == CatalogItem.ContainerSubType.SPACE) {
+          spaceCount++;
+        }
 
         if (item.getContainerType() == CatalogItem.ContainerSubType.SOURCE) {
           sourceCount++;
@@ -172,7 +160,10 @@ public class TestCatalogResource extends BaseTestServer {
     // create a new space
     Space newSpace = new Space(null, "final frontier", null, null, null);
 
-    Space space = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newSpace)), new GenericType<Space>() {});
+    Space space =
+        expectSuccess(
+            getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newSpace)),
+            new GenericType<Space>() {});
     SpaceConfig spaceConfig = newNamespaceService().getSpace(new NamespaceKey(newSpace.getName()));
 
     assertEquals(space.getId(), spaceConfig.getId().getId());
@@ -180,25 +171,38 @@ public class TestCatalogResource extends BaseTestServer {
     assertNotEquals(newSpace.getCreatedAt(), spaceConfig.getCtime());
 
     // make sure that trying to create the space again fails
-    expectStatus(Response.Status.CONFLICT, getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newSpace)));
+    expectStatus(
+        Response.Status.CONFLICT,
+        getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newSpace)));
 
     Space newSpace1 = new Space(space.getId(), space.getName(), space.getTag(), null, null);
-    expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(space.getId())).buildPut(Entity.json(newSpace1)));
-    Space space1 = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(space.getId())).buildGet(), new GenericType<Space>() {});
+    expectSuccess(
+        getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(space.getId()))
+            .buildPut(Entity.json(newSpace1)));
+    Space space1 =
+        expectSuccess(
+            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(space.getId())).buildGet(),
+            new GenericType<Space>() {});
     assertEquals(spaceConfig.getCtime(), space1.getCreatedAt());
 
     // delete the space
-    expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(spaceConfig.getId().getId())).buildDelete());
-    assertThatThrownBy(() -> newNamespaceService().getSpace(new NamespaceKey(spaceConfig.getName())))
-      .isInstanceOf(NamespaceException.class);
+    expectSuccess(
+        getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(spaceConfig.getId().getId()))
+            .buildDelete());
+    assertThatThrownBy(
+            () -> newNamespaceService().getSpace(new NamespaceKey(spaceConfig.getName())))
+        .isInstanceOf(NamespaceException.class);
   }
 
   @Test
   public void testFoldersInSpace() throws Exception {
-    for (boolean deleteFolderFirst : new boolean[] { false, true }) {
+    for (boolean deleteFolderFirst : new boolean[] {false, true}) {
       // create a new space
       Space newSpace = new Space(null, "final frontier", null, null, null);
-      Space space = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newSpace)), new GenericType<Space>() {});
+      Space space =
+          expectSuccess(
+              getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newSpace)),
+              new GenericType<Space>() {});
 
       // no children at this point
       assertNull(space.getChildren());
@@ -209,10 +213,15 @@ public class TestCatalogResource extends BaseTestServer {
       assertEquals(newFolder.getPath(), folder.getPath());
 
       // make sure folder shows up under space
-      space = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(space.getId())).buildGet(), new GenericType<Space>() {});
+      space =
+          expectSuccess(
+              getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(space.getId())).buildGet(),
+              new GenericType<Space>() {});
 
       // make sure that trying to create the folder again fails
-      expectStatus(Response.Status.CONFLICT, getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newFolder)));
+      expectStatus(
+          Response.Status.CONFLICT,
+          getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newFolder)));
 
       // one child at this point
       assertEquals(space.getChildren().size(), 1);
@@ -220,8 +229,12 @@ public class TestCatalogResource extends BaseTestServer {
 
       if (deleteFolderFirst) {
         // delete the folder
-        expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(folder.getId())).buildDelete());
-        space = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(space.getId())).buildGet(), new GenericType<Space>() {});
+        expectSuccess(
+            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(folder.getId())).buildDelete());
+        space =
+            expectSuccess(
+                getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(space.getId())).buildGet(),
+                new GenericType<Space>() {});
         assertEquals(space.getChildren().size(), 0);
 
         newNamespaceService().deleteSpace(new NamespaceKey(space.getName()), space.getTag());
@@ -230,36 +243,43 @@ public class TestCatalogResource extends BaseTestServer {
 
         // delete the folder
         expectError(
-          FamilyExpectation.CLIENT_ERROR,
-          getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(folder.getId())).buildDelete(),
-          ValidationErrorMessage.class);
+            FamilyExpectation.CLIENT_ERROR,
+            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(folder.getId())).buildDelete(),
+            ValidationErrorMessage.class);
       }
     }
   }
 
   @Test
   public void testFunctionsInSpace() throws Exception {
-    for (boolean deleteFunctionFirst : new boolean[] { false, true }) {
+    for (boolean deleteFunctionFirst : new boolean[] {false, true}) {
       // create a new space
       Space newSpace = new Space(null, "mySpace123", null, null, null);
-      Space space = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newSpace)), new GenericType<Space>() {});
+      Space space =
+          expectSuccess(
+              getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newSpace)),
+              new GenericType<Space>() {});
 
       // no children at this point
       assertNull(space.getChildren());
 
       // add a function
-      runQuery("CREATE FUNCTION mySpace123.foo()\n" +
-        "RETURNS int\n" +
-        "RETURN 6");
+      runQuery("CREATE FUNCTION mySpace123.foo()\n" + "RETURNS int\n" + "RETURN 6");
 
       // make sure function shows up under space
-      space = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(space.getId())).buildGet(), new GenericType<Space>() {});
+      space =
+          expectSuccess(
+              getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(space.getId())).buildGet(),
+              new GenericType<Space>() {});
       assertEquals(space.getChildren().size(), 1);
 
       if (deleteFunctionFirst) {
         runQuery("DROP FUNCTION mySpace123.foo");
 
-        space = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(space.getId())).buildGet(), new GenericType<Space>() {});
+        space =
+            expectSuccess(
+                getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(space.getId())).buildGet(),
+                new GenericType<Space>() {});
         assertEquals(space.getChildren().size(), 0);
 
         newNamespaceService().deleteSpace(new NamespaceKey(space.getName()), space.getTag());
@@ -285,7 +305,9 @@ public class TestCatalogResource extends BaseTestServer {
     ResponseList<CatalogItem> items = getRootEntities(null);
 
     for (CatalogItem item : items.getData()) {
-      assertNull("CatalogItemStats should be empty if datasetCount parameter is not provided", item.getStats());
+      assertNull(
+          "CatalogItemStats should be empty if datasetCount parameter is not provided",
+          item.getStats());
     }
 
     checkSpaceDatasetCount(space.getId(), 2);
@@ -302,11 +324,11 @@ public class TestCatalogResource extends BaseTestServer {
   }
 
   private void checkSpaceDatasetCount(String spaceId, int expectedDatasetCount) {
-    ResponseList<CatalogItem> items = getRootEntities(Arrays.asList(CatalogServiceHelper.DetailType.datasetCount));
+    ResponseList<CatalogItem> items =
+        getRootEntities(Arrays.asList(CatalogServiceHelper.DetailType.datasetCount));
 
-    Optional<CatalogItem> space = items.getData().stream()
-      .filter(item -> item.getId().equals(spaceId))
-      .findFirst();
+    Optional<CatalogItem> space =
+        items.getData().stream().filter(item -> item.getId().equals(spaceId)).findFirst();
 
     assertTrue("created space must be returned", space.isPresent());
     CatalogItemStats stats = space.get().getStats();
@@ -314,7 +336,8 @@ public class TestCatalogResource extends BaseTestServer {
     assertEquals(expectedDatasetCount, stats.getDatasetCount());
   }
 
-  private ResponseList<CatalogItem> getRootEntities(final List<CatalogServiceHelper.DetailType> detailsToInclude) {
+  private ResponseList<CatalogItem> getRootEntities(
+      final List<CatalogServiceHelper.DetailType> detailsToInclude) {
     WebTarget api = getPublicAPI(3).path(CATALOG_PATH);
 
     if (detailsToInclude != null) {
@@ -323,12 +346,15 @@ public class TestCatalogResource extends BaseTestServer {
       }
     }
 
-    return expectSuccess(getBuilder(api).buildGet(), new GenericType<ResponseList<CatalogItem>>() {});
+    return expectSuccess(
+        getBuilder(api).buildGet(), new GenericType<ResponseList<CatalogItem>>() {});
   }
 
   private Space createSpace(final String spaceName) {
     Space newSpace = new Space(null, spaceName, null, null, null);
-    return expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newSpace)), new GenericType<Space>() {});
+    return expectSuccess(
+        getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newSpace)),
+        new GenericType<Space>() {});
   }
 
   @Test
@@ -338,159 +364,98 @@ public class TestCatalogResource extends BaseTestServer {
 
     // add a folder
     Folder newFolder = new Folder(null, Arrays.asList(space.getName(), "myFolder"), null, null);
-    Folder folder = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newFolder)), new GenericType<Folder>() {});
+    Folder folder =
+        expectSuccess(
+            getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newFolder)),
+            new GenericType<Folder>() {});
 
     // create a VDS in the space
-    Dataset newVDS = getVDSConfig(Arrays.asList(space.getName(), "myFolder", "myVDS"),"select * from sys.version");
-    Dataset vds = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newVDS)), new GenericType<Dataset>() {});
+    Dataset newVDS =
+        getVDSConfig(
+            Arrays.asList(space.getName(), "myFolder", "myVDS"), "select * from sys.version");
+    Dataset vds =
+        expectSuccess(
+            getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newVDS)),
+            new GenericType<Dataset>() {});
 
     // make sure that trying to create the vds again fails
-    expectStatus(Response.Status.CONFLICT, getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newVDS)));
+    expectStatus(
+        Response.Status.CONFLICT,
+        getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newVDS)));
 
     // folder should now have children
-    folder = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(folder.getId())).buildGet(), new GenericType<Folder>() {});
+    folder =
+        expectSuccess(
+            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(folder.getId())).buildGet(),
+            new GenericType<Folder>() {});
     assertEquals(folder.getChildren().size(), 1);
     assertEquals(folder.getChildren().get(0).getId(), vds.getId());
 
     // test rename of a vds
-    Dataset renamedVDS = new Dataset(
-      vds.getId(),
-      vds.getType(),
-      Arrays.asList(space.getName(), "myFolder", "myVDSRenamed"),
-      null,
-      null,
-      vds.getTag(),
-      null,
-      vds.getSql(),
-      null,
-      null,
-      null
-    );
-    vds = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(renamedVDS.getId())).buildPut(Entity.json(renamedVDS)), new GenericType<Dataset>() {});
+    Dataset renamedVDS =
+        new Dataset(
+            vds.getId(),
+            vds.getType(),
+            Arrays.asList(space.getName(), "myFolder", "myVDSRenamed"),
+            null,
+            null,
+            vds.getTag(),
+            null,
+            vds.getSql(),
+            null,
+            null,
+            null);
+    vds =
+        expectSuccess(
+            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(renamedVDS.getId()))
+                .buildPut(Entity.json(renamedVDS)),
+            new GenericType<Dataset>() {});
 
-    folder = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(folder.getId())).buildGet(), new GenericType<Folder>() {});
+    folder =
+        expectSuccess(
+            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(folder.getId())).buildGet(),
+            new GenericType<Folder>() {});
     assertEquals(1, folder.getChildren().size());
     assertEquals(vds.getId(), folder.getChildren().get(0).getId());
     assertEquals("myVDSRenamed", folder.getChildren().get(0).getPath().get(2));
 
     // test changing sql
-    Dataset modifiedVDS = new Dataset(
-      vds.getId(),
-      vds.getType(),
-      vds.getPath(),
-      null,
-      null,
-      vds.getTag(),
-      null,
-      "select version from sys.version",
-      null,
-      null,
-      null
-    );
-    vds = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(modifiedVDS.getId())).buildPut(Entity.json(modifiedVDS)), new GenericType<Dataset>() {});
+    Dataset modifiedVDS =
+        new Dataset(
+            vds.getId(),
+            vds.getType(),
+            vds.getPath(),
+            null,
+            null,
+            vds.getTag(),
+            null,
+            "select version from sys.version",
+            null,
+            null,
+            null);
+    vds =
+        expectSuccess(
+            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(modifiedVDS.getId()))
+                .buildPut(Entity.json(modifiedVDS)),
+            new GenericType<Dataset>() {});
     assertEquals(modifiedVDS.getSql(), vds.getSql());
     assertNotEquals(modifiedVDS.getTag(), vds.getTag()); // make sure it stores a new version
 
     // we currently doesn't allow deserializing of fields so manually check them
-    List<Field> fieldsFromDatasetConfig = DatasetsUtil.getFieldsFromDatasetConfig(newNamespaceService().findDatasetByUUID(vds.getId()));
+    List<Field> fieldsFromDatasetConfig =
+        DatasetsUtil.getFieldsFromDatasetConfig(
+            newNamespaceService().findDatasetByUUID(vds.getId()));
     assertEquals(1, fieldsFromDatasetConfig.size());
     assertEquals("version", fieldsFromDatasetConfig.get(0).getName());
 
     // delete the vds
     expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(vds.getId())).buildDelete());
-    folder = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(folder.getId())).buildGet(), new GenericType<Folder>() {});
+    folder =
+        expectSuccess(
+            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(folder.getId())).buildGet(),
+            new GenericType<Folder>() {});
     assertEquals(0, folder.getChildren().size());
 
-    newNamespaceService().deleteSpace(new NamespaceKey(space.getName()), space.getTag());
-  }
-
-  /**
-   * Verifies that updating a Sonar Catalog view doesn't cause the catalog to lose the complex type information.
-   *
-   * @throws Exception
-   */
-  @Test
-  public void testViewUpdateWithComplexType() throws Exception {
-    Space space = createSpace("final frontier");
-
-    final List<String> viewPath = Arrays.asList(space.getName(), "myVDS");
-    Dataset newVDS = getVDSConfig(viewPath, "SELECT REGEXP_SPLIT('REGULAR AIR', 'R', 'LAST', -1) AS R_LESS_SHIPMENT_TYPE");
-    Dataset vds = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newVDS)), new GenericType<Dataset>() {});
-
-    Catalog catalog = getSabotContext().getCatalogService().getCatalog(MetadataRequestOptions.newBuilder()
-      .setSchemaConfig(SchemaConfig.newBuilder(CatalogUser.from(SystemUser.SYSTEM_USERNAME)).build())
-      .build());
-    DremioTable viewTable = catalog.getTable(new NamespaceKey(viewPath));
-    assertThat(viewTable.getSchema().getColumn(0).getType().getTypeID()).isEqualTo(ArrowType.ArrowTypeID.List);
-
-    // Update the view and re-verify the view schema
-    Dataset updatedVDS = new Dataset(
-      vds.getId(),
-      vds.getType(),
-      Arrays.asList(space.getName(), "myVDS"),
-      null,
-      null,
-      vds.getTag(),
-      null,
-      vds.getSql() + " -- SALT", // A little salt to make the SQL different
-      null,
-      null,
-      null
-    );
-    vds = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(updatedVDS.getId())).buildPut(Entity.json(updatedVDS)), new GenericType<Dataset>() {});
-
-    // Grab a new catalog since we don't want to hit caching catalog cache
-    catalog = getSabotContext().getCatalogService().getCatalog(MetadataRequestOptions.newBuilder()
-      .setSchemaConfig(SchemaConfig.newBuilder(CatalogUser.from(SystemUser.SYSTEM_USERNAME)).build())
-      .build());
-    viewTable = catalog.getTable(new NamespaceKey(viewPath));
-    assertThat(viewTable.getSchema().getColumn(0).getType().getTypeID()).isEqualTo(ArrowType.ArrowTypeID.List);
-
-    // Clean up
-    expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(vds.getId())).buildDelete());
-    newNamespaceService().deleteSpace(new NamespaceKey(space.getName()), space.getTag());
-  }
-
-  /**
-   * Verifies that querying a Sonar View with a null field type doesn't result in schema learning.
-   *
-   * @throws Exception
-   */
-  @Test
-  public void testViewWithNullColumn() throws Exception {
-    Space space = createSpace("final frontier");
-
-    final List<String> viewPath = Arrays.asList(space.getName(), "sl_bug");
-    Dataset newVDS = getVDSConfig(viewPath, "select null as foo;");
-    Dataset vds = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newVDS)), new GenericType<Dataset>() {});
-
-    Catalog catalog = getSabotContext().getCatalogService().getCatalog(MetadataRequestOptions.newBuilder()
-      .setSchemaConfig(SchemaConfig.newBuilder(CatalogUser.from(SystemUser.SYSTEM_USERNAME)).build())
-      .build());
-    DremioTable viewTable = catalog.getTable(new NamespaceKey(viewPath));
-    assertThat(viewTable.getSchema().getColumn(0).getType().getTypeID()).isEqualTo(ArrowType.ArrowTypeID.Int);
-    String originalViewTag = viewTable.getDatasetConfig().getTag();
-
-    final JobId jobId = submitJobAndWaitUntilCompletion(
-      JobRequest.newBuilder()
-        .setSqlQuery(new SqlQuery("select * from sl_bug", ImmutableList.of("final frontier"), DEFAULT_USERNAME))
-        .setQueryType(QueryType.UI_INTERNAL_RUN)
-        .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
-        .build());
-
-    final JobSummary job = l(JobsService.class).getJobSummary(JobSummaryRequest.newBuilder().setJobId(JobsProtoUtil.toBuf(jobId)).build());
-    assertTrue(JobsProtoUtil.toStuff(job.getJobState()) == JobState.COMPLETED);
-
-    // Grab a new catalog since we don't want to hit caching catalog cache
-    catalog = getSabotContext().getCatalogService().getCatalog(MetadataRequestOptions.newBuilder()
-      .setSchemaConfig(SchemaConfig.newBuilder(CatalogUser.from(SystemUser.SYSTEM_USERNAME)).build())
-      .build());
-    viewTable = catalog.getTable(new NamespaceKey(viewPath));
-    assertThat(viewTable.getSchema().getColumn(0).getType().getTypeID()).isEqualTo(ArrowType.ArrowTypeID.Int);
-    assertThat(viewTable.getDatasetConfig().getTag()).isEqualTo(originalViewTag);
-
-    // Clean up
-    expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(vds.getId())).buildDelete());
     newNamespaceService().deleteSpace(new NamespaceKey(space.getName()), space.getTag());
   }
 
@@ -511,7 +476,8 @@ public class TestCatalogResource extends BaseTestServer {
 
     java.io.File srcFolder = folder.getRoot();
 
-    PrintStream file = new PrintStream(new java.io.File(srcFolder.getAbsolutePath(), "myFile.json"));
+    PrintStream file =
+        new PrintStream(new java.io.File(srcFolder.getAbsolutePath(), "myFile.json"));
     for (int i = 0; i < 10; i++) {
       file.println("{a:{b:[1,2]}}");
     }
@@ -520,15 +486,16 @@ public class TestCatalogResource extends BaseTestServer {
     newSourceService().registerSourceWithRuntime(source);
 
     final DatasetPath path1 = new DatasetPath(ImmutableList.of(sourceName, "myFile.json"));
-    final DatasetConfig dataset1 = new DatasetConfig()
-      .setType(DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER)
-      .setFullPathList(path1.toPathList())
-      .setName(path1.getLeaf().getName())
-      .setCreatedAt(System.currentTimeMillis())
-      .setTag(null)
-      .setOwner(DEFAULT_USERNAME)
-      .setPhysicalDataset(new PhysicalDataset()
-        .setFormatSettings(new FileConfig().setType(FileType.JSON)));
+    final DatasetConfig dataset1 =
+        new DatasetConfig()
+            .setType(DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER)
+            .setFullPathList(path1.toPathList())
+            .setName(path1.getLeaf().getName())
+            .setCreatedAt(System.currentTimeMillis())
+            .setTag(null)
+            .setOwner(DEFAULT_USERNAME)
+            .setPhysicalDataset(
+                new PhysicalDataset().setFormatSettings(new FileConfig().setType(FileType.JSON)));
     p(NamespaceService.class).get().addOrUpdateDataset(path1.toNamespaceKey(), dataset1);
 
     DatasetPath vdsPath = new DatasetPath(ImmutableList.of("@dremio", "myFile.json"));
@@ -536,11 +503,11 @@ public class TestCatalogResource extends BaseTestServer {
 
     final String query = "select * from \"myFile.json\"";
     submitJobAndWaitUntilCompletion(
-      JobRequest.newBuilder()
-        .setSqlQuery(new SqlQuery(query, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
-        .setQueryType(QueryType.UI_INTERNAL_RUN)
-        .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
-        .build());
+        JobRequest.newBuilder()
+            .setSqlQuery(new SqlQuery(query, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
+            .setQueryType(QueryType.UI_INTERNAL_RUN)
+            .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+            .build());
   }
 
   @Test
@@ -551,18 +518,27 @@ public class TestCatalogResource extends BaseTestServer {
     Source newSource1 = createDatasetFromSource(sourceName1, "myFile.json", SRC_EXTERNAL, vdsName1);
     final String sourceName2 = "src_" + System.currentTimeMillis();
     final String vdsName2 = sourceName2 + "VDS";
-    Source newSource2 = createDatasetFromSource(sourceName2, "myFile2.json", SRC_EXTERNAL, vdsName2);
+    Source newSource2 =
+        createDatasetFromSource(sourceName2, "myFile2.json", SRC_EXTERNAL, vdsName2);
 
-    l(ContextService.class).get().getOptionManager().setOption(OptionValue.createBoolean(OptionType.SYSTEM, "planner.cross_source_select.disable", false));
+    l(ContextService.class)
+        .get()
+        .getOptionManager()
+        .setOption(
+            OptionValue.createBoolean(
+                OptionType.SYSTEM, "planner.cross_source_select.disable", false));
 
-    final String query = String.format("select * from \"@dremio\".\"%s\" as d join \"@dremio\".\"%s\" as e on d.name = e.name ", vdsName1, vdsName2);
+    final String query =
+        String.format(
+            "select * from \"@dremio\".\"%s\" as d join \"@dremio\".\"%s\" as e on d.name = e.name ",
+            vdsName1, vdsName2);
 
     submitJobAndWaitUntilCompletion(
-      JobRequest.newBuilder()
-        .setSqlQuery(new SqlQuery(query, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
-        .setQueryType(QueryType.UI_INTERNAL_RUN)
-        .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
-        .build());
+        JobRequest.newBuilder()
+            .setSqlQuery(new SqlQuery(query, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
+            .setQueryType(QueryType.UI_INTERNAL_RUN)
+            .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+            .build());
   }
 
   @Test
@@ -573,22 +549,36 @@ public class TestCatalogResource extends BaseTestServer {
     Source newSource1 = createDatasetFromSource(sourceName1, "myFile.json", SRC_EXTERNAL, vdsName1);
     final String sourceName2 = "src_" + System.currentTimeMillis();
     final String vdsName2 = sourceName2 + "VDS";
-    Source newSource2 = createDatasetFromSource(sourceName2, "myFile2.json", SRC_EXTERNAL, vdsName2);
+    Source newSource2 =
+        createDatasetFromSource(sourceName2, "myFile2.json", SRC_EXTERNAL, vdsName2);
 
-    l(ContextService.class).get().getOptionManager().setOption(OptionValue.createBoolean(OptionType.SYSTEM, "planner.cross_source_select.disable", true));
+    l(ContextService.class)
+        .get()
+        .getOptionManager()
+        .setOption(
+            OptionValue.createBoolean(
+                OptionType.SYSTEM, "planner.cross_source_select.disable", true));
 
-    final String query = String.format("select * from \"@dremio\".\"%s\" as d join \"@dremio\".\"%s\" as e on d.name = e.name ", vdsName1, vdsName2);
+    final String query =
+        String.format(
+            "select * from \"@dremio\".\"%s\" as d join \"@dremio\".\"%s\" as e on d.name = e.name ",
+            vdsName1, vdsName2);
 
-    final String msg = String.format("Cross select is disabled between sources '%s', '%s'.", sourceName1, sourceName2);
+    final String msg =
+        String.format(
+            "Cross select is disabled between sources '%s', '%s'.", sourceName1, sourceName2);
 
-    UserExceptionAssert.assertThatThrownBy(() -> submitJobAndWaitUntilCompletion(
-      JobRequest.newBuilder()
-        .setSqlQuery(new SqlQuery(query, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
-        .setQueryType(QueryType.UI_INTERNAL_RUN)
-        .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
-        .build()))
-      .hasErrorType(UserBitShared.DremioPBError.ErrorType.VALIDATION)
-      .hasMessageContaining(msg);
+    UserExceptionAssert.assertThatThrownBy(
+            () ->
+                submitJobAndWaitUntilCompletion(
+                    JobRequest.newBuilder()
+                        .setSqlQuery(
+                            new SqlQuery(query, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
+                        .setQueryType(QueryType.UI_INTERNAL_RUN)
+                        .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+                        .build()))
+        .hasErrorType(UserBitShared.DremioPBError.ErrorType.VALIDATION)
+        .hasMessageContaining(msg);
   }
 
   @Test
@@ -599,22 +589,34 @@ public class TestCatalogResource extends BaseTestServer {
     Source newSource1 = createDatasetFromSource(sourceName1, "myFile.json", SRC_EXTERNAL, vdsName1);
     final String sourceName2 = "src_" + System.currentTimeMillis();
     final String vdsName2 = sourceName2 + "VDS";
-    Source newSource2 = createDatasetFromSource(sourceName2, "myFile2.json", SRC_EXTERNAL, vdsName2);
+    Source newSource2 =
+        createDatasetFromSource(sourceName2, "myFile2.json", SRC_EXTERNAL, vdsName2);
 
     newSource2.setAllowCrossSourceSelection(true);
-    newSource2 = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(newSource2.getId())).buildPut(Entity.json(newSource2)), new GenericType<Source>() {});
+    newSource2 =
+        expectSuccess(
+            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(newSource2.getId()))
+                .buildPut(Entity.json(newSource2)),
+            new GenericType<Source>() {});
 
-    l(ContextService.class).get().getOptionManager().setOption(OptionValue.createBoolean(OptionType.SYSTEM, "planner.cross_source_select.disable", true));
+    l(ContextService.class)
+        .get()
+        .getOptionManager()
+        .setOption(
+            OptionValue.createBoolean(
+                OptionType.SYSTEM, "planner.cross_source_select.disable", true));
 
-    final String query = String.format("select * from \"@dremio\".\"%s\" as d join \"@dremio\".\"%s\" as e on d.name = e.name ", vdsName1, vdsName2);
+    final String query =
+        String.format(
+            "select * from \"@dremio\".\"%s\" as d join \"@dremio\".\"%s\" as e on d.name = e.name ",
+            vdsName1, vdsName2);
 
     submitJobAndWaitUntilCompletion(
-      JobRequest.newBuilder()
-        .setSqlQuery(new SqlQuery(query, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
-        .setQueryType(QueryType.UI_INTERNAL_RUN)
-        .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
-        .build());
-
+        JobRequest.newBuilder()
+            .setSqlQuery(new SqlQuery(query, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
+            .setQueryType(QueryType.UI_INTERNAL_RUN)
+            .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+            .build());
   }
 
   @Test
@@ -625,29 +627,49 @@ public class TestCatalogResource extends BaseTestServer {
     Source newSource1 = createDatasetFromSource(sourceName1, "myFile.json", SRC_EXTERNAL, vdsName1);
     final String sourceName2 = "src_" + System.currentTimeMillis();
     final String vdsName2 = sourceName2 + "VDS";
-    Source newSource2 = createDatasetFromSource(sourceName2, "myFile2.json", SRC_EXTERNAL, vdsName2);
+    Source newSource2 =
+        createDatasetFromSource(sourceName2, "myFile2.json", SRC_EXTERNAL, vdsName2);
     final String sourceName3 = "src_" + System.currentTimeMillis();
     final String vdsName3 = sourceName3 + "VDS";
-    Source newSource3 = createDatasetFromSource(sourceName3, "myFile3.json", SRC_EXTERNAL, vdsName3);
+    Source newSource3 =
+        createDatasetFromSource(sourceName3, "myFile3.json", SRC_EXTERNAL, vdsName3);
 
     newSource2.setAllowCrossSourceSelection(true);
-    newSource2 = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(newSource2.getId())).buildPut(Entity.json(newSource2)), new GenericType<Source>() {});
+    newSource2 =
+        expectSuccess(
+            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(newSource2.getId()))
+                .buildPut(Entity.json(newSource2)),
+            new GenericType<Source>() {});
 
-    l(ContextService.class).get().getOptionManager().setOption(OptionValue.createBoolean(OptionType.SYSTEM, "planner.cross_source_select.disable", true));
+    l(ContextService.class)
+        .get()
+        .getOptionManager()
+        .setOption(
+            OptionValue.createBoolean(
+                OptionType.SYSTEM, "planner.cross_source_select.disable", true));
 
-    final String query = String.format("select * from \"@dremio\".\"%s\" as d join \"@dremio\".\"%s\" as e on d.name = e.name ", vdsName1, vdsName2);
-    final String query2 = query + String.format("join \"@dremio\".\"%s\" as f on d.name = f.name", vdsName3);
+    final String query =
+        String.format(
+            "select * from \"@dremio\".\"%s\" as d join \"@dremio\".\"%s\" as e on d.name = e.name ",
+            vdsName1, vdsName2);
+    final String query2 =
+        query + String.format("join \"@dremio\".\"%s\" as f on d.name = f.name", vdsName3);
 
-    final String msg = String.format("Cross select is disabled between sources '%s', '%s'.", sourceName1, sourceName3);
+    final String msg =
+        String.format(
+            "Cross select is disabled between sources '%s', '%s'.", sourceName1, sourceName3);
 
-    UserExceptionAssert.assertThatThrownBy(() -> submitJobAndWaitUntilCompletion(
-      JobRequest.newBuilder()
-        .setSqlQuery(new SqlQuery(query2, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
-        .setQueryType(QueryType.UI_INTERNAL_RUN)
-        .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
-        .build()))
-      .hasErrorType(UserBitShared.DremioPBError.ErrorType.VALIDATION)
-      .hasMessageContaining(msg);
+    UserExceptionAssert.assertThatThrownBy(
+            () ->
+                submitJobAndWaitUntilCompletion(
+                    JobRequest.newBuilder()
+                        .setSqlQuery(
+                            new SqlQuery(query2, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
+                        .setQueryType(QueryType.UI_INTERNAL_RUN)
+                        .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+                        .build()))
+        .hasErrorType(UserBitShared.DremioPBError.ErrorType.VALIDATION)
+        .hasMessageContaining(msg);
   }
 
   @Test
@@ -658,16 +680,24 @@ public class TestCatalogResource extends BaseTestServer {
     final String sourceName2 = "src_" + System.currentTimeMillis();
     Source newSource2 = createDatasetFromSource(sourceName2, "myFile2.json", SRC_EXTERNAL, null);
 
-    l(ContextService.class).get().getOptionManager().setOption(OptionValue.createBoolean(OptionType.SYSTEM, "planner.cross_source_select.disable", false));
+    l(ContextService.class)
+        .get()
+        .getOptionManager()
+        .setOption(
+            OptionValue.createBoolean(
+                OptionType.SYSTEM, "planner.cross_source_select.disable", false));
 
-    final String query = String.format("select * from %s.\"myFile.json\" as d join %s.\"myFile2.json\" as e on d.name = e.name", sourceName1, sourceName2);
+    final String query =
+        String.format(
+            "select * from %s.\"myFile.json\" as d join %s.\"myFile2.json\" as e on d.name = e.name",
+            sourceName1, sourceName2);
 
     submitJobAndWaitUntilCompletion(
-      JobRequest.newBuilder()
-        .setSqlQuery(new SqlQuery(query, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
-        .setQueryType(QueryType.UI_INTERNAL_RUN)
-        .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
-        .build());
+        JobRequest.newBuilder()
+            .setSqlQuery(new SqlQuery(query, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
+            .setQueryType(QueryType.UI_INTERNAL_RUN)
+            .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+            .build());
   }
 
   @Test
@@ -678,20 +708,33 @@ public class TestCatalogResource extends BaseTestServer {
     final String sourceName2 = "src_" + System.currentTimeMillis();
     Source newSource2 = createDatasetFromSource(sourceName2, "myFile2.json", SRC_EXTERNAL, null);
 
-    l(ContextService.class).get().getOptionManager().setOption(OptionValue.createBoolean(OptionType.SYSTEM, "planner.cross_source_select.disable", true));
+    l(ContextService.class)
+        .get()
+        .getOptionManager()
+        .setOption(
+            OptionValue.createBoolean(
+                OptionType.SYSTEM, "planner.cross_source_select.disable", true));
 
-    final String query = String.format("select * from %s.\"myFile.json\" as d join %s.\"myFile2.json\" as e on d.name = e.name", sourceName1, sourceName2);
+    final String query =
+        String.format(
+            "select * from %s.\"myFile.json\" as d join %s.\"myFile2.json\" as e on d.name = e.name",
+            sourceName1, sourceName2);
 
-    final String msg = String.format("Cross select is disabled between sources '%s', '%s'.", sourceName1, sourceName2);
+    final String msg =
+        String.format(
+            "Cross select is disabled between sources '%s', '%s'.", sourceName1, sourceName2);
 
-    UserExceptionAssert.assertThatThrownBy(() -> submitJobAndWaitUntilCompletion(
-      JobRequest.newBuilder()
-        .setSqlQuery(new SqlQuery(query, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
-        .setQueryType(QueryType.UI_INTERNAL_RUN)
-        .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
-        .build()))
-      .hasErrorType(UserBitShared.DremioPBError.ErrorType.VALIDATION)
-      .hasMessageContaining(msg);
+    UserExceptionAssert.assertThatThrownBy(
+            () ->
+                submitJobAndWaitUntilCompletion(
+                    JobRequest.newBuilder()
+                        .setSqlQuery(
+                            new SqlQuery(query, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
+                        .setQueryType(QueryType.UI_INTERNAL_RUN)
+                        .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+                        .build()))
+        .hasErrorType(UserBitShared.DremioPBError.ErrorType.VALIDATION)
+        .hasMessageContaining(msg);
   }
 
   @Test
@@ -703,19 +746,30 @@ public class TestCatalogResource extends BaseTestServer {
     Source newSource2 = createDatasetFromSource(sourceName2, "myFile2.json", SRC_EXTERNAL, null);
 
     newSource2.setAllowCrossSourceSelection(true);
-    newSource2 = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(newSource2.getId())).buildPut(Entity.json(newSource2)), new GenericType<Source>() {});
+    newSource2 =
+        expectSuccess(
+            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(newSource2.getId()))
+                .buildPut(Entity.json(newSource2)),
+            new GenericType<Source>() {});
 
-    l(ContextService.class).get().getOptionManager().setOption(OptionValue.createBoolean(OptionType.SYSTEM, "planner.cross_source_select.disable", true));
+    l(ContextService.class)
+        .get()
+        .getOptionManager()
+        .setOption(
+            OptionValue.createBoolean(
+                OptionType.SYSTEM, "planner.cross_source_select.disable", true));
 
-    final String query = String.format("select * from %s.\"myFile.json\" as d join %s.\"myFile2.json\" as e on d.name = e.name", sourceName1, sourceName2);
+    final String query =
+        String.format(
+            "select * from %s.\"myFile.json\" as d join %s.\"myFile2.json\" as e on d.name = e.name",
+            sourceName1, sourceName2);
 
     submitJobAndWaitUntilCompletion(
-      JobRequest.newBuilder()
-        .setSqlQuery(new SqlQuery(query, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
-        .setQueryType(QueryType.UI_INTERNAL_RUN)
-        .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
-        .build());
-
+        JobRequest.newBuilder()
+            .setSqlQuery(new SqlQuery(query, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
+            .setQueryType(QueryType.UI_INTERNAL_RUN)
+            .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+            .build());
   }
 
   @Test
@@ -729,42 +783,73 @@ public class TestCatalogResource extends BaseTestServer {
     Source newSource3 = createDatasetFromSource(sourceName3, "myFile3.json", SRC_EXTERNAL, null);
 
     newSource2.setAllowCrossSourceSelection(true);
-    newSource2 = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(newSource2.getId())).buildPut(Entity.json(newSource2)), new GenericType<Source>() {});
+    newSource2 =
+        expectSuccess(
+            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(newSource2.getId()))
+                .buildPut(Entity.json(newSource2)),
+            new GenericType<Source>() {});
 
-    l(ContextService.class).get().getOptionManager().setOption(OptionValue.createBoolean(OptionType.SYSTEM, "planner.cross_source_select.disable", true));
+    l(ContextService.class)
+        .get()
+        .getOptionManager()
+        .setOption(
+            OptionValue.createBoolean(
+                OptionType.SYSTEM, "planner.cross_source_select.disable", true));
 
-    final String query = String.format("select * from %s.\"myFile.json\" as d join %s.\"myFile2.json\" as e on d.name = e.name ", sourceName1, sourceName2);
-    final String query2 = query + String.format("join %s.\"myFile3.json\" as f on d.name = f.name", sourceName3);
+    final String query =
+        String.format(
+            "select * from %s.\"myFile.json\" as d join %s.\"myFile2.json\" as e on d.name = e.name ",
+            sourceName1, sourceName2);
+    final String query2 =
+        query + String.format("join %s.\"myFile3.json\" as f on d.name = f.name", sourceName3);
 
-    final String msg = String.format("Cross select is disabled between sources '%s', '%s'.", sourceName1, sourceName3);
+    final String msg =
+        String.format(
+            "Cross select is disabled between sources '%s', '%s'.", sourceName1, sourceName3);
 
-    UserExceptionAssert.assertThatThrownBy(() -> submitJobAndWaitUntilCompletion(
-      JobRequest.newBuilder()
-        .setSqlQuery(new SqlQuery(query2, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
-        .setQueryType(QueryType.UI_INTERNAL_RUN)
-        .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
-        .build()))
-      .hasErrorType(UserBitShared.DremioPBError.ErrorType.VALIDATION)
-      .hasMessageContaining(msg);
+    UserExceptionAssert.assertThatThrownBy(
+            () ->
+                submitJobAndWaitUntilCompletion(
+                    JobRequest.newBuilder()
+                        .setSqlQuery(
+                            new SqlQuery(query2, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
+                        .setQueryType(QueryType.UI_INTERNAL_RUN)
+                        .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+                        .build()))
+        .hasErrorType(UserBitShared.DremioPBError.ErrorType.VALIDATION)
+        .hasMessageContaining(msg);
   }
 
   @Test
   public void testCrossSourceSelectInformationSchema() throws Exception {
 
     final String sourceName = "src_" + System.currentTimeMillis();
-    final Source newSource = createDatasetFromSource(sourceName, "myFile.json", SRC_INFORMATION_SCHEMA, null);
-    l(ContextService.class).get().getOptionManager().setOption(OptionValue.createBoolean(OptionType.SYSTEM, "planner.cross_source_select.disable", true));
+    final Source newSource =
+        createDatasetFromSource(sourceName, "myFile.json", SRC_INFORMATION_SCHEMA, null);
+    l(ContextService.class)
+        .get()
+        .getOptionManager()
+        .setOption(
+            OptionValue.createBoolean(
+                OptionType.SYSTEM, "planner.cross_source_select.disable", true));
 
-    final String query = String.format("select * from %s.\"myFile.json\" as d join INFORMATION_SCHEMA.catalogs as e on d.catalog = e.catalog_name", sourceName);
+    final String query =
+        String.format(
+            "select * from %s.\"myFile.json\" as d join INFORMATION_SCHEMA.catalogs as e on d.catalog = e.catalog_name",
+            sourceName);
 
-    final JobId jobId = submitJobAndWaitUntilCompletion(
-      JobRequest.newBuilder()
-        .setSqlQuery(new SqlQuery(query, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
-        .setQueryType(QueryType.UI_INTERNAL_RUN)
-        .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
-        .build());
+    final JobId jobId =
+        submitJobAndWaitUntilCompletion(
+            JobRequest.newBuilder()
+                .setSqlQuery(new SqlQuery(query, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
+                .setQueryType(QueryType.UI_INTERNAL_RUN)
+                .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+                .build());
 
-    final JobSummary job = l(JobsService.class).getJobSummary(JobSummaryRequest.newBuilder().setJobId(JobsProtoUtil.toBuf(jobId)).build());
+    final JobSummary job =
+        l(JobsService.class)
+            .getJobSummary(
+                JobSummaryRequest.newBuilder().setJobId(JobsProtoUtil.toBuf(jobId)).build());
     assertTrue(JobsProtoUtil.toStuff(job.getJobState()) == JobState.COMPLETED);
   }
 
@@ -773,21 +858,34 @@ public class TestCatalogResource extends BaseTestServer {
 
     final String sourceName = "src_" + System.currentTimeMillis();
     final Source newSource = createDatasetFromSource(sourceName, "myFile.json", SRC_SYS, null);
-    l(ContextService.class).get().getOptionManager().setOption(OptionValue.createBoolean(OptionType.SYSTEM, "planner.cross_source_select.disable", true));
+    l(ContextService.class)
+        .get()
+        .getOptionManager()
+        .setOption(
+            OptionValue.createBoolean(
+                OptionType.SYSTEM, "planner.cross_source_select.disable", true));
 
-    final String query = String.format("select * from %s.\"myFile.json\" as d join sys.options as e on d.type = e.type", sourceName);
+    final String query =
+        String.format(
+            "select * from %s.\"myFile.json\" as d join sys.options as e on d.type = e.type",
+            sourceName);
 
-    final JobId jobId = submitJobAndWaitUntilCompletion(
-      JobRequest.newBuilder()
-        .setSqlQuery(new SqlQuery(query, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
-        .setQueryType(QueryType.UI_INTERNAL_RUN)
-        .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
-        .build());
-    final JobSummary job = l(JobsService.class).getJobSummary(JobSummaryRequest.newBuilder().setJobId(JobsProtoUtil.toBuf(jobId)).build());
+    final JobId jobId =
+        submitJobAndWaitUntilCompletion(
+            JobRequest.newBuilder()
+                .setSqlQuery(new SqlQuery(query, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
+                .setQueryType(QueryType.UI_INTERNAL_RUN)
+                .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+                .build());
+    final JobSummary job =
+        l(JobsService.class)
+            .getJobSummary(
+                JobSummaryRequest.newBuilder().setJobId(JobsProtoUtil.toBuf(jobId)).build());
     assertTrue(JobsProtoUtil.toStuff(job.getJobState()) == JobState.COMPLETED);
   }
 
-  private Source createDatasetFromSource(String sourceName, String fileName, int sourceType, String vdsName) throws Exception {
+  private Source createDatasetFromSource(
+      String sourceName, String fileName, int sourceType, String vdsName) throws Exception {
     TemporaryFolder folder = new TemporaryFolder();
     folder.create();
 
@@ -795,13 +893,17 @@ public class TestCatalogResource extends BaseTestServer {
     config.path = folder.getRoot().getAbsolutePath();
 
     java.io.File srcFolder = folder.getRoot();
-    try (PrintStream file = new PrintStream(new java.io.File(srcFolder.getAbsolutePath(), fileName))) {
+    try (PrintStream file =
+        new PrintStream(new java.io.File(srcFolder.getAbsolutePath(), fileName))) {
       if (sourceType == SRC_INFORMATION_SCHEMA) {
-        file.println("{\"catalog\":\"DREMIO\",\"name\":\"fred ovid\",\"age\":76,\"gpa\":1.55,\"studentnum\":692315658449}");
+        file.println(
+            "{\"catalog\":\"DREMIO\",\"name\":\"fred ovid\",\"age\":76,\"gpa\":1.55,\"studentnum\":692315658449}");
       } else if (sourceType == SRC_SYS) {
-        file.println("{\"type\":\"SYSTEM\",\"name\":\"fred ovid\",\"age\":76,\"gpa\":1.55,\"studentnum\":692315658449}");
+        file.println(
+            "{\"type\":\"SYSTEM\",\"name\":\"fred ovid\",\"age\":76,\"gpa\":1.55,\"studentnum\":692315658449}");
       } else {
-        file.println("{\"rownum\":1,\"name\":\"fred ovid\",\"age\":76,\"gpa\":1.55,\"studentnum\":692315658449,\"create_time\":\"2014-05-27 00:26:07\", \"interests\": [ \"Reading\", \"Mountain Biking\", \"Hacking\" ], \"favorites\": {\"color\": \"Blue\", \"sport\": \"Soccer\", \"food\": \"Spaghetti\"}}");
+        file.println(
+            "{\"rownum\":1,\"name\":\"fred ovid\",\"age\":76,\"gpa\":1.55,\"studentnum\":692315658449,\"create_time\":\"2014-05-27 00:26:07\", \"interests\": [ \"Reading\", \"Mountain Biking\", \"Hacking\" ], \"favorites\": {\"color\": \"Blue\", \"sport\": \"Soccer\", \"food\": \"Spaghetti\"}}");
       }
     }
 
@@ -812,20 +914,27 @@ public class TestCatalogResource extends BaseTestServer {
     newSource.setCreatedAt(1000L);
     newSource.setAllowCrossSourceSelection(false);
 
-    Source source = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newSource)),  new GenericType<Source>() {});
-    newSource = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(source.getId())).buildGet(), new GenericType<Source>() {});
+    Source source =
+        expectSuccess(
+            getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newSource)),
+            new GenericType<Source>() {});
+    newSource =
+        expectSuccess(
+            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(source.getId())).buildGet(),
+            new GenericType<Source>() {});
 
     final DatasetPath path = new DatasetPath(ImmutableList.of(sourceName, fileName));
-    final DatasetConfig dataset = new DatasetConfig()
-      .setId(new EntityId().setId(UUID.randomUUID().toString()))
-      .setType(DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER)
-      .setFullPathList(path.toPathList())
-      .setName(path.getLeaf().getName())
-      .setCreatedAt(System.currentTimeMillis())
-      .setTag(null)
-      .setOwner(DEFAULT_USERNAME)
-      .setPhysicalDataset(new PhysicalDataset()
-        .setFormatSettings(new FileConfig().setType(FileType.JSON)));
+    final DatasetConfig dataset =
+        new DatasetConfig()
+            .setId(new EntityId().setId(UUID.randomUUID().toString()))
+            .setType(DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER)
+            .setFullPathList(path.toPathList())
+            .setName(path.getLeaf().getName())
+            .setCreatedAt(System.currentTimeMillis())
+            .setTag(null)
+            .setOwner(DEFAULT_USERNAME)
+            .setPhysicalDataset(
+                new PhysicalDataset().setFormatSettings(new FileConfig().setType(FileType.JSON)));
     p(NamespaceService.class).get().addOrUpdateDataset(path.toNamespaceKey(), dataset);
 
     if (vdsName != null) {
@@ -849,19 +958,25 @@ public class TestCatalogResource extends BaseTestServer {
     config.path = folder.getRoot().getAbsolutePath();
 
     java.io.File srcFolder = folder.getRoot();
-    try (PrintStream file = new PrintStream(new java.io.File(srcFolder.getAbsolutePath(), "zmyFile1.json"))) {
-      file.println("{\"rownum\":1,\"name\":\"fred ovid\",\"age\":76,\"gpa\":1.55,\"studentnum\":692315658449,\"create_time\":\"2014-05-27 00:26:07\", \"interests\": [ \"Reading\", \"Mountain Biking\", \"Hacking\" ], \"favorites\": {\"color\": \"Blue\", \"sport\": \"Soccer\", \"food\": \"Spaghetti\"}}");
+    try (PrintStream file =
+        new PrintStream(new java.io.File(srcFolder.getAbsolutePath(), "zmyFile1.json"))) {
+      file.println(
+          "{\"rownum\":1,\"name\":\"fred ovid\",\"age\":76,\"gpa\":1.55,\"studentnum\":692315658449,\"create_time\":\"2014-05-27 00:26:07\", \"interests\": [ \"Reading\", \"Mountain Biking\", \"Hacking\" ], \"favorites\": {\"color\": \"Blue\", \"sport\": \"Soccer\", \"food\": \"Spaghetti\"}}");
     }
 
     String nestedDir = srcFolder + java.io.File.separator + "nestedDir";
     java.io.File dir = new java.io.File(nestedDir);
     dir.mkdirs();
 
-    try (PrintStream file = new PrintStream(new java.io.File(dir.getAbsolutePath(), "nestedFile1.json"))) {
-      file.println("{\"rownum\":1,\"name\":\"fred ovid\",\"age\":76,\"gpa\":1.55,\"studentnum\":692315658449,\"create_time\":\"2014-05-27 00:26:07\", \"interests\": [ \"Reading\", \"Mountain Biking\", \"Hacking\" ], \"favorites\": {\"color\": \"Blue\", \"sport\": \"Soccer\", \"food\": \"Spaghetti\"}}");
+    try (PrintStream file =
+        new PrintStream(new java.io.File(dir.getAbsolutePath(), "nestedFile1.json"))) {
+      file.println(
+          "{\"rownum\":1,\"name\":\"fred ovid\",\"age\":76,\"gpa\":1.55,\"studentnum\":692315658449,\"create_time\":\"2014-05-27 00:26:07\", \"interests\": [ \"Reading\", \"Mountain Biking\", \"Hacking\" ], \"favorites\": {\"color\": \"Blue\", \"sport\": \"Soccer\", \"food\": \"Spaghetti\"}}");
     }
-    try (PrintStream file = new PrintStream(new java.io.File(dir.getAbsolutePath(), "nestedFile2.json"))) {
-      file.println("{\"rownum\":1,\"name\":\"fred ovid\",\"age\":76,\"gpa\":1.55,\"studentnum\":692315658449,\"create_time\":\"2014-05-27 00:26:07\", \"interests\": [ \"Reading\", \"Mountain Biking\", \"Hacking\" ], \"favorites\": {\"color\": \"Blue\", \"sport\": \"Soccer\", \"food\": \"Spaghetti\"}}");
+    try (PrintStream file =
+        new PrintStream(new java.io.File(dir.getAbsolutePath(), "nestedFile2.json"))) {
+      file.println(
+          "{\"rownum\":1,\"name\":\"fred ovid\",\"age\":76,\"gpa\":1.55,\"studentnum\":692315658449,\"create_time\":\"2014-05-27 00:26:07\", \"interests\": [ \"Reading\", \"Mountain Biking\", \"Hacking\" ], \"favorites\": {\"color\": \"Blue\", \"sport\": \"Soccer\", \"food\": \"Spaghetti\"}}");
     }
 
     Source newSource = new Source();
@@ -870,54 +985,76 @@ public class TestCatalogResource extends BaseTestServer {
     newSource.setConfig(config);
     newSource.setCreatedAt(1000L);
 
-    Source source = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newSource)), new GenericType<Source>() {});
-    newSource = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(source.getId())).buildGet(), new GenericType<Source>() {});
+    Source source =
+        expectSuccess(
+            getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newSource)),
+            new GenericType<Source>() {});
+    newSource =
+        expectSuccess(
+            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(source.getId())).buildGet(),
+            new GenericType<Source>() {});
 
     DatasetPath path = new DatasetPath(ImmutableList.of(sourceName1, "nestedDir"));
-    DatasetConfig dataset = new DatasetConfig()
-      .setType(DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER)
-      .setFullPathList(path.toPathList())
-      .setName(path.getLeaf().getName())
-      .setCreatedAt(System.currentTimeMillis())
-      .setTag(null)
-      .setOwner(DEFAULT_USERNAME)
-      .setPhysicalDataset(new PhysicalDataset()
-        .setFormatSettings(new FileConfig().setType(FileType.JSON)));
+    DatasetConfig dataset =
+        new DatasetConfig()
+            .setType(DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER)
+            .setFullPathList(path.toPathList())
+            .setName(path.getLeaf().getName())
+            .setCreatedAt(System.currentTimeMillis())
+            .setTag(null)
+            .setOwner(DEFAULT_USERNAME)
+            .setPhysicalDataset(
+                new PhysicalDataset().setFormatSettings(new FileConfig().setType(FileType.JSON)));
     p(NamespaceService.class).get().addOrUpdateDataset(path.toNamespaceKey(), dataset);
 
     path = new DatasetPath(ImmutableList.of(sourceName1, "zmyFile1.json"));
-    dataset = new DatasetConfig()
-      .setType(DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER)
-      .setFullPathList(path.toPathList())
-      .setName(path.getLeaf().getName())
-      .setCreatedAt(System.currentTimeMillis())
-      .setTag(null)
-      .setOwner(DEFAULT_USERNAME)
-      .setPhysicalDataset(new PhysicalDataset()
-        .setFormatSettings(new FileConfig().setType(FileType.JSON)));
+    dataset =
+        new DatasetConfig()
+            .setType(DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER)
+            .setFullPathList(path.toPathList())
+            .setName(path.getLeaf().getName())
+            .setCreatedAt(System.currentTimeMillis())
+            .setTag(null)
+            .setOwner(DEFAULT_USERNAME)
+            .setPhysicalDataset(
+                new PhysicalDataset().setFormatSettings(new FileConfig().setType(FileType.JSON)));
     p(NamespaceService.class).get().addOrUpdateDataset(path.toNamespaceKey(), dataset);
 
-    NamespaceKey datasetKey = new DatasetPath(ImmutableList.of(sourceName1, "zmyFile1.json")).toNamespaceKey();
+    NamespaceKey datasetKey =
+        new DatasetPath(ImmutableList.of(sourceName1, "zmyFile1.json")).toNamespaceKey();
     DatasetConfig dataset1 = p(NamespaceService.class).get().getDataset(datasetKey);
 
-    l(ContextService.class).get().getOptionManager().setOption(OptionValue.createLong(OptionType.SYSTEM, "dremio.store.dfs.max_files", 1));
+    l(ContextService.class)
+        .get()
+        .getOptionManager()
+        .setOption(OptionValue.createLong(OptionType.SYSTEM, "dremio.store.dfs.max_files", 1));
 
     java.io.File deleted = new java.io.File(srcFolder.getAbsolutePath(), "zmyFile1.json");
     boolean bool = deleted.delete();
 
-    // After delete "zmyFile1.json" from the source, if the refresh succeeds, it will delete the dataset from the kv store.
-    // If we query "nestedDir", it will be still in the kv store. If we query "zmyFile1.json", it will throw namespace exception.
-    ((CatalogServiceImpl) l(ContextService.class).get().getCatalogService()).refreshSource(new NamespaceKey(sourceName1), CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
-    dataset1 = p(NamespaceService.class).get().getDataset(new DatasetPath(ImmutableList.of(sourceName1, "nestedDir")).toNamespaceKey());
+    // After delete "zmyFile1.json" from the source, if the refresh succeeds, it will delete the
+    // dataset from the kv store.
+    // If we query "nestedDir", it will be still in the kv store. If we query "zmyFile1.json", it
+    // will throw namespace exception.
+    ((CatalogServiceImpl) l(ContextService.class).get().getCatalogService())
+        .refreshSource(
+            new NamespaceKey(sourceName1),
+            CatalogService.REFRESH_EVERYTHING_NOW,
+            CatalogServiceImpl.UpdateType.FULL);
+    dataset1 =
+        p(NamespaceService.class)
+            .get()
+            .getDataset(
+                new DatasetPath(ImmutableList.of(sourceName1, "nestedDir")).toNamespaceKey());
     assertEquals("nestedDir", dataset1.getName());
     assertThatThrownBy(() -> p(NamespaceService.class).get().getDataset(datasetKey))
-      .isInstanceOf(NamespaceException.class);
+        .isInstanceOf(NamespaceException.class);
   }
 
   private boolean isComplete(DatasetConfig config) {
     return config != null
-      && DatasetHelper.getSchemaBytes(config) != null
-      && config.getReadDefinition() != null;
+        && DatasetHelper.getSchemaBytes(config) != null
+        && config.getReadDefinition() != null;
   }
 
   @Test
@@ -927,37 +1064,58 @@ public class TestCatalogResource extends BaseTestServer {
     final Source newSource = createDatasetFromSource(sourceName, "myFile.json", SRC_EXTERNAL, null);
 
     // Do an inline refresh to build complete DatasetConfig before forget metadata
-    final String queryForInlineRefresh = String.format("select * from %s.\"myFile.json\"", sourceName);
-    JobId jobId = submitJobAndWaitUntilCompletion(
-      JobRequest.newBuilder()
-        .setSqlQuery(new SqlQuery(queryForInlineRefresh, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
-        .setQueryType(QueryType.UI_INTERNAL_RUN)
-        .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
-        .build());
-    JobSummary job = l(JobsService.class).getJobSummary(JobSummaryRequest.newBuilder().setJobId(JobsProtoUtil.toBuf(jobId)).build());
+    final String queryForInlineRefresh =
+        String.format("select * from %s.\"myFile.json\"", sourceName);
+    JobId jobId =
+        submitJobAndWaitUntilCompletion(
+            JobRequest.newBuilder()
+                .setSqlQuery(
+                    new SqlQuery(
+                        queryForInlineRefresh, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
+                .setQueryType(QueryType.UI_INTERNAL_RUN)
+                .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+                .build());
+    JobSummary job =
+        l(JobsService.class)
+            .getJobSummary(
+                JobSummaryRequest.newBuilder().setJobId(JobsProtoUtil.toBuf(jobId)).build());
     assertTrue(JobsProtoUtil.toStuff(job.getJobState()) == JobState.COMPLETED);
 
-    DatasetConfig dataset1 = p(NamespaceService.class).get().getDataset(new DatasetPath(ImmutableList.of(sourceName, "myFile.json")).toNamespaceKey());
+    DatasetConfig dataset1 =
+        p(NamespaceService.class)
+            .get()
+            .getDataset(
+                new DatasetPath(ImmutableList.of(sourceName, "myFile.json")).toNamespaceKey());
     assertEquals("myFile.json", dataset1.getName());
     assertTrue(isComplete(dataset1));
 
     // Forget metadata
-    final String query = String.format("alter table %s.\"myFile.json\" forget metadata", sourceName);
-    jobId = submitJobAndWaitUntilCompletion(
-      JobRequest.newBuilder()
-        .setSqlQuery(new SqlQuery(query, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
-        .setQueryType(QueryType.UI_INTERNAL_RUN)
-        .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
-        .build());
+    final String query =
+        String.format("alter table %s.\"myFile.json\" forget metadata", sourceName);
+    jobId =
+        submitJobAndWaitUntilCompletion(
+            JobRequest.newBuilder()
+                .setSqlQuery(new SqlQuery(query, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
+                .setQueryType(QueryType.UI_INTERNAL_RUN)
+                .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+                .build());
 
     // Expect to delete the metadata record in kv store successfully
-    job = l(JobsService.class).getJobSummary(JobSummaryRequest.newBuilder().setJobId(JobsProtoUtil.toBuf(jobId)).build());
+    job =
+        l(JobsService.class)
+            .getJobSummary(
+                JobSummaryRequest.newBuilder().setJobId(JobsProtoUtil.toBuf(jobId)).build());
     assertTrue(JobsProtoUtil.toStuff(job.getJobState()) == JobState.COMPLETED);
 
     // Expect to receive an NamespaceException if try to find the deleted metadata in kv store
-    assertThatThrownBy(() -> p(NamespaceService.class).get().getDataset(new DatasetPath(ImmutableList.of(sourceName, "myFile.json")).toNamespaceKey()))
-      .isInstanceOf(NamespaceException.class);
-
+    assertThatThrownBy(
+            () ->
+                p(NamespaceService.class)
+                    .get()
+                    .getDataset(
+                        new DatasetPath(ImmutableList.of(sourceName, "myFile.json"))
+                            .toNamespaceKey()))
+        .isInstanceOf(NamespaceException.class);
   }
 
   @Test
@@ -967,22 +1125,35 @@ public class TestCatalogResource extends BaseTestServer {
     final Source newSource = createDatasetFromSource(sourceName, "myFile.json", SRC_EXTERNAL, null);
 
     // Do a full refresh to build complete DatasetConfig before forget metadata
-    ((CatalogServiceImpl) l(ContextService.class).get().getCatalogService()).refreshSource(new NamespaceKey(sourceName), CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
-    DatasetConfig dataset1 = p(NamespaceService.class).get().getDataset(new DatasetPath(ImmutableList.of(sourceName, "myFile.json")).toNamespaceKey());
+    ((CatalogServiceImpl) l(ContextService.class).get().getCatalogService())
+        .refreshSource(
+            new NamespaceKey(sourceName),
+            CatalogService.REFRESH_EVERYTHING_NOW,
+            CatalogServiceImpl.UpdateType.FULL);
+    DatasetConfig dataset1 =
+        p(NamespaceService.class)
+            .get()
+            .getDataset(
+                new DatasetPath(ImmutableList.of(sourceName, "myFile.json")).toNamespaceKey());
     assertEquals("myFile.json", dataset1.getName());
     assertTrue(isComplete(dataset1));
 
     // Forget metadata
-    final String query = String.format("alter table %s.\"myFile.json\" forget metadata", sourceName);
-    JobId jobId = submitJobAndWaitUntilCompletion(
-      JobRequest.newBuilder()
-        .setSqlQuery(new SqlQuery(query, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
-        .setQueryType(QueryType.UI_INTERNAL_RUN)
-        .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
-        .build());
+    final String query =
+        String.format("alter table %s.\"myFile.json\" forget metadata", sourceName);
+    JobId jobId =
+        submitJobAndWaitUntilCompletion(
+            JobRequest.newBuilder()
+                .setSqlQuery(new SqlQuery(query, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
+                .setQueryType(QueryType.UI_INTERNAL_RUN)
+                .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+                .build());
 
     // Expect to delete the metadata record in kv store successfully
-    final JobSummary job = l(JobsService.class).getJobSummary(JobSummaryRequest.newBuilder().setJobId(JobsProtoUtil.toBuf(jobId)).build());
+    final JobSummary job =
+        l(JobsService.class)
+            .getJobSummary(
+                JobSummaryRequest.newBuilder().setJobId(JobsProtoUtil.toBuf(jobId)).build());
     assertTrue(JobsProtoUtil.toStuff(job.getJobState()) == JobState.COMPLETED);
 
     // Expect to receive an UserException if try to forget metadata on the deleted metadata in kv
@@ -993,14 +1164,17 @@ public class TestCatalogResource extends BaseTestServer {
             sourceName);
 
     // Forget metadata again
-    UserExceptionAssert.assertThatThrownBy(() -> submitJobAndWaitUntilCompletion(
-      JobRequest.newBuilder()
-        .setSqlQuery(new SqlQuery(query, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
-        .setQueryType(QueryType.UI_INTERNAL_RUN)
-        .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
-        .build()))
-      .hasErrorType(ErrorType.VALIDATION)
-      .hasMessageContaining(msg);
+    UserExceptionAssert.assertThatThrownBy(
+            () ->
+                submitJobAndWaitUntilCompletion(
+                    JobRequest.newBuilder()
+                        .setSqlQuery(
+                            new SqlQuery(query, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
+                        .setQueryType(QueryType.UI_INTERNAL_RUN)
+                        .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+                        .build()))
+        .hasErrorType(ErrorType.VALIDATION)
+        .hasMessageContaining(msg);
   }
 
   @Test
@@ -1010,65 +1184,95 @@ public class TestCatalogResource extends BaseTestServer {
     final Source newSource = createDatasetFromSource(sourceName, "myFile.json", SRC_EXTERNAL, null);
 
     // Do an inline refresh to build complete DatasetConfig before forget metadata
-    final String queryForInlineRefresh = String.format("select * from %s.\"myFile.json\"", sourceName);
-    JobId jobId = submitJobAndWaitUntilCompletion(
-      JobRequest.newBuilder()
-        .setSqlQuery(new SqlQuery(queryForInlineRefresh, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
-        .setQueryType(QueryType.UI_INTERNAL_RUN)
-        .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
-        .build());
-    JobSummary job = l(JobsService.class).getJobSummary(JobSummaryRequest.newBuilder().setJobId(JobsProtoUtil.toBuf(jobId)).build());
+    final String queryForInlineRefresh =
+        String.format("select * from %s.\"myFile.json\"", sourceName);
+    JobId jobId =
+        submitJobAndWaitUntilCompletion(
+            JobRequest.newBuilder()
+                .setSqlQuery(
+                    new SqlQuery(
+                        queryForInlineRefresh, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
+                .setQueryType(QueryType.UI_INTERNAL_RUN)
+                .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+                .build());
+    JobSummary job =
+        l(JobsService.class)
+            .getJobSummary(
+                JobSummaryRequest.newBuilder().setJobId(JobsProtoUtil.toBuf(jobId)).build());
     assertTrue(JobsProtoUtil.toStuff(job.getJobState()) == JobState.COMPLETED);
 
-    DatasetConfig dataset1 = p(NamespaceService.class).get().getDataset(new DatasetPath(ImmutableList.of(sourceName, "myFile.json")).toNamespaceKey());
+    DatasetConfig dataset1 =
+        p(NamespaceService.class)
+            .get()
+            .getDataset(
+                new DatasetPath(ImmutableList.of(sourceName, "myFile.json")).toNamespaceKey());
     assertEquals("myFile.json", dataset1.getName());
     assertTrue(isComplete(dataset1));
 
     // Forget metadata
     String query = String.format("alter table %s.\"myFile.json\" forget metadata", sourceName);
-    jobId = submitJobAndWaitUntilCompletion(
-      JobRequest.newBuilder()
-        .setSqlQuery(new SqlQuery(query, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
-        .setQueryType(QueryType.UI_INTERNAL_RUN)
-        .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
-        .build());
+    jobId =
+        submitJobAndWaitUntilCompletion(
+            JobRequest.newBuilder()
+                .setSqlQuery(new SqlQuery(query, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
+                .setQueryType(QueryType.UI_INTERNAL_RUN)
+                .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+                .build());
 
     // Expect to delete the metadata record in kv store successfully
-    job = l(JobsService.class).getJobSummary(JobSummaryRequest.newBuilder().setJobId(JobsProtoUtil.toBuf(jobId)).build());
+    job =
+        l(JobsService.class)
+            .getJobSummary(
+                JobSummaryRequest.newBuilder().setJobId(JobsProtoUtil.toBuf(jobId)).build());
     assertTrue(JobsProtoUtil.toStuff(job.getJobState()) == JobState.COMPLETED);
 
     // Emulate NameRefresh to put a shallow metadata into kv store
     DatasetPath path = new DatasetPath(ImmutableList.of(sourceName, "myFile.json"));
-    DatasetConfig dataset = new DatasetConfig()
-      .setId(new EntityId().setId(UUID.randomUUID().toString()))
-      .setType(DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER)
-      .setFullPathList(path.toPathList())
-      .setName(path.getLeaf().getName())
-      .setCreatedAt(System.currentTimeMillis())
-      .setTag(null);
+    DatasetConfig dataset =
+        new DatasetConfig()
+            .setId(new EntityId().setId(UUID.randomUUID().toString()))
+            .setType(DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER)
+            .setFullPathList(path.toPathList())
+            .setName(path.getLeaf().getName())
+            .setCreatedAt(System.currentTimeMillis())
+            .setTag(null);
     p(NamespaceService.class).get().addOrUpdateDataset(path.toNamespaceKey(), dataset);
 
     // Expect to find the metadata record when query the kv store
-    dataset1 = p(NamespaceService.class).get().getDataset(new DatasetPath(ImmutableList.of(sourceName, "myFile.json")).toNamespaceKey());
+    dataset1 =
+        p(NamespaceService.class)
+            .get()
+            .getDataset(
+                new DatasetPath(ImmutableList.of(sourceName, "myFile.json")).toNamespaceKey());
     assertEquals("myFile.json", dataset1.getName());
     // Assert shallow dataset config is incomplete
     assertFalse(isComplete(dataset1));
 
     // Forget metadata again
-    jobId = submitJobAndWaitUntilCompletion(
-      JobRequest.newBuilder()
-        .setSqlQuery(new SqlQuery(query, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
-        .setQueryType(QueryType.UI_INTERNAL_RUN)
-        .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
-        .build());
+    jobId =
+        submitJobAndWaitUntilCompletion(
+            JobRequest.newBuilder()
+                .setSqlQuery(new SqlQuery(query, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
+                .setQueryType(QueryType.UI_INTERNAL_RUN)
+                .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+                .build());
 
     // Expect to delete the metadata record in kv store successfully
-    job = l(JobsService.class).getJobSummary(JobSummaryRequest.newBuilder().setJobId(JobsProtoUtil.toBuf(jobId)).build());
+    job =
+        l(JobsService.class)
+            .getJobSummary(
+                JobSummaryRequest.newBuilder().setJobId(JobsProtoUtil.toBuf(jobId)).build());
     assertTrue(JobsProtoUtil.toStuff(job.getJobState()) == JobState.COMPLETED);
 
     // Expect to receive an NamespaceException if try to find the deleted metadata in kv store
-    assertThatThrownBy(() -> p(NamespaceService.class).get().getDataset(new DatasetPath(ImmutableList.of(sourceName, "myFile.json")).toNamespaceKey()))
-      .isInstanceOf(NamespaceException.class);
+    assertThatThrownBy(
+            () ->
+                p(NamespaceService.class)
+                    .get()
+                    .getDataset(
+                        new DatasetPath(ImmutableList.of(sourceName, "myFile.json"))
+                            .toNamespaceKey()))
+        .isInstanceOf(NamespaceException.class);
   }
 
   @Test
@@ -1090,7 +1294,9 @@ public class TestCatalogResource extends BaseTestServer {
 
     // verify that the VDS were created with the correct SQL
     for (int i = 1; i <= max; i++) {
-      DatasetConfig dataset = newNamespaceService().getDataset(new NamespaceKey(Arrays.asList(space.getName(), "vds" + i)));
+      DatasetConfig dataset =
+          newNamespaceService()
+              .getDataset(new NamespaceKey(Arrays.asList(space.getName(), "vds" + i)));
       assertEquals(dataset.getVirtualDataset().getSql(), "select " + i);
     }
 
@@ -1098,9 +1304,10 @@ public class TestCatalogResource extends BaseTestServer {
   }
 
   private Thread createVDSInSpace(String name, String spaceName, String sql) {
-    return new Thread(() -> {
-      createVDS(Arrays.asList(spaceName, name), sql);
-    });
+    return new Thread(
+        () -> {
+          createVDS(Arrays.asList(spaceName, name), sql);
+        });
   }
 
   @Test
@@ -1108,7 +1315,10 @@ public class TestCatalogResource extends BaseTestServer {
     Source source = createSource();
 
     // make sure we can fetch the source by id
-    source = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(source.getId())).buildGet(), new GenericType<Source>() {});
+    source =
+        expectSuccess(
+            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(source.getId())).buildGet(),
+            new GenericType<Source>() {});
 
     // make sure that trying to create the source again fails
     NASConf nasConf = new NASConf();
@@ -1118,34 +1328,53 @@ public class TestCatalogResource extends BaseTestServer {
     newSource.setName("catalog-test");
     newSource.setType("NAS");
     newSource.setConfig(nasConf);
-    expectStatus(Response.Status.CONFLICT, getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newSource)));
+    expectStatus(
+        Response.Status.CONFLICT,
+        getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newSource)));
 
     // edit source
     source.setAccelerationRefreshPeriodMs(0);
-    source = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(source.getId())).buildPut(Entity.json(source)), new GenericType<Source>() {});
+    source =
+        expectSuccess(
+            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(source.getId()))
+                .buildPut(Entity.json(source)),
+            new GenericType<Source>() {});
 
     assertNotNull(source.getTag());
     assertEquals((long) source.getAccelerationRefreshPeriodMs(), 0);
 
     // adding a folder to a source should fail
     Folder newFolder = new Folder(null, Arrays.asList(source.getName(), "myFolder"), null, null);
-    expectStatus(Response.Status.BAD_REQUEST, getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newFolder)));
+    expectStatus(
+        Response.Status.BAD_REQUEST,
+        getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newFolder)));
 
     // delete source
-    expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(source.getId())).buildDelete());
+    expectSuccess(
+        getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(source.getId())).buildDelete());
 
     Source finalSource = source;
-    assertThatThrownBy(() -> newNamespaceService().getSource(new NamespaceKey(finalSource.getName())))
-      .isInstanceOf(NamespaceException.class);
+    assertThatThrownBy(
+            () -> newNamespaceService().getSource(new NamespaceKey(finalSource.getName())))
+        .isInstanceOf(NamespaceException.class);
   }
 
   @Test
   public void testCreateSourceWithInternalConnectionConfTypes() {
-    String location = Path.of("file:///" + BaseTestServer.folder1.getRoot().toString() + "/" + "testCreateSourceWithInternalConnectionConfTypes/").toString();
-    Set<ConnectionConf<?, ?>> internalConnectionConfs = new HashSet<ConnectionConf<?, ?>>() {{
-      add(new PDFSConf(location));
-      add(new HomeFileConf(location, "localhost"));
-    }};
+    String location =
+        Path.of(
+                "file:///"
+                    + BaseTestServer.folder1.getRoot().toString()
+                    + "/"
+                    + "testCreateSourceWithInternalConnectionConfTypes/")
+            .toString();
+    Set<ConnectionConf<?, ?>> internalConnectionConfs =
+        new HashSet<ConnectionConf<?, ?>>() {
+          {
+            add(new PDFSConf(location));
+            add(new HomeFileConf(location, "localhost"));
+          }
+        };
 
     for (ConnectionConf<?, ?> conf : internalConnectionConfs) {
       final String sourceName = UUID.randomUUID().toString();
@@ -1154,17 +1383,28 @@ public class TestCatalogResource extends BaseTestServer {
       source.setType(conf.getType());
       source.setConfig(conf);
 
-      expectStatus(BAD_REQUEST, getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(source)));
+      expectStatus(
+          BAD_REQUEST,
+          getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(source)));
     }
   }
 
   @Test
   public void testUpdateSourceWithInternalConnectionConfTypes() {
-    String location = Path.of("file:///" + BaseTestServer.folder1.getRoot().toString() + "/" + "testUpdateSourceWithInternalConnectionConfTypes/").toString();
-    Set<ConnectionConf<?, ?>> internalConnectionConfs = new HashSet<ConnectionConf<?, ?>>() {{
-      add(new PDFSConf(location));
-      add(new HomeFileConf(location, "localhost"));
-    }};
+    String location =
+        Path.of(
+                "file:///"
+                    + BaseTestServer.folder1.getRoot().toString()
+                    + "/"
+                    + "testUpdateSourceWithInternalConnectionConfTypes/")
+            .toString();
+    Set<ConnectionConf<?, ?>> internalConnectionConfs =
+        new HashSet<ConnectionConf<?, ?>>() {
+          {
+            add(new PDFSConf(location));
+            add(new HomeFileConf(location, "localhost"));
+          }
+        };
 
     Source source = createSource();
 
@@ -1172,10 +1412,13 @@ public class TestCatalogResource extends BaseTestServer {
       source.setType(conf.getType());
       source.setConfig(conf);
 
-      expectStatus(BAD_REQUEST,
-        getBuilder(getPublicAPI(3)
-          .path(CATALOG_PATH).path(PathUtils.encodeURIComponent(source.getId())))
-          .buildPut(Entity.json(source)));
+      expectStatus(
+          BAD_REQUEST,
+          getBuilder(
+                  getPublicAPI(3)
+                      .path(CATALOG_PATH)
+                      .path(PathUtils.encodeURIComponent(source.getId())))
+              .buildPut(Entity.json(source)));
     }
   }
 
@@ -1188,7 +1431,13 @@ public class TestCatalogResource extends BaseTestServer {
     assertNotNull(id, "Failed to find json directory");
 
     // deleting a folder on a source should fail
-    expectStatus(Response.Status.BAD_REQUEST, getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(com.dremio.common.utils.PathUtils.encodeURIComponent(id))).buildDelete());
+    expectStatus(
+        Response.Status.BAD_REQUEST,
+        getBuilder(
+                getPublicAPI(3)
+                    .path(CATALOG_PATH)
+                    .path(com.dremio.common.utils.PathUtils.encodeURIComponent(id)))
+            .buildDelete());
   }
 
   @Test
@@ -1200,7 +1449,14 @@ public class TestCatalogResource extends BaseTestServer {
     assertNotNull(id, "Failed to find json directory");
 
     // load the json dir
-    Folder folder = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(com.dremio.common.utils.PathUtils.encodeURIComponent(id))).buildGet(), new GenericType<Folder>() {});
+    Folder folder =
+        expectSuccess(
+            getBuilder(
+                    getPublicAPI(3)
+                        .path(CATALOG_PATH)
+                        .path(com.dremio.common.utils.PathUtils.encodeURIComponent(id)))
+                .buildGet(),
+            new GenericType<Folder>() {});
     assertEquals(folder.getChildren().size(), 19);
 
     String fileId = null;
@@ -1208,7 +1464,8 @@ public class TestCatalogResource extends BaseTestServer {
     for (CatalogItem item : folder.getChildren()) {
       List<String> path = item.getPath();
       // get the numbers.json file
-      if (item.getType() == CatalogItem.CatalogItemType.FILE && path.get(path.size() - 1).equals("numbers.json")) {
+      if (item.getType() == CatalogItem.CatalogItemType.FILE
+          && path.get(path.size() - 1).equals("numbers.json")) {
         fileId = item.getId();
         break;
       }
@@ -1217,64 +1474,142 @@ public class TestCatalogResource extends BaseTestServer {
     assertNotNull(fileId, "Failed to find numbers.json file");
 
     // load the file
-    File file = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(com.dremio.common.utils.PathUtils.encodeURIComponent(fileId))).buildGet(), new GenericType<File>() {});
+    File file =
+        expectSuccess(
+            getBuilder(
+                    getPublicAPI(3)
+                        .path(CATALOG_PATH)
+                        .path(com.dremio.common.utils.PathUtils.encodeURIComponent(fileId)))
+                .buildGet(),
+            new GenericType<File>() {});
 
     // promote the file (dac/backend/src/test/resources/json/numbers.json)
-    Dataset dataset = createPDS(CatalogServiceHelper.getPathFromInternalId(file.getId()), new JsonFileConfig());
+    Dataset dataset =
+        createPDS(CatalogServiceHelper.getPathFromInternalId(file.getId()), new JsonFileConfig());
 
-    dataset = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(com.dremio.common.utils.PathUtils.encodeURIComponent(fileId))).buildPost(Entity.json(dataset)), new GenericType<Dataset>() {});
+    dataset =
+        expectSuccess(
+            getBuilder(
+                    getPublicAPI(3)
+                        .path(CATALOG_PATH)
+                        .path(com.dremio.common.utils.PathUtils.encodeURIComponent(fileId)))
+                .buildPost(Entity.json(dataset)),
+            new GenericType<Dataset>() {});
 
     // load the dataset
-    dataset = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildGet(), new GenericType<Dataset>() {});
+    dataset =
+        expectSuccess(
+            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildGet(),
+            new GenericType<Dataset>() {});
 
     // verify listing
-    folder = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(com.dremio.common.utils.PathUtils.encodeURIComponent(id))).buildGet(), new GenericType<Folder>() {});
+    folder =
+        expectSuccess(
+            getBuilder(
+                    getPublicAPI(3)
+                        .path(CATALOG_PATH)
+                        .path(com.dremio.common.utils.PathUtils.encodeURIComponent(id)))
+                .buildGet(),
+            new GenericType<Folder>() {});
     assertEquals(folder.getChildren().size(), 19);
 
     // unpromote file
-    expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildDelete());
+    expectSuccess(
+        getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildDelete());
 
     // dataset should no longer exist
-    expectStatus(Response.Status.NOT_FOUND, getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildGet());
+    expectStatus(
+        Response.Status.NOT_FOUND,
+        getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildGet());
 
     // verify listing
-    folder = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(com.dremio.common.utils.PathUtils.encodeURIComponent(id))).buildGet(), new GenericType<Folder>() {});
+    folder =
+        expectSuccess(
+            getBuilder(
+                    getPublicAPI(3)
+                        .path(CATALOG_PATH)
+                        .path(com.dremio.common.utils.PathUtils.encodeURIComponent(id)))
+                .buildGet(),
+            new GenericType<Folder>() {});
     assertEquals(folder.getChildren().size(), 19);
 
-    // promote a folder that contains several csv files (dac/backend/src/test/resources/datasets/folderdataset)
+    // promote a folder that contains several csv files
+    // (dac/backend/src/test/resources/datasets/folderdataset)
     String folderId = getFolderIdByName(source.getChildren(), "datasets");
     assertNotNull(folderId, "Failed to find datasets directory");
 
-    Folder dsFolder = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(com.dremio.common.utils.PathUtils.encodeURIComponent(folderId))).buildGet(), new GenericType<Folder>() {});
+    Folder dsFolder =
+        expectSuccess(
+            getBuilder(
+                    getPublicAPI(3)
+                        .path(CATALOG_PATH)
+                        .path(com.dremio.common.utils.PathUtils.encodeURIComponent(folderId)))
+                .buildGet(),
+            new GenericType<Folder>() {});
 
     String folderDatasetId = getFolderIdByName(dsFolder.getChildren(), "folderdataset");
     assertNotNull(folderDatasetId, "Failed to find folderdataset directory");
 
     // we want to use the path that the backend gives us so fetch the full folder
-    folder = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(com.dremio.common.utils.PathUtils.encodeURIComponent(folderDatasetId))).buildGet(), new GenericType<Folder>() {});
+    folder =
+        expectSuccess(
+            getBuilder(
+                    getPublicAPI(3)
+                        .path(CATALOG_PATH)
+                        .path(
+                            com.dremio.common.utils.PathUtils.encodeURIComponent(folderDatasetId)))
+                .buildGet(),
+            new GenericType<Folder>() {});
 
     ParquetFileConfig parquetFileConfig = new ParquetFileConfig();
-    Dataset.RefreshSettings refreshSettings = new Dataset.RefreshSettings(null, 3600000L, 10800000L, RefreshMethod.INCREMENTAL, false, false);
+    Dataset.RefreshSettings refreshSettings =
+        new Dataset.RefreshSettings(
+            RefreshPolicyType.PERIOD,
+            null,
+            3600000L,
+            null,
+            10800000L,
+            RefreshMethod.INCREMENTAL,
+            false,
+            false);
     dataset = createPDS(folder.getPath(), parquetFileConfig, refreshSettings);
 
-    Dataset datasetPromoted = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(com.dremio.common.utils.PathUtils.encodeURIComponent(folderDatasetId))).buildPost(Entity.json(dataset)), new GenericType<Dataset>() {});
+    Dataset datasetPromoted =
+        expectSuccess(
+            getBuilder(
+                    getPublicAPI(3)
+                        .path(CATALOG_PATH)
+                        .path(
+                            com.dremio.common.utils.PathUtils.encodeURIComponent(folderDatasetId)))
+                .buildPost(Entity.json(dataset)),
+            new GenericType<Dataset>() {});
 
     // load the promoted dataset
-    dataset = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(datasetPromoted.getId())).buildGet(), new GenericType<Dataset>() {});
+    dataset =
+        expectSuccess(
+            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(datasetPromoted.getId())).buildGet(),
+            new GenericType<Dataset>() {});
 
     // Verify the response from POST matches the response from GET
     assertEquals(dataset.getId(), datasetPromoted.getId());
     assertEquals(RefreshMethod.INCREMENTAL, dataset.getAccelerationRefreshPolicy().getMethod());
-    assertEquals(RefreshMethod.INCREMENTAL, datasetPromoted.getAccelerationRefreshPolicy().getMethod());
-    assertEquals(dataset.getAccelerationRefreshPolicy().getRefreshPeriodMs(), datasetPromoted.getAccelerationRefreshPolicy().getRefreshPeriodMs());
-    assertEquals(dataset.getAccelerationRefreshPolicy().getGracePeriodMs(), datasetPromoted.getAccelerationRefreshPolicy().getGracePeriodMs());
+    assertEquals(
+        RefreshMethod.INCREMENTAL, datasetPromoted.getAccelerationRefreshPolicy().getMethod());
+    assertEquals(
+        dataset.getAccelerationRefreshPolicy().getRefreshPeriodMs(),
+        datasetPromoted.getAccelerationRefreshPolicy().getRefreshPeriodMs());
+    assertEquals(
+        dataset.getAccelerationRefreshPolicy().getGracePeriodMs(),
+        datasetPromoted.getAccelerationRefreshPolicy().getGracePeriodMs());
 
     // unpromote the folder
-    expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildDelete());
+    expectSuccess(
+        getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildDelete());
 
     // dataset should no longer exist
-    expectStatus(Response.Status.NOT_FOUND, getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildGet());
-
+    expectStatus(
+        Response.Status.NOT_FOUND,
+        getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildGet());
   }
 
   @Test
@@ -1290,7 +1625,10 @@ public class TestCatalogResource extends BaseTestServer {
     newSource.setConfig(fakeConf);
 
     // create the source
-    Source source = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newSource)), new GenericType<Source>() {});
+    Source source =
+        expectSuccess(
+            getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newSource)),
+            new GenericType<Source>() {});
 
     FakeSource config = (FakeSource) source.getConfig();
 
@@ -1302,7 +1640,11 @@ public class TestCatalogResource extends BaseTestServer {
     config.isAwesome = false;
     source.setConfig(config);
 
-    source = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(source.getId())).buildPut(Entity.json(source)), new GenericType<Source>() {});
+    source =
+        expectSuccess(
+            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(source.getId()))
+                .buildPut(Entity.json(source)),
+            new GenericType<Source>() {});
     config = (FakeSource) source.getConfig();
 
     assertFalse(config.isAwesome);
@@ -1319,13 +1661,15 @@ public class TestCatalogResource extends BaseTestServer {
     newSource.setConfig(nasConf);
 
     // create the source
-    return expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newSource)),  new GenericType<Source>() {});
+    return expectSuccess(
+        getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newSource)),
+        new GenericType<Source>() {});
   }
 
   @After
   public void after() {
     CatalogServiceImpl catalog = (CatalogServiceImpl) l(CatalogService.class);
-    if(catalog.getManagedSource("catalog-test") != null) {
+    if (catalog.getManagedSource("catalog-test") != null) {
       catalog.deleteSource("catalog-test");
     }
   }
@@ -1337,52 +1681,83 @@ public class TestCatalogResource extends BaseTestServer {
     String homeId = null;
 
     for (CatalogItem item : items.getData()) {
-      if (item.getType() == CatalogItem.CatalogItemType.CONTAINER && item.getContainerType() == CatalogItem.ContainerSubType.HOME) {
+      if (item.getType() == CatalogItem.CatalogItemType.CONTAINER
+          && item.getContainerType() == CatalogItem.ContainerSubType.HOME) {
         homeId = item.getId();
         break;
       }
     }
 
     // load home space
-    Home home = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(homeId)).buildGet(), new GenericType<Home>() {});
+    Home home =
+        expectSuccess(
+            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(homeId)).buildGet(),
+            new GenericType<Home>() {});
 
     int size = home.getChildren().size();
 
     // add a folder
     Folder newFolder = new Folder(null, Arrays.asList(home.getName(), "myFolder"), null, null);
-    Folder folder = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newFolder)), new GenericType<Folder>() {});
+    Folder folder =
+        expectSuccess(
+            getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newFolder)),
+            new GenericType<Folder>() {});
     assertEquals(newFolder.getPath(), folder.getPath());
 
     // make sure folder shows up under space
-    home = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(homeId)).buildGet(), new GenericType<Home>() {});
+    home =
+        expectSuccess(
+            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(homeId)).buildGet(),
+            new GenericType<Home>() {});
     assertEquals(home.getChildren().size(), size + 1);
 
     // make sure that trying to create the folder again fails
-    expectStatus(Response.Status.CONFLICT, getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newFolder)));
+    expectStatus(
+        Response.Status.CONFLICT,
+        getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newFolder)));
 
     // load folder
-    folder = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(folder.getId())).buildGet(), new GenericType<Folder>() {});
+    folder =
+        expectSuccess(
+            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(folder.getId())).buildGet(),
+            new GenericType<Folder>() {});
 
     // store a VDS in the folder
-    Dataset vds = getVDSConfig(Arrays.asList(home.getName(), "myFolder", "myVDS"), "select * from sys.version");
+    Dataset vds =
+        getVDSConfig(
+            Arrays.asList(home.getName(), "myFolder", "myVDS"), "select * from sys.version");
 
-    Dataset newVDS = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(vds)), new GenericType<Dataset>() {});
+    Dataset newVDS =
+        expectSuccess(
+            getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(vds)),
+            new GenericType<Dataset>() {});
 
     // folder should have children now
-    folder = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(folder.getId())).buildGet(), new GenericType<Folder>() {});
+    folder =
+        expectSuccess(
+            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(folder.getId())).buildGet(),
+            new GenericType<Folder>() {});
     assertEquals(folder.getChildren().size(), 1);
 
     // delete vds
-    expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(newVDS.getId())).buildDelete());
+    expectSuccess(
+        getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(newVDS.getId())).buildDelete());
 
     // folder should have no children now
-    folder = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(folder.getId())).buildGet(), new GenericType<Folder>() {});
+    folder =
+        expectSuccess(
+            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(folder.getId())).buildGet(),
+            new GenericType<Folder>() {});
     assertEquals(folder.getChildren().size(), 0);
 
     // delete folder
-    expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(folder.getId())).buildDelete());
+    expectSuccess(
+        getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(folder.getId())).buildDelete());
 
-    home = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(homeId)).buildGet(), new GenericType<Home>() {});
+    home =
+        expectSuccess(
+            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(homeId)).buildGet(),
+            new GenericType<Home>() {});
     assertEquals(home.getChildren().size(), size);
   }
 
@@ -1391,72 +1766,143 @@ public class TestCatalogResource extends BaseTestServer {
     Source createdSource = createSource();
 
     // test getting a source by name
-    Source source = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path("by-path").path(createdSource.getName())).buildGet(), new GenericType<Source>() {});
+    Source source =
+        expectSuccess(
+            getBuilder(
+                    getPublicAPI(3)
+                        .path(CATALOG_PATH)
+                        .path("by-path")
+                        .path(createdSource.getName()))
+                .buildGet(),
+            new GenericType<Source>() {});
     assertEquals(source.getId(), createdSource.getId());
 
     // test getting a folder by path
-    expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path("by-path").path(createdSource.getName()).path("json")).buildGet(), new GenericType<Folder>() {});
+    expectSuccess(
+        getBuilder(
+                getPublicAPI(3)
+                    .path(CATALOG_PATH)
+                    .path("by-path")
+                    .path(createdSource.getName())
+                    .path("json"))
+            .buildGet(),
+        new GenericType<Folder>() {});
 
     // test getting a file with a url character in name (?)
-    expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path("by-path").path(createdSource.getName()).path("testfiles").path("file_with_?.json")).buildGet(), new GenericType<File>() {});
+    expectSuccess(
+        getBuilder(
+                getPublicAPI(3)
+                    .path(CATALOG_PATH)
+                    .path("by-path")
+                    .path(createdSource.getName())
+                    .path("testfiles")
+                    .path("file_with_?.json"))
+            .buildGet(),
+        new GenericType<File>() {});
   }
 
   @Test
   public void testRepromote() throws Exception {
     final Source source = createSource();
 
-    // promote a folder that contains several csv files (dac/backend/src/test/resources/datasets/folderdataset)
+    // promote a folder that contains several csv files
+    // (dac/backend/src/test/resources/datasets/folderdataset)
     final String folderId = getFolderIdByName(source.getChildren(), "datasets");
     assertNotNull(folderId, "Failed to find datasets directory");
 
-    Folder dsFolder = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(com.dremio.common.utils.PathUtils.encodeURIComponent(folderId))).buildGet(), new GenericType<Folder>() {});
+    Folder dsFolder =
+        expectSuccess(
+            getBuilder(
+                    getPublicAPI(3)
+                        .path(CATALOG_PATH)
+                        .path(com.dremio.common.utils.PathUtils.encodeURIComponent(folderId)))
+                .buildGet(),
+            new GenericType<Folder>() {});
 
     final String folderDatasetId = getFolderIdByName(dsFolder.getChildren(), "folderdataset");
     assertNotNull(folderDatasetId, "Failed to find folderdataset directory");
 
     // we want to use the path that the backend gives us so fetch the full folder
-    Folder folder = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(com.dremio.common.utils.PathUtils.encodeURIComponent(folderDatasetId))).buildGet(), new GenericType<Folder>() {});
+    Folder folder =
+        expectSuccess(
+            getBuilder(
+                    getPublicAPI(3)
+                        .path(CATALOG_PATH)
+                        .path(
+                            com.dremio.common.utils.PathUtils.encodeURIComponent(folderDatasetId)))
+                .buildGet(),
+            new GenericType<Folder>() {});
 
     final ParquetFileConfig parquetFileConfig = new ParquetFileConfig();
     Dataset dataset = createPDS(folder.getPath(), parquetFileConfig);
 
-    dataset = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(PathUtils.encodeURIComponent(folderDatasetId))).buildPost(Entity.json(dataset)), new GenericType<Dataset>() {});
+    dataset =
+        expectSuccess(
+            getBuilder(
+                    getPublicAPI(3)
+                        .path(CATALOG_PATH)
+                        .path(PathUtils.encodeURIComponent(folderDatasetId)))
+                .buildPost(Entity.json(dataset)),
+            new GenericType<Dataset>() {});
 
     // load the promoted dataset
-    dataset = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildGet(), new GenericType<Dataset>() {});
+    dataset =
+        expectSuccess(
+            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildGet(),
+            new GenericType<Dataset>() {});
 
     // unpromote the folder
-    expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildDelete());
+    expectSuccess(
+        getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildDelete());
 
     // dataset should no longer exist
-    expectStatus(Response.Status.NOT_FOUND, getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildGet());
+    expectStatus(
+        Response.Status.NOT_FOUND,
+        getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildGet());
 
     // re-promote the folder by using by-path
-    WebTarget target = getPublicAPI(3).path(CATALOG_PATH)
-      .path("by-path")
-      .path("catalog-test")
-      .path("datasets")
-      .path("folderdataset");
+    WebTarget target =
+        getPublicAPI(3)
+            .path(CATALOG_PATH)
+            .path("by-path")
+            .path("catalog-test")
+            .path("datasets")
+            .path("folderdataset");
 
     folder = expectSuccess(getBuilder(target).buildGet(), new GenericType<Folder>() {});
     dataset = createPDS(folder.getPath(), parquetFileConfig);
-    dataset = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(folder.getId())).buildPost(Entity.json(dataset)), new GenericType<Dataset>() {});
+    dataset =
+        expectSuccess(
+            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(folder.getId()))
+                .buildPost(Entity.json(dataset)),
+            new GenericType<Dataset>() {});
 
     // unpromote the folder
-    expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildDelete());
-
+    expectSuccess(
+        getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildDelete());
   }
 
   @Test
   public void testErrors() throws Exception {
     // test non-existent id
-    expectStatus(Response.Status.NOT_FOUND, getBuilder(getPublicAPI(3).path(CATALOG_PATH).path("bad-id")).buildGet());
+    expectStatus(
+        Response.Status.NOT_FOUND,
+        getBuilder(getPublicAPI(3).path(CATALOG_PATH).path("bad-id")).buildGet());
 
     // test non-existent internal id
-    expectStatus(Response.Status.NOT_FOUND, getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(CatalogServiceHelper.generateInternalId(Arrays.asList("bad-id")))).buildGet());
+    expectStatus(
+        Response.Status.NOT_FOUND,
+        getBuilder(
+                getPublicAPI(3)
+                    .path(CATALOG_PATH)
+                    .path(CatalogServiceHelper.generateInternalId(Arrays.asList("bad-id"))))
+            .buildGet());
 
     // test non-existent path
-    expectStatus(Response.Status.NOT_FOUND, getBuilder(getPublicAPI(3).path(CATALOG_PATH).path("by-path").path("doesnot").path("exist")).buildGet());
+    expectStatus(
+        Response.Status.NOT_FOUND,
+        getBuilder(getPublicAPI(3).path(CATALOG_PATH).path("by-path").path("doesnot").path("exist"))
+            .buildGet());
   }
 
   @Test
@@ -1466,16 +1912,40 @@ public class TestCatalogResource extends BaseTestServer {
     createVDS(Arrays.asList(space.getName(), "vds1"), "select * from sys.version");
     createVDS(Arrays.asList(space.getName(), "vds2"), "select * from sys.version");
 
-    Space result = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path("by-path").path(space.getName())).buildGet(), new GenericType<Space>() {});
+    Space result =
+        expectSuccess(
+            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path("by-path").path(space.getName()))
+                .buildGet(),
+            new GenericType<Space>() {});
     assertEquals(2, result.getChildren().size());
 
-    result = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path("by-path").path(space.getName()).queryParam("exclude", "children")).buildGet(), new GenericType<Space>() {});
+    result =
+        expectSuccess(
+            getBuilder(
+                    getPublicAPI(3)
+                        .path(CATALOG_PATH)
+                        .path("by-path")
+                        .path(space.getName())
+                        .queryParam("exclude", "children"))
+                .buildGet(),
+            new GenericType<Space>() {});
     assertEquals(0, result.getChildren().size());
 
-    result = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(space.getId())).buildGet(), new GenericType<Space>() {});
+    result =
+        expectSuccess(
+            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(space.getId())).buildGet(),
+            new GenericType<Space>() {});
     assertEquals(2, result.getChildren().size());
 
-    result = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(space.getId()).queryParam("exclude", "children")).buildGet(), new GenericType<Space>() {});
+    result =
+        expectSuccess(
+            getBuilder(
+                    getPublicAPI(3)
+                        .path(CATALOG_PATH)
+                        .path(space.getId())
+                        .queryParam("exclude", "children"))
+                .buildGet(),
+            new GenericType<Space>() {});
     assertEquals(0, result.getChildren().size());
   }
 
@@ -1488,55 +1958,112 @@ public class TestCatalogResource extends BaseTestServer {
     assertNotNull(id, "Failed to find json directory");
 
     // load the json dir
-    Folder folder = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(com.dremio.common.utils.PathUtils.encodeURIComponent(id))).buildGet(), new GenericType<Folder>() {});
+    Folder folder =
+        expectSuccess(
+            getBuilder(
+                    getPublicAPI(3)
+                        .path(CATALOG_PATH)
+                        .path(com.dremio.common.utils.PathUtils.encodeURIComponent(id)))
+                .buildGet(),
+            new GenericType<Folder>() {});
     assertEquals(folder.getChildren().size(), 19);
 
-    // promote a folder that contains several csv files (dac/backend/src/test/resources/datasets/folderdataset)
+    // promote a folder that contains several csv files
+    // (dac/backend/src/test/resources/datasets/folderdataset)
     String folderId = getFolderIdByName(source.getChildren(), "datasets");
     assertNotNull(folderId, "Failed to find datasets directory");
 
-    Folder dsFolder = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(com.dremio.common.utils.PathUtils.encodeURIComponent(folderId))).buildGet(), new GenericType<Folder>() {});
+    Folder dsFolder =
+        expectSuccess(
+            getBuilder(
+                    getPublicAPI(3)
+                        .path(CATALOG_PATH)
+                        .path(com.dremio.common.utils.PathUtils.encodeURIComponent(folderId)))
+                .buildGet(),
+            new GenericType<Folder>() {});
 
     String folderDatasetId = getFolderIdByName(dsFolder.getChildren(), "folderdataset");
     assertNotNull(folderDatasetId, "Failed to find folderdataset directory");
 
     // we want to use the path that the backend gives us so fetch the full folder
-    folder = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(com.dremio.common.utils.PathUtils.encodeURIComponent(folderDatasetId))).buildGet(), new GenericType<Folder>() {});
+    folder =
+        expectSuccess(
+            getBuilder(
+                    getPublicAPI(3)
+                        .path(CATALOG_PATH)
+                        .path(
+                            com.dremio.common.utils.PathUtils.encodeURIComponent(folderDatasetId)))
+                .buildGet(),
+            new GenericType<Folder>() {});
 
     ParquetFileConfig parquetFileConfig = new ParquetFileConfig();
-    Dataset.RefreshSettings refreshSettings = new Dataset.RefreshSettings(null, 5000L, 5000L, RefreshMethod.INCREMENTAL, false, false);
+    Dataset.RefreshSettings refreshSettings =
+        new Dataset.RefreshSettings(
+            RefreshPolicyType.PERIOD,
+            null,
+            5000L,
+            null,
+            5000L,
+            RefreshMethod.INCREMENTAL,
+            false,
+            false);
 
     Dataset dataset = createPDS(folder.getPath(), parquetFileConfig, refreshSettings);
 
-    dataset = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(com.dremio.common.utils.PathUtils.encodeURIComponent(folderDatasetId))).buildPost(Entity.json(dataset)), new GenericType<Dataset>() {});
+    dataset =
+        expectSuccess(
+            getBuilder(
+                    getPublicAPI(3)
+                        .path(CATALOG_PATH)
+                        .path(
+                            com.dremio.common.utils.PathUtils.encodeURIComponent(folderDatasetId)))
+                .buildPost(Entity.json(dataset)),
+            new GenericType<Dataset>() {});
 
     // load the promoted dataset
-    dataset = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildGet(), new GenericType<Dataset>() {});
+    dataset =
+        expectSuccess(
+            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildGet(),
+            new GenericType<Dataset>() {});
     assertEquals(RefreshMethod.INCREMENTAL, dataset.getAccelerationRefreshPolicy().getMethod());
     assertFalse(dataset.getAccelerationRefreshPolicy().getNeverRefresh());
     assertFalse(dataset.getAccelerationRefreshPolicy().getNeverExpire());
 
     // update reflection settings
-    refreshSettings = new Dataset.RefreshSettings(null, 500L, 500L, RefreshMethod.FULL, true, true);
+    refreshSettings =
+        new Dataset.RefreshSettings(
+            RefreshPolicyType.PERIOD, null, 500L, null, 500L, RefreshMethod.FULL, true, true);
     Dataset newPDS = createPDS(dataset, refreshSettings);
-    dataset = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildPut(Entity.json(newPDS)), new GenericType<Dataset>() {});
+    dataset =
+        expectSuccess(
+            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId()))
+                .buildPut(Entity.json(newPDS)),
+            new GenericType<Dataset>() {});
     assertEquals(RefreshMethod.FULL, dataset.getAccelerationRefreshPolicy().getMethod());
     assertTrue(dataset.getAccelerationRefreshPolicy().getNeverRefresh());
     assertTrue(dataset.getAccelerationRefreshPolicy().getNeverExpire());
-    assertEquals(refreshSettings.getRefreshPeriodMs(), dataset.getAccelerationRefreshPolicy().getRefreshPeriodMs());
-    assertEquals(refreshSettings.getGracePeriodMs(), dataset.getAccelerationRefreshPolicy().getGracePeriodMs());
+    assertEquals(
+        refreshSettings.getRefreshPeriodMs(),
+        dataset.getAccelerationRefreshPolicy().getRefreshPeriodMs());
+    assertEquals(
+        refreshSettings.getGracePeriodMs(),
+        dataset.getAccelerationRefreshPolicy().getGracePeriodMs());
 
     // unpromote the folder
-    expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildDelete());
+    expectSuccess(
+        getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildDelete());
 
     // dataset should no longer exist
-    expectStatus(Response.Status.NOT_FOUND, getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildGet());
+    expectStatus(
+        Response.Status.NOT_FOUND,
+        getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildGet());
   }
 
   public static String getFolderIdByName(List<CatalogItem> items, String nameToFind) {
     for (CatalogItem item : items) {
       List<String> path = item.getPath();
-      if (item.getContainerType() == CatalogItem.ContainerSubType.FOLDER && path.get(path.size() - 1).equals(nameToFind)) {
+      if (item.getContainerType() == CatalogItem.ContainerSubType.FOLDER
+          && path.get(path.size() - 1).equals(nameToFind)) {
         return item.getId();
       }
     }
@@ -1548,56 +2075,57 @@ public class TestCatalogResource extends BaseTestServer {
     return createPDS(path, format, null);
   }
 
-  private Dataset createPDS(List<String> path, FileFormat format, Dataset.RefreshSettings refreshSettings) {
+  private Dataset createPDS(
+      List<String> path, FileFormat format, Dataset.RefreshSettings refreshSettings) {
     return new Dataset(
-      null,
-      Dataset.DatasetType.PHYSICAL_DATASET,
-      path,
-      null,
-      null,
-      null,
-      refreshSettings,
-      null,
-      null,
-      format,
-      null
-    );
+        null,
+        Dataset.DatasetType.PHYSICAL_DATASET,
+        path,
+        null,
+        null,
+        null,
+        refreshSettings,
+        null,
+        null,
+        format,
+        null);
   }
 
   private Dataset createPDS(Dataset dataset, Dataset.RefreshSettings refreshSettings) {
     return new Dataset(
-      dataset.getId(),
-      dataset.getType(),
-      dataset.getPath(),
-      dataset.getCreatedAt(),
-      dataset.getTag(),
-      refreshSettings,
-      dataset.getSql(),
-      dataset.getSqlContext(),
-      dataset.getFormat(),
-      dataset.getApproximateStatisticsAllowed()
-    );
+        dataset.getId(),
+        dataset.getType(),
+        dataset.getPath(),
+        ImmutableList.of(),
+        dataset.getCreatedAt(),
+        dataset.getTag(),
+        refreshSettings,
+        dataset.getSql(),
+        dataset.getSqlContext(),
+        dataset.getFormat(),
+        dataset.getApproximateStatisticsAllowed());
   }
 
-  private Dataset getVDSConfig(List<String> path, String sql) {
+  public static Dataset getVDSConfig(List<String> path, String sql) {
     return new Dataset(
-      null,
-      Dataset.DatasetType.VIRTUAL_DATASET,
-      path,
-      null,
-      null,
-      null,
-      null,
-      sql,
-      null,
-      null,
-      null
-    );
+        null,
+        Dataset.DatasetType.VIRTUAL_DATASET,
+        path,
+        null,
+        null,
+        null,
+        null,
+        sql,
+        null,
+        null,
+        null);
   }
 
   private Dataset createVDS(List<String> path, String sql) {
     Dataset vds = getVDSConfig(path, sql);
-    return expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(vds)), new GenericType<Dataset>() {});
+    return expectSuccess(
+        getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(vds)),
+        new GenericType<Dataset>() {});
   }
 
   private Folder getFolderConfig(List<String> path) {
@@ -1609,14 +2137,16 @@ public class TestCatalogResource extends BaseTestServer {
   }
 
   private Folder createFolder(Folder folder) {
-    return expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(folder)), new GenericType<Folder>() {});
+    return expectSuccess(
+        getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(folder)),
+        new GenericType<Folder>() {});
   }
 
   private void runQuery(String query) {
     submitJobAndWaitUntilCompletion(
-    JobRequest.newBuilder()
-      .setSqlQuery(new SqlQuery(query, DEFAULT_USERNAME))
-      .setQueryType(QueryType.UI_INTERNAL_RUN)
-      .build());
+        JobRequest.newBuilder()
+            .setSqlQuery(new SqlQuery(query, DEFAULT_USERNAME))
+            .setQueryType(QueryType.UI_INTERNAL_RUN)
+            .build());
   }
 }

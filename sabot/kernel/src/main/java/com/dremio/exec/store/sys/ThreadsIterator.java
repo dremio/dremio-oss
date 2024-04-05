@@ -15,11 +15,6 @@
  */
 package com.dremio.exec.store.sys;
 
-import java.lang.management.ManagementFactory;
-import java.lang.management.ThreadInfo;
-import java.lang.management.ThreadMXBean;
-import java.util.Iterator;
-
 import com.dremio.common.VM;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.server.SabotContext;
@@ -30,12 +25,15 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Predicates;
 import com.google.common.collect.Iterators;
 import com.google.common.primitives.Longs;
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadInfo;
+import java.lang.management.ThreadMXBean;
+import java.util.Iterator;
 
-/**
- * Iterator that returns a {@link ThreadSummary} for every thread in this JVM
- */
+/** Iterator that returns a {@link ThreadSummary} for every thread in this JVM */
 public class ThreadsIterator implements Iterator<Object> {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ThreadsIterator.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ThreadsIterator.class);
 
   private final SabotContext dbContext;
   private final Iterator<ThreadInfo> threadInfoIterator;
@@ -49,17 +47,21 @@ public class ThreadsIterator implements Iterator<Object> {
 
     final Iterator<Long> threadIdIterator = Longs.asList(ids).iterator();
 
-    this.threadInfoIterator = Iterators.filter(
-      Iterators.transform(threadIdIterator, new Function<Long, ThreadInfo>() {
+    this.threadInfoIterator =
+        Iterators.filter(
+            Iterators.transform(
+                threadIdIterator,
+                new Function<Long, ThreadInfo>() {
 
-        @Override
-        public ThreadInfo apply(Long input) {
-          return threadMXBean.getThreadInfo(input, 100);
-        }
-      }),
-      Predicates.notNull());
+                  @Override
+                  public ThreadInfo apply(Long input) {
+                    return threadMXBean.getThreadInfo(input, 100);
+                  }
+                }),
+            Predicates.notNull());
 
-    logger.debug("number of threads = {}, number of cores = {}", ids.length, VM.availableProcessors());
+    logger.debug(
+        "number of threads = {}, number of cores = {}", ids.length, VM.availableProcessors());
 
     this.stats = dbContext.getWorkStatsProvider().get();
   }
@@ -74,17 +76,18 @@ public class ThreadsIterator implements Iterator<Object> {
     ThreadInfo currentThread = threadInfoIterator.next();
     final NodeEndpoint endpoint = dbContext.getEndpoint();
     final long id = currentThread.getThreadId();
-    return new ThreadSummary(endpoint.getAddress(),
-            endpoint.getFabricPort(),
-            currentThread.getThreadName(),
-            currentThread.getThreadId(),
-            currentThread.isInNative(),
-            currentThread.isSuspended(),
-            currentThread.getThreadState().name(),
-            stats.getCpuTrailingAverage(id, 1),
-            stats.getUserTrailingAverage(id, 1),
-            VM.availableProcessors(),
-            getStackTrace(currentThread));
+    return new ThreadSummary(
+        endpoint.getAddress(),
+        endpoint.getFabricPort(),
+        currentThread.getThreadName(),
+        currentThread.getThreadId(),
+        currentThread.isInNative(),
+        currentThread.isSuspended(),
+        currentThread.getThreadState().name(),
+        stats.getCpuTrailingAverage(id, 1),
+        stats.getUserTrailingAverage(id, 1),
+        VM.availableProcessors(),
+        getStackTrace(currentThread));
   }
 
   private String getStackTrace(ThreadInfo currentThread) {
@@ -99,32 +102,40 @@ public class ThreadsIterator implements Iterator<Object> {
 
   public static class ThreadSummary {
     public final String node_id;
-    /**
-     * The SabotNode hostname
-     */
+
+    /** The SabotNode hostname */
     public final String hostname;
 
-    /**
-     * The SabotNode user port
-     */
+    /** The SabotNode user port */
     public final long fabric_port;
+
     public final String thread_name;
     public final long thread_id;
     public final boolean is_native;
     public final boolean suspended;
     public final String thread_state;
-    /**
-     * Thread cpu time during last second. Between 0 and 100
-     */
+
+    /** Thread cpu time during last second. Between 0 and 100 */
     public final Integer cpu_time;
-    /**
-     * Thread user cpu time during last second. Between 0 and 100
-     */
+
+    /** Thread user cpu time during last second. Between 0 and 100 */
     public final Integer user_time;
+
     public final Integer cores;
     public final String stack_trace;
 
-    public ThreadSummary(String hostname, long fabric_port, String thread_name, long thread_id, boolean is_native, boolean suspended, String thread_state, Integer cpu_time, Integer user_time, Integer cores, String stack_trace) {
+    public ThreadSummary(
+        String hostname,
+        long fabric_port,
+        String thread_name,
+        long thread_id,
+        boolean is_native,
+        boolean suspended,
+        String thread_state,
+        Integer cpu_time,
+        Integer user_time,
+        Integer cores,
+        String stack_trace) {
       this.hostname = hostname;
       this.fabric_port = fabric_port;
       this.thread_name = thread_name;

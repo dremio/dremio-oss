@@ -15,9 +15,8 @@
  */
 package com.dremio.datastore.api;
 
-import org.immutables.value.Value.Immutable;
-
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import org.immutables.value.Value.Immutable;
 
 /**
  * Representation of a document in the KV Store.

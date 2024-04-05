@@ -17,9 +17,7 @@ package com.dremio.service.jobtelemetry.server.store;
 
 import com.dremio.service.jobtelemetry.server.TempLegacyKVStoreProviderCreator;
 
-/**
- * Test for local profile store.
- */
+/** Test for local profile store. */
 public class TestLocalProfileStore extends AbstractTestProfileStore {
 
   @Override

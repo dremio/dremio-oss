@@ -17,18 +17,14 @@ package com.dremio.dac.explore.model;
 
 import static java.util.Arrays.asList;
 
-import java.util.List;
-
 import com.dremio.dac.model.common.ResourcePath;
 import com.dremio.dac.model.common.RootEntity;
 import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
+import java.util.List;
 
-/**
- * "/dataset/{space.[folder.]*name}"
- *
- */
+/** "/dataset/{space.[folder.]*name}" */
 public class DatasetResourcePath extends ResourcePath {
 
   private final DatasetPath dataset;
@@ -41,13 +37,15 @@ public class DatasetResourcePath extends ResourcePath {
   public DatasetResourcePath(String pathString) {
     List<String> path = parse(pathString, "dataset");
     if (path.size() != 1) {
-      throw new IllegalArgumentException("path should be of form: /dataset/{datasetPath}, found " + pathString);
+      throw new IllegalArgumentException(
+          "path should be of form: /dataset/{datasetPath}, found " + pathString);
     }
     this.dataset = new DatasetPath(path.get(0));
-    if (this.dataset.getRootType() != RootEntity.RootType.HOME &&
-      this.dataset.getRootType() != RootEntity.RootType.SPACE &&
-      this.dataset.getRootType() != RootEntity.RootType.TEMP) {
-      throw new IllegalArgumentException("file path does not belong to a home or a space, " + pathString);
+    if (this.dataset.getRootType() != RootEntity.RootType.HOME
+        && this.dataset.getRootType() != RootEntity.RootType.SPACE
+        && this.dataset.getRootType() != RootEntity.RootType.TEMP) {
+      throw new IllegalArgumentException(
+          "file path does not belong to a home or a space, " + pathString);
     }
   }
 

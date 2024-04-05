@@ -20,14 +20,11 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import org.junit.Test;
-
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.ParameterException;
+import org.junit.Test;
 
-/**
- * Tests Clean command parsing. Mostly pointless.
- */
+/** Tests Clean command parsing. Mostly pointless. */
 public class TestCleanParsing {
 
   @Test
@@ -64,8 +61,8 @@ public class TestCleanParsing {
     JCommander jc = JCommander.newBuilder().addObject(args).build();
 
     assertThatThrownBy(() -> jc.parse("-j", "abc"))
-      .isInstanceOf(ParameterException.class)
-      .hasMessageContaining("Parameter -j should be a positive integer (found abc)");
+        .isInstanceOf(ParameterException.class)
+        .hasMessageContaining("Parameter -j should be a positive integer (found abc)");
   }
 
   @Test
@@ -74,8 +71,8 @@ public class TestCleanParsing {
     JCommander jc = JCommander.newBuilder().addObject(args).build();
 
     assertThatThrownBy(() -> jc.parse("-j", "-345"))
-      .isInstanceOf(ParameterException.class)
-      .hasMessageContaining("Parameter -j should be a positive integer (found -345)");
+        .isInstanceOf(ParameterException.class)
+        .hasMessageContaining("Parameter -j should be a positive integer (found -345)");
   }
 
   @Test
@@ -84,7 +81,7 @@ public class TestCleanParsing {
     JCommander jc = JCommander.newBuilder().addObject(args).build();
 
     assertThatThrownBy(() -> jc.parse("--my-fake-parameter"))
-      .isInstanceOf(ParameterException.class)
-      .hasMessageContaining("no main parameter was defined");
+        .isInstanceOf(ParameterException.class)
+        .hasMessageContaining("no main parameter was defined");
   }
 }

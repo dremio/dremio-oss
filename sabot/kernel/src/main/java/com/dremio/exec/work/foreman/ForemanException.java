@@ -20,11 +20,13 @@ import com.dremio.common.exceptions.ExecutionSetupException;
 public class ForemanException extends ExecutionSetupException {
   private static final long serialVersionUID = -6943409010231014085L;
 
-  public ForemanException() {
-  }
+  public ForemanException() {}
 
-  public ForemanException(final String message, final Throwable cause, final boolean enableSuppression,
-                          final boolean writableStackTrace) {
+  public ForemanException(
+      final String message,
+      final Throwable cause,
+      final boolean enableSuppression,
+      final boolean writableStackTrace) {
     super(message, cause, enableSuppression, writableStackTrace);
   }
 

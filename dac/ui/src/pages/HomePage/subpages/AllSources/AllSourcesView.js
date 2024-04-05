@@ -13,43 +13,54 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import $ from "jquery";
 import { PureComponent } from "react";
-import moment from "@app/utils/dayjs";
 import PropTypes from "prop-types";
-import { injectIntl } from "react-intl";
-import clsx from "clsx";
-import * as classes from "@app/uiTheme/radium/replacingRadiumPseudoClasses.module.less";
+import Immutable from "immutable";
+import { browserHistory } from "react-router";
+
+import moment from "@app/utils/dayjs";
+import { intl } from "@app/utils/intl";
 
 import EntityLink from "@app/pages/HomePage/components/EntityLink";
 import EllipsedText from "components/EllipsedText";
-
-import LinkButton from "components/Buttons/LinkButton";
-import ResourcePin from "components/ResourcePin";
 import AllSourcesMenu from "components/Menus/HomePage/AllSourcesMenu";
 import FontIcon from "components/Icon/FontIcon";
-
 import SettingsBtn from "components/Buttons/SettingsBtn";
-import { SortDirection } from "@app/components/Table/TableUtils";
-import { getIconStatusDatabase } from "utils/iconUtils";
-
-import * as allSpacesAndAllSources from "uiTheme/radium/allSpacesAndAllSources";
-import BrowseTable from "../../components/BrowseTable";
-import { tableStyles } from "../../tableStyles";
-import { getSettingsLocation } from "components/Menus/HomePage/AllSourcesMenu";
 import LinkWithRef from "@app/components/LinkWithRef/LinkWithRef";
-import { IconButton } from "dremio-ui-lib";
+import CatalogListingView from "../../components/CatalogListingView/CatalogListingView";
+import BreadCrumbs from "@app/components/BreadCrumbs";
+
+import { IconButton } from "dremio-ui-lib/components";
+import { getIconStatusDatabase } from "utils/iconUtils";
 import { isNotSoftware } from "dyn-load/utils/versionUtils";
-import { ARSFeatureSwitch } from "@inject/utils/arsUtils";
+import { getSettingsLocation } from "components/Menus/HomePage/AllSourcesMenu";
+import { Button } from "dremio-ui-lib/components";
+import {
+  catalogListingColumns,
+  CATALOG_LISTING_COLUMNS,
+} from "dremio-ui-common/sonar/components/CatalogListingTable/catalogListingColumns.js";
+import {
+  getCatalogData,
+} from "@app/utils/catalog-listing-utils";
+import {
+  renderResourcePin,
+  renderSourceDetailsIcon,
+} from "@inject/utils/catalog-listing-utils";
+import CatalogDetailsPanel from "../../components/CatalogDetailsPanel/CatalogDetailsPanel";
 
 const btnTypes = {
   settings: "settings",
 };
 
+const SOURCES_SORTING_MAP = {
+  [CATALOG_LISTING_COLUMNS.name]: "name",
+  [CATALOG_LISTING_COLUMNS.datasets]: "numberOfDatasets",
+  [CATALOG_LISTING_COLUMNS.created]: "ctime",
+};
+
 class AllSourcesView extends PureComponent {
   static propTypes = {
     sources: PropTypes.object,
-    intl: PropTypes.object.isRequired,
     title: PropTypes.string.isRequired,
     isExternalSource: PropTypes.bool,
     isDataPlaneSource: PropTypes.bool,
@@ -61,65 +72,41 @@ class AllSourcesView extends PureComponent {
     loggedInUser: PropTypes.object.isRequired,
   };
 
-  getTableData() {
-    const [name, datasets, created, action] = this.getTableColumns();
-    return this.props.sources
-      .toList()
-      .sort((a, b) => b.get("isActivePin") - a.get("isActivePin"))
-      .map((item) => {
-        const icon = (
-          <FontIcon
-            type={getIconStatusDatabase(
-              item.getIn(["state", "status"]),
-              item.get("type")
-            )}
-          />
-        );
-        return {
-          // todo: loc
-          rowClassName: item.get("name"),
-          data: {
-            [name.key]: {
-              node: () => (
-                <div style={allSpacesAndAllSources.listItem}>
-                  {icon}
-                  <EntityLink entityId={item.get("id")}>
-                    <EllipsedText text={item.get("name")} />
-                  </EntityLink>
-                  <ARSFeatureSwitch
-                    renderEnabled={() => null}
-                    renderDisabled={() => (
-                      <ResourcePin entityId={item.get("id")} />
-                    )}
-                  />
-                </div>
-              ),
-              value(sortDirection = null) {
-                // todo: DRY
-                if (!sortDirection) return item.get("name");
-                const activePrefix =
-                  sortDirection === SortDirection.ASC ? "a" : "z";
-                const inactivePrefix =
-                  sortDirection === SortDirection.ASC ? "z" : "a";
-                return (
-                  (item.get("isActivePin") ? activePrefix : inactivePrefix) +
-                  item.get("name")
-                );
-              },
-            },
-            [datasets.key]: {
-              node: () => item.get("numberOfDatasets"),
-            },
-            [created.key]: {
-              node: () => moment(item.get("ctime")).format("MM/DD/YYYY"),
-              value: new Date(item.get("ctime")),
-            },
-            [action.key]: {
-              node: () => this.getActionCell(item),
-            },
-          },
-        };
-      });
+  state = {
+    sort: null,
+    filter: "",
+    datasetDetails: null,
+  };
+
+  getRow(item) {
+    return {
+      id: item.get("id"),
+      data: {
+        name: (
+          <div style={{ gap: 4, display: "flex", alignItems: "center" }}>
+            <FontIcon
+              type={getIconStatusDatabase(
+                item.getIn(["state", "status"]),
+                item.get("type"),
+              )}
+            />
+            <EntityLink
+              entityId={item.get("id")}
+              style={{
+                overflow: "hidden",
+                color: "var(--dremio--color--text--main)",
+              }}
+            >
+              <EllipsedText text={item.get("name")} />
+            </EntityLink>
+            {renderResourcePin(item.get("id"))}
+          </div>
+        ),
+        datasets: item.get("numberOfDatasets"),
+        created: moment(new Date(item.get("ctime"))).format("MM/DD/YYYY"),
+        actions: this.getActionCell(item),
+      },
+    };
   }
 
   getActionCell(item) {
@@ -130,12 +117,17 @@ class AllSourcesView extends PureComponent {
     const allBtns = [
       {
         label: this.getInlineIcon("interface/settings"),
-        tooltip: "Common.Settings",
+        tooltip: intl.formatMessage({ id: "Common.Settings" }),
         link: getSettingsLocation(this.context.location, item),
         type: btnTypes.settings,
       },
     ];
     return [
+      renderSourceDetailsIcon(
+        this.context.location,
+        item,
+        this.renderDatasetDetailsIcon,
+      ),
       ...allBtns
         // return rendered link buttons
         .map((btnType, index) => (
@@ -143,6 +135,7 @@ class AllSourcesView extends PureComponent {
             as={LinkWithRef}
             to={btnType.link}
             tooltip={btnType.tooltip}
+            tooltipPortal
             key={item.get("id") + index}
             className="main-settings-btn min-btn"
             data-qa={btnType.type}
@@ -154,6 +147,22 @@ class AllSourcesView extends PureComponent {
     ];
   }
 
+  renderDatasetDetailsIcon = (item) => {
+    return (
+      <IconButton
+        tooltip="Open details panel"
+        onClick={(e) => {
+          e.preventDefault();
+          this.openDetailsPanel(item, true);
+        }}
+        tooltipPortal
+        tooltipPlacement="top"
+        className="main-settings-btn min-btn catalog-btn"
+      >
+        <dremio-icon name="interface/meta" />
+      </IconButton>
+    );
+  };
   getSettingsBtnByType(menu, item) {
     return (
       <SettingsBtn
@@ -168,36 +177,25 @@ class AllSourcesView extends PureComponent {
     );
   }
 
+  openDetailsPanel = (dataset) => {
+    this.setState({
+      datasetDetails: dataset,
+    });
+  };
+
+  closeDetailsPanel = () => {
+    this.setState({
+      datasetDetails: null,
+    });
+  };
+
   getInlineIcon(icon) {
     return <dremio-icon name={icon} data-qa={icon} />;
   }
 
-  getTableColumns() {
-    const { intl, isDataPlaneSource } = this.props;
-    return [
-      {
-        key: "name",
-        label: intl.formatMessage({ id: "Common.Name" }),
-        flexGrow: 1,
-      },
-      {
-        key: "datasets",
-        label: intl.formatMessage({ id: "Common.Datasets" }),
-        headerStyle: isDataPlaneSource ? { ...tableStyles.hidden } : {},
-        style: {
-          display: this.props.isDataPlaneSource ? "none" : "block",
-        },
-      },
-      { key: "created", label: intl.formatMessage({ id: "Common.Created" }) },
-      {
-        key: "action",
-        label: "",
-        style: tableStyles.actionColumn,
-        disableSort: true,
-        width: 60,
-      },
-    ];
-  }
+  onColumnsSorted = (sortedColumns) => {
+    this.setState({ sort: sortedColumns });
+  };
 
   renderAddButton() {
     const { isExternalSource, isDataPlaneSource, isObjectStorageSource } =
@@ -216,41 +214,79 @@ class AllSourcesView extends PureComponent {
 
     return (
       this.context.loggedInUser.admin && (
-        <LinkButton
-          buttonStyle="primary"
-          className={clsx(classes["primaryButtonPsuedoClasses"])}
-          to={{
-            ...this.context.location,
-            state: {
-              modal: "AddSourceModal",
-              isExternalSource,
-              isDataPlaneSource,
-            },
-          }}
-          style={allSpacesAndAllSources.addButton}
+        <Button
+          onClick={() =>
+            browserHistory.push({
+              ...this.context.location,
+              state: {
+                modal: "AddSourceModal",
+                isExternalSource,
+                isDataPlaneSource,
+              },
+            })
+          }
+          variant="tertiary"
+          style={{ minWidth: "fit-content" }}
         >
-          {this.props.intl.formatMessage({ id: headerId })}
-        </LinkButton>
+          <dremio-icon name="interface/add-small" class="add-source-icon" />
+          {intl.formatMessage({ id: headerId })}
+        </Button>
       )
     );
   }
 
   render() {
-    const { sources, title } = this.props;
+    const { sources, title, isDataPlaneSource } = this.props;
+    const { datasetDetails } = this.state;
     const totalItems = sources.size;
+    const { pathname } = this.context.location;
+    const columns = catalogListingColumns({
+      isViewAll: true,
+      isVersioned: isDataPlaneSource,
+    });
+    const sortedSources = getCatalogData(
+      sources,
+      this.state.sort,
+      SOURCES_SORTING_MAP,
+      this.state.filter,
+    );
+
     return (
-      <BrowseTable
-        title={`${title} (${totalItems})`}
-        tableData={this.getTableData()}
-        columns={this.getTableColumns()}
-        buttons={this.renderAddButton()}
-        disableZebraStripes={true}
-        rowHeight={40}
-      />
+      <>
+        <CatalogListingView
+          getRow={(i) => {
+            const item = sortedSources.get(i);
+            return this.getRow(item);
+          }}
+          columns={columns}
+          rowCount={sortedSources.size}
+          onColumnsSorted={this.onColumnsSorted}
+          title={
+            <h3 className="flex items-center" style={{ height: 32 }}>
+              <EllipsedText>
+                <BreadCrumbs
+                  fullPath={Immutable.fromJS([`${title} (${totalItems})`])}
+                  pathname={pathname}
+                />
+              </EllipsedText>
+            </h3>
+          }
+          rightHeaderButtons={this.renderAddButton()}
+          className="all-sources-view"
+          onFilter={(filter) => this.setState({ filter: filter })}
+          showButtonDivider
+        />
+        {datasetDetails && (
+          <CatalogDetailsPanel
+            panelItem={datasetDetails}
+            handleDatasetDetailsCollapse={this.closeDetailsPanel}
+          />
+        )}
+      </>
     );
   }
 }
-export default injectIntl(AllSourcesView);
+export default AllSourcesView;
 
 function ActionWrap({ children }) {
   return <span className="action-wrap">{children}</span>;

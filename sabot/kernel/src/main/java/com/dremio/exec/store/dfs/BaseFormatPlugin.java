@@ -17,17 +17,17 @@ package com.dremio.exec.store.dfs;
 
 import static com.dremio.io.file.PathFilters.NO_HIDDEN_FILES;
 
-import java.io.IOException;
-import java.nio.file.DirectoryStream;
-
 import com.dremio.exec.server.SabotContext;
 import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.FileSystemUtils;
 import com.dremio.io.file.Path;
+import java.io.IOException;
+import java.nio.file.DirectoryStream;
 
 public abstract class BaseFormatPlugin implements FormatPlugin {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BaseFormatPlugin.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(BaseFormatPlugin.class);
 
   private final SabotContext context;
   private final FileSystemPlugin<?> fsPlugin;
@@ -43,7 +43,8 @@ public abstract class BaseFormatPlugin implements FormatPlugin {
 
   @Override
   public DirectoryStream<FileAttributes> getFilesForSamples(
-    FileSystem fs, FileSystemPlugin<?> fsPlugin, Path path) throws IOException, FileCountTooLargeException {
+      FileSystem fs, FileSystemPlugin<?> fsPlugin, Path path)
+      throws IOException, FileCountTooLargeException {
     int maxFilesLimit = getMaxFilesLimit();
     return FileSystemUtils.listFilterDirectoryRecursive(fs, path, maxFilesLimit, NO_HIDDEN_FILES);
   }

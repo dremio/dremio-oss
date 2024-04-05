@@ -15,8 +15,9 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import java.util.List;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -27,35 +28,38 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
-
-/**
- * ALTER TABLE tblname DROP [COLUMN] colname
- */
+/** ALTER TABLE tblname DROP [COLUMN] colname */
 public class SqlAlterTableDropColumn extends SqlAlterTable {
 
-  public static final SqlSpecialOperator DROP_COLUMN_OPERATOR = new SqlSpecialOperator("DROP_COLUMN", SqlKind.ALTER_TABLE) {
+  public static final SqlSpecialOperator DROP_COLUMN_OPERATOR =
+      new SqlSpecialOperator("DROP_COLUMN", SqlKind.ALTER_TABLE) {
 
-    @Override
-    public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 4, "SqlAlterTableDropColumn.createCall() " +
-          "has to get 4 operands!");
+        @Override
+        public SqlCall createCall(
+            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+          Preconditions.checkArgument(
+              operands.length == 4,
+              "SqlAlterTableDropColumn.createCall() " + "has to get 4 operands!");
 
-      return new SqlAlterTableDropColumn(
-          pos,
-          (SqlIdentifier) operands[0],
-          (SqlLiteral) operands[1],
-          (SqlIdentifier) operands[2],
-          (SqlTableVersionSpec) operands[3]);
-    }
-  };
+          return new SqlAlterTableDropColumn(
+              pos,
+              (SqlIdentifier) operands[0],
+              (SqlLiteral) operands[1],
+              (SqlIdentifier) operands[2],
+              (SqlTableVersionSpec) operands[3]);
+        }
+      };
 
   protected final SqlIdentifier columnToDrop;
   protected final SqlLiteral dropColumnKeywordPresent;
   protected final SqlTableVersionSpec sqlTableVersionSpec;
 
-  public SqlAlterTableDropColumn(SqlParserPos pos, SqlIdentifier tblName, SqlLiteral dropColumnKeywordPresent, SqlIdentifier columnToDrop, SqlTableVersionSpec sqlTableVersionSpec) {
+  public SqlAlterTableDropColumn(
+      SqlParserPos pos,
+      SqlIdentifier tblName,
+      SqlLiteral dropColumnKeywordPresent,
+      SqlIdentifier columnToDrop,
+      SqlTableVersionSpec sqlTableVersionSpec) {
     super(pos, tblName);
     this.dropColumnKeywordPresent = dropColumnKeywordPresent;
     this.columnToDrop = columnToDrop;

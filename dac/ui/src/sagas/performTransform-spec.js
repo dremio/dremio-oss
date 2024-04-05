@@ -69,7 +69,7 @@ describe("performTransform saga", () => {
       next = gen.next(); // initializeExploreJobProgress
       next = gen.next(); // transformThenNavigate call
       expect(next.value).to.be.eql(
-        call(transformThenNavigate, apiAction, undefined, undefined)
+        call(transformThenNavigate, apiAction, undefined, undefined),
       );
       next = gen.next(); // focusSqlEditorSaga
     };
@@ -129,8 +129,8 @@ describe("performTransform saga", () => {
           proceedWithDataLoad,
           dataSet,
           exploreState.view.queryContext,
-          exploreState.view.currentSql
-        )
+          exploreState.view.currentSql,
+        ),
       );
       expect(gen.next(false).done).to.be.true;
     });
@@ -156,7 +156,7 @@ describe("performTransform saga", () => {
       next = gen.next(true); // result for proceedWithDataLoad
       next = gen.next();
       expect(next.value).to.be.eql(
-        call(performTransform, performTransformParam)
+        call(performTransform, performTransformParam),
       );
     });
 
@@ -184,7 +184,7 @@ describe("performTransform saga", () => {
       next = gen.next(true); // result for proceedWithDataLoad
       next = gen.next();
       expect(next.value).to.be.eql(
-        call(performTransform, performTransformParam)
+        call(performTransform, performTransformParam),
       );
     });
   });
@@ -209,8 +209,8 @@ describe("performTransform saga", () => {
           "select * from foo",
           undefined,
           undefined,
-          undefined
-        )
+          undefined,
+        ),
       );
     });
 
@@ -240,8 +240,8 @@ describe("performTransform saga", () => {
             undefined,
             "",
             newVersion,
-            false
-          )
+            false,
+          ),
         );
 
         const mockApiAction = "mock api call";
@@ -265,7 +265,7 @@ describe("performTransform saga", () => {
         expect(next.value).to.be.eql(put(resetViewState(EXPLORE_TABLE_ID)));
         next = gen.next(mockApiAction);
         expect(next.value).to.be.eql(
-          call(transformAndRunDataset, dataset, transformData, viewId, "")
+          call(transformAndRunDataset, dataset, transformData, viewId, ""),
         );
 
         const mockApiAction = "mock api call";
@@ -318,8 +318,8 @@ describe("performTransform saga", () => {
             undefined,
             "",
             newVersion,
-            false
-          )
+            false,
+          ),
         );
 
         const mockApiAction = "mock api call";
@@ -341,7 +341,14 @@ describe("performTransform saga", () => {
         });
         goToTransformData(transformData);
         expect(next.value).to.be.eql(
-          call(runTableTransform, dataset, transformData, viewId, undefined, "")
+          call(
+            runTableTransform,
+            dataset,
+            transformData,
+            viewId,
+            undefined,
+            "",
+          ),
         );
 
         const mockApiAction = "mock api call";
@@ -365,7 +372,7 @@ describe("performTransform saga", () => {
         });
         goToTransformData();
         expect(next.value).to.be.eql(
-          call(loadDataset, dataset, viewId, forceDataLoad, "", true)
+          call(loadDataset, dataset, viewId, forceDataLoad, "", true),
         );
 
         const mockApiAction = "mock api call";
@@ -384,7 +391,7 @@ describe("performTransform saga", () => {
     const context = Immutable.List(["@dremio"]);
     it("should return supplied transformData if present", () => {
       expect(getTransformData(dataset, sql, context, transformData)).to.equal(
-        transformData
+        transformData,
       );
     });
 
@@ -404,18 +411,18 @@ describe("performTransform saga", () => {
       expect(getTransformData(dataset.set("isNewQuery", true), sql, context)).to
         .be.undefined;
       expect(getTransformData(dataset, sql, context, transformData)).to.equal(
-        transformData
+        transformData,
       );
       expect(getTransformData(dataset, null, dataset.get("context"))).to.be
         .undefined;
       expect(
-        getTransformData(dataset, dataset.get("sql"), dataset.get("context"))
+        getTransformData(dataset, dataset.get("sql"), dataset.get("context")),
       ).to.be.undefined;
     });
 
     it("should not fail if dataset is missing context", () => {
       expect(
-        getTransformData(dataset.remove("context"), sql, context)
+        getTransformData(dataset.remove("context"), sql, context),
       ).to.be.eql({
         type: "updateSQL",
         sql,
@@ -430,7 +437,7 @@ describe("performTransform saga", () => {
       gen = proceedWithDataLoad(
         dataset,
         dataset.get("context"),
-        dataset.get("sql")
+        dataset.get("sql"),
       );
       expect(gen.next()).to.be.eql({
         done: true,
@@ -442,10 +449,10 @@ describe("performTransform saga", () => {
         gen = proceedWithDataLoad(
           dataset,
           dataset.get("context"),
-          "select * from other_query"
+          "select * from other_query",
         );
         expect(gen.next().value).to.be.eql(
-          call(transformHistoryCheck, dataset)
+          call(transformHistoryCheck, dataset),
         );
         expect(gen.next(resultValue)).to.be.eql({
           done: true,

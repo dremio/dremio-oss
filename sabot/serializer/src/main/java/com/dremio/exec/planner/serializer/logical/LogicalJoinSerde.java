@@ -15,19 +15,16 @@
  */
 package com.dremio.exec.planner.serializer.logical;
 
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.core.JoinRelType;
-import org.apache.calcite.rel.logical.LogicalJoin;
-
 import com.dremio.exec.planner.serializer.RelNodeSerde;
 import com.dremio.plan.serialization.PLogicalJoin;
 import com.dremio.plan.serialization.PLogicalJoin.PJoinType;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.core.JoinRelType;
+import org.apache.calcite.rel.logical.LogicalJoin;
 
-/**
- * Serde for LogicalJoin
- */
+/** Serde for LogicalJoin */
 public final class LogicalJoinSerde implements RelNodeSerde<LogicalJoin, PLogicalJoin> {
   @Override
   public PLogicalJoin serialize(LogicalJoin join, RelToProto s) {
@@ -43,37 +40,42 @@ public final class LogicalJoinSerde implements RelNodeSerde<LogicalJoin, PLogica
   public LogicalJoin deserialize(PLogicalJoin node, RelFromProto s) {
     RelNode left = s.toRel(node.getLeftInput());
     RelNode right = s.toRel(node.getRightInput());
-    return LogicalJoin.create(left, right, ImmutableList.of(), s.toRex(node.getCondition()), ImmutableSet.of(),
-      fromProto(node.getJoinType()));
+    return LogicalJoin.create(
+        left,
+        right,
+        ImmutableList.of(),
+        s.toRex(node.getCondition()),
+        ImmutableSet.of(),
+        fromProto(node.getJoinType()));
   }
 
   private static JoinRelType fromProto(PJoinType type) {
-    switch(type) {
-    case FULL:
-      return JoinRelType.FULL;
-    case INNER:
-      return JoinRelType.INNER;
-    case LEFT:
-      return JoinRelType.LEFT;
-    case RIGHT:
-      return JoinRelType.RIGHT;
-    default:
-      throw new UnsupportedOperationException(String.format("Unknown type %s.", type));
+    switch (type) {
+      case FULL:
+        return JoinRelType.FULL;
+      case INNER:
+        return JoinRelType.INNER;
+      case LEFT:
+        return JoinRelType.LEFT;
+      case RIGHT:
+        return JoinRelType.RIGHT;
+      default:
+        throw new UnsupportedOperationException(String.format("Unknown type %s.", type));
     }
   }
 
   private static PJoinType toProto(JoinRelType type) {
-    switch(type) {
-    case FULL:
-      return PJoinType.FULL;
-    case INNER:
-      return PJoinType.INNER;
-    case LEFT:
-      return PJoinType.LEFT;
-    case RIGHT:
-      return PJoinType.RIGHT;
-    default:
-      throw new UnsupportedOperationException(String.format("Unknown type %s.", type));
+    switch (type) {
+      case FULL:
+        return PJoinType.FULL;
+      case INNER:
+        return PJoinType.INNER;
+      case LEFT:
+        return PJoinType.LEFT;
+      case RIGHT:
+        return PJoinType.RIGHT;
+      default:
+        throw new UnsupportedOperationException(String.format("Unknown type %s.", type));
     }
   }
 }

@@ -18,14 +18,12 @@ package com.dremio.exec.store.ischema.writers;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import com.dremio.sabot.op.scan.OutputMutator;
 import java.util.function.Function;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.holders.NullableVarCharHolder;
 import org.apache.arrow.vector.types.pojo.Field;
-
-import com.dremio.sabot.op.scan.OutputMutator;
 
 /**
  * Writes "string" field types.
@@ -41,11 +39,7 @@ final class StringFieldWriter<V> implements FieldWriter<V> {
 
   private ArrowBuf managedBuffer;
 
-  StringFieldWriter(
-    Field field,
-    OutputMutator outputMutator,
-    Function<V, String> stringExtractor
-  ) {
+  StringFieldWriter(Field field, OutputMutator outputMutator, Function<V, String> stringExtractor) {
     this.managedBuffer = outputMutator.getManagedBuffer();
     this.stringExtractor = stringExtractor;
 
@@ -85,5 +79,4 @@ final class StringFieldWriter<V> implements FieldWriter<V> {
 
     varCharVector.setSafe(recordIndex, holder);
   }
-
 }

@@ -28,9 +28,11 @@ public class DelimitedContentLengthChecker implements ContentLengthChecker {
   private int totalContentLength = 0;
 
   /**
-   * This calculator accommodates the space taken by the delimiter in its content length calculations
+   * This calculator accommodates the space taken by the delimiter in its content length
+   * calculations
    */
-  DelimitedContentLengthChecker(final int delimiterLength, final int maxContentLength, boolean allowOneOverflow) {
+  DelimitedContentLengthChecker(
+      final int delimiterLength, final int maxContentLength, boolean allowOneOverflow) {
     this.delimiterLength = delimiterLength;
     this.maxContentLength = maxContentLength;
     this.allowOneOverflow = allowOneOverflow;
@@ -40,7 +42,8 @@ public class DelimitedContentLengthChecker implements ContentLengthChecker {
   @Override
   public boolean hasSpaceFor(final int contentLength) {
     final boolean includeDelimiterLengthOnAdd = !isEmpty;
-    final int addedLengthToCheck = includeDelimiterLengthOnAdd ? (contentLength + delimiterLength) : contentLength;
+    final int addedLengthToCheck =
+        includeDelimiterLengthOnAdd ? (contentLength + delimiterLength) : contentLength;
 
     if (totalContentLength + addedLengthToCheck <= maxContentLength) {
       return true;

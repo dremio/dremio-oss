@@ -21,16 +21,6 @@ import static com.dremio.exec.store.easy.arrow.ArrowFormatPlugin.MAGIC_STRING;
 import static com.dremio.exec.store.easy.arrow.ArrowFormatPlugin.MAGIC_STRING_LENGTH;
 import static com.google.common.base.Preconditions.checkArgument;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.commons.io.IOUtils;
-
 import com.dremio.common.AutoCloseables.RollbackCloseable;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.types.DataMode;
@@ -58,12 +48,19 @@ import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Longs;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.commons.io.IOUtils;
 
-/**
- * Reader which takes a file and reads the record batches.
- */
+/** Reader which takes a file and reads the record batches. */
 public class ArrowFileReader implements AutoCloseable {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ArrowFileReader.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ArrowFileReader.class);
 
   private final FileSystem dfs;
   private final ArrowFileMetadata metadata;
@@ -72,8 +69,11 @@ public class ArrowFileReader implements AutoCloseable {
 
   private FSInputStream inputStream;
 
-  public ArrowFileReader(final FileSystem dfs, Path basePath, final ArrowFileMetadata metadata,
-                   final BufferAllocator allocator) {
+  public ArrowFileReader(
+      final FileSystem dfs,
+      Path basePath,
+      final ArrowFileMetadata metadata,
+      final BufferAllocator allocator) {
     this.dfs = dfs;
     this.metadata = metadata;
     this.allocator = allocator;
@@ -111,7 +111,8 @@ public class ArrowFileReader implements AutoCloseable {
       }
 
       // Make sure the footer offset is valid
-      if (footerOffset < MAGIC_STRING_LENGTH || footerOffset >= (size - (MAGIC_STRING_LENGTH + FOOTER_OFFSET_SIZE))) {
+      if (footerOffset < MAGIC_STRING_LENGTH
+          || footerOffset >= (size - (MAGIC_STRING_LENGTH + FOOTER_OFFSET_SIZE))) {
         throw UserException.dataReadError()
             .message("Invalid footer offset")
             .addContext("filePath", path.toString())
@@ -123,28 +124,37 @@ public class ArrowFileReader implements AutoCloseable {
 
   /**
    * Read the record batches containing the rows in given range.
+   *
    * @param start Starting record number in file (0 based index)
    * @param limit number of records to read
    * @return
    */
   public List<RecordBatchHolder> read(final long start, final long limit) throws IOException {
     // Make sure the range is valid according to the metadata in footer
-    checkArgument(start == 0 && metadata.getRecordCount() == 0|| start >= 0 && start < metadata.getRecordCount(),
-        "Invalid start index (%s). Record count in file (%s)", start, metadata.getRecordCount());
-    checkArgument(start + limit <= metadata.getRecordCount(),
+    checkArgument(
+        start == 0 && metadata.getRecordCount() == 0
+            || start >= 0 && start < metadata.getRecordCount(),
+        "Invalid start index (%s). Record count in file (%s)",
+        start,
+        metadata.getRecordCount());
+    checkArgument(
+        start + limit <= metadata.getRecordCount(),
         "Invalid start index (%s) and limit (%s) combination. Record count in file (%s)",
-        start, limit, metadata.getRecordCount());
+        start,
+        limit,
+        metadata.getRecordCount());
 
     openFile();
 
-    final VectorAccessibleSerializable vectorAccessibleSerializable = new VectorAccessibleSerializable(allocator);
+    final VectorAccessibleSerializable vectorAccessibleSerializable =
+        new VectorAccessibleSerializable(allocator);
     final List<RecordBatchHolder> batches = Lists.newArrayList();
     final ArrowFileFooter footer = metadata.getFooter();
 
     long runningCount = 0;
     long remaining = limit;
     final int numBatches = footer.getBatchList() == null ? 0 : footer.getBatchList().size();
-    for(int batchIndex = 0; batchIndex < numBatches; batchIndex++) {
+    for (int batchIndex = 0; batchIndex < numBatches; batchIndex++) {
       ArrowRecordBatchSummary batchSummary = footer.getBatchList().get(batchIndex);
       // Skip past empty batches
       if (batchSummary.getRecordCount() == 0) {
@@ -170,11 +180,9 @@ public class ArrowFileReader implements AutoCloseable {
       final int batchStart = Math.max(0, (int) (start - (runningCount - currentBatchCount)));
       final int batchEnd = (int) Math.min(currentBatchCount, batchStart + remaining);
 
-      final RecordBatchHolder batchHolder = newRecordBatchHolder(
-          new RecordBatchData(vectorContainer, allocator),
-          batchStart,
-          batchEnd
-      );
+      final RecordBatchHolder batchHolder =
+          newRecordBatchHolder(
+              new RecordBatchData(vectorContainer, allocator), batchStart, batchEnd);
 
       batches.add(batchHolder);
 
@@ -202,6 +210,7 @@ public class ArrowFileReader implements AutoCloseable {
 
   /**
    * Helper method that creates an empty batch from schema in Arrow footer.
+   *
    * @return
    * @throws IOException
    */
@@ -214,26 +223,26 @@ public class ArrowFileReader implements AutoCloseable {
 
     // Read the footer
     inputStream.setPosition(footerOffset);
-    ArrowFileFormat.ArrowFileFooter footer = ArrowFileFormat.ArrowFileFooter.parseDelimitedFrom(inputStream);
-    return getEmptyBatch(footer,
-                         allocator);
+    ArrowFileFormat.ArrowFileFooter footer =
+        ArrowFileFormat.ArrowFileFooter.parseDelimitedFrom(inputStream);
+    return getEmptyBatch(footer, allocator);
   }
 
-  public static RecordBatchHolder getEmptyBatch(ArrowFileFooter footer,
-                                                BufferAllocator allocator) throws IOException {
+  public static RecordBatchHolder getEmptyBatch(ArrowFileFooter footer, BufferAllocator allocator)
+      throws IOException {
     return getEmptyBatch(fromBean(footer), allocator);
   }
 
-  public static RecordBatchHolder getEmptyBatch(ArrowFileFormat.ArrowFileFooter footer,
-                                                BufferAllocator allocator) throws IOException {
-    BatchSchema footerSchema = BatchSchema.newBuilder().addSerializedFields(footer.getFieldList()).build();
+  public static RecordBatchHolder getEmptyBatch(
+      ArrowFileFormat.ArrowFileFooter footer, BufferAllocator allocator) throws IOException {
+    BatchSchema footerSchema =
+        BatchSchema.newBuilder().addSerializedFields(footer.getFieldList()).build();
 
     final VectorContainer vectorContainer = new VectorContainer();
     try (RollbackCloseable rollback = new RollbackCloseable()) {
       rollback.add(vectorContainer);
-      for(Field field : footerSchema) {
-        vectorContainer.add(TypeHelper.getNewVector(field,
-                                                    allocator));
+      for (Field field : footerSchema) {
+        vectorContainer.add(TypeHelper.getNewVector(field, allocator));
       }
       rollback.commit();
     } catch (Exception e) {
@@ -243,8 +252,7 @@ public class ArrowFileReader implements AutoCloseable {
     vectorContainer.setRecordCount(0);
     vectorContainer.buildSchema();
 
-    return newRecordBatchHolder(new RecordBatchData(vectorContainer,
-                                                    allocator), 0, 0);
+    return newRecordBatchHolder(new RecordBatchData(vectorContainer, allocator), 0, 0);
   }
 
   private static Roles toBean(CoordinationProtos.Roles roles) {
@@ -289,10 +297,11 @@ public class ArrowFileReader implements AutoCloseable {
   }
 
   /**
-   * Helper method to convert the protobuf message into a bean class. Currently it ignores converting the row type.
-   * Add the support for row type conversion in future if needed.
+   * Helper method to convert the protobuf message into a bean class. Currently it ignores
+   * converting the row type. Add the support for row type conversion in future if needed.
    *
-   * TODO: We need check if there is a way to auto convert protobuf messages to protostuff bean classes.
+   * <p>TODO: We need check if there is a way to auto convert protobuf messages to protostuff bean
+   * classes.
    *
    * @param metadata
    * @return
@@ -314,7 +323,7 @@ public class ArrowFileReader implements AutoCloseable {
   public static ArrowFileFooter toBean(ArrowFileFormat.ArrowFileFooter footer) {
     ArrowFileFooter beanFooter = new ArrowFileFooter();
     beanFooter.setBatchList(new ArrayList<>());
-    for(ArrowFileFormat.ArrowRecordBatchSummary summary :footer.getBatchList()) {
+    for (ArrowFileFormat.ArrowRecordBatchSummary summary : footer.getBatchList()) {
       ArrowRecordBatchSummary beanSummary = new ArrowRecordBatchSummary();
       beanSummary.setOffset(summary.getOffset());
       beanSummary.setRecordCount(summary.getRecordCount());
@@ -323,10 +332,9 @@ public class ArrowFileReader implements AutoCloseable {
     }
 
     beanFooter.setFieldList(new ArrayList<>());
-    if(footer.getFieldList() != null) {
+    if (footer.getFieldList() != null) {
       for (UserBitShared.SerializedField field : footer.getFieldList()) {
-        beanFooter.getFieldList()
-                  .add(toBean(field));
+        beanFooter.getFieldList().add(toBean(field));
       }
     }
 
@@ -334,7 +342,9 @@ public class ArrowFileReader implements AutoCloseable {
   }
 
   private static SerializedField toBean(UserBitShared.SerializedField field) {
-    if(field == null) { return null; }
+    if (field == null) {
+      return null;
+    }
 
     SerializedField serializedField = new SerializedField();
     serializedField.setBufferLength(field.getBufferLength());
@@ -344,27 +354,27 @@ public class ArrowFileReader implements AutoCloseable {
     serializedField.setNamePart(toBean(field.getNamePart()));
 
     serializedField.setChildList(new ArrayList<>());
-    if(field.getChildList() != null) {
+    if (field.getChildList() != null) {
       for (UserBitShared.SerializedField cField : field.getChildList()) {
-        serializedField.getChildList()
-                       .add(toBean(cField));
+        serializedField.getChildList().add(toBean(cField));
       }
     }
     return serializedField;
   }
 
   private static UserBitShared.SerializedField fromBean(SerializedField field) {
-    if(field == null) { return null; }
+    if (field == null) {
+      return null;
+    }
     UserBitShared.SerializedField.Builder serializedFieldBuilder =
-      UserBitShared.SerializedField
-                   .newBuilder()
-                   .setBufferLength(field.getBufferLength())
-                   .setValueCount(field.getValueCount())
-                   .setVarByteLength(field.getVarByteLength())
-                   .setMajorType(fromBean(field.getMajorType()))
-                   .setNamePart(fromBean(field.getNamePart()));
+        UserBitShared.SerializedField.newBuilder()
+            .setBufferLength(field.getBufferLength())
+            .setValueCount(field.getValueCount())
+            .setVarByteLength(field.getVarByteLength())
+            .setMajorType(fromBean(field.getMajorType()))
+            .setNamePart(fromBean(field.getNamePart()));
 
-    if(field.getChildList() != null) {
+    if (field.getChildList() != null) {
       for (int i = 0; i < field.getChildList().size(); i++) {
         serializedFieldBuilder.addChild(fromBean(field.getChildList().get(i)));
       }
@@ -373,26 +383,30 @@ public class ArrowFileReader implements AutoCloseable {
     return serializedFieldBuilder.build();
   }
 
-
   private static NamePart toBean(UserBitShared.NamePart namePart) {
-    if(namePart == null) { return null; }
+    if (namePart == null) {
+      return null;
+    }
 
     NamePart namePartBean = new NamePart();
     namePartBean.setName(namePart.getName());
     namePartBean.setType(NamePart.Type.valueOf(namePart.getType().getNumber()));
-    if(namePart.hasChild()) {
+    if (namePart.hasChild()) {
       namePartBean.setChild(toBean(namePart.getChild()));
     }
     return namePartBean;
   }
 
   private static UserBitShared.NamePart fromBean(NamePart namePartBean) {
-    if(namePartBean == null) { return null; }
-    UserBitShared.NamePart.Builder namePartBuillder = UserBitShared.NamePart.newBuilder()
-                                                            .setName(namePartBean.getName())
-                                                            .setType(UserBitShared.NamePart.Type.forNumber(namePartBean.getType().getNumber()));
+    if (namePartBean == null) {
+      return null;
+    }
+    UserBitShared.NamePart.Builder namePartBuillder =
+        UserBitShared.NamePart.newBuilder()
+            .setName(namePartBean.getName())
+            .setType(UserBitShared.NamePart.Type.forNumber(namePartBean.getType().getNumber()));
 
-    if(namePartBean.getChild() != null) {
+    if (namePartBean.getChild() != null) {
       namePartBuillder = namePartBuillder.setChild(fromBean(namePartBean.getChild()));
     }
     return namePartBuillder.build();
@@ -408,7 +422,7 @@ public class ArrowFileReader implements AutoCloseable {
 
     majorTypeBean.setMinorType(toBean(majorType.getMinorType()));
     majorTypeBean.setSubTypeList(new ArrayList<>());
-    for(TypeProtos.MinorType cMinorType: majorType.getSubTypeList()) {
+    for (TypeProtos.MinorType cMinorType : majorType.getSubTypeList()) {
       majorTypeBean.getSubTypeList().add(toBean(cMinorType));
     }
 
@@ -416,15 +430,16 @@ public class ArrowFileReader implements AutoCloseable {
   }
 
   private static TypeProtos.MajorType fromBean(MajorType majorTypeBean) {
-    TypeProtos.MajorType.Builder majorTypeBuilder = TypeProtos.MajorType.newBuilder()
-               .setPrecision(majorTypeBean.getPrecision())
-               .setWidth(majorTypeBean.getWidth())
-               .setScale(majorTypeBean.getScale())
-               .setTimeZone(majorTypeBean.getTimeZone())
-               .setMode(TypeProtos.DataMode.forNumber(majorTypeBean.getMode().getNumber()))
-               .setMinorType(fromBean(majorTypeBean.getMinorType()));
+    TypeProtos.MajorType.Builder majorTypeBuilder =
+        TypeProtos.MajorType.newBuilder()
+            .setPrecision(majorTypeBean.getPrecision())
+            .setWidth(majorTypeBean.getWidth())
+            .setScale(majorTypeBean.getScale())
+            .setTimeZone(majorTypeBean.getTimeZone())
+            .setMode(TypeProtos.DataMode.forNumber(majorTypeBean.getMode().getNumber()))
+            .setMinorType(fromBean(majorTypeBean.getMinorType()));
 
-    if(majorTypeBean.getSubTypeList() != null) {
+    if (majorTypeBean.getSubTypeList() != null) {
       for (int i = 0; i < majorTypeBean.getSubTypeList().size(); i++) {
         majorTypeBuilder.setSubType(i, fromBean(majorTypeBean.getSubTypeList().get(i)));
       }
@@ -441,17 +456,15 @@ public class ArrowFileReader implements AutoCloseable {
     return TypeProtos.MinorType.forNumber(minorType.getNumber());
   }
 
-
   public static ArrowFileFormat.ArrowFileMetadata fromBean(ArrowFileMetadata beanMetadata) {
     ArrowFileFormat.ArrowFileFooter footer = fromBean(beanMetadata.getFooter());
 
     ArrowFileFormat.ArrowFileMetadata.Builder metadataBuilder =
-      ArrowFileFormat.ArrowFileMetadata
-        .newBuilder()
-        .setPath(beanMetadata.getPath())
-        .setRecordCount(beanMetadata.getRecordCount())
-        .setFooter(footer)
-        .setScreenNodeEndpoint(fromBean(beanMetadata.getScreenNodeEndpoint()));
+        ArrowFileFormat.ArrowFileMetadata.newBuilder()
+            .setPath(beanMetadata.getPath())
+            .setRecordCount(beanMetadata.getRecordCount())
+            .setFooter(footer)
+            .setScreenNodeEndpoint(fromBean(beanMetadata.getScreenNodeEndpoint()));
 
     if (beanMetadata.getArrowMetadataVersion() != 0) {
       metadataBuilder.setArrowMetadataVersion(beanMetadata.getArrowMetadataVersion());
@@ -461,53 +474,61 @@ public class ArrowFileReader implements AutoCloseable {
   }
 
   public static ArrowFileFormat.ArrowFileFooter fromBean(ArrowFileFooter footer) {
-    List<ArrowFileFormat.ArrowRecordBatchSummary> arrowRecordBatchSummaryList = Lists.newArrayList();
+    List<ArrowFileFormat.ArrowRecordBatchSummary> arrowRecordBatchSummaryList =
+        Lists.newArrayList();
 
-    if(footer.getBatchList() != null) {
+    if (footer.getBatchList() != null) {
       for (ArrowRecordBatchSummary beanSummary : footer.getBatchList()) {
         ArrowFileFormat.ArrowRecordBatchSummary summary =
-          ArrowFileFormat.ArrowRecordBatchSummary.newBuilder()
-                                                 .setOffset(beanSummary.getOffset())
-                                                 .setRecordCount(beanSummary.getRecordCount())
-                                                 .build();
+            ArrowFileFormat.ArrowRecordBatchSummary.newBuilder()
+                .setOffset(beanSummary.getOffset())
+                .setRecordCount(beanSummary.getRecordCount())
+                .build();
         arrowRecordBatchSummaryList.add(summary);
       }
     }
 
     List<UserBitShared.SerializedField> fieldList = Lists.newArrayList();
-    if(footer.getFieldList() != null) {
+    if (footer.getFieldList() != null) {
       for (SerializedField field : footer.getFieldList()) {
         fieldList.add(fromBean(field));
       }
     }
     return ArrowFileFormat.ArrowFileFooter.newBuilder()
-                                          .addAllBatch(arrowRecordBatchSummaryList)
-                                          .addAllField(fieldList)
-                                          .build();
+        .addAllBatch(arrowRecordBatchSummaryList)
+        .addAllField(fieldList)
+        .build();
   }
 
-  public static CoordinationProtos.NodeEndpoint fromBean(com.dremio.exec.proto.beans.NodeEndpoint nodeEndpoint) {
-    if (nodeEndpoint == null) { return null; }
+  public static CoordinationProtos.NodeEndpoint fromBean(
+      com.dremio.exec.proto.beans.NodeEndpoint nodeEndpoint) {
+    if (nodeEndpoint == null) {
+      return null;
+    }
 
-    EngineManagementProtos.EngineId.Builder engineIdBuilder = EngineManagementProtos.EngineId.newBuilder();
+    EngineManagementProtos.EngineId.Builder engineIdBuilder =
+        EngineManagementProtos.EngineId.newBuilder();
     if (nodeEndpoint.getEngineId() != null && nodeEndpoint.getEngineId().getId() != null) {
       engineIdBuilder.setId(nodeEndpoint.getEngineId().getId());
     }
 
-    EngineManagementProtos.SubEngineId.Builder subEngineIdBuilder = EngineManagementProtos.SubEngineId.newBuilder();
+    EngineManagementProtos.SubEngineId.Builder subEngineIdBuilder =
+        EngineManagementProtos.SubEngineId.newBuilder();
     if (nodeEndpoint.getSubEngineId() != null && nodeEndpoint.getSubEngineId().getId() != null) {
       subEngineIdBuilder.setId(nodeEndpoint.getSubEngineId().getId());
     }
 
-    CoordinationProtos.NodeEndpoint ret = CoordinationProtos.NodeEndpoint.newBuilder()
-                                                                         .setAddress(nodeEndpoint.getAddress())
-                                                                         .setEngineId(engineIdBuilder.build())
-                                                                         .setSubEngineId(subEngineIdBuilder.build())
-                                                                         .build();
+    CoordinationProtos.NodeEndpoint ret =
+        CoordinationProtos.NodeEndpoint.newBuilder()
+            .setAddress(nodeEndpoint.getAddress())
+            .setEngineId(engineIdBuilder.build())
+            .setSubEngineId(subEngineIdBuilder.build())
+            .build();
     return ret;
   }
 
-  private static final ThreadLocal<byte[]> READ_BUFFER = ThreadLocal.withInitial(() -> new byte[Long.BYTES]);
+  private static final ThreadLocal<byte[]> READ_BUFFER =
+      ThreadLocal.withInitial(() -> new byte[Long.BYTES]);
 
   private static long readLong(InputStream is) throws IOException {
     byte[] buffer = READ_BUFFER.get();

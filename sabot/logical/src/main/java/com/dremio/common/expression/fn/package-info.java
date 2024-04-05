@@ -13,7 +13,5 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/**
- * Logical function definitions.
- */
+/** Logical function definitions. */
 package com.dremio.common.expression.fn;

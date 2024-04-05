@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.store.dfs;
 
-import java.io.IOException;
-
 import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.OpProps;
@@ -26,7 +24,7 @@ import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.StoragePluginResolver;
-import com.dremio.exec.store.dfs.copyinto.CopyIntoErrorPluginAwareCreateTableEntry;
+import com.dremio.exec.store.dfs.copyinto.SystemIcebergTablePluginAwareCreateTableEntry;
 import com.dremio.exec.store.dfs.system.SystemIcebergTablesStoragePlugin;
 import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.exec.store.parquet.ParquetWriter;
@@ -36,12 +34,14 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import java.io.IOException;
 
 /**
  * Implements <code>CreateTableEntry</code> interface to create new tables in FileSystem storage.
  */
 @JsonTypeName("createParquetTableEntry")
-public class CreateParquetTableEntry implements CreateTableEntry, CopyIntoErrorPluginAwareCreateTableEntry {
+public class CreateParquetTableEntry
+    implements CreateTableEntry, SystemIcebergTablePluginAwareCreateTableEntry {
   private final String userName;
   private final MutablePlugin plugin;
   private final String location;
@@ -53,7 +53,6 @@ public class CreateParquetTableEntry implements CreateTableEntry, CopyIntoErrorP
   private SystemIcebergTablesStoragePlugin systemIcebergTablesPlugin;
   private StoragePluginResolver storagePluginResolver;
 
-
   @JsonCreator
   public CreateParquetTableEntry(
       @JsonProperty("userName") String userName,
@@ -63,8 +62,7 @@ public class CreateParquetTableEntry implements CreateTableEntry, CopyIntoErrorP
       @JsonProperty("options") WriterOptions options,
       @JsonProperty("datasetPath") NamespaceKey datasetPath,
       @JsonProperty("sourceTablePluginId") StoragePluginId sourceTablePluginId,
-      @JacksonInject StoragePluginResolver storagePluginResolver
-  ) {
+      @JacksonInject StoragePluginResolver storagePluginResolver) {
     this.userName = userName;
     this.plugin = storagePluginResolver.getSource(pluginId);
     this.location = location;
@@ -91,8 +89,7 @@ public class CreateParquetTableEntry implements CreateTableEntry, CopyIntoErrorP
       String location,
       IcebergTableProps icebergTableProps,
       WriterOptions options,
-      NamespaceKey datasetPath
-  ) {
+      NamespaceKey datasetPath) {
     this(userName, plugin, location, icebergTableProps, options, datasetPath, null);
   }
 
@@ -103,8 +100,7 @@ public class CreateParquetTableEntry implements CreateTableEntry, CopyIntoErrorP
       IcebergTableProps icebergTableProps,
       WriterOptions options,
       NamespaceKey datasetPath,
-      StoragePluginId sourceTablePluginId
-  ) {
+      StoragePluginId sourceTablePluginId) {
     this.userName = userName;
     this.plugin = plugin;
     this.location = location;
@@ -136,13 +132,15 @@ public class CreateParquetTableEntry implements CreateTableEntry, CopyIntoErrorP
   }
 
   @Override
-  public CreateParquetTableEntry cloneWithNewLocation(String newLocation){
-    return new CreateParquetTableEntry(userName, plugin, newLocation, icebergTableProps, options, datasetPath);
+  public CreateParquetTableEntry cloneWithNewLocation(String newLocation) {
+    return new CreateParquetTableEntry(
+        userName, plugin, newLocation, icebergTableProps, options, datasetPath);
   }
 
   @Override
-  public CreateParquetTableEntry cloneWithFields(WriterOptions writerOptions){
-    return new CreateParquetTableEntry(userName, plugin, location, icebergTableProps, writerOptions, datasetPath);
+  public CreateParquetTableEntry cloneWithFields(WriterOptions writerOptions) {
+    return new CreateParquetTableEntry(
+        userName, plugin, location, icebergTableProps, writerOptions, datasetPath);
   }
 
   @Override
@@ -151,18 +149,20 @@ public class CreateParquetTableEntry implements CreateTableEntry, CopyIntoErrorP
   }
 
   @Override
-  public Writer getWriter(
-      OpProps props,
-      PhysicalOperator child
-      ) throws IOException {
-    // In a iceberg flow, schema in a icebergTableProps should be set only once and by the first writer i.e parquet writer.
-    // Because any writer in a plan after first ParquetWriter will have RecordWriterSchema which is not valid iceberg table schema.
-    if (child != null && child.getProps() != null && icebergTableProps != null && !icebergTableProps.isSchemaSet()) {
+  public Writer getWriter(OpProps props, PhysicalOperator child) throws IOException {
+    // In a iceberg flow, schema in a icebergTableProps should be set only once and by the first
+    // writer i.e parquet writer.
+    // Because any writer in a plan after first ParquetWriter will have RecordWriterSchema which is
+    // not valid iceberg table schema.
+    if (child != null
+        && child.getProps() != null
+        && icebergTableProps != null
+        && !icebergTableProps.isSchemaSet()) {
       BatchSchema writerSchema = child.getProps().getSchema();
       writerSchema = IcebergUtils.getWriterSchema(writerSchema, options);
       icebergTableProps.setFullSchema(writerSchema);
     }
-    return  new ParquetWriter(props, child, location, options, plugin);
+    return new ParquetWriter(props, child, location, options, plugin);
   }
 
   @Override
@@ -195,7 +195,8 @@ public class CreateParquetTableEntry implements CreateTableEntry, CopyIntoErrorP
   }
 
   @Override
-  public void setSystemIcebergTablesPlugin(SystemIcebergTablesStoragePlugin systemIcebergTablesPlugin) {
+  public void setSystemIcebergTablesPlugin(
+      SystemIcebergTablesStoragePlugin systemIcebergTablesPlugin) {
     this.systemIcebergTablesPlugin = systemIcebergTablesPlugin;
     if (systemIcebergTablesPlugin != null) {
       this.systemIcebergTablesPluginId = systemIcebergTablesPlugin.getId();

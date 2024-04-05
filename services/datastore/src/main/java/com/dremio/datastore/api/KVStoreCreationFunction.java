@@ -21,5 +21,4 @@ package com.dremio.datastore.api;
  * @param <K> the key type
  * @param <V> the value type
  */
-public interface KVStoreCreationFunction<K, V> extends StoreCreationFunction<K, V, KVStore<K,V>> {
-}
+public interface KVStoreCreationFunction<K, V> extends StoreCreationFunction<K, V, KVStore<K, V>> {}

@@ -15,17 +15,16 @@
  */
 package com.dremio.dac.model.folder;
 
-import javax.validation.constraints.Pattern;
-
 import com.dremio.dac.model.common.LeafEntity;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import javax.validation.constraints.Pattern;
 
-/**
- * name of a folder in space
- */
+/** name of a folder in space */
 public class FolderName extends LeafEntity {
-  @Pattern(regexp = "^[^.\"\\/]+$", message = "Folder name cannot contain periods, forward slashes or double quotes.")
+  @Pattern(
+      regexp = "^[^.\"\\/]+$",
+      message = "Folder name cannot contain periods, forward slashes or double quotes.")
   private String name;
 
   @JsonCreator

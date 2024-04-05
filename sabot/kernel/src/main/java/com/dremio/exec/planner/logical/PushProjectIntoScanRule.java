@@ -16,8 +16,11 @@
 
 package com.dremio.exec.planner.logical;
 
+import com.dremio.exec.calcite.logical.ScanCrel;
+import com.dremio.exec.planner.physical.PrelUtil;
+import com.dremio.exec.planner.physical.PrelUtil.ProjectPushInfo;
+import com.google.common.collect.Lists;
 import java.util.List;
-
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.rel.RelNode;
@@ -27,17 +30,14 @@ import org.apache.calcite.rel.rules.ProjectRemoveRule;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.tools.RelBuilder;
 
-import com.dremio.exec.calcite.logical.ScanCrel;
-import com.dremio.exec.planner.physical.PrelUtil;
-import com.dremio.exec.planner.physical.PrelUtil.ProjectPushInfo;
-import com.google.common.collect.Lists;
-
 public class PushProjectIntoScanRule extends RelOptRule {
 
   public static final RelOptRule INSTANCE = new PushProjectIntoScanRule();
 
   private PushProjectIntoScanRule() {
-    super(RelOptHelper.some(LogicalProject.class, RelOptHelper.any(ScanCrel.class)), "PushProjectIntoScanRule");
+    super(
+        RelOptHelper.some(LogicalProject.class, RelOptHelper.any(ScanCrel.class)),
+        "PushProjectIntoScanRule");
   }
 
   @Override
@@ -47,7 +47,8 @@ public class PushProjectIntoScanRule extends RelOptRule {
 
     ProjectPushInfo columnInfo = PrelUtil.getColumns(scan.getRowType(), proj.getProjects());
 
-    // get TableBase, either wrapped in RelOptTable, or TranslatableTable. TableBase table = scan.getTable().unwrap(TableBase.class);
+    // get TableBase, either wrapped in RelOptTable, or TranslatableTable. TableBase table =
+    // scan.getTable().unwrap(TableBase.class);
     if (columnInfo == null || columnInfo.isStarQuery()) {
       return;
     }
@@ -66,10 +67,13 @@ public class PushProjectIntoScanRule extends RelOptRule {
 
     if (newProj instanceof Project
         && ProjectRemoveRule.isTrivial((Project) newProj)
-        && newScan.getRowType().getFullTypeString().equals(newProj.getRowType().getFullTypeString())) {
-        call.transformTo(newScan);
+        && newScan
+            .getRowType()
+            .getFullTypeString()
+            .equals(newProj.getRowType().getFullTypeString())) {
+      call.transformTo(newScan);
     } else {
-      if(newScan.getProjectedColumns().equals(scan.getProjectedColumns())) {
+      if (newScan.getProjectedColumns().equals(scan.getProjectedColumns())) {
         // no point in doing a pushdown that doesn't change anything.
         return;
       }
@@ -77,5 +81,4 @@ public class PushProjectIntoScanRule extends RelOptRule {
       call.transformTo(newProj);
     }
   }
-
 }

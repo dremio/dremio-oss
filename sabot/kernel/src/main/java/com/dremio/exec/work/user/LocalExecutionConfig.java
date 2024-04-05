@@ -20,10 +20,6 @@ import static com.dremio.options.OptionValue.createBoolean;
 import static com.dremio.options.OptionValue.createLong;
 import static com.dremio.options.OptionValue.createString;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 import com.dremio.catalog.model.VersionContext;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.physical.PlannerSettings;
@@ -31,10 +27,11 @@ import com.dremio.exec.planner.physical.PlannerSettings.StoreQueryResultsPolicy;
 import com.dremio.options.OptionManager;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
-/**
- * Configuration to modify local query execution.
- */
+/** Configuration to modify local query execution. */
 public class LocalExecutionConfig implements OptionProvider {
   private final boolean enableLeafLimits;
   private final boolean enableOutputLimits;
@@ -52,21 +49,22 @@ public class LocalExecutionConfig implements OptionProvider {
   private final Map<String, VersionContext> sourceVersionMapping;
   private final StoreQueryResultsPolicy storeQueryResultsPolicy;
 
-  LocalExecutionConfig(final boolean enableLeafLimits,
-                       final boolean enableOutputLimits,
-                       final boolean failIfNonEmptySent,
-                       final String username,
-                       final List<String> sqlContext,
-                       final boolean internalSingleThreaded,
-                       final String queryResultsStorePath,
-                       final boolean allowPartitionPruning,
-                       final boolean exposeInternalSources,
-                       final boolean ignoreColumnsLimits,
-                       final SubstitutionSettings substitutionSettings,
-                       final String engineName,
-                       final String sessionId,
-                       final Map<String, VersionContext> sourceVersionMapping,
-                       final StoreQueryResultsPolicy storeQueryResultsPolicy) {
+  LocalExecutionConfig(
+      final boolean enableLeafLimits,
+      final boolean enableOutputLimits,
+      final boolean failIfNonEmptySent,
+      final String username,
+      final List<String> sqlContext,
+      final boolean internalSingleThreaded,
+      final String queryResultsStorePath,
+      final boolean allowPartitionPruning,
+      final boolean exposeInternalSources,
+      final boolean ignoreColumnsLimits,
+      final SubstitutionSettings substitutionSettings,
+      final String engineName,
+      final String sessionId,
+      final Map<String, VersionContext> sourceVersionMapping,
+      final StoreQueryResultsPolicy storeQueryResultsPolicy) {
     this.enableLeafLimits = enableLeafLimits;
     this.enableOutputLimits = enableOutputLimits;
     this.failIfNonEmptySent = failIfNonEmptySent;
@@ -75,7 +73,8 @@ public class LocalExecutionConfig implements OptionProvider {
     this.internalSingleThreaded = internalSingleThreaded;
     this.queryResultsStorePath = Preconditions.checkNotNull(queryResultsStorePath);
     this.ignoreColumnsLimits = ignoreColumnsLimits;
-    this.substitutionSettings = MoreObjects.firstNonNull(substitutionSettings, SubstitutionSettings.of());
+    this.substitutionSettings =
+        MoreObjects.firstNonNull(substitutionSettings, SubstitutionSettings.of());
     this.allowPartitionPruning = allowPartitionPruning;
     this.exposeInternalSources = exposeInternalSources;
     this.engineName = engineName;
@@ -119,26 +118,40 @@ public class LocalExecutionConfig implements OptionProvider {
   @Override
   public void applyOptions(OptionManager manager) {
     if (enableLeafLimits) {
-      manager.setOption(createBoolean(QUERY, PlannerSettings.ENABLE_LEAF_LIMITS.getOptionName(), true));
-      manager.setOption(createLong(QUERY, ExecConstants.MAX_WIDTH_GLOBAL_KEY, manager.getOption(PlannerSettings.LEAF_LIMIT_MAX_WIDTH)));
+      manager.setOption(
+          createBoolean(QUERY, PlannerSettings.ENABLE_LEAF_LIMITS.getOptionName(), true));
+      manager.setOption(
+          createLong(
+              QUERY,
+              ExecConstants.MAX_WIDTH_GLOBAL_KEY,
+              manager.getOption(PlannerSettings.LEAF_LIMIT_MAX_WIDTH)));
       manager.setOption(createLong(QUERY, ExecConstants.SLICE_TARGET, 1));
     }
 
     if (enableOutputLimits) {
-      manager.setOption(createBoolean(QUERY, PlannerSettings.ENABLE_OUTPUT_LIMITS.getOptionName(), true));
+      manager.setOption(
+          createBoolean(QUERY, PlannerSettings.ENABLE_OUTPUT_LIMITS.getOptionName(), true));
     }
 
     if (ignoreColumnsLimits) {
-      manager.setOption(createBoolean(QUERY, PlannerSettings.IGNORE_SCANNED_COLUMNS_LIMIT.getOptionName(), true));
+      manager.setOption(
+          createBoolean(QUERY, PlannerSettings.IGNORE_SCANNED_COLUMNS_LIMIT.getOptionName(), true));
     }
 
-    manager.setOption(createString(QUERY, PlannerSettings.STORE_QUERY_RESULTS.getOptionName(),
-        storeQueryResultsPolicy.name()));
-    manager.setOption(createString(QUERY,
-        PlannerSettings.QUERY_RESULTS_STORE_TABLE.getOptionName(), queryResultsStorePath));
+    manager.setOption(
+        createString(
+            QUERY,
+            PlannerSettings.STORE_QUERY_RESULTS.getOptionName(),
+            storeQueryResultsPolicy.name()));
+    manager.setOption(
+        createString(
+            QUERY,
+            PlannerSettings.QUERY_RESULTS_STORE_TABLE.getOptionName(),
+            queryResultsStorePath));
 
     if (!allowPartitionPruning) {
-      manager.setOption(createBoolean(QUERY, PlannerSettings.ENABLE_PARTITION_PRUNING.getOptionName(), false));
+      manager.setOption(
+          createBoolean(QUERY, PlannerSettings.ENABLE_PARTITION_PRUNING.getOptionName(), false));
     }
 
     if (internalSingleThreaded) {
@@ -163,10 +176,10 @@ public class LocalExecutionConfig implements OptionProvider {
     private SubstitutionSettings substitutionSettings;
     private String engineName;
     private String sessionId;
-    private StoreQueryResultsPolicy storeQueryResultsPolicy = StoreQueryResultsPolicy.PATH_AND_ATTEMPT_ID;
+    private StoreQueryResultsPolicy storeQueryResultsPolicy =
+        StoreQueryResultsPolicy.PATH_AND_ATTEMPT_ID;
 
-    private Builder() {
-    }
+    private Builder() {}
 
     /**
      * Sets the flag to limit the size of data that will be scanned.
@@ -191,8 +204,8 @@ public class LocalExecutionConfig implements OptionProvider {
     }
 
     /**
-     * Sets the flag to fail the query rather than reattempt when some data has already been sent to client. This is
-     * applicable only when reattempt is possible.
+     * Sets the flag to fail the query rather than reattempt when some data has already been sent to
+     * client. This is applicable only when reattempt is possible.
      *
      * @param failIfNonEmptySent fail if non empty batch sent
      * @return this builder
@@ -292,6 +305,7 @@ public class LocalExecutionConfig implements OptionProvider {
 
     /**
      * set engine name.
+     *
      * @param engineName
      * @return
      */
@@ -302,6 +316,7 @@ public class LocalExecutionConfig implements OptionProvider {
 
     /**
      * set ignoreColumnsLimits.
+     *
      * @param ignoreColumnsLimits
      * @return
      */
@@ -312,6 +327,7 @@ public class LocalExecutionConfig implements OptionProvider {
 
     /**
      * set session ID.
+     *
      * @param sessionId
      * @return
      */
@@ -322,6 +338,7 @@ public class LocalExecutionConfig implements OptionProvider {
 
     /**
      * set StoreQueryResultsPolicy
+     *
      * @param policy
      * @return
      */
@@ -332,22 +349,21 @@ public class LocalExecutionConfig implements OptionProvider {
 
     public LocalExecutionConfig build() {
       return new LocalExecutionConfig(
-        enableLeafLimits,
-        enableOutputLimits,
-        failIfNonEmptySent,
-        username,
-        sqlContext,
-        internalSingleThreaded,
-        queryResultsStorePath,
-        allowPartitionPruning,
-        exposeInternalSources,
-        ignoreColumnsLimits,
-        substitutionSettings,
-        engineName,
-        sessionId,
-        sourceVersionMapping,
-        storeQueryResultsPolicy
-        );
+          enableLeafLimits,
+          enableOutputLimits,
+          failIfNonEmptySent,
+          username,
+          sqlContext,
+          internalSingleThreaded,
+          queryResultsStorePath,
+          allowPartitionPruning,
+          exposeInternalSources,
+          ignoreColumnsLimits,
+          substitutionSettings,
+          engineName,
+          sessionId,
+          sourceVersionMapping,
+          storeQueryResultsPolicy);
     }
   }
 

@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.physical.config;
 
-import java.util.List;
-
 import com.dremio.common.logical.data.NamedExpression;
 import com.dremio.exec.physical.base.AbstractSingle;
 import com.dremio.exec.physical.base.OpProps;
@@ -28,6 +26,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.annotations.VisibleForTesting;
+import java.util.List;
 
 @JsonTypeName("hash-aggregate")
 public class HashAggregate extends AbstractSingle {
@@ -51,8 +50,7 @@ public class HashAggregate extends AbstractSingle {
       @JsonProperty("vectorize") boolean vectorize,
       @JsonProperty("useSpill") boolean useSpill,
       @JsonProperty("cardinality") float cardinality,
-      @JsonProperty("hashTableBatchSize") int hashTableBatchSize
-      ) {
+      @JsonProperty("hashTableBatchSize") int hashTableBatchSize) {
     super(props, child);
     this.groupByExprs = groupByExprs;
     this.aggrExprs = aggrExprs;
@@ -64,21 +62,21 @@ public class HashAggregate extends AbstractSingle {
 
   // for testing only
   public HashAggregate(
-    OpProps props,
-    PhysicalOperator child,
-    List<NamedExpression> groupByExprs,
-    List<NamedExpression> aggrExprs,
-    boolean vectorize,
-    boolean useSpill,
-    float cardinality) {
+      OpProps props,
+      PhysicalOperator child,
+      List<NamedExpression> groupByExprs,
+      List<NamedExpression> aggrExprs,
+      boolean vectorize,
+      boolean useSpill,
+      float cardinality) {
     this(props, child, groupByExprs, aggrExprs, vectorize, useSpill, cardinality, 3968);
   }
 
-  public boolean isVectorize(){
+  public boolean isVectorize() {
     return vectorize;
   }
 
-  public boolean isUseSpill(){
+  public boolean isUseSpill() {
     return useSpill;
   }
 
@@ -95,13 +93,15 @@ public class HashAggregate extends AbstractSingle {
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value) throws E{
+  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value)
+      throws E {
     return physicalVisitor.visitHashAggregate(this, value);
   }
 
   @Override
   protected PhysicalOperator getNewWithChild(PhysicalOperator child) {
-    return new HashAggregate(props, child, groupByExprs, aggrExprs, vectorize, useSpill, cardinality);
+    return new HashAggregate(
+        props, child, groupByExprs, aggrExprs, vectorize, useSpill, cardinality);
   }
 
   @Override

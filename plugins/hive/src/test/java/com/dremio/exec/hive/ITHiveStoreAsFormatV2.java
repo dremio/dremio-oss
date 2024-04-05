@@ -28,20 +28,6 @@ import com.dremio.exec.store.hive.HiveTestDataGenerator;
 @RunWith(Parameterized.class)
 public class ITHiveStoreAsFormatV2 extends ITHiveStoreAsFormat {
 
-  private static AutoCloseable icebergEnabled;
-
-  @BeforeClass
-  public static void enableUnlimitedSplitSupport() {
-    runWithUnlimitedSplitSupport = true;
-    icebergEnabled = enableUnlimitedSplitsSupportFlags();
-  }
-
-  @AfterClass
-  public static void disableUnlimitedSplitSupport() throws Exception {
-    icebergEnabled.close();
-    runWithUnlimitedSplitSupport = false;
-  }
-
   @Parameterized.Parameters(name = "Table Format {0}")
   public static List<String> listTableFormats() {
     return HiveTestDataGenerator.listStoreAsFormatsForTests();

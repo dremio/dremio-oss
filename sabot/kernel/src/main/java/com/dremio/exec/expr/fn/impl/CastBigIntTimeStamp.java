@@ -15,9 +15,6 @@
  */
 package com.dremio.exec.expr.fn.impl;
 
-import org.apache.arrow.vector.holders.BigIntHolder;
-import org.apache.arrow.vector.holders.TimeStampMilliHolder;
-
 import com.dremio.common.expression.ExpressionStringBuilder;
 import com.dremio.common.expression.ValueExpressions.TimeStampExpression;
 import com.dremio.exec.expr.SimpleFunction;
@@ -25,24 +22,26 @@ import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
+import org.apache.arrow.vector.holders.BigIntHolder;
+import org.apache.arrow.vector.holders.TimeStampMilliHolder;
 
 /**
- * Casting a long to TIMESTAMP. SQL standard doesn't allow this, but we need this because we store the
- * timestamp constant as bigint and during fragment construction in
- * {@link ExpressionStringBuilder#visitTimeStampConstant(TimeStampExpression, StringBuilder)}
+ * Casting a long to TIMESTAMP. SQL standard doesn't allow this, but we need this because we store
+ * the timestamp constant as bigint and during fragment construction in {@link
+ * ExpressionStringBuilder#visitTimeStampConstant(TimeStampExpression, StringBuilder)}
  */
 @SuppressWarnings("unused")
-@FunctionTemplate(name = "castTIMESTAMP", scope = FunctionTemplate.FunctionScope.SIMPLE, nulls= NullHandling.NULL_IF_NULL)
+@FunctionTemplate(
+    name = "castTIMESTAMP",
+    scope = FunctionTemplate.FunctionScope.SIMPLE,
+    nulls = NullHandling.NULL_IF_NULL)
 public class CastBigIntTimeStamp implements SimpleFunction {
 
-  @Param
-  BigIntHolder in;
-  @Output
-  TimeStampMilliHolder out;
+  @Param BigIntHolder in;
+  @Output TimeStampMilliHolder out;
 
   @Override
-  public void setup() {
-  }
+  public void setup() {}
 
   @Override
   public void eval() {

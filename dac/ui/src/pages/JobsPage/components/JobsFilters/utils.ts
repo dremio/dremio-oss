@@ -46,7 +46,7 @@ export const itemsForStateFilter = [
   { id: "ENGINE_START", label: "Engine Start", icon: "job-state/engine-start" },
   { id: "RUNNING", label: "Running", icon: "job-state/running" },
   { id: "COMPLETED", label: "Completed", icon: "job-state/completed" },
-  { id: "CANCELED", label: "Canceled", icon: "job-state/canceled" },
+  { id: "CANCELED", label: "Canceled", icon: "job-state/cancel" },
   { id: "FAILED", label: "Failed", icon: "job-state/failed" },
 ];
 
@@ -79,11 +79,11 @@ export const getShowHideColumns = () => {
     undefined,
     undefined,
     undefined,
-    !isNotSoftware()
+    !isNotSoftware(),
   );
   const isValidColIds = isEqual(
     (cols || []).map(({ id }: any) => id),
-    tableCols.map(({ id }) => id)
+    tableCols.map(({ id }) => id),
   );
 
   if (

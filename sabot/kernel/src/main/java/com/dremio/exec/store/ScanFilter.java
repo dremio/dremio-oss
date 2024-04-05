@@ -15,22 +15,19 @@
  */
 package com.dremio.exec.store;
 
-import java.util.List;
-
-import org.apache.calcite.rex.RexNode;
-
 import com.dremio.common.expression.SchemaPath;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import java.util.List;
+import org.apache.calcite.rex.RexNode;
 
-/**
- * Interface for filters that are evaluated in scan.
- */
+/** Interface for filters that are evaluated in scan. */
 @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, include = JsonTypeInfo.As.PROPERTY, property = "type")
 public interface ScanFilter {
 
   /**
    * Get the cost adjustment associated with the conditions in the filter.
+   *
    * @return
    */
   @JsonIgnore

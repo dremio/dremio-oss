@@ -16,13 +16,13 @@
 
 export const getCatalogIdFromSource = (
   state: any,
-  sourceName: string
+  sourceName: string,
 ): string => {
   const source = state.resources.entities
     .get("source")
     .find(
       (item: any) =>
-        item.get("type") === "ARCTIC" && item.get("name") === sourceName
+        item.get("type") === "ARCTIC" && item.get("name") === sourceName,
     );
 
   return source?.getIn(["config", "arcticCatalogId"]);

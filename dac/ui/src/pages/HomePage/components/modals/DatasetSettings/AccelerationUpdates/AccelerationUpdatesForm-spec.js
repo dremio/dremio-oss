@@ -33,6 +33,10 @@ describe("AccelerationUpdatesForm", () => {
         DataFreshnessSection.defaultFormValueGracePeriod(),
       accelerationNeverExpire: false,
       accelerationNeverRefresh: false,
+      accelerationActivePolicyType:
+        DataFreshnessSection.defaultFormValuePolicyType(),
+      accelerationRefreshSchedule:
+        DataFreshnessSection.defaultFormValueRefreshSchedule(),
     };
     minimalProps = {
       ...minimalFormProps(fieldNames),
@@ -54,7 +58,7 @@ describe("AccelerationUpdatesForm", () => {
     const wrapper = shallow(<AccelerationUpdatesForm {...minimalProps} />);
     expect(wrapper).to.have.length(1);
     expect(wrapper.find("Radio").at(1).props().label).to.be.eql(
-      '{"0":{"id":"Incremental.Update"}}'
+      '{"0":{"id":"Incremental.Update"}}',
     );
   });
 
@@ -70,7 +74,7 @@ describe("AccelerationUpdatesForm", () => {
 
     const wrapper = shallow(<AccelerationUpdatesForm {...props} />);
     expect(wrapper.find("p").text()).to.be.eql(
-      '{"0":{"id":"Refresh.Method.Auto"}}'
+      '{"0":{"id":"Refresh.Method.Auto"}}',
     );
 
     stub.restore();
@@ -82,7 +86,7 @@ describe("AccelerationUpdatesForm", () => {
       .returns(false);
     const wrapper = shallow(<AccelerationUpdatesForm {...minimalProps} />);
     expect(wrapper.find("p").text()).to.be.eql(
-      '{"0":{"id":"Refresh.Method.Full"},"1":{}}'
+      '{"0":{"id":"Refresh.Method.Full"},"1":{}}',
     );
     stub.restore();
   });
@@ -98,10 +102,10 @@ describe("AccelerationUpdatesForm", () => {
 
   it("should render Incremental option for folder", () => {
     const wrapper = shallow(
-      <AccelerationUpdatesForm {...minimalProps} entityType="folder" />
+      <AccelerationUpdatesForm {...minimalProps} entityType="folder" />,
     );
     expect(wrapper.find("Radio").at(1).props().label).to.be.eql(
-      '{"0":{"id":"Incremental.Update.NewFiles"}}'
+      '{"0":{"id":"Incremental.Update.NewFiles"}}',
     );
   });
 
@@ -152,14 +156,14 @@ describe("AccelerationUpdatesForm", () => {
     it("should return false when method is incremental and entityType is not physicalDataset", () => {
       wrapper.setProps({ entityType: "folder" });
       expect(
-        instance.requiresIncrementalFieldSelection({ method: "INCREMENTAL" })
+        instance.requiresIncrementalFieldSelection({ method: "INCREMENTAL" }),
       ).to.be.false;
     });
 
     it("should return true when method is incremental and entityType is physicalDataset", () => {
       wrapper.setProps({ entityType: "physicalDataset" });
       expect(
-        instance.requiresIncrementalFieldSelection({ method: "INCREMENTAL" })
+        instance.requiresIncrementalFieldSelection({ method: "INCREMENTAL" }),
       ).to.be.true;
     });
   });
@@ -169,14 +173,14 @@ describe("AccelerationUpdatesForm", () => {
       const stub = sinon
         .stub(
           AccelerationUpdatesForm.prototype,
-          "requiresIncrementalFieldSelection"
+          "requiresIncrementalFieldSelection",
         )
         .returns(false);
 
       const wrapper = shallow(<AccelerationUpdatesForm {...minimalProps} />);
       const instance = wrapper.instance();
       expect(instance.mapFormValues(minimalProps.values)).to.be.eql(
-        minimalProps.values
+        minimalProps.values,
       );
 
       stub.restore();
@@ -186,7 +190,7 @@ describe("AccelerationUpdatesForm", () => {
       const stub = sinon
         .stub(
           AccelerationUpdatesForm.prototype,
-          "requiresIncrementalFieldSelection"
+          "requiresIncrementalFieldSelection",
         )
         .returns(true);
 
@@ -204,9 +208,13 @@ describe("AccelerationUpdatesForm", () => {
         accelerationNeverRefresh: false,
         fieldList: ["col1"],
         refreshField: "col1",
+        accelerationActivePolicyType:
+          DataFreshnessSection.defaultFormValuePolicyType(),
+        accelerationRefreshSchedule:
+          DataFreshnessSection.defaultFormValueRefreshSchedule(),
       };
       expect(instance.mapFormValues(commonProps.values)).to.be.eql(
-        expectedValues
+        expectedValues,
       );
 
       stub.restore();
@@ -216,7 +224,7 @@ describe("AccelerationUpdatesForm", () => {
       const stub = sinon
         .stub(
           AccelerationUpdatesForm.prototype,
-          "requiresIncrementalFieldSelection"
+          "requiresIncrementalFieldSelection",
         )
         .returns(true);
 
@@ -231,10 +239,10 @@ describe("AccelerationUpdatesForm", () => {
 
       wrapper.setProps({ ...props });
       expect(instance.mapFormValues(props).accelerationNeverExpire).to.be.eql(
-        true
+        true,
       );
       expect(instance.mapFormValues(props).accelerationNeverExpire).to.be.eql(
-        true
+        true,
       );
 
       stub.restore();

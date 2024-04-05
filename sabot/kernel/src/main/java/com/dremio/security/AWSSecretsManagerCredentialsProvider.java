@@ -15,13 +15,6 @@
  */
 package com.dremio.security;
 
-import java.io.IOException;
-import java.net.URI;
-import java.util.Locale;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.aws.SharedInstanceProfileCredentialsProvider;
 import com.dremio.services.credentials.CredentialsException;
 import com.dremio.services.credentials.CredentialsProvider;
@@ -29,7 +22,11 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
-
+import java.io.IOException;
+import java.net.URI;
+import java.util.Locale;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.regions.Region;
@@ -37,13 +34,20 @@ import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
 
-/**
- * Support for AWS Secrets Manager
- */
+/** Support for AWS Secrets Manager */
 public class AWSSecretsManagerCredentialsProvider implements CredentialsProvider {
-  private static final Logger logger = LoggerFactory.getLogger(AWSSecretsManagerCredentialsProvider.class);
+  private static final Logger logger =
+      LoggerFactory.getLogger(AWSSecretsManagerCredentialsProvider.class);
 
-  private enum Arn {arn, aws, secretsManager, region, accountId, secret, secretName}
+  private enum Arn {
+    arn,
+    aws,
+    secretsManager,
+    region,
+    accountId,
+    secret,
+    secretName
+  }
 
   private static final String AWS_CURRENT = "AWSCURRENT";
   private static final String ARN = "arn";
@@ -65,7 +69,8 @@ public class AWSSecretsManagerCredentialsProvider implements CredentialsProvider
     Preconditions.checkArgument(secretURI != null, "Invalid secret URI passed");
 
     final String secretArn = secretURI.toString();
-    Preconditions.checkState(!secretArn.isEmpty(), "Invalid secret arn during secret info construction");
+    Preconditions.checkState(
+        !secretArn.isEmpty(), "Invalid secret arn during secret info construction");
 
     final String[] arnTokens = secretArn.split(COLON_DELIMITER);
     Preconditions.checkState(isValidARN(arnTokens), "Invalid secret ARN passed");
@@ -83,16 +88,19 @@ public class AWSSecretsManagerCredentialsProvider implements CredentialsProvider
      * to EC2 machine. This will be further enhanced, once we have more requirements on it.
      */
     AwsCredentialsProvider awsCredentialsProvider = new SharedInstanceProfileCredentialsProvider();
-    GetSecretValueRequest secretValueRequest = GetSecretValueRequest.builder().secretId(secretName)
-      .versionStage(AWS_CURRENT).build();
+    GetSecretValueRequest secretValueRequest =
+        GetSecretValueRequest.builder().secretId(secretName).versionStage(AWS_CURRENT).build();
 
-    try (final SecretsManagerClient secretsManagerClient = SecretsManagerClient.builder()
-      .region(Region.of(region))
-      .credentialsProvider(awsCredentialsProvider)
-      .build()) {
-      final GetSecretValueResponse secretValueResponse = secretsManagerClient.getSecretValue(secretValueRequest);
-      return (secretValueResponse.secretString() != null) ?
-        secretValueResponse.secretString() : secretValueResponse.secretBinary().toString();
+    try (final SecretsManagerClient secretsManagerClient =
+        SecretsManagerClient.builder()
+            .region(Region.of(region))
+            .credentialsProvider(awsCredentialsProvider)
+            .build()) {
+      final GetSecretValueResponse secretValueResponse =
+          secretsManagerClient.getSecretValue(secretValueRequest);
+      return (secretValueResponse.secretString() != null)
+          ? secretValueResponse.secretString()
+          : secretValueResponse.secretBinary().toString();
     } catch (SdkException e) {
       logger.debug("Unable to retrieve secret for secret {} as {}", secretName, e.getMessage());
       throw new CredentialsException(e.getMessage(), e);
@@ -109,11 +117,11 @@ public class AWSSecretsManagerCredentialsProvider implements CredentialsProvider
    * ARN format : "arn:aws:secretsmanager:<region>:<account-id-number>:secret:secret_name"
    */
   private static boolean isValidARN(String[] arnTokens) {
-    return arnTokens.length == 7 &&
-      arnTokens[Arn.arn.ordinal()].equals(ARN) &&
-      arnTokens[Arn.aws.ordinal()].equals(AWS) &&
-      arnTokens[Arn.secretsManager.ordinal()].equals(SECRETS_MANAGER) &&
-      arnTokens[Arn.secret.ordinal()].equals(SECRET);
+    return arnTokens.length == 7
+        && arnTokens[Arn.arn.ordinal()].equals(ARN)
+        && arnTokens[Arn.aws.ordinal()].equals(AWS)
+        && arnTokens[Arn.secretsManager.ordinal()].equals(SECRETS_MANAGER)
+        && arnTokens[Arn.secret.ordinal()].equals(SECRET);
   }
 
   /*
@@ -122,17 +130,14 @@ public class AWSSecretsManagerCredentialsProvider implements CredentialsProvider
    */
   private static String extractCredentials(String secret) {
     try {
-      return MAPPER.readValue(secret, PasswordCredentials.class)
-        .getPassword();
+      return MAPPER.readValue(secret, PasswordCredentials.class).getPassword();
     } catch (IOException e) {
       logger.debug("Secret might not be in json format, Returning secret as is");
     }
     return secret;
   }
 
-  /**
-   * Password credentials contains only password.
-   */
+  /** Password credentials contains only password. */
   @JsonIgnoreProperties(ignoreUnknown = true)
   private static final class PasswordCredentials {
     @JsonProperty("password")

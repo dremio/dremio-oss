@@ -15,7 +15,7 @@
  */
 package com.dremio.exec.catalog;
 
-import static com.dremio.exec.catalog.CatalogUtil.getTimeTravelRequest;
+import static com.dremio.exec.catalog.CatalogUtil.getIcebergTimeTravelRequest;
 
 import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.common.exceptions.UserException;
@@ -29,36 +29,40 @@ import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.google.common.base.Preconditions;
 
-/**
- * Table functions metadata for plugin like data plane.
- */
+/** Table functions metadata for plugin like data plane. */
 public class MFunctionVersionedSourceMetadata extends MFunctionMetadataImpl {
 
   private final VersionedDatasetAccessOptions versionedDatasetAccessOptions;
 
-  public MFunctionVersionedSourceMetadata(NamespaceKey canonicalKey, ManagedStoragePlugin plugin, DatasetConfig datasetConfig,
-                                          SchemaConfig schemaConfig, VersionedDatasetAccessOptions versionedDatasetAccessOptions, TableVersionContext context) {
+  public MFunctionVersionedSourceMetadata(
+      NamespaceKey canonicalKey,
+      ManagedStoragePlugin plugin,
+      DatasetConfig datasetConfig,
+      SchemaConfig schemaConfig,
+      VersionedDatasetAccessOptions versionedDatasetAccessOptions,
+      TableVersionContext context) {
     super(canonicalKey, datasetConfig, plugin, schemaConfig, context);
     this.versionedDatasetAccessOptions = versionedDatasetAccessOptions;
   }
 
   @Override
   public DatasetRetrievalOptions getOptions() {
-    return plugin.getDefaultRetrievalOptions()
-      .toBuilder()
-      .setTimeTravelRequest(getTimeTravelRequest(canonicalKey, context))
-      .setVersionedDatasetAccessOptions(versionedDatasetAccessOptions)
-      .build();
+    return plugin.getDefaultRetrievalOptions().toBuilder()
+        .setTimeTravelRequest(getIcebergTimeTravelRequest(canonicalKey, context))
+        .setVersionedDatasetAccessOptions(versionedDatasetAccessOptions)
+        .build();
   }
 
   @Override
   public String getMetadataLocation() {
     Preconditions.checkArgument(getHandle().isPresent());
     try {
-      return  ((SupportsIcebergMetadata) ((FileDatasetHandle) getHandle().get()).getDatasetMetadata(getOptions().asGetMetadataOptions(currentConfig))).getMetadataFileLocation();
+      return ((SupportsIcebergMetadata)
+              ((FileDatasetHandle) getHandle().get())
+                  .getDatasetMetadata(getOptions().asGetMetadataOptions(currentConfig)))
+          .getMetadataFileLocation();
     } catch (ConnectorException e) {
-      throw UserException.validationError(e)
-        .buildSilently();
+      throw UserException.validationError(e).buildSilently();
     }
   }
 }

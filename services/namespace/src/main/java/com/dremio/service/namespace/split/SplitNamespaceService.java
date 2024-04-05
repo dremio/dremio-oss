@@ -20,35 +20,37 @@ import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.service.namespace.PartitionChunkId;
 import com.dremio.service.namespace.PartitionChunkMetadata;
 
-/**
- * Namespace operations for splits.
- */
+/** Namespace operations for splits. */
 public interface SplitNamespaceService {
-  /**
-   * Compression of (multi)splits in the K/V store
-   */
+  /** Compression of (multi)splits in the K/V store */
   enum SplitCompression {
-    UNCOMPRESSED,  // splits stored uncompressed
-    SNAPPY         // splits stored using snappy compression
+    UNCOMPRESSED, // splits stored uncompressed
+    SNAPPY // splits stored using snappy compression
   }
 
   //// READ
   Iterable<PartitionChunkMetadata> findSplits(LegacyIndexedStore.LegacyFindByCondition condition);
-  Iterable<PartitionChunkMetadata> findSplits(LegacyKVStore.LegacyFindByRange<PartitionChunkId> range);
+
+  Iterable<PartitionChunkMetadata> findSplits(
+      LegacyKVStore.LegacyFindByRange<PartitionChunkId> range);
+
   int getPartitionChunkCount(LegacyIndexedStore.LegacyFindByCondition condition);
 
   //// DELETE
   /**
    * Delete any orphaned splits from the Namespace.
    *
-   * NOTE: this cannot be run in parallel with any other metadata updates as that may cause
+   * <p>NOTE: this cannot be run in parallel with any other metadata updates as that may cause
    * generation of split orphans while the dataset is initially getting setup.
    *
-   * @param policy the expiration policy. Note: choosing an aggresive policy while running
-   * other metadata updates or planning queries may cause generation of split orphans while the
-   * dataset is initially getting setup, or query errors
+   * @param policy the expiration policy. Note: choosing an aggresive policy while running other
+   *     metadata updates or planning queries may cause generation of split orphans while the
+   *     dataset is initially getting setup, or query errors
    * @return The number of splits deleted.
    */
-  int deleteSplitOrphans(PartitionChunkId.SplitOrphansRetentionPolicy policy, boolean datasetMetadataConsistencyValidate);
+  int deleteSplitOrphans(
+      PartitionChunkId.SplitOrphansRetentionPolicy policy,
+      boolean datasetMetadataConsistencyValidate);
+
   void deleteSplits(Iterable<PartitionChunkId> datasetSplits);
 }

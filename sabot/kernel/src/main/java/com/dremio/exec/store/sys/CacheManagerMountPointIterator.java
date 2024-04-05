@@ -15,23 +15,25 @@
  */
 package com.dremio.exec.store.sys;
 
-import java.util.Collections;
-import java.util.Iterator;
-
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.work.CacheManagerMountPointInfo;
 import com.dremio.sabot.exec.context.OperatorContext;
+import java.util.Collections;
+import java.util.Iterator;
 
-/**
- * Iterator which returns cache manager mount points information
- */
+/** Iterator which returns cache manager mount points information */
 public class CacheManagerMountPointIterator implements Iterator<Object> {
   private final Iterator<CacheManagerMountPointInfo> iter;
 
   CacheManagerMountPointIterator(SabotContext sabotContext, OperatorContext operatorContext) {
-    iter = sabotContext.getFileSystemWrapper().isWrapperFor(CacheManagerStatsProvider.class) ?
-        sabotContext.getFileSystemWrapper().unwrap(CacheManagerStatsProvider.class).getMountPointStats().iterator() :
-        Collections.EMPTY_LIST.iterator();
+    iter =
+        sabotContext.getFileSystemWrapper().isWrapperFor(CacheManagerStatsProvider.class)
+            ? sabotContext
+                .getFileSystemWrapper()
+                .unwrap(CacheManagerStatsProvider.class)
+                .getMountPointStats()
+                .iterator()
+            : Collections.EMPTY_LIST.iterator();
   }
 
   @Override
@@ -48,5 +50,4 @@ public class CacheManagerMountPointIterator implements Iterator<Object> {
   public void remove() {
     throw new UnsupportedOperationException();
   }
-
 }

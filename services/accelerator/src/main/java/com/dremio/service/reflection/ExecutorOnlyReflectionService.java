@@ -15,27 +15,30 @@
  */
 package com.dremio.service.reflection;
 
-import javax.inject.Provider;
-
 import com.dremio.service.DirectProvider;
 import com.dremio.service.reflection.MaterializationCache.CacheViewer;
 import com.dremio.service.reflection.proto.MaterializationId;
+import javax.inject.Provider;
 
 /**
- * Executor-only {@link ReflectionService} implementation with the main purpose of exposing a {@link CacheViewer} to
- * the system tables
+ * Executor-only {@link ReflectionService} implementation with the main purpose of exposing a {@link
+ * CacheViewer} to the system tables
  */
 public class ExecutorOnlyReflectionService extends ReflectionService.BaseReflectionService {
 
-  /**
-   * Executor-only implementation of the cache viewer that always returns true
-   */
-  private static CacheViewer ALWAYS_CACHED_VIEWER = new CacheViewer() {
-    @Override
-    public boolean isCached(MaterializationId id) {
-      return true;
-    }
-  };
+  /** Executor-only implementation of the cache viewer that always returns true */
+  private static CacheViewer ALWAYS_CACHED_VIEWER =
+      new CacheViewer() {
+        @Override
+        public boolean isCached(MaterializationId id) {
+          return true;
+        }
+
+        @Override
+        public boolean isInitialized() {
+          return true;
+        }
+      };
 
   @Override
   public Provider<CacheViewer> getCacheViewerProvider() {

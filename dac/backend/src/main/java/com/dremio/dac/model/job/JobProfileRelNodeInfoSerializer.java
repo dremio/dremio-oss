@@ -15,21 +15,23 @@
  */
 package com.dremio.dac.model.job;
 
-import java.io.IOException;
-
 import com.dremio.exec.proto.UserBitShared;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.google.protobuf.util.JsonFormat;
+import java.io.IOException;
 
 public class JobProfileRelNodeInfoSerializer extends JsonSerializer<UserBitShared.RelNodeInfo> {
 
   private static final JsonFormat.Printer PROTOBUF_JSON_PRINTER = JsonFormat.printer();
 
   @Override
-  public void serialize(UserBitShared.RelNodeInfo relNodeInfo, JsonGenerator jsonGenerator, SerializerProvider serializerProvider)
-    throws IOException {
+  public void serialize(
+      UserBitShared.RelNodeInfo relNodeInfo,
+      JsonGenerator jsonGenerator,
+      SerializerProvider serializerProvider)
+      throws IOException {
     jsonGenerator.writeRawValue(PROTOBUF_JSON_PRINTER.print(relNodeInfo));
   }
 }

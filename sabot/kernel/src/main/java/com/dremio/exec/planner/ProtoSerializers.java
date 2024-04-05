@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.planner;
 
-import java.io.IOException;
-
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -25,11 +23,11 @@ import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
-
 import io.protostuff.LinkedBuffer;
 import io.protostuff.ProtostuffIOUtil;
 import io.protostuff.Schema;
 import io.protostuff.runtime.RuntimeSchema;
+import java.io.IOException;
 
 @SuppressWarnings("serial")
 public class ProtoSerializers {
@@ -56,14 +54,14 @@ public class ProtoSerializers {
     }
 
     @Override
-    public X deserialize(JsonParser p, DeserializationContext ctxt) throws IOException, JsonProcessingException {
+    public X deserialize(JsonParser p, DeserializationContext ctxt)
+        throws IOException, JsonProcessingException {
       X msg = schema.newMessage();
       ProtostuffIOUtil.mergeFrom(p.getBinaryValue(), msg, schema);
-//      p.nextToken();
-//      JsonIOUtil.mergeFrom(p, msg, schema, false);
+      //      p.nextToken();
+      //      JsonIOUtil.mergeFrom(p, msg, schema, false);
       return msg;
     }
-
   }
 
   private static class ProtostufStdSerializer<X> extends StdSerializer<X> {
@@ -75,11 +73,10 @@ public class ProtoSerializers {
     }
 
     @Override
-    public void serialize(X value, JsonGenerator gen, SerializerProvider provider) throws IOException {
+    public void serialize(X value, JsonGenerator gen, SerializerProvider provider)
+        throws IOException {
       gen.writeBinary(ProtostuffIOUtil.toByteArray(value, schema, LinkedBuffer.allocate()));
       // JsonIOUtil.writeTo(gen, value, schema, false);
     }
-
   }
-
 }

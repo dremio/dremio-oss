@@ -20,9 +20,7 @@ import com.dremio.datastore.generator.supplier.UniqueSupplierOptions;
 import com.dremio.datastore.generator.supplier.fixed.FixedLengthRawBytesSupplier;
 import com.dremio.datastore.generator.supplier.variable.VarLengthRawBytesSupplier;
 
-/**
- * Factory to supply the correct unique byte[] supplier.
- */
+/** Factory to supply the correct unique byte[] supplier. */
 public class RawBytesSupplierFactory {
   private final UniqueSupplierOptions supplier;
 
@@ -31,13 +29,14 @@ public class RawBytesSupplierFactory {
   }
 
   public UniqueSupplier<byte[]> createSupplier(String prefix) {
-    switch(supplier) {
+    switch (supplier) {
       case VARIABLE_LENGTH:
         return new VarLengthRawBytesSupplier(prefix);
       case FIXED_LENGTH:
         return new FixedLengthRawBytesSupplier(prefix);
       default:
-        throw new UnsupportedOperationException(String.format("Unsupported supplier option: %s", supplier.name()));
+        throw new UnsupportedOperationException(
+            String.format("Unsupported supplier option: %s", supplier.name()));
     }
   }
 }

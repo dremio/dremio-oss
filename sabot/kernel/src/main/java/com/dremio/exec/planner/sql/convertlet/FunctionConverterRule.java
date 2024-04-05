@@ -15,8 +15,14 @@
  */
 package com.dremio.exec.planner.sql.convertlet;
 
+import com.dremio.exec.ops.UserDefinedFunctionExpander;
+import com.dremio.exec.planner.logical.DremioRelFactories;
+import com.dremio.exec.planner.logical.RelDataTypeEqualityUtil;
+import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.planner.sql.RexShuttleRelShuttle;
+import com.dremio.options.OptionResolver;
+import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelRule;
 import org.apache.calcite.rel.RelNode;
@@ -27,40 +33,43 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexShuttle;
 import org.apache.calcite.tools.RelBuilder;
 
-import com.dremio.exec.ops.UserDefinedFunctionExpander;
-import com.dremio.exec.planner.logical.DremioRelFactories;
-import com.dremio.exec.planner.logical.RelDataTypeEqualityUtil;
-import com.dremio.exec.planner.sql.RexShuttleRelShuttle;
-import com.google.common.collect.ImmutableList;
-
 public final class FunctionConverterRule extends RelRule<RelRule.Config> {
   private final List<FunctionConvertlet> convertlets;
 
-  public FunctionConverterRule(UserDefinedFunctionExpander udfExpander) {
-    super(Config.EMPTY
-      .withDescription("FunctionConvertionRule")
-      // Don't operate on the leaf relnode, since relNode.getInput(0) will throw an exception
-      .withOperandSupplier(op -> op.operand(RelNode.class).oneInput(input -> input.operand(RelNode.class).anyInputs())));
-    this.convertlets = ImmutableList.of(
-      ArrayAppendConvertlet.INSTANCE,
-      ArrayAvgConvertlet.INSTANCE,
-      ArrayCastConvertlet.INSTANCE,
-      ArrayConcatConvertlet.INSTANCE,
-      ArrayContainsConvertlet.INSTANCE,
-      ArrayDistinctConvertlet.INSTANCE,
-      ArrayIntersectionConvertlet.INSTANCE,
-      ArrayPrependConvertlet.INSTANCE,
-      ArraySortConvertlet.INSTANCE,
-      ArraysOverlapConvertlet.INSTANCE,
-      ArrayValueConstructorConvertlet.INSTANCE,
-      ConvertFromConvertlet.INSTANCE,
-      ConvertToConvertlet.INSTANCE,
-      LikeToColumnLikeConvertlet.LIKE_TO_COL_LIKE,
-      LikeToColumnLikeConvertlet.REGEXP_LIKE_TO_REGEXP_COL_LIKE,
-      RegexpLikeToLikeConvertlet.INSTANCE,
-      SetUnionConvertlet.INSTANCE,
-      new UdfConvertlet(udfExpander)
-    );
+  public FunctionConverterRule(
+      OptionResolver optionResolver, UserDefinedFunctionExpander udfExpander) {
+    super(
+        Config.EMPTY
+            .withDescription("FunctionConvertionRule")
+            // Don't operate on the leaf relnode, since relNode.getInput(0) will throw an exception
+            .withOperandSupplier(
+                op ->
+                    op.operand(RelNode.class)
+                        .oneInput(input -> input.operand(RelNode.class).anyInputs())));
+    convertlets = new ArrayList<>();
+    convertlets.add(ArrayAppendConvertlet.INSTANCE);
+    convertlets.add(ArrayAvgConvertlet.INSTANCE);
+    convertlets.add(ArrayCastConvertlet.INSTANCE);
+    convertlets.add(ArrayConcatConvertlet.INSTANCE);
+    convertlets.add(ArrayContainsConvertlet.INSTANCE);
+    convertlets.add(ArrayDistinctConvertlet.INSTANCE);
+    convertlets.add(ArrayIntersectionConvertlet.INSTANCE);
+    convertlets.add(ArrayPrependConvertlet.INSTANCE);
+    convertlets.add(ArraySortConvertlet.INSTANCE);
+    convertlets.add(ArraysOverlapConvertlet.INSTANCE);
+    convertlets.add(ArrayValueConstructorConvertlet.INSTANCE);
+    convertlets.add(ConvertFromConvertlet.INSTANCE);
+    convertlets.add(ConvertToConvertlet.INSTANCE);
+    convertlets.add(IndexingOnMapConvertlet.INSTANCE);
+    convertlets.add(LikeToColumnLikeConvertlet.LIKE_TO_COL_LIKE);
+    convertlets.add(LikeToColumnLikeConvertlet.REGEXP_LIKE_TO_REGEXP_COL_LIKE);
+    convertlets.add(RegexpLikeToLikeConvertlet.INSTANCE);
+    convertlets.add(SetUnionConvertlet.INSTANCE);
+    convertlets.add(new UdfConvertlet(udfExpander));
+    if (optionResolver.getOption(PlannerSettings.REDUCE_ALGEBRAIC_EXPRESSIONS)) {
+      convertlets.add(SimpleTrigArithmeticConvertlet.INSTANCE);
+      convertlets.add(InverseTrigConvertlet.INSTANCE);
+    }
   }
 
   @Override
@@ -73,16 +82,20 @@ public final class FunctionConverterRule extends RelRule<RelRule.Config> {
   }
 
   public static RelNode convert(RelNode relNode, List<FunctionConvertlet> convertlets) {
-    RelBuilder relBuilder = DremioRelFactories.CALCITE_LOGICAL_BUILDER.create(relNode.getCluster(), null);
+    RelBuilder relBuilder =
+        DremioRelFactories.CALCITE_LOGICAL_BUILDER.create(relNode.getCluster(), null);
     RexBuilder rexBuilder = relNode.getCluster().getRexBuilder();
 
-    ConvertletContext convertletContext = new ConvertletContext(
-      () -> (RexCorrelVariable)rexBuilder.makeCorrel(
-        relNode.getInput(0).getRowType(),
-        relNode.getCluster().createCorrel()),
-      relBuilder,
-      rexBuilder);
-    RexShuttleRelShuttle shuttle = new RexShuttleRelShuttle(new RexShuttleImpl(convertletContext, convertlets));
+    ConvertletContext convertletContext =
+        new ConvertletContext(
+            () ->
+                (RexCorrelVariable)
+                    rexBuilder.makeCorrel(
+                        relNode.getInput(0).getRowType(), relNode.getCluster().createCorrel()),
+            relBuilder,
+            rexBuilder);
+    RexShuttleRelShuttle shuttle =
+        new RexShuttleRelShuttle(new RexShuttleImpl(convertletContext, convertlets));
 
     return relNode.accept(shuttle);
   }
@@ -91,7 +104,8 @@ public final class FunctionConverterRule extends RelRule<RelRule.Config> {
     private final ConvertletContext convertletContext;
     private final List<FunctionConvertlet> convertlets;
 
-    public RexShuttleImpl(ConvertletContext convertletContext, List<FunctionConvertlet> convertlets) {
+    public RexShuttleImpl(
+        ConvertletContext convertletContext, List<FunctionConvertlet> convertlets) {
       this.convertletContext = convertletContext;
       this.convertlets = convertlets;
     }
@@ -126,14 +140,18 @@ public final class FunctionConverterRule extends RelRule<RelRule.Config> {
 
     private void assertTypesMatch(RexCall original, RexCall converted) {
       if (!RelDataTypeEqualityUtil.areEquals(
-        original.getType(),
-        converted.getType(),
-        false,
-        false)) {
+          original.getType(), converted.getType(), false, false)) {
         throw new RuntimeException(
-          "RexNode conversion resulted in type mismatch.\n" +
-            "Original Type: " + original.getType() + " nullable: " + original.getType().isNullable() + "\n" +
-            "Converted Type: " + converted.getType() + " nullable: " + converted.getType().isNullable());
+            "RexNode conversion resulted in type mismatch.\n"
+                + "Original Type: "
+                + original.getType()
+                + " nullable: "
+                + original.getType().isNullable()
+                + "\n"
+                + "Converted Type: "
+                + converted.getType()
+                + " nullable: "
+                + converted.getType().isNullable());
       }
     }
   }

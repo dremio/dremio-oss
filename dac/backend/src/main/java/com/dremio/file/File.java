@@ -17,15 +17,6 @@ package com.dremio.file;
 
 import static com.dremio.common.utils.PathUtils.encodeURIComponent;
 
-import java.io.UnsupportedEncodingException;
-import java.net.URLDecoder;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Stream;
-
 import com.dremio.dac.explore.model.FileFormatUI;
 import com.dremio.dac.model.common.NamespacePath;
 import com.dremio.dac.model.job.JobFilters;
@@ -36,11 +27,19 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
-/**
- * File model.
- */
-@JsonIgnoreProperties(value={"name", "links", "filePath"}, allowGetters=true)
+/** File model. */
+@JsonIgnoreProperties(
+    value = {"name", "links", "filePath"},
+    allowGetters = true)
 public class File {
 
   private final NamespacePath filePath;
@@ -57,14 +56,14 @@ public class File {
 
   @JsonCreator
   public File(
-    @JsonProperty("id") String id,
-    @JsonProperty("urlPath") String urlPath,
-    @JsonProperty("fileFormat") FileFormatUI fileFormat,
-    @JsonProperty("jobCount") Integer jobCount,
-    @JsonProperty("isStaged") boolean isStaged,
-    @JsonProperty("isHomeFile") boolean isHomeFile,
-    @JsonProperty("queryable") boolean queryable,
-    @JsonProperty("tags") List<String> tags) {
+      @JsonProperty("id") String id,
+      @JsonProperty("urlPath") String urlPath,
+      @JsonProperty("fileFormat") FileFormatUI fileFormat,
+      @JsonProperty("jobCount") Integer jobCount,
+      @JsonProperty("isStaged") boolean isStaged,
+      @JsonProperty("isHomeFile") boolean isHomeFile,
+      @JsonProperty("queryable") boolean queryable,
+      @JsonProperty("tags") List<String> tags) {
     this.id = id;
     this.fileFormat = fileFormat;
     this.filePath = File.parseUrlPath(urlPath);
@@ -75,9 +74,24 @@ public class File {
     this.tags = tags;
   }
 
-  public static File newInstance(String id, NamespacePath filePath, FileFormat fileFormat, Integer jobCount,
-      boolean isStaged, boolean isHomeFile, boolean isQueryable, List<String> tags) {
-    return new File(id, filePath.toUrlPath(), new FileFormatUI(fileFormat, filePath), jobCount, isStaged, isHomeFile, isQueryable, tags);
+  public static File newInstance(
+      String id,
+      NamespacePath filePath,
+      FileFormat fileFormat,
+      Integer jobCount,
+      boolean isStaged,
+      boolean isHomeFile,
+      boolean isQueryable,
+      List<String> tags) {
+    return new File(
+        id,
+        filePath.toUrlPath(),
+        new FileFormatUI(fileFormat, filePath),
+        jobCount,
+        isStaged,
+        isHomeFile,
+        isQueryable,
+        tags);
   }
 
   public boolean isQueryable() {
@@ -123,9 +137,10 @@ public class File {
   public Map<String, String> getLinks() {
     Map<String, String> links = new HashMap<>();
     links.put("self", filePath.toUrlPath());
-    final JobFilters jobFilters = new JobFilters()
-      .addFilter(JobIndexKeys.ALL_DATASETS, filePath.toString())
-      .addFilter(JobIndexKeys.QUERY_TYPE, JobIndexKeys.UI, JobIndexKeys.EXTERNAL);
+    final JobFilters jobFilters =
+        new JobFilters()
+            .addFilter(JobIndexKeys.ALL_DATASETS, filePath.toString())
+            .addFilter(JobIndexKeys.QUERY_TYPE, JobIndexKeys.UI, JobIndexKeys.EXTERNAL);
     links.put("jobs", jobFilters.toUrl());
     links.put("format", filePath.toUrlPathWithAction("file_format"));
     if (isStaged) {
@@ -136,8 +151,11 @@ public class File {
       links.put("format_preview", filePath.toUrlPathWithAction("file_preview"));
       if (!isHomeFile) {
         final String version = fileFormat.getFileFormat().getVersion();
-        links.put("delete_format", filePath.toUrlPathWithAction("file_format") + "?version="
-          + (version == null ? version : encodeURIComponent(version)));
+        links.put(
+            "delete_format",
+            filePath.toUrlPathWithAction("file_format")
+                + "?version="
+                + (version == null ? version : encodeURIComponent(version)));
       }
     }
     // always include query url because set file format response doesn't include it.
@@ -146,25 +164,25 @@ public class File {
   }
 
   private static final Pattern PARSER = Pattern.compile("/([^/]+)/([^/]+)/[^/]+/(.*)");
-  private static final Function<String, String> PATH_DECODER = new Function<String, String>() {
-    @Override
-    public String apply(String input) {
-      try {
-        return URLDecoder.decode(input, "UTF-8");
-      } catch (UnsupportedEncodingException e) {
-        throw new UnsupportedOperationException(e);
-      }
-    }
-  };
+  private static final Function<String, String> PATH_DECODER =
+      new Function<String, String>() {
+        @Override
+        public String apply(String input) {
+          try {
+            return URLDecoder.decode(input, "UTF-8");
+          } catch (UnsupportedEncodingException e) {
+            throw new UnsupportedOperationException(e);
+          }
+        }
+      };
 
   private static NamespacePath parseUrlPath(String urlPath) {
     Matcher m = PARSER.matcher(urlPath);
     if (m.matches()) {
-      List<String> pathParts = Stream.concat(
-        Stream.of(m.group(2)),
-        Stream.of(m.group(3).split("/")))
-        .map(PATH_DECODER)
-        .collect(ImmutableList.toImmutableList());
+      List<String> pathParts =
+          Stream.concat(Stream.of(m.group(2)), Stream.of(m.group(3).split("/")))
+              .map(PATH_DECODER)
+              .collect(ImmutableList.toImmutableList());
 
       if (m.group(1).equals("home")) {
         return new FilePath(pathParts);

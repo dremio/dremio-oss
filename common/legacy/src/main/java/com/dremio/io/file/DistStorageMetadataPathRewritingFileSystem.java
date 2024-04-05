@@ -15,6 +15,11 @@
  */
 package com.dremio.io.file;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.io.AsyncByteReader;
+import com.dremio.io.FSInputStream;
+import com.dremio.io.FSOutputStream;
+import com.google.common.base.Preconditions;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
@@ -30,31 +35,30 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.Predicate;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.io.AsyncByteReader;
-import com.dremio.io.FSInputStream;
-import com.dremio.io.FSOutputStream;
-import com.google.common.base.Preconditions;
-
 /**
- * FileSystem implementation responsible for overriding all metadataStorage Plugin instances for FilterFileSystem methods that take a Path as input.
- * All override methods are designed to support Dynamic metadata Path rewriting. The purpose of Path rewriting is to
- * map an iceberg's metadata Path to the latest configured distributed storage metadata directory.
+ * FileSystem implementation responsible for overriding all metadataStorage Plugin instances for
+ * FilterFileSystem methods that take a Path as input. All override methods are designed to support
+ * Dynamic metadata Path rewriting. The purpose of Path rewriting is to map an iceberg's metadata
+ * Path to the latest configured distributed storage metadata directory.
  */
 public class DistStorageMetadataPathRewritingFileSystem extends FilterFileSystem {
 
-  //path of distributed storage. Set via dremio.conf
+  // path of distributed storage. Set via dremio.conf
   private final Path distStoragePath;
   private final FileSystem fs;
 
-  //set of supported file types written to the storage's metadata folder
-  public static final Set<String> METADATA_FILE_EXTENSIONS = new HashSet<String>() {{
-    add(".json");
-    add(".avro");
-    add(".crc");
-  }};
+  // set of supported file types written to the storage's metadata folder
+  public static final Set<String> METADATA_FILE_EXTENSIONS =
+      new HashSet<String>() {
+        {
+          add(".json");
+          add(".avro");
+          add(".crc");
+        }
+      };
   private static final String METADATA_SUBDIRECTORY = "metadata";
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DistStorageMetadataPathRewritingFileSystem.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(DistStorageMetadataPathRewritingFileSystem.class);
 
   public DistStorageMetadataPathRewritingFileSystem(FileSystem fs, Path distStoragePath) {
     super(fs);
@@ -62,6 +66,7 @@ public class DistStorageMetadataPathRewritingFileSystem extends FilterFileSystem
     this.distStoragePath = distStoragePath;
     this.fs = fs;
   }
+
   public Path getDistStoragePath() {
     return this.distStoragePath;
   }
@@ -85,7 +90,8 @@ public class DistStorageMetadataPathRewritingFileSystem extends FilterFileSystem
   }
 
   @Override
-  public FSOutputStream create(Path f, boolean overwrite) throws FileAlreadyExistsException, IOException {
+  public FSOutputStream create(Path f, boolean overwrite)
+      throws FileAlreadyExistsException, IOException {
     Path updatedPath = rewritePathIfNecessary(f);
     return super.create(updatedPath, overwrite);
   }
@@ -97,7 +103,8 @@ public class DistStorageMetadataPathRewritingFileSystem extends FilterFileSystem
   }
 
   @Override
-  public void setPermission(Path p, Set<PosixFilePermission> permissions) throws FileNotFoundException, IOException {
+  public void setPermission(Path p, Set<PosixFilePermission> permissions)
+      throws FileNotFoundException, IOException {
     Path updatedPath = rewritePathIfNecessary(p);
     super.setPermission(updatedPath, permissions);
   }
@@ -122,27 +129,30 @@ public class DistStorageMetadataPathRewritingFileSystem extends FilterFileSystem
 
   @Override
   public DirectoryStream<FileAttributes> list(Path f, Predicate<Path> filter)
-    throws FileNotFoundException, IOException {
+      throws FileNotFoundException, IOException {
     Path updatedPath = rewritePathIfNecessary(f);
     return super.list(updatedPath, filter);
   }
 
   @Override
-  public AsyncByteReader getAsyncByteReader(AsyncByteReader.FileKey fileKey, Map<String, String> options) throws IOException {
-    //TODO: DX-65934... will this work for cross functionality of distributed storages? (example: Moving from S3 --> Azure)
+  public AsyncByteReader getAsyncByteReader(
+      AsyncByteReader.FileKey fileKey, Map<String, String> options) throws IOException {
+    // TODO: DX-65934... will this work for cross functionality of distributed storages? (example:
+    // Moving from S3 --> Azure)
     Path updatedPath = rewritePathIfNecessary(fileKey.getPath());
-    AsyncByteReader.FileKey updatedFileKey = AsyncByteReader.FileKey.of(
-      updatedPath,
-      fileKey.getVersion(),
-      fileKey.getFileType(),
-      fileKey.getDatasetKey(),
-      fileKey.getPluginUID().get());
+    AsyncByteReader.FileKey updatedFileKey =
+        AsyncByteReader.FileKey.of(
+            updatedPath,
+            fileKey.getVersion(),
+            fileKey.getFileType(),
+            fileKey.getDatasetKey(),
+            fileKey.getPluginUID().get());
     return super.getAsyncByteReader(updatedFileKey, options);
   }
 
   @Override
   public DirectoryStream<FileAttributes> listFiles(Path f, boolean recursive)
-    throws FileNotFoundException, IOException {
+      throws FileNotFoundException, IOException {
     Path updatedPath = rewritePathIfNecessary(f);
     return super.listFiles(updatedPath, recursive);
   }
@@ -184,68 +194,83 @@ public class DistStorageMetadataPathRewritingFileSystem extends FilterFileSystem
   }
 
   @Override
-  public Iterable<FileBlockLocation> getFileBlockLocations(Path p, long start, long len) throws IOException {
+  public Iterable<FileBlockLocation> getFileBlockLocations(Path p, long start, long len)
+      throws IOException {
     Path updatedPath = rewritePathIfNecessary(p);
     return super.getFileBlockLocations(updatedPath, start, len);
   }
 
   @Override
   public void access(Path path, Set<AccessMode> mode)
-    throws AccessControlException, FileNotFoundException, IOException {
+      throws AccessControlException, FileNotFoundException, IOException {
     Path updatedPath = rewritePathIfNecessary(path);
     super.access(updatedPath, mode);
   }
 
   /**
    * rewrites the filepath of files within the given distributed-storage metadata root directory.
-   * The old metadata root directory is replaced with the new distributed storage metadata root directory.
-   * The new location is based on the user's distributed storage configuration in dremio.conf.
-   * If we need to conduct a path rewrite on a file, it is guaranteed to follow the following format:
-   * "[distributedStorageRootMetadata]/[metadataguid]/"metadata"/[iceberg-md-file-name]"
-   * We will utilize this guarantee to construct our path re-write.
+   * The old metadata root directory is replaced with the new distributed storage metadata root
+   * directory. The new location is based on the user's distributed storage configuration in
+   * dremio.conf. If we need to conduct a path rewrite on a file, it is guaranteed to follow the
+   * following format:
+   * "[distributedStorageRootMetadata]/[metadataguid]/"metadata"/[iceberg-md-file-name]" We will
+   * utilize this guarantee to construct our path re-write.
    *
-   * @param originalPath = the path contained in the original metadata directory when dataset was initially promoted
+   * @param originalPath = the path contained in the original metadata directory when dataset was
+   *     initially promoted
    * @return the new location of the metadata contents.
    */
   public Path rewritePathIfNecessary(Path originalPath) {
-    // If the original path is null, has no parent, or is already equal to the destination storage path,
+    // If the original path is null, has no parent, or is already equal to the destination storage
+    // path,
     // no rewriting is necessary, so return the original path.
-    if (originalPath == null || originalPath.getParent() == null || originalPath.toURI().getPath().equals(distStoragePath.toString())) {
+    if (originalPath == null
+        || originalPath.getParent() == null
+        || originalPath.toURI().getPath().equals(distStoragePath.toString())) {
       return originalPath;
     }
     String filename = originalPath.getName().toLowerCase();
     String parentName = originalPath.getParent().getName();
-    // If the filename has no extension, is not within a "metadata" folder, and is not one of the specified file types,
+    // If the filename has no extension, is not within a "metadata" folder, and is not one of the
+    // specified file types,
     // no rewriting is necessary, so return the original path.
     if (filename.lastIndexOf(".") < 0
-      || !METADATA_SUBDIRECTORY.equals(parentName)
-      || !METADATA_FILE_EXTENSIONS.contains(filename.substring(filename.lastIndexOf(".")))) {
+        || !METADATA_SUBDIRECTORY.equals(parentName)
+        || !METADATA_FILE_EXTENSIONS.contains(filename.substring(filename.lastIndexOf(".")))) {
       return originalPath;
     }
 
     Path metadataRootFolder = originalPath.getParent().getParent();
-    // If the metadata root folder is null, indicating that the original path doesn't have a metadata root,
+    // If the metadata root folder is null, indicating that the original path doesn't have a
+    // metadata root,
     // no rewriting is necessary, so return the original path.
     if (metadataRootFolder == null) {
       return originalPath;
     }
 
-    //merge the original path to the metadata root subfolder. Then merge with the new distributed storage root
-    Path relativeOriginalPath = Objects.requireNonNull(metadataRootFolder.getParent()).relativize(originalPath);
+    // merge the original path to the metadata root subfolder. Then merge with the new distributed
+    // storage root
+    Path relativeOriginalPath =
+        Objects.requireNonNull(metadataRootFolder.getParent()).relativize(originalPath);
     Path mergedPath = Path.mergePaths(distStoragePath, relativeOriginalPath);
 
-    // create the new path by building new uri. We do this to ensure the connection's scheme + authority are included if present
+    // create the new path by building new uri. We do this to ensure the connection's scheme +
+    // authority are included if present
     URI updatedUri;
     URI distStoreUri = fs.getUri();
     try {
-      updatedUri = new URI(distStoreUri.getScheme(),
-        distStoreUri.getAuthority(),
-        mergedPath.toURI().getPath(),
-        distStoreUri.getQuery(),
-        distStoreUri.getFragment());
+      updatedUri =
+          new URI(
+              distStoreUri.getScheme(),
+              distStoreUri.getAuthority(),
+              mergedPath.toURI().getPath(),
+              distStoreUri.getQuery(),
+              distStoreUri.getFragment());
     } catch (URISyntaxException e) {
       logger.warn("Metadata Path Relocation Failed", e);
-      throw UserException.invalidMetadataError(e).message("Metadata Path Relocation Failed").buildSilently();
+      throw UserException.invalidMetadataError(e)
+          .message("Metadata Path Relocation Failed")
+          .buildSilently();
     }
     return Path.of(updatedUri);
   }

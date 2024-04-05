@@ -15,25 +15,19 @@
  */
 package com.dremio.service.coordinator;
 
-/**
- * Interface to define the listener to take actions when the election state changes
- */
+/** Interface to define the listener to take actions when the election state changes */
 public interface ElectionListener {
 
-  /**
-   * The action to be taken when the node is elected to be the leader
-   */
+  /** The action to be taken when the node is elected to be the leader */
   void onElected();
 
-  /**
-   * The action to be taken when the election is cancelled (connection lost or
-   * other issue).
-   */
+  /** The action to be taken when the election is cancelled (connection lost or other issue). */
   void onCancelled();
 
   /**
-   * Callback for on a new leader election. Listeners can use this information
-   * to identify the current leader.
+   * Callback for on a new leader election. Listeners can use this information to identify the
+   * current leader.
+   *
    * @param leaderId
    */
   default void onNewLeader(String leaderId) {}

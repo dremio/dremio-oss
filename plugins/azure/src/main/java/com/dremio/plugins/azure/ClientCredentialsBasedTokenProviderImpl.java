@@ -15,31 +15,30 @@
  */
 package com.dremio.plugins.azure;
 
+import com.dremio.common.exceptions.UserException;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.net.URL;
 import java.util.Date;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.azurebfs.extensions.CustomTokenProviderAdaptee;
 import org.apache.hadoop.fs.azurebfs.oauth2.AzureADAuthenticator;
 import org.apache.hadoop.fs.azurebfs.oauth2.AzureADToken;
 import org.asynchttpclient.Request;
 
-import com.dremio.common.exceptions.UserException;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
-
 /**
- * Unlike {@link org.apache.hadoop.fs.azurebfs.oauth2.ClientCredsTokenProvider}, this implementation of
- * {@link CustomTokenProviderAdaptee} renews the token after reloading the configuration (which could reload
- * the secret itself).
+ * Unlike {@link org.apache.hadoop.fs.azurebfs.oauth2.ClientCredsTokenProvider}, this implementation
+ * of {@link CustomTokenProviderAdaptee} renews the token after reloading the configuration (which
+ * could reload the secret itself).
  */
-public final class ClientCredentialsBasedTokenProviderImpl implements ClientCredentialsBasedTokenProvider {
+public final class ClientCredentialsBasedTokenProviderImpl
+    implements ClientCredentialsBasedTokenProvider {
 
   private static final String TOKEN_ENDPOINT = "/oauth2/token";
   private static final String INVALID_OAUTH_URL_ERROR_MESSAGE =
-    "Invalid OAuth 2.0 Token Endpoint. Expected format is https://<host>/<tenantId>/oauth2/token";
+      "Invalid OAuth 2.0 Token Endpoint. Expected format is https://<host>/<tenantId>/oauth2/token";
   private static final long REFRESH_RANGE = TimeUnit.MILLISECONDS.convert(5, TimeUnit.MINUTES);
 
   private Configuration configuration;
@@ -62,7 +61,8 @@ public final class ClientCredentialsBasedTokenProviderImpl implements ClientCred
   private void renewToken() throws IOException {
     final String authEndpoint = configuration.get(AzureStorageFileSystem.TOKEN_ENDPOINT);
     final String clientId = configuration.get(AzureStorageFileSystem.CLIENT_ID);
-    final String clientSecret = new String(configuration.getPassword(AzureStorageFileSystem.CLIENT_SECRET));
+    final String clientSecret =
+        new String(configuration.getPassword(AzureStorageFileSystem.CLIENT_SECRET));
 
     token = AzureADAuthenticator.getTokenUsingClientCreds(authEndpoint, clientId, clientSecret);
   }
@@ -98,7 +98,6 @@ public final class ClientCredentialsBasedTokenProviderImpl implements ClientCred
     return token == null ? null : token.getExpiry();
   }
 
-
   @Override
   public String getAccessTokenUnchecked() {
     checkAndUpdateToken();
@@ -125,21 +124,29 @@ public final class ClientCredentialsBasedTokenProviderImpl implements ClientCred
   @VisibleForTesting
   static void validateOAuthURL(String oauthUrl) throws IOException {
     if (oauthUrl == null || oauthUrl.isEmpty()) {
-      throw UserException.validationError().message("OAuth 2.0 Token Endpoint cannot be empty.").buildSilently();
+      throw UserException.validationError()
+          .message("OAuth 2.0 Token Endpoint cannot be empty.")
+          .buildSilently();
     }
     URL authorityUrl = new URL(oauthUrl);
     String host = authorityUrl.getAuthority().toLowerCase();
     if (authorityUrl.getPath().length() < 2 || authorityUrl.getPath().charAt(0) != '/') {
-      throw UserException.validationError().message(INVALID_OAUTH_URL_ERROR_MESSAGE).buildSilently();
+      throw UserException.validationError()
+          .message(INVALID_OAUTH_URL_ERROR_MESSAGE)
+          .buildSilently();
     }
     String path = authorityUrl.getPath().substring(1).toLowerCase();
     if (!path.contains("/")) {
-      throw UserException.validationError().message(INVALID_OAUTH_URL_ERROR_MESSAGE).buildSilently();
+      throw UserException.validationError()
+          .message(INVALID_OAUTH_URL_ERROR_MESSAGE)
+          .buildSilently();
     }
     String tenantId = path.substring(0, path.indexOf("/")).toLowerCase();
     String tokenEndpoint = "https://" + host + "/" + tenantId + TOKEN_ENDPOINT;
     if (!tokenEndpoint.equals(oauthUrl)) {
-      throw UserException.validationError().message(INVALID_OAUTH_URL_ERROR_MESSAGE).buildSilently();
+      throw UserException.validationError()
+          .message(INVALID_OAUTH_URL_ERROR_MESSAGE)
+          .buildSilently();
     }
   }
 }

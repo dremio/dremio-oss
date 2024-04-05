@@ -17,9 +17,13 @@ package com.dremio.exec.physical.config.copyinto;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.Test;
 
 public class TestCopyIntoQueryProperties {
+
+  private static ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
   @Test
   public void testPropertiesAccessors() {
@@ -27,15 +31,37 @@ public class TestCopyIntoQueryProperties {
     properties.setOnErrorOption(CopyIntoQueryProperties.OnErrorOption.CONTINUE);
     properties.setStorageLocation("/path/to/storage");
 
-    assertThat(properties.getOnErrorOption()).isEqualTo(CopyIntoQueryProperties.OnErrorOption.CONTINUE);
+    assertThat(properties.getOnErrorOption())
+        .isEqualTo(CopyIntoQueryProperties.OnErrorOption.CONTINUE);
     assertThat(properties.getStorageLocation()).isEqualTo("/path/to/storage");
   }
 
   @Test
   public void testPropertiesConstructor() {
-    CopyIntoQueryProperties properties = new CopyIntoQueryProperties(CopyIntoQueryProperties.OnErrorOption.ABORT, "/data");
+    CopyIntoQueryProperties properties =
+        new CopyIntoQueryProperties(CopyIntoQueryProperties.OnErrorOption.ABORT, "/data");
 
-    assertThat(properties.getOnErrorOption()).isEqualTo(CopyIntoQueryProperties.OnErrorOption.ABORT);
+    assertThat(properties.getOnErrorOption())
+        .isEqualTo(CopyIntoQueryProperties.OnErrorOption.ABORT);
     assertThat(properties.getStorageLocation()).isEqualTo("/data");
+  }
+
+  @Test
+  public void testJsonSerDe() throws JsonProcessingException {
+    CopyIntoQueryProperties propOrg =
+        new CopyIntoQueryProperties(CopyIntoQueryProperties.OnErrorOption.CONTINUE, "/data");
+    assertThat(propOrg.getRecordStateEvents())
+        .containsExactlyInAnyOrder(
+            CopyIntoFileLoadInfo.CopyIntoFileState.PARTIALLY_LOADED,
+            CopyIntoFileLoadInfo.CopyIntoFileState.SKIPPED);
+    propOrg.addEventHistoryRecordsForState(CopyIntoFileLoadInfo.CopyIntoFileState.FULLY_LOADED);
+
+    String propJson = OBJECT_MAPPER.writeValueAsString(propOrg);
+
+    CopyIntoQueryProperties propDeserialized =
+        OBJECT_MAPPER.readValue(propJson, CopyIntoQueryProperties.class);
+    assertThat(propOrg.getRecordStateEvents()).isEqualTo(propDeserialized.getRecordStateEvents());
+    assertThat(propOrg.getOnErrorOption()).isEqualTo(propDeserialized.getOnErrorOption());
+    assertThat(propOrg.getStorageLocation()).isEqualTo(propDeserialized.getStorageLocation());
   }
 }

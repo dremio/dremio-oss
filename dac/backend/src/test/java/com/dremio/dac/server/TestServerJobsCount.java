@@ -18,16 +18,6 @@ package com.dremio.dac.server;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
-
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Rule;
-import org.junit.Test;
-
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.model.sources.SourceUI;
 import com.dremio.dac.proto.model.dataset.FromSQL;
@@ -47,10 +37,16 @@ import com.dremio.service.namespace.NamespaceService;
 import com.dremio.test.TemporarySystemProperties;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.Rule;
+import org.junit.Test;
 
-/**
- * Test for job count for datasets.
- */
+/** Test for job count for datasets. */
 public class TestServerJobsCount extends BaseTestServer {
 
   private static final JobsService jobsService = l(JobsService.class);
@@ -72,25 +68,35 @@ public class TestServerJobsCount extends BaseTestServer {
   private static final DatasetPath sample1 = new DatasetPath("LocalFS1.\"dac-sample1.json\"");
   private static final DatasetPath sample2 = new DatasetPath("LocalFS2.\"dac-sample2.json\"");
 
-  private static final List<DatasetPath> allDatasets = ImmutableList.of(dsg1, dsg2, dsg3, dsg4, dsg5, dsg6, dsg7, dsg8, dsg9, dsg10, dsg12, dsgconc, unknown, sample1, sample2);
+  private static final List<DatasetPath> allDatasets =
+      ImmutableList.of(
+          dsg1, dsg2, dsg3, dsg4, dsg5, dsg6, dsg7, dsg8, dsg9, dsg10, dsg12, dsgconc, unknown,
+          sample1, sample2);
   private static final Map<DatasetPath, Integer> jobsCount = Maps.newHashMap();
 
-  @Rule
-  public TemporarySystemProperties properties = new TemporarySystemProperties();
+  @Rule public TemporarySystemProperties properties = new TemporarySystemProperties();
 
   @BeforeClass
   public static void setup() throws Exception {
-    optionManager.setOption(OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, ExecConstants.JOBS_COUNT_FAST_ENABLED.getOptionName(), true));
+    optionManager.setOption(
+        OptionValue.createBoolean(
+            OptionValue.OptionType.SYSTEM,
+            ExecConstants.JOBS_COUNT_FAST_ENABLED.getOptionName(),
+            true));
 
     clearAllDataExceptUser();
     populateInitialData();
-    for (DatasetPath datasetPath :  allDatasets) {
-      jobsCount.put(datasetPath,
-          jobsService.getJobCounts(JobCountsRequest.newBuilder()
-              .addDatasets(VersionedDatasetPath.newBuilder()
-                  .addAllPath(datasetPath.toNamespaceKey().getPathComponents()))
-              .setJobCountsAgeInDays(30)
-              .build())
+    for (DatasetPath datasetPath : allDatasets) {
+      jobsCount.put(
+          datasetPath,
+          jobsService
+              .getJobCounts(
+                  JobCountsRequest.newBuilder()
+                      .addDatasets(
+                          VersionedDatasetPath.newBuilder()
+                              .addAllPath(datasetPath.toNamespaceKey().getPathComponents()))
+                      .setJobCountsAgeInDays(30)
+                      .build())
               .getCountList()
               .get(0));
     }
@@ -98,8 +104,11 @@ public class TestServerJobsCount extends BaseTestServer {
 
   @AfterClass
   public static void tearDown() throws Exception {
-    optionManager.setOption(OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, ExecConstants.JOBS_COUNT_FAST_ENABLED.getOptionName(),
-      ExecConstants.JOBS_COUNT_FAST_ENABLED.getDefault().getBoolVal()));
+    optionManager.setOption(
+        OptionValue.createBoolean(
+            OptionValue.OptionType.SYSTEM,
+            ExecConstants.JOBS_COUNT_FAST_ENABLED.getOptionName(),
+            ExecConstants.JOBS_COUNT_FAST_ENABLED.getDefault().getBoolVal()));
   }
 
   private int inc(DatasetPath datasetPath) {
@@ -111,231 +120,347 @@ public class TestServerJobsCount extends BaseTestServer {
   @Test
   public void testDsg1External() {
     submitJobAndWaitUntilCompletion(
-      JobRequest.newBuilder()
-        .setSqlQuery(new SqlQuery("select * from DG.dsg1", SampleDataPopulator.DEFAULT_USER_NAME))
-        .setQueryType(QueryType.UI_RUN)
-        .build()
-    );
+        JobRequest.newBuilder()
+            .setSqlQuery(
+                new SqlQuery("select * from DG.dsg1", SampleDataPopulator.DEFAULT_USER_NAME))
+            .setQueryType(QueryType.UI_RUN)
+            .build());
 
-    assertEquals(inc(dsg1), (int) jobsService.getJobCounts(JobCountsRequest.newBuilder()
-        .addDatasets(VersionedDatasetPath.newBuilder()
-            .addAllPath(dsg1.toNamespaceKey().getPathComponents()))
-        .setJobCountsAgeInDays(30)
-        .build())
-        .getCountList()
-        .get(0));
+    assertEquals(
+        inc(dsg1),
+        (int)
+            jobsService
+                .getJobCounts(
+                    JobCountsRequest.newBuilder()
+                        .addDatasets(
+                            VersionedDatasetPath.newBuilder()
+                                .addAllPath(dsg1.toNamespaceKey().getPathComponents()))
+                        .setJobCountsAgeInDays(30)
+                        .build())
+                .getCountList()
+                .get(0));
 
-    assertEquals(inc(sample1), (int) jobsService.getJobCounts(JobCountsRequest.newBuilder()
-        .addDatasets(VersionedDatasetPath.newBuilder()
-            .addAllPath(sample1.toNamespaceKey().getPathComponents()))
-        .setJobCountsAgeInDays(30)
-        .build())
-        .getCountList()
-        .get(0));
+    assertEquals(
+        inc(sample1),
+        (int)
+            jobsService
+                .getJobCounts(
+                    JobCountsRequest.newBuilder()
+                        .addDatasets(
+                            VersionedDatasetPath.newBuilder()
+                                .addAllPath(sample1.toNamespaceKey().getPathComponents()))
+                        .setJobCountsAgeInDays(30)
+                        .build())
+                .getCountList()
+                .get(0));
   }
 
   @Test
   public void testDsg2UI() {
     submitJobAndWaitUntilCompletion(
-      JobRequest.newBuilder()
-        .setSqlQuery(new SqlQuery("select * from DG.dsg2", SampleDataPopulator.DEFAULT_USER_NAME))
-        .setQueryType(QueryType.UI_RUN)
-        .build()
-    );
+        JobRequest.newBuilder()
+            .setSqlQuery(
+                new SqlQuery("select * from DG.dsg2", SampleDataPopulator.DEFAULT_USER_NAME))
+            .setQueryType(QueryType.UI_RUN)
+            .build());
 
-    assertEquals(inc(dsg2), (int) jobsService.getJobCounts(JobCountsRequest.newBuilder()
-        .addDatasets(VersionedDatasetPath.newBuilder()
-            .addAllPath(dsg2.toNamespaceKey().getPathComponents()))
-        .setJobCountsAgeInDays(30)
-        .build())
-        .getCountList()
-        .get(0));
+    assertEquals(
+        inc(dsg2),
+        (int)
+            jobsService
+                .getJobCounts(
+                    JobCountsRequest.newBuilder()
+                        .addDatasets(
+                            VersionedDatasetPath.newBuilder()
+                                .addAllPath(dsg2.toNamespaceKey().getPathComponents()))
+                        .setJobCountsAgeInDays(30)
+                        .build())
+                .getCountList()
+                .get(0));
 
-    assertEquals(inc(sample2), (int) jobsService.getJobCounts(JobCountsRequest.newBuilder()
-        .addDatasets(VersionedDatasetPath.newBuilder()
-            .addAllPath(sample2.toNamespaceKey().getPathComponents()))
-        .setJobCountsAgeInDays(30)
-        .build())
-        .getCountList()
-        .get(0));
+    assertEquals(
+        inc(sample2),
+        (int)
+            jobsService
+                .getJobCounts(
+                    JobCountsRequest.newBuilder()
+                        .addDatasets(
+                            VersionedDatasetPath.newBuilder()
+                                .addAllPath(sample2.toNamespaceKey().getPathComponents()))
+                        .setJobCountsAgeInDays(30)
+                        .build())
+                .getCountList()
+                .get(0));
   }
 
   @Test
   public void testDsg2Internal() {
     submitJobAndWaitUntilCompletion(
-      JobRequest.newBuilder()
-        .setSqlQuery(new SqlQuery("select * from DG.dsg2", SampleDataPopulator.DEFAULT_USER_NAME))
-        .setQueryType(QueryType.UI_INTERNAL_PREVIEW)
-        .build()
-    );
+        JobRequest.newBuilder()
+            .setSqlQuery(
+                new SqlQuery("select * from DG.dsg2", SampleDataPopulator.DEFAULT_USER_NAME))
+            .setQueryType(QueryType.UI_INTERNAL_PREVIEW)
+            .build());
 
     // internal jobs don't get counted
-    assertEquals((int) jobsCount.get(dsg2),
-        (int) jobsService.getJobCounts(JobCountsRequest.newBuilder()
-            .addDatasets(VersionedDatasetPath.newBuilder()
-                .addAllPath(dsg2.toNamespaceKey().getPathComponents()))
-            .setJobCountsAgeInDays(30)
-            .build())
-            .getCountList()
-            .get(0));
+    assertEquals(
+        (int) jobsCount.get(dsg2),
+        (int)
+            jobsService
+                .getJobCounts(
+                    JobCountsRequest.newBuilder()
+                        .addDatasets(
+                            VersionedDatasetPath.newBuilder()
+                                .addAllPath(dsg2.toNamespaceKey().getPathComponents()))
+                        .setJobCountsAgeInDays(30)
+                        .build())
+                .getCountList()
+                .get(0));
 
-    assertEquals((int) jobsCount.get(sample2),
-        (int) jobsService.getJobCounts(JobCountsRequest.newBuilder()
-            .addDatasets(VersionedDatasetPath.newBuilder()
-                .addAllPath(sample2.toNamespaceKey().getPathComponents()))
-            .setJobCountsAgeInDays(30)
-            .build())
-            .getCountList()
-            .get(0));
+    assertEquals(
+        (int) jobsCount.get(sample2),
+        (int)
+            jobsService
+                .getJobCounts(
+                    JobCountsRequest.newBuilder()
+                        .addDatasets(
+                            VersionedDatasetPath.newBuilder()
+                                .addAllPath(sample2.toNamespaceKey().getPathComponents()))
+                        .setJobCountsAgeInDays(30)
+                        .build())
+                .getCountList()
+                .get(0));
   }
 
   @Test
   public void testDsg1Unknown() {
     submitJobAndWaitUntilCompletion(
-      JobRequest.newBuilder()
-        .setSqlQuery(new SqlQuery("select * from DG.dsg1", SampleDataPopulator.DEFAULT_USER_NAME))
-        .setQueryType(QueryType.UNKNOWN)
-        .build()
-    );
+        JobRequest.newBuilder()
+            .setSqlQuery(
+                new SqlQuery("select * from DG.dsg1", SampleDataPopulator.DEFAULT_USER_NAME))
+            .setQueryType(QueryType.UNKNOWN)
+            .build());
     // unkown jobs are not counted
-    assertEquals((int) jobsCount.get(dsg1),
-        (int) jobsService.getJobCounts(JobCountsRequest.newBuilder()
-            .addDatasets(VersionedDatasetPath.newBuilder()
-                .addAllPath(dsg1.toNamespaceKey().getPathComponents()))
-            .setJobCountsAgeInDays(30)
-            .build())
-            .getCountList()
-            .get(0));
+    assertEquals(
+        (int) jobsCount.get(dsg1),
+        (int)
+            jobsService
+                .getJobCounts(
+                    JobCountsRequest.newBuilder()
+                        .addDatasets(
+                            VersionedDatasetPath.newBuilder()
+                                .addAllPath(dsg1.toNamespaceKey().getPathComponents()))
+                        .setJobCountsAgeInDays(30)
+                        .build())
+                .getCountList()
+                .get(0));
 
-    assertEquals((int) jobsCount.get(sample1),
-        (int) jobsService.getJobCounts(JobCountsRequest.newBuilder()
-            .addDatasets(VersionedDatasetPath.newBuilder()
-                .addAllPath(sample1.toNamespaceKey().getPathComponents()))
-            .setJobCountsAgeInDays(30)
-            .build())
-            .getCountList()
-            .get(0));
+    assertEquals(
+        (int) jobsCount.get(sample1),
+        (int)
+            jobsService
+                .getJobCounts(
+                    JobCountsRequest.newBuilder()
+                        .addDatasets(
+                            VersionedDatasetPath.newBuilder()
+                                .addAllPath(sample1.toNamespaceKey().getPathComponents()))
+                        .setJobCountsAgeInDays(30)
+                        .build())
+                .getCountList()
+                .get(0));
   }
-
 
   @Test
   public void testDsg10External() {
     submitJobAndWaitUntilCompletion(
-      JobRequest.newBuilder()
-        .setSqlQuery(new SqlQuery("select * from DG.dsg10", SampleDataPopulator.DEFAULT_USER_NAME))
-        .setQueryType(QueryType.UI_RUN)
-        .build()
-    );
+        JobRequest.newBuilder()
+            .setSqlQuery(
+                new SqlQuery("select * from DG.dsg10", SampleDataPopulator.DEFAULT_USER_NAME))
+            .setQueryType(QueryType.UI_RUN)
+            .build());
 
-    assertEquals(inc(dsg10), (int) jobsService.getJobCounts(JobCountsRequest.newBuilder()
-        .addDatasets(VersionedDatasetPath.newBuilder()
-            .addAllPath(dsg10.toNamespaceKey().getPathComponents()))
-        .setJobCountsAgeInDays(30)
-        .build())
-        .getCountList()
-        .get(0));
+    assertEquals(
+        inc(dsg10),
+        (int)
+            jobsService
+                .getJobCounts(
+                    JobCountsRequest.newBuilder()
+                        .addDatasets(
+                            VersionedDatasetPath.newBuilder()
+                                .addAllPath(dsg10.toNamespaceKey().getPathComponents()))
+                        .setJobCountsAgeInDays(30)
+                        .build())
+                .getCountList()
+                .get(0));
 
-    assertEquals(inc(dsg9), (int) jobsService.getJobCounts(JobCountsRequest.newBuilder()
-        .addDatasets(VersionedDatasetPath.newBuilder()
-            .addAllPath(dsg9.toNamespaceKey().getPathComponents()))
-        .setJobCountsAgeInDays(30)
-        .build())
-        .getCountList()
-        .get(0));
+    assertEquals(
+        inc(dsg9),
+        (int)
+            jobsService
+                .getJobCounts(
+                    JobCountsRequest.newBuilder()
+                        .addDatasets(
+                            VersionedDatasetPath.newBuilder()
+                                .addAllPath(dsg9.toNamespaceKey().getPathComponents()))
+                        .setJobCountsAgeInDays(30)
+                        .build())
+                .getCountList()
+                .get(0));
 
-    assertEquals(inc(dsg8), (int) jobsService.getJobCounts(JobCountsRequest.newBuilder()
-        .addDatasets(VersionedDatasetPath.newBuilder()
-        .addAllPath(dsg8.toNamespaceKey().getPathComponents()))
-        .setJobCountsAgeInDays(30)
-        .build())
-        .getCountList()
-        .get(0));
+    assertEquals(
+        inc(dsg8),
+        (int)
+            jobsService
+                .getJobCounts(
+                    JobCountsRequest.newBuilder()
+                        .addDatasets(
+                            VersionedDatasetPath.newBuilder()
+                                .addAllPath(dsg8.toNamespaceKey().getPathComponents()))
+                        .setJobCountsAgeInDays(30)
+                        .build())
+                .getCountList()
+                .get(0));
 
-    assertEquals(inc(dsg3), (int) jobsService.getJobCounts(JobCountsRequest.newBuilder()
-        .addDatasets(VersionedDatasetPath.newBuilder()
-            .addAllPath(dsg3.toNamespaceKey().getPathComponents()))
-        .setJobCountsAgeInDays(30)
-        .build())
-        .getCountList()
-        .get(0));
+    assertEquals(
+        inc(dsg3),
+        (int)
+            jobsService
+                .getJobCounts(
+                    JobCountsRequest.newBuilder()
+                        .addDatasets(
+                            VersionedDatasetPath.newBuilder()
+                                .addAllPath(dsg3.toNamespaceKey().getPathComponents()))
+                        .setJobCountsAgeInDays(30)
+                        .build())
+                .getCountList()
+                .get(0));
 
-    assertEquals(inc(dsg2), (int) jobsService.getJobCounts(JobCountsRequest.newBuilder()
-        .addDatasets(VersionedDatasetPath.newBuilder()
-            .addAllPath(dsg2.toNamespaceKey().getPathComponents()))
-        .setJobCountsAgeInDays(30)
-        .build())
-        .getCountList()
-        .get(0));
+    assertEquals(
+        inc(dsg2),
+        (int)
+            jobsService
+                .getJobCounts(
+                    JobCountsRequest.newBuilder()
+                        .addDatasets(
+                            VersionedDatasetPath.newBuilder()
+                                .addAllPath(dsg2.toNamespaceKey().getPathComponents()))
+                        .setJobCountsAgeInDays(30)
+                        .build())
+                .getCountList()
+                .get(0));
 
-    assertEquals(inc(dsg4), (int) jobsService.getJobCounts(JobCountsRequest.newBuilder()
-        .addDatasets(VersionedDatasetPath.newBuilder()
-            .addAllPath(dsg4.toNamespaceKey().getPathComponents()))
-        .setJobCountsAgeInDays(30)
-        .build())
-        .getCountList()
-        .get(0));
+    assertEquals(
+        inc(dsg4),
+        (int)
+            jobsService
+                .getJobCounts(
+                    JobCountsRequest.newBuilder()
+                        .addDatasets(
+                            VersionedDatasetPath.newBuilder()
+                                .addAllPath(dsg4.toNamespaceKey().getPathComponents()))
+                        .setJobCountsAgeInDays(30)
+                        .build())
+                .getCountList()
+                .get(0));
 
-    assertEquals(inc(dsg1), (int) jobsService.getJobCounts(JobCountsRequest.newBuilder()
-        .addDatasets(VersionedDatasetPath.newBuilder()
-            .addAllPath(dsg1.toNamespaceKey().getPathComponents()))
-        .setJobCountsAgeInDays(30)
-        .build())
-        .getCountList()
-        .get(0));
+    assertEquals(
+        inc(dsg1),
+        (int)
+            jobsService
+                .getJobCounts(
+                    JobCountsRequest.newBuilder()
+                        .addDatasets(
+                            VersionedDatasetPath.newBuilder()
+                                .addAllPath(dsg1.toNamespaceKey().getPathComponents()))
+                        .setJobCountsAgeInDays(30)
+                        .build())
+                .getCountList()
+                .get(0));
 
-    assertEquals(inc(sample1), (int) jobsService.getJobCounts(JobCountsRequest.newBuilder()
-        .addDatasets(VersionedDatasetPath.newBuilder()
-            .addAllPath(sample1.toNamespaceKey().getPathComponents()))
-        .setJobCountsAgeInDays(30)
-        .build())
-        .getCountList()
-        .get(0));
+    assertEquals(
+        inc(sample1),
+        (int)
+            jobsService
+                .getJobCounts(
+                    JobCountsRequest.newBuilder()
+                        .addDatasets(
+                            VersionedDatasetPath.newBuilder()
+                                .addAllPath(sample1.toNamespaceKey().getPathComponents()))
+                        .setJobCountsAgeInDays(30)
+                        .build())
+                .getCountList()
+                .get(0));
 
-    assertEquals(inc(sample2), (int) jobsService.getJobCounts(JobCountsRequest.newBuilder()
-        .addDatasets(VersionedDatasetPath.newBuilder()
-            .addAllPath(sample2.toNamespaceKey().getPathComponents()))
-        .setJobCountsAgeInDays(30)
-        .build())
-        .getCountList()
-        .get(0));
+    assertEquals(
+        inc(sample2),
+        (int)
+            jobsService
+                .getJobCounts(
+                    JobCountsRequest.newBuilder()
+                        .addDatasets(
+                            VersionedDatasetPath.newBuilder()
+                                .addAllPath(sample2.toNamespaceKey().getPathComponents()))
+                        .setJobCountsAgeInDays(30)
+                        .build())
+                .getCountList()
+                .get(0));
 
-    assertEquals((int) jobsCount.get(dsg5), (int) jobsService.getJobCounts(JobCountsRequest.newBuilder()
-        .addDatasets(VersionedDatasetPath.newBuilder()
-            .addAllPath(dsg5.toNamespaceKey().getPathComponents()))
-        .setJobCountsAgeInDays(30)
-        .build())
-        .getCountList()
-        .get(0));
+    assertEquals(
+        (int) jobsCount.get(dsg5),
+        (int)
+            jobsService
+                .getJobCounts(
+                    JobCountsRequest.newBuilder()
+                        .addDatasets(
+                            VersionedDatasetPath.newBuilder()
+                                .addAllPath(dsg5.toNamespaceKey().getPathComponents()))
+                        .setJobCountsAgeInDays(30)
+                        .build())
+                .getCountList()
+                .get(0));
 
-    assertEquals((int) jobsCount.get(dsg6), (int) jobsService.getJobCounts(JobCountsRequest.newBuilder()
-        .addDatasets(VersionedDatasetPath.newBuilder()
-            .addAllPath(dsg6.toNamespaceKey().getPathComponents()))
-        .setJobCountsAgeInDays(30)
-        .build())
-        .getCountList()
-        .get(0));
+    assertEquals(
+        (int) jobsCount.get(dsg6),
+        (int)
+            jobsService
+                .getJobCounts(
+                    JobCountsRequest.newBuilder()
+                        .addDatasets(
+                            VersionedDatasetPath.newBuilder()
+                                .addAllPath(dsg6.toNamespaceKey().getPathComponents()))
+                        .setJobCountsAgeInDays(30)
+                        .build())
+                .getCountList()
+                .get(0));
 
-    assertEquals((int) jobsCount.get(dsg7), (int) jobsService.getJobCounts(JobCountsRequest.newBuilder()
-        .addDatasets((VersionedDatasetPath.newBuilder()
-        .addAllPath(dsg7.toNamespaceKey().getPathComponents())))
-        .setJobCountsAgeInDays(30)
-        .build())
-        .getCountList()
-        .get(0));
+    assertEquals(
+        (int) jobsCount.get(dsg7),
+        (int)
+            jobsService
+                .getJobCounts(
+                    JobCountsRequest.newBuilder()
+                        .addDatasets(
+                            (VersionedDatasetPath.newBuilder()
+                                .addAllPath(dsg7.toNamespaceKey().getPathComponents())))
+                        .setJobCountsAgeInDays(30)
+                        .build())
+                .getCountList()
+                .get(0));
   }
 
   // tests job count for physical datasets
   @Test
   public void testCountsLocalFS1Rest() {
     doc("list source LocalFS1");
-    SourceUI fs1 = expectSuccess(getBuilder(getAPIv2().path("/source/LocalFS1")).buildGet(), SourceUI.class);
+    SourceUI fs1 =
+        expectSuccess(getBuilder(getAPIv2().path("/source/LocalFS1")).buildGet(), SourceUI.class);
     assertNotNull(fs1.getContents());
     assertEquals(0, fs1.getContents().getDatasets().size());
     assertEquals(0, fs1.getContents().getPhysicalDatasets().size());
     assertEquals(1, fs1.getContents().getFolders().size());
     assertEquals(4, fs1.getContents().getFiles().size());
 
-    for (File file: fs1.getContents().getFiles()) {
+    for (File file : fs1.getContents().getFiles()) {
       Integer cnt = jobsCount.get(new DatasetPath(file.getFilePath().toPathList()));
       assertEquals(cnt == null ? 0 : cnt, (int) file.getJobCount());
     }
@@ -344,14 +469,15 @@ public class TestServerJobsCount extends BaseTestServer {
   @Test
   public void testCountsLocalFS2Rest() {
     doc("list source LocalFS2");
-    SourceUI fs2 = expectSuccess(getBuilder(getAPIv2().path("/source/LocalFS2")).buildGet(), SourceUI.class);
+    SourceUI fs2 =
+        expectSuccess(getBuilder(getAPIv2().path("/source/LocalFS2")).buildGet(), SourceUI.class);
     assertNotNull(fs2.getContents());
     assertEquals(0, fs2.getContents().getDatasets().size());
     assertEquals(0, fs2.getContents().getPhysicalDatasets().size());
     assertEquals(1, fs2.getContents().getFolders().size());
     assertEquals(4, fs2.getContents().getFiles().size());
 
-    for (File file: fs2.getContents().getFiles()) {
+    for (File file : fs2.getContents().getFiles()) {
       Integer cnt = jobsCount.get(new DatasetPath(file.getFilePath().toPathList()));
       assertEquals(cnt == null ? 0 : cnt, (int) file.getJobCount());
     }
@@ -361,32 +487,42 @@ public class TestServerJobsCount extends BaseTestServer {
   public void testDsg12CountDelete() throws NamespaceException {
     getPopulator().putDS("DG", "dsg12", new FromSQL("select 1").wrap());
     submitJobAndWaitUntilCompletion(
-      JobRequest.newBuilder()
-        .setSqlQuery(new SqlQuery("select * from DG.dsg12", SampleDataPopulator.DEFAULT_USER_NAME))
-        .setQueryType(QueryType.UI_RUN)
-        .build()
-    );
+        JobRequest.newBuilder()
+            .setSqlQuery(
+                new SqlQuery("select * from DG.dsg12", SampleDataPopulator.DEFAULT_USER_NAME))
+            .setQueryType(QueryType.UI_RUN)
+            .build());
 
-    assertEquals(1,
-      (int) jobsService.getJobCounts(JobCountsRequest.newBuilder()
-          .addDatasets(VersionedDatasetPath.newBuilder()
-            .addAllPath(dsg12.toNamespaceKey().getPathComponents()))
-          .setJobCountsAgeInDays(30)
-          .build())
-        .getCountList()
-        .get(0));
+    assertEquals(
+        1,
+        (int)
+            jobsService
+                .getJobCounts(
+                    JobCountsRequest.newBuilder()
+                        .addDatasets(
+                            VersionedDatasetPath.newBuilder()
+                                .addAllPath(dsg12.toNamespaceKey().getPathComponents()))
+                        .setJobCountsAgeInDays(30)
+                        .build())
+                .getCountList()
+                .get(0));
 
     namespaceService.deleteDataset(dsg12.toNamespaceKey(), "");
 
     // jobcount should be zero after dataset is deleted
-    assertEquals(0,
-      (int) jobsService.getJobCounts(JobCountsRequest.newBuilder()
-          .addDatasets(VersionedDatasetPath.newBuilder()
-            .addAllPath(dsg12.toNamespaceKey().getPathComponents()))
-          .setJobCountsAgeInDays(30)
-          .build())
-        .getCountList()
-        .get(0));
+    assertEquals(
+        0,
+        (int)
+            jobsService
+                .getJobCounts(
+                    JobCountsRequest.newBuilder()
+                        .addDatasets(
+                            VersionedDatasetPath.newBuilder()
+                                .addAllPath(dsg12.toNamespaceKey().getPathComponents()))
+                        .setJobCountsAgeInDays(30)
+                        .build())
+                .getCountList()
+                .get(0));
   }
 
   @Test
@@ -394,27 +530,35 @@ public class TestServerJobsCount extends BaseTestServer {
     getPopulator().putDS("DG", "dsgconc", new FromSQL("select 1").wrap());
     int limit = 4;
     CountDownLatch latch = new CountDownLatch(limit);
-    for (int i=0; i < limit; i++) {
-      CompletableFuture.runAsync(() -> {
-        submitJobAndWaitUntilCompletion(
-          JobRequest.newBuilder()
-            .setSqlQuery(new SqlQuery("select * from DG.dsgconc", SampleDataPopulator.DEFAULT_USER_NAME))
-            .setQueryType(QueryType.UI_RUN)
-            .build()
-        );
-        latch.countDown();
-      });
+    for (int i = 0; i < limit; i++) {
+      CompletableFuture.runAsync(
+          () -> {
+            submitJobAndWaitUntilCompletion(
+                JobRequest.newBuilder()
+                    .setSqlQuery(
+                        new SqlQuery(
+                            "select * from DG.dsgconc", SampleDataPopulator.DEFAULT_USER_NAME))
+                    .setQueryType(QueryType.UI_RUN)
+                    .build());
+            latch.countDown();
+          });
     }
 
     // wait for all submitted queries to complete before verifying count
     latch.await();
 
-    assertEquals(limit, (int) jobsService.getJobCounts(JobCountsRequest.newBuilder()
-        .addDatasets(VersionedDatasetPath.newBuilder()
-          .addAllPath(dsgconc.toNamespaceKey().getPathComponents()))
-        .setJobCountsAgeInDays(30)
-        .build())
-      .getCountList()
-      .get(0));
+    assertEquals(
+        limit,
+        (int)
+            jobsService
+                .getJobCounts(
+                    JobCountsRequest.newBuilder()
+                        .addDatasets(
+                            VersionedDatasetPath.newBuilder()
+                                .addAllPath(dsgconc.toNamespaceKey().getPathComponents()))
+                        .setJobCountsAgeInDays(30)
+                        .build())
+                .getCountList()
+                .get(0));
   }
 }

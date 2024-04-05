@@ -15,24 +15,20 @@
  */
 package com.dremio.service.sqlrunner;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
-
-import javax.inject.Inject;
-import javax.inject.Provider;
-
 import com.dremio.options.OptionManager;
 import com.dremio.service.script.ScriptService;
 import com.dremio.service.sqlrunner.proto.SQLRunnerSessionProto;
 import com.dremio.service.sqlrunner.store.SQLRunnerSessionStore;
 import com.google.common.collect.Lists;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import javax.inject.Inject;
+import javax.inject.Provider;
 
-/**
- * Implementation of SQLRunnerSessionService.
- */
+/** Implementation of SQLRunnerSessionService. */
 public class SQLRunnerSessionServiceImpl implements SQLRunnerSessionService {
   private static final long TTL_IN_HOURS = 30 * 24;
 
@@ -41,9 +37,10 @@ public class SQLRunnerSessionServiceImpl implements SQLRunnerSessionService {
   private final Provider<ScriptService> scriptService;
 
   @Inject
-  public SQLRunnerSessionServiceImpl(final Provider<SQLRunnerSessionStore> sessionStoreProvider,
-                                     final Provider<OptionManager> optionManager,
-                                     final Provider<ScriptService> scriptService) {
+  public SQLRunnerSessionServiceImpl(
+      final Provider<SQLRunnerSessionStore> sessionStoreProvider,
+      final Provider<OptionManager> optionManager,
+      final Provider<ScriptService> scriptService) {
     this.sessionStore = sessionStoreProvider.get();
     this.optionManager = optionManager;
     this.scriptService = scriptService;
@@ -60,9 +57,8 @@ public class SQLRunnerSessionServiceImpl implements SQLRunnerSessionService {
     // Extend ttl_expire_at when the user fetches SQLRunnerSession
     long expireAt = getExpireAt();
     if (session.getTtlExpireAt() < expireAt) {
-      SQLRunnerSessionProto.SQLRunnerSession updatedSession = session.toBuilder()
-        .setTtlExpireAt(expireAt)
-        .build();
+      SQLRunnerSessionProto.SQLRunnerSession updatedSession =
+          session.toBuilder().setTtlExpireAt(expireAt).build();
       return new SQLRunnerSession(sessionStore.update(updatedSession));
     }
 
@@ -78,14 +74,14 @@ public class SQLRunnerSessionServiceImpl implements SQLRunnerSessionService {
   }
 
   @Override
-  public SQLRunnerSession updateSession(SQLRunnerSession newSession) throws SQLRunnerSessionNotSupportedException {
+  public SQLRunnerSession updateSession(SQLRunnerSession newSession)
+      throws SQLRunnerSessionNotSupportedException {
     if (!optionManager.get().getOption(SQLRunnerOptions.SQLRUNNER_TABS)) {
       throw new SQLRunnerSessionNotSupportedException();
     }
 
-    SQLRunnerSessionProto.SQLRunnerSession updatedSession = newSession.toProtobuf().toBuilder()
-      .setTtlExpireAt(getExpireAt())
-      .build();
+    SQLRunnerSessionProto.SQLRunnerSession updatedSession =
+        newSession.toProtobuf().toBuilder().setTtlExpireAt(getExpireAt()).build();
 
     SQLRunnerSession session = new SQLRunnerSession(sessionStore.update(updatedSession));
 
@@ -135,12 +131,16 @@ public class SQLRunnerSessionServiceImpl implements SQLRunnerSessionService {
     List<String> scriptsList = new ArrayList<>(existingSession.getScriptIdsList());
     scriptsList.remove(scriptId);
 
-    final SQLRunnerSessionProto.SQLRunnerSession updatedSession = existingSession.toBuilder()
-      .clearScriptIds()
-      .addAllScriptIds(scriptsList)
-      .setCurrentScriptId(scriptId.equals(existingSession.getCurrentScriptId()) ? existingSession.getScriptIds(0) : existingSession.getCurrentScriptId())
-      .setTtlExpireAt(getExpireAt())
-      .build();
+    final SQLRunnerSessionProto.SQLRunnerSession updatedSession =
+        existingSession.toBuilder()
+            .clearScriptIds()
+            .addAllScriptIds(scriptsList)
+            .setCurrentScriptId(
+                scriptId.equals(existingSession.getCurrentScriptId())
+                    ? existingSession.getScriptIds(0)
+                    : existingSession.getCurrentScriptId())
+            .setTtlExpireAt(getExpireAt())
+            .build();
 
     sessionStore.update(updatedSession);
   }
@@ -157,10 +157,11 @@ public class SQLRunnerSessionServiceImpl implements SQLRunnerSessionService {
   private SQLRunnerSessionProto.SQLRunnerSession getOrCreateSession(String userId) {
     SQLRunnerSessionProto.SQLRunnerSession session = sessionStore.get(userId).orElse(null);
     if (session == null || System.currentTimeMillis() > session.getTtlExpireAt()) {
-      session = SQLRunnerSessionProto.SQLRunnerSession.newBuilder()
-        .setUserId(userId)
-        .setCurrentScriptId("")
-        .build();
+      session =
+          SQLRunnerSessionProto.SQLRunnerSession.newBuilder()
+              .setUserId(userId)
+              .setCurrentScriptId("")
+              .build();
     }
 
     return session;
@@ -168,6 +169,7 @@ public class SQLRunnerSessionServiceImpl implements SQLRunnerSessionService {
 
   /**
    * Get TTL round up to 1 hour ceiling
+   *
    * @return expire time in milliseconds
    */
   private static long getExpireAt() {
@@ -178,15 +180,20 @@ public class SQLRunnerSessionServiceImpl implements SQLRunnerSessionService {
   private void removeNotAccessibleScripts(SQLRunnerSession session) {
     List<String> scriptIds = Lists.newArrayList(session.getScriptIds());
     Set<String> accessibleScriptIds = getAccessibleScriptIds();
-    if (scriptIds.removeIf(s -> {return !accessibleScriptIds.contains(s);})) {
+    if (scriptIds.removeIf(
+        s -> {
+          return !accessibleScriptIds.contains(s);
+        })) {
       session.setScriptIds(scriptIds);
     }
   }
 
   protected Set<String> getAccessibleScriptIds() {
-    return scriptService.get().getScripts(0, Integer.MAX_VALUE, "", "", "", null)
-      .parallelStream()
-      .map(script -> { return script.getScriptId(); })
-      .collect(Collectors.toSet());
+    return scriptService.get().getScripts(0, Integer.MAX_VALUE, "", "", "", null).parallelStream()
+        .map(
+            script -> {
+              return script.getScriptId();
+            })
+        .collect(Collectors.toSet());
   }
 }

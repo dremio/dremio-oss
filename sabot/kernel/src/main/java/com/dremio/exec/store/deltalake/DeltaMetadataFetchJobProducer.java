@@ -21,11 +21,10 @@ import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 
 /**
- * Given a version and readLatest will generate a {@link DeltaMetadataFetchJob} which attempts to read that
- * version commit or json file. If readLatest is true then the versions generated will move forward.
- * version, version + 1 ..
- * Otherwise, the version will move backward from version till 0.
- * version, version - 1, .. 0
+ * Given a version and readLatest will generate a {@link DeltaMetadataFetchJob} which attempts to
+ * read that version commit or json file. If readLatest is true then the versions generated will
+ * move forward. version, version + 1 .. Otherwise, the version will move backward from version till
+ * 0. version, version - 1, .. 0
  */
 public class DeltaMetadataFetchJobProducer {
 
@@ -36,8 +35,8 @@ public class DeltaMetadataFetchJobProducer {
   private long version;
   private int subparts;
 
-
-  DeltaMetadataFetchJobProducer(SabotContext context, FileSystem fs, Path metadataDir, DeltaVersion version) {
+  DeltaMetadataFetchJobProducer(
+      SabotContext context, FileSystem fs, Path metadataDir, DeltaVersion version) {
     this.fs = fs;
     this.context = context;
     this.metadataDir = metadataDir;
@@ -88,11 +87,11 @@ public class DeltaMetadataFetchJobProducer {
 
   private boolean getTryCheckpointReadFlag() {
     if (startVersion.isCheckpoint()) {
-      //While moving forward first file is always a checkpoint
-      //While moving forward all files other than the first are commit json/
+      // While moving forward first file is always a checkpoint
+      // While moving forward all files other than the first are commit json/
       return version == startVersion.getVersion();
     } else {
-      //Moving backward so don't know whether the file is checkpoint or parquet.
+      // Moving backward so don't know whether the file is checkpoint or parquet.
       return true;
     }
   }

@@ -15,19 +15,15 @@
  */
 package com.dremio.sabot.exec;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-
-import javax.annotation.concurrent.ThreadSafe;
-
 import com.dremio.exec.planner.fragment.PlanFragmentFull;
 import com.dremio.exec.proto.CoordExecRPC.SchedulingInfo;
 import com.dremio.exec.proto.UserBitShared.QueryId;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import javax.annotation.concurrent.ThreadSafe;
 
-/**
- * Manages workload and query level allocators
- */
+/** Manages workload and query level allocators */
 @ThreadSafe
 public class QueriesClerk {
 
@@ -38,44 +34,59 @@ public class QueriesClerk {
   }
 
   /**
-   * Builds and starts a new query, if sufficient resources are available.
-   * In case resources are not available immediately, the query will be started later, when resources become available
+   * Builds and starts a new query, if sufficient resources are available. In case resources are not
+   * available immediately, the query will be started later, when resources become available
    */
-  public void buildAndStartQuery(final PlanFragmentFull firstFragment, final SchedulingInfo schedulingInfo,
-                                 final QueryStarter queryStarter) {
+  public void buildAndStartQuery(
+      final PlanFragmentFull firstFragment,
+      final SchedulingInfo schedulingInfo,
+      final QueryStarter queryStarter) {
     final QueryId queryId = firstFragment.getHandle().getQueryId();
 
-    // Note: The temporary reference count (released in the finally clause, below) is necessary to guard against races
-    // between potential workload ticket modifications and this function (creation of fragments for queries on the workload)
+    // Note: The temporary reference count (released in the finally clause, below) is necessary to
+    // guard against races
+    // between potential workload ticket modifications and this function (creation of fragments for
+    // queries on the workload)
     WorkloadTicket workloadTicket = workloadTicketDepot.getWorkloadTicket(schedulingInfo);
     try {
-      final long queryMaxAllocation = workloadTicket.getChildMaxAllocation(firstFragment.getMajor().getContext().getQueryMaxAllocation());
+      final long queryMaxAllocation =
+          workloadTicket.getChildMaxAllocation(
+              firstFragment.getMajor().getContext().getQueryMaxAllocation());
 
-      workloadTicket.buildAndStartQuery(queryId, queryMaxAllocation, firstFragment.getMajor().getForeman(), firstFragment.getMinor().getAssignment(),
-        queryStarter);
+      workloadTicket.buildAndStartQuery(
+          queryId,
+          queryMaxAllocation,
+          firstFragment.getMajor().getForeman(),
+          firstFragment.getMinor().getAssignment(),
+          queryStarter);
     } finally {
       workloadTicket.release();
     }
   }
 
   /**
-   * creates a fragment ticket for the passed-in fragment. May create a new query ticket if no query ticket is already
-   * cached. Closing the ticket will return the reservation and eventually close the corresponding query ticket along with
-   * its allocator
+   * creates a fragment ticket for the passed-in fragment. May create a new query ticket if no query
+   * ticket is already cached. Closing the ticket will return the reservation and eventually close
+   * the corresponding query ticket along with its allocator
    *
-   * @param queryTicket    the query ticket, obtained from the callback from
-   *                       {@link #buildAndStartQuery(PlanFragmentFull, SchedulingInfo, QueryStarter)}
-   * @param fragment       fragment plan
+   * @param queryTicket the query ticket, obtained from the callback from {@link
+   *     #buildAndStartQuery(PlanFragmentFull, SchedulingInfo, QueryStarter)}
+   * @param fragment fragment plan
    * @param schedulingInfo information about where should 'fragment' run
    * @return reserved query allocator
    */
-  public FragmentTicket newFragmentTicket(final QueryTicket queryTicket, final PlanFragmentFull fragment,
-                                          final SchedulingInfo schedulingInfo) {
-    // Note: applying query limit to the phase, as that doesn't add any additional restrictions. If an when we have
+  public FragmentTicket newFragmentTicket(
+      final QueryTicket queryTicket,
+      final PlanFragmentFull fragment,
+      final SchedulingInfo schedulingInfo) {
+    // Note: applying query limit to the phase, as that doesn't add any additional restrictions. If
+    // an when we have
     // phase limits on the plan fragment, we could apply them here.
-    PhaseTicket phaseTicket = queryTicket
-      .getOrCreatePhaseTicket(fragment.getHandle().getMajorFragmentId(), queryTicket.getAllocator().getLimit(),
-        fragment.getMajor().getFragmentExecWeight());
+    PhaseTicket phaseTicket =
+        queryTicket.getOrCreatePhaseTicket(
+            fragment.getHandle().getMajorFragmentId(),
+            queryTicket.getAllocator().getLimit(),
+            fragment.getMajor().getFragmentExecWeight());
     return new FragmentTicket(phaseTicket, fragment.getHandle(), queryTicket.getSchedulingGroup());
   }
 
@@ -87,7 +98,6 @@ public class QueriesClerk {
   }
 
   /**
-   *
    * Gets all of the fragment tickets associated with a query.
    *
    * @param queryId Query Id

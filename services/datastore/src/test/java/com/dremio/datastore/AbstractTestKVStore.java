@@ -23,29 +23,6 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.stream.StreamSupport;
-
-import org.junit.After;
-import org.junit.Assume;
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TestRule;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameter;
-import org.junit.runners.parameterized.ParametersRunnerFactory;
-
 import com.dremio.common.util.TestTools;
 import com.dremio.datastore.api.Document;
 import com.dremio.datastore.api.FindByRange;
@@ -73,52 +50,77 @@ import com.dremio.datastore.stores.UUIDStore;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
+import java.lang.reflect.InvocationTargetException;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.StreamSupport;
+import org.junit.After;
+import org.junit.Assume;
+import org.junit.Before;
+import org.junit.ClassRule;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TestRule;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameter;
+import org.junit.runners.parameterized.ParametersRunnerFactory;
 
-/**
- * Test kvstore + key value serde storage.
- */
+/** Test kvstore + key value serde storage. */
 @RunWith(Parameterized.class)
 public abstract class AbstractTestKVStore<K, V> {
 
   @ClassRule
   public static final TestRule CLASS_TIMEOUT = TestTools.getTimeoutRule(Duration.ofMinutes(10));
 
-  @Rule
-  public final TestRule timeoutRule = TestTools.getTimeoutRule(Duration.ofMinutes(2));
+  @Rule public final TestRule timeoutRule = TestTools.getTimeoutRule(Duration.ofMinutes(2));
 
-  private static final String TAG_ASSERT_FAILURE_MSG = "All documents should have a non-null, non-empty tag";
+  private static final String TAG_ASSERT_FAILURE_MSG =
+      "All documents should have a non-null, non-empty tag";
   private KVStore<K, V> kvStore;
   private static final int SAMPLING_SIZE = 30;
 
   /**
-   * Exempt the parameters from the visibility modifier check.
-   * Normally, we would have a public constructor to create the parameterized tests.
-   * However, this is an abstract class, so we could not use the constructor approach here
-   * without putting a burden on all extenders. If we wanted to make these variables private, we could
-   * write a custom {@link ParametersRunnerFactory} to style-soundly inject our parameters. That would however
-   * be a non-trivial amount of development.
+   * Exempt the parameters from the visibility modifier check. Normally, we would have a public
+   * constructor to create the parameterized tests. However, this is an abstract class, so we could
+   * not use the constructor approach here without putting a burden on all extenders. If we wanted
+   * to make these variables private, we could write a custom {@link ParametersRunnerFactory} to
+   * style-soundly inject our parameters. That would however be a non-trivial amount of development.
    */
-  @Parameter
-  public Class<TestStoreCreationFunction<K, V>> storeCreationFunction;
+  @Parameter public Class<TestStoreCreationFunction<K, V>> storeCreationFunction;
 
   @Parameter(1)
   public DataGenerator<K, V> gen;
 
   @Parameterized.Parameters(name = "Table: {0}")
   public static Collection<Object[]> parameters() {
-    return Arrays.asList(new Object[][]{
-      {UUIDStore.class, new UUIDStoreGenerator()},
-      {ProtobufStore.class, new ProtobufStoreGenerator()},
-      {ProtostuffStore.class, new ProtostuffStoreGenerator()},
-      //Variable-length
-      {StringStore.class, new StringStoreGenerator(UniqueSupplierOptions.VARIABLE_LENGTH)},
-      {RawByteStore.class, new RawByteStoreGenerator(UniqueSupplierOptions.VARIABLE_LENGTH)},
-      {ByteContainerStore.class, new ByteContainerStoreGenerator(UniqueSupplierOptions.VARIABLE_LENGTH)},
-      //Fixed-length
-      {StringStore.class, new StringStoreGenerator(UniqueSupplierOptions.FIXED_LENGTH)},
-      {RawByteStore.class, new RawByteStoreGenerator(UniqueSupplierOptions.FIXED_LENGTH)},
-      {ByteContainerStore.class, new ByteContainerStoreGenerator(UniqueSupplierOptions.FIXED_LENGTH)}
-    });
+    return Arrays.asList(
+        new Object[][] {
+          {UUIDStore.class, new UUIDStoreGenerator()},
+          {ProtobufStore.class, new ProtobufStoreGenerator()},
+          {ProtostuffStore.class, new ProtostuffStoreGenerator()},
+          // Variable-length
+          {StringStore.class, new StringStoreGenerator(UniqueSupplierOptions.VARIABLE_LENGTH)},
+          {RawByteStore.class, new RawByteStoreGenerator(UniqueSupplierOptions.VARIABLE_LENGTH)},
+          {
+            ByteContainerStore.class,
+            new ByteContainerStoreGenerator(UniqueSupplierOptions.VARIABLE_LENGTH)
+          },
+          // Fixed-length
+          {StringStore.class, new StringStoreGenerator(UniqueSupplierOptions.FIXED_LENGTH)},
+          {RawByteStore.class, new RawByteStoreGenerator(UniqueSupplierOptions.FIXED_LENGTH)},
+          {
+            ByteContainerStore.class,
+            new ByteContainerStoreGenerator(UniqueSupplierOptions.FIXED_LENGTH)
+          }
+        });
   }
 
   protected boolean kvStoreProviderSupportsNullOperators() {
@@ -126,6 +128,7 @@ public abstract class AbstractTestKVStore<K, V> {
   }
 
   protected abstract KVStoreProvider createKVStoreProvider() throws Exception;
+
   protected abstract void closeProvider() throws Exception;
 
   @Before
@@ -140,12 +143,12 @@ public abstract class AbstractTestKVStore<K, V> {
     closeProvider();
   }
 
-  /**
-   * Methods implemented by backend.
-   */
+  /** Methods implemented by backend. */
   public interface Backend {
     String get(String key);
+
     void put(String key, String value);
+
     String getName();
   }
 
@@ -172,7 +175,7 @@ public abstract class AbstractTestKVStore<K, V> {
 
   @Test
   public void testGetAll() {
-    final DocumentDataset<K, V> data =  generateDataAndPopulateKVStore(SAMPLING_SIZE);
+    final DocumentDataset<K, V> data = generateDataAndPopulateKVStore(SAMPLING_SIZE);
 
     final Iterable<Document<K, V>> actualResult = kvStore.find();
 
@@ -198,7 +201,8 @@ public abstract class AbstractTestKVStore<K, V> {
     final K missingKey2 = gen.newKey();
 
     kvStore.put(key, value);
-    final Iterable<Document<K, V>> results = kvStore.get(ImmutableList.of(missingKey1, missingKey2));
+    final Iterable<Document<K, V>> results =
+        kvStore.get(ImmutableList.of(missingKey1, missingKey2));
 
     assertEquals(2, Iterables.size(results));
     assertTrue(StreamSupport.stream(results.spliterator(), false).allMatch(Objects::isNull));
@@ -206,25 +210,25 @@ public abstract class AbstractTestKVStore<K, V> {
 
   @Test
   public void testGetWithKeys() {
-    final DocumentDataset<K, V> data =  generateDataAndPopulateKVStore(SAMPLING_SIZE / 2);
+    final DocumentDataset<K, V> data = generateDataAndPopulateKVStore(SAMPLING_SIZE / 2);
 
-    final Iterable<Document<K,V>> result = kvStore.get(data.getKeys());
+    final Iterable<Document<K, V>> result = kvStore.get(data.getKeys());
 
     assertResultsAreEqual(data.getAllDocuments(), result, false);
   }
 
   @Test
   public void testGetWithKeysStateless() {
-    final DocumentDataset<K, V> data =  generateDataAndPopulateKVStore(SAMPLING_SIZE / 2);
+    final DocumentDataset<K, V> data = generateDataAndPopulateKVStore(SAMPLING_SIZE / 2);
 
-    final Iterable<Document<K,V>> firstResult = kvStore.get(data.getKeys());
+    final Iterable<Document<K, V>> firstResult = kvStore.get(data.getKeys());
     assertResultsAreEqual(data.getAllDocuments(), firstResult, false);
 
     // Delete the first entry then try to get it using the get(List<K>) operator.
     final K firstEntry = data.getDocument(0).getKey();
     kvStore.delete(firstEntry);
 
-    final Iterable<Document<K,V>> resultWithDeletedKey = kvStore.get(ImmutableList.of(firstEntry));
+    final Iterable<Document<K, V>> resultWithDeletedKey = kvStore.get(ImmutableList.of(firstEntry));
     assertEquals(1, Iterables.size(resultWithDeletedKey));
     assertNull(Iterables.get(resultWithDeletedKey, 0));
   }
@@ -417,7 +421,8 @@ public abstract class AbstractTestKVStore<K, V> {
     // Dataset returned is sorted
     final Dataset<K, V> dataset = gen.sortDataset(gen.makeDataset(numKVPairs));
     // Insert all but the last document.
-    final DocumentDataset<K, V> documentDataset = insertDataIntoKVStore(dataset.getDatasetSlice(0, loadedDataEndIndex));
+    final DocumentDataset<K, V> documentDataset =
+        insertDataIntoKVStore(dataset.getDatasetSlice(0, loadedDataEndIndex));
     // The unused key is greater than all previous keys.
     final K unusedKey = dataset.getKey(unusedKeyIndex);
 
@@ -497,32 +502,61 @@ public abstract class AbstractTestKVStore<K, V> {
    * @param message the message explaining temporary test ignore.
    * @param classes key classes in which test should be ignored.
    */
-  protected void temporarilyDisableTest(String ticket, String message, Set<Class<?>> classes){
+  protected void temporarilyDisableTest(String ticket, String message, Set<Class<?>> classes) {
     try {
-      Assume.assumeFalse("[TEST DISABLED]" + ticket + " - " + message, !Collections.disjoint(classes, storeCreationFunction.newInstance().getKeyClasses()));
-    } catch (InstantiationException | IllegalAccessException e) {
+      Assume.assumeFalse(
+          "[TEST DISABLED]" + ticket + " - " + message,
+          !Collections.disjoint(
+              classes,
+              storeCreationFunction.getDeclaredConstructor().newInstance().getKeyClasses()));
+    } catch (InstantiationException
+        | IllegalAccessException
+        | InvocationTargetException
+        | NoSuchMethodException e) {
       fail("TestStoreCreationFunction instantiation problem: " + e.getMessage());
     }
   }
 
   /**
-   * Method to ignore tests for data formats that do not support{@code null} fields, namely protobuf, UUID, String and bytes.
+   * Method to ignore tests for data formats that do not support{@code null} fields, namely
+   * protobuf, UUID, String and bytes.
    */
   private void ignoreIfNullFieldsNotSupported() {
     try {
-      Assume.assumeTrue("This store value format does not support null fields", storeCreationFunction.newInstance().getKeyFormat().apply(new SupportNullFieldsFormatVisitor()));
-    } catch (InstantiationException | IllegalAccessException e) {
+      Assume.assumeTrue(
+          "This store value format does not support null fields",
+          storeCreationFunction
+              .getDeclaredConstructor()
+              .newInstance()
+              .getKeyFormat()
+              .apply(new SupportNullFieldsFormatVisitor()));
+    } catch (InstantiationException
+        | IllegalAccessException
+        | DatastoreFatalException
+        | InvocationTargetException
+        | NoSuchMethodException e) {
       fail("TestStoreCreationFunction instantiation problem: " + e.getMessage());
     }
   }
 
   /**
-   * Method to ignore tests for data formats that do not support range queries, namely protobuf, protostuff and UUID.
+   * Method to ignore tests for data formats that do not support range queries, namely protobuf,
+   * protostuff and UUID.
    */
   private void ignoreIfFindNotSupported() {
     try {
-      Assume.assumeTrue("This format does not support range queries", storeCreationFunction.newInstance().getKeyFormat().apply(new SupportFindFormatVisitor()));
-    } catch (InstantiationException | IllegalAccessException e) {
+      Assume.assumeTrue(
+          "This format does not support range queries",
+          storeCreationFunction
+              .getDeclaredConstructor()
+              .newInstance()
+              .getKeyFormat()
+              .apply(new SupportFindFormatVisitor()));
+    } catch (InstantiationException
+        | IllegalAccessException
+        | DatastoreFatalException
+        | InvocationTargetException
+        | NoSuchMethodException e) {
       fail("TestStoreCreationFunction instantiation problem: " + e.getMessage());
     }
   }
@@ -532,38 +566,39 @@ public abstract class AbstractTestKVStore<K, V> {
    * the datastore does not support the operation.
    */
   private void ignoreIfKVStoreProviderNullOperatorsNotSupported() {
-    Assume.assumeTrue("This kvstore does not support null operators", kvStoreProviderSupportsNullOperators());
+    Assume.assumeTrue(
+        "This kvstore does not support null operators", kvStoreProviderSupportsNullOperators());
   }
 
   /**
    * Helper method to create build an immutable FindByRange instance.
    *
-   * @param start          key to the start of the range.
+   * @param start key to the start of the range.
    * @param inclusiveStart whether start is inclusive.
-   * @param end            key to the end of the range.
-   * @param inclusiveEnd   whether end is inclusive.
+   * @param end key to the end of the range.
+   * @param inclusiveEnd whether end is inclusive.
    * @return An immutable FindByRange instance.
    */
-
   private FindByRange<K> makeRange(K start, boolean inclusiveStart, K end, boolean inclusiveEnd) {
     return new ImmutableFindByRange.Builder<K>()
-      .setStart(start)
-      .setIsStartInclusive(inclusiveStart)
-      .setEnd(end)
-      .setIsEndInclusive(inclusiveEnd)
-      .build();
+        .setStart(start)
+        .setIsStartInclusive(inclusiveStart)
+        .setEnd(end)
+        .setIsEndInclusive(inclusiveEnd)
+        .build();
   }
 
   /**
    * Helper method to determine the expected size of a FindByRange query result set.
    *
-   * @param startRange     start range index.
-   * @param endRange       end range index.
+   * @param startRange start range index.
+   * @param endRange end range index.
    * @param startInclusive whether start is inclusive.
-   * @param endInclusive   whether end is inclusive.
+   * @param endInclusive whether end is inclusive.
    * @return expected size of the resutl set.
    */
-  private int expectedSizeHelper(int startRange, int endRange, boolean startInclusive, boolean endInclusive) {
+  private int expectedSizeHelper(
+      int startRange, int endRange, boolean startInclusive, boolean endInclusive) {
     if (startInclusive && endInclusive) {
       return endRange - startRange + 1;
     } else if (startInclusive || endInclusive) {
@@ -576,64 +611,83 @@ public abstract class AbstractTestKVStore<K, V> {
   /**
    * Helper method to test FindByRange queries.
    *
-   * @param samplingSize   size of the dataset to test.
-   * @param startRange     start range index.
-   * @param endRange       end range index.
+   * @param samplingSize size of the dataset to test.
+   * @param startRange start range index.
+   * @param endRange end range index.
    * @param startInclusive whether start is inclusive.
-   * @param endInclusive   whether end is inclusive.
-   * @param testSortOrder  boolean indicating whether test should take result set sort order into account.
+   * @param endInclusive whether end is inclusive.
+   * @param testSortOrder boolean indicating whether test should take result set sort order into
+   *     account.
    */
-  private void testFindByRange(int samplingSize, int startRange, int endRange,
-                               boolean startInclusive, boolean endInclusive, boolean testSortOrder) {
-    final DocumentDataset<K, V> data = gen.sortDocumentDataset(generateDataAndPopulateKVStore(samplingSize));
+  private void testFindByRange(
+      int samplingSize,
+      int startRange,
+      int endRange,
+      boolean startInclusive,
+      boolean endInclusive,
+      boolean testSortOrder) {
+    final DocumentDataset<K, V> data =
+        gen.sortDocumentDataset(generateDataAndPopulateKVStore(samplingSize));
     final int expectedSize = expectedSizeHelper(startRange, endRange, startInclusive, endInclusive);
     final int sliceStart = (startInclusive) ? startRange : startRange + 1;
     final int sliceEnd = (endInclusive) ? endRange : endRange - 1;
 
-    final FindByRange<K> range = makeRange(data.getDocument(startRange).getKey(), startInclusive, data.getDocument(endRange).getKey(), endInclusive);
+    final FindByRange<K> range =
+        makeRange(
+            data.getDocument(startRange).getKey(),
+            startInclusive,
+            data.getDocument(endRange).getKey(),
+            endInclusive);
     final Iterable<Document<K, V>> result = kvStore.find(range);
 
     if (expectedSize <= 0 && (sliceStart > sliceEnd)) {
       // Testing empty ranges, result should be empty.
       assertEquals(0, Iterables.size(result));
     } else {
-      assertResultsAreEqual(data.getDocumentDatasetSlice(sliceStart, sliceEnd), result, testSortOrder);
+      assertResultsAreEqual(
+          data.getDocumentDatasetSlice(sliceStart, sliceEnd), result, testSortOrder);
     }
   }
 
   /**
-   * Helper method to check whether expected and actual documents have the same element in the same order.
+   * Helper method to check whether expected and actual documents have the same element in the same
+   * order.
    *
    * @param expectedDocuments Iterable of expected results.
-   * @param actualDocuments   Iterable of actual results.
+   * @param actualDocuments Iterable of actual results.
    */
-  private void assertDocumentsAreEqual(Iterable<Document<K, V>> expectedDocuments, Iterable<Document<K, V>> actualDocuments) {
+  private void assertDocumentsAreEqual(
+      Iterable<Document<K, V>> expectedDocuments, Iterable<Document<K, V>> actualDocuments) {
     assertSizeIsEqual(expectedDocuments, actualDocuments);
 
-      final Iterator<Document<K, V>> iter = actualDocuments.iterator();
-      for (final Document<K, V> expectedDocument : expectedDocuments) {
-        assertTrue(iter.hasNext());
-        final Document<K, V> actualDocument = iter.next();
-        gen.assertKeyEquals(expectedDocument.getKey(), actualDocument.getKey());
-        gen.assertValueEquals(expectedDocument.getValue(), actualDocument.getValue());
-        assertEquals(expectedDocument.getTag(), actualDocument.getTag());
-      }
+    final Iterator<Document<K, V>> iter = actualDocuments.iterator();
+    for (final Document<K, V> expectedDocument : expectedDocuments) {
+      assertTrue(iter.hasNext());
+      final Document<K, V> actualDocument = iter.next();
+      gen.assertKeyEquals(expectedDocument.getKey(), actualDocument.getKey());
+      gen.assertValueEquals(expectedDocument.getValue(), actualDocument.getValue());
+      assertEquals(expectedDocument.getTag(), actualDocument.getTag());
+    }
   }
 
   /**
    * Helper method to check whether expected and actual results have the same element.
    *
    * @param expectedDocuments Iterable of expected results.
-   * @param actualDocuments   Iterable of actual results.
-   * @param checkSortOrder    whether to validate the order of the results.
+   * @param actualDocuments Iterable of actual results.
+   * @param checkSortOrder whether to validate the order of the results.
    */
-  private void assertResultsAreEqual(Iterable<Document<K, V>> expectedDocuments, Iterable<Document<K, V>> actualDocuments, boolean checkSortOrder) {
+  private void assertResultsAreEqual(
+      Iterable<Document<K, V>> expectedDocuments,
+      Iterable<Document<K, V>> actualDocuments,
+      boolean checkSortOrder) {
     assertSizeIsEqual(expectedDocuments, actualDocuments);
 
     if (checkSortOrder) {
       assertDocumentsAreEqual(expectedDocuments, actualDocuments);
     } else {
-      assertDocumentsAreEqual(gen.sortDocuments(expectedDocuments), gen.sortDocuments(actualDocuments));
+      assertDocumentsAreEqual(
+          gen.sortDocuments(expectedDocuments), gen.sortDocuments(actualDocuments));
     }
   }
 
@@ -641,9 +695,10 @@ public abstract class AbstractTestKVStore<K, V> {
    * Helper method to check that result set has the expected size.
    *
    * @param expectedDocuments Iterable of expected results.
-   * @param actualDocuments   Iterable of actual results.
+   * @param actualDocuments Iterable of actual results.
    */
-  private void assertSizeIsEqual(Iterable<Document<K, V>> expectedDocuments, Iterable<Document<K, V>> actualDocuments) {
+  private void assertSizeIsEqual(
+      Iterable<Document<K, V>> expectedDocuments, Iterable<Document<K, V>> actualDocuments) {
     assertEquals(Iterables.size(expectedDocuments), Iterables.size(actualDocuments));
   }
 
@@ -655,10 +710,11 @@ public abstract class AbstractTestKVStore<K, V> {
    */
   private DocumentDataset<K, V> insertDataIntoKVStore(Iterable<Map.Entry<K, V>> dataset) {
     final ArrayList<Document<K, V>> documentList = new ArrayList<>();
-    dataset.forEach(entry -> {
-      kvStore.put(entry.getKey(), entry.getValue());
-      documentList.add(kvStore.get(entry.getKey()));
-    });
+    dataset.forEach(
+        entry -> {
+          kvStore.put(entry.getKey(), entry.getValue());
+          documentList.add(kvStore.get(entry.getKey()));
+        });
     return new DocumentDataset<>(documentList);
   }
 

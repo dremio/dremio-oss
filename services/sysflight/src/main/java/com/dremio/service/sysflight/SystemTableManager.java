@@ -16,17 +16,14 @@
 
 package com.dremio.service.sysflight;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.proto.FlightProtos.SysFlightTicket;
 import org.apache.arrow.flight.FlightInfo;
 import org.apache.arrow.flight.FlightProducer.ServerStreamListener;
 import org.apache.arrow.flight.FlightProducer.StreamListener;
 import org.apache.arrow.vector.types.pojo.Schema;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.proto.FlightProtos.SysFlightTicket;
-
-/**
- * System table manager interface.
- */
+/** System table manager interface. */
 public interface SystemTableManager extends AutoCloseable {
 
   void streamData(SysFlightTicket ticket, ServerStreamListener listener) throws Exception;
@@ -37,10 +34,7 @@ public interface SystemTableManager extends AutoCloseable {
 
   void setRecordBatchSize(int recordBatchSize);
 
-
-  /**
-   * Enum to check for the supported tables.
-   */
+  /** Enum to check for the supported tables. */
   public enum TABLES {
     JOBS("jobs"),
     MATERIALIZATIONS("materializations"),
@@ -55,6 +49,7 @@ public interface SystemTableManager extends AutoCloseable {
     JOBS_RECENT("jobs_recent");
 
     final String name;
+
     private TABLES(String name) {
       this.name = name;
     }
@@ -76,7 +71,7 @@ public interface SystemTableManager extends AutoCloseable {
 
   static void throwUnsupportedException(String datasetName) {
     throw UserException.unsupportedError()
-      .message("'%s' system table is not supported.", datasetName)
-      .buildSilently();
+        .message("'%s' system table is not supported.", datasetName)
+        .buildSilently();
   }
 }

@@ -15,19 +15,17 @@
  */
 package com.dremio.service;
 
-import java.util.Set;
-
 import com.dremio.common.DeferredException;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
+import java.util.Set;
 
-/**
- * The initializer service starts
- */
+/** The initializer service starts */
 public class InitializerRegistry implements Service {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(InitializerRegistry.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(InitializerRegistry.class);
 
   private final ScanResult scanResult;
   private final BindingProvider provider;
@@ -40,40 +38,43 @@ public class InitializerRegistry implements Service {
   }
 
   @SuppressWarnings("unchecked")
-  public <T, X extends Initializer<T>> T get(Class<X> clazz){
+  public <T, X extends Initializer<T>> T get(Class<X> clazz) {
     Object obj = outputs.get(clazz);
-    Preconditions.checkNotNull(obj, "No initializer with return value registered for %s.", clazz.getName());
+    Preconditions.checkNotNull(
+        obj, "No initializer with return value registered for %s.", clazz.getName());
 
     // this is safe since we guaranteed insertion information via the signature.
     return (T) obj;
   }
 
-  @SuppressWarnings({ "rawtypes", "unchecked" })
+  @SuppressWarnings({"rawtypes", "unchecked"})
   @Override
   public void start() throws Exception {
     ImmutableMap.Builder builder = ImmutableMap.<Class<?>, Object>builder();
-    final Set<Class<? extends Initializer>> functions = scanResult.getImplementations(Initializer.class);
-
+    final Set<Class<? extends Initializer>> functions =
+        scanResult.getImplementations(Initializer.class);
 
     DeferredException ex = new DeferredException();
-    for(Class<? extends Initializer> functionClass : functions){
+    for (Class<? extends Initializer> functionClass : functions) {
       final Initializer i;
       try {
-        i = functionClass.newInstance();
+        i = functionClass.getDeclaredConstructor().newInstance();
       } catch (Exception e) {
-        ex.addException(new RuntimeException("Unable to load Initializer " + functionClass.getSimpleName(), e));
+        ex.addException(
+            new RuntimeException("Unable to load Initializer " + functionClass.getSimpleName(), e));
         continue;
       }
 
       try {
         Object inited = i.initialize(provider);
-        if(inited != null){
+        if (inited != null) {
           builder.put(functionClass, inited);
         }
       } catch (Exception e) {
-        ex.addException(new RuntimeException("Unable to initialize Initializer " + functionClass.getSimpleName(), e));
+        ex.addException(
+            new RuntimeException(
+                "Unable to initialize Initializer " + functionClass.getSimpleName(), e));
       }
-
     }
 
     // fail startup if we didn't initialize successfully.
@@ -82,7 +83,5 @@ public class InitializerRegistry implements Service {
   }
 
   @Override
-  public void close() throws Exception {
-  }
-
+  public void close() throws Exception {}
 }

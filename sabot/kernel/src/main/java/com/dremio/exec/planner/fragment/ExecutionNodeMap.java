@@ -15,27 +15,24 @@
  */
 package com.dremio.exec.planner.fragment;
 
-import java.util.Collection;
-import java.util.List;
-import java.util.concurrent.ThreadLocalRandom;
-
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ListMultimap;
+import java.util.Collection;
+import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 
-/**
- * Holds the mapping of execution nodes available in the cluster.
- */
+/** Holds the mapping of execution nodes available in the cluster. */
 public class ExecutionNodeMap {
 
   // We use multimap because more than one node can run in the same cluster.
   private final ListMultimap<String, NodeEndpoint> nodeMap = ArrayListMultimap.create();
   private final List<NodeEndpoint> endpoints;
 
-  public ExecutionNodeMap(Iterable<NodeEndpoint> endpoints){
+  public ExecutionNodeMap(Iterable<NodeEndpoint> endpoints) {
     this.endpoints = FluentIterable.from(endpoints).toList();
-    for(NodeEndpoint ep : endpoints){
+    for (NodeEndpoint ep : endpoints) {
       nodeMap.put(ep.getAddress(), ep);
     }
   }
@@ -46,7 +43,7 @@ public class ExecutionNodeMap {
       return null;
     }
 
-    for(NodeEndpoint endpoint : endpoints) {
+    for (NodeEndpoint endpoint : endpoints) {
       if (endpoint.getFabricPort() == port) {
         return endpoint;
       }
@@ -55,12 +52,12 @@ public class ExecutionNodeMap {
     return null;
   }
 
-  public NodeEndpoint getEndpoint(String address){
+  public NodeEndpoint getEndpoint(String address) {
     List<NodeEndpoint> endpoints = nodeMap.get(address);
-    if(endpoints == null || endpoints.isEmpty()){
+    if (endpoints == null || endpoints.isEmpty()) {
       return null;
     }
-    if(endpoints.size() == 1){
+    if (endpoints.size() == 1) {
       return endpoints.get(0);
     } else {
       // if there is more than one endpoint on the same host, pick a random one.
@@ -72,7 +69,7 @@ public class ExecutionNodeMap {
     return nodeMap.keySet();
   }
 
-  public List<NodeEndpoint> getExecutors(){
+  public List<NodeEndpoint> getExecutors() {
     return endpoints;
   }
 }

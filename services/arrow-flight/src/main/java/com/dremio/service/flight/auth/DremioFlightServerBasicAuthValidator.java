@@ -18,32 +18,32 @@ package com.dremio.service.flight.auth;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-import java.util.Optional;
-
-import javax.inject.Provider;
-
-import org.apache.arrow.flight.auth.BasicServerAuthHandler;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.service.flight.DremioFlightSessionsManager;
 import com.dremio.service.flight.utils.DremioFlightAuthUtils;
 import com.dremio.service.tokens.TokenManager;
 import com.dremio.service.users.UserService;
+import java.util.Optional;
+import javax.inject.Provider;
+import org.apache.arrow.flight.auth.BasicServerAuthHandler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * Dremio authentication specialized implementation of BasicAuthValidator. Authenticates with provided
- * credentials, creates a new UserSession, creates and validates associated bearer token.
+ * Dremio authentication specialized implementation of BasicAuthValidator. Authenticates with
+ * provided credentials, creates a new UserSession, creates and validates associated bearer token.
  */
-public class DremioFlightServerBasicAuthValidator implements BasicServerAuthHandler.BasicAuthValidator {
-  private static final Logger LOGGER = LoggerFactory.getLogger(DremioFlightServerBasicAuthValidator.class);
+public class DremioFlightServerBasicAuthValidator
+    implements BasicServerAuthHandler.BasicAuthValidator {
+  private static final Logger LOGGER =
+      LoggerFactory.getLogger(DremioFlightServerBasicAuthValidator.class);
   private final Provider<UserService> userServiceProvider;
   private final Provider<TokenManager> tokenManagerProvider;
   private final DremioFlightSessionsManager dremioFlightSessionsManager;
 
-  public DremioFlightServerBasicAuthValidator(Provider<UserService> userServiceProvider,
-                                              Provider<TokenManager> tokenManagerProvider,
-                                              DremioFlightSessionsManager dremioFlightSessionsManager) {
+  public DremioFlightServerBasicAuthValidator(
+      Provider<UserService> userServiceProvider,
+      Provider<TokenManager> tokenManagerProvider,
+      DremioFlightSessionsManager dremioFlightSessionsManager) {
     this.userServiceProvider = userServiceProvider;
     this.tokenManagerProvider = tokenManagerProvider;
     this.dremioFlightSessionsManager = dremioFlightSessionsManager;
@@ -51,11 +51,14 @@ public class DremioFlightServerBasicAuthValidator implements BasicServerAuthHand
 
   @Override
   public byte[] getToken(String username, String password) {
-    final String token = DremioFlightAuthUtils.authenticateAndCreateToken(
-      userServiceProvider,
-      tokenManagerProvider,
-      dremioFlightSessionsManager,
-      username, password, LOGGER);
+    final String token =
+        DremioFlightAuthUtils.authenticateAndCreateToken(
+            userServiceProvider,
+            tokenManagerProvider,
+            dremioFlightSessionsManager,
+            username,
+            password,
+            LOGGER);
 
     return token.getBytes(UTF_8);
   }

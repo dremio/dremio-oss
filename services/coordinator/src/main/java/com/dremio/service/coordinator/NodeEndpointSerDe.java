@@ -15,8 +15,6 @@
  */
 package com.dremio.service.coordinator;
 
-import java.io.IOException;
-
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.fasterxml.jackson.core.JsonGenerationException;
 import com.fasterxml.jackson.core.JsonGenerator;
@@ -26,16 +24,16 @@ import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
+import java.io.IOException;
 
 /**
- * Serializer/Deserializer helper classes for {@code com.dremio.exec.proto.CoordinationProtos.NodeEndpoint}
+ * Serializer/Deserializer helper classes for {@code
+ * com.dremio.exec.proto.CoordinationProtos.NodeEndpoint}
  */
 public class NodeEndpointSerDe {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(NodeEndpointSerDe.class);
 
-  /**
-   * JSON deserializer for {@code com.dremio.exec.proto.CoordinationProtos.NodeEndpoint}
-   */
+  /** JSON deserializer for {@code com.dremio.exec.proto.CoordinationProtos.NodeEndpoint} */
   public static class De extends StdDeserializer<NodeEndpoint> {
 
     public De() {
@@ -43,17 +41,13 @@ public class NodeEndpointSerDe {
     }
 
     @Override
-    public NodeEndpoint deserialize(JsonParser jp, DeserializationContext ctxt) throws IOException,
-        JsonProcessingException {
+    public NodeEndpoint deserialize(JsonParser jp, DeserializationContext ctxt)
+        throws IOException, JsonProcessingException {
       return NodeEndpoint.parseFrom(jp.getBinaryValue());
     }
-
-
   }
 
-  /**
-   * JSON serializer for {@code com.dremio.exec.proto.CoordinationProtos.NodeEndpoint}
-   */
+  /** JSON serializer for {@code com.dremio.exec.proto.CoordinationProtos.NodeEndpoint} */
   public static class Se extends StdSerializer<NodeEndpoint> {
 
     public Se() {
@@ -61,10 +55,9 @@ public class NodeEndpointSerDe {
     }
 
     @Override
-    public void serialize(NodeEndpoint value, JsonGenerator jgen, SerializerProvider provider) throws IOException,
-        JsonGenerationException {
+    public void serialize(NodeEndpoint value, JsonGenerator jgen, SerializerProvider provider)
+        throws IOException, JsonGenerationException {
       jgen.writeBinary(value.toByteArray());
     }
-
   }
 }

@@ -15,11 +15,10 @@
  */
 package com.dremio.exec.vector.accessor;
 
-import org.apache.arrow.vector.BitVector;
-
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.types.Types;
+import org.apache.arrow.vector.BitVector;
 
 public class BitAccessor extends AbstractSqlAccessor {
 
@@ -66,5 +65,4 @@ public class BitAccessor extends AbstractSqlAccessor {
     }
     return 1 == ac.get(index);
   }
-
 }

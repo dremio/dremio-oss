@@ -15,12 +15,6 @@
  */
 package com.dremio.datastore;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.ConcurrentModificationException;
-import java.util.List;
-
 import com.dremio.datastore.RemoteDataStoreProtobuf.ContainsRequest;
 import com.dremio.datastore.RemoteDataStoreProtobuf.ContainsResponse;
 import com.dremio.datastore.RemoteDataStoreProtobuf.DeleteRequest;
@@ -48,10 +42,15 @@ import com.dremio.exec.rpc.RpcException;
 import com.dremio.services.fabric.simple.ReceivedResponseMessage;
 import com.google.common.base.Strings;
 import com.google.protobuf.ByteString;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.ConcurrentModificationException;
+import java.util.List;
 
 /**
- * Raw interfaces over wire, does not use any types.
- * Upper levels should use tuple to avoid paying cost of double serialization..
+ * Raw interfaces over wire, does not use any types. Upper levels should use tuple to avoid paying
+ * cost of double serialization..
  */
 public class DatastoreRpcClient {
 
@@ -68,10 +67,10 @@ public class DatastoreRpcClient {
    * @return the storeId.
    */
   public String getStoreId(String name) {
-    GetStoreRequest.Builder builder = GetStoreRequest.newBuilder()
-      .setName(name);
+    GetStoreRequest.Builder builder = GetStoreRequest.newBuilder().setName(name);
     try {
-      ReceivedResponseMessage<GetStoreResponse> response = rpcService.getGetStoreEndpoint().send(builder.build());
+      ReceivedResponseMessage<GetStoreResponse> response =
+          rpcService.getGetStoreEndpoint().send(builder.build());
       return response.getBody().getStoreId();
     } catch (RpcException e) {
       throw new DatastoreFatalException("Failed to find datastore " + name, e);
@@ -83,19 +82,21 @@ public class DatastoreRpcClient {
    *
    * @param storeId the storeId.
    * @param key the key of the key-value store entry to retrieve.
-   * @return the document representation of the key-value store entry retrieved with the provided key. Can be {@code null}
-   *         if no entry with the provided key is found.
+   * @return the document representation of the key-value store entry retrieved with the provided
+   *     key. Can be {@code null} if no entry with the provided key is found.
    * @throws RpcException when RPC related exceptions are encountered.
    */
   public Document<ByteString, ByteString> get(String storeId, ByteString key) throws RpcException {
     final GetRequest.Builder builder = GetRequest.newBuilder();
     builder.setStoreId(storeId);
     builder.addKeys(key);
-    ReceivedResponseMessage<GetResponse> response = rpcService.getGetEndpoint().send(builder.build());
+    ReceivedResponseMessage<GetResponse> response =
+        rpcService.getGetEndpoint().send(builder.build());
     if (response.getBody().getDocumentsCount() > 0) {
       DocumentResponse document = response.getBody().getDocuments(0);
       if (!document.equals(DocumentResponse.getDefaultInstance())) {
-        return createImmutableDocumentFromKeyValueTag(document.getKey(), document.getValue(), document.getTag());
+        return createImmutableDocumentFromKeyValueTag(
+            document.getKey(), document.getValue(), document.getTag());
       }
     }
     return null;
@@ -106,15 +107,17 @@ public class DatastoreRpcClient {
    *
    * @param storeId the storeId.
    * @param keys the list of keys which entries are to be retrieved from the store.
-   * @return a list of documents representing entries retrieved from the store. A document in the list can be {@code null}
-   *         if no corresponding value is found.
+   * @return a list of documents representing entries retrieved from the store. A document in the
+   *     list can be {@code null} if no corresponding value is found.
    * @throws RpcException when RPC related exceptions are encountered.
    */
-  public List<Document<ByteString, ByteString>> get(String storeId, List<ByteString> keys) throws RpcException {
+  public List<Document<ByteString, ByteString>> get(String storeId, List<ByteString> keys)
+      throws RpcException {
     final GetRequest.Builder builder = GetRequest.newBuilder();
     builder.setStoreId(storeId);
     builder.addAllKeys(keys);
-    ReceivedResponseMessage<GetResponse> response = rpcService.getGetEndpoint().send(builder.build());
+    ReceivedResponseMessage<GetResponse> response =
+        rpcService.getGetEndpoint().send(builder.build());
     return createListOfImmutableDocuments(response.getBody().getDocumentsList());
   }
 
@@ -130,7 +133,8 @@ public class DatastoreRpcClient {
     final ContainsRequest.Builder builder = ContainsRequest.newBuilder();
     builder.setStoreId(storeId);
     builder.setKey(key);
-    ReceivedResponseMessage<ContainsResponse> response = rpcService.getContainsEndpoint().send(builder.build());
+    ReceivedResponseMessage<ContainsResponse> response =
+        rpcService.getContainsEndpoint().send(builder.build());
     return response.getBody().getContains();
   }
 
@@ -138,7 +142,8 @@ public class DatastoreRpcClient {
    * Find method to retrieve documents satisfying provided range search criteria.
    *
    * @param request FindRequest to be sent.
-   * @return the documents satisfying the search criteria, or {@code null} if no entries in the store satisfies the criteria.
+   * @return the documents satisfying the search criteria, or {@code null} if no entries in the
+   *     store satisfies the criteria.
    * @throws RpcException when RPC related errors are encountered.
    */
   public Iterable<Document<ByteString, ByteString>> find(FindRequest request) throws RpcException {
@@ -156,13 +161,12 @@ public class DatastoreRpcClient {
   public Iterable<Document<ByteString, ByteString>> find(String storeId) throws RpcException {
     final FindRequest.Builder builder = FindRequest.newBuilder();
     builder.setStoreId(storeId);
-    ReceivedResponseMessage<FindResponse> response = rpcService.getFindEndpoint().send(builder.build());
+    ReceivedResponseMessage<FindResponse> response =
+        rpcService.getFindEndpoint().send(builder.build());
     return createListOfImmutableDocuments(response.getBody().getDocumentsList());
   }
 
-  /**
-   * Put method helper to delegate PutRequest.
-   */
+  /** Put method helper to delegate PutRequest. */
   private String put(PutRequest request) throws RpcException {
     final ReceivedResponseMessage<PutResponse> response = rpcService.getPutEndpoint().send(request);
     if (response.getBody().hasErrorMessage()) {
@@ -187,17 +191,16 @@ public class DatastoreRpcClient {
    * @param value the value of the key-value store entry to put.
    * @return the new tag of the key-value store entry.
    * @throws RpcException when RPC related errors are encountered.
-   * @throws ConcurrentModificationException when PutResponse received has ConcurrentModificationError.
+   * @throws ConcurrentModificationException when PutResponse received has
+   *     ConcurrentModificationError.
    */
-  public String put(String storeId, ByteString key, ByteString value, PutRequestDocumentWriter indexMap) throws RpcException {
+  public String put(
+      String storeId, ByteString key, ByteString value, PutRequestDocumentWriter indexMap)
+      throws RpcException {
     final PutRequest.Builder builder = PutRequest.newBuilder();
     indexMap.toPutRequest(builder);
 
-    return put(builder
-      .setStoreId(storeId)
-      .setKey(key)
-      .setValue(value)
-      .build());
+    return put(builder.setStoreId(storeId).setKey(key).setValue(value).build());
   }
 
   /**
@@ -210,30 +213,34 @@ public class DatastoreRpcClient {
    * @return the new tag of the key-value store entry.
    * @throws RpcException
    */
-  public String put(String storeId, ByteString key, ByteString value, PutRequestDocumentWriter indexMap, KVStore.PutOption option) throws RpcException {
+  public String put(
+      String storeId,
+      ByteString key,
+      ByteString value,
+      PutRequestDocumentWriter indexMap,
+      KVStore.PutOption option)
+      throws RpcException {
 
     final RemoteDataStoreProtobuf.PutOptionInfo optionInfo = option.getPutOptionInfo();
 
     final PutRequest.Builder builder = PutRequest.newBuilder();
     indexMap.toPutRequest(builder);
 
-    return put(builder
-      .setStoreId(storeId)
-      .setKey(key)
-      .setValue(value)
-      .setOptionInfo(optionInfo)
-      .build());
+    return put(
+        builder.setStoreId(storeId).setKey(key).setValue(value).setOptionInfo(optionInfo).build());
   }
 
   /**
-   * Delete method to removed key-value store entry corresponding to the provided key from the store. Tag can be
-   * {@code null} if no validation is required.
+   * Delete method to removed key-value store entry corresponding to the provided key from the
+   * store. Tag can be {@code null} if no validation is required.
    *
    * @param storeId the store ID.
    * @param key the key of the key-value store entry to remove.
-   * @param tag the tag of the key-value store entry to remove. Can be {@code null} if no validation is required.
+   * @param tag the tag of the key-value store entry to remove. Can be {@code null} if no validation
+   *     is required.
    * @throws RpcException when RPC related errors are encountered.
-   * @throws ConcurrentModificationException when DeleteResponse received has ConcurrentModificationError.
+   * @throws ConcurrentModificationException when DeleteResponse received has
+   *     ConcurrentModificationError.
    */
   public void delete(String storeId, ByteString key, String tag) throws RpcException {
     final DeleteRequest.Builder builder = DeleteRequest.newBuilder();
@@ -244,9 +251,11 @@ public class DatastoreRpcClient {
       builder.setTag(tag);
     }
 
-    ReceivedResponseMessage<DeleteResponse> response = rpcService.getDeleteEndpoint().send(builder.build());
+    ReceivedResponseMessage<DeleteResponse> response =
+        rpcService.getDeleteEndpoint().send(builder.build());
     if (response.getBody().hasConcurrentModificationError()) {
-      throw new ConcurrentModificationException(response.getBody().getConcurrentModificationError());
+      throw new ConcurrentModificationException(
+          response.getBody().getConcurrentModificationError());
     }
   }
 
@@ -255,10 +264,12 @@ public class DatastoreRpcClient {
    *
    * @param storeId the storeId.
    * @param findByCondition the search condition.
-   * @return the documents satisfying the search condition, or {@code null} if no entries in the store satisfies the condition.
+   * @return the documents satisfying the search condition, or {@code null} if no entries in the
+   *     store satisfies the condition.
    * @throws RpcException when RPC related errors are encountered.
    */
-  public Iterable<Document<ByteString, ByteString>> find(String storeId, FindByCondition findByCondition) throws IOException {
+  public Iterable<Document<ByteString, ByteString>> find(
+      String storeId, FindByCondition findByCondition) throws IOException {
     final SearchRequest.Builder builder = SearchRequest.newBuilder();
     builder.setStoreId(storeId);
     if (!findByCondition.getSort().isEmpty()) {
@@ -268,7 +279,8 @@ public class DatastoreRpcClient {
     builder.setOffset(findByCondition.getOffset());
     builder.setPageSize(findByCondition.getPageSize());
     builder.setQuery(findByCondition.getCondition());
-    ReceivedResponseMessage<SearchResponse> response  = rpcService.getSearchEndpoint().send(builder.build());
+    ReceivedResponseMessage<SearchResponse> response =
+        rpcService.getSearchEndpoint().send(builder.build());
     return createListOfImmutableDocuments(response.getBody().getDocumentsList());
   }
 
@@ -283,14 +295,16 @@ public class DatastoreRpcClient {
   public List<Integer> getCounts(String storeId, SearchQuery... conditions) throws IOException {
     final GetCountsRequest.Builder builder = GetCountsRequest.newBuilder();
     builder.setStoreId(storeId);
-    for (SearchQuery condition: conditions) {
+    for (SearchQuery condition : conditions) {
       builder.addQueries(condition);
     }
-    ReceivedResponseMessage<GetCountsResponse> response  = rpcService.getGetCountsEndpoint().send(builder.build());
+    ReceivedResponseMessage<GetCountsResponse> response =
+        rpcService.getGetCountsEndpoint().send(builder.build());
     return response.getBody().getCountsList();
   }
 
-  private Document<ByteString, ByteString> createImmutableDocumentFromKeyValueTag(ByteString key, ByteString value, String tag) {
+  private Document<ByteString, ByteString> createImmutableDocumentFromKeyValueTag(
+      ByteString key, ByteString value, String tag) {
     ImmutableDocument.Builder<ByteString, ByteString> builder = new ImmutableDocument.Builder();
     builder.setKey(key);
     builder.setValue(value);
@@ -303,12 +317,16 @@ public class DatastoreRpcClient {
   /*
    * Converts a list of DocumentResponse into a list of ImmutableDocument.
    */
-  private List<Document<ByteString, ByteString>> createListOfImmutableDocuments(List<DocumentResponse> documents) {
+  private List<Document<ByteString, ByteString>> createListOfImmutableDocuments(
+      List<DocumentResponse> documents) {
     ArrayList<Document<ByteString, ByteString>> list = new ArrayList<>();
-    documents.forEach(document ->
-      list.add((document.equals(DocumentResponse.getDefaultInstance())) ? null
-          : createImmutableDocumentFromKeyValueTag(document.getKey(), document.getValue(), document.getTag())
-      ));
+    documents.forEach(
+        document ->
+            list.add(
+                (document.equals(DocumentResponse.getDefaultInstance()))
+                    ? null
+                    : createImmutableDocumentFromKeyValueTag(
+                        document.getKey(), document.getValue(), document.getTag())));
     return Collections.unmodifiableList(list);
   }
 }

@@ -15,11 +15,6 @@
  */
 package com.dremio.exec.physical.config;
 
-import java.util.Iterator;
-import java.util.List;
-
-import org.apache.calcite.rel.core.JoinRelType;
-
 import com.dremio.common.logical.data.JoinCondition;
 import com.dremio.exec.physical.base.AbstractBase;
 import com.dremio.exec.physical.base.OpProps;
@@ -31,9 +26,12 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterators;
+import java.util.Iterator;
+import java.util.List;
+import org.apache.calcite.rel.core.JoinRelType;
 
 @JsonTypeName("merge-join")
-public class MergeJoinPOP extends AbstractBase{
+public class MergeJoinPOP extends AbstractBase {
 
   private final PhysicalOperator left;
   private final PhysicalOperator right;
@@ -46,8 +44,7 @@ public class MergeJoinPOP extends AbstractBase{
       @JsonProperty("left") PhysicalOperator left,
       @JsonProperty("right") PhysicalOperator right,
       @JsonProperty("conditions") List<JoinCondition> conditions,
-      @JsonProperty("joinType") JoinRelType joinType
-      ) {
+      @JsonProperty("joinType") JoinRelType joinType) {
     super(props);
     this.left = left;
     this.right = right;
@@ -57,7 +54,8 @@ public class MergeJoinPOP extends AbstractBase{
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value) throws E {
+  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value)
+      throws E {
     return physicalVisitor.visitMergeJoin(this, value);
   }
 

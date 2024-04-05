@@ -34,29 +34,10 @@ import static com.dremio.dac.proto.model.dataset.MeasureType.Count_Star;
 import static com.dremio.dac.proto.model.dataset.NumberToDateFormat.EXCEL;
 import static java.util.Arrays.asList;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
-
-import javax.ws.rs.core.SecurityContext;
-
-import org.apache.calcite.adapter.java.JavaTypeFactory;
-import org.apache.calcite.avatica.util.Quoting;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeField;
-import org.apache.calcite.rel.type.RelDataTypeFieldImpl;
-import org.apache.calcite.rel.type.RelRecordType;
-import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.sql.parser.SqlParser;
-import org.apache.calcite.sql.type.SqlTypeName;
-import org.junit.Before;
-import org.junit.Test;
-import org.mockito.Mockito;
 
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.explore.model.DatasetUI;
@@ -154,10 +135,25 @@ import com.dremio.service.namespace.dataset.proto.FieldOrigin;
 import com.dremio.service.namespace.dataset.proto.ParentDataset;
 import com.dremio.service.namespace.dataset.proto.ViewFieldType;
 import com.google.common.collect.ImmutableList;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
+import javax.ws.rs.core.SecurityContext;
+import org.apache.calcite.adapter.java.JavaTypeFactory;
+import org.apache.calcite.avatica.util.Quoting;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.calcite.rel.type.RelDataTypeFieldImpl;
+import org.apache.calcite.rel.type.RelRecordType;
+import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.parser.SqlParser;
+import org.apache.calcite.sql.type.SqlTypeName;
+import org.junit.Before;
+import org.junit.Test;
+import org.mockito.Mockito;
 
-/**
- * Transformer tests
- */
+/** Transformer tests */
 public class TestTransformer extends BaseTestServer { // needed for parsing queries
 
   private final DatasetPath datasetPath = new DatasetPath("myspace.parentDS");
@@ -170,58 +166,64 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
   }
 
   private TransformResult transform(TransformBase tb, Boolean preview) {
-    QueryExecutor executor = new QueryExecutor(null, null, null){
-      @Override
-      public List<String> getColumnList(DatasetPath path, List<SourceVersionReference> sourceVersionReferenceList) {
-        return asList("bar", "baz");
-      }
-    };
+    QueryExecutor executor =
+        new QueryExecutor(null, null, null) {
+          @Override
+          public List<String> getColumnList(
+              DatasetPath path, List<SourceVersionReference> sourceVersionReferenceList) {
+            return asList("bar", "baz");
+          }
+        };
 
-    TransformActor actor = new TransformActor(state, preview, "test_user", executor){
-      @Override
-      protected com.dremio.service.jobs.metadata.proto.QueryMetadata getMetadata(SqlQuery query) {
-        return Mockito.mock(com.dremio.service.jobs.metadata.proto.QueryMetadata.class);
-      }
+    TransformActor actor =
+        new TransformActor(state, preview, "test_user", executor) {
+          @Override
+          protected com.dremio.service.jobs.metadata.proto.QueryMetadata getMetadata(
+              SqlQuery query) {
+            return Mockito.mock(com.dremio.service.jobs.metadata.proto.QueryMetadata.class);
+          }
 
-      @Override
-      protected boolean hasMetadata() {
-        return true;
-      }
+          @Override
+          protected boolean hasMetadata() {
+            return true;
+          }
 
-      @Override
-      protected com.dremio.service.jobs.metadata.proto.QueryMetadata getMetadata() {
-        return Mockito.mock(com.dremio.service.jobs.metadata.proto.QueryMetadata.class);
-      }
+          @Override
+          protected com.dremio.service.jobs.metadata.proto.QueryMetadata getMetadata() {
+            return Mockito.mock(com.dremio.service.jobs.metadata.proto.QueryMetadata.class);
+          }
 
-      @Override
-      protected Optional<BatchSchema> getBatchSchema() {
-        return Optional.of(Mockito.mock(BatchSchema.class));
-      }
+          @Override
+          protected Optional<BatchSchema> getBatchSchema() {
+            return Optional.of(Mockito.mock(BatchSchema.class));
+          }
 
-      @Override
-      protected Optional<List<ParentDatasetInfo>> getParents() {
-        throw new IllegalStateException("not implemented");
-      }
+          @Override
+          protected Optional<List<ParentDatasetInfo>> getParents() {
+            throw new IllegalStateException("not implemented");
+          }
 
-      @Override
-      protected Optional<List<FieldOrigin>> getFieldOrigins() {
-        throw new IllegalStateException("not implemented");
-      }
+          @Override
+          protected Optional<List<FieldOrigin>> getFieldOrigins() {
+            throw new IllegalStateException("not implemented");
+          }
 
-      @Override
-      protected Optional<List<ParentDataset>> getGrandParents() {
-        throw new IllegalStateException("not implemented");
-      }
-    };
+          @Override
+          protected Optional<List<ParentDataset>> getGrandParents() {
+            throw new IllegalStateException("not implemented");
+          }
+        };
 
     return tb.accept(actor);
   }
 
   @Before
   public void before() {
-    state = new VirtualDatasetState()
-        .setFrom(parentDataset);
-    state.setColumnsList(asList(new Column("foo", new ExpColumnReference("foo").wrap()), new Column("bar", new ExpColumnReference("bar").wrap())));
+    state = new VirtualDatasetState().setFrom(parentDataset);
+    state.setColumnsList(
+        asList(
+            new Column("foo", new ExpColumnReference("foo").wrap()),
+            new Column("bar", new ExpColumnReference("bar").wrap())));
     state.setReferredTablesList(ImmutableList.of("parentDS"));
   }
 
@@ -234,7 +236,10 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
 
     state = result1.getNewState();
     assertEquals(state.getOrdersList().toString(), 1, state.getOrdersList().size());
-    assertEquals(state.getOrdersList().toString(), new Order("foo", OrderDirection.ASC), state.getOrdersList().get(0));
+    assertEquals(
+        state.getOrdersList().toString(),
+        new Order("foo", OrderDirection.ASC),
+        state.getOrdersList().get(0));
 
     TransformResult result2 = transform(new TransformRename("foo", "foo2"));
 
@@ -257,7 +262,10 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
 
     state = result1.getNewState();
     assertEquals(state.getOrdersList().toString(), 1, state.getOrdersList().size());
-    assertEquals(state.getOrdersList().toString(), new Order("foo", OrderDirection.ASC), state.getOrdersList().get(0));
+    assertEquals(
+        state.getOrdersList().toString(),
+        new Order("foo", OrderDirection.ASC),
+        state.getOrdersList().get(0));
 
     TransformResult result2 = transform(new TransformDrop("foo"));
 
@@ -293,7 +301,8 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
 
     state.setColumnsList(asList(new Column("foo", column)));
 
-    TransformResult result = transform(new TransformConvertCase("foo", ConvertCase.TITLE_CASE, "bar", true));
+    TransformResult result =
+        transform(new TransformConvertCase("foo", ConvertCase.TITLE_CASE, "bar", true));
     VirtualDatasetState newState = result.getNewState();
     assertEquals("bar", newState.getColumnsList().get(0).getName());
   }
@@ -304,21 +313,27 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
 
     state.setColumnsList(asList(new Column("foo", column)));
 
-    ReplacePatternRule replacePatternRule = new ReplacePatternRule(ReplaceSelectionType.CONTAINS)
-      .setIgnoreCase(false)
-      .setSelectionPattern("bar");
+    ReplacePatternRule replacePatternRule =
+        new ReplacePatternRule(ReplaceSelectionType.CONTAINS)
+            .setIgnoreCase(false)
+            .setSelectionPattern("bar");
 
-    TransformResult result = transform(new TransformFilter("foo", new FilterDefinition(FilterType.Pattern)
-        .setPattern(new FilterPattern(
-          replacePatternRule
-        ))).setExclude(true).setKeepNull(true));
+    TransformResult result =
+        transform(
+            new TransformFilter(
+                    "foo",
+                    new FilterDefinition(FilterType.Pattern)
+                        .setPattern(new FilterPattern(replacePatternRule)))
+                .setExclude(true)
+                .setKeepNull(true));
 
     VirtualDatasetState newState = result.getNewState();
     assertEquals("foo", newState.getColumnsList().get(0).getName());
     assertEquals(1, newState.getFiltersList().size());
     assertEquals(0, newState.getFiltersList().get(0).getFieldNumber("foo"));
     assertEquals(FilterType.Pattern, newState.getFiltersList().get(0).getFilterDef().getType());
-    assertEquals(replacePatternRule, newState.getFiltersList().get(0).getFilterDef().getPattern().getRule());
+    assertEquals(
+        replacePatternRule, newState.getFiltersList().get(0).getFilterDef().getPattern().getRule());
   }
 
   @Test
@@ -328,10 +343,11 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
     state.setColumnsList(asList(new Column("foo", column)));
 
     FilterDefinition filterDefinition =
-      new FilterDefinition(FilterType.Value)
-        .setValue(new FilterValue(DataType.DATE).setValuesList(asList("foo", "bar")));
-    TransformResult result = transform(new TransformFilter(
-      "foo", filterDefinition).setExclude(false).setKeepNull(false));
+        new FilterDefinition(FilterType.Value)
+            .setValue(new FilterValue(DataType.DATE).setValuesList(asList("foo", "bar")));
+    TransformResult result =
+        transform(
+            new TransformFilter("foo", filterDefinition).setExclude(false).setKeepNull(false));
 
     VirtualDatasetState newState = result.getNewState();
     assertEquals("foo", newState.getColumnsList().get(0).getName());
@@ -347,11 +363,16 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
 
     state.setColumnsList(asList(new Column("a", a), new Column("b", b)));
 
-    TransformResult result = transform(new TransformGroupBy()
-        .setColumnsDimensionsList(asList(new Dimension("a")))
-        .setColumnsMeasuresList(asList(new Measure(Count).setColumn("b"))));
+    TransformResult result =
+        transform(
+            new TransformGroupBy()
+                .setColumnsDimensionsList(asList(new Dimension("a")))
+                .setColumnsMeasuresList(asList(new Measure(Count).setColumn("b"))));
     VirtualDatasetState newState = result.getNewState();
-    assertEquals(asList(new Column("a", a), new Column("Count_b", new ExpMeasure(Count).setOperand(b).wrap())), newState.getColumnsList());
+    assertEquals(
+        asList(
+            new Column("a", a), new Column("Count_b", new ExpMeasure(Count).setOperand(b).wrap())),
+        newState.getColumnsList());
     assertEquals(asList(new Column("a", a)), newState.getGroupBysList());
   }
 
@@ -362,27 +383,53 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
     TransformResult result;
 
     TransformJoin transformJoin = new TransformJoin(JoinType.Inner);
-    result = transform(transformJoin.setRightTableFullPathList(fullPathList).setJoinConditionsList(asList(jc)));
-    assertEquals(asList(new Join(JoinType.Inner, "space.foo", "join_foo")
-        .setJoinConditionsList(asList(jc))), result.getNewState().getJoinsList());
+    result =
+        transform(
+            transformJoin
+                .setRightTableFullPathList(fullPathList)
+                .setJoinConditionsList(asList(jc)));
+    assertEquals(
+        asList(new Join(JoinType.Inner, "space.foo", "join_foo").setJoinConditionsList(asList(jc))),
+        result.getNewState().getJoinsList());
     assertEquals(result.getNewState().getColumnsList().size(), 4);
 
     transformJoin = new TransformJoin(JoinType.LeftOuter);
-    result = transform(transformJoin.setRightTableFullPathList(fullPathList).setJoinConditionsList(asList(jc)));
-    assertEquals(asList(new Join(JoinType.LeftOuter, "space.foo", "join_foo")
-        .setJoinConditionsList(asList(jc))), result.getNewState().getJoinsList());
+    result =
+        transform(
+            transformJoin
+                .setRightTableFullPathList(fullPathList)
+                .setJoinConditionsList(asList(jc)));
+    assertEquals(
+        asList(
+            new Join(JoinType.LeftOuter, "space.foo", "join_foo")
+                .setJoinConditionsList(asList(jc))),
+        result.getNewState().getJoinsList());
     assertEquals(result.getNewState().getColumnsList().size(), 4);
 
     transformJoin = new TransformJoin(JoinType.RightOuter);
-    result = transform(transformJoin.setRightTableFullPathList(fullPathList).setJoinConditionsList(asList(jc)));
-    assertEquals(asList(new Join(JoinType.RightOuter, "space.foo", "join_foo")
-        .setJoinConditionsList(asList(jc))), result.getNewState().getJoinsList());
+    result =
+        transform(
+            transformJoin
+                .setRightTableFullPathList(fullPathList)
+                .setJoinConditionsList(asList(jc)));
+    assertEquals(
+        asList(
+            new Join(JoinType.RightOuter, "space.foo", "join_foo")
+                .setJoinConditionsList(asList(jc))),
+        result.getNewState().getJoinsList());
     assertEquals(result.getNewState().getColumnsList().size(), 4);
 
     transformJoin = new TransformJoin(JoinType.FullOuter);
-    result = transform(transformJoin.setRightTableFullPathList(fullPathList).setJoinConditionsList(asList(jc)));
-    assertEquals(asList(new Join(JoinType.FullOuter, "space.foo", "join_foo")
-        .setJoinConditionsList(asList(jc))), result.getNewState().getJoinsList());
+    result =
+        transform(
+            transformJoin
+                .setRightTableFullPathList(fullPathList)
+                .setJoinConditionsList(asList(jc)));
+    assertEquals(
+        asList(
+            new Join(JoinType.FullOuter, "space.foo", "join_foo")
+                .setJoinConditionsList(asList(jc))),
+        result.getNewState().getJoinsList());
     assertEquals(result.getNewState().getColumnsList().size(), 4);
   }
 
@@ -393,32 +440,68 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
 
     TransformResult result;
 
-    result = transform(new TransformJoin(JoinType.Inner).setRightTableFullPathList(fullPathList).setJoinConditionsList(asList(jc)), true);
+    result =
+        transform(
+            new TransformJoin(JoinType.Inner)
+                .setRightTableFullPathList(fullPathList)
+                .setJoinConditionsList(asList(jc)),
+            true);
     assertEquals(asList("bar", "bar0"), result.getRowDeletionMarkerColumns());
-    assertEquals(asList(new Join(JoinType.FullOuter, "space.foo", "join_foo")
-        .setJoinConditionsList(asList(jc))), result.getNewState().getJoinsList());
+    assertEquals(
+        asList(
+            new Join(JoinType.FullOuter, "space.foo", "join_foo")
+                .setJoinConditionsList(asList(jc))),
+        result.getNewState().getJoinsList());
 
-    result = transform(new TransformJoin(JoinType.LeftOuter).setRightTableFullPathList(fullPathList).setJoinConditionsList(asList(jc)), true);
+    result =
+        transform(
+            new TransformJoin(JoinType.LeftOuter)
+                .setRightTableFullPathList(fullPathList)
+                .setJoinConditionsList(asList(jc)),
+            true);
     assertEquals(asList("bar"), result.getRowDeletionMarkerColumns());
-    assertEquals(asList(new Join(JoinType.FullOuter, "space.foo", "join_foo")
-        .setJoinConditionsList(asList(jc))), result.getNewState().getJoinsList());
+    assertEquals(
+        asList(
+            new Join(JoinType.FullOuter, "space.foo", "join_foo")
+                .setJoinConditionsList(asList(jc))),
+        result.getNewState().getJoinsList());
 
-    result = transform(new TransformJoin(JoinType.RightOuter).setRightTableFullPathList(fullPathList).setJoinConditionsList(asList(jc)), true);
+    result =
+        transform(
+            new TransformJoin(JoinType.RightOuter)
+                .setRightTableFullPathList(fullPathList)
+                .setJoinConditionsList(asList(jc)),
+            true);
     assertEquals(asList("bar0"), result.getRowDeletionMarkerColumns());
-    assertEquals(asList(new Join(JoinType.FullOuter, "space.foo", "join_foo")
-        .setJoinConditionsList(asList(jc))), result.getNewState().getJoinsList());
+    assertEquals(
+        asList(
+            new Join(JoinType.FullOuter, "space.foo", "join_foo")
+                .setJoinConditionsList(asList(jc))),
+        result.getNewState().getJoinsList());
 
-    result = transform(new TransformJoin(JoinType.FullOuter).setRightTableFullPathList(fullPathList).setJoinConditionsList(asList(jc)), true);
+    result =
+        transform(
+            new TransformJoin(JoinType.FullOuter)
+                .setRightTableFullPathList(fullPathList)
+                .setJoinConditionsList(asList(jc)),
+            true);
     assertEquals(asList(), result.getRowDeletionMarkerColumns());
-    assertEquals(asList(new Join(JoinType.FullOuter, "space.foo", "join_foo")
-        .setJoinConditionsList(asList(jc))), result.getNewState().getJoinsList());
+    assertEquals(
+        asList(
+            new Join(JoinType.FullOuter, "space.foo", "join_foo")
+                .setJoinConditionsList(asList(jc))),
+        result.getNewState().getJoinsList());
   }
 
   @Test
   public void testJoinColumnOrder() {
     List<String> fullPathList = asList("space", "foo");
-    TransformResult result = transform(new TransformJoin(JoinType.Inner).setRightTableFullPathList(fullPathList).setJoinConditionsList(
-        asList(new JoinCondition("foo", "baz"), new JoinCondition("bar", "bar"))));
+    TransformResult result =
+        transform(
+            new TransformJoin(JoinType.Inner)
+                .setRightTableFullPathList(fullPathList)
+                .setJoinConditionsList(
+                    asList(new JoinCondition("foo", "baz"), new JoinCondition("bar", "bar"))));
     List<String> columns = new ArrayList<>();
     for (Column c : result.getNewState().getColumnsList()) {
       columns.add(c.getName());
@@ -433,26 +516,40 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
 
     state.setColumnsList(asList(new Column("a", a), new Column("b", b)));
 
-    TransformResult result = transform(new TransformGroupBy()
-        .setColumnsDimensionsList(asList(new Dimension("a")))
-        .setColumnsMeasuresList(asList(new Measure(Count).setColumn("b"))));
+    TransformResult result =
+        transform(
+            new TransformGroupBy()
+                .setColumnsDimensionsList(asList(new Dimension("a")))
+                .setColumnsMeasuresList(asList(new Measure(Count).setColumn("b"))));
     state = result.getNewState();
 
-    TransformResult result2 = transform(new TransformGroupBy()
-        .setColumnsDimensionsList(asList(new Dimension("Count_b")))
-        .setColumnsMeasuresList(asList(new Measure(Count).setColumn("a"))));
+    TransformResult result2 =
+        transform(
+            new TransformGroupBy()
+                .setColumnsDimensionsList(asList(new Dimension("Count_b")))
+                .setColumnsMeasuresList(asList(new Measure(Count).setColumn("a"))));
 
     VirtualDatasetState newState = result2.getNewState();
     System.out.println(JSONUtil.toString(newState));
 
     // nested query should match the intermediary state
     VirtualDatasetState intermediaryState = newState.getFrom().getSubQuery().getSuqQuery();
-    assertEquals(asList(new Column("a", a), new Column("Count_b", new ExpMeasure(Count).setOperand(b).wrap())), intermediaryState.getColumnsList());
+    assertEquals(
+        asList(
+            new Column("a", a), new Column("Count_b", new ExpMeasure(Count).setOperand(b).wrap())),
+        intermediaryState.getColumnsList());
     assertEquals(asList(new Column("a", a)), intermediaryState.getGroupBysList());
 
-    assertEquals(JSONUtil.toString(newState.getColumnsList()), asList(new Column("Count_b", new ExpColumnReference("Count_b").wrap()), new Column("Count_a", new ExpMeasure(Count).setOperand(a).wrap())), newState.getColumnsList());
-    assertEquals(JSONUtil.toString(newState.getGroupBysList()), asList(new Column("Count_b", new ExpColumnReference("Count_b").wrap())), newState.getGroupBysList());
-
+    assertEquals(
+        JSONUtil.toString(newState.getColumnsList()),
+        asList(
+            new Column("Count_b", new ExpColumnReference("Count_b").wrap()),
+            new Column("Count_a", new ExpMeasure(Count).setOperand(a).wrap())),
+        newState.getColumnsList());
+    assertEquals(
+        JSONUtil.toString(newState.getGroupBysList()),
+        asList(new Column("Count_b", new ExpColumnReference("Count_b").wrap())),
+        newState.getGroupBysList());
   }
 
   @Test
@@ -462,11 +559,15 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
 
     state.setColumnsList(asList(new Column("a", a), new Column("b", b)));
 
-    TransformResult result = transform(new TransformGroupBy()
-        .setColumnsDimensionsList(asList(new Dimension("a")))
-        .setColumnsMeasuresList(asList(new Measure(Count_Star))));
+    TransformResult result =
+        transform(
+            new TransformGroupBy()
+                .setColumnsDimensionsList(asList(new Dimension("a")))
+                .setColumnsMeasuresList(asList(new Measure(Count_Star))));
     VirtualDatasetState newState = result.getNewState();
-    assertEquals(asList(new Column("a", a), new Column("Count_Star", new ExpMeasure(Count_Star).wrap())), newState.getColumnsList());
+    assertEquals(
+        asList(new Column("a", a), new Column("Count_Star", new ExpMeasure(Count_Star).wrap())),
+        newState.getColumnsList());
     assertEquals(asList(new Column("a", a)), newState.getGroupBysList());
   }
 
@@ -477,9 +578,11 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
 
     state.setColumnsList(asList(new Column("a", a), new Column("b", b)));
 
-    TransformResult result = transform(new TransformGroupBy()
-      .setColumnsDimensionsList(asList(new Dimension("a")))
-      .setColumnsMeasuresList(asList(new Measure(Count_Star))));
+    TransformResult result =
+        transform(
+            new TransformGroupBy()
+                .setColumnsDimensionsList(asList(new Dimension("a")))
+                .setColumnsMeasuresList(asList(new Measure(Count_Star))));
 
     // Sort Count_Star
     state = result.getNewState();
@@ -487,7 +590,7 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
 
     VirtualDatasetState newState = result.getNewState();
     assertEquals(newState.getOrdersList().size() == 1, true);
-    assertEquals(newState.getOrdersList().get(0),  new Order("Count_Star", OrderDirection.ASC));
+    assertEquals(newState.getOrdersList().get(0), new Order("Count_Star", OrderDirection.ASC));
   }
 
   @Test
@@ -520,8 +623,10 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
 
     state.setColumnsList(asList(new Column("a", a)));
 
-    TransformResult result = transform(new TransformFilter("a", new FilterDefinition(FilterType.Custom)
-      .setCustom(new FilterCustom("a > 5"))));
+    TransformResult result =
+        transform(
+            new TransformFilter(
+                "a", new FilterDefinition(FilterType.Custom).setCustom(new FilterCustom("a > 5"))));
 
     VirtualDatasetState newState = result.getNewState();
 
@@ -533,7 +638,9 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
     assertEquals(Custom, filter.getFilterDef().getType());
     assertEquals("a > 5", filter.getFilterDef().getCustom().getExpression());
     assertEquals(FromType.SubQuery, newState.getFrom().getType());
-    assertEquals(datasetPath.toUnescapedString(), newState.getFrom().getSubQuery().getSuqQuery().getFrom().getTable().getDatasetPath());
+    assertEquals(
+        datasetPath.toUnescapedString(),
+        newState.getFrom().getSubQuery().getSuqQuery().getFrom().getTable().getDatasetPath());
   }
 
   @Test
@@ -552,7 +659,9 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
     assertEquals(CalculatedField, col.getValue().getType());
     assertEquals("a+5", col.getValue().getCalculatedField().getExp());
     assertEquals(FromType.SubQuery, newState.getFrom().getType());
-    assertEquals(datasetPath.toUnescapedString(), newState.getFrom().getSubQuery().getSuqQuery().getFrom().getTable().getDatasetPath());
+    assertEquals(
+        datasetPath.toUnescapedString(),
+        newState.getFrom().getSubQuery().getSuqQuery().getFrom().getTable().getDatasetPath());
   }
 
   @Test
@@ -573,8 +682,10 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
     assertEquals(CalculatedField, col.getValue().getType());
     assertEquals("a+5", col.getValue().getCalculatedField().getExp());
 
-    // because of the calculated field, which is an opaque string from the user, we expect nesting until we
-    // add parsing this string to find what kinds of columns are referenced by it (expressions or renames will need
+    // because of the calculated field, which is an opaque string from the user, we expect nesting
+    // until we
+    // add parsing this string to find what kinds of columns are referenced by it (expressions or
+    // renames will need
     // special handling in this case)
     assertEquals(FromType.SubQuery, newState.getFrom().getType());
     VirtualDatasetState subQuery = newState.getFrom().getSubQuery().getSuqQuery();
@@ -591,14 +702,20 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
   public void testUnnestThenExclude() {
     Expression b = new ExpColumnReference("b").wrap();
     state.setColumnsList(asList(new Column("b", b)));
-    FieldTransformation transformation = new FieldTransformation(UnnestList).setUnnestList(new FieldUnnestList());
+    FieldTransformation transformation =
+        new FieldTransformation(UnnestList).setUnnestList(new FieldUnnestList());
     TransformField transformField = new TransformField("b", "b", true, transformation);
     TransformResult result2 = transform(transformField);
 
     state = result2.getNewState();
 
-    TransformResult result = transform(new TransformFilter("b", new FilterDefinition(FilterType.Range)
-      .setRange(new FilterRange(DataType.INTEGER).setLowerBound("1").setUpperBound("5"))));
+    TransformResult result =
+        transform(
+            new TransformFilter(
+                "b",
+                new FilterDefinition(FilterType.Range)
+                    .setRange(
+                        new FilterRange(DataType.INTEGER).setLowerBound("1").setUpperBound("5"))));
 
     VirtualDatasetState newState = result.getNewState();
 
@@ -611,8 +728,10 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
     assertEquals("5", range.getUpperBound());
     assertEquals(null, filter.getExclude());
 
-    // because of the calculated field, which is an opaque string from the user, we expect nesting until we
-    // add parsing this string to find what kinds of columns are referenced by it (expressions or renames will need
+    // because of the calculated field, which is an opaque string from the user, we expect nesting
+    // until we
+    // add parsing this string to find what kinds of columns are referenced by it (expressions or
+    // renames will need
     // special handling in this case)
     assertEquals(FromType.SubQuery, newState.getFrom().getType());
     VirtualDatasetState subQuery = newState.getFrom().getSubQuery().getSuqQuery();
@@ -622,7 +741,8 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
     Column columnInSub = subQuery.getColumnsList().get(0);
     assertEquals("b", columnInSub.getName());
     assertEquals(FieldTransformation, columnInSub.getValue().getType());
-    assertEquals(UnnestList, columnInSub.getValue().getFieldTransformation().getTransformation().getType());
+    assertEquals(
+        UnnestList, columnInSub.getValue().getFieldTransformation().getTransformation().getType());
   }
 
   @Test
@@ -630,7 +750,8 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
     // Sort single column
     Expression a = new ExpColumnReference("a").wrap();
     state.setColumnsList(asList(new Column("a", a)));
-    FieldTransformation unnestTransform = new FieldTransformation(UnnestList).setUnnestList(new FieldUnnestList());
+    FieldTransformation unnestTransform =
+        new FieldTransformation(UnnestList).setUnnestList(new FieldUnnestList());
     TransformField transformFieldA = new TransformField("a", "a2", true, unnestTransform);
     TransformResult unnestedResultA = transform(transformFieldA);
 
@@ -648,11 +769,11 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
     Column columnInSub = subQuery.getColumnsList().get(0);
     assertEquals("a2", columnInSub.getName());
     assertEquals(FieldTransformation, columnInSub.getValue().getType());
-    assertEquals(UnnestList, columnInSub.getValue().getFieldTransformation().getTransformation().getType());
+    assertEquals(
+        UnnestList, columnInSub.getValue().getFieldTransformation().getTransformation().getType());
 
     // Sort multiple columns
-    state = new VirtualDatasetState()
-        .setFrom(parentDataset);
+    state = new VirtualDatasetState().setFrom(parentDataset);
     Expression x = new ExpColumnReference("x").wrap();
     Expression y = new ExpColumnReference("y").wrap();
     state.setColumnsList(asList(new Column("x", x), new Column("y", y)));
@@ -660,8 +781,12 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
     TransformResult unnestedResultX = transform(transformFieldX);
     state = unnestedResultX.getNewState();
 
-    result = transform(new TransformSorts()
-      .setColumnsList(asList(new Order("y", OrderDirection.ASC), new Order("x2", OrderDirection.DESC))));
+    result =
+        transform(
+            new TransformSorts()
+                .setColumnsList(
+                    asList(
+                        new Order("y", OrderDirection.ASC), new Order("x2", OrderDirection.DESC))));
     newState = result.getNewState();
     // Sorting by multiple fields that includes a flattened field
     assertEquals(FromType.SubQuery, newState.getFrom().getType());
@@ -672,10 +797,12 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
     assertEquals("x2", subQuery.getColumnsList().get(0).getName());
     assertEquals("y", subQuery.getColumnsList().get(1).getName());
     assertEquals(FieldTransformation, columnInSub.getValue().getType());
-    assertEquals(UnnestList, columnInSub.getValue().getFieldTransformation().getTransformation().getType());
+    assertEquals(
+        UnnestList, columnInSub.getValue().getFieldTransformation().getTransformation().getType());
   }
 
-  // Verify that 'st' contains a single subquery with the name 'subName', which itself is a flatten (UnnestList)
+  // Verify that 'st' contains a single subquery with the name 'subName', which itself is a flatten
+  // (UnnestList)
   private void verifyNestedQuery(VirtualDatasetState st, String subName) {
     assertEquals(FromType.SubQuery, st.getFrom().getType());
     VirtualDatasetState subQuery = st.getFrom().getSubQuery().getSuqQuery();
@@ -685,17 +812,20 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
     Column columnInSub = subQuery.getColumnsList().get(0);
     assertEquals(subName, columnInSub.getName());
     assertEquals(FieldTransformation, columnInSub.getValue().getType());
-    assertEquals(UnnestList, columnInSub.getValue().getFieldTransformation().getTransformation().getType());
+    assertEquals(
+        UnnestList, columnInSub.getValue().getFieldTransformation().getTransformation().getType());
   }
 
   @Test
   public void testUnnestThenConvert() {
-    // Every one of the conversion transformations on a flattened column, below, results in a nested query
+    // Every one of the conversion transformations on a flattened column, below, results in a nested
+    // query
 
     // All conversions below start from the same state: "flatten(a) as a2"
     Expression a = new ExpColumnReference("a").wrap();
     state.setColumnsList(asList(new Column("a", a)));
-    FieldTransformation unnestTransform = new FieldTransformation(UnnestList).setUnnestList(new FieldUnnestList());
+    FieldTransformation unnestTransform =
+        new FieldTransformation(UnnestList).setUnnestList(new FieldUnnestList());
     TransformField transformFieldA = new TransformField("a", "a2", true, unnestTransform);
     TransformResult unnestedResultA = transform(transformFieldA);
 
@@ -706,57 +836,68 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
     verifyNestedQuery(newState, "a2");
 
     // Convert case
-    state = unnestedResultA.getNewState();  // back to a single flatten(a) as a2
+    state = unnestedResultA.getNewState(); // back to a single flatten(a) as a2
     result = transform(new TransformConvertCase("a2", ConvertCase.TITLE_CASE, "a4", true));
     newState = result.getNewState();
     verifyNestedQuery(newState, "a2");
 
     // Trim
-    state = unnestedResultA.getNewState();  // back to a single flatten(a) as a2
+    state = unnestedResultA.getNewState(); // back to a single flatten(a) as a2
     result = transform(new TransformTrim("a2", TrimType.LEFT, "a5", true));
     newState = result.getNewState();
     verifyNestedQuery(newState, "a2");
 
     // Extract
-    state = unnestedResultA.getNewState();  // back to a single flatten(a) as a2
-    result = transform(new TransformExtract("a2", "a6",
-      new ExtractRule()
-        .setType(ExtractRuleType.position)
-        .setPosition(new ExtractRulePosition(new Offset(1, Direction.FROM_THE_END), new Offset(3, Direction.FROM_THE_END))),
-      true));
+    state = unnestedResultA.getNewState(); // back to a single flatten(a) as a2
+    result =
+        transform(
+            new TransformExtract(
+                "a2",
+                "a6",
+                new ExtractRule()
+                    .setType(ExtractRuleType.position)
+                    .setPosition(
+                        new ExtractRulePosition(
+                            new Offset(1, Direction.FROM_THE_END),
+                            new Offset(3, Direction.FROM_THE_END))),
+                true));
     newState = result.getNewState();
     verifyNestedQuery(newState, "a2");
 
     // Add calculated field
-    state = unnestedResultA.getNewState();  // back to a single flatten(a) as a2
+    state = unnestedResultA.getNewState(); // back to a single flatten(a) as a2
     result = transform(new TransformAddCalculatedField("a7", "a2", "a2+7", true));
     newState = result.getNewState();
     verifyNestedQuery(newState, "a2");
 
     // Transform Field
-    state = unnestedResultA.getNewState();  // back to a single flatten(a) as a2
+    state = unnestedResultA.getNewState(); // back to a single flatten(a) as a2
     ReplacePatternRule rule =
-      new ReplacePatternRule(ReplaceSelectionType.STARTS_WITH)
-        .setIgnoreCase(false)
-        .setSelectionPattern("foo");
+        new ReplacePatternRule(ReplaceSelectionType.STARTS_WITH)
+            .setIgnoreCase(false)
+            .setSelectionPattern("foo");
     FieldReplacePattern replace =
-      new FieldReplacePattern(rule, ReplaceType.SELECTION)
-        .setReplacementValue("bar");
+        new FieldReplacePattern(rule, ReplaceType.SELECTION).setReplacementValue("bar");
     FieldTransformation ft = replace.wrap();
     result = transform(new TransformField("a2", "a8", true, ft));
     newState = result.getNewState();
     verifyNestedQuery(newState, "a2");
 
     // Convert to single type
-    state = unnestedResultA.getNewState();  // back to a single flatten(a) as a2
-    result = transform(new TransformConvertToSingleType("a2", "a9", true, DataType.TEXT, true, REPLACE_WITH_NULL));
+    state = unnestedResultA.getNewState(); // back to a single flatten(a) as a2
+    result =
+        transform(
+            new TransformConvertToSingleType(
+                "a2", "a9", true, DataType.TEXT, true, REPLACE_WITH_NULL));
     newState = result.getNewState();
     verifyNestedQuery(newState, "a2");
 
     // Split by data type
-    state = unnestedResultA.getNewState();  // back to a single flatten(a) as a2
-    result = transform(new TransformSplitByDataType("a2", "a10_", false)
-        .setSelectedTypesList(asList(DataType.TEXT, DataType.INTEGER)));
+    state = unnestedResultA.getNewState(); // back to a single flatten(a) as a2
+    result =
+        transform(
+            new TransformSplitByDataType("a2", "a10_", false)
+                .setSelectedTypesList(asList(DataType.TEXT, DataType.INTEGER)));
     newState = result.getNewState();
     verifyNestedQuery(newState, "a2");
   }
@@ -767,7 +908,7 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
 
     state.setColumnsList(asList(new Column("a", a)));
 
-    FieldTransformation ft = new FieldConvertToTypeIfPossible(FLOAT,  DELETE_RECORDS).wrap();
+    FieldTransformation ft = new FieldConvertToTypeIfPossible(FLOAT, DELETE_RECORDS).wrap();
     TransformResult result = transform(new TransformField("a", "a", true, ft));
 
     VirtualDatasetState newState = result.getNewState();
@@ -796,7 +937,10 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
 
     state.setColumnsList(asList(new Column("a", a)));
 
-    FieldTransformation ft = new FieldConvertToTypeIfPossible(FLOAT, REPLACE_WITH_DEFAULT).setDefaultValue("0.00").wrap();
+    FieldTransformation ft =
+        new FieldConvertToTypeIfPossible(FLOAT, REPLACE_WITH_DEFAULT)
+            .setDefaultValue("0.00")
+            .wrap();
     TransformResult result = transform(new TransformField("a", "a", true, ft));
 
     VirtualDatasetState newState = result.getNewState();
@@ -819,9 +963,8 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
     Expression a = new ExpColumnReference("a").wrap();
 
     state.setColumnsList(asList(new Column("a", a)));
-    FieldTransformationBase ft = new FieldConvertNumberToDate()
-            .setDesiredType(DATETIME)
-            .setFormat(EXCEL);
+    FieldTransformationBase ft =
+        new FieldConvertNumberToDate().setDesiredType(DATETIME).setFormat(EXCEL);
     TransformResult result = transform(new TransformField("a", "a", true, ft.wrap()));
 
     VirtualDatasetState newState = result.getNewState();
@@ -837,7 +980,6 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
 
     assertEquals(DATETIME, fcnd.getDesiredType());
     assertEquals(EXCEL, fcnd.getFormat());
-
   }
 
   @Test
@@ -859,7 +1001,6 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
     assertEquals(a.toString(), fieldTransformation.getOperand().toString());
     assertEquals(ConvertFromJSON, fieldTransformation.getTransformation().getType());
     assertEquals(ft, fieldTransformation.getTransformation());
-
   }
 
   @Test
@@ -873,23 +1014,34 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
 
     state = result.getNewState();
 
-    TransformResult result2 = transform(new TransformField("a", "a", true,
-      new FieldTransformation(FieldTransformationType.ExtractList)
-        .setExtractList(new FieldExtractList(
-            new ExtractListRule(ExtractListRuleType.single)
-              .setSingle(new ExtractRuleSingle(0))))));
+    TransformResult result2 =
+        transform(
+            new TransformField(
+                "a",
+                "a",
+                true,
+                new FieldTransformation(FieldTransformationType.ExtractList)
+                    .setExtractList(
+                        new FieldExtractList(
+                            new ExtractListRule(ExtractListRuleType.single)
+                                .setSingle(new ExtractRuleSingle(0))))));
     VirtualDatasetState newState = result2.getNewState();
 
-    // outside of the expected subquery there should be one expression in the form of a[0], extracting
+    // outside of the expected subquery there should be one expression in the form of a[0],
+    // extracting
     // the first element out of a list
     assertEquals(1, newState.getColumnsList().size());
     Column col = newState.getColumnsList().get(0);
     assertEquals("a", col.getName());
     assertEquals(FieldTransformation, col.getValue().getType());
-    assertEquals(FieldTransformationType.ExtractList, col.getValue().getFieldTransformation().getTransformation().getType());
+    assertEquals(
+        FieldTransformationType.ExtractList,
+        col.getValue().getFieldTransformation().getTransformation().getType());
 
-    // Dremio does not support referencing an array produced by a function, like convert_from(a_col,'JSON')[0]
-    // so instead we move the function that produces the list into a subquery and make the array extraction happen
+    // Dremio does not support referencing an array produced by a function, like
+    // convert_from(a_col,'JSON')[0]
+    // so instead we move the function that produces the list into a subquery and make the array
+    // extraction happen
     // in an outer query
     assertEquals(FromType.SubQuery, newState.getFrom().getType());
     VirtualDatasetState subQuery = newState.getFrom().getSubQuery().getSuqQuery();
@@ -899,22 +1051,31 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
     Column columnInSub = subQuery.getColumnsList().get(0);
     assertEquals("a", columnInSub.getName());
     assertEquals(FieldTransformation, columnInSub.getValue().getType());
-    assertEquals(FieldTransformationType.ConvertFromJSON, columnInSub.getValue().getFieldTransformation().getTransformation().getType());
-    assertEquals(ColumnReference, columnInSub.getValue().getFieldTransformation().getOperand().getType());
+    assertEquals(
+        FieldTransformationType.ConvertFromJSON,
+        columnInSub.getValue().getFieldTransformation().getTransformation().getType());
+    assertEquals(
+        ColumnReference, columnInSub.getValue().getFieldTransformation().getOperand().getType());
   }
 
   @Test
   public void testUpdateSql() throws Exception {
     final String sql = "select foo, bar as b from tbl";
-    SqlParser parser = SqlParser.create(sql, new ParserConfig(Quoting.DOUBLE_QUOTE, 128, PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal()));
+    SqlParser parser =
+        SqlParser.create(
+            sql,
+            new ParserConfig(
+                Quoting.DOUBLE_QUOTE,
+                128,
+                PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal()));
     final SqlNode sqlNode = parser.parseStmt();
 
-
     final JavaTypeFactory typeFactory = JavaTypeFactoryImpl.INSTANCE;
-    final RelDataType rowType = new RelRecordType(Arrays.<RelDataTypeField>asList(
-        new RelDataTypeFieldImpl("foo", 0, typeFactory.createSqlType(SqlTypeName.INTEGER)),
-        new RelDataTypeFieldImpl("b", 0, typeFactory.createSqlType(SqlTypeName.INTEGER))
-    ));
+    final RelDataType rowType =
+        new RelRecordType(
+            Arrays.<RelDataTypeField>asList(
+                new RelDataTypeFieldImpl("foo", 0, typeFactory.createSqlType(SqlTypeName.INTEGER)),
+                new RelDataTypeFieldImpl("b", 0, typeFactory.createSqlType(SqlTypeName.INTEGER))));
 
     final QueryMetadata metadata = Mockito.mock(QueryMetadata.class);
     Mockito.when(metadata.getSqlNode()).thenReturn(Optional.of(sqlNode));
@@ -922,44 +1083,46 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
     Mockito.when(metadata.getQuerySql()).thenReturn(sql);
     Mockito.when(metadata.getReferredTables()).thenReturn(Optional.empty());
 
-    TransformActor actor = new TransformActor(state, false, "test_user", null) {
-      @Override
-      protected com.dremio.service.jobs.metadata.proto.QueryMetadata getMetadata(SqlQuery query) {
-        return com.dremio.service.jobs.metadata.proto.QueryMetadata.newBuilder()
-          .setState(QuerySemantics.extract(metadata).get())
-          .build();
-      }
+    TransformActor actor =
+        new TransformActor(state, false, "test_user", null) {
+          @Override
+          protected com.dremio.service.jobs.metadata.proto.QueryMetadata getMetadata(
+              SqlQuery query) {
+            return com.dremio.service.jobs.metadata.proto.QueryMetadata.newBuilder()
+                .setState(QuerySemantics.extract(metadata).get())
+                .build();
+          }
 
-      @Override
-      protected boolean hasMetadata() {
-        return true;
-      }
+          @Override
+          protected boolean hasMetadata() {
+            return true;
+          }
 
-      @Override
-      protected com.dremio.service.jobs.metadata.proto.QueryMetadata getMetadata() {
-        throw new IllegalStateException("not implemented");
-      }
+          @Override
+          protected com.dremio.service.jobs.metadata.proto.QueryMetadata getMetadata() {
+            throw new IllegalStateException("not implemented");
+          }
 
-      @Override
-      protected Optional<BatchSchema> getBatchSchema() {
-        throw new IllegalStateException("not implemented");
-      }
+          @Override
+          protected Optional<BatchSchema> getBatchSchema() {
+            throw new IllegalStateException("not implemented");
+          }
 
-      @Override
-      protected Optional<List<ParentDatasetInfo>> getParents() {
-        throw new IllegalStateException("not implemented");
-      }
+          @Override
+          protected Optional<List<ParentDatasetInfo>> getParents() {
+            throw new IllegalStateException("not implemented");
+          }
 
-      @Override
-      protected Optional<List<FieldOrigin>> getFieldOrigins() {
-        throw new IllegalStateException("not implemented");
-      }
+          @Override
+          protected Optional<List<FieldOrigin>> getFieldOrigins() {
+            throw new IllegalStateException("not implemented");
+          }
 
-      @Override
-      protected Optional<List<ParentDataset>> getGrandParents() {
-        throw new IllegalStateException("not implemented");
-      }
-    };
+          @Override
+          protected Optional<List<ParentDataset>> getGrandParents() {
+            throw new IllegalStateException("not implemented");
+          }
+        };
 
     TransformResult result = new TransformUpdateSQL(sql).accept(actor);
     VirtualDatasetState newState = result.getNewState();
@@ -977,14 +1140,20 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
     DatasetPath myDatasetPath = new DatasetPath("spacefoo.folderbar.folderbaz.datasetbuzz");
     createDatasetFromParentAndSave(myDatasetPath, "cp.\"tpch/supplier.parquet\"");
 
-    DatasetUI dataset = getDataset(myDatasetPath);
-
     Transformer testTransformer =
-      new Transformer(l(SabotContext.class), l(JobsService.class), newNamespaceService(), newDatasetVersionMutator(),
-        null, l(SecurityContext.class), l(CatalogService.class));
+        new Transformer(
+            l(SabotContext.class),
+            l(JobsService.class),
+            newNamespaceService(),
+            newDatasetVersionMutator(),
+            null,
+            l(SecurityContext.class),
+            l(CatalogService.class));
 
-    VirtualDatasetUI vdsui = DatasetsUtil.getHeadVersion(myDatasetPath, newNamespaceService(),
-      newDatasetVersionMutator());
+    VirtualDatasetUI vdsui =
+        DatasetsUtil.getHeadVersion(
+            myDatasetPath, newNamespaceService(), newDatasetVersionMutator());
+    String originalDatasetVersion = vdsui.getVersion().getVersion();
     List<ViewFieldType> sqlFields = vdsui.getSqlFieldsList();
     boolean isContainOriginal = false;
     boolean isContainConverted = false;
@@ -996,9 +1165,9 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
     }
     assertTrue(isContainOriginal);
     isContainOriginal = false;
-    VirtualDatasetUI vdsuiTransformed = testTransformer.transformWithExtract(dataset.getDatasetVersion(), myDatasetPath,
-      vdsui,
-      new TransformRename("s_address", "s_addr"));
+    VirtualDatasetUI vdsuiTransformed =
+        testTransformer.transformWithExtract(
+            myDatasetPath, vdsui, new TransformRename("s_address", "s_addr"));
 
     List<ViewFieldType> sqlFieldsTransformed = vdsuiTransformed.getSqlFieldsList();
     for (ViewFieldType sqlType : sqlFieldsTransformed) {
@@ -1011,6 +1180,34 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
     }
     assertTrue(isContainConverted);
     assertTrue(!isContainOriginal);
+    assertNotEquals(originalDatasetVersion, vdsuiTransformed.getVersion().getVersion());
+  }
+
+  @Test
+  public void testTransformWithExtract_SameSQL() throws Exception {
+    setSpace();
+    DatasetPath myDatasetPath = new DatasetPath("spacefoo.folderbar.folderbaz.datasetbuzz");
+    createDatasetFromParentAndSave(myDatasetPath, "cp.\"tpch/supplier.parquet\"");
+
+    Transformer testTransformer =
+        new Transformer(
+            l(SabotContext.class),
+            l(JobsService.class),
+            newNamespaceService(),
+            newDatasetVersionMutator(),
+            null,
+            l(SecurityContext.class),
+            l(CatalogService.class));
+
+    VirtualDatasetUI vdsui =
+        DatasetsUtil.getHeadVersion(
+            myDatasetPath, newNamespaceService(), newDatasetVersionMutator());
+    TransformUpdateSQL transformUpdateSQL = new TransformUpdateSQL();
+    transformUpdateSQL.setSql(vdsui.getSql());
+    transformUpdateSQL.setSqlContextList(vdsui.getContextList());
+    VirtualDatasetUI vdsuiTransformed =
+        testTransformer.transformWithExtract(myDatasetPath, vdsui, transformUpdateSQL);
+    assertEquals(vdsui.getVersion(), vdsuiTransformed.getVersion());
   }
 
   @Test // Test retrieval of metadata by transformWithExecute() through use of the QueryParser.
@@ -1022,57 +1219,83 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
 
     final String updatedSQL = "SELECT * FROM cp.\"tpch/supplier.parquet\" LIMIT 3";
     final DatasetPath datasetPath = new DatasetPath("spacefoo.folderbar.folderbaz.testTransform");
-    final DatasetUI dataset =createDatasetFromSQLAndSave(datasetPath, updatedSQL, asList("cp"));
+    final DatasetUI dataset = createDatasetFromSQLAndSave(datasetPath, updatedSQL, asList("cp"));
 
     final Transform firstTransform =
-      new Transform().setType(TransformType.createFromParent).setTransformCreateFromParent(
-        new TransformCreateFromParent().setCreateFrom(new From().setType(FromType.Table).setTable(
-          new FromTable().setDatasetPath(datasetPath.toPathString()))));
+        new Transform()
+            .setType(TransformType.createFromParent)
+            .setTransformCreateFromParent(
+                new TransformCreateFromParent()
+                    .setCreateFrom(
+                        new From()
+                            .setType(FromType.Table)
+                            .setTable(new FromTable().setDatasetPath(datasetPath.toPathString()))));
 
-    final TransformCreateFromParent transformCreateFromParent = firstTransform.getTransformCreateFromParent();
-    final DatasetPath headPath = new DatasetPath(transformCreateFromParent.getCreateFrom().getTable().getDatasetPath());
+    final TransformCreateFromParent transformCreateFromParent =
+        firstTransform.getTransformCreateFromParent();
+    final DatasetPath headPath =
+        new DatasetPath(transformCreateFromParent.getCreateFrom().getTable().getDatasetPath());
     final DatasetConfig headConfig = namespaceService.getDataset(headPath.toNamespaceKey());
-    final VirtualDatasetUI headVersion = datasetService.getVersion(headPath, headConfig.getVirtualDataset().getVersion());
+    final VirtualDatasetUI headVersion =
+        datasetService.getVersion(headPath, headConfig.getVirtualDataset().getVersion());
     final QueryExecutor executor = new QueryExecutor(l(JobsService.class), null, null);
 
     final Transformer testTransformer =
-      new Transformer(l(SabotContext.class), l(JobsService.class), namespaceService, datasetService,
-        executor, l(SecurityContext.class), l(CatalogService.class));
+        new Transformer(
+            l(SabotContext.class),
+            l(JobsService.class),
+            namespaceService,
+            datasetService,
+            executor,
+            l(SecurityContext.class),
+            l(CatalogService.class));
 
     final TransformUpdateSQL transformUpdateSQL =
-      new TransformUpdateSQL().setSql(updatedSQL).setSqlContextList(new ArrayList<>(Arrays.asList("cp")));
+        new TransformUpdateSQL()
+            .setSql(updatedSQL)
+            .setSqlContextList(new ArrayList<>(Arrays.asList("cp")));
 
-    // Setup the transform actor such that query executor will find the relevant job in the job store
+    // Setup the transform actor such that query executor will find the relevant job in the job
+    // store
     // when executing the query as part of the metadata retrieval.
-    final Transformer.ExecuteTransformActor actor = testTransformer.
-      new ExecuteTransformActor(
-        QueryType.UI_PREVIEW,
-        dataset.getDatasetVersion(),
-        headVersion.getState(),
-        false,
-        l(SecurityContext.class).getUserPrincipal().getName(),
-        new DatasetPath("tmp.UNTITLED"),
-        executor);
+    final Transformer.ExecuteTransformActor actor =
+        testTransformer
+        .new ExecuteTransformActor(
+            QueryType.UI_PREVIEW,
+            dataset.getDatasetVersion(),
+            headVersion.getState(),
+            false,
+            l(SecurityContext.class).getUserPrincipal().getName(),
+            new DatasetPath("tmp.UNTITLED"),
+            executor);
 
     SqlQuery query =
-      new SqlQuery(transformUpdateSQL.getSql(), transformUpdateSQL.getSqlContextList(),
-        l(SecurityContext.class).getUserPrincipal().getName());
+        new SqlQuery(
+            transformUpdateSQL.getSql(),
+            transformUpdateSQL.getSqlContextList(),
+            l(SecurityContext.class).getUserPrincipal().getName());
 
     // Force metadata to be regenerated.
     com.dremio.service.jobs.metadata.proto.QueryMetadata queryMetadata = actor.getMetadata(query);
 
     final JobId jobId = actor.getJobData().getJobId();
-    final JobInfo jobInfo = JobsProtoUtil.getLastAttempt(l(JobsService.class).getJobDetails(JobDetailsRequest.newBuilder()
-      .setJobId(JobsProtoUtil.toBuf(jobId))
-      .build())).getInfo();
+    final JobInfo jobInfo =
+        JobsProtoUtil.getLastAttempt(
+                l(JobsService.class)
+                    .getJobDetails(
+                        JobDetailsRequest.newBuilder()
+                            .setJobId(JobsProtoUtil.toBuf(jobId))
+                            .build()))
+            .getInfo();
 
     List<ParentDatasetInfo> parents = jobInfo.getParentsList();
-
 
     // Check the generated QueryMetadata matches that of the updated SQL.
     assertNotNull(queryMetadata);
     assertEquals(7, queryMetadata.getFieldTypeCount());
     assertTrue(queryMetadata.getState().getFrom().getValue().contains("LIMIT 3"));
-    assertEquals(new ArrayList<>(Arrays.asList("cp", "tpch/supplier.parquet")), parents.get(0).getDatasetPathList());
+    assertEquals(
+        new ArrayList<>(Arrays.asList("cp", "tpch/supplier.parquet")),
+        parents.get(0).getDatasetPathList());
   }
 }

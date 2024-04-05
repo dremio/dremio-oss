@@ -17,12 +17,6 @@ package com.dremio.dac.model.job;
 
 import static java.lang.String.format;
 
-import java.util.Arrays;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.regex.Pattern;
-
 import com.dremio.common.utils.PathUtils;
 import com.dremio.dac.model.common.DACRuntimeException;
 import com.dremio.datastore.SearchTypes.SortOrder;
@@ -30,10 +24,13 @@ import com.dremio.datastore.indexed.IndexKey;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.regex.Pattern;
 
-/**
- * Json representation of job filters
- */
+/** Json representation of job filters */
 public class JobFilters {
 
   private static final Pattern ESCAPE_QUERY_PATTERN = Pattern.compile("[#&%]");
@@ -42,7 +39,7 @@ public class JobFilters {
   private SortOrder order = SortOrder.DESCENDING;
   private Map<String, List<Object>> filters = new LinkedHashMap<>();
 
-  public JobFilters addFilter(IndexKey indexKey, Object ...values) {
+  public JobFilters addFilter(IndexKey indexKey, Object... values) {
     final String key = indexKey.getShortName();
     if (filters.containsKey(key)) {
       filters.get(key).addAll(Arrays.asList(values));
@@ -69,7 +66,9 @@ public class JobFilters {
       String filterStr = new ObjectMapper().writeValueAsString(filters);
       String escapedFilter = PathUtils.encodeURIComponent(filterStr);
       if (sort != null) {
-        return format("/jobs?filters=%s&sort=%s&order=%s", escapedFilter, PathUtils.encodeURIComponent(sort), order);
+        return format(
+            "/jobs?filters=%s&sort=%s&order=%s",
+            escapedFilter, PathUtils.encodeURIComponent(sort), order);
       } else {
         return format("/jobs?filters=%s", escapedFilter);
       }
@@ -83,7 +82,9 @@ public class JobFilters {
       String filterStr = new ObjectMapper().writeValueAsString(filters);
       String escapedFilter = PathUtils.encodeURIComponent(filterStr);
       if (sort != null) {
-        return format("/jobs-listing/v1.0?filters=%s&sort=%s&order=%s", escapedFilter, PathUtils.encodeURIComponent(sort), order);
+        return format(
+            "/jobs-listing/v1.0?filters=%s&sort=%s&order=%s",
+            escapedFilter, PathUtils.encodeURIComponent(sort), order);
       } else {
         return format("/jobs-listing/v1.0?filters=%s", escapedFilter);
       }

@@ -15,59 +15,61 @@
  */
 package com.dremio.exec.vector;
 
-import org.apache.arrow.vector.ValueVector;
-
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorWrapper;
+import org.apache.arrow.vector.ValueVector;
 
 public class VectorValidator {
   public static void validate(VectorAccessible batch) {
     int count = batch.getRecordCount();
     long hash = 12345;
     SelectionVectorMode mode = batch.getSchema().getSelectionVectorMode();
-    switch(mode) {
-      case NONE: {
-        for (VectorWrapper w : batch) {
-          ValueVector v = w.getValueVector();
-          for (int i = 0; i < count; i++) {
-            Object obj = v.getObject(i);
-            if (obj != null) {
-              hash = obj.hashCode() ^ hash;
+    switch (mode) {
+      case NONE:
+        {
+          for (VectorWrapper w : batch) {
+            ValueVector v = w.getValueVector();
+            for (int i = 0; i < count; i++) {
+              Object obj = v.getObject(i);
+              if (obj != null) {
+                hash = obj.hashCode() ^ hash;
+              }
+            }
+          }
+          break;
+        }
+      case TWO_BYTE:
+        {
+          for (VectorWrapper w : batch) {
+            ValueVector v = w.getValueVector();
+            for (int i = 0; i < count; i++) {
+              int index = batch.getSelectionVector2().getIndex(i);
+              Object obj = v.getObject(index);
+              if (obj != null) {
+                hash = obj.hashCode() ^ hash;
+              }
+            }
+          }
+          break;
+        }
+      case FOUR_BYTE:
+        {
+          for (VectorWrapper w : batch) {
+            ValueVector[] vv = w.getValueVectors();
+            for (int i = 0; i < count; i++) {
+              int index = batch.getSelectionVector4().get(i);
+              ValueVector v = vv[index >> 16];
+              Object obj = v.getObject(index & 65535);
+              if (obj != null) {
+                hash = obj.hashCode() ^ hash;
+              }
             }
           }
         }
-        break;
-      }
-      case TWO_BYTE: {
-        for (VectorWrapper w : batch) {
-          ValueVector v = w.getValueVector();
-          for (int i = 0; i < count; i++) {
-            int index = batch.getSelectionVector2().getIndex(i);
-            Object obj = v.getObject(index);
-            if (obj != null) {
-              hash = obj.hashCode() ^ hash;
-            }
-          }
-        }
-        break;
-      }
-      case FOUR_BYTE: {
-        for (VectorWrapper w : batch) {
-          ValueVector[] vv = w.getValueVectors();
-          for (int i = 0; i < count; i++) {
-            int index = batch.getSelectionVector4().get(i);
-            ValueVector v = vv[index >> 16];
-            Object obj = v.getObject(index & 65535);
-            if (obj != null) {
-              hash = obj.hashCode() ^ hash;
-            }
-          }
-        }
-      }
     }
     if (hash == 0) {
-//      System.out.println(hash);
+      //      System.out.println(hash);
     }
   }
 }

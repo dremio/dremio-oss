@@ -511,7 +511,7 @@ public class ITBasicDMLSupportOnHiveTables extends LazyDataGeneratingHiveTestBas
     String dropSql = "DROP TABLE " + HIVE_TEST_PLUGIN_NAME + ".dropTable";
     assertThatThrownBy(() -> test(dropSql))
       .isInstanceOf(UserException.class)
-      .hasMessageContaining("Table not found to drop for Source \'" + HIVE_TEST_PLUGIN_NAME + "\', database 'default', tablename 'dropTable'");
+      .hasMessageContaining("Table [%s.dropTable] does not exist", HIVE_TEST_PLUGIN_NAME);
 
   }
 

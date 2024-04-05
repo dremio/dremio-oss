@@ -13,10 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import clsx from "clsx";
-import * as classes from "@app/uiTheme/radium/replacingRadiumPseudoClasses.module.less";
 import Immutable from "immutable";
-import SimpleButton from "components/Buttons/SimpleButton";
+import { Button } from "dremio-ui-lib/components";
 
 import config from "dyn-load/utils/config";
 
@@ -27,39 +25,38 @@ export default function (input) {
       const map = [
         config.supportEmailTo && [
           "email",
-          <SimpleButton
+          <Button
+            className="mx-05 mb-05"
             key="email-help"
-            buttonStyle="secondary"
-            className={clsx(classes["secondaryButtonPsuedoClasses"])}
+            variant="secondary"
             onClick={this.handleEmail}
           >
             {laDeprecated("Email Help")}
-          </SimpleButton>,
+          </Button>,
         ],
         [
           "download",
-          <SimpleButton
+          <Button
+            className="mx-05 mb-05"
             key="download-profile"
-            buttonStyle="secondary"
-            className={clsx(classes["secondaryButtonPsuedoClasses"])}
-            submitting={this.props.downloadViewState.get("isInProgress")}
+            variant="secondary"
+            pending={this.props.downloadViewState.get("isInProgress")}
             onClick={this.handleDownload}
           >
             {laDeprecated("Download Profile")}
-          </SimpleButton>,
+          </Button>,
         ],
         this.props.isSupport &&
           this.props.clusterType === "YARN" && [
             "bundleDownload",
-            <SimpleButton
+            <Button
+              className="m-05"
               key="support-bundle"
-              buttonStyle="secondary"
-              className={clsx(classes["secondaryButtonPsuedoClasses"])}
-              style={{ width: "220px" }}
+              variant="secondary"
               onClick={this.handleQueryDownload}
             >
               {laDeprecated("Download Query Support Bundle")}
-            </SimpleButton>,
+            </Button>,
           ],
       ];
       return new Immutable.OrderedMap(map);

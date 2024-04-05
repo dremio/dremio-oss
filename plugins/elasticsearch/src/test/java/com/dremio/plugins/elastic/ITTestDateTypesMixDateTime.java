@@ -18,6 +18,8 @@ package com.dremio.plugins.elastic;
 import static com.dremio.plugins.elastic.ElasticsearchType.DATE;
 import static org.junit.Assume.assumeFalse;
 
+import com.dremio.common.util.TestTools;
+import com.google.common.collect.ImmutableMap;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -27,15 +29,11 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestRule;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
-
-import com.dremio.common.util.TestTools;
-import com.google.common.collect.ImmutableMap;
 
 @RunWith(Parameterized.class)
 public class ITTestDateTypesMixDateTime extends ElasticBaseTestQuery {
@@ -45,65 +43,81 @@ public class ITTestDateTypesMixDateTime extends ElasticBaseTestQuery {
   private org.joda.time.format.DateTimeFormatter formatterToBaselineJD;
   private DateTimeFormatter formatterToBaselineJT;
 
-  @Rule
-  public final TestRule timeoutRule = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
+  @Rule public final TestRule timeoutRule = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
 
   public ITTestDateTypesMixDateTime(String format) {
     this.format = format;
     this.formatter = DateFormats.FormatterAndTypeMix.getFormatterAndType(format);
     this.formatterToBaselineJT = DateTimeFormatter.ofPattern(getActualFormat(format));
-    this.formatterToBaselineJD = org.joda.time.format.DateTimeFormat.forPattern(getActualFormat(format));
+    this.formatterToBaselineJD =
+        org.joda.time.format.DateTimeFormat.forPattern(getActualFormat(format));
   }
 
   @Parameterized.Parameters
   public static Collection<Object[]> data() {
     List<Object[]> data = new ArrayList();
-    data.add(new Object[]{"yyyyMMdd'T'HHmmss"});
-    data.add(new Object[]{"yyyy-MM-dd'T'HH:mm:ss"});
-    data.add(new Object[]{"yyyy/MM/dd'T'HH:mm:ss"});
-    data.add(new Object[]{"8yyyy-MM-dd'T'HH:mm:ss"});
-    data.add(new Object[]{"8yyyy/MM/dd'T'HH:mm:ss"});
+    data.add(new Object[] {"yyyyMMdd'T'HHmmss"});
+    data.add(new Object[] {"yyyy-MM-dd'T'HH:mm:ss"});
+    data.add(new Object[] {"yyyy/MM/dd'T'HH:mm:ss"});
+    data.add(new Object[] {"8yyyy-MM-dd'T'HH:mm:ss"});
+    data.add(new Object[] {"8yyyy/MM/dd'T'HH:mm:ss"});
     return data;
   }
+
   /*
   This test is specifically for ES6.8 in which, both joda time and java time are supported. If format is prefixed with 8 its considered to be java time other wise joda time.
    */
   @Test
   public void runTestDate() throws Exception {
     // Format with prefix 8 are applicable for ES 6.8 and ES 7 only.
-    assumeFalse( format.startsWith("8") && !(enable7vFeatures || enable68vFeatures));
-    final LocalDateTime dt1 = LocalDateTime.of(LocalDate.of(2021, 04, 24), LocalTime.of(13, 05, 05));
+    assumeFalse(format.startsWith("8") && !(enable7vFeatures || enable68vFeatures));
+    final LocalDateTime dt1 =
+        LocalDateTime.of(LocalDate.of(2021, 04, 24), LocalTime.of(13, 05, 05));
     final LocalDateTime dt2 = dt1.plusYears(1);
-    final String value1 = dt1.atZone(ZoneOffset.UTC).format(DateTimeFormatter.ofPattern(getActualFormat(format)));
-    final String value2 = dt2.atZone(ZoneOffset.UTC).format(DateTimeFormatter.ofPattern(getActualFormat(format)));
-    final ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
-      new ElasticsearchCluster.ColumnData("field", DATE, ImmutableMap.of("format", format), new Object[][]{
-        {value1},
-        {value2}
-      })
-    };
+    final String value1 =
+        dt1.atZone(ZoneOffset.UTC).format(DateTimeFormatter.ofPattern(getActualFormat(format)));
+    final String value2 =
+        dt2.atZone(ZoneOffset.UTC).format(DateTimeFormatter.ofPattern(getActualFormat(format)));
+    final ElasticsearchCluster.ColumnData[] data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "field", DATE, ImmutableMap.of("format", format), new Object[][] {{value1}, {value2}})
+        };
     loadWithRetry(schema, table, data);
-    String sql = "select CAST(field AS VARCHAR) as field from elasticsearch." + schema + "." + table;
-    runTestBuilder(sql,value1,value2);
+    String sql =
+        "select CAST(field AS VARCHAR) as field from elasticsearch." + schema + "." + table;
+    runTestBuilder(sql, value1, value2);
   }
 
   private void runTestBuilder(String sql, String value1, String value2) throws Exception {
-    if(format.startsWith("8")) {
+    if (format.startsWith("8")) {
       testBuilder()
-        .sqlQuery(sql)
-        .ordered()
-        .baselineColumns("field")
-        .baselineValues(formatter.parse(value1, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")).toString().replace("T", " ") + ".000")
-        .baselineValues(formatter.parse(value2, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")).toString().replace("T", " ") + ".000")
-        .go();
+          .sqlQuery(sql)
+          .ordered()
+          .baselineColumns("field")
+          .baselineValues(
+              formatter
+                      .parse(value1, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS"))
+                      .toString()
+                      .replace("T", " ")
+                  + ".000")
+          .baselineValues(
+              formatter
+                      .parse(value2, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS"))
+                      .toString()
+                      .replace("T", " ")
+                  + ".000")
+          .go();
     } else {
       testBuilder()
-        .sqlQuery(sql)
-        .ordered()
-        .baselineColumns("field")
-        .baselineValues(formatter.parse(value1 , formatterToBaselineJD).toString().replace("T", " "))
-        .baselineValues(formatter.parse(value2 , formatterToBaselineJD).toString().replace("T", " "))
-        .go();
+          .sqlQuery(sql)
+          .ordered()
+          .baselineColumns("field")
+          .baselineValues(
+              formatter.parse(value1, formatterToBaselineJD).toString().replace("T", " "))
+          .baselineValues(
+              formatter.parse(value2, formatterToBaselineJD).toString().replace("T", " "))
+          .go();
     }
   }
 }

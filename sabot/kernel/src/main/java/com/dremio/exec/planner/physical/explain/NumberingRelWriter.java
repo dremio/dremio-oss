@@ -15,11 +15,15 @@
  */
 package com.dremio.exec.planner.physical.explain;
 
+import com.dremio.exec.planner.common.MoreRelOptUtil;
+import com.dremio.exec.planner.physical.HashJoinPrel;
+import com.dremio.exec.planner.physical.Prel;
+import com.dremio.exec.planner.physical.explain.PrelSequencer.OpId;
+import com.google.common.collect.ImmutableList;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-
 import org.apache.calcite.avatica.util.Spacer;
 import org.apache.calcite.linq4j.Ord;
 import org.apache.calcite.rel.RelNode;
@@ -30,17 +34,9 @@ import org.apache.calcite.runtime.FlatLists;
 import org.apache.calcite.sql.SqlExplainLevel;
 import org.apache.calcite.util.Pair;
 
-import com.dremio.exec.planner.common.MoreRelOptUtil;
-import com.dremio.exec.planner.physical.HashJoinPrel;
-import com.dremio.exec.planner.physical.Prel;
-import com.dremio.exec.planner.physical.explain.PrelSequencer.OpId;
-import com.google.common.collect.ImmutableList;
-
-/**
- * Copied mostly from RelWriterImpl but customized to create user useful ids.
- */
+/** Copied mostly from RelWriterImpl but customized to create user useful ids. */
 class NumberingRelWriter implements RelWriter {
-  //~ Instance fields --------------------------------------------------------
+  // ~ Instance fields --------------------------------------------------------
 
   protected final PrintWriter pw;
   private final SqlExplainLevel detailLevel;
@@ -48,7 +44,8 @@ class NumberingRelWriter implements RelWriter {
   private final List<Pair<String, Object>> values = new ArrayList<>();
 
   private final Map<Prel, OpId> ids;
-  //~ Constructors -----------------------------------------------------------
+
+  // ~ Constructors -----------------------------------------------------------
 
   public NumberingRelWriter(Map<Prel, OpId> ids, PrintWriter pw, SqlExplainLevel detailLevel) {
     this.pw = pw;
@@ -56,11 +53,9 @@ class NumberingRelWriter implements RelWriter {
     this.detailLevel = detailLevel;
   }
 
-  //~ Methods ----------------------------------------------------------------
+  // ~ Methods ----------------------------------------------------------------
 
-  protected void explain_(
-      RelNode rel,
-      List<Pair<String, Object>> values) {
+  protected void explain_(RelNode rel, List<Pair<String, Object>> values) {
     List<RelNode> inputs = rel.getInputs();
     RelMetadataQuery mq = rel.getCluster().getMetadataQuery();
     if (rel instanceof HashJoinPrel && ((HashJoinPrel) rel).isSwapped()) {
@@ -78,14 +73,16 @@ class NumberingRelWriter implements RelWriter {
     OpId id = ids.get(rel);
     if (id != null) {
       s.append(String.format("%02d-%02d", id.fragmentId, id.opId));
-    }else{
+    } else {
       s.append("     ");
     }
     s.append("  ");
 
     if (id != null && id.opId == 0) {
-      for(int i =0; i < spacer.get(); i++){ s.append('-');}
-    }else{
+      for (int i = 0; i < spacer.get(); i++) {
+        s.append('-');
+      }
+    } else {
       spacer.spaces(s);
     }
 
@@ -103,10 +100,7 @@ class NumberingRelWriter implements RelWriter {
         } else {
           s.append(", ");
         }
-        s.append(value.left)
-            .append("=[")
-            .append(value.right)
-            .append("]");
+        s.append(value.left).append("=[").append(value.right).append("]");
       }
       if (j > 0) {
         s.append(")");
@@ -118,7 +112,7 @@ class NumberingRelWriter implements RelWriter {
           .append(mq.getRowCount(rel))
           .append(", cumulative cost = ")
           .append(mq.getCumulativeCost(rel));
-       s.append(", id = ").append(rel.getId());
+      s.append(", id = ").append(rel.getId());
     }
     pw.println(s);
     spacer.add(2);
@@ -175,8 +169,7 @@ class NumberingRelWriter implements RelWriter {
     for (RexNode expr : MoreRelOptUtil.getChildExps(node)) {
       ++i;
     }
-    final List<Pair<String, Object>> valuesCopy =
-        ImmutableList.copyOf(values);
+    final List<Pair<String, Object>> valuesCopy = ImmutableList.copyOf(values);
     values.clear();
     explain_(node, valuesCopy);
     pw.flush();
@@ -188,10 +181,7 @@ class NumberingRelWriter implements RelWriter {
     return false;
   }
 
-  /**
-   * Converts the collected terms and values to a string. Does not write to
-   * the parent writer.
-   */
+  /** Converts the collected terms and values to a string. Does not write to the parent writer. */
   public String simple() {
     final StringBuilder buf = new StringBuilder("(");
     for (Ord<Pair<String, Object>> ord : Ord.zip(values)) {

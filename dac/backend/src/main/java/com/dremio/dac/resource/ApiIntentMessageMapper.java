@@ -15,10 +15,6 @@
  */
 package com.dremio.dac.resource;
 
-import java.util.List;
-
-import javax.annotation.Nullable;
-
 import com.dremio.dac.proto.model.acceleration.LayoutApiDescriptor;
 import com.dremio.dac.proto.model.acceleration.LayoutDetailsApiDescriptor;
 import com.dremio.dac.proto.model.acceleration.LayoutDimensionFieldApiDescriptor;
@@ -34,73 +30,79 @@ import com.dremio.service.accelerator.proto.LayoutMeasureFieldDescriptor;
 import com.dremio.service.accelerator.proto.LayoutType;
 import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
+import java.util.List;
+import javax.annotation.Nullable;
 
-/**
- * Maps between api and user intent messages.
- */
+/** Maps between api and user intent messages. */
 public class ApiIntentMessageMapper {
 
-  public static LayoutApiDescriptor toApiMessage(final LayoutDescriptor descriptor, final LayoutType type) {
+  public static LayoutApiDescriptor toApiMessage(
+      final LayoutDescriptor descriptor, final LayoutType type) {
     if (descriptor == null) {
       return null;
     }
 
     final LayoutDetailsDescriptor details = descriptor.getDetails();
     return new LayoutApiDescriptor()
-      .setId(descriptor.getId().getId())
-      .setName(descriptor.getName())
-      .setType(type)
-      .setDetails(new LayoutDetailsApiDescriptor()
-        .setDisplayFieldList(toApiFields(details.getDisplayFieldList()))
-        .setDimensionFieldList(toApiDimensionFields(details.getDimensionFieldList()))
-        .setMeasureFieldList(toApiMeasureFields(details.getMeasureFieldList()))
-        .setPartitionFieldList(toApiFields(details.getPartitionFieldList()))
-        .setSortFieldList(toApiFields(details.getSortFieldList()))
-        .setDistributionFieldList(toApiFields(details.getDistributionFieldList()))
-        .setPartitionDistributionStrategy(details.getPartitionDistributionStrategy())
-      );
+        .setId(descriptor.getId().getId())
+        .setName(descriptor.getName())
+        .setType(type)
+        .setDetails(
+            new LayoutDetailsApiDescriptor()
+                .setDisplayFieldList(toApiFields(details.getDisplayFieldList()))
+                .setDimensionFieldList(toApiDimensionFields(details.getDimensionFieldList()))
+                .setMeasureFieldList(toApiMeasureFields(details.getMeasureFieldList()))
+                .setPartitionFieldList(toApiFields(details.getPartitionFieldList()))
+                .setSortFieldList(toApiFields(details.getSortFieldList()))
+                .setDistributionFieldList(toApiFields(details.getDistributionFieldList()))
+                .setPartitionDistributionStrategy(details.getPartitionDistributionStrategy()));
   }
 
-  private static List<LayoutDimensionFieldApiDescriptor> toApiDimensionFields(final List<LayoutDimensionFieldDescriptor> fields) {
-    return FluentIterable
-        .from(AccelerationUtils.selfOrEmpty(fields))
-        .transform(new Function<LayoutDimensionFieldDescriptor, LayoutDimensionFieldApiDescriptor>() {
-          @Nullable
-          @Override
-          public LayoutDimensionFieldApiDescriptor apply(@Nullable final LayoutDimensionFieldDescriptor input) {
-            return new LayoutDimensionFieldApiDescriptor()
-                .setName(input.getName())
-                .setGranularity(input.getGranularity());
-          }
-        })
+  private static List<LayoutDimensionFieldApiDescriptor> toApiDimensionFields(
+      final List<LayoutDimensionFieldDescriptor> fields) {
+    return FluentIterable.from(AccelerationUtils.selfOrEmpty(fields))
+        .transform(
+            new Function<LayoutDimensionFieldDescriptor, LayoutDimensionFieldApiDescriptor>() {
+              @Nullable
+              @Override
+              public LayoutDimensionFieldApiDescriptor apply(
+                  @Nullable final LayoutDimensionFieldDescriptor input) {
+                return new LayoutDimensionFieldApiDescriptor()
+                    .setName(input.getName())
+                    .setGranularity(input.getGranularity());
+              }
+            })
         .toList();
   }
 
-  private static List<LayoutMeasureFieldApiDescriptor> toApiMeasureFields(final List<LayoutMeasureFieldDescriptor> fields) {
-    return FluentIterable
-        .from(AccelerationUtils.selfOrEmpty(fields))
-        .transform(new Function<LayoutMeasureFieldDescriptor, LayoutMeasureFieldApiDescriptor>() {
-          @Nullable
-          @Override
-          public LayoutMeasureFieldApiDescriptor apply(@Nullable final LayoutMeasureFieldDescriptor input) {
-            return new LayoutMeasureFieldApiDescriptor()
-                .setName(input.getName())
-                .setMeasureTypeList(input.getMeasureTypeList());
-          }
-        })
+  private static List<LayoutMeasureFieldApiDescriptor> toApiMeasureFields(
+      final List<LayoutMeasureFieldDescriptor> fields) {
+    return FluentIterable.from(AccelerationUtils.selfOrEmpty(fields))
+        .transform(
+            new Function<LayoutMeasureFieldDescriptor, LayoutMeasureFieldApiDescriptor>() {
+              @Nullable
+              @Override
+              public LayoutMeasureFieldApiDescriptor apply(
+                  @Nullable final LayoutMeasureFieldDescriptor input) {
+                return new LayoutMeasureFieldApiDescriptor()
+                    .setName(input.getName())
+                    .setMeasureTypeList(input.getMeasureTypeList());
+              }
+            })
         .toList();
   }
 
-  private static List<LayoutFieldApiDescriptor> toApiFields(final List<LayoutFieldDescriptor> fields) {
-    return FluentIterable
-        .from(AccelerationUtils.selfOrEmpty(fields))
-        .transform(new Function<LayoutFieldDescriptor, LayoutFieldApiDescriptor>() {
-          @Nullable
-          @Override
-          public LayoutFieldApiDescriptor apply(@Nullable final LayoutFieldDescriptor input) {
-            return new LayoutFieldApiDescriptor().setName(input.getName());
-          }
-        })
+  private static List<LayoutFieldApiDescriptor> toApiFields(
+      final List<LayoutFieldDescriptor> fields) {
+    return FluentIterable.from(AccelerationUtils.selfOrEmpty(fields))
+        .transform(
+            new Function<LayoutFieldDescriptor, LayoutFieldApiDescriptor>() {
+              @Nullable
+              @Override
+              public LayoutFieldApiDescriptor apply(@Nullable final LayoutFieldDescriptor input) {
+                return new LayoutFieldApiDescriptor().setName(input.getName());
+              }
+            })
         .toList();
   }
 
@@ -110,7 +112,4 @@ public class ApiIntentMessageMapper {
     }
     return new LayoutId(id);
   }
-
-
-
 }

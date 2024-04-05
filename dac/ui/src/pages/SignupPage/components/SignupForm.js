@@ -17,10 +17,7 @@ import { PureComponent } from "react";
 import Immutable from "immutable";
 
 import PropTypes from "prop-types";
-
-import Spinner from "@app/components/Spinner";
-import * as ButtonTypes from "components/Buttons/ButtonTypes";
-import { Button } from "dremio-ui-lib";
+import { Button } from "dremio-ui-lib/components";
 import ViewStateWrapper from "components/ViewStateWrapper";
 import { createFirstUser } from "actions/admin";
 import { noUsersError } from "actions/account";
@@ -92,18 +89,12 @@ export class SignupForm extends PureComponent {
           <div style={styles.footer}>
             <div style={styles.submit}>
               <Button
-                color={ButtonTypes.UI_LIB_PRIMARY}
-                text={intl.formatMessage({ id: "Common.Next" })}
-                disabled={this.state.showSpinner}
-                disableMargin
-              />
-              {this.state.showSpinner && (
-                <Spinner
-                  iconStyle={styles.spinnerIcon}
-                  style={styles.spinner}
-                  message="Loading..."
-                />
-              )}
+                type="submit"
+                variant="primary"
+                pending={this.state.showSpinner}
+              >
+                {intl.formatMessage({ id: "Common.Next" })}
+              </Button>
             </div>
             <div style={styles.footerLink}>
               <a
@@ -146,15 +137,6 @@ const styles = {
   },
   footerLink: {
     marginBottom: "5px",
-  },
-  spinner: {
-    position: "relative",
-    height: "auto",
-    width: "auto",
-  },
-  spinnerIcon: {
-    width: 24,
-    height: 24,
   },
   submit: {
     display: "flex",

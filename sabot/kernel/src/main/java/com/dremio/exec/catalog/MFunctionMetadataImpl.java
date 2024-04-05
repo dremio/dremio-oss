@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.catalog;
 
-import java.util.Optional;
-
 import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.connector.ConnectorException;
@@ -26,6 +24,7 @@ import com.dremio.exec.store.StoragePlugin;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.google.common.base.Preconditions;
+import java.util.Optional;
 
 public abstract class MFunctionMetadataImpl implements MFunctionMetadata {
 
@@ -34,7 +33,13 @@ public abstract class MFunctionMetadataImpl implements MFunctionMetadata {
   final ManagedStoragePlugin plugin;
   final SchemaConfig schemaConfig;
   final TableVersionContext context;
-  public MFunctionMetadataImpl(NamespaceKey canonicalKey, DatasetConfig currentConfig, ManagedStoragePlugin plugin, SchemaConfig schemaConfig, TableVersionContext context) {
+
+  public MFunctionMetadataImpl(
+      NamespaceKey canonicalKey,
+      DatasetConfig currentConfig,
+      ManagedStoragePlugin plugin,
+      SchemaConfig schemaConfig,
+      TableVersionContext context) {
     this.currentConfig = currentConfig;
     this.plugin = plugin;
     this.schemaConfig = schemaConfig;
@@ -53,8 +58,7 @@ public abstract class MFunctionMetadataImpl implements MFunctionMetadata {
     try {
       return plugin.getDatasetHandle(canonicalKey, currentConfig, getOptions());
     } catch (ConnectorException e) {
-      throw UserException.validationError(e)
-        .buildSilently();
+      throw UserException.validationError(e).buildSilently();
     }
   }
 
@@ -72,5 +76,4 @@ public abstract class MFunctionMetadataImpl implements MFunctionMetadata {
   public SchemaConfig getSchemaConfig() {
     return schemaConfig;
   }
-
 }

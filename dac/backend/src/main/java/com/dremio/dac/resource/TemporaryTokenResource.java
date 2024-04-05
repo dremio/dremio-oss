@@ -15,10 +15,14 @@
  */
 package com.dremio.dac.resource;
 
+import com.dremio.dac.annotations.RestResource;
+import com.dremio.dac.annotations.Secured;
+import com.dremio.dac.server.tokens.TokenInfo;
+import com.dremio.service.tokens.TokenManager;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.concurrent.TimeUnit;
-
 import javax.annotation.security.RolesAllowed;
 import javax.inject.Inject;
 import javax.ws.rs.POST;
@@ -28,18 +32,9 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
-
 import org.glassfish.jersey.uri.UriComponent;
 
-import com.dremio.dac.annotations.RestResource;
-import com.dremio.dac.annotations.Secured;
-import com.dremio.dac.server.tokens.TokenInfo;
-import com.dremio.service.tokens.TokenManager;
-import com.fasterxml.jackson.annotation.JsonProperty;
-
-/**
- * Resource for generating temporary tokens
- */
+/** Resource for generating temporary tokens */
 @RestResource
 @Secured
 @RolesAllowed({"admin", "user"})
@@ -56,8 +51,8 @@ public class TemporaryTokenResource {
 
   @POST
   @Produces(MediaType.APPLICATION_JSON)
-  public Response createTemporaryToken(@QueryParam("request") String request,
-                                       @QueryParam("durationSeconds") long duration) {
+  public Response createTemporaryToken(
+      @QueryParam("request") String request, @QueryParam("durationSeconds") long duration) {
     if (request == null || duration <= 0) {
       return Response.status(Status.BAD_REQUEST).build();
     }
@@ -73,20 +68,24 @@ public class TemporaryTokenResource {
 
     final long sessionRemainingTime = tokenInfo.getExpiresAt();
     // custom duration cannot exceed session remaining time
-    final long adjustedDurationMillis = Math.min(TimeUnit.SECONDS.toMillis(duration), sessionRemainingTime - System.currentTimeMillis());
+    final long adjustedDurationMillis =
+        Math.min(
+            TimeUnit.SECONDS.toMillis(duration), sessionRemainingTime - System.currentTimeMillis());
     if (adjustedDurationMillis <= 0) {
       return Response.status(Status.UNAUTHORIZED).build();
     }
 
-    String token = tokenManager.createTemporaryToken(tokenInfo.getUsername(),
-      requestUri.getPath(), UriComponent.decodeQuery(requestUri, true),
-      adjustedDurationMillis).token;
+    String token =
+        tokenManager.createTemporaryToken(
+                tokenInfo.getUsername(),
+                requestUri.getPath(),
+                UriComponent.decodeQuery(requestUri, true),
+                adjustedDurationMillis)
+            .token;
     return Response.ok().entity(new TempTokenResponse(token)).build();
   }
 
-  /**
-   * Temporary token sent to UI.
-   */
+  /** Temporary token sent to UI. */
   public static final class TempTokenResponse {
     private final String token;
 
@@ -98,5 +97,4 @@ public class TemporaryTokenResource {
       return token;
     }
   }
-
 }

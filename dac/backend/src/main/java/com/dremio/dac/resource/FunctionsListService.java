@@ -17,19 +17,6 @@ package com.dremio.dac.resource;
 
 import static java.util.stream.Collectors.groupingBy;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.stream.Collectors;
-
-import javax.ws.rs.core.SecurityContext;
-
-import org.apache.calcite.sql.SqlFunction;
-import org.apache.calcite.sql.SqlOperatorTable;
-import org.apache.calcite.sql.util.ChainedSqlOperatorTable;
-
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogUser;
 import com.dremio.exec.catalog.MetadataRequestOptions;
@@ -58,26 +45,33 @@ import com.dremio.service.namespace.NamespaceKey;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
+import javax.ws.rs.core.SecurityContext;
+import org.apache.calcite.sql.SqlFunction;
+import org.apache.calcite.sql.SqlOperatorTable;
+import org.apache.calcite.sql.util.ChainedSqlOperatorTable;
 
 /**
  * Resource for exposing the Function List Service located in dremio-services-functions.
  *
- * Exposes metadata information about all functions needed for features like:
+ * <p>Exposes metadata information about all functions needed for features like:
  *
- * 1) Autocomplete Function Completion
- * 2) Public Docs
- * 3) UI Functions Side Panel
+ * <p>1) Autocomplete Function Completion 2) Public Docs 3) UI Functions Side Panel
  */
-
 public final class FunctionsListService {
   private final SecurityContext securityContext;
   private final SabotContext sabotContext;
   private final ProjectOptionManager projectOptionManager;
 
   public FunctionsListService(
-    SabotContext sabotContext,
-    SecurityContext securityContext,
-    ProjectOptionManager projectOptionManager) {
+      SabotContext sabotContext,
+      SecurityContext securityContext,
+      ProjectOptionManager projectOptionManager) {
 
     this.securityContext = securityContext;
     this.sabotContext = sabotContext;
@@ -85,39 +79,38 @@ public final class FunctionsListService {
   }
 
   public Response getFunctions() {
-    FunctionSource functionSource = getFunctionSource(
-      securityContext,
-      sabotContext,
-      projectOptionManager);
-    List<Function> functions = getFunctions(functionSource)
-      .stream()
-      .map(FunctionsListService::removeDefaults)
-      .collect(Collectors.toList());
+    FunctionSource functionSource =
+        getFunctionSource(securityContext, sabotContext, projectOptionManager);
+    List<Function> functions =
+        getFunctions(functionSource).stream()
+            .map(FunctionsListService::removeDefaults)
+            .collect(Collectors.toList());
 
     return new FunctionsListService.Response(functions);
   }
 
   private static FunctionSource getFunctionSource(
-    SecurityContext securityContext,
-    SabotContext sabotContext,
-    ProjectOptionManager projectOptionManager) {
+      SecurityContext securityContext,
+      SabotContext sabotContext,
+      ProjectOptionManager projectOptionManager) {
     String username = securityContext.getUserPrincipal().getName();
     ViewExpansionContext viewExpansionContext = new ViewExpansionContext(new CatalogUser(username));
-    OptionManager optionManager = OptionManagerWrapper.Builder.newBuilder()
-      .withOptionManager(new DefaultOptionManager(sabotContext.getOptionValidatorListing()))
-      .withOptionManager(new EagerCachingOptionManager(projectOptionManager))
-      .withOptionManager(new QueryOptionManager(sabotContext.getOptionValidatorListing()))
-      .build();
+    OptionManager optionManager =
+        OptionManagerWrapper.Builder.newBuilder()
+            .withOptionManager(new DefaultOptionManager(sabotContext.getOptionValidatorListing()))
+            .withOptionManager(new EagerCachingOptionManager(projectOptionManager))
+            .withOptionManager(new QueryOptionManager(sabotContext.getOptionValidatorListing()))
+            .build();
     NamespaceKey defaultSchemaPath = null;
-    SchemaConfig newSchemaConfig = SchemaConfig.newBuilder(CatalogUser.from(username))
-      .defaultSchema(defaultSchemaPath)
-      .optionManager(optionManager)
-      .setViewExpansionContext(viewExpansionContext)
-      .build();
+    SchemaConfig newSchemaConfig =
+        SchemaConfig.newBuilder(CatalogUser.from(username))
+            .defaultSchema(defaultSchemaPath)
+            .optionManager(optionManager)
+            .setViewExpansionContext(viewExpansionContext)
+            .build();
 
-    Catalog catalog = sabotContext
-      .getCatalogService()
-      .getCatalog(MetadataRequestOptions.of(newSchemaConfig));
+    Catalog catalog =
+        sabotContext.getCatalogService().getCatalog(MetadataRequestOptions.of(newSchemaConfig));
 
     FunctionImplementationRegistry functionImplementationRegistry;
     if (optionManager.getOption(PlannerSettings.ENABLE_DECIMAL_V2_KEY).getBoolVal()) {
@@ -126,23 +119,23 @@ public final class FunctionsListService {
       functionImplementationRegistry = sabotContext.getFunctionImplementationRegistry();
     }
 
-    SqlOperatorTable operatorTable = DremioCompositeSqlOperatorTable.create(functionImplementationRegistry);
+    SqlOperatorTable operatorTable =
+        DremioCompositeSqlOperatorTable.create(functionImplementationRegistry);
 
     return new FunctionSource(catalog, operatorTable);
   }
 
   private static List<Function> getFunctions(FunctionSource functionSource) {
-    DremioCatalogReader catalogReader = new DremioCatalogReader(DelegatingPlannerCatalog.newInstance(functionSource.getCatalog()));
-    SqlOperatorTable chainedOperatorTable = ChainedSqlOperatorTable.of(
-      functionSource.getSqlOperatorTable(),
-      catalogReader);
+    DremioCatalogReader catalogReader =
+        new DremioCatalogReader(DelegatingPlannerCatalog.newInstance(functionSource.getCatalog()));
+    SqlOperatorTable chainedOperatorTable =
+        ChainedSqlOperatorTable.of(functionSource.getSqlOperatorTable(), catalogReader);
 
-    Map<String, List<SqlFunction>> functionsGroupedByName =  chainedOperatorTable
-      .getOperatorList()
-      .stream()
-      .filter(sqlOperator -> sqlOperator instanceof SqlFunction)
-      .map(sqlOperator -> (SqlFunction) sqlOperator)
-      .collect(groupingBy(sqlFunction -> sqlFunction.getName().toUpperCase()));
+    Map<String, List<SqlFunction>> functionsGroupedByName =
+        chainedOperatorTable.getOperatorList().stream()
+            .filter(sqlOperator -> sqlOperator instanceof SqlFunction)
+            .map(sqlOperator -> (SqlFunction) sqlOperator)
+            .collect(groupingBy(sqlFunction -> sqlFunction.getName().toUpperCase()));
 
     List<Function> convertedFunctions = new ArrayList<>();
     for (String functionName : functionsGroupedByName.keySet()) {
@@ -152,10 +145,9 @@ public final class FunctionsListService {
       }
     }
 
-    return convertedFunctions
-      .stream()
-      .sorted(Comparator.comparing(function -> function.getName()))
-      .collect(Collectors.toList());
+    return convertedFunctions.stream()
+        .sorted(Comparator.comparing(function -> function.getName()))
+        .collect(Collectors.toList());
   }
 
   private static Function removeDefaults(Function function) {
@@ -167,42 +159,40 @@ public final class FunctionsListService {
     }
 
     return Function.builder()
-      .name(function.getName())
-      .addAllSignatures(function
-        .getSignatures()
-        .stream()
-        .map(FunctionsListService::removeDefaults)
-        .collect(Collectors.toList()))
-      .description(description)
-      .dremioVersion(dremioVersion)
-      .functionCategories(functionCategories)
-      .build();
+        .name(function.getName())
+        .addAllSignatures(
+            function.getSignatures().stream()
+                .map(FunctionsListService::removeDefaults)
+                .collect(Collectors.toList()))
+        .description(description)
+        .dremioVersion(dremioVersion)
+        .functionCategories(functionCategories)
+        .build();
   }
 
   private static FunctionSignature removeDefaults(FunctionSignature functionSignature) {
     String description = valueOrNullIfDefault(functionSignature.getDescription());
     List<SampleCode> sampleCodes = functionSignature.getSampleCodes();
     if (sampleCodes != null) {
-      sampleCodes = sampleCodes
-        .stream()
-        .filter(sampleCode -> !isDefaultSampleCode(sampleCode))
-        .collect(Collectors.toList());
+      sampleCodes =
+          sampleCodes.stream()
+              .filter(sampleCode -> !isDefaultSampleCode(sampleCode))
+              .collect(Collectors.toList());
       if (sampleCodes.isEmpty()) {
         sampleCodes = null;
       }
     }
 
     return FunctionSignature.builder()
-      .returnType(functionSignature.getReturnType())
-      .addAllParameters(functionSignature
-        .getParameters()
-        .stream()
-        .map(FunctionsListService::removeDefaults)
-        .collect(Collectors.toList()))
-      .description(description)
-      .sampleCodes(sampleCodes)
-      .snippetOverride(functionSignature.getSnippetOverride())
-      .build();
+        .returnType(functionSignature.getReturnType())
+        .addAllParameters(
+            functionSignature.getParameters().stream()
+                .map(FunctionsListService::removeDefaults)
+                .collect(Collectors.toList()))
+        .description(description)
+        .sampleCodes(sampleCodes)
+        .snippetOverride(functionSignature.getSnippetOverride())
+        .build();
   }
 
   private static boolean isDefaultSampleCode(SampleCode sampleCode) {
@@ -215,12 +205,12 @@ public final class FunctionsListService {
     String format = valueOrNullIfDefault(parameter.getFormat());
 
     return Parameter.builder()
-      .kind(parameter.getKind())
-      .type(parameter.getType())
-      .name(name)
-      .description(description)
-      .format(format)
-      .build();
+        .kind(parameter.getKind())
+        .type(parameter.getType())
+        .name(name)
+        .description(description)
+        .format(format)
+        .build();
   }
 
   private static String valueOrNullIfDefault(String value) {
@@ -235,8 +225,7 @@ public final class FunctionsListService {
     private final List<Function> functions;
 
     @JsonCreator
-    private Response(
-      @JsonProperty("functions") List<Function> functions) {
+    private Response(@JsonProperty("functions") List<Function> functions) {
       Preconditions.checkNotNull(functions);
       this.functions = functions;
     }

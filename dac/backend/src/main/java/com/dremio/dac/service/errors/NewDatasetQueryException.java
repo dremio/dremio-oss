@@ -15,23 +15,23 @@
  */
 package com.dremio.dac.service.errors;
 
-import java.util.List;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.explore.model.DatasetSummary;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
+import java.util.List;
 
-/**
- * Base exception for resources not found
- *
- */
+/** Base exception for resources not found */
 public class NewDatasetQueryException extends Exception {
   private static final long serialVersionUID = 1L;
 
   private final ExplorePageInfo details;
 
   public NewDatasetQueryException(ExplorePageInfo details, Exception error) {
-    super(error instanceof UserException ? "Unable to create dataset. " + ((UserException) error).getOriginalMessage(): error.getMessage(), error);
+    super(
+        error instanceof UserException
+            ? "Unable to create dataset. " + ((UserException) error).getOriginalMessage()
+            : error.getMessage(),
+        error);
     this.details = details;
   }
 
@@ -39,9 +39,7 @@ public class NewDatasetQueryException extends Exception {
     return details;
   }
 
-  /**
-   * Basic information needed to populate the explore page to retry a failed initial preview.
-   */
+  /** Basic information needed to populate the explore page to retry a failed initial preview. */
   public static class ExplorePageInfo {
     private final List<String> displayFullPath;
     private final String sql;
@@ -49,7 +47,12 @@ public class NewDatasetQueryException extends Exception {
     private final DatasetType datasetType;
     private final DatasetSummary datasetSummary;
 
-    public ExplorePageInfo(List<String> path, String sql, List<String> context, DatasetType datasetType, DatasetSummary datasetSummary) {
+    public ExplorePageInfo(
+        List<String> path,
+        String sql,
+        List<String> context,
+        DatasetType datasetType,
+        DatasetSummary datasetSummary) {
       this.displayFullPath = path;
       this.sql = sql;
       this.context = context;

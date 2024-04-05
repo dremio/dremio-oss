@@ -16,9 +16,9 @@
 package com.dremio.exec.catalog;
 
 public interface AlterTableOption {
-    public enum Type {
-        PARTITION_SPEC_UPDATE
-    }
+  public enum Type {
+    PARTITION_SPEC_UPDATE
+  }
 
-    public Type getType();
+  public Type getType();
 }

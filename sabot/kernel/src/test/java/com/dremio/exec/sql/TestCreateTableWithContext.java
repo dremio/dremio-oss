@@ -15,30 +15,12 @@
  */
 package com.dremio.exec.sql;
 
+import com.dremio.PlanTestBase;
 import java.io.File;
-
 import org.apache.commons.io.FileUtils;
-import org.junit.After;
-import org.junit.Before;
 import org.junit.Test;
 
-import com.dremio.PlanTestBase;
-import com.dremio.exec.ExecConstants;
-
 public class TestCreateTableWithContext extends PlanTestBase {
-  @Before
-  public void setUp() {
-    setSystemOption(ExecConstants.ENABLE_ICEBERG, "true");
-    setSystemOption(ExecConstants.CTAS_CAN_USE_ICEBERG, "true");
-  }
-
-  @After
-  public void cleanUp() {
-    setSystemOption(ExecConstants.ENABLE_ICEBERG,
-      ExecConstants.ENABLE_ICEBERG.getDefault().getBoolVal().toString());
-    setSystemOption(ExecConstants.CTAS_CAN_USE_ICEBERG,
-      ExecConstants.CTAS_CAN_USE_ICEBERG.getDefault().getBoolVal().toString());
-  }
 
   @Test
   public void createEmptyTableWithContext() throws Exception {
@@ -49,14 +31,15 @@ public class TestCreateTableWithContext extends PlanTestBase {
     try {
       final String createTableQuery = String.format("CREATE TABLE %s (col1 int)  ", newTblName);
       test(createTableQuery);
-      final String selectFromCreatedTable = String.format("select count(*) as cnt from %s", newTblName);
+      final String selectFromCreatedTable =
+          String.format("select count(*) as cnt from %s", newTblName);
       testBuilder()
-        .sqlQuery(selectFromCreatedTable)
-        .unOrdered()
-        .baselineColumns("cnt")
-        .baselineValues(0L)
-        .build()
-        .run();
+          .sqlQuery(selectFromCreatedTable)
+          .unOrdered()
+          .baselineColumns("cnt")
+          .baselineValues(0L)
+          .build()
+          .run();
 
     } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTblName));

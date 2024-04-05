@@ -16,19 +16,15 @@
 
 package com.dremio.exec.planner.sql.handlers.direct;
 
-import static com.dremio.exec.planner.sql.handlers.direct.ShowHandlerUtil.*;
+import static com.dremio.exec.planner.sql.handlers.direct.ShowHandlerUtil.checkVersionedFeatureEnabled;
+import static com.dremio.exec.planner.sql.handlers.direct.ShowHandlerUtil.concatSourceNameAndNamespace;
+import static com.dremio.exec.planner.sql.handlers.direct.ShowHandlerUtil.getVersionedPlugin;
+import static com.dremio.exec.planner.sql.handlers.direct.ShowHandlerUtil.validate;
 import static java.util.Objects.requireNonNull;
 
-import java.util.List;
-import java.util.Objects;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
-
-import org.apache.calcite.sql.SqlNode;
-
+import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.catalog.model.VersionContext;
+import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogUtil;
@@ -42,23 +38,30 @@ import com.dremio.exec.work.foreman.ForemanSetupException;
 import com.dremio.options.OptionResolver;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.namespace.NamespaceKey;
+import java.util.List;
+import java.util.Objects;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
+import org.apache.calcite.sql.SqlNode;
 
 /**
  * Handler for show tables.
  *
- * SHOW TABLES
- * [ AT ( REF[ERENCE] | BRANCH | TAG | COMMIT ) refValue ]
- * [ ( FROM | IN ) source ]
- * [ LIKE 'pattern' ]
+ * <p>SHOW TABLES [ AT ( REF[ERENCE] | BRANCH | TAG | COMMIT ) refValue ] [ ( FROM | IN ) source ] [
+ * LIKE 'pattern' ]
  */
 public class ShowTablesHandler implements SqlDirectHandler<ShowTablesHandler.ShowTableResult> {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ShowTablesHandler.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ShowTablesHandler.class);
 
   private final Catalog catalog;
   private final OptionResolver optionResolver;
   private final UserSession userSession;
 
-  public ShowTablesHandler(Catalog catalog, OptionResolver optionResolver, UserSession userSession){
+  public ShowTablesHandler(
+      Catalog catalog, OptionResolver optionResolver, UserSession userSession) {
     this.catalog = catalog;
     this.optionResolver = optionResolver;
     this.userSession = userSession;
@@ -68,21 +71,34 @@ public class ShowTablesHandler implements SqlDirectHandler<ShowTablesHandler.Sho
   public List<ShowTableResult> toResult(String sql, SqlNode sqlNode) throws Exception {
     SqlShowTables sqlShowTables = SqlNodeUtil.unwrap(sqlNode, SqlShowTables.class);
 
-    final NamespaceKey sourcePath = VersionedHandlerUtils.resolveSourceNameAsNamespaceKey(
-      sqlShowTables.getSourceName(),
-      userSession.getDefaultSchemaPath());
+    final NamespaceKey sourcePath =
+        VersionedHandlerUtils.resolveSourceNameAsNamespaceKey(
+            sqlShowTables.getSourceName(), userSession.getDefaultSchemaPath());
 
-    validate(sourcePath, catalog);
+    final String sourceName = sourcePath.getRoot();
+    VersionContext statementSourceVersion =
+        ReferenceTypeUtils.map(
+            sqlShowTables.getRefType(), sqlShowTables.getRefValue(), sqlShowTables.getTimestamp());
+    final VersionContext sessionVersion = userSession.getSessionVersionForSource(sourceName);
+    final VersionContext sourceVersion = statementSourceVersion.orElse(sessionVersion);
 
-    if(CatalogUtil.requestedPluginSupportsVersionedTables(sourcePath, catalog)) {
-      return showVersionedTables(sqlNode, sourcePath);
+    CatalogEntityKey sourceKey =
+        CatalogEntityKey.newBuilder()
+            .keyComponents(sourcePath.getPathComponents())
+            .tableVersionContext(TableVersionContext.of(sourceVersion))
+            .build();
+
+    validate(sourceKey, catalog);
+
+    if (CatalogUtil.requestedPluginSupportsVersionedTables(sourcePath, catalog)) {
+      return showVersionedTables(sqlNode, sourceKey);
     } else {
       return showTables(sqlNode, sourcePath);
     }
   }
 
-
-  private List<ShowTableResult> showTables(SqlNode sqlNode, NamespaceKey sourcePath) throws ForemanSetupException {
+  private List<ShowTableResult> showTables(SqlNode sqlNode, NamespaceKey sourcePath)
+      throws ForemanSetupException {
     final SqlShowTables sqlShowTables = SqlNodeUtil.unwrap(sqlNode, SqlShowTables.class);
 
     validateNonVersionedSql(sqlShowTables, sourcePath);
@@ -91,46 +107,43 @@ public class ShowTablesHandler implements SqlDirectHandler<ShowTablesHandler.Sho
     final Matcher m = likePattern.matcher("");
 
     return StreamSupport.stream(catalog.listDatasets(sourcePath).spliterator(), false)
-      .filter(table -> m.reset(table.getTableName()).matches())
-      .map(table -> new ShowTableResult(
-        table.getSchemaName(),
-        table.getTableName()))
-      .collect(Collectors. toList());
+        .filter(table -> m.reset(table.getTableName()).matches())
+        .map(table -> new ShowTableResult(table.getSchemaName(), table.getTableName()))
+        .collect(Collectors.toList());
   }
 
-  private List<ShowTableResult> showVersionedTables(SqlNode sqlNode, NamespaceKey sourcePath) throws ForemanSetupException {
-    checkVersionedFeatureEnabled(optionResolver,"SHOW TABLES syntax is not supported.");
+  private List<ShowTableResult> showVersionedTables(SqlNode sqlNode, CatalogEntityKey sourceKey)
+      throws ForemanSetupException {
+    checkVersionedFeatureEnabled(optionResolver, "SHOW TABLES syntax is not supported.");
 
-    final SqlShowTables showTable = requireNonNull(SqlNodeUtil.unwrap(sqlNode, SqlShowTables.class));
-
-    final String sourceName = sourcePath.getRoot();
-    final VersionContext statementSourceVersion =
-      ReferenceTypeUtils.map(showTable.getRefType(), showTable.getRefValue(), showTable.getTimestamp());
-    final VersionContext sessionVersion = userSession.getSessionVersionForSource(sourceName);
-    final VersionContext sourceVersion = statementSourceVersion.orElse(sessionVersion);
+    final SqlShowTables showTable =
+        requireNonNull(SqlNodeUtil.unwrap(sqlNode, SqlShowTables.class));
 
     final Pattern likePattern = SqlNodeUtil.getPattern(showTable.getLikePattern());
     final Matcher m = likePattern.matcher("");
-    final VersionedPlugin versionedPlugin = getVersionedPlugin(sourceName, catalog);
-    final List<String> path = sourcePath.getPathWithoutRoot();
-    try
-    {
-      return versionedPlugin.listTablesIncludeNested(
-          path,
-          sourceVersion)
-        .filter(table -> m.reset(table.getName()).matches())
-        .map(entry ->
-          new ShowTableResult(
-            concatSourceNameAndNamespace(sourceName, entry.getNamespace()),
-            entry.getName()))
-        .collect(Collectors.toList());
+    final VersionedPlugin versionedPlugin = getVersionedPlugin(sourceKey.getRootEntity(), catalog);
+    final List<String> path = sourceKey.getPathWithoutRoot();
+    try {
+      return versionedPlugin
+          .listTablesIncludeNested(path, sourceKey.getTableVersionContext().asVersionContext())
+          .filter(table -> m.reset(table.getName()).matches())
+          .map(
+              entry ->
+                  new ShowTableResult(
+                      concatSourceNameAndNamespace(sourceKey.getRootEntity(), entry.getNamespace()),
+                      entry.getName()))
+          .collect(Collectors.toList());
     } catch (ReferenceConflictException e) {
       throw UserException.validationError(e)
-        .message("%s has conflict on source %s.", sourceVersion, sourceName)
-        .buildSilently();
+          .message(
+              "%s has conflict on source %s.",
+              sourceKey.getTableVersionContext().asVersionContext(), sourceKey.getRootEntity())
+          .buildSilently();
     } catch (ReferenceNotFoundException e) {
-        throw UserException.validationError(e)
-          .message("%s not found on source %s.", sourceVersion, sourceName)
+      throw UserException.validationError(e)
+          .message(
+              "%s not found on source %s.",
+              sourceKey.getTableVersionContext().asVersionContext(), sourceKey.getRootEntity())
           .buildSilently();
     }
   }
@@ -140,13 +153,11 @@ public class ShowTablesHandler implements SqlDirectHandler<ShowTablesHandler.Sho
     return ShowTableResult.class;
   }
 
-  private void validateNonVersionedSql(SqlShowTables sqlShowTables, NamespaceKey sourcePath)
-  {
-    if(sqlShowTables.getRefValue() != null || sqlShowTables.getRefType() != null)
-    {
+  private void validateNonVersionedSql(SqlShowTables sqlShowTables, NamespaceKey sourcePath) {
+    if (sqlShowTables.getRefValue() != null || sqlShowTables.getRefType() != null) {
       throw UserException.unsupportedError()
-        .message("Source %s does not support references.", sourcePath.getRoot())
-        .build(logger);
+          .message("Source %s does not support references.", sourcePath.getRoot())
+          .build(logger);
     }
   }
 
@@ -169,7 +180,8 @@ public class ShowTablesHandler implements SqlDirectHandler<ShowTablesHandler.Sho
         return false;
       }
       ShowTableResult that = (ShowTableResult) o;
-      return Objects.equals(TABLE_SCHEMA, that.TABLE_SCHEMA) && Objects.equals(TABLE_NAME, that.TABLE_NAME);
+      return Objects.equals(TABLE_SCHEMA, that.TABLE_SCHEMA)
+          && Objects.equals(TABLE_NAME, that.TABLE_NAME);
     }
 
     @Override
@@ -179,10 +191,14 @@ public class ShowTablesHandler implements SqlDirectHandler<ShowTablesHandler.Sho
 
     @Override
     public String toString() {
-      return "ShowTableResult{" +
-        "TABLE_SCHEMA='" + TABLE_SCHEMA + '\'' +
-        ", TABLE_NAME='" + TABLE_NAME + '\'' +
-        '}';
+      return "ShowTableResult{"
+          + "TABLE_SCHEMA='"
+          + TABLE_SCHEMA
+          + '\''
+          + ", TABLE_NAME='"
+          + TABLE_NAME
+          + '\''
+          + '}';
     }
   }
 }

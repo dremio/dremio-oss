@@ -28,18 +28,21 @@ import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.google.common.collect.ImmutableList;
 
 /**
- * In Dremio 2.0.10 and 2.1.0 we upgraded the Hive client version to 2.1.1 from 1.2.1. We store the InputSplits
- * in Dataset to avoid getting the splits every time the table is queried. After the Hive client upgrade the InputSplits
- * may not be deserializable with Hive 2.1.1 client. This upgrade task is to delete such InputSplits so that we
- * find the splits based on the new Hive client classes when the table is queried or when the metadata refresh happens
+ * In Dremio 2.0.10 and 2.1.0 we upgraded the Hive client version to 2.1.1 from 1.2.1. We store the
+ * InputSplits in Dataset to avoid getting the splits every time the table is queried. After the
+ * Hive client upgrade the InputSplits may not be deserializable with Hive 2.1.1 client. This
+ * upgrade task is to delete such InputSplits so that we find the splits based on the new Hive
+ * client classes when the table is queried or when the metadata refresh happens
  */
 public class DeleteHive121BasedInputSplits extends UpgradeTask implements LegacyUpgradeTask {
 
-  //DO NOT MODIFY
+  // DO NOT MODIFY
   static final String taskUUID = "a5d23112-f354-42fe-bdeb-b024d8d5fb1b";
 
   public DeleteHive121BasedInputSplits() {
-    super("Deleting Hive 1.2.1 based InputSplits", ImmutableList.of(DeleteHistoryOfRenamedDatasets.taskUUID));
+    super(
+        "Deleting Hive 1.2.1 based InputSplits",
+        ImmutableList.of(DeleteHistoryOfRenamedDatasets.taskUUID));
   }
 
   @Override
@@ -54,7 +57,8 @@ public class DeleteHive121BasedInputSplits extends UpgradeTask implements Legacy
 
   @Override
   public void upgrade(UpgradeContext context) throws Exception {
-    final NamespaceService namespaceService = new NamespaceServiceImpl(context.getLegacyKVStoreProvider(), new CatalogStatusEventsImpl());
+    final NamespaceService namespaceService =
+        new NamespaceServiceImpl(context.getLegacyKVStoreProvider(), new CatalogStatusEventsImpl());
 
     try {
       for (SourceConfig source : namespaceService.getSources()) {
@@ -64,10 +68,12 @@ public class DeleteHive121BasedInputSplits extends UpgradeTask implements Legacy
 
         AdminLogger.log("  Handling Hive source {}", source.getName());
 
-        for (NamespaceKey datasetPath : namespaceService.getAllDatasets(new NamespaceKey(source.getName()))) {
+        for (NamespaceKey datasetPath :
+            namespaceService.getAllDatasets(new NamespaceKey(source.getName()))) {
           final DatasetConfig datasetConfig = namespaceService.getDataset(datasetPath);
 
-          if (datasetConfig.getReadDefinition() == null || datasetConfig.getReadDefinition().getExtendedProperty() == null) {
+          if (datasetConfig.getReadDefinition() == null
+              || datasetConfig.getReadDefinition().getExtendedProperty() == null) {
             continue;
           }
 

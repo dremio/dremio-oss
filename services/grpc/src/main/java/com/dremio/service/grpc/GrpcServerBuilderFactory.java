@@ -17,22 +17,14 @@ package com.dremio.service.grpc;
 
 import io.grpc.ServerBuilder;
 
-/**
- * Interface for gRPC server builder factory.
- */
+/** Interface for gRPC server builder factory. */
 public interface GrpcServerBuilderFactory {
-  /**
-   * Returns a new gRPC ServerBuilder with instrumentation.
-   */
+  /** Returns a new gRPC ServerBuilder with instrumentation. */
   ServerBuilder<?> newServerBuilder();
 
-  /**
-   * Returns a new gRPC ServerBuilder with instrumentation.
-   */
+  /** Returns a new gRPC ServerBuilder with instrumentation. */
   ServerBuilder<?> newServerBuilder(int port);
 
-  /**
-   * Returns a new gRPC InProcessServerBuilder with instrumentation.
-   */
+  /** Returns a new gRPC InProcessServerBuilder with instrumentation. */
   ServerBuilder<?> newInProcessServerBuilder(String processName);
 }

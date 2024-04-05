@@ -26,18 +26,14 @@ public class AggregateProjectPullUpConstantsTest extends BaseTestQuery {
    */
   @Test
   public void testPruneConstColWithOnlyOneInputRow() throws Exception {
-    String query = "" +
-      "select a from" +
-      "(select 'a' as a, c from" +
-      "(select count(*) as c from " +
-      "(values (1)) as t(v) group by (v)))" +
-      "group by a,c";
+    String query =
+        ""
+            + "select a from"
+            + "(select 'a' as a, c from"
+            + "(select count(*) as c from "
+            + "(values (1)) as t(v) group by (v)))"
+            + "group by a,c";
 
-    testBuilder()
-      .sqlQuery(query)
-      .unOrdered()
-      .baselineColumns("a")
-      .baselineValues("a")
-      .go();
+    testBuilder().sqlQuery(query).unOrdered().baselineColumns("a").baselineValues("a").go();
   }
 }

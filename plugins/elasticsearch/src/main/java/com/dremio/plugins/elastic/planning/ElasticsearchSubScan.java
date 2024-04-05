@@ -15,8 +15,6 @@
  */
 package com.dremio.plugins.elastic.planning;
 
-import java.util.List;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
@@ -36,12 +34,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
-
 import io.protostuff.ByteString;
+import java.util.List;
 
-/**
- * Elasticsearch sub-scan.
- */
+/** Elasticsearch sub-scan. */
 @JsonTypeName("elasticsearch-sub-scan")
 public class ElasticsearchSubScan extends SubScanWithProjection {
 
@@ -49,18 +45,17 @@ public class ElasticsearchSubScan extends SubScanWithProjection {
   private final StoragePluginId pluginId;
   private final ByteString extendedProperty;
 
-  @JsonIgnore
-  private List<SplitAndPartitionInfo> splits;
+  @JsonIgnore private List<SplitAndPartitionInfo> splits;
 
   public ElasticsearchSubScan(
-    OpProps props,
-    StoragePluginId pluginId,
-    ElasticsearchScanSpec spec,
-    List<SplitAndPartitionInfo> splits,
-    List<SchemaPath> columns,
-    List<String> tableSchemaPath,
-    BatchSchema fullSchema,
-    ByteString extendedProperty){
+      OpProps props,
+      StoragePluginId pluginId,
+      ElasticsearchScanSpec spec,
+      List<SplitAndPartitionInfo> splits,
+      List<SchemaPath> columns,
+      List<String> tableSchemaPath,
+      BatchSchema fullSchema,
+      ByteString extendedProperty) {
     super(props, fullSchema, tableSchemaPath, columns);
     this.pluginId = pluginId;
     this.splits = splits;
@@ -83,20 +78,29 @@ public class ElasticsearchSubScan extends SubScanWithProjection {
     this.extendedProperty = extendedProperty;
   }
 
-  public StoragePluginId getPluginId(){
+  public StoragePluginId getPluginId() {
     return pluginId;
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value) throws E {
+  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value)
+      throws E {
     return physicalVisitor.visitSubScan(this, value);
   }
 
   @Override
-  public PhysicalOperator getNewWithChildren(List<PhysicalOperator> children) throws ExecutionSetupException {
+  public PhysicalOperator getNewWithChildren(List<PhysicalOperator> children)
+      throws ExecutionSetupException {
     Preconditions.checkArgument(children.isEmpty());
-    return new ElasticsearchSubScan(getProps(), pluginId, spec, splits, getColumns(),
-      Iterables.getOnlyElement(getReferencedTables()), getFullSchema(), extendedProperty);
+    return new ElasticsearchSubScan(
+        getProps(),
+        pluginId,
+        spec,
+        splits,
+        getColumns(),
+        Iterables.getOnlyElement(getReferencedTables()),
+        getFullSchema(),
+        extendedProperty);
   }
 
   public ElasticsearchScanSpec getSpec() {

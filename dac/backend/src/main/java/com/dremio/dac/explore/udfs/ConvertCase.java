@@ -15,36 +15,29 @@
  */
 package com.dremio.dac.explore.udfs;
 
-import javax.inject.Inject;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.vector.holders.VarCharHolder;
-
 import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
+import javax.inject.Inject;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.vector.holders.VarCharHolder;
 
-/**
- * UDFs for ConvertCase
- */
+/** UDFs for ConvertCase */
 public class ConvertCase {
 
-  /**
-   * Convert string to title case.
-   */
-  @FunctionTemplate(name = "title", scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.NULL_IF_NULL)
+  /** Convert string to title case. */
+  @FunctionTemplate(
+      name = "title",
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.NULL_IF_NULL)
   public static class TitleCase implements SimpleFunction {
-    @Param
-    private VarCharHolder input;
-    @Output
-    private VarCharHolder out;
-    @Inject
-    private ArrowBuf buffer;
+    @Param private VarCharHolder input;
+    @Output private VarCharHolder out;
+    @Inject private ArrowBuf buffer;
 
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
     public void eval() {
@@ -59,12 +52,14 @@ public class ConvertCase {
         // 'A - Z' : 0x41 - 0x5A
         // 'a - z' : 0x61 - 0x7A
         // space : 0x20
-        if (currentByte >= 0x61 && currentByte <= 0x7A
-                && (id == input.start || input.buffer.getByte(id - 1) == 0x20)) {
+        if (currentByte >= 0x61
+            && currentByte <= 0x7A
+            && (id == input.start || input.buffer.getByte(id - 1) == 0x20)) {
           currentByte -= 0x20;
         }
-        if (currentByte >= 0x41 && currentByte <= 0x5A
-                && !(id == input.start || input.buffer.getByte(id - 1) == 0x20)) {
+        if (currentByte >= 0x41
+            && currentByte <= 0x5A
+            && !(id == input.start || input.buffer.getByte(id - 1) == 0x20)) {
           currentByte += 0x20;
         }
         out.buffer.setByte(id - input.start, currentByte);

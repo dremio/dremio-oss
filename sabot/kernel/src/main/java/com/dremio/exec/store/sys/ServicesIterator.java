@@ -15,34 +15,33 @@
  */
 package com.dremio.exec.store.sys;
 
+import com.dremio.exec.proto.CoordinationProtos;
+import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.sys.ServicesIterator.ServiceSetInfo;
+import com.dremio.service.coordinator.ClusterCoordinator;
+import com.google.common.collect.ImmutableSet;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.StreamSupport;
 
-import com.dremio.exec.proto.CoordinationProtos;
-import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.store.sys.ServicesIterator.ServiceSetInfo;
-import com.dremio.service.coordinator.ClusterCoordinator;
-import com.google.common.collect.ImmutableSet;
-
 /**
- * Iterator that returns a {@link ServiceSetInfo} for every ServiceSet in a {@link ClusterCoordinator}
+ * Iterator that returns a {@link ServiceSetInfo} for every ServiceSet in a {@link
+ * ClusterCoordinator}
  */
 public class ServicesIterator implements Iterator<ServiceSetInfo> {
-  public static final Set<String> SERVICE_BLACKLIST = ImmutableSet.of(
-    ClusterCoordinator.Role.COORDINATOR.toString(),
-    ClusterCoordinator.Role.EXECUTOR.toString(),
-    "leader-latch",
-    "semaphore",
-    "clustered_singleton");
+  public static final Set<String> SERVICE_BLACKLIST =
+      ImmutableSet.of(
+          ClusterCoordinator.Role.COORDINATOR.toString(),
+          ClusterCoordinator.Role.EXECUTOR.toString(),
+          "leader-latch",
+          "semaphore",
+          "clustered_singleton");
 
   private final Iterator<ServiceSetInfo> serviceNames;
 
-  /**
-   * Basic ServiceSet info
-   */
+  /** Basic ServiceSet info */
   @SuppressWarnings("checkstyle:VisibilityModifier")
   public static class ServiceSetInfo {
     public final String service;
@@ -61,11 +60,12 @@ public class ServicesIterator implements Iterator<ServiceSetInfo> {
   public ServicesIterator(final SabotContext dbContext) {
     Iterator<ServiceSetInfo> srv;
     try {
-      srv = StreamSupport.stream(dbContext.getClusterCoordinator()
-        .getServiceNames().spliterator(), false)
-        .filter((p) -> !SERVICE_BLACKLIST.contains(p))
-        .map(s -> new ServiceSetInfo(s, dbContext.getServiceLeader(s)))
-        .iterator();
+      srv =
+          StreamSupport.stream(
+                  dbContext.getClusterCoordinator().getServiceNames().spliterator(), false)
+              .filter((p) -> !SERVICE_BLACKLIST.contains(p))
+              .map(s -> new ServiceSetInfo(s, dbContext.getServiceLeader(s)))
+              .iterator();
     } catch (Exception e) {
       srv = Collections.emptyIterator();
     }

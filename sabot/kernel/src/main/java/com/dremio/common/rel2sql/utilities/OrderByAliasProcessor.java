@@ -20,7 +20,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
 import org.apache.calcite.sql.SqlBasicCall;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
@@ -30,7 +29,8 @@ import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.fun.SqlCase;
 
 /**
- * An processor that finds alias references from the select list for the order by clause in the query.
+ * An processor that finds alias references from the select list for the order by clause in the
+ * query.
  */
 public class OrderByAliasProcessor {
   private final SqlNodeList originalOrderBy;
@@ -39,7 +39,8 @@ public class OrderByAliasProcessor {
   private final List<SqlNode> selectList;
   private final Map<List<String>, List<String>> aliasCache = new HashMap<>();
 
-  public OrderByAliasProcessor(SqlNodeList originalOrderBy, String tableAlias, List<SqlNode> selectList) {
+  public OrderByAliasProcessor(
+      SqlNodeList originalOrderBy, String tableAlias, List<SqlNode> selectList) {
     this.originalOrderBy = SqlNodeList.clone(originalOrderBy);
     this.updatedOrderBy = new SqlNodeList(originalOrderBy.getParserPosition());
     this.tableAlias = tableAlias;
@@ -50,7 +51,8 @@ public class OrderByAliasProcessor {
    * Given a SqlNodeList that consists of SqlNodes from an order by clause, evaluate whether each
    * SqlNode contains a column reference with an alias in the select list.
    *
-   * @return a new SqlNodeList containing rewritten SqlNodes with correct table and column alias references.
+   * @return a new SqlNodeList containing rewritten SqlNodes with correct table and column alias
+   *     references.
    */
   public SqlNodeList processOrderBy() {
     for (SqlNode node : originalOrderBy) {
@@ -61,29 +63,30 @@ public class OrderByAliasProcessor {
 
   /**
    * Given a SqlNode, evaluate whether it contains a SqlIdentifier that contains a column reference
-   * with an alias in the select list. If an alias of the column reference is found in the select list,
-   * rewrite the node such that it references the table alias and the column alias set in the select list.
+   * with an alias in the select list. If an alias of the column reference is found in the select
+   * list, rewrite the node such that it references the table alias and the column alias set in the
+   * select list.
    *
-   * If no alias corresponding to the SqlNode is found in the select list, simply return a rewritten
-   * SqlNode that references the table alias and its current column name.
+   * <p>If no alias corresponding to the SqlNode is found in the select list, simply return a
+   * rewritten SqlNode that references the table alias and its current column name.
    *
-   * Only SqlNode of kind CASE, NULLS_FIRST, NULLS_LAST, IS_NULL, DESCENDING and IDENTIFIER needs
+   * <p>Only SqlNode of kind CASE, NULLS_FIRST, NULLS_LAST, IS_NULL, DESCENDING and IDENTIFIER needs
    * to be processed.
    *
    * @param orderNode the SqlNode to process.
    * @return If SqlNode is one of the supported kind to process, returns a new SqlNode containing
-   * updated table and column alias references. Otherwise, returns the given SqlNode as is.
+   *     updated table and column alias references. Otherwise, returns the given SqlNode as is.
    */
   private SqlNode processSqlNodeInOrderBy(SqlNode orderNode) {
-    switch(orderNode.getKind()) {
+    switch (orderNode.getKind()) {
       case CASE:
         return handleSqlCase((SqlCase) orderNode);
       case NULLS_FIRST:
       case NULLS_LAST:
       case IS_NULL:
       case DESCENDING:
-        ((SqlBasicCall) orderNode).setOperand(0,
-          processSqlNodeInOrderBy(((SqlBasicCall)orderNode).operand(0)));
+        ((SqlBasicCall) orderNode)
+            .setOperand(0, processSqlNodeInOrderBy(((SqlBasicCall) orderNode).operand(0)));
         return orderNode;
       case IDENTIFIER:
         return handleSqlIdentifier((SqlIdentifier) orderNode);
@@ -93,10 +96,9 @@ public class OrderByAliasProcessor {
   }
 
   /**
-   * Creates a new SqlCase that wraps a list of processed when operands.
-   * Only the when list needs to be processed because ArpDialect - emulateNullDirection produces a
-   * SqlCase node of the following format:
-   * Case When "SqlNode" Then 1 Else 0
+   * Creates a new SqlCase that wraps a list of processed when operands. Only the when list needs to
+   * be processed because ArpDialect - emulateNullDirection produces a SqlCase node of the following
+   * format: Case When "SqlNode" Then 1 Else 0
    *
    * @param orderNode the given SqlNode from the order by clause.
    * @return a new SqlCase object with an updated list of when operands.
@@ -107,18 +109,19 @@ public class OrderByAliasProcessor {
     for (SqlNode whenOperand : whenOperands) {
       processedOperands.add(processSqlNodeInOrderBy(whenOperand));
     }
-    return new SqlCase(orderNode.getParserPosition(),
-      orderNode.getValueOperand(),
-      new SqlNodeList(processedOperands, whenOperands.getParserPosition()),
-      orderNode.getThenOperands(),
-      orderNode.getElseOperand());
+    return new SqlCase(
+        orderNode.getParserPosition(),
+        orderNode.getValueOperand(),
+        new SqlNodeList(processedOperands, whenOperands.getParserPosition()),
+        orderNode.getThenOperands(),
+        orderNode.getElseOperand());
   }
 
   /**
    * Creates a clone of the given SqlIdentifier node, with updated table and column alias names.
-   * Given the names in the original SqlIdentifier node, it searches for its alias in the select list.
-   * A cloned SqlIdentifier is create with the updated table alias. If an alias for the column is
-   * found in the select list, the column alias is used. Otherwise, its current name is used.
+   * Given the names in the original SqlIdentifier node, it searches for its alias in the select
+   * list. A cloned SqlIdentifier is create with the updated table alias. If an alias for the column
+   * is found in the select list, the column alias is used. Otherwise, its current name is used.
    *
    * @param orderNode the given SqlNode from the order by clause.
    * @return a cloned SqlIdentifier node with a list of updated names.
@@ -127,7 +130,8 @@ public class OrderByAliasProcessor {
     final List<String> names = new ArrayList<>();
     names.add(tableAlias);
 
-    // When pushing out order by, we need to make sure that the order by clause uses the correct alias
+    // When pushing out order by, we need to make sure that the order by clause uses the correct
+    // alias
     // set in the select list of the sub-query it originated from
     if (!selectList.isEmpty()) {
       final List<String> orderNodeNames = orderNode.names;
@@ -139,7 +143,7 @@ public class OrderByAliasProcessor {
         names.addAll(aliasCache.get(orderNodeNames));
       } else if (!isAliasInCache && (alias == null)) {
         final List<String> columnAliasFromSelect = findColumnAliasFromSelectList(orderNodeNames);
-        if(!columnAliasFromSelect.isEmpty()) {
+        if (!columnAliasFromSelect.isEmpty()) {
           names.addAll(columnAliasFromSelect);
         }
       }
@@ -159,8 +163,9 @@ public class OrderByAliasProcessor {
   }
 
   /**
-   * Given a list representing the table accessor and name of the column, find out whether the column
-   * is given an alias in the select list.
+   * Given a list representing the table accessor and name of the column, find out whether the
+   * column is given an alias in the select list.
+   *
    * @param orderNodeNames the table accessor and name of the column
    * @return If an alias is found, return the alias name. Otherwise, return an empty list of String.
    */
@@ -172,9 +177,9 @@ public class OrderByAliasProcessor {
         final SqlNode column = operands.get(0);
         final SqlNode columnAlias = operands.get(1);
 
-        if (column instanceof SqlIdentifier &&
-            columnAlias instanceof SqlIdentifier &&
-            orderNodeNames.equals(((SqlIdentifier) column).names)) {
+        if (column instanceof SqlIdentifier
+            && columnAlias instanceof SqlIdentifier
+            && orderNodeNames.equals(((SqlIdentifier) column).names)) {
           List<String> columnAliasNames = ((SqlIdentifier) columnAlias).names;
           aliasCache.putIfAbsent(orderNodeNames, columnAliasNames);
           return columnAliasNames;

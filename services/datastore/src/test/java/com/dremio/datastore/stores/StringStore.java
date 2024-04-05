@@ -15,25 +15,23 @@
  */
 package com.dremio.datastore.stores;
 
-import java.util.Arrays;
-import java.util.List;
-
 import com.dremio.datastore.TestStoreCreationFunction;
 import com.dremio.datastore.api.KVStore;
 import com.dremio.datastore.api.StoreBuildingFactory;
 import com.dremio.datastore.format.Format;
+import java.util.Arrays;
+import java.util.List;
 
-/**
- * String store that creates a string key and value KVStore.
- */
+/** String store that creates a string key and value KVStore. */
 public class StringStore implements TestStoreCreationFunction<String, String> {
   @Override
   public KVStore<String, String> build(StoreBuildingFactory factory) {
-    return factory.<String, String>newStore()
-      .name("string-store")
-      .keyFormat(getKeyFormat())
-      .valueFormat(Format.ofString())
-      .build();
+    return factory
+        .<String, String>newStore()
+        .name("string-store")
+        .keyFormat(getKeyFormat())
+        .valueFormat(Format.ofString())
+        .build();
   }
 
   @Override

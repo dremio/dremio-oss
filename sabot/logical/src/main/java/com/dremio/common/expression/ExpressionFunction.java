@@ -15,24 +15,21 @@
  */
 package com.dremio.common.expression;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Type;
-import java.util.List;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.expression.visitors.ExpressionValidationException;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.reflect.TypeToken;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Type;
+import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @SuppressWarnings("unchecked")
 public class ExpressionFunction {
   static final Logger logger = LoggerFactory.getLogger(ExpressionFunction.class);
 
   @SuppressWarnings("serial")
-  static final Type EXPR_LIST = (new TypeToken<List<LogicalExpression>>() {
-  }).getType();
+  static final Type EXPR_LIST = (new TypeToken<List<LogicalExpression>>() {}).getType();
 
   private static final Class<?>[] FUNCTIONS = {};
 
@@ -45,32 +42,35 @@ public class ExpressionFunction {
       // logger.debug("Adding {} and function", c);
       if (!LogicalExpression.class.isAssignableFrom(c)) {
         logger.error(
-            "The provided Class [{}] does not derive from LogicalExpression.  Skipping inclusion in registry.", c);
+            "The provided Class [{}] does not derive from LogicalExpression.  Skipping inclusion in registry.",
+            c);
         continue;
       }
       FunctionName fn = c.getAnnotation(FunctionName.class);
       if (fn == null) {
         logger.error(
-            "The provided Class [{}] did not have a FunctionName annotation.  Skipping inclusion in registry.", c);
+            "The provided Class [{}] did not have a FunctionName annotation.  Skipping inclusion in registry.",
+            c);
         continue;
       }
       String name = fn.value();
       try {
-        Constructor<LogicalExpression> m = (Constructor<LogicalExpression>) c.getConstructor(List.class);
+        Constructor<LogicalExpression> m =
+            (Constructor<LogicalExpression>) c.getConstructor(List.class);
         if (!EXPR_LIST.equals(m.getGenericParameterTypes()[0])) {
-          logger
-              .error(
-                  "The constructor for each function must have a argument list that only contains a List<LogicalExpression>.  The class[{}] has an inccorect List<{}> argument.",
-                  c, m.getGenericParameterTypes()[0]);
+          logger.error(
+              "The constructor for each function must have a argument list that only contains a List<LogicalExpression>.  The class[{}] has an inccorect List<{}> argument.",
+              c,
+              m.getGenericParameterTypes()[0]);
           continue;
         }
 
         builder.put(name, m);
       } catch (Exception e) {
-        logger
-            .error(
-                "Failure while attempting to retrieve Logical Expression list constructor on class [{}].  Functions must have one of these.",
-                c, e);
+        logger.error(
+            "Failure while attempting to retrieve Logical Expression list constructor on class [{}].  Functions must have one of these.",
+            c,
+            e);
       }
     }
 
@@ -82,13 +82,14 @@ public class ExpressionFunction {
     // logger.debug("Requesting generation of new function with name {}.",
     // functionName);
     if (!FUNCTION_MAP.containsKey(functionName)) {
-      throw new ExpressionValidationException(String.format("Unknown function with name '%s'", functionName));
+      throw new ExpressionValidationException(
+          String.format("Unknown function with name '%s'", functionName));
     }
     try {
       return FUNCTION_MAP.get(functionName).newInstance(expressions);
     } catch (Exception e) {
-      throw new ExpressionValidationException("Failure while attempting to build type of " + functionName, e);
+      throw new ExpressionValidationException(
+          "Failure while attempting to build type of " + functionName, e);
     }
   }
-
 }

@@ -15,18 +15,15 @@
  */
 package com.dremio.exec.work.foreman;
 
-import java.util.List;
-
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.physical.base.Root;
 import com.dremio.exec.planner.fragment.PlanFragmentFull;
 import com.dremio.exec.planner.fragment.PlanFragmentsIndex;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.google.common.base.Preconditions;
+import java.util.List;
 
-/**
- * A plan that holds physical plan as well as parallelization info.
- */
+/** A plan that holds physical plan as well as parallelization info. */
 public class ExecutionPlan {
   private final QueryId queryId;
   private final double cost;
@@ -34,8 +31,11 @@ public class ExecutionPlan {
   private final List<PlanFragmentFull> fragments;
   private final PlanFragmentsIndex.Builder indexBuilder;
 
-  public ExecutionPlan(final QueryId queryId, final PhysicalPlan physicalPlan, final List<PlanFragmentFull> fragments,
-    PlanFragmentsIndex.Builder indexBuilder) {
+  public ExecutionPlan(
+      final QueryId queryId,
+      final PhysicalPlan physicalPlan,
+      final List<PlanFragmentFull> fragments,
+      PlanFragmentsIndex.Builder indexBuilder) {
 
     Preconditions.checkNotNull(physicalPlan, "physical plan is required");
     this.queryId = queryId;
@@ -45,8 +45,12 @@ public class ExecutionPlan {
     this.cost = physicalPlan.getCost();
   }
 
-  public ExecutionPlan(final QueryId queryId, final Root rootOperator, final double cost, final List<PlanFragmentFull> fragments,
-    PlanFragmentsIndex.Builder indexBuilder) {
+  public ExecutionPlan(
+      final QueryId queryId,
+      final Root rootOperator,
+      final double cost,
+      final List<PlanFragmentFull> fragments,
+      PlanFragmentsIndex.Builder indexBuilder) {
 
     this.queryId = queryId;
     this.rootOperator = Preconditions.checkNotNull(rootOperator, "Root operator is required");
@@ -59,7 +63,7 @@ public class ExecutionPlan {
     return queryId;
   }
 
-  public double getCost(){
+  public double getCost() {
     return cost;
   }
 
@@ -71,7 +75,9 @@ public class ExecutionPlan {
     return rootOperator;
   }
 
-  public PlanFragmentsIndex.Builder getIndexBuilder() { return indexBuilder; }
+  public PlanFragmentsIndex.Builder getIndexBuilder() {
+    return indexBuilder;
+  }
 
   @Override
   public int hashCode() {
@@ -110,7 +116,4 @@ public class ExecutionPlan {
     }
     return true;
   }
-
-
-
 }

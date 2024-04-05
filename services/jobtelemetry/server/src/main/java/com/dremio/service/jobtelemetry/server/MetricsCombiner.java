@@ -15,14 +15,11 @@
  */
 package com.dremio.service.jobtelemetry.server;
 
+import com.dremio.exec.proto.CoordExecRPC.QueryProgressMetrics;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
-import com.dremio.exec.proto.CoordExecRPC.QueryProgressMetrics;
-
-/**
- * Combiner for all individual executor metrics.
- */
+/** Combiner for all individual executor metrics. */
 final class MetricsCombiner {
   private final Supplier<Stream<QueryProgressMetrics>> executorMetrics;
 
@@ -32,19 +29,15 @@ final class MetricsCombiner {
 
   private QueryProgressMetrics combine() {
     long rowsProcessed =
-      executorMetrics.get()
-        .mapToLong(QueryProgressMetrics::getRowsProcessed)
-        .sum();
+        executorMetrics.get().mapToLong(QueryProgressMetrics::getRowsProcessed).sum();
 
     long outputRecords =
-      executorMetrics.get()
-        .mapToLong(QueryProgressMetrics::getOutputRecords)
-        .sum();
+        executorMetrics.get().mapToLong(QueryProgressMetrics::getOutputRecords).sum();
 
     return QueryProgressMetrics.newBuilder()
-      .setRowsProcessed(rowsProcessed)
-      .setOutputRecords(outputRecords)
-      .build();
+        .setRowsProcessed(rowsProcessed)
+        .setOutputRecords(outputRecords)
+        .build();
   }
 
   static QueryProgressMetrics combine(Supplier<Stream<QueryProgressMetrics>> executorMetrics) {

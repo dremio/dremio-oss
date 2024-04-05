@@ -15,13 +15,18 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.ops.QueryContext;
+import com.dremio.exec.planner.sql.handlers.direct.SimpleDirectHandler;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Throwables;
+import com.google.common.collect.Lists;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -33,16 +38,7 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.ops.QueryContext;
-import com.dremio.exec.planner.sql.handlers.direct.SimpleDirectHandler;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
-import com.google.common.collect.Lists;
-
-/**
- * Implements SQL Grants.
- */
+/** Implements SQL Grants. */
 public class SqlGrant extends SqlCall implements SimpleDirectHandler.Creator {
   private final SqlNodeList privilegeList;
   private final SqlLiteral grantType;
@@ -72,6 +68,9 @@ public class SqlGrant extends SqlCall implements SimpleDirectHandler.Creator {
     USAGE,
     WRITE,
     CONFIGURE_SECURITY,
+    READ_METADATA,
+    CREATE_VIEW,
+    CREATE_FOLDER,
     ALL
   }
 
@@ -91,21 +90,28 @@ public class SqlGrant extends SqlCall implements SimpleDirectHandler.Creator {
     CATALOG
   }
 
-  public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("GRANT", SqlKind.OTHER) {
-    @Override
-    public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 4, "SqlGrant.createCall() has to get 4 operands!");
-      return new SqlGrant(
-        pos,
-        (SqlNodeList) operands[0],
-        (SqlLiteral) operands[1],
-        (SqlIdentifier) operands[2],
-        (SqlLiteral) operands[3]
-      );
-    }
-  };
+  public static final SqlSpecialOperator OPERATOR =
+      new SqlSpecialOperator("GRANT", SqlKind.OTHER) {
+        @Override
+        public SqlCall createCall(
+            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+          Preconditions.checkArgument(
+              operands.length == 4, "SqlGrant.createCall() has to get 4 operands!");
+          return new SqlGrant(
+              pos,
+              (SqlNodeList) operands[0],
+              (SqlLiteral) operands[1],
+              (SqlIdentifier) operands[2],
+              (SqlLiteral) operands[3]);
+        }
+      };
 
-  public SqlGrant(SqlParserPos pos, SqlNodeList privilegeList, SqlLiteral grantType, SqlIdentifier grantee, SqlLiteral granteeType) {
+  public SqlGrant(
+      SqlParserPos pos,
+      SqlNodeList privilegeList,
+      SqlLiteral grantType,
+      SqlIdentifier grantee,
+      SqlLiteral granteeType) {
     super(pos);
     this.privilegeList = privilegeList;
     this.grantType = grantType;
@@ -147,9 +153,12 @@ public class SqlGrant extends SqlCall implements SimpleDirectHandler.Creator {
     } catch (ClassNotFoundException e) {
       // Assume failure to find class means that we aren't running Enterprise Edition
       throw UserException.unsupportedError(e)
-        .message("GRANT action is only supported in Enterprise Edition.")
-        .buildSilently();
-    } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
+          .message("GRANT action is only supported in Enterprise Edition.")
+          .buildSilently();
+    } catch (InstantiationException
+        | IllegalAccessException
+        | NoSuchMethodException
+        | InvocationTargetException e) {
       throw Throwables.propagate(e);
     }
   }
@@ -182,9 +191,7 @@ public class SqlGrant extends SqlCall implements SimpleDirectHandler.Creator {
     }
   }
 
-  /**
-   * Validate provided grant type.
-   */
+  /** Validate provided grant type. */
   public static boolean isValidGrantType(String grantType) {
     try {
       final Set<GrantType> grantTypes = new HashSet<>(Arrays.asList(GrantType.values()));

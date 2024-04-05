@@ -15,11 +15,6 @@
  */
 package com.dremio.plugins.elastic;
 
-import java.util.List;
-
-import javax.inject.Provider;
-import javax.validation.constraints.NotEmpty;
-
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.AuthenticationType;
 import com.dremio.exec.catalog.conf.DisplayMetadata;
@@ -27,16 +22,20 @@ import com.dremio.exec.catalog.conf.EncryptionValidationMode;
 import com.dremio.exec.catalog.conf.Host;
 import com.dremio.exec.catalog.conf.NotMetadataImpacting;
 import com.dremio.exec.catalog.conf.Secret;
+import com.dremio.exec.catalog.conf.SecretRef;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.server.SabotContext;
-
+import com.google.common.annotations.VisibleForTesting;
 import io.protostuff.Tag;
+import java.util.List;
+import javax.inject.Provider;
+import javax.validation.constraints.NotEmpty;
+import org.apache.commons.lang3.function.Suppliers;
 
-/**
- * Configuration for regular Elasticsearch storage plugin.
- */
+/** Configuration for regular Elasticsearch storage plugin. */
 @SourceType(value = "ELASTIC", label = "Elasticsearch", uiConfig = "elastic-storage-layout.json")
-public class ElasticStoragePluginConfig extends BaseElasticStoragePluginConfig<ElasticStoragePluginConfig, ElasticsearchStoragePlugin> {
+public class ElasticStoragePluginConfig
+    extends BaseElasticStoragePluginConfig<ElasticStoragePluginConfig, ElasticsearchStoragePlugin> {
 
   //  repeated Host host = 1; // default port should be 9200
   //  optional string username = 2;
@@ -64,7 +63,7 @@ public class ElasticStoragePluginConfig extends BaseElasticStoragePluginConfig<E
 
   @Tag(3)
   @Secret
-  public String password;
+  public SecretRef password;
 
   @Tag(4)
   public AuthenticationType authenticationType = AuthenticationType.ANONYMOUS;
@@ -89,10 +88,11 @@ public class ElasticStoragePluginConfig extends BaseElasticStoragePluginConfig<E
     return result;
   }
 
-  public ElasticStoragePluginConfig(
+  @VisibleForTesting
+  ElasticStoragePluginConfig(
       List<Host> hostList,
       String username,
-      String password,
+      SecretRef password,
       AuthenticationType authenticationType,
       boolean scriptsEnabled,
       boolean showHiddenIndices,
@@ -106,9 +106,21 @@ public class ElasticStoragePluginConfig extends BaseElasticStoragePluginConfig<E
       boolean allowPushdownOnNormalizedOrAnalyzedFields,
       boolean pushdownWithKeyword,
       boolean warnOnRowCountMismatch,
-      EncryptionValidationMode encryptionValidationMode, boolean forceDoublePrecision) {
-    super(scriptsEnabled, showHiddenIndices, showIdColumn, readTimeoutMillis, scrollTimeoutMillis, usePainless,
-      scrollSize, allowPushdownOnNormalizedOrAnalyzedFields, pushdownWithKeyword, warnOnRowCountMismatch, encryptionValidationMode, forceDoublePrecision);
+      EncryptionValidationMode encryptionValidationMode,
+      boolean forceDoublePrecision) {
+    super(
+        scriptsEnabled,
+        showHiddenIndices,
+        showIdColumn,
+        readTimeoutMillis,
+        scrollTimeoutMillis,
+        usePainless,
+        scrollSize,
+        allowPushdownOnNormalizedOrAnalyzedFields,
+        pushdownWithKeyword,
+        warnOnRowCountMismatch,
+        encryptionValidationMode,
+        forceDoublePrecision);
     this.hostList = hostList;
     this.username = username;
     this.password = password;
@@ -118,11 +130,13 @@ public class ElasticStoragePluginConfig extends BaseElasticStoragePluginConfig<E
   }
 
   @Override
-  public ElasticsearchStoragePlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
+  public ElasticsearchStoragePlugin newPlugin(
+      SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
     return new ElasticsearchStoragePlugin(createElasticsearchConf(this), context, name);
   }
 
-  public static ElasticsearchConf createElasticsearchConf(ElasticStoragePluginConfig elasticStoragePluginConfig) {
+  public static ElasticsearchConf createElasticsearchConf(
+      ElasticStoragePluginConfig elasticStoragePluginConfig) {
     ElasticsearchConf.AuthenticationType authenticationType;
     switch (elasticStoragePluginConfig.authenticationType) {
       case ANONYMOUS:
@@ -134,29 +148,30 @@ public class ElasticStoragePluginConfig extends BaseElasticStoragePluginConfig<E
       default:
         authenticationType = ElasticsearchConf.AuthenticationType.NONE;
     }
-    ElasticsearchConf elasticsearchConf = new ElasticsearchConf(
-      elasticStoragePluginConfig.hostList,
-      elasticStoragePluginConfig.username,
-      elasticStoragePluginConfig.password,
-      "",
-      "",
-      "",
-      "",
-      authenticationType,
-      elasticStoragePluginConfig.scriptsEnabled,
-      elasticStoragePluginConfig.showHiddenIndices,
-      elasticStoragePluginConfig.sslEnabled,
-      elasticStoragePluginConfig.showIdColumn,
-      elasticStoragePluginConfig.readTimeoutMillis,
-      elasticStoragePluginConfig.scrollTimeoutMillis,
-      elasticStoragePluginConfig.usePainless,
-      elasticStoragePluginConfig.useWhitelist,
-      elasticStoragePluginConfig.scrollSize,
-      elasticStoragePluginConfig.allowPushdownOnNormalizedOrAnalyzedFields,
-      elasticStoragePluginConfig.pushdownWithKeyword,
-      elasticStoragePluginConfig.warnOnRowCountMismatch,
-      elasticStoragePluginConfig.encryptionValidationMode,
-    elasticStoragePluginConfig.forceDoublePrecision);
+    ElasticsearchConf elasticsearchConf =
+        new ElasticsearchConf(
+            elasticStoragePluginConfig.hostList,
+            elasticStoragePluginConfig.username,
+            Suppliers.get(elasticStoragePluginConfig.password),
+            "",
+            "",
+            "",
+            "",
+            authenticationType,
+            elasticStoragePluginConfig.scriptsEnabled,
+            elasticStoragePluginConfig.showHiddenIndices,
+            elasticStoragePluginConfig.sslEnabled,
+            elasticStoragePluginConfig.showIdColumn,
+            elasticStoragePluginConfig.readTimeoutMillis,
+            elasticStoragePluginConfig.scrollTimeoutMillis,
+            elasticStoragePluginConfig.usePainless,
+            elasticStoragePluginConfig.useWhitelist,
+            elasticStoragePluginConfig.scrollSize,
+            elasticStoragePluginConfig.allowPushdownOnNormalizedOrAnalyzedFields,
+            elasticStoragePluginConfig.pushdownWithKeyword,
+            elasticStoragePluginConfig.warnOnRowCountMismatch,
+            elasticStoragePluginConfig.encryptionValidationMode,
+            elasticStoragePluginConfig.forceDoublePrecision);
     return elasticsearchConf;
   }
 }

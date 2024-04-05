@@ -18,17 +18,17 @@ package com.dremio.plugins.elastic;
 import static com.dremio.plugins.elastic.ElasticBaseTestQuery.TestNameGenerator.schemaName;
 import static com.dremio.plugins.elastic.ElasticBaseTestQuery.TestNameGenerator.tableName;
 
-import java.util.List;
-
-import org.junit.Before;
-import org.junit.Test;
-
 import com.dremio.TestBuilder;
 import com.dremio.plugins.elastic.ElasticsearchCluster.ColumnData;
 import com.google.common.collect.Lists;
+import java.util.List;
+import org.junit.Before;
+import org.junit.Test;
 
 public class ITTestProjectPushdown extends ElasticBaseTestQuery {
-  private static final String PARQUET_TABLE = "dfs.\"[WORKING_PATH]/src/test/resources/small_business.parquet\"";
+  private static final String PARQUET_TABLE =
+      "dfs.\"[WORKING_PATH]/src/test/resources/small_business.parquet\"";
+
   @SuppressWarnings("checkstyle:MemberName")
   private String ELASTIC_TABLE = null;
 
@@ -46,24 +46,26 @@ public class ITTestProjectPushdown extends ElasticBaseTestQuery {
   }
 
   /**
-   * Tests function evaluation of Dremio's native expressions in comparison to
-   * expressions that are pushed into elastic.
+   * Tests function evaluation of Dremio's native expressions in comparison to expressions that are
+   * pushed into elastic.
+   *
    * @throws Exception
    */
   @Test
   public void testUnaryNumericFunctions() throws Exception {
-    final List<String> unaryFunctions = Lists.newArrayList(
-            "ABS", "ACOS", "ASIN", "ATAN", "COS", "CEILING", /*"COT",*/ "DEGREES", "FLOOR", "RADIANS", "SIN", "TAN", "EXP", "SIGN", "SQRT"
-    );
+    final List<String> unaryFunctions =
+        Lists.newArrayList(
+            "ABS", "ACOS", "ASIN", "ATAN", "COS", "CEILING", /*"COT",*/ "DEGREES", "FLOOR",
+            "RADIANS", "SIN", "TAN", "EXP", "SIGN", "SQRT");
 
     final String exprs = " cast(%s(stars) as double), cast(%s(review_count) as double)";
     for (String s : unaryFunctions) {
       String elasticQuery = String.format("select " + exprs + " from %s", s, s, ELASTIC_TABLE);
       testBuilder()
-              .sqlQuery(elasticQuery)
-              .unOrdered()
-              .sqlBaselineQuery(String.format("select " + exprs + " from %s", s, s, PARQUET_TABLE))
-              .go();
+          .sqlQuery(elasticQuery)
+          .unOrdered()
+          .sqlBaselineQuery(String.format("select " + exprs + " from %s", s, s, PARQUET_TABLE))
+          .go();
     }
   }
 
@@ -72,9 +74,12 @@ public class ITTestProjectPushdown extends ElasticBaseTestQuery {
     final List<String> binaryFunctions = Lists.newArrayList("+", "-", "*" /*, "/"*/);
 
     // sanity check the parquet file
-    // NOTE: this uses the test builder constructor directly instead of the testBuilder() helper method
-    // because of an elastic specific override to run tests twice (disabling project pushdown on one run)
-    // this is not needed here and using it actually causes a failure because of the simple way it rewrites
+    // NOTE: this uses the test builder constructor directly instead of the testBuilder() helper
+    // method
+    // because of an elastic specific override to run tests twice (disabling project pushdown on one
+    // run)
+    // this is not needed here and using it actually causes a failure because of the simple way it
+    // rewrites
     // queries (looking for elasticsearch and replacing it, a word that appears in this path...)
     new TestBuilder(allocator)
         .sqlQuery("select stars, review_count from " + PARQUET_TABLE)
@@ -87,39 +92,42 @@ public class ITTestProjectPushdown extends ElasticBaseTestQuery {
         .baselineValues(1f, 1)
         .go();
 
-    final String exprs = " cast((stars %s review_count) as double), cast((stars %s stars) as double), cast((review_count %s review_count) as double) ";
+    final String exprs =
+        " cast((stars %s review_count) as double), cast((stars %s stars) as double), cast((review_count %s review_count) as double) ";
     for (String s : binaryFunctions) {
       String elasticQuery = String.format("select " + exprs + " from %s", s, s, s, ELASTIC_TABLE);
       testBuilder()
-              .sqlQuery(elasticQuery)
-              .unOrdered()
-              .sqlBaselineQuery(String.format("select " + exprs + " from %s", s, s, s, PARQUET_TABLE))
-              .go();
+          .sqlQuery(elasticQuery)
+          .unOrdered()
+          .sqlBaselineQuery(String.format("select " + exprs + " from %s", s, s, s, PARQUET_TABLE))
+          .go();
     }
   }
 
   @Test
   public void testBinaryPrefixNumericFunctions() throws Exception {
-    final String exprs = " cast(%s(stars, review_count) as double), cast(%s(stars, stars) as double), cast(%s(review_count, review_count) as double) ";
+    final String exprs =
+        " cast(%s(stars, review_count) as double), cast(%s(stars, stars) as double), cast(%s(review_count, review_count) as double) ";
     String s = "power";
     testBuilder()
-            .sqlQuery(String.format("select " + exprs + " from %s", s, s, s, ELASTIC_TABLE))
-            .unOrdered()
-            .sqlBaselineQuery(String.format("select " + exprs + " from %s", s, s, s, PARQUET_TABLE))
-            .go();
+        .sqlQuery(String.format("select " + exprs + " from %s", s, s, s, ELASTIC_TABLE))
+        .unOrdered()
+        .sqlBaselineQuery(String.format("select " + exprs + " from %s", s, s, s, PARQUET_TABLE))
+        .go();
   }
 
   @Test
   public void testIntOnlyNumericFunctions() throws Exception {
-    final String exprs = " cast(%s(review_count, cast(stars as integer)) as double), cast(%s(review_count, review_count) as double) ";
+    final String exprs =
+        " cast(%s(review_count, cast(stars as integer)) as double), cast(%s(review_count, review_count) as double) ";
     final List<String> intOnlyFuncs = Lists.newArrayList("mod");
     for (String s : intOnlyFuncs) {
       String elasticQuery = String.format("select " + exprs + " from %s", s, s, ELASTIC_TABLE);
       testBuilder()
-              .sqlQuery(elasticQuery)
-              .unOrdered()
-              .sqlBaselineQuery(String.format("select " + exprs + " from %s", s, s, PARQUET_TABLE))
-              .go();
+          .sqlQuery(elasticQuery)
+          .unOrdered()
+          .sqlBaselineQuery(String.format("select " + exprs + " from %s", s, s, PARQUET_TABLE))
+          .go();
     }
   }
 
@@ -127,32 +135,35 @@ public class ITTestProjectPushdown extends ElasticBaseTestQuery {
   public void testCastIntToVarchar() throws Exception {
     final String sqlQueryBasic = "select city from %s where cast(review_count as varchar) = '33'";
     testBuilder()
-            .sqlQuery(String.format(sqlQueryBasic, ELASTIC_TABLE))
-            .unOrdered()
-            .baselineColumns("city")
-            .baselineValues("San Diego")
-            .go();
+        .sqlQuery(String.format(sqlQueryBasic, ELASTIC_TABLE))
+        .unOrdered()
+        .baselineColumns("city")
+        .baselineValues("San Diego")
+        .go();
     // There is some logic to allow some casts to be handled by elastic implicit conversion
     // in the PredicateAnalyzer, which constructs an equality or range filter.
     // Concat is added here to force scripts to be used, specifically to test the
     // cast within a script.
     String sqlQuery = "select city from %s where concat(cast(review_count as varchar), '') = '33'";
     testBuilder()
-            .sqlQuery(String.format(sqlQuery, ELASTIC_TABLE))
-            .unOrdered()
-            .baselineColumns("city")
-            .baselineValues("San Diego")
-            .go();
+        .sqlQuery(String.format(sqlQuery, ELASTIC_TABLE))
+        .unOrdered()
+        .baselineColumns("city")
+        .baselineValues("San Diego")
+        .go();
 
     testBuilder()
-            .sqlQuery(String.format(sqlQuery, ELASTIC_TABLE))
-            .unOrdered()
-            .sqlBaselineQuery(String.format(sqlQuery, PARQUET_TABLE))
-            .go();
+        .sqlQuery(String.format(sqlQuery, ELASTIC_TABLE))
+        .unOrdered()
+        .sqlBaselineQuery(String.format(sqlQuery, PARQUET_TABLE))
+        .go();
 
-    testPlanSubstrPatterns(String.format(sqlQuery, ELASTIC_TABLE), new String[]{
-        "(doc[\\\"review_count\\\"].empty) ? false : ( ( Long.toString(doc[\\\"review_count\\\"].value) + '' ) == '33' )"
-    }, null);
+    testPlanSubstrPatterns(
+        String.format(sqlQuery, ELASTIC_TABLE),
+        new String[] {
+          "(doc[\\\"review_count\\\"].empty) ? false : ( ( Long.toString(doc[\\\"review_count\\\"].value) + '' ) == '33' )"
+        },
+        null);
   }
 
   @Test
@@ -170,11 +181,11 @@ public class ITTestProjectPushdown extends ElasticBaseTestQuery {
       // ignore, learning schema
     }
     testBuilder()
-      .sqlQuery(String.format("select h from elasticsearch.%s.%s", schema, table))
-      .unOrdered()
-      .baselineColumns("h")
-      .baselineValues((Integer) null)
-      .baselineValues(1)
-      .go();
+        .sqlQuery(String.format("select h from elasticsearch.%s.%s", schema, table))
+        .unOrdered()
+        .baselineColumns("h")
+        .baselineValues((Integer) null)
+        .baselineValues(1)
+        .go();
   }
 }

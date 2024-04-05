@@ -19,12 +19,9 @@ import static org.junit.Assert.assertTrue;
 
 import java.sql.SQLException;
 import java.util.Properties;
-
 import org.junit.BeforeClass;
 
-/**
- * Test compatibility with older versions of the server
- */
+/** Test compatibility with older versions of the server */
 public class LegacyDatabaseMetaDataTest extends DatabaseMetaDataTest {
 
   @BeforeClass

@@ -20,9 +20,6 @@ import * as classes from "./CatalogsMenu.module.less";
 import { menuListStyle } from "@app/components/SideNav/SideNavConstants";
 import { useIntl } from "react-intl";
 import * as PATHS from "../../exports/paths";
-import { FeatureSwitch } from "@app/exports/components/FeatureSwitch/FeatureSwitch";
-import { ARCTIC_CATALOG } from "@inject/featureFlags/flags/ARCTIC_CATALOG";
-//@ts-ignore
 import * as commonPaths from "dremio-ui-common/paths/common.js";
 
 const CatalogsMenu = () => {
@@ -41,21 +38,16 @@ const CatalogsMenu = () => {
           {sonarLabel}
         </Link>
       </MenuItem>
-      <FeatureSwitch
-        flag={ARCTIC_CATALOG}
-        renderEnabled={() => (
-          <MenuItem className={classes["catalog-menu-item"]}>
-            <Link to={PATHS.arcticCatalogs()}>
-              <dremio-icon
-                name="corporate/arctic"
-                alt={arcticLabel}
-                class={classes["catalog-menu-item__icon"]}
-              />
-              {arcticLabel}
-            </Link>
-          </MenuItem>
-        )}
-      />
+      <MenuItem className={classes["catalog-menu-item"]}>
+        <Link to={PATHS.arcticCatalogs()}>
+          <dremio-icon
+            name="corporate/arctic"
+            alt={arcticLabel}
+            class={classes["catalog-menu-item__icon"]}
+          />
+          {arcticLabel}
+        </Link>
+      </MenuItem>
     </Menu>
   );
 };

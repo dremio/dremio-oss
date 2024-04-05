@@ -17,30 +17,27 @@ package com.dremio.test;
 
 import java.nio.file.Files;
 import java.nio.file.Paths;
-
 import org.junit.Assert;
 import org.junit.ComparisonFailure;
 import org.junit.Test;
 
-/**
- * Tests to assert that the Golden File library is working as expected.
- */
-public final class GoldenFileMetaTests  {
+/** Tests to assert that the Golden File library is working as expected. */
+public final class GoldenFileMetaTests {
   @Test
   public void testSuccessScenario() {
     GoldenFileTestBuilder.<Input, Integer>create(input -> input.left + input.right)
-      .add("3 plus 5", new Input(3, 5))
-      .add("5 plus 8", new Input(5, 8))
-      .runTests();
+        .add("3 plus 5", new Input(3, 5))
+        .add("5 plus 8", new Input(5, 8))
+        .runTests();
   }
 
   @Test
   public void testExpectedExceptionScenario() {
     GoldenFileTestBuilder.create(GoldenFileMetaTests::addWithException)
-      .allowExceptions()
-      .add("3 plus 5", new Input(3, 5))
-      .add("5 plus 8", new Input(5, 8))
-      .runTests();
+        .allowExceptions()
+        .add("3 plus 5", new Input(3, 5))
+        .add("5 plus 8", new Input(5, 8))
+        .runTests();
   }
 
   @Test
@@ -58,27 +55,25 @@ public final class GoldenFileMetaTests  {
   @Test
   public void testIgnoreScenario() {
     GoldenFileTestBuilder.<Input, Integer>create(input -> input.left + input.right)
-      .add("Correct Output And Ignore = false", new Input(3, 5))
-      .addButIgnore("Correct Output And Ignore = true", new Input(3, 5))
-      .addButIgnore("Incorrect Output And Ignore = true", new Input(3, 5))
-      .runTests();
+        .add("Correct Output And Ignore = false", new Input(3, 5))
+        .addButIgnore("Correct Output And Ignore = true", new Input(3, 5))
+        .addButIgnore("Incorrect Output And Ignore = true", new Input(3, 5))
+        .runTests();
   }
 
   @Test(expected = ComparisonFailure.class)
   public void testIncorrectOutput() {
     GoldenFileTestBuilder.<Input, Integer>create(input -> input.left + input.right)
-      .allowExceptions()
-      .add("Incorrect Output And Ignore = false", new Input(3, 5))
-      .runTests();
+        .allowExceptions()
+        .add("Incorrect Output And Ignore = false", new Input(3, 5))
+        .runTests();
   }
 
   @SuppressWarnings("AssertionFailureIgnored")
   @Test
   public void testFirstRun() {
     try {
-      GoldenFileTestBuilder.create((Integer i) -> i)
-          .add("Example Test", 1)
-          .runTests();
+      GoldenFileTestBuilder.create((Integer i) -> i).add("Example Test", 1).runTests();
       Assert.fail();
 
     } catch (AssertionError error) {
@@ -91,16 +86,17 @@ public final class GoldenFileMetaTests  {
               + "\t`sdiff target/goldenfiles/actual/GoldenFileMetaTests.testFirstRun.yaml src/test/resources/goldenfiles/expected/GoldenFileMetaTests.testFirstRun.yaml`\n"
               + " expected:<0> but was:<1>",
           error.getMessage());
-      Assert.assertTrue("The actual file is still initialized even though the test fails",
-          Files.exists(Paths.get("target/goldenfiles/actual/GoldenFileMetaTests.testFirstRun.yaml") ));
+      Assert.assertTrue(
+          "The actual file is still initialized even though the test fails",
+          Files.exists(
+              Paths.get("target/goldenfiles/actual/GoldenFileMetaTests.testFirstRun.yaml")));
     }
   }
 
   @Test
   public void testNotCasesAdded() {
     try {
-      GoldenFileTestBuilder.create((Integer i) -> i)
-          .runTests();
+      GoldenFileTestBuilder.create((Integer i) -> i).runTests();
       Assert.fail();
     } catch (IllegalStateException error) {
       Assert.assertEquals(
@@ -114,7 +110,7 @@ public final class GoldenFileMetaTests  {
     throw new Exception("Throwing an exception for testing purposes");
   }
 
-  private static final class Input  {
+  private static final class Input {
     public final int left;
     public final int right;
 

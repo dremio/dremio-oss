@@ -19,14 +19,11 @@ import static com.dremio.exec.store.CatalogService.DEFAULT_AUTHTTLS_MILLIS;
 import static com.dremio.exec.store.CatalogService.DEFAULT_EXPIRE_MILLIS;
 import static com.dremio.exec.store.CatalogService.DEFAULT_REFRESH_MILLIS;
 
+import com.dremio.service.namespace.source.proto.UpdateMode;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
 
-import com.dremio.service.namespace.source.proto.UpdateMode;
-
-/**
- * Source MetadataPolicy for the public REST API.
- */
+/** Source MetadataPolicy for the public REST API. */
 public class MetadataPolicy {
 
   public static final long ONE_MINUTE_IN_MS = 60000L;
@@ -53,7 +50,7 @@ public class MetadataPolicy {
 
   private boolean autoPromoteDatasets;
 
-  public MetadataPolicy() { }
+  public MetadataPolicy() {}
 
   public MetadataPolicy(com.dremio.service.namespace.source.proto.MetadataPolicy policy) {
     setAuthTTLMs(policy.getAuthTtlMs());
@@ -151,7 +148,8 @@ public class MetadataPolicy {
   }
 
   public com.dremio.service.namespace.source.proto.MetadataPolicy toMetadataPolicy() {
-    com.dremio.service.namespace.source.proto.MetadataPolicy metadataPolicy = new com.dremio.service.namespace.source.proto.MetadataPolicy();
+    com.dremio.service.namespace.source.proto.MetadataPolicy metadataPolicy =
+        new com.dremio.service.namespace.source.proto.MetadataPolicy();
     metadataPolicy.setAuthTtlMs(this.getAuthTTLMs());
     metadataPolicy.setNamesRefreshMs(this.getNamesRefreshMs());
     metadataPolicy.setDatasetDefinitionExpireAfterMs(this.getDatasetExpireAfterMs());
@@ -164,14 +162,22 @@ public class MetadataPolicy {
 
   @Override
   public String toString() {
-    return "MetadataPolicy{" +
-      "authTTLMs=" + authTTLMs +
-      ", namesRefreshMs=" + namesRefreshMs +
-      ", datasetRefreshAfterMs=" + datasetRefreshAfterMs +
-      ", datasetExpireAfterMs=" + datasetExpireAfterMs +
-      ", datasetUpdateMode='" + datasetUpdateMode + "'" +
-      ", deleteUnavailableDatasets=" + deleteUnavailableDatasets +
-      ", autoPromoteDatasets=" + autoPromoteDatasets +
-      '}';
+    return "MetadataPolicy{"
+        + "authTTLMs="
+        + authTTLMs
+        + ", namesRefreshMs="
+        + namesRefreshMs
+        + ", datasetRefreshAfterMs="
+        + datasetRefreshAfterMs
+        + ", datasetExpireAfterMs="
+        + datasetExpireAfterMs
+        + ", datasetUpdateMode='"
+        + datasetUpdateMode
+        + "'"
+        + ", deleteUnavailableDatasets="
+        + deleteUnavailableDatasets
+        + ", autoPromoteDatasets="
+        + autoPromoteDatasets
+        + '}';
   }
 }

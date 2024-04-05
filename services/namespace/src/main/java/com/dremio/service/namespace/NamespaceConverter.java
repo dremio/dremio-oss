@@ -29,12 +29,6 @@ import static com.dremio.service.namespace.DatasetIndexKeys.UNQUOTED_LC_SCHEMA;
 import static com.dremio.service.namespace.DatasetIndexKeys.UNQUOTED_NAME;
 import static com.dremio.service.namespace.DatasetIndexKeys.UNQUOTED_SCHEMA;
 
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
-
-import org.apache.arrow.flatbuf.Schema;
-
 import com.dremio.common.utils.PathUtils;
 import com.dremio.datastore.api.DocumentConverter;
 import com.dremio.datastore.api.DocumentWriter;
@@ -54,12 +48,13 @@ import com.dremio.service.namespace.space.proto.HomeConfig;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
-
 import io.protostuff.ByteString;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import org.apache.arrow.flatbuf.Schema;
 
-/**
- * Namespace search indexing. for now only support pds, vds, source and space indexing.
- */
+/** Namespace search indexing. for now only support pds, vds, source and space indexing. */
 public class NamespaceConverter implements DocumentConverter<String, NameSpaceContainer> {
   private Integer version = 2;
 
@@ -90,86 +85,96 @@ public class NamespaceConverter implements DocumentConverter<String, NameSpaceCo
 
     EntityId entityId = null;
     switch (container.getType()) {
-      case DATASET: {
-        final DatasetConfig datasetConfig = container.getDataset();
+      case DATASET:
+        {
+          final DatasetConfig datasetConfig = container.getDataset();
 
-        // last modified is a new field so support old entries which only have a createdAt.
-        Long modified = Optional.ofNullable(datasetConfig.getCreatedAt()).orElse(0L);
+          // last modified is a new field so support old entries which only have a createdAt.
+          Long modified = Optional.ofNullable(datasetConfig.getCreatedAt()).orElse(0L);
 
-        if (datasetConfig.getLastModified() != null && datasetConfig.getLastModified() > 0) {
-          modified = datasetConfig.getLastModified();
-        }
-        writer.write(NamespaceIndexKeys.LAST_MODIFIED, modified);
+          if (datasetConfig.getLastModified() != null && datasetConfig.getLastModified() > 0) {
+            modified = datasetConfig.getLastModified();
+          }
+          writer.write(NamespaceIndexKeys.LAST_MODIFIED, modified);
 
-        writer.write(DatasetIndexKeys.DATASET_ID, new NamespaceKey(container.getFullPathList()).getSchemaPath());
+          writer.write(
+              DatasetIndexKeys.DATASET_ID,
+              new NamespaceKey(container.getFullPathList()).getSchemaPath());
 
-        writer.write(DATASET_UUID, datasetConfig.getId().getId());
-        entityId = datasetConfig.getId();
-        if (datasetConfig.getOwner() != null) {
-          writer.write(DATASET_OWNER, datasetConfig.getOwner());
-        }
-        switch (datasetConfig.getType()) {
-          case VIRTUAL_DATASET: {
+          writer.write(DATASET_UUID, datasetConfig.getId().getId());
+          entityId = datasetConfig.getId();
+          if (datasetConfig.getOwner() != null) {
+            writer.write(DATASET_OWNER, datasetConfig.getOwner());
+          }
+          switch (datasetConfig.getType()) {
+            case VIRTUAL_DATASET:
+              {
+                final VirtualDataset virtualDataset = datasetConfig.getVirtualDataset();
+                writer.write(DATASET_SQL, virtualDataset.getSql());
 
-            final VirtualDataset virtualDataset = datasetConfig.getVirtualDataset();
-            writer.write(DATASET_SQL, virtualDataset.getSql());
+                addParents(writer, virtualDataset.getParentsList());
+                addColumns(writer, datasetConfig);
+                addSourcesAndOrigins(writer, virtualDataset.getFieldOriginsList());
+                addAllParents(
+                    writer, virtualDataset.getParentsList(), virtualDataset.getGrandParentsList());
+              }
+              break;
 
-            addParents(writer, virtualDataset.getParentsList());
-            addColumns(writer, datasetConfig);
-            addSourcesAndOrigins(writer, virtualDataset.getFieldOriginsList());
-            addAllParents(writer, virtualDataset.getParentsList(), virtualDataset.getGrandParentsList());
+            case PHYSICAL_DATASET:
+            case PHYSICAL_DATASET_SOURCE_FILE:
+            case PHYSICAL_DATASET_SOURCE_FOLDER:
+              {
+                addColumns(writer, datasetConfig);
+                // TODO index physical dataset properties
+              }
+              break;
+
+            default:
+              break;
           }
           break;
-
-          case PHYSICAL_DATASET:
-          case PHYSICAL_DATASET_SOURCE_FILE:
-          case PHYSICAL_DATASET_SOURCE_FOLDER: {
-            addColumns(writer, datasetConfig);
-            // TODO index physical dataset properties
-          }
-          break;
-
-          default:
-            break;
         }
-        break;
-      }
 
-      case HOME: {
-        HomeConfig homeConfig = container.getHome();
-        writer.write(NamespaceIndexKeys.HOME_ID, homeConfig.getId().getId());
-        entityId = homeConfig.getId();
-        break;
-      }
+      case HOME:
+        {
+          HomeConfig homeConfig = container.getHome();
+          writer.write(NamespaceIndexKeys.HOME_ID, homeConfig.getId().getId());
+          entityId = homeConfig.getId();
+          break;
+        }
 
-      case SOURCE: {
-        final SourceConfig sourceConfig = container.getSource();
-        writer.write(NamespaceIndexKeys.SOURCE_ID, sourceConfig.getId().getId());
-        writer.write(NamespaceIndexKeys.LAST_MODIFIED, sourceConfig.getCtime());
-        entityId = sourceConfig.getId();
-        break;
-      }
+      case SOURCE:
+        {
+          final SourceConfig sourceConfig = container.getSource();
+          writer.write(NamespaceIndexKeys.SOURCE_ID, sourceConfig.getId().getId());
+          writer.write(NamespaceIndexKeys.LAST_MODIFIED, sourceConfig.getLastModifiedAt());
+          entityId = sourceConfig.getId();
+          break;
+        }
 
-      case SPACE: {
-        final SpaceConfig spaceConfig = container.getSpace();
-        writer.write(NamespaceIndexKeys.SPACE_ID, spaceConfig.getId().getId());
-        writer.write(NamespaceIndexKeys.LAST_MODIFIED, spaceConfig.getCtime());
-        entityId = spaceConfig.getId();
-        break;
-      }
-    case FUNCTION:{
-        final FunctionConfig udfConfig = container.getFunction();
-        writer.write(NamespaceIndexKeys.UDF_ID, udfConfig.getId().getId());
-        entityId = udfConfig.getId();
-        break;
-    }
+      case SPACE:
+        {
+          final SpaceConfig spaceConfig = container.getSpace();
+          writer.write(NamespaceIndexKeys.SPACE_ID, spaceConfig.getId().getId());
+          writer.write(NamespaceIndexKeys.LAST_MODIFIED, spaceConfig.getCtime());
+          entityId = spaceConfig.getId();
+          break;
+        }
+      case FUNCTION:
+        {
+          final FunctionConfig udfConfig = container.getFunction();
+          writer.write(NamespaceIndexKeys.UDF_ID, udfConfig.getId().getId());
+          entityId = udfConfig.getId();
+          break;
+        }
 
-      case FOLDER: {
-        final FolderConfig folderConfig = container.getFolder();
-        writer.write(NamespaceIndexKeys.FOLDER_ID, folderConfig.getId().getId());
-        entityId = folderConfig.getId();
-        break;
-      }
+      case FOLDER:
+        {
+          final FolderConfig folderConfig = container.getFolder();
+          writer.write(NamespaceIndexKeys.FOLDER_ID, folderConfig.getId().getId());
+          entityId = folderConfig.getId();
+          break;
+        }
 
       default:
         break;
@@ -189,14 +194,20 @@ public class NamespaceConverter implements DocumentConverter<String, NameSpaceCo
     final ByteString schemaBytes = DatasetHelper.getSchemaBytes(datasetConfig);
     if (schemaBytes != null) {
       Schema schema = Schema.getRootAsSchema(schemaBytes.asReadOnlyByteBuffer());
-      org.apache.arrow.vector.types.pojo.Schema s = org.apache.arrow.vector.types.pojo.Schema.convertSchema(schema);
-      return s.getFields().stream().map(input -> input.getName().toLowerCase()).toArray(String[]::new);
+      org.apache.arrow.vector.types.pojo.Schema s =
+          org.apache.arrow.vector.types.pojo.Schema.convertSchema(schema);
+      return s.getFields().stream()
+          .map(input -> input.getName().toLowerCase())
+          .toArray(String[]::new);
     } else {
       // If virtual dataset was created with view fields
       if (datasetConfig.getType() == DatasetType.VIRTUAL_DATASET) {
-        final List<ViewFieldType> viewFieldTypes = datasetConfig.getVirtualDataset().getSqlFieldsList();
+        final List<ViewFieldType> viewFieldTypes =
+            datasetConfig.getVirtualDataset().getSqlFieldsList();
         if (notEmpty(viewFieldTypes)) {
-          return viewFieldTypes.stream().map(input -> input.getName().toLowerCase()).toArray(String[]::new);
+          return viewFieldTypes.stream()
+              .map(input -> input.getName().toLowerCase())
+              .toArray(String[]::new);
         }
       }
     }
@@ -214,7 +225,6 @@ public class NamespaceConverter implements DocumentConverter<String, NameSpaceCo
       writer.write(DATASET_PARENTS, parents);
     }
   }
-
 
   private void addSourcesAndOrigins(DocumentWriter writer, List<FieldOrigin> fieldOrigins) {
     if (notEmpty(fieldOrigins)) {
@@ -235,7 +245,8 @@ public class NamespaceConverter implements DocumentConverter<String, NameSpaceCo
     }
   }
 
-  private void addAllParents(DocumentWriter writer, List<ParentDataset> parents, List<ParentDataset> grandParents) {
+  private void addAllParents(
+      DocumentWriter writer, List<ParentDataset> parents, List<ParentDataset> grandParents) {
     if (notEmpty(parents)) {
       grandParents = listNotNull(grandParents);
       int i = 0;

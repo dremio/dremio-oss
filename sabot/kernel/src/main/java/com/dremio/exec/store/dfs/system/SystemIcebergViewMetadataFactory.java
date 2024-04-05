@@ -15,48 +15,48 @@
  */
 package com.dremio.exec.store.dfs.system;
 
-import java.util.List;
-
-import org.apache.iceberg.Schema;
-
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.store.dfs.copyinto.CopyErrorsHistoryViewMetadata;
 import com.dremio.exec.store.dfs.copyinto.CopyErrorsHistoryViewSchemaProvider;
 import com.dremio.options.OptionManager;
 import com.google.common.collect.ImmutableList;
+import java.util.List;
+import org.apache.iceberg.Schema;
 
 /**
- * {@code SystemIcebergViewMetadataFactory} is a factory class responsible for creating system Iceberg view metadata and
- * checking the supportability of such views.
+ * {@code SystemIcebergViewMetadataFactory} is a factory class responsible for creating system
+ * Iceberg view metadata and checking the supportability of such views.
  */
 public final class SystemIcebergViewMetadataFactory {
 
-  /**
-   * The name of the "copy errors history" system Iceberg view.
-   */
+  /** The name of the "copy errors history" system Iceberg view. */
   public static final String COPY_ERRORS_HISTORY_VIEW_NAME = "copy_errors_history";
 
-  private static final List<String> SUPPORTED_VIEWS = ImmutableList.of(COPY_ERRORS_HISTORY_VIEW_NAME);
+  private static final List<String> SUPPORTED_VIEWS =
+      ImmutableList.of(COPY_ERRORS_HISTORY_VIEW_NAME);
 
   /**
    * Constructs a new instance of the factory class. (Private constructor to prevent instantiation)
    */
-  private SystemIcebergViewMetadataFactory() {
-  }
+  private SystemIcebergViewMetadataFactory() {}
 
   /**
-   * Get the metadata for a system Iceberg view based on the provided option manager and view schema path.
+   * Get the metadata for a system Iceberg view based on the provided option manager and view schema
+   * path.
    *
-   * @param optionManager  The {@link OptionManager} containing system Iceberg tables schema version.
+   * @param optionManager The {@link OptionManager} containing system Iceberg tables schema version.
    * @param viewSchemaPath The path to the system Iceberg view.
    * @return The {@link SystemIcebergViewMetadata} instance for the provided view.
    * @throws IllegalArgumentException If the view schema path is not supported.
    */
-  public static SystemIcebergViewMetadata getViewMetadata(OptionManager optionManager, List<String> viewSchemaPath) {
-    long schemaVersion = optionManager.getOption(ExecConstants.SYSTEM_ICEBERG_TABLES_SCHEMA_VERSION);
+  public static SystemIcebergViewMetadata getViewMetadata(
+      OptionManager optionManager, List<String> viewSchemaPath) {
+    long schemaVersion =
+        optionManager.getOption(ExecConstants.SYSTEM_ICEBERG_TABLES_SCHEMA_VERSION);
     if (viewSchemaPath.stream().anyMatch(COPY_ERRORS_HISTORY_VIEW_NAME::equalsIgnoreCase)) {
       Schema schema = CopyErrorsHistoryViewSchemaProvider.getSchema(schemaVersion);
-      return new CopyErrorsHistoryViewMetadata(schema, schemaVersion, COPY_ERRORS_HISTORY_VIEW_NAME);
+      return new CopyErrorsHistoryViewMetadata(
+          schema, schemaVersion, COPY_ERRORS_HISTORY_VIEW_NAME);
     }
     throw new IllegalArgumentException("Invalid system Iceberg view: " + viewSchemaPath);
   }

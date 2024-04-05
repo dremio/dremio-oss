@@ -15,10 +15,14 @@
  */
 package com.dremio.exec.planner.physical;
 
+import com.dremio.exec.planner.logical.RelOptHelper;
+import com.dremio.exec.planner.logical.UnionRel;
+import com.dremio.exec.planner.physical.DistributionTrait.DistributionField;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
-
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelTraitSet;
@@ -29,26 +33,19 @@ import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.util.trace.CalciteTrace;
 import org.slf4j.Logger;
 
-import com.dremio.exec.planner.logical.RelOptHelper;
-import com.dremio.exec.planner.logical.UnionRel;
-import com.dremio.exec.planner.physical.DistributionTrait.DistributionField;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
-
 public class UnionAllPrule extends Prule {
   public static final RelOptRule INSTANCE = new UnionAllPrule();
   protected static final Logger tracer = CalciteTrace.getPlannerTracer();
 
   private UnionAllPrule() {
-    super(
-        RelOptHelper.any(UnionRel.class), "Prel.UnionAllPrule");
+    super(RelOptHelper.any(UnionRel.class), "Prel.UnionAllPrule");
   }
 
   @Override
   public boolean matches(RelOptRuleCall call) {
     UnionRel union = call.rel(0);
     final RelMetadataQuery mq = union.getCluster().getMetadataQuery();
-    return (! Boolean.TRUE.equals(mq.areRowsUnique(union)));
+    return (!Boolean.TRUE.equals(mq.areRowsUnique(union)));
   }
 
   @Override
@@ -71,7 +68,11 @@ public class UnionAllPrule extends Prule {
         final PlannerSettings plannerSettings = PrelUtil.getPlannerSettings(call.getPlanner());
         final RelTraitSet traitsChild;
         if (plannerSettings.getOptions().getOption(PlannerSettings.ENABLE_UNIONALL_ROUND_ROBIN)) {
-          traitsChild = call.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL).plus(DistributionTrait.ROUND_ROBIN);
+          traitsChild =
+              call.getPlanner()
+                  .emptyTraitSet()
+                  .plus(Prel.PHYSICAL)
+                  .plus(DistributionTrait.ROUND_ROBIN);
         } else {
           /*
            * Strictly speaking, union-all does not need re-distribution of data; but in Dremio's execution
@@ -80,7 +81,10 @@ public class UnionAllPrule extends Prule {
            * and children. (See DRILL-4833).
            * Note that a round robin distribution would have sufficed but we don't have one.
            */
-          DistributionTrait hashChild = new DistributionTrait(DistributionTrait.DistributionType.HASH_DISTRIBUTED, ImmutableList.copyOf(childDistFields));
+          DistributionTrait hashChild =
+              new DistributionTrait(
+                  DistributionTrait.DistributionType.HASH_DISTRIBUTED,
+                  ImmutableList.copyOf(childDistFields));
           traitsChild = call.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL).plus(hashChild);
         }
         convertedChild = convert(child, PrelUtil.fixTraits(call, traitsChild));
@@ -92,17 +96,22 @@ public class UnionAllPrule extends Prule {
       convertedInputList.add(convertedChild);
     }
 
-    Preconditions.checkArgument(convertedInputList.size() >= 2, "Union list must be at least two items.");
+    Preconditions.checkArgument(
+        convertedInputList.size() >= 2, "Union list must be at least two items.");
 
     try {
       RelTraitSet traits;
       if (allHashDistributed) {
-        // since all children of union-all are hash distributed, propagate the traits of the left child
+        // since all children of union-all are hash distributed, propagate the traits of the left
+        // child
         traits = convertedInputList.peekFirst().getTraitSet();
       } else {
-        // output distribution trait is set to ANY since union-all inputs may be distributed in different ways
-        // and unlike a join there are no join keys that allow determining how the output would be distributed.
-        // Note that a downstream operator may impose a required distribution which would be satisfied by
+        // output distribution trait is set to ANY since union-all inputs may be distributed in
+        // different ways
+        // and unlike a join there are no join keys that allow determining how the output would be
+        // distributed.
+        // Note that a downstream operator may impose a required distribution which would be
+        // satisfied by
         // inserting an Exchange after the Union-All.
         traits = call.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL).plus(DistributionTrait.ANY);
       }
@@ -117,16 +126,22 @@ public class UnionAllPrule extends Prule {
             RelNode first = convertedInputList.poll();
             RelNode second = convertedInputList.poll();
 
-            // Adding precondition checks because for some reason, checkstyle thinks these nodes can be null
+            // Adding precondition checks because for some reason, checkstyle thinks these nodes can
+            // be null
             Preconditions.checkArgument(first != null, "Union's first child cannot be null");
             Preconditions.checkArgument(second != null, "Union's second child cannot be null");
 
-            unions.add(new UnionAllPrel(
-              union.getCluster(), traits, ImmutableList.of(first, second),
-              false /* compatibility already checked during logical phase */));
+            unions.add(
+                new UnionAllPrel(
+                    union.getCluster(),
+                    traits,
+                    ImmutableList.of(first, second),
+                    false /* compatibility already checked during logical phase */));
           }
         }
-        convertedInputList = unions; // Assign this back to the convertedInputList, so we can reiterate on it until we consume every node
+        convertedInputList =
+            unions; // Assign this back to the convertedInputList, so we can reiterate on it until
+        // we consume every node
       }
 
       call.transformTo(convertedInputList.poll());
@@ -135,5 +150,4 @@ public class UnionAllPrule extends Prule {
       tracer.warn(e.toString());
     }
   }
-
 }

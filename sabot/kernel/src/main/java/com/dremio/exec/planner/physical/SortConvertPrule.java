@@ -23,14 +23,19 @@ import org.apache.calcite.rel.convert.ConverterRule;
 import org.apache.calcite.rel.core.Sort;
 
 /**
- * Rule that converts an {@link Sort} to a physical {@link SortPrel}, implemented by a Dremio "order" operation.
+ * Rule that converts an {@link Sort} to a physical {@link SortPrel}, implemented by a Dremio
+ * "order" operation.
  *
- * The {@link Sort} is added in optiq's AbstractConvert call, when it enforces certain "order" to the input stream.
- * Dremio uses this rule to convert such sort enforcer into physical {@link SortPrel}.
+ * <p>The {@link Sort} is added in optiq's AbstractConvert call, when it enforces certain "order" to
+ * the input stream. Dremio uses this rule to convert such sort enforcer into physical {@link
+ * SortPrel}.
  */
 public class SortConvertPrule extends ConverterRule {
-  public static final RelOptRule INSTANCE = new SortConvertPrule("SortConvertPrule", Convention.NONE);
-  //public static final RelOptRule INSTANCE_SRC_LOGICAL = new SortPrule("SortPrule:Src_Logical", Rel.LOGICAL);
+  public static final RelOptRule INSTANCE =
+      new SortConvertPrule("SortConvertPrule", Convention.NONE);
+
+  // public static final RelOptRule INSTANCE_SRC_LOGICAL = new SortPrule("SortPrule:Src_Logical",
+  // Rel.LOGICAL);
 
   private SortConvertPrule(String description, Convention srcConvention) {
     super(Sort.class, srcConvention, Prel.PHYSICAL, description);
@@ -45,9 +50,10 @@ public class SortConvertPrule extends ConverterRule {
   @Override
   public RelNode convert(RelNode r) {
     Sort rel = (Sort) r;
-    return SortPrel.create(rel.getCluster(),
-                           rel.getInput().getTraitSet().replace(Prel.PHYSICAL).plus(rel.getCollation()),
-                           convert(rel.getInput(), rel.getInput().getTraitSet().replace(Prel.PHYSICAL).simplify()),
-                           rel.getCollation());
+    return SortPrel.create(
+        rel.getCluster(),
+        rel.getInput().getTraitSet().replace(Prel.PHYSICAL).plus(rel.getCollation()),
+        convert(rel.getInput(), rel.getInput().getTraitSet().replace(Prel.PHYSICAL).simplify()),
+        rel.getCollation());
   }
 }

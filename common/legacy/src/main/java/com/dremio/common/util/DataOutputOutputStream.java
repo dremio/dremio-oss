@@ -15,29 +15,28 @@
  */
 package com.dremio.common.util;
 
-// The following code was copied from hadoop. This class is not available in hadoop 1.2.1, but is in Hadoop 2.x. If
+// The following code was copied from hadoop. This class is not available in hadoop 1.2.1, but is in
+// Hadoop 2.x. If
 // we switch to using hadoop 2.0, we can remove this code.
 
 import java.io.DataOutput;
 import java.io.IOException;
 import java.io.OutputStream;
 
-
 public final class DataOutputOutputStream extends OutputStream {
 
   private final DataOutput out;
 
   /**
-   * Construct an OutputStream from the given DataOutput. If 'out'
-   * is already an OutputStream, simply returns it. Otherwise, wraps
-   * it in an OutputStream.
+   * Construct an OutputStream from the given DataOutput. If 'out' is already an OutputStream,
+   * simply returns it. Otherwise, wraps it in an OutputStream.
+   *
    * @param out the DataOutput to wrap
    * @return an OutputStream instance that outputs to 'out'
    */
-
   public static OutputStream constructOutputStream(DataOutput out) {
     if (out instanceof OutputStream) {
-      return (OutputStream)out;
+      return (OutputStream) out;
     } else {
       return new DataOutputOutputStream(out);
     }

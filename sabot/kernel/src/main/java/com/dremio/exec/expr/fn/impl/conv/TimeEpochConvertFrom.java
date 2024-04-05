@@ -15,11 +15,6 @@
  */
 package com.dremio.exec.expr.fn.impl.conv;
 
-import javax.inject.Inject;
-
-import org.apache.arrow.vector.holders.TimeMilliHolder;
-import org.apache.arrow.vector.holders.VarBinaryHolder;
-
 import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.FunctionTemplate.FunctionScope;
@@ -27,8 +22,14 @@ import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
 import com.dremio.exec.expr.fn.FunctionErrorContext;
+import javax.inject.Inject;
+import org.apache.arrow.vector.holders.TimeMilliHolder;
+import org.apache.arrow.vector.holders.VarBinaryHolder;
 
-@FunctionTemplate(name = "convert_fromTIME_EPOCH", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+@FunctionTemplate(
+    name = "convert_fromTIME_EPOCH",
+    scope = FunctionScope.SIMPLE,
+    nulls = NullHandling.NULL_IF_NULL)
 public class TimeEpochConvertFrom implements SimpleFunction {
 
   @Param VarBinaryHolder in;
@@ -36,13 +37,14 @@ public class TimeEpochConvertFrom implements SimpleFunction {
   @Inject FunctionErrorContext errorContext;
 
   @Override
-  public void setup() { }
+  public void setup() {}
 
   @Override
   public void eval() {
-    com.dremio.exec.util.ByteBufUtil.checkBufferLength(errorContext, in.buffer, in.start, in.end, 8);
+    com.dremio.exec.util.ByteBufUtil.checkBufferLength(
+        errorContext, in.buffer, in.start, in.end, 8);
 
     long epochMillis = in.buffer.getLong(in.start);
-    out.value = (int) (epochMillis % (24*3600*1000));
+    out.value = (int) (epochMillis % (24 * 3600 * 1000));
   }
 }

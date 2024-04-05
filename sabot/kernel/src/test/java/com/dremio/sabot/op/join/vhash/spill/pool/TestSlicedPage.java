@@ -18,6 +18,7 @@ package com.dremio.sabot.op.join.vhash.spill.pool;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 
+import com.dremio.common.AutoCloseables;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
@@ -25,11 +26,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import com.dremio.common.AutoCloseables;
-
-/**
- * Test SlicedPage.
- */
+/** Test SlicedPage. */
 public class TestSlicedPage {
   private BufferAllocator allocator;
 
@@ -49,8 +46,8 @@ public class TestSlicedPage {
     p.initialRetain();
 
     try (Page capped = new PageSlice(p, 9);
-         ArrowBuf b1 = capped.slice(4);
-         ArrowBuf b2 = capped.slice(5)) {
+        ArrowBuf b1 = capped.slice(4);
+        ArrowBuf b2 = capped.slice(5)) {
       // test for no exceptions
     }
     p.close();
@@ -63,10 +60,9 @@ public class TestSlicedPage {
     p.initialRetain();
 
     try (Page capped = new PageSlice(p, 9);
-         ArrowBuf b1 = capped.slice(4)) {
+        ArrowBuf b1 = capped.slice(4)) {
       // slicing beyond the cap should throw an exception
-      assertThatThrownBy(() -> capped.slice(6))
-        .isInstanceOf(IndexOutOfBoundsException.class);
+      assertThatThrownBy(() -> capped.slice(6)).isInstanceOf(IndexOutOfBoundsException.class);
     } finally {
       p.close();
       p.deallocate();
@@ -79,8 +75,8 @@ public class TestSlicedPage {
     p.initialRetain();
 
     try (Page capped = new PageSlice(p, 9);
-         ArrowBuf b1 = capped.slice(4)) {
-         capped.deadSlice(5);
+        ArrowBuf b1 = capped.slice(4)) {
+      capped.deadSlice(5);
     }
     p.close();
     p.deallocate();
@@ -92,10 +88,9 @@ public class TestSlicedPage {
     p.initialRetain();
 
     try (Page capped = new PageSlice(p, 9);
-         ArrowBuf b1 = capped.slice(4)) {
+        ArrowBuf b1 = capped.slice(4)) {
       // slicing beyond the cap should throw an exception
-      assertThatThrownBy(() -> capped.deadSlice(6))
-        .isInstanceOf(IndexOutOfBoundsException.class);
+      assertThatThrownBy(() -> capped.deadSlice(6)).isInstanceOf(IndexOutOfBoundsException.class);
     } finally {
       p.close();
       p.deallocate();
@@ -108,8 +103,8 @@ public class TestSlicedPage {
     p.initialRetain();
 
     try (Page capped = new PageSlice(p, 16);
-         ArrowBuf b1 = capped.slice(1);
-         ArrowBuf b2 = capped.sliceAligned(8)) {
+        ArrowBuf b1 = capped.slice(1);
+        ArrowBuf b2 = capped.sliceAligned(8)) {
       assertEquals(0, capped.getRemainingBytes());
     }
     p.close();

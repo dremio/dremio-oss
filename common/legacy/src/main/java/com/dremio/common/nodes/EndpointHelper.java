@@ -15,15 +15,14 @@
  */
 package com.dremio.common.nodes;
 
+import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
+import com.google.common.base.Preconditions;
 import java.util.Collection;
 import java.util.stream.Collectors;
 
-import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
-import com.google.common.base.Preconditions;
-
 /**
- * Helper class to build minimal endpoints. Used in rpcs sent to executor nodes, and to track
- * status of running fragments.
+ * Helper class to build minimal endpoints. Used in rpcs sent to executor nodes, and to track status
+ * of running fragments.
  */
 public class EndpointHelper {
 
@@ -47,8 +46,8 @@ public class EndpointHelper {
 
   public static String getMinimalString(Collection<NodeEndpoint> endpoints) {
     return endpoints.stream()
-      .map(EndpointHelper::getMinimalString)
-      .collect(Collectors.joining(","));
+        .map(EndpointHelper::getMinimalString)
+        .collect(Collectors.joining(","));
   }
 
   public static NodeEndpoint hostPortStrToConduitEndpoint(String hostPortString) {

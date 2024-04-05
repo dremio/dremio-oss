@@ -15,10 +15,10 @@
  */
 package com.dremio.exec.vector;
 
+import com.dremio.common.util.ObjectType;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
@@ -36,8 +36,6 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.util.CallBack;
 import org.apache.arrow.vector.util.TransferPair;
-
-import com.dremio.common.util.ObjectType;
 
 public class ObjectVector extends BaseValueVector implements FieldVector {
   private final String name;
@@ -72,7 +70,6 @@ public class ObjectVector extends BaseValueVector implements FieldVector {
     throw new UnsupportedOperationException("ObjectVector does not support this");
   }
 
-
   public void set(int index, Object obj) {
     int listOffset = index / allocationSize;
     if (listOffset >= objectArrayList.size()) {
@@ -95,7 +92,7 @@ public class ObjectVector extends BaseValueVector implements FieldVector {
     set(index, null);
   }
 
-  public boolean setSafe(int index, ObjectHolder holder){
+  public boolean setSafe(int index, ObjectHolder holder) {
     set(index, holder);
     return true;
   }
@@ -113,7 +110,7 @@ public class ObjectVector extends BaseValueVector implements FieldVector {
     addNewArray();
   }
 
-  public void generateTestData(int values) { }
+  public void generateTestData(int values) {}
 
   @Override
   public void setInitialCapacity(int numRecords) {
@@ -215,13 +212,14 @@ public class ObjectVector extends BaseValueVector implements FieldVector {
   }
 
   @Override
-  public TransferPair getTransferPair(String s, BufferAllocator bufferAllocator, CallBack callBack) {
+  public TransferPair getTransferPair(
+      String s, BufferAllocator bufferAllocator, CallBack callBack) {
     throw new UnsupportedOperationException("ObjectVector does not support this");
   }
 
   @Override
-  public TransferPair getTransferPair(Field field, BufferAllocator bufferAllocator,
-    CallBack callBack) {
+  public TransferPair getTransferPair(
+      Field field, BufferAllocator bufferAllocator, CallBack callBack) {
     throw new UnsupportedOperationException("ObjectVector does not support this");
   }
 
@@ -235,15 +233,15 @@ public class ObjectVector extends BaseValueVector implements FieldVector {
     throw new UnsupportedOperationException("ObjectVector does not support this");
   }
 
-//  @Override
-//  public void load(UserBitShared.SerializedField metadata, ArrowBuf buffer) {
-//    throw new UnsupportedOperationException("ObjectVector does not support this");
-//  }
-//
-//  @Override
-//  public UserBitShared.SerializedField getMetadata() {
-//    throw new UnsupportedOperationException("ObjectVector does not support this");
-//  }
+  //  @Override
+  //  public void load(UserBitShared.SerializedField metadata, ArrowBuf buffer) {
+  //    throw new UnsupportedOperationException("ObjectVector does not support this");
+  //  }
+  //
+  //  @Override
+  //  public UserBitShared.SerializedField getMetadata() {
+  //    throw new UnsupportedOperationException("ObjectVector does not support this");
+  //  }
 
   @Override
   public Iterator<ValueVector> iterator() {
@@ -278,7 +276,7 @@ public class ObjectVector extends BaseValueVector implements FieldVector {
     return getObject(index);
   }
 
-  public void get(int index, ObjectHolder holder){
+  public void get(int index, ObjectHolder holder) {
     holder.obj = getObject(index);
   }
 

@@ -15,25 +15,26 @@
  */
 package com.dremio.sabot.op.receiver.merging;
 
-import javax.inject.Named;
-
 import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.sabot.exec.context.FunctionContext;
+import javax.inject.Named;
 
 public abstract class MergerTemplate implements Merger {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MergerTemplate.class);
 
-  public MergerTemplate() throws SchemaChangeException { }
+  public MergerTemplate() throws SchemaChangeException {}
 
   @Override
-  public abstract void doSetup(@Named("context") FunctionContext context,
-                               @Named("incoming") VectorAccessible incoming,
-                               @Named("outgoing") VectorAccessible outgoing) throws SchemaChangeException;
+  public abstract void doSetup(
+      @Named("context") FunctionContext context,
+      @Named("incoming") VectorAccessible incoming,
+      @Named("outgoing") VectorAccessible outgoing)
+      throws SchemaChangeException;
 
   @Override
-  public abstract int doEval(@Named("leftIndex") int leftIndex,
-                                @Named("rightIndex") int rightIndex);
+  public abstract int doEval(
+      @Named("leftIndex") int leftIndex, @Named("rightIndex") int rightIndex);
 
   @Override
   public abstract void doCopy(@Named("inIndex") int inIndex, @Named("outIndex") int outIndex);

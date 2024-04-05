@@ -17,75 +17,79 @@ package com.dremio.datastore;
 
 import static com.dremio.datastore.indexed.IndexKey.LOWER_CASE_SUFFIX;
 
+import com.dremio.datastore.indexed.IndexKey;
+import com.dremio.exec.proto.SearchProtos;
+import com.google.common.base.Preconditions;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import com.dremio.datastore.indexed.IndexKey;
-import com.dremio.exec.proto.SearchProtos;
-import com.google.common.base.Preconditions;
-
-/**
- * A collection of helper methods for creating Indexed Search Query
- */
+/** A collection of helper methods for creating Indexed Search Query */
 public class IndexedSearchQueryConverterUtil {
 
-  private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(IndexedSearchQueryConverterUtil.class);
+  private static final org.slf4j.Logger LOGGER =
+      org.slf4j.LoggerFactory.getLogger(IndexedSearchQueryConverterUtil.class);
 
-  public static SearchTypes.SearchQuery toSearchQuery(SearchProtos.SearchQuery searchQuery, Map<String, IndexKey> indexMap) {
+  public static SearchTypes.SearchQuery toSearchQuery(
+      SearchProtos.SearchQuery searchQuery, Map<String, IndexKey> indexMap) {
     IndexKey key;
     List<SearchTypes.SearchQuery> searchQueryList;
-    switch (searchQuery.getQueryCase())
-    {
+    switch (searchQuery.getQueryCase()) {
       case EQUALS:
         switch (searchQuery.getEquals().getValueCase()) {
           case INTVALUE:
             key = indexMap.get(searchQuery.getEquals().getField());
 
             if (key == null) {
-              LOGGER.debug("The filter on field {} is not pushed down as it is not indexed", searchQuery.getEquals().getField());
+              LOGGER.debug(
+                  "The filter on field {} is not pushed down as it is not indexed",
+                  searchQuery.getEquals().getField());
               return null;
             }
-            return SearchQueryUtils.newTermQuery(key.getIndexFieldName(),
-              searchQuery.getEquals().getIntValue());
+            return SearchQueryUtils.newTermQuery(
+                key.getIndexFieldName(), searchQuery.getEquals().getIntValue());
 
           case STRINGVALUE:
             key = indexMap.get(searchQuery.getEquals().getField());
 
             if (key == null) {
-              LOGGER.debug("The filter on field {} is not pushed down as it is not indexed", searchQuery.getEquals().getField());
+              LOGGER.debug(
+                  "The filter on field {} is not pushed down as it is not indexed",
+                  searchQuery.getEquals().getField());
               return null;
             }
 
-            //If we receive ProtocolMessageEnum label in search request but the index is on its Number value
-            if (key.getValueType().equals(Integer.class) && key.getConverter()!=null) {
-              return SearchQueryUtils.newTermQuery(key.getIndexFieldName(),
-                (Integer) key.getConverter().apply(searchQuery.getEquals().getStringValue()));
+            // If we receive ProtocolMessageEnum label in search request but the index is on its
+            // Number value
+            if (key.getValueType().equals(Integer.class) && key.getConverter() != null) {
+              return SearchQueryUtils.newTermQuery(
+                  key.getIndexFieldName(),
+                  (Integer) key.getConverter().apply(searchQuery.getEquals().getStringValue()));
             }
-            return SearchQueryUtils.newTermQuery(key.getIndexFieldName(),
-              searchQuery.getEquals().getStringValue());
+            return SearchQueryUtils.newTermQuery(
+                key.getIndexFieldName(), searchQuery.getEquals().getStringValue());
 
           case VALUE_NOT_SET:
           default:
-            throw new UnsupportedOperationException(String.format("%s is not supported",
-              searchQuery.getEquals().getValueCase()));
+            throw new UnsupportedOperationException(
+                String.format("%s is not supported", searchQuery.getEquals().getValueCase()));
         }
       case AND:
-        searchQueryList = searchQuery.getAnd()
-          .getClausesList()
-          .stream()
-          .map((query) -> {
-              LOGGER.debug("Calling and query {}", query);
-              return toSearchQuery(query, indexMap);
-          })
-          .filter(q -> q != null)
-          .collect(Collectors.toList());
-        LOGGER.info("After and query filter collect part {}",searchQueryList);
+        searchQueryList =
+            searchQuery.getAnd().getClausesList().stream()
+                .map(
+                    (query) -> {
+                      LOGGER.debug("Calling and query {}", query);
+                      return toSearchQuery(query, indexMap);
+                    })
+                .filter(q -> q != null)
+                .collect(Collectors.toList());
+        LOGGER.info("After and query filter collect part {}", searchQueryList);
 
         if (searchQueryList.size() == 0) {
           return null;
-        } else{
+        } else {
           return SearchQueryUtils.and(searchQueryList);
         }
 
@@ -95,7 +99,9 @@ public class IndexedSearchQueryConverterUtil {
           try {
             SearchTypes.SearchQuery currSearchQuery = toSearchQuery(query, indexMap);
             if (currSearchQuery == null) {
-              LOGGER.debug("Skipping creating OR search query as one of the clause is not a push down query, {}", searchQuery);
+              LOGGER.debug(
+                  "Skipping creating OR search query as one of the clause is not a push down query, {}",
+                  searchQuery);
               return null;
             }
             searchQueryList.add(currSearchQuery);
@@ -107,43 +113,46 @@ public class IndexedSearchQueryConverterUtil {
       case LIKE:
         key = indexMap.get(searchQuery.getLike().getField());
         if (key == null) {
-          LOGGER.debug("The filter on field {} is not pushed down as it is not indexed", searchQuery.getLike().getField());
+          LOGGER.debug(
+              "The filter on field {} is not pushed down as it is not indexed",
+              searchQuery.getLike().getField());
           return null;
         }
-        final String escape = searchQuery.getLike().getEscape().isEmpty() ? null :
-          searchQuery.getLike().getEscape();
-        return getLikeQuery(key.getIndexFieldName(),
-          searchQuery.getLike().getPattern(), escape, searchQuery.getLike().getCaseInsensitive());
+        final String escape =
+            searchQuery.getLike().getEscape().isEmpty() ? null : searchQuery.getLike().getEscape();
+        return getLikeQuery(
+            key.getIndexFieldName(),
+            searchQuery.getLike().getPattern(),
+            escape,
+            searchQuery.getLike().getCaseInsensitive());
 
       case GREATER_THAN:
         key = indexMap.get(searchQuery.getGreaterThan().getField());
         if (key == null) {
-          LOGGER.debug("The filter on field {} is not pushed down as it is not indexed",
-            searchQuery.getGreaterThan().getField());
+          LOGGER.debug(
+              "The filter on field {} is not pushed down as it is not indexed",
+              searchQuery.getGreaterThan().getField());
           return null;
         }
-        return SearchQueryUtils.newRangeLong(key.getIndexFieldName(),
-          searchQuery.getGreaterThan().getValue(), null, false, false);
+        return SearchQueryUtils.newRangeLong(
+            key.getIndexFieldName(), searchQuery.getGreaterThan().getValue(), null, false, false);
 
       default:
       case QUERY_NOT_SET:
-        throw new UnsupportedOperationException(String.format("%s is not supported",
-          searchQuery.getQueryCase()));
+        throw new UnsupportedOperationException(
+            String.format("%s is not supported", searchQuery.getQueryCase()));
     }
   }
 
   public static SearchTypes.SearchQuery getLikeQuery(
-    String fieldName,
-    String pattern,
-    String escape,
-    boolean caseInsensitive
-  ){
-    Preconditions.checkArgument(escape == null || escape.length() == 1, "An escape must be a single character.");
+      String fieldName, String pattern, String escape, boolean caseInsensitive) {
+    Preconditions.checkArgument(
+        escape == null || escape.length() == 1, "An escape must be a single character.");
     StringBuilder sb = new StringBuilder();
     final char e = escape == null ? '\\' : escape.charAt(0);
     boolean escaped = false;
 
-    for (int i = 0; i < pattern.length(); i++){
+    for (int i = 0; i < pattern.length(); i++) {
       char c = pattern.charAt(i);
 
       if (escaped) {
@@ -158,17 +167,17 @@ public class IndexedSearchQueryConverterUtil {
         continue;
       }
 
-      switch (c){
+      switch (c) {
         case '%':
           sb.append("*");
           break;
 
-        // ESCAPE * if it occurs
+          // ESCAPE * if it occurs
         case '*':
           sb.append("\\*");
           break;
 
-        // ESCAPE ? if it occurs
+          // ESCAPE ? if it occurs
         case '?':
           sb.append("\\?");
           break;
@@ -179,10 +188,10 @@ public class IndexedSearchQueryConverterUtil {
       }
     }
     if (caseInsensitive) {
-      return SearchQueryUtils.newWildcardQuery(fieldName + LOWER_CASE_SUFFIX, sb.toString().toLowerCase());
+      return SearchQueryUtils.newWildcardQuery(
+          fieldName + LOWER_CASE_SUFFIX, sb.toString().toLowerCase());
     } else {
       return SearchQueryUtils.newWildcardQuery(fieldName, sb.toString());
     }
   }
-
 }

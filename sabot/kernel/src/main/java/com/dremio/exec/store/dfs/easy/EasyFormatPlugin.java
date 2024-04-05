@@ -15,9 +15,6 @@
  */
 package com.dremio.exec.store.dfs.easy;
 
-import java.io.IOException;
-import java.util.List;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.logical.FormatPluginConfig;
@@ -51,8 +48,9 @@ import com.dremio.sabot.exec.store.easy.proto.EasyProtobuf.EasyDatasetSplitXAttr
 import com.dremio.sabot.op.writer.WriterOperator;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
-
 import io.protostuff.ByteString;
+import java.io.IOException;
+import java.util.List;
 
 public abstract class EasyFormatPlugin<T extends FormatPluginConfig> extends BaseFormatPlugin {
 
@@ -65,9 +63,17 @@ public abstract class EasyFormatPlugin<T extends FormatPluginConfig> extends Bas
   private final String name;
   private final boolean compressible;
 
-  protected EasyFormatPlugin(String name, SabotContext context,
-      T formatConfig, boolean readable, boolean writable, boolean blockSplittable,
-      boolean compressible, List<String> extensions, String defaultName, FileSystemPlugin<?> fsPlugin) {
+  protected EasyFormatPlugin(
+      String name,
+      SabotContext context,
+      T formatConfig,
+      boolean readable,
+      boolean writable,
+      boolean blockSplittable,
+      boolean compressible,
+      List<String> extensions,
+      String defaultName,
+      FileSystemPlugin<?> fsPlugin) {
     super(context, fsPlugin);
     this.matcher = new BasicFormatMatcher(this, extensions, compressible);
     this.readable = readable;
@@ -92,8 +98,8 @@ public abstract class EasyFormatPlugin<T extends FormatPluginConfig> extends Bas
   public abstract boolean supportsPushDown();
 
   /**
-   * Whether or not you can split the format based on blocks within file boundaries. If not, the simple format engine will
-   * only split on file boundaries.
+   * Whether or not you can split the format based on blocks within file boundaries. If not, the
+   * simple format engine will only split on file boundaries.
    *
    * @return True if splittable.
    */
@@ -101,8 +107,10 @@ public abstract class EasyFormatPlugin<T extends FormatPluginConfig> extends Bas
     return blockSplittable;
   }
 
-  /** Method indicates whether or not this format could also be in a compression container (for example: csv.gz versus csv).
-   * If this format uses its own internal compression scheme, such as Parquet does, then this should return false.
+  /**
+   * Method indicates whether or not this format could also be in a compression container (for
+   * example: csv.gz versus csv). If this format uses its own internal compression scheme, such as
+   * Parquet does, then this should return false.
    */
   public boolean isCompressible() {
     return compressible;
@@ -112,50 +120,58 @@ public abstract class EasyFormatPlugin<T extends FormatPluginConfig> extends Bas
       OperatorContext context,
       FileSystem dfs,
       EasyDatasetSplitXAttr splitAttributes,
-      List<SchemaPath> columns) throws ExecutionSetupException;
+      List<SchemaPath> columns)
+      throws ExecutionSetupException;
 
   public RecordReader getRecordReader(
-    OperatorContext context,
-    FileSystem dfs,
-    EasyDatasetSplitXAttr splitAttributes,
-    List<SchemaPath> columns,
-    ExtendedEasyReaderProperties properties,
-    ByteString extendedProperties) throws ExecutionSetupException {
+      OperatorContext context,
+      FileSystem dfs,
+      EasyDatasetSplitXAttr splitAttributes,
+      List<SchemaPath> columns,
+      ExtendedEasyReaderProperties properties,
+      ByteString extendedProperties)
+      throws ExecutionSetupException {
     return getRecordReader(context, dfs, splitAttributes, columns);
   }
 
   public RecordReader getRecordReader(
-    OperatorContext context,
-    FileSystem dfs,
-    SplitAndPartitionInfo split,
-    EasyDatasetSplitXAttr splitAttributes,
-    List<SchemaPath> columns,
-    FragmentExecutionContext fec,
-    EasySubScan config) throws ExecutionSetupException {
-      return getRecordReader(context, dfs, splitAttributes, columns, config);
+      OperatorContext context,
+      FileSystem dfs,
+      SplitAndPartitionInfo split,
+      EasyDatasetSplitXAttr splitAttributes,
+      List<SchemaPath> columns,
+      FragmentExecutionContext fec,
+      EasySubScan config)
+      throws ExecutionSetupException {
+    return getRecordReader(context, dfs, splitAttributes, columns, config);
   }
 
   protected RecordReader getRecordReader(
-    OperatorContext context,
-    FileSystem dfs,
-    EasyDatasetSplitXAttr splitAttributes,
-    List<SchemaPath> columns,
-    EasySubScan config) throws ExecutionSetupException {
+      OperatorContext context,
+      FileSystem dfs,
+      EasyDatasetSplitXAttr splitAttributes,
+      List<SchemaPath> columns,
+      EasySubScan config)
+      throws ExecutionSetupException {
     return getRecordReader(context, dfs, splitAttributes, columns);
   }
 
   @Override
-  public RecordReader getRecordReader(OperatorContext context, FileSystem dfs, FileAttributes attributes) throws ExecutionSetupException {
-    EasyDatasetSplitXAttr attr = EasyDatasetSplitXAttr.newBuilder()
-        .setPath(attributes.getPath().toString())
-        .setStart(0L)
-        .setLength(attributes.size())
-        .build();
+  public RecordReader getRecordReader(
+      OperatorContext context, FileSystem dfs, FileAttributes attributes)
+      throws ExecutionSetupException {
+    EasyDatasetSplitXAttr attr =
+        EasyDatasetSplitXAttr.newBuilder()
+            .setPath(attributes.getPath().toString())
+            .setStart(0L)
+            .setLength(attributes.size())
+            .build();
 
     return getRecordReader(context, dfs, attr, GroupScan.ALL_COLUMNS);
   }
 
-  public RecordWriter getRecordWriter(OperatorContext context, EasyWriter writer) throws IOException{
+  public RecordWriter getRecordWriter(OperatorContext context, EasyWriter writer)
+      throws IOException {
     throw new UnsupportedOperationException("unimplemented");
   }
 
@@ -163,22 +179,31 @@ public abstract class EasyFormatPlugin<T extends FormatPluginConfig> extends Bas
       throws ExecutionSetupException {
     try {
       return new WriterOperator(context, writer.getOptions(), getRecordWriter(context, writer));
-    } catch(IOException e) {
-      throw new ExecutionSetupException(String.format("Failed to create the WriterRecordBatch. %s", e.getMessage()), e);
+    } catch (IOException e) {
+      throw new ExecutionSetupException(
+          String.format("Failed to create the WriterRecordBatch. %s", e.getMessage()), e);
     }
   }
 
   @Override
-  public AbstractWriter getWriter(PhysicalOperator child, String location, FileSystemPlugin<?> plugin, WriterOptions options, OpProps props) throws IOException{
+  public AbstractWriter getWriter(
+      PhysicalOperator child,
+      String location,
+      FileSystemPlugin<?> plugin,
+      WriterOptions options,
+      OpProps props)
+      throws IOException {
     return new EasyWriter(props, child, props.getUserName(), location, options, plugin, this);
   }
 
   public EasyGroupScanUtils getGroupScan(
-    String userName,
-    FileSystemPlugin<?> plugin,
-    FileSelection selection,
-    List<SchemaPath> columns) throws IOException {
-    return new EasyGroupScanUtils(userName, selection, plugin, this, columns, selection.getSelectionRoot(), false);
+      String userName,
+      FileSystemPlugin<?> plugin,
+      FileSelection selection,
+      List<SchemaPath> columns)
+      throws IOException {
+    return new EasyGroupScanUtils(
+        userName, selection, plugin, this, columns, selection.getSelectionRoot(), false);
   }
 
   @Override
@@ -207,11 +232,15 @@ public abstract class EasyFormatPlugin<T extends FormatPluginConfig> extends Bas
   }
 
   public abstract int getReaderOperatorType();
+
   public abstract int getWriterOperatorType();
 
-  protected RecordReaderIterator getRecordReaderIterator(FileSystem fs, OperatorContext opCtx,
-                                                      List<SchemaPath> innerFields, EasySubScan easyScanConfig,
-                                                      List<EasyScanOperatorCreator.SplitAndExtended> workList) {
+  protected RecordReaderIterator getRecordReaderIterator(
+      FileSystem fs,
+      OperatorContext opCtx,
+      List<SchemaPath> innerFields,
+      EasySubScan easyScanConfig,
+      List<EasyScanOperatorCreator.SplitAndExtended> workList) {
     return null;
   }
 
@@ -225,10 +254,17 @@ public abstract class EasyFormatPlugin<T extends FormatPluginConfig> extends Bas
       NamespaceKey tableSchemaPath,
       FileUpdateKey updateKey,
       int maxLeafColumns,
-      TimeTravelOption.TimeTravelRequest timeTravelRequest
-  ) {
-    return new EasyFormatDatasetAccessor(type, fs, fileSelection, fsPlugin, tableSchemaPath, updateKey,
-        this, previousInfo, maxLeafColumns);
+      TimeTravelOption.TimeTravelRequest timeTravelRequest) {
+    return new EasyFormatDatasetAccessor(
+        type,
+        fs,
+        fileSelection,
+        fsPlugin,
+        tableSchemaPath,
+        updateKey,
+        this,
+        previousInfo,
+        maxLeafColumns);
   }
 
   public ScanStats getScanStats(final EasyGroupScanUtils scan) {
@@ -238,6 +274,7 @@ public abstract class EasyFormatPlugin<T extends FormatPluginConfig> extends Bas
     }
 
     final long estRowCount = data / 100;
-    return new ScanStats(ScanStats.GroupScanProperty.NO_EXACT_ROW_COUNT, estRowCount, estRowCount, data);
+    return new ScanStats(
+        ScanStats.GroupScanProperty.NO_EXACT_ROW_COUNT, estRowCount, estRowCount, data);
   }
 }

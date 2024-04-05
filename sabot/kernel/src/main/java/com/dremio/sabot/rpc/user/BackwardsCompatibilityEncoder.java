@@ -15,24 +15,19 @@
  */
 package com.dremio.sabot.rpc.user;
 
-import java.util.List;
-
 import com.dremio.exec.proto.GeneralRPCProtos.RpcMode;
 import com.dremio.exec.proto.UserBitShared.QueryData;
 import com.dremio.exec.proto.UserProtos.RpcType;
 import com.dremio.exec.rpc.OutboundRpcMessage;
 import com.dremio.sabot.rpc.user.BaseBackwardsCompatibilityHandler.QueryBatch;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.MessageToMessageEncoder;
+import java.util.List;
 
-/**
- * Encoder step for adding backward compatibility conversion step
- */
+/** Encoder step for adding backward compatibility conversion step */
 class BackwardsCompatibilityEncoder extends MessageToMessageEncoder<OutboundRpcMessage> {
   private final BaseBackwardsCompatibilityHandler handler;
-
 
   BackwardsCompatibilityEncoder(BaseBackwardsCompatibilityHandler handler) {
     super(OutboundRpcMessage.class);
@@ -40,9 +35,9 @@ class BackwardsCompatibilityEncoder extends MessageToMessageEncoder<OutboundRpcM
   }
 
   @Override
-  protected void encode(ChannelHandlerContext ctx, OutboundRpcMessage msg, List<Object> out) throws Exception {
-    if (msg.mode == RpcMode.REQUEST &&
-      msg.rpcType == RpcType.QUERY_DATA.getNumber()) {
+  protected void encode(ChannelHandlerContext ctx, OutboundRpcMessage msg, List<Object> out)
+      throws Exception {
+    if (msg.mode == RpcMode.REQUEST && msg.rpcType == RpcType.QUERY_DATA.getNumber()) {
 
       final QueryData oldHeader = (QueryData) msg.getPBody();
       final ByteBuf[] oldData = msg.getDBodies();
@@ -50,8 +45,13 @@ class BackwardsCompatibilityEncoder extends MessageToMessageEncoder<OutboundRpcM
       final QueryBatch oldBatch = new QueryBatch(oldHeader, oldData);
       final QueryBatch newBatch = handler.makeBatchCompatible(oldBatch);
 
-      out.add(new OutboundRpcMessage(msg.mode, RpcType.QUERY_DATA, msg.coordinationId,
-        newBatch.getHeader(), newBatch.getBuffers()));
+      out.add(
+          new OutboundRpcMessage(
+              msg.mode,
+              RpcType.QUERY_DATA,
+              msg.coordinationId,
+              newBatch.getHeader(),
+              newBatch.getBuffers()));
     } else {
       out.add(msg);
     }

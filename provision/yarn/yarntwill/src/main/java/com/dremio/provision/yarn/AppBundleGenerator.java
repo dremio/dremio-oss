@@ -18,6 +18,13 @@ package com.dremio.provision.yarn;
 import static com.google.common.base.StandardSystemProperty.JAVA_CLASS_PATH;
 import static com.google.common.base.StandardSystemProperty.PATH_SEPARATOR;
 
+import com.dremio.config.DremioConfig;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Splitter;
+import com.google.common.base.StandardSystemProperty;
+import com.google.common.collect.ImmutableList;
+import com.google.errorprone.annotations.MustBeClosed;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
@@ -41,28 +48,18 @@ import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
 import javax.validation.constraints.NotNull;
-
-import com.dremio.config.DremioConfig;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Splitter;
-import com.google.common.base.StandardSystemProperty;
-import com.google.common.collect.ImmutableList;
-import com.google.errorprone.annotations.MustBeClosed;
 
 /**
  * An application bundle generator to be used with {@code DremioTwillRunner}
  *
- * The generated bundle is created from the provided classloader: the classloader
- * (and its parents) is examined to extract URLs used to set it up. Each URL is
- * then copied over to the bundle as-is (recursively if the URL targets a directory).
- * The same is done with native libraries.
+ * <p>The generated bundle is created from the provided classloader: the classloader (and its
+ * parents) is examined to extract URLs used to set it up. Each URL is then copied over to the
+ * bundle as-is (recursively if the URL targets a directory). The same is done with native
+ * libraries.
  *
- * Once all files are copied over, a manifest file is added to the jar containing
- * the ordered list of jars and native libraries so that the runner can reconstruct
- * the same classpath remotely.
+ * <p>Once all files are copied over, a manifest file is added to the jar containing the ordered
+ * list of jars and native libraries so that the runner can reconstruct the same classpath remotely.
  */
 public class AppBundleGenerator {
 
@@ -72,7 +69,8 @@ public class AppBundleGenerator {
   private static final Path DREMIO_APP_PATH = Paths.get("dremio.app");
   private static final String DELIMITER = " ";
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AppBundleGenerator.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(AppBundleGenerator.class);
 
   private final ClassLoader classLoader;
   private final List<String> classPathPrefix;
@@ -102,7 +100,10 @@ public class AppBundleGenerator {
         public void addFile(String name, Path source) throws IOException {
           if (!added.add(name)) {
             // File has already been added under the same name
-            logger.warn("Duplicate entry for {} (with source {}). Only first entry is preserved.", name, source);
+            logger.warn(
+                "Duplicate entry for {} (with source {}). Only first entry is preserved.",
+                name,
+                source);
             return;
           }
 
@@ -126,14 +127,15 @@ public class AppBundleGenerator {
 
           jos.putNextEntry(new JarEntry(name));
           jos.closeEntry();
-
         }
 
         @Override
         public void addManifest(Manifest manifest) throws IOException {
           if (!added.add(JarFile.MANIFEST_NAME)) {
             // Manifest has already been added under the same name
-            logger.warn("Duplicate manifest entry for {}. Only first entry is preserved.", JarFile.MANIFEST_NAME);
+            logger.warn(
+                "Duplicate manifest entry for {}. Only first entry is preserved.",
+                JarFile.MANIFEST_NAME);
             return;
           }
 
@@ -148,11 +150,12 @@ public class AppBundleGenerator {
     }
   }
 
-  public AppBundleGenerator(ClassLoader classLoader,
-                            @NotNull List<String> classPathPrefix,
-                            @NotNull List<String> classPath,
-                            List<String> nativeLibraryPath,
-                            Path pluginsPath) {
+  public AppBundleGenerator(
+      ClassLoader classLoader,
+      @NotNull List<String> classPathPrefix,
+      @NotNull List<String> classPath,
+      List<String> nativeLibraryPath,
+      Path pluginsPath) {
     this.classLoader = classLoader;
     this.classPathPrefix = ImmutableList.copyOf(classPathPrefix);
     this.classPath = ImmutableList.copyOf(classPath);
@@ -162,9 +165,10 @@ public class AppBundleGenerator {
 
   public static AppBundleGenerator of(DremioConfig config) {
 
-    List<String> nativeLibraryPath = Optional.ofNullable(StandardSystemProperty.JAVA_LIBRARY_PATH.value())
-        .map(p -> Arrays.asList(p.split(File.pathSeparator)))
-        .orElse(Collections.emptyList());
+    List<String> nativeLibraryPath =
+        Optional.ofNullable(StandardSystemProperty.JAVA_LIBRARY_PATH.value())
+            .map(p -> Arrays.asList(p.split(File.pathSeparator)))
+            .orElse(Collections.emptyList());
 
     final Path pluginsPath = DremioConfig.getPluginsRootPath();
 
@@ -173,27 +177,30 @@ public class AppBundleGenerator {
         config.getStringList(DremioConfig.YARN_APP_CLASSPATH_PREFIX),
         config.getStringList(DremioConfig.YARN_APP_CLASSPATH),
         nativeLibraryPath,
-        pluginsPath
-    );
+        pluginsPath);
   }
 
   public Path generateBundle() throws IOException {
     // Create an application bundle jar based on current application classpath
     Path yarnBundledJarPath = Files.createTempFile(DREMIO_BUNDLE_PREFIX, ".jar");
-    try (JarGenerator jarGenerator = JarGenerator.of(new JarOutputStream(Files.newOutputStream(yarnBundledJarPath)))) {
+    try (JarGenerator jarGenerator =
+        JarGenerator.of(new JarOutputStream(Files.newOutputStream(yarnBundledJarPath)))) {
       // First add prefix classpath entries
       // Second, add content of classpath to bundle jar
       // Then add extra classpath entries
       List<URI> jarEntries;
       try (Stream<Path> prefixStream = toPathStream(classPathPrefix);
-        Stream<Path> classLoaderStream = toPathStream(classLoader);
-        Stream<Path> classPathStream = toPathStream(classPath)) {
-        jarEntries = addPathsToBundle(jarGenerator,
-          Stream.concat(prefixStream, Stream.concat(classLoaderStream, classPathStream)));
+          Stream<Path> classLoaderStream = toPathStream(classLoader);
+          Stream<Path> classPathStream = toPathStream(classPath)) {
+        jarEntries =
+            addPathsToBundle(
+                jarGenerator,
+                Stream.concat(prefixStream, Stream.concat(classLoaderStream, classPathStream)));
       }
 
       // After that add native libraries
-      List<URI> nativeLibrariesEntries = addPathsToBundle(jarGenerator, nativeLibraryPath.stream().map(Paths::get));
+      List<URI> nativeLibrariesEntries =
+          addPathsToBundle(jarGenerator, nativeLibraryPath.stream().map(Paths::get));
 
       // After that add plugins
       URI pluginsPathEntry = addPathToJar(jarGenerator, pluginsPath);
@@ -203,13 +210,16 @@ public class AppBundleGenerator {
       Manifest manifest = new Manifest();
       final Attributes mainAttributes = manifest.getMainAttributes();
       mainAttributes.put(Attributes.Name.MANIFEST_VERSION, "1.0");
-      mainAttributes.put(Attributes.Name.CLASS_PATH,
-          jarEntries.stream()
-          .map(URI::toString)
-          .collect(Collectors.joining(DELIMITER)));
-      mainAttributes.putValue(X_DREMIO_LIBRARY_PATH_MANIFEST_ATTRIBUTE,
-          nativeLibrariesEntries.stream().map(URI::toString).collect(Collectors.joining(DELIMITER)));
-      mainAttributes.putValue(X_DREMIO_PLUGINS_PATH_MANIFEST_ATTRIBUTE, pluginsPathEntry.toString());
+      mainAttributes.put(
+          Attributes.Name.CLASS_PATH,
+          jarEntries.stream().map(URI::toString).collect(Collectors.joining(DELIMITER)));
+      mainAttributes.putValue(
+          X_DREMIO_LIBRARY_PATH_MANIFEST_ATTRIBUTE,
+          nativeLibrariesEntries.stream()
+              .map(URI::toString)
+              .collect(Collectors.joining(DELIMITER)));
+      mainAttributes.putValue(
+          X_DREMIO_PLUGINS_PATH_MANIFEST_ATTRIBUTE, pluginsPathEntry.toString());
 
       jarGenerator.addManifest(manifest);
     }
@@ -259,21 +269,23 @@ public class AppBundleGenerator {
     URLClassLoader urlCL = (URLClassLoader) classLoader;
 
     return Stream.of(urlCL.getURLs())
-        .flatMap(url -> {
-          try {
-            return Stream.of(url.toURI());
-          } catch (URISyntaxException e) {
-            logger.warn("Invalid URI `{}` detected while analyzing classpath", url, e);
-            return Stream.empty();
-          }
-        })
-        .filter(uri -> {
-          if (!"file".equals(uri.getScheme())) {
-            logger.warn("Non-file URI `{}` detected while analyzing classpath, ignoring.", uri);
-            return false;
-          }
-          return true;
-        })
+        .flatMap(
+            url -> {
+              try {
+                return Stream.of(url.toURI());
+              } catch (URISyntaxException e) {
+                logger.warn("Invalid URI `{}` detected while analyzing classpath", url, e);
+                return Stream.empty();
+              }
+            })
+        .filter(
+            uri -> {
+              if (!"file".equals(uri.getScheme())) {
+                logger.warn("Non-file URI `{}` detected while analyzing classpath, ignoring.", uri);
+                return false;
+              }
+              return true;
+            })
         .map(Paths::get);
   }
 
@@ -281,25 +293,26 @@ public class AppBundleGenerator {
   @MustBeClosed
   @VisibleForTesting
   static Stream<Path> toPathStream(List<String> classpathJars) {
-    return classpathJars.stream().flatMap(classpathJar -> {
-      final Path jarFullPath = Paths.get(classpathJar);
-      final Path parentDir = jarFullPath.getParent();
-      final String fileName = jarFullPath.getFileName().toString();
+    return classpathJars.stream()
+        .flatMap(
+            classpathJar -> {
+              final Path jarFullPath = Paths.get(classpathJar);
+              final Path parentDir = jarFullPath.getParent();
+              final String fileName = jarFullPath.getFileName().toString();
 
-      // do not close the stream!
-      try {
-        return Files.list(parentDir).filter(p -> p.getFileName().toString().matches(fileName));
-      } catch (IOException e) {
-        logger.error("Not able to list path {} content", parentDir, e);
-        return Stream.of();
-      }
-    });
+              // do not close the stream!
+              try {
+                return Files.list(parentDir)
+                    .filter(p -> p.getFileName().toString().matches(fileName));
+              } catch (IOException e) {
+                logger.error("Not able to list path {} content", parentDir, e);
+                return Stream.of();
+              }
+            });
   }
 
   private List<URI> addPathsToBundle(JarGenerator jarGenerator, Stream<Path> stream) {
-        return stream
-        .map(path -> addPathToJar(jarGenerator, path))
-        .collect(Collectors.toList());
+    return stream.map(path -> addPathToJar(jarGenerator, path)).collect(Collectors.toList());
   }
 
   private List<URI> addJavaLibraryPathToBundle(JarGenerator jarGenerator) throws IOException {
@@ -308,12 +321,11 @@ public class AppBundleGenerator {
       return Collections.emptyList();
     }
 
-    return addPathsToBundle(jarGenerator, Stream.of(javaLibraryPath.split(File.pathSeparator)).map(Paths::get));
+    return addPathsToBundle(
+        jarGenerator, Stream.of(javaLibraryPath.split(File.pathSeparator)).map(Paths::get));
   }
 
-  /**
-   * Add a path to the bundle, recursively if the path denotes a directory
-   */
+  /** Add a path to the bundle, recursively if the path denotes a directory */
   private URI addPathToJar(JarGenerator jarGenerator, Path path) {
     URI entryURI = doAddPathToJar(jarGenerator, path);
 
@@ -321,11 +333,12 @@ public class AppBundleGenerator {
       // List the content of the directory and add it as-is
       // Make sure to check if file was not already added (in case a subtree was added to the
       // classpath too)
-      try(Stream<Path> list = Files.list(path)) {
-        list.forEach(subPath -> {
-          // Ignore return value, directory is being added
-          addPathToJar(jarGenerator, subPath);
-        });
+      try (Stream<Path> list = Files.list(path)) {
+        list.forEach(
+            subPath -> {
+              // Ignore return value, directory is being added
+              addPathToJar(jarGenerator, subPath);
+            });
       } catch (IOException e) {
         logger.error("Not able to list path {} content", path, e);
       }
@@ -334,9 +347,7 @@ public class AppBundleGenerator {
     return entryURI;
   }
 
-  /**
-   * Add a single file to the bundle and return the URI representing the jar entry
-   */
+  /** Add a single file to the bundle and return the URI representing the jar entry */
   private URI doAddPathToJar(JarGenerator jarGenerator, Path path) {
     final Path entryPath = DREMIO_APP_PATH.resolve(path.subpath(0, path.getNameCount()));
     final URI result;

@@ -23,9 +23,7 @@ import com.dremio.service.job.proto.SessionId;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-/**
- * The result of a transform apply (preview result)
- */
+/** The result of a transform apply (preview result) */
 public class InitialPreviewResponse {
   public static final int INITIAL_RESULTSET_SIZE = 50;
 
@@ -41,14 +39,14 @@ public class InitialPreviewResponse {
 
   @JsonCreator
   public InitialPreviewResponse(
-    @JsonProperty("dataset") DatasetUI dataset,
-    @JsonProperty("data") JobDataFragment data,
-    @JsonProperty("paginationUrl") String paginationUrl,
-    @JsonProperty("approximate") boolean isApproximate,
-    @JsonProperty("jobId") JobId jobId,
-    @JsonProperty("sessionId") SessionId sessionId,
-    @JsonProperty("history") History history,
-    @JsonProperty("error") ApiErrorModel error) {
+      @JsonProperty("dataset") DatasetUI dataset,
+      @JsonProperty("data") JobDataFragment data,
+      @JsonProperty("paginationUrl") String paginationUrl,
+      @JsonProperty("approximate") boolean isApproximate,
+      @JsonProperty("jobId") JobId jobId,
+      @JsonProperty("sessionId") SessionId sessionId,
+      @JsonProperty("history") History history,
+      @JsonProperty("error") ApiErrorModel error) {
     this.dataset = dataset;
     this.data = data;
     this.isApproximate = isApproximate;
@@ -59,39 +57,53 @@ public class InitialPreviewResponse {
     this.error = error;
   }
 
-  public static InitialPreviewResponse of(DatasetUI dataset, JobId jobId, SessionId sessionId,
-                                          JobDataFragment data, boolean isApproximate,
-                                          History history, ApiErrorModel error) {
+  public static InitialPreviewResponse of(
+      DatasetUI dataset,
+      JobId jobId,
+      SessionId sessionId,
+      JobDataFragment data,
+      boolean isApproximate,
+      History history,
+      ApiErrorModel error) {
 
-    return new InitialPreviewResponse(dataset, data,
-      jobId != null ? JobResource.getPaginationURL(jobId): null,
-      isApproximate, jobId, sessionId, history, error);
+    return new InitialPreviewResponse(
+        dataset,
+        data,
+        jobId != null ? JobResource.getPaginationURL(jobId) : null,
+        isApproximate,
+        jobId,
+        sessionId,
+        history,
+        error);
   }
 
-  public static InitialPreviewResponse of(DatasetUI dataset, boolean isApproximate,
-                                          History history, ApiErrorModel error) {
-    return new InitialPreviewResponse(dataset, null, null,
-      isApproximate, null, null, history, error);
+  public static InitialPreviewResponse of(
+      DatasetUI dataset, boolean isApproximate, History history, ApiErrorModel error) {
+    return new InitialPreviewResponse(
+        dataset, null, null, isApproximate, null, null, history, error);
   }
 
   /**
    * Get job id for preview.
+   *
    * @return
    */
-  public JobId getJobId(){
+  public JobId getJobId() {
     return jobId;
   }
 
   /**
    * Get session id for preview.
+   *
    * @return
    */
-  public SessionId getSessionId(){
+  public SessionId getSessionId() {
     return sessionId;
   }
 
   /**
    * Minimal Dataset information.
+   *
    * @return
    */
   public DatasetUI getDataset() {
@@ -100,6 +112,7 @@ public class InitialPreviewResponse {
 
   /**
    * Initial data. Currently it contains at max {@link #INITIAL_RESULTSET_SIZE} number of rows.
+   *
    * @return
    */
   public JobDataFragment getData() {
@@ -108,6 +121,7 @@ public class InitialPreviewResponse {
 
   /**
    * Pagination URL to fetch further records in job results. Ex value: job/{jobId}/data
+   *
    * @return
    */
   public String getPaginationUrl() {
@@ -116,6 +130,7 @@ public class InitialPreviewResponse {
 
   /**
    * Are the results approximate (based on sampled data)?
+   *
    * @return
    */
   public boolean isApproximate() {
@@ -124,6 +139,7 @@ public class InitialPreviewResponse {
 
   /**
    * List of history items on dataset.
+   *
    * @return
    */
   public History getHistory() {
@@ -132,6 +148,7 @@ public class InitialPreviewResponse {
 
   /**
    * Error message if the preview query was unsuccessful.
+   *
    * @return
    */
   public ApiErrorModel getError() {

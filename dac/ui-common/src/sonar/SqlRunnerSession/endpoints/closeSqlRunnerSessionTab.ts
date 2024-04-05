@@ -16,16 +16,19 @@
 import { getApiContext } from "../../../contexts/ApiContext";
 import type { paths } from "../../../../apiTypes/sql-runner-session";
 
-type CloseSqlRunnerSessionTabRequest = paths["/sql-runner/session/tabs/{scriptId}"]["delete"];
+type CloseSqlRunnerSessionTabRequest =
+  paths["/sql-runner/session/tabs/{scriptId}"]["delete"];
 
-export const closeSqlRunnerSessionTabUrl = (params: CloseSqlRunnerSessionTabRequest["parameters"]["path"]) =>
+export const closeSqlRunnerSessionTabUrl = (
+  params: CloseSqlRunnerSessionTabRequest["parameters"]["path"],
+) =>
   getApiContext().createSonarUrl(`sql-runner/session/tabs/${params.scriptId}`);
 
-export const closeSqlRunnerSessionTab = (params: CloseSqlRunnerSessionTabRequest["parameters"]["path"]): Promise<
-  void
-> =>
+export const closeSqlRunnerSessionTab = (
+  params: CloseSqlRunnerSessionTabRequest["parameters"]["path"],
+): Promise<void> =>
   getApiContext()
     .fetch(closeSqlRunnerSessionTabUrl(params), {
-      method: "delete"
+      method: "delete",
     })
     .then((res) => undefined);

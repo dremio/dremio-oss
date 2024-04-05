@@ -17,8 +17,6 @@ package com.dremio.exec.physical.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import org.junit.Test;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.store.SplitIdentity;
 import com.dremio.exec.store.SystemSchemas;
@@ -26,26 +24,35 @@ import com.dremio.exec.store.iceberg.IcebergFileType;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
+import org.junit.Test;
 
-/**
- * Tests for {@link CarryForwardAwareTableFunctionContext}
- */
+/** Tests for {@link CarryForwardAwareTableFunctionContext} */
 public class TestCarryForwardAwareTableFunctionContext {
   private static final ObjectMapper mapper = new ObjectMapper();
 
   @Test
   public void testCarryForwardContext() throws JsonProcessingException {
-    CarryForwardAwareTableFunctionContext ctx = new CarryForwardAwareTableFunctionContext(
-      SystemSchemas.CARRY_FORWARD_FILE_PATH_TYPE_SCHEMA,
-      null,
-      true,
-      ImmutableMap.of(SchemaPath.getCompoundPath(SystemSchemas.SPLIT_IDENTITY, SplitIdentity.PATH), SchemaPath.getSimplePath(SystemSchemas.FILE_PATH)),
-      SystemSchemas.FILE_TYPE, IcebergFileType.MANIFEST_LIST.name());
+    CarryForwardAwareTableFunctionContext ctx =
+        new CarryForwardAwareTableFunctionContext(
+            SystemSchemas.CARRY_FORWARD_FILE_PATH_TYPE_SCHEMA,
+            null,
+            true,
+            ImmutableMap.of(
+                SchemaPath.getCompoundPath(SystemSchemas.SPLIT_IDENTITY, SplitIdentity.PATH),
+                SchemaPath.getSimplePath(SystemSchemas.FILE_PATH)),
+            SystemSchemas.FILE_TYPE,
+            IcebergFileType.MANIFEST_LIST.name());
 
     String serialized = mapper.writeValueAsString(ctx);
-    CarryForwardAwareTableFunctionContext deserialized = mapper.readValue(serialized, CarryForwardAwareTableFunctionContext.class);
+    CarryForwardAwareTableFunctionContext deserialized =
+        mapper.readValue(serialized, CarryForwardAwareTableFunctionContext.class);
 
-    assertThat(deserialized).extracting("isCarryForwardEnabled", "inputColMap", "constValCol", "constVal")
-      .containsExactly(ctx.isCarryForwardEnabled(), ctx.getInputColMap(), ctx.getConstValCol(), ctx.getConstVal());
+    assertThat(deserialized)
+        .extracting("isCarryForwardEnabled", "inputColMap", "constValCol", "constVal")
+        .containsExactly(
+            ctx.isCarryForwardEnabled(),
+            ctx.getInputColMap(),
+            ctx.getConstValCol(),
+            ctx.getConstVal());
   }
 }

@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.expr;
 
-import java.util.List;
-
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.FunctionHolderExpression;
 import com.dremio.common.expression.LogicalExpression;
@@ -24,12 +22,15 @@ import com.dremio.common.expression.fn.FunctionHolder;
 import com.dremio.exec.expr.fn.BaseFunctionHolder;
 import com.dremio.exec.expr.fn.ComplexWriterFunctionHolder;
 import com.google.common.base.Objects;
+import java.util.List;
 
-public class FunctionHolderExpr extends FunctionHolderExpression implements Iterable<LogicalExpression>{
+public class FunctionHolderExpr extends FunctionHolderExpression
+    implements Iterable<LogicalExpression> {
   private BaseFunctionHolder holder;
   private SimpleFunction interpreter;
 
-  public FunctionHolderExpr(String nameUsed, BaseFunctionHolder holder, List<LogicalExpression> args) {
+  public FunctionHolderExpr(
+      String nameUsed, BaseFunctionHolder holder, List<LogicalExpression> args) {
     super(nameUsed, args);
     this.holder = holder;
   }
@@ -98,12 +99,12 @@ public class FunctionHolderExpr extends FunctionHolderExpression implements Iter
       return false;
     }
     FunctionHolderExpr castOther = (FunctionHolderExpr) other;
-    return Objects.equal(holder, castOther.holder) && Objects.equal(interpreter, castOther.interpreter);
+    return Objects.equal(holder, castOther.holder)
+        && Objects.equal(interpreter, castOther.interpreter);
   }
 
   @Override
   public int hashCode() {
     return Objects.hashCode(holder, interpreter);
   }
-
 }

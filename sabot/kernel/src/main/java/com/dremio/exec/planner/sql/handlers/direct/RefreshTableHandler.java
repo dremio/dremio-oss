@@ -18,21 +18,9 @@ package com.dremio.exec.planner.sql.handlers.direct;
 import static com.dremio.exec.planner.sql.handlers.direct.SimpleCommandResult.successful;
 import static java.util.Collections.singletonList;
 
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-
-import org.apache.calcite.sql.SqlIdentifier;
-import org.apache.calcite.sql.SqlLiteral;
-import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.sql.SqlNodeList;
-import org.apache.calcite.sql.type.SqlTypeName;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.DatasetCatalog.UpdateStatus;
-import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.parser.SqlGrant;
 import com.dremio.exec.planner.sql.parser.SqlRefreshTable;
 import com.dremio.exec.store.DatasetRetrievalOptions;
@@ -43,20 +31,25 @@ import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.users.SystemUser;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlLiteral;
+import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlNodeList;
+import org.apache.calcite.sql.type.SqlTypeName;
 
-/**
- * Handler for {@link SqlRefreshTable} command.
- */
+/** Handler for {@link SqlRefreshTable} command. */
 public class RefreshTableHandler extends SimpleDirectHandler {
 
   private final Catalog catalog;
-  private final boolean allowUnlimitedSplits;
   private final NamespaceService namespaceService;
 
-  public RefreshTableHandler(Catalog catalog, NamespaceService namespaceService,
-                             boolean allowUnlimitedSplits, String queryUserName) {
+  public RefreshTableHandler(
+      Catalog catalog, NamespaceService namespaceService, String queryUserName) {
     this.catalog = catalog;
-    this.allowUnlimitedSplits = allowUnlimitedSplits;
     this.namespaceService = namespaceService;
   }
 
@@ -65,18 +58,13 @@ public class RefreshTableHandler extends SimpleDirectHandler {
     final SqlRefreshTable sqlRefreshTable = SqlNodeUtil.unwrap(sqlNode, SqlRefreshTable.class);
 
     if (isOptionEnabled(sqlRefreshTable.getFileRefresh())) {
-      throw UserException.validationError().message("Refresh metadata for files are not supported").buildSilently();
+      throw UserException.validationError()
+          .message("Refresh metadata for files are not supported")
+          .buildSilently();
     }
 
-    if (!allowUnlimitedSplits) {
-      if (isOptionEnabled(sqlRefreshTable.getAllFilesRefresh()) ||
-          isOptionEnabled(sqlRefreshTable.getAllPartitionsRefresh()) || isOptionEnabled(sqlRefreshTable.getPartitionRefresh())) {
-        throw new UnsupportedOperationException(PlannerSettings.UNLIMITED_SPLITS_SUPPORT.getOptionName() + " should be enabled for" +
-          " ALL FILES/PARTITION, per-partition refresh");
-      }
-    }
-
-    NamespaceKey tableNSKey = catalog.resolveSingle(new NamespaceKey(sqlRefreshTable.getTable().names));
+    NamespaceKey tableNSKey =
+        catalog.resolveSingle(new NamespaceKey(sqlRefreshTable.getTable().names));
     DatasetConfig datasetConfig = getConfigFromNamespace(tableNSKey);
     catalog.validatePrivilege(tableNSKey, SqlGrant.Privilege.ALTER);
     if (datasetConfig != null) {
@@ -100,23 +88,27 @@ public class RefreshTableHandler extends SimpleDirectHandler {
       builder.setPartition(createPartitionMap(sqlRefreshTable));
     }
 
-    builder.setRefreshQuery(new MetadataRefreshQuery(sqlRefreshTable.toRefreshDatasetQuery(tableNSKey.getPathComponents()), SystemUser.SYSTEM_USERNAME));
+    builder.setRefreshQuery(
+        new MetadataRefreshQuery(
+            sqlRefreshTable.toRefreshDatasetQuery(tableNSKey.getPathComponents()),
+            SystemUser.SYSTEM_USERNAME));
 
     UpdateStatus status = catalog.refreshDataset(tableNSKey, builder.build(), false);
 
     final String message;
-    switch(status){
-    case CHANGED:
-      message = "Metadata for table '%s' refreshed.";
-      break;
-    case DELETED:
-      message = "Table '%s' no longer exists, metadata removed.";
-      break;
-    case UNCHANGED:
-      message = "Table '%s' read signature reviewed but source stated metadata is unchanged, no refresh occurred.";
-      break;
-    default:
-      throw new IllegalStateException();
+    switch (status) {
+      case CHANGED:
+        message = "Metadata for table '%s' refreshed.";
+        break;
+      case DELETED:
+        message = "Table '%s' no longer exists, metadata removed.";
+        break;
+      case UNCHANGED:
+        message =
+            "Table '%s' read signature reviewed but source stated metadata is unchanged, no refresh occurred.";
+        break;
+      default:
+        throw new IllegalStateException();
     }
 
     return singletonList(successful(String.format(message, sqlRefreshTable.getTable().toString())));
@@ -127,22 +119,27 @@ public class RefreshTableHandler extends SimpleDirectHandler {
   }
 
   private List<String> createFilesList(SqlRefreshTable sqlRefreshTable) {
-    return sqlRefreshTable.getFilesList().getList().stream().map(v -> ((SqlLiteral) v).getValueAs(String.class)).collect(Collectors.toList());
+    return sqlRefreshTable.getFilesList().getList().stream()
+        .map(v -> ((SqlLiteral) v).getValueAs(String.class))
+        .collect(Collectors.toList());
   }
 
   private Map<String, String> createPartitionMap(SqlRefreshTable sqlRefreshTable) {
     final Map<String, String> partition = new LinkedHashMap<>();
-    sqlRefreshTable.getPartitionList().forEach(node -> {
-      final SqlNodeList pair = (SqlNodeList) node;
-      final SqlIdentifier name = (SqlIdentifier) pair.get(0);
-      final SqlLiteral value = (SqlLiteral) pair.get(1);
+    sqlRefreshTable
+        .getPartitionList()
+        .forEach(
+            node -> {
+              final SqlNodeList pair = (SqlNodeList) node;
+              final SqlIdentifier name = (SqlIdentifier) pair.get(0);
+              final SqlLiteral value = (SqlLiteral) pair.get(1);
 
-      if (value.getTypeName().equals(SqlTypeName.NULL)) {
-        partition.put(name.getSimple(), null);
-      } else {
-        partition.put(name.getSimple(), value.getValueAs(String.class));
-      }
-    });
+              if (value.getTypeName().equals(SqlTypeName.NULL)) {
+                partition.put(name.getSimple(), null);
+              } else {
+                partition.put(name.getSimple(), value.getValueAs(String.class));
+              }
+            });
 
     return partition;
   }
@@ -150,9 +147,9 @@ public class RefreshTableHandler extends SimpleDirectHandler {
   private DatasetConfig getConfigFromNamespace(NamespaceKey key) {
     try {
       return namespaceService.getDataset(key);
-    } catch(NamespaceNotFoundException ex) {
+    } catch (NamespaceNotFoundException ex) {
       return null;
-    } catch(NamespaceException ex) {
+    } catch (NamespaceException ex) {
       throw new RuntimeException(ex);
     }
   }

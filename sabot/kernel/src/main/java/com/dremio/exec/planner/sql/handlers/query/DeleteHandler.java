@@ -15,18 +15,20 @@
  */
 package com.dremio.exec.planner.sql.handlers.query;
 
-import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.sql.SqlOperator;
-
+import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.planner.sql.handlers.direct.SqlNodeUtil;
+import com.dremio.exec.planner.sql.parser.DmlUtils;
 import com.dremio.exec.planner.sql.parser.SqlDeleteFromTable;
 import com.dremio.exec.planner.sql.parser.SqlGrant.Privilege;
 import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.dataset.proto.TableProperties;
+import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlOperator;
+import org.apache.iceberg.RowLevelOperationMode;
 
-/**
- * Handles the DELETE DML.
- */
+/** Handles the DELETE DML. */
 public class DeleteHandler extends DmlHandler {
 
   @Override
@@ -40,8 +42,16 @@ public class DeleteHandler extends DmlHandler {
   }
 
   @Override
-  protected void validatePrivileges(Catalog catalog, NamespaceKey path, SqlNode sqlNode) {
+  protected void validatePrivileges(Catalog catalog, CatalogEntityKey key, SqlNode sqlNode) {
+    NamespaceKey path = key.toNamespaceKey();
     catalog.validatePrivilege(path, Privilege.DELETE);
     catalog.validatePrivilege(path, Privilege.SELECT);
+  }
+
+  @Override
+  protected RowLevelOperationMode getRowLevelOperationMode(DremioTable table) {
+    TableProperties deleteDmlWriteMode =
+        DmlUtils.getDmlWriteProp(table, org.apache.iceberg.TableProperties.DELETE_MODE);
+    return DmlUtils.getDmlWriteMode(deleteDmlWriteMode);
   }
 }

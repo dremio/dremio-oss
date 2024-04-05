@@ -15,19 +15,14 @@
  */
 package com.dremio.service.users;
 
-import java.util.Objects;
-
 import com.dremio.service.users.proto.UID;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.Objects;
 
-/**
- * Object representing a Dremio user.
- */
+/** Object representing a Dremio user. */
 public final class SimpleUser implements User {
-  /**
-   * A builder for {@code User}
-   */
+  /** A builder for {@code User} */
   public static final class Builder {
     private UID uid;
     private String userName;
@@ -42,8 +37,17 @@ public final class SimpleUser implements User {
 
     private Builder() {}
 
-    private Builder(UID uid, String userName, String firstName, String lastName, String email,
-        long createdAt, long modifiedAt, String version, String extra, boolean active) {
+    private Builder(
+        UID uid,
+        String userName,
+        String firstName,
+        String lastName,
+        String email,
+        long createdAt,
+        long modifiedAt,
+        String version,
+        String extra,
+        boolean active) {
       super();
       this.uid = uid;
       this.userName = userName;
@@ -148,7 +152,8 @@ public final class SimpleUser implements User {
     }
 
     public SimpleUser build() {
-      return new SimpleUser(uid, userName, firstName, lastName, email, createdAt, modifiedAt, version, extra, active);
+      return new SimpleUser(
+          uid, userName, firstName, lastName, email, createdAt, modifiedAt, version, extra, active);
     }
   }
 
@@ -174,8 +179,7 @@ public final class SimpleUser implements User {
       @JsonProperty("modifiedAt") long modifiedAt,
       @JsonProperty("version") String version,
       @JsonProperty("extra") String extra,
-      @JsonProperty("active") boolean active
-  ) {
+      @JsonProperty("active") boolean active) {
     super();
     this.uid = uid;
     this.userName = userName;
@@ -198,6 +202,7 @@ public final class SimpleUser implements User {
   public String getUserName() {
     return userName;
   }
+
   @Override
   public String getFirstName() {
     return firstName;
@@ -240,7 +245,8 @@ public final class SimpleUser implements User {
 
   @Override
   public int hashCode() {
-    return Objects.hash(uid, userName, firstName, lastName, email, createdAt, modifiedAt, version, extra);
+    return Objects.hash(
+        uid, userName, firstName, lastName, email, createdAt, modifiedAt, version, extra);
   }
 
   @Override
@@ -255,22 +261,40 @@ public final class SimpleUser implements User {
 
     SimpleUser other = (SimpleUser) obj;
     return Objects.equals(uid, other.uid)
-      && Objects.equals(userName, other.userName)
-      && Objects.equals(firstName, other.firstName)
-      && Objects.equals(lastName, other.lastName)
-      && Objects.equals(email, other.email)
-      && Objects.equals(createdAt, other.createdAt)
-      && Objects.equals(modifiedAt, other.modifiedAt)
-      && Objects.equals(version, other.version)
-      && Objects.equals(extra, other.extra)
-      && active == other.active;
+        && Objects.equals(userName, other.userName)
+        && Objects.equals(firstName, other.firstName)
+        && Objects.equals(lastName, other.lastName)
+        && Objects.equals(email, other.email)
+        && Objects.equals(createdAt, other.createdAt)
+        && Objects.equals(modifiedAt, other.modifiedAt)
+        && Objects.equals(version, other.version)
+        && Objects.equals(extra, other.extra)
+        && active == other.active;
   }
 
   @Override
   public String toString() {
-    return "SimpleUser [uid=" + uid + ", userName=" + userName + ", firstName=" + firstName + ", lastName=" + lastName
-        + ", email=" + email + ", createdAt=" + createdAt + ", modifiedAt=" + modifiedAt
-        + ", version=" + version + ", extra=" + extra + ", active=" + active + "]";
+    return "SimpleUser [uid="
+        + uid
+        + ", userName="
+        + userName
+        + ", firstName="
+        + firstName
+        + ", lastName="
+        + lastName
+        + ", email="
+        + email
+        + ", createdAt="
+        + createdAt
+        + ", modifiedAt="
+        + modifiedAt
+        + ", version="
+        + version
+        + ", extra="
+        + extra
+        + ", active="
+        + active
+        + "]";
   }
 
   public static Builder newBuilder() {
@@ -278,8 +302,16 @@ public final class SimpleUser implements User {
   }
 
   public static Builder newBuilder(User user) {
-    return new Builder(user.getUID(), user.getUserName(), user.getFirstName(), user.getLastName(),
-      user.getEmail(), user.getCreatedAt(), user.getModifiedAt(), user.getVersion(), user.getExtra(),
-      user.isActive());
+    return new Builder(
+        user.getUID(),
+        user.getUserName(),
+        user.getFirstName(),
+        user.getLastName(),
+        user.getEmail(),
+        user.getCreatedAt(),
+        user.getModifiedAt(),
+        user.getVersion(),
+        user.getExtra(),
+        user.isActive());
   }
 }

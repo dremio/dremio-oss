@@ -17,26 +17,25 @@ package com.dremio.telemetry.api.config;
 
 import static org.junit.Assert.assertEquals;
 
+import com.dremio.telemetry.api.config.AutoRefreshConfigurator.CompleteRefreshConfig;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
-
 import javax.inject.Provider;
-
 import org.junit.Before;
 import org.junit.Test;
 
-import com.dremio.telemetry.api.config.AutoRefreshConfigurator.CompleteRefreshConfig;
-
 /**
- * Ensure that AutoRefreshConfigurator appropriately picks up new config and passes it to the listener when unique.
+ * Ensure that AutoRefreshConfigurator appropriately picks up new config and passes it to the
+ * listener when unique.
  */
 public class TestAutoRefreshConfiguration {
 
   /**
-   * Listens for changes to our test config. Our test config just contains an Integer and Auto refresh settings.
+   * Listens for changes to our test config. Our test config just contains an Integer and Auto
+   * refresh settings.
    */
   private final class TestConfListener implements Consumer<Integer> {
     private volatile List<Integer> log = new ArrayList<>();
@@ -52,12 +51,14 @@ public class TestAutoRefreshConfiguration {
   }
 
   private final long defaultRefreshInterval = 50;
-  private final RefreshConfiguration defaultRefreshEnabled = new RefreshConfiguration(true, defaultRefreshInterval, TimeUnit.MILLISECONDS);
-  private final RefreshConfiguration disabledRefreshConf = new RefreshConfiguration(false, defaultRefreshInterval, TimeUnit.MILLISECONDS);
+  private final RefreshConfiguration defaultRefreshEnabled =
+      new RefreshConfiguration(true, defaultRefreshInterval, TimeUnit.MILLISECONDS);
+  private final RefreshConfiguration disabledRefreshConf =
+      new RefreshConfiguration(false, defaultRefreshInterval, TimeUnit.MILLISECONDS);
 
   private TestConfListener listener;
 
-  public void defaultSleep() throws InterruptedException{
+  public void defaultSleep() throws InterruptedException {
     // Sleep with a little cushion to make sure we are not passing on race conditions.
     Thread.sleep(defaultRefreshInterval * 3);
   }
@@ -72,13 +73,15 @@ public class TestAutoRefreshConfiguration {
   }
 
   @Test
-  public void testInitialStateNoChanges()  throws InterruptedException{
+  public void testInitialStateNoChanges() throws InterruptedException {
     final Integer staleInt = 42;
-    final CompleteRefreshConfig<Integer> wholeConf = new CompleteRefreshConfig<>(defaultRefreshEnabled, staleInt);
+    final CompleteRefreshConfig<Integer> wholeConf =
+        new CompleteRefreshConfig<>(defaultRefreshEnabled, staleInt);
 
-    Provider<CompleteRefreshConfig<Integer>> unchangingGetter =  () -> wholeConf;
+    Provider<CompleteRefreshConfig<Integer>> unchangingGetter = () -> wholeConf;
 
-    AutoRefreshConfigurator<Integer> refresher = new AutoRefreshConfigurator<>(unchangingGetter, listener, 0);
+    AutoRefreshConfigurator<Integer> refresher =
+        new AutoRefreshConfigurator<>(unchangingGetter, listener, 0);
 
     defaultSleep();
 
@@ -87,10 +90,13 @@ public class TestAutoRefreshConfiguration {
   }
 
   @Test
-  public void testBadInitialRead()  throws InterruptedException{
+  public void testBadInitialRead() throws InterruptedException {
     final Integer staleInt = null;
-    Provider<CompleteRefreshConfig<Integer>> evolvingGetter = makeDynamicConfig(Arrays.asList(null, new CompleteRefreshConfig<Integer>(disabledRefreshConf, 13)));
-    AutoRefreshConfigurator<Integer> refresher = new AutoRefreshConfigurator<>(evolvingGetter, listener, defaultRefreshInterval);
+    Provider<CompleteRefreshConfig<Integer>> evolvingGetter =
+        makeDynamicConfig(
+            Arrays.asList(null, new CompleteRefreshConfig<Integer>(disabledRefreshConf, 13)));
+    AutoRefreshConfigurator<Integer> refresher =
+        new AutoRefreshConfigurator<>(evolvingGetter, listener, defaultRefreshInterval);
 
     defaultSleep();
 
@@ -99,18 +105,22 @@ public class TestAutoRefreshConfiguration {
   }
 
   @Test
-  public void testChangingConfig()  throws InterruptedException{
-    Provider<CompleteRefreshConfig<Integer>> evolvingGetter = makeDynamicConfig(Arrays.asList(
-      makeDefaultConfig(0),
-      makeDefaultConfig(-1),
-      makeDefaultConfig(null), // Should not register because null isn't a valid return value for config.
-      makeDefaultConfig(-1),
-      makeDefaultConfig(-1),
-      null, // Should continue refreshing despite null because of present settings.
-      new CompleteRefreshConfig<Integer>(disabledRefreshConf, 42)
-    ));
+  public void testChangingConfig() throws InterruptedException {
+    Provider<CompleteRefreshConfig<Integer>> evolvingGetter =
+        makeDynamicConfig(
+            Arrays.asList(
+                makeDefaultConfig(0),
+                makeDefaultConfig(-1),
+                makeDefaultConfig(
+                    null), // Should not register because null isn't a valid return value for
+                // config.
+                makeDefaultConfig(-1),
+                makeDefaultConfig(-1),
+                null, // Should continue refreshing despite null because of present settings.
+                new CompleteRefreshConfig<Integer>(disabledRefreshConf, 42)));
 
-    AutoRefreshConfigurator<Integer> refresher = new AutoRefreshConfigurator<>(evolvingGetter, listener, 0);
+    AutoRefreshConfigurator<Integer> refresher =
+        new AutoRefreshConfigurator<>(evolvingGetter, listener, 0);
 
     // We should go through 6 refresh cycles - extra cushion to avoid flakiness.
     Thread.sleep(defaultRefreshInterval * 8);
@@ -118,21 +128,23 @@ public class TestAutoRefreshConfiguration {
     assertEquals(listener.log, Arrays.asList(0, -1, null, -1, 42));
   }
 
-  private Provider<CompleteRefreshConfig<Integer>> makeDynamicConfig(List<CompleteRefreshConfig<Integer>> results) {
+  private Provider<CompleteRefreshConfig<Integer>> makeDynamicConfig(
+      List<CompleteRefreshConfig<Integer>> results) {
 
-    Provider<CompleteRefreshConfig<Integer>> evolvingGetter =  new Provider<CompleteRefreshConfig<Integer>>() {
-      private int onGet = 1;
+    Provider<CompleteRefreshConfig<Integer>> evolvingGetter =
+        new Provider<CompleteRefreshConfig<Integer>>() {
+          private int onGet = 1;
 
-      @Override
-      public CompleteRefreshConfig<Integer> get() {
-        if (results.size() >= onGet) {
-          final CompleteRefreshConfig<Integer> ret = results.get(onGet - 1);
-          ++onGet;
-          return ret;
-        }
-        return null;
-      }
-    };
+          @Override
+          public CompleteRefreshConfig<Integer> get() {
+            if (results.size() >= onGet) {
+              final CompleteRefreshConfig<Integer> ret = results.get(onGet - 1);
+              ++onGet;
+              return ret;
+            }
+            return null;
+          }
+        };
 
     return evolvingGetter;
   }

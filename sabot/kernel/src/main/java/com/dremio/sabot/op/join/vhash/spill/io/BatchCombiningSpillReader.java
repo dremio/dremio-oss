@@ -17,12 +17,6 @@ package com.dremio.sabot.op.join.vhash.spill.io;
 
 import static com.dremio.sabot.op.common.ht2.LBlockHashTable.VAR_OFFSET_SIZE;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
-import org.apache.arrow.memory.ArrowBuf;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.util.CloseableIterator;
 import com.dremio.exec.record.BatchSchema;
@@ -36,10 +30,14 @@ import com.dremio.sabot.op.join.vhash.spill.slicer.PageBatchMerger;
 import com.dremio.sabot.op.sort.external.SpillManager;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import org.apache.arrow.memory.ArrowBuf;
 
 /**
- * Wrapper on top of SpillReader to merge batches that are read. This helps maintain a
- * large batch-size & avoid heap churn.
+ * Wrapper on top of SpillReader to merge batches that are read. This helps maintain a large
+ * batch-size & avoid heap churn.
  */
 public class BatchCombiningSpillReader implements CloseableIterator<SpillChunk> {
   private final SpillReader reader;
@@ -49,12 +47,13 @@ public class BatchCombiningSpillReader implements CloseableIterator<SpillChunk> 
   private final int maxInputBatchSize;
   private PageBatchMerger merger;
 
-  public BatchCombiningSpillReader(SpillManager.SpillFile spillFile,
-                                   SpillSerializable serializable,
-                                   PagePool pagePool,
-                                   PivotDef pivotDef,
-                                   BatchSchema unpivotedColumnsSchema,
-                                   int maxInputBatchSize) {
+  public BatchCombiningSpillReader(
+      SpillManager.SpillFile spillFile,
+      SpillSerializable serializable,
+      PagePool pagePool,
+      PivotDef pivotDef,
+      BatchSchema unpivotedColumnsSchema,
+      int maxInputBatchSize) {
     this.pageSupplier = new ReusingPageSupplier(pagePool);
     this.reader = new SpillReader(spillFile, serializable, pageSupplier, unpivotedColumnsSchema);
     this.pagePool = pagePool;
@@ -82,9 +81,9 @@ public class BatchCombiningSpillReader implements CloseableIterator<SpillChunk> 
     while (reader.hasNext()) {
       // see if this chunk can be merged too.
       SpillChunk peek = reader.peek();
-      if (combinedRecords + peek.getNumRecords() > maxInputBatchSize ||
-          combinedPivotedBytes + peek.getPivotedSizeRounded() > pagePool.getPageSize() ||
-          combinedUnpivotedBytes + peek.getUnpivotedSizeRounded() > pagePool.getPageSize()) {
+      if (combinedRecords + peek.getNumRecords() > maxInputBatchSize
+          || combinedPivotedBytes + peek.getPivotedSizeRounded() > pagePool.getPageSize()
+          || combinedUnpivotedBytes + peek.getUnpivotedSizeRounded() > pagePool.getPageSize()) {
         break;
       }
 
@@ -112,8 +111,13 @@ public class BatchCombiningSpillReader implements CloseableIterator<SpillChunk> 
       ac.addAll(pivotedSections);
 
       VectorContainer mergedContainer = mergeUnpivotedSections(chunks, unpivotedPage);
-      SpillChunk merged = new SpillChunk(mergedContainer.getRecordCount(), pivotedSections[0], pivotedSections[1],
-        mergedContainer, Arrays.asList(pivotedPage, unpivotedPage));
+      SpillChunk merged =
+          new SpillChunk(
+              mergedContainer.getRecordCount(),
+              pivotedSections[0],
+              pivotedSections[1],
+              mergedContainer,
+              Arrays.asList(pivotedPage, unpivotedPage));
       ac.commit();
 
       // release the old chunks
@@ -154,12 +158,13 @@ public class BatchCombiningSpillReader implements CloseableIterator<SpillChunk> 
         }
 
         // copy variable portion
-        mergedVariable.setBytes(variableOffset, chunk.getVariable(), 0, chunk.getVariable().capacity());
+        mergedVariable.setBytes(
+            variableOffset, chunk.getVariable(), 0, chunk.getVariable().capacity());
       }
       fixedOffset += chunk.getFixed().capacity();
       variableOffset += chunk.getVariable().capacity();
     }
-    return new ArrowBuf[] { mergedFixed, mergedVariable };
+    return new ArrowBuf[] {mergedFixed, mergedVariable};
   }
 
   private VectorContainer mergeUnpivotedSections(List<SpillChunk> chunks, Page unpivotedPage) {

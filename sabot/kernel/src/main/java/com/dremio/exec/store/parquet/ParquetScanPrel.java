@@ -15,24 +15,12 @@
  */
 package com.dremio.exec.store.parquet;
 
-import java.io.IOException;
-import java.util.List;
-
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelOptTable;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.RelWriter;
-import org.apache.calcite.rel.hint.RelHint;
-import org.apache.calcite.rel.type.RelDataType;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.planner.physical.PhysicalPlanCreator;
 import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.exec.planner.physical.ScanPrelBase;
-import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.TableMetadata;
@@ -41,66 +29,95 @@ import com.dremio.options.Options;
 import com.dremio.options.TypeValidators;
 import com.dremio.options.TypeValidators.LongValidator;
 import com.dremio.options.TypeValidators.PositiveLongValidator;
+import java.io.IOException;
+import java.util.List;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptTable;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.RelWriter;
+import org.apache.calcite.rel.hint.RelHint;
+import org.apache.calcite.rel.type.RelDataType;
 
-/**
- * Convert scan prel to parquet group scan.
- */
+/** Convert scan prel to parquet group scan. */
 @Options
 public class ParquetScanPrel extends ScanPrelBase implements PruneableScan {
 
-  public static final LongValidator RESERVE = new PositiveLongValidator("planner.op.scan.parquet.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
-  public static final LongValidator LIMIT = new PositiveLongValidator("planner.op.scan.parquet.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
-  public static final TypeValidators.BooleanValidator C3_RUNTIME_AFFINITY = new TypeValidators.BooleanValidator("c3.runtime.affinity", false);
+  public static final LongValidator RESERVE =
+      new PositiveLongValidator(
+          "planner.op.scan.parquet.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
+  public static final LongValidator LIMIT =
+      new PositiveLongValidator(
+          "planner.op.scan.parquet.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
+  public static final TypeValidators.BooleanValidator C3_RUNTIME_AFFINITY =
+      new TypeValidators.BooleanValidator("c3.runtime.affinity", false);
 
   private final ParquetScanFilter filter;
   private final ParquetScanRowGroupFilter rowGroupFilter;
-  private final List<GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns;
   private final RelDataType cachedRelDataType;
   private final boolean arrowCachingEnabled;
 
-  public ParquetScanPrel(RelOptCluster cluster, RelTraitSet traitSet, RelOptTable table, StoragePluginId pluginId,
-                         TableMetadata dataset, List<SchemaPath> projectedColumns, double observedRowcountAdjustment,
-                         List<RelHint> hints, ParquetScanFilter filter, ParquetScanRowGroupFilter rowGroupFilter,
-                         boolean arrowCachingEnabled, List<Info> runtimeFilters) {
-    super(cluster, traitSet, table, pluginId, dataset, projectedColumns, observedRowcountAdjustment, hints, runtimeFilters);
+  public ParquetScanPrel(
+      RelOptCluster cluster,
+      RelTraitSet traitSet,
+      RelOptTable table,
+      StoragePluginId pluginId,
+      TableMetadata dataset,
+      List<SchemaPath> projectedColumns,
+      double observedRowcountAdjustment,
+      List<RelHint> hints,
+      ParquetScanFilter filter,
+      ParquetScanRowGroupFilter rowGroupFilter,
+      boolean arrowCachingEnabled,
+      List<Info> runtimeFilters) {
+    super(
+        cluster,
+        traitSet,
+        table,
+        pluginId,
+        dataset,
+        projectedColumns,
+        observedRowcountAdjustment,
+        hints,
+        runtimeFilters);
     this.filter = filter;
     this.rowGroupFilter = rowGroupFilter;
-    this.globalDictionaryEncodedColumns = null;
     this.cachedRelDataType = null;
     this.arrowCachingEnabled = arrowCachingEnabled;
   }
 
   // Clone used for copy
-  private ParquetScanPrel(RelOptCluster cluster, RelTraitSet traitSet, RelOptTable table, StoragePluginId pluginId,
-                          TableMetadata dataset, List<SchemaPath> projectedColumns, double observedRowcountAdjustment,
-                          List<RelHint> hints, ParquetScanFilter filter, ParquetScanRowGroupFilter rowGroupFilter,
-                          List<GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns,
-                          RelDataType relDataType, boolean arrowCachingEnabled, List<Info> runtimeFilters) {
-    super(cluster, traitSet, table, pluginId, dataset, projectedColumns, observedRowcountAdjustment, hints, runtimeFilters);
+  private ParquetScanPrel(
+      RelOptCluster cluster,
+      RelTraitSet traitSet,
+      RelOptTable table,
+      StoragePluginId pluginId,
+      TableMetadata dataset,
+      List<SchemaPath> projectedColumns,
+      double observedRowcountAdjustment,
+      List<RelHint> hints,
+      ParquetScanFilter filter,
+      ParquetScanRowGroupFilter rowGroupFilter,
+      RelDataType relDataType,
+      boolean arrowCachingEnabled,
+      List<Info> runtimeFilters) {
+    super(
+        cluster,
+        traitSet,
+        table,
+        pluginId,
+        dataset,
+        projectedColumns,
+        observedRowcountAdjustment,
+        hints,
+        runtimeFilters);
     this.filter = filter;
     this.rowGroupFilter = rowGroupFilter;
-    this.globalDictionaryEncodedColumns = globalDictionaryEncodedColumns;
     this.cachedRelDataType = relDataType;
     if (relDataType != null) {
       rowType = relDataType;
     }
     this.arrowCachingEnabled = arrowCachingEnabled;
-  }
-
-  // Clone used for global dictionary and new row type
-  private ParquetScanPrel(ParquetScanPrel that,
-                          double observedRowcountAdjustment,
-                          List<GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns,
-                          RelDataType relDataType, List<Info> runtimeFilters) {
-    super(that.getCluster(), that.getTraitSet(), that.getTable(), that.getPluginId(), that.getTableMetadata(), that.getProjectedColumns(), observedRowcountAdjustment, that.getHints(), runtimeFilters);
-    this.filter = that.getFilter();
-    this.rowGroupFilter = that.getRowGroupFilter();
-    this.globalDictionaryEncodedColumns = globalDictionaryEncodedColumns;
-    this.cachedRelDataType = relDataType;
-    if (relDataType != null) {
-      rowType = relDataType;
-    }
-    this.arrowCachingEnabled = that.isArrowCachingEnabled();
   }
 
   @Override
@@ -127,13 +144,15 @@ public class ParquetScanPrel extends ScanPrelBase implements PruneableScan {
 
   @Override
   public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
-    final BatchSchema schema = cachedRelDataType == null ? getTableMetadata().getSchema().maskAndReorder(getProjectedColumns()):  CalciteArrowHelper.fromCalciteRowType(cachedRelDataType);
+    final BatchSchema schema =
+        cachedRelDataType == null
+            ? getTableMetadata().getSchema().maskAndReorder(getProjectedColumns())
+            : CalciteArrowHelper.fromCalciteRowType(cachedRelDataType);
     return new ParquetGroupScan(
         creator.props(this, getTableMetadata().getUser(), schema, RESERVE, LIMIT),
         getTableMetadata(),
         getProjectedColumns(),
         filter,
-        globalDictionaryEncodedColumns,
         cachedRelDataType,
         arrowCachingEnabled,
         creator.getContext().getOptions().getOption(C3_RUNTIME_AFFINITY));
@@ -141,39 +160,62 @@ public class ParquetScanPrel extends ScanPrelBase implements PruneableScan {
 
   @Override
   public ParquetScanPrel cloneWithProject(List<SchemaPath> projection) {
-    return new ParquetScanPrel(getCluster(), getTraitSet(), table, pluginId, tableMetadata, projection,
-                               observedRowcountAdjustment, hints,
-                               filter != null ? filter.applyProjection(projection, rowType, getCluster(),
-                                                                       getBatchSchema()) : filter,
-                               rowGroupFilter != null ? rowGroupFilter.applyProjection(projection, rowType, getCluster(),
-                                                                                       getBatchSchema()) : rowGroupFilter,
-                               arrowCachingEnabled, getRuntimeFilters());
+    return new ParquetScanPrel(
+        getCluster(),
+        getTraitSet(),
+        table,
+        pluginId,
+        tableMetadata,
+        projection,
+        observedRowcountAdjustment,
+        hints,
+        filter != null
+            ? filter.applyProjection(projection, rowType, getCluster(), getBatchSchema())
+            : filter,
+        rowGroupFilter != null
+            ? rowGroupFilter.applyProjection(projection, rowType, getCluster(), getBatchSchema())
+            : rowGroupFilter,
+        arrowCachingEnabled,
+        getRuntimeFilters());
   }
 
   @Override
   public ParquetScanPrel applyDatasetPointer(TableMetadata newDatasetPointer) {
-    return new ParquetScanPrel(getCluster(), traitSet, getTable(), pluginId, newDatasetPointer, getProjectedColumns(),
-                               observedRowcountAdjustment, hints, filter, rowGroupFilter, globalDictionaryEncodedColumns,
-                               cachedRelDataType, arrowCachingEnabled, getRuntimeFilters());
+    return new ParquetScanPrel(
+        getCluster(),
+        traitSet,
+        getTable(),
+        pluginId,
+        newDatasetPointer,
+        getProjectedColumns(),
+        observedRowcountAdjustment,
+        hints,
+        filter,
+        rowGroupFilter,
+        cachedRelDataType,
+        arrowCachingEnabled,
+        getRuntimeFilters());
   }
 
   @Override
-  public double getFilterReduction(){
-    if(filter != null){
+  public double getFilterReduction() {
+    if (filter != null) {
       double selectivity = 0.15d;
 
-      double max = PrelUtil.getPlannerSettings(getCluster()).getFilterMaxSelectivityEstimateFactor();
-      double min = PrelUtil.getPlannerSettings(getCluster()).getFilterMinSelectivityEstimateFactor();
+      double max =
+          PrelUtil.getPlannerSettings(getCluster()).getFilterMaxSelectivityEstimateFactor();
+      double min =
+          PrelUtil.getPlannerSettings(getCluster()).getFilterMinSelectivityEstimateFactor();
 
-      if(selectivity < min) {
+      if (selectivity < min) {
         selectivity = min;
       }
-      if(selectivity > max) {
+      if (selectivity > max) {
         selectivity = max;
       }
 
       return selectivity;
-    }else {
+    } else {
       return 1d;
     }
   }
@@ -181,24 +223,31 @@ public class ParquetScanPrel extends ScanPrelBase implements PruneableScan {
   @Override
   public RelWriter explainTerms(RelWriter pw) {
     pw = super.explainTerms(pw);
-    return pw.itemIf("filters",  filter, filter != null)
-      .itemIf("row_group_filter", rowGroupFilter, rowGroupFilter != null);
+    return pw.itemIf("filters", filter, filter != null)
+        .itemIf("row_group_filter", rowGroupFilter, rowGroupFilter != null);
   }
 
   @Override
-  public double getCostAdjustmentFactor(){
+  public double getCostAdjustmentFactor() {
     return filter != null ? filter.getCostAdjustment() : super.getCostAdjustmentFactor();
   }
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new ParquetScanPrel(getCluster(), traitSet, getTable(), pluginId, tableMetadata, getProjectedColumns(),
-                               observedRowcountAdjustment, hints, filter, rowGroupFilter, globalDictionaryEncodedColumns,
-                               cachedRelDataType, arrowCachingEnabled, getRuntimeFilters());
-  }
-
-  public ParquetScanPrel cloneWithGlobalDictionaryColumns(List<GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns, RelDataType relDataType) {
-    return new ParquetScanPrel(this, observedRowcountAdjustment, globalDictionaryEncodedColumns, relDataType, getRuntimeFilters());
+    return new ParquetScanPrel(
+        getCluster(),
+        traitSet,
+        getTable(),
+        pluginId,
+        tableMetadata,
+        getProjectedColumns(),
+        observedRowcountAdjustment,
+        hints,
+        filter,
+        rowGroupFilter,
+        cachedRelDataType,
+        arrowCachingEnabled,
+        getRuntimeFilters());
   }
 
   public boolean isArrowCachingEnabled() {

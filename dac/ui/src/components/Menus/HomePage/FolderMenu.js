@@ -53,7 +53,7 @@ export class FolderMenu extends Component {
       }),
       confirmText: t("Common.Actions.Delete"),
       confirm: () => this.props.removeSpaceFolder(folder),
-      confirmButtonStyle: "danger",
+      confirmButtonStyle: "primary-danger",
     });
     closeMenu();
   }

@@ -18,36 +18,6 @@ package com.dremio.exec.store.iceberg.manifestwriter;
 import static com.dremio.common.map.CaseInsensitiveImmutableBiMap.newImmutableMap;
 import static com.dremio.exec.util.VectorUtil.getVectorFromSchemaPath;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-import java.util.function.BiConsumer;
-import java.util.function.Consumer;
-
-import org.apache.arrow.vector.IntVector;
-import org.apache.arrow.vector.VarBinaryVector;
-import org.apache.avro.file.DataFileConstants;
-import org.apache.iceberg.DataFile;
-import org.apache.iceberg.ManifestFile;
-import org.apache.iceberg.PartitionSpec;
-import org.apache.iceberg.Schema;
-import org.apache.iceberg.TableProperties;
-import org.apache.iceberg.io.FileIO;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.concurrent.NamedThreadFactory;
 import com.dremio.common.map.CaseInsensitiveImmutableBiMap;
 import com.dremio.datastore.LegacyProtobufSerializer;
@@ -73,8 +43,35 @@ import com.dremio.service.users.SystemUser;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.protobuf.InvalidProtocolBufferException;
-
 import io.protostuff.ByteString;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
+import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.VarBinaryVector;
+import org.apache.avro.file.DataFileConstants;
+import org.apache.iceberg.DataFile;
+import org.apache.iceberg.ManifestFile;
+import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.Schema;
+import org.apache.iceberg.TableProperties;
+import org.apache.iceberg.io.FileIO;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ManifestWritesHelper {
   private static class LazyManifestWriterPool {
@@ -93,8 +90,14 @@ public class ManifestWritesHelper {
 
     public ThreadPoolExecutor getPool() {
       if (executor == null) {
-        executor = new ThreadPoolExecutor(poolSize, poolSize, 1, TimeUnit.SECONDS, new LinkedBlockingQueue<>(),
-          new NamedThreadFactory("manifest-writers"));
+        executor =
+            new ThreadPoolExecutor(
+                poolSize,
+                poolSize,
+                1,
+                TimeUnit.SECONDS,
+                new LinkedBlockingQueue<>(),
+                new NamedThreadFactory("manifest-writers"));
         executor.allowCoreThreadTimeOut(true);
       }
       return executor;
@@ -116,7 +119,8 @@ public class ManifestWritesHelper {
   protected FileIO fileIO;
   protected VarBinaryVector inputDatafiles;
   protected IntVector operationTypes;
-  protected Map<DataFile, byte[]> deletedDataFiles = new LinkedHashMap<>(); // required that removed file is cleared with each row.
+  protected Map<DataFile, byte[]> deletedDataFiles =
+      new LinkedHashMap<>(); // required that removed file is cleared with each row.
   protected Optional<Integer> partitionSpecId = Optional.empty();
   private final Set<IcebergPartitionData> partitionDataInCurrentManifest = new HashSet<>();
   private final byte[] schema;
@@ -126,9 +130,14 @@ public class ManifestWritesHelper {
 
   private final List<CompletableFuture> manifestWriterFutures = new ArrayList<>();
 
-  public static ManifestWritesHelper getInstance(IcebergManifestWriterPOP writer, OperatorContext context) {
-    if (writer.getOptions().getTableFormatOptions()
-      .getIcebergSpecificOptions().getIcebergTableProps().isDetectSchema()) {
+  public static ManifestWritesHelper getInstance(
+      IcebergManifestWriterPOP writer, OperatorContext context) {
+    if (writer
+        .getOptions()
+        .getTableFormatOptions()
+        .getIcebergSpecificOptions()
+        .getIcebergTableProps()
+        .isDetectSchema()) {
       return new SchemaDiscoveryManifestWritesHelper(writer, context);
     } else {
       return new ManifestWritesHelper(writer);
@@ -137,36 +146,55 @@ public class ManifestWritesHelper {
 
   protected ManifestWritesHelper(IcebergManifestWriterPOP writer) {
     this.writer = writer;
-    IcebergTableProps tableProps = writer.getOptions().getTableFormatOptions()
-      .getIcebergSpecificOptions().getIcebergTableProps();
+    IcebergTableProps tableProps =
+        writer
+            .getOptions()
+            .getTableFormatOptions()
+            .getIcebergSpecificOptions()
+            .getIcebergTableProps();
     this.schema = tableProps.getFullSchema().serialize();
     this.listOfFilesCreated = Lists.newArrayList();
     try {
-      fs = writer.getPlugin().createFS(tableProps.getTableLocation(), SystemUser.SYSTEM_USERNAME, null);
+      fs =
+          writer
+              .getPlugin()
+              .createFS(tableProps.getTableLocation(), SystemUser.SYSTEM_USERNAME, null);
     } catch (IOException e) {
       throw new RuntimeException("Unable to create File System", e);
     }
 
-    Preconditions.checkArgument(writer.getPlugin() instanceof SupportsIcebergRootPointer,
+    Preconditions.checkArgument(
+        writer.getPlugin() instanceof SupportsIcebergRootPointer,
         "Invalid plugin in ManifestWritesHelper - plugin does not support Iceberg");
-    this.fileIO = ((SupportsIcebergRootPointer) writer.getPlugin()).createIcebergFileIO(fs, null, null, null, null);
+    this.fileIO =
+        ((SupportsIcebergRootPointer) writer.getPlugin())
+            .createIcebergFileIO(fs, null, null, null, null);
     this.threadPool = new LazyManifestWriterPool();
   }
 
   public void setIncoming(VectorAccessible incoming) {
-    inputDatafiles = (VarBinaryVector) getVectorFromSchemaPath(incoming, RecordWriter.ICEBERG_METADATA_COLUMN);
-    operationTypes = (IntVector) getVectorFromSchemaPath(incoming, RecordWriter.OPERATION_TYPE_COLUMN);
+    inputDatafiles =
+        (VarBinaryVector) getVectorFromSchemaPath(incoming, RecordWriter.ICEBERG_METADATA_COLUMN);
+    operationTypes =
+        (IntVector) getVectorFromSchemaPath(incoming, RecordWriter.OPERATION_TYPE_COLUMN);
   }
 
   public void startNewWriter() {
     this.currentNumDataFileAdded = 0;
     final WriterOptions writerOptions = writer.getOptions();
-    final String baseMetadataLocation = writerOptions.getTableFormatOptions().getIcebergSpecificOptions()
-      .getIcebergTableProps().getTableLocation() + Path.SEPARATOR + ICEBERG_METADATA_FOLDER;
+    final String baseMetadataLocation =
+        writerOptions
+                .getTableFormatOptions()
+                .getIcebergSpecificOptions()
+                .getIcebergTableProps()
+                .getTableLocation()
+            + Path.SEPARATOR
+            + ICEBERG_METADATA_FOLDER;
     final PartitionSpec partitionSpec = getPartitionSpec(writer.getOptions());
     this.partitionSpecId = Optional.of(partitionSpec.specId());
     final String icebergManifestFileExt = "." + outputExtension;
-    final String manifestLocation = baseMetadataLocation + Path.SEPARATOR + UUID.randomUUID() + icebergManifestFileExt;
+    final String manifestLocation =
+        baseMetadataLocation + Path.SEPARATOR + UUID.randomUUID() + icebergManifestFileExt;
     listOfFilesCreated.add(manifestLocation);
     partitionDataInCurrentManifest.clear();
     this.manifestWriter = new LazyManifestWriter(fileIO, manifestLocation, partitionSpec);
@@ -182,11 +210,13 @@ public class ManifestWritesHelper {
       final byte[] metaInfoBytes = inputDatafiles.get(recordIndex);
       final Integer operationTypeValue = operationTypes.get(recordIndex);
       final OperationType operationType = OperationType.valueOf(operationTypeValue);
-      if (operationType == OperationType.COPY_INTO_ERROR) {
+      if (operationType == OperationType.COPY_HISTORY_EVENT) {
         return;
       }
-      final IcebergMetadataInformation icebergMetadataInformation = IcebergSerDe.deserializeFromByteArray(metaInfoBytes);
-      currentDataFile = IcebergSerDe.deserializeDataFile(icebergMetadataInformation.getIcebergMetadataFileByte());
+      final IcebergMetadataInformation icebergMetadataInformation =
+          IcebergSerDe.deserializeFromByteArray(metaInfoBytes);
+      currentDataFile =
+          IcebergSerDe.deserializeDataFile(icebergMetadataInformation.getIcebergMetadataFileByte());
       if (currentDataFile == null) {
         throw new IOException("Iceberg data file cannot be empty or null.");
       }
@@ -215,7 +245,9 @@ public class ManifestWritesHelper {
 
   protected void addDataFile(DataFile dataFile) {
     logger.trace("Adding data file: {}", dataFile.path());
-    IcebergPartitionData ipd = IcebergPartitionData.fromStructLike(getPartitionSpec(writer.getOptions()), dataFile.partition());
+    IcebergPartitionData ipd =
+        IcebergPartitionData.fromStructLike(
+            getPartitionSpec(writer.getOptions()), dataFile.partition());
     if (writer.getOptions().isReadSignatureSupport()) {
       partitionDataInCurrentManifest.add(ipd);
     }
@@ -238,8 +270,9 @@ public class ManifestWritesHelper {
   }
 
   public boolean hasReachedMaxLen() {
-    return (length() + DataFileConstants.DEFAULT_SYNC_INTERVAL >= TableProperties.MANIFEST_TARGET_SIZE_BYTES_DEFAULT)
-            || (currentNumDataFileAdded >= DATAFILES_PER_MANIFEST_THRESHOLD);
+    return (length() + DataFileConstants.DEFAULT_SYNC_INTERVAL
+            >= TableProperties.MANIFEST_TARGET_SIZE_BYTES_DEFAULT)
+        || (currentNumDataFileAdded >= DATAFILES_PER_MANIFEST_THRESHOLD);
   }
 
   public void prepareWrite() {}
@@ -257,40 +290,43 @@ public class ManifestWritesHelper {
     return manifestWriter.getInstance().toManifestFile();
   }
 
-  /**
-   * Async version of writer()
-   */
-  public void write(ManifestFileRecordWriter.WritingContext context,
-                    BiConsumer<ManifestFile,
-                      ManifestFileRecordWriter.WritingContext> processGeneratedManifestFileCall) throws IOException {
-    CompletableFuture writerFuture = CompletableFuture.supplyAsync(() -> {
-      try {
-        context.getManifestWriter().getInstance().close();
-        return context.getManifestWriter().getInstance().toManifestFile();
-      } catch (Exception ex) {
-        throw new CompletionException(ex);
-      }
-      },
-        threadPool.getPool())
-      .whenComplete((manifestFile, ex) -> {
-        if (ex != null) {
-          throw new CompletionException(ex);
-        }
+  /** Async version of writer() */
+  public void write(
+      ManifestFileRecordWriter.WritingContext context,
+      BiConsumer<ManifestFile, ManifestFileRecordWriter.WritingContext>
+          processGeneratedManifestFileCall)
+      throws IOException {
+    CompletableFuture writerFuture =
+        CompletableFuture.supplyAsync(
+                () -> {
+                  try {
+                    context.getManifestWriter().getInstance().close();
+                    return context.getManifestWriter().getInstance().toManifestFile();
+                  } catch (Exception ex) {
+                    throw new CompletionException(ex);
+                  }
+                },
+                threadPool.getPool())
+            .whenComplete(
+                (manifestFile, ex) -> {
+                  if (ex != null) {
+                    throw new CompletionException(ex);
+                  }
 
-        try {
-          processGeneratedManifestFileCall.accept(manifestFile, context);
-        } catch (Exception e) {
-          throw new CompletionException(e);
-        }
-
-      })
-      .exceptionally(e -> {
-        CompletionException exp = (CompletionException) e;
-        if (exp.getCause() instanceof IOException) {
-          logger.error("Error while writing manifest file", exp);
-        }
-        throw new CompletionException(e);
-      });
+                  try {
+                    processGeneratedManifestFileCall.accept(manifestFile, context);
+                  } catch (Exception e) {
+                    throw new CompletionException(e);
+                  }
+                })
+            .exceptionally(
+                e -> {
+                  CompletionException exp = (CompletionException) e;
+                  if (exp.getCause() instanceof IOException) {
+                    logger.error("Error while writing manifest file", exp);
+                  }
+                  throw new CompletionException(e);
+                });
 
     manifestWriterFutures.add(writerFuture);
   }
@@ -304,40 +340,54 @@ public class ManifestWritesHelper {
   }
 
   PartitionSpec getPartitionSpec(WriterOptions writerOptions) {
-    PartitionSpec partitionSpec = Optional.ofNullable(writerOptions.getTableFormatOptions().getIcebergSpecificOptions()
-        .getIcebergTableProps()).map(props -> props.getDeserializedPartitionSpec()).orElse(null);
+    PartitionSpec partitionSpec =
+        Optional.ofNullable(
+                writerOptions
+                    .getTableFormatOptions()
+                    .getIcebergSpecificOptions()
+                    .getIcebergTableProps())
+            .map(props -> props.getDeserializedPartitionSpec())
+            .orElse(null);
 
     if (partitionSpec != null) {
       return partitionSpec;
     }
 
-    IcebergTableProps tableProps = writerOptions.getTableFormatOptions().getIcebergSpecificOptions().getIcebergTableProps();
+    IcebergTableProps tableProps =
+        writerOptions.getTableFormatOptions().getIcebergSpecificOptions().getIcebergTableProps();
     List<String> partitionColumns = tableProps.getPartitionColumnNames();
     BatchSchema batchSchema = tableProps.getFullSchema();
 
     Schema icebergSchema = null;
     if (writerOptions.getExtendedProperty() != null) {
-      icebergSchema = getIcebergSchema(writerOptions.getExtendedProperty(), batchSchema, tableProps.getTableName());
+      icebergSchema =
+          getIcebergSchema(
+              writerOptions.getExtendedProperty(), batchSchema, tableProps.getTableName());
     }
 
     return IcebergUtils.getIcebergPartitionSpec(batchSchema, partitionColumns, icebergSchema);
-        /*
-         TODO: currently we don't support partition spec update for by default spec ID will be 0. in future if
-               we start supporting partition spec id. then Id must be inherited from data files(input to this writer)
-         */
+    /*
+    TODO: currently we don't support partition spec update for by default spec ID will be 0. in future if
+          we start supporting partition spec id. then Id must be inherited from data files(input to this writer)
+    */
   }
 
-  protected Schema getIcebergSchema(ByteString extendedProperty, BatchSchema batchSchema, String tableName) {
+  protected Schema getIcebergSchema(
+      ByteString extendedProperty, BatchSchema batchSchema, String tableName) {
     try {
-      IcebergProtobuf.IcebergDatasetXAttr icebergDatasetXAttr = LegacyProtobufSerializer.parseFrom(IcebergProtobuf.IcebergDatasetXAttr.PARSER,
-              extendedProperty.toByteArray());
-      List<IcebergProtobuf.IcebergSchemaField> icebergColumnIDs = icebergDatasetXAttr.getColumnIdsList();
+      IcebergProtobuf.IcebergDatasetXAttr icebergDatasetXAttr =
+          LegacyProtobufSerializer.parseFrom(
+              IcebergProtobuf.IcebergDatasetXAttr.PARSER, extendedProperty.toByteArray());
+      List<IcebergProtobuf.IcebergSchemaField> icebergColumnIDs =
+          icebergDatasetXAttr.getColumnIdsList();
       Map<String, Integer> icebergColumns = new HashMap<>();
       icebergColumnIDs.forEach(field -> icebergColumns.put(field.getSchemaPath(), field.getId()));
       CaseInsensitiveImmutableBiMap<Integer> icebergColumnIDMap = newImmutableMap(icebergColumns);
       if (icebergColumnIDMap != null && icebergColumnIDMap.size() > 0) {
-        FieldIdBroker.SeededFieldIdBroker fieldIdBroker = new FieldIdBroker.SeededFieldIdBroker(icebergColumnIDMap);
-        SchemaConverter schemaConverter = SchemaConverter.getBuilder().setTableName(tableName).build();
+        FieldIdBroker.SeededFieldIdBroker fieldIdBroker =
+            new FieldIdBroker.SeededFieldIdBroker(icebergColumnIDMap);
+        SchemaConverter schemaConverter =
+            SchemaConverter.getBuilder().setTableName(tableName).build();
         return schemaConverter.toIcebergSchema(batchSchema, fieldIdBroker);
       } else {
         return null;
@@ -384,11 +434,17 @@ public class ManifestWritesHelper {
   }
 
   public static boolean deleteManifestCrcFileIfExists(FileIO fileIO, String manifestFilePath) {
-    try{
+    try {
       com.dremio.io.file.Path p = com.dremio.io.file.Path.of(manifestFilePath);
       String fileName = p.getName();
       com.dremio.io.file.Path parentPath = p.getParent();
-      String crcFilePath = parentPath + com.dremio.io.file.Path.SEPARATOR + "." + fileName + "." + CRC_FILE_EXTENTION;
+      String crcFilePath =
+          parentPath
+              + com.dremio.io.file.Path.SEPARATOR
+              + "."
+              + fileName
+              + "."
+              + CRC_FILE_EXTENTION;
       fileIO.deleteFile(crcFilePath);
       return true;
     } catch (Exception e) {

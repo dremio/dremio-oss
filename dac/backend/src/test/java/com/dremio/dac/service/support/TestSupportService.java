@@ -20,22 +20,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import java.io.File;
-import java.util.List;
-
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.Invocation;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.Status;
-
-import org.junit.Assume;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Ignore;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-
 import com.dremio.dac.explore.model.CreateFromSQL;
 import com.dremio.dac.explore.model.InitialPreviewResponse;
 import com.dremio.dac.server.BaseTestServer;
@@ -49,14 +33,24 @@ import com.dremio.test.TemporarySystemProperties;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.Files;
 import com.google.common.io.Resources;
+import java.io.File;
+import java.util.List;
+import javax.ws.rs.client.Entity;
+import javax.ws.rs.client.Invocation;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.Status;
+import org.junit.Assume;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
+import org.junit.Ignore;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
-/**
- * Test the support service
- */
+/** Test the support service */
 public class TestSupportService extends BaseTestServer {
 
-  @ClassRule
-  public static final TemporaryFolder temp = new TemporaryFolder();
+  @ClassRule public static final TemporaryFolder temp = new TemporaryFolder();
 
   @ClassRule
   public static final TemporarySystemProperties properties = new TemporarySystemProperties();
@@ -66,7 +60,9 @@ public class TestSupportService extends BaseTestServer {
     // set the log path so we can read logs and confirm that is working.
     final File jsonFolder = temp.newFolder("json");
     jsonFolder.mkdir();
-    Files.copy(new File(Resources.getResource("support/server.json").getPath()), new File(jsonFolder, "server.json"));
+    Files.copy(
+        new File(Resources.getResource("support/server.json").getPath()),
+        new File(jsonFolder, "server.json"));
     System.setProperty(SupportService.DREMIO_LOG_PATH_PROPERTY, temp.getRoot().toString());
 
     // now start server.
@@ -76,7 +72,8 @@ public class TestSupportService extends BaseTestServer {
   @Test
   public void supportDownload() throws Exception {
     InitialPreviewResponse preview = createDatasetFromParent("cp.\"tpch/supplier.parquet\"");
-    String url = preview.getPaginationUrl().replace("/job/", "/support/").replace("/data", "" + "/download");
+    String url =
+        preview.getPaginationUrl().replace("/job/", "/support/").replace("/data", "" + "/download");
 
     Response response = getBuilder(url).post(null);
     assertEquals(Status.OK.getStatusCode(), response.getStatus());
@@ -87,12 +84,17 @@ public class TestSupportService extends BaseTestServer {
     InitialPreviewResponse preview = createDatasetFromParent("cp.\"tpch/supplier.parquet\"");
     String url = preview.getPaginationUrl().replace("/job/", "/support/").replace("/data", "");
 
-    SupportResponse response = expectSuccess(getBuilder(url).buildPost(null), SupportResponse.class);
+    SupportResponse response =
+        expectSuccess(getBuilder(url).buildPost(null), SupportResponse.class);
 
-    // We really don't want to actually upload the S3 in tests, so it fails after creating the bundle.
+    // We really don't want to actually upload the S3 in tests, so it fails after creating the
+    // bundle.
     // Keep calm, carry on.
     assertFalse(response.isSuccess());
-    assertTrue(response.getUrl().startsWith("Unable to upload diagnostics in debug, available locally at: "));
+    assertTrue(
+        response
+            .getUrl()
+            .startsWith("Unable to upload diagnostics in debug, available locally at: "));
   }
 
   @Test
@@ -101,25 +103,28 @@ public class TestSupportService extends BaseTestServer {
     Assume.assumeTrue(!BaseTestServer.isMultinode());
 
     String badFileName = "fake_file_one";
-    final Invocation invocation = getBuilder(
-        getAPIv2()
-            .path("datasets/new_untitled_sql")
-            .queryParam("newVersion", newVersion())
-    ).buildPost(Entity.entity(new CreateFromSQL("select * from " + badFileName, null), MediaType.APPLICATION_JSON_TYPE));
+    final Invocation invocation =
+        getBuilder(
+                getAPIv2().path("datasets/new_untitled_sql").queryParam("newVersion", newVersion()))
+            .buildPost(
+                Entity.entity(
+                    new CreateFromSQL("select * from " + badFileName, null),
+                    MediaType.APPLICATION_JSON_TYPE));
     expectError(FamilyExpectation.CLIENT_ERROR, invocation, Object.class);
 
-    final SearchJobsRequest request = SearchJobsRequest.newBuilder()
-        .setFilterString("*=contains=" + badFileName)
-        .setLimit(1)
-        .build();
+    final SearchJobsRequest request =
+        SearchJobsRequest.newBuilder()
+            .setFilterString("*=contains=" + badFileName)
+            .setLimit(1)
+            .build();
 
     List<JobSummary> jobs = ImmutableList.copyOf(l(JobsService.class).searchJobs(request));
     assertEquals(1, jobs.size());
     JobSummary job = jobs.get(0);
     String url = "/support/" + job.getJobId().getId();
-    SupportResponse response = expectSuccess(getBuilder(url).buildPost(null), SupportResponse.class);
+    SupportResponse response =
+        expectSuccess(getBuilder(url).buildPost(null), SupportResponse.class);
     assertTrue(response.getUrl().contains("Unable to upload diagnostics"));
     assertTrue("Failure including logs.", response.isIncludesLogs());
   }
-
 }

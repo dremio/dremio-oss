@@ -15,27 +15,24 @@
  */
 package com.dremio.exec.planner.logical;
 
+import com.dremio.exec.planner.common.CopyIntoTableRelBase;
+import com.dremio.exec.planner.sql.handlers.query.CopyIntoTableContext;
 import java.util.List;
-
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
 
-import com.dremio.exec.planner.common.CopyIntoTableRelBase;
-import com.dremio.exec.planner.sql.handlers.query.CopyIntoTableContext;
-
-/**
- * Drel for 'COPY INTO'
- */
+/** Drel for 'COPY INTO' */
 public class CopyIntoTableRel extends CopyIntoTableRelBase implements Rel {
 
-  public CopyIntoTableRel(RelOptCluster cluster,
-                          RelTraitSet traitSet,
-                          RelOptTable table,
-                          RelDataType rowType,
-                          CopyIntoTableContext config) {
+  public CopyIntoTableRel(
+      RelOptCluster cluster,
+      RelTraitSet traitSet,
+      RelOptTable table,
+      RelDataType rowType,
+      CopyIntoTableContext config) {
     super(LOGICAL, cluster, traitSet, table, rowType, config);
   }
 

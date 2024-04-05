@@ -15,9 +15,6 @@
  */
 package com.dremio.plugins.sysflight;
 
-import java.util.Collection;
-import java.util.List;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.AbstractSubScan;
@@ -33,10 +30,10 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.Iterables;
+import java.util.Collection;
+import java.util.List;
 
-/**
- * SysFlight sub scan
- */
+/** SysFlight sub scan */
 @JsonTypeName("flight-scan")
 public class SysFlightSubScan extends AbstractSubScan implements OpWithMinorSpecificAttrs {
 
@@ -48,13 +45,12 @@ public class SysFlightSubScan extends AbstractSubScan implements OpWithMinorSpec
 
   @JsonCreator
   public SysFlightSubScan(
-    @JsonProperty("props") OpProps props,
-    @JsonProperty("datasetPath") List<String> datasetPath,
-    @JsonProperty("schema") BatchSchema schema,
-    @JsonProperty("columns") List<SchemaPath> columns,
-    @JsonProperty("query") SearchQuery query,
-    @JsonProperty("pluginId") StoragePluginId pluginId
-  ) {
+      @JsonProperty("props") OpProps props,
+      @JsonProperty("datasetPath") List<String> datasetPath,
+      @JsonProperty("schema") BatchSchema schema,
+      @JsonProperty("columns") List<SchemaPath> columns,
+      @JsonProperty("query") SearchQuery query,
+      @JsonProperty("pluginId") StoragePluginId pluginId) {
     super(props, schema, datasetPath);
     this.schema = schema;
     this.columns = columns;
@@ -64,10 +60,11 @@ public class SysFlightSubScan extends AbstractSubScan implements OpWithMinorSpec
   }
 
   CoordinatorFlightTicket getTicket() {
-    SysFlightTicket.Builder ticketBuilder = SysFlightTicket.newBuilder()
-      .setDatasetName(String.join(".", datasetPath.subList(1, datasetPath.size())))
-      .setUserName(props.getUserName());
-    if(query != null) {
+    SysFlightTicket.Builder ticketBuilder =
+        SysFlightTicket.newBuilder()
+            .setDatasetName(String.join(".", datasetPath.subList(1, datasetPath.size())))
+            .setUserName(props.getUserName());
+    if (query != null) {
       ticketBuilder.setQuery(query);
     }
     return CoordinatorFlightTicket.newBuilder().setSyFlightTicket(ticketBuilder.build()).build();
@@ -107,7 +104,7 @@ public class SysFlightSubScan extends AbstractSubScan implements OpWithMinorSpec
   }
 
   @Override
-  public String toString(){
+  public String toString() {
     return new NamespaceKey(Iterables.getOnlyElement(getReferencedTables())).toString();
   }
 

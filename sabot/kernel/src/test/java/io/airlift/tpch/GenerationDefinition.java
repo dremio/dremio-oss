@@ -24,7 +24,6 @@ public class GenerationDefinition {
 
   public static GenerationDefinition SCALE_01_SINGLE = new GenerationDefinition(1, Long.MAX_VALUE);
 
-
   private double scaleFactor;
   private long targetPartitionSize;
 
@@ -35,31 +34,34 @@ public class GenerationDefinition {
     this.targetPartitionSize = targetPartitionSize;
   }
 
-  public long getStartIndex(TpchTable table, int partitionIndex){
-    return calculateStartIndex(table.scaleBase, scaleFactor, partitionIndex, getPartitionCount(table.scaleBase));
+  public long getStartIndex(TpchTable table, int partitionIndex) {
+    return calculateStartIndex(
+        table.scaleBase, scaleFactor, partitionIndex, getPartitionCount(table.scaleBase));
   }
 
-  public long getRowCount(TpchTable table, int partitionIndex){
-    if(table.fixedSize){
+  public long getRowCount(TpchTable table, int partitionIndex) {
+    if (table.fixedSize) {
       return table.scaleBase;
     }
 
-    return calculateRowCount(table.scaleBase, scaleFactor, partitionIndex, getPartitionCount(table.scaleBase));
+    return calculateRowCount(
+        table.scaleBase, scaleFactor, partitionIndex, getPartitionCount(table.scaleBase));
   }
 
-  private int getPartitionCount(int scaleBase){
+  private int getPartitionCount(int scaleBase) {
     long totalRowCount = (long) (scaleBase * scaleFactor);
-    int partitionCount = (int) (totalRowCount/targetPartitionSize);
-    if(partitionCount < 1){
+    int partitionCount = (int) (totalRowCount / targetPartitionSize);
+    if (partitionCount < 1) {
       partitionCount = 1;
     }
     return partitionCount;
   }
 
-
-  private static long calculateRowCount(int scaleBase, double scaleFactor, int partitionIndex, int partitionCount) {
+  private static long calculateRowCount(
+      int scaleBase, double scaleFactor, int partitionIndex, int partitionCount) {
     checkArgument(partitionIndex >= 1, "part must be at least 1");
-    checkArgument(partitionIndex <= partitionCount, "part must be less than or equal to part count");
+    checkArgument(
+        partitionIndex <= partitionCount, "part must be less than or equal to part count");
 
     long totalRowCount = (long) (scaleBase * scaleFactor);
     long rowCount = totalRowCount / partitionCount;
@@ -70,9 +72,11 @@ public class GenerationDefinition {
     return rowCount;
   }
 
-  private static long calculateStartIndex(int scaleBase, double scaleFactor, int partitionIndex, int partitionCount) {
+  private static long calculateStartIndex(
+      int scaleBase, double scaleFactor, int partitionIndex, int partitionCount) {
     checkArgument(partitionIndex >= 1, "part must be at least 1");
-    checkArgument(partitionIndex <= partitionCount, "part must be less than or equal to part count");
+    checkArgument(
+        partitionIndex <= partitionCount, "part must be less than or equal to part count");
 
     long totalRowCount = (long) (scaleBase * scaleFactor);
 
@@ -89,32 +93,29 @@ public class GenerationDefinition {
     SUPPLIER(10_000),
     NATION(Distributions.getDefaultDistributions().getNations().size(), true),
     REGION(Distributions.getDefaultDistributions().getRegions().size(), true),
-    LIST_STRUCT(150_000)
-    ;
+    LIST_STRUCT(150_000);
 
     public final int scaleBase;
     public final boolean fixedSize;
 
-    TpchTable(int scaleBase){
+    TpchTable(int scaleBase) {
       this(scaleBase, false);
     }
 
-    TpchTable(int scaleBase, boolean fixedSize){
+    TpchTable(int scaleBase, boolean fixedSize) {
       this.scaleBase = scaleBase;
       this.fixedSize = fixedSize;
     }
 
-    public RelDataType getDataType(RelDataTypeFactory factory){
+    public RelDataType getDataType(RelDataTypeFactory factory) {
       return null;
     }
 
-    public long getTotalRecords(double scaleFactor){
-      if(fixedSize){
+    public long getTotalRecords(double scaleFactor) {
+      if (fixedSize) {
         return scaleBase;
       }
       return (long) (scaleBase * scaleFactor);
     }
   }
-
-
 }

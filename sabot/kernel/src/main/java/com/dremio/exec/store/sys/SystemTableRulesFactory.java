@@ -15,30 +15,28 @@
  */
 package com.dremio.exec.store.sys;
 
-import java.util.Set;
-
-import org.apache.calcite.plan.RelOptRule;
-
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.ops.OptimizerRulesContext;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.store.StoragePluginRulesFactory.StoragePluginTypeRulesFactory;
 import com.google.common.collect.ImmutableSet;
+import java.util.Set;
+import org.apache.calcite.plan.RelOptRule;
 
 public class SystemTableRulesFactory extends StoragePluginTypeRulesFactory {
 
   @Override
-  public Set<RelOptRule> getRules(OptimizerRulesContext optimizerContext, PlannerPhase phase, SourceType pluginType) {
-    switch(phase) {
-    case LOGICAL:
-      return ImmutableSet.<RelOptRule>of(new SystemScanDrule(pluginType));
+  public Set<RelOptRule> getRules(
+      OptimizerRulesContext optimizerContext, PlannerPhase phase, SourceType pluginType) {
+    switch (phase) {
+      case LOGICAL:
+        return ImmutableSet.<RelOptRule>of(new SystemScanDrule(pluginType));
 
-    case PHYSICAL:
-      return ImmutableSet.of(SystemScanPrule.INSTANCE);
+      case PHYSICAL:
+        return ImmutableSet.of(SystemScanPrule.INSTANCE);
 
-    default:
-      return ImmutableSet.of();
+      default:
+        return ImmutableSet.of();
     }
   }
-
 }

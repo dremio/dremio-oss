@@ -36,16 +36,21 @@ const columnRuleAnalyzers: CompositeRuleAnalyzers = {
     child(
       Parser.RULE_compoundIdentifier,
       (
-        priorToken: Token | undefined // Column name to describe
-      ) => !isTokenOfType(priorToken, [Parser.DESCRIBE, Parser.DESC])
+        priorToken: Token | undefined, // Column name to describe
+      ) =>
+        !isTokenOfType(priorToken, [
+          Parser.DESCRIBE,
+          Parser.DESC,
+          Parser.TABLE,
+        ]),
     ),
   ]),
   [Parser.RULE_sqlDescribe]: includeIf([
     child(
       Parser.RULE_simpleIdentifier,
       (
-        priorToken: Token | undefined // Column name to describe
-      ) => !isTokenOfType(priorToken, [Parser.DESCRIBE, Parser.TABLE])
+        priorToken: Token | undefined, // Column name to describe
+      ) => !isTokenOfType(priorToken, [Parser.DESCRIBE, Parser.TABLE]),
     ),
   ]),
   [Parser.RULE_sqlCreateOrReplace]: includeIf([child(Parser.RULE_policy)]), // Masking columns (referencing subquery only)
@@ -72,8 +77,8 @@ const columnRuleAnalyzers: CompositeRuleAnalyzers = {
     child(
       Parser.RULE_simpleIdentifier,
       (
-        priorToken: Token | undefined // Column to update
-      ) => isTokenOfType(priorToken, [Parser.SET, Parser.COMMA])
+        priorToken: Token | undefined, // Column to update
+      ) => isTokenOfType(priorToken, [Parser.SET, Parser.COMMA]),
     ),
     child(Parser.RULE_expression), // SET .. = <expression>
     child(Parser.RULE_whereOpt), // WHERE <conditions>
@@ -93,7 +98,7 @@ const columnRuleAnalyzers: CompositeRuleAnalyzers = {
     child(
       Parser.RULE_simpleIdentifier,
       (
-        priorToken: Token | undefined // Column to change/alter/modify or drop
+        priorToken: Token | undefined, // Column to change/alter/modify or drop
       ) =>
         isTokenOfType(priorToken, [
           Parser.CHANGE,
@@ -101,7 +106,7 @@ const columnRuleAnalyzers: CompositeRuleAnalyzers = {
           Parser.MODIFY,
           Parser.COLUMN,
           Parser.DROP,
-        ])
+        ]),
     ),
     child(Parser.RULE_policy), // Row access policy to add/drop or column masking policy to set/unset
     child(Parser.RULE_parseRequiredFieldList), // Primary key column to add
@@ -114,7 +119,7 @@ const columnRuleAnalyzers: CompositeRuleAnalyzers = {
   [Parser.RULE_sqlSelect]: includeAll(), // Select command elements
   [Parser.RULE_selectItem]: excludeIf([child(Parser.RULE_simpleIdentifier)]), // Select item alias
   [Parser.RULE_tableRef3]: includeIf([
-    child(Parser.RULE_matchRecognizeOpt), // MATCH_RECOGNIZE function
+    child(Parser.RULE_matchRecognize), // MATCH_RECOGNIZE function
     child(Parser.RULE_pivot), // Pivot operator (defines columns to pivot)
     child(Parser.RULE_unpivot), // Unpivot operator (defines columns to unpivot)
   ]),
@@ -127,7 +132,7 @@ const columnRuleAnalyzers: CompositeRuleAnalyzers = {
     child(Parser.RULE_simpleIdentifier), // Unused identifier
     child(Parser.RULE_windowRange), // Only numeric expression (and unsupported anyways)
   ]),
-  [Parser.RULE_matchRecognizeOpt]: excludeIf([
+  [Parser.RULE_matchRecognize]: excludeIf([
     child(Parser.RULE_simpleIdentifier), // Pattern name
     child(Parser.RULE_subsetDefinitionCommaList), // Subset variables and correlation variables
   ]),
@@ -144,7 +149,7 @@ const columnRuleAnalyzers: CompositeRuleAnalyzers = {
 
 export function isColumn(
   priorTerminals: TerminalNode[],
-  identifierCandidate: IdentifierCandidate
+  identifierCandidate: IdentifierCandidate,
 ): boolean {
   if (priorTerminals.length == 0) {
     return false;
@@ -153,6 +158,6 @@ export function isColumn(
   return validateCompositeRules(
     identifierCandidate,
     columnRuleAnalyzers,
-    priorTerminal
+    priorTerminal,
   );
 }

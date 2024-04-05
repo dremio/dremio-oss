@@ -17,8 +17,6 @@ package com.dremio.dac.model.job.acceleration;
 
 import static com.dremio.dac.model.job.acceleration.UiMapper.toUI;
 
-import java.util.List;
-
 import com.dremio.dac.proto.model.acceleration.LayoutApiDescriptor;
 import com.dremio.dac.resource.ApiIntentMessageMapper;
 import com.dremio.sabot.kernel.proto.ReflectionExplanation;
@@ -27,10 +25,9 @@ import com.dremio.service.accelerator.proto.SubstitutionState;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
+import java.util.List;
 
-/**
- * UI wrapper for {@link ReflectionRelationship}
- */
+/** UI wrapper for {@link ReflectionRelationship} */
 public class ReflectionRelationshipUI {
   private final SubstitutionState relationship;
   private final MaterializationDetailsUI materialization;
@@ -43,14 +40,14 @@ public class ReflectionRelationshipUI {
 
   @JsonCreator
   ReflectionRelationshipUI(
-    @JsonProperty("relationship") SubstitutionState relationship,
-    @JsonProperty("materialization") MaterializationDetailsUI materialization,
-    @JsonProperty("dataset") DatasetDetailsUI dataset,
-    @JsonProperty("accelerationSettings") AccelerationSettingsUI accelerationSettings,
-    @JsonProperty("reflection") LayoutApiDescriptor reflection,
-    @JsonProperty("snowflake") boolean snowflake,
-    @JsonProperty("hintScore") double hintScore,
-    @JsonProperty("reflectionHints") List<ReflectionExplanationUI> reflectionHints) {
+      @JsonProperty("relationship") SubstitutionState relationship,
+      @JsonProperty("materialization") MaterializationDetailsUI materialization,
+      @JsonProperty("dataset") DatasetDetailsUI dataset,
+      @JsonProperty("accelerationSettings") AccelerationSettingsUI accelerationSettings,
+      @JsonProperty("reflection") LayoutApiDescriptor reflection,
+      @JsonProperty("snowflake") boolean snowflake,
+      @JsonProperty("hintScore") double hintScore,
+      @JsonProperty("reflectionHints") List<ReflectionExplanationUI> reflectionHints) {
     this.relationship = relationship;
     this.materialization = materialization;
     this.dataset = dataset;
@@ -62,17 +59,17 @@ public class ReflectionRelationshipUI {
   }
 
   ReflectionRelationshipUI(ReflectionRelationship reflectionRelationship) {
-    this(reflectionRelationship.getState(),
-      toUI(reflectionRelationship.getMaterialization()),
-      toUI(reflectionRelationship.getDataset()),
-      toUI(reflectionRelationship.getAccelerationSettings()),
-      ApiIntentMessageMapper.toApiMessage(reflectionRelationship.getReflection(), reflectionRelationship.getReflectionType()),
-      reflectionRelationship.getSnowflake(),
-      reflectionRelationship.getQueryDistance(),
-      transformList(reflectionRelationship.getReflectionExplanationList()));
+    this(
+        reflectionRelationship.getState(),
+        toUI(reflectionRelationship.getMaterialization()),
+        toUI(reflectionRelationship.getDataset()),
+        toUI(reflectionRelationship.getAccelerationSettings()),
+        ApiIntentMessageMapper.toApiMessage(
+            reflectionRelationship.getReflection(), reflectionRelationship.getReflectionType()),
+        reflectionRelationship.getSnowflake(),
+        reflectionRelationship.getQueryDistance(),
+        transformList(reflectionRelationship.getReflectionExplanationList()));
   }
-
-
 
   public SubstitutionState getRelationship() {
     return relationship;
@@ -106,12 +103,13 @@ public class ReflectionRelationshipUI {
     return reflectionHints;
   }
 
-  private static List<ReflectionExplanationUI> transformList(List<ReflectionExplanation> reflectionHints){
-    if(null == reflectionHints){
+  private static List<ReflectionExplanationUI> transformList(
+      List<ReflectionExplanation> reflectionHints) {
+    if (null == reflectionHints) {
       return null;
     }
     ImmutableList.Builder<ReflectionExplanationUI> results = ImmutableList.builder();
-    for (ReflectionExplanation rh: reflectionHints){
+    for (ReflectionExplanation rh : reflectionHints) {
       results.add(toUI(rh));
     }
     return results.build();

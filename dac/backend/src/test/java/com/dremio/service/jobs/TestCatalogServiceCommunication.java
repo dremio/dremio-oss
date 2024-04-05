@@ -17,13 +17,6 @@ package com.dremio.service.jobs;
 
 import static org.junit.Assert.assertTrue;
 
-import java.util.List;
-
-import javax.inject.Provider;
-
-import org.junit.Before;
-import org.junit.Test;
-
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.exec.catalog.CatalogServiceImpl;
@@ -40,10 +33,12 @@ import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.google.common.collect.ImmutableList;
+import java.util.List;
+import javax.inject.Provider;
+import org.junit.Before;
+import org.junit.Test;
 
-/**
- * Tests for catalog service communication.
- */
+/** Tests for catalog service communication. */
 public class TestCatalogServiceCommunication extends BaseTestServer {
 
   private static MockUpPlugin mockUpPlugin;
@@ -64,44 +59,44 @@ public class TestCatalogServiceCommunication extends BaseTestServer {
     CatalogServiceImpl catalogServiceImpl = (CatalogServiceImpl) l(CatalogService.class);
 
     {
-      final SourceConfig mockUpConfig = new SourceConfig()
-          .setName(MOCK_UP)
-          .setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY)
-          .setId(new EntityId("source-id"))
-          .setCtime(100L)
-          .setConnectionConf(new MockUpConfig());
+      final SourceConfig mockUpConfig =
+          new SourceConfig()
+              .setName(MOCK_UP)
+              .setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY)
+              .setId(new EntityId("source-id"))
+              .setCtime(100L)
+              .setConnectionConf(new MockUpConfig());
 
       doMockDatasets(mockUpPlugin, ImmutableList.of());
 
       catalogServiceImpl.getSystemUserCatalog().createSource(mockUpConfig);
 
-      assertTrue((
-          (CatalogServiceImpl) getExecutorDaemon()
-              .getBindingProvider()
-              .lookup(CatalogService.class))
-          .getManagedSource(MOCK_UP)
-          .matches(mockUpConfig));
+      assertTrue(
+          ((CatalogServiceImpl)
+                  getExecutorDaemon().getBindingProvider().lookup(CatalogService.class))
+              .getManagedSource(MOCK_UP)
+              .matches(mockUpConfig));
     }
 
     {
       SourceConfig source = l(NamespaceService.class).getSource(new NamespaceKey(MOCK_UP));
-      final SourceConfig mockUpConfig = new SourceConfig()
-          .setName(MOCK_UP)
-          .setMetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY)
-          .setCtime(100L)
-          .setId(new EntityId("source-id"))
-          .setTag(source.getTag())
-          .setConfigOrdinal(source.getConfigOrdinal())
-          .setConnectionConf(new MockUpConfig());
+      final SourceConfig mockUpConfig =
+          new SourceConfig()
+              .setName(MOCK_UP)
+              .setMetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY)
+              .setCtime(100L)
+              .setId(new EntityId("source-id"))
+              .setTag(source.getTag())
+              .setConfigOrdinal(source.getConfigOrdinal())
+              .setConnectionConf(new MockUpConfig());
 
       catalogServiceImpl.getSystemUserCatalog().updateSource(mockUpConfig);
 
-      assertTrue((
-          (CatalogServiceImpl) getExecutorDaemon()
-              .getBindingProvider()
-              .lookup(CatalogService.class))
-          .getManagedSource(MOCK_UP)
-          .matches(mockUpConfig));
+      assertTrue(
+          ((CatalogServiceImpl)
+                  getExecutorDaemon().getBindingProvider().lookup(CatalogService.class))
+              .getManagedSource(MOCK_UP)
+              .matches(mockUpConfig));
 
       catalogServiceImpl.getSystemUserCatalog().deleteSource(mockUpConfig);
     }
@@ -109,20 +104,20 @@ public class TestCatalogServiceCommunication extends BaseTestServer {
 
   public static final String MOCK_UP = "mockup2";
 
-  /**
-   * Mock source config.
-   */
+  /** Mock source config. */
   @SourceType(value = MOCK_UP, configurable = false)
-  public static class MockUpConfig extends ConnectionConf<TestCatalogServiceImpl.MockUpConfig, MockUpPlugin> {
+  public static class MockUpConfig
+      extends ConnectionConf<TestCatalogServiceImpl.MockUpConfig, MockUpPlugin> {
 
     @Override
-    public MockUpPlugin newPlugin(SabotContext context, String name,
-                                  Provider<StoragePluginId> pluginIdProvider) {
+    public MockUpPlugin newPlugin(
+        SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
       return mockUpPlugin;
     }
   }
 
-  private void doMockDatasets(StoragePlugin plugin, final List<DatasetHandle> datasets) throws Exception {
+  private void doMockDatasets(StoragePlugin plugin, final List<DatasetHandle> datasets)
+      throws Exception {
     ((MockUpPlugin) plugin).setDatasets(datasets);
   }
 }

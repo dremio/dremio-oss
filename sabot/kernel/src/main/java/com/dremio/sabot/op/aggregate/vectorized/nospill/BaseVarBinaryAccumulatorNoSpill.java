@@ -15,22 +15,18 @@
  */
 package com.dremio.sabot.op.aggregate.vectorized.nospill;
 
-
+import com.dremio.common.AutoCloseables;
+import com.dremio.sabot.op.common.ht2.LBlockHashTableNoSpill;
+import com.google.common.collect.ImmutableList;
 import org.apache.arrow.vector.BaseVariableWidthVector;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.MutableVarcharVector;
 import org.apache.arrow.vector.VariableWidthVector;
 
-import com.dremio.common.AutoCloseables;
-import com.dremio.sabot.op.common.ht2.LBlockHashTableNoSpill;
-import com.google.common.collect.ImmutableList;
-
-
 /**
- * A base accumulator that manages the basic concepts of expanding the array of
- * accumulation vectors associated with the current aggregation.
- * Especially written for mutablevarchar vector. Currently being used
- * when the query has min/max on the var length column.
+ * A base accumulator that manages the basic concepts of expanding the array of accumulation vectors
+ * associated with the current aggregation. Especially written for mutablevarchar vector. Currently
+ * being used when the query has min/max on the var length column.
  */
 abstract class BaseVarBinaryAccumulatorNoSpill implements AccumulatorNoSpill {
 
@@ -39,18 +35,18 @@ abstract class BaseVarBinaryAccumulatorNoSpill implements AccumulatorNoSpill {
   protected FieldVector[] accumulators;
   protected int batches;
 
-  public BaseVarBinaryAccumulatorNoSpill(FieldVector input, FieldVector output){
+  public BaseVarBinaryAccumulatorNoSpill(FieldVector input, FieldVector output) {
     this.input = input;
     this.output = output;
     initArrs(0);
     batches = 0;
   }
 
-  FieldVector getInput(){
+  FieldVector getInput() {
     return input;
   }
 
-  private void initArrs(int size){
+  private void initArrs(int size) {
     this.accumulators = new FieldVector[size];
   }
 
@@ -58,20 +54,22 @@ abstract class BaseVarBinaryAccumulatorNoSpill implements AccumulatorNoSpill {
   public void resized(int newCapacity) {
     final int oldBatches = accumulators.length;
     final int currentCapacity = oldBatches * LBlockHashTableNoSpill.MAX_VALUES_PER_BATCH;
-    if(currentCapacity >= newCapacity){
+    if (currentCapacity >= newCapacity) {
       return;
     }
 
     // save old references.
     final FieldVector[] oldAccumulators = this.accumulators;
 
-    final int newBatches = (int) Math.ceil( newCapacity / (LBlockHashTableNoSpill.MAX_VALUES_PER_BATCH * 1.0d) );
+    final int newBatches =
+        (int) Math.ceil(newCapacity / (LBlockHashTableNoSpill.MAX_VALUES_PER_BATCH * 1.0d));
     initArrs(newBatches);
 
     System.arraycopy(oldAccumulators, 0, this.accumulators, 0, oldBatches);
 
-    for(int i = oldAccumulators.length; i < newBatches; i++){
-      accumulators[i] = new MutableVarcharVector(input.getField().getName(), input.getAllocator(), 0.5);
+    for (int i = oldAccumulators.length; i < newBatches; i++) {
+      accumulators[i] =
+          new MutableVarcharVector(input.getField().getName(), input.getAllocator(), 0.5);
       ++batches;
     }
   }
@@ -79,9 +77,11 @@ abstract class BaseVarBinaryAccumulatorNoSpill implements AccumulatorNoSpill {
   @Override
   public void output(int batchIndex) {
     MutableVarcharVector mv = (MutableVarcharVector) accumulators[batchIndex];
-    ((VariableWidthVector) output).allocateNew(mv.getUsedByteCapacity(), LBlockHashTableNoSpill.MAX_VALUES_PER_BATCH);
+    ((VariableWidthVector) output)
+        .allocateNew(mv.getUsedByteCapacity(), LBlockHashTableNoSpill.MAX_VALUES_PER_BATCH);
 
-    mv.copyToVarWidthVec((BaseVariableWidthVector)output, LBlockHashTableNoSpill.MAX_VALUES_PER_BATCH, 0);
+    mv.copyToVarWidthVec(
+        (BaseVariableWidthVector) output, LBlockHashTableNoSpill.MAX_VALUES_PER_BATCH, 0);
   }
 
   @SuppressWarnings("unchecked")
@@ -98,5 +98,4 @@ abstract class BaseVarBinaryAccumulatorNoSpill implements AccumulatorNoSpill {
     }
     AutoCloseables.close(ImmutableList.copyOf(accumulatorsToClose));
   }
-
 }

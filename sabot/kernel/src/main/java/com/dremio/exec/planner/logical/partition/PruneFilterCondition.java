@@ -17,27 +17,24 @@ package com.dremio.exec.planner.logical.partition;
 
 import static com.dremio.exec.planner.common.MoreRelOptUtil.getInputRewriterFromProjectedFields;
 
-import java.util.List;
-
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rex.RexNode;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.exec.record.BatchSchema;
 import com.google.common.base.Preconditions;
+import java.util.List;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rex.RexNode;
 
-/**
- * PruneFilterCondition
- */
+/** PruneFilterCondition */
 public class PruneFilterCondition {
   private final RexNode partitionRange;
   private final RexNode nonPartitionRange;
   private final RexNode partitionExpression;
 
-  public PruneFilterCondition(RexNode partitionRange, RexNode nonPartitionRange, RexNode partitionExpression) {
-    //TODO use alwaysTrue instead of null to follow the calcite convention
+  public PruneFilterCondition(
+      RexNode partitionRange, RexNode nonPartitionRange, RexNode partitionExpression) {
+    // TODO use alwaysTrue instead of null to follow the calcite convention
     Preconditions.checkArgument(null == partitionRange || !partitionRange.isAlwaysTrue());
     Preconditions.checkArgument(null == nonPartitionRange || !nonPartitionRange.isAlwaysTrue());
     Preconditions.checkArgument(null == partitionExpression || !partitionExpression.isAlwaysTrue());
@@ -62,12 +59,21 @@ public class PruneFilterCondition {
     return partitionRange == null && nonPartitionRange == null && partitionExpression == null;
   }
 
-  public PruneFilterCondition applyProjection(List<SchemaPath> projection, RelDataType rowType, RelOptCluster cluster, BatchSchema batchSchema) {
-    final PrelUtil.InputRewriter inputRewriter = getInputRewriterFromProjectedFields(projection, rowType, batchSchema, cluster);
-    RexNode newPartitionRange = getPartitionRange() != null ? getPartitionRange().accept(inputRewriter) : null;
-    RexNode newNonPartitionRange = getNonPartitionRange() != null ? getNonPartitionRange().accept(inputRewriter) : null;
-    RexNode newPartitionExpression = getPartitionExpression() != null ? getPartitionExpression().accept(inputRewriter) : null;
-    return new PruneFilterCondition(newPartitionRange, newNonPartitionRange, newPartitionExpression);
+  public PruneFilterCondition applyProjection(
+      List<SchemaPath> projection,
+      RelDataType rowType,
+      RelOptCluster cluster,
+      BatchSchema batchSchema) {
+    final PrelUtil.InputRewriter inputRewriter =
+        getInputRewriterFromProjectedFields(projection, rowType, batchSchema, cluster);
+    RexNode newPartitionRange =
+        getPartitionRange() != null ? getPartitionRange().accept(inputRewriter) : null;
+    RexNode newNonPartitionRange =
+        getNonPartitionRange() != null ? getNonPartitionRange().accept(inputRewriter) : null;
+    RexNode newPartitionExpression =
+        getPartitionExpression() != null ? getPartitionExpression().accept(inputRewriter) : null;
+    return new PruneFilterCondition(
+        newPartitionRange, newNonPartitionRange, newPartitionExpression);
   }
 
   @Override
@@ -84,6 +90,4 @@ public class PruneFilterCondition {
     }
     return builder.toString();
   }
-
-
 }

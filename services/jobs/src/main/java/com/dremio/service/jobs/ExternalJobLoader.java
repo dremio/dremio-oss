@@ -15,13 +15,10 @@
  */
 package com.dremio.service.jobs;
 
+import com.dremio.common.DeferredException;
 import java.util.concurrent.CountDownLatch;
 
-import com.dremio.common.DeferredException;
-
-/**
- * External Job Loader
- */
+/** External Job Loader */
 public class ExternalJobLoader implements JobLoader {
   private final CountDownLatch completionLatch;
   private final DeferredException exception;
@@ -34,7 +31,8 @@ public class ExternalJobLoader implements JobLoader {
 
   @Override
   public RecordBatches load(int offset, int limit) {
-    throw new UnsupportedOperationException("Loading external job results isn't currently supported.");
+    throw new UnsupportedOperationException(
+        "Loading external job results isn't currently supported.");
   }
 
   @Override

@@ -17,14 +17,13 @@ package com.dremio.io;
 
 import com.google.common.base.Preconditions;
 
-/**
- * An async byte reader that can be reused
- */
+/** An async byte reader that can be reused */
 public abstract class ReusableAsyncByteReader implements AsyncByteReader {
   private int refCount = 1;
 
   /**
    * Increments the ref count on the object
+   *
    * @return true if the ref could be successfully taken.
    */
   public final boolean tryAddRef() {
@@ -39,11 +38,13 @@ public abstract class ReusableAsyncByteReader implements AsyncByteReader {
 
   /**
    * Releases a ref on the object
+   *
    * @return true if this was the final ref.
    */
   public final boolean releaseRef() {
     synchronized (this) {
-      Preconditions.checkArgument(refCount > 0, "Illegal state while dropping ref on async byte reader");
+      Preconditions.checkArgument(
+          refCount > 0, "Illegal state while dropping ref on async byte reader");
       --refCount;
       return refCount == 0;
     }
@@ -51,10 +52,10 @@ public abstract class ReusableAsyncByteReader implements AsyncByteReader {
 
   /**
    * Implement this method to close any resources on final close
+   *
    * @throws Exception
    */
-  protected void onClose() throws Exception {
-  }
+  protected void onClose() throws Exception {}
 
   @Override
   public final void close() throws Exception {

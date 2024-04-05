@@ -15,24 +15,26 @@
  */
 package com.dremio.exec.store.dfs;
 
-import java.io.Closeable;
-import java.io.IOException;
-
 import com.dremio.common.Wrapper;
 import com.dremio.io.file.FileSystem;
 import com.dremio.sabot.exec.context.OperatorContext;
+import java.io.Closeable;
+import java.io.IOException;
 
-/**
- * Wraps instance of fileysystem to extend behavior
- */
+/** Wraps instance of fileysystem to extend behavior */
 @FunctionalInterface
 public interface FileSystemWrapper extends Closeable, Wrapper {
   String FILE_SYSTEM_WRAPPER_CLASS = "dremio.filesystemwrapper.class";
 
-  FileSystem wrap(FileSystem fs, String storageId, AsyncStreamConf conf, OperatorContext context,
-                  boolean enableAsync, boolean isMetadataRefresh) throws IOException;
+  FileSystem wrap(
+      FileSystem fs,
+      String storageId,
+      AsyncStreamConf conf,
+      OperatorContext context,
+      boolean enableAsync,
+      boolean isMetadataRefresh)
+      throws IOException;
 
   @Override
-  default void close() throws IOException {
-  }
+  default void close() throws IOException {}
 }

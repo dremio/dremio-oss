@@ -24,8 +24,9 @@ public class NotFoundExceptionMapper implements ExceptionMapper<SourceNotFoundEx
   @Override
   public Response toResponse(SourceNotFoundException exception) {
     Response.ResponseBuilder responseBuilder =
-      Response.status(exception.getResponse().getStatus(), exception.getMessage()).entity(exception)
-        .type(MediaType.APPLICATION_JSON_TYPE);
+        Response.status(exception.getResponse().getStatus(), exception.getMessage())
+            .entity(exception)
+            .type(MediaType.APPLICATION_JSON_TYPE);
     return responseBuilder.build();
   }
 }

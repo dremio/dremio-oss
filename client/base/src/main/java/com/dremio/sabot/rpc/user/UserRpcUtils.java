@@ -15,17 +15,13 @@
  */
 package com.dremio.sabot.rpc.user;
 
-import java.lang.management.ManagementFactory;
-
 import com.dremio.common.Version;
 import com.dremio.common.util.DremioVersionInfo;
 import com.dremio.exec.proto.UserBitShared.RpcEndpointInfos;
 import com.google.common.base.Preconditions;
+import java.lang.management.ManagementFactory;
 
-/**
- * Utility class for User RPC
- *
- */
+/** Utility class for User RPC */
 public final class UserRpcUtils {
 
   public static final String DREMIO09_COMPATIBILITY_ENCODER = "dremio09-backward";
@@ -38,37 +34,35 @@ public final class UserRpcUtils {
    */
   private static final RpcEndpointInfos INFOS_TEMPLATE =
       RpcEndpointInfos.newBuilder()
-        .setApplication(ManagementFactory.getRuntimeMXBean().getName())
-        .setVersion(DremioVersionInfo.getVersion())
-        .setMajorVersion(DremioVersionInfo.getMajorVersion())
-        .setMinorVersion(DremioVersionInfo.getMinorVersion())
-        .setPatchVersion(DremioVersionInfo.getPatchVersion())
-        .setBuildNumber(DremioVersionInfo.getBuildNumber())
-        .setVersionQualifier(DremioVersionInfo.getQualifier())
-        .buildPartial();
+          .setApplication(ManagementFactory.getRuntimeMXBean().getName())
+          .setVersion(DremioVersionInfo.getVersion())
+          .setMajorVersion(DremioVersionInfo.getMajorVersion())
+          .setMinorVersion(DremioVersionInfo.getMinorVersion())
+          .setPatchVersion(DremioVersionInfo.getPatchVersion())
+          .setBuildNumber(DremioVersionInfo.getBuildNumber())
+          .setVersionQualifier(DremioVersionInfo.getQualifier())
+          .buildPartial();
 
   /**
    * Returns a {@code RpcEndpointInfos} instance
    *
-   * The instance is populated based on Dremio version informations
-   * from the classpath and runtime information for the application
-   * name.
+   * <p>The instance is populated based on Dremio version informations from the classpath and
+   * runtime information for the application name.
    *
    * @param name the endpoint name.
    * @return a {@code RpcEndpointInfos} instance
    * @throws NullPointerException if name is null
    */
   public static RpcEndpointInfos getRpcEndpointInfos(String name) {
-    RpcEndpointInfos infos = RpcEndpointInfos.newBuilder(INFOS_TEMPLATE)
-        .setName(Preconditions.checkNotNull(name))
-        .build();
+    RpcEndpointInfos infos =
+        RpcEndpointInfos.newBuilder(INFOS_TEMPLATE)
+            .setName(Preconditions.checkNotNull(name))
+            .build();
 
     return infos;
   }
 
-  /**
-   * Get the version from a {@code RpcEndpointInfos} instance
-   */
+  /** Get the version from a {@code RpcEndpointInfos} instance */
   public static Version getVersion(RpcEndpointInfos infos) {
     return new Version(
         infos.getVersion(),

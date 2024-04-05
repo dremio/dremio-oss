@@ -17,15 +17,11 @@ package com.dremio.jdbc.test;
 
 import static org.junit.Assert.assertTrue;
 
+import com.dremio.jdbc.DremioConnection;
 import java.util.Properties;
-
 import org.junit.BeforeClass;
 
-import com.dremio.jdbc.DremioConnection;
-
-/**
- * Test compatibility with older versions of the server
- */
+/** Test compatibility with older versions of the server */
 public class TestLegacyJdbcMetadata extends TestJdbcMetadata {
   @BeforeClass
   public static void setupConnection() throws Exception {
@@ -35,5 +31,4 @@ public class TestLegacyJdbcMetadata extends TestJdbcMetadata {
     setupConnection(defaultProperties);
     assertTrue(((DremioConnection) getConnection()).getConfig().isServerMetadataDisabled());
   }
-
 }

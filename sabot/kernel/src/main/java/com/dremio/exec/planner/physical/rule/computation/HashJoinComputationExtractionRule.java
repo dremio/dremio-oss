@@ -15,26 +15,22 @@
  */
 package com.dremio.exec.planner.physical.rule.computation;
 
+import com.dremio.exec.planner.physical.HashJoinPrel;
+import com.dremio.exec.planner.physical.ProjectPrel;
+import com.dremio.exec.planner.rules.DremioOptimizationRelRule;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelRule;
 import org.apache.calcite.rex.RexNode;
 
-import com.dremio.exec.planner.physical.HashJoinPrel;
-import com.dremio.exec.planner.physical.ProjectPrel;
-import com.dremio.exec.planner.rules.DremioOptimizationRelRule;
-
 /**
  * Push downs computation in a hash joins extra conditions.
  *
- * Rewrites
- * <code>
+ * <p>Rewrites <code>
  *   SELECT t1.c1, t1.c2, t2.c1, t2.c2
  *   FROM t1
  *   JOIN t2 ON t1.c1 = t2.c1 AND t1.c2 * 5 > t2.c2 - 1
- * </code>
- * to
- * <code>
+ * </code> to <code>
  *   WITH
  *   v1 AS (
  *     SELECT t1.c1, t1.c2, t1.c2 * 5 AS c3
@@ -46,10 +42,9 @@ import com.dremio.exec.planner.rules.DremioOptimizationRelRule;
  *   FROM v1
  *   JOIN v2 ON v1.c1 = v2.c1 AND v1.c3 > v2.c3
  * </code>
- *
  */
 public class HashJoinComputationExtractionRule
-  extends DremioOptimizationRelRule<HashJoinComputationExtractionRule.Config> {
+    extends DremioOptimizationRelRule<HashJoinComputationExtractionRule.Config> {
   public static final RelOptRule INSTANCE = Config.DEFAULT.toRule();
 
   public HashJoinComputationExtractionRule(Config config) {
@@ -68,29 +63,46 @@ public class HashJoinComputationExtractionRule
     final HashJoinPrel hashJoin = call.rel(0);
 
     JoinComputationExtractor.ExtractedComputation extractedComputation =
-      JoinComputationExtractor.extractedComputation(hashJoin.getRowType(), hashJoin.getCondition(),
-        hashJoin.getExtraCondition(),
-        hashJoin.getLeft(), hashJoin.getRight());
+        JoinComputationExtractor.extractedComputation(
+            hashJoin.getRowType(),
+            hashJoin.getCondition(),
+            hashJoin.getExtraCondition(),
+            hashJoin.getLeft(),
+            hashJoin.getRight());
 
-    if(null == extractedComputation) {
+    if (null == extractedComputation) {
       return;
     }
 
-    HashJoinPrel newJoin = HashJoinPrel.create(hashJoin.getCluster(), hashJoin.getTraitSet(),
-      extractedComputation.left, extractedComputation.right, extractedComputation.joinCondition,
-      extractedComputation.extraCondition, hashJoin.getJoinType());
-    ProjectPrel projectPrel = ProjectPrel.create(newJoin.getCluster(),
-        newJoin.getTraitSet(), newJoin, extractedComputation.topProject, hashJoin.getRowType());
+    HashJoinPrel newJoin =
+        HashJoinPrel.create(
+            hashJoin.getCluster(),
+            hashJoin.getTraitSet(),
+            extractedComputation.left,
+            extractedComputation.right,
+            extractedComputation.joinCondition,
+            extractedComputation.extraCondition,
+            hashJoin.getJoinType(),
+            hashJoin.getIgnoreForJoinAnalysis());
+    ProjectPrel projectPrel =
+        ProjectPrel.create(
+            newJoin.getCluster(),
+            newJoin.getTraitSet(),
+            newJoin,
+            extractedComputation.topProject,
+            hashJoin.getRowType());
     call.transformTo(projectPrel);
   }
 
   public interface Config extends RelRule.Config {
-    Config DEFAULT = EMPTY
-      .withDescription("HashJoinComputationExtractionRule")
-      .withOperandSupplier(os1 -> os1.operand(HashJoinPrel.class).anyInputs())
-      .as(Config.class);
+    Config DEFAULT =
+        EMPTY
+            .withDescription("HashJoinComputationExtractionRule")
+            .withOperandSupplier(os1 -> os1.operand(HashJoinPrel.class).anyInputs())
+            .as(Config.class);
 
-    @Override default HashJoinComputationExtractionRule toRule() {
+    @Override
+    default HashJoinComputationExtractionRule toRule() {
       return new HashJoinComputationExtractionRule(this);
     }
   }

@@ -19,21 +19,23 @@ import static org.apache.arrow.flight.BackpressureStrategy.WaitResult.READY;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.when;
 
+import com.dremio.exec.rpc.RpcException;
+import com.dremio.service.flight.impl.RunQueryResponseHandler.BasicResponseHandler;
 import org.junit.Before;
 import org.junit.Test;
 
-import com.dremio.exec.rpc.RpcException;
-import com.dremio.service.flight.impl.RunQueryResponseHandler.BasicResponseHandler;
-
-/**
- * Unit test class for BasicResponseHandler.
- */
+/** Unit test class for BasicResponseHandler. */
 public class TestBasicResponseHandler extends BaseTestRunQueryResponseHandler {
 
   @Override
   protected RunQueryResponseHandler createHandler() {
-    return new BasicResponseHandler(getExternalId(), getUserSession(), getWorkerProvider(),
-      getListener(), getAllocator(), () -> {});
+    return new BasicResponseHandler(
+        getExternalId(),
+        getUserSession(),
+        getWorkerProvider(),
+        getListener(),
+        getAllocator(),
+        () -> {});
   }
 
   @Override

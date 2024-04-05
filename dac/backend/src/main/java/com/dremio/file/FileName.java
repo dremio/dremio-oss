@@ -15,14 +15,11 @@
  */
 package com.dremio.file;
 
-import javax.validation.constraints.Pattern;
-
 import com.dremio.dac.model.common.LeafEntity;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import javax.validation.constraints.Pattern;
 
-/**
- * name of a file.
- */
+/** name of a file. */
 public class FileName extends LeafEntity {
   private String name;
 
@@ -34,7 +31,10 @@ public class FileName extends LeafEntity {
   }
 
   @Override
-  @Pattern(regexp = "^[^@:{/.][^@:{/]*$", message = "File name cannot start with a period, contain a colon, forward slash, at sign, or open curly bracket.")
+  @Pattern(
+      regexp = "^[^@:{/.][^@:{/]*$",
+      message =
+          "File name cannot start with a period, contain a colon, forward slash, at sign, or open curly bracket.")
   public String getName() {
     return super.getName();
   }

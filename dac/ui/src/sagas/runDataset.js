@@ -47,8 +47,15 @@ import {
   setQueryContext,
   setQueryStatuses,
 } from "@app/actions/explore/view";
-import { loadJobDetails } from "@app/actions/jobs/jobs";
-import { JOB_DETAILS_VIEW_ID } from "@app/actions/joblist/jobList";
+import {
+  fetchJobDetails,
+  fetchJobSummary,
+} from "@app/actions/explore/exploreJobs";
+import { replaceScript } from "dremio-ui-common/sonar/scripts/endpoints/replaceScript.js";
+import { ScriptsResource } from "dremio-ui-common/sonar/scripts/resources/ScriptsResource.js";
+import { selectActiveScript } from "@app/components/SQLScripts/sqlScriptsUtils";
+import { extractSelections } from "@app/utils/statements/statementParser";
+import { setQuerySelectionsInStorage } from "@app/sagas/utils/querySelections";
 
 const getJobDoneActionFilter = (jobId) => (action) =>
   (action.type === WS_MESSAGE_JOB_PROGRESS ||
@@ -86,7 +93,7 @@ export function* handleResumeRunDataset(
   jobId,
   forceReload,
   paginationUrl,
-  isRunOrPreview = true
+  isRunOrPreview = true,
 ) {
   invariant(datasetVersion, "dataset version must be provided");
   invariant(jobId, "jobId must be provided");
@@ -107,7 +114,7 @@ export function* handleResumeRunDataset(
         datasetVersion,
         paginationUrl,
         jobId,
-        isRunOrPreview
+        isRunOrPreview,
       ),
       locationChange: call(explorePageChanged),
     });
@@ -134,7 +141,7 @@ export function* waitForRunToComplete(
   datasetVersion,
   paginationUrl,
   jobId,
-  isRunOrPreview = true
+  isRunOrPreview = true,
 ) {
   try {
     log("Check if socket is opened:", socket.isOpen);
@@ -158,7 +165,7 @@ export function* waitForRunToComplete(
       jobId,
       // force listen request to force a response from server.
       // There's no other way right now to know if job is already completed.
-      true
+      true,
     );
     console.warn(`=+=+= socket listener registered for job id ${jobId}`);
 
@@ -179,7 +186,7 @@ export function* waitForRunToComplete(
       if (response && response.error) {
         if (queryStatuses.length) {
           const index = queryStatuses.findIndex(
-            (query) => query.jobId === jobId
+            (query) => query.jobId === jobId,
           );
           if (index > -1 && !queryStatuses[index].error) {
             const newStatuses = cloneDeep(queryStatuses);
@@ -196,10 +203,32 @@ export function* waitForRunToComplete(
 
       console.warn(`=+=+= socket returned payload for job id ${jobId}`);
       yield put(
-        updateHistoryWithJobState(datasetVersion, jobDone.payload.update.state)
+        updateHistoryWithJobState(datasetVersion, jobDone.payload.update.state),
       );
       yield put(updateExploreJobProgress(jobDone.payload.update));
-      yield call(genLoadJobDetails, jobId);
+      yield call(genLoadJobSummary, jobId);
+
+      // update script jobIds from the details wizard
+      const location = yield select(getLocation);
+
+      if (location?.state?.isTransform) {
+        const activeScript = yield select(selectActiveScript) || {};
+
+        if (activeScript.id) {
+          yield replaceScript(activeScript.id, {
+            ...activeScript,
+            jobIds: queryStatuses.map((status) => status.jobId),
+          });
+
+          ScriptsResource.fetch();
+
+          const newSelections = extractSelections(
+            exploreState?.view?.currentSql ?? "",
+          );
+
+          setQuerySelectionsInStorage(activeScript.id, newSelections);
+        }
+      }
     }
   } finally {
     yield call([socket, socket.stopListenToJobProgress], jobId);
@@ -244,7 +273,7 @@ export function* explorePageChanged() {
           context: Immutable.fromJS([
             decodeURIComponent(nextQueryContext.replace(/^"|"$/g, "")),
           ]),
-        })
+        }),
       );
     }
   }
@@ -261,13 +290,13 @@ export function* explorePageChanged() {
 export function* watchUpdateHistoryOnJobProgress(datasetVersion, jobId) {
   function* updateHistoryOnJobProgress(action) {
     yield put(
-      updateHistoryWithJobState(datasetVersion, action.payload.update.state)
+      updateHistoryWithJobState(datasetVersion, action.payload.update.state),
     );
   }
 
   yield takeEvery(
     getJobProgressActionFilter(jobId),
-    updateHistoryOnJobProgress
+    updateHistoryOnJobProgress,
   );
 }
 
@@ -311,18 +340,16 @@ export function* watchUpdateJobRecords(jobId, datasetVersion) {
 
   yield takeEvery(
     getJobRecordsActionFilter(jobId),
-    updateJobProgressWithRecordCount
+    updateJobProgressWithRecordCount,
   );
 }
 
-export function* genLoadJobDetails(jobId) {
-  const jobDetails = yield put(loadJobDetails(jobId, JOB_DETAILS_VIEW_ID));
-  const jobDetailsResponse = yield jobDetails;
+export function* genLoadJobSummary(jobId) {
+  // need to fetch jobDetails on job success to get the total job duration and attempt details
+  yield put(fetchJobDetails(jobId));
 
-  getJobStateEvents().updateJobState(
-    jobDetailsResponse.meta.jobId,
-    jobDetailsResponse.payload
-      .getIn(["entities", "jobDetails", jobDetailsResponse.meta.jobId])
-      .toJS()
-  );
+  const summaryPromise = yield put(fetchJobSummary(jobId, 0));
+  const jobSummary = yield summaryPromise;
+
+  getJobStateEvents().updateJobState(jobSummary.id, jobSummary);
 }

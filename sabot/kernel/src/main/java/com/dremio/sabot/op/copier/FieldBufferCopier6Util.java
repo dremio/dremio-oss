@@ -15,22 +15,21 @@
  */
 package com.dremio.sabot.op.copier;
 
+import com.dremio.common.expression.CompleteType;
+import com.dremio.sabot.op.common.ht2.Reallocators;
+import com.dremio.sabot.op.common.ht2.Reallocators.Reallocator;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
+import io.netty.util.internal.PlatformDependent;
 import org.apache.arrow.vector.AllocationHelper;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.FixedWidthVector;
 import org.apache.arrow.vector.VariableWidthVector;
 import org.apache.arrow.vector.util.TransferPair;
 
-import com.dremio.common.expression.CompleteType;
-import com.dremio.sabot.op.common.ht2.Reallocators;
-import com.dremio.sabot.op.common.ht2.Reallocators.Reallocator;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
-
-import io.netty.util.internal.PlatformDependent;
-
 /**
- * Vectorized copiers for 6 byte offset vectors (first 4 bytes for batch and next 2 bytes for offset in batch)
+ * Vectorized copiers for 6 byte offset vectors (first 4 bytes for batch and next 2 bytes for offset
+ * in batch)
  */
 public final class FieldBufferCopier6Util {
 
@@ -40,7 +39,8 @@ public final class FieldBufferCopier6Util {
   private static final int MAX_BATCH = 65535;
   private static final int BATCH_BITS = 16;
 
-  private FieldBufferCopier6Util(){};
+  private FieldBufferCopier6Util() {}
+  ;
 
   abstract static class FixedWidthCopier implements FieldBufferCopier {
     protected final FieldVector[] source;
@@ -77,7 +77,7 @@ public final class FieldBufferCopier6Util {
     }
 
     @Override
-    public void allocate(int records){
+    public void allocate(int records) {
       targetAlt.allocateNew(records);
     }
   }
@@ -94,14 +94,13 @@ public final class FieldBufferCopier6Util {
       final long max = offsetAddr + count * BUILD_RECORD_LINK_SIZE;
       final long[] srcAddrs = this.srcAddrs;
       long dstAddr = target.getDataBufferAddress() + (seekTo * SIZE);
-      for(long addr = offsetAddr; addr < max; addr += BUILD_RECORD_LINK_SIZE, dstAddr += SIZE){
+      for (long addr = offsetAddr; addr < max; addr += BUILD_RECORD_LINK_SIZE, dstAddr += SIZE) {
         final int batchIndex = PlatformDependent.getInt(addr);
         final int batchOffset = Short.toUnsignedInt(PlatformDependent.getShort(addr + 4));
         final long src = srcAddrs[batchIndex] + batchOffset * SIZE;
         PlatformDependent.putInt(dstAddr, PlatformDependent.getInt(src));
       }
     }
-
   }
 
   static class EightByteCopier extends FixedWidthCopier {
@@ -116,7 +115,7 @@ public final class FieldBufferCopier6Util {
       final long max = offsetAddr + count * BUILD_RECORD_LINK_SIZE;
       final long[] srcAddrs = this.srcAddrs;
       long dstAddr = target.getDataBufferAddress() + (seekTo * SIZE);
-      for(long addr = offsetAddr; addr < max; addr += BUILD_RECORD_LINK_SIZE, dstAddr += SIZE){
+      for (long addr = offsetAddr; addr < max; addr += BUILD_RECORD_LINK_SIZE, dstAddr += SIZE) {
         final int batchIndex = PlatformDependent.getInt(addr);
         final int batchOffset = Short.toUnsignedInt(PlatformDependent.getShort(addr + 4));
         final long src = srcAddrs[batchIndex] + batchOffset * SIZE;
@@ -137,12 +136,12 @@ public final class FieldBufferCopier6Util {
       final long max = offsetAddr + count * BUILD_RECORD_LINK_SIZE;
       final long[] srcAddrs = this.srcAddrs;
       long dstAddr = target.getDataBufferAddress() + (seekTo * SIZE);
-      for(long addr = offsetAddr; addr < max; addr += BUILD_RECORD_LINK_SIZE, dstAddr += SIZE){
+      for (long addr = offsetAddr; addr < max; addr += BUILD_RECORD_LINK_SIZE, dstAddr += SIZE) {
         final int batchIndex = PlatformDependent.getInt(addr);
         final int batchOffset = Short.toUnsignedInt(PlatformDependent.getShort(addr + 4));
         final long src = srcAddrs[batchIndex] + batchOffset * SIZE;
         PlatformDependent.putLong(dstAddr, PlatformDependent.getLong(src));
-        PlatformDependent.putLong(dstAddr+8, PlatformDependent.getLong(src + 8));
+        PlatformDependent.putLong(dstAddr + 8, PlatformDependent.getLong(src + 8));
       }
     }
   }
@@ -161,7 +160,7 @@ public final class FieldBufferCopier6Util {
       this.targetAlt = (VariableWidthVector) target;
       this.target = target;
       this.realloc = Reallocators.getReallocator(target);
-      this.srcOffsetAddrs =  addresses(OFFSET_BUFFER_ORDINAL, source);
+      this.srcOffsetAddrs = addresses(OFFSET_BUFFER_ORDINAL, source);
       this.srcDataAddrs = addresses(2, source);
     }
 
@@ -184,22 +183,24 @@ public final class FieldBufferCopier6Util {
       long curDataAddr = realloc.addr() + targetDataIndex;
       long maxDataAddr = realloc.max();
 
-      for(; srcAddr < maxSrcAddr; srcAddr += BUILD_RECORD_LINK_SIZE, dstOffsetAddr += 4){
+      for (; srcAddr < maxSrcAddr; srcAddr += BUILD_RECORD_LINK_SIZE, dstOffsetAddr += 4) {
         final int batchIndex = PlatformDependent.getInt(srcAddr);
-        final int batchOffset = Short.toUnsignedInt(PlatformDependent.getShort(srcAddr+ 4));
+        final int batchOffset = Short.toUnsignedInt(PlatformDependent.getShort(srcAddr + 4));
 
-        final long startAndEnd = PlatformDependent.getLong(srcOffsetAddrs[batchIndex] + batchOffset * 4);
+        final long startAndEnd =
+            PlatformDependent.getLong(srcOffsetAddrs[batchIndex] + batchOffset * 4);
         final int firstOffset = (int) startAndEnd;
         final int secondOffset = (int) (startAndEnd >> 32);
         final int len = secondOffset - firstOffset;
-        if(curDataAddr + len > maxDataAddr){
+        if (curDataAddr + len > maxDataAddr) {
           curDataAddr = realloc.ensure(targetDataIndex + len) + targetDataIndex;
           maxDataAddr = realloc.max();
         }
 
         targetDataIndex += len;
         PlatformDependent.putInt(dstOffsetAddr, targetDataIndex);
-        com.dremio.sabot.op.common.ht2.Copier.copy(srcDataAddrs[batchIndex] + firstOffset, curDataAddr, len);
+        com.dremio.sabot.op.common.ht2.Copier.copy(
+            srcDataAddrs[batchIndex] + firstOffset, curDataAddr, len);
         curDataAddr += len;
       }
 
@@ -228,7 +229,7 @@ public final class FieldBufferCopier6Util {
     }
 
     @Override
-    public void allocate(int records){
+    public void allocate(int records) {
       targetAlt.allocateNew(records * 15, records);
     }
   }
@@ -242,14 +243,14 @@ public final class FieldBufferCopier6Util {
     private final boolean allocateAsFixed;
     private final long[] srcAddrs;
 
-    public BitCopier(FieldVector[] source, FieldVector target, int bufferOrdinal, boolean allocateAsFixed){
+    public BitCopier(
+        FieldVector[] source, FieldVector target, int bufferOrdinal, boolean allocateAsFixed) {
       this.source = source;
       this.target = target;
       this.targetAlt = allocateAsFixed ? (FixedWidthVector) target : null;
       this.allocateAsFixed = allocateAsFixed;
       this.bufferOrdinal = bufferOrdinal;
       this.srcAddrs = addresses(bufferOrdinal, source);
-
     }
 
     private void seekAndCopy(long offsetAddr, int count, int seekTo) {
@@ -268,7 +269,7 @@ public final class FieldBufferCopier6Util {
 
       final long maxAddr = offsetAddr + count * BUILD_RECORD_LINK_SIZE;
       int targetIndex = seekTo;
-      for(; offsetAddr < maxAddr; offsetAddr += BUILD_RECORD_LINK_SIZE, targetIndex++){
+      for (; offsetAddr < maxAddr; offsetAddr += BUILD_RECORD_LINK_SIZE, targetIndex++) {
         final int batchIndex = PlatformDependent.getInt(offsetAddr);
         final int batchOffset = Short.toUnsignedInt(PlatformDependent.getShort(offsetAddr + 4));
         final int byteValue = PlatformDependent.getByte(srcAddr[batchIndex] + (batchOffset >>> 3));
@@ -280,7 +281,7 @@ public final class FieldBufferCopier6Util {
 
     @Override
     public void copy(long offsetAddr, int count) {
-      if (allocateAsFixed){
+      if (allocateAsFixed) {
         targetAlt.allocateNew(count);
       }
       seekAndCopy(offsetAddr, count, 0);
@@ -304,21 +305,20 @@ public final class FieldBufferCopier6Util {
     }
 
     @Override
-    public void allocate(int records){
-      if(targetAlt != null){
+    public void allocate(int records) {
+      if (targetAlt != null) {
         targetAlt.allocateNew(records);
       }
     }
-
   }
 
   static class GenericCopier implements FieldBufferCopier {
     private final TransferPair[] transfer;
     private final FieldVector dst;
 
-    public GenericCopier(FieldVector[] source, FieldVector dst){
+    public GenericCopier(FieldVector[] source, FieldVector dst) {
       this.transfer = new TransferPair[source.length];
-      for(int i =0; i < source.length; i++){
+      for (int i = 0; i < source.length; i++) {
         this.transfer[i] = source[i].makeTransferPair(dst);
       }
       this.dst = dst;
@@ -327,7 +327,7 @@ public final class FieldBufferCopier6Util {
     private void seekAndCopy(long offsetAddr, int count, int seekTo) {
       final long max = offsetAddr + count * BUILD_RECORD_LINK_SIZE;
       int targetIndex = seekTo;
-      for(long addr = offsetAddr; addr < max; addr += BUILD_RECORD_LINK_SIZE) {
+      for (long addr = offsetAddr; addr < max; addr += BUILD_RECORD_LINK_SIZE) {
         final int batchIndex = PlatformDependent.getInt(addr);
         final int batchOffset = Short.toUnsignedInt(PlatformDependent.getShort(addr + 4));
         transfer[batchIndex].copyValueSafe(batchOffset, targetIndex);
@@ -354,78 +354,79 @@ public final class FieldBufferCopier6Util {
 
       int curTargetIndex = cursor.getTargetIndex();
       seekAndCopy(offsetAddr, count, curTargetIndex);
-      cursor.setTargetIndex(curTargetIndex +  count);
+      cursor.setTargetIndex(curTargetIndex + count);
     }
 
     @Override
-    public void allocate(int records){
+    public void allocate(int records) {
       AllocationHelper.allocate(dst, records, 10);
     }
   }
 
-  public static void addValueCopier(final FieldVector[] source, final FieldVector target, ImmutableList.Builder<FieldBufferCopier> copiers){
+  public static void addValueCopier(
+      final FieldVector[] source,
+      final FieldVector target,
+      ImmutableList.Builder<FieldBufferCopier> copiers) {
     Preconditions.checkArgument(source.length > 0, "At least one source vector must be requested.");
-    Preconditions.checkArgument(source[0].getClass() == target.getClass(), "Input and output vectors must be same type.");
-    switch(CompleteType.fromField(source[0].getField()).toMinorType()){
+    Preconditions.checkArgument(
+        source[0].getClass() == target.getClass(), "Input and output vectors must be same type.");
+    switch (CompleteType.fromField(source[0].getField()).toMinorType()) {
+      case TIMESTAMP:
+      case FLOAT8:
+      case BIGINT:
+      case INTERVALDAY:
+      case DATE:
+        copiers.add(new EightByteCopier(source, target));
+        copiers.add(new BitCopier(source, target, NULL_BUFFER_ORDINAL, false));
+        break;
 
-    case TIMESTAMP:
-    case FLOAT8:
-    case BIGINT:
-    case INTERVALDAY:
-    case DATE:
-      copiers.add(new EightByteCopier(source, target));
-      copiers.add(new BitCopier(source, target, NULL_BUFFER_ORDINAL, false));
-      break;
+      case BIT:
+        copiers.add(new BitCopier(source, target, NULL_BUFFER_ORDINAL, true));
+        copiers.add(new BitCopier(source, target, VALUE_BUFFER_ORDINAL, false));
+        break;
 
-    case BIT:
-      copiers.add(new BitCopier(source, target, NULL_BUFFER_ORDINAL, true));
-      copiers.add(new BitCopier(source, target, VALUE_BUFFER_ORDINAL, false));
-      break;
+      case TIME:
+      case FLOAT4:
+      case INT:
+      case INTERVALYEAR:
+        copiers.add(new FourByteCopier(source, target));
+        copiers.add(new BitCopier(source, target, NULL_BUFFER_ORDINAL, false));
+        break;
 
-    case TIME:
-    case FLOAT4:
-    case INT:
-    case INTERVALYEAR:
-      copiers.add(new FourByteCopier(source, target));
-      copiers.add(new BitCopier(source, target, NULL_BUFFER_ORDINAL, false));
-      break;
+      case VARBINARY:
+      case VARCHAR:
+        copiers.add(new VariableCopier(source, target));
+        copiers.add(new BitCopier(source, target, NULL_BUFFER_ORDINAL, false));
+        break;
 
-    case VARBINARY:
-    case VARCHAR:
-      copiers.add(new VariableCopier(source, target));
-      copiers.add(new BitCopier(source, target, NULL_BUFFER_ORDINAL, false));
-      break;
+      case DECIMAL:
+        copiers.add(new SixteenByteCopier(source, target));
+        copiers.add(new BitCopier(source, target, NULL_BUFFER_ORDINAL, false));
+        break;
 
-    case DECIMAL:
-      copiers.add(new SixteenByteCopier(source, target));
-      copiers.add(new BitCopier(source, target, NULL_BUFFER_ORDINAL, false));
-      break;
+      case MAP:
+      case LIST:
+      case STRUCT:
+      case UNION:
+        copiers.add(new GenericCopier(source, target));
+        break;
 
-    case MAP:
-    case LIST:
-    case STRUCT:
-    case UNION:
-      copiers.add(new GenericCopier(source, target));
-      break;
-
-    default:
-      throw new UnsupportedOperationException("Unknown type to copy.");
+      default:
+        throw new UnsupportedOperationException("Unknown type to copy.");
     }
   }
 
-
-
-  public static long[] addresses(int offset, FieldVector... vectors){
+  public static long[] addresses(int offset, FieldVector... vectors) {
     final long[] addresses = new long[vectors.length];
     int i;
     switch (offset) {
       case 0:
-        for(i = 0; i < vectors.length; i++){
+        for (i = 0; i < vectors.length; i++) {
           addresses[i] = vectors[i].getValidityBufferAddress();
         }
         break;
       case 1:
-        for(i = 0; i < vectors.length; i++){
+        for (i = 0; i < vectors.length; i++) {
           if (vectors[i] instanceof VariableWidthVector) {
             addresses[i] = vectors[i].getOffsetBufferAddress();
           } else {
@@ -434,7 +435,7 @@ public final class FieldBufferCopier6Util {
         }
         break;
       case 2:
-        for(i = 0; i < vectors.length; i++){
+        for (i = 0; i < vectors.length; i++) {
           addresses[i] = vectors[i].getDataBufferAddress();
         }
         break;

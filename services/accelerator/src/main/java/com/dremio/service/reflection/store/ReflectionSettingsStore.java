@@ -15,10 +15,6 @@
  */
 package com.dremio.service.reflection.store;
 
-import java.util.Map;
-
-import javax.inject.Provider;
-
 import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.datastore.VersionExtractor;
 import com.dremio.datastore.api.LegacyKVStore;
@@ -30,10 +26,10 @@ import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
+import java.util.Map;
+import javax.inject.Provider;
 
-/**
- * Reflection settings store
- */
+/** Reflection settings store */
 public class ReflectionSettingsStore {
   private static final String TABLE_NAME = "reflection_settings";
 
@@ -41,12 +37,14 @@ public class ReflectionSettingsStore {
 
   public ReflectionSettingsStore(final Provider<LegacyKVStoreProvider> provider) {
     Preconditions.checkNotNull(provider, "kvstore provider required");
-    store = Suppliers.memoize(new Supplier<LegacyKVStore<CatalogEntityKey, AccelerationSettings>>() {
-      @Override
-      public LegacyKVStore<CatalogEntityKey, AccelerationSettings> get() {
-        return provider.get().getStore(StoreCreator.class);
-      }
-    });
+    store =
+        Suppliers.memoize(
+            new Supplier<LegacyKVStore<CatalogEntityKey, AccelerationSettings>>() {
+              @Override
+              public LegacyKVStore<CatalogEntityKey, AccelerationSettings> get() {
+                return provider.get().getStore(StoreCreator.class);
+              }
+            });
   }
 
   public AccelerationSettings get(CatalogEntityKey key) {
@@ -61,7 +59,8 @@ public class ReflectionSettingsStore {
     store.get().delete(key);
   }
 
-  private static final class AccelerationSettingsVersionExtractor implements VersionExtractor<AccelerationSettings> {
+  private static final class AccelerationSettingsVersionExtractor
+      implements VersionExtractor<AccelerationSettings> {
     @Override
     public String getTag(AccelerationSettings value) {
       return value.getTag();
@@ -73,18 +72,24 @@ public class ReflectionSettingsStore {
     }
   }
 
-  /**
-   * {@link ReflectionSettingsStore} creator
-   */
-  public static final class StoreCreator implements LegacyKVStoreCreationFunction<CatalogEntityKey, AccelerationSettings> {
+  /** {@link ReflectionSettingsStore} creator */
+  public static final class StoreCreator
+      implements LegacyKVStoreCreationFunction<CatalogEntityKey, AccelerationSettings> {
     @Override
-    public LegacyKVStore<CatalogEntityKey, AccelerationSettings> build(LegacyStoreBuildingFactory factory) {
-      return factory.<CatalogEntityKey, AccelerationSettings>newStore()
-        .name(TABLE_NAME)
-        .keyFormat(Format.wrapped(CatalogEntityKey.class, CatalogEntityKey::toString, CatalogEntityKey::new, Format.ofString()))
-        .valueFormat(Format.ofProtostuff(AccelerationSettings.class))
-        .versionExtractor(AccelerationSettingsVersionExtractor.class)
-        .build();
+    public LegacyKVStore<CatalogEntityKey, AccelerationSettings> build(
+        LegacyStoreBuildingFactory factory) {
+      return factory
+          .<CatalogEntityKey, AccelerationSettings>newStore()
+          .name(TABLE_NAME)
+          .keyFormat(
+              Format.wrapped(
+                  CatalogEntityKey.class,
+                  CatalogEntityKey::toString,
+                  CatalogEntityKey::new,
+                  Format.ofString()))
+          .valueFormat(Format.ofProtostuff(AccelerationSettings.class))
+          .versionExtractor(AccelerationSettingsVersionExtractor.class)
+          .build();
     }
   }
 

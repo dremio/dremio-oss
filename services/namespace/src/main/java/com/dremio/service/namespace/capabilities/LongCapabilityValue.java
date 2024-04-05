@@ -18,15 +18,12 @@ package com.dremio.service.namespace.capabilities;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-/**
- * A long capability value.
- */
+/** A long capability value. */
 public final class LongCapabilityValue extends CapabilityValue<Long, LongCapability> {
 
   @JsonCreator
   public LongCapabilityValue(
-      @JsonProperty("capability") LongCapability capability,
-      @JsonProperty("value") long value) {
+      @JsonProperty("capability") LongCapability capability, @JsonProperty("value") long value) {
     super(capability, value);
   }
 }

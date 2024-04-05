@@ -21,10 +21,12 @@ import com.dremio.options.TypeValidators;
 @Options
 public interface Pf4jPluginOptions {
   /**
-   * A comma-separated list of class name prefixes that will be loaded using the application classloader instead of
-   * the plugin classloader.
+   * A comma-separated list of class name prefixes that will be loaded using the application
+   * classloader instead of the plugin classloader.
    */
   String CLASSLOADER_SHARED_PREFIXES_KEY = "plugin.classloader.shared_prefixes";
+
   TypeValidators.StringValidator CLASSLOADER_SHARED_PREFIXES =
-      new TypeValidators.StringValidator(CLASSLOADER_SHARED_PREFIXES_KEY, "javax.xml,org.w3c,org.xml");
+      new TypeValidators.StringValidator(
+          CLASSLOADER_SHARED_PREFIXES_KEY, "javax.xml,org.w3c,org.xml");
 }

@@ -17,11 +17,8 @@ package com.dremio.common.utils;
 
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
 
-/**
- * Marker interface for the actual assume role credentials provider.
- */
+/** Marker interface for the actual assume role credentials provider. */
 public interface AssumeRoleCredentialsProvider extends AutoCloseable {
 
   AwsCredentials resolveCredentials();
-
 }

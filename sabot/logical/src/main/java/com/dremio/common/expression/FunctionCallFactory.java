@@ -15,16 +15,16 @@
  */
 package com.dremio.common.expression;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
-
 public class FunctionCallFactory {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FunctionCallFactory.class);
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(FunctionCallFactory.class);
 
   private static Map<String, String> opToFuncTable = new HashMap<>();
 
@@ -75,16 +75,21 @@ public class FunctionCallFactory {
    *             ep   -- input expression position
    *             expr -- input expression
    */
-  public static LogicalExpression createCast(com.dremio.common.types.TypeProtos.MajorType type, LogicalExpression expr) {
+  public static LogicalExpression createCast(
+      com.dremio.common.types.TypeProtos.MajorType type, LogicalExpression expr) {
     return new CastExpression(expr, type);
   }
 
-  public static LogicalExpression createConvert(String function, String conversionType, LogicalExpression expr) {
+  public static LogicalExpression createConvert(
+      String function, String conversionType, LogicalExpression expr) {
     return new ConvertExpression(function, conversionType, expr);
   }
 
-  public static LogicalExpression createConvertReplace(String function, ValueExpressions.QuotedString conversionType,
-                                                       LogicalExpression inputExpr, ValueExpressions.QuotedString replacement) {
+  public static LogicalExpression createConvertReplace(
+      String function,
+      ValueExpressions.QuotedString conversionType,
+      LogicalExpression inputExpr,
+      ValueExpressions.QuotedString replacement) {
     if (conversionType.value.equalsIgnoreCase("UTF8")) {
       return new FunctionCall("convert_replaceUTF8", ImmutableList.of(inputExpr, replacement));
     } else {
@@ -92,8 +97,8 @@ public class FunctionCallFactory {
     }
   }
 
-
-  public static LogicalExpression createExpression(String functionName, List<LogicalExpression> args){
+  public static LogicalExpression createExpression(
+      String functionName, List<LogicalExpression> args) {
     String name = replaceOpWithFuncName(functionName);
     if (isBooleanOperator(name)) {
       return new BooleanOperator(name, args);
@@ -102,15 +107,17 @@ public class FunctionCallFactory {
     }
   }
 
-  public static LogicalExpression createExpression(String functionName, LogicalExpression... e){
+  public static LogicalExpression createExpression(String functionName, LogicalExpression... e) {
     return createExpression(functionName, Lists.newArrayList(e));
   }
 
-  public static LogicalExpression createBooleanOperator(String functionName, List<LogicalExpression> args){
+  public static LogicalExpression createBooleanOperator(
+      String functionName, List<LogicalExpression> args) {
     return new BooleanOperator(replaceOpWithFuncName(functionName), args);
   }
 
-  public static LogicalExpression createBooleanOperator(String functionName, LogicalExpression... e) {
+  public static LogicalExpression createBooleanOperator(
+      String functionName, LogicalExpression... e) {
     return createBooleanOperator(functionName, Lists.newArrayList(e));
   }
 
@@ -120,7 +127,8 @@ public class FunctionCallFactory {
     }
 
     if (args.size() - 1 != opTypes.size()) {
-      throw new IllegalArgumentException("Must receive one more expression than the provided number of operators.");
+      throw new IllegalArgumentException(
+          "Must receive one more expression than the provided number of operators.");
     }
 
     LogicalExpression first = args.get(0);
@@ -132,5 +140,4 @@ public class FunctionCallFactory {
     }
     return first;
   }
-
 }

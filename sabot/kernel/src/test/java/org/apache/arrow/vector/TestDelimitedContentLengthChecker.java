@@ -19,9 +19,8 @@ package org.apache.arrow.vector;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import org.junit.Test;
-
 import com.dremio.test.DremioTest;
+import org.junit.Test;
 
 public class TestDelimitedContentLengthChecker extends DremioTest {
   @Test

@@ -20,14 +20,6 @@ import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import org.antlr.runtime.ANTLRStringStream;
-import org.antlr.runtime.CommonTokenStream;
-import org.antlr.runtime.RecognitionException;
-import org.apache.arrow.memory.RootAllocatorFactory;
-import org.apache.arrow.vector.IntVector;
-import org.junit.Test;
-import org.mockito.Mockito;
-
 import com.dremio.common.exceptions.ExpressionParsingException;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.ErrorCollector;
@@ -50,20 +42,35 @@ import com.dremio.exec.record.VectorWrapper;
 import com.dremio.sabot.exec.context.CompilationOptions;
 import com.dremio.sabot.exec.context.FunctionContext;
 import com.dremio.sabot.op.project.Projector;
+import org.antlr.runtime.ANTLRStringStream;
+import org.antlr.runtime.CommonTokenStream;
+import org.antlr.runtime.RecognitionException;
+import org.apache.arrow.memory.RootAllocatorFactory;
+import org.apache.arrow.vector.IntVector;
+import org.junit.Test;
+import org.mockito.Mockito;
 
 public class ExpressionTest extends ExecTest {
 
-  @SuppressWarnings({ "unchecked", "rawtypes" })
-  private VectorAccessible getBatch(MinorType type){
-    final IntVector vector = new IntVector("result", RootAllocatorFactory.newRoot(DEFAULT_SABOT_CONFIG));
+  @SuppressWarnings({"unchecked", "rawtypes"})
+  private VectorAccessible getBatch(MinorType type) {
+    final IntVector vector =
+        new IntVector("result", RootAllocatorFactory.newRoot(DEFAULT_SABOT_CONFIG));
     VectorWrapper<IntVector> wrapper = Mockito.mock(VectorWrapper.class);
     when(wrapper.getValueVector()).thenReturn(vector);
 
     final TypedFieldId tfid = new TypedFieldId(CompleteType.fromMinorType(type), false, 0);
     VectorAccessible batch = Mockito.mock(VectorAccessible.class);
     when(batch.getValueVectorId(any(SchemaPath.class))).thenReturn(tfid);
-    when(batch.getValueAccessorById(any(Class.class), any(int[].class))).thenReturn((VectorWrapper) wrapper);
-    when(batch.getSchema()).thenReturn(BatchSchema.newBuilder().addField(MajorTypeHelper.getFieldForNameAndMajorType("result", Types.optional(type))).setSelectionVectorMode(SelectionVectorMode.NONE).build());
+    when(batch.getValueAccessorById(any(Class.class), any(int[].class)))
+        .thenReturn((VectorWrapper) wrapper);
+    when(batch.getSchema())
+        .thenReturn(
+            BatchSchema.newBuilder()
+                .addField(
+                    MajorTypeHelper.getFieldForNameAndMajorType("result", Types.optional(type)))
+                .setSelectionVectorMode(SelectionVectorMode.NONE)
+                .build());
     return batch;
   }
 
@@ -92,7 +99,6 @@ public class ExpressionTest extends ExecTest {
   @Test
   public void testSchemaExpression() throws Exception {
     getExpressionCode("1 + result");
-
   }
 
   @Test(expected = ExpressionParsingException.class)
@@ -107,7 +113,9 @@ public class ExpressionTest extends ExecTest {
 
   @Test
   public void testTimeDiffExpr() throws Exception {
-    getExpressionCode("timestampdiffSecond(castTIMESTAMP(castDATE(1486080000000l) ) , " + "castTIMESTAMP(castDATE(1486166400000l) ) )");
+    getExpressionCode(
+        "timestampdiffSecond(castTIMESTAMP(castDATE(1486080000000l) ) , "
+            + "castTIMESTAMP(castDATE(1486166400000l) ) )");
   }
 
   // HELPER METHODS //
@@ -124,9 +132,12 @@ public class ExpressionTest extends ExecTest {
     VectorAccessible batch = getBatch(MinorType.BIGINT);
     final LogicalExpression expr = parseExpr(expression);
     final ErrorCollector error = new ErrorCollectorImpl();
-    final LogicalExpression materializedExpr = ExpressionTreeMaterializer.materialize(expr, batch.getSchema(), error, registry);
+    final LogicalExpression materializedExpr =
+        ExpressionTreeMaterializer.materialize(expr, batch.getSchema(), error, registry);
     if (error.getErrorCount() != 0) {
-      System.err.println(String.format("Failure while materializing expression [%s].  Errors: %s", expression, error));
+      System.err.println(
+          String.format(
+              "Failure while materializing expression [%s].  Errors: %s", expression, error));
       assertEquals(0, error.getErrorCount());
     }
 
@@ -134,10 +145,13 @@ public class ExpressionTest extends ExecTest {
     when(compilationOptions.getNewMethodThreshold()).thenReturn(100);
     FunctionContext mockFunctionContext = mock(FunctionContext.class);
     when(mockFunctionContext.getCompilationOptions()).thenReturn(compilationOptions);
-    final ClassGenerator<Projector> cg = CodeGenerator.get(Projector.TEMPLATE_DEFINITION, null, mockFunctionContext).getRoot();
-    cg.addExpr(new ValueVectorWriteExpression(new TypedFieldId(materializedExpr.getCompleteType(), -1), materializedExpr));
+    final ClassGenerator<Projector> cg =
+        CodeGenerator.get(Projector.TEMPLATE_DEFINITION, null, mockFunctionContext).getRoot();
+    cg.addExpr(
+        new ValueVectorWriteExpression(
+            new TypedFieldId(materializedExpr.getCompleteType(), -1), materializedExpr));
     CodeGenerator codeGen = cg.getCodeGenerator();
     codeGen.generate();
-    return codeGen.getGeneratedCode();
+    return codeGen.getCodeDefinition().getGeneratedCode();
   }
 }

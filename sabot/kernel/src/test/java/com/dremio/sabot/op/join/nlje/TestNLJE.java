@@ -19,14 +19,6 @@ import static com.dremio.sabot.Fixtures.t;
 import static com.dremio.sabot.Fixtures.th;
 import static com.dremio.sabot.Fixtures.tr;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.stream.Collectors;
-
-import org.apache.calcite.rel.core.JoinRelType;
-import org.junit.Assume;
-import org.junit.Test;
-
 import com.dremio.common.expression.BooleanOperator;
 import com.dremio.common.expression.FunctionCall;
 import com.dremio.common.expression.InputReference;
@@ -36,104 +28,97 @@ import com.dremio.exec.physical.config.NestedLoopJoinPOP;
 import com.dremio.sabot.Fixtures.DataRow;
 import com.dremio.sabot.Fixtures.Table;
 import com.dremio.sabot.join.BaseTestJoin;
-
 import io.airlift.tpch.GenerationDefinition.TpchTable;
 import io.airlift.tpch.TpchGenerator;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
+import org.apache.calcite.rel.core.JoinRelType;
+import org.junit.Assume;
+import org.junit.Test;
 
-/**
- * Test the enhanced Nested Loop Join
- */
+/** Test the enhanced Nested Loop Join */
 public class TestNLJE extends BaseTestJoin {
 
   @Test
   public void nljSmallBatch() throws Exception {
-    final Table expected = t(
-        th("r_name", "r_regionKey"),
-        tr("AFRICA", 0L),
-        tr("AMERICA", 0L),
-        tr("ASIA", 0L),
-        tr("AFRICA", 1L),
-        tr("AMERICA", 1L),
-        tr("ASIA", 1L),
-        tr("AFRICA", 2L),
-        tr("AMERICA", 2L),
-        tr("ASIA", 2L),
-
-        tr("EUROPE", 0L),
-        tr("MIDDLE EAST", 0L),
-
-        tr("EUROPE", 1L),
-        tr("MIDDLE EAST", 1L),
-
-        tr("EUROPE", 2L),
-        tr("MIDDLE EAST", 2L),
-
-        tr("AFRICA", 3L),
-        tr("AMERICA", 3L),
-        tr("ASIA", 3L),
-
-        tr("AFRICA", 4L),
-        tr("AMERICA", 4L),
-        tr("ASIA", 4L),
-
-        tr("EUROPE", 3L),
-        tr("MIDDLE EAST", 3L),
-
-        tr("EUROPE", 4L),
-        tr("MIDDLE EAST", 4L)
-        );
+    final Table expected =
+        t(
+            th("r_name", "r_regionKey"),
+            tr("AFRICA", 0L),
+            tr("AMERICA", 0L),
+            tr("ASIA", 0L),
+            tr("AFRICA", 1L),
+            tr("AMERICA", 1L),
+            tr("ASIA", 1L),
+            tr("AFRICA", 2L),
+            tr("AMERICA", 2L),
+            tr("ASIA", 2L),
+            tr("EUROPE", 0L),
+            tr("MIDDLE EAST", 0L),
+            tr("EUROPE", 1L),
+            tr("MIDDLE EAST", 1L),
+            tr("EUROPE", 2L),
+            tr("MIDDLE EAST", 2L),
+            tr("AFRICA", 3L),
+            tr("AMERICA", 3L),
+            tr("ASIA", 3L),
+            tr("AFRICA", 4L),
+            tr("AMERICA", 4L),
+            tr("ASIA", 4L),
+            tr("EUROPE", 3L),
+            tr("MIDDLE EAST", 3L),
+            tr("EUROPE", 4L),
+            tr("MIDDLE EAST", 4L));
 
     validateDual(
         new NestedLoopJoinPOP(PROPS, null, null, JoinRelType.INNER, null, true, null),
         NLJEOperator.class,
         TpchGenerator.singleGenerator(TpchTable.REGION, 0.1, getTestAllocator(), "r_regionKey"),
         TpchGenerator.singleGenerator(TpchTable.REGION, 0.1, getTestAllocator(), "r_name"),
-        3, expected);
+        3,
+        expected);
   }
-
 
   @Test
   public void nljSingleBatch() throws Exception {
 
-    final Table expected = t(
-        th("r_name", "r_regionKey"),
-        tr("AFRICA", 0L),
-        tr("AMERICA", 0L),
-        tr("ASIA", 0L),
-        tr("EUROPE", 0L),
-        tr("MIDDLE EAST", 0L),
-
-        tr("AFRICA", 1L),
-        tr("AMERICA", 1L),
-        tr("ASIA", 1L),
-        tr("EUROPE", 1L),
-        tr("MIDDLE EAST", 1L),
-
-        tr("AFRICA", 2L),
-        tr("AMERICA", 2L),
-        tr("ASIA", 2L),
-        tr("EUROPE", 2L),
-        tr("MIDDLE EAST", 2L),
-
-        tr("AFRICA", 3L),
-        tr("AMERICA", 3L),
-        tr("ASIA", 3L),
-        tr("EUROPE", 3L),
-        tr("MIDDLE EAST", 3L),
-
-        tr("AFRICA", 4L),
-        tr("AMERICA", 4L),
-        tr("ASIA", 4L),
-        tr("EUROPE", 4L),
-        tr("MIDDLE EAST", 4L)
-        );
+    final Table expected =
+        t(
+            th("r_name", "r_regionKey"),
+            tr("AFRICA", 0L),
+            tr("AMERICA", 0L),
+            tr("ASIA", 0L),
+            tr("EUROPE", 0L),
+            tr("MIDDLE EAST", 0L),
+            tr("AFRICA", 1L),
+            tr("AMERICA", 1L),
+            tr("ASIA", 1L),
+            tr("EUROPE", 1L),
+            tr("MIDDLE EAST", 1L),
+            tr("AFRICA", 2L),
+            tr("AMERICA", 2L),
+            tr("ASIA", 2L),
+            tr("EUROPE", 2L),
+            tr("MIDDLE EAST", 2L),
+            tr("AFRICA", 3L),
+            tr("AMERICA", 3L),
+            tr("ASIA", 3L),
+            tr("EUROPE", 3L),
+            tr("MIDDLE EAST", 3L),
+            tr("AFRICA", 4L),
+            tr("AMERICA", 4L),
+            tr("ASIA", 4L),
+            tr("EUROPE", 4L),
+            tr("MIDDLE EAST", 4L));
 
     validateDual(
         new NestedLoopJoinPOP(PROPS, null, null, JoinRelType.INNER, null, true, null),
         NLJEOperator.class,
         TpchGenerator.singleGenerator(TpchTable.REGION, 0.1, getTestAllocator(), "r_regionKey"),
         TpchGenerator.singleGenerator(TpchTable.REGION, 0.1, getTestAllocator(), "r_name"),
-        100, expected);
+        100,
+        expected);
   }
 
   @Test
@@ -147,34 +132,25 @@ public class TestNLJE extends BaseTestJoin {
 
     Arrays.fill(t1Data, dr);
 
-    final Table t1 = t(
-      th("x"),
-      t1Data
-    );
+    final Table t1 = t(th("x"), t1Data);
 
-    final Table t2 = t(
-      th("y"),
-      dr
-    );
+    final Table t2 = t(th("y"), dr);
 
-    DataRow expDr = tr(1,1);
+    DataRow expDr = tr(1, 1);
 
     DataRow[] expectedData = new DataRow[rows];
 
     Arrays.fill(expectedData, expDr);
 
-    final Table expected = t(
-      th("y", "x"),
-      expectedData
-    );
-
+    final Table expected = t(th("y", "x"), expectedData);
 
     validateDual(
-      new NestedLoopJoinPOP(PROPS, null, null, JoinRelType.INNER, null, true, null),
-      NLJEOperator.class,
-      t1.toGenerator(getTestAllocator()),
-      t2.toGenerator(getTestAllocator()),
-      2047, expected);
+        new NestedLoopJoinPOP(PROPS, null, null, JoinRelType.INNER, null, true, null),
+        NLJEOperator.class,
+        t1.toGenerator(getTestAllocator()),
+        t2.toGenerator(getTestAllocator()),
+        2047,
+        expected);
   }
 
   @Override
@@ -200,7 +176,7 @@ public class TestNLJE extends BaseTestJoin {
 
   @Override
   @Test
-   public void regionNationInner() {
+  public void regionNationInner() {
     // disable since ordering is different.
     Assume.assumeFalse(true);
   }
@@ -210,14 +186,21 @@ public class TestNLJE extends BaseTestJoin {
     Assume.assumeTrue(false);
   }
 
-
   @Override
   protected JoinInfo getJoinInfo(List<JoinCondition> conditions, JoinRelType type) {
-    BooleanOperator be = new BooleanOperator("booleanAnd", conditions.stream().map(c -> new FunctionCall("EQUALS".equals(c.getRelationship()) ? "=" : "is_not_distinct_from", Arrays.asList(
-        new InputReference(0, (SchemaPath) c.getLeft()),
-        new InputReference(1, (SchemaPath) c.getRight())
-        ))).collect(Collectors.toList()));
-    return new JoinInfo(NLJEOperator.class, new NestedLoopJoinPOP(PROPS, null, null, type, be, true, null));
+    BooleanOperator be =
+        new BooleanOperator(
+            "booleanAnd",
+            conditions.stream()
+                .map(
+                    c ->
+                        new FunctionCall(
+                            "EQUALS".equals(c.getRelationship()) ? "=" : "is_not_distinct_from",
+                            Arrays.asList(
+                                new InputReference(0, (SchemaPath) c.getLeft()),
+                                new InputReference(1, (SchemaPath) c.getRight()))))
+                .collect(Collectors.toList()));
+    return new JoinInfo(
+        NLJEOperator.class, new NestedLoopJoinPOP(PROPS, null, null, type, be, true, null));
   }
-
 }

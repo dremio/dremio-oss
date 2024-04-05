@@ -17,12 +17,11 @@ package com.dremio.io;
 
 import com.dremio.io.file.Path;
 
-/**
- * Compression codec factory interface
- */
+/** Compression codec factory interface */
 public interface CompressionCodecFactory {
   /**
    * Gets a compression codec based on {@code path} filename
+   *
    * @param path
    * @return a codec suitable for {@code path}, or null if none is available
    */

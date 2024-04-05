@@ -15,13 +15,10 @@
  */
 package com.dremio.dac.server.admin.profile;
 
+import com.fasterxml.jackson.core.JsonGenerator;
 import java.io.IOException;
 
-import com.fasterxml.jackson.core.JsonGenerator;
-
-/**
- * Json Builder for Profiles
- */
+/** Json Builder for Profiles */
 public class JsonBuilder extends ProfileBuilder {
   private final JsonGenerator generator;
 
@@ -78,7 +75,8 @@ public class JsonBuilder extends ProfileBuilder {
   }
 
   @Override
-  void appendCell(String value) throws IOException {
+  ProfileBuilder appendCell(String value) throws IOException {
     generator.writeString(value);
+    return this;
   }
 }

@@ -24,86 +24,74 @@ import static com.dremio.test.dsl.RexDsl.or;
 import static com.dremio.test.dsl.RexDsl.varcharInput;
 import static com.dremio.test.scaffolding.ScaffoldingRel.TYPE_FACTORY;
 
+import com.dremio.exec.planner.DremioRexBuilder;
+import com.dremio.exec.planner.logical.partition.FindPartitionConditions;
+import com.dremio.test.GoldenFileTestBuilder;
 import java.util.BitSet;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.junit.Test;
 
-import com.dremio.exec.planner.DremioRexBuilder;
-import com.dremio.exec.planner.logical.partition.FindPartitionConditions;
-import com.dremio.test.GoldenFileTestBuilder;
-
 public class FilterSplitTest {
 
   private static final RexBuilder REX_BUILDER = new DremioRexBuilder(TYPE_FACTORY);
+
   @Test
   public void goldenTest() {
-    new GoldenFileTestBuilder<>(this::transform, rex -> GoldenFileTestBuilder.MultiLineString.create(rex.toString()))
-      .add("simpleCompound: (a < 1 AND dir0 in (2,3))",
-        and(
-          lt(c(0), literal(1)),
-          or(
-            eq(c(1), literal(2)),
-            eq(c(1), literal(3)))))
-      .add("badFunc (dir0 || 1)", fn(cs(0), cs(1)))
-      .add("twoLevelDir: (dir0 = 1 and dir1 = 2) OR (dir0 = 3 and dir1 = 4)",
-        or(
-          and(
-            eq(c(1), literal(1)),
-            eq(c(2), literal(2))),
-          and(
-            eq(c(1), literal(3)),
-            eq(c(2), literal(4)))))
-      .add("badOr: (dir0 = 1 and dir1 = 2) OR (a < 5)",
-        or(
-          and(
-            eq(c(1), literal(1)),
-            eq(c(2), literal(2))),
-          lt(c(0), literal(5))))
-      .add("disjunctiveNormalForm (a, dir0) IN ((0, 1), (2, 3))",
-        or(
-          and(
-            eq(c(0), literal(0)),
-            eq(c(1), literal( 1))),
-          and(
-            eq(c(0), literal(2)),
-            eq(c(1), literal(3)))))
-      .add("Large DNF (a, dir0) IN (....)",
-        or(
-          IntStream.range(0, 100)
-            .mapToObj(i ->
-              and(eq(c(0), literal(i)), eq(c(1), literal(i))))
-            .collect(Collectors.toList())))
-      .runTests();
+    new GoldenFileTestBuilder<>(
+            this::transform, rex -> GoldenFileTestBuilder.MultiLineString.create(rex.toString()))
+        .add(
+            "simpleCompound: (a < 1 AND dir0 in (2,3))",
+            and(lt(c(0), literal(1)), or(eq(c(1), literal(2)), eq(c(1), literal(3)))))
+        .add("badFunc (dir0 || 1)", fn(cs(0), cs(1)))
+        .add(
+            "twoLevelDir: (dir0 = 1 and dir1 = 2) OR (dir0 = 3 and dir1 = 4)",
+            or(
+                and(eq(c(1), literal(1)), eq(c(2), literal(2))),
+                and(eq(c(1), literal(3)), eq(c(2), literal(4)))))
+        .add(
+            "badOr: (dir0 = 1 and dir1 = 2) OR (a < 5)",
+            or(and(eq(c(1), literal(1)), eq(c(2), literal(2))), lt(c(0), literal(5))))
+        .add(
+            "disjunctiveNormalForm (a, dir0) IN ((0, 1), (2, 3))",
+            or(
+                and(eq(c(0), literal(0)), eq(c(1), literal(1))),
+                and(eq(c(0), literal(2)), eq(c(1), literal(3)))))
+        .add(
+            "Large DNF (a, dir0) IN (....)",
+            or(
+                IntStream.range(0, 100)
+                    .mapToObj(i -> and(eq(c(0), literal(i)), eq(c(1), literal(i))))
+                    .collect(Collectors.toList())))
+        .runTests();
   }
 
-  public String transform (RexNode rexNode){
+  public String transform(RexNode rexNode) {
     BitSet bs = new BitSet();
     bs.set(1);
     bs.set(2);
     FindPartitionConditions c = new FindPartitionConditions(bs, REX_BUILDER);
     c.analyze(rexNode);
     RexNode partNode = c.getFinalCondition();
-    if(partNode != null) {
+    if (partNode != null) {
       return partNode.toString();
     } else {
       return null;
     }
   }
 
-  private static RexNode fn(RexNode...nodes){
+  private static RexNode fn(RexNode... nodes) {
     return REX_BUILDER.makeCall(SqlStdOperatorTable.CONCAT, nodes);
   }
 
-  private static RexNode c(int index){
+  private static RexNode c(int index) {
     return intInput(index);
   }
 
-  private RexNode cs(int index){
+  private RexNode cs(int index) {
     return varcharInput(index);
   }
 }

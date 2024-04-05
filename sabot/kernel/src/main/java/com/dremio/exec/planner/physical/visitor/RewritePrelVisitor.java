@@ -15,17 +15,16 @@
  */
 package com.dremio.exec.planner.physical.visitor;
 
-import org.apache.calcite.rel.RelNode;
-
 import com.dremio.exec.planner.physical.Prel;
 import com.google.common.collect.ImmutableList;
+import org.apache.calcite.rel.RelNode;
 
-public class RewritePrelVisitor<EXTRA>
-  extends BasePrelVisitor<RelNode, EXTRA, RuntimeException>{
+public class RewritePrelVisitor<EXTRA> extends BasePrelVisitor<RelNode, EXTRA, RuntimeException> {
 
-  @Override public RelNode visitPrel(Prel prel, EXTRA value) throws RuntimeException {
+  @Override
+  public RelNode visitPrel(Prel prel, EXTRA value) throws RuntimeException {
     ImmutableList.Builder<RelNode> rewrittenInputs = ImmutableList.builder();
-    for (Prel sub: prel) {
+    for (Prel sub : prel) {
       rewrittenInputs.add(sub.accept(this, value));
     }
     return prel.copy(prel.getTraitSet(), rewrittenInputs.build());

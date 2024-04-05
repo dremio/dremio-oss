@@ -15,12 +15,6 @@
  */
 package com.dremio.exec.planner.serializer.logical;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-
-import org.apache.calcite.schema.Function;
-
 import com.dremio.exec.catalog.CatalogUser;
 import com.dremio.exec.planner.serializer.RelNodeSerde;
 import com.dremio.exec.store.SchemaConfig;
@@ -29,11 +23,14 @@ import com.dremio.exec.tablefunctions.ExternalQuery;
 import com.dremio.exec.tablefunctions.ExternalQueryScanCrel;
 import com.dremio.plan.serialization.PExternalQueryScanCrel;
 import com.dremio.service.users.SystemUser;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import org.apache.calcite.schema.Function;
 
-/**
- * Serde for ScanCrel
- */
-public final class ExternalQueryScanCrelSerde implements RelNodeSerde<ExternalQueryScanCrel, PExternalQueryScanCrel> {
+/** Serde for ScanCrel */
+public final class ExternalQueryScanCrelSerde
+    implements RelNodeSerde<ExternalQueryScanCrel, PExternalQueryScanCrel> {
   @Override
   public PExternalQueryScanCrel serialize(ExternalQueryScanCrel scan, RelToProto s) {
     return PExternalQueryScanCrel.newBuilder()
@@ -44,10 +41,15 @@ public final class ExternalQueryScanCrelSerde implements RelNodeSerde<ExternalQu
 
   @Override
   public ExternalQueryScanCrel deserialize(PExternalQueryScanCrel node, RelFromProto s) {
-    List<Function> functions = s.plugins().getPlugin(node.getPluginName()).getFunctions(Arrays.asList(node.getPluginName(),
-      SupportsExternalQuery.EXTERNAL_QUERY),
-      SchemaConfig.newBuilder(CatalogUser.from(SystemUser.SYSTEM_USERNAME)).build());
-    return (ExternalQueryScanCrel) ((ExternalQuery) functions.get(0))
-      .apply(Collections.singletonList(node.getSql())).toRel(s.toRelContext(), null);
+    List<Function> functions =
+        s.plugins()
+            .getPlugin(node.getPluginName())
+            .getFunctions(
+                Arrays.asList(node.getPluginName(), SupportsExternalQuery.EXTERNAL_QUERY),
+                SchemaConfig.newBuilder(CatalogUser.from(SystemUser.SYSTEM_USERNAME)).build());
+    return (ExternalQueryScanCrel)
+        ((ExternalQuery) functions.get(0))
+            .apply(Collections.singletonList(node.getSql()))
+            .toRel(s.toRelContext(), null);
   }
 }

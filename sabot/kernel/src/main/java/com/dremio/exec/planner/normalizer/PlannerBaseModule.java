@@ -15,10 +15,6 @@
  */
 package com.dremio.exec.planner.normalizer;
 
-import javax.annotation.Nullable;
-
-import org.apache.calcite.plan.RelOptCostFactory;
-
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.ops.UserDefinedFunctionExpander;
 import com.dremio.exec.ops.UserDefinedFunctionExpanderImpl;
@@ -28,8 +24,11 @@ import com.dremio.exec.planner.logical.ConstExecutor;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.SqlConverter;
+import com.dremio.options.OptionResolver;
 import com.dremio.sabot.exec.context.FunctionContext;
 import com.google.common.base.Preconditions;
+import javax.annotation.Nullable;
+import org.apache.calcite.plan.RelOptCostFactory;
 
 public class PlannerBaseModule {
 
@@ -39,36 +38,28 @@ public class PlannerBaseModule {
   }
 
   public ConstExecutor buildConstExecutor(
-    PlannerSettings plannerSettings,
-    FunctionImplementationRegistry funcImplReg,
-    FunctionContext udfUtilities) {
+      PlannerSettings plannerSettings,
+      FunctionImplementationRegistry funcImplReg,
+      FunctionContext udfUtilities) {
     return new ConstExecutor(funcImplReg, udfUtilities, plannerSettings);
   }
 
   public HepPlannerRunner buildHepPlannerRunner(
-    PlannerSettings plannerSettings,
-    ConstExecutor constExecutor,
-    @Nullable RelOptCostFactory relOptCostFactory,
-    HepPlannerRunner.PlannerStatsReporter plannerStatsReporter) {
+      PlannerSettings plannerSettings,
+      OptionResolver optionResolver,
+      ConstExecutor constExecutor,
+      RelOptCostFactory relOptCostFactory,
+      HepPlannerRunner.PlannerStatsReporter plannerStatsReporter) {
     return new HepPlannerRunner(
-      plannerSettings,
-      constExecutor,
-      relOptCostFactory,
-      plannerStatsReporter);
+        plannerSettings, optionResolver, constExecutor, relOptCostFactory, plannerStatsReporter);
   }
 
-
   public HepPlannerRunner.PlannerStatsReporter buildPlannerStatsReporter(
-    AttemptObserver attemptObserver
-  ) {
+      AttemptObserver attemptObserver) {
     Preconditions.checkNotNull(attemptObserver);
-    return (config, millisTaken, input, output, ruleToCount) -> attemptObserver.planRelTransform(
-      config.getPlannerPhase(),
-      null,
-      input,
-      output,
-      millisTaken,
-      ruleToCount);
+    return (config, millisTaken, input, output, rulesBreakdownStats) ->
+        attemptObserver.planRelTransform(
+            config.getPlannerPhase(), null, input, output, millisTaken, rulesBreakdownStats);
   }
 
   public UserDefinedFunctionExpander buildUserDefinedFunctionExpander(SqlConverter sqlConverter) {

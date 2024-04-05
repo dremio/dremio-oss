@@ -15,17 +15,6 @@
  */
 package com.dremio.sabot.exec;
 
-import java.util.Collection;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ConcurrentMap;
-import java.util.stream.Collectors;
-
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.VM;
 import com.dremio.exec.proto.CoordExecRPC.NodePhaseStatus;
@@ -35,21 +24,29 @@ import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.sabot.task.AsyncTaskWrapper;
 import com.dremio.sabot.task.SchedulingGroup;
 import com.google.common.base.Preconditions;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ConcurrentMap;
+import java.util.stream.Collectors;
+import org.apache.arrow.memory.BufferAllocator;
 
 /**
- *  Manages the query level allocator and potentially the query scheduling group. Allows for reporting of query-level
- *  stats to the coordinator.<br>
+ * Manages the query level allocator and potentially the query scheduling group. Allows for
+ * reporting of query-level stats to the coordinator.<br>
+ * A QueryTicket is created for each query that executes on an executor node. The QueryTicket tracks
+ * the allocator used for this query. It contains a query reporter that's used to report the status
+ * of this query on this node to the coordinator
  *
- *  A QueryTicket is created for each query that executes on an executor node. The QueryTicket tracks the allocator
- *  used for this query. It contains a query reporter that's used to report the status of this query on this node to
- *  the coordinator
+ * <p>QueryTickets are issued by the {@link WorkloadTicket}. Given a QueryTicket, the {@link
+ * QueriesClerk} can issue a {@link PhaseTicket} for any one phase of this query
  *
- *  QueryTickets are issued by the {@link WorkloadTicket}. Given a QueryTicket, the {@link QueriesClerk} can issue a
- *  {@link PhaseTicket} for any one phase of this query
- *
- *  The QueryTicket tracks the child {@link PhaseTicket}s. When the last {@link PhaseTicket} is closed, the QueryTicket
- *  closes the query-level allocator. Any further operations on the query-level allocator will throw an
- *  {@link IllegalStateException}
+ * <p>The QueryTicket tracks the child {@link PhaseTicket}s. When the last {@link PhaseTicket} is
+ * closed, the QueryTicket closes the query-level allocator. Any further operations on the
+ * query-level allocator will throw an {@link IllegalStateException}
  */
 public class QueryTicket extends TicketWithChildren {
   public static final int MAX_EXPECTED_SIZE = 1000;
@@ -65,8 +62,15 @@ public class QueryTicket extends TicketWithChildren {
   private volatile NodeQueryStatus finalQueryStatus;
   private static int NUMBER_OF_CORES = VM.availableProcessors();
 
-  public QueryTicket(WorkloadTicket workloadTicket, QueryId queryId, BufferAllocator allocator, NodeEndpoint foreman,
-                     NodeEndpoint assignment, long enqueuedTime, boolean useWeightBasedScheduling, int expectedNumTickets) {
+  public QueryTicket(
+      WorkloadTicket workloadTicket,
+      QueryId queryId,
+      BufferAllocator allocator,
+      NodeEndpoint foreman,
+      NodeEndpoint assignment,
+      long enqueuedTime,
+      boolean useWeightBasedScheduling,
+      int expectedNumTickets) {
     super(allocator);
     this.workloadTicket = workloadTicket;
     this.queryId = Preconditions.checkNotNull(queryId, "queryId cannot be null");
@@ -74,8 +78,10 @@ public class QueryTicket extends TicketWithChildren {
     this.assignment = assignment;
     this.enqueuedTime = enqueuedTime;
     final int queryWeight = Math.min(expectedNumTickets, MAX_EXPECTED_SIZE);
-    this.queryGroup = this.workloadTicket.getSchedulingGroup()
-      .addGroup((queryWeight <= 0) ? 1 : queryWeight, useWeightBasedScheduling);
+    this.queryGroup =
+        this.workloadTicket
+            .getSchedulingGroup()
+            .addGroup((queryWeight <= 0) ? 1 : queryWeight, useWeightBasedScheduling);
   }
 
   public QueryId getQueryId() {
@@ -95,38 +101,44 @@ public class QueryTicket extends TicketWithChildren {
   }
 
   /**
-   * Creates a phase ticket (along with a phase-level allocator) for a given phase (major fragment) of this query, if
-   * one has not already been created. The created phase ticket is tracked by this query ticket.
+   * Creates a phase ticket (along with a phase-level allocator) for a given phase (major fragment)
+   * of this query, if one has not already been created. The created phase ticket is tracked by this
+   * query ticket.
    *
-   * Multi-thread safe`
+   * <p>Multi-thread safe`
    */
-  public PhaseTicket getOrCreatePhaseTicket(int majorFragmentId, long maxAllocation, int fragmentWeight) {
-    return phaseTickets.compute(majorFragmentId, (k, v) -> {
-      if (v == null) {
-        final BufferAllocator phaseAllocator = getAllocator().newChildAllocator("phase-" + majorFragmentId,
-          0, maxAllocation);
-        final PhaseTicket phaseTicket = new PhaseTicket(this, majorFragmentId, phaseAllocator, fragmentWeight);
-        this.reserve();
-        return phaseTicket;
-      } else {
-        return v;
-      }
-    });
+  public PhaseTicket getOrCreatePhaseTicket(
+      int majorFragmentId, long maxAllocation, int fragmentWeight) {
+    return phaseTickets.compute(
+        majorFragmentId,
+        (k, v) -> {
+          if (v == null) {
+            final BufferAllocator phaseAllocator =
+                getAllocator().newChildAllocator("phase-" + majorFragmentId, 0, maxAllocation);
+            final PhaseTicket phaseTicket =
+                new PhaseTicket(this, majorFragmentId, phaseAllocator, fragmentWeight);
+            this.reserve();
+            return phaseTicket;
+          } else {
+            return v;
+          }
+        });
   }
 
   /**
-   * Remove a phase ticket from this query ticket. When the last phase ticket is removed, this query ticket is
-   * removed from the queries clerk.
+   * Remove a phase ticket from this query ticket. When the last phase ticket is removed, this query
+   * ticket is removed from the queries clerk.
    *
-   * Multi-thread safe
+   * <p>Multi-thread safe
    */
-  public void removePhaseTicket(PhaseTicket phaseTicket) throws Exception{
+  public void removePhaseTicket(PhaseTicket phaseTicket) throws Exception {
     final NodePhaseStatus finalStatus = phaseTicket.getStatus();
     completed.add(finalStatus);
 
     final PhaseTicket removedPhaseTicket = phaseTickets.remove(phaseTicket.getMajorFragmentId());
-    Preconditions.checkState(removedPhaseTicket == phaseTicket,
-      "closed phase ticket was not found in the phase tickets' map");
+    Preconditions.checkState(
+        removedPhaseTicket == phaseTicket,
+        "closed phase ticket was not found in the phase tickets' map");
     try {
       AutoCloseables.close(phaseTicket);
     } finally {
@@ -142,24 +154,23 @@ public class QueryTicket extends TicketWithChildren {
    */
   Collection<PhaseTicket> getActivePhaseTickets() {
     return phaseTickets.values().stream()
-      .sorted(Comparator.comparingInt(PhaseTicket::getPhaseWeight).reversed())
-      .collect(Collectors.toList());
+        .sorted(Comparator.comparingInt(PhaseTicket::getPhaseWeight).reversed())
+        .collect(Collectors.toList());
   }
 
-  /**
-   * Return the per-node query status for the query tracked by this ticket
-   */
+  /** Return the per-node query status for the query tracked by this ticket */
   NodeQueryStatus getStatus() {
     if (finalQueryStatus != null) {
       return finalQueryStatus;
     }
 
-    final NodeQueryStatus.Builder b = NodeQueryStatus.newBuilder()
-      .setId(queryId)
-      .setEndpoint(assignment)
-      .setMaxMemoryUsed(getAllocator().getPeakMemoryAllocation())
-      .setTimeEnqueuedBeforeSubmitMs(getEnqueuedTime())
-      .setNumberOfCores(NUMBER_OF_CORES);
+    final NodeQueryStatus.Builder b =
+        NodeQueryStatus.newBuilder()
+            .setId(queryId)
+            .setEndpoint(assignment)
+            .setMaxMemoryUsed(getAllocator().getPeakMemoryAllocation())
+            .setTimeEnqueuedBeforeSubmitMs(getEnqueuedTime())
+            .setNumberOfCores(NUMBER_OF_CORES);
 
     Set<Integer> addedPhases = new HashSet<>();
     for (NodePhaseStatus nodePhaseStatus : completed) {
@@ -188,5 +199,4 @@ public class QueryTicket extends TicketWithChildren {
   public SchedulingGroup<AsyncTaskWrapper> getSchedulingGroup() {
     return this.queryGroup;
   }
-
 }

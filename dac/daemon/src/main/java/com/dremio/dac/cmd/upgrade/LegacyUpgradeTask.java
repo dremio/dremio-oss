@@ -19,10 +19,7 @@ import static com.dremio.common.util.DremioVersionInfo.VERSION;
 
 import com.dremio.common.Version;
 
-/**
- * Legacy methods, constants to support UpgradeTasks
- * before introducing UpgradeTaskStore
- */
+/** Legacy methods, constants to support UpgradeTasks before introducing UpgradeTaskStore */
 @Deprecated
 public interface LegacyUpgradeTask {
 
@@ -38,12 +35,11 @@ public interface LegacyUpgradeTask {
   Version VERSION_300 = new Version("3.0.0", 3, 0, 0, 0, "");
 
   /**
-   * This method is here to support legacy tasks
-   * please refrain from using this method going forward
-   * Upgrade tasks will not need to use min and max versions
-   * task will be run or not based on entry(ies) in UpgradeTask store
-   * if there are any specific requirements around versions
-   * they need to be handled by the task itself
+   * This method is here to support legacy tasks please refrain from using this method going forward
+   * Upgrade tasks will not need to use min and max versions task will be run or not based on
+   * entry(ies) in UpgradeTask store if there are any specific requirements around versions they
+   * need to be handled by the task itself
+   *
    * @return version
    */
   @Deprecated

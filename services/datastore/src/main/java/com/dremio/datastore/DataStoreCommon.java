@@ -15,9 +15,7 @@
  */
 package com.dremio.datastore;
 
-/**
- * A class to hold common info required by different datastore related services.
- */
+/** A class to hold common info required by different datastore related services. */
 public class DataStoreCommon {
   public static final String TenantIdKeyName = "tenantId";
 }

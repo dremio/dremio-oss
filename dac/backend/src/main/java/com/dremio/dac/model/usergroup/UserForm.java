@@ -21,9 +21,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
 
-/**
- * Create/Edit user form.
- */
+/** Create/Edit user form. */
 public class UserForm {
   // not final because you can't use @JsonUnwrapped in an @JsonCreator
   private User userConfig;

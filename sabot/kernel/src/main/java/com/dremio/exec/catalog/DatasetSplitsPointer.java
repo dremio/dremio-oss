@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.catalog;
 
-import java.util.Objects;
-
 import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.SearchTypes.SearchQuery;
 import com.dremio.datastore.api.LegacyIndexedStore.LegacyFindByCondition;
@@ -29,48 +27,60 @@ import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.ReadDefinition;
 import com.dremio.service.namespace.proto.EntityId;
 import com.google.common.base.Preconditions;
+import java.util.Objects;
 
 /**
  * Pointer to a set of splits for a given dataset config/split version.
  *
- * May be loaded lazily
+ * <p>May be loaded lazily
  */
 public final class DatasetSplitsPointer extends LazySplitsPointer {
   private final EntityId datasetId;
 
-  private DatasetSplitsPointer(NamespaceService namespaceService, EntityId datasetId, long splitVersion, int splitsCount) {
+  private DatasetSplitsPointer(
+      NamespaceService namespaceService, EntityId datasetId, long splitVersion, int splitsCount) {
     super(namespaceService, splitVersion, splitsCount);
     this.datasetId = datasetId;
   }
 
   public static SplitsPointer of(NamespaceService namespaceService, DatasetConfig datasetConfig) {
     final EntityId datasetId = Preconditions.checkNotNull(datasetConfig.getId());
-    final ReadDefinition readDefinition = Preconditions.checkNotNull(datasetConfig.getReadDefinition(),
-        "extended metadata (read definition) is not available");
-    final long splitVersion = Preconditions.<Long>checkNotNull(readDefinition.getSplitVersion(),
-      "split version is null");
+    final ReadDefinition readDefinition =
+        Preconditions.checkNotNull(
+            datasetConfig.getReadDefinition(),
+            "extended metadata (read definition) is not available");
+    final long splitVersion =
+        Preconditions.<Long>checkNotNull(readDefinition.getSplitVersion(), "split version is null");
 
     final int splitsCount;
     if (datasetConfig.getTotalNumSplits() != null) {
       splitsCount = datasetConfig.getTotalNumSplits();
     } else {
-      // Backwards compatibility: if the total number of splits is not set, then this datasetConfig must be from
-      // before the connector metadata API. At that time, each PartitionChunk represented a single split
-      splitsCount = namespaceService.getPartitionChunkCount(new LegacyFindByCondition().setCondition(PartitionChunkId.getSplitsQuery(datasetConfig)));
+      // Backwards compatibility: if the total number of splits is not set, then this datasetConfig
+      // must be from
+      // before the connector metadata API. At that time, each PartitionChunk represented a single
+      // split
+      splitsCount =
+          namespaceService.getPartitionChunkCount(
+              new LegacyFindByCondition()
+                  .setCondition(PartitionChunkId.getSplitsQuery(datasetConfig)));
     }
     return new DatasetSplitsPointer(namespaceService, datasetId, splitVersion, splitsCount);
   }
 
   @Override
   protected SearchQuery getPartitionQuery(SearchQuery partitionFilterQuery) {
-    LegacyFindByCondition splitFilter = new LegacyFindByCondition().setCondition(PartitionChunkId.getSplitsQuery(datasetId, getSplitVersion()));
+    LegacyFindByCondition splitFilter =
+        new LegacyFindByCondition()
+            .setCondition(PartitionChunkId.getSplitsQuery(datasetId, getSplitVersion()));
 
     return SearchQueryUtils.and(splitFilter.getCondition(), partitionFilterQuery);
   }
 
   @Override
   protected Iterable<PartitionChunkMetadata> findSplits() {
-    LegacyFindByRange<PartitionChunkId> filter = PartitionChunkId.getSplitsRange(datasetId, getSplitVersion());
+    LegacyFindByRange<PartitionChunkId> filter =
+        PartitionChunkId.getSplitsRange(datasetId, getSplitVersion());
     return getNamespaceService().findSplits(filter);
   }
 

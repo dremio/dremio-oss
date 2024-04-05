@@ -28,7 +28,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.io.MultipleIOException;
@@ -37,10 +36,12 @@ import org.apache.hadoop.util.ShutdownHookManager;
 import org.apache.hadoop.util.StringUtils;
 
 /**
- * Similar to the cache in {@link FileSystem} with addition of unique set of properties to cache key.
+ * Similar to the cache in {@link FileSystem} with addition of unique set of properties to cache
+ * key.
  */
 public class DremioFileSystemCache {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DremioFileSystemCache.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(DremioFileSystemCache.class);
   private static final String disableDremioCacheName = "fs.impl.disable.dremio.cache";
 
   private final ClientFinalizer clientFinalizer = new ClientFinalizer();
@@ -48,7 +49,8 @@ public class DremioFileSystemCache {
   private final Map<Key, FileSystem> map = new HashMap<>();
   private final Set<Key> toAutoClose = new HashSet<>();
 
-  public FileSystem get(URI uri, Configuration conf, List<String> uniqueConnectionProps) throws IOException{
+  public FileSystem get(URI uri, Configuration conf, List<String> uniqueConnectionProps)
+      throws IOException {
     final Key key = new Key(uri, conf, uniqueConnectionProps);
 
     FileSystem fs;
@@ -61,18 +63,20 @@ public class DremioFileSystemCache {
 
     final String disableCacheName = String.format("fs.%s.impl.disable.cache", uri.getScheme());
 
-    // Clone the conf and set cache to disable, so that a new instance is created rather than returning an existing
-    // one in Hadoop's FileSystem cache. TODO: worry if cloning conf blows up heap memory. We could use the existing
+    // Clone the conf and set cache to disable, so that a new instance is created rather than
+    // returning an existing
+    // one in Hadoop's FileSystem cache. TODO: worry if cloning conf blows up heap memory. We could
+    // use the existing
     // conf object but it is shared by muliple threads
     final Configuration cloneConf = new Configuration(conf);
     cloneConf.set(disableCacheName, "true");
     fs = FileSystem.get(uri, cloneConf);
 
-    /**
-     * Check if user does not want to cache in Dremio cache
-     */
+    /** Check if user does not want to cache in Dremio cache */
     final boolean disableDremioCache = conf.getBoolean(disableDremioCacheName, false);
-    if (disableDremioCache || key.uniqueConnectionPropValues == null || key.uniqueConnectionPropValues.isEmpty()) {
+    if (disableDremioCache
+        || key.uniqueConnectionPropValues == null
+        || key.uniqueConnectionPropValues.isEmpty()) {
       return fs;
     }
 
@@ -80,12 +84,11 @@ public class DremioFileSystemCache {
       FileSystem oldfs = map.get(key);
       if (oldfs != null) { // a file system is created while lock is releasing
         fs.close(); // close the new file system
-        return oldfs;  // return the old file system
+        return oldfs; // return the old file system
       }
 
       // now insert the new file system into the map
-      if (map.isEmpty()
-          && !ShutdownHookManager.get().isShutdownInProgress()) {
+      if (map.isEmpty() && !ShutdownHookManager.get().isShutdownInProgress()) {
         ShutdownHookManager.get().addShutdownHook(clientFinalizer, SHUTDOWN_HOOK_PRIORITY);
       }
       map.put(key, fs);
@@ -98,6 +101,7 @@ public class DremioFileSystemCache {
 
   /**
    * Close all FileSystem instances in the Cache.
+   *
    * @param onlyAutomatic only close those that are marked for automatic closing
    */
   public synchronized void closeAll(boolean onlyAutomatic) throws IOException {
@@ -115,7 +119,7 @@ public class DremioFileSystemCache {
         continue;
       }
 
-      //remove from cache
+      // remove from cache
       map.remove(key);
       toAutoClose.remove(key);
 
@@ -181,16 +185,24 @@ public class DremioFileSystemCache {
         return false;
       }
       Key key = (Key) o;
-      return
-          com.google.common.base.Objects.equal(scheme, key.scheme) &&
-          com.google.common.base.Objects.equal(authority, key.authority) &&
-          com.google.common.base.Objects.equal(ugi, key.ugi) &&
-          com.google.common.base.Objects.equal(uniqueConnectionPropValues, key.uniqueConnectionPropValues);
+      return com.google.common.base.Objects.equal(scheme, key.scheme)
+          && com.google.common.base.Objects.equal(authority, key.authority)
+          && com.google.common.base.Objects.equal(ugi, key.ugi)
+          && com.google.common.base.Objects.equal(
+              uniqueConnectionPropValues, key.uniqueConnectionPropValues);
     }
 
     @Override
     public String toString() {
-      return "(" + ugi.toString() + ")@" + scheme + "://" + authority + "with [" + uniqueConnectionPropValues + "]";
+      return "("
+          + ugi.toString()
+          + ")@"
+          + scheme
+          + "://"
+          + authority
+          + "with ["
+          + uniqueConnectionPropValues
+          + "]";
     }
   }
 }

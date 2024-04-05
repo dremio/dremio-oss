@@ -22,9 +22,7 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.sabot.op.spi.Operator.Producer;
 
-/**
- * An operator that produces data from a non-operator source (files, sockets, etc).
- */
+/** An operator that produces data from a non-operator source (files, sockets, etc). */
 public interface ProducerOperator extends Producer {
 
   enum State implements OperatorState<State> {
@@ -34,7 +32,8 @@ public interface ProducerOperator extends Producer {
     DONE(MasterState.DONE);
 
     final MasterState master;
-    State(MasterState master){
+
+    State(MasterState master) {
       this.master = master;
     }
 
@@ -54,15 +53,19 @@ public interface ProducerOperator extends Producer {
 
   /**
    * Setups operator. Can only be called once. SqlOperatorImpl must be in NEEDS_SETUP state.
+   *
    * @return The VectorAccessible to be used for result return.
    */
   VectorAccessible setup() throws Exception;
 
   interface Creator<T extends PhysicalOperator> {
-    ProducerOperator create(FragmentExecutionContext fragmentExecContext, OperatorContext context, T config) throws ExecutionSetupException;
+    ProducerOperator create(
+        FragmentExecutionContext fragmentExecContext, OperatorContext context, T config)
+        throws ExecutionSetupException;
   }
 
   interface ReceiverCreator<T extends PhysicalOperator> {
-    ProducerOperator create(BatchStreamProvider streams, OperatorContext context, T config) throws ExecutionSetupException;
+    ProducerOperator create(BatchStreamProvider streams, OperatorContext context, T config)
+        throws ExecutionSetupException;
   }
 }

@@ -15,12 +15,12 @@
  */
 package com.dremio.exec.expr.fn;
 
+import com.google.common.collect.Sets;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-
 import org.apache.arrow.gandiva.evaluator.ExpressionRegistry;
 import org.apache.arrow.gandiva.evaluator.FunctionSignature;
 import org.apache.arrow.gandiva.exceptions.GandivaException;
@@ -28,19 +28,15 @@ import org.apache.arrow.vector.types.DateUnit;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID;
 
-import com.google.common.collect.Sets;
-
-/**
- * Wrapper around gandiva ExpressionRegistry.
- */
+/** Wrapper around gandiva ExpressionRegistry. */
 public class GandivaRegistryWrapper {
   private static volatile GandivaRegistryWrapper INSTANCE;
 
   private final Set<FunctionSignature> supportedFunctionsNonDecimal = Sets.newHashSet();
   private final Set<FunctionSignature> supportedFunctionsDecimal;
   private final Set<ArrowType> supportedTypes;
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(GandivaRegistryWrapper.class);
-
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(GandivaRegistryWrapper.class);
 
   private GandivaRegistryWrapper() throws GandivaException {
     this.supportedTypes = ExpressionRegistry.getInstance().getSupportedTypes();
@@ -58,7 +54,8 @@ public class GandivaRegistryWrapper {
 
       // To make this fit in dremio model of type inference, add dummy args for precision and
       // scale.
-      if (signature.getName().equals("castDECIMAL") || signature.getName().equals("castDECIMALNullOnOverflow")) {
+      if (signature.getName().equals("castDECIMAL")
+          || signature.getName().equals("castDECIMALNullOnOverflow")) {
         List<List<ArrowType>> args = new ArrayList<>(signature.getParamTypes());
         List<ArrowType> p1 = new ArrayList<ArrowType>();
         p1.add(new ArrowType.Int(64, true)); // precision
@@ -68,8 +65,12 @@ public class GandivaRegistryWrapper {
         p2.add(new ArrowType.Int(64, true)); // scale
         args.add(p2);
 
-        updated = new FunctionSignature(signature.getName(), signature.getReturnType(),
-          signature.getReturnListType(), args);
+        updated =
+            new FunctionSignature(
+                signature.getName(),
+                signature.getReturnType(),
+                signature.getReturnListType(),
+                args);
       }
       updatedSignatures.add(updated);
       addNonDecimalMethods(signature, updated);
@@ -88,15 +89,17 @@ public class GandivaRegistryWrapper {
     }
 
     // suppress all date32 functions. date32 is not a supported dremio type;
-    if (signature.getReturnType() != null && (dateDayArg || signature.getReturnType().equals(dateDay))) {
+    if (signature.getReturnType() != null
+        && (dateDayArg || signature.getReturnType().equals(dateDay))) {
       return true;
     }
 
     // blacklisting to_date variants on string param till DX-24037 is fixed.
-    if (signature.getName().equalsIgnoreCase("to_date") || signature.getName().equalsIgnoreCase("castDATE")) {
+    if (signature.getName().equalsIgnoreCase("to_date")
+        || signature.getName().equalsIgnoreCase("castDATE")) {
       return signature.getParamTypes().size() == 2
-        && signature.getParamTypes().get(0).get(0).equals(new ArrowType.Utf8())
-        && signature.getParamTypes().get(1).get(0).equals(new ArrowType.Utf8());
+          && signature.getParamTypes().get(0).get(0).equals(new ArrowType.Utf8())
+          && signature.getParamTypes().get(1).get(0).equals(new ArrowType.Utf8());
     }
 
     // DX-32437; blacklisting temporarily
@@ -104,20 +107,33 @@ public class GandivaRegistryWrapper {
       return true;
     }
 
-    //DX-84842
-    if (signature.getName().equalsIgnoreCase("array_contains") ||
-      signature.getName().equalsIgnoreCase("array_remove")) {
+    // DX-84842
+    if (signature.getName().equalsIgnoreCase("array_contains")
+        || signature.getName().equalsIgnoreCase("array_remove")) {
       return true;
     }
 
-    if ((signature.getName().equalsIgnoreCase("yearweek") || signature.getName().equalsIgnoreCase("weekofyear") || signature.getName().equalsIgnoreCase("day")) && !ArrowTypeID.Int.equals(signature.getReturnType().getTypeID())) {
+    if ((signature.getName().equalsIgnoreCase("yearweek")
+            || signature.getName().equalsIgnoreCase("weekofyear")
+            || signature.getName().equalsIgnoreCase("day"))
+        && !ArrowTypeID.Int.equals(signature.getReturnType().getTypeID())) {
       return true;
     }
 
-    //blacklisted while upgrading arrow and DX-44699
-    String[] blacklisted_funcs = {"castVARBINARY", "regexp_replace", "castINTERVALDAY", "castNULLABLEINTERVALDAY", "castBIT", "castBOOLEAN", "to_timestamp", "from_utc_timestamp", "to_utc_timestamp"};
+    // blacklisted while upgrading arrow and DX-44699
+    String[] blacklisted_funcs = {
+      "castVARBINARY",
+      "regexp_replace",
+      "castINTERVALDAY",
+      "castNULLABLEINTERVALDAY",
+      "castBIT",
+      "castBOOLEAN",
+      "to_timestamp",
+      "from_utc_timestamp",
+      "to_utc_timestamp"
+    };
 
-    for(String str: blacklisted_funcs) {
+    for (String str : blacklisted_funcs) {
       if (signature.getName().equalsIgnoreCase(str)) {
         return true;
       }
@@ -127,13 +143,12 @@ public class GandivaRegistryWrapper {
   }
 
   private void addNonDecimalMethods(FunctionSignature signature, FunctionSignature updated) {
-    Optional<List<ArrowType>> decimalParam = signature.getParamTypes()
-                                                .stream()
-                                                .filter(arrowType -> arrowType.get(0).getTypeID()
-                                                .equals(ArrowType.ArrowTypeID.Decimal))
-                                                .findFirst();
-    boolean decimalReturnType = signature.getReturnType().getTypeID().equals(ArrowType
-      .ArrowTypeID.Decimal);
+    Optional<List<ArrowType>> decimalParam =
+        signature.getParamTypes().stream()
+            .filter(arrowType -> arrowType.get(0).getTypeID().equals(ArrowType.ArrowTypeID.Decimal))
+            .findFirst();
+    boolean decimalReturnType =
+        signature.getReturnType().getTypeID().equals(ArrowType.ArrowTypeID.Decimal);
     // ignore all decimal functions if v2 is not enabled.
     if (!decimalParam.isPresent() && !decimalReturnType) {
       supportedFunctionsNonDecimal.add(updated);

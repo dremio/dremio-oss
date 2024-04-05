@@ -15,14 +15,6 @@
  */
 package com.dremio.exec.store.dfs;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.logical.FormatPluginConfig;
 import com.dremio.common.scanner.persistence.ScanResult;
@@ -38,25 +30,36 @@ import com.dremio.exec.store.iceberg.IcebergFormatConfig;
 import com.dremio.exec.store.parquet.ParquetFormatConfig;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 
-/**
- * Responsible for instantiating format plugins
- */
+/** Responsible for instantiating format plugins */
 public class FormatCreator {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FormatCreator.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(FormatCreator.class);
 
-  private static final ConstructorChecker FORMAT_BASED = new ConstructorChecker(String.class, SabotContext.class, FormatPluginConfig.class, FileSystemPlugin.class);
-  private static final ConstructorChecker DEFAULT_BASED = new ConstructorChecker(String.class, SabotContext.class, FileSystemPlugin.class);
+  private static final ConstructorChecker FORMAT_BASED =
+      new ConstructorChecker(
+          String.class, SabotContext.class, FormatPluginConfig.class, FileSystemPlugin.class);
+  private static final ConstructorChecker DEFAULT_BASED =
+      new ConstructorChecker(String.class, SabotContext.class, FileSystemPlugin.class);
 
   /**
-   * Returns a Map from the FormatPlugin Config class to the constructor of the format plugin that accepts it.
-   * This is used to create a format plugin instance from its configuration.
+   * Returns a Map from the FormatPlugin Config class to the constructor of the format plugin that
+   * accepts it. This is used to create a format plugin instance from its configuration.
+   *
    * @param pluginClasses the FormatPlugin classes to index on their config class
    * @return a map of type to constructor that taks the config
    */
-  private static Map<Class<?>, Constructor<?>> initConfigConstructors(Collection<Class<? extends FormatPlugin>> pluginClasses) {
+  private static Map<Class<?>, Constructor<?>> initConfigConstructors(
+      Collection<Class<? extends FormatPlugin>> pluginClasses) {
     Map<Class<?>, Constructor<?>> constructors = Maps.newHashMap();
-    for (Class<? extends FormatPlugin> pluginClass: pluginClasses) {
+    for (Class<? extends FormatPlugin> pluginClass : pluginClasses) {
       for (Constructor<?> c : pluginClass.getConstructors()) {
         try {
           if (!FORMAT_BASED.check(c)) {
@@ -65,13 +68,15 @@ public class FormatCreator {
           Class<?> configClass = c.getParameterTypes()[2];
           constructors.put(configClass, c);
         } catch (Exception e) {
-          logger.warn(String.format("Failure while trying instantiate FormatPlugin %s.", pluginClass.getName()), e);
+          logger.warn(
+              String.format(
+                  "Failure while trying instantiate FormatPlugin %s.", pluginClass.getName()),
+              e);
         }
       }
     }
     return constructors;
   }
-
 
   private final SabotContext context;
   private final FileSystemConf<?, ?> storageConfig;
@@ -91,7 +96,11 @@ public class FormatCreator {
 
   /** The format plugin classes retrieved from classpath scanning */
   private final Collection<Class<? extends FormatPlugin>> pluginClasses;
-  /** a Map from the FormatPlugin Config class to the constructor of the format plugin that accepts it.*/
+
+  /**
+   * a Map from the FormatPlugin Config class to the constructor of the format plugin that accepts
+   * it.
+   */
   private final Map<Class<?>, Constructor<?>> configConstructors;
 
   public static Map<String, FormatPluginConfig> getDefaultFormats() {
@@ -118,14 +127,13 @@ public class FormatCreator {
   /**
    * Creates a {@link TextFormatPlugin.TextFormatConfig}.
    *
-   * Dremio populates the default values from a config file read by Jackson,
-   * so the TextFormatConfig class doesn't have a useful constructor.
+   * <p>Dremio populates the default values from a config file read by Jackson, so the
+   * TextFormatConfig class doesn't have a useful constructor.
    *
    * @return - a new TextFormatConfig
    */
-  public static TextFormatPlugin.TextFormatConfig createTextFormatPlugin(boolean extractHeader,
-      String fieldDelimiter,
-      List<String> extensions) {
+  public static TextFormatPlugin.TextFormatConfig createTextFormatPlugin(
+      boolean extractHeader, String fieldDelimiter, List<String> extensions) {
     TextFormatPlugin.TextFormatConfig newText = new TextFormatPlugin.TextFormatConfig();
     newText.extractHeader = extractHeader;
     newText.fieldDelimiter = fieldDelimiter;
@@ -133,7 +141,6 @@ public class FormatCreator {
     // Use the default values for all other fields for now
     return newText;
   }
-
 
   FormatCreator(
       SabotContext context,
@@ -150,17 +157,20 @@ public class FormatCreator {
     List<FormatMatcher> formatMatchers = Lists.newArrayList();
     List<FormatMatcher> layeredFormatMatchers = Lists.newArrayList();
 
-
     final Map<String, FormatPluginConfig> formats = getDefaultFormats();
     if (formats != null && !formats.isEmpty()) {
       for (Map.Entry<String, FormatPluginConfig> e : formats.entrySet()) {
         Constructor<?> c = configConstructors.get(e.getValue().getClass());
         if (c == null) {
-          logger.warn("Unable to find constructor for storage config named '{}' of type '{}'.", e.getKey(), e.getValue().getClass().getName());
+          logger.warn(
+              "Unable to find constructor for storage config named '{}' of type '{}'.",
+              e.getKey(),
+              e.getValue().getClass().getName());
           continue;
         }
         try {
-          FormatPlugin formatPlugin = (FormatPlugin) c.newInstance(e.getKey(), context, e.getValue(), fsPlugin);
+          FormatPlugin formatPlugin =
+              (FormatPlugin) c.newInstance(e.getKey(), context, e.getValue(), fsPlugin);
           pluginsByName.put(e.getKey(), formatPlugin);
           pluginsByConfig.put(formatPlugin.getConfig(), formatPlugin);
 
@@ -171,8 +181,15 @@ public class FormatCreator {
           } else {
             formatMatchers.add(formatPlugin.getMatcher());
           }
-        } catch (InstantiationException | IllegalAccessException | IllegalArgumentException | InvocationTargetException e1) {
-          logger.warn("Failure initializing storage config named '{}' of type '{}'.", e.getKey(), e.getValue().getClass().getName(), e1);
+        } catch (InstantiationException
+            | IllegalAccessException
+            | IllegalArgumentException
+            | InvocationTargetException e1) {
+          logger.warn(
+              "Failure initializing storage config named '{}' of type '{}'.",
+              e.getKey(),
+              e.getValue().getClass().getName(),
+              e1);
         }
       }
     }
@@ -198,7 +215,10 @@ public class FormatCreator {
             formatMatchers.add(plugin.getMatcher());
           }
         } catch (Exception e) {
-          logger.warn(String.format("Failure while trying instantiate FormatPlugin %s.", pluginClass.getName()), e);
+          logger.warn(
+              String.format(
+                  "Failure while trying instantiate FormatPlugin %s.", pluginClass.getName()),
+              e);
         }
       }
     }
@@ -208,7 +228,7 @@ public class FormatCreator {
     this.layeredFormatMatchers = Collections.unmodifiableList(layeredFormatMatchers);
   }
 
-  public FileSystemPlugin getPlugin(){
+  public FileSystemPlugin getPlugin() {
     return fsPlugin;
   }
 
@@ -255,6 +275,7 @@ public class FormatCreator {
 
   /**
    * Instantiate a new format plugin instance from the provided config object
+   *
    * @param fpconfig the conf for the plugin
    * @return the newly created instance of a FormatPlugin based on provided config
    */
@@ -262,19 +283,20 @@ public class FormatCreator {
     Constructor<?> c = configConstructors.get(fpconfig.getClass());
     if (c == null) {
       throw UserException.dataReadError()
-        .message(
-            "Unable to find constructor for storage config of type %s",
-            fpconfig.getClass().getName())
-        .build(logger);
+          .message(
+              "Unable to find constructor for storage config of type %s",
+              fpconfig.getClass().getName())
+          .build(logger);
     }
     try {
       return (FormatPlugin) c.newInstance(null, context, fpconfig, fsPlugin);
-    } catch (InstantiationException | IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
+    } catch (InstantiationException
+        | IllegalAccessException
+        | IllegalArgumentException
+        | InvocationTargetException e) {
       throw UserException.dataReadError(e)
-        .message(
-            "Failure initializing storage config of type %s",
-            fpconfig.getClass().getName())
-        .build(logger);
+          .message("Failure initializing storage config of type %s", fpconfig.getClass().getName())
+          .build(logger);
     }
   }
 }

@@ -34,20 +34,23 @@ public class DremioAssert {
         ch1 = expected.charAt(idx1);
         ch2 = actual.charAt(idx2);
         if (isNewLineChar(ch1)) {
-          idx1++; continue;
+          idx1++;
+          continue;
         } else if (isNewLineChar(ch2)) {
-          idx2++; continue;
+          idx2++;
+          continue;
         } else if (ch1 != ch2) {
           break outside;
         } else {
-          idx1++; idx2++;
+          idx1++;
+          idx2++;
         }
       }
       // skip newlines at the end
-      while(idx1 < expected.length() && isNewLineChar(expected.charAt(idx1))) {
+      while (idx1 < expected.length() && isNewLineChar(expected.charAt(idx1))) {
         idx1++;
       }
-      while(idx2 < actual.length() && isNewLineChar(actual.charAt(idx2))) {
+      while (idx2 < actual.length() && isNewLineChar(actual.charAt(idx2))) {
         idx2++;
       }
       if (idx1 == expected.length() && idx2 == actual.length()) {
@@ -61,5 +64,4 @@ public class DremioAssert {
   private static boolean isNewLineChar(char ch) {
     return (ch == '\r' || ch == '\n');
   }
-
 }

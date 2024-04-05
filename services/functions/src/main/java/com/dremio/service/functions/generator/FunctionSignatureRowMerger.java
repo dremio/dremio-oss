@@ -19,14 +19,6 @@ import static com.dremio.service.functions.model.ParameterKind.OPTIONAL;
 import static com.dremio.service.functions.model.ParameterKind.REGULAR;
 import static com.dremio.service.functions.model.ParameterKind.VARARG;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
-import java.util.TreeSet;
-import java.util.stream.Collectors;
-
 import com.dremio.service.functions.model.FunctionSignature;
 import com.dremio.service.functions.model.FunctionSignatureComparator;
 import com.dremio.service.functions.model.Parameter;
@@ -35,11 +27,19 @@ import com.dremio.service.functions.model.ParameterType;
 import com.dremio.service.functions.model.ParameterTypeHierarchy;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 public final class FunctionSignatureRowMerger {
   private FunctionSignatureRowMerger() {}
 
-  public static ImmutableList<FunctionSignature> merge(ImmutableList<FunctionSignature> signatures) {
+  public static ImmutableList<FunctionSignature> merge(
+      ImmutableList<FunctionSignature> signatures) {
     if (signatures.size() < 2) {
       return signatures;
     }
@@ -62,12 +62,12 @@ public final class FunctionSignatureRowMerger {
 
           FunctionSignature right = toBeMergedSignatures.get(j);
 
-          Optional<FunctionSignature> optionalMergedSignature = MergeRule.RULES
-            .stream()
-            .map(mergeRule -> mergeRule.tryMerge(left, right))
-            .filter(optional -> optional.isPresent())
-            .map(optional -> optional.get())
-            .findFirst();
+          Optional<FunctionSignature> optionalMergedSignature =
+              MergeRule.RULES.stream()
+                  .map(mergeRule -> mergeRule.tryMerge(left, right))
+                  .filter(optional -> optional.isPresent())
+                  .map(optional -> optional.get())
+                  .findFirst();
           if (optionalMergedSignature.isPresent()) {
             mergedSignatures.add(optionalMergedSignature.get());
             mergedLeft = true;
@@ -83,18 +83,20 @@ public final class FunctionSignatureRowMerger {
       toBeMergedSignatures = ImmutableList.copyOf(mergedSignatures);
     } while (merged);
 
-    Set<FunctionSignature> orderedSignatures = new TreeSet<FunctionSignature>(FunctionSignatureComparator.INSTANCE);
+    Set<FunctionSignature> orderedSignatures =
+        new TreeSet<FunctionSignature>(FunctionSignatureComparator.INSTANCE);
     orderedSignatures.addAll(mergedSignatures);
 
     return ImmutableList.copyOf(orderedSignatures);
   }
 
   private abstract static class MergeRule {
-    private static ImmutableList<MergeRule> RULES = ImmutableList.of(
-      KindPrecedenceMergeRule.INSTANCE,
-      CommonRegularPrefixMergeRule.INSTANCE,
-      VaradicArgPrefixMergeRule.INSTANCE,
-      PreferNarrowReturnTypeMergeRule.INSTANCE);
+    private static ImmutableList<MergeRule> RULES =
+        ImmutableList.of(
+            KindPrecedenceMergeRule.INSTANCE,
+            CommonRegularPrefixMergeRule.INSTANCE,
+            VaradicArgPrefixMergeRule.INSTANCE,
+            PreferNarrowReturnTypeMergeRule.INSTANCE);
 
     public Optional<FunctionSignature> tryMerge(FunctionSignature left, FunctionSignature right) {
       if (left.getParameters().isEmpty() || right.getParameters().isEmpty()) {
@@ -109,27 +111,29 @@ public final class FunctionSignatureRowMerger {
       return tryMergeImplementation(right, left);
     }
 
-    protected abstract Optional<FunctionSignature> tryMergeImplementation(FunctionSignature left, FunctionSignature right);
+    protected abstract Optional<FunctionSignature> tryMergeImplementation(
+        FunctionSignature left, FunctionSignature right);
   }
 
   /*
-    MERGE(FOO(A, B), FOO(A, B)) -> FOO(A, B)
-    MERGE(FOO(A, B), FOO(A, B?)) -> FOO(A, B?)
-    MERGE(FOO(A, B), FOO(A, B...)) -> FOO(A, B...)
-    MERGE(FOO(A, B?), FOO(A, B)) -> FOO(A, B?)
-    MERGE(FOO(A, B?), FOO(A, B?)) -> FOO(A, B?)
-    MERGE(FOO(A, B?), FOO(A, B...)) -> FOO(A, B...)
-    MERGE(FOO(A, B...), FOO(A, B)) -> FOO(A, B...)
-    MERGE(FOO(A, B...), FOO(A, B?)) -> FOO(A, B...)
-    MERGE(FOO(A, B...), FOO(A, B...)) -> FOO(A, B...)
-   */
+   MERGE(FOO(A, B), FOO(A, B)) -> FOO(A, B)
+   MERGE(FOO(A, B), FOO(A, B?)) -> FOO(A, B?)
+   MERGE(FOO(A, B), FOO(A, B...)) -> FOO(A, B...)
+   MERGE(FOO(A, B?), FOO(A, B)) -> FOO(A, B?)
+   MERGE(FOO(A, B?), FOO(A, B?)) -> FOO(A, B?)
+   MERGE(FOO(A, B?), FOO(A, B...)) -> FOO(A, B...)
+   MERGE(FOO(A, B...), FOO(A, B)) -> FOO(A, B...)
+   MERGE(FOO(A, B...), FOO(A, B?)) -> FOO(A, B...)
+   MERGE(FOO(A, B...), FOO(A, B...)) -> FOO(A, B...)
+  */
   private static final class KindPrecedenceMergeRule extends MergeRule {
     public static final KindPrecedenceMergeRule INSTANCE = new KindPrecedenceMergeRule();
 
     private KindPrecedenceMergeRule() {}
 
     @Override
-    protected Optional<FunctionSignature> tryMergeImplementation(FunctionSignature left, FunctionSignature right) {
+    protected Optional<FunctionSignature> tryMergeImplementation(
+        FunctionSignature left, FunctionSignature right) {
       if (left.getReturnType() != right.getReturnType()) {
         return Optional.empty();
       }
@@ -139,8 +143,14 @@ public final class FunctionSignatureRowMerger {
         return Optional.empty();
       }
 
-      List<ParameterType> leftTypes = left.getParameters().stream().map(parameter -> parameter.getType()).collect(Collectors.toList());
-      List<ParameterType> rightTypes = right.getParameters().stream().map(parameter -> parameter.getType()).collect(Collectors.toList());
+      List<ParameterType> leftTypes =
+          left.getParameters().stream()
+              .map(parameter -> parameter.getType())
+              .collect(Collectors.toList());
+      List<ParameterType> rightTypes =
+          right.getParameters().stream()
+              .map(parameter -> parameter.getType())
+              .collect(Collectors.toList());
       if (!leftTypes.equals(rightTypes)) {
         return Optional.empty();
       }
@@ -149,20 +159,20 @@ public final class FunctionSignatureRowMerger {
       ParameterKind rightKind = Iterables.getLast(right.getParameters()).getKind();
       FunctionSignature winningSignature;
       switch (leftKind) {
-      case REGULAR:
-        winningSignature = right;
-        break;
+        case REGULAR:
+          winningSignature = right;
+          break;
 
-      case OPTIONAL:
-        winningSignature = rightKind == VARARG ? right : left;
-        break;
+        case OPTIONAL:
+          winningSignature = rightKind == VARARG ? right : left;
+          break;
 
-      case VARARG:
-        winningSignature = left;
-        break;
+        case VARARG:
+          winningSignature = left;
+          break;
 
-      default:
-        throw new UnsupportedOperationException();
+        default:
+          throw new UnsupportedOperationException();
       }
 
       return Optional.of(winningSignature);
@@ -170,20 +180,21 @@ public final class FunctionSignatureRowMerger {
   }
 
   /*
-      MERGE(FOO(A), FOO(A, B)) -> FOO(A, B?)
-      MERGE(FOO(A), FOO(A, B?)) -> FOO(A, B?)
-      MERGE(FOO(A), FOO(A, B...)) -> FOO(A, B...)
-      MERGE(FOO(A, B), FOO(A, B, B)) -> FOO(A, B), FOO(A, B, B?)
-      MERGE(FOO(A, B), FOO(A, B, B?)) -> FOO(A, B, B?)
-      MERGE(FOO(A, B), FOO(A, B, B..)) -> FOO(A, B, B...)
-   */
+     MERGE(FOO(A), FOO(A, B)) -> FOO(A, B?)
+     MERGE(FOO(A), FOO(A, B?)) -> FOO(A, B?)
+     MERGE(FOO(A), FOO(A, B...)) -> FOO(A, B...)
+     MERGE(FOO(A, B), FOO(A, B, B)) -> FOO(A, B), FOO(A, B, B?)
+     MERGE(FOO(A, B), FOO(A, B, B?)) -> FOO(A, B, B?)
+     MERGE(FOO(A, B), FOO(A, B, B..)) -> FOO(A, B, B...)
+  */
   private static final class CommonRegularPrefixMergeRule extends MergeRule {
     public static final CommonRegularPrefixMergeRule INSTANCE = new CommonRegularPrefixMergeRule();
 
     private CommonRegularPrefixMergeRule() {}
 
     @Override
-    protected Optional<FunctionSignature> tryMergeImplementation(FunctionSignature left, FunctionSignature right) {
+    protected Optional<FunctionSignature> tryMergeImplementation(
+        FunctionSignature left, FunctionSignature right) {
       if (left.getReturnType() != right.getReturnType()) {
         return Optional.empty();
       }
@@ -193,7 +204,8 @@ public final class FunctionSignatureRowMerger {
       }
 
       List<Parameter> leftParameters = left.getParameters();
-      List<Parameter> rightParametersPrefix = right.getParameters().subList(0, right.getParameters().size() - 1);
+      List<Parameter> rightParametersPrefix =
+          right.getParameters().subList(0, right.getParameters().size() - 1);
 
       if (!leftParameters.stream().allMatch(parameter -> parameter.getKind() == REGULAR)) {
         return Optional.empty();
@@ -203,14 +215,14 @@ public final class FunctionSignatureRowMerger {
         return Optional.empty();
       }
 
-      List<ParameterType> leftTypes = leftParameters
-        .stream()
-        .map(parameter -> parameter.getType())
-        .collect(Collectors.toList());
-      List<ParameterType> rightPrefixTypes = rightParametersPrefix
-        .stream()
-        .map(parameter -> parameter.getType())
-        .collect(Collectors.toList());
+      List<ParameterType> leftTypes =
+          leftParameters.stream()
+              .map(parameter -> parameter.getType())
+              .collect(Collectors.toList());
+      List<ParameterType> rightPrefixTypes =
+          rightParametersPrefix.stream()
+              .map(parameter -> parameter.getType())
+              .collect(Collectors.toList());
       if (!leftTypes.equals(rightPrefixTypes)) {
         return Optional.empty();
       }
@@ -222,30 +234,33 @@ public final class FunctionSignatureRowMerger {
       }
 
       List<Parameter> mergedParameters = new ArrayList<>(rightParametersPrefix);
-      mergedParameters.add(Parameter.builder()
-        .kind(OPTIONAL)
-        .type(rightLastParameter.getType())
-        .name(rightLastParameter.getName())
-        .build());
-      FunctionSignature functionSignature = FunctionSignature.builder()
-        .returnType(right.getReturnType())
-        .addAllParameters(mergedParameters)
-        .build();
+      mergedParameters.add(
+          Parameter.builder()
+              .kind(OPTIONAL)
+              .type(rightLastParameter.getType())
+              .name(rightLastParameter.getName())
+              .build());
+      FunctionSignature functionSignature =
+          FunctionSignature.builder()
+              .returnType(right.getReturnType())
+              .addAllParameters(mergedParameters)
+              .build();
 
       return Optional.of(functionSignature);
     }
   }
 
   /*
-      MERGE(FOO(A, B...), FOO(A, B, B)) -> FOO(A, B...)
-   */
+     MERGE(FOO(A, B...), FOO(A, B, B)) -> FOO(A, B...)
+  */
   private static final class VaradicArgPrefixMergeRule extends MergeRule {
     public static final VaradicArgPrefixMergeRule INSTANCE = new VaradicArgPrefixMergeRule();
 
     private VaradicArgPrefixMergeRule() {}
 
     @Override
-    protected Optional<FunctionSignature> tryMergeImplementation(FunctionSignature left, FunctionSignature right) {
+    protected Optional<FunctionSignature> tryMergeImplementation(
+        FunctionSignature left, FunctionSignature right) {
       if (left.getReturnType() != right.getReturnType()) {
         return Optional.empty();
       }
@@ -266,22 +281,22 @@ public final class FunctionSignatureRowMerger {
         return Optional.empty();
       }
 
-      List<ParameterType> leftPrefixTypes = leftParameters
-        .subList(0, leftParameters.size() - 1)
-        .stream()
-        .map(parameter -> parameter.getType())
-        .collect(Collectors.toList());
-      List<ParameterType> rightPrefixTypes = rightParameters
-        .subList(0, leftParameters.size() - 1)
-        .stream()
-        .map(parameter -> parameter.getType())
-        .collect(Collectors.toList());
+      List<ParameterType> leftPrefixTypes =
+          leftParameters.subList(0, leftParameters.size() - 1).stream()
+              .map(parameter -> parameter.getType())
+              .collect(Collectors.toList());
+      List<ParameterType> rightPrefixTypes =
+          rightParameters.subList(0, leftParameters.size() - 1).stream()
+              .map(parameter -> parameter.getType())
+              .collect(Collectors.toList());
       if (!leftPrefixTypes.equals(rightPrefixTypes)) {
         return Optional.empty();
       }
 
-      List<Parameter> rightSuffix = rightParameters.subList(leftParameters.size(), rightParameters.size());
-      if (!rightSuffix.stream().allMatch(parameter -> parameter.getType() == lastLeftParameter.getType())) {
+      List<Parameter> rightSuffix =
+          rightParameters.subList(leftParameters.size(), rightParameters.size());
+      if (!rightSuffix.stream()
+          .allMatch(parameter -> parameter.getType() == lastLeftParameter.getType())) {
         return Optional.empty();
       }
 
@@ -290,15 +305,17 @@ public final class FunctionSignatureRowMerger {
   }
 
   /*
-      MERGE(FOO(ANY) -> BLAH, FOO(INT) -> ANY) -> FOO(ANY) -> BLAH
-   */
+     MERGE(FOO(ANY) -> BLAH, FOO(INT) -> ANY) -> FOO(ANY) -> BLAH
+  */
   private static final class PreferNarrowReturnTypeMergeRule extends MergeRule {
-    public static final PreferNarrowReturnTypeMergeRule INSTANCE = new PreferNarrowReturnTypeMergeRule();
+    public static final PreferNarrowReturnTypeMergeRule INSTANCE =
+        new PreferNarrowReturnTypeMergeRule();
 
     private PreferNarrowReturnTypeMergeRule() {}
 
     @Override
-    protected Optional<FunctionSignature> tryMergeImplementation(FunctionSignature left, FunctionSignature right) {
+    protected Optional<FunctionSignature> tryMergeImplementation(
+        FunctionSignature left, FunctionSignature right) {
       if (left.getReturnType() == right.getReturnType()) {
         return Optional.empty();
       }
@@ -321,7 +338,8 @@ public final class FunctionSignatureRowMerger {
           return Optional.empty();
         }
 
-        if (!ParameterTypeHierarchy.isDescendantOf(leftParameter.getType(), rightParameter.getType())) {
+        if (!ParameterTypeHierarchy.isDescendantOf(
+            leftParameter.getType(), rightParameter.getType())) {
           return Optional.empty();
         }
       }

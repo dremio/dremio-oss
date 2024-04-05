@@ -24,7 +24,8 @@ import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 
 public final class ArrayPrependConvertlet implements FunctionConvertlet {
-  public static final FunctionConvertlet INSTANCE = new NullableArrayFunctionConvertlet(new ArrayPrependConvertlet());
+  public static final FunctionConvertlet INSTANCE =
+      new NullableArrayFunctionConvertlet(new ArrayPrependConvertlet());
 
   private ArrayPrependConvertlet() {}
 
@@ -41,9 +42,6 @@ public final class ArrayPrependConvertlet implements FunctionConvertlet {
 
     RexBuilder rexBuilder = cx.getRexBuilder();
     RexNode arrayWithJustElem = rexBuilder.makeCall(ARRAY_VALUE_CONSTRUCTOR, elem);
-    return (RexCall) rexBuilder.makeCall(
-      ARRAY_CONCAT,
-      arrayWithJustElem,
-      array);
+    return (RexCall) rexBuilder.makeCall(ARRAY_CONCAT, arrayWithJustElem, array);
   }
 }

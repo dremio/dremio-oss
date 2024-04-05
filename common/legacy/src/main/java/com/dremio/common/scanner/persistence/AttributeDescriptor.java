@@ -15,22 +15,20 @@
  */
 package com.dremio.common.scanner.persistence;
 
-import java.util.List;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.List;
 
 /**
- * a field set in an annotation
- * (to simplify we have a list of string representations of the values)
+ * a field set in an annotation (to simplify we have a list of string representations of the values)
  */
 public final class AttributeDescriptor {
   private final String name;
   private final List<String> values;
 
-  @JsonCreator public AttributeDescriptor(
-      @JsonProperty("name") String name,
-      @JsonProperty("values") List<String> values) {
+  @JsonCreator
+  public AttributeDescriptor(
+      @JsonProperty("name") String name, @JsonProperty("values") List<String> values) {
     this.name = name;
     this.values = values;
   }

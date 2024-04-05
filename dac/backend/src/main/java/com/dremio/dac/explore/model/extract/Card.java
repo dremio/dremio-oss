@@ -15,15 +15,15 @@
  */
 package com.dremio.dac.explore.model.extract;
 
-import java.util.List;
-
 import com.dremio.dac.proto.model.dataset.CardExample;
 import com.dremio.dac.util.JSONUtil;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.List;
 
 /**
  * To display in the UI the cards on extract/split/replace
+ *
  * @param <T> the rule type
  */
 public class Card<T> {
@@ -53,25 +53,29 @@ public class Card<T> {
   public T getRule() {
     return rule;
   }
+
   public List<CardExample> getExamplesList() {
     if (examples == null) {
       return null;
     }
-    return examples.subList(0, (EXAMPLES_TO_SHOW > examples.size()) ? examples.size() : EXAMPLES_TO_SHOW);
+    return examples.subList(
+        0, (EXAMPLES_TO_SHOW > examples.size()) ? examples.size() : EXAMPLES_TO_SHOW);
   }
+
   public int getMatchedCount() {
     return matchedCount;
   }
+
   public int getUnmatchedCount() {
     return unmatchedCount;
   }
+
   public String getDescription() {
     return description;
   }
 
   @Override
   public String toString() {
-     return JSONUtil.toString(this);
+    return JSONUtil.toString(this);
   }
-
 }

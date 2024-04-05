@@ -26,16 +26,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.vector.BitVectorHelper;
-import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.types.Types;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.junit.Test;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorAccessible;
@@ -43,43 +33,43 @@ import com.dremio.exec.store.TestOutputMutator;
 import com.dremio.sabot.Generator;
 import com.dremio.sabot.RecordSet;
 import com.google.common.collect.ImmutableList;
+import java.util.ArrayList;
+import java.util.List;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.vector.BitVectorHelper;
+import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.types.Types;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.junit.Test;
 
 public class TestEqualityDeleteFilter extends BaseTestEqualityDeleteFilter {
 
-  private static final BatchSchema FULL_SCHEMA = BatchSchema.newBuilder()
-      .addField(Field.nullable("col1", Types.MinorType.INT.getType()))
-      .addField(Field.nullable("col2", Types.MinorType.VARCHAR.getType()))
-      .addField(Field.nullable("col3", Types.MinorType.VARCHAR.getType()))
-      .build();
-  private static final BatchSchema EQ_SCHEMA_COL1 = FULL_SCHEMA.maskAndReorder(
-      ImmutableList.of(SchemaPath.getSimplePath("col1")));
-  private static final BatchSchema EQ_SCHEMA_COL2 = FULL_SCHEMA.maskAndReorder(
-      ImmutableList.of(SchemaPath.getSimplePath("col2")));
-  private static final BatchSchema EQ_SCHEMA_COL1_COL2 = FULL_SCHEMA.maskAndReorder(
-      ImmutableList.of(SchemaPath.getSimplePath("col1"), SchemaPath.getSimplePath("col2")));
+  private static final BatchSchema FULL_SCHEMA =
+      BatchSchema.newBuilder()
+          .addField(Field.nullable("col1", Types.MinorType.INT.getType()))
+          .addField(Field.nullable("col2", Types.MinorType.VARCHAR.getType()))
+          .addField(Field.nullable("col3", Types.MinorType.VARCHAR.getType()))
+          .build();
+  private static final BatchSchema EQ_SCHEMA_COL1 =
+      FULL_SCHEMA.maskAndReorder(ImmutableList.of(SchemaPath.getSimplePath("col1")));
+  private static final BatchSchema EQ_SCHEMA_COL2 =
+      FULL_SCHEMA.maskAndReorder(ImmutableList.of(SchemaPath.getSimplePath("col2")));
+  private static final BatchSchema EQ_SCHEMA_COL1_COL2 =
+      FULL_SCHEMA.maskAndReorder(
+          ImmutableList.of(SchemaPath.getSimplePath("col1"), SchemaPath.getSimplePath("col2")));
 
-  private static final RecordSet TABLE_1 = rs(EQ_SCHEMA_COL1,
-      r(10), r(2), r(8));
-  private static final RecordSet TABLE_2 = rs(EQ_SCHEMA_COL1,
-      r(2), r(3));
-  private static final RecordSet TABLE_3 = rs(EQ_SCHEMA_COL2,
-      r("red"), r("white"));
-  private static final RecordSet TABLE_4 = rs(EQ_SCHEMA_COL1_COL2,
-      r(null, "yellow"), r(null, null));
+  private static final RecordSet TABLE_1 = rs(EQ_SCHEMA_COL1, r(10), r(2), r(8));
+  private static final RecordSet TABLE_2 = rs(EQ_SCHEMA_COL1, r(2), r(3));
+  private static final RecordSet TABLE_3 = rs(EQ_SCHEMA_COL2, r("red"), r("white"));
+  private static final RecordSet TABLE_4 =
+      rs(EQ_SCHEMA_COL1_COL2, r(null, "yellow"), r(null, null));
 
-  private static final RecordSet PROBE_TABLE = rs(FULL_SCHEMA,
-      rb(
-          r(1, "red", "chair"),
-          r(8, "blue", "table"),
-          r(3, "yellow", "lamp")),
-      rb(
-          r(2, "green", "chair"),
-          r(8, "red", "desk"),
-          r(null, "yellow", "lamp")),
-      rb(
-          r(10, "brown", "carpet"),
-          r(5, null, null),
-          r(null, null, null)));
+  private static final RecordSet PROBE_TABLE =
+      rs(
+          FULL_SCHEMA,
+          rb(r(1, "red", "chair"), r(8, "blue", "table"), r(3, "yellow", "lamp")),
+          rb(r(2, "green", "chair"), r(8, "red", "desk"), r(null, "yellow", "lamp")),
+          rb(r(10, "brown", "carpet"), r(5, null, null), r(null, null, null)));
 
   @Test
   public void testSingleTable() throws Exception {
@@ -96,7 +86,8 @@ public class TestEqualityDeleteFilter extends BaseTestEqualityDeleteFilter {
   @Test
   public void testMultipleTablesWithDifferentEqualityFields() throws Exception {
     List<Integer> expectedValidity = ImmutableList.of(0, 0, 0, 0, 0, 0, 0, 1, 0);
-    validateFilter(ImmutableList.of(TABLE_1, TABLE_2, TABLE_3, TABLE_4), PROBE_TABLE, expectedValidity);
+    validateFilter(
+        ImmutableList.of(TABLE_1, TABLE_2, TABLE_3, TABLE_4), PROBE_TABLE, expectedValidity);
   }
 
   @Test
@@ -106,7 +97,8 @@ public class TestEqualityDeleteFilter extends BaseTestEqualityDeleteFilter {
       LazyEqualityDeleteTableSupplier mockSupplier = mock(LazyEqualityDeleteTableSupplier.class);
       when(mockSupplier.get()).thenReturn(ImmutableList.of());
 
-      EqualityDeleteFilter filter = new EqualityDeleteFilter(getTestAllocator(), mockSupplier, 1, null);
+      EqualityDeleteFilter filter =
+          new EqualityDeleteFilter(getTestAllocator(), mockSupplier, 1, null);
 
       // supplier should not be called until setup is called
       verify(mockSupplier, never()).get();
@@ -118,15 +110,16 @@ public class TestEqualityDeleteFilter extends BaseTestEqualityDeleteFilter {
     }
   }
 
-  private void validateFilter(List<RecordSet> buildRs, RecordSet probeRs, List<Integer> expectedValidity)
-      throws Exception {
+  private void validateFilter(
+      List<RecordSet> buildRs, RecordSet probeRs, List<Integer> expectedValidity) throws Exception {
     List<Integer> actualValidity = new ArrayList<>();
 
     int batchSize = probeRs.getMaxBatchSize();
     try (EqualityDeleteFilter filter = createFilter(buildRs);
         TestOutputMutator mutator = new TestOutputMutator(getTestAllocator());
         Generator generator = probeRs.toGenerator(getTestAllocator());
-        ArrowBuf validityBuf = getTestAllocator().buffer(BitVectorHelper.getValidityBufferSize(batchSize))) {
+        ArrowBuf validityBuf =
+            getTestAllocator().buffer(BitVectorHelper.getValidityBufferSize(batchSize))) {
       VectorAccessible accessible = generator.getOutput();
       for (Field field : FULL_SCHEMA.getFields()) {
         ValueVector vv = getVectorFromSchemaPath(accessible, field.getName());
@@ -158,6 +151,7 @@ public class TestEqualityDeleteFilter extends BaseTestEqualityDeleteFilter {
       readers.add(mockReader);
     }
 
-    return new EqualityDeleteFilter(getTestAllocator(), new LazyEqualityDeleteTableSupplier(readers), 1, null);
+    return new EqualityDeleteFilter(
+        getTestAllocator(), new LazyEqualityDeleteTableSupplier(readers), 1, null);
   }
 }

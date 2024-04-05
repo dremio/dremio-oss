@@ -15,16 +15,14 @@
  */
 package com.dremio.exec.planner.acceleration;
 
-import java.util.List;
-
 import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.google.common.collect.ImmutableList;
+import java.util.List;
 
-/**
- * Metadata used to handle join dependencies analysis
- */
+/** Metadata used to handle join dependencies analysis */
 public class JoinDependencyProperties {
-  public static final JoinDependencyProperties NONE = new JoinDependencyProperties(ImmutableList.<Dependency>of());
+  public static final JoinDependencyProperties NONE =
+      new JoinDependencyProperties(ImmutableList.<Dependency>of());
 
   private List<Dependency> dependencies;
 
@@ -37,8 +35,8 @@ public class JoinDependencyProperties {
   }
 
   /**
-   * A dependency that indicates that a join between the two tables can have the uniqueKeyTable side dropped from
-   * the materialization plan.
+   * A dependency that indicates that a join between the two tables can have the uniqueKeyTable side
+   * dropped from the materialization plan.
    */
   public static class Dependency {
     public List<String> foreignKeyTable;
@@ -47,29 +45,41 @@ public class JoinDependencyProperties {
     public TableVersionContext uniqueKeyTableVersionContext = null;
     public boolean runtimeFilterPruned;
 
-    public Dependency(List<String> foreignKeyTable, String foreignKeyTableVersionContextValue,
-                      List<String> uniqueKeyTable, String uniqueKeyTableVersionContextValue,
-                      boolean runtimeFilterPruned) {
+    public Dependency(
+        List<String> foreignKeyTable,
+        String foreignKeyTableVersionContextValue,
+        List<String> uniqueKeyTable,
+        String uniqueKeyTableVersionContextValue,
+        boolean runtimeFilterPruned) {
       this.foreignKeyTable = foreignKeyTable;
       if (foreignKeyTableVersionContextValue != null) {
-        foreignKeyTableVersionContext = TableVersionContext.deserialize(foreignKeyTableVersionContextValue);
+        foreignKeyTableVersionContext =
+            TableVersionContext.deserialize(foreignKeyTableVersionContextValue);
       }
       this.uniqueKeyTable = uniqueKeyTable;
       if (uniqueKeyTableVersionContextValue != null) {
-        uniqueKeyTableVersionContext = TableVersionContext.deserialize(uniqueKeyTableVersionContextValue);
+        uniqueKeyTableVersionContext =
+            TableVersionContext.deserialize(uniqueKeyTableVersionContextValue);
       }
       this.runtimeFilterPruned = runtimeFilterPruned;
     }
 
     @Override
     public String toString() {
-      return "Dependency{" +
-        "foreignKeyTable=" + foreignKeyTable +
-        (foreignKeyTableVersionContext != null ? ", foreignKeyTableVersionContext=" + foreignKeyTableVersionContext.serialize() : "") +
-        ", uniqueKeyTable=" + uniqueKeyTable +
-        (uniqueKeyTableVersionContext != null ? ", uniqueKeyTableVersionContext=" + uniqueKeyTableVersionContext.serialize() : "") +
-        ", runtimeFilterPruned=" + runtimeFilterPruned +
-        '}';
+      return "Dependency{"
+          + "foreignKeyTable="
+          + foreignKeyTable
+          + (foreignKeyTableVersionContext != null
+              ? ", foreignKeyTableVersionContext=" + foreignKeyTableVersionContext.serialize()
+              : "")
+          + ", uniqueKeyTable="
+          + uniqueKeyTable
+          + (uniqueKeyTableVersionContext != null
+              ? ", uniqueKeyTableVersionContext=" + uniqueKeyTableVersionContext.serialize()
+              : "")
+          + ", runtimeFilterPruned="
+          + runtimeFilterPruned
+          + '}';
     }
   }
 }

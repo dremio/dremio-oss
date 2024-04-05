@@ -15,5 +15,4 @@
  */
 package com.dremio.exec.record;
 
-public interface MaterializeVisitor {
-}
+public interface MaterializeVisitor {}

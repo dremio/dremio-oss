@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ModalContainer,
   DialogContent,
@@ -33,7 +33,9 @@ import { ScriptsResource } from "dremio-ui-common/sonar/scripts/resources/Script
 import { useForm } from "react-hook-form";
 import Message from "@app/components/Message";
 import { fetchAllAndMineScripts } from "@app/components/SQLScripts/sqlScriptsUtils";
-import { fetchScripts } from "@app/actions/resources/scripts";
+import { fetchScripts, setActiveScript } from "@app/actions/resources/scripts";
+import { store } from "@app/store/store";
+
 import * as classes from "./SQLScriptRenameDialog.module.less";
 
 type SQLScriptRenameDialogProps = {
@@ -44,13 +46,13 @@ type SQLScriptRenameDialogProps = {
 };
 
 const SQLScriptRenameDialog = (
-  props: SQLScriptRenameDialogProps
+  props: SQLScriptRenameDialogProps,
 ): React.ReactElement => {
   const { t } = getIntlContext();
   const {
     isOpen,
     onCancel,
-    script: { content, context, name, id },
+    script: { content, context, id, name, jobIds },
     fetchScripts,
   } = props;
   const [error, setError] = useState(undefined);
@@ -63,6 +65,8 @@ const SQLScriptRenameDialog = (
     register,
   } = methods;
 
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
   const onSubmit = async ({ scriptName }: { scriptName: string }) => {
     try {
       const payload: UpdatedScript = {
@@ -70,8 +74,10 @@ const SQLScriptRenameDialog = (
         content,
         context,
         description: "",
+        jobIds,
       };
-      await replaceScript(id, payload);
+      const script = await replaceScript(id, payload);
+      store.dispatch(setActiveScript({ script }));
       ScriptsResource.fetch();
       fetchAllAndMineScripts(fetchScripts, "");
       onCancel();
@@ -79,6 +85,13 @@ const SQLScriptRenameDialog = (
       setError(e?.responseBody?.errorMessage);
     }
   };
+
+  const { ref: assignInputRef, ...scriptNameField } = register("scriptName");
+
+  useEffect(() => {
+    if (!inputRef.current) return;
+    inputRef.current.select();
+  }, []);
 
   return (
     <ModalContainer open={() => {}} isOpen={isOpen} close={onCancel}>
@@ -121,7 +134,13 @@ const SQLScriptRenameDialog = (
         >
           <div className={classes["dialog__description"]}>
             <Label value={t("Script.Name")} classes={{ root: "mb-1" }} />
-            <Input {...register("scriptName")} />
+            <Input
+              {...scriptNameField}
+              ref={(cur) => {
+                assignInputRef(cur);
+                inputRef.current = cur;
+              }}
+            />
           </div>
         </DialogContent>
       </form>

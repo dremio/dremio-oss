@@ -22,8 +22,9 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 
+import com.dremio.service.flight.BasicFlightAuthenticationTest;
+import com.dremio.service.users.UserLoginException;
 import java.util.Optional;
-
 import org.apache.arrow.flight.FlightRuntimeException;
 import org.junit.After;
 import org.junit.Assert;
@@ -31,12 +32,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.AdditionalMatchers;
 
-import com.dremio.service.flight.BasicFlightAuthenticationTest;
-import com.dremio.service.users.UserLoginException;
-
-/**
- * Unit tests for DremioFlightServerAuthValidator
- */
+/** Unit tests for DremioFlightServerAuthValidator */
 public class TestDremioFlightServerAuthValidator extends BasicFlightAuthenticationTest {
   private DremioFlightServerBasicAuthValidator dremioFlightServerAuthValidator;
 
@@ -44,8 +40,11 @@ public class TestDremioFlightServerAuthValidator extends BasicFlightAuthenticati
   @Override
   public void setup() throws UserLoginException {
     super.setup();
-    dremioFlightServerAuthValidator = new DremioFlightServerBasicAuthValidator(
-      getMockUserServiceProvider(), getMockTokenManagerProvider(), getMockDremioFlightSessionsManager());
+    dremioFlightServerAuthValidator =
+        new DremioFlightServerBasicAuthValidator(
+            getMockUserServiceProvider(),
+            getMockTokenManagerProvider(),
+            getMockDremioFlightSessionsManager());
   }
 
   @After
@@ -68,14 +67,18 @@ public class TestDremioFlightServerAuthValidator extends BasicFlightAuthenticati
   @Test
   public void getTokenWithInvalidCredentialsThrowsException() throws Exception {
     // Arrange
-    doThrow(new UserLoginException(USERNAME, "Invalid User credentials")).when(getMockUserService())
-      .authenticate(eq(USERNAME), AdditionalMatchers.not(eq(PASSWORD)));
+    doThrow(new UserLoginException(USERNAME, "Invalid User credentials"))
+        .when(getMockUserService())
+        .authenticate(eq(USERNAME), AdditionalMatchers.not(eq(PASSWORD)));
 
     // Act
     assertThatThrownBy(() -> dremioFlightServerAuthValidator.getToken(USERNAME, "INVALID_PASSWORD"))
-      .isInstanceOf(FlightRuntimeException.class)
-      .hasMessageContaining("Unable to authenticate user " + USERNAME +
-        ", exception: Invalid User credentials, user " + USERNAME);
+        .isInstanceOf(FlightRuntimeException.class)
+        .hasMessageContaining(
+            "Unable to authenticate user "
+                + USERNAME
+                + ", exception: Invalid User credentials, user "
+                + USERNAME);
   }
 
   @Test

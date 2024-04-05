@@ -19,15 +19,6 @@ import static com.dremio.sabot.Fixtures.t;
 import static com.dremio.sabot.Fixtures.th;
 import static com.dremio.sabot.Fixtures.tr;
 
-import java.math.BigDecimal;
-import java.util.Arrays;
-import java.util.List;
-
-import org.apache.calcite.rel.core.JoinRelType;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-
 import com.dremio.common.logical.data.JoinCondition;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.physical.base.OpProps;
@@ -39,6 +30,13 @@ import com.dremio.sabot.Fixtures;
 import com.dremio.sabot.join.BaseTestJoin;
 import com.dremio.sabot.op.join.hash.HashJoinOperator;
 import com.dremio.sabot.op.join.vhash.spill.VectorizedSpillingHashJoinOperator;
+import java.math.BigDecimal;
+import java.util.Arrays;
+import java.util.List;
+import org.apache.calcite.rel.core.JoinRelType;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
 public class TestVHashJoinSpillWithMemoryLimit extends BaseTestOperator {
   private final OptionManager options = testContext.getOptions();
@@ -46,8 +44,14 @@ public class TestVHashJoinSpillWithMemoryLimit extends BaseTestOperator {
 
   @Before
   public void before() {
-    options.setOption(OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, HashJoinOperator.ENABLE_SPILL.getOptionName(), true));
-    options.setOption(OptionValue.createLong(OptionValue.OptionType.SYSTEM, ExecConstants.TARGET_BATCH_RECORDS_MAX.getOptionName(), 65535));
+    options.setOption(
+        OptionValue.createBoolean(
+            OptionValue.OptionType.SYSTEM, HashJoinOperator.ENABLE_SPILL.getOptionName(), true));
+    options.setOption(
+        OptionValue.createLong(
+            OptionValue.OptionType.SYSTEM,
+            ExecConstants.TARGET_BATCH_RECORDS_MAX.getOptionName(),
+            65535));
     VectorizedSpillingHashJoinOperator.MIN_RESERVE = 9 * 1024 * 1024;
   }
 
@@ -60,17 +64,17 @@ public class TestVHashJoinSpillWithMemoryLimit extends BaseTestOperator {
 
   @Test
   public void spillWithoutCarryOvers() throws Exception {
-    BaseTestJoin.JoinInfo joinInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("a"), f("b"))),
-      JoinRelType.INNER);
+    BaseTestJoin.JoinInfo joinInfo =
+        getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("a"), f("b"))), JoinRelType.INNER);
 
     final int batchSize = 64000;
     final Fixtures.DataRow[] leftRows = new Fixtures.DataRow[batchSize];
     final Fixtures.DataRow[] rightRows = new Fixtures.DataRow[batchSize];
     final Fixtures.DataRow[] expectedRows = new Fixtures.DataRow[batchSize];
     for (int i = 0; i < batchSize; i++) {
-      leftRows[i] = tr((long)i);
-      rightRows[i] = tr((long)i);
-      expectedRows[i] = tr((long)i, (long)i);
+      leftRows[i] = tr((long) i);
+      rightRows[i] = tr((long) i);
+      expectedRows[i] = tr((long) i, (long) i);
     }
 
     final Fixtures.Table left = t(th("a"), leftRows);
@@ -78,67 +82,86 @@ public class TestVHashJoinSpillWithMemoryLimit extends BaseTestOperator {
     final Fixtures.Table expected = t(th("b", "a"), expectedRows).orderInsensitive();
 
     validateDual(
-      joinInfo.operator, joinInfo.clazz,
-      left.toGenerator(getTestAllocator()),
-      right.toGenerator(getTestAllocator()),
-      batchSize, expected);
+        joinInfo.operator,
+        joinInfo.clazz,
+        left.toGenerator(getTestAllocator()),
+        right.toGenerator(getTestAllocator()),
+        batchSize,
+        expected);
   }
 
   @Test
   public void spillWithFixedLenCarryOvers() throws Exception {
-    BaseTestJoin.JoinInfo joinInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("a"), f("b"))),
-      JoinRelType.INNER);
+    BaseTestJoin.JoinInfo joinInfo =
+        getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("a"), f("b"))), JoinRelType.INNER);
 
     final int batchSize = 64000;
     final Fixtures.DataRow[] leftRows = new Fixtures.DataRow[batchSize];
     final Fixtures.DataRow[] rightRows = new Fixtures.DataRow[batchSize];
     final Fixtures.DataRow[] expectedRows = new Fixtures.DataRow[batchSize];
     for (int i = 0; i < batchSize; i++) {
-      leftRows[i] = tr((long)i, i+1);
-      rightRows[i] = tr((long)i, i+11);
-      expectedRows[i] = tr((long)i, i+11, (long)i, i+1);
+      leftRows[i] = tr((long) i, i + 1);
+      rightRows[i] = tr((long) i, i + 11);
+      expectedRows[i] = tr((long) i, i + 11, (long) i, i + 1);
     }
 
     final Fixtures.Table left = t(th("a", "aInt"), leftRows);
     final Fixtures.Table right = t(th("b", "bInt"), rightRows);
-    final Fixtures.Table expected = t(th("b", "bInt", "a", "aInt"), expectedRows).orderInsensitive();
+    final Fixtures.Table expected =
+        t(th("b", "bInt", "a", "aInt"), expectedRows).orderInsensitive();
 
     validateDual(
-      joinInfo.operator, joinInfo.clazz,
-      left.toGenerator(getTestAllocator()),
-      right.toGenerator(getTestAllocator()),
-      batchSize, expected);
+        joinInfo.operator,
+        joinInfo.clazz,
+        left.toGenerator(getTestAllocator()),
+        right.toGenerator(getTestAllocator()),
+        batchSize,
+        expected);
   }
 
   @Test
   public void spillWithCarryOvers() throws Exception {
-    BaseTestJoin.JoinInfo joinInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("a"), f("b"))),
-      JoinRelType.INNER);
+    BaseTestJoin.JoinInfo joinInfo =
+        getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("a"), f("b"))), JoinRelType.INNER);
 
     final int batchSize = 64000;
     final Fixtures.DataRow[] leftRows = new Fixtures.DataRow[batchSize];
     final Fixtures.DataRow[] rightRows = new Fixtures.DataRow[batchSize];
     final Fixtures.DataRow[] expectedRows = new Fixtures.DataRow[batchSize];
     for (int i = 0; i < batchSize; i++) {
-      leftRows[i] = tr((long)i, i+1, Integer.toString(i+2), BigDecimal.valueOf(i+3));
-      rightRows[i] = tr((long)i, i+11, Integer.toString(i+12), BigDecimal.valueOf(i+13));
-      expectedRows[i] = tr((long)i, i+11, Integer.toString(i+12), BigDecimal.valueOf(i+13),
-        (long)i, i+1, Integer.toString(i+2), BigDecimal.valueOf(i+3));
+      leftRows[i] = tr((long) i, i + 1, Integer.toString(i + 2), BigDecimal.valueOf(i + 3));
+      rightRows[i] = tr((long) i, i + 11, Integer.toString(i + 12), BigDecimal.valueOf(i + 13));
+      expectedRows[i] =
+          tr(
+              (long) i,
+              i + 11,
+              Integer.toString(i + 12),
+              BigDecimal.valueOf(i + 13),
+              (long) i,
+              i + 1,
+              Integer.toString(i + 2),
+              BigDecimal.valueOf(i + 3));
     }
 
     final Fixtures.Table left = t(th("a", "aInt", "aString", "aDecimal"), leftRows);
     final Fixtures.Table right = t(th("b", "bInt", "bString", "bDecimal"), rightRows);
-    final Fixtures.Table expected = t(th("b", "bInt", "bString", "bDecimal", "a", "aInt", "aString", "aDecimal"), expectedRows).orderInsensitive();
+    final Fixtures.Table expected =
+        t(th("b", "bInt", "bString", "bDecimal", "a", "aInt", "aString", "aDecimal"), expectedRows)
+            .orderInsensitive();
 
     validateDual(
-      joinInfo.operator, joinInfo.clazz,
-      left.toGenerator(getTestAllocator()),
-      right.toGenerator(getTestAllocator()),
-      batchSize, expected);
+        joinInfo.operator,
+        joinInfo.clazz,
+        left.toGenerator(getTestAllocator()),
+        right.toGenerator(getTestAllocator()),
+        batchSize,
+        expected);
   }
 
   BaseTestJoin.JoinInfo getJoinInfo(List<JoinCondition> conditions, JoinRelType type) {
-    OpProps propsWithLimit = OpProps.prototype(0 /*reserve*/, 20*1024*1024);
-    return new BaseTestJoin.JoinInfo(VectorizedSpillingHashJoinOperator.class, new HashJoinPOP(propsWithLimit, null, null, conditions, null, type, true, null));
+    OpProps propsWithLimit = OpProps.prototype(0 /*reserve*/, 20 * 1024 * 1024);
+    return new BaseTestJoin.JoinInfo(
+        VectorizedSpillingHashJoinOperator.class,
+        new HashJoinPOP(propsWithLimit, null, null, conditions, null, type, true, true, null));
   }
 }

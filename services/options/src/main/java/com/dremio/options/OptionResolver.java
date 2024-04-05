@@ -16,8 +16,8 @@
 package com.dremio.options;
 
 /**
- * Resolves values for Dremio {@link OptionValue options}. Implementations must be case-insensitive to the name of an
- * option.
+ * Resolves values for Dremio {@link OptionValue options}. Implementations must be case-insensitive
+ * to the name of an option.
  */
 public interface OptionResolver {
 

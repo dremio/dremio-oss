@@ -48,8 +48,8 @@ public class DataplaneTableInfo {
     private ExternalNamespaceEntry.Type formatType;
     private String sourceId;
     private String schema;
-    public newBuilder() {
-    }
+
+    public newBuilder() {}
 
     public newBuilder name(String name) {
       this.name = name;
@@ -92,12 +92,13 @@ public class DataplaneTableInfo {
     }
 
     public DataplaneTableInfo build() {
-      DataplaneTableInfo dataplaneTableInfo =  new DataplaneTableInfo(this);
+      DataplaneTableInfo dataplaneTableInfo = new DataplaneTableInfo(this);
       validateDataplaneTableInfo(dataplaneTableInfo);
       return dataplaneTableInfo;
     }
+
     private void validateDataplaneTableInfo(DataplaneTableInfo dataplaneTableInfo) {
-      //Todo: Validate all columns that are not nullable
+      // Todo: Validate all columns that are not nullable
       if (dataplaneTableInfo.tableId == null) {
         throw new IllegalStateException();
       }
@@ -124,11 +125,19 @@ public class DataplaneTableInfo {
     return this.createdAt;
   }
 
-  public String getTableId() {return this.tableId;}
+  public String getTableId() {
+    return this.tableId;
+  }
 
-  public ExternalNamespaceEntry.Type getFormatType() {return this.formatType;}
+  public ExternalNamespaceEntry.Type getFormatType() {
+    return this.formatType;
+  }
 
-  public String getSourceId() {return this.sourceId;}
+  public String getSourceId() {
+    return this.sourceId;
+  }
 
-  public String getSchema() {return this.schema;}
+  public String getSchema() {
+    return this.schema;
+  }
 }

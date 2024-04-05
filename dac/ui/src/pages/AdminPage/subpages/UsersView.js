@@ -17,8 +17,9 @@ import "./Users.less"; // TODO to Vasyl, need to use Radium
 import { createRef, PureComponent } from "react";
 import Immutable from "immutable";
 import PropTypes from "prop-types";
+
 import { injectIntl, FormattedMessage } from "react-intl";
-import { Link } from "react-router";
+import { browserHistory } from "react-router";
 import { createSelector } from "reselect";
 
 import SettingHeader from "@app/components/SettingHeader";
@@ -28,7 +29,7 @@ import StatefulTableViewer from "components/StatefulTableViewer";
 
 import { pageContent, page } from "uiTheme/radium/general";
 import { DeleteButton } from "@app/components/tableRowButtons/DeleteButton";
-// @ts-ignore
+import { IconButton, Button } from "dremio-ui-lib/components";
 import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
 import * as adminPaths from "dremio-ui-common/paths/admin.js";
 import * as classes from "./UsersView.module.less";
@@ -118,7 +119,7 @@ class UsersView extends PureComponent {
         .join(" ");
 
       return {
-        rowClassName: userName,
+        rowClassName: "",
         data: [
           // todo: with good i18n this should be givenName and familyName, and the order should be dependent on the locale of that user
           <span key={fullName} style={styles.nameHolder}>
@@ -131,11 +132,14 @@ class UsersView extends PureComponent {
             style={styles.actionBtnWrap}
             key={index}
           >
-            <Link to={editUserLink} data-qa="edit-user">
-              <button className={classes["action-button"]}>
-                <FontIcon type="Edit" theme={styles.actionIcon} />
-              </button>
-            </Link>
+            <IconButton
+              className={classes["action-button"]}
+              aria-label="action"
+              onClick={() => browserHistory.push(editUserLink)}
+            >
+              <dremio-icon name="interface/edit"></dremio-icon>
+            </IconButton>
+
             {this.context.loggedInUser.userName !== userName && (
               <DeleteButton
                 onClick={this.props.removeUser.bind(this, user)}
@@ -152,14 +156,14 @@ class UsersView extends PureComponent {
     const addUserLinkTo = userLinkToSelector(this.context.location);
 
     return (
-      <Link
-        to={addUserLinkTo}
+      <Button
+        variant="tertiary"
+        onClick={() => browserHistory.push(addUserLinkTo)}
         data-qa="add-user-link"
-        className="settingHeader__action"
       >
-        <dremio-icon name="interface/add" class="settingPage__icon" alt="+" />
+        <dremio-icon name="interface/add" alt="+" />
         <FormattedMessage id="Admin.UserManagement.Users.Add" />
-      </Link>
+      </Button>
     );
   };
 
@@ -212,12 +216,6 @@ const styles = {
     alignItems: "center",
     paddingLeft: "8px",
   },
-  // pending server support:
-  //   userAvatar: {
-  //     width: '22px',
-  //     height: '22px',
-  //     margin: '0 10px 0 5px'
-  //   },
   searchWrap: {
     clear: "both",
     margin: "10px 0",

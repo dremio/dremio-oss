@@ -15,30 +15,30 @@
  */
 package com.dremio.jdbc.impl;
 
+import com.dremio.jdbc.AlreadyClosedSqlException;
+import com.dremio.jdbc.DremioStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
 import java.sql.SQLWarning;
-
 import org.apache.calcite.avatica.AvaticaStatement;
 import org.apache.calcite.avatica.Meta.StatementHandle;
 
-import com.dremio.jdbc.AlreadyClosedSqlException;
-import com.dremio.jdbc.DremioStatement;
-
-/**
- * Dremio's implementation of {@link Statement}.
- */
+/** Dremio's implementation of {@link Statement}. */
 // (Was abstract to avoid errors _here_ if newer versions of JDBC added
 // interface methods, but now newer versions would probably use Java 8's default
 // methods for compatibility.)
-class DremioStatementImpl extends AvaticaStatement implements DremioStatement,
-                                                             DremioRemoteStatement {
+class DremioStatementImpl extends AvaticaStatement
+    implements DremioStatement, DremioRemoteStatement {
 
   private final DremioConnectionImpl connection;
 
-  DremioStatementImpl(DremioConnectionImpl connection, StatementHandle h, int resultSetType,
-                     int resultSetConcurrency, int resultSetHoldability) {
+  DremioStatementImpl(
+      DremioConnectionImpl connection,
+      StatementHandle h,
+      int resultSetType,
+      int resultSetConcurrency,
+      int resultSetHoldability) {
     super(connection, h, resultSetType, resultSetConcurrency, resultSetHoldability);
     this.connection = connection;
     connection.openStatementsRegistry.addStatement(this);
@@ -47,11 +47,11 @@ class DremioStatementImpl extends AvaticaStatement implements DremioStatement,
   /**
    * Throws AlreadyClosedSqlException <i>iff</i> this Statement is closed.
    *
-   * @throws  AlreadyClosedSqlException  if Statement is closed
+   * @throws AlreadyClosedSqlException if Statement is closed
    */
   private void throwIfClosed() throws SQLException {
-    if ( isClosed() ) {
-      throw new AlreadyClosedSqlException( "Statement is already closed." );
+    if (isClosed()) {
+      throw new AlreadyClosedSqlException("Statement is already closed.");
     }
   }
 
@@ -78,10 +78,10 @@ class DremioStatementImpl extends AvaticaStatement implements DremioStatement,
   // even if SQLException, by unwrapping to get cause exception so caller can
   // throw it directly if it's a SQLException:
   // TODO:  Any ideas for a better name?
-  private SQLException unwrapIfExtra( final SQLException superMethodException ) {
+  private SQLException unwrapIfExtra(final SQLException superMethodException) {
     final SQLException result;
     final Throwable cause = superMethodException.getCause();
-    if ( null != cause && cause instanceof SQLException ) {
+    if (null != cause && cause instanceof SQLException) {
       result = (SQLException) cause;
     } else {
       result = superMethodException;
@@ -90,50 +90,50 @@ class DremioStatementImpl extends AvaticaStatement implements DremioStatement,
   }
 
   @Override
-  public boolean execute( String sql ) throws SQLException {
+  public boolean execute(String sql) throws SQLException {
     throwIfClosed();
     try {
-      return super.execute( sql );
-    } catch ( final SQLException possiblyExtraWrapperException ) {
-      throw unwrapIfExtra( possiblyExtraWrapperException );
+      return super.execute(sql);
+    } catch (final SQLException possiblyExtraWrapperException) {
+      throw unwrapIfExtra(possiblyExtraWrapperException);
     }
   }
 
   @Override
-  public ResultSet executeQuery( String sql ) throws SQLException {
+  public ResultSet executeQuery(String sql) throws SQLException {
     try {
-       throwIfClosed();
-       return super.executeQuery( sql );
-    } catch ( final SQLException possiblyExtraWrapperException ) {
-      throw unwrapIfExtra( possiblyExtraWrapperException );
+      throwIfClosed();
+      return super.executeQuery(sql);
+    } catch (final SQLException possiblyExtraWrapperException) {
+      throw unwrapIfExtra(possiblyExtraWrapperException);
     }
   }
 
   @Override
-  public long executeLargeUpdate( String sql ) throws SQLException {
+  public long executeLargeUpdate(String sql) throws SQLException {
     throwIfClosed();
     try {
-      return super.executeLargeUpdate( sql );
-    } catch ( final SQLException possiblyExtraWrapperException ) {
-      throw unwrapIfExtra( possiblyExtraWrapperException );
+      return super.executeLargeUpdate(sql);
+    } catch (final SQLException possiblyExtraWrapperException) {
+      throw unwrapIfExtra(possiblyExtraWrapperException);
     }
   }
 
   @Override
-  public int executeUpdate( String sql, int[] columnIndexes ) throws SQLException {
+  public int executeUpdate(String sql, int[] columnIndexes) throws SQLException {
     throwIfClosed();
     try {
-      return super.executeUpdate( sql, columnIndexes );
+      return super.executeUpdate(sql, columnIndexes);
     } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
 
   @Override
-  public int executeUpdate( String sql, String[] columnNames ) throws SQLException {
+  public int executeUpdate(String sql, String[] columnNames) throws SQLException {
     throwIfClosed();
     try {
-      return super.executeUpdate( sql, columnNames );
+      return super.executeUpdate(sql, columnNames);
     } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
@@ -146,15 +146,13 @@ class DremioStatementImpl extends AvaticaStatement implements DremioStatement,
   }
 
   @Override
-  public int getQueryTimeout() throws SQLException
-  {
+  public int getQueryTimeout() throws SQLException {
     throwIfClosed();
     return super.getQueryTimeout();
   }
 
   @Override
-  public void setQueryTimeout( int seconds )
-      throws SQLException {
+  public void setQueryTimeout(int seconds) throws SQLException {
     throwIfClosed();
     super.setQueryTimeout(seconds);
   }
@@ -443,5 +441,4 @@ class DremioStatementImpl extends AvaticaStatement implements DremioStatement,
     throwIfClosed();
     return super.isCloseOnCompletion();
   }
-
 }

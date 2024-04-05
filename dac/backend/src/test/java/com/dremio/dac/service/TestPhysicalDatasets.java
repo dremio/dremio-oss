@@ -26,21 +26,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.util.Iterator;
-
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.Invocation;
-
-import org.apache.arrow.memory.BufferAllocator;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
-
+import ch.qos.logback.classic.Level;
 import com.dremio.common.util.FileUtils;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.dac.explore.model.DatasetPath;
@@ -80,17 +66,29 @@ import com.dremio.service.namespace.file.proto.ParquetFileConfig;
 import com.dremio.service.namespace.file.proto.TextFileConfig;
 import com.dremio.service.namespace.file.proto.XlsFileConfig;
 import com.dremio.test.UserExceptionAssert;
-
-import ch.qos.logback.classic.Level;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.util.Iterator;
+import javax.ws.rs.client.Entity;
+import javax.ws.rs.client.Invocation;
+import org.apache.arrow.memory.BufferAllocator;
+import org.junit.After;
+import org.junit.AfterClass;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
 /**
- * Tests to create, update and execute queries on physical datasets..
- * If you add a new folder(s) to oss/dac/backend/src/test/resources/datasets, you will likely need to update tests
- * in oss/dac/backend/src/test/java/com/dremio/dac/api/TestPromotion.java.
+ * Tests to create, update and execute queries on physical datasets.. If you add a new folder(s) to
+ * oss/dac/backend/src/test/resources/datasets, you will likely need to update tests in
+ * oss/dac/backend/src/test/java/com/dremio/dac/api/TestPromotion.java.
  */
 public class TestPhysicalDatasets extends BaseTestServer {
-  private static final ch.qos.logback.classic.Logger rootLogger = ((ch.qos.logback.classic.Logger)org.slf4j.LoggerFactory.getLogger("com.dremio"));
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestPhysicalDatasets.class);
+  private static final ch.qos.logback.classic.Logger rootLogger =
+      ((ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger("com.dremio"));
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(TestPhysicalDatasets.class);
   private static Level originalLogLevel;
   private BufferAllocator allocator;
 
@@ -115,10 +113,12 @@ public class TestPhysicalDatasets extends BaseTestServer {
       SourceUI source = new SourceUI();
       source.setName("dacfs_test");
       source.setConfig(nas);
-      source.setMetadataPolicy(UIMetadataPolicy.of(CatalogService.DEFAULT_METADATA_POLICY_WITH_AUTO_PROMOTE));
+      source.setMetadataPolicy(
+          UIMetadataPolicy.of(CatalogService.DEFAULT_METADATA_POLICY_WITH_AUTO_PROMOTE));
       sourceService.registerSourceWithRuntime(source);
     }
-    allocator = getSabotContext().getAllocator().newChildAllocator(getClass().getName(), 0, Long.MAX_VALUE);
+    allocator =
+        getSabotContext().getAllocator().newChildAllocator(getClass().getName(), 0, Long.MAX_VALUE);
   }
 
   @After
@@ -127,7 +127,10 @@ public class TestPhysicalDatasets extends BaseTestServer {
   }
 
   private static String getSchemaPath(String file) throws IOException {
-    return "dacfs_test." + PathUtils.constructFullPath(PathUtils.toPathComponents(Path.of(FileUtils.getResourceAsFile(file).getAbsolutePath())));
+    return "dacfs_test."
+        + PathUtils.constructFullPath(
+            PathUtils.toPathComponents(
+                Path.of(FileUtils.getResourceAsFile(file).getAbsolutePath())));
   }
 
   private static SqlQuery createQuery(String file) throws IOException {
@@ -135,57 +138,90 @@ public class TestPhysicalDatasets extends BaseTestServer {
   }
 
   private static SqlQuery createQueryWithColumn(String column, String file) throws IOException {
-    return new SqlQuery(format("select %1$s from %2$s", column, getSchemaPath(file)), DEFAULT_USERNAME);
+    return new SqlQuery(
+        format("select %1$s from %2$s", column, getSchemaPath(file)), DEFAULT_USERNAME);
   }
 
   private static String getUrlPath(String file) throws IOException {
     return Path.of(FileUtils.getResourceAsFile(file).getAbsolutePath()).toString();
   }
 
-  private void checkCounts(String parentPath, String name, boolean isQueryable, int jobCount, int descendants, int datasetCount) throws Exception {
-    Folder parent = expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/folder/" + parentPath)).buildGet(), Folder.class);
+  private void checkCounts(
+      String parentPath,
+      String name,
+      boolean isQueryable,
+      int jobCount,
+      int descendants,
+      int datasetCount)
+      throws Exception {
+    Folder parent =
+        expectSuccess(
+            getBuilder(getAPIv2().path("/source/dacfs_test/folder/" + parentPath)).buildGet(),
+            Folder.class);
     for (com.dremio.file.File file : parent.getContents().getFiles()) {
       if (name.equals(file.getName())) {
-        assertEquals("jobCount for file " + parentPath + "/" + name, jobCount, (int)file.getJobCount());
-        assertEquals("isQueryable for file " + parentPath + "/" + name, isQueryable, file.isQueryable());
+        assertEquals(
+            "jobCount for file " + parentPath + "/" + name, jobCount, (int) file.getJobCount());
+        assertEquals(
+            "isQueryable for file " + parentPath + "/" + name, isQueryable, file.isQueryable());
         return;
       }
     }
     for (PhysicalDataset physicalDataset : parent.getContents().getPhysicalDatasets()) {
       if (name.equals(physicalDataset.getDatasetName().getName())) {
-        assertEquals("jobCount for physical dataset " + parentPath + "/" + name, jobCount, (int)physicalDataset.getJobCount());
+        assertEquals(
+            "jobCount for physical dataset " + parentPath + "/" + name,
+            jobCount,
+            (int) physicalDataset.getJobCount());
         return;
       }
     }
     for (Folder folder : parent.getContents().getFolders()) {
       if (name.equals(folder.getName())) {
-        assertEquals("isQueryable for folder " + parentPath + "/" + name, isQueryable, folder.isQueryable());
+        assertEquals(
+            "isQueryable for folder " + parentPath + "/" + name, isQueryable, folder.isQueryable());
         return;
       }
     }
   }
 
   private JobRequest sqlQueryRequestFromFile(String file) throws IOException {
-    return JobRequest.newBuilder().setSqlQuery(createQuery(file)).setQueryType(QueryType.UI_RUN).build();
+    return JobRequest.newBuilder()
+        .setSqlQuery(createQuery(file))
+        .setQueryType(QueryType.UI_RUN)
+        .build();
   }
 
-  private JobRequest sqlQueryRequestFromColumnAndFile(String column, String file) throws IOException {
-    return JobRequest.newBuilder().setSqlQuery(createQueryWithColumn(column, file)).setQueryType(QueryType.UI_RUN).build();
+  private JobRequest sqlQueryRequestFromColumnAndFile(String column, String file)
+      throws IOException {
+    return JobRequest.newBuilder()
+        .setSqlQuery(createQueryWithColumn(column, file))
+        .setQueryType(QueryType.UI_RUN)
+        .build();
   }
 
   @Test
   public void testJsonFile() throws Exception {
-    try (final JobDataFragment jobData = submitJobAndGetData(l(JobsService.class), sqlQueryRequestFromFile("/datasets/users.json"), 0, 500, allocator)) {
+    try (final JobDataFragment jobData =
+        submitJobAndGetData(
+            l(JobsService.class),
+            sqlQueryRequestFromFile("/datasets/users.json"),
+            0,
+            500,
+            allocator)) {
       assertEquals(3, jobData.getReturnedRowCount());
       assertEquals(2, jobData.getColumns().size());
-
 
       String fileUrlPath = getUrlPath("/datasets/users.json");
       String fileParentUrlPath = getUrlPath("/datasets/");
 
       JsonFileConfig jsonFileConfig = new JsonFileConfig();
       doc("preview json source file");
-      JobDataFragment data = expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/file_preview" + fileUrlPath)).buildPost(Entity.json(jsonFileConfig)), JobDataFragment.class);
+      JobDataFragment data =
+          expectSuccess(
+              getBuilder(getAPIv2().path("/source/dacfs_test/file_preview" + fileUrlPath))
+                  .buildPost(Entity.json(jsonFileConfig)),
+              JobDataFragment.class);
       assertEquals(3, data.getReturnedRowCount());
       assertEquals(2, data.getColumns().size());
 
@@ -204,10 +240,20 @@ public class TestPhysicalDatasets extends BaseTestServer {
     String fileParentUrlPath = getUrlPath("/datasets/text/");
 
     doc("preview data for source file");
-    JobDataFragment data = expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/file_preview" + fileUrlPath)).buildPost(Entity.json(fileConfig)), JobDataFragment.class);
+    JobDataFragment data =
+        expectSuccess(
+            getBuilder(getAPIv2().path("/source/dacfs_test/file_preview" + fileUrlPath))
+                .buildPost(Entity.json(fileConfig)),
+            JobDataFragment.class);
     assertEquals(4, data.getReturnedRowCount());
     assertEquals(3, data.getColumns().size());
-    checkCounts(fileParentUrlPath, "comma.txt", false /* false because we have not saved dataset yet */, 0, 0, 0); // previews are internal queries
+    checkCounts(
+        fileParentUrlPath,
+        "comma.txt",
+        false /* false because we have not saved dataset yet */,
+        0,
+        0,
+        0); // previews are internal queries
   }
 
   @Test
@@ -220,18 +266,33 @@ public class TestPhysicalDatasets extends BaseTestServer {
     String fileParentUrlPath = getUrlPath("/datasets/text/");
 
     doc("preview data for source file");
-    JobDataFragment data = expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/file_preview/" + fileUrlPath)).buildPost(Entity.json(fileConfig)), JobDataFragment.class);
+    JobDataFragment data =
+        expectSuccess(
+            getBuilder(getAPIv2().path("/source/dacfs_test/file_preview/" + fileUrlPath))
+                .buildPost(Entity.json(fileConfig)),
+            JobDataFragment.class);
     assertEquals(4, data.getReturnedRowCount());
     assertEquals(3, data.getColumns().size());
 
     fileConfig.setExtractHeader(true);
-    expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/file_format/" + fileUrlPath)).buildPut(Entity.json(fileConfig)));
-    data = expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/file_preview/"+ fileUrlPath)).buildPost(Entity.json(fileConfig)), JobDataFragment.class);
+    expectSuccess(
+        getBuilder(getAPIv2().path("/source/dacfs_test/file_format/" + fileUrlPath))
+            .buildPut(Entity.json(fileConfig)));
+    data =
+        expectSuccess(
+            getBuilder(getAPIv2().path("/source/dacfs_test/file_preview/" + fileUrlPath))
+                .buildPost(Entity.json(fileConfig)),
+            JobDataFragment.class);
     assertEquals(3, data.getReturnedRowCount());
     assertEquals(3, data.getColumns().size());
 
-    try (final JobDataFragment jobData = submitJobAndGetData(l(JobsService.class), sqlQueryRequestFromFile("/datasets/text/comma.txt"),
-      0, 500, allocator)) {
+    try (final JobDataFragment jobData =
+        submitJobAndGetData(
+            l(JobsService.class),
+            sqlQueryRequestFromFile("/datasets/text/comma.txt"),
+            0,
+            500,
+            allocator)) {
       assertEquals(3, jobData.getReturnedRowCount());
       assertEquals(3, jobData.getColumns().size());
     }
@@ -248,18 +309,33 @@ public class TestPhysicalDatasets extends BaseTestServer {
     String fileParentUrlPath = getUrlPath("/datasets/csv/");
 
     doc("preview data for source file");
-    JobDataFragment data = expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/file_preview/" + fileUrlPath)).buildPost(Entity.json(fileConfig)), JobDataFragment.class);
+    JobDataFragment data =
+        expectSuccess(
+            getBuilder(getAPIv2().path("/source/dacfs_test/file_preview/" + fileUrlPath))
+                .buildPost(Entity.json(fileConfig)),
+            JobDataFragment.class);
     assertEquals(4, data.getReturnedRowCount());
     assertEquals(3, data.getColumns().size());
 
     fileConfig.setExtractHeader(true);
-    expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/file_format/" + fileUrlPath)).buildPut(Entity.json(fileConfig)));
-    data = expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/file_preview/"+ fileUrlPath)).buildPost(Entity.json(fileConfig)), JobDataFragment.class);
+    expectSuccess(
+        getBuilder(getAPIv2().path("/source/dacfs_test/file_format/" + fileUrlPath))
+            .buildPut(Entity.json(fileConfig)));
+    data =
+        expectSuccess(
+            getBuilder(getAPIv2().path("/source/dacfs_test/file_preview/" + fileUrlPath))
+                .buildPost(Entity.json(fileConfig)),
+            JobDataFragment.class);
     assertEquals(3, data.getReturnedRowCount());
     assertEquals(3, data.getColumns().size());
 
-    try (final JobDataFragment jobData = submitJobAndGetData(l(JobsService.class), sqlQueryRequestFromFile("/datasets/csv/comma_windows_lineseparator.csv"),
-      0, 500, allocator)) {
+    try (final JobDataFragment jobData =
+        submitJobAndGetData(
+            l(JobsService.class),
+            sqlQueryRequestFromFile("/datasets/csv/comma_windows_lineseparator.csv"),
+            0,
+            500,
+            allocator)) {
       assertEquals(3, jobData.getReturnedRowCount());
       assertEquals(3, jobData.getColumns().size());
     }
@@ -278,14 +354,22 @@ public class TestPhysicalDatasets extends BaseTestServer {
     fileConfig.setName("comma_windows_lineseparator.csv");
     String fileUrlPath = getUrlPath("/datasets/csv/comma_windows_lineseparator.csv");
 
-    JobDataFragment data = expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/file_preview/" + fileUrlPath)).buildPost(Entity.json(fileConfig)), JobDataFragment.class);
+    JobDataFragment data =
+        expectSuccess(
+            getBuilder(getAPIv2().path("/source/dacfs_test/file_preview/" + fileUrlPath))
+                .buildPost(Entity.json(fileConfig)),
+            JobDataFragment.class);
     assertEquals(3, data.getReturnedRowCount());
     assertEquals(3, data.getColumns().size());
     // the column name would be address\r if trimHeader was false
     assertEquals("address", data.getColumns().get(2).getName());
 
     fileConfig.setTrimHeader(false);
-    JobDataFragment data2 = expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/file_preview/" + fileUrlPath)).buildPost(Entity.json(fileConfig)), JobDataFragment.class);
+    JobDataFragment data2 =
+        expectSuccess(
+            getBuilder(getAPIv2().path("/source/dacfs_test/file_preview/" + fileUrlPath))
+                .buildPost(Entity.json(fileConfig)),
+            JobDataFragment.class);
     assertEquals(3, data2.getReturnedRowCount());
     assertEquals(3, data2.getColumns().size());
     // with header trimming turned off, we should see the \r character
@@ -303,16 +387,25 @@ public class TestPhysicalDatasets extends BaseTestServer {
     String fileParentUrlPath = getUrlPath("/datasets/");
 
     doc("preview data for source file");
-    try (AutoCloseable ignore = withSystemOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX.getOptionName(), "800")) {
-      UserExceptionMapper.ErrorMessageWithContext error = expectError(
-          FamilyExpectation.CLIENT_ERROR,
-          getBuilder(getAPIv2()
-              .path("/source/dacfs_test/file_preview" + fileUrlPath))
-              .buildPost(Entity.json(fileConfig)),
-          UserExceptionMapper.ErrorMessageWithContext.class
-      );
-      assertTrue(error.getErrorMessage().contains("Number of fields in dataset exceeded the maximum number of fields"));
-      checkCounts(fileParentUrlPath, "widetable.txt", false /* false because we have not saved dataset yet */, 0, 0, 0);
+    try (AutoCloseable ignore =
+        withSystemOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX.getOptionName(), "800")) {
+      UserExceptionMapper.ErrorMessageWithContext error =
+          expectError(
+              FamilyExpectation.CLIENT_ERROR,
+              getBuilder(getAPIv2().path("/source/dacfs_test/file_preview" + fileUrlPath))
+                  .buildPost(Entity.json(fileConfig)),
+              UserExceptionMapper.ErrorMessageWithContext.class);
+      assertTrue(
+          error
+              .getErrorMessage()
+              .contains("Number of fields in dataset exceeded the maximum number of fields"));
+      checkCounts(
+          fileParentUrlPath,
+          "widetable.txt",
+          false /* false because we have not saved dataset yet */,
+          0,
+          0,
+          0);
     }
   }
 
@@ -321,15 +414,26 @@ public class TestPhysicalDatasets extends BaseTestServer {
     String fileUrlPath = getUrlPath("/datasets/schemachange");
     JsonFileConfig jsonFileConfig = new JsonFileConfig();
     doc("preview json source file");
-    JobDataFragment data = expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/folder_preview" + fileUrlPath)).buildPost(Entity.json(jsonFileConfig)), JobDataFragment.class);
+    JobDataFragment data =
+        expectSuccess(
+            getBuilder(getAPIv2().path("/source/dacfs_test/folder_preview" + fileUrlPath))
+                .buildPost(Entity.json(jsonFileConfig)),
+            JobDataFragment.class);
     assertEquals(1, data.getReturnedRowCount());
     assertEquals(1, data.getColumns().size());
   }
 
   @Test
   public void testLargeJsonFileWorksWithIncreasedScanLimit() throws Exception {
-    try (AutoCloseable ignore = withSystemOption(CatalogOptions.METADATA_LEAF_COLUMN_SCANNED_MAX.getOptionName(), "1000")) {
-      try (JobDataFragment result = submitJobAndGetData(l(JobsService.class), sqlQueryRequestFromFile("/datasets/wide_table.json"), 0, 500, allocator)) {
+    try (AutoCloseable ignore =
+        withSystemOption(CatalogOptions.METADATA_LEAF_COLUMN_SCANNED_MAX.getOptionName(), "1000")) {
+      try (JobDataFragment result =
+          submitJobAndGetData(
+              l(JobsService.class),
+              sqlQueryRequestFromFile("/datasets/wide_table.json"),
+              0,
+              500,
+              allocator)) {
         assertEquals(1, result.getReturnedRowCount());
       }
     }
@@ -337,23 +441,46 @@ public class TestPhysicalDatasets extends BaseTestServer {
 
   @Test
   public void testLargeJsonFileScanLimit() {
-    UserExceptionAssert.assertThatThrownBy(() -> submitJobAndGetData(l(JobsService.class), sqlQueryRequestFromFile("/datasets/wide_table.json"), 0, 500, allocator));
+    UserExceptionAssert.assertThatThrownBy(
+        () ->
+            submitJobAndGetData(
+                l(JobsService.class),
+                sqlQueryRequestFromFile("/datasets/wide_table.json"),
+                0,
+                500,
+                allocator));
   }
 
   @Test
   public void testLargeJsonFileColumnLimit() throws Exception {
 
-    try (AutoCloseable ignore1 = withSystemOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX.getOptionName(), "800");
-         AutoCloseable ignore2 = withSystemOption(CatalogOptions.METADATA_LEAF_COLUMN_SCANNED_MAX.getOptionName(), "1000")
-    ) {
-      UserExceptionAssert.assertThatThrownBy(() -> submitJobAndGetData(l(JobsService.class), sqlQueryRequestFromFile("/datasets/wide_table.json"), 0, 500, allocator));
+    try (AutoCloseable ignore1 =
+            withSystemOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX.getOptionName(), "800");
+        AutoCloseable ignore2 =
+            withSystemOption(
+                CatalogOptions.METADATA_LEAF_COLUMN_SCANNED_MAX.getOptionName(), "1000")) {
+      UserExceptionAssert.assertThatThrownBy(
+          () ->
+              submitJobAndGetData(
+                  l(JobsService.class),
+                  sqlQueryRequestFromFile("/datasets/wide_table.json"),
+                  0,
+                  500,
+                  allocator));
     }
   }
 
   @Test
   public void testLargeNestedJsonFileWorksWithIncreasedScanLimit() throws Exception {
-    try (AutoCloseable ignore = withSystemOption(CatalogOptions.METADATA_LEAF_COLUMN_SCANNED_MAX.getOptionName(), "1000")) {
-      try (JobDataFragment result =submitJobAndGetData(l(JobsService.class), sqlQueryRequestFromFile("/datasets/wide_nested_table.json"), 0, 500, allocator)) {
+    try (AutoCloseable ignore =
+        withSystemOption(CatalogOptions.METADATA_LEAF_COLUMN_SCANNED_MAX.getOptionName(), "1000")) {
+      try (JobDataFragment result =
+          submitJobAndGetData(
+              l(JobsService.class),
+              sqlQueryRequestFromFile("/datasets/wide_nested_table.json"),
+              0,
+              500,
+              allocator)) {
         assertEquals(1, result.getReturnedRowCount());
       }
     }
@@ -361,15 +488,31 @@ public class TestPhysicalDatasets extends BaseTestServer {
 
   @Test
   public void testLargeNestedJsonFileScanLimit() {
-      UserExceptionAssert.assertThatThrownBy(() -> submitJobAndGetData(l(JobsService.class), sqlQueryRequestFromFile("/datasets/wide_nested_table.json"), 0, 500, allocator));
+    UserExceptionAssert.assertThatThrownBy(
+        () ->
+            submitJobAndGetData(
+                l(JobsService.class),
+                sqlQueryRequestFromFile("/datasets/wide_nested_table.json"),
+                0,
+                500,
+                allocator));
   }
 
   @Test
   public void testLargeNestedJsonFileColumnLimit() throws Exception {
-    try (AutoCloseable ignore1 = withSystemOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX.getOptionName(), "800");
-         AutoCloseable ignore2 = withSystemOption(CatalogOptions.METADATA_LEAF_COLUMN_SCANNED_MAX.getOptionName(), "1000")
-    ) {
-      UserExceptionAssert.assertThatThrownBy(() -> submitJobAndGetData(l(JobsService.class), sqlQueryRequestFromFile("/datasets/wide_nested_table.json"), 0, 500, allocator));
+    try (AutoCloseable ignore1 =
+            withSystemOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX.getOptionName(), "800");
+        AutoCloseable ignore2 =
+            withSystemOption(
+                CatalogOptions.METADATA_LEAF_COLUMN_SCANNED_MAX.getOptionName(), "1000")) {
+      UserExceptionAssert.assertThatThrownBy(
+          () ->
+              submitJobAndGetData(
+                  l(JobsService.class),
+                  sqlQueryRequestFromFile("/datasets/wide_nested_table.json"),
+                  0,
+                  500,
+                  allocator));
     }
   }
 
@@ -386,12 +529,21 @@ public class TestPhysicalDatasets extends BaseTestServer {
       String fileParentUrlPath = getUrlPath("/singlefile_parquet_dir/");
 
       ParquetFileConfig fileConfig = new ParquetFileConfig();
-      JobDataFragment data = expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/file_preview/" + fileUrlPath)).buildPost(Entity.json(fileConfig)), JobDataFragment.class);
+      JobDataFragment data =
+          expectSuccess(
+              getBuilder(getAPIv2().path("/source/dacfs_test/file_preview/" + fileUrlPath))
+                  .buildPost(Entity.json(fileConfig)),
+              JobDataFragment.class);
       assertEquals(25, data.getReturnedRowCount());
       assertEquals(4, data.getColumns().size());
 
-      try (final JobDataFragment jobData = submitJobAndGetData(l(JobsService.class), sqlQueryRequestFromFile("/singlefile_parquet_dir/0_0_0.parquet"),
-        0, 500, allocator)) {
+      try (final JobDataFragment jobData =
+          submitJobAndGetData(
+              l(JobsService.class),
+              sqlQueryRequestFromFile("/singlefile_parquet_dir/0_0_0.parquet"),
+              0,
+              500,
+              allocator)) {
         assertEquals(25, jobData.getReturnedRowCount());
         assertEquals(4, jobData.getColumns().size());
       }
@@ -406,7 +558,11 @@ public class TestPhysicalDatasets extends BaseTestServer {
     String fileUrlPath = getUrlPath("/zero-rows/zero-rows.parquet");
 
     ParquetFileConfig fileConfig = new ParquetFileConfig();
-    JobDataFragment data = expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/file_preview/" + fileUrlPath)).buildPost(Entity.json(fileConfig)), JobDataFragment.class);
+    JobDataFragment data =
+        expectSuccess(
+            getBuilder(getAPIv2().path("/source/dacfs_test/file_preview/" + fileUrlPath))
+                .buildPost(Entity.json(fileConfig)),
+            JobDataFragment.class);
     assertEquals(0, data.getReturnedRowCount());
     assertEquals(4, data.getColumns().size());
   }
@@ -417,15 +573,25 @@ public class TestPhysicalDatasets extends BaseTestServer {
     String filePath1 = getUrlPath("/datasets/csv/comma.csv");
     String fileParentUrlPath = getUrlPath("/datasets/");
 
-    TextFileConfig format1 = (TextFileConfig) expectSuccess(getBuilder(getAPIv2().path(
-      "/source/dacfs_test/file_format/" + filePath1)).buildGet(), FileFormatUI.class).getFileFormat();
+    TextFileConfig format1 =
+        (TextFileConfig)
+            expectSuccess(
+                    getBuilder(getAPIv2().path("/source/dacfs_test/file_format/" + filePath1))
+                        .buildGet(),
+                    FileFormatUI.class)
+                .getFileFormat();
     assertNotNull(format1);
     assertEquals(FileType.TEXT, format1.getFileType());
 
     submitJobAndWaitUntilCompletion(sqlQueryRequestFromFile("/datasets/tab.tsv"));
     filePath1 = getUrlPath("/datasets/tab.tsv");
-    format1 = (TextFileConfig) expectSuccess(getBuilder(getAPIv2().path(
-      "/source/dacfs_test/file_format/" + filePath1)).buildGet(), FileFormatUI.class).getFileFormat();
+    format1 =
+        (TextFileConfig)
+            expectSuccess(
+                    getBuilder(getAPIv2().path("/source/dacfs_test/file_format/" + filePath1))
+                        .buildGet(),
+                    FileFormatUI.class)
+                .getFileFormat();
     assertNotNull(format1);
     // TODO (Amit H) define separate classes for each type in FileFormatDefinitions
     assertEquals(FileType.TEXT, format1.getFileType());
@@ -450,10 +616,16 @@ public class TestPhysicalDatasets extends BaseTestServer {
       String fileParentPath = getUrlPath("/datasets/");
 
       doc("preview data for source folder");
-      JobDataFragment data = expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/folder_preview/" + filePath)).buildPost(Entity.json(fileConfig)), JobDataFragment.class);
+      JobDataFragment data =
+          expectSuccess(
+              getBuilder(getAPIv2().path("/source/dacfs_test/folder_preview/" + filePath))
+                  .buildPost(Entity.json(fileConfig)),
+              JobDataFragment.class);
       assertEquals(25, data.getReturnedRowCount());
 
-      expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/folder_format/" + filePath)).buildPut(Entity.json(fileConfig)));
+      expectSuccess(
+          getBuilder(getAPIv2().path("/source/dacfs_test/folder_format/" + filePath))
+              .buildPut(Entity.json(fileConfig)));
 
       checkCounts(fileParentPath, "folderdataset", true, 1, 0, 0);
     } finally {
@@ -461,10 +633,10 @@ public class TestPhysicalDatasets extends BaseTestServer {
     }
   }
 
-
   @Test
   public void listSource() {
-    SourceUI source = expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test")).buildGet(), SourceUI.class);
+    SourceUI source =
+        expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test")).buildGet(), SourceUI.class);
     System.out.println(source.getContents());
   }
 
@@ -472,13 +644,16 @@ public class TestPhysicalDatasets extends BaseTestServer {
   public void listFolder() throws Exception {
     doc("list source folder");
     String filePath = getUrlPath("/datasets/text");
-    Folder folder = expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/folder/"+filePath)).buildGet(), Folder.class);
+    Folder folder =
+        expectSuccess(
+            getBuilder(getAPIv2().path("/source/dacfs_test/folder/" + filePath)).buildGet(),
+            Folder.class);
     NamespaceTree ns = folder.getContents();
     assertEquals(0, ns.getFolders().size());
     assertEquals(3, ns.getFiles().size());
     assertEquals(0, ns.getPhysicalDatasets().size());
 
-    for(int i=0; i<3; i++) {
+    for (int i = 0; i < 3; i++) {
       assertFalse(ns.getFiles().get(i).isQueryable());
     }
 
@@ -486,23 +661,35 @@ public class TestPhysicalDatasets extends BaseTestServer {
     fileConfig.setFieldDelimiter(",");
     fileConfig.setName("comma.txt");
 
-    expectSuccess(getBuilder(getAPIv2().path(ns.getFiles().get(0).getLinks().get("format"))).
-      buildPut(Entity.json(fileConfig)), FileFormatUI.class);
+    expectSuccess(
+        getBuilder(getAPIv2().path(ns.getFiles().get(0).getLinks().get("format")))
+            .buildPut(Entity.json(fileConfig)),
+        FileFormatUI.class);
 
-    expectSuccess(getBuilder(getAPIv2().path(ns.getFiles().get(1).getLinks().get("format"))).
-      buildPut(Entity.json(fileConfig)), FileFormatUI.class);
+    expectSuccess(
+        getBuilder(getAPIv2().path(ns.getFiles().get(1).getLinks().get("format")))
+            .buildPut(Entity.json(fileConfig)),
+        FileFormatUI.class);
 
-    expectSuccess(getBuilder(getAPIv2().path(ns.getFiles().get(2).getLinks().get("format"))).
-      buildPut(Entity.json(fileConfig)), FileFormatUI.class);
+    expectSuccess(
+        getBuilder(getAPIv2().path(ns.getFiles().get(2).getLinks().get("format")))
+            .buildPut(Entity.json(fileConfig)),
+        FileFormatUI.class);
 
-    folder = expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/folder/" + filePath)).buildGet(), Folder.class);
+    folder =
+        expectSuccess(
+            getBuilder(getAPIv2().path("/source/dacfs_test/folder/" + filePath)).buildGet(),
+            Folder.class);
     ns = folder.getContents();
     assertEquals(0, ns.getFolders().size());
     assertEquals(3, ns.getFiles().size());
     assertEquals(0, ns.getPhysicalDatasets().size());
     assertTrue(ns.getFiles().get(0).isQueryable());
     assertNotNull(ns.getFiles().get(0).getId());
-    assertEquals(0, (long) ns.getFiles().get(0).getJobCount()); // ui preview queries dont count towards job count
+    assertEquals(
+        0,
+        (long)
+            ns.getFiles().get(0).getJobCount()); // ui preview queries dont count towards job count
     assertTrue(ns.getFiles().get(1).isQueryable());
     assertNotNull(ns.getFiles().get(1).getId());
     assertEquals(0, (long) ns.getFiles().get(1).getJobCount());
@@ -510,7 +697,6 @@ public class TestPhysicalDatasets extends BaseTestServer {
     assertNotNull(ns.getFiles().get(2).getId());
     assertEquals(0, (long) ns.getFiles().get(2).getJobCount());
   }
-
 
   @Test
   public void testTsvDetect() throws Exception {
@@ -520,7 +706,8 @@ public class TestPhysicalDatasets extends BaseTestServer {
     Files.createDirectories(folder1.toPath());
     Files.write(new File(folder1, "file.tsv").toPath(), "a\tf\nc\td".getBytes(UTF_8));
     String folderFormatUrl = "/source/LocalFS1/file_format/tmp/_dac2/folderTSV/file.tsv";
-    FileFormatUI defaultFormat = expectSuccess(getBuilder(getAPIv2().path(folderFormatUrl)).buildGet(), FileFormatUI.class);
+    FileFormatUI defaultFormat =
+        expectSuccess(getBuilder(getAPIv2().path(folderFormatUrl)).buildGet(), FileFormatUI.class);
     assertEquals(FileType.TEXT, defaultFormat.getFileFormat().getFileType());
     assertFalse(defaultFormat.getFileFormat().getIsFolder());
     assertEquals(folderFormatUrl, defaultFormat.getLinks().get("self"));
@@ -544,7 +731,8 @@ public class TestPhysicalDatasets extends BaseTestServer {
 
     doc("get default format for folder");
     String folderFormatUrl = "/source/LocalFS1/folder_format/tmp/_dac/folder1";
-    FileFormatUI defaultFormat = expectSuccess(getBuilder(getAPIv2().path(folderFormatUrl)).buildGet(), FileFormatUI.class);
+    FileFormatUI defaultFormat =
+        expectSuccess(getBuilder(getAPIv2().path(folderFormatUrl)).buildGet(), FileFormatUI.class);
     assertEquals(folderFormatUrl, defaultFormat.getLinks().get("self"));
 
     TextFileConfig fileConfig = new TextFileConfig();
@@ -560,21 +748,30 @@ public class TestPhysicalDatasets extends BaseTestServer {
     fileFormat2.setName("tmp._dac.folder2");
 
     doc("create physical dataset from source folder");
-    expectSuccess(getBuilder(getAPIv2().path(
-      "/source/LocalFS1/folder_format/tmp/_dac/folder1")).buildPut(Entity.json(fileFormat1)));
+    expectSuccess(
+        getBuilder(getAPIv2().path("/source/LocalFS1/folder_format/tmp/_dac/folder1"))
+            .buildPut(Entity.json(fileFormat1)));
 
-    expectSuccess(getBuilder(getAPIv2().path(
-      "/source/LocalFS1/folder_format/tmp/_dac/folder2")).buildPut(Entity.json(fileFormat2)));
+    expectSuccess(
+        getBuilder(getAPIv2().path("/source/LocalFS1/folder_format/tmp/_dac/folder2"))
+            .buildPut(Entity.json(fileFormat2)));
 
     doc("get physical dataset config from source folder");
-    fileFormat1 = expectSuccess(getBuilder(getAPIv2().path(
-      "/source/LocalFS1/folder_format/tmp/_dac/folder1")).buildGet(), FileFormatUI.class).getFileFormat();
+    fileFormat1 =
+        expectSuccess(
+                getBuilder(getAPIv2().path("/source/LocalFS1/folder_format/tmp/_dac/folder1"))
+                    .buildGet(),
+                FileFormatUI.class)
+            .getFileFormat();
     assertEquals(fileFormat1.getName(), fileFormat1.getName());
 
-    fileFormat2 = expectSuccess(getBuilder(getAPIv2().path(
-      "/source/LocalFS1/folder_format/tmp/_dac/folder2")).buildGet(), FileFormatUI.class).getFileFormat();
+    fileFormat2 =
+        expectSuccess(
+                getBuilder(getAPIv2().path("/source/LocalFS1/folder_format/tmp/_dac/folder2"))
+                    .buildGet(),
+                FileFormatUI.class)
+            .getFileFormat();
     assertEquals(fileFormat2.getName(), fileFormat2.getName());
-
 
     doc("test updating the format settings of folder dataset");
     {
@@ -582,19 +779,27 @@ public class TestPhysicalDatasets extends BaseTestServer {
       fileConfig.setVersion(fileFormat1.getVersion());
       fileFormat1 = FileFormat.getForFolder(fileConfig.asFileConfig());
 
-      expectSuccess(getBuilder(getAPIv2().path(
-          "/source/LocalFS1/folder_format/tmp/_dac/folder1")).buildPut(Entity.json(fileFormat1)));
+      expectSuccess(
+          getBuilder(getAPIv2().path("/source/LocalFS1/folder_format/tmp/_dac/folder1"))
+              .buildPut(Entity.json(fileFormat1)));
 
       // retrieve the format back and check the updates are present.
-      fileFormat1 = expectSuccess(getBuilder(getAPIv2().path(
-          "/source/LocalFS1/folder_format/tmp/_dac/folder1")).buildGet(), FileFormatUI.class).getFileFormat();
+      fileFormat1 =
+          expectSuccess(
+                  getBuilder(getAPIv2().path("/source/LocalFS1/folder_format/tmp/_dac/folder1"))
+                      .buildGet(),
+                  FileFormatUI.class)
+              .getFileFormat();
 
       assertTrue(fileFormat1 instanceof TextFileConfig);
-      assertEquals(",", ((TextFileConfig)fileFormat1).getFieldDelimiter());
+      assertEquals(",", ((TextFileConfig) fileFormat1).getFieldDelimiter());
     }
 
     doc("list source folder and see if folder1 and folder2 are marked as physical dataset");
-    Folder folder = expectSuccess(getBuilder(getAPIv2().path("/source/LocalFS1/folder/tmp/_dac")).buildGet(), Folder.class);
+    Folder folder =
+        expectSuccess(
+            getBuilder(getAPIv2().path("/source/LocalFS1/folder/tmp/_dac")).buildGet(),
+            Folder.class);
     NamespaceTree ns = folder.getContents();
     assertEquals(3, ns.getFolders().size());
     assertEquals(0, ns.getFiles().size());
@@ -614,20 +819,41 @@ public class TestPhysicalDatasets extends BaseTestServer {
 
     doc("delete with bad version");
     long badVersion = 1234L;
-    String expectedErrorMessage = String.format("Cannot delete folder format \"%s\", version provided \"%s\" is different from version found \"%s\"",
-      "tmp/_dac/folder1", badVersion, fileFormat1.getVersion());
-    final GenericErrorMessage errorDelete2 = expectStatus(CONFLICT,
-      getBuilder(getAPIv2().path("/source/LocalFS1/folder_format/tmp/_dac/folder1").queryParam("version", badVersion)).buildDelete(),
-      GenericErrorMessage.class);
+    String expectedErrorMessage =
+        String.format(
+            "Cannot delete folder format \"%s\", version provided \"%s\" is different from version found \"%s\"",
+            "tmp/_dac/folder1", badVersion, fileFormat1.getVersion());
+    final GenericErrorMessage errorDelete2 =
+        expectStatus(
+            CONFLICT,
+            getBuilder(
+                    getAPIv2()
+                        .path("/source/LocalFS1/folder_format/tmp/_dac/folder1")
+                        .queryParam("version", badVersion))
+                .buildDelete(),
+            GenericErrorMessage.class);
     assertErrorMessage(errorDelete2, expectedErrorMessage);
 
     doc("delete physical dataset for source folder");
-    expectSuccess(getBuilder(getAPIv2().path("/source/LocalFS1/folder_format/tmp/_dac/folder1").queryParam("version", fileFormat1.getVersion())).buildDelete());
+    expectSuccess(
+        getBuilder(
+                getAPIv2()
+                    .path("/source/LocalFS1/folder_format/tmp/_dac/folder1")
+                    .queryParam("version", fileFormat1.getVersion()))
+            .buildDelete());
 
-    FileFormat fileFormat = expectSuccess(getBuilder(getAPIv2().path("/source/LocalFS1/folder_format/tmp/_dac/folder1")).buildGet(), FileFormatUI.class).getFileFormat();
+    FileFormat fileFormat =
+        expectSuccess(
+                getBuilder(getAPIv2().path("/source/LocalFS1/folder_format/tmp/_dac/folder1"))
+                    .buildGet(),
+                FileFormatUI.class)
+            .getFileFormat();
     assertEquals(FileType.TEXT, fileFormat.getFileType());
 
-    folder = expectSuccess(getBuilder(getAPIv2().path("/source/LocalFS1/folder/tmp/_dac")).buildGet(), Folder.class);
+    folder =
+        expectSuccess(
+            getBuilder(getAPIv2().path("/source/LocalFS1/folder/tmp/_dac")).buildGet(),
+            Folder.class);
     ns = folder.getContents();
     assertEquals(3, ns.getFolders().size());
     assertEquals(0, ns.getFiles().size());
@@ -644,12 +870,12 @@ public class TestPhysicalDatasets extends BaseTestServer {
         fail("Invalid folder found " + f.getFullPathList());
       }
     }
-
   }
 
   @Test
   public void testExcelWithHeaderAndMergeCellExpansion() throws Exception {
-    Invocation inv = getExcelTestQueryInvocation(getUrlPath("/testfiles/excel.xlsx"), "sheet 1", true, true);
+    Invocation inv =
+        getExcelTestQueryInvocation(getUrlPath("/testfiles/excel.xlsx"), "sheet 1", true, true);
     JobDataFragment data = expectSuccess(inv, JobDataFragment.class);
     assertEquals(5, data.getReturnedRowCount());
     assertEquals(5, data.getColumns().size());
@@ -657,7 +883,8 @@ public class TestPhysicalDatasets extends BaseTestServer {
 
   @Test
   public void testXlsWithHeaderAndMergeCellExpansion() throws Exception {
-    Invocation inv = getXlsTestQueryInvocation(getUrlPath("/testfiles/excel.xls"), "sheet 1", true, true);
+    Invocation inv =
+        getXlsTestQueryInvocation(getUrlPath("/testfiles/excel.xls"), "sheet 1", true, true);
     JobDataFragment data = expectSuccess(inv, JobDataFragment.class);
     assertEquals(5, data.getReturnedRowCount());
     assertEquals(5, data.getColumns().size());
@@ -665,7 +892,8 @@ public class TestPhysicalDatasets extends BaseTestServer {
 
   @Test
   public void testExcelWithHeaderAndNoMergeCellExpansion() throws Exception {
-    Invocation inv = getExcelTestQueryInvocation(getUrlPath("/testfiles/excel.xlsx"), "sheet 1", true, false);
+    Invocation inv =
+        getExcelTestQueryInvocation(getUrlPath("/testfiles/excel.xlsx"), "sheet 1", true, false);
     JobDataFragment data = expectSuccess(inv, JobDataFragment.class);
     assertEquals(5, data.getReturnedRowCount());
     assertEquals(5, data.getColumns().size());
@@ -673,7 +901,8 @@ public class TestPhysicalDatasets extends BaseTestServer {
 
   @Test
   public void testXlsWithHeaderAndNoMergeCellExpansion() throws Exception {
-    Invocation inv = getXlsTestQueryInvocation(getUrlPath("/testfiles/excel.xls"), "sheet 1", true, false);
+    Invocation inv =
+        getXlsTestQueryInvocation(getUrlPath("/testfiles/excel.xls"), "sheet 1", true, false);
     JobDataFragment data = expectSuccess(inv, JobDataFragment.class);
     assertEquals(5, data.getReturnedRowCount());
     assertEquals(5, data.getColumns().size());
@@ -681,7 +910,8 @@ public class TestPhysicalDatasets extends BaseTestServer {
 
   @Test
   public void testExcelNoWithHeaderAndNoMergeCellExpansion() throws Exception {
-    Invocation inv = getExcelTestQueryInvocation(getUrlPath("/testfiles/excel.xlsx"), "Sheet 1", false, false);
+    Invocation inv =
+        getExcelTestQueryInvocation(getUrlPath("/testfiles/excel.xlsx"), "Sheet 1", false, false);
     JobDataFragment data = expectSuccess(inv, JobDataFragment.class);
     assertEquals(6, data.getReturnedRowCount());
     assertEquals(5, data.getColumns().size());
@@ -689,7 +919,8 @@ public class TestPhysicalDatasets extends BaseTestServer {
 
   @Test
   public void testXlsNoWithHeaderAndNoMergeCellExpansion() throws Exception {
-    Invocation inv = getXlsTestQueryInvocation(getUrlPath("/testfiles/excel.xls"), "Sheet 1", false, false);
+    Invocation inv =
+        getXlsTestQueryInvocation(getUrlPath("/testfiles/excel.xls"), "Sheet 1", false, false);
     JobDataFragment data = expectSuccess(inv, JobDataFragment.class);
     assertEquals(6, data.getReturnedRowCount());
     assertEquals(5, data.getColumns().size());
@@ -697,7 +928,8 @@ public class TestPhysicalDatasets extends BaseTestServer {
 
   @Test
   public void testExcelNullSheetName() throws Exception {
-    Invocation inv = getExcelTestQueryInvocation(getUrlPath("/testfiles/excel.xlsx"), null, false, false);
+    Invocation inv =
+        getExcelTestQueryInvocation(getUrlPath("/testfiles/excel.xlsx"), null, false, false);
     JobDataFragment data = expectSuccess(inv, JobDataFragment.class);
     assertEquals(6, data.getReturnedRowCount());
     assertEquals(5, data.getColumns().size());
@@ -705,14 +937,15 @@ public class TestPhysicalDatasets extends BaseTestServer {
 
   @Test
   public void testXlsNullSheetName() throws Exception {
-    Invocation inv = getXlsTestQueryInvocation(getUrlPath("/testfiles/excel.xls"), null, false, false);
+    Invocation inv =
+        getXlsTestQueryInvocation(getUrlPath("/testfiles/excel.xls"), null, false, false);
     JobDataFragment data = expectSuccess(inv, JobDataFragment.class);
     assertEquals(6, data.getReturnedRowCount());
     assertEquals(5, data.getColumns().size());
   }
 
-  private Invocation getExcelTestQueryInvocation(String filePath, String sheet, boolean extractHeader,
-                                                 boolean hasMergedCells) {
+  private Invocation getExcelTestQueryInvocation(
+      String filePath, String sheet, boolean extractHeader, boolean hasMergedCells) {
     ExcelFileConfig fileConfig = new ExcelFileConfig();
     fileConfig.setSheetName(sheet);
     if (extractHeader) {
@@ -723,11 +956,11 @@ public class TestPhysicalDatasets extends BaseTestServer {
     } // false is the default value
 
     return getBuilder(getAPIv2().path("/source/dacfs_test/file_preview" + filePath))
-      .buildPost(Entity.json(fileConfig));
+        .buildPost(Entity.json(fileConfig));
   }
 
-  private Invocation getXlsTestQueryInvocation(String filePath, String sheet, boolean extractHeader,
-                                                 boolean hasMergedCells) {
+  private Invocation getXlsTestQueryInvocation(
+      String filePath, String sheet, boolean extractHeader, boolean hasMergedCells) {
     XlsFileConfig fileConfig = new XlsFileConfig();
     fileConfig.setSheetName(sheet);
     if (extractHeader) {
@@ -738,14 +971,15 @@ public class TestPhysicalDatasets extends BaseTestServer {
     } // false is the default value
 
     return getBuilder(getAPIv2().path("/source/dacfs_test/file_preview" + filePath))
-            .buildPost(Entity.json(fileConfig));
+        .buildPost(Entity.json(fileConfig));
   }
 
   // Based off data created by TestParquetMetadataCache:testCache
   @Test
   public void testQueryOnParquetDirWithMetadata() throws Exception {
-    try (final JobDataFragment jobData = submitJobAndGetData(l(JobsService.class), sqlQueryRequestFromFile("/nation_ctas"),
-      0, 500, allocator)) {
+    try (final JobDataFragment jobData =
+        submitJobAndGetData(
+            l(JobsService.class), sqlQueryRequestFromFile("/nation_ctas"), 0, 500, allocator)) {
       assertEquals(50, jobData.getReturnedRowCount());
       // extra column for "dir" (t1 and t2 are directories under nation_ctas)
       assertEquals(5, jobData.getColumns().size());
@@ -754,8 +988,13 @@ public class TestPhysicalDatasets extends BaseTestServer {
 
   @Test
   public void testQueryOnParquetDirWithSingleFile() throws Exception {
-    try (final JobDataFragment jobData = submitJobAndGetData(l(JobsService.class),sqlQueryRequestFromFile("/singlefile_parquet_dir"),
-      0, 500, allocator)) {
+    try (final JobDataFragment jobData =
+        submitJobAndGetData(
+            l(JobsService.class),
+            sqlQueryRequestFromFile("/singlefile_parquet_dir"),
+            0,
+            500,
+            allocator)) {
       assertEquals(25, jobData.getReturnedRowCount());
       assertEquals(4, jobData.getColumns().size());
     }
@@ -765,89 +1004,132 @@ public class TestPhysicalDatasets extends BaseTestServer {
   public void testDefaultFileFormatForParquetFolder() throws Exception {
     doc("get physical dataset config from source folder");
     String folderPath = getUrlPath("/singlefile_parquet_dir");
-    FileFormat fileFormat = expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/folder_format/" + folderPath)).buildGet(),
-      FileFormatUI.class).getFileFormat();
+    FileFormat fileFormat =
+        expectSuccess(
+                getBuilder(getAPIv2().path("/source/dacfs_test/folder_format/" + folderPath))
+                    .buildGet(),
+                FileFormatUI.class)
+            .getFileFormat();
     assertEquals(FileType.PARQUET, fileFormat.getFileType());
   }
 
   @Test
   public void testDefaultFileFormatForTextFolder() throws Exception {
     String folderPath = getUrlPath("/datasets/text");
-    FileFormat fileFormat = expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/folder_format/" + folderPath)).buildGet(),
-      FileFormatUI.class).getFileFormat();
+    FileFormat fileFormat =
+        expectSuccess(
+                getBuilder(getAPIv2().path("/source/dacfs_test/folder_format/" + folderPath))
+                    .buildGet(),
+                FileFormatUI.class)
+            .getFileFormat();
     assertEquals(FileType.TEXT, fileFormat.getFileType());
   }
 
   @Test
   public void testDefaultFileFormatForCsvFolder() throws Exception {
     String folderPath = getUrlPath("/datasets/csv");
-    FileFormat fileFormat = expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/folder_format/" + folderPath)).buildGet(),
-      FileFormatUI.class).getFileFormat();
+    FileFormat fileFormat =
+        expectSuccess(
+                getBuilder(getAPIv2().path("/source/dacfs_test/folder_format/" + folderPath))
+                    .buildGet(),
+                FileFormatUI.class)
+            .getFileFormat();
     assertEquals(FileType.TEXT, fileFormat.getFileType());
   }
 
   @Test
   public void testDefaultFileFormatForJsonFolder() throws Exception {
     String folderPath = getUrlPath("/json");
-    FileFormat fileFormat = expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/folder_format/" + folderPath)).buildGet(),
-      FileFormatUI.class).getFileFormat();
+    FileFormat fileFormat =
+        expectSuccess(
+                getBuilder(getAPIv2().path("/source/dacfs_test/folder_format/" + folderPath))
+                    .buildGet(),
+                FileFormatUI.class)
+            .getFileFormat();
     assertEquals(FileType.JSON, fileFormat.getFileType());
   }
 
   @Test
   public void testDefaultFileFormatForParquetFile() throws Exception {
     String filePath = getUrlPath("/singlefile_parquet_dir/0_0_0.parquet");
-    FileFormat fileFormat = expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/file_format/" + filePath)).buildGet(),
-      FileFormatUI.class).getFileFormat();
+    FileFormat fileFormat =
+        expectSuccess(
+                getBuilder(getAPIv2().path("/source/dacfs_test/file_format/" + filePath))
+                    .buildGet(),
+                FileFormatUI.class)
+            .getFileFormat();
     assertEquals(FileType.PARQUET, fileFormat.getFileType());
   }
 
   @Test
   public void testCompressedGZ() throws Exception {
     String filePath = getUrlPath("/datasets/compressed/test.json.gz");
-    FileFormat fileFormat = expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/file_format/" + filePath)).buildGet(),
-      FileFormatUI.class).getFileFormat();
+    FileFormat fileFormat =
+        expectSuccess(
+                getBuilder(getAPIv2().path("/source/dacfs_test/file_format/" + filePath))
+                    .buildGet(),
+                FileFormatUI.class)
+            .getFileFormat();
     assertEquals(FileType.JSON, fileFormat.getFileType());
   }
 
   @Test
   public void testCompressedZip() throws Exception {
     String filePath = getUrlPath("/datasets/compressed/test.json.zip");
-    FileFormat fileFormat = expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/file_format/" + filePath)).buildGet(),
-      FileFormatUI.class).getFileFormat();
+    FileFormat fileFormat =
+        expectSuccess(
+                getBuilder(getAPIv2().path("/source/dacfs_test/file_format/" + filePath))
+                    .buildGet(),
+                FileFormatUI.class)
+            .getFileFormat();
     assertEquals(FileType.JSON, fileFormat.getFileType());
   }
 
   @Test
   public void testIgnoreHiddenFiles() throws Exception {
     String filePath = getUrlPath("/datasets/folderdataset/");
-    FileFormat fileFormat = expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/folder_format/" + filePath)).buildGet(),
-      FileFormatUI.class).getFileFormat();
+    FileFormat fileFormat =
+        expectSuccess(
+                getBuilder(getAPIv2().path("/source/dacfs_test/folder_format/" + filePath))
+                    .buildGet(),
+                FileFormatUI.class)
+            .getFileFormat();
     assertEquals(FileType.PARQUET, fileFormat.getFileType());
-
   }
 
   @Test
   public void testDefaultFileFormatForCsvFile() throws Exception {
     String filePath = getUrlPath("/datasets/csv/comma.csv");
-    FileFormat fileFormat = expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/file_format/" + filePath)).buildGet(),
-      FileFormatUI.class).getFileFormat();
+    FileFormat fileFormat =
+        expectSuccess(
+                getBuilder(getAPIv2().path("/source/dacfs_test/file_format/" + filePath))
+                    .buildGet(),
+                FileFormatUI.class)
+            .getFileFormat();
     assertEquals(FileType.TEXT, fileFormat.getFileType());
   }
 
   @Test
   public void testDefaultFileFormatForTextFile() throws Exception {
     String filePath = getUrlPath("/datasets/text/comma.txt");
-    FileFormat fileFormat = expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/file_format/" + filePath)).buildGet(),
-      FileFormatUI.class).getFileFormat();
+    FileFormat fileFormat =
+        expectSuccess(
+                getBuilder(getAPIv2().path("/source/dacfs_test/file_format/" + filePath))
+                    .buildGet(),
+                FileFormatUI.class)
+            .getFileFormat();
     assertEquals(FileType.TEXT, fileFormat.getFileType());
   }
 
   @Test
   public void testDefaultFileFormatForJsonFile() throws Exception {
     String filePath = getUrlPath("/json/mixed.json");
-    FileFormat fileFormat = expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/file_format/" + filePath)).buildGet(),
-      FileFormatUI.class).getFileFormat();
+    FileFormat fileFormat =
+        expectSuccess(
+                getBuilder(getAPIv2().path("/source/dacfs_test/file_format/" + filePath))
+                    .buildGet(),
+                FileFormatUI.class)
+            .getFileFormat();
     assertEquals(FileType.JSON, fileFormat.getFileType());
   }
 
@@ -862,12 +1144,22 @@ public class TestPhysicalDatasets extends BaseTestServer {
     String fileUrlPath = getUrlPath("/datasets/tinyacq.txt");
 
     doc("preview data for source file");
-    JobDataFragment data = expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/file_preview/" + fileUrlPath)).buildPost(Entity.json(fileConfig)), JobDataFragment.class);
+    JobDataFragment data =
+        expectSuccess(
+            getBuilder(getAPIv2().path("/source/dacfs_test/file_preview/" + fileUrlPath))
+                .buildPost(Entity.json(fileConfig)),
+            JobDataFragment.class);
     assertEquals(23, data.getColumns().size());
-    // We should get at most FormatTools.TARGET_RECORDS results - we can get less results if the system is busy for
+    // We should get at most FormatTools.TARGET_RECORDS results - we can get less results if the
+    // system is busy for
     // example but we should get some results at least.
-    final long targetRecords = getCurrentDremioDaemon().getBindingProvider().lookup(SabotContext.class).getOptionManager().getOption(FormatTools.TARGET_RECORDS);
-    assertTrue( data.getReturnedRowCount() > 0 && targetRecords >= data.getReturnedRowCount());
+    final long targetRecords =
+        getCurrentDremioDaemon()
+            .getBindingProvider()
+            .lookup(SabotContext.class)
+            .getOptionManager()
+            .getOption(FormatTools.TARGET_RECORDS);
+    assertTrue(data.getReturnedRowCount() > 0 && targetRecords >= data.getReturnedRowCount());
   }
 
   @Test
@@ -880,9 +1172,16 @@ public class TestPhysicalDatasets extends BaseTestServer {
 
     String fileUrlPath = getUrlPath("/datasets/tinyacq.txt");
 
-    expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/file_format/" + fileUrlPath)).buildPut(Entity.json(fileConfig)));
-    try (final JobDataFragment jobData = submitJobAndGetData(l(JobsService.class), sqlQueryRequestFromFile("/datasets/tinyacq.txt"),
-      0, 500, allocator)) {
+    expectSuccess(
+        getBuilder(getAPIv2().path("/source/dacfs_test/file_format/" + fileUrlPath))
+            .buildPut(Entity.json(fileConfig)));
+    try (final JobDataFragment jobData =
+        submitJobAndGetData(
+            l(JobsService.class),
+            sqlQueryRequestFromFile("/datasets/tinyacq.txt"),
+            0,
+            500,
+            allocator)) {
       assertEquals(23, jobData.getColumns().size());
       assertEquals(500, jobData.getReturnedRowCount());
     }
@@ -904,18 +1203,28 @@ public class TestPhysicalDatasets extends BaseTestServer {
     setLastModified(filePath + "/2020-01-02/1_0_0.parquet", currentTime);
     setLastModified(filePath + "/2020-01-02/1_0_1.parquet", currentTime);
 
-    expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/folder_format/" + filePath)).buildPut(Entity.json(fileConfig)));
+    expectSuccess(
+        getBuilder(getAPIv2().path("/source/dacfs_test/folder_format/" + filePath))
+            .buildPut(Entity.json(fileConfig)));
 
     int expectedNumOfPartitionChunks = 1;
     int expectedNumOfSplitsPerPartition = 1;
-    DatasetConfig datasetConfig = l(NamespaceService.class).getDataset(new DatasetPath(getSchemaPath("/datasets/parquet_2p_4s")).toNamespaceKey());
-    Iterator<PartitionChunkMetadata> iter = l(NamespaceService.class)
-      .findSplits(new LegacyIndexedStore.LegacyFindByCondition().setCondition(PartitionChunkId.getSplitsQuery(datasetConfig))).iterator();
-    for (int i = 0 ; i < expectedNumOfPartitionChunks ; i++) {
+    DatasetConfig datasetConfig =
+        l(NamespaceService.class)
+            .getDataset(new DatasetPath(getSchemaPath("/datasets/parquet_2p_4s")).toNamespaceKey());
+    Iterator<PartitionChunkMetadata> iter =
+        l(NamespaceService.class)
+            .findSplits(
+                new LegacyIndexedStore.LegacyFindByCondition()
+                    .setCondition(PartitionChunkId.getSplitsQuery(datasetConfig)))
+            .iterator();
+    for (int i = 0; i < expectedNumOfPartitionChunks; i++) {
       assertTrue(iter.hasNext());
       PartitionChunkMetadata partitionChunkMetadata = iter.next();
-      logger.debug("Normalized partition info is {}.", partitionChunkMetadata.getNormalizedPartitionInfo());
-      for (PartitionProtobuf.DatasetSplit datasetSplit : partitionChunkMetadata.getDatasetSplits()) {
+      logger.debug(
+          "Normalized partition info is {}.", partitionChunkMetadata.getNormalizedPartitionInfo());
+      for (PartitionProtobuf.DatasetSplit datasetSplit :
+          partitionChunkMetadata.getDatasetSplits()) {
         logger.debug("Dataset split is {}.", datasetSplit);
       }
       assertEquals(expectedNumOfSplitsPerPartition, partitionChunkMetadata.getSplitCount());
@@ -938,18 +1247,28 @@ public class TestPhysicalDatasets extends BaseTestServer {
     setLastModified(filePath + "/2020-01-02/1.txt", currentTime);
     setLastModified(filePath + "/2020-01-02/2.txt", currentTime);
 
-    expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/folder_format/" + filePath)).buildPut(Entity.json(fileConfig)));
+    expectSuccess(
+        getBuilder(getAPIv2().path("/source/dacfs_test/folder_format/" + filePath))
+            .buildPut(Entity.json(fileConfig)));
 
     int expectedNumOfPartitionChunks = 2;
     int expectedNumOfSplitsPerPartition = 2;
-    DatasetConfig datasetConfig = l(NamespaceService.class).getDataset(new DatasetPath(getSchemaPath("/datasets/text_2p_4s")).toNamespaceKey());
-    Iterator<PartitionChunkMetadata> iter = l(NamespaceService.class)
-      .findSplits(new LegacyIndexedStore.LegacyFindByCondition().setCondition(PartitionChunkId.getSplitsQuery(datasetConfig))).iterator();
-    for (int i = 0 ; i < expectedNumOfPartitionChunks ; i++) {
+    DatasetConfig datasetConfig =
+        l(NamespaceService.class)
+            .getDataset(new DatasetPath(getSchemaPath("/datasets/text_2p_4s")).toNamespaceKey());
+    Iterator<PartitionChunkMetadata> iter =
+        l(NamespaceService.class)
+            .findSplits(
+                new LegacyIndexedStore.LegacyFindByCondition()
+                    .setCondition(PartitionChunkId.getSplitsQuery(datasetConfig)))
+            .iterator();
+    for (int i = 0; i < expectedNumOfPartitionChunks; i++) {
       assertTrue(iter.hasNext());
       PartitionChunkMetadata partitionChunkMetadata = iter.next();
-      logger.debug("Normalized partition info is {}.", partitionChunkMetadata.getNormalizedPartitionInfo());
-      for (PartitionProtobuf.DatasetSplit datasetSplit : partitionChunkMetadata.getDatasetSplits()) {
+      logger.debug(
+          "Normalized partition info is {}.", partitionChunkMetadata.getNormalizedPartitionInfo());
+      for (PartitionProtobuf.DatasetSplit datasetSplit :
+          partitionChunkMetadata.getDatasetSplits()) {
         logger.debug("Dataset split is {}.", datasetSplit);
       }
       assertEquals(expectedNumOfSplitsPerPartition, partitionChunkMetadata.getSplitCount());
@@ -971,33 +1290,55 @@ public class TestPhysicalDatasets extends BaseTestServer {
     setLastModified(filePath + "/2022-02-02/2022-02-02.csv", currentTime);
     setLastModified(filePath + "/2023-03-03/2023-03-03.csv", currentTime);
 
-    expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/folder_format/" + filePath)).buildPut(Entity.json(fileConfig)));
+    expectSuccess(
+        getBuilder(getAPIv2().path("/source/dacfs_test/folder_format/" + filePath))
+            .buildPut(Entity.json(fileConfig)));
 
     doc("ensure select * works");
-    try (final JobDataFragment jobData1 = submitJobAndGetData(l(JobsService.class),sqlQueryRequestFromFile("/datasets/schemaevolution"),
-      0, 500, allocator)) {
+    try (final JobDataFragment jobData1 =
+        submitJobAndGetData(
+            l(JobsService.class),
+            sqlQueryRequestFromFile("/datasets/schemaevolution"),
+            0,
+            500,
+            allocator)) {
       assertEquals(3, jobData1.getReturnedRowCount());
       // There are 4 columns because of the directory column
       assertEquals(4, jobData1.getColumns().size());
     }
 
     doc("ensure select NEW_col3 doesn't throw ArrayIndexOutOfBoundsException");
-    try (final JobDataFragment jobData2 = submitJobAndGetData(l(JobsService.class),sqlQueryRequestFromColumnAndFile("NEW_col3", "/datasets/schemaevolution"),
-      0, 500, allocator)) {
+    try (final JobDataFragment jobData2 =
+        submitJobAndGetData(
+            l(JobsService.class),
+            sqlQueryRequestFromColumnAndFile("NEW_col3", "/datasets/schemaevolution"),
+            0,
+            500,
+            allocator)) {
       assertEquals(3, jobData2.getReturnedRowCount());
       assertEquals(1, jobData2.getColumns().size());
     }
 
     doc("ensure select OG_col1, OG_col2 works");
-    try (final JobDataFragment jobData3 = submitJobAndGetData(l(JobsService.class),sqlQueryRequestFromColumnAndFile("OG_col1, OG_col2", "/datasets/schemaevolution"),
-      0, 500, allocator)) {
+    try (final JobDataFragment jobData3 =
+        submitJobAndGetData(
+            l(JobsService.class),
+            sqlQueryRequestFromColumnAndFile("OG_col1, OG_col2", "/datasets/schemaevolution"),
+            0,
+            500,
+            allocator)) {
       assertEquals(3, jobData3.getReturnedRowCount());
       assertEquals(2, jobData3.getColumns().size());
     }
 
     doc("ensure select OG_col2, NEW_col3 works");
-    try (final JobDataFragment jobData4 = submitJobAndGetData(l(JobsService.class),sqlQueryRequestFromColumnAndFile("OG_col2, NEW_col3", "/datasets/schemaevolution"),
-      0, 500, allocator)) {
+    try (final JobDataFragment jobData4 =
+        submitJobAndGetData(
+            l(JobsService.class),
+            sqlQueryRequestFromColumnAndFile("OG_col2, NEW_col3", "/datasets/schemaevolution"),
+            0,
+            500,
+            allocator)) {
       assertEquals(3, jobData4.getReturnedRowCount());
       assertEquals(2, jobData4.getColumns().size());
     }

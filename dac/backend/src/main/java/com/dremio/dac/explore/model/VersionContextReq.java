@@ -15,17 +15,14 @@
  */
 package com.dremio.dac.explore.model;
 
-import java.util.Locale;
-
-import javax.annotation.Nullable;
-
+import com.dremio.dac.service.errors.ClientErrorException;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Strings;
+import java.util.Locale;
+import javax.annotation.Nullable;
 
-/**
- * Extracts the "references" key from the request payload
- */
+/** Extracts the "references" key from the request payload */
 public class VersionContextReq {
 
   public enum VersionContextType {
@@ -39,24 +36,24 @@ public class VersionContextReq {
 
   @JsonCreator
   public VersionContextReq(
-    @JsonProperty("type") VersionContextType type,
-    @JsonProperty("value") String value) {
+      @JsonProperty("type") VersionContextType type, @JsonProperty("value") String value) {
     this.type = type;
     this.value = value;
   }
 
   /**
-   * Tries to create a VersionContextReq from input strings.
-   * Case-insensitive enum conversion.
+   * Tries to create a VersionContextReq from input strings. Case-insensitive enum conversion.
    * Returns null on most failures.
    */
   public static @Nullable VersionContextReq tryParse(String type, String value) {
-    if (Strings.isNullOrEmpty(type) || Strings.isNullOrEmpty(value)) {
+    if (Strings.isNullOrEmpty(type) && Strings.isNullOrEmpty(value)) {
       return null;
+    } else if (Strings.isNullOrEmpty(type) && !Strings.isNullOrEmpty(value)) {
+      throw new ClientErrorException("Version type was null while value was specified");
+    } else if (!Strings.isNullOrEmpty(type) && Strings.isNullOrEmpty(value)) {
+      throw new ClientErrorException("Version value was null while type was specified");
     }
-    return new VersionContextReq(
-      VersionContextType.valueOf(type.toUpperCase(Locale.ROOT)),
-      value);
+    return new VersionContextReq(VersionContextType.valueOf(type.toUpperCase(Locale.ROOT)), value);
   }
 
   public VersionContextType getType() {

@@ -15,20 +15,20 @@
  */
 package com.dremio.service.scheduler;
 
+import com.dremio.telemetry.api.metrics.Counter;
+import com.dremio.telemetry.api.metrics.Metrics;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import com.dremio.telemetry.api.metrics.Counter;
-import com.dremio.telemetry.api.metrics.Metrics;
-
 /**
- * Collects statistics from various sub managers of the {@code ClusteredSingletonTaskScheduler} by collecting
- * various scheduler events and converting them to various metrics.
+ * Collects statistics from various sub managers of the {@code ClusteredSingletonTaskScheduler} by
+ * collecting various scheduler events and converting them to various metrics.
  */
 final class TaskStatsCollector implements SchedulerEvents {
-  private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(TaskStatsCollector.class);
+  private static final org.slf4j.Logger LOGGER =
+      org.slf4j.LoggerFactory.getLogger(TaskStatsCollector.class);
   static final String BASE_METRIC_NAME = "schedules";
   private static final int LOG_INTERVAL_SECONDS = 600;
   private final ClusteredSingletonCommon schedulerCommon;
@@ -36,6 +36,7 @@ final class TaskStatsCollector implements SchedulerEvents {
   private final Counter totalTasks;
   private final Counter totalOneShotTasks;
   private final Counter totalDoneTasks;
+  private final Counter totalUnexpectedErrors;
   private final MembershipStats groupMembershipStats;
   private volatile int currentRunSetTasks;
 
@@ -43,8 +44,12 @@ final class TaskStatsCollector implements SchedulerEvents {
     this.schedulerCommon = schedulerCommon;
     this.allTasks = new ConcurrentHashMap<>();
     this.totalTasks = Metrics.newCounter(getRootMetricsName("tasks"), Metrics.ResetType.NEVER);
-    this.totalDoneTasks = Metrics.newCounter(getRootMetricsName("done_tasks"), Metrics.ResetType.NEVER);
-    this.totalOneShotTasks = Metrics.newCounter(getRootMetricsName("single_shot_tasks"), Metrics.ResetType.NEVER);
+    this.totalDoneTasks =
+        Metrics.newCounter(getRootMetricsName("done_tasks"), Metrics.ResetType.NEVER);
+    this.totalOneShotTasks =
+        Metrics.newCounter(getRootMetricsName("single_shot_tasks"), Metrics.ResetType.NEVER);
+    this.totalUnexpectedErrors =
+        Metrics.newCounter(getRootMetricsName("total_unexpected_errors"), Metrics.ResetType.NEVER);
     this.groupMembershipStats = new MembershipStats();
     Metrics.newGauge(getRootMetricsName("active_tasks"), allTasks::size);
     Metrics.newGauge(getRootMetricsName("run_q_size"), () -> currentRunSetTasks);
@@ -57,8 +62,10 @@ final class TaskStatsCollector implements SchedulerEvents {
   void start() {
     if (LOGGER.isDebugEnabled()) {
       // Log only if debug is enabled as all stats are available through JMX
-      schedulerCommon.getSchedulePool().scheduleAtFixedRate(this::logStats, LOG_INTERVAL_SECONDS,
-        LOG_INTERVAL_SECONDS, TimeUnit.SECONDS);
+      schedulerCommon
+          .getSchedulePool()
+          .scheduleAtFixedRate(
+              this::logStats, LOG_INTERVAL_SECONDS, LOG_INTERVAL_SECONDS, TimeUnit.SECONDS);
     }
   }
 
@@ -68,21 +75,30 @@ final class TaskStatsCollector implements SchedulerEvents {
 
   @Override
   public PerTaskEvents addTask(PerTaskSchedule schedule) {
-    return allTasks.computeIfAbsent(schedule.getTaskName(), (k) -> {
-      totalTasks.increment();
-      if (schedule.getSchedule().isToRunExactlyOnce()) {
-        totalOneShotTasks.increment();
-      }
-      return new PerTaskStatsCollector(schedule);
-    });
+    return allTasks.computeIfAbsent(
+        schedule.getTaskName(),
+        (k) -> {
+          totalTasks.increment();
+          if (schedule.getSchedule().isToRunExactlyOnce()) {
+            totalOneShotTasks.increment();
+          }
+          return new PerTaskStatsCollector(schedule);
+        });
+  }
+
+  @Override
+  public void hitUnexpectedError() {
+    totalUnexpectedErrors.increment();
   }
 
   @Override
   public void taskDone(String taskName) {
-    allTasks.computeIfPresent(taskName, (k, v) -> {
-      totalDoneTasks.increment();
-      return null;
-    });
+    allTasks.computeIfPresent(
+        taskName,
+        (k, v) -> {
+          totalDoneTasks.increment();
+          return null;
+        });
   }
 
   @Override
@@ -107,18 +123,32 @@ final class TaskStatsCollector implements SchedulerEvents {
 
   @Override
   public String toString() {
-    String mainStats = "Total Tasks : " + totalTasks + System.lineSeparator() +
-      "Total One Shot Tasks : " + totalOneShotTasks + System.lineSeparator() +
-      "Total Done Tasks : " + totalDoneTasks + System.lineSeparator() +
-      "Current Active Tasks : " + allTasks.size() + System.lineSeparator() +
-      "Current Tasks in Run Set : " + currentRunSetTasks + System.lineSeparator() +
-      "Membership Stats : " + System.lineSeparator() + groupMembershipStats +
-      System.lineSeparator();
+    String mainStats =
+        "Total Tasks : "
+            + totalTasks
+            + System.lineSeparator()
+            + "Total One Shot Tasks : "
+            + totalOneShotTasks
+            + System.lineSeparator()
+            + "Total Done Tasks : "
+            + totalDoneTasks
+            + System.lineSeparator()
+            + "Current Active Tasks : "
+            + allTasks.size()
+            + System.lineSeparator()
+            + "Current Tasks in Run Set : "
+            + currentRunSetTasks
+            + System.lineSeparator()
+            + "Membership Stats : "
+            + System.lineSeparator()
+            + groupMembershipStats
+            + System.lineSeparator();
     StringBuilder sb = new StringBuilder(mainStats);
-    allTasks.forEach((k, v) -> {
-      sb.append("Per Task Stats For ").append(k).append(System.lineSeparator());
-      sb.append(v);
-    });
+    allTasks.forEach(
+        (k, v) -> {
+          sb.append("Per Task Stats For ").append(k).append(System.lineSeparator());
+          sb.append(v);
+        });
     return sb.toString();
   }
 
@@ -150,9 +180,15 @@ final class TaskStatsCollector implements SchedulerEvents {
 
     @Override
     public String toString() {
-        return "Current Membership Count :" + currentMembershipCount.get() + System.lineSeparator() +
-        "Current Owned Tasks :" + currentOwnedTasks.get() + System.lineSeparator() +
-        "Last Disowned Task count :" + lastDisownedTasks.get() + System.lineSeparator();
+      return "Current Membership Count :"
+          + currentMembershipCount.get()
+          + System.lineSeparator()
+          + "Current Owned Tasks :"
+          + currentOwnedTasks.get()
+          + System.lineSeparator()
+          + "Last Disowned Task count :"
+          + lastDisownedTasks.get()
+          + System.lineSeparator();
     }
   }
 }

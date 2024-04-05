@@ -17,17 +17,6 @@ package com.dremio.sabot.op.join.vhash.spill.partition;
 
 import static com.dremio.sabot.op.join.vhash.spill.JoinSetupParams.TABLE_HASH_SIZE;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.OutOfMemoryException;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.AutoCloseables.RollbackCloseable;
 import com.dremio.common.VM;
@@ -41,14 +30,21 @@ import com.dremio.sabot.op.join.vhash.spill.MultiMemoryReleaser;
 import com.dremio.sabot.op.join.vhash.spill.SV2UnsignedUtil;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
-
 import io.netty.util.internal.PlatformDependent;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.OutOfMemoryException;
 
-/**
- * Partition impl that acts as a bridge to multiple child partitions.
- */
+/** Partition impl that acts as a bridge to multiple child partitions. */
 public final class MultiPartition implements Partition, CanSwitchToSpilling {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MultiPartition.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(MultiPartition.class);
   private static final int FULL_HASH_SIZE = 8;
 
   private final int numPartitions;
@@ -74,7 +70,8 @@ public final class MultiPartition implements Partition, CanSwitchToSpilling {
 
   public MultiPartition(JoinSetupParams setupParams) {
     this.setupParams = setupParams;
-    this.copierFactory = CopierFactory.getInstance(setupParams.getSabotConfig(), setupParams.getOptions());
+    this.copierFactory =
+        CopierFactory.getInstance(setupParams.getSabotConfig(), setupParams.getOptions());
 
     numPartitions = (int) setupParams.getOptions().getOption(HashJoinOperator.NUM_PARTITIONS);
     partitionMask = numPartitions - 1;
@@ -123,6 +120,7 @@ public final class MultiPartition implements Partition, CanSwitchToSpilling {
     return records;
   }
 
+  // build the partition for the given child.
   private void buildPivotedForChild(int startIdx, PartitionWrapper child) throws Exception {
     int recordsDone = 0;
     int total = child.getNumRecords();
@@ -130,13 +128,16 @@ public final class MultiPartition implements Partition, CanSwitchToSpilling {
       int recordsRequestedInIteration = total - recordsDone;
       int recordsInsertedInIteration = 0;
       try {
-        recordsInsertedInIteration = child.getPartition().buildPivoted(startIdx, recordsRequestedInIteration);
+        recordsInsertedInIteration =
+            child.getPartition().buildPivoted(startIdx, recordsRequestedInIteration);
       } catch (OutOfMemoryException ignore) {
       } catch (HeapLowMemoryReachedException e) {
-        logger.debug("major fragment id {} minor fragment id {} switching partition total usage {} limit {}",
-          setupParams.getContext().getFragmentHandle().getMajorFragmentId(), setupParams.getContext().getFragmentHandle().getMinorFragmentId(),
-          setupParams.getOpAllocator().getAllocatedMemory(),
-          setupParams.getOpAllocator().getLimit());
+        logger.debug(
+            "major fragment id {} minor fragment id {} switching partition total usage {} limit {}",
+            setupParams.getContext().getFragmentHandle().getMajorFragmentId(),
+            setupParams.getContext().getFragmentHandle().getMinorFragmentId(),
+            setupParams.getOpAllocator().getAllocatedMemory(),
+            setupParams.getOpAllocator().getLimit());
         child.switchToSpilling();
         continue;
       }
@@ -149,7 +150,8 @@ public final class MultiPartition implements Partition, CanSwitchToSpilling {
           // try again
           child.removeInsertedRecordsInSV2(recordsInsertedInIteration);
         } else {
-          logger.error("zero records inserted during build, even after all partitions switched to spill");
+          logger.error(
+              "zero records inserted during build, even after all partitions switched to spill");
           throw new OutOfMemoryException("unable to insert batch even after switching to spill");
         }
       }
@@ -162,15 +164,17 @@ public final class MultiPartition implements Partition, CanSwitchToSpilling {
     // split batch ordinals into per-partition buffers based on the highest 3-bits in the hash.
     resetAllPartitionInputs();
     fullHashValues8B.checkBytes(startIdx * FULL_HASH_SIZE, (startIdx + records) * FULL_HASH_SIZE);
-    tableHashValues4B.checkBytes(startIdx * TABLE_HASH_SIZE, (startIdx + records) * TABLE_HASH_SIZE);
+    tableHashValues4B.checkBytes(
+        startIdx * TABLE_HASH_SIZE, (startIdx + records) * TABLE_HASH_SIZE);
     childWrappers[0].sv2.checkBytes(0, records * SelectionVector2.RECORD_SIZE);
     final long fullHashStartAddr8B = fullHashValues8B.memoryAddress();
     final long tableHashStartAddr4B = tableHashValues4B.memoryAddress();
     int currentFullHashOffset = 0;
     int currentTableHashOffset = 0;
     for (int ordinal = startIdx;
-         ordinal < startIdx + records;
-         ordinal++, currentFullHashOffset += FULL_HASH_SIZE, currentTableHashOffset += TABLE_HASH_SIZE) {
+        ordinal < startIdx + records;
+        ordinal++, currentFullHashOffset += FULL_HASH_SIZE,
+            currentTableHashOffset += TABLE_HASH_SIZE) {
       /*
        * In the 64-bit hash,
        * - high 29 bits are unused.
@@ -178,7 +182,7 @@ public final class MultiPartition implements Partition, CanSwitchToSpilling {
        * - low 32-bits are used in the hash table
        */
       final long fullHash = PlatformDependent.getLong(fullHashStartAddr8B + currentFullHashOffset);
-      final int partitionIdx = (int)(fullHash >> 32) & partitionMask;
+      final int partitionIdx = (int) (fullHash >> 32) & partitionMask;
       final int tableHash = (int) fullHash;
 
       // add the tableHash to the common buffer
@@ -274,18 +278,33 @@ public final class MultiPartition implements Partition, CanSwitchToSpilling {
   @Override
   public void prepareBloomFilters(PartitionColFilters partitionColFilters) {
     for (int i = 0; i < numPartitions; i++) {
-      childWrappers[i].getPartition().prepareBloomFilters(partitionColFilters);
+      Partition partition = childWrappers[i].getPartition();
+      if (partition instanceof CanSwitchToSpilling) {
+        partition.prepareBloomFilters(partitionColFilters);
+      }
     }
   }
 
   @Override
   public void prepareValueListFilters(NonPartitionColFilters nonPartitionColFilters) {
     for (int i = 0; i < numPartitions; i++) {
-      childWrappers[i].getPartition().prepareValueListFilters(nonPartitionColFilters);
+      Partition partition = childWrappers[i].getPartition();
+      if (partition instanceof CanSwitchToSpilling) {
+        partition.prepareValueListFilters(nonPartitionColFilters);
+      }
     }
   }
 
-  private long sumOverAllPartitions(Partition.Stats[] plist, Function<Partition.Stats, Long> statOne) {
+  @Override
+  public void setFilters(
+      NonPartitionColFilters nonPartitionColFilters, PartitionColFilters partitionColFilters) {
+    for (int i = 0; i < numPartitions; i++) {
+      childWrappers[i].getPartition().setFilters(nonPartitionColFilters, partitionColFilters);
+    }
+  }
+
+  private long sumOverAllPartitions(
+      Partition.Stats[] plist, Function<Partition.Stats, Long> statOne) {
     long sum = 0;
     for (int i = 0; i < numPartitions; ++i) {
       sum += statOne.apply(plist[i]);
@@ -427,13 +446,14 @@ public final class MultiPartition implements Partition, CanSwitchToSpilling {
     long spillableBytes = 0;
     for (int i = 0; i < numPartitions; ++i) {
       if (childWrappers[i].partition instanceof CanSwitchToSpilling) {
-        CanSwitchToSpilling p = (CanSwitchToSpilling)childWrappers[i].partition;
+        CanSwitchToSpilling p = (CanSwitchToSpilling) childWrappers[i].partition;
         spillableBytes += p.estimateSpillableBytes();
       }
     }
     return spillableBytes;
   }
 
+  // switch to spilling mode.
   @Override
   public CanSwitchToSpilling.SwitchResult switchToSpilling(boolean spillAll) {
     boolean switched = false;
@@ -463,10 +483,13 @@ public final class MultiPartition implements Partition, CanSwitchToSpilling {
 
       // if victim found, switch it to spilling.
       if (victimIdx != -1) {
-        logger.info("switching partition {} with memory usage {} of total {} to spilling, total usage {} limit {}", victimIdx,
-          victimBytes, totalBytes,
-          setupParams.getOpAllocator().getAllocatedMemory(),
-          setupParams.getOpAllocator().getLimit());
+        logger.info(
+            "switching partition {} with memory usage {} of total {} to spilling, total usage {} limit {}",
+            victimIdx,
+            victimBytes,
+            totalBytes,
+            setupParams.getOpAllocator().getAllocatedMemory(),
+            setupParams.getOpAllocator().getLimit());
         childWrappers[victimIdx].switchToSpilling();
         switched = true;
       }
@@ -484,11 +507,22 @@ public final class MultiPartition implements Partition, CanSwitchToSpilling {
   }
 
   @Override
+  public boolean isFiltersPreparedWithException() {
+    for (int i = 0; i < numPartitions; ++i) {
+      if (childWrappers[i].partition.isFiltersPreparedWithException()) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  @Override
   public void reset() {
     // record the current stats, they will be used for the next gen after reset.
     statsFromPrevGen = new RecordedStats(getStats());
 
-    // This reseed is needed so that the data that was recorded for one partition in the previous generation will
+    // This reseed is needed so that the data that was recorded for one partition in the previous
+    // generation will
     // now get redistributed across all partitions during replay.
     hasher.reseed();
     // bump the generation, used for naming spill files
@@ -512,8 +546,11 @@ public final class MultiPartition implements Partition, CanSwitchToSpilling {
      *
      * numInMemPartitions check here only exist to satisfy some unit tests...
      */
-    Preconditions.checkState(numInMemoryPartitions == 0 || inMemTotalHashTableSize != 0 || preSpillBuildTotalHashTableSize != 1,
-      "All in memory entries belong to same group. Replay never converge. Failing the query");
+    Preconditions.checkState(
+        numInMemoryPartitions == 0
+            || inMemTotalHashTableSize != 0
+            || preSpillBuildTotalHashTableSize != 1,
+        "All in memory entries belong to same group. Replay never converge. Failing the query");
 
     // recreate the partitions in descending order of memory.
     List<PartitionWrapper> sortedWrappers = Arrays.asList(childWrappers);
@@ -550,7 +587,8 @@ public final class MultiPartition implements Partition, CanSwitchToSpilling {
     PartitionWrapper(int partitionIndex, int maxRecords) {
       try (RollbackCloseable rc = new RollbackCloseable(true)) {
         this.partitionIndex = partitionIndex;
-        this.sv2 = rc.add(setupParams.getOpAllocator().buffer(maxRecords * SelectionVector2.RECORD_SIZE));
+        this.sv2 =
+            rc.add(setupParams.getOpAllocator().buffer(maxRecords * SelectionVector2.RECORD_SIZE));
         this.sv2Addr = sv2.memoryAddress();
         this.maxRecords = maxRecords;
         rc.add(createPartition());
@@ -567,11 +605,14 @@ public final class MultiPartition implements Partition, CanSwitchToSpilling {
     }
 
     private Partition createPartition() {
-      boolean useDiskPartition = setupParams.getOptions().getOption(HashJoinOperator.TEST_SPILL_MODE).equals("replay")
-        && setupParams.getGeneration() == 1;
-      partition = useDiskPartition ?
-        new DiskPartition(setupParams, partitionIndex, sv2) :
-        new MemoryPartition(setupParams, copierFactory, partitionIndex, sv2, tableHashValues4B);
+      boolean useDiskPartition =
+          setupParams.getOptions().getOption(HashJoinOperator.TEST_SPILL_MODE).equals("replay")
+              && setupParams.getGeneration() == 1;
+      partition =
+          useDiskPartition
+              ? new DiskPartition(setupParams, partitionIndex, sv2)
+              : new MemoryPartition(
+                  setupParams, copierFactory, partitionIndex, sv2, tableHashValues4B);
       return partition;
     }
 
@@ -601,7 +642,9 @@ public final class MultiPartition implements Partition, CanSwitchToSpilling {
       return numRecords;
     }
 
-    Partition getPartition() { return partition; }
+    Partition getPartition() {
+      return partition;
+    }
 
     void recreatePartition() {
       AutoCloseables.closeNoChecked(partition);
@@ -610,14 +653,17 @@ public final class MultiPartition implements Partition, CanSwitchToSpilling {
 
     void switchToSpilling() {
       Preconditions.checkState(partition instanceof CanSwitchToSpilling);
-      CanSwitchToSpilling.SwitchResult result = ((CanSwitchToSpilling) partition).switchToSpilling(false);
+      CanSwitchToSpilling.SwitchResult result =
+          ((CanSwitchToSpilling) partition).switchToSpilling(false);
       if (result.isSwitchDone()) {
         partition = result.getNewPartition();
       }
     }
 
     long estimateMemoryUsage() {
-      return partition instanceof CanSwitchToSpilling ? ((CanSwitchToSpilling) partition).estimateSpillableBytes() : 0;
+      return partition instanceof CanSwitchToSpilling
+          ? ((CanSwitchToSpilling) partition).estimateSpillableBytes()
+          : 0;
     }
 
     @Override

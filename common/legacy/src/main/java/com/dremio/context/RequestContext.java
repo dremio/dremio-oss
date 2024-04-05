@@ -24,16 +24,12 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 /**
- * Represents the context for a request.  The context stores key/value pairs and is immutable.  Provides ways to
- * apply the context to Runnables/Callables.
+ * Represents the context for a request. The context stores key/value pairs and is immutable.
+ * Provides ways to apply the context to Runnables/Callables.
  *
- * Example usage:
+ * <p>Example usage:
  *
- * RequestContext.current()
- *   .with(key, value)
- *   .run(() -> {
- *     RequestContext.current().get(key);
- *   });
+ * <p>RequestContext.current() .with(key, value) .run(() -> { RequestContext.current().get(key); });
  */
 @SuppressWarnings("checkstyle:FinalClass")
 public class RequestContext {
@@ -62,7 +58,7 @@ public class RequestContext {
   }
 
   /**
-   *  Adds a map of key/values to the context.
+   * Adds a map of key/values to the context.
    *
    * @param map map of key/values to add to the context
    * @return a new RequestContext with the keys/values set
@@ -74,9 +70,7 @@ public class RequestContext {
     return new RequestContext(newValues);
   }
 
-  /**
-   * Removes the value for the given key from the context.
-   */
+  /** Removes the value for the given key from the context. */
   public <T> RequestContext without(Key key) {
     final Map<Key<?>, Object> newValues = new HashMap<>(this.values);
     newValues.remove(key);
@@ -130,9 +124,7 @@ public class RequestContext {
     }
   }
 
-  /**
-   * Runs the callable in the current context and transforms any Exceptions to RuntimeExceptions
-   */
+  /** Runs the callable in the current context and transforms any Exceptions to RuntimeExceptions */
   public <V> V callUnchecked(Callable<V> callable) {
     try {
       return call(callable);
@@ -144,16 +136,13 @@ public class RequestContext {
   }
 
   /**
-   * <p>
-   * Builds the Stream via the callable under this context and makes sure that later on,
-   * the lazy-evaluation of elements in the Stream also happens under this context.
-   * Note: if different pipeline steps need a different RequestContext this has to be taken
-   * care of manually by capturing the RequestContext in a local variable outside of the lambda.
-   * </p>
-   * <p>
-   * For example this is needed when the Stream pipeline uses a context aware method:
-   * </p>
-   * <code>return buildStream().filter(x -> x > 2).map(x -> contextMethod(x, otherParam));</code>
+   * Builds the Stream via the callable under this context and makes sure that later on, the
+   * lazy-evaluation of elements in the Stream also happens under this context. Note: if different
+   * pipeline steps need a different RequestContext this has to be taken care of manually by
+   * capturing the RequestContext in a local variable outside of the lambda.
+   *
+   * <p>For example this is needed when the Stream pipeline uses a context aware method: <code>
+   * return buildStream().filter(x -> x > 2).map(x -> contextMethod(x, otherParam));</code>
    */
   public <E> Stream<E> callStream(Callable<Stream<E>> callable) throws Exception {
     final RequestContext saved = current();

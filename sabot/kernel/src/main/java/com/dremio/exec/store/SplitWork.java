@@ -15,10 +15,6 @@
  */
 package com.dremio.exec.store;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.physical.EndpointAffinity;
 import com.dremio.exec.planner.fragment.DistributionAffinity;
@@ -33,6 +29,9 @@ import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.NormalizedPa
 import com.google.common.collect.FluentIterable;
 import com.google.common.net.HostAndPort;
 import com.google.protobuf.ByteString;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 
 public class SplitWork implements CompleteWork {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SplitWork.class);
@@ -42,7 +41,11 @@ public class SplitWork implements CompleteWork {
   final ExecutionNodeMap nodeMap;
   final DistributionAffinity affinityType;
 
-  public SplitWork(PartitionChunkMetadata partitionChunk, DatasetSplit datasetSplit, ExecutionNodeMap nodeMap, DistributionAffinity affinityType) {
+  public SplitWork(
+      PartitionChunkMetadata partitionChunk,
+      DatasetSplit datasetSplit,
+      ExecutionNodeMap nodeMap,
+      DistributionAffinity affinityType) {
     super();
     this.partitionChunk = partitionChunk;
     this.datasetSplit = datasetSplit;
@@ -63,10 +66,10 @@ public class SplitWork implements CompleteWork {
   public SplitAndPartitionInfo getSplitAndPartitionInfo(boolean withAffinity) {
     NormalizedPartitionInfo partitionInfo = partitionChunk.getNormalizedPartitionInfo();
 
-    NormalizedDatasetSplitInfo.Builder splitInfo = NormalizedDatasetSplitInfo
-      .newBuilder()
-      .setPartitionId(partitionInfo.getId())
-      .setExtendedProperty(datasetSplit.getSplitExtendedProperty());
+    NormalizedDatasetSplitInfo.Builder splitInfo =
+        NormalizedDatasetSplitInfo.newBuilder()
+            .setPartitionId(partitionInfo.getId())
+            .setExtendedProperty(datasetSplit.getSplitExtendedProperty());
 
     // For most sources, executors don't require the affinities.
     if (withAffinity) {
@@ -100,17 +103,24 @@ public class SplitWork implements CompleteWork {
   @Override
   public List<EndpointAffinity> getAffinity() {
     List<EndpointAffinity> endpoints = new ArrayList<>();
-    for(Affinity a : datasetSplit.getAffinitiesList()){
+    for (Affinity a : datasetSplit.getAffinitiesList()) {
       HostAndPort hostAndPort = HostAndPort.fromString(a.getHost());
       NodeEndpoint endpoint = getMatchingNode(hostAndPort);
-      if(endpoint != null){
-        endpoints.add(new EndpointAffinity(hostAndPort, endpoint, a.getFactor(), affinityType == DistributionAffinity.HARD, affinityType == DistributionAffinity.HARD ? 1 : Integer.MAX_VALUE));
+      if (endpoint != null) {
+        endpoints.add(
+            new EndpointAffinity(
+                hostAndPort,
+                endpoint,
+                a.getFactor(),
+                affinityType == DistributionAffinity.HARD,
+                affinityType == DistributionAffinity.HARD ? 1 : Integer.MAX_VALUE));
       } else {
         if (affinityType == DistributionAffinity.HARD) {
           // Throw an error if there is no endpoint on host
           throw UserException.resourceError()
-              .message("No executors are available for data with hard affinity. " +
-                  "You may consider using \"registration.publish-host\" property if your network rules change.")
+              .message(
+                  "No executors are available for data with hard affinity. "
+                      + "You may consider using \"registration.publish-host\" property if your network rules change.")
               .addContext("available executors %s", nodeMap.getHosts())
               .addContext("data affinity", a.getHost())
               .build(logger);
@@ -120,16 +130,22 @@ public class SplitWork implements CompleteWork {
     return endpoints;
   }
 
-  public static Iterator<SplitWork> transform(Iterator<PartitionChunkMetadata> splits, final ExecutionNodeMap nodeMap, final DistributionAffinity affinityType) {
+  public static Iterator<SplitWork> transform(
+      Iterator<PartitionChunkMetadata> splits,
+      final ExecutionNodeMap nodeMap,
+      final DistributionAffinity affinityType) {
     return FluentIterable.from(() -> splits)
-      .transformAndConcat(partitionChunk -> FluentIterable.from(partitionChunk.getDatasetSplits())
-        .transform(datasetSplit -> new SplitWork(partitionChunk, datasetSplit, nodeMap, affinityType)))
-      .iterator();
+        .transformAndConcat(
+            partitionChunk ->
+                FluentIterable.from(partitionChunk.getDatasetSplits())
+                    .transform(
+                        datasetSplit ->
+                            new SplitWork(partitionChunk, datasetSplit, nodeMap, affinityType)))
+        .iterator();
   }
 
-  public static Iterator<SplitWork> transform(final TableMetadata dataset, ExecutionNodeMap nodeMap, DistributionAffinity affinityType){
+  public static Iterator<SplitWork> transform(
+      final TableMetadata dataset, ExecutionNodeMap nodeMap, DistributionAffinity affinityType) {
     return transform(dataset.getSplits(), nodeMap, affinityType);
   }
-
-
 }

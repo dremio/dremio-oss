@@ -20,9 +20,7 @@ import com.dremio.exec.proto.CoordExecRPC.PlanFragmentMinor;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 
-/**
- * Holder for the major and minor specific portions of the plan fragment.
- */
+/** Holder for the major and minor specific portions of the plan fragment. */
 public class PlanFragmentFull {
   private final PlanFragmentMajor major;
   private final PlanFragmentMinor minor;
@@ -32,9 +30,10 @@ public class PlanFragmentFull {
     this.major = major;
     this.minor = minor;
 
-    handle = FragmentHandle.newBuilder(major.getHandle())
-      .setMinorFragmentId(minor.getMinorFragmentId())
-      .build();
+    handle =
+        FragmentHandle.newBuilder(major.getHandle())
+            .setMinorFragmentId(minor.getMinorFragmentId())
+            .build();
   }
 
   public PlanFragmentMajor getMajor() {
@@ -45,15 +44,27 @@ public class PlanFragmentFull {
     return minor;
   }
 
-  public FragmentHandle getHandle() { return handle; }
+  public FragmentHandle getHandle() {
+    return handle;
+  }
 
-  public int getMajorFragmentId() { return handle.getMajorFragmentId(); }
+  public int getMajorFragmentId() {
+    return handle.getMajorFragmentId();
+  }
 
-  public int getMinorFragmentId() { return handle.getMinorFragmentId(); }
+  public int getMinorFragmentId() {
+    return handle.getMinorFragmentId();
+  }
 
-  public NodeEndpoint getAssignment() { return minor.getAssignment(); }
+  public NodeEndpoint getAssignment() {
+    return minor.getAssignment();
+  }
 
-  public long getMemInitial() { return major.getMemInitial(); }
+  public long getMemInitial() {
+    return major.getMemInitial();
+  }
 
-  public long getMemMax() { return minor.getMemMax(); }
+  public long getMemMax() {
+    return minor.getMemMax();
+  }
 }

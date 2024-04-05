@@ -20,15 +20,10 @@ import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.WriterOptions;
 
-/**
- * Writer for fs based tables.
- */
+/** Writer for fs based tables. */
 public abstract class FileSystemWriter extends AbstractWriter {
 
-  public FileSystemWriter(
-      OpProps props,
-      PhysicalOperator child,
-      WriterOptions options) {
+  public FileSystemWriter(OpProps props, PhysicalOperator child, WriterOptions options) {
     super(props, child, options);
   }
 

@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.cache;
 
+import com.dremio.common.util.DataInputInputStream;
+import com.dremio.common.util.DataOutputOutputStream;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInput;
@@ -27,14 +29,10 @@ import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.io.OutputStream;
 
-import com.dremio.common.util.DataInputInputStream;
-import com.dremio.common.util.DataOutputOutputStream;
-
 /**
- * Helper class that holds the basic functionality to interchangeably use
- * the different Dremio serializable interfaces. This is package private as
- * users should utilize either AbstractDataSerializable or AbstractStreamSerializable
- * instead to avoid infinite loops.
+ * Helper class that holds the basic functionality to interchangeably use the different Dremio
+ * serializable interfaces. This is package private as users should utilize either
+ * AbstractDataSerializable or AbstractStreamSerializable instead to avoid infinite loops.
  */
 abstract class LoopedAbstractSerializable implements Serializable {
 

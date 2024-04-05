@@ -16,18 +16,21 @@
 
 package com.dremio.exec.planner.physical;
 
+import com.dremio.exec.planner.logical.RelOptHelper;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.rex.RexLiteral;
 
-import com.dremio.exec.planner.logical.RelOptHelper;
-
-public class PushLimitToTopN  extends Prule{
+public class PushLimitToTopN extends Prule {
 
   public static final RelOptRule INSTANCE = new PushLimitToTopN();
 
   private PushLimitToTopN() {
-    super(RelOptHelper.some(LimitPrel.class, RelOptHelper.some(SingleMergeExchangePrel.class, RelOptHelper.any(SortPrel.class))), "PushLimitToTopN");
+    super(
+        RelOptHelper.some(
+            LimitPrel.class,
+            RelOptHelper.some(SingleMergeExchangePrel.class, RelOptHelper.any(SortPrel.class))),
+        "PushLimitToTopN");
   }
 
   @Override
@@ -40,15 +43,26 @@ public class PushLimitToTopN  extends Prule{
     final SortPrel sort = (SortPrel) call.rel(2);
 
     // First offset to include into results (inclusive). Null implies it is starting from offset 0
-    int offset = limit.getOffset() != null ? Math.max(0, RexLiteral.intValue(limit.getOffset())) : 0;
+    int offset =
+        limit.getOffset() != null ? Math.max(0, RexLiteral.intValue(limit.getOffset())) : 0;
     int fetch = Math.max(0, RexLiteral.intValue(limit.getFetch()));
 
-    final TopNPrel topN = new TopNPrel(limit.getCluster(), sort.getTraitSet(), sort.getInput(), offset + fetch, sort.getCollation());
-    final LimitPrel newLimit = new LimitPrel(limit.getCluster(), limit.getTraitSet(),
-        new SingleMergeExchangePrel(smex.getCluster(), smex.getTraitSet(), topN, sort.getCollation()),
-        limit.getOffset(), limit.getFetch());
+    final TopNPrel topN =
+        new TopNPrel(
+            limit.getCluster(),
+            sort.getTraitSet(),
+            sort.getInput(),
+            offset + fetch,
+            sort.getCollation());
+    final LimitPrel newLimit =
+        new LimitPrel(
+            limit.getCluster(),
+            limit.getTraitSet(),
+            new SingleMergeExchangePrel(
+                smex.getCluster(), smex.getTraitSet(), topN, sort.getCollation()),
+            limit.getOffset(),
+            limit.getFetch());
 
     call.transformTo(newLimit);
   }
-
 }

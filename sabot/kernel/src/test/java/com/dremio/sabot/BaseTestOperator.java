@@ -15,34 +15,9 @@
  */
 package com.dremio.sabot;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-
-import javax.inject.Provider;
-
-import org.antlr.runtime.ANTLRStringStream;
-import org.antlr.runtime.CommonTokenStream;
-import org.antlr.runtime.RecognitionException;
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.BufferManager;
-import org.apache.arrow.memory.RootAllocatorFactory;
-import org.apache.calcite.rel.RelFieldCollation;
-import org.apache.curator.utils.CloseableExecutorService;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.rules.TemporaryFolder;
-import org.mockito.Mock;
-import org.mockito.Mockito;
-import org.mockito.MockitoAnnotations;
-
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.concurrent.CloseableExecutorService;
+import com.dremio.common.concurrent.CloseableThreadPool;
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.ExecutionSetupException;
@@ -137,25 +112,42 @@ import com.dremio.service.spill.SpillServiceImpl;
 import com.dremio.test.DremioTest;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
-
 import io.airlift.tpch.GenerationDefinition.TpchTable;
 import io.airlift.tpch.TpchGenerator;
-
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import javax.inject.Provider;
+import org.antlr.runtime.ANTLRStringStream;
+import org.antlr.runtime.CommonTokenStream;
+import org.antlr.runtime.RecognitionException;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.BufferManager;
+import org.apache.arrow.memory.RootAllocatorFactory;
+import org.apache.calcite.rel.RelFieldCollation;
+import org.junit.After;
+import org.junit.AfterClass;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
+import org.junit.rules.TemporaryFolder;
+import org.mockito.Mock;
+import org.mockito.Mockito;
+import org.mockito.MockitoAnnotations;
 
 public class BaseTestOperator extends ExecTest {
 
   protected static final OpProps PROPS = OpProps.prototype();
   public static int DEFAULT_BATCH = 3968;
 
-  @ClassRule
-  public static TemporaryFolder testFolder = new TemporaryFolder();
+  @ClassRule public static TemporaryFolder testFolder = new TemporaryFolder();
 
   protected static OperatorTestContext testContext;
   protected final List<AutoCloseable> testCloseables = new ArrayList<>();
   private BufferAllocator testAllocator;
 
-  @Mock
-  protected FragmentExecutionContext fec;
+  @Mock protected FragmentExecutionContext fec;
 
   @BeforeClass
   public static void setup() {
@@ -164,18 +156,19 @@ public class BaseTestOperator extends ExecTest {
   }
 
   @AfterClass
-  public static void cleanupAfterClass() throws Exception{
+  public static void cleanupAfterClass() throws Exception {
     testContext.close();
   }
 
   @Before
   public void setupBeforeTest() {
     testCloseables.add(MockitoAnnotations.openMocks(this));
-    testAllocator = testContext.allocator.newChildAllocator(testName.getMethodName(), 0, Long.MAX_VALUE);
+    testAllocator =
+        testContext.allocator.newChildAllocator(testName.getMethodName(), 0, Long.MAX_VALUE);
     testCloseables.add(testAllocator);
   }
 
-  public BufferAllocator getTestAllocator(){
+  public BufferAllocator getTestAllocator() {
     return testAllocator;
   }
 
@@ -186,49 +179,71 @@ public class BaseTestOperator extends ExecTest {
     testContext.resetConfig();
   }
 
-  public AutoCloseable with(final StringValidator validator, final String value){
+  public AutoCloseable with(final StringValidator validator, final String value) {
     final String oldValue = testContext.getOptions().getOption(validator);
-    testContext.getOptions().setOption(OptionValue.createString(OptionType.SYSTEM, validator.getOptionName(), value));
-    return new AutoCloseable(){
+    testContext
+        .getOptions()
+        .setOption(OptionValue.createString(OptionType.SYSTEM, validator.getOptionName(), value));
+    return new AutoCloseable() {
       @Override
       public void close() throws Exception {
-        testContext.getOptions().setOption(OptionValue.createString(OptionType.SYSTEM, validator.getOptionName(), oldValue));
-      }};
+        testContext
+            .getOptions()
+            .setOption(
+                OptionValue.createString(OptionType.SYSTEM, validator.getOptionName(), oldValue));
+      }
+    };
   }
 
-  public AutoCloseable with(final LongValidator validator, final long value){
+  public AutoCloseable with(final LongValidator validator, final long value) {
     final long oldValue = testContext.getOptions().getOption(validator);
-    testContext.getOptions().setOption(OptionValue.createLong(OptionType.SYSTEM, validator.getOptionName(), value));
-    return new AutoCloseable(){
+    testContext
+        .getOptions()
+        .setOption(OptionValue.createLong(OptionType.SYSTEM, validator.getOptionName(), value));
+    return new AutoCloseable() {
       @Override
       public void close() throws Exception {
-        testContext.getOptions().setOption(OptionValue.createLong(OptionType.SYSTEM, validator.getOptionName(), oldValue));
-      }};
+        testContext
+            .getOptions()
+            .setOption(
+                OptionValue.createLong(OptionType.SYSTEM, validator.getOptionName(), oldValue));
+      }
+    };
   }
 
-  public AutoCloseable with(final DoubleValidator validator, final double value){
+  public AutoCloseable with(final DoubleValidator validator, final double value) {
     final double oldValue = testContext.getOptions().getOption(validator);
-    testContext.getOptions().setOption(OptionValue.createDouble(OptionType.SYSTEM, validator.getOptionName(), value));
-    return new AutoCloseable(){
+    testContext
+        .getOptions()
+        .setOption(OptionValue.createDouble(OptionType.SYSTEM, validator.getOptionName(), value));
+    return new AutoCloseable() {
       @Override
       public void close() throws Exception {
-        testContext.getOptions().setOption(OptionValue.createDouble(OptionType.SYSTEM, validator.getOptionName(), oldValue));
-      }};
+        testContext
+            .getOptions()
+            .setOption(
+                OptionValue.createDouble(OptionType.SYSTEM, validator.getOptionName(), oldValue));
+      }
+    };
   }
 
-  public AutoCloseable with(final BooleanValidator validator, final boolean value){
+  public AutoCloseable with(final BooleanValidator validator, final boolean value) {
     final boolean oldValue = testContext.getOptions().getOption(validator);
-    testContext.getOptions().setOption(OptionValue.createBoolean(OptionType.SYSTEM, validator.getOptionName(), value));
-    return new AutoCloseable(){
+    testContext
+        .getOptions()
+        .setOption(OptionValue.createBoolean(OptionType.SYSTEM, validator.getOptionName(), value));
+    return new AutoCloseable() {
       @Override
       public void close() throws Exception {
-        testContext.getOptions().setOption(OptionValue.createBoolean(OptionType.SYSTEM, validator.getOptionName(), oldValue));
-      }};
+        testContext
+            .getOptions()
+            .setOption(
+                OptionValue.createBoolean(OptionType.SYSTEM, validator.getOptionName(), oldValue));
+      }
+    };
   }
 
-  /**
-   * Helper class to return a pair of results from a function.
-   */
+  /** Helper class to return a pair of results from a function. */
   protected class Pair<First, Second> implements AutoCloseable {
     public final First first;
     public final Second second;
@@ -250,84 +265,128 @@ public class BaseTestOperator extends ExecTest {
   }
 
   /**
-   * Create a new operator described by the provided operator class. Test harness will automatically create a test allocator. Test will automatically close operator created using this method.
+   * Create a new operator described by the provided operator class. Test harness will automatically
+   * create a test allocator. Test will automatically close operator created using this method.
+   *
    * @param clazz The operator class mapped to the PhysicalOperator provided.
    * @param pop SqlOperatorImpl configuration
    * @param batchProviders List of batch providers. Only needed in case of creating a Receiver
    * @return The SqlOperatorImpl.
    * @throws Exception
    */
-  protected <T extends Operator> T newOperator(Class<T> clazz, PhysicalOperator pop, int targetBatchSize, final RawFragmentBatchProvider[]... batchProviders) throws Exception {
+  protected <T extends Operator> T newOperator(
+      Class<T> clazz,
+      PhysicalOperator pop,
+      int targetBatchSize,
+      final RawFragmentBatchProvider[]... batchProviders)
+      throws Exception {
     return newOperator(clazz, pop, targetBatchSize, null, null, batchProviders);
   }
 
-  protected <T extends Operator> T newOperator(Class<T> clazz, PhysicalOperator pop, int targetBatchSize, TunnelProvider tunnelProvider, final RawFragmentBatchProvider[]... batchProviders) throws Exception {
-    return newOperatorWithStats(clazz, pop, targetBatchSize, null, tunnelProvider, batchProviders).first;
+  protected <T extends Operator> T newOperator(
+      Class<T> clazz,
+      PhysicalOperator pop,
+      int targetBatchSize,
+      TunnelProvider tunnelProvider,
+      final RawFragmentBatchProvider[]... batchProviders)
+      throws Exception {
+    return newOperatorWithStats(clazz, pop, targetBatchSize, null, tunnelProvider, batchProviders)
+        .first;
   }
 
-  protected <T extends Operator> T newOperator(Class<T> clazz, PhysicalOperator pop, int targetBatchSize, final EndpointsIndex endpointsIndex, TunnelProvider tunnelProvider, final RawFragmentBatchProvider[]... batchProviders) throws Exception {
-    return newOperatorWithStats(clazz, pop, targetBatchSize, endpointsIndex, tunnelProvider, batchProviders).first;
+  protected <T extends Operator> T newOperator(
+      Class<T> clazz,
+      PhysicalOperator pop,
+      int targetBatchSize,
+      final EndpointsIndex endpointsIndex,
+      TunnelProvider tunnelProvider,
+      final RawFragmentBatchProvider[]... batchProviders)
+      throws Exception {
+    return newOperatorWithStats(
+            clazz, pop, targetBatchSize, endpointsIndex, tunnelProvider, batchProviders)
+        .first;
   }
 
-  protected <T extends Operator> Pair<T, OperatorStats> newOperatorWithStats(Class<T> clazz, PhysicalOperator pop, int targetBatchSize, final RawFragmentBatchProvider[]... batchProviders) throws Exception {
+  protected <T extends Operator> Pair<T, OperatorStats> newOperatorWithStats(
+      Class<T> clazz,
+      PhysicalOperator pop,
+      int targetBatchSize,
+      final RawFragmentBatchProvider[]... batchProviders)
+      throws Exception {
     return newOperatorWithStats(clazz, pop, targetBatchSize, null, null, batchProviders);
   }
 
-  protected <T extends Operator> Pair<T, OperatorStats> newOperatorWithStats(Class<T> clazz, PhysicalOperator pop, int targetBatchSize, final EndpointsIndex endpointsIndex,
-    TunnelProvider tunnelProvider, final RawFragmentBatchProvider[]... batchProviders) throws Exception {
+  protected <T extends Operator> Pair<T, OperatorStats> newOperatorWithStats(
+      Class<T> clazz,
+      PhysicalOperator pop,
+      int targetBatchSize,
+      final EndpointsIndex endpointsIndex,
+      TunnelProvider tunnelProvider,
+      final RawFragmentBatchProvider[]... batchProviders)
+      throws Exception {
 
-    final BatchStreamProvider provider = new BatchStreamProvider(){
+    final BatchStreamProvider provider =
+        new BatchStreamProvider() {
 
-      @Override
-      public RawFragmentBatchProvider[] getBuffers(int senderMajorFragmentId) {
-        if(!(batchProviders.length > senderMajorFragmentId)) {
-          throw new IllegalStateException(String.format("Attempted to get a batch provider but the test didn't provide enough. The test provided %d but you asked for index %d.", batchProviders.length, senderMajorFragmentId));
-        }
-        return batchProviders[senderMajorFragmentId];
-      }
+          @Override
+          public RawFragmentBatchProvider[] getBuffers(int senderMajorFragmentId) {
+            if (!(batchProviders.length > senderMajorFragmentId)) {
+              throw new IllegalStateException(
+                  String.format(
+                      "Attempted to get a batch provider but the test didn't provide enough. The test provided %d but you asked for index %d.",
+                      batchProviders.length, senderMajorFragmentId));
+            }
+            return batchProviders[senderMajorFragmentId];
+          }
 
-      @Override
-      public RawFragmentBatchProvider getBuffersFromFiles(String uniqueId, int readerFragId) {
-        return batchProviders[0][0];
-      }
+          @Override
+          public RawFragmentBatchProvider getBuffersFromFiles(String uniqueId, int readerFragId) {
+            return batchProviders[0][0];
+          }
 
-      @Override
-      public boolean isPotentiallyBlocked() {
-        return false;
-      }
-    };
+          @Override
+          public boolean isPotentiallyBlocked() {
+            return false;
+          }
+        };
 
-    final BufferAllocator childAllocator = testAllocator.newChildAllocator(
-        pop.getClass().getSimpleName(),
-        pop.getProps().getMemReserve(),
-        pop.getProps().getMemLimit() == 0 ? Long.MAX_VALUE : pop.getProps().getMemLimit());
+    final BufferAllocator childAllocator =
+        testAllocator.newChildAllocator(
+            pop.getClass().getSimpleName(),
+            pop.getProps().getMemReserve(),
+            pop.getProps().getMemLimit() == 0 ? Long.MAX_VALUE : pop.getProps().getMemLimit());
 
     // we don't close child allocator as the operator context will manage this.
-    final OperatorContextImpl context = testContext.getNewOperatorContext(childAllocator, pop, targetBatchSize, endpointsIndex);
+    final OperatorContextImpl context =
+        testContext.getNewOperatorContext(childAllocator, pop, targetBatchSize, endpointsIndex);
     testCloseables.add(context);
 
     CreatorVisitor visitor = new CreatorVisitor(fec, provider, tunnelProvider);
     Operator o = pop.accept(visitor, context);
     testCloseables.add(o);
 
-    if(clazz.isAssignableFrom(o.getClass())){
-      // make sure that the set of closeables that should be cleaned in finally are empty since we were succesful.
+    if (clazz.isAssignableFrom(o.getClass())) {
+      // make sure that the set of closeables that should be cleaned in finally are empty since we
+      // were succesful.
       return new Pair(o, context.getStats());
-    }else{
-      throw new RuntimeException(String.format("Unable to convert from expected operator of type %s to type %s.", o.getClass().getName(), clazz.getName()));
+    } else {
+      throw new RuntimeException(
+          String.format(
+              "Unable to convert from expected operator of type %s to type %s.",
+              o.getClass().getName(), clazz.getName()));
     }
   }
 
-
-  protected static class OperatorTestContext implements AutoCloseable{
+  protected static class OperatorTestContext implements AutoCloseable {
 
     SabotConfig config = DEFAULT_SABOT_CONFIG;
     final ScanResult result = CLASSPATH_SCAN_RESULT;
-    final ExecutorService inner = Executors.newCachedThreadPool();
-    final CloseableExecutorService executor = new CloseableExecutorService(inner);
+    final CloseableExecutorService executor =
+        new CloseableThreadPool("test-operator-context-executor-");
     final BufferAllocator rootAllocator = RootAllocatorFactory.newRoot(config);
-    final BufferAllocator allocator = rootAllocator.newChildAllocator("base-test-operator", 0, Long.MAX_VALUE);
-    final LogicalPlanPersistence persistence = new LogicalPlanPersistence(config, result);
+    final BufferAllocator allocator =
+        rootAllocator.newChildAllocator("base-test-operator", 0, Long.MAX_VALUE);
+    final LogicalPlanPersistence persistence = new LogicalPlanPersistence(result);
 
     OperatorCreatorRegistry registry = new OperatorCreatorRegistry(result);
 
@@ -343,32 +402,39 @@ public class BaseTestOperator extends ExecTest {
 
     public void setup() {
       try {
-        storeProvider =
-            LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT);
+        storeProvider = LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT);
         storeProvider.start();
 
-        final Provider<LegacyKVStoreProvider> storeProviderProvider = new Provider<LegacyKVStoreProvider>() {
-          @Override
-          public LegacyKVStoreProvider get() {
-            return storeProvider;
-          }
-        };
-        final OptionValidatorListing optionValidatorListing = new OptionValidatorListingImpl(result);
-        systemOptionManager = new SystemOptionManager(optionValidatorListing, persistence, storeProviderProvider, false);
-        options = OptionManagerWrapper.Builder.newBuilder()
-          .withOptionManager(new DefaultOptionManager(optionValidatorListing))
-          .withOptionManager(systemOptionManager)
-          .build();
+        final Provider<LegacyKVStoreProvider> storeProviderProvider =
+            new Provider<LegacyKVStoreProvider>() {
+              @Override
+              public LegacyKVStoreProvider get() {
+                return storeProvider;
+              }
+            };
+        final OptionValidatorListing optionValidatorListing =
+            new OptionValidatorListingImpl(result);
+        systemOptionManager =
+            new SystemOptionManager(
+                optionValidatorListing, persistence, storeProviderProvider, false);
+        options =
+            OptionManagerWrapper.Builder.newBuilder()
+                .withOptionManager(new DefaultOptionManager(optionValidatorListing))
+                .withOptionManager(systemOptionManager)
+                .build();
 
         systemOptionManager.start();
         compiler = new CodeCompiler(config, options);
         expressionSplitCache = new ExpressionSplitCache(options, config);
         ec = new ExecutionControls(options, NodeEndpoint.getDefaultInstance());
-        decimalFunctionLookup = FunctionImplementationRegistry.create(config, result, options, true);
-        functionLookup = FunctionImplementationRegistry.create(config, result, options,false);
-        contextInformation = new ContextInformationImpl(UserCredentials.getDefaultInstance(), QueryContextInformation.getDefaultInstance());
+        decimalFunctionLookup =
+            FunctionImplementationRegistry.create(config, result, options, true);
+        functionLookup = FunctionImplementationRegistry.create(config, result, options, false);
+        contextInformation =
+            new ContextInformationImpl(
+                UserCredentials.getDefaultInstance(), QueryContextInformation.getDefaultInstance());
 
-      }catch(Exception e){
+      } catch (Exception e) {
         throw new RuntimeException(e);
       }
     }
@@ -383,7 +449,7 @@ public class BaseTestOperator extends ExecTest {
       expressionSplitCache.invalidateCache();
     }
 
-    public OptionManager getOptions(){
+    public OptionManager getOptions() {
       return options;
     }
 
@@ -391,29 +457,35 @@ public class BaseTestOperator extends ExecTest {
       this.registry = registry;
     }
 
-    public FunctionLookupContext getFunctionLookupContext(){
+    public FunctionLookupContext getFunctionLookupContext() {
       if (options.getOption(PlannerSettings.ENABLE_DECIMAL_V2)) {
         return decimalFunctionLookup;
       }
       return functionLookup;
     }
 
-    public OperatorContextImpl getNewOperatorContext(BufferAllocator child, PhysicalOperator pop, int targetBatchSize,
-      EndpointsIndex endpointsIndex) throws Exception {
+    public OperatorContextImpl getNewOperatorContext(
+        BufferAllocator child,
+        PhysicalOperator pop,
+        int targetBatchSize,
+        EndpointsIndex endpointsIndex)
+        throws Exception {
 
       OperatorStats stats = new OperatorStats(new OpProfileDef(1, 1, 1), child);
-      final NamespaceService namespaceService = new NamespaceServiceImpl(testContext.storeProvider, new CatalogStatusEventsImpl());
+      final NamespaceService namespaceService =
+          new NamespaceServiceImpl(testContext.storeProvider, new CatalogStatusEventsImpl());
       final DremioConfig dremioConfig = DremioConfig.create(null, config);
       final SchedulerService schedulerService = Mockito.mock(SchedulerService.class);
-      final SpillService spillService = new SpillServiceImpl(dremioConfig, new SpillServiceOptionsImpl(() -> options),
-        () -> schedulerService
-      );
+      final SpillService spillService =
+          new SpillServiceImpl(
+              dremioConfig, new SpillServiceOptionsImpl(() -> options), () -> schedulerService);
       spillService.start();
-      final FragmentHandle handle = FragmentHandle.newBuilder()
-        .setQueryId(new AttemptId().toQueryId())
-        .setMinorFragmentId(0)
-        .setMajorFragmentId(0)
-        .build();
+      final FragmentHandle handle =
+          FragmentHandle.newBuilder()
+              .setQueryId(new AttemptId().toQueryId())
+              .setMinorFragmentId(0)
+              .setMajorFragmentId(0)
+              .build();
       return new OperatorContextImpl(
           config,
           DEFAULT_DREMIO_CONFIG,
@@ -425,7 +497,7 @@ public class BaseTestOperator extends ExecTest {
           stats,
           ec,
           null,
-          inner,
+          executor,
           getFunctionLookupContext(),
           contextInformation,
           options,
@@ -437,29 +509,38 @@ public class BaseTestOperator extends ExecTest {
           ImmutableList.of(),
           null,
           endpointsIndex,
-              null, expressionSplitCache, null);
+          null,
+          expressionSplitCache,
+          null);
     }
 
-    public OperatorContextImpl getNewOperatorContext(BufferAllocator child, PhysicalOperator pop, int targetBatchSize) throws Exception {
+    public OperatorContextImpl getNewOperatorContext(
+        BufferAllocator child, PhysicalOperator pop, int targetBatchSize) throws Exception {
       return getNewOperatorContext(child, pop, targetBatchSize, new EndpointsIndex());
     }
 
     public ClassProducer newClassProducer(BufferManager bufferManager) {
-      return new ClassProducerImpl(new CompilationOptions(options), compiler,  getFunctionLookupContext(), contextInformation, bufferManager, null);
+      return new ClassProducerImpl(
+          new CompilationOptions(options),
+          compiler,
+          getFunctionLookupContext(),
+          contextInformation,
+          bufferManager,
+          null);
     }
 
-
-    public OperatorCreatorRegistry getOperatorCreatorRegistry(){
+    public OperatorCreatorRegistry getOperatorCreatorRegistry() {
       return registry;
     }
+
     @Override
     public void close() throws Exception {
       AutoCloseables.close(systemOptionManager, storeProvider, allocator, rootAllocator, executor);
     }
 
     /**
-     * update configuration passed to the operators, this won't affect what has already been initialized as
-     * part of this OperatorTestContext
+     * update configuration passed to the operators, this won't affect what has already been
+     * initialized as part of this OperatorTestContext
      */
     public void updateConfig(SabotConfig config) {
       this.config = config;
@@ -470,15 +551,15 @@ public class BaseTestOperator extends ExecTest {
     }
   }
 
-  public static NamedExpression n(String name){
+  public static NamedExpression n(String name) {
     return new NamedExpression(f(name), f(name));
   }
 
-  public static FieldReference f(String name){
+  public static FieldReference f(String name) {
     return new FieldReference(name);
   }
 
-  public static NamedExpression n(String expr, String name){
+  public static NamedExpression n(String expr, String name) {
     return new NamedExpression(parseExpr(expr), new FieldReference(name));
   }
 
@@ -494,23 +575,27 @@ public class BaseTestOperator extends ExecTest {
     }
   }
 
-  protected Order.Ordering ordering(String expression, RelFieldCollation.Direction direction, RelFieldCollation.NullDirection nullDirection) {
+  protected Order.Ordering ordering(
+      String expression,
+      RelFieldCollation.Direction direction,
+      RelFieldCollation.NullDirection nullDirection) {
     return new Order.Ordering(direction, parseExpr(expression), nullDirection);
   }
 
-  protected NamedExpression straightName(String name){
+  protected NamedExpression straightName(String name) {
     return new NamedExpression(new FieldReference(name), new FieldReference(name));
   }
 
   private static LogicalExpression convertCaseToIf(LogicalExpression expr) {
-     return expr.accept(new CaseConditionConverter(), null);
+    return expr.accept(new CaseConditionConverter(), null);
   }
 
   /**
-   * Convert all cases back to If. This is a temporary measure until Gandiva starts supporting
-   * case natively.
+   * Convert all cases back to If. This is a temporary measure until Gandiva starts supporting case
+   * natively.
    */
-  private static class CaseConditionConverter extends AbstractExprVisitor<LogicalExpression, Void, RuntimeException> {
+  private static class CaseConditionConverter
+      extends AbstractExprVisitor<LogicalExpression, Void, RuntimeException> {
     @Override
     public LogicalExpression visitCaseExpression(CaseExpression caseExpression, Void value) {
       LogicalExpression elseExpression = caseExpression.elseExpr.accept(this, null);
@@ -518,9 +603,11 @@ public class BaseTestOperator extends ExecTest {
         final CaseExpression.CaseConditionNode node = caseExpression.caseConditions.get(i);
         final LogicalExpression whenExpr = node.whenExpr.accept(this, null);
         final LogicalExpression thenExpr = node.thenExpr.accept(this, null);
-        elseExpression = IfExpression.newBuilder()
-          .setElse(elseExpression)
-          .setIfCondition(new IfExpression.IfCondition(whenExpr, thenExpr)).build();
+        elseExpression =
+            IfExpression.newBuilder()
+                .setElse(elseExpression)
+                .setIfCondition(new IfExpression.IfCondition(whenExpr, thenExpr))
+                .build();
       }
       return elseExpression;
     }
@@ -535,12 +622,14 @@ public class BaseTestOperator extends ExecTest {
     }
 
     @Override
-    public LogicalExpression visitFunctionHolderExpression(FunctionHolderExpression holderExpr, Void value) {
+    public LogicalExpression visitFunctionHolderExpression(
+        FunctionHolderExpression holderExpr, Void value) {
       final List<LogicalExpression> args = new ArrayList<>();
       for (int i = 0; i < holderExpr.args.size(); i++) {
         args.add(holderExpr.args.get(i).accept(this, null));
       }
-      return new FunctionHolderExpr(holderExpr.nameUsed, (BaseFunctionHolder) holderExpr.getHolder(), args);
+      return new FunctionHolderExpr(
+          holderExpr.nameUsed, (BaseFunctionHolder) holderExpr.getHolder(), args);
     }
 
     @Override
@@ -558,13 +647,17 @@ public class BaseTestOperator extends ExecTest {
     }
   }
 
-  private static class CreatorVisitor extends AbstractPhysicalVisitor<Operator, OperatorContext,  ExecutionSetupException> {
+  private static class CreatorVisitor
+      extends AbstractPhysicalVisitor<Operator, OperatorContext, ExecutionSetupException> {
 
     private final BatchStreamProvider batchStreamProvider;
     private final TunnelProvider tunnelProvider;
     private final FragmentExecutionContext fec;
 
-    public CreatorVisitor(FragmentExecutionContext fec, BatchStreamProvider batchStreamProvider, TunnelProvider tunnelProvider) {
+    public CreatorVisitor(
+        FragmentExecutionContext fec,
+        BatchStreamProvider batchStreamProvider,
+        TunnelProvider tunnelProvider) {
       super();
       this.batchStreamProvider = batchStreamProvider;
       this.tunnelProvider = tunnelProvider;
@@ -572,43 +665,57 @@ public class BaseTestOperator extends ExecTest {
     }
 
     @Override
-    public Operator visitUnion(UnionAll config, OperatorContext context) throws ExecutionSetupException {
+    public Operator visitUnion(UnionAll config, OperatorContext context)
+        throws ExecutionSetupException {
       return testContext.getOperatorCreatorRegistry().getDualInputOperator(context, config);
     }
 
     @Override
-    public Operator visitMergeJoin(MergeJoinPOP config, OperatorContext context) throws ExecutionSetupException {
+    public Operator visitMergeJoin(MergeJoinPOP config, OperatorContext context)
+        throws ExecutionSetupException {
       return testContext.getOperatorCreatorRegistry().getDualInputOperator(context, config);
     }
 
     @Override
-    public Operator visitNestedLoopJoin(NestedLoopJoinPOP join, OperatorContext value) throws ExecutionSetupException {
+    public Operator visitNestedLoopJoin(NestedLoopJoinPOP join, OperatorContext value)
+        throws ExecutionSetupException {
       return testContext.getOperatorCreatorRegistry().getDualInputOperator(value, join);
     }
 
     @Override
-    public Operator visitHashJoin(HashJoinPOP config, OperatorContext context) throws ExecutionSetupException {
+    public Operator visitHashJoin(HashJoinPOP config, OperatorContext context)
+        throws ExecutionSetupException {
       return testContext.getOperatorCreatorRegistry().getDualInputOperator(context, config);
     }
 
     @Override
-    public Operator visitSender(Sender config, OperatorContext context) throws ExecutionSetupException {
-      return testContext.getOperatorCreatorRegistry().getTerminalOperator(tunnelProvider, context, config);
+    public Operator visitSender(Sender config, OperatorContext context)
+        throws ExecutionSetupException {
+      return testContext
+          .getOperatorCreatorRegistry()
+          .getTerminalOperator(tunnelProvider, context, config);
     }
 
     @Override
-    public Operator visitReceiver(Receiver config, OperatorContext context) throws ExecutionSetupException {
-      return testContext.getOperatorCreatorRegistry().getReceiverOperator(batchStreamProvider, context, config);
+    public Operator visitReceiver(Receiver config, OperatorContext context)
+        throws ExecutionSetupException {
+      return testContext
+          .getOperatorCreatorRegistry()
+          .getReceiverOperator(batchStreamProvider, context, config);
     }
 
     @Override
-    public Operator visitSubScan(SubScan config, OperatorContext context) throws ExecutionSetupException {
+    public Operator visitSubScan(SubScan config, OperatorContext context)
+        throws ExecutionSetupException {
       return testContext.getOperatorCreatorRegistry().getProducerOperator(fec, context, config);
     }
 
     @Override
-    public Operator visitScreen(Screen config, OperatorContext context) throws ExecutionSetupException {
-      return testContext.getOperatorCreatorRegistry().getTerminalOperator(tunnelProvider, context, config);
+    public Operator visitScreen(Screen config, OperatorContext context)
+        throws ExecutionSetupException {
+      return testContext
+          .getOperatorCreatorRegistry()
+          .getTerminalOperator(tunnelProvider, context, config);
     }
 
     @Override
@@ -618,125 +725,175 @@ public class BaseTestOperator extends ExecTest {
     }
 
     @Override
-    public Operator visitOp(PhysicalOperator config, OperatorContext context) throws ExecutionSetupException {
+    public Operator visitOp(PhysicalOperator config, OperatorContext context)
+        throws ExecutionSetupException {
       return testContext.getOperatorCreatorRegistry().getSingleInputOperator(context, config);
     }
-
   }
 
-  protected <T extends SingleInputOperator> void basicTests(PhysicalOperator pop, Class<T> clazz, TpchTable table, double scale, Long expectedCount, int batchSize) throws Exception {
+  protected <T extends SingleInputOperator> void basicTests(
+      PhysicalOperator pop,
+      Class<T> clazz,
+      TpchTable table,
+      double scale,
+      Long expectedCount,
+      int batchSize)
+      throws Exception {
 
     leakTests(pop, clazz, table, scale, batchSize);
 
     // full lifecycle:
     assertSingleInput(pop, clazz, table, scale, expectedCount, batchSize);
-
   }
 
-  protected <T extends SingleInputOperator> void leakTests(PhysicalOperator pop, Class<T> clazz, TpchTable table, double scale, int batchSize) throws Exception {
+  protected <T extends SingleInputOperator> void leakTests(
+      PhysicalOperator pop, Class<T> clazz, TpchTable table, double scale, int batchSize)
+      throws Exception {
     // straight close, no leak.
-    try(T op = newOperator(clazz, pop, batchSize);
-        TpchGenerator generator = TpchGenerator.singleGenerator(table, scale, getTestAllocator());
-        ) {
+    try (T op = newOperator(clazz, pop, batchSize);
+        TpchGenerator generator =
+            TpchGenerator.singleGenerator(table, scale, getTestAllocator()); ) {
       // no leak
     }
 
     // setup, no execute, no leak.
-    try(T op = newOperator(clazz, pop, batchSize);
-        TpchGenerator generator = TpchGenerator.singleGenerator(table, scale, getTestAllocator());
-        ){
+    try (T op = newOperator(clazz, pop, batchSize);
+        TpchGenerator generator =
+            TpchGenerator.singleGenerator(table, scale, getTestAllocator()); ) {
       op.setup(generator.getOutput());
     }
 
     // setup, single consume, no leak.
-    try(T op = newOperator(clazz, pop, batchSize);
-        TpchGenerator generator = TpchGenerator.singleGenerator(table, scale, getTestAllocator());
-        ){
+    try (T op = newOperator(clazz, pop, batchSize);
+        TpchGenerator generator =
+            TpchGenerator.singleGenerator(table, scale, getTestAllocator()); ) {
       op.setup(generator.getOutput());
       op.consumeData(generator.next(batchSize));
     }
   }
 
-  protected <T extends SingleInputOperator> OperatorStats runSingle(PhysicalOperator pop, Class<T> clazz, TpchTable table, double scale, int batchSize) throws Exception {
+  protected <T extends SingleInputOperator> OperatorStats runSingle(
+      PhysicalOperator pop, Class<T> clazz, TpchTable table, double scale, int batchSize)
+      throws Exception {
     TpchGenerator generator = TpchGenerator.singleGenerator(table, scale, getTestAllocator());
     return validateSingle(pop, clazz, generator, null, batchSize, null);
   }
 
-  protected <T extends SingleInputOperator> void validateSingle(PhysicalOperator pop, Class<T> clazz, TpchTable table, double scale, RecordBatchValidator validator) throws Exception {
+  protected <T extends SingleInputOperator> void validateSingle(
+      PhysicalOperator pop,
+      Class<T> clazz,
+      TpchTable table,
+      double scale,
+      RecordBatchValidator validator)
+      throws Exception {
     assertSingleInput(pop, clazz, table, scale, null, 4095, validator);
   }
 
-  protected <T extends SingleInputOperator> void assertSingleInput(PhysicalOperator pop, Class<T> clazz, TpchTable table, double scale, Long expectedCount, int batchSize) throws Exception {
+  protected <T extends SingleInputOperator> void assertSingleInput(
+      PhysicalOperator pop,
+      Class<T> clazz,
+      TpchTable table,
+      double scale,
+      Long expectedCount,
+      int batchSize)
+      throws Exception {
     assertSingleInput(pop, clazz, table, scale, expectedCount, batchSize, null);
   }
 
-  protected <T extends SingleInputOperator> void assertSingleInput(PhysicalOperator pop, Class<T> clazz, TpchTable table, double scale, Long expectedCount, int batchSize, RecordBatchValidator validator) throws Exception {
+  protected <T extends SingleInputOperator> void assertSingleInput(
+      PhysicalOperator pop,
+      Class<T> clazz,
+      TpchTable table,
+      double scale,
+      Long expectedCount,
+      int batchSize,
+      RecordBatchValidator validator)
+      throws Exception {
     TpchGenerator generator = TpchGenerator.singleGenerator(table, scale, getTestAllocator());
     validateSingle(pop, clazz, generator, validator, batchSize, expectedCount);
   }
 
-  protected <T extends SingleInputOperator> void validateSingle(PhysicalOperator pop, Class<T> clazz, Generator.Creator input, RecordBatchValidator validator) throws Exception {
+  protected <T extends SingleInputOperator> void validateSingle(
+      PhysicalOperator pop, Class<T> clazz, Generator.Creator input, RecordBatchValidator validator)
+      throws Exception {
     validateSingle(pop, clazz, input.toGenerator(getTestAllocator()), validator, DEFAULT_BATCH);
   }
 
-  protected <T extends SingleInputOperator> OperatorStats validateSingle(PhysicalOperator pop, Class<T> clazz, Generator.Creator input, RecordBatchValidator validator, int batchSize) throws Exception {
+  protected <T extends SingleInputOperator> OperatorStats validateSingle(
+      PhysicalOperator pop,
+      Class<T> clazz,
+      Generator.Creator input,
+      RecordBatchValidator validator,
+      int batchSize)
+      throws Exception {
     return validateSingle(pop, clazz, input.toGenerator(getTestAllocator()), validator, batchSize);
   }
 
-  protected <T extends SingleInputOperator> OperatorStats validateSingle(PhysicalOperator pop, Class<T> clazz, Generator generator, RecordBatchValidator validator, int batchSize) throws Exception {
+  protected <T extends SingleInputOperator> OperatorStats validateSingle(
+      PhysicalOperator pop,
+      Class<T> clazz,
+      Generator generator,
+      RecordBatchValidator validator,
+      int batchSize)
+      throws Exception {
     return validateSingle(pop, clazz, generator, validator, batchSize, null);
   }
 
-  protected <T extends SingleInputOperator> OperatorStats validateSingle(PhysicalOperator pop, Class<T> clazz, Generator generator, RecordBatchValidator validator, int batchSize, Long expected) throws Exception {
+  protected <T extends SingleInputOperator> OperatorStats validateSingle(
+      PhysicalOperator pop,
+      Class<T> clazz,
+      Generator generator,
+      RecordBatchValidator validator,
+      int batchSize,
+      Long expected)
+      throws Exception {
     long recordCount = 0;
     final List<RecordBatchData> data = new ArrayList<>();
     OperatorStats stats;
 
-    try(
-        Pair<T, OperatorStats> pair = newOperatorWithStats(clazz, pop, batchSize);
-        Generator closeable = generator;
-        ){
+    try (Pair<T, OperatorStats> pair = newOperatorWithStats(clazz, pop, batchSize);
+        Generator closeable = generator; ) {
 
       T op = pair.first;
       stats = pair.second;
       stats.startProcessing();
       final VectorAccessible output = op.setup(generator.getOutput());
       int count;
-      while(op.getState() != State.DONE && (count = generator.next(batchSize)) != 0){
+      while (op.getState() != State.DONE && (count = generator.next(batchSize)) != 0) {
         assertState(op, State.CAN_CONSUME);
         op.consumeData(count);
-        while(op.getState() == State.CAN_PRODUCE){
+        while (op.getState() == State.CAN_PRODUCE) {
           int recordsOutput = op.outputData();
           recordCount += recordsOutput;
-          if(validator != null && recordsOutput > 0){
+          if (validator != null && recordsOutput > 0) {
             data.add(new RecordBatchData(output, getTestAllocator()));
           }
         }
       }
 
-      if(op.getState() == State.CAN_CONSUME){
+      if (op.getState() == State.CAN_CONSUME) {
         op.noMoreToConsume();
       }
 
-      while(op.getState() == State.CAN_PRODUCE){
+      while (op.getState() == State.CAN_PRODUCE) {
         int recordsOutput = op.outputData();
         recordCount += recordsOutput;
-        if(recordsOutput > 0){
+        if (recordsOutput > 0) {
           data.add(new RecordBatchData(output, getTestAllocator()));
         }
       }
 
-      if(op.getState() == State.CAN_CONSUME){
+      if (op.getState() == State.CAN_CONSUME) {
         op.noMoreToConsume();
       }
 
       stats.stopProcessing();
       assertState(op, State.DONE);
-      if(validator != null){
+      if (validator != null) {
         validator.checkValid(data);
       }
 
-      if(expected != null){
+      if (expected != null) {
         Assert.assertEquals((long) expected, recordCount);
       }
     } finally {
@@ -748,6 +905,7 @@ public class BaseTestOperator extends ExecTest {
 
   /**
    * Check whether a dual input operator with the provided generators produces the expected output
+   *
    * @param pop The configuration for the operator
    * @param clazz The clazz that implements the operator.
    * @param left The generator to provide the left input.
@@ -764,54 +922,53 @@ public class BaseTestOperator extends ExecTest {
       Generator right,
       int batchSize,
       Table result,
-      boolean isProduceRequired) throws Exception {
+      boolean isProduceRequired)
+      throws Exception {
 
     final List<RecordBatchData> data = new ArrayList<>();
-    try(
-        Generator leftGen = left;
-        Generator rightGen = right;
-        ){
+    try (Generator leftGen = left;
+        Generator rightGen = right; ) {
 
       // op is added to closeable list and will be closed when test finished. no need to close here.
       T op = newOperator(clazz, pop, batchSize);
 
       final VectorAccessible output = op.setup(leftGen.getOutput(), right.getOutput());
 
-      outside: while(true){
-        switch(op.getState()){
-        case CAN_CONSUME_L:
-          int leftCount = leftGen.next(batchSize);
-          if(leftCount > 0){
-            op.consumeDataLeft(leftCount);
-          }else{
-            op.noMoreToConsumeLeft();
-          }
-          break;
-        case CAN_CONSUME_R:
-          int rightCount = rightGen.next(batchSize);
-          if(rightCount > 0){
-            op.consumeDataRight(rightCount);
-          }else{
-            op.noMoreToConsumeRight();
-          }
-          break;
-        case CAN_PRODUCE:
-          int outputCount = op.outputData();
-          if(outputCount > 0
-            || (outputCount == 0 && result.isExpectZero())) {
-            data.add(new RecordBatchData(output, getTestAllocator()));
-          }
-          break;
-        case DONE:
-          break outside;
-        default:
-          throw new UnsupportedOperationException("State is: " + op.getState());
+      outside:
+      while (true) {
+        switch (op.getState()) {
+          case CAN_CONSUME_L:
+            int leftCount = leftGen.next(batchSize);
+            if (leftCount > 0) {
+              op.consumeDataLeft(leftCount);
+            } else {
+              op.noMoreToConsumeLeft();
+            }
+            break;
+          case CAN_CONSUME_R:
+            int rightCount = rightGen.next(batchSize);
+            if (rightCount > 0) {
+              op.consumeDataRight(rightCount);
+            } else {
+              op.noMoreToConsumeRight();
+            }
+            break;
+          case CAN_PRODUCE:
+            int outputCount = op.outputData();
+            if (outputCount > 0 || (outputCount == 0 && result.isExpectZero())) {
+              data.add(new RecordBatchData(output, getTestAllocator()));
+            }
+            break;
+          case DONE:
+            break outside;
+          default:
+            throw new UnsupportedOperationException("State is: " + op.getState());
         }
       }
 
       assertState(op, State.DONE);
       if (!isProduceRequired && data.isEmpty() && result.isExpectZero()) {
-        ((VectorContainer)output).setAllCount(0);
+        ((VectorContainer) output).setAllCount(0);
         data.add(new RecordBatchData(output, getTestAllocator()));
       }
       result.checkValid(data);
@@ -824,6 +981,7 @@ public class BaseTestOperator extends ExecTest {
   /**
    * Check whether a dual input operator with the provided generators produces the expected output
    * assumes that isProduceRequired is true
+   *
    * @param pop The configuration for the operator
    * @param clazz The clazz that implements the operator.
    * @param left The generator to provide the left input.
@@ -833,25 +991,26 @@ public class BaseTestOperator extends ExecTest {
    * @throws Exception
    */
   protected <T extends DualInputOperator> void validateDual(
-    PhysicalOperator pop,
-    Class<T> clazz,
-    Generator left,
-    Generator right,
-    int batchSize,
-    Table result) throws Exception {
+      PhysicalOperator pop,
+      Class<T> clazz,
+      Generator left,
+      Generator right,
+      int batchSize,
+      Table result)
+      throws Exception {
 
     validateDual(pop, clazz, left, right, batchSize, result, true);
   }
 
-    public static void assertState(Operator operator, MasterState state){
-    Assert.assertEquals(state,  operator.getState().getMasterState());
+  public static void assertState(Operator operator, MasterState state) {
+    Assert.assertEquals(state, operator.getState().getMasterState());
   }
 
-  public static void assertState(Operator operator, OperatorState state){
-    Assert.assertEquals(state.getMasterState(),  operator.getState().getMasterState());
+  public static void assertState(Operator operator, OperatorState state) {
+    Assert.assertEquals(state.getMasterState(), operator.getState().getMasterState());
   }
 
-  public static LogicalExpression toExpr(String expr) throws RecognitionException{
+  public static LogicalExpression toExpr(String expr) throws RecognitionException {
     ExprLexer lexer = new ExprLexer(new ANTLRStringStream(expr));
     CommonTokenStream tokens = new CommonTokenStream(lexer);
     ExprParser parser = new ExprParser(tokens);
@@ -859,7 +1018,7 @@ public class BaseTestOperator extends ExecTest {
     return convertCaseToIf(ret.e);
   }
 
-  public static LogicalExpression toExprCase(String expr) throws RecognitionException{
+  public static LogicalExpression toExprCase(String expr) throws RecognitionException {
     ExprLexer lexer = new ExprLexer(new ANTLRStringStream(expr));
     CommonTokenStream tokens = new CommonTokenStream(lexer);
     ExprParser parser = new ExprParser(tokens);

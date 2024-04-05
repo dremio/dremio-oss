@@ -15,8 +15,13 @@
  */
 package com.dremio.sabot.join.hash;
 
+import com.dremio.common.expression.CompleteType;
+import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.record.VectorAccessible;
+import com.dremio.exec.record.VectorContainer;
+import com.dremio.sabot.Generator;
+import com.google.common.collect.ImmutableList;
 import java.util.List;
-
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BaseFixedWidthVector;
 import org.apache.arrow.vector.FieldVector;
@@ -27,18 +32,11 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 
-import com.dremio.common.expression.CompleteType;
-import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.record.VectorAccessible;
-import com.dremio.exec.record.VectorContainer;
-import com.dremio.sabot.Generator;
-import com.google.common.collect.ImmutableList;
-
 /**
- * A vector container containing following types of vectors -
- * IntVector, UnionVector<INT, FLOAT>
+ * A vector container containing following types of vectors - IntVector, UnionVector<INT, FLOAT>
  *
- * Used for unit tests in {@link TestVHashJoinSpillBuildAndReplay}
+ * <p>Used for unit tests in {@link TestVHashJoinSpillBuildAndReplay}
+ *
  * @param <T>
  */
 class UnionColumnGenerator<T extends FieldVector> implements Generator {
@@ -50,7 +48,8 @@ class UnionColumnGenerator<T extends FieldVector> implements Generator {
   private final String postFix;
   private final BufferAllocator allocator;
 
-  public UnionColumnGenerator(final BufferAllocator allocator, final int rows, final int offset, final String postFix) {
+  public UnionColumnGenerator(
+      final BufferAllocator allocator, final int rows, final int offset, final String postFix) {
 
     this.allocator = allocator;
     this.rows = rows;
@@ -61,16 +60,16 @@ class UnionColumnGenerator<T extends FieldVector> implements Generator {
 
     final ImmutableList.Builder<T> vectorsBuilder = ImmutableList.builder();
 
-    final Field fieldIdLeft = new Field("id_"+ this.postFix, new FieldType(true,
-      new ArrowType.Int(32, true), null), null);
+    final Field fieldIdLeft =
+        new Field(
+            "id_" + this.postFix, new FieldType(true, new ArrowType.Int(32, true), null), null);
 
     final T idLeftVector = result.addOrGet(fieldIdLeft);
     vectorsBuilder.add(idLeftVector);
 
-    final Field unionField = CompleteType.union(
-      CompleteType.INT.toField("int"),
-      CompleteType.FLOAT.toField("float")
-    ).toField("union_" + this.postFix);
+    final Field unionField =
+        CompleteType.union(CompleteType.INT.toField("int"), CompleteType.FLOAT.toField("float"))
+            .toField("union_" + this.postFix);
 
     final T unionVector = result.addOrGet(unionField);
     vectorsBuilder.add(unionVector);
@@ -82,6 +81,7 @@ class UnionColumnGenerator<T extends FieldVector> implements Generator {
 
   /**
    * Generate a new record.
+   *
    * @param records
    * @return
    */
@@ -118,26 +118,27 @@ class UnionColumnGenerator<T extends FieldVector> implements Generator {
     result.close();
   }
 
-  private static void insertIntoIntVector(final int index, final int value, final BaseFixedWidthVector vector) {
-    IntVector vec = (IntVector)vector;
+  private static void insertIntoIntVector(
+      final int index, final int value, final BaseFixedWidthVector vector) {
+    IntVector vec = (IntVector) vector;
     vec.setSafe(index, value);
   }
 
-  private static void insertIntIntoUnionVector(final int index, final int value, final UnionVector vector) {
+  private static void insertIntIntoUnionVector(
+      final int index, final int value, final UnionVector vector) {
     final UnionWriter unionWriter = new UnionWriter(vector);
 
     unionWriter.setPosition(index);
 
     unionWriter.writeInt(value);
-
   }
 
-  private static void insertFloatIntoUnionVector(final int index, final float value, final UnionVector vector) {
+  private static void insertFloatIntoUnionVector(
+      final int index, final float value, final UnionVector vector) {
     final UnionWriter unionWriter = new UnionWriter(vector);
 
     unionWriter.setPosition(index);
 
     unionWriter.writeFloat4(value);
-
   }
 }

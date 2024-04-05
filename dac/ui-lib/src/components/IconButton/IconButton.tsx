@@ -19,20 +19,19 @@ import invariant from "invariant";
 import clsx from "clsx";
 import Tooltip from "../Tooltip";
 
-type IconButtonProps =
-  | (React.HTMLAttributes<HTMLButtonElement> & {
-      as?: any;
-      className?: string;
-      type?: "button" | "submit";
-    }) & {
-      tooltip: React.ReactNode;
-      tooltipPlacement: string;
-      "aria-label"?: void;
-    } & {
-      tooltip?: void;
-      tooltipPlacement?: void;
-      "aria-label": string;
-    };
+type IconButtonProps = (React.HTMLAttributes<HTMLButtonElement> & {
+  as?: any;
+  className?: string;
+  type?: "button" | "submit";
+}) & {
+  tooltip: React.ReactNode;
+  tooltipPlacement: string;
+  "aria-label"?: void;
+} & {
+  tooltip?: void;
+  tooltipPlacement?: void;
+  "aria-label": string;
+};
 
 function validateProps(props: IconButtonProps) {
   //@ts-ignore
@@ -44,7 +43,7 @@ function validateProps(props: IconButtonProps) {
 
   invariant(
     !isValid,
-    "One of props 'tooltip' or 'aria-label' must be defined and not both."
+    "One of props 'tooltip' or 'aria-label' must be defined and not both.",
   );
 }
 

@@ -27,19 +27,27 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.when;
 
+import com.dremio.config.DremioConfig;
+import com.dremio.dac.explore.bi.TableauMessageBodyGenerator.TableauExportType;
+import com.dremio.dac.explore.model.DatasetPath;
+import com.dremio.dac.server.WebServer;
+import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
+import com.dremio.exec.record.BatchSchema;
+import com.dremio.options.OptionManager;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.dataset.proto.DatasetType;
+import com.dremio.xml.SafeXMLFactories;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.text.ParseException;
-
 import javax.ws.rs.core.Configuration;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.MultivaluedHashMap;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
-
 import org.apache.arrow.vector.types.DateUnit;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.TimeUnit;
@@ -61,39 +69,26 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
-import com.dremio.config.DremioConfig;
-import com.dremio.dac.explore.bi.TableauMessageBodyGenerator.TableauExportType;
-import com.dremio.dac.explore.model.DatasetPath;
-import com.dremio.dac.server.WebServer;
-import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
-import com.dremio.exec.record.BatchSchema;
-import com.dremio.options.OptionManager;
-import com.dremio.service.namespace.dataset.proto.DatasetConfig;
-import com.dremio.service.namespace.dataset.proto.DatasetType;
-import com.dremio.xml.SafeXMLFactories;
-
-/**
- * Unit tests for {@link TableauMessageBodyGenerator}
- */
+/** Unit tests for {@link TableauMessageBodyGenerator} */
 @RunWith(Parameterized.class)
 public class TestTableauMessageBodyGenerator {
-  @Parameters(name="{0}")
+  @Parameters(name = "{0}")
   public static Object[] getTestCases() {
     return new Object[] {
-      new String[] { "basic", "UNTITLED.tmp", "[UNTITLED].[tmp]", ""},
-      new String[] { "basic-with-custom-properties", "UNTITLED.tmp", "[UNTITLED].[tmp]", "FOO=BAR"},
-      new String[] { "subfolder", "spaceA.foo.tmp", "[spaceA.foo].[tmp]", "" },
-      new String[] { "dot-in-name", "spaceA.\"tmp.json\"", "[spaceA].[tmp.json]", "" },
-      new String[] { "home-dataset", "@dremio.tmp", "[@dremio].[tmp]", "" },
-      new String[] { "weird-name", "spaceA.[foo][bar]", "[spaceA].[[foo]][bar]]]", "" },
-      new String[] { "weird-schema", "spaceA.[whynot].tmp", "[spaceA.[whynot]]].[tmp]", "" }
+      new String[] {"basic", "UNTITLED.tmp", "[UNTITLED].[tmp]", ""},
+      new String[] {"basic-with-custom-properties", "UNTITLED.tmp", "[UNTITLED].[tmp]", "FOO=BAR"},
+      new String[] {"subfolder", "spaceA.foo.tmp", "[spaceA.foo].[tmp]", ""},
+      new String[] {"dot-in-name", "spaceA.\"tmp.json\"", "[spaceA].[tmp.json]", ""},
+      new String[] {"home-dataset", "@dremio.tmp", "[@dremio].[tmp]", ""},
+      new String[] {"weird-name", "spaceA.[foo][bar]", "[spaceA].[[foo]][bar]]]", ""},
+      new String[] {"weird-schema", "spaceA.[whynot].tmp", "[spaceA.[whynot]]].[tmp]", ""}
     };
   }
 
-  @Rule
-  public final MockitoRule mockitoRule = MockitoJUnit.rule();
+  @Rule public final MockitoRule mockitoRule = MockitoJUnit.rule();
 
-  private static final NodeEndpoint ENDPOINT = NodeEndpoint.newBuilder().setAddress("foo").setUserPort(12345).build();
+  private static final NodeEndpoint ENDPOINT =
+      NodeEndpoint.newBuilder().setAddress("foo").setUserPort(12345).build();
   public static final String NATIVE = "NATIVE";
   public static final String FLIGHT = "FLIGHT";
   public static final String SSL_TRUE = "ssl = true";
@@ -105,14 +100,17 @@ public class TestTableauMessageBodyGenerator {
   @SuppressWarnings("checkstyle:VisibilityModifier")
   @Mock
   protected Configuration configuration;
+
   @SuppressWarnings("checkstyle:VisibilityModifier")
   @Mock
   protected OptionManager optionManager;
+
   @SuppressWarnings("checkstyle:VisibilityModifier")
   @Mock
   protected DremioConfig config;
 
-  public TestTableauMessageBodyGenerator(String testName, String path, String tableName, String customProperties) {
+  public TestTableauMessageBodyGenerator(
+      String testName, String path, String tableName, String customProperties) {
     this.path = new DatasetPath(path);
     this.tableName = tableName;
     this.customProperties = customProperties;
@@ -127,7 +125,7 @@ public class TestTableauMessageBodyGenerator {
       throws IOException, SAXException, ParserConfigurationException, ParseException {
     when(optionManager.getOption(EXTRA_CONNECTION_PROPERTIES)).thenReturn(customProperties);
     when(optionManager.getOption(TABLEAU_EXPORT_TYPE))
-      .thenReturn(TableauExportType.ODBC.toString());
+        .thenReturn(TableauExportType.ODBC.toString());
     final DatasetConfig datasetConfig = new DatasetConfig();
     datasetConfig.setFullPathList(path.toPathList());
     datasetConfig.setType(DatasetType.PHYSICAL_DATASET);
@@ -138,12 +136,22 @@ public class TestTableauMessageBodyGenerator {
     final ByteArrayOutputStream baos = new ByteArrayOutputStream();
 
     final TableauMessageBodyGenerator generator = buildGenerator();
-    assertTrue(generator.isWriteable(datasetConfig.getClass(), null, null, WebServer.MediaType.APPLICATION_TDS_TYPE));
-    generator.writeTo(datasetConfig, DatasetConfig.class, null, new Annotation[] {}, WebServer.MediaType.APPLICATION_TDS_TYPE, httpHeaders, baos);
+    assertTrue(
+        generator.isWriteable(
+            datasetConfig.getClass(), null, null, WebServer.MediaType.APPLICATION_TDS_TYPE));
+    generator.writeTo(
+        datasetConfig,
+        DatasetConfig.class,
+        null,
+        new Annotation[] {},
+        WebServer.MediaType.APPLICATION_TDS_TYPE,
+        httpHeaders,
+        baos);
 
     // Convert the baos into a DOM Tree to verify content
     final DocumentBuilderFactory factory = SafeXMLFactories.newSafeDocumentBuilderFactory();
-    final Document document = factory.newDocumentBuilder().parse(new ByteArrayInputStream(baos.toByteArray()));
+    final Document document =
+        factory.newDocumentBuilder().parse(new ByteArrayInputStream(baos.toByteArray()));
 
     assertEquals(TABLEAU_VERSION, document.getDocumentElement().getAttribute("version"));
 
@@ -154,7 +162,9 @@ public class TestTableauMessageBodyGenerator {
     assertEquals("genericodbc", connection.getAttribute("class"));
     assertEquals("Dremio Connector", connection.getAttribute("odbc-driver"));
 
-    String expectedExtras = "AUTHENTICATIONTYPE=Basic Authentication;CONNECTIONTYPE=Direct;HOST=" + generator.getEndpoint().getAddress();
+    String expectedExtras =
+        "AUTHENTICATIONTYPE=Basic Authentication;CONNECTIONTYPE=Direct;HOST="
+            + generator.getEndpoint().getAddress();
     String actualExtras = connection.getAttribute("odbc-connect-string-extras");
     if (customProperties.isEmpty()) {
       assertEquals(expectedExtras, actualExtras);
@@ -173,7 +183,8 @@ public class TestTableauMessageBodyGenerator {
     verifyBatchSchema(columnAliases);
 
     // Also check that Content-Disposition header is set with a filename ending by tds
-    final ContentDisposition contentDisposition = new ContentDisposition((String) httpHeaders.getFirst(HttpHeaders.CONTENT_DISPOSITION));
+    final ContentDisposition contentDisposition =
+        new ContentDisposition((String) httpHeaders.getFirst(HttpHeaders.CONTENT_DISPOSITION));
     assertTrue("filename should end with .tds", contentDisposition.getFileName().endsWith(".tds"));
   }
 
@@ -194,50 +205,43 @@ public class TestTableauMessageBodyGenerator {
 
   @Test
   public void verifySdkOutputSslOff()
-    throws IOException, SAXException, ParserConfigurationException, ParseException {
-    verifyOutput("" ,"", NATIVE);
-
+      throws IOException, SAXException, ParserConfigurationException, ParseException {
+    verifyOutput("", "", NATIVE);
   }
 
   @Test
   public void verifySdkOutputSslOn()
-    throws IOException, SAXException, ParserConfigurationException, ParseException {
+      throws IOException, SAXException, ParserConfigurationException, ParseException {
     verifyOutput(SSL_TRUE, TableauSDKConstants.REQUIRE, NATIVE);
-
   }
 
   @Test
   public void verifySdkOutputSslOnConfig()
-    throws IOException, SAXException, ParserConfigurationException, ParseException {
+      throws IOException, SAXException, ParserConfigurationException, ParseException {
     when(config.hasPath("services.coordinator.client-endpoint.ssl.enabled")).thenReturn(true);
     when(config.getBoolean("services.coordinator.client-endpoint.ssl.enabled")).thenReturn(true);
     verifyOutput(SSL_TRUE, TableauSDKConstants.REQUIRE, NATIVE);
-
   }
 
   @Test
   public void verifyFlightOutputSslOff()
-    throws IOException, SAXException, ParserConfigurationException, ParseException {
-    verifyOutput("" ,"", FLIGHT);
-
+      throws IOException, SAXException, ParserConfigurationException, ParseException {
+    verifyOutput("", "", FLIGHT);
   }
 
   @Test
   public void verifyFlightOutputSslOn()
-    throws IOException, SAXException, ParserConfigurationException, ParseException {
+      throws IOException, SAXException, ParserConfigurationException, ParseException {
     verifyOutput("useEncryption = true", TableauSDKConstants.REQUIRE, FLIGHT);
-
   }
 
   @Test
   public void verifyFlightOutputSslOnConfig()
-    throws IOException, SAXException, ParserConfigurationException, ParseException {
+      throws IOException, SAXException, ParserConfigurationException, ParseException {
     when(config.hasPath("services.coordinator.client-endpoint.ssl.enabled")).thenReturn(true);
     when(config.getBoolean("services.coordinator.client-endpoint.ssl.enabled")).thenReturn(true);
     verifyOutput("", TableauSDKConstants.REQUIRE, FLIGHT);
-
   }
-
 
   protected void verifySdkCustomOutput(Element connection) {
     assertEquals("", connection.getAttribute(TableauSDKConstants.QUEUE));
@@ -247,7 +251,8 @@ public class TestTableauMessageBodyGenerator {
   }
 
   protected void verifySdkAuthenticationOutput(Element connection) {
-    assertEquals(TableauSDKConstants.BASIC, connection.getAttribute(TableauSDKConstants.AUTHENTICATION));
+    assertEquals(
+        TableauSDKConstants.BASIC, connection.getAttribute(TableauSDKConstants.AUTHENTICATION));
   }
 
   protected void verifySdkSSLOutput(Element connection, String sslmode) {
@@ -255,20 +260,20 @@ public class TestTableauMessageBodyGenerator {
   }
 
   protected void verifySdkProduct(Element connection) {
-    assertEquals(TableauSDKConstants.LEGACY_SOFTWARE, connection.getAttribute(TableauSDKConstants.PRODUCT));
+    assertEquals(
+        TableauSDKConstants.LEGACY_SOFTWARE, connection.getAttribute(TableauSDKConstants.PRODUCT));
   }
 
   protected void verifyFlightProduct(Element connection) {
-    assertEquals(TableauSDKConstants.SOFTWARE, connection.getAttribute(TableauSDKConstants.PRODUCT));
+    assertEquals(
+        TableauSDKConstants.SOFTWARE, connection.getAttribute(TableauSDKConstants.PRODUCT));
   }
 
-
   protected Element verifyOutput(String properties, String sslmode, String tableauExportType)
-    throws IOException, SAXException, ParserConfigurationException, ParseException {
+      throws IOException, SAXException, ParserConfigurationException, ParseException {
     when(optionManager.getOption(EXTRA_FLIGHT_CONNECTION_PROPERTIES)).thenReturn(properties);
     when(optionManager.getOption(EXTRA_NATIVE_CONNECTION_PROPERTIES)).thenReturn(properties);
-    when(optionManager.getOption(TABLEAU_EXPORT_TYPE))
-      .thenReturn(tableauExportType);
+    when(optionManager.getOption(TABLEAU_EXPORT_TYPE)).thenReturn(tableauExportType);
     final DatasetConfig datasetConfig = new DatasetConfig();
     datasetConfig.setFullPathList(path.toPathList());
     datasetConfig.setType(DatasetType.PHYSICAL_DATASET);
@@ -279,16 +284,27 @@ public class TestTableauMessageBodyGenerator {
     final ByteArrayOutputStream baos = new ByteArrayOutputStream();
 
     final TableauMessageBodyGenerator tableauMessageBodyGenerator = buildGenerator();
-    assertTrue(tableauMessageBodyGenerator.isWriteable(datasetConfig.getClass(), null, null, WebServer.MediaType.APPLICATION_TDS_TYPE));
-    tableauMessageBodyGenerator.writeTo(datasetConfig, DatasetConfig.class, null, new Annotation[] {}, WebServer.MediaType.APPLICATION_TDS_TYPE, httpHeaders, baos);
+    assertTrue(
+        tableauMessageBodyGenerator.isWriteable(
+            datasetConfig.getClass(), null, null, WebServer.MediaType.APPLICATION_TDS_TYPE));
+    tableauMessageBodyGenerator.writeTo(
+        datasetConfig,
+        DatasetConfig.class,
+        null,
+        new Annotation[] {},
+        WebServer.MediaType.APPLICATION_TDS_TYPE,
+        httpHeaders,
+        baos);
 
     // Convert the baos into a DOM Tree to verify content
     final DocumentBuilderFactory factory = SafeXMLFactories.newSafeDocumentBuilderFactory();
-    final Document document = factory.newDocumentBuilder().parse(new ByteArrayInputStream(baos.toByteArray()));
+    final Document document =
+        factory.newDocumentBuilder().parse(new ByteArrayInputStream(baos.toByteArray()));
 
     assertEquals(TABLEAU_VERSION, document.getDocumentElement().getAttribute("version"));
 
-    final NodeList connections = document.getDocumentElement().getElementsByTagName(TableauSDKConstants.CONN_ATTR);
+    final NodeList connections =
+        document.getDocumentElement().getElementsByTagName(TableauSDKConstants.CONN_ATTR);
 
     assertEquals(1, connections.getLength());
     final Element connection = (Element) connections.item(0);
@@ -300,7 +316,7 @@ public class TestTableauMessageBodyGenerator {
     verifySdkSSLOutput(connection, sslmode);
     verifySdkCustomOutput(connection);
 
-    if(FLIGHT.equals(tableauExportType)) {
+    if (FLIGHT.equals(tableauExportType)) {
       verifyFlightProduct(connection);
     } else {
       verifySdkProduct(connection);
@@ -315,7 +331,8 @@ public class TestTableauMessageBodyGenerator {
     verifyBatchSchema(columnAliases);
 
     // Also check that Content-Disposition header is set with a filename ending by tds
-    final ContentDisposition contentDisposition = new ContentDisposition((String) httpHeaders.getFirst(HttpHeaders.CONTENT_DISPOSITION));
+    final ContentDisposition contentDisposition =
+        new ContentDisposition((String) httpHeaders.getFirst(HttpHeaders.CONTENT_DISPOSITION));
     assertTrue("filename should end with .tds", contentDisposition.getFileName().endsWith(".tds"));
 
     return connection;
@@ -325,7 +342,7 @@ public class TestTableauMessageBodyGenerator {
   public void verifyNativeOutput()
       throws IOException, SAXException, ParserConfigurationException, ParseException {
     when(optionManager.getOption(TABLEAU_EXPORT_TYPE))
-      .thenReturn(TableauExportType.ODBC.toString());
+        .thenReturn(TableauExportType.ODBC.toString());
     DatasetConfig datasetConfig = new DatasetConfig();
     datasetConfig.setFullPathList(path.toPathList());
 
@@ -339,12 +356,22 @@ public class TestTableauMessageBodyGenerator {
     final ByteArrayOutputStream baos = new ByteArrayOutputStream();
 
     final TableauMessageBodyGenerator generator = buildGenerator();
-    assertTrue(generator.isWriteable(datasetConfig.getClass(), null, null, WebServer.MediaType.APPLICATION_TDS_DRILL_TYPE));
-    generator.writeTo(datasetConfig, DatasetConfig.class, null, new Annotation[] {}, WebServer.MediaType.APPLICATION_TDS_DRILL_TYPE, httpHeaders, baos);
+    assertTrue(
+        generator.isWriteable(
+            datasetConfig.getClass(), null, null, WebServer.MediaType.APPLICATION_TDS_DRILL_TYPE));
+    generator.writeTo(
+        datasetConfig,
+        DatasetConfig.class,
+        null,
+        new Annotation[] {},
+        WebServer.MediaType.APPLICATION_TDS_DRILL_TYPE,
+        httpHeaders,
+        baos);
 
     // Convert the baos into a DOM Tree to verify content
     final DocumentBuilderFactory factory = SafeXMLFactories.newSafeDocumentBuilderFactory();
-    final Document document = factory.newDocumentBuilder().parse(new ByteArrayInputStream(baos.toByteArray()));
+    final Document document =
+        factory.newDocumentBuilder().parse(new ByteArrayInputStream(baos.toByteArray()));
 
     final NodeList connections = document.getDocumentElement().getElementsByTagName("connection");
 
@@ -354,7 +381,8 @@ public class TestTableauMessageBodyGenerator {
     assertEquals("drill", connection.getAttribute("class"));
     assertEquals("Direct", connection.getAttribute("connection-type"));
     assertEquals(generator.getEndpoint().getAddress(), connection.getAttribute("server"));
-    assertEquals(generator.getEndpoint().getUserPort(), Integer.parseInt(connection.getAttribute("port")));
+    assertEquals(
+        generator.getEndpoint().getUserPort(), Integer.parseInt(connection.getAttribute("port")));
     assertEquals(path.toParentPath(), connection.getAttribute("schema"));
 
     verifyRelationElement(connection);
@@ -365,7 +393,8 @@ public class TestTableauMessageBodyGenerator {
     verifyBatchSchema(columnAliases);
 
     // metadata tests
-    final NodeList metadataRecords = document.getDocumentElement().getElementsByTagName("metadata-record");
+    final NodeList metadataRecords =
+        document.getDocumentElement().getElementsByTagName("metadata-record");
 
     assertEquals(metadataRecords.getLength(), schema.getFieldCount());
     assertEqualsMetadataRecord(metadataRecords.item(0), "[col_string]", "string");
@@ -385,48 +414,143 @@ public class TestTableauMessageBodyGenerator {
     assertEqualsMetadataRecord(metadataRecords.item(14), "[decimal_NBR]", "real");
 
     // Also check that Content-Disposition header is set with a filename ending by tds
-    final ContentDisposition contentDisposition = new ContentDisposition((String) httpHeaders.getFirst(HttpHeaders.CONTENT_DISPOSITION));
+    final ContentDisposition contentDisposition =
+        new ContentDisposition((String) httpHeaders.getFirst(HttpHeaders.CONTENT_DISPOSITION));
     assertTrue("filename should end with .tds", contentDisposition.getFileName().endsWith(".tds"));
   }
-
 
   private BatchSchema generateBatchSchema() {
     // create a schema to test the column element with various attributes
     return BatchSchema.newBuilder()
-      .addField(new Field("col_string", FieldType.nullable(ArrowType.Utf8.INSTANCE), null))
-      .addField(new Field("BOOLEAN", FieldType.nullable(ArrowType.Bool.INSTANCE), null))
-      .addField(new Field("Col_decimal", FieldType.nullable(new ArrowType.Decimal(0, 0, 128)), null))
-      .addField(new Field("col_INT", FieldType.nullable(new ArrowType.Int(8, false)), null))
-      .addField(new Field("COL_DATE", FieldType.nullable(new ArrowType.Date(DateUnit.MILLISECOND)), null))
-      .addField(new Field("COL_Time", FieldType.nullable(new ArrowType.Time(TimeUnit.MILLISECOND, 8)), null))
-      .addField(new Field("id_int", FieldType.nullable(new ArrowType.Int(8, false)), null))
-      .addField(new Field("Code_int", FieldType.nullable(new ArrowType.Int(8, false)), null))
-      .addField(new Field("KEY_int", FieldType.nullable(new ArrowType.Int(8, false)), null))
-      .addField(new Field("float_id", FieldType.nullable(new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)), null))
-      .addField(new Field("float_Code", FieldType.nullable(new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)), null))
-      .addField(new Field("float_KEY", FieldType.nullable(new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)), null))
-      .addField(new Field("decimal_number", FieldType.nullable(new ArrowType.Decimal(0, 0, 128)), null))
-      .addField(new Field("decimal_Num", FieldType.nullable(new ArrowType.Decimal(0, 0, 128)), null))
-      .addField(new Field("decimal_NBR", FieldType.nullable(new ArrowType.Decimal(0, 0, 128)), null))
-      .build();
+        .addField(new Field("col_string", FieldType.nullable(ArrowType.Utf8.INSTANCE), null))
+        .addField(new Field("BOOLEAN", FieldType.nullable(ArrowType.Bool.INSTANCE), null))
+        .addField(
+            new Field("Col_decimal", FieldType.nullable(new ArrowType.Decimal(0, 0, 128)), null))
+        .addField(new Field("col_INT", FieldType.nullable(new ArrowType.Int(8, false)), null))
+        .addField(
+            new Field(
+                "COL_DATE", FieldType.nullable(new ArrowType.Date(DateUnit.MILLISECOND)), null))
+        .addField(
+            new Field(
+                "COL_Time", FieldType.nullable(new ArrowType.Time(TimeUnit.MILLISECOND, 8)), null))
+        .addField(new Field("id_int", FieldType.nullable(new ArrowType.Int(8, false)), null))
+        .addField(new Field("Code_int", FieldType.nullable(new ArrowType.Int(8, false)), null))
+        .addField(new Field("KEY_int", FieldType.nullable(new ArrowType.Int(8, false)), null))
+        .addField(
+            new Field(
+                "float_id",
+                FieldType.nullable(new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)),
+                null))
+        .addField(
+            new Field(
+                "float_Code",
+                FieldType.nullable(new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)),
+                null))
+        .addField(
+            new Field(
+                "float_KEY",
+                FieldType.nullable(new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)),
+                null))
+        .addField(
+            new Field("decimal_number", FieldType.nullable(new ArrowType.Decimal(0, 0, 128)), null))
+        .addField(
+            new Field("decimal_Num", FieldType.nullable(new ArrowType.Decimal(0, 0, 128)), null))
+        .addField(
+            new Field("decimal_NBR", FieldType.nullable(new ArrowType.Decimal(0, 0, 128)), null))
+        .build();
   }
 
   private void verifyBatchSchema(NodeList columnAliases) {
-    assertEqualsColumnAlias(columnAliases.item(0), "Col String", "string", "[col_string]", "dimension", TABLEAU_TYPE_NOMINAL);
-    assertEqualsColumnAlias(columnAliases.item(1), "Boolean", "boolean", "[BOOLEAN]", "dimension", TABLEAU_TYPE_NOMINAL);
-    assertEqualsColumnAlias(columnAliases.item(2), "Col Decimal", "real", "[Col_decimal]", "measure", TABLEAU_TYPE_QUANTITATIVE);
-    assertEqualsColumnAlias(columnAliases.item(3), "Col Int", "integer", "[col_INT]", "measure", TABLEAU_TYPE_QUANTITATIVE);
-    assertEqualsColumnAlias(columnAliases.item(4), "Col Date", "date", "[COL_DATE]", "dimension", TABLEAU_TYPE_NOMINAL);
-    assertEqualsColumnAlias(columnAliases.item(5), "Col Time", "datetime", "[COL_Time]", "dimension", TABLEAU_TYPE_NOMINAL);
-    assertEqualsColumnAlias(columnAliases.item(6), "Id Int", "integer", "[id_int]", "dimension", TABLEAU_TYPE_ORDINAL);
-    assertEqualsColumnAlias(columnAliases.item(7), "Code Int", "integer", "[Code_int]", "dimension", TABLEAU_TYPE_ORDINAL);
-    assertEqualsColumnAlias(columnAliases.item(8), "Key Int", "integer", "[KEY_int]", "dimension", TABLEAU_TYPE_ORDINAL);
-    assertEqualsColumnAlias(columnAliases.item(9), "Float Id", "real", "[float_id]", "dimension", TABLEAU_TYPE_ORDINAL);
-    assertEqualsColumnAlias(columnAliases.item(10), "Float Code", "real", "[float_Code]", "dimension", TABLEAU_TYPE_ORDINAL);
-    assertEqualsColumnAlias(columnAliases.item(11), "Float Key", "real", "[float_KEY]", "dimension", TABLEAU_TYPE_ORDINAL);
-    assertEqualsColumnAlias(columnAliases.item(12), "Decimal Number", "real", "[decimal_number]", "dimension", TABLEAU_TYPE_ORDINAL);
-    assertEqualsColumnAlias(columnAliases.item(13), "Decimal Num", "real", "[decimal_Num]", "dimension", TABLEAU_TYPE_ORDINAL);
-    assertEqualsColumnAlias(columnAliases.item(14), "Decimal Nbr", "real", "[decimal_NBR]", "dimension", TABLEAU_TYPE_ORDINAL);
+    assertEqualsColumnAlias(
+        columnAliases.item(0),
+        "Col String",
+        "string",
+        "[col_string]",
+        "dimension",
+        TABLEAU_TYPE_NOMINAL);
+    assertEqualsColumnAlias(
+        columnAliases.item(1),
+        "Boolean",
+        "boolean",
+        "[BOOLEAN]",
+        "dimension",
+        TABLEAU_TYPE_NOMINAL);
+    assertEqualsColumnAlias(
+        columnAliases.item(2),
+        "Col Decimal",
+        "real",
+        "[Col_decimal]",
+        "measure",
+        TABLEAU_TYPE_QUANTITATIVE);
+    assertEqualsColumnAlias(
+        columnAliases.item(3),
+        "Col Int",
+        "integer",
+        "[col_INT]",
+        "measure",
+        TABLEAU_TYPE_QUANTITATIVE);
+    assertEqualsColumnAlias(
+        columnAliases.item(4), "Col Date", "date", "[COL_DATE]", "dimension", TABLEAU_TYPE_NOMINAL);
+    assertEqualsColumnAlias(
+        columnAliases.item(5),
+        "Col Time",
+        "datetime",
+        "[COL_Time]",
+        "dimension",
+        TABLEAU_TYPE_NOMINAL);
+    assertEqualsColumnAlias(
+        columnAliases.item(6), "Id Int", "integer", "[id_int]", "dimension", TABLEAU_TYPE_ORDINAL);
+    assertEqualsColumnAlias(
+        columnAliases.item(7),
+        "Code Int",
+        "integer",
+        "[Code_int]",
+        "dimension",
+        TABLEAU_TYPE_ORDINAL);
+    assertEqualsColumnAlias(
+        columnAliases.item(8),
+        "Key Int",
+        "integer",
+        "[KEY_int]",
+        "dimension",
+        TABLEAU_TYPE_ORDINAL);
+    assertEqualsColumnAlias(
+        columnAliases.item(9), "Float Id", "real", "[float_id]", "dimension", TABLEAU_TYPE_ORDINAL);
+    assertEqualsColumnAlias(
+        columnAliases.item(10),
+        "Float Code",
+        "real",
+        "[float_Code]",
+        "dimension",
+        TABLEAU_TYPE_ORDINAL);
+    assertEqualsColumnAlias(
+        columnAliases.item(11),
+        "Float Key",
+        "real",
+        "[float_KEY]",
+        "dimension",
+        TABLEAU_TYPE_ORDINAL);
+    assertEqualsColumnAlias(
+        columnAliases.item(12),
+        "Decimal Number",
+        "real",
+        "[decimal_number]",
+        "dimension",
+        TABLEAU_TYPE_ORDINAL);
+    assertEqualsColumnAlias(
+        columnAliases.item(13),
+        "Decimal Num",
+        "real",
+        "[decimal_Num]",
+        "dimension",
+        TABLEAU_TYPE_ORDINAL);
+    assertEqualsColumnAlias(
+        columnAliases.item(14),
+        "Decimal Nbr",
+        "real",
+        "[decimal_NBR]",
+        "dimension",
+        TABLEAU_TYPE_ORDINAL);
   }
 
   private void assertEqualsMetadataRecord(Node node, String fieldName, String fieldType) {
@@ -439,7 +563,8 @@ public class TestTableauMessageBodyGenerator {
     assertEquals(child.getTextContent(), fieldType);
   }
 
-  private void assertEqualsColumnAlias(Node node, String caption, String dataType, String name, String role, String type) {
+  private void assertEqualsColumnAlias(
+      Node node, String caption, String dataType, String name, String role, String type) {
     Node attribute = node.getAttributes().item(0);
     assertEquals(attribute.getNodeName(), "caption");
     assertEquals(attribute.getTextContent(), caption);

@@ -15,12 +15,6 @@
  */
 package com.dremio.exec.planner.serialization.kryo.serializers;
 
-
-import org.apache.calcite.plan.ConventionTraitDef;
-import org.apache.calcite.plan.RelTraitDef;
-import org.apache.calcite.rel.RelCollationTraitDef;
-import org.apache.calcite.rel.RelDistributionTraitDef;
-
 import com.dremio.exec.planner.physical.DistributionTraitDef;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Serializer;
@@ -28,16 +22,28 @@ import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
+import org.apache.calcite.plan.ConventionTraitDef;
+import org.apache.calcite.plan.RelTraitDef;
+import org.apache.calcite.rel.RelCollationTraitDef;
+import org.apache.calcite.rel.RelDistributionTraitDef;
 
 public final class RelTraitDefSerializers {
 
-  private RelTraitDefSerializers() { }
+  private RelTraitDefSerializers() {}
 
   public static void register(final Kryo kryo) {
-    kryo.addDefaultSerializer(RelCollationTraitDef.class, SingletonSerializer.of(Suppliers.ofInstance(RelCollationTraitDef.INSTANCE)));
-    kryo.addDefaultSerializer(DistributionTraitDef.class, SingletonSerializer.of(Suppliers.ofInstance(DistributionTraitDef.INSTANCE)));
-    kryo.addDefaultSerializer(RelDistributionTraitDef.class, SingletonSerializer.of(Suppliers.ofInstance(RelDistributionTraitDef.INSTANCE)));
-    kryo.addDefaultSerializer(ConventionTraitDef.class, SingletonSerializer.of(Suppliers.ofInstance(ConventionTraitDef.INSTANCE)));
+    kryo.addDefaultSerializer(
+        RelCollationTraitDef.class,
+        SingletonSerializer.of(Suppliers.ofInstance(RelCollationTraitDef.INSTANCE)));
+    kryo.addDefaultSerializer(
+        DistributionTraitDef.class,
+        SingletonSerializer.of(Suppliers.ofInstance(DistributionTraitDef.INSTANCE)));
+    kryo.addDefaultSerializer(
+        RelDistributionTraitDef.class,
+        SingletonSerializer.of(Suppliers.ofInstance(RelDistributionTraitDef.INSTANCE)));
+    kryo.addDefaultSerializer(
+        ConventionTraitDef.class,
+        SingletonSerializer.of(Suppliers.ofInstance(ConventionTraitDef.INSTANCE)));
   }
 
   private static class SingletonSerializer<T extends RelTraitDef> extends Serializer<T> {
@@ -58,9 +64,8 @@ public final class RelTraitDefSerializers {
       return result;
     }
 
-    public static  <T extends RelTraitDef> SingletonSerializer<T> of(final Supplier<T> factory) {
+    public static <T extends RelTraitDef> SingletonSerializer<T> of(final Supplier<T> factory) {
       return new SingletonSerializer<>(factory);
     }
   }
-
 }

@@ -15,14 +15,11 @@
  */
 package com.dremio.exec.physical.base;
 
-import java.util.Objects;
-
-import javax.annotation.Nullable;
-
-import org.immutables.value.Value;
-
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import java.util.Objects;
+import javax.annotation.Nullable;
+import org.immutables.value.Value;
 
 @JsonDeserialize(builder = ImmutableTableFormatWriterOptions.Builder.class)
 @Value.Immutable
@@ -38,32 +35,28 @@ public interface TableFormatWriterOptions {
     VACUUM
   }
 
-  /**
-   * Iceberg operation type
-   */
+  /** Iceberg operation type */
   @Value.Default
   default TableFormatOperation getOperation() {
     return TableFormatOperation.NONE;
   }
 
   /**
-   * Minimum input files to consider for a replacing non-optimized data files with optimized ones (replace).
-   * Ignored if not a positive value
+   * Minimum input files to consider for a replacing non-optimized data files with optimized ones
+   * (replace). Ignored if not a positive value
    */
   @Nullable
   Long getMinInputFilesBeforeOptimize();
 
   /**
-   * SnapshotId for operation.
-   * Consuming operation: Starting snapshot ID for conflict
-   * resolution with delete files in optimization.
+   * SnapshotId for operation. Consuming operation: Starting snapshot ID for conflict resolution
+   * with delete files in optimization.
    */
   @Nullable
   Long getSnapshotId();
 
   /**
-   * Target file size to be used by writers.
-   * System defaults to be used in case the value is null.
+   * Target file size to be used by writers. System defaults to be used in case the value is null.
    * Currently used only by Parquet writer.
    */
   @Nullable

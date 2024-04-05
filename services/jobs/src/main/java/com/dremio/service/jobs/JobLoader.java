@@ -15,26 +15,24 @@
  */
 package com.dremio.service.jobs;
 
-/**
- * Interface that allows JobData object to load Job.
- */
+/** Interface that allows JobData object to load Job. */
 public interface JobLoader {
 
   /**
    * Return {@link RecordBatches} containing the records for given offset and limit.
+   *
    * @param offset Starting record number in query results (starts with 0)
    * @param limit Number of records starting from the offset.
    * @return
    */
   RecordBatches load(int offset, int limit);
 
-  /**
-   * Wait for the job to complete.
-   */
+  /** Wait for the job to complete. */
   void waitForCompletion();
 
   /**
    * Return the table path where the job results are store.
+   *
    * @return
    */
   String getJobResultsTable();

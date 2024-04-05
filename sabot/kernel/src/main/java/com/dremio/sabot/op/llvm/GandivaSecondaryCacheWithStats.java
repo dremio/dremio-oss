@@ -15,19 +15,19 @@
  */
 package com.dremio.sabot.op.llvm;
 
-import java.util.concurrent.TimeUnit;
-
-import org.apache.arrow.gandiva.evaluator.JavaSecondaryCacheInterface;
-
 import com.google.common.base.Stopwatch;
+import java.util.concurrent.TimeUnit;
+import org.apache.arrow.gandiva.evaluator.JavaSecondaryCacheInterface;
 
 public class GandivaSecondaryCacheWithStats implements JavaSecondaryCacheInterface {
   private final GandivaSecondaryCache instance;
+
   public enum CacheState {
     PRIMARY_CACHE,
     SECONDARY_CACHE,
     GANDIVA_CODEGEN
   }
+
   public CacheState builtFromCache = CacheState.PRIMARY_CACHE;
   private final Stopwatch readTime = Stopwatch.createUnstarted();
 

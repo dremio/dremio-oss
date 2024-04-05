@@ -31,7 +31,13 @@ public class HyperLogLog {
 
   public static class SqlHllDecodeOperator extends SqlFunction {
     public SqlHllDecodeOperator() {
-      super(new SqlIdentifier("HLL_DECODE", SqlParserPos.ZERO), ReturnTypes.BIGINT_NULLABLE, null, OperandTypes.BINARY, null, SqlFunctionCategory.USER_DEFINED_FUNCTION);
+      super(
+          new SqlIdentifier("HLL_DECODE", SqlParserPos.ZERO),
+          ReturnTypes.BIGINT_NULLABLE,
+          null,
+          OperandTypes.BINARY,
+          null,
+          SqlFunctionCategory.USER_DEFINED_FUNCTION);
     }
 
     @Override
@@ -43,52 +49,50 @@ public class HyperLogLog {
     public int hashCode() {
       return 3;
     }
-
   }
 
   public static class SqlHllAggFunction extends SqlAggFunction {
     public SqlHllAggFunction() {
-      super("HLL",
-        null,
-        SqlKind.OTHER_FUNCTION,
-        ReturnTypes.explicit(SqlTypeName.VARBINARY, HLL_VARBINARY_SIZE),
-        null,
-        OperandTypes.ANY,
-        SqlFunctionCategory.USER_DEFINED_FUNCTION,
-        false,
-        false
-      );
+      super(
+          "HLL",
+          null,
+          SqlKind.OTHER_FUNCTION,
+          ReturnTypes.explicit(SqlTypeName.VARBINARY, HLL_VARBINARY_SIZE),
+          null,
+          OperandTypes.ANY,
+          SqlFunctionCategory.USER_DEFINED_FUNCTION,
+          false,
+          false);
     }
   }
 
   public static class SqlHllMergeAggFunction extends SqlAggFunction {
     public SqlHllMergeAggFunction() {
-      super("HLL_MERGE",
-        null,
-        SqlKind.OTHER_FUNCTION,
-        ReturnTypes.explicit(SqlTypeName.VARBINARY, HLL_VARBINARY_SIZE),
-        null,
-        OperandTypes.BINARY,
-        SqlFunctionCategory.USER_DEFINED_FUNCTION,
-        false,
-        false
-      );
+      super(
+          "HLL_MERGE",
+          null,
+          SqlKind.OTHER_FUNCTION,
+          ReturnTypes.explicit(SqlTypeName.VARBINARY, HLL_VARBINARY_SIZE),
+          null,
+          OperandTypes.BINARY,
+          SqlFunctionCategory.USER_DEFINED_FUNCTION,
+          false,
+          false);
     }
   }
 
   public static class SqlNdvAggFunction extends SqlAggFunction {
     public SqlNdvAggFunction() {
-      super("NDV",
-        null,
-        SqlKind.OTHER_FUNCTION,
-        ReturnTypes.BIGINT,
-        null,
-        OperandTypes.ANY,
-        SqlFunctionCategory.USER_DEFINED_FUNCTION,
-        false,
-        false
-      );
+      super(
+          "NDV",
+          null,
+          SqlKind.OTHER_FUNCTION,
+          ReturnTypes.BIGINT,
+          null,
+          OperandTypes.ANY,
+          SqlFunctionCategory.USER_DEFINED_FUNCTION,
+          false,
+          false);
     }
   }
-
 }

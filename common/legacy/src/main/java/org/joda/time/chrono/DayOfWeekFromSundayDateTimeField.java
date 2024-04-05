@@ -16,7 +16,6 @@
 package org.joda.time.chrono;
 
 import java.util.Locale;
-
 import org.joda.time.Chronology;
 import org.joda.time.DateTimeConstants;
 import org.joda.time.DateTimeFieldType;
@@ -24,7 +23,8 @@ import org.joda.time.DurationField;
 import org.joda.time.field.PreciseDurationDateTimeField;
 
 /**
- * Variant of {@link GJDayOfWeekDateTimeField} that counts Sunday as 1, Monday as 2, ..., and Saturday as 7.
+ * Variant of {@link GJDayOfWeekDateTimeField} that counts Sunday as 1, Monday as 2, ..., and
+ * Saturday as 7.
  */
 final class DayOfWeekFromSundayDateTimeField extends PreciseDurationDateTimeField {
 
@@ -34,9 +34,7 @@ final class DayOfWeekFromSundayDateTimeField extends PreciseDurationDateTimeFiel
 
   private final Chronology chronology;
 
-  /**
-   * Restricted constructor.
-   */
+  /** Restricted constructor. */
   DayOfWeekFromSundayDateTimeField(Chronology chronology, DurationField days) {
     super(DateTimeFieldType.dayOfWeek(), days);
     this.chronology = chronology;
@@ -68,7 +66,7 @@ final class DayOfWeekFromSundayDateTimeField extends PreciseDurationDateTimeFiel
    * Get the textual value of the specified time instant.
    *
    * @param fieldValue the field value to query
-   * @param locale     the locale to use
+   * @param locale the locale to use
    * @return the day of the week, such as 'Monday'
    */
   @Override
@@ -80,7 +78,7 @@ final class DayOfWeekFromSundayDateTimeField extends PreciseDurationDateTimeFiel
    * Get the abbreviated textual value of the specified time instant.
    *
    * @param fieldValue the field value to query
-   * @param locale     the locale to use
+   * @param locale the locale to use
    * @return the day of the week, such as 'Mon'
    */
   @Override
@@ -91,7 +89,7 @@ final class DayOfWeekFromSundayDateTimeField extends PreciseDurationDateTimeFiel
   /**
    * Convert the specified text and locale into a value.
    *
-   * @param text   the text to convert
+   * @param text the text to convert
    * @param locale the locale to convert using
    * @return the value extracted from the text
    * @throws IllegalArgumentException if the text is invalid
@@ -150,9 +148,7 @@ final class DayOfWeekFromSundayDateTimeField extends PreciseDurationDateTimeFiel
     return chronology.dayOfWeek().getMaximumShortTextLength(locale);
   }
 
-  /**
-   * Serialization singleton
-   */
+  /** Serialization singleton */
   private Object readResolve() {
     return chronology.dayOfWeek();
   }

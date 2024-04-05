@@ -20,6 +20,11 @@ import static java.util.Arrays.asList;
 import static java.util.Collections.unmodifiableList;
 import static java.util.Collections.unmodifiableSet;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.collect.HashMultimap;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Multimap;
 import java.lang.annotation.Annotation;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -30,17 +35,10 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.collect.HashMultimap;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Multimap;
-
-/**
- * The root doc of the scan result
- */
+/** The root doc of the scan result */
 public class ScanResult {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ScanResult.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ScanResult.class);
 
   private final List<String> scannedPackages;
   private final Set<String> scannedClasses;
@@ -51,7 +49,8 @@ public class ScanResult {
   private final Map<String, ParentClassDescriptor> parentClassByName;
   private final Multimap<String, AnnotatedClassDescriptor> annotationsByName;
 
-  @JsonCreator public ScanResult(
+  @JsonCreator
+  public ScanResult(
       @JsonProperty("scannedPackages") Collection<String> scannedPackages,
       @JsonProperty("scannedClasses") Collection<String> scannedClasses,
       @JsonProperty("scannedAnnotations") Collection<String> scannedAnnotations,
@@ -116,7 +115,8 @@ public class ScanResult {
   public ParentClassDescriptor getImplementations(String c) {
     if (!scannedClasses.contains(c)) {
       throw new IllegalArgumentException(
-          c + " is not scanned. "
+          c
+              + " is not scanned. "
               + "Only implementations for the following classes are scanned: "
               + scannedClasses);
     }
@@ -125,6 +125,7 @@ public class ScanResult {
 
   /**
    * This will load all the scanned classes for this parent as a side effect
+   *
    * @param c the parent
    * @return all the classes found
    */
@@ -132,10 +133,11 @@ public class ScanResult {
     ParentClassDescriptor p = getImplementations(c.getName());
     Set<Class<? extends T>> result = new HashSet<>();
     if (p != null) {
+      ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
       for (ChildClassDescriptor child : p.getChildren()) {
         if (!child.isAbstract()) {
           try {
-            result.add(Class.forName(child.getName()).asSubclass(c));
+            result.add(classLoader.loadClass(child.getName()).asSubclass(c));
           } catch (ClassNotFoundException e) {
             throw new RuntimeException("scanned class could not be found: " + child.getName(), e);
           }
@@ -145,7 +147,6 @@ public class ScanResult {
     return result;
   }
 
-
   /**
    * @param c the annotation class name
    * @return the descriptor of the annotated class
@@ -153,7 +154,8 @@ public class ScanResult {
   public List<AnnotatedClassDescriptor> getAnnotatedClasses(String c) {
     if (!scannedAnnotations.contains(c)) {
       throw new IllegalArgumentException(
-          c + " is not scanned. "
+          c
+              + " is not scanned. "
               + "Only the following Annotations are scanned: "
               + scannedAnnotations);
     }
@@ -166,11 +168,12 @@ public class ScanResult {
    */
   public List<Class<?>> getAnnotatedClasses(Class<? extends Annotation> clazz) {
     ImmutableList.Builder<Class<?>> classes = ImmutableList.builder();
-    for(AnnotatedClassDescriptor descriptor : getAnnotatedClasses(clazz.getName())) {
+    for (AnnotatedClassDescriptor descriptor : getAnnotatedClasses(clazz.getName())) {
       try {
         classes.add(Class.forName(descriptor.getClassName()));
       } catch (ClassNotFoundException e) {
-        throw new RuntimeException("scanned class could not be found: " + descriptor.getClassName(), e);
+        throw new RuntimeException(
+            "scanned class could not be found: " + descriptor.getClassName(), e);
       }
     }
 
@@ -180,11 +183,21 @@ public class ScanResult {
   @Override
   public String toString() {
     return "ScanResult ["
-        + "scannedPackages=" + scannedPackages + ", "
-        + "scannedClasses=" + scannedClasses + ", "
-        + "scannedAnnotations=" + scannedAnnotations + ", "
-        + "annotatedClasses=" + annotatedClasses + ", "
-        + "implementations=" + implementations + "]";
+        + "scannedPackages="
+        + scannedPackages
+        + ", "
+        + "scannedClasses="
+        + scannedClasses
+        + ", "
+        + "scannedAnnotations="
+        + scannedAnnotations
+        + ", "
+        + "annotatedClasses="
+        + annotatedClasses
+        + ", "
+        + "implementations="
+        + implementations
+        + "]";
   }
 
   private <T> List<T> merge(Collection<T> a, Collection<T> b) {
@@ -195,6 +208,7 @@ public class ScanResult {
 
   /**
    * merges this and other together into a new result object
+   *
    * @param other
    * @return the resulting merge
    */
@@ -207,7 +221,8 @@ public class ScanResult {
     }
     List<ParentClassDescriptor> newImplementations = new ArrayList<>();
     for (Entry<String, Collection<ChildClassDescriptor>> entry : newImpls.asMap().entrySet()) {
-      newImplementations.add(new ParentClassDescriptor(entry.getKey(), new ArrayList<>(entry.getValue())));
+      newImplementations.add(
+          new ParentClassDescriptor(entry.getKey(), new ArrayList<>(entry.getValue())));
     }
 
     return new ScanResult(
@@ -217,5 +232,4 @@ public class ScanResult {
         merge(annotatedClasses, other.annotatedClasses),
         newImplementations);
   }
-
 }

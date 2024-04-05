@@ -15,11 +15,12 @@
  */
 package com.dremio.common.util;
 
-/**
- * Expose the current loaded edition of Dremio software
- */
+/** Expose the current loaded edition of Dremio software */
 public enum DremioEdition {
-  OSS, COMMUNITY, ENTERPRISE, MARKETPLACE;
+  OSS,
+  COMMUNITY,
+  ENTERPRISE,
+  MARKETPLACE;
 
   private static final DremioEdition CURRENT;
 

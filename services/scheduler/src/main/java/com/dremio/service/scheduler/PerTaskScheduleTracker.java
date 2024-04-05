@@ -23,6 +23,13 @@ import static com.dremio.service.scheduler.TaskDoneHandler.PerTaskDoneInfo;
 import static com.dremio.service.scheduler.TaskLoadController.PerTaskLoadInfo;
 import static com.dremio.service.scheduler.TaskRecoveryMonitor.PerTaskRecoveryInfo;
 
+import com.dremio.common.concurrent.CloseableThreadPool;
+import com.dremio.exec.proto.CoordinationProtos;
+import com.dremio.io.file.Path;
+import com.dremio.service.coordinator.exceptions.PathExistsException;
+import com.dremio.service.coordinator.exceptions.PathMissingException;
+import com.google.common.base.Preconditions;
+import com.google.protobuf.InvalidProtocolBufferException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Iterator;
@@ -38,37 +45,28 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 
-import com.dremio.common.concurrent.CloseableThreadPool;
-import com.dremio.exec.proto.CoordinationProtos;
-import com.dremio.io.file.Path;
-import com.dremio.service.coordinator.exceptions.PathExistsException;
-import com.dremio.service.coordinator.exceptions.PathMissingException;
-import com.google.common.base.Preconditions;
-import com.google.protobuf.InvalidProtocolBufferException;
-
 /**
- * Wraps the actual task runner of the schedule in order to recover schedules on failure and ensure the singleton rule
- * on the running of the scheduled tasks across service instances, among other things.
- * <p>
- * Monitors and manages schedules of a single task. Responsibilities include:
- * 1. Keep track of schedules and run the task on time, enforcing cluster wide singleton rule
- * 2. Provide recovery methods for another service instance to take over
- * 3. Allow other instances to steal the task if this instance is heavily loaded
- * 4. Monitor and collect statistics of every task run for improved visibility
- * </p>
+ * Wraps the actual task runner of the schedule in order to recover schedules on failure and ensure
+ * the singleton rule on the running of the scheduled tasks across service instances, among other
+ * things.
+ *
+ * <p>Monitors and manages schedules of a single task. Responsibilities include: 1. Keep track of
+ * schedules and run the task on time, enforcing cluster wide singleton rule 2. Provide recovery
+ * methods for another service instance to take over 3. Allow other instances to steal the task if
+ * this instance is heavily loaded 4. Monitor and collect statistics of every task run for improved
+ * visibility
  */
-final class PerTaskScheduleTracker implements Runnable, Cancellable, PerTaskRecoveryInfo, PerTaskDoneInfo,
-  PerTaskLoadInfo {
-  private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(PerTaskScheduleTracker.class);
+final class PerTaskScheduleTracker
+    implements Runnable, Cancellable, PerTaskRecoveryInfo, PerTaskDoneInfo, PerTaskLoadInfo {
+  private static final org.slf4j.Logger LOGGER =
+      org.slf4j.LoggerFactory.getLogger(PerTaskScheduleTracker.class);
   private static final String BOOK_PATH_NAME = "book";
-  // max amount of time to wait for completion by another node for immediate one shot lock step schedules
+  // max amount of time to wait for completion by another node for immediate one shot lock step
+  // schedules
   private static final int WAIT_TIME_FOR_DONE_SECONDS = 60;
   // Amount of time to wait at each iteration to check if a cancelled task is complete
-  private static final int MAX_RUN_WAIT_TIME_MILLIS = 1;
+  private static final int MAX_RUN_WAIT_TIME_MILLIS = 50;
   // Keep the booking even after a schedule is cancelled for these many seconds
-  private static final int MAX_TIME_TO_WAIT_POST_CANCEL_SECONDS = 90;
-  // keep cancelled schedules for these many seconds
-  private static final int MAX_AGE_TO_KEEP_CANCELLED_SCHEDULE_SECONDS = 24 * 60 * 60 * 30;
 
   private final String taskName;
   private final Runnable actualTask;
@@ -95,19 +93,20 @@ final class PerTaskScheduleTracker implements Runnable, Cancellable, PerTaskReco
   private Instant cancelTime;
   private Schedule currentSchedule;
 
-  PerTaskScheduleTracker(Schedule schedule,
-                         Runnable task,
-                         String taskFqPath,
-                         String taskFqPathForBook,
-                         boolean bookingOwner,
-                         String taskName,
-                         CloseableThreadPool runningPool,
-                         ClusteredSingletonCommon schedulerCommon,
-                         Consumer<PerTaskScheduleTracker> cancelHandler,
-                         TaskLoadController loadControllerManager,
-                         TaskCompositeEventCollector eventCollectorManager,
-                         TaskRecoveryMonitor recoveryMonitorManager,
-                         TaskDoneHandler doneHandlerManager) {
+  PerTaskScheduleTracker(
+      Schedule schedule,
+      Runnable task,
+      String taskFqPath,
+      String taskFqPathForBook,
+      boolean bookingOwner,
+      String taskName,
+      CloseableThreadPool runningPool,
+      ClusteredSingletonCommon schedulerCommon,
+      Consumer<PerTaskScheduleTracker> cancelHandler,
+      TaskLoadController loadControllerManager,
+      TaskCompositeEventCollector eventCollectorManager,
+      TaskRecoveryMonitor recoveryMonitorManager,
+      TaskDoneHandler doneHandlerManager) {
     this.schedulerCommon = schedulerCommon;
     this.cancelHandler = cancelHandler;
     this.currentSchedule = schedule;
@@ -126,25 +125,39 @@ final class PerTaskScheduleTracker implements Runnable, Cancellable, PerTaskReco
     this.doneCondition = cancelLock.newCondition();
     this.cancelTime = null;
     this.bookingOwner = bookingOwner;
-    // Order is important as event call backs may arrive as soon as each of these managers know about this task
+    // Order is important as event call backs may arrive as soon as each of these managers know
+    // about this task
     this.eventsCollector = eventCollectorManager.addTask(this);
     this.recoveryMonitor = recoveryMonitorManager.addTask(this, eventsCollector);
     this.loadController = loadControllerManager.addTask(this, eventsCollector);
     this.doneHandler = doneHandlerManager.addTask(this);
   }
 
-  PerTaskScheduleTracker(Schedule schedule,
-                         Runnable task,
-                         String taskFqPath,
-                         CloseableThreadPool runningPool,
-                         ClusteredSingletonCommon schedulerCommon,
-                         Consumer<PerTaskScheduleTracker> cancelHandler,
-                         TaskLoadController loadControllerManager,
-                         TaskCompositeEventCollector eventCollectorManager,
-                         TaskRecoveryMonitor recoveryMonitorManager,
-                         TaskDoneHandler doneHandlerManager) {
-    this(schedule, task, taskFqPath, taskFqPath, false, schedule.getTaskName(), runningPool, schedulerCommon,
-      cancelHandler, loadControllerManager, eventCollectorManager, recoveryMonitorManager, doneHandlerManager);
+  PerTaskScheduleTracker(
+      Schedule schedule,
+      Runnable task,
+      String taskFqPath,
+      CloseableThreadPool runningPool,
+      ClusteredSingletonCommon schedulerCommon,
+      Consumer<PerTaskScheduleTracker> cancelHandler,
+      TaskLoadController loadControllerManager,
+      TaskCompositeEventCollector eventCollectorManager,
+      TaskRecoveryMonitor recoveryMonitorManager,
+      TaskDoneHandler doneHandlerManager) {
+    this(
+        schedule,
+        task,
+        taskFqPath,
+        taskFqPath,
+        false,
+        schedule.getTaskName(),
+        runningPool,
+        schedulerCommon,
+        cancelHandler,
+        loadControllerManager,
+        eventCollectorManager,
+        recoveryMonitorManager,
+        doneHandlerManager);
   }
 
   @Override
@@ -174,13 +187,12 @@ final class PerTaskScheduleTracker implements Runnable, Cancellable, PerTaskReco
 
   /**
    * Starts the schedule.
-   * <p>
-   * Called independently on all service instances, but only one service instance that can create the booking
-   * will be able to run and track the schedule.
-   * startRun is called at two places as follows:
-   * 1. When the schedule is first created on an instance
-   * 2. When an attempt is made to recover the schedule {@link this#tryRecover()} on this instance
-   * </p>
+   *
+   * <p>Called independently on all service instances, but only one service instance that can create
+   * the booking will be able to run and track the schedule. startRun is called at two places as
+   * follows: 1. When the schedule is first created on an instance 2. When an attempt is made to
+   * recover the schedule {@link this#tryRecover()} on this instance
+   *
    * @param recover true if called from recovery path, false otherwise
    */
   void startRun(boolean recover) {
@@ -197,7 +209,8 @@ final class PerTaskScheduleTracker implements Runnable, Cancellable, PerTaskReco
       cancelLock.lock();
       try {
         if (!taskDone) {
-          scheduledTaskFuture = schedulerCommon.getSchedulePool().schedule(this, delay, TimeUnit.MILLISECONDS);
+          scheduledTaskFuture =
+              schedulerCommon.getSchedulePool().schedule(this, delay, TimeUnit.MILLISECONDS);
         } else {
           LOGGER.info("Task {} is done. Ignoring scheduling request", taskName);
         }
@@ -214,22 +227,29 @@ final class PerTaskScheduleTracker implements Runnable, Cancellable, PerTaskReco
 
   /**
    * Sets a new schedule.
-   * <p>
-   * Mainly to support schedule modifications on the fly and/or allow chaining of single-shot schedules.
-   * It is assumed that schedule changes are propagated externally to all service instances.
-   * </p>
+   *
+   * <p>Mainly to support schedule modifications on the fly and/or allow chaining of single-shot
+   * schedules. It is assumed that schedule changes are propagated externally to all service
+   * instances.
    *
    * @param newSchedule the modified schedule
    */
   void setNewSchedule(Schedule newSchedule) {
-    Preconditions.checkArgument(newSchedule != null, "Modified Schedule cannot be null for task %s", this);
-    Preconditions.checkArgument(currentSchedule.getTaskName().equals(newSchedule.getTaskName()),
-      "Illegal schedule modification. Cannot change task name from %s to %s", currentSchedule.getTaskName(),
-      newSchedule.getTaskName());
-    Preconditions.checkArgument(newSchedule.isToRunExactlyOnce() == currentSchedule.isToRunExactlyOnce(),
-      "Illegal schedule modification. Cannot change between single shot schedule and normal schedule for task %s", this);
-    Preconditions.checkArgument(!newSchedule.isToRunExactlyOnce(),
-      "Illegal schedule modification. Cannot modify single shot schedules for task %s", this);
+    Preconditions.checkArgument(
+        newSchedule != null, "Modified Schedule cannot be null for task %s", this);
+    Preconditions.checkArgument(
+        currentSchedule.getTaskName().equals(newSchedule.getTaskName()),
+        "Illegal schedule modification. Cannot change task name from %s to %s",
+        currentSchedule.getTaskName(),
+        newSchedule.getTaskName());
+    Preconditions.checkArgument(
+        newSchedule.isToRunExactlyOnce() == currentSchedule.isToRunExactlyOnce(),
+        "Illegal schedule modification. Cannot change between single shot schedule and normal schedule for task %s",
+        this);
+    Preconditions.checkArgument(
+        !newSchedule.isToRunExactlyOnce(),
+        "Illegal schedule modification. Cannot modify single shot schedules for task %s",
+        this);
     currentSchedule = newSchedule;
     instantsRef.set(newSchedule.iterator());
     if (currentSchedule.getPeriod() != null) {
@@ -245,72 +265,89 @@ final class PerTaskScheduleTracker implements Runnable, Cancellable, PerTaskReco
 
   @Override
   public void run() {
-    Preconditions.checkState(bookingOwner, "Something went wrong. Must be a owner to run task %s", this);
-    boolean addToRunSet = false;
-    cancelLock.lock();
     try {
-      if (isTaskReallyDone()) {
-        return;
-      }
-      this.scheduledTaskFuture = null;
-      if (firstRun.equals(Instant.MIN)) {
-        firstRun = Instant.now();
-      }
-      CloseableThreadPool currentPool = (currentSchedule.isSticky() &&
-        runningPool.getActiveCount() >= runningPool.getMaximumPoolSize()) ? schedulerCommon.getStickyPool() :
-        runningPool;
-      this.runningTaskFuture = currentPool.submit(() -> {
-        Exception runError = null;
-        eventsCollector.runStarted();
-        try {
-          actualTask.run();
-        } catch (Exception e) {
-          // just log the error to avoid thread pool depletion
-          runError = e;
-        } finally {
-          eventsCollector.runEnded(runError == null);
+      boolean addToRunSet = false;
+      cancelLock.lock();
+      try {
+        if (!bookingOwner) {
+          LOGGER.info("Lost booking ownership for task {}", taskName);
+          return;
         }
+        if (isTaskReallyDone()) {
+          return;
+        }
+        this.scheduledTaskFuture = null;
+        if (firstRun.equals(Instant.MIN)) {
+          firstRun = Instant.now();
+        }
+        CloseableThreadPool currentPool =
+            (currentSchedule.isSticky()
+                    && runningPool.getActiveCount() >= runningPool.getMaximumPoolSize())
+                ? schedulerCommon.getStickyPool()
+                : runningPool;
+        this.runningTaskFuture =
+            currentPool.submit(
+                () -> {
+                  Exception runError = null;
+                  eventsCollector.runStarted();
+                  try {
+                    actualTask.run();
+                  } catch (Exception e) {
+                    // just log the error to avoid thread pool depletion
+                    runError = e;
+                  } finally {
+                    eventsCollector.runEnded(runError == null);
+                  }
+                  if (schedulerCommon.isActive()) {
+                    if (taskDone) {
+                      if (!cancelled) {
+                        // if we are here this is a single shot schedule that is done.. now we are
+                        // running this only on
+                        // specific events. Release booking immediately after run
+                        releaseBooking();
+                      }
+                    } else {
+                      // schedule the next run only if the running pool is not shutting down
+                      scheduleNextRun(runError);
+                    }
+                  }
+                });
+      } catch (RejectedExecutionException e) {
         if (schedulerCommon.isActive()) {
-          if (taskDone) {
-            // if we are here this is a single shot schedule that is done.. now we are running this only on
-            // specific events. Release booking immediately after run
-            releaseBooking();
+          if (currentSchedule.isSticky()) {
+            scheduledTaskFuture =
+                schedulerCommon.getSchedulePool().schedule(this, 10, TimeUnit.MILLISECONDS);
+            eventsCollector.crossedThreshold();
           } else {
-            // schedule the next run only if the running pool is not shutting down
-            scheduleNextRun(runError);
+            addToRunSet = true;
           }
         }
-      });
-    } catch (RejectedExecutionException e) {
-      if (schedulerCommon.isActive()) {
-        if (currentSchedule.isSticky()) {
-          scheduledTaskFuture = schedulerCommon.getSchedulePool().schedule(this, 10, TimeUnit.MILLISECONDS);
-          eventsCollector.crossedThreshold();
-        } else {
-          addToRunSet = true;
+      } finally {
+        cancelLock.unlock();
+        if (addToRunSet) {
+          releaseBooking();
+          loadController.addToRunSet();
+        }
+        if (isTaskReallyDone()) {
+          LOGGER.info(
+              "Skipping execution of the task {} as {}",
+              this,
+              (cancelled) ? "the task was cancelled" : "the task is done");
         }
       }
-    } catch (Exception e) {
-      // TODO: DX-68347 Exit handler for the schedule pool threads that does a fatal exit
-      // just log for now
-      LOGGER.warn("Ignoring unexpected exception while scheduling task {}", this, e);
-    } finally {
-      cancelLock.unlock();
-      if (addToRunSet) {
-        releaseBooking();
-        loadController.addToRunSet();
-      }
-      if (isTaskReallyDone()) {
-        LOGGER.info("Skipping execution of the task {} as {}", this,
-          (cancelled) ? "the task was cancelled" : "the task is done");
-      }
+    } catch (Throwable t) {
+      LOGGER.error("Fatal Internal Error: Unexpected exception while scheduling task {}", this, t);
+      // raise a contract error metric so that we can raise an alarm as we are executing without
+      // booking
+      eventsCollector.contractError();
     }
   }
 
   public Optional<CoordinationProtos.NodeEndpoint> getCurrentTaskOwner() {
     try {
       byte[] addressBytes = schedulerCommon.getTaskStore().getData(bookFqPathLocal);
-      CoordinationProtos.NodeEndpoint nodeEndpoint = CoordinationProtos.NodeEndpoint.parseFrom(addressBytes);
+      CoordinationProtos.NodeEndpoint nodeEndpoint =
+          CoordinationProtos.NodeEndpoint.parseFrom(addressBytes);
       eventsCollector.taskOwnerQuery(nodeEndpoint);
       return Optional.of(nodeEndpoint);
     } catch (PathMissingException e) {
@@ -323,15 +360,15 @@ final class PerTaskScheduleTracker implements Runnable, Cancellable, PerTaskReco
   }
 
   /**
-   * Cancel the task locally. Typically done during shutdown or when a schedule task is no longer required (.
-   * <p>
-   * Note that this does not mean the task is marked done. Recovery for this can happen and another
-   * instance could pick up this schedule. However, this instance will never try and pick up this schedule
-   * anymore unless it is restarted.
-   * </p>
+   * Cancel the task locally. Typically done during shutdown or when a schedule task is no longer
+   * required (.
    *
-   * @param mayInterruptIfRunning if true, might interrupt the thread if the operation is
-   *                              currently running (to use with caution).
+   * <p>Note that this does not mean the task is marked done. Recovery for this can happen and
+   * another instance could pick up this schedule. However, this instance will never try and pick up
+   * this schedule anymore unless it is restarted.
+   *
+   * @param mayInterruptIfRunning if true, might interrupt the thread if the operation is currently
+   *     running (to use with caution).
    */
   @Override
   public void cancel(boolean mayInterruptIfRunning) {
@@ -341,6 +378,7 @@ final class PerTaskScheduleTracker implements Runnable, Cancellable, PerTaskReco
       if (taskDone) {
         return;
       }
+      cancelled = true;
       taskDone = true;
       doneCondition.signal();
       propogateCancel = true;
@@ -353,7 +391,6 @@ final class PerTaskScheduleTracker implements Runnable, Cancellable, PerTaskReco
         runningTaskFuture.cancel(true);
       }
     } finally {
-      cancelled = true;
       cancelLock.unlock();
       // do the next step outside the lock
       if (propogateCancel) {
@@ -402,7 +439,7 @@ final class PerTaskScheduleTracker implements Runnable, Cancellable, PerTaskReco
     } finally {
       cancelLock.unlock();
       if (RUN_ONCE_EVERY_MEMBER_DEATH.equals(currentSchedule.getSingleShotType())) {
-        recoveryMonitor.addToDeathWatchLocal();
+        recoveryMonitor.addToDeathWatchLocal(false);
       }
     }
   }
@@ -422,8 +459,10 @@ final class PerTaskScheduleTracker implements Runnable, Cancellable, PerTaskReco
       cancelLock.lock();
       try {
         if (!taskDone) {
-          // still use schedule instead of submit to make it cancellable once cancel lock is released
-          scheduledTaskFuture = schedulerCommon.getSchedulePool().schedule(this, 0, TimeUnit.MILLISECONDS);
+          // still use schedule instead of submit to make it cancellable once cancel lock is
+          // released
+          scheduledTaskFuture =
+              schedulerCommon.getSchedulePool().schedule(this, 0, TimeUnit.MILLISECONDS);
         } else {
           LOGGER.info("Task {} is done. Ignoring scheduling request", taskName);
         }
@@ -436,7 +475,7 @@ final class PerTaskScheduleTracker implements Runnable, Cancellable, PerTaskReco
   }
 
   @Override
-  public boolean runImmediateForce() {
+  public boolean runDeferredForce() {
     // try booking. Create the schedule only if we can book successfully.
     boolean booked = tryBook();
     if (booked) {
@@ -444,7 +483,8 @@ final class PerTaskScheduleTracker implements Runnable, Cancellable, PerTaskReco
       recoveryMonitor.storeScheduleTime();
       cancelLock.lock();
       try {
-        scheduledTaskFuture = schedulerCommon.getSchedulePool().schedule(this, 0, TimeUnit.MILLISECONDS);
+        scheduledTaskFuture =
+            schedulerCommon.getSchedulePool().schedule(this, 1000, TimeUnit.MILLISECONDS);
       } finally {
         cancelLock.unlock();
       }
@@ -454,59 +494,99 @@ final class PerTaskScheduleTracker implements Runnable, Cancellable, PerTaskReco
 
   /**
    * Explicitly releases the booking when a task is ended.
-   * <p>
-   * Done when the schedule is explicitly cancelled locally.
-   * This can trigger the watcher for the recovering instance of this task and the task may start running on another
-   * instance, unless it is cancelled there as well.
-   * </p>
-   * <p>
-   * Note that the task may not be cleaned up in time locally for re-execution and explicit re-scheduling post cancel.
-   * The assumption is that once a task is cancelled, it is only because of one of two reasons:
-   * 1. There is a shutdown of the service instance that is prompting schedule cancellation on this node.
-   * 2. The task is no longer required (e.g a source deletion) and a new task will never be scheduled with the
-   * same task name.
-   * </p>
+   *
+   * <p>Done when the schedule is explicitly cancelled locally. This can trigger the watcher for the
+   * recovering instance of this task and the task may start running on another instance, unless it
+   * is cancelled there as well.
+   *
+   * <p>Note that the task may not be cleaned up in time locally for re-execution and explicit
+   * re-scheduling post cancel. The assumption is that once a task is cancelled, it is only because
+   * of one of two reasons: 1. There is a shutdown of the service instance that is prompting
+   * schedule cancellation on this node. 2. The task is no longer required (e.g a source deletion)
+   * and a new task will never be scheduled with the same task name.
    */
   boolean checkAndReleaseBookingOnCancelCompletion() {
     Preconditions.checkState(cancelTime != null, "Task %s is not cancelled", this);
-    boolean completed = true;
-    cancelLock.lock();
-    try {
-      if (runningTaskFuture != null) {
-        try {
-          runningTaskFuture.get(MAX_RUN_WAIT_TIME_MILLIS, TimeUnit.MILLISECONDS);
-        } catch (TimeoutException e) {
-          LOGGER.debug("Task {} is not completed yet, despite cancellation", this);
-        } catch (Exception e) {
-          LOGGER.debug("Task {} execution returned exception", this, e);
-        }
-        completed = runningTaskFuture.isDone();
-      }
-      if (completed && scheduledTaskFuture != null) {
-        completed = scheduledTaskFuture.isDone();
-      }
-    } finally {
-      cancelLock.unlock();
-    }
+    boolean completed = checkCurrentRunCompleted();
     long elapsedPostCancelSeconds = ChronoUnit.SECONDS.between(cancelTime, Instant.now());
     try {
       if (!completed) {
-        if (elapsedPostCancelSeconds < MAX_TIME_TO_WAIT_POST_CANCEL_SECONDS) {
+        if (elapsedPostCancelSeconds < schedulerCommon.getMaxWaitTimePostCancel()) {
           return false;
         }
-        LOGGER.warn("Task {} still not completed {} seconds after cancel", this, MAX_TIME_TO_WAIT_POST_CANCEL_SECONDS);
+        LOGGER.warn(
+            "Task {} still not completed {} seconds after cancel",
+            this,
+            schedulerCommon.getMaxWaitTimePostCancel());
       }
       releaseBooking();
     } catch (Exception e) {
       // an exception is not expected here. Log a warning as it is a fatal warning
       LOGGER.warn("Unexpected exception for task {} while releasing the local booking", this, e);
     }
-    return elapsedPostCancelSeconds > MAX_AGE_TO_KEEP_CANCELLED_SCHEDULE_SECONDS;
+    return elapsedPostCancelSeconds > schedulerCommon.getMaxWaitTimePostCancel();
+  }
+
+  private boolean checkCurrentRunCompleted() {
+    boolean completed = true;
+    Future<?> retrievedFuture;
+    cancelLock.lock();
+    try {
+      retrievedFuture = runningTaskFuture;
+    } finally {
+      cancelLock.unlock();
+    }
+    // sleep outside lock so that we can wait on future.get a bit longer
+    if (retrievedFuture != null) {
+      try {
+        if (!retrievedFuture.isDone()) {
+          retrievedFuture.get(MAX_RUN_WAIT_TIME_MILLIS, TimeUnit.MILLISECONDS);
+        }
+      } catch (TimeoutException e) {
+        LOGGER.debug("Task {} is currently running and not completed yet", this);
+      } catch (Exception e) {
+        LOGGER.debug("Task {} execution returned exception", this, e);
+      }
+      completed = retrievedFuture.isDone();
+    }
+    cancelLock.lock();
+    try {
+      if (completed && scheduledTaskFuture != null) {
+        completed = scheduledTaskFuture.isDone();
+      }
+    } finally {
+      cancelLock.unlock();
+    }
+    return completed;
+  }
+
+  /**
+   * Handles a session loss.
+   *
+   * <p>Since session loss is rare, it is better to do a dirty check for whether the job is still
+   * running.
+   */
+  public void handleSessionLoss() {
+    cancelLock.lock();
+    try {
+      if (scheduledTaskFuture != null) {
+        scheduledTaskFuture.cancel(false);
+      }
+    } finally {
+      cancelLock.unlock();
+    }
+    boolean done = false;
+    int i = 0;
+    while (!done) {
+      done = i++ > 10 || checkCurrentRunCompleted();
+    }
+    releaseBookingLocalState();
   }
 
   private void awaitImmediateTaskCompletion() {
     if (!currentSchedule.isInLockStep()) {
-      // this pause is only for immediate lock step task schedules that is typically called during dremio startup
+      // this pause is only for immediate lock step task schedules that is typically called during
+      // dremio startup
       return;
     }
     long waitTimeInNanos = TimeUnit.SECONDS.toNanos(WAIT_TIME_FOR_DONE_SECONDS);
@@ -525,7 +605,8 @@ final class PerTaskScheduleTracker implements Runnable, Cancellable, PerTaskReco
       cancelLock.unlock();
     }
     if (!taskDone) {
-      // Just log a warning and continue as this is only for immediate schedules typically to coordinate startup
+      // Just log a warning and continue as this is only for immediate schedules typically to
+      // coordinate startup
       LOGGER.warn("Task {} is not yet done on another instance", this);
     }
   }
@@ -543,30 +624,46 @@ final class PerTaskScheduleTracker implements Runnable, Cancellable, PerTaskReco
       // if instant == null - no more to schedule
       // need to notify all surviving members that this task is done before removing the booking
       if (instant == null) {
+        if (e != null) {
+          LOGGER.warn(
+              "Exception occurred during last run for task {}. Marking the task done.",
+              taskName,
+              e);
+          if (getSchedule().getSingleShotType() == null) {
+            LOGGER.warn("Task {} will now only execute on a restart", taskName);
+          }
+        }
         endTask = true;
         taskDone = true;
         doneCondition.signal();
       } else {
         long delay = ChronoUnit.MILLIS.between(Instant.now(), instant);
         if (e != null) {
-          LOGGER.info("Exception occurred during last run for task {}. Will try next run after {} millis",
-            taskName, delay, e);
+          LOGGER.info(
+              "Exception occurred during last run for task {}. Will try next run after {} millis",
+              taskName,
+              delay,
+              e);
         } else {
           LOGGER.debug("Task {} is scheduled to run in {} milliseconds", taskName, delay);
         }
-        scheduledTaskFuture = schedulerCommon.getSchedulePool().schedule(this, delay, TimeUnit.MILLISECONDS);
+        scheduledTaskFuture =
+            schedulerCommon.getSchedulePool().schedule(this, delay, TimeUnit.MILLISECONDS);
       }
     } finally {
+      if (endTask && RUN_ONCE_EVERY_MEMBER_DEATH.equals(currentSchedule.getSingleShotType())) {
+        // ask recovery monitor to keep triggering a run even if task is done
+        recoveryMonitor.addToDeathWatchLocal(true);
+        releaseBookingLocalState();
+      }
       cancelLock.unlock();
       if (taskDone) {
-        LOGGER.info("Task {} is {}. Task cannot be re-scheduled", this, cancelled ? "cancelled" : "done");
+        LOGGER.info(
+            "Task {} is {}. Task cannot be re-scheduled", this, cancelled ? "cancelled" : "done");
       }
       if (endTask) {
-        doneHandler.signalEndTaskByBookingOwner();
-        if (RUN_ONCE_EVERY_MEMBER_DEATH.equals(currentSchedule.getSingleShotType())) {
-          // ask recovery monitor to keep triggering a run even if task is done
-          recoveryMonitor.addToDeathWatchLocal();
-          releaseBookingLocalState();
+        if (doneHandler != null) {
+          doneHandler.signalEndTaskByBookingOwner();
         }
       } else {
         recoveryMonitor.storeScheduleTime();
@@ -601,8 +698,13 @@ final class PerTaskScheduleTracker implements Runnable, Cancellable, PerTaskReco
     try {
       eventsCollector.bookingAttempted();
       if (!bookingOwner) {
-        this.schedulerCommon.getTaskStore().executeSingle(new PathCommand(CREATE_EPHEMERAL, bookFqPathLocal,
-          schedulerCommon.getThisEndpoint().toByteArray()));
+        this.schedulerCommon
+            .getTaskStore()
+            .executeSingle(
+                new PathCommand(
+                    CREATE_EPHEMERAL,
+                    bookFqPathLocal,
+                    schedulerCommon.getThisEndpoint().toByteArray()));
         eventsCollector.bookingAcquired();
         bookingOwner = true;
       }
@@ -610,8 +712,11 @@ final class PerTaskScheduleTracker implements Runnable, Cancellable, PerTaskReco
     } catch (PathExistsException ignored) {
       LOGGER.debug("Booking failed. Ephemeral path {} already exists", bookFqPathLocal);
     } catch (Exception e) {
-      LOGGER.info("Random failure while booking to schedule task {}." +
-        "The recovery instance for the schedule will monitor and recover later", this, e);
+      LOGGER.info(
+          "Random failure while booking to schedule task {}."
+              + "The recovery instance for the schedule will monitor and recover later",
+          this,
+          e);
     }
     return false;
   }
@@ -619,6 +724,9 @@ final class PerTaskScheduleTracker implements Runnable, Cancellable, PerTaskReco
   private void releaseBooking() {
     if (bookingOwner) {
       try {
+        if (!cancelled) {
+          currentSchedule.getCleanupListener().cleanup();
+        }
         schedulerCommon.getTaskStore().executeSingle(new PathCommand(DELETE, bookFqPathLocal));
         eventsCollector.bookingReleased();
       } catch (PathExistsException | PathMissingException e) {
@@ -631,19 +739,24 @@ final class PerTaskScheduleTracker implements Runnable, Cancellable, PerTaskReco
 
   private void releaseBookingLocalState() {
     if (bookingOwner) {
+      if (!cancelled) {
+        currentSchedule.getCleanupListener().cleanup();
+      }
       eventsCollector.bookingReleased();
       bookingOwner = false;
     }
   }
 
   /**
-   * Some single shot task types are marked done globally after it is done once on any instance (to ensure that no other
-   * instance picks it up and run when it starts up or recovers). This method allows checks done during the actual
-   * run() method to differentiate such single shot tasks that may want to run again on certain events.
+   * Some single shot task types are marked done globally after it is done once on any instance (to
+   * ensure that no other instance picks it up and run when it starts up or recovers). This method
+   * allows checks done during the actual run() method to differentiate such single shot tasks that
+   * may want to run again on certain events.
    *
    * @return true, if done, false otherwise.
    */
   private boolean isTaskReallyDone() {
-    return cancelled || (taskDone && !RUN_ONCE_EVERY_MEMBER_DEATH.equals(currentSchedule.getSingleShotType()));
+    return cancelled
+        || (taskDone && !RUN_ONCE_EVERY_MEMBER_DEATH.equals(currentSchedule.getSingleShotType()));
   }
 }

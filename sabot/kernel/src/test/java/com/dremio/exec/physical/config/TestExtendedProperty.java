@@ -42,8 +42,7 @@ public class TestExtendedProperty {
     private String name;
     private int value;
 
-    public TestProperty() {
-    }
+    public TestProperty() {}
 
     public TestProperty(String name, int value) {
       this.name = name;

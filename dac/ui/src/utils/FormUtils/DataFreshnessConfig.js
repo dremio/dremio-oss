@@ -36,6 +36,10 @@ export default class DataFreshnessConfig extends FormElementConfig {
       DataFreshnessSection.defaultFormValueRefreshInterval();
     initValues.accelerationGracePeriod =
       DataFreshnessSection.defaultFormValueGracePeriod();
+    initValues.accelerationActivePolicyType =
+      DataFreshnessSection.defaultFormValuePolicyType();
+    initValues.accelerationRefreshSchedule =
+      DataFreshnessSection.defaultFormValueRefreshSchedule();
     return initValues;
   }
 

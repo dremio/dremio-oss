@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.physical.config;
 
-import java.util.Iterator;
-
 import com.dremio.exec.physical.base.AbstractSingle;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
@@ -24,11 +22,13 @@ import com.dremio.exec.physical.base.PhysicalVisitor;
 import com.dremio.exec.proto.UserBitShared;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.collect.Iterators;
+import java.util.Iterator;
 
 public abstract class AbstractTableFunctionPOP extends AbstractSingle {
   protected final TableFunctionConfig function;
 
-  public AbstractTableFunctionPOP(OpProps props, PhysicalOperator child, TableFunctionConfig config) {
+  public AbstractTableFunctionPOP(
+      OpProps props, PhysicalOperator child, TableFunctionConfig config) {
     super(props, child);
     this.function = config;
   }
@@ -41,7 +41,8 @@ public abstract class AbstractTableFunctionPOP extends AbstractSingle {
   protected abstract PhysicalOperator getNewWithChild(PhysicalOperator child);
 
   @Override
-  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value) throws E {
+  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value)
+      throws E {
     return physicalVisitor.visitTableFunction(this, value);
   }
 

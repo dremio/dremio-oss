@@ -15,10 +15,14 @@
  */
 package com.dremio.exec.planner.physical.explain;
 
+import com.dremio.exec.planner.physical.Prel;
+import com.dremio.exec.planner.physical.explain.PrelSequencer.OpId;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.externalize.RelJson;
@@ -28,20 +32,14 @@ import org.apache.calcite.util.JsonBuilder;
 import org.apache.calcite.util.Pair;
 import org.apache.commons.lang3.StringUtils;
 
-import com.dremio.exec.planner.physical.Prel;
-import com.dremio.exec.planner.physical.explain.PrelSequencer.OpId;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-
 /**
- * Copied from {@code org.apache.calcite.rel.externalize.RelJsonWriter}.
- * Modified to include Dremio's operator id (major fragment, operator number within fragment)
+ * Copied from {@code org.apache.calcite.rel.externalize.RelJsonWriter}. Modified to include
+ * Dremio's operator id (major fragment, operator number within fragment)
  *
- * Callback for a relational expression to dump itself as JSON.
+ * <p>Callback for a relational expression to dump itself as JSON.
  */
 public class RelJsonWriter implements RelWriter {
-  //~ Instance fields ----------------------------------------------------------
+  // ~ Instance fields ----------------------------------------------------------
 
   private final JsonBuilder jsonBuilder;
   private final RelJson relJson;
@@ -51,7 +49,7 @@ public class RelJsonWriter implements RelWriter {
 
   private final List<Pair<String, Object>> values = new ArrayList<>();
 
-  //~ Constructors -------------------------------------------------------------
+  // ~ Constructors -------------------------------------------------------------
 
   public RelJsonWriter(Map<Prel, OpId> ids, SqlExplainLevel detailLevel) {
     this.ids = ids;
@@ -61,7 +59,7 @@ public class RelJsonWriter implements RelWriter {
     relExplainMap = Maps.newLinkedHashMap(); // need the ordering
   }
 
-  //~ Methods ------------------------------------------------------------------
+  // ~ Methods ------------------------------------------------------------------
 
   protected void explain_(RelNode rel, List<Pair<String, Object>> values) {
     final Map<String, Object> map = Maps.newLinkedHashMap(); // need the ordering
@@ -84,10 +82,12 @@ public class RelJsonWriter implements RelWriter {
 
     putIntoMap(map, "rowType", escapeSpecialChars(String.valueOf(rel.getRowType())));
     putIntoMap(map, "rowCount", mq.getRowCount(rel));
-    putIntoMap(map, "cumulativeCost", escapeSpecialChars(String.valueOf(mq.getCumulativeCost(rel))));
+    putIntoMap(
+        map, "cumulativeCost", escapeSpecialChars(String.valueOf(mq.getCumulativeCost(rel))));
 
     final OpId opId = ids.get(rel);
-    putIntoMap(relExplainMap, String.format("%02d-%02d", opId.getFragmentId(), opId.getOpId()), map);
+    putIntoMap(
+        relExplainMap, String.format("%02d-%02d", opId.getFragmentId(), opId.getOpId()), map);
 
     explainInputs(rel.getInputs());
   }
@@ -148,8 +148,7 @@ public class RelJsonWriter implements RelWriter {
 
   @Override
   public RelWriter done(RelNode node) {
-    final List<Pair<String, Object>> valuesCopy =
-        ImmutableList.copyOf(values);
+    final List<Pair<String, Object>> valuesCopy = ImmutableList.copyOf(values);
     values.clear();
     explain_(node, valuesCopy);
     return this;
@@ -160,10 +159,7 @@ public class RelJsonWriter implements RelWriter {
     return true;
   }
 
-  /**
-   * Returns a JSON string describing the relational expressions that were just
-   * explained.
-   */
+  /** Returns a JSON string describing the relational expressions that were just explained. */
   public String asString() {
     return jsonBuilder.toJsonString(relExplainMap);
   }

@@ -15,11 +15,10 @@
  */
 package com.dremio.exec.ops;
 
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rex.RexNode;
-
 import com.dremio.exec.catalog.udf.DremioScalarUserDefinedFunction;
 import com.dremio.exec.catalog.udf.DremioTabularUserDefinedFunction;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rex.RexNode;
 
 public interface UserDefinedFunctionExpander {
 

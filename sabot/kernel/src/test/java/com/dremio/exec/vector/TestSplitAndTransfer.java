@@ -19,11 +19,10 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import com.dremio.exec.ExecTest;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.util.TransferPair;
 import org.junit.Test;
-
-import com.dremio.exec.ExecTest;
 
 public class TestSplitAndTransfer extends ExecTest {
   @Test

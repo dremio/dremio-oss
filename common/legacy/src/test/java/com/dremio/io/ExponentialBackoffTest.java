@@ -14,37 +14,63 @@
  * limitations under the License.
  */
 package com.dremio.io;
+
 import org.junit.Assert;
 import org.junit.Test;
-/**
- * Test class for {@code ExponentialBackoff}
- */
+
+/** Test class for {@code ExponentialBackoff} */
 public class ExponentialBackoffTest {
   @Test
-  public void getBackoffWaitTimeTest(){
-    //ExponentialBackoff ExponentialBackoffMock = Mockito.mock(ExponentialBackoff.class);
+  public void getBackoffWaitTimeTest() {
+    // ExponentialBackoff ExponentialBackoffMock = Mockito.mock(ExponentialBackoff.class);
     int baseMillis = 5;
     int maxMillis = 60000;
-    Assert.assertEquals(maxMillis, ExponentialBackoff.getBackoffWaitTime(62,baseMillis,maxMillis), 0.0f);
-    Assert.assertEquals(maxMillis, ExponentialBackoff.getBackoffWaitTime(63,baseMillis,maxMillis), 0.0f);
-    Assert.assertEquals(maxMillis, ExponentialBackoff.getBackoffWaitTime(64,baseMillis,maxMillis), 0.0f);
-    Assert.assertEquals(maxMillis, ExponentialBackoff.getBackoffWaitTime(65,baseMillis,maxMillis), 0.0f);
-    Assert.assertEquals(maxMillis, ExponentialBackoff.getBackoffWaitTime(70,baseMillis,maxMillis), 0.0f);
-    Assert.assertEquals(maxMillis, ExponentialBackoff.getBackoffWaitTime(31,baseMillis,maxMillis), 0.0f);
-    Assert.assertEquals(maxMillis, ExponentialBackoff.getBackoffWaitTime(100,baseMillis,maxMillis), 0.0f);
-    Assert.assertEquals(Math.min(maxMillis, baseMillis * (1 << 13)), ExponentialBackoff.getBackoffWaitTime(13,baseMillis,maxMillis), 0.0f);
-    Assert.assertEquals(Math.min(maxMillis, baseMillis * (1 << 28)), ExponentialBackoff.getBackoffWaitTime(28,baseMillis,maxMillis), 0.0f);
+    Assert.assertEquals(
+        maxMillis, ExponentialBackoff.getBackoffWaitTime(62, baseMillis, maxMillis), 0.0f);
+    Assert.assertEquals(
+        maxMillis, ExponentialBackoff.getBackoffWaitTime(63, baseMillis, maxMillis), 0.0f);
+    Assert.assertEquals(
+        maxMillis, ExponentialBackoff.getBackoffWaitTime(64, baseMillis, maxMillis), 0.0f);
+    Assert.assertEquals(
+        maxMillis, ExponentialBackoff.getBackoffWaitTime(65, baseMillis, maxMillis), 0.0f);
+    Assert.assertEquals(
+        maxMillis, ExponentialBackoff.getBackoffWaitTime(70, baseMillis, maxMillis), 0.0f);
+    Assert.assertEquals(
+        maxMillis, ExponentialBackoff.getBackoffWaitTime(31, baseMillis, maxMillis), 0.0f);
+    Assert.assertEquals(
+        maxMillis, ExponentialBackoff.getBackoffWaitTime(100, baseMillis, maxMillis), 0.0f);
+    Assert.assertEquals(
+        Math.min(maxMillis, baseMillis * (1 << 13)),
+        ExponentialBackoff.getBackoffWaitTime(13, baseMillis, maxMillis),
+        0.0f);
+    Assert.assertEquals(
+        Math.min(maxMillis, baseMillis * (1 << 28)),
+        ExponentialBackoff.getBackoffWaitTime(28, baseMillis, maxMillis),
+        0.0f);
 
     baseMillis = 1;
     maxMillis = 60000;
-    Assert.assertEquals(maxMillis, ExponentialBackoff.getBackoffWaitTime(62,baseMillis,maxMillis), 0.0f);
-    Assert.assertEquals(maxMillis, ExponentialBackoff.getBackoffWaitTime(63,baseMillis,maxMillis), 0.0f);
-    Assert.assertEquals(maxMillis, ExponentialBackoff.getBackoffWaitTime(64,baseMillis,maxMillis), 0.0f);
-    Assert.assertEquals(maxMillis, ExponentialBackoff.getBackoffWaitTime(65,baseMillis,maxMillis), 0.0f);
-    Assert.assertEquals(maxMillis, ExponentialBackoff.getBackoffWaitTime(70,baseMillis,maxMillis), 0.0f);
-    Assert.assertEquals(maxMillis, ExponentialBackoff.getBackoffWaitTime(31,baseMillis,maxMillis), 0.0f);
-    Assert.assertEquals(maxMillis, ExponentialBackoff.getBackoffWaitTime(100,baseMillis,maxMillis), 0.0f);
-    Assert.assertEquals(Math.min(maxMillis, baseMillis * (1 << 13)), ExponentialBackoff.getBackoffWaitTime(13,baseMillis,maxMillis), 0.0f);
-    Assert.assertEquals(Math.min(maxMillis, baseMillis * (1 << 28)), ExponentialBackoff.getBackoffWaitTime(28,baseMillis,maxMillis), 0.0f);
+    Assert.assertEquals(
+        maxMillis, ExponentialBackoff.getBackoffWaitTime(62, baseMillis, maxMillis), 0.0f);
+    Assert.assertEquals(
+        maxMillis, ExponentialBackoff.getBackoffWaitTime(63, baseMillis, maxMillis), 0.0f);
+    Assert.assertEquals(
+        maxMillis, ExponentialBackoff.getBackoffWaitTime(64, baseMillis, maxMillis), 0.0f);
+    Assert.assertEquals(
+        maxMillis, ExponentialBackoff.getBackoffWaitTime(65, baseMillis, maxMillis), 0.0f);
+    Assert.assertEquals(
+        maxMillis, ExponentialBackoff.getBackoffWaitTime(70, baseMillis, maxMillis), 0.0f);
+    Assert.assertEquals(
+        maxMillis, ExponentialBackoff.getBackoffWaitTime(31, baseMillis, maxMillis), 0.0f);
+    Assert.assertEquals(
+        maxMillis, ExponentialBackoff.getBackoffWaitTime(100, baseMillis, maxMillis), 0.0f);
+    Assert.assertEquals(
+        Math.min(maxMillis, baseMillis * (1 << 13)),
+        ExponentialBackoff.getBackoffWaitTime(13, baseMillis, maxMillis),
+        0.0f);
+    Assert.assertEquals(
+        Math.min(maxMillis, baseMillis * (1 << 28)),
+        ExponentialBackoff.getBackoffWaitTime(28, baseMillis, maxMillis),
+        0.0f);
   }
 }

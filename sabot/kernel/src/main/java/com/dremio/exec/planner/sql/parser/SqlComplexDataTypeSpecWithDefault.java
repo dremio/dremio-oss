@@ -19,9 +19,7 @@ import org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlWriter;
 
-/**
- * Extends SqlComplexDataTypeSpec to support default expression.
- */
+/** Extends SqlComplexDataTypeSpec to support default expression. */
 public class SqlComplexDataTypeSpecWithDefault extends SqlComplexDataTypeSpec {
   private final SqlNode defaultExpression;
 

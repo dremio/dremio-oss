@@ -20,10 +20,9 @@ import com.dremio.exec.planner.sql.handlers.direct.SqlDirectHandler;
 import com.dremio.exec.proto.ExecProtos.ServerPreparedStatementState;
 import com.dremio.exec.proto.UserProtos.CreatePreparedStatementResp;
 
-/**
- * Take a sql node and return as a prepared statement response.
- */
-public class HandlerToPrepareDirect extends HandlerToPrepareDirectBase<CreatePreparedStatementResp> {
+/** Take a sql node and return as a prepared statement response. */
+public class HandlerToPrepareDirect
+    extends HandlerToPrepareDirectBase<CreatePreparedStatementResp> {
 
   public HandlerToPrepareDirect(String sql, QueryContext context, SqlDirectHandler<?> handler) {
     super(sql, context, handler);
@@ -32,9 +31,13 @@ public class HandlerToPrepareDirect extends HandlerToPrepareDirectBase<CreatePre
   @Override
   public CreatePreparedStatementResp execute() throws Exception {
     final ServerPreparedStatementState state =
-      ServerPreparedStatementState.newBuilder().setHandle(-1).setSqlQuery(getSql()).build();
+        ServerPreparedStatementState.newBuilder().setHandle(-1).setSqlQuery(getSql()).build();
     final QueryContext context = getContext();
-    return PreparedStatementProvider
-      .build(getSchema(), state, context.getQueryId(), context.getSession().getCatalogName(), context.getSession().getRecordBatchFormat());
+    return PreparedStatementProvider.build(
+        getSchema(),
+        state,
+        context.getQueryId(),
+        context.getSession().getCatalogName(),
+        context.getSession().getRecordBatchFormat());
   }
 }

@@ -15,19 +15,6 @@
  */
 package com.dremio.exec.store.parquet;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.stream.Collectors;
-
-import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.types.pojo.ArrowType;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.parquet.column.ColumnDescriptor;
-import org.apache.parquet.schema.MessageType;
-
 import com.dremio.common.expression.PathSegment;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.map.CaseInsensitiveImmutableBiMap;
@@ -35,12 +22,22 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
+import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.parquet.column.ColumnDescriptor;
+import org.apache.parquet.schema.MessageType;
 
 /**
- *  This class maps column names from batch schema to parquet schema and vice versa for Iceberg datasets.
- *  It maintains
- *   a) column name <=> ID mapping from Iceberg schema
- *   b) column name <=> ID mapping from parquet file schema
+ * This class maps column names from batch schema to parquet schema and vice versa for Iceberg
+ * datasets. It maintains a) column name <=> ID mapping from Iceberg schema b) column name <=> ID
+ * mapping from parquet file schema
  */
 public class ParquetColumnIcebergResolver implements ParquetColumnResolver {
   private final List<SchemaPath> projectedColumns;
@@ -49,26 +46,31 @@ public class ParquetColumnIcebergResolver implements ParquetColumnResolver {
   private Map<String, FieldInfo> fieldInfoMap = null;
   private final boolean shouldUseBatchSchemaForResolvingProjectedColumn;
 
-  public ParquetColumnIcebergResolver(List<SchemaPath> projectedColumns,
-                               List<IcebergProtobuf.IcebergSchemaField> icebergColumnIDs,
-                               Map<String, Integer> parquetColumnIDs, boolean shouldUseBatchSchemaForResolvingProjectedColumn, BatchSchema batchSchema) {
+  public ParquetColumnIcebergResolver(
+      List<SchemaPath> projectedColumns,
+      List<IcebergProtobuf.IcebergSchemaField> icebergColumnIDs,
+      Map<String, Integer> parquetColumnIDs,
+      boolean shouldUseBatchSchemaForResolvingProjectedColumn,
+      BatchSchema batchSchema) {
     this.projectedColumns = projectedColumns;
     this.parquetColumnIDs = CaseInsensitiveImmutableBiMap.newImmutableMap(parquetColumnIDs);
     initializeProjectedColumnIDs(icebergColumnIDs);
-    this.shouldUseBatchSchemaForResolvingProjectedColumn = shouldUseBatchSchemaForResolvingProjectedColumn;
-    if(shouldUseBatchSchemaForResolvingProjectedColumn) {
+    this.shouldUseBatchSchemaForResolvingProjectedColumn =
+        shouldUseBatchSchemaForResolvingProjectedColumn;
+    if (shouldUseBatchSchemaForResolvingProjectedColumn) {
       this.fieldInfoMap = getFieldsMapForBatchSchema(batchSchema);
     }
   }
 
-
-  public ParquetColumnIcebergResolver(List<SchemaPath> projectedColumns,
-                                      List<IcebergProtobuf.IcebergSchemaField> icebergColumnIDs,
-                                      Map<String, Integer> parquetColumnIDs) {
-    this(projectedColumns,icebergColumnIDs, parquetColumnIDs,false, null);
+  public ParquetColumnIcebergResolver(
+      List<SchemaPath> projectedColumns,
+      List<IcebergProtobuf.IcebergSchemaField> icebergColumnIDs,
+      Map<String, Integer> parquetColumnIDs) {
+    this(projectedColumns, icebergColumnIDs, parquetColumnIDs, false, null);
   }
 
-  private void initializeProjectedColumnIDs(List<IcebergProtobuf.IcebergSchemaField> icebergColumnIDs) {
+  private void initializeProjectedColumnIDs(
+      List<IcebergProtobuf.IcebergSchemaField> icebergColumnIDs) {
     Map<String, Integer> icebergColumns = new HashMap<>();
     icebergColumnIDs.forEach(field -> icebergColumns.put(field.getSchemaPath(), field.getId()));
     this.icebergColumnIDMap = CaseInsensitiveImmutableBiMap.newImmutableMap(icebergColumns);
@@ -82,9 +84,9 @@ public class ParquetColumnIcebergResolver implements ParquetColumnResolver {
   @Override
   public List<SchemaPath> getProjectedParquetColumns() {
     return this.projectedColumns.stream()
-      .map(this::getParquetColumnPath)
-      .filter(Objects::nonNull)
-      .collect(Collectors.toList());
+        .map(this::getParquetColumnPath)
+        .filter(Objects::nonNull)
+        .collect(Collectors.toList());
   }
 
   @Override
@@ -143,9 +145,9 @@ public class ParquetColumnIcebergResolver implements ParquetColumnResolver {
   @Override
   public List<SchemaPath> getBatchSchemaColumns(List<SchemaPath> parquestSchemaPaths) {
     return parquestSchemaPaths.stream()
-      .map(this::getBatchSchemaColumnPath)
-      .filter(Objects::nonNull)
-      .collect(Collectors.toList());
+        .map(this::getBatchSchemaColumnPath)
+        .filter(Objects::nonNull)
+        .collect(Collectors.toList());
   }
 
   @Override
@@ -153,40 +155,41 @@ public class ParquetColumnIcebergResolver implements ParquetColumnResolver {
     List<String> pathSegmentsInParquet = pathInParquetFile.getComplexNameSegments();
     List<String> pathSegmentsInBatchSchema = getBatchSchemaColumnName(pathSegmentsInParquet);
 
-    return (pathSegmentsInBatchSchema == null) ? null :
-      SchemaPath.getCompoundPath(pathSegmentsInBatchSchema.toArray(new String[0]));
+    return (pathSegmentsInBatchSchema == null)
+        ? null
+        : SchemaPath.getCompoundPath(pathSegmentsInBatchSchema.toArray(new String[0]));
   }
 
   @Override
   public List<String> getNameSegments(SchemaPath schemaPath) {
-    return shouldUseBatchSchemaForResolvingProjectedColumn && this.fieldInfoMap != null ?
-      getComplexNameSegments(schemaPath) : schemaPath.getComplexNameSegments();
+    return shouldUseBatchSchemaForResolvingProjectedColumn && this.fieldInfoMap != null
+        ? getComplexNameSegments(schemaPath)
+        : schemaPath.getComplexNameSegments();
   }
 
   private SchemaPath getParquetColumnPath(SchemaPath pathInBatchSchema) {
-    List<String> pathSegmentsInBatchSchema = shouldUseBatchSchemaForResolvingProjectedColumn && this.fieldInfoMap != null ?
-      getComplexNameSegments(pathInBatchSchema) : pathInBatchSchema.getComplexNameSegments();
+    List<String> pathSegmentsInBatchSchema =
+        shouldUseBatchSchemaForResolvingProjectedColumn && this.fieldInfoMap != null
+            ? getComplexNameSegments(pathInBatchSchema)
+            : pathInBatchSchema.getComplexNameSegments();
     List<String> pathSegmentsInParquet = getParquetSchemaColumnName(pathSegmentsInBatchSchema);
-    return pathSegmentsInParquet == null ? null :
-      SchemaPath.getCompoundPath(pathSegmentsInParquet.toArray(new String[0]));
+    return pathSegmentsInParquet == null
+        ? null
+        : SchemaPath.getCompoundPath(pathSegmentsInParquet.toArray(new String[0]));
   }
 
   /**
-   * This Function takes schemaPath and by using batch schema, convert it to iceberg column name List of string( i.e, by concatenating the list of string using '.',
-   *  we can get complete column name)
+   * This Function takes schemaPath and by using batch schema, convert it to iceberg column name
+   * List of string( i.e, by concatenating the list of string using '.', we can get complete column
+   * name)
    *
-   * For example: If table schema is like A Row(B Array(Row(id int, name varchar), c int)
-   *  if projected Column is  A.B[1], we get schemaPath with following hierarchy
-   *  NameSegment(A)
-   *    NameSegment(B)
-   *      ArraySegment[1]
-   *   Using above schema path we want to convert to  => A.B.list.element
+   * <p>For example: If table schema is like A Row(B Array(Row(id int, name varchar), c int) if
+   * projected Column is A.B[1], we get schemaPath with following hierarchy NameSegment(A)
+   * NameSegment(B) ArraySegment[1] Using above schema path we want to convert to =>
+   * A.B.list.element
    *
-   *  Similarly,
-   *  (projected column  => expected column name)
-   *   A.B.id => A.B.list.element.id
-   *   A.B[0].id => A.B.list.element.id
-   *   A.B => A.B
+   * <p>Similarly, (projected column => expected column name) A.B.id => A.B.list.element.id
+   * A.B[0].id => A.B.list.element.id A.B => A.B
    */
   public List<String> getComplexNameSegments(SchemaPath schemaPath) {
     List<String> segments = new ArrayList<>();
@@ -201,16 +204,22 @@ public class ParquetColumnIcebergResolver implements ParquetColumnResolver {
         segments.add("element");
         FieldInfo fieldInfo = currentChildMap.getOrDefault("$data$", null);
         currentChildMap = fieldInfo != null ? fieldInfo.getChildFieldInfo() : null;
-        isListChild = fieldInfo != null && fieldInfo.getType() != null && ArrowType.ArrowTypeID.List.equals(fieldInfo.getType());
+        isListChild =
+            fieldInfo != null
+                && fieldInfo.getType() != null
+                && ArrowType.ArrowTypeID.List.equals(fieldInfo.getType());
         if (!seg.isArray()) {
           continue;
         }
       } else {
         String segmentName = seg.getNameSegment().getPath();
         segments.add(segmentName);
-          // planner doesn't always send index with list path segment
+        // planner doesn't always send index with list path segment
         FieldInfo fieldInfo = currentChildMap.getOrDefault(segmentName.toLowerCase(), null);
-        isListChild = fieldInfo != null && fieldInfo.getType() != null && "list".equalsIgnoreCase(fieldInfo.getType().toString());
+        isListChild =
+            fieldInfo != null
+                && fieldInfo.getType() != null
+                && "list".equalsIgnoreCase(fieldInfo.getType().toString());
         currentChildMap = fieldInfo != null ? fieldInfo.getChildFieldInfo() : null;
       }
       seg = seg.getChild();
@@ -239,7 +248,8 @@ public class ParquetColumnIcebergResolver implements ParquetColumnResolver {
   }
 
   @Override
-  public List<String> convertColumnDescriptor(MessageType schema, ColumnDescriptor columnDescriptor) {
+  public List<String> convertColumnDescriptor(
+      MessageType schema, ColumnDescriptor columnDescriptor) {
     return Lists.newArrayList(columnDescriptor.getPath());
   }
 
@@ -263,9 +273,7 @@ public class ParquetColumnIcebergResolver implements ParquetColumnResolver {
     return fieldsInfoMap;
   }
 
-  /**
-   *  This class is for holding the children information of the children Fields in map format
-   */
+  /** This class is for holding the children information of the children Fields in map format */
   class FieldInfo {
     private String name;
     private ArrowType.ArrowTypeID type;
@@ -287,22 +295,22 @@ public class ParquetColumnIcebergResolver implements ParquetColumnResolver {
       this.childFieldInfo = new HashMap<>();
       this.name = null;
       this.type = null;
-      if(field == null) {
+      if (field == null) {
         return;
       }
 
-      if(field.getName() != null) {
+      if (field.getName() != null) {
         this.name = field.getName().toLowerCase();
       }
 
-      if(field.getFieldType() != null && field.getFieldType().getType() != null) {
+      if (field.getFieldType() != null && field.getFieldType().getType() != null) {
         this.type = field.getFieldType().getType().getTypeID();
       }
 
       if (field.getChildren() != null) {
         for (Field child : field.getChildren()) {
           FieldInfo fieldInfo = new FieldInfo(child);
-          if(fieldInfo.getName() != null) {
+          if (fieldInfo.getName() != null) {
             childFieldInfo.put(fieldInfo.getName().toLowerCase(), fieldInfo);
           }
         }

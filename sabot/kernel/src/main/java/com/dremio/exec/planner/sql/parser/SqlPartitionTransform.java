@@ -15,9 +15,9 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.google.common.base.Preconditions;
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -28,15 +28,11 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.google.common.base.Preconditions;
-
-/**
- * A representation of a partition transform in the SQL parse tree.
- */
+/** A representation of a partition transform in the SQL parse tree. */
 public class SqlPartitionTransform extends SqlCall {
 
-  public static final SqlSpecialOperator PARTITION_TRANSFORM_OPERATOR = new SqlSpecialOperator(
-    "PARTITION_TRANSFORM", SqlKind.OTHER_FUNCTION);
+  public static final SqlSpecialOperator PARTITION_TRANSFORM_OPERATOR =
+      new SqlSpecialOperator("PARTITION_TRANSFORM", SqlKind.OTHER_FUNCTION);
 
   public static final String IDENTITY = "identity";
 
@@ -48,8 +44,11 @@ public class SqlPartitionTransform extends SqlCall {
     this(columnName, new SqlIdentifier(IDENTITY, pos), new ArrayList<>(), pos);
   }
 
-  public SqlPartitionTransform(SqlIdentifier columnName, SqlIdentifier transformName,
-                               List<SqlLiteral> transformArguments, SqlParserPos pos) {
+  public SqlPartitionTransform(
+      SqlIdentifier columnName,
+      SqlIdentifier transformName,
+      List<SqlLiteral> transformArguments,
+      SqlParserPos pos) {
     super(pos);
     this.columnName = Preconditions.checkNotNull(columnName);
     this.transformName = Preconditions.checkNotNull(transformName);

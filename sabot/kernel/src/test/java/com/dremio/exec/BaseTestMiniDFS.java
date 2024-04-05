@@ -17,18 +17,6 @@ package com.dremio.exec;
 
 import static org.junit.Assert.assertEquals;
 
-import java.io.File;
-import java.nio.file.Files;
-import java.util.Map;
-
-import org.apache.commons.io.FileUtils;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.permission.FsPermission;
-import org.apache.hadoop.hdfs.MiniDFSCluster;
-
 import com.dremio.PlanTestBase;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.dotfile.DotFileType;
@@ -39,6 +27,16 @@ import com.dremio.exec.store.dfs.WorkspaceConfig;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import java.io.File;
+import java.nio.file.Files;
+import java.util.Map;
+import org.apache.commons.io.FileUtils;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.permission.FsPermission;
+import org.apache.hadoop.hdfs.MiniDFSCluster;
 
 public class BaseTestMiniDFS extends PlanTestBase {
   protected static final String MINIDFS_STORAGE_PLUGIN_NAME = "miniDfsPlugin";
@@ -51,6 +49,7 @@ public class BaseTestMiniDFS extends PlanTestBase {
 
   /**
    * Start a MiniDFS cluster backed SabotNode cluster
+   *
    * @param testClass
    * @throws Exception
    */
@@ -60,24 +59,25 @@ public class BaseTestMiniDFS extends PlanTestBase {
     return configuration;
   }
 
-  protected static void startMiniDfsCluster(final String testClass, Configuration configuration) throws Exception {
-    Preconditions.checkArgument(!Strings.isNullOrEmpty(testClass), "Expected a non-null and non-empty test class name");
+  protected static void startMiniDfsCluster(final String testClass, Configuration configuration)
+      throws Exception {
+    Preconditions.checkArgument(
+        !Strings.isNullOrEmpty(testClass), "Expected a non-null and non-empty test class name");
     dfsConf = Preconditions.checkNotNull(configuration);
 
-    // Set the MiniDfs base dir to be the temp directory of the test, so that all files created within the MiniDfs
+    // Set the MiniDfs base dir to be the temp directory of the test, so that all files created
+    // within the MiniDfs
     // are properly cleanup when test exits.
     miniDfsStoragePath = Files.createTempDirectory(testClass).toString();
     dfsConf.set("hdfs.minidfs.basedir", miniDfsStoragePath);
-    // HDFS-8880 and HDFS-8953 introduce metrics logging that requires log4j, but log4j is explicitly
+    // HDFS-8880 and HDFS-8953 introduce metrics logging that requires log4j, but log4j is
+    // explicitly
     // excluded in build. So disable logging to avoid NoClassDefFoundError for Log4JLogger.
     dfsConf.set("dfs.namenode.metrics.logger.period.seconds", "0");
     dfsConf.set("dfs.datanode.metrics.logger.period.seconds", "0");
 
     // Start the MiniDfs cluster
-    dfsCluster = new MiniDFSCluster.Builder(dfsConf)
-        .numDataNodes(3)
-        .format(true)
-        .build();
+    dfsCluster = new MiniDFSCluster.Builder(dfsConf).numDataNodes(3).format(true).build();
 
     fs = dfsCluster.getFileSystem();
   }
@@ -87,7 +87,7 @@ public class BaseTestMiniDFS extends PlanTestBase {
 
     final CatalogService catalogService = getSabotContext().getCatalogService();
     final Path dirPath = new Path("/");
-    FileSystem.mkdirs(fs, dirPath, new FsPermission((short)0777));
+    FileSystem.mkdirs(fs, dirPath, new FsPermission((short) 0777));
     fs.setOwner(dirPath, processUser, processUser);
 
     final InternalFileConf conf = new InternalFileConf();
@@ -103,8 +103,14 @@ public class BaseTestMiniDFS extends PlanTestBase {
     ((CatalogServiceImpl) catalogService).getSystemUserCatalog().createSource(config);
   }
 
-  protected static void createAndAddWorkspace(String name, String path, short permissions, String owner,
-      String group, final Map<String, WorkspaceConfig> workspaces) throws Exception {
+  protected static void createAndAddWorkspace(
+      String name,
+      String path,
+      short permissions,
+      String owner,
+      String group,
+      final Map<String, WorkspaceConfig> workspaces)
+      throws Exception {
     final Path dirPath = new Path(path);
     FileSystem.mkdirs(fs, dirPath, new FsPermission(permissions));
     fs.setOwner(dirPath, owner, group);
@@ -132,25 +138,43 @@ public class BaseTestMiniDFS extends PlanTestBase {
     return "/user/" + user;
   }
 
-  protected static void createView(final String viewOwner, final String viewGroup, final short viewPerms,
-                                 final String newViewName, final String fromPath) throws Exception {
+  protected static void createView(
+      final String viewOwner,
+      final String viewGroup,
+      final short viewPerms,
+      final String newViewName,
+      final String fromPath)
+      throws Exception {
     updateClient(viewOwner);
-    test(String.format("ALTER SESSION SET \"%s\"='%o';", ExecConstants.NEW_VIEW_DEFAULT_PERMS_KEY, viewPerms));
-    test(String.format("CREATE VIEW %s.\"/user/%s/%s\" AS SELECT * FROM %s.\"%s\";",
-      MINIDFS_STORAGE_PLUGIN_NAME, viewOwner, newViewName, MINIDFS_STORAGE_PLUGIN_NAME, fromPath));
+    test(
+        String.format(
+            "ALTER SESSION SET \"%s\"='%o';", ExecConstants.NEW_VIEW_DEFAULT_PERMS_KEY, viewPerms));
+    test(
+        String.format(
+            "CREATE VIEW %s.\"/user/%s/%s\" AS SELECT * FROM %s.\"%s\";",
+            MINIDFS_STORAGE_PLUGIN_NAME,
+            viewOwner,
+            newViewName,
+            MINIDFS_STORAGE_PLUGIN_NAME,
+            fromPath));
 
     // Verify the view file created has the expected permissions and ownership
-    Path viewFilePath = new Path(getUserHome(viewOwner), newViewName + DotFileType.VIEW.getEnding());
+    Path viewFilePath =
+        new Path(getUserHome(viewOwner), newViewName + DotFileType.VIEW.getEnding());
     FileStatus status = fs.getFileStatus(viewFilePath);
     assertEquals(viewGroup, status.getGroup());
     assertEquals(viewOwner, status.getOwner());
     assertEquals(viewPerms, status.getPermission().toShort());
   }
 
-  protected static void createView(final String viewOwner, final String viewGroup, final String viewName,
-                                 final String viewDef) throws Exception {
+  protected static void createView(
+      final String viewOwner, final String viewGroup, final String viewName, final String viewDef)
+      throws Exception {
     updateClient(viewOwner);
-    test(String.format("ALTER SESSION SET \"%s\"='%o';", ExecConstants.NEW_VIEW_DEFAULT_PERMS_KEY, (short) 0750));
+    test(
+        String.format(
+            "ALTER SESSION SET \"%s\"='%o';",
+            ExecConstants.NEW_VIEW_DEFAULT_PERMS_KEY, (short) 0750));
     test("CREATE VIEW %s.%s.%s AS %s", MINIDFS_STORAGE_PLUGIN_NAME, "tmp", viewName, viewDef);
     final Path viewFilePath = new Path("/tmp/", viewName + DotFileType.VIEW.getEnding());
     fs.setOwner(viewFilePath, viewOwner, viewGroup);

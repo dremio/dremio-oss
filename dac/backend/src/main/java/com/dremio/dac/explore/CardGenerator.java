@@ -18,14 +18,6 @@ package com.dremio.dac.explore;
 import static com.dremio.common.utils.SqlUtils.quoteIdentifier;
 import static java.lang.String.format;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.dac.explore.Recommender.TransformRuleWrapper;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.explore.model.extract.Card;
@@ -39,14 +31,21 @@ import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import org.apache.arrow.memory.BufferAllocator;
 
 /**
- * Generated recommendation card(s) for given transform rule wrapped in {@link TransformRuleWrapper}.
- * Each card contains:
- *   <ul>
- *     <li>how many rows matching/not-matching the rule in given dataset/version sample</li>
- *     <li>at max 3 examples of {@link CardExample}</li>
- *   </ul>
+ * Generated recommendation card(s) for given transform rule wrapped in {@link
+ * TransformRuleWrapper}. Each card contains:
+ *
+ * <ul>
+ *   <li>how many rows matching/not-matching the rule in given dataset/version sample
+ *   <li>at max 3 examples of {@link CardExample}
+ * </ul>
  */
 public class CardGenerator {
 
@@ -54,7 +53,8 @@ public class CardGenerator {
   private final DatasetPath datasetPath;
   private final DatasetVersion version;
 
-  public CardGenerator(final QueryExecutor executor, DatasetPath datasetPath, DatasetVersion version) {
+  public CardGenerator(
+      final QueryExecutor executor, DatasetPath datasetPath, DatasetVersion version) {
     this.executor = executor;
     this.datasetPath = datasetPath;
     this.version = version;
@@ -70,26 +70,43 @@ public class CardGenerator {
    * @param <T> transform rule
    * @return
    */
-  public <T> List<Card<T>> generateCards(SqlQuery datasetSql, String colName,
-      List<TransformRuleWrapper<T>> transformRuleWrappers, Comparator<Card<T>> comparator, BufferAllocator allocator) {
+  public <T> List<Card<T>> generateCards(
+      SqlQuery datasetSql,
+      String colName,
+      List<TransformRuleWrapper<T>> transformRuleWrappers,
+      Comparator<Card<T>> comparator,
+      BufferAllocator allocator) {
 
-    final String previewDataTable = DatasetsUtil
-      .getDatasetPreviewJob(executor, datasetSql, datasetPath, version)
-      .getJobResultsTable();
+    final String previewDataTable =
+        DatasetsUtil.getDatasetPreviewJob(executor, datasetSql, datasetPath, version)
+            .getJobResultsTable();
 
-    // Generate a query to count the number of matches for each rule and total number of rows. Input here is from
+    // Generate a query to count the number of matches for each rule and total number of rows. Input
+    // here is from
     // preview data of the dataset with version.
     String countQuery = generateMatchCountQuery(colName, previewDataTable, transformRuleWrappers);
 
-    try (final JobDataFragment countJobData = executor
-      .runQueryAndWaitForCompletion(datasetSql.cloneWithNewSql(countQuery), QueryType.UI_INTERNAL_RUN, datasetPath, version)
-      .truncate(allocator, 1)) {
+    try (final JobDataFragment countJobData =
+        executor
+            .runQueryAndWaitForCompletion(
+                datasetSql.cloneWithNewSql(countQuery),
+                QueryType.UI_INTERNAL_RUN,
+                datasetPath,
+                version)
+            .truncate(allocator, 1)) {
 
       // Get the total number of records
       final int totalCount = toIntOrZero(countJobData.extractValue("total", 0));
-      final String exGenQuery = generateCardGenQuery(colName, previewDataTable, transformRuleWrappers);
-      final JobData exGenQueryData = executor.runQueryAndWaitForCompletion(datasetSql.cloneWithNewSql(exGenQuery), QueryType.UI_INTERNAL_RUN, datasetPath, version);
-      List<List<CardExample>> cardsExamples = getExamples(exGenQueryData, transformRuleWrappers, allocator);
+      final String exGenQuery =
+          generateCardGenQuery(colName, previewDataTable, transformRuleWrappers);
+      final JobData exGenQueryData =
+          executor.runQueryAndWaitForCompletion(
+              datasetSql.cloneWithNewSql(exGenQuery),
+              QueryType.UI_INTERNAL_RUN,
+              datasetPath,
+              version);
+      List<List<CardExample>> cardsExamples =
+          getExamples(exGenQueryData, transformRuleWrappers, allocator);
 
       List<Card<T>> cards = Lists.newArrayList();
       for (int i = 0; i < transformRuleWrappers.size(); i++) {
@@ -98,8 +115,13 @@ public class CardGenerator {
 
         Recommender.TransformRuleWrapper<T> evaluator = transformRuleWrappers.get(i);
 
-        Card<T> card = new Card<>(evaluator.getRule(), cardsExamples.get(i),
-          matchedCount, totalCount - matchedCount, evaluator.describe());
+        Card<T> card =
+            new Card<>(
+                evaluator.getRule(),
+                cardsExamples.get(i),
+                matchedCount,
+                totalCount - matchedCount,
+                evaluator.describe());
 
         cards.add(card);
       }
@@ -114,12 +136,15 @@ public class CardGenerator {
   static int toIntOrZero(Object o) {
     // Note instanceof always returns false for null input, so this is null safe
     if (o instanceof Number) {
-      return ((Number)o).intValue();
+      return ((Number) o).intValue();
     }
     return 0;
   }
 
-  private <T> List<List<CardExample>> getExamples(JobData exGenQueryData, List<TransformRuleWrapper<T>> transformRuleWrappers, BufferAllocator allocator) {
+  private <T> List<List<CardExample>> getExamples(
+      JobData exGenQueryData,
+      List<TransformRuleWrapper<T>> transformRuleWrappers,
+      BufferAllocator allocator) {
 
     try (final JobDataFragment data = exGenQueryData.truncate(allocator, Card.EXAMPLES_TO_SHOW)) {
 
@@ -162,13 +187,16 @@ public class CardGenerator {
     }
   }
 
-  <T> String generateCardGenQuery(String inputColName, String datasetPreviewTable, List<TransformRuleWrapper<T>> evaluators) {
+  <T> String generateCardGenQuery(
+      String inputColName, String datasetPreviewTable, List<TransformRuleWrapper<T>> evaluators) {
 
     StringBuilder queryBuilder = new StringBuilder();
 
-    String inputExpr = String.format("%s.%s", quoteIdentifier("dremio_preview_data"), quoteIdentifier(inputColName));
+    String inputExpr =
+        String.format(
+            "%s.%s", quoteIdentifier("dremio_preview_data"), quoteIdentifier(inputColName));
     List<String> exprs = Lists.newArrayList();
-    for(int i=0; i<evaluators.size(); i++) {
+    for (int i = 0; i < evaluators.size(); i++) {
       if (evaluators.get(i).canGenerateExamples()) {
         final String expr = evaluators.get(i).getExampleFunctionExpr(inputExpr);
         final String outputColAlias = "example_" + i;
@@ -192,13 +220,16 @@ public class CardGenerator {
     return queryBuilder.toString();
   }
 
-  <T> String generateMatchCountQuery(String inputColName, String datasetPreviewTable, List<TransformRuleWrapper<T>> evaluators) {
+  <T> String generateMatchCountQuery(
+      String inputColName, String datasetPreviewTable, List<TransformRuleWrapper<T>> evaluators) {
 
     StringBuilder queryBuilder = new StringBuilder();
 
-    String inputExpr = String.format("%s.%s", quoteIdentifier("dremio_preview_data"), quoteIdentifier(inputColName));
+    String inputExpr =
+        String.format(
+            "%s.%s", quoteIdentifier("dremio_preview_data"), quoteIdentifier(inputColName));
     List<String> exprs = Lists.newArrayList();
-    for(int i=0; i<evaluators.size(); i++) {
+    for (int i = 0; i < evaluators.size(); i++) {
       final String expr = evaluators.get(i).getMatchFunctionExpr(inputExpr);
 
       final String outputColAlias = "matched_count_" + i;

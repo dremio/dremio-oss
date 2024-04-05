@@ -48,7 +48,7 @@ function initializeWorker(data: RunInitializeData) {
 
 function runAutocompleteOnWorker(
   data: RunAutocompleteData,
-  isCancellationRequested: () => boolean
+  isCancellationRequested: () => boolean,
 ): Promise<RunAutocompleteResponse | null> {
   const request: RunAutocompleteRequest = {
     type: "autocomplete",
@@ -56,13 +56,13 @@ function runAutocompleteOnWorker(
   };
   return runRequestOnWorker<RunAutocompleteResponse>(
     request,
-    isCancellationRequested
+    isCancellationRequested,
   );
 }
 
 function runErrorDetectionOnWorker(
   data: RunErrorDetectionData,
-  isCancellationRequested: () => boolean
+  isCancellationRequested: () => boolean,
 ): Promise<RunErrorDetectionResponse | null> {
   const request: RunErrorDetectionRequest = {
     type: "errorDetection",
@@ -70,13 +70,13 @@ function runErrorDetectionOnWorker(
   };
   return runRequestOnWorker<RunErrorDetectionResponse>(
     request,
-    isCancellationRequested
+    isCancellationRequested,
   );
 }
 
 function runRequestOnWorker<P extends SQLParsingWorkerResponse>(
   request: SQLParsingWorkerRequest,
-  isCancellationRequested: () => boolean
+  isCancellationRequested: () => boolean,
 ): Promise<P | null> {
   return new Promise((resolve) => {
     // We use a message channel to ensure that we only listen to responses for the request we sent (and not the response
@@ -88,7 +88,7 @@ function runRequestOnWorker<P extends SQLParsingWorkerResponse>(
       channel.port2.close();
     };
     channel.port2.onmessage = (
-      e: MessageEvent<P | CheckCancellationRequest>
+      e: MessageEvent<P | CheckCancellationRequest>,
     ) => {
       if ("checkShouldCancel" in e.data) {
         // Tell the worker to cancel this request if Monaco says so (this is true if another character has since been
@@ -119,7 +119,7 @@ export class SQLEditorExtension {
     sqlContextGetter: SqlContextGetter,
     authToken: string,
     getSuggestionsURL: string,
-    sqlFunctions: SQLFunction[]
+    sqlFunctions: SQLFunction[],
   ) {
     this.sqlContextGetter = sqlContextGetter;
     this.currentModelVersion = -1;
@@ -134,7 +134,7 @@ export class SQLEditorExtension {
     provideCompletionItems: async (
       model: monaco.editor.IReadOnlyModel,
       position: monaco.Position,
-      cancellationToken: monaco.CancellationToken
+      cancellationToken: monaco.CancellationToken,
     ): Promise<monaco.languages.CompletionItem[]> => {
       const document: Document = {
         linesContent: model.getLinesContent(),
@@ -148,13 +148,13 @@ export class SQLEditorExtension {
       const completionItems: monaco.languages.CompletionItem[] | null =
         await runAutocompleteOnWorker(
           data,
-          () => cancellationToken.isCancellationRequested
+          () => cancellationToken.isCancellationRequested,
         );
       if (completionItems == null) {
         console.debug(
           `Autocomplete request cancelled for model version: ${model.getVersionId()}, word: ${JSON.stringify(
-            document.wordAtPosition
-          )}`
+            document.wordAtPosition,
+          )}`,
         );
         return [];
       }
@@ -165,7 +165,7 @@ export class SQLEditorExtension {
   errorDetectionProvider = {
     getLiveErrors: async (
       model: monaco.editor.IReadOnlyModel,
-      modelVersion: number
+      modelVersion: number,
     ): Promise<SQLError[]> => {
       this.currentModelVersion = modelVersion;
 
@@ -178,13 +178,13 @@ export class SQLEditorExtension {
         modelVersion < this.currentModelVersion;
       const syntaxErrors: SQLError[] | null = await runErrorDetectionOnWorker(
         data,
-        isCancellationRequested
+        isCancellationRequested,
       );
       // Do not use model after this point because it may have been mutated already by react-monaco-editor with newer
       // editor changes
       if (syntaxErrors == null) {
         console.debug(
-          `Error detection request cancelled for model version: ${modelVersion}`
+          `Error detection request cancelled for model version: ${modelVersion}`,
         );
         return [];
       }

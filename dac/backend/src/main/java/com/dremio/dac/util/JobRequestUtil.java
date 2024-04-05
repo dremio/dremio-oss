@@ -15,18 +15,15 @@
  */
 package com.dremio.dac.util;
 
+import com.dremio.dac.explore.model.VersionContextReq;
+import com.dremio.service.job.SqlQuery;
+import com.google.common.base.Strings;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import com.dremio.dac.explore.model.VersionContextReq;
-import com.dremio.service.job.SqlQuery;
-import com.google.common.base.Strings;
-
-/**
- * Utility class to create SqlQuery (proto)
- */
+/** Utility class to create SqlQuery (proto) */
 public final class JobRequestUtil {
 
   private JobRequestUtil() {}
@@ -35,9 +32,7 @@ public final class JobRequestUtil {
     return createSqlQuery(sql, Collections.<String>emptyList(), username);
   }
 
-  /**
-   * Creates SqlQuery (Proto) - used to populate SubmitJobRequest
-   */
+  /** Creates SqlQuery (Proto) - used to populate SubmitJobRequest */
   public static SqlQuery createSqlQuery(
       String sql,
       List<String> context,
@@ -62,9 +57,10 @@ public final class JobRequestUtil {
       sqlQueryBuilder.setSessionId(sessionId);
     }
     if (sourceVersionMapping != null && !sourceVersionMapping.isEmpty()) {
-      Map<String, SqlQuery.VersionContext> sourceVersionMappingAsProto = sourceVersionMapping.entrySet()
-        .stream()
-        .collect(Collectors.toMap(Map.Entry::getKey, e -> toVersionContextProto(e.getValue())));
+      Map<String, SqlQuery.VersionContext> sourceVersionMappingAsProto =
+          sourceVersionMapping.entrySet().stream()
+              .collect(
+                  Collectors.toMap(Map.Entry::getKey, e -> toVersionContextProto(e.getValue())));
 
       sqlQueryBuilder.putAllSourceVersionMapping(sourceVersionMappingAsProto);
     }
@@ -73,12 +69,13 @@ public final class JobRequestUtil {
 
   public static SqlQuery.VersionContext toVersionContextProto(VersionContextReq versionContextReq) {
     return SqlQuery.VersionContext.newBuilder()
-      .setType(toVersionContextTypeProto(versionContextReq.getType()))
-      .setValue(versionContextReq.getValue())
-      .build();
+        .setType(toVersionContextTypeProto(versionContextReq.getType()))
+        .setValue(versionContextReq.getValue())
+        .build();
   }
 
-  public static SqlQuery.VersionContextType toVersionContextTypeProto(VersionContextReq.VersionContextType type) {
+  public static SqlQuery.VersionContextType toVersionContextTypeProto(
+      VersionContextReq.VersionContextType type) {
     switch (type) {
       case BRANCH:
         return SqlQuery.VersionContextType.BRANCH;

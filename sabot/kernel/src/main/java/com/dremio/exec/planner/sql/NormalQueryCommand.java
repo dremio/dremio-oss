@@ -15,6 +15,4 @@
  */
 package com.dremio.exec.planner.sql;
 
-public class NormalQueryCommand {
-
-}
+public class NormalQueryCommand {}

@@ -15,15 +15,6 @@
  */
 package com.dremio.sabot.op.receiver;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Map;
-import java.util.concurrent.locks.ReadWriteLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
-
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.OutOfMemoryException;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.DeferredException;
 import com.dremio.common.concurrent.AutoCloseableLock;
@@ -49,34 +40,45 @@ import com.dremio.sabot.op.spi.BatchStreamProvider;
 import com.dremio.sabot.threads.sharedres.SharedResourceGroup;
 import com.dremio.service.spill.SpillService;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Map;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.OutOfMemoryException;
 
 /**
- * Determines when a particular fragment has enough data for each of its receiving exchanges to commence execution.  Also monitors whether we've collected all incoming data.
+ * Determines when a particular fragment has enough data for each of its receiving exchanges to
+ * commence execution. Also monitors whether we've collected all incoming data.
  */
 public class IncomingBuffers implements BatchStreamProvider, AutoCloseable {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(IncomingBuffers.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(IncomingBuffers.class);
 
-  private static final ControlsInjector injector = ControlsInjectorFactory.getInjector(IncomingBuffers.class);
+  private static final ControlsInjector injector =
+      ControlsInjectorFactory.getInjector(IncomingBuffers.class);
 
-  @VisibleForTesting
-  public static final String INJECTOR_DO_WORK = "injectOOMOnInit";
+  @VisibleForTesting public static final String INJECTOR_DO_WORK = "injectOOMOnInit";
 
   private volatile boolean closed = false;
   private final Map<Integer, DataCollector> collectorMap;
-//  private final FragmentContext context;
+
+  //  private final FragmentContext context;
 
   /**
-   * Lock used to manage close and data acceptance. We should only create a local reference to incoming data in the case
-   * that the incoming buffers are !closed. As such, we need to make sure that we aren't in the process of closing the
-   * incoming buffers when data is arriving. The read lock can be shared by many incoming batches but the write lock
-   * must be exclusive to the close method.
+   * Lock used to manage close and data acceptance. We should only create a local reference to
+   * incoming data in the case that the incoming buffers are !closed. As such, we need to make sure
+   * that we aren't in the process of closing the incoming buffers when data is arriving. The read
+   * lock can be shared by many incoming batches but the write lock must be exclusive to the close
+   * method.
    */
   private final ReadWriteLock lock = new ReentrantReadWriteLock();
+
   private final AutoCloseableLock sharedIncomingBatchLock = new AutoCloseableLock(lock.readLock());
   private final AutoCloseableLock exclusiveCloseLock = new AutoCloseableLock(lock.writeLock());
   private final BufferAllocator allocator;
@@ -96,26 +98,47 @@ public class IncomingBuffers implements BatchStreamProvider, AutoCloseable {
       OptionManager options,
       ExecutionControls executionControls,
       SpillService spillService,
-      PlanFragmentsIndex planFragmentsIndex
-      ) {
+      PlanFragmentsIndex planFragmentsIndex) {
     this.deferredException = exception;
     this.resourceGroup = resourceGroup;
     this.fileCursorManagerFactory = fileCursorManagerFactory;
 
     final FragmentHandle handle = fragment.getMajor().getHandle();
-    final String allocatorName = String.format("op:%s:incoming",
-      QueryIdHelper.getFragmentId(fragment.getHandle()));
+    final String allocatorName =
+        String.format("op:%s:incoming", QueryIdHelper.getFragmentId(fragment.getHandle()));
     this.allocator = incomingAllocator.newChildAllocator(allocatorName, 0, Long.MAX_VALUE);
 
     final Map<Integer, DataCollector> collectors = Maps.newHashMap();
     EndpointsIndex endpointsIndex = planFragmentsIndex.getEndpointsIndex();
-    try (AutoCloseables.RollbackCloseable rollbackCloseable = new AutoCloseables.RollbackCloseable(true, allocator)) {
+    try (AutoCloseables.RollbackCloseable rollbackCloseable =
+        new AutoCloseables.RollbackCloseable(true, allocator)) {
       for (int i = 0; i < fragment.getMinor().getCollectorCount(); i++) {
         Collector collector = fragment.getMinor().getCollector(i);
 
-        DataCollector newCollector = collector.getSupportsOutOfOrder() ?
-          new MergingCollector(resourceGroup, collector, allocator, config, options, fragment.getHandle(), workQueue, tunnelProvider, spillService, endpointsIndex) :
-          new PartitionedCollector(resourceGroup, collector, allocator, config, options, fragment.getHandle(), workQueue, tunnelProvider, spillService, endpointsIndex);
+        DataCollector newCollector =
+            collector.getSupportsOutOfOrder()
+                ? new MergingCollector(
+                    resourceGroup,
+                    collector,
+                    allocator,
+                    config,
+                    options,
+                    fragment.getHandle(),
+                    workQueue,
+                    tunnelProvider,
+                    spillService,
+                    endpointsIndex)
+                : new PartitionedCollector(
+                    resourceGroup,
+                    collector,
+                    allocator,
+                    config,
+                    options,
+                    fragment.getHandle(),
+                    workQueue,
+                    tunnelProvider,
+                    spillService,
+                    endpointsIndex);
         rollbackCloseable.add(newCollector);
         collectors.put(collector.getOppositeMajorFragmentId(), newCollector);
       }
@@ -143,9 +166,14 @@ public class IncomingBuffers implements BatchStreamProvider, AutoCloseable {
     }
   }
 
-  private DataCollector collector(int sendMajorFragmentId){
+  private DataCollector collector(int sendMajorFragmentId) {
     DataCollector collector = collectorMap.get(sendMajorFragmentId);
-    Preconditions.checkNotNull(collector, "We received a major fragment id that we were not expecting.  The id was %s. %s", sendMajorFragmentId, Arrays.toString(collectorMap.values().toArray()));
+    if (collector == null) {
+      throw new IllegalArgumentException(
+          String.format(
+              "We received a major fragment id that we were not expecting.  The id was %s. %s",
+              sendMajorFragmentId, Arrays.toString(collectorMap.values().toArray())));
+    }
     return collector;
   }
 
@@ -153,31 +181,36 @@ public class IncomingBuffers implements BatchStreamProvider, AutoCloseable {
     try {
       incomingBatch.checkAcceptance(allocator);
     } catch (OutOfMemoryException e) {
-      deferredException.addException(UserException.memoryError()
-          .message("Out of memory while receiving incoming message. Message size: %d", incomingBatch.size())
-          .addContext(MemoryDebugInfo.getDetailsOnAllocationFailure(e, allocator))
-          .build(logger));
+      deferredException.addException(
+          UserException.memoryError(e)
+              .message(
+                  "Out of memory while receiving incoming message. Message size: %d",
+                  incomingBatch.size())
+              .addContext(MemoryDebugInfo.getDetailsOnAllocationFailure(e, allocator))
+              .build(logger));
       return;
     }
 
-    // we want to make sure that we only generate local record batch reference in the case that we're not closed.
+    // we want to make sure that we only generate local record batch reference in the case that
+    // we're not closed.
     // Otherwise we would leak memory.
     try (AutoCloseableLock lock = sharedIncomingBatchLock.open()) {
       if (closed) {
         return;
       }
 
-      final DataCollector collector = collector(incomingBatch.getHeader().getSendingMajorFragmentId());
+      final DataCollector collector =
+          collector(incomingBatch.getHeader().getSendingMajorFragmentId());
 
       synchronized (collector) {
-        try(final RawFragmentBatch newRawFragmentBatch = incomingBatch.newRawFragmentBatch(allocator)){
-          collector.batchArrived(incomingBatch.getHeader().getSendingMinorFragmentId(), newRawFragmentBatch);
+        try (final RawFragmentBatch newRawFragmentBatch =
+            incomingBatch.newRawFragmentBatch(allocator)) {
+          collector.batchArrived(
+              incomingBatch.getHeader().getSendingMinorFragmentId(), newRawFragmentBatch);
         }
       }
     }
-
   }
-
 
   @Override
   public boolean isPotentiallyBlocked() {
@@ -187,24 +220,27 @@ public class IncomingBuffers implements BatchStreamProvider, AutoCloseable {
   @Override
   public RawFragmentBatchProvider[] getBuffers(int senderMajorFragmentId) {
     DataCollector collector = collectorMap.get(senderMajorFragmentId);
-    Preconditions.checkNotNull(collector, "Invalid major fragment id %s. Expected a value in %s", senderMajorFragmentId, collectorMap.values().toString());
+    if (collector == null) {
+      throw new IllegalArgumentException(
+          String.format(
+              "Invalid major fragment id %s. Expected a value in %s",
+              senderMajorFragmentId, collectorMap.values().toString()));
+    }
     return collector.getBuffers();
   }
 
   @Override
   public RawFragmentBatchProvider getBuffersFromFiles(String uniqueId, int readerMajorFragId) {
-    return new BatchBufferFromFilesProvider(uniqueId, readerMajorFragId, resourceGroup, allocator, fileCursorManagerFactory);
+    return new BatchBufferFromFilesProvider(
+        uniqueId, readerMajorFragId, resourceGroup, allocator, fileCursorManagerFactory);
   }
 
   @Override
   public void close() throws Exception {
     try (AutoCloseableLock lock = exclusiveCloseLock.open()) {
       closed = true;
-      AutoCloseables.close(Iterables.concat(
-          collectorMap.values(),
-          Collections.singleton(allocator)
-          ));
+      AutoCloseables.close(
+          Iterables.concat(collectorMap.values(), Collections.singleton(allocator)));
     }
   }
-
 }

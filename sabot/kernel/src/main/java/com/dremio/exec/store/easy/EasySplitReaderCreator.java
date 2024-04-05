@@ -15,11 +15,6 @@
  */
 package com.dremio.exec.store.easy;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.util.List;
-import java.util.Set;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.InvalidMetadataErrorContext;
@@ -42,15 +37,19 @@ import com.dremio.sabot.exec.store.easy.proto.EasyProtobuf;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.protobuf.InvalidProtocolBufferException;
-
 import io.protostuff.ByteString;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.util.List;
+import java.util.Set;
 
 /**
- * A lightweight object used to manage the creation of a reader. Allows pre-initialization of data before reader
- * construction.
+ * A lightweight object used to manage the creation of a reader. Allows pre-initialization of data
+ * before reader construction.
  */
 public class EasySplitReaderCreator extends SplitReaderCreator implements AutoCloseable {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(EasySplitReaderCreator.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(EasySplitReaderCreator.class);
   private SplitAndPartitionInfo datasetSplit;
   private FileSystem fs;
   protected EasyProtobuf.EasyDatasetSplitXAttr easySplitXAttr;
@@ -61,20 +60,22 @@ public class EasySplitReaderCreator extends SplitReaderCreator implements AutoCl
   private final ExtendedFormatOptions extendedFormatOptions;
   private final ByteString extendedProperty;
 
-  public EasySplitReaderCreator(OperatorContext context,
-                                FileSystem fs,
-                                SplitAndPartitionInfo splitInfo,
-                                List<List<String>> tablePath,
-                                List<SchemaPath> columns,
-                                FormatPlugin formatPlugin,
-                                CompressionCodecFactory compressionCodecFactory,
-                                ExtendedFormatOptions extendedFormatOptions,
-                                ByteString extendedProperty) {
+  public EasySplitReaderCreator(
+      OperatorContext context,
+      FileSystem fs,
+      SplitAndPartitionInfo splitInfo,
+      List<List<String>> tablePath,
+      List<SchemaPath> columns,
+      FormatPlugin formatPlugin,
+      CompressionCodecFactory compressionCodecFactory,
+      ExtendedFormatOptions extendedFormatOptions,
+      ByteString extendedProperty) {
     this.datasetSplit = splitInfo;
 
     try {
-      this.easySplitXAttr = EasyProtobuf.EasyDatasetSplitXAttr.parseFrom(
-        datasetSplit.getDatasetSplitInfo().getExtendedProperty());
+      this.easySplitXAttr =
+          EasyProtobuf.EasyDatasetSplitXAttr.parseFrom(
+              datasetSplit.getDatasetSplitInfo().getExtendedProperty());
     } catch (InvalidProtocolBufferException e) {
       throw new RuntimeException(e);
     }
@@ -82,11 +83,10 @@ public class EasySplitReaderCreator extends SplitReaderCreator implements AutoCl
     this.tablePath = tablePath;
     if (!fs.supportsPath(path)) {
       throw UserException.invalidMetadataError()
-        .addContext("%s: Invalid FS for file '%s'", fs.getScheme(), path)
-        .setAdditionalExceptionContext(
-          new InvalidMetadataErrorContext(
-            ImmutableList.copyOf(tablePath)))
-        .buildSilently();
+          .addContext("%s: Invalid FS for file '%s'", fs.getScheme(), path)
+          .setAdditionalExceptionContext(
+              new InvalidMetadataErrorContext(ImmutableList.copyOf(tablePath)))
+          .buildSilently();
     }
     this.context = context;
     this.fs = fs;
@@ -98,18 +98,16 @@ public class EasySplitReaderCreator extends SplitReaderCreator implements AutoCl
   }
 
   @Override
-  public void addRowGroupsToRead(Set<Integer> rowGroupsToRead) {
-  }
+  public void addRowGroupsToRead(Set<Integer> rowGroupsToRead) {}
 
   @Override
   public SplitAndPartitionInfo getSplit() {
     return this.datasetSplit;
   }
 
-
   @Override
-  public void createInputStreamProvider(InputStreamProvider lastInputStreamProvider, MutableParquetMetadata lastFooter) {
-  }
+  public void createInputStreamProvider(
+      InputStreamProvider lastInputStreamProvider, MutableParquetMetadata lastFooter) {}
 
   @Override
   protected <T> T handleEx(RunnableIO<T> r) {
@@ -118,27 +116,28 @@ public class EasySplitReaderCreator extends SplitReaderCreator implements AutoCl
       return r.run();
     } catch (FileNotFoundException e) {
       throw UserException.invalidMetadataError(e)
-        .addContext("File not found")
-        .addContext("File", easySplitXAttr.getPath())
-        .build(logger);
+          .addContext("File not found")
+          .addContext("File", easySplitXAttr.getPath())
+          .build(logger);
     } catch (IOException e) {
       throw UserException.dataReadError(e)
-        .addContext("Failure opening file")
-        .addContext("File", easySplitXAttr.getPath())
-        .build(logger);
+          .addContext("Failure opening file")
+          .addContext("File", easySplitXAttr.getPath())
+          .build(logger);
     }
   }
 
   @Override
   public RecordReader createRecordReader(MutableParquetMetadata footer) {
-    return handleEx(() -> {
-      try {
-        RecordReader inner = getEasyRecordReader();
-        return inner;
-      }finally {
-        this.inputStreamProvider = null;
-      }
-    });
+    return handleEx(
+        () -> {
+          try {
+            RecordReader inner = getEasyRecordReader();
+            return inner;
+          } finally {
+            this.inputStreamProvider = null;
+          }
+        });
   }
 
   @Override
@@ -152,9 +151,15 @@ public class EasySplitReaderCreator extends SplitReaderCreator implements AutoCl
       if (logger.isDebugEnabled()) {
         logger.debug("'COPY INTO' Getting record reader for {}", easySplitXAttr.toString());
       }
-      return formatPlugin.getRecordReader(context, fs, easySplitXAttr, columns, getExtendedEasyReaderProperties(), extendedProperty);
+      return formatPlugin.getRecordReader(
+          context,
+          fs,
+          easySplitXAttr,
+          columns,
+          getExtendedEasyReaderProperties(),
+          extendedProperty);
     } catch (ExecutionSetupException e) {
-      throw UserException.dataReadError().message("Unable to get record reader").buildSilently();
+      throw UserException.dataReadError(e).message("Unable to get record reader").buildSilently();
     }
   }
 

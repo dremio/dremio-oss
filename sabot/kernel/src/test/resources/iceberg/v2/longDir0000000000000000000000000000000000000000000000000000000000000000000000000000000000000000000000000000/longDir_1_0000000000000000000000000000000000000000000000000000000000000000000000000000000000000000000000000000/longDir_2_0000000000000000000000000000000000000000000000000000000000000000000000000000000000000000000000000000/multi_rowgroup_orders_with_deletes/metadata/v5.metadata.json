@@ -1,0 +1,172 @@
+{
+  "format-version" : 2,
+  "table-uuid" : "e6e7c741-65a5-418c-b7c1-5b045b31a58f",
+  "location" : "/tmp/iceberg-test-tables/v2/longDir0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000/longDir_1_0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000/longDir_2_0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000/multi_rowgroup_orders_with_deletes",
+  "last-sequence-number" : 4,
+  "last-updated-ms" : 1707175521347,
+  "last-column-id" : 6,
+  "current-schema-id" : 0,
+  "schemas" : [ {
+    "type" : "struct",
+    "schema-id" : 0,
+    "fields" : [ {
+      "id" : 1,
+      "name" : "order_id",
+      "required" : true,
+      "type" : "int"
+    }, {
+      "id" : 2,
+      "name" : "order_year",
+      "required" : true,
+      "type" : "int"
+    }, {
+      "id" : 3,
+      "name" : "order_date",
+      "required" : true,
+      "type" : "timestamp"
+    }, {
+      "id" : 4,
+      "name" : "source_id",
+      "required" : true,
+      "type" : "int"
+    }, {
+      "id" : 5,
+      "name" : "product_name",
+      "required" : true,
+      "type" : "string"
+    }, {
+      "id" : 6,
+      "name" : "amount",
+      "required" : true,
+      "type" : "double"
+    } ]
+  } ],
+  "default-spec-id" : 0,
+  "partition-specs" : [ {
+    "spec-id" : 0,
+    "fields" : [ {
+      "name" : "order_year",
+      "transform" : "identity",
+      "source-id" : 2,
+      "field-id" : 1000
+    } ]
+  } ],
+  "last-partition-id" : 1000,
+  "default-sort-order-id" : 0,
+  "sort-orders" : [ {
+    "order-id" : 0,
+    "fields" : [ ]
+  } ],
+  "properties" : {
+    "write.parquet.page-size-bytes" : "4096",
+    "write.parquet.row-group-size-bytes" : "16384",
+    "write.parquet.dict-size-bytes" : "4096"
+  },
+  "current-snapshot-id" : 5340395641847685818,
+  "snapshots" : [ {
+    "sequence-number" : 1,
+    "snapshot-id" : 8967601727741884042,
+    "timestamp-ms" : 1707175520984,
+    "summary" : {
+      "operation" : "append",
+      "added-data-files" : "9",
+      "added-records" : "9000",
+      "added-files-size" : "192656",
+      "changed-partition-count" : "3",
+      "total-records" : "9000",
+      "total-files-size" : "192656",
+      "total-data-files" : "9",
+      "total-delete-files" : "0",
+      "total-position-deletes" : "0",
+      "total-equality-deletes" : "0"
+    },
+    "manifest-list" : "/tmp/iceberg-test-tables/v2/longDir0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000/longDir_1_0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000/longDir_2_0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000/multi_rowgroup_orders_with_deletes/metadata/snap-8967601727741884042-1-e13887cf-df6a-4337-86da-1a22c0d940f9.avro",
+    "schema-id" : 0
+  }, {
+    "sequence-number" : 2,
+    "snapshot-id" : 5466556417646396700,
+    "parent-snapshot-id" : 8967601727741884042,
+    "timestamp-ms" : 1707175521094,
+    "summary" : {
+      "operation" : "overwrite",
+      "added-delete-files" : "1",
+      "added-files-size" : "31250",
+      "added-position-deletes" : "900",
+      "changed-partition-count" : "1",
+      "total-records" : "9000",
+      "total-files-size" : "223906",
+      "total-data-files" : "9",
+      "total-delete-files" : "1",
+      "total-position-deletes" : "900",
+      "total-equality-deletes" : "0"
+    },
+    "manifest-list" : "/tmp/iceberg-test-tables/v2/longDir0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000/longDir_1_0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000/longDir_2_0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000/multi_rowgroup_orders_with_deletes/metadata/snap-5466556417646396700-1-b3ad86a9-4413-4000-8d25-6f694170f1c2.avro",
+    "schema-id" : 0
+  }, {
+    "sequence-number" : 3,
+    "snapshot-id" : 8472177269997241775,
+    "parent-snapshot-id" : 5466556417646396700,
+    "timestamp-ms" : 1707175521210,
+    "summary" : {
+      "operation" : "overwrite",
+      "added-delete-files" : "1",
+      "added-files-size" : "4549",
+      "added-position-deletes" : "30",
+      "changed-partition-count" : "1",
+      "total-records" : "9000",
+      "total-files-size" : "228455",
+      "total-data-files" : "9",
+      "total-delete-files" : "2",
+      "total-position-deletes" : "930",
+      "total-equality-deletes" : "0"
+    },
+    "manifest-list" : "/tmp/iceberg-test-tables/v2/longDir0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000/longDir_1_0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000/longDir_2_0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000/multi_rowgroup_orders_with_deletes/metadata/snap-8472177269997241775-1-092494fe-0282-4e3e-97f3-e3d22086fd86.avro",
+    "schema-id" : 0
+  }, {
+    "sequence-number" : 4,
+    "snapshot-id" : 5340395641847685818,
+    "parent-snapshot-id" : 8472177269997241775,
+    "timestamp-ms" : 1707175521345,
+    "summary" : {
+      "operation" : "overwrite",
+      "added-delete-files" : "2",
+      "added-files-size" : "36901",
+      "added-position-deletes" : "1000",
+      "changed-partition-count" : "2",
+      "total-records" : "9000",
+      "total-files-size" : "265356",
+      "total-data-files" : "9",
+      "total-delete-files" : "4",
+      "total-position-deletes" : "1930",
+      "total-equality-deletes" : "0"
+    },
+    "manifest-list" : "/tmp/iceberg-test-tables/v2/longDir0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000/longDir_1_0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000/longDir_2_0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000/multi_rowgroup_orders_with_deletes/metadata/snap-5340395641847685818-1-f3c9b0d3-dece-4791-af34-6f180aea5ce5.avro",
+    "schema-id" : 0
+  } ],
+  "snapshot-log" : [ {
+    "timestamp-ms" : 1707175520984,
+    "snapshot-id" : 8967601727741884042
+  }, {
+    "timestamp-ms" : 1707175521094,
+    "snapshot-id" : 5466556417646396700
+  }, {
+    "timestamp-ms" : 1707175521210,
+    "snapshot-id" : 8472177269997241775
+  }, {
+    "timestamp-ms" : 1707175521345,
+    "snapshot-id" : 5340395641847685818
+  } ],
+  "metadata-log" : [ {
+    "timestamp-ms" : 1707175520816,
+    "metadata-file" : "/tmp/iceberg-test-tables/v2/longDir0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000/longDir_1_0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000/longDir_2_0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000/multi_rowgroup_orders_with_deletes/metadata/v1.metadata.json"
+  }, {
+    "timestamp-ms" : 1707175520986,
+    "metadata-file" : "/tmp/iceberg-test-tables/v2/longDir0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000/longDir_1_0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000/longDir_2_0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000/multi_rowgroup_orders_with_deletes/metadata/v2.metadata.json"
+  }, {
+    "timestamp-ms" : 1707175521095,
+    "metadata-file" : "/tmp/iceberg-test-tables/v2/longDir0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000/longDir_1_0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000/longDir_2_0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000/multi_rowgroup_orders_with_deletes/metadata/v3.metadata.json"
+  }, {
+    "timestamp-ms" : 1707175521212,
+    "metadata-file" : "/tmp/iceberg-test-tables/v2/longDir0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000/longDir_1_0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000/longDir_2_0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000/multi_rowgroup_orders_with_deletes/metadata/v4.metadata.json"
+  } ]
+}

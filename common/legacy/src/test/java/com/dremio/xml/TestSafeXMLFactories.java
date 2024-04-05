@@ -19,6 +19,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.dremio.test.DremioTest;
 import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
@@ -27,7 +28,6 @@ import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermission;
 import java.util.Arrays;
 import java.util.Collections;
-
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.SAXParser;
@@ -41,7 +41,6 @@ import javax.xml.transform.TransformerException;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
-
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -50,11 +49,7 @@ import org.xml.sax.InputSource;
 import org.xml.sax.SAXParseException;
 import org.xml.sax.helpers.DefaultHandler;
 
-import com.dremio.test.DremioTest;
-
-/**
- * Tests for {@code SafeXMLFactories}
- */
+/** Tests for {@code SafeXMLFactories} */
 @RunWith(Parameterized.class)
 public class TestSafeXMLFactories extends DremioTest {
   private static final String EXTERNAL_ENTITY_PLACEHOLDER = "@@external@@";
@@ -66,38 +61,51 @@ public class TestSafeXMLFactories extends DremioTest {
     FAILURE_OR_DTD_NOT_PARSED
   }
 
-  private static final String VALID_XML = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
-      + "        <foo>no xxe</foo>\n"
-      + "";
+  private static final String VALID_XML =
+      "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n" + "        <foo>no xxe</foo>\n" + "";
 
-  private static final String VULNERABLE_XML = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
-      + "    <!DOCTYPE foo [ <!ELEMENT foo ANY >\n"
-      + "        <!ENTITY % xxe SYSTEM \"" + EXTERNAL_ENTITY_PLACEHOLDER + "\" >]>\n"
-      + "        <foo>&xxe;</foo>\n"
-      + "";
+  private static final String VULNERABLE_XML =
+      "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+          + "    <!DOCTYPE foo [ <!ELEMENT foo ANY >\n"
+          + "        <!ENTITY % xxe SYSTEM \""
+          + EXTERNAL_ENTITY_PLACEHOLDER
+          + "\" >]>\n"
+          + "        <foo>&xxe;</foo>\n"
+          + "";
 
-  private static final String VULNERABLE_XML_2 = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
-      + "    <!DOCTYPE foo [ <!ELEMENT foo ANY >\n"
-      + "        <!ENTITY % xxe SYSTEM \"" + EXTERNAL_ENTITY_PLACEHOLDER + "\"> %xxe; ]>\n"
-      + "        <foo></foo>\n"
-      + "";
+  private static final String VULNERABLE_XML_2 =
+      "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+          + "    <!DOCTYPE foo [ <!ELEMENT foo ANY >\n"
+          + "        <!ENTITY % xxe SYSTEM \""
+          + EXTERNAL_ENTITY_PLACEHOLDER
+          + "\"> %xxe; ]>\n"
+          + "        <foo></foo>\n"
+          + "";
 
   private final Result expected;
   private final String xml;
-
 
   @Parameters(name = "{index}: {0}")
   public static final Iterable<Object[]> testCases() throws IOException {
     // Cannot use TemporaryFolder as this method is invoked before the test is run
     final Path externalEntityPath = Files.createTempFile("", "");
     Files.write(externalEntityPath, Arrays.asList(VULNERABLE_MARKER), UTF_8);
-    Files.setPosixFilePermissions(externalEntityPath, Collections.singleton(PosixFilePermission.OWNER_WRITE));
+    Files.setPosixFilePermissions(
+        externalEntityPath, Collections.singleton(PosixFilePermission.OWNER_WRITE));
 
     return Arrays.<Object[]>asList(
-        new Object[] {"valid xml", Result.SUCCESS, VALID_XML },
-        new Object[] {"external entity", Result.FAILURE, VULNERABLE_XML.replace(EXTERNAL_ENTITY_PLACEHOLDER, externalEntityPath.toUri().toString()) },
-        new Object[] {"external entity in doctype", Result.FAILURE_OR_DTD_NOT_PARSED, VULNERABLE_XML_2.replace(EXTERNAL_ENTITY_PLACEHOLDER, externalEntityPath.toUri().toString()) }
-        );
+        new Object[] {"valid xml", Result.SUCCESS, VALID_XML},
+        new Object[] {
+          "external entity",
+          Result.FAILURE,
+          VULNERABLE_XML.replace(EXTERNAL_ENTITY_PLACEHOLDER, externalEntityPath.toUri().toString())
+        },
+        new Object[] {
+          "external entity in doctype",
+          Result.FAILURE_OR_DTD_NOT_PARSED,
+          VULNERABLE_XML_2.replace(
+              EXTERNAL_ENTITY_PLACEHOLDER, externalEntityPath.toUri().toString())
+        });
   }
 
   public TestSafeXMLFactories(String caseName, Result expected, String xml) {
@@ -112,13 +120,14 @@ public class TestSafeXMLFactories extends DremioTest {
 
     // Setting the exception post factory instantiation
     switch (expected) {
-    case FAILURE:
-    case FAILURE_OR_DTD_NOT_PARSED:
-      assertThatThrownBy(() -> saxParser.parse(new InputSource(new StringReader(xml)), new DefaultHandler()))
-          .isInstanceOf(SAXParseException.class);
-      break;
-    default:
-      saxParser.parse(new InputSource(new StringReader(xml)), new DefaultHandler());
+      case FAILURE:
+      case FAILURE_OR_DTD_NOT_PARSED:
+        assertThatThrownBy(
+                () -> saxParser.parse(new InputSource(new StringReader(xml)), new DefaultHandler()))
+            .isInstanceOf(SAXParseException.class);
+        break;
+      default:
+        saxParser.parse(new InputSource(new StringReader(xml)), new DefaultHandler());
     }
   }
 
@@ -129,12 +138,14 @@ public class TestSafeXMLFactories extends DremioTest {
 
     // Setting the exception post factory instantiation
     if (expected == Result.FAILURE) {
-      assertThatThrownBy(() -> {
-        while (eventReader.hasNext()) {
-          XMLEvent event = eventReader.nextEvent();
-          assertThat(event.toString()).doesNotContain(VULNERABLE_MARKER);
-        }
-      }).isInstanceOf(XMLStreamException.class);
+      assertThatThrownBy(
+              () -> {
+                while (eventReader.hasNext()) {
+                  XMLEvent event = eventReader.nextEvent();
+                  assertThat(event.toString()).doesNotContain(VULNERABLE_MARKER);
+                }
+              })
+          .isInstanceOf(XMLStreamException.class);
     } else {
       while (eventReader.hasNext()) {
         XMLEvent event = eventReader.nextEvent();
@@ -145,18 +156,19 @@ public class TestSafeXMLFactories extends DremioTest {
 
   @Test
   public void testDocumentBuilderFactory() throws Exception {
-    DocumentBuilderFactory documentBuilderFactory = SafeXMLFactories.newSafeDocumentBuilderFactory();
+    DocumentBuilderFactory documentBuilderFactory =
+        SafeXMLFactories.newSafeDocumentBuilderFactory();
     DocumentBuilder documentBuilder = documentBuilderFactory.newDocumentBuilder();
 
     // Setting the exception post factory instantiation
     switch (expected) {
-    case FAILURE:
-    case FAILURE_OR_DTD_NOT_PARSED:
-      assertThatThrownBy(() -> documentBuilder.parse(new InputSource(new StringReader(xml))))
-        .isInstanceOf(SAXParseException.class);
-      break;
-    default:
-      documentBuilder.parse(new InputSource(new StringReader(xml)));
+      case FAILURE:
+      case FAILURE_OR_DTD_NOT_PARSED:
+        assertThatThrownBy(() -> documentBuilder.parse(new InputSource(new StringReader(xml))))
+            .isInstanceOf(SAXParseException.class);
+        break;
+      default:
+        documentBuilder.parse(new InputSource(new StringReader(xml)));
     }
   }
 
@@ -167,13 +179,18 @@ public class TestSafeXMLFactories extends DremioTest {
 
     // Setting the exception post factory instantiation
     switch (expected) {
-    case FAILURE:
-    case FAILURE_OR_DTD_NOT_PARSED:
-      assertThatThrownBy(() -> transformer.transform(new StreamSource(new StringReader(xml)), new StreamResult(new StringWriter())))
-        .isInstanceOf(TransformerException.class);
-      break;
-    default:
-      transformer.transform(new StreamSource(new StringReader(xml)), new StreamResult(new StringWriter()));
+      case FAILURE:
+      case FAILURE_OR_DTD_NOT_PARSED:
+        assertThatThrownBy(
+                () ->
+                    transformer.transform(
+                        new StreamSource(new StringReader(xml)),
+                        new StreamResult(new StringWriter())))
+            .isInstanceOf(TransformerException.class);
+        break;
+      default:
+        transformer.transform(
+            new StreamSource(new StringReader(xml)), new StreamResult(new StringWriter()));
     }
   }
 }

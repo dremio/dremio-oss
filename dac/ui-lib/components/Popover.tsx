@@ -120,7 +120,7 @@ export const Popover = (props: PopoverProps) => {
 
   const ref = React.useMemo(
     () => mergeRefs([reference, (children as any).ref]),
-    [reference, children]
+    [reference, children],
   );
 
   const staticSide = (
@@ -177,7 +177,7 @@ export const Popover = (props: PopoverProps) => {
     const childrenResult = children(tooltipContent);
     return React.cloneElement(
       children(tooltipContent),
-      getReferenceProps({ ref, ...childrenResult.props })
+      getReferenceProps({ ref, ...childrenResult.props }),
     );
   }
 
@@ -185,7 +185,7 @@ export const Popover = (props: PopoverProps) => {
     <>
       {React.cloneElement(
         children,
-        getReferenceProps({ ref, ...children.props })
+        getReferenceProps({ ref, ...children.props }),
       )}
       {portal ? createPortal(tooltipContent, document.body!) : tooltipContent}
     </>

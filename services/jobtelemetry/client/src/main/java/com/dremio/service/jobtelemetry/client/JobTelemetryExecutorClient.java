@@ -22,7 +22,7 @@ import com.google.protobuf.Empty;
 /**
  * JobTelemetry client interface for executors to interact with.
  *
- * Will have different software (fabric based) and service implementations.
+ * <p>Will have different software (fabric based) and service implementations.
  */
 public interface JobTelemetryExecutorClient {
   /**

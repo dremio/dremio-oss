@@ -21,17 +21,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.ConcurrentModificationException;
-
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameter;
-
 import com.dremio.datastore.VersionExtractor;
 import com.dremio.datastore.adapter.extractors.ProtostuffDummyObjVersionExtractor;
 import com.dremio.datastore.adapter.stores.LegacyProtostuffOCCStore;
@@ -40,20 +29,25 @@ import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.datastore.generator.DataGenerator;
 import com.dremio.datastore.generator.ProtostuffStoreGenerator;
 import com.google.common.base.Strings;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.ConcurrentModificationException;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameter;
 
-
-/**
- * Tests OCCKVStore
- */
+/** Tests OCCKVStore */
 @SuppressWarnings("deprecation")
 @RunWith(Parameterized.class)
 public abstract class AbstractLegacyTestOCCKVStore<K, V> {
 
-  private LegacyKVStore<K ,V> kvStore;
+  private LegacyKVStore<K, V> kvStore;
   private LegacyKVStoreProvider provider;
 
-  @Parameter
-  public Class<TestLegacyStoreCreationFunction<K ,V>> storeCreationFunction;
+  @Parameter public Class<TestLegacyStoreCreationFunction<K, V>> storeCreationFunction;
 
   @Parameter(1)
   public DataGenerator<K, V> gen;
@@ -63,9 +57,14 @@ public abstract class AbstractLegacyTestOCCKVStore<K, V> {
 
   @Parameterized.Parameters(name = "Table: {0}")
   public static Collection<Object[]> parameters() {
-    return Arrays.asList(new Object[][] {
-      {LegacyProtostuffOCCStore.class, new ProtostuffStoreGenerator(), new ProtostuffDummyObjVersionExtractor()}
-    });
+    return Arrays.asList(
+        new Object[][] {
+          {
+            LegacyProtostuffOCCStore.class,
+            new ProtostuffStoreGenerator(),
+            new ProtostuffDummyObjVersionExtractor()
+          }
+        });
   }
 
   protected abstract LegacyKVStoreProvider createProvider() throws Exception;
@@ -88,10 +87,10 @@ public abstract class AbstractLegacyTestOCCKVStore<K, V> {
     final V value = gen.newVal();
     kvStore.put(key, value);
 
-    //Attempt to extend a version that doesn't exist
+    // Attempt to extend a version that doesn't exist
     final K newKey = gen.newKey();
     assertThatThrownBy(() -> kvStore.put(newKey, value))
-      .isInstanceOf(ConcurrentModificationException.class);
+        .isInstanceOf(ConcurrentModificationException.class);
   }
 
   @Test
@@ -106,18 +105,18 @@ public abstract class AbstractLegacyTestOCCKVStore<K, V> {
     final K key = gen.newKey();
     final V value = gen.newVal();
 
-    //First update
+    // First update
     kvStore.put(key, value);
     final String tag1 = versionExtractor.getTag(value);
     assertFalse(Strings.isNullOrEmpty(tag1));
 
-    //Second update.
+    // Second update.
     kvStore.put(key, value);
     final String tag2 = versionExtractor.getTag(value);
     assertFalse(Strings.isNullOrEmpty(tag2));
     assertNotEquals(tag1, tag2);
 
-    //Third update.
+    // Third update.
     kvStore.put(key, value);
     final String tag3 = versionExtractor.getTag(value);
     assertFalse(Strings.isNullOrEmpty(tag3));
@@ -144,17 +143,17 @@ public abstract class AbstractLegacyTestOCCKVStore<K, V> {
     final K key = gen.newKey();
     final V value = gen.newVal();
 
-    //Initial put.
+    // Initial put.
     kvStore.put(key, value);
     final String initialTag = versionExtractor.getTag(value);
 
-    //First update.
+    // First update.
     kvStore.put(key, value);
     final String firstUpdateTag = versionExtractor.getTag(value);
     assertFalse(Strings.isNullOrEmpty(firstUpdateTag));
     assertNotEquals(initialTag, firstUpdateTag);
 
-    //Attempt to update with value containing stale tag.
+    // Attempt to update with value containing stale tag.
     boolean threw = false;
     try {
       versionExtractor.setTag(value, initialTag);
@@ -164,7 +163,7 @@ public abstract class AbstractLegacyTestOCCKVStore<K, V> {
     }
     assertTrue(threw);
 
-    //Ensure that value doesn't get mutated after a failed update attempt.
+    // Ensure that value doesn't get mutated after a failed update attempt.
     assertEquals(firstUpdateTag, versionExtractor.getTag(kvStore.get(key)));
   }
 
@@ -183,19 +182,19 @@ public abstract class AbstractLegacyTestOCCKVStore<K, V> {
     final K key = gen.newKey();
     final V value = gen.newVal();
 
-    //Initial put.
+    // Initial put.
     kvStore.put(key, value);
     final String initialTag = versionExtractor.getTag(value);
     assertFalse(Strings.isNullOrEmpty(initialTag));
 
-    //Update value.
+    // Update value.
     kvStore.put(key, value);
     final String updateTag = versionExtractor.getTag(value);
     assertFalse(Strings.isNullOrEmpty(updateTag));
     assertNotEquals(initialTag, updateTag);
 
-    //Attempt to delete with previous tag.
+    // Attempt to delete with previous tag.
     assertThatThrownBy(() -> kvStore.delete(key, initialTag))
-      .isInstanceOf(ConcurrentModificationException.class);
+        .isInstanceOf(ConcurrentModificationException.class);
   }
 }

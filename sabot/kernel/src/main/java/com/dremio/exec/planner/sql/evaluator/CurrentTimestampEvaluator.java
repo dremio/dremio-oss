@@ -15,12 +15,11 @@
  */
 package com.dremio.exec.planner.sql.evaluator;
 
+import com.dremio.common.util.DateTimes;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 import org.joda.time.DateTimeZone;
 import org.joda.time.LocalDateTime;
-
-import com.dremio.common.util.DateTimes;
 
 public final class CurrentTimestampEvaluator implements FunctionEval {
   public static final CurrentTimestampEvaluator INSTANCE = new CurrentTimestampEvaluator();
@@ -30,11 +29,11 @@ public final class CurrentTimestampEvaluator implements FunctionEval {
   @Override
   public RexNode evaluate(EvaluationContext cx, RexCall call) {
     return cx.getRexBuilder()
-      .makeTimestampLiteral(
-        DateTimes.toDateTime(
-            new LocalDateTime(cx.getContextInformation().getQueryStartTime(),
-              DateTimeZone.UTC))
-          .toCalendar(null), // null sets locale to default locale
-        call.getType().getPrecision());
+        .makeTimestampLiteral(
+            DateTimes.toDateTime(
+                    new LocalDateTime(
+                        cx.getContextInformation().getQueryStartTime(), DateTimeZone.UTC))
+                .toCalendar(null), // null sets locale to default locale
+            call.getType().getPrecision());
   }
 }

@@ -17,9 +17,7 @@ package com.dremio.datastore.generator.supplier.variable;
 
 import java.nio.charset.StandardCharsets;
 
-/**
- * Supplier that generates variable-length byte[].
- */
+/** Supplier that generates variable-length byte[]. */
 public class VarLengthRawBytesSupplier extends VarLengthSupplier<byte[]> {
   public VarLengthRawBytesSupplier(String prefix) {
     super(prefix);

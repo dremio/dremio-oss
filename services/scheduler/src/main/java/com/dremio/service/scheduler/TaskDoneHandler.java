@@ -21,6 +21,9 @@ import static com.dremio.service.coordinator.LinearizableHierarchicalStore.Comma
 import static com.dremio.service.coordinator.LinearizableHierarchicalStore.CommandType.DELETE;
 import static com.dremio.service.coordinator.LinearizableHierarchicalStore.PathCommand;
 
+import com.dremio.io.file.Path;
+import com.dremio.service.coordinator.exceptions.PathExistsException;
+import com.dremio.service.coordinator.exceptions.PathMissingException;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -28,34 +31,28 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
-import com.dremio.io.file.Path;
-import com.dremio.service.coordinator.exceptions.PathExistsException;
-import com.dremio.service.coordinator.exceptions.PathMissingException;
-
 /**
  * Handles cluster wide task done operation for single shot and limited shot schedules.
- * <p>
- * The following assumptions are made for single shot or limited shot schedules:
- *   1. On a given version of the cluster, the single shot schedule need only run for one cycle, until the
- *      entire cluster is restarted OR until another schedule is established through the schedule API for the same
- *      task when the current task is running.
- *   2. On different versions (e.g. rolling upgrade), the single shot schedule can run again on the first restart
- *      after upgrade.
- * </p>
+ *
+ * <p>The following assumptions are made for single shot or limited shot schedules: 1. On a given
+ * version of the cluster, the single shot schedule need only run for one cycle, until the entire
+ * cluster is restarted OR until another schedule is established through the schedule API for the
+ * same task when the current task is running. 2. On different versions (e.g. rolling upgrade), the
+ * single shot schedule can run again on the first restart after upgrade.
  */
 final class TaskDoneHandler {
-  private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(TaskDoneHandler.class);
+  private static final org.slf4j.Logger LOGGER =
+      org.slf4j.LoggerFactory.getLogger(TaskDoneHandler.class);
   private static final String COMPLETED_PATH_NAME = "complete";
   private static final String DONE_PREFIX = "done-";
-  private static final Function<String, String> TO_DONE_PATH_LOCAL = (rootPath) -> rootPath
-    + Path.SEPARATOR + DONE_PREFIX;
+  private static final Function<String, String> TO_DONE_PATH_LOCAL =
+      (rootPath) -> rootPath + Path.SEPARATOR + DONE_PREFIX;
   private final ClusteredSingletonCommon schedulerCommon;
   private final Set<String> doneTasks;
   private final Map<String, PerTaskDoneHandler> allTasks;
   private final SchedulerEvents events;
 
-  TaskDoneHandler(ClusteredSingletonCommon schedulerCommon,
-                  SchedulerEvents events) {
+  TaskDoneHandler(ClusteredSingletonCommon schedulerCommon, SchedulerEvents events) {
     this.schedulerCommon = schedulerCommon;
     this.doneTasks = ConcurrentHashMap.newKeySet();
     this.allTasks = new ConcurrentHashMap<>();
@@ -67,8 +64,12 @@ final class TaskDoneHandler {
   }
 
   PerTaskDoneHandler addTask(PerTaskDoneInfo doneInfo) {
-    final PerTaskDoneHandler doneHandler = allTasks.computeIfAbsent(doneInfo.getTaskName(),
-      (v) -> new PerTaskDoneHandler(doneInfo));
+    if (doneInfo.getSchedule().getSingleShotType() == null) {
+      // done handling needed only for single shots
+      return null;
+    }
+    final PerTaskDoneHandler doneHandler =
+        allTasks.computeIfAbsent(doneInfo.getTaskName(), (v) -> new PerTaskDoneHandler(doneInfo));
     doneHandler.createCompletionRootPathIgnoreIfExists();
     if (doneTasks.contains(doneInfo.getTaskName()) || doneHandler.hasDoneChildren()) {
       // task is already done
@@ -82,33 +83,39 @@ final class TaskDoneHandler {
     try {
       CompletableFuture<Void> onChildrenChanged = new CompletableFuture<>();
       onChildrenChanged.thenRun(this::wakeupOnDone);
-      List<String> latestDone = this.schedulerCommon.getTaskStore().getChildren(schedulerCommon.getVersionedDoneFqPath(),
-        onChildrenChanged);
-      doneTasks.addAll(latestDone);
+      doneTasks.addAll(
+          this.schedulerCommon
+              .getTaskStore()
+              .getChildren(schedulerCommon.getVersionedDoneFqPath(), onChildrenChanged));
+      doneTasks.addAll(
+          this.schedulerCommon
+              .getTaskStore()
+              .getChildren(schedulerCommon.getUnVersionedDoneFqPath(), onChildrenChanged));
     } catch (PathMissingException e) {
-      LOGGER.error("Fatal Internal Error: Root done path {} found missing in store",
-        schedulerCommon.getVersionedDoneFqPath());
+      LOGGER.error(
+          "Fatal Internal Error: Root done path {} found missing in store",
+          schedulerCommon.getVersionedDoneFqPath());
       throw new IllegalStateException(e);
     }
   }
 
   private void wakeupOnDone() {
     try {
-      CompletableFuture<Void> onChildrenChanged = new CompletableFuture<>();
-      onChildrenChanged.thenRun(this::wakeupOnDone);
-      List<String> latestDone = this.schedulerCommon.getTaskStore().getChildren(schedulerCommon.getVersionedDoneFqPath(),
-        onChildrenChanged);
-      latestDone.forEach((taskName) -> allTasks.computeIfPresent(taskName, (k, v) -> {
-        v.processEndTaskSignal();
-        return null;
-      }));
-      doneTasks.addAll(latestDone);
-    } catch (PathMissingException e) {
-      LOGGER.warn("Root done path {} found missing in store", schedulerCommon.getVersionedDoneFqPath());
-      // TODO: DX-68347 ; do proper error handling as a part of retry handling if we are not in the shutdown path
+      addDonePathWatcher();
+      doneTasks.forEach(
+          (taskName) ->
+              allTasks.computeIfPresent(
+                  taskName,
+                  (k, v) -> {
+                    v.processEndTaskSignal();
+                    return null;
+                  }));
     } catch (Exception e) {
-      LOGGER.warn("Unexpected exception on done path {} in store", schedulerCommon.getVersionedDoneFqPath());
-      // TODO: DX-68347 ; do proper error handling as a part of retry handling if we are not in the shutdown path
+      LOGGER.warn(
+          "Unexpected exception on done path {} in store",
+          schedulerCommon.getVersionedDoneFqPath(),
+          e);
+      events.hitUnexpectedError();
     }
   }
 
@@ -123,40 +130,60 @@ final class TaskDoneHandler {
 
     PerTaskDoneHandler(PerTaskDoneInfo doneInfo) {
       this.doneInfo = doneInfo;
-      this.doneFqPathLocalRoot = doneInfo.getTaskFqPath() + Path.SEPARATOR + schedulerCommon.getServiceVersion()
-        + Path.SEPARATOR + COMPLETED_PATH_NAME;
-      this.doneFqPathGlobal = schedulerCommon.getVersionedDoneFqPath() + Path.SEPARATOR + doneInfo.getTaskName();
+      final Schedule schedule = doneInfo.getSchedule();
+      final boolean useVersion =
+          Schedule.SingleShotType.RUN_ONCE_EVERY_UPGRADE.equals(schedule.getSingleShotType());
+      final String versionString = useVersion ? schedulerCommon.getServiceVersion() : "default";
+      this.doneFqPathLocalRoot =
+          doneInfo.getTaskFqPath()
+              + Path.SEPARATOR
+              + versionString
+              + Path.SEPARATOR
+              + COMPLETED_PATH_NAME;
+      this.doneFqPathGlobal =
+          ((useVersion)
+                  ? schedulerCommon.getVersionedDoneFqPath()
+                  : schedulerCommon.getUnVersionedDoneFqPath())
+              + Path.SEPARATOR
+              + doneInfo.getTaskName();
     }
 
     /**
      * Signals the end of task for all instances from this instance.
-     * <p>
-     * Other instances will create a watcher on the done path and moment the task name appears in the 'done' root,
-     * will mark 'done' themselves, so that the task is no longer picked up for execution in the entire cluster,
-     * unless the entire cluster is restarted again.
-     * </p>
+     *
+     * <p>Other instances will create a watcher on the done path and moment the task name appears in
+     * the 'done' root, will mark 'done' themselves, so that the task is no longer picked up for
+     * execution in the entire cluster, unless the entire cluster is restarted again.
      */
     void signalEndTaskByBookingOwner() {
-      LOGGER.info("Signal task done for task {} to all instances", this);
+      LOGGER.info("Signal task done for task {} to all instances", doneInfo.getTaskName());
       try {
         // Under one transaction:
-        //    1. create task name ephemeral against the global done path, so that other service instance knows this
+        //    1. create task name ephemeral against the global done path, so that other service
+        // instance knows this
         //       task is complete and should no longer run until the entire cluster is restarted.
-        //    2. create done sequential ephemeral against the task path and version, to signify that this instance is
+        //    2. create done sequential ephemeral against the task path and version, to signify that
+        // this instance is
         //       no longer interested in this task schedule as long as this instance is alive.
-        //    3. delete the local booking for this task (for non-lock step schedules, as this instance is no longer
+        //    3. delete the local booking for this task (for non-lock step schedules, as this
+        // instance is no longer
         //    interested in scheduling this task.
         PathCommand[] commands;
         if (doneInfo.getSchedule().isInLockStep()) {
-          // do not remove booking path for lock step schedules as the next schedule with the same name uses
+          // do not remove booking path for lock step schedules as the next schedule with the same
+          // name uses
           // the same booking
           commands = new PathCommand[2];
           commands[0] = new PathCommand(CREATE_EPHEMERAL, doneFqPathGlobal);
-          commands[1] = new PathCommand(CREATE_EPHEMERAL_SEQUENTIAL, TO_DONE_PATH_LOCAL.apply(doneFqPathLocalRoot));
+          commands[1] =
+              new PathCommand(
+                  CREATE_EPHEMERAL_SEQUENTIAL, TO_DONE_PATH_LOCAL.apply(doneFqPathLocalRoot));
         } else {
           commands = new PathCommand[3];
           commands[0] = new PathCommand(CREATE_EPHEMERAL, doneFqPathGlobal);
-          commands[1] = new PathCommand(CREATE_EPHEMERAL_SEQUENTIAL, TO_DONE_PATH_LOCAL.apply(doneFqPathLocalRoot));
+          commands[1] =
+              new PathCommand(
+                  CREATE_EPHEMERAL_SEQUENTIAL, TO_DONE_PATH_LOCAL.apply(doneFqPathLocalRoot));
           commands[2] = new PathCommand(DELETE, doneInfo.getBookFqPathLocal());
         }
         schedulerCommon.getTaskStore().executeMulti(commands);
@@ -164,21 +191,31 @@ final class TaskDoneHandler {
       } catch (Exception e) {
         // an exception is not expected here. Log a warning as it is typically a fatal error.
         // but since the task is marked done already, the task will not run on this instance.
-        LOGGER.warn("Unexpected exception for task {} while marking it done cluster wide", this, e);
+        LOGGER.warn(
+            "Unexpected exception for task {} while marking it done cluster wide",
+            doneInfo.getTaskName(),
+            e);
       }
     }
 
     private void processEndTaskSignal() {
-      LOGGER.info("Process end task signal received from another instance for {}", doneInfo.getTaskName());
+      LOGGER.info(
+          "Process end task signal received from another instance for {}", doneInfo.getTaskName());
       try {
-        schedulerCommon.getTaskStore().executeSingle(new PathCommand(CREATE_EPHEMERAL_SEQUENTIAL,
-          TO_DONE_PATH_LOCAL.apply(doneFqPathLocalRoot)));
+        schedulerCommon
+            .getTaskStore()
+            .executeSingle(
+                new PathCommand(
+                    CREATE_EPHEMERAL_SEQUENTIAL, TO_DONE_PATH_LOCAL.apply(doneFqPathLocalRoot)));
         events.taskDone(doneInfo.getTaskName());
       } catch (PathExistsException e) {
         LOGGER.debug("Duplicate done signal for task {}", doneInfo.getTaskName(), e);
       } catch (Exception e) {
         // a fatal exception is not expected. But log a warning and mark the task done anyway
-        LOGGER.warn("Unexpected exception processing task done signal for task {}", doneInfo.getTaskName(), e);
+        LOGGER.warn(
+            "Unexpected exception processing task done signal for task {}",
+            doneInfo.getTaskName(),
+            e);
       } finally {
         doneInfo.markDone();
       }
@@ -187,7 +224,8 @@ final class TaskDoneHandler {
     private boolean hasDoneChildren() {
       boolean hasDoneChildren;
       try {
-        List<String> donePaths = schedulerCommon.getTaskStore().getChildren(doneFqPathLocalRoot, null);
+        List<String> donePaths =
+            schedulerCommon.getTaskStore().getChildren(doneFqPathLocalRoot, null);
         hasDoneChildren = !donePaths.isEmpty();
       } catch (PathMissingException e) {
         return false;
@@ -197,13 +235,17 @@ final class TaskDoneHandler {
 
     private void createCompletionRootPathIgnoreIfExists() {
       try {
-        schedulerCommon.getTaskStore().executeSingle(new PathCommand(CREATE_PERSISTENT, doneFqPathLocalRoot));
+        schedulerCommon
+            .getTaskStore()
+            .executeSingle(new PathCommand(CREATE_PERSISTENT, doneFqPathLocalRoot));
       } catch (PathExistsException e) {
         LOGGER.debug("Duplicate done signal for task {}", doneInfo.getTaskName(), e);
       } catch (Exception e) {
         // a fatal exception is not expected.
-        LOGGER.warn("Unexpected exception processing task done signal for task {}", doneInfo.getTaskName(), e);
-        // TODO: DX-68347 ; do proper error handling as a part of retry handling; we may have to exit the process
+        LOGGER.warn(
+            "Unexpected exception processing task done signal for task {}",
+            doneInfo.getTaskName(),
+            e);
       }
     }
   }

@@ -17,24 +17,18 @@ package com.dremio.jdbc;
 
 import java.sql.SQLNonTransientException;
 
-
 /**
  * SQLException for execution-canceled condition.
- * <p>
- *   Intended for throwing by methods that start SQL statement execution (e.g.,
- *   {@link Statement#execute}) or return data from execution (e.g.,
- *   {@link ResultSet} methods).
- * </p>
+ *
+ * <p>Intended for throwing by methods that start SQL statement execution (e.g., {@link
+ * Statement#execute}) or return data from execution (e.g., {@link ResultSet} methods).
  */
 public class ExecutionCanceledSqlException extends SQLNonTransientException {
 
   private static final long serialVersionUID = 2015_04_23L;
 
-  /**
-   * See {@link SQLNonTransientException#SQLNonTransientException(String)}.
-   */
-  public ExecutionCanceledSqlException( String reason ) {
-    super( reason );
+  /** See {@link SQLNonTransientException#SQLNonTransientException(String)}. */
+  public ExecutionCanceledSqlException(String reason) {
+    super(reason);
   }
-
 }

@@ -16,41 +16,94 @@
 package com.dremio.exec.expr.fn.impl;
 
 public class MaskTransformers {
-  public static MaskTransformer newTransformer(String mode, int charCount, String maskedUpperChar, String maskedLowerChar, String maskedDigitChar,
-                                               String maskedOtherChar, int maskedNumber, int maskedDayValue, int maskedMonthValue, int maskedYearValue) {
+  public static MaskTransformer newTransformer(
+      String mode,
+      int charCount,
+      String maskedUpperChar,
+      String maskedLowerChar,
+      String maskedDigitChar,
+      String maskedOtherChar,
+      int maskedNumber,
+      int maskedDayValue,
+      int maskedMonthValue,
+      int maskedYearValue) {
     switch (mode) {
-    case "FULL": {
-      MaskTransformer transformer = new MaskTransformer();
-      transformer.init(maskedUpperChar, maskedLowerChar, maskedDigitChar,
-        maskedOtherChar, maskedNumber, maskedDayValue, maskedMonthValue, maskedYearValue);
-      return transformer;
-    }
-    case "FIRST_N": {
-      MaskFirstNTransformer transformer = new MaskFirstNTransformer();
-      transformer.init(charCount, maskedUpperChar, maskedLowerChar, maskedDigitChar,
-        maskedOtherChar, maskedNumber, maskedDayValue, maskedMonthValue, maskedYearValue);
-      return transformer;
-    }
-    case "LAST_N": {
-      MaskLastNTransformer transformer = new MaskLastNTransformer();
-      transformer.init(charCount, maskedUpperChar, maskedLowerChar, maskedDigitChar,
-        maskedOtherChar, maskedNumber, maskedDayValue, maskedMonthValue, maskedYearValue);
-      return transformer;
-    }
-    case "SHOW_FIRST_N": {
-      MaskShowFirstNTransformer transformer = new MaskShowFirstNTransformer();
-      transformer.init(charCount, maskedUpperChar, maskedLowerChar, maskedDigitChar,
-        maskedOtherChar, maskedNumber, maskedDayValue, maskedMonthValue, maskedYearValue);
-      return transformer;
-    }
-    case "SHOW_LAST_N": {
-      MaskShowLastNTransformer transformer = new MaskShowLastNTransformer();
-      transformer.init(charCount, maskedUpperChar, maskedLowerChar, maskedDigitChar,
-        maskedOtherChar, maskedNumber, maskedDayValue, maskedMonthValue, maskedYearValue);
-      return transformer;
-    }
-    default:
-      throw new RuntimeException("Unknown mask mode: " + mode);
+      case "FULL":
+        {
+          MaskTransformer transformer = new MaskTransformer();
+          transformer.init(
+              maskedUpperChar,
+              maskedLowerChar,
+              maskedDigitChar,
+              maskedOtherChar,
+              maskedNumber,
+              maskedDayValue,
+              maskedMonthValue,
+              maskedYearValue);
+          return transformer;
+        }
+      case "FIRST_N":
+        {
+          MaskFirstNTransformer transformer = new MaskFirstNTransformer();
+          transformer.init(
+              charCount,
+              maskedUpperChar,
+              maskedLowerChar,
+              maskedDigitChar,
+              maskedOtherChar,
+              maskedNumber,
+              maskedDayValue,
+              maskedMonthValue,
+              maskedYearValue);
+          return transformer;
+        }
+      case "LAST_N":
+        {
+          MaskLastNTransformer transformer = new MaskLastNTransformer();
+          transformer.init(
+              charCount,
+              maskedUpperChar,
+              maskedLowerChar,
+              maskedDigitChar,
+              maskedOtherChar,
+              maskedNumber,
+              maskedDayValue,
+              maskedMonthValue,
+              maskedYearValue);
+          return transformer;
+        }
+      case "SHOW_FIRST_N":
+        {
+          MaskShowFirstNTransformer transformer = new MaskShowFirstNTransformer();
+          transformer.init(
+              charCount,
+              maskedUpperChar,
+              maskedLowerChar,
+              maskedDigitChar,
+              maskedOtherChar,
+              maskedNumber,
+              maskedDayValue,
+              maskedMonthValue,
+              maskedYearValue);
+          return transformer;
+        }
+      case "SHOW_LAST_N":
+        {
+          MaskShowLastNTransformer transformer = new MaskShowLastNTransformer();
+          transformer.init(
+              charCount,
+              maskedUpperChar,
+              maskedLowerChar,
+              maskedDigitChar,
+              maskedOtherChar,
+              maskedNumber,
+              maskedDayValue,
+              maskedMonthValue,
+              maskedYearValue);
+          return transformer;
+        }
+      default:
+        throw new RuntimeException("Unknown mask mode: " + mode);
     }
   }
 }

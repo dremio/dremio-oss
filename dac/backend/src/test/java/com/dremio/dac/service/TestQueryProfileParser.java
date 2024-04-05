@@ -19,10 +19,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-import java.util.List;
-
-import org.junit.Test;
-
 import com.dremio.dac.daemon.TestSpacesStoragePlugin;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.explore.model.InitialPreviewResponse;
@@ -44,41 +40,48 @@ import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.users.SystemUser;
 import com.google.common.collect.ImmutableList;
+import java.util.List;
+import org.junit.Test;
 
-/**
- * Tests for query profile parser.
- */
+/** Tests for query profile parser. */
 public class TestQueryProfileParser extends BaseTestServer {
 
   @Test
   public void testQueryParser() throws Exception {
     TestSpacesStoragePlugin.setup();
 
-    final InitialPreviewResponse previewResponse = getPreview(getDataset(new DatasetPath("testA.dsA1")));
+    final InitialPreviewResponse previewResponse =
+        getPreview(getDataset(new DatasetPath("testA.dsA1")));
     waitForJobComplete(previewResponse.getJobId().getId());
 
-    final SearchJobsRequest searchJobsRequest = SearchJobsRequest.newBuilder()
-        .setDataset(VersionedDatasetPath.newBuilder()
-          .addAllPath(new DatasetPath("testA.dsA1").toPathList())
-          .build())
-        .setLimit(1000)
-        .build();
-    List<JobSummary> jobs = ImmutableList.copyOf(l(JobsService.class).searchJobs(searchJobsRequest));
+    final SearchJobsRequest searchJobsRequest =
+        SearchJobsRequest.newBuilder()
+            .setDataset(
+                VersionedDatasetPath.newBuilder()
+                    .addAllPath(new DatasetPath("testA.dsA1").toPathList())
+                    .build())
+            .setLimit(1000)
+            .build();
+    List<JobSummary> jobs =
+        ImmutableList.copyOf(l(JobsService.class).searchJobs(searchJobsRequest));
 
     assertNotNull(jobs);
     assertTrue(jobs.size() > 0);
-    JobUI job1 = expectSuccess(getBuilder(getAPIv2().path("job/" + jobs.get(0).getJobId().getId())).buildGet(), JobUI.class);
+    JobUI job1 =
+        expectSuccess(
+            getBuilder(getAPIv2().path("job/" + jobs.get(0).getJobId().getId())).buildGet(),
+            JobUI.class);
     assertEquals(JobsProtoUtil.toStuff(jobs.get(0).getJobId()), job1.getJobId());
 
-    JobDetailsRequest jobDetailsRequest = JobDetailsRequest.newBuilder()
-      .setJobId(jobs.get(0).getJobId())
-      .build();
-    final com.dremio.service.job.JobDetails job = l(JobsService.class).getJobDetails(jobDetailsRequest);
+    JobDetailsRequest jobDetailsRequest =
+        JobDetailsRequest.newBuilder().setJobId(jobs.get(0).getJobId()).build();
+    final com.dremio.service.job.JobDetails job =
+        l(JobsService.class).getJobDetails(jobDetailsRequest);
     final JobDetails jobDetails = JobsProtoUtil.getLastAttempt(job).getDetails();
     final JobStats jobStats = JobsProtoUtil.getLastAttempt(job).getStats();
 
     assertEquals(1, jobDetails.getTableDatasetProfilesList().size());
-    assertEquals(1000, (long)jobDetails.getOutputRecords()); // leaf limit is 10k
+    assertEquals(1000, (long) jobDetails.getOutputRecords()); // leaf limit is 10k
     assertEquals(16250, (long) jobDetails.getDataVolume());
 
     assertEquals(16250, (long) jobStats.getOutputBytes());
@@ -89,29 +92,32 @@ public class TestQueryProfileParser extends BaseTestServer {
 
   @Test
   public void testQueryParser2() throws Exception {
-    SqlQuery sqlQuery = getQueryFromSQL("SELECT * " +
-      "FROM      cp.\"datasets/parquet_offset/offset1.parquet\" a " +
-      "FULL JOIN cp.\"datasets/parquet_offset/offset2.parquet\" b " +
-      "ON a.column1 = b.column1 LIMIT 100");
+    SqlQuery sqlQuery =
+        getQueryFromSQL(
+            "SELECT * "
+                + "FROM      cp.\"datasets/parquet_offset/offset1.parquet\" a "
+                + "FULL JOIN cp.\"datasets/parquet_offset/offset2.parquet\" b "
+                + "ON a.column1 = b.column1 LIMIT 100");
 
     // There are 5 fragments for above query, so setting MAX_WIDTH_PER_NODE_KEY to 5.
     // This is reset at end of this method.
     setSystemOption(GroupResourceInformation.MAX_WIDTH_PER_NODE_KEY, "5");
     try {
-      final JobId jobId = submitJobAndWaitUntilCompletion(JobRequest.newBuilder()
-        .setSqlQuery(sqlQuery)
-        .setQueryType(QueryType.UI_RUN)
-        .build());
+      final JobId jobId =
+          submitJobAndWaitUntilCompletion(
+              JobRequest.newBuilder().setSqlQuery(sqlQuery).setQueryType(QueryType.UI_RUN).build());
 
-      JobDetailsRequest jobDetailsRequest = JobDetailsRequest.newBuilder()
-        .setJobId(JobsProtoUtil.toBuf(jobId))
-        .setUserName(SystemUser.SYSTEM_USERNAME)
-        .build();
+      JobDetailsRequest jobDetailsRequest =
+          JobDetailsRequest.newBuilder()
+              .setJobId(JobsProtoUtil.toBuf(jobId))
+              .setUserName(SystemUser.SYSTEM_USERNAME)
+              .build();
 
-      com.dremio.service.job.JobDetails jobDetails = l(JobsService.class).getJobDetails(jobDetailsRequest);
+      com.dremio.service.job.JobDetails jobDetails =
+          l(JobsService.class).getJobDetails(jobDetailsRequest);
       JobProtobuf.JobAttempt jobAttempt = jobDetails.getAttempts(jobDetails.getAttemptsCount() - 1);
-      assertTrue(jobAttempt.getDetails().getPeakMemory()>0);
-      assertTrue(jobAttempt.getDetails().getTotalMemory()>0);
+      assertTrue(jobAttempt.getDetails().getPeakMemory() > 0);
+      assertTrue(jobAttempt.getDetails().getTotalMemory() > 0);
     } finally {
       resetSystemOption(GroupResourceInformation.MAX_WIDTH_PER_NODE_KEY);
     }

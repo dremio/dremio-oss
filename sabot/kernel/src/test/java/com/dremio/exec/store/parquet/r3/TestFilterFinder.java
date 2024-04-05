@@ -19,8 +19,11 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import com.dremio.exec.planner.logical.partition.FindSimpleFilters;
+import com.dremio.exec.planner.logical.partition.FindSimpleFilters.StateHolder;
+import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
+import com.google.common.collect.ImmutableList;
 import java.math.BigDecimal;
-
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
@@ -33,40 +36,19 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Test;
 
-import com.dremio.exec.planner.logical.partition.FindSimpleFilters;
-import com.dremio.exec.planner.logical.partition.FindSimpleFilters.StateHolder;
-import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
-import com.google.common.collect.ImmutableList;
-
 public class TestFilterFinder {
 
   private RelDataTypeFactory factory = JavaTypeFactoryImpl.INSTANCE;
   private RexBuilder builder = new RexBuilder(factory);
 
   @Test
-  public void simpleLiteralEquality(){
+  public void simpleLiteralEquality() {
 
-    final RexNode node = builder.makeCall(SqlStdOperatorTable.EQUALS,
-        builder.makeBigintLiteral(BigDecimal.ONE),
-        builder.makeInputRef(factory.createSqlType(SqlTypeName.BIGINT), 0)
-        );
-
-    FindSimpleFilters finder = new FindSimpleFilters(builder);
-    StateHolder holder = node.accept(finder);
-    ImmutableList<RexCall> conditions = holder.getConditions();
-
-    assertEquals(1, conditions.size());
-    assertFalse(holder.hasRemainingExpression());
-
-  }
-
-  @Test
-  public void simpleLiteralReverseEquality(){
-
-    final RexNode node = builder.makeCall(SqlStdOperatorTable.EQUALS,
-        builder.makeInputRef(factory.createSqlType(SqlTypeName.BIGINT), 0),
-        builder.makeBigintLiteral(BigDecimal.ONE)
-        );
+    final RexNode node =
+        builder.makeCall(
+            SqlStdOperatorTable.EQUALS,
+            builder.makeBigintLiteral(BigDecimal.ONE),
+            builder.makeInputRef(factory.createSqlType(SqlTypeName.BIGINT), 0));
 
     FindSimpleFilters finder = new FindSimpleFilters(builder);
     StateHolder holder = node.accept(finder);
@@ -77,11 +59,29 @@ public class TestFilterFinder {
   }
 
   @Test
-  public void typeMismatchFailure(){
-    final RexNode node = builder.makeCall(SqlStdOperatorTable.EQUALS,
-        builder.makeInputRef(factory.createSqlType(SqlTypeName.INTEGER), 0),
-        builder.makeBigintLiteral(BigDecimal.ONE)
-        );
+  public void simpleLiteralReverseEquality() {
+
+    final RexNode node =
+        builder.makeCall(
+            SqlStdOperatorTable.EQUALS,
+            builder.makeInputRef(factory.createSqlType(SqlTypeName.BIGINT), 0),
+            builder.makeBigintLiteral(BigDecimal.ONE));
+
+    FindSimpleFilters finder = new FindSimpleFilters(builder);
+    StateHolder holder = node.accept(finder);
+    ImmutableList<RexCall> conditions = holder.getConditions();
+
+    assertEquals(1, conditions.size());
+    assertFalse(holder.hasRemainingExpression());
+  }
+
+  @Test
+  public void typeMismatchFailure() {
+    final RexNode node =
+        builder.makeCall(
+            SqlStdOperatorTable.EQUALS,
+            builder.makeInputRef(factory.createSqlType(SqlTypeName.INTEGER), 0),
+            builder.makeBigintLiteral(BigDecimal.ONE));
 
     FindSimpleFilters finder = new FindSimpleFilters(builder, true);
     StateHolder holder = node.accept(finder);
@@ -92,11 +92,12 @@ public class TestFilterFinder {
   }
 
   @Test
-  public void typeMismatchSuccess(){
-    final RexNode node = builder.makeCall(SqlStdOperatorTable.EQUALS,
-        builder.makeInputRef(factory.createSqlType(SqlTypeName.INTEGER), 0),
-        builder.makeBigintLiteral(BigDecimal.ONE)
-        );
+  public void typeMismatchSuccess() {
+    final RexNode node =
+        builder.makeCall(
+            SqlStdOperatorTable.EQUALS,
+            builder.makeInputRef(factory.createSqlType(SqlTypeName.INTEGER), 0),
+            builder.makeBigintLiteral(BigDecimal.ONE));
 
     FindSimpleFilters finder = new FindSimpleFilters(builder, false);
     StateHolder holder = node.accept(finder);
@@ -107,12 +108,13 @@ public class TestFilterFinder {
   }
 
   @Test
-  public void nullEquality(){
+  public void nullEquality() {
 
-    final RexNode node = builder.makeCall(SqlStdOperatorTable.EQUALS,
-        builder.makeInputRef(factory.createSqlType(SqlTypeName.BIGINT), 0),
-        builder.makeNullLiteral(SqlTypeName.BIGINT)
-        );
+    final RexNode node =
+        builder.makeCall(
+            SqlStdOperatorTable.EQUALS,
+            builder.makeInputRef(factory.createSqlType(SqlTypeName.BIGINT), 0),
+            builder.makeNullLiteral(SqlTypeName.BIGINT));
 
     FindSimpleFilters finder = new FindSimpleFilters(builder);
     StateHolder holder = node.accept(finder);
@@ -123,15 +125,15 @@ public class TestFilterFinder {
   }
 
   @Test
-  public void halfTree(){
+  public void halfTree() {
     final RexNode node =
-        builder.makeCall(SqlStdOperatorTable.AND,
-        builder.makeCall(SqlStdOperatorTable.EQUALS,
-            builder.makeInputRef(factory.createSqlType(SqlTypeName.BIGINT), 0),
-            builder.makeBigintLiteral(BigDecimal.ONE)
-            ),
-        builder.makeApproxLiteral(BigDecimal.ONE)
-        );
+        builder.makeCall(
+            SqlStdOperatorTable.AND,
+            builder.makeCall(
+                SqlStdOperatorTable.EQUALS,
+                builder.makeInputRef(factory.createSqlType(SqlTypeName.BIGINT), 0),
+                builder.makeBigintLiteral(BigDecimal.ONE)),
+            builder.makeApproxLiteral(BigDecimal.ONE));
 
     FindSimpleFilters finder = new FindSimpleFilters(builder);
     StateHolder holder = node.accept(finder);
@@ -143,17 +145,16 @@ public class TestFilterFinder {
     assertTrue(holder.hasRemainingExpression());
   }
 
-
   @Test
-  public void noOnOr(){
+  public void noOnOr() {
     final RexNode node =
-        builder.makeCall(SqlStdOperatorTable.OR,
-        builder.makeCall(SqlStdOperatorTable.EQUALS,
-            builder.makeInputRef(factory.createSqlType(SqlTypeName.BIGINT), 0),
-            builder.makeBigintLiteral(BigDecimal.ONE)
-            ),
-        builder.makeApproxLiteral(BigDecimal.ONE)
-        );
+        builder.makeCall(
+            SqlStdOperatorTable.OR,
+            builder.makeCall(
+                SqlStdOperatorTable.EQUALS,
+                builder.makeInputRef(factory.createSqlType(SqlTypeName.BIGINT), 0),
+                builder.makeBigintLiteral(BigDecimal.ONE)),
+            builder.makeApproxLiteral(BigDecimal.ONE));
 
     FindSimpleFilters finder = new FindSimpleFilters(builder);
     StateHolder holder = node.accept(finder);
@@ -164,18 +165,18 @@ public class TestFilterFinder {
   }
 
   @Test
-  public void doubleAnd(){
+  public void doubleAnd() {
     final RexNode node =
-        builder.makeCall(SqlStdOperatorTable.AND,
-        builder.makeCall(SqlStdOperatorTable.EQUALS,
-            builder.makeInputRef(factory.createSqlType(SqlTypeName.BIGINT), 0),
-            builder.makeBigintLiteral(BigDecimal.ONE)
-            ),
-        builder.makeCall(SqlStdOperatorTable.EQUALS,
-            builder.makeInputRef(factory.createSqlType(SqlTypeName.BIGINT), 0),
-            builder.makeBigintLiteral(BigDecimal.ONE)
-            )
-        );
+        builder.makeCall(
+            SqlStdOperatorTable.AND,
+            builder.makeCall(
+                SqlStdOperatorTable.EQUALS,
+                builder.makeInputRef(factory.createSqlType(SqlTypeName.BIGINT), 0),
+                builder.makeBigintLiteral(BigDecimal.ONE)),
+            builder.makeCall(
+                SqlStdOperatorTable.EQUALS,
+                builder.makeInputRef(factory.createSqlType(SqlTypeName.BIGINT), 0),
+                builder.makeBigintLiteral(BigDecimal.ONE)));
 
     FindSimpleFilters finder = new FindSimpleFilters(builder);
     StateHolder holder = node.accept(finder);
@@ -188,12 +189,10 @@ public class TestFilterFinder {
   }
 
   @Test
-  public void castANY(){
-  final RexNode node =
-      builder.makeCast(
-          factory.createSqlType(SqlTypeName.ANY),
-          builder.makeBigintLiteral(BigDecimal.ONE)
-      );
+  public void castANY() {
+    final RexNode node =
+        builder.makeCast(
+            factory.createSqlType(SqlTypeName.ANY), builder.makeBigintLiteral(BigDecimal.ONE));
 
     FindSimpleFilters finder = new FindSimpleFilters(builder);
     StateHolder holder = node.accept(finder);
@@ -204,15 +203,14 @@ public class TestFilterFinder {
   }
 
   @Test
-  public void equalityWithCast(){
+  public void equalityWithCast() {
 
-    final RexNode node = builder.makeCall(SqlStdOperatorTable.EQUALS,
-        builder.makeCast(
-            factory.createSqlType(SqlTypeName.ANY),
-            builder.makeBigintLiteral(BigDecimal.ONE)
-        ),
-        builder.makeInputRef(factory.createSqlType(SqlTypeName.BIGINT), 0)
-    );
+    final RexNode node =
+        builder.makeCall(
+            SqlStdOperatorTable.EQUALS,
+            builder.makeCast(
+                factory.createSqlType(SqlTypeName.ANY), builder.makeBigintLiteral(BigDecimal.ONE)),
+            builder.makeInputRef(factory.createSqlType(SqlTypeName.BIGINT), 0));
 
     FindSimpleFilters finder = new FindSimpleFilters(builder);
     StateHolder holder = node.accept(finder);
@@ -223,32 +221,27 @@ public class TestFilterFinder {
     // Make sure CAST was removed
     assertEquals(SqlKind.LITERAL, conditions.get(0).getOperands().get(0).getKind());
     assertFalse(holder.hasRemainingExpression());
-
   }
 
   @Test
   public void multipleConditions() {
-    final RexNode node = builder.makeCall(
-      SqlStdOperatorTable.AND,
-      builder.makeCall(
-        SqlStdOperatorTable.GREATER_THAN_OR_EQUAL,
-        builder.makeInputRef(factory.createSqlType(SqlTypeName.BIGINT), 0),
-        builder.makeBigintLiteral(new BigDecimal("1"))
-      ),
-      builder.makeCall(
-        SqlStdOperatorTable.AND,
+    final RexNode node =
         builder.makeCall(
-          SqlStdOperatorTable.LESS_THAN_OR_EQUAL,
-          builder.makeInputRef(factory.createSqlType(SqlTypeName.BIGINT), 0),
-          builder.makeBigintLiteral(new BigDecimal("1"))
-        ),
-        builder.makeCall(
-          SqlStdOperatorTable.LIKE,
-          builder.makeInputRef(factory.createSqlType(SqlTypeName.BIGINT), 1),
-          builder.makeLiteral("%1mg")
-        )
-      )
-    );
+            SqlStdOperatorTable.AND,
+            builder.makeCall(
+                SqlStdOperatorTable.GREATER_THAN_OR_EQUAL,
+                builder.makeInputRef(factory.createSqlType(SqlTypeName.BIGINT), 0),
+                builder.makeBigintLiteral(new BigDecimal("1"))),
+            builder.makeCall(
+                SqlStdOperatorTable.AND,
+                builder.makeCall(
+                    SqlStdOperatorTable.LESS_THAN_OR_EQUAL,
+                    builder.makeInputRef(factory.createSqlType(SqlTypeName.BIGINT), 0),
+                    builder.makeBigintLiteral(new BigDecimal("1"))),
+                builder.makeCall(
+                    SqlStdOperatorTable.LIKE,
+                    builder.makeInputRef(factory.createSqlType(SqlTypeName.BIGINT), 1),
+                    builder.makeLiteral("%1mg"))));
     FindSimpleFilters finder = new FindSimpleFilters((builder));
     StateHolder holder = node.accept(finder);
     assertEquals(holder.getConditions().size(), 2);
@@ -261,17 +254,12 @@ public class TestFilterFinder {
     RexLiteral literal = builder.makeBigintLiteral(new BigDecimal("1"));
 
     final RexNode isNotDistinctNode =
-      builder.makeCall(
-        SqlStdOperatorTable.IS_NOT_DISTINCT_FROM,
-        inputRef,
-        builder.makeAbstractCast(factory.createSqlType(SqlTypeName.BIGINT), literal)
-      );
+        builder.makeCall(
+            SqlStdOperatorTable.IS_NOT_DISTINCT_FROM,
+            inputRef,
+            builder.makeAbstractCast(factory.createSqlType(SqlTypeName.BIGINT), literal));
 
-    final RexNode equalsNode =
-      builder.makeCall(
-        SqlStdOperatorTable.EQUALS,
-        inputRef,
-        literal);
+    final RexNode equalsNode = builder.makeCall(SqlStdOperatorTable.EQUALS, inputRef, literal);
 
     FindSimpleFilters finder = new FindSimpleFilters(builder);
     StateHolder holder = isNotDistinctNode.accept(finder);

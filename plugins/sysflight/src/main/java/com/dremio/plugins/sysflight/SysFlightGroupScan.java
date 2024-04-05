@@ -15,10 +15,6 @@
  */
 package com.dremio.plugins.sysflight;
 
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.connector.metadata.EntityPath;
@@ -41,11 +37,12 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.base.Function;
 import com.google.common.base.Objects;
 import com.google.common.collect.FluentIterable;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
 
-/**
- * Flight group scan.
- */
-public class SysFlightGroupScan extends AbstractBase implements GroupScan<SimpleCompleteWork>  {
+/** Flight group scan. */
+public class SysFlightGroupScan extends AbstractBase implements GroupScan<SimpleCompleteWork> {
 
   private final List<SchemaPath> columns;
   private final SearchQuery query;
@@ -55,14 +52,15 @@ public class SysFlightGroupScan extends AbstractBase implements GroupScan<Simple
   private final boolean isDistributed;
   private final int executorCount;
 
-  public SysFlightGroupScan(OpProps props,
-                            List<String> datasetPath,
-                            BatchSchema schema,
-                            List<SchemaPath> columns,
-                            SearchQuery query,
-                            StoragePluginId pluginId,
-                            boolean isDistributed,
-                            int executorCount) {
+  public SysFlightGroupScan(
+      OpProps props,
+      List<String> datasetPath,
+      BatchSchema schema,
+      List<SchemaPath> columns,
+      SearchQuery query,
+      StoragePluginId pluginId,
+      boolean isDistributed,
+      int executorCount) {
     super(props);
     this.columns = columns;
     this.datasetPath = datasetPath;
@@ -111,7 +109,8 @@ public class SysFlightGroupScan extends AbstractBase implements GroupScan<Simple
       return false;
     }
     SysFlightGroupScan castOther = (SysFlightGroupScan) other;
-    return Objects.equal(datasetPath, castOther.datasetPath) && Objects.equal(schema, castOther.schema);
+    return Objects.equal(datasetPath, castOther.datasetPath)
+        && Objects.equal(schema, castOther.schema);
   }
 
   @Override
@@ -125,9 +124,10 @@ public class SysFlightGroupScan extends AbstractBase implements GroupScan<Simple
   }
 
   /**
-   * If distributed, the scan needs to happen on every node. Since width is enforced, the number of fragments equals
-   * number of SabotNodes. And here we set, each endpoint as mandatory assignment required to ensure every
-   * SabotNode executes a fragment.
+   * If distributed, the scan needs to happen on every node. Since width is enforced, the number of
+   * fragments equals number of SabotNodes. And here we set, each endpoint as mandatory assignment
+   * required to ensure every SabotNode executes a fragment.
+   *
    * @return the SabotNode endpoint affinities
    */
   @Override
@@ -135,21 +135,25 @@ public class SysFlightGroupScan extends AbstractBase implements GroupScan<Simple
     if (isDistributed) {
       final List<NodeEndpoint> executors = executionNodes.getExecutors();
       final double affinityPerNode = 1d / executors.size();
-      return FluentIterable
-        .from(executors).transform(new Function<NodeEndpoint, SimpleCompleteWork>(){
-          @Override
-          public SimpleCompleteWork apply(NodeEndpoint input) {
-            return new SimpleCompleteWork(1, new EndpointAffinity(input, affinityPerNode, true, 1));
-          }}).iterator();
+      return FluentIterable.from(executors)
+          .transform(
+              new Function<NodeEndpoint, SimpleCompleteWork>() {
+                @Override
+                public SimpleCompleteWork apply(NodeEndpoint input) {
+                  return new SimpleCompleteWork(
+                      1, new EndpointAffinity(input, affinityPerNode, true, 1));
+                }
+              })
+          .iterator();
     } else {
       return Collections.<SimpleCompleteWork>singletonList(new SimpleCompleteWork(1)).iterator();
     }
   }
 
-
   @Override
   public SubScan getSpecificScan(List<SimpleCompleteWork> work) {
-    return new SysFlightSubScan(props, new EntityPath(datasetPath).getComponents(), schema, getColumns(), query, pluginId);
+    return new SysFlightSubScan(
+        props, new EntityPath(datasetPath).getComponents(), schema, getColumns(), query, pluginId);
   }
 
   @Override
@@ -158,7 +162,8 @@ public class SysFlightGroupScan extends AbstractBase implements GroupScan<Simple
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value) throws E {
+  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value)
+      throws E {
     return physicalVisitor.visitGroupScan(this, value);
   }
 
@@ -168,8 +173,9 @@ public class SysFlightGroupScan extends AbstractBase implements GroupScan<Simple
   }
 
   @Override
-  public PhysicalOperator getNewWithChildren(List<PhysicalOperator> children) throws ExecutionSetupException {
-    return new SysFlightGroupScan(props, datasetPath, schema, columns, query, pluginId, isDistributed, executorCount);
+  public PhysicalOperator getNewWithChildren(List<PhysicalOperator> children)
+      throws ExecutionSetupException {
+    return new SysFlightGroupScan(
+        props, datasetPath, schema, columns, query, pluginId, isDistributed, executorCount);
   }
-
 }

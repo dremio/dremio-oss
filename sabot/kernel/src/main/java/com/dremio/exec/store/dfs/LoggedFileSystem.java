@@ -16,6 +16,20 @@
 
 package com.dremio.exec.store.dfs;
 
+import com.dremio.exec.ExecConstants;
+import com.dremio.io.AsyncByteReader;
+import com.dremio.io.FSInputStream;
+import com.dremio.io.FSOutputStream;
+import com.dremio.io.FilterFSInputStream;
+import com.dremio.io.FilterFSOutputStream;
+import com.dremio.io.file.FileAttributes;
+import com.dremio.io.file.FileBlockLocation;
+import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.FilterFileSystem;
+import com.dremio.io.file.Path;
+import com.dremio.options.OptionResolver;
+import com.google.common.base.Stopwatch;
+import io.netty.buffer.ByteBuf;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -31,41 +45,24 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.dremio.exec.ExecConstants;
-import com.dremio.io.AsyncByteReader;
-import com.dremio.io.FSInputStream;
-import com.dremio.io.FSOutputStream;
-import com.dremio.io.FilterFSInputStream;
-import com.dremio.io.FilterFSOutputStream;
-import com.dremio.io.file.FileAttributes;
-import com.dremio.io.file.FileBlockLocation;
-import com.dremio.io.file.FileSystem;
-import com.dremio.io.file.FilterFileSystem;
-import com.dremio.io.file.Path;
-import com.dremio.options.OptionResolver;
-import com.google.common.base.Stopwatch;
-
-import io.netty.buffer.ByteBuf;
-
 
 /**
  * A {@link FileSystem} implementation which logs calls to a wrapped FileSystem.
  *
- * <p> Logging is done at three levels:
+ * <p>Logging is done at three levels:
+ *
  * <ul>
- *   <li>WARN  - Calls that are >= the configured duration in the
- *   {@code filesystem.logger.warn.io_threshold_ms} support key.</li>
- *   <li>DEBUG - Calls that are >= the configured duration in the
- *   {@code filesystem.logger.debug.io_threshold_ms} support key.</li>
- *   <li>TRACE - All other calls are logged at TRACE level.  WARNING: This can be very verbose.</li>
+ *   <li>WARN - Calls that are >= the configured duration in the {@code
+ *       filesystem.logger.warn.io_threshold_ms} support key.
+ *   <li>DEBUG - Calls that are >= the configured duration in the {@code
+ *       filesystem.logger.debug.io_threshold_ms} support key.
+ *   <li>TRACE - All other calls are logged at TRACE level. WARNING: This can be very verbose.
  * </ul>
  *
- * <p>Logging can be disabled entirely by setting the log level for {@code com.dremio.exec.store.dfs.LoggedFileSystem}
- * to ERROR.
+ * <p>Logging can be disabled entirely by setting the log level for {@code
+ * com.dremio.exec.store.dfs.LoggedFileSystem} to ERROR.
  */
 public class LoggedFileSystem extends FilterFileSystem {
 
@@ -101,7 +98,8 @@ public class LoggedFileSystem extends FilterFileSystem {
   }
 
   @Override
-  public FSOutputStream create(Path f, boolean overwrite) throws FileAlreadyExistsException, IOException {
+  public FSOutputStream create(Path f, boolean overwrite)
+      throws FileAlreadyExistsException, IOException {
     try (AutoLogger ignored = logDuration("create", f)) {
       return new LoggedFSOutputStream(super.create(f, overwrite), f);
     }
@@ -115,7 +113,8 @@ public class LoggedFileSystem extends FilterFileSystem {
   }
 
   @Override
-  public void setPermission(Path p, Set<PosixFilePermission> permissions) throws FileNotFoundException, IOException {
+  public void setPermission(Path p, Set<PosixFilePermission> permissions)
+      throws FileNotFoundException, IOException {
     try (AutoLogger ignored = logDuration("setPermission", p)) {
       super.setPermission(p, permissions);
     }
@@ -136,8 +135,9 @@ public class LoggedFileSystem extends FilterFileSystem {
   }
 
   @Override
-  public AsyncByteReader getAsyncByteReader(AsyncByteReader.FileKey fileKey, Map<String, String> options) throws IOException {
-    return new LoggedAsyncByteReader(super.getAsyncByteReader(fileKey,options), fileKey.getPath());
+  public AsyncByteReader getAsyncByteReader(
+      AsyncByteReader.FileKey fileKey, Map<String, String> options) throws IOException {
+    return new LoggedAsyncByteReader(super.getAsyncByteReader(fileKey, options), fileKey.getPath());
   }
 
   @Override
@@ -207,15 +207,16 @@ public class LoggedFileSystem extends FilterFileSystem {
   }
 
   @Override
-  public Iterable<FileBlockLocation> getFileBlockLocations(FileAttributes file, long start, long len)
-      throws IOException {
+  public Iterable<FileBlockLocation> getFileBlockLocations(
+      FileAttributes file, long start, long len) throws IOException {
     try (AutoLogger ignored = logDuration("getFileBlockLocations", file.getPath())) {
       return super.getFileBlockLocations(file, start, len);
     }
   }
 
   @Override
-  public Iterable<FileBlockLocation> getFileBlockLocations(Path p, long start, long len) throws IOException {
+  public Iterable<FileBlockLocation> getFileBlockLocations(Path p, long start, long len)
+      throws IOException {
     try (AutoLogger ignored = logDuration("getFileBlockLocations", p)) {
       return super.getFileBlockLocations(p, start, len);
     }
@@ -277,11 +278,14 @@ public class LoggedFileSystem extends FilterFileSystem {
 
     private void logRead(long elapsed, Path path, int nbytes) {
       if (elapsed >= warnThresholdMs) {
-        LOG.warn("read elapsed={}ms scheme={} path={} nbytes={}", elapsed, fs.getScheme(), path, nbytes);
+        LOG.warn(
+            "read elapsed={}ms scheme={} path={} nbytes={}", elapsed, fs.getScheme(), path, nbytes);
       } else if (elapsed >= debugThresholdMs) {
-        LOG.debug("read elapsed={}ms scheme={} path={} nbytes={}", elapsed, fs.getScheme(), path, nbytes);
+        LOG.debug(
+            "read elapsed={}ms scheme={} path={} nbytes={}", elapsed, fs.getScheme(), path, nbytes);
       } else if (nbytes > 0) {
-        LOG.trace("read elapsed={}ms scheme={} path={} nbytes={}", elapsed, fs.getScheme(), path, nbytes);
+        LOG.trace(
+            "read elapsed={}ms scheme={} path={} nbytes={}", elapsed, fs.getScheme(), path, nbytes);
       }
     }
   }
@@ -321,11 +325,26 @@ public class LoggedFileSystem extends FilterFileSystem {
 
     private void logWrite(long elapsed, Path path, int nbytes) {
       if (elapsed >= warnThresholdMs) {
-        LOG.warn("write elapsed={}ms scheme={} path={} nbytes={}", elapsed, fs.getScheme(), path, nbytes);
+        LOG.warn(
+            "write elapsed={}ms scheme={} path={} nbytes={}",
+            elapsed,
+            fs.getScheme(),
+            path,
+            nbytes);
       } else if (elapsed >= debugThresholdMs) {
-        LOG.debug("write elapsed={}ms scheme={} path={} nbytes={}", elapsed, fs.getScheme(), path, nbytes);
+        LOG.debug(
+            "write elapsed={}ms scheme={} path={} nbytes={}",
+            elapsed,
+            fs.getScheme(),
+            path,
+            nbytes);
       } else if (nbytes > 0) {
-        LOG.trace("write elapsed={}ms scheme={} path={} nbytes={}", elapsed, fs.getScheme(), path, nbytes);
+        LOG.trace(
+            "write elapsed={}ms scheme={} path={} nbytes={}",
+            elapsed,
+            fs.getScheme(),
+            path,
+            nbytes);
       }
     }
   }
@@ -343,8 +362,14 @@ public class LoggedFileSystem extends FilterFileSystem {
     @Override
     public CompletableFuture<Void> readFully(long offset, ByteBuf dst, int dstOffset, int len) {
       Stopwatch stopwatch = Stopwatch.createStarted();
-      LOG.trace("asyncRead.start scheme={} path={} offset={} nbytes={}", fs.getScheme(), path, offset, len);
-      return reader.readFully(offset, dst, dstOffset, len)
+      LOG.trace(
+          "asyncRead.start scheme={} path={} offset={} nbytes={}",
+          fs.getScheme(),
+          path,
+          offset,
+          len);
+      return reader
+          .readFully(offset, dst, dstOffset, len)
           .whenComplete((result, throwable) -> logAsyncRead(throwable, stopwatch, offset, len));
     }
 
@@ -355,8 +380,8 @@ public class LoggedFileSystem extends FilterFileSystem {
     }
 
     @Override
-    public CompletableFuture<Void> versionedReadFully(String version, long offset, ByteBuf dst, int dstOffset,
-        int len) {
+    public CompletableFuture<Void> versionedReadFully(
+        String version, long offset, ByteBuf dst, int dstOffset, int len) {
       // no logging here as default implementation calls checkVersion and readFully
       return reader.versionedReadFully(version, offset, dst, dstOffset, len);
     }
@@ -383,14 +408,32 @@ public class LoggedFileSystem extends FilterFileSystem {
       long elapsed = stopwatch.elapsed(TimeUnit.MILLISECONDS);
       String state = throwable == null ? "complete" : "failed";
       if (elapsed >= warnThresholdMs) {
-        LOG.warn("asyncRead.{} elapsed={}ms scheme={} path={} offset={} nbytes={}", state, elapsed, fs.getScheme(),
-            path, offset, nbytes);
+        LOG.warn(
+            "asyncRead.{} elapsed={}ms scheme={} path={} offset={} nbytes={}",
+            state,
+            elapsed,
+            fs.getScheme(),
+            path,
+            offset,
+            nbytes);
       } else if (elapsed >= debugThresholdMs) {
-        LOG.debug("asyncRead.{} elapsed={}ms scheme={} path={} offset={} nbytes={}", state, elapsed, fs.getScheme(),
-            path, offset, nbytes);
+        LOG.debug(
+            "asyncRead.{} elapsed={}ms scheme={} path={} offset={} nbytes={}",
+            state,
+            elapsed,
+            fs.getScheme(),
+            path,
+            offset,
+            nbytes);
       } else if (nbytes > 0) {
-        LOG.trace("asyncRead.{} elapsed={}ms scheme={} path={} offset={} nbytes={}", state, elapsed, fs.getScheme(),
-            path, offset, nbytes);
+        LOG.trace(
+            "asyncRead.{} elapsed={}ms scheme={} path={} offset={} nbytes={}",
+            state,
+            elapsed,
+            fs.getScheme(),
+            path,
+            offset,
+            nbytes);
       }
     }
   }
@@ -443,7 +486,6 @@ public class LoggedFileSystem extends FilterFileSystem {
     private final String op;
     private final Path path;
     private final Stopwatch stopwatch;
-
 
     public AutoLogger(String op, Path path) {
       this.op = op;

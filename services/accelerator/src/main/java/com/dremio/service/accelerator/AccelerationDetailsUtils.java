@@ -17,14 +17,15 @@ package com.dremio.service.accelerator;
 
 import com.dremio.datastore.ProtostuffSerializer;
 import com.dremio.service.accelerator.proto.AccelerationDetails;
-
 import io.protostuff.ByteString;
 
 /**
- * Helper methods for serializing/deserializing {@link com.dremio.service.accelerator.proto.AccelerationDetails}
+ * Helper methods for serializing/deserializing {@link
+ * com.dremio.service.accelerator.proto.AccelerationDetails}
  */
 public class AccelerationDetailsUtils {
-  private static final ProtostuffSerializer<AccelerationDetails> SERIALIZER = new ProtostuffSerializer<>(AccelerationDetails.getSchema());
+  private static final ProtostuffSerializer<AccelerationDetails> SERIALIZER =
+      new ProtostuffSerializer<>(AccelerationDetails.getSchema());
 
   public static byte[] serialize(AccelerationDetails details) {
     if (details == null) {

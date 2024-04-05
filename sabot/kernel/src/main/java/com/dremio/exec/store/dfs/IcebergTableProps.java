@@ -18,14 +18,6 @@ package com.dremio.exec.store.dfs;
 import static com.dremio.exec.store.iceberg.IcebergSerDe.deserializedJsonAsSchema;
 import static com.dremio.exec.store.iceberg.IcebergSerDe.serializedSchemaAsJson;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-
-import org.apache.iceberg.PartitionSpec;
-import org.apache.iceberg.TableMetadata;
-
 import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.iceberg.IcebergSerDe;
@@ -36,8 +28,13 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
-
 import io.protostuff.ByteString;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.TableMetadata;
 
 public class IcebergTableProps {
 
@@ -65,54 +62,74 @@ public class IcebergTableProps {
 
   @JsonCreator
   public IcebergTableProps(
-    @JsonProperty("tableLocation") String tableLocation,
-    @JsonProperty("uuid") String uuid,
-    @JsonProperty("fullSchema") BatchSchema fullSchema,
-    @JsonProperty("partitionColumnNames") List<String> partitionColumnNames,
-    @JsonProperty("icebergOpType") IcebergCommandType icebergOpType,
-    @JsonProperty("databaseName") String databaseName,
-    @JsonProperty("tableName") String tableName,
-    @JsonProperty("dataTableLocation") String dataTableLocation,
-    @JsonProperty("versionContext") ResolvedVersionContext version,
-    @JsonProperty("partitionSpec") ByteString partitionSpec,
-    @JsonProperty("icebergSchema") String icebergSchema,
-    @JsonProperty("metadataExpireAfterMs") Long metadataExpireAfterMs,
-    @JsonProperty("sortOrder") String sortOrder,
-    @JsonProperty("tableProperties") Map<String, String> tableProperties,
-    @JsonProperty("fileType") FileType fileType) {
-      this.tableLocation = tableLocation;
-      this.uuid = uuid;
-      this.fullSchema = fullSchema;
-      this.partitionColumnNames = partitionColumnNames;
-      this.icebergOpType = icebergOpType;
-      this.databaseName = databaseName;
-      this.tableName = tableName;
-      this.dataTableLocation = dataTableLocation;
-      this.version = version;
-      this.partitionSpec = partitionSpec;
-      this.icebergSchema = icebergSchema;
-      this.metadataExpireAfterMs = metadataExpireAfterMs;
-      this.sortOrder = sortOrder;
-      this.tableProperties = tableProperties;
-      this.fileType = fileType;
+      @JsonProperty("tableLocation") String tableLocation,
+      @JsonProperty("uuid") String uuid,
+      @JsonProperty("fullSchema") BatchSchema fullSchema,
+      @JsonProperty("partitionColumnNames") List<String> partitionColumnNames,
+      @JsonProperty("icebergOpType") IcebergCommandType icebergOpType,
+      @JsonProperty("databaseName") String databaseName,
+      @JsonProperty("tableName") String tableName,
+      @JsonProperty("dataTableLocation") String dataTableLocation,
+      @JsonProperty("versionContext") ResolvedVersionContext version,
+      @JsonProperty("partitionSpec") ByteString partitionSpec,
+      @JsonProperty("icebergSchema") String icebergSchema,
+      @JsonProperty("metadataExpireAfterMs") Long metadataExpireAfterMs,
+      @JsonProperty("sortOrder") String sortOrder,
+      @JsonProperty("tableProperties") Map<String, String> tableProperties,
+      @JsonProperty("fileType") FileType fileType) {
+    this.tableLocation = tableLocation;
+    this.uuid = uuid;
+    this.fullSchema = fullSchema;
+    this.partitionColumnNames = partitionColumnNames;
+    this.icebergOpType = icebergOpType;
+    this.databaseName = databaseName;
+    this.tableName = tableName;
+    this.dataTableLocation = dataTableLocation;
+    this.version = version;
+    this.partitionSpec = partitionSpec;
+    this.icebergSchema = icebergSchema;
+    this.metadataExpireAfterMs = metadataExpireAfterMs;
+    this.sortOrder = sortOrder;
+    this.tableProperties = tableProperties;
+    this.fileType = fileType;
   }
 
   /**
-   * Create properties instance from TableMetadata. Doesn't account for table and DB name, since they are stored only
-   * in the Catalog (a layer above)
+   * Create properties instance from TableMetadata. Doesn't account for table and DB name, since
+   * they are stored only in the Catalog (a layer above)
    */
-  public static IcebergTableProps createInstance(IcebergCommandType commandType, String tableName, String dbName,
-                                                 TableMetadata tableMetadata, ResolvedVersionContext version) {
+  public static IcebergTableProps createInstance(
+      IcebergCommandType commandType,
+      String tableName,
+      String dbName,
+      TableMetadata tableMetadata,
+      ResolvedVersionContext version) {
     BatchSchema schema = SchemaConverter.getBuilder().build().fromIceberg(tableMetadata.schema());
-    String jsonSchema = serializedSchemaAsJson(SchemaConverter.getBuilder().build().toIcebergSchema(schema));
-    return new IcebergTableProps(tableMetadata.location(), tableMetadata.uuid(), schema,
-      tableMetadata.spec().fields().stream().map(f -> f.name()).collect(Collectors.toList()),
-      commandType, dbName, tableName, null, version,
-      ByteString.copyFrom(IcebergSerDe.serializePartitionSpec(tableMetadata.spec())), jsonSchema, null, null, tableMetadata.properties(), null);
+    String jsonSchema =
+        serializedSchemaAsJson(SchemaConverter.getBuilder().build().toIcebergSchema(schema));
+    return new IcebergTableProps(
+        tableMetadata.location(),
+        tableMetadata.uuid(),
+        schema,
+        tableMetadata.spec().fields().stream().map(f -> f.name()).collect(Collectors.toList()),
+        commandType,
+        dbName,
+        tableName,
+        null,
+        version,
+        ByteString.copyFrom(IcebergSerDe.serializePartitionSpec(tableMetadata.spec())),
+        jsonSchema,
+        null,
+        null,
+        tableMetadata.properties(),
+        null);
   }
 
-  public IcebergTableProps(final IcebergTableProps other){
-    this.partitionColumnNames = other.partitionColumnNames == null ? null : ImmutableList.copyOf(other.partitionColumnNames);
+  public IcebergTableProps(final IcebergTableProps other) {
+    this.partitionColumnNames =
+        other.partitionColumnNames == null
+            ? null
+            : ImmutableList.copyOf(other.partitionColumnNames);
     this.tableLocation = other.tableLocation;
     this.uuid = other.uuid;
     this.fullSchema = other.fullSchema;
@@ -133,24 +150,34 @@ public class IcebergTableProps {
   }
 
   @Deprecated
-  public IcebergTableProps(ByteString partitionSpec){
+  public IcebergTableProps(ByteString partitionSpec) {
     this.partitionSpec = partitionSpec;
     this.uuid = null;
   }
 
-  public IcebergTableProps(ByteString partitionSpec, String icebergSchema, Map<String, String> tableProperties){
+  public IcebergTableProps(
+      ByteString partitionSpec, String icebergSchema, Map<String, String> tableProperties) {
     this.partitionSpec = partitionSpec;
     this.uuid = null;
     this.icebergSchema = icebergSchema;
     this.tableProperties = tableProperties;
   }
 
-  public IcebergTableProps(ByteString partitionSpec, String icebergSchema, String sortOrder, Map<String, String> tableProperties) {
+  public IcebergTableProps(
+      ByteString partitionSpec,
+      String icebergSchema,
+      String sortOrder,
+      Map<String, String> tableProperties) {
     this.partitionSpec = partitionSpec;
     this.uuid = null;
     this.icebergSchema = icebergSchema;
     this.sortOrder = sortOrder;
     this.tableProperties = tableProperties;
+  }
+
+  public IcebergTableProps(String tableLocation, String uuid) {
+    this.tableLocation = tableLocation;
+    this.uuid = uuid;
   }
 
   public String getTableLocation() {
@@ -271,21 +298,34 @@ public class IcebergTableProps {
 
   @JsonIgnore
   public PartitionSpec getDeserializedPartitionSpec() {
-    return (partitionSpec == null) ? null :
-      IcebergSerDe.deserializePartitionSpec(deserializedJsonAsSchema(icebergSchema), partitionSpec.toByteArray());
+    return (partitionSpec == null)
+        ? null
+        : IcebergSerDe.deserializePartitionSpec(
+            deserializedJsonAsSchema(icebergSchema), partitionSpec.toByteArray());
   }
 
   @Override
   public String toString() {
-    return "IcebergTableProps{" +
-      "tableLocation='" + tableLocation + '\'' +
-      ", uuid='" + uuid + '\'' +
-      ", icebergOpType=" + icebergOpType +
-      ", tableName='" + tableName + '\'' +
-      ", dataTableLocation='" + dataTableLocation + '\'' +
-      ", isMetadataRefresh=" + isMetadataRefresh +
-      ", version=" + version +
-      '}';
+    return "IcebergTableProps{"
+        + "tableLocation='"
+        + tableLocation
+        + '\''
+        + ", uuid='"
+        + uuid
+        + '\''
+        + ", icebergOpType="
+        + icebergOpType
+        + ", tableName='"
+        + tableName
+        + '\''
+        + ", dataTableLocation='"
+        + dataTableLocation
+        + '\''
+        + ", isMetadataRefresh="
+        + isMetadataRefresh
+        + ", version="
+        + version
+        + '}';
   }
 
   @JsonIgnore
@@ -293,7 +333,7 @@ public class IcebergTableProps {
     return fullSchema != null;
   }
 
-  public FileType getFileType(){
+  public FileType getFileType() {
     return fileType;
   }
 

@@ -18,10 +18,10 @@ package com.dremio.sabot.op.common.ht2;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.op.common.ht2.HashTable.HashTableCreateArgs;
 
-public class LBlockHashTableFactory implements HashTableFactory{
+public class LBlockHashTableFactory implements HashTableFactory {
 
   @Override
   public HashTable getInstance(OptionManager optionManager, HashTableCreateArgs createArgs) {
-      return new LBlockHashTable(createArgs);
+    return new LBlockHashTable(createArgs);
   }
 }

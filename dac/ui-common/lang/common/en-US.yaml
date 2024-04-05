@@ -70,31 +70,6 @@ NetworkConnectivity.Offline: Your internet connection appears to be offline.
 NetworkConnectivity.Unreachable: There was a problem communicating with Dremio. Please verify that you’re on a network that can reach {server_origin}.
 NetworkConnectivity.WebsocketFailure: There was a problem establishing a WebSocket connection with Dremio.
 
-# Privileges table messages
-Admin.Privileges.OwnerChangeTitle: Make this user/role the owner?
-Admin.Privileges.Organization.TransferOwnerContent: The new owner can perform all actions on this object and objects within the object. Actions include modifying object settings, granting/revoking user and role access, and deleting the object. You might also lose the ability to change privileges settings.
-Admin.Privileges.Catalog.TransferOwnerContent: This will transfer ownership of “{entity}” to “{newOwner}”. The new owner will be able to perform all actions on this catalog, and objects within the catalog (such as folders, tables, and views). Actions include modifying object settings, managing user/role access, and deleting the object.
-Admin.Privileges.Entity.TransferOwnerContent: This will transfer ownership of “{entity}” to “{newOwner}”. The new owner will be able to perform all actions on this table. Actions include modifying object settings, managing user/role access, and deleting the object.
-Admin.Privileges.RemoveGranteeTitle: Remove user/role?
-Admin.Privileges.RemoveGranteeContent: “{name}” will not be able to perform any actions on this object, are you sure?
-Admin.Privileges.TransferOwnership: Transfer Ownership
-Admin.Privileges.TransferOwnerTitle: Transfer ownership to this user/role?
-Admin.Privileges.GrantOwnership: Grant OWNERSHIP,
-Admin.Privileges.Catalog.Usage: Allows the user read-only access (view, settings and add as a source in Sonar) to an Arctic catalog and its entities (folders, tables, views, branches and tags).
-Admin.Privileges.Catalog.Commit: Allows the user to write-only access to an Arctic catalog and its entities (folders, tables, views).
-Admin.Privileges.Catalog.ManageGrants: Allows a customer to modify the privileges set on a an Arctic catalog (USAGE, WRITE_SETTING, etc.).
-Admin.Privileges.Catalog.Modify: Allows the user to edit the Arctic catalog settings and the editing of the data optimization settings.
-Admin.Privileges.Catalog.CreateBranch: Allows users to create branches.
-Admin.Privileges.Catalog.CreateTag: Allows users to create tags.
-Admin.Privileges.Organization.CreateCloud: Create a new cloud.
-Admin.Privileges.Organization.CreateUser: Create a new user.
-Admin.Privileges.Organization.CreateRole: Create a new role.
-Admin.Privileges.Organization.CreateProject: Create a new project.
-Admin.Privileges.Organization.ManageGrants: Edit privileges for other roles and users.
-Admin.Privileges.Organization.CreateCatalog: Create a new Arctic catalog.
-Admin.Privileges.Organization.ConfigureSecurity: Edit all security configurations for the organization.
-Admin.Privileges.NoOwner: This user/role was removed
-
 # Autocomplete
 Autocomplete.UnnamedDerivedTable: Unnamed derived table
 
@@ -126,7 +101,7 @@ About.Tabs.Usage: Cluster Usage Data
 App.Dremio: Dremio
 App.DremioBeta: Dremio (beta)
 App.ProductionWarning: Not for production use
-App.Copyright: Copyright © 2017-2023 Dremio Corporation
+App.Copyright: Copyright © 2017-2024 Dremio Corporation
 App.Build: Build
 App.Edition: Edition
 App.BuildTime: Build Time
@@ -136,15 +111,19 @@ App.UniqueUsers: Unique Users
 App.JobsExecuted: Jobs Executed
 
 # Create folder
-Create.Folder: Create Folder
+Create.Folder: Create folder
 Add.To: Add to...
 Folder.Name: Folder name
 
-#SQLScriptsLeaveTabDialog
+# Delete Rule Dialog
+Admin.Rules.DeleteRule: Delete Rule
+Admin.Rules.DeleteRuleWarning: Are you sure you want to delete {name}?
+
+# SQLScriptsLeaveTabDialog
 Dialog.LeaveTab.Title: Confirm Navigation
 Dialog.LeaveTab.Description: All queries have not yet been submitted. The pending queries will be canceled if you navigate away from the current tab.<br></br><br></br>Do you want to leave this tab?
 
-#SQLScriptsDeletedDialog
+# SQLScriptsDeletedDialog
 Dialog.DeletedScript.Title: This script has been deleted
 Dialog.DeletedScript.Description: The script you were editing has been deleted by another user. If you'd like to keep your changes, you can save the below SQL as a new script.
 Dialog.DeletedScript.CancelAction: Discard
@@ -154,3 +133,18 @@ Dialog.DeletedScript.SaveScriptAs: Save script as
 # Scripts
 Script.Rename: Rename Script
 Script.Name: Script Name
+Script.CloseTab.Disabled.Tooltip: Open a new tab or an existing script to close this tab.
+
+# Job Details
+JobDetails.SQL.Submitted: Submitted SQL
+JobDetails.SQL.Graph: Dataset Graph
+
+#Forms
+FormControl.SecretPicker.Label: Secret Store
+
+Common.Range.LastHour: Last hour
+Common.Range.Last6Hours: Last 6 hours
+Common.Range.Last24Hours: Last 24 hours
+Common.Range.Last3Days: Last 3 days
+Common.Range.Last7Days: Last 7 days
+Common.Range.Last30Days: Last 30 days

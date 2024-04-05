@@ -17,9 +17,7 @@ package com.dremio.service.grpc;
 
 import io.opentracing.Tracer;
 
-/**
- * Grpc channel factory without multi-tenancy support.
- */
+/** Grpc channel factory without multi-tenancy support. */
 public final class SimpleGrpcChannelBuilderFactory extends BaseGrpcChannelBuilderFactory {
   public SimpleGrpcChannelBuilderFactory(Tracer tracer) {
     super(tracer);

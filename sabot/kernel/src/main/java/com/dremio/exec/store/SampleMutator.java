@@ -15,9 +15,16 @@
  */
 package com.dremio.exec.store;
 
+import com.dremio.exec.exception.SchemaChangeException;
+import com.dremio.exec.expr.TypeHelper;
+import com.dremio.exec.record.VectorContainer;
+import com.dremio.sabot.exec.context.BufferManagerImpl;
+import com.dremio.sabot.op.scan.MutatorSchemaChangeCallBack;
+import com.dremio.sabot.op.scan.OutputMutator;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Maps;
 import java.util.Collection;
 import java.util.Map;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.BufferManager;
@@ -27,20 +34,7 @@ import org.apache.arrow.vector.util.CallBack;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.exec.exception.SchemaChangeException;
-import com.dremio.exec.expr.TypeHelper;
-import com.dremio.exec.record.VectorContainer;
-import com.dremio.sabot.exec.context.BufferManagerImpl;
-import com.dremio.sabot.op.scan.MutatorSchemaChangeCallBack;
-import com.dremio.sabot.op.scan.OutputMutator;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Maps;
-
-
-/**
- * Used for sampling, etc
- * TODO rename this class, since it used for more than sampling now
- */
+/** Used for sampling, etc TODO rename this class, since it used for more than sampling now */
 public class SampleMutator implements OutputMutator, AutoCloseable {
   private static final Logger logger = LoggerFactory.getLogger(SampleMutator.class);
 
@@ -61,23 +55,24 @@ public class SampleMutator implements OutputMutator, AutoCloseable {
     if (vector == null) {
       throw new SchemaChangeException("Failure attempting to remove an unknown field.");
     }
-    try(ValueVector v = vector) {
+    try (ValueVector v = vector) {
       container.remove(vector);
     }
   }
 
   @Override
-  public <T extends ValueVector> T addField(Field field, Class<T> clazz) throws SchemaChangeException {
+  public <T extends ValueVector> T addField(Field field, Class<T> clazz)
+      throws SchemaChangeException {
     ValueVector v = fieldVectorMap.get(field.getName().toLowerCase());
     if (v == null || v.getClass() != clazz) {
       // Field does not exist--add it to the map and the output container.
       v = TypeHelper.getNewVector(field, allocator, callBack);
       if (!clazz.isAssignableFrom(v.getClass())) {
         throw new SchemaChangeException(
-                String.format(
-                        "The class that was provided, %s, does not correspond to the "
-                                + "expected vector type of %s.",
-                        clazz.getSimpleName(), v.getClass().getSimpleName()));
+            String.format(
+                "The class that was provided, %s, does not correspond to the "
+                    + "expected vector type of %s.",
+                clazz.getSimpleName(), v.getClass().getSimpleName()));
       }
 
       String fieldName = field.getName();
@@ -128,7 +123,7 @@ public class SampleMutator implements OutputMutator, AutoCloseable {
     return callBack;
   }
 
-  public Map<String,ValueVector> getFieldVectorMap() {
+  public Map<String, ValueVector> getFieldVectorMap() {
     return fieldVectorMap;
   }
 
@@ -148,9 +143,8 @@ public class SampleMutator implements OutputMutator, AutoCloseable {
   }
 
   /**
-   * Since this OutputMutator is passed by TextRecordReader to get the header out
-   * the mutator might not get cleaned up elsewhere. TextRecordReader will call
-   * this method to clear any allocations
+   * Since this OutputMutator is passed by TextRecordReader to get the header out the mutator might
+   * not get cleaned up elsewhere. TextRecordReader will call this method to clear any allocations
    */
   @Override
   public void close() {

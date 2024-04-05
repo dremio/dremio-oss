@@ -15,9 +15,7 @@
  */
 package com.dremio.service.jobs;
 
-/**
- * Jobs Constants.
- */
+/** Jobs Constants. */
 public interface JobsConstant {
   String DOT_BACKSLASH = "\\.\"";
   String QUOTES = "\"";
@@ -38,16 +36,16 @@ public interface JobsConstant {
   String OTHERS = "OTHERS";
   String UNAVAILABLE = "Unavailable";
   String METADATA = "Catalog";
-  String EMPTY_DATASET_FIELD= "";
+  String EMPTY_DATASET_FIELD = "";
   String RECORDS = " Records";
   String FORWARD_SLASH = " / ";
   String DATASET_GRAPH_ERROR = "Could not access dataset, please check privileges or existence of ";
-  String DOT= ".";
+  String DOT = ".";
   String SCANNED_DATASET = "ScannedDataset";
   String ACCELERATOR = "ACCELERATOR";
   String DATASETGRAPH = "DatasetGraph";
   String ALGEBRAIC_REFLECTIONS = "AlgebraicReflections";
   String REFLECTIONS_MATCHED_OR_USED = "ReflectionsMatchedOrUsed";
   String AGGREGATION = "AGGREGATION";
-  String  TMP_UNTITLED = "tmp.UNTITLED";
+  String TMP_UNTITLED = "tmp.UNTITLED";
 }

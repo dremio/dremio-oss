@@ -15,42 +15,39 @@
  */
 package com.dremio.exec.store.deltalake;
 
-import java.io.IOException;
-
-import org.apache.hadoop.security.AccessControlException;
-
-import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.store.dfs.FileSelection;
 import com.dremio.exec.store.dfs.FormatMatcher;
 import com.dremio.exec.store.dfs.FormatPlugin;
 import com.dremio.io.CompressionCodecFactory;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
+import java.io.IOException;
+import org.apache.hadoop.security.AccessControlException;
 
 public class DeltaLakeFormatMatcher extends FormatMatcher {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DeltaLakeFormatMatcher.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(DeltaLakeFormatMatcher.class);
   private static final String METADATA_DIR_NAME = "_delta_log";
-  private FormatPlugin plugin;
+  private final FormatPlugin plugin;
 
   public DeltaLakeFormatMatcher(FormatPlugin plugin) {
     this.plugin = plugin;
   }
 
   @Override
-  public boolean matches(FileSystem fs, FileSelection fileSelection, CompressionCodecFactory codecFactory) throws IOException {
-    return  isDeltaLakeTable(fs, fileSelection.getSelectionRoot());
+  public boolean matches(
+      FileSystem fs, FileSelection fileSelection, CompressionCodecFactory codecFactory)
+      throws IOException {
+    return isDeltaLakeTable(fs, fileSelection.getSelectionRoot());
   }
 
   public boolean isDeltaLakeTable(FileSystem fs, String tableRootPath) throws IOException {
-    if (!plugin.getContext().getOptionManager().getOption(PlannerSettings.ENABLE_DELTALAKE)) {
-      return false;
-    }
-
     try {
       Path metaDir = Path.of(tableRootPath).resolve(METADATA_DIR_NAME);
       return fs.isDirectory(metaDir);
     } catch (AccessControlException ex) {
-      // HadoopFileSystem::isDirectory throws AccessControlException if the root itself is not a directory.
+      // HadoopFileSystem::isDirectory throws AccessControlException if the root itself is not a
+      // directory.
       return false;
     }
   }

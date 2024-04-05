@@ -21,7 +21,5 @@ class StreamFinishedPseudoException extends RuntimeException {
 
   private StreamFinishedPseudoException() {
     super("", null, false, true);
-
   }
-
 }

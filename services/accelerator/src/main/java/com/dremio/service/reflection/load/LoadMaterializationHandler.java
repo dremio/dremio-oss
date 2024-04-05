@@ -17,13 +17,6 @@ package com.dremio.service.reflection.load;
 
 import static com.dremio.service.reflection.ReflectionUtils.getMaterializationPath;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-
-import org.apache.calcite.sql.SqlNode;
-import org.apache.commons.collections4.CollectionUtils;
-
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogUser;
 import com.dremio.exec.catalog.MetadataRequestOptions;
@@ -49,12 +42,19 @@ import com.google.common.base.Functions;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+import org.apache.calcite.sql.SqlNode;
+import org.apache.commons.collections4.CollectionUtils;
 
 /**
- * Sql syntax handler for the $LOAD MATERIALIZATION METADATA command, an internal command used to refresh materialization metadata.
+ * Sql syntax handler for the $LOAD MATERIALIZATION METADATA command, an internal command used to
+ * refresh materialization metadata.
  */
 public class LoadMaterializationHandler extends SimpleDirectHandler {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(LoadMaterializationHandler.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(LoadMaterializationHandler.class);
 
   private final QueryContext context;
 
@@ -71,9 +71,10 @@ public class LoadMaterializationHandler extends SimpleDirectHandler {
       return components;
     }
 
-    // there is one component, let's see if we can split it (using only slash paths instead of dotted paths).
+    // there is one component, let's see if we can split it (using only slash paths instead of
+    // dotted paths).
     final String[] pieces = components.get(0).split("/");
-    if(pieces.length != 2) {
+    if (pieces.length != 2) {
       return null;
     }
 
@@ -84,86 +85,100 @@ public class LoadMaterializationHandler extends SimpleDirectHandler {
   public List<SimpleCommandResult> toResult(String sql, SqlNode sqlNode) throws Exception {
     final SqlLoadMaterialization load = SqlNodeUtil.unwrap(sqlNode, SqlLoadMaterialization.class);
 
-    if(!SystemUser.SYSTEM_USERNAME.equals(context.getQueryUserName())) {
-      throw SqlExceptionHelper.parseError("$LOAD MATERIALIZATION not supported.", sql, load.getParserPosition()).build(logger);
+    if (!SystemUser.SYSTEM_USERNAME.equals(context.getQueryUserName())) {
+      throw SqlExceptionHelper.parseError(
+              "$LOAD MATERIALIZATION not supported.", sql, load.getParserPosition())
+          .build(logger);
     }
 
-    final ReflectionService service = Preconditions.checkNotNull(context.getAccelerationManager().unwrap(ReflectionService.class),
-      "Couldn't unwrap ReflectionService");
+    final ReflectionService service =
+        Preconditions.checkNotNull(
+            context.getAccelerationManager().unwrap(ReflectionService.class),
+            "Couldn't unwrap ReflectionService");
 
     final List<String> components = normalizeComponents(load.getMaterializationPath());
     if (components == null) {
-      throw SqlExceptionHelper.parseError("Invalid materialization path.", sql, load.getParserPosition()).build(logger);
+      throw SqlExceptionHelper.parseError(
+              "Invalid materialization path.", sql, load.getParserPosition())
+          .build(logger);
     }
 
     final ReflectionId reflectionId = new ReflectionId(components.get(0));
     final Optional<ReflectionGoal> goalOptional = service.getGoal(reflectionId);
     if (!goalOptional.isPresent()) {
-      throw SqlExceptionHelper.parseError("Unknown reflection id.", sql, load.getParserPosition()).build(logger);
+      throw SqlExceptionHelper.parseError("Unknown reflection id.", sql, load.getParserPosition())
+          .build(logger);
     }
     final ReflectionGoal goal = goalOptional.get();
 
     final MaterializationId materializationId = new MaterializationId(components.get(1));
-    final Optional<Materialization> materializationOpt = service.getMaterialization(materializationId);
+    final Optional<Materialization> materializationOpt =
+        service.getMaterialization(materializationId);
     if (!materializationOpt.isPresent()) {
-      throw SqlExceptionHelper.parseError("Unknown materialization id.", sql, load.getParserPosition()).build(logger);
+      throw SqlExceptionHelper.parseError(
+              "Unknown materialization id.", sql, load.getParserPosition())
+          .build(logger);
     }
     final Materialization materialization = materializationOpt.get();
 
     // if the user already made changes to the reflection goal, let's stop right here
-    Preconditions.checkState(ReflectionGoalChecker.checkGoal(goal, materialization),
-      "materialization no longer matches its goal");
+    Preconditions.checkState(
+        ReflectionGoalChecker.checkGoal(goal, materialization),
+        "materialization no longer matches its goal");
 
     refreshMetadata(goal, materialization);
 
-    return Collections.singletonList(SimpleCommandResult.successful("Materialization metadata loaded."));
+    return Collections.singletonList(
+        SimpleCommandResult.successful("Materialization metadata loaded."));
   }
 
   private void refreshMetadata(final ReflectionGoal goal, final Materialization materialization) {
     final List<ReflectionField> sortedFields =
-      Optional.ofNullable(goal.getDetails().getSortFieldList()).orElse(ImmutableList.of());
+        Optional.ofNullable(goal.getDetails().getSortFieldList()).orElse(ImmutableList.of());
 
     final Function<DatasetConfig, DatasetConfig> datasetMutator;
     if (sortedFields.isEmpty()) {
       datasetMutator = Functions.identity();
     } else {
-      datasetMutator = new Function<DatasetConfig, DatasetConfig>() {
-        @Override
-        public DatasetConfig apply(DatasetConfig datasetConfig) {
-          if (datasetConfig.getReadDefinition() == null) {
-            logger.warn("Trying to set sortColumnList on a datasetConfig that doesn't contain a read definition");
-          } else {
-            final List<String> sortColumnsList = FluentIterable.from(sortedFields)
-              .transform(new Function<ReflectionField, String>() {
-                @Override
-                public String apply(ReflectionField field) {
-                  return field.getName();
-                }
-              })
-              .toList();
-            datasetConfig.getReadDefinition().setSortColumnsList(sortColumnsList);
-          }
-          return datasetConfig;
-        }
-      };
+      datasetMutator =
+          new Function<DatasetConfig, DatasetConfig>() {
+            @Override
+            public DatasetConfig apply(DatasetConfig datasetConfig) {
+              if (datasetConfig.getReadDefinition() == null) {
+                logger.warn(
+                    "Trying to set sortColumnList on a datasetConfig that doesn't contain a read definition");
+              } else {
+                final List<String> sortColumnsList =
+                    FluentIterable.from(sortedFields)
+                        .transform(
+                            new Function<ReflectionField, String>() {
+                              @Override
+                              public String apply(ReflectionField field) {
+                                return field.getName();
+                              }
+                            })
+                        .toList();
+                datasetConfig.getReadDefinition().setSortColumnsList(sortColumnsList);
+              }
+              return datasetConfig;
+            }
+          };
     }
 
     NamespaceKey materializationPath = new NamespaceKey(getMaterializationPath(materialization));
 
-    Catalog catalog = context.getCatalogService()
-        .getCatalog(MetadataRequestOptions.of(SchemaConfig.newBuilder(CatalogUser.from(SystemUser.SYSTEM_USERNAME))
-          .build()));
+    Catalog catalog =
+        context
+            .getCatalogService()
+            .getCatalog(
+                MetadataRequestOptions.of(
+                    SchemaConfig.newBuilder(CatalogUser.from(SystemUser.SYSTEM_USERNAME)).build()));
 
     catalog.createDataset(materializationPath, datasetMutator);
 
     List<String> primaryKey = materialization.getPrimaryKeyList();
     if (!CollectionUtils.isEmpty(primaryKey)) {
-      catalog.addPrimaryKey(
-        materializationPath,
-        primaryKey,
-        null,
-        catalog);
+      catalog.addPrimaryKey(materializationPath, primaryKey, null);
     }
   }
-
 }

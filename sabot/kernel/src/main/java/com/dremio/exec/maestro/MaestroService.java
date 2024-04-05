@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.maestro;
 
-import java.util.List;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.physical.PhysicalPlan;
@@ -31,6 +29,7 @@ import com.dremio.resource.ResourceSchedulingProperties;
 import com.dremio.resource.exception.ResourceAllocationException;
 import com.dremio.sabot.rpc.ExecToCoordStatusHandler;
 import com.dremio.service.Service;
+import java.util.List;
 
 /**
  * A service that handles execution planning and interactions with executors during the query
@@ -40,12 +39,9 @@ import com.dremio.service.Service;
 public interface MaestroService extends Service, SafeExit {
 
   /**
-   * Execute the query specified by the physical plan. Includes :
-   * - reserving resources
-   * - parallelization of the plan
-   * - propagate the fragments to the executor nodes
-   * - monitor completion of fragments
-   * - release reserved resources.
+   * Execute the query specified by the physical plan. Includes : - reserving resources -
+   * parallelization of the plan - propagate the fragments to the executor nodes - monitor
+   * completion of fragments - release reserved resources.
    *
    * @param queryId the query id (includes attempt number)
    * @param context query context
@@ -53,27 +49,28 @@ public interface MaestroService extends Service, SafeExit {
    * @param runInSameThread if true, the parallelization will run in the same thread.
    * @param observer observer to notify on state changes, and progress.
    * @param listener listener to notify on completion or failures.
-   *
    * @throws ExecutionSetupException failure in execution planning
    * @throws ResourceAllocationException failure in resource allocation
    */
   void executeQuery(
-    QueryId queryId,
-    QueryContext context,
-    PhysicalPlan physicalPlan,
-    boolean runInSameThread,
-    MaestroObserver observer,
-    CompletionListener listener)
-    throws ExecutionSetupException, ResourceAllocationException;
+      QueryId queryId,
+      QueryContext context,
+      PhysicalPlan physicalPlan,
+      boolean runInSameThread,
+      MaestroObserver observer,
+      CompletionListener listener)
+      throws ExecutionSetupException, ResourceAllocationException;
 
   /**
-   * Interrupts the execution if in wait states. Different stages of query execution require(s) different action as
-   * they may be waiting/blocking for different resources.
+   * Interrupts the execution if in wait states. Different stages of query execution require(s)
+   * different action as they may be waiting/blocking for different resources.
    *
    * @param queryId Id of the query whose execution needs to be interrupted
-   * @param currentStage current Stage of the query (Interrupt actions may depend on the stage of the query)
+   * @param currentStage current Stage of the query (Interrupt actions may depend on the stage of
+   *     the query)
    */
-  void interruptExecutionInWaitStates(QueryId queryId, UserBitShared.AttemptEvent.State currentStage);
+  void interruptExecutionInWaitStates(
+      QueryId queryId, UserBitShared.AttemptEvent.State currentStage);
 
   /**
    * Cancel a previously triggered query.
@@ -82,9 +79,7 @@ public interface MaestroService extends Service, SafeExit {
    */
   void cancelQuery(QueryId queryId);
 
-  /**
-   * Get the count of active queries.
-   */
+  /** Get the count of active queries. */
   int getActiveQueryCount();
 
   /* Get the resource information for the group (cluster or engine).
@@ -92,15 +87,16 @@ public interface MaestroService extends Service, SafeExit {
    * @param queryContext
    * @return resource information.
    */
-  GroupResourceInformation getGroupResourceInformation(OptionManager optionManager,
-                                                       ResourceSchedulingProperties resourceSchedulingProperties) throws ResourceAllocationException;
+  GroupResourceInformation getGroupResourceInformation(
+      OptionManager optionManager, ResourceSchedulingProperties resourceSchedulingProperties)
+      throws ResourceAllocationException;
 
   /**
    * Get the rpc handler for status msgs from executor nodes.
+   *
    * @return rpc handler.
    */
   ExecToCoordStatusHandler getExecStatusHandler();
-
 
   /**
    * @return list of query Ids for all active execution foremen.

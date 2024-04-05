@@ -15,11 +15,10 @@
  */
 package com.dremio.exec.planner;
 
-import org.junit.Test;
-
 import com.dremio.PlanTestBase;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.physical.PlannerSettings;
+import org.junit.Test;
 
 /**
  * Tests to check if filter are applied correctly for map_entry function which returns a struct type
@@ -31,18 +30,21 @@ public class TestFilterSplitOnMapEntryFunction extends PlanTestBase {
   @Test
   public void testPlanForSimpleFilterOnMapEntryFunction() throws Exception {
     try (AutoCloseable ignored = withOption(ExecConstants.ENABLE_MAP_DATA_TYPE, true);
-         AutoCloseable ignored1 = withOption(PlannerSettings.SPLIT_COMPLEX_FILTER_EXPRESSION, true)
-    ) {
-      String query = String.format("SELECT * FROM  %s.\"map_type.parquet\" " +
-        "WHERE last_matching_map_entry_for_key(counters, 'stats.put.failure')['value'] = 'test'", path);
-      testPlanMatchingPatterns(query,
-        new String[]{
-          ".*Project"+
-          "(?s).*SelectionVectorRemover.*EXPR.*7" +
-          "(?s).*Filter.*'test'" +
-          "(?s).*Project.*last_matching_map_entry_for_key.*'stats.put.failure'"
-      });
+        AutoCloseable ignored1 =
+            withOption(PlannerSettings.SPLIT_COMPLEX_FILTER_EXPRESSION, true)) {
+      String query =
+          String.format(
+              "SELECT * FROM  %s.\"map_type.parquet\" "
+                  + "WHERE last_matching_map_entry_for_key(counters, 'stats.put.failure')['value'] = 'test'",
+              path);
+      testPlanMatchingPatterns(
+          query,
+          new String[] {
+            ".*Project"
+                + "(?s).*SelectionVectorRemover.*EXPR.*7"
+                + "(?s).*Filter.*'test'"
+                + "(?s).*Project.*LAST_MATCHING_MAP_ENTRY_FOR_KEY.*'stats.put.failure'"
+          });
     }
   }
-
 }

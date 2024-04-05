@@ -30,19 +30,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.stream.IntStream;
-
-import org.apache.parquet.hadoop.metadata.BlockMetaData;
-import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
-import org.apache.parquet.hadoop.metadata.FileMetaData;
-import org.apache.parquet.schema.MessageType;
-import org.junit.Assert;
-import org.junit.Test;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.SabotConfig;
@@ -68,6 +55,17 @@ import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.google.protobuf.ByteString;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.stream.IntStream;
+import org.apache.parquet.hadoop.metadata.BlockMetaData;
+import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
+import org.apache.parquet.hadoop.metadata.FileMetaData;
+import org.apache.parquet.schema.MessageType;
+import org.junit.Assert;
+import org.junit.Test;
 
 public class TestParquetSplitReaderCreatorIterator {
 
@@ -77,7 +75,8 @@ public class TestParquetSplitReaderCreatorIterator {
   private void testSplitReaderCreatorIteratorWithNoPrefetch(int mode) throws Exception {
     InputStreamProvider inputStreamProvider = mock(InputStreamProvider.class);
     MutableParquetMetadata footer = mock(MutableParquetMetadata.class);
-    ParquetSplitReaderCreatorIterator splitReaderCreatorIterator = createSplitReaderCreator(false, 1, 10, inputStreamProvider, footer, mode);
+    ParquetSplitReaderCreatorIterator splitReaderCreatorIterator =
+        createSplitReaderCreator(false, 1, 10, inputStreamProvider, footer, mode);
     InputStreamProvider lastInputStreamProvider = null;
     MutableParquetMetadata lastFooter = null;
     int iteratorIdx = 0;
@@ -109,7 +108,8 @@ public class TestParquetSplitReaderCreatorIterator {
   private void testSplitReaderCreatorIteratorWithPrefetch(int mode) throws Exception {
     InputStreamProvider inputStreamProvider = mock(InputStreamProvider.class);
     MutableParquetMetadata footer = mock(MutableParquetMetadata.class);
-    ParquetSplitReaderCreatorIterator splitReaderCreatorIterator = createSplitReaderCreator(true, 1, 10, inputStreamProvider, footer, mode);
+    ParquetSplitReaderCreatorIterator splitReaderCreatorIterator =
+        createSplitReaderCreator(true, 1, 10, inputStreamProvider, footer, mode);
     InputStreamProvider lastInputStreamProvider = null;
     MutableParquetMetadata lastFooter = null;
     int iteratorIdx = 0;
@@ -146,7 +146,8 @@ public class TestParquetSplitReaderCreatorIterator {
   private void testSplitReaderCreatorIteratorWithAllPrefetch(int mode) throws Exception {
     InputStreamProvider inputStreamProvider = mock(InputStreamProvider.class);
     MutableParquetMetadata footer = mock(MutableParquetMetadata.class);
-    ParquetSplitReaderCreatorIterator splitReaderCreatorIterator = createSplitReaderCreator(true, 10, 10, inputStreamProvider, footer, mode);
+    ParquetSplitReaderCreatorIterator splitReaderCreatorIterator =
+        createSplitReaderCreator(true, 10, 10, inputStreamProvider, footer, mode);
     InputStreamProvider lastInputStreamProvider = null;
     MutableParquetMetadata lastFooter = null;
     int iteratorIdx = 0;
@@ -181,10 +182,12 @@ public class TestParquetSplitReaderCreatorIterator {
   }
 
   @Test
-  public void testSplitReaderCreatorIteratorWithMultipleSplitsButOnlyOneRowGroup() throws Exception {
+  public void testSplitReaderCreatorIteratorWithMultipleSplitsButOnlyOneRowGroup()
+      throws Exception {
     InputStreamProvider inputStreamProvider = mock(InputStreamProvider.class);
     MutableParquetMetadata footer = mock(MutableParquetMetadata.class);
-    ParquetSplitReaderCreatorIterator splitReaderCreatorIterator = createSplitReaderCreator(true, 10, 10, inputStreamProvider, footer, 3);
+    ParquetSplitReaderCreatorIterator splitReaderCreatorIterator =
+        createSplitReaderCreator(true, 10, 10, inputStreamProvider, footer, 3);
 
     assertTrue(splitReaderCreatorIterator.hasNext());
     SplitReaderCreator creator = splitReaderCreatorIterator.next();
@@ -208,7 +211,8 @@ public class TestParquetSplitReaderCreatorIterator {
     for (int i = 0; i < 3; ++i) {
       InputStreamProvider inputStreamProvider = mock(InputStreamProvider.class);
       MutableParquetMetadata footer = mock(MutableParquetMetadata.class);
-      ParquetSplitReaderCreatorIterator splitReaderCreatorIterator = createSplitReaderCreator(true, 1, 0, inputStreamProvider, footer, i);
+      ParquetSplitReaderCreatorIterator splitReaderCreatorIterator =
+          createSplitReaderCreator(true, 1, 0, inputStreamProvider, footer, i);
       Assert.assertFalse(splitReaderCreatorIterator.hasNext());
     }
   }
@@ -216,7 +220,8 @@ public class TestParquetSplitReaderCreatorIterator {
   private void testCreatorIteratorPrematurelyClosed(int mode) throws Exception {
     InputStreamProvider inputStreamProvider = mock(InputStreamProvider.class);
     MutableParquetMetadata footer = mock(MutableParquetMetadata.class);
-    ParquetSplitReaderCreatorIterator splitReaderCreatorIterator = createSplitReaderCreator(true, 2, 10, inputStreamProvider, footer, mode);
+    ParquetSplitReaderCreatorIterator splitReaderCreatorIterator =
+        createSplitReaderCreator(true, 2, 10, inputStreamProvider, footer, mode);
 
     SplitReaderCreator creator = null;
     InputStreamProvider lastInputStreamProvider = null;
@@ -233,7 +238,6 @@ public class TestParquetSplitReaderCreatorIterator {
     Assert.assertNotNull(creator.getNext());
     Assert.assertNotNull(creator.getNext().getNext());
     Assert.assertNull(creator.getNext().getNext().getNext());
-
 
     Assert.assertNotNull(creator.getNext().getInputStreamProvider());
     Assert.assertNotNull(creator.getNext().getNext().getInputStreamProvider());
@@ -269,7 +273,8 @@ public class TestParquetSplitReaderCreatorIterator {
 
   @Test
   public void testPrefetchAcrossBatch() throws Exception {
-    ParquetSplitReaderCreatorIterator creatorIterator = createSplitReaderCreatorIteratorForTableFunction(1);
+    ParquetSplitReaderCreatorIterator creatorIterator =
+        createSplitReaderCreatorIteratorForTableFunction(1);
 
     // 3 splits and 1 prefetch count
     List<SplitAndPartitionInfo> splits = new ArrayList<>();
@@ -308,13 +313,27 @@ public class TestParquetSplitReaderCreatorIterator {
     assertFalse(creatorIterator.hasNext());
   }
 
-  private ParquetSplitReaderCreatorIterator createSplitReaderCreator(boolean prefetch, long numPrefetch, int numSplits,
-                                                                     InputStreamProvider inputStreamProvider, MutableParquetMetadata footer, int mode) throws Exception {
-    return createSplitReaderCreator(prefetch, numPrefetch, numSplits, inputStreamProvider, footer, mode, false);
-
+  private ParquetSplitReaderCreatorIterator createSplitReaderCreator(
+      boolean prefetch,
+      long numPrefetch,
+      int numSplits,
+      InputStreamProvider inputStreamProvider,
+      MutableParquetMetadata footer,
+      int mode)
+      throws Exception {
+    return createSplitReaderCreator(
+        prefetch, numPrefetch, numSplits, inputStreamProvider, footer, mode, false);
   }
-  private ParquetSplitReaderCreatorIterator createSplitReaderCreator(boolean prefetch, long numPrefetch, int numSplits,
-                                                                     InputStreamProvider inputStreamProvider, MutableParquetMetadata footer, int mode, boolean fromRowGroupBasedSplit) throws Exception {
+
+  private ParquetSplitReaderCreatorIterator createSplitReaderCreator(
+      boolean prefetch,
+      long numPrefetch,
+      int numSplits,
+      InputStreamProvider inputStreamProvider,
+      MutableParquetMetadata footer,
+      int mode,
+      boolean fromRowGroupBasedSplit)
+      throws Exception {
     FragmentExecutionContext fragmentExecutionContext = mock(FragmentExecutionContext.class);
     OperatorContext context = mock(OperatorContext.class);
     ParquetSubScan config = mock(ParquetSubScan.class);
@@ -329,15 +348,26 @@ public class TestParquetSplitReaderCreatorIterator {
     OpProps opProps = mock(OpProps.class);
     CompositeReaderConfig readerConfig = mock(CompositeReaderConfig.class);
 
-    when(sabotConfig.getInstance(InputStreamProviderFactory.KEY, InputStreamProviderFactory.class, InputStreamProviderFactory.DEFAULT)).thenReturn(inputStreamProviderFactory);
-    when(sabotConfig.getInstance("dremio.plugins.parquet.factory", ParquetReaderFactory.class, ParquetReaderFactory.NONE)).thenReturn(ParquetReaderFactory.NONE);
+    when(sabotConfig.getInstance(
+            InputStreamProviderFactory.KEY,
+            InputStreamProviderFactory.class,
+            InputStreamProviderFactory.DEFAULT))
+        .thenReturn(inputStreamProviderFactory);
+    when(sabotConfig.getInstance(
+            "dremio.plugins.parquet.factory",
+            ParquetReaderFactory.class,
+            ParquetReaderFactory.NONE))
+        .thenReturn(ParquetReaderFactory.NONE);
     when(context.getConfig()).thenReturn(sabotConfig);
     when(context.getOptions()).thenReturn(optionManager);
     when(optionManager.getOption(PREFETCH_READER)).thenReturn(prefetch);
     when(optionManager.getOption(NUM_SPLITS_TO_PREFETCH)).thenReturn(numPrefetch);
     when(optionManager.getOption(PARQUET_CACHED_ENTITY_SET_FILE_SIZE)).thenReturn(true);
     when(optionManager.getOption(DISABLED_GANDIVA_FUNCTIONS)).thenReturn("");
-    when(optionManager.getOption(QUERY_EXEC_OPTION_KEY)).thenReturn(OptionValue.createString(OptionValue.OptionType.SYSTEM,QUERY_EXEC_OPTION_KEY,"Gandiva"));
+    when(optionManager.getOption(QUERY_EXEC_OPTION_KEY))
+        .thenReturn(
+            OptionValue.createString(
+                OptionValue.OptionType.SYSTEM, QUERY_EXEC_OPTION_KEY, "Gandiva"));
     when(context.getStats()).thenReturn(operatorStats);
     when(fragmentExecutionContext.getStoragePlugin(any())).thenReturn(fileSystemPlugin);
     when(fileSystemPlugin.createFS(any(), any(), any())).thenReturn(fs);
@@ -351,8 +381,27 @@ public class TestParquetSplitReaderCreatorIterator {
     when(config.getFullSchema()).thenReturn(new BatchSchema(Collections.emptyList()));
     when(config.getColumns()).thenReturn(Collections.singletonList(SchemaPath.getSimplePath("*")));
     when(config.getFormatSettings()).thenReturn(FileConfig.getDefaultInstance());
-    when(optionManager.getOption(ExecConstants.FILESYSTEM_PARTITION_COLUMN_LABEL_VALIDATOR)).thenReturn("dir");
-    when(inputStreamProviderFactory.create(any(),any(),any(),anyLong(),anyLong(),any(),any(),any(),any(),anyBoolean(),any(),anyLong(),anyBoolean(),anyBoolean(), any(), any(), any())).thenReturn(inputStreamProvider);
+    when(optionManager.getOption(ExecConstants.FILESYSTEM_PARTITION_COLUMN_LABEL_VALIDATOR))
+        .thenReturn("dir");
+    when(inputStreamProviderFactory.create(
+            any(),
+            any(),
+            any(),
+            anyLong(),
+            anyLong(),
+            any(),
+            any(),
+            any(),
+            any(),
+            anyBoolean(),
+            any(),
+            anyLong(),
+            anyBoolean(),
+            anyBoolean(),
+            any(),
+            any(),
+            any()))
+        .thenReturn(inputStreamProvider);
 
     BlockMetaData blockMetaData = mock(BlockMetaData.class);
     when(footer.getBlocks()).thenReturn(Collections.singletonList(blockMetaData));
@@ -360,9 +409,11 @@ public class TestParquetSplitReaderCreatorIterator {
     when(blockMetaData.getColumns()).thenReturn(Collections.singletonList(chunkMetaData));
     when(chunkMetaData.getFirstDataPageOffset()).thenReturn(0L);
     when(inputStreamProvider.getFooter()).thenReturn(footer);
-    when(footer.getFileMetaData()).thenReturn(new FileMetaData(new MessageType("", new ArrayList<>()), new HashMap<>(), ""));
+    when(footer.getFileMetaData())
+        .thenReturn(new FileMetaData(new MessageType("", new ArrayList<>()), new HashMap<>(), ""));
     when(readerConfig.getPartitionNVPairs(any(), any())).thenReturn(new ArrayList<>());
-    when(readerConfig.wrapIfNecessary(any(), any(), any())).then(i -> i.getArgument(1, RecordReader.class));
+    when(readerConfig.wrapIfNecessary(any(), any(), any()))
+        .then(i -> i.getArgument(1, RecordReader.class));
 
     List<SplitAndPartitionInfo> splits = new ArrayList<>();
 
@@ -373,7 +424,7 @@ public class TestParquetSplitReaderCreatorIterator {
       // all splits in same file. each split one rg
       // giving start length same for all for simplicity since they are not used in mocked objects.
       IntStream.range(0, numSplits).forEach(i -> splits.add(createBlockBasedSplit(0, 10, 0)));
-    }  else if (mode == 2){
+    } else if (mode == 2) {
       // one split contains all rowgroups
       List<BlockMetaData> blocks = new ArrayList<>();
       for (int i = 0; i < numSplits; ++i) {
@@ -394,10 +445,12 @@ public class TestParquetSplitReaderCreatorIterator {
 
     when(config.getSplits()).thenReturn(splits);
 
-    return new ParquetSplitReaderCreatorIterator(fragmentExecutionContext, context, config, fromRowGroupBasedSplit);
+    return new ParquetSplitReaderCreatorIterator(
+        fragmentExecutionContext, context, config, fromRowGroupBasedSplit);
   }
 
-  private ParquetSplitReaderCreatorIterator createSplitReaderCreatorIteratorForTableFunction(long numPrefetch) throws Exception {
+  private ParquetSplitReaderCreatorIterator createSplitReaderCreatorIteratorForTableFunction(
+      long numPrefetch) throws Exception {
     FragmentExecutionContext fragmentExecutionContext = mock(FragmentExecutionContext.class);
     OperatorContext context = mock(OperatorContext.class);
     TableFunctionConfig tableFunctionConfig = mock(TableFunctionConfig.class);
@@ -414,8 +467,16 @@ public class TestParquetSplitReaderCreatorIterator {
     OpProps opProps = mock(OpProps.class);
     CompositeReaderConfig readerConfig = mock(CompositeReaderConfig.class);
 
-    when(sabotConfig.getInstance(InputStreamProviderFactory.KEY, InputStreamProviderFactory.class, InputStreamProviderFactory.DEFAULT)).thenReturn(inputStreamProviderFactory);
-    when(sabotConfig.getInstance("dremio.plugins.parquet.factory", ParquetReaderFactory.class, ParquetReaderFactory.NONE)).thenReturn(ParquetReaderFactory.NONE);
+    when(sabotConfig.getInstance(
+            InputStreamProviderFactory.KEY,
+            InputStreamProviderFactory.class,
+            InputStreamProviderFactory.DEFAULT))
+        .thenReturn(inputStreamProviderFactory);
+    when(sabotConfig.getInstance(
+            "dremio.plugins.parquet.factory",
+            ParquetReaderFactory.class,
+            ParquetReaderFactory.NONE))
+        .thenReturn(ParquetReaderFactory.NONE);
     when(context.getConfig()).thenReturn(sabotConfig);
     when(context.getOptions()).thenReturn(optionManager);
     when(optionManager.getOption(PREFETCH_READER)).thenReturn(true);
@@ -430,46 +491,70 @@ public class TestParquetSplitReaderCreatorIterator {
     when(tableFunctionContext.getPluginId()).thenReturn(storagePluginId);
     when(storagePluginId.getName()).thenReturn("");
     when(opProps.getUserName()).thenReturn("");
-    when(tableFunctionContext.getColumns()).thenReturn(Collections.singletonList(SchemaPath.getSimplePath("*")));
+    when(tableFunctionContext.getColumns())
+        .thenReturn(Collections.singletonList(SchemaPath.getSimplePath("*")));
     when(tableFunctionContext.getFormatSettings()).thenReturn(FileConfig.getDefaultInstance());
     when(tableFunctionContext.getFullSchema()).thenReturn(new BatchSchema(Collections.emptyList()));
-    when(optionManager.getOption(ExecConstants.FILESYSTEM_PARTITION_COLUMN_LABEL_VALIDATOR)).thenReturn("dir");
+    when(optionManager.getOption(ExecConstants.FILESYSTEM_PARTITION_COLUMN_LABEL_VALIDATOR))
+        .thenReturn("dir");
 
     InputStreamProvider inputStreamProvider = mock(InputStreamProvider.class);
     MutableParquetMetadata footer = mock(MutableParquetMetadata.class);
-    when(inputStreamProviderFactory.create(any(),any(),any(),anyLong(),anyLong(),any(),any(),any(),any(),anyBoolean(),any(),anyLong(),anyBoolean(),anyBoolean(), any(), any(), any())).thenReturn(inputStreamProvider);
+    when(inputStreamProviderFactory.create(
+            any(),
+            any(),
+            any(),
+            anyLong(),
+            anyLong(),
+            any(),
+            any(),
+            any(),
+            any(),
+            anyBoolean(),
+            any(),
+            anyLong(),
+            anyBoolean(),
+            anyBoolean(),
+            any(),
+            any(),
+            any()))
+        .thenReturn(inputStreamProvider);
     BlockMetaData blockMetaData = mock(BlockMetaData.class);
     when(footer.getBlocks()).thenReturn(Collections.singletonList(blockMetaData));
     ColumnChunkMetaData chunkMetaData = mock(ColumnChunkMetaData.class);
     when(blockMetaData.getColumns()).thenReturn(Collections.singletonList(chunkMetaData));
     when(chunkMetaData.getFirstDataPageOffset()).thenReturn(0L);
     when(inputStreamProvider.getFooter()).thenReturn(footer);
-    when(footer.getFileMetaData()).thenReturn(new FileMetaData(new MessageType("", new ArrayList<>()), new HashMap<>(), ""));
+    when(footer.getFileMetaData())
+        .thenReturn(new FileMetaData(new MessageType("", new ArrayList<>()), new HashMap<>(), ""));
     when(readerConfig.getPartitionNVPairs(any(), any())).thenReturn(new ArrayList<>());
-    when(readerConfig.wrapIfNecessary(any(), any(), any())).then(i -> i.getArgument(1, RecordReader.class));
+    when(readerConfig.wrapIfNecessary(any(), any(), any()))
+        .then(i -> i.getArgument(1, RecordReader.class));
 
-    return new ParquetSplitReaderCreatorIterator(fragmentExecutionContext, context, opProps, tableFunctionConfig, false, false);
+    return new ParquetSplitReaderCreatorIterator(
+        fragmentExecutionContext, context, opProps, tableFunctionConfig, false, false);
   }
 
   private SplitAndPartitionInfo createBlockBasedSplit(int start, int length, int p) {
-    ParquetProtobuf.ParquetBlockBasedSplitXAttr splitXAttr = ParquetProtobuf.ParquetBlockBasedSplitXAttr.newBuilder()
-      .setStart(start)
-      .setLength(length)
-      .setPath("/tmp/path/" + p)
-      .setFileLength(100)
-      .setLastModificationTime(0)
-      .build();
+    ParquetProtobuf.ParquetBlockBasedSplitXAttr splitXAttr =
+        ParquetProtobuf.ParquetBlockBasedSplitXAttr.newBuilder()
+            .setStart(start)
+            .setLength(length)
+            .setPath("/tmp/path/" + p)
+            .setFileLength(100)
+            .setLastModificationTime(0)
+            .build();
 
     ByteString serializedSplitXAttr = splitXAttr.toByteString();
 
-    PartitionProtobuf.NormalizedPartitionInfo partitionInfo = PartitionProtobuf.NormalizedPartitionInfo.newBuilder()
-      .setId("0")
-      .build();
+    PartitionProtobuf.NormalizedPartitionInfo partitionInfo =
+        PartitionProtobuf.NormalizedPartitionInfo.newBuilder().setId("0").build();
 
-    PartitionProtobuf.NormalizedDatasetSplitInfo datasetSplitInfo = PartitionProtobuf.NormalizedDatasetSplitInfo.newBuilder()
-      .setPartitionId("0")
-      .setExtendedProperty(serializedSplitXAttr)
-      .build();
+    PartitionProtobuf.NormalizedDatasetSplitInfo datasetSplitInfo =
+        PartitionProtobuf.NormalizedDatasetSplitInfo.newBuilder()
+            .setPartitionId("0")
+            .setExtendedProperty(serializedSplitXAttr)
+            .build();
 
     return new SplitAndPartitionInfo(partitionInfo, datasetSplitInfo);
   }
@@ -479,7 +564,8 @@ public class TestParquetSplitReaderCreatorIterator {
 
     InputStreamProvider inputStreamProvider = mock(InputStreamProvider.class);
     MutableParquetMetadata footer = mock(MutableParquetMetadata.class);
-    ParquetSplitReaderCreatorIterator creatorIterator = createSplitReaderCreator(false, 1, 10, inputStreamProvider, footer, 4, true);
+    ParquetSplitReaderCreatorIterator creatorIterator =
+        createSplitReaderCreator(false, 1, 10, inputStreamProvider, footer, 4, true);
 
     assertTrue(creatorIterator.hasNext());
     SplitReaderCreator creator = creatorIterator.next();
@@ -489,25 +575,26 @@ public class TestParquetSplitReaderCreatorIterator {
 
   private SplitAndPartitionInfo createSplitScan(int start, int length, int p) {
     String path = relativePath + p;
-    ParquetProtobuf.ParquetDatasetSplitScanXAttr splitXAttr = ParquetProtobuf.ParquetDatasetSplitScanXAttr.newBuilder()
-      .setStart(start)
-      .setLength(length)
-      .setPath(path)
-      .setFileLength(100)
-      .setLastModificationTime(0)
-      .setOriginalPath(fileScheme + path)
-      .build();
+    ParquetProtobuf.ParquetDatasetSplitScanXAttr splitXAttr =
+        ParquetProtobuf.ParquetDatasetSplitScanXAttr.newBuilder()
+            .setStart(start)
+            .setLength(length)
+            .setPath(path)
+            .setFileLength(100)
+            .setLastModificationTime(0)
+            .setOriginalPath(fileScheme + path)
+            .build();
 
     ByteString serializedSplitXAttr = splitXAttr.toByteString();
 
-    PartitionProtobuf.NormalizedPartitionInfo partitionInfo = PartitionProtobuf.NormalizedPartitionInfo.newBuilder()
-      .setId("0")
-      .build();
+    PartitionProtobuf.NormalizedPartitionInfo partitionInfo =
+        PartitionProtobuf.NormalizedPartitionInfo.newBuilder().setId("0").build();
 
-    PartitionProtobuf.NormalizedDatasetSplitInfo datasetSplitInfo = PartitionProtobuf.NormalizedDatasetSplitInfo.newBuilder()
-      .setPartitionId("0")
-      .setExtendedProperty(serializedSplitXAttr)
-      .build();
+    PartitionProtobuf.NormalizedDatasetSplitInfo datasetSplitInfo =
+        PartitionProtobuf.NormalizedDatasetSplitInfo.newBuilder()
+            .setPartitionId("0")
+            .setExtendedProperty(serializedSplitXAttr)
+            .build();
 
     return new SplitAndPartitionInfo(partitionInfo, datasetSplitInfo);
   }

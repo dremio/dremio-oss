@@ -40,12 +40,12 @@ message Materialization {
   optional MaterializationState state = 6 [default = RUNNING];
   optional int64 expiration = 12; // should be computed
   optional int64 last_refresh_from_pds = 14;
-  optional bytes logical_plan = 15;
-  optional int64 logical_plan_stripped_hash = 26;
+  optional bytes logical_plan = 15 [deprecated = true];
+  optional int64 logical_plan_stripped_hash = 26 [deprecated = true];
   optional int64 legacy_reflection_goal_version = 17;
   optional JoinAnalysis join_analysis = 18;
   optional Failure failure = 13; // failure details set if state is failed
-  
+
   optional int64 series_id = 23;
   repeated DataPartition partition = 8; // nodes containing materialized data
   optional int64 init_refresh_submit = 19;
@@ -64,6 +64,8 @@ message Materialization {
   optional int64 last_refresh_finished = 34;
   optional int64 last_refresh_duration_millis = 35;
   repeated string primary_key = 36;
+  optional bool disable_default_reflection = 37 [default = false];
+  optional bool is_noop_refresh = 38 [default = false]; // true if refresh job that created it was a noop
 }
 
 message RefreshId {
@@ -86,6 +88,21 @@ message Refresh {
   optional UpdateId update_id = 13;
   optional bool is_iceberg_refresh = 14;
   optional string base_path = 15;
+}
+
+message MaterializationPlanId {
+  required string id = 1;
+}
+
+message MaterializationPlan {
+  required MaterializationPlanId id = 1;
+  required MaterializationId materialization_id = 2;
+  required ReflectionId reflection_id = 3;
+  required string version = 4;
+  required bytes logical_plan = 5;
+  required int64 created_at = 6;
+  required int64 modified_at = 7;
+  optional string tag = 8;
 }
 
 // materialization job details
@@ -117,6 +134,8 @@ message RefreshDecision {
   // - For snapshot based incremental, this is used to preserve the base table snapshot id info. When refresh is done
   //   it's saved into refresh entry directly.
   optional UpdateId output_update_id = 10;
+  optional bool no_op_refresh = 11 [default = false];
+  optional bool disable_default_reflection = 12 [default = false];
 }
 
 // data partition host address

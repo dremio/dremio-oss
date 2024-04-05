@@ -16,13 +16,12 @@
 
 package com.dremio.exec.resolver;
 
+import com.dremio.common.types.TypeProtos.MinorType;
+import com.google.common.collect.ImmutableMap;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-
-import com.dremio.common.types.TypeProtos.MinorType;
-import com.google.common.collect.ImmutableMap;
 
 @SuppressWarnings("checkstyle:InnerAssignment")
 public final class ResolverTypePrecedence {
@@ -44,12 +43,15 @@ public final class ResolverTypePrecedence {
     int i = 0;
 
     Map<MinorType, Integer> precMap = new HashMap<MinorType, Integer>();
-    precMap.put(MinorType.NULL, i += 2);       // NULL is legal to implicitly be promoted to any other type
+    precMap.put(
+        MinorType.NULL, i += 2); // NULL is legal to implicitly be promoted to any other type
     precMap.put(MinorType.VARBINARY, i += 2);
     precMap.put(MinorType.VARCHAR, i += 2);
     precMap.put(MinorType.BIT, i += 2);
-    precMap.put(MinorType.TINYINT, i += 2);   //type with few bytes is promoted to type with more bytes ==> no data loss.
-    precMap.put(MinorType.UINT1, i += 2);     //signed is legal to implicitly be promoted to unsigned.
+    precMap.put(
+        MinorType.TINYINT,
+        i += 2); // type with few bytes is promoted to type with more bytes ==> no data loss.
+    precMap.put(MinorType.UINT1, i += 2); // signed is legal to implicitly be promoted to unsigned.
     precMap.put(MinorType.SMALLINT, i += 2);
     precMap.put(MinorType.UINT2, i += 2);
     precMap.put(MinorType.INT, i += 2);
@@ -62,8 +64,8 @@ public final class ResolverTypePrecedence {
     precMap.put(MinorType.DATE, i += 2);
     precMap.put(MinorType.TIMESTAMP, i += 2);
     precMap.put(MinorType.TIME, i += 2);
-    precMap.put(MinorType.INTERVALDAY, i+= 2);
-    precMap.put(MinorType.INTERVALYEAR, i+= 2);
+    precMap.put(MinorType.INTERVALDAY, i += 2);
+    precMap.put(MinorType.INTERVALYEAR, i += 2);
     precMap.put(MinorType.UNION, i += 2);
     precMap.put(MinorType.FIXEDSIZEBINARY, i += 2);
     precMap.put(MinorType.MAP, i += 2);
@@ -71,7 +73,6 @@ public final class ResolverTypePrecedence {
     precMap.put(MinorType.STRUCT, i += 2);
     PRECEDENCE_MAP = ImmutableMap.copyOf(precMap);
     MAX_IMPLICIT_CAST_COST = i;
-
 
     /* Currently implicit cast follows the precedence rules.
      * It may be useful to perform an implicit cast in

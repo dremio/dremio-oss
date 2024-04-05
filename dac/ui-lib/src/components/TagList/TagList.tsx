@@ -109,7 +109,7 @@ const TagList = (props: TagListTypes) => {
       const tag = tags.get(i);
       const currentTagWidth = Math.min(
         tag.length * PX_PER_CHAR + TAG_PADDING_PX,
-        MAX_TAG_WIDTH
+        MAX_TAG_WIDTH,
       );
 
       if (currentTagWidth > remainingWidth) {

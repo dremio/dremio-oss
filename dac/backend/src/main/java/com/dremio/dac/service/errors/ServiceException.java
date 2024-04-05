@@ -17,9 +17,7 @@ package com.dremio.dac.service.errors;
 
 import com.dremio.dac.model.common.DACException;
 
-/**
- * Parent class for service exceptions
- */
+/** Parent class for service exceptions */
 public abstract class ServiceException extends DACException {
   private static final long serialVersionUID = 1L;
 

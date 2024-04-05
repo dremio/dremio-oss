@@ -22,6 +22,10 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
+import com.dremio.services.fabric.BaseTestFabric;
+import com.dremio.services.fabric.api.FabricRunnerFactory;
+import com.dremio.test.DremioTest;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -30,7 +34,6 @@ import java.nio.file.Files;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.HashMap;
 import java.util.Map;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
@@ -41,38 +44,39 @@ import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
-import com.dremio.services.fabric.BaseTestFabric;
-import com.dremio.services.fabric.api.FabricRunnerFactory;
-import com.dremio.test.DremioTest;
-
-/**
- * End-to-end test for {@link RemoteNodeFileSystem} using a Fabric server
- */
+/** End-to-end test for {@link RemoteNodeFileSystem} using a Fabric server */
 public class TestRemoteNodeFileSystemE2E extends BaseTestFabric {
 
-  @ClassRule public static final  TemporaryFolder temporaryFolder = new TemporaryFolder();
+  @ClassRule public static final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
   private RemoteNodeFileSystem sabotFS;
 
   @Before
   public void setUpPDFSService() throws IOException {
-    NodeEndpoint endpoint = NodeEndpoint.newBuilder()
-        .setAddress(fabric.getAddress()).setFabricPort(fabric.getPort())
-        .build();
-    PDFSProtocol pdfsProtocol = PDFSProtocol.newInstance(endpoint, DremioTest.DEFAULT_SABOT_CONFIG, allocator, true);
+    NodeEndpoint endpoint =
+        NodeEndpoint.newBuilder()
+            .setAddress(fabric.getAddress())
+            .setFabricPort(fabric.getPort())
+            .build();
+    PDFSProtocol pdfsProtocol =
+        PDFSProtocol.newInstance(endpoint, DremioTest.DEFAULT_SABOT_CONFIG, allocator, true);
     FabricRunnerFactory factory = fabric.registerProtocol(pdfsProtocol);
-    sabotFS = new RemoteNodeFileSystem(factory.getCommandRunner(fabric.getAddress(), fabric.getPort()), allocator);
-    sabotFS.initialize(URI.create(format("sabot://%s:%d", fabric.getAddress(), fabric.getPort())), new Configuration(false));
+    sabotFS =
+        new RemoteNodeFileSystem(
+            factory.getCommandRunner(fabric.getAddress(), fabric.getPort()), allocator);
+    sabotFS.initialize(
+        URI.create(format("sabot://%s:%d", fabric.getAddress(), fabric.getPort())),
+        new Configuration(false));
   }
 
   @Test
   public void testGetFileStatus() throws IOException {
     File subFolder = temporaryFolder.newFolder();
 
-    java.nio.file.Path nativePath = Files.createFile(
-        new File(subFolder, "foo").toPath(),
-        PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("r-xr--r--")));
+    java.nio.file.Path nativePath =
+        Files.createFile(
+            new File(subFolder, "foo").toPath(),
+            PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("r-xr--r--")));
 
     FileStatus status = sabotFS.getFileStatus(new Path(toPathString(nativePath)));
     assertEquals(toPathString(nativePath), toPathString(status.getPath()));
@@ -89,7 +93,7 @@ public class TestRemoteNodeFileSystemE2E extends BaseTestFabric {
 
     FileStatus[] statuses = sabotFS.listStatus(new Path(subFolder.getAbsolutePath()));
     Map<String, FileStatus> statusMap = new HashMap<>();
-    for(FileStatus status: statuses) {
+    for (FileStatus status : statuses) {
       statusMap.put(toPathString(status.getPath()), status);
     }
 
@@ -111,7 +115,7 @@ public class TestRemoteNodeFileSystemE2E extends BaseTestFabric {
   @Test
   public void testGetStatusThrowIOException() {
     assertThatThrownBy(() -> sabotFS.getFileStatus(new Path("/foo/bar/shouldnotexist")))
-      .isInstanceOf(FileNotFoundException.class);
+        .isInstanceOf(FileNotFoundException.class);
   }
 
   @Test
@@ -129,7 +133,9 @@ public class TestRemoteNodeFileSystemE2E extends BaseTestFabric {
     File subFolder = temporaryFolder.newFolder();
     java.nio.file.Path nativeFooPath = Files.createFile(new File(subFolder, "foo").toPath());
 
-    boolean res = sabotFS.rename(new Path(toPathString(nativeFooPath)), new Path(subFolder.getAbsolutePath(), "foo2"));
+    boolean res =
+        sabotFS.rename(
+            new Path(toPathString(nativeFooPath)), new Path(subFolder.getAbsolutePath(), "foo2"));
 
     assertTrue(res);
     assertTrue(Files.exists(new File(subFolder, "foo2").toPath()));
@@ -149,7 +155,7 @@ public class TestRemoteNodeFileSystemE2E extends BaseTestFabric {
   @Test
   public void testOpen() throws IOException {
     byte[] data = new byte[8192];
-    for(int i = 0; i<data.length; i++) {
+    for (int i = 0; i < data.length; i++) {
       data[i] = (byte) (i % 256);
     }
 
@@ -157,12 +163,11 @@ public class TestRemoteNodeFileSystemE2E extends BaseTestFabric {
     java.nio.file.Path nativeFooPath = Files.createFile(new File(subFolder, "foo").toPath());
     Files.write(nativeFooPath, data);
 
-
     byte[] readData = new byte[8192];
     int offset = 0;
 
-    try(FSDataInputStream fdis = sabotFS.open(new Path(toPathString(nativeFooPath)), 1024)) {
-      while(true) {
+    try (FSDataInputStream fdis = sabotFS.open(new Path(toPathString(nativeFooPath)), 1024)) {
+      while (true) {
         int res = fdis.read(readData, offset, readData.length - offset);
         if (res == -1) {
           break;
@@ -174,7 +179,6 @@ public class TestRemoteNodeFileSystemE2E extends BaseTestFabric {
 
     assertEquals(readData.length, offset);
     assertArrayEquals(data, readData);
-
   }
 
   private static String toPathString(Path path) {
@@ -184,5 +188,4 @@ public class TestRemoteNodeFileSystemE2E extends BaseTestFabric {
   private static String toPathString(java.nio.file.Path path) {
     return path.toUri().getPath().replaceAll("/$", "");
   }
-
 }

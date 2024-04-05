@@ -15,20 +15,16 @@
  */
 package com.dremio.exec.store.iceberg;
 
+import com.dremio.exec.store.dfs.FileSystemConfigurationAdapter;
+import com.dremio.io.FSOutputStream;
+import com.dremio.io.file.Path;
 import java.io.IOException;
 import java.io.UncheckedIOException;
-
 import org.apache.iceberg.io.InputFile;
 import org.apache.iceberg.io.OutputFile;
 import org.apache.iceberg.io.PositionOutputStream;
 
-import com.dremio.exec.store.dfs.FileSystemConfigurationAdapter;
-import com.dremio.io.FSOutputStream;
-import com.dremio.io.file.Path;
-
-/**
- * DremioOutputFile. used in DremioFileIO to output iceberg metadata file.
- */
+/** DremioOutputFile. used in DremioFileIO to output iceberg metadata file. */
 public class DremioOutputFile implements OutputFile {
 
   private final DremioFileIO io;
@@ -39,7 +35,8 @@ public class DremioOutputFile implements OutputFile {
   public DremioOutputFile(DremioFileIO io, Path path, FileSystemConfigurationAdapter conf) {
     this.io = io;
     this.path = path;
-    this.locationWithScheme = IcebergUtils.getValidIcebergPath(path.toString(), conf, io.getFs().getScheme());
+    this.locationWithScheme =
+        IcebergUtils.getValidIcebergPath(path.toString(), conf, io.getFs().getScheme());
   }
 
   @Override

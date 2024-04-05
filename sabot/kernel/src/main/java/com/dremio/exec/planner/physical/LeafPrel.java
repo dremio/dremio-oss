@@ -15,17 +15,18 @@
  */
 package com.dremio.exec.planner.physical;
 
-/**
- * A {@link Prel} that has no children
- */
+/** A {@link Prel} that has no children */
 public interface LeafPrel extends Prel, HasDistributionAffinity {
   /**
    * get the maximum parallelizaiton width for this prel
+   *
    * @return the max parallelization width
    */
   int getMaxParallelizationWidth();
+
   /**
    * get the minimum parallelizaiton width for this prel
+   *
    * @return the minimum parallelization width
    */
   int getMinParallelizationWidth();

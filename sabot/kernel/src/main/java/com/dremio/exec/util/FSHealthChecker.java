@@ -15,22 +15,18 @@
  */
 package com.dremio.exec.util;
 
+import com.dremio.io.file.Path;
+import com.google.common.collect.ImmutableSet;
 import java.io.IOException;
 import java.nio.file.AccessMode;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
-
 import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.io.file.Path;
-import com.google.common.collect.ImmutableSet;
-
-/**
- * File System Plugin health checker
- */
+/** File System Plugin health checker */
 public interface FSHealthChecker {
 
   Set<String> S3_SCHEME = ImmutableSet.of("s3a", "s3", "s3n", "dremios3");
@@ -39,9 +35,14 @@ public interface FSHealthChecker {
   static Optional<FSHealthChecker> getInstance(Path path, String urlScheme, Configuration fsConf) {
     try {
       org.apache.hadoop.fs.Path p = new org.apache.hadoop.fs.Path(path.toURI());
-      if (!p.isRoot() && S3_SCHEME.stream().anyMatch(scheme -> urlScheme.toLowerCase(Locale.ROOT).startsWith(scheme))) {
-        Class<?> s3FSHealthCheckerClass = Class.forName("com.dremio.plugins.s3.store.S3FSHealthChecker");
-        return Optional.of((FSHealthChecker) s3FSHealthCheckerClass.getConstructor(Configuration.class).newInstance(fsConf));
+      if (!p.isRoot()
+          && S3_SCHEME.stream()
+              .anyMatch(scheme -> urlScheme.toLowerCase(Locale.ROOT).startsWith(scheme))) {
+        Class<?> s3FSHealthCheckerClass =
+            Class.forName("com.dremio.plugins.s3.store.S3FSHealthChecker");
+        return Optional.of(
+            (FSHealthChecker)
+                s3FSHealthCheckerClass.getConstructor(Configuration.class).newInstance(fsConf));
       }
     } catch (Exception e) {
       logger.error("Error while initialising health checker for Scheme " + urlScheme, e);

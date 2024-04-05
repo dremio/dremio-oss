@@ -15,72 +15,72 @@
  */
 package com.dremio.exec.physical.impl;
 
-import org.junit.Test;
-
 import com.dremio.sabot.BaseTestFunction;
+import org.junit.Test;
 
 public class TestComparisonFunctions extends BaseTestFunction {
 
   Object[][] intTests = {
-      {"c0 == c1", 10, 10, true},
-      {"c0 == c1", 10, 11, false},
-      {"c0 != c1", 10, 10, false},
-      {"c0 != c1", 10, 11, true},
-      {"c0 > c1", 10, 11, false},
-      {"c0 < c1", 10, 11, true},
-      {"c0 <= c1", 10, 11, true},
-      {"c0 >= c1", 10, 11, false}
+    {"c0 == c1", 10, 10, true},
+    {"c0 == c1", 10, 11, false},
+    {"c0 != c1", 10, 10, false},
+    {"c0 != c1", 10, 11, true},
+    {"c0 > c1", 10, 11, false},
+    {"c0 < c1", 10, 11, true},
+    {"c0 <= c1", 10, 11, true},
+    {"c0 >= c1", 10, 11, false}
   };
 
   Object[][] bigIntTests = {
-      {"c0 == c1", 10L, 10L, true},
-      {"c0 == c1", 10L, 11L, false},
-      {"c0 != c1", 10L, 10L, false},
-      {"c0 != c1", 10L, 11L, true},
-      {"c0 > c1", 10L, 11L, false},
-      {"c0 < c1", 10L, 11L, true},
-      {"c0 <= c1", 10L, 11L, true},
-      {"c0 >= c1", 10L, 11L, false}
+    {"c0 == c1", 10L, 10L, true},
+    {"c0 == c1", 10L, 11L, false},
+    {"c0 != c1", 10L, 10L, false},
+    {"c0 != c1", 10L, 11L, true},
+    {"c0 > c1", 10L, 11L, false},
+    {"c0 < c1", 10L, 11L, true},
+    {"c0 <= c1", 10L, 11L, true},
+    {"c0 >= c1", 10L, 11L, false}
   };
 
   Object[][] floatTests = {
-      {"c0 == c1", 10f, 10f, true},
-      {"c0 == c1", 10f, 11f, false},
-      {"c0 != c1", 10f, 10f, false},
-      {"c0 != c1", 10f, 11f, true},
-      {"c0 > c1", 10f, 11f, false},
-      {"c0 < c1", 10f, 11f, true},
-      {"c0 <= c1", 10f, 11f, true},
-      {"c0 >= c1", 10f, 11f, false}
+    {"c0 == c1", 10f, 10f, true},
+    {"c0 == c1", 10f, 11f, false},
+    {"c0 != c1", 10f, 10f, false},
+    {"c0 != c1", 10f, 11f, true},
+    {"c0 > c1", 10f, 11f, false},
+    {"c0 < c1", 10f, 11f, true},
+    {"c0 <= c1", 10f, 11f, true},
+    {"c0 >= c1", 10f, 11f, false}
   };
 
   Object[][] doubleTests = {
-      {"c0 == c1", 10d, 10d, true},
-      {"c0 == c1", 10d, 11d, false},
-      {"c0 != c1", 10d, 10d, false},
-      {"c0 != c1", 10d, 11d, true},
-      {"c0 > c1", 10d, 11d, false},
-      {"c0 < c1", 10d, 11d, true},
-      {"c0 <= c1", 10d, 11d, true},
-      {"c0 >= c1", 10d, 11d, false}
+    {"c0 == c1", 10d, 10d, true},
+    {"c0 == c1", 10d, 11d, false},
+    {"c0 != c1", 10d, 10d, false},
+    {"c0 != c1", 10d, 11d, true},
+    {"c0 > c1", 10d, 11d, false},
+    {"c0 < c1", 10d, 11d, true},
+    {"c0 <= c1", 10d, 11d, true},
+    {"c0 >= c1", 10d, 11d, false}
   };
 
   @Test
-  public void intComparisons(){
+  public void intComparisons() {
     testFunctions(intTests);
   }
+
   @Test
-  public void bigIntComparisons(){
+  public void bigIntComparisons() {
     testFunctions(bigIntTests);
   }
 
   @Test
-  public void doubleComparisons(){
+  public void doubleComparisons() {
     testFunctions(doubleTests);
   }
 
   @Test
-  public void floatComparisons(){
+  public void floatComparisons() {
     testFunctions(floatTests);
   }
 }

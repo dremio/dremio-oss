@@ -17,9 +17,7 @@ package com.dremio.service.execselector;
 
 import com.dremio.resource.ResourceSchedulingDecisionInfo;
 
-/**
- * Context information for executor selection
- */
+/** Context information for executor selection */
 public class ExecutorSelectionContext {
   private final ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo;
 

@@ -52,11 +52,11 @@ public class TestArrayWrappedIntIntMap {
     ArrayWrappedIntIntMap map = new ArrayWrappedIntIntMap();
     int[] expectedValues = new int[] {1, 32, 64, 150, 256, 4000};
 
-    for(int i=0; i<expectedValues.length; i++) {
+    for (int i = 0; i < expectedValues.length; i++) {
       map.put(expectedValues[i], expectedValues[i]);
     }
 
-    for(int i=0; i<expectedValues.length; i++) {
+    for (int i = 0; i < expectedValues.length; i++) {
       assertEquals(expectedValues[i], map.get(expectedValues[i]));
     }
   }

@@ -15,10 +15,9 @@
  */
 package com.dremio.exec.physical.config;
 
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import java.util.ArrayList;
 import java.util.List;
-
-import com.fasterxml.jackson.annotation.JsonTypeName;
 
 @JsonTypeName("ExtendedFormatOptions")
 public class ExtendedFormatOptions {
@@ -44,10 +43,15 @@ public class ExtendedFormatOptions {
 
   private List<String> nullIfExpressions = new ArrayList<>();
 
-  public ExtendedFormatOptions() {
-  }
+  public ExtendedFormatOptions() {}
 
-  public ExtendedFormatOptions(final Boolean trimSpace, final Boolean emptyAsNull, final String dateFormat, final String timeFormat, final String timeStampFormat, final List<String> nullIfExpressions) {
+  public ExtendedFormatOptions(
+      final Boolean trimSpace,
+      final Boolean emptyAsNull,
+      final String dateFormat,
+      final String timeFormat,
+      final String timeStampFormat,
+      final List<String> nullIfExpressions) {
     this.trimSpace = trimSpace;
     this.emptyAsNull = emptyAsNull;
     this.dateFormat = dateFormat;
@@ -103,10 +107,13 @@ public class ExtendedFormatOptions {
   public void setNullIfExpressions(final List<String> nullIfExpressions) {
     this.nullIfExpressions = nullIfExpressions;
     // Check if nullIfExpressions is non-null and non-empty.
-    final boolean nullIfExpressionsContainsData = (nullIfExpressions != null && !nullIfExpressions.isEmpty());
-    // In case 'nullIfExpressionsContainsData' is false, we want to preserve areStringTransformationsNeeded's original value.
+    final boolean nullIfExpressionsContainsData =
+        (nullIfExpressions != null && !nullIfExpressions.isEmpty());
+    // In case 'nullIfExpressionsContainsData' is false, we want to preserve
+    // areStringTransformationsNeeded's original value.
     // Hence, use logical OR here while setting areStringTransformationsNeeded.
-    setAreStringTransformationsNeeded(areStringTransformationsNeeded || nullIfExpressionsContainsData);
+    setAreStringTransformationsNeeded(
+        areStringTransformationsNeeded || nullIfExpressionsContainsData);
   }
 
   public boolean getAreStringTransformationsNeeded() {
@@ -119,13 +126,22 @@ public class ExtendedFormatOptions {
 
   @Override
   public String toString() {
-    return "ExtendedFormatOptions{" +
-            "trimSpace=" + trimSpace +
-            ", emptyAsNull=" + emptyAsNull +
-            ", dateFormat='" + dateFormat + '\'' +
-            ", timeFormat='" + timeFormat + '\'' +
-            ", timeStampFormat='" + timeStampFormat + '\'' +
-            ", nullIfExpressions=" + nullIfExpressions +
-            '}';
+    return "ExtendedFormatOptions{"
+        + "trimSpace="
+        + trimSpace
+        + ", emptyAsNull="
+        + emptyAsNull
+        + ", dateFormat='"
+        + dateFormat
+        + '\''
+        + ", timeFormat='"
+        + timeFormat
+        + '\''
+        + ", timeStampFormat='"
+        + timeStampFormat
+        + '\''
+        + ", nullIfExpressions="
+        + nullIfExpressions
+        + '}';
   }
 }

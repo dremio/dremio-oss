@@ -31,17 +31,6 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Optional;
-
-import org.apache.arrow.vector.types.pojo.Schema;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-import org.mockito.ArgumentMatchers;
-import org.mockito.stubbing.Answer;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.connector.metadata.BytesOutput;
 import com.dremio.connector.metadata.DatasetHandle;
@@ -76,29 +65,40 @@ import com.dremio.service.scheduler.ModifiableSchedulerService;
 import com.dremio.test.UserExceptionAssert;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Optional;
+import org.apache.arrow.vector.types.pojo.Schema;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+import org.mockito.ArgumentMatchers;
+import org.mockito.stubbing.Answer;
 
 public class TestSourceMetadataManager {
   private static final int MAX_COLUMNS = 800;
   private static final int MAX_NESTED_LEVELS = 16;
   private OptionManager optionManager;
-  private final MetadataRefreshInfoBroadcaster broadcaster = mock(MetadataRefreshInfoBroadcaster.class);
+  private final MetadataRefreshInfoBroadcaster broadcaster =
+      mock(MetadataRefreshInfoBroadcaster.class);
   private ModifiableSchedulerService modifiableSchedulerService;
 
   @Before
   public void setup() {
     optionManager = mock(OptionManager.class);
     when(optionManager.getOption(eq(CatalogOptions.SPLIT_COMPRESSION_TYPE)))
-      .thenAnswer((Answer) invocation -> NamespaceService.SplitCompression.SNAPPY.toString());
+        .thenAnswer((Answer) invocation -> NamespaceService.SplitCompression.SNAPPY.toString());
     doNothing().when(broadcaster).communicateChange(any());
 
     PositiveLongValidator option = ExecConstants.MAX_CONCURRENT_METADATA_REFRESHES;
     when(optionManager.getOption(option)).thenReturn(1L);
-    modifiableSchedulerService = new ModifiableLocalSchedulerService(1, "modifiable-scheduler-",
-        option, () -> optionManager);
+    modifiableSchedulerService =
+        new ModifiableLocalSchedulerService(
+            1, "modifiable-scheduler-", option, () -> optionManager);
   }
 
   @After
-  public void tearDown() throws Exception{
+  public void tearDown() throws Exception {
     AutoCloseables.close(modifiableSchedulerService);
   }
 
@@ -112,46 +112,43 @@ public class TestSourceMetadataManager {
             new DatasetConfig()
                 .setTag("0")
                 .setReadDefinition(new ReadDefinition())
-                .setFullPathList(ImmutableList.of("one", "two"))
-        );
+                .setFullPathList(ImmutableList.of("one", "two")));
 
     boolean[] deleted = new boolean[] {false};
-    doAnswer(invocation -> {
-      deleted[0] = true;
-      return null;
-    }).when(ns).deleteDataset(any(), anyString());
+    doAnswer(
+            invocation -> {
+              deleted[0] = true;
+              return null;
+            })
+        .when(ns)
+        .deleteDataset(any(), anyString());
 
     ExtendedStoragePlugin sp = mock(ExtendedStoragePlugin.class);
-    when(sp.getDatasetHandle(any(), any(), any()))
-        .thenReturn(Optional.empty());
+    when(sp.getDatasetHandle(any(), any(), any())).thenReturn(Optional.empty());
 
     ManagedStoragePlugin.MetadataBridge msp = mock(ManagedStoragePlugin.MetadataBridge.class);
-    when(msp.getMetadata())
-        .thenReturn(sp);
+    when(msp.getMetadata()).thenReturn(sp);
     when(msp.getMetadataPolicy())
         .thenReturn(new MetadataPolicy().setDeleteUnavailableDatasets(false));
-    when(msp.getMaxMetadataColumns())
-      .thenReturn(MAX_COLUMNS);
-    when(msp.getMaxNestedLevels())
-      .thenReturn(MAX_NESTED_LEVELS);
-    when(msp.getNamespaceService())
-      .thenReturn(ns);
-    when(msp.getOrphanage())
-      .thenReturn(orphanage);
+    when(msp.getMaxMetadataColumns()).thenReturn(MAX_COLUMNS);
+    when(msp.getMaxNestedLevels()).thenReturn(MAX_NESTED_LEVELS);
+    when(msp.getNamespaceService()).thenReturn(ns);
+    when(msp.getOrphanage()).thenReturn(orphanage);
 
     //noinspection unchecked
-    SourceMetadataManager manager = new SourceMetadataManager(
-        new NamespaceKey("joker"),
-        modifiableSchedulerService,
-        true,
-        mock(LegacyKVStore.class),
-        msp,
-        optionManager,
-        CatalogServiceMonitor.DEFAULT,
-        () -> broadcaster
-      );
+    SourceMetadataManager manager =
+        new SourceMetadataManager(
+            new NamespaceKey("joker"),
+            modifiableSchedulerService,
+            true,
+            mock(LegacyKVStore.class),
+            msp,
+            optionManager,
+            CatalogServiceMonitor.DEFAULT,
+            () -> broadcaster);
 
-    assertEquals(DatasetCatalog.UpdateStatus.DELETED,
+    assertEquals(
+        DatasetCatalog.UpdateStatus.DELETED,
         manager.refreshDataset(new NamespaceKey(""), DatasetRetrievalOptions.DEFAULT));
     assertTrue(deleted[0]);
   }
@@ -160,45 +157,42 @@ public class TestSourceMetadataManager {
   public void doNotDeleteUnavailableDataset() throws Exception {
     NamespaceService ns = mock(NamespaceService.class);
     when(ns.getDataset(any()))
-        .thenReturn(new DatasetConfig()
-                        .setReadDefinition(new ReadDefinition())
-                        .setFullPathList(ImmutableList.of("one", "two")));
+        .thenReturn(
+            new DatasetConfig()
+                .setReadDefinition(new ReadDefinition())
+                .setFullPathList(ImmutableList.of("one", "two")));
 
     doThrow(new IllegalStateException("should not invoke deleteDataset()"))
         .when(ns)
         .deleteDataset(any(), anyString());
 
     ExtendedStoragePlugin sp = mock(ExtendedStoragePlugin.class);
-    when(sp.getDatasetHandle(any(), any(), any()))
-        .thenReturn(Optional.empty());
+    when(sp.getDatasetHandle(any(), any(), any())).thenReturn(Optional.empty());
 
     ManagedStoragePlugin.MetadataBridge msp = mock(ManagedStoragePlugin.MetadataBridge.class);
-    when(msp.getMetadata())
-        .thenReturn(sp);
+    when(msp.getMetadata()).thenReturn(sp);
     when(msp.getMetadataPolicy())
         .thenReturn(new MetadataPolicy().setDeleteUnavailableDatasets(false));
-    when(msp.getMaxMetadataColumns())
-      .thenReturn(MAX_COLUMNS);
-    when(msp.getMaxNestedLevels())
-      .thenReturn(MAX_NESTED_LEVELS);
-    when(msp.getNamespaceService())
-      .thenReturn(ns);
+    when(msp.getMaxMetadataColumns()).thenReturn(MAX_COLUMNS);
+    when(msp.getMaxNestedLevels()).thenReturn(MAX_NESTED_LEVELS);
+    when(msp.getNamespaceService()).thenReturn(ns);
 
     //noinspection unchecked
-    SourceMetadataManager manager = new SourceMetadataManager(
-        new NamespaceKey("joker"),
-        modifiableSchedulerService,
-        true,
-        mock(LegacyKVStore.class),
-        msp,
-        optionManager,
-        CatalogServiceMonitor.DEFAULT,
-        () -> broadcaster
-    );
+    SourceMetadataManager manager =
+        new SourceMetadataManager(
+            new NamespaceKey("joker"),
+            modifiableSchedulerService,
+            true,
+            mock(LegacyKVStore.class),
+            msp,
+            optionManager,
+            CatalogServiceMonitor.DEFAULT,
+            () -> broadcaster);
 
-
-    assertEquals(DatasetCatalog.UpdateStatus.UNCHANGED,
-        manager.refreshDataset(new NamespaceKey(""),
+    assertEquals(
+        DatasetCatalog.UpdateStatus.UNCHANGED,
+        manager.refreshDataset(
+            new NamespaceKey(""),
             DatasetRetrievalOptions.DEFAULT.toBuilder()
                 .setDeleteUnavailableDatasets(false)
                 .build()));
@@ -210,48 +204,43 @@ public class TestSourceMetadataManager {
     Orphanage orphanage = mock(Orphanage.class);
     when(ns.getDataset(any()))
         .thenReturn(
-            new DatasetConfig()
-                .setTag("0")
-                .setFullPathList(ImmutableList.of("one", "two"))
-        );
+            new DatasetConfig().setTag("0").setFullPathList(ImmutableList.of("one", "two")));
 
     boolean[] deleted = new boolean[] {false};
-    doAnswer(invocation -> {
-      deleted[0] = true;
-      return null;
-    }).when(ns).deleteDataset(any(), anyString());
+    doAnswer(
+            invocation -> {
+              deleted[0] = true;
+              return null;
+            })
+        .when(ns)
+        .deleteDataset(any(), anyString());
 
     ExtendedStoragePlugin sp = mock(ExtendedStoragePlugin.class);
-    when(sp.getDatasetHandle(any(), any(), any()))
-        .thenReturn(Optional.empty());
+    when(sp.getDatasetHandle(any(), any(), any())).thenReturn(Optional.empty());
 
     ManagedStoragePlugin.MetadataBridge msp = mock(ManagedStoragePlugin.MetadataBridge.class);
-    when(msp.getMetadata())
-        .thenReturn(sp);
+    when(msp.getMetadata()).thenReturn(sp);
     when(msp.getMetadataPolicy())
         .thenReturn(new MetadataPolicy().setDeleteUnavailableDatasets(false));
-    when(msp.getMaxMetadataColumns())
-      .thenReturn(MAX_COLUMNS);
-    when(msp.getMaxNestedLevels())
-      .thenReturn(MAX_NESTED_LEVELS);
-    when(msp.getNamespaceService())
-      .thenReturn(ns);
-    when(msp.getOrphanage())
-      .thenReturn(orphanage);
+    when(msp.getMaxMetadataColumns()).thenReturn(MAX_COLUMNS);
+    when(msp.getMaxNestedLevels()).thenReturn(MAX_NESTED_LEVELS);
+    when(msp.getNamespaceService()).thenReturn(ns);
+    when(msp.getOrphanage()).thenReturn(orphanage);
 
     //noinspection unchecked
-    SourceMetadataManager manager = new SourceMetadataManager(
-        new NamespaceKey("joker"),
-        modifiableSchedulerService,
-        true,
-        mock(LegacyKVStore.class),
-        msp,
-        optionManager,
-        CatalogServiceMonitor.DEFAULT,
-        () -> broadcaster
-    );
+    SourceMetadataManager manager =
+        new SourceMetadataManager(
+            new NamespaceKey("joker"),
+            modifiableSchedulerService,
+            true,
+            mock(LegacyKVStore.class),
+            msp,
+            optionManager,
+            CatalogServiceMonitor.DEFAULT,
+            () -> broadcaster);
 
-    assertEquals(DatasetCatalog.UpdateStatus.DELETED,
+    assertEquals(
+        DatasetCatalog.UpdateStatus.DELETED,
         manager.refreshDataset(new NamespaceKey(""), DatasetRetrievalOptions.DEFAULT));
     assertTrue(deleted[0]);
   }
@@ -259,43 +248,40 @@ public class TestSourceMetadataManager {
   @Test
   public void doNotDeleteUnavailableDatasetWithoutDefinition() throws Exception {
     NamespaceService ns = mock(NamespaceService.class);
-    when(ns.getDataset(any())).thenReturn(new DatasetConfig()
-                                                .setFullPathList(ImmutableList.of("one", "two")));
+    when(ns.getDataset(any()))
+        .thenReturn(new DatasetConfig().setFullPathList(ImmutableList.of("one", "two")));
 
     doThrow(new IllegalStateException("should not invoke deleteDataset()"))
         .when(ns)
         .deleteDataset(any(), anyString());
 
     ExtendedStoragePlugin sp = mock(ExtendedStoragePlugin.class);
-    when(sp.getDatasetHandle(any(), any(), any()))
-        .thenReturn(Optional.empty());
+    when(sp.getDatasetHandle(any(), any(), any())).thenReturn(Optional.empty());
 
     ManagedStoragePlugin.MetadataBridge msp = mock(ManagedStoragePlugin.MetadataBridge.class);
-    when(msp.getMetadata())
-        .thenReturn(sp);
+    when(msp.getMetadata()).thenReturn(sp);
     when(msp.getMetadataPolicy())
         .thenReturn(new MetadataPolicy().setDeleteUnavailableDatasets(false));
-    when(msp.getMaxMetadataColumns())
-        .thenReturn(MAX_COLUMNS);
-    when(msp.getMaxNestedLevels())
-      .thenReturn(MAX_NESTED_LEVELS);
-    when(msp.getNamespaceService())
-        .thenReturn(ns);
+    when(msp.getMaxMetadataColumns()).thenReturn(MAX_COLUMNS);
+    when(msp.getMaxNestedLevels()).thenReturn(MAX_NESTED_LEVELS);
+    when(msp.getNamespaceService()).thenReturn(ns);
 
     //noinspection unchecked
-    SourceMetadataManager manager = new SourceMetadataManager(
-        new NamespaceKey("joker"),
-        modifiableSchedulerService,
-        true,
-        mock(LegacyKVStore.class),
-        msp,
-        optionManager,
-        CatalogServiceMonitor.DEFAULT,
-        () -> broadcaster
-    );
+    SourceMetadataManager manager =
+        new SourceMetadataManager(
+            new NamespaceKey("joker"),
+            modifiableSchedulerService,
+            true,
+            mock(LegacyKVStore.class),
+            msp,
+            optionManager,
+            CatalogServiceMonitor.DEFAULT,
+            () -> broadcaster);
 
-    assertEquals(DatasetCatalog.UpdateStatus.UNCHANGED,
-        manager.refreshDataset(new NamespaceKey(""),
+    assertEquals(
+        DatasetCatalog.UpdateStatus.UNCHANGED,
+        manager.refreshDataset(
+            new NamespaceKey(""),
             DatasetRetrievalOptions.DEFAULT.toBuilder()
                 .setDeleteUnavailableDatasets(false)
                 .build()));
@@ -307,42 +293,40 @@ public class TestSourceMetadataManager {
     NamespaceService ns = mock(NamespaceService.class);
 
     doThrow(new NamespaceNotFoundException(new NamespaceKey(""), "not found"))
-      .when(ns)
-      .getDataset(any());
+        .when(ns)
+        .getDataset(any());
 
     ExtendedStoragePlugin sp = mock(ExtendedStoragePlugin.class);
-    when(sp.getDatasetHandle(any(), any(), any()))
-      .thenReturn(Optional.empty());
+    when(sp.getDatasetHandle(any(), any(), any())).thenReturn(Optional.empty());
 
     ManagedStoragePlugin.MetadataBridge msp = mock(ManagedStoragePlugin.MetadataBridge.class);
-    when(msp.getMetadata())
-      .thenReturn(sp);
+    when(msp.getMetadata()).thenReturn(sp);
     when(msp.getMetadataPolicy())
-      .thenReturn(new MetadataPolicy().setDeleteUnavailableDatasets(false));
-    when(msp.getMaxMetadataColumns())
-      .thenReturn(MAX_COLUMNS);
-    when(msp.getMaxNestedLevels())
-      .thenReturn(MAX_NESTED_LEVELS);
-    when(msp.getNamespaceService())
-      .thenReturn(ns);
+        .thenReturn(new MetadataPolicy().setDeleteUnavailableDatasets(false));
+    when(msp.getMaxMetadataColumns()).thenReturn(MAX_COLUMNS);
+    when(msp.getMaxNestedLevels()).thenReturn(MAX_NESTED_LEVELS);
+    when(msp.getNamespaceService()).thenReturn(ns);
 
-    SourceMetadataManager manager = new SourceMetadataManager(
-      new NamespaceKey("joker"),
-      modifiableSchedulerService,
-      true,
-      mock(LegacyKVStore.class),
-      msp,
-      optionManager,
-      CatalogServiceMonitor.DEFAULT,
-      () -> broadcaster
-    );
+    SourceMetadataManager manager =
+        new SourceMetadataManager(
+            new NamespaceKey("joker"),
+            modifiableSchedulerService,
+            true,
+            mock(LegacyKVStore.class),
+            msp,
+            optionManager,
+            CatalogServiceMonitor.DEFAULT,
+            () -> broadcaster);
 
-    assertThatThrownBy(() -> manager.refreshDataset(new NamespaceKey("three"),
-      DatasetRetrievalOptions.DEFAULT.toBuilder()
-        .setForceUpdate(true)
-        .setMaxMetadataLeafColumns(1)
-        .build()))
-      .isInstanceOf(DatasetNotFoundException.class);
+    assertThatThrownBy(
+            () ->
+                manager.refreshDataset(
+                    new NamespaceKey("three"),
+                    DatasetRetrievalOptions.DEFAULT.toBuilder()
+                        .setForceUpdate(true)
+                        .setMaxMetadataLeafColumns(1)
+                        .build()))
+        .isInstanceOf(DatasetNotFoundException.class);
   }
 
   @Test
@@ -353,54 +337,55 @@ public class TestSourceMetadataManager {
     DatasetMetadataSaver saver = mock(DatasetMetadataSaver.class);
     doNothing().when(saver).saveDataset(any(), anyBoolean(), any(), any());
     when(ns.newDatasetMetadataSaver(any(), any(), any(), anyLong(), anyBoolean()))
-      .thenReturn(saver);
+        .thenReturn(saver);
 
     ExtendedStoragePlugin sp = mock(ExtendedStoragePlugin.class);
     DatasetHandle handle = () -> new EntityPath(Lists.newArrayList("one"));
     when(sp.getDatasetHandle(any(), ArgumentMatchers.<GetDatasetOption[]>any()))
-      .thenReturn(Optional.of(handle));
-    when(sp.provideSignature(any(), any()))
-      .thenReturn(BytesOutput.NONE);
+        .thenReturn(Optional.of(handle));
+    when(sp.provideSignature(any(), any())).thenReturn(BytesOutput.NONE);
 
-    final boolean[] forced = new boolean[]{false};
-    doAnswer(invocation -> {
-      forced[0] = true;
-      return DatasetMetadata.of(DatasetStats.of(0, ScanCostFactor.OTHER.getFactor()), new Schema(new ArrayList<>()));
-    }).when(sp)
-      .getDatasetMetadata(any(DatasetHandle.class), any(PartitionChunkListing.class),
-        ArgumentMatchers.<GetMetadataOption[]>any());
+    final boolean[] forced = new boolean[] {false};
+    doAnswer(
+            invocation -> {
+              forced[0] = true;
+              return DatasetMetadata.of(
+                  DatasetStats.of(0, ScanCostFactor.OTHER.getFactor()),
+                  new Schema(new ArrayList<>()));
+            })
+        .when(sp)
+        .getDatasetMetadata(
+            any(DatasetHandle.class),
+            any(PartitionChunkListing.class),
+            ArgumentMatchers.<GetMetadataOption[]>any());
     when(sp.listPartitionChunks(any(), ArgumentMatchers.<ListPartitionChunkOption>any()))
-      .thenReturn(Collections::emptyIterator);
+        .thenReturn(Collections::emptyIterator);
     when(sp.validateMetadata(any(), any(), any()))
-      .thenReturn(SupportsReadSignature.MetadataValidity.VALID);
+        .thenReturn(SupportsReadSignature.MetadataValidity.VALID);
 
     ManagedStoragePlugin.MetadataBridge msp = mock(ManagedStoragePlugin.MetadataBridge.class);
-    when(msp.getMetadata())
-      .thenReturn(sp);
+    when(msp.getMetadata()).thenReturn(sp);
     when(msp.getMetadataPolicy())
-      .thenReturn(new MetadataPolicy().setDeleteUnavailableDatasets(false));
-    when(msp.getMaxMetadataColumns())
-      .thenReturn(MAX_COLUMNS);
-    when(msp.getMaxNestedLevels())
-      .thenReturn(MAX_NESTED_LEVELS);
+        .thenReturn(new MetadataPolicy().setDeleteUnavailableDatasets(false));
+    when(msp.getMaxMetadataColumns()).thenReturn(MAX_COLUMNS);
+    when(msp.getMaxNestedLevels()).thenReturn(MAX_NESTED_LEVELS);
     when(msp.getNamespaceService()).thenReturn(ns);
 
     //noinspection unchecked
-    SourceMetadataManager manager = new SourceMetadataManager(
-        new NamespaceKey("joker"),
-        modifiableSchedulerService,
-        true,
-        mock(LegacyKVStore.class),
-        msp,
-        optionManager,
-        CatalogServiceMonitor.DEFAULT,
-        () -> broadcaster
-    );
+    SourceMetadataManager manager =
+        new SourceMetadataManager(
+            new NamespaceKey("joker"),
+            modifiableSchedulerService,
+            true,
+            mock(LegacyKVStore.class),
+            msp,
+            optionManager,
+            CatalogServiceMonitor.DEFAULT,
+            () -> broadcaster);
 
-    manager.refreshDataset(new NamespaceKey(""),
-        DatasetRetrievalOptions.DEFAULT.toBuilder()
-            .setForceUpdate(true)
-            .build());
+    manager.refreshDataset(
+        new NamespaceKey(""),
+        DatasetRetrievalOptions.DEFAULT.toBuilder().setForceUpdate(true).build());
 
     assertTrue(forced[0]);
   }
@@ -417,66 +402,64 @@ public class TestSourceMetadataManager {
     final NamespaceKey dataSetKey = new NamespaceKey(ImmutableList.of(qualifier, capital));
 
     ExtendedStoragePlugin mockStoragePlugin = mock(ExtendedStoragePlugin.class);
-      when(mockStoragePlugin.listDatasetHandles())
-        .thenReturn(Collections::emptyIterator);
-    when(mockStoragePlugin.getDatasetHandle(eq(capitalPath), ArgumentMatchers.<GetDatasetOption[]>any()))
+    when(mockStoragePlugin.listDatasetHandles()).thenReturn(Collections::emptyIterator);
+    when(mockStoragePlugin.getDatasetHandle(
+            eq(capitalPath), ArgumentMatchers.<GetDatasetOption[]>any()))
         .thenReturn(Optional.empty());
-    when(mockStoragePlugin.getDatasetHandle(eq(originalPath), ArgumentMatchers.<GetDatasetOption[]>any()))
+    when(mockStoragePlugin.getDatasetHandle(
+            eq(originalPath), ArgumentMatchers.<GetDatasetOption[]>any()))
         .thenReturn(Optional.of(datasetHandle));
-      when(mockStoragePlugin.getState())
-        .thenReturn(SourceState.GOOD);
-    when(mockStoragePlugin.listPartitionChunks(any(), ArgumentMatchers.<ListPartitionChunkOption>any()))
+    when(mockStoragePlugin.getState()).thenReturn(SourceState.GOOD);
+    when(mockStoragePlugin.listPartitionChunks(
+            any(), ArgumentMatchers.<ListPartitionChunkOption>any()))
         .thenReturn(Collections::emptyIterator);
-      when(mockStoragePlugin.validateMetadata(any(), any(), any()))
+    when(mockStoragePlugin.validateMetadata(any(), any(), any()))
         .thenReturn(SupportsReadSignature.MetadataValidity.VALID);
-      when(mockStoragePlugin.provideSignature(any(), any()))
-        .thenReturn(BytesOutput.NONE);
-      final boolean[] forced = new boolean[]{false};
-      doAnswer(invocation -> {
-        forced[0] = true;
-        return DatasetMetadata.of(DatasetStats.of(0, ScanCostFactor.OTHER.getFactor()), new Schema(new ArrayList<>()));
-      }).when(mockStoragePlugin).getDatasetMetadata(any(DatasetHandle.class), any(), any(), any(),any());
+    when(mockStoragePlugin.provideSignature(any(), any())).thenReturn(BytesOutput.NONE);
+    final boolean[] forced = new boolean[] {false};
+    doAnswer(
+            invocation -> {
+              forced[0] = true;
+              return DatasetMetadata.of(
+                  DatasetStats.of(0, ScanCostFactor.OTHER.getFactor()),
+                  new Schema(new ArrayList<>()));
+            })
+        .when(mockStoragePlugin)
+        .getDatasetMetadata(any(DatasetHandle.class), any(), any(), any(), any());
 
     NamespaceService ns = mock(NamespaceService.class);
-    when(ns.getDataset(any()))
-      .thenReturn(MetadataObjectsUtils.newShallowConfig(datasetHandle));
+    when(ns.getDataset(any())).thenReturn(MetadataObjectsUtils.newShallowConfig(datasetHandle));
 
     DatasetMetadataSaver saver = mock(DatasetMetadataSaver.class);
     doNothing().when(saver).saveDataset(any(), anyBoolean(), any(), any());
     when(ns.newDatasetMetadataSaver(any(), any(), any(), anyLong(), anyBoolean()))
-      .thenReturn(saver);
+        .thenReturn(saver);
 
     ManagedStoragePlugin.MetadataBridge msp = mock(ManagedStoragePlugin.MetadataBridge.class);
-    when(msp.getMetadata())
-      .thenReturn(mockStoragePlugin);
-    when(msp.getMetadataPolicy())
-      .thenReturn(new MetadataPolicy());
-    when(msp.getNamespaceService())
-      .thenReturn(ns);
+    when(msp.getMetadata()).thenReturn(mockStoragePlugin);
+    when(msp.getMetadataPolicy()).thenReturn(new MetadataPolicy());
+    when(msp.getNamespaceService()).thenReturn(ns);
 
-    SourceMetadataManager manager = new SourceMetadataManager(
-      dataSetKey,
-      modifiableSchedulerService,
-      true,
-      mock(LegacyKVStore.class),
-      msp,
-      optionManager,
-      CatalogServiceMonitor.DEFAULT,
-      () -> broadcaster
-    );
+    SourceMetadataManager manager =
+        new SourceMetadataManager(
+            dataSetKey,
+            modifiableSchedulerService,
+            true,
+            mock(LegacyKVStore.class),
+            msp,
+            optionManager,
+            CatalogServiceMonitor.DEFAULT,
+            () -> broadcaster);
 
-    assertEquals(DatasetCatalog.UpdateStatus.CHANGED,
-      manager.refreshDataset(dataSetKey,
-        DatasetRetrievalOptions.DEFAULT.toBuilder()
-          .build())
-    );
+    assertEquals(
+        DatasetCatalog.UpdateStatus.CHANGED,
+        manager.refreshDataset(dataSetKey, DatasetRetrievalOptions.DEFAULT.toBuilder().build()));
   }
 
   @Test
   public void exceedMaxColumnLimit() throws Exception {
     NamespaceService ns = mock(NamespaceService.class);
-    when(ns.getDataset(any()))
-        .thenReturn(null);
+    when(ns.getDataset(any())).thenReturn(null);
 
     ExtendedStoragePlugin sp = mock(ExtendedStoragePlugin.class);
 
@@ -487,76 +470,69 @@ public class TestSourceMetadataManager {
         .thenReturn(Collections::emptyIterator);
 
     when(sp.validateMetadata(any(), eq(handle), any()))
-      .thenReturn(SupportsReadSignature.MetadataValidity.INVALID);
+        .thenReturn(SupportsReadSignature.MetadataValidity.INVALID);
     doThrow(new ColumnCountTooLargeException(1))
-      .when(sp)
-      .getDatasetMetadata(eq(handle), any(), ArgumentMatchers.<GetMetadataOption[]>any());
+        .when(sp)
+        .getDatasetMetadata(eq(handle), any(), ArgumentMatchers.<GetMetadataOption[]>any());
 
     ManagedStoragePlugin.MetadataBridge msp = mock(ManagedStoragePlugin.MetadataBridge.class);
-    when(msp.getMetadata())
-        .thenReturn(sp);
-    when(msp.getMetadataPolicy())
-        .thenReturn(new MetadataPolicy());
-    when(msp.getNamespaceService())
-        .thenReturn(ns);
+    when(msp.getMetadata()).thenReturn(sp);
+    when(msp.getMetadataPolicy()).thenReturn(new MetadataPolicy());
+    when(msp.getNamespaceService()).thenReturn(ns);
 
     //noinspection unchecked
-    SourceMetadataManager manager = new SourceMetadataManager(
-        new NamespaceKey("joker"),
-        modifiableSchedulerService,
-        true,
-        mock(LegacyKVStore.class),
-        msp,
-        optionManager,
-        CatalogServiceMonitor.DEFAULT,
-        () -> broadcaster
-    );
+    SourceMetadataManager manager =
+        new SourceMetadataManager(
+            new NamespaceKey("joker"),
+            modifiableSchedulerService,
+            true,
+            mock(LegacyKVStore.class),
+            msp,
+            optionManager,
+            CatalogServiceMonitor.DEFAULT,
+            () -> broadcaster);
 
-    UserExceptionAssert.assertThatThrownBy(() -> manager.refreshDataset(new NamespaceKey(""),
-        DatasetRetrievalOptions.DEFAULT.toBuilder()
-            .setForceUpdate(true)
-            .setMaxMetadataLeafColumns(1)
-            .build()))
-      .hasErrorType(VALIDATION)
-      .hasMessageContaining("exceeded the maximum number of fields of 1");
+    UserExceptionAssert.assertThatThrownBy(
+            () ->
+                manager.refreshDataset(
+                    new NamespaceKey(""),
+                    DatasetRetrievalOptions.DEFAULT.toBuilder()
+                        .setForceUpdate(true)
+                        .setMaxMetadataLeafColumns(1)
+                        .build()))
+        .hasErrorType(VALIDATION)
+        .hasMessageContaining("exceeded the maximum number of fields of 1");
   }
 
   @Test
   public void disableCheckMetadataValidity() throws Exception {
     NamespaceService ns = mock(NamespaceService.class);
-    when(ns.getDataset(any()))
-      .thenReturn(null);
+    when(ns.getDataset(any())).thenReturn(null);
 
     ExtendedStoragePlugin sp = mock(ExtendedStoragePlugin.class);
 
     DatasetHandle handle = () -> new EntityPath(Lists.newArrayList("one"));
-    when(sp.getDatasetHandle(any(), any(), any()))
-      .thenReturn(Optional.of(handle));
-    when(sp.listPartitionChunks(any(), any(), any()))
-      .thenReturn(Collections::emptyIterator);
+    when(sp.getDatasetHandle(any(), any(), any())).thenReturn(Optional.of(handle));
+    when(sp.listPartitionChunks(any(), any(), any())).thenReturn(Collections::emptyIterator);
 
     MetadataPolicy metadataPolicy = new MetadataPolicy();
     metadataPolicy.setDatasetDefinitionExpireAfterMs(1000L);
     ManagedStoragePlugin.MetadataBridge msp = mock(ManagedStoragePlugin.MetadataBridge.class);
-    when(msp.getMetadata())
-      .thenReturn(sp);
-    when(msp.getMetadataPolicy())
-      .thenReturn(metadataPolicy);
-    when(msp.getNamespaceService())
-      .thenReturn(ns);
-
+    when(msp.getMetadata()).thenReturn(sp);
+    when(msp.getMetadataPolicy()).thenReturn(metadataPolicy);
+    when(msp.getNamespaceService()).thenReturn(ns);
 
     //noinspection unchecked
-    SourceMetadataManager manager = new SourceMetadataManager(
-      new NamespaceKey("joker"),
-      modifiableSchedulerService,
-      true,
-      mock(LegacyKVStore.class),
-      msp,
-      optionManager,
-      CatalogServiceMonitor.DEFAULT,
-      () -> broadcaster
-    );
+    SourceMetadataManager manager =
+        new SourceMetadataManager(
+            new NamespaceKey("joker"),
+            modifiableSchedulerService,
+            true,
+            mock(LegacyKVStore.class),
+            msp,
+            optionManager,
+            CatalogServiceMonitor.DEFAULT,
+            () -> broadcaster);
 
     final ReadDefinition readDefinition = new ReadDefinition();
     readDefinition.setSplitVersion(0L);
@@ -568,14 +544,13 @@ public class TestSourceMetadataManager {
     datasetConfig.setReadDefinition(readDefinition);
     datasetConfig.setTotalNumSplits(0);
 
-
-    final MetadataRequestOptions metadataRequestOptions = ImmutableMetadataRequestOptions.newBuilder()
-      .setNewerThan(0L)
-      .setSchemaConfig(SchemaConfig.newBuilder(CatalogUser.from("dremio")).build())
-      .setCheckValidity(false)
-      .build();
+    final MetadataRequestOptions metadataRequestOptions =
+        ImmutableMetadataRequestOptions.newBuilder()
+            .setNewerThan(0L)
+            .setSchemaConfig(SchemaConfig.newBuilder(CatalogUser.from("dremio")).build())
+            .setCheckValidity(false)
+            .build();
     assertTrue(manager.isStillValid(metadataRequestOptions, datasetConfig, null));
-
   }
 
   @Test
@@ -584,31 +559,28 @@ public class TestSourceMetadataManager {
     NamespaceService ns = mock(NamespaceService.class);
     ExtendedStoragePlugin sp = mock(ExtendedStoragePlugin.class);
 
-    when(sp.getDatasetHandle(any(), any(), any()))
-      .thenReturn(Optional.empty());
-    when(msp.getMetadata())
-      .thenReturn(sp);
-    when(msp.getNamespaceService())
-      .thenReturn(ns);
-    doThrow(new NamespaceNotFoundException("not found"))
-      .when(ns)
-      .getDataset(any());
+    when(sp.getDatasetHandle(any(), any(), any())).thenReturn(Optional.empty());
+    when(msp.getMetadata()).thenReturn(sp);
+    when(msp.getNamespaceService()).thenReturn(ns);
+    doThrow(new NamespaceNotFoundException("not found")).when(ns).getDataset(any());
 
-    SourceMetadataManager manager = new SourceMetadataManager(
-      new NamespaceKey("testing"),
-      modifiableSchedulerService,
-      true,
-      mock(LegacyKVStore.class),
-      msp,
-      optionManager,
-      CatalogServiceMonitor.DEFAULT,
-      () -> broadcaster
-    );
+    SourceMetadataManager manager =
+        new SourceMetadataManager(
+            new NamespaceKey("testing"),
+            modifiableSchedulerService,
+            true,
+            mock(LegacyKVStore.class),
+            msp,
+            optionManager,
+            CatalogServiceMonitor.DEFAULT,
+            () -> broadcaster);
 
-    assertThatThrownBy(() -> manager.refreshDataset(new NamespaceKey("nonExistentDataset"),
-        DatasetRetrievalOptions.DEFAULT.toBuilder().build()))
-      .isInstanceOf(DatasetNotFoundException.class)
-      .hasMessageContaining("Dataset [nonExistentDataset] not found.");
+    assertThatThrownBy(
+            () ->
+                manager.refreshDataset(
+                    new NamespaceKey("nonExistentDataset"),
+                    DatasetRetrievalOptions.DEFAULT.toBuilder().build()))
+        .isInstanceOf(DatasetNotFoundException.class)
+        .hasMessageContaining("Dataset [nonExistentDataset] not found.");
   }
-
 }

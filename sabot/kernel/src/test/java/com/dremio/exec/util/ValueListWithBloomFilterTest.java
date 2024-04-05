@@ -18,12 +18,13 @@ package com.dremio.exec.util;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import com.dremio.common.AutoCloseables;
+import com.dremio.test.AllocatorRule;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.IntStream;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.types.Types;
@@ -32,16 +33,12 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
-import com.dremio.common.AutoCloseables;
-import com.dremio.test.AllocatorRule;
-
 public class ValueListWithBloomFilterTest {
 
   private static final String TEST_NAME = "TestName";
   private BufferAllocator testAllocator;
 
-  @Rule
-  public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
+  @Rule public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
 
   @Before
   public void setupBeforeTest() {
@@ -55,9 +52,10 @@ public class ValueListWithBloomFilterTest {
 
   @Test
   public void testInsertionInt() throws Exception {
-    try (ValueListFilterBuilder builder = new ValueListFilterBuilder(testAllocator, 100, (byte) 4, false);
-         AutoCloseables.RollbackCloseable closer = new AutoCloseables.RollbackCloseable();
-         ArrowBuf keyBuf = testAllocator.buffer(4)) {
+    try (ValueListFilterBuilder builder =
+            new ValueListFilterBuilder(testAllocator, 100, (byte) 4, false);
+        AutoCloseables.RollbackCloseable closer = new AutoCloseables.RollbackCloseable();
+        ArrowBuf keyBuf = testAllocator.buffer(4)) {
       builder.setup();
       List<Integer> insertedVals = Arrays.asList(1, 2, 3, 10, 20, 30, 100, 200, 300, 90);
       insertedVals.forEach(val -> builder.insert(writeKey(keyBuf, val)));
@@ -67,7 +65,11 @@ public class ValueListWithBloomFilterTest {
       ValueListFilter valueListFilter = builder.build();
       closer.add(valueListFilter);
 
-      ValueListWithBloomFilter valueListWithBloomFilter = ValueListFilterBuilder.fromBufferWithBloomFilter(testAllocator.buffer(valueListFilter.buf().capacity() + ValueListFilter.BLOOM_FILTER_SIZE), valueListFilter);
+      ValueListWithBloomFilter valueListWithBloomFilter =
+          ValueListFilterBuilder.fromBufferWithBloomFilter(
+              testAllocator.buffer(
+                  valueListFilter.buf().capacity() + ValueListFilter.BLOOM_FILTER_SIZE),
+              valueListFilter);
 
       closer.add(valueListWithBloomFilter);
 
@@ -75,7 +77,8 @@ public class ValueListWithBloomFilterTest {
 
       assertEquals(insertedVals.size(), valueListWithBloomFilter.getValueCount());
       List<Integer> storedVals = new ArrayList<>(valueListWithBloomFilter.getValueCount());
-      IntStream.range(0, valueListWithBloomFilter.getValueCount()).forEach(i -> storedVals.add(elements.getInt(i * 4)));
+      IntStream.range(0, valueListWithBloomFilter.getValueCount())
+          .forEach(i -> storedVals.add(elements.getInt(i * 4)));
 
       Collections.sort(insertedVals); // expect unique sorted
       assertEquals(insertedVals, storedVals);
@@ -86,9 +89,10 @@ public class ValueListWithBloomFilterTest {
 
   @Test
   public void testInsertionLong() throws Exception {
-    try (ValueListFilterBuilder builder = new ValueListFilterBuilder(testAllocator, 100, (byte) 8, false);
-         AutoCloseables.RollbackCloseable closer = new AutoCloseables.RollbackCloseable();
-         ArrowBuf keyBuf = testAllocator.buffer(8)) {
+    try (ValueListFilterBuilder builder =
+            new ValueListFilterBuilder(testAllocator, 100, (byte) 8, false);
+        AutoCloseables.RollbackCloseable closer = new AutoCloseables.RollbackCloseable();
+        ArrowBuf keyBuf = testAllocator.buffer(8)) {
       builder.setup();
       List<Long> insertedVals = Arrays.asList(1L, 2L, 3L, 123L, 132L, 12L, 11L, 41L, 90L, 37L);
       insertedVals.forEach(val -> builder.insert(writeKey(keyBuf, val)));
@@ -98,7 +102,11 @@ public class ValueListWithBloomFilterTest {
       ValueListFilter valueListFilter = builder.build();
       closer.add(valueListFilter);
 
-      ValueListWithBloomFilter valueListWithBloomFilter = ValueListFilterBuilder.fromBufferWithBloomFilter(testAllocator.buffer(valueListFilter.buf().capacity() + ValueListFilter.BLOOM_FILTER_SIZE), valueListFilter);
+      ValueListWithBloomFilter valueListWithBloomFilter =
+          ValueListFilterBuilder.fromBufferWithBloomFilter(
+              testAllocator.buffer(
+                  valueListFilter.buf().capacity() + ValueListFilter.BLOOM_FILTER_SIZE),
+              valueListFilter);
 
       closer.add(valueListWithBloomFilter);
 
@@ -106,7 +114,8 @@ public class ValueListWithBloomFilterTest {
 
       assertEquals(insertedVals.size(), valueListWithBloomFilter.getValueCount());
       List<Long> storedVals = new ArrayList<>(valueListWithBloomFilter.getValueCount());
-      IntStream.range(0, valueListWithBloomFilter.getValueCount()).forEach(i -> storedVals.add(elements.getLong(i * 8)));
+      IntStream.range(0, valueListWithBloomFilter.getValueCount())
+          .forEach(i -> storedVals.add(elements.getLong(i * 8)));
 
       Collections.sort(insertedVals); // expect unique sorted
       assertEquals(insertedVals, storedVals);
@@ -117,9 +126,10 @@ public class ValueListWithBloomFilterTest {
 
   @Test
   public void testBloomFilterBuilder() throws Exception {
-    try (ValueListFilterBuilder builder = new ValueListFilterBuilder(testAllocator, 100, (byte) 8, false, true);
-         AutoCloseables.RollbackCloseable closer = new AutoCloseables.RollbackCloseable();
-         ArrowBuf keyBuf = testAllocator.buffer(8)) {
+    try (ValueListFilterBuilder builder =
+            new ValueListFilterBuilder(testAllocator, 100, (byte) 8, false, true);
+        AutoCloseables.RollbackCloseable closer = new AutoCloseables.RollbackCloseable();
+        ArrowBuf keyBuf = testAllocator.buffer(8)) {
       builder.setup();
       List<Long> insertedVals = Arrays.asList(1L, 2L, 3L, 123L, 132L, 12L, 11L, 41L, 90L, 37L);
       insertedVals.forEach(val -> builder.insert(writeKey(keyBuf, val)));
@@ -132,7 +142,8 @@ public class ValueListWithBloomFilterTest {
 
       assertEquals(insertedVals.size(), valueListFilter.getValueCount());
       List<Long> storedVals = new ArrayList<>(valueListFilter.getValueCount());
-      IntStream.range(0, valueListFilter.getValueCount()).forEach(i -> storedVals.add(elements.getLong(i * 8)));
+      IntStream.range(0, valueListFilter.getValueCount())
+          .forEach(i -> storedVals.add(elements.getLong(i * 8)));
 
       Collections.sort(insertedVals); // expect unique sorted
       assertEquals(insertedVals, storedVals);
@@ -140,6 +151,7 @@ public class ValueListWithBloomFilterTest {
       insertedVals.forEach(x -> assertTrue(valueListFilter.mightBePresent(x)));
     }
   }
+
   private static ArrowBuf writeKey(ArrowBuf keyBuf, int val) {
     keyBuf.setInt(0, val);
     return keyBuf;

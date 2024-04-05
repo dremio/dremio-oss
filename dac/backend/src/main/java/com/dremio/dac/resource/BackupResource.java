@@ -15,18 +15,6 @@
  */
 package com.dremio.dac.resource;
 
-import java.io.IOException;
-
-import javax.annotation.security.RolesAllowed;
-import javax.inject.Inject;
-import javax.inject.Provider;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.core.SecurityContext;
-
-import org.apache.hadoop.conf.Configuration;
-import org.immutables.value.Value;
-
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.homefiles.HomeFileTool;
@@ -41,13 +29,20 @@ import com.dremio.io.file.FileSystem;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceService;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import java.io.IOException;
+import javax.annotation.security.RolesAllowed;
+import javax.inject.Inject;
+import javax.inject.Provider;
+import javax.ws.rs.POST;
+import javax.ws.rs.Path;
+import javax.ws.rs.core.SecurityContext;
+import org.apache.hadoop.conf.Configuration;
+import org.immutables.value.Value;
 
-/**
- * Trigger backup
- */
+/** Trigger backup */
 @RestResource
 @Secured
-@RolesAllowed({ "admin" })
+@RolesAllowed({"admin"})
 @Path("/backup")
 public class BackupResource {
   private final Provider<HomeFileTool> fileStore;
@@ -56,14 +51,14 @@ public class BackupResource {
 
   @Inject
   public BackupResource(
-    Provider<LegacyKVStoreProvider> kvStoreProviderProvider,
-    Provider<HomeFileTool> fileStore,
-    Provider<NamespaceService> namespaceService,
-    SecurityContext securityContext) {
-    this.localKVStoreProvider = () -> kvStoreProviderProvider.get().unwrap(LocalKVStoreProvider.class);
+      Provider<LegacyKVStoreProvider> kvStoreProviderProvider,
+      Provider<HomeFileTool> fileStore,
+      Provider<NamespaceService> namespaceService,
+      SecurityContext securityContext) {
+    this.localKVStoreProvider =
+        () -> kvStoreProviderProvider.get().unwrap(LocalKVStoreProvider.class);
     this.fileStore = fileStore;
   }
-
 
   @POST
   public BackupStats createBackup(BackupOptions options) throws IOException, NamespaceException {
@@ -73,15 +68,14 @@ public class BackupResource {
     final FileSystem fs = HadoopFileSystem.get(backupDirPath, new Configuration());
     // Checking if directory already exists and that the daemon can access it
     BackupRestoreUtil.checkOrCreateDirectory(fs, backupDirPath);
-    return BackupRestoreUtil.createBackup(fs, options, kvStoreProvider, fileStore.get().getConfForBackup(), null);
-
+    return BackupRestoreUtil.createBackup(
+        fs, options, kvStoreProvider, fileStore.get().getConfForBackup(), null);
   }
 
   @POST
   @Path("/checkpoint")
   public CheckpointInfo prepareCheckpoint(BackupOptions options) throws IOException {
     final LocalKVStoreProvider kvStoreProvider = getLocalKVStoreProvider();
-
 
     final com.dremio.io.file.Path backupDirPath = options.getBackupDirAsPath();
     final FileSystem fs = HadoopFileSystem.get(backupDirPath, new Configuration());
@@ -92,14 +86,15 @@ public class BackupResource {
 
   @POST
   @Path("/uploads")
-  public BackupStats backupUploads(
-    UploadsBackupOptions options) throws IOException, NamespaceException {
+  public BackupStats backupUploads(UploadsBackupOptions options)
+      throws IOException, NamespaceException {
     final com.dremio.io.file.Path backupDestinationDir =
-      com.dremio.io.file.Path.of(options.getBackupDestinationDirectory());
+        com.dremio.io.file.Path.of(options.getBackupDestinationDirectory());
     final com.dremio.io.file.Path backupRootDirPath = backupDestinationDir.getParent();
     final FileSystem fs = HadoopFileSystem.get(backupRootDirPath, new Configuration());
     final BackupStats backupStats = new BackupStats(options.getBackupDestinationDirectory(), 0, 0);
-    BackupRestoreUtil.backupUploadedFiles(fs, backupDestinationDir, fileStore.get().getConfForBackup(), backupStats);
+    BackupRestoreUtil.backupUploadedFiles(
+        fs, backupDestinationDir, fileStore.get().getConfForBackup(), backupStats);
     return backupStats;
   }
 
@@ -119,5 +114,4 @@ public class BackupResource {
 
     boolean isIncludeProfiles();
   }
-
 }

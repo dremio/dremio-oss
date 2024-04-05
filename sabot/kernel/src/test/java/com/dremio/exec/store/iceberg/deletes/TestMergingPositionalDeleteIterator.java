@@ -22,20 +22,21 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.google.common.collect.ImmutableList;
 import java.util.Iterator;
 import java.util.List;
-
 import org.junit.Test;
-
-import com.google.common.collect.ImmutableList;
 
 public class TestMergingPositionalDeleteIterator {
 
   @Test
   public void testIteration() {
-    PositionalDeleteIterator source1 = createPositionalDeleteIterator(ImmutableList.of(2L, 5L, 9L).iterator());
-    PositionalDeleteIterator source2 = createPositionalDeleteIterator(ImmutableList.of(3L, 6L).iterator());
-    PositionalDeleteIterator iterator = MergingPositionalDeleteIterator.merge(ImmutableList.of(source1, source2));
+    PositionalDeleteIterator source1 =
+        createPositionalDeleteIterator(ImmutableList.of(2L, 5L, 9L).iterator());
+    PositionalDeleteIterator source2 =
+        createPositionalDeleteIterator(ImmutableList.of(3L, 6L).iterator());
+    PositionalDeleteIterator iterator =
+        MergingPositionalDeleteIterator.merge(ImmutableList.of(source1, source2));
 
     List<Long> expected = ImmutableList.of(2L, 3L, 5L, 6L, 9L);
     assertThat(iterator).toIterable().containsExactlyElementsOf(expected);
@@ -43,9 +44,12 @@ public class TestMergingPositionalDeleteIterator {
 
   @Test
   public void testIterationWithDupes() {
-    PositionalDeleteIterator source1 = createPositionalDeleteIterator(ImmutableList.of(2L, 5L, 9L).iterator());
-    PositionalDeleteIterator source2 = createPositionalDeleteIterator(ImmutableList.of(3L, 5L, 6L).iterator());
-    PositionalDeleteIterator iterator = MergingPositionalDeleteIterator.merge(ImmutableList.of(source1, source2));
+    PositionalDeleteIterator source1 =
+        createPositionalDeleteIterator(ImmutableList.of(2L, 5L, 9L).iterator());
+    PositionalDeleteIterator source2 =
+        createPositionalDeleteIterator(ImmutableList.of(3L, 5L, 6L).iterator());
+    PositionalDeleteIterator iterator =
+        MergingPositionalDeleteIterator.merge(ImmutableList.of(source1, source2));
 
     List<Long> expected = ImmutableList.of(2L, 3L, 5L, 5L, 6L, 9L);
     assertThat(iterator).toIterable().containsExactlyElementsOf(expected);
@@ -53,17 +57,22 @@ public class TestMergingPositionalDeleteIterator {
 
   @Test
   public void testMergeReturnsSingleSourceIterator() {
-    PositionalDeleteIterator source1 = createPositionalDeleteIterator(ImmutableList.of(2L, 5L, 9L).iterator());
-    PositionalDeleteIterator iterator = MergingPositionalDeleteIterator.merge(ImmutableList.of(source1));
+    PositionalDeleteIterator source1 =
+        createPositionalDeleteIterator(ImmutableList.of(2L, 5L, 9L).iterator());
+    PositionalDeleteIterator iterator =
+        MergingPositionalDeleteIterator.merge(ImmutableList.of(source1));
 
     assertThat(iterator).isSameAs(source1);
   }
 
   @Test
   public void testSourceIteratorsImmediatelyClosed() throws Exception {
-    PositionalDeleteIterator source1 = createPositionalDeleteIterator(ImmutableList.of(2L, 5L, 9L).iterator());
-    PositionalDeleteIterator source2 = createPositionalDeleteIterator(ImmutableList.of(3L, 6L).iterator());
-    PositionalDeleteIterator iterator = MergingPositionalDeleteIterator.merge(ImmutableList.of(source1, source2));
+    PositionalDeleteIterator source1 =
+        createPositionalDeleteIterator(ImmutableList.of(2L, 5L, 9L).iterator());
+    PositionalDeleteIterator source2 =
+        createPositionalDeleteIterator(ImmutableList.of(3L, 6L).iterator());
+    PositionalDeleteIterator iterator =
+        MergingPositionalDeleteIterator.merge(ImmutableList.of(source1, source2));
 
     assertThat(iterator.next()).isEqualTo(2L);
     assertThat(iterator.next()).isEqualTo(3L);
@@ -84,9 +93,12 @@ public class TestMergingPositionalDeleteIterator {
 
   @Test
   public void testSourceIteratorsClosedIfNotFullyIterated() throws Exception {
-    PositionalDeleteIterator source1 = createPositionalDeleteIterator(ImmutableList.of(2L, 5L, 9L).iterator());
-    PositionalDeleteIterator source2 = createPositionalDeleteIterator(ImmutableList.of(3L, 6L).iterator());
-    PositionalDeleteIterator iterator = MergingPositionalDeleteIterator.merge(ImmutableList.of(source1, source2));
+    PositionalDeleteIterator source1 =
+        createPositionalDeleteIterator(ImmutableList.of(2L, 5L, 9L).iterator());
+    PositionalDeleteIterator source2 =
+        createPositionalDeleteIterator(ImmutableList.of(3L, 6L).iterator());
+    PositionalDeleteIterator iterator =
+        MergingPositionalDeleteIterator.merge(ImmutableList.of(source1, source2));
 
     assertThat(iterator.next()).isEqualTo(2L);
     assertThat(iterator.next()).isEqualTo(3L);
@@ -101,9 +113,12 @@ public class TestMergingPositionalDeleteIterator {
 
   @Test
   public void testSourceIteratorsClosedIfEmpty() throws Exception {
-    PositionalDeleteIterator source1 = createPositionalDeleteIterator(ImmutableList.<Long>of().iterator());
-    PositionalDeleteIterator source2 = createPositionalDeleteIterator(ImmutableList.<Long>of().iterator());
-    PositionalDeleteIterator iterator = MergingPositionalDeleteIterator.merge(ImmutableList.of(source1, source2));
+    PositionalDeleteIterator source1 =
+        createPositionalDeleteIterator(ImmutableList.<Long>of().iterator());
+    PositionalDeleteIterator source2 =
+        createPositionalDeleteIterator(ImmutableList.<Long>of().iterator());
+    PositionalDeleteIterator iterator =
+        MergingPositionalDeleteIterator.merge(ImmutableList.of(source1, source2));
 
     // both iterators should have been closed in the constructor
     verify(source1, times(1)).close();
@@ -115,9 +130,12 @@ public class TestMergingPositionalDeleteIterator {
 
   @Test
   public void testEmptySourceIterator() {
-    PositionalDeleteIterator source1 = createPositionalDeleteIterator(ImmutableList.<Long>of().iterator());
-    PositionalDeleteIterator source2 = createPositionalDeleteIterator(ImmutableList.of(3L, 4L).iterator());
-    PositionalDeleteIterator iterator = MergingPositionalDeleteIterator.merge(ImmutableList.of(source1, source2));
+    PositionalDeleteIterator source1 =
+        createPositionalDeleteIterator(ImmutableList.<Long>of().iterator());
+    PositionalDeleteIterator source2 =
+        createPositionalDeleteIterator(ImmutableList.of(3L, 4L).iterator());
+    PositionalDeleteIterator iterator =
+        MergingPositionalDeleteIterator.merge(ImmutableList.of(source1, source2));
 
     List<Long> expected = ImmutableList.of(3L, 4L);
     assertThat(iterator).toIterable().containsExactlyElementsOf(expected);
@@ -125,9 +143,12 @@ public class TestMergingPositionalDeleteIterator {
 
   @Test
   public void testAllSourceIteratorsEmpty() {
-    PositionalDeleteIterator source1 = createPositionalDeleteIterator(ImmutableList.<Long>of().iterator());
-    PositionalDeleteIterator source2 = createPositionalDeleteIterator(ImmutableList.<Long>of().iterator());
-    PositionalDeleteIterator iterator = MergingPositionalDeleteIterator.merge(ImmutableList.of(source1, source2));
+    PositionalDeleteIterator source1 =
+        createPositionalDeleteIterator(ImmutableList.<Long>of().iterator());
+    PositionalDeleteIterator source2 =
+        createPositionalDeleteIterator(ImmutableList.<Long>of().iterator());
+    PositionalDeleteIterator iterator =
+        MergingPositionalDeleteIterator.merge(ImmutableList.of(source1, source2));
 
     List<Long> expected = ImmutableList.of();
     assertThat(iterator).toIterable().containsExactlyElementsOf(expected);

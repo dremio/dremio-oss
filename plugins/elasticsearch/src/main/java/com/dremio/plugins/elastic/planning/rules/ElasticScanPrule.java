@@ -15,10 +15,6 @@
  */
 package com.dremio.plugins.elastic.planning.rules;
 
-import org.apache.calcite.plan.RelOptRule;
-import org.apache.calcite.plan.RelOptRuleCall;
-import org.apache.calcite.rel.RelNode;
-
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.planner.logical.RelOptHelper;
 import com.dremio.exec.planner.physical.Prel;
@@ -26,10 +22,11 @@ import com.dremio.plugins.elastic.planning.rels.ElasticIntermediateScanPrel;
 import com.dremio.plugins.elastic.planning.rels.ElasticsearchIntermediatePrel;
 import com.dremio.plugins.elastic.planning.rels.ElasticsearchScanDrel;
 import com.google.common.collect.ImmutableList;
+import org.apache.calcite.plan.RelOptRule;
+import org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.calcite.rel.RelNode;
 
-/**
- * Rule that converts elastic logical to physical scan
- */
+/** Rule that converts elastic logical to physical scan */
 public class ElasticScanPrule extends RelOptRule {
 
   private final FunctionLookupContext lookupContext;
@@ -42,21 +39,19 @@ public class ElasticScanPrule extends RelOptRule {
   @Override
   public void onMatch(RelOptRuleCall call) {
     ElasticsearchScanDrel logicalScan = call.rel(0);
-    ElasticIntermediateScanPrel physicalScan = new ElasticIntermediateScanPrel(
-        logicalScan.getCluster(),
-        logicalScan.getTraitSet().replace(Prel.PHYSICAL),
-        logicalScan.getTable(),
-        logicalScan.getTableMetadata(),
-        logicalScan.getProjectedColumns(),
-        logicalScan.getObservedRowcountAdjustment(),
-        logicalScan.getHints(),
-        ImmutableList.of()
-        );
+    ElasticIntermediateScanPrel physicalScan =
+        new ElasticIntermediateScanPrel(
+            logicalScan.getCluster(),
+            logicalScan.getTraitSet().replace(Prel.PHYSICAL),
+            logicalScan.getTable(),
+            logicalScan.getTableMetadata(),
+            logicalScan.getProjectedColumns(),
+            logicalScan.getObservedRowcountAdjustment(),
+            logicalScan.getHints(),
+            ImmutableList.of());
 
-    RelNode converted = new ElasticsearchIntermediatePrel(
-        physicalScan.getTraitSet(),
-        physicalScan,
-        lookupContext);
+    RelNode converted =
+        new ElasticsearchIntermediatePrel(physicalScan.getTraitSet(), physicalScan, lookupContext);
 
     call.transformTo(converted);
   }

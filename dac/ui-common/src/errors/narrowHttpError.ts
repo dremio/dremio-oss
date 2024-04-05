@@ -42,7 +42,7 @@ export const narrowHttpError = async (error: HttpError) => {
     case 400:
       return new BadRequestError(
         error.res,
-        responseBody as GenericServerErrorResponseBody
+        responseBody as GenericServerErrorResponseBody,
       );
     case 401:
       return new UnauthorizedError(error.res, responseBody);
@@ -61,7 +61,7 @@ export const narrowHttpError = async (error: HttpError) => {
     default:
       return new GenericServerError(
         error.res,
-        responseBody as GenericServerErrorResponseBody
+        responseBody as GenericServerErrorResponseBody,
       );
   }
 };

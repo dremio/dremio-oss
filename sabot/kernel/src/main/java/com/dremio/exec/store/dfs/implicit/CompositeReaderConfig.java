@@ -15,22 +15,20 @@
  */
 package com.dremio.exec.store.dfs.implicit;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
-
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.types.pojo.Field;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.google.common.collect.ImmutableList;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.types.pojo.Field;
 
 public class CompositeReaderConfig {
 
@@ -38,60 +36,76 @@ public class CompositeReaderConfig {
   private final ImmutableList<SchemaPath> innerColumns;
   private final Map<String, Field> implicitColumns;
 
-  private CompositeReaderConfig(OperatorContext context, List<SchemaPath> innerColumns,
-      List<Field> implicitColumns) {
+  private CompositeReaderConfig(
+      OperatorContext context, List<SchemaPath> innerColumns, List<Field> implicitColumns) {
     super();
     this.context = context;
     this.innerColumns = ImmutableList.copyOf(innerColumns);
-    this.implicitColumns = implicitColumns.stream().collect(Collectors.toMap(Field::getName, f -> f));
+    this.implicitColumns =
+        implicitColumns.stream().collect(Collectors.toMap(Field::getName, f -> f));
   }
 
-  public List<SchemaPath> getInnerColumns(){
+  public List<SchemaPath> getInnerColumns() {
     return innerColumns;
   }
 
-  public RecordReader wrapIfNecessary(BufferAllocator allocator, RecordReader innerReader,
-      SplitAndPartitionInfo splitInfo) {
-    return wrapIfNecessary(allocator, innerReader, splitInfo, new PartitionImplicitColumnValuesProvider());
+  public RecordReader wrapIfNecessary(
+      BufferAllocator allocator, RecordReader innerReader, SplitAndPartitionInfo splitInfo) {
+    return wrapIfNecessary(
+        allocator, innerReader, splitInfo, new PartitionImplicitColumnValuesProvider());
   }
 
-  public RecordReader wrapIfNecessary(BufferAllocator allocator, RecordReader innerReader,
-      SplitAndPartitionInfo splitInfo, ImplicitColumnValuesProvider implicitFieldProvider) {
+  public RecordReader wrapIfNecessary(
+      BufferAllocator allocator,
+      RecordReader innerReader,
+      SplitAndPartitionInfo splitInfo,
+      ImplicitColumnValuesProvider implicitFieldProvider) {
     if (implicitColumns.isEmpty()) {
       return innerReader;
     } else {
-      final List<NameValuePair<?>> nameValuePairs = implicitFieldProvider.getImplicitColumnValues(allocator, splitInfo,
-          implicitColumns, context.getOptions());
-      return new AdditionalColumnsRecordReader(context, innerReader, nameValuePairs, allocator, splitInfo);
+      final List<NameValuePair<?>> nameValuePairs =
+          implicitFieldProvider.getImplicitColumnValues(
+              allocator, splitInfo, implicitColumns, context.getOptions());
+      return new AdditionalColumnsRecordReader(
+          context, innerReader, nameValuePairs, allocator, splitInfo);
     }
   }
 
-  public List<NameValuePair<?>> getPartitionNVPairs(final BufferAllocator allocator, final SplitAndPartitionInfo split) {
-    PartitionImplicitColumnValuesProvider implicitFieldProvider = new PartitionImplicitColumnValuesProvider();
-    return implicitFieldProvider.getImplicitColumnValues(allocator, split, implicitColumns, context.getOptions());
+  public List<NameValuePair<?>> getPartitionNVPairs(
+      final BufferAllocator allocator, final SplitAndPartitionInfo split) {
+    PartitionImplicitColumnValuesProvider implicitFieldProvider =
+        new PartitionImplicitColumnValuesProvider();
+    return implicitFieldProvider.getImplicitColumnValues(
+        allocator, split, implicitColumns, context.getOptions());
   }
 
-  public static CompositeReaderConfig getCompound(OperatorContext context, BatchSchema schema,
-      List<SchemaPath> selectedColumns, List<String> partitionColumnsList) {
+  public static CompositeReaderConfig getCompound(
+      OperatorContext context,
+      BatchSchema schema,
+      List<SchemaPath> selectedColumns,
+      List<String> partitionColumnsList) {
     Set<String> allImplicitColumns = new HashSet<>();
     if (partitionColumnsList != null) {
       allImplicitColumns.addAll(partitionColumnsList);
     }
-    allImplicitColumns.addAll(ImplicitFilesystemColumnFinder.getEnabledNonPartitionColumns(context.getOptions()));
+    allImplicitColumns.addAll(
+        ImplicitFilesystemColumnFinder.getEnabledNonPartitionColumns(context.getOptions()));
 
     List<SchemaPath> remainingColumns = new ArrayList<>();
     Set<String> selectedImplicitColumns = new HashSet<>();
     for (SchemaPath p : selectedColumns) {
-      if (p.getRootSegment().isLastPath() && allImplicitColumns.contains(p.getRootSegment().getPath())) {
+      if (p.getRootSegment().isLastPath()
+          && allImplicitColumns.contains(p.getRootSegment().getPath())) {
         selectedImplicitColumns.add(p.getRootSegment().getPath());
       } else {
         remainingColumns.add(p);
       }
     }
 
-    List<Field> implicitColumns = schema.getFields().stream()
-        .filter(f -> selectedImplicitColumns.contains(f.getName()))
-        .collect(Collectors.toList());
+    List<Field> implicitColumns =
+        schema.getFields().stream()
+            .filter(f -> selectedImplicitColumns.contains(f.getName()))
+            .collect(Collectors.toList());
 
     return new CompositeReaderConfig(context, remainingColumns, implicitColumns);
   }

@@ -19,8 +19,11 @@ import com.google.common.base.Preconditions;
 
 public final class InformationSchemaCatalogUtil {
   private InformationSchemaCatalogUtil() {}
+
   public static char getEscapeCharacter(String escape) {
-    Preconditions.checkArgument(escape == null || escape.isEmpty() || escape.length() == 1, "An escape must be a single character.");
+    Preconditions.checkArgument(
+        escape == null || escape.isEmpty() || escape.length() == 1,
+        "An escape must be a single character.");
     return escape == null || escape.isEmpty() ? '\\' : escape.charAt(0);
   }
 }

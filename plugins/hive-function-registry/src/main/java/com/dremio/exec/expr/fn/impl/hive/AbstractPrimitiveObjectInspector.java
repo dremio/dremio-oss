@@ -17,8 +17,9 @@ package com.dremio.exec.expr.fn.impl.hive;
 
 import org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo;
 
-
-public abstract class AbstractPrimitiveObjectInspector extends org.apache.hadoop.hive.serde2.objectinspector.primitive.AbstractPrimitiveObjectInspector {
+public abstract class AbstractPrimitiveObjectInspector
+    extends org.apache.hadoop.hive.serde2.objectinspector.primitive
+        .AbstractPrimitiveObjectInspector {
 
   public AbstractPrimitiveObjectInspector(PrimitiveTypeInfo typeEntry) {
     super(typeEntry);

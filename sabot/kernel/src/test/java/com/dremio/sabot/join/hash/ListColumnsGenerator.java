@@ -15,12 +15,16 @@
  */
 package com.dremio.sabot.join.hash;
 
-
 import static com.dremio.common.expression.CompleteType.LIST;
 
+import com.dremio.common.expression.CompleteType;
+import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.record.VectorAccessible;
+import com.dremio.exec.record.VectorContainer;
+import com.dremio.sabot.Generator;
+import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BaseFixedWidthVector;
@@ -33,17 +37,10 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.util.JsonStringArrayList;
 
-import com.dremio.common.expression.CompleteType;
-import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.record.VectorAccessible;
-import com.dremio.exec.record.VectorContainer;
-import com.dremio.sabot.Generator;
-import com.google.common.collect.ImmutableList;
-
 /**
- * A vector container containing following types of vectors -
- * IntVector, ListVector of Int, ListVector of String.
- * Used for unit tests in {@link TestVHashJoinSpillBuildAndReplay}
+ * A vector container containing following types of vectors - IntVector, ListVector of Int,
+ * ListVector of String. Used for unit tests in {@link TestVHashJoinSpillBuildAndReplay}
+ *
  * @param <T>
  */
 class ListColumnsGenerator<T extends FieldVector> implements Generator {
@@ -58,8 +55,8 @@ class ListColumnsGenerator<T extends FieldVector> implements Generator {
 
   private final BufferAllocator allocator;
 
-
-  public ListColumnsGenerator(final BufferAllocator allocator, final int rows, final int offset, final String postFix) {
+  public ListColumnsGenerator(
+      final BufferAllocator allocator, final int rows, final int offset, final String postFix) {
 
     this.allocator = allocator;
     this.rows = rows;
@@ -70,24 +67,25 @@ class ListColumnsGenerator<T extends FieldVector> implements Generator {
 
     final ImmutableList.Builder<T> vectorsBuilder = ImmutableList.builder();
 
-    final Field fieldId = new Field("id_"+ this.postFix, new FieldType(true,
-      new ArrowType.Int(32, true), null), null);
+    final Field fieldId =
+        new Field(
+            "id_" + this.postFix, new FieldType(true, new ArrowType.Int(32, true), null), null);
 
     final T idLeftVector = result.addOrGet(fieldId);
     vectorsBuilder.add(idLeftVector);
 
-
-
     final List<Field> childrenField1 = ImmutableList.of(CompleteType.INT.toField("integerCol"));
 
-    final Field fieldIntList = new Field("ints_" + this.postFix, FieldType.nullable(LIST.getType()), childrenField1);
+    final Field fieldIntList =
+        new Field("ints_" + this.postFix, FieldType.nullable(LIST.getType()), childrenField1);
 
     final T intListVector = result.addOrGet(fieldIntList);
     vectorsBuilder.add(intListVector);
 
     final List<Field> childrenField2 = ImmutableList.of(CompleteType.VARCHAR.toField("strCol"));
 
-    final Field fieldStringList = new Field("strings_" + this.postFix, FieldType.nullable(LIST.getType()), childrenField2);
+    final Field fieldStringList =
+        new Field("strings_" + this.postFix, FieldType.nullable(LIST.getType()), childrenField2);
 
     final T stringListVector = result.addOrGet(fieldStringList);
     vectorsBuilder.add(stringListVector);
@@ -99,12 +97,12 @@ class ListColumnsGenerator<T extends FieldVector> implements Generator {
 
   /**
    * Generate a new record.
+   *
    * @param records
    * @return
    */
   @Override
   public int next(final int records) {
-
 
     final int count = Math.min(rows - offset, records);
 
@@ -119,7 +117,6 @@ class ListColumnsGenerator<T extends FieldVector> implements Generator {
     for (int i = 0; i < count; i++) {
 
       insertIntoIntVector(offset, offset, (BaseFixedWidthVector) vectors.get(0));
-
 
       insetIntoIntListVector(intValues);
 
@@ -143,7 +140,6 @@ class ListColumnsGenerator<T extends FieldVector> implements Generator {
       for (int num : intList) {
         listWriter.writeInt(num);
       }
-
     }
 
     listWriter.endList();
@@ -151,7 +147,7 @@ class ListColumnsGenerator<T extends FieldVector> implements Generator {
 
   private void insetIntoStringListVector(final List<List<String>> strValues) {
     final UnionListWriter listWriter = new UnionListWriter((ListVector) vectors.get(2));
-    try (final ArrowBuf tempBuf =  allocator.buffer(1024)) {
+    try (final ArrowBuf tempBuf = allocator.buffer(1024)) {
       listWriter.setPosition(offset);
       listWriter.startList();
       for (List<String> intList : strValues) {
@@ -160,11 +156,9 @@ class ListColumnsGenerator<T extends FieldVector> implements Generator {
           tempBuf.setBytes(0, varCharVal);
           listWriter.writeVarChar(0, varCharVal.length, tempBuf);
         }
-
       }
 
       listWriter.endList();
-
     }
   }
 
@@ -200,7 +194,7 @@ class ListColumnsGenerator<T extends FieldVector> implements Generator {
 
     final StringBuilder builder = new StringBuilder();
 
-    builder.append((char)('0' + num));
+    builder.append((char) ('0' + num));
 
     return builder.toString();
   }
@@ -216,8 +210,9 @@ class ListColumnsGenerator<T extends FieldVector> implements Generator {
     result.close();
   }
 
-  private static void insertIntoIntVector(final int index, final int value, final BaseFixedWidthVector vector) {
-    final IntVector vec = (IntVector)vector;
+  private static void insertIntoIntVector(
+      final int index, final int value, final BaseFixedWidthVector vector) {
+    final IntVector vec = (IntVector) vector;
     vec.setSafe(index, value);
   }
 }

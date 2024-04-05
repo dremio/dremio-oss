@@ -15,14 +15,15 @@
  */
 package com.dremio.exec.exception;
 
-public class BitComException extends Exception{
+public class BitComException extends Exception {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BitComException.class);
 
   public BitComException() {
     super();
   }
 
-  public BitComException(String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
+  public BitComException(
+      String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
     super(message, cause, enableSuppression, writableStackTrace);
   }
 
@@ -37,5 +38,4 @@ public class BitComException extends Exception{
   public BitComException(Throwable cause) {
     super(cause);
   }
-
 }

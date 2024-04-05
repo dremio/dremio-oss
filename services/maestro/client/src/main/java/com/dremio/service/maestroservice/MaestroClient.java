@@ -17,40 +17,40 @@ package com.dremio.service.maestroservice;
 
 import com.dremio.exec.proto.CoordExecRPC;
 import com.google.protobuf.Empty;
-
 import io.grpc.stub.StreamObserver;
 
 /**
- * Maestro client interface for executors to interact with it.
- * Will have a product specific (fabric based) and daas specific
- * implementations.
+ * Maestro client interface for executors to interact with it. Will have a product specific (fabric
+ * based) and daas specific implementations.
  */
 public interface MaestroClient {
   /**
    * Used to inform maestro of screen completion.
+   *
    * @param request
    * @param responseObserver
    * @return
    */
-  public void screenComplete(CoordExecRPC.NodeQueryScreenCompletion request,
-                             StreamObserver<Empty> responseObserver);
+  public void screenComplete(
+      CoordExecRPC.NodeQueryScreenCompletion request, StreamObserver<Empty> responseObserver);
 
   /**
    * Used to inform maestro of query completion on a specific node.
+   *
    * @param request
    * @param responseObserver
    * @return
    */
-  public void nodeQueryComplete(CoordExecRPC.NodeQueryCompletion request,
-                                StreamObserver<Empty> responseObserver);
+  public void nodeQueryComplete(
+      CoordExecRPC.NodeQueryCompletion request, StreamObserver<Empty> responseObserver);
 
   /**
    * Used to inform maestro of an error processing a query on a specific node.
+   *
    * @param request
    * @param responseObserver
    * @return
    */
-  public void nodeFirstError(CoordExecRPC.NodeQueryFirstError request,
-                             StreamObserver<Empty> responseObserver);
-
+  public void nodeFirstError(
+      CoordExecRPC.NodeQueryFirstError request, StreamObserver<Empty> responseObserver);
 }

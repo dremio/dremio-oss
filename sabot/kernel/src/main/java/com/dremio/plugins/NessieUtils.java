@@ -15,8 +15,8 @@
  */
 package com.dremio.plugins;
 
+import com.dremio.common.util.Retryer;
 import javax.inject.Provider;
-
 import org.projectnessie.client.api.NessieApiV2;
 import org.projectnessie.error.BaseNessieClientServerException;
 import org.projectnessie.error.NessieRuntimeException;
@@ -27,8 +27,6 @@ import org.projectnessie.model.Namespace;
 import org.projectnessie.model.Operation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.dremio.common.util.Retryer;
 
 public final class NessieUtils {
 
@@ -42,44 +40,47 @@ public final class NessieUtils {
     // Utility class not meant for instantiation.
   }
 
-  public static void createNamespaceInDefaultBranchIfNotExists(Provider<NessieApiV2> apiProvider,
-                                                               String singleLevelNamespace) {
-    // Retries are needed to resolve rare, but possible contention on namespace creation from multiple engine nodes.
+  public static void createNamespaceInDefaultBranchIfNotExists(
+      Provider<NessieApiV2> apiProvider, String singleLevelNamespace) {
+    // Retries are needed to resolve rare, but possible contention on namespace creation from
+    // multiple engine nodes.
     // Note: The operation is idempotent.
     Retryer.newBuilder()
-      .retryIfExceptionOfType(BaseNessieClientServerException.class)
-      .retryIfExceptionOfType(NessieRuntimeException.class)
-      .setMaxRetries(NESSIE_NS_AUTOCREATE_RETRIES)
-      .setWaitStrategy(Retryer.WaitStrategy.EXPONENTIAL,
-        NESSIE_NS_AUTOCREATE_BASE_WAIT_MS,
-        NESSIE_NS_AUTOCREATE_MAX_WAIT_MS)
-      .build()
-      .call(() -> {
-        NessieApiV2 api = apiProvider.get();
+        .retryIfExceptionOfType(BaseNessieClientServerException.class)
+        .retryIfExceptionOfType(NessieRuntimeException.class)
+        .setMaxRetries(NESSIE_NS_AUTOCREATE_RETRIES)
+        .setWaitStrategy(
+            Retryer.WaitStrategy.EXPONENTIAL,
+            NESSIE_NS_AUTOCREATE_BASE_WAIT_MS,
+            NESSIE_NS_AUTOCREATE_MAX_WAIT_MS)
+        .build()
+        .call(
+            () -> {
+              NessieApiV2 api = apiProvider.get();
 
-        Namespace ns = Namespace.of(singleLevelNamespace);
-        ContentKey key = ns.toContentKey();
+              Namespace ns = Namespace.of(singleLevelNamespace);
+              ContentKey key = ns.toContentKey();
 
-        Branch branch = api.getDefaultBranch();
+              Branch branch = api.getDefaultBranch();
 
-        boolean exists = api.getContent().reference(branch).key(key).get().containsKey(key);
-        logger.trace("Namespace {} exists: {}", key, exists);
+              boolean exists = api.getContent().reference(branch).key(key).get().containsKey(key);
+              logger.trace("Namespace {} exists: {}", key, exists);
 
-        if (exists) {
-          return null;
-        }
+              if (exists) {
+                return null;
+              }
 
-        logger.debug("Creating Namespace {} in {}", key, branch);
+              logger.debug("Creating Namespace {} in {}", key, branch);
 
-        Branch committed =
-          api.commitMultipleOperations()
-            .commitMeta(CommitMeta.fromMessage("Create namespace " + key))
-            .branch(branch)
-            .operation(Operation.Put.of(key, ns))
-            .commit();
+              Branch committed =
+                  api.commitMultipleOperations()
+                      .commitMeta(CommitMeta.fromMessage("Create namespace " + key))
+                      .branch(branch)
+                      .operation(Operation.Put.of(key, ns))
+                      .commit();
 
-        logger.info("Created Namespace {} in reference {}", key, committed);
-        return null;
-      });
+              logger.info("Created Namespace {} in reference {}", key, committed);
+              return null;
+            });
   }
 }

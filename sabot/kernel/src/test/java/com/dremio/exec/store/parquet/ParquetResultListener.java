@@ -15,16 +15,9 @@
  */
 package com.dremio.exec.store.parquet;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-
-import java.io.UnsupportedEncodingException;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
-
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.ValueVector;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.types.TypeProtos;
@@ -39,9 +32,15 @@ import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.dremio.sabot.rpc.user.UserResultsListener;
 import com.google.common.base.Strings;
 import com.google.common.util.concurrent.SettableFuture;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.ValueVector;
 
 public class ParquetResultListener implements UserResultsListener {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ParquetResultListener.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ParquetResultListener.class);
 
   private final SettableFuture<Void> future = SettableFuture.create();
   private int count = 0;
@@ -54,8 +53,11 @@ public class ParquetResultListener implements UserResultsListener {
   private final Map<String, Integer> valuesChecked = new HashMap<>();
   private final ParquetTestProperties props;
 
-  ParquetResultListener(BufferAllocator allocator, ParquetTestProperties props,
-      int numberOfTimesRead, boolean testValues) {
+  ParquetResultListener(
+      BufferAllocator allocator,
+      ParquetTestProperties props,
+      int numberOfTimesRead,
+      boolean testValues) {
     this.allocator = allocator;
     this.props = props;
     this.totalRecords = props.recordsPerRowGroup * props.numberRowGroups * numberOfTimesRead;
@@ -73,14 +75,23 @@ public class ParquetResultListener implements UserResultsListener {
     checkLastChunk();
   }
 
-  private <T> void assertField(ValueVector valueVector, int index,
-      TypeProtos.MinorType expectedMinorType, Object value, String name) {
+  private <T> void assertField(
+      ValueVector valueVector,
+      int index,
+      TypeProtos.MinorType expectedMinorType,
+      Object value,
+      String name) {
     assertField(valueVector, index, expectedMinorType, value, name, 0);
   }
 
   @SuppressWarnings("unchecked")
-  private <T> void assertField(ValueVector valueVector, int index,
-      TypeProtos.MinorType expectedMinorType, T value, String name, int parentFieldId) {
+  private <T> void assertField(
+      ValueVector valueVector,
+      int index,
+      TypeProtos.MinorType expectedMinorType,
+      T value,
+      String name,
+      int parentFieldId) {
 
     if (expectedMinorType == TypeProtos.MinorType.STRUCT) {
       return;
@@ -121,7 +132,8 @@ public class ParquetResultListener implements UserResultsListener {
 
     // print headers.
     if (schemaChanged) {
-      // do not believe any change is needed for when the schema changes, with the current mock scan use case
+      // do not believe any change is needed for when the schema changes, with the current mock scan
+      // use case
     }
 
     for (final VectorWrapper vw : batchLoader) {
@@ -137,8 +149,12 @@ public class ParquetResultListener implements UserResultsListener {
 
       if (testValues) {
         for (int j = 0; j < vv.getValueCount(); j++) {
-          assertField(vv, j, currentField.type,
-              currentField.values[columnValCounter % 3], currentField.name + "/");
+          assertField(
+              vv,
+              j,
+              currentField.type,
+              currentField.values[columnValCounter % 3],
+              currentField.name + "/");
           columnValCounter++;
         }
       } else {
@@ -146,11 +162,12 @@ public class ParquetResultListener implements UserResultsListener {
       }
 
       valuesChecked.remove(vv.getField().getName());
-      assertEquals("Mismatched value count for vectors in the same batch.", valueCount, vv.getValueCount());
+      assertEquals(
+          "Mismatched value count for vectors in the same batch.", valueCount, vv.getValueCount());
       valuesChecked.put(vv.getField().getName(), columnValCounter);
     }
 
-    if (ParquetRecordReaderTest.VERBOSE_DEBUG){
+    if (ParquetRecordReaderTest.VERBOSE_DEBUG) {
       printRowMajor(batchLoader);
     }
     batchCounter++;
@@ -162,15 +179,19 @@ public class ParquetResultListener implements UserResultsListener {
   @SuppressWarnings("AssertionFailureIgnored")
   private void checkLastChunk() {
     int recordsInBatch = -1;
-    // ensure the right number of columns was returned, especially important to ensure selective column read is working
+    // ensure the right number of columns was returned, especially important to ensure selective
+    // column read is working
     if (testValues) {
-      assertEquals( "Unexpected number of output columns from parquet scan.", props.fields.keySet().size(), valuesChecked.keySet().size() );
+      assertEquals(
+          "Unexpected number of output columns from parquet scan.",
+          props.fields.keySet().size(),
+          valuesChecked.keySet().size());
     }
     assertTrue(valuesChecked.keySet().size() > 0);
     for (final String s : valuesChecked.keySet()) {
       try {
         int recordCount = valuesChecked.get(s).intValue();
-        if (recordsInBatch == -1 ){
+        if (recordsInBatch == -1) {
           recordsInBatch = recordCount;
         } else {
           assertEquals("Mismatched record counts in vectors.", recordsInBatch, recordCount);
@@ -184,21 +205,18 @@ public class ParquetResultListener implements UserResultsListener {
   }
 
   public void printColumnMajor(ValueVector vv) {
-    if (ParquetRecordReaderTest.VERBOSE_DEBUG){
+    if (ParquetRecordReaderTest.VERBOSE_DEBUG) {
       System.out.println("\n" + vv.getField().getName());
     }
     for (int j = 0; j < vv.getValueCount(); j++) {
-      if (ParquetRecordReaderTest.VERBOSE_DEBUG){
+      if (ParquetRecordReaderTest.VERBOSE_DEBUG) {
         Object o = vv.getObject(j);
         if (o instanceof byte[]) {
-          try {
-            o = new String((byte[])o, "UTF-8");
-          } catch (UnsupportedEncodingException e) {
-            throw new RuntimeException(e);
-          }
+          o = new String((byte[]) o, UTF_8);
         }
         System.out.print(Strings.padStart(o + "", 20, ' ') + " ");
-        System.out.print(", " + (j % 25 == 0 ? "\n batch:" + batchCounter + " v:" + j + " - " : ""));
+        System.out.print(
+            ", " + (j % 25 == 0 ? "\n batch:" + batchCounter + " v:" + j + " - " : ""));
       }
     }
     if (ParquetRecordReaderTest.VERBOSE_DEBUG) {
@@ -213,7 +231,6 @@ public class ParquetResultListener implements UserResultsListener {
         for (VectorWrapper vw : batchLoader) {
           ValueVector v = vw.getValueVector();
           System.out.print(Strings.padStart(v.getField().getName(), 20, ' ') + " ");
-
         }
         System.out.println();
         System.out.println();
@@ -223,23 +240,23 @@ public class ParquetResultListener implements UserResultsListener {
         final ValueVector v = vw.getValueVector();
         Object o = v.getObject(i);
         if (o instanceof byte[]) {
-          try {
-            // TODO - in the dictionary read error test there is some data that does not look correct
-            // the output of our reader matches the values of the parquet-mr cat/head tools (no full comparison was made,
-            // but from a quick check of a few values it looked consistent
-            // this might have gotten corrupted by pig somehow, or maybe this is just how the data is supposed ot look
-            // TODO - check this!!
-//              for (int k = 0; k < ((byte[])o).length; k++ ) {
-//                // check that the value at each position is a valid single character ascii value.
-//
-//                if (((byte[])o)[k] > 128) {
-//                  System.out.println("batch: " + batchCounter + " record: " + recordCount);
-//                }
-//              }
-            o = new String((byte[])o, "UTF-8");
-          } catch (UnsupportedEncodingException e) {
-            throw new RuntimeException(e);
-          }
+          // TODO - in the dictionary read error test there is some data that does not look correct
+          // the output of our reader matches the values of the parquet-mr cat/head tools (no full
+          // comparison was made,
+          // but from a quick check of a few values it looked consistent
+          // this might have gotten corrupted by pig somehow, or maybe this is just how the data is
+          // supposed ot look
+          // TODO - check this!!
+          //              for (int k = 0; k < ((byte[])o).length; k++ ) {
+          //                // check that the value at each position is a valid single character
+          // ascii value.
+          //
+          //                if (((byte[])o)[k] > 128) {
+          //                  System.out.println("batch: " + batchCounter + " record: " +
+          // recordCount);
+          //                }
+          //              }
+          o = new String((byte[]) o, UTF_8);
         }
         System.out.print(Strings.padStart(o + "", 20, ' ') + " ");
       }
@@ -250,12 +267,11 @@ public class ParquetResultListener implements UserResultsListener {
   public void getResults() throws RpcException {
     try {
       future.get();
-    } catch(Throwable t) {
+    } catch (Throwable t) {
       throw RpcException.mapException(t);
     }
   }
 
   @Override
-  public void queryIdArrived(UserBitShared.QueryId queryId) {
-  }
+  public void queryIdArrived(UserBitShared.QueryId queryId) {}
 }

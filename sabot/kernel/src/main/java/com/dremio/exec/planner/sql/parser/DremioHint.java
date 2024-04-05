@@ -15,14 +15,12 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.options.OptionValidator;
 import java.util.stream.Stream;
-
 import org.apache.calcite.rel.hint.HintStrategies;
 import org.apache.calcite.rel.hint.HintStrategy;
 import org.apache.calcite.rel.hint.HintStrategyTable;
-
-import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.options.OptionValidator;
 
 public enum DremioHint {
   BROADCAST("BROADCAST", HintStrategies.TABLE_SCAN),
@@ -42,9 +40,9 @@ public enum DremioHint {
   }
 
   /**
-   * Creates a query level hint that can also be set at the session level through an option.
-   * Since options have precedence, i.e. query > session > system, then setting a query level option
-   * using a hint will override a session level option.
+   * Creates a query level hint that can also be set at the session level through an option. Since
+   * options have precedence, i.e. query > session > system, then setting a query level option using
+   * a hint will override a session level option.
    *
    * @param hintName
    * @param option

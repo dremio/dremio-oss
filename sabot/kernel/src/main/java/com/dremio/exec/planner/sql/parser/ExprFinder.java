@@ -19,8 +19,8 @@ import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.util.SqlBasicVisitor;
 
 /**
- * A visitor to check if the given SqlNodeCondition is tested as true or not.
- * If the condition is true, mark flag 'find' as true.
+ * A visitor to check if the given SqlNodeCondition is tested as true or not. If the condition is
+ * true, mark flag 'find' as true.
  */
 class ExprFinder extends SqlBasicVisitor<Void> {
   private boolean find = false;

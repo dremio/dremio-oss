@@ -15,8 +15,6 @@
  */
 package com.dremio.dac.daemon;
 
-import java.io.IOException;
-
 import com.dremio.datastore.SearchTypes.SortOrder;
 import com.dremio.service.users.AuthResult;
 import com.dremio.service.users.User;
@@ -24,11 +22,9 @@ import com.dremio.service.users.UserLoginException;
 import com.dremio.service.users.UserNotFoundException;
 import com.dremio.service.users.UserService;
 import com.dremio.service.users.proto.UID;
+import java.io.IOException;
 
-/**
- * A special user service for executors which always throws UnsupportedOperationException
- *
- */
+/** A special user service for executors which always throws UnsupportedOperationException */
 public class ExecutorUserService implements UserService {
 
   @Override
@@ -42,7 +38,8 @@ public class ExecutorUserService implements UserService {
   }
 
   @Override
-  public User createUser(User userConfig, String authKey) throws IOException, IllegalArgumentException {
+  public User createUser(User userConfig, String authKey)
+      throws IOException, IllegalArgumentException {
     throw new UnsupportedOperationException("User service is not available on executors");
   }
 
@@ -53,15 +50,16 @@ public class ExecutorUserService implements UserService {
   }
 
   @Override
-  public User updateUserName(String oldUserName, String newUserName, User userConfig, String authKey)
+  public User updateUserName(
+      String oldUserName, String newUserName, User userConfig, String authKey)
       throws IOException, IllegalArgumentException, UserNotFoundException {
     throw new UnsupportedOperationException("User service is not available on executors");
   }
 
   @Override
-  public void deleteUser(String userName, String version) throws UserNotFoundException, IOException {
+  public void deleteUser(String userName, String version)
+      throws UserNotFoundException, IOException {
     throw new UnsupportedOperationException("User service is not available on executors");
-
   }
 
   @Override
@@ -80,9 +78,8 @@ public class ExecutorUserService implements UserService {
   }
 
   @Override
-  public Iterable<? extends User> searchUsers(String searchTerm, String sortColumn, SortOrder order, Integer limit)
-      throws IOException {
+  public Iterable<? extends User> searchUsers(
+      String searchTerm, String sortColumn, SortOrder order, Integer limit) throws IOException {
     throw new UnsupportedOperationException("User service is not available on executors");
   }
-
 }

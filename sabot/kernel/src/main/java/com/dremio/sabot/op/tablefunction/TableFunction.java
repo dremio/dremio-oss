@@ -18,13 +18,12 @@ package com.dremio.sabot.op.tablefunction;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.sabot.exec.fragment.OutOfBandMessage;
 
-/**
- * Table function interface
- */
+/** Table function interface */
 public interface TableFunction extends AutoCloseable {
 
   /**
    * Setup table function and return VectorAccessible with output schema
+   *
    * @param accessible VectorAccessible with input schema
    * @return VectorAccessible with output schema
    * @throws Exception
@@ -33,6 +32,7 @@ public interface TableFunction extends AutoCloseable {
 
   /**
    * Start processing an input record batch.
+   *
    * @param records Number of records in the input batch.
    */
   default void startBatch(int records) throws Exception {
@@ -41,13 +41,15 @@ public interface TableFunction extends AutoCloseable {
 
   /**
    * Start processing an input row.
+   *
    * @param row to be processed
    */
   void startRow(int row) throws Exception;
 
   /**
-   * Produce output records corresponding to current input row.
-   * This will be called after calling {@link #startRow(int)}.
+   * Produce output records corresponding to current input row. This will be called after calling
+   * {@link #startRow(int)}.
+   *
    * @param startOutIndex start index in output vector
    * @param maxRecords maximum number of output records that can be produced
    * @return number of output records produced
@@ -55,13 +57,14 @@ public interface TableFunction extends AutoCloseable {
   int processRow(int startOutIndex, int maxRecords) throws Exception;
 
   /**
-   * Stop processing current input row.
-   * This will be called after calling {@link #processRow(int, int)}.
+   * Stop processing current input row. This will be called after calling {@link #processRow(int,
+   * int)}.
    */
   void closeRow() throws Exception;
 
   /**
    * Check if any remaining records left to produce after there is no more to consume from upstream
+   *
    * @return if records left
    */
   default boolean hasBufferedRemaining() {
@@ -70,6 +73,7 @@ public interface TableFunction extends AutoCloseable {
 
   /**
    * Handles OOB coming over to the TableFunctionOperator
+   *
    * @param message
    */
   default void workOnOOB(OutOfBandMessage message) {
@@ -85,9 +89,7 @@ public interface TableFunction extends AutoCloseable {
     return -1L;
   }
 
-  /**
-   * Signal to the table function that there's no more records to consume.
-   */
+  /** Signal to the table function that there's no more records to consume. */
   default void noMoreToConsume() throws Exception {
     // Do nothing
   }

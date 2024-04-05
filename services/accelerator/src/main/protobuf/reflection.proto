@@ -55,18 +55,20 @@ message ReflectionEntry {
   optional string refreshField = 14;
   optional ReflectionState state = 15;
   optional int32 numFailures = 16 [default = 0];
-  optional int32 datasetHash = 17;
+  optional int32 datasetHash = 17 [deprecated = true];
   optional int64 last_submitted_refresh = 18; // jobStart of last materialization job
   optional int64 last_successful_refresh = 19; // jobEnd of last successful materialization job
   optional bool dont_give_up = 20 [default = false]; // true if the reflection manager should never mark this reflection as FAILED
   optional JobId refresh_job_id = 21;
   optional string tag = 22;
   optional string goalVersion = 23;
-  optional int32 shallowDatasetHash = 24;
+  optional int32 shallowDatasetHash = 24 [deprecated = true];
   optional bool arrowCachingEnabled = 25 [default = false]; // true if boost columns are enabled for caching
   optional ReflectionGoalHash reflection_goal_hash = 26;
   optional bool snapshotBased = 27 [default = false]; // true if the refresh was snapshot based incremental
   optional int64 refresh_pending_begin = 28; // Start of REFRESH_PENDING
+  optional Failure lastFailure = 29;
+  optional int32 expandedPlanDatasetHash = 30;
 }
 
 enum DependencyType {
@@ -82,6 +84,7 @@ message ReflectionDependencyEntry {
   optional string sourceName = 4;
   optional string query = 5;
   optional int64 snapshotId = 6 [default = 0];
+  optional string versionContext = 7;
 }
 
 message ReflectionDependencies {

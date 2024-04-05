@@ -19,22 +19,20 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import com.dremio.BaseTestQuery;
+import com.dremio.common.exceptions.UserRemoteException;
+import com.dremio.exec.proto.UserBitShared;
 import java.io.File;
 import java.io.FileWriter;
 import java.util.regex.Pattern;
-
 import org.apache.commons.io.FileUtils;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import com.dremio.BaseTestQuery;
-import com.dremio.common.exceptions.UserRemoteException;
-import com.dremio.exec.proto.UserBitShared;
-
 /**
- * Class to test exception handling for TextInput related to bad lineDelimiter and
- * column size exceeds limit
+ * Class to test exception handling for TextInput related to bad lineDelimiter and column size
+ * exceeds limit
  */
 public class TestTextReader extends BaseTestQuery {
   // small file
@@ -52,88 +50,146 @@ public class TestTextReader extends BaseTestQuery {
   private static long ROW_COUNT_8K_CHUNKS = 1442;
 
   // normal query
-  private static String QUERY = "select * from table(" + TEMP_SCHEMA + ".\"" + TMP_CSV_FILE_SMALL + "\"" +
-          " (type => 'text', fieldDelimiter => ',', " +
-          "comment => '#', quote => '\"', " +
-          "lineDelimiter => '\n'" +
-          ", extractHeader => false, skipFirstLine => false, autoGenerateColumnNames => true))";
+  private static String QUERY =
+      "select * from table("
+          + TEMP_SCHEMA
+          + ".\""
+          + TMP_CSV_FILE_SMALL
+          + "\""
+          + " (type => 'text', fieldDelimiter => ',', "
+          + "comment => '#', quote => '\"', "
+          + "lineDelimiter => '\n'"
+          + ", extractHeader => false, skipFirstLine => false, autoGenerateColumnNames => true))";
 
   // normal query large columns
-  private static String QUERY_LARGE = "select * from table(" + TEMP_SCHEMA + ".\"" + TMP_CSV_FILE_LARGE + "\"" +
-          " (type => 'text', fieldDelimiter => ',', " +
-          "comment => '#', quote => '\"', " +
-          "lineDelimiter => '\n'" +
-          ", extractHeader => false, skipFirstLine => false, autoGenerateColumnNames => true))";
+  private static String QUERY_LARGE =
+      "select * from table("
+          + TEMP_SCHEMA
+          + ".\""
+          + TMP_CSV_FILE_LARGE
+          + "\""
+          + " (type => 'text', fieldDelimiter => ',', "
+          + "comment => '#', quote => '\"', "
+          + "lineDelimiter => '\n'"
+          + ", extractHeader => false, skipFirstLine => false, autoGenerateColumnNames => true))";
 
   // query to skip line
-  private static String QUERY_SKIPLINE_SMALL = "select * from table(" + TEMP_SCHEMA + ".\"" + TMP_CSV_FILE_SMALL + "\"" +
-          " (type => 'text', fieldDelimiter => ',', " +
-          "comment => '#', quote => '\"', " +
-          "lineDelimiter => '\n'" +
-          ", extractHeader => false, skipFirstLine => true, autoGenerateColumnNames => true))";
+  private static String QUERY_SKIPLINE_SMALL =
+      "select * from table("
+          + TEMP_SCHEMA
+          + ".\""
+          + TMP_CSV_FILE_SMALL
+          + "\""
+          + " (type => 'text', fieldDelimiter => ',', "
+          + "comment => '#', quote => '\"', "
+          + "lineDelimiter => '\n'"
+          + ", extractHeader => false, skipFirstLine => true, autoGenerateColumnNames => true))";
 
   // query to skip line large data
-  private static String QUERY_SKIPLINE_LARGE = "select * from table(" + TEMP_SCHEMA + ".\"" + TMP_CSV_FILE_LARGE + "\"" +
-          " (type => 'text', fieldDelimiter => ',', " +
-          "comment => '#', quote => '\"', " +
-          "lineDelimiter => '\n'" +
-          ", extractHeader => false, skipFirstLine => true, autoGenerateColumnNames => true))";
+  private static String QUERY_SKIPLINE_LARGE =
+      "select * from table("
+          + TEMP_SCHEMA
+          + ".\""
+          + TMP_CSV_FILE_LARGE
+          + "\""
+          + " (type => 'text', fieldDelimiter => ',', "
+          + "comment => '#', quote => '\"', "
+          + "lineDelimiter => '\n'"
+          + ", extractHeader => false, skipFirstLine => true, autoGenerateColumnNames => true))";
 
   // bad lineDelimiter, no skipLine
-  private static String QUERY_BAD_LINEDL = "select * from table(" + TEMP_SCHEMA + ".\"" + TMP_CSV_FILE_SMALL + "\"" +
-          " (type => 'text', fieldDelimiter => ',', " +
-          "comment => '#', quote => '\"', " +
-          "lineDelimiter => '~'" +
-          ", extractHeader => false, skipFirstLine => false, autoGenerateColumnNames => true))";
+  private static String QUERY_BAD_LINEDL =
+      "select * from table("
+          + TEMP_SCHEMA
+          + ".\""
+          + TMP_CSV_FILE_SMALL
+          + "\""
+          + " (type => 'text', fieldDelimiter => ',', "
+          + "comment => '#', quote => '\"', "
+          + "lineDelimiter => '~'"
+          + ", extractHeader => false, skipFirstLine => false, autoGenerateColumnNames => true))";
 
   // bad lineDelimiter, no skipLine
-  private static String QUERY_BAD_LINEDL_LARGE = "select * from table(" + TEMP_SCHEMA + ".\"" + TMP_CSV_FILE_LARGE + "\"" +
-          " (type => 'text', fieldDelimiter => ',', " +
-          "comment => '#', quote => '\"', " +
-          "lineDelimiter => '~'" +
-          ", extractHeader => false, skipFirstLine => false, autoGenerateColumnNames => true))";
+  private static String QUERY_BAD_LINEDL_LARGE =
+      "select * from table("
+          + TEMP_SCHEMA
+          + ".\""
+          + TMP_CSV_FILE_LARGE
+          + "\""
+          + " (type => 'text', fieldDelimiter => ',', "
+          + "comment => '#', quote => '\"', "
+          + "lineDelimiter => '~'"
+          + ", extractHeader => false, skipFirstLine => false, autoGenerateColumnNames => true))";
 
   // bad lineDelimiter, skip line
-  private static String QUERY_BAD_LINEDL_SKIP_SMALL = "select * from table(" + TEMP_SCHEMA + ".\"" + TMP_CSV_FILE_SMALL + "\"" +
-          " (type => 'text', fieldDelimiter => ',', " +
-          "comment => '#', quote => '\"', " +
-          "lineDelimiter => '~'" +
-          ", extractHeader => false, skipFirstLine => true, autoGenerateColumnNames => true))";
+  private static String QUERY_BAD_LINEDL_SKIP_SMALL =
+      "select * from table("
+          + TEMP_SCHEMA
+          + ".\""
+          + TMP_CSV_FILE_SMALL
+          + "\""
+          + " (type => 'text', fieldDelimiter => ',', "
+          + "comment => '#', quote => '\"', "
+          + "lineDelimiter => '~'"
+          + ", extractHeader => false, skipFirstLine => true, autoGenerateColumnNames => true))";
 
-  private static String QUERY_BAD_LINEDL_SKIP_LARGE = "select * from table(" + TEMP_SCHEMA + ".\"" + TMP_CSV_FILE_LARGE + "\"" +
-          " (type => 'text', fieldDelimiter => ',', " +
-          "comment => '#', quote => '\"', " +
-          "lineDelimiter => '~'" +
-          ", extractHeader => false, skipFirstLine => true, autoGenerateColumnNames => true))";
+  private static String QUERY_BAD_LINEDL_SKIP_LARGE =
+      "select * from table("
+          + TEMP_SCHEMA
+          + ".\""
+          + TMP_CSV_FILE_LARGE
+          + "\""
+          + " (type => 'text', fieldDelimiter => ',', "
+          + "comment => '#', quote => '\"', "
+          + "lineDelimiter => '~'"
+          + ", extractHeader => false, skipFirstLine => true, autoGenerateColumnNames => true))";
 
   // good lineDelimiter for count star, skip line
-  private static String QUERY_BAD_LINEDL_SKIP_COUNT_STAR = "select count(*) from table(" + TEMP_SCHEMA + ".\"" + TMP_CSV_FILE_COUNT_STAR + "\"" +
-    " (type => 'text', fieldDelimiter => ',', " +
-    "comment => '#', quote => '\"', " +
-    "lineDelimiter => '\r\n'" +
-    ", extractHeader => false, skipFirstLine => false, autoGenerateColumnNames => false))";
+  private static String QUERY_BAD_LINEDL_SKIP_COUNT_STAR =
+      "select count(*) from table("
+          + TEMP_SCHEMA
+          + ".\""
+          + TMP_CSV_FILE_COUNT_STAR
+          + "\""
+          + " (type => 'text', fieldDelimiter => ',', "
+          + "comment => '#', quote => '\"', "
+          + "lineDelimiter => '\r\n'"
+          + ", extractHeader => false, skipFirstLine => false, autoGenerateColumnNames => false))";
 
   // incorrect lineDelimiter, skip line
-  private static String QUERY_TWO_ROWS_SKIP_LINE = "select cast(A as int) column1, B column2, C column3, D column4 from table(" + TEMP_SCHEMA + ".\"" + TMP_CSV_FILE_TWO_ROWS + "\"" +
-    " (type => 'text', fieldDelimiter => ',', " +
-    "comment => '#', quote => '\"', " +
-    "lineDelimiter => '\r\n'" +
-    ", extractHeader => false, skipFirstLine => false, autoGenerateColumnNames => true))";
+  private static String QUERY_TWO_ROWS_SKIP_LINE =
+      "select cast(A as int) column1, B column2, C column3, D column4 from table("
+          + TEMP_SCHEMA
+          + ".\""
+          + TMP_CSV_FILE_TWO_ROWS
+          + "\""
+          + " (type => 'text', fieldDelimiter => ',', "
+          + "comment => '#', quote => '\"', "
+          + "lineDelimiter => '\r\n'"
+          + ", extractHeader => false, skipFirstLine => false, autoGenerateColumnNames => true))";
 
-  private static String QUERY_MULTIPLE_8K_CHUNKS_FILTER = "select fcode from table(" +
-    TEMP_SCHEMA + ".\"" + TMP_CSV_MULTIPLE_8K_CHUNKS + "\"" +
-    " (type => 'text', fieldDelimiter => ',', " +
-    "comment => '#', quote => '\"', " +
-    "lineDelimiter => '\r\n'" +
-    ", extractHeader => true, skipFirstLine => false, autoGenerateColumnNames => false))" +
-    " where dtchex='123456'";
+  private static String QUERY_MULTIPLE_8K_CHUNKS_FILTER =
+      "select fcode from table("
+          + TEMP_SCHEMA
+          + ".\""
+          + TMP_CSV_MULTIPLE_8K_CHUNKS
+          + "\""
+          + " (type => 'text', fieldDelimiter => ',', "
+          + "comment => '#', quote => '\"', "
+          + "lineDelimiter => '\r\n'"
+          + ", extractHeader => true, skipFirstLine => false, autoGenerateColumnNames => false))"
+          + " where dtchex='123456'";
 
-  private static String QUERY_MULTIPLE_8K_CHUNKS_COUNT_STAR = "select count(*) from table(" +
-    TEMP_SCHEMA + ".\"" + TMP_CSV_MULTIPLE_8K_CHUNKS + "\"" +
-    " (type => 'text', fieldDelimiter => ',', " +
-    "comment => '#', quote => '\"', " +
-    "lineDelimiter => '\r\n'" +
-    ", extractHeader => true, skipFirstLine => false, autoGenerateColumnNames => false))";
+  private static String QUERY_MULTIPLE_8K_CHUNKS_COUNT_STAR =
+      "select count(*) from table("
+          + TEMP_SCHEMA
+          + ".\""
+          + TMP_CSV_MULTIPLE_8K_CHUNKS
+          + "\""
+          + " (type => 'text', fieldDelimiter => ',', "
+          + "comment => '#', quote => '\"', "
+          + "lineDelimiter => '\r\n'"
+          + ", extractHeader => true, skipFirstLine => false, autoGenerateColumnNames => false))";
 
   private static File tblPathSmall = null;
   private static File tblPathLarge = null;
@@ -217,8 +273,10 @@ public class TestTextReader extends BaseTestQuery {
       }
     }
 
-    FileUtils.copyFile(com.dremio.common.util.FileUtils.getResourceAsFile("/store/text/data/multiple_8k_chunks.csv"),
-      tblPathMultiple8kChunks);
+    FileUtils.copyFile(
+        com.dremio.common.util.FileUtils.getResourceAsFile(
+            "/store/text/data/multiple_8k_chunks.csv"),
+        tblPathMultiple8kChunks);
   }
 
   @Test
@@ -235,12 +293,15 @@ public class TestTextReader extends BaseTestQuery {
         fail("Unexpected Error");
       }
       UserRemoteException urex = (UserRemoteException) ex;
-      assertEquals(UserBitShared.DremioPBError.ErrorType.UNSUPPORTED_OPERATION, urex.getErrorType());
-      boolean errorMsgMatched = Pattern.compile("(.*)Field with index(.*)exceeds the size limit(.*)", Pattern.DOTALL).matcher(ex.getMessage()).matches();
+      assertEquals(
+          UserBitShared.DremioPBError.ErrorType.UNSUPPORTED_OPERATION, urex.getErrorType());
+      boolean errorMsgMatched =
+          Pattern.compile("(.*)Field with index(.*)exceeds the size limit(.*)", Pattern.DOTALL)
+              .matcher(ex.getMessage())
+              .matches();
       assertTrue(errorMsgMatched);
     }
   }
-
 
   @Test
   public void testSkipLineNormalQuery() throws Exception {
@@ -256,7 +317,8 @@ public class TestTextReader extends BaseTestQuery {
         fail("Unexpected Error");
       }
       UserRemoteException urex = (UserRemoteException) ex;
-      assertEquals(UserBitShared.DremioPBError.ErrorType.UNSUPPORTED_OPERATION, urex.getErrorType());
+      assertEquals(
+          UserBitShared.DremioPBError.ErrorType.UNSUPPORTED_OPERATION, urex.getErrorType());
     }
   }
 
@@ -292,18 +354,19 @@ public class TestTextReader extends BaseTestQuery {
         fail("Unexpected Error");
       }
       UserRemoteException urex = (UserRemoteException) ex;
-      assertEquals(UserBitShared.DremioPBError.ErrorType.UNSUPPORTED_OPERATION, urex.getErrorType());
+      assertEquals(
+          UserBitShared.DremioPBError.ErrorType.UNSUPPORTED_OPERATION, urex.getErrorType());
     }
   }
 
   @Test
   public void testLineDelimiterSkipLineCountStar() throws Exception {
     testBuilder()
-      .sqlQuery(QUERY_BAD_LINEDL_SKIP_COUNT_STAR)
-      .unOrdered()
-      .baselineColumns("EXPR$0")
-      .baselineValues(ROW_COUNT)
-      .go();
+        .sqlQuery(QUERY_BAD_LINEDL_SKIP_COUNT_STAR)
+        .unOrdered()
+        .baselineColumns("EXPR$0")
+        .baselineValues(ROW_COUNT)
+        .go();
   }
 
   @Test
@@ -314,21 +377,21 @@ public class TestTextReader extends BaseTestQuery {
   @Test
   public void testMultiple8kChunkFileFilter() throws Exception {
     testBuilder()
-      .sqlQuery(QUERY_MULTIPLE_8K_CHUNKS_FILTER)
-      .unOrdered()
-      .baselineColumns("fcode")
-      .baselineValues("12345")
-      .baselineValues("12345")
-      .go();
+        .sqlQuery(QUERY_MULTIPLE_8K_CHUNKS_FILTER)
+        .unOrdered()
+        .baselineColumns("fcode")
+        .baselineValues("12345")
+        .baselineValues("12345")
+        .go();
   }
 
   @Test
   public void testMultiple8kChunkFileCountStar() throws Exception {
     testBuilder()
-      .sqlQuery(QUERY_MULTIPLE_8K_CHUNKS_COUNT_STAR)
-      .unOrdered()
-      .baselineColumns("EXPR$0")
-      .baselineValues(ROW_COUNT_8K_CHUNKS)
-      .go();
+        .sqlQuery(QUERY_MULTIPLE_8K_CHUNKS_COUNT_STAR)
+        .unOrdered()
+        .baselineColumns("EXPR$0")
+        .baselineValues(ROW_COUNT_8K_CHUNKS)
+        .go();
   }
 }

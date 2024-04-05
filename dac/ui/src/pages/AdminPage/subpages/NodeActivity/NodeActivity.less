@@ -30,8 +30,10 @@
 
   #admin-nodeActivity {
     .node-table-container {
+      display: flex;
+      flex-direction: column;
       padding-left: var(--dremio--spacing--2);
-      height: 100%;
+      height: calc(100% - 64px);
     }
     .name-node {
       height: 20px;

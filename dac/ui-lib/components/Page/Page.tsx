@@ -39,7 +39,7 @@ export const Page = forwardRef<HTMLDivElement, PageProps>((props, ref) => {
             "dremio-page__header dremio-scroll-shadow dremio-scroll-shadow--top",
             {
               "--scrolled": scrolledDirections.has("top"),
-            }
+            },
           )}
         >
           {header}
@@ -55,7 +55,7 @@ export const Page = forwardRef<HTMLDivElement, PageProps>((props, ref) => {
             "dremio-scroll-shadow dremio-scroll-shadow--bottom",
             {
               "--scrolled": scrolledDirections.has("bottom"),
-            }
+            },
           )}
         >
           {footer}

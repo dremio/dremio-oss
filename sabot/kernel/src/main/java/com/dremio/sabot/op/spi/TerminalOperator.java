@@ -22,19 +22,17 @@ import com.dremio.exec.record.VectorAccessible;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.rpc.TunnelProvider;
 
-/**
- * Describes an operator that consumes input but produces no Output.
- */
+/** Describes an operator that consumes input but produces no Output. */
 public interface TerminalOperator extends Operator.SingleConsumer {
 
   enum State implements OperatorState<State> {
     NEEDS_SETUP(MasterState.NEEDS_SETUP),
     CAN_CONSUME(MasterState.CAN_CONSUME),
-    DONE(MasterState.DONE)
-    ;
+    DONE(MasterState.DONE);
 
     final MasterState master;
-    State(MasterState master){
+
+    State(MasterState master) {
       this.master = master;
     }
 
@@ -47,15 +45,17 @@ public interface TerminalOperator extends Operator.SingleConsumer {
     public void is(State expected) {
       assert expected == this : String.format(Operator.ERROR_STRING, expected.name(), this.name());
     }
-
   };
 
   @Override
   State getState();
+
   void setup(VectorAccessible incoming) throws Exception;
+
   void receivingFragmentFinished(FragmentHandle handle) throws Exception;
 
   interface Creator<T extends PhysicalOperator> {
-    TerminalOperator create(TunnelProvider tunnelProvider, OperatorContext context, T operator) throws ExecutionSetupException;
+    TerminalOperator create(TunnelProvider tunnelProvider, OperatorContext context, T operator)
+        throws ExecutionSetupException;
   }
 }

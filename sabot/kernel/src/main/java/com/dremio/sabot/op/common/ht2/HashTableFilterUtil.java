@@ -15,40 +15,39 @@
  */
 package com.dremio.sabot.op.common.ht2;
 
-import java.util.Iterator;
-import java.util.List;
-import java.util.ListIterator;
-import java.util.Optional;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.commons.collections4.CollectionUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.physical.config.RuntimeFilterProbeTarget;
 import com.dremio.exec.util.BloomFilter;
 import com.dremio.exec.util.ValueListFilterBuilder;
 import com.google.common.base.Preconditions;
+import java.util.Iterator;
+import java.util.List;
+import java.util.ListIterator;
+import java.util.Optional;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.commons.collections4.CollectionUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class HashTableFilterUtil {
   private static final Logger logger = LoggerFactory.getLogger(HashTableFilterUtil.class);
 
   /**
-   * Prepares bloomFilter for the given probe target. BloomFilter and corresponding
-   * KeyReader for each probe target are passed as parameters. The updated bloomfilter
-   * returned on success otherwise null if encountered any error, by closing the input
-   * bloomfilter.
+   * Prepares bloomFilter for the given probe target. BloomFilter and corresponding KeyReader for
+   * each probe target are passed as parameters. The updated bloomfilter returned on success
+   * otherwise null if encountered any error, by closing the input bloomfilter.
    *
-   * This function can be called just before spilling the partition as well as at the end
-   * of build (right) side data so that bloomfilter's will have the info about all the keys.
+   * <p>This function can be called just before spilling the partition as well as at the end of
+   * build (right) side data so that bloomfilter's will have the info about all the keys.
    *
-   * Since this is an optimisation, errors are not propagated to the consumer. Instead,
-   * the corresponding bloom filter is freed and set with an empty Optional.
+   * <p>Since this is an optimisation, errors are not propagated to the consumer. Instead, the
+   * corresponding bloom filter is freed and set with an empty Optional.
    */
-  public static Optional<BloomFilter> prepareBloomFilters(RuntimeFilterProbeTarget probeTarget,
-                                                          Optional<BloomFilter> inputBloomFilter,
-                                                          HashTableKeyReader keyReader, HashTable hashTable) {
+  public static Optional<BloomFilter> prepareBloomFilters(
+      RuntimeFilterProbeTarget probeTarget,
+      Optional<BloomFilter> inputBloomFilter,
+      HashTableKeyReader keyReader,
+      HashTable hashTable) {
     Preconditions.checkState(inputBloomFilter.isPresent());
     BloomFilter bloomFilter = inputBloomFilter.get();
 
@@ -60,18 +59,20 @@ public class HashTableFilterUtil {
       closeOnError.add(bloomFilter);
 
       Iterator<HashTable.HashTableKeyAddress> hashTableKeyAddressIterator = hashTable.keyIterator();
-      Preconditions.checkState(hashTableKeyAddressIterator != null,
-        "Failed to create hashtable key iterator");
+      Preconditions.checkState(
+          hashTableKeyAddressIterator != null, "Failed to create hashtable key iterator");
 
       final ArrowBuf keyHolder = keyReader.getKeyHolder();
 
       while (hashTableKeyAddressIterator.hasNext()) {
         HashTable.HashTableKeyAddress hashTableKeyAddress = hashTableKeyAddressIterator.next();
-        keyReader.loadNextKey(hashTableKeyAddress.getFixedKeyAddress(), hashTableKeyAddress.getVarKeyAddress());
+        keyReader.loadNextKey(
+            hashTableKeyAddress.getFixedKeyAddress(), hashTableKeyAddress.getVarKeyAddress());
         bloomFilter.put(keyHolder, keyReader.getKeyBufSize());
       }
 
-      Preconditions.checkState(!bloomFilter.isCrossingMaxFPP(), "Bloomfilter has overflown its capacity.");
+      Preconditions.checkState(
+          !bloomFilter.isCrossingMaxFPP(), "Bloomfilter has overflown its capacity.");
 
       closeOnError.commit();
       return Optional.of(bloomFilter);
@@ -89,15 +90,16 @@ public class HashTableFilterUtil {
   /**
    * Prepare ValueListFilters for given probe target (i.e for each field for composite keys).
    * ValueListFilterBuilder and corresponding KeyReader for given probe target were passed as
-   * parameters. This function can be called just before spilling the partition as well as at
-   * the end of build (right) side data so that valuelistfilter will have the info about all
-   * the keys.
-   * Since this is an optimisation, errors are not propagated to the consumer. Instead,
-   * they marked as an empty optional.
+   * parameters. This function can be called just before spilling the partition as well as at the
+   * end of build (right) side data so that valuelistfilter will have the info about all the keys.
+   * Since this is an optimisation, errors are not propagated to the consumer. Instead, they marked
+   * as an empty optional.
    */
-  public static void prepareValueListFilters(List<HashTableKeyReader> keyReaderList,
-                                             List<ValueListFilterBuilder> valueListFilterBuilderList,
-                                             PivotDef pivot, HashTable hashTable) {
+  public static void prepareValueListFilters(
+      List<HashTableKeyReader> keyReaderList,
+      List<ValueListFilterBuilder> valueListFilterBuilderList,
+      PivotDef pivot,
+      HashTable hashTable) {
     Preconditions.checkState(keyReaderList.size() == valueListFilterBuilderList.size());
 
     if (CollectionUtils.isEmpty(keyReaderList)) {
@@ -106,7 +108,8 @@ public class HashTableFilterUtil {
     }
 
     ListIterator<HashTableKeyReader> keyReaderListIterator = keyReaderList.listIterator();
-    ListIterator<ValueListFilterBuilder> valueListFilterBuilderListIterator = valueListFilterBuilderList.listIterator();
+    ListIterator<ValueListFilterBuilder> valueListFilterBuilderListIterator =
+        valueListFilterBuilderList.listIterator();
 
     while (keyReaderListIterator.hasNext()) {
       Preconditions.checkState(valueListFilterBuilderListIterator.hasNext());
@@ -119,15 +122,17 @@ public class HashTableFilterUtil {
 
         final boolean isBooleanField = pivot.isBoolField(valueListFilterBuilder.getFieldName());
 
-        Iterator<HashTable.HashTableKeyAddress> hashTableKeyAddressIterator = hashTable.keyIterator();
-        Preconditions.checkState(hashTableKeyAddressIterator != null,
-          "Failed to create hashtable key iterator");
+        Iterator<HashTable.HashTableKeyAddress> hashTableKeyAddressIterator =
+            hashTable.keyIterator();
+        Preconditions.checkState(
+            hashTableKeyAddressIterator != null, "Failed to create hashtable key iterator");
 
         final ArrowBuf key = keyReader.getKeyValBuf();
 
         while (hashTableKeyAddressIterator.hasNext()) {
           HashTable.HashTableKeyAddress hashTableKeyAddress = hashTableKeyAddressIterator.next();
-          keyReader.loadNextKey(hashTableKeyAddress.getFixedKeyAddress(), hashTableKeyAddress.getVarKeyAddress());
+          keyReader.loadNextKey(
+              hashTableKeyAddress.getFixedKeyAddress(), hashTableKeyAddress.getVarKeyAddress());
 
           if (keyReader.areAllValuesNull()) {
             valueListFilterBuilder.insertNull();
@@ -139,7 +144,10 @@ public class HashTableFilterUtil {
         }
         closeOnError.commit();
       } catch (Exception e) {
-        logger.warn("Unable to prepare value list filter for {} because {}", valueListFilterBuilder.getFieldName(), e.getMessage());
+        logger.warn(
+            "Unable to prepare value list filter for {} because {}",
+            valueListFilterBuilder.getFieldName(),
+            e.getMessage());
         /* Since an error encountered preparing valList this col, remove it from processing */
         keyReaderListIterator.remove();
         valueListFilterBuilderListIterator.remove();

@@ -17,6 +17,13 @@ package com.dremio.common.utils;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.io.file.Path;
+import com.github.slugify.Slugify;
+import com.google.common.base.Joiner;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Splitter;
+import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
@@ -28,20 +35,9 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
-
 import org.apache.commons.lang3.text.StrTokenizer;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.io.file.Path;
-import com.github.slugify.Slugify;
-import com.google.common.base.Joiner;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Splitter;
-import com.google.common.collect.Lists;
-
-/**
- * Utils to convert dotted path to file system path and vice versa.
- */
+/** Utils to convert dotted path to file system path and vice versa. */
 public class PathUtils {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PathUtils.class);
 
@@ -54,8 +50,8 @@ public class PathUtils {
   private static final List<String> EMPTY_SCHEMA_PATHS = Collections.emptyList();
 
   /**
-   * Convert list of components into fs path.
-   * [a,b,c] -> /a/b/c
+   * Convert list of components into fs path. [a,b,c] -> /a/b/c
+   *
    * @param schemaPath list of path components
    * @return {@code fs Path}
    */
@@ -73,6 +69,7 @@ public class PathUtils {
   /**
    * Convert list of path components into fs path, skip root of path if its same as given root.
    * schema path : [a,b,c] and root: a -> /b/c
+   *
    * @param schemaPath list of path components
    * @param root of path to be ignored.
    * @return {@code fs Path}
@@ -89,15 +86,14 @@ public class PathUtils {
   }
 
   /**
-   * Convert fully or partially dotted path to file system path.
-   * a.b.c   -> /a/b/c
-   * a.`b/c` -> /a/b/c
+   * Convert fully or partially dotted path to file system path. a.b.c -> /a/b/c a.`b/c` -> /a/b/c
+   *
    * @param path a fully or partially dotted path
    * @return {@code fs Path}
    */
   public static Path toFSPath(String path) {
     final List<String> pathComponents = Lists.newArrayList();
-    for (String component: parseFullPath(path)) {
+    for (String component : parseFullPath(path)) {
       if (component.contains(SLASH)) {
         pathComponents.addAll(toPathComponents(Path.of(component)));
       } else {
@@ -109,6 +105,7 @@ public class PathUtils {
 
   /**
    * Get the name of the file or folder at Path
+   *
    * @param path
    * @return
    */
@@ -121,8 +118,8 @@ public class PathUtils {
   }
 
   /**
-   * Convert fs path to dotted schema path.
-   * /a/b/c -> a.b.c
+   * Convert fs path to dotted schema path. /a/b/c -> a.b.c
+   *
    * @param fsPath filesystem path
    * @return schema path.
    */
@@ -131,8 +128,8 @@ public class PathUtils {
   }
 
   /**
-   * Convert fs path relative to parent to dotted schema path.
-   * parent: /a/b, child: /a/b/c/d -> c.d
+   * Convert fs path relative to parent to dotted schema path. parent: /a/b, child: /a/b/c/d -> c.d
+   *
    * @param parent parent path
    * @param child full path of child inside parent path
    * @return dotted schema name of child relative to parent.
@@ -143,15 +140,17 @@ public class PathUtils {
     final List<String> childPathComponents = toPathComponents(child);
     for (int i = 0; i < parentPathComponents.size(); ++i) {
       if (!parentPathComponents.get(i).equals(childPathComponents.get(i))) {
-        throw new IOException(String.format("Invalid file/directory %s listed under %s", child, parent));
+        throw new IOException(
+            String.format("Invalid file/directory %s listed under %s", child, parent));
       }
     }
-    return constructFullPath(childPathComponents.subList(parentPathComponents.size(), childPathComponents.size()));
+    return constructFullPath(
+        childPathComponents.subList(parentPathComponents.size(), childPathComponents.size()));
   }
 
   /**
-   * Convert fs path to list of strings.
-   * /a/b/c -> [a,b,c]
+   * Convert fs path to list of strings. /a/b/c -> [a,b,c]
+   *
    * @param fsPath a string
    * @return list of path components
    */
@@ -160,18 +159,19 @@ public class PathUtils {
       return EMPTY_SCHEMA_PATHS;
     }
 
-    final StrTokenizer tokenizer = new StrTokenizer(fsPath, SLASH_CHAR, SqlUtils.QUOTE).setIgnoreEmptyTokens(true);
+    final StrTokenizer tokenizer =
+        new StrTokenizer(fsPath, SLASH_CHAR, SqlUtils.QUOTE).setIgnoreEmptyTokens(true);
     return tokenizer.getTokenList();
   }
 
   /**
-   * Convert fs path to list of strings.
-   * /a/b/c -> [a,b,c]
+   * Convert fs path to list of strings. /a/b/c -> [a,b,c]
+   *
    * @param fsPath filesystem path
    * @return list of path components
    */
   public static List<String> toPathComponents(Path fsPath) {
-    if (fsPath == null ) {
+    if (fsPath == null) {
       return EMPTY_SCHEMA_PATHS;
     }
     return toPathComponents(fsPath.toURI().getPath());
@@ -179,12 +179,10 @@ public class PathUtils {
 
   /**
    * puts back ticks around components if they look like reserved keywords and joins them with .
+   *
    * @param pathComponents can not contain nulls
-   * @return a dot delimited path
-   * Convert a list of path components to fully qualified dotted schema path
-   * [a,b,c]      -> a.b.c
-   * [a,b,c-1]    -> a.b.`c-1`
-   * [a,b,c.json] -> a.b.`c.json`
+   * @return a dot delimited path Convert a list of path components to fully qualified dotted schema
+   *     path [a,b,c] -> a.b.c [a,b,c-1] -> a.b.`c-1` [a,b,c.json] -> a.b.`c.json`
    */
   public static String constructFullPath(Collection<String> pathComponents) {
     final List<String> quotedPathComponents = Lists.newArrayList();
@@ -204,6 +202,7 @@ public class PathUtils {
 
   /**
    * Encode URI component consistent with JavaScript
+   *
    * @param component
    * @return encoded string
    */
@@ -223,20 +222,21 @@ public class PathUtils {
   }
 
   /**
-   * Parase a fully qualified dotted schema path to list of strings.
-   * a.b.`c.json` -> [a,b,c.json]
-   * a.b.`c-1`    -> [a,b,c-1]
-   * a.b.c        -> [a,b,c]
+   * Parase a fully qualified dotted schema path to list of strings. a.b.`c.json` -> [a,b,c.json]
+   * a.b.`c-1` -> [a,b,c-1] a.b.c -> [a,b,c]
+   *
    * @param path dotted schema path
    * @return list of path components.
    */
   public static List<String> parseFullPath(final String path) {
-    final StrTokenizer tokenizer = new StrTokenizer(path, PATH_DELIMITER, SqlUtils.QUOTE).setIgnoreEmptyTokens(true);
+    final StrTokenizer tokenizer =
+        new StrTokenizer(path, PATH_DELIMITER, SqlUtils.QUOTE).setIgnoreEmptyTokens(true);
     return tokenizer.getTokenList();
   }
 
   public static String removeQuotes(String pathComponent) {
-    if (pathComponent.charAt(0) == SqlUtils.QUOTE && pathComponent.charAt(pathComponent.length() - 1) == SqlUtils.QUOTE) {
+    if (pathComponent.charAt(0) == SqlUtils.QUOTE
+        && pathComponent.charAt(pathComponent.length() - 1) == SqlUtils.QUOTE) {
       return pathComponent.substring(1, pathComponent.length() - 1);
     }
     return pathComponent;
@@ -263,9 +263,11 @@ public class PathUtils {
     Preconditions.checkArgument(absolutePath.isAbsolute(), "absolutePath must be an absolute path");
     Preconditions.checkArgument(basePath.isAbsolute(), "basePath must be an absolute path");
 
-    List<String> absolutePathComponents = Lists.newArrayList(toPathComponents(absolutePath)); // make a copy
+    List<String> absolutePathComponents =
+        Lists.newArrayList(toPathComponents(absolutePath)); // make a copy
     List<String> basePathComponents = toPathComponents(basePath);
-    boolean hasCommonPrefix = basePathComponents.isEmpty(); // when basePath is "/", we always have a common prefix
+    boolean hasCommonPrefix =
+        basePathComponents.isEmpty(); // when basePath is "/", we always have a common prefix
 
     for (String base : basePathComponents) {
       if (absolutePathComponents.get(0).equals(base)) {
@@ -283,8 +285,9 @@ public class PathUtils {
   }
 
   /**
-   * Make sure the <i>givenPath</i> refers to an entity under the given <i>basePath</i>. Idea is to avoid using ".." to
-   * refer entities outside the basePath.
+   * Make sure the <i>givenPath</i> refers to an entity under the given <i>basePath</i>. Idea is to
+   * avoid using ".." to refer entities outside the basePath.
+   *
    * @param basePath
    * @param givenPath
    */
@@ -299,8 +302,9 @@ public class PathUtils {
   }
 
   /**
-   * Checks if <i>givenPath</i> refers to an entity under the given <i>basePath</i>. Idea is to avoid using ".." to
-   * refer entities outside the basePath.
+   * Checks if <i>givenPath</i> refers to an entity under the given <i>basePath</i>. Idea is to
+   * avoid using ".." to refer entities outside the basePath.
+   *
    * @param basePath
    * @param givenPath
    * @return boolean indicating if the givenPath is valid or not relative to the basePath
@@ -312,22 +316,28 @@ public class PathUtils {
   }
 
   /**
-   * Throws an exception if <i>path</i> performs directory traversal, which is disallowed for security reasons.
+   * Throws an exception if <i>path</i> performs directory traversal, which is disallowed for
+   * security reasons.
+   *
    * @param path
    * @throws supplied exception if path performs directory traversal
    */
-  public static void verifyNoDirectoryTraversal(List<String> path, Supplier<RuntimeException> exceptionSupplier) {
-    if (path.stream().anyMatch(pathComponent ->
-      pathComponent.equals("..")
-        || pathComponent.endsWith("/..")
-        || pathComponent.startsWith("../")
-        || pathComponent.contains("/../"))) {
+  public static void verifyNoDirectoryTraversal(
+      List<String> path, Supplier<RuntimeException> exceptionSupplier) {
+    if (path.stream()
+        .anyMatch(
+            pathComponent ->
+                pathComponent.equals("..")
+                    || pathComponent.endsWith("/..")
+                    || pathComponent.startsWith("../")
+                    || pathComponent.contains("/../"))) {
       throw exceptionSupplier.get();
     }
   }
 
   /**
    * Remove leading "/"s in the given path string.
+   *
    * @param path
    * @return
    */
@@ -350,8 +360,8 @@ public class PathUtils {
   }
 
   /**
-   * Removes query params from the path URL; assuming path URL is scheme:/path?qparam=qval
-   * For this example, it'll return scheme:/path
+   * Removes query params from the path URL; assuming path URL is scheme:/path?qparam=qval For this
+   * example, it'll return scheme:/path
    *
    * @param fullPath non null path
    * @return
@@ -370,14 +380,16 @@ public class PathUtils {
    * @param <T>
    * @return
    */
-  public static <T> T getQueryParam(String fullPath, String paramName, T defaultVal, Function<String, T> conversionFromString) {
+  public static <T> T getQueryParam(
+      String fullPath, String paramName, T defaultVal, Function<String, T> conversionFromString) {
     final String[] splitOnQuery = fullPath.split("\\?");
     if (splitOnQuery.length < 2) {
       return defaultVal;
     }
 
     final String queryParams = splitOnQuery[1];
-    final Map<String, String> map = Splitter.on('&').withKeyValueSeparator("=").split(checkNotNull(queryParams));
-    return map.containsKey(paramName) ? conversionFromString.apply(map.get(paramName)):defaultVal;
+    final Map<String, String> map =
+        Splitter.on('&').withKeyValueSeparator("=").split(checkNotNull(queryParams));
+    return map.containsKey(paramName) ? conversionFromString.apply(map.get(paramName)) : defaultVal;
   }
 }

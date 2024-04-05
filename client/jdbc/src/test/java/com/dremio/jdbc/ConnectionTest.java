@@ -25,16 +25,14 @@ import java.sql.SQLFeatureNotSupportedException;
 import java.sql.Statement;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
 
-
 /**
- * Test for Dremio's implementation of Connection's methods (other than
- * main transaction-related methods in {@link ConnectionTransactionMethodsTest}).
+ * Test for Dremio's implementation of Connection's methods (other than main transaction-related
+ * methods in {@link ConnectionTransactionMethodsTest}).
  */
 public class ConnectionTest extends JdbcWithServerTestBase {
   private static ExecutorService executor;
@@ -80,7 +78,7 @@ public class ConnectionTest extends JdbcWithServerTestBase {
   @Test
   public void testPrepareCallThrows() {
     assertThatThrownBy(() -> getConnection().prepareCall("VALUES 1"))
-      .isInstanceOf(SQLFeatureNotSupportedException.class);
+        .isInstanceOf(SQLFeatureNotSupportedException.class);
   }
 
   //////////
@@ -88,99 +86,114 @@ public class ConnectionTest extends JdbcWithServerTestBase {
 
   @Test
   public void testCreateStatement_overload2_supportedCase_returns() throws SQLException {
-    getConnection().createStatement(ResultSet.TYPE_FORWARD_ONLY,
-      ResultSet.CONCUR_READ_ONLY);
+    getConnection().createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
   }
 
   @Test
   @Ignore("until unsupported characteristics are rejected")
   public void testCreateStatement_overload2_unsupportedType1_throws() {
-    assertThatThrownBy(() -> getConnection().createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE,
-      ResultSet.CONCUR_READ_ONLY))
-      .isInstanceOf(SQLFeatureNotSupportedException.class);
+    assertThatThrownBy(
+            () ->
+                getConnection()
+                    .createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY))
+        .isInstanceOf(SQLFeatureNotSupportedException.class);
   }
 
   @Test
   @Ignore("until unsupported characteristics are rejected")
   public void testCreateStatement_overload2_unsupportedType2_throws() {
-    assertThatThrownBy(() -> getConnection().createStatement(ResultSet.TYPE_SCROLL_SENSITIVE,
-      ResultSet.CONCUR_READ_ONLY))
-      .isInstanceOf(SQLFeatureNotSupportedException.class);
+    assertThatThrownBy(
+            () ->
+                getConnection()
+                    .createStatement(ResultSet.TYPE_SCROLL_SENSITIVE, ResultSet.CONCUR_READ_ONLY))
+        .isInstanceOf(SQLFeatureNotSupportedException.class);
   }
 
   @Test
   @Ignore("until unsupported characteristics are rejected")
   public void testCreateStatement_overload2_unsupportedConcurrency_throws() {
-    assertThatThrownBy(() -> getConnection().createStatement(ResultSet.TYPE_FORWARD_ONLY,
-      ResultSet.CONCUR_UPDATABLE))
-      .isInstanceOf(SQLFeatureNotSupportedException.class);
+    assertThatThrownBy(
+            () ->
+                getConnection()
+                    .createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE))
+        .isInstanceOf(SQLFeatureNotSupportedException.class);
   }
-
 
   //////////
   // prepareStatement(String, int, int, int):
 
   @Test
   public void testPrepareStatement_overload2_supportedCase_returns() throws SQLException {
-    getConnection().prepareStatement( "VALUES 1",
-                                 ResultSet.TYPE_FORWARD_ONLY,
-                                 ResultSet.CONCUR_READ_ONLY );
+    getConnection()
+        .prepareStatement("VALUES 1", ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
   }
 
   @Test
   @Ignore("until unsupported characteristics are rejected")
   public void testPrepareStatement_overload2_unsupportedType1_throws() {
-    assertThatThrownBy(() -> getConnection().prepareStatement("VALUES 1",
-      ResultSet.TYPE_SCROLL_INSENSITIVE,
-      ResultSet.CONCUR_READ_ONLY))
-      .isInstanceOf(SQLFeatureNotSupportedException.class);
+    assertThatThrownBy(
+            () ->
+                getConnection()
+                    .prepareStatement(
+                        "VALUES 1", ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY))
+        .isInstanceOf(SQLFeatureNotSupportedException.class);
   }
 
   @Test
   @Ignore("until unsupported characteristics are rejected")
   public void testPrepareStatement_overload2_unsupportedType2_throws() {
-    assertThatThrownBy(() -> getConnection().prepareStatement("VALUES 1",
-      ResultSet.TYPE_SCROLL_SENSITIVE,
-      ResultSet.CONCUR_READ_ONLY)).isInstanceOf(SQLFeatureNotSupportedException.class);
+    assertThatThrownBy(
+            () ->
+                getConnection()
+                    .prepareStatement(
+                        "VALUES 1", ResultSet.TYPE_SCROLL_SENSITIVE, ResultSet.CONCUR_READ_ONLY))
+        .isInstanceOf(SQLFeatureNotSupportedException.class);
   }
 
   @Test
   @Ignore("until unsupported characteristics are rejected")
   public void testPrepareStatement_overload2_unsupportedConcurrency_throws() {
-    assertThatThrownBy(() -> getConnection().prepareStatement("VALUES 1",
-      ResultSet.TYPE_FORWARD_ONLY,
-      ResultSet.CONCUR_UPDATABLE))
-      .isInstanceOf(SQLFeatureNotSupportedException.class);
+    assertThatThrownBy(
+            () ->
+                getConnection()
+                    .prepareStatement(
+                        "VALUES 1", ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE))
+        .isInstanceOf(SQLFeatureNotSupportedException.class);
   }
-
 
   //////////
   // createStatement(int, int, int) (case not covered with
   // createStatement(int, int)):
 
-
   @Test
-  @Ignore( "until unsupported characteristics are rejected" )
+  @Ignore("until unsupported characteristics are rejected")
   public void testCreateStatement_overload3_unsupportedHoldability_throws() {
-    assertThatThrownBy(() -> getConnection().createStatement( ResultSet.TYPE_FORWARD_ONLY,
-                                ResultSet.CONCUR_READ_ONLY,
-                                ResultSet.CLOSE_CURSORS_AT_COMMIT))
-      .isInstanceOf(SQLFeatureNotSupportedException.class);
+    assertThatThrownBy(
+            () ->
+                getConnection()
+                    .createStatement(
+                        ResultSet.TYPE_FORWARD_ONLY,
+                        ResultSet.CONCUR_READ_ONLY,
+                        ResultSet.CLOSE_CURSORS_AT_COMMIT))
+        .isInstanceOf(SQLFeatureNotSupportedException.class);
   }
-
 
   //////////
   // prepareStatement(int, int, int) (case not covered with
   // prepareStatement(int, int)):
 
   @Test
-  @Ignore( "until unsupported characteristics are rejected" )
+  @Ignore("until unsupported characteristics are rejected")
   public void testPrepareStatement_overload3_unsupportedHoldability_throws() {
-    assertThatThrownBy(() -> getConnection().prepareStatement( "VALUES 1",
-                                 ResultSet.TYPE_FORWARD_ONLY,
-                                 ResultSet.CONCUR_READ_ONLY,
-                                 ResultSet.CLOSE_CURSORS_AT_COMMIT ))
-      .isInstanceOf(SQLFeatureNotSupportedException.class);
+    assertThatThrownBy(
+            () ->
+                getConnection()
+                    .prepareStatement(
+                        "VALUES 1",
+                        ResultSet.TYPE_FORWARD_ONLY,
+                        ResultSet.CONCUR_READ_ONLY,
+                        ResultSet.CLOSE_CURSORS_AT_COMMIT))
+        .isInstanceOf(SQLFeatureNotSupportedException.class);
   }
 
   //////////
@@ -188,11 +201,15 @@ public class ConnectionTest extends JdbcWithServerTestBase {
 
   @Test
   public void testCreateCall_overload3_throws() {
-    assertThatThrownBy(() -> getConnection().prepareCall("VALUES 1",
-      ResultSet.TYPE_FORWARD_ONLY,
-      ResultSet.CONCUR_READ_ONLY,
-      ResultSet.HOLD_CURSORS_OVER_COMMIT))
-      .isInstanceOf(SQLFeatureNotSupportedException.class);
+    assertThatThrownBy(
+            () ->
+                getConnection()
+                    .prepareCall(
+                        "VALUES 1",
+                        ResultSet.TYPE_FORWARD_ONLY,
+                        ResultSet.CONCUR_READ_ONLY,
+                        ResultSet.HOLD_CURSORS_OVER_COMMIT))
+        .isInstanceOf(SQLFeatureNotSupportedException.class);
   }
 
   //////////
@@ -201,24 +218,22 @@ public class ConnectionTest extends JdbcWithServerTestBase {
   @Test
   public void testPrepareStatement_overload4_throws() {
     assertThatThrownBy(
-      () -> getConnection().prepareStatement("VALUES 1", Statement.RETURN_GENERATED_KEYS))
-      .isInstanceOf(SQLFeatureNotSupportedException.class);
+            () -> getConnection().prepareStatement("VALUES 1", Statement.RETURN_GENERATED_KEYS))
+        .isInstanceOf(SQLFeatureNotSupportedException.class);
   }
 
   @Test
   public void testPrepareStatement_overload5_throws() {
-    assertThatThrownBy(
-      () -> getConnection().prepareStatement("VALUES 1", new int[]{1}))
-      .isInstanceOf(SQLFeatureNotSupportedException.class);
+    assertThatThrownBy(() -> getConnection().prepareStatement("VALUES 1", new int[] {1}))
+        .isInstanceOf(SQLFeatureNotSupportedException.class);
   }
 
   @Test
   public void testPrepareStatement_overload6_throws() {
     assertThatThrownBy(
-      () -> getConnection().prepareStatement("VALUES 1 AS colA", new String[]{"colA"}))
-      .isInstanceOf(SQLFeatureNotSupportedException.class);
+            () -> getConnection().prepareStatement("VALUES 1 AS colA", new String[] {"colA"}))
+        .isInstanceOf(SQLFeatureNotSupportedException.class);
   }
-
 
   ////////////////////////////////////////
   // Network timeout methods:
@@ -235,8 +250,7 @@ public class ConnectionTest extends JdbcWithServerTestBase {
   //////////
   // setNetworkTimeout(...):
 
-  /** Tests that setNetworkTimeout(...) accepts (redundantly) setting to
-   *  no-timeout mode. */
+  /** Tests that setNetworkTimeout(...) accepts (redundantly) setting to no-timeout mode. */
   @Test
   public void testSetNetworkTimeoutAcceptsNotimeoutRequest() throws SQLException {
     getConnection().setNetworkTimeout(executor, 0);
@@ -246,33 +260,35 @@ public class ConnectionTest extends JdbcWithServerTestBase {
   @Test
   public void testSetNetworkTimeoutRejectsTimeoutRequest() {
     assertThatThrownBy(() -> getConnection().setNetworkTimeout(executor, 1_000))
-      .isInstanceOf(SQLFeatureNotSupportedException.class)
-      .satisfiesAnyOf(t -> assertThat(t.getMessage()).contains("Timeout"),
-        t -> assertThat(t.getMessage()).contains("timeout"));
+        .isInstanceOf(SQLFeatureNotSupportedException.class)
+        .satisfiesAnyOf(
+            t -> assertThat(t.getMessage()).contains("Timeout"),
+            t -> assertThat(t.getMessage()).contains("timeout"));
   }
 
-  /** Tests that setNetworkTimeout(...) rejects setting a timeout (different
-   *  value). */
+  /** Tests that setNetworkTimeout(...) rejects setting a timeout (different value). */
   @Test
   public void testSetNetworkTimeoutRejectsTimeoutRequest2() {
     assertThatThrownBy(() -> getConnection().setNetworkTimeout(executor, Integer.MAX_VALUE))
-      .isInstanceOf(SQLFeatureNotSupportedException.class);
+        .isInstanceOf(SQLFeatureNotSupportedException.class);
   }
 
   @Test
   public void testSetNetworkTimeoutRejectsBadTimeoutValue() {
     assertThatThrownBy(() -> getConnection().setNetworkTimeout(executor, -1))
-      .isInstanceOf(InvalidParameterSqlException.class)
-      .satisfiesAnyOf(t -> assertThat(t.getMessage()).contains("Timeout"),
-        t -> assertThat(t.getMessage()).contains("timeout"),
-        t -> assertThat(t.getMessage()).contains("milliseconds"));
+        .isInstanceOf(InvalidParameterSqlException.class)
+        .satisfiesAnyOf(
+            t -> assertThat(t.getMessage()).contains("Timeout"),
+            t -> assertThat(t.getMessage()).contains("timeout"),
+            t -> assertThat(t.getMessage()).contains("milliseconds"));
   }
 
   @Test
   public void testSetNetworkTimeoutRejectsBadExecutorValue() {
     assertThatThrownBy(() -> getConnection().setNetworkTimeout(null, 1))
-      .isInstanceOf(InvalidParameterSqlException.class)
-      .satisfiesAnyOf(t -> assertThat(t.getMessage()).contains("executor"),
-        t -> assertThat(t.getMessage()).contains("Executor"));
+        .isInstanceOf(InvalidParameterSqlException.class)
+        .satisfiesAnyOf(
+            t -> assertThat(t.getMessage()).contains("executor"),
+            t -> assertThat(t.getMessage()).contains("Executor"));
   }
 }

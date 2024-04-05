@@ -15,9 +15,9 @@
  */
 package com.dremio.exec.planner.sql;
 
+import com.google.common.collect.ImmutableList;
 import java.util.List;
 import java.util.stream.Collectors;
-
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rex.RexBuilder;
@@ -29,22 +29,19 @@ import org.apache.calcite.sql2rel.SqlRexContext;
 import org.apache.calcite.sql2rel.SqlRexConvertlet;
 import org.apache.calcite.util.Pair;
 
-import com.google.common.collect.ImmutableList;
-
 /**
  * Convertlet to add coercion for ARRAY_FUNCTIONS.
  *
- * For example if the user writes a query like:
+ * <p>For example if the user writes a query like:
  *
- * SELECT ARRAY_APPEND(ARRAY[1, 2, 3], 4.5)
+ * <p>SELECT ARRAY_APPEND(ARRAY[1, 2, 3], 4.5)
  *
- * and the element type does not match up
- * the user will get an error saying that the array contains INT which doesn’t line up with the decimal type.
+ * <p>and the element type does not match up the user will get an error saying that the array
+ * contains INT which doesn’t line up with the decimal type.
  *
- * We can add a cast for the user like so to simulate implict coercion:
+ * <p>We can add a cast for the user like so to simulate implict coercion:
  *
- * SELECT ARRAY_APPEND(CAST(ARRAY[1, 2, 3] AS DECIMAL ARRAY), 4.5)
- *
+ * <p>SELECT ARRAY_APPEND(CAST(ARRAY[1, 2, 3] AS DECIMAL ARRAY), 4.5)
  */
 public final class ArrayFunctionCoercionConvertlets {
   private ArrayFunctionCoercionConvertlets() {}
@@ -56,16 +53,15 @@ public final class ArrayFunctionCoercionConvertlets {
 
     @Override
     public RexNode convertCall(SqlRexContext cx, SqlCall call) {
-      List<RexNode> operands = call.getOperandList()
-        .stream()
-        .map(cx::convertExpression)
-        .collect(Collectors.toList());
+      List<RexNode> operands =
+          call.getOperandList().stream().map(cx::convertExpression).collect(Collectors.toList());
 
       RexNode element = operands.get(0);
       RexNode array = operands.get(1);
 
       RexBuilder rexBuilder = cx.getRexBuilder();
-      Pair<RexNode, RexNode> ensuredArrayAndElement = ensureArrayAndElement(rexBuilder, array, element);
+      Pair<RexNode, RexNode> ensuredArrayAndElement =
+          ensureArrayAndElement(rexBuilder, array, element);
       RexNode ensuredArray = ensuredArrayAndElement.left;
       RexNode ensuredElement = ensuredArrayAndElement.right;
 
@@ -80,16 +76,15 @@ public final class ArrayFunctionCoercionConvertlets {
 
     @Override
     public RexNode convertCall(SqlRexContext cx, SqlCall call) {
-      List<RexNode> operands = call.getOperandList()
-        .stream()
-        .map(cx::convertExpression)
-        .collect(Collectors.toList());
+      List<RexNode> operands =
+          call.getOperandList().stream().map(cx::convertExpression).collect(Collectors.toList());
 
       RexNode array = operands.get(0);
       RexNode element = operands.get(1);
 
       RexBuilder rexBuilder = cx.getRexBuilder();
-      Pair<RexNode, RexNode> ensuredArrayAndElement = ensureArrayAndElement(rexBuilder, array, element);
+      Pair<RexNode, RexNode> ensuredArrayAndElement =
+          ensureArrayAndElement(rexBuilder, array, element);
       RexNode ensuredArray = ensuredArrayAndElement.left;
       RexNode ensuredElement = ensuredArrayAndElement.right;
 
@@ -104,31 +99,31 @@ public final class ArrayFunctionCoercionConvertlets {
 
     @Override
     public RexNode convertCall(SqlRexContext cx, SqlCall call) {
-      List<RexNode> operands = call.getOperandList()
-        .stream()
-        .map(cx::convertExpression)
-        .collect(Collectors.toList());
+      List<RexNode> operands =
+          call.getOperandList().stream().map(cx::convertExpression).collect(Collectors.toList());
 
-      // Calcite has a bug where it doesn't properly take the least restrictive of ARRAY<STRING> but it does do STRING properly
+      // Calcite has a bug where it doesn't properly take the least restrictive of ARRAY<STRING> but
+      // it does do STRING properly
       // Basically the largest precision isn't taken.
       RexBuilder rexBuilder = cx.getRexBuilder();
       RelDataTypeFactory typeFactory = rexBuilder.getTypeFactory();
-      List<RelDataType> componentTypes = RexUtil.types(operands)
-        .stream()
-        .map(RelDataType::getComponentType)
-        .collect(Collectors.toList());
+      List<RelDataType> componentTypes =
+          RexUtil.types(operands).stream()
+              .map(RelDataType::getComponentType)
+              .collect(Collectors.toList());
       RelDataType leastRestrictiveComponentType = typeFactory.leastRestrictive(componentTypes);
-      RelDataType leastRestrictiveArrayType = typeFactory.createArrayType(leastRestrictiveComponentType, -1);
+      RelDataType leastRestrictiveArrayType =
+          typeFactory.createArrayType(leastRestrictiveComponentType, -1);
 
       List<RexNode> ensuredOperands;
       if (leastRestrictiveComponentType.getSqlTypeName().equals(SqlTypeName.VARCHAR)) {
         // For string types the only difference can be the precision, so we just no op
         ensuredOperands = operands;
       } else {
-        ensuredOperands = operands
-          .stream()
-          .map(operand -> rexBuilder.ensureType(leastRestrictiveArrayType, operand, true))
-          .collect(Collectors.toList());
+        ensuredOperands =
+            operands.stream()
+                .map(operand -> rexBuilder.ensureType(leastRestrictiveArrayType, operand, true))
+                .collect(Collectors.toList());
       }
 
       return rexBuilder.makeCall(call.getOperator(), ensuredOperands);
@@ -136,9 +131,7 @@ public final class ArrayFunctionCoercionConvertlets {
   }
 
   private static Pair<RexNode, RexNode> ensureArrayAndElement(
-    RexBuilder rexBuilder,
-    RexNode array,
-    RexNode element) {
+      RexBuilder rexBuilder, RexNode array, RexNode element) {
     RelDataType arrayType = array.getType();
     RelDataType elementType = element.getType();
 
@@ -147,12 +140,14 @@ public final class ArrayFunctionCoercionConvertlets {
     RelDataType newElementType = typeFactory.leastRestrictive(elementTypes);
 
     RelDataType newArrayType = rexBuilder.getTypeFactory().createArrayType(newElementType, -1);
-    newArrayType = typeFactory.createTypeWithNullability(newArrayType, array.getType().isNullable());
+    newArrayType =
+        typeFactory.createTypeWithNullability(newArrayType, array.getType().isNullable());
 
     RexNode arrayEnsured = rexBuilder.ensureType(newArrayType, array, true);
     // We don't want to add a cast if the types are both strings and only differ in precision
     RexNode elementEnsured;
-    if (newElementType.getSqlTypeName() == SqlTypeName.VARCHAR && elementType.getSqlTypeName() == SqlTypeName.VARCHAR) {
+    if (newElementType.getSqlTypeName() == SqlTypeName.VARCHAR
+        && elementType.getSqlTypeName() == SqlTypeName.VARCHAR) {
       elementEnsured = element;
     } else {
       elementEnsured = rexBuilder.ensureType(newElementType, element, true);

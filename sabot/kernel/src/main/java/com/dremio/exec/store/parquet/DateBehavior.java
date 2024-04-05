@@ -16,5 +16,7 @@
 package com.dremio.exec.store.parquet;
 
 public enum DateBehavior {
-  NORMAL, FIX, DETECT;
+  NORMAL,
+  FIX,
+  DETECT;
 }

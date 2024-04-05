@@ -26,4 +26,6 @@ import org.apache.hadoop.fs.FileSystem;
  */
 public interface HadoopFsSupplierProviderPluginClassLoader extends AutoCloseable {
   Supplier<FileSystem> getHadoopFsSupplierPluginClassLoader(String path, Iterable<Map.Entry<String, String>> conf, String userName);
+
+  Supplier<FileSystem> getHadoopFsSupplierPluginClassLoader(String path, Iterable<Map.Entry<String, String>> conf, String userName, boolean hdfsC3CacheEnabled);
 }

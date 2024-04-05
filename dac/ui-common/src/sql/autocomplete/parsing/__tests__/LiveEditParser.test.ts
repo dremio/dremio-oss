@@ -30,7 +30,7 @@ describe("LiveEditParser", () => {
     __dirname,
     "../../../../../",
     "sql-grammar",
-    "DremioParser.g4"
+    "DremioParser.g4",
   );
   const dremioGrammar = fs.readFileSync(grammarFile, "utf8");
 
@@ -51,13 +51,6 @@ describe("LiveEditParser", () => {
   it("selectItem", () => {
     const expectedOriginalRule =
       "selectItem : selectExpression (AS? simpleIdentifier)?  ;";
-
-    expect(dremioGrammar.includes(expectedOriginalRule)).toBe(true);
-  });
-
-  it("expression2b", () => {
-    const expectedOriginalRule =
-      "expression2b : prefixRowOperator* expression3 (DOT identifier)*  ;";
 
     expect(dremioGrammar.includes(expectedOriginalRule)).toBe(true);
   });

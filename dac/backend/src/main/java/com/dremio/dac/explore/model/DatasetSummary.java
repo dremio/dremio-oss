@@ -17,11 +17,6 @@ package com.dremio.dac.explore.model;
 
 import static com.dremio.common.utils.PathUtils.encodeURIComponent;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
 import com.dremio.dac.api.JsonISODateTime;
 import com.dremio.dac.model.job.JobFilters;
 import com.dremio.dac.util.DatasetsUtil;
@@ -36,11 +31,15 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
 import com.google.common.collect.Lists;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
-/**
- * Dataset summary for overlay
- */
-@JsonIgnoreProperties(value={"links", "apiLinks"}, allowGetters=true)
+/** Dataset summary for overlay */
+@JsonIgnoreProperties(
+    value = {"links", "apiLinks"},
+    allowGetters = true)
 public class DatasetSummary {
   private final List<String> fullPath;
   private final int jobCount;
@@ -56,27 +55,26 @@ public class DatasetSummary {
   private final String ownerEmail;
   private final String lastModifyingUserName;
   private final String lastModifyingUserEmail;
-  @JsonISODateTime
-  private final Long createdAt;
-  @JsonISODateTime
-  private final Long lastModified;
+  @JsonISODateTime private final Long createdAt;
+  @JsonISODateTime private final Long lastModified;
 
-  public DatasetSummary(@JsonProperty("fullPath") List<String> fullPath,
-                        @JsonProperty("jobCount") int jobCount,
-                        @JsonProperty("descendants") int descendants,
-                        @JsonProperty("fields") List<Field> fields,
-                        @JsonProperty("datasetType") DatasetType datasetType,
-                        @JsonProperty("datasetVersion") DatasetVersion datasetVersion,
-                        @JsonProperty("tags") List<String> tags,
-                        @JsonProperty("references") Map<String, VersionContextReq> references,
-                        @JsonProperty("entityId") String entityId,
-                        @JsonProperty("hasReflection") Boolean hasReflection,
-                        @JsonProperty("ownerName") String ownerName,
-                        @JsonProperty("ownerEmail") String ownerEmail,
-                        @JsonProperty("lastModifyingUserName") String lastModifyingUserName,
-                        @JsonProperty("lastModifyingUserEmail") String lastModifyingUserEmail,
-                        @JsonProperty("createdAt") Long createdAt,
-                        @JsonProperty("lastModified") Long lastModified) {
+  public DatasetSummary(
+      @JsonProperty("fullPath") List<String> fullPath,
+      @JsonProperty("jobCount") int jobCount,
+      @JsonProperty("descendants") int descendants,
+      @JsonProperty("fields") List<Field> fields,
+      @JsonProperty("datasetType") DatasetType datasetType,
+      @JsonProperty("datasetVersion") DatasetVersion datasetVersion,
+      @JsonProperty("tags") List<String> tags,
+      @JsonProperty("references") Map<String, VersionContextReq> references,
+      @JsonProperty("entityId") String entityId,
+      @JsonProperty("hasReflection") Boolean hasReflection,
+      @JsonProperty("ownerName") String ownerName,
+      @JsonProperty("ownerEmail") String ownerEmail,
+      @JsonProperty("lastModifyingUserName") String lastModifyingUserName,
+      @JsonProperty("lastModifyingUserEmail") String lastModifyingUserEmail,
+      @JsonProperty("createdAt") Long createdAt,
+      @JsonProperty("lastModified") Long lastModified) {
     this.fullPath = fullPath;
     this.jobCount = jobCount;
     this.descendants = descendants;
@@ -95,28 +93,42 @@ public class DatasetSummary {
     this.lastModified = lastModified;
   }
 
-  public static DatasetSummary newInstance(DatasetConfig datasetConfig, int jobCount, int descendants, Map<String, VersionContextReq> references, List<String> tags,
-                                           Boolean hasReflection, User owner, User lastModifyingUser) {
+  public static DatasetSummary newInstance(
+      DatasetConfig datasetConfig,
+      int jobCount,
+      int descendants,
+      Map<String, VersionContextReq> references,
+      List<String> tags,
+      Boolean hasReflection,
+      User owner,
+      User lastModifyingUser) {
     List<String> fullPath = datasetConfig.getFullPathList();
 
     DatasetType datasetType = datasetConfig.getType();
     List<Field> fields; // here
     DatasetVersion datasetVersion;
 
-    List<com.dremio.dac.model.common.Field> fieldList = DatasetsUtil.getFieldsFromDatasetConfig(datasetConfig);
+    List<com.dremio.dac.model.common.Field> fieldList =
+        DatasetsUtil.getFieldsFromDatasetConfig(datasetConfig);
     if (fieldList == null) {
       fields = null;
     } else {
       final Set<String> partitionedColumnsSet = DatasetsUtil.getPartitionedColumns(datasetConfig);
       final Set<String> sortedColumns = DatasetsUtil.getSortedColumns(datasetConfig);
 
-      fields = Lists.transform(fieldList, new Function<com.dremio.dac.model.common.Field, Field>() {
-        @Override
-        public Field apply(com.dremio.dac.model.common.Field input) {
-          return new Field(input.getName(), input.getType().name(), partitionedColumnsSet.contains(input.getName()),
-            sortedColumns.contains(input.getName()));
-        }
-      });
+      fields =
+          Lists.transform(
+              fieldList,
+              new Function<com.dremio.dac.model.common.Field, Field>() {
+                @Override
+                public Field apply(com.dremio.dac.model.common.Field input) {
+                  return new Field(
+                      input.getName(),
+                      input.getType().name(),
+                      partitionedColumnsSet.contains(input.getName()),
+                      sortedColumns.contains(input.getName()));
+                }
+              });
     }
 
     if (datasetType == DatasetType.VIRTUAL_DATASET) {
@@ -129,13 +141,30 @@ public class DatasetSummary {
     final String entityId = datasetConfig.getId() == null ? null : datasetConfig.getId().getId();
     final String ownerName = owner != null ? owner.getUserName() : null;
     final String ownerEmail = owner != null ? owner.getEmail() : null;
-    final String lastModifyingUserName = lastModifyingUser != null ? lastModifyingUser.getUserName() : null;
-    final String lastModifyingUserEmail = lastModifyingUser != null ? lastModifyingUser.getEmail() : null;
+    final String lastModifyingUserName =
+        lastModifyingUser != null ? lastModifyingUser.getUserName() : null;
+    final String lastModifyingUserEmail =
+        lastModifyingUser != null ? lastModifyingUser.getEmail() : null;
     final Long createdAt = datasetConfig.getCreatedAt();
     final Long lastModified = datasetConfig.getLastModified();
 
-    return new DatasetSummary(fullPath, jobCount, descendants, fields, datasetType, datasetVersion, tags, references,
-      entityId, hasReflection, ownerName, ownerEmail, lastModifyingUserName, lastModifyingUserEmail, createdAt, lastModified);
+    return new DatasetSummary(
+        fullPath,
+        jobCount,
+        descendants,
+        fields,
+        datasetType,
+        datasetVersion,
+        tags,
+        references,
+        entityId,
+        hasReflection,
+        ownerName,
+        ownerEmail,
+        lastModifyingUserName,
+        lastModifyingUserEmail,
+        createdAt,
+        lastModified);
   }
 
   public DatasetVersion getDatasetVersion() {
@@ -174,7 +203,9 @@ public class DatasetSummary {
     return entityId;
   }
 
-  public Boolean getHasReflection() { return hasReflection; }
+  public Boolean getHasReflection() {
+    return hasReflection;
+  }
 
   public String getOwnerName() {
     return ownerName;
@@ -201,7 +232,8 @@ public class DatasetSummary {
   }
 
   // links
-  // TODO make this consistent with DatasetUI.createLinks. In ideal case, both methods should use the same util method
+  // TODO make this consistent with DatasetUI.createLinks. In ideal case, both methods should use
+  // the same util method
   public Map<String, String> getLinks() {
     DatasetPath datasetPath = new DatasetPath(fullPath);
     Map<String, String> links = new HashMap<>();
@@ -210,18 +242,23 @@ public class DatasetSummary {
     links.put("query", datasetPath.getQueryUrlPath());
     links.put("jobs", this.getJobsUrl());
     if (datasetType == DatasetType.VIRTUAL_DATASET) {
-      links.put("edit", datasetPath.getQueryUrlPath() + "?mode=edit&version="
-        + (datasetVersion == null ? datasetVersion : encodeURIComponent(datasetVersion.toString())));
+      links.put(
+          "edit",
+          datasetPath.getQueryUrlPath()
+              + "?mode=edit&version="
+              + (datasetVersion == null
+                  ? datasetVersion
+                  : encodeURIComponent(datasetVersion.toString())));
     }
     return links;
   }
 
   private String getJobsUrl() {
     final NamespaceKey datasetPath = new NamespaceKey(fullPath);
-    final JobFilters jobFilters = new JobFilters()
-      .addFilter(JobIndexKeys.ALL_DATASETS, datasetPath.toString())
-      .addFilter(JobIndexKeys.QUERY_TYPE, JobIndexKeys.UI, JobIndexKeys.EXTERNAL);
+    final JobFilters jobFilters =
+        new JobFilters()
+            .addFilter(JobIndexKeys.ALL_DATASETS, datasetPath.toString())
+            .addFilter(JobIndexKeys.QUERY_TYPE, JobIndexKeys.UI, JobIndexKeys.EXTERNAL);
     return jobFilters.toUrl();
   }
-
 }

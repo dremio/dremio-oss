@@ -17,37 +17,39 @@ package com.dremio.exec.store.hive;
 
 import static com.dremio.exec.store.hive.BaseHiveStoragePlugin.HIVE_DEFAULT_CTAS_FORMAT;
 
+import com.dremio.common.VM;
+import com.dremio.exec.catalog.conf.Property;
+import com.google.common.base.Joiner;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.utils.MetaStoreUtils;
 import org.apache.orc.OrcConf;
 
-import com.dremio.common.VM;
-import com.dremio.exec.catalog.conf.Property;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableMap;
-
-/**
- * Helper class for constructing HiveConfs from plugin configurations.
- */
+/** Helper class for constructing HiveConfs from plugin configurations. */
 public class HiveConfFactory {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HiveConfFactory.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(HiveConfFactory.class);
   private static final String DREMIO_SOURCE_CONFIGURATION_SOURCE = "Dremio source configuration";
+  private static final String DREMIO_AWSGLUE_SOURCE_TYPE = "dremio.awsglue.source.type";
 
   public static final String HIVE_ENABLE_ASYNC = "hive.async.enabled";
-  public static final String HIVE_ENABLE_CACHE_FOR_S3_AND_AZURE_STORAGE = "hive.cache.enabledForS3AndADLSG2";
+  public static final String HIVE_ENABLE_CACHE_FOR_S3_AND_AZURE_STORAGE =
+      "hive.cache.enabledForS3AndADLSG2";
   public static final String HIVE_ENABLE_CACHE_FOR_HDFS = "hive.cache.enabledForHDFS";
   public static final String HIVE_ENABLE_CACHE_FOR_GCS = "hive.cache.enabledForGCS";
   public static final String HIVE_MAX_HIVE_CACHE_SPACE = "hive.cache.maxspace";
+  public static final String HIVE_ALLOWED_DATABASES_LIST = "hive.allowed.dbs";
   // Config is only used in tests and should not be set to true in production.
   public static final String ENABLE_DML_TESTS_WITHOUT_LOCKING = "enable.dml.tests.without.locking";
 
-  // Hadoop properties reference: hadoop/hadoop-common-project/hadoop-common/src/main/resources/core-default.xml
+  // Hadoop properties reference:
+  // hadoop/hadoop-common-project/hadoop-common/src/main/resources/core-default.xml
 
   // S3 Hadoop file system implementation
   private static final String FS_S3_IMPL = "fs.s3.impl";
@@ -63,39 +65,45 @@ public class HiveConfFactory {
   private static final String FS_S3_MAX_TOTAL_TASKS = "fs.s3a.max.total.tasks";
 
   // ADL Hadoop file system implementation
-  private static final ImmutableMap<String, String> ADL_PROPS = ImmutableMap.of(
-    "fs.adl.impl", "org.apache.hadoop.fs.adl.AdlFileSystem",
-    "fs.AbstractFileSystem.adl.impl", "org.apache.hadoop.fs.adl.Adl"
-  );
+  private static final ImmutableMap<String, String> ADL_PROPS =
+      ImmutableMap.of(
+          "fs.adl.impl", "org.apache.hadoop.fs.adl.AdlFileSystem",
+          "fs.AbstractFileSystem.adl.impl", "org.apache.hadoop.fs.adl.Adl");
 
   // Azure WASB and WASBS file system implementation
-  private static final ImmutableMap<String, String> WASB_PROPS = ImmutableMap.of(
-    "fs.wasb.impl", "org.apache.hadoop.fs.azure.NativeAzureFileSystem",
-    "fs.AbstractFileSystem.wasb.impl", "org.apache.hadoop.fs.azure.Wasb",
-    "fs.wasbs.impl", "org.apache.hadoop.fs.azure.NativeAzureFileSystem$Secure",
-    "fs.AbstractFileSystem.wasbs.impl", "org.apache.hadoop.fs.azure.Wasbs"
-  );
+  private static final ImmutableMap<String, String> WASB_PROPS =
+      ImmutableMap.of(
+          "fs.wasb.impl", "org.apache.hadoop.fs.azure.NativeAzureFileSystem",
+          "fs.AbstractFileSystem.wasb.impl", "org.apache.hadoop.fs.azure.Wasb",
+          "fs.wasbs.impl", "org.apache.hadoop.fs.azure.NativeAzureFileSystem$Secure",
+          "fs.AbstractFileSystem.wasbs.impl", "org.apache.hadoop.fs.azure.Wasbs");
 
   // Azure ABFS and ABFSS file system implementation
-  private static final ImmutableMap<String, String> ABFS_PROPS = ImmutableMap.of(
-    "fs.abfs.impl", "org.apache.hadoop.fs.azurebfs.AzureBlobFileSystem",
-    "fs.AbstractFileSystem.abfs.impl", "org.apache.hadoop.fs.azurebfs.Abfs",
-    "fs.abfss.impl", "org.apache.hadoop.fs.azurebfs.SecureAzureBlobFileSystem",
-    "fs.AbstractFileSystem.abfss.impl", "org.apache.hadoop.fs.azurebfs.Abfss"
-  );
+  private static final ImmutableMap<String, String> ABFS_PROPS =
+      ImmutableMap.of(
+          "fs.abfs.impl", "org.apache.hadoop.fs.azurebfs.AzureBlobFileSystem",
+          "fs.AbstractFileSystem.abfs.impl", "org.apache.hadoop.fs.azurebfs.Abfs",
+          "fs.abfss.impl", "org.apache.hadoop.fs.azurebfs.SecureAzureBlobFileSystem",
+          "fs.AbstractFileSystem.abfss.impl", "org.apache.hadoop.fs.azurebfs.Abfss");
 
   public HiveConf createHiveConf(HiveStoragePluginConfig config) {
     final HiveConf hiveConf = createBaseHiveConf(config);
 
-    switch(config.authType) {
+    switch (config.authType) {
       case STORAGE:
         // populate hiveConf with default authorization values
         break;
       case SQL:
         // Turn on sql-based authorization
         setConf(hiveConf, HiveConf.ConfVars.HIVE_AUTHORIZATION_ENABLED, true);
-        setConf(hiveConf, HiveConf.ConfVars.HIVE_AUTHENTICATOR_MANAGER, "org.apache.hadoop.hive.ql.security.ProxyUserAuthenticator");
-        setConf(hiveConf, HiveConf.ConfVars.HIVE_AUTHORIZATION_MANAGER, "org.apache.hadoop.hive.ql.security.authorization.plugin.sqlstd.SQLStdHiveAuthorizerFactory");
+        setConf(
+            hiveConf,
+            HiveConf.ConfVars.HIVE_AUTHENTICATOR_MANAGER,
+            "org.apache.hadoop.hive.ql.security.ProxyUserAuthenticator");
+        setConf(
+            hiveConf,
+            HiveConf.ConfVars.HIVE_AUTHORIZATION_MANAGER,
+            "org.apache.hadoop.hive.ql.security.authorization.plugin.sqlstd.SQLStdHiveAuthorizerFactory");
         setConf(hiveConf, HiveConf.ConfVars.HIVE_SERVER2_ENABLE_DOAS, false);
         break;
       default:
@@ -112,8 +120,9 @@ public class HiveConfFactory {
     setConf(hiveConf, "fs.dremioAdl.impl.disable.cache", true);
   }
 
-  protected HiveConf createBaseHiveConf(BaseHiveStoragePluginConfig<?,?> config) {
-    // Note: HiveConf tries to use the context classloader first, then uses the classloader that it itself
+  protected HiveConf createBaseHiveConf(BaseHiveStoragePluginConfig<?, ?> config) {
+    // Note: HiveConf tries to use the context classloader first, then uses the classloader that it
+    // itself
     // is in. If the context classloader is non-null, it will prevnt using the PF4J classloader.
     // We do not need synchronization when changing this, since it is per-thread anyway.
     final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
@@ -125,7 +134,11 @@ public class HiveConfFactory {
       Thread.currentThread().setContextClassLoader(contextLoader);
     }
 
-    final String metastoreURI = String.format("thrift://%s:%d", Preconditions.checkNotNull(config.hostname, "Hive hostname must be provided."), config.port);
+    final String metastoreURI =
+        String.format(
+            "thrift://%s:%d",
+            Preconditions.checkNotNull(config.hostname, "Hive hostname must be provided."),
+            config.port);
     setConf(hiveConf, HiveConf.ConfVars.METASTOREURIS, metastoreURI);
 
     if (config.enableSasl) {
@@ -137,11 +150,21 @@ public class HiveConfFactory {
     disableFileSystemCache(hiveConf);
 
     setConf(hiveConf, HIVE_ENABLE_ASYNC, config.enableAsync);
-    setConf(hiveConf, HIVE_ENABLE_CACHE_FOR_S3_AND_AZURE_STORAGE, config.isCachingEnabledForS3AzureAndGCS);
+    setConf(
+        hiveConf,
+        HIVE_ENABLE_CACHE_FOR_S3_AND_AZURE_STORAGE,
+        config.isCachingEnabledForS3AzureAndGCS);
     setConf(hiveConf, HIVE_ENABLE_CACHE_FOR_HDFS, config.isCachingEnabledForHDFS);
     setConf(hiveConf, HIVE_ENABLE_CACHE_FOR_GCS, config.isCachingEnabledForS3AzureAndGCS);
     setConf(hiveConf, HIVE_MAX_HIVE_CACHE_SPACE, config.maxCacheSpacePct);
     setConf(hiveConf, HIVE_DEFAULT_CTAS_FORMAT, config.getDefaultCtasFormat());
+    List<String> allowedDatabases = config.allowedDatabases;
+    if (allowedDatabases != null && !allowedDatabases.isEmpty()) {
+      setConf(
+          hiveConf,
+          HIVE_ALLOWED_DATABASES_LIST,
+          Joiner.on(HiveCommonUtilities.HIVE_DATABASES_LIST_SEPARATOR).join(allowedDatabases));
+    }
     setConf(hiveConf, HiveFsUtils.USE_HIVE_PLUGIN_FS_CACHE, "True");
     if (config.hiveMajorVersion == 2) {
       setHive2SourceType(hiveConf);
@@ -169,13 +192,13 @@ public class HiveConfFactory {
    * @param config - the user provided parameters
    * @return
    */
-  protected static void addUserProperties(HiveConf hiveConf, BaseHiveStoragePluginConfig<?,?> config) {
+  protected static void addUserProperties(
+      HiveConf hiveConf, BaseHiveStoragePluginConfig<?, ?> config) {
     // Used to capture properties set by user
-
 
     final Set<String> userPropertyNames = new HashSet<>();
 
-    addUserPropertyList(config.propertyList,       userPropertyNames, hiveConf);
+    addUserPropertyList(config.propertyList, userPropertyNames, hiveConf);
     addUserPropertyList(config.secretPropertyList, userPropertyNames, hiveConf);
 
     // Check if zero-copy has been set by user
@@ -183,7 +206,8 @@ public class HiveConfFactory {
     // Configure zero-copy for ORC reader
     if (!zeroCopySetByUser) {
       if (VM.isWindowsHost() || VM.isMacOSHost()) {
-        logger.debug("MacOS or Windows host detected. Not automatically enabling ORC zero-copy feature");
+        logger.debug(
+            "MacOS or Windows host detected. Not automatically enabling ORC zero-copy feature");
       } else {
         String fs = hiveConf.get(FileSystem.FS_DEFAULT_NAME_KEY);
         // Equivalent to a case-insensitive startsWith...
@@ -200,7 +224,8 @@ public class HiveConfFactory {
       if (useZeroCopy) {
         logger.warn("ORC zero-copy feature has been manually enabled. This is not recommended.");
       } else {
-        logger.warn("ORC zero-copy feature has been manually disabled. This is not recommended and might cause memory issues");
+        logger.warn(
+            "ORC zero-copy feature has been manually disabled. This is not recommended and might cause memory issues");
       }
     }
 
@@ -208,13 +233,25 @@ public class HiveConfFactory {
     trySetDefault(userPropertyNames, hiveConf, FS_S3_IMPL, FS_S3_IMPL_DEFAULT);
     trySetDefault(userPropertyNames, hiveConf, FS_S3N_IMPL, FS_S3_IMPL_DEFAULT);
 
-    ADL_PROPS.entrySet().asList().forEach(entry->setConf(hiveConf, entry.getKey(), entry.getValue()));
-    WASB_PROPS.entrySet().asList().forEach(entry->setConf(hiveConf, entry.getKey(), entry.getValue()));
-    ABFS_PROPS.entrySet().asList().forEach(entry->setConf(hiveConf, entry.getKey(), entry.getValue()));
+    ADL_PROPS
+        .entrySet()
+        .asList()
+        .forEach(entry -> setConf(hiveConf, entry.getKey(), entry.getValue()));
+    WASB_PROPS
+        .entrySet()
+        .asList()
+        .forEach(entry -> setConf(hiveConf, entry.getKey(), entry.getValue()));
+    ABFS_PROPS
+        .entrySet()
+        .asList()
+        .forEach(entry -> setConf(hiveConf, entry.getKey(), entry.getValue()));
   }
 
-  private static void trySetDefault(final Set<String> userPropertyNames, HiveConf hiveConf,
-                                    final String confProp, final String confPropVal) {
+  private static void trySetDefault(
+      final Set<String> userPropertyNames,
+      HiveConf hiveConf,
+      final String confProp,
+      final String confPropVal) {
     if (userPropertyNames.contains(confProp)) {
       logger.warn(confProp + " is explicitly set. This is not recommended.");
     } else {
@@ -252,19 +289,24 @@ public class HiveConfFactory {
   }
 
   public static void setHive2SourceType(Configuration configuration) {
-    configuration.set(MetaStoreUtils.DREMIO_HIVE2_COMPATIBILITY_MODE_ENABLED, "true", DREMIO_SOURCE_CONFIGURATION_SOURCE);
+    configuration.set(
+        MetaStoreUtils.DREMIO_HIVE2_COMPATIBILITY_MODE_ENABLED,
+        "true",
+        DREMIO_SOURCE_CONFIGURATION_SOURCE);
   }
 
   /**
    * adds the user based Properties to the Hive Config
+   *
    * @param properties, either the publicly-viewed propertyList or the masked-UI user credentials
    */
-  private static void addUserPropertyList(List<Property> properties, Set<String> userPropertyNames, HiveConf hiveConf) {
-    if(properties != null) {
-      for(Property prop : properties) {
+  private static void addUserPropertyList(
+      List<Property> properties, Set<String> userPropertyNames, HiveConf hiveConf) {
+    if (properties != null) {
+      for (Property prop : properties) {
         userPropertyNames.add(prop.name);
         setConf(hiveConf, prop.name, prop.value);
-        if(logger.isTraceEnabled()){
+        if (logger.isTraceEnabled()) {
           logger.trace("HiveConfig Override {}={}", prop.name, prop.value);
         }
       }

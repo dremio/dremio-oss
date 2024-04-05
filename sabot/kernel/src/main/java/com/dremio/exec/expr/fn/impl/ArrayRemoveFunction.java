@@ -15,16 +15,6 @@
  */
 package com.dremio.exec.expr.fn.impl;
 
-import java.util.List;
-
-import javax.inject.Inject;
-
-import org.apache.arrow.vector.complex.reader.FieldReader;
-import org.apache.arrow.vector.complex.writer.BaseWriter;
-import org.apache.arrow.vector.complex.writer.BaseWriter.ListWriter;
-import org.apache.arrow.vector.complex.writer.FieldWriter;
-import org.apache.arrow.vector.types.pojo.ArrowType;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.LogicalExpression;
@@ -35,20 +25,34 @@ import com.dremio.exec.expr.annotations.Param;
 import com.dremio.exec.expr.fn.FunctionErrorContext;
 import com.dremio.exec.expr.fn.OutputDerivation;
 import com.google.common.base.Preconditions;
+import java.util.List;
+import javax.inject.Inject;
+import org.apache.arrow.vector.complex.reader.FieldReader;
+import org.apache.arrow.vector.complex.writer.BaseWriter;
+import org.apache.arrow.vector.complex.writer.BaseWriter.ListWriter;
+import org.apache.arrow.vector.complex.writer.FieldWriter;
+import org.apache.arrow.vector.types.pojo.ArrowType;
 
 public class ArrayRemoveFunction {
 
-  @FunctionTemplate(name = "array_remove", scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.NULL_IF_NULL, isDeterministic = false, derivation = ListWithoutRemovedElements.class)
+  @FunctionTemplate(
+      name = "array_remove",
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.NULL_IF_NULL,
+      isDeterministic = false,
+      derivation = ListWithoutRemovedElements.class)
   public static class ArrayRemove implements SimpleFunction {
 
     @Param private FieldReader in;
-    @Param(constant = true) private FieldReader value;
+
+    @Param(constant = true)
+    private FieldReader value;
+
     @Output private BaseWriter.ComplexWriter out;
     @Inject private FunctionErrorContext errCtx;
 
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
     public void eval() {
@@ -58,19 +62,23 @@ public class ArrayRemoveFunction {
       }
       if (!in.reader().getMinorType().equals(value.getMinorType())) {
         throw new UnsupportedOperationException(
-          String.format("List of %s is not comparable with %s",
-            in.reader().getMinorType().toString(), value.getMinorType().toString()
-          )
-        );
+            String.format(
+                "List of %s is not comparable with %s",
+                in.reader().getMinorType().toString(), value.getMinorType().toString()));
       }
-      org.apache.arrow.vector.complex.impl.UnionListReader listReader = (org.apache.arrow.vector.complex.impl.UnionListReader) in;
+      org.apache.arrow.vector.complex.impl.UnionListReader listReader =
+          (org.apache.arrow.vector.complex.impl.UnionListReader) in;
       org.apache.arrow.vector.complex.writer.BaseWriter.ListWriter listWriter = out.rootAsList();
       listWriter.startList();
-      while (listReader.next()){
-        if (listReader.reader().readObject() != null && listReader.reader().readObject().equals(inputValue)) {
+      while (listReader.next()) {
+        if (listReader.reader().readObject() != null
+            && listReader.reader().readObject().equals(inputValue)) {
           continue;
         }
-        org.apache.arrow.vector.complex.impl.ComplexCopier.copy(listReader.reader(), com.dremio.exec.expr.fn.impl.ArrayRemoveFunction.getWriter(listReader.reader(), listWriter));
+        org.apache.arrow.vector.complex.impl.ComplexCopier.copy(
+            listReader.reader(),
+            com.dremio.exec.expr.fn.impl.ArrayRemoveFunction.getWriter(
+                listReader.reader(), listWriter));
       }
       listWriter.endList();
     }
@@ -83,15 +91,13 @@ public class ArrayRemoveFunction {
       CompleteType type = args.get(0).getCompleteType();
       if (!type.isList()) {
         throw UserException.functionError()
-          .message("The 'array_remove' function can only be used when operating against a list. The type you were attempting to apply it to was a %s.",
-            type.toString())
-          .build();
+            .message(
+                "The 'array_remove' function can only be used when operating against a list. The type you were attempting to apply it to was a %s.",
+                type.toString())
+            .build();
       }
       Preconditions.checkArgument(type.getChildren().size() == 1);
-      return new CompleteType(
-        ArrowType.List.INSTANCE,
-        type.getChildren().get(0)
-      );
+      return new CompleteType(ArrowType.List.INSTANCE, type.getChildren().get(0));
     }
   }
 

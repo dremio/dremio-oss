@@ -19,13 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 
-import java.util.Arrays;
-
-import org.junit.Before;
-import org.junit.Test;
-
 import com.dremio.common.config.LogicalPlanPersistence;
-import com.dremio.common.config.SabotConfig;
 import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
 import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
@@ -37,15 +31,15 @@ import com.dremio.service.scheduler.SchedulerService;
 import com.dremio.test.DremioTest;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
+import java.util.Arrays;
+import org.junit.Before;
+import org.junit.Test;
 
-/**
- * Tests for legacy store migration in {@link SystemOptionManager}
- */
+/** Tests for legacy store migration in {@link SystemOptionManager} */
 public class TestSystemOptionManagerMigration extends DremioTest {
 
   private LegacyKVStoreProvider kvStoreProvider;
   private LogicalPlanPersistence lpp;
-  private SabotConfig sabotConfig;
   private OptionValidatorListingImpl optionValidatorListing;
   private SystemOptionManager som;
 
@@ -53,35 +47,37 @@ public class TestSystemOptionManagerMigration extends DremioTest {
   public void before() throws Exception {
     kvStoreProvider = LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT);
     kvStoreProvider.start();
-    sabotConfig = SabotConfig.create();
-    lpp = new LogicalPlanPersistence(sabotConfig, CLASSPATH_SCAN_RESULT);
+    lpp = new LogicalPlanPersistence(CLASSPATH_SCAN_RESULT);
     optionValidatorListing = new OptionValidatorListingImpl(CLASSPATH_SCAN_RESULT);
-    som = new SystemOptionManager(
-      optionValidatorListing,
-      lpp,
-      () -> kvStoreProvider,
-      () -> mock(SchedulerService.class),
-      mock(OptionChangeBroadcaster.class),
-      false);
+    som =
+        new SystemOptionManager(
+            optionValidatorListing,
+            lpp,
+            () -> kvStoreProvider,
+            () -> mock(SchedulerService.class),
+            mock(OptionChangeBroadcaster.class),
+            false);
   }
 
   @Test
   public void testMigrationFromJson() throws Exception {
     // Legacy Store to directly add legacy options
-    final OptionValueStore legacyStore = new OptionValueStore(
-      () -> kvStoreProvider,
-      SystemOptionManager.LegacyJacksonOptionStoreCreator.class,
-      new JacksonSerializer<>(lpp.getMapper(), OptionValue.class)
-    );
+    final OptionValueStore legacyStore =
+        new OptionValueStore(
+            () -> kvStoreProvider,
+            SystemOptionManager.LegacyJacksonOptionStoreCreator.class,
+            new JacksonSerializer<>(lpp.getMapper(), OptionValue.class));
     legacyStore.start();
 
     // put some options with old jackson serialized format
-    final OptionValue option1 = OptionValue.createBoolean(
-      OptionValue.OptionType.SYSTEM, "planner.disable_exchanges", true);
-    legacyStore.put("Planner.Disable_Exchanges", option1); // check legacy capitalization doesn't break
+    final OptionValue option1 =
+        OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, "planner.disable_exchanges", true);
+    legacyStore.put(
+        "Planner.Disable_Exchanges", option1); // check legacy capitalization doesn't break
 
-    final OptionValue option2 = OptionValue.createLong(
-      OptionValue.OptionType.SYSTEM, "planner.partitioner_sender_threads_factor", 4);
+    final OptionValue option2 =
+        OptionValue.createLong(
+            OptionValue.OptionType.SYSTEM, "planner.partitioner_sender_threads_factor", 4);
     legacyStore.put("planner.partitioner_sender_threads_factor", option2);
 
     // migrate
@@ -100,17 +96,23 @@ public class TestSystemOptionManagerMigration extends DremioTest {
   @Test
   public void testMigrationFromProto() throws Exception {
     // Legacy Store to directly add legacy options
-    final LegacyKVStore<String, OptionValueProto> legacyStore = kvStoreProvider.getStore(
-      SystemOptionManager.LegacyProtoOptionStoreCreator.class);
+    final LegacyKVStore<String, OptionValueProto> legacyStore =
+        kvStoreProvider.getStore(SystemOptionManager.LegacyProtoOptionStoreCreator.class);
 
     // put some options with old protobuf format
-    final OptionValue option1 = OptionValue.createBoolean(
-      OptionValue.OptionType.SYSTEM, "planner.disable_exchanges", true);
-    legacyStore.put("Planner.Disable_Exchanges", OptionValueProtoUtils.toOptionValueProto(option1)); // check legacy capitalization doesn't break
+    final OptionValue option1 =
+        OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, "planner.disable_exchanges", true);
+    legacyStore.put(
+        "Planner.Disable_Exchanges",
+        OptionValueProtoUtils.toOptionValueProto(
+            option1)); // check legacy capitalization doesn't break
 
-    final OptionValue option2 = OptionValue.createLong(
-      OptionValue.OptionType.SYSTEM, "planner.partitioner_sender_threads_factor", 4);
-    legacyStore.put("planner.partitioner_sender_threads_factor", OptionValueProtoUtils.toOptionValueProto(option2));
+    final OptionValue option2 =
+        OptionValue.createLong(
+            OptionValue.OptionType.SYSTEM, "planner.partitioner_sender_threads_factor", 4);
+    legacyStore.put(
+        "planner.partitioner_sender_threads_factor",
+        OptionValueProtoUtils.toOptionValueProto(option2));
 
     // migrate
     som.start();
@@ -127,11 +129,11 @@ public class TestSystemOptionManagerMigration extends DremioTest {
 
   @Test
   public void testIgnoreInvalidOption() throws Exception {
-    final LegacyKVStore<String, OptionValueProto> legacyStore = kvStoreProvider.getStore(
-      SystemOptionManager.LegacyProtoOptionStoreCreator.class);
+    final LegacyKVStore<String, OptionValueProto> legacyStore =
+        kvStoreProvider.getStore(SystemOptionManager.LegacyProtoOptionStoreCreator.class);
 
-    final OptionValue option1 = OptionValue.createBoolean(
-      OptionValue.OptionType.SYSTEM, "invalid", true);
+    final OptionValue option1 =
+        OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, "invalid", true);
     legacyStore.put("invalid", OptionValueProtoUtils.toOptionValueProto(option1));
 
     // migrate
@@ -142,27 +144,28 @@ public class TestSystemOptionManagerMigration extends DremioTest {
   }
 
   /**
-   * Ensure that we do not store invalid options (i.e. options that were removed) in
-   * the general case.
+   * Ensure that we do not store invalid options (i.e. options that were removed) in the general
+   * case.
    */
   @Test
   public void testIgnoreInvalidOptionOutsideOfMigration() throws Exception {
-    final LegacyKVStore<String, OptionValueProtoList> store = kvStoreProvider.getStore(
-      SystemOptionManager.OptionStoreCreator.class);
+    final LegacyKVStore<String, OptionValueProtoList> store =
+        kvStoreProvider.getStore(SystemOptionManager.OptionStoreCreator.class);
 
     // A Valid option
-    final OptionValue validOption = OptionValue.createBoolean(
-      OptionValue.OptionType.SYSTEM, "planner.disable_exchanges", true);
+    final OptionValue validOption =
+        OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, "planner.disable_exchanges", true);
 
     // An invalid option
-    final OptionValue invalidOption = OptionValue.createBoolean(
-      OptionValue.OptionType.SYSTEM, "invalid", true);
+    final OptionValue invalidOption =
+        OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, "invalid", true);
 
-    store.put(SystemOptionManager.OPTIONS_KEY, OptionValueProtoUtils.toOptionValueProtoList(
-      Arrays.asList(
-        OptionValueProtoUtils.toOptionValueProto(validOption),
-        OptionValueProtoUtils.toOptionValueProto(invalidOption)
-      )));
+    store.put(
+        SystemOptionManager.OPTIONS_KEY,
+        OptionValueProtoUtils.toOptionValueProtoList(
+            Arrays.asList(
+                OptionValueProtoUtils.toOptionValueProto(validOption),
+                OptionValueProtoUtils.toOptionValueProto(invalidOption))));
 
     som.start();
 

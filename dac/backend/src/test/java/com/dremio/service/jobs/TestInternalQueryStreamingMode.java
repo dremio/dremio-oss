@@ -18,17 +18,6 @@ package com.dremio.service.jobs;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicInteger;
-
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.Test;
-
 import com.dremio.common.exceptions.GrpcExceptionUtil;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.server.BaseTestServer;
@@ -41,19 +30,26 @@ import com.dremio.service.job.JobsServiceGrpc.JobsServiceStub;
 import com.dremio.service.job.SubmitJobRequest;
 import com.google.common.base.Throwables;
 import com.google.protobuf.ByteString;
-
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.StatusRuntimeException;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.stub.StreamObserver;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.junit.AfterClass;
+import org.junit.Before;
+import org.junit.Test;
 
-/**
- * Testing e2e internal query streamResultsMode
- */
+/** Testing e2e internal query streamResultsMode */
 public class TestInternalQueryStreamingMode extends BaseTestServer {
-  private static final String SQL_QUERY = "SELECT \"employee_id\", \"full_name\" FROM cp.\"employees_with_null.json\"";
+  private static final String SQL_QUERY =
+      "SELECT \"employee_id\", \"full_name\" FROM cp.\"employees_with_null.json\"";
 
   private LocalJobsService jobsService;
 
@@ -66,16 +62,17 @@ public class TestInternalQueryStreamingMode extends BaseTestServer {
     jobsService = l(LocalJobsService.class);
 
     final String name = InProcessServerBuilder.generateName();
-    server = InProcessServerBuilder.forName(name)
-      .directExecutor()
-      .addService(new JobsServiceAdapter(p(LocalJobsService.class)))
-      .addService(new Chronicle(p(LocalJobsService.class), () -> getSabotContext().getExecutorService()))
-      .build();
+    server =
+        InProcessServerBuilder.forName(name)
+            .directExecutor()
+            .addService(new JobsServiceAdapter(p(LocalJobsService.class)))
+            .addService(
+                new Chronicle(
+                    p(LocalJobsService.class), () -> getSabotContext().getExecutorService()))
+            .build();
     server.start();
 
-    channel = InProcessChannelBuilder.forName(name)
-      .directExecutor()
-      .build();
+    channel = InProcessChannelBuilder.forName(name).directExecutor().build();
     asyncStub = JobsServiceGrpc.newStub(channel);
   }
 
@@ -92,13 +89,16 @@ public class TestInternalQueryStreamingMode extends BaseTestServer {
   // JobEvent observer is instanceOf ServerCallStreamObserver, supports back pressure.
   @Test
   public void testStreamingEnabledWithScso() {
-    final com.dremio.service.job.SqlQuery sqlQuery = com.dremio.service.job.SqlQuery.newBuilder()
-      .setSql(SQL_QUERY)
-      .setUsername(DEFAULT_USERNAME)
-      .addAllContext(Collections.<String>emptyList())
-      .build();
+    final com.dremio.service.job.SqlQuery sqlQuery =
+        com.dremio.service.job.SqlQuery.newBuilder()
+            .setSql(SQL_QUERY)
+            .setUsername(DEFAULT_USERNAME)
+            .addAllContext(Collections.<String>emptyList())
+            .build();
     final QueryResultObserver observer = new QueryResultObserver();
-    asyncStub.submitJob(SubmitJobRequest.newBuilder().setSqlQuery(sqlQuery).setStreamResultsMode(true).build(), observer);
+    asyncStub.submitJob(
+        SubmitJobRequest.newBuilder().setSqlQuery(sqlQuery).setStreamResultsMode(true).build(),
+        observer);
     observer.awaitUnchecked();
     assertTrue(observer.isCompleted());
     assertTrue(observer.getResults().size() > 0);
@@ -108,12 +108,16 @@ public class TestInternalQueryStreamingMode extends BaseTestServer {
   // JobEvent observer is NOT instanceOf ServerCallStreamObserver, doesn't support back pressure.
   @Test
   public void testStreamingEnabledWithoutScso() {
-    final JobRequest jobRequest = JobRequest.newBuilder()
-      .setSqlQuery(new SqlQuery(SQL_QUERY, DEFAULT_USERNAME))
-      .setStreamResultsMode(true)
-      .build();
+    final JobRequest jobRequest =
+        JobRequest.newBuilder()
+            .setSqlQuery(new SqlQuery(SQL_QUERY, DEFAULT_USERNAME))
+            .setStreamResultsMode(true)
+            .build();
     final QueryResultObserver observer = new QueryResultObserver();
-    jobsService.submitJob(JobsServiceTestUtils.toSubmitJobRequest(jobRequest), observer, PlanTransformationListener.NO_OP);
+    jobsService.submitJob(
+        JobsServiceTestUtils.toSubmitJobRequest(jobRequest),
+        observer,
+        PlanTransformationListener.NO_OP);
     observer.awaitUnchecked();
     assertTrue(observer.isCompleted());
     assertTrue(observer.getResults().size() > 0);
@@ -122,20 +126,20 @@ public class TestInternalQueryStreamingMode extends BaseTestServer {
 
   @Test
   public void testStreamingDisabled() {
-    final JobRequest jobRequest = JobRequest.newBuilder()
-      .setSqlQuery(new SqlQuery(SQL_QUERY, DEFAULT_USERNAME))
-      .build();
+    final JobRequest jobRequest =
+        JobRequest.newBuilder().setSqlQuery(new SqlQuery(SQL_QUERY, DEFAULT_USERNAME)).build();
     final QueryResultObserver observer = new QueryResultObserver();
-    jobsService.submitJob(JobsServiceTestUtils.toSubmitJobRequest(jobRequest), observer, PlanTransformationListener.NO_OP);
+    jobsService.submitJob(
+        JobsServiceTestUtils.toSubmitJobRequest(jobRequest),
+        observer,
+        PlanTransformationListener.NO_OP);
     observer.awaitUnchecked();
     assertTrue(observer.isCompleted());
     assertEquals(0, observer.getResults().size());
     assertEquals(4, observer.getTotalEvents());
   }
 
-  /**
-   * Observer for results.
-   */
+  /** Observer for results. */
   public static class QueryResultObserver implements StreamObserver<JobEvent> {
     private final CountDownLatch latch = new CountDownLatch(1);
     private final AtomicInteger eventCount = new AtomicInteger(0);
@@ -161,7 +165,8 @@ public class TestInternalQueryStreamingMode extends BaseTestServer {
     @Override
     public void onError(Throwable t) {
       if (t instanceof StatusRuntimeException) {
-        final Optional<UserException> ue = GrpcExceptionUtil.fromStatusRuntimeException((StatusRuntimeException) t);
+        final Optional<UserException> ue =
+            GrpcExceptionUtil.fromStatusRuntimeException((StatusRuntimeException) t);
         if (ue.isPresent()) {
           ex = ue.get();
         } else {
@@ -174,8 +179,7 @@ public class TestInternalQueryStreamingMode extends BaseTestServer {
     }
 
     @Override
-    public void onCompleted() {
-    }
+    public void onCompleted() {}
 
     List<ByteString> getResults() {
       return results;

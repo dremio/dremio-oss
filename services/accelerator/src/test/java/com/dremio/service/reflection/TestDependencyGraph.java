@@ -20,16 +20,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
-
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
-import org.mockito.Mockito;
-
 import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.service.DirectProvider;
@@ -49,10 +39,16 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.MultimapBuilder;
 import com.google.common.collect.Sets;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import org.junit.After;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.Test;
+import org.mockito.Mockito;
 
-/**
- * tests for {@link DependencyGraph}
- */
+/** tests for {@link DependencyGraph} */
 public class TestDependencyGraph {
 
   private static final LegacyKVStoreProvider kvstore =
@@ -60,21 +56,25 @@ public class TestDependencyGraph {
 
   private static DependenciesStore dependenciesStore;
 
-  private static final ImmutableMap<String, DependencyEntry> dependencyByName = ImmutableMap.<String, DependencyEntry>builder()
-    .put("pds1", DependencyEntry.of("pds1", Lists.newArrayList("f", "pds1"), 0L))
-    .put("pds2", DependencyEntry.of("pds2", Lists.newArrayList("f", "pds2"), 0L))
-    .put("raw1", DependencyEntry.of(rId("raw1"), 0L))
-    .put("raw2", DependencyEntry.of(rId("raw2"), 0L))
-    .put("agg1", DependencyEntry.of(rId("agg1"), 0L))
-    .put("agg2", DependencyEntry.of(rId("agg2"), 0L))
-    .put("agg3", DependencyEntry.of(rId("agg3"), 0L))
-    .put("vds-raw", DependencyEntry.of(rId("vds-raw"), 0L))
-    .put("vds-agg1", DependencyEntry.of(rId("vds-agg1"), 0L))
-    .put("vds-agg2", DependencyEntry.of(rId("vds-agg2"), 0L))
-    .put("tablefunction1", DependencyEntry.of("tablefunction1", "postgres", "select * from emp"))
-    .put("tablefunction2", DependencyEntry.of("tablefunction2", "postgres", "select * from dept"))
-    .build();
-
+  private static final ImmutableMap<String, DependencyEntry> dependencyByName =
+      ImmutableMap.<String, DependencyEntry>builder()
+          .put("pds1", DependencyEntry.of("pds1", Lists.newArrayList("f", "pds1"), 0L, null))
+          .put("pds2", DependencyEntry.of("pds2", Lists.newArrayList("f", "pds2"), 0L, null))
+          .put("raw1", DependencyEntry.of(rId("raw1"), 0L))
+          .put("raw2", DependencyEntry.of(rId("raw2"), 0L))
+          .put("agg1", DependencyEntry.of(rId("agg1"), 0L))
+          .put("agg2", DependencyEntry.of(rId("agg2"), 0L))
+          .put("agg3", DependencyEntry.of(rId("agg3"), 0L))
+          .put("vds-raw", DependencyEntry.of(rId("vds-raw"), 0L))
+          .put("vds-agg1", DependencyEntry.of(rId("vds-agg1"), 0L))
+          .put("vds-agg2", DependencyEntry.of(rId("vds-agg2"), 0L))
+          .put(
+              "tablefunction1",
+              DependencyEntry.of("tablefunction1", "postgres", "select * from emp"))
+          .put(
+              "tablefunction2",
+              DependencyEntry.of("tablefunction2", "postgres", "select * from dept"))
+          .build();
 
   @BeforeClass
   public static void beforeClass() throws Exception {
@@ -90,7 +90,7 @@ public class TestDependencyGraph {
   @After
   public void afterTest() throws Exception {
     Iterable<Map.Entry<ReflectionId, ReflectionDependencies>> all = dependenciesStore.getAll();
-    for(Map.Entry<ReflectionId, ReflectionDependencies> entry : all) {
+    for (Map.Entry<ReflectionId, ReflectionDependencies> entry : all) {
       dependenciesStore.delete(entry.getKey());
     }
   }
@@ -99,40 +99,52 @@ public class TestDependencyGraph {
     return new ReflectionId(id);
   }
 
-  private static Map<ReflectionId, ReflectionDependencies> storeDependencies(Multimap<String, String> dependencyMap) {
+  private static Map<ReflectionId, ReflectionDependencies> storeDependencies(
+      Multimap<String, String> dependencyMap) {
     ImmutableMap.Builder<ReflectionId, ReflectionDependencies> builder = ImmutableMap.builder();
 
     for (String id : dependencyMap.keySet()) {
       final ReflectionId reflectionId = rId(id);
-      builder.put(reflectionId, new ReflectionDependencies().setId(reflectionId).setEntryList(
-        FluentIterable.from(dependencyMap.get(id))
-        .transform(new Function<String, ReflectionDependencyEntry>() {
-          @Override
-          public ReflectionDependencyEntry apply(String input) {
-            return dependencyByName.get(input).toProtobuf();
-          }
-        }).toList()));
+      builder.put(
+          reflectionId,
+          new ReflectionDependencies()
+              .setId(reflectionId)
+              .setEntryList(
+                  FluentIterable.from(dependencyMap.get(id))
+                      .transform(
+                          new Function<String, ReflectionDependencyEntry>() {
+                            @Override
+                            public ReflectionDependencyEntry apply(String input) {
+                              return dependencyByName.get(input).toProtobuf();
+                            }
+                          })
+                      .toList()));
     }
 
     return builder.build();
   }
 
   private static boolean isSuccessor(DependencyGraph graph, String parent, final String dependant) {
-    return Iterables.any(graph.getSubGraph(rId(parent)), new Predicate<ReflectionId>() {
-      @Override
-      public boolean apply(ReflectionId input) {
-        return input.getId().equals(dependant);
-      }
-    });
+    return Iterables.any(
+        graph.getSubGraph(rId(parent)),
+        new Predicate<ReflectionId>() {
+          @Override
+          public boolean apply(ReflectionId input) {
+            return input.getId().equals(dependant);
+          }
+        });
   }
 
-  private static boolean isPredecessor(DependencyGraph graph, final String parent, final String dependant) {
-    return Iterables.any(graph.getPredecessors(rId(dependant)), new Predicate<DependencyEntry>() {
-      @Override
-      public boolean apply(DependencyEntry entry) {
-        return entry.getId().equals(parent);
-      }
-    });
+  private static boolean isPredecessor(
+      DependencyGraph graph, final String parent, final String dependant) {
+    return Iterables.any(
+        graph.getPredecessors(rId(dependant)),
+        new Predicate<DependencyEntry>() {
+          @Override
+          public boolean apply(DependencyEntry entry) {
+            return entry.getId().equals(parent);
+          }
+        });
   }
 
   @Test
@@ -143,7 +155,8 @@ public class TestDependencyGraph {
 
     // let's add some dependencies to the store
     // Map<Dependant, List<Parent>>
-    final Multimap<String, String> dependencyMap = MultimapBuilder.hashKeys().arrayListValues().build();
+    final Multimap<String, String> dependencyMap =
+        MultimapBuilder.hashKeys().arrayListValues().build();
     // pds1 > raw1 > agg1
     dependencyMap.put("raw1", "pds1");
     dependencyMap.put("raw1", "tablefunction1");
@@ -160,15 +173,18 @@ public class TestDependencyGraph {
     // agg1, agg2 > vds-agg2
     dependencyMap.putAll("vds-agg2", Lists.newArrayList("agg1", "agg2"));
 
-    Mockito.when(dependenciesStore.getAll()).thenReturn(storeDependencies(dependencyMap).entrySet());
+    Mockito.when(dependenciesStore.getAll())
+        .thenReturn(storeDependencies(dependencyMap).entrySet());
     graph.loadFromStore();
 
     for (String dependant : dependencyMap.keySet()) {
       // we only store subgraphs of reflections
       for (String parent : dependencyMap.get(dependant)) {
-        assertTrue(String.format("%s > %s", parent, dependant), isPredecessor(graph, parent, dependant));
+        assertTrue(
+            String.format("%s > %s", parent, dependant), isPredecessor(graph, parent, dependant));
         if (dependencyByName.get(parent).getType() == DependencyType.REFLECTION) {
-          assertTrue(String.format("%s < %s", dependant, parent), isSuccessor(graph, parent, dependant));
+          assertTrue(
+              String.format("%s < %s", dependant, parent), isSuccessor(graph, parent, dependant));
         }
       }
     }
@@ -178,7 +194,8 @@ public class TestDependencyGraph {
   public void testDeletePredecessor() throws Exception {
     final DependencyGraph graph = new DependencyGraph(dependenciesStore);
 
-    // let's add some dependencies to the store. See dependencyMap above to imagine all the dependencies
+    // let's add some dependencies to the store. See dependencyMap above to imagine all the
+    // dependencies
     ReflectionId pds1Id = new ReflectionId("pds1");
     ReflectionId pds2Id = new ReflectionId("pds2");
     ReflectionId raw1Id = new ReflectionId("raw1");
@@ -190,21 +207,32 @@ public class TestDependencyGraph {
     ReflectionId vdsagg1Id = new ReflectionId("vds-agg1");
     ReflectionId vdsagg2Id = new ReflectionId("vds-agg2");
 
-    graph.setDependencies(raw1Id, Sets.<DependencyEntry>newHashSet(DependencyEntry.of("pds1", Lists.newArrayList("f", "pds1"), 0L)));
+    graph.setDependencies(
+        raw1Id,
+        Sets.<DependencyEntry>newHashSet(
+            DependencyEntry.of("pds1", Lists.newArrayList("f", "pds1"), 0L, null)));
     graph.setDependencies(agg1Id, Sets.<DependencyEntry>newHashSet(DependencyEntry.of(raw1Id, 0L)));
 
-    graph.setDependencies(raw2Id, Sets.<DependencyEntry>newHashSet(DependencyEntry.of("pds2", Lists.newArrayList("f", "pds2"), 0L)));
+    graph.setDependencies(
+        raw2Id,
+        Sets.<DependencyEntry>newHashSet(
+            DependencyEntry.of("pds2", Lists.newArrayList("f", "pds2"), 0L, null)));
     graph.setDependencies(agg2Id, Sets.<DependencyEntry>newHashSet(DependencyEntry.of(raw2Id, 0L)));
 
     graph.setDependencies(agg3Id, Sets.<DependencyEntry>newHashSet(DependencyEntry.of(raw2Id, 0L)));
 
-    graph.setDependencies(vdsrawId, Sets.<DependencyEntry>newHashSet(DependencyEntry.of(raw1Id, 0L),
-      DependencyEntry.of(raw2Id, 0L)));
+    graph.setDependencies(
+        vdsrawId,
+        Sets.<DependencyEntry>newHashSet(
+            DependencyEntry.of(raw1Id, 0L), DependencyEntry.of(raw2Id, 0L)));
 
-    graph.setDependencies(vdsagg1Id, Sets.<DependencyEntry>newHashSet(DependencyEntry.of(vdsrawId, 0L)));
+    graph.setDependencies(
+        vdsagg1Id, Sets.<DependencyEntry>newHashSet(DependencyEntry.of(vdsrawId, 0L)));
 
-    graph.setDependencies(vdsagg2Id, Sets.<DependencyEntry>newHashSet(DependencyEntry.of(agg1Id, 0L),
-      DependencyEntry.of(agg2Id, 0L)));
+    graph.setDependencies(
+        vdsagg2Id,
+        Sets.<DependencyEntry>newHashSet(
+            DependencyEntry.of(agg1Id, 0L), DependencyEntry.of(agg2Id, 0L)));
 
     // loading all the data
     graph.loadFromStore();
@@ -223,13 +251,13 @@ public class TestDependencyGraph {
       assertEquals(((ReflectionDependency) depEntry).getReflectionId(), vdsrawId);
     }
     for (DependencyEntry depEntry : graph.getPredecessors(vdsrawId)) {
-      assertTrue(((ReflectionDependency) depEntry).getReflectionId().equals(raw2Id) ||
-        ((ReflectionDependency) depEntry).getReflectionId().equals(raw1Id));
+      assertTrue(
+          ((ReflectionDependency) depEntry).getReflectionId().equals(raw2Id)
+              || ((ReflectionDependency) depEntry).getReflectionId().equals(raw1Id));
     }
 
     assertTrue(isSuccessor(graph, raw1Id.getId(), vdsrawId.getId()));
     assertTrue(isSuccessor(graph, raw2Id.getId(), vdsrawId.getId()));
-
 
     // try to delete intermediate reflection
     graph.delete(vdsrawId);
@@ -247,11 +275,6 @@ public class TestDependencyGraph {
     List<DependencyEntry> preDvsagg1Id = graph.getPredecessors(vdsagg1Id);
     List<DependencyEntry> preDvdsagg2Id = graph.getPredecessors(vdsagg2Id);
     List<DependencyEntry> preDvdsrawId = graph.getPredecessors(vdsrawId);
-
-    // make sure in memory representation is correct
-    assertEquals(preDvdsagg2Id, preDvdsagg2Id);
-    assertEquals(preDvdsrawId, preDvdsrawId);
-    assertEquals(preDvsagg1Id, preDvsagg1Id);
 
     for (DependencyEntry depEntry : preDvsagg1Id) {
       assertNotEquals(((ReflectionDependency) depEntry).getReflectionId(), vdsrawId);
@@ -340,7 +363,8 @@ public class TestDependencyGraph {
   public void testSnapshotDependency() throws Exception {
     final DependencyGraph graph = new DependencyGraph(dependenciesStore);
 
-    // let's add some dependencies to the store. See dependencyMap above to imagine all the dependencies
+    // let's add some dependencies to the store. See dependencyMap above to imagine all the
+    // dependencies
     ReflectionId raw1Id = new ReflectionId("raw1");
     ReflectionId raw2Id = new ReflectionId("raw2");
     ReflectionId vdsrawId = new ReflectionId("vds-raw");
@@ -352,10 +376,17 @@ public class TestDependencyGraph {
     long raw2SnapshotId = new Random().nextLong();
     long vdsrawSnapshotId = new Random().nextLong();
 
-
-    graph.setDependencies(raw1Id, Sets.newHashSet(DependencyEntry.of("pds1", Lists.newArrayList("f", "pds1"), pds1SnapshotId)));
-    graph.setDependencies(vdsrawId, Sets.newHashSet(DependencyEntry.of(raw1Id, raw1SnapshotId), DependencyEntry.of(raw2Id, raw2SnapshotId)));
-    graph.setDependencies(vdsagg1Id, Sets.newHashSet(DependencyEntry.of(vdsrawId, vdsrawSnapshotId)));
+    graph.setDependencies(
+        raw1Id,
+        Sets.newHashSet(
+            DependencyEntry.of("pds1", Lists.newArrayList("f", "pds1"), pds1SnapshotId, null)));
+    graph.setDependencies(
+        vdsrawId,
+        Sets.newHashSet(
+            DependencyEntry.of(raw1Id, raw1SnapshotId),
+            DependencyEntry.of(raw2Id, raw2SnapshotId)));
+    graph.setDependencies(
+        vdsagg1Id, Sets.newHashSet(DependencyEntry.of(vdsrawId, vdsrawSnapshotId)));
 
     // loading all the data
     graph.loadFromStore();
@@ -370,10 +401,12 @@ public class TestDependencyGraph {
 
     // check that vdsrraw depends on raw1 and raw2 and their snapshots
     for (DependencyEntry depEntry : graph.getPredecessors(vdsrawId)) {
-      assertTrue(((ReflectionDependency) depEntry).getReflectionId().equals(raw2Id) ||
-        ((ReflectionDependency) depEntry).getReflectionId().equals(raw1Id));
-      assertTrue((((ReflectionDependency) depEntry).getSnapshotId() == raw2SnapshotId) ||
-        ((ReflectionDependency) depEntry).getSnapshotId() == raw1SnapshotId);
+      assertTrue(
+          ((ReflectionDependency) depEntry).getReflectionId().equals(raw2Id)
+              || ((ReflectionDependency) depEntry).getReflectionId().equals(raw1Id));
+      assertTrue(
+          (((ReflectionDependency) depEntry).getSnapshotId() == raw2SnapshotId)
+              || ((ReflectionDependency) depEntry).getSnapshotId() == raw1SnapshotId);
     }
 
     // now check that vds-agg1 depends on vdsraw
@@ -386,7 +419,10 @@ public class TestDependencyGraph {
 
     // now simulate a refresh of raw1 by updating the snapshot of the dependency
     long pds1NewSnapshotId = new Random().nextLong();
-    graph.setDependencies(raw1Id, Sets.newHashSet(DependencyEntry.of("pds1", Lists.newArrayList("f", "pds1"), pds1NewSnapshotId)));
+    graph.setDependencies(
+        raw1Id,
+        Sets.newHashSet(
+            DependencyEntry.of("pds1", Lists.newArrayList("f", "pds1"), pds1NewSnapshotId, null)));
 
     // ensure it was actually updated
     raw1Deps = graph.getPredecessors(raw1Id);

@@ -24,10 +24,6 @@ import static com.dremio.provision.yarn.YarnWatchdog.YARN_WATCHDOG_LOG_LEVEL;
 import static org.apache.twill.internal.Constants.Files.APPLICATION_JAR;
 import static org.apache.twill.internal.Constants.Files.TWILL_JAR;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-
 import com.dremio.common.JULBridge;
 import com.dremio.common.VM;
 import com.dremio.common.config.SabotConfig;
@@ -42,13 +38,14 @@ import com.dremio.exec.util.GuavaPatcher;
 import com.dremio.provision.yarn.YarnContainerHealthMonitor;
 import com.dremio.provision.yarn.YarnWatchdog;
 import com.google.common.base.Throwables;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
-
-/**
- * Starts the Dremio daemon in a YARN container and inject dependencies
- */
+/** Starts the Dremio daemon in a YARN container and inject dependencies */
 public class YarnDaemon implements Runnable, AutoCloseable {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(YarnDaemon.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(YarnDaemon.class);
 
   static {
     /*
@@ -64,7 +61,6 @@ public class YarnDaemon implements Runnable, AutoCloseable {
     JULBridge.configure();
   }
 
-
   private volatile DACDaemon dacDaemon;
 
   public YarnDaemon(String[] args) {}
@@ -75,14 +71,15 @@ public class YarnDaemon implements Runnable, AutoCloseable {
 
       // create a temporary local write path
       final Path localWritePath = Files.createTempDirectory("dremio-executor");
-      final DACConfig config = DACConfig.newConfig()
-          .writePath(localWritePath.toString());
+      final DACConfig config = DACConfig.newConfig().writePath(localWritePath.toString());
       logger.info("Local write path set to '{}'", localWritePath);
 
       final SabotConfig sabotConfig = config.getConfig().getSabotConfig();
-      final DACModule module = sabotConfig.getInstance(DremioDaemon.DAEMON_MODULE_CLASS, DACModule.class, DACDaemonModule.class);
-      try (final DACDaemon daemon = DACDaemon.newDremioDaemon(config, ClassPathScanner.fromPrescan(sabotConfig),
-          module)) {
+      final DACModule module =
+          sabotConfig.getInstance(
+              DremioDaemon.DAEMON_MODULE_CLASS, DACModule.class, DACDaemonModule.class);
+      try (final DACDaemon daemon =
+          DACDaemon.newDremioDaemon(config, ClassPathScanner.fromPrescan(sabotConfig), module)) {
         dacDaemon = daemon;
         daemon.init();
         // Start yarn watchdog
@@ -142,14 +139,22 @@ public class YarnDaemon implements Runnable, AutoCloseable {
     final long killReattemptIntervalMs = dremioConfig.getMilliseconds(KILL_REATTEMPT_INTERVAL_MS);
     final String classpath = APPLICATION_JAR + "/lib/*:" + TWILL_JAR + "/lib/*";
     final String javaHome = System.getenv("JAVA_HOME");
-    final ProcessBuilder yarnWatchdogProcessBuilder = new ProcessBuilder(javaHome+"/bin/java",
-      "-D" + YARN_WATCHDOG_LOG_LEVEL + "=" + getYarnWatchdogLogLevel(),
-      "-cp", classpath, YarnWatchdog.class.getName(),
-      Long.toString(watchedPID), Integer.toString(livenessPort), Long.toString(pollTimeoutMs),
-      Long.toString(pollIntervalMs), Integer.toString(missedPollsBeforeKill), Integer.toString(maxKillAttempts),
-      Long.toString(killReattemptIntervalMs))
-      .redirectOutput(ProcessBuilder.Redirect.INHERIT)
-      .redirectError(ProcessBuilder.Redirect.INHERIT);
+    final ProcessBuilder yarnWatchdogProcessBuilder =
+        new ProcessBuilder(
+                javaHome + "/bin/java",
+                "-D" + YARN_WATCHDOG_LOG_LEVEL + "=" + getYarnWatchdogLogLevel(),
+                "-cp",
+                classpath,
+                YarnWatchdog.class.getName(),
+                Long.toString(watchedPID),
+                Integer.toString(livenessPort),
+                Long.toString(pollTimeoutMs),
+                Long.toString(pollIntervalMs),
+                Integer.toString(missedPollsBeforeKill),
+                Integer.toString(maxKillAttempts),
+                Long.toString(killReattemptIntervalMs))
+            .redirectOutput(ProcessBuilder.Redirect.INHERIT)
+            .redirectError(ProcessBuilder.Redirect.INHERIT);
     try {
       yarnWatchdogProcess = yarnWatchdogProcessBuilder.start();
     } catch (IOException e) {
@@ -158,28 +163,30 @@ public class YarnDaemon implements Runnable, AutoCloseable {
     }
     if (yarnWatchdogProcess != null) {
       final Process finalYarnWatchdogProcess = yarnWatchdogProcess;
-      Thread yarnWatchdogMonitor = new Thread("yarn-watchdog-monitor") {
+      Thread yarnWatchdogMonitor =
+          new Thread("yarn-watchdog-monitor") {
 
-        @Override
-        public void run() {
-          while (true) {
-            while (finalYarnWatchdogProcess.isAlive()) {
-              try {
-                sleep(1000);
-              } catch (InterruptedException e) {
-                // ignore exception
+            @Override
+            public void run() {
+              while (true) {
+                while (finalYarnWatchdogProcess.isAlive()) {
+                  try {
+                    sleep(1000);
+                  } catch (InterruptedException e) {
+                    // ignore exception
+                  }
+                }
+                if (livenessService.getPollCount() > 0) {
+                  logger.error("Yarn watchdog is not alive, dremio will exit.");
+                  System.exit(1);
+                } else {
+                  logger.warn(
+                      "Yarn watchdog terminated without any poll, dremio will keep running without yarn watchdog.");
+                  return;
+                }
               }
             }
-            if (livenessService.getPollCount() > 0) {
-              logger.error("Yarn watchdog is not alive, dremio will exit.");
-              System.exit(1);
-            } else {
-              logger.warn("Yarn watchdog terminated without any poll, dremio will keep running without yarn watchdog.");
-              return;
-            }
-          }
-        }
-      };
+          };
       yarnWatchdogMonitor.start();
     }
   }
@@ -190,7 +197,7 @@ public class YarnDaemon implements Runnable, AutoCloseable {
     // but instead notifying the service thread to stop waiting on close and
     // and start cleaning up
     if (dacDaemon != null) {
-      synchronized(this) {
+      synchronized (this) {
         // Make sure to only close once to prevent deadlock
         if (dacDaemon != null) {
           dacDaemon.shutdown();
@@ -199,5 +206,4 @@ public class YarnDaemon implements Runnable, AutoCloseable {
       }
     }
   }
-
 }

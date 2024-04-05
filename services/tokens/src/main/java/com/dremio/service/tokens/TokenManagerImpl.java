@@ -18,16 +18,6 @@ package com.dremio.service.tokens;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.lang.Math.min;
 
-import java.math.BigInteger;
-import java.security.SecureRandom;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
-
-import javax.inject.Provider;
-
 import com.dremio.config.DremioConfig;
 import com.dremio.dac.proto.model.tokens.QueryParam;
 import com.dremio.dac.proto.model.tokens.SessionState;
@@ -39,39 +29,45 @@ import com.dremio.options.TypeValidators.PositiveLongValidator;
 import com.dremio.service.scheduler.Schedule;
 import com.dremio.service.scheduler.SchedulerService;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Stopwatch;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.cache.RemovalListener;
 import com.google.common.cache.RemovalNotification;
 import com.google.common.collect.Sets;
+import com.google.common.hash.Hashing;
+import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import javax.inject.Provider;
 
-/**
- * Token manager implementation.
- */
+/** Token manager implementation. */
 @Options
 public class TokenManagerImpl implements TokenManager {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TokenManagerImpl.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(TokenManagerImpl.class);
 
   private static final String LOCAL_TASK_LEADER_NAME = "tokenmanager";
 
   public static final PositiveLongValidator TOKEN_EXPIRATION_TIME_MINUTES =
-    new PositiveLongValidator(
-      "token.expiration.min",
-      Integer.MAX_VALUE,
-      TimeUnit.MINUTES.convert(30, TimeUnit.HOURS));
+      new PositiveLongValidator(
+          "token.expiration.min", Integer.MAX_VALUE, TimeUnit.MINUTES.convert(30, TimeUnit.HOURS));
 
   public static final PositiveLongValidator TOKEN_RELEASE_LEADERSHIP_MS =
-    new PositiveLongValidator(
-      "token.release.leadership.ms",
-      Long.MAX_VALUE,
-      TimeUnit.HOURS.toMillis(40));
+      new PositiveLongValidator(
+          "token.release.leadership.ms", Long.MAX_VALUE, TimeUnit.HOURS.toMillis(40));
 
   public static final PositiveLongValidator TEMPORARY_TOKEN_EXPIRATION_TIME_SECONDS =
-    new PositiveLongValidator(
-      "token.temporary.expiration.sec",
-      Integer.MAX_VALUE,
-      TimeUnit.SECONDS.convert(5, TimeUnit.MINUTES));
+      new PositiveLongValidator(
+          "token.temporary.expiration.sec",
+          Integer.MAX_VALUE,
+          TimeUnit.SECONDS.convert(5, TimeUnit.MINUTES));
 
   private final SecureRandom generator = new SecureRandom();
 
@@ -85,12 +81,14 @@ public class TokenManagerImpl implements TokenManager {
   private LegacyKVStore<String, SessionState> tokenStore;
   private LoadingCache<String, SessionState> tokenCache;
 
-  public TokenManagerImpl(final Provider<LegacyKVStoreProvider> kvProvider,
-                          final Provider<SchedulerService> schedulerService,
-                          final Provider<OptionManager> optionManagerProvider,
-                          final boolean isMaster,
-                          final DremioConfig config) {
-    this(kvProvider,
+  public TokenManagerImpl(
+      final Provider<LegacyKVStoreProvider> kvProvider,
+      final Provider<SchedulerService> schedulerService,
+      final Provider<OptionManager> optionManagerProvider,
+      final boolean isMaster,
+      final DremioConfig config) {
+    this(
+        kvProvider,
         schedulerService,
         optionManagerProvider,
         isMaster,
@@ -99,12 +97,13 @@ public class TokenManagerImpl implements TokenManager {
   }
 
   @VisibleForTesting
-  TokenManagerImpl(final Provider<LegacyKVStoreProvider> kvProvider,
-                   final Provider<SchedulerService> schedulerService,
-                   final Provider<OptionManager> optionManagerProvider,
-                   final boolean isMaster,
-                   final int cacheSize,
-                   final int cacheExpiration) {
+  TokenManagerImpl(
+      final Provider<LegacyKVStoreProvider> kvProvider,
+      final Provider<SchedulerService> schedulerService,
+      final Provider<OptionManager> optionManagerProvider,
+      final boolean isMaster,
+      final int cacheSize,
+      final int cacheExpiration) {
     this.kvProvider = kvProvider;
     this.schedulerService = schedulerService;
     this.optionManagerProvider = optionManagerProvider;
@@ -117,98 +116,128 @@ public class TokenManagerImpl implements TokenManager {
   @Override
   public void start() {
     this.tokenStore = kvProvider.get().getStore(TokenStoreCreator.class);
-    this.tokenCache = CacheBuilder.newBuilder()
-      .maximumSize(cacheSize)
-      // so a token is fetched from the store ever so often
-      .expireAfterWrite(cacheExpiration, TimeUnit.MINUTES)
-      .removalListener(new RemovalListener<String, SessionState>() {
-        @Override
-        public void onRemoval(RemovalNotification<String, SessionState> notification) {
-          if (!notification.wasEvicted()) {
-            // TODO: broadcast this message to other coordinators; for now, cache on each coordinator could allow
-            // an invalid token to be used for up to "expiration"
-            tokenStore.delete(notification.getKey());
-          }
-        }
-      })
-      .build(new CacheLoader<String, SessionState>() {
-        @Override
-        public SessionState load(String key) {
-          return tokenStore.get(key);
-        }
-      });
+    this.tokenCache =
+        CacheBuilder.newBuilder()
+            .maximumSize(cacheSize)
+            // so a token is fetched from the store ever so often
+            .expireAfterWrite(cacheExpiration, TimeUnit.MINUTES)
+            .removalListener(
+                new RemovalListener<String, SessionState>() {
+                  @Override
+                  public void onRemoval(RemovalNotification<String, SessionState> notification) {
+                    if (!notification.wasEvicted()) {
+                      // TODO: broadcast this message to other coordinators; for now, cache on each
+                      // coordinator could allow
+                      // an invalid token to be used for up to "expiration"
+                      tokenStore.delete(notification.getKey());
+                    }
+                  }
+                })
+            .build(
+                new CacheLoader<String, SessionState>() {
+                  @Override
+                  public SessionState load(String key) {
+                    return tokenStore.get(key);
+                  }
+                });
 
     if (isMaster) {
-      final long tokenReleaseLeadership = optionManagerProvider.get().getOption(TOKEN_RELEASE_LEADERSHIP_MS);
-      final Schedule everyDay = Schedule.Builder.everyDays(1)
-        .asClusteredSingleton(LOCAL_TASK_LEADER_NAME)
-        .releaseOwnershipAfter(tokenReleaseLeadership, TimeUnit.MILLISECONDS).build();
+      final long tokenReleaseLeadership =
+          optionManagerProvider.get().getOption(TOKEN_RELEASE_LEADERSHIP_MS);
+      final Schedule everyDay =
+          Schedule.Builder.everyDays(1)
+              .asClusteredSingleton(LOCAL_TASK_LEADER_NAME)
+              .releaseOwnershipAfter(tokenReleaseLeadership, TimeUnit.MILLISECONDS)
+              .build();
       schedulerService.get().schedule(everyDay, new RemoveExpiredTokens());
     }
   }
 
   @Override
-  public void close() {
-  }
+  public void close() {}
 
   // From https://stackoverflow.com/questions/41107/how-to-generate-a-random-alpha-numeric-string
-  // ... This works by choosing 130 bits from a cryptographically secure random bit generator, and encoding
-  // them in base-32. 128 bits is considered to be cryptographically strong, but each digit in a base 32
-  // number can encode 5 bits, so 128 is rounded up to the next multiple of 5 ... Why 32? Because 32 = 2^5;
-  // each character will represent exactly 5 bits, and 130 bits can be evenly divided into characters.
+  // ... This works by choosing 130 bits from a cryptographically secure random bit generator, and
+  // encoding
+  // them in base-32. 128 bits is considered to be cryptographically strong, but each digit in a
+  // base 32
+  // number can encode 5 bits, so 128 is rounded up to the next multiple of 5 ... Why 32? Because 32
+  // = 2^5;
+  // each character will represent exactly 5 bits, and 130 bits can be evenly divided into
+  // characters.
   @Override
   public String newToken() {
     return new BigInteger(130, generator).toString(32);
   }
 
   @VisibleForTesting
-  TokenDetails createToken(final String username, final String clientAddress, final long issuedAt,
-                     final long expiresAt, final String path, final List<QueryParam> queryParams) {
+  TokenDetails createToken(
+      final String username,
+      final String clientAddress,
+      final long issuedAt,
+      final long expiresAt,
+      final String path,
+      final List<QueryParam> queryParams) {
     final String token = newToken();
-    final SessionState state = new SessionState()
-      .setUsername(username)
-      .setClientAddress(clientAddress)
-      .setIssuedAt(issuedAt)
-      .setExpiresAt(expiresAt)
-      .setPath(path)
-      .setQueryParamsList(queryParams);
+    final SessionState state =
+        new SessionState()
+            .setUsername(username)
+            .setClientAddress(clientAddress)
+            .setIssuedAt(issuedAt)
+            .setExpiresAt(expiresAt)
+            .setPath(path)
+            .setQueryParamsList(queryParams);
 
     tokenStore.put(token, state);
     tokenCache.put(token, state);
-    logger.trace("Created token for user: {}", username);
+    debugLogForToken("Generated Dremio token with identifier: {} for user: {}", token, username);
     return TokenDetails.of(token, username, expiresAt);
   }
 
   @VisibleForTesting
-  TokenDetails createThirdPartyToken(final String username, final String clientAddress, final long issuedAt,
-                           final long expiresAt, final String clientID, final List<String> scopes) {
+  TokenDetails createThirdPartyToken(
+      final String username,
+      final String clientAddress,
+      final long issuedAt,
+      final long expiresAt,
+      final String clientID,
+      final List<String> scopes) {
     final String token = newToken();
-    final SessionState state = new SessionState()
-      .setUsername(username)
-      .setClientAddress(clientAddress)
-      .setIssuedAt(issuedAt)
-      .setExpiresAt(expiresAt)
-      .setClientId(clientID)
-      .setScopesList(scopes);
+    final SessionState state =
+        new SessionState()
+            .setUsername(username)
+            .setClientAddress(clientAddress)
+            .setIssuedAt(issuedAt)
+            .setExpiresAt(expiresAt)
+            .setClientId(clientID)
+            .setScopesList(scopes);
 
     tokenStore.put(token, state);
     tokenCache.put(token, state);
-    logger.trace("Created token for user: {}", username);
+    debugLogForToken(
+        "Generated third-party token with identifier: {} for user: {}", token, username);
     return TokenDetails.of(token, username, expiresAt, clientID, scopes);
   }
 
   @Override
   public TokenDetails createToken(final String username, final String clientAddress) {
     final long now = System.currentTimeMillis();
-    final long expires = now + TimeUnit.MILLISECONDS.convert(optionManagerProvider
-      .get()
-      .getOption(TOKEN_EXPIRATION_TIME_MINUTES), TimeUnit.MINUTES);
+    final long expires =
+        now
+            + TimeUnit.MILLISECONDS.convert(
+                optionManagerProvider.get().getOption(TOKEN_EXPIRATION_TIME_MINUTES),
+                TimeUnit.MINUTES);
 
     return createToken(username, clientAddress, now, expires, null, null);
   }
 
   @Override
-  public TokenDetails createThirdPartyToken(String username, String clientAddress, String clientID, List<String> scopes, long durationMillis) {
+  public TokenDetails createThirdPartyToken(
+      String username,
+      String clientAddress,
+      String clientID,
+      List<String> scopes,
+      long durationMillis) {
     final long now = System.currentTimeMillis();
     final long expires = now + durationMillis;
 
@@ -216,22 +245,23 @@ public class TokenManagerImpl implements TokenManager {
   }
 
   @Override
-  public TokenDetails createTemporaryToken(String username,
-                                           String path,
-                                           Map<String, List<String>> queryParamsMap,
-                                           long durationMillis) {
+  public TokenDetails createTemporaryToken(
+      String username, String path, Map<String, List<String>> queryParamsMap, long durationMillis) {
     checkArgument(path != null, "missing designated URL path");
     checkArgument(queryParamsMap != null, "missing designated URL query params");
 
     final long now = System.currentTimeMillis();
-    final long duration = min(durationMillis, TimeUnit.SECONDS.toMillis(optionManagerProvider
-      .get()
-      .getOption(TEMPORARY_TOKEN_EXPIRATION_TIME_SECONDS)));
+    final long duration =
+        min(
+            durationMillis,
+            TimeUnit.SECONDS.toMillis(
+                optionManagerProvider.get().getOption(TEMPORARY_TOKEN_EXPIRATION_TIME_SECONDS)));
     final long expires = now + duration;
 
-    List<QueryParam> queryParamsList = queryParamsMap.entrySet().stream()
-      .map(e -> new QueryParam().setKey(e.getKey()).setValuesList(e.getValue()))
-      .collect(Collectors.toList());
+    List<QueryParam> queryParamsList =
+        queryParamsMap.entrySet().stream()
+            .map(e -> new QueryParam().setKey(e.getKey()).setValuesList(e.getValue()))
+            .collect(Collectors.toList());
 
     return createToken(username, "", now, expires, path, queryParamsList);
   }
@@ -242,6 +272,7 @@ public class TokenManagerImpl implements TokenManager {
     try {
       value = tokenCache.getUnchecked(token);
     } catch (CacheLoader.InvalidCacheLoadException ignored) {
+      debugLogForToken("Unable to lookup token with identifier: {}", token, "");
       throw new IllegalArgumentException("invalid token");
     }
 
@@ -250,34 +281,49 @@ public class TokenManagerImpl implements TokenManager {
 
   @Override
   public TokenDetails validateToken(final String token) throws IllegalArgumentException {
-    final SessionState value = getSessionState(token);
-    if (System.currentTimeMillis() >= value.getExpiresAt()) {
-      tokenCache.invalidate(token); // removes from the store as well
-      throw new IllegalArgumentException("token expired");
-    }
+    final Stopwatch stopwatch = Stopwatch.createStarted();
+    try {
+      final SessionState value = getSessionState(token);
+      if (System.currentTimeMillis() >= value.getExpiresAt()) {
+        debugLogForToken("Token with identifier: {} is expired", token, "");
+        tokenCache.invalidate(token); // removes from the store as well
+        throw new IllegalArgumentException("token expired");
+      }
 
-    if (value.getPath() != null) {
-      // non temporary access API is not allowed to use temporary token
-      throw new IllegalArgumentException("invalid token");
-    }
+      if (value.getPath() != null) {
+        // non temporary access API is not allowed to use temporary token
+        throw new IllegalArgumentException("invalid token");
+      }
 
-    logger.trace("Validated token for user: {}", value.getUsername());
-    return TokenDetails.of(token, value.getUsername(), value.getExpiresAt(), value.getClientId(), value.getScopesList());
+      debugLogForToken(
+          "Successfully validated token with identifier: {} for user: {}",
+          token,
+          value.getUsername());
+      return TokenDetails.of(
+          token,
+          value.getUsername(),
+          value.getExpiresAt(),
+          value.getClientId(),
+          value.getScopesList());
+    } finally {
+      logger.debug(
+          "Token validation elapsed time(ms): {}", stopwatch.elapsed(TimeUnit.MILLISECONDS));
+    }
   }
 
   @Override
-  public TokenDetails validateTemporaryToken(String token,
-                                             String path,
-                                             Map<String, List<String>> queryParams) throws IllegalArgumentException {
-    checkArgument(path != null,"undefined request path");
-    checkArgument(queryParams != null,"undefined request query params");
+  public TokenDetails validateTemporaryToken(
+      String token, String path, Map<String, List<String>> queryParams)
+      throws IllegalArgumentException {
+    checkArgument(path != null, "undefined request path");
+    checkArgument(queryParams != null, "undefined request query params");
     final SessionState value = getSessionState(token);
     if (System.currentTimeMillis() >= value.getExpiresAt()) {
       tokenCache.invalidate(token); // removes from the store as well
       throw new IllegalArgumentException("token expired");
     }
 
-    if (value.getPath() == null) {  // token is a regular session token
+    if (value.getPath() == null) { // token is a regular session token
       throw new IllegalArgumentException("invalid token");
     }
     validateRequestUrl(path, value.getPath(), queryParams, value.getQueryParamsList());
@@ -288,17 +334,21 @@ public class TokenManagerImpl implements TokenManager {
 
   /**
    * Validate if the incoming REST API request url matches the designated request url of the token
+   *
    * @param requestUriPath incoming REST API url path
    * @param designatedUrlPath designated REST API url path.
    * @param requestUriQueryParams incoming REST API url query parameters
    * @param designatedUrlQueryParams designated REST API url query parameters
    * @throws IllegalArgumentException if validation fails
    */
-  static void validateRequestUrl(final String requestUriPath, final String designatedUrlPath,
-                                 final Map<String, List<String>> requestUriQueryParams,
-                                 final List<QueryParam> designatedUrlQueryParams) throws IllegalArgumentException {
-    if (!requestsUrlPathsMatch(requestUriPath, designatedUrlPath) ||
-      !requestsQueryParamsMatch(requestUriQueryParams, designatedUrlQueryParams)) {
+  static void validateRequestUrl(
+      final String requestUriPath,
+      final String designatedUrlPath,
+      final Map<String, List<String>> requestUriQueryParams,
+      final List<QueryParam> designatedUrlQueryParams)
+      throws IllegalArgumentException {
+    if (!requestsUrlPathsMatch(requestUriPath, designatedUrlPath)
+        || !requestsQueryParamsMatch(requestUriQueryParams, designatedUrlQueryParams)) {
       logger.debug("Incoming request and designated request did not match.");
       throw new IllegalArgumentException("invalid token");
     }
@@ -313,18 +363,20 @@ public class TokenManagerImpl implements TokenManager {
 
   private static String trimPath(String path) {
     path = path.startsWith("/") ? path.substring(1) : path;
-    return path.endsWith("/") ? path.substring(0, path.length()-1) : path;
+    return path.endsWith("/") ? path.substring(0, path.length() - 1) : path;
   }
 
   /**
-   * Check if both query params have the same set of keys and each corresponding
-   * value(s) should be the same (order and duplication don't matter).
+   * Check if both query params have the same set of keys and each corresponding value(s) should be
+   * the same (order and duplication don't matter).
+   *
    * @param queryParams1 a map of query param key to values. Values could contain duplicates.
-   * @param queryParams2 a list of QueryParam. No duplicate keys from QueryParam instances of the list.
+   * @param queryParams2 a list of QueryParam. No duplicate keys from QueryParam instances of the
+   *     list.
    * @return true if both match.
    */
-  private static boolean requestsQueryParamsMatch(final Map<String, List<String>> queryParams1,
-                                                  final List<QueryParam> queryParams2) {
+  private static boolean requestsQueryParamsMatch(
+      final Map<String, List<String>> queryParams1, final List<QueryParam> queryParams2) {
     if (queryParams1.size() != queryParams2.size()) {
       return false;
     }
@@ -339,7 +391,7 @@ public class TokenManagerImpl implements TokenManager {
 
   @Override
   public void invalidateToken(final String token) {
-    logger.trace("Invalidate token");
+    debugLogForToken("Invalidated token with identifier: {}", token, "");
     tokenCache.invalidate(token); // removes from the store as well
   }
 
@@ -348,10 +400,17 @@ public class TokenManagerImpl implements TokenManager {
     return tokenStore;
   }
 
+  private void debugLogForToken(String statement, String at, String user) {
+    if (logger.isDebugEnabled()) {
+      // murmur hash is pretty quick with low collision rate.
+      logger.debug(statement, Hashing.murmur3_128().hashString(at, StandardCharsets.UTF_8), user);
+    }
+  }
+
   /**
-   * Periodically removes expired tokens. When a user abandons a session, that token maybe left behind.
-   * Since the token may never be accessed in the future, this task cleans up the store. This task must run
-   * only on master coordinator.
+   * Periodically removes expired tokens. When a user abandons a session, that token maybe left
+   * behind. Since the token may never be accessed in the future, this task cleans up the store.
+   * This task must run only on master coordinator.
    */
   class RemoveExpiredTokens implements Runnable {
 

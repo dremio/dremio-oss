@@ -15,14 +15,6 @@
  */
 package com.dremio.exec.catalog;
 
-import java.util.Set;
-
-import org.apache.arrow.vector.types.pojo.Field;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
-
 import com.dremio.common.expression.CompleteType;
 import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
@@ -41,12 +33,15 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Sets;
 import com.google.flatbuffers.FlatBufferBuilder;
-
 import io.protostuff.ByteString;
+import java.util.Set;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
 
-/**
- * Test information schema catalog.
- */
+/** Test information schema catalog. */
 public class TestInformationSchemaCatalog {
   private static final String DEFAULT_CATALOG = "DREMIO";
   private static final String SOURCE = "source";
@@ -77,7 +72,7 @@ public class TestInformationSchemaCatalog {
     final Field child1 = CompleteType.VARCHAR.toField("c");
     final Field field2 = CompleteType.struct(ImmutableList.of(child1)).toField("b");
     final org.apache.arrow.vector.types.pojo.Schema schema =
-      new org.apache.arrow.vector.types.pojo.Schema(ImmutableList.of(field1, field2));
+        new org.apache.arrow.vector.types.pojo.Schema(ImmutableList.of(field1, field2));
     final FlatBufferBuilder builder = new FlatBufferBuilder();
     schema.getSchema(builder);
     builder.finish(schema.getSchema(builder));
@@ -102,41 +97,41 @@ public class TestInformationSchemaCatalog {
   @Test
   public void listCatalogs() {
     Assert.assertEquals(1, Iterators.size(catalog.listCatalogs(null)));
-    Assert.assertEquals(DEFAULT_CATALOG,
-      catalog.listCatalogs(null).next().getCatalogName());
+    Assert.assertEquals(DEFAULT_CATALOG, catalog.listCatalogs(null).next().getCatalogName());
 
-    Assert.assertEquals("",
-      catalog.listCatalogs(null).next().getCatalogConnect());
+    Assert.assertEquals("", catalog.listCatalogs(null).next().getCatalogConnect());
 
-    Assert.assertEquals("The internal metadata used by Dremio",
-      catalog.listCatalogs(null).next().getCatalogDescription());
+    Assert.assertEquals(
+        "The internal metadata used by Dremio",
+        catalog.listCatalogs(null).next().getCatalogDescription());
   }
 
   private static Schema schema(String schemaName) {
     return Schema.newBuilder()
-      .setCatalogName(DEFAULT_CATALOG)
-      .setSchemaName(schemaName)
-      .setSchemaOwner("<owner>")
-      .setSchemaType(SchemaType.SIMPLE)
-      .setIsMutable(false)
-      .build();
+        .setCatalogName(DEFAULT_CATALOG)
+        .setSchemaName(schemaName)
+        .setSchemaOwner("<owner>")
+        .setSchemaType(SchemaType.SIMPLE)
+        .setIsMutable(false)
+        .build();
   }
 
   @Test
   public void listSchemata() {
     Assert.assertEquals(5, Iterators.size(catalog.listSchemata(null)));
-    final Set<Schema> schemaSet1 = Sets.newHashSet(schema(SOURCE), schema(EMPTYSPACE),
-      schema(SPACE), schema(FOLDER), schema(SUBFOLDER));
+    final Set<Schema> schemaSet1 =
+        Sets.newHashSet(
+            schema(SOURCE), schema(EMPTYSPACE), schema(SPACE), schema(FOLDER), schema(SUBFOLDER));
     Assert.assertEquals(schemaSet1, Sets.newHashSet(catalog.listSchemata(null)));
   }
 
   private static Table table(String parentName, String tableName, TableType tableType) {
     return Table.newBuilder()
-      .setCatalogName(DEFAULT_CATALOG)
-      .setSchemaName(parentName)
-      .setTableName(tableName)
-      .setTableType(tableType)
-      .build();
+        .setCatalogName(DEFAULT_CATALOG)
+        .setSchemaName(parentName)
+        .setTableName(tableName)
+        .setTableType(tableType)
+        .build();
   }
 
   @Test
@@ -152,19 +147,19 @@ public class TestInformationSchemaCatalog {
   @Test
   public void testTableSchemaIsSubsetOfSchemaName() {
     final Set<String> schemaNameSet = Sets.newHashSet();
-    catalog.listSchemata(null)
-      .forEachRemaining(e -> schemaNameSet.add(e.getSchemaName()));
-    catalog.listTables(null)
-      .forEachRemaining(e -> Assert.assertTrue(schemaNameSet.contains(e.getSchemaName())));
+    catalog.listSchemata(null).forEachRemaining(e -> schemaNameSet.add(e.getSchemaName()));
+    catalog
+        .listTables(null)
+        .forEachRemaining(e -> Assert.assertTrue(schemaNameSet.contains(e.getSchemaName())));
   }
 
   private static View view(String parentName, String tableName, String sql) {
     return View.newBuilder()
-      .setCatalogName(DEFAULT_CATALOG)
-      .setSchemaName(parentName)
-      .setTableName(tableName)
-      .setViewDefinition(sql)
-      .build();
+        .setCatalogName(DEFAULT_CATALOG)
+        .setSchemaName(parentName)
+        .setTableName(tableName)
+        .setViewDefinition(sql)
+        .build();
   }
 
   @Test
@@ -185,10 +180,13 @@ public class TestInformationSchemaCatalog {
     final Field field2 = CompleteType.struct(ImmutableList.of(child1)).toField("b");
     final Set<Field> topLevelFields = Sets.newHashSet(field1, field2);
 
-    catalog.listTableSchemata(null)
-      .forEachRemaining(tableSchema ->
-        BatchSchema.deserialize(ByteString.copyFrom(tableSchema.getBatchSchema().toByteArray()))
-          .iterator()
-          .forEachRemaining(field -> Assert.assertTrue(topLevelFields.contains(field))));
+    catalog
+        .listTableSchemata(null)
+        .forEachRemaining(
+            tableSchema ->
+                BatchSchema.deserialize(
+                        ByteString.copyFrom(tableSchema.getBatchSchema().toByteArray()))
+                    .iterator()
+                    .forEachRemaining(field -> Assert.assertTrue(topLevelFields.contains(field))));
   }
 }

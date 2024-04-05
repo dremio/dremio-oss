@@ -21,12 +21,9 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.util.regex.Matcher;
-
 import org.junit.Test;
 
-/**
- * Tests for {@link PatternMatchUtils}
- */
+/** Tests for {@link PatternMatchUtils} */
 public class TestPatternMatchUtils {
   @Test
   public void testRegex() {

@@ -15,11 +15,10 @@
  */
 package com.dremio.exec.physical.base;
 
-import java.util.Collections;
-import java.util.Iterator;
-
 import com.dremio.exec.record.BatchSchema;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import java.util.Collections;
+import java.util.Iterator;
 
 public abstract class AbstractReceiver extends AbstractBase implements Receiver {
 
@@ -30,19 +29,16 @@ public abstract class AbstractReceiver extends AbstractBase implements Receiver 
   private final boolean spooling;
 
   /**
-   *
    * @param props
    * @param schema
-   * @param oppositeMajorFragmentId MajorFragmentId of fragments that are sending data to this receiver.
-   * @param senders List of sender MinorFragmentEndpoints each containing sender MinorFragmentId and SabotNode endpoint
-   *                where it is running.
+   * @param oppositeMajorFragmentId MajorFragmentId of fragments that are sending data to this
+   *     receiver.
+   * @param senders List of sender MinorFragmentEndpoints each containing sender MinorFragmentId and
+   *     SabotNode endpoint where it is running.
    * @param spooling
    */
   public AbstractReceiver(
-      OpProps props,
-      BatchSchema schema,
-      int senderMajorFragmentId,
-      boolean spooling) {
+      OpProps props, BatchSchema schema, int senderMajorFragmentId, boolean spooling) {
     super(props);
     this.schema = schema;
     this.senderMajorFragmentId = senderMajorFragmentId;
@@ -55,7 +51,8 @@ public abstract class AbstractReceiver extends AbstractBase implements Receiver 
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value) throws E {
+  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value)
+      throws E {
     return physicalVisitor.visitReceiver(this, value);
   }
 
@@ -78,6 +75,4 @@ public abstract class AbstractReceiver extends AbstractBase implements Receiver 
   public boolean isSpooling() {
     return spooling;
   }
-
-
 }

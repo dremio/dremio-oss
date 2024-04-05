@@ -50,16 +50,17 @@ export default function (input) {
 
     getSourceSettingsButtons() {
       const { location } = this.context;
-      const { entity } = this.props;
+      const { entity, isVersionedSource } = this.props;
       const buttons = [];
 
       if (entity.get("entityType") === "source") {
         let showSettingsButton = true;
         if (isCME && !isCME() && entity.get("permissions")) {
-          showSettingsButton = entity.getIn([
-            "permissions",
-            "canEditAccessControlList",
-          ]);
+          showSettingsButton =
+            entity.getIn(["permissions", "canEditAccessControlList"]) ||
+            (isVersionedSource &&
+              (entity.getIn(["permissions", "canAlter"]) ||
+                entity.getIn(["permissions", "canEdit"])));
         }
         if (showSettingsButton) {
           buttons.push({
@@ -78,6 +79,9 @@ export default function (input) {
       }
 
       return buttons;
+    },
+    getVersionedFolderSettingsButton() {
+      return [];
     },
   });
 }

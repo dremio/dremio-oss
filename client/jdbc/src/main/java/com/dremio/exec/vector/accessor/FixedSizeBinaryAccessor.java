@@ -15,11 +15,10 @@
  */
 package com.dremio.exec.vector.accessor;
 
-import org.apache.arrow.vector.FixedSizeBinaryVector;
-
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.types.Types;
+import org.apache.arrow.vector.FixedSizeBinaryVector;
 
 public class FixedSizeBinaryAccessor extends AbstractSqlAccessor {
 
@@ -58,5 +57,4 @@ public class FixedSizeBinaryAccessor extends AbstractSqlAccessor {
   public byte[] getBytes(int index) {
     return ac.get(index);
   }
-
 }

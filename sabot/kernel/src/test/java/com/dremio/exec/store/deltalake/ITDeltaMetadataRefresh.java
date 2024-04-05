@@ -18,8 +18,9 @@ package com.dremio.exec.store.deltalake;
 
 import static org.junit.Assert.assertEquals;
 
+import com.dremio.BaseTestQuery;
+import com.dremio.common.util.TestTools;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -29,25 +30,23 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestRule;
 
-import com.dremio.BaseTestQuery;
-import com.dremio.common.util.TestTools;
-
 public class ITDeltaMetadataRefresh extends BaseTestQuery {
 
-  @Rule
-  public final TestRule timeoutRule = TestTools.getTimeoutRule(80, TimeUnit.SECONDS);
+  @Rule public final TestRule timeoutRule = TestTools.getTimeoutRule(80, TimeUnit.SECONDS);
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ITDeltaMetadataRefresh.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ITDeltaMetadataRefresh.class);
 
   static FileSystem fs;
   static String testRootPath = "/tmp/deltalake/";
   static Configuration conf;
   static Path p = new Path(testRootPath);
-  static String[] testTables = {"testDataset",
-      "lastCheckpointDataset",
-      "schema_change_partition",
-      "JsonDataset",
-      "commitInfoAtOnlyJson"
+  static String[] testTables = {
+    "testDataset",
+    "lastCheckpointDataset",
+    "schema_change_partition",
+    "JsonDataset",
+    "commitInfoAtOnlyJson"
   };
 
   @Before
@@ -81,13 +80,17 @@ public class ITDeltaMetadataRefresh extends BaseTestQuery {
     runSQL(refreshSql);
 
     // verify metadata refresh NOT happened as there is No new commit
-    String summaryMsg = String.format("Table '%s' read signature reviewed but source stated metadata is unchanged, no refresh occurred.", fullTableName);
+    String summaryMsg =
+        String.format(
+            "Table '%s' read signature reviewed but source stated metadata is unchanged, no refresh occurred.",
+            fullTableName);
     testRefreshMetadataQueryStatusSummary(refreshSql, true, summaryMsg);
   }
 
   private void validateNoRefreshWithNewCommit(String tableName) throws Exception {
     String testTablePath = testRootPath + "/" + tableName;
-    DeltaTableIntegrationTestUtils testUtils = new DeltaTableIntegrationTestUtils(conf, testTablePath);
+    DeltaTableIntegrationTestUtils testUtils =
+        new DeltaTableIntegrationTestUtils(conf, testTablePath);
     long oldVersion = testUtils.getVersion();
     String fullTableName = "dfs".concat(testRootPath.replace('/', '.').concat(tableName));
     final String refreshSql = "alter table " + fullTableName + " refresh metadata";
@@ -106,7 +109,8 @@ public class ITDeltaMetadataRefresh extends BaseTestQuery {
     testRefreshMetadataQueryStatusSummary(refreshSql, true, summaryMsg);
   }
 
-  private void testRefreshMetadataQueryStatusSummary(String query, boolean status, String summaryMsg) throws Exception {
+  private void testRefreshMetadataQueryStatusSummary(
+      String query, boolean status, String summaryMsg) throws Exception {
     // Run the metadata refresh query and verify result message is correct.
     testBuilder()
         .sqlQuery(query)

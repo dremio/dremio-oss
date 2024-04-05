@@ -15,17 +15,10 @@
  */
 package com.dremio.exec.planner.sql.handlers.direct;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
-import java.util.Collections;
-import java.util.List;
-
-import org.apache.calcite.rel.InvalidRelException;
-import org.apache.calcite.sql.SqlNode;
-
 import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.catalog.model.VersionContext;
+import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogUtil;
@@ -39,10 +32,14 @@ import com.dremio.exec.planner.sql.parser.SqlAlterTableDropColumn;
 import com.dremio.exec.planner.sql.parser.SqlGrant;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.base.Throwables;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.util.Collections;
+import java.util.List;
+import org.apache.calcite.rel.InvalidRelException;
+import org.apache.calcite.sql.SqlNode;
 
-/**
- * Removes column from the table specified by {@link SqlAlterTableDropColumn}
- */
+/** Removes column from the table specified by {@link SqlAlterTableDropColumn} */
 public class DropColumnHandler extends SimpleDirectHandler {
   private final Catalog catalog;
   private final SqlHandlerConfig config;
@@ -54,25 +51,35 @@ public class DropColumnHandler extends SimpleDirectHandler {
 
   @Override
   public List<SimpleCommandResult> toResult(String sql, SqlNode sqlNode) throws Exception {
-    SqlAlterTableDropColumn sqlDropColumn = SqlNodeUtil.unwrap(sqlNode, SqlAlterTableDropColumn.class);
+    SqlAlterTableDropColumn sqlDropColumn =
+        SqlNodeUtil.unwrap(sqlNode, SqlAlterTableDropColumn.class);
 
     NamespaceKey sqlPath = catalog.resolveSingle(sqlDropColumn.getTable());
     final String sourceName = sqlPath.getRoot();
-    VersionContext statementSourceVersion = sqlDropColumn.getSqlTableVersionSpec().getTableVersionSpec().getTableVersionContext().asVersionContext();
-    final VersionContext sessionVersion = config.getContext().getSession().getSessionVersionForSource(sourceName);
+    VersionContext statementSourceVersion =
+        sqlDropColumn
+            .getSqlTableVersionSpec()
+            .getTableVersionSpec()
+            .getTableVersionContext()
+            .asVersionContext();
+    final VersionContext sessionVersion =
+        config.getContext().getSession().getSessionVersionForSource(sourceName);
     VersionContext sourceVersion = statementSourceVersion.orElse(sessionVersion);
-    ResolvedVersionContext resolvedVersionContext = CatalogUtil.resolveVersionContext(catalog, sourceName, sourceVersion);
-    final CatalogEntityKey catalogEntityKey = CatalogUtil.getResolvedCatalogEntityKey(
-        catalog,
-        sqlPath,
-        resolvedVersionContext);
-    NamespaceKey path = new NamespaceKey(catalogEntityKey.getKeyComponents());
+    NamespaceKey resolvedPath =
+        CatalogUtil.getResolvePathForTableManagement(
+            catalog, sqlPath, TableVersionContext.of(sourceVersion));
+    final CatalogEntityKey catalogEntityKey =
+        CatalogEntityKey.newBuilder()
+            .keyComponents(resolvedPath.getPathComponents())
+            .tableVersionContext(TableVersionContext.of(sourceVersion))
+            .build();
 
-    catalog.validatePrivilege(path, SqlGrant.Privilege.ALTER);
+    catalog.validatePrivilege(resolvedPath, SqlGrant.Privilege.ALTER);
 
-    DremioTable table = CatalogUtil.getTableNoResolve(catalogEntityKey, catalog);
+    DremioTable table = catalog.getTableNoResolve(catalogEntityKey);
 
-    SimpleCommandResult validate = SqlHandlerUtil.validateSupportForDDLOperations(catalog, config, path, table);
+    SimpleCommandResult validate =
+        SqlHandlerUtil.validateSupportForDDLOperations(catalog, config, resolvedPath, table);
 
     if (!validate.ok) {
       return Collections.singletonList(validate);
@@ -80,45 +87,65 @@ public class DropColumnHandler extends SimpleDirectHandler {
 
     if (table.getSchema().getFields().stream()
         .noneMatch(field -> field.getName().equalsIgnoreCase(sqlDropColumn.getColumnToDrop()))) {
-      throw UserException.validationError().message("Column [%s] is not present in table [%s]",
-          sqlDropColumn.getColumnToDrop(), path).buildSilently();
+      throw UserException.validationError()
+          .message(
+              "Column [%s] is not present in table [%s]",
+              sqlDropColumn.getColumnToDrop(), resolvedPath)
+          .buildSilently();
     }
 
     if (table.getSchema().getFieldCount() == 1) {
-      throw UserException.validationError().message("Cannot drop all columns of a table").buildSilently();
+      throw UserException.validationError()
+          .message("Cannot drop all columns of a table")
+          .buildSilently();
     }
+    ResolvedVersionContext resolvedVersionContext =
+        CatalogUtil.resolveVersionContext(catalog, catalogEntityKey.getRootEntity(), sourceVersion);
     CatalogUtil.validateResolvedVersionIsBranch(resolvedVersionContext);
-    TableMutationOptions tableMutationOptions = TableMutationOptions.newBuilder()
-      .setResolvedVersionContext(resolvedVersionContext)
-      .build();
-    catalog.dropColumn(path, table.getDatasetConfig(), sqlDropColumn.getColumnToDrop(), tableMutationOptions);
+    TableMutationOptions tableMutationOptions =
+        TableMutationOptions.newBuilder().setResolvedVersionContext(resolvedVersionContext).build();
+    catalog.dropColumn(
+        resolvedPath,
+        table.getDatasetConfig(),
+        sqlDropColumn.getColumnToDrop(),
+        tableMutationOptions);
 
-    if (!CatalogUtil.isFSInternalIcebergTableOrJsonTableOrMongo(catalog, path, table.getDatasetConfig()) && !(CatalogUtil.requestedPluginSupportsVersionedTables(path, catalog))) {
-      DataAdditionCmdHandler.refreshDataset(catalog, path, false);
+    if (!CatalogUtil.isFSInternalIcebergTableOrJsonTableOrMongo(
+            catalog, resolvedPath, table.getDatasetConfig())
+        && !(CatalogUtil.requestedPluginSupportsVersionedTables(resolvedPath, catalog))) {
+      DataAdditionCmdHandler.refreshDataset(catalog, resolvedPath, false);
     }
 
     try {
-      handleFineGrainedAccess(config.getContext(), path, sqlDropColumn.getColumnToDrop());
+      handleFineGrainedAccess(config.getContext(), resolvedPath, sqlDropColumn.getColumnToDrop());
     } catch (InvalidRelException ex) {
-      return Collections.singletonList(SimpleCommandResult.successful(String.format("Column [%s] dropped. However, policy attachments need to be manually corrected",
-        sqlDropColumn.getColumnToDrop())));
+      return Collections.singletonList(
+          SimpleCommandResult.successful(
+              String.format(
+                  "Column [%s] dropped. However, policy attachments need to be manually corrected",
+                  sqlDropColumn.getColumnToDrop())));
     }
 
-    return Collections.singletonList(SimpleCommandResult.successful(String.format("Column [%s] dropped",
-        sqlDropColumn.getColumnToDrop())));
+    return Collections.singletonList(
+        SimpleCommandResult.successful(
+            String.format("Column [%s] dropped", sqlDropColumn.getColumnToDrop())));
   }
 
-  public void handleFineGrainedAccess(QueryContext context, NamespaceKey key, String dropColumn) throws Exception {
-  }
+  public void handleFineGrainedAccess(QueryContext context, NamespaceKey key, String dropColumn)
+      throws Exception {}
 
   public static DropColumnHandler create(Catalog catalog, SqlHandlerConfig config) {
     try {
-      final Class<?> cl = Class.forName("com.dremio.exec.planner.sql.handlers.EnterpriseDropColumnHandler");
+      final Class<?> cl =
+          Class.forName("com.dremio.exec.planner.sql.handlers.EnterpriseDropColumnHandler");
       final Constructor<?> ctor = cl.getConstructor(Catalog.class, SqlHandlerConfig.class);
       return (DropColumnHandler) ctor.newInstance(catalog, config);
     } catch (ClassNotFoundException e) {
       return new DropColumnHandler(catalog, config);
-    } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e2) {
+    } catch (InstantiationException
+        | IllegalAccessException
+        | NoSuchMethodException
+        | InvocationTargetException e2) {
       throw Throwables.propagate(e2);
     }
   }

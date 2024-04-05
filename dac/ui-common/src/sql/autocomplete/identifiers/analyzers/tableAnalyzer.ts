@@ -40,12 +40,12 @@ export const tableTokens = [
 export const tableRuleAnalyzers: DirectRuleAnalyzers = {
   [Parser.RULE_sqlDescribe]: [
     child(Parser.RULE_compoundIdentifier, (priorToken: Token | undefined) =>
-      isTokenOfType(priorToken, [Parser.DESCRIBE, Parser.TABLE])
+      isTokenOfType(priorToken, [Parser.DESCRIBE, Parser.TABLE]),
     ),
   ],
   [Parser.RULE_sqlDescribeTable]: [
     child(Parser.RULE_compoundIdentifier, (priorToken: Token | undefined) =>
-      isTokenOfType(priorToken, [Parser.DESCRIBE, Parser.DESC])
+      isTokenOfType(priorToken, [Parser.DESCRIBE, Parser.DESC, Parser.TABLE]),
     ),
   ],
   [Parser.RULE_sqlDropView]: [child(Parser.RULE_compoundIdentifier)],
@@ -55,17 +55,17 @@ export const tableRuleAnalyzers: DirectRuleAnalyzers = {
   ],
   [Parser.RULE_sqlGrantPrivilege]: [
     child(Parser.RULE_compoundIdentifier, (priorToken: Token | undefined) =>
-      isTokenOfType(priorToken, tableTokens)
+      isTokenOfType(priorToken, tableTokens),
     ),
   ],
   [Parser.RULE_sqlRevoke]: [
     child(Parser.RULE_compoundIdentifier, (priorToken: Token | undefined) =>
-      isTokenOfType(priorToken, tableTokens)
+      isTokenOfType(priorToken, tableTokens),
     ),
   ],
   [Parser.RULE_sqlGrantOwnership]: [
     child(Parser.RULE_compoundIdentifier, (priorToken: Token | undefined) =>
-      isTokenOfType(priorToken, tableTokens)
+      isTokenOfType(priorToken, tableTokens),
     ),
   ],
   [Parser.RULE_sqlTruncateTable]: [child(Parser.RULE_compoundIdentifier)],
@@ -89,21 +89,20 @@ export const tableRuleAnalyzers: DirectRuleAnalyzers = {
   [Parser.RULE_sqlOptimize]: [child(Parser.RULE_compoundIdentifier)],
   [Parser.RULE_sqlAccel]: [
     child(Parser.RULE_compoundIdentifier, (priorToken: Token | undefined) =>
-      isTokenOfType(priorToken, tableTokens)
+      isTokenOfType(priorToken, tableTokens),
     ),
   ],
   [Parser.RULE_sqlDeleteFromTable]: [
     child(Parser.RULE_compoundIdentifier),
     child(Parser.RULE_fromClause),
   ],
-  [Parser.RULE_tableRef3]: [child(Parser.RULE_compoundIdentifier)],
   [Parser.RULE_sqlCreateOrReplace]: [
     child(
       Parser.RULE_compoundIdentifier,
       (priorToken: Token | undefined, ruleContext: RuleContext) =>
         isTokenOfType(priorToken, virtualDatasetTokens) &&
         ruleContext instanceof SqlCreateOrReplaceContext &&
-        !!ruleContext.REPLACE()
+        !!ruleContext.REPLACE(),
     ),
   ],
   [Parser.RULE_explicitTable]: [child(Parser.RULE_compoundIdentifier)],
@@ -121,6 +120,7 @@ export const tableRuleAnalyzers: DirectRuleAnalyzers = {
   ],
   [Parser.RULE_tableRef2]: [child(Parser.RULE_tableRef3)],
   [Parser.RULE_tableRef3]: [
+    child(Parser.RULE_compoundIdentifier),
     child(Parser.RULE_tableRefWithHintsOpt),
     child(Parser.RULE_parenthesizedExpression),
   ],
@@ -149,7 +149,7 @@ export const tableRuleAnalyzers: DirectRuleAnalyzers = {
 
 export function isTable(
   priorTerminals: TerminalNode[],
-  identifierCandidate: IdentifierCandidate
+  identifierCandidate: IdentifierCandidate,
 ): boolean {
   if (priorTerminals.length == 0) {
     return false;
@@ -158,6 +158,6 @@ export function isTable(
   return validateDirectRules(
     identifierCandidate,
     tableRuleAnalyzers,
-    priorTerminal
+    priorTerminal,
   );
 }

@@ -1,4 +1,3 @@
-
 /*
  * Copyright (C) 2017-2019 Dremio Corporation
  *
@@ -16,14 +15,13 @@
  */
 package com.dremio.common.logging.obfuscation.TestBlockLevel.C.Second;
 
-import java.util.List;
-
-import com.dremio.TestBlockLevel.TestBlockLevelLogging;
-
 import ch.qos.logback.classic.spi.ILoggingEvent;
+import com.dremio.TestBlockLevel.TestBlockLevelLogging;
+import java.util.List;
 
 public class CSecond {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CSecond.class);
+
   public List<ILoggingEvent> testLogFiltering() {
     return TestBlockLevelLogging.testLogFilteringUtil(logger);
   }

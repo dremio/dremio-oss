@@ -31,6 +31,4 @@ public class IdentifierWithGranularity extends SqlIdentifier {
   public boolean getByDay() {
     return byDay.booleanValue();
   }
-
-
 }

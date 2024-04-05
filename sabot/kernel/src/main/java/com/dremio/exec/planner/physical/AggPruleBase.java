@@ -19,23 +19,21 @@ package com.dremio.exec.planner.physical;
 import static com.dremio.exec.planner.sql.DremioSqlOperatorTable.ARRAY_AGG;
 import static com.dremio.exec.planner.sql.DremioSqlOperatorTable.PHASE1_ARRAY_AGG;
 
-import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
-
-import org.apache.calcite.plan.RelOptRuleCall;
-import org.apache.calcite.plan.RelOptRuleOperand;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.core.AggregateCall;
-import org.apache.calcite.rel.type.RelDataTypeFactory;
-import org.apache.calcite.sql.SqlKind;
-
 import com.dremio.exec.expr.fn.ItemsSketch.ItemsSketchFunctions;
 import com.dremio.exec.planner.logical.AggregateRel;
 import com.dremio.exec.planner.physical.DistributionTrait.DistributionField;
 import com.dremio.exec.planner.sql.DremioSqlOperatorTable;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+import org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.calcite.plan.RelOptRuleOperand;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.core.AggregateCall;
+import org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.calcite.sql.SqlKind;
 
 // abstract base class for the aggregation physical rules
 public abstract class AggPruleBase extends Prule {
@@ -78,25 +76,25 @@ public abstract class AggPruleBase extends Prule {
     return groupByFields;
   }
 
-  private static final Set<String> twoPhaseFunctions = ImmutableSet.of(
-    "SUM",
-    "MIN",
-    "MAX",
-    "COUNT",
-    "$SUM0",
-    "HLL_MERGE",
-    "HLL",
-    "TDIGEST",
-    "LISTAGG",
-    ItemsSketchFunctions.FUNCTION_NAME
-  );
+  private static final Set<String> twoPhaseFunctions =
+      ImmutableSet.of(
+          "SUM",
+          "MIN",
+          "MAX",
+          "COUNT",
+          "$SUM0",
+          "HLL_MERGE",
+          "HLL",
+          "TDIGEST",
+          "LISTAGG",
+          ItemsSketchFunctions.FUNCTION_NAME);
 
   // Create 2 phase aggr plan for aggregates such as SUM, MIN, MAX
   // If any of the aggregate functions are not one of these, then we
   // currently won't generate a 2 phase plan.
   protected static boolean create2PhasePlan(RelOptRuleCall call, AggregateRel aggregate) {
     PlannerSettings settings = PrelUtil.getPlannerSettings(call.getPlanner());
-    if (! settings.isMultiPhaseAggEnabled() || isSingleton(call)) {
+    if (!settings.isMultiPhaseAggEnabled() || isSingleton(call)) {
       return false;
     }
 
@@ -112,43 +110,56 @@ public abstract class AggPruleBase extends Prule {
   public static List<AggregateCall> getUpdatedPhase1AggregateCall(AggregateRel aggregateRel) {
     final RelDataTypeFactory relDataTypeFactory = aggregateRel.getCluster().getTypeFactory();
     // return rewritten phase1 aggregate calls after expansion
-    return aggregateRel.getAggCallList().stream().map(call -> {
-      if (call.getAggregation().getKind() == SqlKind.LISTAGG) {
-        return AggregateCall.create(
-          DremioSqlOperatorTable.LOCAL_LISTAGG,
-          call.isDistinct(),
-          call.isApproximate(),
-          call.getArgList(),
-          call.filterArg,
-          call.collation,
-          DremioSqlOperatorTable.LOCAL_LISTAGG.inferReturnType(
-            relDataTypeFactory,
-            call.getArgList().stream().map(i ->
-              aggregateRel.getInput().getRowType().getFieldList().get(i).getType()).collect(Collectors.toList())),
-          call.name);
-      } else if (ARRAY_AGG.equals(call.getAggregation())) {
-        return AggregateCall.create(
-          PHASE1_ARRAY_AGG,
-          call.isDistinct(),
-          call.isApproximate(),
-          call.getArgList(),
-          call.filterArg,
-          call.collation,
-          PHASE1_ARRAY_AGG.inferReturnType(
-            relDataTypeFactory,
-            call.getArgList().stream().map(i ->
-              aggregateRel
-                .getInput()
-                .getRowType()
-                .getFieldList()
-                .get(i)
-                .getType())
-              .collect(Collectors.toList())),
-          PHASE1_ARRAY_AGG.getName());
-      } else {
-        return call;
-      }
-    }).collect(Collectors.toList());
+    return aggregateRel.getAggCallList().stream()
+        .map(
+            call -> {
+              if (call.getAggregation().getKind() == SqlKind.LISTAGG) {
+                return AggregateCall.create(
+                    DremioSqlOperatorTable.LOCAL_LISTAGG,
+                    call.isDistinct(),
+                    call.isApproximate(),
+                    call.getArgList(),
+                    call.filterArg,
+                    call.collation,
+                    DremioSqlOperatorTable.LOCAL_LISTAGG.inferReturnType(
+                        relDataTypeFactory,
+                        call.getArgList().stream()
+                            .map(
+                                i ->
+                                    aggregateRel
+                                        .getInput()
+                                        .getRowType()
+                                        .getFieldList()
+                                        .get(i)
+                                        .getType())
+                            .collect(Collectors.toList())),
+                    call.name);
+              } else if (ARRAY_AGG.equals(call.getAggregation())) {
+                return AggregateCall.create(
+                    PHASE1_ARRAY_AGG,
+                    call.isDistinct(),
+                    call.isApproximate(),
+                    call.getArgList(),
+                    call.filterArg,
+                    call.collation,
+                    PHASE1_ARRAY_AGG.inferReturnType(
+                        relDataTypeFactory,
+                        call.getArgList().stream()
+                            .map(
+                                i ->
+                                    aggregateRel
+                                        .getInput()
+                                        .getRowType()
+                                        .getFieldList()
+                                        .get(i)
+                                        .getType())
+                            .collect(Collectors.toList())),
+                    PHASE1_ARRAY_AGG.getName());
+              } else {
+                return call;
+              }
+            })
+        .collect(Collectors.toList());
   }
 
   protected static boolean isSingleton(RelOptRuleCall call) {
@@ -160,5 +171,4 @@ public abstract class AggPruleBase extends Prule {
     // if small input, then singleton
     return call.getMetadataQuery().getRowCount(child) < settings.getSliceTarget();
   }
-
 }

@@ -51,7 +51,7 @@ export const DialogContent = forwardRef<HTMLDivElement, DialogContentProps>(
         <header
           className={clsx(
             "dremio-dialog-content__header dremio-scroll-shadow dremio-scroll-shadow--top",
-            { "--scrolled": scrolledDirections.has("top") }
+            { "--scrolled": scrolledDirections.has("top") },
           )}
         >
           {props.icon && (
@@ -82,7 +82,7 @@ export const DialogContent = forwardRef<HTMLDivElement, DialogContentProps>(
             "dremio-scroll-shadow dremio-scroll-shadow--bottom",
             {
               "--scrolled": scrolledDirections.has("bottom"),
-            }
+            },
           )}
         >
           {props.actions && (
@@ -93,5 +93,5 @@ export const DialogContent = forwardRef<HTMLDivElement, DialogContentProps>(
         </footer>
       </div>
     );
-  }
+  },
 );

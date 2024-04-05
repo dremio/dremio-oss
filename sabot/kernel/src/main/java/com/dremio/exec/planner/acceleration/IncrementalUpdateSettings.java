@@ -18,8 +18,10 @@ package com.dremio.exec.planner.acceleration;
 import java.util.Objects;
 
 public class IncrementalUpdateSettings {
-  public static final IncrementalUpdateSettings NON_INCREMENTAL = new IncrementalUpdateSettings(false, null, false);
-  public static final IncrementalUpdateSettings FILE_BASED = new IncrementalUpdateSettings(true, null, false);
+  public static final IncrementalUpdateSettings NON_INCREMENTAL =
+      new IncrementalUpdateSettings(false, null, false);
+  public static final IncrementalUpdateSettings FILE_BASED =
+      new IncrementalUpdateSettings(true, null, false);
 
   private boolean incremental;
   private String updateField;
@@ -60,9 +62,9 @@ public class IncrementalUpdateSettings {
       return false;
     }
     final IncrementalUpdateSettings that = (IncrementalUpdateSettings) o;
-    return (incremental == that.incremental) &&
-      Objects.equals(updateField, that.updateField) &&
-      (snapshotBased == that.snapshotBased);
+    return (incremental == that.incremental)
+        && Objects.equals(updateField, that.updateField)
+        && (snapshotBased == that.snapshotBased);
   }
 
   @Override

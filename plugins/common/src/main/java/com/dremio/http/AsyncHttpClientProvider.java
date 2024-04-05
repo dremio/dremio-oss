@@ -19,10 +19,11 @@ package com.dremio.http;
 import static org.asynchttpclient.Dsl.asyncHttpClient;
 import static org.asynchttpclient.Dsl.config;
 
+import com.dremio.common.AutoCloseables;
+import io.netty.handler.ssl.SslContextBuilder;
+import io.netty.util.HashedWheelTimer;
 import java.io.IOException;
-
 import javax.net.ssl.SSLException;
-
 import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.AsyncHttpClientConfig;
 import org.asynchttpclient.DefaultAsyncHttpClientConfig;
@@ -30,13 +31,9 @@ import org.asynchttpclient.netty.channel.DefaultChannelPool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.common.AutoCloseables;
-
-import io.netty.handler.ssl.SslContextBuilder;
-import io.netty.util.HashedWheelTimer;
-
 /**
- * Single point provider for AsyncHttpClient connection objects. The connection properties are common for all consumers.
+ * Single point provider for AsyncHttpClient connection objects. The connection properties are
+ * common for all consumers.
  */
 public class AsyncHttpClientProvider {
   private static final Logger logger = LoggerFactory.getLogger(AsyncHttpClientProvider.class);
@@ -47,13 +44,15 @@ public class AsyncHttpClientProvider {
 
   /**
    * Returns a singleton instance.
+   *
    * @return
    */
-  public static AsyncHttpClient getInstance(){
+  public static AsyncHttpClient getInstance() {
     return SingletonHelper.INSTANCE;
   }
 
-  // bill pugh style lazily initialized singleton. Helper inner is only loaded when getInstance() is invoked.
+  // bill pugh style lazily initialized singleton. Helper inner is only loaded when getInstance() is
+  // invoked.
   private static final class SingletonHelper {
     private static final AsyncHttpClient INSTANCE = newClient();
   }
@@ -61,13 +60,14 @@ public class AsyncHttpClientProvider {
   private static AsyncHttpClient newClient() {
     logger.info("Initializing common AsyncHttpClient.");
     final HashedWheelTimer poolTimer = new HashedWheelTimer();
-    final DefaultAsyncHttpClientConfig.Builder configBuilder = config()
-      .setThreadPoolName("dremio-common-asynchttpclient")
-      .setChannelPool(new DefaultChannelPool(TTL, TTL, poolTimer, DEFAULT_CLEANER_PERIOD))
-      .setRequestTimeout(DEFAULT_REQUEST_TIMEOUT)
-      .setPooledConnectionIdleTimeout(TTL)
-      .setResponseBodyPartFactory(AsyncHttpClientConfig.ResponseBodyPartFactory.LAZY)
-      .setMaxRequestRetry(MAX_RETRIES);
+    final DefaultAsyncHttpClientConfig.Builder configBuilder =
+        config()
+            .setThreadPoolName("dremio-common-asynchttpclient")
+            .setChannelPool(new DefaultChannelPool(TTL, TTL, poolTimer, DEFAULT_CLEANER_PERIOD))
+            .setRequestTimeout(DEFAULT_REQUEST_TIMEOUT)
+            .setPooledConnectionIdleTimeout(TTL)
+            .setResponseBodyPartFactory(AsyncHttpClientConfig.ResponseBodyPartFactory.LAZY)
+            .setMaxRequestRetry(MAX_RETRIES);
 
     try {
       configBuilder.setSslContext(SslContextBuilder.forClient().build());
@@ -78,14 +78,17 @@ public class AsyncHttpClientProvider {
     poolTimer.start();
     final AsyncHttpClient client = asyncHttpClient(configBuilder.build());
 
-    Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-      try {
-        logger.info("Closing common AsyncHttpClient.");
-        AutoCloseables.close(IOException.class, poolTimer::stop, client);
-      } catch (IOException e) {
-        logger.error("Error while closing AsyncHttpClient instance", e);
-      }
-    }));
+    Runtime.getRuntime()
+        .addShutdownHook(
+            new Thread(
+                () -> {
+                  try {
+                    logger.info("Closing common AsyncHttpClient.");
+                    AutoCloseables.close(IOException.class, poolTimer::stop, client);
+                  } catch (IOException e) {
+                    logger.error("Error while closing AsyncHttpClient instance", e);
+                  }
+                }));
     return client;
   }
 }

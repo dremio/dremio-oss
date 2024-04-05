@@ -59,7 +59,6 @@ public class ITHiveRefreshDatasetMetadataRefresh extends LazyDataGeneratingHiveT
   public static String formatType = "PARQUET";
   private static FileSystem fs;
   private static String finalIcebergMetadataLocation;
-  private static AutoCloseable enableUnlimitedSplitsSupportFlags;
   protected static String warehouseDir;
 
   @BeforeClass
@@ -84,7 +83,6 @@ public class ITHiveRefreshDatasetMetadataRefresh extends LazyDataGeneratingHiveT
     warehouseDir = dataGenerator.getWhDir();
     finalIcebergMetadataLocation = getDfsTestTmpSchemaLocation();
     fs = setupLocalFS();
-    enableUnlimitedSplitsSupportFlags = enableUnlimitedSplitsSupportFlags();
   }
 
   @AfterClass
@@ -98,7 +96,6 @@ public class ITHiveRefreshDatasetMetadataRefresh extends LazyDataGeneratingHiveT
     dataGenerator.executeDDL("DROP TABLE IF EXISTS refresh_v2_test_table_permission_" + formatType);
     dataGenerator.executeDDL("DROP TABLE IF EXISTS refresh_v2_test_partition_permission_" + formatType);
     dataGenerator.executeDDL("DROP TABLE IF EXISTS refresh_v2_test_deleted_partition_" + formatType);
-    enableUnlimitedSplitsSupportFlags.close();
   }
 
   @After

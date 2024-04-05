@@ -15,14 +15,6 @@
  */
 package com.dremio.sabot.op.aggregate.streaming;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import org.apache.arrow.vector.BigIntVector;
-import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.util.TransferPair;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
@@ -48,26 +40,31 @@ import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.spi.SingleInputOperator;
 import com.google.common.collect.ImmutableList;
 import com.sun.codemodel.JExpr;
+import java.util.ArrayList;
+import java.util.List;
+import org.apache.arrow.vector.BigIntVector;
+import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.util.TransferPair;
 
 /**
  * Implements aggregation based on the requirement that similar values are clustered.
  *
- * Two input concepts:
- *  - onDeck (pending data to be consumed)
- *  - atBat (primary data batch being consumed)
+ * <p>Two input concepts: - onDeck (pending data to be consumed) - atBat (primary data batch being
+ * consumed)
  *
- *  After first record, consumption does:
- *  - compare first onDeck record with last atBat record.
- *    - If they match, promote onDeck records to atBat then add first new atBat record to aggregation.
- *    - If they don't match, output last atBat record and aggregations, then promote onDeck records to atBat
+ * <p>After first record, consumption does: - compare first onDeck record with last atBat record. -
+ * If they match, promote onDeck records to atBat then add first new atBat record to aggregation. -
+ * If they don't match, output last atBat record and aggregations, then promote onDeck records to
+ * atBat
  *
- * Most work is done in produceOutput(). This means this operator will produce numerous zero records batches
- * (any time we don't have enough data to produce input). This was done for simplicity and to keep the core
- * algorithm in a single place.
- *
+ * <p>Most work is done in produceOutput(). This means this operator will produce numerous zero
+ * records batches (any time we don't have enough data to produce input). This was done for
+ * simplicity and to keep the core algorithm in a single place.
  */
-public class StreamingAggOperator implements SingleInputOperator  {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(StreamingAggOperator.class);
+public class StreamingAggOperator implements SingleInputOperator {
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(StreamingAggOperator.class);
 
   private final OperatorStats stats;
   private final OperatorContext context;
@@ -113,16 +110,20 @@ public class StreamingAggOperator implements SingleInputOperator  {
     this.onDeckInput = onDeckInput;
     this.atBatInput = new VectorContainer(context.getAllocator());
 
-    final ClassGenerator<StreamingAggregator> cg = context.getClassProducer().createGenerator(StreamingAggTemplate.TEMPLATE_DEFINITION).getRoot();
+    final ClassGenerator<StreamingAggregator> cg =
+        context
+            .getClassProducer()
+            .createGenerator(StreamingAggTemplate.TEMPLATE_DEFINITION)
+            .getRoot();
 
     final LogicalExpression[] keyExprs = new LogicalExpression[config.getGroupByExprs().size()];
     final LogicalExpression[] valueExprs = new LogicalExpression[config.getAggrExprs().size()];
     final TypedFieldId[] keyOutputIds = new TypedFieldId[config.getGroupByExprs().size()];
 
-
     for (int i = 0; i < keyExprs.length; i++) {
       final NamedExpression ne = config.getGroupByExprs().get(i);
-      final LogicalExpression expr = context.getClassProducer().materialize(ne.getExpr(), onDeckInput);
+      final LogicalExpression expr =
+          context.getClassProducer().materialize(ne.getExpr(), onDeckInput);
       if (expr == null) {
         continue;
       }
@@ -134,9 +135,12 @@ public class StreamingAggOperator implements SingleInputOperator  {
 
     for (int i = 0; i < valueExprs.length; i++) {
       final NamedExpression ne = config.getAggrExprs().get(i);
-      final LogicalExpression expr = context.getClassProducer().materialize(ne.getExpr(), onDeckInput);
+      final LogicalExpression expr =
+          context.getClassProducer().materialize(ne.getExpr(), onDeckInput);
       if (expr instanceof IfExpression) {
-        throw UserException.unsupportedError().message("Union type not supported in aggregate functions").build(logger);
+        throw UserException.unsupportedError()
+            .message("Union type not supported in aggregate functions")
+            .build(logger);
       }
       if (expr == null) {
         continue;
@@ -149,7 +153,7 @@ public class StreamingAggOperator implements SingleInputOperator  {
     }
 
     List<TransferPair> transfers = new ArrayList<>();
-    for(VectorWrapper<?> w : onDeckInput){
+    for (VectorWrapper<?> w : onDeckInput) {
       TransferPair pair = w.getValueVector().getTransferPair(context.getAllocator());
       atBatInput.add(pair.getTo());
       transfers.add(pair);
@@ -166,13 +170,19 @@ public class StreamingAggOperator implements SingleInputOperator  {
     outgoing.buildSchema(SelectionVectorMode.NONE);
     outgoing.setInitialCapacity(context.getTargetBatchSize());
     aggregator = cg.getCodeGenerator().getImplementationClass();
-    aggregator.setup(context.getFunctionContext(), onDeckInput, atBatInput, outgoing, context.getTargetBatchSize(), new TransferOnDeckAtBat());
+    aggregator.setup(
+        context.getFunctionContext(),
+        onDeckInput,
+        atBatInput,
+        outgoing,
+        context.getTargetBatchSize(),
+        new TransferOnDeckAtBat());
 
     state = State.CAN_CONSUME;
     return outgoing;
   }
 
-  private void transitionOnDeckToAtBat(){
+  private void transitionOnDeckToAtBat() {
     for (TransferPair p : onDeckAtBatTransfers) {
       p.transfer();
     }
@@ -180,7 +190,7 @@ public class StreamingAggOperator implements SingleInputOperator  {
   }
 
   public class TransferOnDeckAtBat {
-    public void transfer(){
+    public void transfer() {
       transitionOnDeckToAtBat();
     }
   }
@@ -190,12 +200,12 @@ public class StreamingAggOperator implements SingleInputOperator  {
     state.is(State.CAN_CONSUME);
     assert records > 0;
 
-    if(allocateNewOutput){
+    if (allocateNewOutput) {
       outgoing.allocateNew();
       allocateNewOutput = false;
     }
 
-    if(consumedCount == 0){
+    if (consumedCount == 0) {
       // this happens for the very first record this operator consumes.
       transitionOnDeckToAtBat();
       aggregator.consumeFirstRecord();
@@ -219,17 +229,17 @@ public class StreamingAggOperator implements SingleInputOperator  {
   public int outputData() throws Exception {
     state.is(State.CAN_PRODUCE);
 
-    if(allocateNewOutput){
+    if (allocateNewOutput) {
       outgoing.allocateNew();
     }
 
     // generally, we will output data so we'll need to reallocate on next consumption
     allocateNewOutput = true;
 
-    if(done){
+    if (done) {
       state = State.DONE;
       if (consumedCount == 0) {
-        if(config.getAggrExprs().size() == outgoing.getNumberOfColumns()){
+        if (config.getAggrExprs().size() == outgoing.getNumberOfColumns()) {
           // no group by.
           constructSpecialBatch();
           state = State.DONE;
@@ -244,8 +254,9 @@ public class StreamingAggOperator implements SingleInputOperator  {
       }
     }
 
-    // we arrived here having hit capacity on the outgoing batch while consuming the boundary record.
-    if(nextOutputCount != 0){
+    // we arrived here having hit capacity on the outgoing batch while consuming the boundary
+    // record.
+    if (nextOutputCount != 0) {
       int localOutputCount = nextOutputCount;
       nextOutputCount = 0;
       return outgoing.setAllCount(localOutputCount);
@@ -255,10 +266,11 @@ public class StreamingAggOperator implements SingleInputOperator  {
     final int outputBatchFinishedCount = aggregator.consumeRecords();
 
     // if we didn't finish filling an outgoing batch, we need more data.
-    if(outputBatchFinishedCount == 0){
+    if (outputBatchFinishedCount == 0) {
       state = State.CAN_CONSUME;
 
-      // in this case, we need more data but we have pending output, make sure to avoid allocation on next output.
+      // in this case, we need more data but we have pending output, make sure to avoid allocation
+      // on next output.
       allocateNewOutput = false;
       return 0;
     }
@@ -273,19 +285,20 @@ public class StreamingAggOperator implements SingleInputOperator  {
   }
 
   /**
-   * Method is invoked when we have a straight aggregate (no group by expression) and our input is empty.
-   * In this case we construct an outgoing batch with record count as 1. For the nullable vectors we don't set anything
-   * as we want the output to be NULL. For the required vectors (only for count()) we set the value to be zero since
-   * we don't zero out our buffers initially while allocating them.
+   * Method is invoked when we have a straight aggregate (no group by expression) and our input is
+   * empty. In this case we construct an outgoing batch with record count as 1. For the nullable
+   * vectors we don't set anything as we want the output to be NULL. For the required vectors (only
+   * for count()) we set the value to be zero since we don't zero out our buffers initially while
+   * allocating them.
    */
   private void constructSpecialBatch() {
     outgoing.allocateNew();
     List<NamedExpression> exprs = config.getAggrExprs();
-    if(outgoing.getNumberOfColumns() != exprs.size()){
+    if (outgoing.getNumberOfColumns() != exprs.size()) {
       throw new IllegalStateException();
     }
     int exprIndex = 0;
-    for (final VectorWrapper<?> vw: outgoing) {
+    for (final VectorWrapper<?> vw : outgoing) {
       final ValueVector vv = vw.getValueVector();
       if (!exprs.isEmpty() && isCount(exprs.get(exprIndex))) {
         ((BigIntVector) vv).setSafe(0, 0);
@@ -304,14 +317,22 @@ public class StreamingAggOperator implements SingleInputOperator  {
     return false;
   }
 
-  private void codeGenAtBat(ClassGenerator<StreamingAggregator> cg, LogicalExpression[] keyExprs, LogicalExpression[] valueExprs) {
+  private void codeGenAtBat(
+      ClassGenerator<StreamingAggregator> cg,
+      LogicalExpression[] keyExprs,
+      LogicalExpression[] valueExprs) {
 
-    //  public abstract void setupAtBat(@Named("atBat") VectorAccessible atBat, @Named("output") VectorAccessible output);
-    //  public abstract boolean compareAtBat(@Named("index1") int index1, @Named("index2") int index2);
+    //  public abstract void setupAtBat(@Named("atBat") VectorAccessible atBat, @Named("output")
+    // VectorAccessible output);
+    //  public abstract boolean compareAtBat(@Named("index1") int index1, @Named("index2") int
+    // index2);
 
-    final GeneratorMapping compareAtBat = GeneratorMapping.create("setupAtBat", "compareAtBat", null, null);
-    final MappingSet index1 = new MappingSet("index1", "--na--", "atBat", "--na--", compareAtBat, compareAtBat);
-    final MappingSet index2 = new MappingSet("index2", "--na--", "atBat", "--na--", compareAtBat, compareAtBat);
+    final GeneratorMapping compareAtBat =
+        GeneratorMapping.create("setupAtBat", "compareAtBat", null, null);
+    final MappingSet index1 =
+        new MappingSet("index1", "--na--", "atBat", "--na--", compareAtBat, compareAtBat);
+    final MappingSet index2 =
+        new MappingSet("index2", "--na--", "atBat", "--na--", compareAtBat, compareAtBat);
 
     cg.setMappingSet(index1);
     for (final LogicalExpression expr : keyExprs) {
@@ -322,19 +343,23 @@ public class StreamingAggOperator implements SingleInputOperator  {
       final HoldingContainer second = cg.addExpr(expr, ClassGenerator.BlockCreateMode.MERGE);
 
       final LogicalExpression fh =
-          FunctionGenerationHelper.getOrderingComparatorNullsHigh(first, second, context.getClassProducer());
+          FunctionGenerationHelper.getOrderingComparatorNullsHigh(
+              first, second, context.getClassProducer());
       final HoldingContainer out = cg.addExpr(fh, ClassGenerator.BlockCreateMode.MERGE);
       cg.getEvalBlock()._if(out.getValue().ne(JExpr.lit(0)))._then()._return(JExpr.FALSE);
     }
     cg.getEvalBlock()._return(JExpr.TRUE);
 
-
     //  public abstract void addAtBatRecord(@Named("atBatIndex") int index);
     // public abstract void outputAggregation(@Named("outIndex") int outputIndex);
 
-    final GeneratorMapping evalInside = GeneratorMapping.create("setupAtBat", "addAtBatRecord", null, null);
-    final GeneratorMapping evalOutside = GeneratorMapping.create("setupAtBat", "outputAggregation", "resetValues", "close");
-    final MappingSet eval = new MappingSet("atBatIndex", "outputIndex", "atBat", "output", evalInside, evalOutside, evalInside);
+    final GeneratorMapping evalInside =
+        GeneratorMapping.create("setupAtBat", "addAtBatRecord", null, null);
+    final GeneratorMapping evalOutside =
+        GeneratorMapping.create("setupAtBat", "outputAggregation", "resetValues", "close");
+    final MappingSet eval =
+        new MappingSet(
+            "atBatIndex", "outputIndex", "atBat", "output", evalInside, evalOutside, evalInside);
 
     cg.setMappingSet(eval);
     for (final LogicalExpression ex : valueExprs) {
@@ -342,16 +367,24 @@ public class StreamingAggOperator implements SingleInputOperator  {
     }
   }
 
-  private void codeGenOnDeck(ClassGenerator<StreamingAggregator> cg, LogicalExpression[] keyExprs, LogicalExpression[] valueExprs) {
+  private void codeGenOnDeck(
+      ClassGenerator<StreamingAggregator> cg,
+      LogicalExpression[] keyExprs,
+      LogicalExpression[] valueExprs) {
 
     // Methods associated with onDeck data.
 
-    // public abstract void setupOnDeck(@Named("onDeck") VectorAccessible onDeck, @Named("atBat") VectorAccessible atBat, @Named("output") VectorAccessible output);
-    // public abstract boolean compareOnDeckAndAtBat(@Named("onDeckIndex") int onDeckIndex, @Named("atBatIndex") int atBatIndex);
+    // public abstract void setupOnDeck(@Named("onDeck") VectorAccessible onDeck, @Named("atBat")
+    // VectorAccessible atBat, @Named("output") VectorAccessible output);
+    // public abstract boolean compareOnDeckAndAtBat(@Named("onDeckIndex") int onDeckIndex,
+    // @Named("atBatIndex") int atBatIndex);
 
-    final GeneratorMapping compareOnDeck = GeneratorMapping.create("setupOnDeck", "compareOnDeckAndAtBat", null, null);
-    final MappingSet index1 = new MappingSet("onDeckIndex", "--na--", "onDeck", "--na--", compareOnDeck, compareOnDeck);
-    final MappingSet index2 = new MappingSet("atBatIndex", "--na--", "atBat", "--na--", compareOnDeck, compareOnDeck);
+    final GeneratorMapping compareOnDeck =
+        GeneratorMapping.create("setupOnDeck", "compareOnDeckAndAtBat", null, null);
+    final MappingSet index1 =
+        new MappingSet("onDeckIndex", "--na--", "onDeck", "--na--", compareOnDeck, compareOnDeck);
+    final MappingSet index2 =
+        new MappingSet("atBatIndex", "--na--", "atBat", "--na--", compareOnDeck, compareOnDeck);
 
     cg.setMappingSet(index1);
     for (final LogicalExpression expr : keyExprs) {
@@ -362,20 +395,26 @@ public class StreamingAggOperator implements SingleInputOperator  {
       final HoldingContainer second = cg.addExpr(expr, ClassGenerator.BlockCreateMode.MERGE);
 
       final LogicalExpression fh =
-          FunctionGenerationHelper.getOrderingComparatorNullsHigh(first, second, context.getClassProducer());
+          FunctionGenerationHelper.getOrderingComparatorNullsHigh(
+              first, second, context.getClassProducer());
       final HoldingContainer out = cg.addExpr(fh, ClassGenerator.BlockCreateMode.MERGE);
       cg.getEvalBlock()._if(out.getValue().ne(JExpr.lit(0)))._then()._return(JExpr.FALSE);
     }
     cg.getEvalBlock()._return(JExpr.TRUE);
-
   }
 
-  private void codeGenOutputKeys(ClassGenerator<StreamingAggregator> cg, TypedFieldId[] keyOutputIds, LogicalExpression[] keyExprs) {
+  private void codeGenOutputKeys(
+      ClassGenerator<StreamingAggregator> cg,
+      TypedFieldId[] keyOutputIds,
+      LogicalExpression[] keyExprs) {
 
-    //  public abstract void outputAtBatKeys(@Named("atBatIndex") int inIndex, @Named("outputIndex") int outputIndex);
+    //  public abstract void outputAtBatKeys(@Named("atBatIndex") int inIndex, @Named("outputIndex")
+    // int outputIndex);
 
-    final GeneratorMapping mapping = GeneratorMapping.create("setupAtBat", "outputAtBatKeys", null, null);
-    final MappingSet recordKeys = new MappingSet("atBatIndex", "outputIndex", "atBat", "output", mapping, mapping);
+    final GeneratorMapping mapping =
+        GeneratorMapping.create("setupAtBat", "outputAtBatKeys", null, null);
+    final MappingSet recordKeys =
+        new MappingSet("atBatIndex", "outputIndex", "atBat", "output", mapping, mapping);
 
     cg.setMappingSet(recordKeys);
     for (int i = 0; i < keyExprs.length; i++) {
@@ -385,29 +424,34 @@ public class StreamingAggOperator implements SingleInputOperator  {
 
   private void codeGenGetVectorIndex(ClassGenerator<StreamingAggregator> g) {
     switch (onDeckInput.getSchema().getSelectionVectorMode()) {
-    case FOUR_BYTE: {
-      throw new UnsupportedOperationException();
-    }
-    case NONE: {
-      g.getBlock("getVectorIndex")._return(JExpr.direct("recordIndex"));
-      return;
-    }
-    case TWO_BYTE: {
-      throw new UnsupportedOperationException();
-      // this does't work since the we would need to move between ondeck and atbat
-      // JVar var = g.declareClassField("sv2_", g.getModel()._ref(SelectionVector2.class));
-      // g.getBlock("setup").assign(var, JExpr.direct("incoming").invoke("getSelectionVector2"));
-      // g.getBlock("getVectorIndex")._return(var.invoke("getIndex").arg(JExpr.direct("recordIndex")));;
-      // return;
-    }
+      case FOUR_BYTE:
+        {
+          throw new UnsupportedOperationException();
+        }
+      case NONE:
+        {
+          g.getBlock("getVectorIndex")._return(JExpr.direct("recordIndex"));
+          return;
+        }
+      case TWO_BYTE:
+        {
+          throw new UnsupportedOperationException();
+          // this does't work since the we would need to move between ondeck and atbat
+          // JVar var = g.declareClassField("sv2_", g.getModel()._ref(SelectionVector2.class));
+          // g.getBlock("setup").assign(var,
+          // JExpr.direct("incoming").invoke("getSelectionVector2"));
+          // g.getBlock("getVectorIndex")._return(var.invoke("getIndex").arg(JExpr.direct("recordIndex")));;
+          // return;
+        }
 
-    default:
-      throw new IllegalStateException();
+      default:
+        throw new IllegalStateException();
     }
   }
 
   @Override
-  public <OUT, IN, EXCEP extends Throwable> OUT accept(OperatorVisitor<OUT, IN, EXCEP> visitor, IN value) throws EXCEP {
+  public <OUT, IN, EXCEP extends Throwable> OUT accept(
+      OperatorVisitor<OUT, IN, EXCEP> visitor, IN value) throws EXCEP {
     return visitor.visitSingleInput(this, value);
   }
 
@@ -416,12 +460,12 @@ public class StreamingAggOperator implements SingleInputOperator  {
     AutoCloseables.close((AutoCloseable) atBatInput, outgoing);
   }
 
-  public static class Creator implements SingleInputOperator.Creator<StreamingAggregate>{
+  public static class Creator implements SingleInputOperator.Creator<StreamingAggregate> {
 
     @Override
-    public SingleInputOperator create(OperatorContext context, StreamingAggregate operator) throws ExecutionSetupException {
+    public SingleInputOperator create(OperatorContext context, StreamingAggregate operator)
+        throws ExecutionSetupException {
       return new StreamingAggOperator(context, operator);
     }
-
   }
 }

@@ -17,12 +17,6 @@ package com.dremio.exec.planner.sql.handlers;
 
 import static java.util.Objects.requireNonNull;
 
-import java.util.Collections;
-import java.util.List;
-
-import org.apache.calcite.sql.SqlIdentifier;
-import org.apache.calcite.sql.SqlNode;
-
 import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
@@ -39,28 +33,36 @@ import com.dremio.exec.work.foreman.ForemanSetupException;
 import com.dremio.options.OptionResolver;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.google.common.base.Preconditions;
+import java.util.Collections;
+import java.util.List;
+import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlNode;
 
 public class UseVersionHandler extends BaseVersionHandler<SimpleCommandResult> {
   private final UserSession userSession;
 
-  public UseVersionHandler(Catalog catalog, UserSession userSession, OptionResolver optionResolver) {
+  public UseVersionHandler(
+      Catalog catalog, UserSession userSession, OptionResolver optionResolver) {
     super(catalog, optionResolver);
     this.userSession = Preconditions.checkNotNull(userSession);
   }
 
   @Override
-  public List<SimpleCommandResult> toResult(String sql, SqlNode sqlNode) throws ForemanSetupException {
-    final SqlUseVersion useVersion = requireNonNull(SqlNodeUtil.unwrap(sqlNode, SqlUseVersion.class));
+  public List<SimpleCommandResult> toResult(String sql, SqlNode sqlNode)
+      throws ForemanSetupException {
+    final SqlUseVersion useVersion =
+        requireNonNull(SqlNodeUtil.unwrap(sqlNode, SqlUseVersion.class));
 
     checkFeatureEnabled(String.format("USE %s syntax is not supported.", useVersion.getRefType()));
 
     final SqlIdentifier sourceIdentifier = useVersion.getSourceName();
-    final String sourceName = VersionedHandlerUtils.resolveSourceName(
-      sourceIdentifier,
-      userSession.getDefaultSchemaPath());
+    final String sourceName =
+        VersionedHandlerUtils.resolveSourceName(
+            sourceIdentifier, userSession.getDefaultSchemaPath());
 
     VersionContext requestedVersion =
-      ReferenceTypeUtils.map(useVersion.getRefType(), useVersion.getRefValue(), useVersion.getTimestamp());
+        ReferenceTypeUtils.map(
+            useVersion.getRefType(), useVersion.getRefValue(), useVersion.getTimestamp());
     if (!requestedVersion.isSpecified()) {
       // Defensive, this shouldn't be possible
       throw new IllegalStateException("Must request a real version.");
@@ -72,39 +74,40 @@ public class UseVersionHandler extends BaseVersionHandler<SimpleCommandResult> {
     try {
       resolvedVersionContext = versionedPlugin.resolveVersionContext(requestedVersion);
     } catch (ReferenceNotFoundException e) {
-      throw UserException.validationError()
-        .message("Requested %s not found in source %s.", requestedVersion, sourceName)
-        .buildSilently();
+      throw UserException.validationError(e)
+          .message("Requested %s not found in source %s.", requestedVersion, sourceName)
+          .buildSilently();
     } catch (NoDefaultBranchException e) {
       // This only happens if we try to resolve VersionContext.NOT_SPECIFIED,
       // which should not be possible here.
       throw new IllegalStateException(e);
     } catch (ReferenceTypeConflictException e) {
       throw UserException.validationError(e)
-        .message("Requested %s in source %s is not the requested type.", requestedVersion, sourceName)
-        .buildSilently();
+          .message(
+              "Requested %s in source %s is not the requested type.", requestedVersion, sourceName)
+          .buildSilently();
     }
 
     // Resolving a bare commit does not validate existence for performance reasons. Check explicitly
     // so that we can fail early and inform the user.
-    if (resolvedVersionContext.isCommit() && !versionedPlugin.commitExists(resolvedVersionContext.getCommitHash())) {
+    if (resolvedVersionContext.isCommit()
+        && !versionedPlugin.commitExists(resolvedVersionContext.getCommitHash())) {
       throw UserException.validationError()
-        .message("Commit %s not found in source %s.", resolvedVersionContext.getCommitHash(), sourceName)
-        .buildSilently();
+          .message(
+              "Commit %s not found in source %s.",
+              resolvedVersionContext.getCommitHash(), sourceName)
+          .buildSilently();
     }
 
     userSession.setSessionVersionForSource(sourceName, requestedVersion);
 
     return Collections.singletonList(
-      SimpleCommandResult.successful(
-        "Current version context set to %s in source %s.",
-        requestedVersion,
-        sourceName));
+        SimpleCommandResult.successful(
+            "Current version context set to %s in source %s.", requestedVersion, sourceName));
   }
 
   @Override
   public Class<SimpleCommandResult> getResultType() {
     return SimpleCommandResult.class;
   }
-
 }

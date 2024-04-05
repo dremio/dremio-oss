@@ -15,24 +15,19 @@
  */
 package com.dremio.dac.model.job;
 
-import java.util.List;
-
 import com.dremio.proto.model.attempts.AttemptReason;
 import com.dremio.service.job.proto.JobAttempt;
 import com.dremio.service.job.proto.JobId;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
+import java.util.List;
 
-/**
- * Helper methods for building attempt details summary/reason
- */
+/** Helper methods for building attempt details summary/reason */
 public class AttemptsUIHelper {
 
-  @VisibleForTesting
-  public static final String OUT_OF_MEMORY_TEXT = "insufficient memory";
+  @VisibleForTesting public static final String OUT_OF_MEMORY_TEXT = "insufficient memory";
 
-  @VisibleForTesting
-  public static final String SCHEMA_CHANGE_TEXT = "schema learning";
+  @VisibleForTesting public static final String SCHEMA_CHANGE_TEXT = "schema learning";
 
   static String constructAttemptReason(AttemptReason reason) {
     if (reason == null) {
@@ -86,8 +81,14 @@ public class AttemptsUIHelper {
     } else if (memoryIssues == 0) {
       sb.append(SCHEMA_CHANGE_TEXT);
     } else {
-      sb.append(OUT_OF_MEMORY_TEXT).append(" (").append(memoryIssues)
-              .append(") and ").append(SCHEMA_CHANGE_TEXT).append(" (").append(schemaIssues).append(")");
+      sb.append(OUT_OF_MEMORY_TEXT)
+          .append(" (")
+          .append(memoryIssues)
+          .append(") and ")
+          .append(SCHEMA_CHANGE_TEXT)
+          .append(" (")
+          .append(schemaIssues)
+          .append(")");
     }
 
     return sb.toString();

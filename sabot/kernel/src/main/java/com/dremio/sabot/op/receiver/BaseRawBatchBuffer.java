@@ -15,18 +15,17 @@
  */
 package com.dremio.sabot.op.receiver;
 
-import java.io.IOException;
-import java.util.concurrent.atomic.AtomicLong;
-
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.threads.sharedres.SharedResource;
+import java.io.IOException;
+import java.util.concurrent.atomic.AtomicLong;
+import org.apache.arrow.memory.BufferAllocator;
 
 public abstract class BaseRawBatchBuffer<T> implements RawBatchBuffer {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BaseRawBatchBuffer.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(BaseRawBatchBuffer.class);
 
   private enum BufferState {
     RUN,
@@ -35,9 +34,13 @@ public abstract class BaseRawBatchBuffer<T> implements RawBatchBuffer {
 
   protected interface BufferQueue<T> {
     public RawFragmentBatch poll();
+
     public int size();
+
     public boolean isEmpty();
+
     public void add(T obj);
+
     public void clear();
   }
 
@@ -52,7 +55,12 @@ public abstract class BaseRawBatchBuffer<T> implements RawBatchBuffer {
   private final int fragmentCount;
   private final SharedResource resource;
 
-  public BaseRawBatchBuffer(SharedResource resource, OptionManager options, FragmentHandle handle, BufferAllocator allocator, final int fragmentCount) {
+  public BaseRawBatchBuffer(
+      SharedResource resource,
+      OptionManager options,
+      FragmentHandle handle,
+      BufferAllocator allocator,
+      final int fragmentCount) {
     bufferSizePerSocket = (int) options.getOption(ExecConstants.INCOMING_BUFFER_SIZE);
     this.options = options;
     this.fragmentCount = fragmentCount;
@@ -71,10 +79,9 @@ public abstract class BaseRawBatchBuffer<T> implements RawBatchBuffer {
     return fragmentCount;
   }
 
-
   @Override
   public void streamComplete() {
-    synchronized(resource) {
+    synchronized (resource) {
       decrementStreamCounter();
       resource.markAvailable();
     }
@@ -83,7 +90,7 @@ public abstract class BaseRawBatchBuffer<T> implements RawBatchBuffer {
   @Override
   public void enqueue(final RawFragmentBatch batch) {
 
-    synchronized(resource) {
+    synchronized (resource) {
       if (state == BufferState.CLOSED) {
         // do not even enqueue just release and send ack back
         batch.close();
@@ -92,7 +99,7 @@ public abstract class BaseRawBatchBuffer<T> implements RawBatchBuffer {
       }
 
       enqueueInner(batch);
-      if(queueMonitor.incrementAndGet() == 1){
+      if (queueMonitor.incrementAndGet() == 1) {
         resource.markAvailable();
       }
     }
@@ -106,7 +113,7 @@ public abstract class BaseRawBatchBuffer<T> implements RawBatchBuffer {
    */
   protected abstract void enqueueInner(final RawFragmentBatch batch);
 
-//  ## Add assertion that all acks have been sent. TODO
+  //  ## Add assertion that all acks have been sent. TODO
   @Override
   public void close() throws Exception {
     if (!bufferQueue.isEmpty()) {
@@ -116,8 +123,8 @@ public abstract class BaseRawBatchBuffer<T> implements RawBatchBuffer {
   }
 
   /**
-   * Helper method to clear buffer with request bodies release also flushes ack queue - in case there are still
-   * responses pending
+   * Helper method to clear buffer with request bodies release also flushes ack queue - in case
+   * there are still responses pending
    */
   private void clearBufferWithBody() {
     while (!bufferQueue.isEmpty()) {
@@ -133,13 +140,14 @@ public abstract class BaseRawBatchBuffer<T> implements RawBatchBuffer {
   public synchronized RawFragmentBatch getNext() {
     RawFragmentBatch b;
 
-    synchronized(resource) {
-      while( (b = bufferQueue.poll()) == null){
-        // keep polling as long as the queueMonitor states we have messages as there is a race condition between poll() and get().
-        if(queueMonitor.get() == 0) {
+    synchronized (resource) {
+      while ((b = bufferQueue.poll()) == null) {
+        // keep polling as long as the queueMonitor states we have messages as there is a race
+        // condition between poll() and get().
+        if (queueMonitor.get() == 0) {
           // poll didn't return anything and the queue monitor states we have no messages.
 
-          if(state == BufferState.RUN) {
+          if (state == BufferState.RUN) {
             // if we're still running, mark this resource as unavailable.
             resource.markBlocked();
           }
@@ -154,7 +162,6 @@ public abstract class BaseRawBatchBuffer<T> implements RawBatchBuffer {
 
       assertAckSent(b);
       return b;
-
     }
   }
 
@@ -169,16 +176,13 @@ public abstract class BaseRawBatchBuffer<T> implements RawBatchBuffer {
 
   // note this is called under synchronized.
   private void decrementStreamCounter() {
-    if(remainingStreams.decrementAndGet() == 0){
+    if (remainingStreams.decrementAndGet() == 0) {
       logger.debug("Streams finished");
       resource.markAvailable();
       state = BufferState.CLOSED;
     }
   }
 
-  /**
-   * Handle miscellaneous tasks after batch retrieval
-   */
+  /** Handle miscellaneous tasks after batch retrieval */
   protected abstract void upkeep(RawFragmentBatch batch);
-
 }

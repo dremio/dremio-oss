@@ -15,20 +15,21 @@
  */
 package com.dremio.exec.planner.sql.handlers.direct;
 
-import java.util.Collections;
-import java.util.List;
-
-import org.apache.calcite.sql.SqlNode;
-
+import com.dremio.catalog.model.CatalogEntityKey;
+import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.SqlUtils;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.planner.sql.parser.SqlUseSchema;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.namespace.NamespaceKey;
+import java.util.Collections;
+import java.util.List;
+import org.apache.calcite.sql.SqlNode;
 
 public class UseSchemaHandler extends SimpleDirectHandler {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(UseSchemaHandler.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(UseSchemaHandler.class);
 
   private final UserSession session;
   private final Catalog catalog;
@@ -44,19 +45,47 @@ public class UseSchemaHandler extends SimpleDirectHandler {
     // first we try locally.
     NamespaceKey orig = new NamespaceKey(useSchema.getSchema());
     NamespaceKey defaultPath = catalog.resolveToDefault(orig);
-    NamespaceKey compoundPath = orig.size() == 1 && orig.getRoot().contains(".") ? new NamespaceKey(SqlUtils.parseSchemaPath(orig.getRoot())) : null;
-
-    if(defaultPath != null && catalog.containerExists(defaultPath)) {
+    NamespaceKey compoundPath =
+        orig.size() == 1 && orig.getRoot().contains(".")
+            ? new NamespaceKey(SqlUtils.parseSchemaPath(orig.getRoot()))
+            : null;
+    if ((defaultPath != null)
+        && (catalog.containerExists(
+            CatalogEntityKey.newBuilder()
+                .keyComponents(defaultPath.getPathComponents())
+                .tableVersionContext(
+                    TableVersionContext.of(
+                        session.getSessionVersionForSource(defaultPath.getRoot())))
+                .build()))) {
       session.setDefaultSchemaPath(defaultPath.getPathComponents());
-    } else if (catalog.containerExists(orig)) {
+    } else if (catalog.containerExists(
+        CatalogEntityKey.newBuilder()
+            .keyComponents(orig.getPathComponents())
+            .tableVersionContext(
+                TableVersionContext.of(session.getSessionVersionForSource(orig.getRoot())))
+            .build())) {
       session.setDefaultSchemaPath(orig.getPathComponents());
-    } else if(compoundPath != null && catalog.containerExists(compoundPath)) {
-      // kept to support old compound use statements.
-      session.setDefaultSchemaPath(compoundPath.getPathComponents());
+    } else if (compoundPath != null) {
+      if (catalog.containerExists(
+          CatalogEntityKey.newBuilder()
+              .keyComponents(compoundPath.getPathComponents())
+              .tableVersionContext(
+                  TableVersionContext.of(
+                      session.getSessionVersionForSource(compoundPath.getRoot())))
+              .build())) {
+        // kept to support old compound use statements.
+        session.setDefaultSchemaPath(compoundPath.getPathComponents());
+      }
     } else {
-      throw UserException.validationError().message("Schema [%s] is not valid with respect to either root schema or current default schema.", orig).build(logger);
+      throw UserException.validationError()
+          .message(
+              "Schema [%s] is not valid with respect to either root schema or current default schema.",
+              orig)
+          .build(logger);
     }
 
-    return Collections.singletonList(SimpleCommandResult.successful("Default schema changed to [%s]", session.getDefaultSchemaPath()));
+    return Collections.singletonList(
+        SimpleCommandResult.successful(
+            "Default schema changed to [%s]", session.getDefaultSchemaPath()));
   }
 }

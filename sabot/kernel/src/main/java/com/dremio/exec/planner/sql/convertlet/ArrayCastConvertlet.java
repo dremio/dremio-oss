@@ -19,15 +19,16 @@ import static org.apache.calcite.sql.fun.SqlStdOperatorTable.CASE;
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.CAST;
 import static org.apache.calcite.sql.type.SqlTypeName.ARRAY;
 
+import com.dremio.exec.planner.logical.RelDataTypeEqualityUtil;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
-
-import com.dremio.exec.planner.logical.RelDataTypeEqualityUtil;
+import org.apache.calcite.sql.type.SqlTypeName;
 
 public final class ArrayCastConvertlet implements FunctionConvertlet {
-  public static final FunctionConvertlet INSTANCE = new NullableArrayFunctionConvertlet(new ArrayCastConvertlet());
+  public static final FunctionConvertlet INSTANCE =
+      new NullableArrayFunctionConvertlet(new ArrayCastConvertlet());
 
   private ArrayCastConvertlet() {}
 
@@ -44,11 +45,7 @@ public final class ArrayCastConvertlet implements FunctionConvertlet {
     RelDataType arrayType = call.getOperands().get(0).getType();
     RelDataType castType = call.getType();
 
-    boolean castingNeeded = !RelDataTypeEqualityUtil.areEquals(
-      castType,
-      arrayType,
-      false,
-      false);
+    boolean castingNeeded = !RelDataTypeEqualityUtil.areEquals(castType, arrayType, false, false);
 
     return castingNeeded;
   }
@@ -57,40 +54,44 @@ public final class ArrayCastConvertlet implements FunctionConvertlet {
   public RexCall convertCall(ConvertletContext cx, RexCall call) {
     // CAST(arr AS TYPE ARRAY) -> ARRAY(CAST(item as TYPE) FROM UNNEST(arr) as t(item))
     RexNode array = call.getOperands().get(0);
+    RelDataType castType = call.getType();
     RexBuilder rexBuilder = cx.getRexBuilder();
 
-    RelDataType castType = call.getType();
-    RexCall castedArray = CorrelatedUnnestQueryBuilder.create(cx)
-      .unnest(array)
-      .transform(builder -> builder
-        .project(
-          rexBuilder.makeCast(
-            call.getType().getComponentType(),
-            rexBuilder.makeInputRef(builder.peek(), 0))))
-      .array();
-
-    boolean hasNullabilityMismatch = castType.isNullable() && !castedArray.getType().isNullable();
-    if (hasNullabilityMismatch) {
-      /*
-       * Casts an array to be nullable without using the CAST function.
-       * If we did, then we would have infinite recursion in the CAST rewrite
-       *
-       * CASE
-       *  WHEN false THEN null
-       *  ELSE rexNode
-       *  END
-       *
-       * This code eventually gets optimized out when we run it through the reduce rule.
-       */
-      RexNode falseLiteral = rexBuilder.makeLiteral(false);
-      RexNode nullLiteral = rexBuilder.makeNullLiteral(call.getType());
-      castedArray = (RexCall) rexBuilder.makeCall(
-        CASE,
-        falseLiteral,
-        nullLiteral,
-        castedArray);
+    boolean arrayIsNull = array.getType().getSqlTypeName() == SqlTypeName.NULL;
+    if (arrayIsNull) {
+      // We can not UNNEST(NULL) but we can do UNNEST(CAST(NULL AS VARCHAR ARRAY))
+      // The following is a trick to force the return type:
+      return nodeWithType(rexBuilder, array, castType);
     }
 
+    RexCall castedArray =
+        CorrelatedUnnestQueryBuilder.create(cx)
+            .unnest(array)
+            .transform(
+                builder ->
+                    builder.project(
+                        rexBuilder.makeCast(
+                            call.getType().getComponentType(),
+                            rexBuilder.makeInputRef(builder.peek(), 0))))
+            .array();
+
     return castedArray;
+  }
+
+  private static RexCall nodeWithType(RexBuilder rexBuilder, RexNode node, RelDataType type) {
+    /*
+     * Casts an array to be nullable without using the CAST function.
+     * If we did, then we would have infinite recursion in the CAST rewrite
+     *
+     * CASE
+     *  WHEN false THEN null
+     *  ELSE rexNode
+     *  END
+     *
+     * This code eventually gets optimized out when we run it through the reduce rule.
+     */
+    RexNode falseLiteral = rexBuilder.makeLiteral(false);
+    RexNode nullLiteral = rexBuilder.makeNullLiteral(type);
+    return (RexCall) rexBuilder.makeCall(CASE, falseLiteral, nullLiteral, node);
   }
 }

@@ -16,18 +16,8 @@
 
 package com.dremio.exec.physical.impl.join;
 
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-
-import java.util.Iterator;
-import java.util.List;
-
-import org.apache.arrow.vector.ValueVector;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Ignore;
-import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.common.util.FileUtils;
@@ -35,6 +25,13 @@ import com.dremio.exec.proto.UserBitShared.QueryType;
 import com.dremio.exec.record.RecordBatchLoader;
 import com.dremio.exec.record.VectorWrapper;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
+import java.util.Iterator;
+import java.util.List;
+import org.apache.arrow.vector.ValueVector;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.Ignore;
+import org.junit.Test;
 
 @Ignore("DX-3872")
 public class TestHashJoinAdvanced extends BaseTestQuery {
@@ -50,38 +47,41 @@ public class TestHashJoinAdvanced extends BaseTestQuery {
     test("alter session set \"planner.enable_mergejoin\" = true");
   }
 
-  @Test //DRILL-2197 Left Self Join with complex type in projection
+  @Test // DRILL-2197 Left Self Join with complex type in projection
   @Ignore
   public void testLeftSelfHashJoinWithMap() throws Exception {
-    final String query = " select a.id, b.oooi.oa.oab.oabc oabc, b.ooof.oa.oab oab from cp.\"join/complex_1.json\" a left outer join cp.\"join/complex_1.json\" b on a.id=b.id order by a.id";
+    final String query =
+        " select a.id, b.oooi.oa.oab.oabc oabc, b.ooof.oa.oab oab from cp.\"join/complex_1.json\" a left outer join cp.\"join/complex_1.json\" b on a.id=b.id order by a.id";
 
     testBuilder()
-      .sqlQuery(query)
-      .unOrdered()
-      .jsonBaselineFile("join/DRILL-2197-result-1.json")
-      .build()
-      .run();
+        .sqlQuery(query)
+        .unOrdered()
+        .jsonBaselineFile("join/DRILL-2197-result-1.json")
+        .build()
+        .run();
   }
 
-  @Test //DRILL-2197 Left Join with complex type in projection
+  @Test // DRILL-2197 Left Join with complex type in projection
   @Ignore("enable union type")
   public void testLeftHashJoinWithMap() throws Exception {
-    final String query = " select a.id, b.oooi.oa.oab.oabc oabc, b.ooof.oa.oab oab from cp.\"join/complex_1.json\" a left outer join cp.\"join/complex_2.json\" b on a.id=b.id order by a.id";
+    final String query =
+        " select a.id, b.oooi.oa.oab.oabc oabc, b.ooof.oa.oab oab from cp.\"join/complex_1.json\" a left outer join cp.\"join/complex_2.json\" b on a.id=b.id order by a.id";
 
     testBuilder()
-      .sqlQuery(query)
-      .unOrdered()
-      .jsonBaselineFile("join/DRILL-2197-result-2.json")
-      .build()
-      .run();
+        .sqlQuery(query)
+        .unOrdered()
+        .jsonBaselineFile("join/DRILL-2197-result-2.json")
+        .build()
+        .run();
   }
 
   @Test
   @Ignore
   public void testFOJWithRequiredTypes() throws Exception {
-    String query = "select t1.varchar_col from " +
-        "cp.\"parquet/drill-2707_required_types.parquet\" t1 full outer join cp.\"parquet/alltypes.json\" t2 " +
-        "on t1.int_col = t2.INT_col order by t1.varchar_col limit 1";
+    String query =
+        "select t1.varchar_col from "
+            + "cp.\"parquet/drill-2707_required_types.parquet\" t1 full outer join cp.\"parquet/alltypes.json\" t2 "
+            + "on t1.int_col = t2.INT_col order by t1.varchar_col limit 1";
 
     testBuilder()
         .sqlQuery(query)
@@ -91,11 +91,13 @@ public class TestHashJoinAdvanced extends BaseTestQuery {
         .go();
   }
 
-  @Test  // DRILL-2771, similar problem as DRILL-2197 except problem reproduces with right outer join instead of left
+  @Test // DRILL-2771, similar problem as DRILL-2197 except problem reproduces with right outer join
+  // instead of left
   @Ignore
   public void testRightJoinWithMap() throws Exception {
-    final String query = " select a.id, b.oooi.oa.oab.oabc oabc, b.ooof.oa.oab oab from " +
-        "cp.\"join/complex_1.json\" b right outer join cp.\"join/complex_1.json\" a on a.id = b.id order by a.id";
+    final String query =
+        " select a.id, b.oooi.oa.oab.oabc oabc, b.ooof.oa.oab oab from "
+            + "cp.\"join/complex_1.json\" b right outer join cp.\"join/complex_1.json\" a on a.id = b.id order by a.id";
 
     testBuilder()
         .sqlQuery(query)
@@ -104,10 +106,12 @@ public class TestHashJoinAdvanced extends BaseTestQuery {
         .build()
         .run();
   }
+
   @Test
   public void testJoinWithDifferentTypesInCondition() throws Exception {
-    String query = "select t1.full_name from cp.\"employee.json\" t1, cp.\"department.json\" t2 " +
-        "where cast(t1.department_id as double) = t2.department_id and t1.employee_id = 1";
+    String query =
+        "select t1.full_name from cp.\"employee.json\" t1, cp.\"department.json\" t2 "
+            + "where cast(t1.department_id as double) = t2.department_id and t1.employee_id = 1";
 
     testBuilder()
         .sqlQuery(query)
@@ -117,11 +121,14 @@ public class TestHashJoinAdvanced extends BaseTestQuery {
         .baselineValues("Sheri Nowmer")
         .go();
 
-
-    query = "select t1.bigint_col from cp.\"jsoninput/implicit_cast_join_1.json\" t1, cp.\"jsoninput/implicit_cast_join_1.json\" t2 " +
-        " where t1.bigint_col = cast(t2.bigint_col as int) and" + // join condition with bigint and int
-        " t1.double_col  = cast(t2.double_col as float) and" + // join condition with double and float
-        " t1.bigint_col = cast(t2.bigint_col as double)"; // join condition with bigint and double
+    query =
+        "select t1.bigint_col from cp.\"jsoninput/implicit_cast_join_1.json\" t1, cp.\"jsoninput/implicit_cast_join_1.json\" t2 "
+            + " where t1.bigint_col = cast(t2.bigint_col as int) and"
+            + // join condition with bigint and int
+            " t1.double_col  = cast(t2.double_col as float) and"
+            + // join condition with double and float
+            " t1.bigint_col = cast(t2.bigint_col as double)"; // join condition with bigint and
+    // double
 
     testBuilder()
         .sqlQuery(query)
@@ -131,30 +138,31 @@ public class TestHashJoinAdvanced extends BaseTestQuery {
         .baselineValues(1L)
         .go();
 
-    query = "select count(*) col1 from " +
-        "(select t1.date_opt from cp.\"parquet/date_dictionary.parquet\" t1, cp.\"parquet/timestamp_table.parquet\" t2 " +
-        "where t1.date_opt = cast(t2.timestamp_col as date))"; // join condition contains date and timestamp
+    query =
+        "select count(*) col1 from "
+            + "(select t1.date_opt from cp.\"parquet/date_dictionary.parquet\" t1, cp.\"parquet/timestamp_table.parquet\" t2 "
+            + "where t1.date_opt = cast(t2.timestamp_col as date))"; // join condition contains date
+    // and timestamp
 
-    testBuilder()
-        .sqlQuery(query)
-        .unOrdered()
-        .baselineColumns("col1")
-        .baselineValues(4L)
-        .go();
+    testBuilder().sqlQuery(query).unOrdered().baselineColumns("col1").baselineValues(4L).go();
   }
-
-
 
   @Test
   public void simpleEqualityJoin() throws Throwable {
     // Function checks hash join with single equality condition
 
-    final String plan = readResourceAsString("/join/hash_join.json")
-                    .replace("#{TEST_FILE_1}", FileUtils.getResourceAsFile("/build_side_input.json").toURI().toString())
-                    .replace("#{TEST_FILE_2}", FileUtils.getResourceAsFile("/probe_side_input.json").toURI().toString());
+    final String plan =
+        readResourceAsString("/join/hash_join.json")
+            .replace(
+                "#{TEST_FILE_1}",
+                FileUtils.getResourceAsFile("/build_side_input.json").toURI().toString())
+            .replace(
+                "#{TEST_FILE_2}",
+                FileUtils.getResourceAsFile("/probe_side_input.json").toURI().toString());
 
     List<QueryDataBatch> results = testRunAndReturn(QueryType.PHYSICAL, plan);
-    try(RecordBatchLoader batchLoader = new RecordBatchLoader(nodes[0].getContext().getAllocator())){
+    try (RecordBatchLoader batchLoader =
+        new RecordBatchLoader(nodes[0].getContext().getAllocator())) {
 
       QueryDataBatch batch = results.get(1);
       assertTrue(batchLoader.load(batch.getHeader().getDef(), batch.getData()));
@@ -167,7 +175,6 @@ public class TestHashJoinAdvanced extends BaseTestQuery {
       // Check the output of decimal9
       ValueVector intValueVector = itr.next().getValueVector();
 
-
       for (int i = 0; i < intValueVector.getValueCount(); i++) {
         assertEquals(intValueVector.getObject(i), colA[i]);
       }
@@ -177,28 +184,32 @@ public class TestHashJoinAdvanced extends BaseTestQuery {
     for (QueryDataBatch result : results) {
       result.release();
     }
-
   }
-
 
   @Test
   public void multipleConditionJoin() throws Exception {
 
     // Function tests hash join with multiple join conditions
-    final String plan = readResourceAsString("/join/hj_multi_condition_join.json")
-        .replace("#{TEST_FILE_1}", FileUtils.getResourceAsFile("/build_side_input.json").toURI().toString())
-        .replace("#{TEST_FILE_2}", FileUtils.getResourceAsFile("/probe_side_input.json").toURI().toString());
+    final String plan =
+        readResourceAsString("/join/hj_multi_condition_join.json")
+            .replace(
+                "#{TEST_FILE_1}",
+                FileUtils.getResourceAsFile("/build_side_input.json").toURI().toString())
+            .replace(
+                "#{TEST_FILE_2}",
+                FileUtils.getResourceAsFile("/probe_side_input.json").toURI().toString());
 
     List<QueryDataBatch> results = testRunAndReturn(QueryType.PHYSICAL, plan);
-    try (RecordBatchLoader batchLoader = new RecordBatchLoader(nodes[0].getContext().getAllocator())) {
+    try (RecordBatchLoader batchLoader =
+        new RecordBatchLoader(nodes[0].getContext().getAllocator())) {
       final QueryDataBatch batch = results.get(1);
       assertTrue(batchLoader.load(batch.getHeader().getDef(), batch.getData()));
 
       final Iterator<VectorWrapper<?>> itr = batchLoader.iterator();
 
       // Just test the join key
-      final long[] colA = { 1, 2, 1 };
-      final long[] colC = { 100, 200, 500 };
+      final long[] colA = {1, 2, 1};
+      final long[] colC = {100, 200, 500};
 
       // Check the output of decimal9
       final ValueVector intValueVector1 = itr.next().getValueVector();
@@ -214,7 +225,6 @@ public class TestHashJoinAdvanced extends BaseTestQuery {
     for (final QueryDataBatch result : results) {
       result.release();
     }
-
   }
 
   @Test
@@ -230,6 +240,5 @@ public class TestHashJoinAdvanced extends BaseTestQuery {
   @Test
   public void testHashJoinExprInCondition() throws Exception {
     assertEquals(10, testPhysicalFromFile("join/hashJoinExpr.json"));
-
   }
 }

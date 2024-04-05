@@ -17,12 +17,8 @@ package com.dremio.exec.server.options;
 
 import com.dremio.options.OptionManager;
 
-/**
- * Interface for OptionManager for options set at the session level.
- */
+/** Interface for OptionManager for options set at the session level. */
 public interface SessionOptionManager extends OptionManager {
-  /**
-   * Increment the query count of the SessionOptionManager.
-   */
+  /** Increment the query count of the SessionOptionManager. */
   void incrementQueryCount();
 }

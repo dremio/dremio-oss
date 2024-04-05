@@ -14,13 +14,9 @@
  * limitations under the License.
  */
 import { Component } from "react";
-import clsx from "clsx";
-
 import PropTypes from "prop-types";
-
-import SimpleButton from "components/Buttons/SimpleButton";
+import { Button } from "dremio-ui-lib/components";
 import WizardFooter from "./WizardFooter";
-import * as classes from "@app/uiTheme/radium/replacingRadiumPseudoClasses.module.less";
 
 class DefaultWizardFooter extends Component {
   static propTypes = {
@@ -68,38 +64,27 @@ class DefaultWizardFooter extends Component {
 
     return (
       <WizardFooter style={{ ...styles.wizardParent, ...this.props.style }}>
-        <SimpleButton
-          buttonStyle="primary"
+        <Button
+          variant="primary"
           onClick={this.onButtonClick.bind(this, "apply")}
-          submitting={submitType === "apply"}
-          className={clsx(
-            "wizard-apply-button",
-            classes["primaryButtonPsuedoClasses"]
-          )}
+          pending={submitType === "apply"}
         >
           Apply
-        </SimpleButton>
+        </Button>
         {isPreviewAvailable && (
-          <SimpleButton
-            buttonStyle="secondary"
+          <Button
+            variant="secondary"
+            className="ml-1"
             onClick={this.onButtonClick.bind(this, "preview")}
             disabled={submitting && submitType !== "preview"}
-            submitting={submitType === "preview"}
-            className={clsx("wizard-preview-button", {
-              [classes["secondaryButtonPsuedoClasses"]]:
-                !submitting && submitType === "preview",
-            })}
+            pending={submitType === "preview"}
           >
             Preview
-          </SimpleButton>
+          </Button>
         )}
-        <SimpleButton
-          buttonStyle="secondary"
-          className={clsx(classes["secondaryButtonPsuedoClasses"])}
-          onClick={this.onCancel}
-        >
+        <Button className="ml-1" variant="secondary" onClick={this.onCancel}>
           Cancel
-        </SimpleButton>
+        </Button>
       </WizardFooter>
     );
   }

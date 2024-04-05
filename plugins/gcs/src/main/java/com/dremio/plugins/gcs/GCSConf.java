@@ -17,18 +17,13 @@ package com.dremio.plugins.gcs;
 
 import static com.dremio.io.file.UriSchemes.DREMIO_GCS_SCHEME;
 
-import java.util.List;
-
-import javax.inject.Provider;
-import javax.validation.constraints.Max;
-import javax.validation.constraints.Min;
-
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.DefaultCtasFormatSelection;
 import com.dremio.exec.catalog.conf.DisplayMetadata;
 import com.dremio.exec.catalog.conf.NotMetadataImpacting;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.catalog.conf.Secret;
+import com.dremio.exec.catalog.conf.SecretRef;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.dfs.CacheProperties;
@@ -37,27 +32,32 @@ import com.dremio.exec.store.dfs.SchemaMutability;
 import com.dremio.io.file.Path;
 import com.dremio.options.OptionManager;
 import com.fasterxml.jackson.annotation.JsonIgnore;
-
 import io.protostuff.Tag;
+import java.util.List;
+import javax.inject.Provider;
+import javax.validation.constraints.Max;
+import javax.validation.constraints.Min;
 
-/**
- * Connector configuration for Google Cloud Storage (GCS)
- */
-@SourceType(value = "GCS", configurable = true, label = "Google Cloud Storage", uiConfig = "gcs-layout.json")
+/** Connector configuration for Google Cloud Storage (GCS) */
+@SourceType(
+    value = "GCS",
+    configurable = true,
+    label = "Google Cloud Storage",
+    uiConfig = "gcs-layout.json")
 public class GCSConf extends FileSystemConf<GCSConf, GoogleStoragePlugin> {
-
 
   @Tag(1)
   public String projectId = "";
 
-  /**
-   * Authorization Mode for GCS
-   */
+  /** Authorization Mode for GCS */
   public enum AuthMode {
-    @Tag(1) @DisplayMetadata(label = "Service Account Keys") SERVICE_ACCOUNT_KEYS,
-    @Tag(2) @DisplayMetadata(label = "Automatic/Service Account") AUTO
+    @Tag(1)
+    @DisplayMetadata(label = "Service Account Keys")
+    SERVICE_ACCOUNT_KEYS,
+    @Tag(2)
+    @DisplayMetadata(label = "Automatic/Service Account")
+    AUTO
   }
-
 
   @Tag(2)
   public AuthMode authMode = AuthMode.SERVICE_ACCOUNT_KEYS;
@@ -93,7 +93,9 @@ public class GCSConf extends FileSystemConf<GCSConf, GoogleStoragePlugin> {
   @Tag(11)
   @NotMetadataImpacting
   @Min(value = 1, message = "Max percent of total available cache space must be between 1 and 100")
-  @Max(value = 100, message = "Max percent of total available cache space must be between 1 and 100")
+  @Max(
+      value = 100,
+      message = "Max percent of total available cache space must be between 1 and 100")
   @DisplayMetadata(label = "Max percent of total available cache space to use when possible")
   public int cachePercent = 70;
 
@@ -104,7 +106,7 @@ public class GCSConf extends FileSystemConf<GCSConf, GoogleStoragePlugin> {
   @Tag(13)
   @Secret
   @DisplayMetadata(label = "Private Key")
-  public String privateKey = "";
+  public SecretRef privateKey = SecretRef.empty();
 
   @Tag(14)
   @DisplayMetadata(label = "Client Email")
@@ -113,7 +115,6 @@ public class GCSConf extends FileSystemConf<GCSConf, GoogleStoragePlugin> {
   @Tag(15)
   @DisplayMetadata(label = "Client ID")
   public String clientId = "";
-
 
   @Tag(16)
   @NotMetadataImpacting
@@ -156,7 +157,8 @@ public class GCSConf extends FileSystemConf<GCSConf, GoogleStoragePlugin> {
   }
 
   @Override
-  public GoogleStoragePlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> idProvider) {
+  public GoogleStoragePlugin newPlugin(
+      SabotContext context, String name, Provider<StoragePluginId> idProvider) {
     return new GoogleStoragePlugin(this, context, name, idProvider);
   }
 

@@ -15,24 +15,19 @@
  */
 package com.dremio.exec.rpc;
 
-
 import io.netty.buffer.ByteBuf;
 
 public class BaseRpcOutcomeListener<T> implements RpcOutcomeListener<T> {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BaseRpcOutcomeListener.class);
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(BaseRpcOutcomeListener.class);
 
   @Override
-  public void failed(RpcException ex) {
-  }
+  public void failed(RpcException ex) {}
 
   @Override
-  public void success(T value, ByteBuf buffer) {
-  }
+  public void success(T value, ByteBuf buffer) {}
 
-  /**
-   * {@inheritDoc}
-   */
+  /** {@inheritDoc} */
   @Override
-  public void interrupted(final InterruptedException ex) {
-  }
+  public void interrupted(final InterruptedException ex) {}
 }

@@ -15,15 +15,6 @@
  */
 package com.dremio.dac.service.search;
 
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
-
-import javax.inject.Provider;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.dac.proto.model.collaboration.CollaborationTag;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.rpc.RpcException;
@@ -37,12 +28,15 @@ import com.dremio.services.fabric.simple.SendEndpoint;
 import com.dremio.services.fabric.simple.SendEndpointCreator;
 import com.dremio.services.fabric.simple.SentResponseMessage;
 import com.google.protobuf.ByteString;
-
 import io.protostuff.LinkedBuffer;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+import javax.inject.Provider;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.BufferAllocator;
 
-/**
- * Adapter that interacts with the {@link SearchService} running on master coordinator.
- */
+/** Adapter that interacts with the {@link SearchService} running on master coordinator. */
 public class SearchServiceInvoker implements SearchService {
   private static final int TYPE_SEARCH_QUERY = 0;
 
@@ -53,16 +47,16 @@ public class SearchServiceInvoker implements SearchService {
   private final BufferAllocator allocator;
   private final SearchService searchService;
 
-  private SendEndpointCreator<SearchRPC.SearchQueryRequest, SearchRPC.SearchQueryResponse> findEndpointCreator;
+  private SendEndpointCreator<SearchRPC.SearchQueryRequest, SearchRPC.SearchQueryResponse>
+      findEndpointCreator;
 
   public SearchServiceInvoker(
-    boolean isMaster,
-    Provider<NodeEndpoint> nodeEndpointProvider,
-    final Provider<Optional<NodeEndpoint>> taskLeaderProvider,
-    Provider<FabricService> fabricService,
-    BufferAllocator allocator,
-    SearchService searchService
-  ) {
+      boolean isMaster,
+      Provider<NodeEndpoint> nodeEndpointProvider,
+      final Provider<Optional<NodeEndpoint>> taskLeaderProvider,
+      Provider<FabricService> fabricService,
+      BufferAllocator allocator,
+      SearchService searchService) {
     this.isMaster = isMaster;
     this.nodeEndpointProvider = nodeEndpointProvider;
     this.taskLeaderProvider = taskLeaderProvider;
@@ -75,58 +69,71 @@ public class SearchServiceInvoker implements SearchService {
   public void start() throws Exception {
     searchService.start();
 
-    final ProtocolBuilder builder = ProtocolBuilder.builder()
-      .protocolId(58)
-      .allocator(allocator)
-      .name("search-rpc")
-      .timeout(10 * 1000);
+    final ProtocolBuilder builder =
+        ProtocolBuilder.builder()
+            .protocolId(58)
+            .allocator(allocator)
+            .name("search-rpc")
+            .timeout(10 * 1000);
 
-    this.findEndpointCreator = builder.register(TYPE_SEARCH_QUERY,
-      new AbstractReceiveHandler<SearchRPC.SearchQueryRequest, SearchRPC.SearchQueryResponse>(
-        SearchRPC.SearchQueryRequest.getDefaultInstance(), SearchRPC.SearchQueryResponse.getDefaultInstance()) {
-        @Override
-        public SentResponseMessage<SearchRPC.SearchQueryResponse> handle(SearchRPC.SearchQueryRequest rpcRequest, ArrowBuf dBody) {
-          final String query = rpcRequest.getQuery();
-          final String username = rpcRequest.getUsername();
+    this.findEndpointCreator =
+        builder.register(
+            TYPE_SEARCH_QUERY,
+            new AbstractReceiveHandler<SearchRPC.SearchQueryRequest, SearchRPC.SearchQueryResponse>(
+                SearchRPC.SearchQueryRequest.getDefaultInstance(),
+                SearchRPC.SearchQueryResponse.getDefaultInstance()) {
+              @Override
+              public SentResponseMessage<SearchRPC.SearchQueryResponse> handle(
+                  SearchRPC.SearchQueryRequest rpcRequest, ArrowBuf dBody) {
+                final String query = rpcRequest.getQuery();
+                final String username = rpcRequest.getUsername();
 
-          final List<SearchContainer> search;
-          try {
-            search = search(query, username);
-          } catch (NamespaceException e) {
-            return new SentResponseMessage<>(
-              SearchRPC.SearchQueryResponse.newBuilder().setFailureMessage(e.getMessage()).build()
-            );
-          }
+                final List<SearchContainer> search;
+                try {
+                  search = search(query, username);
+                } catch (NamespaceException e) {
+                  return new SentResponseMessage<>(
+                      SearchRPC.SearchQueryResponse.newBuilder()
+                          .setFailureMessage(e.getMessage())
+                          .build());
+                }
 
-          final List<SearchRPC.SearchQueryResponseEntity> searchRPCResults = search.stream().map(input -> {
-            final LinkedBuffer buffer = LinkedBuffer.allocate();
-            final ByteString bytes = input.getNamespaceContainer().clone(buffer);
-            buffer.clear();
+                final List<SearchRPC.SearchQueryResponseEntity> searchRPCResults =
+                    search.stream()
+                        .map(
+                            input -> {
+                              final LinkedBuffer buffer = LinkedBuffer.allocate();
+                              final ByteString bytes = input.getNamespaceContainer().clone(buffer);
+                              buffer.clear();
 
-            final SearchRPC.SearchQueryResponseEntity.Builder rpcBuilder = SearchRPC.SearchQueryResponseEntity.newBuilder();
-            rpcBuilder.setResponse(bytes);
+                              final SearchRPC.SearchQueryResponseEntity.Builder rpcBuilder =
+                                  SearchRPC.SearchQueryResponseEntity.newBuilder();
+                              rpcBuilder.setResponse(bytes);
 
-            final CollaborationTag collaborationTag = input.getCollaborationTag();
+                              final CollaborationTag collaborationTag = input.getCollaborationTag();
 
-            if (collaborationTag != null) {
-              final SearchRPC.SearchQueryResponseTags searchQueryRequestTags = SearchRPC.SearchQueryResponseTags.newBuilder()
-                .addAllTags(collaborationTag.getTagsList())
-                .setEntityId(collaborationTag.getEntityId())
-                .setId(collaborationTag.getId())
-                .setLastModified(collaborationTag.getLastModified())
-                .setVersion(collaborationTag.getTag())
-                .build();
+                              if (collaborationTag != null) {
+                                final SearchRPC.SearchQueryResponseTags searchQueryRequestTags =
+                                    SearchRPC.SearchQueryResponseTags.newBuilder()
+                                        .addAllTags(collaborationTag.getTagsList())
+                                        .setEntityId(collaborationTag.getEntityId())
+                                        .setId(collaborationTag.getId())
+                                        .setLastModified(collaborationTag.getLastModified())
+                                        .setVersion(collaborationTag.getTag())
+                                        .build();
 
-              rpcBuilder.setTags(searchQueryRequestTags);
-            }
-            return rpcBuilder.build();
-          }).collect(Collectors.toList());
+                                rpcBuilder.setTags(searchQueryRequestTags);
+                              }
+                              return rpcBuilder.build();
+                            })
+                        .collect(Collectors.toList());
 
-          return new SentResponseMessage<> (
-            SearchRPC.SearchQueryResponse.newBuilder().addAllResults(searchRPCResults).build()
-          );
-        }
-      });
+                return new SentResponseMessage<>(
+                    SearchRPC.SearchQueryResponse.newBuilder()
+                        .addAllResults(searchRPCResults)
+                        .build());
+              }
+            });
 
     builder.register(fabricService.get());
   }
@@ -168,23 +175,28 @@ public class SearchServiceInvoker implements SearchService {
       throw new RpcException(body.getFailureMessage());
     }
 
-    return body.getResultsList().stream().map(input -> {
-      final SearchRPC.SearchQueryResponseTags tagsRPC = input.getTags();
+    return body.getResultsList().stream()
+        .map(
+            input -> {
+              final SearchRPC.SearchQueryResponseTags tagsRPC = input.getTags();
 
-      final CollaborationTag collaborationTag = new CollaborationTag();
-      collaborationTag.setTagsList(tagsRPC.getTagsList());
-      collaborationTag.setEntityId(tagsRPC.getEntityId());
-      collaborationTag.setId(tagsRPC.getId());
-      collaborationTag.setLastModified(tagsRPC.getLastModified());
-      collaborationTag.setTag(tagsRPC.getVersion());
+              final CollaborationTag collaborationTag = new CollaborationTag();
+              collaborationTag.setTagsList(tagsRPC.getTagsList());
+              collaborationTag.setEntityId(tagsRPC.getEntityId());
+              collaborationTag.setId(tagsRPC.getId());
+              collaborationTag.setLastModified(tagsRPC.getLastModified());
+              collaborationTag.setTag(tagsRPC.getVersion());
 
-      final NameSpaceContainer nameSpaceContainer = NameSpaceContainer.from(input.getResponse());
+              final NameSpaceContainer nameSpaceContainer =
+                  NameSpaceContainer.from(input.getResponse());
 
-      return new SearchContainer(nameSpaceContainer, collaborationTag);
-    }).collect(Collectors.toList());
+              return new SearchContainer(nameSpaceContainer, collaborationTag);
+            })
+        .collect(Collectors.toList());
   }
 
-  private SendEndpoint<SearchRPC.SearchQueryRequest, SearchRPC.SearchQueryResponse> newFindEndpoint() throws RpcException {
+  private SendEndpoint<SearchRPC.SearchQueryRequest, SearchRPC.SearchQueryResponse>
+      newFindEndpoint() throws RpcException {
     final NodeEndpoint master = taskLeaderProvider.get().orElse(null);
 
     if (master == null) {

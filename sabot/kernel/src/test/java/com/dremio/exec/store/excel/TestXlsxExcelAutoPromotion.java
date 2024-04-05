@@ -15,57 +15,60 @@
  */
 package com.dremio.exec.store.excel;
 
-import org.junit.Test;
-
 import com.dremio.BaseTestQuery;
+import org.junit.Test;
 
 public class TestXlsxExcelAutoPromotion extends BaseTestQuery {
 
   @Test
   public void testXls() throws Exception {
-    final String sql = "select count(*) as cnt from dfs.\"${WORKING_PATH}/src/test/resources/test_folder_xls/simple.xls\"";
+    final String sql =
+        "select count(*) as cnt from dfs.\"${WORKING_PATH}/src/test/resources/test_folder_xls/simple.xls\"";
     testBuilder()
-      .sqlQuery(sql)
-      .unOrdered()
-      .baselineColumns("cnt")
-      .baselineValues(10L)
-      .build()
-      .run();
+        .sqlQuery(sql)
+        .unOrdered()
+        .baselineColumns("cnt")
+        .baselineValues(10L)
+        .build()
+        .run();
   }
 
   @Test
   public void testXlsFromFolder() throws Exception {
-    final String sql = "select count(*) as cnt from dfs.\"${WORKING_PATH}/src/test/resources/test_folder_xls\"";
+    final String sql =
+        "select count(*) as cnt from dfs.\"${WORKING_PATH}/src/test/resources/test_folder_xls\"";
     testBuilder()
-      .sqlQuery(sql)
-      .unOrdered()
-      .baselineColumns("cnt")
-      .baselineValues(10L)
-      .build()
-      .run();
+        .sqlQuery(sql)
+        .unOrdered()
+        .baselineColumns("cnt")
+        .baselineValues(10L)
+        .build()
+        .run();
   }
 
   @Test
   public void testXlsx() throws Exception {
-    final String sql = "select count(*) as cnt from dfs.\"${WORKING_PATH}/src/test/resources/test_folder_xlsx/simple.xlsx\"";
+    final String sql =
+        "select count(*) as cnt from dfs.\"${WORKING_PATH}/src/test/resources/test_folder_xlsx/simple.xlsx\"";
     testBuilder()
-      .sqlQuery(sql)
-      .unOrdered()
-      .baselineColumns("cnt")
-      .baselineValues(10L)
-      .build()
-      .run();
+        .sqlQuery(sql)
+        .unOrdered()
+        .baselineColumns("cnt")
+        .baselineValues(10L)
+        .build()
+        .run();
   }
 
   @Test
   public void testXlsxFromFolder() throws Exception {
-    final String sql = "select count(*) as cnt from dfs.\"${WORKING_PATH}/src/test/resources/test_folder_xlsx\"";
+    final String sql =
+        "select count(*) as cnt from dfs.\"${WORKING_PATH}/src/test/resources/test_folder_xlsx\"";
     testBuilder()
-      .sqlQuery(sql)
-      .unOrdered()
-      .baselineColumns("cnt")
-      .baselineValues(10L)
-      .build()
-      .run();
+        .sqlQuery(sql)
+        .unOrdered()
+        .baselineColumns("cnt")
+        .baselineValues(10L)
+        .build()
+        .run();
   }
 }

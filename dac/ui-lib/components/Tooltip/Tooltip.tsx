@@ -47,6 +47,7 @@ type TooltipProps = {
   delay?: number;
   interactive?: boolean;
   placement?: Placement;
+  style?: Record<string, any>;
   portal?: boolean;
 
   /**
@@ -77,6 +78,7 @@ export const Tooltip = (props: TooltipProps): JSX.Element => {
     shouldWrapChildren = false,
     onClose,
     onOpen,
+    style,
   } = props;
 
   const handleOpenChange = (isOpen: boolean) => {
@@ -121,7 +123,7 @@ export const Tooltip = (props: TooltipProps): JSX.Element => {
 
   const ref = React.useMemo(
     () => mergeRefs([reference, (children as any).ref]),
-    [reference, children]
+    [reference, children],
   );
 
   const staticSide = (
@@ -154,6 +156,7 @@ export const Tooltip = (props: TooltipProps): JSX.Element => {
             position: strategy,
             top: y ?? 0,
             left: x ?? 0,
+            ...(style || {}),
           },
         })}
       >
@@ -176,7 +179,7 @@ export const Tooltip = (props: TooltipProps): JSX.Element => {
     const childrenResult = children(tooltipContent);
     return React.cloneElement(
       children(tooltipContent),
-      getReferenceProps({ ref, ...childrenResult.props })
+      getReferenceProps({ ref, ...childrenResult.props }),
     );
   }
 
@@ -192,7 +195,7 @@ export const Tooltip = (props: TooltipProps): JSX.Element => {
       ) : (
         React.cloneElement(
           children,
-          getReferenceProps({ ref, ...children.props })
+          getReferenceProps({ ref, ...children.props }),
         )
       )}
       {portal ? createPortal(tooltipContent, document.body!) : tooltipContent}

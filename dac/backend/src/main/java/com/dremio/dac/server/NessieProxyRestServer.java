@@ -15,22 +15,20 @@
  */
 package com.dremio.dac.server;
 
-import org.glassfish.jersey.message.GZipEncoder;
-import org.glassfish.jersey.server.ResourceConfig;
-import org.glassfish.jersey.server.filter.EncodingFilter;
-import org.projectnessie.services.restjavax.ConstraintViolationExceptionMapper;
-import org.projectnessie.services.restjavax.ContentKeyParamConverterProvider;
-import org.projectnessie.services.restjavax.NamespaceParamConverterProvider;
-import org.projectnessie.services.restjavax.NessieExceptionMapper;
-import org.projectnessie.services.restjavax.ReferenceTypeParamConverterProvider;
-
 import com.dremio.common.perf.Timer;
 import com.dremio.dac.resource.NessieSourceResource;
 import com.dremio.dac.resource.NessieTestSourceResource;
 import com.dremio.dac.service.errors.NotFoundExceptionMapper;
 import com.dremio.services.nessie.proxy.ProxyExceptionMapper;
-import com.dremio.services.nessie.proxy.ProxyNessieConfig;
 import com.dremio.services.nessie.proxy.ProxyRuntimeExceptionMapper;
+import com.dremio.services.nessie.restjavax.converters.ContentKeyParamConverterProvider;
+import com.dremio.services.nessie.restjavax.converters.NamespaceParamConverterProvider;
+import com.dremio.services.nessie.restjavax.converters.ReferenceTypeParamConverterProvider;
+import com.dremio.services.nessie.restjavax.exceptions.ConstraintViolationExceptionMapper;
+import com.dremio.services.nessie.restjavax.exceptions.NessieExceptionMapper;
+import org.glassfish.jersey.message.GZipEncoder;
+import org.glassfish.jersey.server.ResourceConfig;
+import org.glassfish.jersey.server.filter.EncodingFilter;
 
 public class NessieProxyRestServer extends ResourceConfig {
 
@@ -54,7 +52,7 @@ public class NessieProxyRestServer extends ResourceConfig {
     // LISTENERS //
     register(TimingApplicationEventListener.class);
 
-    //Nessie
+    // Nessie
     if (Boolean.getBoolean("nessie.source.resource.testing.enabled")) {
       register(NessieTestSourceResource.class);
     } else {
@@ -63,8 +61,8 @@ public class NessieProxyRestServer extends ResourceConfig {
     register(ContentKeyParamConverterProvider.class);
     register(NamespaceParamConverterProvider.class);
     register(ReferenceTypeParamConverterProvider.class);
-    register(new ConstraintViolationExceptionMapper(ProxyNessieConfig.INSTANCE), 10);
-    register(new NessieExceptionMapper(ProxyNessieConfig.INSTANCE), 10);
+    register(ConstraintViolationExceptionMapper.class, 10);
+    register(NessieExceptionMapper.class, 10);
     register(NotFoundExceptionMapper.class);
     register(ProxyExceptionMapper.class, 10);
     register(ProxyRuntimeExceptionMapper.class, 10);

@@ -25,11 +25,12 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 
 /**
- * Base class to {@code SplitPointer} types whose data is loaded lazily
- * until {@code LazySplitsPointer#materialize()} method is called.
+ * Base class to {@code SplitPointer} types whose data is loaded lazily until {@code
+ * LazySplitsPointer#materialize()} method is called.
  */
 abstract class LazySplitsPointer extends AbstractSplitsPointer {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(LazySplitsPointer.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(LazySplitsPointer.class);
 
   private final NamespaceService namespaceService;
   private final long splitVersion;
@@ -37,7 +38,8 @@ abstract class LazySplitsPointer extends AbstractSplitsPointer {
   private volatile Iterable<PartitionChunkMetadata> splitsIterable;
   private volatile boolean mayGetDataSplitsFired;
 
-  protected LazySplitsPointer(NamespaceService namespaceService, long splitVersion, int totalSplitCount) {
+  protected LazySplitsPointer(
+      NamespaceService namespaceService, long splitVersion, int totalSplitCount) {
     this.namespaceService = namespaceService;
     this.splitVersion = splitVersion;
     this.totalSplitCount = totalSplitCount;
@@ -62,7 +64,8 @@ abstract class LazySplitsPointer extends AbstractSplitsPointer {
 
     final SearchQuery query = getPartitionQuery(partitionFilterQuery);
     final int lastSplits = getSplitsCount();
-    SplitsPointer newSplits = new FilteredSplitsPointer(namespaceService, splitVersion, query, totalSplitCount);
+    SplitsPointer newSplits =
+        new FilteredSplitsPointer(namespaceService, splitVersion, query, totalSplitCount);
 
     if (newSplits.getSplitsCount() < lastSplits) {
       return newSplits;

@@ -15,9 +15,6 @@
  */
 package com.dremio.sabot.driver;
 
-import java.util.List;
-import java.util.Map;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.sabot.exec.context.SharedResourcesContext;
 import com.dremio.sabot.exec.fragment.OutOfBandMessage;
@@ -26,10 +23,12 @@ import com.dremio.sabot.op.spi.TerminalOperator;
 import com.dremio.sabot.task.Task.State;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
+import java.util.List;
+import java.util.Map;
 
 /**
- * Responsible for pumping data between operators. Moves up and down a set of
- * pipes picking the right ones to pump to output all data.
+ * Responsible for pumping data between operators. Moves up and down a set of pipes picking the
+ * right ones to pump to output all data.
  */
 public class Pipeline implements AutoCloseable {
   private Pipe currentPipe;
@@ -42,14 +41,23 @@ public class Pipeline implements AutoCloseable {
   private boolean closed = false;
 
   /**
-   * Create a new Pipeline. The pipeline manages a set of interconnected pipes, pumping data between them.
+   * Create a new Pipeline. The pipeline manages a set of interconnected pipes, pumping data between
+   * them.
+   *
    * @param terminalPipe The terminal (most downstream) pipe in a set of pipes.
-   * @param terminal The terminal operator, (this is the endpoint of the terminal pipe and is passed in so we are type safe). It is made available to inform this pipeline that one or more receivers are no longer interested in downstream messages.
-   * @param operators A list of all the operators associated with this pipe. This is done to manage closing. We keep this typed (as opposed to List<AutoCloseable> to help with debugging.
+   * @param terminal The terminal operator, (this is the endpoint of the terminal pipe and is passed
+   *     in so we are type safe). It is made available to inform this pipeline that one or more
+   *     receivers are no longer interested in downstream messages.
+   * @param operators A list of all the operators associated with this pipe. This is done to manage
+   *     closing. We keep this typed (as opposed to List<AutoCloseable> to help with debugging.
    * @param sharedResourcesContext shared resources context
    */
-  public Pipeline(Pipe terminalPipe, TerminalOperator terminal, List<Wrapped<?>> operators,
-                  List<Operator.ShrinkableOperator> shrinkableOperators, SharedResourcesContext sharedResourcesContext) {
+  public Pipeline(
+      Pipe terminalPipe,
+      TerminalOperator terminal,
+      List<Wrapped<?>> operators,
+      List<Operator.ShrinkableOperator> shrinkableOperators,
+      SharedResourcesContext sharedResourcesContext) {
     this.terminalPipe = terminalPipe;
     while (terminalPipe.getRequiredUpstream() != null) {
       terminalPipe = terminalPipe.getRequiredUpstream();
@@ -58,7 +66,7 @@ public class Pipeline implements AutoCloseable {
     this.shrinkableOperators = shrinkableOperators;
 
     ImmutableMap.Builder<Integer, Wrapped<?>> builder = ImmutableMap.builder();
-    for(Wrapped<?> w : operators) {
+    for (Wrapped<?> w : operators) {
       builder.put(w.getOperatorId(), w);
     }
     this.operatorMap = builder.build();
@@ -71,7 +79,7 @@ public class Pipeline implements AutoCloseable {
     terminalPipe.setup();
   }
 
-  public TerminalOperator getTerminalOperator(){
+  public TerminalOperator getTerminalOperator() {
     return terminal;
   }
 
@@ -81,26 +89,28 @@ public class Pipeline implements AutoCloseable {
 
   public boolean shrinkMemory(int operatorId, long memoryUsed) throws Exception {
     Wrapped<?> wrapped = operatorMap.get(operatorId);
-    Preconditions.checkNotNull(wrapped, "invalid operatorId " + operatorId + " in shrink memory usage msg");
+    Preconditions.checkNotNull(
+        wrapped, "invalid operatorId " + operatorId + " in shrink memory usage msg");
 
     return wrapped.shrinkMemory(memoryUsed);
   }
 
   public void workOnOOB(OutOfBandMessage message) {
     Wrapped<?> wrapped = operatorMap.get(message.getOperatorId());
-    Preconditions.checkNotNull(wrapped, "invalid operatorId " + message.getOperatorId() + " in OOB msg");
+    Preconditions.checkNotNull(
+        wrapped, "invalid operatorId " + message.getOperatorId() + " in OOB msg");
 
-    switch(wrapped.getState().getMasterState()) {
-    case BLOCKED:
-    case CAN_CONSUME:
-    case CAN_CONSUME_L:
-    case CAN_CONSUME_R:
-    case CAN_PRODUCE:
-      wrapped.workOnOOB(message);
-      break;
-    case DONE:
-    case NEEDS_SETUP:
-    default:
+    switch (wrapped.getState().getMasterState()) {
+      case BLOCKED:
+      case CAN_CONSUME:
+      case CAN_CONSUME_L:
+      case CAN_CONSUME_R:
+      case CAN_PRODUCE:
+        wrapped.workOnOOB(message);
+        break;
+      case DONE:
+      case NEEDS_SETUP:
+      default:
     }
   }
 
@@ -124,59 +134,61 @@ public class Pipeline implements AutoCloseable {
       Pipe.Result result = currentPipe.pump();
 
       switch (result) {
-      case DONE: {
-        final Pipe downstream = currentPipe.getDownstream();
-        if (downstream == null) {
-          return State.DONE;
-        } else {
-          // this pipe is done but more pipes can be pumped, we're still runnable.
-          currentPipe = downstream;
-          return State.RUNNABLE;
-        }
-      }
+        case DONE:
+          {
+            final Pipe downstream = currentPipe.getDownstream();
+            if (downstream == null) {
+              return State.DONE;
+            } else {
+              // this pipe is done but more pipes can be pumped, we're still runnable.
+              currentPipe = downstream;
+              return State.RUNNABLE;
+            }
+          }
 
-      case NOT_READY_UPSTREAM: {
-        // let's try to go upstream.
-        final Pipe upstream = currentPipe.getRequiredUpstream();
+        case NOT_READY_UPSTREAM:
+          {
+            // let's try to go upstream.
+            final Pipe upstream = currentPipe.getRequiredUpstream();
 
-        if (upstream == null) {
-          // we can't move upstream (no upstream pipes). As such, we're blocked on this pipe.
-          return State.BLOCKED_ON_UPSTREAM;
+            if (upstream == null) {
+              // we can't move upstream (no upstream pipes). As such, we're blocked on this pipe.
+              return State.BLOCKED_ON_UPSTREAM;
 
-        } else {
-          // move upstream and get them to pump data downstream.
-          currentPipe = upstream;
+            } else {
+              // move upstream and get them to pump data downstream.
+              currentPipe = upstream;
 
-          // we haven't done any work, continue loop.
-          continue;
-        }
-      }
+              // we haven't done any work, continue loop.
+              continue;
+            }
+          }
 
-      case NOT_READY_DOWNSTREAM: {
+        case NOT_READY_DOWNSTREAM:
+          {
 
-        // let's try to go downstream.
-        final Pipe downstream = currentPipe.getDownstream();
-        if( downstream == null) {
+            // let's try to go downstream.
+            final Pipe downstream = currentPipe.getDownstream();
+            if (downstream == null) {
 
-          return State.BLOCKED_ON_DOWNSTREAM;
+              return State.BLOCKED_ON_DOWNSTREAM;
 
-        } else {
-          currentPipe = downstream;
-          // we haven't done any work, continue loop.
-          continue;
-        }
-
-      }
-      case PUMPED: {
-        // data was pumped
-        final Pipe downstream = currentPipe.getDownstream();
-        if (downstream != null) {
-          // we pumped the data downstream. Let's continue pushing that data downstream.
-          currentPipe = downstream;
-        }
-        return State.RUNNABLE;
-      }
-
+            } else {
+              currentPipe = downstream;
+              // we haven't done any work, continue loop.
+              continue;
+            }
+          }
+        case PUMPED:
+          {
+            // data was pumped
+            final Pipe downstream = currentPipe.getDownstream();
+            if (downstream != null) {
+              // we pumped the data downstream. Let's continue pushing that data downstream.
+              currentPipe = downstream;
+            }
+            return State.RUNNABLE;
+          }
       }
     }
   }
@@ -186,20 +198,20 @@ public class Pipeline implements AutoCloseable {
   }
 
   @Override
-  public String toString(){
+  public String toString() {
     StringBuilder sb = new StringBuilder();
-    for(Wrapped<?> o : operators){
+    for (Wrapped<?> o : operators) {
       sb.append(o.getInner().getClass().getSimpleName())
-        .append(":")
-        .append(o.getState().name())
-        .append(", ");
+          .append(":")
+          .append(o.getState().name())
+          .append(", ");
     }
     return sb.toString();
   }
 
   @Override
   public void close() throws Exception {
-    if(!closed){
+    if (!closed) {
       closed = true;
       AutoCloseables.close(operators);
     }

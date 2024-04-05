@@ -16,13 +16,12 @@
 
 package com.dremio.common.util.concurrent;
 
+import com.google.common.util.concurrent.Futures;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
-
-import com.google.common.util.concurrent.Futures;
 
 /**
  * Dremio version of Guava's Futures.getChecked that behaves more similarly to CheckedFutures from
@@ -30,21 +29,18 @@ import com.google.common.util.concurrent.Futures;
  */
 public final class DremioFutures {
 
-  private DremioFutures() {
-  }
+  private DremioFutures() {}
 
   /**
    * Dremio version of Guava's Futures.getChecked without timeout.
    *
-   * @param future         Future to get from
+   * @param future Future to get from
    * @param exceptionClass Exception Class to throw
-   * @param mapper         Function to map original exception to exceptionClass
+   * @param mapper Function to map original exception to exceptionClass
    */
   public static <T, X extends Exception> T getChecked(
-    Future<T> future,
-    Class<X> exceptionClass,
-    Function<? super Throwable, ? extends X> mapper
-  ) throws X {
+      Future<T> future, Class<X> exceptionClass, Function<? super Throwable, ? extends X> mapper)
+      throws X {
     try {
       return Futures.getChecked(future, ExecutionException.class);
     } catch (ExecutionException e) {
@@ -58,22 +54,22 @@ public final class DremioFutures {
   }
 
   /**
-   * Dremio version of Guava's Futures.getChecked with timeout. Throws TimeoutException
-   * directly instead of hiding it.
+   * Dremio version of Guava's Futures.getChecked with timeout. Throws TimeoutException directly
+   * instead of hiding it.
    *
-   * @param future         Future to get from
+   * @param future Future to get from
    * @param exceptionClass Exception Class to throw
-   * @param timeout        Timeout amount
-   * @param unit           Timeout units
-   * @param mapper         Function to map original exception to exceptionClass
+   * @param timeout Timeout amount
+   * @param unit Timeout units
+   * @param mapper Function to map original exception to exceptionClass
    */
   public static <T, X extends Exception> T getChecked(
-    Future<T> future,
-    Class<X> exceptionClass,
-    long timeout,
-    TimeUnit unit,
-    Function<? super Throwable, ? extends X> mapper
-  ) throws TimeoutException, X {
+      Future<T> future,
+      Class<X> exceptionClass,
+      long timeout,
+      TimeUnit unit,
+      Function<? super Throwable, ? extends X> mapper)
+      throws TimeoutException, X {
     try {
       return Futures.getChecked(future, ExecutionException.class, timeout, unit);
     } catch (ExecutionException e) {
@@ -82,18 +78,16 @@ public final class DremioFutures {
     }
   }
 
-  /**
-   * Apply mapper to ExecutionException or its cause.
-   */
+  /** Apply mapper to ExecutionException or its cause. */
   private static <X extends Exception> void handleException(
-    ExecutionException e,
-    Class<X> exceptionClass,
-    Function<? super Throwable, ? extends X> mapper
-  ) throws TimeoutException, X {
+      ExecutionException e,
+      Class<X> exceptionClass,
+      Function<? super Throwable, ? extends X> mapper)
+      throws TimeoutException, X {
     Throwable cause = e.getCause();
     if (exceptionClass.isInstance(cause)
-      || cause instanceof RuntimeException
-      || cause instanceof Error) {
+        || cause instanceof RuntimeException
+        || cause instanceof Error) {
       throw mapper.apply(cause);
     } else if (cause instanceof TimeoutException) {
       throw (TimeoutException) cause;

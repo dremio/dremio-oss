@@ -26,13 +26,14 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.util.BuiltInMethod;
 import org.apache.calcite.util.NumberUtil;
 
-/**
- * Override some of the methods in base calcite class until we can submit upstream
- */
-public class RelMdPercentageOriginalRows extends org.apache.calcite.rel.metadata.RelMdPercentageOriginalRows {
+/** Override some of the methods in base calcite class until we can submit upstream */
+public class RelMdPercentageOriginalRows
+    extends org.apache.calcite.rel.metadata.RelMdPercentageOriginalRows {
   private static final RelMdPercentageOriginalRows INSTANCE = new RelMdPercentageOriginalRows();
 
-  public static final RelMetadataProvider SOURCE = ReflectiveRelMetadataProvider.reflectiveSource(BuiltInMethod.PERCENTAGE_ORIGINAL_ROWS.method, INSTANCE);
+  public static final RelMetadataProvider SOURCE =
+      ReflectiveRelMetadataProvider.reflectiveSource(
+          BuiltInMethod.PERCENTAGE_ORIGINAL_ROWS.method, INSTANCE);
 
   public Double getPercentageOriginalRows(TableScan tablescan, RelMetadataQuery mq) {
     return quotientForPercentage(mq.getRowCount(tablescan), tablescan.getTable().getRowCount());

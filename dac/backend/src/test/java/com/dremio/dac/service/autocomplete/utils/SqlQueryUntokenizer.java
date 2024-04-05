@@ -17,16 +17,12 @@ package com.dremio.dac.service.autocomplete.utils;
 
 import static com.dremio.common.utils.SqlUtils.quoteIdentifier;
 
+import com.dremio.exec.planner.sql.parser.impl.ParserImplConstants;
 import java.util.List;
 
-import com.dremio.exec.planner.sql.parser.impl.ParserImplConstants;
-
-/**
- * Takes a list of DremioTokens and serializes it back into a string.
- */
+/** Takes a list of DremioTokens and serializes it back into a string. */
 public final class SqlQueryUntokenizer {
-  private SqlQueryUntokenizer() {
-  }
+  private SqlQueryUntokenizer() {}
 
   public static String untokenize(List<DremioToken> tokens) {
     StringBuilder stringBuilder = new StringBuilder();

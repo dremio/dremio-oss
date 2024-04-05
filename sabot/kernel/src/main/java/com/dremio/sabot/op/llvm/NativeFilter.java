@@ -15,10 +15,14 @@
  */
 package com.dremio.sabot.op.llvm;
 
+import com.dremio.common.expression.LogicalExpression;
+import com.dremio.exec.record.VectorAccessible;
+import com.dremio.exec.record.selection.SelectionVector2;
+import com.dremio.sabot.exec.context.FunctionContext;
+import com.google.common.collect.Lists;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
-
 import org.apache.arrow.gandiva.evaluator.ConfigurationBuilder;
 import org.apache.arrow.gandiva.evaluator.Filter;
 import org.apache.arrow.gandiva.evaluator.SelectionVector;
@@ -29,15 +33,7 @@ import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
 
-import com.dremio.common.expression.LogicalExpression;
-import com.dremio.exec.record.VectorAccessible;
-import com.dremio.exec.record.selection.SelectionVector2;
-import com.dremio.sabot.exec.context.FunctionContext;
-import com.google.common.collect.Lists;
-
-/**
- * Adapter to gandiva filter.
- */
+/** Adapter to gandiva filter. */
 public class NativeFilter implements AutoCloseable {
 
   private final Filter filter;
@@ -52,6 +48,7 @@ public class NativeFilter implements AutoCloseable {
 
   /**
    * Builds a gandiva filter for a given condition.
+   *
    * @param expr the filter expression
    * @param input the input container.
    * @param selectionVector - the output selection vector
@@ -61,18 +58,28 @@ public class NativeFilter implements AutoCloseable {
    * @return instance of Native Filter.
    * @throws GandivaException when we fail to make the gandiva filter
    */
-  public static NativeFilter build(LogicalExpression expr, VectorAccessible input,
-                                   SelectionVector2 selectionVector, FunctionContext functionContext,
-                                   boolean optimize, boolean targetHostCPU,
-                                   GandivaSecondaryCacheWithStats secondaryCache, double exprComplexityThreshold) throws GandivaException {
+  public static NativeFilter build(
+      LogicalExpression expr,
+      VectorAccessible input,
+      SelectionVector2 selectionVector,
+      FunctionContext functionContext,
+      boolean optimize,
+      boolean targetHostCPU,
+      GandivaSecondaryCacheWithStats secondaryCache,
+      double exprComplexityThreshold)
+      throws GandivaException {
     Set<ReferencedField> referencedFields = new LinkedHashSet<>();
-    Condition condition = GandivaExpressionBuilder.serializeExprToCondition(input, expr, referencedFields, functionContext);
+    Condition condition =
+        GandivaExpressionBuilder.serializeExprToCondition(
+            input, expr, referencedFields, functionContext);
     VectorSchemaRoot root = GandivaUtils.getSchemaRoot(input, referencedFields);
-    ConfigurationBuilder.ConfigOptions configOptions = (new ConfigurationBuilder.ConfigOptions())
-      .withOptimize(optimize)
-      .withTargetCPU(targetHostCPU);
+    ConfigurationBuilder.ConfigOptions configOptions =
+        (new ConfigurationBuilder.ConfigOptions())
+            .withOptimize(optimize)
+            .withTargetCPU(targetHostCPU);
     Filter filter;
-    if (secondaryCache != null && expr.accept(new ExpressionWorkEstimator(), null) >= exprComplexityThreshold) {
+    if (secondaryCache != null
+        && expr.accept(new ExpressionWorkEstimator(), null) >= exprComplexityThreshold) {
       // enable the secondary cache
       filter = Filter.make(root.getSchema(), condition, configOptions, secondaryCache);
     } else {
@@ -83,6 +90,7 @@ public class NativeFilter implements AutoCloseable {
 
   /**
    * Filter a batch of records against the expression.
+   *
    * @param recordCount - number of records to consume
    * @return the number of records that passed the filter
    * @throws GandivaException on evaluation exception.
@@ -111,6 +119,7 @@ public class NativeFilter implements AutoCloseable {
 
   /**
    * Close the underlying gandiva filter.
+   *
    * @throws GandivaException
    */
   @Override

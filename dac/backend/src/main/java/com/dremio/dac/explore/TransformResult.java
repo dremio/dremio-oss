@@ -18,53 +18,56 @@ package com.dremio.dac.explore;
 import static com.dremio.common.utils.ProtostuffUtil.copy;
 import static java.util.Collections.unmodifiableSet;
 
+import com.dremio.dac.proto.model.dataset.VirtualDatasetState;
+import com.google.common.collect.Lists;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import com.dremio.dac.proto.model.dataset.VirtualDatasetState;
-import com.google.common.collect.Lists;
-
-/**
- * The result of a transformation
- */
+/** The result of a transformation */
 class TransformResult {
   private final VirtualDatasetState newState;
   private final Set<String> addedColumns = new HashSet<>();
   private final Set<String> removedColumns = new HashSet<>();
   private final List<String> rowDeletionMarkerColumns = Lists.newArrayList();
 
-  public TransformResult(
-      VirtualDatasetState newState) {
+  public TransformResult(VirtualDatasetState newState) {
     super();
     this.newState = newState;
   }
+
   private TransformResult(TransformResult other) {
     this.newState = other.newState;
     this.addedColumns.addAll(other.addedColumns);
     this.removedColumns.addAll(other.removedColumns);
   }
+
   public TransformResult added(String colName) {
     TransformResult newTr = new TransformResult(this);
     newTr.addedColumns.add(colName);
     return newTr;
   }
+
   public TransformResult added(List<String> columns) {
     TransformResult newTr = new TransformResult(this);
     newTr.addedColumns.addAll(columns);
     return newTr;
   }
+
   public TransformResult removed(String colName) {
     TransformResult newTr = new TransformResult(this);
     newTr.removedColumns.add(colName);
     return newTr;
   }
+
   public TransformResult modified(String colName) {
     return removed(colName).added(colName);
   }
 
   /**
-   * Set the list of columns whose values in a row determine whether that row can be marked as deleted or not.
+   * Set the list of columns whose values in a row determine whether that row can be marked as
+   * deleted or not.
+   *
    * @param columns
    * @return
    */
@@ -77,19 +80,24 @@ class TransformResult {
   public VirtualDatasetState getNewState() {
     return copy(newState);
   }
+
   public Set<String> getAddedColumns() {
     return minus(addedColumns, removedColumns);
   }
+
   public Set<String> getRemovedColumns() {
     return minus(removedColumns, addedColumns);
   }
+
   public Set<String> getModifiedColumns() {
     return delta(removedColumns, addedColumns);
   }
 
   /**
-   * Get the list of columns whose values in a row determine whether that row can be marked as deleted or not.
-   * If any one of the columns contains a null value in a row, then that row is considered deleted.
+   * Get the list of columns whose values in a row determine whether that row can be marked as
+   * deleted or not. If any one of the columns contains a null value in a row, then that row is
+   * considered deleted.
+   *
    * @return
    */
   public List<String> getRowDeletionMarkerColumns() {

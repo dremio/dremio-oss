@@ -20,13 +20,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
 
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.projectnessie.client.api.NessieApiV2;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.service.errors.NessieSourceNotValidException;
 import com.dremio.dac.service.errors.SourceNotFoundException;
@@ -35,30 +28,29 @@ import com.dremio.options.OptionManager;
 import com.dremio.plugins.dataplane.store.DataplanePlugin;
 import com.dremio.plugins.s3.store.S3StoragePlugin;
 import com.dremio.services.nessie.proxy.ProxyV2TreeResource;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.projectnessie.client.api.NessieApiV2;
 
 @ExtendWith(MockitoExtension.class)
 public class TestNessieSourceResource {
 
-  @Mock
-  private CatalogService catalogService;
+  @Mock private CatalogService catalogService;
 
-  @InjectMocks
-  private NessieSourceResource nessieSourceResource;
+  @InjectMocks private NessieSourceResource nessieSourceResource;
 
-  @Mock
-  private DataplanePlugin dataplanePlugin;
+  @Mock private DataplanePlugin dataplanePlugin;
 
-  @Mock
-  private NessieApiV2 nessieApiV2;
+  @Mock private NessieApiV2 nessieApiV2;
 
-  @Mock
-  private S3StoragePlugin s3StoragePlugin;
+  @Mock private S3StoragePlugin s3StoragePlugin;
 
-  @Mock
-  private UserException userException;
+  @Mock private UserException userException;
 
-  @Mock
-  private OptionManager optionManager;
+  @Mock private OptionManager optionManager;
 
   private final String sourceName = "MY_SOURCE";
 
@@ -66,10 +58,9 @@ public class TestNessieSourceResource {
   public void testNessieSourceNotFound() {
     when(catalogService.getSource(sourceName)).thenThrow(userException);
     when(optionManager.getOption(NESSIE_SOURCE_API)).thenReturn(true);
-    assertThatThrownBy(()->nessieSourceResource.handle(sourceName))
-      .isInstanceOf(SourceNotFoundException.class);
+    assertThatThrownBy(() -> nessieSourceResource.handle(sourceName))
+        .isInstanceOf(SourceNotFoundException.class);
   }
-
 
   @Test
   public void testNessieSourceSuccess() {
@@ -84,7 +75,7 @@ public class TestNessieSourceResource {
   public void testNessieSourceNotAcceptable() {
     when(catalogService.getSource(sourceName)).thenReturn(s3StoragePlugin);
     when(optionManager.getOption(NESSIE_SOURCE_API)).thenReturn(true);
-    assertThatThrownBy(()->nessieSourceResource.handle(sourceName))
-      .isInstanceOf(NessieSourceNotValidException.class);
+    assertThatThrownBy(() -> nessieSourceResource.handle(sourceName))
+        .isInstanceOf(NessieSourceNotValidException.class);
   }
 }

@@ -18,18 +18,16 @@ package com.dremio.dac.server;
 import javax.ws.rs.core.Configuration;
 import javax.ws.rs.core.Feature;
 import javax.ws.rs.core.FeatureContext;
-
 import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature;
 
-/**
- * DAC Feature to add authentication filter
- */
+/** DAC Feature to add authentication filter */
 public class DACAuthFilterFeature implements Feature {
   @Override
   public boolean configure(FeatureContext context) {
     final Configuration configuration = context.getConfiguration();
 
-    Boolean disabled = PropertyHelper.getProperty(configuration, RestServerV2.DAC_AUTH_FILTER_DISABLE);
+    Boolean disabled =
+        PropertyHelper.getProperty(configuration, RestServerV2.DAC_AUTH_FILTER_DISABLE);
     // Default is not disabled
     if (disabled != null && disabled) {
       return false;

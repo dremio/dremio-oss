@@ -19,7 +19,6 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rel.type.StructKind;
@@ -28,26 +27,24 @@ import org.apache.calcite.rex.RexNode;
 
 /**
  * Visitor to flatten the nested schema. If a joiner is given, it will join the the nested names
- * only for the first level nodes using this joiner and the rest will be used as leaf node names.
- * If no joiner is provided, it will use all the leaf nodes as the names. For example if the nested
+ * only for the first level nodes using this joiner and the rest will be used as leaf node names. If
+ * no joiner is provided, it will use all the leaf nodes as the names. For example if the nested
  * structure looks like:
+ *
  * <p><br>
- * level1 (STRUCT)
- *       - a1 (VARCHAR)
- *       - b1 (BIGINT)
- *       - c1 (DOUBLE)
- *       - level2 (STRUCT)
- *               - a2 (INTEGER)
- *               - level3 (STRUCT)
- *                       - a3 (BOOLEAN)
- *                       - b3 (FLOAT)
+ * level1 (STRUCT) - a1 (VARCHAR) - b1 (BIGINT) - c1 (DOUBLE) - level2 (STRUCT) - a2 (INTEGER) -
+ * level3 (STRUCT) - a3 (BOOLEAN) - b3 (FLOAT)
+ *
  * <p><br>
  * The flattened output will be:
+ *
  * <p>If a joiner is given, say "_": level1_a1, level1_b1, level1_c1, a2, a3, b3
+ *
  * <p>If no joiner is given: a1, b1, c1, a2, a3, b3
+ *
  * <p><br>
- * The reason we join only the first level with a joiner is because of the need for this
- * flattener during DeltaLake scan expansion.
+ * The reason we join only the first level with a joiner is because of the need for this flattener
+ * during DeltaLake scan expansion.
  */
 public class ComplexSchemaFlattener {
   private final String joiner;
@@ -77,13 +74,14 @@ public class ComplexSchemaFlattener {
   public void flatten(RelDataTypeField parent, int i) {
     if (parent.getType().getStructKind() == StructKind.FULLY_QUALIFIED) {
       for (RelDataTypeField child : parent.getType().getFieldList()) {
-        RexNode rexNode = rexBuilder.makeFieldAccess(
-          rexBuilder.makeInputRef(parent.getType(), i),
-          child.getName(), false);
+        RexNode rexNode =
+            rexBuilder.makeFieldAccess(
+                rexBuilder.makeInputRef(parent.getType(), i), child.getName(), false);
         if (child.getType().getStructKind() == StructKind.FULLY_QUALIFIED) {
           flattenRecursive(child, rexNode);
         } else {
-          String fieldName = joiner == null ? child.getName() : parent.getName() + joiner + child.getName();
+          String fieldName =
+              joiner == null ? child.getName() : parent.getName() + joiner + child.getName();
           exps.add(rexNode);
           typeList.add(rexNode.getType());
           uniquifyFieldName(fieldName);
@@ -100,9 +98,7 @@ public class ComplexSchemaFlattener {
   private void flattenRecursive(RelDataTypeField parent, RexNode rexNode) {
     if (parent.getType().getStructKind() == StructKind.FULLY_QUALIFIED) {
       for (RelDataTypeField child : parent.getType().getFieldList()) {
-        RexNode nestedNode = rexBuilder.makeFieldAccess(
-          rexNode,
-          child.getName(), false);
+        RexNode nestedNode = rexBuilder.makeFieldAccess(rexNode, child.getName(), false);
         flattenRecursive(child, nestedNode);
       }
     } else {

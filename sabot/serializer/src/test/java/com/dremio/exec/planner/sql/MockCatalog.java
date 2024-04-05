@@ -15,21 +15,8 @@
  */
 package com.dremio.exec.planner.sql;
 
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.stream.Collectors;
-
-import javax.annotation.Nonnull;
-
-import org.apache.calcite.rel.type.RelDataTypeFactory;
-import org.apache.calcite.schema.Function;
-
 import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.catalog.model.VersionContext;
-import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.catalog.SimpleCatalog;
 import com.dremio.exec.catalog.TableMetadataVerifyRequest;
@@ -39,17 +26,22 @@ import com.dremio.service.catalog.Table;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
+import javax.annotation.Nonnull;
+import org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.calcite.schema.Function;
 
-/**
- * A catalog that has a fixed list of known tables.
- */
+/** A catalog that has a fixed list of known tables. */
 public class MockCatalog implements SimpleCatalog<MockCatalog> {
   private final RelDataTypeFactory typeFactory;
   private final TableSet tableSet;
 
-  public MockCatalog(
-    RelDataTypeFactory typeFactory,
-    ImmutableList<MockDremioTable> knownTables) {
+  public MockCatalog(RelDataTypeFactory typeFactory, ImmutableList<MockDremioTable> knownTables) {
     Preconditions.checkNotNull(typeFactory);
     Preconditions.checkNotNull(knownTables);
 
@@ -84,18 +76,19 @@ public class MockCatalog implements SimpleCatalog<MockCatalog> {
   }
 
   @Override
-  public DremioTable getTableSnapshotForQuery(NamespaceKey key, TableVersionContext context) {
+  public DremioTable getTableSnapshotForQuery(CatalogEntityKey catalogEntityKey) {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public DremioTable getTableSnapshot(NamespaceKey key, TableVersionContext context) {
+  public DremioTable getTableSnapshot(CatalogEntityKey catalogEntityKey) {
     throw new UnsupportedOperationException();
   }
 
   @Nonnull
   @Override
-  public Optional<TableMetadataVerifyResult> verifyTableMetadata(NamespaceKey key, TableMetadataVerifyRequest metadataVerifyRequest) {
+  public Optional<TableMetadataVerifyResult> verifyTableMetadata(
+      CatalogEntityKey key, TableMetadataVerifyRequest metadataVerifyRequest) {
     throw new UnsupportedOperationException();
   }
 
@@ -106,12 +99,9 @@ public class MockCatalog implements SimpleCatalog<MockCatalog> {
 
   @Override
   public Iterable<String> listSchemas(NamespaceKey path) {
-    return this
-      .tableSet
-      .values()
-      .stream()
-      .map(t -> t.getPath().getParent().toUnescapedString())
-      .collect(Collectors.toList());
+    return this.tableSet.values().stream()
+        .map(t -> t.getPath().getParent().toUnescapedString())
+        .collect(Collectors.toList());
   }
 
   @Override
@@ -120,8 +110,7 @@ public class MockCatalog implements SimpleCatalog<MockCatalog> {
   }
 
   @Override
-  public Collection<Function> getFunctions(NamespaceKey path,
-      FunctionType functionType) {
+  public Collection<Function> getFunctions(NamespaceKey path, FunctionType functionType) {
     return ImmutableList.of();
   }
 
@@ -151,7 +140,7 @@ public class MockCatalog implements SimpleCatalog<MockCatalog> {
   }
 
   @Override
-  public DremioTable getTableSnapshotNoResolve(NamespaceKey key, TableVersionContext context) {
+  public DremioTable getTableNoResolve(CatalogEntityKey catalogEntityKey) {
     throw new UnsupportedOperationException();
   }
 
@@ -161,7 +150,7 @@ public class MockCatalog implements SimpleCatalog<MockCatalog> {
   }
 
   @Override
-  public boolean containerExists(NamespaceKey path) {
+  public boolean containerExists(CatalogEntityKey path) {
     return true;
   }
 
@@ -170,9 +159,7 @@ public class MockCatalog implements SimpleCatalog<MockCatalog> {
     throw new UnsupportedOperationException();
   }
 
-  /**
-   * KV store for MockDremioTables by their normalized namespace key.
-   */
+  /** KV store for MockDremioTables by their normalized namespace key. */
   public static final class TableSet {
     private final Map<NamespaceKey, MockDremioTable> tables;
 

@@ -15,6 +15,8 @@
  */
 package com.dremio.dac.util;
 
+import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.Path;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.text.SimpleDateFormat;
@@ -23,12 +25,7 @@ import java.util.TimeZone;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-import com.dremio.io.file.FileSystem;
-import com.dremio.io.file.Path;
-
-/**
- * Helper class to stream out files as chunk
- */
+/** Helper class to stream out files as chunk */
 public class ZipUtil {
   private int capacity;
   private OutputStream fsout;
@@ -68,7 +65,8 @@ public class ZipUtil {
       if (zout != null) {
         zout.close();
       }
-    } catch (IOException ex) {}
+    } catch (IOException ex) {
+    }
     position = 0;
     chunkCount++;
   }
@@ -81,14 +79,18 @@ public class ZipUtil {
   }
 
   private void setupZip(String filename) throws IOException {
-    fsout = fileSystem.create(Path.of(filename+".zip"), true);
+    fsout = fileSystem.create(Path.of(filename + ".zip"), true);
     zout = new ZipOutputStream(fsout);
   }
 
   private String getNextChunkName() {
     Calendar currentTime = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
     SimpleDateFormat timeFormat = new SimpleDateFormat("yyyyMMddHHmmss");
-    StringBuilder sb = new StringBuilder(basePath).append(timeFormat.format(currentTime.getTime())).append("_").append(chunkCount);
+    StringBuilder sb =
+        new StringBuilder(basePath)
+            .append(timeFormat.format(currentTime.getTime()))
+            .append("_")
+            .append(chunkCount);
     return sb.toString();
   }
 }

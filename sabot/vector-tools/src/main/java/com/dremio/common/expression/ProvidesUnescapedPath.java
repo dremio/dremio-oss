@@ -15,9 +15,7 @@
  */
 package com.dremio.common.expression;
 
-/**
- * Interface to return a path for use in certain type operations.
- */
+/** Interface to return a path for use in certain type operations. */
 public interface ProvidesUnescapedPath {
   String getAsUnescapedPath();
 }

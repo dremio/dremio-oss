@@ -22,9 +22,10 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 
+import com.dremio.service.flight.BasicFlightAuthenticationTest;
+import com.dremio.service.users.UserLoginException;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
-
 import org.apache.arrow.flight.CallHeaders;
 import org.apache.arrow.flight.ErrorFlightMetadata;
 import org.apache.arrow.flight.FlightRuntimeException;
@@ -35,12 +36,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import com.dremio.service.flight.BasicFlightAuthenticationTest;
-import com.dremio.service.users.UserLoginException;
-
-/**
- * Unit tests for DremioFlightServerBearerTokenAuthenticator.
- */
+/** Unit tests for DremioFlightServerBearerTokenAuthenticator. */
 public class TestDremioBearerTokenAuthenticator extends BasicFlightAuthenticationTest {
   private DremioBearerTokenAuthenticator bearerTokenAuthenticator;
 
@@ -48,10 +44,11 @@ public class TestDremioBearerTokenAuthenticator extends BasicFlightAuthenticatio
   @Override
   public void setup() throws UserLoginException {
     super.setup();
-    bearerTokenAuthenticator = new DremioBearerTokenAuthenticator(
-      getMockUserServiceProvider(),
-      getMockTokenManagerProvider(),
-      getMockDremioFlightSessionsManager());
+    bearerTokenAuthenticator =
+        new DremioBearerTokenAuthenticator(
+            getMockUserServiceProvider(),
+            getMockTokenManagerProvider(),
+            getMockDremioFlightSessionsManager());
   }
 
   @After
@@ -63,17 +60,23 @@ public class TestDremioBearerTokenAuthenticator extends BasicFlightAuthenticatio
   public void testGetAuthResultWithInitialAuth() {
     // Act
     final CallHeaders incomingTestHeaders = new ErrorFlightMetadata();
-    incomingTestHeaders.insert(Auth2Constants.AUTHORIZATION_HEADER, Auth2Constants.BASIC_PREFIX +
-      Base64.getEncoder().encodeToString(String.format("%s:%s", USERNAME, PASSWORD).getBytes(StandardCharsets.UTF_8)));
-    final AuthResult bearerTokenAuthResult = bearerTokenAuthenticator.authenticate(incomingTestHeaders);
+    incomingTestHeaders.insert(
+        Auth2Constants.AUTHORIZATION_HEADER,
+        Auth2Constants.BASIC_PREFIX
+            + Base64.getEncoder()
+                .encodeToString(
+                    String.format("%s:%s", USERNAME, PASSWORD).getBytes(StandardCharsets.UTF_8)));
+    final AuthResult bearerTokenAuthResult =
+        bearerTokenAuthenticator.authenticate(incomingTestHeaders);
     final CallHeaders bearerTokenHeader = new ErrorFlightMetadata();
     bearerTokenAuthResult.appendToOutgoingHeaders(bearerTokenHeader);
 
     // Validate
     assertEquals(TOKEN, bearerTokenAuthResult.getPeerIdentity());
     assertTrue(bearerTokenHeader.containsKey(Auth2Constants.AUTHORIZATION_HEADER));
-    assertEquals(Auth2Constants.BEARER_PREFIX + TOKEN,
-      bearerTokenHeader.get(Auth2Constants.AUTHORIZATION_HEADER));
+    assertEquals(
+        Auth2Constants.BEARER_PREFIX + TOKEN,
+        bearerTokenHeader.get(Auth2Constants.AUTHORIZATION_HEADER));
   }
 
   @Test
@@ -83,17 +86,19 @@ public class TestDremioBearerTokenAuthenticator extends BasicFlightAuthenticatio
 
     // Act
     final CallHeaders incomingTestHeaders = new ErrorFlightMetadata();
-    incomingTestHeaders.insert(Auth2Constants.AUTHORIZATION_HEADER,
-      Auth2Constants.BEARER_PREFIX + TOKEN);
-    final AuthResult bearerTokenAuthResult = bearerTokenAuthenticator.authenticate(incomingTestHeaders);
+    incomingTestHeaders.insert(
+        Auth2Constants.AUTHORIZATION_HEADER, Auth2Constants.BEARER_PREFIX + TOKEN);
+    final AuthResult bearerTokenAuthResult =
+        bearerTokenAuthenticator.authenticate(incomingTestHeaders);
     final CallHeaders bearerTokenHeader = new ErrorFlightMetadata();
     bearerTokenAuthResult.appendToOutgoingHeaders(bearerTokenHeader);
 
     // Validate
     assertEquals(TOKEN, bearerTokenAuthResult.getPeerIdentity());
     assertTrue(bearerTokenHeader.containsKey(Auth2Constants.AUTHORIZATION_HEADER));
-    assertEquals(Auth2Constants.BEARER_PREFIX + TOKEN,
-      bearerTokenHeader.get(Auth2Constants.AUTHORIZATION_HEADER));
+    assertEquals(
+        Auth2Constants.BEARER_PREFIX + TOKEN,
+        bearerTokenHeader.get(Auth2Constants.AUTHORIZATION_HEADER));
   }
 
   @Test
@@ -117,7 +122,7 @@ public class TestDremioBearerTokenAuthenticator extends BasicFlightAuthenticatio
     try {
       bearerTokenAuthenticator.validateBearer(TOKEN);
       testFailed();
-    } catch(FlightRuntimeException exception) {
+    } catch (FlightRuntimeException exception) {
       assertEquals(FlightStatusCode.UNAUTHENTICATED, exception.status().code());
     }
   }

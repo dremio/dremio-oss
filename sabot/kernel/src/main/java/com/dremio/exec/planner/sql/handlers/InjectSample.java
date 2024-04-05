@@ -15,19 +15,21 @@
  */
 package com.dremio.exec.planner.sql.handlers;
 
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.core.TableScan;
-
 import com.dremio.exec.planner.StatelessRelShuttleImpl;
 import com.dremio.exec.planner.logical.SampleRel;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.core.TableScan;
 
 public class InjectSample extends StatelessRelShuttleImpl {
 
   private final boolean addSample;
 
-  // If leaf limits are enabled, add it now during calcite logical planning (previously we were adding this at the
-  // end of the convertToDrel, which would be too late for jdbc plugin/conventions.  The storage plugin rules would
-  // have fired by the end of convertToDrel.  One thing to note, currently, we do not push down limit to jdbc (see
+  // If leaf limits are enabled, add it now during calcite logical planning (previously we were
+  // adding this at the
+  // end of the convertToDrel, which would be too late for jdbc plugin/conventions.  The storage
+  // plugin rules would
+  // have fired by the end of convertToDrel.  One thing to note, currently, we do not push down
+  // limit to jdbc (see
   // calcite JdbcRules.JdbcSortRule (offsets/fetchs are not pushed down).
   public InjectSample(boolean addSample) {
     this.addSample = addSample;

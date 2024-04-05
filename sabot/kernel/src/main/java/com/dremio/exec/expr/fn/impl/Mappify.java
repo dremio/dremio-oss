@@ -15,16 +15,6 @@
  */
 package com.dremio.exec.expr.fn.impl;
 
-import java.util.List;
-
-import javax.inject.Inject;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.vector.complex.reader.FieldReader;
-import org.apache.arrow.vector.complex.writer.BaseWriter.ComplexWriter;
-import org.apache.arrow.vector.types.pojo.ArrowType;
-import org.apache.arrow.vector.types.pojo.Field;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.LogicalExpression;
@@ -35,6 +25,13 @@ import com.dremio.exec.expr.annotations.Param;
 import com.dremio.exec.expr.fn.FunctionErrorContext;
 import com.dremio.exec.expr.fn.OutputDerivation;
 import com.google.common.base.Preconditions;
+import java.util.List;
+import javax.inject.Inject;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.vector.complex.reader.FieldReader;
+import org.apache.arrow.vector.complex.writer.BaseWriter.ComplexWriter;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.Field;
 
 public class Mappify {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(Mappify.class);
@@ -60,21 +57,23 @@ public class Mappify {
    * scalar value fields
    * value fields need to be of the same data type
    */
-  @FunctionTemplate(names = {"mappify", "kvgen"}, derivation = KvGenOutput.class)
+  @FunctionTemplate(
+      names = {"mappify", "kvgen"},
+      derivation = KvGenOutput.class)
   public static class ConvertMapToKeyValuePairs implements SimpleFunction {
 
-    @Param  FieldReader reader;
+    @Param FieldReader reader;
     @Inject ArrowBuf buffer;
     @Output ComplexWriter writer;
     @Inject FunctionErrorContext errorContext;
 
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
     public void eval() {
-      buffer = com.dremio.exec.expr.fn.impl.MappifyUtility.mappify(reader, writer, buffer, errorContext);
+      buffer =
+          com.dremio.exec.expr.fn.impl.MappifyUtility.mappify(reader, writer, buffer, errorContext);
     }
   }
 
@@ -83,35 +82,36 @@ public class Mappify {
     public CompleteType getOutputType(CompleteType baseReturn, List<LogicalExpression> args) {
       Preconditions.checkArgument(args.size() == 1);
       CompleteType type = args.get(0).getCompleteType();
-      if(!type.isStruct()){
+      if (!type.isStruct()) {
         throw UserException.functionError()
-            .message("The kvgen function can only be used when operating against maps. The type you were attempting to apply it to was a %s.",
+            .message(
+                "The kvgen function can only be used when operating against maps. The type you were attempting to apply it to was a %s.",
                 type.toString())
             .build(logger);
       }
 
       List<Field> children = type.getChildren();
 
-      if(children.isEmpty()){
+      if (children.isEmpty()) {
         throw UserException.functionError()
-            .message("The kvgen function can only be used when operating against maps. The type you were attempting to apply it to was a %s.",
+            .message(
+                "The kvgen function can only be used when operating against maps. The type you were attempting to apply it to was a %s.",
                 type.toString())
             .build(logger);
       }
 
-
       CompleteType valueType = CompleteType.fromField(children.get(0));
-      for(int i =0; i < children.size(); i++){
+      for (int i = 0; i < children.size(); i++) {
         valueType = valueType.merge(CompleteType.fromField(children.get(i)));
       }
 
       return new CompleteType(
           ArrowType.List.INSTANCE,
           new CompleteType(
-              ArrowType.Struct.INSTANCE,
-              CompleteType.VARCHAR.toField(MappifyUtility.fieldKey),
-              valueType.toField(MappifyUtility.fieldValue))
-          .toField("$data$"));
+                  ArrowType.Struct.INSTANCE,
+                  CompleteType.VARCHAR.toField(MappifyUtility.fieldKey),
+                  valueType.toField(MappifyUtility.fieldValue))
+              .toField("$data$"));
     }
   }
 }

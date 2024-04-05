@@ -15,9 +15,6 @@
  */
 package com.dremio.common.utils;
 
-import java.io.IOException;
-import java.io.OutputStream;
-
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -26,14 +23,13 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.google.common.base.Ascii;
 import com.google.protobuf.MessageOrBuilder;
 import com.hubspot.jackson.datatype.protobuf.ProtobufModule;
+import java.io.IOException;
+import java.io.OutputStream;
 
-/**
- * Protobuf utilities methods
- */
+/** Protobuf utilities methods */
 public final class ProtobufUtils {
 
-  private ProtobufUtils() {
-  }
+  private ProtobufUtils() {}
 
   /*
    * A "protobuf" to camel case property naming strategy which should handle correctly
@@ -41,48 +37,51 @@ public final class ProtobufUtils {
    * field names
    */
   @SuppressWarnings("serial")
-  public static final PropertyNamingStrategy PROTOBUF_TO_CAMEL_STRATEGY = new PropertyNamingStrategy.PropertyNamingStrategyBase() {
-    @Override
-    public String translate(String propertyName) {
-      if (propertyName == null || propertyName.isEmpty()) {
-        return propertyName;
-      }
+  public static final PropertyNamingStrategy PROTOBUF_TO_CAMEL_STRATEGY =
+      new PropertyNamingStrategy.PropertyNamingStrategyBase() {
+        @Override
+        public String translate(String propertyName) {
+          if (propertyName == null || propertyName.isEmpty()) {
+            return propertyName;
+          }
 
-      // Follow protobuf algorithm described at
-      // https://developers.google.com/protocol-buffers/docs/reference/java-generated#fields
-      final StringBuilder buffer = new StringBuilder(propertyName.length());
-      buffer.append(Ascii.toLowerCase(propertyName.charAt(0)));
-      boolean toCapitalize = false;
-      for (int i = 1; i < propertyName.length(); i++) {
-        char c = propertyName.charAt(i);
-        if (c == '_') {
-          toCapitalize = true;
-          continue;
-        }
+          // Follow protobuf algorithm described at
+          // https://developers.google.com/protocol-buffers/docs/reference/java-generated#fields
+          final StringBuilder buffer = new StringBuilder(propertyName.length());
+          buffer.append(Ascii.toLowerCase(propertyName.charAt(0)));
+          boolean toCapitalize = false;
+          for (int i = 1; i < propertyName.length(); i++) {
+            char c = propertyName.charAt(i);
+            if (c == '_') {
+              toCapitalize = true;
+              continue;
+            }
 
-        if (toCapitalize) {
-          buffer.append(Ascii.toUpperCase(c));
-          toCapitalize = false;
-        } else {
-          buffer.append(c);
+            if (toCapitalize) {
+              buffer.append(Ascii.toUpperCase(c));
+              toCapitalize = false;
+            } else {
+              buffer.append(c);
+            }
+          }
+          return buffer.toString();
         }
-      }
-      return buffer.toString();
-    }
-  };
+      };
 
   /*
    * Mapper which doesn't close streams
    */
-  private static final ObjectMapper MAPPER = newMapper()
-      .disable(JsonGenerator.Feature.AUTO_CLOSE_TARGET);
+  private static final ObjectMapper MAPPER =
+      newMapper().disable(JsonGenerator.Feature.AUTO_CLOSE_TARGET);
 
   /**
    * Creates a protobuf-ready object mapper
    *
-   * Creates a protobuf-ready object mapper which follows same convention as
-   * Protostuff format:
-   * <ul><li>enums are represented by their index</li>/</ul>
+   * <p>Creates a protobuf-ready object mapper which follows same convention as Protostuff format:
+   *
+   * <ul>
+   *   <li>enums are represented by their index/
+   * </ul>
    *
    * @return
    */
@@ -96,17 +95,17 @@ public final class ProtobufUtils {
         .registerModule(new ProtobufModule());
   }
 
-
   /**
    * Writes Protobuf message as JSON
    *
-   * Writes the protobuf message as JSON to the provided stream following protostuff style
+   * <p>Writes the protobuf message as JSON to the provided stream following protostuff style
    *
    * @param os the output stream
    * @param value the protobuf message
    * @throws IOException if an error during serialization happens
    */
-  public static final <M extends MessageOrBuilder> void writeAsJSONTo(OutputStream os, M value) throws IOException {
+  public static final <M extends MessageOrBuilder> void writeAsJSONTo(OutputStream os, M value)
+      throws IOException {
     MAPPER.writeValue(os, value);
   }
 
@@ -117,10 +116,10 @@ public final class ProtobufUtils {
    * @return a byte array representing the JSON string
    * @throws IOException if an error during serialization happens
    */
-  public static final <M extends MessageOrBuilder> byte[] toJSONByteArray(M value) throws IOException {
+  public static final <M extends MessageOrBuilder> byte[] toJSONByteArray(M value)
+      throws IOException {
     return MAPPER.writeValueAsBytes(value);
   }
-
 
   /**
    * Writes Protobuf message as JSON to a string
@@ -140,7 +139,8 @@ public final class ProtobufUtils {
    * @return the protobuf message
    * @throws IOException if an error during serialization happens
    */
-  public static final <M extends MessageOrBuilder> M fromJSONString(Class<M> clazz, String json) throws IOException {
+  public static final <M extends MessageOrBuilder> M fromJSONString(Class<M> clazz, String json)
+      throws IOException {
     return MAPPER.readValue(json, clazz);
   }
 }

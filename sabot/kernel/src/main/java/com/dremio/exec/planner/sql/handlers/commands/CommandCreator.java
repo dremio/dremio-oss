@@ -18,16 +18,6 @@ package com.dremio.exec.planner.sql.handlers.commands;
 import static com.dremio.exec.planner.physical.PlannerSettings.REUSE_PREPARE_HANDLES;
 import static com.dremio.exec.planner.physical.PlannerSettings.STORE_QUERY_RESULTS;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
-import java.util.Locale;
-import java.util.Optional;
-
-import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.sql.SqlSetOption;
-import org.apache.calcite.sql.parser.SqlParseException;
-import org.jetbrains.annotations.NotNull;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.ExecConstants;
@@ -35,8 +25,7 @@ import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.ops.ReflectionContext;
-import com.dremio.exec.planner.observer.AttemptObserver;
-import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.planner.observer.AttemptObservers;
 import com.dremio.exec.planner.physical.PlannerSettings.StoreQueryResultsPolicy;
 import com.dremio.exec.planner.sql.SqlConverter;
 import com.dremio.exec.planner.sql.SqlExceptionHelper;
@@ -111,10 +100,13 @@ import com.dremio.exec.planner.sql.parser.SqlDescribeFunction;
 import com.dremio.exec.planner.sql.parser.SqlDescribePipe;
 import com.dremio.exec.planner.sql.parser.SqlDropFolder;
 import com.dremio.exec.planner.sql.parser.SqlDropFunction;
+import com.dremio.exec.planner.sql.parser.SqlDropPipe;
 import com.dremio.exec.planner.sql.parser.SqlDropReflection;
 import com.dremio.exec.planner.sql.parser.SqlExplainJson;
 import com.dremio.exec.planner.sql.parser.SqlForgetTable;
+import com.dremio.exec.planner.sql.parser.SqlManagePipe;
 import com.dremio.exec.planner.sql.parser.SqlOptimize;
+import com.dremio.exec.planner.sql.parser.SqlRefreshReflectionsForDataset;
 import com.dremio.exec.planner.sql.parser.SqlRefreshSourceStatus;
 import com.dremio.exec.planner.sql.parser.SqlRefreshTable;
 import com.dremio.exec.planner.sql.parser.SqlSetApprox;
@@ -123,6 +115,7 @@ import com.dremio.exec.planner.sql.parser.SqlShowFunctions;
 import com.dremio.exec.planner.sql.parser.SqlShowPipes;
 import com.dremio.exec.planner.sql.parser.SqlShowSchemas;
 import com.dremio.exec.planner.sql.parser.SqlShowTableProperties;
+import com.dremio.exec.planner.sql.parser.SqlTriggerPipe;
 import com.dremio.exec.planner.sql.parser.SqlTruncateTable;
 import com.dremio.exec.planner.sql.parser.SqlUseSchema;
 import com.dremio.exec.planner.sql.parser.SqlVacuum;
@@ -144,43 +137,49 @@ import com.dremio.exec.work.foreman.ForemanException;
 import com.dremio.exec.work.foreman.ForemanSetupException;
 import com.dremio.exec.work.foreman.SqlUnsupportedException;
 import com.dremio.exec.work.protector.UserRequest;
+import com.dremio.proto.model.attempts.AttemptReason;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.Pointer;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Throwables;
 import com.google.common.cache.Cache;
 import com.google.protobuf.InvalidProtocolBufferException;
-
 import io.opentelemetry.api.trace.Span;
+import java.util.Locale;
+import java.util.Optional;
+import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlSetOption;
+import org.apache.calcite.sql.parser.SqlParseException;
+import org.jetbrains.annotations.NotNull;
 
-/**
- * Takes a request and creates the appropriate type of command.
- */
+/** Takes a request and creates the appropriate type of command. */
 public class CommandCreator {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CommandCreator.class);
-  private static final ControlsInjector injector = ControlsInjectorFactory.getInjector(CommandCreator.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(CommandCreator.class);
+  private static final ControlsInjector injector =
+      ControlsInjectorFactory.getInjector(CommandCreator.class);
 
   private static final String QUERY_ID_SPAN_ATTRIBUTE_NAME = "dremio.query.id";
   private static final String QUERY_KIND_SPAN_ATTRIBUTE_NAME = "dremio.query.kind";
 
-
   private final QueryContext context;
   private final UserRequest request;
-  private final AttemptObserver observer;
+  private final AttemptObservers observer;
   private final SabotContext dbContext;
   private final Cache<Long, PreparedPlan> preparedPlans;
   private final int attemptNumber;
+  private final AttemptReason attemptReason;
   private final Pointer<QueryId> prepareId;
 
   public CommandCreator(
-    SabotContext dbContext,
-    QueryContext context,
-    UserRequest request,
-    AttemptObserver observer,
-    Cache<Long, PreparedPlan> preparedPlans,
-    Pointer<QueryId> prepareId,
-    int attemptNumber) {
+      SabotContext dbContext,
+      QueryContext context,
+      UserRequest request,
+      AttemptObservers observer,
+      Cache<Long, PreparedPlan> preparedPlans,
+      Pointer<QueryId> prepareId,
+      int attemptNumber,
+      AttemptReason attemptReason) {
     this.context = context;
     this.request = request;
     this.observer = observer;
@@ -188,15 +187,16 @@ public class CommandCreator {
     this.preparedPlans = preparedPlans;
     this.prepareId = prepareId;
     this.attemptNumber = attemptNumber;
+    this.attemptReason = attemptReason;
   }
 
   private static MetadataCommandParameters getParameters(UserSession userSession, QueryId queryId) {
     return new ImmutableMetadataCommandParameters.Builder()
-      .setCatalogName(userSession.getCatalogName())
-      .setUsername(userSession.getCredentials().getUserName())
-      .setMaxMetadataCount(userSession.getMaxMetadataCount())
-      .setQueryId(queryId)
-      .build();
+        .setCatalogName(userSession.getCatalogName())
+        .setUsername(userSession.getCredentials().getUserName())
+        .setMaxMetadataCount(userSession.getMaxMetadataCount())
+        .setQueryId(queryId)
+        .build();
   }
 
   private void applyQueryLabel(SqlNode sqlNode) {
@@ -212,95 +212,115 @@ public class CommandCreator {
   }
 
   public CommandRunner<?> toCommand() throws ForemanException {
-      injector.injectChecked(context.getExecutionControls(), "run-try-beginning", ForemanException.class);
-      switch(request.getType()){
+    injector.injectChecked(
+        context.getExecutionControls(), "run-try-beginning", ForemanException.class);
+    switch (request.getType()) {
       case GET_CATALOGS:
-        return new MetadataProvider.CatalogsProvider(dbContext.getConduitInProcessChannelProviderProvider(),
-          getParameters(context.getSession(), context.getQueryId()), request.unwrap(GetCatalogsReq.class));
+        return new MetadataProvider.CatalogsProvider(
+            dbContext.getConduitInProcessChannelProviderProvider(),
+            getParameters(context.getSession(), context.getQueryId()),
+            request.unwrap(GetCatalogsReq.class));
 
       case GET_SCHEMAS:
-        return new MetadataProvider.SchemasProvider(dbContext.getConduitInProcessChannelProviderProvider(),
-          getParameters(context.getSession(), context.getQueryId()), request.unwrap(GetSchemasReq.class));
+        return new MetadataProvider.SchemasProvider(
+            dbContext.getConduitInProcessChannelProviderProvider(),
+            getParameters(context.getSession(), context.getQueryId()),
+            request.unwrap(GetSchemasReq.class));
 
       case GET_TABLES:
-        return new MetadataProvider.TablesProvider(dbContext.getConduitInProcessChannelProviderProvider(),
-          getParameters(context.getSession(), context.getQueryId()), request.unwrap(GetTablesReq.class));
+        return new MetadataProvider.TablesProvider(
+            dbContext.getConduitInProcessChannelProviderProvider(),
+            getParameters(context.getSession(), context.getQueryId()),
+            request.unwrap(GetTablesReq.class));
 
       case GET_COLUMNS:
-        return new MetadataProvider.ColumnsProvider(dbContext.getConduitInProcessChannelProviderProvider(),
-          getParameters(context.getSession(), context.getQueryId()), dbContext.getCatalogService(),
-          request.unwrap(GetColumnsReq.class));
+        return new MetadataProvider.ColumnsProvider(
+            dbContext.getConduitInProcessChannelProviderProvider(),
+            getParameters(context.getSession(), context.getQueryId()),
+            dbContext.getCatalogService(),
+            request.unwrap(GetColumnsReq.class));
 
-      case CREATE_PREPARED_STATEMENT: {
-        final CreatePreparedStatementReq req = request.unwrap(CreatePreparedStatementReq.class);
-        return getSqlCommand(req.getSqlQuery(), PrepareMetadataType.USER_RPC);
-      }
+      case CREATE_PREPARED_STATEMENT:
+        {
+          final CreatePreparedStatementReq req = request.unwrap(CreatePreparedStatementReq.class);
+          return getSqlCommand(req.getSqlQuery(), PrepareMetadataType.USER_RPC);
+        }
 
-      case CREATE_PREPARED_STATEMENT_ARROW: {
-        final CreatePreparedStatementArrowReq req = request.unwrap(CreatePreparedStatementArrowReq.class);
-        return getSqlCommand(req.getSqlQuery(), PrepareMetadataType.ARROW);
-      }
+      case CREATE_PREPARED_STATEMENT_ARROW:
+        {
+          final CreatePreparedStatementArrowReq req =
+              request.unwrap(CreatePreparedStatementArrowReq.class);
+          return getSqlCommand(req.getSqlQuery(), PrepareMetadataType.ARROW);
+        }
 
       case GET_SERVER_META:
-        return new ServerMetaProvider.ServerMetaCommandRunner(context.getQueryId(), context.getSession(), dbContext,
-          request.unwrap(GetServerMetaReq.class));
+        return new ServerMetaProvider.ServerMetaCommandRunner(
+            context.getQueryId(),
+            context.getSession(),
+            dbContext,
+            request.unwrap(GetServerMetaReq.class));
 
       case RUN_QUERY:
         final RunQuery query = request.unwrap(RunQuery.class);
 
         switch (query.getType()) {
-        case PREPARED_STATEMENT:
-          try {
-            final ServerPreparedStatementState preparedStatement =
-              ServerPreparedStatementState.PARSER.parseFrom(query.getPreparedStatementHandle().getServerInfo());
-            if(preparedStatement.hasPrepareId()){
-              prepareId.value = preparedStatement.getPrepareId();
-            }
-            // we'll try to use the cached prepared statement iff this is the first
-            // attempt to run the query. Otherwise, we might get stale information
-            // for schema on a schema change.
-            if(attemptNumber == 0){
+          case PREPARED_STATEMENT:
+            try {
+              final ServerPreparedStatementState preparedStatement =
+                  ServerPreparedStatementState.PARSER.parseFrom(
+                      query.getPreparedStatementHandle().getServerInfo());
+              if (preparedStatement.hasPrepareId()) {
+                prepareId.value = preparedStatement.getPrepareId();
+              }
+              // we'll try to use the cached prepared statement iff this is the first
+              // attempt to run the query. Otherwise, we might get stale information
+              // for schema on a schema change.
+              if (attemptNumber == 0) {
 
-              final long handle = preparedStatement.getHandle();
-              PreparedPlan plan = preparedPlans.getIfPresent(handle);
-              if(plan != null){
-                if (!context.getOptions().getOption(REUSE_PREPARE_HANDLES)) {
-                  preparedPlans.invalidate(handle);
-                }
+                final long handle = preparedStatement.getHandle();
+                PreparedPlan plan = preparedPlans.getIfPresent(handle);
+                if (plan != null) {
+                  if (!context.getOptions().getOption(REUSE_PREPARE_HANDLES)) {
+                    preparedPlans.invalidate(handle);
+                  }
 
-                // Only reuse the cached prepared plan if the query and username match
-                final boolean queryMatches = plan.getQuery().equals(preparedStatement.getSqlQuery());
-                final boolean usernameMatches = plan.getUsername() == null || plan.getUsername().equals(context.getSession().getCredentials().getUserName());
-                if (queryMatches && usernameMatches) {
-                  context.setQueryRequiresGroupsInfo(plan.getQueryRequiresGroupsInfo());
-                  return new PrepareToExecution(plan, observer);
+                  // Only reuse the cached prepared plan if the query and username match
+                  final boolean queryMatches =
+                      plan.getQuery().equals(preparedStatement.getSqlQuery());
+                  final boolean usernameMatches =
+                      plan.getUsername() == null
+                          || plan.getUsername()
+                              .equals(context.getSession().getCredentials().getUserName());
+                  if (queryMatches && usernameMatches) {
+                    context.setQueryRequiresGroupsInfo(plan.getQueryRequiresGroupsInfo());
+                    return new PrepareToExecution(plan, observer);
+                  }
                 }
               }
+
+              return getSqlCommand(preparedStatement.getSqlQuery(), PrepareMetadataType.NONE);
+
+            } catch (InvalidProtocolBufferException e) {
+              throw UserException.connectionError(e)
+                  .message(
+                      "Unable to parse provided prepared statement. "
+                          + "It is likely that the client failed to handle this message.")
+                  .build(logger);
             }
 
-            return getSqlCommand(preparedStatement.getSqlQuery(), PrepareMetadataType.NONE);
+          case SQL:
+            return getSqlCommand(query.getPlan(), PrepareMetadataType.NONE);
 
-          } catch (InvalidProtocolBufferException e){
-            throw UserException.connectionError(e)
-              .message("Unable to parse provided prepared statement. " +
-                "It is likely that the client failed to handle this message.")
-              .build(logger);
-          }
+          case PHYSICAL: // should be deprecated once tests are removed.
+            return new PhysicalPlanCommand(dbContext.getPlanReader(), query.getPlanBytes());
 
-        case SQL:
-          return getSqlCommand(query.getPlan(), PrepareMetadataType.NONE);
-
-        case PHYSICAL: // should be deprecated once tests are removed.
-          return new PhysicalPlanCommand(dbContext.getPlanReader(), query.getPlanBytes());
-
-        default:
-          throw new IllegalArgumentException(
-              String.format("Unknown query type [%s] received", query.getType()));
+          default:
+            throw new IllegalArgumentException(
+                String.format("Unknown query type [%s] received", query.getType()));
         }
       default:
         throw new UnsupportedOperationException("Unsupported type.");
-
-      }
+    }
   }
 
   protected ReflectionContext getReflectionContext() {
@@ -309,26 +329,32 @@ public class CommandCreator {
 
   @VisibleForTesting
   CommandRunner<?> getSqlCommand(String sql, PrepareMetadataType prepareMetadataType) {
-    try{
-      final SqlConverter parser = new SqlConverter(
-          context.getPlannerSettings(),
-          context.getOperatorTable(),
-          context,
-          context.getMaterializationProvider(),
-          context.getFunctionRegistry(),
-          context.getSession(),
-          observer,
-          context.getSubstitutionProviderFactory(),
-          context.getConfig(),
-          context.getScanResult(),
-          context.getRelMetadataQuerySupplier());
+    try {
+      final SqlConverter parser =
+          new SqlConverter(
+              context.getPlannerSettings(),
+              context.getOperatorTable(),
+              context,
+              context.getMaterializationProvider(),
+              context.getFunctionRegistry(),
+              context.getSession(),
+              observer,
+              context.getSubstitutionProviderFactory(),
+              context.getConfig(),
+              context.getScanResult(),
+              context.getRelMetadataQuerySupplier());
 
-      injector.injectChecked(context.getExecutionControls(), "sql-parsing", ForemanSetupException.class);
+      injector.injectChecked(
+          context.getExecutionControls(), "sql-parsing", ForemanSetupException.class);
       final SqlNode sqlNode = parser.parse(sql);
-      final SqlHandlerConfig config = new SqlHandlerConfig(context, parser, observer, parser.getMaterializations());
+      final SqlHandlerConfig config =
+          new SqlHandlerConfig(context, parser, observer, parser.getMaterializations());
 
-      Span.current().setAttribute(QUERY_ID_SPAN_ATTRIBUTE_NAME, QueryIdHelper.getQueryId(context.getQueryId()));
-      Span.current().setAttribute(QUERY_KIND_SPAN_ATTRIBUTE_NAME, SqlNodeUtil.getQueryKind(sqlNode));
+      Span.current()
+          .setAttribute(
+              QUERY_ID_SPAN_ATTRIBUTE_NAME, QueryIdHelper.getQueryId(context.getQueryId()));
+      Span.current()
+          .setAttribute(QUERY_KIND_SPAN_ATTRIBUTE_NAME, SqlNodeUtil.getQueryKind(sqlNode));
 
       final DirectBuilder direct = new DirectBuilder(sql, sqlNode, prepareMetadataType);
       final AsyncBuilder async = new AsyncBuilder(sql, sqlNode, prepareMetadataType);
@@ -341,7 +367,7 @@ public class CommandCreator {
 
     } catch (UserException userException) {
       throw userException;
-    } catch(SqlUnsupportedException e) {
+    } catch (SqlUnsupportedException e) {
       throw UserException.unsupportedError(e)
           .addContext(SqlExceptionHelper.SQL_QUERY_CONTEXT, sql)
           .build(logger);
@@ -353,11 +379,13 @@ public class CommandCreator {
   }
 
   @NotNull
-  protected CommandRunner<?> getCommandRunner(SqlNode sqlNode, SqlHandlerConfig config, DirectBuilder direct, AsyncBuilder async) throws ForemanException, SqlParseException {
+  protected CommandRunner<?> getCommandRunner(
+      SqlNode sqlNode, SqlHandlerConfig config, DirectBuilder direct, AsyncBuilder async)
+      throws ForemanException, SqlParseException {
     final Catalog catalog = context.getCatalog();
 
     // TODO DX-10976 refactor all handlers to use similar Creator interfaces
-    if(sqlNode instanceof SqlToPlanHandler.Creator) {
+    if (sqlNode instanceof SqlToPlanHandler.Creator) {
       SqlToPlanHandler.Creator creator = (SqlToPlanHandler.Creator) sqlNode;
       return async.create(creator.toPlanHandler(), config);
     } else if (sqlNode instanceof SimpleDirectHandler.Creator) {
@@ -366,152 +394,162 @@ public class CommandCreator {
     }
 
     switch (sqlNode.getKind()) {
-    case EXPLAIN:
-      return direct.create(new ExplainHandler(config));
+      case EXPLAIN:
+        return direct.create(new ExplainHandler(config));
 
-    case SET_OPTION:
-      if (sqlNode instanceof SqlAlterTableSetOption) {
-        return direct.create(new AlterTableSetOptionHandler(catalog, context.getSession()));
-      } else if (sqlNode instanceof SqlAlterTableChangeColumnSetOption) {
-        return direct.create(new AlterTableChangeColumnSetOptionHandler(catalog));
-      } else if (sqlNode instanceof SqlSetOption) {
-        checkIfAllowedToSetOption(sqlNode);
-        return direct.create(new SetOptionHandler(context));
-      }
-      throw new IllegalArgumentException("Must have a correct SQL Node for SET_OPTION case");
+      case SET_OPTION:
+        if (sqlNode instanceof SqlAlterTableSetOption) {
+          return direct.create(new AlterTableSetOptionHandler(catalog, context.getSession()));
+        } else if (sqlNode instanceof SqlAlterTableChangeColumnSetOption) {
+          return direct.create(new AlterTableChangeColumnSetOptionHandler(catalog));
+        } else if (sqlNode instanceof SqlSetOption) {
+          checkIfAllowedToSetOption(sqlNode);
+          return direct.create(new SetOptionHandler(context));
+        }
+        throw new IllegalArgumentException("Must have a correct SQL Node for SET_OPTION case");
 
-    case DESCRIBE_TABLE:
-      return direct.create(DescribeTableHandler.create(catalog, context));
+      case DESCRIBE_TABLE:
+        return direct.create(DescribeTableHandler.create(catalog, context, context.getSession()));
 
-    case CREATE_VIEW:
-      return direct.create(CreateViewHandler.create(config));
+      case CREATE_VIEW:
+        return direct.create(CreateViewHandler.create(config));
 
-    case DROP_TABLE:
-      return direct.create(new DropTableHandler(catalog, context.getSession()));
+      case DROP_TABLE:
+        return direct.create(new DropTableHandler(catalog, context.getSession()));
 
-    case ROLLBACK:
-      return direct.create(new RollbackHandler(catalog, config));
+      case ROLLBACK:
+        return direct.create(new RollbackHandler(catalog, config));
 
-    case DROP_VIEW:
-      return direct.create(new DropViewHandler(config));
+      case DROP_VIEW:
+        return direct.create(new DropViewHandler(config));
 
-    case CREATE_TABLE:
-      NamespaceKey tableKey = catalog.resolveSingle(((SqlCreateTable) sqlNode).getPath());
-      DremioTable table = catalog.getTableNoResolve(tableKey);
-      if (table != null && ((SqlCreateTable) sqlNode).getIfNotExists()) {
-        return direct.create(CreateEmptyTableHandler.create(catalog, config, context.getSession(), ((SqlCreateTable) sqlNode).getIfNotExists()));
-      }
-      return async.create(CreateTableHandler.create(), config);
+      case CREATE_TABLE:
+        NamespaceKey tableKey = catalog.resolveSingle(((SqlCreateTable) sqlNode).getPath());
+        DremioTable table = catalog.getTableNoResolve(tableKey);
+        if (table != null && ((SqlCreateTable) sqlNode).getIfNotExists()) {
+          return direct.create(
+              CreateEmptyTableHandler.create(
+                  catalog,
+                  config,
+                  context.getSession(),
+                  ((SqlCreateTable) sqlNode).getIfNotExists()));
+        }
+        return async.create(CreateTableHandler.create(), config);
 
-    case ALTER_TABLE:
-      if (sqlNode instanceof SqlAlterTableAddColumns) {
-        return direct.create(new AddColumnsHandler(catalog, config));
-      } else if (sqlNode instanceof SqlAlterTableChangeColumn) {
-        return direct.create(ChangeColumnHandler.create(catalog, config));
-      } else if (sqlNode instanceof SqlAlterTableDropColumn) {
-        return direct.create(DropColumnHandler.create(catalog, config));
-      } else if (sqlNode instanceof SqlAlterTableToggleSchemaLearning) {
-        return direct.create(new SqlAlterTableToggleSchemaLearningHandler(catalog, config));
-      } else if (sqlNode instanceof SqlAlterTablePartitionColumns) {
-        return direct.create(new AlterTablePartitionSpecHandler(catalog, config));
-      } else if (sqlNode instanceof SqlAlterTableProperties) {
-        return direct.create(new AlterTablePropertiesHandler(catalog, config));
-      } else if (sqlNode instanceof SqlAlterTableSortOrder) {
-        return direct.create(new AlterTableSortOrderHandler(catalog, config));
-      }
-      throw new IllegalArgumentException("Must have a correct SQL Node for ALTER_TABLE case");
+      case ALTER_TABLE:
+        if (sqlNode instanceof SqlAlterTableAddColumns) {
+          return direct.create(new AddColumnsHandler(catalog, config));
+        } else if (sqlNode instanceof SqlAlterTableChangeColumn) {
+          return direct.create(ChangeColumnHandler.create(catalog, config));
+        } else if (sqlNode instanceof SqlAlterTableDropColumn) {
+          return direct.create(DropColumnHandler.create(catalog, config));
+        } else if (sqlNode instanceof SqlAlterTableToggleSchemaLearning) {
+          return direct.create(new SqlAlterTableToggleSchemaLearningHandler(catalog, config));
+        } else if (sqlNode instanceof SqlAlterTablePartitionColumns) {
+          return direct.create(new AlterTablePartitionSpecHandler(catalog, config));
+        } else if (sqlNode instanceof SqlAlterTableProperties) {
+          return direct.create(new AlterTablePropertiesHandler(catalog, config));
+        } else if (sqlNode instanceof SqlAlterTableSortOrder) {
+          return direct.create(new AlterTableSortOrderHandler(catalog, config));
+        }
+        throw new IllegalArgumentException("Must have a correct SQL Node for ALTER_TABLE case");
 
-    case INSERT:
-      return async.create(new InsertTableHandler(), config);
-
-    case DELETE:
-      return async.create(new DeleteHandler(), config);
-
-    case MERGE:
-      return async.create(new MergeHandler(), config);
-
-    case UPDATE:
-      return async.create(new UpdateHandler(), config);
-
-    case OTHER:
-    case OTHER_DDL:
-      if (sqlNode instanceof SqlShowSchemas) {
-        return direct.create(new ShowSchemasHandler(catalog));
-      } else if (sqlNode instanceof SqlExplainJson) {
-        return direct.create(new ExplainJsonHandler(config));
-      } else if (sqlNode instanceof SqlUseSchema) {
-        return direct.create(new UseSchemaHandler(context.getSession(), catalog));
-      } else if (sqlNode instanceof SqlCreateReflection) {
-        return direct.create(new AccelCreateReflectionHandler(catalog, context, getReflectionContext()));
-      } else if (sqlNode instanceof SqlAddExternalReflection) {
-        return direct.create(new AccelAddExternalReflectionHandler(catalog, context, getReflectionContext()));
-      } else if (sqlNode instanceof SqlAccelToggle) {
-        return direct.create(new AccelToggleHandler(catalog, context, getReflectionContext()));
-      } else if (sqlNode instanceof SqlDropReflection) {
-        return direct.create(new AccelDropReflectionHandler(catalog, context, getReflectionContext()));
-      } else if (sqlNode instanceof SqlForgetTable) {
-        return direct.create(new ForgetTableHandler(catalog));
-      } else if (sqlNode instanceof SqlRefreshTable) {
-        return direct.create(new RefreshTableHandler(catalog,
-          context.getNamespaceService(),
-          context.getOptions().getOption(PlannerSettings.UNLIMITED_SPLITS_SUPPORT),
-          context.getQueryUserName()));
-      } else if (sqlNode instanceof SqlRefreshSourceStatus) {
-        return direct.create(new RefreshSourceStatusHandler(catalog));
-      } else if (sqlNode instanceof SqlSetApprox) {
-        return direct.create(new SetApproxHandler(catalog));
-      } else if (sqlNode instanceof SqlCreateEmptyTable) {
-        return direct.create(CreateEmptyTableHandler.create(catalog, config, context.getSession(), ((SqlCreateEmptyTable) sqlNode).getIfNotExists()));
-      } else if (sqlNode instanceof SqlTruncateTable) {
-        return direct.create(new TruncateTableHandler(config));
-      } else if (sqlNode instanceof SqlAlterClearPlanCache) {
-        return direct.create(new AlterClearPlanCacheHandler(context));
-      } else if (sqlNode instanceof SqlAnalyzeTableStatistics) {
-        return direct.create(new AnalyzeTableStatisticsHandler(catalog, config, context.getStatisticsAdministrationFactory()));
-      } else if (sqlNode instanceof SqlVersionBase) {
-        return direct.create(((SqlVersionBase) sqlNode).toDirectHandler(context));
-      } else if (sqlNode instanceof SqlCreateFunction) {
-        return direct.create(new CreateFunctionHandler(context));
-      } else if (sqlNode instanceof SqlDropFunction) {
-        return direct.create(new DropFunctionHandler(context));
-      } else if(sqlNode instanceof SqlDescribeFunction){
-        return direct.create(DescribeFunctionHandler.create(context));
-      } else if (sqlNode instanceof SqlShowFunctions){
-        return direct.create(new ShowFunctionsHandler(context));
-      } else if (sqlNode instanceof SqlCopyIntoTable) {
+      case INSERT:
         return async.create(new InsertTableHandler(), config);
-      } else if (sqlNode instanceof SqlCreateFolder) {
-        return direct.create(((SqlCreateFolder) sqlNode).toDirectHandler(context));
-      } else if (sqlNode instanceof SqlDropFolder) {
-        return direct.create(((SqlDropFolder) sqlNode).toDirectHandler(context));
-      } else if (sqlNode instanceof SqlShowCreate) {
-        return direct.create(new ShowCreateHandler(catalog, context));
-      } else if (sqlNode instanceof SqlShowTableProperties) {
-        return direct.create(new ShowTablePropertiesHandler(catalog, context));
-      } else if (sqlNode instanceof SqlDescribePipe) {
-        return direct.create(getEEHandler("DESCRIBE PIPE", "com.dremio.exec.planner.sql.handlers.DescribePipeHandler"));
-      } else if (sqlNode instanceof SqlShowPipes) {
-        return direct.create(getEEHandler("SHOW PIPES", "com.dremio.exec.planner.sql.handlers.ShowPipesHandler"));
-      }
-      // fallthrough
+
+      case DELETE:
+        return async.create(new DeleteHandler(), config);
+
+      case MERGE:
+        return async.create(new MergeHandler(), config);
+
+      case UPDATE:
+        return async.create(new UpdateHandler(), config);
+
+      case OTHER:
+      case OTHER_DDL:
+        if (sqlNode instanceof SqlManagePipe
+            || sqlNode instanceof SqlDescribePipe
+            || sqlNode instanceof SqlDropPipe
+            || sqlNode instanceof SqlShowPipes
+            || sqlNode instanceof SqlTriggerPipe) {
+          throw UserException.unsupportedError()
+              .message("PIPE actions are not supported.")
+              .buildSilently();
+        }
+        if (sqlNode instanceof SqlRefreshReflectionsForDataset) {
+          throw UserException.unsupportedError()
+              .message("REFRESH REFLECTIONS command is not supported.")
+              .buildSilently();
+        }
+
+        if (sqlNode instanceof SqlShowSchemas) {
+          return direct.create(new ShowSchemasHandler(catalog));
+        } else if (sqlNode instanceof SqlExplainJson) {
+          return direct.create(new ExplainJsonHandler(config));
+        } else if (sqlNode instanceof SqlUseSchema) {
+          return direct.create(new UseSchemaHandler(context.getSession(), catalog));
+        } else if (sqlNode instanceof SqlCreateReflection) {
+          return direct.create(
+              new AccelCreateReflectionHandler(catalog, context, getReflectionContext()));
+        } else if (sqlNode instanceof SqlAddExternalReflection) {
+          return direct.create(
+              new AccelAddExternalReflectionHandler(catalog, context, getReflectionContext()));
+        } else if (sqlNode instanceof SqlAccelToggle) {
+          return direct.create(new AccelToggleHandler(catalog, context, getReflectionContext()));
+        } else if (sqlNode instanceof SqlDropReflection) {
+          return direct.create(
+              new AccelDropReflectionHandler(catalog, context, getReflectionContext()));
+        } else if (sqlNode instanceof SqlForgetTable) {
+          return direct.create(new ForgetTableHandler(catalog));
+        } else if (sqlNode instanceof SqlRefreshTable) {
+          return direct.create(
+              new RefreshTableHandler(
+                  catalog, context.getNamespaceService(), context.getQueryUserName()));
+        } else if (sqlNode instanceof SqlRefreshSourceStatus) {
+          return direct.create(new RefreshSourceStatusHandler(catalog));
+        } else if (sqlNode instanceof SqlSetApprox) {
+          return direct.create(new SetApproxHandler(catalog));
+        } else if (sqlNode instanceof SqlCreateEmptyTable) {
+          return direct.create(
+              CreateEmptyTableHandler.create(
+                  catalog,
+                  config,
+                  context.getSession(),
+                  ((SqlCreateEmptyTable) sqlNode).getIfNotExists()));
+        } else if (sqlNode instanceof SqlTruncateTable) {
+          return direct.create(new TruncateTableHandler(config));
+        } else if (sqlNode instanceof SqlAlterClearPlanCache) {
+          return direct.create(new AlterClearPlanCacheHandler(context));
+        } else if (sqlNode instanceof SqlAnalyzeTableStatistics) {
+          return direct.create(
+              new AnalyzeTableStatisticsHandler(
+                  catalog, config, context.getStatisticsAdministrationFactory()));
+        } else if (sqlNode instanceof SqlVersionBase) {
+          return direct.create(((SqlVersionBase) sqlNode).toDirectHandler(context));
+        } else if (sqlNode instanceof SqlCreateFunction) {
+          return direct.create(new CreateFunctionHandler(context));
+        } else if (sqlNode instanceof SqlDropFunction) {
+          return direct.create(new DropFunctionHandler(context));
+        } else if (sqlNode instanceof SqlDescribeFunction) {
+          return direct.create(DescribeFunctionHandler.create(context));
+        } else if (sqlNode instanceof SqlShowFunctions) {
+          return direct.create(new ShowFunctionsHandler(context));
+        } else if (sqlNode instanceof SqlCopyIntoTable) {
+          return async.create(new InsertTableHandler(), config);
+        } else if (sqlNode instanceof SqlCreateFolder) {
+          return direct.create(((SqlCreateFolder) sqlNode).toDirectHandler(context));
+        } else if (sqlNode instanceof SqlDropFolder) {
+          return direct.create(((SqlDropFolder) sqlNode).toDirectHandler(context));
+        } else if (sqlNode instanceof SqlShowCreate) {
+          return direct.create(new ShowCreateHandler(catalog, context));
+        } else if (sqlNode instanceof SqlShowTableProperties) {
+          return direct.create(new ShowTablePropertiesHandler(catalog, context));
+        }
+
+        // fallthrough
       default:
         return async.create(new NormalHandler(), config);
-    }
-  }
-
-  private SqlDirectHandler getEEHandler(String command, String implementationClass) {
-    try {
-      final Class<?> cl = Class.forName(implementationClass);
-      final Constructor<?> ctor = cl.getConstructor(QueryContext.class);
-      return (SqlDirectHandler) ctor.newInstance(context);
-    } catch (ClassNotFoundException e) {
-      // Assume failure to find class means that we aren't running Enterprise Edition
-      throw UserException.unsupportedError(e)
-        .message("%s is only supported in the Enterprise Edition.", command)
-        .buildSilently();
-    } catch (InstantiationException | IllegalAccessException | NoSuchMethodException |
-             InvocationTargetException e) {
-      throw Throwables.propagate(e);
     }
   }
 
@@ -530,10 +568,10 @@ public class CommandCreator {
       this.prepareMetadataType = prepareMetadataType;
       this.sql = sql;
 
-      final StoreQueryResultsPolicy storeQueryResultsPolicy = Optional
-          .ofNullable(context.getOptions().getOption(STORE_QUERY_RESULTS.getOptionName()))
-          .map(o -> StoreQueryResultsPolicy.valueOf(o.getStringVal().toUpperCase(Locale.ROOT)))
-          .orElse(StoreQueryResultsPolicy.NO);
+      final StoreQueryResultsPolicy storeQueryResultsPolicy =
+          Optional.ofNullable(context.getOptions().getOption(STORE_QUERY_RESULTS.getOptionName()))
+              .map(o -> StoreQueryResultsPolicy.valueOf(o.getStringVal().toUpperCase(Locale.ROOT)))
+              .orElse(StoreQueryResultsPolicy.NO);
       this.storeResults = storeQueryResultsPolicy != StoreQueryResultsPolicy.NO;
     }
 
@@ -545,12 +583,13 @@ public class CommandCreator {
         case ARROW:
           return new HandlerToPrepareArrowDirect(sql, context, handler);
         case NONE:
-        default: {
-          if (storeResults) {
-            return new DirectWriterCommand<>(sql, context, sqlNode, handler, observer);
+        default:
+          {
+            if (storeResults) {
+              return new DirectWriterCommand<>(sql, context, sqlNode, handler, observer);
+            }
+            return new DirectCommand<>(sql, context, sqlNode, handler, observer);
           }
-          return new DirectCommand<>(sql, context, sqlNode, handler, observer);
-        }
       }
     }
   }
@@ -567,12 +606,14 @@ public class CommandCreator {
     }
 
     // handlers in handlers.query package
-    public CommandRunner<?> create(SqlToPlanHandler handler, SqlHandlerConfig config){
+    public CommandRunner<?> create(SqlToPlanHandler handler, SqlHandlerConfig config) {
       switch (prepareMetadataType) {
         case USER_RPC:
-          return new HandlerToPreparePlan(context, sqlNode, handler, preparedPlans, sql, observer, config);
+          return new HandlerToPreparePlan(
+              context, sqlNode, handler, preparedPlans, sql, observer, config);
         case ARROW:
-          return new HandlerToPrepareArrowPlan(context, sqlNode, handler, preparedPlans, sql, observer, config);
+          return new HandlerToPrepareArrowPlan(
+              context, sqlNode, handler, preparedPlans, sql, observer, config);
         case NONE:
         default:
           return new HandlerToExec(observer, sql, sqlNode, handler, config);
@@ -581,8 +622,8 @@ public class CommandCreator {
   }
 
   /**
-   * Helper values to distinguish between handlers needing to provide no plans, plans with
-   * USER_RPC metadata, or Arrow metadata.
+   * Helper values to distinguish between handlers needing to provide no plans, plans with USER_RPC
+   * metadata, or Arrow metadata.
    */
   @VisibleForTesting
   enum PrepareMetadataType {

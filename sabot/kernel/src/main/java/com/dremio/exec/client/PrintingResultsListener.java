@@ -15,13 +15,6 @@
  */
 package com.dremio.exec.client;
 
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.RootAllocatorFactory;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
@@ -36,9 +29,15 @@ import com.dremio.exec.util.VectorUtil;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.dremio.sabot.rpc.user.UserResultsListener;
 import com.google.common.base.Stopwatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.RootAllocatorFactory;
 
 public class PrintingResultsListener implements UserResultsListener {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PrintingResultsListener.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(PrintingResultsListener.class);
 
   private final AtomicInteger count = new AtomicInteger();
   private final Stopwatch w = Stopwatch.createUnstarted();
@@ -56,15 +55,23 @@ public class PrintingResultsListener implements UserResultsListener {
 
   @Override
   public void submissionFailed(UserException ex) {
-    System.out.println("Exception (no rows returned): " + ex + ".  Returned in " + w.elapsed(TimeUnit.MILLISECONDS)
-        + "ms.");
+    System.out.println(
+        "Exception (no rows returned): "
+            + ex
+            + ".  Returned in "
+            + w.elapsed(TimeUnit.MILLISECONDS)
+            + "ms.");
   }
 
   @Override
   public void queryCompleted(QueryState state) {
     AutoCloseables.closeNoChecked(allocator);
-    System.out.println("Total rows returned : " + count.get() + ".  Returned in " + w.elapsed(TimeUnit.MILLISECONDS)
-        + "ms.");
+    System.out.println(
+        "Total rows returned : "
+            + count.get()
+            + ".  Returned in "
+            + w.elapsed(TimeUnit.MILLISECONDS)
+            + "ms.");
   }
 
   @Override
@@ -82,7 +89,7 @@ public class PrintingResultsListener implements UserResultsListener {
         submissionFailed(UserException.systemError(e).build(logger));
       }
 
-      switch(format) {
+      switch (format) {
         case TABLE:
           VectorUtil.showVectorAccessibleContent(loader, columnWidth);
           break;

@@ -24,22 +24,6 @@ import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.PrintStream;
-import java.io.PrintWriter;
-import java.util.ArrayList;
-import java.util.List;
-
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.commons.io.ByteOrderMark;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.mapred.FileSplit;
-import org.junit.Ignore;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.common.exceptions.UserRemoteException;
 import com.dremio.common.expression.SchemaPath;
@@ -59,14 +43,26 @@ import com.dremio.options.OptionValidatorListing;
 import com.dremio.sabot.exec.context.OperatorContextImpl;
 import com.dremio.test.AllocatorRule;
 import com.dremio.test.UserExceptionAssert;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.PrintStream;
+import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.List;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.commons.io.ByteOrderMark;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.mapred.FileSplit;
+import org.junit.Ignore;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 public class TestNewTextReader extends BaseTestQuery {
 
-  @Rule
-  public final TemporaryFolder tempDir = new TemporaryFolder();
+  @Rule public final TemporaryFolder tempDir = new TemporaryFolder();
 
-  @Rule
-  public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
+  @Rule public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
 
   @Test
   public void fieldDelimiterWithinQuotes() throws Exception {
@@ -93,17 +89,20 @@ public class TestNewTextReader extends BaseTestQuery {
     pw.close();
 
     testBuilder()
-      .sqlQuery(String.format("select * from table(dfs.\"%s\" (type => 'text', fieldDelimiter => ',', " +
-        "autoGenerateColumnNames => true))", testFolder.getAbsolutePath()))
-      .unOrdered()
-      .baselineColumns("A","B")
-      .baselineValues(null, null)
-      .baselineValues("VTS","2009-01-29 21:55:00")
-      .baselineValues("VTS","2009-01-30 07:44:00")
-      .go();
+        .sqlQuery(
+            String.format(
+                "select * from table(dfs.\"%s\" (type => 'text', fieldDelimiter => ',', "
+                    + "autoGenerateColumnNames => true))",
+                testFolder.getAbsolutePath()))
+        .unOrdered()
+        .baselineColumns("A", "B")
+        .baselineValues(null, null)
+        .baselineValues("VTS", "2009-01-29 21:55:00")
+        .baselineValues("VTS", "2009-01-30 07:44:00")
+        .go();
   }
 
-  @Ignore ("Not needed any more. (DRILL-3178)")
+  @Ignore("Not needed any more. (DRILL-3178)")
   @Test
   public void ensureFailureOnNewLineDelimiterWithinQuotes() {
     try {
@@ -120,9 +119,11 @@ public class TestNewTextReader extends BaseTestQuery {
     final String COL_NAME = "col1";
 
     try {
-      test("select max(columns[1]) as %s from cp.\"textinput/input1.csv\" where %s is not null", COL_NAME, COL_NAME);
+      test(
+          "select max(columns[1]) as %s from cp.\"textinput/input1.csv\" where %s is not null",
+          COL_NAME, COL_NAME);
       fail("Query should have failed");
-    } catch(UserRemoteException ex) {
+    } catch (UserRemoteException ex) {
       assertEquals(ErrorType.VALIDATION, ex.getErrorType());
       assertTrue("Error message should contain " + COL_NAME, ex.getMessage().contains(COL_NAME));
     }
@@ -131,8 +132,11 @@ public class TestNewTextReader extends BaseTestQuery {
   @Test // see DRILL-3718
   public void testTabSeparatedWithQuote() throws Exception {
     final String root = FileUtils.getResourceAsFile("/store/text/WithQuote.tsv").toURI().toString();
-    final String query = String.format("select columns[0] as c0, columns[1] as c1, columns[2] as c2 \n" +
-        "from dfs_test.\"%s\" ", root);
+    final String query =
+        String.format(
+            "select columns[0] as c0, columns[1] as c1, columns[2] as c2 \n"
+                + "from dfs_test.\"%s\" ",
+            root);
 
     testBuilder()
         .sqlQuery(query)
@@ -148,8 +152,11 @@ public class TestNewTextReader extends BaseTestQuery {
   @Test // see DRILL-3718
   public void testSpaceSeparatedWithQuote() throws Exception {
     final String root = FileUtils.getResourceAsFile("/store/text/WithQuote.ssv").toURI().toString();
-    final String query = String.format("select columns[0] as c0, columns[1] as c1, columns[2] as c2 \n" +
-        "from TABLE(dfs_test.\"%s\"(type => 'TEXT', fieldDelimiter => ' ', lineDelimiter => '\n')) ", root);
+    final String query =
+        String.format(
+            "select columns[0] as c0, columns[1] as c1, columns[2] as c2 \n"
+                + "from TABLE(dfs_test.\"%s\"(type => 'TEXT', fieldDelimiter => ' ', lineDelimiter => '\n')) ",
+            root);
 
     testBuilder()
         .sqlQuery(query)
@@ -165,8 +172,11 @@ public class TestNewTextReader extends BaseTestQuery {
   @Test // see DRILL-3718
   public void testPipSeparatedWithQuote() throws Exception {
     final String root = FileUtils.getResourceAsFile("/store/text/WithQuote.tbl").toURI().toString();
-    final String query = String.format("select columns[0] as c0, columns[1] as c1, columns[2] as c2 \n" +
-            "from dfs_test.\"%s\" ", root);
+    final String query =
+        String.format(
+            "select columns[0] as c0, columns[1] as c1, columns[2] as c2 \n"
+                + "from dfs_test.\"%s\" ",
+            root);
 
     testBuilder()
         .sqlQuery(query)
@@ -187,47 +197,52 @@ public class TestNewTextReader extends BaseTestQuery {
 
   @Test
   public void testValidateColumnNamesSimple() throws Exception {
-    String [] input = new String[] {"a", "b", "c"};
-    String [] expected = new String[] {"a", "b", "c"};
+    String[] input = new String[] {"a", "b", "c"};
+    String[] expected = new String[] {"a", "b", "c"};
     assertArrayEquals(expected, CompliantTextRecordReader.validateColumnNames(input));
   }
 
   @Test
   public void testValidateColumnNamesDuplicate() throws Exception {
-    String [] input = new String[] {"a", "b", "a", "b", "a", "a", "b", "c"};
-    String [] expected = new String[] {"a", "b", "a0", "b0", "a1", "a2", "b1", "c"};
+    String[] input = new String[] {"a", "b", "a", "b", "a", "a", "b", "c"};
+    String[] expected = new String[] {"a", "b", "a0", "b0", "a1", "a2", "b1", "c"};
     assertArrayEquals(expected, CompliantTextRecordReader.validateColumnNames(input));
   }
 
   @Test
   public void testValidateColumnNamesFillEmpty() throws Exception {
-    String [] input = new String[] {"", "col1", "col2", "", "col3", ""};
-    String [] expected = new String[] {"A", "col1", "col2", "D", "col3", "F"};
+    String[] input = new String[] {"", "col1", "col2", "", "col3", ""};
+    String[] expected = new String[] {"A", "col1", "col2", "D", "col3", "F"};
     assertArrayEquals(expected, CompliantTextRecordReader.validateColumnNames(input));
   }
 
   @Test
   public void testValidateColumnNamesFillEmptyDuplicate() throws Exception {
-    String [] input = new String[]    {"A", "", "", "B", "A", "B", "A", "",  "A", "B", "C", ""};
-    String [] expected = new String[] {"A", "B", "C", "B0", "A0", "B1", "A1", "H", "A2", "B2", "C0", "L"};
+    String[] input = new String[] {"A", "", "", "B", "A", "B", "A", "", "A", "B", "C", ""};
+    String[] expected =
+        new String[] {"A", "B", "C", "B0", "A0", "B1", "A1", "H", "A2", "B2", "C0", "L"};
     assertArrayEquals(expected, CompliantTextRecordReader.validateColumnNames(input));
   }
 
   @Test // see DRILL-3718
   public void testCrLfSeparatedWithQuote() throws Exception {
-    final String root = FileUtils.getResourceAsFile("/store/text/WithQuotedCrLf.tbl").toURI().toString();
-    final String query = String.format("select columns[0] as c0, columns[1] as c1, columns[2] as c2 \n" +
-      "from table(dfs_test.\"%s\" (type => 'text', fieldDelimiter => '|', lineDelimiter => '\r\n'))", root);
+    final String root =
+        FileUtils.getResourceAsFile("/store/text/WithQuotedCrLf.tbl").toURI().toString();
+    final String query =
+        String.format(
+            "select columns[0] as c0, columns[1] as c1, columns[2] as c2 \n"
+                + "from table(dfs_test.\"%s\" (type => 'text', fieldDelimiter => '|', lineDelimiter => '\r\n'))",
+            root);
 
     testBuilder()
-      .sqlQuery(query)
-      .unOrdered()
-      .baselineColumns("c0", "c1", "c2")
-      .baselineValues("a\r\n1", "a", "a")
-      .baselineValues("a", "a\r\n2", "a")
-      .baselineValues("a", "a", "a\r\n3")
-      .build()
-      .run();
+        .sqlQuery(query)
+        .unOrdered()
+        .baselineColumns("c0", "c1", "c2")
+        .baselineValues("a\r\n1", "a", "a")
+        .baselineValues("a", "a\r\n2", "a")
+        .baselineValues("a", "a", "a\r\n3")
+        .build()
+        .run();
   }
 
   @Test
@@ -242,13 +257,15 @@ public class TestNewTextReader extends BaseTestQuery {
     p.close();
 
     testBuilder()
-      .sqlQuery(String.format("select * from table(dfs.\"%s\" (type => 'text', " +
-        "fieldDelimiter => ',', lineDelimiter => '\n', extractHeader => true))",
-        testFile.getAbsolutePath()))
-      .unOrdered()
-      .baselineColumns("A","B")
-      .baselineValues("5", "7")
-      .go();
+        .sqlQuery(
+            String.format(
+                "select * from table(dfs.\"%s\" (type => 'text', "
+                    + "fieldDelimiter => ',', lineDelimiter => '\n', extractHeader => true))",
+                testFile.getAbsolutePath()))
+        .unOrdered()
+        .baselineColumns("A", "B")
+        .baselineValues("5", "7")
+        .go();
   }
 
   @Test
@@ -262,13 +279,18 @@ public class TestNewTextReader extends BaseTestQuery {
     p.print("5,7\n");
     p.close();
 
-    // NB: using test() instead of testBuilder() because it unwraps the thrown RpcException and re-throws the
+    // NB: using test() instead of testBuilder() because it unwraps the thrown RpcException and
+    // re-throws the
     // underlying UserException
-    UserExceptionAssert.assertThatThrownBy(() -> test(String.format("select * from table(dfs.\"%s\" (type => 'text', " +
-        "fieldDelimiter => ',', lineDelimiter => '\n', extractHeader => true))",
-      testFile.getAbsolutePath())))
-      .hasErrorType(DATA_READ)
-      .hasMessageContaining("DATA_READ ERROR: UTF-16 files not supported");
+    UserExceptionAssert.assertThatThrownBy(
+            () ->
+                test(
+                    String.format(
+                        "select * from table(dfs.\"%s\" (type => 'text', "
+                            + "fieldDelimiter => ',', lineDelimiter => '\n', extractHeader => true))",
+                        testFile.getAbsolutePath())))
+        .hasErrorType(DATA_READ)
+        .hasMessageContaining("DATA_READ ERROR: UTF-16 files not supported");
   }
 
   @Test
@@ -281,13 +303,15 @@ public class TestNewTextReader extends BaseTestQuery {
     p2.close();
 
     testBuilder()
-      .sqlQuery(String.format("select * from table(dfs.\"%s\" (type => 'text', " +
-          "fieldDelimiter => ',', lineDelimiter => '\n', extractHeader => true)) ",
-        testFile2.getAbsolutePath()))
-      .unOrdered()
-      .baselineColumns("y")
-      .expectsEmptyResultSet()
-      .go();
+        .sqlQuery(
+            String.format(
+                "select * from table(dfs.\"%s\" (type => 'text', "
+                    + "fieldDelimiter => ',', lineDelimiter => '\n', extractHeader => true)) ",
+                testFile2.getAbsolutePath()))
+        .unOrdered()
+        .baselineColumns("y")
+        .expectsEmptyResultSet()
+        .go();
   }
 
   @Test
@@ -300,21 +324,37 @@ public class TestNewTextReader extends BaseTestQuery {
     List<SchemaPath> columns = new ArrayList<>(1);
     columns.add(column);
     SabotContext context = mock(SabotContext.class);
-    try (BufferAllocator allocator = allocatorRule.newAllocator("test-new-text-reader", 0, Long.MAX_VALUE)) {
+    try (BufferAllocator allocator =
+        allocatorRule.newAllocator("test-new-text-reader", 0, Long.MAX_VALUE)) {
       when(context.getAllocator()).thenReturn(allocator);
 
       OptionManager optionManager = mock(OptionManager.class);
       when(optionManager.getOption(ExecConstants.LIMIT_FIELD_SIZE_BYTES))
-        .thenReturn(ExecConstants.LIMIT_FIELD_SIZE_BYTES.getDefault().getNumVal());
-      when(optionManager.getOptionValidatorListing()).thenReturn(mock(OptionValidatorListing.class));
+          .thenReturn(ExecConstants.LIMIT_FIELD_SIZE_BYTES.getDefault().getNumVal());
+      when(optionManager.getOptionValidatorListing())
+          .thenReturn(mock(OptionValidatorListing.class));
 
       Path path = Path.of("/notExist");
-      try (BufferAllocator sampleAllocator = context.getAllocator().newChildAllocator("sample-alloc", 0, Long.MAX_VALUE);
-           OperatorContextImpl operatorContext = new OperatorContextImpl(context.getConfig(), context.getDremioConfig(), sampleAllocator, optionManager, 1000, context.getExpressionSplitCache());
-           FileSystem dfs = HadoopFileSystem.get(path, new Configuration(), null);
-           SampleMutator mutator = new SampleMutator(sampleAllocator);
-           CompliantTextRecordReader reader = new CompliantTextRecordReader(split, HadoopCompressionCodecFactory.DEFAULT, dfs, operatorContext, settings, columns);
-      ) {
+      try (BufferAllocator sampleAllocator =
+              context.getAllocator().newChildAllocator("sample-alloc", 0, Long.MAX_VALUE);
+          OperatorContextImpl operatorContext =
+              new OperatorContextImpl(
+                  context.getConfig(),
+                  context.getDremioConfig(),
+                  sampleAllocator,
+                  optionManager,
+                  1000,
+                  context.getExpressionSplitCache());
+          FileSystem dfs = HadoopFileSystem.get(path, new Configuration(), null);
+          SampleMutator mutator = new SampleMutator(sampleAllocator);
+          CompliantTextRecordReader reader =
+              new CompliantTextRecordReader(
+                  split,
+                  HadoopCompressionCodecFactory.DEFAULT,
+                  dfs,
+                  operatorContext,
+                  settings,
+                  columns); ) {
         reader.setup(mutator);
       } catch (Exception e) {
         // java.io.FileNotFoundException is expected, but memory leak is not expected.
@@ -343,31 +383,35 @@ public class TestNewTextReader extends BaseTestQuery {
 
       // query on both files.
       testBuilder()
-        .sqlQuery(String.format("select count(*) as c from dfs.\"%s\"", testDir.getAbsolutePath()))
-        .unOrdered()
-        .baselineColumns("c")
-        .baselineValues(4L)
-        .build()
-        .run();
+          .sqlQuery(
+              String.format("select count(*) as c from dfs.\"%s\"", testDir.getAbsolutePath()))
+          .unOrdered()
+          .baselineColumns("c")
+          .baselineValues(4L)
+          .build()
+          .run();
 
       // TODO(DX-15645): remove this sleep
-      Thread.sleep(1000L); // fs modification times have second precision so read signature might be valid
+      Thread.sleep(
+          1000L); // fs modification times have second precision so read signature might be valid
 
       // delete the second file.
       File testFile = new File(testDir, "1.csv");
       testFile.delete();
 
       // TODO(DX-15645): remove this sleep
-      Thread.sleep(1000L); // fs modification times have second precision so read signature might be valid
+      Thread.sleep(
+          1000L); // fs modification times have second precision so read signature might be valid
 
       // re-run the query. Should trigger a metadata refresh and succeed.
       testBuilder()
-        .sqlQuery(String.format("select count(*) as c from dfs.\"%s\"", testDir.getAbsolutePath()))
-        .unOrdered()
-        .baselineColumns("c")
-        .baselineValues(2L)
-        .build()
-        .run();
+          .sqlQuery(
+              String.format("select count(*) as c from dfs.\"%s\"", testDir.getAbsolutePath()))
+          .unOrdered()
+          .baselineColumns("c")
+          .baselineValues(2L)
+          .build()
+          .run();
     } finally {
       setEnableReAttempts(false);
     }

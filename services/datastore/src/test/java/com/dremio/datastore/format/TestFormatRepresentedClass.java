@@ -17,30 +17,29 @@ package com.dremio.datastore.format;
 
 import static org.junit.Assert.assertEquals;
 
-import java.util.UUID;
-
-import org.junit.Test;
-
 import com.dremio.datastore.format.compound.KeyPair;
 import com.dremio.datastore.format.compound.KeyTriple;
 import com.dremio.datastore.indexed.doughnut.Doughnut;
 import com.dremio.datastore.indexed.doughnut.DoughnutConverter;
 import com.dremio.datastore.proto.Dummy;
 import com.dremio.datastore.proto.DummyObj;
+import java.util.UUID;
+import org.junit.Test;
 
-/**
- * Tests for expected classes returned from {@link Format#getRepresentedClass()}
- */
+/** Tests for expected classes returned from {@link Format#getRepresentedClass()} */
 public class TestFormatRepresentedClass {
   @Test
   public void testCompoundPairFormat() {
-    Format format = Format.ofCompoundFormat("value1", Format.ofString(), "value2", Format.ofString());
+    Format format =
+        Format.ofCompoundFormat("value1", Format.ofString(), "value2", Format.ofString());
     assertEquals(KeyPair.class, format.getRepresentedClass());
   }
 
   @Test
   public void testCompoundTripleFormat() {
-    Format format = Format.ofCompoundFormat("value1", Format.ofString(), "value2", Format.ofString(), "value3", Format.ofString());
+    Format format =
+        Format.ofCompoundFormat(
+            "value1", Format.ofString(), "value2", Format.ofString(), "value3", Format.ofString());
     assertEquals(KeyTriple.class, format.getRepresentedClass());
   }
 

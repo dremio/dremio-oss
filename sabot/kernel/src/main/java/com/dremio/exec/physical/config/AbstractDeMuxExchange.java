@@ -15,10 +15,6 @@
  */
 package com.dremio.exec.physical.config;
 
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.exec.physical.EndpointAffinity;
 import com.dremio.exec.physical.base.AbstractExchange;
@@ -39,17 +35,21 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
 
 /**
- * DeMuxExchange is opposite of MuxExchange. It is used when the sender has overhead that is proportional to the
- * number of receivers. DeMuxExchange is run one instance per SabotNode endpoint which collects and distributes data
- * belonging to local receiving fragments running on the same SabotNode.
+ * DeMuxExchange is opposite of MuxExchange. It is used when the sender has overhead that is
+ * proportional to the number of receivers. DeMuxExchange is run one instance per SabotNode endpoint
+ * which collects and distributes data belonging to local receiving fragments running on the same
+ * SabotNode.
  *
- * Example:
- * On a 3 node cluster, if the sender has 10 receivers on each node each sender requires 30 buffers. By inserting
- * DeMuxExchange, we create one receiver per node which means total of 3 receivers for each sender. If the number of
- * senders is 10, we use 10*3 buffers instead of 10*30. DeMuxExchange has a overhead of buffer space that is equal to
- * number of local receivers. In this case each DeMuxExchange needs 10 buffers, so total of 3*10 buffers.
+ * <p>Example: On a 3 node cluster, if the sender has 10 receivers on each node each sender requires
+ * 30 buffers. By inserting DeMuxExchange, we create one receiver per node which means total of 3
+ * receivers for each sender. If the number of senders is 10, we use 10*3 buffers instead of 10*30.
+ * DeMuxExchange has a overhead of buffer space that is equal to number of local receivers. In this
+ * case each DeMuxExchange needs 10 buffers, so total of 3*10 buffers.
  */
 public abstract class AbstractDeMuxExchange extends AbstractExchange {
   protected final LogicalExpression expr;
@@ -72,7 +72,7 @@ public abstract class AbstractDeMuxExchange extends AbstractExchange {
   }
 
   @JsonProperty("expr")
-  public LogicalExpression getExpression(){
+  public LogicalExpression getExpression() {
     return expr;
   }
 
@@ -81,22 +81,22 @@ public abstract class AbstractDeMuxExchange extends AbstractExchange {
     return ParallelizationInfo.WidthConstraint.AFFINITY_LIMITED;
   }
 
-  /**
-   * Provide the node affinity for the sender side of the exchange
-   */
+  /** Provide the node affinity for the sender side of the exchange */
   @Override
-  public Supplier<Collection<EndpointAffinity>> getSenderEndpointffinity(Supplier<Collection<NodeEndpoint>> receiverFragmentEndpointsSupplier) {
+  public Supplier<Collection<EndpointAffinity>> getSenderEndpointffinity(
+      Supplier<Collection<NodeEndpoint>> receiverFragmentEndpointsSupplier) {
     return () -> {
       Collection<NodeEndpoint> receiverFragmentEndpoints = receiverFragmentEndpointsSupplier.get();
-      Preconditions.checkArgument(receiverFragmentEndpoints != null && receiverFragmentEndpoints.size() > 0,
-        "Receiver fragment endpoint list should not be empty");
+      Preconditions.checkArgument(
+          receiverFragmentEndpoints != null && receiverFragmentEndpoints.size() > 0,
+          "Receiver fragment endpoint list should not be empty");
 
       // We want to run one demux sender per SabotNode endpoint.
       // Identify the number of unique SabotNode endpoints in receiver fragment endpoints.
       List<NodeEndpoint> nodeEndpoints = ImmutableSet.copyOf(receiverFragmentEndpoints).asList();
 
       List<EndpointAffinity> affinities = Lists.newArrayList();
-      for(NodeEndpoint ep : nodeEndpoints) {
+      for (NodeEndpoint ep : nodeEndpoints) {
         affinities.add(new EndpointAffinity(ep, Double.POSITIVE_INFINITY));
       }
       return affinities;
@@ -109,26 +109,29 @@ public abstract class AbstractDeMuxExchange extends AbstractExchange {
   }
 
   @Override
-  public Supplier<Collection<EndpointAffinity>> getReceiverEndpointAffinity(Supplier<Collection<NodeEndpoint>> senderFragmentEndpointsSupplier) {
+  public Supplier<Collection<EndpointAffinity>> getReceiverEndpointAffinity(
+      Supplier<Collection<NodeEndpoint>> senderFragmentEndpointsSupplier) {
     return () -> ImmutableList.of();
   }
 
-
   @Override
-  public Sender getSender(int minorFragmentId, PhysicalOperator child, EndpointsIndex.Builder indexBuilder) {
+  public Sender getSender(
+      int minorFragmentId, PhysicalOperator child, EndpointsIndex.Builder indexBuilder) {
     createSenderReceiverMapping(indexBuilder);
 
     List<MinorFragmentIndexEndpoint> receivers = senderToReceiversMapping.get(minorFragmentId);
     if (receivers == null || receivers.size() <= 0) {
-      throw new IllegalStateException(String.format("Failed to find receivers for sender [%d]", minorFragmentId));
+      throw new IllegalStateException(
+          String.format("Failed to find receivers for sender [%d]", minorFragmentId));
     }
 
-    return new HashPartitionSender(senderProps, schema, child, receiverMajorFragmentId, receivers, expr);
+    return new HashPartitionSender(
+        senderProps, schema, child, receiverMajorFragmentId, receivers, expr);
   }
 
   /**
-   * In DeMuxExchange, sender fragment parallelization and endpoint assignment depends on receiver fragment endpoint
-   * assignments.
+   * In DeMuxExchange, sender fragment parallelization and endpoint assignment depends on receiver
+   * fragment endpoint assignments.
    */
   @Override
   public ParallelizationDependency getParallelizationDependency() {
@@ -147,19 +150,21 @@ public abstract class AbstractDeMuxExchange extends AbstractExchange {
     ArrayListMultimap<NodeEndpoint, Integer> endpointReceiverList = ArrayListMultimap.create();
 
     int receiverFragmentId = 0;
-    for(NodeEndpoint receiverLocation : receiverLocations) {
+    for (NodeEndpoint receiverLocation : receiverLocations) {
       endpointReceiverList.put(receiverLocation, receiverFragmentId);
       receiverFragmentId++;
     }
 
     int senderFragmentId = 0;
-    for(NodeEndpoint senderLocation : senderLocations) {
+    for (NodeEndpoint senderLocation : senderLocations) {
       final List<Integer> receiverMinorFragmentIds = endpointReceiverList.get(senderLocation);
 
-      for(Integer receiverId : receiverMinorFragmentIds) {
-        receiverToSenderMapping.put(receiverId, indexBuilder.addFragmentEndpoint(senderFragmentId, senderLocation));
+      for (Integer receiverId : receiverMinorFragmentIds) {
+        receiverToSenderMapping.put(
+            receiverId, indexBuilder.addFragmentEndpoint(senderFragmentId, senderLocation));
 
-        senderToReceiversMapping.put(senderFragmentId,
+        senderToReceiversMapping.put(
+            senderFragmentId,
             indexBuilder.addFragmentEndpoint(receiverId, receiverLocations.get(receiverId)));
       }
       senderFragmentId++;

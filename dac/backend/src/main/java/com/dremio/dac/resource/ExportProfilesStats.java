@@ -15,14 +15,11 @@
  */
 package com.dremio.dac.resource;
 
-import java.time.LocalDateTime;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.time.LocalDateTime;
 
-/**
- * Statistic for exported profiles
- */
+/** Statistic for exported profiles */
 public class ExportProfilesStats {
 
   private final long jobsCount;
@@ -31,10 +28,11 @@ public class ExportProfilesStats {
   private final String outputPath;
 
   @JsonCreator
-  public ExportProfilesStats(@JsonProperty("jobsCount") long jobsCount,
-                             @JsonProperty("profilesCount") long profilesCount,
-                             @JsonProperty("skippedProfilesCount") long skippedProfilesCount,
-                             @JsonProperty("outputPath") String outputPath) {
+  public ExportProfilesStats(
+      @JsonProperty("jobsCount") long jobsCount,
+      @JsonProperty("profilesCount") long profilesCount,
+      @JsonProperty("skippedProfilesCount") long skippedProfilesCount,
+      @JsonProperty("outputPath") String outputPath) {
     this.jobsCount = jobsCount;
     this.profilesCount = profilesCount;
     this.skippedProfilesCount = skippedProfilesCount;
@@ -59,17 +57,20 @@ public class ExportProfilesStats {
 
   public String retrieveStats(LocalDateTime fromDate, LocalDateTime toDate, boolean isTimeSet) {
 
-    String stats = String.format("Export completed. Jobs processed: %d, profiles processed: %d, profiles skipped: %d",
-      getJobsCount(), getProfilesCount(), getSkippedProfilesCount());
+    String stats =
+        String.format(
+            "Export completed. Jobs processed: %d, profiles processed: %d, profiles skipped: %d",
+            getJobsCount(), getProfilesCount(), getSkippedProfilesCount());
 
-    if (profilesCount==0) {
+    if (profilesCount == 0) {
       if (fromDate != null && toDate != null) {
         if (isTimeSet) {
-          return String.format("No profiles were found from %s to %s.",
-            fromDate.toString(), toDate.toString());
+          return String.format(
+              "No profiles were found from %s to %s.", fromDate.toString(), toDate.toString());
         } else {
-          return String.format("Defaulting to %s to %s. No profiles were found for the duration.",
-            fromDate.toString(), toDate.toString());
+          return String.format(
+              "Defaulting to %s to %s. No profiles were found for the duration.",
+              fromDate.toString(), toDate.toString());
         }
       }
       return "No profiles were found.";

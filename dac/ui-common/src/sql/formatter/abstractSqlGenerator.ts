@@ -121,7 +121,7 @@ const RULE_TYPES: { [K in RuleName]: RuleType } = {
   orderBy: RuleType.Command,
   pivot: RuleType.Command,
   unpivot: RuleType.Command,
-  matchRecognizeOpt: RuleType.Command,
+  matchRecognize: RuleType.Command,
   binaryQueryOperator: RuleType.Command,
   sqlExpressionEof: RuleType.Command,
   sqlSetOption: RuleType.Command,
@@ -145,13 +145,16 @@ const RULE_TYPES: { [K in RuleName]: RuleType } = {
   sqlDropFolder: RuleType.Command,
   parseReferenceType: RuleType.Command,
   aTVersionSpec: RuleType.Command,
-  aTBranchVersionOrReferenceSpec: RuleType.Command,
+  writeableAtVersionSpec: RuleType.Command,
   qualifyOpt: RuleType.Command,
   sqlShowCreate: RuleType.Command,
   sqlShowTableProperties: RuleType.Command,
+  sqlAlterPipe: RuleType.Command,
   sqlCreatePipe: RuleType.Command,
   sqlDescribePipe: RuleType.Command,
+  sqlDropPipe: RuleType.Command,
   sqlShowPipes: RuleType.Command,
+  sqlTriggerPipe: RuleType.Command,
 
   // These comprise identifier tokens
   // Note: Identifier list rules should not be added here
@@ -166,7 +169,6 @@ const RULE_TYPES: { [K in RuleName]: RuleType } = {
   nonReservedKeyWord2of3: RuleType.Identifier,
 
   // These are usually named like "FunctionCall" and contain a function name, (and usually) left paren, args, right paren
-  extendedBuiltinFunctionCall: RuleType.Function,
   builtinFunctionCall: RuleType.Function,
   timestampAddFunctionCall: RuleType.Function,
   timestampDiffFunctionCall: RuleType.Function,
@@ -258,6 +260,7 @@ const RULE_TYPES: { [K in RuleName]: RuleType } = {
   pivotAgg: RuleType.Other,
   pivotValue: RuleType.Other,
   unpivotValue: RuleType.Other,
+  snapshot: RuleType.Other,
   measureColumnCommaList: RuleType.Other,
   measureColumn: RuleType.Other,
   patternExpression: RuleType.Other,
@@ -279,6 +282,7 @@ const RULE_TYPES: { [K in RuleName]: RuleType } = {
   periodOperator: RuleType.Other,
   collateClause: RuleType.Other,
   unsignedNumericLiteralOrParam: RuleType.Other,
+  rowExpressionExtension: RuleType.Other,
   atomicRowExpression: RuleType.Other,
   caseExpression: RuleType.Other,
   sequenceExpression: RuleType.Other,
@@ -362,7 +366,6 @@ const RULE_TYPES: { [K in RuleName]: RuleType } = {
   jsonInputClause: RuleType.Other,
   jsonReturningClause: RuleType.Other,
   jsonOutputClause: RuleType.Other,
-  jsonValueExpression: RuleType.Other,
   jsonPathSpec: RuleType.Other,
   jsonApiCommonSyntax: RuleType.Other,
   jsonExistsErrorBehavior: RuleType.Other,
@@ -372,6 +375,9 @@ const RULE_TYPES: { [K in RuleName]: RuleType } = {
   jsonName: RuleType.Other,
   jsonNameAndValue: RuleType.Other,
   jsonConstructorNullClause: RuleType.Other,
+  jsonArrayAggOrderByClause: RuleType.Other,
+  nullTreatment: RuleType.Other,
+  withinGroup: RuleType.Other,
 };
 
 // These are tokens that are not considered part of commands (even when directly
@@ -478,13 +484,13 @@ export type HiddenTokens = [
   text: string,
   lineNum: number,
   startCol: number,
-  type: HiddenTokenType
+  type: HiddenTokenType,
 ][];
 
 /* First element contains pre-hidden tokens, subsequent ones only contain post-hidden tokens */
 export type SingleStatementOriginalTokensInfo = [
   OriginalTokenInfoFirst,
-  ...OriginalTokenInfo[]
+  ...OriginalTokenInfo[],
 ];
 
 /* One list element per SQL statement */
@@ -530,7 +536,7 @@ export class AbstractSqlGenerator implements ParseTreeListener {
 
       // We cast rather than simplify the type to OriginalTokenInfo[] so we can still give type safety to user of getAbstractSqlTokens
       this.originalTokensInfo.push(
-        [] as unknown as SingleStatementOriginalTokensInfo
+        [] as unknown as SingleStatementOriginalTokensInfo,
       );
       this.startNewStatement = false;
     }
@@ -558,13 +564,13 @@ export class AbstractSqlGenerator implements ParseTreeListener {
 
   getAbstractSqlTokens(): [
     abstractSqlTokens: AbstractSqlToken[],
-    originalTokensInfo: OriginalTokensInfo
+    originalTokensInfo: OriginalTokensInfo,
   ] {
     return [this.abstractSqlTokens, this.originalTokensInfo];
   }
 
   private getPreHiddenTokens(
-    node: TerminalNode
+    node: TerminalNode,
   ): [string, number, number, HiddenTokenType][] {
     const tokenIdx = node.symbol.tokenIndex;
     return this.dremioSqlTokenStream
@@ -578,7 +584,7 @@ export class AbstractSqlGenerator implements ParseTreeListener {
   }
 
   private getPostHiddenTokens(
-    node: TerminalNode
+    node: TerminalNode,
   ): [string, number, number, HiddenTokenType][] {
     const tokenIdx = node.symbol.tokenIndex;
     return this.dremioSqlTokenStream
@@ -622,7 +628,7 @@ export class AbstractSqlGenerator implements ParseTreeListener {
     const originalTokenInfo = this.createOriginalTokenInfo(
       node,
       inFunction,
-      inIdentifier
+      inIdentifier,
     );
     this.prevInCommand = isCommandToken;
     this.prevInFunction = inFunction;
@@ -633,7 +639,7 @@ export class AbstractSqlGenerator implements ParseTreeListener {
   private createOriginalTokenInfo(
     terminal: TerminalNode,
     inFunction: boolean,
-    inIdentifier: boolean
+    inIdentifier: boolean,
   ): OriginalTokenInfo {
     return {
       text: terminal.symbol.text || "",
@@ -643,7 +649,7 @@ export class AbstractSqlGenerator implements ParseTreeListener {
       requiresLeadingSpace: this.requiresLeadingSpace(
         terminal,
         inIdentifier,
-        inFunction
+        inFunction,
       ),
     };
   }
@@ -652,7 +658,7 @@ export class AbstractSqlGenerator implements ParseTreeListener {
   private requiresLeadingSpace(
     terminal: TerminalNode,
     inIdentifier: boolean,
-    inFunction: boolean
+    inFunction: boolean,
   ): boolean {
     const type = terminal.symbol.type;
     const text = terminal.text;
@@ -707,7 +713,7 @@ export class AbstractSqlGenerator implements ParseTreeListener {
   }
 
   private getRootIdentifierContext(
-    terminal: TerminalNode
+    terminal: TerminalNode,
   ): RuleContext | undefined {
     let context: RuleContext | undefined = terminal._parent?.ruleContext;
     while (context && this.hasAncestorOfType(context, RuleType.Identifier)) {
@@ -717,7 +723,7 @@ export class AbstractSqlGenerator implements ParseTreeListener {
   }
 
   private toAbstractSqlSpecialTokenType(
-    node: TerminalNode
+    node: TerminalNode,
   ): AbstractSqlToken | undefined {
     const dremioLexerTokenType = node.symbol.type;
     return SPECIAL_TOKENS[dremioLexerTokenType];
@@ -768,7 +774,7 @@ export class AbstractSqlGenerator implements ParseTreeListener {
 
   private hasAncestorOfType(
     context: TerminalNode | RuleContext,
-    ruleType: RuleType
+    ruleType: RuleType,
   ): boolean {
     const isType = (ruleContext: RuleContext) => {
       const ruleName = this.getRuleName(ruleContext);

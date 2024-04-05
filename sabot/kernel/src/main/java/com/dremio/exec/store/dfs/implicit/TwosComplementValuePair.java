@@ -15,6 +15,11 @@
  */
 package com.dremio.exec.store.dfs.implicit;
 
+import com.dremio.common.AutoCloseables;
+import com.dremio.common.expression.CompleteType;
+import com.dremio.exec.store.dfs.implicit.AdditionalColumnsRecordReader.Populator;
+import com.dremio.exec.util.DecimalUtils;
+import com.dremio.sabot.op.scan.OutputMutator;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.DecimalVector;
@@ -22,13 +27,7 @@ import org.apache.arrow.vector.types.pojo.ArrowType.Decimal;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 
-import com.dremio.common.AutoCloseables;
-import com.dremio.common.expression.CompleteType;
-import com.dremio.exec.store.dfs.implicit.AdditionalColumnsRecordReader.Populator;
-import com.dremio.exec.util.DecimalUtils;
-import com.dremio.sabot.op.scan.OutputMutator;
-
-public class TwosComplementValuePair extends NameValuePair<byte[]>{
+public class TwosComplementValuePair extends NameValuePair<byte[]> {
 
   private final int scale;
   private final int precision;
@@ -45,7 +44,7 @@ public class TwosComplementValuePair extends NameValuePair<byte[]>{
        * are populating the decimal vector multiple times with the same buffer, it
        * is fine to swap the bytes once here as opposed to swapping while writing.
        */
-      byte [] decimalBytesInLE = DecimalUtils.convertDecimalBytesToArrowByteArray(value);
+      byte[] decimalBytesInLE = DecimalUtils.convertDecimalBytesToArrowByteArray(value);
       buf.setBytes(0, decimalBytesInLE);
     }
   }
@@ -77,9 +76,9 @@ public class TwosComplementValuePair extends NameValuePair<byte[]>{
 
   @Override
   public void close() throws Exception {
-    try{
+    try {
       AutoCloseables.close(buf);
-    }finally{
+    } finally {
       buf = null;
     }
   }
@@ -88,19 +87,22 @@ public class TwosComplementValuePair extends NameValuePair<byte[]>{
     private DecimalVector vector;
 
     @Override
-    public void setup(OutputMutator output){
-      vector = (DecimalVector)output.getVector(name);
+    public void setup(OutputMutator output) {
+      vector = (DecimalVector) output.getVector(name);
       if (vector == null) {
-        vector = output.addField(new Field(name, new FieldType(true,
-          new Decimal(precision, scale, 128), null), null), DecimalVector.class);
+        vector =
+            output.addField(
+                new Field(
+                    name, new FieldType(true, new Decimal(precision, scale, 128), null), null),
+                DecimalVector.class);
       }
     }
 
     @Override
-    public void populate(final int count){
+    public void populate(final int count) {
       final byte[] value = TwosComplementValuePair.this.value;
 
-      if(value != null) {
+      if (value != null) {
         for (int i = 0; i < count; i++) {
           /* bytes are already set in buf in LE byte order, populate the decimal vector now */
           vector.setSafe(i, buf);
@@ -110,7 +112,7 @@ public class TwosComplementValuePair extends NameValuePair<byte[]>{
     }
 
     @Override
-    public void allocate(){
+    public void allocate() {
       vector.allocateNew();
     }
 
@@ -125,12 +127,11 @@ public class TwosComplementValuePair extends NameValuePair<byte[]>{
 
     @Override
     public void close() throws Exception {
-      try{
+      try {
         AutoCloseables.close(vector, buf);
-      }finally{
+      } finally {
         buf = null;
       }
     }
   }
-
 }

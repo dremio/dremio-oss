@@ -15,8 +15,8 @@
  */
 package com.dremio.dac.server;
 
+import com.dremio.dac.server.tokens.TokenUtils;
 import java.net.URI;
-
 import javax.annotation.Priority;
 import javax.ws.rs.Priorities;
 import javax.ws.rs.container.ContainerRequestContext;
@@ -26,12 +26,9 @@ import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.UriInfo;
 import javax.ws.rs.ext.Provider;
 
-import com.dremio.dac.server.tokens.TokenUtils;
-
-
 /**
- * Move token from query parameter to property.
- * Note: ContainerRequestContext.setRequestUri is only allowed in pre-matching filter.
+ * Move token from query parameter to property. Note: ContainerRequestContext.setRequestUri is only
+ * allowed in pre-matching filter.
  */
 @Provider
 @PreMatching
@@ -40,7 +37,7 @@ public class DACAuthorizationObfuscationFilter implements ContainerRequestFilter
 
   @Override
   public void filter(ContainerRequestContext requestContext) {
-    //Remove Authorization token from Uri if exists.
+    // Remove Authorization token from Uri if exists.
     MultivaluedMap<String, String> queryParams = requestContext.getUriInfo().getQueryParameters();
     if (queryParams.containsKey(TokenUtils.TOKEN_QUERY_PARAM)) {
       String token = queryParams.getFirst(TokenUtils.TOKEN_QUERY_PARAM);
@@ -50,8 +47,9 @@ public class DACAuthorizationObfuscationFilter implements ContainerRequestFilter
   }
 
   private static URI cleanUriInfo(UriInfo uriInfo) {
-    return uriInfo.getRequestUriBuilder()
-      .replaceQueryParam(TokenUtils.TOKEN_QUERY_PARAM) // Remove .token query parameter
-      .build();
+    return uriInfo
+        .getRequestUriBuilder()
+        .replaceQueryParam(TokenUtils.TOKEN_QUERY_PARAM) // Remove .token query parameter
+        .build();
   }
 }

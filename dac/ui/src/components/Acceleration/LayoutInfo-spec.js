@@ -26,12 +26,10 @@ describe("LayoutInfo", () => {
     minimalProps = {};
     commonProps = {
       ...minimalProps,
-      showValidity: true,
       layout: Immutable.fromJS({
         id: "a",
         // should be able to render without: currentByteSize
         totalByteSize: 1536,
-        hasValidMaterialization: true,
         latestMaterializationState: "NEW",
       }),
     };
@@ -47,22 +45,9 @@ describe("LayoutInfo", () => {
     expect(wrapper).to.have.length(1);
   });
 
-  it("shows expired as needed", () => {
-    const props = {
-      ...commonProps,
-      layout: commonProps.layout
-        .set("latestMaterializationState", "DONE")
-        .set("hasValidMaterialization", false),
-    };
-    const wrapper = shallow(<LayoutInfo {...props} />);
-    const result = wrapper.find("ValidityIndicator");
-    expect(result.props().isValid).to.equal(false);
-  });
-
   it("should render override text", () => {
     const props = { ...commonProps, overrideTextMessage: "override" };
     const wrapper = shallow(<LayoutInfo {...props} />);
-    expect(wrapper.find("ValidityIndicator").length).to.be.eq(0);
     const message = wrapper.find('[data-qa="message"]');
     expect(message.length).to.be.equal(1);
     expect(message.first().text()).to.be.equal("override");

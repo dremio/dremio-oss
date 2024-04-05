@@ -15,14 +15,6 @@
  */
 package com.dremio.exec.expr.fn.impl;
 
-import java.util.List;
-
-import javax.inject.Inject;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.vector.complex.reader.FieldReader;
-import org.apache.arrow.vector.holders.NullableDecimalHolder;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.LogicalExpression;
@@ -34,26 +26,30 @@ import com.dremio.exec.expr.annotations.Workspace;
 import com.dremio.exec.expr.fn.FunctionErrorContext;
 import com.dremio.exec.expr.fn.OutputDerivation;
 import com.google.common.base.Preconditions;
+import java.util.List;
+import javax.inject.Inject;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.vector.complex.reader.FieldReader;
+import org.apache.arrow.vector.holders.NullableDecimalHolder;
 
 public class DecimalArrayFunctions {
 
-  @FunctionTemplate(names = "array_sum_DECIMAL", scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.INTERNAL, derivation = DecimalArraySum.class)
+  @FunctionTemplate(
+      names = "array_sum_DECIMAL",
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.INTERNAL,
+      derivation = DecimalArraySum.class)
   public static class ArraySumDECIMAL implements SimpleFunction {
 
-    @Param
-    private FieldReader in;
-    @Workspace
-    private NullableDecimalHolder sum;
-    @Output
-    private NullableDecimalHolder out;
-    @Inject
-    private ArrowBuf buffer;
-    @Inject
-    private FunctionErrorContext errCtx;
+    @Param private FieldReader in;
+    @Workspace private NullableDecimalHolder sum;
+    @Output private NullableDecimalHolder out;
+    @Inject private ArrowBuf buffer;
+    @Inject private FunctionErrorContext errCtx;
 
     @Override
-    public void setup() {
-    }
+    public void setup() {}
+
     @Override
     public void eval() {
       if (!in.isSet() || in.readObject() == null) {
@@ -62,32 +58,40 @@ public class DecimalArrayFunctions {
       }
       if (in.getMinorType() != org.apache.arrow.vector.types.Types.MinorType.LIST) {
         throw new UnsupportedOperationException(
-          String.format("First parameter to array_sum must be a LIST. Was given: %s",
-            in.getMinorType().toString()
-          )
-        );
+            String.format(
+                "First parameter to array_sum must be a LIST. Was given: %s",
+                in.getMinorType().toString()));
       }
-      if (!in.reader().getMinorType().equals(org.apache.arrow.vector.types.Types.MinorType.DECIMAL)) {
+      if (!in.reader()
+          .getMinorType()
+          .equals(org.apache.arrow.vector.types.Types.MinorType.DECIMAL)) {
         throw new UnsupportedOperationException(
-          String.format("List of %s is not comparable with %s",
-            in.reader().getMinorType().toString(), org.apache.arrow.vector.types.Types.MinorType.DECIMAL
-          )
-        );
+            String.format(
+                "List of %s is not comparable with %s",
+                in.reader().getMinorType().toString(),
+                org.apache.arrow.vector.types.Types.MinorType.DECIMAL));
       }
       sum = new NullableDecimalHolder();
       sum.isSet = 1;
       buffer = buffer.reallocIfNeeded(16);
       sum.buffer = buffer;
       java.math.BigDecimal zero = new java.math.BigDecimal(java.math.BigInteger.ZERO, 0);
-      org.apache.arrow.vector.util.DecimalUtility.writeBigDecimalToArrowBuf(zero, sum.buffer, 0, org.apache.arrow.vector.DecimalVector.TYPE_WIDTH);
+      org.apache.arrow.vector.util.DecimalUtility.writeBigDecimalToArrowBuf(
+          zero, sum.buffer, 0, org.apache.arrow.vector.DecimalVector.TYPE_WIDTH);
       sum.start = 0;
-      org.apache.arrow.vector.complex.impl.UnionListReader listReader = (org.apache.arrow.vector.complex.impl.UnionListReader) in;
-      while (listReader.next()){
-        if (listReader.reader().readObject() != null){
+      org.apache.arrow.vector.complex.impl.UnionListReader listReader =
+          (org.apache.arrow.vector.complex.impl.UnionListReader) in;
+      while (listReader.next()) {
+        if (listReader.reader().readObject() != null) {
           NullableDecimalHolder element = new NullableDecimalHolder();
           listReader.reader().read(element);
-          com.dremio.exec.util.DecimalUtils.addSignedDecimalInLittleEndianBytes(sum.buffer, org.apache.arrow.memory.util.LargeMemoryUtil.capAtMaxInt(sum.start), element.buffer,
-            org.apache.arrow.memory.util.LargeMemoryUtil.capAtMaxInt(element.start), sum.buffer, org.apache.arrow.memory.util.LargeMemoryUtil.capAtMaxInt(sum.start));
+          com.dremio.exec.util.DecimalUtils.addSignedDecimalInLittleEndianBytes(
+              sum.buffer,
+              org.apache.arrow.memory.util.LargeMemoryUtil.capAtMaxInt(sum.start),
+              element.buffer,
+              org.apache.arrow.memory.util.LargeMemoryUtil.capAtMaxInt(element.start),
+              sum.buffer,
+              org.apache.arrow.memory.util.LargeMemoryUtil.capAtMaxInt(sum.start));
         }
       }
       out.isSet = 1;
@@ -96,38 +100,45 @@ public class DecimalArrayFunctions {
     }
   }
 
-  @FunctionTemplate(names = "array_max_DECIMAL", scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.INTERNAL, derivation = DecimalArrayMinMax.class)
+  @FunctionTemplate(
+      names = "array_max_DECIMAL",
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.INTERNAL,
+      derivation = DecimalArrayMinMax.class)
   public static class ArrayMaxDECIMAL implements SimpleFunction {
 
-    @Param
-    private FieldReader in;
-    @Workspace
-    private NullableDecimalHolder maxVal;
-    @Output
-    private NullableDecimalHolder out;
-    @Inject
-    private ArrowBuf buffer;
-    @Inject
-    private FunctionErrorContext errCtx;
-    @Override
-    public void setup () {
-    }
+    @Param private FieldReader in;
+    @Workspace private NullableDecimalHolder maxVal;
+    @Output private NullableDecimalHolder out;
+    @Inject private ArrowBuf buffer;
+    @Inject private FunctionErrorContext errCtx;
 
     @Override
-    public void eval () {
+    public void setup() {}
+
+    @Override
+    public void eval() {
       if (!in.isSet() || in.readObject() == null) {
         out.isSet = 0;
         return;
       }
       if (in.getMinorType() != org.apache.arrow.vector.types.Types.MinorType.LIST) {
         throw new UnsupportedOperationException(
-          String.format("First parameter to array_max must be a LIST. Was given: %s", in.getMinorType().toString()));
+            String.format(
+                "First parameter to array_max must be a LIST. Was given: %s",
+                in.getMinorType().toString()));
       }
-      if (!in.reader().getMinorType().equals(org.apache.arrow.vector.types.Types.MinorType.DECIMAL)){
-        throw new UnsupportedOperationException(String.format("List of %s is not comparable with %s",
-          in.reader().getMinorType().toString(), org.apache.arrow.vector.types.Types.MinorType.DECIMAL));
+      if (!in.reader()
+          .getMinorType()
+          .equals(org.apache.arrow.vector.types.Types.MinorType.DECIMAL)) {
+        throw new UnsupportedOperationException(
+            String.format(
+                "List of %s is not comparable with %s",
+                in.reader().getMinorType().toString(),
+                org.apache.arrow.vector.types.Types.MinorType.DECIMAL));
       }
-      org.apache.arrow.vector.complex.impl.UnionListReader listReader = (org.apache.arrow.vector.complex.impl.UnionListReader) in;
+      org.apache.arrow.vector.complex.impl.UnionListReader listReader =
+          (org.apache.arrow.vector.complex.impl.UnionListReader) in;
       if (listReader.size() == 0) {
         out.isSet = 0;
         return;
@@ -137,18 +148,27 @@ public class DecimalArrayFunctions {
       maxVal.start = 0;
       buffer = buffer.reallocIfNeeded(16);
       maxVal.buffer = buffer;
-      org.apache.arrow.vector.util.DecimalUtility.writeBigDecimalToArrowBuf(com.dremio.exec.util.DecimalUtils.MIN_DECIMAL, maxVal.buffer, 0, org.apache.arrow.vector.DecimalVector.TYPE_WIDTH);
-      while (listReader.next()){
-        if (listReader.reader().readObject() == null){
+      org.apache.arrow.vector.util.DecimalUtility.writeBigDecimalToArrowBuf(
+          com.dremio.exec.util.DecimalUtils.MIN_DECIMAL,
+          maxVal.buffer,
+          0,
+          org.apache.arrow.vector.DecimalVector.TYPE_WIDTH);
+      while (listReader.next()) {
+        if (listReader.reader().readObject() == null) {
           out.isSet = 0;
           return;
         }
         NullableDecimalHolder element = new NullableDecimalHolder();
         listReader.reader().read(element);
-        int compare = com.dremio.exec.util.DecimalUtils
-          .compareSignedDecimalInLittleEndianBytes(element.buffer, org.apache.arrow.memory.util.LargeMemoryUtil.capAtMaxInt(element.start), maxVal.buffer, 0);
+        int compare =
+            com.dremio.exec.util.DecimalUtils.compareSignedDecimalInLittleEndianBytes(
+                element.buffer,
+                org.apache.arrow.memory.util.LargeMemoryUtil.capAtMaxInt(element.start),
+                maxVal.buffer,
+                0);
         if (compare > 0) {
-          element.buffer.getBytes(element.start, maxVal.buffer, 0, org.apache.arrow.vector.DecimalVector.TYPE_WIDTH);
+          element.buffer.getBytes(
+              element.start, maxVal.buffer, 0, org.apache.arrow.vector.DecimalVector.TYPE_WIDTH);
         }
       }
       out.isSet = 1;
@@ -157,38 +177,45 @@ public class DecimalArrayFunctions {
     }
   }
 
-  @FunctionTemplate(names = "array_min_DECIMAL", scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.INTERNAL, derivation = DecimalArrayMinMax.class)
+  @FunctionTemplate(
+      names = "array_min_DECIMAL",
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.INTERNAL,
+      derivation = DecimalArrayMinMax.class)
   public static class ArrayMinDECIMAL implements SimpleFunction {
 
     @Param private FieldReader in;
-    @Workspace
-    private NullableDecimalHolder minVal;
-    @Output
-    private NullableDecimalHolder out;
-    @Inject
-    private ArrowBuf buffer;
-    @Inject
-    private FunctionErrorContext errCtx;
+    @Workspace private NullableDecimalHolder minVal;
+    @Output private NullableDecimalHolder out;
+    @Inject private ArrowBuf buffer;
+    @Inject private FunctionErrorContext errCtx;
 
     @Override
-    public void setup () {
-    }
+    public void setup() {}
 
     @Override
-    public void eval () {
+    public void eval() {
       if (!in.isSet() || in.readObject() == null) {
         out.isSet = 0;
         return;
       }
       if (in.getMinorType() != org.apache.arrow.vector.types.Types.MinorType.LIST) {
         throw new UnsupportedOperationException(
-          String.format("First parameter to array_min must be a LIST. Was given: %s", in.getMinorType().toString()));
+            String.format(
+                "First parameter to array_min must be a LIST. Was given: %s",
+                in.getMinorType().toString()));
       }
-      if (!in.reader().getMinorType().equals(org.apache.arrow.vector.types.Types.MinorType.DECIMAL)){
-        throw new UnsupportedOperationException(String.format("List of %s is not comparable with %s",
-          in.reader().getMinorType().toString(), org.apache.arrow.vector.types.Types.MinorType.DECIMAL));
+      if (!in.reader()
+          .getMinorType()
+          .equals(org.apache.arrow.vector.types.Types.MinorType.DECIMAL)) {
+        throw new UnsupportedOperationException(
+            String.format(
+                "List of %s is not comparable with %s",
+                in.reader().getMinorType().toString(),
+                org.apache.arrow.vector.types.Types.MinorType.DECIMAL));
       }
-      org.apache.arrow.vector.complex.impl.UnionListReader listReader = (org.apache.arrow.vector.complex.impl.UnionListReader) in;
+      org.apache.arrow.vector.complex.impl.UnionListReader listReader =
+          (org.apache.arrow.vector.complex.impl.UnionListReader) in;
       if (listReader.size() == 0) {
         out.isSet = 0;
         return;
@@ -198,18 +225,27 @@ public class DecimalArrayFunctions {
       minVal.start = 0;
       buffer = buffer.reallocIfNeeded(16);
       minVal.buffer = buffer;
-      org.apache.arrow.vector.util.DecimalUtility.writeBigDecimalToArrowBuf(com.dremio.exec.util.DecimalUtils.MAX_DECIMAL, minVal.buffer, 0, org.apache.arrow.vector.DecimalVector.TYPE_WIDTH);
-      while (listReader.next()){
-        if (listReader.reader().readObject() == null){
+      org.apache.arrow.vector.util.DecimalUtility.writeBigDecimalToArrowBuf(
+          com.dremio.exec.util.DecimalUtils.MAX_DECIMAL,
+          minVal.buffer,
+          0,
+          org.apache.arrow.vector.DecimalVector.TYPE_WIDTH);
+      while (listReader.next()) {
+        if (listReader.reader().readObject() == null) {
           out.isSet = 0;
           return;
         }
         NullableDecimalHolder element = new NullableDecimalHolder();
         listReader.reader().read(element);
-        int compare = com.dremio.exec.util.DecimalUtils
-          .compareSignedDecimalInLittleEndianBytes(element.buffer, org.apache.arrow.memory.util.LargeMemoryUtil.capAtMaxInt(element.start), minVal.buffer, 0);
+        int compare =
+            com.dremio.exec.util.DecimalUtils.compareSignedDecimalInLittleEndianBytes(
+                element.buffer,
+                org.apache.arrow.memory.util.LargeMemoryUtil.capAtMaxInt(element.start),
+                minVal.buffer,
+                0);
         if (compare < 0) {
-          element.buffer.getBytes(element.start, minVal.buffer, 0 , org.apache.arrow.vector.DecimalVector.TYPE_WIDTH);
+          element.buffer.getBytes(
+              element.start, minVal.buffer, 0, org.apache.arrow.vector.DecimalVector.TYPE_WIDTH);
         }
       }
       out.isSet = 1;
@@ -220,7 +256,8 @@ public class DecimalArrayFunctions {
 
   public static class DecimalArraySum implements OutputDerivation {
 
-    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DecimalArraySum.class);
+    private static final org.slf4j.Logger logger =
+        org.slf4j.LoggerFactory.getLogger(DecimalArraySum.class);
 
     @Override
     public CompleteType getOutputType(CompleteType baseReturn, List<LogicalExpression> args) {
@@ -228,16 +265,16 @@ public class DecimalArrayFunctions {
       CompleteType type = args.get(0).getCompleteType();
       if (!type.isList()) {
         throw UserException.functionError()
-          .message("First parameter to function must be a LIST. Was given: %s",
-            type.toString())
-          .build();
+            .message("First parameter to function must be a LIST. Was given: %s", type.toString())
+            .build();
       }
       CompleteType childType = type.getOnlyChildType();
-      if(!childType.isDecimal()) {
+      if (!childType.isDecimal()) {
         throw UserException.functionError()
-          .message("List of %s is not comparable with %s",
-            childType.toString(), org.apache.arrow.vector.types.Types.MinorType.DECIMAL)
-          .build(logger);
+            .message(
+                "List of %s is not comparable with %s",
+                childType.toString(), org.apache.arrow.vector.types.Types.MinorType.DECIMAL)
+            .build(logger);
       }
 
       return CompleteType.fromDecimalPrecisionScale(38, childType.getScale());
@@ -246,7 +283,8 @@ public class DecimalArrayFunctions {
 
   public static class DecimalArrayMinMax implements OutputDerivation {
 
-    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DecimalArrayMinMax.class);
+    private static final org.slf4j.Logger logger =
+        org.slf4j.LoggerFactory.getLogger(DecimalArrayMinMax.class);
 
     @Override
     public CompleteType getOutputType(CompleteType baseReturn, List<LogicalExpression> args) {
@@ -254,16 +292,16 @@ public class DecimalArrayFunctions {
       CompleteType type = args.get(0).getCompleteType();
       if (!type.isList()) {
         throw UserException.functionError()
-          .message("First parameter to function must be a LIST. Was given: %s",
-            type.toString())
-          .build();
+            .message("First parameter to function must be a LIST. Was given: %s", type.toString())
+            .build();
       }
       CompleteType childType = type.getOnlyChildType();
-      if(!childType.isDecimal()) {
+      if (!childType.isDecimal()) {
         throw UserException.functionError()
-          .message("List of %s is not comparable with %s",
-            childType.toString(), org.apache.arrow.vector.types.Types.MinorType.DECIMAL)
-          .build(logger);
+            .message(
+                "List of %s is not comparable with %s",
+                childType.toString(), org.apache.arrow.vector.types.Types.MinorType.DECIMAL)
+            .build(logger);
       }
       return CompleteType.fromDecimalPrecisionScale(childType.getPrecision(), childType.getScale());
     }

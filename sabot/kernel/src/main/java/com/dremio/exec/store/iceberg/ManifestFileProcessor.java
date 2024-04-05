@@ -17,26 +17,6 @@ package com.dremio.exec.store.iceberg;
 
 import static com.dremio.exec.store.iceberg.IcebergSerDe.deserializedJsonAsSchema;
 
-import java.io.IOException;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-
-import org.apache.commons.collections4.CollectionUtils;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.iceberg.ContentFile;
-import org.apache.iceberg.DremioManifestReaderUtils;
-import org.apache.iceberg.DremioManifestReaderUtils.ManifestEntryWrapper;
-import org.apache.iceberg.FileContent;
-import org.apache.iceberg.ManifestContent;
-import org.apache.iceberg.ManifestFile;
-import org.apache.iceberg.ManifestFiles;
-import org.apache.iceberg.ManifestReader;
-import org.apache.iceberg.PartitionSpec;
-import org.apache.iceberg.io.CloseableIterator;
-import org.apache.iceberg.io.FileIO;
-import org.apache.iceberg.io.FilterIterator;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
@@ -55,9 +35,28 @@ import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.sabot.op.tablefunction.TableFunctionOperator;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import java.io.IOException;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import org.apache.commons.collections4.CollectionUtils;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.iceberg.ContentFile;
+import org.apache.iceberg.DremioManifestReaderUtils;
+import org.apache.iceberg.DremioManifestReaderUtils.ManifestEntryWrapper;
+import org.apache.iceberg.FileContent;
+import org.apache.iceberg.ManifestContent;
+import org.apache.iceberg.ManifestFile;
+import org.apache.iceberg.ManifestFiles;
+import org.apache.iceberg.ManifestReader;
+import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.io.CloseableIterator;
+import org.apache.iceberg.io.FileIO;
+import org.apache.iceberg.io.FilterIterator;
 
 /**
- * Process ManifestFile. This class iterates over each datafile in manifest file and give to data processor one at a time
+ * Process ManifestFile. This class iterates over each datafile in manifest file and give to data
+ * processor one at a time
  */
 public class ManifestFileProcessor implements AutoCloseable {
   private final OpProps opProps;
@@ -74,9 +73,11 @@ public class ManifestFileProcessor implements AutoCloseable {
   private ManifestScanFilters manifestScanFilters;
   private Map<Integer, PartitionSpec> partitionSpecMap;
 
-  public ManifestFileProcessor(FragmentExecutionContext fec,
-                               OperatorContext context, OpProps props,
-                               TableFunctionConfig functionConfig) {
+  public ManifestFileProcessor(
+      FragmentExecutionContext fec,
+      OperatorContext context,
+      OpProps props,
+      TableFunctionConfig functionConfig) {
     this.icebergRootPointerPlugin = getStoragePlugin(fec, functionConfig.getFunctionContext());
     this.opProps = props;
     this.conf = getConfiguration(icebergRootPointerPlugin);
@@ -85,18 +86,24 @@ public class ManifestFileProcessor implements AutoCloseable {
     this.operatorStats = context.getStats();
     this.dataset = getDataset(functionConfig);
     this.datasourcePluginUID = getDatasourcePluginId(functionConfig.getFunctionContext());
-    this.manifestEntryProcessor = new ManifestEntryProcessorFactory(fec, props, context).getManifestEntryProcessor(functionConfig);
+    this.manifestEntryProcessor =
+        new ManifestEntryProcessorFactory(fec, props, context)
+            .getManifestEntryProcessor(functionConfig);
     ManifestScanTableFunctionContext functionContext =
         functionConfig.getFunctionContext(ManifestScanTableFunctionContext.class);
     if (functionContext.getJsonPartitionSpecMap() != null) {
-      partitionSpecMap = IcebergSerDe.deserializeJsonPartitionSpecMap(deserializedJsonAsSchema(
-          functionContext.getIcebergSchema()),
-          functionContext.getJsonPartitionSpecMap().toByteArray());
-    } else if (functionContext.getPartitionSpecMap() != null){
-      partitionSpecMap = IcebergSerDe.deserializePartitionSpecMap(functionContext.getPartitionSpecMap().toByteArray());
+      partitionSpecMap =
+          IcebergSerDe.deserializeJsonPartitionSpecMap(
+              deserializedJsonAsSchema(functionContext.getIcebergSchema()),
+              functionContext.getJsonPartitionSpecMap().toByteArray());
+    } else if (functionContext.getPartitionSpecMap() != null) {
+      partitionSpecMap =
+          IcebergSerDe.deserializePartitionSpecMap(
+              functionContext.getPartitionSpecMap().toByteArray());
     }
-    this.manifestScanFilters = ((ManifestScanTableFunctionContext) functionConfig.getFunctionContext())
-      .getManifestScanFilters();
+    this.manifestScanFilters =
+        ((ManifestScanTableFunctionContext) functionConfig.getFunctionContext())
+            .getManifestScanFilters();
   }
 
   public void setup(VectorAccessible incoming, VectorContainer outgoing) {
@@ -121,31 +128,38 @@ public class ManifestFileProcessor implements AutoCloseable {
       return;
     }
 
-    if (manifestScanFilters.doesMinPartitionSpecIdExist() &&
-      manifestFile.partitionSpecId() < manifestScanFilters.getMinPartitionSpecId()) {
-      return; //Read all files as they belong to an old partition.
+    if (manifestScanFilters.doesMinPartitionSpecIdExist()
+        && manifestFile.partitionSpecId() < manifestScanFilters.getMinPartitionSpecId()) {
+      return; // Read all files as they belong to an old partition.
     }
 
     // Skip the data files if they fall within the given range
     if (manifestScanFilters.doesSkipDataFileSizeRangeExist()) {
-      iterator = new FilterIterator<ManifestEntryWrapper<?>>((CloseableIterator<ManifestEntryWrapper<?>>) iterator) {
-        @Override
-        protected boolean shouldKeep(ManifestEntryWrapper<?> dataFile) {
-          return manifestScanFilters.getSkipDataFileSizeRange().isNotInRange(dataFile.file().fileSizeInBytes());
-        }
-      };
+      iterator =
+          new FilterIterator<ManifestEntryWrapper<?>>(
+              (CloseableIterator<ManifestEntryWrapper<?>>) iterator) {
+            @Override
+            protected boolean shouldKeep(ManifestEntryWrapper<?> dataFile) {
+              return manifestScanFilters
+                  .getSkipDataFileSizeRange()
+                  .isNotInRange(dataFile.file().fileSizeInBytes());
+            }
+          };
     }
   }
 
   public int process(int startOutIndex, int maxOutputCount) throws Exception {
     int currentOutputCount = 0;
-    while ((currentManifestEntry != null || iterator.hasNext()) && currentOutputCount < maxOutputCount) {
+    while ((currentManifestEntry != null || iterator.hasNext())
+        && currentOutputCount < maxOutputCount) {
       if (currentManifestEntry == null) {
         nextDataFile();
       }
-      int outputRecords = manifestEntryProcessor.processManifestEntry(currentManifestEntry,
-        startOutIndex + currentOutputCount,
-        maxOutputCount - currentOutputCount);
+      int outputRecords =
+          manifestEntryProcessor.processManifestEntry(
+              currentManifestEntry,
+              startOutIndex + currentOutputCount,
+              maxOutputCount - currentOutputCount);
       if (outputRecords == 0) {
         resetCurrentDataFile();
       } else {
@@ -169,7 +183,8 @@ public class ManifestFileProcessor implements AutoCloseable {
     if (manifestFile.content() == ManifestContent.DATA) {
       return ManifestFiles.read(manifestFile, getFileIO(manifestFile), partitionSpecMap);
     } else {
-      return ManifestFiles.readDeleteManifest(manifestFile, getFileIO(manifestFile), partitionSpecMap);
+      return ManifestFiles.readDeleteManifest(
+          manifestFile, getFileIO(manifestFile), partitionSpecMap);
     }
   }
 
@@ -177,8 +192,8 @@ public class ManifestFileProcessor implements AutoCloseable {
 
     FileSystem fs = createFs(manifestFile.path(), context, opProps, icebergRootPointerPlugin);
     Preconditions.checkState(fs != null, "Unexpected state");
-    return icebergRootPointerPlugin.createIcebergFileIO(fs, context, dataset, datasourcePluginUID,
-        manifestFile.length());
+    return icebergRootPointerPlugin.createIcebergFileIO(
+        fs, context, dataset, datasourcePluginUID, manifestFile.length());
   }
 
   private void nextDataFile() {
@@ -224,7 +239,11 @@ public class ManifestFileProcessor implements AutoCloseable {
     return functionContext.getPluginId().getName();
   }
 
-  private static FileSystem createFs(String path, OperatorContext context, OpProps props, SupportsIcebergRootPointer icebergRootPointerPlugin) {
+  private static FileSystem createFs(
+      String path,
+      OperatorContext context,
+      OpProps props,
+      SupportsIcebergRootPointer icebergRootPointerPlugin) {
     try {
       return icebergRootPointerPlugin.createFSWithAsyncOptions(path, props.getUserName(), context);
     } catch (IOException e) {
@@ -242,7 +261,8 @@ public class ManifestFileProcessor implements AutoCloseable {
     return fileSystemPlugin.getFsConfCopy();
   }
 
-  private SupportsIcebergRootPointer getStoragePlugin(FragmentExecutionContext fec, TableFunctionContext functionContext) {
+  private SupportsIcebergRootPointer getStoragePlugin(
+      FragmentExecutionContext fec, TableFunctionContext functionContext) {
     StoragePluginId pluginId = getPluginId(functionContext);
     try {
       return fec.getStoragePlugin(pluginId);

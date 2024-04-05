@@ -15,13 +15,6 @@
  */
 package com.dremio.exec.store.deltalake;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-
-import org.apache.arrow.vector.BigIntVector;
-import org.apache.arrow.vector.TimeStampMilliVector;
-import org.apache.arrow.vector.VarCharVector;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.physical.base.OpProps;
@@ -36,6 +29,11 @@ import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import org.apache.arrow.vector.BigIntVector;
+import org.apache.arrow.vector.TimeStampMilliVector;
+import org.apache.arrow.vector.VarCharVector;
 
 public class DeltaLakeHistoryScanTableFunction extends AbstractTableFunction {
   private final OpProps props;
@@ -53,8 +51,11 @@ public class DeltaLakeHistoryScanTableFunction extends AbstractTableFunction {
   private int currentRow;
   private boolean rowProcessed;
 
-  public DeltaLakeHistoryScanTableFunction(FragmentExecutionContext fec, OperatorContext context,
-                                           OpProps props, TableFunctionConfig functionConfig)  {
+  public DeltaLakeHistoryScanTableFunction(
+      FragmentExecutionContext fec,
+      OperatorContext context,
+      OpProps props,
+      TableFunctionConfig functionConfig) {
     super(context, functionConfig);
     this.props = props;
     try {
@@ -82,12 +83,19 @@ public class DeltaLakeHistoryScanTableFunction extends AbstractTableFunction {
     super.setup(accessible);
 
     // input vectors
-    this.pathInputVector = (VarCharVector) VectorUtil.getVectorFromSchemaPath(incoming, MetadataRefreshExecConstants.DirList.OUTPUT_SCHEMA.FILE_PATH);
+    this.pathInputVector =
+        (VarCharVector)
+            VectorUtil.getVectorFromSchemaPath(
+                incoming, MetadataRefreshExecConstants.DirList.OUTPUT_SCHEMA.FILE_PATH);
 
     // output vectors
-    this.timestampOutputVector = (TimeStampMilliVector) VectorUtil.getVectorFromSchemaPath(outgoing, SystemSchemas.TIMESTAMP);
-    this.versionOutputVector = (BigIntVector) VectorUtil.getVectorFromSchemaPath(outgoing, SystemSchemas.VERSION);
-    this.operationOutputVector = (VarCharVector) VectorUtil.getVectorFromSchemaPath(outgoing, SystemSchemas.OPERATION);
+    this.timestampOutputVector =
+        (TimeStampMilliVector)
+            VectorUtil.getVectorFromSchemaPath(outgoing, SystemSchemas.TIMESTAMP);
+    this.versionOutputVector =
+        (BigIntVector) VectorUtil.getVectorFromSchemaPath(outgoing, SystemSchemas.VERSION);
+    this.operationOutputVector =
+        (VarCharVector) VectorUtil.getVectorFromSchemaPath(outgoing, SystemSchemas.OPERATION);
 
     return outgoing;
   }
@@ -106,7 +114,8 @@ public class DeltaLakeHistoryScanTableFunction extends AbstractTableFunction {
 
     try {
       String commitPath = new String(pathInputVector.get(currentRow), StandardCharsets.UTF_8);
-      DeltaLogSnapshot snapshot = DeltaLogCommitJsonReader.parseCommitInfo(getFS(commitPath), Path.of(commitPath));
+      DeltaLogSnapshot snapshot =
+          DeltaLogCommitJsonReader.parseCommitInfo(getFS(commitPath), Path.of(commitPath));
       writeFileToOutput(startOutIndex, snapshot);
     } catch (Exception e) {
       throw UserException.validationError(e).buildSilently();
@@ -127,8 +136,7 @@ public class DeltaLakeHistoryScanTableFunction extends AbstractTableFunction {
   }
 
   @Override
-  public void closeRow() throws Exception {
-  }
+  public void closeRow() throws Exception {}
 
   @Override
   public long getFirstRowSize() {

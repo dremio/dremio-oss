@@ -24,19 +24,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
-
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
-
 import com.dremio.common.Version;
 import com.dremio.dac.proto.model.source.UpgradeStatus;
 import com.dremio.dac.proto.model.source.UpgradeTaskStore;
@@ -52,16 +39,22 @@ import com.dremio.test.DremioTest;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
-
 import io.protostuff.ByteString;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+import org.junit.After;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
-/**
- * Test for {@code Upgrade}
- */
+/** Test for {@code Upgrade} */
 public class TestUpgrade extends DremioTest {
-  /**
-   * A test upgrade task
-   */
+  /** A test upgrade task */
   public static final class TopPriorityTask extends UpgradeTask {
     public TopPriorityTask() {
       super("test-top-priority-class", ImmutableList.of(SetExportType.taskUUID));
@@ -73,14 +66,10 @@ public class TestUpgrade extends DremioTest {
     }
 
     @Override
-    public void upgrade(UpgradeContext context) throws Exception {
-
-    }
+    public void upgrade(UpgradeContext context) throws Exception {}
   }
 
-  /**
-   * A test upgrade task
-   */
+  /** A test upgrade task */
   public static final class LowPriorityTask extends UpgradeTask {
     public LowPriorityTask() {
       super("test-low-priority-class", ImmutableList.of("test-top-priority-class"));
@@ -92,13 +81,11 @@ public class TestUpgrade extends DremioTest {
     }
 
     @Override
-    public void upgrade(UpgradeContext context) throws Exception {
-
-    }
+    public void upgrade(UpgradeContext context) throws Exception {}
   }
 
-  private static final LocalKVStoreProvider kvStoreProvider = new LocalKVStoreProvider(
-    CLASSPATH_SCAN_RESULT, null, true, false);
+  private static final LocalKVStoreProvider kvStoreProvider =
+      new LocalKVStoreProvider(CLASSPATH_SCAN_RESULT, null, true, false);
 
   private static LegacyKVStoreProvider legacyKVStoreProvider;
 
@@ -149,7 +136,8 @@ public class TestUpgrade extends DremioTest {
     List<UpgradeTaskStore> upgradeEntries = upgradeStore.getAllUpgradeTasks();
     assertEquals(1, upgradeEntries.size());
     assertEquals(myTask.getTaskUUID(), upgradeEntries.get(0).getId().getId());
-    assertEquals(TestUpgradeFailORSuccessTask.class.getSimpleName(), upgradeEntries.get(0).getName());
+    assertEquals(
+        TestUpgradeFailORSuccessTask.class.getSimpleName(), upgradeEntries.get(0).getName());
     assertEquals(1, upgradeEntries.get(0).getRunsList().size());
     assertEquals(UpgradeStatus.OUTDATED, upgradeEntries.get(0).getRunsList().get(0).getStatus());
   }
@@ -158,16 +146,17 @@ public class TestUpgrade extends DremioTest {
   public void testTaskUpgradeFail() throws Exception {
     UpgradeTask myTask = new TestUpgradeFailORSuccessTask("Test Upgrade Failed Task", VERSION_203);
     Version kvStoreVersion = VERSION_203;
-    ((TestUpgradeFailORSuccessTask)myTask).toFail = true;
+    ((TestUpgradeFailORSuccessTask) myTask).toFail = true;
 
     assertThatThrownBy(() -> tasksExecutor(kvStoreVersion, ImmutableList.of(myTask)))
-      .isInstanceOf(RuntimeException.class)
-      .hasMessageContaining("taskFailure");
+        .isInstanceOf(RuntimeException.class)
+        .hasMessageContaining("taskFailure");
 
     List<UpgradeTaskStore> upgradeEntries = upgradeStore.getAllUpgradeTasks();
     assertEquals(1, upgradeEntries.size());
     assertEquals(myTask.getTaskUUID(), upgradeEntries.get(0).getId().getId());
-    assertEquals(TestUpgradeFailORSuccessTask.class.getSimpleName(), upgradeEntries.get(0).getName());
+    assertEquals(
+        TestUpgradeFailORSuccessTask.class.getSimpleName(), upgradeEntries.get(0).getName());
     assertEquals(1, upgradeEntries.get(0).getRunsList().size());
     assertEquals(UpgradeStatus.FAILED, upgradeEntries.get(0).getRunsList().get(0).getStatus());
   }
@@ -182,7 +171,8 @@ public class TestUpgrade extends DremioTest {
     List<UpgradeTaskStore> upgradeEntries = upgradeStore.getAllUpgradeTasks();
     assertEquals(1, upgradeEntries.size());
     assertEquals(myTask.getTaskUUID(), upgradeEntries.get(0).getId().getId());
-    assertEquals(TestUpgradeFailORSuccessTask.class.getSimpleName(), upgradeEntries.get(0).getName());
+    assertEquals(
+        TestUpgradeFailORSuccessTask.class.getSimpleName(), upgradeEntries.get(0).getName());
     assertEquals(1, upgradeEntries.get(0).getRunsList().size());
     assertEquals(UpgradeStatus.COMPLETED, upgradeEntries.get(0).getRunsList().get(0).getStatus());
 
@@ -195,7 +185,8 @@ public class TestUpgrade extends DremioTest {
     upgradeEntries = upgradeStore.getAllUpgradeTasks();
     assertEquals(1, upgradeEntries.size());
     assertEquals(myTaskAgain.getTaskUUID(), upgradeEntries.get(0).getId().getId());
-    assertEquals(TestUpgradeFailORSuccessTask.class.getSimpleName(), upgradeEntries.get(0).getName());
+    assertEquals(
+        TestUpgradeFailORSuccessTask.class.getSimpleName(), upgradeEntries.get(0).getName());
     assertEquals(1, upgradeEntries.get(0).getRunsList().size());
     assertEquals(UpgradeStatus.COMPLETED, upgradeEntries.get(0).getRunsList().get(0).getStatus());
   }
@@ -205,16 +196,17 @@ public class TestUpgrade extends DremioTest {
     UpgradeTask myTask = new TestUpgradeFailORSuccessTask("Test Upgrade Failed Task", VERSION_205);
     Version kvStoreVersion = VERSION_203;
 
-    ((TestUpgradeFailORSuccessTask)myTask).toFail = true;
+    ((TestUpgradeFailORSuccessTask) myTask).toFail = true;
 
     assertThatThrownBy(() -> tasksExecutor(kvStoreVersion, ImmutableList.of(myTask)))
-      .isInstanceOf(RuntimeException.class)
-      .hasMessageContaining("taskFailure");
+        .isInstanceOf(RuntimeException.class)
+        .hasMessageContaining("taskFailure");
 
     List<UpgradeTaskStore> upgradeEntries = upgradeStore.getAllUpgradeTasks();
     assertEquals(1, upgradeEntries.size());
     assertEquals(myTask.getTaskUUID(), upgradeEntries.get(0).getId().getId());
-    assertEquals(TestUpgradeFailORSuccessTask.class.getSimpleName(), upgradeEntries.get(0).getName());
+    assertEquals(
+        TestUpgradeFailORSuccessTask.class.getSimpleName(), upgradeEntries.get(0).getName());
     assertEquals(1, upgradeEntries.get(0).getRunsList().size());
     assertEquals(UpgradeStatus.FAILED, upgradeEntries.get(0).getRunsList().get(0).getStatus());
 
@@ -223,13 +215,14 @@ public class TestUpgrade extends DremioTest {
     ((TestUpgradeFailORSuccessTask) myTaskAgain).toFail = false;
 
     assertThatThrownBy(() -> tasksExecutor(kvStoreVersion, ImmutableList.of(myTask)))
-      .isInstanceOf(RuntimeException.class)
-      .hasMessageContaining("taskFailure");
+        .isInstanceOf(RuntimeException.class)
+        .hasMessageContaining("taskFailure");
 
     upgradeEntries = upgradeStore.getAllUpgradeTasks();
     assertEquals(1, upgradeEntries.size());
     assertEquals(myTaskAgain.getTaskUUID(), upgradeEntries.get(0).getId().getId());
-    assertEquals(TestUpgradeFailORSuccessTask.class.getSimpleName(), upgradeEntries.get(0).getName());
+    assertEquals(
+        TestUpgradeFailORSuccessTask.class.getSimpleName(), upgradeEntries.get(0).getName());
     assertEquals(2, upgradeEntries.get(0).getRunsList().size());
     assertEquals(UpgradeStatus.FAILED, upgradeEntries.get(0).getRunsList().get(0).getStatus());
     assertEquals(UpgradeStatus.FAILED, upgradeEntries.get(0).getRunsList().get(1).getStatus());
@@ -246,8 +239,10 @@ public class TestUpgrade extends DremioTest {
 
     List<UpgradeTaskStore> upgradeEntries = upgradeStore.getAllUpgradeTasks();
     assertEquals(2, upgradeEntries.size());
-    Set<String> expectedNames = ImmutableSet.of(TestUpgradeTask.class.getSimpleName(),
-      TestUpgradeFailORSuccessTask.class.getSimpleName());
+    Set<String> expectedNames =
+        ImmutableSet.of(
+            TestUpgradeTask.class.getSimpleName(),
+            TestUpgradeFailORSuccessTask.class.getSimpleName());
 
     Set<String> realNames = Sets.newHashSet();
     for (UpgradeTaskStore task : upgradeEntries) {
@@ -258,10 +253,12 @@ public class TestUpgrade extends DremioTest {
     assertEquals(expectedNames, realNames);
   }
 
-  private UpgradeContext tasksExecutor(Version kvStoreVersion, List<UpgradeTask> tasks) throws Exception {
-    final UpgradeContext context = new UpgradeContext(kvStoreProvider, legacyKVStoreProvider, null, null, null);
+  private UpgradeContext tasksExecutor(Version kvStoreVersion, List<UpgradeTask> tasks)
+      throws Exception {
+    final UpgradeContext context =
+        new UpgradeContext(kvStoreProvider, legacyKVStoreProvider, null, null, null);
     List<UpgradeTask> tasksToRun = new ArrayList<>();
-    for(UpgradeTask task: tasks) {
+    for (UpgradeTask task : tasks) {
       if (upgradeStore.isUpgradeTaskCompleted(task.getTaskUUID())) {
         continue;
       }
@@ -276,7 +273,8 @@ public class TestUpgrade extends DremioTest {
     return context;
   }
 
-  private static class TestUpgradeFailORSuccessTask extends UpgradeTask implements LegacyUpgradeTask {
+  private static class TestUpgradeFailORSuccessTask extends UpgradeTask
+      implements LegacyUpgradeTask {
 
     private boolean toFail = false;
     private boolean isTaskRun = false;
@@ -335,30 +333,32 @@ public class TestUpgrade extends DremioTest {
       }
     }
   }
+
   /**
-   * Verify that we don't add a task whose version is higher than the current version,
-   * as it would create a loop where user would have to upgrade but would never be able
-   * to update the version to a greater version than the task in the kvstore.
+   * Verify that we don't add a task whose version is higher than the current version, as it would
+   * create a loop where user would have to upgrade but would never be able to update the version to
+   * a greater version than the task in the kvstore.
    */
   @Test
   public void testMaxTaskVersion() {
     DACConfig dacConfig = DACConfig.newConfig();
     Upgrade upgrade = new Upgrade(dacConfig, CLASSPATH_SCAN_RESULT, false);
-    final Optional<Version> tasksGreatestMaxVersion = upgrade.getUpgradeTasks().stream()
-      .filter((v) -> v instanceof LegacyUpgradeTask)
-      .map((v) -> ((LegacyUpgradeTask)v).getMaxVersion() )
-      .max(UPGRADE_VERSION_ORDERING);
+    final Optional<Version> tasksGreatestMaxVersion =
+        upgrade.getUpgradeTasks().stream()
+            .filter((v) -> v instanceof LegacyUpgradeTask)
+            .map((v) -> ((LegacyUpgradeTask) v).getMaxVersion())
+            .max(UPGRADE_VERSION_ORDERING);
 
     // Making sure that current version is newer that all upgrade tasks
     assertThat(UPGRADE_VERSION_ORDERING.compare(tasksGreatestMaxVersion.get(), VERSION) <= 0)
-      .as(String.format("One task has a newer version (%s) than the current server version (%s)", tasksGreatestMaxVersion.get(), VERSION))
-      .isTrue();
+        .as(
+            String.format(
+                "One task has a newer version (%s) than the current server version (%s)",
+                tasksGreatestMaxVersion.get(), VERSION))
+        .isTrue();
   }
 
-
-  /**
-   * Verify that tasks are discovered properly and are correctly ordered
-   */
+  /** Verify that tasks are discovered properly and are correctly ordered */
   @Test
   public void testTasksOrder() {
     DACConfig dacConfig = DACConfig.newConfig();
@@ -370,10 +370,13 @@ public class TestUpgrade extends DremioTest {
     boolean isMapr = Boolean.valueOf(System.getProperty("dremio.mapr.profile"));
 
     // Dremio build contains S3 plugin, UpdateS3CredentialType is included in the list of
-    // upgrade tasks. The Dremio MapR distribution does not include S3 plugin, therefore UpdateS3CredentialType
+    // upgrade tasks. The Dremio MapR distribution does not include S3 plugin, therefore
+    // UpdateS3CredentialType
     // should not be included in the list of upgrade tasks. UpdateDatasetSplitIdTask has a child,
-    // UpdateS3CredentialType, which should not be included as an upgrade task in the MapR distribution.
-    // We want to first determine whether UpdateDatasetSplitIdTask and UpdateS3CredentialType are in the list
+    // UpdateS3CredentialType, which should not be included as an upgrade task in the MapR
+    // distribution.
+    // We want to first determine whether UpdateDatasetSplitIdTask and UpdateS3CredentialType are in
+    // the list
     // of tasks, then test accordingly.
     boolean containsS3Task = false;
     int s3TaskIndex = 0;
@@ -431,10 +434,13 @@ public class TestUpgrade extends DremioTest {
     Upgrade upgrade = new Upgrade(dacConfig, CLASSPATH_SCAN_RESULT, false);
 
     List<? extends UpgradeTask> tasks = upgrade.getUpgradeTasks();
-    tasks.forEach(task -> assertNotNull(
-      String.format(
-        "Need to add UUID to task: '%s'. For example: %s", task.getTaskName(), UUID.randomUUID().toString()),
-      task.getTaskUUID()));
+    tasks.forEach(
+        task ->
+            assertNotNull(
+                String.format(
+                    "Need to add UUID to task: '%s'. For example: %s",
+                    task.getTaskName(), UUID.randomUUID().toString()),
+                task.getTaskUUID()));
   }
 
   @Test
@@ -458,10 +464,13 @@ public class TestUpgrade extends DremioTest {
     boolean isMapr = Boolean.valueOf(System.getProperty("dremio.mapr.profile"));
 
     // Dremio build contains S3 plugin, UpdateS3CredentialType is included in the list of
-    // upgrade tasks. The Dremio MapR distribution does not include S3 plugin, therefore UpdateS3CredentialType
+    // upgrade tasks. The Dremio MapR distribution does not include S3 plugin, therefore
+    // UpdateS3CredentialType
     // should not be included in the list of upgrade tasks. UpdateDatasetSplitIdTask has a child,
-    // UpdateS3CredentialType, which should not be included as an upgrade task in the MapR distribution.
-    // We want to first determine whether UpdateDatasetSplitIdTask and UpdateS3CredentialType are in the list
+    // UpdateS3CredentialType, which should not be included as an upgrade task in the MapR
+    // distribution.
+    // We want to first determine whether UpdateDatasetSplitIdTask and UpdateS3CredentialType are in
+    // the list
     // of tasks, then test accordingly.
     boolean containsS3Task = false;
     int s3TaskIndex = 0;
@@ -494,7 +503,8 @@ public class TestUpgrade extends DremioTest {
     }
 
     Collections.shuffle(tasks);
-    UpgradeTaskDependencyResolver upgradeTaskDependencyResolver = new UpgradeTaskDependencyResolver(tasks);
+    UpgradeTaskDependencyResolver upgradeTaskDependencyResolver =
+        new UpgradeTaskDependencyResolver(tasks);
     List<UpgradeTask> resolvedTasks = upgradeTaskDependencyResolver.topologicalTasksSort();
 
     // WHEN creating new UpgradeTask - please add it to the list
@@ -517,9 +527,7 @@ public class TestUpgrade extends DremioTest {
     assertThat(resolvedTasks.get(11)).isInstanceOf(DeleteSnowflakeCommunitySource.class);
   }
 
-  /**
-   * Tests illegal upgrade from OSS to EE
-   */
+  /** Tests illegal upgrade from OSS to EE */
   @Test
   public void testIllegalUpgrade() throws Exception {
     final ByteString prevEdition = ByteString.copyFrom("OSS".getBytes());
@@ -530,14 +538,15 @@ public class TestUpgrade extends DremioTest {
     kvStoreProvider.start();
     final ConfigurationStore configurationStore = new ConfigurationStore(kvStoreProvider);
     configurationStore.put(SupportService.DREMIO_EDITION, configurationEntry);
-    assertThatThrownBy(() -> new Upgrade(DACConfig.newConfig(), CLASSPATH_SCAN_RESULT, false).validateUpgrade(kvStoreProvider, "EE"))
-      .isInstanceOf(Exception.class)
-      .hasMessageContaining("Illegal upgrade from OSS to EE");
+    assertThatThrownBy(
+            () ->
+                new Upgrade(DACConfig.newConfig(), CLASSPATH_SCAN_RESULT, false)
+                    .validateUpgrade(kvStoreProvider, "EE"))
+        .isInstanceOf(Exception.class)
+        .hasMessageContaining("Illegal upgrade from OSS to EE");
   }
 
-  /**
-   * Test legal upgrade if prior dremio edition is not specified or editions match
-   */
+  /** Test legal upgrade if prior dremio edition is not specified or editions match */
   @Test
   public void testLegalUpgrade() throws Exception {
     final ByteString prevEdition = ByteString.copyFrom("OSS".getBytes());
@@ -547,8 +556,10 @@ public class TestUpgrade extends DremioTest {
         LegacyKVStoreProviderAdapter.inMemory(CLASSPATH_SCAN_RESULT);
     kvStoreProvider.start();
     final ConfigurationStore configurationStore = new ConfigurationStore(kvStoreProvider);
-    new Upgrade(DACConfig.newConfig(), CLASSPATH_SCAN_RESULT, false).validateUpgrade(kvStoreProvider, "OSS");
+    new Upgrade(DACConfig.newConfig(), CLASSPATH_SCAN_RESULT, false)
+        .validateUpgrade(kvStoreProvider, "OSS");
     configurationStore.put(SupportService.DREMIO_EDITION, configurationEntry);
-    new Upgrade(DACConfig.newConfig(), CLASSPATH_SCAN_RESULT, false).validateUpgrade(kvStoreProvider, "OSS");
+    new Upgrade(DACConfig.newConfig(), CLASSPATH_SCAN_RESULT, false)
+        .validateUpgrade(kvStoreProvider, "OSS");
   }
 }

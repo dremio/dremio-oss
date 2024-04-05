@@ -15,15 +15,11 @@
  */
 package com.dremio.dac.model.job;
 
-
+import com.dremio.dac.util.JSONUtil;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.dremio.dac.util.JSONUtil;
-
-/**
- * JobFilterItems model
- */
+/** JobFilterItems model */
 public class JobFilterItems {
   private List<JobFilterItem> items;
 

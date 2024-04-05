@@ -20,8 +20,8 @@ import com.dremio.datastore.DatastoreFatalException;
 import com.dremio.datastore.FormatVisitor;
 
 /**
- * A format that converts some non-supported type
- * into a supported one.
+ * A format that converts some non-supported type into a supported one.
+ *
  * @param <OUTER> The outside type visible to the KVStore user
  * @param <INNER> The inner type used internally for serialization. Not visible to the user
  */

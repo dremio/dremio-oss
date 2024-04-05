@@ -15,9 +15,7 @@
  */
 package com.dremio.connector.metadata;
 
-/**
- * Default implementation.
- */
+/** Default implementation. */
 final class DatasetStatsImpl implements DatasetStats {
 
   private final long recordCount;
@@ -25,8 +23,8 @@ final class DatasetStatsImpl implements DatasetStats {
   private final double scanFactor;
 
   /**
-   *
-   * @param recordCount record count. A negative record count indicates getRecordCount() is unsupported.
+   * @param recordCount record count. A negative record count indicates getRecordCount() is
+   *     unsupported.
    * @param isExactRecordCount if record count is exact.
    * @param scanFactor scan factor.
    */

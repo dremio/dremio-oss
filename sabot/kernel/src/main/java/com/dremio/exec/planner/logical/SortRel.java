@@ -15,33 +15,44 @@
  */
 package com.dremio.exec.planner.logical;
 
+import com.dremio.exec.planner.common.SortRelBase;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelCollation;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rex.RexNode;
 
-import com.dremio.exec.planner.common.SortRelBase;
-
-/**
- * Sort implemented in Dremio.
- */
+/** Sort implemented in Dremio. */
 public class SortRel extends SortRelBase implements Rel {
   /** Creates a SortRel with offset and fetch. */
-  private SortRel(RelOptCluster cluster, RelTraitSet traits, RelNode input, RelCollation collation, RexNode offset, RexNode fetch) {
+  private SortRel(
+      RelOptCluster cluster,
+      RelTraitSet traits,
+      RelNode input,
+      RelCollation collation,
+      RexNode offset,
+      RexNode fetch) {
     super(cluster, traits, input, collation, offset, fetch);
   }
 
   @Override
-  public SortRel copy(RelTraitSet traitSet, RelNode input, RelCollation collation, RexNode offset, RexNode fetch) {
+  public SortRel copy(
+      RelTraitSet traitSet, RelNode input, RelCollation collation, RexNode offset, RexNode fetch) {
     return SortRel.create(getCluster(), traitSet, input, collation, offset, fetch);
   }
 
-  public static SortRel create(RelOptCluster cluster, RelTraitSet traits, RelNode input, RelCollation collation) {
+  public static SortRel create(
+      RelOptCluster cluster, RelTraitSet traits, RelNode input, RelCollation collation) {
     return create(cluster, traits, input, collation, null, null);
   }
 
-  public static SortRel create(RelOptCluster cluster, RelTraitSet traits, RelNode input, RelCollation collation, RexNode offset, RexNode fetch) {
+  public static SortRel create(
+      RelOptCluster cluster,
+      RelTraitSet traits,
+      RelNode input,
+      RelCollation collation,
+      RexNode offset,
+      RexNode fetch) {
     final RelTraitSet adjustedTraits = adjustTraits(traits, collation);
     return new SortRel(cluster, adjustedTraits, input, collation, offset, fetch);
   }

@@ -18,23 +18,23 @@ package com.dremio.dac.util;
 import com.dremio.dac.model.usergroup.UserLite;
 import com.dremio.service.users.User;
 
-/**
- * Util class for User resources.
- */
+/** Util class for User resources. */
 public final class UserUtil {
   private UserUtil() {}
 
   /**
    * Converts @{@link User} to {@link UserLite}
+   *
    * @param user
    * @return
    */
   public static UserLite toUserLite(final User user) {
     return UserLite.newBuilder()
-      .setUID(user.getUID())
-      .setUserName(user.getUserName())
-      .setFirstName(user.getFirstName())
-      .setLastName(user.getLastName())
-      .setActive(user.isActive()).build();
+        .setUID(user.getUID())
+        .setUserName(user.getUserName())
+        .setFirstName(user.getFirstName())
+        .setLastName(user.getLastName())
+        .setActive(user.isActive())
+        .build();
   }
 }

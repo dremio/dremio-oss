@@ -17,14 +17,13 @@ package com.dremio.exec.store.dfs;
 
 import com.dremio.options.OptionManager;
 
-/**
- * Interface for plugin implementations to communicate cache properties to underlying system.
- */
+/** Interface for plugin implementations to communicate cache properties to underlying system. */
 public interface CacheProperties {
   /**
-   * Indicates that the plugin requests caching whenever possible.
-   * (Note that even if plugin requests caching, underlying Dremio system must support caching and the source
-   * must have async reads enabled.)
+   * Indicates that the plugin requests caching whenever possible. (Note that even if plugin
+   * requests caching, underlying Dremio system must support caching and the source must have async
+   * reads enabled.)
+   *
    * @return {@code true} if caching is requested.
    */
   default boolean isCachingEnabled(final OptionManager optionManager) {
@@ -32,8 +31,9 @@ public interface CacheProperties {
   }
 
   /**
-   * If caching is enabled and this feature is supported by underlying Dremio system, this controls the max amount
-   * of disk space that can be used to cache data for this source.
+   * If caching is enabled and this feature is supported by underlying Dremio system, this controls
+   * the max amount of disk space that can be used to cache data for this source.
+   *
    * @return {@code percentage} of max disk space to be used for this source, default is 100%.
    */
   default int cacheMaxSpaceLimitPct() {

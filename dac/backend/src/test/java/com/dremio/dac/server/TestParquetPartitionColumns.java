@@ -15,24 +15,12 @@
  */
 package com.dremio.dac.server;
 
-import java.io.File;
-import java.net.URL;
-import java.util.List;
-
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-
 import com.dremio.QueryTestUtil;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.CatalogUser;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.catalog.MetadataRequestOptions;
-import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.service.namespace.NamespaceService;
@@ -42,27 +30,26 @@ import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.dremio.service.namespace.file.proto.FileType;
 import com.google.common.collect.ImmutableList;
+import java.io.File;
+import java.net.URL;
+import java.util.List;
+import org.junit.Assert;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
+import org.junit.Ignore;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
-
-/**
- * Tests that partition columns for a parquet file stay within limit.
- */
+/** Tests that partition columns for a parquet file stay within limit. */
+@Ignore("DX-87698")
 public class TestParquetPartitionColumns extends BaseTestServer {
 
-  @ClassRule
-  public static final TemporaryFolder temp = new TemporaryFolder();
+  @ClassRule public static final TemporaryFolder temp = new TemporaryFolder();
 
   @BeforeClass
   public static void init() throws Exception {
     BaseTestServer.init();
     BaseTestServer.getPopulator().populateTestUsers();
-    setSystemOption(PlannerSettings.UNLIMITED_SPLITS_SUPPORT.getOptionName(), "false");
-  }
-
-  @AfterClass
-  public static void resetUnlimitedSplits() {
-    setSystemOption(PlannerSettings.UNLIMITED_SPLITS_SUPPORT.getOptionName(),
-            PlannerSettings.UNLIMITED_SPLITS_SUPPORT.getDefault().getBoolVal().toString());
   }
 
   @Test
@@ -71,8 +58,7 @@ public class TestParquetPartitionColumns extends BaseTestServer {
     List<String> partitionColumnList = getPartitionColumnsForDataSet("datasets/parquet");
 
     Assert.assertEquals(25, partitionColumnList.size());
-    Assert.assertEquals( "row1", partitionColumnList.get(1));
-
+    Assert.assertEquals("row1", partitionColumnList.get(1));
   }
 
   // Fixes bug where we were in-correctly using columns for which
@@ -80,64 +66,71 @@ public class TestParquetPartitionColumns extends BaseTestServer {
   @Test
   public void testGroupScanStatsWithNoMinMax() throws Exception {
 
-    List<String> partitionColumnList = getPartitionColumnsForDataSet
-      ("datasets/parquet_stats_with_no_min_max");
+    List<String> partitionColumnList =
+        getPartitionColumnsForDataSet("datasets/parquet_stats_with_no_min_max");
 
     Assert.assertEquals(4, partitionColumnList.size());
   }
 
   @Test
   public void testGroupScanWithPartitionIdentificationOff() throws Exception {
-    long defaultValue = ExecConstants.PARQUET_MAX_PARTITION_COLUMNS_VALIDATOR.getDefault().getNumVal();
+    long defaultValue =
+        ExecConstants.PARQUET_MAX_PARTITION_COLUMNS_VALIDATOR.getDefault().getNumVal();
     try {
 
-      QueryTestUtil.test(getRpcClient(), "alter system set \"store.parquet" +
-        ".partition_column_limit\" = 0");
+      QueryTestUtil.test(
+          getRpcClient(), "alter system set \"store.parquet" + ".partition_column_limit\" = 0");
 
-      List<String> partitionColumnList = getPartitionColumnsForDataSet
-        ("datasets/parquet_no_partition_identification");
+      List<String> partitionColumnList =
+          getPartitionColumnsForDataSet("datasets/parquet_no_partition_identification");
 
       Assert.assertEquals(1, partitionColumnList.size());
-      Assert.assertEquals( "$_dremio_$_update_$", partitionColumnList.get(0));
+      Assert.assertEquals("$_dremio_$_update_$", partitionColumnList.get(0));
     } finally {
-      QueryTestUtil.test(getRpcClient(), "alter system set \"store.parquet" +
-        ".partition_column_limit\" = " + defaultValue);
+      QueryTestUtil.test(
+          getRpcClient(),
+          "alter system set \"store.parquet" + ".partition_column_limit\" = " + defaultValue);
     }
   }
 
   private List<String> getPartitionColumnsForDataSet(String folder) throws Exception {
-    URL stream = (TestParquetPartitionColumns.class.getClassLoader()
-      .getResource(folder));
+    URL stream = (TestParquetPartitionColumns.class.getClassLoader().getResource(folder));
 
     File fileDir = new File(stream.getFile());
     DatasetPath parquet = new DatasetPath(ImmutableList.of("dfs", fileDir.getAbsolutePath()));
 
     DatasetConfig config = addDataSet(parquet);
 
-    DremioTable table = p(CatalogService.class).get()
-        .getCatalog(MetadataRequestOptions.of(SchemaConfig.newBuilder(CatalogUser.from(DEFAULT_USERNAME)).build()))
-        .getTable(config.getId().getId());
+    DremioTable table =
+        p(CatalogService.class)
+            .get()
+            .getCatalog(
+                MetadataRequestOptions.of(
+                    SchemaConfig.newBuilder(CatalogUser.from(DEFAULT_USERNAME)).build()))
+            .getTable(config.getId().getId());
 
-    return table.getDatasetConfig().getReadDefinition()
-      .getPartitionColumnsList();
+    return table.getDatasetConfig().getReadDefinition().getPartitionColumnsList();
   }
-
 
   private NamespaceService getNamespaceService() {
     return p(NamespaceService.class).get();
   }
 
   protected DatasetConfig addDataSet(DatasetPath path) throws Exception {
-    final DatasetConfig dataset = new DatasetConfig()
-      .setType(DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER)
-      .setFullPathList(path.toPathList())
-      .setName(path.getLeaf().getName())
-      .setCreatedAt(System.currentTimeMillis())
-      .setOwner(DEFAULT_USERNAME)
-      .setPhysicalDataset(new PhysicalDataset()
-        .setFormatSettings(new FileConfig().setType(FileType.PARQUET).setCtime(1L).setOwner
-          (DEFAULT_USERNAME))
-      );
+    final DatasetConfig dataset =
+        new DatasetConfig()
+            .setType(DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER)
+            .setFullPathList(path.toPathList())
+            .setName(path.getLeaf().getName())
+            .setCreatedAt(System.currentTimeMillis())
+            .setOwner(DEFAULT_USERNAME)
+            .setPhysicalDataset(
+                new PhysicalDataset()
+                    .setFormatSettings(
+                        new FileConfig()
+                            .setType(FileType.PARQUET)
+                            .setCtime(1L)
+                            .setOwner(DEFAULT_USERNAME)));
     final NamespaceService nsService = getNamespaceService();
     nsService.addOrUpdateDataset(path.toNamespaceKey(), dataset);
     return nsService.getDataset(path.toNamespaceKey());

@@ -17,51 +17,54 @@ package com.dremio.telemetry.impl.config.metrics;
 
 import static org.junit.Assert.assertEquals;
 
-import java.io.IOException;
-import java.lang.management.ManagementFactory;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
-
-import javax.management.MalformedObjectNameException;
-import javax.management.ObjectInstance;
-import javax.management.ObjectName;
-
-import org.junit.Test;
-
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.Metric;
 import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
+import java.io.IOException;
+import java.lang.management.ManagementFactory;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import javax.management.MalformedObjectNameException;
+import javax.management.ObjectInstance;
+import javax.management.ObjectName;
+import org.junit.Test;
 
-/**
- * Tests JmxConfigurator
- */
+/** Tests JmxConfigurator */
 public class TestJmxConfigurator {
   private static final String NAME = "jmx-test-counter";
   private static final String OBJECT_NAME = "metrics:name=" + NAME + ",type=counters";
 
   @Test
-  public void testConfigureAndStart() throws IOException, InterruptedException, MalformedObjectNameException {
+  public void testConfigureAndStart()
+      throws IOException, InterruptedException, MalformedObjectNameException {
     // Arrange
     final MetricRegistry metrics = new MetricRegistry();
-    metrics.counter(NAME, () -> {
-      Counter counter = new Counter();
-      counter.inc(1234);
-      return counter;
-    });
+    metrics.counter(
+        NAME,
+        () -> {
+          Counter counter = new Counter();
+          counter.inc(1234);
+          return counter;
+        });
 
-    final JmxConfigurator configurator = new JmxConfigurator(TimeUnit.SECONDS, TimeUnit.MILLISECONDS);
+    final JmxConfigurator configurator =
+        new JmxConfigurator(TimeUnit.SECONDS, TimeUnit.MILLISECONDS);
 
     // Act
-    configurator.configureAndStart("test", metrics, new MetricFilter() {
-      @Override
-      public boolean matches(String s, Metric metric) {
-        return true;
-      }
-    });
+    configurator.configureAndStart(
+        "test",
+        metrics,
+        new MetricFilter() {
+          @Override
+          public boolean matches(String s, Metric metric) {
+            return true;
+          }
+        });
 
     // Assert
-    final Set<ObjectInstance> beans = ManagementFactory.getPlatformMBeanServer().queryMBeans(new ObjectName(OBJECT_NAME), null);
+    final Set<ObjectInstance> beans =
+        ManagementFactory.getPlatformMBeanServer().queryMBeans(new ObjectName(OBJECT_NAME), null);
 
     assertEquals(1, beans.size());
     assertEquals(OBJECT_NAME, beans.iterator().next().getObjectName().getCanonicalName());

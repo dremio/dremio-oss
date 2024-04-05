@@ -15,13 +15,6 @@
  */
 package com.dremio.dac.model.job;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.stream.Collectors;
-
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.record.RecordBatchData;
 import com.dremio.exec.record.RecordBatchHolder;
@@ -30,19 +23,30 @@ import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.SessionId;
 import com.dremio.service.jobs.JobDataFragmentImpl;
 import com.dremio.service.jobs.RecordBatches;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
+import org.apache.arrow.memory.BufferAllocator;
 
-/**
- * JobDataFragment that releases/closes itself after serialization.
- */
+/** JobDataFragment that releases/closes itself after serialization. */
 public class ReleasingData extends JobDataFragmentImpl implements ReleaseAfterSerialization {
 
   private final AutoCloseables.RollbackCloseable closeable;
 
   public ReleasingData(AutoCloseables.RollbackCloseable closeable, RBDList rbdList) {
-    this(closeable, rbdList.toRecordBatches(), new JobId("preview-job"), new SessionId().setId("preview-session"));
+    this(
+        closeable,
+        rbdList.toRecordBatches(),
+        new JobId("preview-job"),
+        new SessionId().setId("preview-session"));
   }
 
-  private ReleasingData(AutoCloseables.RollbackCloseable closeable, RecordBatches recordBatches, JobId jobId, SessionId sessionId) {
+  private ReleasingData(
+      AutoCloseables.RollbackCloseable closeable,
+      RecordBatches recordBatches,
+      JobId jobId,
+      SessionId sessionId) {
     super(recordBatches, 0, jobId, sessionId);
     this.closeable = closeable;
   }
@@ -64,9 +68,7 @@ public class ReleasingData extends JobDataFragmentImpl implements ReleaseAfterSe
     AutoCloseables.closeNoChecked(AutoCloseables.all(closeables));
   }
 
-  /**
-   * RecordBatchData List
-   */
+  /** RecordBatchData List */
   public static class RBDList implements AutoCloseable {
 
     private final List<RecordBatchData> batches = new ArrayList<>();
@@ -90,10 +92,10 @@ public class ReleasingData extends JobDataFragmentImpl implements ReleaseAfterSe
     }
 
     public RecordBatches toRecordBatches() {
-      return new RecordBatches(batches.stream()
-        .map(t -> RecordBatchHolder.newRecordBatchHolder(t, 0, t.getRecordCount()))
-        .collect(Collectors.toList())
-      );
+      return new RecordBatches(
+          batches.stream()
+              .map(t -> RecordBatchHolder.newRecordBatchHolder(t, 0, t.getRecordCount()))
+              .collect(Collectors.toList()));
     }
 
     public int size() {

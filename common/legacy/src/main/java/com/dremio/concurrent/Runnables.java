@@ -15,9 +15,7 @@
  */
 package com.dremio.concurrent;
 
-/**
- * Utility class to wrap runnables.
- */
+/** Utility class to wrap runnables. */
 public final class Runnables {
 
   private Runnables() {}
@@ -44,7 +42,6 @@ public final class Runnables {
       public void run() {
         runnable.run();
       }
-
     }.start();
   }
 }

@@ -26,7 +26,8 @@ public abstract class ConversionContext {
     private final AuthorizationContext authContext;
     private final DatasetConfig datasetConfig;
 
-    public NamespaceConversionContext(final AuthorizationContext authContext, final DatasetConfig datasetConfig) {
+    public NamespaceConversionContext(
+        final AuthorizationContext authContext, final DatasetConfig datasetConfig) {
       this.datasetConfig = datasetConfig;
       this.authContext = authContext;
     }

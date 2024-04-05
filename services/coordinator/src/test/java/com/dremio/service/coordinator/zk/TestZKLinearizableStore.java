@@ -30,40 +30,40 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import com.dremio.io.file.Path;
+import com.dremio.service.coordinator.LinearizableHierarchicalStore;
+import com.dremio.service.coordinator.exceptions.PathExistsException;
+import com.dremio.service.coordinator.exceptions.PathMissingException;
+import com.dremio.test.zookeeper.ZkTestServerRule;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.Timeout;
 
-import com.dremio.io.file.Path;
-import com.dremio.service.coordinator.LinearizableHierarchicalStore;
-import com.dremio.service.coordinator.exceptions.PathExistsException;
-import com.dremio.service.coordinator.exceptions.PathMissingException;
-import com.dremio.test.zookeeper.ZkTestServerRule;
-
 public class TestZKLinearizableStore {
   private static final String TEST_CLUSTER_FORMAT = "%s/dremio/test/test-clustered";
 
-  @Rule
-  public final ZkTestServerRule zooKeeperServer = new ZkTestServerRule();
-  @Rule
-  public Timeout globalTimeout = new Timeout(60, TimeUnit.SECONDS);
+  @Rule public final ZkTestServerRule zooKeeperServer = new ZkTestServerRule();
+  @Rule public Timeout globalTimeout = new Timeout(60, TimeUnit.SECONDS);
   private ZKClusterCoordinator zkCoordinator1;
   private ZKClusterCoordinator zkCoordinator2;
 
   @Before
   public void setup() throws Exception {
-    zkCoordinator1 = new ZKClusterCoordinator(DEFAULT_SABOT_CONFIG,
-      String.format(TEST_CLUSTER_FORMAT, zooKeeperServer.getConnectionString()));
-    zkCoordinator2 = new ZKClusterCoordinator(DEFAULT_SABOT_CONFIG,
-      String.format(TEST_CLUSTER_FORMAT, zooKeeperServer.getConnectionString()));
+    zkCoordinator1 =
+        new ZKClusterCoordinator(
+            DEFAULT_SABOT_CONFIG,
+            String.format(TEST_CLUSTER_FORMAT, zooKeeperServer.getConnectionString()));
+    zkCoordinator2 =
+        new ZKClusterCoordinator(
+            DEFAULT_SABOT_CONFIG,
+            String.format(TEST_CLUSTER_FORMAT, zooKeeperServer.getConnectionString()));
     zkCoordinator1.start();
     zkCoordinator2.start();
   }
@@ -208,10 +208,13 @@ public class TestZKLinearizableStore {
     assertTrue(store1.checkExists(path));
     final CountDownLatch latch = new CountDownLatch(1);
     final AtomicInteger watchCount = new AtomicInteger(0);
-    store1.whenCreated(bookPath).thenRun(() -> {
-      watchCount.incrementAndGet();
-      latch.countDown();
-    });
+    store1
+        .whenCreated(bookPath)
+        .thenRun(
+            () -> {
+              watchCount.incrementAndGet();
+              latch.countDown();
+            });
     final LinearizableHierarchicalStore store2 = zkCoordinator2.getHierarchicalStore();
     store2.executeSingle(new PathCommand(CREATE_EPHEMERAL, bookPath));
     latch.await();
@@ -230,10 +233,13 @@ public class TestZKLinearizableStore {
     final LinearizableHierarchicalStore store2 = zkCoordinator2.getHierarchicalStore();
     final CountDownLatch latch = new CountDownLatch(1);
     final AtomicInteger watchCount = new AtomicInteger(0);
-    store2.whenDeleted(bookPath).thenRun(() -> {
-      watchCount.incrementAndGet();
-      latch.countDown();
-    });
+    store2
+        .whenDeleted(bookPath)
+        .thenRun(
+            () -> {
+              watchCount.incrementAndGet();
+              latch.countDown();
+            });
     assertTrue(store1.checkExists(path));
     zkCoordinator1.close();
     latch.await();
@@ -273,10 +279,13 @@ public class TestZKLinearizableStore {
     final CountDownLatch latch = new CountDownLatch(1);
     final AtomicInteger watchCount = new AtomicInteger(0);
     try {
-      store2.whenDeleted(bookPath).thenRun(() -> {
-        watchCount.incrementAndGet();
-        latch.countDown();
-      });
+      store2
+          .whenDeleted(bookPath)
+          .thenRun(
+              () -> {
+                watchCount.incrementAndGet();
+                latch.countDown();
+              });
       fail("Path " + bookPath + " should not be existing");
     } catch (PathMissingException e) {
       assertThat(e.getMessage()).contains(bookPath);
@@ -288,12 +297,55 @@ public class TestZKLinearizableStore {
     } catch (PathExistsException e) {
       assertThat(e.getMessage()).contains(bookPath);
     }
-    store2.whenDeleted(bookPath).thenRun(() -> {
-      watchCount.incrementAndGet();
-      latch.countDown();
-    });
+    store2
+        .whenDeleted(bookPath)
+        .thenRun(
+            () -> {
+              watchCount.incrementAndGet();
+              latch.countDown();
+            });
     assertTrue(store1.checkExists(path));
     zkCoordinator1.close();
+    latch.await();
+    assertEquals(watchCount.get(), 1);
+  }
+
+  @Test
+  public void testWatcherPersistenceWithRestartServer() throws Exception {
+    final LinearizableHierarchicalStore store1 = zkCoordinator1.getHierarchicalStore();
+    final String path = Path.SEPARATOR + "task50";
+    final String bookPath = path + Path.SEPARATOR + "book";
+    store1.executeSingle(new PathCommand(CREATE_PERSISTENT, path));
+    store1.executeSingle(new PathCommand(CREATE_EPHEMERAL, bookPath));
+    assertTrue(store1.checkExists(path));
+    assertNull(store1.getData(path));
+
+    final LinearizableHierarchicalStore store2 = zkCoordinator2.getHierarchicalStore();
+    final CountDownLatch latch = new CountDownLatch(1);
+    final AtomicInteger watchCount = new AtomicInteger(0);
+    try {
+      store2
+          .whenCreated(bookPath)
+          .thenRun(
+              () -> {
+                watchCount.incrementAndGet();
+                latch.countDown();
+              });
+      fail("Path " + bookPath + " should be existing");
+    } catch (PathExistsException e) {
+      assertThat(e.getMessage()).contains(bookPath);
+    }
+    store1.executeSingle(new PathCommand(DELETE, bookPath));
+    store2
+        .whenCreated(bookPath)
+        .thenRun(
+            () -> {
+              watchCount.incrementAndGet();
+              latch.countDown();
+            });
+    zooKeeperServer.restartServer();
+    store1.executeSingle(new PathCommand(CREATE_EPHEMERAL, bookPath));
+    assertTrue(store1.checkExists(path));
     latch.await();
     assertEquals(watchCount.get(), 1);
   }
@@ -315,12 +367,13 @@ public class TestZKLinearizableStore {
     final CountDownLatch latch = new CountDownLatch(1);
     final AtomicInteger watchCount = new AtomicInteger(0);
     final CompletableFuture<Void> onChange = new CompletableFuture<>();
-    onChange.thenRun(() -> {
-      watchCount.incrementAndGet();
-      assertFalse(store2.checkExists(bookPath));
-      assertTrue(store2.checkExists(stealTaskPath));
-      latch.countDown();
-    });
+    onChange.thenRun(
+        () -> {
+          watchCount.incrementAndGet();
+          assertFalse(store2.checkExists(bookPath));
+          assertTrue(store2.checkExists(stealTaskPath));
+          latch.countDown();
+        });
     List<String> children = store2.getChildren(stealPath, onChange);
     assertThat(children.size()).isEqualTo(0);
     final PathCommand releaseBookingCommand = new PathCommand(DELETE, bookPath);

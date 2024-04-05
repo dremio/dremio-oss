@@ -17,12 +17,16 @@ package com.dremio.exec.store.mfunctions;
 
 import static com.dremio.exec.store.iceberg.IcebergUtils.writeToVector;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.common.expression.SchemaPath;
+import com.dremio.sabot.op.scan.OutputMutator;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Maps;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.ValueVector;
@@ -40,15 +44,7 @@ import org.apache.iceberg.io.CloseableIterator;
 import org.apache.iceberg.types.Types;
 import org.apache.iceberg.types.Types.NestedField;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.common.expression.SchemaPath;
-import com.dremio.sabot.op.scan.OutputMutator;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Maps;
-
-/**
- * A value vector write for iceberg metadata functions.
- */
+/** A value vector write for iceberg metadata functions. */
 final class IcebergMetadataValueVectorWriter {
 
   private final OutputMutator output;
@@ -61,8 +57,14 @@ final class IcebergMetadataValueVectorWriter {
   private CloseableIterator<StructLike> recordsIterator;
   private PartitionSpec spec;
 
-  public IcebergMetadataValueVectorWriter(OutputMutator output, int targetBatchSize, List<SchemaPath> columns, Schema icebergSchema,
-                                          PartitionSpec spec, CloseableIterator<FileScanTask> iterator, ArrowBuf tmpBuf) {
+  public IcebergMetadataValueVectorWriter(
+      OutputMutator output,
+      int targetBatchSize,
+      List<SchemaPath> columns,
+      Schema icebergSchema,
+      PartitionSpec spec,
+      CloseableIterator<FileScanTask> iterator,
+      ArrowBuf tmpBuf) {
     Preconditions.checkNotNull(tmpBuf);
     this.output = output;
     this.targetBatchSize = targetBatchSize;
@@ -75,8 +77,13 @@ final class IcebergMetadataValueVectorWriter {
     this.spec = spec;
   }
 
-  public IcebergMetadataValueVectorWriter(OutputMutator output, int targetBatchSize, List<SchemaPath> columns, Schema icebergSchema,
-                                          CloseableIterator<FileScanTask> iterator, ArrowBuf tmpBuf) {
+  public IcebergMetadataValueVectorWriter(
+      OutputMutator output,
+      int targetBatchSize,
+      List<SchemaPath> columns,
+      Schema icebergSchema,
+      CloseableIterator<FileScanTask> iterator,
+      ArrowBuf tmpBuf) {
     Preconditions.checkNotNull(tmpBuf);
     this.output = output;
     this.targetBatchSize = targetBatchSize;
@@ -92,10 +99,14 @@ final class IcebergMetadataValueVectorWriter {
   public int write() {
     int outIndex = 0;
     try {
-      //Check if any records are pending from previous call with recordsIterator when ( total records > targetBatchSize)
+      // Check if any records are pending from previous call with recordsIterator when ( total
+      // records > targetBatchSize)
       while (recordsIterator != null || iterator.hasNext()) {
-        //Initialize recordsIterator only when it is null.
-        recordsIterator = recordsIterator == null ? iterator.next().asDataTask().rows().iterator() : recordsIterator;
+        // Initialize recordsIterator only when it is null.
+        recordsIterator =
+            recordsIterator == null
+                ? iterator.next().asDataTask().rows().iterator()
+                : recordsIterator;
         while (recordsIterator.hasNext() && outIndex < targetBatchSize) {
           StructLike structLike = recordsIterator.next();
           for (SchemaPath column : projectedColumns) {
@@ -108,7 +119,8 @@ final class IcebergMetadataValueVectorWriter {
             } else if (targetVector instanceof StructVector) {
               StructVector vector = (StructVector) targetVector;
               writeToMapVector(vector, outIndex, (Map<String, String>) valueToWrite);
-            } else if (rootColumn.toLowerCase(Locale.ROOT).equals("partition") && valueToWrite instanceof StructLike) {
+            } else if (rootColumn.toLowerCase(Locale.ROOT).equals("partition")
+                && valueToWrite instanceof StructLike) {
               writeToVector(targetVector, outIndex, getPartitionData((StructLike) valueToWrite));
             } else {
               writeToVector(targetVector, outIndex, valueToWrite);
@@ -126,22 +138,19 @@ final class IcebergMetadataValueVectorWriter {
       final int valueCount = outIndex;
       output.getVectors().forEach(v -> v.setValueCount(valueCount));
     } catch (Exception e) {
-      throw UserException
-        .dataReadError(e)
-        .buildSilently();
+      throw UserException.dataReadError(e).buildSilently();
     }
     return outIndex;
   }
 
   /**
-   * Use this method to update Struct/Map type of vector using Map as values.
-   * This is very tightly coupled with Value as <String, String>.
-   * Eg: Snapshots -> summary
+   * Use this method to update Struct/Map type of vector using Map as values. This is very tightly
+   * coupled with Value as <String, String>. Eg: Snapshots -> summary
    */
   private void writeToMapVector(StructVector vector, int outIndex, Map<String, String> data) {
     BaseWriter.StructWriter structWriter = vector.getWriter();
     structWriter.setPosition(outIndex);
-    if (data == null ) {
+    if (data == null) {
       structWriter.writeNull();
       return;
     }
@@ -151,15 +160,19 @@ final class IcebergMetadataValueVectorWriter {
       Field field = childrenFromField.getField();
       switch (field.getFieldType().getType().getTypeID()) {
         case Bool:
-          writeBoolValue(structWriter, field.getName(),
-            Optional.ofNullable(data.get(field.getName()))
-              .map(Boolean::parseBoolean));
+          writeBoolValue(
+              structWriter,
+              field.getName(),
+              Optional.ofNullable(data.get(field.getName())).map(Boolean::parseBoolean));
           break;
         case Int:
-          writeIntValue(structWriter, field.getName(),
-            Optional.ofNullable(data.get(field.getName()))
-              .map(Integer::parseInt));
-          structWriter.integer(field.getName()).writeInt(Integer.parseInt(data.get(field.getName())));
+          writeIntValue(
+              structWriter,
+              field.getName(),
+              Optional.ofNullable(data.get(field.getName())).map(Integer::parseInt));
+          structWriter
+              .integer(field.getName())
+              .writeInt(Integer.parseInt(data.get(field.getName())));
           break;
         case Utf8:
           writeStringValue(structWriter, field.getName(), data.get(field.getName()));
@@ -169,7 +182,8 @@ final class IcebergMetadataValueVectorWriter {
     structWriter.end();
   }
 
-  private void writeStringValue(BaseWriter.StructWriter structWriter, String fieldName, String value) {
+  private void writeStringValue(
+      BaseWriter.StructWriter structWriter, String fieldName, String value) {
     if (value == null) {
       structWriter.varChar(fieldName).writeNull();
     } else {
@@ -180,7 +194,8 @@ final class IcebergMetadataValueVectorWriter {
     }
   }
 
-  private void writeBoolValue(BaseWriter.StructWriter structWriter, String fieldName, Optional<Boolean> value) {
+  private void writeBoolValue(
+      BaseWriter.StructWriter structWriter, String fieldName, Optional<Boolean> value) {
     if (value.isPresent()) {
       structWriter.bit(fieldName).writeBit(value.get() ? 1 : 0);
     } else {
@@ -188,7 +203,8 @@ final class IcebergMetadataValueVectorWriter {
     }
   }
 
-  private void writeIntValue(BaseWriter.StructWriter structWriter, String fieldName, Optional<Integer> value) {
+  private void writeIntValue(
+      BaseWriter.StructWriter structWriter, String fieldName, Optional<Integer> value) {
     if (value.isPresent()) {
       structWriter.integer(fieldName).writeInt(value.get());
     } else {
@@ -201,7 +217,9 @@ final class IcebergMetadataValueVectorWriter {
     stringBuilder.append("{");
     Preconditions.checkNotNull(spec, "Partition Spec not found");
     List<Types.NestedField> fields = spec.partitionType().asStructType().fields();
-    Preconditions.checkState(fields.size() == data.size(), "Number of partition columns not match in partition spec and partition data");
+    Preconditions.checkState(
+        fields.size() == data.size(),
+        "Number of partition columns not match in partition spec and partition data");
     for (int pos = 0; pos < fields.size(); pos++) {
       Types.NestedField nestedField = fields.get(pos);
       Object partitionValue = data.get(pos, nestedField.type().typeId().javaClass());
@@ -218,8 +236,8 @@ final class IcebergMetadataValueVectorWriter {
   }
 
   /**
-   * Use this method to write to list vector. It reads from structLike data.
-   * eg: manifests -> partition_summaries
+   * Use this method to write to list vector. It reads from structLike data. eg: manifests ->
+   * partition_summaries
    */
   private void writeToListVector(ListVector vector, int outIndex, Object data) {
     UnionListWriter writer = vector.getWriter();
@@ -230,7 +248,8 @@ final class IcebergMetadataValueVectorWriter {
     }
     writer.startList();
     BaseWriter.StructWriter structWriter = writer.struct();
-    List<FieldVector> childrenFromFields = vector.getChildrenFromFields().get(0).getChildrenFromFields();
+    List<FieldVector> childrenFromFields =
+        vector.getChildrenFromFields().get(0).getChildrenFromFields();
     if (data instanceof List) {
       for (StructLike structLike : (List<StructLike>) data) {
         structWriter.start();
@@ -238,8 +257,10 @@ final class IcebergMetadataValueVectorWriter {
           Field field = childrenFromFields.get(i).getField();
           switch (field.getFieldType().getType().getTypeID()) {
             case Bool:
-              writeBoolValue(structWriter, field.getName(),
-                Optional.ofNullable(structLike.get(i, Boolean.class)));
+              writeBoolValue(
+                  structWriter,
+                  field.getName(),
+                  Optional.ofNullable(structLike.get(i, Boolean.class)));
               break;
             case Utf8:
               writeStringValue(structWriter, field.getName(), structLike.get(i, String.class));
@@ -251,7 +272,7 @@ final class IcebergMetadataValueVectorWriter {
     }
 
     if (data instanceof Map) {
-      for (Map.Entry<String, String> entry :  ((Map<String , String >) data).entrySet()) {
+      for (Map.Entry<String, String> entry : ((Map<String, String>) data).entrySet()) {
         structWriter.start();
         writeStringValue(structWriter, childrenFromFields.get(0).getName(), entry.getKey());
         writeStringValue(structWriter, childrenFromFields.get(1).getName(), entry.getValue());
@@ -266,11 +287,20 @@ final class IcebergMetadataValueVectorWriter {
     Accessor<StructLike> accessor = accessorByColumn.get(column);
     if (accessor == null) {
       NestedField field = icebergSchema.caseInsensitiveFindField(column);
-      Preconditions.checkNotNull(field, "Field for column '%s' not found in schema:\n%s", column, icebergSchema);
+      Preconditions.checkNotNull(
+          field, "Field for column '%s' not found in schema:\n%s", column, icebergSchema);
       accessor = icebergSchema.accessorForField(field.fieldId());
-      Preconditions.checkNotNull(accessor, "Field accessor for column '%s' not found in schema:\n%s", column, icebergSchema);
+      Preconditions.checkNotNull(
+          accessor,
+          "Field accessor for column '%s' not found in schema:\n%s",
+          column,
+          icebergSchema);
       Accessor<StructLike> oldAccessor = accessorByColumn.put(column, accessor);
-      Preconditions.checkState(oldAccessor == null, "Duplicate field accessor for column '%s' in schema:\n%s", column, icebergSchema);
+      Preconditions.checkState(
+          oldAccessor == null,
+          "Duplicate field accessor for column '%s' in schema:\n%s",
+          column,
+          icebergSchema);
     }
     return accessor.get(structLike);
   }

@@ -15,9 +15,13 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.ops.QueryContext;
+import com.dremio.exec.planner.sql.handlers.direct.SqlDirectHandler;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import java.lang.reflect.Constructor;
 import java.util.List;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -28,18 +32,10 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.ops.QueryContext;
-import com.dremio.exec.planner.sql.handlers.direct.SqlDirectHandler;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
-
 /**
  * Implements SQL MERGE BRANCH to merge a source branch into a target branch.
  *
- * MERGE BRANCH sourceBranchName
- * [INTO targetBranchName]
- * [IN <sourceName>]
+ * <p>MERGE BRANCH sourceBranchName [INTO targetBranchName] [IN <sourceName>]
  */
 public final class SqlMergeBranch extends SqlVersionBase {
   public static final SqlSpecialOperator OPERATOR =
@@ -48,7 +44,7 @@ public final class SqlMergeBranch extends SqlVersionBase {
         public SqlCall createCall(
             SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
           Preconditions.checkArgument(
-            operands.length == 3, "SqlMergeBranch.createCall() has to get 3 operands!");
+              operands.length == 3, "SqlMergeBranch.createCall() has to get 3 operands!");
           return new SqlMergeBranch(
               pos,
               (SqlIdentifier) operands[0],

@@ -15,12 +15,6 @@
  */
 package com.dremio.exec.store.dfs;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-
-import javax.inject.Provider;
-
 import com.dremio.common.FSConstants;
 import com.dremio.common.util.S3ConnectionConstants;
 import com.dremio.exec.catalog.StoragePluginId;
@@ -30,15 +24,20 @@ import com.dremio.io.file.FileSystem;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.google.common.base.Strings;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import javax.inject.Provider;
 
-/**
- * Storage plugin for internal filesystems that may be configured with dist path.
- */
-public class MayBeDistFileSystemPlugin<C extends MayBeDistFileSystemConf<C, ?>> extends FileSystemPlugin<C> {
+/** Storage plugin for internal filesystems that may be configured with dist path. */
+public class MayBeDistFileSystemPlugin<C extends MayBeDistFileSystemConf<C, ?>>
+    extends FileSystemPlugin<C> {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MayBeDistFileSystemPlugin.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(MayBeDistFileSystemPlugin.class);
 
-  public MayBeDistFileSystemPlugin(C config, SabotContext context, String name, Provider<StoragePluginId> idProvider) {
+  public MayBeDistFileSystemPlugin(
+      C config, SabotContext context, String name, Provider<StoragePluginId> idProvider) {
     super(config, context, name, idProvider);
   }
 
@@ -60,32 +59,43 @@ public class MayBeDistFileSystemPlugin<C extends MayBeDistFileSystemConf<C, ?>> 
       props.add(new Property(FSConstants.AZURE_CLIENT_SECRET, getConfig().getClientSecret()));
       props.add(new Property(FSConstants.AZURE_TOKEN_ENDPOINT, getConfig().getTokenEndpoint()));
     }
-    props.add(new Property(FSConstants.MAXIMUM_CONNECTIONS, String.valueOf(S3ConnectionConstants.DEFAULT_MAX_CONNECTIONS)));
-    props.add(new Property(FSConstants.MAX_THREADS, String.valueOf(S3ConnectionConstants.DEFAULT_MAX_THREADS)));
-    props.add(new Property("fs.dremioS3.impl.disable.cache","true"));
-    props.add(new Property("fs.dremiogcs.impl.disable.cache","true"));
+    props.add(
+        new Property(
+            FSConstants.MAXIMUM_CONNECTIONS,
+            String.valueOf(S3ConnectionConstants.DEFAULT_MAX_CONNECTIONS)));
+    props.add(
+        new Property(
+            FSConstants.MAX_THREADS, String.valueOf(S3ConnectionConstants.DEFAULT_MAX_THREADS)));
+    props.add(new Property("fs.dremioS3.impl.disable.cache", "true"));
+    props.add(new Property("fs.dremiogcs.impl.disable.cache", "true"));
     props.add(new Property("fs.dremioAzureStorage.impl.disable.cache", "true"));
     props.add(new Property("fs.dremioAdl.impl.disable.cache", "true"));
     return props;
   }
 
   @Override
-  protected FileSystem newFileSystem(String userName, OperatorContext operatorContext) throws IOException {
+  protected FileSystem newFileSystem(String userName, OperatorContext operatorContext)
+      throws IOException {
     if (!Strings.isNullOrEmpty(getConfig().getSecretKey())) {
       getFsConf().set("fs.dremioS3.impl", "com.dremio.plugins.s3.store.S3FileSystem");
-      getFsConf().set("fs.s3a.aws.credentials.provider", "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider");
+      getFsConf()
+          .set(
+              "fs.s3a.aws.credentials.provider",
+              "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider");
     } else if (!Strings.isNullOrEmpty(getConfig().getIamRole())) {
       getFsConf().set("fs.dremioS3.impl", "com.dremio.plugins.s3.store.S3FileSystem");
       // in executor we should use the associated instance profile
       if (!getContext().getRoles().contains(ClusterCoordinator.Role.EXECUTOR)) {
-        getFsConf().set("fs.s3a.aws.credentials.provider", "com.dremio.service.coordinator" +
-          ".DremioAssumeRoleCredentialsProviderV1");
+        getFsConf()
+            .set(
+                "fs.s3a.aws.credentials.provider",
+                "com.dremio.service.coordinator" + ".DremioAssumeRoleCredentialsProviderV1");
       }
     } else if (!Strings.isNullOrEmpty(getConfig().getClientSecret())) {
-      getFsConf().set("fs.dremioAzureStorage.impl", "com.dremio.plugins.azure.AzureStorageFileSystem");
+      getFsConf()
+          .set("fs.dremioAzureStorage.impl", "com.dremio.plugins.azure.AzureStorageFileSystem");
       getFsConf().set("dremio.azure.credentialsType", "AZURE_ACTIVE_DIRECTORY");
     }
     return super.newFileSystem(userName, operatorContext);
   }
-
 }

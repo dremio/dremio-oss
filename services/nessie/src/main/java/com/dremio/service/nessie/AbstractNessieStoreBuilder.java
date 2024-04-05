@@ -20,10 +20,9 @@ import com.dremio.datastore.api.KVStoreCreationFunction;
 import com.dremio.datastore.api.StoreBuildingFactory;
 import com.dremio.datastore.format.Format;
 
-/**
- * Creates a Nessie KV store.
- */
-public abstract class AbstractNessieStoreBuilder implements KVStoreCreationFunction<String, byte[]> {
+/** Creates a Nessie KV store. */
+public abstract class AbstractNessieStoreBuilder
+    implements KVStoreCreationFunction<String, byte[]> {
 
   private final String tableName;
 
@@ -37,10 +36,11 @@ public abstract class AbstractNessieStoreBuilder implements KVStoreCreationFunct
 
   @Override
   public KVStore<String, byte[]> build(StoreBuildingFactory factory) {
-    return factory.<String, byte[]>newStore()
-      .name(tableName)
-      .keyFormat(Format.ofString())
-      .valueFormat(Format.ofBytes())
-      .build();
+    return factory
+        .<String, byte[]>newStore()
+        .name(tableName)
+        .keyFormat(Format.ofString())
+        .valueFormat(Format.ofBytes())
+        .build();
   }
 }

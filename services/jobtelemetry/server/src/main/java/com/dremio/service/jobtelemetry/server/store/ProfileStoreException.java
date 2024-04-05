@@ -15,9 +15,7 @@
  */
 package com.dremio.service.jobtelemetry.server.store;
 
-/**
- * RuntimeException that describes a form of exception within the profile store.
- */
+/** RuntimeException that describes a form of exception within the profile store. */
 public class ProfileStoreException extends RuntimeException {
   public ProfileStoreException(String message, Throwable cause) {
     super(message, cause);

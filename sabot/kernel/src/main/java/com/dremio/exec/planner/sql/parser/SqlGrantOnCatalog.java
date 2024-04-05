@@ -15,10 +15,14 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.dremio.exec.ops.QueryContext;
+import com.dremio.exec.planner.sql.handlers.direct.SimpleDirectHandler;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Throwables;
+import com.google.common.collect.Lists;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -29,12 +33,6 @@ import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
-
-import com.dremio.exec.ops.QueryContext;
-import com.dremio.exec.planner.sql.handlers.direct.SimpleDirectHandler;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
-import com.google.common.collect.Lists;
 
 /*
  * Implements SQL to grant privilege on catalog entities {PDS/table, VDS/view, Folder/schema}.
@@ -72,14 +70,15 @@ public class SqlGrantOnCatalog extends SqlCall implements SimpleDirectHandler.Cr
         }
       };
 
-  public SqlGrantOnCatalog(SqlParserPos pos,
-                           SqlNodeList privilegeList,
-                           SqlLiteral entityType,
-                           SqlIdentifier entity,
-                           SqlLiteral granteeType,
-                           SqlIdentifier grantee,
-                           ReferenceType refType,
-                           SqlIdentifier refValue) {
+  public SqlGrantOnCatalog(
+      SqlParserPos pos,
+      SqlNodeList privilegeList,
+      SqlLiteral entityType,
+      SqlIdentifier entity,
+      SqlLiteral granteeType,
+      SqlIdentifier grantee,
+      ReferenceType refType,
+      SqlIdentifier refValue) {
     super(pos);
 
     this.privilegeList = privilegeList;
@@ -134,7 +133,11 @@ public class SqlGrantOnCatalog extends SqlCall implements SimpleDirectHandler.Cr
       final Class<?> cl = Class.forName("com.dremio.exec.planner.sql.handlers.CatalogGrantHandler");
       Constructor<?> ctor = cl.getConstructor(QueryContext.class);
       return (SimpleDirectHandler) ctor.newInstance(context);
-    } catch (InstantiationException | IllegalAccessException | ClassNotFoundException | NoSuchMethodException | InvocationTargetException e) {
+    } catch (InstantiationException
+        | IllegalAccessException
+        | ClassNotFoundException
+        | NoSuchMethodException
+        | InvocationTargetException e) {
       throw Throwables.propagate(e);
     }
   }

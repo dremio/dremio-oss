@@ -15,13 +15,9 @@
  */
 package com.dremio.sabot.op.join.vhash.spill;
 
-/**
- * Runnable that yields after doing a small amount of work.
- */
+/** Runnable that yields after doing a small amount of work. */
 public interface YieldingRunnable extends AutoCloseable {
-  /**
-   * Run for a while.
-   */
+  /** Run for a while. */
   int run() throws Exception;
 
   /**

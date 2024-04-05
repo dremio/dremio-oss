@@ -15,20 +15,19 @@
  */
 package com.dremio.exec.planner.physical.rule.computation;
 
+import com.dremio.exec.planner.physical.NestedLoopJoinPrel;
+import com.dremio.exec.planner.physical.ProjectPrel;
+import com.dremio.exec.planner.rules.DremioOptimizationRelRule;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelRule;
 
-import com.dremio.exec.planner.physical.NestedLoopJoinPrel;
-import com.dremio.exec.planner.physical.ProjectPrel;
-import com.dremio.exec.planner.rules.DremioOptimizationRelRule;
-
 /**
- * Visits the condition associated with NLJ, and pushes down expressions to projects below the join, reducing the amount
- * of computation required in the filter evaluation
+ * Visits the condition associated with NLJ, and pushes down expressions to projects below the join,
+ * reducing the amount of computation required in the filter evaluation
  */
 public class NestedLoopJoinComputationExtractionRule
-  extends DremioOptimizationRelRule<NestedLoopJoinComputationExtractionRule.Config> {
+    extends DremioOptimizationRelRule<NestedLoopJoinComputationExtractionRule.Config> {
   public static final RelOptRule INSTANCE = Config.DEFAULT.toRule();
 
   public NestedLoopJoinComputationExtractionRule(Config config) {
@@ -46,29 +45,44 @@ public class NestedLoopJoinComputationExtractionRule
     final NestedLoopJoinPrel nlj = call.rel(0);
 
     JoinComputationExtractor.ExtractedComputation extractedComputation =
-      JoinComputationExtractor.extractedComputation(nlj.getRowType(), nlj.getCondition(),
-        nlj.getCondition(),
-        nlj.getLeft(), nlj.getRight());
-    if(null == extractedComputation) {
+        JoinComputationExtractor.extractedComputation(
+            nlj.getRowType(),
+            nlj.getCondition(),
+            nlj.getCondition(),
+            nlj.getLeft(),
+            nlj.getRight());
+    if (null == extractedComputation) {
       return;
     }
 
-    NestedLoopJoinPrel newJoin = NestedLoopJoinPrel.create(nlj.getCluster(), nlj.getTraitSet(),
-      extractedComputation.left, extractedComputation.right,
-      nlj.getJoinType(), extractedComputation.joinCondition);
+    NestedLoopJoinPrel newJoin =
+        NestedLoopJoinPrel.create(
+            nlj.getCluster(),
+            nlj.getTraitSet(),
+            extractedComputation.left,
+            extractedComputation.right,
+            nlj.getJoinType(),
+            extractedComputation.joinCondition);
 
-    ProjectPrel projectPrel = ProjectPrel.create(newJoin.getCluster(),
-      newJoin.getTraitSet(), newJoin, extractedComputation.topProject, nlj.getRowType());
+    ProjectPrel projectPrel =
+        ProjectPrel.create(
+            newJoin.getCluster(),
+            newJoin.getTraitSet(),
+            newJoin,
+            extractedComputation.topProject,
+            nlj.getRowType());
     call.transformTo(projectPrel);
   }
 
   public interface Config extends RelRule.Config {
-    Config DEFAULT = EMPTY
-      .withDescription("NestedLoopJoinComputationExtractionRule")
-      .withOperandSupplier(os1 -> os1.operand(NestedLoopJoinPrel.class).anyInputs())
-      .as(Config.class);
+    Config DEFAULT =
+        EMPTY
+            .withDescription("NestedLoopJoinComputationExtractionRule")
+            .withOperandSupplier(os1 -> os1.operand(NestedLoopJoinPrel.class).anyInputs())
+            .as(Config.class);
 
-    @Override default NestedLoopJoinComputationExtractionRule toRule() {
+    @Override
+    default NestedLoopJoinComputationExtractionRule toRule() {
       return new NestedLoopJoinComputationExtractionRule(this);
     }
   }

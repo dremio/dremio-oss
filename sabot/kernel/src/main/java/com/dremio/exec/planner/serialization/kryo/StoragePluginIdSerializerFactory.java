@@ -19,9 +19,7 @@ import com.dremio.exec.catalog.StoragePluginId;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Serializer;
 
-/**
- * Interface for creating StoragePluginIdSerializers.
- */
+/** Interface for creating StoragePluginIdSerializers. */
 @FunctionalInterface
 public interface StoragePluginIdSerializerFactory {
   Serializer<StoragePluginId> newStoragePluginIdSerializer(Kryo kryo, InjectionMapping mapping);

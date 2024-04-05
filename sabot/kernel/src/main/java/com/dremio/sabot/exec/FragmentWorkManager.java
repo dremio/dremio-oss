@@ -15,18 +15,9 @@
  */
 package com.dremio.sabot.exec;
 
-import java.sql.Timestamp;
-import java.util.Iterator;
-import java.util.Set;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-
-import javax.inject.Provider;
-
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.curator.utils.CloseableExecutorService;
-
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.concurrent.CloseableExecutorService;
+import com.dremio.common.concurrent.CloseableThreadPool;
 import com.dremio.common.concurrent.ExtendedLatch;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.utils.protos.QueryIdHelper;
@@ -70,12 +61,16 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Sets;
+import java.sql.Timestamp;
+import java.util.Iterator;
+import java.util.Set;
+import javax.inject.Provider;
+import org.apache.arrow.memory.BufferAllocator;
 
-/**
- * Service managing fragment execution.
- */
+/** Service managing fragment execution. */
 public class FragmentWorkManager implements Service, SafeExit {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FragmentWorkManager.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(FragmentWorkManager.class);
 
   private final BootStrapContext context;
   private final Provider<NodeEndpoint> identity;
@@ -97,13 +92,13 @@ public class FragmentWorkManager implements Service, SafeExit {
   private BufferAllocator allocator;
   private WorkloadTicketDepot ticketDepot;
   private QueriesClerk clerk;
-  private ExecutorService executor;
-  private CloseableExecutorService closeableExecutor;
+  private CloseableExecutorService executor;
   private final Provider<MaestroClientFactory> maestroServiceClientFactoryProvider;
   private final Provider<JobTelemetryExecutorClientFactory> jobTelemetryClientFactoryProvider;
   private final Provider<JobResultsClientFactory> jobResultsClientFactoryProvider;
 
-  private ExtendedLatch exitLatch = null; // This is used to wait to exit when things are still running
+  private ExtendedLatch exitLatch =
+      null; // This is used to wait to exit when things are still running
   private com.dremio.exec.service.executor.ExecutorService executorService;
   private HeapMonitorManager heapMonitorManager = null;
   private SpillingOperatorHeapController heapLowMemController = null;
@@ -111,18 +106,18 @@ public class FragmentWorkManager implements Service, SafeExit {
   private SabotConfig sabotConfig;
 
   public FragmentWorkManager(
-    final BootStrapContext context,
-    final SabotConfig sabotConfig,
-    Provider<NodeEndpoint> identity,
-    final Provider<SabotContext> dbContext,
-    final Provider<FabricService> fabricServiceProvider,
-    final Provider<CatalogService> sources,
-    final Provider<ContextInformationFactory> contextInformationFactory,
-    final Provider<WorkloadTicketDepot> workloadTicketDepotProvider,
-    final Provider<TaskPool> taskPool,
-    final Provider<MaestroClientFactory> maestroServiceClientFactoryProvider,
-    final Provider<JobTelemetryExecutorClientFactory> jobTelemetryClientFactoryProvider,
-    final Provider<JobResultsClientFactory> jobResultsClientFactoryProvider) {
+      final BootStrapContext context,
+      final SabotConfig sabotConfig,
+      Provider<NodeEndpoint> identity,
+      final Provider<SabotContext> dbContext,
+      final Provider<FabricService> fabricServiceProvider,
+      final Provider<CatalogService> sources,
+      final Provider<ContextInformationFactory> contextInformationFactory,
+      final Provider<WorkloadTicketDepot> workloadTicketDepotProvider,
+      final Provider<TaskPool> taskPool,
+      final Provider<MaestroClientFactory> maestroServiceClientFactoryProvider,
+      final Provider<JobTelemetryExecutorClientFactory> jobTelemetryClientFactoryProvider,
+      final Provider<JobResultsClientFactory> jobResultsClientFactoryProvider) {
     this.context = context;
     this.identity = identity;
     this.sources = sources;
@@ -142,11 +137,11 @@ public class FragmentWorkManager implements Service, SafeExit {
   /**
    * Waits until it is safe to exit. Blocks until all currently running fragments have completed.
    *
-   * <p>This is intended to be used by {@link SabotNode#close()}.</p>
+   * <p>This is intended to be used by {@link SabotNode#close()}.
    */
   @Override
   public void waitToExit() {
-    synchronized(this) {
+    synchronized (this) {
       if (fragmentExecutors == null || fragmentExecutors.size() == 0) {
         return;
       }
@@ -155,8 +150,9 @@ public class FragmentWorkManager implements Service, SafeExit {
     }
 
     // Wait for at most the configured graceful timeout or until the latch is released.
-    exitLatch.awaitUninterruptibly(bitContext.getDremioConfig().getLong(
-      DremioConfig.DREMIO_TERMINATION_GRACE_PERIOD_SECONDS) * 1000);
+    exitLatch.awaitUninterruptibly(
+        bitContext.getDremioConfig().getLong(DremioConfig.DREMIO_TERMINATION_GRACE_PERIOD_SECONDS)
+            * 1000);
   }
 
   /**
@@ -178,10 +174,11 @@ public class FragmentWorkManager implements Service, SafeExit {
     /**
      * @return number of running fragments / max width per node
      */
-
     private float getClusterLoadImpl(GroupResourceInformation groupResourceInformation) {
-      final long maxWidthPerNode = groupResourceInformation.getAverageExecutorCores(bitContext.getOptionManager());
-      Preconditions.checkState(maxWidthPerNode > 0, "No executors are available. Unable to determine cluster load");
+      final long maxWidthPerNode =
+          groupResourceInformation.getAverageExecutorCores(bitContext.getOptionManager());
+      Preconditions.checkState(
+          maxWidthPerNode > 0, "No executors are available. Unable to determine cluster load");
       return fragmentExecutors.size() / (maxWidthPerNode * 1.0f);
     }
 
@@ -218,7 +215,7 @@ public class FragmentWorkManager implements Service, SafeExit {
       return getMaxWidthFactorImpl(groupResourceInformation);
     }
 
-    private class FragmentInfoTransformer implements Function<FragmentExecutor, FragmentInfo>{
+    private class FragmentInfoTransformer implements Function<FragmentExecutor, FragmentInfo> {
 
       @Override
       public FragmentInfo apply(final FragmentExecutor fragmentExecutor) {
@@ -227,27 +224,28 @@ public class FragmentWorkManager implements Service, SafeExit {
         final MinorFragmentProfile profile = status == null ? null : status.getProfile();
         Long memoryUsed = profile == null ? 0 : profile.getMemoryUsed();
         Long rowsProcessed = profile == null ? 0 : getRowsProcessed(profile);
-        Timestamp startTime = profile == null ? new Timestamp(0) : new Timestamp(profile.getStartTime());
-        return new FragmentInfo(dbContext.get().getEndpoint().getAddress(),
-          QueryIdHelper.getQueryId(handle.getQueryId()),
-          handle.getMajorFragmentId(),
-          handle.getMinorFragmentId(),
-          memoryUsed,
-          rowsProcessed,
-          startTime,
-          fragmentExecutor.getBlockingStatus(),
-          fragmentExecutor.getTaskDescriptor(),
-          dbContext.get().getEndpoint().getFabricPort(),
-          fragmentExecutor.getMemoryGrant());
+        Timestamp startTime =
+            profile == null ? new Timestamp(0) : new Timestamp(profile.getStartTime());
+        return new FragmentInfo(
+            dbContext.get().getEndpoint().getAddress(),
+            QueryIdHelper.getQueryId(handle.getQueryId()),
+            handle.getMajorFragmentId(),
+            handle.getMinorFragmentId(),
+            memoryUsed,
+            rowsProcessed,
+            startTime,
+            fragmentExecutor.getBlockingStatus(),
+            fragmentExecutor.getTaskDescriptor(),
+            dbContext.get().getEndpoint().getFabricPort(),
+            fragmentExecutor.getMemoryGrant());
       }
-
     }
 
     private long getRowsProcessed(MinorFragmentProfile profile) {
       long maxRecords = 0;
       for (OperatorProfile operatorProfile : profile.getOperatorProfileList()) {
         long records = 0;
-        for (StreamProfile inputProfile :operatorProfile.getInputProfileList()) {
+        for (StreamProfile inputProfile : operatorProfile.getInputProfileList()) {
           if (inputProfile.hasRecords()) {
             records += inputProfile.getRecords();
           }
@@ -256,7 +254,6 @@ public class FragmentWorkManager implements Service, SafeExit {
       }
       return maxRecords;
     }
-
 
     @Override
     public Iterator<FragmentInfo> getRunningFragments() {
@@ -279,7 +276,7 @@ public class FragmentWorkManager implements Service, SafeExit {
    * unblock.
    */
   private void indicateIfSafeToExit() {
-    synchronized(this) {
+    synchronized (this) {
       if (exitLatch != null) {
         if (fragmentExecutors.size() == 0) {
           exitLatch.countDown();
@@ -299,70 +296,89 @@ public class FragmentWorkManager implements Service, SafeExit {
   @Override
   public void start() {
 
-    Metrics.newGauge(Metrics.join("fragments","active"), () -> fragmentExecutors.size());
+    Metrics.newGauge(Metrics.join("fragments", "active"), () -> fragmentExecutors.size());
     bitContext = dbContext.get();
 
-    this.executor = Executors.newCachedThreadPool();
-    this.closeableExecutor = new CloseableExecutorService(executor);
+    this.executor = new CloseableThreadPool("fragment-work-executor-");
 
     // start the internal rpc layer.
-    this.allocator = context.getAllocator().newChildAllocator(
-        "fragment-work-manager",
-        context.getConfig().getLong("dremio.exec.rpc.bit.server.memory.data.reservation"),
-        context.getConfig().getLong("dremio.exec.rpc.bit.server.memory.data.maximum"));
+    this.allocator =
+        context
+            .getAllocator()
+            .newChildAllocator(
+                "fragment-work-manager",
+                context.getConfig().getLong("dremio.exec.rpc.bit.server.memory.data.reservation"),
+                context.getConfig().getLong("dremio.exec.rpc.bit.server.memory.data.maximum"));
 
     this.ticketDepot = workloadTicketDepotProvider.get();
     this.clerk = new QueriesClerk(ticketDepot);
 
-    final ExitCallback callback = new ExitCallback() {
-      @Override
-      public void indicateIfSafeToExit() {
-        FragmentWorkManager.this.indicateIfSafeToExit();
-      }
-    };
+    final ExitCallback callback =
+        new ExitCallback() {
+          @Override
+          public void indicateIfSafeToExit() {
+            FragmentWorkManager.this.indicateIfSafeToExit();
+          }
+        };
 
-    maestroProxy = new MaestroProxy(maestroServiceClientFactoryProvider,
-      jobTelemetryClientFactoryProvider,
-      bitContext.getClusterCoordinator(),
-      identity, bitContext.getOptionManager());
-    fragmentExecutors = new FragmentExecutors(context, sabotConfig, clerk ,maestroProxy, callback, pool.get(), bitContext.getOptionManager());
+    maestroProxy =
+        new MaestroProxy(
+            maestroServiceClientFactoryProvider,
+            jobTelemetryClientFactoryProvider,
+            bitContext.getClusterCoordinator(),
+            identity,
+            bitContext.getOptionManager());
+    fragmentExecutors =
+        new FragmentExecutors(
+            context,
+            sabotConfig,
+            clerk,
+            maestroProxy,
+            callback,
+            pool.get(),
+            bitContext.getOptionManager());
 
-    final ExecConnectionCreator connectionCreator = new ExecConnectionCreator(fabricServiceProvider.get().registerProtocol(new ExecProtocol(bitContext.getConfig(), allocator, fragmentExecutors)),
-      bitContext.getOptionManager());
+    final ExecConnectionCreator connectionCreator =
+        new ExecConnectionCreator(
+            fabricServiceProvider
+                .get()
+                .registerProtocol(
+                    new ExecProtocol(bitContext.getConfig(), allocator, fragmentExecutors)),
+            bitContext.getOptionManager());
 
     if (bitContext.isExecutor()) {
       heapLowMemController = SpillingOperatorHeapController.create();
     }
 
-    final FragmentExecutorBuilder builder = new FragmentExecutorBuilder(
-        clerk,
-        fragmentExecutors,
-        bitContext.getEndpoint(),
-        maestroProxy,
-        bitContext.getConfig(),
-        bitContext.getDremioConfig(),
-        bitContext.getClusterCoordinator(),
-        executor,
-        bitContext.getOptionManager(),
-        connectionCreator,
-        new OperatorCreatorRegistry(bitContext.getClasspathScan()),
-        bitContext.getPlanReader(),
-        bitContext.getNamespaceService(SystemUser.SYSTEM_USERNAME),
-        sources.get(),
-        contextInformationFactory.get(),
-        bitContext.getFunctionImplementationRegistry(),
-        bitContext.getDecimalFunctionImplementationRegistry(),
-        context.getNodeDebugContextProvider(),
-        bitContext.getSpillService(),
-        bitContext.getCompiler(),
-        ClusterCoordinator.Role.fromEndpointRoles(identity.get().getRoles()),
-        jobResultsClientFactoryProvider,
-        identity,
-        bitContext.getExpressionSplitCache(),
-        heapLowMemController);
+    final FragmentExecutorBuilder builder =
+        new FragmentExecutorBuilder(
+            clerk,
+            fragmentExecutors,
+            bitContext.getEndpoint(),
+            maestroProxy,
+            bitContext.getConfig(),
+            bitContext.getDremioConfig(),
+            bitContext.getClusterCoordinator(),
+            executor,
+            bitContext.getOptionManager(),
+            connectionCreator,
+            new OperatorCreatorRegistry(bitContext.getClasspathScan()),
+            bitContext.getPlanReader(),
+            bitContext.getNamespaceService(SystemUser.SYSTEM_USERNAME),
+            sources.get(),
+            contextInformationFactory.get(),
+            bitContext.getFunctionImplementationRegistry(),
+            bitContext.getDecimalFunctionImplementationRegistry(),
+            context.getNodeDebugContextProvider(),
+            bitContext.getSpillService(),
+            bitContext.getCompiler(),
+            ClusterCoordinator.Role.fromEndpointRoles(identity.get().getRoles()),
+            jobResultsClientFactoryProvider,
+            identity,
+            bitContext.getExpressionSplitCache(),
+            heapLowMemController);
 
-    executorService = new ExecutorServiceImpl(fragmentExecutors,
-            bitContext, builder);
+    executorService = new ExecutorServiceImpl(fragmentExecutors, bitContext, builder);
 
     statusThread = new FragmentStatusThread(fragmentExecutors, clerk, maestroProxy);
     statusThread.start();
@@ -375,11 +391,14 @@ public class FragmentWorkManager implements Service, SafeExit {
     statsCollectorThread.start();
 
     if (bitContext.isExecutor()) {
-      HeapClawBackStrategy heapClawBackStrategy = new FailGreediestQueriesStrategy(fragmentExecutors, clerk);
+      HeapClawBackStrategy heapClawBackStrategy =
+          new FailGreediestQueriesStrategy(fragmentExecutors, clerk);
       logger.info("Starting heap monitor manager in executor");
-      heapMonitorManager = new HeapMonitorManager(() -> bitContext.getOptionManager(),
-                                                  heapClawBackStrategy,
-                                                  ClusterCoordinator.Role.EXECUTOR);
+      heapMonitorManager =
+          new HeapMonitorManager(
+              () -> bitContext.getOptionManager(),
+              heapClawBackStrategy,
+              ClusterCoordinator.Role.EXECUTOR);
       heapMonitorManager.addLowMemListener(heapLowMemController.getLowMemListener());
       heapMonitorManager.start();
     }
@@ -400,22 +419,30 @@ public class FragmentWorkManager implements Service, SafeExit {
     }
 
     public ExecTunnel getTunnel(NodeEndpoint endpoint) {
-      return this.options.getOption(ExecConstants.ENABLE_IN_PROCESS_TUNNEL) && isInProcessTarget(endpoint) ?
-        new InProcessExecTunnel(fragmentExecutors, allocator) :
-        new FabricExecTunnel(factory.getCommandRunner(endpoint.getAddress(), endpoint.getFabricPort()));
+      return this.options.getOption(ExecConstants.ENABLE_IN_PROCESS_TUNNEL)
+              && isInProcessTarget(endpoint)
+          ? new InProcessExecTunnel(fragmentExecutors, allocator)
+          : new FabricExecTunnel(
+              factory.getCommandRunner(endpoint.getAddress(), endpoint.getFabricPort()));
     }
 
     private boolean isInProcessTarget(NodeEndpoint endpoint) {
       NodeEndpoint self = identity.get();
-      return endpoint.getAddress().equals(self.getAddress()) &&
-        endpoint.getFabricPort() == self.getFabricPort();
+      return endpoint.getAddress().equals(self.getAddress())
+          && endpoint.getFabricPort() == self.getFabricPort();
     }
   }
 
   @Override
   public void close() throws Exception {
-    AutoCloseables.close(statusThread, statsCollectorThread, heapMonitorManager,
-      closeableExecutor, fragmentExecutors, maestroProxy, allocator, heapLowMemController);
+    AutoCloseables.close(
+        statusThread,
+        statsCollectorThread,
+        heapMonitorManager,
+        executor,
+        fragmentExecutors,
+        maestroProxy,
+        allocator,
+        heapLowMemController);
   }
-
 }

@@ -15,21 +15,6 @@
  */
 package com.dremio.exec.planner.physical;
 
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
-
-import org.apache.calcite.plan.ConventionTraitDef;
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelOptCost;
-import org.apache.calcite.plan.RelOptTable;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelWriter;
-import org.apache.calcite.rel.hint.RelHint;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.planner.common.ScanRelBase;
@@ -45,15 +30,43 @@ import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.Affinity;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.DatasetSplit;
 import com.google.common.collect.ImmutableList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+import org.apache.calcite.plan.ConventionTraitDef;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptCost;
+import org.apache.calcite.plan.RelOptTable;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelWriter;
+import org.apache.calcite.rel.hint.RelHint;
 
 public abstract class ScanPrelBase extends ScanRelBase implements LeafPrel, RuntimeFilteredRel {
 
   private List<Info> runtimeFilters = ImmutableList.of();
 
-  public ScanPrelBase(RelOptCluster cluster, RelTraitSet traitSet, RelOptTable table, StoragePluginId pluginId,
-                      TableMetadata dataset, List<SchemaPath> projectedColumns, double observedRowcountAdjustment,
-                      List<RelHint> hints, List<Info> runtimeFilters) {
-    super(cluster, traitSet, table, pluginId, dataset, projectedColumns, observedRowcountAdjustment, hints);
+  public ScanPrelBase(
+      RelOptCluster cluster,
+      RelTraitSet traitSet,
+      RelOptTable table,
+      StoragePluginId pluginId,
+      TableMetadata dataset,
+      List<SchemaPath> projectedColumns,
+      double observedRowcountAdjustment,
+      List<RelHint> hints,
+      List<Info> runtimeFilters) {
+    super(
+        cluster,
+        traitSet,
+        table,
+        pluginId,
+        dataset,
+        projectedColumns,
+        observedRowcountAdjustment,
+        hints);
     this.runtimeFilters = runtimeFilters;
     assert traitSet.getTrait(ConventionTraitDef.INSTANCE) != Rel.LOGICAL;
   }
@@ -72,19 +85,19 @@ public abstract class ScanPrelBase extends ScanRelBase implements LeafPrel, Runt
   }
 
   @Override
-  public int getMaxParallelizationWidth(){
+  public int getMaxParallelizationWidth() {
     return tableMetadata.getSplitCount();
   }
 
   @Override
   public int getMinParallelizationWidth() {
-    if(getDistributionAffinity() != DistributionAffinity.HARD){
+    if (getDistributionAffinity() != DistributionAffinity.HARD) {
       return 1;
     }
 
     final Set<String> nodes = new HashSet<>();
     Iterator<PartitionChunkMetadata> iter = tableMetadata.getSplits();
-    while(iter.hasNext()){
+    while (iter.hasNext()) {
       PartitionChunkMetadata partitionChunk = iter.next();
       for (DatasetSplit split : partitionChunk.getDatasetSplits()) {
         for (Affinity a : split.getAffinitiesList()) {
@@ -102,7 +115,8 @@ public abstract class ScanPrelBase extends ScanRelBase implements LeafPrel, Runt
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(PrelVisitor<T, X, E> logicalVisitor, X value) throws E {
+  public <T, X, E extends Throwable> T accept(PrelVisitor<T, X, E> logicalVisitor, X value)
+      throws E {
     return logicalVisitor.visitLeaf(this, value);
   }
 
@@ -123,7 +137,12 @@ public abstract class ScanPrelBase extends ScanRelBase implements LeafPrel, Runt
 
   @Override
   public DistributionAffinity getDistributionAffinity() {
-    return this.tableMetadata.getStoragePluginId().getCapabilities().getCapability(SourceCapabilities.REQUIRES_HARD_AFFINITY) ? DistributionAffinity.HARD : DistributionAffinity.SOFT;
+    return this.tableMetadata
+            .getStoragePluginId()
+            .getCapabilities()
+            .getCapability(SourceCapabilities.REQUIRES_HARD_AFFINITY)
+        ? DistributionAffinity.HARD
+        : DistributionAffinity.SOFT;
   }
 
   @Override
@@ -134,7 +153,8 @@ public abstract class ScanPrelBase extends ScanRelBase implements LeafPrel, Runt
     PlannerSettings settings = PrelUtil.getSettings(getCluster());
     if (settings.useMinimumCostPerSplit()) {
       double minCostPerSplit = settings.getMinimumCostPerSplit(getPluginId().getType());
-      costForParallelization = Math.max(costForParallelization, minCostPerSplit * tableMetadata.getSplitCount());
+      costForParallelization =
+          Math.max(costForParallelization, minCostPerSplit * tableMetadata.getSplitCount());
     }
     return costForParallelization;
   }
@@ -142,10 +162,10 @@ public abstract class ScanPrelBase extends ScanRelBase implements LeafPrel, Runt
   @Override
   public RelWriter explainTerms(RelWriter pw) {
     super.explainTerms(pw);
-    if(!runtimeFilters.isEmpty()) {
-      pw.item("runtimeFilters", runtimeFilters.stream()
-        .map(Object::toString)
-        .collect(Collectors.joining(", ")));
+    if (!runtimeFilters.isEmpty()) {
+      pw.item(
+          "runtimeFilters",
+          runtimeFilters.stream().map(Object::toString).collect(Collectors.joining(", ")));
     }
     return pw;
   }
@@ -157,10 +177,7 @@ public abstract class ScanPrelBase extends ScanRelBase implements LeafPrel, Runt
 
   @Override
   public void addRuntimeFilter(Info info) {
-    runtimeFilters = ImmutableList.<Info>builder()
-      .addAll(runtimeFilters)
-      .add(info)
-      .build();
+    runtimeFilters = ImmutableList.<Info>builder().addAll(runtimeFilters).add(info).build();
     recomputeDigest();
   }
 }

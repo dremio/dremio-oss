@@ -15,28 +15,22 @@
  */
 package com.dremio.exec.planner;
 
+import com.google.common.base.Preconditions;
 import org.apache.calcite.plan.hep.HepMatchOrder;
 
-import com.google.common.base.Preconditions;
-
 public enum PlannerType {
-  /**
-   * Arbitrary heuristic, rules don't combine
-   */
+  /** Arbitrary heuristic, rules don't combine */
   HEP(true, false, HepMatchOrder.ARBITRARY),
 
-  /**
-   * Bottom Up heuristic, rules run in combination
-   */
+  /** Bottom Up heuristic, rules run in combination */
   HEP_BOTTOM_UP(true, true, HepMatchOrder.BOTTOM_UP),
 
-  /**
-   * Arbitrary heuristic, rules run in combination.
-   */
+  /** Arbitrary heuristic, rules run in combination. */
   HEP_AC(true, true, HepMatchOrder.ARBITRARY),
 
   /**
-   * Cost-based rule optimization where rules are fired in sets. Supports trait conversion for non root nodes.
+   * Cost-based rule optimization where rules are fired in sets. Supports trait conversion for non
+   * root nodes.
    */
   VOLCANO(false, true, null);
 

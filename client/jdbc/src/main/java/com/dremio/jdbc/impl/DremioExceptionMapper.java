@@ -15,19 +15,16 @@
  */
 package com.dremio.jdbc.impl;
 
-import java.sql.SQLException;
-import java.util.Locale;
-import java.util.Map;
-
 import com.dremio.exec.rpc.ConnectionFailedException;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.rpc.RpcExceptionStatus;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
+import java.sql.SQLException;
+import java.util.Locale;
+import java.util.Map;
 
-/**
- * Utility class for mapping RpcExceptions to SQLExceptions.
- */
+/** Utility class for mapping RpcExceptions to SQLExceptions. */
 public final class DremioExceptionMapper {
   // For references of Sql State Code, please see http://www.wiscorp.com/sql200n.zip
   // or for a quick reference, please see https://en.wikipedia.org/wiki/SQLSTATE
@@ -38,24 +35,21 @@ public final class DremioExceptionMapper {
   private static final String STATUS_PREFIX = " Status: ";
 
   private static final Map<String, String> errorStatusSQLStateMap =
-    new ImmutableMap.Builder<String, String>()
-      .put(RpcExceptionStatus.AUTH_FAILED, INVALID_AUTHORIZATION_SPECIFICATION)
-      .put(RpcExceptionStatus.CONNECTION_INVALID, DISCONNECT_ERROR)
-      .build();
-  /**
-   * Private constructor to prevent instantiation.
-   */
-  private DremioExceptionMapper() {
-  }
+      new ImmutableMap.Builder<String, String>()
+          .put(RpcExceptionStatus.AUTH_FAILED, INVALID_AUTHORIZATION_SPECIFICATION)
+          .put(RpcExceptionStatus.CONNECTION_INVALID, DISCONNECT_ERROR)
+          .build();
+
+  /** Private constructor to prevent instantiation. */
+  private DremioExceptionMapper() {}
 
   /**
    * Map the given RpcException into an equivalent SQLException.
    *
-   * The message used for the SQLException is the same as that used by the RpcException.
-   * An appropriate SQLState will be chosen for the RpcException, if one is available.
+   * <p>The message used for the SQLException is the same as that used by the RpcException. An
+   * appropriate SQLState will be chosen for the RpcException, if one is available.
    *
    * @param rpcException The remote exception to map.
-   *
    * @return The equivalently mapped SQLException.
    */
   public static SQLException map(RpcException rpcException) {
@@ -65,12 +59,11 @@ public final class DremioExceptionMapper {
   /**
    * Map the given RpcException into an equivalent SQLException.
    *
-   * An appropriate SQLState will be chosen for the RpcException, if one is available.
+   * <p>An appropriate SQLState will be chosen for the RpcException, if one is available.
    *
    * @param rpcException The remote exception to map.
    * @param message The message format string to use for the SQLException.
    * @param args The arguments for the message.
-   *
    * @return The equivalently mapped SQLException.
    */
   public static SQLException map(RpcException rpcException, String message, String... args) {
@@ -108,8 +101,8 @@ public final class DremioExceptionMapper {
   }
 
   /**
-   * Finds the corresponding SQL State Code based on the Rpc Status of a RpcException.
-   * If no RPC status is set in the exception, then it evaluates the exception message for a status.
+   * Finds the corresponding SQL State Code based on the Rpc Status of a RpcException. If no RPC
+   * status is set in the exception, then it evaluates the exception message for a status.
    *
    * @param rpcException the exception to evaluate.
    * @return a SQL State Code as a string.
@@ -120,7 +113,8 @@ public final class DremioExceptionMapper {
       return errorStatusSQLStateMap.get(rpcException.getStatus());
     }
 
-    // As a fallback, attempt to get the status from the error message. This is ugly, so only do a best-effort here.
+    // As a fallback, attempt to get the status from the error message. This is ugly, so only do a
+    // best-effort here.
     return getSqlCodeFromMessage(rpcException.getMessage());
   }
 
@@ -145,6 +139,7 @@ public final class DremioExceptionMapper {
     if (endIndex == -1) {
       return null;
     }
-    return errorStatusSQLStateMap.get(message.substring(0, endIndex).toUpperCase(Locale.getDefault()));
+    return errorStatusSQLStateMap.get(
+        message.substring(0, endIndex).toUpperCase(Locale.getDefault()));
   }
 }

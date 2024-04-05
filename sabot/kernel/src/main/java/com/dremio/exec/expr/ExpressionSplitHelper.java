@@ -18,14 +18,15 @@ package com.dremio.exec.expr;
 import com.dremio.common.expression.LogicalExpression;
 
 /**
- * Helper methods to aid in splitting expressions. Intended to be implemented
- * by code generators like the GandivaPushDownSieve
+ * Helper methods to aid in splitting expressions. Intended to be implemented by code generators
+ * like the GandivaPushDownSieve
  */
 public interface ExpressionSplitHelper {
   /**
-   * Decides if the input sub-expression can be split at this point. Called by
-   * ExpressionSplitter to handle cases where the expression can be handled by
-   * the code generator, but the expression's output type cannot
+   * Decides if the input sub-expression can be split at this point. Called by ExpressionSplitter to
+   * handle cases where the expression can be handled by the code generator, but the expression's
+   * output type cannot
+   *
    * @param e Expression that needs to be split
    * @return true (default) if the expression can be split
    */

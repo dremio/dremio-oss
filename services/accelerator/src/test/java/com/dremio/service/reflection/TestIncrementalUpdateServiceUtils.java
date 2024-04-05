@@ -24,14 +24,6 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.when;
 
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.sql.SqlNode;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
-import org.mockito.Mockito;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.exec.ExecTest;
@@ -55,12 +47,18 @@ import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.RefreshMethod;
-import com.dremio.service.reflection.proto.ReflectionEntry;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.sql.SqlNode;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Test;
+import org.mockito.Mockito;
 
 public class TestIncrementalUpdateServiceUtils extends BaseTestQuery {
   private static IcebergTestTables.Table icebergTable;
   private static SqlConverter converter;
-  private static SqlHandlerConfig config;
+  private static SqlHandlerConfig sqlHandlerConfig;
 
   private ReflectionSettings reflectionSettings = Mockito.mock(ReflectionSettings.class);
   private ReflectionService reflectionService = Mockito.mock(ReflectionService.class);
@@ -69,34 +67,38 @@ public class TestIncrementalUpdateServiceUtils extends BaseTestQuery {
   @BeforeClass
   public static void setUp() throws Exception {
     SabotContext context = getSabotContext();
+    UserSession session =
+        UserSession.Builder.newBuilder()
+            .withSessionOptionManager(
+                new SessionOptionManagerImpl(getSabotContext().getOptionValidatorListing()),
+                getSabotContext().getOptionManager())
+            .withUserProperties(UserProtos.UserProperties.getDefaultInstance())
+            .withCredentials(
+                UserBitShared.UserCredentials.newBuilder().setUserName(SYSTEM_USERNAME).build())
+            .setSupportComplexTypes(true)
+            .build();
 
-    UserSession session = UserSession.Builder.newBuilder()
-      .withSessionOptionManager(
-        new SessionOptionManagerImpl(getSabotContext().getOptionValidatorListing()),
-        getSabotContext().getOptionManager())
-      .withUserProperties(UserProtos.UserProperties.getDefaultInstance())
-      .withCredentials(UserBitShared.UserCredentials.newBuilder().setUserName(SYSTEM_USERNAME).build())
-      .setSupportComplexTypes(true)
-      .build();
-
-    final QueryContext queryContext = new QueryContext(session, context, UserBitShared.QueryId.getDefaultInstance());
+    final QueryContext queryContext =
+        new QueryContext(session, context, UserBitShared.QueryId.getDefaultInstance());
     queryContext.setGroupResourceInformation(context.getClusterResourceInformation());
-    final AttemptObserver observer = new PassthroughQueryObserver(ExecTest.mockUserClientConnection(null));
+    final AttemptObserver observer =
+        new PassthroughQueryObserver(ExecTest.mockUserClientConnection(null));
 
-    converter = new SqlConverter(
-      queryContext.getPlannerSettings(),
-      queryContext.getOperatorTable(),
-      queryContext,
-      queryContext.getMaterializationProvider(),
-      queryContext.getFunctionRegistry(),
-      queryContext.getSession(),
-      observer,
-      queryContext.getSubstitutionProviderFactory(),
-      queryContext.getConfig(),
-      queryContext.getScanResult(),
-      queryContext.getRelMetadataQuerySupplier());
+    converter =
+        new SqlConverter(
+            queryContext.getPlannerSettings(),
+            queryContext.getOperatorTable(),
+            queryContext,
+            queryContext.getMaterializationProvider(),
+            queryContext.getFunctionRegistry(),
+            queryContext.getSession(),
+            observer,
+            queryContext.getSubstitutionProviderFactory(),
+            queryContext.getConfig(),
+            queryContext.getScanResult(),
+            queryContext.getRelMetadataQuerySupplier());
 
-      config = new SqlHandlerConfig(queryContext, converter, observer, null);
+    sqlHandlerConfig = new SqlHandlerConfig(queryContext, converter, observer, null);
   }
 
   @Before
@@ -111,31 +113,52 @@ public class TestIncrementalUpdateServiceUtils extends BaseTestQuery {
   }
 
   /**
-   *  Test IncrementalUpdateServiceUtils.extractRefreshDetails()
-   *  -  Scan native iceberg table
-   *  -  Source level configured reflection refresh method: FULL or INCREMENTAL with non-null refresh field
-   *  -  REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED: true
-   *  -  REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL: false
-   *  -  Expected result: RefreshMethod.INCREMENTAL with non-null refresh field. getSnapshotBased() is true.
+   * Test IncrementalUpdateServiceUtils.extractRefreshDetails() - Scan native iceberg table - Source
+   * level configured reflection refresh method: FULL or INCREMENTAL with non-null refresh field -
+   * REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED: true -
+   * REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL: false - Expected result:
+   * RefreshMethod.INCREMENTAL with non-null refresh field. getSnapshotBased() is true.
    */
   @Test
   public void testScanNativeIcebergSnapshotBasedEnabled() throws Exception {
     String sql = String.format("SELECT * FROM %s", icebergTable.getTableName());
 
     final SqlNode node = converter.parse(sql);
-    final ConvertedRelNode convertedRelNode = SqlToRelTransformer.validateAndConvert(config, node);
+
+    final ConvertedRelNode convertedRelNode =
+        SqlToRelTransformer.validateAndConvert(sqlHandlerConfig, node);
+
     RelNode relNode = convertedRelNode.getConvertedNode();
     ScanCrel scanCrel = findSingleNode(relNode, ScanCrel.class, null);
     TableMetadata tableMetadata = scanCrel.getTableMetadata();
-    String snapshotId = tableMetadata.getDatasetConfig().getPhysicalDataset().getIcebergMetadata().getSnapshotId().toString();
+    String snapshotId =
+        tableMetadata
+            .getDatasetConfig()
+            .getPhysicalDataset()
+            .getIcebergMetadata()
+            .getSnapshotId()
+            .toString();
 
-    AccelerationSettings accelerationSettings = new AccelerationSettings().setMethod(RefreshMethod.FULL);
-    when(reflectionSettings.getReflectionSettings(any(CatalogEntityKey.class))).thenReturn(accelerationSettings);
-    when(optionManager.getOption(ReflectionOptions.REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED)).thenReturn(true);
-    when(optionManager.getOption(ReflectionOptions.REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL)).thenReturn(false);
+    AccelerationSettings accelerationSettings =
+        new AccelerationSettings().setMethod(RefreshMethod.FULL);
+    when(reflectionSettings.getReflectionSettings(any(CatalogEntityKey.class)))
+        .thenReturn(accelerationSettings);
+    when(optionManager.getOption(
+            ReflectionOptions.REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED))
+        .thenReturn(true);
+    when(optionManager.getOption(
+            ReflectionOptions.REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL))
+        .thenReturn(false);
 
     // TEST
-    IncrementalUpdateServiceUtils.RefreshDetails refreshDetails = IncrementalUpdateServiceUtils.extractRefreshDetails(relNode, reflectionSettings, reflectionService, optionManager, false, null);
+    IncrementalUpdateServiceUtils.RefreshDetails refreshDetails =
+        IncrementalUpdateServiceUtils.extractRefreshDetails(
+            relNode,
+            reflectionSettings,
+            reflectionService,
+            optionManager,
+            config,
+            !convertedRelNode.getNonCacheableFunctionResult().isReflectionIncrementalRefreshable());
 
     // ASSERT
     assertEquals(RefreshMethod.INCREMENTAL, refreshDetails.getRefreshMethod());
@@ -144,15 +167,28 @@ public class TestIncrementalUpdateServiceUtils extends BaseTestQuery {
     assertEquals(tableMetadata, refreshDetails.getBaseTableMetadata());
     assertEquals(snapshotId, refreshDetails.getBaseTableSnapshotId());
 
-    // When REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED is true, refresh field should be preserved by IncrementalUpdateServiceUtils#extractRefreshDetails
-    accelerationSettings = new AccelerationSettings().setMethod(RefreshMethod.INCREMENTAL).setRefreshField("abc");
-    when(reflectionSettings.getReflectionSettings(any(CatalogEntityKey.class))).thenReturn(accelerationSettings);
-    when(optionManager.getOption(ReflectionOptions.REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED)).thenReturn(true);
-    when(optionManager.getOption(ReflectionOptions.REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL)).thenReturn(false);
+    // When REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED is true, refresh field should be
+    // preserved by IncrementalUpdateServiceUtils#extractRefreshDetails
+    accelerationSettings =
+        new AccelerationSettings().setMethod(RefreshMethod.INCREMENTAL).setRefreshField("abc");
+    when(reflectionSettings.getReflectionSettings(any(CatalogEntityKey.class)))
+        .thenReturn(accelerationSettings);
+    when(optionManager.getOption(
+            ReflectionOptions.REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED))
+        .thenReturn(true);
+    when(optionManager.getOption(
+            ReflectionOptions.REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL))
+        .thenReturn(false);
 
     // TEST
-    refreshDetails = IncrementalUpdateServiceUtils.extractRefreshDetails(relNode, reflectionSettings, reflectionService, optionManager, false, null);
-
+    refreshDetails =
+        IncrementalUpdateServiceUtils.extractRefreshDetails(
+            relNode,
+            reflectionSettings,
+            reflectionService,
+            optionManager,
+            config,
+            !convertedRelNode.getNonCacheableFunctionResult().isReflectionIncrementalRefreshable());
     // ASSERT
     assertEquals(RefreshMethod.INCREMENTAL, refreshDetails.getRefreshMethod());
     assertEquals(refreshDetails.getRefreshField(), "abc");
@@ -162,28 +198,41 @@ public class TestIncrementalUpdateServiceUtils extends BaseTestQuery {
   }
 
   /**
-   *  Test IncrementalUpdateServiceUtils.extractRefreshDetails()
-   *  -  Scan native iceberg table
-   *  -  Source level configured reflection refresh method: FULL or INCREMENTAL with non-null refresh field
-   *  -  REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED: false
-   *  -  REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL: true
-   *  -  Expected result: RefreshMethod.FULL or INCREMENTAL with non-null refresh field. getSnapshotBased() is false.
+   * Test IncrementalUpdateServiceUtils.extractRefreshDetails() - Scan native iceberg table - Source
+   * level configured reflection refresh method: FULL or INCREMENTAL with non-null refresh field -
+   * REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED: false -
+   * REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL: true - Expected result:
+   * RefreshMethod.FULL or INCREMENTAL with non-null refresh field. getSnapshotBased() is false.
    */
   @Test
   public void testScanNativeIcebergSnapshotBasedDisabled() throws Exception {
     String sql = String.format("SELECT * FROM %s", icebergTable.getTableName());
 
     final SqlNode node = converter.parse(sql);
-    final ConvertedRelNode convertedRelNode = SqlToRelTransformer.validateAndConvert(config, node);
+    final ConvertedRelNode convertedRelNode =
+        SqlToRelTransformer.validateAndConvert(sqlHandlerConfig, node);
     RelNode relNode = convertedRelNode.getConvertedNode();
 
-    AccelerationSettings accelerationSettings = new AccelerationSettings().setMethod(RefreshMethod.FULL);
-    when(reflectionSettings.getReflectionSettings(any(CatalogEntityKey.class))).thenReturn(accelerationSettings);
-    when(optionManager.getOption(ReflectionOptions.REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED)).thenReturn(false);
-    when(optionManager.getOption(ReflectionOptions.REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL)).thenReturn(true);
+    AccelerationSettings accelerationSettings =
+        new AccelerationSettings().setMethod(RefreshMethod.FULL);
+    when(reflectionSettings.getReflectionSettings(any(CatalogEntityKey.class)))
+        .thenReturn(accelerationSettings);
+    when(optionManager.getOption(
+            ReflectionOptions.REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED))
+        .thenReturn(false);
+    when(optionManager.getOption(
+            ReflectionOptions.REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL))
+        .thenReturn(true);
 
     // TEST
-    IncrementalUpdateServiceUtils.RefreshDetails refreshDetails = IncrementalUpdateServiceUtils.extractRefreshDetails(relNode, reflectionSettings, reflectionService, optionManager, false, null);
+    IncrementalUpdateServiceUtils.RefreshDetails refreshDetails =
+        IncrementalUpdateServiceUtils.extractRefreshDetails(
+            relNode,
+            reflectionSettings,
+            reflectionService,
+            optionManager,
+            config,
+            !convertedRelNode.getNonCacheableFunctionResult().isReflectionIncrementalRefreshable());
 
     // ASSERT
     assertEquals(RefreshMethod.FULL, refreshDetails.getRefreshMethod());
@@ -192,14 +241,28 @@ public class TestIncrementalUpdateServiceUtils extends BaseTestQuery {
     assertNull(refreshDetails.getBaseTableMetadata());
     assertNull(refreshDetails.getBaseTableSnapshotId());
 
-    // When REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED is false, refresh field should be preserved.
-    accelerationSettings = new AccelerationSettings().setMethod(RefreshMethod.INCREMENTAL).setRefreshField("abc");
-    when(reflectionSettings.getReflectionSettings(any(CatalogEntityKey.class))).thenReturn(accelerationSettings);
-    when(optionManager.getOption(ReflectionOptions.REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED)).thenReturn(false);
-    when(optionManager.getOption(ReflectionOptions.REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL)).thenReturn(true);
+    // When REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED is false, refresh field should be
+    // preserved.
+    accelerationSettings =
+        new AccelerationSettings().setMethod(RefreshMethod.INCREMENTAL).setRefreshField("abc");
+    when(reflectionSettings.getReflectionSettings(any(CatalogEntityKey.class)))
+        .thenReturn(accelerationSettings);
+    when(optionManager.getOption(
+            ReflectionOptions.REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED))
+        .thenReturn(false);
+    when(optionManager.getOption(
+            ReflectionOptions.REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL))
+        .thenReturn(true);
 
     // TEST
-    refreshDetails = IncrementalUpdateServiceUtils.extractRefreshDetails(relNode, reflectionSettings, reflectionService, optionManager, false, null);
+    refreshDetails =
+        IncrementalUpdateServiceUtils.extractRefreshDetails(
+            relNode,
+            reflectionSettings,
+            reflectionService,
+            optionManager,
+            config,
+            !convertedRelNode.getNonCacheableFunctionResult().isReflectionIncrementalRefreshable());
 
     // ASSERT
     assertEquals(RefreshMethod.INCREMENTAL, refreshDetails.getRefreshMethod());
@@ -210,30 +273,49 @@ public class TestIncrementalUpdateServiceUtils extends BaseTestQuery {
   }
 
   /**
-   *  Test IncrementalUpdateServiceUtils.extractRefreshDetails()
-   *  -  Scan non-native iceberg table (unlimited split)
-   *  -  Source level configured reflection refresh method: FULL
-   *  -  REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED: false
-   *  -  REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL: true
-   *  -  Expected result: RefreshMethod.INCREMENTAL. getSnapshotBased() is true.
+   * Test IncrementalUpdateServiceUtils.extractRefreshDetails() - Scan non-native iceberg table
+   * (unlimited split) - Source level configured reflection refresh method: FULL -
+   * REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED: false -
+   * REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL: true - Expected result:
+   * RefreshMethod.INCREMENTAL. getSnapshotBased() is true.
    */
   @Test
   public void testUnlimitedSplitsSnapshotBasedEnabled() throws Exception {
     String sql = "SELECT * FROM cp.\"test_table.parquet\";";
     final SqlNode node = converter.parse(sql);
-    final ConvertedRelNode convertedRelNode = SqlToRelTransformer.validateAndConvert(config, node);
+    final ConvertedRelNode convertedRelNode =
+        SqlToRelTransformer.validateAndConvert(sqlHandlerConfig, node);
     RelNode relNode = convertedRelNode.getConvertedNode();
     ScanCrel scanCrel = findSingleNode(relNode, ScanCrel.class, null);
     TableMetadata tableMetadata = scanCrel.getTableMetadata();
-    String snapshotId = tableMetadata.getDatasetConfig().getPhysicalDataset().getIcebergMetadata().getSnapshotId().toString();
+    String snapshotId =
+        tableMetadata
+            .getDatasetConfig()
+            .getPhysicalDataset()
+            .getIcebergMetadata()
+            .getSnapshotId()
+            .toString();
 
-    AccelerationSettings accelerationSettings = new AccelerationSettings().setMethod(RefreshMethod.FULL);
-    when(reflectionSettings.getReflectionSettings(any(CatalogEntityKey.class))).thenReturn(accelerationSettings);
-    when(optionManager.getOption(ReflectionOptions.REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED)).thenReturn(false);
-    when(optionManager.getOption(ReflectionOptions.REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL)).thenReturn(true);
+    AccelerationSettings accelerationSettings =
+        new AccelerationSettings().setMethod(RefreshMethod.FULL);
+    when(reflectionSettings.getReflectionSettings(any(CatalogEntityKey.class)))
+        .thenReturn(accelerationSettings);
+    when(optionManager.getOption(
+            ReflectionOptions.REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED))
+        .thenReturn(false);
+    when(optionManager.getOption(
+            ReflectionOptions.REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL))
+        .thenReturn(true);
 
     // TEST
-    IncrementalUpdateServiceUtils.RefreshDetails refreshDetails = IncrementalUpdateServiceUtils.extractRefreshDetails(relNode, reflectionSettings, reflectionService, optionManager, false, null);
+    IncrementalUpdateServiceUtils.RefreshDetails refreshDetails =
+        IncrementalUpdateServiceUtils.extractRefreshDetails(
+            relNode,
+            reflectionSettings,
+            reflectionService,
+            optionManager,
+            config,
+            !convertedRelNode.getNonCacheableFunctionResult().isReflectionIncrementalRefreshable());
 
     // ASSERT
     assertEquals(RefreshMethod.INCREMENTAL, refreshDetails.getRefreshMethod());
@@ -244,27 +326,40 @@ public class TestIncrementalUpdateServiceUtils extends BaseTestQuery {
   }
 
   /**
-   *  Test IncrementalUpdateServiceUtils.extractRefreshDetails()
-   *  -  Scan non-native iceberg table (unlimited split)
-   *  -  Source level configured reflection refresh method: FULL
-   *  -  REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED: true
-   *  -  REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL: false
-   *  -  Expected result: RefreshMethod.INCREMENTAL. getSnapshotBased() is false.
+   * Test IncrementalUpdateServiceUtils.extractRefreshDetails() - Scan non-native iceberg table
+   * (unlimited split) - Source level configured reflection refresh method: FULL -
+   * REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED: true -
+   * REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL: false - Expected result:
+   * RefreshMethod.INCREMENTAL. getSnapshotBased() is false.
    */
   @Test
   public void testUnlimitedSplitsSnapshotBasedDisabled() throws Exception {
     String sql = "SELECT * FROM cp.\"test_table.parquet\";";
     final SqlNode node = converter.parse(sql);
-    final ConvertedRelNode convertedRelNode = SqlToRelTransformer.validateAndConvert(config, node);
+    final ConvertedRelNode convertedRelNode =
+        SqlToRelTransformer.validateAndConvert(sqlHandlerConfig, node);
     RelNode relNode = convertedRelNode.getConvertedNode();
 
-    AccelerationSettings accelerationSettings = new AccelerationSettings().setMethod(RefreshMethod.FULL);
-    when(reflectionSettings.getReflectionSettings(any(CatalogEntityKey.class))).thenReturn(accelerationSettings);
-    when(optionManager.getOption(ReflectionOptions.REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED)).thenReturn(true);
-    when(optionManager.getOption(ReflectionOptions.REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL)).thenReturn(false);
+    AccelerationSettings accelerationSettings =
+        new AccelerationSettings().setMethod(RefreshMethod.FULL);
+    when(reflectionSettings.getReflectionSettings(any(CatalogEntityKey.class)))
+        .thenReturn(accelerationSettings);
+    when(optionManager.getOption(
+            ReflectionOptions.REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED))
+        .thenReturn(true);
+    when(optionManager.getOption(
+            ReflectionOptions.REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL))
+        .thenReturn(false);
 
     // TEST
-    IncrementalUpdateServiceUtils.RefreshDetails refreshDetails = IncrementalUpdateServiceUtils.extractRefreshDetails(relNode, reflectionSettings, reflectionService, optionManager, false, null);
+    IncrementalUpdateServiceUtils.RefreshDetails refreshDetails =
+        IncrementalUpdateServiceUtils.extractRefreshDetails(
+            relNode,
+            reflectionSettings,
+            reflectionService,
+            optionManager,
+            config,
+            !convertedRelNode.getNonCacheableFunctionResult().isReflectionIncrementalRefreshable());
 
     // ASSERT
     assertEquals(RefreshMethod.FULL, refreshDetails.getRefreshMethod());
@@ -274,38 +369,50 @@ public class TestIncrementalUpdateServiceUtils extends BaseTestQuery {
     assertNull(refreshDetails.getBaseTableSnapshotId());
   }
 
-  /**
-   * Test incremental refresh is disabled if PDS is file (not folder) based.
-   */
+  /** Test incremental refresh is disabled if PDS is file (not folder) based. */
   @Test
   public void testFileBasedDataset() {
-    final DatasetConfig datasetConfig = new DatasetConfig()
-      .setType(DatasetType.PHYSICAL_DATASET_SOURCE_FILE);
-    assertFalse(IncrementalUpdateServiceUtils.isIncrementalRefreshBySnapshotEnabled(datasetConfig, null));
+    final DatasetConfig datasetConfig =
+        new DatasetConfig().setType(DatasetType.PHYSICAL_DATASET_SOURCE_FILE);
+    assertFalse(
+        IncrementalUpdateServiceUtils.isIncrementalRefreshBySnapshotEnabled(datasetConfig, null));
   }
 
   /**
-   *  Test IncrementalUpdateServiceUtils.extractRefreshDetails()
-   *  -  Scan non-native iceberg table (json)
-   *  -  Source level configured reflection refresh method: FULL or INCREMENTAL with non-null refresh field
-   *  -  REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED: true
-   *  -  REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL: true
-   *  -  Expected result: RefreshMethod.FULL or INCREMENTAL with non-null refresh field
+   * Test IncrementalUpdateServiceUtils.extractRefreshDetails() - Scan non-native iceberg table
+   * (json) - Source level configured reflection refresh method: FULL or INCREMENTAL with non-null
+   * refresh field - REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED: true -
+   * REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL: true - Expected result:
+   * RefreshMethod.FULL or INCREMENTAL with non-null refresh field
    */
   @Test
   public void testScanJsonSnapshotBasedEnabled() throws Exception {
     String sql = "SELECT * FROM cp.\"employees.json\";";
     final SqlNode node = converter.parse(sql);
-    final ConvertedRelNode convertedRelNode = SqlToRelTransformer.validateAndConvert(config, node);
+    final ConvertedRelNode convertedRelNode =
+        SqlToRelTransformer.validateAndConvert(sqlHandlerConfig, node);
     RelNode relNode = convertedRelNode.getConvertedNode();
 
-    AccelerationSettings accelerationSettings = new AccelerationSettings().setMethod(RefreshMethod.FULL);
-    when(reflectionSettings.getReflectionSettings(any(CatalogEntityKey.class))).thenReturn(accelerationSettings);
-    when(optionManager.getOption(ReflectionOptions.REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED)).thenReturn(true);
-    when(optionManager.getOption(ReflectionOptions.REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL)).thenReturn(true);
+    AccelerationSettings accelerationSettings =
+        new AccelerationSettings().setMethod(RefreshMethod.FULL);
+    when(reflectionSettings.getReflectionSettings(any(CatalogEntityKey.class)))
+        .thenReturn(accelerationSettings);
+    when(optionManager.getOption(
+            ReflectionOptions.REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED))
+        .thenReturn(true);
+    when(optionManager.getOption(
+            ReflectionOptions.REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL))
+        .thenReturn(true);
 
     // TEST
-    IncrementalUpdateServiceUtils.RefreshDetails refreshDetails = IncrementalUpdateServiceUtils.extractRefreshDetails(relNode, reflectionSettings, reflectionService, optionManager, false, null);
+    IncrementalUpdateServiceUtils.RefreshDetails refreshDetails =
+        IncrementalUpdateServiceUtils.extractRefreshDetails(
+            relNode,
+            reflectionSettings,
+            reflectionService,
+            optionManager,
+            config,
+            !convertedRelNode.getNonCacheableFunctionResult().isReflectionIncrementalRefreshable());
 
     // ASSERT
     assertEquals(RefreshMethod.FULL, refreshDetails.getRefreshMethod());
@@ -314,14 +421,28 @@ public class TestIncrementalUpdateServiceUtils extends BaseTestQuery {
     assertNull(refreshDetails.getBaseTableMetadata());
     assertNull(refreshDetails.getBaseTableSnapshotId());
 
-    // REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED shouldn't affect dataset refresh setting
-    accelerationSettings = new AccelerationSettings().setMethod(RefreshMethod.INCREMENTAL).setRefreshField("abc");
-    when(reflectionSettings.getReflectionSettings(any(CatalogEntityKey.class))).thenReturn(accelerationSettings);
-    when(optionManager.getOption(ReflectionOptions.REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED)).thenReturn(true);
-    when(optionManager.getOption(ReflectionOptions.REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL)).thenReturn(true);
+    // REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED shouldn't affect dataset refresh
+    // setting
+    accelerationSettings =
+        new AccelerationSettings().setMethod(RefreshMethod.INCREMENTAL).setRefreshField("abc");
+    when(reflectionSettings.getReflectionSettings(any(CatalogEntityKey.class)))
+        .thenReturn(accelerationSettings);
+    when(optionManager.getOption(
+            ReflectionOptions.REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED))
+        .thenReturn(true);
+    when(optionManager.getOption(
+            ReflectionOptions.REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL))
+        .thenReturn(true);
 
     // TEST
-    refreshDetails = IncrementalUpdateServiceUtils.extractRefreshDetails(relNode, reflectionSettings, reflectionService, optionManager, false, null);
+    refreshDetails =
+        IncrementalUpdateServiceUtils.extractRefreshDetails(
+            relNode,
+            reflectionSettings,
+            reflectionService,
+            optionManager,
+            config,
+            !convertedRelNode.getNonCacheableFunctionResult().isReflectionIncrementalRefreshable());
 
     // ASSERT
     assertEquals(RefreshMethod.INCREMENTAL, refreshDetails.getRefreshMethod());
@@ -332,27 +453,40 @@ public class TestIncrementalUpdateServiceUtils extends BaseTestQuery {
   }
 
   /**
-   *  Test IncrementalUpdateServiceUtils.extractRefreshDetails()
-   *  -  Scan non-native iceberg table (json)
-   *  -  Source level configured reflection refresh method: FULL or INCREMENTAL with non-null refresh field
-   *  -  REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED: false
-   *  -  REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL: false
-   *  -  Expected result: RefreshMethod.FULL or INCREMENTAL with non-null refresh field
+   * Test IncrementalUpdateServiceUtils.extractRefreshDetails() - Scan non-native iceberg table
+   * (json) - Source level configured reflection refresh method: FULL or INCREMENTAL with non-null
+   * refresh field - REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED: false -
+   * REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL: false - Expected result:
+   * RefreshMethod.FULL or INCREMENTAL with non-null refresh field
    */
   @Test
   public void testScanJsonSnapshotBasedDisabled() throws Exception {
     String sql = "SELECT * FROM cp.\"employees.json\";";
     final SqlNode node = converter.parse(sql);
-    final ConvertedRelNode convertedRelNode = SqlToRelTransformer.validateAndConvert(config, node);
+    final ConvertedRelNode convertedRelNode =
+        SqlToRelTransformer.validateAndConvert(sqlHandlerConfig, node);
     RelNode relNode = convertedRelNode.getConvertedNode();
 
-    AccelerationSettings accelerationSettings = new AccelerationSettings().setMethod(RefreshMethod.FULL);
-    when(reflectionSettings.getReflectionSettings(any(CatalogEntityKey.class))).thenReturn(accelerationSettings);
-    when(optionManager.getOption(ReflectionOptions.REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED)).thenReturn(false);
-    when(optionManager.getOption(ReflectionOptions.REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL)).thenReturn(false);
+    AccelerationSettings accelerationSettings =
+        new AccelerationSettings().setMethod(RefreshMethod.FULL);
+    when(reflectionSettings.getReflectionSettings(any(CatalogEntityKey.class)))
+        .thenReturn(accelerationSettings);
+    when(optionManager.getOption(
+            ReflectionOptions.REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED))
+        .thenReturn(false);
+    when(optionManager.getOption(
+            ReflectionOptions.REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL))
+        .thenReturn(false);
 
     // TEST
-    IncrementalUpdateServiceUtils.RefreshDetails refreshDetails = IncrementalUpdateServiceUtils.extractRefreshDetails(relNode, reflectionSettings, reflectionService, optionManager, false, null);
+    IncrementalUpdateServiceUtils.RefreshDetails refreshDetails =
+        IncrementalUpdateServiceUtils.extractRefreshDetails(
+            relNode,
+            reflectionSettings,
+            reflectionService,
+            optionManager,
+            config,
+            !convertedRelNode.getNonCacheableFunctionResult().isReflectionIncrementalRefreshable());
 
     // ASSERT
     assertEquals(RefreshMethod.FULL, refreshDetails.getRefreshMethod());
@@ -361,13 +495,26 @@ public class TestIncrementalUpdateServiceUtils extends BaseTestQuery {
     assertNull(refreshDetails.getBaseTableMetadata());
     assertNull(refreshDetails.getBaseTableSnapshotId());
 
-    accelerationSettings = new AccelerationSettings().setMethod(RefreshMethod.INCREMENTAL).setRefreshField("col1");
-    when(reflectionSettings.getReflectionSettings(any(CatalogEntityKey.class))).thenReturn(accelerationSettings);
-    when(optionManager.getOption(ReflectionOptions.REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED)).thenReturn(false);
-    when(optionManager.getOption(ReflectionOptions.REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL)).thenReturn(false);
+    accelerationSettings =
+        new AccelerationSettings().setMethod(RefreshMethod.INCREMENTAL).setRefreshField("col1");
+    when(reflectionSettings.getReflectionSettings(any(CatalogEntityKey.class)))
+        .thenReturn(accelerationSettings);
+    when(optionManager.getOption(
+            ReflectionOptions.REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED))
+        .thenReturn(false);
+    when(optionManager.getOption(
+            ReflectionOptions.REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL))
+        .thenReturn(false);
 
     // TEST
-    refreshDetails = IncrementalUpdateServiceUtils.extractRefreshDetails(relNode, reflectionSettings, reflectionService, optionManager, false, null);
+    refreshDetails =
+        IncrementalUpdateServiceUtils.extractRefreshDetails(
+            relNode,
+            reflectionSettings,
+            reflectionService,
+            optionManager,
+            config,
+            !convertedRelNode.getNonCacheableFunctionResult().isReflectionIncrementalRefreshable());
 
     // ASSERT
     assertEquals(RefreshMethod.INCREMENTAL, refreshDetails.getRefreshMethod());
@@ -378,29 +525,44 @@ public class TestIncrementalUpdateServiceUtils extends BaseTestQuery {
   }
 
   /**
-   *  Test IncrementalUpdateServiceUtils.extractRefreshDetails()
-   *  -  Scan native iceberg table
-   *  -  Source level configured reflection refresh method: FULL
-   *  -  REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED: true
-   *  -  REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL: true
-   *  -  There is unsupported operator in plan: Join
-   *  -  Expected result: RefreshMethod.FULL
+   * Test IncrementalUpdateServiceUtils.extractRefreshDetails() - Scan native iceberg table - Source
+   * level configured reflection refresh method: FULL -
+   * REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED: true -
+   * REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL: true - There is unsupported operator in
+   * plan: Join - Expected result: RefreshMethod.FULL
    */
   @Test
   public void testSnapshotBasedEnabledUnsupportedOp() throws Exception {
-    String sql = String.format("SELECT * FROM %s AS n1 JOIN %s AS n2 ON n1.n_nationkey = n2.n_nationkey", icebergTable.getTableName(), icebergTable.getTableName());
+    String sql =
+        String.format(
+            "SELECT * FROM %s AS n1 FULL OUTER JOIN %s AS n2 ON n1.n_nationkey = n2.n_nationkey",
+            icebergTable.getTableName(), icebergTable.getTableName());
 
     final SqlNode node = converter.parse(sql);
-    final ConvertedRelNode convertedRelNode = SqlToRelTransformer.validateAndConvert(config, node);
+    final ConvertedRelNode convertedRelNode =
+        SqlToRelTransformer.validateAndConvert(sqlHandlerConfig, node);
     RelNode relNode = convertedRelNode.getConvertedNode();
 
-    AccelerationSettings accelerationSettings = new AccelerationSettings().setMethod(RefreshMethod.FULL);
-    when(reflectionSettings.getReflectionSettings(any(CatalogEntityKey.class))).thenReturn(accelerationSettings);
-    when(optionManager.getOption(ReflectionOptions.REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED)).thenReturn(true);
-    when(optionManager.getOption(ReflectionOptions.REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL)).thenReturn(true);
+    AccelerationSettings accelerationSettings =
+        new AccelerationSettings().setMethod(RefreshMethod.FULL);
+    when(reflectionSettings.getReflectionSettings(any(CatalogEntityKey.class)))
+        .thenReturn(accelerationSettings);
+    when(optionManager.getOption(
+            ReflectionOptions.REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED))
+        .thenReturn(true);
+    when(optionManager.getOption(
+            ReflectionOptions.REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL))
+        .thenReturn(true);
 
     // TEST
-    IncrementalUpdateServiceUtils.RefreshDetails refreshDetails = IncrementalUpdateServiceUtils.extractRefreshDetails(relNode, reflectionSettings, reflectionService, optionManager, false, null);
+    IncrementalUpdateServiceUtils.RefreshDetails refreshDetails =
+        IncrementalUpdateServiceUtils.extractRefreshDetails(
+            relNode,
+            reflectionSettings,
+            reflectionService,
+            optionManager,
+            config,
+            !convertedRelNode.getNonCacheableFunctionResult().isReflectionIncrementalRefreshable());
 
     // ASSERT
     assertEquals(RefreshMethod.FULL, refreshDetails.getRefreshMethod());
@@ -411,31 +573,50 @@ public class TestIncrementalUpdateServiceUtils extends BaseTestQuery {
   }
 
   /**
-   *  Test IncrementalUpdateServiceUtils.extractRefreshDetails()
-   *  -  Scan native iceberg table
-   *  -  Source level configured reflection refresh method: AUTO
-   *  -  REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED: true
-   *  -  REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL: false
-   *  -  Expected result: RefreshMethod.INCREMENTAL. getSnapshotBased() is true.
+   * Test IncrementalUpdateServiceUtils.extractRefreshDetails() - Scan native iceberg table - Source
+   * level configured reflection refresh method: AUTO -
+   * REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED: true -
+   * REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL: false - Expected result:
+   * RefreshMethod.INCREMENTAL. getSnapshotBased() is true.
    */
   @Test
   public void testScanNativeIcebergSnapshotBasedEnabledRefreshSettingMethodAuto() throws Exception {
     String sql = String.format("SELECT * FROM %s", icebergTable.getTableName());
 
     final SqlNode node = converter.parse(sql);
-    final ConvertedRelNode convertedRelNode = SqlToRelTransformer.validateAndConvert(config, node);
+    final ConvertedRelNode convertedRelNode =
+        SqlToRelTransformer.validateAndConvert(sqlHandlerConfig, node);
     RelNode relNode = convertedRelNode.getConvertedNode();
     ScanCrel scanCrel = findSingleNode(relNode, ScanCrel.class, null);
     TableMetadata tableMetadata = scanCrel.getTableMetadata();
-    String snapshotId = tableMetadata.getDatasetConfig().getPhysicalDataset().getIcebergMetadata().getSnapshotId().toString();
+    String snapshotId =
+        tableMetadata
+            .getDatasetConfig()
+            .getPhysicalDataset()
+            .getIcebergMetadata()
+            .getSnapshotId()
+            .toString();
 
-    AccelerationSettings accelerationSettings = new AccelerationSettings().setMethod(RefreshMethod.AUTO);
-    when(reflectionSettings.getReflectionSettings(any(CatalogEntityKey.class))).thenReturn(accelerationSettings);
-    when(optionManager.getOption(ReflectionOptions.REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED)).thenReturn(true);
-    when(optionManager.getOption(ReflectionOptions.REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL)).thenReturn(false);
+    AccelerationSettings accelerationSettings =
+        new AccelerationSettings().setMethod(RefreshMethod.AUTO);
+    when(reflectionSettings.getReflectionSettings(any(CatalogEntityKey.class)))
+        .thenReturn(accelerationSettings);
+    when(optionManager.getOption(
+            ReflectionOptions.REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED))
+        .thenReturn(true);
+    when(optionManager.getOption(
+            ReflectionOptions.REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL))
+        .thenReturn(false);
 
     // TEST
-    IncrementalUpdateServiceUtils.RefreshDetails refreshDetails = IncrementalUpdateServiceUtils.extractRefreshDetails(relNode, reflectionSettings, reflectionService, optionManager, false, null);
+    IncrementalUpdateServiceUtils.RefreshDetails refreshDetails =
+        IncrementalUpdateServiceUtils.extractRefreshDetails(
+            relNode,
+            reflectionSettings,
+            reflectionService,
+            optionManager,
+            config,
+            !convertedRelNode.getNonCacheableFunctionResult().isReflectionIncrementalRefreshable());
 
     // ASSERT
     assertEquals(RefreshMethod.INCREMENTAL, refreshDetails.getRefreshMethod());
@@ -446,27 +627,40 @@ public class TestIncrementalUpdateServiceUtils extends BaseTestQuery {
   }
 
   /**
-   *  Test IncrementalUpdateServiceUtils.extractRefreshDetails()
-   *  -  Scan non-native iceberg table (unlimited split)
-   *  -  Source level configured reflection refresh method: AUTO
-   *  -  REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED: true
-   *  -  REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL: false
-   *  -  Expected result: RefreshMethod.FULL. getSnapshotBased() is false.
+   * Test IncrementalUpdateServiceUtils.extractRefreshDetails() - Scan non-native iceberg table
+   * (unlimited split) - Source level configured reflection refresh method: AUTO -
+   * REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED: true -
+   * REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL: false - Expected result:
+   * RefreshMethod.FULL. getSnapshotBased() is false.
    */
   @Test
   public void testUnlimitedSplitsSnapshotBasedDisabledRefreshSettingMethodAuto() throws Exception {
     String sql = "SELECT * FROM cp.\"test_table.parquet\";";
     final SqlNode node = converter.parse(sql);
-    final ConvertedRelNode convertedRelNode = SqlToRelTransformer.validateAndConvert(config, node);
+    final ConvertedRelNode convertedRelNode =
+        SqlToRelTransformer.validateAndConvert(sqlHandlerConfig, node);
     RelNode relNode = convertedRelNode.getConvertedNode();
 
-    AccelerationSettings accelerationSettings = new AccelerationSettings().setMethod(RefreshMethod.AUTO);
-    when(reflectionSettings.getReflectionSettings(any(CatalogEntityKey.class))).thenReturn(accelerationSettings);
-    when(optionManager.getOption(ReflectionOptions.REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED)).thenReturn(true);
-    when(optionManager.getOption(ReflectionOptions.REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL)).thenReturn(false);
+    AccelerationSettings accelerationSettings =
+        new AccelerationSettings().setMethod(RefreshMethod.AUTO);
+    when(reflectionSettings.getReflectionSettings(any(CatalogEntityKey.class)))
+        .thenReturn(accelerationSettings);
+    when(optionManager.getOption(
+            ReflectionOptions.REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED))
+        .thenReturn(true);
+    when(optionManager.getOption(
+            ReflectionOptions.REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL))
+        .thenReturn(false);
 
     // TEST
-    IncrementalUpdateServiceUtils.RefreshDetails refreshDetails = IncrementalUpdateServiceUtils.extractRefreshDetails(relNode, reflectionSettings, reflectionService, optionManager, false, null);
+    IncrementalUpdateServiceUtils.RefreshDetails refreshDetails =
+        IncrementalUpdateServiceUtils.extractRefreshDetails(
+            relNode,
+            reflectionSettings,
+            reflectionService,
+            optionManager,
+            config,
+            !convertedRelNode.getNonCacheableFunctionResult().isReflectionIncrementalRefreshable());
 
     // ASSERT
     assertEquals(RefreshMethod.FULL, refreshDetails.getRefreshMethod());
@@ -477,27 +671,40 @@ public class TestIncrementalUpdateServiceUtils extends BaseTestQuery {
   }
 
   /**
-   *  Test IncrementalUpdateServiceUtils.extractRefreshDetails()
-   *  -  Scan non-native iceberg table (json)
-   *  -  Source level configured reflection refresh method: AUTO
-   *  -  REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED: false
-   *  -  REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL: false
-   *  -  Expected result: RefreshMethod.FULL
+   * Test IncrementalUpdateServiceUtils.extractRefreshDetails() - Scan non-native iceberg table
+   * (json) - Source level configured reflection refresh method: AUTO -
+   * REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED: false -
+   * REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL: false - Expected result:
+   * RefreshMethod.FULL
    */
   @Test
   public void testScanJsonSnapshotBasedDisabledRefreshSettingMethodAuto() throws Exception {
     String sql = "SELECT * FROM cp.\"employees.json\";";
     final SqlNode node = converter.parse(sql);
-    final ConvertedRelNode convertedRelNode = SqlToRelTransformer.validateAndConvert(config, node);
+    final ConvertedRelNode convertedRelNode =
+        SqlToRelTransformer.validateAndConvert(sqlHandlerConfig, node);
     RelNode relNode = convertedRelNode.getConvertedNode();
 
-    AccelerationSettings accelerationSettings = new AccelerationSettings().setMethod(RefreshMethod.AUTO);
-    when(reflectionSettings.getReflectionSettings(any(CatalogEntityKey.class))).thenReturn(accelerationSettings);
-    when(optionManager.getOption(ReflectionOptions.REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED)).thenReturn(false);
-    when(optionManager.getOption(ReflectionOptions.REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL)).thenReturn(false);
+    AccelerationSettings accelerationSettings =
+        new AccelerationSettings().setMethod(RefreshMethod.AUTO);
+    when(reflectionSettings.getReflectionSettings(any(CatalogEntityKey.class)))
+        .thenReturn(accelerationSettings);
+    when(optionManager.getOption(
+            ReflectionOptions.REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED))
+        .thenReturn(false);
+    when(optionManager.getOption(
+            ReflectionOptions.REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL))
+        .thenReturn(false);
 
     // TEST
-    IncrementalUpdateServiceUtils.RefreshDetails refreshDetails = IncrementalUpdateServiceUtils.extractRefreshDetails(relNode, reflectionSettings, reflectionService, optionManager, false, null);
+    IncrementalUpdateServiceUtils.RefreshDetails refreshDetails =
+        IncrementalUpdateServiceUtils.extractRefreshDetails(
+            relNode,
+            reflectionSettings,
+            reflectionService,
+            optionManager,
+            config,
+            !convertedRelNode.getNonCacheableFunctionResult().isReflectionIncrementalRefreshable());
 
     // ASSERT
     assertEquals(RefreshMethod.FULL, refreshDetails.getRefreshMethod());
@@ -508,34 +715,99 @@ public class TestIncrementalUpdateServiceUtils extends BaseTestQuery {
   }
 
   /**
-   *  Test IncrementalUpdateServiceUtils.extractRefreshDetails()
-   *  -  Scan non-native iceberg table (unlimited split)
-   *  -  Source level configured reflection refresh method: FULL
-   *  -  REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED: false
-   *  -  REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL: true
-   *  - isRebuildPlan: true
-   *  -  Expected result: RefreshMethod.FULL. getSnapshotBased() is false.
+   * Test IncrementalUpdateServiceUtils.extractRefreshDetails() - Dynamic function is disallowed for
+   * incremental refresh.
    */
   @Test
-  public void testUnlimitedSplitsSnapshotBasedEnabledUpgradeRebuildPlan() throws Exception {
-    String sql = "SELECT * FROM cp.\"test_table.parquet\";";
+  public void testDynamicFunctionDisallowed() throws Exception {
+    final String sql = String.format("SELECT now() n, * FROM %s", icebergTable.getTableName());
+
     final SqlNode node = converter.parse(sql);
-    final ConvertedRelNode convertedRelNode = SqlToRelTransformer.validateAndConvert(config, node);
-    RelNode relNode = convertedRelNode.getConvertedNode();
 
-    AccelerationSettings accelerationSettings = new AccelerationSettings().setMethod(RefreshMethod.FULL);
-    when(reflectionSettings.getReflectionSettings(any(CatalogEntityKey.class))).thenReturn(accelerationSettings);
-    when(optionManager.getOption(ReflectionOptions.REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED)).thenReturn(false);
-    when(optionManager.getOption(ReflectionOptions.REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL)).thenReturn(true);
+    final ConvertedRelNode convertedRelNode =
+        SqlToRelTransformer.validateAndConvert(sqlHandlerConfig, node);
 
-    ReflectionEntry entry = new ReflectionEntry().setRefreshMethod(RefreshMethod.FULL);
+    AccelerationSettings accelerationSettings =
+        new AccelerationSettings().setMethod(RefreshMethod.INCREMENTAL).setRefreshField("abc");
+    when(reflectionSettings.getReflectionSettings(any(CatalogEntityKey.class)))
+        .thenReturn(accelerationSettings);
+    when(optionManager.getOption(
+            ReflectionOptions.REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED))
+        .thenReturn(true);
+    when(optionManager.getOption(
+            ReflectionOptions.REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL))
+        .thenReturn(true);
 
     // TEST
-    IncrementalUpdateServiceUtils.RefreshDetails refreshDetails = IncrementalUpdateServiceUtils.extractRefreshDetails(relNode, reflectionSettings, reflectionService, optionManager, true, entry);
+    IncrementalUpdateServiceUtils.RefreshDetails refreshDetails =
+        IncrementalUpdateServiceUtils.extractRefreshDetails(
+            convertedRelNode.getConvertedNode(),
+            reflectionSettings,
+            reflectionService,
+            optionManager,
+            config,
+            !convertedRelNode.getNonCacheableFunctionResult().isReflectionIncrementalRefreshable());
 
     // ASSERT
     assertEquals(RefreshMethod.FULL, refreshDetails.getRefreshMethod());
     assertNull(refreshDetails.getRefreshField());
     assertFalse(refreshDetails.getSnapshotBased());
+    assertNull(refreshDetails.getBaseTableMetadata());
+    assertNull(refreshDetails.getBaseTableSnapshotId());
+    assertEquals(
+        "Cannot do incremental update because the reflection has dynamic function operators.",
+        refreshDetails.getFullRefreshReason());
+  }
+
+  /**
+   * Test IncrementalUpdateServiceUtils.extractRefreshDetails() - Non-deterministic function is
+   * disallowed for incremental refresh.
+   */
+  @Test
+  public void testNonDeterministicFunctionAllowed() throws Exception {
+    final String sql = String.format("SELECT RANDOM() n, * FROM %s", icebergTable.getTableName());
+
+    final SqlNode node = converter.parse(sql);
+
+    final ConvertedRelNode convertedRelNode =
+        SqlToRelTransformer.validateAndConvert(sqlHandlerConfig, node);
+    RelNode relNode = convertedRelNode.getConvertedNode();
+    ScanCrel scanCrel = findSingleNode(relNode, ScanCrel.class, null);
+    TableMetadata tableMetadata = scanCrel.getTableMetadata();
+    String snapshotId =
+        tableMetadata
+            .getDatasetConfig()
+            .getPhysicalDataset()
+            .getIcebergMetadata()
+            .getSnapshotId()
+            .toString();
+
+    AccelerationSettings accelerationSettings =
+        new AccelerationSettings().setMethod(RefreshMethod.FULL);
+    when(reflectionSettings.getReflectionSettings(any(CatalogEntityKey.class)))
+        .thenReturn(accelerationSettings);
+    when(optionManager.getOption(
+            ReflectionOptions.REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED))
+        .thenReturn(true);
+    when(optionManager.getOption(
+            ReflectionOptions.REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL))
+        .thenReturn(true);
+
+    // TEST
+    IncrementalUpdateServiceUtils.RefreshDetails refreshDetails =
+        IncrementalUpdateServiceUtils.extractRefreshDetails(
+            convertedRelNode.getConvertedNode(),
+            reflectionSettings,
+            reflectionService,
+            optionManager,
+            config,
+            !convertedRelNode.getNonCacheableFunctionResult().isReflectionIncrementalRefreshable());
+
+    // ASSERT
+    assertEquals(RefreshMethod.INCREMENTAL, refreshDetails.getRefreshMethod());
+    assertNull(refreshDetails.getRefreshField());
+    assertTrue(refreshDetails.getSnapshotBased());
+    assertEquals(tableMetadata, refreshDetails.getBaseTableMetadata());
+    assertEquals(snapshotId, refreshDetails.getBaseTableSnapshotId());
   }
 }

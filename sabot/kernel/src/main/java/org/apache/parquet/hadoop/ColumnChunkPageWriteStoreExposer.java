@@ -16,7 +16,6 @@
 package org.apache.parquet.hadoop;
 
 import java.io.IOException;
-
 import org.apache.parquet.column.ParquetProperties;
 import org.apache.parquet.column.page.PageWriteStore;
 import org.apache.parquet.hadoop.CodecFactory.BytesCompressor;
@@ -25,14 +24,12 @@ import org.apache.parquet.schema.MessageType;
 public class ColumnChunkPageWriteStoreExposer {
 
   public static ColumnChunkPageWriteStore newColumnChunkPageWriteStore(
-      BytesCompressor compressor,
-      MessageType schema,
-      ParquetProperties parquetProperties
-      ) {
+      BytesCompressor compressor, MessageType schema, ParquetProperties parquetProperties) {
     return new ColumnChunkPageWriteStore(compressor, schema, parquetProperties);
   }
 
-  public static void flushPageStore(PageWriteStore pageStore, ParquetFileWriter w) throws IOException {
+  public static void flushPageStore(PageWriteStore pageStore, ParquetFileWriter w)
+      throws IOException {
     ((ColumnChunkPageWriteStore) pageStore).flushToFileWriter(w);
   }
 

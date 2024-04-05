@@ -19,17 +19,17 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * {@link ThreadFactory} for {@link ExecutorServices} that names threads sequentially.
- * Creates Threads named with the prefix specified at construction time. Created threads
- * have the daemon bit set and priority Thread.MAX_PRIORITY.
+ * {@link ThreadFactory} for {@link ExecutorServices} that names threads sequentially. Creates
+ * Threads named with the prefix specified at construction time. Created threads have the daemon bit
+ * set and priority Thread.MAX_PRIORITY.
  *
- * <p>An instance creates names with an instance-specific prefix suffixed with sequential
- * integers.</p>
+ * <p>An instance creates names with an instance-specific prefix suffixed with sequential integers.
  *
- * <p>Concurrency: See {@link newThread}.</p>
+ * <p>Concurrency: See {@link newThread}.
  */
 public class NamedThreadFactory implements ThreadFactory {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(NamedThreadFactory.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(NamedThreadFactory.class);
   private final AtomicInteger nextId = new AtomicInteger(); // used to generate unique ids
   private final String prefix;
 
@@ -42,24 +42,19 @@ public class NamedThreadFactory implements ThreadFactory {
     this.prefix = prefix;
   }
 
- /**
-  * Creates a sequentially named thread running a given Runnable.
-  * <p>
-  *   The thread's name will be this instance's prefix concatenated with
-  *   this instance's next<sup><a href="#fn-1">*</a></sup> sequential integer.
-  * </p>
-  * <p>
-  *  Concurrency:  Thread-safe.
-  * </p>
-  * <p>
-  * (Concurrent calls get different numbers.
-  *  Calls started after other calls complete get later/higher numbers than
-  *  those other calls.
-  * </p>
-  * <p>
-  *  <a name="fn-1" />*However, for concurrent calls, the order of numbers
-  *  is not defined.)
-  */
+  /**
+   * Creates a sequentially named thread running a given Runnable.
+   *
+   * <p>The thread's name will be this instance's prefix concatenated with this instance's
+   * next<sup><a href="#fn-1">*</a></sup> sequential integer.
+   *
+   * <p>Concurrency: Thread-safe.
+   *
+   * <p>(Concurrent calls get different numbers. Calls started after other calls complete get
+   * later/higher numbers than those other calls.
+   *
+   * <p><a name="fn-1" />*However, for concurrent calls, the order of numbers is not defined.)
+   */
   @Override
   public Thread newThread(final Runnable runnable) {
     final Thread thread = new Thread(runnable, prefix + nextId.incrementAndGet());

@@ -15,11 +15,6 @@
  */
 package com.dremio.datastore;
 
-
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
-
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.datastore.api.DocumentConverter;
 import com.dremio.datastore.api.IndexedStore;
@@ -30,10 +25,12 @@ import com.dremio.datastore.format.Format;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
 
 /**
- * Provides a TimedKVStore provider, that wraps the underlying provider &
- * measures timing of ops.
+ * Provides a TimedKVStore provider, that wraps the underlying provider & measures timing of ops.
  */
 public class TimedKVStoreProvider implements KVStoreProvider {
 
@@ -56,9 +53,8 @@ public class TimedKVStoreProvider implements KVStoreProvider {
   }
 
   /**
-   * TimedKVStoreProvider's implementation of the StoreBuilder class.
-   * TimedStoreBuilder provides the underlying StoreBuilder,
-   * for creating TimedStores
+   * TimedKVStoreProvider's implementation of the StoreBuilder class. TimedStoreBuilder provides the
+   * underlying StoreBuilder, for creating TimedStores
    *
    * @param <K> key type K.
    * @param <V> value type V.
@@ -100,7 +96,6 @@ public class TimedKVStoreProvider implements KVStoreProvider {
       return TimedKVStore.of(delegate.build());
     }
 
-
     @Override
     public IndexedStore<K, V> buildIndexed(DocumentConverter<K, V> documentConverter) {
       return TimedKVStore.TimedIndexedStore.of(delegate.buildIndexed(documentConverter));
@@ -109,14 +104,16 @@ public class TimedKVStoreProvider implements KVStoreProvider {
 
   @Override
   public Set<KVStore<?, ?>> stores() {
-    return new ImmutableSet.Builder<KVStore<?,?>>().addAll(stores.values().iterator()).build();
+    return new ImmutableSet.Builder<KVStore<?, ?>>().addAll(stores.values().iterator()).build();
   }
 
   @Override
   @SuppressWarnings("unchecked")
-  public <K, V, T extends KVStore<K, V>> T getStore(Class<? extends StoreCreationFunction<K, V, T>> creator) {
-    return (T) Preconditions.checkNotNull(stores.get(creator), "Unknown store creator %s",
-      creator.getName());
+  public <K, V, T extends KVStore<K, V>> T getStore(
+      Class<? extends StoreCreationFunction<K, V, T>> creator) {
+    return (T)
+        Preconditions.checkNotNull(
+            stores.get(creator), "Unknown store creator %s", creator.getName());
   }
 
   @Override
@@ -131,12 +128,17 @@ public class TimedKVStoreProvider implements KVStoreProvider {
   @Override
   public void start() throws Exception {
     kvProvider.start();
-    //KVProvider will create the required physical KVStores. We need to wrap them with timed instances.
-    ImmutableMap.Builder<Class<? extends StoreCreationFunction<?, ?, ?>>, KVStore<?, ?>> mapBuilder = ImmutableMap.builder();
-    //Same store can be mapped to multiple creators. So wrap them only once.
+    // KVProvider will create the required physical KVStores. We need to wrap them with timed
+    // instances.
+    ImmutableMap.Builder<Class<? extends StoreCreationFunction<?, ?, ?>>, KVStore<?, ?>>
+        mapBuilder = ImmutableMap.builder();
+    // Same store can be mapped to multiple creators. So wrap them only once.
     Map<KVStore<?, ?>, TimedKVStore<?, ?>> storeWrapperMap = new HashMap<>();
     for (Class<? extends StoreCreationFunction> creator : storeCreatorSupplier.get()) {
-      KVStore<Object, Object> kvStore = kvProvider.getStore((Class<? extends StoreCreationFunction<Object, Object, KVStore<Object, Object>>>) creator);
+      KVStore<Object, Object> kvStore =
+          kvProvider.getStore(
+              (Class<? extends StoreCreationFunction<Object, Object, KVStore<Object, Object>>>)
+                  creator);
       if (kvStore != null) {
         TimedKVStore<?, ?> wrappedStore = storeWrapperMap.get(kvStore);
         if (null == wrappedStore) {

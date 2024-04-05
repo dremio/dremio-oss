@@ -20,9 +20,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import org.junit.Test;
-
 import com.dremio.catalog.model.ResolvedVersionContext;
+import org.junit.Test;
 
 public class TestResolvedVersionContext {
 
@@ -69,11 +68,10 @@ public class TestResolvedVersionContext {
   @Test
   public void nullHash() {
     assertThatThrownBy(() -> ResolvedVersionContext.ofBranch(BRANCH_NAME, null))
-      .isInstanceOf(NullPointerException.class);
+        .isInstanceOf(NullPointerException.class);
     assertThatThrownBy(() -> ResolvedVersionContext.ofTag(TAG_NAME, null))
-      .isInstanceOf(NullPointerException.class);
+        .isInstanceOf(NullPointerException.class);
     assertThatThrownBy(() -> ResolvedVersionContext.ofCommit(null))
-      .isInstanceOf(NullPointerException.class);
+        .isInstanceOf(NullPointerException.class);
   }
-
 }

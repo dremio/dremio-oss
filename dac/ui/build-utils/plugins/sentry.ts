@@ -13,10 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { join } from "path";
 import { sentryWebpackPlugin } from "@sentry/webpack-plugin";
 import { dremioVersion } from "../version";
-import { output } from "../output";
 export const sentryPlugin =
   process.env.SKIP_SENTRY_STEP !== "true" &&
   sentryWebpackPlugin({
@@ -27,7 +25,4 @@ export const sentryPlugin =
     authToken: process.env.SENTRY_AUTH_TOKEN,
     project: "frontend",
     org: "dremio",
-    sourcemaps: {
-      filesToDeleteAfterUpload: [join(output.path, "sourcemaps/**/*.map")],
-    },
   });

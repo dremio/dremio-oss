@@ -23,8 +23,11 @@ import com.dremio.sabot.exec.context.FunctionContext;
 
 public interface SingleBatchSorterInterface {
   public static TemplateClassDefinition<SingleBatchSorterInterface> TEMPLATE_DEFINITION =
-    new TemplateClassDefinition<SingleBatchSorterInterface>(SingleBatchSorterInterface.class, SingleBatchSorterTemplate.class);
+      new TemplateClassDefinition<SingleBatchSorterInterface>(
+          SingleBatchSorterInterface.class, SingleBatchSorterTemplate.class);
 
-  public void setup(FunctionContext context, SelectionVector2 vector2, VectorAccessible incoming) throws SchemaChangeException;
+  public void setup(FunctionContext context, SelectionVector2 vector2, VectorAccessible incoming)
+      throws SchemaChangeException;
+
   public void sort(SelectionVector2 vector2);
 }

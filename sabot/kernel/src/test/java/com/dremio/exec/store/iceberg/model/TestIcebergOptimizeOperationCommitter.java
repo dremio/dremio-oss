@@ -28,23 +28,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.io.IOException;
-import java.util.Collections;
-import java.util.UUID;
-
-import org.apache.iceberg.ContentFile;
-import org.apache.iceberg.DataFile;
-import org.apache.iceberg.DataFiles;
-import org.apache.iceberg.DeleteFile;
-import org.apache.iceberg.FileMetadata;
-import org.apache.iceberg.ManifestFile;
-import org.apache.iceberg.PartitionSpec;
-import org.apache.iceberg.Snapshot;
-import org.apache.iceberg.Table;
-import org.assertj.core.groups.Tuple;
-import org.junit.Test;
-import org.mockito.ArgumentCaptor;
-
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.OperationType;
 import com.dremio.exec.store.dfs.IcebergTableProps;
@@ -58,12 +41,24 @@ import com.dremio.sabot.op.writer.WriterCommitterRecord;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.IcebergMetadata;
 import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
-
 import io.protostuff.ByteString;
+import java.io.IOException;
+import java.util.Collections;
+import java.util.UUID;
+import org.apache.iceberg.ContentFile;
+import org.apache.iceberg.DataFile;
+import org.apache.iceberg.DataFiles;
+import org.apache.iceberg.DeleteFile;
+import org.apache.iceberg.FileMetadata;
+import org.apache.iceberg.ManifestFile;
+import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.Snapshot;
+import org.apache.iceberg.Table;
+import org.assertj.core.groups.Tuple;
+import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 
-/**
- * Tests for {@link IcebergOptimizeOperationCommitter}
- */
+/** Tests for {@link IcebergOptimizeOperationCommitter} */
 public class TestIcebergOptimizeOperationCommitter {
   private static final String META_LOCATION = "/table/metadata/v1.metadata.json";
 
@@ -75,13 +70,23 @@ public class TestIcebergOptimizeOperationCommitter {
     Table table = mock(Table.class);
     when(table.currentSnapshot()).thenReturn(currentSnapshot);
     when(command.loadTable()).thenReturn(table);
-    when(command.rewriteFiles(anySet(), anySet(), anySet(), anySet(), anyLong())).thenReturn(rewriteSnapshot);
+    when(command.rewriteFiles(anySet(), anySet(), anySet(), anySet(), anyLong()))
+        .thenReturn(rewriteSnapshot);
     WriterCommitterOutputHandler outputHandler = mock(WriterCommitterOutputHandler.class);
     doNothing().when(outputHandler).write(any(WriterCommitterRecord.class));
-    ArgumentCaptor<WriterCommitterRecord> writerRecordCaptor = ArgumentCaptor.forClass(WriterCommitterRecord.class);
+    ArgumentCaptor<WriterCommitterRecord> writerRecordCaptor =
+        ArgumentCaptor.forClass(WriterCommitterRecord.class);
 
     // No added, no deleted
-    IcebergOptimizeOperationCommitter opCommitter = new IcebergOptimizeOperationCommitter(command, getOperatorStats(), getDatasetConfig(), null, null, getTableProps(), mock(FileSystem.class));
+    IcebergOptimizeOperationCommitter opCommitter =
+        new IcebergOptimizeOperationCommitter(
+            command,
+            getOperatorStats(),
+            getDatasetConfig(),
+            null,
+            null,
+            getTableProps(),
+            mock(FileSystem.class));
     Snapshot commitSnapshot = opCommitter.commit(outputHandler);
 
     assertThat(commitSnapshot).isEqualTo(currentSnapshot).isNotEqualTo(rewriteSnapshot);
@@ -102,12 +107,18 @@ public class TestIcebergOptimizeOperationCommitter {
 
     verify(outputHandler, times(9)).write(writerRecordCaptor.capture());
     assertThat(writerRecordCaptor.getAllValues())
-      .extracting(WriterCommitterRecord::operationType, WriterCommitterRecord::records)
-      .hasSize(9)
-      .containsExactly(
-        Tuple.tuple(OperationType.DELETE_DATAFILE.value, 0L), Tuple.tuple(OperationType.DELETE_DELETEFILE.value, 0L), Tuple.tuple(OperationType.ADD_DATAFILE.value, 0L),
-        Tuple.tuple(OperationType.DELETE_DATAFILE.value, 0L), Tuple.tuple(OperationType.DELETE_DELETEFILE.value, 0L), Tuple.tuple(OperationType.ADD_DATAFILE.value, 0L),
-        Tuple.tuple(OperationType.DELETE_DATAFILE.value, 0L), Tuple.tuple(OperationType.DELETE_DELETEFILE.value, 0L), Tuple.tuple(OperationType.ADD_DATAFILE.value, 0L));
+        .extracting(WriterCommitterRecord::operationType, WriterCommitterRecord::records)
+        .hasSize(9)
+        .containsExactly(
+            Tuple.tuple(OperationType.DELETE_DATAFILE.value, 0L),
+            Tuple.tuple(OperationType.DELETE_DELETEFILE.value, 0L),
+            Tuple.tuple(OperationType.ADD_DATAFILE.value, 0L),
+            Tuple.tuple(OperationType.DELETE_DATAFILE.value, 0L),
+            Tuple.tuple(OperationType.DELETE_DELETEFILE.value, 0L),
+            Tuple.tuple(OperationType.ADD_DATAFILE.value, 0L),
+            Tuple.tuple(OperationType.DELETE_DATAFILE.value, 0L),
+            Tuple.tuple(OperationType.DELETE_DELETEFILE.value, 0L),
+            Tuple.tuple(OperationType.ADD_DATAFILE.value, 0L));
   }
 
   @Test
@@ -118,12 +129,22 @@ public class TestIcebergOptimizeOperationCommitter {
     Table table = mock(Table.class);
     when(table.currentSnapshot()).thenReturn(currentSnapshot);
     when(command.loadTable()).thenReturn(table);
-    when(command.rewriteFiles(anySet(), anySet(), anySet(), anySet(), anyLong())).thenReturn(rewriteSnapshot);
+    when(command.rewriteFiles(anySet(), anySet(), anySet(), anySet(), anyLong()))
+        .thenReturn(rewriteSnapshot);
     WriterCommitterOutputHandler outputHandler = mock(WriterCommitterOutputHandler.class);
     doNothing().when(outputHandler).write(any(WriterCommitterRecord.class));
-    ArgumentCaptor<WriterCommitterRecord> writerRecordCaptor = ArgumentCaptor.forClass(WriterCommitterRecord.class);
+    ArgumentCaptor<WriterCommitterRecord> writerRecordCaptor =
+        ArgumentCaptor.forClass(WriterCommitterRecord.class);
 
-    IcebergOptimizeOperationCommitter opCommitter = new IcebergOptimizeOperationCommitter(command, getOperatorStats(), getDatasetConfig(), 2L, currentSnapshot.snapshotId(), getTableProps(), mock(FileSystem.class));
+    IcebergOptimizeOperationCommitter opCommitter =
+        new IcebergOptimizeOperationCommitter(
+            command,
+            getOperatorStats(),
+            getDatasetConfig(),
+            2L,
+            currentSnapshot.snapshotId(),
+            getTableProps(),
+            mock(FileSystem.class));
     opCommitter.consumeAddDataFile(getDatafile("/a1.parquet"));
     opCommitter.consumeAddDataFile(getDatafile("/a2.parquet"));
     opCommitter.consumeDeleteDataFile(getDatafile("/d1.parquet"));
@@ -131,9 +152,15 @@ public class TestIcebergOptimizeOperationCommitter {
     opCommitter.consumeDeleteDeleteFile(getDeletefile("/pd1.parquet"));
     opCommitter.consumeDeleteDeleteFile(getDeletefile("/pd2.parquet"));
 
-    assertThat(opCommitter.getAddedDataFiles()).extracting(ContentFile::path).contains("/a1.parquet", "/a2.parquet");
-    assertThat(opCommitter.getRemovedDataFiles()).extracting(ContentFile::path).contains("/d1.parquet", "/d2.parquet");
-    assertThat(opCommitter.getRemovedDeleteFiles()).extracting(ContentFile::path).contains("/pd1.parquet", "/pd2.parquet");
+    assertThat(opCommitter.getAddedDataFiles())
+        .extracting(ContentFile::path)
+        .contains("/a1.parquet", "/a2.parquet");
+    assertThat(opCommitter.getRemovedDataFiles())
+        .extracting(ContentFile::path)
+        .contains("/d1.parquet", "/d2.parquet");
+    assertThat(opCommitter.getRemovedDeleteFiles())
+        .extracting(ContentFile::path)
+        .contains("/pd1.parquet", "/pd2.parquet");
 
     Snapshot commitSnapshot = opCommitter.commit(outputHandler);
     assertThat(commitSnapshot).isEqualTo(rewriteSnapshot).isNotEqualTo(currentSnapshot);
@@ -141,11 +168,12 @@ public class TestIcebergOptimizeOperationCommitter {
     verify(command, times(1)).rewriteFiles(anySet(), anySet(), anySet(), anySet(), anyLong());
     verify(outputHandler, times(3)).write(writerRecordCaptor.capture());
     assertThat(writerRecordCaptor.getAllValues())
-      .extracting(WriterCommitterRecord::operationType, WriterCommitterRecord::records)
-      .hasSize(3)
-      .containsExactly(Tuple.tuple(OperationType.DELETE_DATAFILE.value, 2L),
-        Tuple.tuple(OperationType.DELETE_DELETEFILE.value, 2L),
-        Tuple.tuple(OperationType.ADD_DATAFILE.value, 2L));
+        .extracting(WriterCommitterRecord::operationType, WriterCommitterRecord::records)
+        .hasSize(3)
+        .containsExactly(
+            Tuple.tuple(OperationType.DELETE_DATAFILE.value, 2L),
+            Tuple.tuple(OperationType.DELETE_DELETEFILE.value, 2L),
+            Tuple.tuple(OperationType.ADD_DATAFILE.value, 2L));
   }
 
   @Test
@@ -156,14 +184,25 @@ public class TestIcebergOptimizeOperationCommitter {
     Table table = mock(Table.class);
     when(table.currentSnapshot()).thenReturn(currentSnapshot);
     when(command.loadTable()).thenReturn(table);
-    when(command.rewriteFiles(anySet(), anySet(), anySet(), anySet(), anyLong())).thenReturn(rewriteSnapshot);
+    when(command.rewriteFiles(anySet(), anySet(), anySet(), anySet(), anyLong()))
+        .thenReturn(rewriteSnapshot);
     FileSystem fs = mock(FileSystem.class);
     WriterCommitterOutputHandler outputHandler = mock(WriterCommitterOutputHandler.class);
     doNothing().when(outputHandler).write(any(WriterCommitterRecord.class));
-    ArgumentCaptor<WriterCommitterRecord> writerRecordCaptor = ArgumentCaptor.forClass(WriterCommitterRecord.class);
+    ArgumentCaptor<WriterCommitterRecord> writerRecordCaptor =
+        ArgumentCaptor.forClass(WriterCommitterRecord.class);
 
-    // minInputFiles is set to 5 as the evaluation criteria is based on total of removed data files and removed delete files.
-    IcebergOptimizeOperationCommitter opCommitter = new IcebergOptimizeOperationCommitter(command, getOperatorStats(), getDatasetConfig(), 5L, currentSnapshot.snapshotId(), getTableProps(), fs);
+    // minInputFiles is set to 5 as the evaluation criteria is based on total of removed data files
+    // and removed delete files.
+    IcebergOptimizeOperationCommitter opCommitter =
+        new IcebergOptimizeOperationCommitter(
+            command,
+            getOperatorStats(),
+            getDatasetConfig(),
+            5L,
+            currentSnapshot.snapshotId(),
+            getTableProps(),
+            fs);
     opCommitter.consumeAddDataFile(getDatafile("/a1.parquet"));
     opCommitter.consumeAddDataFile(getDatafile("/a2.parquet"));
     opCommitter.consumeDeleteDataFile(getDatafile("/d1.parquet"));
@@ -171,9 +210,15 @@ public class TestIcebergOptimizeOperationCommitter {
     opCommitter.consumeDeleteDeleteFile(getDeletefile("/pd1.parquet"));
     opCommitter.consumeDeleteDeleteFile(getDeletefile("/pd2.parquet"));
 
-    assertThat(opCommitter.getAddedDataFiles()).extracting(ContentFile::path).contains("/a1.parquet", "/a2.parquet");
-    assertThat(opCommitter.getRemovedDataFiles()).extracting(ContentFile::path).contains("/d1.parquet", "/d2.parquet");
-    assertThat(opCommitter.getRemovedDeleteFiles()).extracting(ContentFile::path).contains("/pd1.parquet", "/pd2.parquet");
+    assertThat(opCommitter.getAddedDataFiles())
+        .extracting(ContentFile::path)
+        .contains("/a1.parquet", "/a2.parquet");
+    assertThat(opCommitter.getRemovedDataFiles())
+        .extracting(ContentFile::path)
+        .contains("/d1.parquet", "/d2.parquet");
+    assertThat(opCommitter.getRemovedDeleteFiles())
+        .extracting(ContentFile::path)
+        .contains("/pd1.parquet", "/pd2.parquet");
 
     Snapshot commitSnapshot = opCommitter.commit(outputHandler);
     assertThat(commitSnapshot).isEqualTo(currentSnapshot).isNotEqualTo(rewriteSnapshot);
@@ -184,13 +229,13 @@ public class TestIcebergOptimizeOperationCommitter {
     verify(command, never()).rewriteFiles(anySet(), anySet(), anySet(), anySet(), anyLong());
     verify(outputHandler, times(3)).write(writerRecordCaptor.capture());
     assertThat(writerRecordCaptor.getAllValues())
-      .extracting(WriterCommitterRecord::operationType, WriterCommitterRecord::records)
-      .hasSize(3)
-      .containsExactly(Tuple.tuple(OperationType.DELETE_DATAFILE.value, 0L),
-        Tuple.tuple(OperationType.DELETE_DELETEFILE.value, 0L),
-        Tuple.tuple(OperationType.ADD_DATAFILE.value, 0L));
+        .extracting(WriterCommitterRecord::operationType, WriterCommitterRecord::records)
+        .hasSize(3)
+        .containsExactly(
+            Tuple.tuple(OperationType.DELETE_DATAFILE.value, 0L),
+            Tuple.tuple(OperationType.DELETE_DELETEFILE.value, 0L),
+            Tuple.tuple(OperationType.ADD_DATAFILE.value, 0L));
   }
-
 
   @Test
   public void testGetRootPointer() {
@@ -198,7 +243,15 @@ public class TestIcebergOptimizeOperationCommitter {
     String rootPointerLocation = "/table/metadata/v2.metadata.json";
     when(command.getRootPointer()).thenReturn(rootPointerLocation);
 
-    IcebergOptimizeOperationCommitter opCommitter = new IcebergOptimizeOperationCommitter(command, getOperatorStats(), getDatasetConfig(), null, null, getTableProps(), mock(FileSystem.class));
+    IcebergOptimizeOperationCommitter opCommitter =
+        new IcebergOptimizeOperationCommitter(
+            command,
+            getOperatorStats(),
+            getDatasetConfig(),
+            null,
+            null,
+            getTableProps(),
+            mock(FileSystem.class));
 
     assertThat(opCommitter.getRootPointer()).isEqualTo(rootPointerLocation);
     assertThat(opCommitter.isIcebergTableUpdated()).isTrue();
@@ -207,19 +260,27 @@ public class TestIcebergOptimizeOperationCommitter {
   @Test
   public void testUnsupportedOperations() {
     IcebergCommand command = mock(IcebergCommand.class);
-    IcebergOptimizeOperationCommitter opCommitter = new IcebergOptimizeOperationCommitter(command, getOperatorStats(), getDatasetConfig(), null, null, getTableProps(), mock(FileSystem.class));
+    IcebergOptimizeOperationCommitter opCommitter =
+        new IcebergOptimizeOperationCommitter(
+            command,
+            getOperatorStats(),
+            getDatasetConfig(),
+            null,
+            null,
+            getTableProps(),
+            mock(FileSystem.class));
 
     assertThatThrownBy(() -> opCommitter.consumeManifestFile(mock(ManifestFile.class)))
-      .isInstanceOf(UnsupportedOperationException.class)
-      .hasMessage("OPTIMIZE TABLE can't consume pre-prepared manifest files");
+        .isInstanceOf(UnsupportedOperationException.class)
+        .hasMessage("OPTIMIZE TABLE can't consume pre-prepared manifest files");
 
     assertThatThrownBy(() -> opCommitter.consumeDeleteDataFilePath("/table/data/f1.parquet"))
-      .isInstanceOf(UnsupportedOperationException.class)
-      .hasMessage("OPTIMIZE TABLE can't consume string paths");
+        .isInstanceOf(UnsupportedOperationException.class)
+        .hasMessage("OPTIMIZE TABLE can't consume string paths");
 
     assertThatThrownBy(() -> opCommitter.updateSchema(BatchSchema.EMPTY))
-      .isInstanceOf(UnsupportedOperationException.class)
-      .hasMessage("Updating schema is not supported for OPTIMIZE TABLE transaction");
+        .isInstanceOf(UnsupportedOperationException.class)
+        .hasMessage("Updating schema is not supported for OPTIMIZE TABLE transaction");
   }
 
   private DatasetConfig getDatasetConfig() {
@@ -235,9 +296,22 @@ public class TestIcebergOptimizeOperationCommitter {
   }
 
   private IcebergTableProps getTableProps() {
-    return new IcebergTableProps("s3://testdata/table_location/", UUID.randomUUID().toString(),
-      BatchSchema.EMPTY, Collections.emptyList(), IcebergCommandType.OPTIMIZE, "db", "table_location",
-      "", null, ByteString.copyFrom(IcebergSerDe.serializePartitionSpec(PartitionSpec.unpartitioned())), null, null, null, Collections.emptyMap(), null);
+    return new IcebergTableProps(
+        "s3://testdata/table_location/",
+        UUID.randomUUID().toString(),
+        BatchSchema.EMPTY,
+        Collections.emptyList(),
+        IcebergCommandType.OPTIMIZE,
+        "db",
+        "table_location",
+        "",
+        null,
+        ByteString.copyFrom(IcebergSerDe.serializePartitionSpec(PartitionSpec.unpartitioned())),
+        null,
+        null,
+        null,
+        Collections.emptyMap(),
+        null);
   }
 
   private OperatorStats getOperatorStats() {
@@ -247,21 +321,23 @@ public class TestIcebergOptimizeOperationCommitter {
   }
 
   private DataFile getDatafile(String path) {
-    DataFile dataFile = DataFiles.builder(PartitionSpec.unpartitioned())
-      .withPath(path)
-      .withFileSizeInBytes(40)
-      .withRecordCount(9)
-      .build();
+    DataFile dataFile =
+        DataFiles.builder(PartitionSpec.unpartitioned())
+            .withPath(path)
+            .withFileSizeInBytes(40)
+            .withRecordCount(9)
+            .build();
     return dataFile;
   }
 
   private DeleteFile getDeletefile(String path) {
-    DeleteFile deleteFile = FileMetadata.deleteFileBuilder(PartitionSpec.unpartitioned())
-      .ofPositionDeletes()
-      .withPath(path)
-      .withFileSizeInBytes(40)
-      .withRecordCount(9)
-      .build();
+    DeleteFile deleteFile =
+        FileMetadata.deleteFileBuilder(PartitionSpec.unpartitioned())
+            .ofPositionDeletes()
+            .withPath(path)
+            .withFileSizeInBytes(40)
+            .withRecordCount(9)
+            .build();
     return deleteFile;
   }
 }

@@ -15,6 +15,11 @@
  */
 package com.dremio.exec.rpc;
 
+import com.dremio.exec.rpc.RpcConnectionHandler.FailureType;
+import com.google.protobuf.Internal.EnumLite;
+import com.google.protobuf.MessageLite;
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.socket.SocketChannel;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.concurrent.CompletableFuture;
@@ -27,24 +32,13 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
-
 import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.Mockito;
 
-import com.dremio.exec.rpc.RpcConnectionHandler.FailureType;
-import com.google.protobuf.Internal.EnumLite;
-import com.google.protobuf.MessageLite;
-
-import io.netty.buffer.ByteBuf;
-import io.netty.channel.socket.SocketChannel;
-
-/**
- * Test the reconnecting connection for key behaviors
- */
+/** Test the reconnecting connection for key behaviors */
 @SuppressWarnings({"unchecked"})
 public class TestReconnectingConnection {
-
 
   @Test
   public void ensureDirectFailureOnRpcException() {
@@ -54,20 +48,23 @@ public class TestReconnectingConnection {
   @Test
   public void ensureSecondSuccess() {
     conn(
-        r -> r.connectionFailed(FailureType.CONNECTION, new IllegalStateException()),
-        r -> r.connectionSucceeded(newRemoteConnection())
-        ).runCommand(Cmd.expectSucceed());
+            r -> r.connectionFailed(FailureType.CONNECTION, new IllegalStateException()),
+            r -> r.connectionSucceeded(newRemoteConnection()))
+        .runCommand(Cmd.expectSucceed());
   }
 
   @Test
   public void ensureTimeoutFailAndRecover() {
-    TestReConnection c = conn(200,100,1,
-        r -> {
-          wt(100);
-          r.connectionFailed(FailureType.CONNECTION, new IllegalStateException());
-        },
-        r -> r.connectionSucceeded(newRemoteConnection())
-        );
+    TestReConnection c =
+        conn(
+            200,
+            100,
+            1,
+            r -> {
+              wt(100);
+              r.connectionFailed(FailureType.CONNECTION, new IllegalStateException());
+            },
+            r -> r.connectionSucceeded(newRemoteConnection()));
 
     c.runCommand(Cmd.expectFail());
     wt(200);
@@ -90,20 +87,23 @@ public class TestReconnectingConnection {
 
   @Test
   public void ensureInActiveCausesReconnection() {
-    TestReConnection c = conn(
-        100, 100, 1,
-        r -> r.connectionSucceeded(newBadConnection()),
-        r -> {
-          wt(200);
-          r.connectionFailed(FailureType.CONNECTION, new IllegalStateException());
-        },
-        r -> r.connectionSucceeded(newRemoteConnection())
-        );
+    TestReConnection c =
+        conn(
+            100,
+            100,
+            1,
+            r -> r.connectionSucceeded(newBadConnection()),
+            r -> {
+              wt(200);
+              r.connectionFailed(FailureType.CONNECTION, new IllegalStateException());
+            },
+            r -> r.connectionSucceeded(newRemoteConnection()));
 
     // we assume in the reconnector that the initial connection is good (don't check active).
     c.runCommand(Cmd.expectSucceed());
 
-    // second command: should identify connection as inactive and reattempt connection, and get a failure as we go past timeout.
+    // second command: should identify connection as inactive and reattempt connection, and get a
+    // failure as we go past timeout.
     c.runCommand(Cmd.expectFail());
 
     // wait long enough that we consider the previous failure not valid and reconnect again.
@@ -115,25 +115,36 @@ public class TestReconnectingConnection {
   @Test
   public void ensureFirstFailsWaiting() throws InterruptedException, ExecutionException {
     CountDownLatch latch = new CountDownLatch(1);
-    TestReConnection c = conn(
-        100000, 100, 100,
-        r -> {
-          try {
-            latch.await();
-          } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-          }
-          r.connectionFailed(FailureType.CONNECTION, new IllegalStateException());
-        },
-        r -> r.connectionSucceeded(newRemoteConnection())
-        );
+    TestReConnection c =
+        conn(
+            100000,
+            100,
+            100,
+            r -> {
+              try {
+                latch.await();
+              } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+              }
+              r.connectionFailed(FailureType.CONNECTION, new IllegalStateException());
+            },
+            r -> r.connectionSucceeded(newRemoteConnection()));
 
-    CompletableFuture<Void> first = CompletableFuture.runAsync(() -> c.runCommand(Cmd.expectFail()));
+    CompletableFuture<Void> first =
+        CompletableFuture.runAsync(() -> c.runCommand(Cmd.expectFail()));
 
     // line up ten more messages that will be waiting on the first message.
-    CompletableFuture<Void> rest = CompletableFuture.allOf(IntStream.range(0, 10).mapToObj(i -> CompletableFuture.runAsync(() -> {
-      c.runCommand(Cmd.expectFail());
-    })).collect(Collectors.toList()).toArray(new CompletableFuture[0]));
+    CompletableFuture<Void> rest =
+        CompletableFuture.allOf(
+            IntStream.range(0, 10)
+                .mapToObj(
+                    i ->
+                        CompletableFuture.runAsync(
+                            () -> {
+                              c.runCommand(Cmd.expectFail());
+                            }))
+                .collect(Collectors.toList())
+                .toArray(new CompletableFuture[0]));
 
     try {
       // check that rest are blocked on the countdown.
@@ -153,8 +164,8 @@ public class TestReconnectingConnection {
     rest.get();
   }
 
-  private TestReConnection conn(Consumer<RpcConnectionHandler<RemoteConnection>>...consumersArr) {
-    return new TestReConnection(10000,10000,1, Stream.of(consumersArr).iterator());
+  private TestReConnection conn(Consumer<RpcConnectionHandler<RemoteConnection>>... consumersArr) {
+    return new TestReConnection(10000, 10000, 1, Stream.of(consumersArr).iterator());
   }
 
   private static RemoteConnection newRemoteConnection() {
@@ -169,15 +180,24 @@ public class TestReconnectingConnection {
     return conn;
   }
 
-  private TestReConnection conn(long failFor, long tryFor, long tryEach, Consumer<RpcConnectionHandler<RemoteConnection>>...consumersArr) {
+  private TestReConnection conn(
+      long failFor,
+      long tryFor,
+      long tryEach,
+      Consumer<RpcConnectionHandler<RemoteConnection>>... consumersArr) {
     return new TestReConnection(failFor, tryFor, tryEach, Stream.of(consumersArr).iterator());
   }
 
-  private static class TestReConnection extends ReconnectingConnection<RemoteConnection, MessageLite> {
+  private static class TestReConnection
+      extends ReconnectingConnection<RemoteConnection, MessageLite> {
 
     private Iterator<Consumer<RpcConnectionHandler<RemoteConnection>>> iter;
 
-    public TestReConnection(long failFor, long tryFor, long tryEach, Iterator<Consumer<RpcConnectionHandler<RemoteConnection>>> iter) {
+    public TestReConnection(
+        long failFor,
+        long tryFor,
+        long tryEach,
+        Iterator<Consumer<RpcConnectionHandler<RemoteConnection>>> iter) {
       super("test", Mockito.mock(MessageLite.class), "", 1, failFor, tryFor, tryEach);
       this.iter = iter;
     }
@@ -189,14 +209,12 @@ public class TestReconnectingConnection {
 
     @Override
     protected ResponseClient getNewClient() throws RpcException {
-      if(!iter.hasNext()) {
+      if (!iter.hasNext()) {
         throw new RpcException("Failure creating client");
       }
       return new ResponseClient(iter.next());
     }
-
   }
-
 
   private static class Cmd implements RpcCommand<MessageLite, RemoteConnection> {
 
@@ -243,7 +261,7 @@ public class TestReconnectingConnection {
     }
   }
 
-  private static RpcConnectionHandler<RemoteConnection> good(Consumer<RemoteConnection> consumer){
+  private static RpcConnectionHandler<RemoteConnection> good(Consumer<RemoteConnection> consumer) {
     return new Handler() {
       @Override
       public void connectionSucceeded(RemoteConnection connection) {
@@ -252,7 +270,8 @@ public class TestReconnectingConnection {
     };
   }
 
-  private static RpcConnectionHandler<RemoteConnection> bad(BiConsumer<FailureType, Throwable> consumer){
+  private static RpcConnectionHandler<RemoteConnection> bad(
+      BiConsumer<FailureType, Throwable> consumer) {
     return new Handler() {
       @Override
       public void connectionFailed(FailureType type, Throwable t) {
@@ -261,7 +280,7 @@ public class TestReconnectingConnection {
     };
   }
 
-  private static RpcConnectionHandler<RemoteConnection> noop(){
+  private static RpcConnectionHandler<RemoteConnection> noop() {
     return new Handler();
   }
 
@@ -277,7 +296,8 @@ public class TestReconnectingConnection {
     }
   }
 
-  private static class ResponseClient extends AbstractClient<EnumLite, RemoteConnection, MessageLite> {
+  private static class ResponseClient
+      extends AbstractClient<EnumLite, RemoteConnection, MessageLite> {
 
     private final Consumer<RpcConnectionHandler<RemoteConnection>> consumer;
 
@@ -287,11 +307,14 @@ public class TestReconnectingConnection {
     }
 
     @Override
-    public void close() throws IOException {
-    }
+    public void close() throws IOException {}
 
     @Override
-    protected void connectAsClient(RpcConnectionHandler<RemoteConnection> connectionHandler, MessageLite handshakeValue, String host, int port) {
+    protected void connectAsClient(
+        RpcConnectionHandler<RemoteConnection> connectionHandler,
+        MessageLite handshakeValue,
+        String host,
+        int port) {
       consumer.accept(connectionHandler);
     }
 
@@ -310,11 +333,11 @@ public class TestReconnectingConnection {
     public RemoteConnection initRemoteConnection(SocketChannel channel) {
       return Mockito.mock(RemoteConnection.class);
     }
-
   }
 
   /**
    * Utility wait function to avoid lots of try blocks.
+   *
    * @param millis Amount to wait.
    */
   private static void wt(long millis) {

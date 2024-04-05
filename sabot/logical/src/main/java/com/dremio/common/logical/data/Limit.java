@@ -15,8 +15,6 @@
  */
 package com.dremio.common.logical.data;
 
-import java.util.Iterator;
-
 import com.dremio.common.logical.data.visitors.LogicalVisitor;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -24,6 +22,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.Iterators;
+import java.util.Iterator;
 
 @JsonTypeName("limit")
 public class Limit extends SingleInputOperator {
@@ -47,13 +46,15 @@ public class Limit extends SingleInputOperator {
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(LogicalVisitor<T, X, E> logicalVisitor, X value) throws E {
+  public <T, X, E extends Throwable> T accept(LogicalVisitor<T, X, E> logicalVisitor, X value)
+      throws E {
     return logicalVisitor.visitLimit(this, value);
   }
 
   @Override
   public NodeBuilder<Limit> nodeBuilder() {
-    return new LimitNodeBuilder();  //To change body of implemented methods use File | Settings | File Templates.
+    return new LimitNodeBuilder(); // To change body of implemented methods use File | Settings |
+    // File Templates.
   }
 
   @Override

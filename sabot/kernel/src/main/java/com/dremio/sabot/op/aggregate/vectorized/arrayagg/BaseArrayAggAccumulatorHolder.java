@@ -16,20 +16,19 @@
 
 package com.dremio.sabot.op.aggregate.vectorized.arrayagg;
 
+import com.google.common.base.Preconditions;
 import java.util.Iterator;
 import java.util.stream.IntStream;
-
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.SmallIntVector;
 
-import com.google.common.base.Preconditions;
-
 /**
  * Base class for temporary batches accumulated by {@link BaseArrayAggAccumulator}.
- * <p>
- * This forms an abstraction layer that handles grouping based on chunk offsets. During the output phase,
- * it passes back grouped elements in form of Iterator.
+ *
+ * <p>This forms an abstraction layer that handles grouping based on chunk offsets. During the
+ * output phase, it passes back grouped elements in form of Iterator.
+ *
  * @param <ElementType> Type of individual accumulated element
  * @param <VectorType> Type of temporary vector that's used for holding collection of elements
  */
@@ -43,11 +42,13 @@ public abstract class BaseArrayAggAccumulatorHolder<ElementType, VectorType exte
     private final int elementsGroupIndex;
     private int current;
     private int next;
+
     public ElementsGroup(int elementsGroupIndex) {
       this.elementsGroupIndex = elementsGroupIndex;
       current = -1;
       next = -1;
     }
+
     @Override
     public boolean hasNext() {
       for (next = current + 1; next < numItems; next++) {
@@ -69,13 +70,15 @@ public abstract class BaseArrayAggAccumulatorHolder<ElementType, VectorType exte
     this.numItems = 0;
     this.maxGroupIdentifier = 0;
     this.maxValuesPerBatch = maxValuesPerBatch;
-    this.groupIndexVector = new SmallIntVector("BaseArrayAggAccumulatorHolder indexVector", allocator);
+    this.groupIndexVector =
+        new SmallIntVector("BaseArrayAggAccumulatorHolder indexVector", allocator);
     this.groupIndexVector.allocateNew(maxValuesPerBatch);
   }
 
   public void addItem(ElementType data, int chunkOffset) {
-    Preconditions.checkArgument(numItems < maxValuesPerBatch,
-      "One or more of the ARRAY_AGG groups contains too many elements");
+    Preconditions.checkArgument(
+        numItems < maxValuesPerBatch,
+        "One or more of the ARRAY_AGG groups contains too many elements");
     maxGroupIdentifier = Math.max(maxGroupIdentifier, chunkOffset);
     addItemToVector(data, numItems);
     groupIndexVector.set(numItems, chunkOffset);
@@ -83,17 +86,21 @@ public abstract class BaseArrayAggAccumulatorHolder<ElementType, VectorType exte
   }
 
   public Iterator<ElementsGroup> getGroupsIterator() {
-    return IntStream.range(0, maxGroupIdentifier + 1).mapToObj(x -> new ElementsGroup(x)).iterator();
+    return IntStream.range(0, maxGroupIdentifier + 1)
+        .mapToObj(x -> new ElementsGroup(x))
+        .iterator();
   }
 
   public long getSizeInBytes() {
-    return groupIndexVector.getDataBuffer().getActualMemoryConsumed() +
-      groupIndexVector.getValidityBuffer().getActualMemoryConsumed();
+    return groupIndexVector.getDataBuffer().getActualMemoryConsumed()
+        + groupIndexVector.getValidityBuffer().getActualMemoryConsumed();
   }
 
   public void close() {
     groupIndexVector.close();
   }
+
   public abstract void addItemToVector(ElementType data, int index);
+
   public abstract ElementType getItem(int index);
 }

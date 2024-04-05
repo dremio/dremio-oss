@@ -20,21 +20,22 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.util.Text;
 
-public final class VarcharArrayAggAccumulatorHolder extends BaseArrayAggAccumulatorHolder<Text, VarCharVector> {
+public final class VarcharArrayAggAccumulatorHolder
+    extends BaseArrayAggAccumulatorHolder<Text, VarCharVector> {
   private final VarCharVector vector;
+
   public VarcharArrayAggAccumulatorHolder(int maxValuesPerBatch, final BufferAllocator allocator) {
     super(maxValuesPerBatch, allocator);
-    vector = new VarCharVector(
-      "array_agg VarcharArrayAggAccumulatorHolder", allocator);
+    vector = new VarCharVector("array_agg VarcharArrayAggAccumulatorHolder", allocator);
     vector.allocateNew(maxValuesPerBatch);
   }
 
   @Override
   public long getSizeInBytes() {
-    return vector.getDataBuffer().getActualMemoryConsumed() +
-      vector.getValidityBuffer().getActualMemoryConsumed() +
-      vector.getOffsetBuffer().getActualMemoryConsumed() +
-      super.getSizeInBytes();
+    return vector.getDataBuffer().getActualMemoryConsumed()
+        + vector.getValidityBuffer().getActualMemoryConsumed()
+        + vector.getOffsetBuffer().getActualMemoryConsumed()
+        + super.getSizeInBytes();
   }
 
   @Override

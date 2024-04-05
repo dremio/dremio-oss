@@ -19,16 +19,17 @@ import com.dremio.datastore.indexed.IndexKey;
 import com.google.common.collect.ImmutableMap;
 
 /**
- * Provides methods for LocalJobsService to convert the SearchQuery in Request to the
- * appropriate SearchQuery according to what columns are indexed. "FIELDS" map maps the column names to appropriate JobIndexKey.
+ * Provides methods for LocalJobsService to convert the SearchQuery in Request to the appropriate
+ * SearchQuery according to what columns are indexed. "FIELDS" map maps the column names to
+ * appropriate JobIndexKey.
  */
 public class JobSearchUtils {
-  public static final ImmutableMap<String, IndexKey> FIELDS = ImmutableMap.<String, IndexKey>builder()
-    .put("Job_Id".toLowerCase(), JobIndexKeys.JOBID)
-    .put("User_Name".toLowerCase(), JobIndexKeys.USER)
-    .put("Status".toLowerCase(), JobIndexKeys.JOB_STATE)
-    .put("Query_Type".toLowerCase(), JobIndexKeys.QUERY_TYPE)
-    .put("Submitted_Epoch_Millis".toLowerCase(), JobIndexKeys.START_TIME)
-    .build();
-
+  public static final ImmutableMap<String, IndexKey> FIELDS =
+      ImmutableMap.<String, IndexKey>builder()
+          .put("Job_Id".toLowerCase(), JobIndexKeys.JOBID)
+          .put("User_Name".toLowerCase(), JobIndexKeys.USER)
+          .put("Status".toLowerCase(), JobIndexKeys.JOB_STATE)
+          .put("Query_Type".toLowerCase(), JobIndexKeys.QUERY_TYPE)
+          .put("Submitted_Epoch_Millis".toLowerCase(), JobIndexKeys.START_TIME)
+          .build();
 }

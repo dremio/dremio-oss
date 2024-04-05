@@ -15,21 +15,18 @@
  */
 package com.dremio.exec.planner.sql.handlers.commands;
 
-import org.apache.calcite.sql.SqlNode;
-
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.query.SqlToPlanHandler;
+import org.apache.calcite.sql.SqlNode;
 
-/**
- * Take a sql node and run as async command.
- */
+/** Take a sql node and run as async command. */
 public class HandlerToExec extends AsyncCommand {
 
   private final AttemptObserver observer;
   private final SqlNode sqlNode;
-  private final SqlToPlanHandler handler;
+  private SqlToPlanHandler handler;
   private final String sql;
   private SqlHandlerConfig config;
   private PhysicalPlan physicalPlan;
@@ -64,6 +61,7 @@ public class HandlerToExec extends AsyncCommand {
   public void executionStarted() {
     physicalPlan = null; // no longer needed.
     config = null; // no longer needed.
+    handler = null; // no longer needed.
   }
 
   @Override
@@ -75,5 +73,4 @@ public class HandlerToExec extends AsyncCommand {
   public String getDescription() {
     return "execute; query";
   }
-
 }

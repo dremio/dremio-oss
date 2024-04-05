@@ -16,8 +16,13 @@
 
 package com.dremio.exec.planner.physical;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.planner.logical.Rel;
+import com.dremio.exec.planner.logical.RelOptHelper;
+import com.dremio.exec.planner.logical.WindowRel;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import java.util.List;
-
 import org.apache.calcite.linq4j.Ord;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
@@ -35,17 +40,13 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.util.BitSets;
 
-import com.dremio.exec.planner.logical.Rel;
-import com.dremio.exec.planner.logical.RelOptHelper;
-import com.dremio.exec.planner.logical.WindowRel;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
-
 public class WindowPrule extends Prule {
   public static final RelOptRule INSTANCE = new WindowPrule();
 
   private WindowPrule() {
-    super(RelOptHelper.some(WindowRel.class, Rel.LOGICAL, RelOptHelper.any(RelNode.class)), "Prel.WindowPrule");
+    super(
+        RelOptHelper.some(WindowRel.class, Rel.LOGICAL, RelOptHelper.any(RelNode.class)),
+        "Prel.WindowPrule");
   }
 
   @Override
@@ -54,7 +55,7 @@ public class WindowPrule extends Prule {
     final RelNode input = call.rel(1);
 
     // TODO: Order window based on existing partition by
-    //input.getTraitSet().subsumes()
+    // input.getTraitSet().subsumes()
 
     // Convert a WindowRel with several groups into a chain of WindowPrel with
     // one group each. As we go over each group, create a new output on top of
@@ -77,19 +78,20 @@ public class WindowPrule extends Prule {
       final boolean noPartitionKeys = windowBase.keys.isEmpty();
       final boolean noOrderByKeys = windowBase.orderKeys.getFieldCollations().isEmpty();
 
-      if(noPartitionKeys && noOrderByKeys) { // empty Over-clause
+      if (noPartitionKeys && noOrderByKeys) { // empty Over-clause
         traits = traits.plus(DistributionTrait.SINGLETON);
       } else if (noPartitionKeys) { // only Order-By
         // if only the order-by clause is specified, there is a single partition
         // consisting of all the rows, so we do a distributed sort followed by a
         // single merge as the input of the window operator
         traits = traits.plus(DistributionTrait.ROUND_ROBIN);
-        if(!isSingleMode(call)) {
+        if (!isSingleMode(call)) {
           addMerge = true;
         }
       } else { // Partition-By with/without Order-By
         DistributionTrait distOnAllKeys =
-            new DistributionTrait(DistributionTrait.DistributionType.HASH_DISTRIBUTED,
+            new DistributionTrait(
+                DistributionTrait.DistributionType.HASH_DISTRIBUTED,
                 ImmutableList.copyOf(getDistributionFields(windowBase)));
 
         partitionby = true;
@@ -106,69 +108,100 @@ public class WindowPrule extends Prule {
 
       if (addMerge) {
         traits = traits.plus(DistributionTrait.SINGLETON);
-        convertedInput = new SingleMergeExchangePrel(window.getCluster(), traits,
-                         convertedInput, windowBase.collation());
+        convertedInput =
+            new SingleMergeExchangePrel(
+                window.getCluster(), traits, convertedInput, windowBase.collation());
       }
 
       List<RelDataTypeField> newRowFields = Lists.newArrayList();
       newRowFields.addAll(convertedInput.getRowType().getFieldList());
       // Copy current window group aggregate call fields
       final int offset = startConstantsIndex + constantShiftIndex;
-      newRowFields.addAll(window.getRowType().getFieldList().subList(offset, offset + windowBase.aggCalls.size()));
+      newRowFields.addAll(
+          window.getRowType().getFieldList().subList(offset, offset + windowBase.aggCalls.size()));
 
       RelDataType rowType = new RelRecordType(newRowFields);
 
       List<Window.RexWinAggCall> newWinAggCalls = Lists.newArrayList();
-      for(Ord<Window.RexWinAggCall> aggOrd : Ord.zip(windowBase.aggCalls)) {
+      for (Ord<Window.RexWinAggCall> aggOrd : Ord.zip(windowBase.aggCalls)) {
         Window.RexWinAggCall aggCall = aggOrd.getValue();
+
+        // Implementation of these window functions does not currently support ignore
+        // nulls following CALCITE-883.  These can be removed as support is added.
+        switch (aggCall.getKind()) {
+          case FIRST_VALUE:
+          case LAST_VALUE:
+          case NTH_VALUE:
+          case LAG:
+          case LEAD:
+            if (aggCall.ignoreNulls) {
+              throw UserException.unsupportedError()
+                  .message(
+                      String.format(
+                          "%s command with IGNORE NULLS option is not supported",
+                          aggCall.getKind()))
+                  .buildSilently();
+            }
+            break;
+          default:
+        }
 
         // If the argument points at the constant and
         // additional fields have been generated by the Window below,
         // the index of constants will be shifted
         final List<RexNode> newOperandsOfWindowFunction = Lists.newArrayList();
-        for(RexNode operand : aggCall.getOperands()) {
-          if(operand instanceof RexInputRef) {
+        for (RexNode operand : aggCall.getOperands()) {
+          if (operand instanceof RexInputRef) {
             final RexInputRef rexInputRef = (RexInputRef) operand;
             final int refIndex = rexInputRef.getIndex();
 
             // Check if this RexInputRef points at the constants
-            if(rexInputRef.getIndex() >= startConstantsIndex) {
-              operand = new RexInputRef(refIndex + constantShiftIndex,
-                  window.constants.get(refIndex - startConstantsIndex).getType());
+            if (rexInputRef.getIndex() >= startConstantsIndex) {
+              operand =
+                  new RexInputRef(
+                      refIndex + constantShiftIndex,
+                      window.constants.get(refIndex - startConstantsIndex).getType());
             }
           }
 
           newOperandsOfWindowFunction.add(operand);
         }
 
-        aggCall = new Window.RexWinAggCall(
-            (SqlAggFunction) aggCall.getOperator(),
-            aggCall.getType(),
-            newOperandsOfWindowFunction,
-            aggCall.ordinal,
-            aggCall.distinct);
+        aggCall =
+            new Window.RexWinAggCall(
+                (SqlAggFunction) aggCall.getOperator(),
+                aggCall.getType(),
+                newOperandsOfWindowFunction,
+                aggCall.ordinal,
+                aggCall.distinct);
 
-        newWinAggCalls.add(new Window.RexWinAggCall(
-            (SqlAggFunction)aggCall.getOperator(), aggCall.getType(), aggCall.getOperands(), aggOrd.i, aggCall.distinct)
-        );
+        newWinAggCalls.add(
+            new Window.RexWinAggCall(
+                (SqlAggFunction) aggCall.getOperator(),
+                aggCall.getType(),
+                aggCall.getOperands(),
+                aggOrd.i,
+                aggCall.distinct));
       }
 
-      windowBase = new Window.Group(
-          windowBase.keys,
-          windowBase.isRows,
-          windowBase.lowerBound,
-          windowBase.upperBound,
-          windowBase.orderKeys,
-          newWinAggCalls
-      );
+      windowBase =
+          new Window.Group(
+              windowBase.keys,
+              windowBase.isRows,
+              windowBase.lowerBound,
+              windowBase.upperBound,
+              windowBase.orderKeys,
+              newWinAggCalls);
 
-      currentInput = WindowPrel.create(
-          window.getCluster(),
-          initialTraits,
-          convertedInput,
-          window.getConstants(),
-          rowType,
-          windowBase);
+      currentInput =
+          WindowPrel.create(
+              window.getCluster(),
+              initialTraits,
+              convertedInput,
+              window.getConstants(),
+              rowType,
+              windowBase,
+              startConstantsIndex);
 
       constantShiftIndex += windowBase.aggCalls.size();
     }
@@ -178,6 +211,7 @@ public class WindowPrule extends Prule {
 
   /**
    * Create a RelCollation that has partition-by as the leading keys followed by order-by keys
+   *
    * @param window The window specification
    * @return a RelCollation with {partition-by keys, order-by keys}
    */
@@ -201,5 +235,4 @@ public class WindowPrule extends Prule {
 
     return groupByFields;
   }
-
 }

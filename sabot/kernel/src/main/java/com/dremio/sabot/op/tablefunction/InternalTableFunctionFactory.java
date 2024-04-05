@@ -49,44 +49,55 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.sabot.op.boost.BoostTableFunction;
 
-/**
- * Internal factory that creates various scan table functions
- */
+/** Internal factory that creates various scan table functions */
 public class InternalTableFunctionFactory implements TableFunctionFactory {
   @Override
-  public TableFunction createTableFunction(FragmentExecutionContext fec,
-                                           OperatorContext context,
-                                           OpProps props,
-                                           TableFunctionConfig functionConfig) throws ExecutionSetupException {
+  public TableFunction createTableFunction(
+      FragmentExecutionContext fec,
+      OperatorContext context,
+      OpProps props,
+      TableFunctionConfig functionConfig)
+      throws ExecutionSetupException {
     TableFunction tableFunction = createTableFunctionBase(fec, context, props, functionConfig);
     return applyCarryForwardIfNecessary(functionConfig.getFunctionContext(), tableFunction);
   }
 
-  private TableFunction applyCarryForwardIfNecessary(TableFunctionContext functionContext, TableFunction tableFunction) {
+  private TableFunction applyCarryForwardIfNecessary(
+      TableFunctionContext functionContext, TableFunction tableFunction) {
     if (functionContext instanceof CarryForwardAwareTableFunctionContext) {
-      CarryForwardAwareTableFunctionContext carryFwdFunCtx = ((CarryForwardAwareTableFunctionContext) functionContext);
+      CarryForwardAwareTableFunctionContext carryFwdFunCtx =
+          ((CarryForwardAwareTableFunctionContext) functionContext);
       if (carryFwdFunCtx.isCarryForwardEnabled()) {
-        return new InputCarryForwardTableFunctionDecorator(tableFunction, SystemSchemas.CARRY_FORWARD_FILE_PATH_TYPE_COLS,
-          carryFwdFunCtx.getInputColMap(), carryFwdFunCtx.getConstValCol(), carryFwdFunCtx.getConstVal());
+        return new InputCarryForwardTableFunctionDecorator(
+            tableFunction,
+            SystemSchemas.CARRY_FORWARD_FILE_PATH_TYPE_COLS,
+            carryFwdFunCtx.getInputColMap(),
+            carryFwdFunCtx.getConstValCol(),
+            carryFwdFunCtx.getConstVal());
       }
     }
     return tableFunction;
   }
 
-  private TableFunction createTableFunctionBase(FragmentExecutionContext fec,
-                                                OperatorContext context,
-                                                OpProps props,
-                                                TableFunctionConfig functionConfig)  throws ExecutionSetupException {
+  private TableFunction createTableFunctionBase(
+      FragmentExecutionContext fec,
+      OperatorContext context,
+      OpProps props,
+      TableFunctionConfig functionConfig)
+      throws ExecutionSetupException {
     switch (functionConfig.getType()) {
       case DATA_FILE_SCAN:
-        SupportsInternalIcebergTable plugin = IcebergUtils.getSupportsInternalIcebergTablePlugin(fec, functionConfig.getFunctionContext().getPluginId());
+        SupportsInternalIcebergTable plugin =
+            IcebergUtils.getSupportsInternalIcebergTablePlugin(
+                fec, functionConfig.getFunctionContext().getPluginId());
         return plugin.createScanTableFunction(fec, context, props, functionConfig);
       case EASY_DATA_FILE_SCAN:
         return getEasyScanTableFunction(fec, context, props, functionConfig);
       case SPLIT_GEN_MANIFEST_SCAN:
       case METADATA_MANIFEST_FILE_SCAN:
       case ICEBERG_MANIFEST_SCAN:
-        ManifestFileProcessor manifestFileProcessor = new ManifestFileProcessor(fec, context, props, functionConfig);
+        ManifestFileProcessor manifestFileProcessor =
+            new ManifestFileProcessor(fec, context, props, functionConfig);
         return new ManifestScanTableFunction(context, functionConfig, manifestFileProcessor);
       case ICEBERG_MANIFEST_LIST_SCAN:
         return new ManifestListScanTableFunction(fec, context, props, functionConfig);
@@ -99,8 +110,11 @@ public class InternalTableFunctionFactory implements TableFunctionFactory {
       case EASY_SPLIT_GENERATION:
         return new EasySplitGenTableFunction(fec, context, functionConfig);
       case FOOTER_READER:
-        SupportsInternalIcebergTable internalIcebergTablePlugin = IcebergUtils.getSupportsInternalIcebergTablePlugin(fec, functionConfig.getFunctionContext().getPluginId());
-        return internalIcebergTablePlugin.getFooterReaderTableFunction(fec, context, props, functionConfig);
+        SupportsInternalIcebergTable internalIcebergTablePlugin =
+            IcebergUtils.getSupportsInternalIcebergTablePlugin(
+                fec, functionConfig.getFunctionContext().getPluginId());
+        return internalIcebergTablePlugin.getFooterReaderTableFunction(
+            fec, context, props, functionConfig);
       case SCHEMA_AGG:
         return new SchemaAggTableFunction(context, functionConfig);
       case SPLIT_ASSIGNMENT:
@@ -124,18 +138,24 @@ public class InternalTableFunctionFactory implements TableFunctionFactory {
       case DIR_LISTING:
         return new DirListingTableFunction(fec, context, props, functionConfig);
       case ICEBERG_INCREMENTAL_REFRESH_JOIN_KEY:
-        return new IcebergIncrementalRefreshJoinKeyTableFunction(fec, context, props, functionConfig);
+        return new IcebergIncrementalRefreshJoinKeyTableFunction(
+            fec, context, props, functionConfig);
       case ICEBERG_TABLE_LOCATION_FINDER:
         return new IcebergLocationFinderTableFunction(fec, context, props, functionConfig);
       case DELTALAKE_HISTORY_SCAN:
         return new DeltaLakeHistoryScanTableFunction(fec, context, props, functionConfig);
       case UNKNOWN:
       default:
-        throw new UnsupportedOperationException("Unknown table function type " + functionConfig.getType());
+        throw new UnsupportedOperationException(
+            "Unknown table function type " + functionConfig.getType());
     }
   }
 
-  public static TableFunction getEasyScanTableFunction(FragmentExecutionContext fec, OperatorContext context, OpProps props, TableFunctionConfig functionConfig) {
+  public static TableFunction getEasyScanTableFunction(
+      FragmentExecutionContext fec,
+      OperatorContext context,
+      OpProps props,
+      TableFunctionConfig functionConfig) {
     return new EasyScanTableFunction(fec, context, props, functionConfig);
   }
 }

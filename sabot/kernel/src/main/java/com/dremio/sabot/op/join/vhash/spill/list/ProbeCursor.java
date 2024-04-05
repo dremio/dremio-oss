@@ -25,21 +25,20 @@ import static com.dremio.sabot.op.join.vhash.spill.list.PageListMultimap.NEXT_OF
 import static com.dremio.sabot.op.join.vhash.spill.list.PageListMultimap.TERMINAL;
 import static com.dremio.sabot.op.join.vhash.spill.partition.VectorizedProbe.SKIP;
 
-import org.apache.arrow.memory.ArrowBuf;
-
 import com.dremio.exec.record.selection.SelectionVector2;
 import com.dremio.sabot.op.join.vhash.HashJoinExtraMatcher;
 import com.dremio.sabot.op.join.vhash.spill.SV2UnsignedUtil;
-
 import io.netty.util.internal.PlatformDependent;
+import org.apache.arrow.memory.ArrowBuf;
 
 /**
- * Maintains a specific probe position as part of a join probe operation. This
- * is a somewhat destructive action since it will flip the sign bit of the head
- * list of the list we're interacting with for items that have been matched.
+ * Maintains a specific probe position as part of a join probe operation. This is a somewhat
+ * destructive action since it will flip the sign bit of the head list of the list we're interacting
+ * with for items that have been matched.
  */
 public class ProbeCursor {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ProbeCursor.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ProbeCursor.class);
 
   private final PageListMultimap list;
   private final ArrowBuf inProbeSV2Buf;
@@ -50,9 +49,14 @@ public class ProbeCursor {
   private Location location;
   private long unmatchedProbeCount;
 
-  public static ProbeCursor startProbe(PageListMultimap list, ArrowBuf inProbeSV2Buf, ProbeBuffers buffers,
-                                       boolean projectUnmatchedBuild, boolean projectUnmatchedProbe) {
-    return new ProbeCursor(list, inProbeSV2Buf, buffers, projectUnmatchedBuild, projectUnmatchedProbe);
+  public static ProbeCursor startProbe(
+      PageListMultimap list,
+      ArrowBuf inProbeSV2Buf,
+      ProbeBuffers buffers,
+      boolean projectUnmatchedBuild,
+      boolean projectUnmatchedProbe) {
+    return new ProbeCursor(
+        list, inProbeSV2Buf, buffers, projectUnmatchedBuild, projectUnmatchedProbe);
   }
 
   private ProbeCursor(
@@ -70,7 +74,8 @@ public class ProbeCursor {
     this.location = new Location(0, PageListMultimap.TERMINAL);
   }
 
-  public Stats next(HashJoinExtraMatcher extraMatcher, int inRecords, int startOutputIdx, int maxOutputIdx) {
+  public Stats next(
+      HashJoinExtraMatcher extraMatcher, int inRecords, int startOutputIdx, int maxOutputIdx) {
     final Location prev = this.location;
     final boolean projectUnmatchedProbe = this.projectUnmatchedProbe;
     final int headShift = list.getHeadShift();
@@ -106,7 +111,9 @@ public class ProbeCursor {
     boolean someMatched = false;
     while (outputRecords < maxOutRecords && currentProbeSV2Index < inRecords) {
       // we're starting a new probe match
-      final int indexInBuild = PlatformDependent.getInt(inTableMatchOrdinalStartAddr + currentProbeSV2Index * ORDINAL_SIZE);
+      final int indexInBuild =
+          PlatformDependent.getInt(
+              inTableMatchOrdinalStartAddr + currentProbeSV2Index * ORDINAL_SIZE);
       int unMatchedProbeIndex = -1;
       if (indexInBuild != -1) { // a matching key.
         // we're starting a new probe match
@@ -117,7 +124,8 @@ public class ProbeCursor {
            */
           assert ((indexInBuild & headMask) * HEAD_SIZE + 4 <= list.getBufSize());
           currentElementIndex =
-            PlatformDependent.getInt(headBufAddrs[indexInBuild >> headShift] + (indexInBuild & headMask) * HEAD_SIZE);
+              PlatformDependent.getInt(
+                  headBufAddrs[indexInBuild >> headShift] + (indexInBuild & headMask) * HEAD_SIZE);
         }
 
         while ((currentElementIndex != TERMINAL) && (outputRecords < maxOutRecords)) {
@@ -125,7 +133,8 @@ public class ProbeCursor {
           final int offsetInPage = ELEMENT_SIZE * (currentElementIndex & elementMask);
           assert (offsetInPage + ELEMENT_SIZE <= list.getBufSize());
 
-          int idxInProbeBatch = SV2UnsignedUtil.readAtIndexUnsafe(inProbeSV2StartAddr, currentProbeSV2Index);
+          int idxInProbeBatch =
+              SV2UnsignedUtil.readAtIndexUnsafe(inProbeSV2StartAddr, currentProbeSV2Index);
 
           final long buildItem = PlatformDependent.getLong(elementBufStartAddr + offsetInPage);
           final int batchId = PageListMultimap.getBatchIdFromLong(buildItem);
@@ -133,25 +142,30 @@ public class ProbeCursor {
           if (extraMatcher.checkCurrentMatch(idxInProbeBatch, batchId, recordIndexInBatch)) {
             // project probe side
 
-            SV2UnsignedUtil.writeAtOffsetUnsafe(outProbeProjectStartAddr, outputRecords * BATCH_OFFSET_SIZE, idxInProbeBatch);
+            SV2UnsignedUtil.writeAtOffsetUnsafe(
+                outProbeProjectStartAddr, outputRecords * BATCH_OFFSET_SIZE, idxInProbeBatch);
 
             // project matched build item
             final int projectBuildOffsetStart = outputRecords * BUILD_RECORD_LINK_SIZE;
             PlatformDependent.putInt(outBuildProjectStartAddr + projectBuildOffsetStart, batchId);
-            SV2UnsignedUtil.writeAtOffsetUnsafe(outBuildProjectStartAddr, projectBuildOffsetStart + BATCH_INDEX_SIZE,
-              recordIndexInBatch);
+            SV2UnsignedUtil.writeAtOffsetUnsafe(
+                outBuildProjectStartAddr,
+                projectBuildOffsetStart + BATCH_INDEX_SIZE,
+                recordIndexInBatch);
             outputRecords++;
             someMatched = true;
           } else {
             someMismatched = true;
           }
-          currentElementIndex = PlatformDependent.getInt(elementBufStartAddr + offsetInPage + NEXT_OFFSET);
+          currentElementIndex =
+              PlatformDependent.getInt(elementBufStartAddr + offsetInPage + NEXT_OFFSET);
 
           if (projectUnmatchedBuild) {
             if (currentElementIndex > 0) {
               if (!someMismatched) {
                 // first visit, mark as visited by flipping the sign.
-                PlatformDependent.putInt(elementBufStartAddr + offsetInPage + NEXT_OFFSET, -currentElementIndex);
+                PlatformDependent.putInt(
+                    elementBufStartAddr + offsetInPage + NEXT_OFFSET, -currentElementIndex);
               }
             } else {
               // not the first visit, flip the sign of what we just read.
@@ -186,27 +200,34 @@ public class ProbeCursor {
       if (unMatchedProbeIndex >= 0 && projectUnmatchedProbe) {
 
         // probe doesn't match but we need to project anyways.
-        int idxInProbeBatch = SV2UnsignedUtil.readAtIndexUnsafe(inProbeSV2StartAddr, unMatchedProbeIndex);
-        SV2UnsignedUtil.writeAtOffsetUnsafe(outProbeProjectStartAddr, outputRecords * BATCH_OFFSET_SIZE, idxInProbeBatch);
+        int idxInProbeBatch =
+            SV2UnsignedUtil.readAtIndexUnsafe(inProbeSV2StartAddr, unMatchedProbeIndex);
+        SV2UnsignedUtil.writeAtOffsetUnsafe(
+            outProbeProjectStartAddr, outputRecords * BATCH_OFFSET_SIZE, idxInProbeBatch);
 
         // mark the build as not matching.
-        PlatformDependent.putInt(outBuildProjectStartAddr + outputRecords * BUILD_RECORD_LINK_SIZE, SKIP);
+        PlatformDependent.putInt(
+            outBuildProjectStartAddr + outputRecords * BUILD_RECORD_LINK_SIZE, SKIP);
 
         // add this build location to the list of build keys we'll invalidate after copying.
-        SV2UnsignedUtil.writeAtOffsetUnsafe(projectNullKeyOffsetStartAddr, nullKeyCount * BATCH_OFFSET_SIZE, startOutputIdx + outputRecords);
+        SV2UnsignedUtil.writeAtOffsetUnsafe(
+            projectNullKeyOffsetStartAddr,
+            nullKeyCount * BATCH_OFFSET_SIZE,
+            startOutputIdx + outputRecords);
 
         nullKeyCount++;
         outputRecords++;
-
       }
     }
     boolean isPartial;
     if (outputRecords == maxOutRecords && currentProbeSV2Index < inRecords) {
-      // batch was full but we have remaining records to process, need to save our position for when we return.
+      // batch was full but we have remaining records to process, need to save our position for when
+      // we return.
       location = new Location(currentProbeSV2Index, currentElementIndex);
       isPartial = true;
     } else {
-      // we need to clear the last saved position and tell the driver that we completed consuming the current batch.
+      // we need to clear the last saved position and tell the driver that we completed consuming
+      // the current batch.
       location = new Location(0, TERMINAL);
       isPartial = false;
     }
@@ -218,9 +239,8 @@ public class ProbeCursor {
   }
 
   /**
-   * An object to hold the current cursor state. We use an object here to make
-   * sure we're replacing the entirety of the mutable cursor state after each
-   * next() call.
+   * An object to hold the current cursor state. We use an object here to make sure we're replacing
+   * the entirety of the mutable cursor state after each next() call.
    */
   static class Location {
     private final int nextProbeSV2Index;

@@ -15,23 +15,19 @@
  */
 package com.dremio.exec.store.sys;
 
-import javax.inject.Provider;
-
 import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.service.Service;
+import javax.inject.Provider;
 
 public class SystemTablePluginConfigProvider implements Service, Provider<ConnectionConf<?, ?>> {
 
-  public SystemTablePluginConfigProvider() {
-  }
+  public SystemTablePluginConfigProvider() {}
 
   @Override
-  public void start() throws Exception {
-  }
+  public void start() throws Exception {}
 
   @Override
-  public void close() throws Exception {
-  }
+  public void close() throws Exception {}
 
   @Override
   public ConnectionConf<?, ?> get() {

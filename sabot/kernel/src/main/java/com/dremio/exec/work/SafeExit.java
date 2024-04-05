@@ -15,12 +15,8 @@
  */
 package com.dremio.exec.work;
 
-/**
- * An helper interface for classes implementing {@code waitToExit()} method
- */
+/** An helper interface for classes implementing {@code waitToExit()} method */
 public interface SafeExit {
-  /**
-   * Wait until the instance is safe to close
-   */
+  /** Wait until the instance is safe to close */
   void waitToExit();
 }

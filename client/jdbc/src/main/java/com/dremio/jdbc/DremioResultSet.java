@@ -19,37 +19,32 @@ import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-
 /**
  * Dremio-specific {@link ResultSet}.
+ *
  * @see #unwrap
  */
-public interface DremioResultSet extends ResultSet  {
+public interface DremioResultSet extends ResultSet {
 
   /**
-   * Gets the ID of the associated query (the query whose results this ResultSet
-   * presents).
+   * Gets the ID of the associated query (the query whose results this ResultSet presents).
    *
-   * @throws  SQLException  if this method is called on a closed result set
+   * @throws SQLException if this method is called on a closed result set
    */
   String getQueryId() throws SQLException;
 
   /**
    * {@inheritDoc}
-   * <p>
-   *   <strong>Dremio</strong>:
-   *   Accepts {@code DremioResultSet.class}.
-   * </p>
+   *
+   * <p><strong>Dremio</strong>: Accepts {@code DremioResultSet.class}.
    */
   @Override
   <T> T unwrap(Class<T> iface) throws SQLException;
 
   /**
    * {@inheritDoc}
-   * <p>
-   *   <strong>Dremio</strong>:
-   *   Returns true for {@code DremioResultSet.class}.
-   * </p>
+   *
+   * <p><strong>Dremio</strong>: Returns true for {@code DremioResultSet.class}.
    */
   @Override
   boolean isWrapperFor(Class<?> iface) throws SQLException;
@@ -68,9 +63,8 @@ public interface DremioResultSet extends ResultSet  {
 
   /**
    * {@inheritDoc}
-   * <p>
-   *    <strong>Dremio: Conversions</strong>: Supports conversion from all types.
-   * </p>
+   *
+   * <p><strong>Dremio: Conversions</strong>: Supports conversion from all types.
    */
   @Override
   String getString(int columnIndex) throws SQLException;
@@ -81,187 +75,144 @@ public interface DremioResultSet extends ResultSet  {
 
   /**
    * {@inheritDoc}
-   * <p>
-   *    <strong>Dremio: Conversions</strong>: Supports conversion from types:
-   * </p>
+   *
+   * <p><strong>Dremio: Conversions</strong>: Supports conversion from types:
+   *
    * <ul>
-   *   <li>{@code SMALLINT} ({@code short}),
-   *       {@code INTEGER} ({@code int}), and
-   *       {@code BIGINT} ({@code long})
-   *       </li>
-   *   <li>{@code REAL} ({@code float}),
-   *       {@code DOUBLE PRECISION} ({@code double}), and
-   *       {@code FLOAT} ({@code float} or {@code double})
-   *       </li>
+   *   <li>{@code SMALLINT} ({@code short}), {@code INTEGER} ({@code int}), and {@code BIGINT}
+   *       ({@code long})
+   *   <li>{@code REAL} ({@code float}), {@code DOUBLE PRECISION} ({@code double}), and {@code
+   *       FLOAT} ({@code float} or {@code double})
    *   <li>{@code DECIMAL} ({@code BigDecimal})
-   *       </li>
    * </ul>
-   * <p>
-   *   Conversion throws {@link SQLConversionOverflowException} for a source
-   *   value whose magnitude is outside the range of {@code byte} values.
-   * </p>
-   * @throws  SQLConversionOverflowException  if a source value was too large
-   *   to convert to {@code byte}
+   *
+   * <p>Conversion throws {@link SQLConversionOverflowException} for a source value whose magnitude
+   * is outside the range of {@code byte} values.
+   *
+   * @throws SQLConversionOverflowException if a source value was too large to convert to {@code
+   *     byte}
    */
   @Override
-  byte getByte(int columnIndex) throws SQLConversionOverflowException,
-                                       SQLException;
+  byte getByte(int columnIndex) throws SQLConversionOverflowException, SQLException;
 
   /**
    * {@inheritDoc}
-   * <p>
-   *    <strong>Dremio: Conversions</strong>: Supports conversion from types:
-   * </p>
+   *
+   * <p><strong>Dremio: Conversions</strong>: Supports conversion from types:
+   *
    * <ul>
-   *   <li>{@code TINYINT} ({@code byte}),
-   *       {@code INTEGER} ({@code int}), and
-   *       {@code BIGINT} ({@code long})
-   *       </li>
-   *   <li>{@code REAL} ({@code float}),
-   *       {@code DOUBLE PRECISION} ({@code double}), and
-   *       {@code FLOAT} ({@code float} or {@code double})
-   *       </li>
+   *   <li>{@code TINYINT} ({@code byte}), {@code INTEGER} ({@code int}), and {@code BIGINT} ({@code
+   *       long})
+   *   <li>{@code REAL} ({@code float}), {@code DOUBLE PRECISION} ({@code double}), and {@code
+   *       FLOAT} ({@code float} or {@code double})
    *   <li>{@code DECIMAL} ({@code BigDecimal})
-   *       </li>
    * </ul>
-   * <p>
-   *   Conversion throws {@link SQLConversionOverflowException} for a source
-   *   value whose magnitude is outside the range of {@code short} values.
-   * </p>
-   * @throws  SQLConversionOverflowException  if a source value was too large
-   *   to convert to {@code short}
+   *
+   * <p>Conversion throws {@link SQLConversionOverflowException} for a source value whose magnitude
+   * is outside the range of {@code short} values.
+   *
+   * @throws SQLConversionOverflowException if a source value was too large to convert to {@code
+   *     short}
    */
   @Override
-  short getShort(int columnIndex) throws SQLConversionOverflowException,
-                                         SQLException;
+  short getShort(int columnIndex) throws SQLConversionOverflowException, SQLException;
 
   /**
    * {@inheritDoc}
-   * <p>
-   *    <strong>Dremio: Conversions</strong>: Supports conversion from types:
-   * </p>
+   *
+   * <p><strong>Dremio: Conversions</strong>: Supports conversion from types:
+   *
    * <ul>
-   *   <li>{@code TINYINT} ({@code byte}),
-   *       {@code SMALLINT} ({@code short}), and
-   *       {@code BIGINT} ({@code long})
-   *       </li>
-   *   <li>{@code REAL} ({@code float}),
-   *       {@code DOUBLE PRECISION} ({@code double}), and
-   *       {@code FLOAT} ({@code float} or {@code double})
-   *       </li>
+   *   <li>{@code TINYINT} ({@code byte}), {@code SMALLINT} ({@code short}), and {@code BIGINT}
+   *       ({@code long})
+   *   <li>{@code REAL} ({@code float}), {@code DOUBLE PRECISION} ({@code double}), and {@code
+   *       FLOAT} ({@code float} or {@code double})
    *   <li>{@code DECIMAL} ({@code BigDecimal})
-   *       </li>
    * </ul>
-   * <p>
-   *   Conversion throws {@link SQLConversionOverflowException} for a source
-   *   value whose magnitude is outside the range of {@code int} values.
-   * </p>
-   * @throws  SQLConversionOverflowException  if a source value was too large
-   *   to convert to {@code int}
+   *
+   * <p>Conversion throws {@link SQLConversionOverflowException} for a source value whose magnitude
+   * is outside the range of {@code int} values.
+   *
+   * @throws SQLConversionOverflowException if a source value was too large to convert to {@code
+   *     int}
    */
   @Override
-  int getInt(int columnIndex) throws SQLConversionOverflowException,
-                                     SQLException;
+  int getInt(int columnIndex) throws SQLConversionOverflowException, SQLException;
 
   /**
    * {@inheritDoc}
-   * <p>
-   *    <strong>Dremio: Conversions</strong>: Supports conversion from types:
-   * </p>
+   *
+   * <p><strong>Dremio: Conversions</strong>: Supports conversion from types:
+   *
    * <ul>
-   *   <li>{@code TINYINT} ({@code byte}),
-   *       {@code SMALLINT} ({@code short}), and
-   *       {@code INTEGER} ({@code int})
-   *       </li>
-   *   <li>{@code REAL} ({@code float}),
-   *       {@code DOUBLE PRECISION} ({@code double}), and
-   *       {@code FLOAT} ({@code float} or {@code double})
-   *       </li>
+   *   <li>{@code TINYINT} ({@code byte}), {@code SMALLINT} ({@code short}), and {@code INTEGER}
+   *       ({@code int})
+   *   <li>{@code REAL} ({@code float}), {@code DOUBLE PRECISION} ({@code double}), and {@code
+   *       FLOAT} ({@code float} or {@code double})
    *   <li>{@code DECIMAL} ({@code BigDecimal})
-   *       </li>
    * </ul>
-   * <p>
-   *   Conversion throws {@link SQLConversionOverflowException} for a source
-   *   value whose magnitude is outside the range of {@code long} values.
-   * </p>
-   * @throws  SQLConversionOverflowException  if a source value was too large
-   *   to convert to {@code long}
+   *
+   * <p>Conversion throws {@link SQLConversionOverflowException} for a source value whose magnitude
+   * is outside the range of {@code long} values.
+   *
+   * @throws SQLConversionOverflowException if a source value was too large to convert to {@code
+   *     long}
    */
   @Override
-  long getLong(int columnIndex) throws SQLConversionOverflowException,
-                                       SQLException;
+  long getLong(int columnIndex) throws SQLConversionOverflowException, SQLException;
 
   /**
    * {@inheritDoc}
-   * <p>
-   *    <strong>Dremio: Conversions</strong>: Supports conversion from types:
-   * </p>
+   *
+   * <p><strong>Dremio: Conversions</strong>: Supports conversion from types:
+   *
    * <ul>
-   *   <li>{@code TINYINT} ({@code byte}),
-   *       {@code SMALLINT} ({@code short}), and
-   *       {@code INTEGER} ({@code int}),
-   *       {@code BIGINT} ({@code long})
-   *       </li>
-   *   <li>{@code DOUBLE PRECISION} ({@code double}) and
-   *       {@code FLOAT} (when {@code double})
-   *       </li>
+   *   <li>{@code TINYINT} ({@code byte}), {@code SMALLINT} ({@code short}), and {@code INTEGER}
+   *       ({@code int}), {@code BIGINT} ({@code long})
+   *   <li>{@code DOUBLE PRECISION} ({@code double}) and {@code FLOAT} (when {@code double})
    *   <li>{@code DECIMAL} ({@code BigDecimal})
-   *       </li>
    * </ul>
-   * <p>
-   *   Conversion throws {@link SQLConversionOverflowException} for a source
-   *   value whose magnitude is outside the range of {@code float} values.
-   * </p>
-   * @throws  SQLConversionOverflowException  if a source value was too large
-   *   to convert to {@code float}
+   *
+   * <p>Conversion throws {@link SQLConversionOverflowException} for a source value whose magnitude
+   * is outside the range of {@code float} values.
+   *
+   * @throws SQLConversionOverflowException if a source value was too large to convert to {@code
+   *     float}
    */
   @Override
-  float getFloat(int columnIndex) throws SQLConversionOverflowException,
-                                         SQLException;
+  float getFloat(int columnIndex) throws SQLConversionOverflowException, SQLException;
 
   /**
    * {@inheritDoc}
-   * <p>
-   *    <strong>Dremio: Conversions</strong>: Supports conversion from types:
-   * </p>
+   *
+   * <p><strong>Dremio: Conversions</strong>: Supports conversion from types:
+   *
    * <ul>
-   *   <li>{@code TINYINT} ({@code byte}),
-   *       {@code SMALLINT} ({@code short}),
-   *       {@code INTEGER} ({@code int}), and
-   *       {@code BIGINT} ({@code long})
-   *       </li>
-   *   <li>{@code REAL} ({@code float}),
-   *       {@code FLOAT} (when {@code float})
-   *       </li>
+   *   <li>{@code TINYINT} ({@code byte}), {@code SMALLINT} ({@code short}), {@code INTEGER} ({@code
+   *       int}), and {@code BIGINT} ({@code long})
+   *   <li>{@code REAL} ({@code float}), {@code FLOAT} (when {@code float})
    *   <li>{@code DECIMAL} ({@code BigDecimal})
-   *       </li>
    * </ul>
-   * <p>
-   *   Conversion throws {@link SQLConversionOverflowException} for a source
-   *   value whose magnitude is outside the range of {@code double} values.
-   * </p>
-   * @throws  SQLConversionOverflowException  if a source value was too large
-   *   to convert to {@code double}
+   *
+   * <p>Conversion throws {@link SQLConversionOverflowException} for a source value whose magnitude
+   * is outside the range of {@code double} values.
+   *
+   * @throws SQLConversionOverflowException if a source value was too large to convert to {@code
+   *     double}
    */
   @Override
-  double getDouble(int columnIndex) throws SQLConversionOverflowException,
-                                           SQLException;
+  double getDouble(int columnIndex) throws SQLConversionOverflowException, SQLException;
 
   /**
    * {@inheritDoc}
-   * <p>
-   *    <strong>Dremio: Conversions</strong>: Supports conversion from types:
-   * </p>
+   *
+   * <p><strong>Dremio: Conversions</strong>: Supports conversion from types:
+   *
    * <ul>
-   *   <li>{@code TINYINT} ({@code byte}),
-   *       {@code SMALLINT} ({@code short}),
-   *       {@code INTEGER} ({@code int}), and
-   *       {@code BIGINT} ({@code long})
-   *       </li>
-   *   <li>{@code REAL} ({@code float}),
-   *       {@code DOUBLE PRECISION} ({@code double}), and
-   *       {@code FLOAT} ({@code float} or {@code double})
-   *       </li>
+   *   <li>{@code TINYINT} ({@code byte}), {@code SMALLINT} ({@code short}), {@code INTEGER} ({@code
+   *       int}), and {@code BIGINT} ({@code long})
+   *   <li>{@code REAL} ({@code float}), {@code DOUBLE PRECISION} ({@code double}), and {@code
+   *       FLOAT} ({@code float} or {@code double})
    * </ul>
    */
   @Override
@@ -279,10 +230,8 @@ public interface DremioResultSet extends ResultSet  {
 
   /**
    * {@inheritDoc}
-   * <p>
-   *   <strong>Dremio</strong>:
-   *   For conversions, see {@link DremioResultSet#getString(int)}.
-   * </p>
+   *
+   * <p><strong>Dremio</strong>: For conversions, see {@link DremioResultSet#getString(int)}.
    */
   @Override
   String getString(String columnLabel) throws SQLException;
@@ -293,76 +242,56 @@ public interface DremioResultSet extends ResultSet  {
 
   /**
    * {@inheritDoc}
-   * <p>
-   *   <strong>Dremio</strong>:
-   *   For conversions, see {@link DremioResultSet#getByte(int)}.
-   * </p>
+   *
+   * <p><strong>Dremio</strong>: For conversions, see {@link DremioResultSet#getByte(int)}.
    */
   @Override
-  byte getByte(String columnLabel) throws SQLConversionOverflowException,
-                                          SQLException;
+  byte getByte(String columnLabel) throws SQLConversionOverflowException, SQLException;
 
   /**
    * {@inheritDoc}
-   * <p>
-   *   <strong>Dremio</strong>:
-   *   For conversions, see {@link DremioResultSet#getShort(int)}.
-   * </p>
+   *
+   * <p><strong>Dremio</strong>: For conversions, see {@link DremioResultSet#getShort(int)}.
    */
   @Override
-  short getShort(String columnLabel) throws SQLConversionOverflowException,
-                                            SQLException;
+  short getShort(String columnLabel) throws SQLConversionOverflowException, SQLException;
 
   /**
    * {@inheritDoc}
-   * <p>
-   *   <strong>Dremio</strong>:
-   *   For conversions, see {@link DremioResultSet#getInt(int)}.
-   * </p>
+   *
+   * <p><strong>Dremio</strong>: For conversions, see {@link DremioResultSet#getInt(int)}.
    */
   @Override
-  int getInt(String columnLabel) throws SQLConversionOverflowException,
-                                        SQLException;
+  int getInt(String columnLabel) throws SQLConversionOverflowException, SQLException;
 
   /**
    * {@inheritDoc}
-   * <p>
-   *   <strong>Dremio</strong>:
-   *   For conversions, see {@link DremioResultSet#getLong(int)}.
-   * </p>
+   *
+   * <p><strong>Dremio</strong>: For conversions, see {@link DremioResultSet#getLong(int)}.
    */
   @Override
-  long getLong(String columnLabel) throws SQLConversionOverflowException,
-                                          SQLException;
+  long getLong(String columnLabel) throws SQLConversionOverflowException, SQLException;
 
   /**
    * {@inheritDoc}
-   * <p>
-   *   <strong>Dremio</strong>:
-   *   For conversions, see {@link DremioResultSet#getFloat(int)}.
-   * </p>
+   *
+   * <p><strong>Dremio</strong>: For conversions, see {@link DremioResultSet#getFloat(int)}.
    */
   @Override
-  float getFloat(String columnLabel) throws SQLConversionOverflowException,
-                                            SQLException;
+  float getFloat(String columnLabel) throws SQLConversionOverflowException, SQLException;
 
   /**
    * {@inheritDoc}
-   * <p>
-   *   <strong>Dremio</strong>:
-   *   For conversions, see {@link DremioResultSet#getDouble(int)}.
-   * </p>
+   *
+   * <p><strong>Dremio</strong>: For conversions, see {@link DremioResultSet#getDouble(int)}.
    */
   @Override
-  double getDouble(String columnLabel) throws SQLConversionOverflowException,
-                                              SQLException;
+  double getDouble(String columnLabel) throws SQLConversionOverflowException, SQLException;
 
   /**
    * {@inheritDoc}
-   * <p>
-   *   <strong>Dremio</strong>:
-   *   For conversions, see {@link DremioResultSet#getBigDecimal(int)}.
-   * </p>
+   *
+   * <p><strong>Dremio</strong>: For conversions, see {@link DremioResultSet#getBigDecimal(int)}.
    */
   @Override
   BigDecimal getBigDecimal(String columnLabel, int scale) throws SQLException;
@@ -383,19 +312,16 @@ public interface DremioResultSet extends ResultSet  {
 
   /**
    * {@inheritDoc}
-   * <p>
-   *    <strong>Dremio: Conversions</strong>: Supports conversion from all types.
-   * </p>
+   *
+   * <p><strong>Dremio: Conversions</strong>: Supports conversion from all types.
    */
   @Override
   Object getObject(int columnIndex) throws SQLException;
 
   /**
    * {@inheritDoc}
-   * <p>
-   *   <strong>Dremio</strong>:
-   *   For conversions, see {@link DremioResultSet#getObject(int)}.
-   * </p>
+   *
+   * <p><strong>Dremio</strong>: For conversions, see {@link DremioResultSet#getObject(int)}.
    */
   @Override
   Object getObject(String columnLabel) throws SQLException;

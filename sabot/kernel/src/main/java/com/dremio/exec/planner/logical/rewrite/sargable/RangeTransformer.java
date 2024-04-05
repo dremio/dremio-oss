@@ -17,7 +17,6 @@ package com.dremio.exec.planner.logical.rewrite.sargable;
 
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
@@ -28,6 +27,8 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlOperator;
 
 /**
+ *
+ *
  * <pre>
  * A range transformer that transform a logical expression to an equal expression involving a range.
  * Examples:
@@ -49,7 +50,6 @@ public class RangeTransformer implements Transformer {
   private final SqlOperator transformedOp;
   private final boolean swapped;
 
-
   // True if the RHS equals to the beginning of an interval
   // In the case of the RHS equals the ending of an interval, you need to rewrite the RHS
   // to equal the beginning of the interval
@@ -57,16 +57,16 @@ public class RangeTransformer implements Transformer {
   // True if the function truncate a date/time to the beginning of an interval
   private final boolean isTruncToBegin;
 
-  RangeTransformer(RelOptCluster relOptCluster,
-                   StandardForm standardForm,
-                   SqlOperator sqlOperator) {
+  RangeTransformer(
+      RelOptCluster relOptCluster, StandardForm standardForm, SqlOperator sqlOperator) {
     this(relOptCluster, standardForm, sqlOperator, true);
   }
 
-  RangeTransformer(RelOptCluster relOptCluster,
-                   StandardForm standardForm,
-                   SqlOperator transformedOp,
-                   boolean isTruncToBegin) {
+  RangeTransformer(
+      RelOptCluster relOptCluster,
+      StandardForm standardForm,
+      SqlOperator transformedOp,
+      boolean isTruncToBegin) {
     this.relOptCluster = relOptCluster;
     this.rexBuilder = relOptCluster.getRexBuilder();
     this.standardForm = standardForm;
@@ -104,7 +104,10 @@ public class RangeTransformer implements Transformer {
     RexDateRange range = getRange();
     if (range != null) {
       if (isRhsEqBegin) {
-        return SARGableRexUtils.and(SARGableRexUtils.gte(getColumn(), range.begin, rexBuilder), SARGableRexUtils.lt(getColumn(), range.end, rexBuilder), rexBuilder);
+        return SARGableRexUtils.and(
+            SARGableRexUtils.gte(getColumn(), range.begin, rexBuilder),
+            SARGableRexUtils.lt(getColumn(), range.end, rexBuilder),
+            rexBuilder);
       } else {
         return rexBuilder.makeLiteral(false);
       }
@@ -116,7 +119,10 @@ public class RangeTransformer implements Transformer {
     RexDateRange range = getRange();
     if (range != null) {
       if (isRhsEqBegin) {
-        return SARGableRexUtils.or(SARGableRexUtils.lt(getColumn(), range.begin, rexBuilder), SARGableRexUtils.gte(getColumn(), range.end, rexBuilder), rexBuilder);
+        return SARGableRexUtils.or(
+            SARGableRexUtils.lt(getColumn(), range.begin, rexBuilder),
+            SARGableRexUtils.gte(getColumn(), range.end, rexBuilder),
+            rexBuilder);
       } else {
         return rexBuilder.makeLiteral(true);
       }
@@ -135,9 +141,11 @@ public class RangeTransformer implements Transformer {
       } else {
         if (isTruncToBegin) {
           if (isSwapped()) {
-            return SARGableRexUtils.lt(getColumn(), range.end, rexBuilder); // e.g. '2023-02-15' > DATE_TRUNC('MONTH',col)
+            return SARGableRexUtils.lt(
+                getColumn(), range.end, rexBuilder); // e.g. '2023-02-15' > DATE_TRUNC('MONTH',col)
           }
-          return SARGableRexUtils.gte(getColumn(), range.end, rexBuilder);  // e.g. DATE_TRUNC('MONTH',col) > '2023-02-15'
+          return SARGableRexUtils.gte(
+              getColumn(), range.end, rexBuilder); // e.g. DATE_TRUNC('MONTH',col) > '2023-02-15'
         } else {
           if (isSwapped()) {
             return SARGableRexUtils.lt(getColumn(), range.begin, rexBuilder);
@@ -195,9 +203,11 @@ public class RangeTransformer implements Transformer {
       } else {
         if (isTruncToBegin) {
           if (isSwapped()) {
-            return SARGableRexUtils.gte(getColumn(), range.end, rexBuilder); // e.g. '2023-02-15' < DATE_TRUNC('MONTH',col)
+            return SARGableRexUtils.gte(
+                getColumn(), range.end, rexBuilder); // e.g. '2023-02-15' < DATE_TRUNC('MONTH',col)
           }
-          return SARGableRexUtils.lt(getColumn(), range.end, rexBuilder);    // e.g.  DATE_TRUNC('MONTH',col) < '2023-02-15'
+          return SARGableRexUtils.lt(
+              getColumn(), range.end, rexBuilder); // e.g.  DATE_TRUNC('MONTH',col) < '2023-02-15'
         } else {
           if (isSwapped()) {
             return SARGableRexUtils.gte(getColumn(), range.begin, rexBuilder);
@@ -277,9 +287,7 @@ public class RangeTransformer implements Transformer {
   }
 
   Args getRhsParamCount() {
-    return getRhsParam() == null ? Args.ARG1 :
-      getRhsParam2() == null ? Args.ARG2 :
-        Args.ARG3;
+    return getRhsParam() == null ? Args.ARG1 : getRhsParam2() == null ? Args.ARG2 : Args.ARG3;
   }
 
   boolean isSwapped() {
@@ -295,24 +303,19 @@ public class RangeTransformer implements Transformer {
     } else {
       switch (getRhsParamCount()) {
         case ARG1:
-          begin = rexBuilder.makeCall(
-            getTransformedOp(),
-            getRhsNode()
-          );
-          end = rexBuilder.makeCall(
-            getTransformedOp(),
-            SARGableRexUtils.dateAdd(getRhsNode(), getRhsParam(), rexBuilder)
-          );
+          begin = rexBuilder.makeCall(getTransformedOp(), getRhsNode());
+          end =
+              rexBuilder.makeCall(
+                  getTransformedOp(),
+                  SARGableRexUtils.dateAdd(getRhsNode(), getRhsParam(), rexBuilder));
           break;
         case ARG2:
-          begin = rexBuilder.makeCall(
-            getTransformedOp(),
-            getLhsParam(), getRhsNode()
-          );
-          end = rexBuilder.makeCall(
-            getTransformedOp(),
-            getLhsParam(), SARGableRexUtils.dateAdd(getRhsNode(), getRhsParam(), rexBuilder)
-          );
+          begin = rexBuilder.makeCall(getTransformedOp(), getLhsParam(), getRhsNode());
+          end =
+              rexBuilder.makeCall(
+                  getTransformedOp(),
+                  getLhsParam(),
+                  SARGableRexUtils.dateAdd(getRhsNode(), getRhsParam(), rexBuilder));
           break;
         default:
           begin = null;
@@ -342,7 +345,9 @@ public class RangeTransformer implements Transformer {
       reducedValues.clear();
       rexExecutor.reduce(rexBuilder, constExpNode, reducedValues);
 
-      if (reducedValues.get(0) != null && reducedValues.get(1) != null && reducedValues.get(2) != null) {
+      if (reducedValues.get(0) != null
+          && reducedValues.get(1) != null
+          && reducedValues.get(2) != null) {
         if (reducedValues.get(2) instanceof RexLiteral) {
           RexLiteral boolVal = (RexLiteral) reducedValues.get(2);
           isRhsEqBegin = (Boolean) boolVal.getValue();
@@ -353,10 +358,7 @@ public class RangeTransformer implements Transformer {
             isRhsEqBegin = (Boolean) boolVal.getValue();
           }
         }
-        return new RexDateRange(
-          reducedValues.get(0),
-          reducedValues.get(1)
-        );
+        return new RexDateRange(reducedValues.get(0), reducedValues.get(1));
       }
     }
 

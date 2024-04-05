@@ -15,9 +15,14 @@
  */
 package org.apache.arrow.vector;
 
+import com.dremio.common.util.TestTools;
+import com.dremio.test.AllocatorRule;
+import com.dremio.test.DremioTest;
+import com.google.common.base.Stopwatch;
+import io.airlift.tpch.RandomText;
+import io.airlift.tpch.TextPool;
 import java.util.LinkedList;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.util.Text;
@@ -28,24 +33,14 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestRule;
 
-import com.dremio.common.util.TestTools;
-import com.dremio.test.AllocatorRule;
-import com.dremio.test.DremioTest;
-import com.google.common.base.Stopwatch;
-
-import io.airlift.tpch.RandomText;
-import io.airlift.tpch.TextPool;
-
 public class TestMutableVarcharVector extends DremioTest {
   private BufferAllocator testAllocator;
   static final int TOTAL_STRINGS = 1024;
   static final int smallAvgSize = 15;
   static final int midAvgSize = 100;
 
-  @Rule
-  public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
-  @Rule
-  public final TestRule timeoutRule = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
+  @Rule public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
+  @Rule public final TestRule timeoutRule = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
 
   @Before
   public void setupBeforeTest() {
@@ -57,8 +52,8 @@ public class TestMutableVarcharVector extends DremioTest {
     testAllocator.close();
   }
 
-  private LinkedList<String> GetRandomStringList(int N /*total strings*/, int avgSize /*average size of each string*/)
-  {
+  private LinkedList<String> GetRandomStringList(
+      int N /*total strings*/, int avgSize /*average size of each string*/) {
     RandomText random = new RandomText(1500869201, TextPool.getDefaultTestPool(), avgSize, N);
 
     LinkedList<String> l1 = new LinkedList<>();
@@ -70,22 +65,18 @@ public class TestMutableVarcharVector extends DremioTest {
     return l1;
   }
 
-  /**
-   * Insert 1000 strings of avg size 10
-   * Update 1000 strings with avg size 100
-   * Compact
-   * Validate
-   */
+  /** Insert 1000 strings of avg size 10 Update 1000 strings with avg size 100 Compact Validate */
   @Test
-  public void TestUpdateAfterInsert()
-  {
+  public void TestUpdateAfterInsert() {
     final double threshold = 1.0D;
-    MutableVarcharVector m1 = new MutableVarcharVector("TestUpdateAfterInsert", testAllocator, threshold /*only force compact*/);
+    MutableVarcharVector m1 =
+        new MutableVarcharVector(
+            "TestUpdateAfterInsert", testAllocator, threshold /*only force compact*/);
     try {
       LinkedList<String> l1 = GetRandomStringList(TOTAL_STRINGS, smallAvgSize);
       LinkedList<String> l2 = GetRandomStringList(TOTAL_STRINGS, midAvgSize);
 
-      //insert from l1
+      // insert from l1
       for (int i = 0; i < TOTAL_STRINGS; ++i) {
         m1.setSafe(i, new Text(l1.get(i)));
       }
@@ -93,18 +84,26 @@ public class TestMutableVarcharVector extends DremioTest {
 
       System.out.println("TestUpdateAfterInsert: threshold: " + threshold + " (only forcecompact)");
       System.out.println("TestUpdateAfterInsert: buffer capacity: " + m1.getByteCapacity());
-      System.out.println("TestUpdateAfterInsert: Inserted " + TOTAL_STRINGS  + " strings with avg size: " + smallAvgSize);
+      System.out.println(
+          "TestUpdateAfterInsert: Inserted "
+              + TOTAL_STRINGS
+              + " strings with avg size: "
+              + smallAvgSize);
       System.out.println("TestUpdateAfterInsert: Offset in buffer: " + m1.getCurrentOffset());
 
-      //update from l2
+      // update from l2
       for (int i = 0; i < TOTAL_STRINGS; ++i) {
         m1.setSafe(i, new Text(l2.get(i)));
       }
 
-      System.out.println("TestUpdateAfterInsert: Updated " + TOTAL_STRINGS  + " strings with avg size: " + midAvgSize);
+      System.out.println(
+          "TestUpdateAfterInsert: Updated "
+              + TOTAL_STRINGS
+              + " strings with avg size: "
+              + midAvgSize);
       System.out.println("TestUpdateAfterInsert: Offset in buffer: " + m1.getCurrentOffset());
 
-      //compact
+      // compact
       final int oldOffset = m1.getCurrentOffset();
       final Stopwatch ctcWatch = Stopwatch.createUnstarted();
       ctcWatch.start();
@@ -116,27 +115,26 @@ public class TestMutableVarcharVector extends DremioTest {
       System.out.println("TestUpdateAfterInsert: Compaction time: " + ctcWatch.toString() + "\n");
       Assert.assertTrue(newOffset <= oldOffset);
 
-      //match from l2
+      // match from l2
       for (int i = 0; i < TOTAL_STRINGS; ++i) {
         Assert.assertEquals(l2.get(i) /*expected*/, m1.getObject(i).toString() /*actual*/);
       }
     } finally {
       m1.close();
     }
-
   }
 
   /**
-   * Insert at a position from l1 & immediately update it with a new value from l2,
-   * repeat N times.
+   * Insert at a position from l1 & immediately update it with a new value from l2, repeat N times.
    */
-  private void TestInterLeaved(MutableVarcharVector m1, LinkedList<String> l1, LinkedList<String> l2) {
+  private void TestInterLeaved(
+      MutableVarcharVector m1, LinkedList<String> l1, LinkedList<String> l2) {
 
     int expectedOffset = 0;
     for (int i = 0; i < TOTAL_STRINGS; ++i) {
-      //insert at i from l1
+      // insert at i from l1
       m1.setSafe(i, new Text(l1.get(i)));
-      //update at i from l2
+      // update at i from l2
       m1.setSafe(i, new Text(l2.get(i)));
 
       expectedOffset += l2.get(i).length();
@@ -157,46 +155,29 @@ public class TestMutableVarcharVector extends DremioTest {
     System.out.println("TestInterLeaved: Compaction time: " + ctcWatch.toString() + "\n");
     Assert.assertTrue(newOffset <= oldOffset);
 
-    //post compaction, the offset should be just the sum of lengths of all valid data.
+    // post compaction, the offset should be just the sum of lengths of all valid data.
     Assert.assertEquals(expectedOffset, newOffset);
 
-    //match from l2
+    // match from l2
     for (int i = 0; i < TOTAL_STRINGS; ++i) {
       Assert.assertEquals(l2.get(i) /*expected*/, m1.getObject(i).toString() /*actual*/);
     }
   }
 
   @Test
-  public void TestInterleavedMidToSmall()
-  {
-    //insert the values from l1
+  public void TestInterleavedMidToSmall() {
+    // insert the values from l1
     LinkedList<String> l1 = GetRandomStringList(TOTAL_STRINGS, midAvgSize);
-    //update values from l2
+    // update values from l2
     LinkedList<String> l2 = GetRandomStringList(TOTAL_STRINGS, smallAvgSize);
 
     final double threshold = 1.0D;
 
-    System.out.println("TestInterleavedMidToSmall: threshold: " + threshold +  " (only forcecompact)");
-    MutableVarcharVector m1 = new MutableVarcharVector("TestInterleavedMidToSmall", testAllocator, threshold /*only force compact*/);
-    try {
-      TestInterLeaved(m1, l1, l2);
-    } finally {
-     m1.close();
-    }
-  }
-
-  @Test
-  public void TestInterleavedSmallToMid()
-  {
-    //insert the values from l1
-    LinkedList<String> l1 = GetRandomStringList(TOTAL_STRINGS, smallAvgSize);
-    //update values from l2
-    LinkedList<String> l2 = GetRandomStringList(TOTAL_STRINGS, midAvgSize);
-
-    final double threshold = 1.0D;
-
-    System.out.println("TestInterleavedSmallToMid: threshold: " + threshold + " (only forcecompact)");
-    MutableVarcharVector m1 = new MutableVarcharVector("TestInterleavedSmallToMid", testAllocator, 1.0 /*only force compact*/);
+    System.out.println(
+        "TestInterleavedMidToSmall: threshold: " + threshold + " (only forcecompact)");
+    MutableVarcharVector m1 =
+        new MutableVarcharVector(
+            "TestInterleavedMidToSmall", testAllocator, threshold /*only force compact*/);
     try {
       TestInterLeaved(m1, l1, l2);
     } finally {
@@ -205,24 +186,45 @@ public class TestMutableVarcharVector extends DremioTest {
   }
 
   @Test
-  public void TestInterleavedWithLowThreshold()
-  {
-    //insert the values from l1
+  public void TestInterleavedSmallToMid() {
+    // insert the values from l1
     LinkedList<String> l1 = GetRandomStringList(TOTAL_STRINGS, smallAvgSize);
-    //update values from l2
+    // update values from l2
+    LinkedList<String> l2 = GetRandomStringList(TOTAL_STRINGS, midAvgSize);
+
+    final double threshold = 1.0D;
+
+    System.out.println(
+        "TestInterleavedSmallToMid: threshold: " + threshold + " (only forcecompact)");
+    MutableVarcharVector m1 =
+        new MutableVarcharVector(
+            "TestInterleavedSmallToMid", testAllocator, 1.0 /*only force compact*/);
+    try {
+      TestInterLeaved(m1, l1, l2);
+    } finally {
+      m1.close();
+    }
+  }
+
+  @Test
+  public void TestInterleavedWithLowThreshold() {
+    // insert the values from l1
+    LinkedList<String> l1 = GetRandomStringList(TOTAL_STRINGS, smallAvgSize);
+    // update values from l2
     LinkedList<String> l2 = GetRandomStringList(TOTAL_STRINGS, midAvgSize);
 
     final double threshold = 0.01D;
 
     System.out.println("TestInterleavedWithLowThreshold: " + threshold);
     System.out.println("Small -> Mid:");
-    MutableVarcharVector m1 = new MutableVarcharVector("TestInterleavedWithLowThreshold", testAllocator, threshold);
+    MutableVarcharVector m1 =
+        new MutableVarcharVector("TestInterleavedWithLowThreshold", testAllocator, threshold);
     try {
-      //small to mid
+      // small to mid
       TestInterLeaved(m1, l1, l2);
       m1.reset();
 
-      //mid to small
+      // mid to small
       System.out.println("Mid -> Small:");
       TestInterLeaved(m1, l2, l1);
     } finally {
@@ -231,24 +233,24 @@ public class TestMutableVarcharVector extends DremioTest {
   }
 
   @Test
-  public void TestInterleavedWithMidThreshold()
-  {
-    //insert the values from l1
+  public void TestInterleavedWithMidThreshold() {
+    // insert the values from l1
     LinkedList<String> l1 = GetRandomStringList(TOTAL_STRINGS, smallAvgSize);
-    //update values from l2
+    // update values from l2
     LinkedList<String> l2 = GetRandomStringList(TOTAL_STRINGS, midAvgSize);
 
     final double threshold = 0.5D;
 
     System.out.println("TestInterleavedWithMidThreshold: " + threshold);
     System.out.println("Small -> Mid:");
-    MutableVarcharVector m1 = new MutableVarcharVector("TestInterleavedWithLowThreshold", testAllocator, threshold);
+    MutableVarcharVector m1 =
+        new MutableVarcharVector("TestInterleavedWithLowThreshold", testAllocator, threshold);
     try {
-      //small to mid
+      // small to mid
       TestInterLeaved(m1, l1, l2);
       m1.reset();
 
-      //mid to small
+      // mid to small
       System.out.println("Mid -> Small:");
       TestInterLeaved(m1, l2, l1);
     } finally {
@@ -257,24 +259,24 @@ public class TestMutableVarcharVector extends DremioTest {
   }
 
   @Test
-  public void TestCompactionWithZeroThreshold()
-  {
-    MutableVarcharVector m1 = new MutableVarcharVector("TestCompactionThreshold", testAllocator, 0.7D);
+  public void TestCompactionWithZeroThreshold() {
+    MutableVarcharVector m1 =
+        new MutableVarcharVector("TestCompactionThreshold", testAllocator, 0.7D);
     m1.setCompactionThreshold(0.0D);
 
     try {
       LinkedList<String> l1 = GetRandomStringList(TOTAL_STRINGS, smallAvgSize);
       LinkedList<String> l2 = GetRandomStringList(TOTAL_STRINGS, midAvgSize);
 
-      //insert
+      // insert
       for (int i = 0; i < TOTAL_STRINGS; ++i) {
         m1.setSafe(i, l1.get(i).getBytes());
       }
 
-      //update each index.
+      // update each index.
       for (int i = 0; i < TOTAL_STRINGS; ++i) {
         final int oldOffset = m1.getCurrentOffset();
-        //update -- this should always trigger compaction as threshold is 0
+        // update -- this should always trigger compaction as threshold is 0
         m1.setSafe(i, l2.get(i).getBytes());
         final int newOffset = m1.getCurrentOffset();
         Assert.assertEquals(0, m1.getGarbageSizeInBytes());
@@ -286,31 +288,31 @@ public class TestMutableVarcharVector extends DremioTest {
   }
 
   @Test
-  public void TestCompactionThreshold()
-  {
-    final MutableVarcharVector m1 = new MutableVarcharVector("TestCompactionThreshold", testAllocator, 0.02D /* 2 percent */);
+  public void TestCompactionThreshold() {
+    final MutableVarcharVector m1 =
+        new MutableVarcharVector("TestCompactionThreshold", testAllocator, 0.02D /* 2 percent */);
 
     try (final ArrowBuf validityBuf = testAllocator.buffer(10);
-         final ArrowBuf dataBuf = testAllocator.buffer(128 * 1024)) {
+        final ArrowBuf dataBuf = testAllocator.buffer(128 * 1024)) {
 
       m1.loadBuffers(5, 64 * 1024, dataBuf, validityBuf);
 
       final byte[] b1 = new byte[1024];
       final byte[] b2 = new byte[512];
 
-      //insert at index 0
+      // insert at index 0
       m1.setSafe(0, b1);
 
       m1.setSafe(1, b1);
 
       Assert.assertEquals(0, m1.getGarbageSizeInBytes());
 
-      //insert at index 1
+      // insert at index 1
       m1.setSafe(1, b2);
 
       Assert.assertEquals(1024, m1.getGarbageSizeInBytes());
 
-      //update - this should cause compaction
+      // update - this should cause compaction
       m1.setSafe(0, b2);
       Assert.assertEquals(0, m1.getGarbageSizeInBytes());
 
@@ -320,13 +322,14 @@ public class TestMutableVarcharVector extends DremioTest {
   }
 
   @Test
-  public void TestNoCompaction()
-  {
-    MutableVarcharVector m1 = new MutableVarcharVector("TestCompactionThreshold", testAllocator, 1.0D /* never compact! */);
-    try{
+  public void TestNoCompaction() {
+    MutableVarcharVector m1 =
+        new MutableVarcharVector(
+            "TestCompactionThreshold", testAllocator, 1.0D /* never compact! */);
+    try {
 
       LinkedList<String> l1 = GetRandomStringList(TOTAL_STRINGS, smallAvgSize);
-      for (int i = 0 ; i < TOTAL_STRINGS; ++i) {
+      for (int i = 0; i < TOTAL_STRINGS; ++i) {
         m1.setSafe(i, l1.get(i).getBytes());
       }
 
@@ -338,7 +341,7 @@ public class TestMutableVarcharVector extends DremioTest {
       m1.forceCompact();
       final int newOffset = m1.getCurrentOffset();
 
-      //no change in data
+      // no change in data
       Assert.assertEquals(oldOffset, newOffset);
       Assert.assertEquals(0, waste);
 
@@ -348,9 +351,10 @@ public class TestMutableVarcharVector extends DremioTest {
   }
 
   @Test
-  public void TestBasic()
-  {
-    MutableVarcharVector m1 = new MutableVarcharVector("TestCompactionThreshold", testAllocator, 1.0D /* never compact! */);
+  public void TestBasic() {
+    MutableVarcharVector m1 =
+        new MutableVarcharVector(
+            "TestCompactionThreshold", testAllocator, 1.0D /* never compact! */);
     try {
       final String insString1 = "aaaaa";
       final String insString2 = "bbbbbb";
@@ -361,7 +365,7 @@ public class TestMutableVarcharVector extends DremioTest {
       m1.setSafe(0, upd1.getBytes());
 
       final String upd2 = "ddd";
-      m1.setSafe(1,upd2.getBytes());
+      m1.setSafe(1, upd2.getBytes());
 
       m1.forceCompact();
 
@@ -373,114 +377,112 @@ public class TestMutableVarcharVector extends DremioTest {
   }
 
   @Test
-  public void TestCopyOut()
-  {
-    MutableVarcharVector m1 = new MutableVarcharVector("TestCopyOut", testAllocator, 1.0D /* never compact */);
+  public void TestCopyOut() {
+    MutableVarcharVector m1 =
+        new MutableVarcharVector("TestCopyOut", testAllocator, 1.0D /* never compact */);
     VarCharVector v1 = new VarCharVector("TestCopyOutVarchar", testAllocator);
     VarCharVector v2 = new VarCharVector("TestCopyOutVarcharPostCompaction", testAllocator);
     try {
-      //insert the values from l1
+      // insert the values from l1
       LinkedList<String> l1 = GetRandomStringList(TOTAL_STRINGS, smallAvgSize);
-      //update values from l2
+      // update values from l2
       LinkedList<String> l2 = GetRandomStringList(TOTAL_STRINGS, midAvgSize);
 
       int expectedOffset = 0;
       int i = 0;
-      final int firstIndex = 10; //beginning firstIndex records to be null
+      final int firstIndex = 10; // beginning firstIndex records to be null
 
-      //insert TOTAL_STRINGS nulls and values
+      // insert TOTAL_STRINGS nulls and values
       int startIdx = firstIndex;
       while (i < TOTAL_STRINGS) {
-        //insert
+        // insert
         m1.setSafe(startIdx, new Text(l1.get(i)));
-        //update
+        // update
         m1.setSafe(startIdx, new Text(l2.get(i)));
 
         expectedOffset += l2.get(i).length();
 
         ++i;
-        //create null values
+        // create null values
         startIdx += 2;
       }
 
-      //allocate with twice the index
+      // allocate with twice the index
       v1.allocateNew(m1.getUsedByteCapacity(), startIdx * 2);
 
-      //copy records
+      // copy records
       m1.copyToVarWidthVec(v1, startIdx * 3, 0);
 
-      //reset the value count back to actual strings copied
+      // reset the value count back to actual strings copied
       v1.setValueCount(startIdx);
 
-      //validate the records, skip null values
+      // validate the records, skip null values
       i = 0;
       int j = firstIndex;
       while (i < TOTAL_STRINGS) {
         Assert.assertEquals(l2.get(i) /*expected*/, v1.getObject(j).toString() /*actual*/);
         ++i;
-        j += 2; //skip nulls
+        j += 2; // skip nulls
       }
 
-      //counters must match
+      // counters must match
       Assert.assertEquals(startIdx, j);
       Assert.assertEquals(TOTAL_STRINGS + firstIndex, v1.getNullCount());
     } finally {
       m1.close();
       v1.close();
     }
-
   }
 
   @Test
-  public void TestCopyOutPostCompaction()
-  {
-    MutableVarcharVector m1 = new MutableVarcharVector("TestCopyOut", testAllocator, 1.0D /* never compact */);
+  public void TestCopyOutPostCompaction() {
+    MutableVarcharVector m1 =
+        new MutableVarcharVector("TestCopyOut", testAllocator, 1.0D /* never compact */);
     VarCharVector v2 = new VarCharVector("TestCopyOutVarcharPostCompaction", testAllocator);
     try {
-      //insert the values from l1
+      // insert the values from l1
       LinkedList<String> l1 = GetRandomStringList(TOTAL_STRINGS, smallAvgSize);
-      //update values from l2
+      // update values from l2
       LinkedList<String> l2 = GetRandomStringList(TOTAL_STRINGS, midAvgSize);
 
       int expectedOffset = 0;
       int i = 0;
-      final int firstIndex = 10; //beginning firstIndex records to be null
+      final int firstIndex = 10; // beginning firstIndex records to be null
 
-      //insert TOTAL_STRINGS nulls and values
+      // insert TOTAL_STRINGS nulls and values
       int startIdx = firstIndex;
       while (i < TOTAL_STRINGS) {
-        //insert
+        // insert
         m1.setSafe(startIdx, new Text(l1.get(i)));
-        //update
+        // update
         m1.setSafe(startIdx, new Text(l2.get(i)));
 
         expectedOffset += l2.get(i).length();
 
         ++i;
-        //create null values
+        // create null values
         startIdx += 2;
       }
 
-      //Reduce garbage date
+      // Reduce garbage date
       m1.forceCompact();
 
-      //allocate with twice the index
+      // allocate with twice the index
       v2.allocateNew(m1.getUsedByteCapacity(), startIdx * 2);
 
-      //copy records
+      // copy records
       m1.copyToVarWidthVec(v2, startIdx * 3, 0);
 
-      //reset the value count back to actual strings copied
+      // reset the value count back to actual strings copied
       v2.setValueCount(startIdx);
 
-
-      //verify that post compaction also data matches
+      // verify that post compaction also data matches
       i = 0;
       int j = firstIndex;
       while (i < TOTAL_STRINGS) {
         Assert.assertEquals(l2.get(i) /*expected*/, v2.getObject(j).toString() /*actual*/);
         ++i;
-        j += 2; //skip nulls
+        j += 2; // skip nulls
       }
 
       Assert.assertEquals(startIdx, j);
@@ -490,6 +492,5 @@ public class TestMutableVarcharVector extends DremioTest {
       m1.close();
       v2.close();
     }
-
   }
 }

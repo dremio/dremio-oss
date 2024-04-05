@@ -24,7 +24,8 @@ import com.dremio.sabot.task.TaskManager.TaskHandle;
 
 public class DedicatedFragmentRunnable implements Runnable {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DedicatedFragmentRunnable.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(DedicatedFragmentRunnable.class);
 
   private final AsyncTaskWrapper task;
   private final ResettableBarrier barrier = new ResettableBarrier();
@@ -41,7 +42,7 @@ public class DedicatedFragmentRunnable implements Runnable {
     StatsCollectionEligibilityRegistrar.addSelf();
     currentThread = Thread.currentThread();
 
-    while(true){
+    while (true) {
 
       // put try inside the run loop so we don't lose threads with uncaught exceptions.
       try {
@@ -54,27 +55,26 @@ public class DedicatedFragmentRunnable implements Runnable {
           task.getAsyncTask().postRunUpdate(System.nanoTime() - startTime, preRunName);
         }
 
-        switch(task.getState()){
-        case BLOCKED_ON_DOWNSTREAM:
-        case BLOCKED_ON_UPSTREAM:
-        case BLOCKED_ON_SHARED_RESOURCE:
-          task.setAvailabilityCallback(new BlockRun(toTaskHandle()));
-          barrier.await();
-          break;
-        case DONE:
-          task.getCleaner().close();
-          return;
-        case RUNNABLE:
-        default:
-          // noop
-          break;
-
+        switch (task.getState()) {
+          case BLOCKED_ON_DOWNSTREAM:
+          case BLOCKED_ON_UPSTREAM:
+          case BLOCKED_ON_SHARED_RESOURCE:
+            task.setAvailabilityCallback(new BlockRun(toTaskHandle()));
+            barrier.await();
+            break;
+          case DONE:
+            task.getCleaner().close();
+            return;
+          case RUNNABLE:
+          default:
+            // noop
+            break;
         }
 
-      } catch(InterruptedException i){
+      } catch (InterruptedException i) {
         logger.info("Thread interrupted, exiting.");
         return;
-      } catch(Throwable t) {
+      } catch (Throwable t) {
         logger.error("Unhandled Exception in Fragment Thread.", t);
         return;
       }

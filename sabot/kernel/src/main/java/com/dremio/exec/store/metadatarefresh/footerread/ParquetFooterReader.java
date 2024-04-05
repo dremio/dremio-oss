@@ -18,25 +18,6 @@ package com.dremio.exec.store.metadatarefresh.footerread;
 import static com.dremio.exec.ExecConstants.ENABLE_MAP_DATA_TYPE;
 import static com.dremio.exec.ExecConstants.PARQUET_READER_INT96_AS_TIMESTAMP;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.types.pojo.Schema;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.iceberg.FileFormat;
-import org.apache.parquet.arrow.schema.SchemaConverter;
-import org.apache.parquet.compression.CompressionCodecFactory;
-import org.apache.parquet.hadoop.CodecFactory;
-import org.apache.parquet.hadoop.metadata.BlockMetaData;
-import org.apache.parquet.schema.Type;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.arrow.DremioArrowSchema;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.types.SchemaUpPromotionRules;
@@ -65,10 +46,25 @@ import com.dremio.io.file.Path;
 import com.dremio.parquet.reader.ParquetDirectByteBufferAllocator;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.google.common.base.Preconditions;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.iceberg.FileFormat;
+import org.apache.parquet.arrow.schema.SchemaConverter;
+import org.apache.parquet.compression.CompressionCodecFactory;
+import org.apache.parquet.hadoop.CodecFactory;
+import org.apache.parquet.hadoop.metadata.BlockMetaData;
+import org.apache.parquet.schema.Type;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * Parquet footer reader used in refresh dataset flow
- */
+/** Parquet footer reader used in refresh dataset flow */
 public class ParquetFooterReader implements FooterReader, SupportsTypeCoercionsAndUpPromotions {
 
   private static final Logger logger = LoggerFactory.getLogger(ParquetFooterReader.class);
@@ -81,24 +77,36 @@ public class ParquetFooterReader implements FooterReader, SupportsTypeCoercionsA
   private final boolean readFooter;
   private final int maxLeafCols;
 
-  public ParquetFooterReader(OperatorContext opContext, BatchSchema tableSchema, FileSystem fs,
-                             long estimatedRecordSize, double compressionFactor, boolean readFooter) {
+  public ParquetFooterReader(
+      OperatorContext opContext,
+      BatchSchema tableSchema,
+      FileSystem fs,
+      long estimatedRecordSize,
+      double compressionFactor,
+      boolean readFooter) {
     this.opContext = opContext;
     this.tableSchema = tableSchema;
     this.fs = fs;
     this.readFooter = readFooter;
     this.estimatedRecordSize = estimatedRecordSize;
     this.compressionFactor = compressionFactor;
-    this.maxLeafCols = (int) opContext.getOptions().getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX);
+    this.maxLeafCols =
+        (int) opContext.getOptions().getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX);
   }
 
   @Override
   public Footer getFooter(String path, long fileSize) throws IOException {
     MutableParquetMetadata parquetMetadata = this.readFooter ? readFooter(path, fileSize) : null;
-    if(readFooter) {
-      return new ParquetFooter(createBatchSchemaIfNeeded(parquetMetadata, path, fileSize), getRowCount(parquetMetadata, fileSize), parquetMetadata.getBlocks().size());
+    if (readFooter) {
+      return new ParquetFooter(
+          createBatchSchemaIfNeeded(parquetMetadata, path, fileSize),
+          getRowCount(parquetMetadata, fileSize),
+          parquetMetadata.getBlocks().size());
     } else {
-      return new Footer(createBatchSchemaIfNeeded(parquetMetadata, path, fileSize), getRowCount(parquetMetadata, fileSize), FileFormat.PARQUET);
+      return new Footer(
+          createBatchSchemaIfNeeded(parquetMetadata, path, fileSize),
+          getRowCount(parquetMetadata, fileSize),
+          FileFormat.PARQUET);
     }
   }
 
@@ -112,9 +120,9 @@ public class ParquetFooterReader implements FooterReader, SupportsTypeCoercionsA
 
   private long getRowCount(MutableParquetMetadata footer) {
     return footer.getBlocks().stream()
-      .filter(Objects::nonNull)
-      .mapToLong(BlockMetaData::getRowCount)
-      .sum();
+        .filter(Objects::nonNull)
+        .mapToLong(BlockMetaData::getRowCount)
+        .sum();
   }
 
   private long getEstimatedRowCount(long fileSize) {
@@ -122,34 +130,45 @@ public class ParquetFooterReader implements FooterReader, SupportsTypeCoercionsA
     if (estimatedRecordSize == 0 || fileSize == 0) {
       return 0;
     }
-    return (long)Math.ceil(fileSize * (compressionFactor / estimatedRecordSize));
+    return (long) Math.ceil(fileSize * (compressionFactor / estimatedRecordSize));
   }
 
-  private BatchSchema createBatchSchemaIfNeeded(MutableParquetMetadata parquetMetadata, String path, long fileSize) throws IOException {
+  private BatchSchema createBatchSchemaIfNeeded(
+      MutableParquetMetadata parquetMetadata, String path, long fileSize) throws IOException {
     if (tableSchema == null) {
       tableSchema = batchSchemaFromParquetFooter(parquetMetadata, path, fileSize);
     }
     return tableSchema;
   }
 
-  private List<Field> getFieldsUsingParquetTypeHelper(MutableParquetMetadata footer) throws Exception {
+  private List<Field> getFieldsUsingParquetTypeHelper(MutableParquetMetadata footer)
+      throws Exception {
     List<Field> fields = new ArrayList<>();
-    final ParquetReaderUtility.DateCorruptionStatus dateStatus = ParquetReaderUtility.DateCorruptionStatus.META_SHOWS_NO_CORRUPTION;
-    final SchemaDerivationHelper schemaHelper = SchemaDerivationHelper.builder()
-      .readInt96AsTimeStamp(opContext.getOptions().getOption(PARQUET_READER_INT96_AS_TIMESTAMP).getBoolVal())
-      .dateCorruptionStatus(dateStatus)
-      .mapDataTypeEnabled(opContext.getOptions().getOption(ENABLE_MAP_DATA_TYPE))
-      .build();
+    final ParquetReaderUtility.DateCorruptionStatus dateStatus =
+        ParquetReaderUtility.DateCorruptionStatus.META_SHOWS_NO_CORRUPTION;
+    final SchemaDerivationHelper schemaHelper =
+        SchemaDerivationHelper.builder()
+            .readInt96AsTimeStamp(
+                opContext.getOptions().getOption(PARQUET_READER_INT96_AS_TIMESTAMP).getBoolVal())
+            .dateCorruptionStatus(dateStatus)
+            .mapDataTypeEnabled(opContext.getOptions().getOption(ENABLE_MAP_DATA_TYPE))
+            .build();
 
     for (Type parquetField : footer.getFileMetaData().getSchema().getFields()) {
       Optional<Field> dremioField = ParquetTypeHelper.toField(parquetField, schemaHelper);
-      fields.add(dremioField.orElseThrow(() -> new UnsupportedOperationException(
-        String.format("Could not convert the parquetField to dremioField using ParquetTypeHelper - %s", parquetField.toString()))));
+      fields.add(
+          dremioField.orElseThrow(
+              () ->
+                  new UnsupportedOperationException(
+                      String.format(
+                          "Could not convert the parquetField to dremioField using ParquetTypeHelper - %s",
+                          parquetField.toString()))));
     }
     return fields;
   }
 
-  private BatchSchema batchSchemaFromParquetFooter(MutableParquetMetadata footer, String path, long fileSize) throws IOException {
+  private BatchSchema batchSchemaFromParquetFooter(
+      MutableParquetMetadata footer, String path, long fileSize) throws IOException {
     Schema arrowSchema;
     try {
       arrowSchema = DremioArrowSchema.fromMetaData(footer.getFileMetaData().getKeyValueMetaData());
@@ -161,12 +180,16 @@ public class ParquetFooterReader implements FooterReader, SupportsTypeCoercionsA
     List<Field> fields;
     if (arrowSchema == null) {
       try {
-        final SchemaConverter converter = new SchemaConverter(opContext.getOptions().getOption(PARQUET_READER_INT96_AS_TIMESTAMP).getBoolVal());
+        final SchemaConverter converter =
+            new SchemaConverter(
+                opContext.getOptions().getOption(PARQUET_READER_INT96_AS_TIMESTAMP).getBoolVal());
         arrowSchema = converter.fromParquet(footer.getFileMetaData().getSchema()).getArrowSchema();
         // Convert all the arrow fields to dremio fields
         fields = CompleteType.convertToDremioFields(arrowSchema.getFields());
       } catch (Exception e) {
-        logger.debug("Cannot convert parquet schema to dremio schema using parquet-arrow schema converter.Trying using ParquetTypeHelper", e);
+        logger.debug(
+            "Cannot convert parquet schema to dremio schema using parquet-arrow schema converter.Trying using ParquetTypeHelper",
+            e);
         try {
           fields = getFieldsUsingParquetTypeHelper(footer);
         } catch (Exception ex) {
@@ -180,42 +203,81 @@ public class ParquetFooterReader implements FooterReader, SupportsTypeCoercionsA
     }
 
     if (fields.size() > maxLeafCols) {
-      logger.error("Parquet contains more columns than the limit. Number of columns {}, Max columns permitted {}", fields.size(), maxLeafCols);
+      logger.error(
+          "Parquet contains more columns than the limit. Number of columns {}, Max columns permitted {}",
+          fields.size(),
+          maxLeafCols);
       throw new ColumnCountTooLargeException(maxLeafCols);
     }
     return new BatchSchema(fields).handleUnions(this);
   }
 
-  private BatchSchema getBatchSchemaFromReader(final FileSystem fs, final String path, long fileSize, MutableParquetMetadata mutableParquetMetadata) throws IOException {
+  private BatchSchema getBatchSchemaFromReader(
+      final FileSystem fs,
+      final String path,
+      long fileSize,
+      MutableParquetMetadata mutableParquetMetadata)
+      throws IOException {
     logger.warn("Reading records in the parquet file [{}] to generate schema", path);
-    try (
-      BufferAllocator sampleAllocator = opContext.getAllocator().newChildAllocator("RecordReadForSchema-alloc", 0, Long.MAX_VALUE);
-      SampleMutator mutator = new SampleMutator(sampleAllocator)) {
+    try (BufferAllocator sampleAllocator =
+            opContext
+                .getAllocator()
+                .newChildAllocator("RecordReadForSchema-alloc", 0, Long.MAX_VALUE);
+        SampleMutator mutator = new SampleMutator(sampleAllocator)) {
 
-      final CompressionCodecFactory codec = CodecFactory.createDirectCodecFactory(new Configuration(),
-        new ParquetDirectByteBufferAllocator(sampleAllocator), 0);
+      final CompressionCodecFactory codec =
+          CodecFactory.createDirectCodecFactory(
+              new Configuration(), new ParquetDirectByteBufferAllocator(sampleAllocator), 0);
 
       if (mutableParquetMetadata.getBlocks().size() == 0) {
         throw new IllegalArgumentException(String.format("parquet file [%s] has no blocks", path));
       }
 
-      final boolean autoCorrectCorruptDates = opContext.getOptions().getOption(ExecConstants.PARQUET_AUTO_CORRECT_DATES_VALIDATOR);
+      final boolean autoCorrectCorruptDates =
+          opContext.getOptions().getOption(ExecConstants.PARQUET_AUTO_CORRECT_DATES_VALIDATOR);
 
-      final ParquetReaderUtility.DateCorruptionStatus dateStatus = ParquetReaderUtility.detectCorruptDates(mutableParquetMetadata, GroupScan.ALL_COLUMNS,
-        autoCorrectCorruptDates);
+      final ParquetReaderUtility.DateCorruptionStatus dateStatus =
+          ParquetReaderUtility.detectCorruptDates(
+              mutableParquetMetadata, GroupScan.ALL_COLUMNS, autoCorrectCorruptDates);
 
-      final SchemaDerivationHelper schemaHelper = SchemaDerivationHelper.builder()
-        .readInt96AsTimeStamp(opContext.getOptions().getOption(PARQUET_READER_INT96_AS_TIMESTAMP).getBoolVal())
-        .dateCorruptionStatus(dateStatus)
-        .mapDataTypeEnabled(opContext.getOptions().getOption(ENABLE_MAP_DATA_TYPE))
-        .build();
+      final SchemaDerivationHelper schemaHelper =
+          SchemaDerivationHelper.builder()
+              .readInt96AsTimeStamp(
+                  opContext.getOptions().getOption(PARQUET_READER_INT96_AS_TIMESTAMP).getBoolVal())
+              .dateCorruptionStatus(dateStatus)
+              .mapDataTypeEnabled(opContext.getOptions().getOption(ENABLE_MAP_DATA_TYPE))
+              .build();
 
-
-      final long maxFooterLen = opContext.getOptions().getOption(ExecConstants.PARQUET_MAX_FOOTER_LEN_VALIDATOR);
-      try (InputStreamProvider streamProvider = new SingleStreamProvider(fs, Path.of(path), fileSize, maxFooterLen, false, null, null, false, ParquetFilters.NONE, ParquetFilterCreator.DEFAULT);
-           RecordReader reader = new AdditionalColumnsRecordReader(opContext, new ParquetRowiseReader(opContext, mutableParquetMetadata, 0,
-             path, ParquetScanProjectedColumns.fromSchemaPaths(GroupScan.ALL_COLUMNS),
-             fs, schemaHelper, streamProvider, codec, true), new ArrayList<>(), sampleAllocator)) {
+      final long maxFooterLen =
+          opContext.getOptions().getOption(ExecConstants.PARQUET_MAX_FOOTER_LEN_VALIDATOR);
+      try (InputStreamProvider streamProvider =
+              new SingleStreamProvider(
+                  fs,
+                  Path.of(path),
+                  fileSize,
+                  maxFooterLen,
+                  false,
+                  null,
+                  null,
+                  false,
+                  ParquetFilters.NONE,
+                  ParquetFilterCreator.DEFAULT);
+          RecordReader reader =
+              new AdditionalColumnsRecordReader(
+                  opContext,
+                  new ParquetRowiseReader(
+                      opContext,
+                      mutableParquetMetadata,
+                      0,
+                      path,
+                      ParquetScanProjectedColumns.fromSchemaPaths(GroupScan.ALL_COLUMNS),
+                      fs,
+                      schemaHelper,
+                      streamProvider,
+                      codec,
+                      true),
+                  new ArrayList<>(),
+                  sampleAllocator)) {
 
         reader.setup(mutator);
 
@@ -235,8 +297,18 @@ public class ParquetFooterReader implements FooterReader, SupportsTypeCoercionsA
 
   private MutableParquetMetadata readFooter(String path, long fileSize) throws IOException {
     logger.debug("Reading footer of file [{}]", path);
-    try (SingleStreamProvider singleStreamProvider = new SingleStreamProvider(this.fs, Path.of(path), fileSize,
-      maxFooterLen(), false, null, opContext, false, ParquetFilters.NONE, ParquetFilterCreator.DEFAULT)) {
+    try (SingleStreamProvider singleStreamProvider =
+        new SingleStreamProvider(
+            this.fs,
+            Path.of(path),
+            fileSize,
+            maxFooterLen(),
+            false,
+            null,
+            opContext,
+            false,
+            ParquetFilters.NONE,
+            ParquetFilterCreator.DEFAULT)) {
       return singleStreamProvider.getFooter();
     }
   }

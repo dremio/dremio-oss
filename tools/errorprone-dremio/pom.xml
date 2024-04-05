@@ -1,4 +1,4 @@
-<?xml version="1.0"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!--
 
     Copyright (C) 2017-2019 Dremio Corporation
@@ -16,38 +16,85 @@
     limitations under the License.
 
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
   <!-- This file doesn't use dremio parent to avoid circular dependencies -->
   <groupId>com.dremio.tools</groupId>
   <artifactId>errorprone-dremio</artifactId>
-  <version>24.3.2-202401241821100032-d2d8a497</version>
+  <version>25.0.0-202404051521110861-ed9515a8</version>
   <packaging>jar</packaging>
   <name>Tools - Dremio Error Prone Checks</name>
   <inceptionYear>2017-2019</inceptionYear>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <google-java-format.version>1.18.1</google-java-format.version>
-    <auto-service.version>1.0.1</auto-service.version>
+    <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+    <!--
+    maven.compiler.release is not compatible with add-exports arguments
+    see https://bugs.openjdk.org/browse/JDK-8178152 for details.
+    -->
+    <maven.compiler.source>11</maven.compiler.source>
+    <maven.compiler.target>11</maven.compiler.target>
+
     <!-- Please keep versions in sync with oss parent pom.xml -->
-    <errorprone.version>2.23.0</errorprone.version>
+    <spotless.version>2.43.0</spotless.version>
+    <google-java-format.version>1.19.2</google-java-format.version>
+    <auto-service.version>1.0.1</auto-service.version>
+    <errorprone.version>2.24.1</errorprone.version>
     <slf4j.version>1.7.36</slf4j.version>
-    <grpc.version>1.58.0</grpc.version>
+    <grpc.version>1.60.1</grpc.version>
   </properties>
 
+  <dependencies>
+    <dependency>
+      <groupId>com.google.auto.service</groupId>
+      <artifactId>auto-service</artifactId>
+      <version>${auto-service.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.google.errorprone</groupId>
+      <artifactId>error_prone_check_api</artifactId>
+      <version>${errorprone.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.google.errorprone</groupId>
+      <artifactId>error_prone_test_helpers</artifactId>
+      <version>${errorprone.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+      <version>${slf4j.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-stub</artifactId>
+      <version>${grpc.version}</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
   <build>
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>com.diffplug.spotless</groupId>
+          <artifactId>spotless-maven-plugin</artifactId>
+          <version>${spotless.version}</version>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+
     <plugins>
       <!-- Please keep versions in sync with oss parent pom.xml -->
       <plugin>
         <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.11.0</version>
+        <version>3.12.1</version>
         <configuration>
-          <source>11</source>
-          <target>11</target>
           <forceJavacCompilerUse>true</forceJavacCompilerUse>
           <showWarnings>true</showWarnings>
           <compilerArgs combine.self="override">
@@ -88,6 +135,11 @@
         </configuration>
       </plugin>
       <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-clean-plugin</artifactId>
+        <version>3.3.2</version>
+      </plugin>
+      <plugin>
         <artifactId>maven-resources-plugin</artifactId>
         <version>3.3.1</version>
         <configuration>
@@ -96,7 +148,7 @@
       </plugin>
       <plugin>
         <artifactId>maven-surefire-plugin</artifactId>
-        <version>3.2.1</version>
+        <version>3.2.5</version>
       </plugin>
       <plugin>
         <groupId>com.mycila</groupId>
@@ -109,8 +161,7 @@
               <properties>
                 <owner>Dremio Corporation</owner>
               </properties>
-              <inlineHeader>
-Copyright (C) ${project.inceptionYear} ${owner}
+              <inlineHeader>Copyright (C) ${project.inceptionYear} ${owner}
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -122,8 +173,7 @@ Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
-limitations under the License.
-              </inlineHeader>
+limitations under the License.</inlineHeader>
               <includes>
                 <include>src/**</include>
                 <include>**/*.xml</include>
@@ -138,39 +188,34 @@ limitations under the License.
         <executions>
           <execution>
             <id>verify-license-headers</id>
-            <phase>verify</phase>
             <goals>
               <goal>check</goal>
             </goals>
+            <phase>verify</phase>
           </execution>
         </executions>
       </plugin>
       <plugin>
+        <!-- See https://github.com/diffplug/spotless/tree/main/plugin-maven -->
         <groupId>com.diffplug.spotless</groupId>
         <artifactId>spotless-maven-plugin</artifactId>
-        <version>2.40.0</version>
         <configuration>
           <java>
-            <endWithNewline/>
-            <importOrder>
-              <!-- This is replicating the import order from checkstyle -->
-              <!-- Trailing comma matters, since empty item stands for all other imports -->
-              <order>java.,javax.,org.,com.,</order>
-            </importOrder>
-            <indent>
-              <spaces>true</spaces>
-              <spacesPerTab>2</spacesPerTab>
-            </indent>
-            <removeUnusedImports/>
             <toggleOffOn/>
-            <trimTrailingWhitespace/>
             <googleJavaFormat>
               <version>${google-java-format.version}</version>
             </googleJavaFormat>
           </java>
+          <pom>
+            <sortPom>
+              <expandEmptyElements>false</expandEmptyElements>
+              <sortModules>true</sortModules>
+            </sortPom>
+          </pom>
         </configuration>
         <executions>
           <execution>
+            <id>spotless-check</id>
             <goals>
               <goal>check</goal>
             </goals>
@@ -179,36 +224,4 @@ limitations under the License.
       </plugin>
     </plugins>
   </build>
-
-  <dependencies>
-    <dependency>
-      <groupId>com.google.auto.service</groupId>
-      <artifactId>auto-service</artifactId>
-      <version>${auto-service.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>com.google.errorprone</groupId>
-      <artifactId>error_prone_check_api</artifactId>
-      <version>${errorprone.version}</version>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>com.google.errorprone</groupId>
-      <artifactId>error_prone_test_helpers</artifactId>
-      <version>${errorprone.version}</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>slf4j-api</artifactId>
-      <version>${slf4j.version}</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>io.grpc</groupId>
-      <artifactId>grpc-stub</artifactId>
-      <version>${grpc.version}</version>
-      <scope>test</scope>
-    </dependency>
-  </dependencies>
 </project>

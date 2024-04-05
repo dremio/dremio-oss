@@ -15,25 +15,23 @@
  */
 package com.dremio.exec.store.parquet;
 
+import com.dremio.common.AutoCloseables;
+import com.dremio.io.ArrowBufFSInputStream;
+import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.Path;
+import com.dremio.sabot.exec.context.OperatorContext;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.List;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
 import org.apache.parquet.io.SeekableInputStream;
 
-import com.dremio.common.AutoCloseables;
-import com.dremio.io.ArrowBufFSInputStream;
-import com.dremio.io.file.FileSystem;
-import com.dremio.io.file.Path;
-import com.dremio.sabot.exec.context.OperatorContext;
-
 /**
- * An InputStreamProvider that uses a single stream.
- * It is OK to reuse this stream for reading several columns, in which case the user must handle the repositioning of the stream
+ * An InputStreamProvider that uses a single stream. It is OK to reuse this stream for reading
+ * several columns, in which case the user must handle the repositioning of the stream
  */
 public class SingleStreamProvider implements InputStreamProvider {
   private final FileSystem fs;
@@ -51,8 +49,17 @@ public class SingleStreamProvider implements InputStreamProvider {
   private ParquetFilters parquetFilters;
   private ParquetFilterCreator parquetFilterCreator;
 
-  public SingleStreamProvider(FileSystem fs, Path path, long fileLength, long maxFooterLen, boolean readFullFile, MutableParquetMetadata footer, OperatorContext context, boolean readColumnOffsetIndices, ParquetFilters parquetFilters,
-                              ParquetFilterCreator parquetFilterCreator) {
+  public SingleStreamProvider(
+      FileSystem fs,
+      Path path,
+      long fileLength,
+      long maxFooterLen,
+      boolean readFullFile,
+      MutableParquetMetadata footer,
+      OperatorContext context,
+      boolean readColumnOffsetIndices,
+      ParquetFilters parquetFilters,
+      ParquetFilterCreator parquetFilterCreator) {
     this.fs = fs;
     this.path = path;
     this.fileLength = fileLength;
@@ -77,7 +84,7 @@ public class SingleStreamProvider implements InputStreamProvider {
 
   @Override
   public BulkInputStream getStream(ColumnChunkMetaData column) throws IOException {
-    if(stream == null) {
+    if (stream == null) {
       stream = initStream();
     }
     return stream;
@@ -121,11 +128,13 @@ public class SingleStreamProvider implements InputStreamProvider {
         OffsetIndexProvider offsetIndexProvider;
         offsetIndexProvider = new OffsetIndexProvider(inputStream, allocator, columns);
         if ((context != null) && (context.getStats() != null)) {
-          context.getStats().addLongStat(com.dremio.sabot.op.scan.ScanOperator.Metric.OFFSET_INDEX_READ, 1);
+          context
+              .getStats()
+              .addLongStat(com.dremio.sabot.op.scan.ScanOperator.Metric.OFFSET_INDEX_READ, 1);
         }
         return offsetIndexProvider;
       } catch (IOException ex) {
-        //Ignore error and return null;
+        // Ignore error and return null;
       }
     }
     return null;
@@ -141,11 +150,13 @@ public class SingleStreamProvider implements InputStreamProvider {
         ColumnIndexProvider columnIndexProvider;
         columnIndexProvider = new ColumnIndexProvider(inputStream, allocator, columns);
         if ((context != null) && (context.getStats() != null)) {
-          context.getStats().addLongStat(com.dremio.sabot.op.scan.ScanOperator.Metric.COLUMN_INDEX_READ, 1);
+          context
+              .getStats()
+              .addLongStat(com.dremio.sabot.op.scan.ScanOperator.Metric.COLUMN_INDEX_READ, 1);
         }
         return columnIndexProvider;
       } catch (IOException ex) {
-        //Ignore error and return null;
+        // Ignore error and return null;
       }
     }
     return null;
@@ -153,9 +164,12 @@ public class SingleStreamProvider implements InputStreamProvider {
 
   @Override
   public MutableParquetMetadata getFooter() throws IOException {
-    if(footer == null) {
+    if (footer == null) {
       SingletonParquetFooterCache footerCache = new SingletonParquetFooterCache();
-      footer = new MutableParquetMetadata(footerCache.getFooter(getStream(null), path.toString(), fileLength, fs, maxFooterLen), path.getName());
+      footer =
+          new MutableParquetMetadata(
+              footerCache.getFooter(getStream(null), path.toString(), fileLength, fs, maxFooterLen),
+              path.getName());
     }
     return footer;
   }

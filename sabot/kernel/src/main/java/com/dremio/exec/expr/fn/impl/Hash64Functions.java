@@ -15,6 +15,11 @@
  */
 package com.dremio.exec.expr.fn.impl;
 
+import com.dremio.exec.expr.SimpleFunction;
+import com.dremio.exec.expr.annotations.FunctionTemplate;
+import com.dremio.exec.expr.annotations.FunctionTemplate.FunctionScope;
+import com.dremio.exec.expr.annotations.Output;
+import com.dremio.exec.expr.annotations.Param;
 import org.apache.arrow.vector.holders.NullableBigIntHolder;
 import org.apache.arrow.vector.holders.NullableBitHolder;
 import org.apache.arrow.vector.holders.NullableDateMilliHolder;
@@ -27,228 +32,21 @@ import org.apache.arrow.vector.holders.NullableTimeStampMilliHolder;
 import org.apache.arrow.vector.holders.NullableVarBinaryHolder;
 import org.apache.arrow.vector.holders.NullableVarCharHolder;
 
-import com.dremio.exec.expr.SimpleFunction;
-import com.dremio.exec.expr.annotations.FunctionTemplate;
-import com.dremio.exec.expr.annotations.FunctionTemplate.FunctionScope;
-import com.dremio.exec.expr.annotations.Output;
-import com.dremio.exec.expr.annotations.Param;
-
 /*
  * Class contains hash64 function definitions for different data types.
  */
 public class Hash64Functions {
-  @FunctionTemplate(name = "hash64", scope = FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.INTERNAL)
+  @FunctionTemplate(
+      name = "hash64",
+      scope = FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.INTERNAL)
   public static class NullableFloatHash implements SimpleFunction {
 
-    @Param
-    NullableFloat4Holder in;
-    @Output
-    NullableBigIntHolder out;
-
-    @Override
-    public void setup() {
-    }
-
-    @Override
-    public void eval() {
-      out.isSet = 1;
-      if (in.isSet == 0) {
-        out.value = 0;
-      } else {
-        out.value = com.dremio.common.expression.fn.impl.HashHelper.hash64(in.value, 0);
-      }
-    }
-  }
-
-  @FunctionTemplate(name = "hash64", scope = FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.INTERNAL)
-  public static class NullableDoubleHash implements SimpleFunction {
-
-    @Param
-    NullableFloat8Holder in;
-    @Output
-    NullableBigIntHolder out;
-
-    @Override
-    public void setup() {
-    }
-
-    @Override
-    public void eval() {
-      out.isSet = 1;
-      if (in.isSet == 0) {
-        out.value = 0;
-      } else {
-        out.value = com.dremio.common.expression.fn.impl.HashHelper.hash64(in.value, 0);
-      }
-    }
-  }
-
-  @FunctionTemplate(names = {"hash64", "hash64AsDouble"}, scope = FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.INTERNAL)
-  public static class NullableVarBinaryHash implements SimpleFunction {
-
-    @Param
-    NullableVarBinaryHolder in;
-    @Output
-    NullableBigIntHolder out;
-
-    @Override
-    public void setup() {
-    }
-
-    @Override
-    public void eval() {
-      out.isSet = 1;
-      if (in.isSet == 0) {
-        out.value = 0;
-      } else {
-        out.value = com.dremio.common.expression.fn.impl.HashHelper.hash64(in.start, in.end, in.buffer, 0);
-      }
-    }
-  }
-
-  @FunctionTemplate(names = {"hash64", "hash64AsDouble"}, scope = FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.INTERNAL)
-  public static class NullableVarCharHash implements SimpleFunction {
-
-    @Param
-    NullableVarCharHolder in;
-    @Output
-    NullableBigIntHolder out;
-
-    @Override
-    public void setup() {
-    }
-
-    @Override
-    public void eval() {
-      out.isSet = 1;
-      if (in.isSet == 0) {
-        out.value = 0;
-      } else {
-        out.value = com.dremio.common.expression.fn.impl.HashHelper.hash64(in.start, in.end, in.buffer, 0);
-      }
-    }
-  }
-
-  @FunctionTemplate(name = "hash64", scope = FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.INTERNAL)
-  public static class NullableBigIntHash implements SimpleFunction {
-
-    @Param
-    NullableBigIntHolder in;
-    @Output
-    NullableBigIntHolder out;
-
-    @Override
-    public void setup() {
-    }
-
-    @Override
-    public void eval() {
-      out.isSet = 1;
-      if (in.isSet == 0) {
-        out.value = 0;
-      } else {
-        out.value = com.dremio.common.expression.fn.impl.HashHelper.hash64(in.value, 0);
-      }
-    }
-  }
-
-  @FunctionTemplate(name = "hash64", scope = FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.INTERNAL)
-  public static class NullableIntHash implements SimpleFunction {
-    @Param
-    NullableIntHolder in;
-    @Output
-    NullableBigIntHolder out;
-
-    @Override
-    public void setup() {
-    }
-
-    @Override
-    public void eval() {
-      out.isSet = 1;
-      if (in.isSet == 0) {
-        out.value = 0;
-      } else {
-        out.value = com.dremio.common.expression.fn.impl.HashHelper.hash64(in.value, 0);
-      }
-    }
-  }
-
-  @FunctionTemplate(names = {"hash64", "hash64AsDouble"}, scope = FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.INTERNAL)
-  public static class NullableDateHash implements SimpleFunction {
-    @Param
-    NullableDateMilliHolder in;
-    @Output
-    NullableBigIntHolder out;
-
-    @Override
-    public void setup() {
-    }
-
-    @Override
-    public void eval() {
-      out.isSet = 1;
-      if (in.isSet == 0) {
-        out.value = 0;
-      } else {
-        out.value = com.dremio.common.expression.fn.impl.HashHelper.hash64(in.value, 0);
-      }
-    }
-  }
-
-  @FunctionTemplate(names = {"hash64", "hash64AsDouble"}, scope = FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.INTERNAL)
-  public static class NullableTimeStampHash implements SimpleFunction {
-    @Param
-    NullableTimeStampMilliHolder in;
-    @Output
-    NullableBigIntHolder out;
-
-    @Override
-    public void setup() {
-    }
-
-    @Override
-    public void eval() {
-      out.isSet = 1;
-      if (in.isSet == 0) {
-        out.value = 0;
-      } else {
-        out.value = com.dremio.common.expression.fn.impl.HashHelper.hash64(in.value, 0);
-      }
-    }
-  }
-
-  @FunctionTemplate(names = {"hash64", "hash64AsDouble"}, scope = FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.INTERNAL)
-  public static class NullableTimeHash implements SimpleFunction {
-    @Param
-    NullableTimeMilliHolder in;
-    @Output
-    NullableBigIntHolder out;
-
-    @Override
-    public void setup() {
-    }
-
-    @Override
-    public void eval() {
-      out.isSet = 1;
-      if (in.isSet == 0) {
-        out.value = 0;
-      } else {
-        out.value = com.dremio.common.expression.fn.impl.HashHelper.hash64(in.value, 0);
-      }
-    }
-  }
-
-  @FunctionTemplate(names = {"hash64", "hash64AsDouble"}, scope = FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.INTERNAL)
-  public static class NullableDecimalHash implements SimpleFunction {
-    @Param
-    NullableDecimalHolder in;
+    @Param NullableFloat4Holder in;
     @Output NullableBigIntHolder out;
 
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
     public void eval() {
@@ -256,23 +54,228 @@ public class Hash64Functions {
       if (in.isSet == 0) {
         out.value = 0;
       } else {
-        out.value = com.dremio.common.expression.fn.impl.HashHelper.hash64(in.start, in.start + 16, in
-          .buffer, 0);
+        out.value = com.dremio.common.expression.fn.impl.HashHelper.hash64(in.value, 0);
       }
     }
   }
 
-  @FunctionTemplate(names = {"hash64", "hash64AsDouble"}, scope = FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.INTERNAL)
-  public static class NullableBitHash implements SimpleFunction {
+  @FunctionTemplate(
+      name = "hash64",
+      scope = FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.INTERNAL)
+  public static class NullableDoubleHash implements SimpleFunction {
 
-    @Param
-    NullableBitHolder in;
-    @Output
-    NullableBigIntHolder out;
+    @Param NullableFloat8Holder in;
+    @Output NullableBigIntHolder out;
 
     @Override
-    public void setup() {
+    public void setup() {}
+
+    @Override
+    public void eval() {
+      out.isSet = 1;
+      if (in.isSet == 0) {
+        out.value = 0;
+      } else {
+        out.value = com.dremio.common.expression.fn.impl.HashHelper.hash64(in.value, 0);
+      }
     }
+  }
+
+  @FunctionTemplate(
+      names = {"hash64", "hash64AsDouble"},
+      scope = FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.INTERNAL)
+  public static class NullableVarBinaryHash implements SimpleFunction {
+
+    @Param NullableVarBinaryHolder in;
+    @Output NullableBigIntHolder out;
+
+    @Override
+    public void setup() {}
+
+    @Override
+    public void eval() {
+      out.isSet = 1;
+      if (in.isSet == 0) {
+        out.value = 0;
+      } else {
+        out.value =
+            com.dremio.common.expression.fn.impl.HashHelper.hash64(in.start, in.end, in.buffer, 0);
+      }
+    }
+  }
+
+  @FunctionTemplate(
+      names = {"hash64", "hash64AsDouble"},
+      scope = FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.INTERNAL)
+  public static class NullableVarCharHash implements SimpleFunction {
+
+    @Param NullableVarCharHolder in;
+    @Output NullableBigIntHolder out;
+
+    @Override
+    public void setup() {}
+
+    @Override
+    public void eval() {
+      out.isSet = 1;
+      if (in.isSet == 0) {
+        out.value = 0;
+      } else {
+        out.value =
+            com.dremio.common.expression.fn.impl.HashHelper.hash64(in.start, in.end, in.buffer, 0);
+      }
+    }
+  }
+
+  @FunctionTemplate(
+      name = "hash64",
+      scope = FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.INTERNAL)
+  public static class NullableBigIntHash implements SimpleFunction {
+
+    @Param NullableBigIntHolder in;
+    @Output NullableBigIntHolder out;
+
+    @Override
+    public void setup() {}
+
+    @Override
+    public void eval() {
+      out.isSet = 1;
+      if (in.isSet == 0) {
+        out.value = 0;
+      } else {
+        out.value = com.dremio.common.expression.fn.impl.HashHelper.hash64(in.value, 0);
+      }
+    }
+  }
+
+  @FunctionTemplate(
+      name = "hash64",
+      scope = FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.INTERNAL)
+  public static class NullableIntHash implements SimpleFunction {
+    @Param NullableIntHolder in;
+    @Output NullableBigIntHolder out;
+
+    @Override
+    public void setup() {}
+
+    @Override
+    public void eval() {
+      out.isSet = 1;
+      if (in.isSet == 0) {
+        out.value = 0;
+      } else {
+        out.value = com.dremio.common.expression.fn.impl.HashHelper.hash64(in.value, 0);
+      }
+    }
+  }
+
+  @FunctionTemplate(
+      names = {"hash64", "hash64AsDouble"},
+      scope = FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.INTERNAL)
+  public static class NullableDateHash implements SimpleFunction {
+    @Param NullableDateMilliHolder in;
+    @Output NullableBigIntHolder out;
+
+    @Override
+    public void setup() {}
+
+    @Override
+    public void eval() {
+      out.isSet = 1;
+      if (in.isSet == 0) {
+        out.value = 0;
+      } else {
+        out.value = com.dremio.common.expression.fn.impl.HashHelper.hash64(in.value, 0);
+      }
+    }
+  }
+
+  @FunctionTemplate(
+      names = {"hash64", "hash64AsDouble"},
+      scope = FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.INTERNAL)
+  public static class NullableTimeStampHash implements SimpleFunction {
+    @Param NullableTimeStampMilliHolder in;
+    @Output NullableBigIntHolder out;
+
+    @Override
+    public void setup() {}
+
+    @Override
+    public void eval() {
+      out.isSet = 1;
+      if (in.isSet == 0) {
+        out.value = 0;
+      } else {
+        out.value = com.dremio.common.expression.fn.impl.HashHelper.hash64(in.value, 0);
+      }
+    }
+  }
+
+  @FunctionTemplate(
+      names = {"hash64", "hash64AsDouble"},
+      scope = FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.INTERNAL)
+  public static class NullableTimeHash implements SimpleFunction {
+    @Param NullableTimeMilliHolder in;
+    @Output NullableBigIntHolder out;
+
+    @Override
+    public void setup() {}
+
+    @Override
+    public void eval() {
+      out.isSet = 1;
+      if (in.isSet == 0) {
+        out.value = 0;
+      } else {
+        out.value = com.dremio.common.expression.fn.impl.HashHelper.hash64(in.value, 0);
+      }
+    }
+  }
+
+  @FunctionTemplate(
+      names = {"hash64", "hash64AsDouble"},
+      scope = FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.INTERNAL)
+  public static class NullableDecimalHash implements SimpleFunction {
+    @Param NullableDecimalHolder in;
+    @Output NullableBigIntHolder out;
+
+    @Override
+    public void setup() {}
+
+    @Override
+    public void eval() {
+      out.isSet = 1;
+      if (in.isSet == 0) {
+        out.value = 0;
+      } else {
+        out.value =
+            com.dremio.common.expression.fn.impl.HashHelper.hash64(
+                in.start, in.start + 16, in.buffer, 0);
+      }
+    }
+  }
+
+  @FunctionTemplate(
+      names = {"hash64", "hash64AsDouble"},
+      scope = FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.INTERNAL)
+  public static class NullableBitHash implements SimpleFunction {
+
+    @Param NullableBitHolder in;
+    @Output NullableBigIntHolder out;
+
+    @Override
+    public void setup() {}
 
     @Override
     public void eval() {

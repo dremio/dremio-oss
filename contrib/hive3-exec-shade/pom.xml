@@ -1,4 +1,4 @@
-<?xml version="1.0"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!--
 
     Copyright (C) 2017-2019 Dremio Corporation
@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.contrib</groupId>
     <artifactId>dremio-contrib-parent</artifactId>
-    <version>24.3.2-202401241821100032-d2d8a497</version>
+    <version>25.0.0-202404051521110861-ed9515a8</version>
   </parent>
 
   <artifactId>dremio-hive3-exec-shaded</artifactId>
@@ -35,79 +35,6 @@
     <hive.version>${plugin.hive3.hive.version}</hive.version>
   </properties>
 
-  <profiles>
-    <profile>
-      <id>notmapr</id>
-      <activation>
-        <property>
-          <name>!mapr</name>
-        </property>
-      </activation>
-      <build>
-        <plugins>
-          <plugin>
-            <!-- Enable compilation -->
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-compiler-plugin</artifactId>
-            <configuration>
-              <skipMain>false</skipMain>
-            </configuration>
-          </plugin>
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-shade-plugin</artifactId>
-            <executions>
-              <execution>
-                <phase>package</phase>
-                <goals>
-                  <goal>shade</goal>
-                </goals>
-                <configuration>
-                  <artifactSet>
-                    <includes combine.children="append">
-                      <include>com.amazonaws.glue:aws-glue-datacatalog-hive3-client</include>
-                    </includes>
-                  </artifactSet>
-                  <filters>
-                    <filter>
-                      <artifact>org.apache.hive:hive-exec</artifact>
-                      <excludes>
-                        <exclude>org/apache/hadoop/hive/ql/udf/generic/GenericUDTFGetSplits.class</exclude>
-                      </excludes>
-                    </filter>
-                  </filters>
-                </configuration>
-              </execution>
-            </executions>
-          </plugin>
-        </plugins>
-      </build>
-      <dependencies>
-        <dependency>
-          <groupId>com.amazonaws.glue</groupId>
-          <artifactId>aws-glue-datacatalog-hive3-client</artifactId>
-          <version>${plugin.hive3.aws.glue.version}</version>
-          <exclusions>
-            <exclusion>
-              <!-- The JAR is shading all glue dependencies but pom doesn't reflect it -->
-              <groupId>com.amazonaws.glue</groupId>
-              <artifactId>*</artifactId>
-            </exclusion>
-            <exclusion>
-              <artifactId>commons-logging-api</artifactId>
-              <groupId>commons-logging</groupId>
-            </exclusion>
-            <exclusion>
-              <artifactId>commons-logging</artifactId>
-              <groupId>commons-logging</groupId>
-            </exclusion>
-          </exclusions>
-        </dependency>
-      </dependencies>
-    </profile>
-  </profiles>
-
-
   <dependencies>
     <dependency>
       <groupId>org.apache.hive</groupId>
@@ -119,16 +46,16 @@
           <artifactId>log4j-slf4j-impl</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>log4j</artifactId>
           <groupId>log4j</groupId>
+          <artifactId>log4j</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>servlet-api</artifactId>
           <groupId>javax.servlet</groupId>
+          <artifactId>servlet-api</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>netty-all</artifactId>
           <groupId>io.netty</groupId>
+          <artifactId>netty-all</artifactId>
         </exclusion>
         <exclusion>
           <groupId>org.apache.hive</groupId>
@@ -199,10 +126,10 @@
         <artifactId>maven-shade-plugin</artifactId>
         <executions>
           <execution>
-            <phase>package</phase>
             <goals>
               <goal>shade</goal>
             </goals>
+            <phase>package</phase>
             <configuration>
               <artifactSet>
                 <includes>
@@ -327,10 +254,10 @@
         <executions>
           <execution>
             <id>unpack</id>
-            <phase>package</phase>
             <goals>
               <goal>unpack</goal>
             </goals>
+            <phase>package</phase>
             <configuration>
               <artifactItems>
                 <artifactItem>
@@ -349,4 +276,76 @@
       </plugin>
     </plugins>
   </build>
+
+  <profiles>
+    <profile>
+      <id>notmapr</id>
+      <activation>
+        <property>
+          <name>!mapr</name>
+        </property>
+      </activation>
+      <dependencies>
+        <dependency>
+          <groupId>com.amazonaws.glue</groupId>
+          <artifactId>aws-glue-datacatalog-hive3-client</artifactId>
+          <version>${plugin.hive3.aws.glue.version}</version>
+          <exclusions>
+            <exclusion>
+              <!-- The JAR is shading all glue dependencies but pom doesn't reflect it -->
+              <groupId>com.amazonaws.glue</groupId>
+              <artifactId>*</artifactId>
+            </exclusion>
+            <exclusion>
+              <groupId>commons-logging</groupId>
+              <artifactId>commons-logging-api</artifactId>
+            </exclusion>
+            <exclusion>
+              <groupId>commons-logging</groupId>
+              <artifactId>commons-logging</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+      </dependencies>
+      <build>
+        <plugins>
+          <plugin>
+            <!-- Enable compilation -->
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <configuration>
+              <skipMain>false</skipMain>
+            </configuration>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-shade-plugin</artifactId>
+            <executions>
+              <execution>
+                <goals>
+                  <goal>shade</goal>
+                </goals>
+                <phase>package</phase>
+                <configuration>
+                  <artifactSet>
+                    <includes combine.children="append">
+                      <include>com.amazonaws.glue:aws-glue-datacatalog-hive3-client</include>
+                    </includes>
+                  </artifactSet>
+                  <filters>
+                    <filter>
+                      <artifact>org.apache.hive:hive-exec</artifact>
+                      <excludes>
+                        <exclude>org/apache/hadoop/hive/ql/udf/generic/GenericUDTFGetSplits.class</exclude>
+                      </excludes>
+                    </filter>
+                  </filters>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 </project>

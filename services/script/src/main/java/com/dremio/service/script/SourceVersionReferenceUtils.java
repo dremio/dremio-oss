@@ -15,43 +15,50 @@
  */
 package com.dremio.service.script;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-
 import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.map.CaseInsensitiveMap;
 import com.dremio.dac.proto.model.dataset.DatasetProtobuf;
 import com.dremio.dac.proto.model.dataset.SourceVersionReference;
 import com.dremio.dac.proto.model.dataset.VersionContextType;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 public class SourceVersionReferenceUtils {
 
-  public static List<SourceVersionReference> createSourceVersionReferenceList(List<DatasetProtobuf.SourceVersionReference> references) {
+  public static List<SourceVersionReference> createSourceVersionReferenceList(
+      List<DatasetProtobuf.SourceVersionReference> references) {
     List<SourceVersionReference> sourceVersionReferenceList = new ArrayList<>();
     if (references != null) {
-      for (DatasetProtobuf.SourceVersionReference entry: references) {
+      for (DatasetProtobuf.SourceVersionReference entry : references) {
         DatasetProtobuf.VersionContext versionContext = entry.getReference();
         DatasetProtobuf.VersionContextType versionContextType = versionContext.getType();
-        String sourceName= entry.getSourceName();
+        String sourceName = entry.getSourceName();
         switch (versionContextType) {
           case BRANCH:
             com.dremio.dac.proto.model.dataset.VersionContext versionContextBranch =
-              new com.dremio.dac.proto.model.dataset.VersionContext(VersionContextType.BRANCH, versionContext.getValue());
-            sourceVersionReferenceList.add(new SourceVersionReference(sourceName, versionContextBranch));
+                new com.dremio.dac.proto.model.dataset.VersionContext(
+                    VersionContextType.BRANCH, versionContext.getValue());
+            sourceVersionReferenceList.add(
+                new SourceVersionReference(sourceName, versionContextBranch));
             break;
           case TAG:
             com.dremio.dac.proto.model.dataset.VersionContext versionContextTag =
-              new com.dremio.dac.proto.model.dataset.VersionContext(VersionContextType.TAG, versionContext.getValue());
-            sourceVersionReferenceList.add(new SourceVersionReference(sourceName, versionContextTag));
+                new com.dremio.dac.proto.model.dataset.VersionContext(
+                    VersionContextType.TAG, versionContext.getValue());
+            sourceVersionReferenceList.add(
+                new SourceVersionReference(sourceName, versionContextTag));
             break;
           case COMMIT:
             com.dremio.dac.proto.model.dataset.VersionContext versionContextCommit =
-              new com.dremio.dac.proto.model.dataset.VersionContext(VersionContextType.COMMIT, versionContext.getValue());
-            sourceVersionReferenceList.add(new SourceVersionReference(sourceName, versionContextCommit));
+                new com.dremio.dac.proto.model.dataset.VersionContext(
+                    VersionContextType.COMMIT, versionContext.getValue());
+            sourceVersionReferenceList.add(
+                new SourceVersionReference(sourceName, versionContextCommit));
             break;
           default:
-            throw new IllegalArgumentException("Unrecognized versionContextType: " + versionContextType);
+            throw new IllegalArgumentException(
+                "Unrecognized versionContextType: " + versionContextType);
         }
       }
     }
@@ -59,13 +66,16 @@ public class SourceVersionReferenceUtils {
     return sourceVersionReferenceList;
   }
 
-  public static List<DatasetProtobuf.SourceVersionReference> createSourceVersionReferenceProtoList(List<SourceVersionReference> references) {
-    List<DatasetProtobuf.SourceVersionReference> sourceVersionReferenceProtoList = new ArrayList<>();
+  public static List<DatasetProtobuf.SourceVersionReference> createSourceVersionReferenceProtoList(
+      List<SourceVersionReference> references) {
+    List<DatasetProtobuf.SourceVersionReference> sourceVersionReferenceProtoList =
+        new ArrayList<>();
     if (references != null) {
-      for (SourceVersionReference entry: references) {
+      for (SourceVersionReference entry : references) {
         com.dremio.dac.proto.model.dataset.VersionContext versionContext = entry.getReference();
-        com.dremio.dac.proto.model.dataset.VersionContextType versionContextType = versionContext.getType();
-        String sourceName= entry.getSourceName();
+        com.dremio.dac.proto.model.dataset.VersionContextType versionContextType =
+            versionContext.getType();
+        String sourceName = entry.getSourceName();
         DatasetProtobuf.VersionContextType protoVersionContextType;
         switch (versionContextType) {
           case BRANCH:
@@ -78,30 +88,33 @@ public class SourceVersionReferenceUtils {
             protoVersionContextType = DatasetProtobuf.VersionContextType.COMMIT;
             break;
           default:
-            throw new IllegalArgumentException("Unrecognized versionContextType: " + versionContextType);
+            throw new IllegalArgumentException(
+                "Unrecognized versionContextType: " + versionContextType);
         }
-        sourceVersionReferenceProtoList.add(com.dremio.dac.proto.model.dataset.DatasetProtobuf.SourceVersionReference.newBuilder()
-          .setSourceName(sourceName)
-          .setReference(DatasetProtobuf.VersionContext.newBuilder()
-            .setType(protoVersionContextType)
-            .setValue(versionContext.getValue())
-            .build())
-          .build());
-
+        sourceVersionReferenceProtoList.add(
+            com.dremio.dac.proto.model.dataset.DatasetProtobuf.SourceVersionReference.newBuilder()
+                .setSourceName(sourceName)
+                .setReference(
+                    DatasetProtobuf.VersionContext.newBuilder()
+                        .setType(protoVersionContextType)
+                        .setValue(versionContext.getValue())
+                        .build())
+                .build());
       }
     }
 
     return sourceVersionReferenceProtoList;
   }
 
-  public static List<DatasetProtobuf.SourceVersionReference> createSourceVersionReferenceListFromContextMap(
-    CaseInsensitiveMap<com.dremio.catalog.model.VersionContext> references) {
+  public static List<DatasetProtobuf.SourceVersionReference>
+      createSourceVersionReferenceListFromContextMap(
+          CaseInsensitiveMap<com.dremio.catalog.model.VersionContext> references) {
     List<DatasetProtobuf.SourceVersionReference> sourceVersionReferenceList = new ArrayList<>();
     if (references != null) {
-      for (Map.Entry<String, VersionContext> entry: references.entrySet()) {
+      for (Map.Entry<String, VersionContext> entry : references.entrySet()) {
         VersionContext versionContext = entry.getValue();
         VersionContext.Type versionContextType = versionContext.getType();
-        String sourceName= entry.getKey();
+        String sourceName = entry.getKey();
         DatasetProtobuf.VersionContextType protoVersionContextType;
         switch (versionContextType) {
           case BRANCH:
@@ -114,19 +127,21 @@ public class SourceVersionReferenceUtils {
             protoVersionContextType = DatasetProtobuf.VersionContextType.COMMIT;
             break;
           default:
-            throw new IllegalArgumentException("Unrecognized versionContextType: " + versionContextType);
+            throw new IllegalArgumentException(
+                "Unrecognized versionContextType: " + versionContextType);
         }
-        sourceVersionReferenceList.add(com.dremio.dac.proto.model.dataset.DatasetProtobuf.SourceVersionReference.newBuilder()
-          .setSourceName(sourceName)
-          .setReference(DatasetProtobuf.VersionContext.newBuilder()
-            .setType(protoVersionContextType)
-            .setValue(versionContext.getValue())
-            .build())
-          .build());
+        sourceVersionReferenceList.add(
+            com.dremio.dac.proto.model.dataset.DatasetProtobuf.SourceVersionReference.newBuilder()
+                .setSourceName(sourceName)
+                .setReference(
+                    DatasetProtobuf.VersionContext.newBuilder()
+                        .setType(protoVersionContextType)
+                        .setValue(versionContext.getValue())
+                        .build())
+                .build());
       }
     }
 
     return sourceVersionReferenceList;
   }
-
 }

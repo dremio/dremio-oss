@@ -17,7 +17,6 @@ package com.dremio.exec.planner.logical.rewrite.sargable;
 
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.rex.RexExecutor;
@@ -28,6 +27,8 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
+ *
+ *
  * <pre>
  * Extract each component of a filter expr with SARGableStandardForm for
  * - LAST_DAY(date_timestamp_expression string) = rhsNode
@@ -37,10 +38,11 @@ import org.apache.calcite.sql.type.SqlTypeName;
  */
 public class LastDayRangeTransformer extends RangeTransformer {
 
-  public LastDayRangeTransformer(RelOptCluster relOptCluster,
-                                 StandardForm stdForm,
-                                 SqlOperator sqlOperator,
-                                 boolean isTruncToBegin) {
+  public LastDayRangeTransformer(
+      RelOptCluster relOptCluster,
+      StandardForm stdForm,
+      SqlOperator sqlOperator,
+      boolean isTruncToBegin) {
     super(relOptCluster, stdForm, sqlOperator, isTruncToBegin);
   }
 
@@ -54,17 +56,19 @@ public class LastDayRangeTransformer extends RangeTransformer {
     RexNode rhs = super.getRhsNode();
     // Cast string date/time literal to date/time type
     if (SqlTypeName.CHAR_TYPES.contains(rhs.getType().getSqlTypeName())) {
-      rhs = rexBuilder.makeCast(
-        rexBuilder.getTypeFactory().createTypeWithNullability(getColumn().getType(), false),
-        rhs
-      );
+      rhs =
+          rexBuilder.makeCast(
+              rexBuilder.getTypeFactory().createTypeWithNullability(getColumn().getType(), false),
+              rhs);
     }
     // Modify rhsNode to the beginning of the month if rhsNode equals to the end of the month
-    if (isEqualWithExecutor(rhs,
-      SARGableRexUtils.dateAdd(SARGableRexUtils.dateTrunc(
-          TimeUnit.MONTH,
-          SARGableRexUtils.dateAdd(rhs, 1, rexBuilder), rexBuilder),
-        -1, rexBuilder))) {
+    if (isEqualWithExecutor(
+        rhs,
+        SARGableRexUtils.dateAdd(
+            SARGableRexUtils.dateTrunc(
+                TimeUnit.MONTH, SARGableRexUtils.dateAdd(rhs, 1, rexBuilder), rexBuilder),
+            -1,
+            rexBuilder))) {
       return SARGableRexUtils.dateTrunc(TimeUnit.MONTH, rhs, rexBuilder);
     }
     return rhs;

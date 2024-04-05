@@ -20,21 +20,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Properties;
-import java.util.concurrent.ExecutionException;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.ValueVector;
-import org.junit.Ignore;
-import org.junit.Test;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.UserException;
@@ -62,30 +47,48 @@ import com.dremio.sabot.rpc.user.UserResultsListener;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Properties;
+import java.util.concurrent.ExecutionException;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.ValueVector;
+import org.junit.Ignore;
+import org.junit.Test;
 
-/**
- * Class to test different planning use cases (separate from query execution)
- *
- */
+/** Class to test different planning use cases (separate from query execution) */
 public class DremioSeparatePlanningTest extends BaseTestQuery {
 
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DremioSeparatePlanningTest.class);
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(DremioSeparatePlanningTest.class);
 
   static final String WORKING_PATH = TestTools.getWorkingPath();
   static final String TEST_RES_PATH = WORKING_PATH + "/src/test/resources";
 
-  //final String query = "SELECT sales_city, COUNT(*) cnt FROM cp.\"region.json\" GROUP BY sales_city";
-  //final String query = "SELECT * FROM cp.\"employee.json\" where  employee_id > 1 and  employee_id < 1000";
-  //final String query = "SELECT o_orderkey, o_custkey FROM dfs.tmp.\"multilevel\" where dir0 = 1995 and o_orderkey > 100 and o_orderkey < 1000 limit 5";
-  //final String query = "SELECT sum(o_totalprice) FROM dfs.tmp.\"multilevel\" where dir0 = 1995 and o_orderkey > 100 and o_orderkey < 1000";
-  //final String query = "SELECT o_orderkey FROM dfs.tmp.\"multilevel\" order by o_orderkey";
-  //final String query = "SELECT dir1, sum(o_totalprice) FROM dfs.tmp.\"multilevel\" where dir0 = 1995 group by dir1 order by dir1";
-  //final String query = String.format("SELECT dir0, sum(o_totalprice) FROM dfs.\"%s/multilevel/json\" group by dir0 order by dir0", TEST_RES_PATH);
+  // final String query = "SELECT sales_city, COUNT(*) cnt FROM cp.\"region.json\" GROUP BY
+  // sales_city";
+  // final String query = "SELECT * FROM cp.\"employee.json\" where  employee_id > 1 and
+  // employee_id < 1000";
+  // final String query = "SELECT o_orderkey, o_custkey FROM dfs.tmp.\"multilevel\" where dir0 =
+  // 1995 and o_orderkey > 100 and o_orderkey < 1000 limit 5";
+  // final String query = "SELECT sum(o_totalprice) FROM dfs.tmp.\"multilevel\" where dir0 = 1995
+  // and o_orderkey > 100 and o_orderkey < 1000";
+  // final String query = "SELECT o_orderkey FROM dfs.tmp.\"multilevel\" order by o_orderkey";
+  // final String query = "SELECT dir1, sum(o_totalprice) FROM dfs.tmp.\"multilevel\" where dir0 =
+  // 1995 group by dir1 order by dir1";
+  // final String query = String.format("SELECT dir0, sum(o_totalprice) FROM
+  // dfs.\"%s/multilevel/json\" group by dir0 order by dir0", TEST_RES_PATH);
 
   @Ignore("DX-4181")
-  @Test(timeout=30000)
+  @Test(timeout = 30000)
   public void testSingleFragmentQuery() throws Exception {
-    final String query = "SELECT * FROM cp.\"employee.json\" where  employee_id > 1 and  employee_id < 1000";
+    final String query =
+        "SELECT * FROM cp.\"employee.json\" where  employee_id > 1 and  employee_id < 1000";
 
     QueryPlanFragments planFragments = getFragmentsHelper(query);
 
@@ -99,9 +102,10 @@ public class DremioSeparatePlanningTest extends BaseTestQuery {
   }
 
   @Ignore("DX-4181")
-  @Test(timeout=30000)
+  @Test(timeout = 30000)
   public void testMultiMinorFragmentSimpleQuery() throws Exception {
-    final String query = String.format("SELECT o_orderkey FROM dfs.\"%s/multilevel/json\"", TEST_RES_PATH);
+    final String query =
+        String.format("SELECT o_orderkey FROM dfs.\"%s/multilevel/json\"", TEST_RES_PATH);
 
     QueryPlanFragments planFragments = getFragmentsHelper(query);
 
@@ -118,9 +122,12 @@ public class DremioSeparatePlanningTest extends BaseTestQuery {
   }
 
   @Ignore("DX-4181")
-  @Test(timeout=30000)
+  @Test(timeout = 30000)
   public void testMultiMinorFragmentComplexQuery() throws Exception {
-    final String query = String.format("SELECT dir0, sum(o_totalprice) FROM dfs.\"%s/multilevel/json\" group by dir0 order by dir0", TEST_RES_PATH);
+    final String query =
+        String.format(
+            "SELECT dir0, sum(o_totalprice) FROM dfs.\"%s/multilevel/json\" group by dir0 order by dir0",
+            TEST_RES_PATH);
 
     QueryPlanFragments planFragments = getFragmentsHelper(query);
 
@@ -129,32 +136,34 @@ public class DremioSeparatePlanningTest extends BaseTestQuery {
     PlanFragmentSet set = planFragments.getFragmentSet();
     assertTrue((set.getMinorCount() > 1));
 
-    for ( PlanFragmentMajor planFragment : set.getMajorList()) {
+    for (PlanFragmentMajor planFragment : set.getMajorList()) {
       assertTrue(planFragment.getLeafFragment());
     }
 
     getResultsHelper(planFragments);
-
   }
 
-
-  private QueryPlanFragments getFragmentsHelper(final String query) throws InterruptedException, ExecutionException, RpcException {
+  private QueryPlanFragments getFragmentsHelper(final String query)
+      throws InterruptedException, ExecutionException, RpcException {
     updateTestCluster(2, config);
 
-    List<QueryDataBatch> results = client.runQuery(QueryType.SQL, "alter session set \"planner.slice_target\"=1");
-    for(QueryDataBatch batch : results) {
+    List<QueryDataBatch> results =
+        client.runQuery(QueryType.SQL, "alter session set \"planner.slice_target\"=1");
+    for (QueryDataBatch batch : results) {
       batch.release();
     }
 
-    RpcFuture<QueryPlanFragments> queryFragmentsFutures = client.planQuery(QueryType.SQL, query, true);
+    RpcFuture<QueryPlanFragments> queryFragmentsFutures =
+        client.planQuery(QueryType.SQL, query, true);
 
     final QueryPlanFragments planFragments = queryFragmentsFutures.get();
 
     PlanFragmentSet set = planFragments.getFragmentSet();
     for (PlanFragmentMajor fragment : set.getMajorList()) {
       try {
-        System.out.println(PhysicalPlanReader.toString(fragment.getFragmentJson(), fragment.getFragmentCodec()));
-      } catch(IOException e) {
+        System.out.println(
+            PhysicalPlanReader.toString(fragment.getFragmentJson(), fragment.getFragmentCodec()));
+      } catch (IOException e) {
         e.printStackTrace();
       }
     }
@@ -167,16 +176,18 @@ public class DremioSeparatePlanningTest extends BaseTestQuery {
     List<PlanFragmentFull> fullFragments = new ArrayList<>();
 
     // Create a map of major fragments.
-    Map<Integer, PlanFragmentMajor> map = FluentIterable.from(set.getMajorList())
-      .uniqueIndex(major -> major.getHandle().getMajorFragmentId());
+    Map<Integer, PlanFragmentMajor> map =
+        FluentIterable.from(set.getMajorList())
+            .uniqueIndex(major -> major.getHandle().getMajorFragmentId());
 
     // Build the full fragments.
-    set.getMinorList().forEach(
-      minor -> {
-        PlanFragmentMajor major = map.get(minor.getMajorFragmentId());
+    set.getMinorList()
+        .forEach(
+            minor -> {
+              PlanFragmentMajor major = map.get(minor.getMajorFragmentId());
 
-        fullFragments.add(new PlanFragmentFull(major, minor));
-      });
+              fullFragments.add(new PlanFragmentFull(major, minor));
+            });
 
     for (PlanFragmentFull fragment : fullFragments) {
       NodeEndpoint assignedNode = fragment.getAssignment();
@@ -185,40 +196,43 @@ public class DremioSeparatePlanningTest extends BaseTestQuery {
       props.setProperty("direct", assignedNode.getAddress() + ":" + assignedNode.getUserPort());
       fragmentClient.connect(props);
 
-      ShowResultsUserResultsListener myListener = new ShowResultsUserResultsListener(getAllocator());
-      AwaitableUserResultsListener listenerBits =
-          new AwaitableUserResultsListener(myListener);
-      fragmentClient.runQuery(QueryType.SQL, "select hostname, user_port from sys.nodes where \"current\"=true",
+      ShowResultsUserResultsListener myListener =
+          new ShowResultsUserResultsListener(getAllocator());
+      AwaitableUserResultsListener listenerBits = new AwaitableUserResultsListener(myListener);
+      fragmentClient.runQuery(
+          QueryType.SQL,
+          "select hostname, user_port from sys.nodes where \"current\"=true",
           listenerBits);
       int row = listenerBits.await();
       assertEquals(1, row);
-      List<Map<String,String>> records = myListener.getRecords();
+      List<Map<String, String>> records = myListener.getRecords();
       assertEquals(1, records.size());
-      Map<String,String> record = records.get(0);
+      Map<String, String> record = records.get(0);
       assertEquals(2, record.size());
       Iterator<Entry<String, String>> iter = record.entrySet().iterator();
       Entry<String, String> entry;
       String host = null;
       String port = null;
       for (int i = 0; i < 2; i++) {
-       entry = iter.next();
-       if (entry.getKey().equalsIgnoreCase("hostname")) {
+        entry = iter.next();
+        if (entry.getKey().equalsIgnoreCase("hostname")) {
           host = entry.getValue();
         } else if (entry.getKey().equalsIgnoreCase("user_port")) {
           port = entry.getValue();
         } else {
           fail("Unknown field: " + entry.getKey());
         }
-       }
-      assertTrue(props.getProperty("direct").equalsIgnoreCase(host+":" + port));
+      }
+      assertTrue(props.getProperty("direct").equalsIgnoreCase(host + ":" + port));
 
       PlanFragmentSet.Builder setSingleBuilder = PlanFragmentSet.newBuilder();
       setSingleBuilder.addMajor(fragment.getMajor());
       setSingleBuilder.addMinor(fragment.getMinor());
       setSingleBuilder.addAllEndpointsIndex(set.getEndpointsIndexList());
 
-      //AwaitableUserResultsListener listener =
-     //     new AwaitableUserResultsListener(new PrintingResultsListener(client.getConfig(), Format.TSV, VectorUtil.DEFAULT_COLUMN_WIDTH));
+      // AwaitableUserResultsListener listener =
+      //     new AwaitableUserResultsListener(new PrintingResultsListener(client.getConfig(),
+      // Format.TSV, VectorUtil.DEFAULT_COLUMN_WIDTH));
       AwaitableUserResultsListener listener =
           new AwaitableUserResultsListener(new SilentListener());
       fragmentClient.runQuery(QueryType.EXECUTION, setSingleBuilder.build(), listener);
@@ -228,29 +242,25 @@ public class DremioSeparatePlanningTest extends BaseTestQuery {
   }
 
   private void getCombinedResultsHelper(final QueryPlanFragments planFragments) throws Exception {
-      ShowResultsUserResultsListener myListener = new ShowResultsUserResultsListener(getAllocator());
-      AwaitableUserResultsListener listenerBits =
-          new AwaitableUserResultsListener(myListener);
+    ShowResultsUserResultsListener myListener = new ShowResultsUserResultsListener(getAllocator());
+    AwaitableUserResultsListener listenerBits = new AwaitableUserResultsListener(myListener);
 
-      //AwaitableUserResultsListener listener =
-     //     new AwaitableUserResultsListener(new PrintingResultsListener(client.getConfig(), Format.TSV, VectorUtil.DEFAULT_COLUMN_WIDTH));
-      AwaitableUserResultsListener listener =
-          new AwaitableUserResultsListener(new SilentListener());
-      client.runQuery(QueryType.EXECUTION, planFragments.getFragmentSet(), listener);
-      int rows = listener.await();
+    // AwaitableUserResultsListener listener =
+    //     new AwaitableUserResultsListener(new PrintingResultsListener(client.getConfig(),
+    // Format.TSV, VectorUtil.DEFAULT_COLUMN_WIDTH));
+    AwaitableUserResultsListener listener = new AwaitableUserResultsListener(new SilentListener());
+    client.runQuery(QueryType.EXECUTION, planFragments.getFragmentSet(), listener);
+    int rows = listener.await();
   }
 
-  /**
-   * Helper class to get results
-   *
-   */
+  /** Helper class to get results */
   static class ShowResultsUserResultsListener implements UserResultsListener {
 
     private QueryId queryId;
     private final RecordBatchLoader loader;
     private final BufferAllocator allocator;
     private UserException ex;
-    private List<Map<String,String>> records = Lists.newArrayList();
+    private List<Map<String, String>> records = Lists.newArrayList();
 
     public ShowResultsUserResultsListener(BufferAllocator allocator) {
       this.loader = new RecordBatchLoader(allocator);
@@ -271,7 +281,7 @@ public class DremioSeparatePlanningTest extends BaseTestQuery {
 
     @Override
     public void queryIdArrived(QueryId queryId) {
-     this.queryId = queryId;
+      this.queryId = queryId;
     }
 
     @Override
@@ -285,11 +295,11 @@ public class DremioSeparatePlanningTest extends BaseTestQuery {
       QueryData queryHeader = result.getHeader();
       int rows = queryHeader.getRowCount();
       try {
-        if ( result.hasData() ) {
+        if (result.hasData()) {
           ArrowBuf data = result.getData();
           loader.load(queryHeader.getDef(), data);
           for (int i = 0; i < rows; i++) {
-             Map<String,String> record = Maps.newHashMap();
+            Map<String, String> record = Maps.newHashMap();
             for (VectorWrapper<?> vw : loader) {
               final String field = vw.getValueVector().getField().getName();
               final ValueVector vv = vw.getValueVector();
@@ -305,12 +315,9 @@ public class DremioSeparatePlanningTest extends BaseTestQuery {
       } catch (SchemaChangeException e) {
         fail(e.getMessage());
       }
-
     }
 
     @Override
-    public void queryCompleted(QueryState state) {
-    }
-
+    public void queryCompleted(QueryState state) {}
   }
 }

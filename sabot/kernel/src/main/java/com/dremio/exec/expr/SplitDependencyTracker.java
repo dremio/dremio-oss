@@ -15,15 +15,14 @@
  */
 package com.dremio.exec.expr;
 
+import com.dremio.common.expression.SupportedEngines;
+import com.google.common.collect.Lists;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Deque;
 import java.util.Iterator;
 import java.util.List;
-
-import com.dremio.common.expression.SupportedEngines;
-import com.google.common.collect.Lists;
 
 // Helper class used while splitting the expression tree
 // Keeps track of state that is required as part of the split
@@ -43,8 +42,10 @@ class SplitDependencyTracker {
   // case condition number. The list handles multiple level of nesting of case
   private final Deque<CaseBlock> caseBlocks = new ArrayDeque<>();
 
-  SplitDependencyTracker(SupportedEngines executionEngine, List<IfExprBranch> branchList,
-                         Collection<CaseBlock> caseBlocks) {
+  SplitDependencyTracker(
+      SupportedEngines executionEngine,
+      List<IfExprBranch> branchList,
+      Collection<CaseBlock> caseBlocks) {
     this.executionEngine = executionEngine;
     this.ifExprBranches.addAll(branchList);
     this.caseBlocks.addAll(caseBlocks);
@@ -91,7 +92,7 @@ class SplitDependencyTracker {
 
   List<String> getNamesOfDependencies() {
     List<String> result = Lists.newArrayList();
-    for(ExpressionSplit split : transfersIn) {
+    for (ExpressionSplit split : transfersIn) {
       result.add(split.getOutputName());
     }
 
@@ -108,7 +109,7 @@ class SplitDependencyTracker {
       return expr;
     }
     CodeGenContext exprToReturn = expr;
-    for (Iterator<CaseBlock> cbItr = caseBlocks.descendingIterator(); cbItr.hasNext();) {
+    for (Iterator<CaseBlock> cbItr = caseBlocks.descendingIterator(); cbItr.hasNext(); ) {
       final CaseBlock nextBlock = cbItr.next();
       if (nextBlock.getPrevSplit() != null) {
         childTracker.addDependency(nextBlock.getPrevSplit());
@@ -119,7 +120,8 @@ class SplitDependencyTracker {
   }
 
   /**
-   * Case overhead is the number of nested case blocks + one for the extra case condition every split for a when split.
+   * Case overhead is the number of nested case blocks + one for the extra case condition every
+   * split for a when split.
    *
    * @return overhead as an integer
    */

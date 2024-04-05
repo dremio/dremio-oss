@@ -15,15 +15,6 @@
  */
 package com.dremio.sabot.op.sort;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import org.apache.arrow.memory.AllocationReservation;
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.types.pojo.Field;
-
 import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
@@ -31,14 +22,20 @@ import com.dremio.exec.record.RecordBatchData;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.VectorWrapper;
-import com.dremio.exec.record.selection.SelectionVector2;
 import com.dremio.exec.record.selection.SelectionVector4;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.Lists;
+import java.util.ArrayList;
+import java.util.List;
+import org.apache.arrow.memory.AllocationReservation;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.types.pojo.Field;
 
 public class SortRecordBatchBuilder implements AutoCloseable {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SortRecordBatchBuilder.class);
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(SortRecordBatchBuilder.class);
 
   private final List<RecordBatchData> batches = new ArrayList<>();
   private BatchSchema schema;
@@ -63,10 +60,12 @@ public class SortRecordBatchBuilder implements AutoCloseable {
   }
 
   /**
-   * Add another record batch to the set of record batches. TODO: Refactor this and other {@link #add
-   * (RecordBatchData)} method into one method.
+   * Add another record batch to the set of record batches. TODO: Refactor this and other {@link
+   * #add (RecordBatchData)} method into one method.
+   *
    * @param batch
-   * @return True if the requested add completed successfully.  Returns false in the case that this builder is full and cannot receive additional packages.
+   * @return True if the requested add completed successfully. Returns false in the case that this
+   *     builder is full and cannot receive additional packages.
    * @throws SchemaChangeException
    */
   public boolean add(VectorAccessible batch) {
@@ -85,9 +84,8 @@ public class SortRecordBatchBuilder implements AutoCloseable {
       return false; // allowed in batch.
     }
     if (!reservation.add(batch.getRecordCount() * 4)) {
-      return false;  // sv allocation available.
+      return false; // sv allocation available.
     }
-
 
     RecordBatchData bd = new RecordBatchData(batch, allocator);
     runningBatches++;
@@ -101,51 +99,15 @@ public class SortRecordBatchBuilder implements AutoCloseable {
     return true;
   }
 
-  public void add(RecordBatchData rbd) {
-    long batchBytes = getSize(rbd.getContainer());
-    if (batchBytes == 0 && batches.size() > 0) {
-      return;
-    }
-
-    if(runningBatches >= Character.MAX_VALUE) {
-      final String errMsg = String.format("Tried to add more than %d number of batches.", (int) Character.MAX_VALUE);
-      logger.error(errMsg);
-      throw new IllegalArgumentException(errMsg);
-    }
-    if (!reservation.add(rbd.getRecordCount() * 4)) {
-      final String errMsg = String.format("Failed to pre-allocate memory for SV. " + "Existing recordCount*4 = %d, " +
-          "incoming batch recordCount*4 = %d", recordCount * 4, rbd.getRecordCount() * 4);
-      logger.error(errMsg);
-      throw new RuntimeException(errMsg);
-    }
-
-
-    if (rbd.getRecordCount() == 0 && batches.size() > 0) {
-      rbd.getContainer().zeroVectors();
-      SelectionVector2 sv2 = rbd.getSv2();
-      if (sv2 != null) {
-        sv2.clear();
-      }
-      return;
-    }
-    runningBatches++;
-    if (schema == null) {
-      schema = rbd.getContainer().getSchema();
-    } else {
-      Preconditions.checkState(schema.equals(rbd.getContainer().getSchema()));
-    }
-    batches.add(rbd);
-    recordCount += rbd.getRecordCount();
-  }
-
   public boolean isEmpty() {
     return batches.isEmpty();
   }
 
-  public void build(VectorContainer outputContainer) throws SchemaChangeException{
+  public void build(VectorContainer outputContainer) throws SchemaChangeException {
     outputContainer.clear();
     if (batches.size() > Character.MAX_VALUE) {
-      throw new SchemaChangeException("Sort cannot work on more than %d batches at a time.", (int) Character.MAX_VALUE);
+      throw new SchemaChangeException(
+          "Sort cannot work on more than %d batches at a time.", (int) Character.MAX_VALUE);
     }
     if (batches.size() < 1 && schema == null) {
       assert false : "Invalid to have an empty set of batches with no schemas.";
@@ -153,39 +115,42 @@ public class SortRecordBatchBuilder implements AutoCloseable {
 
     final ArrowBuf svBuffer = reservation.allocateBuffer();
     if (svBuffer == null) {
-      throw new OutOfMemoryError("Failed to allocate direct memory for SV4 vector in SortRecordBatchBuilder.");
+      throw new OutOfMemoryError(
+          "Failed to allocate direct memory for SV4 vector in SortRecordBatchBuilder.");
     }
     sv4 = new SelectionVector4(svBuffer, recordCount, Character.MAX_VALUE);
     List<RecordBatchData> data = batches;
 
     // now we're going to generate the sv4 pointers
     switch (schema.getSelectionVectorMode()) {
-    case NONE: {
-      int index = 0;
-      int recordBatchId = 0;
-      for (RecordBatchData d : data) {
-        for (int i =0; i < d.getRecordCount(); i++, index++) {
-          sv4.set(index, recordBatchId, i);
+      case NONE:
+        {
+          int index = 0;
+          int recordBatchId = 0;
+          for (RecordBatchData d : data) {
+            for (int i = 0; i < d.getRecordCount(); i++, index++) {
+              sv4.set(index, recordBatchId, i);
+            }
+            recordBatchId++;
+          }
+          break;
         }
-        recordBatchId++;
-      }
-      break;
-    }
-    case TWO_BYTE: {
-      int index = 0;
-      int recordBatchId = 0;
-      for (RecordBatchData d : data) {
-        for (int i =0; i < d.getRecordCount(); i++, index++) {
-          sv4.set(index, recordBatchId, d.getSv2().getIndex(i));
+      case TWO_BYTE:
+        {
+          int index = 0;
+          int recordBatchId = 0;
+          for (RecordBatchData d : data) {
+            for (int i = 0; i < d.getRecordCount(); i++, index++) {
+              sv4.set(index, recordBatchId, d.getSv2().getIndex(i));
+            }
+            // might as well drop the selection vector since we'll stop using it now.
+            d.getSv2().clear();
+            recordBatchId++;
+          }
+          break;
         }
-        // might as well drop the selection vector since we'll stop using it now.
-        d.getSv2().clear();
-        recordBatchId++;
-      }
-      break;
-    }
-    default:
-      throw new UnsupportedOperationException();
+      default:
+        throw new UnsupportedOperationException();
     }
 
     // next, we'll create lists of each of the vector types.
@@ -223,20 +188,9 @@ public class SortRecordBatchBuilder implements AutoCloseable {
     batches.clear();
   }
 
-  public List<VectorContainer> getHeldRecordBatches() {
-    ArrayList<VectorContainer> containerList = Lists.newArrayList();
-    for (RecordBatchData bd : batches) {
-      VectorContainer c = bd.getContainer();
-      c.setRecordCount(bd.getRecordCount());
-      containerList.add(c);
-    }
-    batches.clear();
-    return containerList;
-  }
-
   /**
-   * For given recordcount how muchmemory does SortRecordBatchBuilder needs for its own purpose. This is used in
-   * ExternalSortBatch to make decisions about whether to spill or not.
+   * For given recordcount how muchmemory does SortRecordBatchBuilder needs for its own purpose.
+   * This is used in ExternalSortBatch to make decisions about whether to spill or not.
    *
    * @param recordCount
    * @return

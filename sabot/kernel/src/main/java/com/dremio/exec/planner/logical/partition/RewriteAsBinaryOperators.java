@@ -15,9 +15,10 @@
  */
 package com.dremio.exec.planner.logical.partition;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
@@ -34,20 +35,18 @@ import org.apache.calcite.rex.RexVisitorImpl;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlOperator;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
-
 /**
- * Rewrites an expression tree, replacing OR and AND operators with more than 2 operands with a chained operators
- * each with only 2 operands.
+ * Rewrites an expression tree, replacing OR and AND operators with more than 2 operands with a
+ * chained operators each with only 2 operands.
  *
- * e.g.
+ * <p>e.g.
  *
- * OR(A, B, C) ---> OR(A, OR(B, C))
+ * <p>OR(A, B, C) ---> OR(A, OR(B, C))
  */
- public class RewriteAsBinaryOperators extends RexVisitorImpl<RexNode> {
+public class RewriteAsBinaryOperators extends RexVisitorImpl<RexNode> {
 
   RexBuilder builder;
+
   public RewriteAsBinaryOperators(boolean deep, RexBuilder builder) {
     super(deep);
     this.builder = builder;

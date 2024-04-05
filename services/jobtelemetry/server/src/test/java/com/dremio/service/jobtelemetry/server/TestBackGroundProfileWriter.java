@@ -19,16 +19,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
-import java.util.stream.Stream;
-
-import org.junit.Before;
-import org.junit.Test;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.proto.CoordExecRPC;
@@ -36,12 +26,17 @@ import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.service.jobtelemetry.server.store.LocalProfileStore;
 import com.dremio.service.jobtelemetry.server.store.ProfileStore;
-
 import io.opentracing.noop.NoopTracerFactory;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.stream.Stream;
+import org.junit.Before;
+import org.junit.Test;
 
-/**
- * Tests background profile writer.
- */
+/** Tests background profile writer. */
 public class TestBackGroundProfileWriter {
   private LegacyKVStoreProvider kvStoreProvider;
 
@@ -52,31 +47,29 @@ public class TestBackGroundProfileWriter {
 
   @Test
   public void testWrite() throws Exception {
-    final UserBitShared.QueryId queryId = UserBitShared.QueryId.newBuilder()
-      .setPart1(1050)
-      .setPart2(2000)
-      .build();
+    final UserBitShared.QueryId queryId =
+        UserBitShared.QueryId.newBuilder().setPart1(1050).setPart2(2000).build();
 
     final ProfileStore profileStore = new LocalProfileStore(kvStoreProvider);
     profileStore.start();
 
     final BackgroundProfileWriter backgroundProfileWriter =
-      new BackgroundProfileWriter(profileStore, NoopTracerFactory.create());
+        new BackgroundProfileWriter(profileStore, NoopTracerFactory.create());
 
     UserBitShared.QueryProfile profile =
-      UserBitShared.QueryProfile.newBuilder()
-        .setPlan("PLAN_VALUE")
-        .setQuery("Select * from plan")
-        .setCancelReason("Cancel plan")
-        .setState(UserBitShared.QueryResult.QueryState.COMPLETED)
-        .build();
+        UserBitShared.QueryProfile.newBuilder()
+            .setPlan("PLAN_VALUE")
+            .setQuery("Select * from plan")
+            .setCancelReason("Cancel plan")
+            .setState(UserBitShared.QueryResult.QueryState.COMPLETED)
+            .build();
 
     // shouldn't be present in the profile store.
     assertFalse(profileStore.getFullProfile(queryId).isPresent());
 
     // fire a background write.
-    Optional<CompletableFuture<Void>> future = backgroundProfileWriter
-      .tryWriteAsync(queryId, profile);
+    Optional<CompletableFuture<Void>> future =
+        backgroundProfileWriter.tryWriteAsync(queryId, profile);
 
     // wait for write to complete.
     future.get().get();
@@ -89,31 +82,29 @@ public class TestBackGroundProfileWriter {
 
   @Test
   public void testConflicts() throws Exception {
-    final UserBitShared.QueryId queryId = UserBitShared.QueryId.newBuilder()
-      .setPart1(1050)
-      .setPart2(2010)
-      .build();
+    final UserBitShared.QueryId queryId =
+        UserBitShared.QueryId.newBuilder().setPart1(1050).setPart2(2010).build();
 
     final CountDownLatch latch = new CountDownLatch(1);
-    final ProfileStore profileStore = new ProfileStoreWithLatch(
-      new LocalProfileStore(kvStoreProvider), latch);
+    final ProfileStore profileStore =
+        new ProfileStoreWithLatch(new LocalProfileStore(kvStoreProvider), latch);
     profileStore.start();
 
     final BackgroundProfileWriter backgroundProfileWriter =
-      new BackgroundProfileWriter(profileStore, NoopTracerFactory.create());
+        new BackgroundProfileWriter(profileStore, NoopTracerFactory.create());
 
     UserBitShared.QueryProfile profile =
-      UserBitShared.QueryProfile.newBuilder()
-        .setQuery("Select * from plan")
-        .setState(UserBitShared.QueryResult.QueryState.COMPLETED)
-        .build();
+        UserBitShared.QueryProfile.newBuilder()
+            .setQuery("Select * from plan")
+            .setState(UserBitShared.QueryResult.QueryState.COMPLETED)
+            .build();
 
     // fire a background write.
-    Optional<CompletableFuture<Void>> future1 = backgroundProfileWriter
-      .tryWriteAsync(queryId, profile);
+    Optional<CompletableFuture<Void>> future1 =
+        backgroundProfileWriter.tryWriteAsync(queryId, profile);
 
-    Optional<CompletableFuture<Void>> future2 = backgroundProfileWriter
-      .tryWriteAsync(queryId, profile);
+    Optional<CompletableFuture<Void>> future2 =
+        backgroundProfileWriter.tryWriteAsync(queryId, profile);
     assertFalse(future2.isPresent());
 
     // wait for write to complete.
@@ -128,40 +119,36 @@ public class TestBackGroundProfileWriter {
   @Test
   public void testBacklog() throws Exception {
     final CountDownLatch latch = new CountDownLatch(1);
-    final ProfileStore profileStore = new ProfileStoreWithLatch(
-      new LocalProfileStore(kvStoreProvider), latch);
+    final ProfileStore profileStore =
+        new ProfileStoreWithLatch(new LocalProfileStore(kvStoreProvider), latch);
     final BackgroundProfileWriter backgroundProfileWriter =
-      new BackgroundProfileWriter(profileStore, NoopTracerFactory.create());
+        new BackgroundProfileWriter(profileStore, NoopTracerFactory.create());
 
     profileStore.start();
     UserBitShared.QueryProfile profile =
-      UserBitShared.QueryProfile.newBuilder()
-        .setQuery("Select * from plan")
-        .setState(UserBitShared.QueryResult.QueryState.COMPLETED)
-        .build();
+        UserBitShared.QueryProfile.newBuilder()
+            .setQuery("Select * from plan")
+            .setState(UserBitShared.QueryResult.QueryState.COMPLETED)
+            .build();
 
     // fire background writes up to the limit.
     List<CompletableFuture> futureList = new ArrayList<>();
     for (int i = 0; i < BackgroundProfileWriter.MAX_BACKGROUND_WRITES; ++i) {
-      final UserBitShared.QueryId queryId = UserBitShared.QueryId.newBuilder()
-        .setPart1(1050)
-        .setPart2(3000 + i)
-        .build();
+      final UserBitShared.QueryId queryId =
+          UserBitShared.QueryId.newBuilder().setPart1(1050).setPart2(3000 + i).build();
 
-      Optional<CompletableFuture<Void>> future = backgroundProfileWriter
-        .tryWriteAsync(queryId, profile);
+      Optional<CompletableFuture<Void>> future =
+          backgroundProfileWriter.tryWriteAsync(queryId, profile);
       assertTrue(future.isPresent());
       futureList.add(future.get());
     }
 
     // no writes should pile up after the limit.
-    final UserBitShared.QueryId queryIdExtra = UserBitShared.QueryId.newBuilder()
-      .setPart1(1050)
-      .setPart2(4000)
-      .build();
+    final UserBitShared.QueryId queryIdExtra =
+        UserBitShared.QueryId.newBuilder().setPart1(1050).setPart2(4000).build();
 
-    Optional<CompletableFuture<Void>> future = backgroundProfileWriter
-      .tryWriteAsync(queryIdExtra, profile);
+    Optional<CompletableFuture<Void>> future =
+        backgroundProfileWriter.tryWriteAsync(queryIdExtra, profile);
     assertFalse(future.isPresent());
 
     // wait for back log to finish.
@@ -169,15 +156,13 @@ public class TestBackGroundProfileWriter {
     CompletableFuture.allOf(futureList.toArray(new CompletableFuture[futureList.size()])).get();
 
     // now, background writes should proceed.
-    Optional<CompletableFuture<Void>> futurePostBacklog = backgroundProfileWriter
-      .tryWriteAsync(queryIdExtra, profile);
+    Optional<CompletableFuture<Void>> futurePostBacklog =
+        backgroundProfileWriter.tryWriteAsync(queryIdExtra, profile);
     assertTrue(futurePostBacklog.isPresent());
     profileStore.close();
   }
 
-  /**
-   * decorator to induce artificial delay in writing profiles.
-   */
+  /** decorator to induce artificial delay in writing profiles. */
   private static class ProfileStoreWithLatch implements ProfileStore {
     private ProfileStore inner;
     private CountDownLatch latch;
@@ -193,8 +178,8 @@ public class TestBackGroundProfileWriter {
     }
 
     @Override
-    public void putFullProfile(UserBitShared.QueryId queryId,
-                               UserBitShared.QueryProfile planningProfile) {
+    public void putFullProfile(
+        UserBitShared.QueryId queryId, UserBitShared.QueryProfile planningProfile) {
       try {
         latch.await();
         inner.putFullProfile(queryId, planningProfile);
@@ -208,8 +193,8 @@ public class TestBackGroundProfileWriter {
     }
 
     @Override
-    public void putPlanningProfile(UserBitShared.QueryId queryId,
-                                   UserBitShared.QueryProfile planningProfile) {
+    public void putPlanningProfile(
+        UserBitShared.QueryId queryId, UserBitShared.QueryProfile planningProfile) {
       throw new UnsupportedOperationException("not supported yet");
     }
 
@@ -219,8 +204,7 @@ public class TestBackGroundProfileWriter {
     }
 
     @Override
-    public void putTailProfile(UserBitShared.QueryId queryId,
-                               UserBitShared.QueryProfile profile) {
+    public void putTailProfile(UserBitShared.QueryId queryId, UserBitShared.QueryProfile profile) {
       throw new UnsupportedOperationException("not supported yet");
     }
 
@@ -230,15 +214,17 @@ public class TestBackGroundProfileWriter {
     }
 
     @Override
-    public void putExecutorProfile(UserBitShared.QueryId queryId,
-                                   CoordinationProtos.NodeEndpoint endpoint,
-                                   CoordExecRPC.ExecutorQueryProfile profile,
-                                   boolean isFinal) {
+    public void putExecutorProfile(
+        UserBitShared.QueryId queryId,
+        CoordinationProtos.NodeEndpoint endpoint,
+        CoordExecRPC.ExecutorQueryProfile profile,
+        boolean isFinal) {
       throw new UnsupportedOperationException("not supported yet");
     }
 
     @Override
-    public Stream<CoordExecRPC.ExecutorQueryProfile> getAllExecutorProfiles(UserBitShared.QueryId queryId) {
+    public Stream<CoordExecRPC.ExecutorQueryProfile> getAllExecutorProfiles(
+        UserBitShared.QueryId queryId) {
       throw new UnsupportedOperationException("not supported yet");
     }
 

@@ -15,20 +15,16 @@
  */
 package com.dremio.exec.catalog.udf;
 
-import java.util.List;
-
-import org.apache.calcite.schema.FunctionParameter;
-
 import com.dremio.exec.catalog.CatalogIdentity;
+import java.util.List;
+import org.apache.calcite.schema.FunctionParameter;
 
 public interface DremioUserDefinedFunction {
   String getFunctionSql();
-
 
   CatalogIdentity getOwner();
 
   String getName();
 
   List<FunctionParameter> getParameters();
-
 }

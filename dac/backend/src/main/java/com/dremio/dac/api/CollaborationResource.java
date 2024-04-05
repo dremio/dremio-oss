@@ -17,8 +17,13 @@ package com.dremio.dac.api;
 
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
+import com.dremio.dac.annotations.APIResource;
+import com.dremio.dac.annotations.Secured;
+import com.dremio.dac.service.collaboration.CollaborationHelper;
+import com.dremio.dac.service.collaboration.Tags;
+import com.dremio.dac.service.collaboration.Wiki;
+import com.dremio.service.namespace.NamespaceException;
 import java.util.Optional;
-
 import javax.annotation.security.RolesAllowed;
 import javax.inject.Inject;
 import javax.ws.rs.Consumes;
@@ -28,16 +33,7 @@ import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 
-import com.dremio.dac.annotations.APIResource;
-import com.dremio.dac.annotations.Secured;
-import com.dremio.dac.service.collaboration.CollaborationHelper;
-import com.dremio.dac.service.collaboration.Tags;
-import com.dremio.dac.service.collaboration.Wiki;
-import com.dremio.service.namespace.NamespaceException;
-
-/**
- * Collaboration API resource.
- */
+/** Collaboration API resource. */
 @APIResource
 @Secured
 @RolesAllowed({"user", "admin"})

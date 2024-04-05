@@ -17,9 +17,7 @@ package com.dremio.exec.rpc;
 
 import com.dremio.exec.rpc.RpcConnectionHandler.FailureType;
 
-/**
- * Exception thrown when server connection is closed or not available.
- */
+/** Exception thrown when server connection is closed or not available. */
 public class ConnectionFailedException extends RpcException {
 
   public ConnectionFailedException(RpcException ex) {

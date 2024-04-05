@@ -20,6 +20,8 @@ import static java.util.Collections.singletonList;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 
+import com.dremio.service.SingletonRegistry.CloseableReference;
+import com.dremio.service.SingletonRegistry.ServiceReference;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -27,15 +29,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.dremio.service.SingletonRegistry.CloseableReference;
-import com.dremio.service.SingletonRegistry.ServiceReference;
-
 @ExtendWith(MockitoExtension.class)
 class TestSingletonRegistry {
 
   private SingletonRegistry registry;
   private ServiceRegistry delegateRegistry;
-
 
   @Nested
   @DisplayName("Registry lifecycle")
@@ -63,11 +61,13 @@ class TestSingletonRegistry {
     void testGetServices() throws Exception {
       try (Service service = new TestService()) {
         when(delegateRegistry.getServices()).thenReturn(singletonList(service));
-        assertThat(registry.getServices().iterator()).satisfies(i -> {
-          assertThat(i).hasNext();
-          assertThat(i.next()).isSameAs(service);
-          assertThat(i.hasNext()).isFalse();
-        });
+        assertThat(registry.getServices().iterator())
+            .satisfies(
+                i -> {
+                  assertThat(i).hasNext();
+                  assertThat(i.next()).isSameAs(service);
+                  assertThat(i.hasNext()).isFalse();
+                });
       }
     }
   }
@@ -89,29 +89,41 @@ class TestSingletonRegistry {
       assertThat(rtn).isSameAs(closeable);
 
       // Check delegate registry
-      assertThat(delegateRegistry.getServices()).satisfies(srs -> {
-        assertThat(srs.size()).isEqualTo(1);
-        assertThat(srs.get(0)).satisfies(r -> {
-          assertThat(r).isInstanceOf(CloseableReference.class);
-          assertThat((CloseableReference<?>) r).satisfies(sr -> {
-            assertThat(sr.getType()).isEqualTo(SINGLETON);
-            assertThat(sr.getIface()).isEqualTo(TestAutoCloseable.class);
-            assertThat(sr.get(null)).isSameAs(closeable);
-          });
-        });
-      });
+      assertThat(delegateRegistry.getServices())
+          .satisfies(
+              srs -> {
+                assertThat(srs.size()).isEqualTo(1);
+                assertThat(srs.get(0))
+                    .satisfies(
+                        r -> {
+                          assertThat(r).isInstanceOf(CloseableReference.class);
+                          assertThat((CloseableReference<?>) r)
+                              .satisfies(
+                                  sr -> {
+                                    assertThat(sr.getType()).isEqualTo(SINGLETON);
+                                    assertThat(sr.getIface()).isEqualTo(TestAutoCloseable.class);
+                                    assertThat(sr.get(null)).isSameAs(closeable);
+                                  });
+                        });
+              });
 
-      assertThat(registry.asMap()).satisfies(b -> {
-        assertThat(b).hasSize(1);
-        assertThat(b.get(TestAutoCloseable.class)).satisfies(r -> {
-          assertThat(r).isInstanceOf(CloseableReference.class);
-          assertThat((CloseableReference<?>) r).satisfies(sr -> {
-            assertThat(sr.getType()).isEqualTo(SINGLETON);
-            assertThat(sr.getIface()).isEqualTo(TestAutoCloseable.class);
-            assertThat(sr.get(null)).isSameAs(closeable);
-          });
-        });
-      });
+      assertThat(registry.asMap())
+          .satisfies(
+              b -> {
+                assertThat(b).hasSize(1);
+                assertThat(b.get(TestAutoCloseable.class))
+                    .satisfies(
+                        r -> {
+                          assertThat(r).isInstanceOf(CloseableReference.class);
+                          assertThat((CloseableReference<?>) r)
+                              .satisfies(
+                                  sr -> {
+                                    assertThat(sr.getType()).isEqualTo(SINGLETON);
+                                    assertThat(sr.getIface()).isEqualTo(TestAutoCloseable.class);
+                                    assertThat(sr.get(null)).isSameAs(closeable);
+                                  });
+                        });
+              });
     }
 
     @Test
@@ -121,30 +133,42 @@ class TestSingletonRegistry {
       assertThat(rtn).isSameAs(service);
 
       // Check delegate registry
-      assertThat(delegateRegistry.getServices()).satisfies(srs -> {
-        assertThat(srs.size()).isEqualTo(1);
-        assertThat(srs.get(0)).satisfies(r -> {
-          assertThat(r).isInstanceOf(ServiceReference.class);
-          assertThat((ServiceReference<?>) r).satisfies(sr -> {
-            assertThat(sr.getType()).isEqualTo(SINGLETON);
-            assertThat(sr.getIface()).isEqualTo(TestService.class);
-            assertThat(sr.get(null)).isSameAs(service);
-          });
-        });
-      });
+      assertThat(delegateRegistry.getServices())
+          .satisfies(
+              srs -> {
+                assertThat(srs.size()).isEqualTo(1);
+                assertThat(srs.get(0))
+                    .satisfies(
+                        r -> {
+                          assertThat(r).isInstanceOf(ServiceReference.class);
+                          assertThat((ServiceReference<?>) r)
+                              .satisfies(
+                                  sr -> {
+                                    assertThat(sr.getType()).isEqualTo(SINGLETON);
+                                    assertThat(sr.getIface()).isEqualTo(TestService.class);
+                                    assertThat(sr.get(null)).isSameAs(service);
+                                  });
+                        });
+              });
 
       // Check binder
-      assertThat(registry.asMap()).satisfies(b -> {
-        assertThat(b).hasSize(1);
-        assertThat(b.get(TestService.class)).satisfies(r -> {
-          assertThat(r).isInstanceOf(ServiceReference.class);
-          assertThat((ServiceReference<?>) r).satisfies(sr -> {
-            assertThat(sr.getType()).isEqualTo(SINGLETON);
-            assertThat(sr.getIface()).isEqualTo(TestService.class);
-            assertThat(sr.get(null)).isSameAs(service);
-          });
-        });
-      });
+      assertThat(registry.asMap())
+          .satisfies(
+              b -> {
+                assertThat(b).hasSize(1);
+                assertThat(b.get(TestService.class))
+                    .satisfies(
+                        r -> {
+                          assertThat(r).isInstanceOf(ServiceReference.class);
+                          assertThat((ServiceReference<?>) r)
+                              .satisfies(
+                                  sr -> {
+                                    assertThat(sr.getType()).isEqualTo(SINGLETON);
+                                    assertThat(sr.getIface()).isEqualTo(TestService.class);
+                                    assertThat(sr.get(null)).isSameAs(service);
+                                  });
+                        });
+              });
     }
 
     @Test
@@ -154,29 +178,41 @@ class TestSingletonRegistry {
       assertThat(rtn).isSameAs(closeable);
 
       // Check delegate registry
-      assertThat(delegateRegistry.getServices()).satisfies(srs -> {
-        assertThat(srs.size()).isEqualTo(1);
-        assertThat(srs.get(0)).satisfies(r -> {
-          assertThat(r).isInstanceOf(CloseableReference.class);
-          assertThat((CloseableReference<?>) r).satisfies(sr -> {
-            assertThat(sr.getType()).isEqualTo(SINGLETON);
-            assertThat(sr.getIface()).isEqualTo(AutoCloseable.class);
-            assertThat(sr.get(null)).isSameAs(closeable);
-          });
-        });
-      });
+      assertThat(delegateRegistry.getServices())
+          .satisfies(
+              srs -> {
+                assertThat(srs.size()).isEqualTo(1);
+                assertThat(srs.get(0))
+                    .satisfies(
+                        r -> {
+                          assertThat(r).isInstanceOf(CloseableReference.class);
+                          assertThat((CloseableReference<?>) r)
+                              .satisfies(
+                                  sr -> {
+                                    assertThat(sr.getType()).isEqualTo(SINGLETON);
+                                    assertThat(sr.getIface()).isEqualTo(AutoCloseable.class);
+                                    assertThat(sr.get(null)).isSameAs(closeable);
+                                  });
+                        });
+              });
 
-      assertThat(registry.asMap()).satisfies(b -> {
-        assertThat(b).hasSize(1);
-        assertThat(b.get(AutoCloseable.class)).satisfies(r -> {
-          assertThat(r).isInstanceOf(CloseableReference.class);
-          assertThat((CloseableReference<?>) r).satisfies(sr -> {
-            assertThat(sr.getType()).isEqualTo(SINGLETON);
-            assertThat(sr.getIface()).isEqualTo(AutoCloseable.class);
-            assertThat(sr.get(null)).isSameAs(closeable);
-          });
-        });
-      });
+      assertThat(registry.asMap())
+          .satisfies(
+              b -> {
+                assertThat(b).hasSize(1);
+                assertThat(b.get(AutoCloseable.class))
+                    .satisfies(
+                        r -> {
+                          assertThat(r).isInstanceOf(CloseableReference.class);
+                          assertThat((CloseableReference<?>) r)
+                              .satisfies(
+                                  sr -> {
+                                    assertThat(sr.getType()).isEqualTo(SINGLETON);
+                                    assertThat(sr.getIface()).isEqualTo(AutoCloseable.class);
+                                    assertThat(sr.get(null)).isSameAs(closeable);
+                                  });
+                        });
+              });
     }
 
     @Test
@@ -186,30 +222,42 @@ class TestSingletonRegistry {
       assertThat(rtn).isSameAs(service);
 
       // Check delegate registry
-      assertThat(delegateRegistry.getServices()).satisfies(srs -> {
-        assertThat(srs.size()).isEqualTo(1);
-        assertThat(srs.get(0)).satisfies(r -> {
-          assertThat(r).isInstanceOf(ServiceReference.class);
-          assertThat((ServiceReference<?>) r).satisfies(sr -> {
-            assertThat(sr.getType()).isEqualTo(SINGLETON);
-            assertThat(sr.getIface()).isEqualTo(Service.class);
-            assertThat(sr.get(null)).isSameAs(service);
-          });
-        });
-      });
+      assertThat(delegateRegistry.getServices())
+          .satisfies(
+              srs -> {
+                assertThat(srs.size()).isEqualTo(1);
+                assertThat(srs.get(0))
+                    .satisfies(
+                        r -> {
+                          assertThat(r).isInstanceOf(ServiceReference.class);
+                          assertThat((ServiceReference<?>) r)
+                              .satisfies(
+                                  sr -> {
+                                    assertThat(sr.getType()).isEqualTo(SINGLETON);
+                                    assertThat(sr.getIface()).isEqualTo(Service.class);
+                                    assertThat(sr.get(null)).isSameAs(service);
+                                  });
+                        });
+              });
 
       // Check binder
-      assertThat(registry.asMap()).satisfies(b -> {
-        assertThat(b).hasSize(1);
-        assertThat(b.get(Service.class)).satisfies(r -> {
-          assertThat(r).isInstanceOf(ServiceReference.class);
-          assertThat((ServiceReference<?>) r).satisfies(sr -> {
-            assertThat(sr.getType()).isEqualTo(SINGLETON);
-            assertThat(sr.getIface()).isEqualTo(Service.class);
-            assertThat(sr.get(null)).isSameAs(service);
-          });
-        });
-      });
+      assertThat(registry.asMap())
+          .satisfies(
+              b -> {
+                assertThat(b).hasSize(1);
+                assertThat(b.get(Service.class))
+                    .satisfies(
+                        r -> {
+                          assertThat(r).isInstanceOf(ServiceReference.class);
+                          assertThat((ServiceReference<?>) r)
+                              .satisfies(
+                                  sr -> {
+                                    assertThat(sr.getType()).isEqualTo(SINGLETON);
+                                    assertThat(sr.getIface()).isEqualTo(Service.class);
+                                    assertThat(sr.get(null)).isSameAs(service);
+                                  });
+                        });
+              });
     }
 
     @Test
@@ -222,29 +270,41 @@ class TestSingletonRegistry {
       assertThat(rtn).isSameAs(closeable2);
 
       // Check delegate registry
-      assertThat(delegateRegistry.getServices()).satisfies(srs -> {
-        assertThat(srs.size()).isEqualTo(1);
-        assertThat(srs.get(0)).satisfies(r -> {
-          assertThat(r).isInstanceOf(CloseableReference.class);
-          assertThat((CloseableReference<?>) r).satisfies(sr -> {
-            assertThat(sr.getType()).isEqualTo(SINGLETON);
-            assertThat(sr.getIface()).isEqualTo(AutoCloseable.class);
-            assertThat(sr.get(null)).isSameAs(closeable2);
-          });
-        });
-      });
+      assertThat(delegateRegistry.getServices())
+          .satisfies(
+              srs -> {
+                assertThat(srs.size()).isEqualTo(1);
+                assertThat(srs.get(0))
+                    .satisfies(
+                        r -> {
+                          assertThat(r).isInstanceOf(CloseableReference.class);
+                          assertThat((CloseableReference<?>) r)
+                              .satisfies(
+                                  sr -> {
+                                    assertThat(sr.getType()).isEqualTo(SINGLETON);
+                                    assertThat(sr.getIface()).isEqualTo(AutoCloseable.class);
+                                    assertThat(sr.get(null)).isSameAs(closeable2);
+                                  });
+                        });
+              });
 
-      assertThat(registry.asMap()).satisfies(b -> {
-        assertThat(b).hasSize(1);
-        assertThat(b.get(AutoCloseable.class)).satisfies(r -> {
-          assertThat(r).isInstanceOf(CloseableReference.class);
-          assertThat((CloseableReference<?>) r).satisfies(sr -> {
-            assertThat(sr.getType()).isEqualTo(SINGLETON);
-            assertThat(sr.getIface()).isEqualTo(AutoCloseable.class);
-            assertThat(sr.get(null)).isSameAs(closeable2);
-          });
-        });
-      });
+      assertThat(registry.asMap())
+          .satisfies(
+              b -> {
+                assertThat(b).hasSize(1);
+                assertThat(b.get(AutoCloseable.class))
+                    .satisfies(
+                        r -> {
+                          assertThat(r).isInstanceOf(CloseableReference.class);
+                          assertThat((CloseableReference<?>) r)
+                              .satisfies(
+                                  sr -> {
+                                    assertThat(sr.getType()).isEqualTo(SINGLETON);
+                                    assertThat(sr.getIface()).isEqualTo(AutoCloseable.class);
+                                    assertThat(sr.get(null)).isSameAs(closeable2);
+                                  });
+                        });
+              });
     }
 
     @Test
@@ -256,31 +316,43 @@ class TestSingletonRegistry {
       Service rtn = registry.replace(Service.class, service2);
 
       // Check delegate registry
-      assertThat(delegateRegistry.getServices()).satisfies(srs -> {
-        assertThat(srs.size()).isEqualTo(1);
-        assertThat(srs.get(0)).satisfies(r -> {
-          assertThat(r).isInstanceOf(ServiceReference.class);
-          assertThat((ServiceReference<?>) r).satisfies(sr -> {
-            assertThat(sr.getType()).isEqualTo(SINGLETON);
-            assertThat(sr.getIface()).isEqualTo(Service.class);
-            assertThat(sr.get(null)).isSameAs(service2);
-          });
-        });
-      });
+      assertThat(delegateRegistry.getServices())
+          .satisfies(
+              srs -> {
+                assertThat(srs.size()).isEqualTo(1);
+                assertThat(srs.get(0))
+                    .satisfies(
+                        r -> {
+                          assertThat(r).isInstanceOf(ServiceReference.class);
+                          assertThat((ServiceReference<?>) r)
+                              .satisfies(
+                                  sr -> {
+                                    assertThat(sr.getType()).isEqualTo(SINGLETON);
+                                    assertThat(sr.getIface()).isEqualTo(Service.class);
+                                    assertThat(sr.get(null)).isSameAs(service2);
+                                  });
+                        });
+              });
 
       // Check binder
       assertThat(rtn).isSameAs(service2);
-      assertThat(registry.asMap()).satisfies(b -> {
-        assertThat(b).hasSize(1);
-        assertThat(b.get(Service.class)).satisfies(r -> {
-          assertThat(r).isInstanceOf(ServiceReference.class);
-          assertThat((ServiceReference<?>) r).satisfies(sr -> {
-            assertThat(sr.getType()).isEqualTo(SINGLETON);
-            assertThat(sr.getIface()).isEqualTo(Service.class);
-            assertThat(sr.get(null)).isSameAs(service2);
-          });
-        });
-      });
+      assertThat(registry.asMap())
+          .satisfies(
+              b -> {
+                assertThat(b).hasSize(1);
+                assertThat(b.get(Service.class))
+                    .satisfies(
+                        r -> {
+                          assertThat(r).isInstanceOf(ServiceReference.class);
+                          assertThat((ServiceReference<?>) r)
+                              .satisfies(
+                                  sr -> {
+                                    assertThat(sr.getType()).isEqualTo(SINGLETON);
+                                    assertThat(sr.getIface()).isEqualTo(Service.class);
+                                    assertThat(sr.get(null)).isSameAs(service2);
+                                  });
+                        });
+              });
     }
 
     @Test
@@ -293,29 +365,41 @@ class TestSingletonRegistry {
       assertThat(rtn).isSameAs(closeable2);
 
       // Check delegate registry
-      assertThat(delegateRegistry.getServices()).satisfies(srs -> {
-        assertThat(srs.size()).isEqualTo(1);
-        assertThat(srs.get(0)).satisfies(r -> {
-          assertThat(r).isInstanceOf(CloseableReference.class);
-          assertThat((CloseableReference<?>) r).satisfies(sr -> {
-            assertThat(sr.getType()).isEqualTo(SINGLETON);
-            assertThat(sr.getIface()).isEqualTo(TestAutoCloseable.class);
-            assertThat(sr.get(null)).isSameAs(closeable2);
-          });
-        });
-      });
+      assertThat(delegateRegistry.getServices())
+          .satisfies(
+              srs -> {
+                assertThat(srs.size()).isEqualTo(1);
+                assertThat(srs.get(0))
+                    .satisfies(
+                        r -> {
+                          assertThat(r).isInstanceOf(CloseableReference.class);
+                          assertThat((CloseableReference<?>) r)
+                              .satisfies(
+                                  sr -> {
+                                    assertThat(sr.getType()).isEqualTo(SINGLETON);
+                                    assertThat(sr.getIface()).isEqualTo(TestAutoCloseable.class);
+                                    assertThat(sr.get(null)).isSameAs(closeable2);
+                                  });
+                        });
+              });
 
-      assertThat(registry.asMap()).satisfies(b -> {
-        assertThat(b).hasSize(1);
-        assertThat(b.get(TestAutoCloseable.class)).satisfies(r -> {
-          assertThat(r).isInstanceOf(CloseableReference.class);
-          assertThat((CloseableReference<?>) r).satisfies(sr -> {
-            assertThat(sr.getType()).isEqualTo(SINGLETON);
-            assertThat(sr.getIface()).isEqualTo(TestAutoCloseable.class);
-            assertThat(sr.get(null)).isSameAs(closeable2);
-          });
-        });
-      });
+      assertThat(registry.asMap())
+          .satisfies(
+              b -> {
+                assertThat(b).hasSize(1);
+                assertThat(b.get(TestAutoCloseable.class))
+                    .satisfies(
+                        r -> {
+                          assertThat(r).isInstanceOf(CloseableReference.class);
+                          assertThat((CloseableReference<?>) r)
+                              .satisfies(
+                                  sr -> {
+                                    assertThat(sr.getType()).isEqualTo(SINGLETON);
+                                    assertThat(sr.getIface()).isEqualTo(TestAutoCloseable.class);
+                                    assertThat(sr.get(null)).isSameAs(closeable2);
+                                  });
+                        });
+              });
     }
 
     @Test
@@ -328,51 +412,57 @@ class TestSingletonRegistry {
       assertThat(rtn).isSameAs(service2);
 
       // Check delegate registry
-      assertThat(delegateRegistry.getServices()).satisfies(srs -> {
-        assertThat(srs.size()).isEqualTo(1);
-        assertThat(srs.get(0)).satisfies(r -> {
-          assertThat(r).isInstanceOf(ServiceReference.class);
-          assertThat((ServiceReference<?>) r).satisfies(sr -> {
-            assertThat(sr.getType()).isEqualTo(SINGLETON);
-            assertThat(sr.getIface()).isEqualTo(TestService.class);
-            assertThat(sr.get(null)).isSameAs(service2);
-          });
-        });
-      });
+      assertThat(delegateRegistry.getServices())
+          .satisfies(
+              srs -> {
+                assertThat(srs.size()).isEqualTo(1);
+                assertThat(srs.get(0))
+                    .satisfies(
+                        r -> {
+                          assertThat(r).isInstanceOf(ServiceReference.class);
+                          assertThat((ServiceReference<?>) r)
+                              .satisfies(
+                                  sr -> {
+                                    assertThat(sr.getType()).isEqualTo(SINGLETON);
+                                    assertThat(sr.getIface()).isEqualTo(TestService.class);
+                                    assertThat(sr.get(null)).isSameAs(service2);
+                                  });
+                        });
+              });
 
       // Check binder
-      assertThat(registry.asMap()).satisfies(b -> {
-        assertThat(b).hasSize(1);
-        assertThat(b.get(TestService.class)).satisfies(r -> {
-          assertThat(r).isInstanceOf(ServiceReference.class);
-          assertThat((ServiceReference<?>) r).satisfies(sr -> {
-            assertThat(sr.getType()).isEqualTo(SINGLETON);
-            assertThat(sr.getIface()).isEqualTo(TestService.class);
-            assertThat(sr.get(null)).isSameAs(service2);
-          });
-        });
-      });
+      assertThat(registry.asMap())
+          .satisfies(
+              b -> {
+                assertThat(b).hasSize(1);
+                assertThat(b.get(TestService.class))
+                    .satisfies(
+                        r -> {
+                          assertThat(r).isInstanceOf(ServiceReference.class);
+                          assertThat((ServiceReference<?>) r)
+                              .satisfies(
+                                  sr -> {
+                                    assertThat(sr.getType()).isEqualTo(SINGLETON);
+                                    assertThat(sr.getIface()).isEqualTo(TestService.class);
+                                    assertThat(sr.get(null)).isSameAs(service2);
+                                  });
+                        });
+              });
     }
-
   }
 
   static class TestService implements Service {
 
     @Override
-    public void start() throws Exception {
-
-    }
+    public void start() throws Exception {}
 
     @Override
-    public void close() throws Exception {
-
-    }
+    public void close() throws Exception {}
   }
 
   static class TestAutoCloseable implements AutoCloseable {
 
     @Override
-    public void close() throws Exception {
-    }
+    public void close() throws Exception {}
   }
 }

@@ -17,9 +17,10 @@ package com.dremio.service.jobs;
 
 import static com.dremio.common.exceptions.GrpcExceptionUtil.toStatusRuntimeException;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.service.flightcommon.FlightRpcUtils;
 import java.io.IOException;
 import java.util.Optional;
-
 import org.apache.arrow.flight.FlightClient;
 import org.apache.arrow.flight.FlightRuntimeException;
 import org.apache.arrow.flight.FlightServer;
@@ -36,36 +37,34 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.service.flightcommon.FlightRpcUtils;
-
 /**
- * test to ensure grpc trailers are being passed through FlightRuntimeException and we are able to rehydrate UserException
+ * test to ensure grpc trailers are being passed through FlightRuntimeException and we are able to
+ * rehydrate UserException
  */
 public class FlightExceptionSupport {
 
   private static FlightServer server;
   private static final BufferAllocator allocator = new RootAllocator(Long.MAX_VALUE);
   private static final Location location = Location.forGrpcInsecure("localhost", 12543);
-  private static String expectedMessage = "Mixed types decimal(10,10), decmial(10,0) for field dcol are not supported.";
+  private static String expectedMessage =
+      "Mixed types decimal(10,10), decmial(10,0) for field dcol are not supported.";
 
   private FlightClient client;
 
   @BeforeClass
   public static void setup() throws IOException {
-    server = FlightServer.builder()
-      .allocator(allocator)
-      .producer(new SimpleErrorProducer())
-      .location(location)
-      .build();
+    server =
+        FlightServer.builder()
+            .allocator(allocator)
+            .producer(new SimpleErrorProducer())
+            .location(location)
+            .build();
     server.start();
   }
 
   @Before
   public void setupClient() {
-    client = FlightClient.builder().allocator(allocator)
-      .location(location)
-      .build();
+    client = FlightClient.builder().allocator(allocator).location(location).build();
   }
 
   @Test

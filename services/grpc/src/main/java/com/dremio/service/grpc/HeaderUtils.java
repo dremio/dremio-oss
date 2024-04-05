@@ -21,14 +21,11 @@ import io.grpc.ClientInterceptor;
 import io.grpc.Metadata;
 import io.grpc.stub.AbstractStub;
 
-/**
- * Static method to wrap a stub with interceptors for attaching
- * service name and release name
- */
+/** Static method to wrap a stub with interceptors for attaching service name and release name */
 public class HeaderUtils<T> {
 
-  public static <T extends AbstractStub<T>> T attachHeaders(T stub, String serviceName,
-                                                            String releaseName) {
+  public static <T extends AbstractStub<T>> T attachHeaders(
+      T stub, String serviceName, String releaseName) {
     Metadata extraHeaders = createRoutingHeaders(serviceName, releaseName);
     return stub.withInterceptors(newAttachHeadersInterceptor(extraHeaders));
   }

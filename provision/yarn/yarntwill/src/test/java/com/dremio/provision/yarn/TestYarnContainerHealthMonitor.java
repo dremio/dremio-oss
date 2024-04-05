@@ -25,23 +25,21 @@ import static org.mockito.Mockito.when;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
-
 import org.apache.hadoop.yarn.api.records.ContainerState;
 import org.apache.http.HttpStatus;
 import org.junit.Before;
 import org.junit.Test;
 
-/**
- * Test class for {@link YarnContainerHealthMonitor}
- */
+/** Test class for {@link YarnContainerHealthMonitor} */
 public class TestYarnContainerHealthMonitor {
   private YarnContainerHealthMonitor.YarnContainerHealthMonitorThread healthMonitorThread;
   private HttpURLConnection connection;
 
   @Before
   public void setup() {
-    healthMonitorThread = new YarnContainerHealthMonitor.YarnContainerHealthMonitorThread(
-      "0.0.0.0:8042", "container_1234");
+    healthMonitorThread =
+        new YarnContainerHealthMonitor.YarnContainerHealthMonitorThread(
+            "0.0.0.0:8042", "container_1234");
     connection = mock(HttpURLConnection.class);
   }
 

@@ -15,18 +15,16 @@
  */
 package com.dremio.exec.planner.serializer.logical;
 
-import org.apache.calcite.rel.logical.LogicalTableScan;
-
 import com.dremio.exec.catalog.DremioPrepareTable;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.planner.serializer.RelNodeSerde;
 import com.dremio.plan.serialization.PLogicalTableScan;
 import com.dremio.service.namespace.NamespaceKey;
+import org.apache.calcite.rel.logical.LogicalTableScan;
 
-/**
- * Serde for LogicalTableScan
- */
-public final class LogicalTableScanSerde implements RelNodeSerde<LogicalTableScan, PLogicalTableScan> {
+/** Serde for LogicalTableScan */
+public final class LogicalTableScanSerde
+    implements RelNodeSerde<LogicalTableScan, PLogicalTableScan> {
   @Override
   public PLogicalTableScan serialize(LogicalTableScan scan, RelToProto s) {
     DremioTable table = scan.getTable().unwrap(DremioTable.class);

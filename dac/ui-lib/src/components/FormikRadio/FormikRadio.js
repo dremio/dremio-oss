@@ -31,7 +31,7 @@ FormikRadio.propTypes = {
     PropTypes.shape({
       label: PropTypes.string,
       value: PropTypes.string,
-    })
+    }),
   ).isRequired,
 };
 

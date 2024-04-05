@@ -22,32 +22,33 @@ import com.dremio.common.expression.PathSegment;
 import com.dremio.common.expression.visitors.ExprVisitor;
 import com.dremio.exec.record.TypedFieldId;
 
-public class ValueVectorReadExpression implements LogicalExpression{
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ValueVectorReadExpression.class);
+public class ValueVectorReadExpression implements LogicalExpression {
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ValueVectorReadExpression.class);
 
   private final TypedFieldId fieldId;
   // was pushed in 3.0 have to retain this so that serde does not break.
   private final EvaluationType evaluationType;
 
-  public ValueVectorReadExpression(TypedFieldId tfId){
+  public ValueVectorReadExpression(TypedFieldId tfId) {
     this.fieldId = tfId;
     this.evaluationType = new EvaluationType();
     evaluationType.addEvaluationType(EvaluationType.ExecutionType.JAVA);
   }
 
-  public boolean hasReadPath(){
+  public boolean hasReadPath() {
     return fieldId.hasRemainder();
   }
 
-  public PathSegment getReadPath(){
+  public PathSegment getReadPath() {
     return fieldId.getRemainder();
   }
 
-  public TypedFieldId getTypedFieldId(){
+  public TypedFieldId getTypedFieldId() {
     return fieldId;
   }
 
-  public boolean isSuperReader(){
+  public boolean isSuperReader() {
     return fieldId.isHyperReader();
   }
 
@@ -67,14 +68,13 @@ public class ValueVectorReadExpression implements LogicalExpression{
 
   @Override
   public int getSelfCost() {
-    return 0;  // TODO
+    return 0; // TODO
   }
 
   @Override
   public int getCumulativeCost() {
     return 0; // TODO
   }
-
 
   @Override
   public int hashCode() {
@@ -110,5 +110,4 @@ public class ValueVectorReadExpression implements LogicalExpression{
   public String toString() {
     return "ValueVectorReadExpression [fieldId=" + fieldId + "]";
   }
-
 }

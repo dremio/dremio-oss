@@ -21,5 +21,4 @@ public abstract class AbstractQueryObserver implements QueryObserver {
 
   @Override
   public void execCompletion(UserResult result) {}
-
 }

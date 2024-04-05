@@ -16,8 +16,8 @@
 package com.dremio.exec.planner.logical;
 
 /**
- * Marker for aggregate functions to used to indicate that this aggregate
- * is projectable, and can be replaced with projects during logical planning
+ * Marker for aggregate functions to used to indicate that this aggregate is projectable, and can be
+ * replaced with projects during logical planning
  */
 public interface ProjectableSqlAggFunction {
   boolean isUnique();

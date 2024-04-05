@@ -15,17 +15,13 @@
  */
 package com.dremio.exec.util;
 
+import com.google.common.collect.Iterators;
 import java.io.IOException;
 import java.util.Iterator;
-
 import org.apache.hadoop.fs.LocatedFileStatus;
 import org.apache.hadoop.fs.RemoteIterator;
 
-import com.google.common.collect.Iterators;
-
-/**
- * Utilities to work with Hadoop's RemoteIterator.
- */
+/** Utilities to work with Hadoop's RemoteIterator. */
 public class RemoteIterators {
 
   /**
@@ -35,35 +31,42 @@ public class RemoteIterators {
    * @param predicate The predicate to apply.
    * @return the new RemoteIterator
    */
-  public static RemoteIterator<LocatedFileStatus> filter(RemoteIterator<LocatedFileStatus> iter, PredicateWithIOException<LocatedFileStatus> predicate) {
-    return new RemoteIterators.IterToRemote(Iterators.filter(
-        new RemoteIterators.RemoteToIter(iter),
-        t -> {
-          try {
-            return predicate.apply(t);
-          } catch (IOException ex) {
-            throw new CaughtIO(ex);
-          }
-        }
-    ));
+  public static RemoteIterator<LocatedFileStatus> filter(
+      RemoteIterator<LocatedFileStatus> iter,
+      PredicateWithIOException<LocatedFileStatus> predicate) {
+    return new RemoteIterators.IterToRemote(
+        Iterators.filter(
+            new RemoteIterators.RemoteToIter(iter),
+            t -> {
+              try {
+                return predicate.apply(t);
+              } catch (IOException ex) {
+                throw new CaughtIO(ex);
+              }
+            }));
   }
 
   /**
-   * Transform a RemoteIteartor based on a transformation function that is allowed to throw an IOException.
+   * Transform a RemoteIteartor based on a transformation function that is allowed to throw an
+   * IOException.
+   *
    * @param iter The RemoteIterator to transform
    * @param func The function to use for transforming the values.
    * @return The new RemoteIterator.
    */
-  public static RemoteIterator<LocatedFileStatus> transform(RemoteIterator<LocatedFileStatus> iter, final FunctionWithIOException<LocatedFileStatus, LocatedFileStatus> func) {
-    return new RemoteIterators.IterToRemote(Iterators.transform(
-        new RemoteIterators.RemoteToIter(iter),
-        t -> {
-          try {
-            return func.apply(t);
-          } catch (IOException ex) {
-            throw new CaughtIO(ex);
-          }
-        }));
+  public static RemoteIterator<LocatedFileStatus> transform(
+      RemoteIterator<LocatedFileStatus> iter,
+      final FunctionWithIOException<LocatedFileStatus, LocatedFileStatus> func) {
+    return new RemoteIterators.IterToRemote(
+        Iterators.transform(
+            new RemoteIterators.RemoteToIter(iter),
+            t -> {
+              try {
+                return func.apply(t);
+              } catch (IOException ex) {
+                throw new CaughtIO(ex);
+              }
+            }));
   }
 
   public static interface PredicateWithIOException<IN> {
@@ -74,9 +77,7 @@ public class RemoteIterators {
     OUT apply(IN in) throws IOException;
   }
 
-  /**
-   * Marker exception used to propagate a runtime exception across traditional boundaries.
-   */
+  /** Marker exception used to propagate a runtime exception across traditional boundaries. */
   private static class CaughtIO extends RuntimeException {
 
     public CaughtIO(IOException cause) {
@@ -84,9 +85,7 @@ public class RemoteIterators {
     }
   }
 
-  /**
-   * Converts a Iterator into a RemoteIterator, revealing any CaughtIO exception.
-   */
+  /** Converts a Iterator into a RemoteIterator, revealing any CaughtIO exception. */
   private static class IterToRemote implements RemoteIterator<LocatedFileStatus> {
 
     private final Iterator<LocatedFileStatus> delegate;
@@ -100,7 +99,7 @@ public class RemoteIterators {
     public boolean hasNext() throws IOException {
       try {
         return delegate.hasNext();
-      }catch (CaughtIO caught) {
+      } catch (CaughtIO caught) {
         throw (IOException) caught.getCause();
       }
     }
@@ -109,16 +108,13 @@ public class RemoteIterators {
     public LocatedFileStatus next() throws IOException {
       try {
         return delegate.next();
-      }catch (CaughtIO caught) {
+      } catch (CaughtIO caught) {
         throw (IOException) caught.getCause();
       }
     }
-
   }
 
-  /**
-   * Converts a RemoteIterator into a normal java.util.Iterator, cloaking IOExceptions.
-   */
+  /** Converts a RemoteIterator into a normal java.util.Iterator, cloaking IOExceptions. */
   private static class RemoteToIter implements Iterator<LocatedFileStatus> {
 
     private final RemoteIterator<LocatedFileStatus> delegate;
@@ -131,7 +127,7 @@ public class RemoteIterators {
     public boolean hasNext() {
       try {
         return delegate.hasNext();
-      }catch (IOException caught) {
+      } catch (IOException caught) {
         throw new CaughtIO(caught);
       }
     }
@@ -140,10 +136,9 @@ public class RemoteIterators {
     public LocatedFileStatus next() {
       try {
         return delegate.next();
-      }catch (IOException caught) {
+      } catch (IOException caught) {
         throw new CaughtIO(caught);
       }
     }
-
   }
 }

@@ -15,10 +15,6 @@
  */
 package com.dremio.dac.service.exec;
 
-import java.util.Set;
-
-import javax.inject.Provider;
-
 import com.dremio.common.config.SabotConfig;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.proto.CoordinationProtos;
@@ -28,26 +24,40 @@ import com.dremio.service.coordinator.ClusterServiceSetManager;
 import com.dremio.service.coordinator.CoordinatorLostHandle;
 import com.dremio.service.coordinator.NodeStatusListener;
 import com.dremio.service.coordinator.TaskLeaderStatusListener;
+import java.util.Set;
+import javax.inject.Provider;
 
-/**
- * Maintains status of master node using zookeeper.
- */
+/** Maintains status of master node using zookeeper. */
 public class MasterStatusListener implements NodeStatusListener, Service {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MasterStatusListener.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(MasterStatusListener.class);
   public static final String HANDLER_MODULE_CLASS = "dremio.coordinator_lost_handle.module.class";
 
   private TaskLeaderStatusListener taskLeaderStatusListener;
   private CoordinatorLostHandle masterLostHandler;
 
-  public MasterStatusListener(Provider<ClusterServiceSetManager> clusterServiceSetManagerProvider, boolean isMaster) {
+  public MasterStatusListener(
+      Provider<ClusterServiceSetManager> clusterServiceSetManagerProvider, boolean isMaster) {
     this(clusterServiceSetManagerProvider, null, isMaster);
   }
 
-  public MasterStatusListener(Provider<ClusterServiceSetManager> clusterServiceSetManagerProvider, SabotConfig sabotConfig, boolean isMaster) {
-    if (!isMaster && (sabotConfig != null) && sabotConfig.getBoolean(ExecConstants.ZK_CONNECTION_HANDLE_ENABLED)) {
-      masterLostHandler = sabotConfig.getInstance(HANDLER_MODULE_CLASS, CoordinatorLostHandle.class, CoordinatorLostHandle.NO_OP);
+  public MasterStatusListener(
+      Provider<ClusterServiceSetManager> clusterServiceSetManagerProvider,
+      SabotConfig sabotConfig,
+      boolean isMaster) {
+    if (!isMaster
+        && (sabotConfig != null)
+        && sabotConfig.getBoolean(ExecConstants.ZK_CONNECTION_HANDLE_ENABLED)) {
+      masterLostHandler =
+          sabotConfig.getInstance(
+              HANDLER_MODULE_CLASS, CoordinatorLostHandle.class, CoordinatorLostHandle.NO_OP);
     }
-    taskLeaderStatusListener = new TaskLeaderStatusListener(ClusterCoordinator.Role.MASTER.name(), clusterServiceSetManagerProvider, isMaster, masterLostHandler);
+    taskLeaderStatusListener =
+        new TaskLeaderStatusListener(
+            ClusterCoordinator.Role.MASTER.name(),
+            clusterServiceSetManagerProvider,
+            isMaster,
+            masterLostHandler);
   }
 
   public CoordinationProtos.NodeEndpoint getMasterNode() {

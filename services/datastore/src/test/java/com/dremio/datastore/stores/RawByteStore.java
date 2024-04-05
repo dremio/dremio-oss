@@ -15,25 +15,23 @@
  */
 package com.dremio.datastore.stores;
 
-import java.util.Arrays;
-import java.util.List;
-
 import com.dremio.datastore.TestStoreCreationFunction;
 import com.dremio.datastore.api.KVStore;
 import com.dremio.datastore.api.StoreBuildingFactory;
 import com.dremio.datastore.format.Format;
+import java.util.Arrays;
+import java.util.List;
 
-/**
- * Used to test that bytes[] as keys and values.
- */
+/** Used to test that bytes[] as keys and values. */
 public class RawByteStore implements TestStoreCreationFunction<String, byte[]> {
   @Override
   public KVStore<String, byte[]> build(StoreBuildingFactory factory) {
-    return factory.<String, byte[]>newStore()
-      .name("raw-byte-store")
-      .keyFormat(getKeyFormat())
-      .valueFormat(Format.ofBytes())
-      .build();
+    return factory
+        .<String, byte[]>newStore()
+        .name("raw-byte-store")
+        .keyFormat(getKeyFormat())
+        .valueFormat(Format.ofBytes())
+        .build();
   }
 
   @Override

@@ -15,23 +15,6 @@
  */
 package com.dremio.exec.server;
 
-import java.net.URI;
-import java.util.EnumSet;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-
-import javax.inject.Provider;
-
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.zookeeper.Environment;
-import org.projectnessie.client.api.NessieApiV2;
-import org.projectnessie.client.http.HttpClientBuilder;
-
 import com.dremio.authenticator.Authenticator;
 import com.dremio.common.GuiceServiceModule;
 import com.dremio.common.StackTrace;
@@ -51,6 +34,7 @@ import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.catalog.ConnectionReader;
+import com.dremio.exec.catalog.ConnectionReaderDecorator;
 import com.dremio.exec.catalog.DatasetCatalogServiceImpl;
 import com.dremio.exec.catalog.InformationSchemaServiceImpl;
 import com.dremio.exec.catalog.MetadataRefreshInfoBroadcaster;
@@ -131,9 +115,11 @@ import com.dremio.service.conduit.server.ConduitServer;
 import com.dremio.service.conduit.server.ConduitServiceRegistry;
 import com.dremio.service.conduit.server.ConduitServiceRegistryImpl;
 import com.dremio.service.coordinator.ClusterCoordinator;
+import com.dremio.service.coordinator.ClusterCoordinator.Role;
 import com.dremio.service.coordinator.ExecutorSetService;
 import com.dremio.service.coordinator.LocalExecutorSetService;
 import com.dremio.service.coordinator.SoftwareCoordinatorModeInfo;
+import com.dremio.service.embedded.catalog.EmbeddedMetadataPointerService;
 import com.dremio.service.execselector.ExecutorSelectionService;
 import com.dremio.service.execselector.ExecutorSelectionServiceImpl;
 import com.dremio.service.execselector.ExecutorSelectorFactory;
@@ -155,7 +141,6 @@ import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceServiceImpl;
 import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEvents;
 import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEventsImpl;
-import com.dremio.service.nessie.NessieService;
 import com.dremio.service.orphanage.Orphanage;
 import com.dremio.service.orphanage.OrphanageImpl;
 import com.dremio.service.scheduler.LocalSchedulerService;
@@ -168,6 +153,12 @@ import com.dremio.service.users.BasicAuthenticator;
 import com.dremio.service.users.LocalUsernamePasswordAuthProvider;
 import com.dremio.service.users.SimpleUserService;
 import com.dremio.service.users.UserService;
+import com.dremio.services.credentials.Cipher;
+import com.dremio.services.credentials.CredentialsService;
+import com.dremio.services.credentials.CredentialsServiceImpl;
+import com.dremio.services.credentials.SecretsCreator;
+import com.dremio.services.credentials.SecretsCreatorImpl;
+import com.dremio.services.credentials.SystemCipher;
 import com.dremio.services.fabric.FabricServiceImpl;
 import com.dremio.services.fabric.api.FabricService;
 import com.dremio.services.nessie.grpc.client.GrpcClientBuilder;
@@ -185,12 +176,24 @@ import com.google.inject.Provides;
 import com.google.inject.Singleton;
 import com.google.inject.util.Modules;
 import com.google.inject.util.Providers;
-
 import io.opentracing.Tracer;
+import java.net.URI;
+import java.util.EnumSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import javax.inject.Provider;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.zookeeper.Environment;
+import org.projectnessie.client.api.NessieApiV2;
+import org.projectnessie.client.http.HttpClientBuilder;
 
-/**
- * Test class to start execution framework without ui.
- */
+/** Test class to start execution framework without ui. */
 public class SabotNode implements AutoCloseable {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SabotNode.class);
 
@@ -214,59 +217,82 @@ public class SabotNode implements AutoCloseable {
   private GuiceServiceModule guiceSingletonHandler;
   private List<? extends Module> overrideModules;
 
-  public SabotNode(
-          final SabotConfig config,
-          final ClusterCoordinator clusterCoordinator) throws Exception {
+  public SabotNode(final SabotConfig config, final ClusterCoordinator clusterCoordinator)
+      throws Exception {
     this(config, clusterCoordinator, ClassPathScanner.fromPrescan(config), true);
   }
 
   @VisibleForTesting
   public SabotNode(
-          final SabotConfig config,
-          final ClusterCoordinator clusterCoordinator,
-          final ScanResult classpathScan,
-          boolean allRoles) throws Exception {
-    init(registry, config, Preconditions.checkNotNull(clusterCoordinator), classpathScan, allRoles, null);
+      final SabotConfig config,
+      final ClusterCoordinator clusterCoordinator,
+      final ScanResult classpathScan,
+      boolean allRoles)
+      throws Exception {
+    init(
+        registry,
+        config,
+        Preconditions.checkNotNull(clusterCoordinator),
+        classpathScan,
+        allRoles,
+        null);
   }
 
   @VisibleForTesting
   public SabotNode(
-          final SabotConfig config,
-          final ClusterCoordinator clusterCoordinator,
-          final ScanResult classpathScan,
-          boolean allRoles,
-          List<? extends Module> overrideModules) throws Exception {
-    init(registry, config, Preconditions.checkNotNull(clusterCoordinator), classpathScan, allRoles, overrideModules);
+      final SabotConfig config,
+      final ClusterCoordinator clusterCoordinator,
+      final ScanResult classpathScan,
+      boolean allRoles,
+      List<? extends Module> overrideModules)
+      throws Exception {
+    init(
+        registry,
+        config,
+        Preconditions.checkNotNull(clusterCoordinator),
+        classpathScan,
+        allRoles,
+        overrideModules);
   }
 
   protected void init(
-          SingletonRegistry registry,
-          SabotConfig config,
-          ClusterCoordinator clusterCoordinator,
-          ScanResult classpathScan,
-          boolean allRoles,
-          List<? extends Module> overrideModules) throws Exception {
+      SingletonRegistry registry,
+      SabotConfig config,
+      ClusterCoordinator clusterCoordinator,
+      ScanResult classpathScan,
+      boolean allRoles,
+      List<? extends Module> overrideModules)
+      throws Exception {
     this.overrideModules = overrideModules;
     DremioConfig dremioConfig = DremioConfig.create(null, config);
     dremioConfig = dremioConfig.withValue(DremioConfig.ENABLE_COORDINATOR_BOOL, allRoles);
 
     final BootStrapContext bootstrap = new BootStrapContext(dremioConfig, classpathScan, registry);
     guiceSingletonHandler = new GuiceServiceModule();
-    injector = createInjector(dremioConfig, classpathScan, registry, clusterCoordinator, allRoles, bootstrap);
+    injector =
+        createInjector(
+            dremioConfig, classpathScan, registry, clusterCoordinator, allRoles, bootstrap);
     registry.registerGuiceInjector(injector);
   }
 
-  protected Injector createInjector(DremioConfig config, ScanResult classpathScan, SingletonRegistry registry,
-                                    ClusterCoordinator clusterCoordinator, boolean allRoles,
-                                    BootStrapContext bootStrapContext) {
-    final SabotModule sabotModule = new SabotModule(config, classpathScan, registry, clusterCoordinator, allRoles, bootStrapContext);
+  protected Injector createInjector(
+      DremioConfig config,
+      ScanResult classpathScan,
+      SingletonRegistry registry,
+      ClusterCoordinator clusterCoordinator,
+      boolean allRoles,
+      BootStrapContext bootStrapContext) {
+    final SabotModule sabotModule =
+        new SabotModule(
+            config, classpathScan, registry, clusterCoordinator, allRoles, bootStrapContext);
 
     return createInjector(sabotModule);
   }
 
   protected Injector createInjector(Module mainModule) {
     if (overrideModules != null && !overrideModules.isEmpty()) {
-      return Guice.createInjector(Modules.override(guiceSingletonHandler, mainModule).with(overrideModules));
+      return Guice.createInjector(
+          Modules.override(guiceSingletonHandler, mainModule).with(overrideModules));
     }
 
     return Guice.createInjector(guiceSingletonHandler, mainModule);
@@ -276,7 +302,7 @@ public class SabotNode implements AutoCloseable {
     return overrideModules;
   }
 
-  public LocalQueryExecutor getLocalQueryExecutor(){
+  public LocalQueryExecutor getLocalQueryExecutor() {
     return injector.getInstance(LocalQueryExecutor.class);
   }
 
@@ -316,7 +342,7 @@ public class SabotNode implements AutoCloseable {
     try {
       registry.close();
       guiceSingletonHandler.close(getInjector());
-    } catch(Exception e) {
+    } catch (Exception e) {
       logger.warn("Failure on close()", e);
     }
 
@@ -324,10 +350,9 @@ public class SabotNode implements AutoCloseable {
     isClosed = true;
   }
 
-
   /**
-   * Shutdown hook for SabotNode. Closes the node, and reports on errors that
-   * occur during closure, as well as the location the node was started from.
+   * Shutdown hook for SabotNode. Closes the node, and reports on errors that occur during closure,
+   * as well as the location the node was started from.
    */
   private static class ShutdownThread extends Thread {
     private static final AtomicInteger idCounter = new AtomicInteger(0);
@@ -338,8 +363,8 @@ public class SabotNode implements AutoCloseable {
      * Constructor.
      *
      * @param node the node to close down
-     * @param stackTrace the stack trace from where the SabotNode was started;
-     *   use new StackTrace() to generate this
+     * @param stackTrace the stack trace from where the SabotNode was started; use new StackTrace()
+     *     to generate this
      */
     public ShutdownThread(final SabotNode node, final StackTrace stackTrace) {
       this.node = node;
@@ -361,11 +386,12 @@ public class SabotNode implements AutoCloseable {
          * one node at a time. To enforce that, we synchronize on a convenient
          * singleton object.
          */
-        synchronized(idCounter) {
+        synchronized (idCounter) {
           node.doClose();
         }
-      } catch(final Exception e) {
-        throw new RuntimeException("Caught exception closing SabotNode started from\n" + stackTrace, e);
+      } catch (final Exception e) {
+        throw new RuntimeException(
+            "Caught exception closing SabotNode started from\n" + stackTrace, e);
       }
     }
   }
@@ -376,12 +402,12 @@ public class SabotNode implements AutoCloseable {
   }
 
   @VisibleForTesting
-  public BindingCreator getBindingCreator(){
+  public BindingCreator getBindingCreator() {
     return registry.getBindingCreator();
   }
 
   @VisibleForTesting
-  public BindingProvider getBindingProvider(){
+  public BindingProvider getBindingProvider() {
     return registry.getBindingProvider();
   }
 
@@ -403,13 +429,17 @@ public class SabotNode implements AutoCloseable {
     return start(config, null);
   }
 
-  public static SabotNode start(final SabotConfig config, final ClusterCoordinator clusterCoordinator)
-          throws NodeStartupException {
+  public static SabotNode start(
+      final SabotConfig config, final ClusterCoordinator clusterCoordinator)
+      throws NodeStartupException {
     return start(config, clusterCoordinator, ClassPathScanner.fromPrescan(config));
   }
 
-  public static SabotNode start(final SabotConfig config, final ClusterCoordinator clusterCoordinator, ScanResult classpathScan)
-          throws NodeStartupException {
+  public static SabotNode start(
+      final SabotConfig config,
+      final ClusterCoordinator clusterCoordinator,
+      ScanResult classpathScan)
+      throws NodeStartupException {
     logger.debug("Starting new SabotNode.");
     SabotNode bit;
     try {
@@ -428,28 +458,35 @@ public class SabotNode implements AutoCloseable {
     return bit;
   }
 
-  /**
-   * Guice Module for SabotNode dependancy injection
-   */
+  /** Guice Module for SabotNode dependancy injection */
   protected class SabotModule extends AbstractModule {
     private final DremioConfig config;
     private final ScanResult classpathScan;
     private final SingletonRegistry registry;
     private final ClusterCoordinator clusterCoordinator;
-    private final boolean allRoles;
+    private final Set<Role> clusterRoles;
     private final BootStrapContext bootstrap;
     private final RequestContext defaultRequestContext;
 
-    public SabotModule(DremioConfig config, ScanResult classpathScan, SingletonRegistry registry,
-                       ClusterCoordinator clusterCoordinator, boolean allRoles, BootStrapContext bootstrap) {
+    public SabotModule(
+        DremioConfig config,
+        ScanResult classpathScan,
+        SingletonRegistry registry,
+        ClusterCoordinator clusterCoordinator,
+        boolean allRoles,
+        BootStrapContext bootstrap) {
       this.config = config;
       this.classpathScan = classpathScan;
       this.registry = registry;
       this.clusterCoordinator = clusterCoordinator;
-      this.allRoles = allRoles;
-      this.defaultRequestContext = RequestContext.empty()
-          .with(TenantContext.CTX_KEY, TenantContext.DEFAULT_SERVICE_CONTEXT)
-          .with(UserContext.CTX_KEY, UserContext.SYSTEM_USER_CONTEXT);
+      this.clusterRoles =
+          allRoles
+              ? EnumSet.allOf(ClusterCoordinator.Role.class)
+              : EnumSet.of(ClusterCoordinator.Role.EXECUTOR);
+      this.defaultRequestContext =
+          RequestContext.empty()
+              .with(TenantContext.CTX_KEY, TenantContext.DEFAULT_SERVICE_CONTEXT)
+              .with(UserContext.CTX_KEY, UserContext.SYSTEM_USER_CONTEXT);
       this.bootstrap = bootstrap;
     }
 
@@ -461,34 +498,43 @@ public class SabotNode implements AutoCloseable {
         bind(BootStrapContext.class).toInstance(bootstrap);
         bind(BufferAllocator.class).toInstance(bootstrap.getAllocator());
         bind(ExecutorService.class).toInstance(bootstrap.getExecutor());
-        bind(LogicalPlanPersistence.class).toInstance(new LogicalPlanPersistence(config.getSabotConfig(), classpathScan));
-        bind(OptionValidatorListing.class).toInstance(new OptionValidatorListingImpl(classpathScan));
+        bind(LogicalPlanPersistence.class).toInstance(new LogicalPlanPersistence(classpathScan));
+        bind(OptionValidatorListing.class)
+            .toInstance(new OptionValidatorListingImpl(classpathScan));
 
         // KVStore
-        final KVStoreProvider kvStoreProvider = new LocalKVStoreProvider(classpathScan, null, true, true);
+        final KVStoreProvider kvStoreProvider =
+            new LocalKVStoreProvider(classpathScan, null, true, true);
         bind(KVStoreProvider.class).toInstance(kvStoreProvider);
 
-        bind(ConnectionReader.class).toInstance(ConnectionReader.of(classpathScan, config.getSabotConfig()));
+        bind(ConnectionReader.class)
+            .toInstance(
+                new ConnectionReaderDecorator(
+                    ConnectionReader.of(classpathScan, config.getSabotConfig()),
+                    getProvider(CredentialsService.class)));
         // bind default providers.
-        bind(MaterializationDescriptorProvider.class).toInstance(MaterializationDescriptorProvider.EMPTY);
+        bind(MaterializationDescriptorProvider.class)
+            .toInstance(MaterializationDescriptorProvider.EMPTY);
         bind(QueryObserverFactory.class).toInstance(QueryObserverFactory.DEFAULT);
-        bind(GrpcChannelBuilderFactory.class).toInstance(
-          new SingleTenantGrpcChannelBuilderFactory(TracerFacade.INSTANCE, () -> defaultRequestContext,
-            () -> Maps.newHashMap() ));
+        bind(GrpcChannelBuilderFactory.class)
+            .toInstance(
+                new SingleTenantGrpcChannelBuilderFactory(
+                    TracerFacade.INSTANCE, () -> defaultRequestContext, () -> Maps.newHashMap()));
 
         GrpcServerBuilderFactory gRpcServerBuilderFactory =
-          new MultiTenantGrpcServerBuilderFactory(TracerFacade.INSTANCE);
+            new MultiTenantGrpcServerBuilderFactory(TracerFacade.INSTANCE);
         bind(GrpcServerBuilderFactory.class).toInstance(gRpcServerBuilderFactory);
 
         // setup authentication
         final UserServiceTestImpl userServiceTestImpl = new UserServiceTestImpl();
         bind(UserService.class).toInstance(userServiceTestImpl);
         bind(SimpleUserService.class).toInstance(userServiceTestImpl);
-        bind(LocalUsernamePasswordAuthProvider.class).toInstance(
-          new LocalUsernamePasswordAuthProvider(getProvider(SimpleUserService.class)));
-        bind(Authenticator.class).toInstance(new BasicAuthenticator(
-          getProvider(LocalUsernamePasswordAuthProvider.class)
-        ));
+        bind(LocalUsernamePasswordAuthProvider.class)
+            .toInstance(
+                new LocalUsernamePasswordAuthProvider(getProvider(SimpleUserService.class)));
+        bind(Authenticator.class)
+            .toInstance(
+                new BasicAuthenticator(getProvider(LocalUsernamePasswordAuthProvider.class)));
         bind(Orphanage.Factory.class).to(OrphanageImpl.Factory.class);
         bind(NamespaceService.Factory.class).to(NamespaceServiceImpl.Factory.class);
 
@@ -500,71 +546,75 @@ public class SabotNode implements AutoCloseable {
 
         bind(NodeRegistration.class).asEagerSingleton();
 
-        final MetadataRefreshInfoBroadcaster broadcaster = new MetadataRefreshInfoBroadcaster(
-          getProvider(ConduitProvider.class),
-          () -> registry.provider(ClusterCoordinator.class)
-            .get()
-            .getServiceSet(ClusterCoordinator.Role.COORDINATOR)
-            .getAvailableEndpoints(),
-          () -> registry.provider(SabotContext.class).get().getEndpoint()
-        );
+        final MetadataRefreshInfoBroadcaster broadcaster =
+            new MetadataRefreshInfoBroadcaster(
+                getProvider(ConduitProvider.class),
+                () ->
+                    registry
+                        .provider(ClusterCoordinator.class)
+                        .get()
+                        .getServiceSet(ClusterCoordinator.Role.COORDINATOR)
+                        .getAvailableEndpoints(),
+                () -> registry.provider(SabotContext.class).get().getEndpoint());
 
         bind(CatalogStatusEvents.class).toInstance(new CatalogStatusEventsImpl());
 
         // CatalogService is expensive to create so we eagerly create it
-        bind(CatalogService.class).toInstance(new CatalogServiceImpl(
-                getProvider(SabotContext.class),
-                getProvider(SchedulerService.class),
-                getProvider(SystemTablePluginConfigProvider.class),
-                null,
-                getProvider(FabricService.class),
-                getProvider(ConnectionReader.class),
-                getProvider(BufferAllocator.class),
-                getProvider(LegacyKVStoreProvider.class),
-                getProvider(DatasetListingService.class),
-                getProvider(OptionManager.class),
-                () -> broadcaster,
-                config,
-                EnumSet.allOf(ClusterCoordinator.Role.class),
-                getProvider(ModifiableSchedulerService.class),
-                getProvider(VersionedDatasetAdapterFactory.class)));
-
-        conduitServiceRegistry.registerService(new InformationSchemaServiceImpl(getProvider(CatalogService.class),
-          bootstrap::getExecutor));
-
-        final NessieService nessieService = new NessieService(
-          registry.provider(KVStoreProvider.class),
-          registry.provider(OptionManager.class),
-          registry.provider(SchedulerService.class),
-          config.getBoolean(DremioConfig.NESSIE_SERVICE_IN_MEMORY_BOOLEAN),
-          () -> getContext().isMaster()
-        );
-        nessieService.getGrpcServices().forEach(conduitServiceRegistry::registerService);
-        registry.bindSelf(nessieService);
+        bind(CatalogService.class)
+            .toInstance(
+                new CatalogServiceImpl(
+                    getProvider(SabotContext.class),
+                    getProvider(SchedulerService.class),
+                    getProvider(SystemTablePluginConfigProvider.class),
+                    null,
+                    getProvider(FabricService.class),
+                    getProvider(ConnectionReader.class),
+                    getProvider(BufferAllocator.class),
+                    getProvider(LegacyKVStoreProvider.class),
+                    getProvider(DatasetListingService.class),
+                    getProvider(OptionManager.class),
+                    () -> broadcaster,
+                    config,
+                    EnumSet.allOf(ClusterCoordinator.Role.class),
+                    getProvider(ModifiableSchedulerService.class),
+                    getProvider(VersionedDatasetAdapterFactory.class),
+                    getProvider(CatalogStatusEvents.class)));
 
         conduitServiceRegistry.registerService(
-          new DatasetCatalogServiceImpl(getProvider(CatalogService.class), getProvider(NamespaceService.Factory.class)));
+            new InformationSchemaServiceImpl(
+                getProvider(CatalogService.class), bootstrap::getExecutor));
+
+        final EmbeddedMetadataPointerService pointerService =
+            new EmbeddedMetadataPointerService(registry.provider(KVStoreProvider.class));
+        pointerService.getGrpcServices().forEach(conduitServiceRegistry::registerService);
+        registry.bindSelf(pointerService);
+
+        conduitServiceRegistry.registerService(
+            new DatasetCatalogServiceImpl(
+                getProvider(CatalogService.class), getProvider(NamespaceService.Factory.class)));
 
         // cluster coordinator
         bind(ClusterCoordinator.class).toInstance(clusterCoordinator);
 
         // RPC Endpoints - eagerly created
-        bind(UserServer.class).toInstance(new UserServer(
-                config,
-                getProvider(ExecutorService.class),
-                getProvider(BufferAllocator.class),
-                getProvider(Authenticator.class),
-                getProvider(UserService.class),
-                getProvider(NodeEndpoint.class),
-                getProvider(UserWorker.class),
-                allowPortHunting,
-                TracerFacade.INSTANCE,
-                getProvider(OptionValidatorListing.class)
-        ));
+        bind(UserServer.class)
+            .toInstance(
+                new UserServer(
+                    config,
+                    getProvider(ExecutorService.class),
+                    getProvider(BufferAllocator.class),
+                    getProvider(Authenticator.class),
+                    getProvider(UserService.class),
+                    getProvider(NodeEndpoint.class),
+                    getProvider(UserWorker.class),
+                    allowPortHunting,
+                    TracerFacade.INSTANCE,
+                    getProvider(OptionValidatorListing.class)));
 
         // Fabric Service - eagerly created
         final String address = FabricServiceImpl.getAddress(useIP);
-        final FabricServiceImpl fabricService = new FabricServiceImpl(
+        final FabricServiceImpl fabricService =
+            new FabricServiceImpl(
                 address,
                 45678,
                 allowPortHunting,
@@ -573,23 +623,30 @@ public class SabotNode implements AutoCloseable {
                 0,
                 Long.MAX_VALUE,
                 config.getSabotConfig().getInt(RpcConstants.BIT_RPC_TIMEOUT),
-                bootstrap.getExecutor()
-        );
+                bootstrap.getExecutor());
         bind(FabricService.class).toInstance(fabricService);
 
         final String inProcessServerName = UUID.randomUUID().toString();
-        bind(ConduitServer.class).toInstance(new ConduitServer(getProvider(ConduitServiceRegistry.class), 0,
-          Optional.empty(), inProcessServerName));
-        final ConduitProvider conduitProvider = new ConduitProviderImpl(
-          getProvider(NodeEndpoint.class), Optional.empty()
-        );
-        bind(ConduitInProcessChannelProvider.class).toInstance(new ConduitInProcessChannelProvider(inProcessServerName,
-          getProvider(RequestContext.class)));
+        bind(ConduitServer.class)
+            .toInstance(
+                new ConduitServer(
+                    getProvider(ConduitServiceRegistry.class),
+                    0,
+                    Optional.empty(),
+                    inProcessServerName));
+        final ConduitProvider conduitProvider =
+            new ConduitProviderImpl(getProvider(NodeEndpoint.class), Optional.empty());
+        bind(ConduitInProcessChannelProvider.class)
+            .toInstance(
+                new ConduitInProcessChannelProvider(
+                    inProcessServerName, getProvider(RequestContext.class)));
         bind(ConduitProvider.class).toInstance(conduitProvider);
 
-        conduitServiceRegistry.registerService(new OptionNotificationService(registry.provider(SystemOptionManager.class)));
+        conduitServiceRegistry.registerService(
+            new OptionNotificationService(registry.provider(SystemOptionManager.class)));
 
-        final CoordExecService coordExecService = new CoordExecService(
+        final CoordExecService coordExecService =
+            new CoordExecService(
                 bootstrap.getConfig(),
                 bootstrap.getAllocator(),
                 getProvider(FabricService.class),
@@ -597,15 +654,13 @@ public class SabotNode implements AutoCloseable {
                 getProvider(ExecToCoordResultsHandler.class),
                 getProvider(ExecToCoordStatusHandler.class),
                 getProvider(NodeEndpoint.class),
-                getProvider(JobTelemetryClient.class)
-        );
+                getProvider(JobTelemetryClient.class));
         bind(CoordExecService.class).toInstance(coordExecService);
 
         bind(Orphanage.class).to(OrphanageImpl.class);
         bind(NamespaceService.class).to(NamespaceServiceImpl.class);
-        bind(DatasetListingService.class).toInstance(new DatasetListingServiceImpl(
-                getProvider(NamespaceService.Factory.class)
-        ));
+        bind(DatasetListingService.class)
+            .toInstance(new DatasetListingServiceImpl(getProvider(NamespaceService.Factory.class)));
 
         bind(AccelerationManager.class).toInstance(AccelerationManager.NO_OP);
 
@@ -615,14 +670,18 @@ public class SabotNode implements AutoCloseable {
 
         bind(AccelerationListManager.class).toProvider(Providers.of(null));
 
-        bind(SystemTablePluginConfigProvider.class).toInstance(new SystemTablePluginConfigProvider());
+        bind(SystemTablePluginConfigProvider.class)
+            .toInstance(new SystemTablePluginConfigProvider());
 
         bind(SysFlightChannelProvider.class).toInstance(SysFlightChannelProvider.NO_OP);
 
         bind(SourceVerifier.class).toInstance(SourceVerifier.NO_OP);
 
-        bind(ResourceAllocator.class).toInstance(new BasicResourceAllocator(getProvider(ClusterCoordinator.class),
-          getProvider(GroupResourceInformation.class)));
+        bind(ResourceAllocator.class)
+            .toInstance(
+                new BasicResourceAllocator(
+                    getProvider(ClusterCoordinator.class),
+                    getProvider(GroupResourceInformation.class)));
 
         bind(ExecutorSelectorFactory.class).toInstance(new ExecutorSelectorFactoryImpl());
 
@@ -631,22 +690,30 @@ public class SabotNode implements AutoCloseable {
 
         bind(ContextInformationFactory.class).toInstance(new ContextInformationFactory());
 
-        bind(CommandPool.class).toInstance(CommandPoolFactory.INSTANCE.newPool(config, TracerFacade.INSTANCE));
+        bind(CommandPool.class)
+            .toInstance(CommandPoolFactory.INSTANCE.newPool(config, TracerFacade.INSTANCE));
 
-        bind(LocalJobTelemetryServer.class).toInstance(new LocalJobTelemetryServer(
-          gRpcServerBuilderFactory, getProvider(LegacyKVStoreProvider.class),
-          getProvider(NodeEndpoint.class),
-          new GrpcTracerFacade(TracerFacade.INSTANCE),
-          new ContextMigratingExecutorService(Executors.newCachedThreadPool())));
+        bind(LocalJobTelemetryServer.class)
+            .toInstance(
+                new LocalJobTelemetryServer(
+                    gRpcServerBuilderFactory,
+                    getProvider(LegacyKVStoreProvider.class),
+                    getProvider(NodeEndpoint.class),
+                    new GrpcTracerFacade(TracerFacade.INSTANCE),
+                    new ContextMigratingExecutorService(Executors.newCachedThreadPool())));
 
         bind(MaestroForwarder.class).toInstance(new NoOpMaestroForwarder());
         bind(RuleBasedEngineSelector.class).toInstance(RuleBasedEngineSelector.NO_OP);
         bind(StatisticsService.class).toInstance(StatisticsService.MOCK_STATISTICS_SERVICE);
-        bind(StatisticsAdministrationService.Factory.class).toInstance((context) -> StatisticsService.MOCK_STATISTICS_SERVICE);
+        bind(StatisticsAdministrationService.Factory.class)
+            .toInstance((context) -> StatisticsService.MOCK_STATISTICS_SERVICE);
         bind(StatisticsListManager.class).toProvider(Providers.of(null));
         bind(UserDefinedFunctionService.class).toProvider(Providers.of(null));
-        bind(PartitionStatsCacheStoreProvider.class).toInstance(new MockPartitionStatsStoreProvider());
-        bind(RelMetadataQuerySupplier.class).toInstance(DremioRelMetadataQuery.getSupplier(StatisticsService.MOCK_STATISTICS_SERVICE));
+        bind(PartitionStatsCacheStoreProvider.class)
+            .toInstance(new MockPartitionStatsStoreProvider());
+        bind(RelMetadataQuerySupplier.class)
+            .toInstance(
+                DremioRelMetadataQuery.getSupplier(StatisticsService.MOCK_STATISTICS_SERVICE));
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
@@ -654,32 +721,51 @@ public class SabotNode implements AutoCloseable {
 
     @Provides
     @Singleton
-    SystemOptionManager getSystemOptionManager(OptionValidatorListing optionValidatorListing, LogicalPlanPersistence lpp, Provider<LegacyKVStoreProvider> kvStoreProvider, Provider<SchedulerService> schedulerService) throws Exception {
+    SystemOptionManager getSystemOptionManager(
+        OptionValidatorListing optionValidatorListing,
+        LogicalPlanPersistence lpp,
+        Provider<LegacyKVStoreProvider> kvStoreProvider,
+        Provider<SchedulerService> schedulerService)
+        throws Exception {
       final OptionChangeBroadcaster systemOptionChangeBroadcaster =
-        new OptionChangeBroadcaster(
-          registry.provider(ConduitProvider.class),
-          () -> registry.provider(ClusterCoordinator.class)
-            .get()
-            .getServiceSet(ClusterCoordinator.Role.COORDINATOR)
-            .getAvailableEndpoints(),
-          () -> registry.provider(SabotContext.class).get().getEndpoint());
-      return new SystemOptionManager(optionValidatorListing, lpp, kvStoreProvider, schedulerService, systemOptionChangeBroadcaster, false);
+          new OptionChangeBroadcaster(
+              registry.provider(ConduitProvider.class),
+              () ->
+                  registry
+                      .provider(ClusterCoordinator.class)
+                      .get()
+                      .getServiceSet(ClusterCoordinator.Role.COORDINATOR)
+                      .getAvailableEndpoints(),
+              () -> registry.provider(SabotContext.class).get().getEndpoint());
+      return new SystemOptionManager(
+          optionValidatorListing,
+          lpp,
+          kvStoreProvider,
+          schedulerService,
+          systemOptionChangeBroadcaster,
+          false);
     }
 
     @Provides
     @Singleton
-    OptionManager getOptionManager(OptionValidatorListing optionValidatorListing, SystemOptionManager systemOptionManager) throws Exception {
+    OptionManager getOptionManager(
+        OptionValidatorListing optionValidatorListing, SystemOptionManager systemOptionManager)
+        throws Exception {
       return OptionManagerWrapper.Builder.newBuilder()
-        .withOptionManager(new DefaultOptionManager(optionValidatorListing))
-        .withOptionManager(systemOptionManager)
-        .build();
+          .withOptionManager(new DefaultOptionManager(optionValidatorListing))
+          .withOptionManager(systemOptionManager)
+          .build();
     }
 
     @Provides
     @Singleton
-    ModifiableSchedulerService getModifiableMetadataScheduler(OptionManager optionManager) throws Exception {
-      return new ModifiableLocalSchedulerService(2, "modifiable-scheduler-",
-        ExecConstants.MAX_CONCURRENT_METADATA_REFRESHES, () -> optionManager);
+    ModifiableSchedulerService getModifiableMetadataScheduler(OptionManager optionManager)
+        throws Exception {
+      return new ModifiableLocalSchedulerService(
+          2,
+          "modifiable-scheduler-",
+          ExecConstants.MAX_CONCURRENT_METADATA_REFRESHES,
+          () -> optionManager);
     }
 
     @Provides
@@ -691,31 +777,29 @@ public class SabotNode implements AutoCloseable {
     @Provides
     @Singleton
     FragmentWorkManager getFragmentWorkManager(
-            Provider<NodeEndpoint> nodeEndpoint,
-            Provider<SabotContext> sabotContext,
-            Provider<FabricService> fabricService,
-            Provider<CatalogService> catalogService,
-            Provider<ContextInformationFactory> contextInformationFactory,
-            Provider<WorkloadTicketDepot> workloadTicketDepot,
-            Provider<TaskPool> taskPool,
-            Provider<MaestroClientFactory> maestroServiceClientFactoryProvider,
-            Provider<JobTelemetryExecutorClientFactory> jobTelemetryClientFactoryProvider,
-            Provider<JobResultsClientFactory> jobResultsSoftwareClientFactoryProvider
-    ) {
+        Provider<NodeEndpoint> nodeEndpoint,
+        Provider<SabotContext> sabotContext,
+        Provider<FabricService> fabricService,
+        Provider<CatalogService> catalogService,
+        Provider<ContextInformationFactory> contextInformationFactory,
+        Provider<WorkloadTicketDepot> workloadTicketDepot,
+        Provider<TaskPool> taskPool,
+        Provider<MaestroClientFactory> maestroServiceClientFactoryProvider,
+        Provider<JobTelemetryExecutorClientFactory> jobTelemetryClientFactoryProvider,
+        Provider<JobResultsClientFactory> jobResultsSoftwareClientFactoryProvider) {
       return new FragmentWorkManager(
-        bootstrap,
-        config.getSabotConfig(),
-        nodeEndpoint,
-        sabotContext,
-        fabricService,
-        catalogService,
-        contextInformationFactory,
-        workloadTicketDepot,
-        taskPool,
-        maestroServiceClientFactoryProvider,
-        jobTelemetryClientFactoryProvider,
-        jobResultsSoftwareClientFactoryProvider
-      );
+          bootstrap,
+          config.getSabotConfig(),
+          nodeEndpoint,
+          sabotContext,
+          fabricService,
+          catalogService,
+          contextInformationFactory,
+          workloadTicketDepot,
+          taskPool,
+          maestroServiceClientFactoryProvider,
+          jobTelemetryClientFactoryProvider,
+          jobResultsSoftwareClientFactoryProvider);
     }
 
     @Provides
@@ -726,89 +810,88 @@ public class SabotNode implements AutoCloseable {
     @Provides
     @Singleton
     ContextService getContextService(
-            Provider<ClusterCoordinator> clusterCoordinator,
-            Provider<GroupResourceInformation> resourceInformation,
-            Provider<WorkStats> workStats,
-            Provider<LegacyKVStoreProvider> kvStoreProvider,
-            Provider<FabricService> fabricService,
-            Provider<ConduitServer> conduitServer,
-            Provider<UserServer> userServer,
-            Provider<MaterializationDescriptorProvider> materializationDescriptorProvider,
-            Provider<QueryObserverFactory> queryObserverFactory,
-            Provider<AccelerationManager> accelerationManager,
-            Provider<AccelerationListManager> accelerationListManager,
-            Provider<NamespaceService.Factory> namespaceServiceFactory,
-            Provider<Orphanage.Factory> orphanageFactory,
-            Provider<DatasetListingService> datasetListingService,
-            Provider<UserService> userService,
-            Provider<CatalogService> catalogService,
-            Provider<ConduitProvider> conduitProvider,
-            Provider<InformationSchemaServiceBlockingStub> informationSchemaStub,
-            Provider<SpillService> spillService,
-            Provider<ConnectionReader> connectionReader,
-            Provider<OptionManager> optionManagerProvider,
-            Provider<SystemOptionManager> systemOptionManagerProvider,
-            Provider<OptionValidatorListing> optionValidatorListingProvider,
-            Provider<NessieApiV2> nessieApiProvider,
-            Provider<StatisticsService> statisticsService,
-            Provider<StatisticsAdministrationService.Factory> statisticsAdministrationServiceFactory,
-            Provider<StatisticsListManager> statisticsListManagerProvider,
-            Provider<UserDefinedFunctionService> userDefinedFunctionListManagerProvider,
-            Provider<RelMetadataQuerySupplier> relMetadataQuerySupplier,
-            Provider<SimpleJobRunner> jobsRunnerProvider,
-            Provider<DatasetCatalogServiceBlockingStub> datasetCatalogStub,
-            Provider<GlobalKeysService> globalKeysServiceProvider,
-            Provider<com.dremio.services.credentials.CredentialsService> credentialsServiceProvider,
-            Provider<ConduitInProcessChannelProvider> conduitInProcessChannelProviderProvider,
-            Provider<SysFlightChannelProvider> sysFlightChannelProviderProvider,
-            Provider<SourceVerifier> sourceVerifierProvider
-    ) {
+        Provider<ClusterCoordinator> clusterCoordinator,
+        Provider<GroupResourceInformation> resourceInformation,
+        Provider<WorkStats> workStats,
+        Provider<LegacyKVStoreProvider> kvStoreProvider,
+        Provider<FabricService> fabricService,
+        Provider<ConduitServer> conduitServer,
+        Provider<UserServer> userServer,
+        Provider<MaterializationDescriptorProvider> materializationDescriptorProvider,
+        Provider<QueryObserverFactory> queryObserverFactory,
+        Provider<AccelerationManager> accelerationManager,
+        Provider<AccelerationListManager> accelerationListManager,
+        Provider<NamespaceService.Factory> namespaceServiceFactory,
+        Provider<Orphanage.Factory> orphanageFactory,
+        Provider<DatasetListingService> datasetListingService,
+        Provider<UserService> userService,
+        Provider<CatalogService> catalogService,
+        Provider<ConduitProvider> conduitProvider,
+        Provider<InformationSchemaServiceBlockingStub> informationSchemaStub,
+        Provider<SpillService> spillService,
+        Provider<ConnectionReader> connectionReader,
+        Provider<OptionManager> optionManagerProvider,
+        Provider<SystemOptionManager> systemOptionManagerProvider,
+        Provider<OptionValidatorListing> optionValidatorListingProvider,
+        Provider<NessieApiV2> nessieApiProvider,
+        Provider<StatisticsService> statisticsService,
+        Provider<StatisticsAdministrationService.Factory> statisticsAdministrationServiceFactory,
+        Provider<StatisticsListManager> statisticsListManagerProvider,
+        Provider<UserDefinedFunctionService> userDefinedFunctionListManagerProvider,
+        Provider<RelMetadataQuerySupplier> relMetadataQuerySupplier,
+        Provider<SimpleJobRunner> jobsRunnerProvider,
+        Provider<DatasetCatalogServiceBlockingStub> datasetCatalogStub,
+        Provider<GlobalKeysService> globalKeysServiceProvider,
+        Provider<CredentialsService> credentialsServiceProvider,
+        Provider<ConduitInProcessChannelProvider> conduitInProcessChannelProviderProvider,
+        Provider<SysFlightChannelProvider> sysFlightChannelProviderProvider,
+        Provider<SourceVerifier> sourceVerifierProvider,
+        Provider<SecretsCreator> secretsCreatorProvider) {
       return new ContextService(
-              bootstrap,
-              clusterCoordinator,
-              resourceInformation,
-              workStats,
-              kvStoreProvider,
-              fabricService,
-              conduitServer,
-              userServer,
-              materializationDescriptorProvider,
-              queryObserverFactory,
-              accelerationManager,
-              accelerationListManager,
-              namespaceServiceFactory,
-              orphanageFactory,
-              datasetListingService,
-              userService,
-              catalogService,
-              conduitProvider,
-              informationSchemaStub,
-              Providers.of(null),
-              spillService,
-              connectionReader,
-              Providers.of(null),
-              () -> JobResultInfoProvider.NOOP,
-              optionManagerProvider,
-              systemOptionManagerProvider,
-              Providers.of(null),
-              Providers.of(null),
-              optionValidatorListingProvider,
-              allRoles,
-              () -> new SoftwareCoordinatorModeInfo(),
-              nessieApiProvider,
-              statisticsService,
-              statisticsAdministrationServiceFactory,
-              statisticsListManagerProvider,
-              userDefinedFunctionListManagerProvider,
-              relMetadataQuerySupplier,
-              jobsRunnerProvider,
-              datasetCatalogStub,
-              globalKeysServiceProvider,
-              credentialsServiceProvider,
-              conduitInProcessChannelProviderProvider,
-              sysFlightChannelProviderProvider,
-              sourceVerifierProvider
-      );
+          bootstrap,
+          clusterCoordinator,
+          resourceInformation,
+          workStats,
+          kvStoreProvider,
+          fabricService,
+          conduitServer,
+          userServer,
+          materializationDescriptorProvider,
+          queryObserverFactory,
+          accelerationManager,
+          accelerationListManager,
+          namespaceServiceFactory,
+          orphanageFactory,
+          datasetListingService,
+          userService,
+          catalogService,
+          conduitProvider,
+          informationSchemaStub,
+          Providers.of(null),
+          spillService,
+          connectionReader,
+          () -> JobResultInfoProvider.NOOP,
+          optionManagerProvider,
+          systemOptionManagerProvider,
+          Providers.of(null),
+          Providers.of(null),
+          optionValidatorListingProvider,
+          clusterRoles,
+          () -> new SoftwareCoordinatorModeInfo(),
+          nessieApiProvider,
+          statisticsService,
+          statisticsAdministrationServiceFactory,
+          statisticsListManagerProvider,
+          userDefinedFunctionListManagerProvider,
+          relMetadataQuerySupplier,
+          jobsRunnerProvider,
+          datasetCatalogStub,
+          globalKeysServiceProvider,
+          credentialsServiceProvider,
+          conduitInProcessChannelProviderProvider,
+          sysFlightChannelProviderProvider,
+          sourceVerifierProvider,
+          secretsCreatorProvider);
     }
 
     @Singleton
@@ -819,8 +902,28 @@ public class SabotNode implements AutoCloseable {
 
     @Singleton
     @Provides
-    com.dremio.services.credentials.CredentialsService getCredentialsServiceProvider() {
-      return com.dremio.services.credentials.CredentialsService.newInstance(config, registry, classpathScan);
+    Cipher getCipher(CredentialsService credentialsService) {
+      return new SystemCipher(config, credentialsService);
+    }
+
+    @Singleton
+    @Provides
+    CredentialsService getCredentialsServiceProvider(
+        Provider<OptionManager> optionManager,
+        Provider<ConduitProvider> conduitProvider,
+        Provider<Cipher> cipher) {
+      return CredentialsServiceImpl.newInstance(
+          config,
+          classpathScan,
+          optionManager,
+          cipher,
+          () -> conduitProvider.get().getOrCreateChannelToMaster());
+    }
+
+    @Singleton
+    @Provides
+    SecretsCreator getSecretsCreator(Provider<Cipher> cipher) {
+      return new SecretsCreatorImpl(cipher);
     }
 
     @Singleton
@@ -831,50 +934,47 @@ public class SabotNode implements AutoCloseable {
 
     @Singleton
     @Provides
-    GroupResourceInformation getGroupResourceInformation(Provider<ClusterCoordinator> coordinatorProvider) {
+    GroupResourceInformation getGroupResourceInformation(
+        Provider<ClusterCoordinator> coordinatorProvider) {
       return new ClusterResourceInformation(coordinatorProvider);
     }
 
     @Singleton
     @Provides
-    SpillService getSpillService(Provider<OptionManager> optionManager, Provider<SchedulerService> schedulerService) {
+    SpillService getSpillService(
+        Provider<OptionManager> optionManager, Provider<SchedulerService> schedulerService) {
       return new SpillServiceImpl(
-              config,
-              new SpillServiceOptionsImpl(optionManager),
-              schedulerService
-      );
+          config, new SpillServiceOptionsImpl(optionManager), schedulerService);
     }
 
     @Provides
     @Singleton
     ExecutorSelectionService getExecutorSelectionService(
-            Provider<ExecutorSetService> executorSetService,
-            Provider<OptionManager> optionManagerProvider,
-            Provider<ExecutorSelectorFactory> executorSelectorFactory,
-            Provider<ExecutorSelectorProvider> executorSelectorProvider
-    ) {
+        Provider<ExecutorSetService> executorSetService,
+        Provider<OptionManager> optionManagerProvider,
+        Provider<ExecutorSelectorFactory> executorSelectorFactory,
+        Provider<ExecutorSelectorProvider> executorSelectorProvider) {
       return new ExecutorSelectionServiceImpl(
-              executorSetService,
-              optionManagerProvider,
-              executorSelectorFactory,
-              executorSelectorProvider.get()
-      );
+          executorSetService,
+          optionManagerProvider,
+          executorSelectorFactory,
+          executorSelectorProvider.get());
     }
 
     @Provides
     @Singleton
     ForemenWorkManager getForemenWorkManager(
-            Provider<FabricService> fabricService,
-            Provider<SabotContext> sabotContext,
-            Provider<CommandPool> commandPool,
-            Provider<MaestroService> maestroService,
-            Provider<JobTelemetryClient> jobTelemetryClient,
-            Provider<MaestroForwarder> forwarderProvider,
-            Provider<RuleBasedEngineSelector> ruleBasedEngineSelectorProvider,
-            Provider<RequestContext> requestContextProvider,
-            Provider<PartitionStatsCacheStoreProvider> transientStoreProvider
-    ) {
-      final BufferAllocator jobResultsAllocator = bootstrap.getAllocator().newChildAllocator("JobResultsGrpcServer", 0, Long.MAX_VALUE);
+        Provider<FabricService> fabricService,
+        Provider<SabotContext> sabotContext,
+        Provider<CommandPool> commandPool,
+        Provider<MaestroService> maestroService,
+        Provider<JobTelemetryClient> jobTelemetryClient,
+        Provider<MaestroForwarder> forwarderProvider,
+        Provider<RuleBasedEngineSelector> ruleBasedEngineSelectorProvider,
+        Provider<RequestContext> requestContextProvider,
+        Provider<PartitionStatsCacheStoreProvider> transientStoreProvider) {
+      final BufferAllocator jobResultsAllocator =
+          bootstrap.getAllocator().newChildAllocator("JobResultsGrpcServer", 0, Long.MAX_VALUE);
       return new ForemenWorkManager(
           fabricService,
           sabotContext,
@@ -882,52 +982,46 @@ public class SabotNode implements AutoCloseable {
           maestroService,
           jobTelemetryClient,
           forwarderProvider,
-          TracerFacade.INSTANCE,
           ruleBasedEngineSelectorProvider,
           jobResultsAllocator,
           requestContextProvider,
-          transientStoreProvider
-      );
+          transientStoreProvider);
     }
 
     @Provides
     @Singleton
     ExecutorSetService getExecutorSetService(
-            Provider<ClusterCoordinator> clusterCoordinator,
-            Provider<OptionManager> optionManagerProvider) {
-      return new LocalExecutorSetService(clusterCoordinator,
-                                         optionManagerProvider);
+        Provider<ClusterCoordinator> clusterCoordinator,
+        Provider<OptionManager> optionManagerProvider) {
+      return new LocalExecutorSetService(clusterCoordinator, optionManagerProvider);
     }
 
     @Provides
-    com.dremio.exec.service.executor.ExecutorService getExecutorService(FragmentWorkManager fragmentWorkManager) {
+    com.dremio.exec.service.executor.ExecutorService getExecutorService(
+        FragmentWorkManager fragmentWorkManager) {
       return fragmentWorkManager.getExecutorService();
     }
 
     @Provides
     @Singleton
     MaestroService getMaestroService(
-            Provider<ExecutorSetService> executorSetService,
-            Provider<FabricService> fabricService,
-            Provider<SabotContext> sabotContext,
-            Provider<ResourceAllocator> resourceAllocator,
-            Provider<CommandPool> commandPool,
-            Provider<ExecutorSelectionService> executorSelectionService,
-            Provider<ExecutorServiceClientFactory> executorServiceClientFactory,
-            Provider<JobTelemetryClient> jobTelemetryClient,
-            Provider<MaestroForwarder> forwarderProvider
-    ) {
+        Provider<ExecutorSetService> executorSetService,
+        Provider<SabotContext> sabotContext,
+        Provider<ResourceAllocator> resourceAllocator,
+        Provider<CommandPool> commandPool,
+        Provider<ExecutorSelectionService> executorSelectionService,
+        Provider<ExecutorServiceClientFactory> executorServiceClientFactory,
+        Provider<JobTelemetryClient> jobTelemetryClient,
+        Provider<MaestroForwarder> forwarderProvider) {
       return new MaestroServiceImpl(
-              executorSetService,
-              fabricService,
-              sabotContext,
-              resourceAllocator,
-              commandPool,
-              executorSelectionService,
-              executorServiceClientFactory,
-              jobTelemetryClient,
-              forwarderProvider
-              );
+          executorSetService,
+          sabotContext,
+          resourceAllocator,
+          commandPool,
+          executorSelectionService,
+          executorServiceClientFactory,
+          jobTelemetryClient,
+          forwarderProvider);
     }
 
     @Provides
@@ -941,7 +1035,8 @@ public class SabotNode implements AutoCloseable {
     }
 
     @Provides
-    ExecutorServiceClientFactory getExecutorServiceClientFactory(CoordToExecTunnelCreator tunnelCreator) {
+    ExecutorServiceClientFactory getExecutorServiceClientFactory(
+        CoordToExecTunnelCreator tunnelCreator) {
       return new ExecutorServiceProductClientFactory(tunnelCreator);
     }
 
@@ -971,17 +1066,20 @@ public class SabotNode implements AutoCloseable {
     }
 
     @Provides
-    JobTelemetryExecutorClientFactory getJobTelemetryExecutionClientFactory(ExecToCoordTunnelCreator tunnelCreator) {
+    JobTelemetryExecutorClientFactory getJobTelemetryExecutionClientFactory(
+        ExecToCoordTunnelCreator tunnelCreator) {
       return new JobTelemetrySoftwareClientFactory(tunnelCreator);
     }
 
     @Provides
-    JobResultsClientFactory getJobResultsSoftwareClientFactory(ExecToCoordTunnelCreator tunnelCreator) {
+    JobResultsClientFactory getJobResultsSoftwareClientFactory(
+        ExecToCoordTunnelCreator tunnelCreator) {
       return new JobResultsSoftwareClientFactory(tunnelCreator);
     }
 
     @Provides
-    MaestroGrpcServerFacade getMaestroAdapter(Provider<ExecToCoordStatusHandler> execToCoordStatusHandlerProvider) {
+    MaestroGrpcServerFacade getMaestroAdapter(
+        Provider<ExecToCoordStatusHandler> execToCoordStatusHandlerProvider) {
       return new MaestroGrpcServerFacade(execToCoordStatusHandlerProvider);
     }
 
@@ -1009,15 +1107,15 @@ public class SabotNode implements AutoCloseable {
     @Provides
     @Singleton
     WorkloadTicketDepotService getWorkloadTicketDepotService(
-            Provider<BufferAllocator> bufferAllocator,
-            Provider<TaskPool> taskPool,
-            Provider<DremioConfig> dremioConfig
-    ) {
+        Provider<BufferAllocator> bufferAllocator,
+        Provider<TaskPool> taskPool,
+        Provider<DremioConfig> dremioConfig) {
       return new WorkloadTicketDepotService(bufferAllocator, taskPool, dremioConfig);
     }
 
     @Provides
-    WorkloadTicketDepot getWorkloadTicketDepot(WorkloadTicketDepotService workloadTicketDepotService) {
+    WorkloadTicketDepot getWorkloadTicketDepot(
+        WorkloadTicketDepotService workloadTicketDepotService) {
       return workloadTicketDepotService.getTicketDepot();
     }
 
@@ -1029,8 +1127,9 @@ public class SabotNode implements AutoCloseable {
 
     @Provides
     @Singleton
-    JobTelemetryClient getJobTelemetryClient(GrpcChannelBuilderFactory grpcChannelBuilderFactory,
-                                             Provider<NodeEndpoint> nodeEndpointProvider) {
+    JobTelemetryClient getJobTelemetryClient(
+        GrpcChannelBuilderFactory grpcChannelBuilderFactory,
+        Provider<NodeEndpoint> nodeEndpointProvider) {
       return new JobTelemetryClient(grpcChannelBuilderFactory, nodeEndpointProvider);
     }
 
@@ -1047,22 +1146,28 @@ public class SabotNode implements AutoCloseable {
     }
 
     @Provides
-    InformationSchemaServiceBlockingStub getInformationSchemaServiceBlockingStub(Provider<ConduitProvider> conduitProvider) {
-      return InformationSchemaServiceGrpc.newBlockingStub(conduitProvider.get().getOrCreateChannelToMaster());
+    InformationSchemaServiceBlockingStub getInformationSchemaServiceBlockingStub(
+        Provider<ConduitProvider> conduitProvider) {
+      return InformationSchemaServiceGrpc.newBlockingStub(
+          conduitProvider.get().getOrCreateChannelToMaster());
     }
 
     @Provides
     NessieApiV2 newNessieApi(Provider<ConduitProvider> conduitProvider) {
       String endpoint = config.getString(DremioConfig.NESSIE_SERVICE_REMOTE_URI);
       if (endpoint == null || endpoint.isEmpty()) {
-        return GrpcClientBuilder.builder().withChannel(conduitProvider.get().getOrCreateChannelToMaster()).build(NessieApiV2.class);
+        return GrpcClientBuilder.builder()
+            .withChannel(conduitProvider.get().getOrCreateChannelToMaster())
+            .build(NessieApiV2.class);
       }
       return HttpClientBuilder.builder().withUri(URI.create(endpoint)).build(NessieApiV2.class);
     }
 
     @Provides
-    DatasetCatalogServiceBlockingStub getDatasetCatalogServiceBlockingStub(Provider<ConduitProvider> conduitProvider) {
-      return DatasetCatalogServiceGrpc.newBlockingStub(conduitProvider.get().getOrCreateChannelToMaster());
+    DatasetCatalogServiceBlockingStub getDatasetCatalogServiceBlockingStub(
+        Provider<ConduitProvider> conduitProvider) {
+      return DatasetCatalogServiceGrpc.newBlockingStub(
+          conduitProvider.get().getOrCreateChannelToMaster());
     }
   }
 }

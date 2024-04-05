@@ -15,26 +15,20 @@
  */
 package com.dremio.exec.planner.acceleration.substitution;
 
-
-import java.util.List;
-
-import org.apache.calcite.rel.RelNode;
-
 import com.dremio.exec.planner.acceleration.DremioMaterialization;
 import com.dremio.exec.planner.sql.handlers.RelTransformer;
 import com.google.common.base.Preconditions;
+import java.util.List;
+import org.apache.calcite.rel.RelNode;
 
-/**
- * A base {@link SubstitutionProvider} that maintains a {@link MaterializationProvider}.
- */
+/** A base {@link SubstitutionProvider} that maintains a {@link MaterializationProvider}. */
 public abstract class AbstractSubstitutionProvider implements SubstitutionProvider {
   private final MaterializationProvider provider;
   protected RelTransformer postSubstitutionTransformer;
 
-  protected AbstractSubstitutionProvider(
-    final MaterializationProvider materializations) {
-    this.provider = Preconditions.checkNotNull(materializations,
-      "materialization provider is required");
+  protected AbstractSubstitutionProvider(final MaterializationProvider materializations) {
+    this.provider =
+        Preconditions.checkNotNull(materializations, "materialization provider is required");
   }
 
   public MaterializationProvider getMaterializationProvider() {

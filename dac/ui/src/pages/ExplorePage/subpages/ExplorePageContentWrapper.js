@@ -27,7 +27,7 @@ import { withRouter } from "react-router";
 import { injectIntl } from "react-intl";
 import { compose } from "redux";
 
-import { getQueryStatuses, getJobList } from "selectors/jobs";
+import { getQueryStatuses } from "@app/selectors/jobs";
 
 import DataGraph from "@inject/pages/ExplorePage/subpages/datagraph/DataGraph";
 import DetailsWizard from "components/Wizards/DetailsWizard";
@@ -42,7 +42,8 @@ import {
   getExploreState,
   getJobProgress,
 } from "@app/selectors/explore";
-import { removeTabView } from "@app/actions/resources/scripts";
+import { getJobSummaries } from "@app/selectors/exploreJobs";
+import { loadScriptJobs, removeTabView } from "@app/actions/resources/scripts";
 import { runDatasetSql, previewDatasetSql } from "actions/explore/dataset/run";
 import { loadSourceListData } from "actions/resources/sources";
 import {
@@ -54,6 +55,7 @@ import Reflections from "@app/pages/ExplorePage/subpages/reflections/Reflections
 import SQLScriptLeaveTabDialog from "@app/components/SQLScripts/components/SQLScriptLeaveTabDialog/SQLScriptLeaveTabDialog";
 import {
   updateColumnFilter,
+  setCurrentSql,
   setCustomDefaultSql,
   setPreviousAndCurrentSql,
   setSelectedSql,
@@ -73,6 +75,11 @@ import {
   setQueryTabNumber,
 } from "actions/explore/view";
 import { cancelJobAndShowNotification } from "@app/actions/jobs/jobs";
+import {
+  clearExploreJobs,
+  fetchJobDetails,
+  fetchJobSummary,
+} from "@app/actions/explore/exploreJobs";
 import {
   extractQueries,
   extractSelections,
@@ -101,11 +108,6 @@ import { isEnterprise, isCommunity } from "dyn-load/utils/versionUtils";
 import exploreUtils from "@app/utils/explore/exploreUtils";
 import HistoryPage from "./HistoryPage/HistoryPage";
 import { HomePageTop } from "@inject/pages/HomePage/HomePageTop";
-import {
-  fetchFilteredJobsList,
-  resetFilteredJobsList,
-  JOB_PAGE_NEW_VIEW_ID,
-} from "@app/actions/joblist/jobList";
 import { newQuery } from "@app/exports/paths";
 import { ErrorBoundary } from "@app/components/ErrorBoundary/ErrorBoundary";
 import { intl } from "@app/utils/intl";
@@ -150,12 +152,11 @@ import {
   fetchAllAndMineScripts,
 } from "@app/components/SQLScripts/sqlScriptsUtils";
 import { $SqlRunnerSession } from "dremio-ui-common/sonar/SqlRunnerSession/resources/SqlRunnerSessionResource.js";
-import { $Scripts } from "dremio-ui-common/sonar/scripts/resources/ScriptsResource.js";
 import { ScriptsResource } from "dremio-ui-common/sonar/scripts/resources/ScriptsResource.js";
-import { filter, firstValueFrom } from "rxjs";
 import { isTabbableUrl } from "@app/utils/explorePageTypeUtils";
 import {
   closeTab,
+  closeTabs,
   newPopulatedTab,
 } from "dremio-ui-common/sonar/SqlRunnerSession/resources/SqlRunnerSessionResource.js";
 import { getSupportFlag } from "@app/exports/endpoints/SupportFlags/getSupportFlag";
@@ -184,7 +185,7 @@ const resizeColumn = new ResizeObserver(
     } else {
       column.target.classList.remove("--minimal");
     }
-  }, 1)
+  }, 1),
 );
 
 export class ExplorePageContentWrapper extends PureComponent {
@@ -241,6 +242,7 @@ export class ExplorePageContentWrapper extends PureComponent {
     setPreviousAndCurrentSql: PropTypes.func,
     selectedSql: PropTypes.string,
     setSelectedSql: PropTypes.func,
+    setCurrentSql: PropTypes.func,
     setCustomDefaultSql: PropTypes.func,
     isMultiQueryRunning: PropTypes.bool,
     queryTabNumber: PropTypes.number,
@@ -248,11 +250,13 @@ export class ExplorePageContentWrapper extends PureComponent {
     supportFlagsObj: PropTypes.object,
     fetchSupportFlags: PropTypes.func,
     scripts: PropTypes.any,
-    fetchFilteredJobsList: PropTypes.func,
-    resetFilteredJobsList: PropTypes.func,
+    fetchJobSummary: PropTypes.func,
+    fetchJobDetails: PropTypes.func,
+    clearExploreJobs: PropTypes.func,
     setResizeProgressState: PropTypes.func,
     toggleExploreSql: PropTypes.func,
     nessieState: PropTypes.object,
+    loadScriptJobs: PropTypes.func,
 
     //HOC
     availablePageTypes: PropTypes.arrayOf(PropTypes.string).isRequired,
@@ -324,26 +328,7 @@ export class ExplorePageContentWrapper extends PureComponent {
   timeoutRef = undefined;
 
   redirectToLastUsedTab = async (router) => {
-    if (!(await getSupportFlag(SQLRUNNER_TABS_UI)).value) {
-      return;
-    }
-
-    const [session, scripts] = await Promise.all([
-      firstValueFrom(
-        $SqlRunnerSession.$source.pipe(filter((session) => session !== null))
-      ),
-      firstValueFrom(
-        $Scripts.pipe(filter((scripts) => scripts !== null && !!scripts.length))
-      ),
-    ]);
-
-    const script = scripts.find(
-      (script) => script.id === session.currentScriptId
-    );
-
-    if (!script) {
-      return;
-    }
+    const script = await exploreUtils.getCurrentScript();
 
     handleOpenTabScript(router)(script);
   };
@@ -414,9 +399,8 @@ export class ExplorePageContentWrapper extends PureComponent {
   };
 
   handleOpenJobResultsWithoutTabs(statuses) {
-    const { setQueryStatuses, jobProgress } = this.props;
+    const { setQueryStatuses } = this.props;
     setQueryStatuses({ statuses });
-    this.props.fetchFilteredJobsList(jobProgress.jobId, JOB_PAGE_NEW_VIEW_ID);
   }
 
   handleOpenJobResults = async (sql, newQueryStatuses) => {
@@ -431,7 +415,7 @@ export class ExplorePageContentWrapper extends PureComponent {
     return this.createNewTabWithSql(
       sql,
       newQueryStatuses,
-      this.props.queryContext
+      this.props.queryContext,
     );
   };
 
@@ -445,7 +429,7 @@ export class ExplorePageContentWrapper extends PureComponent {
         //Important: queryPath is removed here so that the lifecycle won't run this side-effect again
         const success = handleOpenTabScript(this.props.router)(
           createdScript,
-          newQueryStatuses
+          newQueryStatuses,
         );
         this.scriptCreating = false;
         return success;
@@ -455,7 +439,7 @@ export class ExplorePageContentWrapper extends PureComponent {
           const code = e.responseBody.errors?.[0]?.code;
           this.props.addNotification(
             code ? t(code + ":from_dataset") : e.responseBody.errorMessage,
-            "error"
+            "error",
           );
         }
         const failure = this.redirectToLastUsedTab(this.props.router);
@@ -471,6 +455,20 @@ export class ExplorePageContentWrapper extends PureComponent {
         this.scriptCreating = false;
         return failure;
       });
+  };
+
+  checkForScriptJobs = async () => {
+    const { loadScriptJobs, previousMultiSql, setPreviousAndCurrentSql } =
+      this.props;
+
+    const script = await exploreUtils.getCurrentScript();
+
+    // previousMultiSql is null when refreshing the page after running a successful job
+    if (!previousMultiSql) {
+      setPreviousAndCurrentSql({ sql: script.content });
+    }
+
+    loadScriptJobs(script);
   };
 
   componentDidMount() {
@@ -502,13 +500,27 @@ export class ExplorePageContentWrapper extends PureComponent {
       this.redirectToLastUsedTab(this.props.router);
     }
 
+    // load a script's saved jobs when going to the SQL Runner
+
+    const isOnHistoryNode =
+      location.query?.tipVersion !== location.query?.version;
+
+    if (
+      isTabbableUrl(location) &&
+      !location.query?.queryPath &&
+      !isOnHistoryNode &&
+      !dataset.get("sql")
+    ) {
+      this.checkForScriptJobs();
+    }
+
     Mousetrap.bind(["mod+enter", "mod+shift+enter"], this.kbdShorthand);
     this.getUserOperatingSystem();
     this.onJobIdChange();
     this.props.loadSourceListData();
     this.onTabRender();
     this.handleResize();
-    this.props.resetFilteredJobsList();
+    this.props.clearExploreJobs();
 
     // Jobs list is reset whenever moving between the SQL Runner and dataset editor.
     // This fetches the jobs when multi tabs are disabled, otherwise they're fetched
@@ -519,9 +531,10 @@ export class ExplorePageContentWrapper extends PureComponent {
       (!isTabbableUrl(location) ||
         (isTabbableUrl(location) && dataset.get("sql")))
     ) {
-      queryStatuses.forEach((status) =>
-        this.props.fetchFilteredJobsList(status.jobId, JOB_PAGE_NEW_VIEW_ID)
-      );
+      queryStatuses.forEach((status) => {
+        this.props.fetchJobDetails(status.jobId);
+        this.props.fetchJobSummary(status.jobId, 0);
+      });
     }
 
     this.headerRef = document.querySelector(".c-homePageTop");
@@ -541,7 +554,7 @@ export class ExplorePageContentWrapper extends PureComponent {
       this.handlePureSql(
         dataset.get("sql"),
         queryStatuses,
-        dataset.get("context")
+        dataset.get("context"),
       );
     }
 
@@ -550,7 +563,7 @@ export class ExplorePageContentWrapper extends PureComponent {
       sessionStorage.getItem(DATASET_PATH_FROM_ONBOARDING);
       setPreviousAndCurrentSql({
         sql: exploreUtils.createNewQueryFromDatasetOverlay(
-          sessionStorage.getItem(DATASET_PATH_FROM_ONBOARDING)
+          sessionStorage.getItem(DATASET_PATH_FROM_ONBOARDING),
         ),
       });
       sessionStorage.removeItem(DATASET_PATH_FROM_ONBOARDING);
@@ -573,7 +586,7 @@ export class ExplorePageContentWrapper extends PureComponent {
     if (this.dremioSideBarDrag.current) {
       this.dremioSideBarDrag.current.removeEventListener(
         "mousedown",
-        this.sidebarMouseDown
+        this.sidebarMouseDown,
       );
     }
 
@@ -610,10 +623,12 @@ export class ExplorePageContentWrapper extends PureComponent {
       queryTabNumber,
       statusesArray,
       selectedSql,
+      setCurrentSql,
       setSelectedSql: newSelectedSql,
       setQuerySelections: newQuerySelections,
       isMultiQueryRunning,
       location,
+      pageType,
     } = this.props;
 
     this.doObserve();
@@ -702,13 +717,18 @@ export class ExplorePageContentWrapper extends PureComponent {
       this.setPanelCollapse();
     }
 
+    // resets currentSql when opening datasets from the graph and clicking the back button
+    if (pageType === PageTypes.graph && datasetSql !== prevProps.datasetSql) {
+      setCurrentSql({ sql: datasetSql });
+    }
+
     this.handleDisableButton(prevProps);
 
     // Sidebar resizing
     if (this.dremioSideBarDrag.current) {
       this.dremioSideBarDrag.current.addEventListener(
         "mousedown",
-        this.sidebarMouseDown
+        this.sidebarMouseDown,
       );
     }
   }
@@ -732,7 +752,7 @@ export class ExplorePageContentWrapper extends PureComponent {
           datasetDetails: Immutable.fromJS(res),
           datasetDetailsCollapsed: false,
         },
-        () => this.handleResize()
+        () => this.handleResize(),
       );
     } catch (e) {
       sentryUtil.logException(e);
@@ -780,7 +800,7 @@ export class ExplorePageContentWrapper extends PureComponent {
         currentJob.version,
         location,
         router,
-        isMultiQueryRunning
+        isMultiQueryRunning,
       );
     } else {
       handleOnTabRouting(
@@ -789,7 +809,7 @@ export class ExplorePageContentWrapper extends PureComponent {
         undefined,
         location,
         router,
-        isMultiQueryRunning
+        isMultiQueryRunning,
       );
     }
   }
@@ -846,7 +866,7 @@ export class ExplorePageContentWrapper extends PureComponent {
         currentSelection = { ...newSelection };
         this.getMonacoEditorInstance().setSelection(currentSelection);
         this.getMonacoEditorInstance().revealLine(
-          currentSelection.startLineNumber
+          currentSelection.startLineNumber,
         );
       } else {
         this.getMonacoEditorInstance().setSelection({
@@ -871,7 +891,7 @@ export class ExplorePageContentWrapper extends PureComponent {
     navigateToExploreDefaultIfNecessary(
       pageType,
       location,
-      this.context.router
+      this.context.router,
     );
 
     if (e.shiftKey) {
@@ -930,7 +950,7 @@ export class ExplorePageContentWrapper extends PureComponent {
 
   insertAtRanges(
     text,
-    ranges = this.getMonacoEditorInstance().getSelections()
+    ranges = this.getMonacoEditorInstance().getSelections(),
   ) {
     // getSelections() falls back to cursor location automatically
     const edits = ranges.map((range) => ({
@@ -1010,7 +1030,7 @@ export class ExplorePageContentWrapper extends PureComponent {
     this.props.toggleExploreSql?.();
     this.timeoutRef = setTimeout(
       () => this.props.setResizeProgressState(false),
-      500
+      500,
     ); // ref for calculating height isn't auto updated
   };
 
@@ -1019,7 +1039,7 @@ export class ExplorePageContentWrapper extends PureComponent {
       {
         datasetDetailsCollapsed: !this.state.datasetDetailsCollapsed,
       },
-      () => this.handleResize()
+      () => this.handleResize(),
     );
   };
 
@@ -1040,7 +1060,7 @@ export class ExplorePageContentWrapper extends PureComponent {
           datasetDetails: dataset,
           datasetDetailsCollapsed: false,
         },
-        () => this.handleResize()
+        () => this.handleResize(),
       );
     }
   };
@@ -1067,7 +1087,7 @@ export class ExplorePageContentWrapper extends PureComponent {
       statusesArray,
       newQueryStatuses,
       cancelJob,
-      this.cancelPendingSql
+      this.cancelPendingSql,
     );
 
     if (
@@ -1323,7 +1343,7 @@ export class ExplorePageContentWrapper extends PureComponent {
           <div
             className={classNames(
               "dremioSidebar",
-              this.state.sidebarResize && "--active"
+              this.state.sidebarResize && "--active",
             )}
             ref={this.dremioSideBarRef}
             style={{
@@ -1510,12 +1530,23 @@ export class ExplorePageContentWrapper extends PureComponent {
 
   setPanelCollapse = () => {
     this.setState({ sidebarCollapsed: !this.props.isSqlQuery }, () =>
-      this.handleResize()
+      this.handleResize(),
     );
   };
 
   updateColumnFilter = (columnFilter) => {
     this.props.updateColumnFilter(columnFilter);
+  };
+
+  getFormattedTableDefinition = (shouldShowCodeView, returnError) => {
+    try {
+      return shouldShowCodeView
+        ? formatQuery(this.props.dataset.get("sql"))
+        : "";
+    } catch (e) {
+      sentryUtil.logException(e);
+      return returnError ? "error" : this.props.dataset.get("sql");
+    }
   };
 
   render() {
@@ -1541,12 +1572,32 @@ export class ExplorePageContentWrapper extends PureComponent {
       pageType === PageTypes.default &&
       dataset.get("datasetType") === PHYSICAL_DATASET &&
       !!versionContext;
-
-    const formattedTableDefinition = shouldShowCodeView
-      ? formatQuery(dataset.get("sql"))
-      : "";
+    const formattedSQL = this.getFormattedTableDefinition(shouldShowCodeView);
 
     const isTabbable = isTabbableUrl(this.props.location);
+
+    const handleCloseOthers = () => {
+      const { currentScriptId, scriptIds } = $SqlRunnerSession.$source.value;
+      const closedScriptIds = scriptIds.filter((id) => id !== currentScriptId);
+
+      closeTabs(closedScriptIds);
+
+      closedScriptIds.forEach((id) => {
+        removeTabView(id);
+      });
+
+      const nextScriptId = $SqlRunnerSession.$merged.value.currentScriptId;
+
+      if (nextScriptId && currentScriptId !== nextScriptId) {
+        const script = ScriptsResource.getResource().value?.find(
+          (script) => script.id === nextScriptId,
+        );
+        if (!script) {
+          return;
+        }
+        handleOpenTabScript(this.props.router)(script);
+      }
+    };
 
     const handleTabClosed = (tabId) => {
       closeTab(tabId);
@@ -1555,7 +1606,7 @@ export class ExplorePageContentWrapper extends PureComponent {
       const currentScriptId = $SqlRunnerSession.$source.value.currentScriptId;
       if (nextScriptId && currentScriptId !== nextScriptId) {
         const script = ScriptsResource.getResource().value?.find(
-          (script) => script.id === nextScriptId
+          (script) => script.id === nextScriptId,
         );
         if (!script) {
           return;
@@ -1563,6 +1614,15 @@ export class ExplorePageContentWrapper extends PureComponent {
         handleOpenTabScript(this.props.router)(script);
       }
     };
+
+    const errorMessageObject = intl.formatMessage(
+      { id: "Support.error.section" },
+      {
+        section: intl.formatMessage({
+          id: "SectionLabel.sql.editor",
+        }),
+      },
+    );
 
     return (
       <>
@@ -1573,7 +1633,7 @@ export class ExplorePageContentWrapper extends PureComponent {
           className={classNames(
             "explorePage",
             "dremio-layout-container",
-            this.state.sidebarCollapsed && "--collpase"
+            this.state.sidebarCollapsed && "--collpase",
           )}
           ref={this.explorePageRef}
         >
@@ -1594,20 +1654,27 @@ export class ExplorePageContentWrapper extends PureComponent {
             {isDatasetLoading ? (
               <Spinner className="dremioContent__spinner" />
             ) : shouldShowCodeView ? (
-              <CodeView>
-                <SyntaxHighlighter language="sql">
-                  {formattedTableDefinition}
-                </SyntaxHighlighter>
-                <span className="inner-actions">
-                  <QueryDataset
-                    fullPath={dataset.get("displayFullPath")}
-                    resourceId={dataset.getIn(["displayFullPath", 0])}
-                    tooltipPlacement="top"
-                    tooltipPortal
-                  />
-                  <CopyButton contents={formattedTableDefinition} />
-                </span>
-              </CodeView>
+              <ErrorBoundary title={errorMessageObject}>
+                <CodeView
+                  contentClass={this.getFormattedTableDefinition(
+                    shouldShowCodeView,
+                    true,
+                  )}
+                >
+                  <SyntaxHighlighter language="sql">
+                    {formattedSQL}
+                  </SyntaxHighlighter>
+                  <span className="inner-actions">
+                    <QueryDataset
+                      fullPath={dataset.get("displayFullPath")}
+                      resourceId={dataset.getIn(["displayFullPath", 0])}
+                      tooltipPlacement="top"
+                      tooltipPortal
+                    />
+                    <CopyButton contents={formattedSQL} />
+                  </span>
+                </CodeView>
+              </ErrorBoundary>
             ) : (
               <div className="dremioContent__main">
                 {this.props.availablePageTypes.map((page) => (
@@ -1648,7 +1715,7 @@ export class ExplorePageContentWrapper extends PureComponent {
                           window.innerHeight,
                           isMultiTabEnabled && isTabbable
                             ? 0
-                            : EXPLORE_HEADER_HEIGHT
+                            : EXPLORE_HEADER_HEIGHT,
                         ),
                       }}
                     >
@@ -1662,7 +1729,7 @@ export class ExplorePageContentWrapper extends PureComponent {
                             onTabSelected={(tabId) => {
                               const script =
                                 ScriptsResource.getResource().value?.find(
-                                  (script) => script.id === tabId
+                                  (script) => script.id === tabId,
                                 );
                               if (!script) {
                                 return;
@@ -1670,11 +1737,13 @@ export class ExplorePageContentWrapper extends PureComponent {
                               if (
                                 isMultiQueryRunning &&
                                 exploreUtils.hasUnsubmittedQueries(
-                                  this.props.queryStatuses
+                                  this.props.queryStatuses,
                                 )
                               ) {
                                 this.onLeaveTabWhileQueriesRunning(() =>
-                                  handleOpenTabScript(this.props.router)(script)
+                                  handleOpenTabScript(this.props.router)(
+                                    script,
+                                  ),
                                 );
                               } else {
                                 handleOpenTabScript(this.props.router)(script);
@@ -1690,7 +1759,7 @@ export class ExplorePageContentWrapper extends PureComponent {
                                 handler: () => {
                                   const script =
                                     ScriptsResource.getResource().value?.find(
-                                      (script) => script.id === tabId
+                                      (script) => script.id === tabId,
                                     );
                                   this.onRenameTab(script);
                                 },
@@ -1725,20 +1794,32 @@ export class ExplorePageContentWrapper extends PureComponent {
                                   $SqlRunnerSession.$merged.value?.scriptIds
                                     .length <= 1,
                               },
+                              {
+                                id: "closeOthers",
+                                label: t(
+                                  "Sonar.SqlRunner.Tab.Actions.CloseOthers",
+                                ),
+                                handler: () => {
+                                  handleCloseOthers();
+                                },
+                                disabled:
+                                  $SqlRunnerSession.$merged.value?.scriptIds
+                                    .length <= 1,
+                              },
                             ]}
                             onNewTabCreated={async () => {
                               await ScriptsResource.fetch();
                               await fetchAllAndMineScripts(
                                 this.props.fetchScripts,
-                                null
+                                null,
                               );
                               handleOpenTabScript(this.props.router)(
                                 ScriptsResource.getResource().value.find(
                                   (script) =>
                                     script.id ===
                                     $SqlRunnerSession.$source.value
-                                      .currentScriptId
-                                )
+                                      .currentScriptId,
+                                ),
                               );
                             }}
                           />
@@ -1746,16 +1827,7 @@ export class ExplorePageContentWrapper extends PureComponent {
                       </MultiTabIsEnabledProvider>
                       {this.getContentHeader()}
 
-                      <ErrorBoundary
-                        title={intl.formatMessage(
-                          { id: "Support.error.section" },
-                          {
-                            section: intl.formatMessage({
-                              id: "SectionLabel.sql.editor",
-                            }),
-                          }
-                        )}
-                      >
+                      <ErrorBoundary title={errorMessageObject}>
                         {this.getUpperContent()}
                       </ErrorBoundary>
 
@@ -1823,21 +1895,20 @@ function mapStateToProps(state, ownProps) {
   const lastDataset = fullDataset && fullDataset.last();
   const permissions =
     firstDataset && Map.isMap(firstDataset) && firstDataset.get("permissions");
-  const jobListForStatusArray = getJobList(state, ownProps);
-  const statusesArray = queryStatuses.map((job) => {
-    const filteredResult = jobListForStatusArray.filter((listedJob) => {
-      return job.jobId === listedJob.get("id");
-    });
-    const jobResult =
-      Immutable.List.isList(filteredResult) && filteredResult.first();
-    if (jobResult && jobResult.get("state")) {
-      return jobResult.get("state");
+
+  const jobSummaries = getJobSummaries(state);
+
+  const statusesArray = queryStatuses.map((queryStatus) => {
+    const jobSummary = jobSummaries[queryStatus.jobId];
+
+    if (jobSummary?.state) {
+      return jobSummary.state;
     }
 
-    if (job.error) {
+    if (queryStatus.error) {
       return "FAILED";
     }
-    if (job.cancelled) {
+    if (queryStatus.cancelled) {
       return "REMOVED";
     }
 
@@ -1901,20 +1972,23 @@ export default compose(
       setQuerySelections,
       setPreviousAndCurrentSql,
       setSelectedSql,
+      setCurrentSql,
       setCustomDefaultSql,
       setQueryTabNumber,
       fetchScripts,
       fetchSupportFlags,
-      fetchFilteredJobsList,
-      resetFilteredJobsList,
+      fetchJobSummary,
+      fetchJobDetails,
+      clearExploreJobs,
       toggleExploreSql,
       setResizeProgressState,
+      loadScriptJobs,
     },
     null,
-    { forwardRef: true }
+    { forwardRef: true },
   ),
   injectIntl,
   withDatasetChanges,
   withAvailablePageTypes,
-  withCatalogARSFlag
+  withCatalogARSFlag,
 )(ExplorePageContentWrapper);

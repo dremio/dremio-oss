@@ -15,8 +15,5 @@
  */
 package com.dremio.service.namespace;
 
-/**
- * Attributes that can be applied to a namespace entity
- */
-public interface NamespaceAttribute {
-}
+/** Attributes that can be applied to a namespace entity */
+public interface NamespaceAttribute {}

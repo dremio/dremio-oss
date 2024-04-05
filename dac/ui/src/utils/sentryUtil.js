@@ -24,16 +24,31 @@ import config from "./config";
   sent correctly in case DREMIO_RELEASE=false, but was not sent in case DREMIO_RELEASE=true.
   (See ErrorBoundary for example)
  */
+
+const SENTRY_URL = new URL(
+  "https://2592b22bfefa49b3b5b1e72393f84194@o31066.ingest.sentry.io/66750",
+);
+
+const sentryIsReachable = () => {
+  return fetch(SENTRY_URL.origin, { mode: "no-cors" })
+    .then(() => true)
+    .catch(() => false);
+};
 class SentryUtil {
   // we'd really like to have a uuid for the error, but cross-referencing sentry with the UI
   // will be prone to timing issues. So just creating a session UUID that we can use - it should be
   // good enough to find records given a report.
   sessionUUID = uuidv4();
+  isReachable = null;
 
-  install() {
+  async install() {
     if (config.logErrorsToSentry && !config.outsideCommunicationDisabled) {
+      this.isReachable = await sentryIsReachable();
+      if (!this.isReachable) {
+        return;
+      }
       Sentry.init({
-        dsn: "https://2592b22bfefa49b3b5b1e72393f84194@o31066.ingest.sentry.io/66750",
+        dsn: SENTRY_URL.toString(),
         release: getVersion(),
         serverName: config.clusterId,
       });
@@ -48,7 +63,11 @@ class SentryUtil {
   }
 
   logException(ex, context) {
-    if (config.logErrorsToSentry && !config.outsideCommunicationDisabled) {
+    if (
+      config.logErrorsToSentry &&
+      !config.outsideCommunicationDisabled &&
+      this.isReachable
+    ) {
       Sentry.withScope((scope) => {
         scope.setExtras(context);
         Sentry.captureException(ex);

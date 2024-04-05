@@ -15,24 +15,31 @@
  */
 package com.dremio.exec.testing;
 
+import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
-
-/**
- * The base class for all types of injections (currently, pause and exception).
- */
+/** The base class for all types of injections (currently, pause and exception). */
 public abstract class Injection {
 
-  protected final String address;  // the address of the node on which to inject
-  protected final int port; // user port of the node; useful when there are multiple nodes on same machine
+  protected final String address; // the address of the node on which to inject
+  protected final int
+      port; // user port of the node; useful when there are multiple nodes on same machine
   protected final Class<?> siteClass; // the class where the injection should happen
-  protected final String desc; // description of the injection site; useful for multiple exception injections in a single class
+  protected final String
+      desc; // description of the injection site; useful for multiple exception injections in a
+  // single class
   private final AtomicInteger nSkip; // the number of times to skip the injection; starts >= 0
-  private final AtomicInteger nFire;  // the number of times to do the injection, after any skips; starts > 0
+  private final AtomicInteger
+      nFire; // the number of times to do the injection, after any skips; starts > 0
 
-  protected Injection(final String address, final int port, final String siteClass, final String desc,
-                      final int nSkip, final int nFire) throws InjectionConfigurationException {
+  protected Injection(
+      final String address,
+      final int port,
+      final String siteClass,
+      final String desc,
+      final int nSkip,
+      final int nFire)
+      throws InjectionConfigurationException {
     if (desc == null || desc.isEmpty()) {
       throw new InjectionConfigurationException("Injection desc is null or empty.");
     }
@@ -74,9 +81,10 @@ public abstract class Injection {
     return siteClass;
   }
 
-  // If the address is null, the injection must happen on every node that reaches the specified site.
+  // If the address is null, the injection must happen on every node that reaches the specified
+  // site.
   public final boolean isValidForBit(final NodeEndpoint endpoint) {
-    return address == null ||
-      (address.equals(endpoint.getAddress()) && port == endpoint.getUserPort());
+    return address == null
+        || (address.equals(endpoint.getAddress()) && port == endpoint.getUserPort());
   }
 }

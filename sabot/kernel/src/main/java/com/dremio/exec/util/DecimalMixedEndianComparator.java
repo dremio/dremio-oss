@@ -15,14 +15,13 @@
  */
 package com.dremio.exec.util;
 
-import org.apache.arrow.memory.ArrowBuf;
-
 import io.netty.util.internal.PlatformDependent;
+import org.apache.arrow.memory.ArrowBuf;
 
 public interface DecimalMixedEndianComparator {
 
-  int compare(ArrowBuf left, int startIndexLeft,
-              int valueLength, ArrowBuf right, int startIndexRight);
+  int compare(
+      ArrowBuf left, int startIndexLeft, int valueLength, ArrowBuf right, int startIndexRight);
 
   default long getLongValueHigh(ArrowBuf buf, int index) {
     long startingAddress = buf.memoryAddress() + index;

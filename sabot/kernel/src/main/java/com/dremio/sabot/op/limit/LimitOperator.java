@@ -15,11 +15,6 @@
  */
 package com.dremio.sabot.op.limit;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import org.apache.arrow.vector.util.TransferPair;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.physical.config.Limit;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
@@ -29,6 +24,9 @@ import com.dremio.exec.record.VectorWrapper;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.spi.SingleInputOperator;
 import com.google.common.collect.ImmutableList;
+import java.util.ArrayList;
+import java.util.List;
+import org.apache.arrow.vector.util.TransferPair;
 
 public class LimitOperator implements SingleInputOperator {
 
@@ -42,25 +40,25 @@ public class LimitOperator implements SingleInputOperator {
   private ImmutableList<TransferPair> transfers;
   private int recordCount;
 
-  public LimitOperator(OperatorContext context, Limit popConfig){
+  public LimitOperator(OperatorContext context, Limit popConfig) {
     this.context = context;
     this.outgoing = context.createOutputVectorContainer();
 
     recordsToSkip = popConfig.getFirst();
     noEndLimit = popConfig.getLast() == null;
 
-    if(!noEndLimit) {
+    if (!noEndLimit) {
       recordsLeft = popConfig.getLast() - recordsToSkip;
     }
-
   }
 
   @Override
   public VectorAccessible setup(VectorAccessible accessible) throws Exception {
     state.is(State.NEEDS_SETUP);
     List<TransferPair> pairs = new ArrayList<>();
-    for(VectorWrapper<?> w : accessible){
-      TransferPair pair = w.getValueVector().getTransferPair(context.getAllocator());
+    for (VectorWrapper<?> w : accessible) {
+      TransferPair pair =
+          w.getValueVector().getTransferPair(w.getValueVector().getField(), context.getAllocator());
       pairs.add(pair);
       outgoing.add(pair.getTo());
     }
@@ -77,27 +75,27 @@ public class LimitOperator implements SingleInputOperator {
   public void consumeData(int records) throws Exception {
     state.is(State.CAN_CONSUME);
 
-    if(recordsToSkip == 0){
-      if(noEndLimit) {
+    if (recordsToSkip == 0) {
+      if (noEndLimit) {
         transferAll(records);
         return;
       } else {
-        if(recordsLeft > records){
+        if (recordsLeft > records) {
           transferAll(records);
-        }else {
+        } else {
           transferPartial(recordsLeft);
         }
       }
 
-    } else if(recordsToSkip >= records){
+    } else if (recordsToSkip >= records) {
       recordsToSkip -= records;
       // stay in consume since we have no records to output.
       return;
     } else {
-      int recordsToCopy = (noEndLimit) ? (records - recordsToSkip) : Math.min(records - recordsToSkip, recordsLeft);
+      int recordsToCopy =
+          (noEndLimit) ? (records - recordsToSkip) : Math.min(records - recordsToSkip, recordsLeft);
       copyPartial(recordsToSkip, recordsToCopy);
     }
-
   }
 
   @Override
@@ -109,7 +107,7 @@ public class LimitOperator implements SingleInputOperator {
   @Override
   public int outputData() throws Exception {
     state.is(State.CAN_PRODUCE);
-    if(recordsLeft > 0 || noEndLimit){
+    if (recordsLeft > 0 || noEndLimit) {
       state = State.CAN_CONSUME;
     } else {
       state = State.DONE;
@@ -118,7 +116,8 @@ public class LimitOperator implements SingleInputOperator {
   }
 
   @Override
-  public <OUT, IN, EXCEP extends Throwable> OUT accept(OperatorVisitor<OUT, IN, EXCEP> visitor, IN value) throws EXCEP {
+  public <OUT, IN, EXCEP extends Throwable> OUT accept(
+      OperatorVisitor<OUT, IN, EXCEP> visitor, IN value) throws EXCEP {
     return visitor.visitSingleInput(this, value);
   }
 
@@ -132,23 +131,23 @@ public class LimitOperator implements SingleInputOperator {
     return state;
   }
 
-  private void transferPartial(int length){
+  private void transferPartial(int length) {
     recordCount = length;
     recordsLeft -= length;
-    for(TransferPair p : transfers){
+    for (TransferPair p : transfers) {
       p.transfer();
     }
     outgoing.setAllCount(recordCount);
     state = State.CAN_PRODUCE;
   }
 
-  private void copyPartial(final int offset, final int length){
+  private void copyPartial(final int offset, final int length) {
     outgoing.allocateNew();
     recordsToSkip -= offset;
     recordsLeft -= length;
     recordCount = length;
-    for(final TransferPair p : transfers){
-      for(int i = 0; i < length; i++){
+    for (final TransferPair p : transfers) {
+      for (int i = 0; i < length; i++) {
         p.copyValueSafe(offset + i, i);
       }
     }
@@ -156,22 +155,22 @@ public class LimitOperator implements SingleInputOperator {
     state = State.CAN_PRODUCE;
   }
 
-  private void transferAll(int length){
+  private void transferAll(int length) {
     recordCount = length;
     recordsLeft -= length;
-    for(TransferPair p : transfers){
+    for (TransferPair p : transfers) {
       p.transfer();
     }
     outgoing.setRecordCount(recordCount);
     state = State.CAN_PRODUCE;
   }
 
-  public static class Creator implements SingleInputOperator.Creator<Limit>{
+  public static class Creator implements SingleInputOperator.Creator<Limit> {
 
     @Override
-    public SingleInputOperator create(OperatorContext context, Limit operator) throws ExecutionSetupException {
+    public SingleInputOperator create(OperatorContext context, Limit operator)
+        throws ExecutionSetupException {
       return new LimitOperator(context, operator);
     }
-
   }
- }
+}

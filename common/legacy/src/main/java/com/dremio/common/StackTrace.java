@@ -17,15 +17,11 @@ package com.dremio.common;
 
 import java.util.Arrays;
 
-/**
- * Convenient way of obtaining and manipulating stack traces for debugging.
- */
+/** Convenient way of obtaining and manipulating stack traces for debugging. */
 public class StackTrace {
   private final StackTraceElement[] stackTraceElements;
 
-  /**
-   * Constructor. Captures the current stack trace.
-   */
+  /** Constructor. Captures the current stack trace. */
   public StackTrace() {
     // skip over the first element so that we don't include this constructor call
     final StackTraceElement[] stack = Thread.currentThread().getStackTrace();
@@ -34,10 +30,9 @@ public class StackTrace {
 
   /**
    * Write the stack trace to a StringBuilder.
-   * @param sb
-   *          where to write it
-   * @param indent
-   *          how many double spaces to indent each line
+   *
+   * @param sb where to write it
+   * @param indent how many double spaces to indent each line
    */
   public void writeToBuilder(final StringBuilder sb, final int indent) {
     // create the indentation string
@@ -45,7 +40,7 @@ public class StackTrace {
     Arrays.fill(indentation, ' ');
 
     // write the stack trace in standard Java format
-    for(StackTraceElement ste : stackTraceElements) {
+    for (StackTraceElement ste : stackTraceElements) {
       sb.append(indentation)
           .append("at ")
           .append(ste.getClassName())

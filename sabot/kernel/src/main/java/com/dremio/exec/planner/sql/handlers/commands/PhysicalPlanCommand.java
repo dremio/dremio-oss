@@ -28,9 +28,7 @@ public class PhysicalPlanCommand extends AsyncCommand {
 
   private PhysicalPlan physicalPlan;
 
-  public PhysicalPlanCommand(
-      PhysicalPlanReader reader,
-      ByteString plan) {
+  public PhysicalPlanCommand(PhysicalPlanReader reader, ByteString plan) {
     super();
     this.reader = reader;
     this.plan = plan;

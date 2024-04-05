@@ -18,56 +18,54 @@ package com.dremio.exec.store.deltalake;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.StandardCopyOption;
-
-import org.apache.hadoop.conf.Configuration;
-import org.junit.Test;
-
 import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.google.common.io.Resources;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
+import org.apache.hadoop.conf.Configuration;
+import org.junit.Test;
 
-/**
- * Tests for {@link DeltaLakeFormatPlugin}
- */
+/** Tests for {@link DeltaLakeFormatPlugin} */
 public class TestDeltaLakeFormatPlugin {
 
-    @Test
-    public void testIsParquetCorrectExtension() throws Exception {
-        final FileSystem fs = HadoopFileSystem.getLocal(new Configuration());
-        final Path file = developTestParquet("zero_row.parquet");
-        assertTrue(DeltaLakeFormatPlugin.isParquet(fs, fs.getFileAttributes(file)));
-    }
+  @Test
+  public void testIsParquetCorrectExtension() throws Exception {
+    final FileSystem fs = HadoopFileSystem.getLocal(new Configuration());
+    final Path file = developTestParquet("zero_row.parquet");
+    assertTrue(DeltaLakeFormatPlugin.isParquet(fs, fs.getFileAttributes(file)));
+  }
 
-    @Test
-    public void testIsParquetNoExtension() throws Exception {
-        final FileSystem fs = HadoopFileSystem.getLocal(new Configuration());
-        final Path file = developTestParquet("000000_0");
-        assertTrue(DeltaLakeFormatPlugin.isParquet(fs, fs.getFileAttributes(file)));
-    }
+  @Test
+  public void testIsParquetNoExtension() throws Exception {
+    final FileSystem fs = HadoopFileSystem.getLocal(new Configuration());
+    final Path file = developTestParquet("000000_0");
+    assertTrue(DeltaLakeFormatPlugin.isParquet(fs, fs.getFileAttributes(file)));
+  }
 
-    @Test
-    public void testIsParquetNegative() throws Exception {
-        final FileSystem fs = HadoopFileSystem.getLocal(new Configuration());
-        final Path file = developTestParquet("000000_1");
-        assertFalse(DeltaLakeFormatPlugin.isParquet(fs, fs.getFileAttributes(file)));
-    }
+  @Test
+  public void testIsParquetNegative() throws Exception {
+    final FileSystem fs = HadoopFileSystem.getLocal(new Configuration());
+    final Path file = developTestParquet("000000_1");
+    assertFalse(DeltaLakeFormatPlugin.isParquet(fs, fs.getFileAttributes(file)));
+  }
 
-    @Test
-    public void testIsParquetInvalidSize() throws Exception {
-        final FileSystem fs = HadoopFileSystem.getLocal(new Configuration());
-        final Path file = developTestParquet("empty.parquet");
-        assertFalse(DeltaLakeFormatPlugin.isParquet(fs, fs.getFileAttributes(file)));
-    }
+  @Test
+  public void testIsParquetInvalidSize() throws Exception {
+    final FileSystem fs = HadoopFileSystem.getLocal(new Configuration());
+    final Path file = developTestParquet("empty.parquet");
+    assertFalse(DeltaLakeFormatPlugin.isParquet(fs, fs.getFileAttributes(file)));
+  }
 
-    private Path developTestParquet(String resourceName) throws IOException {
-        File dest = Files.createTempFile(this.getClass().getName() + "_", ".parquet").toFile();
-        Files.copy(Resources.getResource("parquet/" + resourceName).openStream(),
-                dest.toPath(), StandardCopyOption.REPLACE_EXISTING);
-        return Path.of(dest.getAbsolutePath());
-    }
+  private Path developTestParquet(String resourceName) throws IOException {
+    File dest = Files.createTempFile(this.getClass().getName() + "_", ".parquet").toFile();
+    Files.copy(
+        Resources.getResource("parquet/" + resourceName).openStream(),
+        dest.toPath(),
+        StandardCopyOption.REPLACE_EXISTING);
+    return Path.of(dest.getAbsolutePath());
+  }
 }

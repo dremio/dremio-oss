@@ -41,6 +41,7 @@ message Script {
   string content = 9; // content of script
 
   repeated com.dremio.dac.proto.model.dataset.SourceVersionReference references = 10; // source version preferences
+  repeated string jobIds = 11;
 }
 
 message ScriptRequest {
@@ -50,6 +51,7 @@ message ScriptRequest {
   string content = 4;
   repeated com.dremio.dac.proto.model.dataset.SourceVersionReference references = 5;
   string sessionId = 6;
+  repeated string jobIds = 11;
 }
 
 message ScriptWithPrivileges {

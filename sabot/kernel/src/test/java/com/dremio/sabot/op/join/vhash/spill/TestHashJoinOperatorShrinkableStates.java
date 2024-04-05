@@ -18,15 +18,7 @@ package com.dremio.sabot.op.join.vhash.spill;
 import static com.dremio.sabot.Fixtures.t;
 import static com.dremio.sabot.Fixtures.th;
 import static com.dremio.sabot.Fixtures.tr;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
-import org.apache.calcite.rel.core.JoinRelType;
-import org.junit.Test;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.logical.data.JoinCondition;
@@ -36,103 +28,197 @@ import com.dremio.sabot.Fixtures;
 import com.dremio.sabot.Generator;
 import com.dremio.sabot.join.BaseTestJoin;
 import com.dremio.sabot.join.hash.TestVHashJoinSpill;
+import com.dremio.sabot.op.spi.DualInputOperator;
 import com.dremio.sabot.op.spi.SingleInputOperator;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import org.apache.calcite.rel.core.JoinRelType;
+import org.junit.Test;
 
 public class TestHashJoinOperatorShrinkableStates extends TestVHashJoinSpill {
 
   @Test
-  public void testShrinkMemory() throws Exception {
-    BaseTestJoin.JoinInfo joinInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("a"), f("b"))),
-      JoinRelType.INNER);
+  public void testShrinkInCanConsumeR() throws Exception {
+    BaseTestJoin.JoinInfo joinInfo =
+        getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("a"), f("b"))), JoinRelType.INNER);
 
     final int batchSize = 1096;
     final Fixtures.DataRow[] leftRows = new Fixtures.DataRow[batchSize];
     final Fixtures.DataRow[] rightRows = new Fixtures.DataRow[batchSize];
+    final Fixtures.DataRow[] expectedRows = new Fixtures.DataRow[batchSize];
     for (int i = 0; i < batchSize; i++) {
       leftRows[i] = tr((long) i);
       rightRows[i] = tr((long) i);
+      expectedRows[i] = tr((long) i, (long) i);
     }
 
     final Fixtures.Table left = t(th("a"), leftRows);
     final Fixtures.Table right = t(th("b"), rightRows);
-    VectorizedSpillingHashJoinOperator op = newOperator(VectorizedSpillingHashJoinOperator.class, joinInfo.operator, batchSize);
+    final Fixtures.Table expected = t(th("b", "a"), expectedRows).orderInsensitive();
+    VectorizedSpillingHashJoinOperator op =
+        newOperator(VectorizedSpillingHashJoinOperator.class, joinInfo.operator, batchSize);
+    final List<RecordBatchData> data = new ArrayList<>();
     try (Generator leftGen = left.toGenerator(getTestAllocator());
-         Generator rightGen = right.toGenerator(getTestAllocator())) {
+        Generator rightGen = right.toGenerator(getTestAllocator())) {
+      VectorAccessible output = op.setup(leftGen.getOutput(), rightGen.getOutput());
+      // consume a build batch
+      int rightCount = rightGen.next(batchSize);
+      op.consumeDataRight(rightCount);
+      long shrinkableMemory = op.shrinkableMemory();
 
-        op.setup(leftGen.getOutput(), rightGen.getOutput());
-
-        //consume a build batch
-        int rightCount = rightGen.next(batchSize);
-        op.consumeDataRight(rightCount);
-        long shrinkableMemory = op.shrinkableMemory();
-
-        //spill
+      // spill
+      do {
         op.shrinkMemory(batchSize);
-        assertTrue(shrinkableMemory > op.shrinkableMemory());
+      } while ((op.getState() == DualInputOperator.State.CAN_PRODUCE));
 
-       shrinkableMemory = op.shrinkableMemory();
-        //to run multi-memory releaser
-        op.outputData();
+      // check if shrink was successful
+      assertTrue(shrinkableMemory > op.shrinkableMemory());
 
-        //more memory shrinked in memory releaser
-        assertTrue(shrinkableMemory > op.shrinkableMemory());
+      op.noMoreToConsumeRight();
 
-        //consume a build batch
-        rightCount = rightGen.next(batchSize);
-        op.consumeDataRight(rightCount);
+      int leftCount = leftGen.next(batchSize);
 
-        //goes into CAN_PRODUCE state
-        op.noMoreToConsumeRight();
+      op.consumeDataLeft(leftCount);
 
-        shrinkableMemory = op.shrinkableMemory();
-
-        //shrinkable memory stays the same spilling is not allowed in CAN_PRODUCE state
-        assertEquals(shrinkableMemory, op.shrinkableMemory());
-
+      while (op.getState() == DualInputOperator.State.CAN_PRODUCE) {
+        int outputCount = op.outputData();
+        if (outputCount > 0 || (outputCount == 0 && expected.isExpectZero())) {
+          data.add(new RecordBatchData(output, getTestAllocator()));
+        }
       }
+      op.noMoreToConsumeLeft();
+
+      while (op.getState() == DualInputOperator.State.CAN_PRODUCE) {
+        int outputCount = op.outputData();
+        if (outputCount > 0 || (outputCount == 0 && expected.isExpectZero())) {
+          data.add(new RecordBatchData(output, getTestAllocator()));
+        }
+      }
+      assertState(op, SingleInputOperator.State.DONE);
+      expected.checkValid(data);
+    } finally {
+      AutoCloseables.close(data);
     }
+  }
 
   @Test
-  public void testShrinkInCanConsumeL()  throws Exception {
-    BaseTestJoin.JoinInfo joinInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("a"), f("b"))),
-      JoinRelType.INNER);
+  public void testShrinkInCanProduce() throws Exception {
+    BaseTestJoin.JoinInfo joinInfo =
+        getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("a"), f("b"))), JoinRelType.INNER);
+
+    final int batchSize = 1096;
+    final Fixtures.DataRow[] leftRows = new Fixtures.DataRow[batchSize];
+    final Fixtures.DataRow[] rightRows = new Fixtures.DataRow[batchSize];
+    final Fixtures.DataRow[] expectedRows = new Fixtures.DataRow[batchSize];
+    for (int i = 0; i < batchSize; i++) {
+      leftRows[i] = tr((long) i);
+      rightRows[i] = tr((long) i);
+      expectedRows[i] = tr((long) i, (long) i);
+    }
+
+    final Fixtures.Table left = t(th("a"), leftRows);
+    final Fixtures.Table right = t(th("b"), rightRows);
+    final Fixtures.Table expected = t(th("b", "a"), expectedRows).orderInsensitive();
+    VectorizedSpillingHashJoinOperator op =
+        newOperator(VectorizedSpillingHashJoinOperator.class, joinInfo.operator, batchSize);
+    final List<RecordBatchData> data = new ArrayList<>();
+
+    try (Generator leftGen = left.toGenerator(getTestAllocator());
+        Generator rightGen = right.toGenerator(getTestAllocator())) {
+      VectorAccessible output = op.setup(leftGen.getOutput(), rightGen.getOutput());
+      // consume a build batch
+      int rightCount = rightGen.next(batchSize);
+      op.consumeDataRight(rightCount);
+
+      long shrinkableMemory = op.shrinkableMemory();
+
+      // generates a memory releaser, becomes CAN_PRODUCE
+      op.shrinkMemory(batchSize);
+
+      assertTrue(op.getState() == DualInputOperator.State.CAN_PRODUCE);
+
+      assertTrue(shrinkableMemory > op.shrinkableMemory());
+
+      while (op.getState() == DualInputOperator.State.CAN_PRODUCE) {
+        op.outputData();
+      }
+
+      assertTrue(shrinkableMemory > op.shrinkableMemory());
+
+      op.noMoreToConsumeRight();
+
+      int leftCount = leftGen.next(batchSize);
+
+      op.consumeDataLeft(leftCount);
+
+      while (op.getState() == DualInputOperator.State.CAN_PRODUCE) {
+        int outputCount = op.outputData();
+        if (outputCount > 0 || (outputCount == 0 && expected.isExpectZero())) {
+          data.add(new RecordBatchData(output, getTestAllocator()));
+        }
+      }
+      op.noMoreToConsumeLeft();
+
+      // replay spilled data
+      while (op.getState() == DualInputOperator.State.CAN_PRODUCE) {
+        int outputCount = op.outputData();
+        if (outputCount > 0 || (outputCount == 0 && expected.isExpectZero())) {
+          data.add(new RecordBatchData(output, getTestAllocator()));
+        }
+      }
+
+      assertState(op, SingleInputOperator.State.DONE);
+      expected.checkValid(data);
+    } finally {
+      AutoCloseables.close(data);
+    }
+  }
+
+  @Test
+  public void testShrinkInCanConsumeL() throws Exception {
+    BaseTestJoin.JoinInfo joinInfo =
+        getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("a"), f("b"))), JoinRelType.INNER);
 
     final int batchSize = 4096;
     final Fixtures.DataRow[] leftRows = new Fixtures.DataRow[batchSize];
     final Fixtures.DataRow[] rightRows = new Fixtures.DataRow[batchSize];
     final Fixtures.DataRow[] expectedRows = new Fixtures.DataRow[batchSize];
     for (int i = 0; i < batchSize; i++) {
-      leftRows[i] = tr((long)i, i+1);
-      rightRows[i] = tr((long)i, i+11);
-      expectedRows[i] = tr((long)i, i+11, (long)i, i+1);
+      leftRows[i] = tr((long) i, i + 1);
+      rightRows[i] = tr((long) i, i + 11);
+      expectedRows[i] = tr((long) i, i + 11, (long) i, i + 1);
     }
 
     final Fixtures.Table left = t(th("a", "aInt"), leftRows);
     final Fixtures.Table right = t(th("b", "bInt"), rightRows);
-    final Fixtures.Table expected = t(th("b", "bInt", "a", "aInt"), expectedRows).orderInsensitive();
+    final Fixtures.Table expected =
+        t(th("b", "bInt", "a", "aInt"), expectedRows).orderInsensitive();
 
-    VectorizedSpillingHashJoinOperator op = newOperator(VectorizedSpillingHashJoinOperator.class, joinInfo.operator, batchSize);
+    VectorizedSpillingHashJoinOperator op =
+        newOperator(VectorizedSpillingHashJoinOperator.class, joinInfo.operator, batchSize);
     final List<RecordBatchData> data = new ArrayList<>();
     try (Generator leftGen = left.toGenerator(getTestAllocator());
-         Generator rightGen = right.toGenerator(getTestAllocator())) {
+        Generator rightGen = right.toGenerator(getTestAllocator())) {
       VectorAccessible output = op.setup(leftGen.getOutput(), rightGen.getOutput());
 
       boolean doneShrinking = false;
-      outside: while(true){
-        switch(op.getState()){
+      outside:
+      while (true) {
+        switch (op.getState()) {
           case CAN_CONSUME_L:
             int leftCount = leftGen.next(batchSize);
-            if(leftCount > 0){
+            if (leftCount > 0) {
               op.consumeDataLeft(leftCount);
-            }else{
+            } else {
               op.noMoreToConsumeLeft();
             }
             break;
           case CAN_CONSUME_R:
             int rightCount = rightGen.next(batchSize);
-            if(rightCount > 0){
+            if (rightCount > 0) {
               op.consumeDataRight(rightCount);
-            }else{
+            } else {
               op.noMoreToConsumeRight();
               assertTrue(op.shrinkableMemory() > 0);
               doneShrinking = op.shrinkMemory(batchSize);
@@ -143,8 +229,7 @@ public class TestHashJoinOperatorShrinkableStates extends TestVHashJoinSpill {
               doneShrinking = op.shrinkMemory(batchSize);
             } else {
               int outputCount = op.outputData();
-              if (outputCount > 0
-                || (outputCount == 0 && expected.isExpectZero())) {
+              if (outputCount > 0 || (outputCount == 0 && expected.isExpectZero())) {
                 data.add(new RecordBatchData(output, getTestAllocator()));
               }
             }

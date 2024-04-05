@@ -32,6 +32,26 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.dremio.common.exceptions.ExecutionSetupException;
+import com.dremio.common.expression.CompleteType;
+import com.dremio.context.UserContext;
+import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.hadoop.HadoopFileSystem;
+import com.dremio.exec.hadoop.HadoopFileSystemConfigurationAdapter;
+import com.dremio.exec.physical.base.OpProps;
+import com.dremio.exec.store.RecordReader;
+import com.dremio.exec.store.SampleMutator;
+import com.dremio.exec.store.SystemSchemas;
+import com.dremio.exec.store.iceberg.DremioFileIO;
+import com.dremio.exec.store.iceberg.NessieCommitsSubScan;
+import com.dremio.exec.store.iceberg.SnapshotsScanOptions;
+import com.dremio.exec.store.iceberg.model.IcebergCatalogType;
+import com.dremio.io.file.FileSystem;
+import com.dremio.plugins.dataplane.store.DataplanePlugin;
+import com.dremio.sabot.BaseTestOperator;
+import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.sabot.exec.context.OperatorContextImpl;
+import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -39,7 +59,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.hadoop.conf.Configuration;
@@ -64,32 +83,11 @@ import org.projectnessie.model.Reference;
 import org.projectnessie.model.ReferencesResponse;
 import org.projectnessie.tools.compatibility.api.NessieAPI;
 
-import com.dremio.common.exceptions.ExecutionSetupException;
-import com.dremio.common.expression.CompleteType;
-import com.dremio.context.UserContext;
-import com.dremio.exec.catalog.StoragePluginId;
-import com.dremio.exec.hadoop.HadoopFileSystem;
-import com.dremio.exec.hadoop.HadoopFileSystemConfigurationAdapter;
-import com.dremio.exec.physical.base.OpProps;
-import com.dremio.exec.store.RecordReader;
-import com.dremio.exec.store.SampleMutator;
-import com.dremio.exec.store.SystemSchemas;
-import com.dremio.exec.store.iceberg.DremioFileIO;
-import com.dremio.exec.store.iceberg.NessieCommitsSubScan;
-import com.dremio.exec.store.iceberg.SnapshotsScanOptions;
-import com.dremio.exec.store.iceberg.model.IcebergCatalogType;
-import com.dremio.io.file.FileSystem;
-import com.dremio.plugins.dataplane.store.DataplanePlugin;
-import com.dremio.sabot.BaseTestOperator;
-import com.dremio.sabot.exec.context.OperatorContext;
-import com.dremio.sabot.exec.context.OperatorContextImpl;
-import com.google.common.collect.ImmutableList;
-
 public class TestNessieCommitsRecordReader extends BaseTestOperator {
   private static final int DEFAULT_BATCH_SIZE = 2;
   private static final long SNAPSHOT_ID = 4709042947025192029L;
-  private static final List<Reference> REFERENCES = Collections.singletonList(
-    Branch.of("dev", "07b92b065b57ec8d69c5249daa33c329259f7284"));
+  private static final List<Reference> REFERENCES =
+      Collections.singletonList(Branch.of("dev", "07b92b065b57ec8d69c5249daa33c329259f7284"));
   private static final Configuration CONF = new Configuration();
   private static FileSystem fs;
   private OperatorContextImpl context;
@@ -107,8 +105,7 @@ public class TestNessieCommitsRecordReader extends BaseTestOperator {
     when(snapshot.manifestListLocation()).thenReturn("file:///manifest_list.avro");
   }
 
-  @NessieAPI
-  private static NessieApiV2 nessieApi;
+  @NessieAPI private static NessieApiV2 nessieApi;
 
   @Before
   public void beforeTest() throws Exception {
@@ -120,10 +117,12 @@ public class TestNessieCommitsRecordReader extends BaseTestOperator {
     when(fec.getStoragePlugin(any())).thenReturn(plugin);
 
     when(plugin.getNessieApi()).thenReturn(nessieApi);
-    when(plugin.createFSWithAsyncOptions(anyString(), anyString(), any(OperatorContext.class))).thenReturn(fs);
+    when(plugin.createFSWithAsyncOptions(anyString(), anyString(), any(OperatorContext.class)))
+        .thenReturn(fs);
 
-    FileIO fileIO = new DremioFileIO(fs, null, null, null, null,
-        new HadoopFileSystemConfigurationAdapter(CONF));
+    FileIO fileIO =
+        new DremioFileIO(
+            fs, null, null, null, null, new HadoopFileSystemConfigurationAdapter(CONF));
     when(plugin.createIcebergFileIO(eq(fs), any(), any(), any(), any())).thenReturn(fileIO);
   }
 
@@ -179,13 +178,16 @@ public class TestNessieCommitsRecordReader extends BaseTestOperator {
 
     int records;
     VarCharVector pathVector = (VarCharVector) mutator.getVector(SystemSchemas.METADATA_FILE_PATH);
-    VarCharVector manifestListVector = (VarCharVector) mutator.getVector(SystemSchemas.MANIFEST_LIST_PATH);
+    VarCharVector manifestListVector =
+        (VarCharVector) mutator.getVector(SystemSchemas.MANIFEST_LIST_PATH);
     BigIntVector snapshotIdVector = (BigIntVector) mutator.getVector(SystemSchemas.SNAPSHOT_ID);
 
     while ((records = reader.next()) > 0) {
       for (int i = 0; i < records; i++) {
         actual.add(new String(pathVector.get(i), StandardCharsets.UTF_8));
-        assertEquals("file:///manifest_list.avro", new String(manifestListVector.get(i), StandardCharsets.UTF_8));
+        assertEquals(
+            "file:///manifest_list.avro",
+            new String(manifestListVector.get(i), StandardCharsets.UTF_8));
         assertEquals(SNAPSHOT_ID, snapshotIdVector.get(i));
       }
     }
@@ -209,7 +211,8 @@ public class TestNessieCommitsRecordReader extends BaseTestOperator {
     }
     verify(reader, times(3)).next();
     assertThat(actual).hasSize(3);
-    assertThat(actual).containsExactlyInAnyOrder("v2.metadata.json", "v3.metadata.json", "v4.metadata.json");
+    assertThat(actual)
+        .containsExactlyInAnyOrder("v2.metadata.json", "v3.metadata.json", "v4.metadata.json");
   }
 
   @Test
@@ -226,24 +229,33 @@ public class TestNessieCommitsRecordReader extends BaseTestOperator {
   protected void setUpReader() throws ExecutionSetupException, IOException {
     NessieCommitsSubScan subScan = subScan();
 
-    NessieCommitsRecordReader nessieCommitsRecordReader = spy(new NessieCommitsRecordReader(
-      fec,
-      context,
-      subScan
-    ));
-    doReturn(snapshot).when(nessieCommitsRecordReader).loadSnapshot(eq("v1.metadata.json"), anyLong());
-    doReturn(snapshot).when(nessieCommitsRecordReader).loadSnapshot(eq("v2.metadata.json"), anyLong());
-    doReturn(snapshot).when(nessieCommitsRecordReader).loadSnapshot(eq("v3.metadata.json"), anyLong());
-    doReturn(snapshot).when(nessieCommitsRecordReader).loadSnapshot(eq("v4.metadata.json"), anyLong());
+    NessieCommitsRecordReader nessieCommitsRecordReader =
+        spy(new NessieCommitsRecordReader(fec, context, subScan));
+    doReturn(snapshot)
+        .when(nessieCommitsRecordReader)
+        .loadSnapshot(eq("v1.metadata.json"), anyLong());
+    doReturn(snapshot)
+        .when(nessieCommitsRecordReader)
+        .loadSnapshot(eq("v2.metadata.json"), anyLong());
+    doReturn(snapshot)
+        .when(nessieCommitsRecordReader)
+        .loadSnapshot(eq("v3.metadata.json"), anyLong());
+    doReturn(snapshot)
+        .when(nessieCommitsRecordReader)
+        .loadSnapshot(eq("v4.metadata.json"), anyLong());
 
-    doThrow(new NotFoundException("vx")).when(nessieCommitsRecordReader).loadSnapshot(eq("vx.metadata.json"), anyLong());
+    doThrow(new NotFoundException("vx"))
+        .when(nessieCommitsRecordReader)
+        .loadSnapshot(eq("vx.metadata.json"), anyLong());
 
     reader = nessieCommitsRecordReader;
 
     mutator = new SampleMutator(getTestAllocator());
-    mutator.addField(CompleteType.VARCHAR.toField(SystemSchemas.METADATA_FILE_PATH), VarCharVector.class);
+    mutator.addField(
+        CompleteType.VARCHAR.toField(SystemSchemas.METADATA_FILE_PATH), VarCharVector.class);
     mutator.addField(CompleteType.BIGINT.toField(SystemSchemas.SNAPSHOT_ID), BigIntVector.class);
-    mutator.addField(CompleteType.VARCHAR.toField(SystemSchemas.MANIFEST_LIST_PATH), VarCharVector.class);
+    mutator.addField(
+        CompleteType.VARCHAR.toField(SystemSchemas.MANIFEST_LIST_PATH), VarCharVector.class);
     mutator.addField(CompleteType.VARCHAR.toField(SystemSchemas.FILE_PATH), VarCharVector.class);
     mutator.addField(CompleteType.VARCHAR.toField(SystemSchemas.FILE_TYPE), VarCharVector.class);
     mutator.getContainer().buildSchema();
@@ -254,14 +266,11 @@ public class TestNessieCommitsRecordReader extends BaseTestOperator {
 
   private void setupLeanReader() throws ExecutionSetupException {
     NessieCommitsSubScan subScan = subScan();
-    reader = spy(new LeanNessieCommitsRecordReader(
-      fec,
-      context,
-      subScan
-    ));
+    reader = spy(new LeanNessieCommitsRecordReader(fec, context, subScan));
 
     mutator = new SampleMutator(getTestAllocator());
-    mutator.addField(CompleteType.VARCHAR.toField(SystemSchemas.METADATA_FILE_PATH), VarCharVector.class);
+    mutator.addField(
+        CompleteType.VARCHAR.toField(SystemSchemas.METADATA_FILE_PATH), VarCharVector.class);
     mutator.getContainer().buildSchema();
 
     reader.allocate(mutator.getFieldVectorMap());
@@ -274,7 +283,8 @@ public class TestNessieCommitsRecordReader extends BaseTestOperator {
     OpProps props = mock(OpProps.class);
     when(props.getUserName()).thenReturn(UserContext.SYSTEM_USER_NAME);
     when(subScan.getProps()).thenReturn(props);
-    when(subScan.getSnapshotsScanOptions()).thenReturn(new SnapshotsScanOptions(SnapshotsScanOptions.Mode.ALL_SNAPSHOTS, now, 1));
+    when(subScan.getSnapshotsScanOptions())
+        .thenReturn(new SnapshotsScanOptions(SnapshotsScanOptions.Mode.ALL_SNAPSHOTS, now, 1));
     StoragePluginId storagePluginId = mock(StoragePluginId.class);
     when(storagePluginId.getName()).thenReturn("DataplanePlugin");
     when(subScan.getPluginId()).thenReturn(storagePluginId);
@@ -294,11 +304,8 @@ public class TestNessieCommitsRecordReader extends BaseTestOperator {
     when(referencesResponse.getReferences()).thenReturn(REFERENCES);
     when(nessieApi.getAllReferences()).thenReturn(getAllReferencesBuilder);
     try {
-      when(nessieApi.getCommitLog()
-        .reference(any())
-        .fetch(FetchOption.ALL)
-        .stream())
-        .thenReturn(logEntry.stream());
+      when(nessieApi.getCommitLog().reference(any()).fetch(FetchOption.ALL).stream())
+          .thenReturn(logEntry.stream());
     } catch (NessieNotFoundException e) {
       throw new RuntimeException(e);
     }
@@ -308,14 +315,21 @@ public class TestNessieCommitsRecordReader extends BaseTestOperator {
     List<LogResponse.LogEntry> results = new ArrayList<>(keyCount);
 
     int count = 1;
-    while(count <= keyCount) {
+    while (count <= keyCount) {
       ContentKey key = ContentKey.of("a.b." + count + "c.txt");
-      IcebergTable icebergTable = IcebergTable.of("v" + count + ".metadata.json", SNAPSHOT_ID, 42, 42, 42, Integer.toString(count));
-      results.add(LogResponse.LogEntry.builder()
-        .commitMeta(CommitMeta.builder().message("msg").hash("a0f4f33a14fa610c75ff8cd89b6a54f5df61fcb"+count)
-          .commitTime(Instant.EPOCH).build())
-        .addOperations(Operation.Put.of(key, icebergTable))
-        .build());
+      IcebergTable icebergTable =
+          IcebergTable.of(
+              "v" + count + ".metadata.json", SNAPSHOT_ID, 42, 42, 42, Integer.toString(count));
+      results.add(
+          LogResponse.LogEntry.builder()
+              .commitMeta(
+                  CommitMeta.builder()
+                      .message("msg")
+                      .hash("a0f4f33a14fa610c75ff8cd89b6a54f5df61fcb" + count)
+                      .commitTime(Instant.EPOCH)
+                      .build())
+              .addOperations(Operation.Put.of(key, icebergTable))
+              .build());
       count++;
     }
     return results;
@@ -329,21 +343,30 @@ public class TestNessieCommitsRecordReader extends BaseTestOperator {
     IcebergTable icebergTable2 = IcebergTable.of("v3.metadata.json", SNAPSHOT_ID, 42, 42, 42, "1");
     IcebergTable icebergTable3 = IcebergTable.of("v4.metadata.json", SNAPSHOT_ID, 42, 42, 42, "1");
     return LogResponse.LogEntry.builder()
-      .commitMeta(CommitMeta.builder().message("msg").hash("a0f4f33a14fa610c75ff8cd89b6a54f5df61fcb7")
-        .commitTime(Instant.EPOCH).build())
-      .addOperations(
-        Operation.Put.of(key1, icebergTable1),
-        Operation.Put.of(key2, icebergTable2),
-        Operation.Put.of(key3, icebergTable3))
-      .build();
+        .commitMeta(
+            CommitMeta.builder()
+                .message("msg")
+                .hash("a0f4f33a14fa610c75ff8cd89b6a54f5df61fcb7")
+                .commitTime(Instant.EPOCH)
+                .build())
+        .addOperations(
+            Operation.Put.of(key1, icebergTable1),
+            Operation.Put.of(key2, icebergTable2),
+            Operation.Put.of(key3, icebergTable3))
+        .build();
   }
 
   private LogResponse.LogEntry getNonExistentOpCommit() {
     ContentKey key1 = ContentKey.of("a.b2.x.txt");
     IcebergTable icebergTable1 = IcebergTable.of("vx.metadata.json", SNAPSHOT_ID, 42, 42, 42, "1");
     return LogResponse.LogEntry.builder()
-      .commitMeta(CommitMeta.builder().message("msg").hash("a1f4f33a14fa610c75ff8cd89b6a54f5df61fcb8")
-        .commitTime(Instant.EPOCH).build())
-      .addOperations(Operation.Put.of(key1, icebergTable1)).build();
+        .commitMeta(
+            CommitMeta.builder()
+                .message("msg")
+                .hash("a1f4f33a14fa610c75ff8cd89b6a54f5df61fcb8")
+                .commitTime(Instant.EPOCH)
+                .build())
+        .addOperations(Operation.Put.of(key1, icebergTable1))
+        .build();
   }
 }

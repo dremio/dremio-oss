@@ -17,24 +17,14 @@ package com.dremio.exec.store.parquet;
 
 import static com.dremio.exec.util.VectorUtil.getVectorFromSchemaPath;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import org.apache.arrow.vector.VarCharVector;
-import org.apache.arrow.vector.complex.ListVector;
-import org.apache.arrow.vector.complex.StructVector;
-import org.apache.arrow.vector.complex.impl.UnionListReader;
-import org.apache.arrow.vector.complex.reader.FieldReader;
-import org.apache.iceberg.FileContent;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.physical.base.OpProps;
+import com.dremio.exec.physical.config.CopyIntoExtendedProperties;
 import com.dremio.exec.physical.config.TableFunctionConfig;
+import com.dremio.exec.physical.config.TableFunctionContext;
+import com.dremio.exec.physical.config.copyinto.CopyIntoHistoryExtendedProperties;
+import com.dremio.exec.physical.config.copyinto.CopyIntoQueryProperties;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.SplitIdentity;
@@ -42,6 +32,20 @@ import com.dremio.exec.store.SystemSchemas;
 import com.dremio.exec.store.iceberg.deletes.RowLevelDeleteFilterFactory;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
+import io.protostuff.ByteString;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import org.apache.arrow.vector.VarCharVector;
+import org.apache.arrow.vector.complex.ListVector;
+import org.apache.arrow.vector.complex.StructVector;
+import org.apache.arrow.vector.complex.impl.UnionListReader;
+import org.apache.arrow.vector.complex.reader.FieldReader;
+import org.apache.iceberg.FileContent;
 
 public class ParquetScanTableFunction extends ScanTableFunction {
 
@@ -50,7 +54,11 @@ public class ParquetScanTableFunction extends ScanTableFunction {
   private VarCharVector inputSplitIdentityPath;
   private ListVector inputDeleteFiles;
 
-  public ParquetScanTableFunction(FragmentExecutionContext fec, OperatorContext context, OpProps props, TableFunctionConfig functionConfig) {
+  public ParquetScanTableFunction(
+      FragmentExecutionContext fec,
+      OperatorContext context,
+      OpProps props,
+      TableFunctionConfig functionConfig) {
     super(fec, context, props, functionConfig);
   }
 
@@ -59,9 +67,11 @@ public class ParquetScanTableFunction extends ScanTableFunction {
     setSplitReaderCreatorIterator();
 
     if (accessible.getSchema().findFieldIgnoreCase(SystemSchemas.DELETE_FILES).isPresent()) {
-      StructVector splitIdentity = (StructVector) getVectorFromSchemaPath(accessible, SystemSchemas.SPLIT_IDENTITY);
+      StructVector splitIdentity =
+          (StructVector) getVectorFromSchemaPath(accessible, SystemSchemas.SPLIT_IDENTITY);
       inputSplitIdentityPath = splitIdentity.getChild(SplitIdentity.PATH, VarCharVector.class);
-      inputDeleteFiles = (ListVector) getVectorFromSchemaPath(accessible, SystemSchemas.DELETE_FILES);
+      inputDeleteFiles =
+          (ListVector) getVectorFromSchemaPath(accessible, SystemSchemas.DELETE_FILES);
     }
 
     return super.setup(accessible);
@@ -97,7 +107,12 @@ public class ParquetScanTableFunction extends ScanTableFunction {
   }
 
   protected void setSplitReaderCreatorIterator() throws IOException, ExecutionSetupException {
-    splitReaderCreatorIterator = new ParquetSplitReaderCreatorIterator(fec, context, props, functionConfig, false, false);
+    splitReaderCreatorIterator =
+        isCopyIntoSkip(functionConfig.getFunctionContext())
+            ? new CopyIntoSkipParquetSplitReaderCreatorIterator(
+                fec, context, props, functionConfig, false, false)
+            : new ParquetSplitReaderCreatorIterator(
+                fec, context, props, functionConfig, false, false);
   }
 
   @Override
@@ -119,7 +134,7 @@ public class ParquetScanTableFunction extends ScanTableFunction {
     Map<String, RowLevelDeleteFilterFactory.DataFileInfo> dataFileInfo = new HashMap<>();
 
     for (int i = 0; i < incoming.getRecordCount(); i++) {
-       String dataFilePath = new String(inputSplitIdentityPath.get(i), StandardCharsets.UTF_8);
+      String dataFilePath = new String(inputSplitIdentityPath.get(i), StandardCharsets.UTF_8);
       if (dataFileInfo.containsKey(dataFilePath)) {
         // assume 1 row group per split - this will be updated as block splits are expanded
         dataFileInfo.get(dataFilePath).addRowGroups(1);
@@ -137,15 +152,48 @@ public class ParquetScanTableFunction extends ScanTableFunction {
               equalityIds.add(equalityIdsReader.reader().readInteger());
             }
           }
-          deleteFiles.add(new RowLevelDeleteFilterFactory.DeleteFileInfo(path, content, recordCount, equalityIds));
-
+          deleteFiles.add(
+              new RowLevelDeleteFilterFactory.DeleteFileInfo(
+                  path, content, recordCount, equalityIds));
         }
 
-        dataFileInfo.put(dataFilePath, new RowLevelDeleteFilterFactory.DataFileInfo(dataFilePath,
-            deleteFiles, 1));
+        dataFileInfo.put(
+            dataFilePath,
+            new RowLevelDeleteFilterFactory.DataFileInfo(dataFilePath, deleteFiles, 1));
       }
     }
 
     return dataFileInfo;
+  }
+
+  private boolean isCopyIntoSkip(TableFunctionContext tableFunctionContext) {
+    ByteString extendedProperty = tableFunctionContext.getExtendedProperty();
+    Optional<CopyIntoExtendedProperties> copyIntoExtendedPropertiesOptional =
+        CopyIntoExtendedProperties.Util.getProperties(extendedProperty);
+    if (copyIntoExtendedPropertiesOptional.isPresent()) {
+      CopyIntoExtendedProperties copyIntoExtendedProperties =
+          copyIntoExtendedPropertiesOptional.get();
+
+      // COPY INTO 'SKIP_FILE' case
+      CopyIntoQueryProperties copyIntoQueryProperties =
+          copyIntoExtendedProperties.getProperty(
+              CopyIntoExtendedProperties.PropertyKey.COPY_INTO_QUERY_PROPERTIES,
+              CopyIntoQueryProperties.class);
+      if (copyIntoQueryProperties != null
+          && CopyIntoQueryProperties.OnErrorOption.SKIP_FILE.equals(
+              copyIntoQueryProperties.getOnErrorOption())) {
+        return true;
+      }
+
+      // copy_errors() case
+      CopyIntoHistoryExtendedProperties copyIntoHistoryProperties =
+          copyIntoExtendedProperties.getProperty(
+              CopyIntoExtendedProperties.PropertyKey.COPY_INTO_HISTORY_PROPERTIES,
+              CopyIntoHistoryExtendedProperties.class);
+      if (copyIntoHistoryProperties != null) {
+        return true;
+      }
+    }
+    return false;
   }
 }

@@ -17,8 +17,11 @@ package com.dremio.exec.expr.fn.impl;
 
 import static org.junit.Assert.assertEquals;
 
+import com.dremio.common.AutoCloseables;
+import com.dremio.test.AllocatorRule;
+import com.dremio.test.DremioTest;
+import io.netty.buffer.NettyArrowBuf;
 import java.nio.charset.StandardCharsets;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.util.LargeMemoryUtil;
@@ -28,20 +31,11 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
-import com.dremio.common.AutoCloseables;
-import com.dremio.test.AllocatorRule;
-import com.dremio.test.DremioTest;
-
-import io.netty.buffer.NettyArrowBuf;
-
-/**
- * Unit tests for StringFunctionUtil
- */
+/** Unit tests for StringFunctionUtil */
 public class TestStringFunctionUtil extends DremioTest {
   protected BufferAllocator allocator;
 
-  @Rule
-  public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
+  @Rule public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
 
   @Before
   public void setup() {
@@ -60,7 +54,8 @@ public class TestStringFunctionUtil extends DremioTest {
     buf.getBytes(0, destContents);
     byte[] expectedContents = expected.getBytes();
     for (int i = 0; i < bufLen; i++) {
-      assertEquals(String.format("mismatch at position %d", i), expectedContents[i], destContents[i]);
+      assertEquals(
+          String.format("mismatch at position %d", i), expectedContents[i], destContents[i]);
     }
   }
 
@@ -68,12 +63,15 @@ public class TestStringFunctionUtil extends DremioTest {
   private void testCopyUtf8Helper(byte[] in, String expected) throws Exception {
     ArrowBuf src = allocator.buffer(in.length + 1);
     ArrowBuf dest = allocator.buffer(in.length);
-    src.writeByte(0x20);  // one extra byte, just to test startIdx != 0
+    src.writeByte(0x20); // one extra byte, just to test startIdx != 0
     src.writeBytes(in);
 
-    int destLen = StringFunctionUtil.copyUtf8(
-      NettyArrowBuf.unwrapBuffer(src), LargeMemoryUtil.checkedCastToInt(src.readerIndex() + 1),
-      LargeMemoryUtil.checkedCastToInt(src.writerIndex()), dest);
+    int destLen =
+        StringFunctionUtil.copyUtf8(
+            NettyArrowBuf.unwrapBuffer(src),
+            LargeMemoryUtil.checkedCastToInt(src.readerIndex() + 1),
+            LargeMemoryUtil.checkedCastToInt(src.writerIndex()),
+            dest);
     assertSameAsExpected(expected, dest, destLen);
     src.close();
     dest.close();
@@ -82,22 +80,32 @@ public class TestStringFunctionUtil extends DremioTest {
   @Test
   public void testCopyUtf8() throws Exception {
     testCopyUtf8Helper(new byte[] {'g', 'o', 'o', 'd', 'v', 'a', 'l'}, "goodval");
-    testCopyUtf8Helper(new byte[] {'b', 'a', 'd', (byte)0xff, 'v', 'a', 'l'}, "badval");
-    testCopyUtf8Helper(new byte[] {(byte)0xf9, 'g', 'o', 'o', 'd', ' ', 'p', 'a', 'r', 't'}, "good part");
-    testCopyUtf8Helper(new byte[] {'t', 'h', 'i', 's', ' ', 'i', 's', ' ', 'o', 'k', (byte)0xfe}, "this is ok");
-    testCopyUtf8Helper(new byte[] {'f', 'a', 'k', 'e', ' ', (byte) 0xC0, '2', 'B', ' ', 's', 'e', 'q', }, "fake 2B seq");
+    testCopyUtf8Helper(new byte[] {'b', 'a', 'd', (byte) 0xff, 'v', 'a', 'l'}, "badval");
+    testCopyUtf8Helper(
+        new byte[] {(byte) 0xf9, 'g', 'o', 'o', 'd', ' ', 'p', 'a', 'r', 't'}, "good part");
+    testCopyUtf8Helper(
+        new byte[] {'t', 'h', 'i', 's', ' ', 'i', 's', ' ', 'o', 'k', (byte) 0xfe}, "this is ok");
+    testCopyUtf8Helper(
+        new byte[] {
+          'f', 'a', 'k', 'e', ' ', (byte) 0xC0, '2', 'B', ' ', 's', 'e', 'q',
+        },
+        "fake 2B seq");
   }
 
   // Replace the non-UTF8 parts of 'in' with 'replace', expecting to receive 'expected' as a result
   private void testReplaceUtf8Helper(byte[] in, byte replace, String expected) throws Exception {
     ArrowBuf src = allocator.buffer(in.length + 1);
     ArrowBuf dest = allocator.buffer(in.length);
-    src.writeByte(0x20);  // one extra byte, just to test startIdx != 0
+    src.writeByte(0x20); // one extra byte, just to test startIdx != 0
     src.writeBytes(in);
 
-    int destLen = StringFunctionUtil.copyReplaceUtf8(
-      NettyArrowBuf.unwrapBuffer(src), LargeMemoryUtil.checkedCastToInt(src.readerIndex() + 1),
-      LargeMemoryUtil.checkedCastToInt(src.writerIndex()), NettyArrowBuf.unwrapBuffer(dest), replace);
+    int destLen =
+        StringFunctionUtil.copyReplaceUtf8(
+            NettyArrowBuf.unwrapBuffer(src),
+            LargeMemoryUtil.checkedCastToInt(src.readerIndex() + 1),
+            LargeMemoryUtil.checkedCastToInt(src.writerIndex()),
+            NettyArrowBuf.unwrapBuffer(dest),
+            replace);
     assertSameAsExpected(expected, dest, destLen);
     src.close();
     dest.close();
@@ -105,33 +113,49 @@ public class TestStringFunctionUtil extends DremioTest {
 
   @Test
   public void testCopyReplaceUtf8() throws Exception {
-    testReplaceUtf8Helper(new byte[] {'g', 'o', 'o', 'd', 'v', 'a', 'l'},  (byte)'?', "goodval");
-    testReplaceUtf8Helper(new byte[] {'b', 'a', 'd', (byte)0xff, 'v', 'a', 'l'}, (byte)'?', "bad?val");
-    testReplaceUtf8Helper(new byte[] {(byte)0xf9, 'g', 'o', 'o', 'd', ' ', 'p', 'a', 'r', 't'}, (byte)'X', "Xgood part");
-    testReplaceUtf8Helper(new byte[] {'t', 'h', 'i', 's', ' ', 'i', 's', ' ', 'o', 'k', (byte)0xfe}, (byte)'|', "this is ok|");
-    testReplaceUtf8Helper(new byte[] {'f', 'a', 'k', 'e', ' ', (byte) 0xC0, '2', 'B', ' ', 's', 'e', 'q', }, (byte)'?', "fake ?2B seq");
+    testReplaceUtf8Helper(new byte[] {'g', 'o', 'o', 'd', 'v', 'a', 'l'}, (byte) '?', "goodval");
+    testReplaceUtf8Helper(
+        new byte[] {'b', 'a', 'd', (byte) 0xff, 'v', 'a', 'l'}, (byte) '?', "bad?val");
+    testReplaceUtf8Helper(
+        new byte[] {(byte) 0xf9, 'g', 'o', 'o', 'd', ' ', 'p', 'a', 'r', 't'},
+        (byte) 'X',
+        "Xgood part");
+    testReplaceUtf8Helper(
+        new byte[] {'t', 'h', 'i', 's', ' ', 'i', 's', ' ', 'o', 'k', (byte) 0xfe},
+        (byte) '|',
+        "this is ok|");
+    testReplaceUtf8Helper(
+        new byte[] {
+          'f', 'a', 'k', 'e', ' ', (byte) 0xC0, '2', 'B', ' ', 's', 'e', 'q',
+        },
+        (byte) '?',
+        "fake ?2B seq");
   }
 
   private void testIsUtf8Helper(byte[] in, boolean expected) {
     ArrowBuf src = allocator.buffer(in.length + 1);
-    src.writeByte(0x20);  // one extra byte, just to test startIdx != 0
+    src.writeByte(0x20); // one extra byte, just to test startIdx != 0
     src.writeBytes(in);
 
-    assertEquals(expected, GuavaUtf8.isUtf8(NettyArrowBuf.unwrapBuffer(src),
-      LargeMemoryUtil.checkedCastToInt(src.readerIndex() + 1),
-      LargeMemoryUtil.checkedCastToInt(src.writerIndex())));
+    assertEquals(
+        expected,
+        GuavaUtf8.isUtf8(
+            NettyArrowBuf.unwrapBuffer(src),
+            LargeMemoryUtil.checkedCastToInt(src.readerIndex() + 1),
+            LargeMemoryUtil.checkedCastToInt(src.writerIndex())));
     src.close();
   }
 
   @Test
   public void testIsUtf8() throws Exception {
-    testIsUtf8Helper(new byte[] {'g', 'o', 'o', 'd', 'v', 'a', 'l'},  true);
-    testIsUtf8Helper(new byte[] {'b', 'a', 'd', (byte)0xff, 'v', 'a', 'l'}, false);
-    testIsUtf8Helper(new byte[] {(byte)0xf9, 'x', 'y', 'z'}, false);
-    testIsUtf8Helper(new byte[] {'x', 'y', 'z', (byte)0xf9}, false);
+    testIsUtf8Helper(new byte[] {'g', 'o', 'o', 'd', 'v', 'a', 'l'}, true);
+    testIsUtf8Helper(new byte[] {'b', 'a', 'd', (byte) 0xff, 'v', 'a', 'l'}, false);
+    testIsUtf8Helper(new byte[] {(byte) 0xf9, 'x', 'y', 'z'}, false);
+    testIsUtf8Helper(new byte[] {'x', 'y', 'z', (byte) 0xf9}, false);
   }
 
-  // This function separates and returns a string containing only the alphabetic characters of the input in uppercase.
+  // This function separates and returns a string containing only the alphabetic characters of the
+  // input in uppercase.
   private void testSoundexCleanUtf8Helper(String in, String expected) {
     NullableVarCharHolder holder = new NullableVarCharHolder();
     final byte[] outBytea = in.getBytes(StandardCharsets.UTF_8);
@@ -160,6 +184,5 @@ public class TestStringFunctionUtil extends DremioTest {
     testSoundexCleanUtf8Helper("AAAbbbCCCddd", "AAABBBCCCDDD");
     testSoundexCleanUtf8Helper("\0]sdr/95s3xz23", "SDRSXZ");
     testSoundexCleanUtf8Helper("", "");
-
   }
 }

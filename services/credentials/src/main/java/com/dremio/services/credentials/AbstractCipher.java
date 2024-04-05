@@ -17,6 +17,10 @@ package com.dremio.services.credentials;
 
 import static com.dremio.config.DremioConfig.CREDENTIALS_KEYSTORE_PASSWORD;
 
+import com.dremio.config.DremioConfig;
+import com.dremio.security.SecurityFolder;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Strings;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -30,24 +34,19 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.NoSuchElementException;
-
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
-import com.dremio.config.DremioConfig;
-import com.dremio.security.SecurityFolder;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Strings;
-
 /**
- * An Abstract secrets cipher that implements base logic and configuration for
- * encrypting and decrypting secrets using a DEK/KEK pattern. Fields and
- * methods can be pushed down to implementations as needed.
+ * An Abstract secrets cipher that implements base logic and configuration for encrypting and
+ * decrypting secrets using a DEK/KEK pattern. Fields and methods can be pushed down to
+ * implementations as needed.
  */
 public abstract class AbstractCipher implements Cipher {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AbstractCipher.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(AbstractCipher.class);
   private static final String AES = "AES";
   private static final int INITIALIZATION_VECTOR_LENGTH_IN_BYTES = 12;
   private static final int AES_KEY_SIZE = 256;
@@ -64,7 +63,8 @@ public abstract class AbstractCipher implements Cipher {
   private static final Base64.Decoder DECODER = Base64.getUrlDecoder();
   private static final Base64.Encoder ENCODER = Base64.getUrlEncoder();
 
-  // This is the default Dremio keystore password. An external password should be used to provide more security.
+  // This is the default Dremio keystore password. An external password should be used to provide
+  // more security.
   private static final String DEFAULT_KEYSTORE_PASSWORD = "unsecurepassword";
 
   private static final String ILLEGAL_ARGUMENT_ERROR_MESSAGE = "Unknown encrypted secret format";
@@ -75,12 +75,9 @@ public abstract class AbstractCipher implements Cipher {
 
   protected abstract String getKeystoreFilename();
 
-  protected abstract String getSchema();
+  protected abstract String getScheme();
 
-
-  /**
-   * Encryption with prefix IV length + IV bytes to cipher text
-   */
+  /** Encryption with prefix IV length + IV bytes to cipher text */
   protected byte[] doEncrypt(byte[] plainText, SecretKey key) throws CredentialsException {
 
     if (plainText.length > (Integer.MAX_VALUE - INITIALIZATION_VECTOR_LENGTH_IN_BYTES)) {
@@ -93,22 +90,22 @@ public abstract class AbstractCipher implements Cipher {
 
     try {
       javax.crypto.Cipher cipher = javax.crypto.Cipher.getInstance(ENCRYPT_ALGO);
-      cipher.init(javax.crypto.Cipher.ENCRYPT_MODE, key, new GCMParameterSpec(TAG_LENGTH_IN_BITS, initVector));
+      cipher.init(
+          javax.crypto.Cipher.ENCRYPT_MODE,
+          key,
+          new GCMParameterSpec(TAG_LENGTH_IN_BITS, initVector));
       cipherText = cipher.doFinal(plainText);
     } catch (GeneralSecurityException e) {
       throw new SecretCredentialsException("Secret encryption encounters exception", e);
     }
 
     return ByteBuffer.allocate(initVector.length + cipherText.length)
-      .put(initVector)
-      .put(cipherText)
-      .array();
-
+        .put(initVector)
+        .put(cipherText)
+        .array();
   }
 
-  /**
-   * Decryption with prefix IV length + IV bytes to decipher text
-   */
+  /** Decryption with prefix IV length + IV bytes to decipher text */
   protected String doDecrypt(byte[] cipherTextWithIV, SecretKey key) throws CredentialsException {
 
     try {
@@ -121,36 +118,32 @@ public abstract class AbstractCipher implements Cipher {
       bb.get(cipherText);
 
       javax.crypto.Cipher cipher = javax.crypto.Cipher.getInstance(ENCRYPT_ALGO);
-      cipher.init(javax.crypto.Cipher.DECRYPT_MODE, key, new GCMParameterSpec(TAG_LENGTH_IN_BITS, initVector));
+      cipher.init(
+          javax.crypto.Cipher.DECRYPT_MODE,
+          key,
+          new GCMParameterSpec(TAG_LENGTH_IN_BITS, initVector));
       byte[] plainText = cipher.doFinal(cipherText);
       return new String(plainText, StandardCharsets.UTF_8);
     } catch (GeneralSecurityException | BufferUnderflowException e) {
       throw new SecretCredentialsException("Secret decryption encounters exception", e);
     }
-
   }
 
-  /**
-   * new Initialization Vector
-   */
+  /** new Initialization Vector */
   private static byte[] newInitVector() {
     byte[] nonce = new byte[INITIALIZATION_VECTOR_LENGTH_IN_BYTES];
     new SecureRandom().nextBytes(nonce);
     return nonce;
   }
 
-  /**
-   * new AES secret key
-   */
+  /** new AES secret key */
   protected static SecretKey newAESKey() throws NoSuchAlgorithmException {
     KeyGenerator keyGen = KeyGenerator.getInstance(AES);
     keyGen.init(AES_KEY_SIZE, SecureRandom.getInstanceStrong());
     return keyGen.generateKey();
   }
 
-  /**
-   * Build secret token
-   */
+  /** Build secret token */
   @Override
   public String encrypt(String secret) throws CredentialsException {
     try {
@@ -166,10 +159,10 @@ public abstract class AbstractCipher implements Cipher {
       String encryptedDekString = ENCODER.encodeToString(encryptedDekBytes);
 
       return OPAQUE_ID
-        + SECURE_URI_SPLITTER
-        + encryptedDekString
-        + SECURE_URI_SPLITTER
-        + encryptedSecretString;
+          + SECURE_URI_SPLITTER
+          + encryptedDekString
+          + SECURE_URI_SPLITTER
+          + encryptedSecretString;
     } catch (GeneralSecurityException e) {
       throw new SecretCredentialsException("Building secret token encounters exception.", e);
     }
@@ -209,9 +202,7 @@ public abstract class AbstractCipher implements Cipher {
     }
   }
 
-  /**
-   * Lookup keystore password from password URI
-   */
+  /** Lookup keystore password from password URI */
   private char[] getKeystorePassword() throws CredentialsException {
     final String keystorePasswordUri = getConfig().getString(CREDENTIALS_KEYSTORE_PASSWORD);
     if (Strings.isNullOrEmpty(keystorePasswordUri)) {
@@ -231,15 +222,13 @@ public abstract class AbstractCipher implements Cipher {
       return keystorePasswordUri.toCharArray();
     }
 
-    if (getSchema().equalsIgnoreCase(scheme)) {
+    if (getScheme().equalsIgnoreCase(scheme)) {
       throw new SecretCredentialsException("Cannot use secret URI for Dremio keystore password.");
     }
     return getCredentialsService().lookup(keystorePasswordUri).toCharArray();
   }
 
-  /**
-   * Look up secret key in Dremio Keystore
-   */
+  /** Look up secret key in Dremio Keystore */
   @VisibleForTesting
   SecretKey lookupKeystore(String alias, boolean create) throws CredentialsException {
     boolean keystoreExists = SecurityFolder.exists(getConfig(), getKeystoreFilename());
@@ -252,11 +241,13 @@ public abstract class AbstractCipher implements Cipher {
       final char[] password = getKeystorePassword();
       if (keystoreExists) {
         final KeyStore keystore = KeyStore.getInstance(KEYSTORE_TYPE);
-        try (final InputStream inputStream = securityFolder.newSecureInputStream(getKeystoreFilename())) {
+        try (final InputStream inputStream =
+            securityFolder.newSecureInputStream(getKeystoreFilename())) {
           keystore.load(inputStream, password);
         }
         KeyStore.ProtectionParameter entryPassword = new KeyStore.PasswordProtection(password);
-        KeyStore.SecretKeyEntry entry = (KeyStore.SecretKeyEntry) keystore.getEntry(alias, entryPassword);
+        KeyStore.SecretKeyEntry entry =
+            (KeyStore.SecretKeyEntry) keystore.getEntry(alias, entryPassword);
         if (entry == null) {
           throw new NoSuchElementException("No key found");
         }
@@ -272,8 +263,9 @@ public abstract class AbstractCipher implements Cipher {
       KeyStore.ProtectionParameter entryPassword = new KeyStore.PasswordProtection(password);
       keystore.setEntry(alias, secretKeyEntry, entryPassword);
 
-
-      try (OutputStream outputStream = securityFolder.newSecureOutputStream(getKeystoreFilename(), SecurityFolder.OpenOption.CREATE_ONLY)) {
+      try (OutputStream outputStream =
+          securityFolder.newSecureOutputStream(
+              getKeystoreFilename(), SecurityFolder.OpenOption.CREATE_ONLY)) {
         keystore.store(outputStream, password);
       }
       return kek;

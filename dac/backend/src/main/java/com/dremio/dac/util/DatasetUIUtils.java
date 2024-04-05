@@ -15,20 +15,18 @@
  */
 package com.dremio.dac.util;
 
+import com.dremio.dac.explore.model.VersionContextReq;
+import com.dremio.dac.proto.model.dataset.SourceVersionReference;
+import com.dremio.dac.proto.model.dataset.VersionContext;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.dremio.dac.explore.model.VersionContextReq;
-import com.dremio.dac.proto.model.dataset.SourceVersionReference;
-import com.dremio.dac.proto.model.dataset.VersionContext;
-
-/**
- * Util class for DatasetUI
- */
+/** Util class for DatasetUI */
 public class DatasetUIUtils {
 
-  public static Map<String, VersionContextReq> createVersionContextMap(List<SourceVersionReference> referencesList) {
+  public static Map<String, VersionContextReq> createVersionContextMap(
+      List<SourceVersionReference> referencesList) {
     final Map<String, VersionContextReq> versionContextReqMap = new HashMap<>();
     if (referencesList != null) {
       for (SourceVersionReference sourceVersionReference : referencesList) {
@@ -46,9 +44,11 @@ public class DatasetUIUtils {
             versionContextType = VersionContextReq.VersionContextType.COMMIT;
             break;
           default:
-            throw new IllegalArgumentException("Unrecognized versionContextType: " + versionContext.getType());
+            throw new IllegalArgumentException(
+                "Unrecognized versionContextType: " + versionContext.getType());
         }
-        versionContextReqMap.put(sourceName, new VersionContextReq(versionContextType, versionContext.getValue()));
+        versionContextReqMap.put(
+            sourceName, new VersionContextReq(versionContextType, versionContext.getValue()));
       }
     }
 

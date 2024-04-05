@@ -86,14 +86,20 @@ export class SaveAsDatasetModal extends Component {
     const { location, nextAction, isMultiTabEnabled } = this.props;
     invariant(
       typeof values.location === "string",
-      `values.location must be of type string. Got '${typeof values.location}' instead.`
+      `values.location must be of type string. Got '${typeof values.location}' instead.`,
     );
     const action =
       values.reapply === "ORIGINAL"
         ? this.props.submitReapplyAndSaveAsDataset
         : this.props.submitSaveAsDataset;
+
     return ApiUtils.attachFormSubmitHandlers(
-      action(values.name, splitFullPath(values.location), location)
+      action(
+        values.name,
+        splitFullPath(values.location),
+        location,
+        isMultiTabEnabled && isTabbableUrl(location),
+      ),
     ).then((response) => {
       if (isMultiTabEnabled && isTabbableUrl(location)) {
         return this.props.afterSaveDatasetWithMultiTab(response);
@@ -158,5 +164,5 @@ export default compose(
     afterSaveDataset,
     afterSaveDatasetWithMultiTab,
     navigateToNextDataset,
-  })
+  }),
 )(FormUnsavedWarningHOC(SaveAsDatasetModal));

@@ -15,15 +15,12 @@
  */
 package com.dremio.dac.service.search;
 
+import com.dremio.service.Service;
+import com.dremio.service.namespace.NamespaceException;
 import java.util.Collections;
 import java.util.List;
 
-import com.dremio.service.Service;
-import com.dremio.service.namespace.NamespaceException;
-
-/**
- * Search service
- */
+/** Search service */
 public interface SearchService extends Service {
   /**
    * Performs a dataset search using the provided query string
@@ -36,48 +33,50 @@ public interface SearchService extends Service {
   List<SearchContainer> search(String query, String username) throws NamespaceException;
 
   /**
-   * Wakes up the search manager manually, which will cause any modified entities to be reindexed for search
+   * Wakes up the search manager manually, which will cause any modified entities to be reindexed
+   * for search
    *
    * @param reason why the manager was woken up
    */
   void wakeupManager(String reason);
 
-  SearchService UNSUPPORTED = new SearchService() {
-    @Override
-    public void close() throws Exception {
-    }
+  SearchService UNSUPPORTED =
+      new SearchService() {
+        @Override
+        public void close() throws Exception {}
 
-    @Override
-    public void start() throws Exception {
-    }
+        @Override
+        public void start() throws Exception {}
 
-    @Override
-    public List<SearchContainer> search(String query, String username) throws NamespaceException {
-      throw new UnsupportedOperationException("non-master coordinators or executors do not support search");
-    }
+        @Override
+        public List<SearchContainer> search(String query, String username)
+            throws NamespaceException {
+          throw new UnsupportedOperationException(
+              "non-master coordinators or executors do not support search");
+        }
 
-    @Override
-    public void wakeupManager(String reason) {
-      throw new UnsupportedOperationException("non-master coordinators or executors do not support Search");
-    }
-  };
+        @Override
+        public void wakeupManager(String reason) {
+          throw new UnsupportedOperationException(
+              "non-master coordinators or executors do not support Search");
+        }
+      };
 
-  SearchService NOOP = new SearchService() {
-    @Override
-    public void close() throws Exception {
-    }
+  SearchService NOOP =
+      new SearchService() {
+        @Override
+        public void close() throws Exception {}
 
-    @Override
-    public void start() throws Exception {
-    }
+        @Override
+        public void start() throws Exception {}
 
-    @Override
-    public List<SearchContainer> search(String query, String username) throws NamespaceException {
-      return Collections.emptyList();
-    }
+        @Override
+        public List<SearchContainer> search(String query, String username)
+            throws NamespaceException {
+          return Collections.emptyList();
+        }
 
-    @Override
-    public void wakeupManager(String reason) {
-    }
-  };
+        @Override
+        public void wakeupManager(String reason) {}
+      };
 }

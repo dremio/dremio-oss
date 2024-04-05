@@ -17,154 +17,161 @@ package com.dremio.exec.store.easy.text.compliant;
 
 import static org.junit.Assert.fail;
 
+import com.dremio.service.namespace.file.proto.TextFileConfig;
 import java.util.Arrays;
 import java.util.Collection;
-
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import com.dremio.service.namespace.file.proto.TextFileConfig;
-
 @RunWith(Parameterized.class)
 public class TestTextReaderResults extends TestTextReaderHelper {
 
-  public TestTextReaderResults(TextFileConfig fileFormat, String[][] expected, String testFileName) {
+  public TestTextReaderResults(
+      TextFileConfig fileFormat, String[][] expected, String testFileName) {
     super(fileFormat, expected, testFileName);
   }
 
   @Parameterized.Parameters(name = "{index}: test file: {2}, Table Options: {0} ")
   public static Collection<Object[]> data() {
-    return Arrays.asList(new Object[][]{
-        {
-          new TextFileConfig().setLineDelimiter("\n").setTrimHeader(true),
-          new String[][]{
-            {"c1", "c2", "c3"},
-            {"r1c1", "r1c2", "r1c3"},
-            {"r2c1", "r2c2", "r2c3"}
+    return Arrays.asList(
+        new Object[][] {
+          {
+            new TextFileConfig().setLineDelimiter("\n").setTrimHeader(true),
+            new String[][] {
+              {"c1", "c2", "c3"},
+              {"r1c1", "r1c2", "r1c3"},
+              {"r2c1", "r2c2", "r2c3"}
+            },
+            "trim_header.csv"
           },
-          "trim_header.csv"
-        },
-        {
-          new TextFileConfig().setQuote("'").setLineDelimiter("\n"),
-          new String[][]{
-            {"c1", "c2", "c3"},
-            {"r1c1", "r1c2", "r1c3"},
-            {"r2c1", "r2c2", "r2c3"}
+          {
+            new TextFileConfig().setQuote("'").setLineDelimiter("\n"),
+            new String[][] {
+              {"c1", "c2", "c3"},
+              {"r1c1", "r1c2", "r1c3"},
+              {"r2c1", "r2c2", "r2c3"}
+            },
+            "custom_quote.csv"
           },
-          "custom_quote.csv"
-        },
-        {
-          new TextFileConfig().setExtractHeader(true).setComment("!").setLineDelimiter("\n"),
-          new String[][]{
-            {"c1", "c2", "c3"},
-            {"r1c1", "r1c2", "r1c3"},
-            {"r2c1", "r2c2", "r2c3"}
+          {
+            new TextFileConfig().setExtractHeader(true).setComment("!").setLineDelimiter("\n"),
+            new String[][] {
+              {"c1", "c2", "c3"},
+              {"r1c1", "r1c2", "r1c3"},
+              {"r2c1", "r2c2", "r2c3"}
+            },
+            "custom_comment.csv"
           },
-          "custom_comment.csv"
-        },
-        {
-          new TextFileConfig().setFieldDelimiter(",$").setLineDelimiter("\n"),
-          new String[][]{
-            {"c1", "c2", "c3"},
-            {"r1c1", "r1c2", "r1c3"},
-            {"r2c1", "r2c2", "r2c3"}
+          {
+            new TextFileConfig().setFieldDelimiter(",$").setLineDelimiter("\n"),
+            new String[][] {
+              {"c1", "c2", "c3"},
+              {"r1c1", "r1c2", "r1c3"},
+              {"r2c1", "r2c2", "r2c3"}
+            },
+            "multi_char_field_delimiter.txt"
           },
-          "multi_char_field_delimiter.txt"
-        },
-        {
-          new TextFileConfig().setLineDelimiter("\n").setFieldDelimiter("¦"),
-          new String[][]{
-            {"c1", "c2", "c3"},
-            {"r1c1", "r1c2", "r1c3"},
-            {"r2c1", "r2c2", "r2c3"}
+          {
+            new TextFileConfig().setLineDelimiter("\n").setFieldDelimiter("¦"),
+            new String[][] {
+              {"c1", "c2", "c3"},
+              {"r1c1", "r1c2", "r1c3"},
+              {"r2c1", "r2c2", "r2c3"}
+            },
+            "broken_pipe.txt"
           },
-          "broken_pipe.txt"
-        },
-        {
-          new TextFileConfig().setEscape("'").setLineDelimiter("\n"),
-          new String[][]{
-            {"c1", "c2", "c3"},
-            {"r1\"c1", "r1c2", "r1\"c3"},
-            {"r2c1", "r2c2\"", "r2c3"}
+          {
+            new TextFileConfig().setEscape("'").setLineDelimiter("\n"),
+            new String[][] {
+              {"c1", "c2", "c3"},
+              {"r1\"c1", "r1c2", "r1\"c3"},
+              {"r2c1", "r2c2\"", "r2c3"}
+            },
+            "unescaped_quote.csv"
           },
-          "unescaped_quote.csv"
-        },
-        {
-          new TextFileConfig().setLineDelimiter("$"),
-          new String[][]{
-            {"c1", "c2", "c3"},
-            {"r1c1", "r1c2", "r1c3"},
-            {"r2c1", "r2c2", "r2c3"}
+          {
+            new TextFileConfig().setLineDelimiter("$"),
+            new String[][] {
+              {"c1", "c2", "c3"},
+              {"r1c1", "r1c2", "r1c3"},
+              {"r2c1", "r2c2", "r2c3"}
+            },
+            "custom_line_delimiter.csv"
           },
-          "custom_line_delimiter.csv"
-        },
-        {
-          new TextFileConfig().setLineDelimiter("\n"),
-          new String[][]{
-            {"c1", "c2", "c3"},
-            {"\"r1\"c1\"", "r1c2", "\"r1\"c3\""},
-            {"r2c1", "\"r2c2\"", "r2c3"}
+          {
+            new TextFileConfig().setLineDelimiter("\n"),
+            new String[][] {
+              {"c1", "c2", "c3"},
+              {"\"r1\"c1\"", "r1c2", "\"r1\"c3\""},
+              {"r2c1", "\"r2c2\"", "r2c3"}
+            },
+            "quote_escape.csv"
           },
-          "quote_escape.csv"
-        },
-        {
-          new TextFileConfig().setEscape("\\").setLineDelimiter("\n"),
-          new String[][]{
-            {"c1", "c2", "c3"},
-            {"\"r1\"\\c1\"", "r1c2", "\"r1c3\""},
-            {"r2c1", "\"r2c2\"", "r2c3"}
+          {
+            new TextFileConfig().setEscape("\\").setLineDelimiter("\n"),
+            new String[][] {
+              {"c1", "c2", "c3"},
+              {"\"r1\"\\c1\"", "r1c2", "\"r1c3\""},
+              {"r2c1", "\"r2c2\"", "r2c3"}
+            },
+            "custom_quote_escape.csv"
           },
-          "custom_quote_escape.csv"
-        },
-        {
-          new TextFileConfig().setLineDelimiter("\n"),
-          new String[][] {
-            {"c1","c2","c3"},
-            {"r1c1","r1c2","r1c3"},
-            {"r2c1","r2c2","r2c3"}
+          {
+            new TextFileConfig().setLineDelimiter("\n"),
+            new String[][] {
+              {"c1", "c2", "c3"},
+              {"r1c1", "r1c2", "r1c3"},
+              {"r2c1", "r2c2", "r2c3"}
+            },
+            "comment_after_spaces.csv"
           },
-          "comment_after_spaces.csv"
-        },
-        {
-          // Failure to load
-          new TextFileConfig().setEscape("\\").setLineDelimiter("\n"),
-          new String[][]{
-            {"c1", "c2", "c3"},
-            {"r1c1", "This is value field value with an \"embedded\" quoted word using backslash-quote", "r1c3"},
-            {"r2c1", "This is value field value with an \"embedded\" quoted word using double-double-quote", "r2c3"}
+          {
+            // Failure to load
+            new TextFileConfig().setEscape("\\").setLineDelimiter("\n"),
+            new String[][] {
+              {"c1", "c2", "c3"},
+              {
+                "r1c1",
+                "This is value field value with an \"embedded\" quoted word using backslash-quote",
+                "r1c3"
+              },
+              {
+                "r2c1",
+                "This is value field value with an \"embedded\" quoted word using double-double-quote",
+                "r2c3"
+              }
+            },
+            "double_double_quote.csv"
           },
-          "double_double_quote.csv"
-        },
-        {
-          new TextFileConfig().setLineDelimiter("$"),
-          new String[][] {
-            {"c1","c2","c3"},
-            {"r1c1$","r1c2","r1c3$"},
-            {"r2c1","r2c2$","r2c3"}
+          {
+            new TextFileConfig().setLineDelimiter("$"),
+            new String[][] {
+              {"c1", "c2", "c3"},
+              {"r1c1$", "r1c2", "r1c3$"},
+              {"r2c1", "r2c2$", "r2c3"}
+            },
+            "custom_ld_inside_quoted.csv"
           },
-          "custom_ld_inside_quoted.csv"
-        },
-        {
-          new TextFileConfig().setLineDelimiter("\n"),
-          new String[][] {
-            {"c1","c2","c3"},
-            {"r1c1","r1c2","r1c3"},
-            {"r2c1","r2c2","r2c3"}
+          {
+            new TextFileConfig().setLineDelimiter("\n"),
+            new String[][] {
+              {"c1", "c2", "c3"},
+              {"r1c1", "r1c2", "r1c3"},
+              {"r2c1", "r2c2", "r2c3"}
+            },
+            "empty_line_before_header.csv",
           },
-          "empty_line_before_header.csv",
-        },
-        {
-          new TextFileConfig().setLineDelimiter("\n"),
-          new String[][] {
-            {"c1","c2","c3"},
-            {"r1c1","r1c2","r1c3"},
-            {"r2c1","r2c2","r2c3"}
-          },
-          "space_padded_quoted_field.csv"
-        }
-      }
-    );
+          {
+            new TextFileConfig().setLineDelimiter("\n"),
+            new String[][] {
+              {"c1", "c2", "c3"},
+              {"r1c1", "r1c2", "r1c3"},
+              {"r2c1", "r2c2", "r2c3"}
+            },
+            "space_padded_quoted_field.csv"
+          }
+        });
   }
 
   @Test

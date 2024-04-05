@@ -20,13 +20,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
-import java.io.IOException;
-import java.util.List;
-import java.util.stream.Collectors;
-
-import org.junit.Before;
-import org.junit.Test;
-
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.explore.model.DatasetUI;
 import com.dremio.dac.explore.model.InitialPreviewResponse;
@@ -37,6 +30,11 @@ import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.google.common.collect.Lists;
+import java.io.IOException;
+import java.util.List;
+import java.util.stream.Collectors;
+import org.junit.Before;
+import org.junit.Test;
 
 public class ITTestDatasetVersionMutator extends BaseTestServer {
 
@@ -51,7 +49,8 @@ public class ITTestDatasetVersionMutator extends BaseTestServer {
 
   @Test
   public void testDeleteDatasetVersion() {
-    final InitialPreviewResponse showSchemasResponse = createDatasetFromSQL("SHOW SCHEMAS", emptyList());
+    final InitialPreviewResponse showSchemasResponse =
+        createDatasetFromSQL("SHOW SCHEMAS", emptyList());
     final List<String> path = showSchemasResponse.getDataset().getFullPath();
     final String version = showSchemasResponse.getDataset().getDatasetVersion().getVersion();
     final DatasetPath datasetPath = new DatasetPath(path);
@@ -62,13 +61,16 @@ public class ITTestDatasetVersionMutator extends BaseTestServer {
     DatasetVersionMutator.deleteDatasetVersion(provider, path, version);
 
     assertThatThrownBy(() -> service.getVersion(datasetPath, datasetVersion))
-      .isInstanceOf(DatasetVersionNotFoundException.class)
-      .hasMessageContaining(String.format("dataset %s version %s", String.join(".", path), version));
+        .isInstanceOf(DatasetVersionNotFoundException.class)
+        .hasMessageContaining(
+            String.format("dataset %s version %s", String.join(".", path), version));
   }
 
   @Test
-  public void testDeleteDatasetVersion_deleteOtherSamePath_willNotChangeHistory() throws NamespaceException {
-    final InitialPreviewResponse showSchemasResponse = createDatasetFromSQL("SHOW SCHEMAS", emptyList());
+  public void testDeleteDatasetVersion_deleteOtherSamePath_willNotChangeHistory()
+      throws NamespaceException {
+    final InitialPreviewResponse showSchemasResponse =
+        createDatasetFromSQL("SHOW SCHEMAS", emptyList());
     final List<String> path = showSchemasResponse.getDataset().getFullPath();
     final String version = showSchemasResponse.getDataset().getDatasetVersion().getVersion();
     final DatasetPath datasetPath = new DatasetPath(path);
@@ -90,22 +92,24 @@ public class ITTestDatasetVersionMutator extends BaseTestServer {
   public void testGetDatasetVersionWithDifferentCase() throws NamespaceException, IOException {
     setSpace();
     final DatasetPath datasetPath = new DatasetPath("spacefoo.folderbar.tEsTcAsE");
-    final DatasetUI datasetUI =createDatasetFromSQLAndSave(datasetPath, "SHOW SCHEMAS", emptyList());
+    final DatasetUI datasetUI =
+        createDatasetFromSQLAndSave(datasetPath, "SHOW SCHEMAS", emptyList());
     final DatasetVersion datasetVersion = datasetUI.getDatasetVersion();
     final VirtualDatasetUI vds = service.getVersion(datasetPath, datasetVersion);
     assertNotNull("Dataset cannot be null after its creation", vds);
 
     // All upper case
-    final List<String> upperCasePath = datasetPath.toPathList().stream().map(String::toUpperCase).collect(Collectors.toList());
+    final List<String> upperCasePath =
+        datasetPath.toPathList().stream().map(String::toUpperCase).collect(Collectors.toList());
     final DatasetPath uppercaseDatasetPath = new DatasetPath(upperCasePath);
     final VirtualDatasetUI vds1 = service.getVersion(uppercaseDatasetPath, datasetVersion);
     assertNotNull("Must be able to get Dataset version using all upper case path", vds1);
 
     // All lower case
-    final List<String> lowerCasePath = datasetPath.toPathList().stream().map(String::toLowerCase).collect(Collectors.toList());
+    final List<String> lowerCasePath =
+        datasetPath.toPathList().stream().map(String::toLowerCase).collect(Collectors.toList());
     final DatasetPath lowercaseDatasetPath = new DatasetPath(lowerCasePath);
     final VirtualDatasetUI vds2 = service.getVersion(lowercaseDatasetPath, datasetVersion);
     assertNotNull("Must be able to get Dataset version using all lower case path", vds2);
   }
-
 }

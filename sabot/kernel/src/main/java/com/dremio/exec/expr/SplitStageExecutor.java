@@ -15,18 +15,6 @@
  */
 package com.dremio.exec.expr;
 
-import java.util.List;
-
-import org.apache.arrow.gandiva.exceptions.GandivaException;
-import org.apache.arrow.vector.AllocationHelper;
-import org.apache.arrow.vector.FixedWidthVector;
-import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.complex.ListVector;
-import org.apache.arrow.vector.complex.impl.ComplexWriterImpl;
-import org.apache.arrow.vector.complex.writer.BaseWriter.ComplexWriter;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.util.TransferPair;
-
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.expression.SupportedEngines;
@@ -46,12 +34,21 @@ import com.dremio.sabot.op.project.Projector;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import java.util.List;
+import org.apache.arrow.gandiva.exceptions.GandivaException;
+import org.apache.arrow.vector.AllocationHelper;
+import org.apache.arrow.vector.FixedWidthVector;
+import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.complex.ListVector;
+import org.apache.arrow.vector.complex.impl.ComplexWriterImpl;
+import org.apache.arrow.vector.complex.writer.BaseWriter.ComplexWriter;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.util.TransferPair;
 
-/**
- * Evaluates several expressions splits - in Java and/or Gandiva
- */
+/** Evaluates several expressions splits - in Java and/or Gandiva */
 class SplitStageExecutor implements AutoCloseable {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SplitStageExecutor.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(SplitStageExecutor.class);
 
   // Operator context. Used to allocate memory
   final OperatorContext context;
@@ -104,19 +101,26 @@ class SplitStageExecutor implements AutoCloseable {
   final List<ExpressionSplit> splitsForPreferredCodeGen;
   final List<ExpressionSplit> splitsForNonPreferredCodeGen;
 
-  SplitStageExecutor(OperatorContext context, VectorAccessible incoming, SupportedEngines.Engine preferredExecType) {
+  SplitStageExecutor(
+      OperatorContext context,
+      VectorAccessible incoming,
+      SupportedEngines.Engine preferredExecType) {
     this.context = context;
     this.incoming = incoming;
     this.preferredEngine = preferredExecType;
     this.hasOriginalExpression = false;
     this.nativeFilter = null;
-    this.nativeProjectorBuilder = NativeProjectEvaluator.builder(incoming, context.getFunctionContext(), context.getOptions().getOption(ExecConstants.GANDIVA_TARGET_HOST_CPU),
-      context.getOptions().getOption(ExecConstants.EXPR_COMPLEXITY_NO_CACHE_THRESHOLD));
+    this.nativeProjectorBuilder =
+        NativeProjectEvaluator.builder(
+            incoming,
+            context.getFunctionContext(),
+            context.getOptions().getOption(ExecConstants.GANDIVA_TARGET_HOST_CPU),
+            context.getOptions().getOption(ExecConstants.EXPR_COMPLEXITY_NO_CACHE_THRESHOLD));
     this.cg = context.getClassProducer().createGenerator(Projector.TEMPLATE_DEFINITION).getRoot();
-    this.splitsForPreferredCodeGen = this.preferredEngine ==
-      SupportedEngines.Engine.GANDIVA? gandivaSplits : javaSplits;
-    this.splitsForNonPreferredCodeGen = this.preferredEngine ==
-      SupportedEngines.Engine.GANDIVA? javaSplits : gandivaSplits;
+    this.splitsForPreferredCodeGen =
+        this.preferredEngine == SupportedEngines.Engine.GANDIVA ? gandivaSplits : javaSplits;
+    this.splitsForNonPreferredCodeGen =
+        this.preferredEngine == SupportedEngines.Engine.GANDIVA ? javaSplits : gandivaSplits;
     this.intermediateOutputs = context.createOutputVectorContainer();
   }
 
@@ -131,11 +135,11 @@ class SplitStageExecutor implements AutoCloseable {
     } else {
       splitsForNonPreferredCodeGen.add(split);
     }
-
   }
 
   // This is called to setup a split
-  private Field setupSplit(ExpressionSplit split, VectorContainer outgoing, boolean gandivaCodeGen) throws GandivaException {
+  private Field setupSplit(ExpressionSplit split, VectorContainer outgoing, boolean gandivaCodeGen)
+      throws GandivaException {
     NamedExpression namedExpression = split.getNamedExpression();
     LogicalExpression expr = namedExpression.getExpr();
     Field outputField = expr.getCompleteType().toField(namedExpression.getRef());
@@ -159,7 +163,8 @@ class SplitStageExecutor implements AutoCloseable {
 
     logger.trace("Setting up split for {} in Java", split);
     // setup in Java
-    TypedFieldId fid = intermediateOutputs.getValueVectorId(SchemaPath.getSimplePath(outputField.getName()));
+    TypedFieldId fid =
+        intermediateOutputs.getValueVectorId(SchemaPath.getSimplePath(outputField.getName()));
     boolean useSetSafe = !(vector instanceof FixedWidthVector);
     ValueVectorWriteExpression write = new ValueVectorWriteExpression(fid, expr, useSetSafe);
     if (context.getOptions().getOption(ExecConstants.EXPRESSION_CODE_CACHE_ENABLED)) {
@@ -172,7 +177,10 @@ class SplitStageExecutor implements AutoCloseable {
       final ValueVectorReadExpression vectorRead = (ValueVectorReadExpression) expr;
       if (!vectorRead.hasReadPath()) {
         final TypedFieldId id = vectorRead.getFieldId();
-        final ValueVector vvIn = incoming.getValueAccessorById(id.getIntermediateClass(), id.getFieldIds()).getValueVector();
+        final ValueVector vvIn =
+            incoming
+                .getValueAccessorById(id.getIntermediateClass(), id.getFieldIds())
+                .getValueVector();
         vvIn.makeTransferPair(vector);
       }
     }
@@ -181,9 +189,15 @@ class SplitStageExecutor implements AutoCloseable {
   }
 
   // setup the code generators
-  void setupFinish(VectorContainer outgoing, Stopwatch javaCodeGenWatch, Stopwatch gandivaCodeGenWatch, GandivaSecondaryCacheWithStats secondaryCache) throws GandivaException {
+  void setupFinish(
+      VectorContainer outgoing,
+      Stopwatch javaCodeGenWatch,
+      Stopwatch gandivaCodeGenWatch,
+      GandivaSecondaryCacheWithStats secondaryCache)
+      throws GandivaException {
     gandivaCodeGenWatch.start();
-    nativeProjectEvaluator = nativeProjectorBuilder.build(incoming.getSchema(), context.getStats(), secondaryCache);
+    nativeProjectEvaluator =
+        nativeProjectorBuilder.build(incoming.getSchema(), context.getStats(), secondaryCache);
     gandivaCodeGenWatch.stop();
 
     javaCodeGenWatch.start();
@@ -192,26 +206,30 @@ class SplitStageExecutor implements AutoCloseable {
     // Releasing heap memory
     cg = null;
     javaProjector.setup(
-      context.getFunctionContext(),
-      incoming,
-      intermediateOutputs,
-      Lists.newArrayList(),
-      new Projector.ComplexWriterCreator(){
-        @Override
-        public ComplexWriter addComplexWriter(String name) {
-          VectorAccessibleComplexWriter vc = new VectorAccessibleComplexWriter(outgoing);
-          ComplexWriter writer = new ComplexWriterImpl(name, vc);
-          complexWriters.add(writer);
-          return writer;
-        }
-      }
-    );
+        context.getFunctionContext(),
+        incoming,
+        intermediateOutputs,
+        Lists.newArrayList(),
+        new Projector.ComplexWriterCreator() {
+          @Override
+          public ComplexWriter addComplexWriter(String name) {
+            VectorAccessibleComplexWriter vc = new VectorAccessibleComplexWriter(outgoing);
+            ComplexWriter writer = new ComplexWriterImpl(name, vc);
+            complexWriters.add(writer);
+            return writer;
+          }
+        });
     javaCodeGenWatch.stop();
   }
 
   // setup evaluation of projector for all splits
-  void setupProjector(VectorContainer outgoing, Stopwatch javaCodeGenWatch, Stopwatch gandivaCodeGenWatch, GandivaSecondaryCacheWithStats secondaryCache) throws GandivaException {
-    for(ExpressionSplit split : Iterables.concat(javaSplits, gandivaSplits)) {
+  void setupProjector(
+      VectorContainer outgoing,
+      Stopwatch javaCodeGenWatch,
+      Stopwatch gandivaCodeGenWatch,
+      GandivaSecondaryCacheWithStats secondaryCache)
+      throws GandivaException {
+    for (ExpressionSplit split : Iterables.concat(javaSplits, gandivaSplits)) {
       if (split.isOriginalExpression()) {
         setupSplit(split, outgoing, gandivaSplits.contains(split));
       } else {
@@ -223,7 +241,12 @@ class SplitStageExecutor implements AutoCloseable {
   }
 
   // setup evaluation of filter for all splits
-  void setupFilter(VectorContainer outgoing, Stopwatch javaCodeGenWatch, Stopwatch gandivaCodeGenWatch, GandivaSecondaryCacheWithStats secondaryCache) throws GandivaException,Exception {
+  void setupFilter(
+      VectorContainer outgoing,
+      Stopwatch javaCodeGenWatch,
+      Stopwatch gandivaCodeGenWatch,
+      GandivaSecondaryCacheWithStats secondaryCache)
+      throws GandivaException, Exception {
     if (!hasOriginalExpression) {
       setupProjector(null, javaCodeGenWatch, gandivaCodeGenWatch, secondaryCache);
       return;
@@ -249,9 +272,16 @@ class SplitStageExecutor implements AutoCloseable {
     if (finalSplit.getExecutionEngine() == SupportedEngines.Engine.GANDIVA) {
       logger.trace("Setting up filter for split in Gandiva {}", finalSplit);
       gandivaCodeGenWatch.start();
-      nativeFilter = NativeFilter.build(finalSplit.getNamedExpression().getExpr(), incoming, outgoing.getSelectionVector2(),
-        context.getFunctionContext(), finalSplit.getOptimize(), context.getOptions().getOption(ExecConstants.GANDIVA_TARGET_HOST_CPU),
-        secondaryCache, context.getOptions().getOption(ExecConstants.EXPR_COMPLEXITY_NO_CACHE_THRESHOLD));
+      nativeFilter =
+          NativeFilter.build(
+              finalSplit.getNamedExpression().getExpr(),
+              incoming,
+              outgoing.getSelectionVector2(),
+              context.getFunctionContext(),
+              finalSplit.getOptimize(),
+              context.getOptions().getOption(ExecConstants.GANDIVA_TARGET_HOST_CPU),
+              secondaryCache,
+              context.getOptions().getOption(ExecConstants.EXPR_COMPLEXITY_NO_CACHE_THRESHOLD));
       gandivaCodeGenWatch.stop();
       this.filterFunction = new NativeTimedFilter(nativeFilter);
       return;
@@ -259,8 +289,12 @@ class SplitStageExecutor implements AutoCloseable {
 
     logger.trace("Setting up filter for split in Java {}", finalSplit);
     javaCodeGenWatch.start();
-    final ClassGenerator<Filterer> filterClassGen = context.getClassProducer().createGenerator(Filterer.TEMPLATE_DEFINITION2).getRoot();
-    filterClassGen.addExpr(new ReturnValueExpression(finalSplit.getNamedExpression().getExpr()), ClassGenerator.BlockCreateMode.MERGE, true);
+    final ClassGenerator<Filterer> filterClassGen =
+        context.getClassProducer().createGenerator(Filterer.TEMPLATE_DEFINITION2).getRoot();
+    filterClassGen.addExpr(
+        new ReturnValueExpression(finalSplit.getNamedExpression().getExpr()),
+        ClassGenerator.BlockCreateMode.MERGE,
+        true);
     final Filterer javaFilter = filterClassGen.getCodeGenerator().getImplementationClass();
     javaFilter.setup(context.getClassProducer().getFunctionContext(), incoming, outgoing);
     javaCodeGenWatch.stop();
@@ -268,9 +302,9 @@ class SplitStageExecutor implements AutoCloseable {
   }
 
   private void allocateNew(int recordsToConsume) {
-    for(ValueVector vv : allocationVectors) {
+    for (ValueVector vv : allocationVectors) {
       if (vv instanceof ListVector) {
-        ((ListVector)vv).setInitialCapacity(recordsToConsume);
+        ((ListVector) vv).setInitialCapacity(recordsToConsume);
       }
       AllocationHelper.allocateNew(vv, recordsToConsume);
     }
@@ -281,7 +315,7 @@ class SplitStageExecutor implements AutoCloseable {
   }
 
   private void setValueCount(int numRecords) {
-    for(ValueVector vv : allocationVectors) {
+    for (ValueVector vv : allocationVectors) {
       vv.setValueCount(numRecords);
     }
 
@@ -294,24 +328,25 @@ class SplitStageExecutor implements AutoCloseable {
   private void transferOut() {
     // transfer intermediate outputs to the ValueVectorReadExpression
     // for other splits to read the output
-    for(ExpressionSplit split : Iterables.concat(javaSplits, gandivaSplits)) {
+    for (ExpressionSplit split : Iterables.concat(javaSplits, gandivaSplits)) {
       split.transferOut();
     }
 
     // transfer final output
-    for(TransferPair tp : transferPairs) {
+    for (TransferPair tp : transferPairs) {
       tp.transfer();
     }
   }
 
   // Finished reading output from all pre-req splits
   private void markSplitOutputAsRead() {
-    for(ExpressionSplit split : Iterables.concat(javaSplits, gandivaSplits)) {
+    for (ExpressionSplit split : Iterables.concat(javaSplits, gandivaSplits)) {
       split.markOutputAsRead();
     }
   }
 
-  void evaluateProjector(int recordsToConsume, Stopwatch javaWatch, Stopwatch gandivaWatch) throws Exception {
+  void evaluateProjector(int recordsToConsume, Stopwatch javaWatch, Stopwatch gandivaWatch)
+      throws Exception {
     try {
       allocateNew(recordsToConsume);
 
@@ -326,11 +361,11 @@ class SplitStageExecutor implements AutoCloseable {
       transferOut();
     } catch (Exception e) {
       // release memory allocated in case of an exception
-      for(ValueVector vv : allocationVectors) {
+      for (ValueVector vv : allocationVectors) {
         vv.clear();
       }
 
-      for(ComplexWriter writer : complexWriters) {
+      for (ComplexWriter writer : complexWriters) {
         writer.clear();
       }
 
@@ -340,7 +375,8 @@ class SplitStageExecutor implements AutoCloseable {
     }
   }
 
-  int evaluateFilter(int recordsToConsume, Stopwatch javaWatch, Stopwatch gandivaWatch) throws Exception {
+  int evaluateFilter(int recordsToConsume, Stopwatch javaWatch, Stopwatch gandivaWatch)
+      throws Exception {
     try {
       return this.filterFunction.apply(recordsToConsume, javaWatch, gandivaWatch);
     } finally {
@@ -366,7 +402,8 @@ class SplitStageExecutor implements AutoCloseable {
     }
 
     @Override
-    public Integer apply(Integer recordsToConsume, Stopwatch javaWatch, Stopwatch gandivaWatch) throws Exception {
+    public Integer apply(Integer recordsToConsume, Stopwatch javaWatch, Stopwatch gandivaWatch)
+        throws Exception {
       gandivaWatch.start();
       try {
         return nativeFilter.filterBatch(recordsToConsume);
@@ -384,7 +421,8 @@ class SplitStageExecutor implements AutoCloseable {
     }
 
     @Override
-    public Integer apply(Integer recordsToConsume, Stopwatch javaWatch, Stopwatch gandivaWatch) throws Exception {
+    public Integer apply(Integer recordsToConsume, Stopwatch javaWatch, Stopwatch gandivaWatch)
+        throws Exception {
       javaWatch.start();
       try {
         return javaFilter.filterBatch(recordsToConsume);
@@ -395,6 +433,7 @@ class SplitStageExecutor implements AutoCloseable {
   }
 
   interface TimedFilterFunction {
-    Integer apply(Integer recordsToConsume, Stopwatch javaWatch, Stopwatch gandivaWatch) throws Exception;
+    Integer apply(Integer recordsToConsume, Stopwatch javaWatch, Stopwatch gandivaWatch)
+        throws Exception;
   }
 }

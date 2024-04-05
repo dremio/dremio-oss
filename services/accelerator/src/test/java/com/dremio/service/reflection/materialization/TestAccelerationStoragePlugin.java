@@ -15,7 +15,6 @@
  */
 package com.dremio.service.reflection.materialization;
 
-import static com.dremio.test.DremioTest.CLASSPATH_SCAN_RESULT;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
@@ -24,37 +23,30 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.util.List;
-
-import javax.inject.Provider;
-
-import org.junit.Assert;
-import org.junit.Test;
-
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.TableMutationOptions;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.server.options.OptionValidatorListingImpl;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.io.file.Path;
-import com.dremio.options.OptionManager;
-import com.dremio.options.OptionValidatorListing;
-import com.dremio.options.impl.DefaultOptionManager;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.reflection.ReflectionServiceImpl;
 import com.dremio.service.reflection.proto.Materialization;
 import com.dremio.service.reflection.proto.MaterializationId;
+import com.dremio.service.reflection.proto.MaterializationPlanId;
 import com.dremio.service.reflection.proto.MaterializationState;
 import com.dremio.service.reflection.proto.ReflectionId;
 import com.dremio.service.reflection.proto.Refresh;
 import com.dremio.service.reflection.proto.RefreshId;
+import com.dremio.service.reflection.store.MaterializationPlanStore;
 import com.dremio.service.reflection.store.MaterializationStore;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import java.util.List;
+import javax.inject.Provider;
+import org.junit.Assert;
+import org.junit.Test;
 
-/**
- * tests for {@link AccelerationStoragePlugin}
- */
+/** tests for {@link AccelerationStoragePlugin} */
 public class TestAccelerationStoragePlugin {
 
   @Test
@@ -62,17 +54,16 @@ public class TestAccelerationStoragePlugin {
     ReflectionId reflectionId = new ReflectionId("r_id");
     MaterializationId materializationId = new MaterializationId("m_id");
 
-    Materialization materialization = new Materialization()
-      .setId(materializationId)
-      .setReflectionId(reflectionId)
-      .setArrowCachingEnabled(false).setReflectionGoalVersion("test").setState(MaterializationState.DONE);
+    Materialization materialization =
+        new Materialization()
+            .setId(materializationId)
+            .setReflectionId(reflectionId)
+            .setArrowCachingEnabled(false)
+            .setReflectionGoalVersion("test")
+            .setState(MaterializationState.DONE);
 
-    Refresh firstRefresh = new Refresh()
-      .setIsIcebergRefresh(false)
-      .setPath("refresh/test/path");
-    Refresh secondRefresh = new Refresh()
-      .setIsIcebergRefresh(false)
-      .setPath("refresh/test/path");
+    Refresh firstRefresh = new Refresh().setIsIcebergRefresh(false).setPath("refresh/test/path");
+    Refresh secondRefresh = new Refresh().setIsIcebergRefresh(false).setPath("refresh/test/path");
     RefreshId firstRefreshId = new RefreshId("firstRefresh");
     RefreshId secondRefreshId = new RefreshId("secondRefresh");
     firstRefresh.setId(firstRefreshId);
@@ -81,35 +72,47 @@ public class TestAccelerationStoragePlugin {
     List<Refresh> refreshList = ImmutableList.of(firstRefresh, secondRefresh);
 
     SchemaConfig schemaConfig = mock(SchemaConfig.class);
-    AccelerationStoragePluginConfig accelerationStoragePluginConfig = mock(AccelerationStoragePluginConfig.class);
+    AccelerationStoragePluginConfig accelerationStoragePluginConfig =
+        mock(AccelerationStoragePluginConfig.class);
     SabotContext sabotContext = mock(SabotContext.class);
     Provider<StoragePluginId> storagePluginIdProvider = mock(Provider.class);
     MaterializationStore materializationStore = mock(MaterializationStore.class);
+    MaterializationPlanStore materializationPlanStore = mock(MaterializationPlanStore.class);
     NamespaceKey tableSchemaPath = mock(NamespaceKey.class);
     TableMutationOptions tableMutationOptions = mock(TableMutationOptions.class);
-    AccelerationStoragePlugin accelerationStoragePlugin = spy(new AccelerationStoragePlugin(
-      accelerationStoragePluginConfig,
-      sabotContext,
-      "testAccelerationStoragePlugin",
-      storagePluginIdProvider,
-      materializationStore
-    ));
+    AccelerationStoragePlugin accelerationStoragePlugin =
+        spy(
+            new AccelerationStoragePlugin(
+                accelerationStoragePluginConfig,
+                sabotContext,
+                "testAccelerationStoragePlugin",
+                storagePluginIdProvider,
+                materializationStore,
+                materializationPlanStore));
 
-    when(tableSchemaPath.getPathComponents()).thenReturn(
-      ImmutableList.of(
-        ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME,
-        reflectionId.getId(),
-        materializationId.getId()
-        ));
+    when(tableSchemaPath.getPathComponents())
+        .thenReturn(
+            ImmutableList.of(
+                ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME,
+                reflectionId.getId(),
+                materializationId.getId()));
     when(materializationStore.get(materializationId)).thenReturn(materialization);
-    when(materializationStore.getRefreshesExclusivelyOwnedBy(materialization)).thenReturn(refreshList);
-    doNothing().when(accelerationStoragePlugin).fileSystemPluginDropTable(any(NamespaceKey.class), any(SchemaConfig.class), any(TableMutationOptions.class));
+    when(materializationStore.getRefreshesExclusivelyOwnedBy(materialization))
+        .thenReturn(refreshList);
+    doNothing()
+        .when(accelerationStoragePlugin)
+        .fileSystemPluginDropTable(
+            any(NamespaceKey.class), any(SchemaConfig.class), any(TableMutationOptions.class));
 
     // TEST
-    // Verify we only dropped the filesystem path once, but deleted both refreshes from the materialization store.
+    // Verify we only dropped the filesystem path once, but deleted both refreshes from the
+    // materialization store.
     accelerationStoragePlugin.dropTable(tableSchemaPath, schemaConfig, tableMutationOptions);
-    verify(accelerationStoragePlugin, times(1)).fileSystemPluginDropTable(any(NamespaceKey.class), any(SchemaConfig.class), any(TableMutationOptions.class));
+    verify(accelerationStoragePlugin, times(1))
+        .fileSystemPluginDropTable(
+            any(NamespaceKey.class), any(SchemaConfig.class), any(TableMutationOptions.class));
     verify(materializationStore, times(2)).delete(any(RefreshId.class));
+    verify(materializationPlanStore, times(1)).delete(any(MaterializationPlanId.class));
   }
 
   @Test
@@ -117,42 +120,45 @@ public class TestAccelerationStoragePlugin {
     ReflectionId reflectionId = new ReflectionId("r_id");
     MaterializationId materializationId = new MaterializationId("m_id");
 
-    Materialization materialization = new Materialization()
-      .setId(materializationId)
-      .setSeriesId(5L)
-      .setReflectionId(reflectionId);
+    Materialization materialization =
+        new Materialization()
+            .setId(materializationId)
+            .setSeriesId(5L)
+            .setReflectionId(reflectionId);
 
-    Refresh refresh = new Refresh()
-      .setIsIcebergRefresh(true)
-      .setPath("r_id/m_id_0")
-      .setBasePath("m_id_0");
+    Refresh refresh =
+        new Refresh().setIsIcebergRefresh(true).setPath("r_id/m_id_0").setBasePath("m_id_0");
 
-    AccelerationStoragePluginConfig accelerationStoragePluginConfig = mock(AccelerationStoragePluginConfig.class);
-    when(accelerationStoragePluginConfig.getPath()).thenReturn(Path.of(ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME));
+    AccelerationStoragePluginConfig accelerationStoragePluginConfig =
+        mock(AccelerationStoragePluginConfig.class);
+    when(accelerationStoragePluginConfig.getPath())
+        .thenReturn(Path.of(ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME));
     SabotContext sabotContext = mock(SabotContext.class);
     Provider<StoragePluginId> storagePluginIdProvider = mock(Provider.class);
     MaterializationStore materializationStore = mock(MaterializationStore.class);
-    AccelerationStoragePlugin accelerationStoragePlugin = spy(new AccelerationStoragePlugin(
-      accelerationStoragePluginConfig,
-      sabotContext,
-      "testAccelerationStoragePlugin",
-      storagePluginIdProvider,
-      materializationStore
-    ));
-    OptionValidatorListing optionValidatorListing = new OptionValidatorListingImpl(CLASSPATH_SCAN_RESULT);
-    OptionManager optionManager = new DefaultOptionManager(optionValidatorListing);
+    MaterializationPlanStore materializationPlanStore = mock(MaterializationPlanStore.class);
+    AccelerationStoragePlugin accelerationStoragePlugin =
+        spy(
+            new AccelerationStoragePlugin(
+                accelerationStoragePluginConfig,
+                sabotContext,
+                "testAccelerationStoragePlugin",
+                storagePluginIdProvider,
+                materializationStore,
+                materializationPlanStore));
 
     when(materializationStore.get(materializationId)).thenReturn(materialization);
     when(materializationStore.getMostRecentRefresh(reflectionId, 5L)).thenReturn(refresh);
-    when(sabotContext.getOptionManager()).thenReturn(optionManager);
 
     // TEST
-    NamespaceKey namespaceKey = new NamespaceKey(
-      Lists.newArrayList(ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME,
-        reflectionId.getId(),
-        materializationId.getId()));
+    NamespaceKey namespaceKey =
+        new NamespaceKey(
+            Lists.newArrayList(
+                ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME,
+                reflectionId.getId(),
+                materializationId.getId()));
     Path path = accelerationStoragePlugin.getPath(namespaceKey, "dremio");
-    Assert.assertEquals(ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME
-      +"/r_id/m_id_0", path.toString());
+    Assert.assertEquals(
+        ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME + "/r_id/m_id_0", path.toString());
   }
 }

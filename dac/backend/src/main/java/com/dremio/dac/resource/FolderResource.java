@@ -17,23 +17,6 @@ package com.dremio.dac.resource;
 
 import static com.dremio.service.namespace.proto.NameSpaceContainer.Type.SPACE;
 
-import java.util.Arrays;
-import java.util.ConcurrentModificationException;
-import java.util.List;
-
-import javax.annotation.security.RolesAllowed;
-import javax.inject.Inject;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.DELETE;
-import javax.ws.rs.DefaultValue;
-import javax.ws.rs.GET;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.MediaType;
-
 import com.dremio.common.utils.PathUtils;
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
@@ -54,10 +37,23 @@ import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.space.proto.FolderConfig;
+import java.util.Arrays;
+import java.util.ConcurrentModificationException;
+import java.util.List;
+import javax.annotation.security.RolesAllowed;
+import javax.inject.Inject;
+import javax.ws.rs.Consumes;
+import javax.ws.rs.DELETE;
+import javax.ws.rs.DefaultValue;
+import javax.ws.rs.GET;
+import javax.ws.rs.POST;
+import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
+import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
+import javax.ws.rs.core.MediaType;
 
-/**
- * Rest resource for spaces.
- */
+/** Rest resource for spaces. */
 @RestResource
 @Secured
 @RolesAllowed({"admin", "user"})
@@ -83,13 +79,17 @@ public class FolderResource {
   @GET
   @Path("/folder/{path: .*}")
   @Produces(MediaType.APPLICATION_JSON)
-  public Folder getFolder(@PathParam("path") String path, @QueryParam("includeContents") @DefaultValue("true") boolean includeContents) throws NamespaceException, FolderNotFoundException, DatasetNotFoundException {
+  public Folder getFolder(
+      @PathParam("path") String path,
+      @QueryParam("includeContents") @DefaultValue("true") boolean includeContents)
+      throws NamespaceException, FolderNotFoundException, DatasetNotFoundException {
     FolderPath folderPath = FolderPath.fromURLPath(spaceName, path);
     try {
       final FolderConfig folderConfig = namespaceService.getFolder(folderPath.toNamespaceKey());
-      final NamespaceTree contents = includeContents
-          ? newNamespaceTree(namespaceService.list(folderPath.toNamespaceKey()))
-          : null;
+      final NamespaceTree contents =
+          includeContents
+              ? newNamespaceTree(namespaceService.list(folderPath.toNamespaceKey()))
+              : null;
       return newFolder(folderPath, folderConfig, contents);
     } catch (NamespaceNotFoundException nfe) {
       throw new FolderNotFoundException(folderPath, nfe);
@@ -99,7 +99,8 @@ public class FolderResource {
   @DELETE
   @Path("/folder/{path: .*}")
   @Produces(MediaType.APPLICATION_JSON)
-  public void deleteFolder(@PathParam("path") String path, @QueryParam("version") String version) throws NamespaceException, FolderNotFoundException {
+  public void deleteFolder(@PathParam("path") String path, @QueryParam("version") String version)
+      throws NamespaceException, FolderNotFoundException {
     FolderPath folderPath = FolderPath.fromURLPath(spaceName, path);
     if (version == null) {
       throw new ClientErrorException(GenericErrorMessage.MISSING_VERSION_PARAM_MSG);
@@ -118,7 +119,8 @@ public class FolderResource {
   @Path("/folder/{path: .*}")
   @Produces(MediaType.APPLICATION_JSON)
   @Consumes(MediaType.APPLICATION_JSON)
-  public Folder createFolder(FolderName name, @PathParam("path") String path) throws NamespaceException  {
+  public Folder createFolder(FolderName name, @PathParam("path") String path)
+      throws NamespaceException {
     String fullPath = PathUtils.toFSPathString(Arrays.asList(path, name.toString()));
     FolderPath folderPath = FolderPath.fromURLPath(spaceName, fullPath);
 
@@ -127,18 +129,21 @@ public class FolderResource {
     folderConfig.setName(folderPath.getFolderName().getName());
     try {
       namespaceService.addOrUpdateFolder(folderPath.toNamespaceKey(), folderConfig);
-    } catch(NamespaceNotFoundException nfe) {
+    } catch (NamespaceNotFoundException nfe) {
       throw new ClientErrorException("Parent folder doesn't exist", nfe);
     }
 
     return newFolder(folderPath, folderConfig, null);
   }
 
-  protected Folder newFolder(FolderPath folderPath, FolderConfig folderConfig, NamespaceTree contents) throws NamespaceNotFoundException {
+  protected Folder newFolder(
+      FolderPath folderPath, FolderConfig folderConfig, NamespaceTree contents)
+      throws NamespaceNotFoundException {
     return Folder.newInstance(folderPath, folderConfig, contents, false, false);
   }
 
-  protected NamespaceTree newNamespaceTree(List<NameSpaceContainer> children) throws DatasetNotFoundException, NamespaceException {
+  protected NamespaceTree newNamespaceTree(List<NameSpaceContainer> children)
+      throws DatasetNotFoundException, NamespaceException {
     return NamespaceTree.newInstance(datasetService, children, SPACE, collaborationHelper);
   }
 }

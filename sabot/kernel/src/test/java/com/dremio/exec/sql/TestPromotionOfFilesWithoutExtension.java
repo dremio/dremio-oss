@@ -15,19 +15,15 @@
  */
 package com.dremio.exec.sql;
 
-
-import org.junit.Test;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.common.util.FileUtils;
 import com.dremio.test.UserExceptionAssert;
+import org.junit.Test;
 
 /*
  * queries .csv files/folders that do not contain the ."csv" extension in the filename, ensuring the expected error message.
  */
 public class TestPromotionOfFilesWithoutExtension extends BaseTestQuery {
-
-
 
   /*
    * tests a .csv file without .csv extension.
@@ -40,7 +36,6 @@ public class TestPromotionOfFilesWithoutExtension extends BaseTestQuery {
     query(root, String.format("SELECT * FROM dfs.\"%s\"", root));
   }
 
-
   /*
    * tests a .csv folder consisting of files without .csv extension.
    * Expected to fail and propagate an error message.
@@ -51,7 +46,6 @@ public class TestPromotionOfFilesWithoutExtension extends BaseTestQuery {
     String root = FileUtils.getResourceAsFile(path).toURI().toString();
     query(root, String.format("SELECT * FROM dfs.\"%s\"", root));
   }
-
 
   /*
    * tests a .csv folder consisting of files without .csv extension by using the ALTER PDS command
@@ -64,13 +58,16 @@ public class TestPromotionOfFilesWithoutExtension extends BaseTestQuery {
     query(root, String.format("ALTER PDS dfs.\"%s\" REFRESH METADATA AUTO PROMOTION", root));
   }
 
-
   private void query(String path, String statement) throws Exception {
-    String mssg = "The file format for 'dfs.\"%s\"' could not be identified. In order for automatic format detection to succeed, " +
-      "files must include a file extension. Alternatively, manual promotion can be used to explicitly specify the format.";
+    String mssg =
+        "The file format for 'dfs.\"%s\"' could not be identified. In order for automatic format detection to succeed, "
+            + "files must include a file extension. Alternatively, manual promotion can be used to explicitly specify the format.";
     String error = String.format(mssg, path);
-    UserExceptionAssert.assertThatThrownBy(() -> {
-      runSQL(statement);
-    }).isInstanceOf(Exception.class).hasMessageContaining(error);
+    UserExceptionAssert.assertThatThrownBy(
+            () -> {
+              runSQL(statement);
+            })
+        .isInstanceOf(Exception.class)
+        .hasMessageContaining(error);
   }
 }

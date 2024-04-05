@@ -19,13 +19,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 
-/**
- * Advanced {@code InputStream} used by {@code FileSystemWrapper}
- */
+/** Advanced {@code InputStream} used by {@code FileSystemWrapper} */
 public abstract class FSInputStream extends InputStream {
 
-  public FSInputStream() {
-  }
+  public FSInputStream() {}
 
   /**
    * Reads bytes from the stream into the provided buffer {@code dst}
@@ -48,6 +45,7 @@ public abstract class FSInputStream extends InputStream {
 
   /**
    * Gets the stream position
+   *
    * @return the stream position
    * @throws IOException
    */
@@ -55,9 +53,9 @@ public abstract class FSInputStream extends InputStream {
 
   /**
    * Sets the stream position
+   *
    * @param position the new stream position
    * @throws IOException
    */
   public abstract void setPosition(long position) throws IOException;
-
 }

@@ -20,34 +20,33 @@ import static com.dremio.test.DremioTest.DEFAULT_DREMIO_CONFIG;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 
+import com.dremio.services.credentials.CredentialsService;
+import com.dremio.services.credentials.CredentialsServiceImpl;
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
-
 import org.apache.hadoop.conf.Configuration;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import com.dremio.services.credentials.CredentialsService;
-
-/**
- * Test the Dremio Credential Provider Factory which extends the Hadoop library.
- */
+/** Test the Dremio Credential Provider Factory which extends the Hadoop library. */
 public class TestDremioCredentialProviders {
-  private static final String HADOOP_SECURITY_CREDENTIAL_PROVIDER_PATH = "hadoop.security.credential.provider.path";
+  private static final String HADOOP_SECURITY_CREDENTIAL_PROVIDER_PATH =
+      "hadoop.security.credential.provider.path";
   private static final String SECRET_KEY = "a.b.c.key";
   private CredentialsService credentialsService;
 
-  @Rule
-  public TemporaryFolder tempFolder = new TemporaryFolder();
+  @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
 
   @Before
   public void setUp() throws Exception {
-    credentialsService = CredentialsService.newInstance(DEFAULT_DREMIO_CONFIG, CLASSPATH_SCAN_RESULT);
+    credentialsService =
+        CredentialsServiceImpl.newInstance(DEFAULT_DREMIO_CONFIG, CLASSPATH_SCAN_RESULT);
     DremioCredentialProviderFactory.configure(() -> credentialsService);
   }
+
   @Test
   public void testDremioDataProvider() throws IOException {
     Configuration conf = new Configuration();
@@ -63,9 +62,12 @@ public class TestDremioCredentialProviders {
     conf.set(HADOOP_SECURITY_CREDENTIAL_PROVIDER_PATH, "dremio:///");
     conf.set(SECRET_KEY, "data:text/plain;base64,SGVsbG8sIFdvcmxkIQ==");
 
-    assertEquals("Due to fallback, a secret URI without proper dremio+ scheme will output as it is",
-      "data:text/plain;base64,SGVsbG8sIFdvcmxkIQ==", new String(conf.getPassword(SECRET_KEY)));
+    assertEquals(
+        "Due to fallback, a secret URI without proper dremio+ scheme will output as it is",
+        "data:text/plain;base64,SGVsbG8sIFdvcmxkIQ==",
+        new String(conf.getPassword(SECRET_KEY)));
   }
+
   @Test
   public void testClearTextPasswordFallback() throws IOException {
     Configuration conf = new Configuration();
@@ -90,9 +92,9 @@ public class TestDremioCredentialProviders {
     conf.set(HADOOP_SECURITY_CREDENTIAL_PROVIDER_PATH, "dremio:///");
     conf.set(SECRET_KEY, "dremio+abc123`?~!@#$%^&*()-_=+[]{}\\|;:'\",./<>");
 
-    assertEquals("abc123`?~!@#$%^&*()-_=+[]{}\\|;:'\",./<>", new String(conf.getPassword(SECRET_KEY)));
+    assertEquals(
+        "abc123`?~!@#$%^&*()-_=+[]{}\\|;:'\",./<>", new String(conf.getPassword(SECRET_KEY)));
   }
-
 
   @Test
   public void testSchemeCaseInsensitivity() throws IOException {
@@ -110,8 +112,8 @@ public class TestDremioCredentialProviders {
     conf.set(SECRET_KEY, "dremio+invalidscheme:text/plain;base64,SGVsbG8sIFdvcmxkIQ==");
 
     assertThatThrownBy(() -> conf.getPassword(SECRET_KEY))
-      .isInstanceOf(UnsupportedOperationException.class)
-      .hasMessageContaining("Unable to find a suitable credentials provider for invalidscheme");
+        .isInstanceOf(UnsupportedOperationException.class)
+        .hasMessageContaining("Unable to find a suitable credentials provider for invalidscheme");
   }
 
   @Test
@@ -121,8 +123,8 @@ public class TestDremioCredentialProviders {
     conf.set(SECRET_KEY, "dremio+data:abc123");
 
     assertThatThrownBy(() -> conf.getPassword(SECRET_KEY))
-      .isInstanceOf(IOException.class)
-      .hasMessageContaining("Configuration problem with provider path.");
+        .isInstanceOf(IOException.class)
+        .hasMessageContaining("Configuration problem with provider path.");
   }
 
   @Test

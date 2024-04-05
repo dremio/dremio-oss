@@ -21,9 +21,7 @@ package com.dremio.sabot.task;
  */
 public interface Task {
 
-  /**
-   * Task state
-   */
+  /** Task state */
   enum State {
     RUNNABLE,
     BLOCKED_ON_UPSTREAM,

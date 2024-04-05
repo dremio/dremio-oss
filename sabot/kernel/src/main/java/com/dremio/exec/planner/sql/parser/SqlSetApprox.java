@@ -15,8 +15,8 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.dremio.service.namespace.NamespaceKey;
 import java.util.List;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -28,8 +28,6 @@ import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.ImmutableNullableList;
 
-import com.dremio.service.namespace.NamespaceKey;
-
 /**
  * SQL node tree for <code>ALTER TABLE table_identifier <ENABLE|DISABLE> APPROXIMATE STATS</code>
  */
@@ -37,8 +35,9 @@ public class SqlSetApprox extends SqlSystemCall {
 
   public static final SqlSpecialOperator OPERATOR =
       new SqlSpecialOperator("ENABLE_APPROXIMATE_STATS", SqlKind.OTHER) {
-        @Override public SqlCall createCall(SqlLiteral functionQualifier,
-            SqlParserPos pos, SqlNode... operands) {
+        @Override
+        public SqlCall createCall(
+            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
           return new SqlSetApprox(pos, (SqlIdentifier) operands[0], (SqlLiteral) operands[1]);
         }
       };
@@ -53,11 +52,12 @@ public class SqlSetApprox extends SqlSystemCall {
     this.enable = enable;
   }
 
-  @Override public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+  @Override
+  public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
     writer.keyword("ALTER");
     writer.keyword("TABLE");
     table.unparse(writer, leftPrec, rightPrec);
-    if((Boolean) enable.getValue()) {
+    if ((Boolean) enable.getValue()) {
       writer.keyword("ENABLE");
     } else {
       writer.keyword("DISABLE");
@@ -67,7 +67,8 @@ public class SqlSetApprox extends SqlSystemCall {
     writer.keyword("STATS");
   }
 
-  @Override public void setOperand(int i, SqlNode operand) {
+  @Override
+  public void setOperand(int i, SqlNode operand) {
     switch (i) {
       case 0:
         table = (SqlIdentifier) operand;
@@ -98,5 +99,7 @@ public class SqlSetApprox extends SqlSystemCall {
     return ImmutableNullableList.<SqlNode>of(table, enable);
   }
 
-  public SqlIdentifier getTable() { return table; }
+  public SqlIdentifier getTable() {
+    return table;
+  }
 }

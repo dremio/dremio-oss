@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.expr.fn.hll;
 
+import com.dremio.sabot.exec.context.SlicedBufferManager;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferManager;
 import org.apache.arrow.vector.holders.ObjectHolder;
@@ -22,8 +23,6 @@ import org.apache.datasketches.hll.HllSketch;
 import org.apache.datasketches.hll.TgtHllType;
 import org.apache.datasketches.hll.Union;
 import org.apache.datasketches.memory.WritableMemory;
-
-import com.dremio.sabot.exec.context.SlicedBufferManager;
 
 /**
  * An accumulator that designed to combine one or more separate HLL values into a single HLL
@@ -63,11 +62,11 @@ public class UnionAccum {
 
   @SuppressWarnings("deprecation")
   public static ObjectHolder create(ObjectHolder holder, BufferManager manager) {
-    if(holder == null) {
+    if (holder == null) {
       holder = new ObjectHolder();
     }
 
-    if(holder.obj == null) {
+    if (holder.obj == null) {
       holder.obj = new UnionAccum(manager, StatisticsAggrFunctions.HLL_ACCURACY);
     }
     return holder;

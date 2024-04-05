@@ -19,9 +19,7 @@ import static org.junit.Assert.*;
 
 import org.junit.Test;
 
-/**
- * Test {@link DACConfig}
- */
+/** Test {@link DACConfig} */
 public class TestDACConfig {
 
   @Test
@@ -29,5 +27,4 @@ public class TestDACConfig {
     final DACConfig config = DACConfig.newConfig();
     assertFalse("default allowNewerKVStore value should be false", config.allowNewerKVStore);
   }
-
 }

@@ -18,9 +18,7 @@ package com.dremio.service.namespace;
 import com.dremio.service.users.User;
 import com.google.inject.Provider;
 
-/**
- * Represents a namespace user.
- */
+/** Represents a namespace user. */
 public class NamespaceUser implements NamespaceIdentity {
   private final Provider<User> userProvider;
 

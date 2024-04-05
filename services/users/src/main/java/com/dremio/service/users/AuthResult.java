@@ -16,24 +16,25 @@
 package com.dremio.service.users;
 
 import java.util.Date;
-
 import org.immutables.value.Value;
 
 /**
  * Result of Authentication.
- * @deprecated TODO DX-82990: Remove this AuthResult. Uses {@link com.dremio.authenticator.AuthResult}
+ *
+ * @deprecated TODO DX-82990: Remove this AuthResult. Uses {@link
+ *     com.dremio.authenticator.AuthResult}
  */
 @Deprecated
 @Value.Immutable
 public interface AuthResult {
   String getUserName();
+
   Date getExpiresAt();
+
   String getUserId();
 
   static AuthResult of(String userName) {
-    return new ImmutableAuthResult.Builder()
-      .setUserName(userName)
-      .build();
+    return new ImmutableAuthResult.Builder().setUserName(userName).build();
   }
 
   static ImmutableAuthResult.Builder builder() {

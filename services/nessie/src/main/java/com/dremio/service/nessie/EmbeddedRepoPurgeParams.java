@@ -35,10 +35,8 @@ public interface EmbeddedRepoPurgeParams {
   }
 
   class ProgressConsumer {
-    public void onCommitProcessed(Hash hash) {
-    }
+    public void onCommitProcessed(Hash hash) {}
 
-    public void onKeyListEntityDeleted(Hash hash) {
-    }
+    public void onKeyListEntityDeleted(Hash hash) {}
   }
 }

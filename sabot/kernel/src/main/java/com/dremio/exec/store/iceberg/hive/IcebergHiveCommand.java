@@ -15,19 +15,19 @@
  */
 package com.dremio.exec.store.iceberg.hive;
 
+import com.dremio.exec.proto.UserBitShared;
+import com.dremio.exec.store.iceberg.model.IcebergBaseCommand;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.TableOperations;
 
-import com.dremio.exec.proto.UserBitShared;
-import com.dremio.exec.store.iceberg.model.IcebergBaseCommand;
-
-/**
- * Iceberg Hive Command for Hive Catalog
- */
+/** Iceberg Hive Command for Hive Catalog */
 public class IcebergHiveCommand extends IcebergBaseCommand {
 
-  public IcebergHiveCommand(Configuration configuration, String tableFolder, TableOperations tableOperations,
-                            UserBitShared.QueryId queryId) {
+  public IcebergHiveCommand(
+      Configuration configuration,
+      String tableFolder,
+      TableOperations tableOperations,
+      UserBitShared.QueryId queryId) {
     super(configuration, tableFolder, tableOperations, queryId);
   }
 

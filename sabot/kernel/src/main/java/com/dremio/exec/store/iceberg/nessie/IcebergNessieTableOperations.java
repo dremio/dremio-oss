@@ -17,21 +17,6 @@ package com.dremio.exec.store.iceberg.nessie;
 
 import static com.dremio.plugins.NessieUtils.createNamespaceInDefaultBranchIfNotExists;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.TimeUnit;
-
-import javax.annotation.Nullable;
-import javax.inject.Provider;
-
-import org.apache.iceberg.BaseMetastoreTableOperations;
-import org.apache.iceberg.TableMetadata;
-import org.apache.iceberg.catalog.TableIdentifier;
-import org.apache.iceberg.exceptions.CommitFailedException;
-import org.apache.iceberg.io.FileIO;
-import org.projectnessie.client.api.NessieApiV2;
-
 import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.VersionedPlugin.EntityType;
@@ -45,17 +30,27 @@ import com.dremio.plugins.NessieContent;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.writer.WriterCommitterOperator;
 import com.google.common.base.Stopwatch;
-
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+import javax.annotation.Nullable;
+import javax.inject.Provider;
+import org.apache.iceberg.BaseMetastoreTableOperations;
+import org.apache.iceberg.TableMetadata;
+import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.exceptions.CommitFailedException;
+import org.apache.iceberg.io.FileIO;
+import org.projectnessie.client.api.NessieApiV2;
 
-/**
- * Iceberg nessie table operations
- */
-public class IcebergNessieTableOperations extends BaseMetastoreTableOperations implements
-  IcebergCommitOriginAwareTableOperations {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(IcebergNessieTableOperations.class);
+/** Iceberg nessie table operations */
+public class IcebergNessieTableOperations extends BaseMetastoreTableOperations
+    implements IcebergCommitOriginAwareTableOperations {
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(IcebergNessieTableOperations.class);
   private final FileIO fileIO;
   private final Provider<NessieApiV2> nessieApi;
   private final IcebergNessieTableIdentifier nessieTableIdentifier;
@@ -67,13 +62,12 @@ public class IcebergNessieTableOperations extends BaseMetastoreTableOperations i
   private String baseContentId;
 
   public IcebergNessieTableOperations(
-    OperatorStats operatorStats,
-    Provider<NessieApiV2> nessieApi,
-    FileIO fileIO,
-    IcebergNessieTableIdentifier nessieTableIdentifier,
-    @Nullable IcebergCommitOrigin commitOrigin,
-    OptionManager optionManager
-  ) {
+      OperatorStats operatorStats,
+      Provider<NessieApiV2> nessieApi,
+      FileIO fileIO,
+      IcebergNessieTableIdentifier nessieTableIdentifier,
+      @Nullable IcebergCommitOrigin commitOrigin,
+      OptionManager optionManager) {
     this.fileIO = fileIO;
     this.nessieApi = nessieApi;
     this.nessieTableIdentifier = nessieTableIdentifier;
@@ -85,8 +79,10 @@ public class IcebergNessieTableOperations extends BaseMetastoreTableOperations i
   }
 
   private NessieClient nessieClient() {
-    // Avoid holding a NessieApi instance in this class as it may cause the Nessie client to be held too long and
-    // be used when the underlying connection is no longer valid. Instead, re-create the client on demand.
+    // Avoid holding a NessieApi instance in this class as it may cause the Nessie client to be held
+    // too long and
+    // be used when the underlying connection is no longer valid. Instead, re-create the client on
+    // demand.
     // Provider implementations are expected to cache expensive objects where appropriate.
     return new NessieClientImpl(nessieApi.get(), optionManager);
   }
@@ -115,12 +111,21 @@ public class IcebergNessieTableOperations extends BaseMetastoreTableOperations i
 
     baseContentId = null;
     String metadataLocation = null;
-    Optional<NessieContent> maybeNessieContent = nessieClient.getContent(nessieTableKey, reference, null);
+    Optional<NessieContent> maybeNessieContent =
+        nessieClient.getContent(nessieTableKey, reference, null);
     if (maybeNessieContent.isPresent()) {
       NessieContent nessieContent = maybeNessieContent.get();
       baseContentId = nessieContent.getContentId();
-      metadataLocation = nessieContent.getMetadataLocation().orElseThrow(
-        () -> new IllegalStateException("No metadataLocation for iceberg table: " + nessieTableKey + " ref: " + reference));
+      metadataLocation =
+          nessieContent
+              .getMetadataLocation()
+              .orElseThrow(
+                  () ->
+                      new IllegalStateException(
+                          "No metadataLocation for iceberg table: "
+                              + nessieTableKey
+                              + " ref: "
+                              + reference));
     }
 
     refreshFromMetadataLocation(metadataLocation, 2);
@@ -128,15 +133,18 @@ public class IcebergNessieTableOperations extends BaseMetastoreTableOperations i
 
   /**
    * refresh table from specified metadata version within table's nessie commit log.
+   *
    * @param metadataLocation reference location of the metadata.
    */
   public void doRefreshFromPreviousCommit(String metadataLocation) {
     NessieClient nessieClient = nessieClient();
     reference = getDefaultBranch(nessieClient);
 
-    baseContentId = nessieClient.getContent(nessieTableKey, reference, null)
-      .map(NessieContent::getContentId)
-      .orElse(null);
+    baseContentId =
+        nessieClient
+            .getContent(nessieTableKey, reference, null)
+            .map(NessieContent::getContentId)
+            .orElse(null);
     if (baseContentId == null) {
       metadataLocation = null;
     }
@@ -145,9 +153,7 @@ public class IcebergNessieTableOperations extends BaseMetastoreTableOperations i
   }
 
   private static List<String> parseNessieKey(TableIdentifier tableIdentifier) {
-    return Arrays.asList(
-      tableIdentifier.namespace().toString(),
-      tableIdentifier.name());
+    return Arrays.asList(tableIdentifier.namespace().toString(), tableIdentifier.name());
   }
 
   @Override
@@ -156,39 +162,53 @@ public class IcebergNessieTableOperations extends BaseMetastoreTableOperations i
     String newMetadataLocation = writeNewMetadata(metadata, currentVersion() + 1);
     long totalMetadataWriteTime = stopwatchWriteNewMetadata.elapsed(TimeUnit.MILLISECONDS);
     if (operatorStats != null) {
-      operatorStats.addLongStat(WriterCommitterOperator.Metric.ICEBERG_METADATA_WRITE_TIME, totalMetadataWriteTime);
+      operatorStats.addLongStat(
+          WriterCommitterOperator.Metric.ICEBERG_METADATA_WRITE_TIME, totalMetadataWriteTime);
     }
     boolean threw = true;
     try {
       Stopwatch stopwatchCatalogUpdate = Stopwatch.createStarted();
-      nessieClient().commitTable(
-        nessieTableKey,
-        newMetadataLocation,
-        new NessieClientTableMetadata(
-          metadata.currentSnapshot().snapshotId(), metadata.currentSchemaId(), metadata.defaultSpecId(), metadata.sortOrder().orderId()),
-        reference,
-        baseContentId,
-        commitOrigin,
-        null,
-        null);
+      nessieClient()
+          .commitTable(
+              nessieTableKey,
+              newMetadataLocation,
+              new NessieClientTableMetadata(
+                  metadata.currentSnapshot().snapshotId(),
+                  metadata.currentSchemaId(),
+                  metadata.defaultSpecId(),
+                  metadata.sortOrder().orderId()),
+              reference,
+              baseContentId,
+              commitOrigin,
+              null,
+              null);
       threw = false;
       long totalCatalogUpdateTime = stopwatchCatalogUpdate.elapsed(TimeUnit.MILLISECONDS);
       if (operatorStats != null) {
-        operatorStats.addLongStat(WriterCommitterOperator.Metric.ICEBERG_CATALOG_UPDATE_TIME, totalCatalogUpdateTime);
+        operatorStats.addLongStat(
+            WriterCommitterOperator.Metric.ICEBERG_CATALOG_UPDATE_TIME, totalCatalogUpdateTime);
       }
     } catch (StatusRuntimeException sre) {
       if (sre.getStatus().getCode() == Status.Code.ABORTED) {
-        logger.debug(String.format("Commit failed: Reference hash is out of date. " +
-            "Update the reference %s and try again for table %s",
-          reference.getCommitHash(), nessieTableIdentifier));
-        throw new CommitFailedException(sre, "Commit failed: Reference hash is out of date. " +
-          "Update the reference %s and try again", reference.getCommitHash());
+        logger.debug(
+            String.format(
+                "Commit failed: Reference hash is out of date. "
+                    + "Update the reference %s and try again for table %s",
+                reference.getCommitHash(), nessieTableIdentifier));
+        throw new CommitFailedException(
+            sre,
+            "Commit failed: Reference hash is out of date. "
+                + "Update the reference %s and try again",
+            reference.getCommitHash());
       } else {
         throw UserException.dataReadError(sre).build(logger);
       }
     } finally {
       if (threw) {
-        logger.debug(String.format("Deleting metadata file %s of table %s", nessieTableIdentifier, newMetadataLocation));
+        logger.debug(
+            String.format(
+                "Deleting metadata file %s of table %s",
+                nessieTableIdentifier, newMetadataLocation));
         io().deleteFile(newMetadataLocation);
       }
     }
@@ -204,14 +224,13 @@ public class IcebergNessieTableOperations extends BaseMetastoreTableOperations i
     try {
       return nessieClient.getDefaultBranch();
     } catch (NoDefaultBranchException e) {
-      throw UserException.sourceInBadState(e)
-        .message("No default branch set.")
-        .buildSilently();
+      throw UserException.sourceInBadState(e).message("No default branch set.").buildSilently();
     }
   }
 
   @Override
-  public void tryNarrowCommitOrigin(@Nullable IcebergCommitOrigin oldOrigin, IcebergCommitOrigin newOrigin) {
+  public void tryNarrowCommitOrigin(
+      @Nullable IcebergCommitOrigin oldOrigin, IcebergCommitOrigin newOrigin) {
     if (this.commitOrigin == oldOrigin) {
       this.commitOrigin = newOrigin;
     }

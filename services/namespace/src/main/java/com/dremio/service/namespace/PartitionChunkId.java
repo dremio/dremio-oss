@@ -18,15 +18,6 @@ package com.dremio.service.namespace;
 import static com.dremio.service.namespace.DatasetSplitIndexKeys.DATASET_ID;
 import static com.dremio.service.namespace.DatasetSplitIndexKeys.SPLIT_VERSION;
 
-import java.io.UnsupportedEncodingException;
-import java.net.URLDecoder;
-import java.nio.charset.StandardCharsets;
-import java.util.Comparator;
-import java.util.Optional;
-import java.util.concurrent.TimeUnit;
-
-import javax.annotation.Nullable;
-
 import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.SearchTypes.SearchQuery;
 import com.dremio.datastore.api.LegacyKVStore.LegacyFindByRange;
@@ -42,16 +33,21 @@ import com.google.common.base.CharMatcher;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Range;
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
+import java.util.Comparator;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+import javax.annotation.Nullable;
 
-/**
- * Dataset Split key
- */
+/** Dataset Split key */
 public final class PartitionChunkId implements Comparable<PartitionChunkId> {
   // Private comparator
-  private static final Comparator<PartitionChunkId> COMPARATOR = Comparator
-      .comparing(PartitionChunkId::getDatasetId)
-      .thenComparing(PartitionChunkId::getSplitVersion)
-      .thenComparing(PartitionChunkId::getSplitIdentifier);
+  private static final Comparator<PartitionChunkId> COMPARATOR =
+      Comparator.comparing(PartitionChunkId::getDatasetId)
+          .thenComparing(PartitionChunkId::getSplitVersion)
+          .thenComparing(PartitionChunkId::getSplitIdentifier);
 
   // DO NOT USE DIRECTLY unless you understand exactly how PartitionChunkId is encoded
   // The encoding is <encoded dataset id>_<version>_<key>
@@ -70,8 +66,10 @@ public final class PartitionChunkId implements Comparable<PartitionChunkId> {
   @JsonCreator
   public static PartitionChunkId of(String partitionChunkId) {
     final String[] ids = partitionChunkId.split(DELIMITER, 3);
-    Preconditions.checkArgument(ids.length == 3 && !ids[0].isEmpty() && !ids[1].isEmpty() && !ids[2].isEmpty(),
-        "Invalid dataset split id %s", partitionChunkId);
+    Preconditions.checkArgument(
+        ids.length == 3 && !ids[0].isEmpty() && !ids[1].isEmpty() && !ids[2].isEmpty(),
+        "Invalid dataset split id %s",
+        partitionChunkId);
 
     // Some dataset split before upgrade might not have a valid version
     // but the compound key would still allow for the entry to be removed from the kvstore
@@ -95,7 +93,8 @@ public final class PartitionChunkId implements Comparable<PartitionChunkId> {
     return of(datasetId, splitVersion, splitKey);
   }
 
-  public static PartitionChunkId of(DatasetConfig config, PartitionChunkMetadata partitionChunkMetadata, long splitVersion) {
+  public static PartitionChunkId of(
+      DatasetConfig config, PartitionChunkMetadata partitionChunkMetadata, long splitVersion) {
     Preconditions.checkArgument(splitVersion > -1);
     EntityId datasetId = config.getId();
     String splitKey = partitionChunkMetadata.getSplitKey();
@@ -103,24 +102,23 @@ public final class PartitionChunkId implements Comparable<PartitionChunkId> {
     return of(datasetId, splitVersion, splitKey);
   }
 
-
   private static String escape(String datasetId) {
     // Replace % and _ with their URL encoded counter parts
     // Order is important (first encode % and then _) as
     StringBuilder sb = new StringBuilder(datasetId.length());
-    for(int i = 0; i < datasetId.length(); i++) {
+    for (int i = 0; i < datasetId.length(); i++) {
       char c = datasetId.charAt(i);
-      switch(c) {
-      case '%':
-        sb.append("%25");
-        break;
+      switch (c) {
+        case '%':
+          sb.append("%25");
+          break;
 
-      case '_':
-        sb.append("%5F");
-        break;
+        case '_':
+          sb.append("%5F");
+          break;
 
-      default:
-        sb.append(c);
+        default:
+          sb.append(c);
       }
     }
     return sb.toString();
@@ -134,7 +132,6 @@ public final class PartitionChunkId implements Comparable<PartitionChunkId> {
       throw new AssertionError(e);
     }
   }
-
 
   @VisibleForTesting
   static PartitionChunkId of(EntityId datasetId, long splitVersion, String splitKey) {
@@ -152,7 +149,9 @@ public final class PartitionChunkId implements Comparable<PartitionChunkId> {
 
     return new PartitionChunkId(compoundSplitId, datasetIdAsString, splitVersion, splitKey);
   }
-  private PartitionChunkId(String compoundSplitId, String datasetId, long splitVersion, String splitKey) {
+
+  private PartitionChunkId(
+      String compoundSplitId, String datasetId, long splitVersion, String splitKey) {
     this.datasetId = datasetId;
     this.splitVersion = splitVersion;
     this.splitKey = splitKey;
@@ -188,7 +187,7 @@ public final class PartitionChunkId implements Comparable<PartitionChunkId> {
   public boolean equals(Object obj) {
     if (obj != null) {
       if (obj instanceof PartitionChunkId) {
-        final PartitionChunkId other = (PartitionChunkId)obj;
+        final PartitionChunkId other = (PartitionChunkId) obj;
         return compoundSplitId.equals(other.compoundSplitId);
       }
     }
@@ -207,23 +206,25 @@ public final class PartitionChunkId implements Comparable<PartitionChunkId> {
 
   public static SearchQuery getSplitsQuery(DatasetConfig datasetConfig) {
     Preconditions.checkNotNull(datasetConfig.getReadDefinition());
-    long splitVersion = Preconditions.checkNotNull(datasetConfig.getReadDefinition().getSplitVersion());
+    long splitVersion =
+        Preconditions.checkNotNull(datasetConfig.getReadDefinition().getSplitVersion());
     return getSplitsQuery(datasetConfig.getId(), splitVersion);
   }
 
   public static SearchQuery getSplitsQuery(EntityId datasetId, long splitVersion) {
     return SearchQueryUtils.and(
-      SearchQueryUtils.newTermQuery(DATASET_ID, datasetId.getId()),
-      SearchQueryUtils.newTermQuery(SPLIT_VERSION, splitVersion));
+        SearchQueryUtils.newTermQuery(DATASET_ID, datasetId.getId()),
+        SearchQueryUtils.newTermQuery(SPLIT_VERSION, splitVersion));
   }
 
   /**
    * Create a range for the current split version of the given dataset
    *
    * @param datasetConfig the dataset config
-   * @return a range which would contain all split ids for this dataset and its current split version
+   * @return a range which would contain all split ids for this dataset and its current split
+   *     version
    */
-  public static Range<PartitionChunkId> getCurrentSplitRange(DatasetConfig datasetConfig){
+  public static Range<PartitionChunkId> getCurrentSplitRange(DatasetConfig datasetConfig) {
     final long splitVersion = datasetConfig.getReadDefinition().getSplitVersion();
 
     return getSplitRange(datasetConfig.getId(), splitVersion);
@@ -243,15 +244,16 @@ public final class PartitionChunkId implements Comparable<PartitionChunkId> {
   /**
    * Create a range for partition chunk id
    *
-   * Create a range to check if a split id belongs to the provided dataset id and its version is comprised
-   * into startSplitVersion (included) and endSplitVersion (excluded).
+   * <p>Create a range to check if a split id belongs to the provided dataset id and its version is
+   * comprised into startSplitVersion (included) and endSplitVersion (excluded).
    *
    * @param datasetId the dataset id
    * @param startSplitVersion the minimum split version
    * @param endSplitVersion the maximum split version
    * @return
    */
-  public static Range<PartitionChunkId> getSplitRange(EntityId datasetId, long startSplitVersion, long endSplitVersion) {
+  public static Range<PartitionChunkId> getSplitRange(
+      EntityId datasetId, long startSplitVersion, long endSplitVersion) {
     // create start and end id with empty split identifier
     final PartitionChunkId start = getId(datasetId, startSplitVersion);
     final PartitionChunkId end = getId(datasetId, endSplitVersion);
@@ -266,22 +268,23 @@ public final class PartitionChunkId implements Comparable<PartitionChunkId> {
     Range<PartitionChunkId> range = getCurrentSplitRange(datasetConfig);
 
     return new LegacyFindByRange<PartitionChunkId>()
-      .setStart(range.lowerEndpoint(), true)
-      .setEnd(range.upperEndpoint(), false);
+        .setStart(range.lowerEndpoint(), true)
+        .setEnd(range.upperEndpoint(), false);
   }
 
-  public static LegacyFindByRange<PartitionChunkId> getSplitsRange(EntityId datasetId, long splitVersionId) {
+  public static LegacyFindByRange<PartitionChunkId> getSplitsRange(
+      EntityId datasetId, long splitVersionId) {
     Range<PartitionChunkId> range = getSplitRange(datasetId, splitVersionId);
 
     return new LegacyFindByRange<PartitionChunkId>()
-      .setStart(range.lowerEndpoint(), true)
-      .setEnd(range.upperEndpoint(), false);
+        .setStart(range.lowerEndpoint(), true)
+        .setEnd(range.upperEndpoint(), false);
   }
 
   /**
    * Check if split id for this dataset may need new split id
    *
-   * See DX-13336 for details
+   * <p>See DX-13336 for details
    *
    * @param config the dataset config
    * @return true if this dataset might be using legacy/invalid datasetId.
@@ -290,30 +293,29 @@ public final class PartitionChunkId implements Comparable<PartitionChunkId> {
     return RESERVED_DATASET_ID_CHARACTERS.matchesAnyOf(config.getId().getId());
   }
 
-  /**
-   * UNSAFE! Use {@code PartitionChunkId#getSplitRange(EntityId, long)} instead
-
-   */
+  /** UNSAFE! Use {@code PartitionChunkId#getSplitRange(EntityId, long)} instead */
   public static LegacyFindByRange<PartitionChunkId> unsafeGetSplitsRange(DatasetConfig config) {
     final long splitVersion = config.getReadDefinition().getSplitVersion();
     final long nextSplitVersion = splitVersion + 1;
     final String datasetId = config.getId().getId();
 
     // Unsafe way of constructing dataset split id!!!
-    final PartitionChunkId start = new PartitionChunkId(SPLIT_ID_JOINER.join(datasetId, splitVersion, ""), datasetId, splitVersion, "");
-    final PartitionChunkId end = new PartitionChunkId(SPLIT_ID_JOINER.join(datasetId, nextSplitVersion, ""), datasetId, splitVersion, "");
+    final PartitionChunkId start =
+        new PartitionChunkId(
+            SPLIT_ID_JOINER.join(datasetId, splitVersion, ""), datasetId, splitVersion, "");
+    final PartitionChunkId end =
+        new PartitionChunkId(
+            SPLIT_ID_JOINER.join(datasetId, nextSplitVersion, ""), datasetId, splitVersion, "");
 
-    return new LegacyFindByRange<PartitionChunkId>()
-      .setStart(start, true)
-      .setEnd(end, false);
+    return new LegacyFindByRange<PartitionChunkId>().setStart(start, true).setEnd(end, false);
   }
-  /**
-   * Policy to get valid ranges of splits for a given dataset
-   */
+
+  /** Policy to get valid ranges of splits for a given dataset */
   @FunctionalInterface
   public interface SplitOrphansRetentionPolicy {
 
-    public static Range<PartitionChunkId> getSplitRangeForExpiration(long expirationMs, DatasetConfig dataset) {
+    public static Range<PartitionChunkId> getSplitRangeForExpiration(
+        long expirationMs, DatasetConfig dataset) {
       // Anything less than expiredVersion is considered expired
       long expiredVersion = Math.max(0, System.currentTimeMillis() - expirationMs);
       // (assuming split info do not change)
@@ -323,26 +325,27 @@ public final class PartitionChunkId implements Comparable<PartitionChunkId> {
     }
 
     public static long getExpirationMs(MetadataPolicy metadataPolicy) {
-      return Optional.ofNullable(metadataPolicy).map(MetadataPolicy::getDatasetDefinitionExpireAfterMs).orElse(Long.MAX_VALUE);
+      return Optional.ofNullable(metadataPolicy)
+          .map(MetadataPolicy::getDatasetDefinitionExpireAfterMs)
+          .orElse(Long.MAX_VALUE);
     }
 
-    /**
-     * Only keep splits for a dataset matching the current dataset's split version
-     */
-    public static final SplitOrphansRetentionPolicy KEEP_CURRENT_VERSION_ONLY = (metadataPolicy, dataset) -> getCurrentSplitRange(dataset);
+    /** Only keep splits for a dataset matching the current dataset's split version */
+    public static final SplitOrphansRetentionPolicy KEEP_CURRENT_VERSION_ONLY =
+        (metadataPolicy, dataset) -> getCurrentSplitRange(dataset);
 
     /**
      * Only keep splits whose version is not expired based on the source metadata expiration policy.
      *
-     * Keep current version, even if expired
+     * <p>Keep current version, even if expired
      */
-    public static final SplitOrphansRetentionPolicy KEEP_VALID_SPLITS = (metadataPolicy, dataset) ->
-      getSplitRangeForExpiration(getExpirationMs(metadataPolicy), dataset);
+    public static final SplitOrphansRetentionPolicy KEEP_VALID_SPLITS =
+        (metadataPolicy, dataset) ->
+            getSplitRangeForExpiration(getExpirationMs(metadataPolicy), dataset);
 
     /**
-     * Only keep splits based on the following smart expiry setting.
-     * 1) Delete all splits older than smartThresholdMillis
-     * 2) Keep current version, even if expired
+     * Only keep splits based on the following smart expiry setting. 1) Delete all splits older than
+     * smartThresholdMillis 2) Keep current version, even if expired
      */
     public final class SmartExpirationPolicyForSplits implements SplitOrphansRetentionPolicy {
       private final long smartThresholdMillis;
@@ -352,17 +355,19 @@ public final class PartitionChunkId implements Comparable<PartitionChunkId> {
       }
 
       @Override
-      public Range<PartitionChunkId> apply(@Nullable MetadataPolicy metadataPolicy, DatasetConfig dataset) {
+      public Range<PartitionChunkId> apply(
+          @Nullable MetadataPolicy metadataPolicy, DatasetConfig dataset) {
         long smartThreshold = (metadataPolicy == null) ? Long.MAX_VALUE : smartThresholdMillis;
         return getSplitRangeForExpiration(smartThreshold, dataset);
       }
-    };
+    }
+    ;
 
     /**
      * Compute valid range of splits for a given dataset
      *
-     * Compute a range of split ids which would be valid for the provided
-     * metadata policy and dataset config
+     * <p>Compute a range of split ids which would be valid for the provided metadata policy and
+     * dataset config
      *
      * @param metadataPolicy the metadata policy for the given dataset
      * @param dataset the dataset config

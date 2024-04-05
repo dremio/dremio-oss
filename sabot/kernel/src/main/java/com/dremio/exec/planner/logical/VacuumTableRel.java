@@ -15,32 +15,35 @@
  */
 package com.dremio.exec.planner.logical;
 
+import com.dremio.exec.catalog.VacuumOptions;
+import com.dremio.exec.planner.common.VacuumTableRelBase;
 import java.util.List;
-
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 
-import com.dremio.exec.catalog.VacuumOptions;
-import com.dremio.exec.planner.common.VacuumTableRelBase;
-
-/**
- * Drel for 'VACUUM' query.
- */
+/** Drel for 'VACUUM' query. */
 public class VacuumTableRel extends VacuumTableRelBase implements Rel {
 
-  public VacuumTableRel(RelOptCluster cluster,
-                        RelTraitSet traitSet,
-                        RelNode input,
-                        RelOptTable table,
-                        CreateTableEntry createTableEntry,
-                        VacuumOptions vacuumOptions) {
+  public VacuumTableRel(
+      RelOptCluster cluster,
+      RelTraitSet traitSet,
+      RelNode input,
+      RelOptTable table,
+      CreateTableEntry createTableEntry,
+      VacuumOptions vacuumOptions) {
     super(LOGICAL, cluster, traitSet, input, table, createTableEntry, vacuumOptions);
   }
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new VacuumTableRel(getCluster(), traitSet, sole(inputs), getTable(), getCreateTableEntry(), getVacuumOptions());
+    return new VacuumTableRel(
+        getCluster(),
+        traitSet,
+        sole(inputs),
+        getTable(),
+        getCreateTableEntry(),
+        getVacuumOptions());
   }
 }

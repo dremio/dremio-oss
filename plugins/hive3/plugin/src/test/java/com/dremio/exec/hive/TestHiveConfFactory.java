@@ -18,36 +18,34 @@ package com.dremio.exec.hive;
 
 import static org.junit.Assert.assertEquals;
 
-import java.util.ArrayList;
-
-import org.apache.hadoop.hive.conf.HiveConf;
-import org.junit.Test;
-
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.store.hive.Hive3StoragePluginConfig;
 import com.dremio.exec.store.hive.HiveConfFactory;
 import com.dremio.exec.store.hive.HiveStoragePluginConfig;
+import java.util.ArrayList;
+import org.apache.hadoop.hive.conf.HiveConf;
+import org.junit.Test;
 
-/**
- * Tests for {@link com.dremio.exec.store.hive.HiveConfFactory}
- */
+/** Tests for {@link com.dremio.exec.store.hive.HiveConfFactory} */
 public class TestHiveConfFactory {
 
-    @Test
-    public void testS3ImplDefaults() {
-        HiveConfFactory hiveConfFactory = new HiveConfFactory();
-        HiveConf confWithDefaults = hiveConfFactory.createHiveConf(getTestConfig());
-        assertEquals("org.apache.hadoop.fs.s3a.S3AFileSystem", confWithDefaults.get("fs.s3.impl"));
-        assertEquals("org.apache.hadoop.fs.s3a.S3AFileSystem", confWithDefaults.get("fs.s3n.impl"));
+  @Test
+  public void testS3ImplDefaults() {
+    HiveConfFactory hiveConfFactory = new HiveConfFactory();
+    HiveConf confWithDefaults = hiveConfFactory.createHiveConf(getTestConfig());
+    assertEquals("org.apache.hadoop.fs.s3a.S3AFileSystem", confWithDefaults.get("fs.s3.impl"));
+    assertEquals("org.apache.hadoop.fs.s3a.S3AFileSystem", confWithDefaults.get("fs.s3n.impl"));
 
-        HiveStoragePluginConfig configWithOverrides = getTestConfig();
-        configWithOverrides.propertyList = new ArrayList<>();
-        configWithOverrides.propertyList.add(new Property("fs.s3.impl", "com.dremio.test.CustomS3Impl"));
-        configWithOverrides.propertyList.add(new Property("fs.s3n.impl", "com.dremio.test.CustomS3NImpl"));
-        HiveConf confWithOverrides = hiveConfFactory.createHiveConf(configWithOverrides);
-        assertEquals("com.dremio.test.CustomS3Impl", confWithOverrides.get("fs.s3.impl"));
-        assertEquals("com.dremio.test.CustomS3NImpl", confWithOverrides.get("fs.s3n.impl"));
-    }
+    HiveStoragePluginConfig configWithOverrides = getTestConfig();
+    configWithOverrides.propertyList = new ArrayList<>();
+    configWithOverrides.propertyList.add(
+        new Property("fs.s3.impl", "com.dremio.test.CustomS3Impl"));
+    configWithOverrides.propertyList.add(
+        new Property("fs.s3n.impl", "com.dremio.test.CustomS3NImpl"));
+    HiveConf confWithOverrides = hiveConfFactory.createHiveConf(configWithOverrides);
+    assertEquals("com.dremio.test.CustomS3Impl", confWithOverrides.get("fs.s3.impl"));
+    assertEquals("com.dremio.test.CustomS3NImpl", confWithOverrides.get("fs.s3n.impl"));
+  }
 
   @Test
   public void testS3ImplDefaultsUseSecretPropertyList() {
@@ -58,16 +56,18 @@ public class TestHiveConfFactory {
 
     HiveStoragePluginConfig configWithOverrides = getTestConfig();
     configWithOverrides.secretPropertyList = new ArrayList<>();
-    configWithOverrides.secretPropertyList.add(new Property("fs.s3.impl", "com.dremio.test.CustomS3Impl"));
-    configWithOverrides.secretPropertyList.add(new Property("fs.s3n.impl", "com.dremio.test.CustomS3NImpl"));
+    configWithOverrides.secretPropertyList.add(
+        new Property("fs.s3.impl", "com.dremio.test.CustomS3Impl"));
+    configWithOverrides.secretPropertyList.add(
+        new Property("fs.s3n.impl", "com.dremio.test.CustomS3NImpl"));
     HiveConf confWithOverrides = hiveConfFactory.createHiveConf(configWithOverrides);
     assertEquals("com.dremio.test.CustomS3Impl", confWithOverrides.get("fs.s3.impl"));
     assertEquals("com.dremio.test.CustomS3NImpl", confWithOverrides.get("fs.s3n.impl"));
   }
 
-    private HiveStoragePluginConfig getTestConfig() {
-        Hive3StoragePluginConfig hive2StoragePluginConfig = new Hive3StoragePluginConfig();
-        hive2StoragePluginConfig.hostname = "localhost";
-        return hive2StoragePluginConfig;
-    }
+  private HiveStoragePluginConfig getTestConfig() {
+    Hive3StoragePluginConfig hive2StoragePluginConfig = new Hive3StoragePluginConfig();
+    hive2StoragePluginConfig.hostname = "localhost";
+    return hive2StoragePluginConfig;
+  }
 }

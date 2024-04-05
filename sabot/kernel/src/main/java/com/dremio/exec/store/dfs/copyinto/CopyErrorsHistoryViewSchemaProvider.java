@@ -15,18 +15,14 @@
  */
 package com.dremio.exec.store.dfs.copyinto;
 
+import com.google.common.collect.ImmutableList;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.types.Types;
 
-import com.google.common.collect.ImmutableList;
-
-/**
- * Provides a schema for the "copy_errors_history" view based on the specified schema version.
- */
+/** Provides a schema for the "copy_errors_history" view based on the specified schema version. */
 public final class CopyErrorsHistoryViewSchemaProvider {
 
-  private CopyErrorsHistoryViewSchemaProvider() {
-  }
+  private CopyErrorsHistoryViewSchemaProvider() {}
 
   /**
    * Get the schema for the "copy_errors_history" view based on the specified schema version.
@@ -40,19 +36,48 @@ public final class CopyErrorsHistoryViewSchemaProvider {
     Schema fileHistorySchema = CopyFileHistoryTableSchemaProvider.getSchema(schemaVersion);
     if (schemaVersion == 1) {
       return new Schema(
-        ImmutableList.of(
-          getFieldOf(1, jobHistorySchema.findField(CopyJobHistoryTableSchemaProvider.getExecutedAtColName(schemaVersion))),
-          getFieldOf(2, jobHistorySchema.findField(CopyJobHistoryTableSchemaProvider.getJobIdColName(schemaVersion))),
-          getFieldOf(3, jobHistorySchema.findField(CopyJobHistoryTableSchemaProvider.getTableNameColName(schemaVersion))),
-          getFieldOf(4, jobHistorySchema.findField(CopyJobHistoryTableSchemaProvider.getUserNameColName(schemaVersion))),
-          getFieldOf(5, jobHistorySchema.findField(CopyJobHistoryTableSchemaProvider.getBaseSnapshotIdColName(schemaVersion))),
-          getFieldOf(6, jobHistorySchema.findField(CopyJobHistoryTableSchemaProvider.getStorageLocationColName(schemaVersion))),
-          getFieldOf(7, fileHistorySchema.findField(CopyFileHistoryTableSchemaProvider.getFilePathColName(schemaVersion))),
-          getFieldOf(8, fileHistorySchema.findField(CopyFileHistoryTableSchemaProvider.getFileStateColName(schemaVersion))),
-          getFieldOf(9, fileHistorySchema.findField(CopyFileHistoryTableSchemaProvider.getRecordsLoadedColName(schemaVersion))),
-          getFieldOf(10, fileHistorySchema.findField(CopyFileHistoryTableSchemaProvider.getRecordsRejectedColName(schemaVersion)))
-        )
-      );
+          ImmutableList.of(
+              getFieldOf(
+                  1,
+                  jobHistorySchema.findField(
+                      CopyJobHistoryTableSchemaProvider.getExecutedAtColName(schemaVersion))),
+              getFieldOf(
+                  2,
+                  jobHistorySchema.findField(
+                      CopyJobHistoryTableSchemaProvider.getJobIdColName(schemaVersion))),
+              getFieldOf(
+                  3,
+                  jobHistorySchema.findField(
+                      CopyJobHistoryTableSchemaProvider.getTableNameColName(schemaVersion))),
+              getFieldOf(
+                  4,
+                  jobHistorySchema.findField(
+                      CopyJobHistoryTableSchemaProvider.getUserNameColName(schemaVersion))),
+              getFieldOf(
+                  5,
+                  jobHistorySchema.findField(
+                      CopyJobHistoryTableSchemaProvider.getBaseSnapshotIdColName(schemaVersion))),
+              getFieldOf(
+                  6,
+                  jobHistorySchema.findField(
+                      CopyJobHistoryTableSchemaProvider.getStorageLocationColName(schemaVersion))),
+              getFieldOf(
+                  7,
+                  fileHistorySchema.findField(
+                      CopyFileHistoryTableSchemaProvider.getFilePathColName(schemaVersion))),
+              getFieldOf(
+                  8,
+                  fileHistorySchema.findField(
+                      CopyFileHistoryTableSchemaProvider.getFileStateColName(schemaVersion))),
+              getFieldOf(
+                  9,
+                  fileHistorySchema.findField(
+                      CopyFileHistoryTableSchemaProvider.getRecordsLoadedColName(schemaVersion))),
+              getFieldOf(
+                  10,
+                  fileHistorySchema.findField(
+                      CopyFileHistoryTableSchemaProvider.getRecordsRejectedColName(
+                          schemaVersion)))));
     }
     throw newUnsupportedSchemaVersionException(schemaVersion);
   }
@@ -61,8 +86,11 @@ public final class CopyErrorsHistoryViewSchemaProvider {
     return Types.NestedField.required(id, oldField.name(), oldField.type());
   }
 
-  private static UnsupportedOperationException newUnsupportedSchemaVersionException(long schemaVersion) {
-    return new UnsupportedOperationException("Unsupported copy_errors_history view schema version: " + schemaVersion +
-      ". Currently supported schema versions are: 1");
+  private static UnsupportedOperationException newUnsupportedSchemaVersionException(
+      long schemaVersion) {
+    return new UnsupportedOperationException(
+        "Unsupported copy_errors_history view schema version: "
+            + schemaVersion
+            + ". Currently supported schema versions are: 1");
   }
 }

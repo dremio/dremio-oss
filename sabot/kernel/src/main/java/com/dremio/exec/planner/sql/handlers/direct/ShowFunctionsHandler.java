@@ -16,7 +16,11 @@
 
 package com.dremio.exec.planner.sql.handlers.direct;
 
-import java.io.IOException;
+import com.dremio.exec.catalog.udf.UserDefinedFunctionCatalog;
+import com.dremio.exec.ops.QueryContext;
+import com.dremio.exec.planner.sql.parser.SqlShowFunctions;
+import com.dremio.exec.store.sys.udf.UserDefinedFunction;
+import com.dremio.exec.work.foreman.ForemanSetupException;
 import java.util.Comparator;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -24,28 +28,22 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
-
 import org.apache.calcite.sql.SqlNode;
-
-import com.dremio.exec.catalog.Catalog;
-import com.dremio.exec.ops.QueryContext;
-import com.dremio.exec.planner.sql.parser.SqlShowFunctions;
-import com.dremio.exec.store.sys.udf.UserDefinedFunction;
-import com.dremio.exec.work.foreman.ForemanSetupException;
 
 /**
  * Handler for show Functions.
  *
- * SHOW Functions
- * [ LIKE 'pattern' ]
+ * <p>SHOW Functions [ LIKE 'pattern' ]
  */
-public class ShowFunctionsHandler implements SqlDirectHandler<ShowFunctionsHandler.ShowFunctionResult> {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ShowFunctionsHandler.class);
+public class ShowFunctionsHandler
+    implements SqlDirectHandler<ShowFunctionsHandler.ShowFunctionResult> {
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ShowFunctionsHandler.class);
 
-  private final Catalog catalog;
+  private final UserDefinedFunctionCatalog userDefinedFunctionCatalog;
 
-  public ShowFunctionsHandler(QueryContext context){
-    catalog = context.getCatalog();
+  public ShowFunctionsHandler(QueryContext context) {
+    userDefinedFunctionCatalog = context.getUserDefinedFunctionCatalog();
   }
 
   @Override
@@ -53,10 +51,11 @@ public class ShowFunctionsHandler implements SqlDirectHandler<ShowFunctionsHandl
     return showFunctions(sqlNode);
   }
 
-  private List<ShowFunctionResult> showFunctions(SqlNode sqlNode) throws IOException, ForemanSetupException {
+  private List<ShowFunctionResult> showFunctions(SqlNode sqlNode) throws ForemanSetupException {
     final SqlShowFunctions sqlShowFunctions = SqlNodeUtil.unwrap(sqlNode, SqlShowFunctions.class);
 
-    Stream<UserDefinedFunction> functions = StreamSupport.stream(catalog.getAllFunctions().spliterator(), false);
+    Stream<UserDefinedFunction> functions =
+        StreamSupport.stream(userDefinedFunctionCatalog.getAllFunctions().spliterator(), false);
     if (sqlShowFunctions.getLikePattern() != null) {
       final Pattern likePattern = SqlNodeUtil.getPattern(sqlShowFunctions.getLikePattern());
       final Matcher m = likePattern.matcher("");
@@ -66,8 +65,8 @@ public class ShowFunctionsHandler implements SqlDirectHandler<ShowFunctionsHandl
     functions = functions.sorted(Comparator.comparing(UserDefinedFunction::getName));
 
     return functions
-      .map(function -> new ShowFunctionResult(function.getName()))
-      .collect(Collectors.toList());
+        .map(function -> new ShowFunctionResult(function.getName()))
+        .collect(Collectors.toList());
   }
 
   @Override
@@ -85,9 +84,7 @@ public class ShowFunctionsHandler implements SqlDirectHandler<ShowFunctionsHandl
 
     @Override
     public String toString() {
-      return "ShowFunctionResult{" +
-        ", Function_NAME='" + FUNCTION_NAME + '\'' +
-        '}';
+      return "ShowFunctionResult{" + ", Function_NAME='" + FUNCTION_NAME + '\'' + '}';
     }
   }
 }

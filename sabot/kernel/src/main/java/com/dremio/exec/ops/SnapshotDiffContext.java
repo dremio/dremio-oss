@@ -15,27 +15,26 @@
  */
 package com.dremio.exec.ops;
 
+import com.dremio.exec.calcite.logical.ScanCrel;
+import com.dremio.exec.store.TableMetadata;
+import com.google.common.base.Preconditions;
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.calcite.rel.RelNode;
 import org.apache.iceberg.PartitionSpec;
 
-import com.dremio.exec.store.TableMetadata;
-import com.google.common.base.Preconditions;
-
 /**
- * Class for storing all the needed information to
- * do a diff between multiple Iceberg Snapshots.
- * We support diff based on
- * 1) Modified Files with multiple Intervals supported
- * 2) Modified Files Raised to Partitions level with single Interval supported
- * (meaning all data for any partition containing a modified file)
+ * Class for storing all the needed information to do a diff between multiple Iceberg Snapshots. We
+ * support diff based on 1) Modified Files with multiple Intervals supported 2) Modified Files
+ * Raised to Partitions level with single Interval supported (meaning all data for any partition
+ * containing a modified file)
  */
 public class SnapshotDiffContext implements Cloneable {
   public static final SnapshotDiffContext NO_SNAPSHOT_DIFF = new SnapshotDiffContext();
-  private PartitionSpec reflectionPartitionSpec; //target partition spec to raise to for the reflection
-  private PartitionSpec baseDatasetTargetPartitionSpec;//target partition spec to raise to for the base dataset
+  private PartitionSpec
+      reflectionPartitionSpec; // target partition spec to raise to for the reflection
+  private PartitionSpec
+      baseDatasetTargetPartitionSpec; // target partition spec to raise to for the base dataset
 
   private List<SnapshotDiffSingleInterval> intervals;
 
@@ -43,18 +42,34 @@ public class SnapshotDiffContext implements Cloneable {
 
   private RelNode deleteFilesFilter;
 
+  public boolean isForSameTable(ScanCrel tableScan) {
+    if (isEnabled() && !intervals.isEmpty()) {
+      return intervals
+          .get(0)
+          .getBeginningTableMetadata()
+          .getName()
+          .equals(tableScan.getTableMetadata().getName());
+    }
+    return false;
+  }
+
   public enum FilterApplyOptions {
     NO_FILTER,
     FILTER_DATA_FILES,
     FILTER_PARTITIONS
   }
 
-  public SnapshotDiffContext(final TableMetadata beginningTableMetadata,final TableMetadata endingTableMetadata,final FilterApplyOptions filterApplyOptions) {
-    if (filterApplyOptions == null || beginningTableMetadata == null || endingTableMetadata == null) {
+  public SnapshotDiffContext(
+      final TableMetadata beginningTableMetadata,
+      final TableMetadata endingTableMetadata,
+      final FilterApplyOptions filterApplyOptions) {
+    if (filterApplyOptions == null
+        || beginningTableMetadata == null
+        || endingTableMetadata == null) {
       new SnapshotDiffContext();
     } else {
       this.intervals = new ArrayList<>();
-      intervals.add(new SnapshotDiffSingleInterval(beginningTableMetadata,endingTableMetadata));
+      intervals.add(new SnapshotDiffSingleInterval(beginningTableMetadata, endingTableMetadata));
       this.filterApplyOptions = filterApplyOptions;
     }
   }
@@ -66,8 +81,8 @@ public class SnapshotDiffContext implements Cloneable {
 
   @Override
   public Object clone() throws CloneNotSupportedException {
-    //We do not allow cloning this class
-    //A single SnapshotDiffContext should be used throughout the whole query plan
+    // We do not allow cloning this class
+    // A single SnapshotDiffContext should be used throughout the whole query plan
     throw new CloneNotSupportedException();
   }
 
@@ -75,7 +90,7 @@ public class SnapshotDiffContext implements Cloneable {
     return deleteFilesFilter;
   }
 
-  public void setDeleteFilesFilter(final RelNode prel){
+  public void setDeleteFilesFilter(final RelNode prel) {
     deleteFilesFilter = prel;
   }
 
@@ -87,8 +102,8 @@ public class SnapshotDiffContext implements Cloneable {
     return reflectionPartitionSpec;
   }
 
-
-  public void setBaseDatasetTargetPartitionSpec(final PartitionSpec baseDatasetTargetPartitionSpec) {
+  public void setBaseDatasetTargetPartitionSpec(
+      final PartitionSpec baseDatasetTargetPartitionSpec) {
     this.baseDatasetTargetPartitionSpec = baseDatasetTargetPartitionSpec;
   }
 
@@ -96,8 +111,9 @@ public class SnapshotDiffContext implements Cloneable {
     return baseDatasetTargetPartitionSpec;
   }
 
-  public void addSnapshotDiffInterval(final TableMetadata beginningTableMetadata, final TableMetadata endingTableMetadata){
-    intervals.add(new SnapshotDiffSingleInterval(beginningTableMetadata,endingTableMetadata));
+  public void addSnapshotDiffInterval(
+      final TableMetadata beginningTableMetadata, final TableMetadata endingTableMetadata) {
+    intervals.add(new SnapshotDiffSingleInterval(beginningTableMetadata, endingTableMetadata));
   }
 
   public FilterApplyOptions getFilterApplyOptions() {
@@ -108,25 +124,28 @@ public class SnapshotDiffContext implements Cloneable {
     this.filterApplyOptions = filterApplyOptions;
   }
 
-  public boolean isEnabled(){
-    return filterApplyOptions != FilterApplyOptions.NO_FILTER
-      && !intervals.isEmpty();
+  public boolean isEnabled() {
+    return filterApplyOptions != FilterApplyOptions.NO_FILTER && !intervals.isEmpty();
   }
 
-  public boolean isSameSnapshot(){
-    return intervals.size() == 1 &&
-      intervals.get(0).getBeginningTableMetadata().equals(intervals.get(0).getEndingTableMetadata());
+  public boolean isSameSnapshot() {
+    return intervals.size() == 1
+        && intervals
+            .get(0)
+            .getBeginningTableMetadata()
+            .equals(intervals.get(0).getEndingTableMetadata());
   }
 
   public List<SnapshotDiffSingleInterval> getIntervals() {
     return intervals;
   }
 
-  public static class SnapshotDiffSingleInterval{
+  public static class SnapshotDiffSingleInterval {
     private final TableMetadata beginningTableMetadata;
     private final TableMetadata endingTableMetadata;
 
-    SnapshotDiffSingleInterval(final TableMetadata beginningTableMetadata,final TableMetadata endingTableMetadata){
+    SnapshotDiffSingleInterval(
+        final TableMetadata beginningTableMetadata, final TableMetadata endingTableMetadata) {
       this.beginningTableMetadata = Preconditions.checkNotNull(beginningTableMetadata);
       this.endingTableMetadata = Preconditions.checkNotNull(endingTableMetadata);
     }

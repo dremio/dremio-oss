@@ -19,12 +19,17 @@ import static com.dremio.sabot.Fixtures.t;
 import static com.dremio.sabot.Fixtures.th;
 import static com.dremio.sabot.Fixtures.tr;
 
+import com.dremio.common.AutoCloseables;
+import com.dremio.common.expression.CompleteType;
+import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.record.VectorAccessible;
+import com.dremio.exec.record.VectorContainer;
+import com.google.common.base.Preconditions;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
@@ -38,23 +43,18 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.commons.lang3.RandomStringUtils;
 
-import com.dremio.common.AutoCloseables;
-import com.dremio.common.expression.CompleteType;
-import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.record.VectorAccessible;
-import com.dremio.exec.record.VectorContainer;
-import com.google.common.base.Preconditions;
-
 /**
- * Used to generate data for testing hash agg spilling
- * functionality. As part of further development (non-contraction
- * etc), this should probably be extended to work with a schema
- * provided by the consumer.
+ * Used to generate data for testing hash agg spilling functionality. As part of further development
+ * (non-contraction etc), this should probably be extended to work with a schema provided by the
+ * consumer.
  */
 public class CustomHashAggDataGenerator implements Generator {
-  private static final FieldType DECIMAL_FIELD_TYPE = FieldType.nullable(new ArrowType.Decimal(38, 9, 128));
-  private static final ArrowType.Decimal DECIMAL_ARROWTYPE = (ArrowType.Decimal) DECIMAL_FIELD_TYPE.getType();
-  private static final CompleteType DECIMAL_COMPLETE_TYPE = new CompleteType(DECIMAL_ARROWTYPE, new ArrayList<>());
+  private static final FieldType DECIMAL_FIELD_TYPE =
+      FieldType.nullable(new ArrowType.Decimal(38, 9, 128));
+  private static final ArrowType.Decimal DECIMAL_ARROWTYPE =
+      (ArrowType.Decimal) DECIMAL_FIELD_TYPE.getType();
+  private static final CompleteType DECIMAL_COMPLETE_TYPE =
+      new CompleteType(DECIMAL_ARROWTYPE, new ArrayList<>());
 
   private static final Field INT_KEY = CompleteType.INT.toField("INT_KEY");
   private static final Field BIGINT_KEY = CompleteType.BIGINT.toField("BIGINT_KEY");
@@ -130,46 +130,50 @@ public class CustomHashAggDataGenerator implements Generator {
 
   private int minLargeVarCharLen = 0;
 
-  private void internalInit(int numRows, BufferAllocator allocator, final boolean largeVarChars)
-  {
+  private void internalInit(int numRows, BufferAllocator allocator, final boolean largeVarChars) {
     this.numRows = numRows;
-    this.batches = numRows/BATCH_SIZE;
+    this.batches = numRows / BATCH_SIZE;
     this.largeVarChars = largeVarChars;
     createBigSchemaAndInputContainer(allocator);
     buildInputTableDataAndResultset();
   }
 
-  public CustomHashAggDataGenerator(int numRows, BufferAllocator allocator,
-                                    final boolean largeVarChars) {
-    Preconditions.checkState(numRows > 0 && numRows%BATCH_SIZE == 0,
-                             "ERROR: total number of rows should be greater than 0");
+  public CustomHashAggDataGenerator(
+      int numRows, BufferAllocator allocator, final boolean largeVarChars) {
+    Preconditions.checkState(
+        numRows > 0 && numRows % BATCH_SIZE == 0,
+        "ERROR: total number of rows should be greater than 0");
     internalInit(numRows, allocator, largeVarChars);
   }
 
-  public CustomHashAggDataGenerator(int numRows, BufferAllocator allocator,
-                                    final int minVarCharLen /*minimum length of long varchar*/) {
-    Preconditions.checkState(numRows > 0 && numRows%BATCH_SIZE == 0,
-      "ERROR: total number of rows should be greater than 0");
+  public CustomHashAggDataGenerator(
+      int numRows,
+      BufferAllocator allocator,
+      final int minVarCharLen /*minimum length of long varchar*/) {
+    Preconditions.checkState(
+        numRows > 0 && numRows % BATCH_SIZE == 0,
+        "ERROR: total number of rows should be greater than 0");
 
     this.minLargeVarCharLen = minVarCharLen;
     internalInit(numRows, allocator, true);
   }
 
   private void createBigSchemaAndInputContainer(final BufferAllocator allocator) {
-    final BatchSchema schema = BatchSchema.newBuilder()
-      .addField(INT_KEY)
-      .addField(BIGINT_KEY)
-      .addField(VARCHAR_KEY)
-      .addField(FLOAT_KEY)
-      .addField(DOUBLE_KEY)
-      .addField(BOOLEAN_KEY)
-      .addField(DECIMAL_KEY)
-      .addField(INT_MEASURE)
-      .addField(BIGINT_MEASURE)
-      .addField(FLOAT_MEASURE)
-      .addField(DOUBLE_MEASURE)
-      .addField(DECIMAL_MEASURE)
-      .build();
+    final BatchSchema schema =
+        BatchSchema.newBuilder()
+            .addField(INT_KEY)
+            .addField(BIGINT_KEY)
+            .addField(VARCHAR_KEY)
+            .addField(FLOAT_KEY)
+            .addField(DOUBLE_KEY)
+            .addField(BOOLEAN_KEY)
+            .addField(DECIMAL_KEY)
+            .addField(INT_MEASURE)
+            .addField(BIGINT_MEASURE)
+            .addField(FLOAT_MEASURE)
+            .addField(DOUBLE_MEASURE)
+            .addField(DECIMAL_MEASURE)
+            .build();
 
     container = VectorContainer.create(allocator, schema);
 
@@ -235,8 +239,8 @@ public class CustomHashAggDataGenerator implements Generator {
   }
 
   /**
-   * Currently we generate a simple patter where we fix the number of times
-   * a key will repeat and after how many records it will repeat.
+   * Currently we generate a simple patter where we fix the number of times a key will repeat and
+   * after how many records it will repeat.
    */
   private void buildInputTableDataAndResultset() {
     intKeyValues = new Integer[numRows];
@@ -287,8 +291,8 @@ public class CustomHashAggDataGenerator implements Generator {
           /* key columns */
           if (i < pos + GROUP_INTERVAL_PER_BATCH) {
             /* generate unique key column values */
-            intKeyValues[i] = intKeyValues[i-1] + 1;
-            bigintKeyValues[i] = bigintKeyValues[i-1] + 1L;
+            intKeyValues[i] = intKeyValues[i - 1] + 1;
+            bigintKeyValues[i] = bigintKeyValues[i - 1] + 1L;
             if (largeVarChars) {
               /* length of varchars is directly proportional to the desired number of rows we have to generate in the dataset */
               varKeyValues[i] = varKeyValues[i - 1] + String.format("%03d", 1);
@@ -311,24 +315,47 @@ public class CustomHashAggDataGenerator implements Generator {
           }
 
           /* measure columns */
-          intMeasureValues[i] = intMeasureValues[i-1] + INT_INCREMENT;
-          bigIntMeasureValues[i] = bigIntMeasureValues[i-1] + BIGINT_INCREMENT;
-          floatMeasureValues[i] = floatMeasureValues[i-1] + FLOAT_INCREMENT;
-          doubleMeasureValues[i] = doubleMeasureValues[i-1] + DOUBLE_INCREMENT;
+          intMeasureValues[i] = intMeasureValues[i - 1] + INT_INCREMENT;
+          bigIntMeasureValues[i] = bigIntMeasureValues[i - 1] + BIGINT_INCREMENT;
+          floatMeasureValues[i] = floatMeasureValues[i - 1] + FLOAT_INCREMENT;
+          doubleMeasureValues[i] = doubleMeasureValues[i - 1] + DOUBLE_INCREMENT;
           decimalMeasureValues[i] = decimalMeasureValues[i - 1].add(DECIMAL_INCREMENT);
         }
 
         /* compute the hashagg results as we build the data */
-        final Key k = new Key(intKeyValues[i], bigintKeyValues[i], varKeyValues[i],
-                              Float.floatToIntBits(floatKeyValues[i]), Double.doubleToLongBits(doubleKeyValues[i]),
-                              booleanKeyValues[i], decimalKeyValues[i]);
+        final Key k =
+            new Key(
+                intKeyValues[i],
+                bigintKeyValues[i],
+                varKeyValues[i],
+                Float.floatToIntBits(floatKeyValues[i]),
+                Double.doubleToLongBits(doubleKeyValues[i]),
+                booleanKeyValues[i],
+                decimalKeyValues[i]);
         Value v = aggregatedResults.get(k);
         if (v == null) {
-          v = new Value(intMeasureValues[i], intMeasureValues[i], intMeasureValues[i], 1,
-                        bigIntMeasureValues[i], bigIntMeasureValues[i], bigIntMeasureValues[i], 1,
-                        floatMeasureValues[i], floatMeasureValues[i], floatMeasureValues[i], 1,
-                        doubleMeasureValues[i], doubleMeasureValues[i], doubleMeasureValues[i], 1,
-                        decimalMeasureValues[i], decimalMeasureValues[i], decimalMeasureValues[i], 1);
+          v =
+              new Value(
+                  intMeasureValues[i],
+                  intMeasureValues[i],
+                  intMeasureValues[i],
+                  1,
+                  bigIntMeasureValues[i],
+                  bigIntMeasureValues[i],
+                  bigIntMeasureValues[i],
+                  1,
+                  floatMeasureValues[i],
+                  floatMeasureValues[i],
+                  floatMeasureValues[i],
+                  1,
+                  doubleMeasureValues[i],
+                  doubleMeasureValues[i],
+                  doubleMeasureValues[i],
+                  1,
+                  decimalMeasureValues[i],
+                  decimalMeasureValues[i],
+                  decimalMeasureValues[i],
+                  1);
           aggregatedResults.put(k, v);
         } else {
           v.sumInt += intMeasureValues[i];
@@ -337,8 +364,10 @@ public class CustomHashAggDataGenerator implements Generator {
           v.countInt++;
 
           v.sumBigInt += bigIntMeasureValues[i];
-          v.minBigInt = (bigIntMeasureValues[i] < v.minBigInt) ? bigIntMeasureValues[i] : v.minBigInt;
-          v.maxBigInt = (bigIntMeasureValues[i] > v.maxBigInt) ? bigIntMeasureValues[i] : v.maxBigInt;
+          v.minBigInt =
+              (bigIntMeasureValues[i] < v.minBigInt) ? bigIntMeasureValues[i] : v.minBigInt;
+          v.maxBigInt =
+              (bigIntMeasureValues[i] > v.maxBigInt) ? bigIntMeasureValues[i] : v.maxBigInt;
           v.countBigInt++;
 
           v.sumFloat += floatMeasureValues[i];
@@ -347,15 +376,21 @@ public class CustomHashAggDataGenerator implements Generator {
           v.countFloat++;
 
           v.sumDouble += doubleMeasureValues[i];
-          v.minDouble = (doubleMeasureValues[i] < v.minDouble) ? doubleMeasureValues[i] : v.minDouble;
-          v.maxDouble = (doubleMeasureValues[i] > v.maxDouble) ? doubleMeasureValues[i] : v.maxDouble;
+          v.minDouble =
+              (doubleMeasureValues[i] < v.minDouble) ? doubleMeasureValues[i] : v.minDouble;
+          v.maxDouble =
+              (doubleMeasureValues[i] > v.maxDouble) ? doubleMeasureValues[i] : v.maxDouble;
           v.countDouble++;
 
           v.sumDecimal = v.sumDecimal.add(decimalMeasureValues[i]);
-          v.minDecimal = decimalMeasureValues[i].compareTo(v.minDecimal) < 0 ?
-            decimalMeasureValues[i] : v.minDecimal;
-          v.maxDecimal = decimalMeasureValues[i].compareTo(v.minDecimal) > 0 ?
-            decimalMeasureValues[i] : v.minDecimal;
+          v.minDecimal =
+              decimalMeasureValues[i].compareTo(v.minDecimal) < 0
+                  ? decimalMeasureValues[i]
+                  : v.minDecimal;
+          v.maxDecimal =
+              decimalMeasureValues[i].compareTo(v.minDecimal) > 0
+                  ? decimalMeasureValues[i]
+                  : v.minDecimal;
           v.countDecimal++;
         }
       }
@@ -363,7 +398,8 @@ public class CustomHashAggDataGenerator implements Generator {
       batch++;
     }
 
-    Preconditions.checkArgument(aggregatedResults.size() == (GROUPS_PER_BATCH * batches), "result table built incorrectly");
+    Preconditions.checkArgument(
+        aggregatedResults.size() == (GROUPS_PER_BATCH * batches), "result table built incorrectly");
   }
 
   public Fixtures.Table getExpectedGroupsAndAggregations() {
@@ -371,24 +407,61 @@ public class CustomHashAggDataGenerator implements Generator {
     Iterator iterator = aggregatedResults.entrySet().iterator();
     int row = 0;
     while (iterator.hasNext()) {
-      final Map.Entry<Key, Value> pair = (Map.Entry<Key, Value>)iterator.next();
+      final Map.Entry<Key, Value> pair = (Map.Entry<Key, Value>) iterator.next();
       final Key k = pair.getKey();
       final Value v = pair.getValue();
-      rows[row] = tr(k.intKey, k.bigintKey, k.varKey, Float.intBitsToFloat(k.floatKey), Double.longBitsToDouble(k.doubleKey), k.booleanKey, k.decimalKey,
-                     v.sumInt, v.minInt, v.maxInt,
-                     v.sumBigInt, v.minBigInt, v.maxBigInt,
-                     v.sumFloat, v.minFloat, v.maxFloat,
-                     v.sumDouble, v.minDouble, v.maxDouble,
-                     v.sumDecimal, v.minDecimal, v.maxDecimal);
+      rows[row] =
+          tr(
+              k.intKey,
+              k.bigintKey,
+              k.varKey,
+              Float.intBitsToFloat(k.floatKey),
+              Double.longBitsToDouble(k.doubleKey),
+              k.booleanKey,
+              k.decimalKey,
+              v.sumInt,
+              v.minInt,
+              v.maxInt,
+              v.sumBigInt,
+              v.minBigInt,
+              v.maxBigInt,
+              v.sumFloat,
+              v.minFloat,
+              v.maxFloat,
+              v.sumDouble,
+              v.minDouble,
+              v.maxDouble,
+              v.sumDecimal,
+              v.minDecimal,
+              v.maxDecimal);
       row++;
     }
-    return t(th("INT_KEY", "BIGINT_KEY", "VARCHAR_KEY", "FLOAT_KEY", "DOUBLE_KEY", "BOOLEAN_KEY", "DECIMAL_KEY",
-                "SUM_INT", "MIN_INT", "MAX_INT",
-                "SUM_BIGINT", "MIN_BIGINT", "MAX_BIGINT",
-                "SUM_FLOAT", "MIN_FLOAT", "MAX_FLOAT",
-                "SUM_DOUBLE", "MIN_DOUBLE", "MAX_DOUBLE",
-                "SUM_DECIMAL", "MIN_DECIMAL", "MAX_DECIMAL"),
-             rows).orderInsensitive();
+    return t(
+            th(
+                "INT_KEY",
+                "BIGINT_KEY",
+                "VARCHAR_KEY",
+                "FLOAT_KEY",
+                "DOUBLE_KEY",
+                "BOOLEAN_KEY",
+                "DECIMAL_KEY",
+                "SUM_INT",
+                "MIN_INT",
+                "MAX_INT",
+                "SUM_BIGINT",
+                "MIN_BIGINT",
+                "MAX_BIGINT",
+                "SUM_FLOAT",
+                "MIN_FLOAT",
+                "MAX_FLOAT",
+                "SUM_DOUBLE",
+                "MIN_DOUBLE",
+                "MAX_DOUBLE",
+                "SUM_DECIMAL",
+                "MIN_DECIMAL",
+                "MAX_DECIMAL"),
+            rows)
+        .orderInsensitive();
   }
 
   public Fixtures.Table getExpectedGroupsAndAggregationsWithCount() {
@@ -396,24 +469,71 @@ public class CustomHashAggDataGenerator implements Generator {
     Iterator iterator = aggregatedResults.entrySet().iterator();
     int row = 0;
     while (iterator.hasNext()) {
-      final Map.Entry<Key, Value> pair = (Map.Entry<Key, Value>)iterator.next();
+      final Map.Entry<Key, Value> pair = (Map.Entry<Key, Value>) iterator.next();
       final Key k = pair.getKey();
       final Value v = pair.getValue();
-      rows[row] = tr(k.intKey, k.bigintKey, k.varKey, Float.intBitsToFloat(k.floatKey), Double.longBitsToDouble(k.doubleKey), k.booleanKey, k.decimalKey,
-                     v.sumInt, v.minInt, v.maxInt, v.countInt,
-                     v.sumBigInt, v.minBigInt, v.maxBigInt, v.countBigInt,
-                     v.sumFloat, v.minFloat, v.maxFloat, v.countFloat,
-                     v.sumDouble, v.minDouble, v.maxDouble, v.countDouble,
-                     v.sumDecimal, v.minDecimal, v.maxDecimal, v.countDecimal);
+      rows[row] =
+          tr(
+              k.intKey,
+              k.bigintKey,
+              k.varKey,
+              Float.intBitsToFloat(k.floatKey),
+              Double.longBitsToDouble(k.doubleKey),
+              k.booleanKey,
+              k.decimalKey,
+              v.sumInt,
+              v.minInt,
+              v.maxInt,
+              v.countInt,
+              v.sumBigInt,
+              v.minBigInt,
+              v.maxBigInt,
+              v.countBigInt,
+              v.sumFloat,
+              v.minFloat,
+              v.maxFloat,
+              v.countFloat,
+              v.sumDouble,
+              v.minDouble,
+              v.maxDouble,
+              v.countDouble,
+              v.sumDecimal,
+              v.minDecimal,
+              v.maxDecimal,
+              v.countDecimal);
       row++;
     }
-    return t(th("INT_KEY", "BIGINT_KEY", "VARCHAR_KEY", "FLOAT_KEY", "DOUBLE_KEY", "BOOLEAN_KEY", "DECIMAL_KEY",
-                "SUM_INT", "MIN_INT", "MAX_INT", "COUNT_INT",
-                "SUM_BIGINT", "MIN_BIGINT", "MAX_BIGINT", "COUNT_BIGINT",
-                "SUM_FLOAT", "MIN_FLOAT", "MAX_FLOAT", "COUNT_FLOAT",
-                "SUM_DOUBLE", "MIN_DOUBLE", "MAX_DOUBLE", "COUNT_DOUBLE",
-                "SUM_DECIMAL", "MIN_DECIMAL", "MAX_DECIMAL", "COUNT_DECIMAL"),
-             rows).orderInsensitive();
+    return t(
+            th(
+                "INT_KEY",
+                "BIGINT_KEY",
+                "VARCHAR_KEY",
+                "FLOAT_KEY",
+                "DOUBLE_KEY",
+                "BOOLEAN_KEY",
+                "DECIMAL_KEY",
+                "SUM_INT",
+                "MIN_INT",
+                "MAX_INT",
+                "COUNT_INT",
+                "SUM_BIGINT",
+                "MIN_BIGINT",
+                "MAX_BIGINT",
+                "COUNT_BIGINT",
+                "SUM_FLOAT",
+                "MIN_FLOAT",
+                "MAX_FLOAT",
+                "COUNT_FLOAT",
+                "SUM_DOUBLE",
+                "MIN_DOUBLE",
+                "MAX_DOUBLE",
+                "COUNT_DOUBLE",
+                "SUM_DECIMAL",
+                "MIN_DECIMAL",
+                "MAX_DECIMAL",
+                "COUNT_DECIMAL"),
+            rows)
+        .orderInsensitive();
   }
 
   private static final class Key {
@@ -425,8 +545,13 @@ public class CustomHashAggDataGenerator implements Generator {
     private final boolean booleanKey;
     private final BigDecimal decimalKey;
 
-    Key(final int intKey, final long bigintKey, final String varKey,
-        final int floatKey, final long doubleKey, final boolean booleanKey,
+    Key(
+        final int intKey,
+        final long bigintKey,
+        final String varKey,
+        final int floatKey,
+        final long doubleKey,
+        final boolean booleanKey,
         final BigDecimal decimalKey) {
       this.intKey = intKey;
       this.bigintKey = bigintKey;
@@ -438,15 +563,19 @@ public class CustomHashAggDataGenerator implements Generator {
     }
 
     @Override
-    public boolean equals (Object other) {
+    public boolean equals(Object other) {
       if (!(other instanceof Key)) {
         return false;
       }
 
-      final Key k = (Key)other;
-      return (this.intKey == k.intKey) && (this.bigintKey == k.bigintKey) && (this.varKey.equals(k.varKey))
-        && (this.floatKey == ((Key) other).floatKey) && this.doubleKey == ((Key) other).doubleKey
-        && (this.booleanKey == ((Key) other).booleanKey) && (this.decimalKey.compareTo(((Key) other).decimalKey) == 0);
+      final Key k = (Key) other;
+      return (this.intKey == k.intKey)
+          && (this.bigintKey == k.bigintKey)
+          && (this.varKey.equals(k.varKey))
+          && (this.floatKey == ((Key) other).floatKey)
+          && this.doubleKey == ((Key) other).doubleKey
+          && (this.booleanKey == ((Key) other).booleanKey)
+          && (this.decimalKey.compareTo(((Key) other).decimalKey) == 0);
     }
 
     @Override
@@ -489,12 +618,27 @@ public class CustomHashAggDataGenerator implements Generator {
     private BigDecimal maxDecimal;
     private long countDecimal;
 
-    Value(final long sumInt, final int minInt, final int maxInt, final long countInt,
-          final long sumBigInt, final long minBigInt, final long maxBigInt, final long countBigInt,
-          final double sumFloat, final float minFloat, final float maxFloat, final long countFloat,
-          final double sumDouble, final double minDouble, final double maxDouble, final long countDouble,
-          final BigDecimal sumDecimal, final BigDecimal minDecimal, final BigDecimal maxDecimal, final long
-            countDecimal) {
+    Value(
+        final long sumInt,
+        final int minInt,
+        final int maxInt,
+        final long countInt,
+        final long sumBigInt,
+        final long minBigInt,
+        final long maxBigInt,
+        final long countBigInt,
+        final double sumFloat,
+        final float minFloat,
+        final float maxFloat,
+        final long countFloat,
+        final double sumDouble,
+        final double minDouble,
+        final double maxDouble,
+        final long countDouble,
+        final BigDecimal sumDecimal,
+        final BigDecimal minDecimal,
+        final BigDecimal maxDecimal,
+        final long countDecimal) {
       this.sumInt = sumInt;
       this.maxInt = maxInt;
       this.minInt = minInt;

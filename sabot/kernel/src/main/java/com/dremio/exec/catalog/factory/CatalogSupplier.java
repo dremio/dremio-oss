@@ -15,9 +15,8 @@
  */
 package com.dremio.exec.catalog.factory;
 
-import java.util.function.Supplier;
-
 import com.dremio.exec.catalog.Catalog;
+import java.util.function.Supplier;
 
 public interface CatalogSupplier extends Supplier<Catalog> {
   Catalog getSystemCatalog();

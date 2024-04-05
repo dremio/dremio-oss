@@ -19,40 +19,44 @@ import static com.dremio.exec.work.foreman.AttemptManager.INJECTOR_CLEANING_FAIL
 import static com.dremio.exec.work.foreman.AttemptManager.INJECTOR_COMMIT_FAILURE;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.io.File;
-
-import org.apache.commons.io.FileUtils;
-import org.junit.Test;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.common.util.TestTools;
 import com.dremio.exec.testing.Controls;
 import com.dremio.exec.testing.ControlsInjectionUtil;
 import com.dremio.exec.work.foreman.AttemptManager;
 import com.dremio.exec.work.foreman.ForemanException;
+import java.io.File;
+import org.apache.commons.io.FileUtils;
+import org.junit.Test;
 
 // Inject a failure during commit, and verify that it bails out (no timeout/hang).
 public class TestCommitAndCleaningFailure extends BaseTestQuery {
 
-  private void testWithInjectFailure(String injectedFailure, final Class<? extends Throwable> exceptionClass) throws Exception {
-    for (String testSchema: SCHEMAS_FOR_TEST) {
+  private void testWithInjectFailure(
+      String injectedFailure, final Class<? extends Throwable> exceptionClass) throws Exception {
+    for (String testSchema : SCHEMAS_FOR_TEST) {
       final String tableName = injectedFailure;
 
-      final String controls = Controls.newBuilder()
-        .addException(AttemptManager.class, injectedFailure, exceptionClass)
-        .build();
+      final String controls =
+          Controls.newBuilder()
+              .addException(AttemptManager.class, injectedFailure, exceptionClass)
+              .build();
 
       try (AutoCloseable c = enableIcebergTables()) {
         try {
           final String testWorkingPath = TestTools.getWorkingPath();
           final String parquetFiles = testWorkingPath + "/src/test/resources/iceberg/orders";
-          final String ctasQuery = String.format("CREATE TABLE %s.%s PARTITION BY (o_orderdate) " +
-              " AS SELECT * from dfs.\"" + parquetFiles + "\" limit 2",
-            testSchema, tableName);
+          final String ctasQuery =
+              String.format(
+                  "CREATE TABLE %s.%s PARTITION BY (o_orderdate) "
+                      + " AS SELECT * from dfs.\""
+                      + parquetFiles
+                      + "\" limit 2",
+                  testSchema,
+                  tableName);
 
           ControlsInjectionUtil.setControls(client, controls);
-          assertThatThrownBy(() -> test(ctasQuery))
-            .hasMessageContaining(injectedFailure);
+          assertThatThrownBy(() -> test(ctasQuery)).hasMessageContaining(injectedFailure);
 
         } finally {
           FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));

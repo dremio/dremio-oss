@@ -17,17 +17,13 @@ package com.dremio.service.execselector;
 
 import static org.junit.Assert.assertTrue;
 
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
-
-import org.junit.Test;
-
 import com.dremio.common.concurrent.AutoCloseableLock;
 import com.dremio.service.Pointer;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+import org.junit.Test;
 
-/**
- * Unit test for QueueProcessor
- */
+/** Unit test for QueueProcessor */
 public class TestQueueProcessor {
   @Test
   public void testQueueProcessor() throws Exception {
@@ -36,9 +32,11 @@ public class TestQueueProcessor {
     Lock readLock = rwlock.readLock();
     Lock writeLock = rwlock.writeLock();
 
-    QueueProcessor<Long> qp = new QueueProcessor<>("queue-processor",
-      () -> new AutoCloseableLock(writeLock).open(),
-      (i) -> counter.value += i);
+    QueueProcessor<Long> qp =
+        new QueueProcessor<>(
+            "queue-processor",
+            () -> new AutoCloseableLock(writeLock).open(),
+            (i) -> counter.value += i);
     qp.start();
     final long totalCount = 100_000;
     final long numBatches = 10;

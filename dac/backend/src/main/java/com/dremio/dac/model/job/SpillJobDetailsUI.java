@@ -19,8 +19,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * Holder for info from{@link com.dremio.service.job.proto.SpillJobDetails}
- * for representing in UI
+ * Holder for info from{@link com.dremio.service.job.proto.SpillJobDetails} for representing in UI
  */
 public class SpillJobDetailsUI {
 
@@ -31,10 +30,10 @@ public class SpillJobDetailsUI {
 
   @JsonCreator
   public SpillJobDetailsUI(
-    @JsonProperty("hashAggSpilled") boolean hashAggSpilled,
-    @JsonProperty("sortSpilled") boolean sortSpilled,
-    @JsonProperty("hashJoinSpilled") boolean hashJoinSpilled,
-    @JsonProperty("totalBytesSpilled") long totalBytesSpilled) {
+      @JsonProperty("hashAggSpilled") boolean hashAggSpilled,
+      @JsonProperty("sortSpilled") boolean sortSpilled,
+      @JsonProperty("hashJoinSpilled") boolean hashJoinSpilled,
+      @JsonProperty("totalBytesSpilled") long totalBytesSpilled) {
     this.hashAggSpilled = hashAggSpilled;
     this.hashJoinSpilled = hashJoinSpilled;
     this.sortSpilled = sortSpilled;
@@ -42,9 +41,10 @@ public class SpillJobDetailsUI {
   }
 
   /**
-   * Total data (in bytes) spilled by the query. The total is
-   * across all the operators that currently have the spilling ability
-   * (external sort, vectorized hashagg and vectorized hashjoin as of now)
+   * Total data (in bytes) spilled by the query. The total is across all the operators that
+   * currently have the spilling ability (external sort, vectorized hashagg and vectorized hashjoin
+   * as of now)
+   *
    * @return total size (in bytes) of spilled data
    */
   public long getTotalBytesSpilled() {

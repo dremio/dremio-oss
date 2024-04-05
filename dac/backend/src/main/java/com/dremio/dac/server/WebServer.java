@@ -15,20 +15,6 @@
  */
 package com.dremio.dac.server;
 
-import java.security.KeyStore;
-import java.util.EnumSet;
-
-import javax.inject.Provider;
-import javax.servlet.DispatcherType;
-import javax.ws.rs.container.DynamicFeature;
-
-import org.eclipse.jetty.http.MimeTypes;
-import org.eclipse.jetty.servlet.FilterHolder;
-import org.eclipse.jetty.servlet.ServletContextHandler;
-import org.eclipse.jetty.servlet.ServletHolder;
-import org.glassfish.jersey.server.ResourceConfig;
-import org.glassfish.jersey.servlet.ServletContainer;
-
 import com.dremio.dac.daemon.DremioBinder;
 import com.dremio.dac.server.socket.SocketServlet;
 import com.dremio.options.OptionManager;
@@ -38,70 +24,67 @@ import com.dremio.service.jobs.JobsService;
 import com.dremio.service.tokens.TokenManager;
 import com.dremio.services.credentials.CredentialsService;
 import com.google.common.annotations.VisibleForTesting;
+import java.security.KeyStore;
+import java.util.EnumSet;
+import javax.inject.Provider;
+import javax.servlet.DispatcherType;
+import javax.ws.rs.container.DynamicFeature;
+import org.eclipse.jetty.http.MimeTypes;
+import org.eclipse.jetty.servlet.FilterHolder;
+import org.eclipse.jetty.servlet.ServletContextHandler;
+import org.eclipse.jetty.servlet.ServletHolder;
+import org.glassfish.jersey.server.ResourceConfig;
+import org.glassfish.jersey.servlet.ServletContainer;
 
-/**
- * Dremio web server.
- */
+/** Dremio web server. */
 public class WebServer implements Service {
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(WebServer.class);
 
-  /**
-   * Specific media types used by Dremio
-   */
+  /** Specific media types used by Dremio */
   public static final class MediaType extends javax.ws.rs.core.MediaType {
     public MediaType(String type, String subType) {
       super(type, subType);
     }
 
-    /**
-     * Qlik Sense app media type string
-     */
+    /** Qlik Sense app media type string */
     public static final String TEXT_PLAIN_QLIK_APP = "text/plain+qlik-app";
 
-    /**
-     * Qlik Sense app media type
-     */
-    public static final MediaType TEXT_PLAIN_QLIK_APP_TYPE = new MediaType("text", "plain+qlik-app");
+    /** Qlik Sense app media type */
+    public static final MediaType TEXT_PLAIN_QLIK_APP_TYPE =
+        new MediaType("text", "plain+qlik-app");
 
-
-    /**
-     * Tableau TDS media type string
-     */
+    /** Tableau TDS media type string */
     public static final String APPLICATION_TDS = "application/tds";
-    /**
-     * Tableau TDS media type
-     */
+
+    /** Tableau TDS media type */
     public static final MediaType APPLICATION_TDS_TYPE = new MediaType("application", "tds");
 
-    /**
-     * Tableau TDS media type string (for Native Drill Connector)
-     */
+    /** Tableau TDS media type string (for Native Drill Connector) */
     public static final String APPLICATION_TDS_DRILL = "application/tds+drill";
 
-    /**
-     * Tableau TDS media type (for Native Drill Connector)
-     */
-    public static final MediaType APPLICATION_TDS_DRILL_TYPE = new MediaType("application", "tds+drill");
+    /** Tableau TDS media type (for Native Drill Connector) */
+    public static final MediaType APPLICATION_TDS_DRILL_TYPE =
+        new MediaType("application", "tds+drill");
 
-    /**
-     * Power BI DS media type
-     */
+    /** Power BI DS media type */
     public static final String APPLICATION_PBIDS = "application/pbids";
   }
 
-  /**
-   * Dremio hostname to use for response (usually match the Host header field).
-   */
+  /** Dremio hostname to use for response (usually match the Host header field). */
   public static final String X_DREMIO_HOSTNAME = "x-dremio-hostname";
 
   /**
    * Dremio header that forces numbers to be returned as strings for job data
    *
-   * That header is also hardcoded in {@link /dac/ui/src/utils/apiUtils/apiUtils.js} for client side
+   * <p>That header is also hardcoded in {@link /dac/ui/src/utils/apiUtils/apiUtils.js} for client
+   * side
    */
-  public static final String X_DREMIO_JOB_DATA_NUMBERS_AS_STRINGS = "x-dremio-job-data-number-format";
-  public static final String X_DREMIO_JOB_DATA_NUMBERS_AS_STRINGS_SUPPORTED_VALUE = "number-as-string";
+  public static final String X_DREMIO_JOB_DATA_NUMBERS_AS_STRINGS =
+      "x-dremio-job-data-number-format";
+
+  public static final String X_DREMIO_JOB_DATA_NUMBERS_AS_STRINGS_SUPPORTED_VALUE =
+      "number-as-string";
 
   // After being created in the start() method a reference to this
   // ResourceConfig for the rest server is maintained so that
@@ -148,22 +131,23 @@ public class WebServer implements Service {
   @Override
   public void start() throws Exception {
     server.startDremioServer(
-      registry,
-      config,
-      credentialsServiceProvider,
-      uiType,
-      this::registerEndpoints
-    );
+        registry, config, credentialsServiceProvider, uiType, this::registerEndpoints);
   }
 
   protected void registerEndpoints(ServletContextHandler servletContextHandler) {
     // security header filters
-    SecurityHeadersFilter securityHeadersFilter = new SecurityHeadersFilter(registry.provider(OptionManager.class));
-    servletContextHandler.addFilter(new FilterHolder(securityHeadersFilter), "/*", EnumSet.of(DispatcherType.REQUEST));
+    SecurityHeadersFilter securityHeadersFilter =
+        new SecurityHeadersFilter(registry.provider(OptionManager.class));
+    servletContextHandler.addFilter(
+        new FilterHolder(securityHeadersFilter), "/*", EnumSet.of(DispatcherType.REQUEST));
 
     // Generic Response Headers filter for api responses
-    servletContextHandler.addFilter(GenericResponseHeadersFilter.class.getName(), "/apiv2/*", EnumSet.of(DispatcherType.REQUEST));
-    servletContextHandler.addFilter(GenericResponseHeadersFilter.class.getName(), "/api/*", EnumSet.of(DispatcherType.REQUEST));
+    servletContextHandler.addFilter(
+        GenericResponseHeadersFilter.class.getName(),
+        "/apiv2/*",
+        EnumSet.of(DispatcherType.REQUEST));
+    servletContextHandler.addFilter(
+        GenericResponseHeadersFilter.class.getName(), "/api/*", EnumSet.of(DispatcherType.REQUEST));
 
     // add the font mime type.
     final MimeTypes mimeTypes = servletContextHandler.getMimeTypes();
@@ -171,8 +155,11 @@ public class WebServer implements Service {
     servletContextHandler.setMimeTypes(mimeTypes);
 
     // WebSocket API
-    final SocketServlet servlet = new SocketServlet(registry.lookup(JobsService.class), registry.lookup(TokenManager.class),
-      registry.provider(OptionManager.class));
+    final SocketServlet servlet =
+        new SocketServlet(
+            registry.lookup(JobsService.class),
+            registry.lookup(TokenManager.class),
+            registry.provider(OptionManager.class));
     final ServletHolder wsHolder = new ServletHolder(servlet);
     wsHolder.setInitOrder(1);
     servletContextHandler.addServlet(wsHolder, "/apiv2/socket");
@@ -185,7 +172,9 @@ public class WebServer implements Service {
     restServer.property(RestServerV2.FIRST_TIME_API_ENABLE, isInternalUS);
 
     restServer.register(dremioBinder);
-    restServer.register((DynamicFeature) (resourceInfo, context) -> context.register(DremioServer.TracingFilter.class));
+    restServer.register(
+        (DynamicFeature)
+            (resourceInfo, context) -> context.register(DremioServer.TracingFilter.class));
 
     final ServletHolder restHolder = new ServletHolder(new ServletContainer(restServer));
     restHolder.setInitOrder(2);
@@ -194,7 +183,9 @@ public class WebServer implements Service {
     // Public API
     ResourceConfig apiServer = apiServerProvider.get();
     apiServer.register(dremioBinder);
-    apiServer.register((DynamicFeature) (resourceInfo, context) -> context.register(DremioServer.TracingFilter.class));
+    apiServer.register(
+        (DynamicFeature)
+            (resourceInfo, context) -> context.register(DremioServer.TracingFilter.class));
 
     final ServletHolder apiHolder = new ServletHolder(new ServletContainer(apiServer));
     apiHolder.setInitOrder(3);
@@ -204,9 +195,12 @@ public class WebServer implements Service {
     ResourceConfig nessieProxyRestServerV2 = nessieProxyResetServerV2.get();
 
     nessieProxyRestServerV2.register(dremioBinder);
-    nessieProxyRestServerV2.register((DynamicFeature) (resourceInfo, context) -> context.register(DremioServer.TracingFilter.class));
+    nessieProxyRestServerV2.register(
+        (DynamicFeature)
+            (resourceInfo, context) -> context.register(DremioServer.TracingFilter.class));
 
-    final ServletHolder proxyNessieRestHolder = new ServletHolder(new ServletContainer(nessieProxyRestServerV2));
+    final ServletHolder proxyNessieRestHolder =
+        new ServletHolder(new ServletContainer(nessieProxyRestServerV2));
     proxyNessieRestHolder.setInitOrder(4);
     servletContextHandler.addServlet(proxyNessieRestHolder, "/nessie-proxy/*");
   }

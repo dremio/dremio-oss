@@ -17,13 +17,10 @@ package com.dremio.dac.model.spaces;
 
 import static java.util.Arrays.asList;
 
+import com.dremio.dac.model.common.ResourcePath;
 import java.util.List;
 
-import com.dremio.dac.model.common.ResourcePath;
-
-/**
- * "/space/{space}"
- */
+/** "/space/{space}" */
 public class SpaceResourcePath extends ResourcePath {
 
   private final SpaceName spaceName;
@@ -31,7 +28,8 @@ public class SpaceResourcePath extends ResourcePath {
   public SpaceResourcePath(String spacePath) {
     List<String> path = parse(spacePath, "space");
     if (path.size() != 1) {
-      throw new IllegalArgumentException("path should be of form: /space/{spaceName}, found " + spacePath);
+      throw new IllegalArgumentException(
+          "path should be of form: /space/{spaceName}, found " + spacePath);
     }
     this.spaceName = new SpaceName(path.get(0));
   }

@@ -15,10 +15,6 @@
  */
 package com.dremio.dac.service;
 
-import java.util.List;
-
-import javax.inject.Provider;
-
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.catalog.conf.Secret;
@@ -29,14 +25,14 @@ import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.SchemaMutability;
 import com.dremio.io.file.Path;
 import com.google.common.collect.ImmutableList;
-
 import io.protostuff.Tag;
+import java.util.List;
+import javax.inject.Provider;
 
-/**
- * Source for test purposes.
- */
+/** Source for test purposes. */
 @SourceType(value = "MYPRIVATE", configurable = false)
-public class APrivateSource extends FileSystemConf<APrivateSource, FileSystemPlugin<APrivateSource>> {
+public class APrivateSource
+    extends FileSystemConf<APrivateSource, FileSystemPlugin<APrivateSource>> {
 
   @Tag(1)
   @Secret
@@ -76,9 +72,8 @@ public class APrivateSource extends FileSystemConf<APrivateSource, FileSystemPlu
   }
 
   @Override
-  public FileSystemPlugin<APrivateSource> newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
+  public FileSystemPlugin<APrivateSource> newPlugin(
+      SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
     return new FileSystemPlugin<>(this, context, name, pluginIdProvider);
   }
-
-
 }

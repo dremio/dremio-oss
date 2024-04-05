@@ -15,9 +15,7 @@
  */
 package com.dremio.connector.metadata;
 
-/**
- * Dataset not found exception.
- */
+/** Dataset not found exception. */
 public class DatasetNotFoundException extends EntityNotFoundException {
 
   private static final long serialVersionUID = -2673750427623932743L;

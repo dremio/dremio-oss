@@ -15,11 +15,9 @@
  */
 package com.dremio.exec.store.easy.excel.xls.properties;
 
-/**
- * Simplified version of {@link org.apache.poi.poifs.property.DocumentProperty}
- */
+/** Simplified version of {@link org.apache.poi.poifs.property.DocumentProperty} */
 public class DocumentProperty extends Property {
-  public DocumentProperty(final int index, final byte [] array) {
+  public DocumentProperty(final int index, final byte[] array) {
     super(index, array);
   }
 
@@ -27,5 +25,4 @@ public class DocumentProperty extends Property {
   public boolean isDirectory() {
     return false;
   }
-
 }

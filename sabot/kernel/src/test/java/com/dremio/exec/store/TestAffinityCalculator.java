@@ -15,15 +15,15 @@
  */
 package com.dremio.exec.store;
 
-import org.apache.hadoop.fs.BlockLocation;
-import org.junit.Test;
-
 import com.dremio.exec.ExecTest;
 import com.google.common.collect.ImmutableRangeMap;
 import com.google.common.collect.Range;
+import org.apache.hadoop.fs.BlockLocation;
+import org.junit.Test;
 
 public class TestAffinityCalculator extends ExecTest {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestAffinityCalculator.class);
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(TestAffinityCalculator.class);
 
   String port = "1234";
 
@@ -36,27 +36,42 @@ public class TestAffinityCalculator extends ExecTest {
     }
 
     BlockLocation[] blockLocations = new BlockLocation[3];
-    blockLocations[0] = new BlockLocation(new String[]{names[0], names[1], names[2]}, new String[]{hosts[0], hosts[1], hosts[2]}, 0, blockSize);
-    blockLocations[1] = new BlockLocation(new String[]{names[0], names[2], names[3]}, new String[]{hosts[0], hosts[2], hosts[3]}, blockSize, blockSize);
-    blockLocations[2] = new BlockLocation(new String[]{names[0], names[1], names[3]}, new String[]{hosts[0], hosts[1], hosts[3]}, blockSize*2, blockSize);
+    blockLocations[0] =
+        new BlockLocation(
+            new String[] {names[0], names[1], names[2]},
+            new String[] {hosts[0], hosts[1], hosts[2]},
+            0,
+            blockSize);
+    blockLocations[1] =
+        new BlockLocation(
+            new String[] {names[0], names[2], names[3]},
+            new String[] {hosts[0], hosts[2], hosts[3]},
+            blockSize,
+            blockSize);
+    blockLocations[2] =
+        new BlockLocation(
+            new String[] {names[0], names[1], names[3]},
+            new String[] {hosts[0], hosts[1], hosts[3]},
+            blockSize * 2,
+            blockSize);
 
     return blockLocations;
   }
 
   @Test
   public void testBuildRangeMap() {
-    BlockLocation[] blocks = buildBlockLocations(new String[4], 256*1024*1024);
+    BlockLocation[] blocks = buildBlockLocations(new String[4], 256 * 1024 * 1024);
     long tA = System.nanoTime();
-    ImmutableRangeMap.Builder<Long, BlockLocation> blockMapBuilder = new ImmutableRangeMap.Builder<>();
+    ImmutableRangeMap.Builder<Long, BlockLocation> blockMapBuilder =
+        new ImmutableRangeMap.Builder<>();
     for (BlockLocation block : blocks) {
       long start = block.getOffset();
       long end = start + block.getLength();
       Range<Long> range = Range.closedOpen(start, end);
       blockMapBuilder = blockMapBuilder.put(range, block);
     }
-    ImmutableRangeMap<Long,BlockLocation> map = blockMapBuilder.build();
+    ImmutableRangeMap<Long, BlockLocation> map = blockMapBuilder.build();
     long tB = System.nanoTime();
     System.out.println(String.format("Took %f ms to build range map", (tB - tA) / 1e6));
   }
-
 }

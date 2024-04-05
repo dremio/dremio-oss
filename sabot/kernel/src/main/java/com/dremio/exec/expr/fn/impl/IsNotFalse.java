@@ -16,23 +16,25 @@
 
 package com.dremio.exec.expr.fn.impl;
 
-import org.apache.arrow.vector.holders.NullableBitHolder;
-
 import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
+import org.apache.arrow.vector.holders.NullableBitHolder;
 
 public class IsNotFalse {
 
-  @FunctionTemplate(names = {"isnotfalse", "is not false"}, scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.INTERNAL)
+  @FunctionTemplate(
+      names = {"isnotfalse", "is not false"},
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.INTERNAL)
   public static class Optional implements SimpleFunction {
 
     @Param NullableBitHolder in;
     @Output NullableBitHolder out;
 
     @Override
-    public void setup() { }
+    public void setup() {}
 
     @Override
     public void eval() {
@@ -44,5 +46,4 @@ public class IsNotFalse {
       }
     }
   }
-
 }

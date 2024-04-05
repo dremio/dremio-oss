@@ -18,7 +18,7 @@ import PropTypes from "prop-types";
 import Immutable from "immutable";
 import SettingsBtn from "@app/components/Buttons/SettingsBtn";
 import EngineActionCellMixin from "dyn-load/pages/AdminPage/subpages/Provisioning/components/EngineActionCellMixin";
-import { Button } from "dremio-ui-lib";
+import { Button } from "dremio-ui-lib/components";
 import * as ButtonTypes from "@app/components/Buttons/ButtonTypes";
 import { intl } from "@app/utils/intl";
 
@@ -56,15 +56,12 @@ export function StartStopButton(props) {
 
   return isHeaderButton ? (
     <Button
-      color="primary"
-      className="start-stop-btn"
-      variant={ButtonTypes.OUTLINED}
+      variant="secondary"
       data-qa="start-stop-btn"
+      className="mt-05"
       onClick={onStartStop}
-      style={styles.startStopButton}
-      disableMargin
     >
-      <dremio-icon name={startStopIcon} style={styles.buttonIcon} />
+      <dremio-icon name={startStopIcon} alt="" />
       {intl.formatMessage({ id: startStop })}
     </Button>
   ) : (

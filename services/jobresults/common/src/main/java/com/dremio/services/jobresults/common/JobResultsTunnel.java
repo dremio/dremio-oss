@@ -21,24 +21,24 @@ import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators.BooleanValidator;
 
-/**
- *
- */
+/** */
 @Options
 public abstract class JobResultsTunnel implements AutoCloseable {
-  public static final String AVOID_HEAP_COPY_IN_RESULTS_PATH_OPTION_NAME = "dremio.exec.avoid_heap_copy_in_results_path";
+  public static final String AVOID_HEAP_COPY_IN_RESULTS_PATH_OPTION_NAME =
+      "dremio.exec.avoid_heap_copy_in_results_path";
 
   // This option is used for all queries - UI, jdbc, etc.
   // 1. In executor while sending results from executor to coordinator
-  // 2. In coordinator while receiving results from executor and also when forwarding results to other coordinator.
+  // 2. In coordinator while receiving results from executor and also when forwarding results to
+  // other coordinator.
   // true means - a heap copy of results is avoided using custom grpc marshaller.
   // false means - a heap copy of results is made and default marshaller provided by grpc is used.
   public static final BooleanValidator AVOID_HEAP_COPY_IN_RESULTS_PATH =
-    new BooleanValidator(AVOID_HEAP_COPY_IN_RESULTS_PATH_OPTION_NAME, false);
+      new BooleanValidator(AVOID_HEAP_COPY_IN_RESULTS_PATH_OPTION_NAME, false);
 
-  public abstract  void sendData(RpcOutcomeListener<GeneralRPCProtos.Ack> outcomeListener, QueryWritableBatch data);
+  public abstract void sendData(
+      RpcOutcomeListener<GeneralRPCProtos.Ack> outcomeListener, QueryWritableBatch data);
 
   @Override
-  public void close() throws Exception {
-  }
+  public void close() throws Exception {}
 }

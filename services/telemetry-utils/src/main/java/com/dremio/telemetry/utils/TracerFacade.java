@@ -25,12 +25,11 @@ import io.opentracing.noop.NoopSpan;
 import io.opentracing.noop.NoopTracerFactory;
 import io.opentracing.propagation.Format;
 
-/**
- * TracerFacade to hold a tracer
- */
+/** TracerFacade to hold a tracer */
 public final class TracerFacade implements Tracer {
   public static final TracerFacade INSTANCE = new TracerFacade();
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TracerFacade.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(TracerFacade.class);
 
   private Tracer tracer;
 

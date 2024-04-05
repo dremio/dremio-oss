@@ -17,18 +17,6 @@ package com.dremio.services.nessie.grpc.client;
 
 import static com.dremio.services.nessie.grpc.ProtoUtil.refToProto;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import org.junit.Before;
-import org.junit.Rule;
-import org.projectnessie.model.Branch;
-import org.projectnessie.model.Reference;
-
 import com.dremio.services.nessie.grpc.api.ConfigServiceGrpc.ConfigServiceImplBase;
 import com.dremio.services.nessie.grpc.api.Content;
 import com.dremio.services.nessie.grpc.api.ContentKey;
@@ -44,7 +32,6 @@ import com.dremio.services.nessie.grpc.api.MultipleContentsResponse;
 import com.dremio.services.nessie.grpc.api.NessieConfiguration;
 import com.dremio.services.nessie.grpc.api.TreeServiceGrpc.TreeServiceImplBase;
 import com.google.common.collect.ImmutableList;
-
 import io.grpc.ForwardingServerCall.SimpleForwardingServerCall;
 import io.grpc.ManagedChannel;
 import io.grpc.Metadata;
@@ -58,33 +45,39 @@ import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.protobuf.StatusProto;
 import io.grpc.stub.StreamObserver;
 import io.grpc.testing.GrpcCleanupRule;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import org.junit.Before;
+import org.junit.Rule;
+import org.projectnessie.model.Branch;
+import org.projectnessie.model.Reference;
 
-/**
- * Tests constructs for Nessie client tests
- */
+/** Tests constructs for Nessie client tests */
 public abstract class AbstractTestNessieGrpcClient {
 
   public static final Content ICEBERG_TABLE =
       Content.newBuilder().setIceberg(IcebergTable.newBuilder().build()).build();
   public static final String REF_NAME = "test-main";
   public static final Reference REF = Branch.of(REF_NAME, null);
-  public static final ContentKey INVALID_KEY = ContentKey.newBuilder().addElements("INVALID").build();
-  public static final Metadata.Key<String> TEST_HEADER_KEY = Metadata.Key.of("test_header", Metadata.ASCII_STRING_MARSHALLER);
+  public static final ContentKey INVALID_KEY =
+      ContentKey.newBuilder().addElements("INVALID").build();
+  public static final Metadata.Key<String> TEST_HEADER_KEY =
+      Metadata.Key.of("test_header", Metadata.ASCII_STRING_MARSHALLER);
 
-  /**
-   * Manages automatic graceful shutdown for the registered servers and channels.
-   */
-  @Rule
-  public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
+  /** Manages automatic graceful shutdown for the registered servers and channels. */
+  @Rule public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
 
-  /**
-   * Just a dummy implementation of a gRPC service to simulate a client call.
-   */
+  /** Just a dummy implementation of a gRPC service to simulate a client call. */
   private final TreeServiceImplBase treeService =
       new TreeServiceImplBase() {
         @Override
         public void getAllReferences(
-            GetAllReferencesRequest request, StreamObserver<GetAllReferencesResponse> responseObserver) {
+            GetAllReferencesRequest request,
+            StreamObserver<GetAllReferencesResponse> responseObserver) {
           responseObserver.onNext(
               GetAllReferencesResponse.newBuilder().addReference(refToProto(REF)).build());
           responseObserver.onCompleted();
@@ -92,27 +85,32 @@ public abstract class AbstractTestNessieGrpcClient {
 
         @Override
         public void getDefaultBranch(
-            Empty request, StreamObserver<com.dremio.services.nessie.grpc.api.Reference> responseObserver) {
+            Empty request,
+            StreamObserver<com.dremio.services.nessie.grpc.api.Reference> responseObserver) {
           responseObserver.onNext(
               com.dremio.services.nessie.grpc.api.Reference.newBuilder()
                   .setBranch(
-                      com.dremio.services.nessie.grpc.api.Branch.newBuilder().setName(REF_NAME).build())
+                      com.dremio.services.nessie.grpc.api.Branch.newBuilder()
+                          .setName(REF_NAME)
+                          .build())
                   .build());
           responseObserver.onCompleted();
         }
       };
 
-  /**
-   * Just a dummy implementation of a gRPC service to simulate a client call.
-   */
+  /** Just a dummy implementation of a gRPC service to simulate a client call. */
   private final ContentServiceImplBase contentService =
       new ContentServiceImplBase() {
         @Override
         public void getContent(ContentRequest request, StreamObserver<Content> responseObserver) {
           if (request.getContentKey().equals(INVALID_KEY)) {
-            responseObserver.onError(StatusProto.toStatusRuntimeException(
-                com.google.rpc.Status.newBuilder().setCode(Code.NOT_FOUND.value()).setMessage("Table not found").build(),
-                new Metadata()));
+            responseObserver.onError(
+                StatusProto.toStatusRuntimeException(
+                    com.google.rpc.Status.newBuilder()
+                        .setCode(Code.NOT_FOUND.value())
+                        .setMessage("Table not found")
+                        .build(),
+                    new Metadata()));
             return;
           }
           responseObserver.onNext(ICEBERG_TABLE);
@@ -126,17 +124,18 @@ public abstract class AbstractTestNessieGrpcClient {
           responseObserver.onNext(
               MultipleContentsResponse.newBuilder()
                   .addContentWithKey(
-                      ContentWithKey.newBuilder().setContentKey(
-                              com.dremio.services.nessie.grpc.api.ContentKey.newBuilder().addElements("foo"))
-                          .setContent(ICEBERG_TABLE).build())
+                      ContentWithKey.newBuilder()
+                          .setContentKey(
+                              com.dremio.services.nessie.grpc.api.ContentKey.newBuilder()
+                                  .addElements("foo"))
+                          .setContent(ICEBERG_TABLE)
+                          .build())
                   .build());
           responseObserver.onCompleted();
         }
       };
 
-  /**
-   * Just a dummy implementation of a gRPC service to simulate a client call.
-   */
+  /** Just a dummy implementation of a gRPC service to simulate a client call. */
   private final ConfigServiceImplBase configService =
       new ConfigServiceImplBase() {
         @Override
@@ -163,9 +162,7 @@ public abstract class AbstractTestNessieGrpcClient {
     return new ServiceWithChannel(serverName, server, channel);
   }
 
-  /**
-   * Server interceptor to read headers if supplied by client.
-   */
+  /** Server interceptor to read headers if supplied by client. */
   private final TestHeaderServerInterceptor serverInterceptor = new TestHeaderServerInterceptor();
 
   protected TestHeaderServerInterceptor getServerInterceptor() {
@@ -177,9 +174,7 @@ public abstract class AbstractTestNessieGrpcClient {
     serverInterceptor.clear();
   }
 
-  /**
-   * ServiceWithChannel
-   */
+  /** ServiceWithChannel */
   public static class ServiceWithChannel {
     private final Server server;
     private final ManagedChannel channel;
@@ -204,9 +199,7 @@ public abstract class AbstractTestNessieGrpcClient {
     }
   }
 
-  /**
-   * Simple dummy header intercepter to verify client side headers.
-   */
+  /** Simple dummy header intercepter to verify client side headers. */
   public static class TestHeaderServerInterceptor implements ServerInterceptor {
     private final Map<String, List<String>> headerValues = new HashMap<>();
 
@@ -223,17 +216,20 @@ public abstract class AbstractTestNessieGrpcClient {
     }
 
     @Override
-    public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(ServerCall<ReqT, RespT> serverCall,
-                                                                 Metadata metadata,
-                                                                 ServerCallHandler<ReqT, RespT> serverCallHandler) {
+    public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(
+        ServerCall<ReqT, RespT> serverCall,
+        Metadata metadata,
+        ServerCallHandler<ReqT, RespT> serverCallHandler) {
       for (String key : metadata.keys()) {
         List<String> values = headerValues.getOrDefault(key, new ArrayList<>());
-        metadata.getAll(Metadata.Key.of(key, Metadata.ASCII_STRING_MARSHALLER)).forEach(values::add);
+        metadata
+            .getAll(Metadata.Key.of(key, Metadata.ASCII_STRING_MARSHALLER))
+            .forEach(values::add);
         headerValues.put(key, values);
       }
 
-      return serverCallHandler.startCall(new SimpleForwardingServerCall<ReqT, RespT>(serverCall) {
-      }, metadata);
+      return serverCallHandler.startCall(
+          new SimpleForwardingServerCall<ReqT, RespT>(serverCall) {}, metadata);
     }
   }
 }

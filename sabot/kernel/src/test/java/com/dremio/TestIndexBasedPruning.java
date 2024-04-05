@@ -22,44 +22,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.math.BigDecimal;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.GregorianCalendar;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import java.util.stream.Stream;
-
-import org.apache.arrow.vector.types.DateUnit;
-import org.apache.arrow.vector.types.pojo.ArrowType;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.calcite.plan.RelHintsPropagator;
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelOptPlanner;
-import org.apache.calcite.plan.RelOptRuleCall;
-import org.apache.calcite.plan.RelOptTable;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.plan.volcano.VolcanoPlanner;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.hint.RelHint;
-import org.apache.calcite.rel.type.RelDataTypeFactory;
-import org.apache.calcite.rex.RexBuilder;
-import org.apache.calcite.rex.RexInputRef;
-import org.apache.calcite.rex.RexLiteral;
-import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.sql.type.SqlTypeName;
-import org.apache.calcite.util.DateString;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.SearchTypes;
-import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.AbstractSplitsPointer;
 import com.dremio.exec.catalog.MaterializedSplitsPointer;
 import com.dremio.exec.catalog.StoragePluginId;
@@ -93,39 +58,79 @@ import com.dremio.test.specs.OptionResolverSpec;
 import com.dremio.test.specs.OptionResolverSpecBuilder;
 import com.google.common.collect.ImmutableList;
 import com.google.protobuf.ByteString;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.GregorianCalendar;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.stream.Stream;
+import org.apache.arrow.vector.types.DateUnit;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.calcite.plan.RelHintsPropagator;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptPlanner;
+import org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.calcite.plan.RelOptTable;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.plan.volcano.VolcanoPlanner;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.hint.RelHint;
+import org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.calcite.rex.RexBuilder;
+import org.apache.calcite.rex.RexInputRef;
+import org.apache.calcite.rex.RexLiteral;
+import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.calcite.util.DateString;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 
 /**
- * Test for index based pruning in {@code PruneScanRuleBase}.
- * This test uses custom splits pointer that verifies if expected search query is passed.
+ * Test for index based pruning in {@code PruneScanRuleBase}. This test uses custom splits pointer
+ * that verifies if expected search query is passed.
  */
 public class TestIndexBasedPruning extends DremioTest {
 
-  private static final ImmutableList<SchemaPath> PROJECTED_COLUMNS = ImmutableList.of(SchemaPath.getSimplePath("date_col"), SchemaPath.getSimplePath("int_col"));
-  private static final TestPartitionChunkMetadata TEST_PARTITION_CHUNK_METADATA_1 = new TestPartitionChunkMetadata(100);
-  private static final TestPartitionChunkMetadata TEST_PARTITION_CHUNK_METADATA_2 = new TestPartitionChunkMetadata(200);
+  private static final ImmutableList<SchemaPath> PROJECTED_COLUMNS =
+      ImmutableList.of(SchemaPath.getSimplePath("date_col"), SchemaPath.getSimplePath("int_col"));
+  private static final TestPartitionChunkMetadata TEST_PARTITION_CHUNK_METADATA_1 =
+      new TestPartitionChunkMetadata(100);
+  private static final TestPartitionChunkMetadata TEST_PARTITION_CHUNK_METADATA_2 =
+      new TestPartitionChunkMetadata(200);
 
-  private final BatchSchema SCHEMA = BatchSchema.newBuilder()
-      .addField(Field.nullable("date_col", new ArrowType.Date(DateUnit.MILLISECOND)))
-      .addField(Field.nullable("int_col", new ArrowType.Int(32, true)))
-      .build();
+  private final BatchSchema SCHEMA =
+      BatchSchema.newBuilder()
+          .addField(Field.nullable("date_col", new ArrowType.Date(DateUnit.MILLISECOND)))
+          .addField(Field.nullable("int_col", new ArrowType.Int(32, true)))
+          .build();
 
-  private final DatasetConfig DATASET_CONFIG = new DatasetConfig()
-      .setId(new EntityId(UUID.randomUUID().toString()))
-      .setFullPathList(Arrays.asList("test", "foo"))
-      .setName("foo")
-      .setOwner("testuser")
-      .setReadDefinition(new ReadDefinition().setSplitVersion(0L).setPartitionColumnsList(ImmutableList.of("date_col","int_col")))
-      .setRecordSchema(SCHEMA.toByteString());
+  private final DatasetConfig DATASET_CONFIG =
+      new DatasetConfig()
+          .setId(new EntityId(UUID.randomUUID().toString()))
+          .setFullPathList(Arrays.asList("test", "foo"))
+          .setName("foo")
+          .setOwner("testuser")
+          .setReadDefinition(
+              new ReadDefinition()
+                  .setSplitVersion(0L)
+                  .setPartitionColumnsList(ImmutableList.of("date_col", "int_col")))
+          .setRecordSchema(SCHEMA.toByteString());
 
-  /**
-   * Prunable SplitsPointer for testing
-   */
+  /** Prunable SplitsPointer for testing */
   public class TestSplitsPointer extends AbstractSplitsPointer {
     private final long splitVersion;
     private final int totalSplitCount;
     private final List<PartitionChunkMetadata> materializedPartitionChunks;
 
-    TestSplitsPointer(long splitVersion, Iterable<PartitionChunkMetadata> partitionChunks, int totalSplitCount) {
+    TestSplitsPointer(
+        long splitVersion, Iterable<PartitionChunkMetadata> partitionChunks, int totalSplitCount) {
       this.splitVersion = splitVersion;
       this.materializedPartitionChunks = ImmutableList.copyOf(partitionChunks);
       this.totalSplitCount = totalSplitCount;
@@ -135,8 +140,8 @@ public class TestIndexBasedPruning extends DremioTest {
     public SplitsPointer prune(SearchTypes.SearchQuery partitionFilterQuery) {
       assertTrue(partitionFilterQuery.equals(expected), "Given search query is not expected");
       indexPruned = true;
-      //return an empty pointer after pruning
-      return MaterializedSplitsPointer.of(0,Arrays.asList(),0);
+      // return an empty pointer after pruning
+      return MaterializedSplitsPointer.of(0, Arrays.asList(), 0);
     }
 
     @Override
@@ -155,11 +160,10 @@ public class TestIndexBasedPruning extends DremioTest {
     }
   }
 
-  /**
-   * A mock partition chunk metadata implementation
-   */
+  /** A mock partition chunk metadata implementation */
   private static final class TestPartitionChunkMetadata implements PartitionChunkMetadata {
     final int rowCount;
+
     private TestPartitionChunkMetadata(int rowCount) {
       this.rowCount = rowCount;
     }
@@ -205,41 +209,82 @@ public class TestIndexBasedPruning extends DremioTest {
     }
 
     @Override
-    public NormalizedPartitionInfo getNormalizedPartitionInfo() { throw new UnsupportedOperationException(); }
+    public NormalizedPartitionInfo getNormalizedPartitionInfo() {
+      throw new UnsupportedOperationException();
+    }
 
     @Override
-    public boolean checkPartitionChunkMetadataConsistency() { return true; }
+    public boolean checkPartitionChunkMetadataConsistency() {
+      return true;
+    }
   }
 
-  /**
-   * A pruneable physical scan
-   */
+  /** A pruneable physical scan */
   private static final class TestScanRel extends ScanRelBase implements PruneableScan {
     private final boolean hasFilter;
 
-    public TestScanRel(RelOptCluster cluster, RelTraitSet traitSet, RelOptTable table, StoragePluginId pluginId,
-                       TableMetadata dataset, List<SchemaPath> projectedColumns, double observedRowcountAdjustment,
-                       List<RelHint> hints, boolean hasFilter) {
-      super(cluster, traitSet, table, pluginId, dataset, projectedColumns, observedRowcountAdjustment, hints);
+    public TestScanRel(
+        RelOptCluster cluster,
+        RelTraitSet traitSet,
+        RelOptTable table,
+        StoragePluginId pluginId,
+        TableMetadata dataset,
+        List<SchemaPath> projectedColumns,
+        double observedRowcountAdjustment,
+        List<RelHint> hints,
+        boolean hasFilter) {
+      super(
+          cluster,
+          traitSet,
+          table,
+          pluginId,
+          dataset,
+          projectedColumns,
+          observedRowcountAdjustment,
+          hints);
       this.hasFilter = hasFilter;
     }
 
     @Override
     public RelNode applyDatasetPointer(TableMetadata newDatasetPointer) {
-      return new TestScanRel(getCluster(), traitSet, getTable(), pluginId, newDatasetPointer,
-          getProjectedColumns(), observedRowcountAdjustment, hints, hasFilter);
+      return new TestScanRel(
+          getCluster(),
+          traitSet,
+          getTable(),
+          pluginId,
+          newDatasetPointer,
+          getProjectedColumns(),
+          observedRowcountAdjustment,
+          hints,
+          hasFilter);
     }
 
     @Override
     public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-      return new TestScanRel(getCluster(), traitSet, getTable(), pluginId, tableMetadata,
-          getProjectedColumns(), observedRowcountAdjustment, hints, hasFilter);
+      return new TestScanRel(
+          getCluster(),
+          traitSet,
+          getTable(),
+          pluginId,
+          tableMetadata,
+          getProjectedColumns(),
+          observedRowcountAdjustment,
+          hints,
+          hasFilter);
     }
 
     @Override
     public ScanRelBase cloneWithProject(List<SchemaPath> projection) {
-      return new TestScanRel(getCluster(), traitSet, getTable(), pluginId, tableMetadata,
-          getProjectedColumns(), observedRowcountAdjustment, hints, hasFilter);
+      return new TestScanRel(
+          getCluster(),
+          traitSet,
+          getTable(),
+          pluginId,
+          tableMetadata,
+          getProjectedColumns(),
+          observedRowcountAdjustment,
+          hints,
+          hasFilter);
     }
   }
 
@@ -247,14 +292,10 @@ public class TestIndexBasedPruning extends DremioTest {
   private static final RelDataTypeFactory TYPE_FACTORY = JavaTypeFactoryImpl.INSTANCE;
   private static final RexBuilder REX_BUILDER = new RexBuilder(TYPE_FACTORY);
 
-  @Mock
-  private OptimizerRulesContext optimizerRulesContext;
-  @Mock
-  private StoragePluginId pluginId;
-  @Mock
-  private RelOptTable table;
-  @Mock
-  private RelOptPlanner planner;
+  @Mock private OptimizerRulesContext optimizerRulesContext;
+  @Mock private StoragePluginId pluginId;
+  @Mock private RelOptTable table;
+  @Mock private RelOptPlanner planner;
   private TestScanRel indexPrunableScan;
   private FilterRel filterAboveScan;
   private PruneScanRuleBase scanRule;
@@ -267,18 +308,34 @@ public class TestIndexBasedPruning extends DremioTest {
   private PlannerSettings plannerSettings;
 
   private static Stream<Arguments> getTestCases() {
-    RexInputRef dateCol = REX_BUILDER.makeInputRef(TYPE_FACTORY.createTypeWithNullability(TYPE_FACTORY.createSqlType(SqlTypeName.DATE), true),0);
+    RexInputRef dateCol =
+        REX_BUILDER.makeInputRef(
+            TYPE_FACTORY.createTypeWithNullability(
+                TYPE_FACTORY.createSqlType(SqlTypeName.DATE), true),
+            0);
     RexNode dateLiteral = REX_BUILDER.makeDateLiteral(new DateString("2010-01-01"));
-    RexInputRef intCol = REX_BUILDER.makeInputRef(TYPE_FACTORY.createTypeWithNullability(TYPE_FACTORY.createSqlType(SqlTypeName.INTEGER), true),1);
-    RexNode intLiteral = REX_BUILDER.makeLiteral(2, TYPE_FACTORY.createSqlType(SqlTypeName.INTEGER), false);
+    RexInputRef intCol =
+        REX_BUILDER.makeInputRef(
+            TYPE_FACTORY.createTypeWithNullability(
+                TYPE_FACTORY.createSqlType(SqlTypeName.INTEGER), true),
+            1);
+    RexNode intLiteral =
+        REX_BUILDER.makeLiteral(2, TYPE_FACTORY.createSqlType(SqlTypeName.INTEGER), false);
     RexNode castDate = REX_BUILDER.makeCast(dateLiteral.getType(), intLiteral);
 
     long longVal = ((GregorianCalendar) ((RexLiteral) dateLiteral).getValue()).getTimeInMillis();
-    SearchTypes.SearchQuery q1 = SearchQueryUtils.and(SearchQueryUtils.newRangeLong("$D$::LONG-date_col", longVal, longVal, true, true));
+    SearchTypes.SearchQuery q1 =
+        SearchQueryUtils.and(
+            SearchQueryUtils.newRangeLong("$D$::LONG-date_col", longVal, longVal, true, true));
     RexNode cond1 = REX_BUILDER.makeCall(EQUALS, dateCol, dateLiteral);
 
-    int intVal = ((BigDecimal) ((RexLiteral) intLiteral).getValue()).setScale(0, BigDecimal.ROUND_HALF_UP).intValue();
-    SearchTypes.SearchQuery q2 = SearchQueryUtils.and(SearchQueryUtils.newRangeInt("$D$::INTEGER-int_col", intVal, intVal, true, true));
+    int intVal =
+        ((BigDecimal) ((RexLiteral) intLiteral).getValue())
+            .setScale(0, RoundingMode.HALF_UP)
+            .intValue();
+    SearchTypes.SearchQuery q2 =
+        SearchQueryUtils.and(
+            SearchQueryUtils.newRangeInt("$D$::INTEGER-int_col", intVal, intVal, true, true));
     RexNode cond2 = REX_BUILDER.makeCall(EQUALS, intCol, intLiteral);
 
     RexNode cond3 = REX_BUILDER.makeCall(EQUALS, dateCol, castDate);
@@ -288,57 +345,73 @@ public class TestIndexBasedPruning extends DremioTest {
     // equivalent to where $0 = "2010-01-01" and $1 = 1 => both filters can be index pruned
     RexNode testCondition1 = REX_BUILDER.makeCall(AND, cond1, cond2);
 
-    // equivalent to where $0 = CAST(1 as DATE) and $1 = 1 => only the second filter can be index pruned
+    // equivalent to where $0 = CAST(1 as DATE) and $1 = 1 => only the second filter can be index
+    // pruned
     RexNode testCondition2 = REX_BUILDER.makeCall(AND, cond3, cond2);
 
-    // equivalent to where $0 = CAST(1 as DATE) and $0 > CAST(1 as DATE) => none of them can be index pruned
+    // equivalent to where $0 = CAST(1 as DATE) and $0 > CAST(1 as DATE) => none of them can be
+    // index pruned
     RexNode testCondition3 = REX_BUILDER.makeCall(AND, cond3, cond4);
 
     return Stream.of(
-        Arguments.of( testCondition1, SearchQueryUtils.and(ImmutableList.of(q2, q1)) ),
-        Arguments.of( testCondition2, SearchQueryUtils.and(ImmutableList.of(q2)) ),
-        Arguments.of( testCondition3, null )
-    );
+        Arguments.of(testCondition1, SearchQueryUtils.and(ImmutableList.of(q2, q1))),
+        Arguments.of(testCondition2, SearchQueryUtils.and(ImmutableList.of(q2))),
+        Arguments.of(testCondition3, null));
   }
 
   public AutoCloseable setUp(RexNode rexNode, SearchTypes.SearchQuery expected) {
     AutoCloseable mockCloseable = MockitoAnnotations.openMocks(this);
-    OptionResolver optionResolver = OptionResolverSpecBuilder.build(
-        new OptionResolverSpec()
-          .addOption(ExecConstants.ENABLE_ICEBERG, true));
+    OptionResolver optionResolver = OptionResolverSpecBuilder.build(new OptionResolverSpec());
 
     ClusterResourceInformation info = mock(ClusterResourceInformation.class);
     when(info.getExecutorNodeCount()).thenReturn(1);
 
-    plannerSettings = new PlannerSettings(DremioTest.DEFAULT_SABOT_CONFIG, optionResolver,
-      () -> info);
+    plannerSettings =
+        new PlannerSettings(DremioTest.DEFAULT_SABOT_CONFIG, optionResolver, () -> info);
 
     when(optimizerRulesContext.getPlannerSettings()).thenReturn(plannerSettings);
 
     RelOptCluster cluster = RelOptCluster.create(new VolcanoPlanner(plannerSettings), REX_BUILDER);
-    SplitsPointer splitsPointer = new TestSplitsPointer(0, Arrays.asList(TEST_PARTITION_CHUNK_METADATA_1, TEST_PARTITION_CHUNK_METADATA_2), 2);
+    SplitsPointer splitsPointer =
+        new TestSplitsPointer(
+            0, Arrays.asList(TEST_PARTITION_CHUNK_METADATA_1, TEST_PARTITION_CHUNK_METADATA_2), 2);
 
-    TableMetadata indexPrunableMetadata = new TableMetadataImpl(pluginId, DATASET_CONFIG, "testuser", splitsPointer, null);
+    TableMetadata indexPrunableMetadata =
+        new TableMetadataImpl(pluginId, DATASET_CONFIG, "testuser", splitsPointer, null);
     SourceType newType = mock(SourceType.class);
     when(newType.value()).thenReturn("TestSource");
     when(pluginId.getType()).thenReturn(newType);
 
     this.rexNode = rexNode;
     this.expected = expected;
-    indexPrunableScan = new TestScanRel(cluster, TRAITS, table, pluginId, indexPrunableMetadata, PROJECTED_COLUMNS, 0,
-                                        ImmutableList.of(), false);
+    indexPrunableScan =
+        new TestScanRel(
+            cluster,
+            TRAITS,
+            table,
+            pluginId,
+            indexPrunableMetadata,
+            PROJECTED_COLUMNS,
+            0,
+            ImmutableList.of(),
+            false);
     filterAboveScan = new FilterRel(cluster, TRAITS, indexPrunableScan, rexNode);
     filterAboveScan = new FilterRel(cluster, TRAITS, indexPrunableScan, rexNode);
-    scanRule = new PruneScanRuleBase.PruneScanRuleFilterOnScan<>(pluginId.getType(), TestScanRel.class, optimizerRulesContext);
+    scanRule =
+        new PruneScanRuleBase.PruneScanRuleFilterOnScan<>(
+            pluginId.getType(), TestScanRel.class, optimizerRulesContext);
     sampleRel = new SampleRel(cluster, TRAITS, indexPrunableScan);
     filterAboveSample = new FilterRel(cluster, TRAITS, sampleRel, rexNode);
-    sampleScanRule = new PruneScanRuleBase.PruneScanRuleFilterOnSampleScan<>(pluginId.getType(), TestScanRel.class, optimizerRulesContext);
+    sampleScanRule =
+        new PruneScanRuleBase.PruneScanRuleFilterOnSampleScan<>(
+            pluginId.getType(), TestScanRel.class, optimizerRulesContext);
 
     return mockCloseable;
   }
 
-
-  @ParameterizedTest(name = "{index}: Doing index pruning on {0}. Following condition is expected to be passed: {1}")
+  @ParameterizedTest(
+      name =
+          "{index}: Doing index pruning on {0}. Following condition is expected to be passed: {1}")
   @MethodSource("getTestCases")
   public void testIndexPruning(RexNode rexNode, SearchTypes.SearchQuery expected) throws Exception {
     try (AutoCloseable ignored = setUp(rexNode, expected)) {
@@ -352,13 +425,16 @@ public class TestIndexBasedPruning extends DremioTest {
     }
   }
 
-  @ParameterizedTest(name = "{index}: Doing index pruning on {0}. Following condition is expected to be passed: {1}")
+  @ParameterizedTest(
+      name =
+          "{index}: Doing index pruning on {0}. Following condition is expected to be passed: {1}")
   @MethodSource("getTestCases")
-  public void testIndexPruningSampleScan(RexNode rexNode, SearchTypes.SearchQuery expected) throws Exception {
+  public void testIndexPruningSampleScan(RexNode rexNode, SearchTypes.SearchQuery expected)
+      throws Exception {
     try (AutoCloseable ignored = setUp(rexNode, expected)) {
       indexPruned = false;
-      RelOptRuleCall pruneCall = newCall(sampleScanRule, filterAboveScan, sampleRel,
-        indexPrunableScan);
+      RelOptRuleCall pruneCall =
+          newCall(sampleScanRule, filterAboveScan, sampleRel, indexPrunableScan);
       when(planner.getContext()).thenReturn(plannerSettings);
       sampleScanRule.onMatch(pruneCall);
       if (expected == null) {
@@ -372,13 +448,17 @@ public class TestIndexBasedPruning extends DremioTest {
   private RelOptRuleCall newCall(PruneScanRuleBase rule, RelNode... operands) {
     return new RelOptRuleCall(null, rule.getOperand(), operands, Collections.emptyMap()) {
       @Override
-      public void transformTo(RelNode rel, Map<RelNode, RelNode> equiv, RelHintsPropagator handler) {
+      public void transformTo(
+          RelNode rel, Map<RelNode, RelNode> equiv, RelHintsPropagator handler) {
         if (rule instanceof PruneScanRuleBase.PruneScanRuleFilterOnSampleScan) {
-          assertTrue(rel instanceof SampleRel && ((SampleRel) rel).getInput() instanceof EmptyRel, "SampleRel is expected after pruning");
+          assertTrue(
+              rel instanceof SampleRel && ((SampleRel) rel).getInput() instanceof EmptyRel,
+              "SampleRel is expected after pruning");
         } else {
           assertTrue(rel instanceof EmptyRel, "EmptyRel is expected after pruning");
         }
       }
+
       @Override
       public RelOptPlanner getPlanner() {
         return planner;

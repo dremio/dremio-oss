@@ -15,16 +15,14 @@
  */
 package com.dremio.datastore.api;
 
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import javax.annotation.Nullable;
-
 import org.immutables.value.Value;
 import org.immutables.value.Value.Immutable;
 
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-
 /**
- * Configuration for finding values by a key range. Start range and end range can be {@code null}
- * to specify an unbounded range search.
+ * Configuration for finding values by a key range. Start range and end range can be {@code null} to
+ * specify an unbounded range search.
  *
  * @param <K> the key type
  */

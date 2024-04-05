@@ -28,6 +28,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 
+import com.dremio.common.utils.protos.QueryIdHelper;
+import com.dremio.exec.ExecConstants;
+import com.dremio.exec.client.DremioClient;
+import com.dremio.exec.store.ischema.InfoSchemaConstants;
+import com.dremio.exec.testing.Controls;
+import com.dremio.exec.work.foreman.AttemptManager;
+import com.google.common.collect.ImmutableList;
 import java.math.BigDecimal;
 import java.sql.Clob;
 import java.sql.Date;
@@ -40,32 +47,20 @@ import java.sql.Statement;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.List;
-
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import com.dremio.common.utils.protos.QueryIdHelper;
-import com.dremio.exec.ExecConstants;
-import com.dremio.exec.client.DremioClient;
-import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.store.ischema.InfoSchemaConstants;
-import com.dremio.exec.testing.Controls;
-import com.dremio.exec.work.foreman.AttemptManager;
-import com.google.common.collect.ImmutableList;
-
-
-/**
- * Test for Dremio's implementation of PreparedStatement's methods.
- */
+/** Test for Dremio's implementation of PreparedStatement's methods. */
 public class PreparedStatementTest extends JdbcWithServerTestBase {
   private static final String SAMPLE_SQL = "select * from INFORMATION_SCHEMA.CATALOGS";
 
   @BeforeClass
   public static void setUpConnection() throws SQLException {
     JdbcWithServerTestBase.setUpConnection();
-    try(Statement stmt = getConnection().createStatement()) {
-      stmt.execute(String.format("alter session set \"%s\" = true", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
-      stmt.execute(String.format("alter session set \"%s\" = false", ExecConstants.ENABLE_REATTEMPTS.getOptionName()));
+    try (Statement stmt = getConnection().createStatement()) {
+      stmt.execute(
+          String.format(
+              "alter session set \"%s\" = false", ExecConstants.ENABLE_REATTEMPTS.getOptionName()));
     }
   }
 
@@ -87,28 +82,59 @@ public class PreparedStatementTest extends JdbcWithServerTestBase {
 
   @Test
   public void testQueryMetadataInPreparedStatement() throws SQLException {
-    try(PreparedStatement stmt = getConnection().prepareStatement(
-        "SELECT " +
-            "cast(1 as INTEGER ) as int_field, " +
-            "cast(12384729 as BIGINT ) as bigint_field, " +
-            "'varchar_value' as varchar_field, " +
-            "timestamp '2008-2-23 10:00:20.123' as ts_field, " +
-            "time '10:00:20.2' as time_field, " +
-            "date '2008-2-23' as date_field, " +
-            "cast('99999912399.4567' as decimal(18, 5)) as decimal_field," +
-            "cast('99999912399.4567' as double) as double_field" +
-            " FROM INFORMATION_SCHEMA.CATALOGS")) {
+    try (PreparedStatement stmt =
+        getConnection()
+            .prepareStatement(
+                "SELECT "
+                    + "cast(1 as INTEGER ) as int_field, "
+                    + "cast(12384729 as BIGINT ) as bigint_field, "
+                    + "'varchar_value' as varchar_field, "
+                    + "timestamp '2008-2-23 10:00:20.123' as ts_field, "
+                    + "time '10:00:20.2' as time_field, "
+                    + "date '2008-2-23' as date_field, "
+                    + "cast('99999912399.4567' as decimal(18, 5)) as decimal_field,"
+                    + "cast('99999912399.4567' as double) as double_field"
+                    + " FROM INFORMATION_SCHEMA.CATALOGS")) {
 
-      List<ExpectedColumnResult> exp = ImmutableList.of(
-          new ExpectedColumnResult("int_field", INTEGER, columnNullable, 11, 0, 0, true, Integer.class.getName()),
-          new ExpectedColumnResult("bigint_field", BIGINT, columnNullable, 20, 0, 0, true, Long.class.getName()),
-          new ExpectedColumnResult("varchar_field", VARCHAR, columnNullable, 65536, 65536, 0, false, String.class.getName()),
-          new ExpectedColumnResult("ts_field", TIMESTAMP, columnNullable, 23, 3, 0, false, Timestamp.class.getName()),
-          new ExpectedColumnResult("time_field", TIME, columnNullable, 12, 3, 0, false, Time.class.getName()),
-          new ExpectedColumnResult("date_field", DATE, columnNullable, 10, 0, 0, false, Date.class.getName()),
-          new ExpectedColumnResult("decimal_field", DECIMAL, columnNullable, 20, 18, 5, true, BigDecimal.class.getName()),
-          new ExpectedColumnResult("double_field", DOUBLE, columnNullable, 24, 0, 0, true, Double.class.getName())
-      );
+      List<ExpectedColumnResult> exp =
+          ImmutableList.of(
+              new ExpectedColumnResult(
+                  "int_field", INTEGER, columnNullable, 11, 0, 0, true, Integer.class.getName()),
+              new ExpectedColumnResult(
+                  "bigint_field", BIGINT, columnNullable, 20, 0, 0, true, Long.class.getName()),
+              new ExpectedColumnResult(
+                  "varchar_field",
+                  VARCHAR,
+                  columnNullable,
+                  65536,
+                  65536,
+                  0,
+                  false,
+                  String.class.getName()),
+              new ExpectedColumnResult(
+                  "ts_field",
+                  TIMESTAMP,
+                  columnNullable,
+                  23,
+                  3,
+                  0,
+                  false,
+                  Timestamp.class.getName()),
+              new ExpectedColumnResult(
+                  "time_field", TIME, columnNullable, 12, 3, 0, false, Time.class.getName()),
+              new ExpectedColumnResult(
+                  "date_field", DATE, columnNullable, 10, 0, 0, false, Date.class.getName()),
+              new ExpectedColumnResult(
+                  "decimal_field",
+                  DECIMAL,
+                  columnNullable,
+                  20,
+                  18,
+                  5,
+                  true,
+                  BigDecimal.class.getName()),
+              new ExpectedColumnResult(
+                  "double_field", DOUBLE, columnNullable, 24, 0, 0, true, Double.class.getName()));
 
       ResultSetMetaData prepareMetadata = stmt.getMetaData();
       verifyMetadata(prepareMetadata, exp);
@@ -131,39 +157,75 @@ public class PreparedStatementTest extends JdbcWithServerTestBase {
     }
   }
 
-  private static void verifyMetadata(ResultSetMetaData act, List<ExpectedColumnResult> exp) throws SQLException {
+  private static void verifyMetadata(ResultSetMetaData act, List<ExpectedColumnResult> exp)
+      throws SQLException {
     assertEquals(exp.size(), act.getColumnCount());
     int i = 0;
-    for(ExpectedColumnResult e : exp) {
+    for (ExpectedColumnResult e : exp) {
       ++i;
       assertThat(e.isEqualsTo(act, i))
-        .describedAs("Expected: %s\nActual: %s", e, PreparedStatementTest.toString(act, i))
-        .isTrue();
+          .describedAs("Expected: %s\nActual: %s", e, PreparedStatementTest.toString(act, i))
+          .isTrue();
     }
   }
 
   private static String toString(ResultSetMetaData metadata, int colNum) throws SQLException {
-    return "ResultSetMetaData(" + colNum + ")[" +
-        "columnName='" + metadata.getColumnName(colNum) + '\'' +
-        ", type='" + metadata.getColumnType(colNum) + '\'' +
-        ", nullable=" + metadata.isNullable(colNum) +
-        ", displaySize=" + metadata.getColumnDisplaySize(colNum) +
-        ", precision=" + metadata.getPrecision(colNum) +
-        ", scale=" + metadata.getScale(colNum) +
-        ", signed=" + metadata.isSigned(colNum) +
-        ", className='" + metadata.getColumnClassName(colNum) + '\'' +
-        ", catalogName='" + metadata.getCatalogName(colNum) + '\'' +
-        ", schemaName='" + metadata.getSchemaName(colNum) + '\'' +
-        ", tableName='" + metadata.getTableName(colNum) + '\'' +
-        ", columnLabel='" + metadata.getColumnLabel(colNum) + '\'' +
-        ", isSearchable='" + metadata.isSearchable(colNum) + '\'' +
-        ", isAutoIncrement='" + metadata.isAutoIncrement(colNum) + '\'' +
-        ", isCaseSensitive='" + metadata.isCaseSensitive(colNum) + '\'' +
-        ", isReadOnly='" + metadata.isReadOnly(colNum) + '\'' +
-        ", isWritable='" + metadata.isWritable(colNum) + '\'' +
-        ", isDefinitelyWritable='" + metadata.isDefinitelyWritable(colNum) + '\'' +
-        ", isCurrency='" + metadata.isCurrency(colNum) + '\'' +
-        ']';
+    return "ResultSetMetaData("
+        + colNum
+        + ")["
+        + "columnName='"
+        + metadata.getColumnName(colNum)
+        + '\''
+        + ", type='"
+        + metadata.getColumnType(colNum)
+        + '\''
+        + ", nullable="
+        + metadata.isNullable(colNum)
+        + ", displaySize="
+        + metadata.getColumnDisplaySize(colNum)
+        + ", precision="
+        + metadata.getPrecision(colNum)
+        + ", scale="
+        + metadata.getScale(colNum)
+        + ", signed="
+        + metadata.isSigned(colNum)
+        + ", className='"
+        + metadata.getColumnClassName(colNum)
+        + '\''
+        + ", catalogName='"
+        + metadata.getCatalogName(colNum)
+        + '\''
+        + ", schemaName='"
+        + metadata.getSchemaName(colNum)
+        + '\''
+        + ", tableName='"
+        + metadata.getTableName(colNum)
+        + '\''
+        + ", columnLabel='"
+        + metadata.getColumnLabel(colNum)
+        + '\''
+        + ", isSearchable='"
+        + metadata.isSearchable(colNum)
+        + '\''
+        + ", isAutoIncrement='"
+        + metadata.isAutoIncrement(colNum)
+        + '\''
+        + ", isCaseSensitive='"
+        + metadata.isCaseSensitive(colNum)
+        + '\''
+        + ", isReadOnly='"
+        + metadata.isReadOnly(colNum)
+        + '\''
+        + ", isWritable='"
+        + metadata.isWritable(colNum)
+        + '\''
+        + ", isDefinitelyWritable='"
+        + metadata.isDefinitelyWritable(colNum)
+        + '\''
+        + ", isCurrency='"
+        + metadata.isCurrency(colNum)
+        + '\''
+        + ']';
   }
 
   private static class ExpectedColumnResult {
@@ -176,8 +238,15 @@ public class PreparedStatementTest extends JdbcWithServerTestBase {
     final boolean signed;
     final String className;
 
-    ExpectedColumnResult(String columnName, int type, int nullable, int displaySize, int precision,
-        int scale, boolean signed, String className) {
+    ExpectedColumnResult(
+        String columnName,
+        int type,
+        int nullable,
+        int displaySize,
+        int precision,
+        int scale,
+        boolean signed,
+        String className) {
       this.columnName = columnName;
       this.type = type;
       this.nullable = nullable;
@@ -189,40 +258,50 @@ public class PreparedStatementTest extends JdbcWithServerTestBase {
     }
 
     boolean isEqualsTo(ResultSetMetaData metadata, int colNum) throws SQLException {
-      return
-          metadata.getCatalogName(colNum).equals(InfoSchemaConstants.IS_CATALOG_NAME) &&
-          metadata.getSchemaName(colNum).isEmpty() &&
-          metadata.getTableName(colNum).isEmpty() &&
-          metadata.getColumnName(colNum).equals(columnName) &&
-          metadata.getColumnLabel(colNum).equals(columnName) &&
-          metadata.getColumnType(colNum) == type &&
-          metadata.isNullable(colNum) == nullable &&
-          metadata.getPrecision(colNum) == precision &&
-          metadata.getScale(colNum) == scale &&
-          metadata.isSigned(colNum) == signed &&
-          metadata.getColumnDisplaySize(colNum) == displaySize &&
-          metadata.getColumnClassName(colNum).equals(className) &&
-          metadata.isSearchable(colNum) &&
-          !metadata.isAutoIncrement(colNum) &&
-          !metadata.isCaseSensitive(colNum) &&
-          metadata.isReadOnly(colNum) &&
-          !metadata.isWritable(colNum) &&
-          !metadata.isDefinitelyWritable(colNum) &&
-          !metadata.isCurrency(colNum);
+      return metadata.getCatalogName(colNum).equals(InfoSchemaConstants.IS_CATALOG_NAME)
+          && metadata.getSchemaName(colNum).isEmpty()
+          && metadata.getTableName(colNum).isEmpty()
+          && metadata.getColumnName(colNum).equals(columnName)
+          && metadata.getColumnLabel(colNum).equals(columnName)
+          && metadata.getColumnType(colNum) == type
+          && metadata.isNullable(colNum) == nullable
+          && metadata.getPrecision(colNum) == precision
+          && metadata.getScale(colNum) == scale
+          && metadata.isSigned(colNum) == signed
+          && metadata.getColumnDisplaySize(colNum) == displaySize
+          && metadata.getColumnClassName(colNum).equals(className)
+          && metadata.isSearchable(colNum)
+          && !metadata.isAutoIncrement(colNum)
+          && !metadata.isCaseSensitive(colNum)
+          && metadata.isReadOnly(colNum)
+          && !metadata.isWritable(colNum)
+          && !metadata.isDefinitelyWritable(colNum)
+          && !metadata.isCurrency(colNum);
     }
 
     @Override
     public String toString() {
-      return "ExpectedColumnResult[" +
-          "columnName='" + columnName + '\'' +
-          ", type='" + type + '\'' +
-          ", nullable=" + nullable +
-          ", displaySize=" + displaySize +
-          ", precision=" + precision +
-          ", scale=" + scale +
-          ", signed=" + signed +
-          ", className='" + className + '\'' +
-          ']';
+      return "ExpectedColumnResult["
+          + "columnName='"
+          + columnName
+          + '\''
+          + ", type='"
+          + type
+          + '\''
+          + ", nullable="
+          + nullable
+          + ", displaySize="
+          + displaySize
+          + ", precision="
+          + precision
+          + ", scale="
+          + scale
+          + ", signed="
+          + signed
+          + ", className='"
+          + className
+          + '\''
+          + ']';
     }
   }
 
@@ -233,37 +312,35 @@ public class PreparedStatementTest extends JdbcWithServerTestBase {
   @Test
   public void testSqlQueryWithParamNotSupported() {
     assertThatThrownBy(() -> getConnection().prepareStatement("VALUES ?, ?"))
-      .isInstanceOf(SQLException.class)
-      .hasMessageContaining("Illegal use of dynamic parameter");
+        .isInstanceOf(SQLException.class)
+        .hasMessageContaining("Illegal use of dynamic parameter");
   }
 
-  /** Tests that "not supported" has priority over possible "no parameters"
-   *  check. */
+  /** Tests that "not supported" has priority over possible "no parameters" check. */
   @Test
   public void testParamSettingWhenNoParametersIndexSaysUnsupported() throws SQLException {
     try (PreparedStatement prepStmt = getConnection().prepareStatement("VALUES 1")) {
       assertThatThrownBy(() -> prepStmt.setBytes(4, null))
-        .isInstanceOf(SQLFeatureNotSupportedException.class)
-        .hasMessageContaining("arameter")
-        .hasMessageContaining("not")
-        .hasMessageContaining("support");
+          .isInstanceOf(SQLFeatureNotSupportedException.class)
+          .hasMessageContaining("arameter")
+          .hasMessageContaining("not")
+          .hasMessageContaining("support");
     }
   }
 
-  /** Tests that "not supported" has priority over possible "type not supported"
-   *  check. */
+  /** Tests that "not supported" has priority over possible "type not supported" check. */
   @Test
   public void testParamSettingWhenUnsupportedTypeSaysUnsupported() throws SQLException {
     try (PreparedStatement prepStmt = getConnection().prepareStatement("VALUES 1")) {
       assertThatThrownBy(() -> prepStmt.setClob(2, (Clob) null))
-        .isInstanceOf(SQLFeatureNotSupportedException.class)
-        .hasMessageContaining("arameter")
-        .hasMessageContaining("not")
-        .hasMessageContaining("support");
+          .isInstanceOf(SQLFeatureNotSupportedException.class)
+          .hasMessageContaining("arameter")
+          .hasMessageContaining("not")
+          .hasMessageContaining("support");
     }
   }
 
-////////////////////////////////////////
+  ////////////////////////////////////////
   // Query timeout methods:
 
   //////////
@@ -280,8 +357,7 @@ public class PreparedStatementTest extends JdbcWithServerTestBase {
   //////////
   // setQueryTimeout(...):
 
-  /** Tests that setQueryTimeout(...) accepts (redundantly) setting to
-   *  no-timeout mode. */
+  /** Tests that setQueryTimeout(...) accepts (redundantly) setting to no-timeout mode. */
   @Test
   public void testSetQueryTimeoutAcceptsNotimeoutRequest() throws SQLException {
     try (PreparedStatement statement = getConnection().prepareStatement(SAMPLE_SQL)) {
@@ -293,17 +369,15 @@ public class PreparedStatementTest extends JdbcWithServerTestBase {
   public void testSetQueryTimeoutRejectsBadTimeoutValue() throws SQLException {
     try (PreparedStatement statement = getConnection().prepareStatement(SAMPLE_SQL)) {
       assertThatThrownBy(() -> statement.setQueryTimeout(-2))
-        .isInstanceOf(SQLException.class)
-        .satisfiesAnyOf(
-          e -> assertThat(e.getMessage()).contains("seconds"),
-          e -> assertThat(e.getMessage()).contains("timeout"),
-          e -> assertThat(e.getMessage()).contains("Timeout"));
+          .isInstanceOf(SQLException.class)
+          .satisfiesAnyOf(
+              e -> assertThat(e.getMessage()).contains("seconds"),
+              e -> assertThat(e.getMessage()).contains("timeout"),
+              e -> assertThat(e.getMessage()).contains("Timeout"));
     }
   }
 
-  /**
-   * Test setting a valid timeout
-   */
+  /** Test setting a valid timeout */
   @Test
   public void testValidSetQueryTimeout() throws SQLException {
     try (PreparedStatement statement = getConnection().prepareStatement(SAMPLE_SQL)) {
@@ -313,33 +387,31 @@ public class PreparedStatementTest extends JdbcWithServerTestBase {
     }
   }
 
-  /**
-   * Test setting timeout for a query that actually times out
-   */
-  @Test ( expected = SqlTimeoutException.class )
+  /** Test setting timeout for a query that actually times out */
+  @Test(expected = SqlTimeoutException.class)
   public void testTriggeredQueryTimeout() throws SQLException {
     String queryId = null;
-    try(PreparedStatement statement = getConnection().prepareStatement(SAMPLE_SQL)) {
+    try (PreparedStatement statement = getConnection().prepareStatement(SAMPLE_SQL)) {
       // Prevent the server to complete the query to trigger a timeout
       // For prepared statement, two queries are made: one to create the plan and one to
       // execute. We only pause the execution one.
 
-      try(Statement controlStatement = getConnection().createStatement()) {
-        final String controls = Controls.newBuilder()
-            .addPause(AttemptManager.class, "foreman-cleanup", 0)
-            .build();
+      try (Statement controlStatement = getConnection().createStatement()) {
+        final String controls =
+            Controls.newBuilder().addPause(AttemptManager.class, "foreman-cleanup", 0).build();
         assertThat(
-            controlStatement.execute(String.format(
-                "ALTER session SET \"%s\" = '%s'",
-                ExecConstants.NODE_CONTROL_INJECTIONS,
-                controls))).isTrue();
+                controlStatement.execute(
+                    String.format(
+                        "ALTER session SET \"%s\" = '%s'",
+                        ExecConstants.NODE_CONTROL_INJECTIONS, controls)))
+            .isTrue();
       }
       int timeoutDuration = 3;
-      //Setting to a very low value (3sec)
+      // Setting to a very low value (3sec)
       statement.setQueryTimeout(timeoutDuration);
       ResultSet rs = statement.executeQuery();
       queryId = ((DremioResultSet) rs).getQueryId();
-      //Fetch rows
+      // Fetch rows
       while (rs.next()) {
         rs.getBytes(1);
       }

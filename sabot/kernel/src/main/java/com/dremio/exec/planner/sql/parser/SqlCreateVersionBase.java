@@ -15,17 +15,14 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.google.common.base.Preconditions;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.google.common.base.Preconditions;
-
-/**
- * Base class for CREATE BRANCH/TAG with some shared existence check logic.
- */
+/** Base class for CREATE BRANCH/TAG with some shared existence check logic. */
 public abstract class SqlCreateVersionBase extends SqlVersionSourceRefBase {
 
   private final SqlLiteral shouldErrorIfVersionExists;

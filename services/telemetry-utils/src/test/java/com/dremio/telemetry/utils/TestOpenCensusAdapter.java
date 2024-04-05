@@ -18,16 +18,8 @@ package com.dremio.telemetry.utils;
 import static io.opentracing.propagation.Format.Builtin.HTTP_HEADERS;
 import static org.junit.Assert.assertEquals;
 
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
-
-import org.junit.BeforeClass;
-import org.junit.Test;
-
 import com.dremio.telemetry.utils.OpenCensusTracerAdapter.OpenCensusContextAdapter;
 import com.dremio.telemetry.utils.OpenCensusTracerAdapter.OpenCensusSpanAdapter;
-
 import io.opencensus.exporter.trace.logging.LoggingTraceExporter;
 import io.opencensus.trace.Span;
 import io.opencensus.trace.Tracing;
@@ -35,12 +27,16 @@ import io.opentracing.Scope;
 import io.opentracing.Tracer;
 import io.opentracing.noop.NoopSpan;
 import io.opentracing.propagation.TextMap;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
 /**
- * Test the open census adapter to ensure its behavior is aligned with user expectations
- * of opentracing.
+ * Test the open census adapter to ensure its behavior is aligned with user expectations of
+ * opentracing.
  */
-
 public class TestOpenCensusAdapter {
 
   private static Tracer outerTracer;
@@ -59,7 +55,7 @@ public class TestOpenCensusAdapter {
   @Test
   public void testActivatingNonOpenCensusSpanResultsInNoopSpan() {
 
-    try(Scope s = outerTracer.activateSpan(NoopSpan.INSTANCE)) {
+    try (Scope s = outerTracer.activateSpan(NoopSpan.INSTANCE)) {
       assertEquals(NoopSpan.INSTANCE, outerTracer.activeSpan());
     }
 
@@ -70,7 +66,7 @@ public class TestOpenCensusAdapter {
   @Test
   public void testActivatingOpenCensusSpan() {
     io.opentracing.Span span = outerTracer.buildSpan("testActivating").start();
-    try(Scope s = outerTracer.activateSpan(span)) {
+    try (Scope s = outerTracer.activateSpan(span)) {
       assertEquals(getInnerActiveSpan(), ((OpenCensusSpanAdapter) span).getOCSpan());
     }
     assertEquals(NoopSpan.INSTANCE, outerTracer.activeSpan());
@@ -99,8 +95,8 @@ public class TestOpenCensusAdapter {
     outerTracer.inject(span.context(), HTTP_HEADERS, logger);
 
     assertEquals(
-      ((OpenCensusContextAdapter) span.context()).getOcContext(),
-      ((OpenCensusContextAdapter) outerTracer.extract(HTTP_HEADERS, logger)).getOcContext());
+        ((OpenCensusContextAdapter) span.context()).getOcContext(),
+        ((OpenCensusContextAdapter) outerTracer.extract(HTTP_HEADERS, logger)).getOcContext());
   }
 
   @Test
@@ -109,7 +105,7 @@ public class TestOpenCensusAdapter {
 
     final io.opentracing.Span childSpan;
 
-    try (Scope s = outerTracer.activateSpan(parentSpan)){
+    try (Scope s = outerTracer.activateSpan(parentSpan)) {
       childSpan = outerTracer.buildSpan("child").start();
     }
 

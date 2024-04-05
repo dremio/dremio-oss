@@ -14,8 +14,10 @@
  * limitations under the License.
  */
 import {
-  BehaviorSubject, combineLatest, distinctUntilChanged
-  , map
+  BehaviorSubject,
+  combineLatest,
+  distinctUntilChanged,
+  map,
 } from "rxjs";
 import { flow } from "lodash";
 import { SmartResource } from "smart-resource";
@@ -23,26 +25,37 @@ import { behaviorSubjectFromResource } from "./behaviorSubjectFromResource";
 type MergeFn<S> = (prevState: S) => S;
 
 export const createOptimisticResource = <S>(resource: SmartResource<S>) => {
-  const $source = behaviorSubjectFromResource(resource)
-  const $optimisticUpdates = new BehaviorSubject<(MergeFn<NonNullable<typeof $source.value>>)[]>([]);
+  const $source = behaviorSubjectFromResource(resource);
+  const $optimisticUpdates = new BehaviorSubject<
+    MergeFn<NonNullable<typeof $source.value>>[]
+  >([]);
   const $merged = new BehaviorSubject($source.value);
 
-  combineLatest([$source, $optimisticUpdates]).pipe(map(([resourceValue, updates]) => {
-    if (!resourceValue) {
-      return null;
-    }
-    return flow(updates)(resourceValue) as typeof $source.value
-  }), distinctUntilChanged()).subscribe(next => $merged.next(next))
+  combineLatest([$source, $optimisticUpdates])
+    .pipe(
+      map(([resourceValue, updates]) => {
+        if (!resourceValue) {
+          return null;
+        }
+        return flow(updates)(resourceValue) as typeof $source.value;
+      }),
+      distinctUntilChanged(),
+    )
+    .subscribe((next) => $merged.next(next));
 
   return {
-    addOptimisticUpdate: (fn: MergeFn<NonNullable<typeof $source.value>>): () => void => {
-      $optimisticUpdates.next([...$optimisticUpdates.value, fn])
+    addOptimisticUpdate: (
+      fn: MergeFn<NonNullable<typeof $source.value>>,
+    ): (() => void) => {
+      $optimisticUpdates.next([...$optimisticUpdates.value, fn]);
       return () => {
-        $optimisticUpdates.next($optimisticUpdates.value.filter(x => x !== fn))
-      }
+        $optimisticUpdates.next(
+          $optimisticUpdates.value.filter((x) => x !== fn),
+        );
+      };
     },
     $merged,
     $source,
-    resource
-  }
-}
+    resource,
+  };
+};

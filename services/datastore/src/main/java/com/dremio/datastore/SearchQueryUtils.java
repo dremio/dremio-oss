@@ -15,10 +15,9 @@
  */
 package com.dremio.datastore;
 
-import java.util.Arrays;
-
 import com.dremio.datastore.SearchTypes.SearchQuery;
 import com.dremio.datastore.indexed.IndexKey;
+import java.util.Arrays;
 
 /**
  * A collection of helper methods to build {@code com.dremio.datastore.SearchTypes.SearchQuery}
@@ -26,10 +25,11 @@ import com.dremio.datastore.indexed.IndexKey;
  */
 public final class SearchQueryUtils {
 
-  private SearchQueryUtils() { }
+  private SearchQueryUtils() {}
 
   /**
    * Create a new match-all query
+   *
    * @return a query instance
    */
   public static final SearchQuery newMatchAllQuery() {
@@ -76,9 +76,9 @@ public final class SearchQueryUtils {
    */
   public static final SearchQuery newTermQuery(String field, int value) {
     return SearchQuery.newBuilder()
-      .setType(SearchQuery.Type.TERM_INT)
-      .setTermInt(SearchQuery.TermInt.newBuilder().setField(field).setValue(value))
-      .build();
+        .setType(SearchQuery.Type.TERM_INT)
+        .setTermInt(SearchQuery.TermInt.newBuilder().setField(field).setValue(value))
+        .build();
   }
 
   /**
@@ -91,9 +91,9 @@ public final class SearchQueryUtils {
    */
   public static final SearchQuery newTermQuery(String field, boolean value) {
     return SearchQuery.newBuilder()
-      .setType(SearchQuery.Type.TERM_BOOLEAN)
-      .setTermBoolean(SearchQuery.TermBoolean.newBuilder().setField(field).setValue(value))
-      .build();
+        .setType(SearchQuery.Type.TERM_BOOLEAN)
+        .setTermBoolean(SearchQuery.TermBoolean.newBuilder().setField(field).setValue(value))
+        .build();
   }
 
   /**
@@ -118,9 +118,9 @@ public final class SearchQueryUtils {
    */
   public static final SearchQuery newTermQuery(String field, long value) {
     return SearchQuery.newBuilder()
-      .setType(SearchQuery.Type.TERM_LONG)
-      .setTermLong(SearchQuery.TermLong.newBuilder().setField(field).setValue(value))
-      .build();
+        .setType(SearchQuery.Type.TERM_LONG)
+        .setTermLong(SearchQuery.TermLong.newBuilder().setField(field).setValue(value))
+        .build();
   }
 
   /**
@@ -145,9 +145,9 @@ public final class SearchQueryUtils {
    */
   public static final SearchQuery newTermQuery(String field, float value) {
     return SearchQuery.newBuilder()
-      .setType(SearchQuery.Type.TERM_FLOAT)
-      .setTermFloat(SearchQuery.TermFloat.newBuilder().setField(field).setValue(value))
-      .build();
+        .setType(SearchQuery.Type.TERM_FLOAT)
+        .setTermFloat(SearchQuery.TermFloat.newBuilder().setField(field).setValue(value))
+        .build();
   }
 
   /**
@@ -172,9 +172,9 @@ public final class SearchQueryUtils {
    */
   public static final SearchQuery newTermQuery(String field, double value) {
     return SearchQuery.newBuilder()
-      .setType(SearchQuery.Type.TERM_DOUBLE)
-      .setTermDouble(SearchQuery.TermDouble.newBuilder().setField(field).setValue(value))
-      .build();
+        .setType(SearchQuery.Type.TERM_DOUBLE)
+        .setTermDouble(SearchQuery.TermDouble.newBuilder().setField(field).setValue(value))
+        .build();
   }
 
   /**
@@ -191,27 +191,28 @@ public final class SearchQueryUtils {
 
   /**
    * Create a query that returns documents where given field has one or mode values defined.
+   *
    * @param field
    * @return
    */
   public static final SearchQuery newExistsQuery(String field) {
     return SearchQuery.newBuilder()
-      .setType(SearchQuery.Type.EXISTS)
-      .setExists(SearchQuery.Exists.newBuilder().setField(field))
-      .build();
+        .setType(SearchQuery.Type.EXISTS)
+        .setExists(SearchQuery.Exists.newBuilder().setField(field))
+        .build();
   }
-
 
   /**
    * Create a query that returns documents where given field is not defined.
+   *
    * @param field
    * @return
    */
   public static final SearchQuery newDoesNotExistQuery(String field) {
     return SearchQuery.newBuilder()
-      .setType(SearchQuery.Type.DOES_NOT_EXIST)
-      .setExists(SearchQuery.Exists.newBuilder().setField(field))
-      .build();
+        .setType(SearchQuery.Type.DOES_NOT_EXIST)
+        .setExists(SearchQuery.Exists.newBuilder().setField(field))
+        .build();
   }
 
   /**
@@ -239,30 +240,31 @@ public final class SearchQueryUtils {
    */
   public static final SearchQuery newPrefixQuery(String field, String value) {
     return SearchQuery.newBuilder()
-      .setType(SearchQuery.Type.PREFIX)
-      .setPrefix(SearchQuery.Prefix.newBuilder().setField(field).setValue(value))
-      .build();
+        .setType(SearchQuery.Type.PREFIX)
+        .setPrefix(SearchQuery.Prefix.newBuilder().setField(field).setValue(value))
+        .build();
   }
 
   /**
    * Creates a contains term query
+   *
    * @param field the field to scan
    * @param value a value to look for
    * @return a query instance
    */
   public static final SearchQuery newContainsTerm(String field, String value) {
-    final SearchQuery.Contains.Builder valueBuilder = SearchQuery.Contains.newBuilder()
-      .setField(field)
-      .setValue(value);
+    final SearchQuery.Contains.Builder valueBuilder =
+        SearchQuery.Contains.newBuilder().setField(field).setValue(value);
 
     return SearchQuery.newBuilder()
-      .setType(SearchQuery.Type.CONTAINS)
-      .setContainsText(valueBuilder)
-      .build();
+        .setType(SearchQuery.Type.CONTAINS)
+        .setContainsText(valueBuilder)
+        .build();
   }
 
   /**
    * Creates a contains term query
+   *
    * @param indexKey the index key to scan
    * @param value a value to look for
    * @return a query instance
@@ -282,12 +284,13 @@ public final class SearchQueryUtils {
    * @return a query instance
    * @throws NullPointerException if {@code field} is {@code null}
    */
-  public static final SearchQuery newRangeInt(String field, Integer min, Integer max, boolean minInclusive,
-      boolean maxInclusive) {
-    final SearchQuery.RangeInt.Builder builder =  SearchQuery.RangeInt.newBuilder()
-        .setField(field)
-        .setMinInclusive(minInclusive)
-        .setMaxInclusive(maxInclusive);
+  public static final SearchQuery newRangeInt(
+      String field, Integer min, Integer max, boolean minInclusive, boolean maxInclusive) {
+    final SearchQuery.RangeInt.Builder builder =
+        SearchQuery.RangeInt.newBuilder()
+            .setField(field)
+            .setMinInclusive(minInclusive)
+            .setMaxInclusive(maxInclusive);
 
     if (min != null) {
       builder.setMin(min);
@@ -313,12 +316,13 @@ public final class SearchQueryUtils {
    * @return a query instance
    * @throws NullPointerException if {@code field} is {@code null}
    */
-  public static final SearchQuery newRangeLong(String field, Long min, Long max, boolean minInclusive,
-      boolean maxInclusive) {
-    final SearchQuery.RangeLong.Builder builder =  SearchQuery.RangeLong.newBuilder()
-        .setField(field)
-        .setMinInclusive(minInclusive)
-        .setMaxInclusive(maxInclusive);
+  public static final SearchQuery newRangeLong(
+      String field, Long min, Long max, boolean minInclusive, boolean maxInclusive) {
+    final SearchQuery.RangeLong.Builder builder =
+        SearchQuery.RangeLong.newBuilder()
+            .setField(field)
+            .setMinInclusive(minInclusive)
+            .setMaxInclusive(maxInclusive);
 
     if (min != null) {
       builder.setMin(min);
@@ -344,12 +348,13 @@ public final class SearchQueryUtils {
    * @return a query instance
    * @throws NullPointerException if {@code field} is {@code null}
    */
-  public static final SearchQuery newRangeFloat(String field, Float min, Float max, boolean minInclusive,
-      boolean maxInclusive) {
-    final SearchQuery.RangeFloat.Builder builder =  SearchQuery.RangeFloat.newBuilder()
-        .setField(field)
-        .setMinInclusive(minInclusive)
-        .setMaxInclusive(maxInclusive);
+  public static final SearchQuery newRangeFloat(
+      String field, Float min, Float max, boolean minInclusive, boolean maxInclusive) {
+    final SearchQuery.RangeFloat.Builder builder =
+        SearchQuery.RangeFloat.newBuilder()
+            .setField(field)
+            .setMinInclusive(minInclusive)
+            .setMaxInclusive(maxInclusive);
 
     if (min != null) {
       builder.setMin(min);
@@ -375,12 +380,13 @@ public final class SearchQueryUtils {
    * @return a query instance
    * @throws NullPointerException if {@code field} is {@code null}
    */
-  public static final SearchQuery newRangeDouble(String field, Double min, Double max, boolean minInclusive,
-      boolean maxInclusive) {
-    final SearchQuery.RangeDouble.Builder builder =  SearchQuery.RangeDouble.newBuilder()
-        .setField(field)
-        .setMinInclusive(minInclusive)
-        .setMaxInclusive(maxInclusive);
+  public static final SearchQuery newRangeDouble(
+      String field, Double min, Double max, boolean minInclusive, boolean maxInclusive) {
+    final SearchQuery.RangeDouble.Builder builder =
+        SearchQuery.RangeDouble.newBuilder()
+            .setField(field)
+            .setMinInclusive(minInclusive)
+            .setMaxInclusive(maxInclusive);
 
     if (min != null) {
       builder.setMin(min);
@@ -406,12 +412,13 @@ public final class SearchQueryUtils {
    * @return a query instance
    * @throws NullPointerException if {@code field} is {@code null}
    */
-  public static final SearchQuery newRangeTerm(String field, String min, String max, boolean minInclusive,
-      boolean maxInclusive) {
-    final SearchQuery.RangeTerm.Builder builder =  SearchQuery.RangeTerm.newBuilder()
-        .setField(field)
-        .setMinInclusive(minInclusive)
-        .setMaxInclusive(maxInclusive);
+  public static final SearchQuery newRangeTerm(
+      String field, String min, String max, boolean minInclusive, boolean maxInclusive) {
+    final SearchQuery.RangeTerm.Builder builder =
+        SearchQuery.RangeTerm.newBuilder()
+            .setField(field)
+            .setMinInclusive(minInclusive)
+            .setMaxInclusive(maxInclusive);
 
     if (min != null) {
       builder.setMin(min);
@@ -490,26 +497,21 @@ public final class SearchQueryUtils {
    * @param op the boolean operator
    * @param queries the sub queries
    * @return a query instance
-   * @throws NullPointerException if {@code op}, {@code queries} or any of the subqueries is {@code null}
+   * @throws NullPointerException if {@code op}, {@code queries} or any of the subqueries is {@code
+   *     null}
    */
-  private static final SearchQuery newBooleanQuery(SearchQuery.BooleanOp op, Iterable<SearchQuery> queries) {
+  private static final SearchQuery newBooleanQuery(
+      SearchQuery.BooleanOp op, Iterable<SearchQuery> queries) {
     return SearchQuery.newBuilder()
         .setType(SearchQuery.Type.BOOLEAN)
-        .setBoolean(
-            SearchQuery.Boolean.newBuilder()
-            .setOp(op)
-            .addAllClauses(queries))
+        .setBoolean(SearchQuery.Boolean.newBuilder().setOp(op).addAllClauses(queries))
         .build();
   }
 
   public static final SearchQuery newBoost(SearchQuery query, float boost) {
     return SearchQuery.newBuilder()
-      .setType(SearchQuery.Type.BOOST)
-      .setBoost(
-        SearchQuery.Boost.newBuilder()
-          .setClause(query)
-          .setBoost(boost)
-      )
-      .build();
+        .setType(SearchQuery.Type.BOOST)
+        .setBoost(SearchQuery.Boost.newBuilder().setClause(query).setBoost(boost))
+        .build();
   }
 }

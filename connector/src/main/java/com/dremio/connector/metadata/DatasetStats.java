@@ -15,9 +15,7 @@
  */
 package com.dremio.connector.metadata;
 
-/**
- * Stats about dataset.
- */
+/** Stats about dataset. */
 public interface DatasetStats {
 
   /**
@@ -38,8 +36,8 @@ public interface DatasetStats {
 
   /**
    * Get the scan factor for the dataset.
-   * <p>
-   * Scan factor represents the relative cost of making the scan as compared to other scans.
+   *
+   * <p>Scan factor represents the relative cost of making the scan as compared to other scans.
    * TODO: what does this mean?
    *
    * @return scan factor
@@ -63,11 +61,12 @@ public interface DatasetStats {
   /**
    * Create {@code DatasetStats}.
    *
-   * @param recordCount record count. A negative value indicates that the record count on the DatasetStats is not valid
-   *                    and should be calculated by other means.
+   * @param recordCount record count. A negative value indicates that the record count on the
+   *     DatasetStats is not valid and should be calculated by other means.
    * @param scanFactor scan factor. Must be greater than zero.
    * @return dataset stats
-   * @throws IllegalArgumentException if the record count is negative or the scan factor is less than or equal to zero.
+   * @throws IllegalArgumentException if the record count is negative or the scan factor is less
+   *     than or equal to zero.
    */
   static DatasetStats of(long recordCount, double scanFactor) {
     return of(recordCount, false, scanFactor);
@@ -76,12 +75,13 @@ public interface DatasetStats {
   /**
    * Create {@code DatasetStats}.
    *
-   * @param recordCount record count. A negative value indicates that the record count on the DatasetStats is not valid
-   *                    and should be calculated by other means.
+   * @param recordCount record count. A negative value indicates that the record count on the
+   *     DatasetStats is not valid and should be calculated by other means.
    * @param exact if record count is exact. Ignored if recordCount < 0.
    * @param scanFactor scan factor. Must be greater than zero.
    * @return datasets stats
-   * @throws IllegalArgumentException if the record count is negative or the scan factor is less than or equal to zero.
+   * @throws IllegalArgumentException if the record count is negative or the scan factor is less
+   *     than or equal to zero.
    */
   static DatasetStats of(long recordCount, boolean exact, double scanFactor) {
     if (scanFactor <= 0.0d) {

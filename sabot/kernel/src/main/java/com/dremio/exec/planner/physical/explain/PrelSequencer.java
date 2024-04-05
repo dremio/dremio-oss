@@ -15,22 +15,20 @@
  */
 package com.dremio.exec.planner.physical.explain;
 
-import java.io.PrintWriter;
-import java.io.StringWriter;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Queue;
-
-import org.apache.calcite.rel.RelWriter;
-import org.apache.calcite.sql.SqlExplainLevel;
-
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.physical.ExchangePrel;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.visitor.BasePrelVisitor;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Queue;
+import org.apache.calcite.rel.RelWriter;
+import org.apache.calcite.sql.SqlExplainLevel;
 
 public class PrelSequencer extends BasePrelVisitor<Void, PrelSequencer.Frag, RuntimeException> {
 
@@ -38,18 +36,24 @@ public class PrelSequencer extends BasePrelVisitor<Void, PrelSequencer.Frag, Run
 
   /**
    * Generate readable text and json plans and set them in <code>planHolder</code>
+   *
    * @param rel
    * @param explainlevel explain plan level.
    * @param observer
    */
-  public static String setPlansWithIds(final Prel rel, final SqlExplainLevel explainlevel, final AttemptObserver observer, final long millisTaken) {
+  public static String setPlansWithIds(
+      final Prel rel,
+      final SqlExplainLevel explainlevel,
+      final AttemptObserver observer,
+      final long millisTaken) {
     if (rel == null) {
       return null;
     }
 
     Map<Prel, OpId> relIdMap = getIdMap(rel);
     final StringWriter sw = new StringWriter();
-    final RelWriter textPlanWriter = new NumberingRelWriter(relIdMap, new PrintWriter(sw), explainlevel);
+    final RelWriter textPlanWriter =
+        new NumberingRelWriter(relIdMap, new PrintWriter(sw), explainlevel);
     rel.explain(textPlanWriter);
 
     final String textPlan = sw.toString();
@@ -69,6 +73,7 @@ public class PrelSequencer extends BasePrelVisitor<Void, PrelSequencer.Frag, Run
     Prel root;
     int majorFragmentId;
     final List<Frag> children = Lists.newArrayList();
+
     public Frag(Prel root) {
       super();
       this.root = root;
@@ -124,15 +129,20 @@ public class PrelSequencer extends BasePrelVisitor<Void, PrelSequencer.Frag, Run
     @Override
     public String toString() {
       final int maxLen = 10;
-      return "Frag [root=" + root + ", majorFragmentId=" + majorFragmentId + ", children="
-          + (children != null ? children.subList(0, Math.min(children.size(), maxLen)) : null) + "]";
+      return "Frag [root="
+          + root
+          + ", majorFragmentId="
+          + majorFragmentId
+          + ", children="
+          + (children != null ? children.subList(0, Math.min(children.size(), maxLen)) : null)
+          + "]";
     }
-
   }
 
-  public static class OpId{
+  public static class OpId {
     int fragmentId;
     int opId;
+
     public OpId(int fragmentId, int opId) {
       super();
       this.fragmentId = fragmentId;
@@ -142,7 +152,6 @@ public class PrelSequencer extends BasePrelVisitor<Void, PrelSequencer.Frag, Run
     public int getFragmentId() {
       return fragmentId;
     }
-
 
     public int getOpId() {
       return opId;
@@ -186,7 +195,6 @@ public class PrelSequencer extends BasePrelVisitor<Void, PrelSequencer.Frag, Run
     public String toString() {
       return fragmentId + ":*:" + opId;
     }
-
   }
 
   public Map<Prel, OpId> go(Prel root) {
@@ -223,8 +231,8 @@ public class PrelSequencer extends BasePrelVisitor<Void, PrelSequencer.Frag, Run
         Prel p = ops.remove();
         boolean isExchange = p instanceof ExchangePrel;
 
-        if (p != f.root) {      // we account for exchanges as receivers to guarantee unique identifiers.
-          ids.put(p, new OpId(f.majorFragmentId, id++) );
+        if (p != f.root) { // we account for exchanges as receivers to guarantee unique identifiers.
+          ids.put(p, new OpId(f.majorFragmentId, id++));
         }
 
         if (!isExchange || p == f.root) {
@@ -235,7 +243,6 @@ public class PrelSequencer extends BasePrelVisitor<Void, PrelSequencer.Frag, Run
         }
       }
     }
-
 
     return ids;
   }
@@ -259,5 +266,4 @@ public class PrelSequencer extends BasePrelVisitor<Void, PrelSequencer.Frag, Run
     }
     return null;
   }
-
 }

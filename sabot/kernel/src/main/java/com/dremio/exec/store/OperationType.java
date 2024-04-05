@@ -18,16 +18,14 @@ package com.dremio.exec.store;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Type of operation on metadata files.
- */
+/** Type of operation on metadata files. */
 public enum OperationType {
   ADD_DATAFILE(0),
   DELETE_DATAFILE(1),
   ADD_MANIFESTFILE(2),
   DELETE_DELETEFILE(3),
   ORPHAN_DATAFILE(4),
-  COPY_INTO_ERROR(5);
+  COPY_HISTORY_EVENT(5);
 
   public final Integer value;
 
@@ -36,6 +34,7 @@ public enum OperationType {
   }
 
   private static final Map<Integer, OperationType> TYPES = new HashMap<>();
+
   static {
     for (OperationType type : values()) {
       TYPES.put(type.value, type);

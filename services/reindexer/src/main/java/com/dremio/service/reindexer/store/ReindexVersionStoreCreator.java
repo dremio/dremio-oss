@@ -23,18 +23,19 @@ import com.dremio.datastore.format.Format;
 import com.dremio.service.reindexer.proto.ReindexVersionInfo;
 
 /**
- * This class provides skeleton store creation implementation
- * of {@link ReindexVersionInfo} KVStore. Each service should have its
- * own ReindexVersionStore by passing the name specific to the service.
+ * This class provides skeleton store creation implementation of {@link ReindexVersionInfo} KVStore.
+ * Each service should have its own ReindexVersionStore by passing the name specific to the service.
  */
-public abstract class ReindexVersionStoreCreator implements IndexedStoreCreationFunction<String, ReindexVersionInfo> {
+public abstract class ReindexVersionStoreCreator
+    implements IndexedStoreCreationFunction<String, ReindexVersionInfo> {
   @Override
   public IndexedStore<String, ReindexVersionInfo> build(StoreBuildingFactory factory) {
-    return factory.<String, ReindexVersionInfo>newStore()
-      .name(name())
-      .keyFormat(Format.ofString())
-      .valueFormat(Format.ofProtobuf(ReindexVersionInfo.class))
-      .buildIndexed(new ReindexVersionStoreImpl.ReindexVersionDocumentConverter());
+    return factory
+        .<String, ReindexVersionInfo>newStore()
+        .name(name())
+        .keyFormat(Format.ofString())
+        .valueFormat(Format.ofProtobuf(ReindexVersionInfo.class))
+        .buildIndexed(new ReindexVersionStoreImpl.ReindexVersionDocumentConverter());
   }
 
   public abstract String name();

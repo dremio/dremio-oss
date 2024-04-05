@@ -17,20 +17,6 @@ package com.dremio.service.flight.impl;
 
 import static org.apache.arrow.flight.BackpressureStrategy.WaitResult;
 
-import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
-
-import javax.inject.Provider;
-
-import org.apache.arrow.flight.CallStatus;
-import org.apache.arrow.flight.DremioBackpressureStrategy;
-import org.apache.arrow.flight.FlightProducer;
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.FieldVector;
-import org.apache.arrow.vector.VectorSchemaRoot;
-
 import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.exec.proto.GeneralRPCProtos;
 import com.dremio.exec.proto.UserBitShared;
@@ -49,13 +35,21 @@ import com.dremio.service.flight.error.mapping.DremioFlightErrorMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.NettyArrowBuf;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
+import javax.inject.Provider;
+import org.apache.arrow.flight.CallStatus;
+import org.apache.arrow.flight.DremioBackpressureStrategy;
+import org.apache.arrow.flight.FlightProducer;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.VectorSchemaRoot;
 
-/**
- * The UserResponseHandler that streams results to a FlightProducer listener.
- */
+/** The UserResponseHandler that streams results to a FlightProducer listener. */
 public abstract class RunQueryResponseHandler implements UserResponseHandler {
 
   private final UserBitShared.ExternalId runExternalId;
@@ -69,12 +63,13 @@ public abstract class RunQueryResponseHandler implements UserResponseHandler {
   private volatile VectorSchemaRoot vectorSchemaRoot;
   private volatile boolean completed;
 
-  RunQueryResponseHandler(UserBitShared.ExternalId runExternalId,
-                          UserSession userSession,
-                          Provider<UserWorker> workerProvider,
-                          FlightProducer.ServerStreamListener clientListener,
-                          BufferAllocator allocator,
-                          Runnable queryCompletionCallback) {
+  RunQueryResponseHandler(
+      UserBitShared.ExternalId runExternalId,
+      UserSession userSession,
+      Provider<UserWorker> workerProvider,
+      FlightProducer.ServerStreamListener clientListener,
+      BufferAllocator allocator,
+      Runnable queryCompletionCallback) {
     this.runExternalId = runExternalId;
     this.userSession = userSession;
     this.workerProvider = workerProvider;
@@ -86,7 +81,8 @@ public abstract class RunQueryResponseHandler implements UserResponseHandler {
   }
 
   @Override
-  public void sendData(RpcOutcomeListener<GeneralRPCProtos.Ack> outcomeListener, QueryWritableBatch result) {
+  public void sendData(
+      RpcOutcomeListener<GeneralRPCProtos.Ack> outcomeListener, QueryWritableBatch result) {
     if (isCancelled()) {
       setOutcomeListenerStatusCancelled(outcomeListener);
       return;
@@ -189,7 +185,8 @@ public abstract class RunQueryResponseHandler implements UserResponseHandler {
           setOutcomeListenerStatusCancelled(outcomeListener);
           return;
         case TIMEOUT:
-          outcomeListener.failed(new RpcException("Timeout while waiting for client to be in ready state."));
+          outcomeListener.failed(
+              new RpcException("Timeout while waiting for client to be in ready state."));
           break;
         case OTHER:
         default:
@@ -200,15 +197,14 @@ public abstract class RunQueryResponseHandler implements UserResponseHandler {
     }
   }
 
-  /**
-   * Initializes VectorSchemaRoot if needed, and populates the rowCount.
-   */
+  /** Initializes VectorSchemaRoot if needed, and populates the rowCount. */
   @VisibleForTesting
   void prepareVectorSchemaRoot(int rowCount) {
     if (vectorSchemaRoot == null) {
-      final List<FieldVector> vectors = StreamSupport.stream(recordBatchLoader.spliterator(), false)
-        .map(v -> (FieldVector) v.getValueVector())
-        .collect(Collectors.toList());
+      final List<FieldVector> vectors =
+          StreamSupport.stream(recordBatchLoader.spliterator(), false)
+              .map(v -> (FieldVector) v.getValueVector())
+              .collect(Collectors.toList());
       vectorSchemaRoot = new VectorSchemaRoot(vectors);
       clientListener.start(vectorSchemaRoot);
     }
@@ -247,18 +243,32 @@ public abstract class RunQueryResponseHandler implements UserResponseHandler {
       switch (result.getState()) {
         case FAILED:
           if (result.hasException()) {
-            clientListener.error(DremioFlightErrorMapper.toFlightRuntimeException(result.getException()));
+            clientListener.error(
+                DremioFlightErrorMapper.toFlightRuntimeException(result.getException()));
           } else {
-            clientListener.error(CallStatus.UNKNOWN.withDescription("Query failed but no exception was thrown.").toRuntimeException());
+            clientListener.error(
+                CallStatus.UNKNOWN
+                    .withDescription("Query failed but no exception was thrown.")
+                    .toRuntimeException());
           }
           break;
         case CANCELED:
           if (result.hasException()) {
-            clientListener.error(CallStatus.CANCELLED.withDescription(result.getException().getMessage()).withCause(result.getException()).toRuntimeException());
+            clientListener.error(
+                CallStatus.CANCELLED
+                    .withDescription(result.getException().getMessage())
+                    .withCause(result.getException())
+                    .toRuntimeException());
           } else if (!Strings.isNullOrEmpty(result.getCancelReason())) {
-            clientListener.error(CallStatus.CANCELLED.withDescription(result.getCancelReason()).toRuntimeException());
+            clientListener.error(
+                CallStatus.CANCELLED
+                    .withDescription(result.getCancelReason())
+                    .toRuntimeException());
           } else {
-            clientListener.error(CallStatus.CANCELLED.withDescription("Query is cancelled by the server.").toRuntimeException());
+            clientListener.error(
+                CallStatus.CANCELLED
+                    .withDescription("Query is cancelled by the server.")
+                    .toRuntimeException());
           }
           break;
         case COMPLETED:
@@ -273,9 +283,7 @@ public abstract class RunQueryResponseHandler implements UserResponseHandler {
     }
   }
 
-  /**
-   * Callback for the listener to cancel the backend query request.
-   */
+  /** Callback for the listener to cancel the backend query request. */
   protected void serverStreamListenerOnCancelledCallback() {
     if (!completed) {
       completed = true;
@@ -288,21 +296,24 @@ public abstract class RunQueryResponseHandler implements UserResponseHandler {
    *
    * @param outcomeListener the RpcOutcomeListener to set status of.
    */
-  protected void setOutcomeListenerStatusCancelled(RpcOutcomeListener<GeneralRPCProtos.Ack> outcomeListener) {
+  protected void setOutcomeListenerStatusCancelled(
+      RpcOutcomeListener<GeneralRPCProtos.Ack> outcomeListener) {
     outcomeListener.interrupted(new InterruptedException("Query is cancelled by the client."));
   }
 
   /**
    * Helper method to check for the readiness of the Flight client.
-   * <p>
-   * Note: Polling for client isReady is no longer required as the Flight client's
-   * OutboundStreamListener now accepts a callback for when it is ready to receive more data buffers.
-   * Jira ticket that added this enhancement: https://issues.apache.org/jira/browse/ARROW-10106.
    *
-   * @return {@code READY} if the Flight client is ready, {@code CANCELLED} if the request is cancelled by the client,
-   * {@code TIMEOUT} if the time spent in waiting for the listener to change state exceeds the the specified timeout.
-   * @throws RpcException an InterruptedException or an ExecutionException is
-   *                      encountered while polling for the client's status.
+   * <p>Note: Polling for client isReady is no longer required as the Flight client's
+   * OutboundStreamListener now accepts a callback for when it is ready to receive more data
+   * buffers. Jira ticket that added this enhancement:
+   * https://issues.apache.org/jira/browse/ARROW-10106.
+   *
+   * @return {@code READY} if the Flight client is ready, {@code CANCELLED} if the request is
+   *     cancelled by the client, {@code TIMEOUT} if the time spent in waiting for the listener to
+   *     change state exceeds the the specified timeout.
+   * @throws RpcException an InterruptedException or an ExecutionException is encountered while
+   *     polling for the client's status.
    */
   @VisibleForTesting
   abstract WaitResult clientIsReadyForData() throws RpcException;
@@ -311,16 +322,24 @@ public abstract class RunQueryResponseHandler implements UserResponseHandler {
     return clientListener.isCancelled();
   }
 
-  /**
-   * Always responds that clients are ready for data.
-   */
+  /** Always responds that clients are ready for data. */
   public static class BasicResponseHandler extends RunQueryResponseHandler {
     private final FlightProducer.ServerStreamListener clientListener;
 
-    BasicResponseHandler(UserBitShared.ExternalId runExternalId, UserSession userSession,
-                         Provider<UserWorker> workerProvider, FlightProducer.ServerStreamListener clientListener,
-                         BufferAllocator allocator, Runnable queryCompletionCallback) {
-      super(runExternalId, userSession, workerProvider, clientListener, allocator, queryCompletionCallback);
+    BasicResponseHandler(
+        UserBitShared.ExternalId runExternalId,
+        UserSession userSession,
+        Provider<UserWorker> workerProvider,
+        FlightProducer.ServerStreamListener clientListener,
+        BufferAllocator allocator,
+        Runnable queryCompletionCallback) {
+      super(
+          runExternalId,
+          userSession,
+          workerProvider,
+          clientListener,
+          allocator,
+          queryCompletionCallback);
       this.clientListener = clientListener;
       this.clientListener.setOnCancelHandler(this::serverStreamListenerOnCancelledCallback);
     }
@@ -331,20 +350,28 @@ public abstract class RunQueryResponseHandler implements UserResponseHandler {
     }
   }
 
-  /**
-   * When clients report not ready, block while waiting for client to indicate that it is ready.
-   */
+  /** When clients report not ready, block while waiting for client to indicate that it is ready. */
   public static class BackpressureHandlingResponseHandler extends RunQueryResponseHandler {
 
     private final RunQueryBackpressureStrategy runQueryBackpressureStrategy;
     private final OptionManager optionManager;
 
-    BackpressureHandlingResponseHandler(UserBitShared.ExternalId runExternalId, UserSession userSession,
-                                        Provider<UserWorker> workerProvider,
-                                        FlightProducer.ServerStreamListener clientListener, BufferAllocator allocator,
-                                        Runnable queryCompletionCallback) {
-      super(runExternalId, userSession, workerProvider, clientListener, allocator, queryCompletionCallback);
-      this.runQueryBackpressureStrategy = new RunQueryBackpressureStrategy(this::serverStreamListenerOnCancelledCallback);
+    BackpressureHandlingResponseHandler(
+        UserBitShared.ExternalId runExternalId,
+        UserSession userSession,
+        Provider<UserWorker> workerProvider,
+        FlightProducer.ServerStreamListener clientListener,
+        BufferAllocator allocator,
+        Runnable queryCompletionCallback) {
+      super(
+          runExternalId,
+          userSession,
+          workerProvider,
+          clientListener,
+          allocator,
+          queryCompletionCallback);
+      this.runQueryBackpressureStrategy =
+          new RunQueryBackpressureStrategy(this::serverStreamListenerOnCancelledCallback);
       runQueryBackpressureStrategy.register(clientListener);
       this.optionManager = workerProvider.get().getSystemOptions();
     }
@@ -353,8 +380,7 @@ public abstract class RunQueryResponseHandler implements UserResponseHandler {
     @VisibleForTesting
     WaitResult clientIsReadyForData() {
       return runQueryBackpressureStrategy.waitForListener(
-        optionManager.getOption(DremioFlightServiceOptions.CLIENT_READINESS_TIMEOUT_MILLIS)
-      );
+          optionManager.getOption(DremioFlightServiceOptions.CLIENT_READINESS_TIMEOUT_MILLIS));
     }
   }
 

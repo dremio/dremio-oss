@@ -20,15 +20,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.util.Collections;
-
-import org.apache.arrow.vector.types.pojo.ArrowType;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.calcite.plan.RelOptTable;
-import org.apache.calcite.rel.RelNode;
-import org.junit.Test;
-import org.mockito.Mockito;
-
 import com.dremio.connector.metadata.DatasetMetadata;
 import com.dremio.connector.metadata.DatasetStats;
 import com.dremio.connector.metadata.EntityPath;
@@ -43,22 +34,30 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.google.common.collect.Lists;
-
 import io.protostuff.ByteString;
+import java.util.Collections;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.calcite.plan.RelOptTable;
+import org.apache.calcite.rel.RelNode;
+import org.junit.Test;
+import org.mockito.Mockito;
 
 public class TestMaterializedDatasetTableProvider {
 
   @Test
   public void testTimeTravelFlagOnScan() throws Exception {
-    RelOptTable.ToRelContext toRelContext = mock(RelOptTable.ToRelContext.class, Mockito.RETURNS_DEEP_STUBS);
+    RelOptTable.ToRelContext toRelContext =
+        mock(RelOptTable.ToRelContext.class, Mockito.RETURNS_DEEP_STUBS);
     when(toRelContext.getCluster().getTypeFactory()).thenReturn(SqlTypeFactoryImpl.INSTANCE);
     when(toRelContext.getCluster().getPlanner().getContext().unwrap(PlannerSettings.class))
-      .thenReturn(mock(PlannerSettings.class));
+        .thenReturn(mock(PlannerSettings.class));
 
-    DatasetRetrievalOptions options = DatasetRetrievalOptions.newBuilder()
-      .setTimeTravelRequest(TimeTravelOption.newSnapshotIdRequest("1"))
-      .build()
-      .withFallback(DatasetRetrievalOptions.DEFAULT);
+    DatasetRetrievalOptions options =
+        DatasetRetrievalOptions.newBuilder()
+            .setTimeTravelRequest(TimeTravelOption.newSnapshotIdRequest("1"))
+            .build()
+            .withFallback(DatasetRetrievalOptions.DEFAULT);
 
     MaterializedDatasetTableProvider provider = getProviderWithOptions(options);
     MaterializedDatasetTable table = provider.get();
@@ -77,21 +76,24 @@ public class TestMaterializedDatasetTableProvider {
     assertThat(scan.isSubstitutable()).isTrue();
   }
 
-  private MaterializedDatasetTableProvider getProviderWithOptions(DatasetRetrievalOptions options) throws Exception {
-    BatchSchema schema = BatchSchema.newBuilder()
-      .addField(Field.nullable("col1", new ArrowType.Int(32, true)))
-      .build();
+  private MaterializedDatasetTableProvider getProviderWithOptions(DatasetRetrievalOptions options)
+      throws Exception {
+    BatchSchema schema =
+        BatchSchema.newBuilder()
+            .addField(Field.nullable("col1", new ArrowType.Int(32, true)))
+            .build();
     DatasetConfig datasetConfig = new DatasetConfig();
     datasetConfig.setRecordSchema(ByteString.copyFrom(schema.serialize()));
 
     StoragePlugin storagePlugin = mock(StoragePlugin.class);
-    when(storagePlugin.getDatasetMetadata(any(), any(), any())).thenReturn(
-      DatasetMetadata.of(DatasetStats.of(1), schema));
+    when(storagePlugin.getDatasetMetadata(any(), any(), any()))
+        .thenReturn(DatasetMetadata.of(DatasetStats.of(1), schema));
     when(storagePlugin.listPartitionChunks(any(), any())).thenReturn(Collections::emptyIterator);
-    RelOptTable.ToRelContext toRelContext = mock(RelOptTable.ToRelContext.class, Mockito.RETURNS_DEEP_STUBS);
+    RelOptTable.ToRelContext toRelContext =
+        mock(RelOptTable.ToRelContext.class, Mockito.RETURNS_DEEP_STUBS);
     when(toRelContext.getCluster().getTypeFactory()).thenReturn(SqlTypeFactoryImpl.INSTANCE);
     when(toRelContext.getCluster().getPlanner().getContext().unwrap(PlannerSettings.class))
-      .thenReturn(mock(PlannerSettings.class));
+        .thenReturn(mock(PlannerSettings.class));
 
     return new MaterializedDatasetTableProvider(
         datasetConfig,
@@ -99,6 +101,7 @@ public class TestMaterializedDatasetTableProvider {
         storagePlugin,
         mock(StoragePluginId.class, Mockito.RETURNS_DEEP_STUBS),
         mock(SchemaConfig.class, Mockito.RETURNS_DEEP_STUBS),
-        options, mock(OptionManager.class));
+        options,
+        mock(OptionManager.class));
   }
 }

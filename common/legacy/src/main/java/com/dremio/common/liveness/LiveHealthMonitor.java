@@ -15,12 +15,9 @@
  */
 package com.dremio.common.liveness;
 
-/**
- * Liveness health monitors implement this interface.
- */
+/** Liveness health monitors implement this interface. */
 public interface LiveHealthMonitor {
   /**
-   *
    * @return true if everything is working well, else false
    */
   boolean isHealthy();

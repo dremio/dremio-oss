@@ -21,33 +21,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.StringWriter;
-import java.net.InetAddress;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.security.GeneralSecurityException;
-import java.security.KeyStore;
-import java.security.cert.Certificate;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Enumeration;
-import java.util.Optional;
-import java.util.Properties;
-import java.util.concurrent.TimeUnit;
-
-import org.apache.arrow.flight.CallOption;
-import org.apache.arrow.flight.FlightClient;
-import org.apache.arrow.flight.FlightStream;
-import org.apache.arrow.flight.auth.BasicServerAuthHandler;
-import org.apache.arrow.memory.BufferAllocator;
-import org.bouncycastle.openssl.jcajce.JcaPEMWriter;
-import org.junit.After;
-import org.junit.AfterClass;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.common.AutoCloseables;
 import com.dremio.config.DremioConfig;
@@ -76,10 +49,33 @@ import com.dremio.test.DremioTest;
 import com.google.inject.AbstractModule;
 import com.google.inject.Provider;
 import com.google.inject.util.Providers;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.StringWriter;
+import java.net.InetAddress;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.security.GeneralSecurityException;
+import java.security.KeyStore;
+import java.security.cert.Certificate;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Enumeration;
+import java.util.Optional;
+import java.util.Properties;
+import java.util.concurrent.TimeUnit;
+import org.apache.arrow.flight.CallOption;
+import org.apache.arrow.flight.FlightClient;
+import org.apache.arrow.flight.FlightStream;
+import org.apache.arrow.flight.auth.BasicServerAuthHandler;
+import org.apache.arrow.memory.BufferAllocator;
+import org.bouncycastle.openssl.jcajce.JcaPEMWriter;
+import org.junit.After;
+import org.junit.AfterClass;
 
-/**
- * Base class for testing result set correctness from the Flight endpoint.
- */
+/** Base class for testing result set correctness from the Flight endpoint. */
 public class BaseFlightQueryTest extends BaseTestQuery {
 
   protected static final String DUMMY_USER = UserServiceTestImpl.TEST_USER_1;
@@ -95,24 +91,30 @@ public class BaseFlightQueryTest extends BaseTestQuery {
   private static DremioConfig dremioConfig;
   private static String authMode;
 
-  private static final Provider<UserSessionService> userSessionServiceProvider = () ->  new UserSessionServiceImpl(UserSessionStoreProvider::new, () -> 120 * 60);
+  private static final Provider<UserSessionService> userSessionServiceProvider =
+      () -> new UserSessionServiceImpl(UserSessionStoreProvider::new, () -> 120 * 60);
 
-  public static void setupBaseFlightQueryTest(boolean tls, boolean backpressureHandling,
-                                              String portPomFileSystemProperty,
-                                              RunQueryResponseHandlerFactory runQueryResponseHandlerFactory)
-    throws Exception {
+  public static void setupBaseFlightQueryTest(
+      boolean tls,
+      boolean backpressureHandling,
+      String portPomFileSystemProperty,
+      RunQueryResponseHandlerFactory runQueryResponseHandlerFactory)
+      throws Exception {
     setupBaseFlightQueryTest(
-      tls,
-      backpressureHandling,
-      portPomFileSystemProperty,
-      runQueryResponseHandlerFactory,
-      DremioFlightService.FLIGHT_AUTH2_AUTH_MODE);
+        tls,
+        backpressureHandling,
+        portPomFileSystemProperty,
+        runQueryResponseHandlerFactory,
+        DremioFlightService.FLIGHT_AUTH2_AUTH_MODE);
   }
 
-  public static void setupBaseFlightQueryTest(boolean tls, boolean backpressureHandling,
-                                              String portPomFileSystemProperty,
-                                              RunQueryResponseHandlerFactory runQueryResponseHandlerFactory,
-                                              String serverAuthMode) throws Exception {
+  public static void setupBaseFlightQueryTest(
+      boolean tls,
+      boolean backpressureHandling,
+      String portPomFileSystemProperty,
+      RunQueryResponseHandlerFactory runQueryResponseHandlerFactory,
+      String serverAuthMode)
+      throws Exception {
     flightServicePort = Integer.getInteger(portPomFileSystemProperty, 32010);
     authMode = serverAuthMode;
     setupDefaultTestCluster(backpressureHandling);
@@ -130,29 +132,42 @@ public class BaseFlightQueryTest extends BaseTestQuery {
 
     // Create a mock TokenManager that returns a fixed token and user session
     final TokenManager tokenManager = mock(TokenManager.class);
-    final TokenDetails fixedTokenDetails = TokenDetails.of(DUMMY_TOKEN, DUMMY_USER,
-      System.currentTimeMillis() + TimeUnit.MILLISECONDS.convert(200, TimeUnit.HOURS));
+    final TokenDetails fixedTokenDetails =
+        TokenDetails.of(
+            DUMMY_TOKEN,
+            DUMMY_USER,
+            System.currentTimeMillis() + TimeUnit.MILLISECONDS.convert(200, TimeUnit.HOURS));
     when(tokenManager.createToken(any(), any())).thenReturn(fixedTokenDetails);
     when(tokenManager.validateToken(any())).thenReturn(fixedTokenDetails);
 
     // Create a user service with a dummy user.
     final UserService userService = new SimpleUserService(() -> kvStore);
-    final User user = SimpleUser.newBuilder()
-      .setUserName(DUMMY_USER).setFirstName("Dummy").setLastName("User")
-      .setCreatedAt(System.currentTimeMillis()).setEmail("dummy_user@dremio.com").build();
+    final User user =
+        SimpleUser.newBuilder()
+            .setUserName(DUMMY_USER)
+            .setFirstName("Dummy")
+            .setLastName("User")
+            .setCreatedAt(System.currentTimeMillis())
+            .setEmail("dummy_user@dremio.com")
+            .build();
     userService.createUser(user, DUMMY_PASSWORD);
 
-    getSabotContext().getOptionManager().setOption(
-      OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, DremioFlightServiceOptions.ENABLE_BACKPRESSURE_HANDLING.getOptionName(), backpressureHandling)
-    );
+    getSabotContext()
+        .getOptionManager()
+        .setOption(
+            OptionValue.createBoolean(
+                OptionValue.OptionType.SYSTEM,
+                DremioFlightServiceOptions.ENABLE_BACKPRESSURE_HANDLING.getOptionName(),
+                backpressureHandling));
 
-    SABOT_NODE_RULE.register(new AbstractModule() {
-      @Override
-      protected void configure() {
-        bind(UserService.class).toInstance(userService);
-        bind(TokenManager.class).toInstance(tokenManager);
-      }
-    });
+    SABOT_NODE_RULE.register(
+        new AbstractModule() {
+          @Override
+          protected void configure() {
+            bind(UserService.class).toInstance(userService);
+            bind(TokenManager.class).toInstance(tokenManager);
+          }
+        });
 
     // Update default properties for the UserRPC test client to connect as the dummy user.
     defaultProperties = new Properties();
@@ -162,34 +177,41 @@ public class BaseFlightQueryTest extends BaseTestQuery {
     BaseTestQuery.setupDefaultTestCluster();
   }
 
-  public static void createFlightService(RunQueryResponseHandlerFactory runQueryResponseHandlerFactory) throws Exception {
-    dremioConfig = DremioConfig.create(null, config)
-      .withValue(DremioConfig.FLIGHT_SERVICE_ENABLED_BOOLEAN, true)
-      .withValue(DremioConfig.FLIGHT_SERVICE_PORT_INT, flightServicePort)
-      .withValue(DremioConfig.FLIGHT_SERVICE_AUTHENTICATION_MODE, authMode)
-      .withValue(DremioConfig.FLIGHT_USE_SESSION_SERVICE, true);
+  public static void createFlightService(
+      RunQueryResponseHandlerFactory runQueryResponseHandlerFactory) throws Exception {
+    dremioConfig =
+        DremioConfig.create(null, config)
+            .withValue(DremioConfig.FLIGHT_SERVICE_ENABLED_BOOLEAN, true)
+            .withValue(DremioConfig.FLIGHT_SERVICE_PORT_INT, flightServicePort)
+            .withValue(DremioConfig.FLIGHT_SERVICE_AUTHENTICATION_MODE, authMode)
+            .withValue(DremioConfig.FLIGHT_USE_SESSION_SERVICE, true);
 
-    flightService = new DremioFlightService(
-      Providers.of(dremioConfig),
-      Providers.of(getSabotContext().getAllocator()),
-      getBindingProvider().provider(UserWorker.class),
-      Providers.of(getSabotContext()),
-      getBindingProvider().provider(TokenManager.class),
-      getBindingProvider().provider(OptionManager.class),
-      userSessionServiceProvider,
-      () -> new DremioFlightAuthProviderImpl(Providers.of(dremioConfig), getBindingProvider().provider(UserService.class), getBindingProvider().provider(TokenManager.class)),
-      Providers.of(FlightRequestContextDecorator.DEFAULT),
-      getBindingProvider().provider(CredentialsService.class),
-      runQueryResponseHandlerFactory
-      );
+    flightService =
+        new DremioFlightService(
+            Providers.of(dremioConfig),
+            Providers.of(getSabotContext().getAllocator()),
+            getBindingProvider().provider(UserWorker.class),
+            Providers.of(getSabotContext()),
+            getBindingProvider().provider(TokenManager.class),
+            getBindingProvider().provider(OptionManager.class),
+            userSessionServiceProvider,
+            () ->
+                new DremioFlightAuthProviderImpl(
+                    Providers.of(dremioConfig),
+                    getBindingProvider().provider(UserService.class),
+                    getBindingProvider().provider(TokenManager.class)),
+            Providers.of(FlightRequestContextDecorator.DEFAULT),
+            getBindingProvider().provider(CredentialsService.class),
+            runQueryResponseHandlerFactory);
 
     flightService.start();
-    final BufferAllocator flightClientAllocator = getSabotContext()
-      .getAllocator()
-      .newChildAllocator("(createFlightService)flight-client-allocator", 0, Long.MAX_VALUE);
+    final BufferAllocator flightClientAllocator =
+        getSabotContext()
+            .getAllocator()
+            .newChildAllocator("(createFlightService)flight-client-allocator", 0, Long.MAX_VALUE);
     flightClientWrapper =
-      FlightClientUtils.openFlightClient(flightServicePort, DUMMY_USER, DUMMY_PASSWORD,
-        flightClientAllocator, authMode);
+        FlightClientUtils.openFlightClient(
+            flightServicePort, DUMMY_USER, DUMMY_PASSWORD, flightClientAllocator, authMode);
   }
 
   protected void assertThatServerStartedOnPort() {
@@ -208,7 +230,7 @@ public class BaseFlightQueryTest extends BaseTestQuery {
 
   @After
   public void resetFlightClient() throws Exception {
-    if (flightClientWrapper != null) {  // Encryption tests might have a null FlightClientWrapper
+    if (flightClientWrapper != null) { // Encryption tests might have a null FlightClientWrapper
       flightClientWrapper.resetClient();
     }
   }
@@ -224,101 +246,111 @@ public class BaseFlightQueryTest extends BaseTestQuery {
     return flightClientWrapper;
   }
 
-  /**
-   * Opens a client which the test is responsible for closing.
-   */
-  protected static FlightClient openFlightClient(String user, String password, String authMode) throws Exception {
-    final BufferAllocator flightClientAllocator = getSabotContext()
-      .getAllocator()
-      .newChildAllocator("(openFlightClient)flight-client-allocator", 0, Long.MAX_VALUE);
+  /** Opens a client which the test is responsible for closing. */
+  protected static FlightClient openFlightClient(String user, String password, String authMode)
+      throws Exception {
+    final BufferAllocator flightClientAllocator =
+        getSabotContext()
+            .getAllocator()
+            .newChildAllocator("(openFlightClient)flight-client-allocator", 0, Long.MAX_VALUE);
 
     return FlightClientUtils.openFlightClient(
-      flightServicePort,
-      user,
-      password,
-      flightClientAllocator,
-      authMode)
-      .getClient();
+            flightServicePort, user, password, flightClientAllocator, authMode)
+        .getClient();
   }
 
-  protected static FlightClientWrapper openFlightClientWrapperWithOptions(String user, String password, String authMode,
-                                                                          Collection<CallOption> options)
-    throws Exception {
-    final BufferAllocator flightClientAllocator = getSabotContext()
-      .getAllocator()
-      .newChildAllocator("(openFlightClientWrapperWithOptions)flight-client-allocator", 0, Long.MAX_VALUE);
+  protected static FlightClientWrapper openFlightClientWrapperWithOptions(
+      String user, String password, String authMode, Collection<CallOption> options)
+      throws Exception {
+    final BufferAllocator flightClientAllocator =
+        getSabotContext()
+            .getAllocator()
+            .newChildAllocator(
+                "(openFlightClientWrapperWithOptions)flight-client-allocator", 0, Long.MAX_VALUE);
 
     return FlightClientUtils.openFlightClientWithOptions(
-      flightServicePort,
-      user,
-      password,
-      flightClientAllocator,
-      authMode,
-      new ArrayList<>(options)
-    );
+        flightServicePort,
+        user,
+        password,
+        flightClientAllocator,
+        authMode,
+        new ArrayList<>(options));
   }
 
-  protected static FlightClient openEncryptedFlightClient(String user, String password,
-                                                          InputStream trustedCerts, String authMode) throws Exception {
-    final BufferAllocator flightClientAllocator = getSabotContext()
-      .getAllocator()
-      .newChildAllocator("(openEncryptedFlightClient)flight-client-allocator", 0, Long.MAX_VALUE);
+  protected static FlightClient openEncryptedFlightClient(
+      String user, String password, InputStream trustedCerts, String authMode) throws Exception {
+    final BufferAllocator flightClientAllocator =
+        getSabotContext()
+            .getAllocator()
+            .newChildAllocator(
+                "(openEncryptedFlightClient)flight-client-allocator", 0, Long.MAX_VALUE);
 
     return FlightClientUtils.openEncryptedFlightClient(
-      dremioConfig.getThisNode(),
-      flightServicePort,
-      user,
-      password,
-      trustedCerts,
-      flightClientAllocator,
-      authMode)
-      .getClient();
+            dremioConfig.getThisNode(),
+            flightServicePort,
+            user,
+            password,
+            trustedCerts,
+            flightClientAllocator,
+            authMode)
+        .getClient();
   }
 
-  private static void createEncryptedFlightService(RunQueryResponseHandlerFactory runQueryResponseHandlerFactory) throws Exception {
-    dremioConfig = DremioConfig.create(null, BaseTestQuery.config)
-      .withValue(DremioFlightService.FLIGHT_SSL_ENABLED, true)
-      .withValue(DremioConfig.FLIGHT_SERVICE_ENABLED_BOOLEAN, true)
-      .withValue(DremioConfig.FLIGHT_SERVICE_PORT_INT, flightServicePort)
-      .withValue(DremioConfig.FLIGHT_SERVICE_AUTHENTICATION_MODE, authMode);
+  private static void createEncryptedFlightService(
+      RunQueryResponseHandlerFactory runQueryResponseHandlerFactory) throws Exception {
+    dremioConfig =
+        DremioConfig.create(null, BaseTestQuery.config)
+            .withValue(DremioFlightService.FLIGHT_SSL_ENABLED, true)
+            .withValue(DremioConfig.FLIGHT_SERVICE_ENABLED_BOOLEAN, true)
+            .withValue(DremioConfig.FLIGHT_SERVICE_PORT_INT, flightServicePort)
+            .withValue(DremioConfig.FLIGHT_SERVICE_AUTHENTICATION_MODE, authMode);
 
-    flightService = new DremioFlightService(
-      Providers.of(dremioConfig),
-      Providers.of(BaseTestQuery.getSabotContext().getAllocator()),
-      BaseTestQuery.getBindingProvider().provider(UserWorker.class),
-      Providers.of(BaseTestQuery.getSabotContext()),
-      BaseTestQuery.getBindingProvider().provider(TokenManager.class),
-      BaseTestQuery.getBindingProvider().provider(OptionManager.class),
-      userSessionServiceProvider,
-      () -> (builder, dremioFlightSessionsManager) -> builder.authHandler(new BasicServerAuthHandler(
-        new BasicServerAuthHandler.BasicAuthValidator() {
+    flightService =
+        new DremioFlightService(
+            Providers.of(dremioConfig),
+            Providers.of(BaseTestQuery.getSabotContext().getAllocator()),
+            BaseTestQuery.getBindingProvider().provider(UserWorker.class),
+            Providers.of(BaseTestQuery.getSabotContext()),
+            BaseTestQuery.getBindingProvider().provider(TokenManager.class),
+            BaseTestQuery.getBindingProvider().provider(OptionManager.class),
+            userSessionServiceProvider,
+            () ->
+                (builder, dremioFlightSessionsManager) ->
+                    builder.authHandler(
+                        new BasicServerAuthHandler(
+                            new BasicServerAuthHandler.BasicAuthValidator() {
+                              @Override
+                              public byte[] getToken(String user, String password) {
+                                return new byte[0];
+                              }
+
+                              @Override
+                              public Optional<String> isValid(byte[] bytes) {
+                                return Optional.of(DUMMY_USER);
+                              }
+                            })),
+            Providers.of(FlightRequestContextDecorator.DEFAULT),
+            getBindingProvider().provider(CredentialsService.class),
+            runQueryResponseHandlerFactory) {
+
           @Override
-          public byte[] getToken(String user, String password) {
-            return new byte[0];
+          protected SSLConfig getSSLConfig(DremioConfig config, SSLConfigurator sslConfigurator) {
+            try {
+              // Explicitly add "localhost" as a hostname certificate for testing purposes.
+              sslConfig =
+                  sslConfigurator
+                      .getSSLConfig(
+                          true,
+                          config.getThisNode(),
+                          InetAddress.getLocalHost().getCanonicalHostName(),
+                          "localhost")
+                      .get();
+              return sslConfig;
+            } catch (GeneralSecurityException | IOException ex) {
+              throw new RuntimeException(ex);
+            }
           }
-
-          @Override
-          public Optional<String> isValid(byte[] bytes) {
-            return Optional.of(DUMMY_USER);
-          }
-        }
-      )),
-      Providers.of(FlightRequestContextDecorator.DEFAULT),
-      getBindingProvider().provider(CredentialsService.class),
-      runQueryResponseHandlerFactory) {
-
-      @Override
-      protected SSLConfig getSSLConfig(DremioConfig config, SSLConfigurator sslConfigurator) {
-        try {
-          // Explicitly add "localhost" as a hostname certificate for testing purposes.
-          sslConfig = sslConfigurator.getSSLConfig(true,
-            config.getThisNode(), InetAddress.getLocalHost().getCanonicalHostName(), "localhost").get();
-          return sslConfig;
-        } catch (GeneralSecurityException | IOException ex) {
-          throw new RuntimeException(ex);
-        }
-      }
-    };
+        };
 
     flightService.start();
   }
@@ -327,7 +359,8 @@ public class BaseFlightQueryTest extends BaseTestQuery {
   // from DremioConfig.
   protected static InputStream getCertificateStream() throws Exception {
     final KeyStore keyStore = KeyStore.getInstance(sslConfig.getKeyStoreType());
-    try (final InputStream keyStoreStream = Files.newInputStream(Paths.get(sslConfig.getKeyStorePath()))) {
+    try (final InputStream keyStoreStream =
+        Files.newInputStream(Paths.get(sslConfig.getKeyStorePath()))) {
       keyStore.load(keyStoreStream, sslConfig.getKeyStorePassword().toCharArray());
     }
 
@@ -344,7 +377,7 @@ public class BaseFlightQueryTest extends BaseTestQuery {
 
   private static InputStream toInputStream(Certificate[] certificates) throws IOException {
     try (final StringWriter writer = new StringWriter();
-         final JcaPEMWriter pemWriter = new JcaPEMWriter(writer)) {
+        final JcaPEMWriter pemWriter = new JcaPEMWriter(writer)) {
       for (Certificate certificate : certificates) {
         pemWriter.writeObject(certificate);
       }

@@ -31,6 +31,6 @@ public abstract class RpcMessage {
   }
 
   public abstract int getBodySize();
-  abstract void release();
 
+  abstract void release();
 }

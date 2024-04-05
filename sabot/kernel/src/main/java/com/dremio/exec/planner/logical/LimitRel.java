@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.planner.logical;
 
+import com.dremio.exec.planner.common.LimitRelBase;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelCollation;
@@ -22,20 +23,25 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Sort;
 import org.apache.calcite.rex.RexNode;
 
-import com.dremio.exec.planner.common.LimitRelBase;
-
 public class LimitRel extends LimitRelBase implements Rel {
 
-  public LimitRel(RelOptCluster cluster, RelTraitSet traitSet, RelNode child, RexNode offset, RexNode fetch) {
+  public LimitRel(
+      RelOptCluster cluster, RelTraitSet traitSet, RelNode child, RexNode offset, RexNode fetch) {
     super(cluster, traitSet, child, offset, fetch);
   }
 
   @Override
-  public Sort copy(RelTraitSet traitSet, RelNode newInput, RelCollation newCollation, RexNode offset, RexNode fetch) {
+  public Sort copy(
+      RelTraitSet traitSet,
+      RelNode newInput,
+      RelCollation newCollation,
+      RexNode offset,
+      RexNode fetch) {
     return new LimitRel(getCluster(), traitSet, newInput, offset, fetch);
   }
 
-  public static LimitRel create(RelOptCluster cluster, RelTraitSet traits, RelNode input, RexNode offset, RexNode fetch) {
+  public static LimitRel create(
+      RelOptCluster cluster, RelTraitSet traits, RelNode input, RexNode offset, RexNode fetch) {
     return new LimitRel(cluster, traits, input, offset, fetch);
   }
 }

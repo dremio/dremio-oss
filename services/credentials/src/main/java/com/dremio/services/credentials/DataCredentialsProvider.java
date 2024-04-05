@@ -17,15 +17,12 @@ package com.dremio.services.credentials;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import com.google.inject.Inject;
 import java.net.URI;
 
-import com.google.inject.Inject;
-
-/**
- * Data Credential Provider.
- */
-@RemoteRestricted
-public class DataCredentialsProvider extends AbstractSimpleCredentialsProvider implements CredentialsProvider {
+/** Data Credential Provider. */
+public class DataCredentialsProvider extends AbstractSimpleCredentialsProvider
+    implements CredentialsProvider {
 
   @Inject
   public DataCredentialsProvider() {
@@ -51,7 +48,5 @@ public class DataCredentialsProvider extends AbstractSimpleCredentialsProvider i
       throw new IllegalArgumentException("Decode data URI secret encounters error.");
     }
     return new String(java.util.Base64.getUrlDecoder().decode(data), UTF_8);
-
   }
-
 }

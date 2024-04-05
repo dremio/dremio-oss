@@ -17,11 +17,6 @@ package com.dremio.service.functions.generator;
 
 import static java.util.stream.Collectors.groupingBy;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-
 import com.dremio.service.functions.model.FunctionSignature;
 import com.dremio.service.functions.model.Parameter;
 import com.dremio.service.functions.model.ParameterKind;
@@ -30,19 +25,24 @@ import com.dremio.service.functions.model.ParameterTypeHierarchy;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 public final class FunctionSignatureColumnMerger {
   private FunctionSignatureColumnMerger() {}
 
-  public static ImmutableList<FunctionSignature> merge(ImmutableList<FunctionSignature> signatures) {
-    Map<Integer, List<FunctionSignature>> signaturesByLength = signatures
-      .stream()
-      .collect(
-        groupingBy(functionSignature -> functionSignature.getParameters().size()));
+  public static ImmutableList<FunctionSignature> merge(
+      ImmutableList<FunctionSignature> signatures) {
+    Map<Integer, List<FunctionSignature>> signaturesByLength =
+        signatures.stream()
+            .collect(groupingBy(functionSignature -> functionSignature.getParameters().size()));
 
     List<FunctionSignature> mergedSignatures = new ArrayList<>();
     for (Integer length : signaturesByLength.keySet()) {
-      ImmutableList<FunctionSignature> signaturesOfLength = ImmutableList.copyOf(signaturesByLength.get(length));
+      ImmutableList<FunctionSignature> signaturesOfLength =
+          ImmutableList.copyOf(signaturesByLength.get(length));
       for (int columnToMerge = 0; columnToMerge < length; columnToMerge++) {
         signaturesOfLength = merge(signaturesOfLength, columnToMerge);
       }
@@ -53,11 +53,12 @@ public final class FunctionSignatureColumnMerger {
     return ImmutableList.copyOf(mergedSignatures);
   }
 
-  private static ImmutableList<FunctionSignature> merge(ImmutableList<FunctionSignature> signatures, int columnToMerge) {
-    Map<MetaData, List<FunctionSignature>> groupedSignatures = signatures
-      .stream()
-      .collect(
-        groupingBy(functionSignature -> MetaData.create(functionSignature, columnToMerge)));
+  private static ImmutableList<FunctionSignature> merge(
+      ImmutableList<FunctionSignature> signatures, int columnToMerge) {
+    Map<MetaData, List<FunctionSignature>> groupedSignatures =
+        signatures.stream()
+            .collect(
+                groupingBy(functionSignature -> MetaData.create(functionSignature, columnToMerge)));
 
     List<FunctionSignature> newSignatures = new ArrayList<>();
     for (MetaData metaData : groupedSignatures.keySet()) {
@@ -66,25 +67,25 @@ public final class FunctionSignatureColumnMerger {
         continue;
       }
 
-      ImmutableSet<ParameterType> columnParameterTypes = groupedSignatures.get(metaData)
-        .stream()
-        .map(functionSignature -> functionSignature.getParameters().get(columnToMerge).getType())
-        .collect(ImmutableSet.toImmutableSet());
+      ImmutableSet<ParameterType> columnParameterTypes =
+          groupedSignatures.get(metaData).stream()
+              .map(
+                  functionSignature ->
+                      functionSignature.getParameters().get(columnToMerge).getType())
+              .collect(ImmutableSet.toImmutableSet());
 
       ImmutableSet<ParameterType> typeGroupings = getTypeGroupings(columnParameterTypes);
       for (ParameterType parameterType : typeGroupings) {
         List<Parameter> parameters = new ArrayList<>();
         parameters.addAll(metaData.prefix);
-        parameters.add(Parameter.builder()
-          .kind(metaData.columnKind)
-          .type(parameterType)
-          .name("")
-          .build());
+        parameters.add(
+            Parameter.builder().kind(metaData.columnKind).type(parameterType).name("").build());
         parameters.addAll(metaData.suffix);
-        FunctionSignature functionSignature = FunctionSignature.builder()
-          .returnType(metaData.returnType)
-          .addAllParameters(parameters)
-          .build();
+        FunctionSignature functionSignature =
+            FunctionSignature.builder()
+                .returnType(metaData.returnType)
+                .addAllParameters(parameters)
+                .build();
         newSignatures.add(functionSignature);
       }
     }
@@ -92,7 +93,8 @@ public final class FunctionSignatureColumnMerger {
     return ImmutableList.copyOf(newSignatures);
   }
 
-  private static ImmutableSet<ParameterType> getTypeGroupings(ImmutableSet<ParameterType> parameterTypes) {
+  private static ImmutableSet<ParameterType> getTypeGroupings(
+      ImmutableSet<ParameterType> parameterTypes) {
     if (parameterTypes.contains(ParameterType.ANY)) {
       return ImmutableSet.of(ParameterType.ANY);
     }
@@ -106,9 +108,8 @@ public final class FunctionSignatureColumnMerger {
       boolean hasAllSiblings = parameterTypes.containsAll(siblings);
       if (hasAllSiblings) {
         builder.add(parentType);
-        ImmutableSet<ParameterType> withoutSiblings = Sets
-          .difference(parameterTypes, siblings)
-          .immutableCopy();
+        ImmutableSet<ParameterType> withoutSiblings =
+            Sets.difference(parameterTypes, siblings).immutableCopy();
         builder.addAll(getTypeGroupings(withoutSiblings));
       } else {
         builder.add(parameterType);
@@ -131,10 +132,11 @@ public final class FunctionSignatureColumnMerger {
     private final ParameterType returnType;
 
     public MetaData(
-      boolean isEmpty,
-      List<Parameter> prefix,
-      List<Parameter> suffix,
-      ParameterKind columnKind, ParameterType returnType) {
+        boolean isEmpty,
+        List<Parameter> prefix,
+        List<Parameter> suffix,
+        ParameterKind columnKind,
+        ParameterType returnType) {
       this.isEmpty = isEmpty;
       this.prefix = prefix;
       this.suffix = suffix;
@@ -144,11 +146,19 @@ public final class FunctionSignatureColumnMerger {
 
     public static MetaData create(FunctionSignature functionSignature, int columnToMerge) {
       if (functionSignature.getParameters().isEmpty()) {
-        return new MetaData(true, ImmutableList.of(), ImmutableList.of(), ParameterKind.REGULAR, functionSignature.getReturnType());
+        return new MetaData(
+            true,
+            ImmutableList.of(),
+            ImmutableList.of(),
+            ParameterKind.REGULAR,
+            functionSignature.getReturnType());
       }
 
       List<Parameter> prefix = functionSignature.getParameters().subList(0, columnToMerge);
-      List<Parameter> suffix = functionSignature.getParameters().subList(columnToMerge + 1, functionSignature.getParameters().size());
+      List<Parameter> suffix =
+          functionSignature
+              .getParameters()
+              .subList(columnToMerge + 1, functionSignature.getParameters().size());
       ParameterType returnType = functionSignature.getReturnType();
       ParameterKind columnKind = functionSignature.getParameters().get(columnToMerge).getKind();
 
@@ -167,10 +177,10 @@ public final class FunctionSignatureColumnMerger {
 
       MetaData metaData = (MetaData) o;
       return isEmpty == metaData.isEmpty
-        && prefix.equals(metaData.prefix)
-        && suffix.equals(metaData.suffix)
-        && columnKind == metaData.columnKind
-        && returnType == metaData.returnType;
+          && prefix.equals(metaData.prefix)
+          && suffix.equals(metaData.suffix)
+          && columnKind == metaData.columnKind
+          && returnType == metaData.returnType;
     }
 
     @Override

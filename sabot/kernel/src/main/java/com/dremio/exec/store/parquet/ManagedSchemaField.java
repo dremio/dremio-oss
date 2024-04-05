@@ -18,9 +18,7 @@ package com.dremio.exec.store.parquet;
 
 import com.dremio.common.expression.CompleteType;
 
-/**
- * Field definition of the managed schema
- */
+/** Field definition of the managed schema */
 public class ManagedSchemaField {
   private final String name;
   private final String type;
@@ -28,7 +26,12 @@ public class ManagedSchemaField {
   private final int scale;
   private boolean isUnbounded;
 
-  private ManagedSchemaField(final String name, final String type, final int length, final int scale, final boolean isUnbounded) {
+  private ManagedSchemaField(
+      final String name,
+      final String type,
+      final int length,
+      final int scale,
+      final boolean isUnbounded) {
     this.name = name;
     this.type = type;
     this.length = length;
@@ -46,7 +49,8 @@ public class ManagedSchemaField {
     return new ManagedSchemaField(name, type, getMaxFieldLen(type), 0, true);
   }
 
-  public static ManagedSchemaField newFixedLenField(final String name, final String type, final int length, final int scale) {
+  public static ManagedSchemaField newFixedLenField(
+      final String name, final String type, final int length, final int scale) {
     return new ManagedSchemaField(name, type, length, scale, false);
   }
 
@@ -84,8 +88,9 @@ public class ManagedSchemaField {
   }
 
   private static int getMaxFieldLen(final String type) {
-    return isTextFieldType(type) ? CompleteType.DEFAULT_VARCHAR_PRECISION :
-      isDecimalFieldType(type) ? CompleteType.MAX_DECIMAL_PRECISION : Integer.MAX_VALUE;
+    return isTextFieldType(type)
+        ? CompleteType.DEFAULT_VARCHAR_PRECISION
+        : isDecimalFieldType(type) ? CompleteType.MAX_DECIMAL_PRECISION : Integer.MAX_VALUE;
   }
 
   private void calculateIsUnbounded() {
@@ -96,11 +101,17 @@ public class ManagedSchemaField {
 
   @Override
   public String toString() {
-    return "ManagedSchemaField{" +
-      "name='" + name + '\'' +
-      ", type='" + type + '\'' +
-      ", length=" + length +
-      ", scale=" + scale +
-      '}';
+    return "ManagedSchemaField{"
+        + "name='"
+        + name
+        + '\''
+        + ", type='"
+        + type
+        + '\''
+        + ", length="
+        + length
+        + ", scale="
+        + scale
+        + '}';
   }
 }

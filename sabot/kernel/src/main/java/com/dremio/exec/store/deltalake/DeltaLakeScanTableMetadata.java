@@ -21,8 +21,6 @@ import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_MODIFICATION
 import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_PATH;
 import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_SIZE;
 
-import java.util.List;
-
 import com.dremio.common.expression.CompleteType;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.TableMetadataImpl;
@@ -31,23 +29,34 @@ import com.dremio.exec.record.SchemaBuilder;
 import com.dremio.exec.store.SplitsPointer;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import java.util.List;
 
-/**
- * DeltaLakeScan table metadata, which extends TableMetadataImpl
- */
+/** DeltaLakeScan table metadata, which extends TableMetadataImpl */
 public class DeltaLakeScanTableMetadata extends TableMetadataImpl {
   private final boolean scanForAddedPaths;
   private final BatchSchema schema;
 
-  public DeltaLakeScanTableMetadata(StoragePluginId plugin, DatasetConfig config, String user, SplitsPointer splits, List<String> primaryKeys, boolean scanForAddedPaths) {
+  public DeltaLakeScanTableMetadata(
+      StoragePluginId plugin,
+      DatasetConfig config,
+      String user,
+      SplitsPointer splits,
+      List<String> primaryKeys,
+      boolean scanForAddedPaths) {
     super(plugin, config, user, splits, primaryKeys);
     this.scanForAddedPaths = scanForAddedPaths;
     this.schema = deriveDeltaLakeScanTableSchema();
   }
 
-  public static DeltaLakeScanTableMetadata createWithTableMetadata(TableMetadata tableMetadata, boolean scanForAddedPaths) {
-    return new DeltaLakeScanTableMetadata(tableMetadata.getStoragePluginId(), tableMetadata.getDatasetConfig(),
-      tableMetadata.getUser(), (SplitsPointer) tableMetadata.getSplitsKey(), tableMetadata.getPrimaryKey(), scanForAddedPaths);
+  public static DeltaLakeScanTableMetadata createWithTableMetadata(
+      TableMetadata tableMetadata, boolean scanForAddedPaths) {
+    return new DeltaLakeScanTableMetadata(
+        tableMetadata.getStoragePluginId(),
+        tableMetadata.getDatasetConfig(),
+        tableMetadata.getUser(),
+        (SplitsPointer) tableMetadata.getSplitsKey(),
+        tableMetadata.getPrimaryKey(),
+        scanForAddedPaths);
   }
 
   @Override
@@ -58,17 +67,19 @@ public class DeltaLakeScanTableMetadata extends TableMetadataImpl {
   private BatchSchema deriveDeltaLakeScanTableSchema() {
     final SchemaBuilder schemaBuilder = BatchSchema.newBuilder();
     if (scanForAddedPaths) {
-      schemaBuilder.addField(CompleteType.struct(
-        // Schema for added paths
-        CompleteType.VARCHAR.toField(SCHEMA_PATH),
-        CompleteType.BIGINT.toField(SCHEMA_SIZE),
-        CompleteType.BIGINT.toField(SCHEMA_MODIFICATION_TIME))
-        .toField(DELTA_FIELD_ADD));
+      schemaBuilder.addField(
+          CompleteType.struct(
+                  // Schema for added paths
+                  CompleteType.VARCHAR.toField(SCHEMA_PATH),
+                  CompleteType.BIGINT.toField(SCHEMA_SIZE),
+                  CompleteType.BIGINT.toField(SCHEMA_MODIFICATION_TIME))
+              .toField(DELTA_FIELD_ADD));
     } else {
-      schemaBuilder.addField(CompleteType.struct(
-        // Schema for removed paths
-        CompleteType.VARCHAR.toField(SCHEMA_PATH))
-        .toField(DELTA_FIELD_REMOVE));
+      schemaBuilder.addField(
+          CompleteType.struct(
+                  // Schema for removed paths
+                  CompleteType.VARCHAR.toField(SCHEMA_PATH))
+              .toField(DELTA_FIELD_REMOVE));
     }
     return schemaBuilder.build();
   }

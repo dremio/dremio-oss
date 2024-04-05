@@ -26,16 +26,6 @@ import static com.dremio.dac.proto.model.dataset.ReplaceSelectionType.STARTS_WIT
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.regex.Pattern.quote;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.explore.PatternMatchUtils.Match;
 import com.dremio.dac.explore.model.extract.Selection;
@@ -44,17 +34,26 @@ import com.dremio.dac.proto.model.dataset.DataType;
 import com.dremio.dac.proto.model.dataset.ReplacePatternRule;
 import com.dremio.dac.proto.model.dataset.ReplaceSelectionType;
 import com.dremio.dac.proto.model.dataset.ReplaceType;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * Replace/Keep only/Exclude transformation recommendation suggestions and generating examples and number of matches
- * in sample data for each recommendation.
+ * Replace/Keep only/Exclude transformation recommendation suggestions and generating examples and
+ * number of matches in sample data for each recommendation.
  */
 public class ReplaceRecommender extends Recommender<ReplacePatternRule, Selection> {
   private static final Logger logger = LoggerFactory.getLogger(ReplaceRecommender.class);
 
   @Override
   public List<ReplacePatternRule> getRules(Selection selection, DataType selColType) {
-    checkArgument(selColType == DataType.TEXT,
+    checkArgument(
+        selColType == DataType.TEXT,
         "Cards generation for Replace/Keeponly/Exclude transforms is supported only on TEXT type columns");
 
     List<ReplacePatternRule> rules = new ArrayList<>();
@@ -88,20 +87,19 @@ public class ReplaceRecommender extends Recommender<ReplacePatternRule, Selectio
     return rules;
   }
 
-  private List<ReplacePatternRule> casePermutations(ReplaceSelectionType selectionType, String pattern) {
+  private List<ReplacePatternRule> casePermutations(
+      ReplaceSelectionType selectionType, String pattern) {
     /**
      * Add case permutations of the rule if the selected text/pattern has no case (such as numbers)
      */
     if (!pattern.toUpperCase().equals(pattern.toLowerCase())) {
       return Arrays.asList(
           new ReplacePatternRule(selectionType).setSelectionPattern(pattern).setIgnoreCase(true),
-          new ReplacePatternRule(selectionType).setSelectionPattern(pattern).setIgnoreCase(false)
-      );
+          new ReplacePatternRule(selectionType).setSelectionPattern(pattern).setIgnoreCase(false));
     }
 
     return Collections.singletonList(
-        new ReplacePatternRule(selectionType).setSelectionPattern(pattern).setIgnoreCase(false)
-    );
+        new ReplacePatternRule(selectionType).setSelectionPattern(pattern).setIgnoreCase(false));
   }
 
   private List<String> recommendReplacePattern(Selection selection) {
@@ -110,8 +108,12 @@ public class ReplaceRecommender extends Recommender<ReplacePatternRule, Selectio
     int start = selection.getOffset();
     int end = start + selection.getLength();
     String selected = cellText.substring(start, end);
-    boolean startIsCharType = start == 0 ? false : PatternMatchUtils.CharType.DIGIT.isTypeOf(cellText.charAt(start - 1));
-    boolean endIsCharType = end == cellText.length() ? false : PatternMatchUtils.CharType.DIGIT.isTypeOf(cellText.charAt(end));
+    boolean startIsCharType =
+        start == 0 ? false : PatternMatchUtils.CharType.DIGIT.isTypeOf(cellText.charAt(start - 1));
+    boolean endIsCharType =
+        end == cellText.length()
+            ? false
+            : PatternMatchUtils.CharType.DIGIT.isTypeOf(cellText.charAt(end));
     boolean selectionIsCharType = PatternMatchUtils.CharType.DIGIT.isTypeOf(selected);
     if (!startIsCharType && !endIsCharType && selectionIsCharType) {
       Matcher matcher = PatternMatchUtils.CharType.DIGIT.matcher(cellText);
@@ -153,8 +155,13 @@ public class ReplaceRecommender extends Recommender<ReplacePatternRule, Selectio
       final boolean ignoreCase = rule.getIgnoreCase() == null ? false : rule.getIgnoreCase();
       final String quotedPattern = stringLiteral(rule.getSelectionPattern());
 
-      return String.format("%s(%s, '%s', %s, %s)", MatchPattern.GEN_EXAMPLE, input,
-          rule.getSelectionType().toString(), quotedPattern, ignoreCase);
+      return String.format(
+          "%s(%s, '%s', %s, %s)",
+          MatchPattern.GEN_EXAMPLE,
+          input,
+          rule.getSelectionType().toString(),
+          quotedPattern,
+          ignoreCase);
     }
 
     private String getMatchFunction(String expr) {
@@ -163,7 +170,8 @@ public class ReplaceRecommender extends Recommender<ReplacePatternRule, Selectio
         return String.format("%s IS NULL", expr);
       } else if (rule.getSelectionType() == EXACT) {
         if (rule.getIgnoreCase() != null && rule.getIgnoreCase()) {
-          return String.format("lower(%s) = lower(%s)", expr, stringLiteral(rule.getSelectionPattern()));
+          return String.format(
+              "lower(%s) = lower(%s)", expr, stringLiteral(rule.getSelectionPattern()));
         } else {
           return String.format("%s = %s", expr, stringLiteral(rule.getSelectionPattern()));
         }
@@ -175,13 +183,16 @@ public class ReplaceRecommender extends Recommender<ReplacePatternRule, Selectio
 
     @Override
     public String getFunctionExpr(String inputExpr, Object... args) {
-      checkArgument(args.length >= 1 && args[0] != null, "Expected the replace type as first argument");
+      checkArgument(
+          args.length >= 1 && args[0] != null, "Expected the replace type as first argument");
       ReplaceType replaceType = (ReplaceType) args[0];
 
       String replacementValue = null;
       if (replaceType != ReplaceType.NULL) {
-        checkArgument(args.length == 2 && args[1] != null, "Expected the replacement value as second argument");
-        replacementValue = stringLiteral((String)args[1]);
+        checkArgument(
+            args.length == 2 && args[1] != null,
+            "Expected the replacement value as second argument");
+        replacementValue = stringLiteral((String) args[1]);
       }
 
       String matchExpr = getMatchFunction(inputExpr);
@@ -189,7 +200,8 @@ public class ReplaceRecommender extends Recommender<ReplacePatternRule, Selectio
         case NULL:
           return String.format("CASE WHEN %s THEN NULL ELSE %s END", matchExpr, inputExpr);
         case VALUE:
-          return String.format("CASE WHEN %s THEN %s ELSE %s END", matchExpr, replacementValue, inputExpr);
+          return String.format(
+              "CASE WHEN %s THEN %s ELSE %s END", matchExpr, replacementValue, inputExpr);
         case SELECTION:
           String replace;
           switch (rule.getSelectionType()) {
@@ -201,7 +213,10 @@ public class ReplaceRecommender extends Recommender<ReplacePatternRule, Selectio
             case STARTS_WITH:
             case ENDS_WITH:
             case MATCHES:
-              replace = String.format("regexp_replace(%s, %s, %s)", inputExpr, getRegexPatternLiteral(false), replacementValue);
+              replace =
+                  String.format(
+                      "regexp_replace(%s, %s, %s)",
+                      inputExpr, getRegexPatternLiteral(false), replacementValue);
               break;
             default:
               throw UserException.unsupportedError()
@@ -240,7 +255,8 @@ public class ReplaceRecommender extends Recommender<ReplacePatternRule, Selectio
           break;
         default:
           throw UserException.unsupportedError()
-              .message("regexp not available for selection type: " + rule.getSelectionType().toString())
+              .message(
+                  "regexp not available for selection type: " + rule.getSelectionType().toString())
               .build(logger);
       }
 
@@ -288,7 +304,8 @@ public class ReplaceRecommender extends Recommender<ReplacePatternRule, Selectio
     }
   }
 
-  private static ReplaceMatcher getMatcher(final String pattern, ReplaceSelectionType selectionType) {
+  private static ReplaceMatcher getMatcher(
+      final String pattern, ReplaceSelectionType selectionType) {
     switch (selectionType) {
       case CONTAINS:
         return new ReplaceMatcher() {
@@ -371,16 +388,12 @@ public class ReplaceRecommender extends Recommender<ReplacePatternRule, Selectio
     }
   }
 
-  /**
-   * Selection matcher for replace
-   */
+  /** Selection matcher for replace */
   public abstract static class ReplaceMatcher {
     public abstract Match matches(String value);
   }
 
-  /**
-   * turns all input to lower case
-   */
+  /** turns all input to lower case */
   public static class ToLowerReplaceMatcher extends ReplaceMatcher {
 
     private final ReplaceMatcher delegate;
@@ -394,6 +407,5 @@ public class ReplaceRecommender extends Recommender<ReplacePatternRule, Selectio
     public Match matches(String value) {
       return delegate.matches(value == null ? value : value.toLowerCase());
     }
-
   }
 }

@@ -15,14 +15,6 @@
  */
 package com.dremio.datastore;
 
-
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.TimeUnit;
-import java.util.function.BiConsumer;
-import java.util.function.BiFunction;
-
 import com.dremio.context.TenantContext;
 import com.dremio.datastore.api.Document;
 import com.dremio.datastore.api.FindByCondition;
@@ -34,14 +26,22 @@ import com.dremio.telemetry.api.metrics.Histogram;
 import com.dremio.telemetry.api.metrics.Metrics;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 
 /**
  * Times individual ops in the underlying kvstore.
+ *
  * @param <K>
  * @param <V>
  */
 public class TimedKVStore<K, V> implements KVStore<K, V> {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TimedKVStore.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(TimedKVStore.class);
   private static final int OP_LATENCY_THRESHOLD_IN_MS = 200;
 
   private enum Ops {
@@ -69,15 +69,16 @@ public class TimedKVStore<K, V> implements KVStore<K, V> {
     this.metrics = registerMetrics();
   }
 
-  public static <K, V> TimedKVStore<K, V> of(KVStore<K,V> delegate) {
+  public static <K, V> TimedKVStore<K, V> of(KVStore<K, V> delegate) {
     return new TimedKVStore<>(delegate);
   }
-
 
   private Map<Ops, Histogram> registerMetrics() {
     final ImmutableMap.Builder<Ops, Histogram> builder = ImmutableMap.builder();
     for (Ops op : Ops.values()) {
-      final Histogram hist = Metrics.newHistogram(Metrics.join(getMetricsPrefix(), op.name()), Metrics.ResetType.NEVER);
+      final Histogram hist =
+          Metrics.newHistogram(
+              Metrics.join(getMetricsPrefix(), op.name()), Metrics.ResetType.NEVER);
       builder.put(op, hist);
     }
     return builder.build();
@@ -87,72 +88,76 @@ public class TimedKVStore<K, V> implements KVStore<K, V> {
     return Metrics.join("kvstore", delegate.getName());
   }
 
-
   @Override
   public Document<K, V> get(K key, GetOption... options) {
-    try(final OpTimer ctx = time(Ops.get)) {
+    try (final OpTimer ctx = time(Ops.get)) {
       return delegate.get(key, options);
     }
   }
 
   @Override
   public Iterable<Document<K, V>> get(List<K> keys, GetOption... options) {
-    try(final OpTimer ctx = time(Ops.getList)) {
+    try (final OpTimer ctx = time(Ops.getList)) {
       return delegate.get(keys, options);
     }
   }
 
   @Override
   public Document<K, V> put(K key, V value, PutOption... options) {
-    try(final OpTimer ctx = time(Ops.put)) {
+    try (final OpTimer ctx = time(Ops.put)) {
       return delegate.put(key, value, options);
     }
   }
 
   @Override
   public void delete(K key, DeleteOption... options) {
-    try(final OpTimer ctx = time(Ops.delete)) {
+    try (final OpTimer ctx = time(Ops.delete)) {
       delegate.delete(key, options);
     }
   }
 
   @Override
   public boolean contains(K key, ContainsOption... options) {
-    try(final OpTimer ctx = time(Ops.contains)) {
+    try (final OpTimer ctx = time(Ops.contains)) {
       return delegate.contains(key, options);
     }
   }
 
   @Override
   public Iterable<Document<K, V>> find(FindOption... options) {
-    try(final OpTimer ctx = time(Ops.findAll)) {
+    try (final OpTimer ctx = time(Ops.findAll)) {
       return delegate.find(options);
     }
   }
 
   @Override
   public Iterable<Document<K, V>> find(FindByRange<K> find, FindOption... options) {
-    try(final OpTimer ctx = time(Ops.findByRange)) {
+    try (final OpTimer ctx = time(Ops.findByRange)) {
       return delegate.find(find, options);
     }
   }
 
   @Override
-  public void applyForAllTenants(BiConsumer<K, V> consumer, ExecutorService executor, BiFunction<String, V, TenantContext> documentToTenantConverter, FindOption... options) {
-    try(final OpTimer ctx = time(Ops.applyForAllTenants)) {
+  public void applyForAllTenants(
+      BiConsumer<K, V> consumer,
+      ExecutorService executor,
+      BiFunction<String, V, TenantContext> documentToTenantConverter,
+      FindOption... options) {
+    try (final OpTimer ctx = time(Ops.applyForAllTenants)) {
       delegate.applyForAllTenants(consumer, executor, documentToTenantConverter, options);
     }
   }
 
   @Override
-  public void bulkIncrement(Map<K, List<IncrementCounter>> keysToIncrement, IncrementOption option) {
-    try(final OpTimer ctx = time(Ops.bulkIncrement)) {
+  public void bulkIncrement(
+      Map<K, List<IncrementCounter>> keysToIncrement, IncrementOption option) {
+    try (final OpTimer ctx = time(Ops.bulkIncrement)) {
       delegate.bulkIncrement(keysToIncrement, option);
     }
   }
 
   @Override
-  public void bulkDelete(List<K> keysToDelete) {
+  public void bulkDelete(List<K> keysToDelete, DeleteOption... deleteOptions) {
     try (final OpTimer ctx = time(Ops.bulkDelete)) {
       delegate.bulkDelete(keysToDelete);
     }
@@ -168,12 +173,11 @@ public class TimedKVStore<K, V> implements KVStore<K, V> {
     return delegate.getAdmin();
   }
 
-  /**
-   * tracks timer metric for the op & logs a warn message if the latency is above a threshold.
-   */
+  /** tracks timer metric for the op & logs a warn message if the latency is above a threshold. */
   protected class OpTimer implements AutoCloseable {
     private final Stopwatch stopwatch;
     private final Ops op;
+
     public OpTimer(Ops op) {
       this.stopwatch = Stopwatch.createStarted();
       this.op = op;
@@ -187,7 +191,7 @@ public class TimedKVStore<K, V> implements KVStore<K, V> {
         logger.warn("DHL kvstore: {} op: {} took(ms): {}", getName(), op.name(), elapsedMs);
       }
 
-      //update histogram
+      // update histogram
       metrics.get(op).update(elapsedMs);
     }
   }
@@ -198,54 +202,61 @@ public class TimedKVStore<K, V> implements KVStore<K, V> {
 
   /**
    * Traces calls to an underlying indexed store.
+   *
    * @param <K> key type K.
    * @param <V> value type V.
    */
-  public static class TimedIndexedStore<K,V> extends TimedKVStore<K,V> implements IndexedStore<K,V> {
-    private final IndexedStore<K,V> indexedStore;
+  public static class TimedIndexedStore<K, V> extends TimedKVStore<K, V>
+      implements IndexedStore<K, V> {
+    private final IndexedStore<K, V> indexedStore;
 
-    TimedIndexedStore(IndexedStore<K,V> delegate) {
+    TimedIndexedStore(IndexedStore<K, V> delegate) {
       super(delegate);
       this.indexedStore = delegate;
     }
 
-    public static <K, V> TimedIndexedStore<K, V> of(IndexedStore<K,V> delegate) {
+    public static <K, V> TimedIndexedStore<K, V> of(IndexedStore<K, V> delegate) {
       return new TimedIndexedStore<>(delegate);
     }
 
     @Override
-    public Iterable<Document<K, V>> find(FindByCondition find, FindOption ... options) {
-      try(final OpTimer ctx = time(Ops.findByCondition)) {
+    public Iterable<Document<K, V>> find(FindByCondition find, FindOption... options) {
+      try (final OpTimer ctx = time(Ops.findByCondition)) {
         return indexedStore.find(find, options);
       }
     }
 
     @Override
     public long reindex(FindByCondition findByCondition, FindOption... options) {
-      try(final OpTimer ctx = time(Ops.reindex)) {
+      try (final OpTimer ctx = time(Ops.reindex)) {
         return indexedStore.reindex(findByCondition, options);
       }
     }
 
     @Override
     public List<Integer> getCounts(SearchTypes.SearchQuery... conditions) {
-      try(final OpTimer ctx = time(Ops.getCounts)) {
+      try (final OpTimer ctx = time(Ops.getCounts)) {
         return indexedStore.getCounts(conditions);
       }
     }
 
     @Override
-    public void applyForAllTenants(FindByCondition condition, BiConsumer<K, V> consumer, ExecutorService executor,
-                                   BiFunction<String, V, TenantContext> tenantContextSupplier,
-                                   FindOption... options) {
-      try(final OpTimer ctx = time(Ops.applyForAllTenants)) {
-        indexedStore.applyForAllTenants(condition, consumer, executor, tenantContextSupplier, options);
+    public void applyForAllTenants(
+        FindByCondition condition,
+        BiConsumer<K, V> consumer,
+        ExecutorService executor,
+        BiFunction<String, V, TenantContext> tenantContextSupplier,
+        FindOption... options) {
+      try (final OpTimer ctx = time(Ops.applyForAllTenants)) {
+        indexedStore.applyForAllTenants(
+            condition, consumer, executor, tenantContextSupplier, options);
       }
     }
 
     @Override
-    public Iterable<Document<K, V>> findOnAllTenants(FindByCondition condition, FindOption... options) {
-      try(final OpTimer ctx = time(Ops.findForAllTenants)) {
+    public Iterable<Document<K, V>> findOnAllTenants(
+        FindByCondition condition, FindOption... options) {
+      try (final OpTimer ctx = time(Ops.findForAllTenants)) {
         return indexedStore.findOnAllTenants(condition, options);
       }
     }

@@ -15,20 +15,16 @@
  */
 package com.dremio.exec.work;
 
+import com.dremio.common.DeferredException;
+import com.dremio.exec.proto.CoordExecRPC.NodeStatResp;
+import com.dremio.exec.store.sys.NodeInstance;
+import io.grpc.stub.StreamObserver;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import com.dremio.common.DeferredException;
-import com.dremio.exec.proto.CoordExecRPC.NodeStatResp;
-import com.dremio.exec.store.sys.NodeInstance;
-
-import io.grpc.stub.StreamObserver;
-
-/**
- * Allows a set of node statistic responses to be collected and considered upon completion.
- */
+/** Allows a set of node statistic responses to be collected and considered upon completion. */
 public class NodeStatsListener implements StreamObserver<NodeStatResp> {
   private static final int TIMEOUT = 15;
 
@@ -57,8 +53,9 @@ public class NodeStatsListener implements StreamObserver<NodeStatResp> {
 
   @Override
   public void onNext(NodeStatResp nodeStatResp) {
-    stats.put(nodeStatResp.getNodeStats().getName() + ":" + nodeStatResp.getNodeStats().getPort(),
-      NodeInstance.fromStats(nodeStatResp.getNodeStats(), nodeStatResp.getEndpoint()));
+    stats.put(
+        nodeStatResp.getNodeStats().getName() + ":" + nodeStatResp.getNodeStats().getPort(),
+        NodeInstance.fromStats(nodeStatResp.getNodeStats(), nodeStatResp.getEndpoint()));
   }
 
   @Override

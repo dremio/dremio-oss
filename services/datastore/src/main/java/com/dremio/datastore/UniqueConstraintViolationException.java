@@ -15,9 +15,7 @@
  */
 package com.dremio.datastore;
 
-/**
- * used when the insert/update fails due to unique value constraint violation
- */
+/** used when the insert/update fails due to unique value constraint violation */
 public class UniqueConstraintViolationException extends RuntimeException {
   public UniqueConstraintViolationException(String message, Throwable cause) {
     super(message, cause);

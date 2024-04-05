@@ -20,19 +20,16 @@ import static com.dremio.service.statistics.StatisticsServiceImpl.ROW_COUNT_IDEN
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.statistics.proto.StatisticId;
 
-/**
-
- * Utility class for statistics
-
- */
-
+/** Utility class for statistics */
 public class StatisticsUtil {
   public static StatisticId createStatisticId(String column, String table) {
     return new StatisticId().setTablePath(table.toLowerCase()).setColumn(column.toLowerCase());
   }
 
   public static StatisticId createStatisticId(String column, NamespaceKey table) {
-    return new StatisticId().setTablePath(table.toString().toLowerCase()).setColumn(column.toLowerCase());
+    return new StatisticId()
+        .setTablePath(table.toString().toLowerCase())
+        .setColumn(column.toLowerCase());
   }
 
   public static StatisticId createRowCountStatisticId(String table) {
@@ -40,6 +37,8 @@ public class StatisticsUtil {
   }
 
   public static StatisticId createRowCountStatisticId(NamespaceKey table) {
-    return new StatisticId().setTablePath(table.toString().toLowerCase()).setColumn(ROW_COUNT_IDENTIFIER);
+    return new StatisticId()
+        .setTablePath(table.toString().toLowerCase())
+        .setColumn(ROW_COUNT_IDENTIFIER);
   }
 }

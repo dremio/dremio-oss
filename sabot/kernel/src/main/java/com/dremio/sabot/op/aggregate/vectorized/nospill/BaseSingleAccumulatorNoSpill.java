@@ -15,26 +15,23 @@
  */
 package com.dremio.sabot.op.aggregate.vectorized.nospill;
 
+import com.dremio.common.AutoCloseables;
+import com.dremio.sabot.op.common.ht2.LBlockHashTableNoSpill;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
+import io.netty.util.internal.PlatformDependent;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.IntStream;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.DecimalVector;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.FixedWidthVector;
 import org.apache.arrow.vector.util.DecimalUtility;
 
-import com.dremio.common.AutoCloseables;
-import com.dremio.sabot.op.common.ht2.LBlockHashTableNoSpill;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
-
-import io.netty.util.internal.PlatformDependent;
-
 /**
- * A base accumulator that manages the basic concepts of expanding the array of
- * accumulation vectors associated with the current aggregation.
+ * A base accumulator that manages the basic concepts of expanding the array of accumulation vectors
+ * associated with the current aggregation.
  */
 abstract class BaseSingleAccumulatorNoSpill implements AccumulatorNoSpill {
 
@@ -46,14 +43,14 @@ abstract class BaseSingleAccumulatorNoSpill implements AccumulatorNoSpill {
   private FieldVector[] accumulators;
   int batches;
 
-  public BaseSingleAccumulatorNoSpill(FieldVector input, FieldVector output){
+  public BaseSingleAccumulatorNoSpill(FieldVector input, FieldVector output) {
     this.input = input;
     this.output = output;
     initArrs(0);
     batches = 0;
   }
 
-  FieldVector getInput(){
+  FieldVector getInput() {
     return input;
   }
 
@@ -65,7 +62,7 @@ abstract class BaseSingleAccumulatorNoSpill implements AccumulatorNoSpill {
     return accumulators[index].getDataBufferAddress();
   }
 
-  private void initArrs(int size){
+  private void initArrs(int size) {
     this.accumulators = new FieldVector[size];
   }
 
@@ -81,7 +78,8 @@ abstract class BaseSingleAccumulatorNoSpill implements AccumulatorNoSpill {
     // save old references.
     final FieldVector[] oldAccumulators = this.accumulators;
 
-    final int newBatches = (int) Math.ceil( newCapacity / (LBlockHashTableNoSpill.MAX_VALUES_PER_BATCH * 1.0d) );
+    final int newBatches =
+        (int) Math.ceil(newCapacity / (LBlockHashTableNoSpill.MAX_VALUES_PER_BATCH * 1.0d));
     initArrs(newBatches);
 
     System.arraycopy(oldAccumulators, 0, this.accumulators, 0, oldBatches);
@@ -100,7 +98,7 @@ abstract class BaseSingleAccumulatorNoSpill implements AccumulatorNoSpill {
     }
   }
 
-  void initialize(FieldVector vector){
+  void initialize(FieldVector vector) {
     // default initialization
     setNotNullAndZero(vector);
   }
@@ -158,10 +156,13 @@ abstract class BaseSingleAccumulatorNoSpill implements AccumulatorNoSpill {
     if (length == 0) {
       return;
     }
-    int numberOfDecimals = (int) length >>>4;
-    IntStream.range(0, numberOfDecimals).forEach( (index) -> {
-      DecimalUtility.writeBigDecimalToArrowBuf(value, buffer, index, DecimalVector.TYPE_WIDTH);
-    });
+    int numberOfDecimals = (int) length >>> 4;
+    IntStream.range(0, numberOfDecimals)
+        .forEach(
+            (index) -> {
+              DecimalUtility.writeBigDecimalToArrowBuf(
+                  value, buffer, index, DecimalVector.TYPE_WIDTH);
+            });
   }
 
   public static void fillInts(long addr, long length, int value) {
@@ -169,10 +170,11 @@ abstract class BaseSingleAccumulatorNoSpill implements AccumulatorNoSpill {
       return;
     }
 
-    Preconditions.checkArgument((length & 3) == 0, "Error: length should be aligned at 4-byte boundary");
+    Preconditions.checkArgument(
+        (length & 3) == 0, "Error: length should be aligned at 4-byte boundary");
     /* optimize by writing word at a time */
-    long valueAsLong = (((long)value) << 32) | (value & 0xFFFFFFFFL);
-    long nLong = length >>>3;
+    long valueAsLong = (((long) value) << 32) | (value & 0xFFFFFFFFL);
+    long nLong = length >>> 3;
     int remaining = (int) length & 7;
     for (long i = nLong; i > 0; i--) {
       PlatformDependent.putLong(addr, valueAsLong);
@@ -185,7 +187,7 @@ abstract class BaseSingleAccumulatorNoSpill implements AccumulatorNoSpill {
     }
   }
 
-  public static void setNullAndValue(FieldVector vector, long value){
+  public static void setNullAndValue(FieldVector vector, long value) {
     List<ArrowBuf> buffers = vector.getFieldBuffers();
     ArrowBuf bits = buffers.get(0);
     writeWordwise(bits.memoryAddress(), bits.capacity(), OFF);
@@ -193,7 +195,7 @@ abstract class BaseSingleAccumulatorNoSpill implements AccumulatorNoSpill {
     writeWordwise(values.memoryAddress(), values.capacity(), value);
   }
 
-  public static void setNullAndValue(FieldVector vector, int value){
+  public static void setNullAndValue(FieldVector vector, int value) {
     List<ArrowBuf> buffers = vector.getFieldBuffers();
     ArrowBuf bits = buffers.get(0);
     writeWordwise(bits.memoryAddress(), bits.capacity(), OFF);
@@ -201,7 +203,7 @@ abstract class BaseSingleAccumulatorNoSpill implements AccumulatorNoSpill {
     fillInts(values.memoryAddress(), values.capacity(), value);
   }
 
-  public static void setNullAndZero(FieldVector vector){
+  public static void setNullAndZero(FieldVector vector) {
     List<ArrowBuf> buffers = vector.getFieldBuffers();
     ArrowBuf bits = buffers.get(0);
     writeWordwise(bits.memoryAddress(), bits.capacity(), OFF);
@@ -209,7 +211,7 @@ abstract class BaseSingleAccumulatorNoSpill implements AccumulatorNoSpill {
     writeWordwise(values.memoryAddress(), values.capacity(), OFF);
   }
 
-  public static void setNotNullAndZero(FieldVector vector){
+  public static void setNotNullAndZero(FieldVector vector) {
     List<ArrowBuf> buffers = vector.getFieldBuffers();
     ArrowBuf bits = buffers.get(0);
     writeWordwise(bits.memoryAddress(), bits.capacity(), ON);
@@ -217,7 +219,7 @@ abstract class BaseSingleAccumulatorNoSpill implements AccumulatorNoSpill {
     writeWordwise(values.memoryAddress(), values.capacity(), OFF);
   }
 
-  public static void setNullAndValue(FieldVector vector, BigDecimal value){
+  public static void setNullAndValue(FieldVector vector, BigDecimal value) {
     List<ArrowBuf> buffers = vector.getFieldBuffers();
     ArrowBuf bits = buffers.get(0);
     writeWordwise(bits.memoryAddress(), bits.capacity(), OFF);

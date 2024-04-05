@@ -15,7 +15,7 @@
  */
 type ContainerSplashProps = {
   image?: JSX.Element;
-  title: string;
+  title: string | JSX.Element;
   details?: JSX.Element | string;
   action?: JSX.Element;
 };

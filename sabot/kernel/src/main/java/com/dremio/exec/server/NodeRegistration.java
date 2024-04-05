@@ -15,14 +15,6 @@
  */
 package com.dremio.exec.server;
 
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.ThreadFactory;
-
-import javax.inject.Inject;
-import javax.inject.Provider;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.concurrent.NamedThreadFactory;
 import com.dremio.config.DremioConfig;
@@ -35,12 +27,16 @@ import com.dremio.sabot.exec.FragmentWorkManager;
 import com.dremio.service.Service;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.RegistrationHandle;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ThreadFactory;
+import javax.inject.Inject;
+import javax.inject.Provider;
 
-/**
- * Register node to cluster.
- */
+/** Register node to cluster. */
 public class NodeRegistration implements Service {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(NodeRegistration.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(NodeRegistration.class);
 
   private final Provider<FragmentWorkManager> fragmentManager;
   private final Provider<ForemenWorkManager> foremenManager;
@@ -58,8 +54,7 @@ public class NodeRegistration implements Service {
       Provider<FragmentWorkManager> fragmentManager,
       Provider<ForemenWorkManager> foremenManager,
       Provider<ClusterCoordinator> coord,
-      Provider<DremioConfig> dremioConfig
-  ) {
+      Provider<DremioConfig> dremioConfig) {
     this.nodeEndpoint = nodeEndpoint;
     this.fragmentManager = fragmentManager;
     this.foremenManager = foremenManager;
@@ -74,13 +69,16 @@ public class NodeRegistration implements Service {
     logger.info("Starting NodeRegistration for {}", endpointName);
     Roles roles = endpoint.getRoles();
     if (roles.getMaster()) {
-      registrationHandles.add(coord.get().getServiceSet(ClusterCoordinator.Role.MASTER).register(endpoint));
+      registrationHandles.add(
+          coord.get().getServiceSet(ClusterCoordinator.Role.MASTER).register(endpoint));
     }
     if (roles.getSqlQuery()) {
-      registrationHandles.add(coord.get().getServiceSet(ClusterCoordinator.Role.COORDINATOR).register(endpoint));
+      registrationHandles.add(
+          coord.get().getServiceSet(ClusterCoordinator.Role.COORDINATOR).register(endpoint));
     }
     if (roles.getJavaExecutor()) {
-      registrationHandles.add(coord.get().getServiceSet(ClusterCoordinator.Role.EXECUTOR).register(endpoint));
+      registrationHandles.add(
+          coord.get().getServiceSet(ClusterCoordinator.Role.EXECUTOR).register(endpoint));
     }
     logger.info("NodeRegistration is up for {}", endpointName);
   }
@@ -102,16 +100,18 @@ public class NodeRegistration implements Service {
 
       logger.info("Unregistering node {}", endpointName);
       if (!registrationHandles.isEmpty()) {
-        Thread t = threadFactory.newThread(new Runnable() {
-          @Override
-          public void run() {
-            try {
-              AutoCloseables.close(registrationHandles);
-            } catch (Exception e) {
-              logger.warn("Exception while closing registration handle", e);
-            }
-          }
-        });
+        Thread t =
+            threadFactory.newThread(
+                new Runnable() {
+                  @Override
+                  public void run() {
+                    try {
+                      AutoCloseables.close(registrationHandles);
+                    } catch (Exception e) {
+                      logger.warn("Exception while closing registration handle", e);
+                    }
+                  }
+                });
 
         t.start();
         try {
@@ -121,7 +121,8 @@ public class NodeRegistration implements Service {
           }
         } catch (final InterruptedException e) {
           logger.warn("Interrupted while sleeping during coordination deregistration.");
-          // Preserve evidence that the interruption occurred so that code higher up on the call stack can learn of the
+          // Preserve evidence that the interruption occurred so that code higher up on the call
+          // stack can learn of the
           // interruption and respond to it if it wants to.
           Thread.currentThread().interrupt();
         }
@@ -129,19 +130,21 @@ public class NodeRegistration implements Service {
     }
   }
 
-  private Thread waitToExit(ThreadFactory threadFactory, final Provider<? extends SafeExit> provider) {
-    return threadFactory.newThread(new Runnable() {
-      @Override
-      public void run() {
-        SafeExit safeExit;
-        try {
-          safeExit = provider.get();
-        } catch (Exception ex){
-          // ignore since this means no instance wasn't running on this node.
-          return;
-        }
-        safeExit.waitToExit();
-      }
-    });
+  private Thread waitToExit(
+      ThreadFactory threadFactory, final Provider<? extends SafeExit> provider) {
+    return threadFactory.newThread(
+        new Runnable() {
+          @Override
+          public void run() {
+            SafeExit safeExit;
+            try {
+              safeExit = provider.get();
+            } catch (Exception ex) {
+              // ignore since this means no instance wasn't running on this node.
+              return;
+            }
+            safeExit.waitToExit();
+          }
+        });
   }
 }

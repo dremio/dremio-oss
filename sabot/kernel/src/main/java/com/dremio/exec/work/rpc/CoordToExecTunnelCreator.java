@@ -15,12 +15,11 @@
  */
 package com.dremio.exec.work.rpc;
 
-import javax.inject.Inject;
-import javax.inject.Provider;
-
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.sabot.rpc.Protocols;
 import com.dremio.services.fabric.api.FabricService;
+import javax.inject.Inject;
+import javax.inject.Provider;
 
 public class CoordToExecTunnelCreator {
 
@@ -32,8 +31,12 @@ public class CoordToExecTunnelCreator {
     this.factory = factory;
   }
 
-  public CoordToExecTunnel getTunnel(NodeEndpoint ep){
-    return new CoordToExecTunnel(ep, factory.get().getProtocol(Protocols.COORD_TO_EXEC)
+  public CoordToExecTunnel getTunnel(NodeEndpoint ep) {
+    return new CoordToExecTunnel(
+        ep,
+        factory
+            .get()
+            .getProtocol(Protocols.COORD_TO_EXEC)
             .getCommandRunner(ep.getAddress(), ep.getFabricPort()));
   }
 }

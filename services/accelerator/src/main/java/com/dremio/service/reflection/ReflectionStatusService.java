@@ -15,11 +15,6 @@
  */
 package com.dremio.service.reflection;
 
-import java.util.Iterator;
-import java.util.Optional;
-
-import org.apache.calcite.util.Pair;
-
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.store.sys.accel.AccelerationListManager;
 import com.dremio.service.acceleration.ReflectionDescriptionServiceRPC;
@@ -27,16 +22,17 @@ import com.dremio.service.reflection.proto.Materialization;
 import com.dremio.service.reflection.proto.MaterializationMetrics;
 import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.dremio.service.reflection.proto.ReflectionId;
+import java.util.Iterator;
+import java.util.Optional;
+import org.apache.calcite.util.Pair;
 
-/**
- * Computes the reflection status for a reflections and external reflections
- */
+/** Computes the reflection status for a reflections and external reflections */
 public interface ReflectionStatusService {
 
   ReflectionStatus getReflectionStatus(ReflectionId reflectionId);
 
-  ReflectionStatus getReflectionStatus(ReflectionGoal goal, Optional<Materialization> lastDoneMaterialization,
-                                       DremioTable table);
+  ReflectionStatus getReflectionStatus(
+      ReflectionGoal goal, Optional<Materialization> lastDoneMaterialization, DremioTable table);
 
   ExternalReflectionStatus getExternalReflectionStatus(ReflectionId reflectionId);
 
@@ -45,7 +41,9 @@ public interface ReflectionStatusService {
   Iterator<ReflectionDescriptionServiceRPC.GetRefreshInfoResponse> getRefreshInfos();
 
   /**
-   * Returns the size of all materializations in this reflection including materializations that are deprecated
+   * Returns the size of all materializations in this reflection including materializations that are
+   * deprecated
+   *
    * @param reflectionId
    * @return
    */
@@ -53,47 +51,52 @@ public interface ReflectionStatusService {
 
   /**
    * Returns the current size of a reflection including size in bytes and total output records
+   *
    * @param materialization
    * @return
    */
   Pair<MaterializationMetrics, Long> getReflectionSize(Materialization materialization);
 
-  ReflectionStatusService NOOP = new ReflectionStatusService() {
+  ReflectionStatusService NOOP =
+      new ReflectionStatusService() {
 
-    @Override
-    public ReflectionStatus getReflectionStatus(ReflectionId reflectionId) {
-      throw new UnsupportedOperationException("getReflectionStatus");
-    }
+        @Override
+        public ReflectionStatus getReflectionStatus(ReflectionId reflectionId) {
+          throw new UnsupportedOperationException("getReflectionStatus");
+        }
 
-    @Override
-    public ReflectionStatus getReflectionStatus(ReflectionGoal goal, Optional<Materialization> lastDoneMaterialization,
-                                                DremioTable table) {
-      throw new UnsupportedOperationException("getReflectionStatus");
-    }
+        @Override
+        public ReflectionStatus getReflectionStatus(
+            ReflectionGoal goal,
+            Optional<Materialization> lastDoneMaterialization,
+            DremioTable table) {
+          throw new UnsupportedOperationException("getReflectionStatus");
+        }
 
-    @Override
-    public ExternalReflectionStatus getExternalReflectionStatus(ReflectionId reflectionId) {
-      throw new UnsupportedOperationException("getExternalReflectionStatus");
-    }
+        @Override
+        public ExternalReflectionStatus getExternalReflectionStatus(ReflectionId reflectionId) {
+          throw new UnsupportedOperationException("getExternalReflectionStatus");
+        }
 
-    @Override
-    public Iterator<AccelerationListManager.ReflectionInfo> getReflections() {
-      throw new UnsupportedOperationException("getReflections");
-    }
+        @Override
+        public Iterator<AccelerationListManager.ReflectionInfo> getReflections() {
+          throw new UnsupportedOperationException("getReflections");
+        }
 
-    @Override
-    public Iterator<ReflectionDescriptionServiceRPC.GetRefreshInfoResponse> getRefreshInfos() {
-      throw new UnsupportedOperationException("getRefreshInfos");
-    }
+        @Override
+        public Iterator<ReflectionDescriptionServiceRPC.GetRefreshInfoResponse> getRefreshInfos() {
+          throw new UnsupportedOperationException("getRefreshInfos");
+        }
 
-    @Override
-    public long getTotalReflectionSize(ReflectionId reflectionId) {
-      return 0;
-    }
+        @Override
+        public long getTotalReflectionSize(ReflectionId reflectionId) {
+          return 0;
+        }
 
-    @Override
-    public Pair<MaterializationMetrics, Long> getReflectionSize(Materialization materialization) {
-      throw new UnsupportedOperationException("getReflectionSize");
-    }
-  };
+        @Override
+        public Pair<MaterializationMetrics, Long> getReflectionSize(
+            Materialization materialization) {
+          throw new UnsupportedOperationException("getReflectionSize");
+        }
+      };
 }

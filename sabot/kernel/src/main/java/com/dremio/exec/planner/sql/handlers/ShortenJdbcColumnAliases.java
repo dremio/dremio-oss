@@ -15,28 +15,26 @@
  */
 package com.dremio.exec.planner.sql.handlers;
 
-import java.util.Set;
-
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.logical.LogicalProject;
-import org.apache.calcite.sql.validate.SqlValidatorUtil;
-
 import com.dremio.exec.calcite.logical.JdbcCrel;
 import com.dremio.exec.planner.StatelessRelShuttleImpl;
 import com.dremio.exec.planner.common.JdbcRelImpl;
 import com.dremio.exec.planner.common.MoreRelOptUtil;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
+import java.util.Set;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.logical.LogicalProject;
+import org.apache.calcite.sql.validate.SqlValidatorUtil;
 
 /**
- * Visitor to shorten field aliases in the JDBC subtree to match what the
- * target dialect can support. Also optionally adds a LogicalProject node to map the
- * user-requested aliases to the shortened names.
+ * Visitor to shorten field aliases in the JDBC subtree to match what the target dialect can
+ * support. Also optionally adds a LogicalProject node to map the user-requested aliases to the
+ * shortened names.
  */
 public class ShortenJdbcColumnAliases extends StatelessRelShuttleImpl {
 
-  public static final SqlValidatorUtil.Suggester SHORT_ALIAS_SUGGESTER = (original, attempt, size)
-    -> "$SA" + attempt;
+  public static final SqlValidatorUtil.Suggester SHORT_ALIAS_SUGGESTER =
+      (original, attempt, size) -> "$SA" + attempt;
 
   private Set<String> usedAliases = Sets.newHashSet();
 
@@ -60,8 +58,15 @@ public class ShortenJdbcColumnAliases extends StatelessRelShuttleImpl {
         return updatedJdbcRoot;
       }
 
-      final LogicalProject logicalProject = LogicalProject.create(updatedJdbcRoot, ImmutableList.of(),
-        updatedJdbcRoot.getCluster().getRexBuilder().identityProjects(updatedJdbcRoot.getRowType()), other.getRowType());
+      final LogicalProject logicalProject =
+          LogicalProject.create(
+              updatedJdbcRoot,
+              ImmutableList.of(),
+              updatedJdbcRoot
+                  .getCluster()
+                  .getRexBuilder()
+                  .identityProjects(updatedJdbcRoot.getRowType()),
+              other.getRowType());
 
       return logicalProject;
 

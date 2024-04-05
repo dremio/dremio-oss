@@ -15,73 +15,61 @@
  */
 package com.dremio.exec.store.parquet;
 
-import java.io.IOException;
-import java.util.List;
-
-import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
-
 import com.dremio.common.collections.Tuple;
 import com.dremio.io.AsyncByteReader;
 import com.dremio.io.FSInputStream;
 import com.dremio.io.file.Path;
+import java.io.IOException;
+import java.util.List;
+import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
 
-/**
- * Provides input stream(s) for reading a parquet file
- */
+/** Provides input stream(s) for reading a parquet file */
 public interface InputStreamProvider extends AutoCloseable {
   /**
-   * Obtains a stream for the given column.
-   * Please note, the provider is allowed to reuse a single stream for all columns, if and only if the
-   * {@link #isSingleStream()} method below returns true
+   * Obtains a stream for the given column. Please note, the provider is allowed to reuse a single
+   * stream for all columns, if and only if the {@link #isSingleStream()} method below returns true
    */
   BulkInputStream getStream(ColumnChunkMetaData column) throws IOException;
 
   /**
    * Returns the path corresponding to this stream
+   *
    * @return
    */
   Path getStreamPath();
 
-  /**
-   * Reads the footer -- or returns the cached one
-   */
+  /** Reads the footer -- or returns the cached one */
   MutableParquetMetadata getFooter() throws IOException;
 
-  /**
-   * Is this provider reusing the same stream for all columns
-   */
+  /** Is this provider reusing the same stream for all columns */
   boolean isSingleStream();
 
-  /**
-   * Returns the AsyncByteReader associated with this object
-   */
+  /** Returns the AsyncByteReader associated with this object */
   default AsyncByteReader getAsyncByteReader() {
     return null;
   }
 
   /**
    * Obtains the boosted input stream for the given column.
+   *
    * @param column Given column
    * @return The boosted input stream + Size of the InputStream.
    * @throws IOException
    */
-  default Tuple<FSInputStream, Long> getBoostedStream(ColumnChunkMetaData column) throws IOException { return null; }
+  default Tuple<FSInputStream, Long> getBoostedStream(ColumnChunkMetaData column)
+      throws IOException {
+    return null;
+  }
 
-
-  /**
-   * getOffsetIndexProvider.
-   */
-
+  /** getOffsetIndexProvider. */
   OffsetIndexProvider getOffsetIndexProvider(List<ColumnChunkMetaData> columns);
 
-  /**
-   * getColumnIndexProvider.
-   */
-
+  /** getColumnIndexProvider. */
   ColumnIndexProvider getColumnIndexProvider(List<ColumnChunkMetaData> columns);
 
   /**
    * Enable reading with column index
+   *
    * @param selectedColumns
    * @throws IOException
    */
@@ -90,6 +78,4 @@ public interface InputStreamProvider extends AutoCloseable {
   default boolean isRowGroupFilteredForReading() {
     return true;
   }
-
-
 }

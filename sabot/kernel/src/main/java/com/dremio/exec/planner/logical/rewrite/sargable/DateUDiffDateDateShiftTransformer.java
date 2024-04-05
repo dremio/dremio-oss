@@ -22,6 +22,8 @@ import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
+ *
+ *
  * <pre>
  * Extract each component of a filter expr with SARGableStandardForm for
  * - DATE_DIFF(date_literal DATE, date_expression DATE) = rhsNode
@@ -30,9 +32,8 @@ import org.apache.calcite.sql.type.SqlTypeName;
  */
 public class DateUDiffDateDateShiftTransformer extends ShiftTransformer {
 
-  public DateUDiffDateDateShiftTransformer(RelOptCluster relOptCluster,
-                                           StandardForm stdForm,
-                                           SqlOperator sqlOperator) {
+  public DateUDiffDateDateShiftTransformer(
+      RelOptCluster relOptCluster, StandardForm stdForm, SqlOperator sqlOperator) {
     super(relOptCluster, stdForm, sqlOperator);
   }
 
@@ -46,7 +47,7 @@ public class DateUDiffDateDateShiftTransformer extends ShiftTransformer {
     RexNode p1 = getLhsCall().operands.get(0);
     if (SqlTypeName.CHAR_TYPES.contains(p1.getType().getSqlTypeName())) {
       return rexBuilder.makeCast(
-        rexBuilder.getTypeFactory().createTypeWithNullability(getColumn().getType(), false), p1);
+          rexBuilder.getTypeFactory().createTypeWithNullability(getColumn().getType(), false), p1);
     }
     return p1;
   }

@@ -17,18 +17,17 @@ package com.dremio.common.io;
 
 import java.util.Objects;
 
-/**
- * Uniquely identifies an executor.
- */
+/** Uniquely identifies an executor. */
 public final class ExecutorId {
   static final String PREFIX_DELIMITER = "_";
-  private static final String PREFIX_FORMAT = "%s" + PREFIX_DELIMITER + "%s" + PREFIX_DELIMITER + "%d";
+  private static final String PREFIX_FORMAT =
+      "%s" + PREFIX_DELIMITER + "%s" + PREFIX_DELIMITER + "%d";
 
   private final String hostName;
   private final int port;
 
   public ExecutorId(String hostName, int port) {
-    this.hostName = hostName.replaceFirst("^(http[s]?://www\\.|http[s]?://|www\\.)","");
+    this.hostName = hostName.replaceFirst("^(http[s]?://www\\.|http[s]?://|www\\.)", "");
     this.port = port;
   }
 
@@ -46,10 +45,7 @@ public final class ExecutorId {
 
   @Override
   public String toString() {
-    return "ExecutorId{" +
-      "hostName='" + hostName + '\'' +
-      ", port=" + port +
-      '}';
+    return "ExecutorId{" + "hostName='" + hostName + '\'' + ", port=" + port + '}';
   }
 
   @Override

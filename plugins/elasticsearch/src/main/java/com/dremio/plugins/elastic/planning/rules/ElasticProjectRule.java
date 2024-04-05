@@ -15,12 +15,6 @@
  */
 package com.dremio.plugins.elastic.planning.rules;
 
-import org.apache.calcite.plan.RelOptRule;
-import org.apache.calcite.plan.RelOptRuleCall;
-import org.apache.calcite.plan.RelOptUtil;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.core.Project;
-
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.planner.logical.RelOptHelper;
 import com.dremio.exec.planner.physical.ProjectPrel;
@@ -29,23 +23,30 @@ import com.dremio.plugins.elastic.planning.rels.ElasticsearchIntermediatePrel;
 import com.dremio.plugins.elastic.planning.rels.ElasticsearchPrel;
 import com.dremio.plugins.elastic.planning.rels.ElasticsearchProject;
 import com.dremio.plugins.elastic.planning.rels.ElasticsearchSample;
+import org.apache.calcite.plan.RelOptRule;
+import org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.calcite.plan.RelOptUtil;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.core.Project;
 
 /**
  * Elastic project pushdown rule
  *
- * This rule starts by finding grabbing any existing projects from the Elastic
- * subtree. It then merges the found project with the existing project (if
- * found). From there, it does a rewrite of the expression tree to determine if the particular expression can be pushed down.
- *
+ * <p>This rule starts by finding grabbing any existing projects from the Elastic subtree. It then
+ * merges the found project with the existing project (if found). From there, it does a rewrite of
+ * the expression tree to determine if the particular expression can be pushed down.
  */
 public class ElasticProjectRule extends RelOptRule {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ElasticProjectRule.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ElasticProjectRule.class);
 
   private final FunctionLookupContext functionLookupContext;
 
   public ElasticProjectRule(FunctionLookupContext functionLookupContext) {
-    super(RelOptHelper.some(ProjectPrel.class, RelOptHelper.any(ElasticsearchIntermediatePrel.class)), "ElasticProjectRule");
+    super(
+        RelOptHelper.some(ProjectPrel.class, RelOptHelper.any(ElasticsearchIntermediatePrel.class)),
+        "ElasticProjectRule");
     this.functionLookupContext = functionLookupContext;
   }
 
@@ -57,31 +58,30 @@ public class ElasticProjectRule extends RelOptRule {
       return false;
     }
 
-    // more checks in onMatch but multiple work can be done with same operations. (Basically, we need to try to pushdown to know if we can, no reason to do twice.)
+    // more checks in onMatch but multiple work can be done with same operations. (Basically, we
+    // need to try to pushdown to know if we can, no reason to do twice.)
     return true;
-
   }
-
 
   @Override
   public void onMatch(RelOptRuleCall call) {
     final ProjectPrel project = call.rel(0);
     final ElasticsearchIntermediatePrel intermediatePrel = call.rel(1);
-    final ElasticRuleRelVisitor visitor = new ProjectConverterVisitor(project, intermediatePrel.getInput()).go();
+    final ElasticRuleRelVisitor visitor =
+        new ProjectConverterVisitor(project, intermediatePrel.getInput()).go();
     final ElasticsearchPrel newInput = visitor.getConvertedTree();
-    final ElasticsearchIntermediatePrel newInter = new ElasticsearchIntermediatePrel(newInput.getTraitSet(), newInput, functionLookupContext);
+    final ElasticsearchIntermediatePrel newInter =
+        new ElasticsearchIntermediatePrel(newInput.getTraitSet(), newInput, functionLookupContext);
 
     // we pushdown no matter what. This is because we will later pop up.
     call.transformTo(newInter);
   }
 
-
-
   /**
    * Visits the elasticsearch subtree and collapses the tree.
    *
-   * ProjectConverterVisitor is called when a new ElasticsearchProject has been pushed down, and it will collapse
-   * all the projects in the subtree into a single project.
+   * <p>ProjectConverterVisitor is called when a new ElasticsearchProject has been pushed down, and
+   * it will collapse all the projects in the subtree into a single project.
    */
   class ProjectConverterVisitor extends ElasticRuleRelVisitor {
     ProjectConverterVisitor(Project project, RelNode input) {

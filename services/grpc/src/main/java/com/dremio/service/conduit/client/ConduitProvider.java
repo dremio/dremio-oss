@@ -17,11 +17,11 @@
 package com.dremio.service.conduit.client;
 
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
-
 import io.grpc.ManagedChannel;
 
 /**
- * Provides {@link ManagedChannel managed channels} to other nodes in the cluster, reconnecting if necessary.
+ * Provides {@link ManagedChannel managed channels} to other nodes in the cluster, reconnecting if
+ * necessary.
  */
 public interface ConduitProvider {
 
@@ -39,5 +39,4 @@ public interface ConduitProvider {
    * @return managed channel
    */
   ManagedChannel getOrCreateChannelToMaster();
-
 }

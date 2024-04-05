@@ -19,5 +19,5 @@ import com.dremio.connector.metadata.extensions.SupportsListingDatasets;
 import com.dremio.connector.metadata.extensions.SupportsReadSignature;
 import com.dremio.exec.store.StoragePlugin;
 
-interface ExtendedStoragePlugin extends StoragePlugin, SupportsReadSignature, SupportsListingDatasets {
-}
+interface ExtendedStoragePlugin
+    extends StoragePlugin, SupportsReadSignature, SupportsListingDatasets {}

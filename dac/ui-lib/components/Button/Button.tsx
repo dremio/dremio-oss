@@ -67,7 +67,8 @@ type ButtonProps = {
     | "secondary"
     | "tertiary"
     | "primary-danger"
-    | "secondary-danger";
+    | "secondary-danger"
+    | "tertiary-danger";
 
   className?: string;
 } & React.DetailedHTMLProps<
@@ -115,7 +116,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         className: clsx(
           "dremio-button",
           `dremio-button--${variant}`,
-          props.className
+          props.className,
         ),
         ...buttonProps,
         ref,
@@ -134,7 +135,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           <div className="dremio-button__content">{getContent(props)}</div>
         )}
         {suffix && <div className="dremio-button__suffix">{suffix}</div>}
-      </>
+      </>,
     );
-  }
+  },
 );

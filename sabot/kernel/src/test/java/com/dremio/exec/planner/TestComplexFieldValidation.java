@@ -15,44 +15,49 @@
  */
 package com.dremio.exec.planner;
 
-import org.junit.Test;
-
 import com.dremio.PlanTestBase;
+import org.junit.Test;
 
 public class TestComplexFieldValidation extends PlanTestBase {
 
   @Test
   public void testAnyTypeWithArray() throws Exception {
-    test("select complex.a[0].b.c from (select CONVERT_FROM('{\"a\":[{\"b\":{\"c\":2}}]}','JSON') complex)");
+    test(
+        "select complex.a[0].b.c from (select CONVERT_FROM('{\"a\":[{\"b\":{\"c\":2}}]}','JSON') complex)");
   }
 
   @Test
   public void testAnyTypeWithArrayMissingColumn1() throws Exception {
-    errorMsgTestHelper("select complex.a[0].b.this_column_does_not_exist from (select CONVERT_FROM('{\"a\":[{\"b\":{\"c\":2}}]}','JSON') complex)",
-      "VALIDATION ERROR: Unable to find the referenced field: [FIELD_ACCESS_EXPR.this_column_does_not_exist]");
+    errorMsgTestHelper(
+        "select complex.a[0].b.this_column_does_not_exist from (select CONVERT_FROM('{\"a\":[{\"b\":{\"c\":2}}]}','JSON') complex)",
+        "VALIDATION ERROR: Unable to find the referenced field: [FIELD_ACCESS_EXPR.this_column_does_not_exist]");
   }
 
   @Test
   public void testAnyTypeWithArrayMissingColumn2() throws Exception {
-    errorMsgTestHelper("select complex.a[0].this_column_does_not_exist from (select CONVERT_FROM('{\"a\":[{\"b\":{\"c\":2}}]}','JSON') complex)",
-      "VALIDATION ERROR: Unable to find the referenced field: [FIELD_ACCESS_EXPR.this_column_does_not_exist]");
+    errorMsgTestHelper(
+        "select complex.a[0].this_column_does_not_exist from (select CONVERT_FROM('{\"a\":[{\"b\":{\"c\":2}}]}','JSON') complex)",
+        "VALIDATION ERROR: Unable to find the referenced field: [FIELD_ACCESS_EXPR.this_column_does_not_exist]");
   }
 
   @Test
   public void testAnyType() throws Exception {
-    test("select complex.a.b.c from (select CONVERT_FROM('{\"a\":{\"b\":{\"c\":2}}}','JSON') complex)");
+    test(
+        "select complex.a.b.c from (select CONVERT_FROM('{\"a\":{\"b\":{\"c\":2}}}','JSON') complex)");
   }
 
   @Test
   public void testAnyTypeMissingColumn1() throws Exception {
-    errorMsgTestHelper("select complex.a.b.this_column_does_not_exist from (select CONVERT_FROM('{\"a\":{\"b\":{\"c\":2}}}','JSON') complex)",
-      "VALIDATION ERROR: Unable to find the referenced field: [FIELD_ACCESS_EXPR.this_column_does_not_exist]");
+    errorMsgTestHelper(
+        "select complex.a.b.this_column_does_not_exist from (select CONVERT_FROM('{\"a\":{\"b\":{\"c\":2}}}','JSON') complex)",
+        "VALIDATION ERROR: Unable to find the referenced field: [FIELD_ACCESS_EXPR.this_column_does_not_exist]");
   }
 
   @Test
   public void testAnyTypeMissingColumn2() throws Exception {
-    errorMsgTestHelper("select complex.a.this_column_does_not_exist from (select CONVERT_FROM('{\"a\":{\"b\":{\"c\":2}}}','JSON') complex)",
-      "VALIDATION ERROR: Unable to find the referenced field: [FIELD_ACCESS_EXPR.this_column_does_not_exist]");
+    errorMsgTestHelper(
+        "select complex.a.this_column_does_not_exist from (select CONVERT_FROM('{\"a\":{\"b\":{\"c\":2}}}','JSON') complex)",
+        "VALIDATION ERROR: Unable to find the referenced field: [FIELD_ACCESS_EXPR.this_column_does_not_exist]");
   }
 
   @Test
@@ -75,20 +80,29 @@ public class TestComplexFieldValidation extends PlanTestBase {
 
   @Test
   public void testComplexTypeMissingColumn1() throws Exception {
-    final String query = "select complex.a.b.this_column_does_not_exist from cp.\"complex_field.json\" complex";
-    errorMsgTestHelper(query, "VALIDATION ERROR: Column 'a.b.this_column_does_not_exist' not found in table 'complex'");
+    final String query =
+        "select complex.a.b.this_column_does_not_exist from cp.\"complex_field.json\" complex";
+    errorMsgTestHelper(
+        query,
+        "VALIDATION ERROR: Column 'a.b.this_column_does_not_exist' not found in table 'complex'");
   }
 
   @Test
   public void testComplexTypeMissingColumn2() throws Exception {
-    final String query = "select complex.a.this_column_does_not_exist from cp.\"complex_field.json\" complex";
-    errorMsgTestHelper(query, "VALIDATION ERROR: Column 'a.this_column_does_not_exist' not found in table 'complex'");
+    final String query =
+        "select complex.a.this_column_does_not_exist from cp.\"complex_field.json\" complex";
+    errorMsgTestHelper(
+        query,
+        "VALIDATION ERROR: Column 'a.this_column_does_not_exist' not found in table 'complex'");
   }
 
   @Test
   public void testComplexTypeMissingColumn3() throws Exception {
-    final String query = "select complex.this_column_does_not_exist from cp.\"complex_field.json\" complex";
-    errorMsgTestHelper(query, "VALIDATION ERROR: Column 'this_column_does_not_exist' not found in table 'complex'");
+    final String query =
+        "select complex.this_column_does_not_exist from cp.\"complex_field.json\" complex";
+    errorMsgTestHelper(
+        query,
+        "VALIDATION ERROR: Column 'this_column_does_not_exist' not found in table 'complex'");
   }
 
   @Test
@@ -111,19 +125,22 @@ public class TestComplexFieldValidation extends PlanTestBase {
 
   @Test
   public void testComplexTypeWithArrayMissingColumn1() throws Exception {
-    final String query = "select complex.arr[0].this_column_does_not_exist from cp.\"complex_field.json\" complex";
+    final String query =
+        "select complex.arr[0].this_column_does_not_exist from cp.\"complex_field.json\" complex";
     errorMsgTestHelper(query, "VALIDATION ERROR: Unknown field 'this_column_does_not_exist'");
   }
 
   @Test
   public void testComplexTypeWithArrayMissingColumn2() throws Exception {
-    final String query = "select complex.arr[0].a.this_column_does_not_exist from cp.\"complex_field.json\" complex";
+    final String query =
+        "select complex.arr[0].a.this_column_does_not_exist from cp.\"complex_field.json\" complex";
     errorMsgTestHelper(query, "VALIDATION ERROR: Unknown field 'this_column_does_not_exist'");
   }
 
   @Test
   public void testComplexTypeWithArrayMissingColumn3() throws Exception {
-    final String query = "select complex.arr[0].a.b.this_column_does_not_exist from cp.\"complex_field.json\" complex";
+    final String query =
+        "select complex.arr[0].a.b.this_column_does_not_exist from cp.\"complex_field.json\" complex";
     errorMsgTestHelper(query, "VALIDATION ERROR: Unknown field 'this_column_does_not_exist'");
   }
 }

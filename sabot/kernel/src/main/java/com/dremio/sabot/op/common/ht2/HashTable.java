@@ -16,37 +16,57 @@
 
 package com.dremio.sabot.op.common.ht2;
 
+import com.dremio.common.config.SabotConfig;
+import com.dremio.options.OptionManager;
+import com.koloboke.collect.hash.HashConfig;
 import java.util.Iterator;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.common.config.SabotConfig;
-import com.dremio.options.OptionManager;
-import com.koloboke.collect.hash.HashConfig;
-
 public interface HashTable {
   Logger logger = LoggerFactory.getLogger(HashTable.class);
 
-  String FACTORY_KEY = "dremio.ht2.implementation.factory"; // Replacing class with factory to keep with our current pattern...
+  String FACTORY_KEY =
+      "dremio.ht2.implementation.factory"; // Replacing class with factory to keep with our current
 
-  static HashTable getInstance(SabotConfig sabotConfig, OptionManager optionsManager, HashTableCreateArgs createArgs) {
-    HashTableFactory factory = sabotConfig.getInstance(FACTORY_KEY, HashTableFactory.class, LBlockHashTableFactory.class);
+  // pattern...
+
+  static HashTable getInstance(
+      SabotConfig sabotConfig, OptionManager optionsManager, HashTableCreateArgs createArgs) {
+    HashTableFactory factory =
+        sabotConfig.getInstance(FACTORY_KEY, HashTableFactory.class, LBlockHashTableFactory.class);
     return factory.getInstance(optionsManager, createArgs);
   }
 
-  void computeHash(int numRecords, ArrowBuf keyFixed, ArrowBuf keyVar, long seed, ArrowBuf hashOut8B);
+  void computeHash(
+      int numRecords, ArrowBuf keyFixed, ArrowBuf keyVar, long seed, ArrowBuf hashOut8B);
 
-  int add(int numRecords, ArrowBuf keyFixed, ArrowBuf keyVar, ArrowBuf hash8B, ArrowBuf outOrdinals);
+  int add(
+      int numRecords, ArrowBuf keyFixed, ArrowBuf keyVar, ArrowBuf hash8B, ArrowBuf outOrdinals);
 
-  void find(int numRecords, ArrowBuf keyFixed, ArrowBuf keyVar, ArrowBuf hash8B, ArrowBuf outOrdinals);
+  void find(
+      int numRecords, ArrowBuf keyFixed, ArrowBuf keyVar, ArrowBuf hash8B, ArrowBuf outOrdinals);
 
-  int addSv2(ArrowBuf sv2, int pivotShift, int numRecords, ArrowBuf keyFixed, ArrowBuf keyVar, ArrowBuf hash4B, ArrowBuf outOrdinals);
+  int addSv2(
+      ArrowBuf sv2,
+      int pivotShift,
+      int numRecords,
+      ArrowBuf keyFixed,
+      ArrowBuf keyVar,
+      ArrowBuf hash4B,
+      ArrowBuf outOrdinals);
 
-  void findSv2(ArrowBuf sv2, int pivotShift, int numRecords, ArrowBuf keyFixed, ArrowBuf keyVar, ArrowBuf hash4B, ArrowBuf outOrdinals);
+  void findSv2(
+      ArrowBuf sv2,
+      int pivotShift,
+      int numRecords,
+      ArrowBuf keyFixed,
+      ArrowBuf keyVar,
+      ArrowBuf hash4B,
+      ArrowBuf outOrdinals);
 
   void copyKeysToBuffer(ArrowBuf ordinals, int numRecords, ArrowBuf keyFixed, ArrowBuf keyVar);
 
@@ -74,12 +94,12 @@ public interface HashTable {
     }
 
     public long getFixedKeyAddress() {
-        return fixedKeyAddress;
-      }
+      return fixedKeyAddress;
+    }
 
     public long getVarKeyAddress() {
-        return varKeyAddress;
-      }
+      return varKeyAddress;
+    }
   }
 
   Iterator<HashTableKeyAddress> keyIterator();
@@ -104,9 +124,7 @@ public interface HashTable {
     return "";
   }
 
-  /**
-   * Args that passed to SabotConfig to create an instance.
-   */
+  /** Args that passed to SabotConfig to create an instance. */
   class HashTableCreateArgs {
     private final HashConfig hashConfig;
     private final PivotDef pivot;
@@ -118,15 +136,16 @@ public interface HashTable {
     private final NullComparator nullComparator;
     private final boolean runtimeFilterEnabled;
 
-    public HashTableCreateArgs(HashConfig hashConfig,
-                               PivotDef pivot,
-                               BufferAllocator allocator,
-                               int initialSize,
-                               int defaultVarLengthSize,
-                               boolean enforceVarWidthBufferLimit,
-                               int maxHashTableBatchSize,
-                               NullComparator nullComparator,
-                               boolean runtimeFilterEnabled) {
+    public HashTableCreateArgs(
+        HashConfig hashConfig,
+        PivotDef pivot,
+        BufferAllocator allocator,
+        int initialSize,
+        int defaultVarLengthSize,
+        boolean enforceVarWidthBufferLimit,
+        int maxHashTableBatchSize,
+        NullComparator nullComparator,
+        boolean runtimeFilterEnabled) {
       this.hashConfig = hashConfig;
       this.pivot = pivot;
       this.allocator = allocator;

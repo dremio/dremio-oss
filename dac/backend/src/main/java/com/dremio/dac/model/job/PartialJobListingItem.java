@@ -18,11 +18,6 @@ package com.dremio.dac.model.job;
 import static com.dremio.service.job.proto.QueryType.ACCELERATOR_OPTIMIZE;
 import static com.dremio.service.jobs.JobsConstant.EMPTY_DATASET_FIELD;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import org.apache.commons.lang3.StringUtils;
-
 import com.dremio.dac.util.JobUtil;
 import com.dremio.service.job.JobSummary;
 import com.dremio.service.job.RequestType;
@@ -35,11 +30,14 @@ import com.dremio.service.jobs.JobsServiceUtil;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.ArrayList;
+import java.util.List;
+import org.apache.commons.lang3.StringUtils;
 
-/**
- * Initializing values to send as part of API response
- */
-@JsonIgnoreProperties(value = {"isComplete"}, allowGetters = true)
+/** Initializing values to send as part of API response */
+@JsonIgnoreProperties(
+    value = {"isComplete"},
+    allowGetters = true)
 public class PartialJobListingItem {
   private final String id;
   private final JobState state;
@@ -73,36 +71,35 @@ public class PartialJobListingItem {
 
   @JsonCreator
   public PartialJobListingItem(
-    @JsonProperty("id") String id,
-    @JsonProperty("state") JobState state,
-    @JsonProperty("user") String user,
-    @JsonProperty("startTime") Long startTime,
-    @JsonProperty("endTime") Long endTime,
-    @JsonProperty("duration") Long duration,
-    @JsonProperty("rowsScanned") Long rowsScanned,
-    @JsonProperty("outputRecords") Long outputRecords,
-    @JsonProperty("wlmQueue") String wlmQueue,
-    @JsonProperty("queryText") String queryText,
-    @JsonProperty("queryType") QueryType queryType,
-    @JsonProperty("isAccelerated") boolean isAccelerated,
-    @JsonProperty("durationDetails") List<DurationDetails> durationDetails,
-    @JsonProperty("plannerEstimatedCost") Double plannerEstimatedCost,
-    @JsonProperty("queriedDatasets") List<DataSet> queriedDatasets,
-    @JsonProperty("engine") String engine,
-    @JsonProperty("subEngine") String subEngine,
-    @JsonProperty("enqueuedTime") String enqueuedTime,
-    @JsonProperty("waitOnClient") long waitInClient,
-    @JsonProperty("input") String input,
-    @JsonProperty("output") String output,
-    @JsonProperty("spilled") boolean spilled,
-    @JsonProperty("totalAttempts") int totalAttempts,
-    @JsonProperty("output") boolean isStarFlakeAccelerated,
-    @JsonProperty("requestType") RequestType requestType,
-    @JsonProperty("description") String description,
-    @JsonProperty("isComplete") boolean isComplete,
-    @JsonProperty("datasetVersion") String datasetVersion,
-    @JsonProperty("outputLimited") boolean outputLimited
-    ) {
+      @JsonProperty("id") String id,
+      @JsonProperty("state") JobState state,
+      @JsonProperty("user") String user,
+      @JsonProperty("startTime") Long startTime,
+      @JsonProperty("endTime") Long endTime,
+      @JsonProperty("duration") Long duration,
+      @JsonProperty("rowsScanned") Long rowsScanned,
+      @JsonProperty("outputRecords") Long outputRecords,
+      @JsonProperty("wlmQueue") String wlmQueue,
+      @JsonProperty("queryText") String queryText,
+      @JsonProperty("queryType") QueryType queryType,
+      @JsonProperty("isAccelerated") boolean isAccelerated,
+      @JsonProperty("durationDetails") List<DurationDetails> durationDetails,
+      @JsonProperty("plannerEstimatedCost") Double plannerEstimatedCost,
+      @JsonProperty("queriedDatasets") List<DataSet> queriedDatasets,
+      @JsonProperty("engine") String engine,
+      @JsonProperty("subEngine") String subEngine,
+      @JsonProperty("enqueuedTime") String enqueuedTime,
+      @JsonProperty("waitOnClient") long waitInClient,
+      @JsonProperty("input") String input,
+      @JsonProperty("output") String output,
+      @JsonProperty("spilled") boolean spilled,
+      @JsonProperty("totalAttempts") int totalAttempts,
+      @JsonProperty("output") boolean isStarFlakeAccelerated,
+      @JsonProperty("requestType") RequestType requestType,
+      @JsonProperty("description") String description,
+      @JsonProperty("isComplete") boolean isComplete,
+      @JsonProperty("datasetVersion") String datasetVersion,
+      @JsonProperty("outputLimited") boolean outputLimited) {
     super();
     this.id = id;
     this.state = state;
@@ -140,7 +137,9 @@ public class PartialJobListingItem {
     this.user = input.getUser();
     int totalAttempts = (int) input.getNumAttempts();
     this.totalAttempts = totalAttempts;
-    this.state = JobUtil.computeJobState(JobsProtoUtil.toStuff(input.getJobState()), input.getJobCompleted());
+    this.state =
+        JobUtil.computeJobState(
+            JobsProtoUtil.toStuff(input.getJobState()), input.getJobCompleted());
     this.startTime = input.getStartTime() != 0 ? input.getStartTime() : 0;
     this.endTime = input.getEndTime() != 0 ? input.getEndTime() : 0;
     this.isComplete = JobUtil.isComplete(this.state);
@@ -156,15 +155,25 @@ public class PartialJobListingItem {
     this.engine = input.getEngine();
     this.subEngine = input.getSubEngine();
     this.queriedDatasets = resolveQueriedDatasets(input);
-    this.durationDetails.stream().filter(d -> d.getPhaseName().equalsIgnoreCase("QUEUED")).forEach(mp -> enqueuedTime = mp.getPhaseDuration());
+    this.durationDetails.stream()
+        .filter(d -> d.getPhaseName().equalsIgnoreCase("QUEUED"))
+        .forEach(mp -> enqueuedTime = mp.getPhaseDuration());
     this.waitInClient = input.getWaitInclient();
-    this.input = JobUtil.getConvertedBytes(input.getInputBytes()) + " / " +
-      input.getInputRecords() + " Records";
-    this.output = JobUtil.getConvertedBytes(input.getOutputBytes()) + " / " +
-      input.getOutputRecords() + " Records";
+    this.input =
+        JobUtil.getConvertedBytes(input.getInputBytes())
+            + " / "
+            + input.getInputRecords()
+            + " Records";
+    this.output =
+        JobUtil.getConvertedBytes(input.getOutputBytes())
+            + " / "
+            + input.getOutputRecords()
+            + " Records";
     this.spilled = input.getSpilled();
     this.isStarFlakeAccelerated = input.getSnowflakeAccelerated();
-    this.description = JobsServiceUtil.getJobDescription(input.getRequestType(), input.getSql(), input.getDescription());
+    this.description =
+        JobsServiceUtil.getJobDescription(
+            input.getRequestType(), input.getSql(), input.getDescription());
     this.requestType = input.getRequestType();
     this.datasetVersion = input.getDatasetVersion();
     this.outputLimited = input.getOutputLimited();
@@ -293,16 +302,21 @@ public class PartialJobListingItem {
 
   private List<DataSet> resolveQueriedDatasets(JobSummary input) {
     List<String> pathList = input.getDatasetPathList();
-    // If the job is OPTIMIZE on a reflection, then the job listing UI should just show the parent PDS or VDS as the DataSet.
+    // If the job is OPTIMIZE on a reflection, then the job listing UI should just show the parent
+    // PDS or VDS as the DataSet.
     if (this.queryType == ACCELERATOR_OPTIMIZE) {
       List<DataSet> queriedDatasets = new ArrayList<>();
       final String datasetName = pathList.get(pathList.size() - 1);
       final String datasetPath = StringUtils.join(pathList, ".");
       final String datasetType = EMPTY_DATASET_FIELD;
-      JobUtil.populateQueriedDataset(queriedDatasets, datasetName, datasetType, datasetPath, pathList, "");
+      JobUtil.populateQueriedDataset(
+          queriedDatasets, datasetName, datasetType, datasetPath, pathList, "");
       return queriedDatasets;
     } else {
-      return JobUtil.buildQueriedDatasets(JobsProtoUtil.toStuffParentDatasetInfoList(input.getParentsList()), input.getRequestType(), input.getDatasetPathList());
+      return JobsServiceUtil.buildQueriedDatasets(
+          JobsProtoUtil.toStuffParentDatasetInfoList(input.getParentsList()),
+          input.getRequestType(),
+          input.getDatasetPathList());
     }
   }
 }

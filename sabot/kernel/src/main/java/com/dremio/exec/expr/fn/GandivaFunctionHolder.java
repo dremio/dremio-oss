@@ -15,16 +15,14 @@
  */
 package com.dremio.exec.expr.fn;
 
-import java.util.List;
-
-import org.apache.arrow.vector.types.pojo.ArrowType;
-
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.FunctionHolderExpression;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.exec.expr.ClassGenerator;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.sun.codemodel.JVar;
+import java.util.List;
+import org.apache.arrow.vector.types.pojo.ArrowType;
 
 public class GandivaFunctionHolder extends AbstractFunctionHolder {
   private final CompleteType[] argTypes;
@@ -46,12 +44,20 @@ public class GandivaFunctionHolder extends AbstractFunctionHolder {
   }
 
   @Override
-  public JVar[] renderStart(ClassGenerator<?> g, CompleteType resolvedOutput, ClassGenerator.HoldingContainer[] inputVariables, FunctionErrorContext errorContext) {
+  public JVar[] renderStart(
+      ClassGenerator<?> g,
+      CompleteType resolvedOutput,
+      ClassGenerator.HoldingContainer[] inputVariables,
+      FunctionErrorContext errorContext) {
     throw new UnsupportedOperationException("Gandiva code generation is handled during build.");
   }
 
   @Override
-  public ClassGenerator.HoldingContainer renderEnd(ClassGenerator<?> g, CompleteType resolvedOutput, ClassGenerator.HoldingContainer[] inputVariables, JVar[] workspaceJVars) {
+  public ClassGenerator.HoldingContainer renderEnd(
+      ClassGenerator<?> g,
+      CompleteType resolvedOutput,
+      ClassGenerator.HoldingContainer[] inputVariables,
+      JVar[] workspaceJVars) {
     throw new UnsupportedOperationException("Gandiva code generation is handled during build.");
   }
 
@@ -95,21 +101,21 @@ public class GandivaFunctionHolder extends AbstractFunctionHolder {
 
     OutputDerivation derivation;
     switch (name) {
-      case "add" :
+      case "add":
         derivation = OutputDerivation.DECIMAL_ADD;
         break;
-      case "subtract" :
+      case "subtract":
         derivation = OutputDerivation.DECIMAL_SUBTRACT;
         break;
-      case "multiply" :
+      case "multiply":
         derivation = OutputDerivation.DECIMAL_MULTIPLY;
         break;
 
-      case "divide" :
+      case "divide":
         derivation = OutputDerivation.DECIMAL_DIVIDE;
         break;
-      case "mod" :
-      case "modulo" :
+      case "mod":
+      case "modulo":
         derivation = OutputDerivation.DECIMAL_MOD;
         break;
       case "abs":
@@ -123,13 +129,17 @@ public class GandivaFunctionHolder extends AbstractFunctionHolder {
         derivation = OutputDerivation.DECIMAL_NEGATIVE;
         break;
       case "round":
-        derivation = (args.size() == 1) ? OutputDerivation.DECIMAL_ZERO_SCALE_ROUND :
-          OutputDerivation.DECIMAL_SET_SCALE_ROUND;
+        derivation =
+            (args.size() == 1)
+                ? OutputDerivation.DECIMAL_ZERO_SCALE_ROUND
+                : OutputDerivation.DECIMAL_SET_SCALE_ROUND;
         break;
       case "trunc":
       case "truncate":
-        derivation = (args.size() == 1) ? OutputDerivation.DECIMAL_ZERO_SCALE_TRUNCATE :
-          OutputDerivation.DECIMAL_SET_SCALE_TRUNCATE;
+        derivation =
+            (args.size() == 1)
+                ? OutputDerivation.DECIMAL_ZERO_SCALE_TRUNCATE
+                : OutputDerivation.DECIMAL_SET_SCALE_TRUNCATE;
         break;
       case "castDECIMAL":
       case "castDECIMALNullOnOverflow":

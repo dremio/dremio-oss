@@ -15,38 +15,65 @@
  */
 package com.dremio.exec.calcite.logical;
 
+import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.planner.common.ScanRelBase;
+import com.dremio.exec.store.TableMetadata;
 import java.util.List;
-
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.hint.RelHint;
 
-import com.dremio.common.expression.SchemaPath;
-import com.dremio.exec.catalog.StoragePluginId;
-import com.dremio.exec.planner.common.ScanRelBase;
-import com.dremio.exec.store.TableMetadata;
-
 /**
- * Dremio's logical {@link RelNode} of type {@link ScanRelBase}.
- * Used for empty tables (0 splits)
+ * Dremio's logical {@link RelNode} of type {@link ScanRelBase}. Used for empty tables (0 splits)
  */
 public class EmptyCrel extends ScanRelBase {
 
-  public EmptyCrel(RelOptCluster cluster, RelTraitSet traitSet, RelOptTable table,
-    StoragePluginId pluginId, TableMetadata tableMetadata, List<SchemaPath> projectedColumns,
-    double observedRowcountAdjustment, List<RelHint> hints) {
-    super(cluster, traitSet, table, pluginId, tableMetadata, projectedColumns, observedRowcountAdjustment, hints);
+  public EmptyCrel(
+      RelOptCluster cluster,
+      RelTraitSet traitSet,
+      RelOptTable table,
+      StoragePluginId pluginId,
+      TableMetadata tableMetadata,
+      List<SchemaPath> projectedColumns,
+      double observedRowcountAdjustment,
+      List<RelHint> hints) {
+    super(
+        cluster,
+        traitSet,
+        table,
+        pluginId,
+        tableMetadata,
+        projectedColumns,
+        observedRowcountAdjustment,
+        hints);
   }
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new EmptyCrel(getCluster(), traitSet, table, pluginId, tableMetadata, getProjectedColumns(), observedRowcountAdjustment, hints);
+    return new EmptyCrel(
+        getCluster(),
+        traitSet,
+        table,
+        pluginId,
+        tableMetadata,
+        getProjectedColumns(),
+        observedRowcountAdjustment,
+        hints);
   }
 
   @Override
   public ScanRelBase cloneWithProject(List<SchemaPath> projection) {
-    return new EmptyCrel(getCluster(), traitSet, table, pluginId, tableMetadata, projection, observedRowcountAdjustment, hints);
+    return new EmptyCrel(
+        getCluster(),
+        traitSet,
+        table,
+        pluginId,
+        tableMetadata,
+        projection,
+        observedRowcountAdjustment,
+        hints);
   }
 }

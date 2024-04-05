@@ -15,6 +15,12 @@
  */
 package com.dremio.dac.support;
 
+import com.dremio.options.Options;
+import com.dremio.options.TypeValidators;
+import com.dremio.provision.service.ProvisioningHandlingException;
+import com.dremio.service.Service;
+import com.dremio.service.jobs.JobNotFoundException;
+import com.dremio.service.users.UserNotFoundException;
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -26,29 +32,17 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-
 import javax.ws.rs.NotSupportedException;
-
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream;
 
-import com.dremio.options.Options;
-import com.dremio.options.TypeValidators;
-import com.dremio.provision.service.ProvisioningHandlingException;
-import com.dremio.service.Service;
-import com.dremio.service.jobs.JobNotFoundException;
-import com.dremio.service.users.UserNotFoundException;
-
-
-/**
- * Service responsible for generating query log bundle
- * when a user asks for support help.
- */
+/** Service responsible for generating query log bundle when a user asks for support help. */
 @Options
 public interface QueryLogBundleService extends Service {
 
   final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(QueryLogBundleService.class);
-  TypeValidators.BooleanValidator USERS_BUNDLE_DOWNLOAD = new TypeValidators.BooleanValidator("support.users.bundle.download", false);
+  TypeValidators.BooleanValidator USERS_BUNDLE_DOWNLOAD =
+      new TypeValidators.BooleanValidator("support.users.bundle.download", false);
 
   DateFormat dateFormat = new SimpleDateFormat("yyyy-mm-dd");
 
@@ -61,6 +55,7 @@ public interface QueryLogBundleService extends Service {
 
   /**
    * Get all the logs relevant to the query in the cluster
+   *
    * @param jobId job id in String
    * @param userName
    * @return PipedOutputStream
@@ -72,10 +67,15 @@ public interface QueryLogBundleService extends Service {
    * @throws RuntimeException if anther download request is triggered while one is happening
    */
   InputStream getClusterLog(String jobId, String userName)
-    throws UserNotFoundException, JobNotFoundException, IOException, ProvisioningHandlingException, NotSupportedException;
+      throws UserNotFoundException,
+          JobNotFoundException,
+          IOException,
+          ProvisioningHandlingException,
+          NotSupportedException;
 
   /**
    * Validate user role and support access control
+   *
    * @param userName
    * @throws UserNotFoundException if user name is not found
    * @throws NotSupportedException if the user doesn't have permission to download bundle
@@ -85,20 +85,18 @@ public interface QueryLogBundleService extends Service {
   /**
    * Write a file to TarArchiveOutputStream with a buffer of 4096 bytes
    *
-   * @param taros      output
-   * @param file       input
-   * @param entryName  name of the entry in tar
-   * @param cleanUp    true if file deletion is needed after write to tar
+   * @param taros output
+   * @param file input
+   * @param entryName name of the entry in tar
+   * @param cleanUp true if file deletion is needed after write to tar
    */
-  static void writeAFileToTar(TarArchiveOutputStream taros,
-                             File file, String entryName, boolean cleanUp) {
+  static void writeAFileToTar(
+      TarArchiveOutputStream taros, File file, String entryName, boolean cleanUp) {
     if (file == null) {
       return;
     }
     logger.debug("Writing {} to tar entry {}", file.getAbsolutePath(), entryName);
-    try (
-      BufferedInputStream fileStream = new BufferedInputStream(new FileInputStream(file))
-    ) {
+    try (BufferedInputStream fileStream = new BufferedInputStream(new FileInputStream(file))) {
       try {
         TarArchiveEntry entry = new TarArchiveEntry(file, entryName);
         taros.putArchiveEntry(entry);
@@ -123,6 +121,7 @@ public interface QueryLogBundleService extends Service {
 
   /**
    * Sort files by filename in time order: date asc then index desc.
+   *
    * @param files a list of files that is to be sorted in place
    */
   static void sortLogFilesInTimeOrder(File[] files) {
@@ -160,5 +159,4 @@ public interface QueryLogBundleService extends Service {
       }
     }
   }
-
 }

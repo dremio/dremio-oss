@@ -17,17 +17,6 @@ package com.dremio.dac.metadata;
 
 import static org.junit.Assert.assertEquals;
 
-import java.util.List;
-import java.util.Map;
-
-import org.apache.calcite.plan.RelOptPlanner;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.sql.SqlNode;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.common.utils.protos.AttemptId;
 import com.dremio.exec.planner.PlannerPhase;
@@ -37,6 +26,7 @@ import com.dremio.exec.planner.observer.QueryObserverFactory;
 import com.dremio.exec.planner.observer.RemoteAttemptObserver;
 import com.dremio.exec.planner.observer.RemoteQueryObserverFactory;
 import com.dremio.exec.proto.UserBitShared.ExternalId;
+import com.dremio.exec.proto.UserBitShared.PlannerPhaseRulesStats;
 import com.dremio.exec.work.protector.UserResponseHandler;
 import com.dremio.proto.model.attempts.AttemptReason;
 import com.dremio.sabot.rpc.user.UserSession;
@@ -45,51 +35,75 @@ import com.dremio.service.namespace.dataset.proto.FieldOrigin;
 import com.dremio.service.namespace.dataset.proto.Origin;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.AbstractModule;
+import java.util.List;
+import org.apache.calcite.plan.RelOptPlanner;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.sql.SqlNode;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
-/**
- * Test the FieldOriginExtractor
- */
+/** Test the FieldOriginExtractor */
 public class TestFieldOriginExtractor extends BaseTestQuery {
 
-  public static final ImmutableList<String> REGION_PARQUET = ImmutableList.of("cp","tpch/region.parquet");
-  public static final ImmutableList<String> NATION_PARQUET = ImmutableList.of("cp","tpch/nation.parquet");
+  public static final ImmutableList<String> REGION_PARQUET =
+      ImmutableList.of("cp", "tpch/region.parquet");
+  public static final ImmutableList<String> NATION_PARQUET =
+      ImmutableList.of("cp", "tpch/nation.parquet");
 
   private static List<FieldOrigin> fields;
 
   @BeforeClass
   public static void setupDefaultTestCluster() throws Exception {
-    SABOT_NODE_RULE.register(new AbstractModule() {
-      @Override
-      protected void configure() {
-        bind(QueryObserverFactory.class).toInstance(new QueryObserverFactory() {
+    SABOT_NODE_RULE.register(
+        new AbstractModule() {
           @Override
-          public QueryObserver createNewQueryObserver(final ExternalId id, UserSession session, final UserResponseHandler connection) {
-            return new RemoteQueryObserverFactory.RemoteQueryObserver(id, connection) {
+          protected void configure() {
+            bind(QueryObserverFactory.class)
+                .toInstance(
+                    new QueryObserverFactory() {
+                      @Override
+                      public QueryObserver createNewQueryObserver(
+                          final ExternalId id,
+                          UserSession session,
+                          final UserResponseHandler connection) {
+                        return new RemoteQueryObserverFactory.RemoteQueryObserver(id, connection) {
 
-              @Override
-              public AttemptObserver newAttempt(AttemptId attemptId, AttemptReason reason) {
-                return new RemoteAttemptObserver(id, connection) {
-                  private RelDataType rowType;
+                          @Override
+                          public AttemptObserver newAttempt(
+                              AttemptId attemptId, AttemptReason reason) {
+                            return new RemoteAttemptObserver(id, connection) {
+                              private RelDataType rowType;
 
-                  @Override
-                  public void planValidated(RelDataType rowType, SqlNode node, long millisTaken) {
-                    this.rowType = rowType;
-                  }
+                              @Override
+                              public void planValidated(
+                                  RelDataType rowType,
+                                  SqlNode node,
+                                  long millisTaken,
+                                  boolean isMaterializationCacheInitialized) {
+                                this.rowType = rowType;
+                              }
 
-                  @Override
-                  public void planRelTransform(PlannerPhase phase, RelOptPlanner planner, RelNode before, RelNode after,
-                                               long millisTaken, Map<String, Long> timeBreakdownPerRule) {
-                    if (phase == PlannerPhase.LOGICAL) {
-                      fields = FieldOriginExtractor.getFieldOrigins(before, rowType);
-                    }
-                  }
-                };
-              }
-            };
+                              @Override
+                              public void planRelTransform(
+                                  PlannerPhase phase,
+                                  RelOptPlanner planner,
+                                  RelNode before,
+                                  RelNode after,
+                                  long millisTaken,
+                                  List<PlannerPhaseRulesStats> rulesBreakdownStats) {
+                                if (phase == PlannerPhase.LOGICAL) {
+                                  fields = FieldOriginExtractor.getFieldOrigins(before, rowType);
+                                }
+                              }
+                            };
+                          }
+                        };
+                      }
+                    });
           }
         });
-      }
-    });
 
     BaseTestQuery.setupDefaultTestCluster();
   }
@@ -101,7 +115,8 @@ public class TestFieldOriginExtractor extends BaseTestQuery {
 
   @Test
   public void parentExtraction() throws Exception {
-    testNoResult("select * from  cp.\"tpch/region.parquet\" r1 join cp.\"tpch/region.parquet\" r2 on r1.r_regionkey = r2.r_regionkey");
+    testNoResult(
+        "select * from  cp.\"tpch/region.parquet\" r1 join cp.\"tpch/region.parquet\" r2 on r1.r_regionkey = r2.r_regionkey");
     assertEquals(6, fields.size());
 
     validateField(0, "r_regionkey", REGION_PARQUET, "r_regionkey");
@@ -110,7 +125,6 @@ public class TestFieldOriginExtractor extends BaseTestQuery {
     validateField(3, "r_regionkey0", REGION_PARQUET, "r_regionkey");
     validateField(4, "r_name0", REGION_PARQUET, "r_name");
     validateField(5, "r_comment0", REGION_PARQUET, "r_comment");
-
   }
 
   private void validateField(int i, String name, List<String> table, String col) {
@@ -122,7 +136,8 @@ public class TestFieldOriginExtractor extends BaseTestQuery {
 
   @Test
   public void parentExtractionNotStar() throws Exception {
-    testNoResult("select r1.r_name as name, r2.r_comment as comment from  cp.\"tpch/region.parquet\" r1 join cp.\"tpch/region.parquet\" r2 on r1.r_regionkey = r2.r_regionkey");
+    testNoResult(
+        "select r1.r_name as name, r2.r_comment as comment from  cp.\"tpch/region.parquet\" r1 join cp.\"tpch/region.parquet\" r2 on r1.r_regionkey = r2.r_regionkey");
     assertEquals(2, fields.size());
 
     validateField(0, "name", REGION_PARQUET, "r_name");
@@ -131,10 +146,11 @@ public class TestFieldOriginExtractor extends BaseTestQuery {
 
   @Test
   public void windowFunction() throws Exception {
-    testNoResult("select N_REGIONKEY, AVG(N_NATIONKEY) OVER (PARTITION BY N_REGIONKEY) as w1," +
-      "MIN(N_NATIONKEY) OVER (PARTITION BY N_REGIONKEY) as w2" +
-      " FROM cp.\"tpch/nation" +
-      ".parquet\"");
+    testNoResult(
+        "select N_REGIONKEY, AVG(N_NATIONKEY) OVER (PARTITION BY N_REGIONKEY) as w1,"
+            + "MIN(N_NATIONKEY) OVER (PARTITION BY N_REGIONKEY) as w2"
+            + " FROM cp.\"tpch/nation"
+            + ".parquet\"");
     assertEquals(3, fields.size());
 
     validateField(0, "N_REGIONKEY", NATION_PARQUET, "n_regionkey");
@@ -144,10 +160,11 @@ public class TestFieldOriginExtractor extends BaseTestQuery {
 
   @Test
   public void windowMultiGroupFunction() throws Exception {
-    testNoResult("select N_REGIONKEY, AVG(N_NATIONKEY) OVER (PARTITION BY N_REGIONKEY) as w1," +
-      "MIN(N_REGIONKEY) OVER (PARTITION BY N_NATIONKEY) as w2" +
-      " FROM cp.\"tpch/nation" +
-      ".parquet\"");
+    testNoResult(
+        "select N_REGIONKEY, AVG(N_NATIONKEY) OVER (PARTITION BY N_REGIONKEY) as w1,"
+            + "MIN(N_REGIONKEY) OVER (PARTITION BY N_NATIONKEY) as w2"
+            + " FROM cp.\"tpch/nation"
+            + ".parquet\"");
     assertEquals(3, fields.size());
 
     validateField(0, "N_REGIONKEY", NATION_PARQUET, "n_regionkey");
@@ -157,7 +174,8 @@ public class TestFieldOriginExtractor extends BaseTestQuery {
 
   @Test
   public void windowFunctionWithConstants() throws Exception {
-    testNoResult("select N_REGIONKEY, AVG(N_NATIONKEY + 1) OVER (PARTITION BY N_REGIONKEY + 1) as w1 FROM cp.\"tpch/nation.parquet\"");
+    testNoResult(
+        "select N_REGIONKEY, AVG(N_NATIONKEY + 1) OVER (PARTITION BY N_REGIONKEY + 1) as w1 FROM cp.\"tpch/nation.parquet\"");
     assertEquals(2, fields.size());
 
     validateField(0, "N_REGIONKEY", NATION_PARQUET, "n_regionkey");

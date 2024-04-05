@@ -17,9 +17,7 @@ package com.dremio.service;
 
 import com.google.inject.Injector;
 
-/**
- * Something that allows bindings to be created and provided.
- */
+/** Something that allows bindings to be created and provided. */
 public interface Binder extends BindingCreator, BindingProvider {
   /**
    * Temporary way to register a Guice Injector with Binder as a fallback mechanism

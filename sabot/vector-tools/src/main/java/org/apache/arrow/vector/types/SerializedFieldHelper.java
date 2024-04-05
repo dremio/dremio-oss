@@ -17,17 +17,15 @@ package org.apache.arrow.vector.types;
 
 import static com.dremio.common.util.MajorTypeHelper.getMajorTypeForField;
 
-import org.apache.arrow.vector.types.pojo.Field;
-
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.proto.UserBitShared.NamePart;
 import com.dremio.exec.proto.UserBitShared.SerializedField;
+import org.apache.arrow.vector.types.pojo.Field;
 
 public final class SerializedFieldHelper {
-  public static SerializedField.Builder getAsBuilder(MajorType type){
-    return SerializedField.newBuilder()
-            .setMajorType(type);
+  public static SerializedField.Builder getAsBuilder(MajorType type) {
+    return SerializedField.newBuilder().setMajorType(type);
   }
 
   public static SerializedField getSerializedField(Field field) {
@@ -41,14 +39,14 @@ public final class SerializedFieldHelper {
     return serializedFieldBuilder.build();
   }
 
-  public static Field create(SerializedField serField){
+  public static Field create(SerializedField serField) {
     if (!serField.hasNamePart() || serField.getNamePart().getName().equals("")) {
       throw new RuntimeException();
     }
     return TypeHelper.getFieldForSerializedField(serField);
   }
 
-  public static boolean matches(Field mField, SerializedField field){
+  public static boolean matches(Field mField, SerializedField field) {
     Field f = create(field);
     return f.equals(mField);
   }

@@ -15,16 +15,13 @@
  */
 package com.dremio.dac.api;
 
-import java.util.List;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.Iterables;
+import java.util.List;
 
-/**
- * Folder
- */
+/** Folder */
 public class Folder implements CatalogEntity {
   private final String id;
   private final List<String> path;
@@ -33,11 +30,10 @@ public class Folder implements CatalogEntity {
 
   @JsonCreator
   public Folder(
-    @JsonProperty("id") String id,
-    @JsonProperty("path") List<String> path,
-    @JsonProperty("tag") String tag,
-    @JsonProperty("children") List<CatalogItem> children
-  ) {
+      @JsonProperty("id") String id,
+      @JsonProperty("path") List<String> path,
+      @JsonProperty("tag") String tag,
+      @JsonProperty("children") List<CatalogItem> children) {
     this.id = id;
     this.path = path;
     this.tag = tag;

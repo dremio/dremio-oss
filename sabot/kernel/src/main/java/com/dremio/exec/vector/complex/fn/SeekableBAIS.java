@@ -18,16 +18,12 @@ package com.dremio.exec.vector.complex.fn;
 import java.io.ByteArrayInputStream;
 import java.io.EOFException;
 import java.io.IOException;
-
 import org.apache.hadoop.fs.Seekable;
 
-/**
- * A ByteArrayInputStream that supports the HDFS Seekable API.
- */
+/** A ByteArrayInputStream that supports the HDFS Seekable API. */
 public class SeekableBAIS extends ByteArrayInputStream implements Seekable {
 
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SeekableBAIS.class);
-
 
   public SeekableBAIS(byte[] buf, int offset, int length) {
     super(buf, offset, length);
@@ -39,7 +35,7 @@ public class SeekableBAIS extends ByteArrayInputStream implements Seekable {
 
   @Override
   public void seek(long pos) throws IOException {
-    if(pos > buf.length){
+    if (pos > buf.length) {
       throw new EOFException();
     }
     this.pos = (int) pos;
@@ -55,7 +51,4 @@ public class SeekableBAIS extends ByteArrayInputStream implements Seekable {
   public boolean seekToNewSource(long targetPos) throws IOException {
     return false;
   }
-
-
-
 }

@@ -16,7 +16,8 @@
 package com.dremio.service.namespace;
 
 /**
- * {@link NamespaceException} that occurred during interaction with a remote {@link NamespaceService}.
+ * {@link NamespaceException} that occurred during interaction with a remote {@link
+ * NamespaceService}.
  */
 public class RemoteNamespaceException extends NamespaceException {
 

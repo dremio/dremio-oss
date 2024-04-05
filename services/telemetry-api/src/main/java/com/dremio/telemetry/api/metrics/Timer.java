@@ -17,15 +17,11 @@ package com.dremio.telemetry.api.metrics;
 
 import java.util.concurrent.TimeUnit;
 
-/**
- * Recorder of time to complete an operation.
- */
+/** Recorder of time to complete an operation. */
 public interface Timer {
   Timer.TimerContext start(String... tags);
 
-  /**
-   * Content used to finish a particular timer observation.
-   */
+  /** Content used to finish a particular timer observation. */
   public static interface TimerContext extends AutoCloseable {
     @Override
     void close();

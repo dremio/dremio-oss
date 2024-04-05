@@ -15,16 +15,6 @@
  */
 package com.dremio.exec.store;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-
-import javax.annotation.Nullable;
-
-import org.apache.arrow.memory.OutOfMemoryException;
-import org.apache.arrow.vector.ValueVector;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.physical.base.GroupScan;
@@ -33,11 +23,20 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.scan.ScanOperator;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import javax.annotation.Nullable;
+import org.apache.arrow.memory.OutOfMemoryException;
+import org.apache.arrow.vector.ValueVector;
 
 public abstract class AbstractRecordReader implements RecordReader {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AbstractRecordReader.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(AbstractRecordReader.class);
 
-  private static final String COL_NULL_ERROR = "Columns cannot be null. Use star column to select all fields.";
+  private static final String COL_NULL_ERROR =
+      "Columns cannot be null. Use star column to select all fields.";
   public static final SchemaPath STAR_COLUMN = SchemaPath.getSimplePath("*");
 
   private Collection<SchemaPath> columns = null;
@@ -50,17 +49,20 @@ public abstract class AbstractRecordReader implements RecordReader {
   public AbstractRecordReader(final OperatorContext context, final List<SchemaPath> columns) {
     this.context = context;
     if (context == null) {
-      this.numRowsPerBatch = Ints.saturatedCast(ExecConstants.TARGET_BATCH_RECORDS_MAX.getDefault().getNumVal());
+      this.numRowsPerBatch =
+          Ints.saturatedCast(ExecConstants.TARGET_BATCH_RECORDS_MAX.getDefault().getNumVal());
     } else {
       this.numRowsPerBatch = context.getTargetBatchSize();
     }
 
     if (context == null
-      || context.getOptions() == null
-      || context.getOptions().getOption(ExecConstants.OPERATOR_TARGET_BATCH_BYTES) == null) {
-      this.numBytesPerBatch = ExecConstants.OPERATOR_TARGET_BATCH_BYTES_VALIDATOR.getDefault().getNumVal();
+        || context.getOptions() == null
+        || context.getOptions().getOption(ExecConstants.OPERATOR_TARGET_BATCH_BYTES) == null) {
+      this.numBytesPerBatch =
+          ExecConstants.OPERATOR_TARGET_BATCH_BYTES_VALIDATOR.getDefault().getNumVal();
     } else {
-      this.numBytesPerBatch = context.getOptions().getOption(ExecConstants.OPERATOR_TARGET_BATCH_BYTES).getNumVal();
+      this.numBytesPerBatch =
+          context.getOptions().getOption(ExecConstants.OPERATOR_TARGET_BATCH_BYTES).getNumVal();
     }
 
     if (columns != null) {
@@ -75,17 +77,20 @@ public abstract class AbstractRecordReader implements RecordReader {
   @Override
   public String toString() {
     return super.toString()
-        + "[columns = " + columns
-        + ", isStarQuery = " + isStarQuery
-        + ", isSkipQuery = " + isSkipQuery + "]";
+        + "[columns = "
+        + columns
+        + ", isStarQuery = "
+        + isStarQuery
+        + ", isSkipQuery = "
+        + isSkipQuery
+        + "]";
   }
 
   /**
-   *
-   * @param projected : The column list to be returned from this RecordReader.
-   *                  1) empty column list: this is for skipAll query. It's up to each storage-plugin to
-   *                  choose different policy of handling skipAll query. By default, it will use * column.
-   *                  2) NULL : is NOT allowed. It requires the planner's rule, or GroupScan or ScanBatchCreator to handle NULL.
+   * @param projected : The column list to be returned from this RecordReader. 1) empty column list:
+   *     this is for skipAll query. It's up to each storage-plugin to choose different policy of
+   *     handling skipAll query. By default, it will use * column. 2) NULL : is NOT allowed. It
+   *     requires the planner's rule, or GroupScan or ScanBatchCreator to handle NULL.
    */
   private void setColumns(Collection<SchemaPath> projected) {
     Preconditions.checkNotNull(projected, COL_NULL_ERROR);
@@ -93,7 +98,8 @@ public abstract class AbstractRecordReader implements RecordReader {
     Collection<SchemaPath> columnsToRead = projected;
 
     // If no column is required (SkipQuery), by default it will use DEFAULT_COLS_TO_READ .
-    // Handling SkipQuery is storage-plugin specific : JSON, text reader, parquet will override, in order to
+    // Handling SkipQuery is storage-plugin specific : JSON, text reader, parquet will override, in
+    // order to
     // improve query performance.
     if (projected.isEmpty()) {
       if (supportsSkipAllQuery()) {
@@ -109,7 +115,7 @@ public abstract class AbstractRecordReader implements RecordReader {
     logger.debug("columns to read : {}", columns);
   }
 
-  protected boolean supportsSkipAllQuery(){
+  protected boolean supportsSkipAllQuery() {
     return false;
   }
 
@@ -126,8 +132,8 @@ public abstract class AbstractRecordReader implements RecordReader {
   }
 
   /**
-   * Returns true if reader should skip all of the columns, reporting number of records only. Handling of a skip query
-   * is storage plugin-specific.
+   * Returns true if reader should skip all of the columns, reporting number of records only.
+   * Handling of a skip query is storage plugin-specific.
    */
   protected boolean isSkipQuery() {
     return isSkipQuery;
@@ -142,9 +148,9 @@ public abstract class AbstractRecordReader implements RecordReader {
 
   /**
    * Returns a message to be shown to the user if an exception is thrown that can't be processed
-   * properly because its cause is not recognizable, typically because we can't have a dependency
-   * on its type.
-   * The message is a best-effort one.
+   * properly because its cause is not recognizable, typically because we can't have a dependency on
+   * its type. The message is a best-effort one.
+   *
    * @param t Throwable presented as the cause of the IOException.
    * @return a String to be shown to the user, or null if there is no reasonable response.
    */
@@ -156,10 +162,11 @@ public abstract class AbstractRecordReader implements RecordReader {
     String tString = t.toString();
     // For exceptions involving AmazonS3Exception (DX-21818):
     if (tString.contains("AmazonS3Exception")) {
-      if (tString.contains("Requests specifying Server Side Encryption with "
-        + "AWS KMS managed keys must be made over a secure connection.")) {
+      if (tString.contains(
+          "Requests specifying Server Side Encryption with "
+              + "AWS KMS managed keys must be made over a secure connection.")) {
         return "The request failed because it was made over an insecure connection. "
-          + "Check the 'Encrypt Connection' box when creating the source.";
+            + "Check the 'Encrypt Connection' box when creating the source.";
       } else {
         return "The request failed with the following cause: " + tString;
       }
@@ -170,7 +177,13 @@ public abstract class AbstractRecordReader implements RecordReader {
 
   @Override
   public void addRuntimeFilter(RuntimeFilter runtimeFilter) {
-    logger.debug("Dropping runtime filter from {} because the reader does not support runtime filtering", runtimeFilter.getSenderInfo());
-    context.getStats().addLongStat(ScanOperator.Metric.RUNTIME_COL_FILTER_DROP_COUNT, runtimeFilter.getNonPartitionColumnFilters().size());
+    logger.debug(
+        "Dropping runtime filter from {} because the reader does not support runtime filtering",
+        runtimeFilter.getSenderInfo());
+    context
+        .getStats()
+        .addLongStat(
+            ScanOperator.Metric.RUNTIME_COL_FILTER_DROP_COUNT,
+            runtimeFilter.getNonPartitionColumnFilters().size());
   }
 }

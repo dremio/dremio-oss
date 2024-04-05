@@ -15,13 +15,11 @@
  */
 package com.dremio.test;
 
-import java.util.stream.Stream;
-
-import org.assertj.core.api.ThrowableAssert;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.google.common.base.Objects;
+import java.util.stream.Stream;
+import org.assertj.core.api.ThrowableAssert;
 
 /**
  * A custom AssertJ assertion class for matching the error type / error message / context of a
@@ -38,15 +36,17 @@ public class UserExceptionAssert extends ThrowableAssert<UserException> {
   }
 
   public static UserExceptionAssert assertThatThrownBy(ThrowingCallable shouldRaiseUserException) {
-    return (UserExceptionAssert) assertThat(
-      catchThrowableOfType(shouldRaiseUserException, UserException.class)).hasBeenThrown();
+    return (UserExceptionAssert)
+        assertThat(catchThrowableOfType(shouldRaiseUserException, UserException.class))
+            .hasBeenThrown();
   }
 
   public UserExceptionAssert hasContext(String expectedContext) {
     isNotNull();
     if (actual.getContextStrings().stream().noneMatch(c -> c.contains(expectedContext))) {
-      failWithMessage("Expected context '%s' to be contained in '%s'", expectedContext,
-        actual.getContextStrings());
+      failWithMessage(
+          "Expected context '%s' to be contained in '%s'",
+          expectedContext, actual.getContextStrings());
     }
     return this;
   }
@@ -60,8 +60,8 @@ public class UserExceptionAssert extends ThrowableAssert<UserException> {
   public UserExceptionAssert hasErrorType(ErrorType expectedType) {
     isNotNull();
     if (!Objects.equal(actual.getErrorType(), expectedType)) {
-      failWithMessage("Expected error type to be '%s' but was '%s'", expectedType,
-        actual.getErrorType());
+      failWithMessage(
+          "Expected error type to be '%s' but was '%s'", expectedType, actual.getErrorType());
     }
     return this;
   }

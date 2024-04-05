@@ -34,36 +34,33 @@ public class TestTextReaderHelper extends BaseTestQuery {
     this.testFileName = testFileName;
   }
 
-  /**
-   * Helper function to perform select * query
-   * */
+  /** Helper function to perform select * query */
   public void testTableOptionsSelectAll() throws Exception {
     fileFormat.setExtractHeader(true);
-    String query = String.format(generalQuery, "*",testFileName, fileFormat.toTableOptions());
+    String query = String.format(generalQuery, "*", testFileName, fileFormat.toTableOptions());
     testBuilder()
-      .sqlQuery(query)
-      .unOrdered()
-      .baselineColumns(expected[0][0],expected[0][1],expected[0][2])
-      .baselineValues(expected[1][0],expected[1][1],expected[1][2])
-      .baselineValues(expected[2][0],expected[2][1],expected[2][2])
-      .go();
+        .sqlQuery(query)
+        .unOrdered()
+        .baselineColumns(expected[0][0], expected[0][1], expected[0][2])
+        .baselineValues(expected[1][0], expected[1][1], expected[1][2])
+        .baselineValues(expected[2][0], expected[2][1], expected[2][2])
+        .go();
   }
 
-  /**
-   * Helper function to perform select col query for each column
-   * */
+  /** Helper function to perform select col query for each column */
   public void testTableOptionsSelectCol() throws Exception {
     fileFormat.setExtractHeader(true);
     String query;
     for (int i = 0; i < expected[0].length; i++) {
-      query = String.format(generalQuery,expected[0][i], testFileName, fileFormat.toTableOptions());
+      query =
+          String.format(generalQuery, expected[0][i], testFileName, fileFormat.toTableOptions());
       testBuilder()
-        .sqlQuery(query)
-        .unOrdered()
-        .baselineColumns(expected[0][i])
-        .baselineValues(expected[1][i])
-        .baselineValues(expected[2][i])
-        .go();
+          .sqlQuery(query)
+          .unOrdered()
+          .baselineColumns(expected[0][i])
+          .baselineValues(expected[1][i])
+          .baselineValues(expected[2][i])
+          .go();
     }
   }
 }

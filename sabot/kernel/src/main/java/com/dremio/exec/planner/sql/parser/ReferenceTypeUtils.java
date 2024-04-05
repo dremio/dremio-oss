@@ -15,20 +15,18 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.dremio.catalog.model.VersionContext;
 import java.time.Instant;
-import java.util.Locale;
-
 import javax.annotation.Nullable;
-
 import org.apache.calcite.sql.SqlIdentifier;
 
-import com.dremio.catalog.model.VersionContext;
-
 public class ReferenceTypeUtils {
-  private ReferenceTypeUtils() {
-  }
+  private ReferenceTypeUtils() {}
 
-  public static VersionContext map(ReferenceType refType, SqlIdentifier refValue, @Nullable Instant timestamp) {
+  // TODO: Function will be deprecated and all handlers will use map(VersionContext.Type type,
+  // String value, @Nullable Instant timestamp)
+  public static VersionContext map(
+      ReferenceType refType, SqlIdentifier refValue, @Nullable Instant timestamp) {
     if (refType == null || refValue == null) {
       return VersionContext.NOT_SPECIFIED;
     }
@@ -44,7 +42,8 @@ public class ReferenceTypeUtils {
         case TAG:
           return VersionContext.ofTagAsOfTimestamp(refValueString, timestamp);
         case COMMIT:
-          throw new IllegalStateException("Reference type COMMIT does not support specifying a timestamp.");
+          throw new IllegalStateException(
+              "Reference type COMMIT does not support specifying a timestamp.");
         default:
           throw new IllegalStateException("Unexpected value: " + refType);
       }
@@ -64,21 +63,41 @@ public class ReferenceTypeUtils {
     }
   }
 
-  public static VersionContext map(String refType, String refValue) {
-    if (refType == null || refValue == null) {
+  public static VersionContext map(
+      VersionContext.Type type, String value, @Nullable Instant timestamp) {
+    if (type == null || value == null) {
       return VersionContext.NOT_SPECIFIED;
     }
-    switch (ReferenceType.valueOf(refType.toUpperCase(Locale.ROOT))) {
-      case REFERENCE:
-        return VersionContext.ofRef(refValue);
+
+    String refValueString = value.toString();
+
+    if (timestamp != null) {
+      switch (type) {
+        case REF:
+          return VersionContext.ofRefAsOfTimestamp(refValueString, timestamp);
+        case BRANCH:
+          return VersionContext.ofBranchAsOfTimestamp(refValueString, timestamp);
+        case TAG:
+          return VersionContext.ofTagAsOfTimestamp(refValueString, timestamp);
+        case COMMIT:
+          throw new IllegalStateException(
+              "Reference type COMMIT does not support specifying a timestamp.");
+        default:
+          throw new IllegalStateException("Unexpected value: " + type);
+      }
+    }
+
+    switch (type) {
+      case REF:
+        return VersionContext.ofRef(refValueString);
       case BRANCH:
-        return VersionContext.ofBranch(refValue);
+        return VersionContext.ofBranch(refValueString);
       case TAG:
-        return VersionContext.ofTag(refValue);
+        return VersionContext.ofTag(refValueString);
       case COMMIT:
-        return VersionContext.ofCommit(refValue);
+        return VersionContext.ofCommit(refValueString);
       default:
-        throw new IllegalStateException("Unexpected value: " + refType);
+        throw new IllegalStateException("Unexpected value: " + type);
     }
   }
 }

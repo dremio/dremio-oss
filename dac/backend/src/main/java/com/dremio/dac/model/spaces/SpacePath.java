@@ -15,19 +15,16 @@
  */
 package com.dremio.dac.model.spaces;
 
-import java.util.Collections;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
 import com.dremio.dac.model.common.LeafEntity;
 import com.dremio.dac.model.common.NamespacePath;
 import com.dremio.dac.model.common.RootEntity;
 import com.dremio.dac.model.folder.FolderName;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import java.util.Collections;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
-/**
- * Path to space.
- */
+/** Path to space. */
 public class SpacePath extends NamespacePath {
 
   private static final Pattern PARSER = Pattern.compile("/space/([^/]+)");
@@ -70,7 +67,6 @@ public class SpacePath extends NamespacePath {
   }
 
   public SpaceName getSpaceName() {
-    return (SpaceName)getRoot();
+    return (SpaceName) getRoot();
   }
-
 }

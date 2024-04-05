@@ -21,7 +21,8 @@ import com.google.common.collect.ImmutableList;
 public final class FunctionSignatureMerger {
   private FunctionSignatureMerger() {}
 
-  public static ImmutableList<FunctionSignature> merge(ImmutableList<FunctionSignature> signatures) {
+  public static ImmutableList<FunctionSignature> merge(
+      ImmutableList<FunctionSignature> signatures) {
     if (signatures.size() < 2) {
       return signatures;
     }

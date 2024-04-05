@@ -17,14 +17,11 @@ package com.dremio.jdbc;
 
 import java.sql.Connection;
 
-/**
- * A factory used to get open {@link Connection} instances.
- */
+/** A factory used to get open {@link Connection} instances. */
 public interface ConnectionFactory {
 
   /**
-   * Gets an open {@link Connection} based on given {@link ConnectionInfo
-   * connection parameters}.
+   * Gets an open {@link Connection} based on given {@link ConnectionInfo connection parameters}.
    *
    * @param info the connection parameters
    * @throws Exception if factory fails to get a connection.

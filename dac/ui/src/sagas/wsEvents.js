@@ -27,7 +27,6 @@ import {
   updateJobState,
   updateQVJobState,
 } from "actions/jobs/jobs";
-import { getJobList } from "@app/selectors/jobs";
 import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
 
 const getLocation = (state) => state.routing.locationBeforeTransitions;
@@ -69,7 +68,7 @@ function* handleQVJobProgressChange(action) {
         state: attempts[attempts.length - 1].result,
       }),
       id,
-    })
+    }),
   );
 }
 

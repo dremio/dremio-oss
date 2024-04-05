@@ -15,12 +15,6 @@
  */
 package com.dremio.exec.planner.sql.handlers.direct;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-
-import org.apache.calcite.sql.SqlNode;
-
 import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.catalog.model.VersionContext;
@@ -35,6 +29,10 @@ import com.dremio.exec.planner.sql.parser.SqlGrant.Privilege;
 import com.dremio.exec.planner.sql.parser.SqlTruncateTable;
 import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.service.namespace.NamespaceKey;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+import org.apache.calcite.sql.SqlNode;
 
 public class TruncateTableHandler extends SimpleDirectHandler {
 
@@ -57,26 +55,35 @@ public class TruncateTableHandler extends SimpleDirectHandler {
       // properly handle it downstream with the original path.
     }
     final String sourceName = path.getRoot();
-    VersionContext statementSourceVersion = ReferenceTypeUtils.map(truncateTableNode.getRefType(), truncateTableNode.getRefValue(), null);
-    final VersionContext sessionVersion = config.getContext().getSession().getSessionVersionForSource(sourceName);
+    VersionContext statementSourceVersion =
+        ReferenceTypeUtils.map(
+            truncateTableNode.getRefType(), truncateTableNode.getRefValue(), null);
+    final VersionContext sessionVersion =
+        config.getContext().getSession().getSessionVersionForSource(sourceName);
     VersionContext sourceVersion = statementSourceVersion.orElse(sessionVersion);
-    CatalogEntityKey catalogEntityKey = CatalogEntityKey.namespaceKeyToCatalogEntityKey(path, sourceVersion);
+    CatalogEntityKey catalogEntityKey =
+        CatalogEntityKey.namespaceKeyToCatalogEntityKey(path, sourceVersion);
 
-    Optional<SimpleCommandResult> result = IcebergUtils.checkTableExistenceAndMutability(catalog,
-      config, catalogEntityKey, SqlTruncateTable.OPERATOR, truncateTableNode.shouldErrorIfTableDoesNotExist());
-    if(result.isPresent()) {
+    Optional<SimpleCommandResult> result =
+        IcebergUtils.checkTableExistenceAndMutability(
+            catalog,
+            config,
+            catalogEntityKey,
+            SqlTruncateTable.OPERATOR,
+            truncateTableNode.shouldErrorIfTableDoesNotExist());
+    if (result.isPresent()) {
       return Collections.singletonList(result.get());
     }
 
     catalog.validatePrivilege(path, Privilege.TRUNCATE);
 
-    ResolvedVersionContext resolvedVersionContext = CatalogUtil.resolveVersionContext(catalog, sourceName, sourceVersion);
+    ResolvedVersionContext resolvedVersionContext =
+        CatalogUtil.resolveVersionContext(catalog, sourceName, sourceVersion);
     CatalogUtil.validateResolvedVersionIsBranch(resolvedVersionContext);
-    TableMutationOptions tableMutationOptions = TableMutationOptions.newBuilder()
-      .setResolvedVersionContext(resolvedVersionContext)
-      .build();
+    TableMutationOptions tableMutationOptions =
+        TableMutationOptions.newBuilder().setResolvedVersionContext(resolvedVersionContext).build();
     catalog.truncateTable(path, tableMutationOptions);
-    if( !(CatalogUtil.requestedPluginSupportsVersionedTables(path, catalog))) {
+    if (!(CatalogUtil.requestedPluginSupportsVersionedTables(path, catalog))) {
       DataAdditionCmdHandler.refreshDataset(catalog, path, false);
     }
     return Collections.singletonList(SimpleCommandResult.successful("Table [%s] truncated", path));

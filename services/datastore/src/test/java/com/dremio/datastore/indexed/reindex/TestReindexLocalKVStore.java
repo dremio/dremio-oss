@@ -16,36 +16,30 @@
 
 package com.dremio.datastore.indexed.reindex;
 
-import java.io.File;
-import java.util.Collections;
-
-import org.apache.commons.io.FileUtils;
-import org.junit.ClassRule;
-import org.junit.rules.TemporaryFolder;
-
 import com.dremio.datastore.CustomLocalKVStoreProvider;
 import com.dremio.datastore.api.KVStoreProvider;
 import com.dremio.datastore.indexed.doughnut.DoughnutIndexedStore;
 import com.dremio.datastore.indexed.doughnut.UpgradedDoughnutStoreCreator;
+import java.io.File;
+import java.util.Collections;
+import org.apache.commons.io.FileUtils;
+import org.junit.ClassRule;
+import org.junit.rules.TemporaryFolder;
 
 public class TestReindexLocalKVStore extends AbstractReindexTestKVStore {
-  @ClassRule
-  public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+  @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
   private String temporaryPath1;
 
   private KVStoreProvider localKVStoreProvider;
   private KVStoreProvider upgradedLocalKVStoreProvider;
 
-
   @Override
   protected KVStoreProvider createKVStoreProvider() throws Exception {
     temporaryPath1 = TEMPORARY_FOLDER.newFolder().getPath();
-    localKVStoreProvider = new CustomLocalKVStoreProvider(
-      Collections.singleton(DoughnutIndexedStore.class),
-      temporaryPath1,
-      false,
-      false);
+    localKVStoreProvider =
+        new CustomLocalKVStoreProvider(
+            Collections.singleton(DoughnutIndexedStore.class), temporaryPath1, false, false);
     localKVStoreProvider.start();
 
     return localKVStoreProvider;
@@ -56,11 +50,12 @@ public class TestReindexLocalKVStore extends AbstractReindexTestKVStore {
     String temporaryPath2 = TEMPORARY_FOLDER.newFolder().getPath();
     FileUtils.copyDirectory(new File(temporaryPath1), new File(temporaryPath2));
 
-    upgradedLocalKVStoreProvider = new CustomLocalKVStoreProvider(
-      Collections.singleton(UpgradedDoughnutStoreCreator.class),
-      temporaryPath2,
-      false,
-      false);
+    upgradedLocalKVStoreProvider =
+        new CustomLocalKVStoreProvider(
+            Collections.singleton(UpgradedDoughnutStoreCreator.class),
+            temporaryPath2,
+            false,
+            false);
     upgradedLocalKVStoreProvider.start();
 
     return upgradedLocalKVStoreProvider;

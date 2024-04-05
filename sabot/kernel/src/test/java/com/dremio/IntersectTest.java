@@ -15,22 +15,22 @@
  */
 package com.dremio;
 
+import com.dremio.common.types.TypeProtos.MinorType;
+import com.dremio.test.TemporarySystemProperties;
 import org.junit.Rule;
 import org.junit.Test;
 
-import com.dremio.common.types.TypeProtos.MinorType;
-import com.dremio.test.TemporarySystemProperties;
-
 public class IntersectTest extends BaseTestQuery {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(IntersectTest.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(IntersectTest.class);
 
-  @Rule
-  public TemporarySystemProperties properties = new TemporarySystemProperties();
+  @Rule public TemporarySystemProperties properties = new TemporarySystemProperties();
 
-  @Test  // Simple Intersect over two scans
+  @Test // Simple Intersect over two scans
   public void testIntersectDistinct1() throws Exception {
-    String query = "(select n_regionkey from cp.\"tpch/nation.parquet\" where n_regionkey > 1) intersect "
-       + "(select r_regionkey from cp.\"tpch/region.parquet\" where r_regionkey < 4)";
+    String query =
+        "(select n_regionkey from cp.\"tpch/nation.parquet\" where n_regionkey > 1) intersect "
+            + "(select r_regionkey from cp.\"tpch/region.parquet\" where r_regionkey < 4)";
 
     testBuilder()
         .sqlQuery(query)
@@ -43,28 +43,29 @@ public class IntersectTest extends BaseTestQuery {
         .go();
   }
 
-  @Test  // More Intersect over two scans
+  @Test // More Intersect over two scans
   public void testIntersectDistinct2() throws Exception {
-    String query = "(select n_name from cp.\"tpch/nation.parquet\" where n_regionkey = 2) union "
-      + "(select n_name from cp.\"tpch/nation.parquet\" where n_regionkey in (1,2)) intersect "
-      + "(select n_name from cp.\"tpch/nation.parquet\" where n_regionkey < 4)";
+    String query =
+        "(select n_name from cp.\"tpch/nation.parquet\" where n_regionkey = 2) union "
+            + "(select n_name from cp.\"tpch/nation.parquet\" where n_regionkey in (1,2)) intersect "
+            + "(select n_name from cp.\"tpch/nation.parquet\" where n_regionkey < 4)";
 
     testBuilder()
-      .sqlQuery(query)
-      .unOrdered()
-      .csvBaselineFile("")
-      .baselineTypes(MinorType.VARCHAR)
-      .baselineColumns("n_name")
-      .baselineValues("PERU")
-      .baselineValues("INDIA")
-      .baselineValues("VIETNAM")
-      .baselineValues("ARGENTINA")
-      .baselineValues("CANADA")
-      .baselineValues("UNITED STATES")
-      .baselineValues("BRAZIL")
-      .baselineValues("INDONESIA")
-      .baselineValues("JAPAN")
-      .baselineValues("CHINA")
-      .go();
+        .sqlQuery(query)
+        .unOrdered()
+        .csvBaselineFile("")
+        .baselineTypes(MinorType.VARCHAR)
+        .baselineColumns("n_name")
+        .baselineValues("PERU")
+        .baselineValues("INDIA")
+        .baselineValues("VIETNAM")
+        .baselineValues("ARGENTINA")
+        .baselineValues("CANADA")
+        .baselineValues("UNITED STATES")
+        .baselineValues("BRAZIL")
+        .baselineValues("INDONESIA")
+        .baselineValues("JAPAN")
+        .baselineValues("CHINA")
+        .go();
   }
 }

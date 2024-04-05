@@ -15,15 +15,12 @@
  */
 package com.dremio.attach;
 
-import java.lang.instrument.Instrumentation;
-
 import com.dremio.dac.admin.LocalAdmin;
 import com.dremio.dac.resource.ExportProfilesParams;
 import com.google.common.base.Preconditions;
+import java.lang.instrument.Instrumentation;
 
-/**
- * Agent
- */
+/** Agent */
 public class DremioAgent {
 
   public static void agentmain(String args, Instrumentation inst) throws Exception {

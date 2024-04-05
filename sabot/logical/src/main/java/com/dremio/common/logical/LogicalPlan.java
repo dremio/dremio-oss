@@ -15,14 +15,6 @@
  */
 package com.dremio.common.logical;
 
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.graph.Graph;
 import com.dremio.common.graph.GraphAlgos;
@@ -36,8 +28,14 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@JsonPropertyOrder({ "head", "storage", "query" })
+@JsonPropertyOrder({"head", "storage", "query"})
 public class LogicalPlan {
   static final Logger logger = LoggerFactory.getLogger(LogicalPlan.class);
 
@@ -45,12 +43,13 @@ public class LogicalPlan {
   private final Map<String, StoragePluginConfig> storageEngineMap;
   private final Graph<LogicalOperator, SinkOperator, SourceOperator> graph;
 
-
   @JsonCreator
-  public LogicalPlan(@JsonProperty("head") PlanProperties head,
+  public LogicalPlan(
+      @JsonProperty("head") PlanProperties head,
       @JsonProperty("storage") Map<String, StoragePluginConfig> storageEngineMap,
       @JsonProperty("query") List<LogicalOperator> operators) {
-    this.storageEngineMap = storageEngineMap != null ? storageEngineMap : new HashMap<String, StoragePluginConfig>();
+    this.storageEngineMap =
+        storageEngineMap != null ? storageEngineMap : new HashMap<String, StoragePluginConfig>();
     this.properties = head;
     this.graph = Graph.newGraph(operators, SinkOperator.class, SourceOperator.class);
   }
@@ -83,10 +82,10 @@ public class LogicalPlan {
     return config.getMapper().writeValueAsString(this);
   }
 
-  public String toJsonStringSafe(LogicalPlanPersistence config){
-    try{
+  public String toJsonStringSafe(LogicalPlanPersistence config) {
+    try {
       return toJsonString(config);
-    }catch(JsonProcessingException e){
+    } catch (JsonProcessingException e) {
       logger.error("Failure while trying to get JSON representation of plan.", e);
       return "Unable to generate plan.";
     }
@@ -100,7 +99,8 @@ public class LogicalPlan {
       return plan;
     } catch (IOException e) {
 
-      throw new RuntimeException(String.format("Failure while parsing plan: \n %s}", planString), e);
+      throw new RuntimeException(
+          String.format("Failure while parsing plan: \n %s}", planString), e);
     }
   }
 
@@ -116,5 +116,4 @@ public class LogicalPlan {
   public static LogicalPlanBuilder builder() {
     return new LogicalPlanBuilder();
   }
-
 }

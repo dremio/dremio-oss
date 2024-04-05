@@ -18,9 +18,8 @@ package com.dremio.exec.store.dfs;
 import io.protostuff.Tag;
 
 public enum SchemaMutability {
-
   @Tag(1)
-  ALL(true,true,true,true),
+  ALL(true, true, true, true),
 
   @Tag(2)
   NONE(false, false, false, false),
@@ -48,7 +47,10 @@ public enum SchemaMutability {
   final boolean anyoneMutateView;
   final boolean systemMutateView;
 
-  private SchemaMutability(boolean anyoneMutateTable, boolean systemMutateTable, boolean anyoneMutateView,
+  private SchemaMutability(
+      boolean anyoneMutateTable,
+      boolean systemMutateTable,
+      boolean anyoneMutateView,
       boolean systemMutateView) {
     this.anyoneMutateTable = anyoneMutateTable;
     this.systemMutateTable = systemMutateTable;
@@ -56,31 +58,30 @@ public enum SchemaMutability {
     this.systemMutateView = systemMutateView;
   }
 
-  public boolean hasMutationCapability(MutationType type, boolean isSystemUser){
-    if(isSystemUser){
-      switch(type){
-      case VIEW:
-        return systemMutateView;
-      case TABLE:
-        return systemMutateTable;
-      default:
-        throw new IllegalStateException();
+  public boolean hasMutationCapability(MutationType type, boolean isSystemUser) {
+    if (isSystemUser) {
+      switch (type) {
+        case VIEW:
+          return systemMutateView;
+        case TABLE:
+          return systemMutateTable;
+        default:
+          throw new IllegalStateException();
       }
     }
 
-
-    switch(type){
-    case VIEW:
-      return anyoneMutateView;
-    case TABLE:
-      return anyoneMutateTable;
-    default:
-      throw new IllegalStateException();
+    switch (type) {
+      case VIEW:
+        return anyoneMutateView;
+      case TABLE:
+        return anyoneMutateTable;
+      default:
+        throw new IllegalStateException();
     }
-
   }
 
   public static enum MutationType {
-    VIEW, TABLE
+    VIEW,
+    TABLE
   }
 }

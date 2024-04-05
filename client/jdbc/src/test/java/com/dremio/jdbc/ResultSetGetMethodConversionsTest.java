@@ -21,7 +21,6 @@ import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -42,15 +41,13 @@ import org.junit.Test;
 //   (TODO:  Check SQL spec for general canonical form and results of
 //    CAST( TRUE AS VARCHAR ).)
 
-
 /**
  * Integration-level unit test for ResultSet's <code>get<i>Type</i>(<i>column ID</i>)</code>
  * methods' type conversions.
- * <p>
- *   This test class is intended for higher-level type-vs.-type coverage tests.
- *   Detailed-case tests (e.g., boundary conditions) are intended to be in
- *   {@link com.dremio.jdbc.impl.TypeConvertingSqlAccessor}).
- * </p>
+ *
+ * <p>This test class is intended for higher-level type-vs.-type coverage tests. Detailed-case tests
+ * (e.g., boundary conditions) are intended to be in {@link
+ * com.dremio.jdbc.impl.TypeConvertingSqlAccessor}).
  */
 public class ResultSetGetMethodConversionsTest extends JdbcWithServerTestBase {
   private static ResultSet testDataRow;
@@ -62,61 +59,62 @@ public class ResultSetGetMethodConversionsTest extends JdbcWithServerTestBase {
 
     // Set up result row with values of various types.
     final Statement stmt = getConnection().createStatement();
-    testDataRow = stmt.executeQuery(
-        ""
-        +   "SELECT  "
-        + "\n"
-        + "\n  TRUE                             AS  C_BOOLEAN_TRUE, "
-        // TODO(DRILL-2470): Uncomment when TINYINT is implemented:
-        //+ "\n  CAST(  1 AS TINYINT            ) AS  C_TINYINT_1, "
-        // TODO(DRILL-2470): Uncomment when SMALLINT is implemented:
-        //+ "\n  CAST(  2 AS SMALLINT           ) AS  C_SMALLINT_2, "
-        + "\n  CAST(  3 AS INTEGER            ) AS  C_INTEGER_3, "
-        + "\n  CAST(  4 AS BIGINT             ) AS  C_BIGINT_4, "
-        // TODO(DRILL-2683): Uncomment when REAL is implemented:
-        //+ "\n  CAST(  5.5 AS REAL             ) AS \"C_REAL_5.5\", "
-        + "\n  CAST(  6.6 AS DOUBLE PRECISION ) AS \"C_DOUBLE_PREC._6.6\", "
-        + "\n  CAST(  7.7 AS FLOAT            ) AS \"C_FLOAT_7.7\", "
-        + "\n  CAST( 10.10 AS DECIMAL(4,2)         ) AS \"C_DECIMAL_10.10\", "
-        + "\n  CAST( 10.5  AS DECIMAL(3,1)         ) AS \"C_DECIMAL_10.5\", "
-        + "\n  CAST( 11.11 AS DECIMAL(9,2)    ) AS \"C_DECIMAL(9,2)_11.11\", "
-        + "\n  CAST( 12.12 AS DECIMAL(18,2)   ) AS \"C_DECIMAL(18,2)_12.12\", "
-        + "\n  CAST( 13.13 AS DECIMAL(28,2)   ) AS \"C_DECIMAL(28,2)_13.13\", "
-        + "\n  CAST( 14.14 AS DECIMAL(38,2)   ) AS \"C_DECIMAL(38,2)_14.14\", "
-        + "\n  '' "
-        + "\nFROM INFORMATION_SCHEMA.CATALOGS "
-        + "\nLIMIT 1 " );
+    testDataRow =
+        stmt.executeQuery(
+            ""
+                + "SELECT  "
+                + "\n"
+                + "\n  TRUE                             AS  C_BOOLEAN_TRUE, "
+                // TODO(DRILL-2470): Uncomment when TINYINT is implemented:
+                // + "\n  CAST(  1 AS TINYINT            ) AS  C_TINYINT_1, "
+                // TODO(DRILL-2470): Uncomment when SMALLINT is implemented:
+                // + "\n  CAST(  2 AS SMALLINT           ) AS  C_SMALLINT_2, "
+                + "\n  CAST(  3 AS INTEGER            ) AS  C_INTEGER_3, "
+                + "\n  CAST(  4 AS BIGINT             ) AS  C_BIGINT_4, "
+                // TODO(DRILL-2683): Uncomment when REAL is implemented:
+                // + "\n  CAST(  5.5 AS REAL             ) AS \"C_REAL_5.5\", "
+                + "\n  CAST(  6.6 AS DOUBLE PRECISION ) AS \"C_DOUBLE_PREC._6.6\", "
+                + "\n  CAST(  7.7 AS FLOAT            ) AS \"C_FLOAT_7.7\", "
+                + "\n  CAST( 10.10 AS DECIMAL(4,2)         ) AS \"C_DECIMAL_10.10\", "
+                + "\n  CAST( 10.5  AS DECIMAL(3,1)         ) AS \"C_DECIMAL_10.5\", "
+                + "\n  CAST( 11.11 AS DECIMAL(9,2)    ) AS \"C_DECIMAL(9,2)_11.11\", "
+                + "\n  CAST( 12.12 AS DECIMAL(18,2)   ) AS \"C_DECIMAL(18,2)_12.12\", "
+                + "\n  CAST( 13.13 AS DECIMAL(28,2)   ) AS \"C_DECIMAL(28,2)_13.13\", "
+                + "\n  CAST( 14.14 AS DECIMAL(38,2)   ) AS \"C_DECIMAL(38,2)_14.14\", "
+                + "\n  '' "
+                + "\nFROM INFORMATION_SCHEMA.CATALOGS "
+                + "\nLIMIT 1 ");
     // Note: Assertions must be enabled (as they have been so far in tests).
     assertThat(testDataRow.next()).isTrue();
 
     final Statement stmtForNulls = getConnection().createStatement();
-    testDataRowWithNulls = stmtForNulls.executeQuery(
-        ""
-            +   "SELECT  "
-            + "\n"
-            + "\n  CAST(null as boolean)                  AS  C_BOOLEAN_TRUE, "
-            // TODO(DRILL-2470): Uncomment when TINYINT is implemented:
-            //+ "\n  CAST(  null AS TINYINT            ) AS  C_TINYINT_1, "
-            // TODO(DRILL-2470): Uncomment when SMALLINT is implemented:
-            //+ "\n  CAST(  null AS SMALLINT           ) AS  C_SMALLINT_2, "
-            + "\n  CAST(  null AS INTEGER            ) AS  C_INTEGER_3, "
-            + "\n  CAST(  null AS BIGINT             ) AS  C_BIGINT_4, "
-            // TODO(DRILL-2683): Uncomment when REAL is implemented:
-            //+ "\n  CAST(  null AS REAL             ) AS \"C_REAL_5.5\", "
-            + "\n  CAST(  null AS DOUBLE PRECISION ) AS \"C_DOUBLE_PREC._6.6\", "
-            + "\n  CAST(  null AS FLOAT            ) AS \"C_FLOAT_7.7\", "
-            + "\n  CAST( null AS DECIMAL         ) AS \"C_DECIMAL_10.10\", "
-            + "\n  CAST( null  AS DECIMAL         ) AS \"C_DECIMAL_10.5\", "
-            + "\n  CAST( null AS DECIMAL(9,2)    ) AS \"C_DECIMAL(9,2)_11.11\", "
-            + "\n  CAST( null AS DECIMAL(18,2)   ) AS \"C_DECIMAL(18,2)_12.12\", "
-            + "\n  CAST( null AS DECIMAL(28,2)   ) AS \"C_DECIMAL(28,2)_13.13\", "
-            + "\n  CAST( null AS DECIMAL(38,2)   ) AS \"C_DECIMAL(38,2)_14.14\", "
-            + "\n  '' "
-            + "\nFROM (VALUES(1))" );
+    testDataRowWithNulls =
+        stmtForNulls.executeQuery(
+            ""
+                + "SELECT  "
+                + "\n"
+                + "\n  CAST(null as boolean)                  AS  C_BOOLEAN_TRUE, "
+                // TODO(DRILL-2470): Uncomment when TINYINT is implemented:
+                // + "\n  CAST(  null AS TINYINT            ) AS  C_TINYINT_1, "
+                // TODO(DRILL-2470): Uncomment when SMALLINT is implemented:
+                // + "\n  CAST(  null AS SMALLINT           ) AS  C_SMALLINT_2, "
+                + "\n  CAST(  null AS INTEGER            ) AS  C_INTEGER_3, "
+                + "\n  CAST(  null AS BIGINT             ) AS  C_BIGINT_4, "
+                // TODO(DRILL-2683): Uncomment when REAL is implemented:
+                // + "\n  CAST(  null AS REAL             ) AS \"C_REAL_5.5\", "
+                + "\n  CAST(  null AS DOUBLE PRECISION ) AS \"C_DOUBLE_PREC._6.6\", "
+                + "\n  CAST(  null AS FLOAT            ) AS \"C_FLOAT_7.7\", "
+                + "\n  CAST( null AS DECIMAL         ) AS \"C_DECIMAL_10.10\", "
+                + "\n  CAST( null  AS DECIMAL         ) AS \"C_DECIMAL_10.5\", "
+                + "\n  CAST( null AS DECIMAL(9,2)    ) AS \"C_DECIMAL(9,2)_11.11\", "
+                + "\n  CAST( null AS DECIMAL(18,2)   ) AS \"C_DECIMAL(18,2)_12.12\", "
+                + "\n  CAST( null AS DECIMAL(28,2)   ) AS \"C_DECIMAL(28,2)_13.13\", "
+                + "\n  CAST( null AS DECIMAL(38,2)   ) AS \"C_DECIMAL(38,2)_14.14\", "
+                + "\n  '' "
+                + "\nFROM (VALUES(1))");
     // Note: Assertions must be enabled (as they have been so far in tests).
     assertThat(testDataRowWithNulls.next()).isTrue();
   }
-
 
   ////////////////////////////////////////
   // - getByte:
@@ -124,7 +122,6 @@ public class ResultSetGetMethodConversionsTest extends JdbcWithServerTestBase {
   //   - BIT, BOOLEAN;
   //   - CHAR, VARCHAR, LONGVARCHAR;
   //   - ROWID;
-
 
   @Ignore("TODO(DRILL-2470): unignore when TINYINT is implemented")
   @Test

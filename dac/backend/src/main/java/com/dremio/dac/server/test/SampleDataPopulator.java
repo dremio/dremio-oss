@@ -23,22 +23,6 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Arrays.asList;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.net.URL;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-
-import javax.inject.Inject;
-
-import org.apache.commons.io.FileUtils;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.perf.Timer;
@@ -93,15 +77,28 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Throwables;
 import com.google.common.io.Resources;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import javax.inject.Inject;
+import org.apache.commons.io.FileUtils;
 
-/**
- * Populates Dremio spaces with sample data
- */
+/** Populates Dremio spaces with sample data */
 public class SampleDataPopulator implements AutoCloseable {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SampleDataPopulator.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(SampleDataPopulator.class);
 
   public static final String PASSWORD = "dremio123";
-  public static final String DEFAULT_USER_NAME = System.getProperty("dremio.test.default-username", "dremio");
+  public static final String DEFAULT_USER_NAME =
+      System.getProperty("dremio.test.default-username", "dremio");
   public static final String DEFAULT_USER_FIRSTNAME = "Dre";
   public static final String DEFAULT_USER_LASTNAME = "Mio";
 
@@ -125,7 +122,8 @@ public class SampleDataPopulator implements AutoCloseable {
       final UserService userService,
       final NamespaceService namespaceService,
       final String username,
-      CollaborationHelper collaborationService) throws Exception {
+      CollaborationHelper collaborationService)
+      throws Exception {
     this.namespaceService = namespaceService;
     this.datasetService = datasetService;
     this.sourceService = sourceService;
@@ -137,48 +135,65 @@ public class SampleDataPopulator implements AutoCloseable {
   }
 
   /**
-   * Utility method that creates default first user and home folder for the default user. First user is an ADMIN user.
+   * Utility method that creates default first user and home folder for the default user. First user
+   * is an ADMIN user.
    *
    * @param userService {@link UserService} instance
    * @param namespaceService {@link NamespaceService} instance without the user context.
    */
-  public static void addDefaultFirstUser(final UserService userService,
-      final NamespaceService namespaceService) throws Exception {
+  public static void addDefaultFirstUser(
+      final UserService userService, final NamespaceService namespaceService) throws Exception {
     if (!userService.hasAnyUser()) {
       addDefaultDremioUser(userService, namespaceService);
     }
   }
 
   public void populateTestUsers() throws IOException, NamespaceException {
-    createUserIfNotExists(userService, namespaceService, DEFAULT_USER_NAME, PASSWORD, DEFAULT_USER_FIRSTNAME, DEFAULT_USER_LASTNAME);
-    createUserIfNotExists(userService, namespaceService, TEST_USER_NAME, PASSWORD, TEST_USER_NAME, TEST_USER_NAME);
-    createUserIfNotExists(userService, namespaceService, POPULATOR_USER_NAME, PASSWORD, POPULATOR_USER_NAME, POPULATOR_USER_NAME);
+    createUserIfNotExists(
+        userService,
+        namespaceService,
+        DEFAULT_USER_NAME,
+        PASSWORD,
+        DEFAULT_USER_FIRSTNAME,
+        DEFAULT_USER_LASTNAME);
+    createUserIfNotExists(
+        userService, namespaceService, TEST_USER_NAME, PASSWORD, TEST_USER_NAME, TEST_USER_NAME);
+    createUserIfNotExists(
+        userService,
+        namespaceService,
+        POPULATOR_USER_NAME,
+        PASSWORD,
+        POPULATOR_USER_NAME,
+        POPULATOR_USER_NAME);
   }
 
-  public Path getPath(){
+  public Path getPath() {
     return path;
   }
 
   @VisibleForTesting
   public VirtualDatasetUI putDS(String spaceName, String name, From from)
-    throws NamespaceException, DatasetNotFoundException {
+      throws NamespaceException, DatasetNotFoundException {
     return putDS(spaceName, Collections.<FolderName>emptyList(), name, from);
   }
 
   @VisibleForTesting
-  public VirtualDatasetUI putDS(String spaceName, List<FolderName> folderPath, String name, From from)
-    throws NamespaceException, DatasetNotFoundException {
+  public VirtualDatasetUI putDS(
+      String spaceName, List<FolderName> folderPath, String name, From from)
+      throws NamespaceException, DatasetNotFoundException {
     Stopwatch sw = Stopwatch.createStarted();
 
-    DatasetPath datasetPath = new DatasetPath(
-        spaceName.startsWith(HOME_PREFIX) ? new HomeName(spaceName) : new SpaceName(spaceName),
-        folderPath,
-        new DatasetName(name));
+    DatasetPath datasetPath =
+        new DatasetPath(
+            spaceName.startsWith(HOME_PREFIX) ? new HomeName(spaceName) : new SpaceName(spaceName),
+            folderPath,
+            new DatasetName(name));
 
-    VirtualDatasetUI ds = newDataset(datasetPath, newVersion(), from, datasetPath.toParentPathList());
+    VirtualDatasetUI ds =
+        newDataset(datasetPath, newVersion(), from, datasetPath.toParentPathList());
     datasetService.put(ds);
     long t = sw.elapsed(MILLISECONDS);
-    if ( t > 100) {
+    if (t > 100) {
       logger.warn(String.format("creating dataset %s took %dms", datasetPath, t));
     }
     return ds;
@@ -186,26 +201,31 @@ public class SampleDataPopulator implements AutoCloseable {
 
   @VisibleForTesting
   public VirtualDatasetUI updateDS(DatasetPath datasetPath, String savedTag, From from)
-    throws NamespaceException, DatasetNotFoundException {
+      throws NamespaceException, DatasetNotFoundException {
     Stopwatch sw = Stopwatch.createStarted();
-    VirtualDatasetUI ds = newDataset(datasetPath, newVersion(), from, datasetPath.toParentPathList());
+    VirtualDatasetUI ds =
+        newDataset(datasetPath, newVersion(), from, datasetPath.toParentPathList());
     ds.setSavedTag(savedTag);
     datasetService.putVersion(ds);
     long t = sw.elapsed(MILLISECONDS);
-    if ( t > 100) {
+    if (t > 100) {
       logger.warn(String.format("creating dataset %s took %dms", datasetPath, t));
     }
     return ds;
   }
 
-  public void populateInitialData() throws NamespaceException, IOException, DatasetNotFoundException,
-          ExecutionSetupException, DatasetVersionNotFoundException {
+  public void populateInitialData()
+      throws NamespaceException,
+          IOException,
+          DatasetNotFoundException,
+          ExecutionSetupException,
+          DatasetVersionNotFoundException {
     try (TimedBlock b = Timer.time("populateInitialData")) {
       populateInitialData0();
     }
   }
 
-  public void populateSources() throws ExecutionSetupException, NamespaceException{
+  public void populateSources() throws ExecutionSetupException, NamespaceException {
     {
       SourceUI source = new SourceUI();
       source.setName("LocalFS1");
@@ -213,7 +233,8 @@ public class SampleDataPopulator implements AutoCloseable {
       final NASConf nas = new NASConf();
       nas.path = path.toFile().getPath();
       source.setConfig(nas);
-      source.setMetadataPolicy(UIMetadataPolicy.of(CatalogService.DEFAULT_METADATA_POLICY_WITH_AUTO_PROMOTE));
+      source.setMetadataPolicy(
+          UIMetadataPolicy.of(CatalogService.DEFAULT_METADATA_POLICY_WITH_AUTO_PROMOTE));
       sourceService.registerSourceWithRuntime(source.asSourceConfig(), SystemUser.SYSTEM_USERNAME);
     }
 
@@ -224,9 +245,9 @@ public class SampleDataPopulator implements AutoCloseable {
       final NASConf nas = new NASConf();
       nas.path = path.toFile().getPath();
       source.setConfig(nas);
-      source.setMetadataPolicy(UIMetadataPolicy.of(CatalogService.DEFAULT_METADATA_POLICY_WITH_AUTO_PROMOTE));
+      source.setMetadataPolicy(
+          UIMetadataPolicy.of(CatalogService.DEFAULT_METADATA_POLICY_WITH_AUTO_PROMOTE));
       sourceService.registerSourceWithRuntime(source.asSourceConfig(), SystemUser.SYSTEM_USERNAME);
-
     }
 
     {
@@ -236,13 +257,18 @@ public class SampleDataPopulator implements AutoCloseable {
       final NASConf nas = new NASConf();
       nas.path = "/";
       source.setConfig(nas);
-      source.setMetadataPolicy(UIMetadataPolicy.of(CatalogService.DEFAULT_METADATA_POLICY_WITH_AUTO_PROMOTE));
+      source.setMetadataPolicy(
+          UIMetadataPolicy.of(CatalogService.DEFAULT_METADATA_POLICY_WITH_AUTO_PROMOTE));
       sourceService.registerSourceWithRuntime(source.asSourceConfig(), SystemUser.SYSTEM_USERNAME);
     }
   }
 
-  private void populateInitialData0() throws NamespaceException, IOException, DatasetNotFoundException,
-          ExecutionSetupException, DatasetVersionNotFoundException {
+  private void populateInitialData0()
+      throws NamespaceException,
+          IOException,
+          DatasetNotFoundException,
+          ExecutionSetupException,
+          DatasetVersionNotFoundException {
     Stopwatch sw = Stopwatch.createStarted();
     populateTestUsers();
     SpaceConfig spaceConfig = new SpaceConfig();
@@ -250,42 +276,50 @@ public class SampleDataPopulator implements AutoCloseable {
     spaceConfig.setDescription("production");
     spaceConfig.setCtime(System.currentTimeMillis());
 
-    // Check if this space already exists, if it does, skip sample dataset population as it will fail
+    // Check if this space already exists, if it does, skip sample dataset population as it will
+    // fail
     // to re-create due to OCC conflicts
     try {
-      namespaceService.getSpace(new SpacePath(new SpaceName(spaceConfig.getName())).toNamespaceKey());
+      namespaceService.getSpace(
+          new SpacePath(new SpaceName(spaceConfig.getName())).toNamespaceKey());
 
       // If this space already exists (the above line did not throw an exception
       // about space not found), skip sample dataset population entirely, assuming
       // it was successful previously. Partial sample dataset population will need
       // to be fixed by clearing the key value store and starting fresh.
-      logger.info("Found " + spaceConfig.getName() + " space already created. Skipping sample dataset population. If" +
-          " the sample datasets have been changed or if they were only partly constructed, clean the KV store and" +
-          " restart the server.");
+      logger.info(
+          "Found "
+              + spaceConfig.getName()
+              + " space already created. Skipping sample dataset population. If"
+              + " the sample datasets have been changed or if they were only partly constructed, clean the KV store and"
+              + " restart the server.");
       return;
     } catch (Exception ex) {
       // do nothing and continue with the sample dataset population
     }
 
-    namespaceService.addOrUpdateSpace(new SpacePath(new SpaceName(spaceConfig.getName())).toNamespaceKey(), spaceConfig);
+    namespaceService.addOrUpdateSpace(
+        new SpacePath(new SpaceName(spaceConfig.getName())).toNamespaceKey(), spaceConfig);
     spaceConfig = new SpaceConfig();
     spaceConfig.setName("Sales-Sample");
     spaceConfig.setDescription("sales");
     spaceConfig.setCtime(System.currentTimeMillis());
-    namespaceService.addOrUpdateSpace(new SpacePath(new SpaceName(spaceConfig.getName())).toNamespaceKey(), spaceConfig);
+    namespaceService.addOrUpdateSpace(
+        new SpacePath(new SpaceName(spaceConfig.getName())).toNamespaceKey(), spaceConfig);
     spaceConfig = new SpaceConfig();
     spaceConfig.setName("Tpch-Sample");
     spaceConfig.setDescription("tpch queries");
     spaceConfig.setCtime(System.currentTimeMillis());
-    namespaceService.addOrUpdateSpace(new SpacePath(new SpaceName(spaceConfig.getName())).toNamespaceKey(), spaceConfig);
+    namespaceService.addOrUpdateSpace(
+        new SpacePath(new SpaceName(spaceConfig.getName())).toNamespaceKey(), spaceConfig);
     spaceConfig = new SpaceConfig();
     spaceConfig.setName("DG");
     spaceConfig.setDescription("dataset graph");
     spaceConfig.setCtime(System.currentTimeMillis());
-    namespaceService.addOrUpdateSpace(new SpacePath(new SpaceName(spaceConfig.getName())).toNamespaceKey(), spaceConfig);
+    namespaceService.addOrUpdateSpace(
+        new SpacePath(new SpaceName(spaceConfig.getName())).toNamespaceKey(), spaceConfig);
 
     populateSources();
-
 
     Path folder = new File(path.toFile(), "folder1").toPath();
     if (!Files.exists(folder)) {
@@ -295,7 +329,10 @@ public class SampleDataPopulator implements AutoCloseable {
     if (!sample1.exists()) {
       try (BufferedWriter writer = new BufferedWriter(new FileWriter(sample1))) {
         for (int i = 0; i < 100; ++i) {
-          writer.write(String.format("{ \"user\" : \"user%d\", \"age\": %d, \"address\": \"address%d\"}", i, (i % 25), i));
+          writer.write(
+              String.format(
+                  "{ \"user\" : \"user%d\", \"age\": %d, \"address\": \"address%d\"}",
+                  i, (i % 25), i));
         }
       }
     }
@@ -327,26 +364,30 @@ public class SampleDataPopulator implements AutoCloseable {
 
     // add physical datasets
     {
-      PhysicalDatasetPath dacSampleAllTypes = new PhysicalDatasetPath(asList("LocalFS1", allTypesJson));
+      PhysicalDatasetPath dacSampleAllTypes =
+          new PhysicalDatasetPath(asList("LocalFS1", allTypesJson));
       DatasetConfig dacAllTypes = new DatasetConfig();
       dacAllTypes.setOwner(username);
       dacAllTypes.setCreatedAt(System.currentTimeMillis());
       dacAllTypes.setFullPathList(dacSampleAllTypes.toPathList());
       dacAllTypes.setType(DatasetType.PHYSICAL_DATASET_SOURCE_FILE);
       dacAllTypes.setName(allTypesJson);
-      dacAllTypes.setPhysicalDataset(new PhysicalDataset().setFormatSettings(new JsonFileConfig().asFileConfig()));
+      dacAllTypes.setPhysicalDataset(
+          new PhysicalDataset().setFormatSettings(new JsonFileConfig().asFileConfig()));
       namespaceService.addOrUpdateDataset(dacSampleAllTypes.toNamespaceKey(), dacAllTypes);
     }
 
     {
-      PhysicalDatasetPath dacSample1Path = new PhysicalDatasetPath(asList("LocalFS1", "dac-sample1.json"));
+      PhysicalDatasetPath dacSample1Path =
+          new PhysicalDatasetPath(asList("LocalFS1", "dac-sample1.json"));
       DatasetConfig dacSample1 = new DatasetConfig();
       dacSample1.setOwner(username);
       dacSample1.setCreatedAt(System.currentTimeMillis());
       dacSample1.setFullPathList(dacSample1Path.toPathList());
       dacSample1.setType(DatasetType.PHYSICAL_DATASET_SOURCE_FILE);
       dacSample1.setName("dac-sample1.json");
-      dacSample1.setPhysicalDataset(new PhysicalDataset().setFormatSettings(new JsonFileConfig().asFileConfig()));
+      dacSample1.setPhysicalDataset(
+          new PhysicalDataset().setFormatSettings(new JsonFileConfig().asFileConfig()));
       namespaceService.addOrUpdateDataset(dacSample1Path.toNamespaceKey(), dacSample1);
       // adding tags for table (physical dataset)
       List<String> tagList = Arrays.asList("tag3", "tag4");
@@ -355,41 +396,54 @@ public class SampleDataPopulator implements AutoCloseable {
     }
 
     {
-      PhysicalDatasetPath dacSample2Path = new PhysicalDatasetPath(asList("LocalFS2", "dac-sample2.json"));
+      PhysicalDatasetPath dacSample2Path =
+          new PhysicalDatasetPath(asList("LocalFS2", "dac-sample2.json"));
       DatasetConfig dacSample2 = new DatasetConfig();
       dacSample2.setOwner(username);
       dacSample2.setCreatedAt(System.currentTimeMillis());
       dacSample2.setFullPathList(dacSample2Path.toPathList());
       dacSample2.setType(DatasetType.PHYSICAL_DATASET_SOURCE_FILE);
       dacSample2.setName("dac-sample2.json");
-      dacSample2.setPhysicalDataset(new PhysicalDataset().setFormatSettings(new JsonFileConfig().asFileConfig()));
+      dacSample2.setPhysicalDataset(
+          new PhysicalDataset().setFormatSettings(new JsonFileConfig().asFileConfig()));
       namespaceService.addOrUpdateDataset(dacSample2Path.toNamespaceKey(), dacSample2);
       // adding empty tags for table (physical dataset)
       Tags newTags = new Tags(new ArrayList<>(), null);
       collaborationService.setTags(dacSample2.getId().getId(), newTags);
     }
 
-
     putDS("Prod-Sample", "ds1", new FromTable("LocalFS1.\"dac-sample1.json\"").wrap());
-    putDS("Prod-Sample", "ds2", new FromSQL("select * from LocalFS1.\"dac-sample1.json\" where age <= 20").wrap());
+    putDS(
+        "Prod-Sample",
+        "ds2",
+        new FromSQL("select * from LocalFS1.\"dac-sample1.json\" where age <= 20").wrap());
 
     putDS("Sales-Sample", "ds3", new FromTable("LocalFS2.\"dac-sample2.json\"").wrap());
-    putDS("Sales-Sample", "ds4", new FromSQL("select * from LocalFS2.\"dac-sample2.json\" where A >= 900").wrap());
+    putDS(
+        "Sales-Sample",
+        "ds4",
+        new FromSQL("select * from LocalFS2.\"dac-sample2.json\" where A >= 900").wrap());
 
     TestUtilities.addClasspathSourceIf(context.getCatalogService());
 
-    putDS("Tpch-Sample", "tpch20", new FromSQL(
-      getFileContentsFromClassPath("queries/tpch/20.sql")
-      .replaceAll("\\-\\-.*", "")
-      .replace('`', '"')
-      .replace(';', ' ')
-      ).wrap());
-    putDS("Tpch-Sample", "tpch03", new FromSQL(
-      getFileContentsFromClassPath("queries/tpch/03.sql")
-      .replaceAll("\\-\\-.*", "")
-      .replace('`', '"')
-      .replace(';', ' ')
-      ).wrap());
+    putDS(
+        "Tpch-Sample",
+        "tpch20",
+        new FromSQL(
+                getFileContentsFromClassPath("queries/tpch/20.sql")
+                    .replaceAll("\\-\\-.*", "")
+                    .replace('`', '"')
+                    .replace(';', ' '))
+            .wrap());
+    putDS(
+        "Tpch-Sample",
+        "tpch03",
+        new FromSQL(
+                getFileContentsFromClassPath("queries/tpch/03.sql")
+                    .replaceAll("\\-\\-.*", "")
+                    .replace('`', '"')
+                    .replace(';', ' '))
+            .wrap());
 
     // dataset dependency graph
     putDS("DG", "dsg1", new FromSQL("select * from LocalFS1.\"dac-sample1.json\"").wrap());
@@ -400,10 +454,25 @@ public class SampleDataPopulator implements AutoCloseable {
 
     putDS("DG", "dsg5", new FromSQL("select * from DG.dsg3 where age >=900").wrap());
     putDS("DG", "dsg6", new FromSQL("select * from DG.dsg3 where age < 900").wrap());
-    putDS("DG", "dsg7", new FromSQL("select age, dsg3.\"user\" as user1 from DG.dsg3 union select age, dsg5.\"user\" as user2 from DG.dsg5").wrap());
-    putDS("DG", "dsg8", new FromSQL("select t1.age, t2.A from DG.dsg3 t1 inner join DG.dsg4 t2 on t1.age=t2.A").wrap());
-    putDS("DG", "dsg9", new FromSQL("select age A, age B from DG.dsg3 union select A, B from DG.dsg2").wrap());
-    putDS("DG", "dsg10", new FromSQL("select * from DG.dsg9 t1 left join DG.dsg8 t2 on t1.A=t2.age").wrap());
+    putDS(
+        "DG",
+        "dsg7",
+        new FromSQL(
+                "select age, dsg3.\"user\" as user1 from DG.dsg3 union select age, dsg5.\"user\" as user2 from DG.dsg5")
+            .wrap());
+    putDS(
+        "DG",
+        "dsg8",
+        new FromSQL("select t1.age, t2.A from DG.dsg3 t1 inner join DG.dsg4 t2 on t1.age=t2.A")
+            .wrap());
+    putDS(
+        "DG",
+        "dsg9",
+        new FromSQL("select age A, age B from DG.dsg3 union select A, B from DG.dsg2").wrap());
+    putDS(
+        "DG",
+        "dsg10",
+        new FromSQL("select * from DG.dsg9 t1 left join DG.dsg8 t2 on t1.A=t2.age").wrap());
 
     // adding tags for view (virtual dataset)
     DatasetConfig dsg3 = namespaceService.getDataset(new NamespaceKey(Arrays.asList("DG", "dsg3")));
@@ -416,8 +485,10 @@ public class SampleDataPopulator implements AutoCloseable {
     collaborationService.setTags(dsg4.getId().getId(), emptyTags);
 
     long t = sw.elapsed(MILLISECONDS);
-    if ( t > 100) {
-      logger.warn(String.format("com.dremio.dac.daemon.SampleDataPopulator.populateInitialData() took %dms", t));
+    if (t > 100) {
+      logger.warn(
+          String.format(
+              "com.dremio.dac.daemon.SampleDataPopulator.populateInitialData() took %dms", t));
     }
   }
 
@@ -429,14 +500,16 @@ public class SampleDataPopulator implements AutoCloseable {
     return Resources.toString(url, UTF_8);
   }
 
-  private VirtualDatasetUI newDataset(DatasetPath datasetPath, DatasetVersion version,
-      From from, List<String> sqlContext) {
+  private VirtualDatasetUI newDataset(
+      DatasetPath datasetPath, DatasetVersion version, From from, List<String> sqlContext) {
 
     final VirtualDatasetUI ds =
         com.dremio.dac.explore.DatasetTool.newDatasetBeforeQueryMetadata(
             datasetPath, version, from, sqlContext, username, null, null);
     final SqlQuery query = new SqlQuery(ds.getSql(), ds.getState().getContextList(), username);
-    ds.setLastTransform(new Transform(TransformType.createFromParent).setTransformCreateFromParent(new TransformCreateFromParent(from)));
+    ds.setLastTransform(
+        new Transform(TransformType.createFromParent)
+            .setTransformCreateFromParent(new TransformCreateFromParent(from)));
     final QueryMetadata metadata;
 
     try {
@@ -444,17 +517,25 @@ public class SampleDataPopulator implements AutoCloseable {
       metadata = QueryParser.extract(query, context);
       long t = sw.elapsed(MILLISECONDS);
       if (t > 100) {
-        logger.warn(String.format("parsing sql took %dms for %s:\n%s", t, ds.getName(), ds.getSql()));
+        logger.warn(
+            String.format("parsing sql took %dms for %s:\n%s", t, ds.getName(), ds.getSql()));
       }
     } catch (RuntimeException e) {
       Throwables.propagateIfInstanceOf(e, UserException.class);
-      throw new ServerErrorException("Produced invalid SQL:\n" + ds.getSql() + "\n" + e.getMessage(), e);
+      throw new ServerErrorException(
+          "Produced invalid SQL:\n" + ds.getSql() + "\n" + e.getMessage(), e);
     }
 
-    final List<ViewFieldType> viewFieldTypes = Views.viewToFieldTypes(Views.relDataTypeToFieldType(metadata.getRowType()));
+    final List<ViewFieldType> viewFieldTypes =
+        Views.viewToFieldTypes(Views.relDataTypeToFieldType(metadata.getRowType()));
     QuerySemantics.populateSemanticFields(viewFieldTypes, ds.getState());
-    DatasetTool.applyQueryMetadata(ds, metadata.getParents(), metadata.getBatchSchema(), metadata.getFieldOrigins(),
-      metadata.getGrandParents(), JobsProtoUtil.toBuf(metadata));
+    DatasetTool.applyQueryMetadata(
+        ds,
+        metadata.getParents(),
+        metadata.getBatchSchema(),
+        metadata.getFieldOrigins(),
+        metadata.getGrandParents(),
+        JobsProtoUtil.toBuf(metadata));
 
     return ds;
   }

@@ -15,14 +15,11 @@
  */
 package com.dremio.datastore.adapter;
 
-import java.util.List;
-
 import com.dremio.datastore.api.LegacyKVStoreCreationFunction;
 import com.dremio.datastore.format.Format;
+import java.util.List;
 
-/**
- * Exposes KeyFormat for test harness logic.
- */
+/** Exposes KeyFormat for test harness logic. */
 public interface TestLegacyStoreCreationFunction<K, V> extends LegacyKVStoreCreationFunction<K, V> {
 
   Format<K> getKeyFormat();

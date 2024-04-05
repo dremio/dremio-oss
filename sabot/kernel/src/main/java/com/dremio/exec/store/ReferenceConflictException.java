@@ -25,5 +25,4 @@ public class ReferenceConflictException extends RuntimeException {
   public ReferenceConflictException(Throwable cause) {
     super(cause);
   }
-
 }

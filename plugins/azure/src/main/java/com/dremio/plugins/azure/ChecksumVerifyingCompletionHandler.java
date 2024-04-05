@@ -16,24 +16,20 @@
 
 package com.dremio.plugins.azure;
 
+import com.dremio.http.BufferBasedCompletionHandler;
+import io.netty.buffer.ByteBuf;
 import java.io.IOException;
 import java.security.MessageDigest;
 import java.util.Base64;
-
 import org.asynchttpclient.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.http.BufferBasedCompletionHandler;
-
-import io.netty.buffer.ByteBuf;
-
-/**
- * verifies content MD5 checksum if provided in the http-header <code>Content-MD5</code>.
- */
+/** verifies content MD5 checksum if provided in the http-header <code>Content-MD5</code>. */
 public class ChecksumVerifyingCompletionHandler extends BufferBasedCompletionHandler {
 
-  private static final Logger logger = LoggerFactory.getLogger(ChecksumVerifyingCompletionHandler.class);
+  private static final Logger logger =
+      LoggerFactory.getLogger(ChecksumVerifyingCompletionHandler.class);
   public static final String CHECKSUM_RESPONSE_HEADER = "Content-MD5";
   public static final String HASH_ALGORITHM = "MD5";
 
@@ -44,7 +40,8 @@ public class ChecksumVerifyingCompletionHandler extends BufferBasedCompletionHan
   @Override
   public Response onCompleted(Response response) throws Exception {
     if (isRequestFailed()) {
-      logger.error("Error response received {} {}", response.getStatusCode(), response.getResponseBody());
+      logger.error(
+          "Error response received {} {}", response.getStatusCode(), response.getResponseBody());
       throw new RuntimeException(response.getResponseBody());
     }
     String expectedMD5 = response.getHeader(CHECKSUM_RESPONSE_HEADER);
@@ -53,7 +50,8 @@ public class ChecksumVerifyingCompletionHandler extends BufferBasedCompletionHan
       digest.update(getBodyBytes());
       String checksum = Base64.getEncoder().encodeToString(digest.digest());
       if (!checksum.equals(expectedMD5)) {
-        throw new IOException(String.format("mismatched MD5 checksum: got %s, expected %s", checksum, expectedMD5));
+        throw new IOException(
+            String.format("mismatched MD5 checksum: got %s, expected %s", checksum, expectedMD5));
       }
     } else {
       throw new IOException("MD5 checksum requested, but response header missing");

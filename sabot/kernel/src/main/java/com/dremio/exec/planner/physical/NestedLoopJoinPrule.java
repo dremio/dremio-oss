@@ -15,8 +15,14 @@
  */
 package com.dremio.exec.planner.physical;
 
+import com.dremio.exec.planner.logical.DremioRelFactories;
+import com.dremio.exec.planner.logical.JoinRel;
+import com.dremio.exec.planner.logical.ProjectRel;
+import com.dremio.exec.planner.logical.RelOptHelper;
+import com.dremio.exec.work.foreman.UnsupportedRelOperatorException;
+import com.dremio.sabot.op.join.JoinUtils;
+import com.dremio.sabot.op.join.JoinUtils.JoinCategory;
 import java.util.function.Consumer;
-
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptRuleOperand;
@@ -32,17 +38,9 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.util.trace.CalciteTrace;
 import org.slf4j.Logger;
 
-import com.dremio.exec.planner.logical.DremioRelFactories;
-import com.dremio.exec.planner.logical.JoinRel;
-import com.dremio.exec.planner.logical.ProjectRel;
-import com.dremio.exec.planner.logical.RelOptHelper;
-import com.dremio.exec.work.foreman.UnsupportedRelOperatorException;
-import com.dremio.sabot.op.join.JoinUtils;
-import com.dremio.sabot.op.join.JoinUtils.JoinCategory;
-
-
 public class NestedLoopJoinPrule extends JoinPruleBase {
-  public static final RelOptRule INSTANCE = new NestedLoopJoinPrule("Prel.NestedLoopJoinPrule", RelOptHelper.any(JoinRel.class));
+  public static final RelOptRule INSTANCE =
+      new NestedLoopJoinPrule("Prel.NestedLoopJoinPrule", RelOptHelper.any(JoinRel.class));
 
   protected static final Logger tracer = CalciteTrace.getPlannerTracer();
 
@@ -51,34 +49,37 @@ public class NestedLoopJoinPrule extends JoinPruleBase {
   }
 
   @Override
-  protected boolean checkPreconditions(JoinRel join, RelNode left, RelNode right, PlannerSettings settings) {
+  protected boolean checkPreconditions(
+      JoinRel join, RelNode left, RelNode right, PlannerSettings settings) {
     if (!settings.isNestedLoopJoinEnabled()) {
       return false;
     }
     JoinRelType type = join.getJoinType();
     boolean vectorized = settings.getOptions().getOption(NestedLoopJoinPrel.VECTORIZED);
-    switch(type) {
-    case INNER:
-      break;
-    case LEFT:
-    case RIGHT:
-      if(!vectorized) {
+    switch (type) {
+      case INNER:
+        break;
+      case LEFT:
+      case RIGHT:
+        if (!vectorized) {
+          return false;
+        }
+        break;
+      case FULL:
+        return join.getCondition().isAlwaysTrue();
+      default:
         return false;
-      }
-      break;
-    case FULL:
-      return join.getCondition().isAlwaysTrue();
-    default:
-      return false;
     }
 
     JoinCategory category = join.getJoinCategory();
-    if (category == JoinCategory.EQUALITY && (settings.isHashJoinEnabled() || settings.isMergeJoinEnabled())) {
+    if (category == JoinCategory.EQUALITY
+        && (settings.isHashJoinEnabled() || settings.isMergeJoinEnabled())) {
       return false;
     }
 
     if (isInequalityHashJoinSupported(join, settings.getOptions())) {
-      // Don't convert to NLJ if this join can be converted to a hash join with supported extra conditions
+      // Don't convert to NLJ if this join can be converted to a hash join with supported extra
+      // conditions
       return false;
     }
 
@@ -102,24 +103,42 @@ public class NestedLoopJoinPrule extends JoinPruleBase {
     Consumer<RelNode> transform = call::transformTo;
 
     // swap right joins since that is the only way to complete them.
-    if(join.getJoinType() == JoinRelType.RIGHT) {
-      RelNode projectMaybe = JoinCommuteRule.swap(join, true, DremioRelFactories.LOGICAL_BUILDER.create(join.getCluster(), null));
-      if(!(projectMaybe instanceof ProjectRel) ) {
+    if (join.getJoinType() == JoinRelType.RIGHT) {
+      RelNode projectMaybe =
+          JoinCommuteRule.swap(
+              join, true, DremioRelFactories.LOGICAL_BUILDER.create(join.getCluster(), null));
+      if (!(projectMaybe instanceof ProjectRel)) {
         tracer.debug("Post swap we don't have a ProjectRel at root of tree.");
         return;
       }
 
       ProjectRel project = (ProjectRel) projectMaybe;
 
-      if(!(project.getInput() instanceof JoinRel)) {
-        tracer.debug("Post swap we don't have a ProjectRel on top of a JoinRel. Was actually a {}.", project.getInput().getClass().getName());
+      if (!(project.getInput() instanceof JoinRel)) {
+        tracer.debug(
+            "Post swap we don't have a ProjectRel on top of a JoinRel. Was actually a {}.",
+            project.getInput().getClass().getName());
         return;
       }
 
-      transform = input -> {
-        RelTraitSet newTraits = input.getTraitSet().plus(Prel.PHYSICAL).plus(RelCollations.EMPTY); // we use an empty collation here since nlj doesn't maitain ordering.
-        call.transformTo(new ProjectPrel(input.getCluster(), newTraits, input, project.getProjects(), project.getRowType()));
-      };
+      transform =
+          input -> {
+            RelTraitSet newTraits =
+                input
+                    .getTraitSet()
+                    .plus(Prel.PHYSICAL)
+                    .plus(
+                        RelCollations
+                            .EMPTY); // we use an empty collation here since nlj doesn't maitain
+            // ordering.
+            call.transformTo(
+                new ProjectPrel(
+                    input.getCluster(),
+                    newTraits,
+                    input,
+                    project.getProjects(),
+                    project.getRowType()));
+          };
       join = (JoinRel) project.getInput(0);
     }
 
@@ -130,12 +149,22 @@ public class NestedLoopJoinPrule extends JoinPruleBase {
     JoinRelType joinType = join.getJoinType();
     RelNode convertedLeft = convert(left, Prel.PHYSICAL);
 
-    // see DX-17835 to understand why we do this kind of chaining (instead of building the traitset all at once)
+    // see DX-17835 to understand why we do this kind of chaining (instead of building the traitset
+    // all at once)
     RelNode convertedRight = convert(right, Prel.PHYSICAL, DistributionTrait.BROADCAST);
 
-
-    final NestedLoopJoinPrel newJoin = NestedLoopJoinPrel.create(join.getCluster(), convertedLeft.getTraitSet().plus(RelCollations.EMPTY), convertedLeft, convertedRight, joinType, joinCondition);
-    final boolean vectorized = PrelUtil.getPlannerSettings(call.getPlanner()).getOptions().getOption(NestedLoopJoinPrel.VECTORIZED);
+    final NestedLoopJoinPrel newJoin =
+        NestedLoopJoinPrel.create(
+            join.getCluster(),
+            convertedLeft.getTraitSet().plus(RelCollations.EMPTY),
+            convertedLeft,
+            convertedRight,
+            joinType,
+            joinCondition);
+    final boolean vectorized =
+        PrelUtil.getPlannerSettings(call.getPlanner())
+            .getOptions()
+            .getOption(NestedLoopJoinPrel.VECTORIZED);
 
     if (joinCondition.isAlwaysTrue()) {
       transform.accept(newJoin);
@@ -143,25 +172,27 @@ public class NestedLoopJoinPrule extends JoinPruleBase {
     }
 
     if (!vectorized) {
-      switch(joinType) {
-      case INNER:
-        // generate a join with a filter on top.
-        transform.accept(new FilterPrel(join.getCluster(), convertedLeft.getTraitSet(), newJoin, joinCondition));
-        return;
-      default:
-        // not supported.
-        return;
+      switch (joinType) {
+        case INNER:
+          // generate a join with a filter on top.
+          transform.accept(
+              new FilterPrel(
+                  join.getCluster(), convertedLeft.getTraitSet(), newJoin, joinCondition));
+          return;
+        default:
+          // not supported.
+          return;
       }
     }
 
     switch (joinType) {
-    case INNER:
-    case LEFT:
-      transform.accept(newJoin);
-      break;
-    case RIGHT:
-    default:
-      break;
+      case INNER:
+      case LEFT:
+        transform.accept(newJoin);
+        break;
+      case RIGHT:
+      default:
+        break;
     }
   }
 
@@ -173,25 +204,31 @@ public class NestedLoopJoinPrule extends JoinPruleBase {
       final RelNode incomingLeft,
       final RelNode incomingRight,
       final RelCollation collationLeft,
-      final RelCollation collationRight) throws InvalidRelException {
+      final RelCollation collationRight)
+      throws InvalidRelException {
     throw new UnsupportedOperationException("Not used.");
   }
 
   @Override
-  protected void createDistBothPlan(RelOptRuleCall call, JoinRel join,
-                                    RelNode left, RelNode right,
-                                    RelCollation collationLeft, RelCollation collationRight,
-                                    DistributionTrait hashLeftPartition, DistributionTrait hashRightPartition) throws UnsupportedRelOperatorException {
+  protected void createDistBothPlan(
+      RelOptRuleCall call,
+      JoinRel join,
+      RelNode left,
+      RelNode right,
+      RelCollation collationLeft,
+      RelCollation collationRight,
+      DistributionTrait hashLeftPartition,
+      DistributionTrait hashRightPartition)
+      throws UnsupportedRelOperatorException {
     throw new UnsupportedOperationException("Not used.");
   }
-
 
   /**
    * Convert to a set of new traits based on overriding the existing traits of the provided node
    *
-   * TODO: evaluate if we should move this to Prule for other uses.
+   * <p>TODO: evaluate if we should move this to Prule for other uses.
    *
-   * See DX-17835 for further details of why this was introduced.
+   * <p>See DX-17835 for further details of why this was introduced.
    *
    * @param rel The rel node to start with (and use as a basis for traits)
    * @param traits The ordered list of traits to convert to.

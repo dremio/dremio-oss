@@ -20,8 +20,8 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.mockito.Mockito.when;
 
+import com.dremio.options.OptionManager;
 import java.util.UUID;
-
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -30,17 +30,11 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.mockito.quality.Strictness;
 
-import com.dremio.options.OptionManager;
-
-/**
- * Unit Test class for {@link ReflectionServiceHelper}
- */
+/** Unit Test class for {@link ReflectionServiceHelper} */
 public class TestReflectionServiceHelper {
-  @Rule
-  public MockitoRule rule = MockitoJUnit.rule().strictness(Strictness.STRICT_STUBS);
+  @Rule public MockitoRule rule = MockitoJUnit.rule().strictness(Strictness.STRICT_STUBS);
 
-  @Mock
-  private OptionManager optionManager;
+  @Mock private OptionManager optionManager;
 
   private ReflectionServiceHelper reflectionServiceHelper;
 
@@ -51,17 +45,19 @@ public class TestReflectionServiceHelper {
 
   @Test
   public void testIsVersionedSourceEnabledForVersionedSourceThrowsUnsupportedError() {
-    String datasetId = "{\"tableKey\":[\"nessie_without_auth\",\"test\"],\"contentId\":\"cf3c730a-98c0-43a1-855d-02fb97a046c6" +
-      "\",\"versionContext\":{\"type\":\"BRANCH\",\"value\":\"main\"}}";
+    String datasetId =
+        "{\"tableKey\":[\"nessie_without_auth\",\"test\"],\"contentId\":\"cf3c730a-98c0-43a1-855d-02fb97a046c6"
+            + "\",\"versionContext\":{\"type\":\"BRANCH\",\"value\":\"main\"}}";
     assertThatThrownBy(() -> reflectionServiceHelper.isVersionedSourceEnabled(datasetId))
-      .hasMessageContaining("does not support reflection")
-      .isInstanceOf(UnsupportedOperationException.class);
+        .hasMessageContaining("does not support reflection")
+        .isInstanceOf(UnsupportedOperationException.class);
   }
 
   @Test
   public void testIsVersionedSourceEnabledForVersionedSource() {
-    String datasetId = "{\"tableKey\":[\"nessie_without_auth\",\"test\"],\"contentId\":\"cf3c730a-98c0-43a1-855d-02fb97a046c6" +
-      "\",\"versionContext\":{\"type\":\"BRANCH\",\"value\":\"main\"}}";
+    String datasetId =
+        "{\"tableKey\":[\"nessie_without_auth\",\"test\"],\"contentId\":\"cf3c730a-98c0-43a1-855d-02fb97a046c6"
+            + "\",\"versionContext\":{\"type\":\"BRANCH\",\"value\":\"main\"}}";
     when(optionManager.getOption(REFLECTION_VERSIONED_SOURCE_ENABLED)).thenReturn(true);
     assertDoesNotThrow(() -> reflectionServiceHelper.isVersionedSourceEnabled(datasetId));
   }

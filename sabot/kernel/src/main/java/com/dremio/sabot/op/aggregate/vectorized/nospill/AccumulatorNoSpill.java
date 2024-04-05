@@ -18,15 +18,14 @@ package com.dremio.sabot.op.aggregate.vectorized.nospill;
 import com.dremio.sabot.op.common.ht2.ResizeListenerNoSpill;
 
 /**
- * Interface for implementing a measure. Maintains an array of workspace and/or
- * output vectors as well as a refrence to the input vector.
+ * Interface for implementing a measure. Maintains an array of workspace and/or output vectors as
+ * well as a refrence to the input vector.
  */
 public interface AccumulatorNoSpill extends ResizeListenerNoSpill, AutoCloseable {
 
   /**
-   * Accumulate the data that is specified at the provided offset vector. The
-   * offset vector describes which local mapping each of the <count> records
-   * should be addressed.
+   * Accumulate the data that is specified at the provided offset vector. The offset vector
+   * describes which local mapping each of the <count> records should be addressed.
    *
    * @param offsetAddr
    * @param count
@@ -35,6 +34,7 @@ public interface AccumulatorNoSpill extends ResizeListenerNoSpill, AutoCloseable
 
   /**
    * Output the data for the provided the batch index to the output vectors.
+   *
    * @param batchIndex
    */
   void output(int batchIndex);

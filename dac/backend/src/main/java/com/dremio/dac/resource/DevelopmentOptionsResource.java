@@ -15,6 +15,16 @@
  */
 package com.dremio.dac.resource;
 
+import com.dremio.dac.annotations.RestResource;
+import com.dremio.dac.annotations.Secured;
+import com.dremio.dac.proto.model.acceleration.SystemSettingsApiDescriptor;
+import com.dremio.dac.service.reflection.ReflectionServiceHelper;
+import com.dremio.exec.ExecConstants;
+import com.dremio.exec.server.options.ProjectOptionManager;
+import com.dremio.options.OptionValue;
+import com.dremio.service.reflection.ReflectionOptions;
+import com.dremio.service.reflection.ReflectionService;
+import com.google.common.base.Preconditions;
 import javax.annotation.security.RolesAllowed;
 import javax.inject.Inject;
 import javax.ws.rs.Consumes;
@@ -25,19 +35,7 @@ import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 
-import com.dremio.dac.annotations.RestResource;
-import com.dremio.dac.annotations.Secured;
-import com.dremio.dac.proto.model.acceleration.SystemSettingsApiDescriptor;
-import com.dremio.dac.service.reflection.ReflectionServiceHelper;
-import com.dremio.exec.ExecConstants;
-import com.dremio.exec.server.options.ProjectOptionManager;
-import com.dremio.options.OptionValue;
-import com.dremio.service.reflection.ReflectionOptions;
-import com.google.common.base.Preconditions;
-
-/**
- * API for setting low-level development options. Not meant to be a permanent API.
- */
+/** API for setting low-level development options. Not meant to be a permanent API. */
 @RestResource
 @Secured
 @RolesAllowed({"admin"})
@@ -45,12 +43,16 @@ import com.google.common.base.Preconditions;
 public class DevelopmentOptionsResource {
   private ReflectionServiceHelper reflectionServiceHelper;
   private ProjectOptionManager projectOptionManager;
+  private ReflectionService reflectionService;
 
   @Inject
-  public DevelopmentOptionsResource(ReflectionServiceHelper reflectionServiceHelper,
-                                    ProjectOptionManager projectOptionManager) {
+  public DevelopmentOptionsResource(
+      ReflectionService service,
+      ReflectionServiceHelper reflectionServiceHelper,
+      ProjectOptionManager projectOptionManager) {
     this.reflectionServiceHelper = reflectionServiceHelper;
     this.projectOptionManager = projectOptionManager;
+    this.reflectionService = service;
   }
 
   @GET
@@ -60,11 +62,18 @@ public class DevelopmentOptionsResource {
     return Boolean.toString(reflectionServiceHelper.isSubstitutionEnabled());
   }
 
+  @GET
+  @Path("/acceleration/cacheinitialized")
+  @Produces(MediaType.APPLICATION_JSON)
+  public String isMaterializationCacheInitialized() {
+    return Boolean.toString(reflectionService.getCacheViewerProvider().get().isInitialized());
+  }
+
   @PUT
   @Path("/acceleration/enabled")
   @Consumes(MediaType.APPLICATION_JSON)
   @Produces(MediaType.APPLICATION_JSON)
-  public String setAccelerationEnabled(/* Body */String body) {
+  public String setAccelerationEnabled(/* Body */ String body) {
     boolean enabled = Boolean.valueOf(body);
     reflectionServiceHelper.setSubstitutionEnabled(enabled);
     return body;
@@ -76,17 +85,31 @@ public class DevelopmentOptionsResource {
     reflectionServiceHelper.clearAllReflections();
   }
 
+  @POST
+  @Path("/acceleration/retryunavailable")
+  public void retryGivenUp() {
+    reflectionServiceHelper.retryUnavailableReflections();
+  }
+
+  @POST
+  @Path("/acceleration/clean")
+  public void clean() {
+    reflectionService.clean();
+  }
+
   @GET
   @Path("/acceleration/settings")
   @Produces(MediaType.APPLICATION_JSON)
   public SystemSettingsApiDescriptor getSystemSettings() {
     return new SystemSettingsApiDescriptor()
-      .setLimit((int) projectOptionManager.getOption(ReflectionOptions.MAX_AUTOMATIC_REFLECTIONS))
-      .setAccelerateAggregation(projectOptionManager.getOption(ReflectionOptions.ENABLE_AUTOMATIC_AGG_REFLECTIONS))
-      .setAccelerateRaw(projectOptionManager.getOption(ReflectionOptions.ENABLE_AUTOMATIC_RAW_REFLECTIONS))
-      .setLayoutRefreshMaxAttempts((int) projectOptionManager.getOption(ExecConstants.LAYOUT_REFRESH_MAX_ATTEMPTS));
+        .setLimit((int) projectOptionManager.getOption(ReflectionOptions.MAX_AUTOMATIC_REFLECTIONS))
+        .setAccelerateAggregation(
+            projectOptionManager.getOption(ReflectionOptions.ENABLE_AUTOMATIC_AGG_REFLECTIONS))
+        .setAccelerateRaw(
+            projectOptionManager.getOption(ReflectionOptions.ENABLE_AUTOMATIC_RAW_REFLECTIONS))
+        .setLayoutRefreshMaxAttempts(
+            (int) projectOptionManager.getOption(ExecConstants.LAYOUT_REFRESH_MAX_ATTEMPTS));
   }
-
 
   @PUT
   @Consumes(MediaType.APPLICATION_JSON)
@@ -95,14 +118,31 @@ public class DevelopmentOptionsResource {
   public void saveSystemSettings(final SystemSettingsApiDescriptor descriptor) {
     Preconditions.checkArgument(descriptor.getLimit() != null, "limit is required");
     Preconditions.checkArgument(descriptor.getLimit() > 0, "limit must be positive");
-    Preconditions.checkArgument(descriptor.getAccelerateAggregation() != null, "accelerateAggregation is required");
+    Preconditions.checkArgument(
+        descriptor.getAccelerateAggregation() != null, "accelerateAggregation is required");
     Preconditions.checkArgument(descriptor.getAccelerateRaw() != null, "accelerateRaw is required");
 
-    projectOptionManager.setOption(OptionValue.createLong(OptionValue.OptionType.SYSTEM, ReflectionOptions.MAX_AUTOMATIC_REFLECTIONS.getOptionName(), descriptor.getLimit()));
-    projectOptionManager.setOption(OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, ReflectionOptions.ENABLE_AUTOMATIC_AGG_REFLECTIONS.getOptionName(), descriptor.getAccelerateAggregation()));
-    projectOptionManager.setOption(OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, ReflectionOptions.ENABLE_AUTOMATIC_RAW_REFLECTIONS.getOptionName(), descriptor.getAccelerateRaw()));
+    projectOptionManager.setOption(
+        OptionValue.createLong(
+            OptionValue.OptionType.SYSTEM,
+            ReflectionOptions.MAX_AUTOMATIC_REFLECTIONS.getOptionName(),
+            descriptor.getLimit()));
+    projectOptionManager.setOption(
+        OptionValue.createBoolean(
+            OptionValue.OptionType.SYSTEM,
+            ReflectionOptions.ENABLE_AUTOMATIC_AGG_REFLECTIONS.getOptionName(),
+            descriptor.getAccelerateAggregation()));
+    projectOptionManager.setOption(
+        OptionValue.createBoolean(
+            OptionValue.OptionType.SYSTEM,
+            ReflectionOptions.ENABLE_AUTOMATIC_RAW_REFLECTIONS.getOptionName(),
+            descriptor.getAccelerateRaw()));
     if (descriptor.getLayoutRefreshMaxAttempts() != null) {
-      projectOptionManager.setOption(OptionValue.createLong(OptionValue.OptionType.SYSTEM, ExecConstants.LAYOUT_REFRESH_MAX_ATTEMPTS.getOptionName(), descriptor.getLayoutRefreshMaxAttempts()));
+      projectOptionManager.setOption(
+          OptionValue.createLong(
+              OptionValue.OptionType.SYSTEM,
+              ExecConstants.LAYOUT_REFRESH_MAX_ATTEMPTS.getOptionName(),
+              descriptor.getLayoutRefreshMaxAttempts()));
     }
   }
 }

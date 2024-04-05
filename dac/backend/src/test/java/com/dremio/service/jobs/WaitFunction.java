@@ -15,25 +15,24 @@
  */
 package com.dremio.service.jobs;
 
-import org.apache.arrow.vector.holders.IntHolder;
-import org.apache.arrow.vector.holders.NullableBigIntHolder;
-import org.apache.arrow.vector.holders.VarCharHolder;
-
 import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
+import org.apache.arrow.vector.holders.IntHolder;
+import org.apache.arrow.vector.holders.NullableBigIntHolder;
+import org.apache.arrow.vector.holders.VarCharHolder;
 
-/**
- * Function that waits for a latch.
- */
+/** Function that waits for a latch. */
 public class WaitFunction {
 
-  /**
-   * Wait Function
-   */
-  @FunctionTemplate(name = "wait", scope = FunctionTemplate.FunctionScope.SIMPLE, isDeterministic = false, nulls = NullHandling.INTERNAL)
+  /** Wait Function */
+  @FunctionTemplate(
+      name = "wait",
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      isDeterministic = false,
+      nulls = NullHandling.INTERNAL)
   public static class Wait implements SimpleFunction {
 
     @Param private VarCharHolder key;
@@ -41,13 +40,15 @@ public class WaitFunction {
     @Output private NullableBigIntHolder out;
 
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
     public void eval() {
-      final String stringKey = com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(key.start, key.end, key.buffer);
-      com.dremio.service.jobs.TestJobService.TestingFunctionHelper.tryRun(stringKey, timeout.value, java.util.concurrent.TimeUnit.SECONDS);
+      final String stringKey =
+          com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(
+              key.start, key.end, key.buffer);
+      com.dremio.service.jobs.TestJobService.TestingFunctionHelper.tryRun(
+          stringKey, timeout.value, java.util.concurrent.TimeUnit.SECONDS);
       out.value = 0;
     }
   }

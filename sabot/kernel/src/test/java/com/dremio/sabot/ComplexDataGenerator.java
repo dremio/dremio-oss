@@ -24,12 +24,18 @@ import static org.apache.arrow.vector.types.Types.MinorType.LIST;
 import static org.apache.arrow.vector.types.Types.MinorType.VARCHAR;
 import static org.apache.arrow.vector.types.pojo.FieldType.nullable;
 
+import com.dremio.common.AutoCloseables;
+import com.dremio.common.expression.CompleteType;
+import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.record.VectorAccessible;
+import com.dremio.exec.record.VectorContainer;
+import com.dremio.sabot.Fixtures.DataRow;
+import com.google.common.base.Preconditions;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.IntVector;
@@ -45,17 +51,7 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.util.JsonStringArrayList;
 import org.apache.arrow.vector.util.JsonStringHashMap;
 
-import com.dremio.common.AutoCloseables;
-import com.dremio.common.expression.CompleteType;
-import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.record.VectorAccessible;
-import com.dremio.exec.record.VectorContainer;
-import com.dremio.sabot.Fixtures.DataRow;
-import com.google.common.base.Preconditions;
-
-/**
- * Generates a table with lot of nested data types and two scalar types
- */
+/** Generates a table with lot of nested data types and two scalar types */
 public class ComplexDataGenerator implements Generator {
 
   private static final Random random = new Random(2893467218534L);
@@ -65,14 +61,17 @@ public class ComplexDataGenerator implements Generator {
   private static final Field l1Ints = CompleteType.INT.asList().toField("l1Ints");
   private static final Field l1Strings = CompleteType.VARCHAR.asList().toField("l1Strings");
   private static final Field l2Ints = CompleteType.INT.asList().asList().toField("l2Ints");
-  private static final Field l2Strings = CompleteType.VARCHAR.asList().asList().toField("l2Strings");
+  private static final Field l2Strings =
+      CompleteType.VARCHAR.asList().asList().toField("l2Strings");
   private static final Field l3Ints = CompleteType.INT.asList().asList().asList().toField("l3Ints");
-  private static final Field l3Strings = CompleteType.VARCHAR.asList().asList().asList().toField("l3Strings");
-  private static final Field map = CompleteType.struct(
-      CompleteType.VARCHAR.toField("varchar"),
-      CompleteType.INT.toField("int"),
-      CompleteType.BIT.asList().toField("bits")
-  ).toField("map");
+  private static final Field l3Strings =
+      CompleteType.VARCHAR.asList().asList().asList().toField("l3Strings");
+  private static final Field map =
+      CompleteType.struct(
+              CompleteType.VARCHAR.toField("varchar"),
+              CompleteType.INT.toField("int"),
+              CompleteType.BIT.asList().toField("bits"))
+          .toField("map");
 
   private final List<Integer> intsVals;
   private final List<String> stringsVals;
@@ -111,17 +110,18 @@ public class ComplexDataGenerator implements Generator {
     l3StringsVals = l3Strings(numRows);
     mapVals = mapVals(numRows);
 
-    BatchSchema schema = BatchSchema.newBuilder()
-        .addField(ints)
-        .addField(strings)
-        .addField(l1Ints)
-        .addField(l1Strings)
-        .addField(l2Ints)
-        .addField(l2Strings)
-        .addField(l3Ints)
-        .addField(l3Strings)
-        .addField(map)
-        .build();
+    BatchSchema schema =
+        BatchSchema.newBuilder()
+            .addField(ints)
+            .addField(strings)
+            .addField(l1Ints)
+            .addField(l1Strings)
+            .addField(l2Ints)
+            .addField(l2Strings)
+            .addField(l3Ints)
+            .addField(l3Strings)
+            .addField(map)
+            .build();
 
     container = VectorContainer.create(allocator, schema);
 
@@ -142,14 +142,15 @@ public class ComplexDataGenerator implements Generator {
     structVector = container.addOrGet(map);
     structVector.addOrGet("varchar", nullable(VARCHAR.getType()), VarCharVector.class);
     structVector.addOrGet("int", nullable(INT.getType()), IntVector.class);
-    ListVector listVector = structVector.addOrGet("bits", nullable(LIST.getType()), ListVector.class);
+    ListVector listVector =
+        structVector.addOrGet("bits", nullable(LIST.getType()), ListVector.class);
     addChild(listVector, BIT);
 
     tempBuf = allocator.buffer(2048);
   }
 
   private ValueVector addChild(ValueVector vector, MinorType child) {
-    return ((ListVector)vector).addOrGetVector(nullable(child.getType())).getVector();
+    return ((ListVector) vector).addOrGetVector(nullable(child.getType())).getVector();
   }
 
   private static List<List<Integer>> l1Ints(int size) {
@@ -180,7 +181,7 @@ public class ComplexDataGenerator implements Generator {
 
   private static List<List<List<Integer>>> l2Ints(int size) {
     List<List<List<Integer>>> l2Ints = new JsonStringArrayList<>(size);
-    for(int i = 0; i < size; i++) {
+    for (int i = 0; i < size; i++) {
       final int listSize = random.nextInt(3);
       l2Ints.add(l1Ints(listSize));
     }
@@ -190,7 +191,7 @@ public class ComplexDataGenerator implements Generator {
 
   private static List<List<List<String>>> l2Strings(int size) {
     List<List<List<String>>> l2Strings = new JsonStringArrayList<>(size);
-    for(int i = 0; i < size; i++) {
+    for (int i = 0; i < size; i++) {
       final int listSize = random.nextInt(3);
       l2Strings.add(l1Strings(listSize));
     }
@@ -200,7 +201,7 @@ public class ComplexDataGenerator implements Generator {
 
   private static List<List<List<List<Integer>>>> l3Ints(int size) {
     List<List<List<List<Integer>>>> l3Ints = new JsonStringArrayList<>(size);
-    for(int i = 0; i < size; i++) {
+    for (int i = 0; i < size; i++) {
       final int listSize = random.nextInt(3);
       l3Ints.add(l2Ints(listSize));
     }
@@ -210,7 +211,7 @@ public class ComplexDataGenerator implements Generator {
 
   private static List<List<List<List<String>>>> l3Strings(int size) {
     List<List<List<List<String>>>> l3Strings = new JsonStringArrayList<>(size);
-    for(int i = 0; i < size; i++) {
+    for (int i = 0; i < size; i++) {
       final int listSize = random.nextInt(3);
       l3Strings.add(l2Strings(listSize));
     }
@@ -220,11 +221,11 @@ public class ComplexDataGenerator implements Generator {
 
   private static List<Map<String, Object>> mapVals(int size) {
     List<Map<String, Object>> vals = new JsonStringArrayList<>(size);
-    for(int i = 0; i < size; i++) {
+    for (int i = 0; i < size; i++) {
       Map<String, Object> val = new JsonStringHashMap<>();
       val.put("varchar", randomString());
       val.put("int", random.nextInt());
-      val.put("bits", new Boolean[] { true, false, false, true});
+      val.put("bits", new Boolean[] {true, false, false, true});
       vals.add(val);
     }
 
@@ -235,7 +236,7 @@ public class ComplexDataGenerator implements Generator {
     int length = random.nextInt(50);
     StringBuilder builder = new StringBuilder();
     for (int i = 0; i < length; i++) {
-      builder.append((char)random.nextInt(26) + 65);
+      builder.append((char) random.nextInt(26) + 65);
     }
     return builder.toString();
   }
@@ -301,7 +302,7 @@ public class ComplexDataGenerator implements Generator {
           ListWriter nestedWriter = l2IntsWriter.list();
           nestedWriter.setPosition(j);
           nestedWriter.startList();
-          for(int k = 0; k < intsListList.get(j).size(); k++) {
+          for (int k = 0; k < intsListList.get(j).size(); k++) {
             nestedWriter.integer().writeInt(intsListList.get(j).get(k));
           }
           nestedWriter.startList();
@@ -317,7 +318,7 @@ public class ComplexDataGenerator implements Generator {
           ListWriter nestedWriter = l2StringsWriter.list();
           nestedWriter.setPosition(j);
           nestedWriter.startList();
-          for(int k = 0; k < stringsListList.get(j).size(); k++) {
+          for (int k = 0; k < stringsListList.get(j).size(); k++) {
             byte[] bytes = stringsListList.get(j).get(k).getBytes();
             tempBuf.setBytes(0, bytes, 0, bytes.length);
             nestedWriter.varChar().writeVarChar(0, bytes.length, tempBuf);
@@ -336,12 +337,12 @@ public class ComplexDataGenerator implements Generator {
           nested1Writer.setPosition(j);
           nested1Writer.startList();
           List<List<Integer>> intsListList = intsListListList.get(j);
-          for(int k = 0; k < intsListList.size(); k++) {
+          for (int k = 0; k < intsListList.size(); k++) {
             ListWriter nested2Writer = nested1Writer.list();
             nested2Writer.setPosition(k);
             nested2Writer.startList();
             List<Integer> intsList = intsListList.get(k);
-            for(int l = 0; l < intsList.size(); l++) {
+            for (int l = 0; l < intsList.size(); l++) {
               nested2Writer.integer().writeInt(intsList.get(l));
             }
             nested2Writer.endList();
@@ -360,12 +361,12 @@ public class ComplexDataGenerator implements Generator {
           nested1Writer.setPosition(j);
           nested1Writer.startList();
           List<List<String>> stringsListList = stringsListListList.get(j);
-          for(int k = 0; k < stringsListList.size(); k++) {
+          for (int k = 0; k < stringsListList.size(); k++) {
             ListWriter nested2Writer = nested1Writer.list();
             nested2Writer.setPosition(k);
             nested2Writer.startList();
             List<String> stringsList = stringsListList.get(k);
-            for(int l = 0; l < stringsList.size(); l++) {
+            for (int l = 0; l < stringsList.size(); l++) {
               byte[] bytes = stringsList.get(l).getBytes();
               tempBuf.setBytes(0, bytes, 0, bytes.length);
               nested2Writer.varChar().writeVarChar(0, bytes.length, tempBuf);
@@ -382,14 +383,14 @@ public class ComplexDataGenerator implements Generator {
 
         Map<String, Object> val = mapVals.get(position + i);
 
-        byte[] bytes = ((String)val.get("varchar")).getBytes();
+        byte[] bytes = ((String) val.get("varchar")).getBytes();
         tempBuf.setBytes(0, bytes, 0, bytes.length);
         structWriter.varChar("varchar").writeVarChar(0, bytes.length, tempBuf);
-        structWriter.integer("int").writeInt((Integer)val.get("int"));
+        structWriter.integer("int").writeInt((Integer) val.get("int"));
         ListWriter listWriter = structWriter.list("bits");
         listWriter.startList();
-        Boolean[] bits = (Boolean[])val.get("bits");
-        for(int j = 0; j < bits.length; j++) {
+        Boolean[] bits = (Boolean[]) val.get("bits");
+        for (int j = 0; j < bits.length; j++) {
           listWriter.setPosition(j);
           listWriter.bit().writeBit(bits[j] ? 1 : 0);
         }
@@ -407,18 +408,20 @@ public class ComplexDataGenerator implements Generator {
     final int size = intsVals.size();
     final DataRow[] rows = new DataRow[size];
     for (int i = 0; i < size; i++) {
-      rows[i] = tr(
-          intsVals.get(i),
-          stringsVals.get(i),
-          l1IntsVals.get(i),
-          l1StringsVals.get(i),
-          l2IntsVals.get(i),
-          l2StringsVals.get(i),
-          l3IntsVals.get(i),
-          l3StringsVals.get(i)
-      );
+      rows[i] =
+          tr(
+              intsVals.get(i),
+              stringsVals.get(i),
+              l1IntsVals.get(i),
+              l1StringsVals.get(i),
+              l2IntsVals.get(i),
+              l2StringsVals.get(i),
+              l3IntsVals.get(i),
+              l3StringsVals.get(i));
     }
-    return t(th("ints", "strings", "l1Ints", "l1Strings", "l2Ints", "l2String", "l3Ints", "l3Strings"), rows);
+    return t(
+        th("ints", "strings", "l1Ints", "l1Strings", "l2Ints", "l2String", "l3Ints", "l3Strings"),
+        rows);
   }
 
   @Override

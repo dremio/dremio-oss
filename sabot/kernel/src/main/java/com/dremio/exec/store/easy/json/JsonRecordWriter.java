@@ -15,14 +15,6 @@
  */
 package com.dremio.exec.store.easy.json;
 
-import java.io.DataOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.util.List;
-
-import org.apache.arrow.vector.complex.impl.UnionMapReader;
-import org.apache.arrow.vector.complex.reader.FieldReader;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.ExecConstants;
@@ -45,10 +37,17 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.util.MinimalPrettyPrinter;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.util.List;
+import org.apache.arrow.vector.complex.impl.UnionMapReader;
+import org.apache.arrow.vector.complex.reader.FieldReader;
 
 public class JsonRecordWriter extends JSONOutputRecordWriter {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(JsonRecordWriter.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(JsonRecordWriter.class);
   private static final String LINE_FEED = String.format("%n");
 
   private final OperatorContext context;
@@ -72,11 +71,13 @@ public class JsonRecordWriter extends JSONOutputRecordWriter {
 
   private final JsonFactory factory = new JsonFactory();
 
-  public JsonRecordWriter(OperatorContext context, EasyWriter writer, JSONFormatConfig formatConfig) {
+  public JsonRecordWriter(
+      OperatorContext context, EasyWriter writer, JSONFormatConfig formatConfig) {
     super(context);
 
     final FragmentHandle handle = context.getFragmentHandle();
-    final String fragmentId = String.format("%d_%d", handle.getMajorFragmentId(), handle.getMinorFragmentId());
+    final String fragmentId =
+        String.format("%d_%d", handle.getMajorFragmentId(), handle.getMinorFragmentId());
 
     this.queryUser = writer.getProps().getUserName();
     this.context = context;
@@ -85,7 +86,9 @@ public class JsonRecordWriter extends JSONOutputRecordWriter {
     this.useExtendedOutput = context.getOptions().getOption(ExecConstants.JSON_EXTENDED_TYPES);
     this.extension = formatConfig.outputExtension;
     this.useExtendedOutput = context.getOptions().getOption(ExecConstants.JSON_EXTENDED_TYPES);
-    this.uglify = !formatConfig.prettyPrint || context.getOptions().getOption(ExecConstants.JSON_WRITER_UGLIFY);
+    this.uglify =
+        !formatConfig.prettyPrint
+            || context.getOptions().getOption(ExecConstants.JSON_WRITER_UGLIFY);
     this.plugin = writer.getFormatPlugin().getFsPlugin();
   }
 
@@ -97,34 +100,36 @@ public class JsonRecordWriter extends JSONOutputRecordWriter {
   @Override
   public void startPartition(WritePartition partition) throws Exception {
     // close previous partition if open.
-    if(this.partition != null){
+    if (this.partition != null) {
       doClose();
     }
     this.partition = partition;
 
     try {
-      this.fileName = fs.canonicalizePath(partition.getQualifiedPath(location, prefix + "_0." + extension));
+      this.fileName =
+          fs.canonicalizePath(partition.getQualifiedPath(location, prefix + "_0." + extension));
       stream = new DataOutputStream(fs.create(fileName));
-      jsonGenerator = factory.createGenerator((OutputStream) stream)
-        .disable(JsonGenerator.Feature.AUTO_CLOSE_TARGET)
-        .enable(JsonGenerator.Feature.FLUSH_PASSED_TO_STREAM)
-        .useDefaultPrettyPrinter();
+      jsonGenerator =
+          factory
+              .createGenerator((OutputStream) stream)
+              .disable(JsonGenerator.Feature.AUTO_CLOSE_TARGET)
+              .enable(JsonGenerator.Feature.FLUSH_PASSED_TO_STREAM)
+              .useDefaultPrettyPrinter();
 
       if (uglify) {
         jsonGenerator = jsonGenerator.setPrettyPrinter(new MinimalPrettyPrinter(LINE_FEED));
       }
-      if(useExtendedOutput){
+      if (useExtendedOutput) {
         gen = new ExtendedJsonOutput(jsonGenerator);
-      }else{
+      } else {
         gen = new BasicJsonOutput(jsonGenerator);
       }
       logger.debug("Created file: {}", fileName);
     } catch (IOException ex) {
       throw UserException.dataWriteError(ex)
-        .message("Failure writing JSON file %s.", fileName)
-        .build(logger);
+          .message("Failure writing JSON file %s.", fileName)
+          .build(logger);
     }
-
   }
 
   @Override
@@ -140,8 +145,9 @@ public class JsonRecordWriter extends JSONOutputRecordWriter {
       int i = 0;
       for (String name : reader) {
         FieldReader fieldReader = reader.reader(name);
-        FieldConverter converter = EventBasedRecordWriter.getConverter(JsonRecordWriter.this, i++, name,
-            fieldReader.getMinorType(), fieldReader);
+        FieldConverter converter =
+            EventBasedRecordWriter.getConverter(
+                JsonRecordWriter.this, i++, name, fieldReader.getMinorType(), fieldReader);
         converters.add(converter);
       }
     }
@@ -170,14 +176,25 @@ public class JsonRecordWriter extends JSONOutputRecordWriter {
   public class MapJsonConverter extends FieldConverter {
     FieldConverter keyConverter;
     FieldConverter valueConverter;
+
     public MapJsonConverter(int fieldId, String fieldName, FieldReader reader) {
       super(fieldId, fieldName, reader);
       Preconditions.checkState(reader instanceof UnionMapReader);
       UnionMapReader unionMapReader = (UnionMapReader) reader;
-      keyConverter = EventBasedRecordWriter.getConverter(JsonRecordWriter.this, 0,
-        "key", unionMapReader.key().getMinorType(), unionMapReader.key());
-      valueConverter = EventBasedRecordWriter.getConverter(JsonRecordWriter.this, 1,
-        "value", unionMapReader.value().getMinorType(), unionMapReader.value());
+      keyConverter =
+          EventBasedRecordWriter.getConverter(
+              JsonRecordWriter.this,
+              0,
+              "key",
+              unionMapReader.key().getMinorType(),
+              unionMapReader.key());
+      valueConverter =
+          EventBasedRecordWriter.getConverter(
+              JsonRecordWriter.this,
+              1,
+              "value",
+              unionMapReader.value().getMinorType(),
+              unionMapReader.value());
     }
 
     @Override
@@ -236,8 +253,9 @@ public class JsonRecordWriter extends JSONOutputRecordWriter {
     public ListJsonConverter(int fieldId, String fieldName, FieldReader reader) {
       super(fieldId, fieldName, reader);
       FieldReader fieldReader = reader.reader();
-      innerConverter = EventBasedRecordWriter.getConverter(JsonRecordWriter.this, 0, "inner",
-          fieldReader.getMinorType(), fieldReader);
+      innerConverter =
+          EventBasedRecordWriter.getConverter(
+              JsonRecordWriter.this, 0, "inner", fieldReader.getMinorType(), fieldReader);
     }
 
     @Override
@@ -289,8 +307,7 @@ public class JsonRecordWriter extends JSONOutputRecordWriter {
   }
 
   @Override
-  public void abort() throws IOException {
-  }
+  public void abort() throws IOException {}
 
   @Override
   public void close() throws Exception {
@@ -306,7 +323,7 @@ public class JsonRecordWriter extends JSONOutputRecordWriter {
 
   private void doClose() throws Exception {
     AutoCloseables.close(
-      () -> {
+        () -> {
           if (gen != null) {
             gen.flush();
             if (stream != null) {
@@ -314,13 +331,24 @@ public class JsonRecordWriter extends JSONOutputRecordWriter {
             }
           }
         },
-      jsonGenerator,
-      stream);
+        jsonGenerator,
+        stream);
 
     jsonGenerator = null;
     stream = null;
     if (gen != null) {
-      listener.recordsWritten(recordCount, fileSize, fileName.toString(), null, partition.getBucketNumber(), null, null, null, null, null, 0L);
+      listener.recordsWritten(
+          recordCount,
+          fileSize,
+          fileName.toString(),
+          null,
+          partition.getBucketNumber(),
+          null,
+          null,
+          null,
+          null,
+          null,
+          0L);
       gen = null;
     }
 
@@ -329,12 +357,12 @@ public class JsonRecordWriter extends JSONOutputRecordWriter {
   }
 
   @Override
-  public FileSystem getFs(){
+  public FileSystem getFs() {
     return fs;
   }
 
   @Override
-  public Path getLocation(){
+  public Path getLocation() {
     return Path.of(location);
   }
 }

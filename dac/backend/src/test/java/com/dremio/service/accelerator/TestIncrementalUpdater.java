@@ -19,15 +19,6 @@ import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
-
-import org.apache.calcite.plan.RelOptUtil;
-import org.apache.calcite.rel.RelNode;
-import org.junit.Assert;
-import org.junit.Test;
-
 import com.dremio.common.DeferredException;
 import com.dremio.common.types.MinorType;
 import com.dremio.dac.explore.model.DatasetPath;
@@ -46,12 +37,16 @@ import com.dremio.service.jobs.PlanTransformationListener;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.google.common.collect.ImmutableList;
-
 import io.grpc.stub.StreamObserver;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+import org.apache.calcite.plan.RelOptUtil;
+import org.apache.calcite.rel.RelNode;
+import org.junit.Assert;
+import org.junit.Test;
 
-/**
- * TestIncrementalUpdater
- */
+/** TestIncrementalUpdater */
 public class TestIncrementalUpdater extends BaseTestServer {
   public static class EventObserver implements StreamObserver<JobEvent> {
     private final CountDownLatch latch = new CountDownLatch(1);
@@ -66,6 +61,7 @@ public class TestIncrementalUpdater extends BaseTestServer {
         latch.countDown();
       }
     }
+
     @Override
     public void onError(Throwable t) {
       if (t instanceof RuntimeException) {
@@ -75,23 +71,27 @@ public class TestIncrementalUpdater extends BaseTestServer {
       }
       latch.countDown();
     }
+
     @Override
-    public void onCompleted() {
-    }
+    public void onCompleted() {}
+
     public void waitAndClose(long timeout, String errMsg) throws Exception {
-      if(!latch.await(timeout, TimeUnit.SECONDS)){
+      if (!latch.await(timeout, TimeUnit.SECONDS)) {
         Assert.fail(errMsg);
       }
       ex.close();
     }
-
   }
 
   public static class LogicalRelPlanCaptureListener implements PlanTransformationListener {
     private final AtomicReference<RelNode> logicalRelPlan = new AtomicReference<>();
 
     @Override
-    public void onPhaseCompletion(final PlannerPhase phase, final RelNode before, final RelNode after, final long millisTaken) {
+    public void onPhaseCompletion(
+        final PlannerPhase phase,
+        final RelNode before,
+        final RelNode after,
+        final long millisTaken) {
       if (phase == PlannerPhase.LOGICAL) {
         logicalRelPlan.set(before);
       }
@@ -100,26 +100,42 @@ public class TestIncrementalUpdater extends BaseTestServer {
     public RelNode getRelPlan() {
       return logicalRelPlan.get();
     }
-
   }
+
   @Test
   public void testSubstitutionShuttle() throws Exception {
     LocalJobsService localJobsService = l(LocalJobsService.class);
     DatasetPath datsetPath = new DatasetPath(ImmutableList.of("cp", "tpch/nation.parquet"));
     final EventObserver eventObserver = new EventObserver();
-    final LogicalRelPlanCaptureListener logicalPlanTransformationListener = new LogicalRelPlanCaptureListener();
+    final LogicalRelPlanCaptureListener logicalPlanTransformationListener =
+        new LogicalRelPlanCaptureListener();
 
-    localJobsService.submitJob(JobsServiceTestUtils.toSubmitJobRequest(JobRequest.newBuilder()
-      .setSqlQuery(new SqlQuery("select n_regionkey, max(n_nationkey) as max_nation from cp.\"tpch/nation.parquet\" group by n_regionkey", SYSTEM_USERNAME))
-      .setQueryType(QueryType.JDBC)
-      .setDatasetPath(datsetPath.toNamespaceKey())
-      .setDatasetVersion(DatasetVersion.newVersion())
-      .build()), eventObserver, logicalPlanTransformationListener);
+    localJobsService.submitJob(
+        JobsServiceTestUtils.toSubmitJobRequest(
+            JobRequest.newBuilder()
+                .setSqlQuery(
+                    new SqlQuery(
+                        "select n_regionkey, max(n_nationkey) as max_nation from cp.\"tpch/nation.parquet\" group by n_regionkey",
+                        SYSTEM_USERNAME))
+                .setQueryType(QueryType.JDBC)
+                .setDatasetPath(datsetPath.toNamespaceKey())
+                .setDatasetVersion(DatasetVersion.newVersion())
+                .build()),
+        eventObserver,
+        logicalPlanTransformationListener);
 
     eventObserver.waitAndClose(25, "Acceleration job was not completed within allowed timeout.");
     long currentTime = System.currentTimeMillis();
-    RelNode newLogicalPlan = logicalPlanTransformationListener.getRelPlan().accept(new MaterializationShuttle(IncrementalUpdateUtils.UPDATE_COLUMN, true, new UpdateId().setLongUpdateId(currentTime).setType(MinorType.BIGINT)));
-    assertNotNull(newLogicalPlan.getRowType().getField(IncrementalUpdateUtils.UPDATE_COLUMN, false, false));
+    RelNode newLogicalPlan =
+        logicalPlanTransformationListener
+            .getRelPlan()
+            .accept(
+                new MaterializationShuttle(
+                    IncrementalUpdateUtils.UPDATE_COLUMN,
+                    true,
+                    new UpdateId().setLongUpdateId(currentTime).setType(MinorType.BIGINT)));
+    assertNotNull(
+        newLogicalPlan.getRowType().getField(IncrementalUpdateUtils.UPDATE_COLUMN, false, false));
   }
 
   @Test
@@ -127,27 +143,45 @@ public class TestIncrementalUpdater extends BaseTestServer {
     LocalJobsService localJobsService = l(LocalJobsService.class);
     DatasetPath datsetPath = new DatasetPath(ImmutableList.of("cp", "tpch/nation.parquet"));
     final EventObserver eventObserver = new EventObserver();
-    final LogicalRelPlanCaptureListener logicalPlanTransformationListener = new LogicalRelPlanCaptureListener();
-    String planBeforeTransform = "" +
-      "LogicalAggregate(group=[{0}], max_nation=[MAX($1)])\n" +
-      "  LogicalProject(n_regionkey=[$1], n_nationkey=[$0])\n" +
-      "    ScanCrel(table=[cp.\"tpch/nation.parquet\"], snapshot=[], columns=[`n_nationkey`, `n_regionkey`], splits=[1])\n";
-    String expectedPlanAfterTransform = "" +
-      "LogicalProject(n_regionkey=[$0], max_nation=[$2])\n" +
-      "  LogicalAggregate(group=[{0, 2}], max_nation=[MAX($1)])\n" +
-      "    LogicalProject(n_regionkey=[$1], n_nationkey=[$0], $_dremio_$_dummy_$=[null:NULL])\n" +
-      "      ScanCrel(table=[cp.\"tpch/nation.parquet\"], snapshot=[], columns=[`n_nationkey`, `n_regionkey`], splits=[1])\n";
+    final LogicalRelPlanCaptureListener logicalPlanTransformationListener =
+        new LogicalRelPlanCaptureListener();
+    String planBeforeTransform =
+        ""
+            + "LogicalAggregate(group=[{0}], max_nation=[MAX($1)])\n"
+            + "  LogicalProject(n_regionkey=[$1], n_nationkey=[$0])\n"
+            + "    ScanCrel(table=[cp.\"tpch/nation.parquet\"], snapshot=[], columns=[`n_nationkey`, `n_regionkey`], splits=[1])\n";
+    String expectedPlanAfterTransform =
+        ""
+            + "LogicalProject(n_regionkey=[$0], max_nation=[$2])\n"
+            + "  LogicalAggregate(group=[{0, 2}], max_nation=[MAX($1)])\n"
+            + "    LogicalProject(n_regionkey=[$1], n_nationkey=[$0], $_dremio_$_dummy_$=[null:NULL])\n"
+            + "      ScanCrel(table=[cp.\"tpch/nation.parquet\"], snapshot=[], columns=[`n_nationkey`, `n_regionkey`], splits=[1])\n";
 
-    localJobsService.submitJob(JobsServiceTestUtils.toSubmitJobRequest(JobRequest.newBuilder()
-      .setSqlQuery(new SqlQuery("select n_regionkey, max(n_nationkey) as max_nation from cp.\"tpch/nation.parquet\" group by n_regionkey", SYSTEM_USERNAME))
-      .setQueryType(QueryType.JDBC)
-      .setDatasetPath(datsetPath.toNamespaceKey())
-      .setDatasetVersion(DatasetVersion.newVersion())
-      .build()), eventObserver, logicalPlanTransformationListener);
+    localJobsService.submitJob(
+        JobsServiceTestUtils.toSubmitJobRequest(
+            JobRequest.newBuilder()
+                .setSqlQuery(
+                    new SqlQuery(
+                        "select n_regionkey, max(n_nationkey) as max_nation from cp.\"tpch/nation.parquet\" group by n_regionkey",
+                        SYSTEM_USERNAME))
+                .setQueryType(QueryType.JDBC)
+                .setDatasetPath(datsetPath.toNamespaceKey())
+                .setDatasetVersion(DatasetVersion.newVersion())
+                .build()),
+        eventObserver,
+        logicalPlanTransformationListener);
 
     eventObserver.waitAndClose(25, "Acceleration job was not completed within allowed timeout.");
-    RelNode newLogicalPlan = logicalPlanTransformationListener.getRelPlan().accept(new IncrementalUpdateUtils.AddDummyGroupingFieldShuttle());
-    assertEquals(planBeforeTransform, RelOptUtil.toString(logicalPlanTransformationListener.getRelPlan()).replaceAll("snapshot=\\[\\d+\\]","snapshot=[]"));
-    assertEquals(expectedPlanAfterTransform, RelOptUtil.toString(newLogicalPlan).replaceAll("snapshot=\\[\\d+\\]","snapshot=[]"));
+    RelNode newLogicalPlan =
+        logicalPlanTransformationListener
+            .getRelPlan()
+            .accept(new IncrementalUpdateUtils.AddDummyGroupingFieldShuttle());
+    assertEquals(
+        planBeforeTransform,
+        RelOptUtil.toString(logicalPlanTransformationListener.getRelPlan())
+            .replaceAll("snapshot=\\[\\d+\\]", "snapshot=[]"));
+    assertEquals(
+        expectedPlanAfterTransform,
+        RelOptUtil.toString(newLogicalPlan).replaceAll("snapshot=\\[\\d+\\]", "snapshot=[]"));
   }
 }

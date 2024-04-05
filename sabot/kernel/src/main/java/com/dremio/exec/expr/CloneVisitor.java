@@ -15,9 +15,6 @@
  */
 package com.dremio.exec.expr;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import com.dremio.common.expression.BooleanOperator;
 import com.dremio.common.expression.CaseExpression;
 import com.dremio.common.expression.CastExpression;
@@ -45,13 +42,17 @@ import com.dremio.common.expression.ValueExpressions.TimeStampExpression;
 import com.dremio.common.expression.visitors.AbstractExprVisitor;
 import com.dremio.exec.expr.fn.BaseFunctionHolder;
 import com.google.common.collect.Lists;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
- * Creates a deep copy of a LogicalExpression. Specifically, it creates new instances of the literal expressions
+ * Creates a deep copy of a LogicalExpression. Specifically, it creates new instances of the literal
+ * expressions
  */
-public class CloneVisitor extends AbstractExprVisitor<LogicalExpression,Void,RuntimeException> {
+public class CloneVisitor extends AbstractExprVisitor<LogicalExpression, Void, RuntimeException> {
   @Override
-  public LogicalExpression visitFunctionCall(FunctionCall call, Void value) throws RuntimeException {
+  public LogicalExpression visitFunctionCall(FunctionCall call, Void value)
+      throws RuntimeException {
     List<LogicalExpression> args = Lists.newArrayList();
     for (LogicalExpression arg : call.args) {
       args.add(arg.accept(this, null));
@@ -61,19 +62,22 @@ public class CloneVisitor extends AbstractExprVisitor<LogicalExpression,Void,Run
   }
 
   @Override
-  public LogicalExpression visitFunctionHolderExpression(FunctionHolderExpression holder, Void value) throws RuntimeException {
+  public LogicalExpression visitFunctionHolderExpression(
+      FunctionHolderExpression holder, Void value) throws RuntimeException {
     if (holder instanceof FunctionHolderExpr) {
       List<LogicalExpression> args = Lists.newArrayList();
       for (LogicalExpression arg : holder.args) {
         args.add(arg.accept(this, null));
       }
-      return new FunctionHolderExpr(holder.getName(), (BaseFunctionHolder) holder.getHolder(), args);
+      return new FunctionHolderExpr(
+          holder.getName(), (BaseFunctionHolder) holder.getHolder(), args);
     }
     return null;
   }
 
   @Override
-  public LogicalExpression visitIfExpression(IfExpression ifExpr, Void value) throws RuntimeException {
+  public LogicalExpression visitIfExpression(IfExpression ifExpr, Void value)
+      throws RuntimeException {
     LogicalExpression ifCondition = ifExpr.ifCondition.condition.accept(this, null);
     LogicalExpression ifExpression = ifExpr.ifCondition.expression.accept(this, null);
     LogicalExpression elseExpression = ifExpr.elseExpression.accept(this, null);
@@ -82,7 +86,8 @@ public class CloneVisitor extends AbstractExprVisitor<LogicalExpression,Void,Run
   }
 
   @Override
-  public LogicalExpression visitBooleanOperator(BooleanOperator op, Void value) throws RuntimeException {
+  public LogicalExpression visitBooleanOperator(BooleanOperator op, Void value)
+      throws RuntimeException {
     return visitUnknown(op, value);
   }
 
@@ -92,95 +97,115 @@ public class CloneVisitor extends AbstractExprVisitor<LogicalExpression,Void,Run
   }
 
   @Override
-  public LogicalExpression visitFloatConstant(FloatExpression fExpr, Void value) throws RuntimeException {
+  public LogicalExpression visitFloatConstant(FloatExpression fExpr, Void value)
+      throws RuntimeException {
     return visitUnknown(fExpr, value);
   }
 
   @Override
-  public LogicalExpression visitIntConstant(IntExpression intExpr, Void value) throws RuntimeException {
+  public LogicalExpression visitIntConstant(IntExpression intExpr, Void value)
+      throws RuntimeException {
     return new IntExpression(intExpr.getInt());
   }
 
   @Override
-  public LogicalExpression visitLongConstant(LongExpression intExpr, Void value) throws RuntimeException {
+  public LogicalExpression visitLongConstant(LongExpression intExpr, Void value)
+      throws RuntimeException {
     return visitUnknown(intExpr, value);
   }
 
-
   @Override
-  public LogicalExpression visitDecimalConstant(DecimalExpression decExpr, Void value) throws RuntimeException {
+  public LogicalExpression visitDecimalConstant(DecimalExpression decExpr, Void value)
+      throws RuntimeException {
     return visitUnknown(decExpr, value);
   }
 
   @Override
-  public LogicalExpression visitDateConstant(DateExpression intExpr, Void value) throws RuntimeException {
+  public LogicalExpression visitDateConstant(DateExpression intExpr, Void value)
+      throws RuntimeException {
     return visitUnknown(intExpr, value);
   }
 
   @Override
-  public LogicalExpression visitTimeConstant(TimeExpression intExpr, Void value) throws RuntimeException {
+  public LogicalExpression visitTimeConstant(TimeExpression intExpr, Void value)
+      throws RuntimeException {
     return visitUnknown(intExpr, value);
   }
 
   @Override
-  public LogicalExpression visitTimeStampConstant(TimeStampExpression intExpr, Void value) throws RuntimeException {
+  public LogicalExpression visitTimeStampConstant(TimeStampExpression intExpr, Void value)
+      throws RuntimeException {
     return visitUnknown(intExpr, value);
   }
 
   @Override
-  public LogicalExpression visitIntervalYearConstant(IntervalYearExpression intExpr, Void value) throws RuntimeException {
+  public LogicalExpression visitIntervalYearConstant(IntervalYearExpression intExpr, Void value)
+      throws RuntimeException {
     return visitUnknown(intExpr, value);
   }
 
   @Override
-  public LogicalExpression visitIntervalDayConstant(IntervalDayExpression intExpr, Void value) throws RuntimeException {
+  public LogicalExpression visitIntervalDayConstant(IntervalDayExpression intExpr, Void value)
+      throws RuntimeException {
     return visitUnknown(intExpr, value);
   }
 
   @Override
-  public LogicalExpression visitDoubleConstant(DoubleExpression dExpr, Void value) throws RuntimeException {
+  public LogicalExpression visitDoubleConstant(DoubleExpression dExpr, Void value)
+      throws RuntimeException {
     return visitUnknown(dExpr, value);
   }
 
   @Override
-  public LogicalExpression visitBooleanConstant(BooleanExpression e, Void value) throws RuntimeException {
+  public LogicalExpression visitBooleanConstant(BooleanExpression e, Void value)
+      throws RuntimeException {
     return visitUnknown(e, value);
   }
 
   @Override
-  public LogicalExpression visitQuotedStringConstant(QuotedString e, Void value) throws RuntimeException {
+  public LogicalExpression visitQuotedStringConstant(QuotedString e, Void value)
+      throws RuntimeException {
     return visitUnknown(e, value);
   }
 
   @Override
-  public LogicalExpression visitCastExpression(CastExpression e, Void value) throws RuntimeException {
+  public LogicalExpression visitCastExpression(CastExpression e, Void value)
+      throws RuntimeException {
     return visitUnknown(e, value);
   }
 
   @Override
-  public LogicalExpression visitConvertExpression(ConvertExpression e, Void value) throws RuntimeException {
+  public LogicalExpression visitConvertExpression(ConvertExpression e, Void value)
+      throws RuntimeException {
     return visitUnknown(e, value);
   }
 
   @Override
-  public LogicalExpression visitCaseExpression(CaseExpression caseExpression, Void value) throws RuntimeException {
+  public LogicalExpression visitCaseExpression(CaseExpression caseExpression, Void value)
+      throws RuntimeException {
     List<CaseExpression.CaseConditionNode> caseConditions = new ArrayList<>();
     for (CaseExpression.CaseConditionNode conditionNode : caseExpression.caseConditions) {
-      caseConditions.add(new CaseExpression.CaseConditionNode(
-        conditionNode.whenExpr.accept(this, null),
-        conditionNode.thenExpr.accept(this, null)));
+      caseConditions.add(
+          new CaseExpression.CaseConditionNode(
+              conditionNode.whenExpr.accept(this, null),
+              conditionNode.thenExpr.accept(this, null)));
     }
     LogicalExpression elseExpr = caseExpression.elseExpr.accept(this, null);
-    return CaseExpression.newBuilder().setCaseConditions(caseConditions).setElseExpr(elseExpr).build();
+    return CaseExpression.newBuilder()
+        .setCaseConditions(caseConditions)
+        .setElseExpr(elseExpr)
+        .build();
   }
 
   @Override
-  public LogicalExpression visitNullConstant(TypedNullConstant e, Void value) throws RuntimeException {
+  public LogicalExpression visitNullConstant(TypedNullConstant e, Void value)
+      throws RuntimeException {
     return visitUnknown(e, value);
   }
 
   @Override
-  public LogicalExpression visitNullExpression(NullExpression e, Void value) throws RuntimeException {
+  public LogicalExpression visitNullExpression(NullExpression e, Void value)
+      throws RuntimeException {
     return visitUnknown(e, value);
   }
 

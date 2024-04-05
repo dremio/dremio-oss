@@ -17,7 +17,6 @@ package com.dremio.exec.store.easy.excel.xls;
 
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.poi.hssf.model.RecordStream;
 import org.apache.poi.hssf.record.ArrayRecord;
 import org.apache.poi.hssf.record.BlankRecord;
@@ -49,10 +48,10 @@ import org.apache.poi.hssf.record.pivottable.ViewDefinitionRecord;
 import org.apache.poi.ss.util.CellReference;
 
 /**
- * Handles a Row block that contains all cell values of a sheet along with row formatting information.
+ * Handles a Row block that contains all cell values of a sheet along with row formatting
+ * information.
  *
- * Simplified version of {@link org.apache.poi.hssf.model.RowBlocksReader}
-
+ * <p>Simplified version of {@link org.apache.poi.hssf.model.RowBlocksReader}
  */
 class RowBlock {
   private final List<Record> plainRecords = new ArrayList<>();
@@ -116,11 +115,11 @@ class RowBlock {
 
   /**
    * @return <code>true</code> if the specified record ID terminates a sequence of Row block records
-   * It is assumed that at least one row or cell value record has been found prior to the current
-   * record
+   *     It is assumed that at least one row or cell value record has been found prior to the
+   *     current record
    */
   static boolean isEndOfRowBlock(int sid) {
-    switch(sid) {
+    switch (sid) {
       case ViewDefinitionRecord.sid:
         // should have been prefixed with DrawingRecord (0x00EC), but bug 46280 seems to allow this
       case DrawingRecord.sid:
@@ -128,7 +127,7 @@ class RowBlock {
       case ObjRecord.sid:
       case TextObjectRecord.sid:
       case ColumnInfoRecord.sid: // See Bugzilla 53984
-      case GutsRecord.sid:   // see Bugzilla 50426
+      case GutsRecord.sid: // see Bugzilla 50426
       case WindowOneRecord.sid:
         // should really be part of workbook stream, but some apps seem to put this before WINDOW2
       case WindowTwoRecord.sid:
@@ -162,5 +161,4 @@ class RowBlock {
     }
     return false;
   }
-
 }

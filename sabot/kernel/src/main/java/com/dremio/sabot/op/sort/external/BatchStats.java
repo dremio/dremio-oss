@@ -15,56 +15,56 @@
  */
 package com.dremio.sabot.op.sort.external;
 
+import com.dremio.exec.record.VectorAccessible;
+import com.dremio.exec.record.VectorWrapper;
 import java.util.IdentityHashMap;
 import java.util.Map;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.ReferenceManager;
 import org.apache.arrow.vector.ValueVector;
 
-import com.dremio.exec.record.VectorAccessible;
-import com.dremio.exec.record.VectorWrapper;
-
 class BatchStats {
 
-  enum SizeType {ACCOUNTED, WORSE_CASE}
+  enum SizeType {
+    ACCOUNTED,
+    WORSE_CASE
+  }
 
-  private Map<ReferenceManager,Void> accountedBuffers = new IdentityHashMap<>();
+  private Map<ReferenceManager, Void> accountedBuffers = new IdentityHashMap<>();
 
-  public long getSize(VectorAccessible va, SizeType type){
+  public long getSize(VectorAccessible va, SizeType type) {
     long size = 0;
-    for(VectorWrapper<?> wrapper : va){
-      if(wrapper.isHyper()){
-        for(ValueVector v : wrapper.getValueVectors()){
+    for (VectorWrapper<?> wrapper : va) {
+      if (wrapper.isHyper()) {
+        for (ValueVector v : wrapper.getValueVectors()) {
           size += getSize(v, type);
         }
-      }else{
+      } else {
         size += getSize(wrapper.getValueVector(), type);
       }
-
     }
     return size;
   }
 
-  public long getSize(ValueVector v, SizeType type){
+  public long getSize(ValueVector v, SizeType type) {
     long size = 0;
     ArrowBuf[] buffers = v.getBuffers(false);
-    for(ArrowBuf b : buffers){
-      switch(type){
-      case ACCOUNTED:
-        size += b.getActualMemoryConsumed();
-        break;
-      case WORSE_CASE:
-        ReferenceManager referenceManager = b.getReferenceManager();
-        // avoid counting the same underlying buffer multiple times
-        if (accountedBuffers.containsKey(referenceManager)) {
-          continue;
-        }
-        size += b.getPossibleMemoryConsumed();
-        accountedBuffers.put(referenceManager, null);
-        break;
-      default:
-        throw new UnsupportedOperationException("Invalid case: " + type.name());
+    for (ArrowBuf b : buffers) {
+      switch (type) {
+        case ACCOUNTED:
+          size += b.getActualMemoryConsumed();
+          break;
+        case WORSE_CASE:
+          ReferenceManager referenceManager = b.getReferenceManager();
+          // avoid counting the same underlying buffer multiple times
+          if (accountedBuffers.containsKey(referenceManager)) {
+            continue;
+          }
+          size += b.getPossibleMemoryConsumed();
+          accountedBuffers.put(referenceManager, null);
+          break;
+        default:
+          throw new UnsupportedOperationException("Invalid case: " + type.name());
       }
     }
     return size;

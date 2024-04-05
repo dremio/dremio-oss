@@ -15,15 +15,13 @@
  */
 package com.dremio.exec.expr.fn;
 
-import javax.inject.Inject;
-
-import org.apache.arrow.vector.holders.NullableBigIntHolder;
-import org.apache.arrow.vector.holders.VarCharHolder;
-
 import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
+import javax.inject.Inject;
+import org.apache.arrow.vector.holders.NullableBigIntHolder;
+import org.apache.arrow.vector.holders.VarCharHolder;
 
 public class ExceptionFunction {
 
@@ -37,19 +35,18 @@ public class ExceptionFunction {
     @Inject FunctionErrorContext errorContext;
 
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
     public void eval() {
-      String msg = com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(message.start, message.end, message.buffer);
+      String msg =
+          com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(
+              message.start, message.end, message.buffer);
       com.dremio.exec.expr.fn.ExceptionFunction.throwException(errorContext, msg);
     }
   }
 
   public static void throwException(FunctionErrorContext errorContext, String message) {
-    throw errorContext.error()
-        .message(message)
-        .build();
+    throw errorContext.error().message(message).build();
   }
 }

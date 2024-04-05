@@ -15,14 +15,13 @@
  */
 package com.dremio.exec.planner.fragment;
 
-import java.util.Iterator;
-import java.util.List;
-import java.util.Objects;
-
 import com.dremio.exec.physical.base.Exchange;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.work.foreman.ForemanSetupException;
 import com.google.common.collect.Lists;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Objects;
 
 public class Fragment implements Iterable<Fragment.ExchangeFragmentPair> {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(Fragment.class);
@@ -30,12 +29,14 @@ public class Fragment implements Iterable<Fragment.ExchangeFragmentPair> {
   private PhysicalOperator root;
   private ExchangeFragmentPair sendingExchange;
   private final List<ExchangeFragmentPair> receivingExchangePairs = Lists.newLinkedList();
-  // these aren't fragments that this fragment directly sends to, they correspond to siblings of the bridge exchange.
+  // these aren't fragments that this fragment directly sends to, they correspond to siblings of the
+  // bridge exchange.
   private final List<Fragment> siblingBridgeFragments = Lists.newLinkedList();
 
   /**
-   * Set the given operator as root operator of this fragment. If root operator is already set,
-   * then this method call is a no-op.
+   * Set the given operator as root operator of this fragment. If root operator is already set, then
+   * this method call is a no-op.
+   *
    * @param o new root operator
    */
   public void addOperator(PhysicalOperator o) {
@@ -90,9 +91,9 @@ public class Fragment implements Iterable<Fragment.ExchangeFragmentPair> {
     siblingBridgeFragments.add(fragment);
   }
 
-//  public <T, V> T accept(FragmentVisitor<T, V> visitor, V extra) {
-//    return visitor.visit(this, extra);
-//  }
+  //  public <T, V> T accept(FragmentVisitor<T, V> visitor, V extra) {
+  //    return visitor.visit(this, extra);
+  //  }
 
   public class ExchangeFragmentPair {
     private Exchange exchange;
@@ -141,16 +142,17 @@ public class Fragment implements Iterable<Fragment.ExchangeFragmentPair> {
     public String toString() {
       return "ExchangeFragmentPair [exchange=" + exchange + "]";
     }
-
   }
 
   @Override
   public int hashCode() {
     final int prime = 31;
     int result = 1;
-    result = prime * result + ((receivingExchangePairs == null) ? 0 : receivingExchangePairs.hashCode());
+    result =
+        prime * result + ((receivingExchangePairs == null) ? 0 : receivingExchangePairs.hashCode());
     result = prime * result + ((root == null) ? 0 : root.hashCode());
-    result = prime * result + ((sendingExchange == null) ? 0 : sendingExchange.getExchange().hashCode());
+    result =
+        prime * result + ((sendingExchange == null) ? 0 : sendingExchange.getExchange().hashCode());
     return result;
   }
 
@@ -193,8 +195,12 @@ public class Fragment implements Iterable<Fragment.ExchangeFragmentPair> {
 
   @Override
   public String toString() {
-    return "FragmentNode [root=" + root + ", sendingExchange=" + sendingExchange + ", receivingExchangePairs="
-        + receivingExchangePairs + "]";
+    return "FragmentNode [root="
+        + root
+        + ", sendingExchange="
+        + sendingExchange
+        + ", receivingExchangePairs="
+        + receivingExchangePairs
+        + "]";
   }
-
 }

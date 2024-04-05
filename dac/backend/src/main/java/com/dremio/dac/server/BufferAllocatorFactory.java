@@ -15,15 +15,12 @@
  */
 package com.dremio.dac.server;
 
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.service.Service;
 import com.google.common.annotations.VisibleForTesting;
+import org.apache.arrow.memory.BufferAllocator;
 
-/**
- * Factory for BufferAllocators to inject child allocators.
- */
+/** Factory for BufferAllocators to inject child allocators. */
 public class BufferAllocatorFactory implements Service {
   private final BufferAllocator allocator;
 
@@ -41,9 +38,7 @@ public class BufferAllocatorFactory implements Service {
   }
 
   @Override
-  public void start() {
-
-  }
+  public void start() {}
 
   @VisibleForTesting
   BufferAllocator getBaseAllocator() {

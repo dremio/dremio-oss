@@ -21,9 +21,7 @@ import com.dremio.dac.resource.TableauResource;
 import com.dremio.options.OptionManager;
 import com.fasterxml.jackson.annotation.JsonCreator;
 
-/**
- * AnalyzeTools
- */
+/** AnalyzeTools */
 public final class AnalyzeTools {
   private final BITool tableau;
   private final BITool powerbi;
@@ -50,15 +48,12 @@ public final class AnalyzeTools {
 
   public static AnalyzeTools from(OptionManager optionManager) {
     return new AnalyzeTools(
-      new BITool(optionManager.getOption(TableauResource.CLIENT_TOOLS_TABLEAU)),
-      new BITool(optionManager.getOption(PowerBIResource.CLIENT_TOOLS_POWERBI)),
-      new BITool(optionManager.getOption(QlikResource.CLIENT_TOOLS_QLIK))
-    );
+        new BITool(optionManager.getOption(TableauResource.CLIENT_TOOLS_TABLEAU)),
+        new BITool(optionManager.getOption(PowerBIResource.CLIENT_TOOLS_POWERBI)),
+        new BITool(optionManager.getOption(QlikResource.CLIENT_TOOLS_QLIK)));
   }
 
-  /**
-   * BITool
-   */
+  /** BITool */
   private static final class BITool {
     private final boolean enabled;
 

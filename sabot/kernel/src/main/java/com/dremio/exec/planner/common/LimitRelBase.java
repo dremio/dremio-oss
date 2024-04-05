@@ -15,6 +15,9 @@
  */
 package com.dremio.exec.planner.common;
 
+import com.dremio.exec.planner.cost.DremioCost;
+import com.dremio.exec.planner.cost.DremioCost.Factory;
+import com.dremio.exec.planner.physical.PrelUtil;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptPlanner;
@@ -27,25 +30,27 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 
-import com.dremio.exec.planner.cost.DremioCost;
-import com.dremio.exec.planner.cost.DremioCost.Factory;
-import com.dremio.exec.planner.physical.PrelUtil;
-
-/**
- * Base class for logical and physical Limits implemented in Dremio
- */
+/** Base class for logical and physical Limits implemented in Dremio */
 public abstract class LimitRelBase extends Sort {
-  private boolean pushDown;  // whether limit has been pushed past its child.
-                             // Limit is special in that when it's pushed down, the original LIMIT still remains.
-                             // Once the limit is pushed down, this flag will be TRUE for the original LIMIT
-                             // and be FALSE for the pushed down LIMIT.
-                             // This flag will prevent optimization rules to fire in a loop.
+  private boolean pushDown; // whether limit has been pushed past its child.
 
-  public LimitRelBase(RelOptCluster cluster, RelTraitSet traitSet, RelNode child, RexNode offset, RexNode fetch) {
+  // Limit is special in that when it's pushed down, the original LIMIT still remains.
+  // Once the limit is pushed down, this flag will be TRUE for the original LIMIT
+  // and be FALSE for the pushed down LIMIT.
+  // This flag will prevent optimization rules to fire in a loop.
+
+  public LimitRelBase(
+      RelOptCluster cluster, RelTraitSet traitSet, RelNode child, RexNode offset, RexNode fetch) {
     this(cluster, traitSet, child, offset, fetch, false);
   }
 
-  public LimitRelBase(RelOptCluster cluster, RelTraitSet traitSet, RelNode child, RexNode offset, RexNode fetch, boolean pushDown) {
+  public LimitRelBase(
+      RelOptCluster cluster,
+      RelTraitSet traitSet,
+      RelNode child,
+      RexNode offset,
+      RexNode fetch,
+      boolean pushDown) {
     super(cluster, traitSet.plus(RelCollations.EMPTY), child, RelCollations.EMPTY, offset, fetch);
     this.traitSet = traitSet;
     this.pushDown = pushDown;
@@ -61,13 +66,13 @@ public abstract class LimitRelBase extends Sort {
 
   @Override
   public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
-    if(PrelUtil.getSettings(getCluster()).useDefaultCosting()) {
+    if (PrelUtil.getSettings(getCluster()).useDefaultCosting()) {
       return super.computeSelfCost(planner, mq).multiplyBy(.1);
     }
 
     double numRows = mq.getRowCount(this);
     double cpuCost = DremioCost.COMPARE_CPU_COST * numRows;
-    Factory costFactory = (Factory)planner.getCostFactory();
+    Factory costFactory = (Factory) planner.getCostFactory();
     return costFactory.makeCost(numRows, cpuCost, 0, 0);
   }
 
@@ -78,7 +83,7 @@ public abstract class LimitRelBase extends Sort {
 
   @Override
   public double estimateRowCount(RelMetadataQuery mq) {
-    int off = offset != null ? RexLiteral.intValue(offset) : 0 ;
+    int off = offset != null ? RexLiteral.intValue(offset) : 0;
 
     if (fetch == null) {
       return mq.getRowCount(getInput()) - off;
@@ -91,5 +96,4 @@ public abstract class LimitRelBase extends Sort {
   public boolean isPushDown() {
     return this.pushDown;
   }
-
 }

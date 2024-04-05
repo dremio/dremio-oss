@@ -18,11 +18,12 @@ package com.dremio.services.nessie.proxy;
 import static com.dremio.services.nessie.proxy.ProxyUtil.toReference;
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.fasterxml.jackson.annotation.JsonView;
 import java.util.List;
 import java.util.Locale;
-
+import javax.enterprise.context.RequestScoped;
 import javax.inject.Inject;
-
+import javax.ws.rs.Path;
 import org.projectnessie.api.v2.http.HttpTreeApi;
 import org.projectnessie.api.v2.params.BaseMergeTransplant;
 import org.projectnessie.api.v2.params.CommitLogParams;
@@ -62,8 +63,8 @@ import org.projectnessie.model.ReferencesResponse;
 import org.projectnessie.model.SingleReferenceResponse;
 import org.projectnessie.model.ser.Views;
 
-import com.fasterxml.jackson.annotation.JsonView;
-
+@RequestScoped
+@Path("api/v2/trees")
 public class ProxyV2TreeResource implements HttpTreeApi {
   private final NessieApiV2 api;
 
@@ -76,9 +77,10 @@ public class ProxyV2TreeResource implements HttpTreeApi {
     return resolveReferencePathElement(refPathString, Reference.ReferenceType.BRANCH);
   }
 
-  private ParsedReference resolveReferencePathElement(String refPathString, Reference.ReferenceType namedRefType) {
-    return ReferenceResolver.resolveReferencePathElement(refPathString, namedRefType,
-      () -> api.getConfig().getDefaultBranch());
+  private ParsedReference resolveReferencePathElement(
+      String refPathString, Reference.ReferenceType namedRefType) {
+    return ReferenceResolver.resolveReferencePathElement(
+        refPathString, namedRefType, () -> api.getConfig().getDefaultBranch());
   }
 
   private static Reference.ReferenceType parseReferenceType(String type) {
@@ -91,10 +93,11 @@ public class ProxyV2TreeResource implements HttpTreeApi {
   @Override
   @JsonView(Views.V2.class)
   public ReferencesResponse getAllReferences(ReferencesParams params) {
-    GetAllReferencesBuilder request = api.getAllReferences()
-      .fetch(params.fetchOption())
-      .filter(params.filter())
-      .pageToken(params.pageToken());
+    GetAllReferencesBuilder request =
+        api.getAllReferences()
+            .fetch(params.fetchOption())
+            .filter(params.filter())
+            .pageToken(params.pageToken());
 
     Integer maxRecords = params.maxRecords();
     if (maxRecords != null) {
@@ -107,7 +110,7 @@ public class ProxyV2TreeResource implements HttpTreeApi {
   @Override
   @JsonView(Views.V2.class)
   public SingleReferenceResponse createReference(String name, String typeName, Reference reference)
-    throws NessieNotFoundException, NessieConflictException {
+      throws NessieNotFoundException, NessieConflictException {
 
     Reference.ReferenceType type = parseReferenceType(typeName);
 
@@ -119,32 +122,38 @@ public class ProxyV2TreeResource implements HttpTreeApi {
     }
 
     Reference toCreate = toReference(name, type, fromHash);
-    Reference created = api.createReference().sourceRefName(fromRefName).reference(toCreate).create();
+    Reference created =
+        api.createReference().sourceRefName(fromRefName).reference(toCreate).create();
     return SingleReferenceResponse.builder().reference(created).build();
   }
 
   @Override
   @JsonView(Views.V2.class)
-  public SingleReferenceResponse getReferenceByName(GetReferenceParams params) throws NessieNotFoundException {
+  public SingleReferenceResponse getReferenceByName(GetReferenceParams params)
+      throws NessieNotFoundException {
     ParsedReference ref = resolveRef(params.getRef());
-    checkArgument(ref.hashWithRelativeSpec() == null, "Hashes are not allowed when fetching a reference by name");
+    checkArgument(
+        ref.hashWithRelativeSpec() == null,
+        "Hashes are not allowed when fetching a reference by name");
     Reference result = api.getReference().refName(ref.name()).fetch(params.fetchOption()).get();
     return SingleReferenceResponse.builder().reference(result).build();
   }
 
   @Override
   @JsonView(Views.V2.class)
-  public EntriesResponse getEntries(String ref, EntriesParams params) throws NessieNotFoundException {
+  public EntriesResponse getEntries(String ref, EntriesParams params)
+      throws NessieNotFoundException {
     ParsedReference reference = resolveRef(ref);
-    GetEntriesBuilder request = api.getEntries()
-      .refName(reference.name())
-      .hashOnRef(reference.hashWithRelativeSpec())
-      .withContent(params.withContent())
-      .filter(params.filter())
-      .minKey(params.minKey())
-      .maxKey(params.maxKey())
-      .prefixKey(params.prefixKey())
-      .pageToken(params.pageToken());
+    GetEntriesBuilder request =
+        api.getEntries()
+            .refName(reference.name())
+            .hashOnRef(reference.hashWithRelativeSpec())
+            .withContent(params.withContent())
+            .filter(params.filter())
+            .minKey(params.minKey())
+            .maxKey(params.maxKey())
+            .prefixKey(params.prefixKey())
+            .pageToken(params.pageToken());
 
     Integer maxRecords = params.maxRecords();
     if (maxRecords != null) {
@@ -161,15 +170,17 @@ public class ProxyV2TreeResource implements HttpTreeApi {
 
   @Override
   @JsonView(Views.V2.class)
-  public LogResponse getCommitLog(String ref, CommitLogParams params) throws NessieNotFoundException {
+  public LogResponse getCommitLog(String ref, CommitLogParams params)
+      throws NessieNotFoundException {
     ParsedReference reference = resolveRef(ref);
-    GetCommitLogBuilder request = api.getCommitLog()
-      .refName(reference.name())
-      .hashOnRef(reference.hashWithRelativeSpec())
-      .untilHash(params.startHash())
-      .filter(params.filter())
-      .fetch(params.fetchOption())
-      .pageToken(params.pageToken());
+    GetCommitLogBuilder request =
+        api.getCommitLog()
+            .refName(reference.name())
+            .hashOnRef(reference.hashWithRelativeSpec())
+            .untilHash(params.startHash())
+            .filter(params.filter())
+            .fetch(params.fetchOption())
+            .pageToken(params.pageToken());
 
     Integer maxRecords = params.maxRecords();
     if (maxRecords != null) {
@@ -185,16 +196,17 @@ public class ProxyV2TreeResource implements HttpTreeApi {
     ParsedReference from = resolveRef(params.getFromRef());
     ParsedReference to = resolveRef(params.getToRef());
 
-    GetDiffBuilder request = api.getDiff()
-      .fromRefName(from.name())
-      .fromHashOnRef(from.hashWithRelativeSpec())
-      .toRefName(to.name())
-      .toHashOnRef(to.hashWithRelativeSpec())
-      .minKey(params.minKey())
-      .maxKey(params.maxKey())
-      .prefixKey(params.prefixKey())
-      .filter(params.getFilter())
-      .pageToken(params.pageToken());
+    GetDiffBuilder request =
+        api.getDiff()
+            .fromRefName(from.name())
+            .fromHashOnRef(from.hashWithRelativeSpec())
+            .toRefName(to.name())
+            .toHashOnRef(to.hashWithRelativeSpec())
+            .minKey(params.minKey())
+            .maxKey(params.maxKey())
+            .prefixKey(params.prefixKey())
+            .filter(params.getFilter())
+            .pageToken(params.pageToken());
 
     Integer maxRecords = params.maxRecords();
     if (maxRecords != null) {
@@ -212,17 +224,18 @@ public class ProxyV2TreeResource implements HttpTreeApi {
   @Override
   @JsonView(Views.V2.class)
   public SingleReferenceResponse assignReference(String typeName, String ref, Reference assignTo)
-    throws NessieNotFoundException, NessieConflictException {
+      throws NessieNotFoundException, NessieConflictException {
 
     Reference.ReferenceType type = parseReferenceType(typeName);
     ParsedReference reference = resolveReferencePathElement(ref, type);
 
-    Reference result = api.assignReference()
-      .refName(reference.name())
-      .refType(type)
-      .hash(reference.hashWithRelativeSpec())
-      .assignTo(assignTo)
-      .assignAndGet();
+    Reference result =
+        api.assignReference()
+            .refName(reference.name())
+            .refType(type)
+            .hash(reference.hashWithRelativeSpec())
+            .assignTo(assignTo)
+            .assignAndGet();
 
     return SingleReferenceResponse.builder().reference(result).build();
   }
@@ -230,30 +243,36 @@ public class ProxyV2TreeResource implements HttpTreeApi {
   @Override
   @JsonView(Views.V2.class)
   public SingleReferenceResponse deleteReference(String typeName, String ref)
-    throws NessieConflictException, NessieNotFoundException {
+      throws NessieConflictException, NessieNotFoundException {
 
     Reference.ReferenceType type = parseReferenceType(typeName);
     ParsedReference reference = resolveReferencePathElement(ref, type);
 
-    Reference result = api.deleteReference()
-      .refName(reference.name())
-      .refType(type)
-      .hash(reference.hashWithRelativeSpec())
-      .getAndDelete();
+    Reference result =
+        api.deleteReference()
+            .refName(reference.name())
+            .refType(type)
+            .hash(reference.hashWithRelativeSpec())
+            .getAndDelete();
 
     return SingleReferenceResponse.builder().reference(result).build();
   }
 
   @Override
   @JsonView(Views.V2.class)
-  public ContentResponse getContent(ContentKey key, String ref, boolean withDocumentation) throws NessieNotFoundException {
+  public ContentResponse getContent(ContentKey key, String ref, boolean withDocumentation)
+      throws NessieNotFoundException {
     ParsedReference reference = resolveRef(ref);
-    return api.getContent().refName(reference.name()).hashOnRef(reference.hashWithRelativeSpec()).getSingle(key);
+    return api.getContent()
+        .refName(reference.name())
+        .hashOnRef(reference.hashWithRelativeSpec())
+        .getSingle(key);
   }
 
   @Override
   @JsonView(Views.V2.class)
-  public GetMultipleContentsResponse getSeveralContents(String ref, List<String> keys, boolean withDocumentation) throws NessieNotFoundException {
+  public GetMultipleContentsResponse getSeveralContents(
+      String ref, List<String> keys, boolean withDocumentation) throws NessieNotFoundException {
     ImmutableGetMultipleContentsRequest.Builder request = GetMultipleContentsRequest.builder();
     keys.forEach(k -> request.addRequestedKeys(ContentKey.fromPathString(k)));
     return getMultipleContents(ref, request.build(), withDocumentation);
@@ -261,27 +280,29 @@ public class ProxyV2TreeResource implements HttpTreeApi {
 
   @Override
   @JsonView(Views.V2.class)
-  public GetMultipleContentsResponse getMultipleContents(String ref, GetMultipleContentsRequest request, boolean withDocumentation)
-    throws NessieNotFoundException {
+  public GetMultipleContentsResponse getMultipleContents(
+      String ref, GetMultipleContentsRequest request, boolean withDocumentation)
+      throws NessieNotFoundException {
 
     ParsedReference reference = resolveRef(ref);
     return api.getContent()
-      .refName(reference.name())
-      .hashOnRef(reference.hashWithRelativeSpec())
-      .keys(request.getRequestedKeys())
-      .getWithResponse();
+        .refName(reference.name())
+        .hashOnRef(reference.hashWithRelativeSpec())
+        .keys(request.getRequestedKeys())
+        .getWithResponse();
   }
 
   @Override
   @JsonView(Views.V2.class)
   public MergeResponse transplantCommitsIntoBranch(String branch, Transplant transplant)
-    throws NessieNotFoundException, NessieConflictException {
+      throws NessieNotFoundException, NessieConflictException {
 
     ParsedReference targetRef = resolveRef(branch);
-    TransplantCommitsBuilder request = api.transplantCommitsIntoBranch()
-      .message(transplant.getMessage())
-      .fromRefName(transplant.getFromRefName())
-      .hashesToTransplant(transplant.getHashesToTransplant());
+    TransplantCommitsBuilder request =
+        api.transplantCommitsIntoBranch()
+            .message(transplant.getMessage())
+            .fromRefName(transplant.getFromRefName())
+            .hashesToTransplant(transplant.getHashesToTransplant());
 
     mergeTransplantAttr(request, targetRef, transplant);
 
@@ -291,29 +312,30 @@ public class ProxyV2TreeResource implements HttpTreeApi {
   @Override
   @JsonView(Views.V2.class)
   public MergeResponse mergeRefIntoBranch(String branch, Merge merge)
-    throws NessieNotFoundException, NessieConflictException {
+      throws NessieNotFoundException, NessieConflictException {
 
     ParsedReference targetRef = resolveRef(branch);
-    MergeReferenceBuilder request = api.mergeRefIntoBranch()
-      .commitMeta(merge.getCommitMeta())
-      .message(merge.getMessage())
-      .fromRefName(merge.getFromRefName())
-      .fromHash(merge.getFromHash());
+    MergeReferenceBuilder request =
+        api.mergeRefIntoBranch()
+            .commitMeta(merge.getCommitMeta())
+            .message(merge.getMessage())
+            .fromRefName(merge.getFromRefName())
+            .fromHash(merge.getFromHash());
 
     mergeTransplantAttr(request, targetRef, merge);
 
     return request.merge();
   }
 
-  private <T extends MergeTransplantBuilder<T>> void mergeTransplantAttr(MergeTransplantBuilder<T> request,
-                                                                         ParsedReference targetRef,
-                                                                         BaseMergeTransplant base) {
+  private <T extends MergeTransplantBuilder<T>> void mergeTransplantAttr(
+      MergeTransplantBuilder<T> request, ParsedReference targetRef, BaseMergeTransplant base) {
     request.branchName(targetRef.name());
     request.hash(targetRef.hashWithRelativeSpec());
 
     request.defaultMergeMode(base.getDefaultKeyMergeMode());
     if (base.getKeyMergeModes() != null) {
-      base.getKeyMergeModes().forEach(kmt -> request.mergeMode(kmt.getKey(), kmt.getMergeBehavior()));
+      base.getKeyMergeModes()
+          .forEach(kmt -> request.mergeMode(kmt.getKey(), kmt.getMergeBehavior()));
     }
 
     Boolean dryRun = base.isDryRun();
@@ -332,27 +354,27 @@ public class ProxyV2TreeResource implements HttpTreeApi {
     }
   }
 
-
   @Override
   @JsonView(Views.V2.class)
   public CommitResponse commitMultipleOperations(String branch, Operations operations)
-    throws NessieNotFoundException, NessieConflictException {
+      throws NessieNotFoundException, NessieConflictException {
 
     ParsedReference reference = resolveRef(branch);
     return api.commitMultipleOperations()
-      .branchName(reference.name())
-      .hash(reference.hashWithRelativeSpec())
-      .commitMeta(operations.getCommitMeta())
-      .operations(operations.getOperations())
-      .commitWithResponse();
+        .branchName(reference.name())
+        .hash(reference.hashWithRelativeSpec())
+        .commitMeta(operations.getCommitMeta())
+        .operations(operations.getOperations())
+        .commitWithResponse();
   }
 
   @Override
-  public ReferenceHistoryResponse getReferenceHistory(ReferenceHistoryParams params) throws NessieNotFoundException {
+  public ReferenceHistoryResponse getReferenceHistory(ReferenceHistoryParams params)
+      throws NessieNotFoundException {
     return api.referenceHistory()
-      .refName(params.getRef())
-      .headCommitsToScan(params.headCommitsToScan())
-      .get();
+        .refName(params.getRef())
+        .headCommitsToScan(params.headCommitsToScan())
+        .get();
   }
 
   private ParsedReference parseRefPathString(String refPathString) {
@@ -360,9 +382,7 @@ public class ProxyV2TreeResource implements HttpTreeApi {
   }
 
   private ParsedReference parseRefPathString(
-    String refPathString, Reference.ReferenceType referenceType) {
-    return resolveReferencePathElement(
-      refPathString, referenceType);
+      String refPathString, Reference.ReferenceType referenceType) {
+    return resolveReferencePathElement(refPathString, referenceType);
   }
-
 }

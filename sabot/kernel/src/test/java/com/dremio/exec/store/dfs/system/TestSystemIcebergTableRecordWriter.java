@@ -22,24 +22,12 @@ import static org.mockito.ArgumentMatchers.notNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
-
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.Path;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.exec.hadoop.HadoopFileSystemConfigurationAdapter;
 import com.dremio.exec.physical.config.ExtendedFormatOptions;
-import com.dremio.exec.physical.config.copyinto.CopyIntoErrorInfo;
+import com.dremio.exec.physical.config.copyinto.CopyIntoFileLoadInfo;
 import com.dremio.exec.proto.ExecProtos;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.store.dfs.copyinto.CopyJobHistoryTableMetadata;
@@ -53,11 +41,20 @@ import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.service.namespace.file.proto.FileType;
 import com.dremio.test.AllocatorRule;
 import com.google.common.collect.ImmutableList;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.Path;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
 
 public class TestSystemIcebergTableRecordWriter extends BaseTestQuery {
 
-  @Rule
-  public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
+  @Rule public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
   private BufferAllocator allocator;
 
   @Before
@@ -74,21 +71,32 @@ public class TestSystemIcebergTableRecordWriter extends BaseTestQuery {
     OperatorStats operatorStats = mock(OperatorStats.class);
 
     OptionManager optionManager = mock(OptionManager.class);
-    when(optionManager.getOption(ExecConstants.PARQUET_WRITER_COMPRESSION_TYPE_VALIDATOR)).thenReturn("none"); //compression shouldn't matter
+    when(optionManager.getOption(ExecConstants.PARQUET_WRITER_COMPRESSION_TYPE_VALIDATOR))
+        .thenReturn("none"); // compression shouldn't matter
     when(optionManager.getOption(ExecConstants.PARQUET_PAGE_SIZE_VALIDATOR)).thenReturn(256L);
-    when(optionManager.getOption(ExecConstants.PARQUET_MAXIMUM_PARTITIONS_VALIDATOR)).thenReturn(1L);
+    when(optionManager.getOption(ExecConstants.PARQUET_MAXIMUM_PARTITIONS_VALIDATOR))
+        .thenReturn(1L);
     when(optionManager.getOption(ExecConstants.PARQUET_DICT_PAGE_SIZE_VALIDATOR)).thenReturn(4096L);
-    when(optionManager.getOption(ExecConstants.PARQUET_BLOCK_SIZE_VALIDATOR)).thenReturn(256 * 1024 * 1024L);
+    when(optionManager.getOption(ExecConstants.PARQUET_BLOCK_SIZE_VALIDATOR))
+        .thenReturn(256 * 1024 * 1024L);
 
     OperatorContext opContext = mock(OperatorContext.class);
-    when(opContext.getFragmentHandle()).thenReturn(ExecProtos.FragmentHandle.newBuilder().setMajorFragmentId(2323).setMinorFragmentId(234234).build());
+    when(opContext.getFragmentHandle())
+        .thenReturn(
+            ExecProtos.FragmentHandle.newBuilder()
+                .setMajorFragmentId(2323)
+                .setMinorFragmentId(234234)
+                .build());
     when(opContext.getAllocator()).thenReturn(this.allocator);
     when(opContext.getOptions()).thenReturn(optionManager);
     when(opContext.getStats()).thenReturn(operatorStats);
 
     SystemIcebergTablesStoragePlugin plugin = getMockedSystemIcebergTablesStoragePlugin();
-    return new SystemIcebergTableRecordWriter(opContext, plugin, plugin.getTableMetadata(ImmutableList.of(COPY_JOB_HISTORY_TABLE_NAME)),
-      com.dremio.io.file.Path.of(targetDirPath.toString()));
+    return new SystemIcebergTableRecordWriter(
+        opContext,
+        plugin,
+        plugin.getTableMetadata(ImmutableList.of(COPY_JOB_HISTORY_TABLE_NAME)),
+        com.dremio.io.file.Path.of(targetDirPath.toString()));
   }
 
   private static SystemIcebergTablesStoragePlugin getMockedSystemIcebergTablesStoragePlugin() {
@@ -97,13 +105,25 @@ public class TestSystemIcebergTableRecordWriter extends BaseTestQuery {
       when(plugin.getSystemUserFS()).thenReturn(fs);
       when(plugin.getFsConfCopy()).thenReturn(new Configuration());
       when(plugin.createIcebergFileIO(any(), any(), any(), any(), any()))
-        .thenReturn(new DremioFileIO(fs, null, null, null, null,
-          new HadoopFileSystemConfigurationAdapter(new Configuration())));
-      when(plugin.createFS(notNull(), notNull(), notNull())).thenReturn(HadoopFileSystem.getLocal(new Configuration()));
-      SystemIcebergTableMetadata tableMetadata = new CopyJobHistoryTableMetadata(1,
-        CopyJobHistoryTableSchemaProvider.getSchema(1), "fake_plugin_name",
-        "fake_plugin_path", COPY_JOB_HISTORY_TABLE_NAME);
-      when(plugin.getTableMetadata(ImmutableList.of(COPY_JOB_HISTORY_TABLE_NAME))).thenReturn(tableMetadata);
+          .thenReturn(
+              new DremioFileIO(
+                  fs,
+                  null,
+                  null,
+                  null,
+                  null,
+                  new HadoopFileSystemConfigurationAdapter(new Configuration())));
+      when(plugin.createFS(notNull(), notNull(), notNull()))
+          .thenReturn(HadoopFileSystem.getLocal(new Configuration()));
+      SystemIcebergTableMetadata tableMetadata =
+          new CopyJobHistoryTableMetadata(
+              1,
+              CopyJobHistoryTableSchemaProvider.getSchema(1),
+              "fake_plugin_name",
+              "fake_plugin_path",
+              COPY_JOB_HISTORY_TABLE_NAME);
+      when(plugin.getTableMetadata(ImmutableList.of(COPY_JOB_HISTORY_TABLE_NAME)))
+          .thenReturn(tableMetadata);
       return plugin;
     } catch (IOException e) {
       throw new UncheckedIOException(e);
@@ -118,7 +138,8 @@ public class TestSystemIcebergTableRecordWriter extends BaseTestQuery {
     SystemIcebergTableRecordWriter recordWriter = getRecordWriter(targetDirPath);
     Path targetFilePath = new Path(targetDirPath, "testFile.parquet");
 
-    recordWriter.write(getContainer(allocator), com.dremio.io.file.Path.of(targetFilePath.toString()));
+    recordWriter.write(
+        getContainer(allocator), com.dremio.io.file.Path.of(targetFilePath.toString()));
     recordWriter.close();
 
     for (FileStatus file : newFs.listStatus(targetDirPath)) {
@@ -128,11 +149,20 @@ public class TestSystemIcebergTableRecordWriter extends BaseTestQuery {
   }
 
   private VectorContainer getContainer(BufferAllocator allocator) {
-    CopyIntoErrorInfo info = new CopyIntoErrorInfo.Builder("queryId", "queryUser",
-      "tableName", "storageLocation", "filePath", new ExtendedFormatOptions(),
-      FileType.CSV.name(), CopyIntoErrorInfo.CopyIntoFileState.PARTIALLY_LOADED)
-      .setRecordsLoadedCount(2).setRecordsRejectedCount(1).setSnapshotId(12345L).build();
+    CopyIntoFileLoadInfo info =
+        new CopyIntoFileLoadInfo.Builder(
+                "queryId",
+                "queryUser",
+                "tableName",
+                "storageLocation",
+                "filePath",
+                new ExtendedFormatOptions(),
+                FileType.CSV.name(),
+                CopyIntoFileLoadInfo.CopyIntoFileState.PARTIALLY_LOADED)
+            .setRecordsLoadedCount(2)
+            .setRecordsRejectedCount(1)
+            .setSnapshotId(12345L)
+            .build();
     return CopyJobHistoryTableRecordBuilder.buildVector(allocator, 1, info, 100, 13);
   }
-
 }

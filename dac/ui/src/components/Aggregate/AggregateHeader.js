@@ -24,11 +24,10 @@ import {
   center,
   right,
 } from "@app/uiTheme/less/Aggregate/AggregateHeader.less";
-import SimpleButton from "components/Buttons/SimpleButton";
 import EllipsedText from "components/EllipsedText";
+import { Button } from "dremio-ui-lib/components";
 import { ExploreInfoHeader } from "pages/ExplorePage/components/ExploreInfoHeader";
 import { AggregateHeaderWithMixin } from "@inject/components/Aggregate/AggregateHeaderMixin.js";
-import * as classes from "@app/uiTheme/radium/replacingRadiumPseudoClasses.module.less";
 
 export class AggregateHeader extends Component {
   static propTypes = {
@@ -48,20 +47,14 @@ export class AggregateHeader extends Component {
     const renderClearAllButtons = this.checkToRenderClearAllConditionally();
     if (clearFunction) {
       return (
-        <SimpleButton
-          type="button"
-          buttonStyle="secondary"
-          className={classes["secondaryButtonPsuedoClasses"]}
-          // DX-34369: all SimpleButton usage need to change from style to classname
-          style={
-            renderClearAllButtons
-              ? { minWidth: "auto", height: 20, marginRight: 5 }
-              : { display: "none" }
-          }
+        <Button
+          variant="secondary"
+          className="mr-05"
+          style={renderClearAllButtons ? { height: 20 } : { display: "none" }}
           onClick={clearFunction}
         >
           {laDeprecated("Clear All")}
-        </SimpleButton>
+        </Button>
       );
     }
     return null;

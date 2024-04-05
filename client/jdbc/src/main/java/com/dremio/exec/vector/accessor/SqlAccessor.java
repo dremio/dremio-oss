@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.vector.accessor;
 
+import com.dremio.common.types.TypeProtos.MajorType;
 import java.io.InputStream;
 import java.io.Reader;
 import java.math.BigDecimal;
@@ -23,10 +24,6 @@ import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.Calendar;
 
-import com.dremio.common.types.TypeProtos.MajorType;
-
-
-
 // TODO:  Doc.:  Document more of basics of pattern of contracts for getXxx(...):
 // - What constitutes invalid access (that throws InvalidAccessException):
 //   - Does it include out-of-bound index values?  (The lack of "throws
@@ -34,45 +31,34 @@ import com.dremio.common.types.TypeProtos.MajorType;
 
 /**
  * Column-data accessor that implements JDBC's Java-null--when--SQL-NULL mapping.
- * <p>
- *  Each {@code rowOffset} parameter specifies the (zero-based) offset (in rows)
- *  of the requested value.
- * </p>
- * <p>
- *   When the requested value is logically a SQL NULL:
- * </p>
- * <li>
- *   a get method that return primitive type throws an exception (callers are
- *   responsible for calling {@link isNull} to check for null before calling
- *   such methods)
- * </li>
- * <li>
- *   a get method that returns a non-primitive type returns Java {@code null}
- *   (the caller does not need to call {@link isNull} to check for nulls)
- * </li>
+ *
+ * <p>Each {@code rowOffset} parameter specifies the (zero-based) offset (in rows) of the requested
+ * value.
+ *
+ * <p>When the requested value is logically a SQL NULL:
+ * <li>a get method that return primitive type throws an exception (callers are responsible for
+ *     calling {@link isNull} to check for null before calling such methods)
+ * <li>a get method that returns a non-primitive type returns Java {@code null} (the caller does not
+ *     need to call {@link isNull} to check for nulls)
  */
 public interface SqlAccessor {
 
   /**
    * Reports the (native) type of data accessed by this accessor.
-   * <p>
-   *   (Some implementations may support more than just the minimum
-   *   <code>get<i>Type</i>(<i>...</i>)</code> method implied by the type.
-   * </p>
+   *
+   * <p>(Some implementations may support more than just the minimum <code>
+   * get<i>Type</i>(<i>...</i>)</code> method implied by the type.
    */
   MajorType getType();
 
   /**
    * Reports the class returned by getObject() of this accessor.
-   * <p>
-   *  (Is for {@link ResultSetMetaData#getColumnClassName(...)}.)
-   * </p>
+   *
+   * <p>(Is for {@link ResultSetMetaData#getColumnClassName(...)}.)
    */
   Class<?> getObjectClass();
 
-  /**
-   * Reports whether the logical value is a SQL NULL.
-   */
+  /** Reports whether the logical value is a SQL NULL. */
   boolean isNull(int rowOffset);
 
   /** (See {@link SqlAccessor class description}.) */
@@ -128,5 +114,4 @@ public interface SqlAccessor {
 
   /** (See {@link SqlAccessor class description}.) */
   Object getObject(int rowOffset) throws InvalidAccessException;
-
 }

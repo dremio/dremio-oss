@@ -15,21 +15,16 @@
  */
 package com.dremio.exec.catalog;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-
-import javax.annotation.Nonnull;
-
 import com.dremio.catalog.model.CatalogEntityKey;
-import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.exec.store.ColumnExtendedProperty;
 import com.dremio.service.catalog.Table;
 import com.dremio.service.namespace.NamespaceKey;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import javax.annotation.Nonnull;
 
-/**
- * Interface used to read datasets and containers.
- */
+/** Interface used to read datasets and containers. */
 public interface EntityExplorer {
 
   /**
@@ -43,10 +38,10 @@ public interface EntityExplorer {
   /**
    * Retrieve a table snapshot ignoring the default schema.
    *
-   * @param key
+   * @param catalogEntityKey
    * @return A DremioTable if found, otherwise null.
    */
-  DremioTable getTableSnapshotNoResolve(NamespaceKey key, TableVersionContext context);
+  DremioTable getTableNoResolve(CatalogEntityKey catalogEntityKey);
 
   /**
    * Retrieve a table ignoring column count.
@@ -66,20 +61,20 @@ public interface EntityExplorer {
    * @param path Container path to check.
    * @return True if the path exists and is readable by the user. False if it doesn't exist.
    */
-  boolean containerExists(NamespaceKey path);
+  boolean containerExists(CatalogEntityKey path);
 
   /**
    * Get a list of all schemas.
    *
-   * @param path
-   *          The path to contextualize to. If the path has no fields, get all schemas. Note
-   *          that this does include nested schemas.
+   * @param path The path to contextualize to. If the path has no fields, get all schemas. Note that
+   *     this does include nested schemas.
    * @return Iterable list of strings of each schema.
    */
   Iterable<String> listSchemas(NamespaceKey path);
 
   /**
    * Get a list of all tables available in this catalog within the provided path.
+   *
    * @param path The path to constraint the listing to.
    * @return The set of tables within the provided path.
    */
@@ -101,7 +96,7 @@ public interface EntityExplorer {
    */
   DremioTable getTable(NamespaceKey key);
 
-  //TODO(DX-83444) Consolidate with getTable
+  // TODO(DX-83444) Consolidate with getTable
   /**
    * Retrieve a table when querying the table's data, first checking the default schema
    *
@@ -110,42 +105,41 @@ public interface EntityExplorer {
    */
   DremioTable getTableForQuery(NamespaceKey key);
 
-  //TODO(DX-83444) Consolidate with getTableSnapshot
+  // TODO(DX-83444) Consolidate with getTableSnapshot
   /**
    * Retrieve a table snapshot when querying the table's data, first checking the default schema
    *
-   * @param key     path to table
-   * @param context version context
+   * @param catalogEntityKey path to table
    * @return DremioTable
    */
-  DremioTable getTableSnapshotForQuery(NamespaceKey key, TableVersionContext context);
+  DremioTable getTableSnapshotForQuery(CatalogEntityKey catalogEntityKey);
 
   /**
    * Retrieve a table snapshot when querying the table's data
    *
-   * @param key     path to table
-   * @param context version context
-   * @return DremioTable
+   * @param catalogEntityKey@return DremioTable
    */
-  DremioTable getTableSnapshot(NamespaceKey key, TableVersionContext context);
+  DremioTable getTableSnapshot(CatalogEntityKey catalogEntityKey);
 
   /**
    * Retrieve the column extended properties for a table.
+   *
    * @param table the table to get the column extended properties for
    * @return the column extended properties grouped by column name
    */
   Map<String, List<ColumnExtendedProperty>> getColumnExtendedProperties(DremioTable table);
 
   /**
-   * Process an ad-hoc metadata verify request of {@link TableMetadataVerifyRequest} on a table and return the result of
-   * {@link TableMetadataVerifyResult}.
+   * Process an ad-hoc metadata verify request of {@link TableMetadataVerifyRequest} on a table and
+   * return the result of {@link TableMetadataVerifyResult}.
    *
-   * @param key path to table
+   * @param catalogEntityKey for table
    * @param metadataVerifyRequest metadata verify request
    * @return metadata verify result
    */
   @Nonnull
-  Optional<TableMetadataVerifyResult> verifyTableMetadata(NamespaceKey key, TableMetadataVerifyRequest metadataVerifyRequest);
+  Optional<TableMetadataVerifyResult> verifyTableMetadata(
+      CatalogEntityKey catalogEntityKey, TableMetadataVerifyRequest metadataVerifyRequest);
 
   DremioTable getTable(CatalogEntityKey catalogEntityKey);
 }

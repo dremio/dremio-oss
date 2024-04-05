@@ -35,6 +35,7 @@ import {
   SET_PREVIOUS_AND_CURRENT_SQL,
   SET_UPDATE_SQL_FROM_HISTORY,
   RESET_TABLE_STATE,
+  WAIT_FOR_JOB_RESULTS,
 } from "actions/explore/view";
 import { isLoaded } from "@app/reducers/reducerFactories";
 import { combineReducers } from "redux";
@@ -229,6 +230,21 @@ const queryFilter = (state = "", action) => {
   }
 };
 
+const waitingForJobResults = (state = null, action) => {
+  if (hasTabId(action)) return state;
+
+  const { type, jobId } = action;
+
+  switch (type) {
+    case WAIT_FOR_JOB_RESULTS:
+      return jobId;
+    case MODIFY_CURRENT_SQL:
+      return null; // reset the loading flag if script changes
+    default:
+      return state;
+  }
+};
+
 const sqlEditorFocusKey = (state = 0, action) => {
   if (hasTabId(action)) return state;
 
@@ -304,4 +320,5 @@ export default combineReducers({
   // included.
   isDatasetMetadataLoaded: isLoaded(datasetMetadataActions),
   activeScript,
+  waitingForJobResults,
 });

@@ -29,7 +29,7 @@ const SECTIONS = [DataFreshnessSection];
 const INCREMENTAL = "INCREMENTAL";
 const FULL = "FULL";
 const FIELDS = ["method", "refreshField"].concat(
-  DataFreshnessSection.getFields()
+  DataFreshnessSection.getFields(),
 );
 
 export class AccelerationUpdatesForm extends Component {
@@ -88,6 +88,8 @@ export class AccelerationUpdatesForm extends Component {
       accelerationGracePeriod: values.accelerationGracePeriod,
       accelerationNeverExpire: values.accelerationNeverExpire,
       accelerationNeverRefresh: values.accelerationNeverRefresh,
+      accelerationActivePolicyType: values.accelerationActivePolicyType,
+      accelerationRefreshSchedule: values.accelerationRefreshSchedule,
     };
 
     if (this.requiresIncrementalFieldSelection(values)) {
@@ -132,7 +134,7 @@ export class AccelerationUpdatesForm extends Component {
             {
               datasetType: reasonForDisablingIncremental,
               b: (chunk) => <b>{chunk}</b>,
-            }
+            },
           )}
         </p>
       );
@@ -253,6 +255,16 @@ const mapStateToProps = (state, ownProps) => {
   const accelerationNeverRefresh = settings.has("accelerationNeverRefresh")
     ? settings.get("accelerationNeverRefresh")
     : false;
+  const accelerationActivePolicyType = settings.has(
+    "accelerationActivePolicyType",
+  )
+    ? settings.get("accelerationActivePolicyType")
+    : DataFreshnessSection.defaultFormValuePolicyType;
+  const accelerationRefreshSchedule = settings.has(
+    "accelerationRefreshSchedule",
+  )
+    ? settings.get("accelerationRefreshSchedule")
+    : DataFreshnessSection.defaultFormValueRefreshSchedule;
 
   return {
     initialValues: {
@@ -265,6 +277,8 @@ const mapStateToProps = (state, ownProps) => {
       accelerationGracePeriod,
       accelerationNeverExpire,
       accelerationNeverRefresh,
+      accelerationActivePolicyType,
+      accelerationRefreshSchedule,
     },
   };
 };
@@ -276,5 +290,5 @@ export default connectComplexForm(
   },
   SECTIONS,
   mapStateToProps,
-  null
+  null,
 )(AccelerationUpdatesForm);

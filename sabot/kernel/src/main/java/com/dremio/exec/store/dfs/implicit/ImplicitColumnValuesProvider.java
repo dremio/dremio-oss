@@ -16,16 +16,17 @@
 
 package com.dremio.exec.store.dfs.implicit;
 
+import com.dremio.exec.store.SplitAndPartitionInfo;
+import com.dremio.options.OptionResolver;
 import java.util.List;
 import java.util.Map;
-
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.types.pojo.Field;
 
-import com.dremio.exec.store.SplitAndPartitionInfo;
-import com.dremio.options.OptionResolver;
-
 public interface ImplicitColumnValuesProvider {
-  List<NameValuePair<?>> getImplicitColumnValues(BufferAllocator allocator, SplitAndPartitionInfo splitInfo,
-      Map<String, Field> implicitColumns, OptionResolver options);
+  List<NameValuePair<?>> getImplicitColumnValues(
+      BufferAllocator allocator,
+      SplitAndPartitionInfo splitInfo,
+      Map<String, Field> implicitColumns,
+      OptionResolver options);
 }

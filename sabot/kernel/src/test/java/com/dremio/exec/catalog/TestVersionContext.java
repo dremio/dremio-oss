@@ -21,16 +21,15 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-import org.junit.Test;
-
 import com.dremio.catalog.model.VersionContext;
+import org.junit.Test;
 
 public class TestVersionContext {
   private static final String NOT_HEXADECIMAL = "nothexadecimal";
   private static final String EMPTY_STRING = "";
   private static final String REASONABLE_HASH = "0123456789ABCDEFabcdef";
   private static final String HASH_TOO_LONG = // 65 characters
-    "012345678901234567890123456789012345678901234567890123456789012345";
+      "012345678901234567890123456789012345678901234567890123456789012345";
   private static final String REF_NAME = "refName";
   private static final String BRANCH_NAME = "branchName";
   private static final String TAG_NAME = "tagName";
@@ -112,18 +111,18 @@ public class TestVersionContext {
   @Test
   public void bareCommitHashNotHexadecimal() {
     assertThatThrownBy(() -> VersionContext.ofCommit(NOT_HEXADECIMAL))
-      .isInstanceOf(IllegalArgumentException.class);
+        .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test
   public void bareCommitHashEmptyString() {
     assertThatThrownBy(() -> VersionContext.ofCommit(EMPTY_STRING))
-      .isInstanceOf(IllegalArgumentException.class);
+        .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test
   public void bareCommitHashTooLong() {
     assertThatThrownBy(() -> VersionContext.ofCommit(HASH_TOO_LONG))
-      .isInstanceOf(IllegalArgumentException.class);
+        .isInstanceOf(IllegalArgumentException.class);
   }
 }

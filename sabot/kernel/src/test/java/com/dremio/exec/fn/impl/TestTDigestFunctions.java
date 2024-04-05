@@ -16,18 +16,16 @@
 
 package com.dremio.exec.fn.impl;
 
-import java.util.HashMap;
-import java.util.Map;
-
-import org.joda.time.DateTimeZone;
-import org.joda.time.LocalDateTime;
-import org.joda.time.format.DateTimeFormatter;
-import org.junit.Test;
-
 import com.dremio.DremioTestWrapper;
 import com.dremio.PlanTestBase;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.expr.fn.impl.DateFunctionsUtils;
+import java.util.HashMap;
+import java.util.Map;
+import org.joda.time.DateTimeZone;
+import org.joda.time.LocalDateTime;
+import org.joda.time.format.DateTimeFormatter;
+import org.junit.Test;
 
 public class TestTDigestFunctions extends PlanTestBase {
   private static final double MEDIAN = 34245.12;
@@ -48,19 +46,19 @@ public class TestTDigestFunctions extends PlanTestBase {
   public void testTDigest() throws Exception {
     runTestExpected(true);
     runTestExpected(false);
-
   }
 
   private void runTestExpected(boolean twoPhase) throws Exception {
-    final String sql = "select tdigest(distinct l_orderkey) as td from cp.\"tpch/lineitem.parquet\"";
+    final String sql =
+        "select tdigest(distinct l_orderkey) as td from cp.\"tpch/lineitem.parquet\"";
     final String twoPhase1 = "StreamAgg(group=[{}], td=[TDIGEST_MERGE($0)])";
     final String twoPhase2 = "StreamAgg(group=[{}], td=[TDIGEST($0)])";
     if (twoPhase) {
       test("set planner.slice_target = 1");
-      testPlanSubstrPatterns(sql, new String[]{twoPhase1, twoPhase2}, null);
+      testPlanSubstrPatterns(sql, new String[] {twoPhase1, twoPhase2}, null);
     } else {
       test("set planner.slice_target = 100000");
-      testPlanSubstrPatterns(sql, new String[]{twoPhase2}, new String[]{twoPhase1});
+      testPlanSubstrPatterns(sql, new String[] {twoPhase2}, new String[] {twoPhase1});
     }
   }
 
@@ -70,12 +68,12 @@ public class TestTDigestFunctions extends PlanTestBase {
     Map<String, DremioTestWrapper.BaselineValuesForTDigest> tolerances = new HashMap<>();
     tolerances.put("`q90`", new DremioTestWrapper.BaselineValuesForTDigest(1e-3, 0.9));
     testBuilder()
-      .sqlQuery(query)
-      .unOrdered()
-      .baselineColumns("q90")
-      .baselineValues(Q90)
-      .baselineTolerancesForTDigest(tolerances)
-      .go();
+        .sqlQuery(query)
+        .unOrdered()
+        .baselineColumns("q90")
+        .baselineValues(Q90)
+        .baselineTolerancesForTDigest(tolerances)
+        .go();
   }
 
   @Test
@@ -84,12 +82,12 @@ public class TestTDigestFunctions extends PlanTestBase {
     Map<String, DremioTestWrapper.BaselineValuesForTDigest> tolerances = new HashMap<>();
     tolerances.put("`q99`", new DremioTestWrapper.BaselineValuesForTDigest(1e-3, 0.99));
     testBuilder()
-      .sqlQuery(query)
-      .unOrdered()
-      .baselineColumns("q99")
-      .baselineValues(Q99)
-      .baselineTolerancesForTDigest(tolerances)
-      .go();
+        .sqlQuery(query)
+        .unOrdered()
+        .baselineColumns("q99")
+        .baselineValues(Q99)
+        .baselineTolerancesForTDigest(tolerances)
+        .go();
   }
 
   @Test
@@ -98,12 +96,12 @@ public class TestTDigestFunctions extends PlanTestBase {
     Map<String, DremioTestWrapper.BaselineValuesForTDigest> tolerances = new HashMap<>();
     tolerances.put("`med`", new DremioTestWrapper.BaselineValuesForTDigest(1e-3, 0.5));
     testBuilder()
-      .sqlQuery(query)
-      .unOrdered()
-      .baselineColumns("med")
-      .baselineValues(MEDIAN)
-      .baselineTolerancesForTDigest(tolerances)
-      .go();
+        .sqlQuery(query)
+        .unOrdered()
+        .baselineColumns("med")
+        .baselineValues(MEDIAN)
+        .baselineTolerancesForTDigest(tolerances)
+        .go();
   }
 
   @Test
@@ -113,12 +111,12 @@ public class TestTDigestFunctions extends PlanTestBase {
     Map<String, DremioTestWrapper.BaselineValuesForTDigest> tolerances = new HashMap<>();
     tolerances.put("`q90`", new DremioTestWrapper.BaselineValuesForTDigest(1e-3, 0.9));
     testBuilder()
-      .sqlQuery(query)
-      .unOrdered()
-      .baselineColumns("q90")
-      .baselineValues(Q90)
-      .baselineTolerancesForTDigest(tolerances)
-      .go();
+        .sqlQuery(query)
+        .unOrdered()
+        .baselineColumns("q90")
+        .baselineValues(Q90)
+        .baselineTolerancesForTDigest(tolerances)
+        .go();
   }
 
   @Test
@@ -128,12 +126,12 @@ public class TestTDigestFunctions extends PlanTestBase {
     Map<String, DremioTestWrapper.BaselineValuesForTDigest> tolerances = new HashMap<>();
     tolerances.put("`q99`", new DremioTestWrapper.BaselineValuesForTDigest(1e-3, 0.99));
     testBuilder()
-      .sqlQuery(query)
-      .unOrdered()
-      .baselineColumns("q99")
-      .baselineValues(Q99)
-      .baselineTolerancesForTDigest(tolerances)
-      .go();
+        .sqlQuery(query)
+        .unOrdered()
+        .baselineColumns("q99")
+        .baselineValues(Q99)
+        .baselineTolerancesForTDigest(tolerances)
+        .go();
   }
 
   @Test
@@ -143,32 +141,34 @@ public class TestTDigestFunctions extends PlanTestBase {
     Map<String, DremioTestWrapper.BaselineValuesForTDigest> tolerances = new HashMap<>();
     tolerances.put("`med`", new DremioTestWrapper.BaselineValuesForTDigest(1e-3, 0.5));
     testBuilder()
-      .sqlQuery(query)
-      .unOrdered()
-      .baselineColumns("med")
-      .baselineValues(MEDIAN)
-      .baselineTolerancesForTDigest(tolerances)
-      .go();
+        .sqlQuery(query)
+        .unOrdered()
+        .baselineColumns("med")
+        .baselineValues(MEDIAN)
+        .baselineTolerancesForTDigest(tolerances)
+        .go();
   }
 
   @Test
   public void tDigestDateQ0() throws Exception {
-    try (AutoCloseable ac = withSystemOption(ExecConstants.PARQUET_AUTO_CORRECT_DATES_VALIDATOR, true)) {
+    try (AutoCloseable ac =
+        withSystemOption(ExecConstants.PARQUET_AUTO_CORRECT_DATES_VALIDATOR, true)) {
       test("set planner.slice_target = 1");
       String query = "select tdigest(l_shipdate) ship from cp.\"tpch/lineitem.parquet\"";
       Map<String, DremioTestWrapper.BaselineValuesForTDigest> tolerances = new HashMap<>();
       tolerances.put("`ship`", new DremioTestWrapper.BaselineValuesForTDigest(0.6, 0.01));
 
-      org.joda.time.format.DateTimeFormatter formatter = DateFunctionsUtils.getISOFormatterForFormatString("YYYY-MM-DD");
+      org.joda.time.format.DateTimeFormatter formatter =
+          DateFunctionsUtils.getISOFormatterForFormatString("YYYY-MM-DD");
       LocalDateTime date = formatter.parseLocalDateTime("1992-04-27");
       Long unixTimeStamp = com.dremio.common.util.DateTimes.toMillis(date);
       testBuilder()
-        .sqlQuery(query)
-        .unOrdered()
-        .baselineColumns("ship")
-        .baselineValues(unixTimeStamp.doubleValue())
-        .baselineTolerancesForTDigest(tolerances)
-        .go();
+          .sqlQuery(query)
+          .unOrdered()
+          .baselineColumns("ship")
+          .baselineValues(unixTimeStamp.doubleValue())
+          .baselineTolerancesForTDigest(tolerances)
+          .go();
     }
   }
 
@@ -179,18 +179,18 @@ public class TestTDigestFunctions extends PlanTestBase {
     Map<String, DremioTestWrapper.BaselineValuesForTDigest> tolerances = new HashMap<>();
     tolerances.put("`t`", new DremioTestWrapper.BaselineValuesForTDigest(0, 0.01));
 
-    DateTimeFormatter timeFormatter = DateFunctionsUtils.getISOFormatterForFormatString("HH24:MI:SS").withZone(DateTimeZone.UTC);
+    DateTimeFormatter timeFormatter =
+        DateFunctionsUtils.getISOFormatterForFormatString("HH24:MI:SS").withZone(DateTimeZone.UTC);
     LocalDateTime date = timeFormatter.parseLocalDateTime("10:20:30");
     Long unixTimeStamp = com.dremio.common.util.DateTimes.toMillis(date);
     testBuilder()
-      .sqlQuery(query)
-      .unOrdered()
-      .baselineColumns("t")
-      .baselineValues(unixTimeStamp.doubleValue())
-      .baselineTolerancesForTDigest(tolerances)
-      .go();
+        .sqlQuery(query)
+        .unOrdered()
+        .baselineColumns("t")
+        .baselineValues(unixTimeStamp.doubleValue())
+        .baselineTolerancesForTDigest(tolerances)
+        .go();
   }
-
 
   @Test
   public void tDigestTimeStampQ0() throws Exception {
@@ -199,27 +199,29 @@ public class TestTDigestFunctions extends PlanTestBase {
     Map<String, DremioTestWrapper.BaselineValuesForTDigest> tolerances = new HashMap<>();
     tolerances.put("`t`", new DremioTestWrapper.BaselineValuesForTDigest(0.1, 0.01));
 
-    DateTimeFormatter timeFormatter = DateFunctionsUtils.getISOFormatterForFormatString("YYYY-MM-DD HH24:MI:SS.FFF");
+    DateTimeFormatter timeFormatter =
+        DateFunctionsUtils.getISOFormatterForFormatString("YYYY-MM-DD HH24:MI:SS.FFF");
     LocalDateTime date = timeFormatter.parseLocalDateTime("2008-02-23 10:20:30.000");
     Long unixTimeStamp = com.dremio.common.util.DateTimes.toMillis(date);
     testBuilder()
-      .sqlQuery(query)
-      .unOrdered()
-      .baselineColumns("t")
-      .baselineValues(unixTimeStamp.doubleValue())
-      .baselineTolerancesForTDigest(tolerances)
-      .go();
+        .sqlQuery(query)
+        .unOrdered()
+        .baselineColumns("t")
+        .baselineValues(unixTimeStamp.doubleValue())
+        .baselineTolerancesForTDigest(tolerances)
+        .go();
   }
 
   @Test
   public void testTDigestNumericDataTypes() throws Exception {
-    String sql = "SELECT \n" +
-      "    tdigest(bool_col) as a, \n" +
-      "    tdigest(int_col) as b,\n" +
-      "    tdigest(bigint_col) as c, \n" +
-      "    tdigest(float4_col) as d, \n" +
-      "    tdigest(float8_col) as e \n" +
-      "FROM cp.parquet.\"all_scalar_types.parquet\"";
+    String sql =
+        "SELECT \n"
+            + "    tdigest(bool_col) as a, \n"
+            + "    tdigest(int_col) as b,\n"
+            + "    tdigest(bigint_col) as c, \n"
+            + "    tdigest(float4_col) as d, \n"
+            + "    tdigest(float8_col) as e \n"
+            + "FROM cp.parquet.\"all_scalar_types.parquet\"";
     Map<String, DremioTestWrapper.BaselineValuesForTDigest> tolerances = new HashMap<>();
     tolerances.put("`a`", new DremioTestWrapper.BaselineValuesForTDigest(0, 0));
     tolerances.put("`b`", new DremioTestWrapper.BaselineValuesForTDigest(0, 0));
@@ -228,13 +230,11 @@ public class TestTDigestFunctions extends PlanTestBase {
     tolerances.put("`e`", new DremioTestWrapper.BaselineValuesForTDigest(0, 0));
 
     testBuilder()
-      .sqlQuery(sql)
-      .ordered()
-      .baselineColumns("a", "b", "c", "d", "e")
-      .baselineValues(1.0D, 1.0D, 1.0D, 0.5D, 0.5D)
-      .baselineTolerancesForTDigest(tolerances)
-      .go();
+        .sqlQuery(sql)
+        .ordered()
+        .baselineColumns("a", "b", "c", "d", "e")
+        .baselineValues(1.0D, 1.0D, 1.0D, 0.5D, 0.5D)
+        .baselineTolerancesForTDigest(tolerances)
+        .go();
   }
-
-
 }

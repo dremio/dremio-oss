@@ -15,16 +15,15 @@
  */
 package com.dremio.datastore;
 
-import java.util.Arrays;
-
 import com.dremio.datastore.api.DocumentConverter;
 import com.dremio.datastore.format.Format;
 import com.google.common.base.Preconditions;
 import com.google.protobuf.Message;
+import java.util.Arrays;
 
 /**
- * Container that stringifies store to config
- * and can get instances of classes.
+ * Container that stringifies store to config and can get instances of classes.
+ *
  * @param <K> key
  * @param <V> value
  */
@@ -72,7 +71,7 @@ public final class StoreBuilderHelper<K, V> {
     return info.getTablename();
   }
 
-  public Integer getVersion(){
+  public Integer getVersion() {
     Preconditions.checkNotNull(documentConverter);
     return documentConverter.getVersion();
   }
@@ -116,41 +115,36 @@ public final class StoreBuilderHelper<K, V> {
 
     @Override
     public <K1, K2> KVFormatInfo visitCompoundPairFormat(
-      String key1Name,
-      Format<K1> key1Format,
-      String key2Name,
-      Format<K2> key2Format) {
+        String key1Name, Format<K1> key1Format, String key2Name, Format<K2> key2Format) {
       return of(KVFormatInfo.Type.COMPOUND)
-        .setCompoundFieldsList(
-          Arrays.asList(
-            key1Format.apply(this),
-            key2Format.apply(this)));
+          .setCompoundFieldsList(Arrays.asList(key1Format.apply(this), key2Format.apply(this)));
     }
 
     @Override
     public <K1, K2, K3> KVFormatInfo visitCompoundTripleFormat(
-      String key1Name,
-      Format<K1> key1Format,
-      String key2Name,
-      Format<K2> key2Format,
-      String key3Name,
-      Format<K3> key3Format) throws DatastoreFatalException {
+        String key1Name,
+        Format<K1> key1Format,
+        String key2Name,
+        Format<K2> key2Format,
+        String key3Name,
+        Format<K3> key3Format)
+        throws DatastoreFatalException {
 
       return of(KVFormatInfo.Type.COMPOUND)
-        .setCompoundFieldsList(
-          Arrays.asList(
-            key1Format.apply(this),
-            key2Format.apply(this),
-            key3Format.apply(this)));
+          .setCompoundFieldsList(
+              Arrays.asList(
+                  key1Format.apply(this), key2Format.apply(this), key3Format.apply(this)));
     }
 
     @Override
-    public <P extends Message> KVFormatInfo visitProtobufFormat(Class<P> clazz) throws DatastoreFatalException {
+    public <P extends Message> KVFormatInfo visitProtobufFormat(Class<P> clazz)
+        throws DatastoreFatalException {
       return of(KVFormatInfo.Type.PROTOBUF, clazz);
     }
 
     @Override
-    public <P extends io.protostuff.Message<P>> KVFormatInfo visitProtostuffFormat(Class<P> clazz) throws DatastoreFatalException {
+    public <P extends io.protostuff.Message<P>> KVFormatInfo visitProtostuffFormat(Class<P> clazz)
+        throws DatastoreFatalException {
       return of(KVFormatInfo.Type.PROTOSTUFF, clazz);
     }
 
@@ -165,7 +159,9 @@ public final class StoreBuilderHelper<K, V> {
     }
 
     @Override
-    public <OUTER, INNER> KVFormatInfo visitWrappedFormat(Class<OUTER> clazz, Converter<OUTER, INNER> converter, Format<INNER> inner) throws DatastoreFatalException {
+    public <OUTER, INNER> KVFormatInfo visitWrappedFormat(
+        Class<OUTER> clazz, Converter<OUTER, INNER> converter, Format<INNER> inner)
+        throws DatastoreFatalException {
       return inner.apply(this);
     }
   }

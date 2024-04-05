@@ -15,9 +15,5 @@
  */
 package com.dremio.plugins.elastic.planning.rels;
 
-/**
- * A marker interface that states nothing else can be pushed into Elastic.
- */
-public interface ElasticTerminalPrel {
-
-}
+/** A marker interface that states nothing else can be pushed into Elastic. */
+public interface ElasticTerminalPrel {}

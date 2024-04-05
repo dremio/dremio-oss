@@ -15,11 +15,6 @@
  */
 package com.dremio.exec.planner.sql.handlers.direct;
 
-import java.util.Collections;
-import java.util.List;
-
-import org.apache.calcite.sql.SqlNode;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.DremioTable;
@@ -27,9 +22,13 @@ import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.parser.SqlAlterTableToggleSchemaLearning;
 import com.dremio.exec.planner.sql.parser.SqlGrant;
 import com.dremio.service.namespace.NamespaceKey;
+import java.util.Collections;
+import java.util.List;
+import org.apache.calcite.sql.SqlNode;
 
 /**
- * Turns ON or OFF Schema Learning for the table specified by {@link SqlAlterTableToggleSchemaLearning}
+ * Turns ON or OFF Schema Learning for the table specified by {@link
+ * SqlAlterTableToggleSchemaLearning}
  */
 public class SqlAlterTableToggleSchemaLearningHandler extends SimpleDirectHandler {
   private final Catalog catalog;
@@ -43,26 +42,29 @@ public class SqlAlterTableToggleSchemaLearningHandler extends SimpleDirectHandle
   @Override
   public List<SimpleCommandResult> toResult(String sql, SqlNode sqlNode) throws Exception {
 
-    final SqlAlterTableToggleSchemaLearning sqlToggleSchemaLearning = SqlNodeUtil.unwrap(sqlNode, SqlAlterTableToggleSchemaLearning.class);
+    final SqlAlterTableToggleSchemaLearning sqlToggleSchemaLearning =
+        SqlNodeUtil.unwrap(sqlNode, SqlAlterTableToggleSchemaLearning.class);
 
     NamespaceKey path = catalog.resolveSingle(sqlToggleSchemaLearning.getTable());
     catalog.validatePrivilege(path, SqlGrant.Privilege.ALTER);
     DremioTable table = catalog.getTableNoResolve(path);
 
     if (table == null) {
-      throw UserException.validationError()
-        .message("Table [%s] not found", table)
-        .buildSilently();
+      throw UserException.validationError().message("Table [%s] not found", table).buildSilently();
     }
 
     final boolean enableSchemaLearning = sqlToggleSchemaLearning.getEnableSchemaLearning();
 
     boolean isToggled = catalog.toggleSchemaLearning(path, enableSchemaLearning);
     if (!isToggled) {
-      return Collections.singletonList(SimpleCommandResult.successful("Failed to toggle schema learning on table %s", path));
+      return Collections.singletonList(
+          SimpleCommandResult.successful("Failed to toggle schema learning on table %s", path));
     }
 
-    String message = String.format("Schema Learning on table %s is " + (enableSchemaLearning ? "enabled." : "disabled."), path);
+    String message =
+        String.format(
+            "Schema Learning on table %s is " + (enableSchemaLearning ? "enabled." : "disabled."),
+            path);
     return Collections.singletonList(SimpleCommandResult.successful(message));
   }
 }

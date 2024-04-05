@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <!--
 
     Copyright (C) 2017-2019 Dremio Corporation
@@ -15,17 +16,19 @@
     limitations under the License.
 
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-dac-parent</artifactId>
-    <version>24.3.2-202401241821100032-d2d8a497</version>
+    <version>25.0.0-202404051521110861-ed9515a8</version>
   </parent>
   <artifactId>dremio-dac-ui</artifactId>
   <packaging>jar</packaging>
   <name>Analyst Center - UI</name>
+  <properties>
+    <npm.buildscript>build</npm.buildscript>
+  </properties>
   <dependencies>
     <dependency>
       <groupId>com.dremio</groupId>
@@ -37,10 +40,12 @@
       <artifactId>dremio-ui-common</artifactId>
       <version>${project.version}</version>
     </dependency>
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-js</artifactId>
+      <version>${project.version}</version>
+    </dependency>
   </dependencies>
-  <properties>
-    <npm.buildscript>build</npm.buildscript>
-  </properties>
   <build>
     <plugins>
       <plugin>
@@ -66,7 +71,8 @@
                 <include>**</include>
               </includes>
               <excludes combine.children="append">
-                <exclude>target/**</exclude> <!-- todo: ${project.build.directory} not working, unsure why -->
+                <!-- todo: ${project.build.directory} not working, unsure why -->
+                <exclude>target/**</exclude>
                 <exclude>build/**</exclude>
                 <exclude>public/**</exclude>
                 <exclude>coverage/**</exclude>
@@ -101,12 +107,12 @@
         <executions>
           <execution>
             <id>npm install</id>
-            <phase>initialize</phase>
             <goals>
               <goal>install-node-and-npm</goal>
               <goal>install-node-and-pnpm</goal>
               <goal>pnpm</goal>
             </goals>
+            <phase>initialize</phase>
             <!-- Optional configuration which provides for running any npm
               command -->
             <configuration>
@@ -115,10 +121,10 @@
           </execution>
           <execution>
             <id>run js linter and unit tests</id>
-            <phase>process-sources</phase>
             <goals>
               <goal>npm</goal>
             </goals>
+            <phase>process-sources</phase>
             <configuration>
               <arguments>run test:only -- --reporter mocha-multi-reporters --reporter-options configFile=${project.basedir}/mochaReporters.json,cmrOutput=mocha-junit-reporter+mochaFile+${project.build.directory}:mocha-junit-reporter+testsuitesTitle+dac-ui</arguments>
               <skip>${skipTests}</skip>
@@ -126,10 +132,10 @@
           </execution>
           <execution>
             <id>make sure there is no outdated/GPL OSS</id>
-            <phase>process-sources</phase>
             <goals>
               <goal>npm</goal>
             </goals>
+            <phase>process-sources</phase>
             <configuration>
               <arguments>run report:oss -- --no-write</arguments>
               <!-- <skip>${skipTests}</skip> -->
@@ -138,12 +144,23 @@
           </execution>
           <execution>
             <id>build minimized webpack bundle</id>
-            <phase>generate-resources</phase>
             <goals>
               <goal>npm</goal>
             </goals>
+            <phase>generate-resources</phase>
             <configuration>
               <arguments>run ${npm.buildscript} -- --output-path=${project.build.outputDirectory}/rest/dremio_static</arguments>
+              <skip>${skip.uibundle}</skip>
+            </configuration>
+          </execution>
+          <execution>
+            <id>overwrite sourcemaps</id>
+            <goals>
+              <goal>npm</goal>
+            </goals>
+            <phase>generate-resources</phase>
+            <configuration>
+              <arguments>run overwrite-sourcemaps -- --output-path=${project.build.outputDirectory}/rest/dremio_static</arguments>
               <skip>${skip.uibundle}</skip>
             </configuration>
           </execution>

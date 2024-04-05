@@ -19,10 +19,10 @@ import com.dremio.common.config.SabotConfig;
 import com.dremio.options.OptionResolver;
 
 /**
- * A Factory interface to create {@code org.apache.calcite.plan.SubstitutionProvider} based on context
- *
+ * A Factory interface to create {@code org.apache.calcite.plan.SubstitutionProvider} based on
+ * context
  */
 public interface SubstitutionProviderFactory {
-  SubstitutionProvider getSubstitutionProvider(SabotConfig config,
-      MaterializationProvider materializationProvider, OptionResolver options);
+  SubstitutionProvider getSubstitutionProvider(
+      SabotConfig config, MaterializationProvider materializationProvider, OptionResolver options);
 }

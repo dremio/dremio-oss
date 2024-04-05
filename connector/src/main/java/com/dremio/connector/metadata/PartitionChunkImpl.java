@@ -17,9 +17,7 @@ package com.dremio.connector.metadata;
 
 import java.util.List;
 
-/**
- * Default implementation.
- */
+/** Default implementation. */
 final class PartitionChunkImpl implements PartitionChunk {
 
   private final List<PartitionValue> partitionValues;
@@ -31,8 +29,7 @@ final class PartitionChunkImpl implements PartitionChunk {
       List<PartitionValue> partitionValues,
       long splitCount,
       List<DatasetSplit> datasetSplits,
-      BytesOutput extraInfo
-  ) {
+      BytesOutput extraInfo) {
     this.partitionValues = partitionValues;
     this.splitCount = splitCount;
     this.datasetSplits = datasetSplits;

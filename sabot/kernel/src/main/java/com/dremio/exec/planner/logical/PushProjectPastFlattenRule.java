@@ -23,7 +23,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.rel.RelNode;
@@ -39,21 +38,25 @@ import org.apache.calcite.rex.RexNode;
 /**
  * Rule that pushes project past a flatten.
  *
- * For example, consider the following query with flatten:
- * select sub.zflat.orange, sub.lflat from (select flatten(t.z) as zflat, flatten(t.l) as lflat from dfs_test.tmp.parquetTable t) sub
+ * <p>For example, consider the following query with flatten: select sub.zflat.orange, sub.lflat
+ * from (select flatten(t.z) as zflat, flatten(t.l) as lflat from dfs_test.tmp.parquetTable t) sub
  *
- * In this case, we want all of "flatten(t.l), but the projection sub.zflat.orange indicates that we only want one particular column/field within zflat.
- * So, when reading data from parquet file, we should only read all of t.l and only t.z.orange from t.z.  This rule pushes the project past flatten
- * so that we can push the column selection into the scan.
+ * <p>In this case, we want all of "flatten(t.l), but the projection sub.zflat.orange indicates that
+ * we only want one particular column/field within zflat. So, when reading data from parquet file,
+ * we should only read all of t.l and only t.z.orange from t.z. This rule pushes the project past
+ * flatten so that we can push the column selection into the scan.
  *
- * ProjectForFlattenRel is a project (with an additional field keeping track of flatten expressions).  ProjectForFlattenRel
- * always have infinite cost, and will not be part of the plan unless pushed into scan.
+ * <p>ProjectForFlattenRel is a project (with an additional field keeping track of flatten
+ * expressions). ProjectForFlattenRel always have infinite cost, and will not be part of the plan
+ * unless pushed into scan.
  */
 public class PushProjectPastFlattenRule extends RelOptRule {
   public static final RelOptRule INSTANCE = new PushProjectPastFlattenRule();
 
   private PushProjectPastFlattenRule() {
-    super(RelOptHelper.some(ProjectRel.class, RelOptHelper.any(FlattenRel.class)), "PushProjectPastFlattenRule");
+    super(
+        RelOptHelper.some(ProjectRel.class, RelOptHelper.any(FlattenRel.class)),
+        "PushProjectPastFlattenRule");
   }
 
   @Override
@@ -65,7 +68,7 @@ public class PushProjectPastFlattenRule extends RelOptRule {
     }
 
     final FlattenRel flatten = call.rel(1);
-    if(flatten.getNumProjectsPushed() > 7){
+    if (flatten.getNumProjectsPushed() > 7) {
       return false;
     }
 
@@ -97,7 +100,8 @@ public class PushProjectPastFlattenRule extends RelOptRule {
     return -1;
   }
 
-  private static RexNode replaceStructuredColumnInputRefIndex(RexBuilder rexBuilder, RexNode rexNode, int orig, int replace) {
+  private static RexNode replaceStructuredColumnInputRefIndex(
+      RexBuilder rexBuilder, RexNode rexNode, int orig, int replace) {
     if (rexNode == null) {
       return null;
     }
@@ -109,7 +113,9 @@ public class PushProjectPastFlattenRule extends RelOptRule {
 
     if (rexNode instanceof RexFieldAccess) {
       RexFieldAccess fieldAccess = (RexFieldAccess) rexNode;
-      RexNode newExpr = replaceStructuredColumnInputRefIndex(rexBuilder, fieldAccess.getReferenceExpr(), orig, replace);
+      RexNode newExpr =
+          replaceStructuredColumnInputRefIndex(
+              rexBuilder, fieldAccess.getReferenceExpr(), orig, replace);
       return rexBuilder.makeFieldAccess(newExpr, fieldAccess.getField().getName(), true);
     }
 
@@ -117,12 +123,17 @@ public class PushProjectPastFlattenRule extends RelOptRule {
       String functionName = ((RexCall) rexNode).getOperator().getName();
       if ("item".equalsIgnoreCase(functionName)) {
         assert ((RexCall) rexNode).getOperands().size() == 2;
-        RexNode newInput0 = replaceStructuredColumnInputRefIndex(rexBuilder, ((RexCall) rexNode).getOperands().get(0), orig, replace);
-        RexNode newInput1 = replaceStructuredColumnInputRefIndex(rexBuilder, ((RexCall) rexNode).getOperands().get(1), orig, replace);
+        RexNode newInput0 =
+            replaceStructuredColumnInputRefIndex(
+                rexBuilder, ((RexCall) rexNode).getOperands().get(0), orig, replace);
+        RexNode newInput1 =
+            replaceStructuredColumnInputRefIndex(
+                rexBuilder, ((RexCall) rexNode).getOperands().get(1), orig, replace);
         return rexBuilder.makeCall(((RexCall) rexNode).getOperator(), newInput0, newInput1);
       } else if (functionName.equalsIgnoreCase(STRUCTURED_WRAPPER.getName())) {
         assert ((RexCall) rexNode).getOperands().size() == 1;
-        return replaceStructuredColumnInputRefIndex(rexBuilder, ((RexCall) rexNode).getOperands().get(0), orig, replace);
+        return replaceStructuredColumnInputRefIndex(
+            rexBuilder, ((RexCall) rexNode).getOperands().get(0), orig, replace);
       }
     }
 
@@ -139,10 +150,11 @@ public class PushProjectPastFlattenRule extends RelOptRule {
     }
   }
 
-  private void getItemAndProjExprs(ProjectRel project,
-                                   FlattenRel flatten,
-                                   Map<Integer, List<RexNode>> itemExprs,
-                                   Set<Integer> projExprs) {
+  private void getItemAndProjExprs(
+      ProjectRel project,
+      FlattenRel flatten,
+      Map<Integer, List<RexNode>> itemExprs,
+      Set<Integer> projExprs) {
     // Get a map<input ref index, list of expressions related to this input ref>
     for (RexNode flattenRexNode : flatten.getToFlatten()) {
       // prune out the flatten operator item, if there are any
@@ -207,57 +219,65 @@ public class PushProjectPastFlattenRule extends RelOptRule {
         rexProjExprs.add(rexBuilder.makeInputRef(flattenInputRow.get(index).getType(), index));
         projDataTypes.add(flattenInputRow.get(index).getType());
         projFieldNames.add(flattenInputRow.get(index).getName());
-        oldProjIndexToNewIndex.put(index, projDataTypes.size()-1);
+        oldProjIndexToNewIndex.put(index, projDataTypes.size() - 1);
         if (itemExprs.get(index) != null) {
           rexItemExprs.addAll(itemExprs.get(index));
-          newFlatten.add(rexBuilder.makeInputRef(projDataTypes.get(projDataTypes.size()-1), projDataTypes.size()-1));
+          newFlatten.add(
+              rexBuilder.makeInputRef(
+                  projDataTypes.get(projDataTypes.size() - 1), projDataTypes.size() - 1));
         } else {
           rexItemExprs.add(rexBuilder.makeInputRef(flattenInputRow.get(index).getType(), index));
         }
       }
     }
 
-    // Convert the old map<input ref, list of expressions> to refer to the updated input ref (with the project pushed down)
+    // Convert the old map<input ref, list of expressions> to refer to the updated input ref (with
+    // the project pushed down)
     List<RexNode> newProjectRelExprs = new ArrayList<>(project.getProjects().size());
     int index = 0;
     for (RexNode expr : project.getProjects()) {
       if (expr instanceof RexInputRef) {
         int oldIndex = ((RexInputRef) expr).getIndex();
         newProjectRelExprs.add(
-            rexBuilder.makeInputRef(project.getRowType().getFieldList().get(index).getType(),
+            rexBuilder.makeInputRef(
+                project.getRowType().getFieldList().get(index).getType(),
                 oldProjIndexToNewIndex.get(oldIndex)));
-      } else if (expr instanceof RexCall || expr instanceof RexFieldAccess){
+      } else if (expr instanceof RexCall || expr instanceof RexFieldAccess) {
         int oldIndex = findStructuredColumnInputRefIndex(expr);
-        RexNode replaced = replaceStructuredColumnInputRefIndex(rexBuilder, expr, oldIndex, oldProjIndexToNewIndex.get(oldIndex));
+        RexNode replaced =
+            replaceStructuredColumnInputRefIndex(
+                rexBuilder, expr, oldIndex, oldProjIndexToNewIndex.get(oldIndex));
         assert replaced != null;
         newProjectRelExprs.add(replaced);
       }
       index++;
     }
 
-    ProjectForFlattenRel newInput = new ProjectForFlattenRel(
-        project.getCluster(),
-        project.getTraitSet(),
-        flatten.getInput(),
-        factory.createStructType(projDataTypes, projFieldNames),
-        rexProjExprs,
-        rexItemExprs);
-    FlattenRel newFlattenRel = new FlattenRel(
-        flatten.getCluster(),
-        flatten.getTraitSet(),
-        newInput,
-        newFlatten,
-        null,
-        flatten.getNumProjectsPushed() + 1);
-    ProjectRel newProjectRel = ProjectRel.create(
-        project.getCluster(),
-        project.getTraitSet(),
-        newFlattenRel,
-        newProjectRelExprs,
-        project.getRowType(),
-        false);
+    ProjectForFlattenRel newInput =
+        new ProjectForFlattenRel(
+            project.getCluster(),
+            project.getTraitSet(),
+            flatten.getInput(),
+            factory.createStructType(projDataTypes, projFieldNames),
+            rexProjExprs,
+            rexItemExprs);
+    FlattenRel newFlattenRel =
+        new FlattenRel(
+            flatten.getCluster(),
+            flatten.getTraitSet(),
+            newInput,
+            newFlatten,
+            null,
+            flatten.getNumProjectsPushed() + 1);
+    ProjectRel newProjectRel =
+        ProjectRel.create(
+            project.getCluster(),
+            project.getTraitSet(),
+            newFlattenRel,
+            newProjectRelExprs,
+            project.getRowType(),
+            false);
 
     return newProjectRel;
-
   }
 }

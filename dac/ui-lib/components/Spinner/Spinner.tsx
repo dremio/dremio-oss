@@ -33,5 +33,5 @@ export const Spinner = forwardRef<HTMLDivElement, SpinnerProps>(
       {/* @ts-ignore */}
       <dremio-icon name={props?.iconName || "interface/spinner"} />
     </div>
-  )
+  ),
 );

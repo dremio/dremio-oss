@@ -16,6 +16,7 @@
 
 package com.dremio.sabot.op.aggregate.vectorized.arrayagg;
 
+import com.dremio.exec.expr.fn.impl.ByteArrayWrapper;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BaseValueVector;
@@ -24,14 +25,23 @@ import org.apache.arrow.vector.MutableVarcharVector;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.complex.impl.UnionListWriter;
 
-import com.dremio.exec.expr.fn.impl.ByteArrayWrapper;
-
-public final class VarbinaryArrayAggAccumulator extends BaseArrayAggAccumulator<ByteArrayWrapper, VarBinaryVector> {
+public final class VarbinaryArrayAggAccumulator
+    extends BaseArrayAggAccumulator<ByteArrayWrapper, VarBinaryVector> {
   private final int maxFieldSizeBytes;
+
   public VarbinaryArrayAggAccumulator(
-    FieldVector input, FieldVector transferVector, int maxValuesPerBatch,
-    BaseValueVector tempAccumulatorHolder, BufferAllocator computationVectorAllocator, int maxFieldSizeBytes) {
-    super(input, transferVector, maxValuesPerBatch, tempAccumulatorHolder, computationVectorAllocator);
+      FieldVector input,
+      FieldVector transferVector,
+      int maxValuesPerBatch,
+      BaseValueVector tempAccumulatorHolder,
+      BufferAllocator computationVectorAllocator,
+      int maxFieldSizeBytes) {
+    super(
+        input,
+        transferVector,
+        maxValuesPerBatch,
+        tempAccumulatorHolder,
+        computationVectorAllocator);
     this.maxFieldSizeBytes = maxFieldSizeBytes;
   }
 
@@ -56,14 +66,17 @@ public final class VarbinaryArrayAggAccumulator extends BaseArrayAggAccumulator<
 
   @Override
   protected BaseArrayAggAccumulatorHolder<ByteArrayWrapper, VarBinaryVector> getAccumulatorHolder(
-    int maxValuesPerBatch, BufferAllocator allocator) {
+      int maxValuesPerBatch, BufferAllocator allocator) {
     return new VarbinaryArrayAggAccumulatorHolder(maxValuesPerBatch, allocator);
   }
 
   @Override
-  protected ByteArrayWrapper getElement(long offHeapMemoryAddress, int itemIndex, ArrowBuf dataBuffer, ArrowBuf offsetBuffer) {
-    final int startOffset = offsetBuffer.getInt((long) itemIndex * MutableVarcharVector.OFFSET_WIDTH);
-    final int endOffset = offsetBuffer.getInt((long) (itemIndex + 1) * MutableVarcharVector.OFFSET_WIDTH);
+  protected ByteArrayWrapper getElement(
+      long offHeapMemoryAddress, int itemIndex, ArrowBuf dataBuffer, ArrowBuf offsetBuffer) {
+    final int startOffset =
+        offsetBuffer.getInt((long) itemIndex * MutableVarcharVector.OFFSET_WIDTH);
+    final int endOffset =
+        offsetBuffer.getInt((long) (itemIndex + 1) * MutableVarcharVector.OFFSET_WIDTH);
     final int len = endOffset - startOffset;
     byte[] data = new byte[len];
     dataBuffer.getBytes(startOffset, data);

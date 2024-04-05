@@ -20,26 +20,6 @@ import static com.dremio.common.TestProfileHelper.isMaprProfile;
 import static com.dremio.dac.server.JobsServiceTestUtils.submitJobAndGetData;
 import static org.junit.Assert.assertEquals;
 
-import java.util.concurrent.TimeUnit;
-
-import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
-
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.permission.FsAction;
-import org.apache.hadoop.fs.permission.FsPermission;
-import org.glassfish.jersey.media.multipart.MultiPartFeature;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.rules.TestRule;
-
 import com.dremio.common.perf.Timer;
 import com.dremio.common.util.FileUtils;
 import com.dremio.common.util.TestTools;
@@ -72,13 +52,27 @@ import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.users.UserService;
 import com.dremio.test.DremioTest;
 import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
+import java.util.concurrent.TimeUnit;
+import javax.ws.rs.client.Client;
+import javax.ws.rs.client.ClientBuilder;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.permission.FsAction;
+import org.apache.hadoop.fs.permission.FsPermission;
+import org.glassfish.jersey.media.multipart.MultiPartFeature;
+import org.junit.After;
+import org.junit.AfterClass;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
+import org.junit.rules.TestRule;
 
-/**
- * HDFS tests.
- */
+/** HDFS tests. */
 public class TestHdfsAsyncParquet extends BaseTestMiniDFS {
-  @Rule
-  public final TestRule timeoutRule = TestTools.getTimeoutRule(120, TimeUnit.SECONDS);
+  @Rule public final TestRule timeoutRule = TestTools.getTimeoutRule(120, TimeUnit.SECONDS);
 
   private static DACDaemon dremioDaemon;
   private static Binder dremioBinder;
@@ -90,42 +84,67 @@ public class TestHdfsAsyncParquet extends BaseTestMiniDFS {
   private static final String SOURCE_DESC = "TestHdfsAsyncParquet";
   private BufferAllocator allocator;
 
-  @ClassRule
-  public static final TemporaryFolder folder = new TemporaryFolder();
+  @ClassRule public static final TemporaryFolder folder = new TemporaryFolder();
 
-  private static void setupSchemaLearnTest() throws Exception{
+  private static void setupSchemaLearnTest() throws Exception {
     fs.mkdirs(new Path("/parquet/"), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
-    fs.copyFromLocalFile(false, true, new Path(FileUtils.getResourceAsFile("/schemalearn").getAbsolutePath()),
-      new Path("/parquet/"));
-    fs.setPermission(new Path("/parquet/schemalearn"), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
+    fs.copyFromLocalFile(
+        false,
+        true,
+        new Path(FileUtils.getResourceAsFile("/schemalearn").getAbsolutePath()),
+        new Path("/parquet/"));
+    fs.setPermission(
+        new Path("/parquet/schemalearn"),
+        new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
   }
 
   private static void setupIntUnionTest() throws Exception {
     fs.mkdirs(new Path("/parquet/"), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
-    fs.copyFromLocalFile(false, true, new Path(FileUtils.getResourceAsFile("/intunionschemalearn").getAbsolutePath()),
-      new Path("/parquet/"));
-    fs.setPermission(new Path("/parquet/intunionschemalearn"), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
+    fs.copyFromLocalFile(
+        false,
+        true,
+        new Path(FileUtils.getResourceAsFile("/intunionschemalearn").getAbsolutePath()),
+        new Path("/parquet/"));
+    fs.setPermission(
+        new Path("/parquet/intunionschemalearn"),
+        new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
   }
 
   private static void setupStructSchemaChangeTest() throws Exception {
     fs.mkdirs(new Path("/parquet/"), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
-    fs.copyFromLocalFile(false, true, new Path(FileUtils.getResourceAsFile("/schemachangestruct").getAbsolutePath()),
-      new Path("/parquet/"));
-    fs.setPermission(new Path("/parquet/schemachangestruct"), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
+    fs.copyFromLocalFile(
+        false,
+        true,
+        new Path(FileUtils.getResourceAsFile("/schemachangestruct").getAbsolutePath()),
+        new Path("/parquet/"));
+    fs.setPermission(
+        new Path("/parquet/schemachangestruct"),
+        new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
   }
 
   private static void setupStructWithDifferentCaseTest() throws Exception {
     fs.mkdirs(new Path("/parquet/"), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
-    fs.copyFromLocalFile(false, true, new Path(FileUtils.getResourceAsFile("/parquet_struct_with_different_case").getAbsolutePath()),
-      new Path("/parquet/"));
-    fs.setPermission(new Path("/parquet/parquet_struct_with_different_case"), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
+    fs.copyFromLocalFile(
+        false,
+        true,
+        new Path(
+            FileUtils.getResourceAsFile("/parquet_struct_with_different_case").getAbsolutePath()),
+        new Path("/parquet/"));
+    fs.setPermission(
+        new Path("/parquet/parquet_struct_with_different_case"),
+        new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
   }
 
   private static void setupEmptyParquetCaseTest() throws Exception {
     fs.mkdirs(new Path("/parquet/"), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
-    fs.copyFromLocalFile(false, true, new Path(FileUtils.getResourceAsFile("/empty_parquet_test").getAbsolutePath()),
-      new Path("/parquet/"));
-    fs.setPermission(new Path("/parquet/empty_parquet_test"), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
+    fs.copyFromLocalFile(
+        false,
+        true,
+        new Path(FileUtils.getResourceAsFile("/empty_parquet_test").getAbsolutePath()),
+        new Path("/parquet/"));
+    fs.setPermission(
+        new Path("/parquet/empty_parquet_test"),
+        new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
   }
 
   @BeforeClass
@@ -141,33 +160,34 @@ public class TestHdfsAsyncParquet extends BaseTestMiniDFS {
     setupStructWithDifferentCaseTest();
     setupEmptyParquetCaseTest();
     try (Timer.TimedBlock b = Timer.time("TestHdfsAsyncParquet.@BeforeClass")) {
-      dremioDaemon = DACDaemon.newDremioDaemon(
-        DACConfig
-          .newDebugConfig(DremioTest.DEFAULT_SABOT_CONFIG)
-          .autoPort(true)
-          .allowTestApis(true)
-          .writePath(folder.getRoot().getAbsolutePath())
-          .with(DremioConfig.FLIGHT_SERVICE_ENABLED_BOOLEAN, false)
-          .clusterMode(ClusterMode.LOCAL)
-          .serveUI(true),
-        DremioTest.CLASSPATH_SCAN_RESULT,
-        new DACDaemonModule());
+      dremioDaemon =
+          DACDaemon.newDremioDaemon(
+              DACConfig.newDebugConfig(DremioTest.DEFAULT_SABOT_CONFIG)
+                  .autoPort(true)
+                  .allowTestApis(true)
+                  .writePath(folder.getRoot().getAbsolutePath())
+                  .with(DremioConfig.FLIGHT_SERVICE_ENABLED_BOOLEAN, false)
+                  .clusterMode(ClusterMode.LOCAL)
+                  .serveUI(true),
+              DremioTest.CLASSPATH_SCAN_RESULT,
+              new DACDaemonModule());
       dremioDaemon.init();
       dremioBinder = BaseTestServer.createBinder(dremioDaemon.getBindingProvider());
       JacksonJaxbJsonProvider provider = new JacksonJaxbJsonProvider();
       provider.setMapper(JSONUtil.prettyMapper());
-      client = ClientBuilder.newBuilder().register(provider).register(MultiPartFeature.class).build();
+      client =
+          ClientBuilder.newBuilder().register(provider).register(MultiPartFeature.class).build();
     }
   }
 
   @AfterClass
   public static void close() throws Exception {
     /*
-     JUnit assume() call results in AssumptionViolatedException, which is handled by JUnit with a goal to ignore
-     the test having the assume() call. Multiple assume() calls, or other exceptions coupled with a single assume()
-     call, result in multiple exceptions, which aren't handled by JUnit, leading to test deemed to be failed.
-     We thus use isMaprProfile() check instead of assumeNonMaprProfile() here.
-     */
+    JUnit assume() call results in AssumptionViolatedException, which is handled by JUnit with a goal to ignore
+    the test having the assume() call. Multiple assume() calls, or other exceptions coupled with a single assume()
+    call, result in multiple exceptions, which aren't handled by JUnit, leading to test deemed to be failed.
+    We thus use isMaprProfile() check instead of assumeNonMaprProfile() here.
+    */
     if (isMaprProfile()) {
       return;
     }
@@ -190,7 +210,9 @@ public class TestHdfsAsyncParquet extends BaseTestMiniDFS {
   @Before
   public void setup() throws Exception {
     {
-      SampleDataPopulator.addDefaultFirstUser(l(UserService.class), new NamespaceServiceImpl(l(LegacyKVStoreProvider.class), new CatalogStatusEventsImpl()));
+      SampleDataPopulator.addDefaultFirstUser(
+          l(UserService.class),
+          new NamespaceServiceImpl(l(LegacyKVStoreProvider.class), new CatalogStatusEventsImpl()));
       final HDFSConf hdfsConfig = new HDFSConf();
       hdfsConfig.hostname = host;
       hdfsConfig.port = port;
@@ -200,8 +222,11 @@ public class TestHdfsAsyncParquet extends BaseTestMiniDFS {
       source.setConnectionConf(hdfsConfig);
       source.setId(new EntityId(SOURCE_ID));
       source.setDescription(SOURCE_DESC);
-      allocator = l(BootStrapContext.class).getAllocator().newChildAllocator(getClass().getName(), 0, Long.MAX_VALUE);
-      ((CatalogServiceImpl)l(CatalogService.class)).getSystemUserCatalog().createSource(source);
+      allocator =
+          l(BootStrapContext.class)
+              .getAllocator()
+              .newChildAllocator(getClass().getName(), 0, Long.MAX_VALUE);
+      ((CatalogServiceImpl) l(CatalogService.class)).getSystemUserCatalog().createSource(source);
     }
   }
 
@@ -213,7 +238,9 @@ public class TestHdfsAsyncParquet extends BaseTestMiniDFS {
 
   @Test
   public void listSource() throws Exception {
-    NamespaceTree ns = l(SourceService.class).listSource(new SourceName(SOURCE_NAME), null, SampleDataPopulator.DEFAULT_USER_NAME);
+    NamespaceTree ns =
+        l(SourceService.class)
+            .listSource(new SourceName(SOURCE_NAME), null, SampleDataPopulator.DEFAULT_USER_NAME);
     assertEquals(1, ns.getFolders().size());
     assertEquals(0, ns.getFiles().size());
     assertEquals(0, ns.getPhysicalDatasets().size());
@@ -221,7 +248,12 @@ public class TestHdfsAsyncParquet extends BaseTestMiniDFS {
 
   @Test
   public void listFolder() throws Exception {
-    NamespaceTree ns = l(SourceService.class).listFolder(new SourceName(SOURCE_NAME), new SourceFolderPath(SOURCE_NAME + ".parquet.schemalearn"), SampleDataPopulator.DEFAULT_USER_NAME);
+    NamespaceTree ns =
+        l(SourceService.class)
+            .listFolder(
+                new SourceName(SOURCE_NAME),
+                new SourceFolderPath(SOURCE_NAME + ".parquet.schemalearn"),
+                SampleDataPopulator.DEFAULT_USER_NAME);
     assertEquals(0, ns.getFolders().size());
     assertEquals(2, ns.getFiles().size());
     assertEquals(0, ns.getPhysicalDatasets().size());
@@ -229,10 +261,18 @@ public class TestHdfsAsyncParquet extends BaseTestMiniDFS {
 
   @Test
   public void testQueryOnFile() throws Exception {
-    try (final JobDataFragment jobData = submitJobAndGetData(l(JobsService.class),
-      JobRequest.newBuilder()
-        .setSqlQuery(new SqlQuery("SELECT * FROM "+SOURCE_NAME+".parquet.schemalearn", SampleDataPopulator.DEFAULT_USER_NAME))
-        .build(), 0, 500, allocator)) {
+    try (final JobDataFragment jobData =
+        submitJobAndGetData(
+            l(JobsService.class),
+            JobRequest.newBuilder()
+                .setSqlQuery(
+                    new SqlQuery(
+                        "SELECT * FROM " + SOURCE_NAME + ".parquet.schemalearn",
+                        SampleDataPopulator.DEFAULT_USER_NAME))
+                .build(),
+            0,
+            500,
+            allocator)) {
       assertEquals(2, jobData.getReturnedRowCount());
       assertEquals(3, jobData.getColumns().size());
     }
@@ -246,10 +286,18 @@ public class TestHdfsAsyncParquet extends BaseTestMiniDFS {
     // File 2: two int32 columns and one column name is common with File 1
     // When select * succeeds it should contain total of three columns
     // (1 common column, remaining column from File 1, remaining column from File 2)
-    try (final JobDataFragment jobData = submitJobAndGetData(l(JobsService.class),
-      JobRequest.newBuilder()
-        .setSqlQuery(new SqlQuery("SELECT * FROM "+SOURCE_NAME+".parquet.intunionschemalearn", SampleDataPopulator.DEFAULT_USER_NAME))
-        .build(), 0, 500, allocator)) {
+    try (final JobDataFragment jobData =
+        submitJobAndGetData(
+            l(JobsService.class),
+            JobRequest.newBuilder()
+                .setSqlQuery(
+                    new SqlQuery(
+                        "SELECT * FROM " + SOURCE_NAME + ".parquet.intunionschemalearn",
+                        SampleDataPopulator.DEFAULT_USER_NAME))
+                .build(),
+            0,
+            500,
+            allocator)) {
       assertEquals(100, jobData.getReturnedRowCount());
       assertEquals(3, jobData.getColumns().size());
     }
@@ -262,10 +310,18 @@ public class TestHdfsAsyncParquet extends BaseTestMiniDFS {
     // File 1: one int column and one struct column with f1, f2 int fields
     // File 2: same int column and same struct column but with fields f1, f3 int fields
     // When select * succeeds it should contain total of two columns and two rows
-    try (final JobDataFragment jobData = submitJobAndGetData(l(JobsService.class),
-      JobRequest.newBuilder()
-        .setSqlQuery(new SqlQuery("SELECT * FROM "+SOURCE_NAME+".parquet.schemachangestruct", SampleDataPopulator.DEFAULT_USER_NAME))
-        .build(), 0, 500, allocator)) {
+    try (final JobDataFragment jobData =
+        submitJobAndGetData(
+            l(JobsService.class),
+            JobRequest.newBuilder()
+                .setSqlQuery(
+                    new SqlQuery(
+                        "SELECT * FROM " + SOURCE_NAME + ".parquet.schemachangestruct",
+                        SampleDataPopulator.DEFAULT_USER_NAME))
+                .build(),
+            0,
+            500,
+            allocator)) {
       assertEquals(2, jobData.getReturnedRowCount());
       assertEquals(2, jobData.getColumns().size());
     }
@@ -279,12 +335,20 @@ public class TestHdfsAsyncParquet extends BaseTestMiniDFS {
     // File 2: parquet file with 'expr$1' as one of its struct type column names
     // When select EXPR$1 succeeds, it should contain two rows
     // by doing case insensitive column name mapping
-    try (final JobDataFragment jobData = submitJobAndGetData(l(JobsService.class),
-      JobRequest.newBuilder()
-        .setSqlQuery(new SqlQuery(
-          "SELECT \"parquet_struct_with_different_case\".\"EXPR$1\".age FROM " +
-            SOURCE_NAME+".parquet.parquet_struct_with_different_case", SampleDataPopulator.DEFAULT_USER_NAME))
-        .build(), 0, 500, allocator)) {
+    try (final JobDataFragment jobData =
+        submitJobAndGetData(
+            l(JobsService.class),
+            JobRequest.newBuilder()
+                .setSqlQuery(
+                    new SqlQuery(
+                        "SELECT \"parquet_struct_with_different_case\".\"EXPR$1\".age FROM "
+                            + SOURCE_NAME
+                            + ".parquet.parquet_struct_with_different_case",
+                        SampleDataPopulator.DEFAULT_USER_NAME))
+                .build(),
+            0,
+            500,
+            allocator)) {
       assertEquals(2, jobData.getReturnedRowCount());
       assertEquals(1, jobData.getColumns().size());
     }
@@ -298,11 +362,18 @@ public class TestHdfsAsyncParquet extends BaseTestMiniDFS {
     // File 1, File 2: contains no record have 3 columns and length of one column is 0
     // Query should be successful and should return 0 records
 
-    try (final JobDataFragment jobData = submitJobAndGetData(l(JobsService.class),
-      JobRequest.newBuilder()
-        .setSqlQuery(new SqlQuery(
-          "SELECT * FROM " + SOURCE_NAME+".parquet.empty_parquet_test", SampleDataPopulator.DEFAULT_USER_NAME))
-        .build(), 0, 500, allocator)) {
+    try (final JobDataFragment jobData =
+        submitJobAndGetData(
+            l(JobsService.class),
+            JobRequest.newBuilder()
+                .setSqlQuery(
+                    new SqlQuery(
+                        "SELECT * FROM " + SOURCE_NAME + ".parquet.empty_parquet_test",
+                        SampleDataPopulator.DEFAULT_USER_NAME))
+                .build(),
+            0,
+            500,
+            allocator)) {
       assertEquals(0, jobData.getReturnedRowCount());
       assertEquals(3, jobData.getColumns().size());
     }

@@ -22,15 +22,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import java.util.Arrays;
-import java.util.ConcurrentModificationException;
-import java.util.List;
-import java.util.UUID;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
-
-import org.junit.Test;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.SearchTypes;
@@ -45,10 +36,15 @@ import com.dremio.service.users.proto.UserInfo;
 import com.dremio.service.users.proto.UserType;
 import com.dremio.test.DremioTest;
 import com.google.common.collect.Iterables;
+import java.util.Arrays;
+import java.util.ConcurrentModificationException;
+import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
+import org.junit.Test;
 
-/**
- * user/admin/group management tests.
- */
+/** user/admin/group management tests. */
 public class TestSimpleUserService {
 
   public void good(String passwd) throws Exception {
@@ -60,7 +56,10 @@ public class TestSimpleUserService {
       SimpleUserService.validatePassword(passwd);
       fail("Password '" + passwd + "' should not be accepted.");
     } catch (UserException e) {
-      assertEquals("Expected a VALIDATION error but got " + e.getErrorType(), ErrorType.VALIDATION, e.getErrorType());
+      assertEquals(
+          "Expected a VALIDATION error but got " + e.getErrorType(),
+          ErrorType.VALIDATION,
+          e.getErrorType());
       assertTrue("Unexpected error message", e.getOriginalMessage().contains(err));
     }
   }
@@ -83,13 +82,19 @@ public class TestSimpleUserService {
 
   @Test
   public void testUsers() throws Exception {
-    try(final LegacyKVStoreProvider kvstore =
-      LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT)) {
+    try (final LegacyKVStoreProvider kvstore =
+        LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT)) {
       kvstore.start();
       final SimpleUserService userGroupService = new SimpleUserService(() -> kvstore);
       initUserStore(kvstore, userGroupService);
-      User db = SimpleUser.newBuilder().setUserName("DavidBrown").setCreatedAt(System.currentTimeMillis()).
-        setEmail("david.brown@dremio.test").setFirstName("David").setLastName("Brown").build();
+      User db =
+          SimpleUser.newBuilder()
+              .setUserName("DavidBrown")
+              .setCreatedAt(System.currentTimeMillis())
+              .setEmail("david.brown@dremio.test")
+              .setFirstName("David")
+              .setLastName("Brown")
+              .build();
       User createdUser = userGroupService.createUser(db, db.getUserName() + "1");
       assertEquals(4, Iterables.size(userGroupService.getAllUsers(null)));
       assertEquals(4, Iterables.size(userGroupService.searchUsers(null, null, null, null)));
@@ -100,7 +105,8 @@ public class TestSimpleUserService {
       assertEquals(2, Iterables.size(userGroupService.searchUsers("Mark", null, null, null)));
 
       // update user by userId
-      User updatedUserWithId = SimpleUser.newBuilder(db).setUID(createdUser.getUID()).setEmail("db_id").build();
+      User updatedUserWithId =
+          SimpleUser.newBuilder(db).setUID(createdUser.getUID()).setEmail("db_id").build();
       updatedUserWithId = userGroupService.updateUserById(updatedUserWithId, null);
       assertEquals("db_id", userGroupService.getUser(updatedUserWithId.getUserName()).getEmail());
 
@@ -132,10 +138,7 @@ public class TestSimpleUserService {
       // update username
       final String oldUserName = db.getUserName();
       final String newUserName = "JohnBrown";
-      db = SimpleUser.newBuilder(db)
-          .setUserName(newUserName)
-          .setFirstName("John")
-          .build();
+      db = SimpleUser.newBuilder(db).setUserName(newUserName).setFirstName("John").build();
       db = userGroupService.updateUserName(oldUserName, newUserName, db, null);
       assertEquals("db", userGroupService.getUser(newUserName).getEmail());
       assertEquals("John", userGroupService.getUser(newUserName).getFirstName());
@@ -150,7 +153,9 @@ public class TestSimpleUserService {
         userGroupService.getUser(oldUserName);
         fail(oldUserName + " should not exist");
       } catch (UserNotFoundException unfe) {
-        assertTrue(unfe.getMessage() + " should contain " + oldUserName, unfe.getMessage().contains(oldUserName));
+        assertTrue(
+            unfe.getMessage() + " should contain " + oldUserName,
+            unfe.getMessage().contains(oldUserName));
       }
 
       // restore user name
@@ -161,7 +166,9 @@ public class TestSimpleUserService {
         userGroupService.getUser(newUserName);
         fail(newUserName + " should not exist");
       } catch (UserNotFoundException unfe) {
-        assertTrue(unfe.getMessage() + " should contain " + newUserName, unfe.getMessage().contains(newUserName));
+        assertTrue(
+            unfe.getMessage() + " should contain " + newUserName,
+            unfe.getMessage().contains(newUserName));
       }
 
       // delete user
@@ -172,31 +179,33 @@ public class TestSimpleUserService {
       assertEquals(2, Iterables.size(userGroupService.searchUsers("David", null, null, null)));
       assertEquals(1, Iterables.size(userGroupService.searchUsers("Johnson", null, null, null)));
       assertEquals(2, Iterables.size(userGroupService.searchUsers("Mark", null, null, null)));
-
     }
   }
 
   @Test
   public void testUpdateUser() throws Exception {
-    try(final LegacyKVStoreProvider kvstore =
-          LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT)) {
+    try (final LegacyKVStoreProvider kvstore =
+        LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT)) {
       kvstore.start();
       final SimpleUserService userGroupService = new SimpleUserService(() -> kvstore);
-      LegacyIndexedStore<UID, UserInfo> userGroupStore = kvstore.getStore(UserGroupStoreBuilder.class);
+      LegacyIndexedStore<UID, UserInfo> userGroupStore =
+          kvstore.getStore(UserGroupStoreBuilder.class);
       // save an remote user
       final UID uid = new UID(UUID.randomUUID().toString());
-      final UserConfig userConfig = new UserConfig()
-        .setUid(uid)
-        .setUserName("DavidBrown")
-        .setCreatedAt(System.currentTimeMillis())
-        .setType(UserType.REMOTE)
-        .setEmail("david.brown@dremio.test")
-        .setFirstName("David")
-        .setLastName("Brown");
+      final UserConfig userConfig =
+          new UserConfig()
+              .setUid(uid)
+              .setUserName("DavidBrown")
+              .setCreatedAt(System.currentTimeMillis())
+              .setType(UserType.REMOTE)
+              .setEmail("david.brown@dremio.test")
+              .setFirstName("David")
+              .setLastName("Brown");
       userGroupStore.put(uid, new UserInfo().setConfig(userConfig));
 
       // verify update doesn't set the user type to local
-      User updatedUserWithId = SimpleUser.newBuilder().setUID(uid).setEmail("newemail@test.com").build();
+      User updatedUserWithId =
+          SimpleUser.newBuilder().setUID(uid).setEmail("newemail@test.com").build();
       userGroupService.updateUserById(updatedUserWithId, null);
       UserConfig updatedUserConfig = userGroupStore.get(uid).getConfig();
       // fields that cannot be updated
@@ -218,21 +227,33 @@ public class TestSimpleUserService {
 
   @Test
   public void testUsersDeactivation() throws Exception {
-    try(final LegacyKVStoreProvider kvstore =
-          LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT)) {
+    try (final LegacyKVStoreProvider kvstore =
+        LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT)) {
       kvstore.start();
       final SimpleUserService userGroupService = new SimpleUserService(() -> kvstore);
       initUserStore(kvstore, userGroupService);
 
       // setup: create an active user
-      User user = SimpleUser.newBuilder().setUserName("DavidBrown").setCreatedAt(System.currentTimeMillis()).
-        setEmail("david.brown@dremio.test").setFirstName("David").setLastName("Brown").build(); // `active` default to true
+      User user =
+          SimpleUser.newBuilder()
+              .setUserName("DavidBrown")
+              .setCreatedAt(System.currentTimeMillis())
+              .setEmail("david.brown@dremio.test")
+              .setFirstName("David")
+              .setLastName("Brown")
+              .build(); // `active` default to true
       String password = "password123!";
-      assertEquals(3, StreamSupport.stream(userGroupService.getAllUsers(null).spliterator(), false)
-        .filter(User::isActive).count());
+      assertEquals(
+          3,
+          StreamSupport.stream(userGroupService.getAllUsers(null).spliterator(), false)
+              .filter(User::isActive)
+              .count());
       User activeUser = userGroupService.createUser(user, password);
-      assertEquals(4, StreamSupport.stream(userGroupService.getAllUsers(null).spliterator(), false)
-        .filter(User::isActive).count());
+      assertEquals(
+          4,
+          StreamSupport.stream(userGroupService.getAllUsers(null).spliterator(), false)
+              .filter(User::isActive)
+              .count());
 
       // deactivate the user
       User inactiveUser = SimpleUser.newBuilder(activeUser).setActive(false).build();
@@ -242,8 +263,11 @@ public class TestSimpleUserService {
       // inactive users should appear in listing
       Iterable<User> listAllUsers = (Iterable<User>) userGroupService.getAllUsers(null);
       assertEquals(4, StreamSupport.stream(listAllUsers.spliterator(), false).count());
-      assertEquals(1, StreamSupport.stream(listAllUsers.spliterator(), false)
-        .filter(userGroup -> !userGroup.isActive()).count());
+      assertEquals(
+          1,
+          StreamSupport.stream(listAllUsers.spliterator(), false)
+              .filter(userGroup -> !userGroup.isActive())
+              .count());
 
       // login as an inactive user should fail
       try {
@@ -259,8 +283,11 @@ public class TestSimpleUserService {
       User activateInactiveUser = SimpleUser.newBuilder(updatedUser).setActive(true).build();
       User updatedUser2 = userGroupService.updateUser(activateInactiveUser, null);
       assertTrue(userGroupService.getUser(updatedUser2.getUID()).isActive());
-      assertEquals(0, StreamSupport.stream(userGroupService.getAllUsers(null).spliterator(), false)
-        .filter(userGroup -> !userGroup.isActive()).count());
+      assertEquals(
+          0,
+          StreamSupport.stream(userGroupService.getAllUsers(null).spliterator(), false)
+              .filter(userGroup -> !userGroup.isActive())
+              .count());
 
       // login as an active user should pass
       userGroupService.authenticate(updatedUser2.getUserName(), password);
@@ -268,49 +295,89 @@ public class TestSimpleUserService {
   }
 
   /**
-   * write now we support a case sensitive search but direct match is not required. So we could search using a substring
-   * See {@code initUserStore} for initial data
+   * write now we support a case sensitive search but direct match is not required. So we could
+   * search using a substring See {@code initUserStore} for initial data
    */
   @Test
   public void testSearch() throws Exception {
-    try(final LegacyKVStoreProvider kvstore =
-      LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT)) {
+    try (final LegacyKVStoreProvider kvstore =
+        LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT)) {
       kvstore.start();
       final SimpleUserService userGroupService = new SimpleUserService(() -> kvstore);
       initUserStore(kvstore, userGroupService);
 
       // direct match works
-      assertEquals(2, Iterables.size(userGroupService.searchUsers("David", null, null, null))); // first and last name match
-      assertEquals(1, Iterables.size(userGroupService.searchUsers("Johnson", null, null, null))); // last name match
-      assertEquals(2, Iterables.size(userGroupService.searchUsers("Mark", null, null, null))); // first name match
+      assertEquals(
+          2,
+          Iterables.size(
+              userGroupService.searchUsers(
+                  "David", null, null, null))); // first and last name match
+      assertEquals(
+          1,
+          Iterables.size(
+              userGroupService.searchUsers("Johnson", null, null, null))); // last name match
+      assertEquals(
+          2,
+          Iterables.size(
+              userGroupService.searchUsers("Mark", null, null, null))); // first name match
       // substring search should work
-      assertEquals(2, Iterables.size(userGroupService.searchUsers("avi", null, null, null))); // first and last name match
-      assertEquals(1, Iterables.size(userGroupService.searchUsers("k.j", null, null, null))); // mark.johnson@dremio.test match
-      assertEquals(2, Iterables.size(userGroupService.searchUsers("@dremio", null, null, null))); // email match
-      assertEquals(1, Iterables.size(userGroupService.searchUsers("rkda", null, null, null))); // markdavid@gmail.com match
+      assertEquals(
+          2,
+          Iterables.size(
+              userGroupService.searchUsers("avi", null, null, null))); // first and last name match
+      assertEquals(
+          1,
+          Iterables.size(
+              userGroupService.searchUsers(
+                  "k.j", null, null, null))); // mark.johnson@dremio.test match
+      assertEquals(
+          2,
+          Iterables.size(userGroupService.searchUsers("@dremio", null, null, null))); // email match
+      assertEquals(
+          1,
+          Iterables.size(
+              userGroupService.searchUsers("rkda", null, null, null))); // markdavid@gmail.com match
       assertEquals(3, Iterables.size(userGroupService.searchUsers("a", null, null, null)));
     }
   }
 
   /**
-   * Init a store with 3 users:
-   * First_Name   Last_Name   Email
-   * Mark         David       markdavid@gmail.com
-   * David        Wilson      david@dremio.test
-   * Mark         Johnson     mark.johnson@dremio.test
+   * Init a store with 3 users: First_Name Last_Name Email Mark David markdavid@gmail.com David
+   * Wilson david@dremio.test Mark Johnson mark.johnson@dremio.test
+   *
    * @param kvstore
    * @param userGroupService
    * @throws Exception
    */
-  private final void initUserStore(final LegacyKVStoreProvider kvstore, final SimpleUserService userGroupService) throws Exception {
-    User md = SimpleUser.newBuilder().setUserName("MarkDavid").setCreatedAt(System.currentTimeMillis()).
-      setEmail("markdavid@gmail.com").setFirstName("Mark").setLastName("David").build();
+  private final void initUserStore(
+      final LegacyKVStoreProvider kvstore, final SimpleUserService userGroupService)
+      throws Exception {
+    User md =
+        SimpleUser.newBuilder()
+            .setUserName("MarkDavid")
+            .setCreatedAt(System.currentTimeMillis())
+            .setEmail("markdavid@gmail.com")
+            .setFirstName("Mark")
+            .setLastName("David")
+            .build();
 
-    User dw = SimpleUser.newBuilder().setUserName("DavidWilson").setCreatedAt(System.currentTimeMillis()).
-      setEmail("david@dremio.test").setFirstName("David").setLastName("Wilson").build();
+    User dw =
+        SimpleUser.newBuilder()
+            .setUserName("DavidWilson")
+            .setCreatedAt(System.currentTimeMillis())
+            .setEmail("david@dremio.test")
+            .setFirstName("David")
+            .setLastName("Wilson")
+            .build();
 
-    User mj = SimpleUser.newBuilder().setUserName("MarkJohnson").setCreatedAt(System.currentTimeMillis()).
-      setEmail("mark.johnson@dremio.test").setFirstName("Mark").setLastName("Johnson").build();
+    User mj =
+        SimpleUser.newBuilder()
+            .setUserName("MarkJohnson")
+            .setCreatedAt(System.currentTimeMillis())
+            .setEmail("mark.johnson@dremio.test")
+            .setFirstName("Mark")
+            .setLastName("Johnson")
+            .build();
 
     userGroupService.createUser(md, md.getUserName() + "1");
     userGroupService.createUser(dw, dw.getUserName() + "1");
@@ -321,56 +388,67 @@ public class TestSimpleUserService {
 
   @Test
   public void testSearchQueryFilter() throws Exception {
-    try(final LegacyKVStoreProvider kvstore =
-          LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT)) {
+    try (final LegacyKVStoreProvider kvstore =
+        LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT)) {
       kvstore.start();
       final SimpleUserService userGroupService = new SimpleUserService(() -> kvstore);
       initUserStore(kvstore, userGroupService);
 
-      Iterable<? extends User> users = userGroupService.searchUsers(
-        SearchQueryUtils.newTermQuery("USERNAME", "MarkDavid"),
-        null,
-        null,
-        null,
-        null);
+      Iterable<? extends User> users =
+          userGroupService.searchUsers(
+              SearchQueryUtils.newTermQuery("USERNAME", "MarkDavid"), null, null, null, null);
       assertEquals(1, Iterables.size(users));
     }
   }
 
   @Test
   public void testSearchQuerySort() throws Exception {
-    try(final LegacyKVStoreProvider kvstore =
-          LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT)) {
+    try (final LegacyKVStoreProvider kvstore =
+        LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT)) {
       kvstore.start();
       final SimpleUserService userGroupService = new SimpleUserService(() -> kvstore);
       initUserStore(kvstore, userGroupService);
 
-      Iterable<? extends User> users = userGroupService.searchUsers(
-        SearchQueryUtils.newMatchAllQuery(),
-        "name",
-        SearchTypes.SortOrder.DESCENDING,
-        null,
-        null);
-      List<String> names = StreamSupport.stream(users.spliterator(), false)
-        .map(User::getUserName)
-        .collect(Collectors.toList());
+      Iterable<? extends User> users =
+          userGroupService.searchUsers(
+              SearchQueryUtils.newMatchAllQuery(),
+              "name",
+              SearchTypes.SortOrder.DESCENDING,
+              null,
+              null);
+      List<String> names =
+          StreamSupport.stream(users.spliterator(), false)
+              .map(User::getUserName)
+              .collect(Collectors.toList());
       assertEquals(Arrays.asList("MarkJohnson", "MarkDavid", "DavidWilson"), names);
     }
   }
 
   @Test
   public void testUserNameCaseSensitivity() throws Exception {
-    try(final LegacyKVStoreProvider kvstore =
-          LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT)) {
+    try (final LegacyKVStoreProvider kvstore =
+        LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT)) {
       kvstore.start();
       final SimpleUserService userGroupService = new SimpleUserService(() -> kvstore);
       initUserStore(kvstore, userGroupService);
-      User testUser = SimpleUser.newBuilder().setUserName("testUser").setCreatedAt(System.currentTimeMillis()).
-        setEmail("testUser@dremio.test").setFirstName("test").setLastName("user").build();
+      User testUser =
+          SimpleUser.newBuilder()
+              .setUserName("testUser")
+              .setCreatedAt(System.currentTimeMillis())
+              .setEmail("testUser@dremio.test")
+              .setFirstName("test")
+              .setLastName("user")
+              .build();
       userGroupService.createUser(testUser, testUser.getUserName() + "1");
 
-      User testUser2 = SimpleUser.newBuilder().setUserName("testuseR").setCreatedAt(System.currentTimeMillis()).
-        setEmail("testUser@dremio.test").setFirstName("test").setLastName("user").build();
+      User testUser2 =
+          SimpleUser.newBuilder()
+              .setUserName("testuseR")
+              .setCreatedAt(System.currentTimeMillis())
+              .setEmail("testUser@dremio.test")
+              .setFirstName("test")
+              .setLastName("user")
+              .build();
 
       // Try to update the user with invalid credentials -- expect a failure
       try {
@@ -385,20 +463,22 @@ public class TestSimpleUserService {
   @Test
   public void testDeleteUserWithVersion() throws Exception {
     try (final LegacyKVStoreProvider kvstore =
-           LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT)) {
+        LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT)) {
       kvstore.start();
       final SimpleUserService userGroupService = new SimpleUserService(() -> kvstore);
-      LegacyIndexedStore<UID, UserInfo> userGroupStore = kvstore.getStore(UserGroupStoreBuilder.class);
+      LegacyIndexedStore<UID, UserInfo> userGroupStore =
+          kvstore.getStore(UserGroupStoreBuilder.class);
       // save an remote user
       final UID uid = new UID(UUID.randomUUID().toString());
-      final UserConfig userConfig = new UserConfig()
-        .setUid(uid)
-        .setUserName("DavidBrown")
-        .setCreatedAt(System.currentTimeMillis())
-        .setType(UserType.REMOTE)
-        .setEmail("david.brown@dremio.test")
-        .setFirstName("David")
-        .setLastName("Brown");
+      final UserConfig userConfig =
+          new UserConfig()
+              .setUid(uid)
+              .setUserName("DavidBrown")
+              .setCreatedAt(System.currentTimeMillis())
+              .setType(UserType.REMOTE)
+              .setEmail("david.brown@dremio.test")
+              .setFirstName("David")
+              .setLastName("Brown");
       userGroupStore.put(uid, new UserInfo().setConfig(userConfig));
 
       // cleanup
@@ -408,33 +488,36 @@ public class TestSimpleUserService {
 
   @Test
   public void testDeleteUserWithWrongVersion() throws Exception {
-    try(final LegacyKVStoreProvider kvstore =
-          LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT)) {
+    try (final LegacyKVStoreProvider kvstore =
+        LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT)) {
       kvstore.start();
       final SimpleUserService userGroupService = new SimpleUserService(() -> kvstore);
-      final LegacyIndexedStore<UID, UserInfo> userGroupStore = kvstore.getStore(UserGroupStoreBuilder.class);
+      final LegacyIndexedStore<UID, UserInfo> userGroupStore =
+          kvstore.getStore(UserGroupStoreBuilder.class);
       // save an remote user
       final UID uid = new UID(UUID.randomUUID().toString());
-      final UserConfig userConfig = new UserConfig()
-        .setUid(uid)
-        .setUserName("DavidBrown")
-        .setCreatedAt(System.currentTimeMillis())
-        .setType(UserType.REMOTE)
-        .setEmail("david.brown@dremio.test")
-        .setFirstName("David")
-        .setLastName("Brown");
+      final UserConfig userConfig =
+          new UserConfig()
+              .setUid(uid)
+              .setUserName("DavidBrown")
+              .setCreatedAt(System.currentTimeMillis())
+              .setType(UserType.REMOTE)
+              .setEmail("david.brown@dremio.test")
+              .setFirstName("David")
+              .setLastName("Brown");
       userGroupStore.put(uid, new UserInfo().setConfig(userConfig));
 
       // cleanup
-      assertThatThrownBy(() -> userGroupService.deleteUser(uid, userConfig.getTag() + UUID.randomUUID()))
-        .isInstanceOf(ConcurrentModificationException.class);
+      assertThatThrownBy(
+              () -> userGroupService.deleteUser(uid, userConfig.getTag() + UUID.randomUUID()))
+          .isInstanceOf(ConcurrentModificationException.class);
     }
   }
 
   @Test
   public void testGetSystemUser() throws Exception {
-    try(final LegacyKVStoreProvider kvstore =
-          LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT)) {
+    try (final LegacyKVStoreProvider kvstore =
+        LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT)) {
       kvstore.start();
       final SimpleUserService userService = new SimpleUserService(() -> kvstore);
 

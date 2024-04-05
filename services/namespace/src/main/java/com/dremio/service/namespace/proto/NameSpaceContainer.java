@@ -15,21 +15,15 @@
  */
 package com.dremio.service.namespace.proto;
 
-import java.util.List;
-
 import com.dremio.service.namespace.function.proto.FunctionConfig;
 import com.google.protobuf.ByteString;
-
 import io.protostuff.LinkedBuffer;
 import io.protostuff.ProtobufIOUtil;
+import java.util.List;
 
-/**
- * NameSpaceContainer POJO that wraps the protostuff version
- */
+/** NameSpaceContainer POJO that wraps the protostuff version */
 public class NameSpaceContainer {
-  /**
-   * NameSpaceContainer type
-   */
+  /** NameSpaceContainer type */
   public enum Type {
     SPACE {
       @Override
@@ -150,7 +144,8 @@ public class NameSpaceContainer {
     return delegate.getSource();
   }
 
-  public NameSpaceContainer setSource(com.dremio.service.namespace.source.proto.SourceConfig source) {
+  public NameSpaceContainer setSource(
+      com.dremio.service.namespace.source.proto.SourceConfig source) {
     delegate.setSource(source);
     return this;
   }
@@ -164,7 +159,9 @@ public class NameSpaceContainer {
     return this;
   }
 
-  public FunctionConfig getFunction() {return delegate.getFunction(); }
+  public FunctionConfig getFunction() {
+    return delegate.getFunction();
+  }
 
   public NameSpaceContainer setFunction(FunctionConfig udf) {
     delegate.setFunction(udf);
@@ -175,7 +172,8 @@ public class NameSpaceContainer {
     return delegate.getFolder();
   }
 
-  public NameSpaceContainer setFolder(com.dremio.service.namespace.space.proto.FolderConfig folder) {
+  public NameSpaceContainer setFolder(
+      com.dremio.service.namespace.space.proto.FolderConfig folder) {
     delegate.setFolder(folder);
     return this;
   }
@@ -184,7 +182,8 @@ public class NameSpaceContainer {
     return delegate.getDataset();
   }
 
-  public NameSpaceContainer setDataset(com.dremio.service.namespace.dataset.proto.DatasetConfig dataset) {
+  public NameSpaceContainer setDataset(
+      com.dremio.service.namespace.dataset.proto.DatasetConfig dataset) {
     delegate.setDataset(dataset);
     return this;
   }
@@ -243,7 +242,11 @@ public class NameSpaceContainer {
 
   public ByteString clone(LinkedBuffer buffer) {
     // TODO(DX-10857): change from opaque object to protobuf; avoid unnecessary copies
-    return ByteString.copyFrom(ProtobufIOUtil.toByteArray(delegate, com.dremio.service.namespace.protostuff.NameSpaceContainer.getSchema(), buffer));
+    return ByteString.copyFrom(
+        ProtobufIOUtil.toByteArray(
+            delegate,
+            com.dremio.service.namespace.protostuff.NameSpaceContainer.getSchema(),
+            buffer));
   }
 
   /**
@@ -253,7 +256,8 @@ public class NameSpaceContainer {
    * @return
    */
   public static NameSpaceContainer from(ByteString bytes) {
-    com.dremio.service.namespace.protostuff.NameSpaceContainer container = com.dremio.service.namespace.protostuff.NameSpaceContainer.getSchema().newMessage();
+    com.dremio.service.namespace.protostuff.NameSpaceContainer container =
+        com.dremio.service.namespace.protostuff.NameSpaceContainer.getSchema().newMessage();
     ProtobufIOUtil.mergeFrom(bytes.toByteArray(), container, container.getSchema());
     return new NameSpaceContainer(container);
   }

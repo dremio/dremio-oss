@@ -19,11 +19,10 @@ import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.core.Values;
 import org.apache.calcite.rel.logical.LogicalValues;
 
-/**
- * Rule that converts a {@link LogicalValues} to a Dremio "values" operation.
- */
+/** Rule that converts a {@link LogicalValues} to a Dremio "values" operation. */
 public class ValuesRule extends RelOptRule {
   public static final RelOptRule INSTANCE = new ValuesRule();
 
@@ -32,9 +31,17 @@ public class ValuesRule extends RelOptRule {
   }
 
   @Override
+  public boolean matches(RelOptRuleCall call) {
+    final LogicalValues values = call.rel(0);
+    // Let the EmptyValuesRule handle this one.
+    return !Values.isEmpty(values);
+  }
+
+  @Override
   public void onMatch(RelOptRuleCall call) {
-    final LogicalValues values = (LogicalValues) call.rel(0);
+    final LogicalValues values = call.rel(0);
     final RelTraitSet traits = values.getTraitSet().plus(Rel.LOGICAL);
-    call.transformTo(new ValuesRel(values.getCluster(), values.getRowType(), values.getTuples(), traits));
+    call.transformTo(
+        new ValuesRel(values.getCluster(), values.getRowType(), values.getTuples(), traits));
   }
 }

@@ -16,21 +16,9 @@
 package com.dremio.dac.util;
 
 import static com.dremio.service.jobs.JobsConstant.BYTES;
-import static com.dremio.service.jobs.JobsConstant.DEFAULT_DATASET_TYPE;
-import static com.dremio.service.jobs.JobsConstant.EMPTY_DATASET_FIELD;
-import static com.dremio.service.jobs.JobsConstant.EXTERNAL_QUERY;
 import static com.dremio.service.jobs.JobsConstant.GIGABYTES;
 import static com.dremio.service.jobs.JobsConstant.KILOBYTES;
 import static com.dremio.service.jobs.JobsConstant.MEGABYTES;
-import static com.dremio.service.jobs.JobsConstant.METADATA;
-import static com.dremio.service.jobs.JobsConstant.UNAVAILABLE;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
-
-import org.apache.commons.lang3.StringUtils;
 
 import com.dremio.dac.explore.DatasetTool;
 import com.dremio.dac.model.job.JobCancellationInfo;
@@ -43,104 +31,42 @@ import com.dremio.service.accelerator.proto.ReflectionRelationship;
 import com.dremio.service.accelerator.proto.SubstitutionState;
 import com.dremio.service.job.JobDetails;
 import com.dremio.service.job.JobSummary;
-import com.dremio.service.job.RequestType;
 import com.dremio.service.job.proto.DataSet;
 import com.dremio.service.job.proto.DurationDetails;
-import com.dremio.service.job.proto.JobInfo;
 import com.dremio.service.job.proto.JobState;
-import com.dremio.service.job.proto.ParentDatasetInfo;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.google.common.base.Preconditions;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 
-/**
- * Util file for common methods in JobsListing and JobInfoDetails APIs
- */
+/** Util file for common methods in JobsListing and JobInfoDetails APIs */
 public class JobUtil {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(JobUtil.class);
 
-  public static List<DataSet> getQueriedDatasets(JobInfo jobInfo, RequestType requestType) {
-   return buildQueriedDatasets(jobInfo.getParentsList(), requestType, jobInfo.getDatasetPathList());
-  }
-
-  public static List<DataSet> buildQueriedDatasets(
-      List<ParentDatasetInfo> parents, RequestType requestType, List<String> pathList) {
-    List<DataSet> queriedDatasets = new ArrayList<>();
-    if (parents != null && parents.size() > 0) {
-      parents.stream()
-          .forEach(
-              parent -> {
-                final List<String> datasetPathList = parent.getDatasetPathList();
-                final String datasetName = datasetPathList.get(datasetPathList.size() - 1);
-                final String datasetPath = StringUtils.join(datasetPathList, ".");
-                final String versionContext = parent.getVersionContext();
-
-                if (!queriedDatasets.stream()
-                    .anyMatch(dataSet -> dataSet.getDatasetPath().equals(datasetPath))) {
-                  String datasetType = DEFAULT_DATASET_TYPE;
-                  if (!datasetPathList.contains(EXTERNAL_QUERY)) {
-                    try {
-                      datasetType = parent.getType().name();
-                    } catch (NullPointerException ex) {
-                      datasetType =
-                          com.dremio.service.namespace.dataset.proto.DatasetType.values()[0]
-                              .toString();
-                    }
-                  }
-
-                  populateQueriedDataset(
-                      queriedDatasets,
-                      datasetName,
-                      datasetType,
-                      datasetPath,
-                      datasetPathList,
-                      versionContext);
-                }
-              });
-    } else if (isTruePath(pathList)) {
-      final String datasetName = pathList.get(pathList.size() - 1);
-      final String datasetPath = StringUtils.join(pathList, ".");
-      final String datasetType = EMPTY_DATASET_FIELD;
-      populateQueriedDataset(queriedDatasets, datasetName, datasetType, datasetPath, pathList, "");
-    } else {
-      populateQueriedDataset(
-          queriedDatasets,
-          UNAVAILABLE,
-          EMPTY_DATASET_FIELD,
-          EMPTY_DATASET_FIELD,
-          new ArrayList<>(),
-          "");
-      switch (requestType) {
-        case GET_CATALOGS:
-        case GET_COLUMNS:
-        case GET_SCHEMAS:
-        case GET_TABLES:
-          queriedDatasets.get(queriedDatasets.size() - 1).setDatasetName(METADATA);
-          break;
-        default:
-          break;
-      }
-    }
-
-    return queriedDatasets;
-  }
-
-  public static List<DurationDetails> buildDurationDetails(List<UserBitShared.AttemptEvent> attemptEvent) {
+  public static List<DurationDetails> buildDurationDetails(
+      List<UserBitShared.AttemptEvent> attemptEvent) {
     List<DurationDetails> durationDetails = new ArrayList<>();
     final List<UserBitShared.AttemptEvent> events = new ArrayList<>(attemptEvent);
     Collections.sort(events, stateStartTime);
     for (int i = 0; i < events.size() && !isTerminal(events.get(i).getState()); i++) {
-          long timeSpent=0;
-          // Condition to check if job state is RUNNING
-          if(i==events.size() -1) {
-            timeSpent = System.currentTimeMillis() - events.get(i).getStartTime();
-          } else {
-            timeSpent = events.get(i + 1).getStartTime() - events.get(i).getStartTime();
-          }
-          durationDetails.add(new DurationDetails());
-          durationDetails.get(durationDetails.size() - 1).setPhaseName(events.get(i).getState().toString());
-          durationDetails.get(durationDetails.size() - 1).setPhaseDuration(String.valueOf(timeSpent));
-          durationDetails.get(durationDetails.size() -1).setPhaseStartTime(String.valueOf(events.get(i).getStartTime()));
-        }
+      long timeSpent = 0;
+      // Condition to check if job state is RUNNING
+      if (i == events.size() - 1) {
+        timeSpent = System.currentTimeMillis() - events.get(i).getStartTime();
+      } else {
+        timeSpent = events.get(i + 1).getStartTime() - events.get(i).getStartTime();
+      }
+      durationDetails.add(new DurationDetails());
+      durationDetails
+          .get(durationDetails.size() - 1)
+          .setPhaseName(events.get(i).getState().toString());
+      durationDetails.get(durationDetails.size() - 1).setPhaseDuration(String.valueOf(timeSpent));
+      durationDetails
+          .get(durationDetails.size() - 1)
+          .setPhaseStartTime(String.valueOf(events.get(i).getStartTime()));
+    }
     return durationDetails;
   }
 
@@ -203,8 +129,14 @@ public class JobUtil {
   }
 
   public static long getTotalDuration(JobDetails jobDetails, int lastAttemptIndex) {
-    long startTime = jobDetails.getAttempts(0).getInfo().getStartTime() != 0 ? jobDetails.getAttempts(0).getInfo().getStartTime() : 0;
-    long finishTime = jobDetails.getAttempts(lastAttemptIndex).getInfo().getFinishTime() != 0 ? jobDetails.getAttempts(lastAttemptIndex).getInfo().getFinishTime() : 0;
+    long startTime =
+        jobDetails.getAttempts(0).getInfo().getStartTime() != 0
+            ? jobDetails.getAttempts(0).getInfo().getStartTime()
+            : 0;
+    long finishTime =
+        jobDetails.getAttempts(lastAttemptIndex).getInfo().getFinishTime() != 0
+            ? jobDetails.getAttempts(lastAttemptIndex).getInfo().getFinishTime()
+            : 0;
     long currentMillisecond = System.currentTimeMillis();
     if (!jobDetails.getCompleted()) {
       finishTime = currentMillisecond;
@@ -212,7 +144,8 @@ public class JobUtil {
     return finishTime - startTime;
   }
 
-  public static JobFailureInfo toJobFailureInfo(String jobFailureInfo, com.dremio.service.job.proto.JobFailureInfo detailedJobFailureInfo) {
+  public static JobFailureInfo toJobFailureInfo(
+      String jobFailureInfo, com.dremio.service.job.proto.JobFailureInfo detailedJobFailureInfo) {
     if (detailedJobFailureInfo == null) {
       return new JobFailureInfo(jobFailureInfo, JobFailureType.UNKNOWN, null);
     }
@@ -244,7 +177,8 @@ public class JobUtil {
       errors = null;
     } else {
       errors = new ArrayList<>();
-      for (com.dremio.service.job.proto.JobFailureInfo.Error error : detailedJobFailureInfo.getErrorsList()) {
+      for (com.dremio.service.job.proto.JobFailureInfo.Error error :
+          detailedJobFailureInfo.getErrorsList()) {
         errors.add(new QueryError(error.getMessage(), toRange(error)));
       }
     }
@@ -252,22 +186,24 @@ public class JobUtil {
     return new JobFailureInfo(detailedJobFailureInfo.getMessage(), failureType, errors);
   }
 
-  public static JobCancellationInfo toJobCancellationInfo(JobState jobState, com.dremio.service.job.proto.JobCancellationInfo jobCancellationInfo) {
+  public static JobCancellationInfo toJobCancellationInfo(
+      JobState jobState, com.dremio.service.job.proto.JobCancellationInfo jobCancellationInfo) {
     if (jobState != JobState.CANCELED) {
       return null;
     }
 
-    return new JobCancellationInfo(jobCancellationInfo == null ?
-      "Query was cancelled" : //backward compatibility
-      jobCancellationInfo.getMessage());
+    return new JobCancellationInfo(
+        jobCancellationInfo == null
+            ? "Query was cancelled"
+            : // backward compatibility
+            jobCancellationInfo.getMessage());
   }
 
   public static boolean isTruePath(List<String> datasetPathList) {
-    if(
-      datasetPathList != null
+    if (datasetPathList != null
         && !datasetPathList.equals(DatasetTool.TMP_DATASET_PATH.toPathList())
         && !datasetPathList.isEmpty()
-        && !datasetPathList.get(0).equals("UNKNOWN")){
+        && !datasetPathList.get(0).equals("UNKNOWN")) {
       return true;
     }
 
@@ -277,7 +213,7 @@ public class JobUtil {
   public static boolean isComplete(JobState state) {
     Preconditions.checkNotNull(state, "JobState must be set");
 
-    switch(state){
+    switch (state) {
       case CANCELLATION_REQUESTED:
       case ENQUEUED:
       case NOT_SUBMITTED:
@@ -300,12 +236,12 @@ public class JobUtil {
   }
 
   public static void populateQueriedDataset(
-    List<DataSet> queriedDatasets,
-    String datasetName,
-    String datasetType,
-    String datasetPath,
-    List<String> datasetPathList,
-    String versionContext) {
+      List<DataSet> queriedDatasets,
+      String datasetName,
+      String datasetType,
+      String datasetPath,
+      List<String> datasetPathList,
+      String versionContext) {
     final DataSet dataset =
         new DataSet()
             .setDatasetName(datasetName)
@@ -320,17 +256,19 @@ public class JobUtil {
     queriedDatasets.add(dataset);
   }
 
-  private static Comparator<UserBitShared.AttemptEvent> stateStartTime = new Comparator<UserBitShared.AttemptEvent>() {
-    @Override
-    public int compare(final UserBitShared.AttemptEvent a1, final UserBitShared.AttemptEvent a2) {
-      return Long.compare(a1.getStartTime(), a2.getStartTime());
-    }
-  };
+  private static Comparator<UserBitShared.AttemptEvent> stateStartTime =
+      new Comparator<UserBitShared.AttemptEvent>() {
+        @Override
+        public int compare(
+            final UserBitShared.AttemptEvent a1, final UserBitShared.AttemptEvent a2) {
+          return Long.compare(a1.getStartTime(), a2.getStartTime());
+        }
+      };
 
   private static boolean isTerminal(UserBitShared.AttemptEvent.State state) {
-    return (state == UserBitShared.AttemptEvent.State.COMPLETED ||
-      state == UserBitShared.AttemptEvent.State.CANCELED ||
-      state == UserBitShared.AttemptEvent.State.FAILED);
+    return (state == UserBitShared.AttemptEvent.State.COMPLETED
+        || state == UserBitShared.AttemptEvent.State.CANCELED
+        || state == UserBitShared.AttemptEvent.State.FAILED);
   }
 
   private static QueryError.Range toRange(com.dremio.service.job.proto.JobFailureInfo.Error error) {
@@ -350,9 +288,11 @@ public class JobUtil {
   }
 
   public static JobState computeJobState(JobState lastAttemptState, boolean isJobCompleted) {
-    // this is to avoid showing failed state for intermediate attempts when the job is being retried.
+    // this is to avoid showing failed state for intermediate attempts when the job is being
+    // retried.
     if (!isJobCompleted && lastAttemptState == JobState.FAILED) {
-      logger.debug("Changing jobState to RUNNING from {} as the job is being reattempted", lastAttemptState);
+      logger.debug(
+          "Changing jobState to RUNNING from {} as the job is being reattempted", lastAttemptState);
       return JobState.RUNNING;
     }
     return lastAttemptState;

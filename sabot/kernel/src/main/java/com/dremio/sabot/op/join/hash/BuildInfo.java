@@ -35,7 +35,7 @@ public class BuildInfo implements AutoCloseable {
     return links;
   }
 
-  public int getRecordCount(){
+  public int getRecordCount() {
     return recordCount;
   }
 

@@ -17,10 +17,19 @@ package com.dremio.exec.planner.logical;
 
 import static com.dremio.exec.planner.logical.RexToExpr.isLiteralNull;
 
+import com.dremio.common.JSONOptions;
+import com.dremio.exec.vector.complex.fn.ExtendedJsonOutput;
+import com.dremio.exec.vector.complex.fn.JsonOutput;
+import com.fasterxml.jackson.core.JsonLocation;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.util.TokenBuffer;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
-
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptPlanner;
@@ -43,29 +52,21 @@ import org.joda.time.DateTimeZone;
 import org.joda.time.LocalDateTime;
 import org.joda.time.Period;
 
-import com.dremio.common.JSONOptions;
-import com.dremio.exec.vector.complex.fn.ExtendedJsonOutput;
-import com.dremio.exec.vector.complex.fn.JsonOutput;
-import com.fasterxml.jackson.core.JsonLocation;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.util.TokenBuffer;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
-
-/**
- * Values implemented in Dremio.
- */
+/** Values implemented in Dremio. */
 public class ValuesRel extends Values implements Rel {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ValuesRel.class);
   private static final ObjectMapper MAPPER = new ObjectMapper();
 
-  private static final long MILLIS_IN_DAY = 1000*60*60*24;
+  private static final long MILLIS_IN_DAY = 1000 * 60 * 60 * 24;
 
   private final JSONOptions options;
   private final double rowCount;
 
-  protected ValuesRel(RelOptCluster cluster, RelDataType rowType, ImmutableList<ImmutableList<RexLiteral>> tuples, RelTraitSet traits) {
+  protected ValuesRel(
+      RelOptCluster cluster,
+      RelDataType rowType,
+      ImmutableList<ImmutableList<RexLiteral>> tuples,
+      RelTraitSet traits) {
     super(cluster, rowType, tuples, traits);
     assert getConvention() == LOGICAL;
 
@@ -77,15 +78,20 @@ public class ValuesRel extends Values implements Rel {
     this.rowType = rowType;
     this.rowCount = tuples.size();
 
-    try{
+    try {
       this.options = new JSONOptions(convertToJsonNode(rowType, tuples), JsonLocation.NA);
-    }catch(IOException e){
+    } catch (IOException e) {
       throw new RuntimeException("Failure while attempting to encode ValuesRel in JSON.", e);
     }
-
   }
 
-  private ValuesRel(RelOptCluster cluster, RelDataType rowType, ImmutableList<ImmutableList<RexLiteral>> tuples, RelTraitSet traits, JSONOptions options, double rowCount){
+  private ValuesRel(
+      RelOptCluster cluster,
+      RelDataType rowType,
+      ImmutableList<ImmutableList<RexLiteral>> tuples,
+      RelTraitSet traits,
+      JSONOptions options,
+      double rowCount) {
     super(cluster, rowType, tuples, traits);
     this.options = options;
     this.rowCount = rowCount;
@@ -95,14 +101,15 @@ public class ValuesRel extends Values implements Rel {
   /**
    * Adjust the row type to remove ANY types - derive type from the literals
    *
-   * @param typeFactory       RelDataTypeFactory used to create the RelDataType
-   * @param rowType           Row type
-   * @param tuples            RexLiterals for the Values Rel
-   *
+   * @param typeFactory RelDataTypeFactory used to create the RelDataType
+   * @param rowType Row type
+   * @param tuples RexLiterals for the Values Rel
    * @return the derived RelDataType from literal.
    */
-  private static RelDataType adjustRowType(final RelDataTypeFactory typeFactory, final RelDataType rowType,
-                                           final ImmutableList<ImmutableList<RexLiteral>> tuples) {
+  private static RelDataType adjustRowType(
+      final RelDataTypeFactory typeFactory,
+      final RelDataType rowType,
+      final ImmutableList<ImmutableList<RexLiteral>> tuples) {
     final int inFieldCount = rowType.getFieldCount();
     List<RelDataType> fieldTypes = Lists.newArrayListWithExpectedSize(inFieldCount);
     List<String> fieldNames = Lists.newArrayListWithExpectedSize(inFieldCount);
@@ -128,48 +135,50 @@ public class ValuesRel extends Values implements Rel {
   }
 
   /**
-   * Helper method that gets the type from tuples for given fieldIndex.
-   * An IN list is represented by a single iteration through the tuples at fieldIndex.
+   * Helper method that gets the type from tuples for given fieldIndex. An IN list is represented by
+   * a single iteration through the tuples at fieldIndex.
    *
-   * @param fieldIndex        Field index used to retrieve the relevant RexLiteral.
-   * @param tuples            RexLiterals for the Values Rel
-   *
+   * @param fieldIndex Field index used to retrieve the relevant RexLiteral.
+   * @param tuples RexLiterals for the Values Rel
    * @return the derived RelDataType from literal.
    */
-  private static RelDataType getFieldTypeFromInput(RelDataTypeFactory typeFactory, final int fieldIndex,
-                                                   final ImmutableList<ImmutableList<RexLiteral>> tuples) {
+  private static RelDataType getFieldTypeFromInput(
+      RelDataTypeFactory typeFactory,
+      final int fieldIndex,
+      final ImmutableList<ImmutableList<RexLiteral>> tuples) {
     // Search for a non-NULL, non-ANY type.
     List<RelDataType> literalTypes = Lists.newArrayListWithExpectedSize(tuples.size());
 
-    for(ImmutableList<RexLiteral> literals : tuples) {
+    for (ImmutableList<RexLiteral> literals : tuples) {
       final RexLiteral literal = literals.get(fieldIndex);
       if (literal != null
-        && literal.getType().getSqlTypeName() != SqlTypeName.NULL
-        && literal.getType().getSqlTypeName() != SqlTypeName.ANY) {
+          && literal.getType().getSqlTypeName() != SqlTypeName.NULL
+          && literal.getType().getSqlTypeName() != SqlTypeName.ANY) {
         literalTypes.add(literal.getType());
       }
     }
 
-    // Return the least restrictive type unless it is null, in which case return the first non-null, non-ANY type.
+    // Return the least restrictive type unless it is null, in which case return the first non-null,
+    // non-ANY type.
     RelDataType leastRestrictiveType = typeFactory.leastRestrictive(literalTypes);
     return (leastRestrictiveType != null) ? leastRestrictiveType : literalTypes.get(0);
   }
 
-  private static void verifyRowType(final ImmutableList<ImmutableList<RexLiteral>> tuples, RelDataType rowType){
-      for (List<RexLiteral> tuple : tuples) {
-        assert (tuple.size() == rowType.getFieldCount());
+  private static void verifyRowType(
+      final ImmutableList<ImmutableList<RexLiteral>> tuples, RelDataType rowType) {
+    for (List<RexLiteral> tuple : tuples) {
+      assert (tuple.size() == rowType.getFieldCount());
 
-        for (Pair<RexLiteral, RelDataTypeField> pair : Pair.zip(tuple, rowType.getFieldList())) {
-          RexLiteral literal = pair.left;
-          RelDataType fieldType = pair.right.getType();
+      for (Pair<RexLiteral, RelDataTypeField> pair : Pair.zip(tuple, rowType.getFieldList())) {
+        RexLiteral literal = pair.left;
+        RelDataType fieldType = pair.right.getType();
 
-          if ((!(RexLiteral.isNullLiteral(literal)))
-              && (!(SqlTypeUtil.canAssignFrom(fieldType, literal.getType())))) {
-            throw new AssertionError("to " + fieldType + " from " + literal);
-          }
+        if ((!(RexLiteral.isNullLiteral(literal)))
+            && (!(SqlTypeUtil.canAssignFrom(fieldType, literal.getType())))) {
+          throw new AssertionError("to " + fieldType + " from " + literal);
         }
       }
-
+    }
   }
 
   @Override
@@ -198,19 +207,21 @@ public class ValuesRel extends Values implements Rel {
         .itemIf("type", this.rowType, pw.getDetailLevel() == SqlExplainLevel.DIGEST_ATTRIBUTES)
         .itemIf("type", this.rowType.getFieldList(), pw.nest())
         .itemIf("tuplesCount", rowCount, pw.getDetailLevel() != SqlExplainLevel.ALL_ATTRIBUTES)
-        .itemIf("tuples", options.asNode(), pw.getDetailLevel() == SqlExplainLevel.DIGEST_ATTRIBUTES);
+        .itemIf(
+            "tuples", options.asNode(), pw.getDetailLevel() == SqlExplainLevel.DIGEST_ATTRIBUTES);
   }
 
-  private static JsonNode convertToJsonNode(RelDataType rowType, ImmutableList<ImmutableList<RexLiteral>> tuples) throws IOException{
+  private static JsonNode convertToJsonNode(
+      RelDataType rowType, ImmutableList<ImmutableList<RexLiteral>> tuples) throws IOException {
     TokenBuffer out = new TokenBuffer(MAPPER.getFactory().getCodec(), false);
     JsonOutput json = new ExtendedJsonOutput(out);
     json.writeStartArray();
     String[] fields = rowType.getFieldNames().toArray(new String[rowType.getFieldCount()]);
 
-    for(List<RexLiteral> row : tuples){
+    for (List<RexLiteral> row : tuples) {
       json.writeStartObject();
-      int i =0;
-      for(RexLiteral field : row){
+      int i = 0;
+      for (RexLiteral field : row) {
         json.writeFieldName(fields[i]);
         writeLiteral(field, json);
         i++;
@@ -222,148 +233,157 @@ public class ValuesRel extends Values implements Rel {
     return out.asParser().readValueAsTree();
   }
 
+  private static void writeLiteral(RexLiteral literal, JsonOutput out) throws IOException {
 
-  private static void writeLiteral(RexLiteral literal, JsonOutput out) throws IOException{
+    switch (literal.getType().getSqlTypeName()) {
+      case BIGINT:
+        if (isLiteralNull(literal)) {
+          out.writeBigIntNull();
+        } else {
+          out.writeBigInt(
+              (((BigDecimal) literal.getValue()).setScale(0, RoundingMode.HALF_UP)).longValue());
+        }
+        return;
 
-    switch(literal.getType().getSqlTypeName()){
-    case BIGINT:
-      if (isLiteralNull(literal)) {
-        out.writeBigIntNull();
-      }else{
-        out.writeBigInt((((BigDecimal) literal.getValue()).setScale(0, BigDecimal.ROUND_HALF_UP)).longValue());
-      }
-      return;
+      case BOOLEAN:
+        if (isLiteralNull(literal)) {
+          out.writeBooleanNull();
+        } else {
+          out.writeBoolean((Boolean) literal.getValue());
+        }
+        return;
 
-    case BOOLEAN:
-      if (isLiteralNull(literal)) {
-        out.writeBooleanNull();
-      }else{
-        out.writeBoolean((Boolean) literal.getValue());
-      }
-      return;
+      case CHAR:
+        if (isLiteralNull(literal)) {
+          out.writeVarcharNull();
+        } else {
+          out.writeVarChar(((NlsString) literal.getValue()).getValue());
+        }
+        return;
 
-    case CHAR:
-      if (isLiteralNull(literal)) {
-        out.writeVarcharNull();
-      }else{
-        out.writeVarChar(((NlsString)literal.getValue()).getValue());
-      }
-      return ;
+      case DOUBLE:
+        if (isLiteralNull(literal)) {
+          out.writeDoubleNull();
+        } else {
+          out.writeDouble(((BigDecimal) literal.getValue()).doubleValue());
+        }
+        return;
 
-    case DOUBLE:
-      if (isLiteralNull(literal)){
-        out.writeDoubleNull();
-      }else{
-        out.writeDouble(((BigDecimal) literal.getValue()).doubleValue());
-      }
-      return;
+      case FLOAT:
+        if (isLiteralNull(literal)) {
+          out.writeFloatNull();
+        } else {
+          out.writeFloat(((BigDecimal) literal.getValue()).floatValue());
+        }
+        return;
 
-    case FLOAT:
-      if (isLiteralNull(literal)) {
-        out.writeFloatNull();
-      }else{
-        out.writeFloat(((BigDecimal) literal.getValue()).floatValue());
-      }
-      return;
+      case INTEGER:
+        if (isLiteralNull(literal)) {
+          out.writeIntNull();
+        } else {
+          out.writeInt(
+              (((BigDecimal) literal.getValue()).setScale(0, RoundingMode.HALF_UP)).intValue());
+        }
+        return;
 
-    case INTEGER:
-      if (isLiteralNull(literal)) {
-        out.writeIntNull();
-      }else{
-        out.writeInt((((BigDecimal) literal.getValue()).setScale(0, BigDecimal.ROUND_HALF_UP)).intValue());
-      }
-      return;
+      case DECIMAL:
+        if (isLiteralNull(literal)) {
+          out.writeDoubleNull();
+        } else {
+          out.writeDouble(((BigDecimal) literal.getValue()).doubleValue());
+        }
+        logger.warn(
+            "Converting exact decimal into approximate decimal.  Should be fixed once decimal is implemented.");
+        return;
 
-    case DECIMAL:
-      if (isLiteralNull(literal)) {
-        out.writeDoubleNull();
-      }else{
-        out.writeDouble(((BigDecimal) literal.getValue()).doubleValue());
-      }
-      logger.warn("Converting exact decimal into approximate decimal.  Should be fixed once decimal is implemented.");
-      return;
+      case VARCHAR:
+        if (isLiteralNull(literal)) {
+          out.writeVarcharNull();
+        } else {
+          out.writeVarChar(((NlsString) literal.getValue()).getValue());
+        }
+        return;
 
-    case VARCHAR:
-      if (isLiteralNull(literal)) {
-        out.writeVarcharNull();
-      }else{
-        out.writeVarChar( ((NlsString)literal.getValue()).getValue());
-      }
-      return;
+      case SYMBOL:
+        if (isLiteralNull(literal)) {
+          out.writeVarcharNull();
+        } else {
+          out.writeVarChar(literal.getValue().toString());
+        }
+        return;
 
-    case SYMBOL:
-      if (isLiteralNull(literal)) {
-        out.writeVarcharNull();
-      }else{
-        out.writeVarChar(literal.getValue().toString());
-      }
-      return;
+      case DATE:
+        if (isLiteralNull(literal)) {
+          out.writeDateNull();
+        } else {
+          out.writeDate(new LocalDateTime(literal.getValue(), DateTimeZone.UTC));
+        }
+        return;
 
-    case DATE:
-      if (isLiteralNull(literal)) {
-        out.writeDateNull();
-      }else{
-        out.writeDate(new LocalDateTime(literal.getValue(), DateTimeZone.UTC));
-      }
-      return;
+      case TIME:
+        if (isLiteralNull(literal)) {
+          out.writeTimeNull();
+        } else {
+          out.writeTime(new LocalDateTime(literal.getValue(), DateTimeZone.UTC));
+        }
+        return;
 
-    case TIME:
-      if (isLiteralNull(literal)) {
-        out.writeTimeNull();
-      }else{
-        out.writeTime(new LocalDateTime(literal.getValue(), DateTimeZone.UTC));
-      }
-      return;
+      case TIMESTAMP:
+        if (isLiteralNull(literal)) {
+          out.writeTimestampNull();
+        } else {
+          out.writeTimestamp(new LocalDateTime(literal.getValue(), DateTimeZone.UTC));
+        }
+        return;
+      case INTERVAL_YEAR:
+      case INTERVAL_YEAR_MONTH:
+      case INTERVAL_MONTH:
+        if (isLiteralNull(literal)) {
+          out.writeIntervalNull();
+        } else {
+          int months = ((BigDecimal) (literal.getValue())).intValue();
+          out.writeInterval(new Period().plusMonths(months));
+        }
+        return;
 
-    case TIMESTAMP:
-      if (isLiteralNull(literal)) {
-        out.writeTimestampNull();
-      }else{
-        out.writeTimestamp(new LocalDateTime(literal.getValue(), DateTimeZone.UTC));
-      }
-      return;
-    case INTERVAL_YEAR:
-    case INTERVAL_YEAR_MONTH:
-    case INTERVAL_MONTH:
-      if (isLiteralNull(literal)) {
-        out.writeIntervalNull();
-      }else{
-        int months = ((BigDecimal) (literal.getValue())).intValue();
-        out.writeInterval(new Period().plusMonths(months));
-      }
-      return;
+      case INTERVAL_DAY:
+      case INTERVAL_DAY_HOUR:
+      case INTERVAL_DAY_MINUTE:
+      case INTERVAL_DAY_SECOND:
+      case INTERVAL_HOUR:
+      case INTERVAL_HOUR_MINUTE:
+      case INTERVAL_HOUR_SECOND:
+      case INTERVAL_MINUTE:
+      case INTERVAL_MINUTE_SECOND:
+      case INTERVAL_SECOND:
+        if (isLiteralNull(literal)) {
+          out.writeIntervalNull();
+        } else {
+          long millis = ((BigDecimal) (literal.getValue())).longValue();
+          int days = (int) (millis / MILLIS_IN_DAY);
+          millis = millis - (days * MILLIS_IN_DAY);
+          out.writeInterval(new Period().plusDays(days).plusMillis((int) millis));
+        }
+        return;
 
-    case INTERVAL_DAY:
-    case INTERVAL_DAY_HOUR:
-    case INTERVAL_DAY_MINUTE:
-    case INTERVAL_DAY_SECOND:
-    case INTERVAL_HOUR:
-    case INTERVAL_HOUR_MINUTE:
-    case INTERVAL_HOUR_SECOND:
-    case INTERVAL_MINUTE:
-    case INTERVAL_MINUTE_SECOND:
-    case INTERVAL_SECOND:
-      if (isLiteralNull(literal)) {
-        out.writeIntervalNull();
-      }else{
-        long millis = ((BigDecimal) (literal.getValue())).longValue();
-        int days = (int) (millis/MILLIS_IN_DAY);
-        millis = millis - (days * MILLIS_IN_DAY);
-        out.writeInterval(new Period().plusDays(days).plusMillis( (int) millis));
-      }
-      return;
+      case NULL:
+        out.writeUntypedNull();
+        return;
 
-    case NULL:
-      out.writeUntypedNull();
-      return;
-
-    case ANY:
-    default:
-      throw new UnsupportedOperationException(String.format("Unable to convert the value of %s and type %s to a Dremio constant expression.", literal, literal.getType().getSqlTypeName()));
+      case ANY:
+      default:
+        throw new UnsupportedOperationException(
+            String.format(
+                "Unable to convert the value of %s and type %s to a Dremio constant expression.",
+                literal, literal.getType().getSqlTypeName()));
     }
   }
 
   public static ValuesRel from(LogicalValues values) {
-    return new ValuesRel(values.getCluster(), values.getRowType(), values.getTuples(), values.getTraitSet().plus(Rel.LOGICAL));
+    return new ValuesRel(
+        values.getCluster(),
+        values.getRowType(),
+        values.getTuples(),
+        values.getTraitSet().plus(Rel.LOGICAL));
   }
 }

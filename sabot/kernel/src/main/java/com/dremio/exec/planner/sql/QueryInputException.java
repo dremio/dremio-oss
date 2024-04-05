@@ -18,32 +18,27 @@ package com.dremio.exec.planner.sql;
 import com.dremio.exec.work.foreman.ForemanSetupException;
 
 public class QueryInputException extends ForemanSetupException {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(QueryInputException.class);
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(QueryInputException.class);
 
   public QueryInputException() {
     super();
-
   }
 
-  public QueryInputException(String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
+  public QueryInputException(
+      String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
     super(message, cause, enableSuppression, writableStackTrace);
-
   }
 
   public QueryInputException(String message, Throwable cause) {
     super(message, cause);
-
   }
 
   public QueryInputException(String message) {
     super(message);
-
   }
 
   public QueryInputException(Throwable cause) {
     super(cause);
-
   }
-
-
 }

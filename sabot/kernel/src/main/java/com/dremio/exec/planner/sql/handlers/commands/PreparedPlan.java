@@ -20,9 +20,7 @@ import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.sql.handlers.commands.HandlerToPreparePlanBase.RecordingObserver;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 
-/**
- * Represents a previous planned query generated through creating a prepared statement.
- */
+/** Represents a previous planned query generated through creating a prepared statement. */
 public class PreparedPlan {
   private final QueryId prepareId;
   private final String username;
@@ -31,9 +29,13 @@ public class PreparedPlan {
   private final PhysicalPlan plan;
   private final RecordingObserver observer;
 
-
-  public PreparedPlan(QueryId prepareId, String username, boolean queryRequiresGroupsInfo, String query,
-                      PhysicalPlan plan, RecordingObserver observer) {
+  public PreparedPlan(
+      QueryId prepareId,
+      String username,
+      boolean queryRequiresGroupsInfo,
+      String query,
+      PhysicalPlan plan,
+      RecordingObserver observer) {
     this.prepareId = prepareId;
     this.username = username;
     this.queryRequiresGroupsInfo = queryRequiresGroupsInfo;
@@ -42,7 +44,7 @@ public class PreparedPlan {
     this.observer = observer;
   }
 
-  public void replay(AttemptObserver observer){
+  public void replay(AttemptObserver observer) {
     this.observer.replay(observer);
   }
 
@@ -65,5 +67,4 @@ public class PreparedPlan {
   public boolean getQueryRequiresGroupsInfo() {
     return queryRequiresGroupsInfo;
   }
-
 }

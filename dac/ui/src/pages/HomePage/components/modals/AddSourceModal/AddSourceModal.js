@@ -298,7 +298,6 @@ export class AddSourceModal extends Component {
       canSubmit,
       hasError,
       isSubmitting,
-      showSpinnerAndText,
       confirmButtonStyle,
       onDismissError,
     } = this.props;
@@ -358,7 +357,6 @@ export class AddSourceModal extends Component {
               )}
               EntityType="source"
               initialValues={initialFormValues}
-              showSpinnerAndText={showSpinnerAndText}
               confirmButtonStyle={confirmButtonStyle}
             />
           )}

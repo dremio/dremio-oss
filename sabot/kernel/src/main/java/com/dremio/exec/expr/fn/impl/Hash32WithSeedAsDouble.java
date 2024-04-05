@@ -15,34 +15,35 @@
  */
 package com.dremio.exec.expr.fn.impl;
 
+import com.dremio.exec.expr.SimpleFunction;
+import com.dremio.exec.expr.annotations.FunctionTemplate;
+import com.dremio.exec.expr.annotations.FunctionTemplate.FunctionScope;
+import com.dremio.exec.expr.annotations.Output;
+import com.dremio.exec.expr.annotations.Param;
 import org.apache.arrow.vector.holders.IntHolder;
 import org.apache.arrow.vector.holders.NullableBigIntHolder;
 import org.apache.arrow.vector.holders.NullableFloat4Holder;
 import org.apache.arrow.vector.holders.NullableFloat8Holder;
 import org.apache.arrow.vector.holders.NullableIntHolder;
 
-import com.dremio.exec.expr.SimpleFunction;
-import com.dremio.exec.expr.annotations.FunctionTemplate;
-import com.dremio.exec.expr.annotations.FunctionTemplate.FunctionScope;
-import com.dremio.exec.expr.annotations.Output;
-import com.dremio.exec.expr.annotations.Param;
-
 /**
- * hash32 with seed function definitions for numeric data types. These functions cast the input numeric value to a
- * double before doing the hashing. See comments in {@link Hash64AsDouble} for the reason for doing this.
+ * hash32 with seed function definitions for numeric data types. These functions cast the input
+ * numeric value to a double before doing the hashing. See comments in {@link Hash64AsDouble} for
+ * the reason for doing this.
  */
 public class Hash32WithSeedAsDouble {
-  @FunctionTemplate(name = "hash32AsDouble", scope = FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.INTERNAL )
+  @FunctionTemplate(
+      name = "hash32AsDouble",
+      scope = FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.INTERNAL)
   public static class NullableFloatHash implements SimpleFunction {
 
     @Param NullableFloat4Holder in;
     @Param IntHolder seed;
     @Output NullableIntHolder out;
 
-
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
     public void eval() {
@@ -50,22 +51,24 @@ public class Hash32WithSeedAsDouble {
       if (in.isSet == 0) {
         out.value = seed.value;
       } else {
-        out.value = com.dremio.common.expression.fn.impl.HashHelper.hash32((double) in.value, seed.value);
+        out.value =
+            com.dremio.common.expression.fn.impl.HashHelper.hash32((double) in.value, seed.value);
       }
     }
   }
 
-  @FunctionTemplate(name = "hash32AsDouble", scope = FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.INTERNAL )
+  @FunctionTemplate(
+      name = "hash32AsDouble",
+      scope = FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.INTERNAL)
   public static class NullableDoubleHash implements SimpleFunction {
 
     @Param NullableFloat8Holder in;
     @Param IntHolder seed;
     @Output NullableIntHolder out;
 
-
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
     public void eval() {
@@ -78,17 +81,18 @@ public class Hash32WithSeedAsDouble {
     }
   }
 
-  @FunctionTemplate(name = "hash32AsDouble", scope = FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.INTERNAL)
+  @FunctionTemplate(
+      name = "hash32AsDouble",
+      scope = FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.INTERNAL)
   public static class NullableBigIntHash implements SimpleFunction {
 
     @Param NullableBigIntHolder in;
     @Param IntHolder seed;
     @Output NullableIntHolder out;
 
-
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
     public void eval() {
@@ -96,21 +100,23 @@ public class Hash32WithSeedAsDouble {
       if (in.isSet == 0) {
         out.value = seed.value;
       } else {
-        out.value = com.dremio.common.expression.fn.impl.HashHelper.hash32((double) in.value, seed.value);
+        out.value =
+            com.dremio.common.expression.fn.impl.HashHelper.hash32((double) in.value, seed.value);
       }
     }
   }
 
-  @FunctionTemplate(name = "hash32AsDouble", scope = FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.INTERNAL)
+  @FunctionTemplate(
+      name = "hash32AsDouble",
+      scope = FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.INTERNAL)
   public static class NullableIntHash implements SimpleFunction {
     @Param NullableIntHolder in;
     @Param IntHolder seed;
     @Output NullableIntHolder out;
 
-
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
     public void eval() {
@@ -118,9 +124,9 @@ public class Hash32WithSeedAsDouble {
       if (in.isSet == 0) {
         out.value = seed.value;
       } else {
-        out.value = com.dremio.common.expression.fn.impl.HashHelper.hash32((double) in.value, seed.value);
+        out.value =
+            com.dremio.common.expression.fn.impl.HashHelper.hash32((double) in.value, seed.value);
       }
     }
   }
-
 }

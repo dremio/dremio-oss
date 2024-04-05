@@ -20,9 +20,7 @@ import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.store.common.SourceLogicalConverter;
 
-/**
- * ScanDrule for SysFlight
- */
+/** ScanDrule for SysFlight */
 public class SysFlightScanDrule extends SourceLogicalConverter {
 
   public SysFlightScanDrule(SourceType type) {
@@ -31,8 +29,14 @@ public class SysFlightScanDrule extends SourceLogicalConverter {
 
   @Override
   public Rel convertScan(ScanCrel scan) {
-    return new SysFlightScanDrel(scan.getCluster(), scan.getTraitSet().plus(Rel.LOGICAL), scan.getTable(),
-                                 scan.getPluginId(), scan.getTableMetadata(), scan.getProjectedColumns(),
-                                 scan.getObservedRowcountAdjustment(), scan.getHints());
+    return new SysFlightScanDrel(
+        scan.getCluster(),
+        scan.getTraitSet().plus(Rel.LOGICAL),
+        scan.getTable(),
+        scan.getPluginId(),
+        scan.getTableMetadata(),
+        scan.getProjectedColumns(),
+        scan.getObservedRowcountAdjustment(),
+        scan.getHints());
   }
 }

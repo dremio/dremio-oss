@@ -15,19 +15,18 @@
  */
 package com.dremio.exec.expr;
 
-import java.util.Iterator;
-
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.SupportedEngines;
 import com.dremio.common.expression.visitors.ExprVisitor;
 import com.dremio.exec.expr.fn.GandivaFunctionHolderExpression;
+import java.util.Iterator;
 
 /**
- * Dummy expression node to hold the code generation runtime context
- * to decide the execution mode in Gandiva or Java.
+ * Dummy expression node to hold the code generation runtime context to decide the execution mode in
+ * Gandiva or Java.
  *
- * Needed because of DX-14564.
+ * <p>Needed because of DX-14564.
  */
 public class CodeGenContext implements LogicalExpression {
 
@@ -56,22 +55,25 @@ public class CodeGenContext implements LogicalExpression {
   private CodeGenContext(CodeGenContext context, LogicalExpression child) {
     this.child = child;
     executionEngineForChildNode = context.getExecutionEngineForExpression().duplicate();
-    executionEngineForChildNodeSubExpressions = context.getExecutionEngineForSubExpression().duplicate();
+    executionEngineForChildNodeSubExpressions =
+        context.getExecutionEngineForSubExpression().duplicate();
   }
 
   /**
    * Used to create context free nodes, where support is hand managed.
+   *
    * @param child expression to wrap the context with
    */
   public static CodeGenContext buildWithNoDefaultSupport(LogicalExpression child) {
-    CodeGenContext context =  new CodeGenContext(child);
+    CodeGenContext context = new CodeGenContext(child);
     // clear all of the engines.
     context.markSubExprIsMixed();
     context.getExecutionEngineForExpression().clear();
     return context;
   }
 
-  public static CodeGenContext buildWithCurrentCodegen(CodeGenContext context, LogicalExpression child) {
+  public static CodeGenContext buildWithCurrentCodegen(
+      CodeGenContext context, LogicalExpression child) {
     return new CodeGenContext(context, child);
   }
 
@@ -84,16 +86,23 @@ public class CodeGenContext implements LogicalExpression {
     for (LogicalExpression c : expr) {
       if (c instanceof CodeGenContext) {
         if (!exprInJava) {
-          exprInJava = (((CodeGenContext) c).isExpressionExecutableInEngine(SupportedEngines.Engine.JAVA));
+          exprInJava =
+              (((CodeGenContext) c).isExpressionExecutableInEngine(SupportedEngines.Engine.JAVA));
         }
         if (subExprInJava) {
-          subExprInJava = (((CodeGenContext) c).isSubExpressionExecutableInEngine(SupportedEngines.Engine.JAVA));
+          subExprInJava =
+              (((CodeGenContext) c)
+                  .isSubExpressionExecutableInEngine(SupportedEngines.Engine.JAVA));
         }
         if (!exprInGandiva) {
-          exprInGandiva = (((CodeGenContext) c).isExpressionExecutableInEngine(SupportedEngines.Engine.GANDIVA));
+          exprInGandiva =
+              (((CodeGenContext) c)
+                  .isExpressionExecutableInEngine(SupportedEngines.Engine.GANDIVA));
         }
         if (subExprInGandiva) {
-          subExprInGandiva = (((CodeGenContext) c).isSubExpressionExecutableInEngine(SupportedEngines.Engine.GANDIVA));
+          subExprInGandiva =
+              (((CodeGenContext) c)
+                  .isSubExpressionExecutableInEngine(SupportedEngines.Engine.GANDIVA));
         }
       }
     }
@@ -170,14 +179,14 @@ public class CodeGenContext implements LogicalExpression {
     }
     // Output derivation does not expect context nodes; Need to remove all context before attempting
     // the output type derivation.
-    LogicalExpression childWithoutContext = CodeGenerationContextRemover.removeCodeGenContext
-      (child);
+    LogicalExpression childWithoutContext =
+        CodeGenerationContextRemover.removeCodeGenContext(child);
     outputType = childWithoutContext.getCompleteType();
     return outputType;
   }
 
-  public CodeGenContext accept(PreferenceBasedSplitter spiltVisitor,
-                               SplitDependencyTracker tracker) throws Exception {
+  public CodeGenContext accept(PreferenceBasedSplitter spiltVisitor, SplitDependencyTracker tracker)
+      throws Exception {
     return spiltVisitor.visitCodeGenContext(this, tracker);
   }
 
@@ -201,11 +210,10 @@ public class CodeGenContext implements LogicalExpression {
     return child.getSizeOfChildren();
   }
 
-
   @Override
   public String toString() {
-    LogicalExpression childWithoutContext = CodeGenerationContextRemover.removeCodeGenContext
-      (child);
+    LogicalExpression childWithoutContext =
+        CodeGenerationContextRemover.removeCodeGenContext(child);
     return childWithoutContext.toString();
   }
 
@@ -223,5 +231,4 @@ public class CodeGenContext implements LogicalExpression {
   public <T, V, E extends Exception> T accept(ExprVisitor<T, V, E> visitor, V value) throws E {
     return child.accept(visitor, value);
   }
-
 }

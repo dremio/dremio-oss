@@ -18,25 +18,23 @@ package com.dremio.exec.catalog.conf;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.util.LinkedList;
-import java.util.List;
-
-import javax.inject.Provider;
-
-import org.junit.Assert;
-import org.junit.Test;
-
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.services.credentials.CredentialsService;
-
 import io.protostuff.Tag;
+import java.util.LinkedList;
+import java.util.List;
+import javax.inject.Provider;
+import org.junit.Assert;
+import org.junit.Test;
 
 public class TestConnectionConf {
-  private static final class TestingConnectionConf extends ConnectionConf<TestingConnectionConf, StoragePlugin> {
+  private static final class TestingConnectionConf
+      extends ConnectionConf<TestingConnectionConf, StoragePlugin> {
     @Override
-    public StoragePlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
+    public StoragePlugin newPlugin(
+        SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
       return null;
     }
 
@@ -59,9 +57,11 @@ public class TestConnectionConf {
     connectionConf.someSecretField = "someSecretString";
 
     final CredentialsService credentialsService = mock(CredentialsService.class);
-    when(credentialsService.lookup(connectionConf.someSecretField)).thenReturn("resolvedSecretString");
+    when(credentialsService.lookup(connectionConf.someSecretField))
+        .thenReturn("resolvedSecretString");
 
-    final TestingConnectionConf resolvedConf = connectionConf.resolveSecrets(credentialsService);
+    final TestingConnectionConf resolvedConf =
+        connectionConf.resolveSecrets(credentialsService, null);
 
     Assert.assertEquals("resolvedSecretString", resolvedConf.someSecretField);
   }
@@ -79,15 +79,19 @@ public class TestConnectionConf {
 
     final CredentialsService credentialsService = mock(CredentialsService.class);
 
-    when(credentialsService.lookup(connectionConf.someSecretPropertyListField.get(0).value)).thenReturn("resolvedSecretPropertyVal0");
-    when(credentialsService.lookup(connectionConf.someSecretPropertyListField.get(1).value)).thenReturn("resolvedSecretPropertyVal1");
+    when(credentialsService.lookup(connectionConf.someSecretPropertyListField.get(0).value))
+        .thenReturn("resolvedSecretPropertyVal0");
+    when(credentialsService.lookup(connectionConf.someSecretPropertyListField.get(1).value))
+        .thenReturn("resolvedSecretPropertyVal1");
 
-    final TestingConnectionConf resolvedConf = connectionConf.resolveSecrets(credentialsService);
+    final TestingConnectionConf resolvedConf =
+        connectionConf.resolveSecrets(credentialsService, null);
 
-    Assert.assertEquals("resolvedSecretPropertyVal0", resolvedConf.someSecretPropertyListField.get(0).value);
-    Assert.assertEquals("resolvedSecretPropertyVal1", resolvedConf.someSecretPropertyListField.get(1).value);
+    Assert.assertEquals(
+        "resolvedSecretPropertyVal0", resolvedConf.someSecretPropertyListField.get(0).value);
+    Assert.assertEquals(
+        "resolvedSecretPropertyVal1", resolvedConf.someSecretPropertyListField.get(1).value);
   }
-
 
   @Test
   public void testResolveSecretsBadURI() throws Exception {
@@ -96,9 +100,11 @@ public class TestConnectionConf {
     connectionConf.someSecretField = "someSecret%.String";
 
     final CredentialsService credentialsService = mock(CredentialsService.class);
-    when(credentialsService.lookup(connectionConf.someSecretField)).thenThrow(new IllegalArgumentException("Bad URI"));
+    when(credentialsService.lookup(connectionConf.someSecretField))
+        .thenThrow(new IllegalArgumentException("Bad URI"));
 
-    final TestingConnectionConf resolvedConf = connectionConf.resolveSecrets(credentialsService);
+    final TestingConnectionConf resolvedConf =
+        connectionConf.resolveSecrets(credentialsService, null);
 
     Assert.assertEquals(connectionConf.someSecretField, resolvedConf.someSecretField);
   }
@@ -116,13 +122,20 @@ public class TestConnectionConf {
 
     final CredentialsService credentialsService = mock(CredentialsService.class);
 
-    when(credentialsService.lookup(connectionConf.someSecretPropertyListField.get(0).value)).thenThrow(new IllegalArgumentException("Bad URI"));
-    when(credentialsService.lookup(connectionConf.someSecretPropertyListField.get(1).value)).thenThrow(new IllegalArgumentException("Bad URI"));
+    when(credentialsService.lookup(connectionConf.someSecretPropertyListField.get(0).value))
+        .thenThrow(new IllegalArgumentException("Bad URI"));
+    when(credentialsService.lookup(connectionConf.someSecretPropertyListField.get(1).value))
+        .thenThrow(new IllegalArgumentException("Bad URI"));
 
-    final TestingConnectionConf resolvedConf = connectionConf.resolveSecrets(credentialsService);
+    final TestingConnectionConf resolvedConf =
+        connectionConf.resolveSecrets(credentialsService, null);
 
-    Assert.assertEquals(connectionConf.someSecretPropertyListField.get(0).value, resolvedConf.someSecretPropertyListField.get(0).value);
-    Assert.assertEquals(connectionConf.someSecretPropertyListField.get(1).value, resolvedConf.someSecretPropertyListField.get(1).value);
+    Assert.assertEquals(
+        connectionConf.someSecretPropertyListField.get(0).value,
+        resolvedConf.someSecretPropertyListField.get(0).value);
+    Assert.assertEquals(
+        connectionConf.someSecretPropertyListField.get(1).value,
+        resolvedConf.someSecretPropertyListField.get(1).value);
   }
 
   @Test
@@ -139,17 +152,23 @@ public class TestConnectionConf {
     connectionConf.someSecretPropertyListField = secretPropertyList;
 
     final CredentialsService credentialsService = mock(CredentialsService.class);
-    when(credentialsService.lookup(connectionConf.someSecretField)).thenReturn("resolvedSecretString");
+    when(credentialsService.lookup(connectionConf.someSecretField))
+        .thenReturn("resolvedSecretString");
 
-    when(credentialsService.lookup(connectionConf.someSecretPropertyListField.get(0).value)).thenReturn("resolvedSecretPropertyVal0");
-    when(credentialsService.lookup(connectionConf.someSecretPropertyListField.get(1).value)).thenReturn("resolvedSecretPropertyVal1");
+    when(credentialsService.lookup(connectionConf.someSecretPropertyListField.get(0).value))
+        .thenReturn("resolvedSecretPropertyVal0");
+    when(credentialsService.lookup(connectionConf.someSecretPropertyListField.get(1).value))
+        .thenReturn("resolvedSecretPropertyVal1");
 
-    final TestingConnectionConf resolvedConf = connectionConf.resolveSecrets(credentialsService);
+    final TestingConnectionConf resolvedConf =
+        connectionConf.resolveSecrets(credentialsService, null);
 
     Assert.assertEquals("resolvedSecretString", resolvedConf.someSecretField);
 
-    Assert.assertEquals("resolvedSecretPropertyVal0", resolvedConf.someSecretPropertyListField.get(0).value);
-    Assert.assertEquals("resolvedSecretPropertyVal1", resolvedConf.someSecretPropertyListField.get(1).value);
+    Assert.assertEquals(
+        "resolvedSecretPropertyVal0", resolvedConf.someSecretPropertyListField.get(0).value);
+    Assert.assertEquals(
+        "resolvedSecretPropertyVal1", resolvedConf.someSecretPropertyListField.get(1).value);
   }
 
   @Test
@@ -166,14 +185,22 @@ public class TestConnectionConf {
     connectionConf.someSecretPropertyListField = secretPropertyList;
 
     final CredentialsService credentialsService = mock(CredentialsService.class);
-    when(credentialsService.lookup(connectionConf.someSecretField)).thenThrow(new IllegalArgumentException("Bad URI"));
-    when(credentialsService.lookup(connectionConf.someSecretPropertyListField.get(0).value)).thenThrow(new IllegalArgumentException("Bad URI"));
-    when(credentialsService.lookup(connectionConf.someSecretPropertyListField.get(1).value)).thenThrow(new IllegalArgumentException("Bad URI"));
+    when(credentialsService.lookup(connectionConf.someSecretField))
+        .thenThrow(new IllegalArgumentException("Bad URI"));
+    when(credentialsService.lookup(connectionConf.someSecretPropertyListField.get(0).value))
+        .thenThrow(new IllegalArgumentException("Bad URI"));
+    when(credentialsService.lookup(connectionConf.someSecretPropertyListField.get(1).value))
+        .thenThrow(new IllegalArgumentException("Bad URI"));
 
-    final TestingConnectionConf resolvedConf = connectionConf.resolveSecrets(credentialsService);
+    final TestingConnectionConf resolvedConf =
+        connectionConf.resolveSecrets(credentialsService, null);
 
     Assert.assertEquals(connectionConf.someSecretField, resolvedConf.someSecretField);
-    Assert.assertEquals(connectionConf.someSecretPropertyListField.get(0).value, resolvedConf.someSecretPropertyListField.get(0).value);
-    Assert.assertEquals(connectionConf.someSecretPropertyListField.get(1).value, resolvedConf.someSecretPropertyListField.get(1).value);
+    Assert.assertEquals(
+        connectionConf.someSecretPropertyListField.get(0).value,
+        resolvedConf.someSecretPropertyListField.get(0).value);
+    Assert.assertEquals(
+        connectionConf.someSecretPropertyListField.get(1).value,
+        resolvedConf.someSecretPropertyListField.get(1).value);
   }
 }

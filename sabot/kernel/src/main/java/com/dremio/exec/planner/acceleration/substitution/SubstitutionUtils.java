@@ -15,24 +15,6 @@
  */
 package com.dremio.exec.planner.acceleration.substitution;
 
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.io.Writer;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Objects;
-import java.util.Set;
-
-import org.apache.calcite.plan.RelOptTable;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.RelShuttle;
-import org.apache.calcite.rel.RelVisitor;
-import org.apache.calcite.rel.core.TableScan;
-import org.apache.calcite.rel.externalize.RelWriterImpl;
-import org.apache.calcite.sql.SqlExplainLevel;
-import org.apache.calcite.util.Pair;
-
 import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.exec.calcite.logical.ScanCrel;
 import com.dremio.exec.catalog.DremioTable;
@@ -44,58 +26,80 @@ import com.dremio.reflection.rules.ReplacementPointer;
 import com.dremio.service.Pointer;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.Writer;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
+import org.apache.calcite.plan.RelOptTable;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.RelShuttle;
+import org.apache.calcite.rel.RelVisitor;
+import org.apache.calcite.rel.core.TableScan;
+import org.apache.calcite.rel.externalize.RelWriterImpl;
+import org.apache.calcite.sql.SqlExplainLevel;
+import org.apache.calcite.util.Pair;
 
-/**
- * Utility methods for finding substitutions.
- */
+/** Utility methods for finding substitutions. */
 public final class SubstitutionUtils {
 
-  private static final RelShuttle REMOVE_REPLACEMENT_POINTER = new StatelessRelShuttleImpl() {
-    @Override
-    public RelNode visit(RelNode other) {
-      if (other instanceof ReplacementPointer) {
-        return ((ReplacementPointer) other).getSubTree();
-      }
-      return super.visit(other);
-    }
-  };
+  private static final RelShuttle REMOVE_REPLACEMENT_POINTER =
+      new StatelessRelShuttleImpl() {
+        @Override
+        public RelNode visit(RelNode other) {
+          if (other instanceof ReplacementPointer) {
+            return ((ReplacementPointer) other).getSubTree();
+          }
+          return super.visit(other);
+        }
+      };
 
-  private SubstitutionUtils() { }
+  private SubstitutionUtils() {}
 
   public static Set<VersionedPath> findExpansionNodes(final RelNode node) {
     final Set<VersionedPath> usedVdsPaths = new LinkedHashSet<>();
-    final RelVisitor visitor = new RelVisitor() {
-      @Override
-      public void visit(final RelNode node, final int ordinal, final RelNode parent) {
-        if (node instanceof ExpansionNode) {
-          ExpansionNode expansionNode = (ExpansionNode) node;
-          usedVdsPaths.add(VersionedPath.of(expansionNode.getPath().getPathComponents(), expansionNode.getVersionContext()));
-        }
-        super.visit(node, ordinal, parent);
-      }
-    };
+    final RelVisitor visitor =
+        new RelVisitor() {
+          @Override
+          public void visit(final RelNode node, final int ordinal, final RelNode parent) {
+            if (node instanceof ExpansionNode) {
+              ExpansionNode expansionNode = (ExpansionNode) node;
+              usedVdsPaths.add(
+                  VersionedPath.of(
+                      expansionNode.getPath().getPathComponents(),
+                      expansionNode.getVersionContext()));
+            }
+            super.visit(node, ordinal, parent);
+          }
+        };
     visitor.go(node);
     return usedVdsPaths;
   }
 
   public static boolean isSubstitutableScan(RelNode node) {
-    return node instanceof TableScan && !(node instanceof ScanCrel && !((ScanCrel) node).isSubstitutable());
+    return node instanceof TableScan
+        && !(node instanceof ScanCrel && !((ScanCrel) node).isSubstitutable());
   }
 
   public static Set<VersionedPath> findTables(final RelNode node) {
     final Set<VersionedPath> usedTables = Sets.newLinkedHashSet();
-    final RelVisitor visitor = new RelVisitor() {
-      @Override public void visit(final RelNode node, final int ordinal, final RelNode parent) {
-        if (isSubstitutableScan(node)) {
-          TableVersionContext versionContext = null;
-          if (node instanceof ScanCrel) {
-            versionContext = ((ScanCrel)node).getTableMetadata().getVersionContext();
+    final RelVisitor visitor =
+        new RelVisitor() {
+          @Override
+          public void visit(final RelNode node, final int ordinal, final RelNode parent) {
+            if (isSubstitutableScan(node)) {
+              TableVersionContext versionContext = null;
+              if (node instanceof ScanCrel) {
+                versionContext = ((ScanCrel) node).getTableMetadata().getVersionContext();
+              }
+              usedTables.add(VersionedPath.of(node.getTable().getQualifiedName(), versionContext));
+            }
+            super.visit(node, ordinal, parent);
           }
-          usedTables.add(VersionedPath.of(node.getTable().getQualifiedName(), versionContext));
-        }
-        super.visit(node, ordinal, parent);
-      }
-    };
+        };
 
     visitor.go(node);
     return usedTables;
@@ -121,52 +125,59 @@ public final class SubstitutionUtils {
     }
 
     @Override
-    public void flush() throws IOException { }
+    public void flush() throws IOException {}
 
     @Override
-    public void close() throws IOException { }
+    public void close() throws IOException {}
   }
 
-  /**
-   * Returns whether {@code table} uses one or more of the tables in
-   * {@code usedTables}.
-   */
-  public static boolean usesTableOrVds(final Set<VersionedPath> tables, final Set<VersionedPath> vdsPaths, final Set<ExternalQueryDescriptor> externalQueries, final RelNode rel) {
+  /** Returns whether {@code table} uses one or more of the tables in {@code usedTables}. */
+  public static boolean usesTableOrVds(
+      final Set<VersionedPath> tables,
+      final Set<VersionedPath> vdsPaths,
+      final Set<ExternalQueryDescriptor> externalQueries,
+      final RelNode rel) {
     final Pointer<Boolean> used = new Pointer<>(false);
-    rel.accept(new RoutingShuttle() {
-      @Override
-      public RelNode visit(TableScan scan) {
-        TableVersionContext versionContext = null;
-        if (scan instanceof ScanCrel) {
-          versionContext = ((ScanCrel)scan).getTableMetadata().getVersionContext();
-        }
-        if (tables.contains(VersionedPath.of(scan.getTable().getQualifiedName(), versionContext))) {
-          used.value = true;
-        }
-        return scan;
-      }
-      @Override
-      public RelNode visit(RelNode other) {
-        if (used.value) {
-          return other;
-        }
-        if (other instanceof ExternalQueryScanCrel) {
-          ExternalQueryScanCrel eq = (ExternalQueryScanCrel) other;
-          if (externalQueries.contains(descriptor(eq))) {
-            used.value = true;
-            return other;
+    rel.accept(
+        new RoutingShuttle() {
+          @Override
+          public RelNode visit(TableScan scan) {
+            TableVersionContext versionContext = null;
+            if (scan instanceof ScanCrel) {
+              versionContext = ((ScanCrel) scan).getTableMetadata().getVersionContext();
+            }
+            if (tables.contains(
+                VersionedPath.of(scan.getTable().getQualifiedName(), versionContext))) {
+              used.value = true;
+            }
+            return scan;
           }
-        }
-        if (other instanceof ExpansionNode) {
-          ExpansionNode expansionNode = (ExpansionNode) other;
-          if (vdsPaths.contains(VersionedPath.of(expansionNode.getPath().getPathComponents(), expansionNode.getVersionContext()))) {
-            used.value = true;
-            return other;
+
+          @Override
+          public RelNode visit(RelNode other) {
+            if (used.value) {
+              return other;
+            }
+            if (other instanceof ExternalQueryScanCrel) {
+              ExternalQueryScanCrel eq = (ExternalQueryScanCrel) other;
+              if (externalQueries.contains(descriptor(eq))) {
+                used.value = true;
+                return other;
+              }
+            }
+            if (other instanceof ExpansionNode) {
+              ExpansionNode expansionNode = (ExpansionNode) other;
+              if (vdsPaths.contains(
+                  VersionedPath.of(
+                      expansionNode.getPath().getPathComponents(),
+                      expansionNode.getVersionContext()))) {
+                used.value = true;
+                return other;
+              }
+            }
+            return super.visit(other);
           }
-        }
-        return super.visit(other);
-      }
-    });
+        });
     return used.value;
   }
 
@@ -192,8 +203,7 @@ public final class SubstitutionUtils {
         return false;
       }
       ExternalQueryDescriptor that = (ExternalQueryDescriptor) o;
-      return source.equals(that.source) &&
-        query.equals(that.query);
+      return source.equals(that.source) && query.equals(that.query);
     }
 
     @Override
@@ -204,21 +214,23 @@ public final class SubstitutionUtils {
 
   public static Set<ExternalQueryDescriptor> findExternalQueries(RelNode query) {
     Set<ExternalQueryDescriptor> externalQueries = new HashSet<>();
-    query.accept(new RoutingShuttle() {
-      @Override
-      public RelNode visit(RelNode other) {
-        if (other instanceof ExternalQueryScanCrel) {
-          ExternalQueryScanCrel eq = (ExternalQueryScanCrel) other;
-          externalQueries.add(descriptor(eq));
-        }
-        return super.visit(other);
-      }
-    });
+    query.accept(
+        new RoutingShuttle() {
+          @Override
+          public RelNode visit(RelNode other) {
+            if (other instanceof ExternalQueryScanCrel) {
+              ExternalQueryScanCrel eq = (ExternalQueryScanCrel) other;
+              externalQueries.add(descriptor(eq));
+            }
+            return super.visit(other);
+          }
+        });
     return externalQueries;
   }
 
   /**
-   * @return true if query plan matches the candidate plan, after removing the {@link ReplacementPointer} from the candidate plan
+   * @return true if query plan matches the candidate plan, after removing the {@link
+   *     ReplacementPointer} from the candidate plan
    */
   public static boolean arePlansEqualIgnoringReplacementPointer(RelNode query, RelNode candidate) {
     Preconditions.checkNotNull(query, "query plan required");
@@ -232,30 +244,35 @@ public final class SubstitutionUtils {
   }
 
   /**
-   * VersionedPath is a table/view path with an optional TableVersionContext.
-   * For example, a versioned table could have a "schema"."table" path with a "BRANCH main" table version context.
+   * VersionedPath is a table/view path with an optional TableVersionContext. For example, a
+   * versioned table could have a "schema"."table" path with a "BRANCH main" table version context.
    * Non-versioned tables such as RDBMS or filesystem parquet will have a null TableVersionContext.
    *
-   * Since VersionedPath extends {@link Pair}, we can conveniently use VersionedPath as keys with various Java collections.
+   * <p>Since VersionedPath extends {@link Pair}, we can conveniently use VersionedPath as keys with
+   * various Java collections.
    */
   public static final class VersionedPath extends Pair<List<String>, TableVersionContext> {
     /**
      * Creates a Pair.
      *
-     * @param path  left value
+     * @param path left value
      * @param versionContext right value
      */
     private VersionedPath(List<String> path, TableVersionContext versionContext) {
       super(path, versionContext);
     }
+
     public static VersionedPath of(List<String> path, TableVersionContext versionContext) {
       return new VersionedPath(path, versionContext);
     }
+
     public static VersionedPath of(List<String> path) {
       return new VersionedPath(path, null);
     }
 
-    public static VersionedPath of(ExpansionNode e) { return new VersionedPath(e.getPath().getPathComponents(), e.getVersionContext()); }
+    public static VersionedPath of(ExpansionNode e) {
+      return new VersionedPath(e.getPath().getPathComponents(), e.getVersionContext());
+    }
   }
 
   public static TableVersionContext getVersionContext(RelOptTable table) {

@@ -17,17 +17,14 @@ package com.dremio.service.scheduler;
 
 import static com.dremio.service.scheduler.TaskStatsCollector.BASE_METRIC_NAME;
 
-import java.util.concurrent.TimeUnit;
-
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.telemetry.api.metrics.Counter;
 import com.dremio.telemetry.api.metrics.Histogram;
 import com.dremio.telemetry.api.metrics.Metrics;
 import com.google.common.base.Stopwatch;
+import java.util.concurrent.TimeUnit;
 
-/**
- * Collects Per Task stats for the {@code ClusteredSingletonTaskScheduler}
- */
+/** Collects Per Task stats for the {@code ClusteredSingletonTaskScheduler} */
 final class PerTaskStatsCollector implements SchedulerEvents.PerTaskEvents {
   // wrapper to a modifiable schedule
   private final PerTaskSchedule schedule;
@@ -46,9 +43,12 @@ final class PerTaskStatsCollector implements SchedulerEvents.PerTaskEvents {
 
   PerTaskStatsCollector(PerTaskSchedule schedule) {
     this.schedule = schedule;
-    this.totalScheduleModifications = Metrics.newCounter(getMetricsName("modifications"), Metrics.ResetType.NEVER);
-    this.totalSucceededOwnerQueries = Metrics.newCounter(getMetricsName("owner_queries"), Metrics.ResetType.NEVER);
-    this.totalFailedOwnerQueries = Metrics.newCounter(getMetricsName("failed_owner_queries"), Metrics.ResetType.NEVER);
+    this.totalScheduleModifications =
+        Metrics.newCounter(getMetricsName("modifications"), Metrics.ResetType.NEVER);
+    this.totalSucceededOwnerQueries =
+        Metrics.newCounter(getMetricsName("owner_queries"), Metrics.ResetType.NEVER);
+    this.totalFailedOwnerQueries =
+        Metrics.newCounter(getMetricsName("failed_owner_queries"), Metrics.ResetType.NEVER);
     final String perTaskName = getPerTaskName();
     this.bookingStats = new PerTaskBookingCollector(perTaskName);
     this.runStats = new PerTaskRunCollector(perTaskName);
@@ -173,19 +173,37 @@ final class PerTaskStatsCollector implements SchedulerEvents.PerTaskEvents {
 
   @Override
   public String toString() {
-      return "Task Name : " + schedule.getTaskName() + System.lineSeparator() +
-      "Period : " + schedule.getSchedule().getPeriod() + System.lineSeparator() +
-      "Is Single Shot? : " + schedule.getSchedule().isToRunExactlyOnce() + System.lineSeparator() +
-      "Total Schedule Modifications : " + totalScheduleModifications + System.lineSeparator() +
-      "Per Task Booking Stats : " + System.lineSeparator() + bookingStats + System.lineSeparator() +
-      "Per Task Run Stats : " + System.lineSeparator() + runStats + System.lineSeparator() +
-      "Per Task Load Stats : " + System.lineSeparator() + loadStats + System.lineSeparator() +
-      "Per Task Recovery Stats : " + System.lineSeparator() + recoveryStats + System.lineSeparator();
+    return "Task Name : "
+        + schedule.getTaskName()
+        + System.lineSeparator()
+        + "Period : "
+        + schedule.getSchedule().getPeriod()
+        + System.lineSeparator()
+        + "Is Single Shot? : "
+        + schedule.getSchedule().isToRunExactlyOnce()
+        + System.lineSeparator()
+        + "Total Schedule Modifications : "
+        + totalScheduleModifications
+        + System.lineSeparator()
+        + "Per Task Booking Stats : "
+        + System.lineSeparator()
+        + bookingStats
+        + System.lineSeparator()
+        + "Per Task Run Stats : "
+        + System.lineSeparator()
+        + runStats
+        + System.lineSeparator()
+        + "Per Task Load Stats : "
+        + System.lineSeparator()
+        + loadStats
+        + System.lineSeparator()
+        + "Per Task Recovery Stats : "
+        + System.lineSeparator()
+        + recoveryStats
+        + System.lineSeparator();
   }
 
-  /**
-   * Booking stats collection.
-   */
+  /** Booking stats collection. */
   private static final class PerTaskBookingCollector {
     // number of attempts made to book the slot by this service instance
     private final Counter totalBookingAttempts;
@@ -195,9 +213,12 @@ final class PerTaskStatsCollector implements SchedulerEvents.PerTaskEvents {
     private final Counter totalReleasedBookings;
 
     private PerTaskBookingCollector(String baseMetricName) {
-      totalBookingAttempts = Metrics.newCounter(bookName(baseMetricName, "attempts"), Metrics.ResetType.NEVER);
-      totalAcquiredBookings = Metrics.newCounter(bookName(baseMetricName, "acquired"), Metrics.ResetType.NEVER);
-      totalReleasedBookings = Metrics.newCounter(bookName(baseMetricName, "released"), Metrics.ResetType.NEVER);
+      totalBookingAttempts =
+          Metrics.newCounter(bookName(baseMetricName, "attempts"), Metrics.ResetType.NEVER);
+      totalAcquiredBookings =
+          Metrics.newCounter(bookName(baseMetricName, "acquired"), Metrics.ResetType.NEVER);
+      totalReleasedBookings =
+          Metrics.newCounter(bookName(baseMetricName, "released"), Metrics.ResetType.NEVER);
     }
 
     private static String bookName(String base, String metric) {
@@ -218,9 +239,15 @@ final class PerTaskStatsCollector implements SchedulerEvents.PerTaskEvents {
 
     @Override
     public String toString() {
-        return "Total Booking Attempts : " + totalBookingAttempts + System.lineSeparator() +
-        "Total Acquired Bookings : " + totalAcquiredBookings + System.lineSeparator() +
-        "Total Released Bookings : " + totalReleasedBookings + System.lineSeparator();
+      return "Total Booking Attempts : "
+          + totalBookingAttempts
+          + System.lineSeparator()
+          + "Total Acquired Bookings : "
+          + totalAcquiredBookings
+          + System.lineSeparator()
+          + "Total Released Bookings : "
+          + totalReleasedBookings
+          + System.lineSeparator();
     }
   }
 
@@ -239,10 +266,14 @@ final class PerTaskStatsCollector implements SchedulerEvents.PerTaskEvents {
     private volatile boolean runsExpected;
 
     private PerTaskRunCollector(String baseMetricName) {
-      totalSuccessRunsSoFar = Metrics.newCounter(runName(baseMetricName, "success"), Metrics.ResetType.NEVER);
-      totalFailedRunsSoFar = Metrics.newCounter(runName(baseMetricName, "failed"), Metrics.ResetType.NEVER);
-      taskRuntimeMillis = Metrics.newHistogram(runName(baseMetricName, "runtime_ms"), Metrics.ResetType.NEVER);
-      totalContractBreaks = Metrics.newCounter(runName(baseMetricName, "contract_breaks"), Metrics.ResetType.NEVER);
+      totalSuccessRunsSoFar =
+          Metrics.newCounter(runName(baseMetricName, "success"), Metrics.ResetType.NEVER);
+      totalFailedRunsSoFar =
+          Metrics.newCounter(runName(baseMetricName, "failed"), Metrics.ResetType.NEVER);
+      taskRuntimeMillis =
+          Metrics.newHistogram(runName(baseMetricName, "runtime_ms"), Metrics.ResetType.NEVER);
+      totalContractBreaks =
+          Metrics.newCounter(runName(baseMetricName, "contract_breaks"), Metrics.ResetType.NEVER);
       runTimeWatch = Stopwatch.createUnstarted();
       runsExpected = false;
     }
@@ -284,24 +315,31 @@ final class PerTaskStatsCollector implements SchedulerEvents.PerTaskEvents {
     @Override
     public String toString() {
       StringBuilder sb = new StringBuilder();
-      sb.append("Total Success Runs : ").append(totalSuccessRunsSoFar).append(System.lineSeparator());
+      sb.append("Total Success Runs : ")
+          .append(totalSuccessRunsSoFar)
+          .append(System.lineSeparator());
       sb.append("Total Failed Runs : ").append(totalFailedRunsSoFar).append(System.lineSeparator());
-      sb.append("Total Contract Breaks : ").append(totalContractBreaks).append(System.lineSeparator());
+      sb.append("Total Contract Breaks : ")
+          .append(totalContractBreaks)
+          .append(System.lineSeparator());
       sb.append("Current Task State : ");
-      // Note: this is an unprotected check and may not be accurate, but for logging it should be fine
+      // Note: this is an unprotected check and may not be accurate, but for logging it should be
+      // fine
       if (runTimeWatch.isRunning()) {
-        sb.append("Running since ").append(runTimeWatch.elapsed(TimeUnit.MILLISECONDS))
-          .append(" millis").append(System.lineSeparator());
+        sb.append("Running since ")
+            .append(runTimeWatch.elapsed(TimeUnit.MILLISECONDS))
+            .append(" millis")
+            .append(System.lineSeparator());
       } else {
         sb.append(" Idle ");
       }
       return sb.toString();
     }
-
   }
 
   private static final class PerTaskLoadCollector {
-    // total times this task was added to the run q for other service instances to pick due to load on this
+    // total times this task was added to the run q for other service instances to pick due to load
+    // on this
     // service instance
     private final Counter totalAddedToRunSet;
     // total times this task was removed from the run q by this service instance
@@ -312,11 +350,15 @@ final class PerTaskStatsCollector implements SchedulerEvents.PerTaskEvents {
     private final Counter totalFailedThresholdChecks;
 
     public PerTaskLoadCollector(String baseMetricName) {
-      totalAddedToRunSet = Metrics.newCounter(loadName(baseMetricName, "added"), Metrics.ResetType.NEVER);
-      totalRemovedFromRunSet = Metrics.newCounter(loadName(baseMetricName, "removed"), Metrics.ResetType.NEVER);
-      timeInRunSet = Metrics.newHistogram(loadName(baseMetricName, "q_time_ms"), Metrics.ResetType.NEVER);
-      totalFailedThresholdChecks = Metrics.newCounter(loadName(baseMetricName, "threshold_crossed"),
-        Metrics.ResetType.NEVER);
+      totalAddedToRunSet =
+          Metrics.newCounter(loadName(baseMetricName, "added"), Metrics.ResetType.NEVER);
+      totalRemovedFromRunSet =
+          Metrics.newCounter(loadName(baseMetricName, "removed"), Metrics.ResetType.NEVER);
+      timeInRunSet =
+          Metrics.newHistogram(loadName(baseMetricName, "q_time_ms"), Metrics.ResetType.NEVER);
+      totalFailedThresholdChecks =
+          Metrics.newCounter(
+              loadName(baseMetricName, "threshold_crossed"), Metrics.ResetType.NEVER);
     }
 
     private static String loadName(String base, String metric) {
@@ -338,14 +380,21 @@ final class PerTaskStatsCollector implements SchedulerEvents.PerTaskEvents {
 
     @Override
     public String toString() {
-        return "Total Added to Run Set : " + totalAddedToRunSet + System.lineSeparator() +
-        "Total Removed From Run Set : " + totalRemovedFromRunSet + System.lineSeparator() +
-        "Number of times load threshold was high : " + totalFailedThresholdChecks + System.lineSeparator();
+      return "Total Added to Run Set : "
+          + totalAddedToRunSet
+          + System.lineSeparator()
+          + "Total Removed From Run Set : "
+          + totalRemovedFromRunSet
+          + System.lineSeparator()
+          + "Number of times load threshold was high : "
+          + totalFailedThresholdChecks
+          + System.lineSeparator();
     }
   }
 
   private static final class PerTaskRecoveryCollector {
-    private static final int REJECT_REASONS_SIZE = SchedulerEvents.RecoveryRejectReason.values().length;
+    private static final int REJECT_REASONS_SIZE =
+        SchedulerEvents.RecoveryRejectReason.values().length;
     private final Counter totalMonitoringStarted;
     private final Counter totalMonitoringStopped;
     private final Counter totalTimesRequested;
@@ -356,19 +405,29 @@ final class PerTaskStatsCollector implements SchedulerEvents.PerTaskEvents {
     private final Counter[] totalTimesRejected;
 
     private PerTaskRecoveryCollector(String baseMetricName) {
-      totalMonitoringStarted = Metrics.newCounter(recoveryName(baseMetricName, "started"), Metrics.ResetType.NEVER);
-      totalMonitoringStopped = Metrics.newCounter(recoveryName(baseMetricName, "stopped"), Metrics.ResetType.NEVER);
-      totalTimesRequested = Metrics.newCounter(recoveryName(baseMetricName, "requested"), Metrics.ResetType.NEVER);
-      totalTimesRecovered = Metrics.newCounter(recoveryName(baseMetricName, "recovered"), Metrics.ResetType.NEVER);
-      totalAddedToDeathWatch = Metrics.newCounter(recoveryName(baseMetricName, "death_watch"), Metrics.ResetType.NEVER);
-      totalRunsOnDeath = Metrics.newCounter(recoveryName(baseMetricName, "runs_on_death"), Metrics.ResetType.NEVER);
-      totalRunsFailedOnDeath = Metrics.newCounter(recoveryName(baseMetricName, "runs_failed_on_death"),
-        Metrics.ResetType.NEVER);
+      totalMonitoringStarted =
+          Metrics.newCounter(recoveryName(baseMetricName, "started"), Metrics.ResetType.NEVER);
+      totalMonitoringStopped =
+          Metrics.newCounter(recoveryName(baseMetricName, "stopped"), Metrics.ResetType.NEVER);
+      totalTimesRequested =
+          Metrics.newCounter(recoveryName(baseMetricName, "requested"), Metrics.ResetType.NEVER);
+      totalTimesRecovered =
+          Metrics.newCounter(recoveryName(baseMetricName, "recovered"), Metrics.ResetType.NEVER);
+      totalAddedToDeathWatch =
+          Metrics.newCounter(recoveryName(baseMetricName, "death_watch"), Metrics.ResetType.NEVER);
+      totalRunsOnDeath =
+          Metrics.newCounter(
+              recoveryName(baseMetricName, "runs_on_death"), Metrics.ResetType.NEVER);
+      totalRunsFailedOnDeath =
+          Metrics.newCounter(
+              recoveryName(baseMetricName, "runs_failed_on_death"), Metrics.ResetType.NEVER);
       totalTimesRejected = new Counter[REJECT_REASONS_SIZE];
-      final SchedulerEvents.RecoveryRejectReason[] reasons = SchedulerEvents.RecoveryRejectReason.values();
+      final SchedulerEvents.RecoveryRejectReason[] reasons =
+          SchedulerEvents.RecoveryRejectReason.values();
       for (int i = 0; i < REJECT_REASONS_SIZE; i++) {
-        totalTimesRejected[i] = Metrics.newCounter(recoveryRejectedName(baseMetricName, reasons[i]),
-          Metrics.ResetType.NEVER);
+        totalTimesRejected[i] =
+            Metrics.newCounter(
+                recoveryRejectedName(baseMetricName, reasons[i]), Metrics.ResetType.NEVER);
       }
     }
 
@@ -376,7 +435,8 @@ final class PerTaskStatsCollector implements SchedulerEvents.PerTaskEvents {
       return Metrics.join(base, "recovery_monitor", metric);
     }
 
-    private static String recoveryRejectedName(String base, SchedulerEvents.RecoveryRejectReason reason) {
+    private static String recoveryRejectedName(
+        String base, SchedulerEvents.RecoveryRejectReason reason) {
       return Metrics.join(base, "recovery_monitor", "rejected", reason.getName());
     }
 
@@ -414,18 +474,37 @@ final class PerTaskStatsCollector implements SchedulerEvents.PerTaskEvents {
 
     @Override
     public String toString() {
-      String ret = "Total times recovery monitoring stopped : " + totalMonitoringStopped + System.lineSeparator() +
-        "Total times recovery monitoring started : " + totalMonitoringStarted + System.lineSeparator() +
-        "Total times recovery was requested : " + totalTimesRequested + System.lineSeparator() +
-        "Total times recovered : " + totalTimesRecovered + System.lineSeparator() +
-        "Added to death watch : " + totalAddedToDeathWatch + System.lineSeparator() +
-        "Total Runs on death : " + totalRunsOnDeath + System.lineSeparator() +
-        "Total Failed Runs on death : " + totalRunsFailedOnDeath + System.lineSeparator();
+      String ret =
+          "Total times recovery monitoring stopped : "
+              + totalMonitoringStopped
+              + System.lineSeparator()
+              + "Total times recovery monitoring started : "
+              + totalMonitoringStarted
+              + System.lineSeparator()
+              + "Total times recovery was requested : "
+              + totalTimesRequested
+              + System.lineSeparator()
+              + "Total times recovered : "
+              + totalTimesRecovered
+              + System.lineSeparator()
+              + "Added to death watch : "
+              + totalAddedToDeathWatch
+              + System.lineSeparator()
+              + "Total Runs on death : "
+              + totalRunsOnDeath
+              + System.lineSeparator()
+              + "Total Failed Runs on death : "
+              + totalRunsFailedOnDeath
+              + System.lineSeparator();
       StringBuilder sb = new StringBuilder(ret);
-      SchedulerEvents.RecoveryRejectReason[] reasons = SchedulerEvents.RecoveryRejectReason.values();
+      SchedulerEvents.RecoveryRejectReason[] reasons =
+          SchedulerEvents.RecoveryRejectReason.values();
       for (int i = 0; i < REJECT_REASONS_SIZE; i++) {
-        sb.append("Total times rejected due to ").append(reasons[i].getName()).append(" : ")
-          .append(totalTimesRejected[i]).append(System.lineSeparator());
+        sb.append("Total times rejected due to ")
+            .append(reasons[i].getName())
+            .append(" : ")
+            .append(totalTimesRejected[i])
+            .append(System.lineSeparator());
       }
       return sb.toString();
     }

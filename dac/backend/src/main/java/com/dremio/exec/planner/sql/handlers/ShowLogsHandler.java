@@ -17,12 +17,6 @@ package com.dremio.exec.planner.sql.handlers;
 
 import static java.util.Objects.requireNonNull;
 
-import java.util.List;
-import java.util.stream.Collectors;
-
-import org.apache.calcite.sql.SqlIdentifier;
-import org.apache.calcite.sql.SqlNode;
-
 import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
@@ -37,13 +31,16 @@ import com.dremio.exec.store.ReferenceTypeConflictException;
 import com.dremio.exec.work.foreman.ForemanSetupException;
 import com.dremio.options.OptionResolver;
 import com.dremio.sabot.rpc.user.UserSession;
+import java.util.List;
+import java.util.stream.Collectors;
+import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlNode;
 
 /**
  * Handler to show logs for specific ref.
  *
- * SHOW LOGS
- * [ AT ( REF[ERENCE] | BRANCH | TAG | COMMIT ) refValue [AS OF timestamp] ]
- * [ IN sourceName ]
+ * <p>SHOW LOGS [ AT ( REF[ERENCE] | BRANCH | TAG | COMMIT ) refValue [AS OF timestamp] ] [ IN
+ * sourceName ]
  */
 public class ShowLogsHandler extends BaseVersionHandler<ChangeInfo> {
   private final UserSession userSession;
@@ -54,18 +51,18 @@ public class ShowLogsHandler extends BaseVersionHandler<ChangeInfo> {
   }
 
   @Override
-  public List<ChangeInfo> toResult(String sql, SqlNode sqlNode)
-      throws ForemanSetupException {
+  public List<ChangeInfo> toResult(String sql, SqlNode sqlNode) throws ForemanSetupException {
     checkFeatureEnabled("SHOW LOGS syntax is not supported.");
 
     final SqlShowLogs showLogs = requireNonNull(SqlNodeUtil.unwrap(sqlNode, SqlShowLogs.class));
     final SqlIdentifier sourceIdentifier = showLogs.getSourceName();
-    final String sourceName = VersionedHandlerUtils.resolveSourceName(
-      sourceIdentifier,
-      userSession.getDefaultSchemaPath());
+    final String sourceName =
+        VersionedHandlerUtils.resolveSourceName(
+            sourceIdentifier, userSession.getDefaultSchemaPath());
 
-    final VersionContext statementVersion =
-      ReferenceTypeUtils.map(showLogs.getRefType(), showLogs.getRefValue(), showLogs.getTimestamp());
+    VersionContext statementVersion =
+        ReferenceTypeUtils.map(
+            showLogs.getRefType(), showLogs.getRefValue(), showLogs.getTimestamp());
     final VersionContext sessionVersion = userSession.getSessionVersionForSource(sourceName);
     final VersionContext version = statementVersion.orElse(sessionVersion);
 
@@ -78,12 +75,14 @@ public class ShowLogsHandler extends BaseVersionHandler<ChangeInfo> {
           .buildSilently();
     } catch (NoDefaultBranchException e) {
       throw UserException.validationError(e)
-        .message("Unable to resolve requested version. Version was not specified and Source %s does not have a default branch set.", sourceName)
-        .buildSilently();
+          .message(
+              "Unable to resolve requested version. Version was not specified and Source %s does not have a default branch set.",
+              sourceName)
+          .buildSilently();
     } catch (ReferenceTypeConflictException e) {
       throw UserException.validationError(e)
-        .message("Requested %s in source %s is not the requested type.", version, sourceName)
-        .buildSilently();
+          .message("Requested %s in source %s is not the requested type.", version, sourceName)
+          .buildSilently();
     }
   }
 

@@ -15,14 +15,11 @@
  */
 package com.dremio.dac.explore.model;
 
-import java.util.List;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.List;
 
-/**
- * SQLAnalyze API Request
- */
+/** SQLAnalyze API Request */
 public class AnalyzeRequest {
 
   private final String sql;
@@ -30,41 +27,40 @@ public class AnalyzeRequest {
   private final int cursorPosition;
 
   @JsonCreator
-  public AnalyzeRequest(@JsonProperty("sql") String sql,
-                        @JsonProperty("context") List<String> context,
-                        @JsonProperty("cursorPosition") int cursorPosition) {
+  public AnalyzeRequest(
+      @JsonProperty("sql") String sql,
+      @JsonProperty("context") List<String> context,
+      @JsonProperty("cursorPosition") int cursorPosition) {
     this.sql = sql;
     this.context = context;
     this.cursorPosition = cursorPosition;
   }
 
-  /**
-   * Get query SQL
-   */
+  /** Get query SQL */
   public String getSql() {
     return sql;
   }
 
-  /**
-   * Get query context
-   */
+  /** Get query context */
   public List<String> getContext() {
     return context;
   }
 
-  /**
-   * Get cursor position in SQL editor
-   */
+  /** Get cursor position in SQL editor */
   public int getCursorPosition() {
     return cursorPosition;
   }
 
   @Override
   public String toString() {
-    return "AnalyzeRequest{" +
-      "sql='" + sql + '\'' +
-      ", context=" + context +
-      ", cursorPosition=" + cursorPosition +
-      '}';
+    return "AnalyzeRequest{"
+        + "sql='"
+        + sql
+        + '\''
+        + ", context="
+        + context
+        + ", cursorPosition="
+        + cursorPosition
+        + '}';
   }
 }

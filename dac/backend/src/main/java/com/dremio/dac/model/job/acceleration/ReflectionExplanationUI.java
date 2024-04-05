@@ -21,15 +21,19 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
-/**
- * UI wrapper for {@link ReflectionExplanation}
- */
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.EXISTING_PROPERTY, property ="explanationType")
+/** UI wrapper for {@link ReflectionExplanation} */
+@JsonTypeInfo(
+    use = JsonTypeInfo.Id.NAME,
+    include = JsonTypeInfo.As.EXISTING_PROPERTY,
+    property = "explanationType")
 @JsonSubTypes({
-    @JsonSubTypes.Type(value = ReflectionExplanationUI.DisjointFilter.class, name = "DISJOINT_FILTER"),
-    @JsonSubTypes.Type(value = ReflectionExplanationUI.FieldMissing.class, name = "FIELD_MISSING"),
-    @JsonSubTypes.Type(value = ReflectionExplanationUI.FilterOverSpecified.class, name = "FILTER_OVER_SPECIFIED"),
-
+  @JsonSubTypes.Type(
+      value = ReflectionExplanationUI.DisjointFilter.class,
+      name = "DISJOINT_FILTER"),
+  @JsonSubTypes.Type(value = ReflectionExplanationUI.FieldMissing.class, name = "FIELD_MISSING"),
+  @JsonSubTypes.Type(
+      value = ReflectionExplanationUI.FilterOverSpecified.class,
+      name = "FILTER_OVER_SPECIFIED"),
 })
 public abstract class ReflectionExplanationUI {
 
@@ -84,8 +88,7 @@ public abstract class ReflectionExplanationUI {
     private final String filter;
 
     @JsonCreator
-    public FilterOverSpecified(
-      @JsonProperty("filter") String filter) {
+    public FilterOverSpecified(@JsonProperty("filter") String filter) {
       this.filter = filter;
     }
 

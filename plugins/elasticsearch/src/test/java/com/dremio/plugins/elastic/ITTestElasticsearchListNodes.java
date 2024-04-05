@@ -17,24 +17,21 @@ package com.dremio.plugins.elastic;
 
 import static com.dremio.plugins.elastic.ElasticsearchType.TEXT;
 
+import com.dremio.plugins.elastic.ElasticBaseTestQuery.PublishHost;
 import org.junit.Before;
 import org.junit.Test;
 
-import com.dremio.plugins.elastic.ElasticBaseTestQuery.PublishHost;
-
 // Enable http.publish_host so that we get localhost/127.0.0.1:9200 as http_address
-@PublishHost(enabled=true)
+@PublishHost(enabled = true)
 public class ITTestElasticsearchListNodes extends ElasticBaseTestQuery {
 
   @Before
   public void loadTable() throws Exception {
-    ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
-      new ElasticsearchCluster.ColumnData("location", TEXT, new Object[][]{
-        {"San Francisco"},
-        {"Oakland"},
-        {"San Jose"}
-      })
-    };
+    ElasticsearchCluster.ColumnData[] data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "location", TEXT, new Object[][] {{"San Francisco"}, {"Oakland"}, {"San Jose"}})
+        };
 
     elastic.load(schema, table, data);
   }
@@ -42,11 +39,13 @@ public class ITTestElasticsearchListNodes extends ElasticBaseTestQuery {
   @Test
   public void testGetHostList() throws Exception {
     String sql = String.format("select location from elasticsearch.%s.%s", schema, table);
-    testBuilder().sqlQuery(sql).unOrdered()
-      .baselineColumns("location")
-      .baselineValues("San Francisco")
-      .baselineValues("Oakland")
-      .baselineValues("San Jose")
-      .go();
+    testBuilder()
+        .sqlQuery(sql)
+        .unOrdered()
+        .baselineColumns("location")
+        .baselineValues("San Francisco")
+        .baselineValues("Oakland")
+        .baselineValues("San Jose")
+        .go();
   }
 }

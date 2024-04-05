@@ -17,26 +17,24 @@ package com.dremio.service.flight;
 
 import static org.junit.Assert.assertEquals;
 
+import com.dremio.context.RequestContext;
+import com.google.inject.util.Providers;
 import java.util.concurrent.Callable;
-
 import org.apache.arrow.flight.FlightProducer;
 import org.junit.Before;
 import org.junit.Test;
 
-import com.dremio.context.RequestContext;
-import com.google.inject.util.Providers;
-
-/**
- * Test that Flight RPC handlers are utilizing the request context.
- */
+/** Test that Flight RPC handlers are utilizing the request context. */
 public class TestFlightWithRequestContext {
 
-  private static final class DummyFlightRequestContextDecorator implements FlightRequestContextDecorator {
+  private static final class DummyFlightRequestContextDecorator
+      implements FlightRequestContextDecorator {
 
     private int callCount = 0;
 
     @Override
-    public RequestContext apply(RequestContext requestContext, FlightProducer.CallContext flightContext) {
+    public RequestContext apply(
+        RequestContext requestContext, FlightProducer.CallContext flightContext) {
       ++callCount;
       return requestContext;
     }
@@ -44,79 +42,87 @@ public class TestFlightWithRequestContext {
 
   private DummyFlightRequestContextDecorator decorator;
 
-  // Note: FlightProducer interface is used to intentional limit testing to Flight (not FlightSql) RPC calls.
+  // Note: FlightProducer interface is used to intentional limit testing to Flight (not FlightSql)
+  // RPC calls.
   private FlightProducer producer;
 
   @Before
   public void setup() {
     decorator = new DummyFlightRequestContextDecorator();
-    producer = new DremioFlightProducer(
-      null, null, null, null, null,
-      Providers.of(decorator), null);
+    producer =
+        new DremioFlightProducer(null, null, null, null, null, Providers.of(decorator), null);
   }
 
   @Test
   public void testGetStream() {
-    ignoreExceptionsAndValidateCallCount(() -> {
-      producer.getStream(null, null, null);
-      return null;
-    });
+    ignoreExceptionsAndValidateCallCount(
+        () -> {
+          producer.getStream(null, null, null);
+          return null;
+        });
   }
 
   @Test
   public void testListFlights() {
-    ignoreExceptionsAndValidateCallCount(() -> {
-      producer.listFlights(null, null, null);
-      return null;
-    });
+    ignoreExceptionsAndValidateCallCount(
+        () -> {
+          producer.listFlights(null, null, null);
+          return null;
+        });
   }
 
   @Test
   public void testGetFlightInfo() {
-    ignoreExceptionsAndValidateCallCount(() -> {
-      producer.getFlightInfo(null, null);
-      return null;
-    });
+    ignoreExceptionsAndValidateCallCount(
+        () -> {
+          producer.getFlightInfo(null, null);
+          return null;
+        });
   }
 
   @Test
   public void testGetSchema() {
-    ignoreExceptionsAndValidateCallCount(() -> {
-      producer.getSchema(null, null);
-      return null;
-    });
+    ignoreExceptionsAndValidateCallCount(
+        () -> {
+          producer.getSchema(null, null);
+          return null;
+        });
   }
 
   @Test
   public void testAcceptPut() {
-    ignoreExceptionsAndValidateCallCount(() -> {
-      producer.acceptPut(null, null, null);
-      return null;
-    });
+    ignoreExceptionsAndValidateCallCount(
+        () -> {
+          producer.acceptPut(null, null, null);
+          return null;
+        });
   }
 
   @Test
   public void testDoExchange() {
-    ignoreExceptionsAndValidateCallCount(() -> {
-      producer.doExchange(null, null, null);
-      return null;
-    });
+    ignoreExceptionsAndValidateCallCount(
+        () -> {
+          producer.doExchange(null, null, null);
+          return null;
+        });
   }
 
   @Test
   public void testDoAction() {
-    ignoreExceptionsAndValidateCallCount(() -> {
-      producer.doAction(null, null, null);
-      return null;
-    });
+    ignoreExceptionsAndValidateCallCount(
+        () -> {
+          producer.doAction(null, null, null);
+          return null;
+        });
   }
 
   @Test
   public void testListActions() {
-    ignoreExceptionsAndValidateCallCount(() -> {
-      producer.listActions(null, null);
-      return null;
-    });
+    ignoreExceptionsAndValidateCallCount(
+        () -> {
+          producer.listActions(null, null);
+          return null;
+        });
   }
 
   private <V> void ignoreExceptionsAndValidateCallCount(Callable<V> rpcHandlerBody) {

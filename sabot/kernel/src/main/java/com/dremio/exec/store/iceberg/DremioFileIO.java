@@ -15,16 +15,6 @@
  */
 package com.dremio.exec.store.iceberg;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.file.AccessDeniedException;
-import java.util.List;
-
-import org.apache.iceberg.io.FileIO;
-import org.apache.iceberg.io.InputFile;
-import org.apache.iceberg.io.OutputFile;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.store.dfs.FileSystemConfigurationAdapter;
 import com.dremio.io.file.FileAttributes;
@@ -32,10 +22,18 @@ import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.google.common.base.Preconditions;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.AccessDeniedException;
+import java.util.List;
+import org.apache.iceberg.io.FileIO;
+import org.apache.iceberg.io.InputFile;
+import org.apache.iceberg.io.OutputFile;
 
 /**
- * An implementation of Iceberg's FileIO interface that delegates to a Dremio FileSystem instance for all IO
- * operations.
+ * An implementation of Iceberg's FileIO interface that delegates to a Dremio FileSystem instance
+ * for all IO operations.
  */
 public class DremioFileIO implements FileIO {
 
@@ -49,16 +47,25 @@ public class DremioFileIO implements FileIO {
    */
   private final Long fileLength;
   private final FileSystemConfigurationAdapter conf;
-  private final String datasourcePluginUID; // this can be null if data files, metadata file can be accessed with same plugin
+  private final String
+      datasourcePluginUID; // this can be null if data files, metadata file can be accessed with
+  // same plugin
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DremioFileIO.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(DremioFileIO.class);
 
-  public DremioFileIO(FileSystem fs, OperatorContext context, List<String> dataset, String datasourcePluginUID,
-      Long fileLength, FileSystemConfigurationAdapter conf) {
+  public DremioFileIO(
+      FileSystem fs,
+      OperatorContext context,
+      List<String> dataset,
+      String datasourcePluginUID,
+      Long fileLength,
+      FileSystemConfigurationAdapter conf) {
     this.fs = Preconditions.checkNotNull(fs);
     this.context = context;
     this.dataset = dataset;
-    this.datasourcePluginUID = datasourcePluginUID; // this can be null if it is same as the plugin which created fs
+    this.datasourcePluginUID =
+        datasourcePluginUID; // this can be null if it is same as the plugin which created fs
     this.fileLength = fileLength;
     this.conf = Preconditions.checkNotNull(conf);
   }
@@ -80,7 +87,8 @@ public class DremioFileIO implements FileIO {
           fileSize = fileAttributes.size();
           mtime = fileAttributes.lastModifiedTime().toMillis();
         } catch (FileNotFoundException e) {
-          // ignore if file not found, it is valid to create an InputFile for a file that does not exist
+          // ignore if file not found, it is valid to create an InputFile for a file that does not
+          // exist
           fileSize = null;
           mtime = null;
         }

@@ -18,5 +18,6 @@ package com.dremio.sabot.op.receiver;
 public interface RawFragmentBatchProvider extends AutoCloseable {
 
   public RawFragmentBatch getNext();
+
   public boolean isStreamDone();
 }

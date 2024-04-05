@@ -15,24 +15,18 @@
  */
 package com.dremio.dac.api;
 
+import com.dremio.common.expression.AbstractArrowTypeVisitor;
+import com.dremio.common.expression.SqlTypeNameVisitor;
+import com.fasterxml.jackson.core.JsonGenerator;
 import java.io.IOException;
 import java.util.List;
-
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.ArrowType.Decimal;
 import org.apache.arrow.vector.types.pojo.Field;
 
-import com.dremio.common.expression.AbstractArrowTypeVisitor;
-import com.dremio.common.expression.SqlTypeNameVisitor;
-import com.fasterxml.jackson.core.JsonGenerator;
-
-/**
- * Describes an Arrow field into a JSON generator for the REST API
- */
+/** Describes an Arrow field into a JSON generator for the REST API */
 public class APIFieldDescriber {
-  /**
-   * Describes an Arrow field into a JSON generator
-   */
+  /** Describes an Arrow field into a JSON generator */
   public static final class FieldDescriber extends AbstractArrowTypeVisitor<Void> {
     private final JsonGenerator generator;
     private final TypeDescriber typeDescriber;
@@ -127,9 +121,7 @@ public class APIFieldDescriber {
     }
   }
 
-  /**
-   * Describes a Arrow type into a JSON generator
-   */
+  /** Describes a Arrow type into a JSON generator */
   private static class TypeDescriber implements ArrowType.ArrowTypeVisitor<Void> {
     private final JsonGenerator generator;
     private final SqlTypeNameVisitor sqlTypeNameVisitor;

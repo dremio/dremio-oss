@@ -17,16 +17,14 @@ package com.dremio.service.grpc;
 
 import io.grpc.Metadata;
 
-/**
- * grpc header keys used across dremio services.
- */
+/** grpc header keys used across dremio services. */
 public final class HeaderKeys {
   private HeaderKeys() {}
 
   public static final Metadata.Key<String> RELEASE_NAME_HEADER_KEY =
-    Metadata.Key.of("x-dremio-control-plane-service-release-name",
-      Metadata.ASCII_STRING_MARSHALLER);
+      Metadata.Key.of(
+          "x-dremio-control-plane-service-release-name", Metadata.ASCII_STRING_MARSHALLER);
 
   public static final Metadata.Key<String> SERVICE_NAME_HEADER_KEY =
-    Metadata.Key.of("x-dremio-control-plane-service", Metadata.ASCII_STRING_MARSHALLER);
+      Metadata.Key.of("x-dremio-control-plane-service", Metadata.ASCII_STRING_MARSHALLER);
 }

@@ -15,11 +15,10 @@
  */
 package com.dremio.exec.planner.fragment;
 
+import com.google.common.collect.Maps;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.Map;
-
-import com.google.common.collect.Maps;
 
 public class PlanningSet implements Iterable<Wrapper> {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PlanningSet.class);
@@ -43,7 +42,8 @@ public class PlanningSet implements Iterable<Wrapper> {
         // assign the upper 16 nodes as the major fragment id.
         majorFragmentId = node.getSendingExchange().getChild().getProps().getMajorFragmentId();
 
-        // if they are not assigned, that means we mostly likely have an externally generated plan.  in this case, come up with a major fragmentid.
+        // if they are not assigned, that means we mostly likely have an externally generated plan.
+        // in this case, come up with a major fragmentid.
         if (majorFragmentId == 0) {
           majorFragmentId = majorFragmentIdIndex;
         }
@@ -65,9 +65,7 @@ public class PlanningSet implements Iterable<Wrapper> {
     return "FragmentPlanningSet:\n" + fragmentMap.values() + "]";
   }
 
-  /**
-   * Update Wrappers with query per-node memory limits
-   */
+  /** Update Wrappers with query per-node memory limits */
   public void setMemoryAllocationPerNode(long memoryLimit) {
     for (Wrapper wrapper : fragmentMap.values()) {
       wrapper.setMemoryAllocationPerNode(memoryLimit);

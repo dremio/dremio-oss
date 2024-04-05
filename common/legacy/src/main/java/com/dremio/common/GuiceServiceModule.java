@@ -17,15 +17,6 @@ package com.dremio.common;
 
 import static com.google.common.base.Throwables.throwIfUnchecked;
 
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Deque;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.service.Service;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.AbstractModule;
@@ -36,59 +27,67 @@ import com.google.inject.internal.SingletonScope;
 import com.google.inject.matcher.Matchers;
 import com.google.inject.spi.DefaultBindingScopingVisitor;
 import com.google.inject.spi.ProvisionListener;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Deque;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * Handles Guice registered services, allowing to start/stop them in proper order
- */
+/** Handles Guice registered services, allowing to start/stop them in proper order */
 public class GuiceServiceModule extends AbstractModule {
   private static final Logger logger = LoggerFactory.getLogger(GuiceServiceModule.class);
 
   private final Deque<Class<?>> serviceList = new ArrayDeque<>();
 
-  public GuiceServiceModule() {
-  }
+  public GuiceServiceModule() {}
 
   @Override
   protected void configure() {
-    binder().bindListener(Matchers.any(), new ProvisionListener() {
-      @Override
-      public <T> void onProvision(ProvisionInvocation<T> provision) {
-        final Binding<T> binding = provision.getBinding();
-        logger.debug("provisioning {}", binding.getKey().getTypeLiteral());
+    binder()
+        .bindListener(
+            Matchers.any(),
+            new ProvisionListener() {
+              @Override
+              public <T> void onProvision(ProvisionInvocation<T> provision) {
+                final Binding<T> binding = provision.getBinding();
+                logger.debug("provisioning {}", binding.getKey().getTypeLiteral());
 
-        final T provisioned = provision.provision();
+                final T provisioned = provision.provision();
 
-        if (provisioned != null && Service.class.isAssignableFrom(provisioned.getClass())) {
-          final AtomicBoolean start = new AtomicBoolean(false);
-          binding.acceptScopingVisitor(new DefaultBindingScopingVisitor<T>() {
-            @Override
-            public T visitEagerSingleton() {
-              start.set(true);
-              return super.visitEagerSingleton();
-            }
+                if (provisioned != null && Service.class.isAssignableFrom(provisioned.getClass())) {
+                  final AtomicBoolean start = new AtomicBoolean(false);
+                  binding.acceptScopingVisitor(
+                      new DefaultBindingScopingVisitor<T>() {
+                        @Override
+                        public T visitEagerSingleton() {
+                          start.set(true);
+                          return super.visitEagerSingleton();
+                        }
 
-            @Override
-            public T visitScope(Scope scope) {
-              if (scope instanceof SingletonScope) {
-                start.set(true);
+                        @Override
+                        public T visitScope(Scope scope) {
+                          if (scope instanceof SingletonScope) {
+                            start.set(true);
+                          }
+                          return super.visitScope(scope);
+                        }
+                      });
+
+                  if (start.get()) {
+                    serviceList.push(binding.getKey().getTypeLiteral().getRawType());
+                    try {
+                      logger.debug("starting {}", binding.getKey().getTypeLiteral());
+                      ((Service) provisioned).start();
+                    } catch (Exception e) {
+                      throwIfUnchecked(e);
+                      throw new RuntimeException(e);
+                    }
+                  }
+                }
               }
-              return super.visitScope(scope);
-            }
-          });
-
-          if (start.get()) {
-            serviceList.push(binding.getKey().getTypeLiteral().getRawType());
-            try {
-              logger.debug("starting {}", binding.getKey().getTypeLiteral());
-              ((Service) provisioned).start();
-            } catch (Exception e) {
-              throwIfUnchecked(e);
-              throw new RuntimeException(e);
-            }
-          }
-        }
-      }
-    });
+            });
   }
 
   /**
@@ -98,19 +97,20 @@ public class GuiceServiceModule extends AbstractModule {
    */
   public void close(Injector injector) throws Exception {
 
-    serviceList.forEach((clazz) -> {
-      final Object instance = injector.getInstance(clazz);
+    serviceList.forEach(
+        (clazz) -> {
+          final Object instance = injector.getInstance(clazz);
 
-      if (instance instanceof Service) {
-        try {
-          logger.debug("stopping {}", instance.getClass().toString());
-          ((Service) instance).close();
-        } catch (Exception e) {
-          throwIfUnchecked(e);
-          throw new RuntimeException(e);
-        }
-      }
-    });
+          if (instance instanceof Service) {
+            try {
+              logger.debug("stopping {}", instance.getClass().toString());
+              ((Service) instance).close();
+            } catch (Exception e) {
+              throwIfUnchecked(e);
+              throw new RuntimeException(e);
+            }
+          }
+        });
   }
 
   @VisibleForTesting

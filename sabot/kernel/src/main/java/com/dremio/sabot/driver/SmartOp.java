@@ -18,11 +18,6 @@ package com.dremio.sabot.driver;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
-import org.apache.arrow.memory.OutOfMemoryException;
-import org.apache.arrow.vector.BaseVariableWidthVector;
-import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.ZeroVector;
-
 import com.dremio.common.exceptions.ErrorHelper;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.Describer;
@@ -45,13 +40,20 @@ import com.dremio.sabot.op.spi.Operator;
 import com.dremio.sabot.op.spi.ProducerOperator;
 import com.dremio.sabot.op.spi.SingleInputOperator;
 import com.dremio.sabot.op.spi.TerminalOperator;
+import java.util.Arrays;
+import java.util.Optional;
+import org.apache.arrow.memory.OutOfMemoryException;
+import org.apache.arrow.vector.BaseVariableWidthVector;
+import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.ZeroVector;
 
 /**
- * A set of utility classes that allows us to centralize operator management without using inheritance and confusing state trees.
+ * A set of utility classes that allows us to centralize operator management without using
+ * inheritance and confusing state trees.
  *
  * @param <T> The type of operator wrapped.
  */
-abstract class SmartOp<T extends Operator> implements Wrapped<T> {
+public abstract class SmartOp<T extends Operator> implements Wrapped<T> {
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SmartOp.class);
 
@@ -66,7 +68,11 @@ abstract class SmartOp<T extends Operator> implements Wrapped<T> {
   private final FunctionLookupContext functionLookupContext;
   protected final OperatorStats stats;
 
-  private SmartOp(T inner, OperatorContext context, PhysicalOperator popConfig, FunctionLookupContext functionLookupContext) {
+  private SmartOp(
+      T inner,
+      OperatorContext context,
+      PhysicalOperator popConfig,
+      FunctionLookupContext functionLookupContext) {
     super();
     this.inner = inner;
     this.context = context;
@@ -74,12 +80,16 @@ abstract class SmartOp<T extends Operator> implements Wrapped<T> {
     this.functionLookupContext = functionLookupContext;
     this.stats = context.getStats();
   }
+
   void checkSchema(BatchSchema initialSchema) {
     int propsSchemaHashCode = popConfig.getProps().getSchemaHashCode();
-    int initialSchemaHashCode = initialSchema.clone(BatchSchema.SelectionVectorMode.NONE).toByteString().hashCode();
-    checkState( propsSchemaHashCode == initialSchemaHashCode,
-      String.format("Schema checksums do not match. Actual schema:%d Config Schema:%d", initialSchemaHashCode, propsSchemaHashCode
-    ));
+    int initialSchemaHashCode =
+        initialSchema.clone(BatchSchema.SelectionVectorMode.NONE).toByteString().hashCode();
+    checkState(
+        propsSchemaHashCode == initialSchemaHashCode,
+        String.format(
+            "Schema checksums do not match. Actual schema:%d Config Schema:%d",
+            initialSchemaHashCode, propsSchemaHashCode));
   }
 
   @Override
@@ -94,8 +104,9 @@ abstract class SmartOp<T extends Operator> implements Wrapped<T> {
 
   @Override
   public boolean shrinkMemory(long memoryUsed) throws Exception {
-    checkState(inner instanceof ShrinkableOperator,
-      "A message to shrinkMemory has been sent to an Operator that cannot shrinkMemory");
+    checkState(
+        inner instanceof ShrinkableOperator,
+        "A message to shrinkMemory has been sent to an Operator that cannot shrinkMemory");
     ShrinkableOperator shrinkableOperator = (ShrinkableOperator) inner;
     long currentMemoryUsed = shrinkableOperator.shrinkableMemory();
     boolean doneSpilling = false;
@@ -103,15 +114,24 @@ abstract class SmartOp<T extends Operator> implements Wrapped<T> {
       doneSpilling = shrinkableOperator.shrinkMemory(memoryUsed);
       return doneSpilling;
     } finally {
-      logger.debug("Operator {} reduced memory usage by {} bytes", shrinkableOperator.getOperatorId(), currentMemoryUsed - shrinkableOperator.shrinkableMemory());
+      logger.debug(
+          "Operator {} reduced memory usage by {} bytes",
+          shrinkableOperator.getOperatorId(),
+          currentMemoryUsed - shrinkableOperator.shrinkableMemory());
       if (doneSpilling) {
-        logger.info("Operator {} spilled {} bytes", shrinkableOperator.getOperatorId(), (memoryUsed - shrinkableOperator.shrinkableMemory()));
+        logger.info(
+            "Operator {} spilled {} bytes",
+            shrinkableOperator.getOperatorId(),
+            (memoryUsed - shrinkableOperator.shrinkableMemory()));
+        if (shrinkableOperator.canUseTooMuchMemoryInAPump()) {
+          shrinkableOperator.setLimit(shrinkableOperator.getAllocatedMemory());
+        }
       }
     }
   }
 
   @Override
-  public T getInner(){
+  public T getInner() {
     return inner;
   }
 
@@ -120,9 +140,12 @@ abstract class SmartOp<T extends Operator> implements Wrapped<T> {
     return context;
   }
 
-  void logClose(){
+  void logClose() {
     FragmentHandle h = context.getFragmentHandle();
-    logger.debug(String.format("Closing operator: %d:%d:%d", h.getMajorFragmentId(), h.getMinorFragmentId(), context.getStats().getOperatorId()));
+    logger.debug(
+        String.format(
+            "Closing operator: %d:%d:%d",
+            h.getMajorFragmentId(), h.getMinorFragmentId(), context.getStats().getOperatorId()));
   }
 
   private static String getOperatorName(int operatorType) {
@@ -130,29 +153,31 @@ abstract class SmartOp<T extends Operator> implements Wrapped<T> {
     return type == null ? String.format("Unknown (%d)", operatorType) : type.name();
   }
 
-
   protected RuntimeException contextualize(Throwable e) {
-
 
     String operatorName = "Unknown";
     int operatorId = -1;
     try {
       operatorName = getOperatorName(context.getStats().getOperatorType());
-    }catch(Exception ex){
+    } catch (Exception ex) {
       e.addSuppressed(ex);
     }
 
     try {
       operatorId = context.getStats().getOperatorId();
-    }catch(Exception ex){
+    } catch (Exception ex) {
       e.addSuppressed(ex);
     }
 
     final FragmentHandle h = context.getFragmentHandle();
-    UserException.Builder builder = UserException.systemError(e).message("General execution failure.")
-      .addContext("SqlOperatorImpl", operatorName)
-      .addContext("Location",
-        String.format("%d:%d:%d", h.getMajorFragmentId(), h.getMinorFragmentId(), operatorId));
+    UserException.Builder builder =
+        UserException.systemError(e)
+            .message("General execution failure.")
+            .addContext("SqlOperatorImpl", operatorName)
+            .addContext(
+                "Location",
+                String.format(
+                    "%d:%d:%d", h.getMajorFragmentId(), h.getMinorFragmentId(), operatorId));
 
     OutOfMemoryException oom = ErrorHelper.findWrappedCause(e, OutOfMemoryException.class);
     if (oom != null) {
@@ -164,50 +189,56 @@ abstract class SmartOp<T extends Operator> implements Wrapped<T> {
     return builder.build(logger);
   }
 
-  public static SmartSingleInput contextualize(SingleInputOperator operator,
-                                               OperatorContext context,
-                                               PhysicalOperator popConfig,
-                                               FunctionLookupContext functionLookupContext) {
+  public static SmartSingleInput contextualize(
+      SingleInputOperator operator,
+      OperatorContext context,
+      PhysicalOperator popConfig,
+      FunctionLookupContext functionLookupContext) {
     return new SmartSingleInput(operator, context, popConfig, functionLookupContext);
   }
 
-  public static SmartDualInput contextualize(DualInputOperator operator,
-                                             OperatorContext context,
-                                             PhysicalOperator popConfig,
-                                             FunctionLookupContext functionLookupContext) {
+  public static SmartDualInput contextualize(
+      DualInputOperator operator,
+      OperatorContext context,
+      PhysicalOperator popConfig,
+      FunctionLookupContext functionLookupContext) {
     return new SmartDualInput(operator, context, popConfig, functionLookupContext);
   }
 
-  public static SmartTerminal contextualize(TerminalOperator operator,
-                                            OperatorContext context,
-                                            PhysicalOperator popConfig,
-                                            FunctionLookupContext functionLookupContext) {
+  public static SmartTerminal contextualize(
+      TerminalOperator operator,
+      OperatorContext context,
+      PhysicalOperator popConfig,
+      FunctionLookupContext functionLookupContext) {
     return new SmartTerminal(operator, context, popConfig, functionLookupContext);
   }
 
-  public static SmartProducer contextualize(ProducerOperator operator,
-                                            OperatorContext context,
-                                            PhysicalOperator popConfig,
-                                            FunctionLookupContext functionLookupContext) {
+  public static SmartProducer contextualize(
+      ProducerOperator operator,
+      OperatorContext context,
+      PhysicalOperator popConfig,
+      FunctionLookupContext functionLookupContext) {
     return new SmartProducer(operator, context, popConfig, functionLookupContext);
   }
 
-  static class SmartSingleInput extends SmartOp<SingleInputOperator> implements SingleInputOperator {
+  static class SmartSingleInput extends SmartOp<SingleInputOperator>
+      implements SingleInputOperator {
 
     private VectorAccessible incoming;
     private VectorAccessible outgoing;
     private BatchSchema initialSchema;
 
-    public SmartSingleInput(SingleInputOperator inner,
-                            OperatorContext context,
-                            PhysicalOperator popConfig,
-                            FunctionLookupContext functionLookupContext) {
+    public SmartSingleInput(
+        SingleInputOperator inner,
+        OperatorContext context,
+        PhysicalOperator popConfig,
+        FunctionLookupContext functionLookupContext) {
       super(inner, context, popConfig, functionLookupContext);
     }
 
     @Override
     public int outputData() throws Exception {
-      stats.startProcessing();
+      stats.startProcessing(inner.getState());
       try {
         int outputRecords = inner.outputData();
         stats.recordBatchOutput(outputRecords, VectorUtil.getSize(outgoing));
@@ -216,15 +247,15 @@ abstract class SmartOp<T extends Operator> implements Wrapped<T> {
         logger.error("Unexpected exception occurred", e);
         throw contextualize(e);
       } finally {
-        stats.stopProcessing();
+        stats.stopProcessing(inner.getState());
       }
     }
 
     @Override
-    public <OUT, IN, EXCEP extends Throwable> OUT accept(OperatorVisitor<OUT, IN, EXCEP> visitor, IN value)
-        throws EXCEP {
+    public <OUT, IN, EXCEP extends Throwable> OUT accept(
+        OperatorVisitor<OUT, IN, EXCEP> visitor, IN value) throws EXCEP {
       try {
-        return visitor.visitSingleInput(this,  value);
+        return visitor.visitSingleInput(this, value);
       } catch (RuntimeException e) {
         throw contextualize(e);
       }
@@ -233,48 +264,48 @@ abstract class SmartOp<T extends Operator> implements Wrapped<T> {
     @Override
     public void close() throws Exception {
       logClose();
-      stats.startProcessing();
+      stats.startProcessing(inner.getState());
       try {
         inner.close();
       } catch (Exception | AssertionError | AbstractMethodError e) {
         throw contextualize(e);
       } finally {
-        stats.stopProcessing();
+        stats.stopProcessing(inner.getState());
       }
 
-      if(PRINT_STATS_ON_CLOSE){
+      if (PRINT_STATS_ON_CLOSE) {
         System.out.println(stats);
       }
     }
 
     @Override
     public void noMoreToConsume() throws Exception {
-      stats.startProcessing();
+      stats.startProcessing(inner.getState());
       try {
         inner.noMoreToConsume();
       } catch (Exception | AssertionError | AbstractMethodError e) {
         throw contextualize(e);
       } finally {
-        stats.stopProcessing();
+        stats.stopProcessing(inner.getState());
       }
     }
 
     @Override
     public void consumeData(int records) throws Exception {
-      stats.startProcessing();
+      stats.startProcessing(inner.getState());
       try {
         stats.batchReceived(0, records, VectorUtil.getSize(incoming));
         inner.consumeData(records);
       } catch (Exception | AssertionError | AbstractMethodError e) {
         throw contextualize(e);
       } finally {
-        stats.stopProcessing();
+        stats.stopProcessing(inner.getState());
       }
     }
 
     @Override
     public VectorAccessible setup(VectorAccessible accessible) throws Exception {
-      stats.startProcessing();
+      stats.startProcessing(inner.getState());
       try {
         stats.startSetup();
         try {
@@ -288,7 +319,7 @@ abstract class SmartOp<T extends Operator> implements Wrapped<T> {
           stats.stopSetup();
         }
       } finally {
-        stats.stopProcessing();
+        stats.stopProcessing(inner.getState());
       }
     }
 
@@ -296,23 +327,23 @@ abstract class SmartOp<T extends Operator> implements Wrapped<T> {
     public State getState() {
       return inner.getState();
     }
-
   }
 
   static class SmartTerminal extends SmartOp<TerminalOperator> implements TerminalOperator {
 
     private VectorAccessible incoming;
 
-    public SmartTerminal(TerminalOperator inner,
-                         OperatorContext context,
-                         PhysicalOperator popConfig,
-                         FunctionLookupContext functionLookupContext) {
+    public SmartTerminal(
+        TerminalOperator inner,
+        OperatorContext context,
+        PhysicalOperator popConfig,
+        FunctionLookupContext functionLookupContext) {
       super(inner, context, popConfig, functionLookupContext);
     }
 
     @Override
-    public <OUT, IN, EXCEP extends Throwable> OUT accept(OperatorVisitor<OUT, IN, EXCEP> visitor, IN value)
-        throws EXCEP {
+    public <OUT, IN, EXCEP extends Throwable> OUT accept(
+        OperatorVisitor<OUT, IN, EXCEP> visitor, IN value) throws EXCEP {
       try {
         return visitor.visitTerminalOperator(this, value);
       } catch (RuntimeException e) {
@@ -323,36 +354,35 @@ abstract class SmartOp<T extends Operator> implements Wrapped<T> {
     @Override
     public void close() throws Exception {
       logClose();
-      stats.startProcessing();
+      stats.startProcessing(inner.getState());
       try {
         inner.close();
       } catch (Exception | AssertionError | AbstractMethodError e) {
         throw contextualize(e);
       } finally {
-        stats.stopProcessing();
+        stats.stopProcessing(inner.getState());
       }
 
-      if(PRINT_STATS_ON_CLOSE){
+      if (PRINT_STATS_ON_CLOSE) {
         System.out.println(stats);
       }
-
     }
 
     @Override
     public void noMoreToConsume() throws Exception {
-      stats.startProcessing();
+      stats.startProcessing(inner.getState());
       try {
         inner.noMoreToConsume();
       } catch (Exception | AssertionError | AbstractMethodError e) {
         throw contextualize(e);
       } finally {
-        stats.stopProcessing();
+        stats.stopProcessing(inner.getState());
       }
     }
 
     @Override
     public void consumeData(int records) throws Exception {
-      stats.startProcessing();
+      stats.startProcessing(inner.getState());
       try {
         stats.batchReceived(0, records, VectorUtil.getSize(incoming));
         inner.consumeData(records);
@@ -360,13 +390,13 @@ abstract class SmartOp<T extends Operator> implements Wrapped<T> {
       } catch (Exception | AssertionError | AbstractMethodError e) {
         throw contextualize(e);
       } finally {
-        stats.stopProcessing();
+        stats.stopProcessing(inner.getState());
       }
     }
 
     @Override
     public void setup(VectorAccessible accessible) throws Exception {
-      stats.startProcessing();
+      stats.startProcessing(inner.getState());
       try {
         stats.startSetup();
         try {
@@ -378,7 +408,7 @@ abstract class SmartOp<T extends Operator> implements Wrapped<T> {
           stats.stopSetup();
         }
       } finally {
-        stats.stopProcessing();
+        stats.stopProcessing(inner.getState());
       }
     }
 
@@ -395,7 +425,6 @@ abstract class SmartOp<T extends Operator> implements Wrapped<T> {
         throw contextualize(e);
       }
     }
-
   }
 
   static class SmartDualInput extends SmartOp<DualInputOperator> implements DualInputOperator {
@@ -405,16 +434,17 @@ abstract class SmartOp<T extends Operator> implements Wrapped<T> {
     private VectorAccessible right;
     private BatchSchema initialSchema;
 
-    public SmartDualInput(DualInputOperator inner,
-                          OperatorContext context,
-                          PhysicalOperator popConfig,
-                          FunctionLookupContext functionLookupContext) {
+    public SmartDualInput(
+        DualInputOperator inner,
+        OperatorContext context,
+        PhysicalOperator popConfig,
+        FunctionLookupContext functionLookupContext) {
       super(inner, context, popConfig, functionLookupContext);
     }
 
     @Override
     public int outputData() throws Exception {
-      stats.startProcessing();
+      stats.startProcessing(inner.getState());
       try {
         int outputRecords = inner.outputData();
         stats.recordBatchOutput(outputRecords, VectorUtil.getSize(outgoing));
@@ -422,13 +452,13 @@ abstract class SmartOp<T extends Operator> implements Wrapped<T> {
       } catch (Exception | AssertionError | AbstractMethodError e) {
         throw contextualize(e);
       } finally {
-        stats.stopProcessing();
+        stats.stopProcessing(inner.getState());
       }
     }
 
     @Override
-    public <OUT, IN, EXCEP extends Throwable> OUT accept(OperatorVisitor<OUT, IN, EXCEP> visitor, IN value)
-        throws EXCEP {
+    public <OUT, IN, EXCEP extends Throwable> OUT accept(
+        OperatorVisitor<OUT, IN, EXCEP> visitor, IN value) throws EXCEP {
       try {
         return visitor.visitDualInput(this, value);
       } catch (RuntimeException e) {
@@ -439,74 +469,73 @@ abstract class SmartOp<T extends Operator> implements Wrapped<T> {
     @Override
     public void close() throws Exception {
       logClose();
-      stats.startProcessing();
+      stats.startProcessing(inner.getState());
       try {
         inner.close();
       } catch (Exception | AssertionError | AbstractMethodError e) {
         throw contextualize(e);
       } finally {
-        stats.stopProcessing();
+        stats.stopProcessing(inner.getState());
       }
 
-      if(PRINT_STATS_ON_CLOSE){
+      if (PRINT_STATS_ON_CLOSE) {
         System.out.println(stats);
       }
-
     }
 
     @Override
     public void noMoreToConsumeLeft() throws Exception {
-      stats.startProcessing();
+      stats.startProcessing(inner.getState());
       try {
         inner.noMoreToConsumeLeft();
       } catch (Exception | AssertionError | AbstractMethodError e) {
         throw contextualize(e);
       } finally {
-        stats.stopProcessing();
+        stats.stopProcessing(inner.getState());
       }
     }
 
     @Override
     public void noMoreToConsumeRight() throws Exception {
-      stats.startProcessing();
+      stats.startProcessing(inner.getState());
       try {
         inner.noMoreToConsumeRight();
       } catch (Exception | AssertionError | AbstractMethodError e) {
         throw contextualize(e);
       } finally {
-        stats.stopProcessing();
+        stats.stopProcessing(inner.getState());
       }
     }
 
     @Override
     public void consumeDataLeft(int records) throws Exception {
-      stats.startProcessing();
+      stats.startProcessing(inner.getState());
       try {
         stats.batchReceived(0, records, VectorUtil.getSize(left));
         inner.consumeDataLeft(records);
       } catch (Exception | AssertionError | AbstractMethodError e) {
         throw contextualize(e);
       } finally {
-        stats.stopProcessing();
+        stats.stopProcessing(inner.getState());
       }
     }
 
     @Override
     public void consumeDataRight(int records) throws Exception {
-      stats.startProcessing();
+      stats.startProcessing(inner.getState());
       try {
         stats.batchReceived(1, records, VectorUtil.getSize(right));
         inner.consumeDataRight(records);
       } catch (Exception | AssertionError | AbstractMethodError e) {
         throw contextualize(e);
       } finally {
-        stats.stopProcessing();
+        stats.stopProcessing(inner.getState());
       }
     }
 
     @Override
     public VectorAccessible setup(VectorAccessible left, VectorAccessible right) throws Exception {
-      stats.startProcessing();
+      stats.startProcessing(inner.getState());
       try {
         stats.startSetup();
         try {
@@ -521,7 +550,7 @@ abstract class SmartOp<T extends Operator> implements Wrapped<T> {
           stats.stopSetup();
         }
       } finally {
-        stats.stopProcessing();
+        stats.stopProcessing(inner.getState());
       }
     }
 
@@ -529,24 +558,23 @@ abstract class SmartOp<T extends Operator> implements Wrapped<T> {
     public State getState() {
       return inner.getState();
     }
-
   }
 
   static class SmartProducer extends SmartOp<ProducerOperator> implements ProducerOperator {
-
     private VectorAccessible outgoing;
     private BatchSchema initialSchema;
 
-    public SmartProducer(ProducerOperator inner,
-                         OperatorContext context,
-                         PhysicalOperator popConfig,
-                         FunctionLookupContext functionLookupContext) {
+    public SmartProducer(
+        ProducerOperator inner,
+        OperatorContext context,
+        PhysicalOperator popConfig,
+        FunctionLookupContext functionLookupContext) {
       super(inner, context, popConfig, functionLookupContext);
     }
 
     @Override
     public int outputData() throws Exception {
-      stats.startProcessing();
+      stats.startProcessing(inner.getState());
       try {
         int outputRecords = inner.outputData();
         stats.recordBatchOutput(outputRecords, VectorUtil.getSize(outgoing));
@@ -554,13 +582,13 @@ abstract class SmartOp<T extends Operator> implements Wrapped<T> {
       } catch (Exception | AssertionError | AbstractMethodError e) {
         throw contextualize(e);
       } finally {
-        stats.stopProcessing();
+        stats.stopProcessing(inner.getState());
       }
     }
 
     @Override
-    public <OUT, IN, EXCEP extends Throwable> OUT accept(OperatorVisitor<OUT, IN, EXCEP> visitor, IN value)
-        throws EXCEP {
+    public <OUT, IN, EXCEP extends Throwable> OUT accept(
+        OperatorVisitor<OUT, IN, EXCEP> visitor, IN value) throws EXCEP {
       try {
         return visitor.visitProducer(this, value);
       } catch (RuntimeException e) {
@@ -571,24 +599,23 @@ abstract class SmartOp<T extends Operator> implements Wrapped<T> {
     @Override
     public void close() throws Exception {
       logClose();
-      stats.startProcessing();
+      stats.startProcessing(inner.getState());
       try {
         inner.close();
       } catch (Exception | AssertionError | AbstractMethodError e) {
         throw contextualize(e);
       } finally {
-        stats.stopProcessing();
+        stats.stopProcessing(inner.getState());
       }
 
-      if(PRINT_STATS_ON_CLOSE){
+      if (PRINT_STATS_ON_CLOSE) {
         System.out.println(stats);
       }
-
     }
 
     @Override
     public VectorAccessible setup() throws Exception {
-      stats.startProcessing();
+      stats.startProcessing(inner.getState());
       try {
         stats.startSetup();
         try {
@@ -601,7 +628,7 @@ abstract class SmartOp<T extends Operator> implements Wrapped<T> {
           stats.stopSetup();
         }
       } finally {
-        stats.stopProcessing();
+        stats.stopProcessing(inner.getState());
       }
     }
 
@@ -609,11 +636,10 @@ abstract class SmartOp<T extends Operator> implements Wrapped<T> {
     public State getState() {
       return inner.getState();
     }
-
   }
 
   @Override
-  public String toString(){
+  public String toString() {
     return inner.toString();
   }
 
@@ -624,16 +650,24 @@ abstract class SmartOp<T extends Operator> implements Wrapped<T> {
     return records;
   }
 
-  private boolean actualVerify(BatchSchema initialSchema, VectorAccessible outgoing, int records){
+  private boolean actualVerify(BatchSchema initialSchema, VectorAccessible outgoing, int records) {
     checkArgument(outgoing.getSchema() != null, "Schema not set.");
-    checkArgument(outgoing.getSchema().equals(initialSchema),
-      "Schema changed unexpectedly. Original: %s, New: %s.", initialSchema, outgoing.getSchema());
-    if(records == 0){
+    checkArgument(
+        outgoing.getSchema().equals(initialSchema),
+        "Schema changed unexpectedly. Original: %s, New: %s.",
+        initialSchema,
+        outgoing.getSchema());
+    if (records == 0) {
       if (DEBUG_PRINT || DEBUG_LOG) {
         FragmentHandle h = context.getFragmentHandle();
-        String op = String.format("%s:%d:%d:%d --> (%d)",
-          getOperatorName(context.getStats().getOperatorType()), h.getMajorFragmentId(), h.getMinorFragmentId(),
-          context.getStats().getOperatorId(), records);
+        String op =
+            String.format(
+                "%s:%d:%d:%d --> (%d)",
+                getOperatorName(context.getStats().getOperatorType()),
+                h.getMajorFragmentId(),
+                h.getMinorFragmentId(),
+                context.getStats().getOperatorId(),
+                records);
         if (DEBUG_LOG) {
           logger.debug(op);
         }
@@ -642,49 +676,62 @@ abstract class SmartOp<T extends Operator> implements Wrapped<T> {
         }
       }
       return true;
-
     }
 
-    checkArgument(outgoing.getRecordCount() == records,
-      "Reported output record count %s not equal to VectorContainer.getRecordCount() of %s",
-      records, outgoing.getRecordCount());
+    checkArgument(
+        outgoing.getRecordCount() == records,
+        "Reported output record count %s not equal to VectorContainer.getRecordCount() of %s",
+        records,
+        outgoing.getRecordCount());
 
     if (!(inner instanceof ScanOperator)) {
       checkSchema(outgoing.getSchema());
     }
 
     // check selection vector matches.
-    switch(outgoing.getSchema().getSelectionVectorMode()){
-    case FOUR_BYTE:
-      checkArgument(outgoing.getSelectionVector4().getCount() == records, "SV4 doesn't match outgoing records.");
-      break;
-    case TWO_BYTE:
-      checkArgument(outgoing.getSelectionVector2().getCount() == records, "SV2 doesn't match outgoing records.");
-      break;
-    default:
-      break;
-    }
-
-    for(VectorWrapper<?> w : outgoing){
-      switch(outgoing.getSchema().getSelectionVectorMode()){
+    switch (outgoing.getSchema().getSelectionVectorMode()) {
       case FOUR_BYTE:
+        checkArgument(
+            outgoing.getSelectionVector4().getCount() == records,
+            "SV4 doesn't match outgoing records.");
         break;
-      case NONE: {
-        ValueVector vector = w.getValueVector();
-        checkArgument(vector instanceof ZeroVector || vector.getValueCount() == records,
-          "Output value count %s not equal to vector count %s for vector: %s",
-          records, vector.getValueCount(), Describer.describe(vector.getField()));
-        break;
-      }
-      case TWO_BYTE: {
-        ValueVector vector = w.getValueVector();
-        checkArgument(vector.getValueCount() >= records,
-          "SV2: Top level value count %s should be less than equal to value count %s of vector %s when in SV2 mode.",
-          records, vector.getValueCount(), Describer.describe(vector.getField()));
-      }
+      case TWO_BYTE:
+        checkArgument(
+            outgoing.getSelectionVector2().getCount() == records,
+            "SV2 doesn't match outgoing records.");
         break;
       default:
         break;
+    }
+
+    for (VectorWrapper<?> w : outgoing) {
+      switch (outgoing.getSchema().getSelectionVectorMode()) {
+        case FOUR_BYTE:
+          break;
+        case NONE:
+          {
+            ValueVector vector = w.getValueVector();
+            checkArgument(
+                vector instanceof ZeroVector || vector.getValueCount() == records,
+                "Output value count %s not equal to vector count %s for vector: %s",
+                records,
+                vector.getValueCount(),
+                Describer.describe(vector.getField()));
+            break;
+          }
+        case TWO_BYTE:
+          {
+            ValueVector vector = w.getValueVector();
+            checkArgument(
+                vector.getValueCount() >= records,
+                "SV2: Top level value count %s should be less than equal to value count %s of vector %s when in SV2 mode.",
+                records,
+                vector.getValueCount(),
+                Describer.describe(vector.getField()));
+          }
+          break;
+        default:
+          break;
       }
 
       // validate variable width vector consistency
@@ -696,9 +743,15 @@ abstract class SmartOp<T extends Operator> implements Wrapped<T> {
 
     if (DEBUG_PRINT || DEBUG_LOG) {
       FragmentHandle h = context.getFragmentHandle();
-      String op = String.format("%s:%d:%d:%d --> (%d), %s",
-        getOperatorName(context.getStats().getOperatorType()), h.getMajorFragmentId(), h.getMinorFragmentId(),
-        context.getStats().getOperatorId(), records, outgoing.getSchema());
+      String op =
+          String.format(
+              "%s:%d:%d:%d --> (%d), %s",
+              getOperatorName(context.getStats().getOperatorType()),
+              h.getMajorFragmentId(),
+              h.getMinorFragmentId(),
+              context.getStats().getOperatorId(),
+              records,
+              outgoing.getSchema());
       if (DEBUG_LOG) {
         logger.debug(op);
       }
@@ -708,5 +761,25 @@ abstract class SmartOp<T extends Operator> implements Wrapped<T> {
       BatchPrinter.printBatch(outgoing, DEBUG_PRINT, DEBUG_LOG);
     }
     return true;
+  }
+
+  public static String masterStateToStr(int masterState) {
+    int tmpMasterState;
+    String masterStateStr;
+    if (masterState < 0) {
+      masterStateStr = "-";
+      tmpMasterState = -masterState;
+    } else {
+      tmpMasterState = masterState;
+      masterStateStr = "";
+    }
+    MasterState[] stateValues = Operator.MasterState.values();
+    Optional<MasterState> returnMasterState =
+        Arrays.stream(stateValues).filter(s -> s.ordinal() == tmpMasterState).findFirst();
+    if (returnMasterState.isPresent()) {
+      return masterStateStr.concat(returnMasterState.get().name());
+    } else {
+      return masterStateStr.concat("UNKNOWN_STATE");
+    }
   }
 }

@@ -15,34 +15,31 @@
  */
 package com.dremio.provision.yarn;
 
-import java.text.MessageFormat;
-
-import org.apache.twill.api.logging.LogEntry;
-import org.apache.twill.api.logging.LogHandler;
-import org.apache.twill.api.logging.LogThrowable;
-
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.LoggingEvent;
 import ch.qos.logback.classic.spi.ThrowableProxy;
+import java.text.MessageFormat;
+import org.apache.twill.api.logging.LogEntry;
+import org.apache.twill.api.logging.LogHandler;
+import org.apache.twill.api.logging.LogThrowable;
 
-/**
- * Custom Log converter from Twill Log Events to current logger
- */
+/** Custom Log converter from Twill Log Events to current logger */
 public class YarnTwillLogHandler implements LogHandler {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(YarnTwillLogHandler.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(YarnTwillLogHandler.class);
 
-  private static final ThreadLocal<MessageFormat> MESSAGE_FORMAT = new ThreadLocal<MessageFormat>() {
-    @Override
-    protected MessageFormat initialValue() {
-      MessageFormat format = new MessageFormat("[{0}] {1}:{2}({3}:{4}) - {5}");
-      return format;
-    }
-  };
+  private static final ThreadLocal<MessageFormat> MESSAGE_FORMAT =
+      new ThreadLocal<MessageFormat>() {
+        @Override
+        protected MessageFormat initialValue() {
+          MessageFormat format = new MessageFormat("[{0}] {1}:{2}({3}:{4}) - {5}");
+          return format;
+        }
+      };
 
-  public YarnTwillLogHandler() {
-  }
+  public YarnTwillLogHandler() {}
 
   @Override
   public void onLog(LogEntry logEntry) {
@@ -52,11 +49,15 @@ public class YarnTwillLogHandler implements LogHandler {
     loggingEvent.setLoggerName(logEntry.getLoggerName());
     loggingEvent.setLevel(Level.valueOf(logEntry.getLogLevel().name()));
     loggingEvent.setThreadName(logEntry.getThreadName());
-    Object [] formatObjects = new Object[] {logEntry.getHost(),
-      getSimpleClassName(logEntry.getSourceClassName()),
-      logEntry.getSourceMethodName(),
-      logEntry.getFileName(),
-      logEntry.getLineNumber(),logEntry.getMessage()};
+    Object[] formatObjects =
+        new Object[] {
+          logEntry.getHost(),
+          getSimpleClassName(logEntry.getSourceClassName()),
+          logEntry.getSourceMethodName(),
+          logEntry.getFileName(),
+          logEntry.getLineNumber(),
+          logEntry.getMessage()
+        };
     loggingEvent.setMessage(MESSAGE_FORMAT.get().format(formatObjects));
 
     // Prints the throwable and stack trace.
@@ -68,7 +69,9 @@ public class YarnTwillLogHandler implements LogHandler {
     if (logger instanceof Logger) {
       ((Logger) logger).callAppenders(loggingEvent);
     } else {
-      logger.info("Logger is not instance of ch.qos.logback.classic.Logger. Logger event is: {}", loggingEvent);
+      logger.info(
+          "Logger is not instance of ch.qos.logback.classic.Logger. Logger event is: {}",
+          loggingEvent);
     }
   }
 

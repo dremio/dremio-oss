@@ -17,22 +17,6 @@ package com.dremio.dac.resource;
 
 import static com.dremio.service.namespace.proto.NameSpaceContainer.Type.SPACE;
 
-import java.security.AccessControlException;
-import java.util.List;
-
-import javax.annotation.security.RolesAllowed;
-import javax.inject.Inject;
-import javax.ws.rs.DefaultValue;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.MediaType;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
@@ -57,10 +41,21 @@ import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
+import java.security.AccessControlException;
+import java.util.List;
+import javax.annotation.security.RolesAllowed;
+import javax.inject.Inject;
+import javax.ws.rs.DefaultValue;
+import javax.ws.rs.GET;
+import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
+import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
+import javax.ws.rs.core.MediaType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * Rest resource for spaces.
- */
+/** Rest resource for spaces. */
 @RestResource
 @Secured
 @RolesAllowed({"admin", "user"})
@@ -87,25 +82,36 @@ public class SpaceResource {
     this.spacePath = new SpacePath(spaceName);
   }
 
-  protected Space newSpace(SpaceConfig spaceConfig, NamespaceTree contents, int datasetCount) throws Exception {
+  protected Space newSpace(SpaceConfig spaceConfig, NamespaceTree contents, int datasetCount)
+      throws Exception {
     return Space.newInstance(spaceConfig, contents, datasetCount);
   }
 
   @GET
   @Produces(MediaType.APPLICATION_JSON)
-  public Space getSpace(@QueryParam("includeContents") @DefaultValue("true") boolean includeContents)
+  public Space getSpace(
+      @QueryParam("includeContents") @DefaultValue("true") boolean includeContents)
       throws Exception {
     try {
       final SpaceConfig config = namespaceService.getSpace(spacePath.toNamespaceKey());
-      final int datasetCount = namespaceService.getDatasetCount(spacePath.toNamespaceKey(), BoundedDatasetCount.SEARCH_TIME_LIMIT_MS, BoundedDatasetCount.COUNT_LIMIT_TO_STOP_SEARCH).getCount();
-      NamespaceTree contents = includeContents ? newNamespaceTree(namespaceService.list(spacePath.toNamespaceKey())) : null;
+      final int datasetCount =
+          namespaceService
+              .getDatasetCount(
+                  spacePath.toNamespaceKey(),
+                  BoundedDatasetCount.SEARCH_TIME_LIMIT_MS,
+                  BoundedDatasetCount.COUNT_LIMIT_TO_STOP_SEARCH)
+              .getCount();
+      NamespaceTree contents =
+          includeContents
+              ? newNamespaceTree(namespaceService.list(spacePath.toNamespaceKey()))
+              : null;
       final Space space = newSpace(config, contents, datasetCount);
 
       return space;
     } catch (AccessControlException e) {
-      throw UserException.validationError()
-        .message("Access denied to view space contents.")
-        .buildSilently();
+      throw UserException.validationError(e)
+          .message("Access denied to view space contents.")
+          .buildSilently();
     } catch (NamespaceNotFoundException nfe) {
       throw new SpaceNotFoundException(spacePath.getSpaceName().getName(), nfe);
     }
@@ -115,22 +121,23 @@ public class SpaceResource {
   @Path("dataset/{path: .*}")
   @Produces(MediaType.APPLICATION_JSON)
   public Dataset getDataset(@PathParam("path") String path)
-    throws NamespaceException, FileNotFoundException, DatasetNotFoundException {
+      throws NamespaceException, FileNotFoundException, DatasetNotFoundException {
     DatasetPath datasetPath = DatasetPath.fromURLPath(spaceName, path);
     final DatasetConfig datasetConfig = namespaceService.getDataset(datasetPath.toNamespaceKey());
-    final VirtualDatasetUI vds = datasetService.get(datasetPath, datasetConfig.getVirtualDataset().getVersion());
+    final VirtualDatasetUI vds =
+        datasetService.get(datasetPath, datasetConfig.getVirtualDataset().getVersion());
     return Dataset.newInstance(
-      new DatasetResourcePath(datasetPath),
-      new DatasetVersionResourcePath(datasetPath, vds.getVersion()),
-      datasetPath.getDataset(),
-      vds.getSql(),
-      vds,
-      datasetService.getJobsCount(datasetPath.toNamespaceKey()),
-      null
-    );
+        new DatasetResourcePath(datasetPath),
+        new DatasetVersionResourcePath(datasetPath, vds.getVersion()),
+        datasetPath.getDataset(),
+        vds.getSql(),
+        vds,
+        datasetService.getJobsCount(datasetPath.toNamespaceKey()),
+        null);
   }
 
-  protected NamespaceTree newNamespaceTree(List<NameSpaceContainer> children) throws DatasetNotFoundException, NamespaceException {
+  protected NamespaceTree newNamespaceTree(List<NameSpaceContainer> children)
+      throws DatasetNotFoundException, NamespaceException {
     return NamespaceTree.newInstance(datasetService, children, SPACE, collaborationService);
   }
 }

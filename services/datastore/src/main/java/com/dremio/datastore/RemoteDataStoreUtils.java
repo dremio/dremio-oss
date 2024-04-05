@@ -20,9 +20,7 @@ import com.dremio.datastore.RemoteDataStoreProtobuf.SearchRequest;
 import com.dremio.datastore.api.LegacyIndexedStore.LegacyFindByCondition;
 import com.dremio.datastore.indexed.IndexKey;
 
-/**
- * Utilities related to remote invocation of datastore.
- */
+/** Utilities related to remote invocation of datastore. */
 public final class RemoteDataStoreUtils {
 
   /**
@@ -54,11 +52,12 @@ public final class RemoteDataStoreUtils {
   /**
    * Converts a {@link LegacyFindByCondition} to a {@link SearchRequest}.
    *
-   * @param storeId   store id
+   * @param storeId store id
    * @param condition find by condition
    * @return search request
    */
-  public static SearchRequest getRequestFromCondition(String storeId, LegacyFindByCondition condition) {
+  public static SearchRequest getRequestFromCondition(
+      String storeId, LegacyFindByCondition condition) {
     final SearchRequest.Builder builder = SearchRequest.newBuilder();
     builder.setStoreId(storeId);
     if (condition.getCondition() != null) {
@@ -76,18 +75,19 @@ public final class RemoteDataStoreUtils {
 
   /**
    * Converts an {@link IndexKey} to {@link PutRequestIndexKey} for use with remote datastore
-   * PutRequests in indexed stores, for use with DocumentWriters such as
-   * {@link com.dremio.datastore.indexed.SimpleDocumentWriter}.
+   * PutRequests in indexed stores, for use with DocumentWriters such as {@link
+   * com.dremio.datastore.indexed.SimpleDocumentWriter}.
    *
    * @param indexKey The index key to convert.
    * @return The PutRequestIndexKey that can be attached to PutRequest api calls.
    */
   public static PutRequestIndexKey toPutRequestIndexKey(IndexKey indexKey) {
-    PutRequestIndexKey.Builder builder = PutRequestIndexKey.newBuilder()
-      .setShortName(indexKey.getShortName())
-      .setIndexFieldName(indexKey.getIndexFieldName())
-      .setStored(indexKey.isSorted())
-      .setCanContainMultipleValues(indexKey.canContainMultipleValues());
+    PutRequestIndexKey.Builder builder =
+        PutRequestIndexKey.newBuilder()
+            .setShortName(indexKey.getShortName())
+            .setIndexFieldName(indexKey.getIndexFieldName())
+            .setStored(indexKey.isSorted())
+            .setCanContainMultipleValues(indexKey.canContainMultipleValues());
 
     SearchTypes.SearchFieldSorting.FieldType sortedValueType = indexKey.getSortedValueType();
     if (null != sortedValueType) {
@@ -105,7 +105,8 @@ public final class RemoteDataStoreUtils {
     } else if (valueType == Double.class) {
       builder.setValueType(RemoteDataStoreProtobuf.PutRequestIndexKeyValueType.DOUBLE);
     } else {
-      throw new IllegalStateException(String.format("Unknown index key value type: %s", valueType.getName()));
+      throw new IllegalStateException(
+          String.format("Unknown index key value type: %s", valueType.getName()));
     }
 
     return builder.build();
@@ -115,8 +116,8 @@ public final class RemoteDataStoreUtils {
    * Converts a {@link PutRequestIndexKey} to an {@link IndexKey} for use with DocumentWriters.
    *
    * @param requestIndexKey The PutRequestIndexKey which was attached to a PutRequest api call.
-   * @return The index key to be used with DocumentWriters such as
-   * {@link com.dremio.datastore.indexed.SimpleDocumentWriter}.
+   * @return The index key to be used with DocumentWriters such as {@link
+   *     com.dremio.datastore.indexed.SimpleDocumentWriter}.
    */
   public static IndexKey toIndexKey(PutRequestIndexKey requestIndexKey) {
 
@@ -135,12 +136,15 @@ public final class RemoteDataStoreUtils {
         valueType = String.class;
         break;
       default:
-        throw new IllegalStateException(String.format("Unknown index key type: %s",  requestIndexKey.getValueType().name()));
+        throw new IllegalStateException(
+            String.format("Unknown index key type: %s", requestIndexKey.getValueType().name()));
     }
 
-    IndexKey.Builder builder = IndexKey.newBuilder(requestIndexKey.getShortName(), requestIndexKey.getIndexFieldName(), valueType)
-      .setStored(requestIndexKey.getStored())
-      .setCanContainMultipleValues(requestIndexKey.getCanContainMultipleValues());
+    IndexKey.Builder builder =
+        IndexKey.newBuilder(
+                requestIndexKey.getShortName(), requestIndexKey.getIndexFieldName(), valueType)
+            .setStored(requestIndexKey.getStored())
+            .setCanContainMultipleValues(requestIndexKey.getCanContainMultipleValues());
 
     if (requestIndexKey.hasSortingValueType()) {
       switch (requestIndexKey.getSortingValueType()) {
@@ -157,13 +161,15 @@ public final class RemoteDataStoreUtils {
           builder.setSortedValueType(SearchTypes.SearchFieldSorting.FieldType.INTEGER);
           break;
         default:
-          throw new IllegalStateException(String.format("Unknown index key sorting value type: %s", requestIndexKey.getSortingValueType().name()));
+          throw new IllegalStateException(
+              String.format(
+                  "Unknown index key sorting value type: %s",
+                  requestIndexKey.getSortingValueType().name()));
       }
     }
 
     return builder.build();
   }
 
-  private RemoteDataStoreUtils() {
-  }
+  private RemoteDataStoreUtils() {}
 }

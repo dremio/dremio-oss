@@ -17,15 +17,6 @@ package com.dremio.exec.store.parquet;
 
 import static com.dremio.exec.planner.common.MoreRelOptUtil.getInputRewriterFromProjectedFields;
 
-import java.util.List;
-import java.util.stream.Collectors;
-
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rex.RexBuilder;
-import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.rex.RexUtil;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.planner.common.ScanRelBase;
 import com.dremio.exec.planner.physical.PrelUtil;
@@ -39,10 +30,15 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import java.util.List;
+import java.util.stream.Collectors;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rex.RexBuilder;
+import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexUtil;
 
-/**
- * Implementation of {@link ScanFilter} for parquet scan.
- */
+/** Implementation of {@link ScanFilter} for parquet scan. */
 @JsonTypeName("ParquetScanFilter")
 public class ParquetScanFilter implements ScanFilter {
   private static final double SORTED_ADJUSTMENT = 0.1d;
@@ -52,16 +48,19 @@ public class ParquetScanFilter implements ScanFilter {
 
   /**
    * Currently Parquet scan supports only one condition.
+   *
    * @param conditions
    */
   @JsonCreator
   public ParquetScanFilter(@JsonProperty("conditions") List<ParquetFilterCondition> conditions) {
-    Preconditions.checkArgument(conditions != null && !conditions.isEmpty(), "need a non-null, non-empty condition");
+    Preconditions.checkArgument(
+        conditions != null && !conditions.isEmpty(), "need a non-null, non-empty condition");
     this.conditions = ImmutableList.copyOf(conditions);
   }
 
   /**
    * Get the underlying conditions
+   *
    * @return
    */
   public List<ParquetFilterCondition> getConditions() {
@@ -69,8 +68,8 @@ public class ParquetScanFilter implements ScanFilter {
   }
 
   @Override
-  public double getCostAdjustment(){
-    if(isSortedByFilterConditions(conditions.get(0))){
+  public double getCostAdjustment() {
+    if (isSortedByFilterConditions(conditions.get(0))) {
       return SORTED_ADJUSTMENT;
     } else {
       return ScanRelBase.DEFAULT_COST_ADJUSTMENT;
@@ -78,15 +77,15 @@ public class ParquetScanFilter implements ScanFilter {
   }
 
   /**
-   * Our goal here is to look at whether the provided filter conditions benefit
-   * from the sortedness of the data.
+   * Our goal here is to look at whether the provided filter conditions benefit from the sortedness
+   * of the data.
    *
    * @param condition The condition to consider
-   * @return Whether the conditions benefit from sortedness. Currently can only
-   *         return true if a single condition is present as we don't yet
-   *         support or benefit from pushdowns of multiple conditions.
+   * @return Whether the conditions benefit from sortedness. Currently can only return true if a
+   *     single condition is present as we don't yet support or benefit from pushdowns of multiple
+   *     conditions.
    */
-  private static boolean isSortedByFilterConditions(ParquetFilterCondition condition){
+  private static boolean isSortedByFilterConditions(ParquetFilterCondition condition) {
     return condition != null
         // we only are interested in a filter on a primary sort field
         && condition.getSort() == PRIMARY_SORT_INDEX;
@@ -126,11 +125,13 @@ public class ParquetScanFilter implements ScanFilter {
       return null;
     }
     // assume that conditions are joined only by AND for now
-    List<RexNode> rexNodeList = conditions.stream()
-      .filter(c -> c.getFilter().exact())
-      .map(ParquetFilterCondition::getRexFilter)
-      .collect(Collectors.toList());
-    return RexUtil.composeConjunction(new RexBuilder(SqlTypeFactoryImpl.INSTANCE), rexNodeList, true);
+    List<RexNode> rexNodeList =
+        conditions.stream()
+            .filter(c -> c.getFilter().exact())
+            .map(ParquetFilterCondition::getRexFilter)
+            .collect(Collectors.toList());
+    return RexUtil.composeConjunction(
+        new RexBuilder(SqlTypeFactoryImpl.INSTANCE), rexNodeList, true);
   }
 
   @Override
@@ -140,19 +141,32 @@ public class ParquetScanFilter implements ScanFilter {
       return null;
     }
     // assume that conditions are joined only by AND for now
-    List<RexNode> rexNodeList = conditions.stream()
-      .filter(c -> c.getFilter().exact())
-      .map(ParquetFilterCondition::getRexFilter)
-      .collect(Collectors.toList());
-    return RexUtil.composeConjunction(new RexBuilder(SqlTypeFactoryImpl.INSTANCE), rexNodeList, true);
+    List<RexNode> rexNodeList =
+        conditions.stream()
+            .filter(c -> c.getFilter().exact())
+            .map(ParquetFilterCondition::getRexFilter)
+            .collect(Collectors.toList());
+    return RexUtil.composeConjunction(
+        new RexBuilder(SqlTypeFactoryImpl.INSTANCE), rexNodeList, true);
   }
 
-  public ParquetScanFilter applyProjection(List<SchemaPath> projection, RelDataType rowType, RelOptCluster cluster, BatchSchema batchSchema) {
-    final PrelUtil.InputRewriter inputRewriter = getInputRewriterFromProjectedFields(projection, rowType, batchSchema, cluster);
-    List<ParquetFilterCondition> newParquetFilterConditionsList = getConditions().stream().map(c -> {
-      RexNode newFilter = c.getRexFilter() != null ? c.getRexFilter().accept(inputRewriter) : null;
-      return new ParquetFilterCondition(c.getPath(), c.getFilter(), c.getExpr(), c.getSort(), newFilter);
-    }).collect(Collectors.toList());
+  public ParquetScanFilter applyProjection(
+      List<SchemaPath> projection,
+      RelDataType rowType,
+      RelOptCluster cluster,
+      BatchSchema batchSchema) {
+    final PrelUtil.InputRewriter inputRewriter =
+        getInputRewriterFromProjectedFields(projection, rowType, batchSchema, cluster);
+    List<ParquetFilterCondition> newParquetFilterConditionsList =
+        getConditions().stream()
+            .map(
+                c -> {
+                  RexNode newFilter =
+                      c.getRexFilter() != null ? c.getRexFilter().accept(inputRewriter) : null;
+                  return new ParquetFilterCondition(
+                      c.getPath(), c.getFilter(), c.getExpr(), c.getSort(), newFilter);
+                })
+            .collect(Collectors.toList());
     return new ParquetScanFilter(newParquetFilterConditionsList);
   }
 }

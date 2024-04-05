@@ -17,15 +17,11 @@ package com.dremio.sabot.op.scan;
 
 import org.apache.arrow.vector.util.CallBack;
 
-/**
- * Schema change callback class used from output mutator
- */
+/** Schema change callback class used from output mutator */
 public class MutatorSchemaChangeCallBack implements CallBack {
   private boolean schemaChanged = false;
 
-  public MutatorSchemaChangeCallBack() {
-
-  }
+  public MutatorSchemaChangeCallBack() {}
 
   @Override
   public void doWork() {

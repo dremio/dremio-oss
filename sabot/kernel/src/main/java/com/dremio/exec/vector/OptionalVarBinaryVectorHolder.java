@@ -15,27 +15,29 @@
  */
 package com.dremio.exec.vector;
 
-import java.util.Optional;
-import java.util.function.Supplier;
-
-import org.apache.arrow.vector.VarBinaryVector;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.record.TypedFieldId;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.util.VectorUtil;
+import java.util.Optional;
+import java.util.function.Supplier;
+import org.apache.arrow.vector.VarBinaryVector;
 
 /**
- * Holds the vector only if it's part of the schema.
- * Get/Set is optionally done based on the same condition.
+ * Holds the vector only if it's part of the schema. Get/Set is optionally done based on the same
+ * condition.
  */
 public class OptionalVarBinaryVectorHolder {
   final Optional<VarBinaryVector> vector;
 
   public OptionalVarBinaryVectorHolder(VectorAccessible vectorAccessible, String schemaPath) {
-    TypedFieldId typedFieldId = vectorAccessible.getSchema().getFieldId(SchemaPath.getSimplePath(schemaPath));
-    vector = typedFieldId == null ? Optional.empty() :
-      Optional.of((VarBinaryVector) VectorUtil.getVectorFromSchemaPath(vectorAccessible, schemaPath));
+    TypedFieldId typedFieldId =
+        vectorAccessible.getSchema().getFieldId(SchemaPath.getSimplePath(schemaPath));
+    vector =
+        typedFieldId == null
+            ? Optional.empty()
+            : Optional.of(
+                (VarBinaryVector) VectorUtil.getVectorFromSchemaPath(vectorAccessible, schemaPath));
   }
 
   /**

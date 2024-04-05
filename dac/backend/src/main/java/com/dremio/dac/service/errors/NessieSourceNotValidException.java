@@ -18,9 +18,7 @@ package com.dremio.dac.service.errors;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response;
 
-/**
- * Thrown when source is not versioned in {@link com.dremio.dac.resource.NessieSourceResource}.
- */
+/** Thrown when source is not versioned in {@link com.dremio.dac.resource.NessieSourceResource}. */
 public class NessieSourceNotValidException extends WebApplicationException {
 
   public NessieSourceNotValidException(Exception error, String msg) {

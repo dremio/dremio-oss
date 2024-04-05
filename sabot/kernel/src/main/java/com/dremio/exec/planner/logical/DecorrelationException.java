@@ -15,7 +15,7 @@
  */
 package com.dremio.exec.planner.logical;
 
-public class DecorrelationException extends RuntimeException{
+public class DecorrelationException extends RuntimeException {
   public DecorrelationException(String message) {
     super(message);
   }

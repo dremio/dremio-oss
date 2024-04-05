@@ -15,17 +15,6 @@
  */
 package com.dremio.sabot.exec.context;
 
-import java.util.Iterator;
-import java.util.List;
-import java.util.concurrent.ExecutorService;
-
-import javax.inject.Provider;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.BufferManager;
-import org.apache.arrow.vector.types.pojo.Schema;
-
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.config.DremioConfig;
@@ -49,6 +38,14 @@ import com.dremio.sabot.exec.heap.HeapLowMemController;
 import com.dremio.sabot.exec.rpc.TunnelProvider;
 import com.dremio.sabot.op.filter.VectorContainerWithSV;
 import com.dremio.service.spill.SpillService;
+import java.util.Iterator;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import javax.inject.Provider;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.BufferManager;
+import org.apache.arrow.vector.types.pojo.Schema;
 
 public abstract class OperatorContext {
 
@@ -69,14 +66,14 @@ public abstract class OperatorContext {
   public abstract BufferManager getBufferManager();
 
   /**
-   * Create a vector container to be used for the output of this operator
-   * Allocations for this vector container come from a special fragment output allocator
+   * Create a vector container to be used for the output of this operator Allocations for this
+   * vector container come from a special fragment output allocator
    */
   public abstract VectorContainer createOutputVectorContainer();
 
   /**
-   * Create a vector container to be used for the output of this operator
-   * Allocations for this vector container come from a special fragment output allocator
+   * Create a vector container to be used for the output of this operator Allocations for this
+   * vector container come from a special fragment output allocator
    */
   public abstract VectorContainer createOutputVectorContainer(Schema schema);
 
@@ -87,11 +84,12 @@ public abstract class OperatorContext {
   public abstract VectorContainerWithSV createOutputVectorContainerWithSV();
 
   /**
-   * Create a vector container with selection vector cloned from the incoming selection vector, to be used for the
-   * output of this operator
-   * Allocations for this vector container come from a special fragment output allocator
+   * Create a vector container with selection vector cloned from the incoming selection vector, to
+   * be used for the output of this operator Allocations for this vector container come from a
+   * special fragment output allocator
    */
-  public abstract VectorContainerWithSV createOutputVectorContainerWithSV(SelectionVector2 incomingSv);
+  public abstract VectorContainerWithSV createOutputVectorContainerWithSV(
+      SelectionVector2 incomingSv);
 
   public abstract OperatorStats getStats();
 
@@ -154,5 +152,4 @@ public abstract class OperatorContext {
   public interface Creator {
     public OperatorContext newOperatorContext(PhysicalOperator popConfig) throws Exception;
   }
-
 }

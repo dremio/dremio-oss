@@ -15,35 +15,34 @@
  */
 package com.dremio.services.credentials;
 
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.Objects;
-
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.config.DremioConfig;
 import com.google.inject.Inject;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.Objects;
 
 /**
  * Secrets provider for @{link com.dremio.dac.cmd.Encrypt} command secrets that decrypts on lookuo.
  * "Local" since these secrets live exclusively on the node they were encrypted on. Handles the
  * lifecycle of the local secrets store.
  */
-public class LocalSecretCredentialsProvider extends AbstractSimpleCredentialsProvider implements CredentialsProvider {
+public class LocalSecretCredentialsProvider extends AbstractSimpleCredentialsProvider
+    implements CredentialsProvider {
 
   public static final String SECRET_PROVIDER_SCHEME = "secret";
 
   private final LocalCipher localSecretsStore;
 
-  /**
-   * Only use it for standalone programs or in test contexts.
-   */
+  /** Only use it for standalone programs or in test contexts. */
   public static LocalSecretCredentialsProvider of(DremioConfig config, ScanResult scanResult) {
-    SimpleCredentialsService service = SimpleCredentialsService.newInstance(config, scanResult);
+    CredentialsServiceImpl service = CredentialsServiceImpl.newInstance(config, scanResult);
     return Objects.requireNonNull(service.findProvider(LocalSecretCredentialsProvider.class));
   }
 
   @Inject
-  public LocalSecretCredentialsProvider(DremioConfig config, CredentialsService credentialsService) {
+  public LocalSecretCredentialsProvider(
+      DremioConfig config, CredentialsService credentialsService) {
     super(SECRET_PROVIDER_SCHEME);
     this.localSecretsStore = new LocalCipher(config, credentialsService);
   }
@@ -67,5 +66,4 @@ public class LocalSecretCredentialsProvider extends AbstractSimpleCredentialsPro
       throw new SecretCredentialsException("Cannot encode secret into an URI");
     }
   }
-
 }

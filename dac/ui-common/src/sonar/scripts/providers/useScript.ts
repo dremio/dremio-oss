@@ -22,12 +22,12 @@ import { map } from "rxjs";
 
 const createSingleScriptObservable = (scriptId: string) =>
   $Scripts.pipe(
-    map((scripts) => scripts?.find((script) => script.id === scriptId) || null)
+    map((scripts) => scripts?.find((script) => script.id === scriptId) || null),
   );
 
 export const useScript = (scriptId: string): Script | null => {
   const [script] = useBehaviorSubject(
-    useMemo(() => createSingleScriptObservable(scriptId), [scriptId])
+    useMemo(() => createSingleScriptObservable(scriptId), [scriptId]),
   );
   useEffect(() => {
     if (!script && ScriptsResource.getResource().status !== "pending") {

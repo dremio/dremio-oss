@@ -15,16 +15,14 @@
  */
 package com.dremio.exec.planner.physical.visitor;
 
-import java.util.List;
-import java.util.Set;
-
-import org.apache.calcite.rel.RelNode;
-
 import com.dremio.exec.planner.physical.Prel;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import java.util.List;
+import java.util.Set;
+import org.apache.calcite.rel.RelNode;
 
-public class RelUniqifier extends BasePrelVisitor<Prel, Set<Prel>, RuntimeException>{
+public class RelUniqifier extends BasePrelVisitor<Prel, Set<Prel>, RuntimeException> {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(RelUniqifier.class);
 
   private static final RelUniqifier INSTANCE = new RelUniqifier();
@@ -52,5 +50,4 @@ public class RelUniqifier extends BasePrelVisitor<Prel, Set<Prel>, RuntimeExcept
       return prel;
     }
   }
-
 }

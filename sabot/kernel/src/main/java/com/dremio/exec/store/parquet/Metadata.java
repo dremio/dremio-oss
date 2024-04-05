@@ -15,24 +15,6 @@
  */
 package com.dremio.exec.store.parquet;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
-
-import org.apache.parquet.column.statistics.Statistics;
-import org.apache.parquet.format.converter.ParquetMetadataConverter;
-import org.apache.parquet.hadoop.metadata.BlockMetaData;
-import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
-import org.apache.parquet.hadoop.metadata.ParquetMetadata;
-import org.apache.parquet.schema.GroupType;
-import org.apache.parquet.schema.MessageType;
-import org.apache.parquet.schema.OriginalType;
-import org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName;
-import org.apache.parquet.schema.Type;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.DatasetMetadataTooLargeException;
 import com.dremio.exec.store.AbstractRecordReader;
@@ -47,11 +29,28 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.net.HostAndPort;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.apache.parquet.column.statistics.Statistics;
+import org.apache.parquet.format.converter.ParquetMetadataConverter;
+import org.apache.parquet.hadoop.metadata.BlockMetaData;
+import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
+import org.apache.parquet.hadoop.metadata.ParquetMetadata;
+import org.apache.parquet.schema.GroupType;
+import org.apache.parquet.schema.MessageType;
+import org.apache.parquet.schema.OriginalType;
+import org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName;
+import org.apache.parquet.schema.Type;
 
 @Options
 public class Metadata {
   public static final TypeValidators.LongValidator DFS_MAX_SPLITS =
-    new TypeValidators.RangeLongValidator("dremio.store.dfs.max_splits", 1L, Integer.MAX_VALUE, 60000L);
+      new TypeValidators.RangeLongValidator(
+          "dremio.store.dfs.max_splits", 1L, Integer.MAX_VALUE, 60000L);
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(Metadata.class);
 
   private final FileSystem fs;
@@ -59,16 +58,23 @@ public class Metadata {
   private final long maxFooterLength;
 
   /**
-   * Get the parquet metadata for the parquet files in the given directory, including those in subdirectories
+   * Get the parquet metadata for the parquet files in the given directory, including those in
+   * subdirectories
    *
    * @param fs
    * @param maxSplits
    * @return
    * @throws IOException
    */
-  public static ParquetTableMetadata getParquetTableMetadata(FileAttributes attributes, FileSystem fs,
-                                                             ParquetFormatConfig formatConfig, long maxFooterLength, long maxSplits) throws IOException {
-    return getParquetTableMetadata(ImmutableList.of(attributes), fs, formatConfig, maxFooterLength, maxSplits);
+  public static ParquetTableMetadata getParquetTableMetadata(
+      FileAttributes attributes,
+      FileSystem fs,
+      ParquetFormatConfig formatConfig,
+      long maxFooterLength,
+      long maxSplits)
+      throws IOException {
+    return getParquetTableMetadata(
+        ImmutableList.of(attributes), fs, formatConfig, maxFooterLength, maxSplits);
   }
 
   /**
@@ -80,7 +86,12 @@ public class Metadata {
    * @throws IOException
    */
   public static ParquetTableMetadata getParquetTableMetadata(
-    List<FileAttributes> fileAttributes, FileSystem fs, ParquetFormatConfig formatConfig, long maxFooterLength, long maxSplits) throws IOException {
+      List<FileAttributes> fileAttributes,
+      FileSystem fs,
+      ParquetFormatConfig formatConfig,
+      long maxFooterLength,
+      long maxSplits)
+      throws IOException {
     Metadata metadata = new Metadata(formatConfig, fs, maxFooterLength);
     return metadata.getParquetTableMetadata(fileAttributes, maxSplits);
   }
@@ -99,9 +110,10 @@ public class Metadata {
    * @return
    * @throws IOException
    */
-  private ParquetTableMetadata getParquetTableMetadata(List<FileAttributes> fileAttributesList, long maxSplits)
-      throws IOException {
-    List<ParquetFileMetadata> fileMetadataList = getParquetFileMetadata(fileAttributesList, maxSplits);
+  private ParquetTableMetadata getParquetTableMetadata(
+      List<FileAttributes> fileAttributesList, long maxSplits) throws IOException {
+    List<ParquetFileMetadata> fileMetadataList =
+        getParquetFileMetadata(fileAttributesList, maxSplits);
     return new ParquetTableMetadata(fileMetadataList);
   }
 
@@ -113,7 +125,8 @@ public class Metadata {
    * @return
    * @throws IOException
    */
-  private List<ParquetFileMetadata> getParquetFileMetadata(List<FileAttributes> fileAttributesList, long maxSplits) throws IOException {
+  private List<ParquetFileMetadata> getParquetFileMetadata(
+      List<FileAttributes> fileAttributesList, long maxSplits) throws IOException {
     final List<TimedRunnable<ParquetFileMetadata>> gatherers = Lists.newArrayList();
     final AtomicInteger numSplits = new AtomicInteger(0);
     for (FileAttributes file : fileAttributesList) {
@@ -125,16 +138,15 @@ public class Metadata {
     return metaDataList;
   }
 
-  /**
-   * TimedRunnable that reads the footer from parquet and collects file metadata
-   */
+  /** TimedRunnable that reads the footer from parquet and collects file metadata */
   private class MetadataGatherer extends TimedRunnable<ParquetFileMetadata> {
 
     private final FileAttributes fileAttributes;
     private final AtomicInteger currentNumSplits;
     private final long maxSplits;
 
-    public MetadataGatherer(FileAttributes fileAttributes, AtomicInteger numSplits, long maxSplits) {
+    public MetadataGatherer(
+        FileAttributes fileAttributes, AtomicInteger numSplits, long maxSplits) {
       this.fileAttributes = fileAttributes;
       this.currentNumSplits = numSplits;
       this.maxSplits = maxSplits;
@@ -175,14 +187,17 @@ public class Metadata {
     return getOriginalType(t, path, depth + 1);
   }
 
-  private ParquetFileMetadata getParquetFileMetadata(FileAttributes file, AtomicInteger currentNumSplits, long maxSplits) throws IOException {
+  private ParquetFileMetadata getParquetFileMetadata(
+      FileAttributes file, AtomicInteger currentNumSplits, long maxSplits) throws IOException {
     final ParquetMetadata metadata =
-      SingletonParquetFooterCache.readFooter(fs, file, ParquetMetadataConverter.NO_FILTER, maxFooterLength);
+        SingletonParquetFooterCache.readFooter(
+            fs, file, ParquetMetadataConverter.NO_FILTER, maxFooterLength);
     final int numSplits = currentNumSplits.addAndGet(metadata.getBlocks().size());
     if (numSplits > maxSplits) {
       throw new TooManySplitsException(
-        String.format("Too many splits encountered when processing parquet metadata at file %s, maximum is %d but encountered %d splits thus far.",
-          file.getPath(), maxSplits, numSplits));
+          String.format(
+              "Too many splits encountered when processing parquet metadata at file %s, maximum is %d but encountered %d splits thus far.",
+              file.getPath(), maxSplits, numSplits));
     }
 
     final MessageType schema = metadata.getFileMetaData().getSchema();
@@ -198,9 +213,11 @@ public class Metadata {
     ArrayList<SchemaPath> ALL_COLS = new ArrayList<>();
     ALL_COLS.add(AbstractRecordReader.STAR_COLUMN);
     boolean autoCorrectCorruptDates = formatConfig.autoCorrectCorruptDates;
-    MutableParquetMetadata metaData = new MutableParquetMetadata(metadata, file.getPath().getName());
-    ParquetReaderUtility.DateCorruptionStatus containsCorruptDates = ParquetReaderUtility.detectCorruptDates(metaData, ALL_COLS, autoCorrectCorruptDates);
-    if(logger.isDebugEnabled()){
+    MutableParquetMetadata metaData =
+        new MutableParquetMetadata(metadata, file.getPath().getName());
+    ParquetReaderUtility.DateCorruptionStatus containsCorruptDates =
+        ParquetReaderUtility.detectCorruptDates(metaData, ALL_COLS, autoCorrectCorruptDates);
+    if (logger.isDebugEnabled()) {
       logger.debug(containsCorruptDates.toString());
     }
     final Map<ColumnTypeMetadata.Key, ColumnTypeMetadata> columnTypeInfo = Maps.newHashMap();
@@ -214,24 +231,29 @@ public class Metadata {
         // statistics might just have the non-null counts with no min/max they might be
         // initialized to zero instead of null.
         // check statistics actually have non null values (or) column has all nulls.
-        boolean statsAvailable = (col.getStatistics() != null && !col.getStatistics().isEmpty()
-          && (col.getStatistics().hasNonNullValue()) || col.getStatistics().getNumNulls() ==
-          rowGroup.getRowCount());
+        boolean statsAvailable =
+            (col.getStatistics() != null
+                    && !col.getStatistics().isEmpty()
+                    && (col.getStatistics().hasNonNullValue())
+                || col.getStatistics().getNumNulls() == rowGroup.getRowCount());
 
         Statistics<?> stats = col.getStatistics();
         String[] columnName = col.getPath().toArray();
         SchemaPath columnSchemaName = SchemaPath.getCompoundPath(columnName);
         ColumnTypeMetadata columnTypeMetadata =
-            new ColumnTypeMetadata(columnName, col.getType(), originalTypeMap.get(columnSchemaName));
+            new ColumnTypeMetadata(
+                columnName, col.getType(), originalTypeMap.get(columnSchemaName));
 
         columnTypeInfo.put(new ColumnTypeMetadata.Key(columnTypeMetadata.name), columnTypeMetadata);
         if (statsAvailable) {
           // Write stats only if minVal==maxVal. Also, we then store only maxVal
           Object mxValue = null;
-          if (stats.genericGetMax() != null && stats.genericGetMin() != null &&
-              stats.genericGetMax().equals(stats.genericGetMin())) {
+          if (stats.genericGetMax() != null
+              && stats.genericGetMin() != null
+              && stats.genericGetMax().equals(stats.genericGetMin())) {
             mxValue = stats.genericGetMax();
-            if (containsCorruptDates == ParquetReaderUtility.DateCorruptionStatus.META_SHOWS_CORRUPTION
+            if (containsCorruptDates
+                    == ParquetReaderUtility.DateCorruptionStatus.META_SHOWS_CORRUPTION
                 && columnTypeMetadata.originalType == OriginalType.DATE) {
               mxValue = ParquetReaderUtility.autoCorrectCorruptedDate((Integer) mxValue);
             }
@@ -240,19 +262,32 @@ public class Metadata {
               new ColumnMetadata(columnTypeMetadata.name, mxValue, stats.getNumNulls());
         } else {
           // log it under trace to avoid lot of log entries.
-          logger.trace("Stats are not available for column {}, rowGroupIdx {}, file {}",
-              columnSchemaName, rowGroupIdx, file.getPath());
-          columnMetadata = new ColumnMetadata(columnTypeMetadata.name,null, null);
+          logger.trace(
+              "Stats are not available for column {}, rowGroupIdx {}, file {}",
+              columnSchemaName,
+              rowGroupIdx,
+              file.getPath());
+          columnMetadata = new ColumnMetadata(columnTypeMetadata.name, null, null);
         }
         columnMetadataList.add(columnMetadata);
         length += col.getTotalSize();
       }
 
-      Iterable<FileBlockLocation> fileBlockLocations = fs.getFileBlockLocations(file, rowGroup.getStartingPos(), length);
-      Map<HostAndPort, Float> hostAffinities = HostAffinityComputer.computeAffinitiesForSplit(
-        rowGroup.getStartingPos(), length, fileBlockLocations, fs.preserveBlockLocationsOrder());
+      Iterable<FileBlockLocation> fileBlockLocations =
+          fs.getFileBlockLocations(file, rowGroup.getStartingPos(), length);
+      Map<HostAndPort, Float> hostAffinities =
+          HostAffinityComputer.computeAffinitiesForSplit(
+              rowGroup.getStartingPos(),
+              length,
+              fileBlockLocations,
+              fs.preserveBlockLocationsOrder());
       RowGroupMetadata rowGroupMeta =
-          new RowGroupMetadata(rowGroup.getStartingPos(), length, rowGroup.getRowCount(), hostAffinities, columnMetadataList);
+          new RowGroupMetadata(
+              rowGroup.getStartingPos(),
+              length,
+              rowGroup.getRowCount(),
+              hostAffinities,
+              columnMetadataList);
 
       rowGroupMetadataList.add(rowGroupMeta);
       rowGroupIdx++;
@@ -261,9 +296,7 @@ public class Metadata {
     return new ParquetFileMetadata(file, file.size(), rowGroupMetadataList, columnTypeInfo);
   }
 
-  /**
-   * Struct which contains the metadata for an entire parquet directory structure
-   */
+  /** Struct which contains the metadata for an entire parquet directory structure */
   public static class ParquetTableMetadata {
     private final List<ParquetFileMetadata> files;
 
@@ -276,10 +309,7 @@ public class Metadata {
     }
   }
 
-
-  /**
-   * Struct which contains the metadata for a single parquet file
-   */
+  /** Struct which contains the metadata for a single parquet file */
   public static class ParquetFileMetadata {
     private final FileAttributes fileAttributes;
     private final String path;
@@ -287,7 +317,10 @@ public class Metadata {
     private final List<RowGroupMetadata> rowGroups;
     private final Map<ColumnTypeMetadata.Key, ColumnTypeMetadata> columnTypeInfo;
 
-    public ParquetFileMetadata(FileAttributes fileAttributes, Long length, List<RowGroupMetadata> rowGroups,
+    public ParquetFileMetadata(
+        FileAttributes fileAttributes,
+        Long length,
+        List<RowGroupMetadata> rowGroups,
         Map<ColumnTypeMetadata.Key, ColumnTypeMetadata> columnTypeInfo) {
       this.fileAttributes = fileAttributes;
       this.path = fileAttributes.getPath().toString();
@@ -320,7 +353,8 @@ public class Metadata {
     private ColumnTypeMetadata getColumnTypeInfo(String[] name) {
       ColumnTypeMetadata columnMetadata = columnTypeInfo.get(new ColumnTypeMetadata.Key(name));
       if (columnMetadata == null) {
-        throw new IllegalArgumentException("no column for " + Arrays.toString(name) + " in " + columnTypeInfo);
+        throw new IllegalArgumentException(
+            "no column for " + Arrays.toString(name) + " in " + columnTypeInfo);
       }
       return columnMetadata;
     }
@@ -334,10 +368,7 @@ public class Metadata {
     }
   }
 
-
-  /**
-   * A struct that contains the metadata for a parquet row group
-   */
+  /** A struct that contains the metadata for a parquet row group */
   public static class RowGroupMetadata {
     private final Long start;
     private final Long length;
@@ -345,7 +376,11 @@ public class Metadata {
     private final Map<HostAndPort, Float> hostAffinity;
     private final List<ColumnMetadata> columns;
 
-    public RowGroupMetadata(Long start, Long length, Long rowCount, Map<HostAndPort, Float> hostAffinity,
+    public RowGroupMetadata(
+        Long start,
+        Long length,
+        Long rowCount,
+        Map<HostAndPort, Float> hostAffinity,
         List<ColumnMetadata> columns) {
       this.start = start;
       this.length = length;
@@ -375,13 +410,13 @@ public class Metadata {
     }
   }
 
-
   public static class ColumnTypeMetadata {
     private final String[] name;
     private final PrimitiveTypeName primitiveType;
     private final OriginalType originalType;
 
-    public ColumnTypeMetadata(String[] name, PrimitiveTypeName primitiveType, OriginalType originalType) {
+    public ColumnTypeMetadata(
+        String[] name, PrimitiveTypeName primitiveType, OriginalType originalType) {
       this.name = name;
       this.primitiveType = primitiveType;
       this.originalType = originalType;
@@ -389,8 +424,13 @@ public class Metadata {
 
     @Override
     public String toString() {
-      return "ColumnTypeMetadata [name=" + Arrays.toString(name) + ", primitiveType=" + primitiveType
-          + ", originalType=" + originalType + "]";
+      return "ColumnTypeMetadata [name="
+          + Arrays.toString(name)
+          + ", primitiveType="
+          + primitiveType
+          + ", originalType="
+          + originalType
+          + "]";
     }
 
     private static class Key {
@@ -437,10 +477,7 @@ public class Metadata {
     }
   }
 
-
-  /**
-   * A struct that contains the metadata for a column in a parquet file.
-   */
+  /** A struct that contains the metadata for a column in a parquet file. */
   public static class ColumnMetadata {
     // Use a string array for name instead of Schema Path to make serialization easier
     private final String[] name;

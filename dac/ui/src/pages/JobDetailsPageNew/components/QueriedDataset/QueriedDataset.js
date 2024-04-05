@@ -52,7 +52,7 @@ const QueriedDataset = ({ queriedDataSet, intl }) => {
         {getRenderedItems().map((dataset, index) => {
           const typeIcon = getIconByEntityType(
             dataset.get("datasetType"),
-            !!dataset.get("versionContext")
+            !!dataset.get("versionContext"),
           );
 
           return (
@@ -78,6 +78,10 @@ const QueriedDataset = ({ queriedDataSet, intl }) => {
                       className="queriedDataset-dataWrapper__wrapper__datasetPath margin--none"
                     />
                   </span>
+                }
+                versionContext={
+                  dataset.get("versionContext") &&
+                  JSON.parse(dataset.get("versionContext"))
                 }
               />
             </div>

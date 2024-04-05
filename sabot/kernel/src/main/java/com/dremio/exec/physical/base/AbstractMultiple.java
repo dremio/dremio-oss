@@ -18,9 +18,7 @@ package com.dremio.exec.physical.base;
 import java.util.Iterator;
 import java.util.List;
 
-/**
- * Describes an operator that expects more than one children operators as its input.
- */
+/** Describes an operator that expects more than one children operators as its input. */
 public abstract class AbstractMultiple extends AbstractBase {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AbstractMultiple.class);
 
@@ -39,6 +37,4 @@ public abstract class AbstractMultiple extends AbstractBase {
   public Iterator<PhysicalOperator> iterator() {
     return children.iterator();
   }
-
-
 }

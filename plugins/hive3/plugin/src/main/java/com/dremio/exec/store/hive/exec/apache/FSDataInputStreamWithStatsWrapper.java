@@ -15,25 +15,21 @@
  */
 package com.dremio.exec.store.hive.exec.apache;
 
+import com.dremio.sabot.exec.context.OperatorStats;
+import com.dremio.sabot.exec.context.OperatorStats.WaitRecorder;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.EnumSet;
-
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.ReadOption;
 import org.apache.hadoop.io.ByteBufferPool;
 
-import com.dremio.sabot.exec.context.OperatorStats;
-import com.dremio.sabot.exec.context.OperatorStats.WaitRecorder;
-
-
-/**
- * Wrapper around FSDataInputStream to collect IO Stats.
- */
+/** Wrapper around FSDataInputStream to collect IO Stats. */
 class FSDataInputStreamWithStatsWrapper extends FSDataInputStreamWrapper {
   private final OperatorStats operatorStats;
 
-  public FSDataInputStreamWithStatsWrapper(FSDataInputStream in, OperatorStats operatorStats) throws IOException {
+  public FSDataInputStreamWithStatsWrapper(FSDataInputStream in, OperatorStats operatorStats)
+      throws IOException {
     super(in, new WrappedInputStream(in, operatorStats));
     this.operatorStats = operatorStats;
   }
@@ -59,9 +55,9 @@ class FSDataInputStreamWithStatsWrapper extends FSDataInputStreamWrapper {
     }
   }
 
-
   @Override
-  public ByteBuffer read(ByteBufferPool bufferPool, int maxLength, EnumSet<ReadOption> opts) throws IOException, UnsupportedOperationException {
+  public ByteBuffer read(ByteBufferPool bufferPool, int maxLength, EnumSet<ReadOption> opts)
+      throws IOException, UnsupportedOperationException {
     try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return super.read(bufferPool, maxLength, opts);
     }
@@ -103,9 +99,9 @@ class FSDataInputStreamWithStatsWrapper extends FSDataInputStreamWrapper {
   }
 
   /**
-   * We need to wrap the FSDataInputStream inside a InputStream, because read() method in InputStream is
-   * overridden in FilterInputStream (super class of FSDataInputStream) as final, so we can not override in
-   * FSDataInputStreamWrapper.
+   * We need to wrap the FSDataInputStream inside a InputStream, because read() method in
+   * InputStream is overridden in FilterInputStream (super class of FSDataInputStream) as final, so
+   * we can not override in FSDataInputStreamWrapper.
    */
   private static class WrappedInputStream extends FSDataInputStreamWrapper.WrappedInputStream {
     private final OperatorStats operatorStats;
@@ -119,10 +115,10 @@ class FSDataInputStreamWithStatsWrapper extends FSDataInputStreamWrapper {
      * Most of the read are going to be block reads which use {@link #read(byte[], int,
      * int)}. So not adding stats for single byte reads.
      */
-//    @Override
-//    public int read() throws IOException {
-//      return super.read();
-//    }
+    //    @Override
+    //    public int read() throws IOException {
+    //      return super.read();
+    //    }
 
     @Override
     public int read(byte[] b, int off, int len) throws IOException {

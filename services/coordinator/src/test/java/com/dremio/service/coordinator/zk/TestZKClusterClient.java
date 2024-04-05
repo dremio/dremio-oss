@@ -23,18 +23,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-
-import javax.inject.Provider;
-
-import org.apache.zookeeper.data.Stat;
-import org.junit.Ignore;
-import org.junit.Rule;
-import org.junit.Test;
-
 import com.dremio.common.config.SabotConfig;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.service.coordinator.ClusterCoordinator;
@@ -44,40 +32,53 @@ import com.dremio.service.coordinator.RegistrationHandle;
 import com.dremio.test.DremioTest;
 import com.dremio.test.zookeeper.ZkTestServerRule;
 import com.typesafe.config.ConfigValueFactory;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import javax.inject.Provider;
+import org.apache.zookeeper.data.Stat;
+import org.junit.Ignore;
+import org.junit.Rule;
+import org.junit.Test;
 
-/**
- * Test for {@code TestZKClusterClient}
- */
+/** Test for {@code TestZKClusterClient} */
 public class TestZKClusterClient extends DremioTest {
 
-  private static final ZKClusterConfig DEFAULT_ZK_CLUSTER_CONFIG = new ZKSabotConfig(DEFAULT_SABOT_CONFIG);
+  private static final ZKClusterConfig DEFAULT_ZK_CLUSTER_CONFIG =
+      new ZKSabotConfig(DEFAULT_SABOT_CONFIG);
 
-  @Rule
-  public final ZkTestServerRule zooKeeperServer = new ZkTestServerRule();
+  @Rule public final ZkTestServerRule zooKeeperServer = new ZkTestServerRule();
 
   @Test
   public void testDefaultConnection() throws Exception {
     // Default root from sabot-module.conf
     assertNull(zooKeeperServer.getZKClient().exists("/dremio/test-path", false));
 
-    final SabotConfig sabotConfig = DEFAULT_SABOT_CONFIG
-        .withValue(ZK_ROOT, ConfigValueFactory.fromAnyRef("dremio/test-path"))
-        .withValue(CLUSTER_ID, ConfigValueFactory.fromAnyRef("test-cluster-id"));
+    final SabotConfig sabotConfig =
+        DEFAULT_SABOT_CONFIG
+            .withValue(ZK_ROOT, ConfigValueFactory.fromAnyRef("dremio/test-path"))
+            .withValue(CLUSTER_ID, ConfigValueFactory.fromAnyRef("test-cluster-id"));
 
     final ZKClusterConfig config = new ZKSabotConfig(sabotConfig);
 
-    try(ZKClusterClient client = new ZKClusterClient(config, new Provider<Integer>() {
-      @Override
-      public Integer get() {
-        return zooKeeperServer.getPort();
-      }
-    })) {
+    try (ZKClusterClient client =
+        new ZKClusterClient(
+            config,
+            new Provider<Integer>() {
+              @Override
+              public Integer get() {
+                return zooKeeperServer.getPort();
+              }
+            })) {
       client.start();
       ZKServiceSet serviceSet = client.newServiceSet("coordinator");
       serviceSet.register(NodeEndpoint.newBuilder().setAddress("foo").build());
 
-
-      Stat stat = zooKeeperServer.getZKClient().exists("/dremio/test-path/test-cluster-id/coordinator", false);
+      Stat stat =
+          zooKeeperServer
+              .getZKClient()
+              .exists("/dremio/test-path/test-cluster-id/coordinator", false);
       assertNotNull(stat);
       assertEquals(1, stat.getNumChildren());
     }
@@ -87,14 +88,13 @@ public class TestZKClusterClient extends DremioTest {
   public void test1ComponentConnection() throws Exception {
     assertNull(zooKeeperServer.getZKClient().exists("/dremio1", false));
 
-    try(ZKClusterClient client = new ZKClusterClient(
-      DEFAULT_ZK_CLUSTER_CONFIG,
-        String.format("%s/dremio1", zooKeeperServer.getConnectionString()))
-    ) {
+    try (ZKClusterClient client =
+        new ZKClusterClient(
+            DEFAULT_ZK_CLUSTER_CONFIG,
+            String.format("%s/dremio1", zooKeeperServer.getConnectionString()))) {
       client.start();
       ZKServiceSet serviceSet = client.newServiceSet("coordinator");
       serviceSet.register(NodeEndpoint.newBuilder().setAddress("foo").build());
-
 
       Stat stat = zooKeeperServer.getZKClient().exists("/dremio1/coordinator", false);
       assertNotNull(stat);
@@ -106,16 +106,16 @@ public class TestZKClusterClient extends DremioTest {
   public void test2ComponentsConnection() throws Exception {
     assertNull(zooKeeperServer.getZKClient().exists("/dremio2/test-cluster-id", false));
 
-    try(ZKClusterClient client = new ZKClusterClient(
-      DEFAULT_ZK_CLUSTER_CONFIG,
-        String.format("%s/dremio2/test-cluster-id", zooKeeperServer.getConnectionString()))
-    ) {
+    try (ZKClusterClient client =
+        new ZKClusterClient(
+            DEFAULT_ZK_CLUSTER_CONFIG,
+            String.format("%s/dremio2/test-cluster-id", zooKeeperServer.getConnectionString()))) {
       client.start();
       ZKServiceSet serviceSet = client.newServiceSet("coordinator");
       serviceSet.register(NodeEndpoint.newBuilder().setAddress("foo").build());
 
-
-      Stat stat = zooKeeperServer.getZKClient().exists("/dremio2/test-cluster-id/coordinator", false);
+      Stat stat =
+          zooKeeperServer.getZKClient().exists("/dremio2/test-cluster-id/coordinator", false);
       assertNotNull(stat);
       assertEquals(1, stat.getNumChildren());
     }
@@ -125,16 +125,17 @@ public class TestZKClusterClient extends DremioTest {
   public void test3ComponentsConnection() throws Exception {
     assertNull(zooKeeperServer.getZKClient().exists("/dremio3/test/test-cluster-id", false));
 
-    try(ZKClusterClient client = new ZKClusterClient(
-      DEFAULT_ZK_CLUSTER_CONFIG,
-        String.format("%s/dremio3/test/test-cluster-id", zooKeeperServer.getConnectionString()))
-    ) {
+    try (ZKClusterClient client =
+        new ZKClusterClient(
+            DEFAULT_ZK_CLUSTER_CONFIG,
+            String.format(
+                "%s/dremio3/test/test-cluster-id", zooKeeperServer.getConnectionString()))) {
       client.start();
       ZKServiceSet serviceSet = client.newServiceSet("coordinator");
       serviceSet.register(NodeEndpoint.newBuilder().setAddress("foo").build());
 
-
-      Stat stat = zooKeeperServer.getZKClient().exists("/dremio3/test/test-cluster-id/coordinator", false);
+      Stat stat =
+          zooKeeperServer.getZKClient().exists("/dremio3/test/test-cluster-id/coordinator", false);
       assertNotNull(stat);
       assertEquals(1, stat.getNumChildren());
     }
@@ -144,21 +145,25 @@ public class TestZKClusterClient extends DremioTest {
   public void test4ComponentsConnection() throws Exception {
     assertNull(zooKeeperServer.getZKClient().exists("/dremio4/test/test-cluster-id", false));
 
-    try(ZKClusterClient client = new ZKClusterClient(
-      DEFAULT_ZK_CLUSTER_CONFIG,
-      String.format("%s/dremio4/test/test-cluster-id", zooKeeperServer.getConnectionString()))
-    ) {
+    try (ZKClusterClient client =
+        new ZKClusterClient(
+            DEFAULT_ZK_CLUSTER_CONFIG,
+            String.format(
+                "%s/dremio4/test/test-cluster-id", zooKeeperServer.getConnectionString()))) {
       client.start();
       ZKServiceSet serviceSet = client.newServiceSet("coordinator");
-      RegistrationHandle registrationHandle = serviceSet.register(NodeEndpoint.newBuilder().setAddress("foo").build());
+      RegistrationHandle registrationHandle =
+          serviceSet.register(NodeEndpoint.newBuilder().setAddress("foo").build());
 
-      Stat stat = zooKeeperServer.getZKClient().exists("/dremio4/test/test-cluster-id/coordinator", false);
+      Stat stat =
+          zooKeeperServer.getZKClient().exists("/dremio4/test/test-cluster-id/coordinator", false);
       assertNotNull(stat);
       assertEquals(1, stat.getNumChildren());
 
-      serviceSet.unregister((ZKRegistrationHandle)registrationHandle);
+      serviceSet.unregister((ZKRegistrationHandle) registrationHandle);
       client.deleteServiceSetZkNode("coordinator");
-      stat = zooKeeperServer.getZKClient().exists("/dremio4/test/test-cluster-id/coordinator", false);
+      stat =
+          zooKeeperServer.getZKClient().exists("/dremio4/test/test-cluster-id/coordinator", false);
       assertNull(stat);
     }
   }
@@ -170,47 +175,52 @@ public class TestZKClusterClient extends DremioTest {
     final AtomicBoolean join1 = new AtomicBoolean(false);
     final AtomicBoolean join2 = new AtomicBoolean(false);
 
-
-    try(ZKClusterClient client = new ZKClusterClient(
-      DEFAULT_ZK_CLUSTER_CONFIG,
-        String.format("%s/dremio/test/test-cluster-id", zooKeeperServer.getConnectionString()))
-    ) {
+    try (ZKClusterClient client =
+        new ZKClusterClient(
+            DEFAULT_ZK_CLUSTER_CONFIG,
+            String.format(
+                "%s/dremio/test/test-cluster-id", zooKeeperServer.getConnectionString()))) {
       client.start();
-      ElectionRegistrationHandle node1 = client.joinElection("test-election", new ElectionListener() {
+      ElectionRegistrationHandle node1 =
+          client.joinElection(
+              "test-election",
+              new ElectionListener() {
 
-        @Override
-        public void onElected() {
-          join1.set(true);
-          if (firstElection.getCount() == 0) {
-            secondElection.countDown();
-          } else {
-            firstElection.countDown();
-          }
-        }
+                @Override
+                public void onElected() {
+                  join1.set(true);
+                  if (firstElection.getCount() == 0) {
+                    secondElection.countDown();
+                  } else {
+                    firstElection.countDown();
+                  }
+                }
 
-        @Override
-        public void onCancelled() {
-        }
-      });
+                @Override
+                public void onCancelled() {}
+              });
 
-      ElectionRegistrationHandle node2 = client.joinElection("test-election", new ElectionListener() {
-        @Override
-        public void onElected() {
-          join2.set(true);
-          if (firstElection.getCount() == 0) {
-            secondElection.countDown();
-          } else {
-            firstElection.countDown();
-          }
-        }
+      ElectionRegistrationHandle node2 =
+          client.joinElection(
+              "test-election",
+              new ElectionListener() {
+                @Override
+                public void onElected() {
+                  join2.set(true);
+                  if (firstElection.getCount() == 0) {
+                    secondElection.countDown();
+                  } else {
+                    firstElection.countDown();
+                  }
+                }
 
-        @Override
-        public void onCancelled() {
-        }
-      });
+                @Override
+                public void onCancelled() {}
+              });
 
       assertTrue(firstElection.await(20, TimeUnit.SECONDS));
-      assertTrue("Both nodes were elected master (or no election happened)", join1.get() ^ join2.get());
+      assertTrue(
+          "Both nodes were elected master (or no election happened)", join1.get() ^ join2.get());
 
       // Confirming that the second node is taking over when the first node leaves the election
       if (join1.get()) {
@@ -228,28 +238,37 @@ public class TestZKClusterClient extends DremioTest {
   public void testElectionDisconnection() throws Exception {
     final CountDownLatch elected = new CountDownLatch(1);
     final CountDownLatch cancelled = new CountDownLatch(1);
-    final SabotConfig sabotConfig = DEFAULT_SABOT_CONFIG
-      .withValue(ClusterCoordinator.Options.ZK_ELECTION_POLLING, ConfigValueFactory.fromAnyRef("20ms"))
-      .withValue(ClusterCoordinator.Options.ZK_ELECTION_TIMEOUT, ConfigValueFactory.fromAnyRef("100ms"));
+    final SabotConfig sabotConfig =
+        DEFAULT_SABOT_CONFIG
+            .withValue(
+                ClusterCoordinator.Options.ZK_ELECTION_POLLING,
+                ConfigValueFactory.fromAnyRef("20ms"))
+            .withValue(
+                ClusterCoordinator.Options.ZK_ELECTION_TIMEOUT,
+                ConfigValueFactory.fromAnyRef("100ms"));
     final ZKClusterConfig config = new ZKSabotConfig(sabotConfig);
 
-    try(ZKClusterClient client = new ZKClusterClient(
-      config,
-      String.format("%s/dremio/test/test-cluster-id", zooKeeperServer.getConnectionString()))
-    ) {
+    try (ZKClusterClient client =
+        new ZKClusterClient(
+            config,
+            String.format(
+                "%s/dremio/test/test-cluster-id", zooKeeperServer.getConnectionString()))) {
       client.start();
-      ElectionRegistrationHandle node1 = client.joinElection("test-election", new ElectionListener() {
+      ElectionRegistrationHandle node1 =
+          client.joinElection(
+              "test-election",
+              new ElectionListener() {
 
-        @Override
-        public void onElected() {
-          elected.countDown();
-        }
+                @Override
+                public void onElected() {
+                  elected.countDown();
+                }
 
-        @Override
-        public void onCancelled() {
-          cancelled.countDown();
-        }
-      });
+                @Override
+                public void onCancelled() {
+                  cancelled.countDown();
+                }
+              });
 
       assertTrue("No election happened", elected.await(20, TimeUnit.SECONDS));
 
@@ -267,38 +286,47 @@ public class TestZKClusterClient extends DremioTest {
     final CountDownLatch cancelled = new CountDownLatch(1);
     final CountDownLatch loss = new CountDownLatch(1);
     final CountDownLatch reconnected = new CountDownLatch(1);
-    final SabotConfig sabotConfig = DEFAULT_SABOT_CONFIG
-      .withValue(ClusterCoordinator.Options.ZK_ELECTION_POLLING, ConfigValueFactory.fromAnyRef("250ms"))
-      .withValue(ClusterCoordinator.Options.ZK_ELECTION_TIMEOUT, ConfigValueFactory.fromAnyRef("10s"));
+    final SabotConfig sabotConfig =
+        DEFAULT_SABOT_CONFIG
+            .withValue(
+                ClusterCoordinator.Options.ZK_ELECTION_POLLING,
+                ConfigValueFactory.fromAnyRef("250ms"))
+            .withValue(
+                ClusterCoordinator.Options.ZK_ELECTION_TIMEOUT,
+                ConfigValueFactory.fromAnyRef("10s"));
     final ZKClusterConfig config = new ZKSabotConfig(sabotConfig);
 
-    try(ZKClusterClient client = new ZKClusterClient(
-      config,
-      String.format("%s/dremio/test/test-cluster-id", zooKeeperServer.getConnectionString()))
-        ) {
+    try (ZKClusterClient client =
+        new ZKClusterClient(
+            config,
+            String.format(
+                "%s/dremio/test/test-cluster-id", zooKeeperServer.getConnectionString()))) {
       client.start();
-      ElectionRegistrationHandle node1 = client.joinElection("test-election", new ZKElectionListener() {
+      ElectionRegistrationHandle node1 =
+          client.joinElection(
+              "test-election",
+              new ZKElectionListener() {
 
-        @Override
-        public void onElected() {
-          elected.countDown();
-        }
+                @Override
+                public void onElected() {
+                  elected.countDown();
+                }
 
-        @Override
-        public void onCancelled() {
-          cancelled.countDown();
-        }
+                @Override
+                public void onCancelled() {
+                  cancelled.countDown();
+                }
 
-        @Override
-        public void onConnectionLoss() {
-          loss.countDown();
-        }
+                @Override
+                public void onConnectionLoss() {
+                  loss.countDown();
+                }
 
-        @Override
-        public void onReconnection() {
-          reconnected.countDown();
-        }
-      });
+                @Override
+                public void onReconnection() {
+                  reconnected.countDown();
+                }
+              });
 
       assertTrue("No election happened", elected.await(20, TimeUnit.SECONDS));
 
@@ -311,7 +339,8 @@ public class TestZKClusterClient extends DremioTest {
     }
   }
 
-  // This is a -ve test. Without a zero delay for ZK_ELECTION_DELAY_FOR_LEADER_CALLBACK, and a simulated delay in
+  // This is a -ve test. Without a zero delay for ZK_ELECTION_DELAY_FOR_LEADER_CALLBACK, and a
+  // simulated delay in
   // curator's isLeader() callback, the node will lose it's leader status on zk reconnect.
   // With timeout values, the behavior is unpredictable & ends up as flaky test.
   @Ignore
@@ -324,54 +353,66 @@ public class TestZKClusterClient extends DremioTest {
     AtomicBoolean lostLeaderAfterReconnect = new AtomicBoolean(false);
     AtomicBoolean remainedLeaderAfterReconnect = new AtomicBoolean(false);
     final CountDownLatch leaderChosenAfterReconnect = new CountDownLatch(1);
-    final SabotConfig sabotConfig = DEFAULT_SABOT_CONFIG
-      .withValue(ClusterCoordinator.Options.ZK_ELECTION_POLLING, ConfigValueFactory.fromAnyRef("10ms"))
-      .withValue(ClusterCoordinator.Options.ZK_ELECTION_TIMEOUT, ConfigValueFactory.fromAnyRef("100s"))
-      .withValue(ClusterCoordinator.Options.ZK_ELECTION_DELAY_FOR_LEADER_CALLBACK, ConfigValueFactory.fromAnyRef("0ms"));
+    final SabotConfig sabotConfig =
+        DEFAULT_SABOT_CONFIG
+            .withValue(
+                ClusterCoordinator.Options.ZK_ELECTION_POLLING,
+                ConfigValueFactory.fromAnyRef("10ms"))
+            .withValue(
+                ClusterCoordinator.Options.ZK_ELECTION_TIMEOUT,
+                ConfigValueFactory.fromAnyRef("100s"))
+            .withValue(
+                ClusterCoordinator.Options.ZK_ELECTION_DELAY_FOR_LEADER_CALLBACK,
+                ConfigValueFactory.fromAnyRef("0ms"));
     final ZKClusterConfig config = new ZKSabotConfig(sabotConfig);
 
-    try(ZKClusterClient client = new ZKClusterClient(
-      config,
-      String.format("%s/dremio/test/test-cluster-id", zooKeeperServer.getConnectionString()))
-    ) {
+    try (ZKClusterClient client =
+        new ZKClusterClient(
+            config,
+            String.format(
+                "%s/dremio/test/test-cluster-id", zooKeeperServer.getConnectionString()))) {
       client.start();
-      ElectionRegistrationHandle node1 = client.joinElection("test-election", new ZKElectionListener() {
+      ElectionRegistrationHandle node1 =
+          client.joinElection(
+              "test-election",
+              new ZKElectionListener() {
 
-        @Override
-        public void onBeginIsLeader() {
-          try {
-            TimeUnit.MILLISECONDS.sleep(500);
-          } catch (InterruptedException ignore) {}
-        }
+                @Override
+                public void onBeginIsLeader() {
+                  try {
+                    TimeUnit.MILLISECONDS.sleep(500);
+                  } catch (InterruptedException ignore) {
+                  }
+                }
 
-        @Override
-        public void onElected() {
-          elected.countDown();
-          if (hadConnectionLoss.get()) {
-            leaderChosenAfterReconnect.countDown();
-            remainedLeaderAfterReconnect.set(true);
-          }
-        }
+                @Override
+                public void onElected() {
+                  elected.countDown();
+                  if (hadConnectionLoss.get()) {
+                    leaderChosenAfterReconnect.countDown();
+                    remainedLeaderAfterReconnect.set(true);
+                  }
+                }
 
-        @Override
-        public void onCancelled() {
-          if (hadConnectionLoss.get()) {
-            leaderChosenAfterReconnect.countDown();
-            lostLeaderAfterReconnect.set(true);
-          }
-        }
+                @Override
+                public void onCancelled() {
+                  if (hadConnectionLoss.get()) {
+                    leaderChosenAfterReconnect.countDown();
+                    lostLeaderAfterReconnect.set(true);
+                  }
+                }
 
-        @Override
-        public void onConnectionLoss() {
-          loss.countDown();
-          hadConnectionLoss.set(true);
-        }
+                @Override
+                public void onConnectionLoss() {
+                  loss.countDown();
+                  hadConnectionLoss.set(true);
+                }
 
-        @Override
-        public void onReconnection() {
-          reconnected.countDown();
-        }
-      });
+                @Override
+                public void onReconnection() {
+                  reconnected.countDown();
+                }
+              });
 
       assertTrue("No election happened", elected.await(20, TimeUnit.SECONDS));
 
@@ -380,7 +421,9 @@ public class TestZKClusterClient extends DremioTest {
 
       assertTrue("Node was not disconnected", loss.await(20, TimeUnit.SECONDS));
       assertTrue("Node was not reconnected", reconnected.await(20, TimeUnit.SECONDS));
-      assertTrue("New leader was not chosen after reconnect", leaderChosenAfterReconnect.await(20, TimeUnit.SECONDS));
+      assertTrue(
+          "New leader was not chosen after reconnect",
+          leaderChosenAfterReconnect.await(20, TimeUnit.SECONDS));
       assertEquals("Lost master after re-election", true, lostLeaderAfterReconnect.get());
       assertEquals("Not leader after re-election", false, remainedLeaderAfterReconnect.get());
     }
@@ -396,55 +439,66 @@ public class TestZKClusterClient extends DremioTest {
     AtomicBoolean lostLeaderAfterReconnect = new AtomicBoolean(false);
     AtomicBoolean remainedLeaderAfterReconnect = new AtomicBoolean(false);
     final CountDownLatch leaderChosenAfterReconnect = new CountDownLatch(1);
-    final SabotConfig sabotConfig = DEFAULT_SABOT_CONFIG
-      .withValue(ClusterCoordinator.Options.ZK_ELECTION_POLLING, ConfigValueFactory.fromAnyRef("10ms"))
-      .withValue(ClusterCoordinator.Options.ZK_ELECTION_TIMEOUT, ConfigValueFactory.fromAnyRef("100s"));
-      // Tests with the default value for ZK_ELECTION_DELAY_FOR_LEADER_CALLBACK i.e 500ms.
+    final SabotConfig sabotConfig =
+        DEFAULT_SABOT_CONFIG
+            .withValue(
+                ClusterCoordinator.Options.ZK_ELECTION_POLLING,
+                ConfigValueFactory.fromAnyRef("10ms"))
+            .withValue(
+                ClusterCoordinator.Options.ZK_ELECTION_TIMEOUT,
+                ConfigValueFactory.fromAnyRef("100s"));
+    // Tests with the default value for ZK_ELECTION_DELAY_FOR_LEADER_CALLBACK i.e 500ms.
     final ZKClusterConfig config = new ZKSabotConfig(sabotConfig);
 
-    try(ZKClusterClient client = new ZKClusterClient(
-      config,
-      String.format("%s/dremio/test/test-cluster-id", zooKeeperServer.getConnectionString()))
-    ) {
+    try (ZKClusterClient client =
+        new ZKClusterClient(
+            config,
+            String.format(
+                "%s/dremio/test/test-cluster-id", zooKeeperServer.getConnectionString()))) {
       client.start();
-      ElectionRegistrationHandle node1 = client.joinElection("test-election", new ZKElectionListener() {
+      ElectionRegistrationHandle node1 =
+          client.joinElection(
+              "test-election",
+              new ZKElectionListener() {
 
-        @Override
-        public void onBeginIsLeader() {
-          try {
-            // To avoid flaky tests, keep this low (about 1/10th of the value of ZK_ELECTION_DELAY_FOR_LEADER_CALLBACK)
-            TimeUnit.MILLISECONDS.sleep(50);
-          } catch (InterruptedException ignore) {}
-        }
+                @Override
+                public void onBeginIsLeader() {
+                  try {
+                    // To avoid flaky tests, keep this low (about 1/10th of the value of
+                    // ZK_ELECTION_DELAY_FOR_LEADER_CALLBACK)
+                    TimeUnit.MILLISECONDS.sleep(50);
+                  } catch (InterruptedException ignore) {
+                  }
+                }
 
-        @Override
-        public void onElected() {
-          elected.countDown();
-          if (hadConnectionLoss.get()) {
-            leaderChosenAfterReconnect.countDown();
-            remainedLeaderAfterReconnect.set(true);
-          }
-        }
+                @Override
+                public void onElected() {
+                  elected.countDown();
+                  if (hadConnectionLoss.get()) {
+                    leaderChosenAfterReconnect.countDown();
+                    remainedLeaderAfterReconnect.set(true);
+                  }
+                }
 
-        @Override
-        public void onCancelled() {
-          if (hadConnectionLoss.get()) {
-            leaderChosenAfterReconnect.countDown();
-            lostLeaderAfterReconnect.set(true);
-          }
-        }
+                @Override
+                public void onCancelled() {
+                  if (hadConnectionLoss.get()) {
+                    leaderChosenAfterReconnect.countDown();
+                    lostLeaderAfterReconnect.set(true);
+                  }
+                }
 
-        @Override
-        public void onConnectionLoss() {
-          loss.countDown();
-          hadConnectionLoss.set(true);
-        }
+                @Override
+                public void onConnectionLoss() {
+                  loss.countDown();
+                  hadConnectionLoss.set(true);
+                }
 
-        @Override
-        public void onReconnection() {
-          reconnected.countDown();
-        }
-      });
+                @Override
+                public void onReconnection() {
+                  reconnected.countDown();
+                }
+              });
 
       assertTrue("No election happened", elected.await(20, TimeUnit.SECONDS));
 
@@ -453,37 +507,48 @@ public class TestZKClusterClient extends DremioTest {
 
       assertTrue("Node was not disconnected", loss.await(20, TimeUnit.SECONDS));
       assertTrue("Node was not reconnected", reconnected.await(20, TimeUnit.SECONDS));
-      assertTrue("New leader was not chosen after reconnect", leaderChosenAfterReconnect.await(20, TimeUnit.SECONDS));
+      assertTrue(
+          "New leader was not chosen after reconnect",
+          leaderChosenAfterReconnect.await(20, TimeUnit.SECONDS));
       assertEquals("Lost master after re-election", false, lostLeaderAfterReconnect.get());
       assertEquals("Not leader after re-election", true, remainedLeaderAfterReconnect.get());
     }
   }
 
   private ZKClusterClient getZkClientInstance() throws Exception {
-    final SabotConfig sabotConfig = DEFAULT_SABOT_CONFIG
-      .withValue(ClusterCoordinator.Options.ZK_ELECTION_POLLING, ConfigValueFactory.fromAnyRef("250ms"))
-      .withValue(ClusterCoordinator.Options.ZK_ELECTION_TIMEOUT, ConfigValueFactory.fromAnyRef("5s"));
+    final SabotConfig sabotConfig =
+        DEFAULT_SABOT_CONFIG
+            .withValue(
+                ClusterCoordinator.Options.ZK_ELECTION_POLLING,
+                ConfigValueFactory.fromAnyRef("250ms"))
+            .withValue(
+                ClusterCoordinator.Options.ZK_ELECTION_TIMEOUT,
+                ConfigValueFactory.fromAnyRef("5s"));
     final ZKClusterConfig config = new ZKSabotConfig(sabotConfig);
-    ZKClusterClient client = new ZKClusterClient(
-      config,
-      String.format("%s/dremio/test/test-cluster-id", zooKeeperServer.getConnectionString()));
+    ZKClusterClient client =
+        new ZKClusterClient(
+            config,
+            String.format("%s/dremio/test/test-cluster-id", zooKeeperServer.getConnectionString()));
     assertNotNull(client);
     return client;
   }
 
-  // testElectionWithMultipleParticipants was executed repeatedly around 200 to 300 times to reproduce the
+  // testElectionWithMultipleParticipants was executed repeatedly around 200 to 300 times to
+  // reproduce the
   // issue in DX-30714
   @Test
   public void testElectionWithMultipleParticipants() throws Exception {
     try (ZKClusterClient client1 = getZkClientInstance();
-         ZKClusterClient client2 = getZkClientInstance()) {
+        ZKClusterClient client2 = getZkClientInstance()) {
       client1.start();
       client2.start();
       TestElectionListener electionListener1 = new TestElectionListener();
       TestElectionListener electionListener2 = new TestElectionListener();
 
-      ElectionRegistrationHandle electionRegistrationHandle1 = client1.joinElection("test-election", electionListener1);
-      ElectionRegistrationHandle electionRegistrationHandle2 = client2.joinElection("test-election", electionListener2);
+      ElectionRegistrationHandle electionRegistrationHandle1 =
+          client1.joinElection("test-election", electionListener1);
+      ElectionRegistrationHandle electionRegistrationHandle2 =
+          client2.joinElection("test-election", electionListener2);
 
       // For the client that gained leadership, relinquish leadership and reenter the election
       // After relinquishing leadership, asynchronously restart zk to simulate leadership lost
@@ -493,32 +558,38 @@ public class TestZKClusterClient extends DremioTest {
         // close
         electionRegistrationHandle1.close();
         // restart the zk server to simulate leadership lost
-        CompletableFuture.runAsync(() -> {
-          try {
-            Thread.sleep(1000);
-            zooKeeperServer.restartServer();
-          } catch (Exception e) {
-          }
-        });
+        CompletableFuture.runAsync(
+            () -> {
+              try {
+                Thread.sleep(1000);
+                zooKeeperServer.restartServer();
+              } catch (Exception e) {
+              }
+            });
         TestElectionListener temp = new TestElectionListener();
-        CompletableFuture<ElectionRegistrationHandle> future = CompletableFuture.supplyAsync(() -> {
-          return client1.joinElection("test-election", temp);
-        });
+        CompletableFuture<ElectionRegistrationHandle> future =
+            CompletableFuture.supplyAsync(
+                () -> {
+                  return client1.joinElection("test-election", temp);
+                });
         electionListener1 = temp;
         electionRegistrationHandle1 = future.get();
       } else if (electionListener2.isLeader) {
         electionRegistrationHandle2.close();
-        CompletableFuture.runAsync(() -> {
-          try {
-            Thread.sleep(1000);
-            zooKeeperServer.restartServer();
-          } catch (Exception e) {
-          }
-        });
+        CompletableFuture.runAsync(
+            () -> {
+              try {
+                Thread.sleep(1000);
+                zooKeeperServer.restartServer();
+              } catch (Exception e) {
+              }
+            });
         TestElectionListener temp = new TestElectionListener();
-        CompletableFuture<ElectionRegistrationHandle> future = CompletableFuture.supplyAsync(() -> {
-          return client2.joinElection("test-election", temp);
-        });
+        CompletableFuture<ElectionRegistrationHandle> future =
+            CompletableFuture.supplyAsync(
+                () -> {
+                  return client2.joinElection("test-election", temp);
+                });
         electionListener2 = temp;
         electionRegistrationHandle2 = future.get();
       }

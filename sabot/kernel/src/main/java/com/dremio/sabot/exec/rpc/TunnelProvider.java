@@ -15,12 +15,14 @@
  */
 package com.dremio.sabot.exec.rpc;
 
-import java.io.IOException;
-
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
+import java.io.IOException;
 
 public interface TunnelProvider {
   AccountingExecToCoordTunnel getCoordTunnel();
+
   AccountingExecTunnel getExecTunnel(final NodeEndpoint endpoint);
-  AccountingFileTunnel getFileTunnel(FileStreamManager streamManager, int maxBatchesPerFile) throws IOException;
+
+  AccountingFileTunnel getFileTunnel(FileStreamManager streamManager, int maxBatchesPerFile)
+      throws IOException;
 }

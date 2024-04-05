@@ -20,11 +20,10 @@ import com.dremio.exec.proto.FunctionRPC;
 import com.dremio.exec.rpc.RpcFuture;
 import com.dremio.services.fabric.api.FabricCommandRunner;
 
-/**
- * To access FunctionService from executor(client)
- */
+/** To access FunctionService from executor(client) */
 public class FunctionTunnel {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FunctionTunnel.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(FunctionTunnel.class);
 
   private final CoordinationProtos.NodeEndpoint ep;
   private final FabricCommandRunner manager;
@@ -36,7 +35,8 @@ public class FunctionTunnel {
   }
 
   public RpcFuture<FunctionRPC.FunctionInfoResp> requestFunctionInfos() {
-    FunctionRPC.FunctionInfoReq FunctionInfoRequest = FunctionRPC.FunctionInfoReq.newBuilder().build();
+    FunctionRPC.FunctionInfoReq FunctionInfoRequest =
+        FunctionRPC.FunctionInfoReq.newBuilder().build();
     RequestFunctionInfo b = new RequestFunctionInfo(FunctionInfoRequest);
     manager.runCommand(b);
     return b.getFuture();

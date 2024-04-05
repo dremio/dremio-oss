@@ -18,10 +18,6 @@ package com.dremio.dac.cmd.upgrade;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-
 import com.dremio.common.Version;
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.config.SabotConfig;
@@ -32,10 +28,11 @@ import com.dremio.exec.server.options.OptionValidatorListingImpl;
 import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.service.DirectProvider;
 import com.dremio.test.DremioTest;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
-/**
- * Test the upgrade task for setting Tableau defaults based on version.
- */
+/** Test the upgrade task for setting Tableau defaults based on version. */
 public class TestSetTableauDefaults extends DremioTest {
 
   private SystemOptionManager optionManager;
@@ -44,14 +41,18 @@ public class TestSetTableauDefaults extends DremioTest {
   @Before
   public void setUp() throws Exception {
     final SabotConfig sabotConfig = SabotConfig.create();
-    final LogicalPlanPersistence lpp = new LogicalPlanPersistence(sabotConfig, CLASSPATH_SCAN_RESULT);
+    final LogicalPlanPersistence lpp = new LogicalPlanPersistence(CLASSPATH_SCAN_RESULT);
     if (kvStoreProvider == null) {
       kvStoreProvider = LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT);
       kvStoreProvider.start();
     }
 
-    optionManager = new SystemOptionManager(new OptionValidatorListingImpl(DremioTest.CLASSPATH_SCAN_RESULT),
-      lpp, DirectProvider.wrap(kvStoreProvider), false);
+    optionManager =
+        new SystemOptionManager(
+            new OptionValidatorListingImpl(DremioTest.CLASSPATH_SCAN_RESULT),
+            lpp,
+            DirectProvider.wrap(kvStoreProvider),
+            false);
     optionManager.start();
   }
 

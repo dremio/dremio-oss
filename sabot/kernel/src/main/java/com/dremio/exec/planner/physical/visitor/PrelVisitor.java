@@ -29,22 +29,31 @@ import com.dremio.exec.planner.physical.UnionPrel;
 import com.dremio.exec.planner.physical.WriterCommitterPrel;
 import com.dremio.exec.planner.physical.WriterPrel;
 
-
 public interface PrelVisitor<RETURN, EXTRA, EXCEP extends Throwable> {
 
   RETURN visitExchange(ExchangePrel prel, EXTRA value) throws EXCEP;
+
   RETURN visitScreen(ScreenPrel prel, EXTRA value) throws EXCEP;
+
   RETURN visitWriter(WriterPrel prel, EXTRA value) throws EXCEP;
+
   RETURN visitWriterCommitter(WriterCommitterPrel prel, EXTRA value) throws EXCEP;
+
   RETURN visitLeaf(LeafPrel prel, EXTRA value) throws EXCEP;
+
   RETURN visitJoin(JoinPrel prel, EXTRA value) throws EXCEP;
+
   RETURN visitProject(ProjectPrel prel, EXTRA value) throws EXCEP;
+
   RETURN visitTableFunction(TableFunctionPrel prel, EXTRA value) throws EXCEP;
+
   RETURN visitUnion(UnionPrel prel, EXTRA value) throws EXCEP;
+
   RETURN visitAggregate(AggregatePrel prel, EXTRA value) throws EXCEP;
+
   RETURN visitLimit(LimitPrel prel, EXTRA value) throws EXCEP;
+
   RETURN visitFilter(FilterPrel prel, EXTRA value) throws EXCEP;
 
   RETURN visitPrel(Prel prel, EXTRA value) throws EXCEP;
-
 }

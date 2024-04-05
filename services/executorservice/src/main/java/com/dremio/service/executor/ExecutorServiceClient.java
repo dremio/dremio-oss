@@ -17,29 +17,25 @@ package com.dremio.service.executor;
 
 import com.dremio.exec.proto.CoordExecRPC;
 import com.google.protobuf.Empty;
-
 import io.grpc.stub.StreamObserver;
 
-/**
- * Client interface to executor service.
- */
+/** Client interface to executor service. */
 public interface ExecutorServiceClient {
 
-  public void startFragments(CoordExecRPC.InitializeFragments initializeFragments,
-                             StreamObserver<Empty> responseObserver);
+  public void startFragments(
+      CoordExecRPC.InitializeFragments initializeFragments, StreamObserver<Empty> responseObserver);
 
-  public void activateFragments(CoordExecRPC.ActivateFragments activateFragments,
-                                StreamObserver<Empty> responseObserver);
+  public void activateFragments(
+      CoordExecRPC.ActivateFragments activateFragments, StreamObserver<Empty> responseObserver);
 
-  public void cancelFragments(CoordExecRPC.CancelFragments cancelFragments,
-                              StreamObserver<Empty> responseObserver);
+  public void cancelFragments(
+      CoordExecRPC.CancelFragments cancelFragments, StreamObserver<Empty> responseObserver);
 
-  public void getNodeStats(Empty empty,
-                           StreamObserver<CoordExecRPC.NodeStatResp> responseObserver);
+  public void getNodeStats(Empty empty, StreamObserver<CoordExecRPC.NodeStatResp> responseObserver);
 
-  public void reconcileActiveQueries(CoordExecRPC.ActiveQueryList activeQueryList,
-                                     StreamObserver<Empty> emptyStreamObserver);
+  public void reconcileActiveQueries(
+      CoordExecRPC.ActiveQueryList activeQueryList, StreamObserver<Empty> emptyStreamObserver);
 
-  public void propagatePluginChange(CoordExecRPC.SourceWrapper sourceWrapper,
-                              StreamObserver<Empty> callOutcomeObserver);
+  public void propagatePluginChange(
+      CoordExecRPC.SourceWrapper sourceWrapper, StreamObserver<Empty> callOutcomeObserver);
 }

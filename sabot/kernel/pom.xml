@@ -1,4 +1,4 @@
-<?xml version="1.0"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!--
 
     Copyright (C) 2017-2019 Dremio Corporation
@@ -21,7 +21,7 @@
   <parent>
     <groupId>com.dremio.sabot</groupId>
     <artifactId>dremio-sabot-parent</artifactId>
-    <version>24.3.2-202401241821100032-d2d8a497</version>
+    <version>25.0.0-202404051521110861-ed9515a8</version>
   </parent>
   <artifactId>dremio-sabot-kernel</artifactId>
   <name>Sabot - Kernel</name>
@@ -81,6 +81,11 @@
     <dependency>
       <groupId>com.dremio.services</groupId>
       <artifactId>dremio-services-jobresults-client</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-nessie-metadata-cache</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
@@ -177,7 +182,7 @@
 
     <dependency>
       <groupId>com.dremio.services</groupId>
-      <artifactId>dremio-services-nessie</artifactId>
+      <artifactId>dremio-services-embedded-metadata-pointer</artifactId>
     </dependency>
 
     <dependency>
@@ -193,12 +198,6 @@
     <dependency>
       <groupId>org.projectnessie.nessie</groupId>
       <artifactId>nessie-client</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>org.projectnessie.nessie-integrations</groupId>
-      <artifactId>iceberg-views</artifactId>
-      <version>${nessie.version}</version>
     </dependency>
 
     <dependency>
@@ -355,8 +354,8 @@
              file that contains old Hamcrest 1.1 classes (rather than declaring
              a dependency on Hamcrest).  (See DRILL-2130.) -->
         <exclusion>
-          <artifactId>mockito-all</artifactId>
           <groupId>org.mockito</groupId>
+          <artifactId>mockito-all</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
@@ -420,10 +419,10 @@
       <groupId>org.glassfish.jersey.ext</groupId>
       <artifactId>jersey-mvc-freemarker</artifactId>
       <exclusions>
-          <exclusion>
-            <artifactId>servlet-api</artifactId>
-            <groupId>javax.servlet</groupId>
-          </exclusion>
+        <exclusion>
+          <groupId>javax.servlet</groupId>
+          <artifactId>servlet-api</artifactId>
+        </exclusion>
       </exclusions>
     </dependency>
     <dependency>
@@ -496,14 +495,14 @@
     <dependency>
       <groupId>org.apache.parquet</groupId>
       <artifactId>parquet-hadoop</artifactId>
-      <type>test-jar</type>
       <version>${parquet.version}</version>
+      <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.parquet</groupId>
       <artifactId>parquet-format</artifactId>
-      <version>2.7.0-201901172054060715-5352a59</version>
+      <version>2.7.0-202401170624130608-f7825d1</version>
       <exclusions>
         <exclusion>
           <groupId>org.apache.hadoop</groupId>
@@ -593,6 +592,11 @@
           <artifactId>arrow-memory</artifactId>
         </exclusion>
       </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>it.unimi.dsi</groupId>
+      <artifactId>fastutil</artifactId>
+      <version>8.5.13</version>
     </dependency>
     <dependency>
       <groupId>io.opentelemetry</groupId>
@@ -700,9 +704,9 @@
     <dependency>
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-common</artifactId>
-      <scope>test</scope>
       <classifier>tests</classifier>
       <type>test-jar</type>
+      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.hadoop</groupId>
@@ -717,9 +721,9 @@
     <dependency>
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-hdfs</artifactId>
-      <scope>test</scope>
       <classifier>tests</classifier>
       <type>test-jar</type>
+      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.hadoop</groupId>
@@ -784,6 +788,16 @@
       <scope>test</scope>
     </dependency>
     <dependency>
+      <groupId>org.projectnessie.nessie</groupId>
+      <artifactId>nessie-client-testextension</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.projectnessie.nessie</groupId>
+      <artifactId>nessie-combined-cs</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-inline</artifactId>
       <scope>test</scope>
@@ -839,13 +853,32 @@
       <scope>test</scope>
     </dependency>
     <dependency>
-        <groupId>com.dremio.common</groupId>
-        <artifactId>dremio-common-core</artifactId>
-        <version>${project.version}</version>
+      <groupId>com.dremio.common</groupId>
+      <artifactId>dremio-common-core</artifactId>
+      <version>${project.version}</version>
     </dependency>
   </dependencies>
 
   <build>
+    <resources>
+      <resource>
+        <filtering>false</filtering>
+        <directory>src/main/resources</directory>
+      </resource>
+      <resource>
+        <filtering>false</filtering>
+        <directory>src/main/resources-${dremio.mapr.distribution}</directory>
+      </resource>
+    </resources>
+    <testResources>
+      <testResource>
+        <directory>${project.basedir}/src/test/resources</directory>
+      </testResource>
+      <testResource>
+        <filtering>true</filtering>
+        <directory>${project.basedir}/src/test/resources-nessie</directory>
+      </testResource>
+    </testResources>
     <plugins>
       <plugin>
         <groupId>com.mycila</groupId>
@@ -853,12 +886,28 @@
         <configuration>
           <licenseSets>
             <licenseSet>
-              <validHeaders>
+              <validHeaders combine.children="append">
                 <validHeader>src/main/licenses/com.dremio.exec.expr.fn.impl.GuavaUtf8.license.txt</validHeader>
               </validHeaders>
-              <includes>
-                <include>src/main/java/com/dremio/exec/expr/fn/impl/GuavaUtf8.java</include>
-              </includes>
+              <excludes combine.children="append">
+                <!-- TODO: add headers to SQL files without breaking tests -->
+                <excludes>**/*.sql</excludes>
+                <excludes>**/*.dremarrow1</excludes>
+                <excludes>**/*.kryo</excludes>
+                <excludes>**/*.psva</excludes>
+                <excludes>**/*.ssv</excludes>
+                <excludes>**/*.tbla</excludes>
+                <excludes>**/*.csvh-test</excludes>
+                <excludes>**/*.dat</excludes>
+                <excludes>**/src/test/resources/assignments/**</excludes>
+                <excludes>**/src/test/resources/deltalake/**</excludes>
+                <excludes>**/src/test/resources/iceberg/**</excludes>
+                <excludes>**/src/test/resources/parquet/**</excludes>
+                <excludes>**/src/test/resources/metadatarefresh/withHiddenFiles/**</excludes>
+                <excludes>**/src/test/resources/metadatarefresh/maxLeafCols/**</excludes>
+                <excludes>**/src/test/resources/store/text/FolderWithoutExtension/**</excludes>
+                <excludes>**/src/test/resources/store/text/testWithoutExtension</excludes>
+              </excludes>
             </licenseSet>
           </licenseSets>
         </configuration>
@@ -922,11 +971,11 @@
         <executions>
           <execution>
             <id>generate-protobuf</id>
-            <phase>generate-sources</phase>
             <goals>
               <goal>compile</goal>
               <goal>compile-custom</goal>
             </goals>
+            <phase>generate-sources</phase>
             <configuration>
               <protoSourceRoot>${project.basedir}/src/main/protobuf</protoSourceRoot>
               <pluginId>grpc-java</pluginId>
@@ -956,10 +1005,10 @@
           <!-- Extract javacc parser grammar template from sabot-grammar -->
           <execution>
             <id>unpack-javacc-grammar</id>
-            <phase>initialize</phase>
             <goals>
               <goal>unpack</goal>
             </goals>
+            <phase>initialize</phase>
             <configuration>
               <artifactItems>
                 <artifactItem>
@@ -978,10 +1027,10 @@
           it under ${project.build.directory}/codegen/data where all freemarker data files are. -->
           <execution>
             <id>unpack-vector-types</id>
-            <phase>initialize</phase>
             <goals>
               <goal>unpack</goal>
             </goals>
+            <phase>initialize</phase>
             <configuration>
               <artifactItems>
                 <artifactItem>
@@ -1011,10 +1060,10 @@
         <executions>
           <execution>
             <id>generate-fmpp-pre</id>
-            <phase>generate-sources</phase>
             <goals>
               <goal>set-system-properties</goal>
             </goals>
+            <phase>generate-sources</phase>
             <configuration>
               <properties>
                 <property>
@@ -1026,14 +1075,17 @@
           </execution>
         </executions>
       </plugin>
-      <plugin> <!-- generate sources from fmpp -->
+      <plugin>
+        <!-- generate sources from fmpp -->
         <groupId>com.dremio.tools</groupId>
         <artifactId>dremio-fmpp-maven-plugin</artifactId>
         <executions>
           <execution>
             <id>generate-fmpp</id>
+            <goals>
+              <goal>generate</goal>
+            </goals>
             <phase>generate-sources</phase>
-            <goals><goal>generate</goal></goals>
             <configuration>
               <config>${project.build.directory}/codegen/config.fmpp</config>
               <output>${project.build.directory}/generated-sources/fmpp</output>
@@ -1043,15 +1095,18 @@
           </execution>
         </executions>
       </plugin>
-      <plugin> <!-- generate the parser (Parser.jj is itself generated in sabot-grammar
+      <plugin>
+        <!-- generate the parser (Parser.jj is itself generated in sabot-grammar
                     and copied here in initialize phase) -->
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>javacc-maven-plugin</artifactId>
         <executions>
           <execution>
             <id>javacc</id>
+            <goals>
+              <goal>javacc</goal>
+            </goals>
             <phase>generate-sources</phase>
-            <goals><goal>javacc</goal></goals>
             <configuration>
               <sourceDirectory>${project.build.directory}/grammar/javacc</sourceDirectory>
               <includes>
@@ -1060,7 +1115,7 @@
               <lookAhead>2</lookAhead>
               <isStatic>false</isStatic>
               <outputDirectory>${project.build.directory}/generated-sources/javacc</outputDirectory>
-<!--
+              <!--
               <debugParser>true</debugParser>
               <debugLookAhead>true</debugLookAhead>
               <debugTokenManager>true</debugTokenManager>
@@ -1069,13 +1124,16 @@
           </execution>
         </executions>
       </plugin>
-      <plugin> <!-- source file must end up in the jar for janino parsing -->
+      <plugin>
+        <!-- source file must end up in the jar for janino parsing -->
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-resources-plugin</artifactId>
         <executions>
           <execution>
+            <goals>
+              <goal>copy-resources</goal>
+            </goals>
             <phase>generate-resources</phase>
-            <goals><goal>copy-resources</goal></goals>
             <configuration>
               <resources>
                 <resource>
@@ -1090,10 +1148,13 @@
               <outputDirectory>${project.build.directory}/src-resources</outputDirectory>
             </configuration>
           </execution>
-          <execution> <!-- copy all templates/data in the same location to compile them at once -->
+          <execution>
+            <!-- copy all templates/data in the same location to compile them at once -->
             <id>copy-fmpp-resources</id>
+            <goals>
+              <goal>copy-resources</goal>
+            </goals>
             <phase>initialize</phase>
-            <goals><goal>copy-resources</goal></goals>
             <configuration>
               <outputDirectory>${project.build.directory}/codegen</outputDirectory>
               <resources>
@@ -1106,10 +1167,10 @@
           </execution>
           <execution>
             <id>copy-sources-as-resources</id>
-            <phase>process-sources</phase>
             <goals>
               <goal>copy-resources</goal>
             </goals>
+            <phase>process-sources</phase>
             <configuration>
               <outputDirectory>${project.build.outputDirectory}</outputDirectory>
               <resources>
@@ -1133,10 +1194,10 @@
           </execution>
           <execution>
             <id>copy-test-sources-as-resources</id>
-            <phase>process-test-sources</phase>
             <goals>
               <goal>copy-resources</goal>
             </goals>
+            <phase>process-test-sources</phase>
             <configuration>
               <outputDirectory>${project.build.testOutputDirectory}</outputDirectory>
               <resources>
@@ -1167,8 +1228,10 @@
         <executions>
           <execution>
             <id>classpath-scanning</id>
+            <goals>
+              <goal>java</goal>
+            </goals>
             <phase>process-classes</phase>
-            <goals><goal>java</goal></goals>
             <configuration>
               <mainClass>com.dremio.common.scanner.BuildTimeScan</mainClass>
               <includePluginDependencies>true</includePluginDependencies>
@@ -1179,9 +1242,11 @@
           </execution>
           <execution>
             <id>reserved-SQL-keyword-list-generation</id>
+            <goals>
+              <goal>java</goal>
+            </goals>
             <!-- We need the generator class, that's why this is executed after compile phase -->
             <phase>process-classes</phase>
-            <goals><goal>java</goal></goals>
             <configuration>
               <mainClass>com.dremio.exec.planner.sql.parser.SqlReservedKeywordGenerator</mainClass>
               <arguments>
@@ -1200,8 +1265,10 @@
               that would take unusually long time to run (> 1 minute) and run such tests
               in a different profile -->
             <id>default-test</id>
+            <goals>
+              <goal>test</goal>
+            </goals>
             <phase>test</phase>
-            <goals><goal>test</goal></goals>
             <configuration>
               <excludes>
                 <exclude>**/TestLargeFileCompilation.java</exclude>
@@ -1216,10 +1283,10 @@
         <executions>
           <execution>
             <id>jar-resources</id>
-            <phase>package</phase>
             <goals>
               <goal>jar</goal>
             </goals>
+            <phase>package</phase>
             <configuration>
               <classesDirectory>${project.build.directory}/src-resources</classesDirectory>
               <skipIfEmpty>true</skipIfEmpty>
@@ -1228,10 +1295,10 @@
           </execution>
           <execution>
             <id>proto-jar-resources</id>
-            <phase>package</phase>
             <goals>
               <goal>jar</goal>
             </goals>
+            <phase>package</phase>
             <configuration>
               <classesDirectory>${project.basedir}/src/main/protobuf</classesDirectory>
               <classifier>proto</classifier>
@@ -1240,25 +1307,6 @@
         </executions>
       </plugin>
     </plugins>
-    <resources>
-      <resource>
-        <directory>src/main/resources</directory>
-        <filtering>false</filtering>
-      </resource>
-      <resource>
-        <directory>src/main/resources-${dremio.mapr.distribution}</directory>
-        <filtering>false</filtering>
-      </resource>
-    </resources>
-    <testResources>
-      <testResource>
-        <directory>${project.basedir}/src/test/resources</directory>
-      </testResource>
-      <testResource>
-        <directory>${project.basedir}/src/test/resources-nessie</directory>
-        <filtering>true</filtering>
-      </testResource>
-    </testResources>
   </build>
 
 </project>

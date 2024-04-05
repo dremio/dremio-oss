@@ -15,9 +15,6 @@
  */
 package com.dremio.exec.store.metadatarefresh.dirlisting;
 
-import java.util.List;
-import java.util.stream.Collectors;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
@@ -30,35 +27,55 @@ import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.SplitWork;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.metadatarefresh.RefreshExecTableMetadata;
+import java.util.List;
+import java.util.stream.Collectors;
 
 public class DirListingGroupScan extends AbstractGroupScan {
 
   private final StoragePluginId storagePluginId;
   private final BatchSchema schema;
   private final boolean allowRecursiveListing;
+  private final boolean incrementalBatchSize;
 
-  public DirListingGroupScan(OpProps props, TableMetadata dataset, BatchSchema schema, List<SchemaPath> columns, StoragePluginId pluginId, boolean allowRecursiveListing) {
-      super(props, dataset, columns);
-      this.storagePluginId = pluginId;
-      this.schema = schema;
-      this.allowRecursiveListing = allowRecursiveListing;
+  public DirListingGroupScan(
+      OpProps props,
+      TableMetadata dataset,
+      BatchSchema schema,
+      List<SchemaPath> columns,
+      StoragePluginId pluginId,
+      boolean allowRecursiveListing,
+      boolean incrementalBatchSize) {
+    super(props, dataset, columns);
+    this.storagePluginId = pluginId;
+    this.schema = schema;
+    this.allowRecursiveListing = allowRecursiveListing;
+    this.incrementalBatchSize = incrementalBatchSize;
   }
 
   @Override
   public int getMaxParallelizationWidth() {
-      return dataset.getSplitCount();
+    return dataset.getSplitCount();
   }
 
   @Override
   public SubScan getSpecificScan(List<SplitWork> work) throws ExecutionSetupException {
-      final List<SplitAndPartitionInfo> splits = work.stream().map(SplitWork::getSplitAndPartitionInfo)
-              .collect(Collectors.toList());
-      return new DirListingSubScan(props, splits, getReferencedTables(), columns, schema, getTableSchema(), storagePluginId, /* TODO: For Hive plugin make this configurable */allowRecursiveListing);
+    final List<SplitAndPartitionInfo> splits =
+        work.stream().map(SplitWork::getSplitAndPartitionInfo).collect(Collectors.toList());
+    return new DirListingSubScan(
+        props,
+        splits,
+        getReferencedTables(),
+        columns,
+        schema,
+        getTableSchema(),
+        storagePluginId, /* TODO: For Hive plugin make this configurable */
+        allowRecursiveListing,
+        incrementalBatchSize);
   }
 
   @Override
   public int getOperatorType() {
-      return UserBitShared.CoreOperatorType.DIR_LISTING_SUB_SCAN_VALUE;
+    return UserBitShared.CoreOperatorType.DIR_LISTING_SUB_SCAN_VALUE;
   }
 
   private BatchSchema getTableSchema() {

@@ -15,16 +15,13 @@
  */
 package com.dremio.options;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.options.TypeValidators.TypeValidator;
 import org.junit.Test;
 import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.options.TypeValidators.TypeValidator;
-
-/**
- * Test for {@code TypeValidators} classes
- */
+/** Test for {@code TypeValidators} classes */
 @RunWith(Enclosed.class)
 public class TestTypeValidators {
   protected static OptionValue newLongValue(long value) {
@@ -43,9 +40,7 @@ public class TestTypeValidators {
     return OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, "test-option", value);
   }
 
-  /**
-   * Tests for {@code TypeValidators.PositiveLongValidator}
-   */
+  /** Tests for {@code TypeValidators.PositiveLongValidator} */
   public static class TestPositiveLongValidator {
     protected TypeValidator newValidator(long max, long def) {
       return new TypeValidators.PositiveLongValidator("test-option", max, def);
@@ -91,9 +86,7 @@ public class TestTypeValidators {
     }
   }
 
-  /**
-   * Tests for {@code TypeValidators.PowerOfTwoLongValidator}
-   */
+  /** Tests for {@code TypeValidators.PowerOfTwoLongValidator} */
   public static class TestPowerOfTwoLongValidator extends TestPositiveLongValidator {
     @Override
     protected TypeValidator newValidator(long max, long def) {
@@ -133,9 +126,7 @@ public class TestTypeValidators {
     }
   }
 
-  /**
-   * Tests for {@code TypeValidators.RangeLongValidator}
-   */
+  /** Tests for {@code TypeValidators.RangeLongValidator} */
   public static class TestRangeLongValidator {
     protected TypeValidator newValidator(long min, long max, long def) {
       return new TypeValidators.RangeLongValidator("test-option", min, max, def);
@@ -183,9 +174,7 @@ public class TestTypeValidators {
     }
   }
 
-  /**
-   * Tests for {@code TypeValidators.RangeDoubleValidator}
-   */
+  /** Tests for {@code TypeValidators.RangeDoubleValidator} */
   public static class TestRangeDoubleValidator {
     protected TypeValidator newValidator(double min, double max, double def) {
       return new TypeValidators.RangeDoubleValidator("test-option", min, max, def);
@@ -233,9 +222,7 @@ public class TestTypeValidators {
     }
   }
 
-  /**
-   * Tests for {@code TypeValidators.AdminOptionValidator}
-   */
+  /** Tests for {@code TypeValidators.AdminOptionValidator} */
   public static class TestAdminStringValidator {
     protected TypeValidator newValidator(String def) {
       return new TypeValidators.AdminStringValidator("test-option", def);
@@ -251,13 +238,12 @@ public class TestTypeValidators {
     @Test(expected = UserException.class)
     public void invalidOption() {
       TypeValidator validator = newValidator("foo");
-      validator.validate(OptionValue.createString(OptionValue.OptionType.QUERY, "test-option", "bar"));
+      validator.validate(
+          OptionValue.createString(OptionValue.OptionType.QUERY, "test-option", "bar"));
     }
   }
 
-  /**
-   * Tests for {@code TypeValidators.AdminBooleanValidator}
-   */
+  /** Tests for {@code TypeValidators.AdminBooleanValidator} */
   public static class TestAdminBooleanValidator {
     protected TypeValidator newValidator(boolean def) {
       return new TypeValidators.AdminBooleanValidator("test-option", def);
@@ -273,23 +259,24 @@ public class TestTypeValidators {
     @Test(expected = UserException.class)
     public void invalidOption() {
       TypeValidator validator = newValidator(true);
-      validator.validate(OptionValue.createBoolean(OptionValue.OptionType.QUERY, "test-option", false));
+      validator.validate(
+          OptionValue.createBoolean(OptionValue.OptionType.QUERY, "test-option", false));
     }
   }
-  /**
-   * Tests for {@code TypeValidators.QueryLevelOptionValidation}
-   */
+
+  /** Tests for {@code TypeValidators.QueryLevelOptionValidation} */
   public static class TestQueryLevelOptionValidation {
     protected OptionValidator newValidator(String def) {
-      return new TypeValidators.QueryLevelOptionValidation(new TypeValidators.StringValidator("test-option", def));
+      return new TypeValidators.QueryLevelOptionValidation(
+          new TypeValidators.StringValidator("test-option", def));
     }
 
     @Test
     public void ok() {
       OptionValidator validator = newValidator("foo");
       // check no fail...
-      validator.validate(OptionValue.createString(OptionValue.OptionType.QUERY, "test-option", "bar"));
-
+      validator.validate(
+          OptionValue.createString(OptionValue.OptionType.QUERY, "test-option", "bar"));
     }
 
     @Test(expected = UserException.class)
@@ -299,9 +286,7 @@ public class TestTypeValidators {
     }
   }
 
-  /**
-   * Tests for {@code TypeValidators.AdminLevelOptionValidation}
-   */
+  /** Tests for {@code TypeValidators.AdminLevelOptionValidation} */
   public static class TestAdminPositiveLongValidator {
     protected OptionValidator newValidator(long def) {
       return new TypeValidators.AdminPositiveLongValidator("test-option", Integer.MAX_VALUE, def);
@@ -321,12 +306,11 @@ public class TestTypeValidators {
     }
   }
 
-  /**
-   * Tests for {@code TypeValidators.EnumeratedStringValidator}
-   */
+  /** Tests for {@code TypeValidators.EnumeratedStringValidator} */
   public static class TestEnumeratedStringValidator {
     protected TypeValidator newValidator(String def, String firstValue, String... otherValues) {
-      return new TypeValidators.EnumeratedStringValidator("test-option", def, firstValue, otherValues);
+      return new TypeValidators.EnumeratedStringValidator(
+          "test-option", def, firstValue, otherValues);
     }
 
     @Test

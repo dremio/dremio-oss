@@ -14,28 +14,25 @@
  * limitations under the License.
  */
 import { PureComponent } from "react";
+import { connect } from "react-redux";
+import PropTypes from "prop-types";
 import Immutable from "immutable";
 import ImmutablePropTypes from "react-immutable-proptypes";
 
-import { connect } from "react-redux";
-import PropTypes from "prop-types";
-import isEmpty from "lodash/isEmpty";
-
-import { getViewState } from "selectors/resources";
+import { getViewState } from "@app/selectors/resources";
 import { getExploreState } from "@app/selectors/explore";
 
-import dataStoreUtils from "utils/dataStoreUtils";
-import exploreUtils from "utils/explore/exploreUtils";
+import dataStoreUtils from "@app/utils/dataStoreUtils";
+import exploreUtils from "@app/utils/explore/exploreUtils";
 
 import {
   loadTransformCards,
   loadTransformCardPreview,
   loadTransformValuesPreview,
   LOAD_TRANSFORM_CARDS_VIEW_ID,
-} from "actions/explore/recommended";
-import { resetViewState } from "actions/resources";
-
-import { MAP, LIST, STRUCT } from "@app/constants/DataTypes";
+} from "@app/actions/explore/recommended";
+import { resetViewState } from "@app/actions/resources";
+import { loadTransformCardsWrapper, transformTypeURLMapper } from "./utils";
 
 import TransformView from "./TransformView";
 
@@ -43,7 +40,6 @@ export class Transform extends PureComponent {
   static propTypes = {
     dataset: PropTypes.instanceOf(Immutable.Map),
     submit: PropTypes.func.isRequired,
-    cardValues: PropTypes.object,
     cancel: PropTypes.func,
     changeFormType: PropTypes.func.isRequired,
 
@@ -77,7 +73,7 @@ export class Transform extends PureComponent {
 
   componentDidMount() {
     this.props.resetViewState(LOAD_TRANSFORM_CARDS_VIEW_ID);
-    return this.loadTransformCards(this.props).then((action) => {
+    return loadTransformCardsWrapper(this.props).then((action) => {
       if (!action) {
         return;
       }
@@ -103,7 +99,7 @@ export class Transform extends PureComponent {
 
   UNSAFE_componentWillReceiveProps(nextProps) {
     if (!this.props.transform.equals(nextProps.transform)) {
-      this.loadTransformCards(nextProps);
+      loadTransformCardsWrapper(nextProps);
     }
   }
 
@@ -114,7 +110,7 @@ export class Transform extends PureComponent {
     const selection = exploreUtils.transformHasSelection(transform)
       ? { columnName }
       : { columnName, mapPathList: model.path ? [model.path] : undefined }; // TODO does api actually use this?
-    const actionType = this.transformTypeURLMapper(transform);
+    const actionType = transformTypeURLMapper(transform);
     const data = {
       selection,
       rule: model,
@@ -125,31 +121,6 @@ export class Transform extends PureComponent {
       this.props.dataset,
       actionType,
       index
-    );
-  }
-
-  loadTransformCards(props) {
-    const { transform } = props;
-    const method = transform.get("method");
-    if (
-      (exploreUtils.needSelection(method) &&
-        !exploreUtils.transformHasSelection(transform)) ||
-      !exploreUtils.needsToLoadCardFormValuesFromServer(transform)
-    ) {
-      return Promise.resolve();
-    }
-
-    const transformSelection = transform.get("selection").toJS();
-    const columnName = transform.get("columnName");
-    const actionType = this.transformTypeURLMapper(transform);
-    const selection = !isEmpty(transformSelection)
-      ? transformSelection
-      : exploreUtils.getDefaultSelection(columnName);
-    return props.loadTransformCards(
-      selection,
-      transform,
-      this.props.dataset,
-      actionType
     );
   }
 
@@ -179,47 +150,25 @@ export class Transform extends PureComponent {
     this.context.router.push({ ...location, state: newTransform.toJS() });
   };
 
-  transformTypeURLMapper(transform) {
-    const transformType = transform.get("transformType");
-    const columnType = transform.get("columnType");
-
-    if (transformType === "split") {
-      return transformType;
-    }
-    switch (columnType) {
-      case MAP:
-        return `${transformType}_map`;
-      case STRUCT:
-        return `${transformType}_struct`; // DX-56859: TODO: CHECK IF THIS WORKS FINE FOR STRUCT TYPE
-      case LIST:
-        return `${transformType}_list`;
-      default:
-        return transformType;
-    }
-  }
-
-  renderContent() {
-    return (
-      <TransformView
-        dataset={this.props.dataset}
-        transform={this.props.transform}
-        onTransformChange={this.handleTransformChange}
-        loadTransformValuesPreview={this.loadTransformValuesPreview}
-        cardValues={this.props.cardValues}
-        submit={this.props.submit}
-        changeFormType={this.props.changeFormType}
-        loadTransformCardPreview={this.loadTransformCardPreview}
-        cancel={this.props.cancel}
-        subTitles={this.subTitles}
-        sqlSize={this.props.sqlSize}
-        location={this.props.location}
-        cardsViewState={this.props.cardsViewState}
-      />
-    );
-  }
-
   render() {
-    return <div>{this.renderContent()}</div>;
+    return (
+      <div>
+        <TransformView
+          dataset={this.props.dataset}
+          transform={this.props.transform}
+          onTransformChange={this.handleTransformChange}
+          loadTransformValuesPreview={this.loadTransformValuesPreview}
+          submit={this.props.submit}
+          changeFormType={this.props.changeFormType}
+          loadTransformCardPreview={this.loadTransformCardPreview}
+          cancel={this.props.cancel}
+          subTitles={this.subTitles}
+          sqlSize={this.props.sqlSize}
+          location={this.props.location}
+          cardsViewState={this.props.cardsViewState}
+        />
+      </div>
+    );
   }
 }
 

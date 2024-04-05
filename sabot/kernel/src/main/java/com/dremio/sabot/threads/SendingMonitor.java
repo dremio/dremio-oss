@@ -15,23 +15,21 @@
  */
 package com.dremio.sabot.threads;
 
-import java.util.concurrent.atomic.AtomicInteger;
-
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.sabot.threads.sharedres.SharedResource;
-
 import io.netty.buffer.ByteBuf;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Monitors the current outstanding message queue to ensure that we apply
- * pressure on the sending side of a connection when a receiving side is no
- * longer accepting data. Works with SharedResourceManager to inform when
- * execution should be blocked.
+ * Monitors the current outstanding message queue to ensure that we apply pressure on the sending
+ * side of a connection when a receiving side is no longer accepting data. Works with
+ * SharedResourceManager to inform when execution should be blocked.
  */
 public class SendingMonitor {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SendingMonitor.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(SendingMonitor.class);
 
   private final int LIMIT;
   private final int RESTART;
@@ -39,7 +37,8 @@ public class SendingMonitor {
   private final SharedResource resource;
   private final SendingAccountor accountor;
 
-  public SendingMonitor(SharedResource resource, SendingAccountor accountor, int outStandingRPCsPerTunnel) {
+  public SendingMonitor(
+      SharedResource resource, SendingAccountor accountor, int outStandingRPCsPerTunnel) {
     super();
     this.resource = resource;
     this.accountor = accountor;
@@ -48,9 +47,9 @@ public class SendingMonitor {
     RESTART = LIMIT - 1;
   }
 
-  public void increment(){
+  public void increment() {
     accountor.increment();
-    synchronized(resource){
+    synchronized (resource) {
       final int outcome = outstandingMessages.incrementAndGet();
       if (outcome == LIMIT) {
         resource.markBlocked();
@@ -60,19 +59,19 @@ public class SendingMonitor {
 
   private void decrement() {
     accountor.decrement();
-    synchronized(resource) {
+    synchronized (resource) {
       final int outcome = outstandingMessages.decrementAndGet();
-      if(outcome == RESTART){
+      if (outcome == RESTART) {
         resource.markAvailable();
       }
     }
   }
 
-  public RpcOutcomeListener<Ack> wrap(RpcOutcomeListener<Ack> listener){
+  public RpcOutcomeListener<Ack> wrap(RpcOutcomeListener<Ack> listener) {
     return new WrappedListener(listener);
   }
 
-  private class WrappedListener implements RpcOutcomeListener<Ack>{
+  private class WrappedListener implements RpcOutcomeListener<Ack> {
     private final RpcOutcomeListener<Ack> inner;
 
     public WrappedListener(RpcOutcomeListener<Ack> inner) {
@@ -98,5 +97,4 @@ public class SendingMonitor {
       decrement();
     }
   }
-
 }

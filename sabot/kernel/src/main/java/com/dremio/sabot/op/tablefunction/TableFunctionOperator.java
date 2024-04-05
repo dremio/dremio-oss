@@ -15,11 +15,6 @@
  */
 package com.dremio.sabot.op.tablefunction;
 
-import java.util.EnumSet;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.physical.config.AbstractTableFunctionPOP;
@@ -33,10 +28,11 @@ import com.dremio.sabot.exec.fragment.OutOfBandMessage;
 import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.sabot.op.spi.SingleInputOperator;
 import com.google.common.base.Preconditions;
+import java.util.EnumSet;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * Table function operator
- */
+/** Table function operator */
 public class TableFunctionOperator implements SingleInputOperator {
   private static final Logger logger = LoggerFactory.getLogger(TableFunctionOperator.class);
 
@@ -52,11 +48,11 @@ public class TableFunctionOperator implements SingleInputOperator {
     NUM_POS_DELETED_ROWS,
     NUM_EQ_DELETED_ROWS,
     SNAPSHOT_COMMIT_STATUS,
-    NUM_SNAPSHOT_IDS,           // Number of snapshot ids
-    DELETE_ORPHAN_FILES_TIME,   // Time taken to delete orphan files
-    NUM_ORPHAN_FILES_DELETED,  // Number of orphan files deleted
+    NUM_SNAPSHOT_IDS, // Number of snapshot ids
+    DELETE_ORPHAN_FILES_TIME, // Time taken to delete orphan files
+    NUM_ORPHAN_FILES_DELETED, // Number of orphan files deleted
     NUM_ORPHAN_FILES_FAIL_TO_DELETE // Number of orphan files not deleted successfully
-    ;
+  ;
 
     @Override
     public int metricId() {
@@ -68,7 +64,7 @@ public class TableFunctionOperator implements SingleInputOperator {
   private VectorAccessible input;
   private VectorAccessible output;
 
-  private  final OperatorContext context;
+  private final OperatorContext context;
   private final AbstractTableFunctionPOP functionOperator;
   private final FragmentExecutionContext fec;
   private final TableFunctionFactory tableFunctionFactory;
@@ -77,7 +73,8 @@ public class TableFunctionOperator implements SingleInputOperator {
   private int records;
   static long BATCH_LIMIT_BYTES = 1_048_576;
 
-  public TableFunctionOperator(FragmentExecutionContext fec, OperatorContext context, AbstractTableFunctionPOP operator) {
+  public TableFunctionOperator(
+      FragmentExecutionContext fec, OperatorContext context, AbstractTableFunctionPOP operator) {
     this.context = context;
     this.functionOperator = operator;
     this.fec = fec;
@@ -85,7 +82,8 @@ public class TableFunctionOperator implements SingleInputOperator {
   }
 
   @Override
-  public <OUT, IN, EXCEP extends Throwable> OUT accept(OperatorVisitor<OUT, IN, EXCEP> visitor, IN value) throws EXCEP {
+  public <OUT, IN, EXCEP extends Throwable> OUT accept(
+      OperatorVisitor<OUT, IN, EXCEP> visitor, IN value) throws EXCEP {
     return visitor.visitSingleInput(this, value);
   }
 
@@ -113,7 +111,8 @@ public class TableFunctionOperator implements SingleInputOperator {
 
     if (totalOutputRecords < allowedTargetBatchSize && currentrow < records) {
       int maxOutputRecordCount = allowedTargetBatchSize - totalOutputRecords;
-      while ((outputRecords = tableFunction.processRow(totalOutputRecords, maxOutputRecordCount)) == 0) {
+      while ((outputRecords = tableFunction.processRow(totalOutputRecords, maxOutputRecordCount))
+          == 0) {
         tableFunction.closeRow();
         currentrow++;
         if (currentrow >= records) {
@@ -122,7 +121,9 @@ public class TableFunctionOperator implements SingleInputOperator {
         tableFunction.startRow(currentrow);
       }
 
-      Preconditions.checkState(outputRecords <= maxOutputRecordCount, "Table function returned unexpected number of records");
+      Preconditions.checkState(
+          outputRecords <= maxOutputRecordCount,
+          "Table function returned unexpected number of records");
       totalOutputRecords += outputRecords;
     }
     if (functionOperator.getFunction().getFillBatch()) {
@@ -131,22 +132,31 @@ public class TableFunctionOperator implements SingleInputOperator {
         firstRowSize = tableFunction.getFirstRowSize();
       }
       if (firstRowSize > 0) {
-        allowedTargetBatchSize = (int) Math.min(allowedTargetBatchSize, BATCH_LIMIT_BYTES / firstRowSize);
-        logger.debug("firstRowSize: {}, allowedTargetBatchSize: {}", firstRowSize, allowedTargetBatchSize);
+        allowedTargetBatchSize =
+            (int) Math.min(allowedTargetBatchSize, BATCH_LIMIT_BYTES / firstRowSize);
+        logger.debug(
+            "firstRowSize: {}, allowedTargetBatchSize: {}", firstRowSize, allowedTargetBatchSize);
       }
 
       while (totalOutputRecords < allowedTargetBatchSize && currentrow < records) {
         int maxOutputRecordCount = allowedTargetBatchSize - totalOutputRecords;
-        while ((outputRecords = tableFunction.processRow(totalOutputRecords, maxOutputRecordCount)) == 0) {
+        while ((outputRecords = tableFunction.processRow(totalOutputRecords, maxOutputRecordCount))
+            == 0) {
           tableFunction.closeRow();
           currentrow++;
           if (currentrow >= records) {
             break;
           }
+          if (fec.isCancelled()) {
+            logger.info("Query fragment is cancelled");
+            return 0;
+          }
           tableFunction.startRow(currentrow);
         }
 
-        Preconditions.checkState(outputRecords <= maxOutputRecordCount, "Table function returned unexpected number of records");
+        Preconditions.checkState(
+            outputRecords <= maxOutputRecordCount,
+            "Table function returned unexpected number of records");
         totalOutputRecords += outputRecords;
 
         if (!functionOperator.getFunction().getFillBatch()) {
@@ -168,7 +178,8 @@ public class TableFunctionOperator implements SingleInputOperator {
     tableFunction.noMoreToConsume();
 
     state.is(State.CAN_CONSUME);
-    // if there are any buffered records remaining, we transition back to CAN_PRODUCE state else we are done
+    // if there are any buffered records remaining, we transition back to CAN_PRODUCE state else we
+    // are done
     state = tableFunction.hasBufferedRemaining() ? State.CAN_PRODUCE : State.DONE;
   }
 
@@ -182,7 +193,9 @@ public class TableFunctionOperator implements SingleInputOperator {
   @Override
   public VectorAccessible setup(VectorAccessible accessible) throws Exception {
     state = State.CAN_CONSUME;
-    tableFunction = tableFunctionFactory.createTableFunction(fec, context, functionOperator.getProps(), functionOperator.getFunction());
+    tableFunction =
+        tableFunctionFactory.createTableFunction(
+            fec, context, functionOperator.getProps(), functionOperator.getFunction());
     input = accessible;
     output = tableFunction.setup(accessible);
     context.getStats().setRecordOutput(true);
@@ -205,17 +218,19 @@ public class TableFunctionOperator implements SingleInputOperator {
     addDisplayStatsWithZeroValue(context, EnumSet.allOf(ScanOperator.Metric.class));
   }
 
-  /**
-   * Table function operator creator
-   */
-  public static class TableFunctionOperatorCreator implements SingleInputOperator.Creator<TableFunctionPOP> {
+  /** Table function operator creator */
+  public static class TableFunctionOperatorCreator
+      implements SingleInputOperator.Creator<TableFunctionPOP> {
     @Override
-    public SingleInputOperator create(OperatorContext context, TableFunctionPOP operator) throws ExecutionSetupException {
+    public SingleInputOperator create(OperatorContext context, TableFunctionPOP operator)
+        throws ExecutionSetupException {
       throw new UnsupportedFunctionException("Not implemented");
     }
 
     @Override
-    public SingleInputOperator create(FragmentExecutionContext fec, OperatorContext context, TableFunctionPOP operator) throws ExecutionSetupException {
+    public SingleInputOperator create(
+        FragmentExecutionContext fec, OperatorContext context, TableFunctionPOP operator)
+        throws ExecutionSetupException {
       return new TableFunctionOperator(fec, context, operator);
     }
   }

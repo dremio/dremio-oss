@@ -18,12 +18,6 @@ package com.dremio.exec.fn.impl;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import java.util.List;
-
-import org.apache.arrow.vector.ValueVector;
-import org.junit.Ignore;
-import org.junit.Test;
-
 import com.dremio.exec.client.DremioClient;
 import com.dremio.exec.pop.PopUnitTestBase;
 import com.dremio.exec.proto.UserBitShared.QueryType;
@@ -33,30 +27,33 @@ import com.dremio.exec.server.SabotNode;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.local.LocalClusterCoordinator;
+import java.util.List;
+import org.apache.arrow.vector.ValueVector;
+import org.junit.Ignore;
+import org.junit.Test;
 
 @Ignore("DX-3872")
 public class TestNewAggregateFunctions extends PopUnitTestBase {
 
-  public void runTest(String physicalPlan, String inputDataFile,
-      Object[] expected) throws Exception {
+  public void runTest(String physicalPlan, String inputDataFile, Object[] expected)
+      throws Exception {
     try (ClusterCoordinator clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
-         SabotNode bit = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, true);
-         DremioClient client = new DremioClient(DEFAULT_SABOT_CONFIG,
-            clusterCoordinator)) {
+        SabotNode bit =
+            new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, true);
+        DremioClient client = new DremioClient(DEFAULT_SABOT_CONFIG, clusterCoordinator)) {
 
       // run query.
       bit.run();
       client.connect();
-      List<QueryDataBatch> results = client.runQuery(
-          QueryType.PHYSICAL,
-          readResourceAsString(physicalPlan).replace("#{TEST_FILE}", inputDataFile));
+      List<QueryDataBatch> results =
+          client.runQuery(
+              QueryType.PHYSICAL,
+              readResourceAsString(physicalPlan).replace("#{TEST_FILE}", inputDataFile));
 
-      try(RecordBatchLoader batchLoader = new RecordBatchLoader(bit
-          .getContext().getAllocator())) {
+      try (RecordBatchLoader batchLoader = new RecordBatchLoader(bit.getContext().getAllocator())) {
 
         QueryDataBatch batch = results.get(1);
-        assertTrue(batchLoader.load(batch.getHeader().getDef(),
-            batch.getData()));
+        assertTrue(batchLoader.load(batch.getHeader().getDef(), batch.getData()));
 
         int i = 0;
         for (VectorWrapper<?> v : batchLoader) {
@@ -78,7 +75,5 @@ public class TestNewAggregateFunctions extends PopUnitTestBase {
     Object[] expected = {0L, 4L, 4L, 7L, -2L, 1L, true, false};
 
     runTest(physicalPlan, inputDataFile, expected);
-
   }
-
 }

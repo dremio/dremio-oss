@@ -15,10 +15,6 @@
  */
 package com.dremio.plugins.sysflight;
 
-import java.util.Optional;
-
-import org.apache.arrow.flight.Ticket;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.connector.metadata.EntityPath;
 import com.dremio.exec.store.RecordReader;
@@ -29,28 +25,40 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.sabot.op.spi.ProducerOperator;
+import java.util.Optional;
+import org.apache.arrow.flight.Ticket;
 
-/**
- * This class creates batches based on the the type of {@link SysFlightTable}.
- */
+/** This class creates batches based on the type of {@link SysFlightTable}. */
 public class SysFlightScanCreator implements ProducerOperator.Creator<SysFlightSubScan> {
-  private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(SysFlightScanCreator.class);
+  private static final org.slf4j.Logger LOGGER =
+      org.slf4j.LoggerFactory.getLogger(SysFlightScanCreator.class);
 
-  @SuppressWarnings({ "rawtypes", "unchecked" })
+  @SuppressWarnings({"rawtypes", "unchecked"})
   @Override
-  public ProducerOperator create(FragmentExecutionContext fec, OperatorContext context, SysFlightSubScan config)
-    throws ExecutionSetupException {
+  public ProducerOperator create(
+      FragmentExecutionContext fec, OperatorContext context, SysFlightSubScan config)
+      throws ExecutionSetupException {
     final SysFlightStoragePlugin plugin = fec.getStoragePlugin(config.getPluginId());
-    final Optional<SystemTable> legacyTable = plugin.getLegacyDataset(new EntityPath(config.getDatasetPath()));
+    final Optional<SystemTable> legacyTable =
+        plugin.getLegacyDataset(new EntityPath(config.getDatasetPath()));
     final RecordReader reader;
     if (legacyTable.isPresent()) {
-       reader = new PojoRecordReader(legacyTable.get().getPojoClass(), legacyTable.get().getIterator
-        (plugin.getSabotContext(), context), config.getColumns(), context.getTargetBatchSize());
+      reader =
+          new PojoRecordReader(
+              legacyTable.get().getPojoClass(),
+              legacyTable.get().getIterator(plugin.getSabotContext(), context),
+              config.getColumns(),
+              context.getTargetBatchSize());
     } else {
-      reader = new SysFlightRecordReader(context, config.getColumns(), config.getFullSchema(),
-        plugin.getFlightClient(), new Ticket(config.getTicket().toByteArray()));
+      reader =
+          new SysFlightRecordReader(
+              context,
+              config.getColumns(),
+              config.getFullSchema(),
+              plugin.getFlightClient(),
+              new Ticket(config.getTicket().toByteArray()));
     }
 
-    return new ScanOperator(config, context, RecordReaderIterator.from(reader));
+    return new ScanOperator(fec, config, context, RecordReaderIterator.from(reader));
   }
 }

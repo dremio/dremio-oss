@@ -15,12 +15,11 @@
  */
 package com.dremio.exec.store.dfs;
 
-import java.util.List;
-import java.util.stream.Collectors;
-
 import com.dremio.io.file.FileBlockLocation;
 import com.google.common.collect.ImmutableList;
 import com.google.common.net.HostAndPort;
+import java.util.List;
+import java.util.stream.Collectors;
 
 public final class InstanceFileBlockLocation implements FileBlockLocation {
   private final long offset;

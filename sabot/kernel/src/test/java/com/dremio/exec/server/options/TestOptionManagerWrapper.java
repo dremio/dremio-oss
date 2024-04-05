@@ -21,16 +21,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
-
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
@@ -42,6 +32,14 @@ import com.dremio.options.OptionValue;
 import com.dremio.options.impl.DefaultOptionManager;
 import com.dremio.options.impl.OptionManagerWrapper;
 import com.dremio.test.DremioTest;
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
 public class TestOptionManagerWrapper extends DremioTest {
   private static LogicalPlanPersistence lpp;
@@ -56,14 +54,15 @@ public class TestOptionManagerWrapper extends DremioTest {
   @BeforeClass
   public static void setupClass() throws Exception {
     optionValidatorListing = new OptionValidatorListingImpl(CLASSPATH_SCAN_RESULT);
-    lpp = new LogicalPlanPersistence(DremioTest.DEFAULT_SABOT_CONFIG, CLASSPATH_SCAN_RESULT);
+    lpp = new LogicalPlanPersistence(CLASSPATH_SCAN_RESULT);
   }
 
   @Before
   public void setup() throws Exception {
     storeProvider = LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT);
     defaultOptionManager = new DefaultOptionManager(optionValidatorListing);
-    systemOptionManager = new SystemOptionManager(optionValidatorListing, lpp, () -> storeProvider, true);
+    systemOptionManager =
+        new SystemOptionManager(optionValidatorListing, lpp, () -> storeProvider, true);
     sessionOptionManager = new SessionOptionManagerImpl(optionValidatorListing);
     queryOptionManager = new QueryOptionManager(optionValidatorListing);
 
@@ -79,18 +78,22 @@ public class TestOptionManagerWrapper extends DremioTest {
   @Test
   public void testGetAndSetOption() throws Exception {
     String testOptionName = SLICE_TARGET;
-    OptionManager optionManager = OptionManagerWrapper.Builder.newBuilder()
-      .withOptionValidatorProvider(optionValidatorListing)
-      .withOptionManager(defaultOptionManager)
-      .withOptionManager(systemOptionManager)
-      .build();
+    OptionManager optionManager =
+        OptionManagerWrapper.Builder.newBuilder()
+            .withOptionValidatorProvider(optionValidatorListing)
+            .withOptionManager(defaultOptionManager)
+            .withOptionManager(systemOptionManager)
+            .build();
     OptionValue optionValue = optionManager.getOption(testOptionName);
 
     // Sanity check default value
-    assertEquals(optionValidatorListing.getValidator(testOptionName).getDefault().getNumVal(), optionValue.getNumVal());
+    assertEquals(
+        optionValidatorListing.getValidator(testOptionName).getDefault().getNumVal(),
+        optionValue.getNumVal());
 
     long newValue = 10;
-    optionManager.setOption(OptionValue.createLong(OptionValue.OptionType.SYSTEM, testOptionName, newValue));
+    optionManager.setOption(
+        OptionValue.createLong(OptionValue.OptionType.SYSTEM, testOptionName, newValue));
     optionValue = optionManager.getOption(testOptionName);
     assertEquals((Long) newValue, optionValue.getNumVal());
   }
@@ -99,17 +102,19 @@ public class TestOptionManagerWrapper extends DremioTest {
   public void testSetFallback() throws Exception {
     String testOptionName = SLICE_TARGET;
 
-    OptionManager optionManager = OptionManagerWrapper.Builder.newBuilder()
-      .withOptionValidatorProvider(optionValidatorListing)
-      .withOptionManager(defaultOptionManager)
-      .withOptionManager(systemOptionManager)
-      .withOptionManager(sessionOptionManager)
-      .withOptionManager(queryOptionManager)
-      .build();
+    OptionManager optionManager =
+        OptionManagerWrapper.Builder.newBuilder()
+            .withOptionValidatorProvider(optionValidatorListing)
+            .withOptionManager(defaultOptionManager)
+            .withOptionManager(systemOptionManager)
+            .withOptionManager(sessionOptionManager)
+            .withOptionManager(queryOptionManager)
+            .build();
 
     // Set value and check specific OM's for value
     long newValue1 = 10;
-    OptionValue optionValue1 = OptionValue.createLong(OptionValue.OptionType.SESSION, testOptionName, newValue1);
+    OptionValue optionValue1 =
+        OptionValue.createLong(OptionValue.OptionType.SESSION, testOptionName, newValue1);
     optionManager.setOption(optionValue1);
     assertEquals(sessionOptionManager.getOption(testOptionName), optionValue1);
     // Check other OM's and make sure option was not set
@@ -118,31 +123,33 @@ public class TestOptionManagerWrapper extends DremioTest {
 
     // Set another option
     long newValue2 = 20;
-    OptionValue optionValue2 = OptionValue.createLong(OptionValue.OptionType.SYSTEM, testOptionName, newValue2);
+    OptionValue optionValue2 =
+        OptionValue.createLong(OptionValue.OptionType.SYSTEM, testOptionName, newValue2);
     optionManager.setOption(optionValue2);
     assertEquals(optionValue2, systemOptionManager.getOption(testOptionName));
     // Check previously set option is still present
     assertEquals(optionValue1, sessionOptionManager.getOption(testOptionName));
     // Check other OM's and make sure option was not set
     assertEquals(null, queryOptionManager.getOption(testOptionName));
-
   }
 
   @Test
   public void testGetFallback() throws Exception {
     String testOptionName = SLICE_TARGET;
 
-    OptionManager optionManager = OptionManagerWrapper.Builder.newBuilder()
-      .withOptionValidatorProvider(optionValidatorListing)
-      .withOptionManager(defaultOptionManager)
-      .withOptionManager(systemOptionManager)
-      .withOptionManager(sessionOptionManager)
-      .withOptionManager(queryOptionManager)
-      .build();
+    OptionManager optionManager =
+        OptionManagerWrapper.Builder.newBuilder()
+            .withOptionValidatorProvider(optionValidatorListing)
+            .withOptionManager(defaultOptionManager)
+            .withOptionManager(systemOptionManager)
+            .withOptionManager(sessionOptionManager)
+            .withOptionManager(queryOptionManager)
+            .build();
 
     // Set value directly to specific OM and check specific OM's for value
     long newValue1 = 10;
-    OptionValue optionValue1 = OptionValue.createLong(OptionValue.OptionType.SYSTEM, testOptionName, newValue1);
+    OptionValue optionValue1 =
+        OptionValue.createLong(OptionValue.OptionType.SYSTEM, testOptionName, newValue1);
     systemOptionManager.setOption(optionValue1);
     assertEquals(optionValue1, optionManager.getOption(testOptionName));
     // Check other OM's and make sure option was not set
@@ -151,7 +158,8 @@ public class TestOptionManagerWrapper extends DremioTest {
 
     // Set another option
     long newValue2 = 20;
-    OptionValue optionValue2 = OptionValue.createLong(OptionValue.OptionType.SESSION, testOptionName, newValue2);
+    OptionValue optionValue2 =
+        OptionValue.createLong(OptionValue.OptionType.SESSION, testOptionName, newValue2);
     sessionOptionManager.setOption(optionValue2);
     assertEquals(optionValue2, optionManager.getOption(testOptionName));
     // Check previously set option is still present
@@ -162,26 +170,30 @@ public class TestOptionManagerWrapper extends DremioTest {
 
   @Test
   public void testGetNonDefaultOptions() throws Exception {
-    OptionManager optionManager = OptionManagerWrapper.Builder.newBuilder()
-      .withOptionValidatorProvider(optionValidatorListing)
-      .withOptionManager(defaultOptionManager)
-      .withOptionManager(systemOptionManager)
-      .withOptionManager(sessionOptionManager)
-      .withOptionManager(queryOptionManager)
-      .build();
+    OptionManager optionManager =
+        OptionManagerWrapper.Builder.newBuilder()
+            .withOptionValidatorProvider(optionValidatorListing)
+            .withOptionManager(defaultOptionManager)
+            .withOptionManager(systemOptionManager)
+            .withOptionManager(sessionOptionManager)
+            .withOptionManager(queryOptionManager)
+            .build();
 
-    int initialOptionsCount = defaultOptionManager.getNonDefaultOptions().size()
-      + systemOptionManager.getNonDefaultOptions().size()
-      + sessionOptionManager.getNonDefaultOptions().size()
-      + queryOptionManager.getNonDefaultOptions().size();
+    int initialOptionsCount =
+        defaultOptionManager.getNonDefaultOptions().size()
+            + systemOptionManager.getNonDefaultOptions().size()
+            + sessionOptionManager.getNonDefaultOptions().size()
+            + queryOptionManager.getNonDefaultOptions().size();
 
-    List<OptionValue> optionValues = Arrays.asList(
-      OptionValue.createLong(OptionValue.OptionType.SYSTEM, SLICE_TARGET, 10),
-      OptionValue.createLong(OptionValue.OptionType.SESSION, SLICE_TARGET, 15),
-      OptionValue.createLong(OptionValue.OptionType.QUERY, SLICE_TARGET, 20),
-      OptionValue.createBoolean(OptionValue.OptionType.SESSION, ENABLE_VERBOSE_ERRORS_KEY, true),
-      OptionValue.createBoolean(OptionValue.OptionType.QUERY, ENABLE_VERBOSE_ERRORS_KEY, true)
-    );
+    List<OptionValue> optionValues =
+        Arrays.asList(
+            OptionValue.createLong(OptionValue.OptionType.SYSTEM, SLICE_TARGET, 10),
+            OptionValue.createLong(OptionValue.OptionType.SESSION, SLICE_TARGET, 15),
+            OptionValue.createLong(OptionValue.OptionType.QUERY, SLICE_TARGET, 20),
+            OptionValue.createBoolean(
+                OptionValue.OptionType.SESSION, ENABLE_VERBOSE_ERRORS_KEY, true),
+            OptionValue.createBoolean(
+                OptionValue.OptionType.QUERY, ENABLE_VERBOSE_ERRORS_KEY, true));
     optionValues.forEach(optionManager::setOption);
     OptionList nonDefaultOptions = optionManager.getNonDefaultOptions();
 
@@ -199,60 +211,69 @@ public class TestOptionManagerWrapper extends DremioTest {
 
   @Test
   public void testGetDefaultOptions() throws Exception {
-    OptionManager optionManager = OptionManagerWrapper.Builder.newBuilder()
-      .withOptionValidatorProvider(optionValidatorListing)
-      .withOptionManager(defaultOptionManager)
-      .withOptionManager(systemOptionManager)
-      .withOptionManager(sessionOptionManager)
-      .withOptionManager(queryOptionManager)
-      .build();
+    OptionManager optionManager =
+        OptionManagerWrapper.Builder.newBuilder()
+            .withOptionValidatorProvider(optionValidatorListing)
+            .withOptionManager(defaultOptionManager)
+            .withOptionManager(systemOptionManager)
+            .withOptionManager(sessionOptionManager)
+            .withOptionManager(queryOptionManager)
+            .build();
     OptionList defaultOptions = optionManager.getDefaultOptions();
 
     // Check only default options are returned
     assertEquals(defaultOptionManager.getDefaultOptions().size(), defaultOptions.size());
     for (OptionValue defaultOption : defaultOptions) {
-      assertEquals(defaultOption, optionValidatorListing.getValidator(defaultOption.getName()).getDefault());
+      assertEquals(
+          defaultOption, optionValidatorListing.getValidator(defaultOption.getName()).getDefault());
     }
   }
 
   @Test
   public void testIterator() throws Exception {
-    OptionManager optionManager = OptionManagerWrapper.Builder.newBuilder()
-      .withOptionValidatorProvider(optionValidatorListing)
-      .withOptionManager(defaultOptionManager)
-      .withOptionManager(systemOptionManager)
-      .withOptionManager(sessionOptionManager)
-      .withOptionManager(queryOptionManager)
-      .build();
+    OptionManager optionManager =
+        OptionManagerWrapper.Builder.newBuilder()
+            .withOptionValidatorProvider(optionValidatorListing)
+            .withOptionManager(defaultOptionManager)
+            .withOptionManager(systemOptionManager)
+            .withOptionManager(sessionOptionManager)
+            .withOptionManager(queryOptionManager)
+            .build();
 
     int initialSystemOptionCount = systemOptionManager.getNonDefaultOptions().size();
-    int initialOptionsCount = defaultOptionManager.getNonDefaultOptions().size()
-      + initialSystemOptionCount
-      + sessionOptionManager.getNonDefaultOptions().size()
-      + queryOptionManager.getNonDefaultOptions().size();
+    int initialOptionsCount =
+        defaultOptionManager.getNonDefaultOptions().size()
+            + initialSystemOptionCount
+            + sessionOptionManager.getNonDefaultOptions().size()
+            + queryOptionManager.getNonDefaultOptions().size();
 
     int defaultOptionsCount = optionValidatorListing.getValidatorList().size();
 
-    List<OptionValue> optionValues = Arrays.asList(
-      OptionValue.createLong(OptionValue.OptionType.SYSTEM, SLICE_TARGET, 10),
-      OptionValue.createLong(OptionValue.OptionType.SESSION, SLICE_TARGET, 15),
-      OptionValue.createLong(OptionValue.OptionType.QUERY, SLICE_TARGET, 20),
-      OptionValue.createBoolean(OptionValue.OptionType.SESSION, ENABLE_VERBOSE_ERRORS_KEY, true),
-      OptionValue.createBoolean(OptionValue.OptionType.QUERY, ENABLE_VERBOSE_ERRORS_KEY, true)
-    );
+    List<OptionValue> optionValues =
+        Arrays.asList(
+            OptionValue.createLong(OptionValue.OptionType.SYSTEM, SLICE_TARGET, 10),
+            OptionValue.createLong(OptionValue.OptionType.SESSION, SLICE_TARGET, 15),
+            OptionValue.createLong(OptionValue.OptionType.QUERY, SLICE_TARGET, 20),
+            OptionValue.createBoolean(
+                OptionValue.OptionType.SESSION, ENABLE_VERBOSE_ERRORS_KEY, true),
+            OptionValue.createBoolean(
+                OptionValue.OptionType.QUERY, ENABLE_VERBOSE_ERRORS_KEY, true));
     AtomicInteger systemOptionsCount = new AtomicInteger(initialSystemOptionCount);
-    optionValues.forEach(optionValue -> {
-      optionManager.setOption(optionValue);
-      if (optionValue.getType().equals(OptionValue.OptionType.SYSTEM)) {
-        systemOptionsCount.addAndGet(1);
-      }
-    });
+    optionValues.forEach(
+        optionValue -> {
+          optionManager.setOption(optionValue);
+          if (optionValue.getType().equals(OptionValue.OptionType.SYSTEM)) {
+            systemOptionsCount.addAndGet(1);
+          }
+        });
 
     OptionList iteratorResult = new OptionList();
     optionManager.iterator().forEachRemaining(iteratorResult::add);
 
     // Check size, minus systemOptionsCount because set System Option should override default option
-    assertEquals(initialOptionsCount + defaultOptionsCount + optionValues.size() - systemOptionsCount.get(), iteratorResult.size());
+    assertEquals(
+        initialOptionsCount + defaultOptionsCount + optionValues.size() - systemOptionsCount.get(),
+        iteratorResult.size());
   }
 
   @Test
@@ -261,13 +282,15 @@ public class TestOptionManagerWrapper extends DremioTest {
 
     // "Normal" ordering
     // SystemOM will take priority
-    OptionManager optionManager1 = OptionManagerWrapper.Builder.newBuilder()
-      .withOptionValidatorProvider(optionValidatorListing)
-      .withOptionManager(defaultOptionManager)
-      .withOptionManager(systemOptionManager)
-      .build();
+    OptionManager optionManager1 =
+        OptionManagerWrapper.Builder.newBuilder()
+            .withOptionValidatorProvider(optionValidatorListing)
+            .withOptionManager(defaultOptionManager)
+            .withOptionManager(systemOptionManager)
+            .build();
     long newValue1 = 10;
-    OptionValue optionValue1 = OptionValue.createLong(OptionValue.OptionType.SYSTEM, testOptionName, newValue1);
+    OptionValue optionValue1 =
+        OptionValue.createLong(OptionValue.OptionType.SYSTEM, testOptionName, newValue1);
     optionManager1.setOption(optionValue1);
     assertEquals(optionValue1, optionManager1.getOption(testOptionName));
 
@@ -275,20 +298,24 @@ public class TestOptionManagerWrapper extends DremioTest {
     optionManager1.iterator().forEachRemaining(iteratorResult1::add);
     assertTrue(iteratorResult1.contains(optionValue1));
   }
+
   @Test
   public void testFlippedOrdering() {
     String testOptionName = SLICE_TARGET;
-    OptionValue testOptionDefault = optionValidatorListing.getValidator(testOptionName).getDefault();
+    OptionValue testOptionDefault =
+        optionValidatorListing.getValidator(testOptionName).getDefault();
 
     // "Flipped" ordering
     // DefaultOM will take priority
-    OptionManager optionManager2 = OptionManagerWrapper.Builder.newBuilder()
-      .withOptionValidatorProvider(optionValidatorListing)
-      .withOptionManager(systemOptionManager)
-      .withOptionManager(defaultOptionManager)
-      .build();
+    OptionManager optionManager2 =
+        OptionManagerWrapper.Builder.newBuilder()
+            .withOptionValidatorProvider(optionValidatorListing)
+            .withOptionManager(systemOptionManager)
+            .withOptionManager(defaultOptionManager)
+            .build();
     long newValue2 = 20;
-    OptionValue optionValue2 = OptionValue.createLong(OptionValue.OptionType.SYSTEM, testOptionName, newValue2);
+    OptionValue optionValue2 =
+        OptionValue.createLong(OptionValue.OptionType.SYSTEM, testOptionName, newValue2);
 
     try {
       optionManager2.setOption(optionValue2);

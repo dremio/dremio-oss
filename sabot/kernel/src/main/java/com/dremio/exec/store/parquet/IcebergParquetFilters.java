@@ -16,11 +16,15 @@
 package com.dremio.exec.store.parquet;
 
 /**
- * ParquetFilters implementation for Iceberg tables which only exposes filtering capabilities supported by Iceberg.
+ * ParquetFilters implementation for Iceberg tables which only exposes filtering capabilities
+ * supported by Iceberg.
  */
 public class IcebergParquetFilters extends ParquetFilters {
 
   public IcebergParquetFilters(ParquetFilters filters) {
-    super(filters.getPushdownFilters(), filters.getPositionalDeleteFilter(), filters.getEqualityDeleteFilter());
+    super(
+        filters.getPushdownFilters(),
+        filters.getPositionalDeleteFilter(),
+        filters.getEqualityDeleteFilter());
   }
 }

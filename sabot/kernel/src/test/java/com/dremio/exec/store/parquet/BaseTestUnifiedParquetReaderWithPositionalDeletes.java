@@ -17,47 +17,79 @@ package com.dremio.exec.store.parquet;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.Iterator;
-import java.util.function.Predicate;
-
-import org.apache.arrow.vector.IntVector;
-import org.assertj.core.api.Condition;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-
 import com.dremio.exec.store.iceberg.IcebergTestTables;
 import com.dremio.exec.store.iceberg.deletes.ParquetRowLevelDeleteFileReaderFactory;
 import com.dremio.exec.store.iceberg.deletes.PositionalDeleteFileReader;
 import com.dremio.exec.store.iceberg.deletes.PositionalDeleteFilter;
 import com.dremio.exec.store.iceberg.deletes.PositionalDeleteIterator;
 import com.dremio.io.file.Path;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
+import java.util.Iterator;
+import java.util.function.Predicate;
+import org.apache.arrow.vector.IntVector;
+import org.assertj.core.api.Condition;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 
-public class BaseTestUnifiedParquetReaderWithPositionalDeletes extends BaseTestUnifiedParquetReader {
+public class BaseTestUnifiedParquetReaderWithPositionalDeletes
+    extends BaseTestUnifiedParquetReader {
 
-  // Test file with 900 deletes spread equally across 3 different data files.  Deleted positions in each data file are
+  // Test file with 900 deletes spread equally across 3 different data files.  Deleted positions in
+  // each data file are
   // [ 0, 1, 2, 10, 11, 12, 20, 21, 22, ..., 990, 991, 992 ]
-  protected static final Path MULTI_ROWGROUP_DELETE_FILE_0 = Path.of(
-      "/tmp/iceberg-test-tables/v2/multi_rowgroup_orders_with_deletes/data/2021/delete-2021-00.parquet");
-  // Test file with 30 deletes spread equally across 3 different data files.  Deleted positions in each data file are
+  protected static final Path MULTI_ROWGROUP_DELETE_FILE_0 =
+      Path.of(
+          "/tmp/iceberg-test-tables/v2/multi_rowgroup_orders_with_deletes/data/2021/delete-2021-00.parquet");
+  // Test file with 30 deletes spread equally across 3 different data files.  Deleted positions in
+  // each data file are
   // [ 5, 105, ..., 905 ]
-  protected static final Path MULTI_ROWGROUP_DELETE_FILE_1 = Path.of(
-      "/tmp/iceberg-test-tables/v2/multi_rowgroup_orders_with_deletes/data/2021/delete-2021-01.parquet");
-  // Test file with 1000 rows split across two row groups.  First row group has 552 rows, second has 448.
+  protected static final Path MULTI_ROWGROUP_DELETE_FILE_1 =
+      Path.of(
+          "/tmp/iceberg-test-tables/v2/multi_rowgroup_orders_with_deletes/data/2021/delete-2021-01.parquet");
+  // Test file with 1000 rows split across two row groups.  First row group has 552 rows, second has
+  // 448.
   // order_id values range from 8000 - 8999
-  protected static final Path DATA_FILE_2 = Path.of(
-      "/tmp/iceberg-test-tables/v2/multi_rowgroup_orders_with_deletes/data/2021/2021-02.parquet");
+  protected static final Path DATA_FILE_2 =
+      Path.of(
+          "/tmp/iceberg-test-tables/v2/multi_rowgroup_orders_with_deletes/data/2021/2021-02.parquet");
+
+  protected static final Path DATA_FILE_2_LONG =
+      Path.of(
+          "/tmp/iceberg-test-tables/v2"
+              + "/longDir"
+              + Strings.repeat("0", 100)
+              + "/longDir_1_"
+              + Strings.repeat("0", 100)
+              + "/longDir_2_"
+              + Strings.repeat("0", 100)
+              + "/multi_rowgroup_orders_with_deletes/data/2021/2021-02.parquet");
+
+  protected static final Path MULTI_ROWGROUP_DELETE_FILE_0_LONG =
+      Path.of(
+          "/tmp/iceberg-test-tables/v2"
+              + "/longDir"
+              + Strings.repeat("0", 100)
+              + "/longDir_1_"
+              + Strings.repeat("0", 100)
+              + "/longDir_2_"
+              + Strings.repeat("0", 100)
+              + "/multi_rowgroup_orders_with_deletes/data/2021/delete-2021-00.parquet");
 
   protected static IcebergTestTables.Table table;
+
+  protected static IcebergTestTables.Table tableLongPath;
 
   @BeforeClass
   public static void setupTestData() {
     table = IcebergTestTables.V2_MULTI_ROWGROUP_ORDERS_WITH_DELETES.get();
+    tableLongPath = IcebergTestTables.V2_MULTI_ROWGROUP_ORDERS_WITH_DELETES_LONG_PATH.get();
   }
 
   @AfterClass
   public static void cleanupTestData() throws Exception {
     table.close();
+    tableLongPath.close();
   }
 
   protected void readAndValidateOrderIdConditionAndRowCount(
@@ -65,7 +97,8 @@ public class BaseTestUnifiedParquetReaderWithPositionalDeletes extends BaseTestU
       ParquetReaderOptions parquetReaderOptions,
       Predicate<Integer> orderIdPredicate,
       String predicateDescription,
-      int expectedRecordCount) throws Exception {
+      int expectedRecordCount)
+      throws Exception {
     readAndValidateOrderIdConditionAndRowCount(
         new ParquetFilters(null, positionalDeleteFilter, null),
         parquetReaderOptions,
@@ -79,55 +112,62 @@ public class BaseTestUnifiedParquetReaderWithPositionalDeletes extends BaseTestU
       ParquetReaderOptions parquetReaderOptions,
       Predicate<Integer> orderIdPredicate,
       String predicateDescription,
-      int expectedRecordCount) throws Exception {
+      int expectedRecordCount)
+      throws Exception {
 
-    RecordBatchValidator validator = (rowGroupIndex, outputRowIndex, records, mutator) -> {
-      IntVector orderIdVector = (IntVector) mutator.getVector("order_id");
-      for (int i = 0; i < records; i++) {
+    RecordBatchValidator validator =
+        (rowGroupIndex, outputRowIndex, records, mutator) -> {
+          IntVector orderIdVector = (IntVector) mutator.getVector("order_id");
+          for (int i = 0; i < records; i++) {
 
-        int orderId = orderIdVector.get(i);
-        assertThat(orderId)
-            .as("output row index %d", outputRowIndex + i)
-            .is(new Condition<>(orderIdPredicate, predicateDescription));
-      }
-    };
+            int orderId = orderIdVector.get(i);
+            assertThat(orderId)
+                .as("output row index %d", outputRowIndex + i)
+                .is(new Condition<>(orderIdPredicate, predicateDescription));
+          }
+        };
 
-    int recordCount = readAndValidate(
-        DATA_FILE_2,
-        filters,
-        ImmutableList.of("order_id"),
-        parquetReaderOptions,
-        validator);
+    int recordCount =
+        readAndValidate(
+            DATA_FILE_2, filters, ImmutableList.of("order_id"), parquetReaderOptions, validator);
 
     assertThat(recordCount).isEqualTo(expectedRecordCount);
     assertThat(filters.getPositionalDeleteFilter().refCount()).isEqualTo(0);
   }
 
-  protected PositionalDeleteFilter createPositionalDeleteFilter(Iterator<Long> iterator, int initialRefCount) {
-    PositionalDeleteIterator positionalDeleteIterator = new PositionalDeleteIterator() {
-      @Override
-      public void close() throws Exception {
-      }
+  protected PositionalDeleteFilter createPositionalDeleteFilter(
+      Iterator<Long> iterator, int initialRefCount) {
+    PositionalDeleteIterator positionalDeleteIterator =
+        new PositionalDeleteIterator() {
+          @Override
+          public void close() throws Exception {}
 
-      @Override
-      public boolean hasNext() {
-        return iterator.hasNext();
-      }
+          @Override
+          public boolean hasNext() {
+            return iterator.hasNext();
+          }
 
-      @Override
-      public Long next() {
-        return iterator.next();
-      }
-    };
+          @Override
+          public Long next() {
+            return iterator.next();
+          }
+        };
 
-    return new PositionalDeleteFilter(() -> positionalDeleteIterator, initialRefCount, context.getStats());
+    return new PositionalDeleteFilter(
+        () -> positionalDeleteIterator, initialRefCount, context.getStats());
   }
 
   protected PositionalDeleteIterator createDeleteIteratorFromFile(Path path) throws Exception {
-    ParquetRowLevelDeleteFileReaderFactory factory = new ParquetRowLevelDeleteFileReaderFactory(
-        getInputStreamProviderFactory(), getParquetReaderFactory(), fs, null, IcebergTestTables.V2_ORDERS_SCHEMA);
-    PositionalDeleteFileReader creator = factory.createPositionalDeleteFileReader(context, path,
-        ImmutableList.of(DATA_FILE_2.toString()));
+    ParquetRowLevelDeleteFileReaderFactory factory =
+        new ParquetRowLevelDeleteFileReaderFactory(
+            getInputStreamProviderFactory(),
+            getParquetReaderFactory(),
+            fs,
+            null,
+            IcebergTestTables.V2_ORDERS_SCHEMA);
+    PositionalDeleteFileReader creator =
+        factory.createPositionalDeleteFileReader(
+            context, path, ImmutableList.of(DATA_FILE_2.toString()));
     creator.setup();
     return creator.createIteratorForDataFile(DATA_FILE_2.toString());
   }

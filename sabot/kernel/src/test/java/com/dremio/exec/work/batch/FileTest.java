@@ -15,19 +15,17 @@
  */
 package com.dremio.exec.work.batch;
 
+import com.google.common.base.Stopwatch;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-
-import com.google.common.base.Stopwatch;
 
 public class FileTest {
   public static void main(String[] args) throws IOException {
@@ -35,13 +33,13 @@ public class FileTest {
     conf.set(FileSystem.FS_DEFAULT_NAME_KEY, "sync:///");
     System.out.println(FileSystem.getDefaultUri(conf));
     FileSystem fs = FileSystem.get(conf);
-//    FileSystem fs = new LocalSyncableFileSystem(conf);
+    //    FileSystem fs = new LocalSyncableFileSystem(conf);
     Path path = new Path("/tmp/testFile");
     FSDataOutputStream out = fs.create(path);
     byte[] s = "hello world".getBytes();
     out.write(s);
     out.hflush();
-//    out.close();
+    //    out.close();
     FSDataInputStream in = fs.open(path);
     byte[] bytes = new byte[s.length];
     in.read(bytes);
@@ -55,7 +53,7 @@ public class FileTest {
     System.out.println(new String(bytes));
     out = fs.create(new Path("/tmp/file"));
     for (int i = 0; i < 100; i++) {
-      bytes = new byte[256*1024];
+      bytes = new byte[256 * 1024];
       Stopwatch watch = Stopwatch.createStarted();
       out.write(bytes);
       out.hflush();

@@ -17,17 +17,13 @@ package com.dremio.exec.store.sys.accesscontrol;
 
 import java.util.Objects;
 
-/**
- * Schema for system table entry for sys.membership.
- */
+/** Schema for system table entry for sys.membership. */
 public class SysTableMembershipInfo {
   public final String role_name;
   public final String member_name;
   public final String member_type;
 
-  public SysTableMembershipInfo(String role_name,
-                                String member_name,
-                                String member_type) {
+  public SysTableMembershipInfo(String role_name, String member_name, String member_type) {
     this.role_name = role_name;
     this.member_name = member_name;
     this.member_type = member_type;
@@ -54,9 +50,9 @@ public class SysTableMembershipInfo {
       return false;
     }
     SysTableMembershipInfo that = (SysTableMembershipInfo) o;
-    return Objects.equals(role_name, that.role_name) &&
-      Objects.equals(member_name, that.member_name) &&
-      Objects.equals(member_type, that.member_type);
+    return Objects.equals(role_name, that.role_name)
+        && Objects.equals(member_name, that.member_name)
+        && Objects.equals(member_type, that.member_type);
   }
 
   @Override
@@ -66,10 +62,16 @@ public class SysTableMembershipInfo {
 
   @Override
   public String toString() {
-    return "SysTableMembership{" +
-      "role_name='" + role_name + '\'' +
-      ", member_name='" + member_name + '\'' +
-      ", member_type='" + member_type + '\'' +
-      '}';
+    return "SysTableMembership{"
+        + "role_name='"
+        + role_name
+        + '\''
+        + ", member_name='"
+        + member_name
+        + '\''
+        + ", member_type='"
+        + member_type
+        + '\''
+        + '}';
   }
 }

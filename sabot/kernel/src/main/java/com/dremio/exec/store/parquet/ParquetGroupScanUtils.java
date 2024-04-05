@@ -17,21 +17,6 @@ package com.dremio.exec.store.parquet;
 
 import static com.dremio.exec.planner.acceleration.IncrementalUpdateUtils.UPDATE_COLUMN;
 
-import java.io.IOException;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
-
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.parquet.schema.OriginalType;
-import org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName;
-
 import com.carrotsearch.hppc.cursors.ObjectLongCursor;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.SchemaPath;
@@ -45,7 +30,6 @@ import com.dremio.exec.physical.base.ScanStats;
 import com.dremio.exec.physical.base.ScanStats.GroupScanProperty;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
 import com.dremio.exec.planner.cost.ScanCostFactor;
-import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.SearchableBatchSchema;
@@ -71,9 +55,23 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.net.HostAndPort;
+import java.io.IOException;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.parquet.schema.OriginalType;
+import org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName;
 
 public class ParquetGroupScanUtils {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ParquetGroupScanUtils.class);
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ParquetGroupScanUtils.class);
 
   private final FileSystemPlugin<?> plugin;
   private final ParquetFormatPlugin formatPlugin;
@@ -83,7 +81,6 @@ public class ParquetGroupScanUtils {
   private List<ParquetFilterCondition> conditions;
   private final List<FileAttributes> entries;
   private final FileSystem fs;
-  private final Map<String, GlobalDictionaryFieldInfo> globalDictionaryColumns;
   private ParquetTableMetadata parquetTableMetadata = null;
 
   /*
@@ -98,21 +95,19 @@ public class ParquetGroupScanUtils {
   private final SearchableBatchSchema schema;
   private final OptionManager optionManager;
 
-  /**
-   * total number of rows (obtained from parquet footer)
-   */
+  /** total number of rows (obtained from parquet footer) */
   private long rowCount;
 
   public ParquetGroupScanUtils(
-    String userName,
-    FileSelection selection,
-    FileSystemPlugin<?> plugin,
-    ParquetFormatPlugin formatPlugin,
-    String selectionRoot,
-    List<SchemaPath> columns,
-    BatchSchema schema,
-    Map<String, GlobalDictionaryFieldInfo> globalDictionaryColumns,
-    List<ParquetFilterCondition> conditions, OptionManager optionManager)
+      String userName,
+      FileSelection selection,
+      FileSystemPlugin<?> plugin,
+      ParquetFormatPlugin formatPlugin,
+      String selectionRoot,
+      List<SchemaPath> columns,
+      BatchSchema schema,
+      List<ParquetFilterCondition> conditions,
+      OptionManager optionManager)
       throws IOException {
     this.schema = SearchableBatchSchema.of(schema);
     this.formatPlugin = formatPlugin;
@@ -123,7 +118,6 @@ public class ParquetGroupScanUtils {
     this.selectionRoot = selectionRoot;
     this.entries = selection.getFileAttributesList();
 
-    this.globalDictionaryColumns = (globalDictionaryColumns == null)? Collections.<String, GlobalDictionaryFieldInfo>emptyMap() : globalDictionaryColumns;
     this.optionManager = optionManager;
     init();
   }
@@ -152,25 +146,28 @@ public class ParquetGroupScanUtils {
     return columnTypeMap;
   }
 
-  public Map<String, GlobalDictionaryFieldInfo> getGlobalDictionaryColumns() {
-    return globalDictionaryColumns;
-  }
-
   private boolean isFieldTypeUnion(SchemaPath schemaPath) {
     // if field present in schema is of union type, then don't use it as partitioned column
-    Optional<Field> field = this.schema.findFieldIgnoreCase(schemaPath.getRootSegment().getNameSegment().getPath());
+    Optional<Field> field =
+        this.schema.findFieldIgnoreCase(schemaPath.getRootSegment().getNameSegment().getPath());
     return field.isPresent() && CompleteType.fromField(field.get()).isUnion();
   }
 
   /**
-   * When reading the very first footer, any column is a potential partition column. So for the first footer, we check
-   * every column to see if it is single valued, and if so, add it to the list of potential partition columns. For the
-   * remaining footers, we will not find any new partition columns, but we may discover that what was previously a
-   * potential partition column now no longer qualifies, so it needs to be removed from the list.
+   * When reading the very first footer, any column is a potential partition column. So for the
+   * first footer, we check every column to see if it is single valued, and if so, add it to the
+   * list of potential partition columns. For the remaining footers, we will not find any new
+   * partition columns, but we may discover that what was previously a potential partition column
+   * now no longer qualifies, so it needs to be removed from the list.
+   *
    * @return whether column is a potential partition column
    */
-  private boolean checkForPartitionColumn(ParquetFileMetadata fileMetadata, int rowGroupIdx,
-      ColumnMetadata columnMetadata, boolean first, long rowCount) {
+  private boolean checkForPartitionColumn(
+      ParquetFileMetadata fileMetadata,
+      int rowGroupIdx,
+      ColumnMetadata columnMetadata,
+      boolean first,
+      long rowCount) {
     SchemaPath schemaPath = SchemaPath.getCompoundPath(columnMetadata.getName());
     if (schemaPath.getAsUnescapedPath().equals(UPDATE_COLUMN)) {
       return true;
@@ -181,13 +178,21 @@ public class ParquetGroupScanUtils {
 
     if (first) {
       if (hasSingleValue(columnMetadata, rowCount) && !isFieldTypeUnion(schemaPath)) {
-        logger.debug("New partition {} added to list, table {}, file {}, rowgroup index {}",
-            schemaPath, selectionRoot, fileMetadata.getPathString(), rowGroupIdx);
+        logger.debug(
+            "New partition {} added to list, table {}, file {}, rowgroup index {}",
+            schemaPath,
+            selectionRoot,
+            fileMetadata.getPathString(),
+            rowGroupIdx);
         columnTypeMap.put(schemaPath, getType(primitiveType, originalType));
         return true;
       } else {
-        logger.debug("Column {} is determined to be non-partition column, table {}, file {}, rowgroup index {}",
-            schemaPath, selectionRoot, fileMetadata.getPathString(), rowGroupIdx);
+        logger.debug(
+            "Column {} is determined to be non-partition column, table {}, file {}, rowgroup index {}",
+            schemaPath,
+            selectionRoot,
+            fileMetadata.getPathString(),
+            rowGroupIdx);
         return false;
       }
     } else {
@@ -195,18 +200,28 @@ public class ParquetGroupScanUtils {
         return false;
       } else {
         if (!hasSingleValue(columnMetadata, rowCount)) {
-          logger.debug("Column {} is demoted to non-partition column due to non-unique values in new file/rowgroup, " +
-                  "table {}, file {}, rowgroup index {}",
-              schemaPath, selectionRoot, fileMetadata.getPathString(), rowGroupIdx);
+          logger.debug(
+              "Column {} is demoted to non-partition column due to non-unique values in new file/rowgroup, "
+                  + "table {}, file {}, rowgroup index {}",
+              schemaPath,
+              selectionRoot,
+              fileMetadata.getPathString(),
+              rowGroupIdx);
           columnTypeMap.remove(schemaPath);
           return false;
         }
         final MajorType newType = getType(primitiveType, originalType);
         final MajorType existingType = columnTypeMap.get(schemaPath);
         if (!newType.equals(existingType)) {
-          logger.debug("Column {} is demoted to non-partition column due to type change: existing: {}, new: {}, " +
-                  "table {}, file {}, rowgroup index {}",
-              schemaPath, existingType, newType, selectionRoot, fileMetadata.getPathString(), rowGroupIdx);
+          logger.debug(
+              "Column {} is demoted to non-partition column due to type change: existing: {}, new: {}, "
+                  + "table {}, file {}, rowgroup index {}",
+              schemaPath,
+              existingType,
+              newType,
+              selectionRoot,
+              fileMetadata.getPathString(),
+              rowGroupIdx);
           columnTypeMap.remove(schemaPath);
           return false;
         }
@@ -269,25 +284,33 @@ public class ParquetGroupScanUtils {
 
   private boolean hasSingleValue(ColumnMetadata columnChunkMetaData, long rowCount) {
     // Return try if min == max and there are no null values or all of them are null values.
-    return (columnChunkMetaData != null) &&
-      ((columnChunkMetaData.hasSingleValue() && (columnChunkMetaData.getNulls() == null || columnChunkMetaData.getNulls() == 0) ||
-        (columnChunkMetaData.getNulls() != null && rowCount == columnChunkMetaData.getNulls())));
-
+    return (columnChunkMetaData != null)
+        && ((columnChunkMetaData.hasSingleValue()
+                && (columnChunkMetaData.getNulls() == null || columnChunkMetaData.getNulls() == 0)
+            || (columnChunkMetaData.getNulls() != null
+                && rowCount == columnChunkMetaData.getNulls())));
   }
 
   public static class RowGroupInfo extends FileWorkImpl implements CompleteWork {
 
     private EndpointByteMap byteMap;
     private int rowGroupIndex;
-    private long rowCount;  // rowCount = -1 indicates to include all rows.
+    private long rowCount; // rowCount = -1 indicates to include all rows.
     private List<EndpointAffinity> affinities;
     private Map<SchemaPath, Long> columnValueCounts;
 
-    public RowGroupInfo(FileAttributes fileAttributes, long start, long length, int rowGroupIndex, long rowCount, Map<SchemaPath, Long> columnValueCounts) {
+    public RowGroupInfo(
+        FileAttributes fileAttributes,
+        long start,
+        long length,
+        int rowGroupIndex,
+        long rowCount,
+        Map<SchemaPath, Long> columnValueCounts) {
       super(start, length, fileAttributes);
       this.rowGroupIndex = rowGroupIndex;
       this.rowCount = rowCount;
-      this.columnValueCounts = columnValueCounts == null? Collections.<SchemaPath, Long>emptyMap() : columnValueCounts;
+      this.columnValueCounts =
+          columnValueCounts == null ? Collections.<SchemaPath, Long>emptyMap() : columnValueCounts;
     }
 
     public int getRowGroupIndex() {
@@ -343,8 +366,7 @@ public class ParquetGroupScanUtils {
         return false;
       }
       RowGroupInfo that = (RowGroupInfo) o;
-      return rowGroupIndex == that.rowGroupIndex &&
-          rowCount == that.rowCount;
+      return rowGroupIndex == that.rowGroupIndex && rowCount == that.rowCount;
     }
 
     @Override
@@ -356,20 +378,29 @@ public class ParquetGroupScanUtils {
   private void init() throws IOException {
     final Stopwatch watch = Stopwatch.createStarted();
     columnTypeMap.put(SchemaPath.getSimplePath(UPDATE_COLUMN), Types.optional(MinorType.BIGINT));
-    long maxFooterLength = plugin.getContext().getOptionManager().getOption(ExecConstants.PARQUET_MAX_FOOTER_LEN_VALIDATOR);
+    long maxFooterLength =
+        plugin
+            .getContext()
+            .getOptionManager()
+            .getOption(ExecConstants.PARQUET_MAX_FOOTER_LEN_VALIDATOR);
     // TODO: do we need this code path?
     final long maxSplits = optionManager.getOption(Metadata.DFS_MAX_SPLITS);
     if (entries.size() == 1) {
-      parquetTableMetadata = Metadata.getParquetTableMetadata(entries.get(0), fs, formatPlugin.getConfig(), maxFooterLength, maxSplits);
+      parquetTableMetadata =
+          Metadata.getParquetTableMetadata(
+              entries.get(0), fs, formatPlugin.getConfig(), maxFooterLength, maxSplits);
     } else {
-      parquetTableMetadata = Metadata.getParquetTableMetadata(entries, fs, formatPlugin.getConfig(), maxFooterLength, maxSplits);
+      parquetTableMetadata =
+          Metadata.getParquetTableMetadata(
+              entries, fs, formatPlugin.getConfig(), maxFooterLength, maxSplits);
     }
 
     Set<HostAndPort> hostEndpointMap = Sets.newHashSet();
     Set<HostAndPort> hostPortEndpointMap = Sets.newHashSet();
     for (NodeEndpoint endpoint : plugin.getContext().getExecutors()) {
       hostEndpointMap.add(HostAndPort.fromHost(endpoint.getAddress()));
-      hostPortEndpointMap.add(HostAndPort.fromParts(endpoint.getAddress(), endpoint.getFabricPort()));
+      hostPortEndpointMap.add(
+          HostAndPort.fromParts(endpoint.getAddress(), endpoint.getFabricPort()));
     }
 
     rowGroupInfos = Lists.newArrayList();
@@ -385,10 +416,18 @@ public class ParquetGroupScanUtils {
             rowGroupColumnValueCounts.put(schemaPath, rowCount - column.getNulls());
           }
         }
-        RowGroupInfo rowGroupInfo = new RowGroupInfo(file.getFileAttributes(), rg.getStart(), rg.getLength(), rgIndex, rg.getRowCount(), rowGroupColumnValueCounts);
+        RowGroupInfo rowGroupInfo =
+            new RowGroupInfo(
+                file.getFileAttributes(),
+                rg.getStart(),
+                rg.getLength(),
+                rgIndex,
+                rg.getRowCount(),
+                rowGroupColumnValueCounts);
 
-        EndpointByteMap endpointByteMap = buildEndpointByteMap(hostEndpointMap, hostPortEndpointMap, rg.getHostAffinity(),
-          rg.getLength());
+        EndpointByteMap endpointByteMap =
+            buildEndpointByteMap(
+                hostEndpointMap, hostPortEndpointMap, rg.getHostAffinity(), rg.getLength());
         rowGroupInfo.setEndpointByteMap(endpointByteMap);
         rgIndex++;
         rowGroupInfos.add(rowGroupInfo);
@@ -428,17 +467,18 @@ public class ParquetGroupScanUtils {
               columnValueCounts.put(schemaPath, GroupScan.NO_COLUMN_STATS);
             }
           }
-          boolean partitionColumn = checkForPartitionColumn(file, rowGroupIdx, column, first, rowCount);
+          boolean partitionColumn =
+              checkForPartitionColumn(file, rowGroupIdx, column, first, rowCount);
           if (partitionColumn) {
             Map<SchemaPath, Object> map = partitionValueMap.get(file.getFileAttributes());
             if (map == null) {
               map = Maps.newHashMap();
               partitionValueMap.put(file.getFileAttributes(), map);
-
             }
             Object value = map.get(schemaPath);
             Object currentValue;
-            // If all the values are null, then consider the partition value as null, otherwise get the partition value
+            // If all the values are null, then consider the partition value as null, otherwise get
+            // the partition value
             // from max.
             if (column.getNulls() != null && column.getNulls() == rowCount) {
               currentValue = null;
@@ -447,11 +487,18 @@ public class ParquetGroupScanUtils {
             }
 
             if (rowGroupIdx > 0) {
-              // If this is not the first rowgroup in the file, make sure it matches the value in previous rowgroup(s)
+              // If this is not the first rowgroup in the file, make sure it matches the value in
+              // previous rowgroup(s)
               if (!Objects.equal(value, currentValue)) {
-                logger.debug("Column {} is demoted to non-partition column due to different values across rowgroups" +
-                    " in same file, existing value: {}, new value: {}, table {}, file {}, rowgroup index {}",
-                    schemaPath, value, currentValue, selectionRoot, file.getPathString(), rowGroupIdx);
+                logger.debug(
+                    "Column {} is demoted to non-partition column due to different values across rowgroups"
+                        + " in same file, existing value: {}, new value: {}, table {}, file {}, rowgroup index {}",
+                    schemaPath,
+                    value,
+                    currentValue,
+                    selectionRoot,
+                    file.getPathString(),
+                    rowGroupIdx);
                 columnTypeMap.remove(schemaPath);
               }
             } else {
@@ -476,18 +523,23 @@ public class ParquetGroupScanUtils {
         map = Maps.newHashMap();
         partitionValueMap.put(file.getFileAttributes(), map);
       }
-      map.put(SchemaPath.getSimplePath(UPDATE_COLUMN), file.getFileAttributes().lastModifiedTime().toMillis());
+      map.put(
+          SchemaPath.getSimplePath(UPDATE_COLUMN),
+          file.getFileAttributes().lastModifiedTime().toMillis());
     }
 
     eliminateSomePartitionColumns();
 
     logger.debug("Table: {}, partition columns {}", selectionRoot, columnTypeMap.keySet());
-    logger.debug("Took {} ms to gather Parquet table metadata.", watch.elapsed(TimeUnit.MILLISECONDS));
+    logger.debug(
+        "Took {} ms to gather Parquet table metadata.", watch.elapsed(TimeUnit.MILLISECONDS));
   }
 
   public static EndpointByteMap buildEndpointByteMap(
-    Set<HostAndPort> activeHostMap, Set<HostAndPort> activeHostPortMap,
-    Map<com.google.common.net.HostAndPort, Float> affinities, long totalLength) {
+      Set<HostAndPort> activeHostMap,
+      Set<HostAndPort> activeHostPortMap,
+      Map<com.google.common.net.HostAndPort, Float> affinities,
+      long totalLength) {
 
     EndpointByteMap endpointByteMap = new EndpointByteMapImpl();
     for (HostAndPort host : affinities.keySet()) {
@@ -517,22 +569,30 @@ public class ParquetGroupScanUtils {
     if (optionManager.getOption(ExecConstants.PARQUET_ELIMINATE_NULL_PARTITIONS)) {
       // filter out only those columns who we know have zero count i.e. all the row groups
       // have stats for this column and they are all null.
-      columnTypeMap = columnTypeMap.entrySet()
-        .stream()
-        .filter(e -> e.getKey().getAsUnescapedPath().equals(IncrementalUpdateUtils.UPDATE_COLUMN)
-          || columnValueCounts.get(e.getKey()) != 0)
-        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (e1, e2) -> e1,
-                 LinkedHashMap::new));
+      columnTypeMap =
+          columnTypeMap.entrySet().stream()
+              .filter(
+                  e ->
+                      e.getKey().getAsUnescapedPath().equals(IncrementalUpdateUtils.UPDATE_COLUMN)
+                          || columnValueCounts.get(e.getKey()) != 0)
+              .collect(
+                  Collectors.toMap(
+                      Map.Entry::getKey, Map.Entry::getValue, (e1, e2) -> e1, LinkedHashMap::new));
     }
 
     // DX-14064: Limit the total number of partition columns to a defined threshold.
-    final int maxPartitionColumns = (int) optionManager.getOption(ExecConstants.PARQUET_MAX_PARTITION_COLUMNS_VALIDATOR);
+    final int maxPartitionColumns =
+        (int) optionManager.getOption(ExecConstants.PARQUET_MAX_PARTITION_COLUMNS_VALIDATOR);
     if (columnTypeMap.size() > maxPartitionColumns) {
-      logger.debug("Table: {} having partitioned column count {} which is more than the " +
-        "threshold {}, pruning.", selectionRoot, columnTypeMap.size(), maxPartitionColumns);
+      logger.debug(
+          "Table: {} having partitioned column count {} which is more than the "
+              + "threshold {}, pruning.",
+          selectionRoot,
+          columnTypeMap.size(),
+          maxPartitionColumns);
       Map<SchemaPath, MajorType> prunedColumnTypeMap = Maps.newLinkedHashMap();
       int i = 0;
-      for(Map.Entry<SchemaPath, MajorType> columnTypeMapEntry : columnTypeMap.entrySet()) {
+      for (Map.Entry<SchemaPath, MajorType> columnTypeMapEntry : columnTypeMap.entrySet()) {
         if (i == maxPartitionColumns) {
           break;
         }
@@ -541,8 +601,9 @@ public class ParquetGroupScanUtils {
       }
       // handle case where partition identification is turned off.
       // this is needed to correctly handle incremental reflection refresh.
-      if (prunedColumnTypeMap.size() == 0 ) {
-        prunedColumnTypeMap.put(SchemaPath.getSimplePath(UPDATE_COLUMN), Types.optional(MinorType.BIGINT));
+      if (prunedColumnTypeMap.size() == 0) {
+        prunedColumnTypeMap.put(
+            SchemaPath.getSimplePath(UPDATE_COLUMN), Types.optional(MinorType.BIGINT));
       }
       columnTypeMap = prunedColumnTypeMap;
     }
@@ -570,11 +631,19 @@ public class ParquetGroupScanUtils {
       columnCount = schema.getFieldCount();
     }
     int sortFactor = getSortFactor();
-    if(hasConditions()){
+    if (hasConditions()) {
       long estRowCount = (long) (this.rowCount * 0.15d);
-      return new ScanStats(GroupScanProperty.NO_EXACT_ROW_COUNT, estRowCount, 1 / sortFactor, estRowCount * columnCount / sortFactor);
+      return new ScanStats(
+          GroupScanProperty.NO_EXACT_ROW_COUNT,
+          estRowCount,
+          1 / sortFactor,
+          estRowCount * columnCount / sortFactor);
     } else {
-      return new ScanStats(GroupScanProperty.EXACT_ROW_COUNT, rowCount, 1 / sortFactor, rowCount * columnCount / sortFactor);
+      return new ScanStats(
+          GroupScanProperty.EXACT_ROW_COUNT,
+          rowCount,
+          1 / sortFactor,
+          rowCount * columnCount / sortFactor);
     }
   }
 
@@ -589,11 +658,17 @@ public class ParquetGroupScanUtils {
 
   @Override
   public String toString() {
-    return "ParquetGroupScanUtils [entries=" + entries
-        + ", selectionRoot=" + selectionRoot
-        + ", numFiles=" + getEntries().size()
-        + ", conditions=" + conditions
-        + ", columns=" + columns + "]";
+    return "ParquetGroupScanUtils [entries="
+        + entries
+        + ", selectionRoot="
+        + selectionRoot
+        + ", numFiles="
+        + getEntries().size()
+        + ", conditions="
+        + conditions
+        + ", columns="
+        + columns
+        + "]";
   }
 
   @JsonIgnore
@@ -601,7 +676,7 @@ public class ParquetGroupScanUtils {
     return rowGroupInfos;
   }
 
-  public boolean hasConditions(){
+  public boolean hasConditions() {
     return conditions != null && !conditions.isEmpty();
   }
 
@@ -614,7 +689,8 @@ public class ParquetGroupScanUtils {
     if (sortIndex < 0) {
       return 1;
     }
-    // somewhat arbitrary formula, but the goal is for the factor to be lower if the sort column is secondary than if it's primary
+    // somewhat arbitrary formula, but the goal is for the factor to be lower if the sort column is
+    // secondary than if it's primary
     // e.g. table is sorted on a, b, then a filter on a should be cheaper than a filter on b
     return Math.max(1, 16 / (sortIndex + 1));
   }
@@ -627,5 +703,4 @@ public class ParquetGroupScanUtils {
     List<SchemaPath> list = Lists.newArrayList();
     return ImmutableList.<SchemaPath>builder().addAll(list).addAll(columnTypeMap.keySet()).build();
   }
-
 }

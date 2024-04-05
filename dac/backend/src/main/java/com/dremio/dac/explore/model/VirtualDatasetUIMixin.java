@@ -16,17 +16,10 @@
 package com.dremio.dac.explore.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-
 import io.protostuff.ByteString;
 
-/**
- *
- * Mixin class for VirtualDatasetUI
- *
- */
+/** Mixin class for VirtualDatasetUI */
 public abstract class VirtualDatasetUIMixin {
 
-  @JsonIgnore
-  private ByteString recordSchema;
-
+  @JsonIgnore private ByteString recordSchema;
 }

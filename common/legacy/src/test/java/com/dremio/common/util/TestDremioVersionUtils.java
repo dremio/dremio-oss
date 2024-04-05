@@ -19,31 +19,30 @@ package com.dremio.common.util;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
 
-import java.util.Collection;
-
-import org.junit.Test;
-
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.google.common.collect.Lists;
+import java.util.Collection;
+import org.junit.Test;
 
 public class TestDremioVersionUtils {
 
   @Test
   public void testCompatibleNodeEndpoints() {
-    NodeEndpoint nep1 = NodeEndpoint.newBuilder()
-                                    .setAddress("localhost")
-                                    .setDremioVersion(DremioVersionInfo.getVersion())
-                                    .build();
+    NodeEndpoint nep1 =
+        NodeEndpoint.newBuilder()
+            .setAddress("localhost")
+            .setDremioVersion(DremioVersionInfo.getVersion())
+            .build();
 
-    NodeEndpoint nep2 = NodeEndpoint.newBuilder()
-                                    .setAddress("localhost")
-                                    .setDremioVersion("incompatibleVersion")
-                                    .build();
+    NodeEndpoint nep2 =
+        NodeEndpoint.newBuilder()
+            .setAddress("localhost")
+            .setDremioVersion("incompatibleVersion")
+            .build();
 
-    Collection<NodeEndpoint> nodeEndpoints = DremioVersionUtils.getCompatibleNodeEndpoints(Lists.newArrayList(nep1,
-                                                                                                              nep2));
+    Collection<NodeEndpoint> nodeEndpoints =
+        DremioVersionUtils.getCompatibleNodeEndpoints(Lists.newArrayList(nep1, nep2));
     assertEquals(1, nodeEndpoints.size());
     assertSame(nep1, nodeEndpoints.toArray()[0]);
-
   }
 }

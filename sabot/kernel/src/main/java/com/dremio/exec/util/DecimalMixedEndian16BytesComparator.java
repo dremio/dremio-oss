@@ -15,15 +15,14 @@
  */
 package com.dremio.exec.util;
 
-import org.apache.arrow.memory.ArrowBuf;
-
 import io.netty.util.internal.PlatformDependent;
+import org.apache.arrow.memory.ArrowBuf;
 
 public class DecimalMixedEndian16BytesComparator extends DecimalMixedEndianComparatorImpl {
 
   @Override
-  protected int compareInner(ArrowBuf left, int startIndexLeft, int valueLength,
-                             ArrowBuf right, int startIndexRight) {
+  protected int compareInner(
+      ArrowBuf left, int startIndexLeft, int valueLength, ArrowBuf right, int startIndexRight) {
 
     long startingAddress = left.memoryAddress() + (startIndexLeft);
     long leftValHigh = PlatformDependent.getLong(startingAddress);
@@ -31,7 +30,7 @@ public class DecimalMixedEndian16BytesComparator extends DecimalMixedEndianCompa
     long leftValLow = PlatformDependent.getLong(startingAddress + 8);
     long leftValLowLE = Long.reverseBytes(leftValLow);
 
-    return DecimalUtils.compareDecimalsAsTwoLongs(leftValHighLE, leftValLowLE, getRightValHigh(),
-      getRightValLow());
+    return DecimalUtils.compareDecimalsAsTwoLongs(
+        leftValHighLE, leftValLowLE, getRightValHigh(), getRightValLow());
   }
 }

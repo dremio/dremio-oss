@@ -15,9 +15,9 @@
  */
 package com.dremio.exec.planner.logical.rewrite.sargable;
 
+import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
@@ -25,9 +25,9 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-import com.google.common.collect.ImmutableList;
-
 /**
+ *
+ *
  * <pre>
  * Transform the following two cases
  * 1. COALESCE(ts1, ts2, ts3) = '2023-02-01'
@@ -46,8 +46,7 @@ public class CaseTransformer implements Transformer {
   private final RexBuilder rexBuilder;
   private final StandardForm standardForm;
 
-  CaseTransformer(RelOptCluster relOptCluster,
-                  StandardForm standardForm) {
+  CaseTransformer(RelOptCluster relOptCluster, StandardForm standardForm) {
     this.rexBuilder = relOptCluster.getRexBuilder();
     this.standardForm = standardForm;
   }
@@ -60,18 +59,22 @@ public class CaseTransformer implements Transformer {
       return getLhsCall();
     }
     for (int i = 0; i < ops.size() - 1; i += 2) {
-      if (!ops.get(i).getType().getSqlTypeName().equals(SqlTypeName.BOOLEAN) ||
-        !ops.get(i + 1).getType().getSqlTypeName().equals(SqlTypeName.BOOLEAN)) {
+      if (!ops.get(i).getType().getSqlTypeName().equals(SqlTypeName.BOOLEAN)
+          || !ops.get(i + 1).getType().getSqlTypeName().equals(SqlTypeName.BOOLEAN)) {
         return null;
       }
       if (i == 0) {
         nodes.add(SARGableRexUtils.and(ops.get(i), ops.get(i + 1), rexBuilder));
       } else {
-        nodes.add(SARGableRexUtils.and(ImmutableList.of(addNot(ops.get(i - 2)), ops.get(i), ops.get(i + 1)), rexBuilder));
+        nodes.add(
+            SARGableRexUtils.and(
+                ImmutableList.of(addNot(ops.get(i - 2)), ops.get(i), ops.get(i + 1)), rexBuilder));
       }
     }
     if (ops.size() % 2 == 1) {
-      nodes.add(SARGableRexUtils.and(addNot(ops.get(ops.size() - 3)), ops.get(ops.size() - 1), rexBuilder));
+      nodes.add(
+          SARGableRexUtils.and(
+              addNot(ops.get(ops.size() - 3)), ops.get(ops.size() - 1), rexBuilder));
     }
     if (nodes.size() == 1) {
       return nodes.get(0);

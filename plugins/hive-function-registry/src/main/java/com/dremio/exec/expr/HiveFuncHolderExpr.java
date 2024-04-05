@@ -15,16 +15,16 @@
  */
 package com.dremio.exec.expr;
 
-import java.util.List;
-
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.FunctionHolderExpression;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.fn.FunctionHolder;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.fn.HiveFuncHolder;
+import java.util.List;
 
-public class HiveFuncHolderExpr extends FunctionHolderExpression implements Iterable<LogicalExpression>{
+public class HiveFuncHolderExpr extends FunctionHolderExpression
+    implements Iterable<LogicalExpression> {
   private HiveFuncHolder holder;
 
   public HiveFuncHolderExpr(String nameUsed, HiveFuncHolder holder, List<LogicalExpression> args) {
@@ -67,5 +67,4 @@ public class HiveFuncHolderExpr extends FunctionHolderExpression implements Iter
   public int getSelfCost() {
     return FunctionTemplate.FunctionCostCategory.getDefault().getValue();
   }
-
 }

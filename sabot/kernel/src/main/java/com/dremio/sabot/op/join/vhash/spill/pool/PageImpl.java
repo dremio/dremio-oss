@@ -15,19 +15,14 @@
  */
 package com.dremio.sabot.op.join.vhash.spill.pool;
 
-import java.util.concurrent.atomic.AtomicLong;
-
-import javax.annotation.concurrent.NotThreadSafe;
-
-import org.apache.arrow.memory.ArrowBuf;
-
 import com.dremio.common.HistoricalLog;
 import com.dremio.common.VM;
 import com.dremio.exec.util.RoundUtil;
+import java.util.concurrent.atomic.AtomicLong;
+import javax.annotation.concurrent.NotThreadSafe;
+import org.apache.arrow.memory.ArrowBuf;
 
-/**
- * Implementation for Page.
- */
+/** Implementation for Page. */
 @NotThreadSafe
 public class PageImpl implements Page {
   public static final boolean DEBUG = VM.areAssertsEnabled();
@@ -76,7 +71,10 @@ public class PageImpl implements Page {
   public ArrowBuf slice(int size) {
     checkHasReferences();
     if (size + offset > pageSize) {
-      throw new IllegalArgumentException(String.format("Attempting to slice beyond limit. Desired size: %d, available space: %d.", size, pageSize - offset));
+      throw new IllegalArgumentException(
+          String.format(
+              "Attempting to slice beyond limit. Desired size: %d, available space: %d.",
+              size, pageSize - offset));
     }
     final ArrowBuf buf = memory.slice(offset, size).writerIndex(0);
     memory.getReferenceManager().retain();
@@ -118,7 +116,8 @@ public class PageImpl implements Page {
       throw new IllegalStateException("Operation not allowed until page is closed.");
     }
     if (memory.refCnt() != 1) {
-      throw new IllegalStateException("Unexpected refCnt on page buffer, expected 1 and found " + memory.refCnt());
+      throw new IllegalStateException(
+          "Unexpected refCnt on page buffer, expected 1 and found " + memory.refCnt());
     }
   }
 
@@ -131,8 +130,7 @@ public class PageImpl implements Page {
   }
 
   /**
-   * Generate a new version of this page to slice. Can only be done once this page
-   * has been closed.
+   * Generate a new version of this page to slice. Can only be done once this page has been closed.
    *
    * @return The new page pointing to the same memory as this page.
    */
@@ -159,8 +157,8 @@ public class PageImpl implements Page {
   }
 
   /**
-   * Recycle the page back to the pool for future use. This does not release any
-   * memory back to the system, only the pool.
+   * Recycle the page back to the pool for future use. This does not release any memory back to the
+   * system, only the pool.
    */
   @Override
   public void release() {
@@ -176,8 +174,8 @@ public class PageImpl implements Page {
   }
 
   /**
-   * Recycle the page back to the pool for future use. This does not release any
-   * memory back to the system, only the pool.
+   * Recycle the page back to the pool for future use. This does not release any memory back to the
+   * system, only the pool.
    */
   @Override
   public void close() {

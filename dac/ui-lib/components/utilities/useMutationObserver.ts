@@ -13,9 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { useEffect, type MutableRefObject, useRef } from "react"
+import { useEffect, type MutableRefObject, useRef } from "react";
 
-export const useMutationObserver = (ref: MutableRefObject<Element>, cb: MutationCallback): void => {
+export const useMutationObserver = (
+  ref: MutableRefObject<Element>,
+  cb: MutationCallback,
+): void => {
   const cbRef = useRef(cb);
   cbRef.current = cb;
   useEffect(() => {
@@ -25,6 +28,6 @@ export const useMutationObserver = (ref: MutableRefObject<Element>, cb: Mutation
 
     return () => {
       observer.disconnect();
-    }
-  }, [ref])
-}
+    };
+  }, [ref]);
+};

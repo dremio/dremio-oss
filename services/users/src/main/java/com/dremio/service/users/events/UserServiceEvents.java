@@ -16,6 +16,8 @@
 package com.dremio.service.users.events;
 
 public interface UserServiceEvents {
-  void subscribe(UserServiceEventTopic userServiceEventTopic, UserServiceEventSubscriber subscriber);
+  void subscribe(
+      UserServiceEventTopic userServiceEventTopic, UserServiceEventSubscriber subscriber);
+
   void publish(UserServiceEvent event);
 }

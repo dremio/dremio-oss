@@ -15,9 +15,7 @@
  */
 package com.dremio.service.scheduler;
 
-/**
- * To clean up after cancelled task
- */
+/** To clean up after cancelled task */
 @FunctionalInterface
 public interface CleanupListener {
 

@@ -15,12 +15,12 @@
  */
 package com.dremio.exec.planner;
 
+import com.google.common.collect.Sets;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
-
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleOperand;
 import org.apache.calcite.plan.RelOptUtil;
@@ -30,12 +30,9 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexShuttle;
 import org.apache.calcite.rex.RexUtil;
 
-import com.google.common.collect.Sets;
-
 /**
- * Rewrite filter conditions to avoid NLJ
- * E.g., (t1.x = t2.y AND ….) OR (t1.x = t2.y AND ….)
- * can be rewritten as (t1.x = t2.y) AND (… OR …)
+ * Rewrite filter conditions to avoid NLJ E.g., (t1.x = t2.y AND ….) OR (t1.x = t2.y AND ….) can be
+ * rewritten as (t1.x = t2.y) AND (… OR …)
  */
 public abstract class ExtractCommonConjunctionRule extends RelOptRule {
 
@@ -45,9 +42,11 @@ public abstract class ExtractCommonConjunctionRule extends RelOptRule {
 
   public static class RexConjunctionExtractor extends RexShuttle {
     private final RexBuilder rexBuilder;
+
     public RexConjunctionExtractor(RexBuilder rexBuilder) {
       this.rexBuilder = rexBuilder;
     }
+
     @Override
     public RexNode visitCall(final RexCall call) {
       RexNode newNode = super.visitCall(call);
@@ -57,7 +56,8 @@ public abstract class ExtractCommonConjunctionRule extends RelOptRule {
         case OR:
           List<RexNode> disjunctions = RelOptUtil.disjunctions(newNode);
           Set<RexNodeWrapper> exprs = null;
-          // for each element input in the OR clause, get a set of conjunctions, and then find the intersection
+          // for each element input in the OR clause, get a set of conjunctions, and then find the
+          // intersection
           // of the conjunctions across all inputs
           for (RexNode rex : disjunctions) {
             Set<RexNodeWrapper> finalExprs = new HashSet<>();
@@ -76,10 +76,13 @@ public abstract class ExtractCommonConjunctionRule extends RelOptRule {
           List<RexNode> newDisjunctions = new ArrayList<>();
           // now that we have the common conjunctions, they can be removed from the inputs
           for (RexNode rex : disjunctions) {
-            RexNode newRex = RexUtil.composeConjunction(rexBuilder,
-              RelOptUtil.conjunctions(rex).stream()
-                .filter(r -> !finalExprs1.contains(RexNodeWrapper.of(r)))
-                .collect(Collectors.toList()), false);
+            RexNode newRex =
+                RexUtil.composeConjunction(
+                    rexBuilder,
+                    RelOptUtil.conjunctions(rex).stream()
+                        .filter(r -> !finalExprs1.contains(RexNodeWrapper.of(r)))
+                        .collect(Collectors.toList()),
+                    false);
             newDisjunctions.add(newRex);
           }
           RexNode newDisJunction = RexUtil.composeDisjunction(rexBuilder, newDisjunctions, false);
@@ -93,14 +96,15 @@ public abstract class ExtractCommonConjunctionRule extends RelOptRule {
           return newNode;
       }
     }
-
   }
 
   private static class RexNodeWrapper {
     private RexNode rexNode;
+
     private RexNodeWrapper(RexNode rexNode) {
       this.rexNode = rexNode;
     }
+
     static RexNodeWrapper of(RexNode rexNode) {
       return new RexNodeWrapper(rexNode);
     }
@@ -122,5 +126,4 @@ public abstract class ExtractCommonConjunctionRule extends RelOptRule {
       return rexNode.toString().hashCode();
     }
   }
-
 }

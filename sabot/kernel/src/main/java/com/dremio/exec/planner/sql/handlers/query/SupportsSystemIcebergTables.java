@@ -19,14 +19,15 @@ package com.dremio.exec.planner.sql.handlers.query;
 import java.util.List;
 
 /**
- * Describes entities (e.g. SqlNode) that interact with {@link com.dremio.exec.store.dfs.system.SystemIcebergTablesStoragePlugin}
+ * Describes entities (e.g. SqlNode) that interact with {@link
+ * com.dremio.exec.store.dfs.system.SystemIcebergTablesStoragePlugin}
  */
 public interface SupportsSystemIcebergTables {
 
   /**
    * Returns the names of related internal system iceberg tables
+   *
    * @return a List of table names
    */
   List<String> systemTableNames();
-
 }

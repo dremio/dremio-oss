@@ -15,20 +15,16 @@
  */
 package com.dremio.exec.expr;
 
+import io.netty.buffer.PooledByteBufAllocatorL;
+import io.netty.buffer.UnsafeDirectLittleEndian;
 import java.util.Collection;
-
 import org.apache.arrow.memory.AllocationListener;
 import org.apache.arrow.memory.AllocationReservation;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.BufferManager;
 
-import io.netty.buffer.PooledByteBufAllocatorL;
-import io.netty.buffer.UnsafeDirectLittleEndian;
-
-/**
- * Non-functional allocator to be used when doing field materialization.
- */
+/** Non-functional allocator to be used when doing field materialization. */
 public class FakeAllocator implements BufferAllocator {
 
   private static final UnsafeDirectLittleEndian emptyUdle = (new PooledByteBufAllocatorL()).empty;
@@ -113,7 +109,8 @@ public class FakeAllocator implements BufferAllocator {
   }
 
   @Override
-  public BufferAllocator newChildAllocator(String arg0, AllocationListener listener, long arg1, long arg2) {
+  public BufferAllocator newChildAllocator(
+      String arg0, AllocationListener listener, long arg1, long arg2) {
     throw new UnsupportedOperationException();
   }
 
@@ -145,7 +142,6 @@ public class FakeAllocator implements BufferAllocator {
   @Override
   public boolean forceAllocate(long size) {
     throw new UnsupportedOperationException();
-
   }
 
   @Override

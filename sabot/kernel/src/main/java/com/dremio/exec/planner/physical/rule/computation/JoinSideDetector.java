@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.planner.physical.rule.computation;
 
+import com.google.common.base.Preconditions;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexCorrelVariable;
 import org.apache.calcite.rex.RexDynamicParam;
@@ -31,9 +32,7 @@ import org.apache.calcite.rex.RexTableInputRef;
 import org.apache.calcite.rex.RexVisitor;
 import org.apache.calcite.rex.RexVisitorImpl;
 
-import com.google.common.base.Preconditions;
-
-class JoinSideDetector  {
+class JoinSideDetector {
   private final RexVisitor<JoinSide> visitor = new Visitor();
 
   final int leftCount;
@@ -56,9 +55,7 @@ class JoinSideDetector  {
     @Override
     public JoinSide visitInputRef(RexInputRef ref) {
       assert ref.getIndex() < rightCount + leftCount;
-      return ref.getIndex() < leftCount
-        ? JoinSide.LEFT
-        : JoinSide.RIGHT;
+      return ref.getIndex() < leftCount ? JoinSide.LEFT : JoinSide.RIGHT;
     }
 
     @Override
@@ -69,45 +66,53 @@ class JoinSideDetector  {
     @Override
     public JoinSide visitCall(RexCall call) {
       return call.getOperands().stream()
-        .map(child -> child.accept(this))
-        .reduce(JoinSide.EMPTY, JoinSide::merge);
+          .map(child -> child.accept(this))
+          .reduce(JoinSide.EMPTY, JoinSide::merge);
     }
 
-    @Override public JoinSide visitOver(RexOver over) {
+    @Override
+    public JoinSide visitOver(RexOver over) {
       throw new IllegalArgumentException();
     }
 
-    @Override public JoinSide visitLocalRef(RexLocalRef localRef) {
+    @Override
+    public JoinSide visitLocalRef(RexLocalRef localRef) {
       throw new IllegalArgumentException();
     }
 
-    @Override public JoinSide visitCorrelVariable(RexCorrelVariable correlVariable) {
+    @Override
+    public JoinSide visitCorrelVariable(RexCorrelVariable correlVariable) {
       throw new IllegalArgumentException();
     }
 
-    @Override public JoinSide visitDynamicParam(RexDynamicParam dynamicParam) {
+    @Override
+    public JoinSide visitDynamicParam(RexDynamicParam dynamicParam) {
       throw new IllegalArgumentException();
     }
 
-    @Override public JoinSide visitRangeRef(RexRangeRef rangeRef) {
+    @Override
+    public JoinSide visitRangeRef(RexRangeRef rangeRef) {
       throw new IllegalArgumentException();
     }
 
-    @Override public JoinSide visitFieldAccess(RexFieldAccess fieldAccess) {
+    @Override
+    public JoinSide visitFieldAccess(RexFieldAccess fieldAccess) {
       throw new IllegalArgumentException();
     }
 
-    @Override public JoinSide visitSubQuery(RexSubQuery subQuery) {
+    @Override
+    public JoinSide visitSubQuery(RexSubQuery subQuery) {
       throw new IllegalArgumentException();
     }
 
-    @Override public JoinSide visitTableInputRef(RexTableInputRef ref) {
+    @Override
+    public JoinSide visitTableInputRef(RexTableInputRef ref) {
       throw new IllegalArgumentException();
     }
 
-    @Override public JoinSide visitPatternFieldRef(RexPatternFieldRef fieldRef) {
+    @Override
+    public JoinSide visitPatternFieldRef(RexPatternFieldRef fieldRef) {
       throw new IllegalArgumentException();
     }
   }
-
 }

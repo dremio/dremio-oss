@@ -22,52 +22,52 @@ public final class SqlTypeNameToParameterType {
 
   public static ParameterType convert(SqlTypeName sqlTypeName) {
     switch (sqlTypeName) {
-    case ANY:
-      return ParameterType.ANY;
+      case ANY:
+        return ParameterType.ANY;
 
-    case BOOLEAN:
-      return ParameterType.BOOLEAN;
+      case BOOLEAN:
+        return ParameterType.BOOLEAN;
 
-    case BINARY:
-    case VARBINARY:
-      return ParameterType.BYTES;
+      case BINARY:
+      case VARBINARY:
+        return ParameterType.BYTES;
 
-    case FLOAT:
-      return ParameterType.FLOAT;
+      case FLOAT:
+        return ParameterType.FLOAT;
 
-    case DECIMAL:
-      return ParameterType.DECIMAL;
+      case DECIMAL:
+        return ParameterType.DECIMAL;
 
-    case DOUBLE:
-      return ParameterType.DOUBLE;
+      case DOUBLE:
+        return ParameterType.DOUBLE;
 
-    case INTEGER:
-      return ParameterType.INT;
+      case INTEGER:
+        return ParameterType.INT;
 
-    case BIGINT:
-      return ParameterType.BIGINT;
+      case BIGINT:
+        return ParameterType.BIGINT;
 
-    case CHAR:
-    case VARCHAR:
-      return ParameterType.CHARACTERS;
+      case CHAR:
+      case VARCHAR:
+        return ParameterType.CHARACTERS;
 
-    case DATE:
-      return ParameterType.DATE;
+      case DATE:
+        return ParameterType.DATE;
 
-    case TIME:
-      return ParameterType.TIME;
+      case TIME:
+        return ParameterType.TIME;
 
-    case TIMESTAMP:
-      return ParameterType.TIMESTAMP;
+      case TIMESTAMP:
+        return ParameterType.TIMESTAMP;
 
-    case ARRAY:
-      return ParameterType.ARRAY;
+      case ARRAY:
+        return ParameterType.ARRAY;
 
-    case MAP:
-      return ParameterType.MAP;
+      case MAP:
+        return ParameterType.MAP;
 
-    default:
-      throw new UnsupportedOperationException("UNKNOWN KIND: " + sqlTypeName);
+      default:
+        throw new UnsupportedOperationException("UNKNOWN KIND: " + sqlTypeName);
     }
   }
 }

@@ -15,9 +15,7 @@
  */
 package com.dremio.common;
 
-/**
- * Common Constants
- */
+/** Common Constants */
 public interface FSConstants {
   // AWS S3 access key
   String FS_S3A_ACCESS_KEY = "fs.s3a.access.key";
@@ -38,22 +36,17 @@ public interface FSConstants {
   // AZURE AAD client ID
   String AZURE_CLIENT_ID = "dremio.azure.clientId";
 
-
   // AZURE AAD token endpoint
   String AZURE_TOKEN_ENDPOINT = "dremio.azure.tokenEndpoint";
-
 
   // AZURE AAD client secret
   String AZURE_CLIENT_SECRET = "dremio.azure.clientSecret";
 
-
   // AZURE Account Name
   String AZURE_ACCOUNT = "dremio.azure.account";
 
-
   // AZURE Account Kind
   String AZURE_MODE = "dremio.azure.mode";
-
 
   // AZURE secure connection
   String AZURE_SECURE = "dremio.azure.secure";

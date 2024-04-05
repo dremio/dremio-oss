@@ -15,18 +15,15 @@
  */
 package com.dremio.dac.server;
 
+import freemarker.cache.TemplateLoader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
-
 import org.eclipse.jetty.util.resource.Resource;
 
-import freemarker.cache.TemplateLoader;
-
 /**
- * A FreeMarker template loader using the same logic as
- * Jetty {@code org.eclipse.jetty.servlet.DefaultServlet} to find
- * templates
+ * A FreeMarker template loader using the same logic as Jetty {@code
+ * org.eclipse.jetty.servlet.DefaultServlet} to find templates
  */
 final class ResourceTemplateLoader implements TemplateLoader {
   private final Resource baseResource;

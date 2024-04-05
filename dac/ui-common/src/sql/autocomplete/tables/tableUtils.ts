@@ -18,7 +18,7 @@ import type { Column, Table } from "../types/Table";
 
 export function getColumnName(
   column: Column,
-  table: Table
+  table: Table,
 ): string | undefined {
   if (!table.columnAliases) {
     return column.name;

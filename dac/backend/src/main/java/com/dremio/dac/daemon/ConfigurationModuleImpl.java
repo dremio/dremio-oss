@@ -15,12 +15,11 @@
  */
 package com.dremio.dac.daemon;
 
-/**
- * Helper class to manage AWS configuration server
- */
+/** Helper class to manage AWS configuration server */
 public class ConfigurationModuleImpl implements ConfigurationModule {
   @Override
   public void run() throws Exception {
-    throw new UnsupportedOperationException("Configuration mode is not supported in this Dremio edition");
+    throw new UnsupportedOperationException(
+        "Configuration mode is not supported in this Dremio edition");
   }
 }

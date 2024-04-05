@@ -15,32 +15,28 @@
  */
 package com.dremio.exec.work.protector;
 
-import java.util.Optional;
-
 import com.dremio.exec.proto.UserBitShared.ExternalId;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
+import java.util.Optional;
 
-/**
- * Tool for interacting with the foremen manager.
- */
+/** Tool for interacting with the foremen manager. */
 public interface ForemenTool {
   // Used by REST APIs to cancel running queries
   boolean cancel(ExternalId id, String reason);
+
   Optional<QueryProfile> getProfile(ExternalId id);
 
-  ForemenTool NO_OP = new ForemenTool(){
+  ForemenTool NO_OP =
+      new ForemenTool() {
 
-    @Override
-    public boolean cancel(ExternalId id, String reason) {
-      return false;
-    }
+        @Override
+        public boolean cancel(ExternalId id, String reason) {
+          return false;
+        }
 
-    @Override
-    public Optional<QueryProfile> getProfile(ExternalId id) {
-      return Optional.empty();
-    }
-
-  };
-
-
+        @Override
+        public Optional<QueryProfile> getProfile(ExternalId id) {
+          return Optional.empty();
+        }
+      };
 }

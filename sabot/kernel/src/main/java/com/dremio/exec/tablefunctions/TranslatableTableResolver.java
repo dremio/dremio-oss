@@ -15,21 +15,17 @@
  */
 package com.dremio.exec.tablefunctions;
 
+import com.dremio.catalog.model.dataset.TableVersionContext;
 import java.util.List;
-
 import org.apache.calcite.schema.TranslatableTable;
 
-import com.dremio.catalog.model.dataset.TableVersionContext;
-
-/**
- * Resolve the path to a table.
- */
+/** Resolve the path to a table. */
 public interface TranslatableTableResolver {
 
   /**
    * Find and return a translatable table.
    *
-   * @param tablePath      table path
+   * @param tablePath table path
    * @param versionContext version context
    * @return translatable table, null if not present
    */

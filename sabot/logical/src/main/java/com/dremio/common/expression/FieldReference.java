@@ -15,14 +15,13 @@
  */
 package com.dremio.common.expression;
 
-import java.io.IOException;
-
 import com.dremio.common.expression.PathSegment.NameSegment;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
+import java.io.IOException;
 
 // Need a custom deserializer as ExprParser can not distinguish between
 // SchemaPath and FieldReference
@@ -61,7 +60,7 @@ public class FieldReference extends SchemaPath {
 
   @Override
   public CompleteType getCompleteType() {
-    if(overrideType != null){
+    if (overrideType != null) {
       return overrideType;
     } else {
       return super.getCompleteType();
@@ -70,16 +69,16 @@ public class FieldReference extends SchemaPath {
 
   public static class De extends StdDeserializer<FieldReference> {
     private final SchemaPath.De deserializer = new SchemaPath.De();
+
     public De() {
       super(FieldReference.class);
     }
 
     @Override
-    public FieldReference deserialize(JsonParser jp, DeserializationContext ctxt) throws IOException,
-        JsonProcessingException {
+    public FieldReference deserialize(JsonParser jp, DeserializationContext ctxt)
+        throws IOException, JsonProcessingException {
       SchemaPath sp = deserializer.deserialize(jp, ctxt);
       return new FieldReference(sp);
     }
   }
-
 }

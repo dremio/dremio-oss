@@ -17,8 +17,5 @@ package com.dremio.connector.metadata.options;
 
 import com.dremio.connector.metadata.ListPartitionChunkOption;
 
-/**
- * Directory List Input Split type.
- */
-public class DirListInputSplitType implements ListPartitionChunkOption {
-}
+/** Directory List Input Split type. */
+public class DirListInputSplitType implements ListPartitionChunkOption {}

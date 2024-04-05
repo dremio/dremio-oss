@@ -15,9 +15,6 @@
  */
 package com.dremio.dac.explore.model;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import com.dremio.dac.model.common.NamespacePath;
 import com.dremio.service.namespace.file.FileFormat;
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -25,34 +22,38 @@ import com.fasterxml.jackson.annotation.JsonGetter;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.HashMap;
+import java.util.Map;
 
-
-/**
- * FormatFormat plus id and links for ui
- */
-@JsonIgnoreProperties(value={ "id" }, allowGetters=true)
-public class FileFormatUI{
+/** FormatFormat plus id and links for ui */
+@JsonIgnoreProperties(
+    value = {"id"},
+    allowGetters = true)
+public class FileFormatUI {
 
   private final FileFormat fileFormat;
   private final Map<String, String> links;
 
-  @JsonIgnore
-  private static final String FILE_FORMAT = "file_format";
+  @JsonIgnore private static final String FILE_FORMAT = "file_format";
 
-  @JsonIgnore
-  private static final String FOLDER_FORMAT = "folder_format";
+  @JsonIgnore private static final String FOLDER_FORMAT = "folder_format";
 
   public FileFormatUI(FileFormat fileFormat, NamespacePath namespacePath) {
     this.links = new HashMap<>();
-    links.put("self", namespacePath.toUrlPathWithAction(fileFormat.getIsFolder()? FOLDER_FORMAT: FILE_FORMAT));
-    links.put("format_preview", namespacePath.toUrlPathWithAction(fileFormat.getIsFolder() ? "folder_preview" : "file_preview"));
+    links.put(
+        "self",
+        namespacePath.toUrlPathWithAction(fileFormat.getIsFolder() ? FOLDER_FORMAT : FILE_FORMAT));
+    links.put(
+        "format_preview",
+        namespacePath.toUrlPathWithAction(
+            fileFormat.getIsFolder() ? "folder_preview" : "file_preview"));
     this.fileFormat = fileFormat;
   }
 
   @JsonCreator
   public FileFormatUI(
-    @JsonProperty("fileFormat") FileFormat fileFormat,
-    @JsonProperty("links") Map<String, String> links) {
+      @JsonProperty("fileFormat") FileFormat fileFormat,
+      @JsonProperty("links") Map<String, String> links) {
     this.fileFormat = fileFormat;
     this.links = links;
   }
@@ -69,5 +70,4 @@ public class FileFormatUI{
   public Map<String, String> getLinks() {
     return this.links;
   }
-
 }

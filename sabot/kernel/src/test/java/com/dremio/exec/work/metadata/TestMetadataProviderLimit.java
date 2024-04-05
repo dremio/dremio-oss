@@ -17,18 +17,14 @@ package com.dremio.exec.work.metadata;
 
 import static org.junit.Assert.assertEquals;
 
-import java.util.List;
-import java.util.Properties;
-
-import org.junit.Test;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.exec.proto.UserProtos;
 import com.dremio.exec.proto.UserProtos.GetTablesResp;
+import java.util.List;
+import java.util.Properties;
+import org.junit.Test;
 
-/**
- * Test metadata provider with limit.
- */
+/** Test metadata provider with limit. */
 public class TestMetadataProviderLimit extends BaseTestQuery {
 
   @Test

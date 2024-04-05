@@ -20,26 +20,21 @@ import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-/**
- * Convertlet to implement TYPEOF by passing it to Calcite's type system.
- */
+/** Convertlet to implement TYPEOF by passing it to Calcite's type system. */
 public final class TypeOfEvaluator implements FunctionEval {
   public static final TypeOfEvaluator INSTANCE = new TypeOfEvaluator();
 
   private TypeOfEvaluator() {}
 
   @Override
-  public RexNode evaluate(
-    EvaluationContext cx,
-    RexCall call) {
+  public RexNode evaluate(EvaluationContext cx, RexCall call) {
     RexNode argument = call.getOperands().get(0);
     RelDataType relDataType = argument.getType();
     String relDataTypeString = relDataTypeToString(relDataType);
     RexNode type = cx.getRexBuilder().makeLiteral(relDataTypeString);
-    RexNode casted = cx.getRexBuilder()
-      .makeCast(
-        cx.getRexBuilder().getTypeFactory().createSqlType(SqlTypeName.VARCHAR),
-        type);
+    RexNode casted =
+        cx.getRexBuilder()
+            .makeCast(cx.getRexBuilder().getTypeFactory().createSqlType(SqlTypeName.VARCHAR), type);
     return casted;
   }
 
@@ -49,7 +44,8 @@ public final class TypeOfEvaluator implements FunctionEval {
     String toString;
     switch (relDataType.getSqlTypeName()) {
       case ARRAY:
-        toString = "ARRAY<" + relDataTypeToString(relDataType.getComponentType()) + ">" + nullableMarker;
+        toString =
+            "ARRAY<" + relDataTypeToString(relDataType.getComponentType()) + ">" + nullableMarker;
         break;
 
       case NULL:

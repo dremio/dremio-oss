@@ -20,7 +20,10 @@ import com.dremio.exec.planner.physical.PlannerSettings;
 public interface ExecErrorConstants {
 
   // Error message when decimal data type is disabled
-  String DECIMAL_DISABLE_ERR_MSG = String.format("Decimal data type is disabled. \n" +
-      "As of this release, decimal data type is a beta level feature and should not be used in production. \n" +
-      "Use option '%s' to enable decimal data type.", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY);
+  String DECIMAL_DISABLE_ERR_MSG =
+      String.format(
+          "Decimal data type is disabled. \n"
+              + "As of this release, decimal data type is a beta level feature and should not be used in production. \n"
+              + "Use option '%s' to enable decimal data type.",
+          PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY);
 }

@@ -15,14 +15,7 @@
  */
 package com.dremio.exec.planner.serializer;
 
-import java.util.Set;
-import java.util.stream.Collectors;
-
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.sql.SqlOperatorTable;
-
-import com.dremio.catalog.model.dataset.TableVersionContext;
+import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.exec.catalog.DremioPrepareTable;
@@ -44,24 +37,28 @@ import com.dremio.service.namespace.NamespaceKey;
 import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.util.JsonFormat;
 import com.google.protobuf.util.JsonFormat.TypeRegistry;
+import java.util.Set;
+import java.util.stream.Collectors;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.sql.SqlOperatorTable;
 
-/**
- * Serializer factory that produces protobuf serialized RelNode trees.
- */
+/** Serializer factory that produces protobuf serialized RelNode trees. */
 public class ProtoRelSerializerFactory extends RelSerializerFactory {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ProtoRelSerializerFactory.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ProtoRelSerializerFactory.class);
 
-  static final TypeRegistry REGISTRY = TypeRegistry.newBuilder()
-      .add(PRelNodeTypes.getDescriptor().getMessageTypes())
-      .add(PRexNodeTypes.getDescriptor().getMessageTypes())
-      .build();
+  static final TypeRegistry REGISTRY =
+      TypeRegistry.newBuilder()
+          .add(PRelNodeTypes.getDescriptor().getMessageTypes())
+          .add(PRexNodeTypes.getDescriptor().getMessageTypes())
+          .build();
 
-  private static final Set<FieldDescriptor> ALWAYS_INCLUDE_VALUES = PRexInputRef.getDescriptor()
-      .getFields()
-      .stream()
-      .filter(t -> t.getName().equalsIgnoreCase("index"))
-      .collect(Collectors.toSet());
+  private static final Set<FieldDescriptor> ALWAYS_INCLUDE_VALUES =
+      PRexInputRef.getDescriptor().getFields().stream()
+          .filter(t -> t.getName().equalsIgnoreCase("index"))
+          .collect(Collectors.toSet());
 
   private final RelSerdeRegistry serdeRegistry;
 
@@ -71,7 +68,8 @@ public class ProtoRelSerializerFactory extends RelSerializerFactory {
   }
 
   @Override
-  public LogicalPlanSerializer getSerializer(RelOptCluster cluster, SqlOperatorTable sqlOperatorTable) {
+  public LogicalPlanSerializer getSerializer(
+      RelOptCluster cluster, SqlOperatorTable sqlOperatorTable) {
     return new LogicalPlanSerializer() {
 
       @Override
@@ -79,7 +77,9 @@ public class ProtoRelSerializerFactory extends RelSerializerFactory {
         try {
           return ser(plan).toByteArray();
         } catch (Exception ex) {
-          throw UserException.validationError(ex).message("Failure serializing plan.").build(logger);
+          throw UserException.validationError(ex)
+              .message("Failure serializing plan.")
+              .build(logger);
         }
       }
 
@@ -92,9 +92,14 @@ public class ProtoRelSerializerFactory extends RelSerializerFactory {
       @Override
       public String serializeToJson(RelNode plan) {
         try {
-          return JsonFormat.printer().usingTypeRegistry(REGISTRY).includingDefaultValueFields(ALWAYS_INCLUDE_VALUES).print(ser(plan));
+          return JsonFormat.printer()
+              .usingTypeRegistry(REGISTRY)
+              .includingDefaultValueFields(ALWAYS_INCLUDE_VALUES)
+              .print(ser(plan));
         } catch (Exception ex) {
-          throw UserException.validationError(ex).message("Failure serializing plan.").build(logger);
+          throw UserException.validationError(ex)
+              .message("Failure serializing plan.")
+              .build(logger);
         }
       }
     };
@@ -102,22 +107,23 @@ public class ProtoRelSerializerFactory extends RelSerializerFactory {
 
   @Override
   public LogicalPlanDeserializer getDeserializer(
-    RelOptCluster cluster,
-    DremioCatalogReader catalogReader,
-    SqlOperatorTable sqlOperatorTable,
-    CatalogService catalogService) {
-    final TableRetriever tableRetriever = new TableRetriever() {
+      RelOptCluster cluster,
+      DremioCatalogReader catalogReader,
+      SqlOperatorTable sqlOperatorTable,
+      CatalogService catalogService) {
+    final TableRetriever tableRetriever =
+        new TableRetriever() {
 
-      @Override
-      public DremioPrepareTable getTable(NamespaceKey key) {
-         return catalogReader.getTable(key.getPathComponents());
-      }
+          @Override
+          public DremioPrepareTable getTable(NamespaceKey key) {
+            return catalogReader.getTable(key.getPathComponents());
+          }
 
-      @Override
-      public DremioTranslatableTable getTableSnapshot(NamespaceKey key, TableVersionContext context) {
-        return catalogReader.getTableSnapshot(key, context);
-      }
-    };
+          @Override
+          public DremioTranslatableTable getTableSnapshot(CatalogEntityKey catalogEntityKey) {
+            return catalogReader.getTableIgnoreSchema(catalogEntityKey);
+          }
+        };
 
     final PluginRetriever pluginRetriever = t -> catalogService.getSource(t);
     final SqlOperatorSerde sqlOperatorSerde = new SqlOperatorSerde(sqlOperatorTable);
@@ -128,13 +134,13 @@ public class ProtoRelSerializerFactory extends RelSerializerFactory {
         try {
           PRelList list = PRelList.parseFrom(data);
           return RelDeserializer.deserialize(
-            serdeRegistry,
-            DremioRelFactories.CALCITE_LOGICAL_BUILDER,
-            tableRetriever,
-            pluginRetriever,
-            list,
-            cluster,
-            sqlOperatorSerde);
+              serdeRegistry,
+              DremioRelFactories.CALCITE_LOGICAL_BUILDER,
+              tableRetriever,
+              pluginRetriever,
+              list,
+              cluster,
+              sqlOperatorSerde);
         } catch (Exception ex) {
           throw new DeserializationException(ex);
         }
@@ -146,18 +152,19 @@ public class ProtoRelSerializerFactory extends RelSerializerFactory {
         try {
           JsonFormat.parser().usingTypeRegistry(REGISTRY).merge(data, builder);
           return RelDeserializer.deserialize(
-            serdeRegistry,
-            DremioRelFactories.CALCITE_LOGICAL_BUILDER,
-            tableRetriever,
-            pluginRetriever,
-            builder.build(),
-            cluster,
-            sqlOperatorSerde);
+              serdeRegistry,
+              DremioRelFactories.CALCITE_LOGICAL_BUILDER,
+              tableRetriever,
+              pluginRetriever,
+              builder.build(),
+              cluster,
+              sqlOperatorSerde);
         } catch (Exception ex) {
-          throw UserException.validationError(ex).message("Failure deserializing plan.").build(logger);
+          throw UserException.validationError(ex)
+              .message("Failure deserializing plan.")
+              .build(logger);
         }
       }
     };
   }
-
 }

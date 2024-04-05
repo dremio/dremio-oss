@@ -15,48 +15,59 @@
  */
 package com.dremio.service.sqlrunner;
 
-import java.time.Instant;
-import java.util.concurrent.TimeUnit;
-
-import javax.inject.Inject;
-import javax.inject.Provider;
-
 import com.dremio.service.Service;
 import com.dremio.service.scheduler.Cancellable;
 import com.dremio.service.scheduler.Schedule;
 import com.dremio.service.scheduler.SchedulerService;
+import java.time.Instant;
+import java.util.concurrent.TimeUnit;
+import javax.inject.Inject;
+import javax.inject.Provider;
 
 /**
- * A companion service for {@code SQLRunnerSessionService} to clean expired SQL Runner sessions in the background
+ * A companion service for {@code SQLRunnerSessionService} to clean expired SQL Runner sessions in
+ * the background
  */
 public class SQLRunnerSessionCleanerService implements Service {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SQLRunnerSessionCleanerService.class);
-  private static final int DEFAULT_SQLRUNNER_SESSION_CLEAN_PERIOD_HOUR = Math.toIntExact(TimeUnit.DAYS.toHours(1));
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(SQLRunnerSessionCleanerService.class);
+  private static final int DEFAULT_SQLRUNNER_SESSION_CLEAN_PERIOD_HOUR =
+      Math.toIntExact(TimeUnit.DAYS.toHours(1));
   private static final int DEFAULT_SQLRUNNER_SESSION_CLEAN_RELEASE_LEADERSHIP_HOUR_IN_MS =
-    Math.toIntExact(TimeUnit.HOURS.toMillis(36));
+      Math.toIntExact(TimeUnit.HOURS.toMillis(36));
   private static final String LOCAL_TASK_LEADER_NAME = "sqlrunner_session_cleaner";
   private final Provider<SchedulerService> scheduler;
   private final Provider<SQLRunnerSessionService> sqlRunnerSessionService;
   private volatile Cancellable cleanerTask;
 
   @Inject
-  public SQLRunnerSessionCleanerService(Provider<SchedulerService> schedulerService,
-                                        Provider<SQLRunnerSessionService> sqlRunnerSessionService) {
+  public SQLRunnerSessionCleanerService(
+      Provider<SchedulerService> schedulerService,
+      Provider<SQLRunnerSessionService> sqlRunnerSessionService) {
     this.scheduler = schedulerService;
     this.sqlRunnerSessionService = sqlRunnerSessionService;
   }
 
   @Override
   public void start() throws Exception {
-    cleanerTask = scheduler.get().schedule(Schedule.Builder.everyHours(DEFAULT_SQLRUNNER_SESSION_CLEAN_PERIOD_HOUR)
-      .asClusteredSingleton(LOCAL_TASK_LEADER_NAME)
-      .releaseOwnershipAfter(DEFAULT_SQLRUNNER_SESSION_CLEAN_RELEASE_LEADERSHIP_HOUR_IN_MS, TimeUnit.MILLISECONDS)
-      .startingAt(Instant.ofEpochMilli(System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(15)))
-      .build(), () -> {
-      logger.info("Clean expired SQL Runner sessions");
-      final int expired = sqlRunnerSessionService.get().deleteExpired();
-      logger.info("Deleted {} expired SQL Runner sessions", expired);
-    });
+    cleanerTask =
+        scheduler
+            .get()
+            .schedule(
+                Schedule.Builder.everyHours(DEFAULT_SQLRUNNER_SESSION_CLEAN_PERIOD_HOUR)
+                    .asClusteredSingleton(LOCAL_TASK_LEADER_NAME)
+                    .releaseOwnershipAfter(
+                        DEFAULT_SQLRUNNER_SESSION_CLEAN_RELEASE_LEADERSHIP_HOUR_IN_MS,
+                        TimeUnit.MILLISECONDS)
+                    .startingAt(
+                        Instant.ofEpochMilli(
+                            System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(15)))
+                    .build(),
+                () -> {
+                  logger.info("Clean expired SQL Runner sessions");
+                  final int expired = sqlRunnerSessionService.get().deleteExpired();
+                  logger.info("Deleted {} expired SQL Runner sessions", expired);
+                });
   }
 
   @Override
@@ -67,12 +78,12 @@ public class SQLRunnerSessionCleanerService implements Service {
   }
 
   @SuppressWarnings("checkstyle:VisibilityModifier")
-  public static SQLRunnerSessionCleanerService NOOP = new SQLRunnerSessionCleanerService(null, null) {
-    @Override
-    public void start() throws Exception {
-    }
-    @Override
-    public void close() throws Exception {
-    }
-  };
+  public static SQLRunnerSessionCleanerService NOOP =
+      new SQLRunnerSessionCleanerService(null, null) {
+        @Override
+        public void start() throws Exception {}
+
+        @Override
+        public void close() throws Exception {}
+      };
 }

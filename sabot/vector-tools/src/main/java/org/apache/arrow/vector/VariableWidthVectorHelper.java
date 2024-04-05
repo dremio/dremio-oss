@@ -15,13 +15,13 @@
  */
 package org.apache.arrow.vector;
 
-import org.apache.arrow.memory.ArrowBuf;
-
 import com.dremio.common.expression.CompleteType;
 import com.dremio.exec.proto.UserBitShared.NamePart;
 import com.dremio.exec.proto.UserBitShared.SerializedField;
+import org.apache.arrow.memory.ArrowBuf;
 
-public class VariableWidthVectorHelper<T extends BaseVariableWidthVector> extends BaseValueVectorHelper<T> {
+public class VariableWidthVectorHelper<T extends BaseVariableWidthVector>
+    extends BaseValueVectorHelper<T> {
 
   public VariableWidthVectorHelper(T vector) {
     super(vector);
@@ -30,26 +30,34 @@ public class VariableWidthVectorHelper<T extends BaseVariableWidthVector> extend
   @Override
   public SerializedField.Builder getMetadataBuilder() {
     return super.getMetadataBuilder()
-          .addChild(buildValidityMetadata())
-          .addChild(buildOffsetAndDataMetadata())
-          .setMajorType(com.dremio.common.util.MajorTypeHelper.getMajorTypeForField(vector.getField()));
+        .addChild(buildValidityMetadata())
+        .addChild(buildOffsetAndDataMetadata())
+        .setMajorType(
+            com.dremio.common.util.MajorTypeHelper.getMajorTypeForField(vector.getField()));
   }
 
   /* keep the offset buffer as a nested child to avoid compatibility problems */
   private SerializedField buildOffsetAndDataMetadata() {
-    SerializedField offsetField = SerializedField.newBuilder()
-          .setNamePart(NamePart.newBuilder().setName("$offsets$").build())
-          .setValueCount((vector.valueCount == 0) ? 0 : vector.valueCount + 1)
-          .setBufferLength((vector.valueCount == 0) ? 0 : (vector.valueCount + 1) * 4)
-          .setMajorType(com.dremio.common.types.Types.required(com.dremio.common.types.TypeProtos.MinorType.UINT4))
-          .build();
+    SerializedField offsetField =
+        SerializedField.newBuilder()
+            .setNamePart(NamePart.newBuilder().setName("$offsets$").build())
+            .setValueCount((vector.valueCount == 0) ? 0 : vector.valueCount + 1)
+            .setBufferLength((vector.valueCount == 0) ? 0 : (vector.valueCount + 1) * 4)
+            .setMajorType(
+                com.dremio.common.types.Types.required(
+                    com.dremio.common.types.TypeProtos.MinorType.UINT4))
+            .build();
 
-    SerializedField.Builder dataBuilder = SerializedField.newBuilder()
-          .setNamePart(NamePart.newBuilder().setName("$values$").build())
-          .setValueCount(vector.valueCount)
-          .setBufferLength(vector.getBufferSize() - getValidityBufferSizeFromCount(vector.valueCount))
-          .addChild(offsetField)
-          .setMajorType(com.dremio.common.types.Types.required(CompleteType.fromField(vector.getField()).toMinorType()));
+    SerializedField.Builder dataBuilder =
+        SerializedField.newBuilder()
+            .setNamePart(NamePart.newBuilder().setName("$values$").build())
+            .setValueCount(vector.valueCount)
+            .setBufferLength(
+                vector.getBufferSize() - getValidityBufferSizeFromCount(vector.valueCount))
+            .addChild(offsetField)
+            .setMajorType(
+                com.dremio.common.types.Types.required(
+                    CompleteType.fromField(vector.getField()).toMinorType()));
 
     return dataBuilder.build();
   }
@@ -60,9 +68,10 @@ public class VariableWidthVectorHelper<T extends BaseVariableWidthVector> extend
     final int offsetActualLength = offsetField.getBufferLength();
     final int valueCount = offsetField.getValueCount();
     final int offsetExpectedLength = valueCount * 4;
-    assert offsetActualLength == offsetExpectedLength :
-      String.format("Expected to load %d bytes but actually loaded %d bytes in offset buffer", offsetExpectedLength,
-      offsetActualLength);
+    assert offsetActualLength == offsetExpectedLength
+        : String.format(
+            "Expected to load %d bytes but actually loaded %d bytes in offset buffer",
+            offsetExpectedLength, offsetActualLength);
 
     vector.offsetBuffer = buffer.slice(0, offsetActualLength);
     vector.offsetBuffer.getReferenceManager().retain();
@@ -75,5 +84,4 @@ public class VariableWidthVectorHelper<T extends BaseVariableWidthVector> extend
     vector.valueBuffer.getReferenceManager().retain();
     vector.valueBuffer.writerIndex(dataLength);
   }
-
 }

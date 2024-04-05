@@ -26,15 +26,14 @@ import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEventsImpl;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.google.common.collect.ImmutableList;
 
-/**
- * Upgrade task that deletes all system tables.
- */
+/** Upgrade task that deletes all system tables. */
 public class DeleteSysMaterializationsMetadata extends UpgradeTask {
 
   static final String taskUUID = "0f5c698a-55c9-45e7-84fe-c5f737e30432";
 
   public DeleteSysMaterializationsMetadata() {
-    super("Deleting System table metadata", ImmutableList.of(UpdateExternalReflectionHash.taskUUID));
+    super(
+        "Deleting System table metadata", ImmutableList.of(UpdateExternalReflectionHash.taskUUID));
   }
 
   @Override
@@ -44,9 +43,11 @@ public class DeleteSysMaterializationsMetadata extends UpgradeTask {
 
   @Override
   public void upgrade(UpgradeContext context) {
-    final NamespaceService namespaceService = new NamespaceServiceImpl(context.getLegacyKVStoreProvider(), new CatalogStatusEventsImpl());
+    final NamespaceService namespaceService =
+        new NamespaceServiceImpl(context.getLegacyKVStoreProvider(), new CatalogStatusEventsImpl());
     try {
-      final NamespaceKey key = new DatasetPath(ImmutableList.of("sys", "materializations")).toNamespaceKey();
+      final NamespaceKey key =
+          new DatasetPath(ImmutableList.of("sys", "materializations")).toNamespaceKey();
       final DatasetConfig dataset = namespaceService.getDataset(key);
 
       namespaceService.deleteDataset(key, dataset.getTag());

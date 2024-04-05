@@ -21,11 +21,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 
-import java.util.List;
-
-import org.junit.Before;
-import org.junit.Test;
-
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.proto.model.dataset.Column;
 import com.dremio.dac.proto.model.dataset.ExpColumnReference;
@@ -33,10 +28,11 @@ import com.dremio.dac.proto.model.dataset.Expression;
 import com.dremio.dac.proto.model.dataset.From;
 import com.dremio.dac.proto.model.dataset.FromTable;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetState;
+import java.util.List;
+import org.junit.Before;
+import org.junit.Test;
 
-/**
- * tests for DatasetStateMutator
- */
+/** tests for DatasetStateMutator */
 public class TestDatasetStateMutator {
 
   private final DatasetPath datasetPath = new DatasetPath("myspace.parentDS");
@@ -45,13 +41,12 @@ public class TestDatasetStateMutator {
   private final Expression value = new ExpColumnReference("parentFoo").wrap();
   private final Expression newValue = new ExpColumnReference("parentBar").wrap();
 
-//  private Transformer t;
+  //  private Transformer t;
   private VirtualDatasetState state;
 
   @Before
   public void before() {
-    state = new VirtualDatasetState()
-        .setFrom(parentDataset);
+    state = new VirtualDatasetState().setFrom(parentDataset);
     state.setColumnsList(asList(new Column("foo", value)));
   }
 
@@ -145,5 +140,4 @@ public class TestDatasetStateMutator {
     assertColIs(value, result2, "foo");
     assertColIs(newValue, result2, "foo2");
   }
-
 }

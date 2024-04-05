@@ -15,9 +15,9 @@
  */
 package com.dremio.plugins.sysflight;
 
+import com.dremio.exec.proto.SearchProtos.SearchQuery;
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
@@ -36,46 +36,39 @@ import org.apache.calcite.rex.RexSubQuery;
 import org.apache.calcite.rex.RexTableInputRef;
 import org.apache.calcite.rex.RexVisitor;
 
-import com.dremio.exec.proto.SearchProtos.SearchQuery;
-
-/**
- * Enables conversion of a filter condition into a search query for pushdown.
- */
-
+/** Enables conversion of a filter condition into a search query for pushdown. */
 public final class ExpressionConverter {
 
+  static final org.slf4j.Logger LOGGER =
+      org.slf4j.LoggerFactory.getLogger(ExpressionConverter.class);
 
-  static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(ExpressionConverter.class);
+  private ExpressionConverter() {}
 
-  private ExpressionConverter() {
-  }
-
-  public static PushdownResult pushdown(RexBuilder rexBuilder, RelDataType rowType, RexNode condition) {
+  public static PushdownResult pushdown(
+      RexBuilder rexBuilder, RelDataType rowType, RexNode condition) {
     List<RexNode> conjuncts = RelOptUtil.conjunctions(condition);
     List<SearchQuery> found = new ArrayList<>();
 
     Visitor visitor = new Visitor(rowType);
-    for(RexNode n : conjuncts) {
+    for (RexNode n : conjuncts) {
       SearchQuery q = n.accept(visitor);
-      if(q != null) {
+      if (q != null) {
         found.add(q);
       }
     }
 
-    if(found.isEmpty()) {
+    if (found.isEmpty()) {
       return new PushdownResult(null);
     }
 
-
-    if(found.size() == 1) {
+    if (found.size() == 1) {
       return new PushdownResult(found.get(0));
     } else {
-      return new PushdownResult(SearchQuery.newBuilder()
-        .setAnd(SearchQuery.And.newBuilder()
-          .addAllClauses(found))
-        .build());
+      return new PushdownResult(
+          SearchQuery.newBuilder()
+              .setAnd(SearchQuery.And.newBuilder().addAllClauses(found))
+              .build());
     }
-
   }
 
   private static class Visitor implements RexVisitor<SearchQuery> {
@@ -101,67 +94,67 @@ public final class ExpressionConverter {
       return null;
     }
 
-
     @Override
     public SearchQuery visitCall(RexCall call) {
       final List<SearchQuery> subs = subs(call.getOperands());
 
       final LitInput bifunc = litInput(call);
-      switch(call.getKind()) {
+      switch (call.getKind()) {
         case EQUALS:
-          if(bifunc == null) {
+          if (bifunc == null) {
             return null;
           }
           return SearchQuery.newBuilder()
-            .setEquals(SearchQuery.Equals.newBuilder()
-              .setField(bifunc.field)
-              .setStringValue(bifunc.literal))
-            .build();
+              .setEquals(
+                  SearchQuery.Equals.newBuilder()
+                      .setField(bifunc.field)
+                      .setStringValue(bifunc.literal))
+              .build();
 
         case AND:
-          if(subs == null) {
+          if (subs == null) {
             return null;
           }
 
           return SearchQuery.newBuilder()
-            .setAnd(SearchQuery.And.newBuilder()
-              .addAllClauses(subs))
-            .build();
+              .setAnd(SearchQuery.And.newBuilder().addAllClauses(subs))
+              .build();
 
         case OR:
-          if(subs == null) {
+          if (subs == null) {
             return null;
           }
 
           return SearchQuery.newBuilder()
-            .setOr(SearchQuery.Or.newBuilder()
-              .addAllClauses(subs))
-            .build();
+              .setOr(SearchQuery.Or.newBuilder().addAllClauses(subs))
+              .build();
 
         case GREATER_THAN:
-          if(bifunc == null) {
+          if (bifunc == null) {
             return null;
           }
 
           return SearchQuery.newBuilder()
-            .setGreaterThan(SearchQuery.GreaterThan.newBuilder()
-              .setField(bifunc.field)
-              .setValue(Long.parseLong(bifunc.literal)))
-            .build();
+              .setGreaterThan(
+                  SearchQuery.GreaterThan.newBuilder()
+                      .setField(bifunc.field)
+                      .setValue(Long.parseLong(bifunc.literal)))
+              .build();
 
-// Lucene doesn't handle NOT expressions well in some cases.
-//      case NOT:
-//        if(subs == null || subs.size() != 1) {
-//          return null;
-//        }
-//        SearchQuery q = subs.get(0);
-//        return SearchQueryUtils.not(subs.get(0));
-//
-//      case NOT_EQUALS:
-//        if(bifunc == null) {
-//          return null;
-//        }
-//        return SearchQueryUtils.not(SearchQueryUtils.newTermQuery(bifunc.field, bifunc.literal));
+          // Lucene doesn't handle NOT expressions well in some cases.
+          //      case NOT:
+          //        if(subs == null || subs.size() != 1) {
+          //          return null;
+          //        }
+          //        SearchQuery q = subs.get(0);
+          //        return SearchQueryUtils.not(subs.get(0));
+          //
+          //      case NOT_EQUALS:
+          //        if(bifunc == null) {
+          //          return null;
+          //        }
+          //        return SearchQueryUtils.not(SearchQueryUtils.newTermQuery(bifunc.field,
+          // bifunc.literal));
 
         case LIKE:
           return handleLike(call);
@@ -169,7 +162,6 @@ public final class ExpressionConverter {
         default:
           return null;
       }
-
     }
 
     private SearchQuery handleLike(RexCall call) {
@@ -180,11 +172,10 @@ public final class ExpressionConverter {
       String escape = null;
       String fName = null;
 
-      switch(operands.size()) {
-
+      switch (operands.size()) {
         case 3:
           RexNode op3 = operands.get(2);
-          if(op3 instanceof RexLiteral) {
+          if (op3 instanceof RexLiteral) {
             escape = ((RexLiteral) op3).getValue3().toString();
           } else {
             return null;
@@ -193,15 +184,18 @@ public final class ExpressionConverter {
 
         case 2:
           RexNode op1 = operands.get(0);
-          if(op1 instanceof RexInputRef) {
+          if (op1 instanceof RexInputRef) {
             RexInputRef input = ((RexInputRef) op1);
             fName = rowType.getFieldList().get(input.getIndex()).getName().toLowerCase();
 
             LOGGER.info("The passed field in ExpressionConverter is, {}", fName);
+          } else if (op1 instanceof RexCall) {
+            fName = getFieldName(op1);
+            LOGGER.info("The passed field in ExpressionConverter is, {}", fName);
           }
 
           RexNode op2 = operands.get(1);
-          if(op2 instanceof RexLiteral) {
+          if (op2 instanceof RexLiteral) {
             pattern = ((RexLiteral) op2).getValue3().toString();
           } else {
             return null;
@@ -213,12 +207,24 @@ public final class ExpressionConverter {
       }
 
       return SearchQuery.newBuilder()
-        .setLike(SearchQuery.Like.newBuilder()
-          .setField(fName)
-          .setPattern(pattern)
-          .setEscape(escape == null ? "" : escape)
-          .setCaseInsensitive(false))
-        .build();
+          .setLike(
+              SearchQuery.Like.newBuilder()
+                  .setField(fName)
+                  .setPattern(pattern)
+                  .setEscape(escape == null ? "" : escape)
+                  .setCaseInsensitive(false))
+          .build();
+    }
+
+    private String getFieldName(RexNode op) {
+      if (op instanceof RexInputRef) {
+        RexInputRef input = ((RexInputRef) op);
+        return rowType.getFieldList().get(input.getIndex()).getName().toLowerCase();
+      } else if (op instanceof RexCall) {
+        RexNode rexNode = ((RexCall) op).getOperands().get(0);
+        return getFieldName(rexNode);
+      }
+      return null;
     }
 
     @Override
@@ -263,12 +269,13 @@ public final class ExpressionConverter {
 
     /**
      * Get an input that is a combination of two values, a literal and an index key.
+     *
      * @param call
      * @return Null if call does not match expected pattern. Otherwise the LitInput value.
      */
     private LitInput litInput(RexCall call) {
       List<RexNode> operands = call.getOperands();
-      if(operands.size() != 2) {
+      if (operands.size() != 2) {
         return null;
       }
 
@@ -279,9 +286,9 @@ public final class ExpressionConverter {
       RexInputRef input = null;
       boolean literalFirst = true;
 
-      if(first instanceof RexLiteral) {
+      if (first instanceof RexLiteral) {
         literal = (RexLiteral) first;
-        if(second instanceof RexInputRef) {
+        if (second instanceof RexInputRef) {
           input = (RexInputRef) second;
           literalFirst = true;
         } else {
@@ -289,9 +296,9 @@ public final class ExpressionConverter {
         }
       }
 
-      if(second instanceof RexLiteral) {
+      if (second instanceof RexLiteral) {
         literal = (RexLiteral) second;
-        if(first instanceof RexInputRef) {
+        if (first instanceof RexInputRef) {
           input = (RexInputRef) first;
           literalFirst = false;
         } else {
@@ -299,21 +306,20 @@ public final class ExpressionConverter {
         }
       }
 
-      if(input == null) {
+      if (input == null) {
         return null;
       }
 
       String fieldName = rowType.getFieldList().get(input.getIndex()).getName().toLowerCase();
 
       return new LitInput(literal.getValue3().toString(), fieldName, literalFirst);
-
     }
 
-    private List<SearchQuery> subs(List<RexNode> ops){
+    private List<SearchQuery> subs(List<RexNode> ops) {
       List<SearchQuery> subQueries = new ArrayList<>();
-      for(RexNode n : ops) {
+      for (RexNode n : ops) {
         SearchQuery query = n.accept(this);
-        if(query == null) {
+        if (query == null) {
           return null;
         }
         subQueries.add(query);
@@ -325,12 +331,14 @@ public final class ExpressionConverter {
     /**
      * An input that is a combination of two values, a literal and field name.
      *
-     * Also identifies if the literal was the first argument. Useful for GT,LT, etc.
+     * <p>Also identifies if the literal was the first argument. Useful for GT,LT, etc.
      */
     private static class LitInput {
       private String literal;
       private String field;
-      @SuppressWarnings("unused") private boolean literalFirst;
+
+      @SuppressWarnings("unused")
+      private boolean literalFirst;
 
       public LitInput(String literal, String field, boolean literalFirst) {
         super();
@@ -338,14 +346,10 @@ public final class ExpressionConverter {
         this.field = field;
         this.literalFirst = literalFirst;
       }
-
     }
-
   }
 
-  /**
-   * PushdownResult is a Search Query consisting of all the filters that will be pushed down.
-   */
+  /** PushdownResult is a Search Query consisting of all the filters that will be pushed down. */
   public static class PushdownResult {
     private final SearchQuery query;
 
@@ -357,7 +361,5 @@ public final class ExpressionConverter {
     public SearchQuery getQuery() {
       return query;
     }
-
   }
-
 }

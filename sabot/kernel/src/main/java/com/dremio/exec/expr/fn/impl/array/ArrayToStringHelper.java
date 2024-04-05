@@ -15,19 +15,18 @@
  */
 package com.dremio.exec.expr.fn.impl.array;
 
+import com.dremio.exec.expr.fn.FunctionErrorContext;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Iterator;
-
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
-
-import com.dremio.exec.expr.fn.FunctionErrorContext;
 
 public class ArrayToStringHelper {
   private static final String NULL = "NULL";
 
-  public static byte[] arrayToDelimitedStringByteArray(FieldReader input, byte[] delimiterArray, FunctionErrorContext errCtx){
+  public static byte[] arrayToDelimitedStringByteArray(
+      FieldReader input, byte[] delimiterArray, FunctionErrorContext errCtx) {
 
     java.io.ByteArrayOutputStream outputStream = new java.io.ByteArrayOutputStream();
     try {
@@ -35,11 +34,11 @@ public class ArrayToStringHelper {
     } catch (java.io.IOException e) {
       throw errCtx.error().message("%s", e).build();
     }
-   return outputStream.toByteArray();
-
+    return outputStream.toByteArray();
   }
-  private static void toDelimitedString(FieldReader input, byte[] delimiterArray, OutputStream output)
-    throws IOException {
+
+  private static void toDelimitedString(
+      FieldReader input, byte[] delimiterArray, OutputStream output) throws IOException {
     if (input.getMinorType().equals(Types.MinorType.LIST)) {
       boolean first = true;
       while (input.next()) {
@@ -55,8 +54,7 @@ public class ArrayToStringHelper {
     }
   }
 
-  private static void writeValue(OutputStream output, FieldReader input)
-    throws IOException {
+  private static void writeValue(OutputStream output, FieldReader input) throws IOException {
     if (input.readObject() == null) {
       return;
     }
@@ -65,9 +63,9 @@ public class ArrayToStringHelper {
       case INTERVALDAY:
       case LIST:
         output.write("[".getBytes());
-        while (input.next()){
+        while (input.next()) {
           writeValue(output, input.reader());
-          if (input.size() > 0){
+          if (input.size() > 0) {
             output.write(",".getBytes());
           }
         }
@@ -76,13 +74,13 @@ public class ArrayToStringHelper {
       case STRUCT:
         output.write("{".getBytes());
         Iterator<String> fieldNames = input.iterator();
-        while (fieldNames.hasNext()){
+        while (fieldNames.hasNext()) {
           String name = fieldNames.next();
           FieldReader childReader = input.reader(name);
           output.write(name.getBytes());
           output.write(":".getBytes());
           writeValue(output, childReader);
-          if (fieldNames.hasNext()){
+          if (fieldNames.hasNext()) {
             output.write(",".getBytes());
           }
         }

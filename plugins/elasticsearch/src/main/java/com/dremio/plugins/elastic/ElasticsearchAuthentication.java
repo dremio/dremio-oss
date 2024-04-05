@@ -17,18 +17,16 @@ package com.dremio.plugins.elastic;
 
 import static com.google.common.base.Strings.isNullOrEmpty;
 
-import java.util.List;
-
-import org.glassfish.jersey.client.authentication.HttpAuthenticationFeature;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.InstanceProfileCredentialsProvider;
 import com.amazonaws.auth.profile.ProfileCredentialsProvider;
 import com.amazonaws.regions.Regions;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.conf.Host;
+import java.util.List;
+import org.glassfish.jersey.client.authentication.HttpAuthenticationFeature;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ElasticsearchAuthentication {
 
@@ -38,9 +36,15 @@ public class ElasticsearchAuthentication {
   private final String regionName;
   private final AWSCredentialsProvider awsCredentialsProvider;
 
-  public ElasticsearchAuthentication(List<Host> hosts, ElasticsearchConf.AuthenticationType authenticationType,
-                                     String username, String password, String accessKey, String accessSecret,
-                                     String regionName, String awsProfile) {
+  public ElasticsearchAuthentication(
+      List<Host> hosts,
+      ElasticsearchConf.AuthenticationType authenticationType,
+      String username,
+      String password,
+      String accessKey,
+      String accessSecret,
+      String regionName,
+      String awsProfile) {
     switch (authenticationType) {
       case ES_ACCOUNT:
         this.username = username;
@@ -53,8 +57,9 @@ public class ElasticsearchAuthentication {
         this.password = null;
         if (("".equals(accessKey)) || ("".equals(accessSecret))) {
           throw UserException.validationError()
-            .message("Failure creating Amazon Elasticsearch Service connection. You must provide AWS Access Key and AWS Access Secret.")
-            .build(logger);
+              .message(
+                  "Failure creating Amazon Elasticsearch Service connection. You must provide AWS Access Key and AWS Access Secret.")
+              .build(logger);
         }
         this.awsCredentialsProvider = new BasicAWSCredentialsProvider(accessKey, accessSecret);
         this.regionName = getRegionName(regionName, hosts.get(0).hostname);
@@ -78,12 +83,14 @@ public class ElasticsearchAuthentication {
         this.regionName = null;
         break;
       default:
-        throw new RuntimeException("Failure creating Elasticsearch connection. Invalid credential type.");
+        throw new RuntimeException(
+            "Failure creating Elasticsearch connection. Invalid credential type.");
     }
   }
 
   /**
    * Get region name and check the validity of it.
+   *
    * @param regionName region name provided in config
    * @param endpoint endpoint provided in config
    * @return region name
@@ -92,9 +99,13 @@ public class ElasticsearchAuthentication {
     if (isNullOrEmpty(regionName)) {
       String[] splits = endpoint.split("\\.");
       int count = splits.length;
-      if ((count < 5) || (!"com".equals(splits[count - 1])) || (!"amazonaws".equals(splits[count - 2])) || (!"es".equals(splits[count - 3]))) {
-        throw new IllegalArgumentException("Failure creating Amazon Elasticsearch Service connection. " +
-          "You must provide hostname like *.[region name].es.amazonaws.com");
+      if ((count < 5)
+          || (!"com".equals(splits[count - 1]))
+          || (!"amazonaws".equals(splits[count - 2]))
+          || (!"es".equals(splits[count - 3]))) {
+        throw new IllegalArgumentException(
+            "Failure creating Amazon Elasticsearch Service connection. "
+                + "You must provide hostname like *.[region name].es.amazonaws.com");
       }
       regionName = splits[count - 4];
     }

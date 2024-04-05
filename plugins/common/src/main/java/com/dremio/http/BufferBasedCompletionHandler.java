@@ -16,8 +16,8 @@
 
 package com.dremio.http;
 
+import io.netty.buffer.ByteBuf;
 import java.nio.ByteBuffer;
-
 import org.asynchttpclient.AsyncCompletionHandlerBase;
 import org.asynchttpclient.AsyncHandler;
 import org.asynchttpclient.HttpResponseBodyPart;
@@ -26,11 +26,7 @@ import org.asynchttpclient.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.netty.buffer.ByteBuf;
-
-/**
- * Response processor for async http
- */
+/** Response processor for async http */
 public class BufferBasedCompletionHandler extends AsyncCompletionHandlerBase {
   private static final Logger logger = LoggerFactory.getLogger(BufferBasedCompletionHandler.class);
   private final ByteBuf outputBuffer;
@@ -51,9 +47,7 @@ public class BufferBasedCompletionHandler extends AsyncCompletionHandlerBase {
     return outputBuffer.nioBuffer(dstOffset, outputBuffer.writerIndex() - dstOffset);
   }
 
-  /**
-   * Reset the buffer to its original state to make it usable for a retry.
-   */
+  /** Reset the buffer to its original state to make it usable for a retry. */
   public void reset() {
     this.requestFailed = false;
     this.outputBuffer.writerIndex(this.dstOffset);
@@ -79,7 +73,8 @@ public class BufferBasedCompletionHandler extends AsyncCompletionHandlerBase {
   @Override
   public Response onCompleted(Response response) throws Exception {
     if (requestFailed) {
-      logger.error("Error response received {} {}", response.getStatusCode(), response.getResponseBody());
+      logger.error(
+          "Error response received {} {}", response.getStatusCode(), response.getResponseBody());
       throw new RuntimeException(response.getResponseBody());
     }
     return response;

@@ -17,6 +17,7 @@ package com.dremio.service.namespace.catalogstatusevents;
 
 public class CatalogStatusEventTopic {
   private final String topicName;
+
   public CatalogStatusEventTopic(String topicName) {
     this.topicName = topicName;
   }

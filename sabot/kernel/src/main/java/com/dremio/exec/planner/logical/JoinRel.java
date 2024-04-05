@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.planner.logical;
 
+import com.dremio.exec.planner.common.JoinRelBase;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
@@ -24,67 +25,94 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.Litmus;
 
-import com.dremio.exec.planner.common.JoinRelBase;
-
-/**
- * Logical Join implemented in Dremio.
- */
+/** Logical Join implemented in Dremio. */
 public class JoinRel extends JoinRelBase implements Rel {
-  /** Creates a JoinRel.
-   * We do not throw InvalidRelException in Logical planning phase. It's up to the post-logical planning check or physical planning
-   * to detect the unsupported join type, and throw exception.
-   * */
-  private JoinRel(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, RexNode condition,
-      JoinRelType joinType)  {
+  /**
+   * Creates a JoinRel. We do not throw InvalidRelException in Logical planning phase. It's up to
+   * the post-logical planning check or physical planning to detect the unsupported join type, and
+   * throw exception.
+   */
+  private JoinRel(
+      RelOptCluster cluster,
+      RelTraitSet traits,
+      RelNode left,
+      RelNode right,
+      RexNode condition,
+      JoinRelType joinType) {
     this(cluster, traits, left, right, condition, joinType, false);
   }
 
-  private JoinRel(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, RexNode condition,
-                  JoinRelType joinType, boolean allowRowTypeMismatch)  {
+  private JoinRel(
+      RelOptCluster cluster,
+      RelTraitSet traits,
+      RelNode left,
+      RelNode right,
+      RexNode condition,
+      JoinRelType joinType,
+      boolean allowRowTypeMismatch) {
     super(cluster, traits, left, right, condition, joinType, allowRowTypeMismatch);
     assert traits.contains(Rel.LOGICAL);
   }
 
-  public static JoinRel create(RelOptCluster cluster, RelTraitSet traitSet, RelNode left, RelNode right, RexNode condition,
+  public static JoinRel create(
+      RelOptCluster cluster,
+      RelTraitSet traitSet,
+      RelNode left,
+      RelNode right,
+      RexNode condition,
       JoinRelType joinType) {
     final RelTraitSet traits = adjustTraits(traitSet);
 
     return new JoinRel(cluster, traits, left, right, condition, joinType);
   }
 
-  public static JoinRel create(RelOptCluster cluster, RelTraitSet traitSet, RelNode left, RelNode right, RexNode condition,
-                               JoinRelType joinType, boolean allowRowTypeMismatch) {
+  public static JoinRel create(
+      RelOptCluster cluster,
+      RelTraitSet traitSet,
+      RelNode left,
+      RelNode right,
+      RexNode condition,
+      JoinRelType joinType,
+      boolean allowRowTypeMismatch) {
     final RelTraitSet traits = adjustTraits(traitSet);
 
     return new JoinRel(cluster, traits, left, right, condition, joinType, allowRowTypeMismatch);
   }
 
-  @Override public boolean isValid(Litmus litmus, Context context) {
+  @Override
+  public boolean isValid(Litmus litmus, Context context) {
     if (condition != null) {
       if (condition.getType().getSqlTypeName() != SqlTypeName.BOOLEAN) {
-        return litmus.fail("condition must be boolean: {}",
-          condition.getType());
+        return litmus.fail("condition must be boolean: {}", condition.getType());
       }
 
       RexChecker checker =
-        new RexChecker(
-          getCluster().getTypeFactory().builder()
-            .addAll(getSystemFieldList())
-            .addAll(getLeft().getRowType().getFieldList())
-            .addAll(getRight().getRowType().getFieldList())
-            .build(),
-          context, litmus);
+          new RexChecker(
+              getCluster()
+                  .getTypeFactory()
+                  .builder()
+                  .addAll(getSystemFieldList())
+                  .addAll(getLeft().getRowType().getFieldList())
+                  .addAll(getRight().getRowType().getFieldList())
+                  .build(),
+              context,
+              litmus);
       condition.accept(checker);
       if (checker.getFailureCount() > 0) {
-        return litmus.fail(checker.getFailureCount()
-          + " failures in condition " + condition);
+        return litmus.fail(checker.getFailureCount() + " failures in condition " + condition);
       }
     }
     return litmus.succeed();
   }
 
   @Override
-  public JoinRel copy(RelTraitSet traitSet, RexNode condition, RelNode left, RelNode right, JoinRelType joinType, boolean semiJoinDone) {
+  public JoinRel copy(
+      RelTraitSet traitSet,
+      RexNode condition,
+      RelNode left,
+      RelNode right,
+      JoinRelType joinType,
+      boolean semiJoinDone) {
     return new JoinRel(getCluster(), traitSet, left, right, condition, joinType);
   }
 }

@@ -45,7 +45,7 @@ describe("Formik Radio", () => {
       expect.objectContaining({
         ...defaultProps.field,
         options: defaultProps.options,
-      })
+      }),
     );
   });
 });

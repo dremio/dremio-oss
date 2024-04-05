@@ -15,17 +15,6 @@
  */
 package com.dremio.service.jobs;
 
-import java.util.Arrays;
-import java.util.LinkedList;
-import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedDeque;
-
-import javax.annotation.concurrent.ThreadSafe;
-
-import org.apache.commons.lang3.tuple.Pair;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.DeferredException;
 import com.dremio.common.concurrent.CloseableExecutorService;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
@@ -35,18 +24,24 @@ import com.dremio.service.grpc.OnReadyRunnableHandler;
 import com.dremio.service.job.JobEvent;
 import com.dremio.service.job.proto.JobId;
 import com.google.common.base.Throwables;
-
 import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
+import java.util.Arrays;
+import java.util.LinkedList;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedDeque;
+import javax.annotation.concurrent.ThreadSafe;
+import org.apache.commons.lang3.tuple.Pair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * Stream observer wrapper that ensures:
- * (1) events are sent in the correct order.
- * (2) all checkpoint events are sent before the stream is closed.
- * <p>
- * If there is an exception, delivery of all events is not guaranteed.
- * <p>
- * Since this object is not highly contended, the implementation uses coarse-grained locking.
+ * Stream observer wrapper that ensures: (1) events are sent in the correct order. (2) all
+ * checkpoint events are sent before the stream is closed.
+ *
+ * <p>If there is an exception, delivery of all events is not guaranteed.
+ *
+ * <p>Since this object is not highly contended, the implementation uses coarse-grained locking.
  */
 @ThreadSafe
 class JobEventCollatingObserver implements AutoCloseable {
@@ -65,10 +60,11 @@ class JobEventCollatingObserver implements AutoCloseable {
   private volatile boolean started = false;
   private volatile boolean closed = false;
 
-  JobEventCollatingObserver(JobId jobId,
-                            StreamObserver<JobEvent> delegate,
-                            CloseableExecutorService executorService,
-                            boolean streamResultsMode) {
+  JobEventCollatingObserver(
+      JobId jobId,
+      StreamObserver<JobEvent> delegate,
+      CloseableExecutorService executorService,
+      boolean streamResultsMode) {
     this.jobId = jobId;
     this.delegate = delegate;
 
@@ -77,13 +73,15 @@ class JobEventCollatingObserver implements AutoCloseable {
     }
 
     // backpressure is supported only if delegate is instance of ServerCallStreamObserver,
-    // as isReady() & setOnReadyHandler() methods are required to detect client readiness to accept messages.
+    // as isReady() & setOnReadyHandler() methods are required to detect client readiness to accept
+    // messages.
     if (delegate instanceof ServerCallStreamObserver) {
       logger.debug("Flow control is enabled for job {}.", jobId);
       this.scso = (ServerCallStreamObserver<JobEvent>) delegate;
 
-      OnReadyRunnableHandler eventHandler = new OnReadyRunnableHandler("job-events", executorService,
-        scso, () -> processEvents(), () -> closed = true);
+      OnReadyRunnableHandler eventHandler =
+          new OnReadyRunnableHandler(
+              "job-events", executorService, scso, () -> processEvents(), () -> closed = true);
       this.scso.setOnReadyHandler(eventHandler);
       this.scso.setOnCancelHandler(eventHandler::cancel);
     } else {
@@ -198,13 +196,15 @@ class JobEventCollatingObserver implements AutoCloseable {
       try {
         if (i == DATA_ORDER_INDEX) {
           while (isClientReady() && !checkpointEvents[DATA_ORDER_INDEX].getDataQueue().isEmpty()) {
-            Pair<JobEvent, RpcOutcomeListener<Ack>> data = checkpointEvents[DATA_ORDER_INDEX].getDataQueue().poll();
+            Pair<JobEvent, RpcOutcomeListener<Ack>> data =
+                checkpointEvents[DATA_ORDER_INDEX].getDataQueue().poll();
             if (data != null) {
               delegate.onNext(data.getLeft());
 
               // The executor has a cap on the number of outstanding acks for data batches,
               // and will stop sending more batches if that cap is reached.
-              // So, sending the ack to executor only after the data batch is picked up by the client
+              // So, sending the ack to executor only after the data batch is picked up by the
+              // client
               // works as flow-control for the executor->coordinator communication.
               data.getRight().success(Acks.OK, null);
             }
@@ -222,7 +222,8 @@ class JobEventCollatingObserver implements AutoCloseable {
       if (i != DATA_ORDER_INDEX) {
         checkpointEvents[i] = SENT;
 
-        // there can be multiple data events, so set data as SENT only when next event to it was sent.
+        // there can be multiple data events, so set data as SENT only when next event to it was
+        // sent.
         if (i == (DATA_ORDER_INDEX + 1)) {
           checkpointEvents[DATA_ORDER_INDEX] = SENT;
         }
@@ -233,7 +234,10 @@ class JobEventCollatingObserver implements AutoCloseable {
     while (!otherEvents.isEmpty()) {
       final QueuedEvent event = otherEvents.removeFirst();
       if (closed) {
-        logger.debug("{}: flushing event ({}, {}) since the stream is closed", jobId, event.event == null,
+        logger.debug(
+            "{}: flushing event ({}, {}) since the stream is closed",
+            jobId,
+            event.event == null,
             event.t == null);
         continue;
       }
@@ -268,8 +272,7 @@ class JobEventCollatingObserver implements AutoCloseable {
 
   private boolean mayClose() {
     //noinspection ObjectEquality
-    return Arrays.stream(checkpointEvents)
-        .allMatch(event -> event == SENT);
+    return Arrays.stream(checkpointEvents).allMatch(event -> event == SENT);
   }
 
   private boolean isClientReady() {
@@ -277,11 +280,9 @@ class JobEventCollatingObserver implements AutoCloseable {
   }
 
   @Override
-  public void close() throws Exception { }
+  public void close() throws Exception {}
 
-  /**
-   * Queued up event.
-   */
+  /** Queued up event. */
   private static final class QueuedEvent {
     private final JobEvent event;
     private final Throwable t;

@@ -15,21 +15,18 @@
  */
 package com.dremio.service.grpc;
 
+import com.dremio.common.SerializedExecutor;
+import io.grpc.stub.ServerCallStreamObserver;
 import java.util.Iterator;
 import java.util.concurrent.Executor;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.common.SerializedExecutor;
-
-import io.grpc.stub.ServerCallStreamObserver;
-
 /**
-  * Abstract handler which is invoked every time the peer is ready to receive more messages.
-  *
-  * @param <V> response type
-  */
+ * Abstract handler which is invoked every time the peer is ready to receive more messages.
+ *
+ * @param <V> response type
+ */
 public abstract class OnReadyHandler<V> implements Runnable {
   private static final Logger logger = LoggerFactory.getLogger(OnReadyHandler.class);
 
@@ -39,11 +36,10 @@ public abstract class OnReadyHandler<V> implements Runnable {
   private volatile Iterator<V> iterator;
 
   public OnReadyHandler(
-    String requestType,
-    Executor executor,
-    ServerCallStreamObserver<V> streamObserver,
-    Iterator<V> iterator
-  ) {
+      String requestType,
+      Executor executor,
+      ServerCallStreamObserver<V> streamObserver,
+      Iterator<V> iterator) {
     this.executor = new OnReadyEventExecutor(requestType, executor);
     this.responseObserver = streamObserver;
 
@@ -64,7 +60,8 @@ public abstract class OnReadyHandler<V> implements Runnable {
 
     if (!responseObserver.isReady()) {
       // see CallStreamObserver#setOnReadyHandler
-      // handle spurious notifications: although handled in handleStreamReady, this avoids volatile reads
+      // handle spurious notifications: although handled in handleStreamReady, this avoids volatile
+      // reads
       return;
     }
 
@@ -73,7 +70,8 @@ public abstract class OnReadyHandler<V> implements Runnable {
 
   @SuppressWarnings("DremioGRPCStreamObserverOnError")
   private void handleStreamReady() {
-    // Every run try to send as many responses as the client is willing to receive. This also handles
+    // Every run try to send as many responses as the client is willing to receive. This also
+    // handles
     // cancellation and depleting enqueued requests in SerializedExecutor#queuedRunnables.
 
     Iterator<V> iterator = this.iterator;
@@ -104,8 +102,8 @@ public abstract class OnReadyHandler<V> implements Runnable {
 
   /**
    * Serializes execution of {@code #onReady} events, and offloads request handling.
-   * <p>
-   * This ensures there is no write contention (including errors).
+   *
+   * <p>This ensures there is no write contention (including errors).
    */
   private final class OnReadyEventExecutor extends SerializedExecutor<Runnable> {
 

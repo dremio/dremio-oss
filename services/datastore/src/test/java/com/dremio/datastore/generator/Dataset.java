@@ -15,19 +15,18 @@
  */
 package com.dremio.datastore.generator;
 
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import java.util.AbstractMap;
 import java.util.List;
 import java.util.Map;
 
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
-
 /**
- * Dataset helper class used for testing kv stores.
- * Essentially a container for keys and values.
+ * Dataset helper class used for testing kv stores. Essentially a container for keys and values.
  *
- * IMPORTANT: If keys cannot be sorted from least to greatest, then the format does not support
+ * <p>IMPORTANT: If keys cannot be sorted from least to greatest, then the format does not support
  * find and must be marked as such in tests.
+ *
  * @param <K> key type
  * @param <V> value type
  */

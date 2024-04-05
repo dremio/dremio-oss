@@ -17,23 +17,6 @@ package com.dremio.dac.explore.bi;
 
 import static com.dremio.dac.server.WebServer.MediaType.APPLICATION_PBIDS;
 
-import java.io.IOException;
-import java.io.OutputStream;
-import java.lang.annotation.Annotation;
-import java.lang.reflect.Type;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import javax.inject.Inject;
-import javax.ws.rs.Produces;
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.core.Configuration;
-import javax.ws.rs.core.Context;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.MultivaluedMap;
-
 import com.dremio.config.DremioConfig;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.exec.proto.CoordinationProtos;
@@ -43,10 +26,23 @@ import com.fasterxml.jackson.annotation.JsonGetter;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.annotations.VisibleForTesting;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.lang.annotation.Annotation;
+import java.lang.reflect.Type;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import javax.inject.Inject;
+import javax.ws.rs.Produces;
+import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.core.Configuration;
+import javax.ws.rs.core.Context;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.MultivaluedMap;
 
-/**
- * A Dataset serializer to generate PowerBI PBIDS files
- */
+/** A Dataset serializer to generate PowerBI PBIDS files */
 @Produces(APPLICATION_PBIDS)
 public class PowerBIMessageBodyGenerator extends BaseBIToolMessageBodyGenerator {
   private static final String ENABLED = "Enabled";
@@ -55,11 +51,10 @@ public class PowerBIMessageBodyGenerator extends BaseBIToolMessageBodyGenerator 
 
   private final DremioConfig dremioConfig;
 
-  /**
-   * POJO for an instance of the PBIDS file.
-   */
+  /** POJO for an instance of the PBIDS file. */
   static class DSRFile {
     private final List<Connection> connections = new ArrayList<>();
+
     void addConnection(Connection conn) {
       connections.add(conn);
     }
@@ -73,9 +68,7 @@ public class PowerBIMessageBodyGenerator extends BaseBIToolMessageBodyGenerator 
     }
   }
 
-  /**
-   * POJO for an instance of the Connections array in a PBIDS file.
-   */
+  /** POJO for an instance of the Connections array in a PBIDS file. */
   @VisibleForTesting
   static class Connection {
     private DataSourceReference dsr;
@@ -95,9 +88,7 @@ public class PowerBIMessageBodyGenerator extends BaseBIToolMessageBodyGenerator 
     }
   }
 
-  /**
-   * POJO for the details section in a PBIDS file.
-   */
+  /** POJO for the details section in a PBIDS file. */
   @VisibleForTesting
   static class DataSourceReference {
     private static final String PROTOCOL = "dremio";
@@ -118,8 +109,8 @@ public class PowerBIMessageBodyGenerator extends BaseBIToolMessageBodyGenerator 
   }
 
   /**
-   * POJO for the address section of the PBIDS file.
-   * Contains the common parameters used by both Dremio Software and Cloud.
+   * POJO for the address section of the PBIDS file. Contains the common parameters used by both
+   * Dremio Software and Cloud.
    */
   @VisibleForTesting
   static class DSRConnectionInfo {
@@ -133,7 +124,12 @@ public class PowerBIMessageBodyGenerator extends BaseBIToolMessageBodyGenerator 
       // PBI doesn't work right when there are quotes embedded in the schema name, which happens
       // when calling DatasetPath.toParentPath(). Instead manually join each element of the path
       // up until the table.
-      this.schema = String.join(".", datasetConfig.getFullPathList().subList(0, datasetConfig.getFullPathList().size() - 1));
+      this.schema =
+          String.join(
+              ".",
+              datasetConfig
+                  .getFullPathList()
+                  .subList(0, datasetConfig.getFullPathList().size() - 1));
 
       this.table = dataset.getLeaf().getName();
     }
@@ -152,16 +148,16 @@ public class PowerBIMessageBodyGenerator extends BaseBIToolMessageBodyGenerator 
     }
   }
 
-  /**
-   * POJO for the address section of the PBIDS file for Dremio Software.
-   */
+  /** POJO for the address section of the PBIDS file for Dremio Software. */
   @VisibleForTesting
   static class SoftwareDSRConnectionInfo extends DSRConnectionInfo {
-    protected static final String USER_SSL_ENABLED = "services.coordinator.client-endpoint.ssl.enabled";
+    protected static final String USER_SSL_ENABLED =
+        "services.coordinator.client-endpoint.ssl.enabled";
 
     private final String encryption;
 
-    SoftwareDSRConnectionInfo(String hostname, DatasetConfig datasetConfig, DremioConfig dremioConfig) {
+    SoftwareDSRConnectionInfo(
+        String hostname, DatasetConfig datasetConfig, DremioConfig dremioConfig) {
       super(hostname, datasetConfig);
       if (dremioConfig.hasPath(USER_SSL_ENABLED) && dremioConfig.getBoolean(USER_SSL_ENABLED)) {
         encryption = ENABLED;
@@ -176,16 +172,25 @@ public class PowerBIMessageBodyGenerator extends BaseBIToolMessageBodyGenerator 
   }
 
   @Inject
-  public PowerBIMessageBodyGenerator(@Context Configuration configuration,
-                                     CoordinationProtos.NodeEndpoint endpoint,
-                                     OptionManager optionManager,
-                                     DremioConfig dremioConfig) {
+  public PowerBIMessageBodyGenerator(
+      @Context Configuration configuration,
+      CoordinationProtos.NodeEndpoint endpoint,
+      OptionManager optionManager,
+      DremioConfig dremioConfig) {
     super(endpoint, optionManager);
     this.dremioConfig = dremioConfig;
   }
 
   @Override
-  public void writeTo(DatasetConfig datasetConfig, Class<?> aClass, Type type, Annotation[] annotations, MediaType mediaType, MultivaluedMap<String, Object> httpHeaders, OutputStream outputStream) throws IOException, WebApplicationException {
+  public void writeTo(
+      DatasetConfig datasetConfig,
+      Class<?> aClass,
+      Type type,
+      Annotation[] annotations,
+      MediaType mediaType,
+      MultivaluedMap<String, Object> httpHeaders,
+      OutputStream outputStream)
+      throws IOException, WebApplicationException {
     final DSRFile dsrFile = createDSRFile(getHostname(httpHeaders), datasetConfig);
 
     final ObjectWriter writer = OBJECT_MAPPER.writer().withDefaultPrettyPrinter();
@@ -200,11 +205,11 @@ public class PowerBIMessageBodyGenerator extends BaseBIToolMessageBodyGenerator 
 
   /**
    * Populate a DSRFile POJO according to the given host, port and dataset.
+   *
    * @param hostname The host to use for the DSR file.
    * @param datasetConfig The dataset to write to the DSR file.
-   * @return
-   *  a DSRFile POJO containing the host and dataset connection information that can be
-   *  serialized with Jackson
+   * @return a DSRFile POJO containing the host and dataset connection information that can be
+   *     serialized with Jackson
    */
   @VisibleForTesting
   DSRFile createDSRFile(String hostname, DatasetConfig datasetConfig) {
@@ -219,8 +224,9 @@ public class PowerBIMessageBodyGenerator extends BaseBIToolMessageBodyGenerator 
     return dsrFile;
   }
 
-  DSRConnectionInfo createDSRConnectionInfo(String hostname, int port, DatasetConfig datasetConfig) {
-    final String server = String.format("%s:%d",hostname, port);
+  DSRConnectionInfo createDSRConnectionInfo(
+      String hostname, int port, DatasetConfig datasetConfig) {
+    final String server = String.format("%s:%d", hostname, port);
     return new SoftwareDSRConnectionInfo(server, datasetConfig, dremioConfig);
   }
 }

@@ -15,14 +15,13 @@
  */
 package com.dremio.common.logical.data;
 
-import java.util.Iterator;
-import java.util.List;
-
 import com.dremio.common.logical.data.visitors.LogicalVisitor;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.Iterators;
+import java.util.Iterator;
+import java.util.List;
 
 @JsonTypeName("transform")
 public class Transform extends SingleInputOperator {
@@ -40,7 +39,8 @@ public class Transform extends SingleInputOperator {
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(LogicalVisitor<T, X, E> logicalVisitor, X value) throws E {
+  public <T, X, E extends Throwable> T accept(LogicalVisitor<T, X, E> logicalVisitor, X value)
+      throws E {
     return logicalVisitor.visitTransform(this, value);
   }
 
@@ -48,5 +48,4 @@ public class Transform extends SingleInputOperator {
   public Iterator<LogicalOperator> iterator() {
     return Iterators.singletonIterator(getInput());
   }
-
 }

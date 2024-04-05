@@ -17,19 +17,6 @@ package com.dremio.exec.work.protector;
 
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.Executor;
-
-import org.apache.calcite.plan.RelOptPlanner;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.sql.SqlKind;
-import org.apache.calcite.sql.SqlNode;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.concurrent.ContextMigratingExecutorService;
 import com.dremio.common.exceptions.InvalidMetadataErrorContext;
 import com.dremio.common.exceptions.UserException;
@@ -58,6 +45,7 @@ import com.dremio.exec.planner.sql.handlers.query.SupportsSystemIcebergTables;
 import com.dremio.exec.proto.GeneralRPCProtos;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.ExternalId;
+import com.dremio.exec.proto.UserBitShared.PlannerPhaseRulesStats;
 import com.dremio.exec.proto.UserBitShared.QueryData;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.exec.proto.UserBitShared.QueryResult.QueryState;
@@ -91,21 +79,30 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.Empty;
-
 import io.netty.buffer.ByteBuf;
 import io.opentracing.Span;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.Executor;
+import org.apache.calcite.plan.RelOptPlanner;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlNode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Can re-run a query if needed/possible without the user noticing.
  *
- * Handles anything related to external queryId. An external queryId is a regular queryId but with it's
- * last byte set to 0. This byte is reserved for internal queries to store the mode (fast/protected) and
- * the attempt number
+ * <p>Handles anything related to external queryId. An external queryId is a regular queryId but
+ * with it's last byte set to 0. This byte is reserved for internal queries to store the mode
+ * (fast/protected) and the attempt number
  *
- * Dremio only knows about this class if we are sending/receiving message to/from the client. Everything
- * else uses AttemptManager and QueryId, which is an internal queryId
+ * <p>Dremio only knows about this class if we are sending/receiving message to/from the client.
+ * Everything else uses AttemptManager and QueryId, which is an internal queryId
  *
- * Keeps track of all the info we need to instantiate a new attemptManager
+ * <p>Keeps track of all the info we need to instantiate a new attemptManager
  */
 public class Foreman {
   private static final Logger logger = LoggerFactory.getLogger(Foreman.class);
@@ -132,26 +129,25 @@ public class Foreman {
 
   private volatile AttemptManager attemptManager; // last running query
 
-
   private volatile boolean canceled; // did the user cancel the query ?
 
   protected Foreman(
-    final SabotContext sabotContext,
-    final Executor executor,
-    final CommandPool commandPool,
-    final CompletionListener listener,
-    final ExternalId externalId,
-    final QueryObserver observer,
-    final UserSession session,
-    final UserRequest request,
-    final OptionProvider config,
-    final ReAttemptHandler attemptHandler,
-    Cache<Long, PreparedPlan> preparedPlans,
-    PlanCache planCache,
-    final MaestroService maestroService,
-    final JobTelemetryClient jobTelemetryClient,
-    final RuleBasedEngineSelector ruleBasedEngineSelector,
-    final PartitionStatsCache partitionStatsCache) {
+      final SabotContext sabotContext,
+      final Executor executor,
+      final CommandPool commandPool,
+      final CompletionListener listener,
+      final ExternalId externalId,
+      final QueryObserver observer,
+      final UserSession session,
+      final UserRequest request,
+      final OptionProvider config,
+      final ReAttemptHandler attemptHandler,
+      Cache<Long, PreparedPlan> preparedPlans,
+      PlanCache planCache,
+      final MaestroService maestroService,
+      final JobTelemetryClient jobTelemetryClient,
+      final RuleBasedEngineSelector ruleBasedEngineSelector,
+      final PartitionStatsCache partitionStatsCache) {
 
     this.attemptId = AttemptId.of(externalId);
     this.executor = executor;
@@ -184,8 +180,10 @@ public class Foreman {
     attemptSpan = TracingUtils.buildChildSpan(TracerFacade.INSTANCE, "job-attempt");
     attemptSpan.setTag("attemptId", attemptId.toString());
     try {
-      // we should ideally check if the query wasn't cancelled before starting a new attempt but this will over-complicate
-      // things as the observer expects a query profile at completion and this may not be available if the cancellation
+      // we should ideally check if the query wasn't cancelled before starting a new attempt but
+      // this will over-complicate
+      // things as the observer expects a query profile at completion and this may not be available
+      // if the cancellation
       // is too early
       final AttemptObserver attemptObserver = new Observer(observer.newAttempt(attemptId, reason));
 
@@ -196,36 +194,60 @@ public class Foreman {
         optionProvider = new LowMemOptionProvider(config);
       }
 
-      attemptManager = newAttemptManager(attemptId, request, attemptObserver, session,
-        optionProvider, preparedPlans, planCache, datasetValidityChecker, commandPool, partitionStatsCache);
+      attemptManager =
+          newAttemptManager(
+              attemptId,
+              reason,
+              request,
+              attemptObserver,
+              session,
+              optionProvider,
+              preparedPlans,
+              planCache,
+              datasetValidityChecker,
+              commandPool,
+              partitionStatsCache);
 
     } catch (Throwable t) {
-      UserException uex = UserException.systemError(t).addContext("Failure while submitting the Query").build(logger);
-      final QueryProfile.Builder profileBuilder = QueryProfile.newBuilder()
-        .setStart(System.currentTimeMillis())
-        .setId(attemptId.toQueryId())
-        .setState(QueryState.FAILED)
-        .setCommandPoolWaitMillis(0)
-        .setQuery(request.getDescription())
-        .setError(uex.getMessage())
-        .setVerboseError(uex.getVerboseMessage(false))
-        .setErrorId(uex.getErrorId())
-        .setDremioVersion(DremioVersionInfo.getVersion())
-        .setEnd(System.currentTimeMillis());
+      UserException uex =
+          UserException.systemError(t)
+              .addContext("Failure while submitting the Query")
+              .build(logger);
+      final QueryProfile.Builder profileBuilder =
+          QueryProfile.newBuilder()
+              .setStart(System.currentTimeMillis())
+              .setId(attemptId.toQueryId())
+              .setState(QueryState.FAILED)
+              .setCommandPoolWaitMillis(0)
+              .setQuery(request.getDescription())
+              .setError(uex.getMessage())
+              .setVerboseError(uex.getVerboseMessage(false))
+              .setErrorId(uex.getErrorId())
+              .setDremioVersion(DremioVersionInfo.getVersion())
+              .setEnd(System.currentTimeMillis());
       try {
-        jobTelemetryClient.getBlockingStub()
-          .putQueryTailProfile(
-            PutTailProfileRequest.newBuilder()
-              .setQueryId(attemptId.toQueryId())
-              .setProfile(profileBuilder.build())
-              .build()
-          );
+        jobTelemetryClient
+            .getBlockingStub()
+            .putQueryTailProfile(
+                PutTailProfileRequest.newBuilder()
+                    .setQueryId(attemptId.toQueryId())
+                    .setProfile(profileBuilder.build())
+                    .build());
       } catch (Exception telemetryEx) {
         uex.addSuppressed(telemetryEx);
       }
 
-      final UserResult result = new UserResult(null, attemptId.toQueryId(), QueryState.FAILED,
-        profileBuilder.build(), uex, null, false, false, false);
+      final UserResult result =
+          new UserResult(
+              null,
+              attemptId.toQueryId(),
+              QueryState.FAILED,
+              profileBuilder.build(),
+              uex,
+              null,
+              false,
+              false,
+              false);
       observer.execCompletion(result);
       throw t;
     }
@@ -233,34 +255,68 @@ public class Foreman {
     if (request.runInSameThread()) {
       attemptManager.run();
     } else {
-      executor.execute(ContextMigratingExecutorService.makeContextMigratingTask(attemptManager, "AttemptManager.run"));
+      executor.execute(
+          ContextMigratingExecutorService.makeContextMigratingTask(
+              attemptManager, "AttemptManager.run"));
     }
   }
 
-  protected AttemptManager newAttemptManager(AttemptId attemptId, UserRequest queryRequest,
-     AttemptObserver observer, UserSession session, OptionProvider options,
-     Cache<Long, PreparedPlan> preparedPlans, PlanCache planCache,
-     Predicate<DatasetConfig> datasetValidityChecker, CommandPool commandPool, PartitionStatsCache partitionStatsCache) {
-    final QueryContext queryContext = new QueryContext(session, sabotContext, attemptId.toQueryId(),
-       queryRequest.getPriority(), queryRequest.getMaxAllocation(), datasetValidityChecker, planCache, partitionStatsCache);
-    return new AttemptManager(sabotContext, attemptId, queryRequest, observer, options, preparedPlans,
-      queryContext, commandPool, maestroService, jobTelemetryClient, ruleBasedEngineSelector,
-      queryRequest.runInSameThread());
+  protected AttemptManager newAttemptManager(
+      AttemptId attemptId,
+      AttemptReason attemptReason,
+      UserRequest queryRequest,
+      AttemptObserver observer,
+      UserSession session,
+      OptionProvider options,
+      Cache<Long, PreparedPlan> preparedPlans,
+      PlanCache planCache,
+      Predicate<DatasetConfig> datasetValidityChecker,
+      CommandPool commandPool,
+      PartitionStatsCache partitionStatsCache) {
+    final QueryContext queryContext =
+        new QueryContext(
+            session,
+            sabotContext,
+            attemptId.toQueryId(),
+            queryRequest.getPriority(),
+            queryRequest.getMaxAllocation(),
+            datasetValidityChecker,
+            planCache,
+            partitionStatsCache);
+    return new AttemptManager(
+        sabotContext,
+        attemptId,
+        attemptReason,
+        queryRequest,
+        observer,
+        options,
+        preparedPlans,
+        queryContext,
+        commandPool,
+        maestroService,
+        jobTelemetryClient,
+        ruleBasedEngineSelector,
+        queryRequest.runInSameThread());
   }
 
-  public void dataFromScreenArrived(QueryData header, ResponseSender sender, ByteBuf... data) throws RpcException {
+  public void dataFromScreenArrived(QueryData header, ResponseSender sender, ByteBuf... data)
+      throws RpcException {
     final AttemptManager manager = attemptManager;
     if (manager == null) {
       logger.warn("Dropping data from screen, no active attempt manager.");
-      sender.sendFailure(new UserRpcException(sabotContext.getEndpoint(),
-        "Query Already Terminated", new Throwable("Query Already Terminated")));
+      sender.sendFailure(
+          new UserRpcException(
+              sabotContext.getEndpoint(),
+              "Query Already Terminated",
+              new Throwable("Query Already Terminated")));
       return;
     }
 
     manager.dataFromScreenArrived(header, sender, data);
   }
 
-  private boolean recoverFromFailure(AttemptReason reason, Predicate<DatasetConfig> datasetValidityChecker) {
+  private boolean recoverFromFailure(
+      AttemptReason reason, Predicate<DatasetConfig> datasetValidityChecker) {
     // request a new attemptId
     attemptId = attemptId.nextAttempt();
     logger.info("{}: Starting new attempt because of {}", attemptId, reason);
@@ -275,8 +331,8 @@ public class Foreman {
     return true;
   }
 
-  public QueryState getState(){
-    if(attemptManager == null){
+  public QueryState getState() {
+    if (attemptManager == null) {
       return null;
     }
 
@@ -284,8 +340,8 @@ public class Foreman {
   }
 
   /**
-   * Get the currently active profile. Only returns value iff there is a current attempt and it is not in a terminal
-   * state (COMPLETED or FAILED)
+   * Get the currently active profile. Only returns value iff there is a current attempt and it is
+   * not in a terminal state (COMPLETED or FAILED)
    *
    * @return QueryProfile.
    */
@@ -297,8 +353,10 @@ public class Foreman {
     QueryProfile profile = attemptManager.getQueryProfile();
     QueryState state = attemptManager.getState();
 
-    if (state == QueryState.RUNNING || state == QueryState.STARTING || state == QueryState.ENQUEUED ||
-        state == QueryState.CANCELED) {
+    if (state == QueryState.RUNNING
+        || state == QueryState.STARTING
+        || state == QueryState.ENQUEUED
+        || state == QueryState.CANCELED) {
       return Optional.of(profile);
     }
 
@@ -307,6 +365,7 @@ public class Foreman {
 
   /**
    * Send the latest planning profile to JTS.
+   *
    * @return future.
    */
   public Optional<ListenableFuture<Empty>> sendPlanningProfile() {
@@ -315,8 +374,10 @@ public class Foreman {
     }
 
     QueryState state = attemptManager.getState();
-    if (state == QueryState.RUNNING || state == QueryState.STARTING ||
-        state == QueryState.ENQUEUED || state == QueryState.CANCELED) {
+    if (state == QueryState.RUNNING
+        || state == QueryState.STARTING
+        || state == QueryState.ENQUEUED
+        || state == QueryState.CANCELED) {
       return Optional.of(attemptManager.sendPlanningProfile());
     }
 
@@ -331,22 +392,28 @@ public class Foreman {
     cancel(reason, clientCancelled, null, false, runTimeExceeded);
   }
 
-  public synchronized void cancel(String reason, boolean clientCancelled, String cancelContext,
-                                  boolean isCancelledByHeapMonitor, boolean runTimeExceeded) {
+  public synchronized void cancel(
+      String reason,
+      boolean clientCancelled,
+      String cancelContext,
+      boolean isCancelledByHeapMonitor,
+      boolean runTimeExceeded) {
     if (!canceled) {
       canceled = true;
 
       if (attemptManager != null) {
-        attemptManager.cancel(reason, clientCancelled, cancelContext, isCancelledByHeapMonitor, runTimeExceeded);
+        attemptManager.cancel(
+            reason, clientCancelled, cancelContext, isCancelledByHeapMonitor, runTimeExceeded);
       }
     } else {
-      logger.debug("Cancel of queryId:{} was already attempted before. Ignoring cancelling request now.",
-        QueryIdHelper.getQueryId(attemptId.toQueryId()));
+      logger.debug(
+          "Cancel of queryId:{} was already attempted before. Ignoring cancelling request now.",
+          QueryIdHelper.getQueryId(attemptId.toQueryId()));
     }
   }
 
   public synchronized boolean canCancelByHeapMonitor() {
-      return attemptManager.canCancelByHeapMonitor();
+    return attemptManager.canCancelByHeapMonitor();
   }
 
   public synchronized void resume() {
@@ -384,7 +451,8 @@ public class Foreman {
     }
 
     @Override
-    public void execDataArrived(RpcOutcomeListener<GeneralRPCProtos.Ack> outcomeListener, QueryWritableBatch result) {
+    public void execDataArrived(
+        RpcOutcomeListener<GeneralRPCProtos.Ack> outcomeListener, QueryWritableBatch result) {
       try {
         // any failures here should notify the listener and release the batches
         result = attemptHandler.convertIfNecessary(result);
@@ -400,42 +468,57 @@ public class Foreman {
     }
 
     @Override
-    public void planValidated(RelDataType rowType, SqlNode node, long millisTaken) {
+    public void planValidated(
+        RelDataType rowType,
+        SqlNode node,
+        long millisTaken,
+        boolean isMaterializationCacheInitialized) {
       isCTAS = node.getKind() == SqlKind.CREATE_TABLE;
       if (node instanceof SupportsSystemIcebergTables) {
         systemIcebergTablesToRefresh = ((SupportsSystemIcebergTables) node).systemTableNames();
       }
-      super.planValidated(rowType, node, millisTaken);
+      super.planValidated(rowType, node, millisTaken, isMaterializationCacheInitialized);
     }
 
     @Override
-    public void planRelTransform(PlannerPhase phase, RelOptPlanner planner, RelNode before, RelNode after,
-                                 long millisTaken, Map<String, Long> timeBreakdownPerRule) {
+    public void planRelTransform(
+        PlannerPhase phase,
+        RelOptPlanner planner,
+        RelNode before,
+        RelNode after,
+        long millisTaken,
+        List<PlannerPhaseRulesStats> rulesBreakdownStats) {
       if (phase == PlannerPhase.PHYSICAL) {
         containsHashAgg = containsHashAggregate(after);
       }
-      super.planRelTransform(phase, planner, before, after, millisTaken, timeBreakdownPerRule);
+      super.planRelTransform(phase, planner, before, after, millisTaken, rulesBreakdownStats);
     }
 
     private UserException handleSchemaChangeException(UserException schemaChange) {
-      final SchemaChangeExceptionContext data = SchemaChangeExceptionContext.fromUserException(schemaChange);
+      final SchemaChangeExceptionContext data =
+          SchemaChangeExceptionContext.fromUserException(schemaChange);
       UserException result = null;
       if (data != null) {
         try {
           NamespaceKey datasetKey = new NamespaceKey(data.getTableSchemaPath());
           final String queryUserName = session.getCredentials().getUserName();
           final DatasetCatalog datasetCatalog =
-              sabotContext.getCatalogService().getCatalog(MetadataRequestOptions.of(
-                  SchemaConfig.newBuilder(CatalogUser.from(queryUserName))
-                      .build()));
+              sabotContext
+                  .getCatalogService()
+                  .getCatalog(
+                      MetadataRequestOptions.of(
+                          SchemaConfig.newBuilder(CatalogUser.from(queryUserName)).build()));
           datasetCatalog.updateDatasetSchema(datasetKey, data.getNewSchema());
 
           // Update successful, populate return exception.
-          result = UserException.schemaChangeError()
-                                .message("New schema found and recorded. Please reattempt the query. Multiple attempts may be necessary to fully learn the schema.")
-                                .build(logger);
+          result =
+              UserException.schemaChangeError()
+                  .message(
+                      "New schema found and recorded. Please reattempt the query. Multiple attempts may be necessary to fully learn the schema.")
+                  .build(logger);
         } catch (UserException e) {
-          // SCHEMA_CHANGE could result in an INVALID_DATASET_METADATA exception (from ElasticSearch)
+          // SCHEMA_CHANGE could result in an INVALID_DATASET_METADATA exception (from
+          // ElasticSearch)
           result = e;
         } catch (Exception e) {
           logger.error("something went wrong when trying to persist schema change", e);
@@ -446,21 +529,26 @@ public class Foreman {
     }
 
     private UserException handleJsonFieldChangeException(UserException schemaChange) {
-      final JsonFieldChangeExceptionContext data = JsonFieldChangeExceptionContext.fromUserException(schemaChange);
+      final JsonFieldChangeExceptionContext data =
+          JsonFieldChangeExceptionContext.fromUserException(schemaChange);
       UserException result = null;
       if (data != null) {
         try {
           NamespaceKey datasetKey = new NamespaceKey(data.getOriginTablePath());
           final DatasetCatalog datasetCatalog =
-              sabotContext.getCatalogService()
-                  .getCatalog(MetadataRequestOptions.of(SchemaConfig.newBuilder(CatalogUser.from(SYSTEM_USERNAME))
-                    .build()));
+              sabotContext
+                  .getCatalogService()
+                  .getCatalog(
+                      MetadataRequestOptions.of(
+                          SchemaConfig.newBuilder(CatalogUser.from(SYSTEM_USERNAME)).build()));
           datasetCatalog.updateDatasetField(datasetKey, data.getFieldName(), data.getFieldSchema());
 
           // Update successful, populate return exception.
-          result = UserException.jsonFieldChangeError()
-            .message("New field in the JSON schema found.  Please reattempt the query.  Multiple attempts may be necessary to fully learn the schema.")
-            .build(logger);
+          result =
+              UserException.jsonFieldChangeError()
+                  .message(
+                      "New field in the JSON schema found.  Please reattempt the query.  Multiple attempts may be necessary to fully learn the schema.")
+                  .build(logger);
         } catch (Exception e) {
           logger.error("something went wrong when trying to persist field change", e);
         }
@@ -469,11 +557,15 @@ public class Foreman {
       return result;
     }
 
-    // Ingest operations might write into internal tables that need to be refreshed thereafter from the coordinator side
+    // Ingest operations might write into internal tables that need to be refreshed thereafter from
+    // the coordinator side
     private void handleSystemIcebergTableRefreshes() {
       if (systemIcebergTablesToRefresh != null && !systemIcebergTablesToRefresh.isEmpty()) {
         SystemIcebergTablesStoragePlugin plugin =
-            sabotContext.getCatalogService().getSource(SystemIcebergTablesStoragePluginConfig.SYSTEM_ICEBERG_TABLES_PLUGIN_NAME);
+            sabotContext
+                .getCatalogService()
+                .getSource(
+                    SystemIcebergTablesStoragePluginConfig.SYSTEM_ICEBERG_TABLES_PLUGIN_NAME);
         for (String tableName : systemIcebergTablesToRefresh) {
           plugin.refreshDataset(ImmutableList.of(tableName));
         }
@@ -483,12 +575,14 @@ public class Foreman {
     @Override
     public void attemptCompletion(UserResult result) {
       // NOTE to developers: adhere to these invariants:
-      // (1) On last attempt, #execCompletion is invoked and #attemptCompletion is NOT invoked. The last attempt
+      // (1) On last attempt, #execCompletion is invoked and #attemptCompletion is NOT invoked. The
+      // last attempt
       //     maybe the first and only attempt.
       // (2) #attemptCompletion is only invoked if there is going to be another attempt.
       // TODO(DX-10101): Define the guarantee of #attemptCompletion or rework #attemptCompletion
 
-      attemptManager = null; // make sure we don't pass cancellation requests to this attemptManager anymore
+      attemptManager =
+          null; // make sure we don't pass cancellation requests to this attemptManager anymore
       AttemptAnalyser attemptAnalyser = new AttemptAnalyser(attemptSpan);
       try {
         attemptAnalyser.analyseAttemptCompletion(result);
@@ -528,8 +622,9 @@ public class Foreman {
           }
 
           // Check if the attemptHandler allows the reattempt
-          final AttemptReason reason = attemptHandler.isRecoverable(
-            new ReAttemptContext(attemptId, ex, containsHashAgg, isCTAS));
+          final AttemptReason reason =
+              attemptHandler.isRecoverable(
+                  new ReAttemptContext(attemptId, ex, containsHashAgg, isCTAS));
           if (reason != AttemptReason.NONE) {
             super.attemptCompletion(result);
 
@@ -543,8 +638,12 @@ public class Foreman {
                 return;
               }
             } catch (Exception e) {
-              // if we fail to start a new attempt we log it and fail the query as if the previous failure was not recoverable
-              logger.error("{}: something went wrong when re-attempting the query", attemptId.getExternalId(), e);
+              // if we fail to start a new attempt we log it and fail the query as if the previous
+              // failure was not recoverable
+              logger.error(
+                  "{}: something went wrong when re-attempting the query",
+                  attemptId.getExternalId(),
+                  e);
             }
           }
         }
@@ -562,23 +661,25 @@ public class Foreman {
     public void planParallelized(PlanningSet planningSet) {
       super.planParallelized(planningSet);
     }
-
   }
 
   @VisibleForTesting
-  static Predicate<DatasetConfig> getDatasetValidityChecker(UserException ex, AttemptReason reason) {
+  static Predicate<DatasetConfig> getDatasetValidityChecker(
+      UserException ex, AttemptReason reason) {
     Predicate<DatasetConfig> datasetValidityChecker = Predicates.alwaysTrue();
     if (reason == AttemptReason.INVALID_DATASET_METADATA) {
       final InvalidMetadataErrorContext context = InvalidMetadataErrorContext.fromUserException(ex);
       if (context != null) {
-        datasetValidityChecker = new Predicate<DatasetConfig>() {
-          private final ImmutableSet<List<String>> keys = ImmutableSet.copyOf(context.getPathsToRefresh());
+        datasetValidityChecker =
+            new Predicate<DatasetConfig>() {
+              private final ImmutableSet<List<String>> keys =
+                  ImmutableSet.copyOf(context.getPathsToRefresh());
 
-          @Override
-          public boolean apply(DatasetConfig input) {
-            return !keys.contains(input.getFullPathList());
-          }
-        };
+              @Override
+              public boolean apply(DatasetConfig input) {
+                return !keys.contains(input.getFullPathList());
+              }
+            };
       }
     }
     return datasetValidityChecker;
@@ -600,8 +701,9 @@ public class Foreman {
       // TODO(DX-5912): disable hash join after merge join is implemented
       // manager.setOption(OptionValue.createBoolean(OptionValue.OptionType.QUERY,
       //    PlannerSettings.HASHJOIN.getOptionName(), false));
-      manager.setOption(OptionValue.createBoolean(OptionValue.OptionType.QUERY,
-        PlannerSettings.HASHAGG.getOptionName(), false));
+      manager.setOption(
+          OptionValue.createBoolean(
+              OptionValue.OptionType.QUERY, PlannerSettings.HASHAGG.getOptionName(), false));
     }
   }
 }

@@ -16,13 +16,12 @@
 package com.dremio.service.nessie.upgrade.version040;
 
 /**
- * Retrieves Nessie entries from an old format so that they can be migrated to the current
- * format.
+ * Retrieves Nessie entries from an old format so that they can be migrated to the current format.
  */
 public interface MetadataReader {
   /**
-   * Provides each Nessie entry that needs to be migrated to the provided
-   * commit consumer.
+   * Provides each Nessie entry that needs to be migrated to the provided commit consumer.
+   *
    * @param commitConsumer consumer that will save the entry in the current Nessie format
    */
   void doUpgrade(CommitConsumer commitConsumer);

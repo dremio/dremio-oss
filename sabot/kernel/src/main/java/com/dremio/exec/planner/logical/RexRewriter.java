@@ -16,15 +16,12 @@
 package com.dremio.exec.planner.logical;
 
 import java.util.List;
-
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexShuttle;
 
-/**
- * Rewrites a rex tree using a list of rewrite rules
- */
+/** Rewrites a rex tree using a list of rewrite rules */
 public class RexRewriter {
 
   public static RexNode rewrite(RexNode node, List<RewriteRule> rules) {
@@ -53,9 +50,7 @@ public class RexRewriter {
     }
   }
 
-  /**
-   * Rule which defines how a RexNode should be rewritten
-   */
+  /** Rule which defines how a RexNode should be rewritten */
   public abstract static class RewriteRule {
     protected final RexBuilder builder;
 
@@ -65,6 +60,7 @@ public class RexRewriter {
 
     /**
      * rewrite a call
+     *
      * @param call
      * @return the rewritten call, or null if no rewrite
      */
@@ -80,7 +76,8 @@ public class RexRewriter {
 
     public RexNode rewrite(RexCall call) {
       boolean match = false;
-      outer: while (true) {
+      outer:
+      while (true) {
         for (RewriteRule rule : rules) {
           RexNode result = rule.rewrite(call);
           if (result != null) {

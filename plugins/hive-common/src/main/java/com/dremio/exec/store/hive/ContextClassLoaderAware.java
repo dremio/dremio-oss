@@ -16,9 +16,9 @@
 package com.dremio.exec.store.hive;
 
 /**
- * Marker interface that indicates that a plugin-based class ensures that the calling thread's context class loader
- * is set appropriately before calling into any dependencies the class may have.  Callers that also manage the
- * context class loader can check for this interface and optimize out unnecessary context swaps.
+ * Marker interface that indicates that a plugin-based class ensures that the calling thread's
+ * context class loader is set appropriately before calling into any dependencies the class may
+ * have. Callers that also manage the context class loader can check for this interface and optimize
+ * out unnecessary context swaps.
  */
-public interface ContextClassLoaderAware {
-}
+public interface ContextClassLoaderAware {}

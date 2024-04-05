@@ -15,8 +15,6 @@
  */
 package com.dremio.file;
 
-import java.util.List;
-
 import com.dremio.dac.model.common.LeafEntity;
 import com.dremio.dac.model.common.NamespacePath;
 import com.dremio.dac.model.common.RootEntity;
@@ -25,11 +23,9 @@ import com.dremio.dac.model.sources.SourceName;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
+import java.util.List;
 
-/**
- * The full path to a file in source.
- * File must start with a source.folder1...folderN.filename
- */
+/** The full path to a file in source. File must start with a source.folder1...folderN.filename */
 public final class SourceFilePath extends NamespacePath {
   /**
    * Creates a SourceFilePath from a sourceName and a path component from a URL
@@ -40,7 +36,8 @@ public final class SourceFilePath extends NamespacePath {
    */
   public static SourceFilePath fromURLPath(SourceName sourceName, String path) {
     Iterable<String> components = Splitter.on('/').omitEmptyStrings().split(path);
-    return new SourceFilePath(ImmutableList.<String> builder().add(sourceName.getName()).addAll(components).build());
+    return new SourceFilePath(
+        ImmutableList.<String>builder().add(sourceName.getName()).addAll(components).build());
   }
 
   public SourceFilePath(RootEntity root, List<FolderName> folderPath, FileName fileName) {
@@ -75,7 +72,7 @@ public final class SourceFilePath extends NamespacePath {
   }
 
   public FileName getFileName() {
-    return (FileName)getLeaf();
+    return (FileName) getLeaf();
   }
 
   @Override
@@ -87,5 +84,4 @@ public final class SourceFilePath extends NamespacePath {
   protected String getDefaultUrlPathType() {
     return "file";
   }
-
 }

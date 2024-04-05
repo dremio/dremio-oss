@@ -15,14 +15,11 @@
  */
 package com.dremio.exec.planner.sql.handlers;
 
+import com.dremio.exec.planner.StatelessRelShuttleImpl;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.TableScan;
 
-import com.dremio.exec.planner.StatelessRelShuttleImpl;
-
-/**
- * A shuttle designed to finalize all RelNodes.
- */
+/** A shuttle designed to finalize all RelNodes. */
 class PrelFinalizer extends StatelessRelShuttleImpl {
 
   @Override
@@ -42,5 +39,4 @@ class PrelFinalizer extends StatelessRelShuttleImpl {
       return super.visit(tableScan);
     }
   }
-
 }

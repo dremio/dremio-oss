@@ -16,10 +16,17 @@
 
 package com.dremio.exec.planner.sql;
 
+import static com.dremio.exec.planner.sql.ITCopyIntoBase.FileFormat.CSV;
+import static com.dremio.exec.planner.sql.ITCopyIntoBase.FileFormat.JSON;
+import static com.dremio.exec.planner.sql.ITCopyIntoBase.FileFormat.PARQUET;
+import static com.dremio.exec.planner.sql.handlers.query.CopyIntoTableContext.OnErrorAction.CONTINUE;
+import static com.dremio.exec.planner.sql.handlers.query.CopyIntoTableContext.OnErrorAction.SKIP_FILE;
+
 import org.junit.Test;
 
 public class ITCopyIntoTests extends ITDmlQueryBase {
-  // Defining SOURCE such that you can easily copy and paste the same test across other test variations
+  // Defining SOURCE such that you can easily copy and paste the same test across other test
+  // variations
   private static final String SOURCE = TEMP_SCHEMA_HADOOP;
 
   @Test
@@ -153,88 +160,87 @@ public class ITCopyIntoTests extends ITDmlQueryBase {
   }
 
   @Test
-  public void testEmptyFiles() throws Exception{
+  public void testEmptyFiles() throws Exception {
     CopyIntoTests.testEmptyFiles(allocator, SOURCE);
   }
 
   @Test
-  public void testOneColumnOneData() throws Exception{
+  public void testOneColumnOneData() throws Exception {
     CopyIntoTests.testOneColumnOneData(allocator, SOURCE);
   }
 
   @Test
-  public void testOneColumnNoData() throws Exception{
+  public void testOneColumnNoData() throws Exception {
     CopyIntoTests.testOneColumnNoData(SOURCE);
   }
 
   @Test
-  public void testManyColumnsWhitespaceData() throws Exception{
+  public void testManyColumnsWhitespaceData() throws Exception {
     CopyIntoTests.testManyColumnsWhitespaceData(allocator, SOURCE);
   }
 
   @Test
-  public void testManyColumnsEmptyData() throws Exception{
+  public void testManyColumnsEmptyData() throws Exception {
     CopyIntoTests.testManyColumnsEmptyData(allocator, SOURCE);
   }
 
   @Test
-  public void testManyColumnsWhitespaceTabData() throws Exception{
+  public void testManyColumnsWhitespaceTabData() throws Exception {
     CopyIntoTests.testManyColumnsWhitespaceTabData(allocator, SOURCE);
   }
 
   @Test
-  public void testNoHeaderOnlyData() throws Exception{
+  public void testNoHeaderOnlyData() throws Exception {
     CopyIntoTests.testNoHeaderOnlyData(allocator, SOURCE);
   }
 
   @Test
-  public void testMoreValuesThanHeaders() throws Exception{
+  public void testMoreValuesThanHeaders() throws Exception {
     CopyIntoTests.testMoreValuesThanHeaders(allocator, SOURCE);
   }
 
   @Test
-  public void testMoreHeadersThanValues() throws Exception{
+  public void testMoreHeadersThanValues() throws Exception {
     CopyIntoTests.testMoreHeadersThanValues(allocator, SOURCE);
   }
 
   @Test
-  public void testColumnsTableUppercaseFileLowerCase() throws Exception{
+  public void testColumnsTableUppercaseFileLowerCase() throws Exception {
     CopyIntoTests.testColumnsTableUppercaseFileLowerCase(allocator, SOURCE);
   }
 
   @Test
-  public void testColumnsTableLowercaseFileUppercase() throws Exception{
+  public void testColumnsTableLowercaseFileUppercase() throws Exception {
     CopyIntoTests.testColumnsTableLowercaseFileUppercase(allocator, SOURCE);
   }
 
   @Test
-  public void testManyColumnsNoValues() throws Exception{
+  public void testManyColumnsNoValues() throws Exception {
     CopyIntoTests.testManyColumnsNoValues(allocator, SOURCE);
   }
 
   @Test
-  public void testNullValueAtRootLevel() throws Exception{
+  public void testNullValueAtRootLevel() throws Exception {
     CopyIntoTests.testNullValueAtRootLevel(allocator, SOURCE);
   }
 
   @Test
-  public void testValuesInSingleQuotes() throws Exception{
+  public void testValuesInSingleQuotes() throws Exception {
     CopyIntoTests.testValuesInSingleQuotes(allocator, SOURCE);
   }
 
-
   @Test
-  public void testValuesInDoubleQuotes() throws Exception{
+  public void testValuesInDoubleQuotes() throws Exception {
     CopyIntoTests.testValuesInDoubleQuotes(allocator, SOURCE);
   }
 
   @Test
-  public void testBooleanCaseSensitivity() throws Exception{
+  public void testBooleanCaseSensitivity() throws Exception {
     CopyIntoTests.testBooleanCaseSensitivity(allocator, SOURCE);
   }
 
   @Test
-  public void testHeaderEmptyString() throws Exception{
+  public void testHeaderEmptyString() throws Exception {
     CopyIntoTests.testHeaderEmptyString(allocator, SOURCE);
   }
 
@@ -244,83 +250,98 @@ public class ITCopyIntoTests extends ITDmlQueryBase {
   }
 
   @Test
-  public void testComplexTypesToVarcharCoercion() throws Exception{
+  public void testComplexTypesToVarcharCoercion() throws Exception {
     CopyIntoTests.testComplexTypesToVarcharCoercion(SOURCE);
   }
 
   @Test
-  public void testListOfListToListCoercion() throws Exception{
+  public void testListOfListToListCoercion() throws Exception {
     CopyIntoTests.testListOfListToListCoercion(SOURCE);
   }
 
   @Test
-  public void testFileExtensionCaseSensitivity() throws Exception{
+  public void testFileExtensionCaseSensitivity() throws Exception {
     CopyIntoTests.testFileExtensionCaseSensitivity(allocator, SOURCE);
   }
 
   @Test
-  public void testDifferentExtensions() throws Exception{
+  public void testDifferentExtensions() throws Exception {
     CopyIntoTests.testDifferentExtensions(allocator, SOURCE);
   }
 
   @Test
-  public void testComplexValuesCsv() throws Exception{
+  public void testComplexValuesCsv() throws Exception {
     CopyIntoTests.testComplexValuesCsv(allocator, SOURCE);
   }
 
   @Test
-  public void testRegexCaseSensitivity() throws Exception{
+  public void testRegexCaseSensitivity() throws Exception {
     CopyIntoTests.testRegexCaseSensitivity(allocator, SOURCE);
   }
 
   @Test
-  public void testNullIf() throws Exception{
+  public void testNullIf() throws Exception {
     CopyIntoTests.testNullIf(allocator, SOURCE);
   }
 
   @Test
-  public void testIntegerCoercion() throws Exception{
+  public void testIntegerCoercion() throws Exception {
     CopyIntoTests.testIntegerCoercion(allocator, SOURCE);
   }
 
   @Test
-  public void testNumberCoercion() throws Exception{
+  public void testNumberCoercion() throws Exception {
     CopyIntoTests.testNumberCoercion(allocator, SOURCE);
   }
 
   @Test
-  public void testColumnNameCaseSensitivity() throws Exception{
+  public void testColumnNameCaseSensitivity() throws Exception {
     CopyIntoTests.testColumnNameCaseSensitivity(allocator, SOURCE);
   }
 
   @Test
-  public void testDifferentFieldDelimitersForCsv() throws Exception{
+  public void testDifferentFieldDelimitersForCsv() throws Exception {
     CopyIntoTests.testDifferentFieldDelimitersForCsv(allocator, SOURCE);
   }
 
   @Test
-  public void testContinueFeatureFlag() throws Exception {
-    CopyIntoErrorsTests.testFeatureFlag(SOURCE);
+  public void testTypeErrorWithContinue() throws Exception {
+    CopyIntoErrorsTests.testTypeError(allocator, SOURCE, CONTINUE, JSON, CSV);
   }
 
   @Test
-  public void testTypeErrorWithContinue() throws Exception {
-    CopyIntoErrorsTests.testTypeError(allocator, SOURCE);
+  public void testTypeErrorWithSkipFile() throws Exception {
+    CopyIntoErrorsTests.testTypeError(allocator, SOURCE, SKIP_FILE, JSON, CSV, PARQUET);
   }
 
   @Test
   public void testTypeErrorWithContinueOnPartialSchema() throws Exception {
-    CopyIntoErrorsTests.testPartialSchema(allocator, SOURCE);
+    CopyIntoErrorsTests.testPartialSchema(allocator, SOURCE, CONTINUE, JSON, CSV);
+  }
+
+  @Test
+  public void testTypeErrorWithSkipFileOnPartialSchema() throws Exception {
+    CopyIntoErrorsTests.testPartialSchema(allocator, SOURCE, SKIP_FILE, JSON, CSV, PARQUET);
   }
 
   @Test
   public void testSyntaxErrorWithContinue() throws Exception {
-    CopyIntoErrorsTests.testSyntaxError(allocator, SOURCE);
+    CopyIntoErrorsTests.testSyntaxError(allocator, SOURCE, CONTINUE);
+  }
+
+  @Test
+  public void testSyntaxErrorWithSkipFile() throws Exception {
+    CopyIntoErrorsTests.testSyntaxError(allocator, SOURCE, SKIP_FILE, JSON, PARQUET);
   }
 
   @Test
   public void testErrorMultipleFilesWithContinue() throws Exception {
-    CopyIntoErrorsTests.testMultipleInputFiles(allocator, SOURCE);
+    CopyIntoErrorsTests.testMultipleInputFiles(allocator, SOURCE, CONTINUE, JSON, CSV);
+  }
+
+  @Test
+  public void testErrorMultipleFilesWithSkipFile() throws Exception {
+    CopyIntoErrorsTests.testMultipleInputFiles(allocator, SOURCE, SKIP_FILE, JSON, CSV, PARQUET);
   }
 
   @Test
@@ -330,22 +351,42 @@ public class ITCopyIntoTests extends ITDmlQueryBase {
 
   @Test
   public void testOnErrorContinueNoError() throws Exception {
-    CopyIntoErrorsTests.testNoError(allocator, SOURCE);
+    CopyIntoErrorsTests.testNoError(allocator, SOURCE, CONTINUE, JSON, CSV);
+  }
+
+  @Test
+  public void testOnErrorSkipFileNoError() throws Exception {
+    CopyIntoErrorsTests.testNoError(allocator, SOURCE, SKIP_FILE, JSON, CSV, PARQUET);
   }
 
   @Test
   public void testOnErrorContinueWithExtractHeaderAndSkipLines() throws Exception {
-    CopyIntoErrorsTests.testCSVExtractHeaderAndSkipLines(allocator, SOURCE);
+    CopyIntoErrorsTests.testCSVExtractHeaderAndSkipLines(allocator, SOURCE, CONTINUE);
+  }
+
+  @Test
+  public void testOnErrorSkipFileWithExtractHeaderAndSkipLines() throws Exception {
+    CopyIntoErrorsTests.testCSVExtractHeaderAndSkipLines(allocator, SOURCE, SKIP_FILE);
   }
 
   @Test
   public void testOnErrorContinueWithSkipLines() throws Exception {
-    CopyIntoErrorsTests.testCSVSkipLines(allocator, SOURCE);
+    CopyIntoErrorsTests.testCSVSkipLines(allocator, SOURCE, CONTINUE);
   }
 
   @Test
-  public void testCopyIntoErrorOutput() throws Exception {
-    CopyIntoErrorsTests.testCopyIntoErrorOutput(allocator, SOURCE);
+  public void testOnErrorSkipFileWithSkipLines() throws Exception {
+    CopyIntoErrorsTests.testCSVSkipLines(allocator, SOURCE, SKIP_FILE);
+  }
+
+  @Test
+  public void testCopyIntoErrorOutputForContinue() throws Exception {
+    CopyIntoErrorsTests.testCopyIntoErrorOutput(allocator, SOURCE, CONTINUE, CSV, JSON);
+  }
+
+  @Test
+  public void testCopyIntoErrorOutputForSkipFile() throws Exception {
+    CopyIntoErrorsTests.testCopyIntoErrorOutput(allocator, SOURCE, SKIP_FILE, JSON, CSV, PARQUET);
   }
 
   @Test
@@ -355,11 +396,38 @@ public class ITCopyIntoTests extends ITDmlQueryBase {
 
   @Test
   public void testOnErrorContinueOnIdentityPartitionedTable() throws Exception {
-    CopyIntoErrorsTests.testOnIdentityPartitionedTable(allocator, SOURCE);
+    CopyIntoErrorsTests.testOnIdentityPartitionedTable(allocator, SOURCE, CONTINUE, JSON, CSV);
+  }
+
+  @Test
+  public void testOnErrorSkipFileOnIdentityPartitionedTable() throws Exception {
+    CopyIntoErrorsTests.testOnIdentityPartitionedTable(
+        allocator, SOURCE, SKIP_FILE, JSON, CSV, PARQUET);
   }
 
   @Test
   public void testOnErrorContinueOnMultiPartitionedTable() throws Exception {
-    CopyIntoErrorsTests.testOnMultiPartitionedTable(allocator, SOURCE);
+    CopyIntoErrorsTests.testOnMultiPartitionedTable(allocator, SOURCE, CONTINUE, JSON, CSV);
+  }
+
+  @Test
+  public void testOnErrorSkipFileOnMultiPartitionedTable() throws Exception {
+    CopyIntoErrorsTests.testOnMultiPartitionedTable(
+        allocator, SOURCE, SKIP_FILE, JSON, CSV, PARQUET);
+  }
+
+  @Test
+  public void testOnErrorSkipFileWithMultiRowGroupParquet() throws Exception {
+    CopyIntoErrorsTests.testOnErrorSkipFileWithMultiRowGroupParquet(allocator, SOURCE, SKIP_FILE);
+  }
+
+  @Test
+  public void testOnErrorSkipFileWithCorruptFooterParquet() throws Exception {
+    CopyIntoErrorsTests.testOnErrorSkipFileWithCorruptFooterParquet(allocator, SOURCE, SKIP_FILE);
+  }
+
+  @Test
+  public void testOnErrorSkipCorruptFirstPageParquet() throws Exception {
+    CopyIntoErrorsTests.testOnErrorSkipCorruptFirstPageParquet(allocator, SOURCE);
   }
 }

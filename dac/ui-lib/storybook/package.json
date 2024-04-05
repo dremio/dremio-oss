@@ -20,7 +20,7 @@
     "@vitejs/plugin-react": "^4.1.0",
     "prop-types": "^15.8.1",
     "storybook": "^7.4.6",
-    "typescript": "5.2.2",
+    "typescript": "5.3.3",
     "vite": "^4.4.11",
     "vite-plugin-static-copy": "^0.17.0"
   },

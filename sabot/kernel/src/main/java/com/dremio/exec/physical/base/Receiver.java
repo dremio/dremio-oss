@@ -15,32 +15,34 @@
  */
 package com.dremio.exec.physical.base;
 
-import java.util.List;
-
 import com.dremio.exec.proto.CoordExecRPC.MinorFragmentIndexEndpoint;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.options.Options;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.List;
 
 /**
- * A receiver is one half of an exchange operator. The receiver is responsible for taking in one or more streams from
- * corresponding Senders.  Receivers are a special type of Physical SqlOperatorImpl that are typically only expressed within the execution plan.
+ * A receiver is one half of an exchange operator. The receiver is responsible for taking in one or
+ * more streams from corresponding Senders. Receivers are a special type of Physical SqlOperatorImpl
+ * that are typically only expressed within the execution plan.
  */
 @Options
 public interface Receiver extends FragmentLeaf {
 
   /**
    * A receiver is expecting streams from one or more providing endpoints.
-   * @return List of sender MinorFragmentIndexEndpoints each containing sender fragment MinorFragmentId and
-   * endpoint index where it is running.
+   *
+   * @return List of sender MinorFragmentIndexEndpoints each containing sender fragment
+   *     MinorFragmentId and endpoint index where it is running.
    */
   List<MinorFragmentIndexEndpoint> getProvidingEndpoints();
 
   /**
-   * Whether or not this receive supports out of order exchange. This provides a hint for the scheduling node on whether
-   * the receiver can start work if only a subset of all sending endpoints are currently providing data. A random
-   * receiver would supports this form of operation. A NWAY receiver would not.
+   * Whether or not this receive supports out of order exchange. This provides a hint for the
+   * scheduling node on whether the receiver can start work if only a subset of all sending
+   * endpoints are currently providing data. A random receiver would supports this form of
+   * operation. A NWAY receiver would not.
    *
    * @return True if this receiver supports working on a streaming/out of order input.
    */

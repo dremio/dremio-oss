@@ -17,12 +17,11 @@ package com.dremio.common.logical.data;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.dremio.common.logical.data.Order.Ordering;
 import org.apache.calcite.rel.RelFieldCollation;
 import org.apache.calcite.rel.RelFieldCollation.Direction;
 import org.apache.calcite.rel.RelFieldCollation.NullDirection;
 import org.junit.Test;
-
-import com.dremio.common.logical.data.Order.Ordering;
 
 public class OrderTest {
 
@@ -34,8 +33,7 @@ public class OrderTest {
   @Test
   public void test_Ordering_roundTripAscAndNullsFirst() {
     Ordering src = new Ordering(Direction.ASCENDING, null, NullDirection.FIRST);
-    Ordering reconstituted =
-      new Ordering(src.getDirection(), null, src.getNullDirection());
+    Ordering reconstituted = new Ordering(src.getDirection(), null, src.getNullDirection());
     assertThat(reconstituted.getDirection()).isEqualTo(RelFieldCollation.Direction.ASCENDING);
     assertThat(reconstituted.getNullDirection()).isEqualTo(NullDirection.FIRST);
   }
@@ -43,8 +41,7 @@ public class OrderTest {
   @Test
   public void test_Ordering_roundTripDescAndNullsLast() {
     Ordering src = new Ordering(Direction.DESCENDING, null, NullDirection.LAST);
-    Ordering reconstituted =
-      new Ordering(src.getDirection(), null, src.getNullDirection());
+    Ordering reconstituted = new Ordering(src.getDirection(), null, src.getNullDirection());
     assertThat(reconstituted.getDirection()).isEqualTo(RelFieldCollation.Direction.DESCENDING);
     assertThat(reconstituted.getNullDirection()).isEqualTo(NullDirection.LAST);
   }
@@ -52,19 +49,18 @@ public class OrderTest {
   @Test
   public void test_Ordering_roundTripDescAndNullsUnspecified() {
     Ordering src = new Ordering(Direction.DESCENDING, null, NullDirection.UNSPECIFIED);
-    Ordering reconstituted =
-      new Ordering(src.getDirection(), null, src.getNullDirection());
+    Ordering reconstituted = new Ordering(src.getDirection(), null, src.getNullDirection());
     assertThat(reconstituted.getDirection()).isEqualTo(RelFieldCollation.Direction.DESCENDING);
     assertThat(reconstituted.getNullDirection()).isEqualTo(NullDirection.UNSPECIFIED);
   }
 
   // Basic input validation:
-  @Test(expected = IllegalArgumentException.class)  // (Currently.)
+  @Test(expected = IllegalArgumentException.class) // (Currently.)
   public void test_Ordering_garbageOrderRejected() {
     new Ordering("AS CE ND IN G", null, null);
   }
 
-  @Test(expected = IllegalArgumentException.class)  // (Currently.)
+  @Test(expected = IllegalArgumentException.class) // (Currently.)
   public void test_Ordering_garbageNullOrderingRejected() {
     new Ordering(null, null, "HIGH");
   }

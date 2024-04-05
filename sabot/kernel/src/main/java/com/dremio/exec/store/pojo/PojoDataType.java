@@ -15,20 +15,18 @@
  */
 package com.dremio.exec.store.pojo;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
-import java.sql.Timestamp;
-import java.util.List;
-
-import org.apache.calcite.sql.type.SqlTypeName;
-import org.joda.time.DateTime;
-
 import com.dremio.exec.store.RecordDataType;
 import com.google.common.base.Objects;
 import com.google.common.collect.Lists;
+import java.lang.reflect.Field;
+import java.sql.Timestamp;
+import java.util.List;
+import org.apache.calcite.sql.type.SqlTypeName;
+import org.joda.time.DateTime;
 
 /**
- * This class uses reflection of a Java class to construct a {@link com.dremio.exec.store.RecordDataType}.
+ * This class uses reflection of a Java class to construct a {@link
+ * com.dremio.exec.store.RecordDataType}.
  */
 public class PojoDataType extends RecordDataType {
 
@@ -38,30 +36,29 @@ public class PojoDataType extends RecordDataType {
 
   public PojoDataType(Class<?> pojoClass) {
     this.pojoClass = pojoClass;
-    for (Field f : pojoClass.getDeclaredFields()) {
-      if (Modifier.isStatic(f.getModifiers())) {
-        continue;
-      }
+    PojoWrapper<?> pojoWrapper = PojoWrapper.from(pojoClass);
 
+    for (Field f : pojoWrapper.getFields()) {
       Class<?> type = f.getType();
       names.add(f.getName());
 
       if (type == int.class || type == Integer.class) {
         types.add(SqlTypeName.INTEGER);
-      } else if(type == boolean.class || type == Boolean.class) {
+      } else if (type == boolean.class || type == Boolean.class) {
         types.add(SqlTypeName.BOOLEAN);
-      } else if(type == long.class || type == Long.class) {
+      } else if (type == long.class || type == Long.class) {
         types.add(SqlTypeName.BIGINT);
-      } else if(type == double.class || type == Double.class) {
+      } else if (type == double.class || type == Double.class) {
         types.add(SqlTypeName.DOUBLE);
-      } else if(type == String.class) {
+      } else if (type == String.class) {
         types.add(SqlTypeName.VARCHAR);
-      } else if(type.isEnum()) {
+      } else if (type.isEnum()) {
         types.add(SqlTypeName.VARCHAR);
       } else if (type == Timestamp.class || type == DateTime.class) {
         types.add(SqlTypeName.TIMESTAMP);
       } else {
-        throw new RuntimeException(String.format("PojoDataType doesn't yet support conversions from type [%s].", type));
+        throw new RuntimeException(
+            String.format("PojoDataType doesn't yet support conversions from type [%s].", type));
       }
     }
   }
@@ -90,9 +87,9 @@ public class PojoDataType extends RecordDataType {
     }
     PojoDataType that = (PojoDataType) o;
     // Compare lists here since the column name/type ordering should be always the same
-    return Objects.equal(types, that.types) &&
-        Objects.equal(names, that.names) &&
-        Objects.equal(pojoClass, that.pojoClass);
+    return Objects.equal(types, that.types)
+        && Objects.equal(names, that.names)
+        && Objects.equal(pojoClass, that.pojoClass);
   }
 
   @Override

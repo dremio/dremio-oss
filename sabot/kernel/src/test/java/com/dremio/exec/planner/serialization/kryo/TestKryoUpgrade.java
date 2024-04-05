@@ -17,17 +17,15 @@ package com.dremio.exec.planner.serialization.kryo;
 
 import static org.junit.Assert.assertEquals;
 
-import java.net.URL;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-
-import org.junit.Test;
-import org.objenesis.strategy.StdInstantiatorStrategy;
-
 import com.dremio.common.expression.SchemaPath;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.google.common.io.Resources;
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import org.junit.Test;
+import org.objenesis.strategy.StdInstantiatorStrategy;
 
 public class TestKryoUpgrade {
   @Test
@@ -50,7 +48,8 @@ public class TestKryoUpgrade {
     final byte[] bytes = Files.readAllBytes(Paths.get(resource.getPath()));
 
     final Kryo kryo = new Kryo();
-    kryo.setInstantiatorStrategy(new Kryo.DefaultInstantiatorStrategy(new StdInstantiatorStrategy()));
+    kryo.setInstantiatorStrategy(
+        new Kryo.DefaultInstantiatorStrategy(new StdInstantiatorStrategy()));
 
     final SchemaPath schemaPath = kryo.readObject(new Input(bytes), SchemaPath.class);
     assertEquals("path", schemaPath.getAsUnescapedPath());

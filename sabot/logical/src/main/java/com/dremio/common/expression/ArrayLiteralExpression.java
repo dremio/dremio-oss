@@ -15,13 +15,11 @@
  */
 package com.dremio.common.expression;
 
-import java.util.List;
-
-import org.apache.arrow.vector.types.pojo.ArrowType;
-import org.apache.arrow.vector.types.pojo.Field;
-
 import com.dremio.common.expression.visitors.ExprVisitor;
 import com.google.common.collect.ImmutableList;
+import java.util.List;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.Field;
 
 public final class ArrayLiteralExpression extends LogicalExpressionBase {
   private final ImmutableList<LogicalExpression> items;
@@ -36,10 +34,9 @@ public final class ArrayLiteralExpression extends LogicalExpressionBase {
 
   @Override
   public CompleteType getCompleteType() {
-    List<Field> arrayItemFields = ImmutableList.of(items.get(0).getCompleteType().toField("array item"));
-    CompleteType completeType = new CompleteType(
-    ArrowType.List.INSTANCE,
-    arrayItemFields);
+    List<Field> arrayItemFields =
+        ImmutableList.of(items.get(0).getCompleteType().toField("array item"));
+    CompleteType completeType = new CompleteType(ArrowType.List.INSTANCE, arrayItemFields);
     return completeType;
   }
 

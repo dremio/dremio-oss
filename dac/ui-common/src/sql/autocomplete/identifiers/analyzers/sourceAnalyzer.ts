@@ -36,64 +36,64 @@ const followsSqlVersionSourceToken = (priorToken: Token | undefined) =>
 const sourceRuleAnalyzers: CompositeRuleAnalyzers = {
   [Parser.RULE_sqlUseVersion]: includeIf([
     child(Parser.RULE_simpleIdentifier, (priorToken: Token | undefined) =>
-      followsSqlVersionSourceToken(priorToken)
+      followsSqlVersionSourceToken(priorToken),
     ),
   ]),
   [Parser.RULE_sqlShowBranches]: includeIf([
     child(Parser.RULE_simpleIdentifier, (priorToken: Token | undefined) =>
-      followsSqlVersionSourceToken(priorToken)
+      followsSqlVersionSourceToken(priorToken),
     ),
   ]),
   [Parser.RULE_sqlShowTags]: includeIf([
     child(Parser.RULE_simpleIdentifier, (priorToken: Token | undefined) =>
-      followsSqlVersionSourceToken(priorToken)
+      followsSqlVersionSourceToken(priorToken),
     ),
   ]),
   [Parser.RULE_sqlShowLogs]: includeIf([
     child(Parser.RULE_simpleIdentifier, (priorToken: Token | undefined) =>
-      followsSqlVersionSourceToken(priorToken)
+      followsSqlVersionSourceToken(priorToken),
     ),
   ]),
   [Parser.RULE_sqlCreateBranch]: includeIf([
     child(Parser.RULE_simpleIdentifier, (priorToken: Token | undefined) =>
-      followsSqlVersionSourceToken(priorToken)
+      followsSqlVersionSourceToken(priorToken),
     ),
   ]),
   [Parser.RULE_sqlCreateTag]: includeIf([
     child(Parser.RULE_simpleIdentifier, (priorToken: Token | undefined) =>
-      followsSqlVersionSourceToken(priorToken)
+      followsSqlVersionSourceToken(priorToken),
     ),
   ]),
   [Parser.RULE_sqlDropBranch]: includeIf([
     child(Parser.RULE_simpleIdentifier, (priorToken: Token | undefined) =>
-      followsSqlVersionSourceToken(priorToken)
+      followsSqlVersionSourceToken(priorToken),
     ),
   ]),
   [Parser.RULE_sqlDropTag]: includeIf([
     child(Parser.RULE_simpleIdentifier, (priorToken: Token | undefined) =>
-      followsSqlVersionSourceToken(priorToken)
+      followsSqlVersionSourceToken(priorToken),
     ),
   ]),
   [Parser.RULE_sqlMergeBranch]: includeIf([
     child(Parser.RULE_simpleIdentifier, (priorToken: Token | undefined) =>
-      followsSqlVersionSourceToken(priorToken)
+      followsSqlVersionSourceToken(priorToken),
     ),
   ]),
   [Parser.RULE_sqlAssignBranch]: includeIf([
     child(Parser.RULE_simpleIdentifier, (priorToken: Token | undefined) =>
-      followsSqlVersionSourceToken(priorToken)
+      followsSqlVersionSourceToken(priorToken),
     ),
   ]),
   [Parser.RULE_sqlAssignTag]: includeIf([
     child(Parser.RULE_simpleIdentifier, (priorToken: Token | undefined) =>
-      followsSqlVersionSourceToken(priorToken)
+      followsSqlVersionSourceToken(priorToken),
     ),
   ]),
 };
 
 export function isSource(
   priorTerminals: TerminalNode[],
-  identifierCandidate: IdentifierCandidate
+  identifierCandidate: IdentifierCandidate,
 ): boolean {
   if (priorTerminals.length == 0) {
     return false;
@@ -106,6 +106,6 @@ export function isSource(
     identifierCandidate,
     sourceRuleAnalyzers,
     priorTerminal,
-    fallbackRule
+    fallbackRule,
   );
 }

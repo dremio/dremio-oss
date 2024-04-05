@@ -15,12 +15,14 @@
  */
 package com.dremio.plugins.pf4j;
 
+import com.dremio.common.AutoCloseables;
+import com.dremio.config.DremioConfig;
+import com.dremio.options.OptionResolver;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-
 import org.pf4j.CompoundPluginRepository;
 import org.pf4j.DefaultPluginManager;
 import org.pf4j.DevelopmentPluginRepository;
@@ -28,17 +30,14 @@ import org.pf4j.JarPluginRepository;
 import org.pf4j.PluginLoader;
 import org.pf4j.PluginRepository;
 
-import com.dremio.common.AutoCloseables;
-import com.dremio.config.DremioConfig;
-import com.dremio.options.OptionResolver;
-
 /**
- * Customized plugin manager to create a classloader that extracts native libraries before loading them from a plugin
- * bundle.
+ * Customized plugin manager to create a classloader that extracts native libraries before loading
+ * them from a plugin bundle.
  */
 public class NativeLibPluginManager extends DefaultPluginManager {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(NativeLibPluginManager.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(NativeLibPluginManager.class);
 
   private static final String PLUGINS_PATH_DEV_MODE = "../plugins";
 
@@ -55,8 +54,10 @@ public class NativeLibPluginManager extends DefaultPluginManager {
 
   @Override
   protected List<Path> createPluginsRoot() {
-    final Path pluginsPath = this.isDevelopment() ? Paths.get(PLUGINS_PATH_DEV_MODE) :
-      DremioConfig.getPluginsRootPath().resolve("connectors");
+    final Path pluginsPath =
+        this.isDevelopment()
+            ? Paths.get(PLUGINS_PATH_DEV_MODE)
+            : DremioConfig.getPluginsRootPath().resolve("connectors");
     return Collections.singletonList(pluginsPath);
   }
 
@@ -66,7 +67,8 @@ public class NativeLibPluginManager extends DefaultPluginManager {
       int pluginsCount = this.getPlugins().size();
       List<NativeLibPluginClassLoader> nativeLibPluginClassLoaderList = new ArrayList<>();
       for (int i = 0; i < pluginsCount; i++) {
-        nativeLibPluginClassLoaderList.add((NativeLibPluginClassLoader) this.getPlugins().get(i).getPluginClassLoader());
+        nativeLibPluginClassLoaderList.add(
+            (NativeLibPluginClassLoader) this.getPlugins().get(i).getPluginClassLoader());
       }
       AutoCloseables.close(nativeLibPluginClassLoaderList);
     } catch (Exception e) {
@@ -77,10 +79,11 @@ public class NativeLibPluginManager extends DefaultPluginManager {
 
   @Override
   protected PluginRepository createPluginRepository() {
-    // Omit the DefaultPluginRepository in the base implementation as we only want to load the plugin JARs as plugins,
+    // Omit the DefaultPluginRepository in the base implementation as we only want to load the
+    // plugin JARs as plugins,
     // not subdirectories which include dependencies for the specific plugins.
     return (new CompoundPluginRepository())
-      .add(new DevelopmentPluginRepository(this.getPluginsRoot()), this::isDevelopment)
-      .add(new JarPluginRepository(this.getPluginsRoot()), this::isNotDevelopment);
+        .add(new DevelopmentPluginRepository(this.getPluginsRoot()), this::isDevelopment)
+        .add(new JarPluginRepository(this.getPluginsRoot()), this::isNotDevelopment);
   }
 }

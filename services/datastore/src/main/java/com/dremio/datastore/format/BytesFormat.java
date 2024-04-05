@@ -26,9 +26,7 @@ final class BytesFormat implements Format<byte[]> {
     return INSTANCE;
   }
 
-  private BytesFormat() {
-
-  }
+  private BytesFormat() {}
 
   @Override
   public Class<byte[]> getRepresentedClass() {
@@ -37,6 +35,6 @@ final class BytesFormat implements Format<byte[]> {
 
   @Override
   public <RET> RET apply(FormatVisitor<RET> visitor) throws DatastoreFatalException {
-   return visitor.visitByteFormat();
+    return visitor.visitByteFormat();
   }
 }

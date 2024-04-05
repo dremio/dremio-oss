@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.physical.config;
 
-import java.util.List;
-
 import com.dremio.common.logical.data.Order.Ordering;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
@@ -24,6 +22,7 @@ import com.dremio.exec.physical.base.PhysicalVisitor;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import java.util.List;
 
 @JsonTypeName("external-sort")
 public class ExternalSort extends AbstractSort {
@@ -48,7 +47,8 @@ public class ExternalSort extends AbstractSort {
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value) throws E{
+  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value)
+      throws E {
     return physicalVisitor.visitSort(this, value);
   }
 
@@ -61,5 +61,4 @@ public class ExternalSort extends AbstractSort {
   public int getOperatorType() {
     return CoreOperatorType.EXTERNAL_SORT_VALUE;
   }
-
 }

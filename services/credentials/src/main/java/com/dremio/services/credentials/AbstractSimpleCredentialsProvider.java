@@ -15,14 +15,11 @@
  */
 package com.dremio.services.credentials;
 
+import com.google.common.base.Preconditions;
 import java.net.URI;
 import java.util.Objects;
 
-import com.google.common.base.Preconditions;
-
-/**
- * Abstract base class for credentials providers which only support a single scheme
- */
+/** Abstract base class for credentials providers which only support a single scheme */
 public abstract class AbstractSimpleCredentialsProvider implements CredentialsProvider {
 
   private final String scheme;
@@ -39,10 +36,10 @@ public abstract class AbstractSimpleCredentialsProvider implements CredentialsPr
 
   @Override
   public final String lookup(URI uri) throws CredentialsException {
-    Preconditions.checkArgument(isSupported(uri), "Invalid URI type %s", uri.getScheme()); // Do not disclose the whole URI
+    Preconditions.checkArgument(
+        isSupported(uri), "Invalid URI type %s", uri.getScheme()); // Do not disclose the whole URI
     return doLookup(uri);
   }
 
   protected abstract String doLookup(URI uri) throws CredentialsException;
-
 }

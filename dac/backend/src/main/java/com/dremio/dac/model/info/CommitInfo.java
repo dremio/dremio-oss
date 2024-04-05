@@ -19,14 +19,11 @@ import com.dremio.dac.api.JsonISODateTime;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-/**
- * Description of commit information.
- */
+/** Description of commit information. */
 public class CommitInfo {
   private final String hash;
   private final String builder;
-  @JsonISODateTime
-  private final long time;
+  @JsonISODateTime private final long time;
 
   @JsonCreator
   public CommitInfo(
@@ -38,12 +35,15 @@ public class CommitInfo {
     this.builder = builder;
     this.time = time;
   }
+
   public String getHash() {
     return hash;
   }
+
   public String getBuilder() {
     return builder;
   }
+
   public long getTime() {
     return time;
   }

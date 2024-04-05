@@ -18,24 +18,21 @@ package com.dremio.service.reflection.store;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
-import org.junit.Test;
-
 import com.dremio.datastore.VersionExtractor;
 import com.dremio.service.reflection.proto.ReflectionGoal;
+import org.junit.Test;
 
-/**
- * Test functionality on the ReflectionGoalsStore.
- */
+/** Test functionality on the ReflectionGoalsStore. */
 public class TestReflectionGoalsStore {
 
   @Test
   public void testVersionExtractorWithNumericTag() {
-    final VersionExtractor<ReflectionGoal> goalVersionExtractor = new ReflectionGoalsStore.ReflectionGoalVersionExtractor();
+    final VersionExtractor<ReflectionGoal> goalVersionExtractor =
+        new ReflectionGoalsStore.ReflectionGoalVersionExtractor();
     final String oldNumericTag = "1";
     final String newNonNumericTag = "testTag";
-    final ReflectionGoal goal = ReflectionGoal.getDefaultInstance().newMessage()
-      .setTag(oldNumericTag)
-      .setVersion(null);
+    final ReflectionGoal goal =
+        ReflectionGoal.getDefaultInstance().newMessage().setTag(oldNumericTag).setVersion(null);
 
     goalVersionExtractor.setTag(goal, newNonNumericTag);
     assertEquals(newNonNumericTag, goal.getTag());
@@ -44,12 +41,12 @@ public class TestReflectionGoalsStore {
 
   @Test
   public void testVersionExtractorWithNonNumericTag() {
-    final VersionExtractor<ReflectionGoal> goalVersionExtractor = new ReflectionGoalsStore.ReflectionGoalVersionExtractor();
+    final VersionExtractor<ReflectionGoal> goalVersionExtractor =
+        new ReflectionGoalsStore.ReflectionGoalVersionExtractor();
     final String oldNonNumericTag = "abc";
     final String newNonNumericTag = "testTag";
-    final ReflectionGoal goal = ReflectionGoal.getDefaultInstance().newMessage()
-      .setTag(oldNonNumericTag)
-      .setVersion(null);
+    final ReflectionGoal goal =
+        ReflectionGoal.getDefaultInstance().newMessage().setTag(oldNonNumericTag).setVersion(null);
 
     goalVersionExtractor.setTag(goal, newNonNumericTag);
     assertEquals(newNonNumericTag, goal.getTag());

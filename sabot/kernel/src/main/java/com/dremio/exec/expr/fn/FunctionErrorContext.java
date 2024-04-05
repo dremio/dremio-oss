@@ -18,17 +18,20 @@ package com.dremio.exec.expr.fn;
 import com.google.errorprone.annotations.FormatMethod;
 
 /**
- * Injectable used in SimpleFunction definitions. Function code uses an object of this interface to construct exceptions
- * that have a full context -- in particular, where in the original expression did the function occur.
+ * Injectable used in SimpleFunction definitions. Function code uses an object of this interface to
+ * construct exceptions that have a full context -- in particular, where in the original expression
+ * did the function occur.
  */
 public interface FunctionErrorContext {
   /**
-   * @return the ID by which this FunctionErrorContext is registered within the enclosing FunctionContext
+   * @return the ID by which this FunctionErrorContext is registered within the enclosing
+   *     FunctionContext
    */
   int getId();
 
   /**
-   * @param id the ID by which this FunctionErrorContext is registered within the enclosing FunctionContext
+   * @param id the ID by which this FunctionErrorContext is registered within the enclosing
+   *     FunctionContext
    */
   void setId(int id);
 
@@ -43,9 +46,7 @@ public interface FunctionErrorContext {
    */
   ExceptionBuilder error(final Throwable cause);
 
-  /**
-   * Builder for exceptions thrown by {@link #error}
-   */
+  /** Builder for exceptions thrown by {@link #error} */
   interface ExceptionBuilder {
     /**
      * sets or replaces the error message.
@@ -59,7 +60,6 @@ public interface FunctionErrorContext {
      * sets or replaces the error message.
      *
      * @see String#format(String, Object...)
-     *
      * @param format format string
      * @param args Arguments referenced by the format specifiers in the format string
      * @return this builder
@@ -69,6 +69,7 @@ public interface FunctionErrorContext {
 
     /**
      * add a string line to the bottom of the context
+     *
      * @param value string line
      * @return this builder
      */
@@ -76,6 +77,7 @@ public interface FunctionErrorContext {
 
     /**
      * add a string line to the bottom of the context
+     *
      * @param value string line
      * @return this builder
      */
@@ -91,9 +93,7 @@ public interface FunctionErrorContext {
      */
     ExceptionBuilder addContext(final String name, final String value);
 
-    /**
-     * Builds an exception that can be thrown by the caller
-     */
+    /** Builds an exception that can be thrown by the caller */
     RuntimeException build();
   }
 }

@@ -15,8 +15,6 @@
  */
 package com.dremio.service.reflection.store;
 
-import javax.inject.Provider;
-
 import com.dremio.datastore.VersionExtractor;
 import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.datastore.api.LegacyKVStoreCreationFunction;
@@ -27,10 +25,9 @@ import com.dremio.service.reflection.proto.RefreshRequest;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
+import javax.inject.Provider;
 
-/**
- * KVStore to store refresh requests on physical datasets
- */
+/** KVStore to store refresh requests on physical datasets */
 public class RefreshRequestsStore {
   private static final String TABLE_NAME = "refresh_requests";
 
@@ -38,12 +35,14 @@ public class RefreshRequestsStore {
 
   public RefreshRequestsStore(final Provider<LegacyKVStoreProvider> provider) {
     Preconditions.checkNotNull(provider, "kvStore provider required");
-    store = Suppliers.memoize(new Supplier<LegacyKVStore<String, RefreshRequest>>() {
-      @Override
-      public LegacyKVStore<String, RefreshRequest> get() {
-        return provider.get().getStore(StoreCreator.class);
-      }
-    });
+    store =
+        Suppliers.memoize(
+            new Supplier<LegacyKVStore<String, RefreshRequest>>() {
+              @Override
+              public LegacyKVStore<String, RefreshRequest> get() {
+                return provider.get().getStore(StoreCreator.class);
+              }
+            });
   }
 
   public void save(String key, RefreshRequest request) {
@@ -66,18 +65,18 @@ public class RefreshRequestsStore {
     }
   }
 
-  /**
-   * {@link RefreshRequestsStore} creator
-   */
-  public static final class StoreCreator implements LegacyKVStoreCreationFunction<String, RefreshRequest> {
+  /** {@link RefreshRequestsStore} creator */
+  public static final class StoreCreator
+      implements LegacyKVStoreCreationFunction<String, RefreshRequest> {
     @Override
     public LegacyKVStore<String, RefreshRequest> build(LegacyStoreBuildingFactory factory) {
-      return factory.<String, RefreshRequest>newStore()
-        .name(TABLE_NAME)
-        .keyFormat(Format.ofString())
-        .valueFormat(Format.ofProtostuff(RefreshRequest.class))
-        .versionExtractor(VExtractor.class)
-        .build();
+      return factory
+          .<String, RefreshRequest>newStore()
+          .name(TABLE_NAME)
+          .keyFormat(Format.ofString())
+          .valueFormat(Format.ofProtostuff(RefreshRequest.class))
+          .versionExtractor(VExtractor.class)
+          .build();
     }
   }
 }

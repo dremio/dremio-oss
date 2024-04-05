@@ -19,12 +19,19 @@ import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.dac.server.DACConfig;
 import com.dremio.service.SingletonRegistry;
 
-/**
- * Helper class to manage DAC registries
- */
+/** Helper class to manage DAC registries */
 public interface DACModule {
-  void bootstrap(final Runnable shutdownHook, final SingletonRegistry bootstrapRegistry, ScanResult scanResult, DACConfig dacConfig, boolean isMaster);
+  void bootstrap(
+      final Runnable shutdownHook,
+      final SingletonRegistry bootstrapRegistry,
+      ScanResult scanResult,
+      DACConfig dacConfig,
+      boolean isMaster);
 
-  void build(final SingletonRegistry bootstrapRegistry, final SingletonRegistry registry, ScanResult scanResult,
-      DACConfig dacConfig, boolean isMaster);
+  void build(
+      final SingletonRegistry bootstrapRegistry,
+      final SingletonRegistry registry,
+      ScanResult scanResult,
+      DACConfig dacConfig,
+      boolean isMaster);
 }

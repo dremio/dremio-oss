@@ -15,18 +15,16 @@
  */
 package com.dremio.exec.store.metadatarefresh.footerread;
 
-import java.io.IOException;
-
-import org.apache.avro.file.DataFileConstants;
-
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.google.common.base.Preconditions;
+import java.io.IOException;
+import org.apache.avro.file.DataFileConstants;
 
 /**
- * In AVRO file there is no meta information which tell number of record counts in a file
- * so we do estimate calucation based of size.
+ * In AVRO file there is no meta information which tell number of record counts in a file so we do
+ * estimate calucation based of size.
  */
 public class AvroRowCountEstimater implements FooterReader {
 
@@ -36,8 +34,10 @@ public class AvroRowCountEstimater implements FooterReader {
 
   public AvroRowCountEstimater(BatchSchema tableSchema, OperatorContext context) {
     Preconditions.checkArgument(tableSchema != null, "Unexpected state");
-    estimatedRecordSize = tableSchema.estimateRecordSize((int) context.getOptions().getOption(ExecConstants.BATCH_LIST_SIZE_ESTIMATE),
-      (int) context.getOptions().getOption(ExecConstants.BATCH_VARIABLE_FIELD_SIZE_ESTIMATE));
+    estimatedRecordSize =
+        tableSchema.estimateRecordSize(
+            (int) context.getOptions().getOption(ExecConstants.BATCH_LIST_SIZE_ESTIMATE),
+            (int) context.getOptions().getOption(ExecConstants.BATCH_VARIABLE_FIELD_SIZE_ESTIMATE));
     this.tableSchema = tableSchema;
     this.compressionFactor = 10;
   }
@@ -45,10 +45,12 @@ public class AvroRowCountEstimater implements FooterReader {
   @Override
   public Footer getFooter(String path, long fileSize) throws IOException {
     if (fileSize < DataFileConstants.MAGIC.length) {
-      throw new IOException("Not a valid AVRO Data file " + path + " File Size is less than avro Magic bytes");
+      throw new IOException(
+          "Not a valid AVRO Data file " + path + " File Size is less than avro Magic bytes");
     }
     long uncompressedFileSize = fileSize * compressionFactor;
-    long estimatedTotalRecords = (long) Math.ceil((double) uncompressedFileSize / estimatedRecordSize);
+    long estimatedTotalRecords =
+        (long) Math.ceil((double) uncompressedFileSize / estimatedRecordSize);
     return new AvroFooter(tableSchema, estimatedTotalRecords);
   }
 }

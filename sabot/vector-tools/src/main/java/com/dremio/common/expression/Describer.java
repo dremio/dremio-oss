@@ -43,35 +43,33 @@ import org.apache.arrow.vector.types.pojo.ArrowType.Union;
 import org.apache.arrow.vector.types.pojo.ArrowType.Utf8;
 import org.apache.arrow.vector.types.pojo.Field;
 
-/**
- * Describes Field, CompleteType and ArrowType in human readable form.
- */
+/** Describes Field, CompleteType and ArrowType in human readable form. */
 public final class Describer {
 
   private static TypeDescriber INSTANCE = new TypeDescriber();
 
-  public static String describe(ArrowType type){
+  public static String describe(ArrowType type) {
     return type.accept(INSTANCE);
   }
 
-  public static String describe(CompleteType type){
-    if(type == CompleteType.OBJECT){
+  public static String describe(CompleteType type) {
+    if (type == CompleteType.OBJECT) {
       return "object";
     }
-    if(type == CompleteType.NULL){
+    if (type == CompleteType.NULL) {
       return "null";
     }
-    if(type == CompleteType.LATE){
+    if (type == CompleteType.LATE) {
       return "late";
     }
     return describe(type.toField(""), false);
   }
 
-  public static String describe(Iterable<Field> fields){
+  public static String describe(Iterable<Field> fields) {
     StringBuilder sb = new StringBuilder();
     boolean first = true;
-    for(Field f : fields){
-      if(!first){
+    for (Field f : fields) {
+      if (!first) {
         sb.append(", ");
       }
       sb.append(describe(f));
@@ -80,26 +78,25 @@ public final class Describer {
     return sb.toString();
   }
 
-  public static String describeInternal(ArrowType type){
+  public static String describeInternal(ArrowType type) {
     Types.MinorType mtype = Types.getMinorTypeForArrowType(type);
     return mtype.name().toLowerCase();
   }
 
-  public static String describeWithLineBreaks(Iterable<Field> fields){
+  public static String describeWithLineBreaks(Iterable<Field> fields) {
     StringBuilder sb = new StringBuilder();
-    for(Field f : fields){
+    for (Field f : fields) {
       sb.append(describe(f));
       sb.append("\n");
     }
     return sb.toString();
   }
 
-
-  public static String describe(Field field){
+  public static String describe(Field field) {
     return field.getType().accept(new FieldDescriber(field, true));
   }
 
-  public static String describe(Field field, boolean includeName){
+  public static String describe(Field field, boolean includeName) {
     return field.getType().accept(new FieldDescriber(field, includeName));
   }
 
@@ -108,7 +105,7 @@ public final class Describer {
     private final Field field;
     private final boolean includeName;
 
-    public FieldDescriber(Field field, boolean includeName){
+    public FieldDescriber(Field field, boolean includeName) {
       this.field = field;
       this.includeName = includeName;
     }
@@ -116,7 +113,7 @@ public final class Describer {
     @Override
     public String visit(Struct type) {
       StringBuilder sb = new StringBuilder();
-      if(includeName){
+      if (includeName) {
         sb.append(field.getName());
         sb.append("::");
       }
@@ -138,7 +135,7 @@ public final class Describer {
     @Override
     public String visit(ArrowType.Map type) {
       StringBuilder sb = new StringBuilder();
-      if(includeName){
+      if (includeName) {
         sb.append(field.getName());
         sb.append("::");
       }
@@ -161,7 +158,7 @@ public final class Describer {
     @Override
     public String visit(List type) {
       StringBuilder sb = new StringBuilder();
-      if(includeName){
+      if (includeName) {
         sb.append(field.getName());
         sb.append("::");
       }
@@ -178,14 +175,14 @@ public final class Describer {
     @Override
     public String visit(Union type) {
       StringBuilder sb = new StringBuilder();
-      if(includeName){
+      if (includeName) {
         sb.append(field.getName());
         sb.append("::");
       }
 
       sb.append("union<");
       boolean first = true;
-      for(Field f : field.getChildren()){
+      for (Field f : field.getChildren()) {
         if (first) {
           first = false;
         } else {
@@ -200,19 +197,17 @@ public final class Describer {
     @Override
     protected String visitGeneric(ArrowType type) {
       String typeStr = describe(type);
-      if(!includeName) {
+      if (!includeName) {
         return typeStr;
       }
 
       return field.getName() + "::" + typeStr;
     }
-
   }
 
   private static final class TypeDescriber implements ArrowTypeVisitor<String> {
 
-
-    private TypeDescriber(){}
+    private TypeDescriber() {}
 
     @Override
     public String visit(Null type) {

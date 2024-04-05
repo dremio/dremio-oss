@@ -15,29 +15,27 @@
  */
 package com.dremio.exec.expr.fn.impl;
 
+import com.dremio.exec.expr.fn.FunctionErrorContext;
+import io.netty.util.internal.PlatformDependent;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BoundsChecking;
 import org.apache.arrow.vector.holders.NullableVarCharHolder;
 import org.apache.arrow.vector.holders.VarCharHolder;
 import org.joda.time.chrono.ISOChronology;
 
-import com.dremio.exec.expr.fn.FunctionErrorContext;
-
-import io.netty.util.internal.PlatformDependent;
-
 public class StringFunctionHelpers {
   static final int RADIX = 10;
   static final long MAX_LONG = -Long.MAX_VALUE / RADIX;
   static final int MAX_INT = -Integer.MAX_VALUE / RADIX;
 
-  public static long varTypesToLong(final int start, final int end, ArrowBuf buffer, FunctionErrorContext errCtx){
-    if ((end - start) ==0) {
-      //empty, not a valid number
+  public static long varTypesToLong(
+      final int start, final int end, ArrowBuf buffer, FunctionErrorContext errCtx) {
+    if ((end - start) == 0) {
+      // empty, not a valid number
       return nfeL(start, end, buffer, errCtx);
     }
 
@@ -46,28 +44,27 @@ public class StringFunctionHelpers {
     boolean negative = buffer.getByte(readIndex) == '-';
 
     if (negative && ++readIndex == end) {
-      //only one single '-'
+      // only one single '-'
       return nfeL(start, end, buffer, errCtx);
     }
-
 
     long result = 0;
     int digit;
 
     while (readIndex < end) {
-      digit = Character.digit(buffer.getByte(readIndex++),RADIX);
-      //not valid digit.
+      digit = Character.digit(buffer.getByte(readIndex++), RADIX);
+      // not valid digit.
       if (digit == -1) {
         return nfeL(start, end, buffer, errCtx);
       }
-      //overflow
+      // overflow
       if (MAX_LONG > result) {
         return nfeL(start, end, buffer, errCtx);
       }
 
       long next = result * RADIX - digit;
 
-      //overflow
+      // overflow
       if (next > result) {
         return nfeL(start, end, buffer, errCtx);
       }
@@ -75,7 +72,7 @@ public class StringFunctionHelpers {
     }
     if (!negative) {
       result = -result;
-      //overflow
+      // overflow
       if (result < 0) {
         return nfeL(start, end, buffer, errCtx);
       }
@@ -84,27 +81,30 @@ public class StringFunctionHelpers {
     return result;
   }
 
-  private static int nfeL(int start, int end, ArrowBuf buffer, FunctionErrorContext errCtx){
+  private static int nfeL(int start, int end, ArrowBuf buffer, FunctionErrorContext errCtx) {
     byte[] buf = new byte[end - start];
     buffer.getBytes(start, buf, 0, end - start);
     String value = new String(buf, StandardCharsets.UTF_8);
-    throw errCtx.error()
-      .message("Failure while attempting to cast value '%s' to Bigint.", value)
-      .build();
+    throw errCtx
+        .error()
+        .message("Failure while attempting to cast value '%s' to Bigint.", value)
+        .build();
   }
 
-  private static int nfeI(int start, int end, ArrowBuf buffer, FunctionErrorContext errCtx){
+  private static int nfeI(int start, int end, ArrowBuf buffer, FunctionErrorContext errCtx) {
     byte[] buf = new byte[end - start];
     buffer.getBytes(start, buf, 0, end - start);
     String value = new String(buf, StandardCharsets.UTF_8);
-    throw errCtx.error()
-      .message("Failure while attempting to cast value '%s' to Integer.", value)
-      .build();
+    throw errCtx
+        .error()
+        .message("Failure while attempting to cast value '%s' to Integer.", value)
+        .build();
   }
 
-  public static int varTypesToInt(final int start, final int end, ArrowBuf buffer, FunctionErrorContext errCtx){
-    if ((end - start) ==0) {
-      //empty, not a valid number
+  public static int varTypesToInt(
+      final int start, final int end, ArrowBuf buffer, FunctionErrorContext errCtx) {
+    if ((end - start) == 0) {
+      // empty, not a valid number
       return nfeI(start, end, buffer, errCtx);
     }
 
@@ -113,7 +113,7 @@ public class StringFunctionHelpers {
     boolean negative = buffer.getByte(readIndex) == '-';
 
     if (negative && ++readIndex == end) {
-      //only one single '-'
+      // only one single '-'
       return nfeI(start, end, buffer, errCtx);
     }
 
@@ -122,18 +122,18 @@ public class StringFunctionHelpers {
 
     while (readIndex < end) {
       digit = Character.digit(buffer.getByte(readIndex++), RADIX);
-      //not valid digit.
+      // not valid digit.
       if (digit == -1) {
         return nfeI(start, end, buffer, errCtx);
       }
-      //overflow
+      // overflow
       if (MAX_INT > result) {
         return nfeI(start, end, buffer, errCtx);
       }
 
       int next = result * RADIX - digit;
 
-      //overflow
+      // overflow
       if (next > result) {
         return nfeI(start, end, buffer, errCtx);
       }
@@ -141,7 +141,7 @@ public class StringFunctionHelpers {
     }
     if (!negative) {
       result = -result;
-      //overflow
+      // overflow
       if (result < 0) {
         return nfeI(start, end, buffer, errCtx);
       }
@@ -190,12 +190,12 @@ public class StringFunctionHelpers {
   /**
    * Convert a VarCharHolder to a String.
    *
-   * VarCharHolders are designed specifically for object reuse and mutability, only use
-   * this method when absolutely necessary for interacting with interfaces that must take
-   * a String.
+   * <p>VarCharHolders are designed specifically for object reuse and mutability, only use this
+   * method when absolutely necessary for interacting with interfaces that must take a String.
    *
-   * @param varCharHolder a mutable wrapper object that stores a variable length char array, always in UTF-8
-   * @return              String of the bytes interpreted as UTF-8
+   * @param varCharHolder a mutable wrapper object that stores a variable length char array, always
+   *     in UTF-8
+   * @return String of the bytes interpreted as UTF-8
    */
   public static String getStringFromVarCharHolder(VarCharHolder varCharHolder) {
     return toStringFromUTF8(varCharHolder.start, varCharHolder.end, varCharHolder.buffer);
@@ -218,9 +218,10 @@ public class StringFunctionHelpers {
     return new String(buf, StandardCharsets.UTF_16);
   }
 
-  private static final ISOChronology CHRONOLOGY = org.joda.time.chrono.ISOChronology.getInstanceUTC();
+  private static final ISOChronology CHRONOLOGY =
+      org.joda.time.chrono.ISOChronology.getInstanceUTC();
 
-  public static long getDate(ArrowBuf buf, int start, int end){
+  public static long getDate(ArrowBuf buf, int start, int end) {
     if (BoundsChecking.BOUNDS_CHECKING_ENABLED) {
       buf.checkBytes(start, end);
     }
@@ -228,7 +229,7 @@ public class StringFunctionHelpers {
     return CHRONOLOGY.getDateTimeMillis(dateFields[0], dateFields[1], dateFields[2], 0);
   }
 
-  public static String parseURL(String urlStr, String partToExtract, FunctionErrorContext errCtx){
+  public static String parseURL(String urlStr, String partToExtract, FunctionErrorContext errCtx) {
     final URL url;
     try {
       url = new URL(urlStr);
@@ -264,12 +265,13 @@ public class StringFunctionHelpers {
     return null;
   }
 
-  public static String parseURLQueryKey(String urlStr, String partToExtract, Pattern keyPattern, FunctionErrorContext errCtx){
+  public static String parseURLQueryKey(
+      String urlStr, String partToExtract, Pattern keyPattern, FunctionErrorContext errCtx) {
     if (!"QUERY".equalsIgnoreCase(partToExtract)) {
       return null;
     }
     String query = parseURL(urlStr, partToExtract, errCtx);
-    if (query == null){
+    if (query == null) {
       return null;
     }
     Matcher m = keyPattern.matcher(query);
@@ -280,15 +282,15 @@ public class StringFunctionHelpers {
   }
 
   /**
-   * Takes a string value, specified as a buffer with a start and end and
-   * returns true if the value can be read as a date.
+   * Takes a string value, specified as a buffer with a start and end and returns true if the value
+   * can be read as a date.
    *
    * @param buf
    * @param start
    * @param end
    * @return true iff the string value can be read as a date
    */
-  public static boolean isReadableAsDate(ArrowBuf buf, int start, int end){
+  public static boolean isReadableAsDate(ArrowBuf buf, int start, int end) {
     // Tried looking for a method that would do this check without relying on
     // an exception in the failure case (for better performance). Joda does
     // not appear to provide such a function, so the try/catch block
@@ -298,12 +300,12 @@ public class StringFunctionHelpers {
       getDate(buf, start, end);
       // the parsing from the line above succeeded, this was a valid date
       return true;
-    } catch(IllegalArgumentException ex) {
+    } catch (IllegalArgumentException ex) {
       return false;
     }
   }
 
-  private static int[] memGetDate(long memoryAddress, int start, int end){
+  private static int[] memGetDate(long memoryAddress, int start, int end) {
     long index = memoryAddress + start;
     final long endIndex = memoryAddress + end;
     int digit = 0;
@@ -330,7 +332,8 @@ public class StringFunctionHelpers {
     }
 
     if (dateIndex < 3) {
-      // If we reached the end of input, we would have not encountered a separator, store the last value
+      // If we reached the end of input, we would have not encountered a separator, store the last
+      // value
       dateFields[dateIndex++] = value;
     }
 
@@ -352,7 +355,13 @@ public class StringFunctionHelpers {
   }
 
   // returns true if strings are equal case-insensitive, false otherwise
-  public static boolean equalsIgnoreCase(org.apache.arrow.memory.ArrowBuf left, long lStart, long lEnd, org.apache.arrow.memory.ArrowBuf right, long rStart, long rEnd) {
+  public static boolean equalsIgnoreCase(
+      org.apache.arrow.memory.ArrowBuf left,
+      long lStart,
+      long lEnd,
+      org.apache.arrow.memory.ArrowBuf right,
+      long rStart,
+      long rEnd) {
     if (org.apache.arrow.memory.BoundsChecking.BOUNDS_CHECKING_ENABLED) {
       left.checkBytes(lStart, lEnd);
       right.checkBytes(rStart, rEnd);

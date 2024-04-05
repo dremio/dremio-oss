@@ -19,21 +19,16 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
 import static org.mockito.Mockito.mock;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import org.junit.Test;
-
 import com.dremio.exec.proto.CoordRPC.RpcType;
 import com.dremio.exec.proto.GeneralRPCProtos.RpcMode;
 import com.dremio.exec.proto.UserBitShared.DremioPBError;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
-
 import io.netty.channel.ChannelHandlerContext;
+import java.util.ArrayList;
+import java.util.List;
+import org.junit.Test;
 
-/**
- * Test class for {@code RpcCompatibilityEncoder}
- */
+/** Test class for {@code RpcCompatibilityEncoder} */
 public class TestRpcCompatibilityEncoder {
 
   @Test
@@ -69,12 +64,14 @@ public class TestRpcCompatibilityEncoder {
     RpcCompatibilityEncoder encoder = new RpcCompatibilityEncoder();
     ChannelHandlerContext context = mock(ChannelHandlerContext.class);
 
-    DremioPBError error = DremioPBError.newBuilder()
-        .setErrorType(ErrorType.IO_EXCEPTION)
-        .setMessage("test message")
-        .build();
+    DremioPBError error =
+        DremioPBError.newBuilder()
+            .setErrorType(ErrorType.IO_EXCEPTION)
+            .setMessage("test message")
+            .build();
 
-    OutboundRpcMessage message = new OutboundRpcMessage(RpcMode.RESPONSE_FAILURE, RpcType.RESP_QUERY_PROFILE, 12, error);
+    OutboundRpcMessage message =
+        new OutboundRpcMessage(RpcMode.RESPONSE_FAILURE, RpcType.RESP_QUERY_PROFILE, 12, error);
     List<Object> out = new ArrayList<>();
 
     encoder.encode(context, message, out);
@@ -87,5 +84,4 @@ public class TestRpcCompatibilityEncoder {
     assertEquals(ErrorType.RESOURCE, newError.getErrorType());
     assertEquals("test message", newError.getMessage());
   }
-
 }

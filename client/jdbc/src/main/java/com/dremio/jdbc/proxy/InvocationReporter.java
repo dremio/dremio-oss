@@ -17,62 +17,49 @@ package com.dremio.jdbc.proxy;
 
 import java.lang.reflect.Method;
 
+/** Reporter of method-invocation events. */
+interface InvocationReporter {
 
-/**
- * Reporter of method-invocation events.
- */
-interface InvocationReporter
-{
-
-  /**
-   * Reports a proxy setup message.
-   */
-  void setupMessage( String message );
+  /** Reports a proxy setup message. */
+  void setupMessage(String message);
 
   /**
    * Reports an invocation of a proxied method.
    *
-   * @param  targetObject
-   *         the target of the method invocation (the object on which the method
-   *         was called)
-   * @param  targetType
-   *         the declared target type of the method (the interface whose method
-   *         was called; not the actual type of {@code targetObject})
-   * @param  method
-   *         the method that was called
-   * @param  arguments
-   *         the arguments that were passed
-   *         (represented as for {@link Method#invoke})
+   * @param targetObject the target of the method invocation (the object on which the method was
+   *     called)
+   * @param targetType the declared target type of the method (the interface whose method was
+   *     called; not the actual type of {@code targetObject})
+   * @param method the method that was called
+   * @param arguments the arguments that were passed (represented as for {@link Method#invoke})
    */
-  void methodCalled( Object targetObject, Class<?> targetType, Method method,
-                     Object[] arguments );
+  void methodCalled(Object targetObject, Class<?> targetType, Method method, Object[] arguments);
 
   /**
    * Reports the return from an invocation of a proxied method.
    *
-   * @param  targetObject  same as for {@link #methodCalled} for the call
-   * @param  targetType    same as for {@link #methodCalled} for the call
-   * @param  method        same as for {@link #methodCalled} for the call
-   * @param  arguments     same as for {@link #methodCalled} for the call
-   *
-   * @param result         the value returned from the method
-   *                       (represented as from {@link Method#invoke})
-   *
+   * @param targetObject same as for {@link #methodCalled} for the call
+   * @param targetType same as for {@link #methodCalled} for the call
+   * @param method same as for {@link #methodCalled} for the call
+   * @param arguments same as for {@link #methodCalled} for the call
+   * @param result the value returned from the method (represented as from {@link Method#invoke})
    */
-  void methodReturned( Object targetObject, Class<?> targetType, Method method,
-                       Object[] arguments, Object result );
+  void methodReturned(
+      Object targetObject, Class<?> targetType, Method method, Object[] arguments, Object result);
 
   /**
    * Reports the throwing of an exception from an invocation of a proxied method.
    *
-   * @param  targetObject  same as for {@link #methodCalled} for the call
-   * @param  targetType    same as for {@link #methodCalled} for the call
-   * @param  method        same as for {@link #methodCalled} for the call
-   * @param  arguments     same as for {@link #methodCalled} for the call
-   *
-   * @param  exception     the exception thrown by the method.
+   * @param targetObject same as for {@link #methodCalled} for the call
+   * @param targetType same as for {@link #methodCalled} for the call
+   * @param method same as for {@link #methodCalled} for the call
+   * @param arguments same as for {@link #methodCalled} for the call
+   * @param exception the exception thrown by the method.
    */
-  void methodThrew( Object targetObject, Class<?> targetType, Method method,
-                    Object[] arguments, Throwable exception  );
-
+  void methodThrew(
+      Object targetObject,
+      Class<?> targetType,
+      Method method,
+      Object[] arguments,
+      Throwable exception);
 } // interface InvocationReporter

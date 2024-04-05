@@ -15,9 +15,7 @@
  */
 package com.dremio.datastore.generator.supplier;
 
-/**
- * Generates ints starting at -3 and counting up.
- */
+/** Generates ints starting at -3 and counting up. */
 public class IntegerSupplier implements UniqueSupplier<Integer> {
   private int nextInt = -3;
 

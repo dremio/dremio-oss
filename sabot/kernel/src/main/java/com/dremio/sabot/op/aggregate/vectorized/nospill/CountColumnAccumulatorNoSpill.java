@@ -15,11 +15,9 @@
  */
 package com.dremio.sabot.op.aggregate.vectorized.nospill;
 
-import org.apache.arrow.vector.FieldVector;
-
 import com.dremio.sabot.op.common.ht2.LBlockHashTableNoSpill;
-
 import io.netty.util.internal.PlatformDependent;
+import org.apache.arrow.vector.FieldVector;
 
 public class CountColumnAccumulatorNoSpill extends BaseSingleAccumulatorNoSpill {
 
@@ -28,19 +26,21 @@ public class CountColumnAccumulatorNoSpill extends BaseSingleAccumulatorNoSpill 
   }
 
   @Override
-  public void accumulate(final long offsetAddr, final int count){
+  public void accumulate(final long offsetAddr, final int count) {
     final long maxAddr = offsetAddr + count * 4;
     final long incomingBit = getInput().getValidityBufferAddress();
 
     int incomingIndex = 0;
 
-    for(long ordinalAddr = offsetAddr; ordinalAddr < maxAddr; ordinalAddr += 4, incomingIndex++){
-      final int bitVal = (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3))) >>> (incomingIndex & 7)) & 1;
+    for (long ordinalAddr = offsetAddr; ordinalAddr < maxAddr; ordinalAddr += 4, incomingIndex++) {
+      final int bitVal =
+          (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3))) >>> (incomingIndex & 7))
+              & 1;
       final int tableIndex = PlatformDependent.getInt(ordinalAddr);
-      final long countAddr = getValueAddress(tableIndex >>> LBlockHashTableNoSpill.BITS_IN_CHUNK) +
-                             (tableIndex & LBlockHashTableNoSpill.CHUNK_OFFSET_MASK) * 8;
+      final long countAddr =
+          getValueAddress(tableIndex >>> LBlockHashTableNoSpill.BITS_IN_CHUNK)
+              + (tableIndex & LBlockHashTableNoSpill.CHUNK_OFFSET_MASK) * 8;
       PlatformDependent.putLong(countAddr, PlatformDependent.getLong(countAddr) + bitVal);
     }
   }
-
 }

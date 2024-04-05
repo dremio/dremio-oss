@@ -17,23 +17,20 @@ package com.dremio.exec.store.parquet2;
 
 import static org.junit.Assert.assertTrue;
 
+import com.dremio.BaseTestQuery;
+import com.dremio.common.util.TestTools;
 import java.math.BigDecimal;
-
 import org.apache.arrow.vector.util.JsonStringArrayList;
 import org.apache.arrow.vector.util.JsonStringHashMap;
 import org.apache.arrow.vector.util.Text;
 import org.junit.Test;
 
-import com.dremio.BaseTestQuery;
-import com.dremio.common.util.TestTools;
-
-/**
- * Class for testing mixed decimals for Parquet complex types
- */
+/** Class for testing mixed decimals for Parquet complex types */
 public class TestComplexMixedDecimals extends BaseTestQuery {
 
   private final String workingPath = TestTools.getWorkingPath();
-  private final String fullTestPath = workingPath + "/src/test/resources/parquet/decimal_nested_complex";
+  private final String fullTestPath =
+      workingPath + "/src/test/resources/parquet/decimal_nested_complex";
 
   @Test
   public void testCompatibleStructs() throws Exception {
@@ -52,13 +49,13 @@ public class TestComplexMixedDecimals extends BaseTestQuery {
     struct3.put("dec_col", new BigDecimal("1234.5"));
 
     testBuilder()
-      .unOrdered()
-      .sqlQuery(sqlQuery)
-      .baselineColumns("string_col", "struct_col")
-      .baselineValues("rio", struct1)
-      .baselineValues("terry", struct2)
-      .baselineValues("john", struct3)
-      .go();
+        .unOrdered()
+        .sqlQuery(sqlQuery)
+        .baselineColumns("string_col", "struct_col")
+        .baselineValues("rio", struct1)
+        .baselineValues("terry", struct2)
+        .baselineValues("john", struct3)
+        .go();
   }
 
   @Test
@@ -82,14 +79,14 @@ public class TestComplexMixedDecimals extends BaseTestQuery {
     list4.add(new BigDecimal("12.4002"));
 
     testBuilder()
-      .unOrdered()
-      .sqlQuery(sqlQuery)
-      .baselineColumns("int_col", "string_col", "dec_col")
-      .baselineValues(30, "John", list1)
-      .baselineValues(-600, "Matt", list2)
-      .baselineValues(4567, "Harry", list3)
-      .baselineValues(41267, "Rose", list4)
-      .go();
+        .unOrdered()
+        .sqlQuery(sqlQuery)
+        .baselineColumns("int_col", "string_col", "dec_col")
+        .baselineValues(30, "John", list1)
+        .baselineValues(-600, "Matt", list2)
+        .baselineValues(4567, "Harry", list3)
+        .baselineValues(41267, "Rose", list4)
+        .go();
   }
 
   @Test
@@ -116,12 +113,12 @@ public class TestComplexMixedDecimals extends BaseTestQuery {
     struct2.put("string_col", new Text("dremio"));
 
     testBuilder()
-      .unOrdered()
-      .sqlQuery(sqlQuery)
-      .baselineColumns("int_col", "struct_col")
-      .baselineValues(500, struct1)
-      .baselineValues(4530, struct2)
-      .go();
+        .unOrdered()
+        .sqlQuery(sqlQuery)
+        .baselineColumns("int_col", "struct_col")
+        .baselineValues(500, struct1)
+        .baselineValues(4530, struct2)
+        .go();
   }
 
   @Test
@@ -135,12 +132,12 @@ public class TestComplexMixedDecimals extends BaseTestQuery {
     }
 
     testBuilder()
-      .unOrdered()
-      .sqlQuery(sqlQuery)
-      .baselineColumns("dec_col", "int_col")
-      .baselineValues(new BigDecimal("7654.132456"), null)
-      .baselineValues(new BigDecimal("1234.23456"), 50)
-      .go();
+        .unOrdered()
+        .sqlQuery(sqlQuery)
+        .baselineColumns("dec_col", "int_col")
+        .baselineValues(new BigDecimal("7654.132456"), null)
+        .baselineValues(new BigDecimal("1234.23456"), 50)
+        .go();
   }
 
   @Test
@@ -149,12 +146,12 @@ public class TestComplexMixedDecimals extends BaseTestQuery {
     final String sqlQuery = String.format("select * from dfs.\"%s\"", path);
 
     testBuilder()
-      .unOrdered()
-      .sqlQuery(sqlQuery)
-      .baselineColumns("colb", "colc", "cola")
-      .baselineValues(new BigDecimal("12345.56789"), "dremio", 100)
-      .baselineValues(new BigDecimal("54321.56321"), "hyderabad", 200)
-      .go();
+        .unOrdered()
+        .sqlQuery(sqlQuery)
+        .baselineColumns("colb", "colc", "cola")
+        .baselineValues(new BigDecimal("12345.56789"), "dremio", 100)
+        .baselineValues(new BigDecimal("54321.56321"), "hyderabad", 200)
+        .go();
   }
 
   @Test

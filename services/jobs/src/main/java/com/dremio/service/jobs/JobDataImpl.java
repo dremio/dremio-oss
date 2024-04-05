@@ -19,11 +19,10 @@ import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.SessionId;
 import com.google.common.base.Preconditions;
 
-/**
- * Implements {@link JobData} that holds complete job results
- */
+/** Implements {@link JobData} that holds complete job results */
 public class JobDataImpl implements JobData {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(JobDataImpl.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(JobDataImpl.class);
 
   private final JobLoader dataLoader;
   private final JobId jobId;
@@ -33,6 +32,7 @@ public class JobDataImpl implements JobData {
 
   /**
    * Create an instance with {@link JobLoader}
+   *
    * @param dataLoader
    * @param jobId
    * @param sessionId
@@ -59,7 +59,8 @@ public class JobDataImpl implements JobData {
 
   private void checkNotClosed() {
     if (closed) {
-      throw new IllegalStateException(String.format("JobData object for job %s is already closed.", jobId.getId()));
+      throw new IllegalStateException(
+          String.format("JobData object for job %s is already closed.", jobId.getId()));
     }
   }
 

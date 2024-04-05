@@ -15,18 +15,14 @@
  */
 package com.dremio.exec.store.iceberg;
 
-import java.io.IOException;
-
-import org.apache.iceberg.io.InputFile;
-import org.apache.iceberg.io.SeekableInputStream;
-
 import com.dremio.io.FSInputStream;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
+import java.io.IOException;
+import org.apache.iceberg.io.InputFile;
+import org.apache.iceberg.io.SeekableInputStream;
 
-/**
- * A wrapper InputFile that uses dremio fs wrappers to do IO.
- */
+/** A wrapper InputFile that uses dremio fs wrappers to do IO. */
 public class InputFileWrapper implements InputFile {
   private FileSystem fs;
   private Path path;

@@ -17,11 +17,6 @@ package com.dremio.exec.store.iceberg;
 
 import static com.dremio.exec.util.VectorUtil.getVectorFromSchemaPath;
 
-import java.io.IOException;
-
-import org.apache.arrow.vector.VarBinaryVector;
-import org.apache.iceberg.ManifestFile;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.physical.config.ManifestScanTableFunctionContext;
 import com.dremio.exec.physical.config.TableFunctionConfig;
@@ -32,10 +27,11 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.tablefunction.TableFunctionOperator;
 import com.google.common.annotations.VisibleForTesting;
+import java.io.IOException;
+import org.apache.arrow.vector.VarBinaryVector;
+import org.apache.iceberg.ManifestFile;
 
-/**
- * Table function for Iceberg manifest file scan
- */
+/** Table function for Iceberg manifest file scan */
 public class ManifestScanTableFunction extends AbstractTableFunction {
   private final OperatorStats operatorStats;
   private final ManifestFileProcessor manifestFileProcessor;
@@ -43,19 +39,24 @@ public class ManifestScanTableFunction extends AbstractTableFunction {
 
   private VarBinaryVector inputManifestFiles;
 
-  public ManifestScanTableFunction(OperatorContext context, TableFunctionConfig functionConfig,
-                                   ManifestFileProcessor manifestFileProcessor) {
+  public ManifestScanTableFunction(
+      OperatorContext context,
+      TableFunctionConfig functionConfig,
+      ManifestFileProcessor manifestFileProcessor) {
     super(context, functionConfig);
     this.operatorStats = context.getStats();
     this.manifestFileProcessor = manifestFileProcessor;
-    this.manifestContentType = functionConfig.getFunctionContext(ManifestScanTableFunctionContext.class)
-        .getManifestContentType();
+    this.manifestContentType =
+        functionConfig
+            .getFunctionContext(ManifestScanTableFunctionContext.class)
+            .getManifestContentType();
   }
 
   @Override
   public VectorAccessible setup(VectorAccessible accessible) throws Exception {
     super.setup(accessible);
-    inputManifestFiles = (VarBinaryVector) getVectorFromSchemaPath(incoming, RecordReader.SPLIT_INFORMATION);
+    inputManifestFiles =
+        (VarBinaryVector) getVectorFromSchemaPath(incoming, RecordReader.SPLIT_INFORMATION);
     manifestFileProcessor.setup(incoming, outgoing);
     return outgoing;
   }
@@ -94,9 +95,13 @@ public class ManifestScanTableFunction extends AbstractTableFunction {
 
   @VisibleForTesting
   ManifestFile getManifestFile(int manifestFileIndex) throws IOException, ClassNotFoundException {
-    ManifestFile manifestFile = IcebergSerDe.deserializeFromByteArray(inputManifestFiles.get(manifestFileIndex));
-    operatorStats.addLongStat(manifestContentType == ManifestContentType.DATA ?
-        TableFunctionOperator.Metric.NUM_MANIFEST_FILE : TableFunctionOperator.Metric.NUM_DELETE_MANIFESTS, 1);
+    ManifestFile manifestFile =
+        IcebergSerDe.deserializeFromByteArray(inputManifestFiles.get(manifestFileIndex));
+    operatorStats.addLongStat(
+        manifestContentType == ManifestContentType.DATA
+            ? TableFunctionOperator.Metric.NUM_MANIFEST_FILE
+            : TableFunctionOperator.Metric.NUM_DELETE_MANIFESTS,
+        1);
     return manifestFile;
   }
 }

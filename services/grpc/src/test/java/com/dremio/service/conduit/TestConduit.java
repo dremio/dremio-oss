@@ -17,17 +17,6 @@ package com.dremio.service.conduit;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.net.InetAddress;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
-
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.service.DirectProvider;
 import com.dremio.service.conduit.ConduitTestServiceGrpc.ConduitTestServiceBlockingStub;
@@ -38,18 +27,23 @@ import com.dremio.service.conduit.server.ConduitServerTestUtils;
 import com.dremio.service.conduit.server.ConduitServiceRegistry;
 import com.dremio.service.conduit.server.ConduitServiceRegistryImpl;
 import com.google.common.collect.Sets;
-
 import io.grpc.ManagedChannel;
 import io.grpc.StatusRuntimeException;
 import io.grpc.testing.GrpcCleanupRule;
+import java.net.InetAddress;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
 
-/**
- * Test conduit.
- */
+/** Test conduit. */
 public class TestConduit {
 
-  @Rule
-  public final GrpcCleanupRule grpcCleanupRule = new GrpcCleanupRule();
+  @Rule public final GrpcCleanupRule grpcCleanupRule = new GrpcCleanupRule();
 
   private ConduitServer conduitServer1;
   private NodeEndpoint endpoint1;
@@ -64,26 +58,36 @@ public class TestConduit {
     final ConduitServiceRegistry serviceRegistry1 = new ConduitServiceRegistryImpl();
     serviceRegistry1.registerService(new ConduitTestService());
 
-    conduitServer1 = new ConduitServer(DirectProvider.wrap(serviceRegistry1), 0, Optional.empty()
-      , UUID.randomUUID().toString());
+    conduitServer1 =
+        new ConduitServer(
+            DirectProvider.wrap(serviceRegistry1),
+            0,
+            Optional.empty(),
+            UUID.randomUUID().toString());
     conduitServer1.start();
     grpcCleanupRule.register(ConduitServerTestUtils.getServer(conduitServer1));
 
     final ConduitServiceRegistry serviceRegistry2 = new ConduitServiceRegistryImpl();
-    conduitServer2 = new ConduitServer(DirectProvider.wrap(serviceRegistry2), 0, Optional.empty()
-      , UUID.randomUUID().toString());
+    conduitServer2 =
+        new ConduitServer(
+            DirectProvider.wrap(serviceRegistry2),
+            0,
+            Optional.empty(),
+            UUID.randomUUID().toString());
     conduitServer2.start();
     grpcCleanupRule.register(ConduitServerTestUtils.getServer(conduitServer2));
 
     final String address = InetAddress.getLocalHost().getCanonicalHostName();
-    endpoint1 = NodeEndpoint.newBuilder()
-      .setAddress(address)
-      .setConduitPort(conduitServer1.getPort())
-      .build();
-    endpoint2 = NodeEndpoint.newBuilder()
-      .setAddress(address)
-      .setConduitPort(conduitServer2.getPort())
-      .build();
+    endpoint1 =
+        NodeEndpoint.newBuilder()
+            .setAddress(address)
+            .setConduitPort(conduitServer1.getPort())
+            .build();
+    endpoint2 =
+        NodeEndpoint.newBuilder()
+            .setAddress(address)
+            .setConduitPort(conduitServer2.getPort())
+            .build();
 
     final Set<NodeEndpoint> endpoints = Sets.newHashSet(endpoint1, endpoint2);
 
@@ -120,8 +124,7 @@ public class TestConduit {
     final ManagedChannel channel = getConduitProvider().getOrCreateChannel(getEndpoint1());
     grpcCleanupRule.register(channel);
 
-    final ConduitTestServiceBlockingStub stub =
-      ConduitTestServiceGrpc.newBlockingStub(channel);
+    final ConduitTestServiceBlockingStub stub = ConduitTestServiceGrpc.newBlockingStub(channel);
 
     Assert.assertEquals(2, stub.increment(IncrementRequest.newBuilder().setI(1).build()).getI());
   }
@@ -131,12 +134,11 @@ public class TestConduit {
     final ManagedChannel channel = getConduitProvider().getOrCreateChannel(getEndpoint2());
     grpcCleanupRule.register(channel);
 
-    final ConduitTestServiceBlockingStub stub =
-      ConduitTestServiceGrpc.newBlockingStub(channel);
+    final ConduitTestServiceBlockingStub stub = ConduitTestServiceGrpc.newBlockingStub(channel);
 
     //noinspection ResultOfMethodCallIgnored
     assertThatThrownBy(() -> stub.increment(IncrementRequest.newBuilder().setI(1).build()))
-      .isInstanceOf(StatusRuntimeException.class)
-      .hasMessageContaining("Method not found");
+        .isInstanceOf(StatusRuntimeException.class)
+        .hasMessageContaining("Method not found");
   }
 }

@@ -15,37 +15,37 @@
  */
 package com.dremio.exec.planner.physical;
 
-import org.apache.calcite.plan.RelOptRuleOperand;
-import org.apache.calcite.rel.RelNode;
-
 import com.dremio.exec.ops.OptimizerRulesContext;
 import com.dremio.exec.planner.OptimizePlanGenerator;
 import com.dremio.exec.planner.logical.TableOptimizeRel;
 import com.dremio.exec.store.TableMetadata;
+import org.apache.calcite.plan.RelOptRuleOperand;
+import org.apache.calcite.rel.RelNode;
 
-/**
- * A base physical plan generator for OPTIMIZE
- */
+/** A base physical plan generator for OPTIMIZE */
 public abstract class TableOptimizePruleBase extends Prule {
 
   private final OptimizerRulesContext context;
 
-  public TableOptimizePruleBase(RelOptRuleOperand operand, String description, OptimizerRulesContext context) {
+  public TableOptimizePruleBase(
+      RelOptRuleOperand operand, String description, OptimizerRulesContext context) {
     super(operand, description);
     this.context = context;
   }
 
-  public Prel getPhysicalPlan(TableOptimizeRel optimizeRel, RelNode input, TableMetadata tableMetadata) {
-    OptimizePlanGenerator planGenerator = new OptimizePlanGenerator(
-      optimizeRel.getTable(),
-      optimizeRel.getCluster(),
-      optimizeRel.getTraitSet().plus(Prel.PHYSICAL),
-      convert(input, input.getTraitSet().plus(Prel.PHYSICAL)),
-      tableMetadata,
-      optimizeRel.getCreateTableEntry(),
-      context,
-      optimizeRel.getOptimizeOptions(),
-      optimizeRel.getPartitionFilter());
+  public Prel getPhysicalPlan(
+      TableOptimizeRel optimizeRel, RelNode input, TableMetadata tableMetadata) {
+    OptimizePlanGenerator planGenerator =
+        new OptimizePlanGenerator(
+            optimizeRel.getTable(),
+            optimizeRel.getCluster(),
+            optimizeRel.getTraitSet().plus(Prel.PHYSICAL),
+            convert(input, input.getTraitSet().plus(Prel.PHYSICAL)),
+            tableMetadata,
+            optimizeRel.getCreateTableEntry(),
+            context,
+            optimizeRel.getOptimizeOptions(),
+            optimizeRel.getPartitionFilter());
     return planGenerator.getPlan();
   }
 }

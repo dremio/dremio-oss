@@ -15,9 +15,7 @@
  */
 package com.dremio.service.users;
 
-/**
- * Invalid user login attempts.
- */
+/** Invalid user login attempts. */
 public class UserLoginException extends Exception {
 
   private static final long serialVersionUID = 1L;

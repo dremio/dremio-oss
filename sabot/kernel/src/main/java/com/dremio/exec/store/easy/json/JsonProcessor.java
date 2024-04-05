@@ -15,14 +15,12 @@
  */
 package com.dremio.exec.store.easy.json;
 
-import java.io.IOException;
-import java.io.InputStream;
-
-import org.apache.arrow.vector.complex.writer.BaseWriter;
-import org.apache.calcite.util.Pair;
-
 import com.dremio.common.exceptions.UserException;
 import com.fasterxml.jackson.databind.JsonNode;
+import java.io.IOException;
+import java.io.InputStream;
+import org.apache.arrow.vector.complex.writer.BaseWriter;
+import org.apache.calcite.util.Pair;
 
 public interface JsonProcessor {
 
@@ -34,22 +32,31 @@ public interface JsonProcessor {
 
   ReadState write(BaseWriter.ComplexWriter writer) throws IOException;
 
+  /**
+   * Writes file load tracking event in a special column the for the tracking and history.
+   *
+   * @return number of records written
+   */
+  int writeSuccessfulParseEvent(BaseWriter.ComplexWriter writer) throws IOException;
+
   void setSource(InputStream is) throws IOException;
+
   void setSource(JsonNode node);
 
   void ensureAtLeastOneField(BaseWriter.ComplexWriter writer);
 
-  UserException.Builder getExceptionWithContext(UserException.Builder exceptionBuilder, String field);
+  UserException.Builder getExceptionWithContext(
+      UserException.Builder exceptionBuilder, String field);
 
   UserException.Builder getExceptionWithContext(Throwable exception, String field);
 
-  /**
-   * Reset the data size counter.
-   */
+  /** Reset the data size counter. */
   void resetDataSizeCounter();
 
   /**
-   * Get the approximate size of data read since the start or last {@link #resetDataSizeCounter()} (in bytes).
+   * Get the approximate size of data read since the start or last {@link #resetDataSizeCounter()}
+   * (in bytes).
+   *
    * @return
    */
   long getDataSizeCounter();

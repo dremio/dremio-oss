@@ -15,9 +15,6 @@
  */
 package com.dremio.exec.store.dfs.easy;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.physical.base.AbstractGroupScan;
@@ -29,16 +26,13 @@ import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.SplitWork;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.service.namespace.file.proto.FileType;
+import java.util.ArrayList;
+import java.util.List;
 
-/**
- * New easy group scan
- */
+/** New easy group scan */
 public class EasyGroupScan extends AbstractGroupScan {
 
-  public EasyGroupScan(
-      OpProps props,
-      TableMetadata dataset,
-      List<SchemaPath> columns) {
+  public EasyGroupScan(OpProps props, TableMetadata dataset, List<SchemaPath> columns) {
     super(props, dataset, columns);
   }
 
@@ -46,7 +40,7 @@ public class EasyGroupScan extends AbstractGroupScan {
   public SubScan getSpecificScan(List<SplitWork> work) throws ExecutionSetupException {
     final List<SplitAndPartitionInfo> splits = new ArrayList<>(work.size());
     final BatchSchema fullSchema = getDataset().getSchema();
-    for(SplitWork split : work){
+    for (SplitWork split : work) {
       splits.add(split.getSplitAndPartitionInfo());
     }
 
@@ -64,7 +58,6 @@ public class EasyGroupScan extends AbstractGroupScan {
         null,
         getDataset().getDatasetConfig().getPhysicalDataset().getInternalSchemaSettings());
   }
-
 
   @Override
   public int getOperatorType() {
@@ -101,5 +94,4 @@ public class EasyGroupScan extends AbstractGroupScan {
         throw new UnsupportedOperationException("format not supported " + datasetType);
     }
   }
-
 }

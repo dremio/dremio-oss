@@ -16,14 +16,11 @@
 
 package com.dremio.service.userpreferences;
 
-import java.util.Optional;
-
 import com.dremio.service.Service;
 import com.dremio.service.userpreferences.proto.UserPreferenceProto.UserPreference;
+import java.util.Optional;
 
-/**
- *
- */
+/** */
 public interface UserPreferenceStore extends Service {
 
   /**

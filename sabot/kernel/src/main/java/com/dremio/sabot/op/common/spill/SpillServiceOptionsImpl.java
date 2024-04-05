@@ -15,15 +15,12 @@
  */
 package com.dremio.sabot.op.common.spill;
 
-import javax.inject.Provider;
-
 import com.dremio.exec.ExecConstants;
 import com.dremio.options.OptionManager;
 import com.dremio.service.spill.SpillServiceOptions;
+import javax.inject.Provider;
 
-/**
- * Provides options to the spill service
- */
+/** Provides options to the spill service */
 public class SpillServiceOptionsImpl implements SpillServiceOptions {
   final Provider<OptionManager> optionManager;
 

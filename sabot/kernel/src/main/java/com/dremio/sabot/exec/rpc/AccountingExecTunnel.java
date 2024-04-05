@@ -15,8 +15,6 @@
  */
 package com.dremio.sabot.exec.rpc;
 
-import java.util.concurrent.TimeUnit;
-
 import com.dremio.exec.proto.ExecRPC.FinishedReceiver;
 import com.dremio.exec.proto.ExecRPC.FragmentStreamComplete;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
@@ -26,19 +24,20 @@ import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.sabot.exec.fragment.OutOfBandMessage;
 import com.dremio.sabot.threads.SendingMonitor;
 import com.google.common.base.Stopwatch;
-
 import io.netty.buffer.ByteBuf;
+import java.util.concurrent.TimeUnit;
 
 /**
- * Wrapper around a {@link com.dremio.sabot.exec.rpc.ExecTunnel} that tracks the status of batches sent to
- * to other SabotNodes.
+ * Wrapper around a {@link com.dremio.sabot.exec.rpc.ExecTunnel} that tracks the status of batches
+ * sent to to other SabotNodes.
  */
 public class AccountingExecTunnel {
   private final ExecTunnel tunnel;
   private final SendingMonitor monitor;
   private final RpcOutcomeListener<Ack> statusHandler;
 
-  public AccountingExecTunnel(ExecTunnel tunnel, SendingMonitor monitor, RpcOutcomeListener<Ack> statusHandler) {
+  public AccountingExecTunnel(
+      ExecTunnel tunnel, SendingMonitor monitor, RpcOutcomeListener<Ack> statusHandler) {
     this.tunnel = tunnel;
     this.monitor = monitor;
     this.statusHandler = statusHandler;
@@ -51,7 +50,11 @@ public class AccountingExecTunnel {
 
   public void sendRecordBatch(FragmentWritableBatch batch, SenderLatencyObserver observer) {
     monitor.increment();
-    tunnel.sendRecordBatch(observer == null ? statusHandler : new StatsTrackingListenerWrapper(statusHandler, observer), batch);
+    tunnel.sendRecordBatch(
+        observer == null
+            ? statusHandler
+            : new StatsTrackingListenerWrapper(statusHandler, observer),
+        batch);
   }
 
   public void informReceiverFinished(FinishedReceiver finishedReceiver) {
@@ -75,7 +78,7 @@ public class AccountingExecTunnel {
       this.observer = observer;
     }
 
-    private void  updateAckTime() {
+    private void updateAckTime() {
       observer.updateAckTimeMillis(watch.stop().elapsed(TimeUnit.MILLISECONDS));
     }
 

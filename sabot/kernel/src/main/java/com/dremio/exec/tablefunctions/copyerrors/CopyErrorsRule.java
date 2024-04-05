@@ -15,15 +15,12 @@
  */
 package com.dremio.exec.tablefunctions.copyerrors;
 
+import com.dremio.exec.planner.logical.Rel;
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.convert.ConverterRule;
 
-import com.dremio.exec.planner.logical.Rel;
-
-/**
- * Rule to convert {@link CopyErrorsCrel} nodes to {@link CopyErrorsDrel} nodes.
- */
+/** Rule to convert {@link CopyErrorsCrel} nodes to {@link CopyErrorsDrel} nodes. */
 public final class CopyErrorsRule extends ConverterRule {
 
   public static final CopyErrorsRule INSTANCE = new CopyErrorsRule();
@@ -36,9 +33,9 @@ public final class CopyErrorsRule extends ConverterRule {
   public RelNode convert(RelNode rel) {
     final CopyErrorsCrel node = (CopyErrorsCrel) rel;
     return new CopyErrorsDrel(
-      node.getCluster(),
-      node.getTraitSet().replace(Rel.LOGICAL),
-      node.getContext(),
-      node.getMetadata());
+        node.getCluster(),
+        node.getTraitSet().replace(Rel.LOGICAL),
+        node.getContext(),
+        node.getMetadata());
   }
 }

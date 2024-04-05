@@ -15,45 +15,54 @@
  */
 package com.dremio.service.scheduler;
 
-import java.util.concurrent.ThreadPoolExecutor;
-
-import javax.inject.Provider;
-
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.options.OptionManager;
 import com.dremio.options.TypeValidators.PositiveLongValidator;
 import com.dremio.service.coordinator.ClusterElectionManager;
 import com.dremio.service.coordinator.ClusterServiceSetManager;
+import java.util.concurrent.ThreadPoolExecutor;
+import javax.inject.Provider;
 
 /**
  * A LocalScheduleService in which the corePoolSize and maxPoolSize of the underlying
- * threadPoolExecutor is dynamically modified based on changes to option value.
- * CorePoolSize and MaxPoolSize are always kept equal.
- * TODO DX-68199; remove this altogether when the old clustered singleton gets decommissioned
+ * threadPoolExecutor is dynamically modified based on changes to option value. CorePoolSize and
+ * MaxPoolSize are always kept equal. TODO DX-68199; remove this altogether when the old clustered
+ * singleton gets decommissioned
  */
-public class ModifiableLocalSchedulerService extends LocalSchedulerService implements ModifiableSchedulerService {
-  private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(ModifiableLocalSchedulerService.class);
+public class ModifiableLocalSchedulerService extends LocalSchedulerService
+    implements ModifiableSchedulerService {
+  private static final org.slf4j.Logger LOGGER =
+      org.slf4j.LoggerFactory.getLogger(ModifiableLocalSchedulerService.class);
 
   private final Provider<OptionManager> optionManagerProvider;
   private final PositiveLongValidator option;
 
-  public ModifiableLocalSchedulerService(int corePoolSize, String threadNamePrefix,
-                                         PositiveLongValidator option, Provider<OptionManager> optionManagerProvider) {
+  public ModifiableLocalSchedulerService(
+      int corePoolSize,
+      String threadNamePrefix,
+      PositiveLongValidator option,
+      Provider<OptionManager> optionManagerProvider) {
     super(corePoolSize, threadNamePrefix);
     this.optionManagerProvider = optionManagerProvider;
     this.option = option;
   }
 
-  public ModifiableLocalSchedulerService(int corePoolSize,
-                                         String threadNamePrefix,
-                                         Provider<ClusterServiceSetManager> clusterServiceSetManagerProvider,
-                                         Provider<ClusterElectionManager> clusterElectionManagerProvider,
-                                         Provider<CoordinationProtos.NodeEndpoint> currentNode,
-                                         boolean isDistributedCoordinator,
-                                         PositiveLongValidator option,
-                                         Provider<OptionManager> optionManagerProvider) {
-    super(corePoolSize, threadNamePrefix, clusterServiceSetManagerProvider, clusterElectionManagerProvider, currentNode,
-      isDistributedCoordinator);
+  public ModifiableLocalSchedulerService(
+      int corePoolSize,
+      String threadNamePrefix,
+      Provider<ClusterServiceSetManager> clusterServiceSetManagerProvider,
+      Provider<ClusterElectionManager> clusterElectionManagerProvider,
+      Provider<CoordinationProtos.NodeEndpoint> currentNode,
+      boolean isDistributedCoordinator,
+      PositiveLongValidator option,
+      Provider<OptionManager> optionManagerProvider) {
+    super(
+        corePoolSize,
+        threadNamePrefix,
+        clusterServiceSetManagerProvider,
+        clusterElectionManagerProvider,
+        currentNode,
+        isDistributedCoordinator);
     this.optionManagerProvider = optionManagerProvider;
     this.option = option;
   }
@@ -76,9 +85,9 @@ public class ModifiableLocalSchedulerService extends LocalSchedulerService imple
 
   /**
    * Modifies a task group.
-   * <p>
-   * Called from the associated task group change listener {@code TaskGroupChangeListener}
-   * </p>
+   *
+   * <p>Called from the associated task group change listener {@code TaskGroupChangeListener}
+   *
    * @param groupName name of the group
    * @param taskGroup The modified group
    */
@@ -90,7 +99,8 @@ public class ModifiableLocalSchedulerService extends LocalSchedulerService imple
     if (currentPoolSize == newPoolSize) {
       return;
     }
-    LOGGER.info("Task group `{}` capacity modified from {} to {}", groupName, currentPoolSize, newPoolSize);
+    LOGGER.info(
+        "Task group `{}` capacity modified from {} to {}", groupName, currentPoolSize, newPoolSize);
     // increase/decrease core pool and max pool size in correct order
     if (currentPoolSize > newPoolSize) {
       threadPoolExecutor.setCorePoolSize(newPoolSize);
@@ -99,6 +109,7 @@ public class ModifiableLocalSchedulerService extends LocalSchedulerService imple
       threadPoolExecutor.setMaximumPoolSize(newPoolSize);
       threadPoolExecutor.setCorePoolSize(newPoolSize);
     }
-    LOGGER.info("CorePoolSize and MaxPoolSize are updated from {} to {}", currentPoolSize, newPoolSize);
+    LOGGER.info(
+        "CorePoolSize and MaxPoolSize are updated from {} to {}", currentPoolSize, newPoolSize);
   }
 }

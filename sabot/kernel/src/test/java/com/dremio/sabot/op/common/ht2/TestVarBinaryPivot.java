@@ -19,34 +19,37 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
+import com.dremio.sabot.BaseTestWithAllocator;
 import java.util.Arrays;
 import java.util.Random;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.util.LargeMemoryUtil;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.junit.Test;
 
-import com.dremio.sabot.BaseTestWithAllocator;
-
 public class TestVarBinaryPivot extends BaseTestWithAllocator {
 
-  static void populate(VarCharVector vector, String[] values){
-    populate(vector, Arrays.stream(values).map(input -> {
-      if (input == null) {
-        return null;
-      }
-      return input.getBytes(UTF_8);
-    }).toArray(byte[][]::new));
+  public static void populate(VarCharVector vector, String[] values) {
+    populate(
+        vector,
+        Arrays.stream(values)
+            .map(
+                input -> {
+                  if (input == null) {
+                    return null;
+                  }
+                  return input.getBytes(UTF_8);
+                })
+            .toArray(byte[][]::new));
   }
 
-  static void populate(VarCharVector vector, byte[][] values){
+  static void populate(VarCharVector vector, byte[][] values) {
     vector.allocateNew();
     Random r = new Random();
-    for(int i =0; i < values.length; i++){
+    for (int i = 0; i < values.length; i++) {
       byte[] val = values[i];
-      if(val != null){
+      if (val != null) {
         vector.setSafe(i, val, 0, val.length);
       } else {
         // add noise. this confirms that after pivot, noise is gone.
@@ -59,12 +62,12 @@ public class TestVarBinaryPivot extends BaseTestWithAllocator {
     vector.setValueCount(values.length);
   }
 
-  static void populate(VarBinaryVector vector, byte[][] values){
+  static void populate(VarBinaryVector vector, byte[][] values) {
     vector.allocateNew();
     Random r = new Random();
-    for(int i =0; i < values.length; i++){
+    for (int i = 0; i < values.length; i++) {
       byte[] val = values[i];
-      if(val != null){
+      if (val != null) {
         vector.setSafe(i, val, 0, val.length);
       } else {
         // add noise. this confirms that after pivot, noise is gone.
@@ -77,12 +80,17 @@ public class TestVarBinaryPivot extends BaseTestWithAllocator {
     vector.setValueCount(values.length);
   }
 
-  private static void validateVarBinaryValues(int blockWidth, VectorPivotDef def, FixedBlockVector fixed, VariableBlockVector variable, byte[][] expected){
+  private static void validateVarBinaryValues(
+      int blockWidth,
+      VectorPivotDef def,
+      FixedBlockVector fixed,
+      VariableBlockVector variable,
+      byte[][] expected) {
     int[] expectedNulls = new int[expected.length];
     byte[][] expectedValues = new byte[expected.length][];
-    for(int i =0; i < expected.length; i++){
+    for (int i = 0; i < expected.length; i++) {
       byte[] e = expected[i];
-      if(e != null){
+      if (e != null) {
         expectedNulls[i] = 1;
         expectedValues[i] = e;
       }
@@ -95,19 +103,20 @@ public class TestVarBinaryPivot extends BaseTestWithAllocator {
     final ArrowBuf variableBuf = variable.getUnderlying();
     byte[] bytes = new byte[LargeMemoryUtil.checkedCastToInt(variableBuf.capacity())];
     variableBuf.getBytes(0, bytes);
-    for(int i =0; i < expectedNulls.length; i++){
-      actualNulls[i] =  (fixedBuf.getInt(((i * blockWidth) + def.getNullByteOffset())) >>> nullBitOffset) & 1;
+    for (int i = 0; i < expectedNulls.length; i++) {
+      actualNulls[i] =
+          (fixedBuf.getInt(((i * blockWidth) + def.getNullByteOffset())) >>> nullBitOffset) & 1;
       // now we need to read the varoffset
-      int varOffset = fixedBuf.getInt( (i * blockWidth) + dataWidth);
+      int varOffset = fixedBuf.getInt((i * blockWidth) + dataWidth);
       varOffset += 4; // move past variable length
-      if(actualNulls[i] == 0) {
+      if (actualNulls[i] == 0) {
         continue;
       }
 
-
-      // now we'll need to step over any values that are before the variable field we're interested in.
+      // now we'll need to step over any values that are before the variable field we're interested
+      // in.
       int skip = def.getOffset();
-      while(skip > 0){
+      while (skip > 0) {
         int skipLen = variableBuf.getInt(varOffset);
         varOffset += 4;
         varOffset += skipLen;
@@ -126,44 +135,46 @@ public class TestVarBinaryPivot extends BaseTestWithAllocator {
     assertArrayEquals(s(expectedValues), s(actualValues));
   }
 
-  private static String[] s(byte[]... values){
-    return Arrays.stream(values).map(input -> {
-      if (input == null) {
-        return null;
-      }
-      return new String(input, UTF_8);
-    }).toArray(String[]::new);
+  private static String[] s(byte[]... values) {
+    return Arrays.stream(values)
+        .map(
+            input -> {
+              if (input == null) {
+                return null;
+              }
+              return new String(input, UTF_8);
+            })
+        .toArray(String[]::new);
   }
 
-  private static byte[] b(String s){
+  private static byte[] b(String s) {
     return s.getBytes(UTF_8);
   }
 
   @Test
-  public void testVarBinaryPivot(){
+  public void testVarBinaryPivot() {
     final byte[][] vectA = {b("hello"), null, b("my friend"), null, b("take a joy ride")};
     final byte[][] vectB = {null, b("you fool"), null, b("Cinderella"), b("Story")};
 
-    try(
-        VarBinaryVector col1 = new VarBinaryVector("col1", allocator);
-        VarBinaryVector col2 = new VarBinaryVector("col2", allocator);){
-      PivotDef pivot = PivotBuilder.getBlockDefinition(
-          new FieldVectorPair(col1, col1),
-          new FieldVectorPair(col2, col2));
+    try (VarBinaryVector col1 = new VarBinaryVector("col1", allocator);
+        VarBinaryVector col2 = new VarBinaryVector("col2", allocator); ) {
+      PivotDef pivot =
+          PivotBuilder.getBlockDefinition(
+              new FieldVectorPair(col1, col1), new FieldVectorPair(col2, col2));
       populate(col1, vectA);
       populate(col2, vectB);
 
       assertEquals(8, pivot.getBlockWidth());
 
-      try(
-          FixedBlockVector fixed = new FixedBlockVector(allocator, pivot.getBlockWidth());
-          VariableBlockVector variable = new VariableBlockVector(allocator, pivot.getVariableCount());
-          ){
+      try (FixedBlockVector fixed = new FixedBlockVector(allocator, pivot.getBlockWidth());
+          VariableBlockVector variable =
+              new VariableBlockVector(allocator, pivot.getVariableCount()); ) {
         Pivots.pivot(pivot, 5, fixed, variable);
-        validateVarBinaryValues(pivot.getBlockWidth(), pivot.getVectorPivots().get(0), fixed, variable, vectA);
-        validateVarBinaryValues(pivot.getBlockWidth(), pivot.getVectorPivots().get(1), fixed, variable, vectB);
+        validateVarBinaryValues(
+            pivot.getBlockWidth(), pivot.getVectorPivots().get(0), fixed, variable, vectA);
+        validateVarBinaryValues(
+            pivot.getBlockWidth(), pivot.getVectorPivots().get(1), fixed, variable, vectB);
       }
     }
-
   }
 }

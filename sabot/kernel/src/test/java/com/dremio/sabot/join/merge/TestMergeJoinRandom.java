@@ -19,17 +19,6 @@ import static com.dremio.sabot.Fixtures.t;
 import static com.dremio.sabot.Fixtures.th;
 import static com.dremio.sabot.Fixtures.tr;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
-
-import org.apache.calcite.rel.core.JoinRelType;
-import org.junit.Before;
-import org.junit.Test;
-
 import com.dremio.common.logical.data.JoinCondition;
 import com.dremio.exec.physical.config.MergeJoinPOP;
 import com.dremio.sabot.BaseTestOperator;
@@ -38,6 +27,15 @@ import com.dremio.sabot.Fixtures.DataRow;
 import com.dremio.sabot.Fixtures.Table;
 import com.dremio.sabot.join.BaseTestJoin.JoinInfo;
 import com.dremio.sabot.op.join.merge.MergeJoinOperator;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import org.apache.calcite.rel.core.JoinRelType;
+import org.junit.Before;
+import org.junit.Test;
 
 public class TestMergeJoinRandom extends BaseTestOperator {
 
@@ -83,7 +81,7 @@ public class TestMergeJoinRandom extends BaseTestOperator {
       int numOfFalse = rand.nextBoolean() ? 0 : rand.nextInt(MAX_GROUP_SIZE);
       int numOfTrue = rand.nextBoolean() ? 0 : rand.nextInt(MAX_GROUP_SIZE);
 
-      rightRowCount.put(i,  org.apache.commons.lang3.tuple.Pair.of(numOfFalse, numOfTrue));
+      rightRowCount.put(i, org.apache.commons.lang3.tuple.Pair.of(numOfFalse, numOfTrue));
 
       for (int j = 0; j < numOfFalse; j++) {
         rowsRight.add(tr(false, i));
@@ -94,39 +92,39 @@ public class TestMergeJoinRandom extends BaseTestOperator {
       }
     }
 
-    left = t(
-      th("bool1", "name1"),
-      rowsLeft.toArray(new DataRow[0])
-    );
+    left = t(th("bool1", "name1"), rowsLeft.toArray(new DataRow[0]));
 
-    right = t(
-      th("bool2", "name2"),
-      rowsRight.toArray(new DataRow[0])
-    );
+    right = t(th("bool2", "name2"), rowsRight.toArray(new DataRow[0]));
   }
 
   protected JoinInfo getJoinInfo(List<JoinCondition> conditions, JoinRelType type) {
-    return new JoinInfo(MergeJoinOperator.class, new MergeJoinPOP(PROPS, null, null, conditions, type));
+    return new JoinInfo(
+        MergeJoinOperator.class, new MergeJoinPOP(PROPS, null, null, conditions, type));
   }
 
   private void noNullMultipleRowsData(JoinInfo info, Table expected) throws Exception {
 
     validateDual(
-      info.operator, info.clazz,
-      left.toGenerator(getTestAllocator()),
-      right.toGenerator(getTestAllocator()),
-      DEFAULT_BATCH, expected);
+        info.operator,
+        info.clazz,
+        left.toGenerator(getTestAllocator()),
+        right.toGenerator(getTestAllocator()),
+        DEFAULT_BATCH,
+        expected);
     validateDual(
-      info.operator, info.clazz,
-      left.toGenerator(getTestAllocator()),
-      right.toGenerator(getTestAllocator()),
-      DEFAULT_SMALL_BATCH, expected);
+        info.operator,
+        info.clazz,
+        left.toGenerator(getTestAllocator()),
+        right.toGenerator(getTestAllocator()),
+        DEFAULT_SMALL_BATCH,
+        expected);
   }
 
   @Test
-  public void noNullEquivalenceInnerSingleCondition() throws Exception{
-    JoinInfo joinInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("name1"), f("name2"))),
-        JoinRelType.INNER);
+  public void noNullEquivalenceInnerSingleCondition() throws Exception {
+    JoinInfo joinInfo =
+        getJoinInfo(
+            Arrays.asList(new JoinCondition("EQUALS", f("name1"), f("name2"))), JoinRelType.INNER);
     ArrayList<DataRow> rows = new ArrayList<>();
 
     for (int i = 0; i < NUM_GROUPS; i++) {
@@ -162,9 +160,10 @@ public class TestMergeJoinRandom extends BaseTestOperator {
   }
 
   @Test
-  public void noNullEquivalenceLeftSingleCondition() throws Exception{
-    JoinInfo joinInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("name1"), f("name2"))),
-        JoinRelType.LEFT);
+  public void noNullEquivalenceLeftSingleCondition() throws Exception {
+    JoinInfo joinInfo =
+        getJoinInfo(
+            Arrays.asList(new JoinCondition("EQUALS", f("name1"), f("name2"))), JoinRelType.LEFT);
     ArrayList<DataRow> rows = new ArrayList<>();
 
     for (int i = 0; i < NUM_GROUPS; i++) {
@@ -208,9 +207,10 @@ public class TestMergeJoinRandom extends BaseTestOperator {
   }
 
   @Test
-  public void noNullEquivalenceRightSingleCondition() throws Exception{
-    JoinInfo joinInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("name1"), f("name2"))),
-        JoinRelType.RIGHT);
+  public void noNullEquivalenceRightSingleCondition() throws Exception {
+    JoinInfo joinInfo =
+        getJoinInfo(
+            Arrays.asList(new JoinCondition("EQUALS", f("name1"), f("name2"))), JoinRelType.RIGHT);
     ArrayList<DataRow> rows = new ArrayList<>();
 
     for (int i = 0; i < NUM_GROUPS; i++) {
@@ -256,9 +256,10 @@ public class TestMergeJoinRandom extends BaseTestOperator {
   }
 
   @Test
-  public void noNullEquivalenceFullSingleCondition() throws Exception{
-    JoinInfo joinInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("name1"), f("name2"))),
-        JoinRelType.FULL);
+  public void noNullEquivalenceFullSingleCondition() throws Exception {
+    JoinInfo joinInfo =
+        getJoinInfo(
+            Arrays.asList(new JoinCondition("EQUALS", f("name1"), f("name2"))), JoinRelType.FULL);
     ArrayList<DataRow> rows = new ArrayList<>();
 
     for (int i = 0; i < NUM_GROUPS; i++) {
@@ -310,5 +311,4 @@ public class TestMergeJoinRandom extends BaseTestOperator {
     final Table expected = t(th("bool2", "name2", "bool1", "name1"), rows.toArray(new DataRow[0]));
     noNullMultipleRowsData(joinInfo, expected);
   }
-
 }

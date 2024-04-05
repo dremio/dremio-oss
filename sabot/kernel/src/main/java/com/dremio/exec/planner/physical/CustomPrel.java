@@ -15,9 +15,7 @@
  */
 package com.dremio.exec.planner.physical;
 
-/**
- * Special interface mainly used to expose the Prel responsible for generating column origins
- */
+/** Special interface mainly used to expose the Prel responsible for generating column origins */
 public interface CustomPrel {
   Prel getOriginPrel();
 }

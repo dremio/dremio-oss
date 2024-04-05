@@ -15,14 +15,14 @@
  */
 package com.dremio.datastore;
 
+import com.dremio.common.scanner.persistence.ScanResult;
+import com.dremio.datastore.api.StoreCreationFunction;
 import java.util.Set;
 import java.util.function.Supplier;
 
-import com.dremio.common.scanner.persistence.ScanResult;
-import com.dremio.datastore.api.StoreCreationFunction;
-
 @SuppressWarnings("rawtypes")
-public interface StoreCreatorSupplier extends Supplier<Set<Class<? extends StoreCreationFunction>>> {
+public interface StoreCreatorSupplier
+    extends Supplier<Set<Class<? extends StoreCreationFunction>>> {
   static StoreCreatorSupplier of(ScanResult scan) {
     return () -> scan.getImplementations(StoreCreationFunction.class);
   }

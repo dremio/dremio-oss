@@ -15,13 +15,11 @@
  */
 package com.dremio.common.expression;
 
+import com.dremio.common.expression.visitors.ExprVisitor;
 import java.util.Collections;
 import java.util.List;
-
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
-
-import com.dremio.common.expression.visitors.ExprVisitor;
 
 public class ListAggExpression extends FunctionCall {
   final boolean isDistinct;
@@ -29,7 +27,12 @@ public class ListAggExpression extends FunctionCall {
   final List<LogicalExpression> extraExpressions;
   final CompleteType type;
 
-  public ListAggExpression(String name, List<LogicalExpression> args, boolean isDistinct, List<Ordering> orderings, List<LogicalExpression> extraExpressions) {
+  public ListAggExpression(
+      String name,
+      List<LogicalExpression> args,
+      boolean isDistinct,
+      List<Ordering> orderings,
+      List<LogicalExpression> extraExpressions) {
     super(name, args);
     this.isDistinct = isDistinct;
     this.orderings = orderings;
@@ -37,14 +40,37 @@ public class ListAggExpression extends FunctionCall {
     if ("LISTAGG".equals(name) || "listagg_merge".equals(name)) {
       type = CompleteType.VARCHAR;
     } else if ("local_listagg".equals(name)) {
-      type = new CompleteType(ArrowType.List.INSTANCE, Collections.singletonList(Field.nullable("$data$", CompleteType.VARCHAR.getType())));
+      type =
+          new CompleteType(
+              ArrowType.List.INSTANCE,
+              Collections.singletonList(Field.nullable("$data$", CompleteType.VARCHAR.getType())));
     } else if ("ARRAY_AGG".equals(name) || "PHASE1_ARRAY_AGG".equals(name)) {
-      // Hack: Ideally the return type should be the List of type args[0]. However, if arg[0] is ArrowLateType,
-      // its size cannot be determined by HashAggMemoryEstimator. Given that HashAggMemoryEstimator just estimates
+      // Hack: Ideally the return type should be the List of type args[0]. However, if arg[0] is
+      // ArrowLateType,
+      // its size cannot be determined by HashAggMemoryEstimator. Given that HashAggMemoryEstimator
+      // just estimates
       // the size (e.g. by assuming the size of list as 5), VARBINARY estimate is not too shabby.
-      ArrowType elementType = args.get(0).getCompleteType().getType() instanceof ArrowLateType ?
-        CompleteType.VARBINARY.getType() : args.get(0).getCompleteType().getType();
-      type = new CompleteType(ArrowType.List.INSTANCE, Collections.singletonList(Field.nullable("$data$", elementType)));
+      ArrowType elementType =
+          args.get(0).getCompleteType().getType() instanceof ArrowLateType
+              ? CompleteType.VARBINARY.getType()
+              : args.get(0).getCompleteType().getType();
+      type =
+          new CompleteType(
+              ArrowType.List.INSTANCE,
+              Collections.singletonList(Field.nullable("$data$", elementType)));
+      // ARRAY_AGG Only supports some of the features that LISTAGG supports.
+      // Ideally it should be it's own Expression.
+      if (isDistinct) {
+        throw new UnsupportedOperationException("ARRAY_AGG does not support DISTINCT.");
+      }
+
+      if (!orderings.isEmpty()) {
+        throw new UnsupportedOperationException("ARRAY_AGG does not support ordering.");
+      }
+
+      if (!extraExpressions.isEmpty()) {
+        throw new UnsupportedOperationException("ARRAY_AGG does not support extra expressions.");
+      }
     } else if ("PHASE2_ARRAY_AGG".equals(name)) {
       type = args.get(0).getCompleteType();
     } else {
@@ -65,7 +91,7 @@ public class ListAggExpression extends FunctionCall {
   }
 
   @Override
-  public <T, V, E extends Exception> T accept(ExprVisitor<T, V, E> visitor, V value) throws E{
+  public <T, V, E extends Exception> T accept(ExprVisitor<T, V, E> visitor, V value) throws E {
     return visitor.visitListAggExpression(this, value);
   }
 
@@ -76,7 +102,15 @@ public class ListAggExpression extends FunctionCall {
 
   @Override
   public String toString() {
-    return "ListAggExpression [functionCall=" + super.toString() + " + isDistinct= + " + isDistinct + ", ordering=" + orderings + ", extraExpressions=" + extraExpressions + "]";
+    return "ListAggExpression [functionCall="
+        + super.toString()
+        + " + isDistinct= + "
+        + isDistinct
+        + ", ordering="
+        + orderings
+        + ", extraExpressions="
+        + extraExpressions
+        + "]";
   }
 
   public static class Builder {

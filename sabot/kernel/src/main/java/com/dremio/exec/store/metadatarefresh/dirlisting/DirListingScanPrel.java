@@ -15,19 +15,6 @@
  */
 package com.dremio.exec.store.metadatarefresh.dirlisting;
 
-import java.io.IOException;
-import java.util.List;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelOptTable;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.hint.RelHint;
-import org.apache.calcite.rel.metadata.RelMetadataQuery;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.PhysicalOperator;
@@ -39,48 +26,163 @@ import com.dremio.exec.store.dfs.RowCountEstimator;
 import com.dremio.exec.store.metadatarefresh.MetadataRefreshExecConstants;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators;
+import java.io.IOException;
+import java.util.List;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptTable;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.hint.RelHint;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
 @Options
 public class DirListingScanPrel extends ScanPrelBase implements RowCountEstimator {
-  public static final TypeValidators.LongValidator RESERVE = new TypeValidators.PositiveLongValidator("planner.op.scan.dir_listing.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
-  public static final TypeValidators.LongValidator LIMIT = new TypeValidators.PositiveLongValidator("planner.op.scan.dir_listing.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
+  public static final TypeValidators.LongValidator RESERVE =
+      new TypeValidators.PositiveLongValidator(
+          "planner.op.scan.dir_listing.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
+  public static final TypeValidators.LongValidator LIMIT =
+      new TypeValidators.PositiveLongValidator(
+          "planner.op.scan.dir_listing.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
 
-  private static final List<SchemaPath> PROJECTED_COLS = MetadataRefreshExecConstants.DirList.OUTPUT_SCHEMA.BATCH_SCHEMA.getFields()
-    .stream()
-    .map(Field::getName)
-    .map(SchemaPath::getSimplePath)
-    .collect(Collectors.toList());
+  private static final List<SchemaPath> PROJECTED_COLS =
+      MetadataRefreshExecConstants.DirList.OUTPUT_SCHEMA.BATCH_SCHEMA.getFields().stream()
+          .map(Field::getName)
+          .map(SchemaPath::getSimplePath)
+          .collect(Collectors.toList());
 
-  private boolean allowRecursiveListing = false;
+  private final boolean allowRecursiveListing;
+  private final boolean incrementalBatchSize;
 
-  //Assume very large row count if not specified. Useful for deciding parallelism in first refresh.
+  // Assume very large row count if not specified. Useful for deciding parallelism in first refresh.
   private Function<RelMetadataQuery, Double> estimateRowCountFn;
 
+  public DirListingScanPrel(
+      RelOptCluster cluster,
+      RelTraitSet traitSet,
+      RelOptTable table,
+      StoragePluginId pluginId,
+      TableMetadata tableMetadata,
+      double observedRowcountAdjustment,
+      List<RelHint> hints,
+      boolean allowRecursiveListing,
+      Function<RelMetadataQuery, Double> estimateRowCountFn,
+      List<Info> runtimeFilters) {
+    this(
+        cluster,
+        traitSet,
+        table,
+        pluginId,
+        tableMetadata,
+        observedRowcountAdjustment,
+        hints,
+        allowRecursiveListing,
+        false,
+        estimateRowCountFn,
+        runtimeFilters);
+  }
 
-  public DirListingScanPrel(RelOptCluster cluster, RelTraitSet traitSet, RelOptTable table, StoragePluginId pluginId,
-                            TableMetadata tableMetadata, double observedRowcountAdjustment, List<RelHint> hints,
-                            boolean allowRecursiveListing, Function<RelMetadataQuery, Double> estimateRowCountFn,
-                            List<Info> runtimeFilters) {
-    super(cluster, traitSet, table, pluginId, tableMetadata, PROJECTED_COLS, observedRowcountAdjustment, hints, runtimeFilters);
+  /**
+   * Creates a dir listing Prel object with incremental batch size. This feature is to speed up the
+   * footer reader table function (see DX-34771 for details). For the default behavior the public
+   * constructor shall be used instead.
+   */
+  public static DirListingScanPrel createWithIncrementalBatchSize(
+      RelOptCluster cluster,
+      RelTraitSet traitSet,
+      RelOptTable table,
+      StoragePluginId pluginId,
+      TableMetadata tableMetadata,
+      double observedRowcountAdjustment,
+      List<RelHint> hints,
+      boolean allowRecursiveListing,
+      Function<RelMetadataQuery, Double> estimateRowCountFn,
+      List<Info> runtimeFilters) {
+    return new DirListingScanPrel(
+        cluster,
+        traitSet,
+        table,
+        pluginId,
+        tableMetadata,
+        observedRowcountAdjustment,
+        hints,
+        allowRecursiveListing,
+        true,
+        estimateRowCountFn,
+        runtimeFilters);
+  }
+
+  private DirListingScanPrel(
+      RelOptCluster cluster,
+      RelTraitSet traitSet,
+      RelOptTable table,
+      StoragePluginId pluginId,
+      TableMetadata tableMetadata,
+      double observedRowcountAdjustment,
+      List<RelHint> hints,
+      boolean allowRecursiveListing,
+      boolean incrementalBatchSize,
+      Function<RelMetadataQuery, Double> estimateRowCountFn,
+      List<Info> runtimeFilters) {
+    super(
+        cluster,
+        traitSet,
+        table,
+        pluginId,
+        tableMetadata,
+        PROJECTED_COLS,
+        observedRowcountAdjustment,
+        hints,
+        runtimeFilters);
     this.allowRecursiveListing = allowRecursiveListing;
+    this.incrementalBatchSize = incrementalBatchSize;
     this.estimateRowCountFn = estimateRowCountFn;
   }
 
   @Override
   public DirListingScanPrel copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new DirListingScanPrel(getCluster(), traitSet, table, pluginId, tableMetadata, observedRowcountAdjustment, hints, allowRecursiveListing, estimateRowCountFn, getRuntimeFilters());
+    return new DirListingScanPrel(
+        getCluster(),
+        traitSet,
+        table,
+        pluginId,
+        tableMetadata,
+        observedRowcountAdjustment,
+        hints,
+        allowRecursiveListing,
+        incrementalBatchSize,
+        estimateRowCountFn,
+        getRuntimeFilters());
   }
 
   @Override
   public ScanRelBase cloneWithProject(List<SchemaPath> projection) {
-    return new DirListingScanPrel(getCluster(), traitSet, table, pluginId, tableMetadata, observedRowcountAdjustment, hints, allowRecursiveListing, estimateRowCountFn, getRuntimeFilters());
+    return new DirListingScanPrel(
+        getCluster(),
+        traitSet,
+        table,
+        pluginId,
+        tableMetadata,
+        observedRowcountAdjustment,
+        hints,
+        allowRecursiveListing,
+        incrementalBatchSize,
+        estimateRowCountFn,
+        getRuntimeFilters());
   }
 
   @Override
   public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
     return new DirListingGroupScan(
-      creator.props(this, tableMetadata.getUser(), tableMetadata.getSchema(), RESERVE, LIMIT),
-      tableMetadata, tableMetadata.getSchema(), projectedColumns, pluginId, allowRecursiveListing);
+        creator.props(this, tableMetadata.getUser(), tableMetadata.getSchema(), RESERVE, LIMIT),
+        tableMetadata,
+        tableMetadata.getSchema(),
+        projectedColumns,
+        pluginId,
+        allowRecursiveListing,
+        incrementalBatchSize);
   }
 
   @Override
@@ -91,12 +193,15 @@ public class DirListingScanPrel extends ScanPrelBase implements RowCountEstimato
   @Override
   public Function<RelMetadataQuery, Double> getEstimateRowCountFn() {
     if (estimateRowCountFn == null) {
-      Function<RelMetadataQuery, Double> function = (Function<RelMetadataQuery, Double>) relMetadataQuery -> {
-        if(tableMetadata.getReadDefinition().getManifestScanStats() != null) {
-          return Double.valueOf(tableMetadata.getReadDefinition().getManifestScanStats().getRecordCount());
-        }
-        return 1000_000.0;
-      };
+      Function<RelMetadataQuery, Double> function =
+          (Function<RelMetadataQuery, Double>)
+              relMetadataQuery -> {
+                if (tableMetadata.getReadDefinition().getManifestScanStats() != null) {
+                  return Double.valueOf(
+                      tableMetadata.getReadDefinition().getManifestScanStats().getRecordCount());
+                }
+                return 1000_000.0;
+              };
     }
     return estimateRowCountFn;
   }

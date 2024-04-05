@@ -15,11 +15,13 @@
  */
 package com.dremio.services.nessie.proxy;
 
+import com.fasterxml.jackson.annotation.JsonView;
+import com.google.common.collect.ImmutableSet;
 import java.util.List;
 import java.util.Set;
-
+import javax.enterprise.context.RequestScoped;
 import javax.inject.Inject;
-
+import javax.ws.rs.Path;
 import org.projectnessie.api.v2.http.HttpConfigApi;
 import org.projectnessie.client.api.GetRepositoryConfigBuilder;
 import org.projectnessie.client.api.NessieApiV2;
@@ -32,13 +34,13 @@ import org.projectnessie.model.UpdateRepositoryConfigRequest;
 import org.projectnessie.model.UpdateRepositoryConfigResponse;
 import org.projectnessie.model.ser.Views;
 
-import com.fasterxml.jackson.annotation.JsonView;
-import com.google.common.collect.ImmutableSet;
-
+@RequestScoped
+@Path("api/v2/config")
 public class ProxyV2ConfigResource implements HttpConfigApi {
   private final NessieApiV2 api;
 
-  private static final Set<String> SUPPORTED_TYPES = ImmutableSet.of(RepositoryConfig.Type.GARBAGE_COLLECTOR.name());
+  private static final Set<String> SUPPORTED_TYPES =
+      ImmutableSet.of(RepositoryConfig.Type.GARBAGE_COLLECTOR.name());
 
   @Inject
   public ProxyV2ConfigResource(NessieApiV2 api) {
@@ -61,8 +63,8 @@ public class ProxyV2ConfigResource implements HttpConfigApi {
   }
 
   @Override
-  public UpdateRepositoryConfigResponse updateRepositoryConfig(UpdateRepositoryConfigRequest request)
-    throws NessieConflictException {
+  public UpdateRepositoryConfigResponse updateRepositoryConfig(
+      UpdateRepositoryConfigRequest request) throws NessieConflictException {
 
     return api.updateRepositoryConfig().repositoryConfig(request.getConfig()).update();
   }
@@ -85,7 +87,8 @@ public class ProxyV2ConfigResource implements HttpConfigApi {
 
     @Override
     public Class<? extends RepositoryConfig> type() {
-      throw new UnsupportedOperationException("Java implementation class is not available in proxy types");
+      throw new UnsupportedOperationException(
+          "Java implementation class is not available in proxy types");
     }
   }
 }

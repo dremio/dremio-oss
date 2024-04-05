@@ -44,11 +44,10 @@ public abstract class VarLengthSupplier<T> implements UniqueSupplier<T> {
 
     final StringBuilder builder = new StringBuilder(prefix);
 
-    if ((count % 2 ) == 0) {
-      builder.append(((count % 4) == 0)? (count * 100) : count * 100000);
+    if ((count % 2) == 0) {
+      builder.append(((count % 4) == 0) ? (count * 100) : count * 100000);
     } else {
-      builder.append(((count % 3) == 0)? (count * 1000) :
-        ((count % 5) == 0)? count * 10 : count);
+      builder.append(((count % 3) == 0) ? (count * 1000) : ((count % 5) == 0) ? count * 10 : count);
     }
 
     return convertToTarget(builder.toString());

@@ -18,16 +18,14 @@ package com.dremio.exec.expr.fn.impl;
 import static com.dremio.common.util.MajorTypeHelper.getArrowMinorType;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import com.dremio.common.types.TypeProtos.MinorType;
+import com.dremio.exec.expr.fn.FunctionErrorContext;
+import com.dremio.exec.vector.complex.MapUtility;
 import java.util.Iterator;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.complex.writer.BaseWriter;
 import org.apache.arrow.vector.holders.VarCharHolder;
-
-import com.dremio.common.types.TypeProtos.MinorType;
-import com.dremio.exec.expr.fn.FunctionErrorContext;
-import com.dremio.exec.vector.complex.MapUtility;
 
 public class MappifyUtility {
 
@@ -35,11 +33,15 @@ public class MappifyUtility {
   public static final String fieldKey = "key";
   public static final String fieldValue = "value";
 
-  public static ArrowBuf mappify(FieldReader reader, BaseWriter.ComplexWriter writer, ArrowBuf buffer,
-                                 FunctionErrorContext errorContext) {
+  public static ArrowBuf mappify(
+      FieldReader reader,
+      BaseWriter.ComplexWriter writer,
+      ArrowBuf buffer,
+      FunctionErrorContext errorContext) {
     // Currently we expect single map as input
     if (reader.getMinorType() != getArrowMinorType(MinorType.STRUCT)) {
-      throw errorContext.error()
+      throw errorContext
+          .error()
           .message("The kvgen function can only be used when operating against maps.")
           .build();
     }
@@ -75,8 +77,7 @@ public class MappifyUtility {
       try {
         MapUtility.writeToMapFromReader(fieldReader, structWriter);
       } catch (RuntimeException e) {
-        throw errorContext.error(e)
-            .build();
+        throw errorContext.error(e).build();
       }
 
       structWriter.end();

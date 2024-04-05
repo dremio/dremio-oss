@@ -15,13 +15,14 @@
  */
 package com.dremio.service.coordinator.zk;
 
+import com.dremio.common.AutoCloseables;
+import com.dremio.service.coordinator.DistributedSemaphore;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 import java.util.WeakHashMap;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.recipes.locks.InterProcessSemaphoreV2;
 import org.apache.curator.framework.recipes.locks.Lease;
@@ -32,26 +33,26 @@ import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.Watcher.Event.EventType;
 import org.apache.zookeeper.Watcher.Event.KeeperState;
 
-import com.dremio.common.AutoCloseables;
-import com.dremio.service.coordinator.DistributedSemaphore;
-
 class ZkDistributedSemaphore implements DistributedSemaphore {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ZkDistributedSemaphore.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ZkDistributedSemaphore.class);
 
   private final InterProcessSemaphoreV2 semaphore;
-  private final Map<UpdateListener, Void> listeners = Collections.synchronizedMap(new WeakHashMap<UpdateListener, Void>());
+  private final Map<UpdateListener, Void> listeners =
+      Collections.synchronizedMap(new WeakHashMap<UpdateListener, Void>());
   private final String path;
   private final CuratorFramework client;
 
-  ZkDistributedSemaphore(CuratorFramework client, String path, int numberOfLeases) throws Exception {
+  ZkDistributedSemaphore(CuratorFramework client, String path, int numberOfLeases)
+      throws Exception {
     this.semaphore = new InterProcessSemaphoreV2(client, path, numberOfLeases);
     this.path = ZKPaths.makePath(path, "leases");
     this.client = client;
   }
 
   private boolean setWatcher() throws Exception {
-    if(client.checkExists().forPath(path) != null) {
+    if (client.checkExists().forPath(path) != null) {
       client.getChildren().usingWatcher((Watcher) t -> onEvent(t)).forPath(path);
       logger.debug("watcher set for path: {}", path);
       return true;
@@ -63,12 +64,12 @@ class ZkDistributedSemaphore implements DistributedSemaphore {
 
   private void onEvent(WatchedEvent event) {
 
-    if(event.getType() == Watcher.Event.EventType.NodeChildrenChanged) {
+    if (event.getType() == Watcher.Event.EventType.NodeChildrenChanged) {
       Collection<UpdateListener> col = new ArrayList<>(listeners.keySet());
-      for(UpdateListener l : col) {
+      for (UpdateListener l : col) {
         l.updated();
       }
-    } else if (event.getType() == EventType.None && event.getState() == KeeperState.SyncConnected){
+    } else if (event.getType() == EventType.None && event.getState() == KeeperState.SyncConnected) {
       // re set the watcher after a disconnect.
       try {
         setWatcher();
@@ -100,7 +101,6 @@ class ZkDistributedSemaphore implements DistributedSemaphore {
       return new LeasesHolder(leases);
     }
     return null;
-
   }
 
   @Override
@@ -109,7 +109,7 @@ class ZkDistributedSemaphore implements DistributedSemaphore {
     // if this is the first add, add it here.
     boolean set = true;
     synchronized (this) {
-      if(listeners.isEmpty()) {
+      if (listeners.isEmpty()) {
         try {
           set = setWatcher();
         } catch (Exception e) {
@@ -117,13 +117,15 @@ class ZkDistributedSemaphore implements DistributedSemaphore {
         }
       }
     }
-    listeners.put(() -> {
-      try {
-        listener.updated();
-      } catch (Exception e) {
-        logger.warn("Exception occurred while notifying listener.", e);
-      }
-    }, null);
+    listeners.put(
+        () -> {
+          try {
+            listener.updated();
+          } catch (Exception e) {
+            logger.warn("Exception occurred while notifying listener.", e);
+          }
+        },
+        null);
     return set;
   }
 
@@ -138,6 +140,5 @@ class ZkDistributedSemaphore implements DistributedSemaphore {
     public void close() throws Exception {
       AutoCloseables.close(leases);
     }
-
   }
 }

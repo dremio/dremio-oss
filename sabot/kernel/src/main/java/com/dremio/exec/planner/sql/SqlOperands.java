@@ -21,9 +21,7 @@ import static com.dremio.exec.planner.sql.SqlOperand.variadic;
 
 import org.apache.calcite.sql.type.SqlTypeName;
 
-/**
- * Static class to store singletons for commonly used SqlOperand instances.
- */
+/** Static class to store singletons for commonly used SqlOperand instances. */
 public final class SqlOperands {
   // Single Types
   public static final SqlOperand ANY = regular(SqlTypeName.ANY);

@@ -18,17 +18,16 @@ package org.apache.arrow.vector;
 
 import static org.junit.Assert.assertEquals;
 
-import org.junit.Test;
-
 import com.dremio.test.DremioTest;
+import org.junit.Test;
 
 public class TestComparisonUtils extends DremioTest {
 
   @Test
   public void testByteArrayComparatorEqualArrays() {
     // ARRANGE
-    final byte[] a1 = new byte[] { 2, 2 };
-    final byte[] a2 = new byte[] { 2, 2 };
+    final byte[] a1 = new byte[] {2, 2};
+    final byte[] a2 = new byte[] {2, 2};
 
     // ACT
     final int comparisonResult = ComparisonUtils.compareByteArrays(a1, a2);
@@ -40,8 +39,8 @@ public class TestComparisonUtils extends DremioTest {
   @Test
   public void testByteArrayComparatorSortableArrays() {
     // ARRANGE
-    final byte[] a1 = new byte[] { 2, 2 };
-    final byte[] a2 = new byte[] { 2, 3 };
+    final byte[] a1 = new byte[] {2, 2};
+    final byte[] a2 = new byte[] {2, 3};
 
     // ACT
     final int comparisonResult = ComparisonUtils.compareByteArrays(a1, a2);
@@ -53,8 +52,8 @@ public class TestComparisonUtils extends DremioTest {
   @Test
   public void testByteArrayComparatorDifferentLength() {
     // ARRANGE
-    final byte[] a1 = new byte[] { 2, 2 };
-    final byte[] a2 = new byte[] { 2, 2, 2 };
+    final byte[] a1 = new byte[] {2, 2};
+    final byte[] a2 = new byte[] {2, 2, 2};
 
     // ACT
     final int comparisonResult = ComparisonUtils.compareByteArrays(a1, a2);

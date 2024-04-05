@@ -276,7 +276,7 @@ public class ${entry.type}${entry.hiveOI} {
         return null;
       }
     </#if>
-      return new Integer(get(o));
+      return Integer.valueOf(get(o));
     }
 <#else>
     @Override
@@ -285,9 +285,9 @@ public class ${entry.type}${entry.hiveOI} {
       if (o == null) {
         return null;
       }
-      return new ${entry.javaType?cap_first}(((Nullable${entry.type}Holder)o).value);
+      return ${entry.javaType?cap_first}.valueOf(((Nullable${entry.type}Holder)o).value);
     <#else>
-      return new ${entry.javaType?cap_first}(((${entry.type}Holder)o).value);
+      return ${entry.javaType?cap_first}.valueOf(((${entry.type}Holder)o).value);
     </#if>
     }
 </#if>

@@ -16,12 +16,9 @@
 package com.dremio.connector.metadata;
 
 import java.util.List;
-
 import org.apache.arrow.vector.types.pojo.Schema;
 
-/**
- * Default implementation.
- */
+/** Default implementation. */
 final class DatasetMetadataImpl implements DatasetMetadata {
 
   private final DatasetStats stats;
@@ -37,8 +34,7 @@ final class DatasetMetadataImpl implements DatasetMetadata {
       List<String> partitionColumns,
       List<String> sortColumns,
       BytesOutput extraInfo,
-      byte[] icebergMetadata
-  ) {
+      byte[] icebergMetadata) {
     this.stats = stats;
     this.schema = schema;
     this.partitionColumns = partitionColumns;

@@ -15,8 +15,8 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.google.common.base.Preconditions;
 import java.util.List;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -29,34 +29,34 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlUpdate;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.ImmutableNullableList;
-
-import com.google.common.base.Preconditions;
+import org.apache.iceberg.RowLevelOperationMode;
 
 /**
- * Extends Calcite's SqlUpdate to add the ability to:
- *  1. extend the table columns with system columns.
- *  2. do custom parsing (like remove ALIAS).
+ * Extends Calcite's SqlUpdate to add the ability to: 1. extend the table columns with system
+ * columns. 2. do custom parsing (like remove ALIAS).
  */
 public class SqlUpdateTable extends SqlUpdate implements SqlDmlOperator {
 
-  public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("UPDATE", SqlKind.UPDATE) {
-    @Override
-    public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 7, "SqlUpdateTable.createCall() has to get 7 operands!");
+  public static final SqlSpecialOperator OPERATOR =
+      new SqlSpecialOperator("UPDATE", SqlKind.UPDATE) {
+        @Override
+        public SqlCall createCall(
+            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+          Preconditions.checkArgument(
+              operands.length == 7, "SqlUpdateTable.createCall() has to get 7 operands!");
 
-      // We ignore operands[4] which contains the ALIAS since we don't allow that for now.
-      return new SqlUpdateTable(
-        pos,
-        operands[0],
-        (SqlNodeList) operands[1],
-        (SqlNodeList) operands[2],
-        operands[3],
-        (SqlIdentifier)operands[4],
-        operands[5],
-        (SqlTableVersionSpec) operands[6]
-      );
-    }
-  };
+          // We ignore operands[4] which contains the ALIAS since we don't allow that for now.
+          return new SqlUpdateTable(
+              pos,
+              operands[0],
+              (SqlNodeList) operands[1],
+              (SqlNodeList) operands[2],
+              operands[3],
+              (SqlIdentifier) operands[4],
+              operands[5],
+              (SqlTableVersionSpec) operands[6]);
+        }
+      };
   private static final SqlLiteral sqlLiteralNull = SqlLiteral.createNull(SqlParserPos.ZERO);
   // Create a separate `extendedTargetTable` to handle extended columns, as there's
   // no way to set SqlUpdate::targetTable without an assertion being thrown.
@@ -66,14 +66,18 @@ public class SqlUpdateTable extends SqlUpdate implements SqlDmlOperator {
   private SqlNode sourceOperand;
   private final SqlTableVersionSpec sqlTableVersionSpec;
 
-  public SqlUpdateTable(SqlParserPos pos,
-                        SqlNode targetTable,
-                        SqlNodeList targetColumnList,
-                        SqlNodeList sourceExpressionList,
-                        SqlNode condition,
-                        SqlIdentifier alias,
-                        SqlNode source,
-                        SqlTableVersionSpec sqlTableVersionSpec) {
+  // Default Dml Write.Update.Mode TableProperty in Dremio for now.
+  private RowLevelOperationMode dmlWriteMode = RowLevelOperationMode.COPY_ON_WRITE;
+
+  public SqlUpdateTable(
+      SqlParserPos pos,
+      SqlNode targetTable,
+      SqlNodeList targetColumnList,
+      SqlNodeList sourceExpressionList,
+      SqlNode condition,
+      SqlIdentifier alias,
+      SqlNode source,
+      SqlTableVersionSpec sqlTableVersionSpec) {
     super(pos, targetTable, targetColumnList, sourceExpressionList, condition, null, alias);
     this.source = source;
     this.sourceOperand = source;
@@ -93,6 +97,11 @@ public class SqlUpdateTable extends SqlUpdate implements SqlDmlOperator {
   }
 
   @Override
+  public SqlNode getTargetTableWithoutExtendedCols() {
+    return super.getTargetTable();
+  }
+
+  @Override
   public SqlOperator getOperator() {
     return OPERATOR;
   }
@@ -100,13 +109,13 @@ public class SqlUpdateTable extends SqlUpdate implements SqlDmlOperator {
   @Override
   public List<SqlNode> getOperandList() {
     return ImmutableNullableList.of(
-      getTargetTable(),
-      getTargetColumnList(),
-      getSourceExpressionList(),
-      getCondition(),
-      getAlias(),
-      sourceOperand,
-      sqlTableVersionSpec);
+        getTargetTable(),
+        getTargetColumnList(),
+        getSourceExpressionList(),
+        getCondition(),
+        getAlias(),
+        sourceOperand,
+        sqlTableVersionSpec);
   }
 
   @Override
@@ -135,5 +144,15 @@ public class SqlUpdateTable extends SqlUpdate implements SqlDmlOperator {
       return sqlTableVersionSpec.getTableVersionSpec();
     }
     return null;
+  }
+
+  @Override
+  public void setDmlWriteMode(RowLevelOperationMode dmlWriteMode) {
+    this.dmlWriteMode = dmlWriteMode;
+  }
+
+  @Override
+  public RowLevelOperationMode getDmlWriteMode() {
+    return dmlWriteMode;
   }
 }

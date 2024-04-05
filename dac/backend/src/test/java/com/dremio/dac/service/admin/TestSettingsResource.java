@@ -18,9 +18,7 @@ package com.dremio.dac.service.admin;
 import org.junit.Assert;
 import org.junit.Test;
 
-/**
- * Test VALIDATOR in SettingsResource.
- */
+/** Test VALIDATOR in SettingsResource. */
 public class TestSettingsResource {
 
   @Test

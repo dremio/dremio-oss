@@ -15,9 +15,7 @@
  */
 package com.dremio.dac.model.common;
 
-/**
- * Unauthrorized exception raised when user not allowed to perform given action.
- */
+/** Unauthrorized exception raised when user not allowed to perform given action. */
 public class DACUnauthorizedException extends DACException {
   public DACUnauthorizedException(String message, Throwable cause) {
     super(message, cause);

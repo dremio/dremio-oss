@@ -19,48 +19,48 @@ import static com.dremio.common.TestProfileHelper.assumeMaprProfile;
 import static java.lang.String.format;
 import static org.junit.Assert.assertTrue;
 
+import com.dremio.provision.yarn.service.YarnDefaultsConfigurator;
+import com.google.common.base.StandardSystemProperty;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-
 import org.junit.Test;
 
-import com.dremio.provision.yarn.service.YarnDefaultsConfigurator;
-import com.google.common.base.StandardSystemProperty;
-
-/**
- * Test cases for {@code com.dremio.provision.yarn.service.YarnDefaultsConfigurator}
- */
+/** Test cases for {@code com.dremio.provision.yarn.service.YarnDefaultsConfigurator} */
 public class TestYarnDefaultsConfigurator {
 
   @Test
   public void testMaprAppClasspath() {
     assumeMaprProfile();
 
-    final Set<String> jars = Arrays.stream(StandardSystemProperty.JAVA_CLASS_PATH.value().split(":"))
-        .map(Paths::get)
-        .map(Path::getFileName)
-        .map(Path::toString)
-        .collect(Collectors.toSet());
+    final Set<String> jars =
+        Arrays.stream(StandardSystemProperty.JAVA_CLASS_PATH.value().split(":"))
+            .map(Paths::get)
+            .map(Path::getFileName)
+            .map(Path::toString)
+            .collect(Collectors.toSet());
 
     // Sanity check to make sure that jars required to start app are present in the test classpath
     // test itself does not require those jars but it should prevent naming mismatches
     final String appClassPath = YarnDefaultsConfigurator.MapRYarnDefaults.getAppClassPath();
-    for(final String path : appClassPath.split(",")) {
-      // Just checking filename is present since the layout depends on the actual distribution config
+    for (final String path : appClassPath.split(",")) {
+      // Just checking filename is present since the layout depends on the actual distribution
+      // config
       final String filename = Paths.get(path).getFileName().toString();
 
-      assertTrue(format("jar %s not present in classpath (%s)", filename, jars), checkExist(jars, filename));
+      assertTrue(
+          format("jar %s not present in classpath (%s)", filename, jars),
+          checkExist(jars, filename));
     }
   }
 
   private static boolean checkExist(Set<String> jars, String filename) {
     final Pattern pattern = Pattern.compile(filename);
 
-    for (final String jar: jars) {
+    for (final String jar : jars) {
       if (pattern.matcher(jar).matches()) {
         return true;
       }

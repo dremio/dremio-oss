@@ -15,11 +15,6 @@
  */
 package com.dremio.exec.store.dfs.system;
 
-import java.util.function.Supplier;
-
-import org.apache.hadoop.conf.Configuration;
-import org.apache.iceberg.Table;
-
 import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.BytesOutput;
 import com.dremio.connector.metadata.DatasetMetadata;
@@ -31,29 +26,46 @@ import com.dremio.options.OptionResolver;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.dremio.service.namespace.file.proto.IcebergFileConfig;
 import com.dremio.service.namespace.file.proto.ParquetFileConfig;
+import java.util.function.Supplier;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.iceberg.Table;
 
 /**
- * A dataset handle for accessing and interacting with a "Copy Into Errors" table using the Iceberg data format.
+ * A dataset handle for accessing and interacting with a "Copy Into Errors" table using the Iceberg
+ * data format.
  */
-public class SystemIcebergTablesExecutionDatasetAccessor extends BaseIcebergExecutionDatasetAccessor {
+public class SystemIcebergTablesExecutionDatasetAccessor
+    extends BaseIcebergExecutionDatasetAccessor {
 
   private final Supplier<Table> tableSupplier;
 
   /**
    * Constructs a new {@link SystemIcebergTablesExecutionDatasetAccessor}.
    *
-   * @param entityPath            The entity path representing the dataset.
-   * @param tableSupplier         A supplier function to provide the Iceberg {@link Table} instance.
-   * @param configuration         The configuration for the dataset accessor.
+   * @param entityPath The entity path representing the dataset.
+   * @param tableSupplier A supplier function to provide the Iceberg {@link Table} instance.
+   * @param configuration The configuration for the dataset accessor.
    * @param tableSnapshotProvider The provider for table snapshots.
-   * @param plugin                The {@link SystemIcebergTablesStoragePlugin} instance.
-   * @param tableSchemaProvider   The provider for table schema.
-   * @param optionResolver        The option resolver for dataset options.
+   * @param plugin The {@link SystemIcebergTablesStoragePlugin} instance.
+   * @param tableSchemaProvider The provider for table schema.
+   * @param optionResolver The option resolver for dataset options.
    */
-  SystemIcebergTablesExecutionDatasetAccessor(EntityPath entityPath, Supplier<Table> tableSupplier, Configuration configuration,
-                                              TableSnapshotProvider tableSnapshotProvider, SystemIcebergTablesStoragePlugin plugin,
-                                              TableSchemaProvider tableSchemaProvider, OptionResolver optionResolver) {
-    super(entityPath, tableSupplier, configuration, tableSnapshotProvider, plugin, tableSchemaProvider, optionResolver);
+  SystemIcebergTablesExecutionDatasetAccessor(
+      EntityPath entityPath,
+      Supplier<Table> tableSupplier,
+      Configuration configuration,
+      TableSnapshotProvider tableSnapshotProvider,
+      SystemIcebergTablesStoragePlugin plugin,
+      TableSchemaProvider tableSchemaProvider,
+      OptionResolver optionResolver) {
+    super(
+        entityPath,
+        tableSupplier,
+        configuration,
+        tableSnapshotProvider,
+        plugin,
+        tableSchemaProvider,
+        optionResolver);
     this.tableSupplier = tableSupplier;
   }
 
@@ -65,8 +77,8 @@ public class SystemIcebergTablesExecutionDatasetAccessor extends BaseIcebergExec
   @Override
   protected FileConfig getFileConfig() {
     return new IcebergFileConfig()
-      .setParquetDataFormat(new ParquetFileConfig())
-      .asFileConfig()
-      .setLocation(tableSupplier.get().location());
+        .setParquetDataFormat(new ParquetFileConfig())
+        .asFileConfig()
+        .setLocation(tableSupplier.get().location());
   }
 }

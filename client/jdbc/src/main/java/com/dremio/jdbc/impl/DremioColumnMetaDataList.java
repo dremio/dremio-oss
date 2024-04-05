@@ -17,18 +17,6 @@ package com.dremio.jdbc.impl;
 
 import static com.dremio.common.util.MajorTypeHelper.getMajorTypeForField;
 
-import java.sql.ResultSetMetaData;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.List;
-import java.util.ListIterator;
-
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.calcite.avatica.ColumnMetaData;
-import org.apache.calcite.avatica.ColumnMetaData.AvaticaType;
-import org.apache.calcite.avatica.ColumnMetaData.Rep;
-
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.Types;
 import com.dremio.exec.proto.UserProtos.ColumnSearchability;
@@ -36,9 +24,20 @@ import com.dremio.exec.proto.UserProtos.ColumnUpdatability;
 import com.dremio.exec.proto.UserProtos.ResultColumnMetadata;
 import com.dremio.exec.record.BatchSchema;
 import com.google.common.collect.ImmutableList;
+import java.sql.ResultSetMetaData;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.List;
+import java.util.ListIterator;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.calcite.avatica.ColumnMetaData;
+import org.apache.calcite.avatica.ColumnMetaData.AvaticaType;
+import org.apache.calcite.avatica.ColumnMetaData.Rep;
 
-public class DremioColumnMetaDataList extends BasicList<ColumnMetaData>{
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DremioColumnMetaDataList.class);
+public class DremioColumnMetaDataList extends BasicList<ColumnMetaData> {
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(DremioColumnMetaDataList.class);
 
   private List<ColumnMetaData> columns = new ArrayList<>();
 
@@ -53,72 +52,75 @@ public class DremioColumnMetaDataList extends BasicList<ColumnMetaData>{
   }
 
   /**
-   * Gets AvaticaType carrying both JDBC {@code java.sql.Type.*} type code
-   * and SQL type name for given SQL type name.
+   * Gets AvaticaType carrying both JDBC {@code java.sql.Type.*} type code and SQL type name for
+   * given SQL type name.
    */
   private static AvaticaType getAvaticaType(String sqlTypeName) {
     final int jdbcTypeId = Types.getJdbcTypeCode(sqlTypeName);
-    return ColumnMetaData.scalar( jdbcTypeId, sqlTypeName,
-        Rep.BOOLEAN /* dummy value, unused */ );
+    return ColumnMetaData.scalar(jdbcTypeId, sqlTypeName, Rep.BOOLEAN /* dummy value, unused */);
   }
 
   /**
    * Update the metadata with given metadata received from server.
+   *
    * @param metadata
    */
   public void updateColumnMetaData(List<ResultColumnMetadata> metadata) {
     final List<ColumnMetaData> newColumns = new ArrayList<>(metadata.size());
     int offset = 0;
-    for(ResultColumnMetadata m : metadata) {
+    for (ResultColumnMetadata m : metadata) {
 
       final AvaticaType bundledSqlDataType = getAvaticaType(m.getDataType());
 
-      newColumns.add(new ColumnMetaData(
-          offset,
-          m.getAutoIncrement(),
-          m.getCaseSensitivity(),
-          m.getSearchability() != ColumnSearchability.NONE,
-          m.getIsCurrency(),
-          m.getIsNullable() ? ResultSetMetaData.columnNullable : ResultSetMetaData.columnNoNulls,
-          m.getSigned(),
-          m.getDisplaySize(),
-          m.getLabel(),
-          m.getColumnName(),
-          m.getSchemaName(),
-          m.getPrecision(),
-          m.getScale(),
-          m.getTableName(),
-          m.getCatalogName(),
-          bundledSqlDataType,
-          m.getUpdatability() == ColumnUpdatability.READ_ONLY,
-          m.getUpdatability() == ColumnUpdatability.WRITABLE,
-          m.getUpdatability() == ColumnUpdatability.WRITABLE,
-          m.getClassName()
-      ));
+      newColumns.add(
+          new ColumnMetaData(
+              offset,
+              m.getAutoIncrement(),
+              m.getCaseSensitivity(),
+              m.getSearchability() != ColumnSearchability.NONE,
+              m.getIsCurrency(),
+              m.getIsNullable()
+                  ? ResultSetMetaData.columnNullable
+                  : ResultSetMetaData.columnNoNulls,
+              m.getSigned(),
+              m.getDisplaySize(),
+              m.getLabel(),
+              m.getColumnName(),
+              m.getSchemaName(),
+              m.getPrecision(),
+              m.getScale(),
+              m.getTableName(),
+              m.getCatalogName(),
+              bundledSqlDataType,
+              m.getUpdatability() == ColumnUpdatability.READ_ONLY,
+              m.getUpdatability() == ColumnUpdatability.WRITABLE,
+              m.getUpdatability() == ColumnUpdatability.WRITABLE,
+              m.getClassName()));
       offset++;
     }
     columns = ImmutableList.copyOf(newColumns);
   }
 
   /**
-   * Gets AvaticaType carrying both JDBC {@code java.sql.Type.*} type code
-   * and SQL type name for given RPC-level type (from batch schema).
+   * Gets AvaticaType carrying both JDBC {@code java.sql.Type.*} type code and SQL type name for
+   * given RPC-level type (from batch schema).
    */
-  private static AvaticaType getAvaticaType( MajorType rpcDateType ) {
-    final String sqlTypeName = Types.getSqlTypeName( rpcDateType );
-    final int jdbcTypeId = Types.getJdbcTypeCode( sqlTypeName );
-    return ColumnMetaData.scalar( jdbcTypeId, sqlTypeName,
-        Rep.BOOLEAN /* dummy value, unused */ );
+  private static AvaticaType getAvaticaType(MajorType rpcDateType) {
+    final String sqlTypeName = Types.getSqlTypeName(rpcDateType);
+    final int jdbcTypeId = Types.getJdbcTypeCode(sqlTypeName);
+    return ColumnMetaData.scalar(jdbcTypeId, sqlTypeName, Rep.BOOLEAN /* dummy value, unused */);
   }
 
-  public void updateColumnMetaData(String catalogName, String schemaName,
-                                   String tableName, BatchSchema schema,
-                                   List<Class<?>> getObjectClasses ) {
-    final List<ColumnMetaData> newColumns =
-        new ArrayList<>(schema.getFieldCount());
+  public void updateColumnMetaData(
+      String catalogName,
+      String schemaName,
+      String tableName,
+      BatchSchema schema,
+      List<Class<?>> getObjectClasses) {
+    final List<ColumnMetaData> newColumns = new ArrayList<>(schema.getFieldCount());
     for (int colOffset = 0; colOffset < schema.getFieldCount(); colOffset++) {
       final Field field = schema.getColumn(colOffset);
-      Class<?> objectClass = getObjectClasses.get( colOffset );
+      Class<?> objectClass = getObjectClasses.get(colOffset);
 
       final String columnName = field.getName();
 
@@ -127,16 +129,21 @@ public class DremioColumnMetaDataList extends BasicList<ColumnMetaData>{
       final String columnClassName = objectClass.getName();
 
       final int nullability;
-      switch ( rpcDataType.getMode() ) {
-        case OPTIONAL: nullability = ResultSetMetaData.columnNullable; break;
-        case REQUIRED: nullability = ResultSetMetaData.columnNoNulls;  break;
-        // Should REPEATED still map to columnNoNulls? or to columnNullable?
-        case REPEATED: nullability = ResultSetMetaData.columnNoNulls;  break;
+      switch (rpcDataType.getMode()) {
+        case OPTIONAL:
+          nullability = ResultSetMetaData.columnNullable;
+          break;
+        case REQUIRED:
+          nullability = ResultSetMetaData.columnNoNulls;
+          break;
+          // Should REPEATED still map to columnNoNulls? or to columnNullable?
+        case REPEATED:
+          nullability = ResultSetMetaData.columnNoNulls;
+          break;
         default:
-          throw new AssertionError( "Unexpected new DataMode value '"
-                                    + rpcDataType.getMode() + "'" );
+          throw new AssertionError("Unexpected new DataMode value '" + rpcDataType.getMode() + "'");
       }
-      final boolean isSigned = Types.isJdbcSignedType( rpcDataType );
+      final boolean isSigned = Types.isJdbcSignedType(rpcDataType);
 
       // TODO(DRILL-3355):  TODO(DRILL-3356):  When string lengths, precisions,
       // interval kinds, etc., are available from RPC-level data, implement:
@@ -148,28 +155,28 @@ public class DremioColumnMetaDataList extends BasicList<ColumnMetaData>{
       final int scale = Types.getScale(rpcDataType);
       final int displaySize = Types.getJdbcDisplaySize(rpcDataType);
 
-      ColumnMetaData col = new ColumnMetaData(
-          colOffset,    // (zero-based ordinal (for Java arrays/lists).)
-          false,        /* autoIncrement */
-          false,        /* caseSensitive */
-          true,         /* searchable */
-          false,        /* currency */
-          nullability,
-          isSigned,
-          displaySize,
-          columnName,   /* label */
-          columnName,   /* columnName */
-          schemaName,
-          precision,
-          scale,
-          tableName,
-          catalogName,
-          bundledSqlDataType,
-          true,         /* readOnly */
-          false,        /* writable */
-          false,        /* definitelyWritable */
-          columnClassName
-         );
+      ColumnMetaData col =
+          new ColumnMetaData(
+              colOffset, // (zero-based ordinal (for Java arrays/lists).)
+              false, /* autoIncrement */
+              false, /* caseSensitive */
+              true, /* searchable */
+              false, /* currency */
+              nullability,
+              isSigned,
+              displaySize,
+              columnName, /* label */
+              columnName, /* columnName */
+              schemaName,
+              precision,
+              scale,
+              tableName,
+              catalogName,
+              bundledSqlDataType,
+              true, /* readOnly */
+              false, /* writable */
+              false, /* definitelyWritable */
+              columnClassName);
       newColumns.add(col);
     }
     columns = newColumns;

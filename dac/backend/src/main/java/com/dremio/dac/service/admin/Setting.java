@@ -22,16 +22,14 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 
-/**
- * Generic implementation of setting across multiple setting types.
- */
-@JsonPropertyOrder({ "@id" })
+/** Generic implementation of setting across multiple setting types. */
+@JsonPropertyOrder({"@id"})
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
 @JsonSubTypes({
-    @JsonSubTypes.Type(value=Setting.IntegerSetting.class),
-    @JsonSubTypes.Type(value=Setting.FloatSetting.class),
-    @JsonSubTypes.Type(value=Setting.BooleanSetting.class),
-    @JsonSubTypes.Type(value=Setting.TextSetting.class)
+  @JsonSubTypes.Type(value = Setting.IntegerSetting.class),
+  @JsonSubTypes.Type(value = Setting.FloatSetting.class),
+  @JsonSubTypes.Type(value = Setting.BooleanSetting.class),
+  @JsonSubTypes.Type(value = Setting.TextSetting.class)
 })
 public abstract class Setting {
 
@@ -48,96 +46,75 @@ public abstract class Setting {
 
   public abstract Object getValue();
 
-  /**
-   * Setting with long value.
-   */
+  /** Setting with long value. */
   @JsonTypeName("INTEGER")
   public static class IntegerSetting extends Setting {
 
     private final long value;
 
     @JsonCreator
-    public IntegerSetting(
-        @JsonProperty("id") String id,
-        @JsonProperty("value") long value
-        ) {
+    public IntegerSetting(@JsonProperty("id") String id, @JsonProperty("value") long value) {
       super(id);
       this.value = value;
     }
 
     @Override
-    public Long getValue(){
+    public Long getValue() {
       return value;
     }
   }
 
-  /**
-   * Setting with floating point value.
-   */
+  /** Setting with floating point value. */
   @JsonTypeName("FLOAT")
   public static class FloatSetting extends Setting {
 
     private final double value;
 
     @JsonCreator
-    public FloatSetting(
-        @JsonProperty("id") String id,
-        @JsonProperty("value") double value
-        ) {
+    public FloatSetting(@JsonProperty("id") String id, @JsonProperty("value") double value) {
       super(id);
       this.value = value;
     }
 
     @Override
-    public Double getValue(){
+    public Double getValue() {
       return value;
     }
   }
 
-  /**
-   * Setting with boolean value.
-   */
+  /** Setting with boolean value. */
   @JsonTypeName("BOOLEAN")
   public static class BooleanSetting extends Setting {
 
     private final boolean value;
 
     @JsonCreator
-    public BooleanSetting(
-        @JsonProperty("id") String id,
-        @JsonProperty("value") boolean value
-        ) {
+    public BooleanSetting(@JsonProperty("id") String id, @JsonProperty("value") boolean value) {
       super(id);
       this.value = value;
     }
 
     @Override
-    public Boolean getValue(){
+    public Boolean getValue() {
       return value;
     }
   }
 
-  /**
-   * Setting with text value.
-   */
+  /** Setting with text value. */
   @JsonTypeName("TEXT")
   public static class TextSetting extends Setting {
 
     private final String value;
 
     @JsonCreator
-    public TextSetting(
-        @JsonProperty("id") String id,
-        @JsonProperty("value") String value
-        ) {
+    public TextSetting(@JsonProperty("id") String id, @JsonProperty("value") String value) {
       super(id);
       this.value = value;
     }
 
     @Override
-    public String getValue(){
+    public String getValue() {
       return value;
     }
   }
-
 }

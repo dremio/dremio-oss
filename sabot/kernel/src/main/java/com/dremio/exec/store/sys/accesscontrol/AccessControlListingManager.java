@@ -17,11 +17,11 @@ package com.dremio.exec.store.sys.accesscontrol;
 
 import com.dremio.service.Service;
 
-/**
- * Exposes the privileges and roles store to the execution engine.
- */
+/** Exposes the privileges and roles store to the execution engine. */
 public interface AccessControlListingManager extends Service {
   Iterable<SysTableMembershipInfo> getMembershipInfo();
+
   Iterable<SysTablePrivilegeInfo> getPrivilegeInfo();
+
   Iterable<SysTableRoleInfo> getRoleInfo();
 }

@@ -20,23 +20,19 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.core.Response;
-
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.server.FamilyExpectation;
 import com.dremio.service.users.SimpleUser;
 import com.dremio.service.users.UserService;
 import com.dremio.service.users.proto.UID;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import javax.ws.rs.client.Entity;
+import javax.ws.rs.core.Response;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
-/**
- * Tests {@link UserResource} API
- */
+/** Tests {@link UserResource} API */
 public class TestUserResource extends BaseTestServer {
   private static final String USER_PATH = "/user/";
   private static final String password = "foo12bar";
@@ -47,7 +43,13 @@ public class TestUserResource extends BaseTestServer {
   public void setup() throws Exception {
     final UserService userService = l(UserService.class);
 
-    SimpleUser user1 = SimpleUser.newBuilder().setUserName("user1").setFirstName("").setLastName("").setEmail("user1@foo.com").build();
+    SimpleUser user1 =
+        SimpleUser.newBuilder()
+            .setUserName("user1")
+            .setFirstName("")
+            .setLastName("")
+            .setEmail("user1@foo.com")
+            .build();
     createdUser = userService.createUser(user1, password);
   }
 
@@ -63,7 +65,10 @@ public class TestUserResource extends BaseTestServer {
     final UserService userService = l(UserService.class);
     com.dremio.service.users.User user1 = userService.getUser("user1");
 
-    User user = expectSuccess(getBuilder(getPublicAPI(3).path(USER_PATH).path(user1.getUID().getId())).buildGet(), User.class);
+    User user =
+        expectSuccess(
+            getBuilder(getPublicAPI(3).path(USER_PATH).path(user1.getUID().getId())).buildGet(),
+            User.class);
     assertEquals(user.getId(), user1.getUID().getId());
     assertEquals(user.getName(), user1.getUserName());
   }
@@ -73,8 +78,10 @@ public class TestUserResource extends BaseTestServer {
     final UserService userService = l(UserService.class);
     com.dremio.service.users.User user1 = userService.getUser("user1");
 
-    User user = expectSuccess(getBuilder(getPublicAPI(3).path(USER_PATH).path(user1.getUID().getId()))
-      .buildGet(), User.class);
+    User user =
+        expectSuccess(
+            getBuilder(getPublicAPI(3).path(USER_PATH).path(user1.getUID().getId())).buildGet(),
+            User.class);
     assertEquals(user.getId(), user1.getUID().getId());
     assertEquals(user.getName(), user1.getUserName());
     assertEquals(user.getFirstName(), user1.getFirstName());
@@ -84,18 +91,17 @@ public class TestUserResource extends BaseTestServer {
     assertNull("Password should not be sent to a data consumer", user.getPassword());
   }
 
-  /**
-   * User update request that includes password information
-   */
+  /** User update request that includes password information */
   private static class UserInfoRequest extends User {
-    public UserInfoRequest(String id,
-                           String name,
-                           String firstName,
-                           String lastName,
-                           String email,
-                           String version,
-                           String password,
-                           String extra) {
+    public UserInfoRequest(
+        String id,
+        String name,
+        String firstName,
+        String lastName,
+        String email,
+        String version,
+        String password,
+        String extra) {
       super(id, name, firstName, lastName, email, version, password, extra);
     }
 
@@ -108,10 +114,20 @@ public class TestUserResource extends BaseTestServer {
 
   @Test
   public void testCreateUser() throws Exception {
-    UserInfoRequest userInfo = new UserInfoRequest(null, "test_new_user", "test", "new user",
-      "bla@bla.bla", "0", "123some_password", null);
-    User savedUser = expectSuccess(getBuilder(getPublicAPI(3).path(USER_PATH))
-      .buildPost(Entity.json(userInfo)), User.class);
+    UserInfoRequest userInfo =
+        new UserInfoRequest(
+            null,
+            "test_new_user",
+            "test",
+            "new user",
+            "bla@bla.bla",
+            "0",
+            "123some_password",
+            null);
+    User savedUser =
+        expectSuccess(
+            getBuilder(getPublicAPI(3).path(USER_PATH)).buildPost(Entity.json(userInfo)),
+            User.class);
 
     assertNotNull(savedUser.getId());
     assertEquals(savedUser.getName(), userInfo.getName());
@@ -127,21 +143,42 @@ public class TestUserResource extends BaseTestServer {
 
   @Test
   public void testCreateUserWithExistingName() throws Exception {
-    UserInfoRequest userInfo = new UserInfoRequest(null, createdUser.getUserName(), "test", "new user",
-      "bla@bla.bla", "0", "123some_password", null);
+    UserInfoRequest userInfo =
+        new UserInfoRequest(
+            null,
+            createdUser.getUserName(),
+            "test",
+            "new user",
+            "bla@bla.bla",
+            "0",
+            "123some_password",
+            null);
 
     // should not allow to create a user with a name of existing user
-    expect(FamilyExpectation.CLIENT_ERROR, getBuilder(getPublicAPI(3).path(USER_PATH).path("createUser"))
-      .buildPut(Entity.json(userInfo)));
+    expect(
+        FamilyExpectation.CLIENT_ERROR,
+        getBuilder(getPublicAPI(3).path(USER_PATH).path("createUser"))
+            .buildPut(Entity.json(userInfo)));
   }
 
   @Test
   public void testUpdateUser() {
-    UserInfoRequest userInfo = new UserInfoRequest(createdUser.getUID().getId(), createdUser.getUserName(),
-      "a new firstName", " a new last name", "new_email@mail.com", createdUser.getVersion(), null, null);
+    UserInfoRequest userInfo =
+        new UserInfoRequest(
+            createdUser.getUID().getId(),
+            createdUser.getUserName(),
+            "a new firstName",
+            " a new last name",
+            "new_email@mail.com",
+            createdUser.getVersion(),
+            null,
+            null);
 
-    User savedUser = expectSuccess(getBuilder(getPublicAPI(3).path(USER_PATH).path(createdUser.getUID().getId()))
-      .buildPut(Entity.json(userInfo)), User.class);
+    User savedUser =
+        expectSuccess(
+            getBuilder(getPublicAPI(3).path(USER_PATH).path(createdUser.getUID().getId()))
+                .buildPut(Entity.json(userInfo)),
+            User.class);
 
     assertEquals(createdUser.getUID().getId(), savedUser.getId());
     assertEquals(savedUser.getName(), userInfo.getName());
@@ -152,40 +189,60 @@ public class TestUserResource extends BaseTestServer {
     assertNull("Password should not be sent to a data consumer", savedUser.getPassword());
 
     // for correct cleanup
-    createdUser = SimpleUser.newBuilder()
-      .setUID(new UID(savedUser.getId()))
-      .setUserName(savedUser.getName())
-      .setVersion(savedUser.getTag()).build();
+    createdUser =
+        SimpleUser.newBuilder()
+            .setUID(new UID(savedUser.getId()))
+            .setUserName(savedUser.getName())
+            .setVersion(savedUser.getTag())
+            .build();
   }
 
   @Test
   public void testUserNameChange() {
-    UserInfoRequest userInfo = new UserInfoRequest(createdUser.getUID().getId(), createdUser.getUserName() + "2",
-      "a new firstName", " a new last name", "new_email@mail.com", createdUser.getVersion(), null, null);
+    UserInfoRequest userInfo =
+        new UserInfoRequest(
+            createdUser.getUID().getId(),
+            createdUser.getUserName() + "2",
+            "a new firstName",
+            " a new last name",
+            "new_email@mail.com",
+            createdUser.getVersion(),
+            null,
+            null);
 
     // should not allow to change a user name
-    expect(FamilyExpectation.CLIENT_ERROR, getBuilder(getPublicAPI(3).path(USER_PATH).path(createdUser.getUID().getId()))
-      .buildPut(Entity.json(userInfo)));
+    expect(
+        FamilyExpectation.CLIENT_ERROR,
+        getBuilder(getPublicAPI(3).path(USER_PATH).path(createdUser.getUID().getId()))
+            .buildPut(Entity.json(userInfo)));
   }
 
   @Test
   public void testGetUserByInvalidId() throws Exception {
-    expectStatus(Response.Status.NOT_FOUND, getBuilder(getPublicAPI(3).path(USER_PATH).path("invalid-id")).buildGet());
+    expectStatus(
+        Response.Status.NOT_FOUND,
+        getBuilder(getPublicAPI(3).path(USER_PATH).path("invalid-id")).buildGet());
   }
 
   @Test
   public void testGetUserByName() throws Exception {
     final UserService userService = l(UserService.class);
 
-    User user = expectSuccess(getBuilder(getPublicAPI(3).path(USER_PATH).path("by-name").path(createdUser.getUserName())).buildGet(), User.class);
+    User user =
+        expectSuccess(
+            getBuilder(
+                    getPublicAPI(3).path(USER_PATH).path("by-name").path(createdUser.getUserName()))
+                .buildGet(),
+            User.class);
     assertEquals(user.getId(), createdUser.getUID().getId());
     assertEquals(user.getName(), createdUser.getUserName());
   }
 
   @Test
   public void testGetUserByInvalidName() throws Exception {
-    expectStatus(Response.Status.NOT_FOUND, getBuilder(getPublicAPI(3).path(USER_PATH).path("by-name").path("invalid-name")).buildGet());
+    expectStatus(
+        Response.Status.NOT_FOUND,
+        getBuilder(getPublicAPI(3).path(USER_PATH).path("by-name").path("invalid-name"))
+            .buildGet());
   }
-
-
 }

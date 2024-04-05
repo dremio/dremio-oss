@@ -19,6 +19,8 @@ import static org.apache.arrow.vector.types.Types.MinorType.INT;
 import static org.apache.arrow.vector.types.Types.MinorType.VARCHAR;
 import static org.apache.arrow.vector.types.pojo.FieldType.nullable;
 
+import com.dremio.common.expression.CompleteType;
+import com.dremio.test.AllocatorRule;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.IntVector;
@@ -27,10 +29,7 @@ import org.apache.arrow.vector.complex.UnionVector;
 import org.apache.arrow.vector.complex.impl.UnionWriter;
 import org.apache.arrow.vector.types.pojo.Field;
 
-import com.dremio.common.expression.CompleteType;
-import com.dremio.test.AllocatorRule;
-
-public class SparseUnionGenerator  extends TpchGenerator {
+public class SparseUnionGenerator extends TpchGenerator {
   private static final int INT_MIN = -30;
   private static final int INT_MAX = 100;
   private static final int WORD_AVERAGE_LENGTH = 352;
@@ -44,21 +43,24 @@ public class SparseUnionGenerator  extends TpchGenerator {
 
   private final UnionVector mixedGroups;
 
-  private static final Field map = CompleteType.union(
-    CompleteType.VARCHAR.toField("varchar"),
-    CompleteType.INT.toField("int")
-  ).toField("mixed_group");
+  private static final Field map =
+      CompleteType.union(CompleteType.VARCHAR.toField("varchar"), CompleteType.INT.toField("int"))
+          .toField("mixed_group");
 
-
-  public SparseUnionGenerator(final BufferAllocator allocator, final GenerationDefinition def, final int partitionIndex, final GenerationDefinition.TpchTable table, final String...includedColumns) {
+  public SparseUnionGenerator(
+      final BufferAllocator allocator,
+      final GenerationDefinition def,
+      final int partitionIndex,
+      final GenerationDefinition.TpchTable table,
+      final String... includedColumns) {
 
     super(table, allocator, def, partitionIndex, includedColumns);
     this.allocator = allocator;
 
-    //create a struct vector
+    // create a struct vector
     this.mixedGroups = (UnionVector) complexType(map);
 
-    //create field vectors of struct
+    // create field vectors of struct
     this.mixedGroups.addOrGet("varchar", nullable(VARCHAR.getType()), VarCharVector.class);
     this.mixedGroups.addOrGet("int", nullable(INT.getType()), IntVector.class);
 
@@ -72,9 +74,9 @@ public class SparseUnionGenerator  extends TpchGenerator {
 
     unionWriter.setPosition(outputIndex);
 
-    if(outputIndex % 2 == 0){
+    if (outputIndex % 2 == 0) {
 
-      try(final ArrowBuf tempBuf =  allocator.buffer(1024)){
+      try (final ArrowBuf tempBuf = allocator.buffer(1024)) {
         final byte[] varCharVal = wordRandom.nextValue().getBytes();
         tempBuf.setBytes(0, varCharVal);
 
@@ -82,8 +84,6 @@ public class SparseUnionGenerator  extends TpchGenerator {
       }
     } else {
       unionWriter.writeInt(intRandom.nextValue());
-
     }
-
   }
 }

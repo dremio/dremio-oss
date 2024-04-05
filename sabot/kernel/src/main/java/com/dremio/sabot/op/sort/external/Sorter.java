@@ -15,24 +15,30 @@
  */
 package com.dremio.sabot.op.sort.external;
 
-import java.io.IOException;
-
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.exec.exception.ClassTransformationException;
 import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.exec.record.ExpandableHyperContainer;
 import com.dremio.exec.record.RecordBatchData;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.selection.SelectionVector4;
+import java.io.IOException;
+import org.apache.arrow.memory.BufferAllocator;
 
-public interface Sorter extends  AutoCloseable {
+public interface Sorter extends AutoCloseable {
   public boolean expandMemoryIfNecessary(int newRequiredSize);
-  public void setup(VectorAccessible batch) throws ClassTransformationException, SchemaChangeException, IOException;
-  public void addBatch(RecordBatchData data, BufferAllocator copyTargetAllocator) throws SchemaChangeException;
+
+  public void setup(VectorAccessible batch)
+      throws ClassTransformationException, SchemaChangeException, IOException;
+
+  public void addBatch(RecordBatchData data, BufferAllocator copyTargetAllocator)
+      throws SchemaChangeException;
+
   public ExpandableHyperContainer getHyperBatch();
+
   public int getHyperBatchSize();
+
   public SelectionVector4 getFinalSort(BufferAllocator copyTargetAllocator, int targetBatchSize);
+
   @Override
   public void close() throws Exception;
 }

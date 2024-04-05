@@ -21,8 +21,8 @@ public class ExpressionParsingException extends LogicalPlanParsingException {
     super();
   }
 
-  public ExpressionParsingException(String message, Throwable cause, boolean enableSuppression,
-      boolean writableStackTrace) {
+  public ExpressionParsingException(
+      String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
     super(message, cause, enableSuppression, writableStackTrace);
   }
 
@@ -37,6 +37,4 @@ public class ExpressionParsingException extends LogicalPlanParsingException {
   public ExpressionParsingException(Throwable cause) {
     super(cause);
   }
-
-
 }

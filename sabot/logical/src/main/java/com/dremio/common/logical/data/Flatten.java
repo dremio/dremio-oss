@@ -15,8 +15,6 @@
  */
 package com.dremio.common.logical.data;
 
-import java.util.Iterator;
-
 import com.dremio.common.expression.FieldReference;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.logical.data.visitors.LogicalVisitor;
@@ -24,6 +22,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.Iterators;
+import java.util.Iterator;
 
 @JsonTypeName("flatten")
 public class Flatten extends SingleInputOperator {
@@ -32,7 +31,9 @@ public class Flatten extends SingleInputOperator {
   private final boolean drop;
 
   @JsonCreator
-  public Flatten(@JsonProperty("name") FieldReference name, @JsonProperty("expr") LogicalExpression expr,
+  public Flatten(
+      @JsonProperty("name") FieldReference name,
+      @JsonProperty("expr") LogicalExpression expr,
       @JsonProperty("drop") boolean drop) {
     this.name = name;
     this.expr = expr;
@@ -52,7 +53,8 @@ public class Flatten extends SingleInputOperator {
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(LogicalVisitor<T, X, E> logicalVisitor, X value) throws E {
+  public <T, X, E extends Throwable> T accept(LogicalVisitor<T, X, E> logicalVisitor, X value)
+      throws E {
     return logicalVisitor.visitFlatten(this, value);
   }
 
@@ -60,5 +62,4 @@ public class Flatten extends SingleInputOperator {
   public Iterator<LogicalOperator> iterator() {
     return Iterators.singletonIterator(getInput());
   }
-
 }

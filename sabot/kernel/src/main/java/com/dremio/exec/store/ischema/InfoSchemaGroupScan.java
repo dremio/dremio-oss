@@ -15,10 +15,6 @@
  */
 package com.dremio.exec.store.ischema;
 
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
@@ -36,10 +32,11 @@ import com.dremio.service.catalog.SearchQuery;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Objects;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
 
-/**
- * InfoSchema group scan.
- */
+/** InfoSchema group scan. */
 public class InfoSchemaGroupScan extends AbstractBase implements GroupScan<SimpleCompleteWork> {
 
   private final InformationSchemaTable table;
@@ -53,8 +50,7 @@ public class InfoSchemaGroupScan extends AbstractBase implements GroupScan<Simpl
       @JsonProperty("table") InformationSchemaTable table,
       @JsonProperty("columns") List<SchemaPath> columns,
       @JsonProperty("query") SearchQuery query,
-      @JsonProperty("pluginId") StoragePluginId pluginId
-      ) {
+      @JsonProperty("pluginId") StoragePluginId pluginId) {
     super(props);
     this.table = table;
     this.columns = columns;
@@ -107,9 +103,10 @@ public class InfoSchemaGroupScan extends AbstractBase implements GroupScan<Simpl
   }
 
   /**
-   * If distributed, the scan needs to happen on every node. Since width is enforced, the number of fragments equals
-   * number of SabotNodes. And here we set, each endpoint as mandatory assignment required to ensure every
-   * SabotNode executes a fragment.
+   * If distributed, the scan needs to happen on every node. Since width is enforced, the number of
+   * fragments equals number of SabotNodes. And here we set, each endpoint as mandatory assignment
+   * required to ensure every SabotNode executes a fragment.
+   *
    * @return the SabotNode endpoint affinities
    */
   @Override
@@ -128,7 +125,8 @@ public class InfoSchemaGroupScan extends AbstractBase implements GroupScan<Simpl
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value) throws E {
+  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value)
+      throws E {
     return physicalVisitor.visitGroupScan(this, value);
   }
 
@@ -138,8 +136,8 @@ public class InfoSchemaGroupScan extends AbstractBase implements GroupScan<Simpl
   }
 
   @Override
-  public PhysicalOperator getNewWithChildren(List<PhysicalOperator> children) throws ExecutionSetupException {
+  public PhysicalOperator getNewWithChildren(List<PhysicalOperator> children)
+      throws ExecutionSetupException {
     return this;
   }
-
 }

@@ -31,45 +31,45 @@ message VirtualDatasetUI {
   optional string name = 1;
   optional string parentPath = 2 [deprecated=true];
   optional bool accelerated = 3 [deprecated=true];
-  
+
   // current sql generated from the state
   optional string sql = 4;
-  
+
   // current version of the dataset. Not all versions are saved
   optional string version = 5 [value_type=com.dremio.service.namespace.dataset.DatasetVersion];
-  
+
   // current state of the dataset
   optional VirtualDatasetState state = 6;
-  
+
   // The fields of the dataset from a View perspective. This is generated from the sql field
   // This is based on BatchSchema (if available) and rowType (if BatchSchema is not available / incomplete)
   repeated com.dremio.service.namespace.dataset.proto.ViewFieldType sql_fields = 7;
-  
+
   // transformation applied to previousVersion that produced this version
   // null if first version // TODO: just make a creation transform
   optional Transform lastTransform = 8;
-  
+
   // previous version of the dataset. null if first version
   optional NameDatasetRef previousVersion = 9;
-  
+
   // creation timestamp of this version
   optional int64 createdAt = 10;
-  
+
   // list of datasets that this dataset refers to (first level only)
   repeated com.dremio.service.namespace.dataset.proto.ParentDataset parents = 11;
-  
+
   // full path to reference this dataset.
   repeated string fullPath = 12;
-  
+
   // version actually saved of a dataset
   optional string savedTag = 13;
 
   // the origin of each column.
   repeated com.dremio.service.namespace.dataset.proto.FieldOrigin fieldOrigins = 15;
-  
+
   // is this dataset named? Once a dataset has been saved once, it and all transformations on top of it are named.
   optional bool isNamed = 16 [DEFAULT = true];
-  
+
   optional Derivation derivation = 17 [DEFAULT = UNKNOWN];
 
   repeated com.dremio.service.namespace.dataset.proto.ParentDataset grandParents = 18;
@@ -85,32 +85,35 @@ message VirtualDatasetUI {
   repeated com.dremio.service.namespace.dataset.proto.ViewFieldType calcite_fields = 21;
 
   // batch schema
-  // This field is not serialized 
-  optional bytes record_schema = 22; 
+  // This field is not serialized
+  optional bytes record_schema = 22;
 
   // sql context
   repeated string context = 23;
 
   //version context references
   repeated SourceVersionReference references = 24;
+
+  //where does VirtualDatasetUI come from.
+  optional DatasetVersionOrigin datasetVersionOrigin = 25;
 }
 
 enum Derivation {
 
   // Comes from a hand input SQL query.
   SQL = 1;
-  
+
   // Comes from a table derivation but parent type is unknown. Only used ephemerally until we can calculate derivation type.
   DERIVED_UNKNOWN = 2;
-  
+
   // Comes from a new_untitled of a physical dataset.
   DERIVED_PHYSICAL = 3;
-  
+
   // Comes from a new_untitled of a virtual dataset.
   DERIVED_VIRTUAL = 4;
-  
+
   // Unkown derivation type.
-  UNKNOWN = 5; 
+  UNKNOWN = 5;
 }
 
 message VirtualDatasetVersion {
@@ -123,12 +126,19 @@ message VirtualDatasetVersion {
 
   // dataset info stored in namespace if this version is the tip.
   optional com.dremio.service.namespace.dataset.proto.DatasetConfig dataset = 4;
-  
+
   optional Derivation derivation = 5 [DEFAULT = UNKNOWN];
-  
+
   optional bool named = 6 [DEFAULT = true];
 
   repeated SourceVersionReference references = 7;
+
+  optional DatasetVersionOrigin datasetVersionOrigin = 8;
+}
+
+enum DatasetVersionOrigin {
+  RUN = 1;
+  SAVE = 2;
 }
 
 message NameDatasetRef {
@@ -202,7 +212,7 @@ message Expression {
 // exactly one of the optional fields is populated
 // the type field defines which one
   required ExpressionType type = 1;
- 
+
   optional ExpColumnReference col = 2;
   optional ExpTrim trim = 3;
   optional ExpConvertCase convertCase = 4;
@@ -305,8 +315,8 @@ enum OrderDirection {
   DESC = 2;
 }
 
-message Order { 
-  required string name = 1; 
+message Order {
+  required string name = 1;
   required OrderDirection direction = 2;
 }
 
@@ -832,10 +842,10 @@ message ExtractRuleMultiple {
 
 message ListSelection { // for single indices start == end
   required Offset start = 1;
-  required Offset end = 2; 
+  required Offset end = 2;
 }
 
-enum MatchType { 
+enum MatchType {
   regex = 1;
   exact = 2;
 }

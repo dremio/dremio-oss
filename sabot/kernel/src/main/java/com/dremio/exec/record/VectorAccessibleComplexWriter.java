@@ -24,7 +24,8 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 
 public class VectorAccessibleComplexWriter extends NonNullableStructVector {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(VectorAccessibleComplexWriter.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(VectorAccessibleComplexWriter.class);
 
   private final VectorContainer vc;
 
@@ -32,13 +33,13 @@ public class VectorAccessibleComplexWriter extends NonNullableStructVector {
     super("", null, new FieldType(false, ArrowType.Struct.INSTANCE, null, null), null);
     this.vc = vc;
   }
+
   @Override
   public <T extends FieldVector> T addOrGet(String childName, FieldType fieldType, Class<T> clazz) {
     Field field = new Field(childName, fieldType, null);
     final FieldVector v = vc.addOrGet(field);
     putChild(childName, v);
     return this.typeify(v, clazz);
-
   }
 
   public static ComplexWriter getWriter(String name, VectorContainer container) {

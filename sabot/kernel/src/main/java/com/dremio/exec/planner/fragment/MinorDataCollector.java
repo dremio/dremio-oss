@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.planner.fragment;
 
-import java.util.List;
-
 import com.dremio.exec.physical.base.AbstractPhysicalVisitor;
 import com.dremio.exec.physical.base.OpWithMinorSpecificAttrs;
 import com.dremio.exec.physical.base.PhysicalOperator;
@@ -24,6 +22,7 @@ import com.dremio.exec.proto.CoordExecRPC.MinorAttr;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.work.foreman.ForemanSetupException;
+import java.util.List;
 
 /*
  * Visitor to collect all minor-specific attributes from each operator.
@@ -35,11 +34,11 @@ public class MinorDataCollector
   public MinorDataCollector() {}
 
   public static List<MinorAttr> collect(
-    FragmentHandle handle,
-    NodeEndpoint endpoint,
-    PhysicalOperator root,
-    MinorDataSerDe serDe,
-    PlanFragmentsIndex.Builder indexBuilder)
+      FragmentHandle handle,
+      NodeEndpoint endpoint,
+      PhysicalOperator root,
+      MinorDataSerDe serDe,
+      PlanFragmentsIndex.Builder indexBuilder)
       throws ForemanSetupException {
 
     // Create an instance of the writer for serializing the attributes.
@@ -57,7 +56,7 @@ public class MinorDataCollector
     try {
       // collect attributes for this operator.
       if (op instanceof OpWithMinorSpecificAttrs) {
-        ((OpWithMinorSpecificAttrs)op).collectMinorSpecificAttrs(writer);
+        ((OpWithMinorSpecificAttrs) op).collectMinorSpecificAttrs(writer);
       }
     } catch (Exception e) {
       throw new ForemanSetupException("Failed to collect minor specific data", e);

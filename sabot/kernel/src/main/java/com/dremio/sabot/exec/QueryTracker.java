@@ -15,9 +15,6 @@
  */
 package com.dremio.sabot.exec;
 
-import java.util.Optional;
-import java.util.Set;
-
 import com.dremio.common.util.MayExpire;
 import com.dremio.exec.proto.CoordExecRPC;
 import com.dremio.exec.proto.CoordinationProtos;
@@ -27,29 +24,34 @@ import com.dremio.service.jobtelemetry.client.JobTelemetryExecutorClient;
 import com.dremio.service.maestroservice.MaestroClient;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.Empty;
+import java.util.Optional;
+import java.util.Set;
 
 /**
- * Tracker for query used in MaestroProxy. Extends {@link MayExpire} so it can be used in {@link com.dremio.common.util.LoadingCacheWithExpiry}
+ * Tracker for query used in MaestroProxy. Extends {@link MayExpire} so it can be used in {@link
+ * com.dremio.common.util.LoadingCacheWithExpiry}
  */
 interface QueryTracker extends MayExpire {
 
   /**
    * Try to start a new query. While the start is in-progress, no completion event will be sent.
    *
-   * @param ticket        ticket for the query.
+   * @param ticket ticket for the query.
    * @param maestroClient client to maestro service
    * @return true if query can be started.
    */
-  boolean tryStart(QueryTicket ticket, CoordinationProtos.NodeEndpoint foreman, MaestroClient maestroClient, JobTelemetryExecutorClient telemetryClient);
+  boolean tryStart(
+      QueryTicket ticket,
+      CoordinationProtos.NodeEndpoint foreman,
+      MaestroClient maestroClient,
+      JobTelemetryExecutorClient telemetryClient);
 
   /**
    * @return whether the query is already started
    */
   boolean isStarted();
 
-  /**
-   * set query status to CANCELLED
-   */
+  /** set query status to CANCELLED */
   default void setCancelled() {}
 
   /**
@@ -58,17 +60,15 @@ interface QueryTracker extends MayExpire {
   boolean isCancelled();
 
   /**
-   * Return true if query is one of following
-   * 1. completed successfully
-   * 2. marked as cancelled
-   * 3. expired
+   * Return true if query is one of following 1. completed successfully 2. marked as cancelled 3.
+   * expired
+   *
    * @return
    */
   boolean isTerminal();
 
   /**
-   * Initialize with the set of fragment handles for the query before
-   * starting the query.
+   * Initialize with the set of fragment handles for the query before starting the query.
    *
    * @param pendingFragments
    */
@@ -94,12 +94,14 @@ interface QueryTracker extends MayExpire {
 
   /**
    * Return time on foreman side, at which query fragment was sent to executor
+   *
    * @return
    */
   long getQuerySentTime();
 
   /**
    * Set time on foreman side, at which query fragment was sent to executor
+   *
    * @return
    */
   void setQuerySentTime(long querySentTime);

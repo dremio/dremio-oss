@@ -15,25 +15,20 @@
  */
 package com.dremio.common.utils.protos;
 
-import java.util.concurrent.ThreadLocalRandom;
-
 import com.dremio.exec.proto.UserBitShared.ExternalId;
 import com.dremio.exec.proto.UserBitShared.QueryData;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.proto.UserBitShared.QueryResult;
+import java.util.concurrent.ThreadLocalRandom;
 
-/**
- * utility methods for ExternalId
- */
+/** utility methods for ExternalId */
 public final class ExternalIdHelper {
 
   public static final long MASK = 0xFFFFFFFFFFFFFF00L;
 
   public static QueryWritableBatch replaceQueryId(QueryWritableBatch batch, ExternalId externalId) {
     final QueryData header =
-            QueryData.newBuilder(batch.getHeader())
-            .setQueryId(toQueryId(externalId))
-            .build();
+        QueryData.newBuilder(batch.getHeader()).setQueryId(toQueryId(externalId)).build();
 
     return new QueryWritableBatch(header, batch.getBuffers());
   }
@@ -45,17 +40,18 @@ public final class ExternalIdHelper {
   /**
    * Helper method to generate an "external" QueryId.
    *
-   * This is the only method that can generate external query Id.
+   * <p>This is the only method that can generate external query Id.
    *
    * @return generated QueryId
    */
   public static ExternalId generateExternalId() {
     ThreadLocalRandom r = ThreadLocalRandom.current();
 
-    // create a new internalId where the first four bytes are a growing time (each new value comes earlier in sequence).
+    // create a new internalId where the first four bytes are a growing time (each new value comes
+    // earlier in sequence).
     // Last 11 bytes are random.
     // last byte is set to 0
-    final long time = (int) (System.currentTimeMillis()/1000);
+    final long time = (int) (System.currentTimeMillis() / 1000);
     final long p1 = ((Integer.MAX_VALUE - time) << 32) + r.nextInt();
 
     // generate a long from 7 random bytes + 1 zero byte
@@ -74,17 +70,18 @@ public final class ExternalIdHelper {
 
   public static QueryId toQueryId(final ExternalId externalId) {
     return QueryId.newBuilder()
-            .setPart1(externalId.getPart1())
-            .setPart2(externalId.getPart2())
-            .build();
+        .setPart1(externalId.getPart1())
+        .setPart2(externalId.getPart2())
+        .build();
   }
 
-  @Deprecated // Dremio still uses QueryId internally, once we switch to using AttemptId we can get rid of this
+  @Deprecated // Dremio still uses QueryId internally, once we switch to using AttemptId we can get
+  // rid of this
   public static ExternalId toExternal(final QueryId queryId) {
     return ExternalId.newBuilder()
-            .setPart1(queryId.getPart1())
-            .setPart2(queryId.getPart2() & MASK)
-            .build();
+        .setPart1(queryId.getPart1())
+        .setPart2(queryId.getPart2() & MASK)
+        .build();
   }
 
   public static boolean isValid(final ExternalId externalId) {

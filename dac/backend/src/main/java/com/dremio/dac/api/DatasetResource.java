@@ -17,18 +17,6 @@ package com.dremio.dac.api;
 
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
-import java.util.List;
-import java.util.Optional;
-
-import javax.annotation.security.RolesAllowed;
-import javax.inject.Inject;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.GET;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-
 import com.dremio.dac.annotations.APIResource;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.service.catalog.CatalogServiceHelper;
@@ -38,10 +26,18 @@ import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.google.common.base.Function;
 import com.google.common.collect.Lists;
+import java.util.List;
+import java.util.Optional;
+import javax.annotation.security.RolesAllowed;
+import javax.inject.Inject;
+import javax.ws.rs.Consumes;
+import javax.ws.rs.GET;
+import javax.ws.rs.POST;
+import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
+import javax.ws.rs.Produces;
 
-/**
- * Resource for information about reflections.
- */
+/** Resource for information about reflections. */
 @APIResource
 @Secured
 @Path("/dataset")
@@ -53,7 +49,8 @@ public class DatasetResource {
   private CatalogServiceHelper catalogServiceHelper;
 
   @Inject
-  public DatasetResource(ReflectionServiceHelper reflectionServiceHelper, CatalogServiceHelper catalogServiceHelper) {
+  public DatasetResource(
+      ReflectionServiceHelper reflectionServiceHelper, CatalogServiceHelper catalogServiceHelper) {
     this.reflectionServiceHelper = reflectionServiceHelper;
     this.catalogServiceHelper = catalogServiceHelper;
   }
@@ -68,7 +65,8 @@ public class DatasetResource {
     }
 
     ResponseList<Reflection> response = new ResponseList<>();
-    Iterable<ReflectionGoal> reflectionsForDataset = reflectionServiceHelper.getReflectionsForDataset(id);
+    Iterable<ReflectionGoal> reflectionsForDataset =
+        reflectionServiceHelper.getReflectionsForDataset(id);
 
     for (ReflectionGoal goal : reflectionsForDataset) {
       response.add(reflectionServiceHelper.newReflection(goal));
@@ -79,19 +77,23 @@ public class DatasetResource {
 
   @POST
   @Path("/{id}/reflection/recommendation")
-  public ResponseList<Reflection> getReflectionRecommendationsForDataset(@PathParam("id") String id) {
+  public ResponseList<Reflection> getReflectionRecommendationsForDataset(
+      @PathParam("id") String id) {
     Optional<DatasetConfig> dataset = catalogServiceHelper.getDatasetById(id);
 
     if (!dataset.isPresent()) {
       throw new DatasetNotFoundException(id);
     }
 
-    List<Reflection> recommendations = Lists.transform(reflectionServiceHelper.getRecommendedReflections(id), new Function<ReflectionGoal, Reflection>() {
-      @Override
-      public Reflection apply(ReflectionGoal goal) {
-        return new Reflection(goal);
-      }
-    });
+    List<Reflection> recommendations =
+        Lists.transform(
+            reflectionServiceHelper.getRecommendedReflections(id),
+            new Function<ReflectionGoal, Reflection>() {
+              @Override
+              public Reflection apply(ReflectionGoal goal) {
+                return new Reflection(goal);
+              }
+            });
     return new ResponseList<>(recommendations);
   }
 }

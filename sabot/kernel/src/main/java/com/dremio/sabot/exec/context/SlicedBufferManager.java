@@ -18,9 +18,7 @@ package com.dremio.sabot.exec.context;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferManager;
 
-
 public interface SlicedBufferManager extends BufferManager {
 
   ArrowBuf getManagedBufferSliced(long size);
-
 }

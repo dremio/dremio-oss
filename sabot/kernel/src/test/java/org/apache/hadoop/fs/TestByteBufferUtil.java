@@ -19,14 +19,11 @@ import static org.junit.Assert.assertEquals;
 
 import java.io.ByteArrayInputStream;
 import java.nio.ByteBuffer;
-
 import org.apache.hadoop.io.ByteBufferPool;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-/**
- * Test for the locally fixed ByteBufferUtil
- */
+/** Test for the locally fixed ByteBufferUtil */
 public class TestByteBufferUtil {
   private static final int TEST_DATA_SIZE = ByteBufferUtil.MAX_BUFFERED_READ * 7 / 3;
 
@@ -35,7 +32,7 @@ public class TestByteBufferUtil {
   @BeforeClass
   public static void populateData() {
     for (int i = 0; i < TEST_DATA_SIZE; i++) {
-      testData[i] = (byte)(i & 0x7f);
+      testData[i] = (byte) (i & 0x7f);
     }
   }
 

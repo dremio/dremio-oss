@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.store.hive.exec;
 
-import java.util.List;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.physical.base.OpProps;
@@ -29,21 +27,27 @@ import com.dremio.exec.store.parquet.RecordReaderIterator;
 import com.dremio.exec.store.parquet.ScanTableFunction;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
+import java.util.List;
 
-/**
- * Hive implementation of ScanTableFunction
- */
+/** Hive implementation of ScanTableFunction */
 public class HiveScanTableFunction extends ScanTableFunction {
 
   private final HiveProxiedScanBatchCreator hiveProxiedScanBatchCreator;
 
-  public HiveScanTableFunction(FragmentExecutionContext fec, OperatorContext context, OpProps props, TableFunctionConfig functionConfig) {
+  public HiveScanTableFunction(
+      FragmentExecutionContext fec,
+      OperatorContext context,
+      OpProps props,
+      TableFunctionConfig functionConfig) {
     super(fec, context, props, functionConfig);
 
     try {
-      final SupportsPF4JStoragePlugin pf4JStoragePlugin = fec.getStoragePlugin(functionConfig.getFunctionContext().getPluginId());
-      final StoragePluginCreator.PF4JStoragePlugin plugin = pf4JStoragePlugin.getPF4JStoragePlugin();
-      hiveProxiedScanBatchCreator = plugin.createScanBatchCreator(fec, context, props, functionConfig);
+      final SupportsPF4JStoragePlugin pf4JStoragePlugin =
+          fec.getStoragePlugin(functionConfig.getFunctionContext().getPluginId());
+      final StoragePluginCreator.PF4JStoragePlugin plugin =
+          pf4JStoragePlugin.getPF4JStoragePlugin();
+      hiveProxiedScanBatchCreator =
+          plugin.createScanBatchCreator(fec, context, props, functionConfig);
     } catch (ExecutionSetupException e) {
       throw new RuntimeException("Error creating HiveProxiedScanBatchCreator", e);
     }
@@ -66,7 +70,8 @@ public class HiveScanTableFunction extends ScanTableFunction {
 
   @Override
   public void close() throws Exception {
-    RecordReaderIterator recordReaderIterator = hiveProxiedScanBatchCreator.getRecordReaderIterator();
+    RecordReaderIterator recordReaderIterator =
+        hiveProxiedScanBatchCreator.getRecordReaderIterator();
     AutoCloseables.close(super::close, recordReaderIterator);
   }
 }

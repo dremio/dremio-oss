@@ -25,6 +25,7 @@ export const getIntercomSessionMetadata = () => {
         id: user.clusterId,
         version: user.version,
         created_at: user.clusterCreatedAt / 1000,
+        company_edition: window.dremioConfig?.edition,
       },
       created_at: user.userCreatedAt / 1000,
       name: `${user.firstName} ${user.lastName}`.trim(),

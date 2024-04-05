@@ -21,6 +21,8 @@ public interface FileWork {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FileWork.class);
 
   public FileAttributes getFileAttributes();
+
   public long getStart();
+
   public long getLength();
 }

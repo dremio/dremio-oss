@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.store.hive.exec;
 
-import java.io.IOException;
-
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.store.StoragePluginResolver;
 import com.dremio.exec.store.SupportsPF4JStoragePlugin;
@@ -28,10 +26,11 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
+import java.io.IOException;
 
 /**
- * Helper class for deserializing a SubScan that delegates to a SubScan
- * that is in a separate classloader.
+ * Helper class for deserializing a SubScan that delegates to a SubScan that is in a separate
+ * classloader.
  */
 public class HiveProxyingSubScanDeserializer extends StdDeserializer<HiveProxyingSubScan> {
   public HiveProxyingSubScanDeserializer() {
@@ -43,19 +42,26 @@ public class HiveProxyingSubScanDeserializer extends StdDeserializer<HiveProxyin
   }
 
   @Override
-  public HiveProxyingSubScan deserialize(JsonParser jsonParser, DeserializationContext deserializationContext) throws IOException, JsonProcessingException {
+  public HiveProxyingSubScan deserialize(
+      JsonParser jsonParser, DeserializationContext deserializationContext)
+      throws IOException, JsonProcessingException {
     final JsonNode node = jsonParser.getCodec().readTree(jsonParser);
-    final StoragePluginId pluginId = HiveCommonUtilities.deserialize(jsonParser, deserializationContext,
-      node.get("pluginId"), StoragePluginId.class);
+    final StoragePluginId pluginId =
+        HiveCommonUtilities.deserialize(
+            jsonParser, deserializationContext, node.get("pluginId"), StoragePluginId.class);
 
     // get subscan class type from plugin.
-    final StoragePluginResolver storagePluginResolver = (StoragePluginResolver) deserializationContext
-      .findInjectableValue(StoragePluginResolver.class.getName(), null, null);
+    final StoragePluginResolver storagePluginResolver =
+        (StoragePluginResolver)
+            deserializationContext.findInjectableValue(
+                StoragePluginResolver.class.getName(), null, null);
     final SupportsPF4JStoragePlugin pf4JStoragePlugin = storagePluginResolver.getSource(pluginId);
     final StoragePluginCreator.PF4JStoragePlugin plugin = pf4JStoragePlugin.getPF4JStoragePlugin();
     final Class<? extends HiveProxiedSubScan> scanClazz = plugin.getSubScanClass();
 
-    HiveProxiedSubScan scan = HiveCommonUtilities.deserialize(jsonParser, deserializationContext, node.get("wrappedHiveScan"), scanClazz);
+    HiveProxiedSubScan scan =
+        HiveCommonUtilities.deserialize(
+            jsonParser, deserializationContext, node.get("wrappedHiveScan"), scanClazz);
     return new HiveProxyingSubScan(pluginId, scan);
   }
 }

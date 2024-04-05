@@ -26,6 +26,7 @@ public abstract class SqlUnsupportedException extends ForemanSetupException {
     FUNCTION(UnsupportedFunctionException.class.getSimpleName());
 
     private final String exceptionType;
+
     ExceptionType(String exceptionType) {
       this.exceptionType = exceptionType;
     }
@@ -40,10 +41,11 @@ public abstract class SqlUnsupportedException extends ForemanSetupException {
     super(errorMessage);
   }
 
-  public static void errorClassNameToException(String errorClassName) throws SqlUnsupportedException {
+  public static void errorClassNameToException(String errorClassName)
+      throws SqlUnsupportedException {
     UnsupportedOperatorCollector collector = new UnsupportedOperatorCollector();
-    for(ExceptionType ex : ExceptionType.values()) {
-      if(errorClassName.endsWith(ex.toString())) {
+    for (ExceptionType ex : ExceptionType.values()) {
+      if (errorClassName.endsWith(ex.toString())) {
         collector.setException(ex);
         collector.convertException();
         collector.clean();

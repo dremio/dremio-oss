@@ -15,6 +15,8 @@
  */
 package org.apache.arrow.vector;
 
+import com.dremio.test.AllocatorRule;
+import com.dremio.test.DremioTest;
 import org.apache.arrow.memory.BufferAllocator;
 import org.junit.After;
 import org.junit.Assert;
@@ -22,18 +24,12 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
-import com.dremio.test.AllocatorRule;
-import com.dremio.test.DremioTest;
-
-/**
- * Tests {@link AbstractVector#reAlloc()}
- */
+/** Tests {@link AbstractVector#reAlloc()} */
 public class TestSimpleIntVectorRealloc extends DremioTest {
 
   private BufferAllocator testAllocator;
 
-  @Rule
-  public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
+  @Rule public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
 
   @Before
   public void setupBeforeTest() {
@@ -65,5 +61,4 @@ public class TestSimpleIntVectorRealloc extends DremioTest {
       Assert.assertEquals(vector.getValueCapacity(), savedValueCapacity);
     }
   }
-
 }

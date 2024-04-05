@@ -15,7 +15,8 @@
  */
 package com.dremio.exec.catalog.udf;
 
-
+import com.dremio.exec.ops.UserDefinedFunctionExpander;
+import com.dremio.exec.planner.common.MoreRelOptUtil;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelRule;
 import org.apache.calcite.rel.RelNode;
@@ -25,17 +26,15 @@ import org.apache.calcite.schema.Function;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.validate.SqlUserDefinedFunction;
 
-import com.dremio.exec.ops.UserDefinedFunctionExpander;
-import com.dremio.exec.planner.common.MoreRelOptUtil;
-
 public final class TabularUserDefinedFunctionExpanderRule extends RelRule<RelRule.Config> {
   private final UserDefinedFunctionExpander userDefinedFunctionExpander;
 
-  public TabularUserDefinedFunctionExpanderRule(UserDefinedFunctionExpander userDefinedFunctionExpander) {
-    super(Config.EMPTY
-      .withDescription("TabularUserDefinedFunctionExpanderRule")
-      .withOperandSupplier(op1 ->
-        op1.operand(TableFunctionScan.class).anyInputs()));
+  public TabularUserDefinedFunctionExpanderRule(
+      UserDefinedFunctionExpander userDefinedFunctionExpander) {
+    super(
+        Config.EMPTY
+            .withDescription("TabularUserDefinedFunctionExpanderRule")
+            .withOperandSupplier(op1 -> op1.operand(TableFunctionScan.class).anyInputs()));
     this.userDefinedFunctionExpander = userDefinedFunctionExpander;
   }
 
@@ -55,15 +54,16 @@ public final class TabularUserDefinedFunctionExpanderRule extends RelRule<RelRul
     }
 
     DremioTabularUserDefinedFunction tabularFunction = (DremioTabularUserDefinedFunction) function;
-    RelNode tabularFunctionPlan = userDefinedFunctionExpander.expandTabularFunction(tabularFunction);
-    tabularFunctionPlan = ParameterizedQueryParameterReplacer.replaceParameters(
-      tabularFunctionPlan,
-      tabularFunction.getParameters(),
-      rexCall.operands,
-      tableFunctionScan.getCluster().getRexBuilder());
-    RelNode castProject = MoreRelOptUtil.createCastRel(
-      tabularFunctionPlan,
-      tableFunctionScan.getRowType());
+    RelNode tabularFunctionPlan =
+        userDefinedFunctionExpander.expandTabularFunction(tabularFunction);
+    tabularFunctionPlan =
+        ParameterizedQueryParameterReplacer.replaceParameters(
+            tabularFunctionPlan,
+            tabularFunction.getParameters(),
+            rexCall.operands,
+            tableFunctionScan.getCluster().getRexBuilder());
+    RelNode castProject =
+        MoreRelOptUtil.createCastRel(tabularFunctionPlan, tableFunctionScan.getRowType());
     call.transformTo(castProject);
   }
 }

@@ -20,29 +20,27 @@ import org.apache.poi.util.LittleEndianConsts;
 import org.apache.poi.util.ShortField;
 
 /**
- * This abstract base class is the ancestor of all classes
- * implementing POIFS Property behavior.
+ * This abstract base class is the ancestor of all classes implementing POIFS Property behavior.
  *
- * Simplified implementation of {@link org.apache.poi.poifs.property.Property}
+ * <p>Simplified implementation of {@link org.apache.poi.poifs.property.Property}
  */
-
 public abstract class Property {
-  private static final int    _name_size_offset         = 0x40;
+  private static final int _name_size_offset = 0x40;
 
   // useful offsets
-  private static final int    _previous_property_offset = 0x44;
-  private static final int    _next_property_offset     = 0x48;
-  private static final int    _child_property_offset    = 0x4C;
-  private static final int    _start_block_offset       = 0x74;
-  private static final int    _size_offset              = 0x78;
+  private static final int _previous_property_offset = 0x44;
+  private static final int _next_property_offset = 0x48;
+  private static final int _child_property_offset = 0x4C;
+  private static final int _start_block_offset = 0x74;
+  private static final int _size_offset = 0x78;
 
-  private String              _name;
-  private IntegerField        _previous_property;
-  private IntegerField        _next_property;
-  private IntegerField        _child_property;
-  private IntegerField        _start_block;
-  private IntegerField        _size;
-  private int                 _index;
+  private String _name;
+  private IntegerField _previous_property;
+  private IntegerField _next_property;
+  private IntegerField _child_property;
+  private IntegerField _start_block;
+  private IntegerField _size;
+  private int _index;
 
   /**
    * Constructor from byte data
@@ -50,29 +48,25 @@ public abstract class Property {
    * @param index index number
    * @param array byte data
    */
-  protected Property(int index, byte [] array)
-  {
-    short _name_size   = new ShortField(_name_size_offset, array).get();
+  protected Property(int index, byte[] array) {
+    short _name_size = new ShortField(_name_size_offset, array).get();
     _previous_property = new IntegerField(_previous_property_offset, array);
-    _next_property     = new IntegerField(_next_property_offset, array);
-    _child_property    = new IntegerField(_child_property_offset, array);
-    _start_block       = new IntegerField(_start_block_offset, array);
-    _size              = new IntegerField(_size_offset, array);
-    _index             = index;
+    _next_property = new IntegerField(_next_property_offset, array);
+    _child_property = new IntegerField(_child_property_offset, array);
+    _start_block = new IntegerField(_start_block_offset, array);
+    _size = new IntegerField(_size_offset, array);
+    _index = index;
     int name_length = (_name_size / LittleEndianConsts.SHORT_SIZE) - 1;
 
-    if (name_length < 1)
-    {
+    if (name_length < 1) {
       _name = "";
-    } else
-    {
-      char[] char_array  = new char[ name_length ];
-      int    name_offset = 0;
+    } else {
+      char[] char_array = new char[name_length];
+      int name_offset = 0;
 
-      for (int j = 0; j < name_length; j++)
-      {
-        char_array[ j ] = ( char ) new ShortField(name_offset, array).get();
-        name_offset     += LittleEndianConsts.SHORT_SIZE;
+      for (int j = 0; j < name_length; j++) {
+        char_array[j] = (char) new ShortField(name_offset, array).get();
+        name_offset += LittleEndianConsts.SHORT_SIZE;
       }
       _name = new String(char_array, 0, name_length);
     }
@@ -81,8 +75,7 @@ public abstract class Property {
   /**
    * @return the start block
    */
-  public int getStartBlock()
-  {
+  public int getStartBlock() {
     return _start_block.get();
   }
 
@@ -91,8 +84,7 @@ public abstract class Property {
    *
    * @return size in bytes
    */
-  public int getSize()
-  {
+  public int getSize() {
     return _size.get();
   }
 
@@ -101,8 +93,7 @@ public abstract class Property {
    *
    * @return property name as String
    */
-  public String getName()
-  {
+  public String getName() {
     return _name;
   }
 
@@ -116,19 +107,16 @@ public abstract class Property {
    *
    * @return child property index
    */
-  protected int getChildIndex()
-  {
+  protected int getChildIndex() {
     return _child_property.get();
   }
 
   /**
    * Set the index for this Property
    *
-   * @param index this Property's index within its containing
-   *              Property Table
+   * @param index this Property's index within its containing Property Table
    */
-  protected void setIndex(int index)
-  {
+  protected void setIndex(int index) {
     _index = index;
   }
 
@@ -137,8 +125,7 @@ public abstract class Property {
    *
    * @return the index of this Property within its Property Table
    */
-  protected int getIndex()
-  {
+  protected int getIndex() {
     return _index;
   }
 
@@ -147,8 +134,7 @@ public abstract class Property {
    *
    * @return index of next sibling
    */
-  int getNextChildIndex()
-  {
+  int getNextChildIndex() {
     return _next_property.get();
   }
 
@@ -157,9 +143,7 @@ public abstract class Property {
    *
    * @return index of previous sibling
    */
-  int getPreviousChildIndex()
-  {
+  int getPreviousChildIndex() {
     return _previous_property.get();
   }
-
 }

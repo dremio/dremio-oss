@@ -29,7 +29,7 @@ const canReachOrigin = moize.promise(
     fetch(window.location.origin)
       .then(() => true)
       .catch(() => false),
-  { maxAge: CHECK_INTERVAL / 2 }
+  { maxAge: CHECK_INTERVAL / 2 },
 );
 
 /**

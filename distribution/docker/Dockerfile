@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-ARG JAVA_IMAGE="eclipse-temurin:8-jdk"
+ARG JAVA_IMAGE="eclipse-temurin:11-jdk"
 FROM ${JAVA_IMAGE} as base
 
 LABEL maintainer=Dremio

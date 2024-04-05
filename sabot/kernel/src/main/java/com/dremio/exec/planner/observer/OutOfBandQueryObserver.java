@@ -15,19 +15,18 @@
  */
 package com.dremio.exec.planner.observer;
 
-import java.util.concurrent.Executor;
-
-import javax.inject.Provider;
-
 import com.dremio.common.SerializedExecutor;
 import com.dremio.common.utils.protos.AttemptId;
 import com.dremio.context.RequestContext;
 import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.work.protector.UserResult;
 import com.dremio.proto.model.attempts.AttemptReason;
+import java.util.concurrent.Executor;
+import javax.inject.Provider;
 
 public class OutOfBandQueryObserver extends AbstractQueryObserver {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(OutOfBandQueryObserver.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(OutOfBandQueryObserver.class);
 
   private final QueryObserver observer;
   private final Exec serializedExec;
@@ -50,22 +49,24 @@ public class OutOfBandQueryObserver extends AbstractQueryObserver {
 
   @Override
   public void execCompletion(final UserResult result) {
-    serializedExec.execute(new Runnable() {
-      @Override
-      public void run() {
-        observer.execCompletion(result);
-      }
-    });
+    serializedExec.execute(
+        new Runnable() {
+          @Override
+          public void run() {
+            observer.execCompletion(result);
+          }
+        });
   }
 
   @Override
   public void planParallelized(PlanningSet planningSet) {
-    serializedExec.execute(new Runnable() {
-      @Override
-      public void run() {
-        observer.planParallelized(planningSet);
-      }
-    });
+    serializedExec.execute(
+        new Runnable() {
+          @Override
+          public void run() {
+            observer.planParallelized(planningSet);
+          }
+        });
   }
 
   private final class Exec extends SerializedExecutor<Runnable> {
@@ -78,7 +79,5 @@ public class OutOfBandQueryObserver extends AbstractQueryObserver {
     protected void runException(Runnable runnable, Throwable exception) {
       logger.error("Exception occurred in out of band observer.", exception);
     }
-
   }
-
 }

@@ -20,7 +20,7 @@ import { TerminalNode } from "antlr4ts/tree/TerminalNode";
 
 export function getText(
   node: TerminalNode | RuleNode,
-  stopAtColumn?: number
+  stopAtColumn?: number,
 ): {
   text: string;
   isQuoted: boolean;
@@ -47,7 +47,7 @@ export function getText(
 /** Returns previous token that participated in parsing (not hidden) */
 export function getPriorToken(
   tokenStream: TokenStream,
-  index: number
+  index: number,
 ): Token | undefined {
   if (index == 0) {
     return undefined;

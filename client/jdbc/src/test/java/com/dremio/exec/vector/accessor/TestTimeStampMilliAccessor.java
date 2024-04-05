@@ -19,16 +19,14 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 
+import com.dremio.common.SuppressForbidden;
 import java.sql.Timestamp;
 import java.util.Calendar;
 import java.util.TimeZone;
-
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.TimeStampMilliVector;
 import org.junit.Before;
 import org.junit.Test;
-
-import com.dremio.common.SuppressForbidden;
 
 @SuppressForbidden
 public class TestTimeStampMilliAccessor {
@@ -65,21 +63,23 @@ public class TestTimeStampMilliAccessor {
     assertEquals(NON_NULL_VALUE, accessor.getObject(0));
   }
 
-  @Test(expected=NullPointerException.class)
+  @Test(expected = NullPointerException.class)
   public void testNullCalendar() throws InvalidAccessException {
     accessor.getTimestamp(0, null);
   }
 
-  @Test(expected=NullPointerException.class)
+  @Test(expected = NullPointerException.class)
   public void testCreationWithNullTimeZone() {
     new TimeStampMilliAccessor(valueVector, null);
   }
 
   @Test
   public void testGetTimestamp() throws Exception {
-    assertEquals(new Timestamp(72, 10, 4, 19, 10, 8, 957000000), accessor.getTimestamp(0, PST_CALENDAR));
+    assertEquals(
+        new Timestamp(72, 10, 4, 19, 10, 8, 957000000), accessor.getTimestamp(0, PST_CALENDAR));
     assertEquals(NON_NULL_VALUE, accessor.getTimestamp(0, UTC_CALENDAR));
-    assertEquals(new Timestamp(119, 4, 28, 6, 33, 13, 123000000), accessor.getTimestamp(1, PST_CALENDAR));
+    assertEquals(
+        new Timestamp(119, 4, 28, 6, 33, 13, 123000000), accessor.getTimestamp(1, PST_CALENDAR));
     assertEquals(DST_VALUE, accessor.getTimestamp(1, UTC_CALENDAR));
   }
 }

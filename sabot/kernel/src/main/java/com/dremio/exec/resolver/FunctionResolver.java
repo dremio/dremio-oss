@@ -16,23 +16,21 @@
 
 package com.dremio.exec.resolver;
 
-import java.util.List;
-
 import com.dremio.common.expression.FunctionCall;
 import com.dremio.exec.expr.fn.AbstractFunctionHolder;
+import java.util.List;
 
 /**
- * An implementing class of FunctionResolver provide their own algorithm to choose a BaseFunctionHolder from a given list of
- * candidates, with respect to a given FunctionCall
+ * An implementing class of FunctionResolver provide their own algorithm to choose a
+ * BaseFunctionHolder from a given list of candidates, with respect to a given FunctionCall
  */
 public interface FunctionResolver {
   /**
-   * Creates a placeholder SqlFunction for an invocation of a function with a
-   * possibly qualified name. This name must be resolved into either a builtin
-   * function or a user-defined function.
+   * Creates a placeholder SqlFunction for an invocation of a function with a possibly qualified
+   * name. This name must be resolved into either a builtin function or a user-defined function.
    *
-   * @param methods   a list of candidates of AbstractFunctionHolder to be chosen from
-   * @param call      a given function call whose BaseFunctionHolder is to be determined via this method
+   * @param methods a list of candidates of AbstractFunctionHolder to be chosen from
+   * @param call a given function call whose BaseFunctionHolder is to be determined via this method
    * @return BaseFunctionHolder the chosen BaseFunctionHolder
    */
   AbstractFunctionHolder getBestMatch(List<AbstractFunctionHolder> methods, FunctionCall call);

@@ -17,21 +17,21 @@ package com.dremio.datastore;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-import java.io.IOException;
-import java.util.UUID;
-
-import org.junit.Test;
-
 import com.dremio.datastore.format.Format;
 import com.dremio.datastore.format.compound.FormatTestArtifacts;
+import java.io.IOException;
+import java.util.UUID;
+import org.junit.Test;
 
 /**
  * Validates that functioning serializers are returned from the CoreStoreSerializerFactory.
- * <p>
- * Validation is performed by taking some type, serializing, and deserializing it back to the original value.
- * <p>
- * We do not test protostuff because there is no protostuff objects in this module. We did not want to find a module
- * with protostuff objects that doesn't depend on datastore nor specify a test only proto.
+ *
+ * <p>Validation is performed by taking some type, serializing, and deserializing it back to the
+ * original value.
+ *
+ * <p>We do not test protostuff because there is no protostuff objects in this module. We did not
+ * want to find a module with protostuff objects that doesn't depend on datastore nor specify a test
+ * only proto.
  */
 public abstract class AbstractTestByteSerializerFactory extends FormatTestArtifacts {
 
@@ -57,9 +57,7 @@ public abstract class AbstractTestByteSerializerFactory extends FormatTestArtifa
     runCircularTest(Format.ofUUID(), UUID.randomUUID());
   }
 
-  /**
-   * Wraps a string so that we may test the wrapped format.
-   */
+  /** Wraps a string so that we may test the wrapped format. */
   private static class Nesting {
     private final String inner;
 
@@ -84,9 +82,7 @@ public abstract class AbstractTestByteSerializerFactory extends FormatTestArtifa
       return -1;
     }
 
-    /**
-     * Used by the wrapped format to convert the Nesting to a string.
-     */
+    /** Used by the wrapped format to convert the Nesting to a string. */
     private static final class NestingConverter extends Converter<Nesting, String> {
 
       @Override
@@ -103,7 +99,8 @@ public abstract class AbstractTestByteSerializerFactory extends FormatTestArtifa
 
   @Test
   public void wrappedFormat() throws DatastoreFatalException, IOException {
-    final Format<Nesting> format = Format.wrapped(Nesting.class, new Nesting.NestingConverter(), Format.ofString());
+    final Format<Nesting> format =
+        Format.wrapped(Nesting.class, new Nesting.NestingConverter(), Format.ofString());
 
     runCircularTest(format, new Nesting(TEST_STRING));
   }

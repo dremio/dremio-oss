@@ -15,19 +15,6 @@
  */
 package com.dremio.service;
 
-import java.lang.reflect.Constructor;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Objects;
-
-import javax.annotation.Nullable;
-import javax.inject.Inject;
-import javax.inject.Provider;
-
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
@@ -40,30 +27,39 @@ import com.google.common.collect.Iterators;
 import com.google.common.collect.Maps;
 import com.google.inject.ConfigurationException;
 import com.google.inject.Injector;
+import java.lang.reflect.Constructor;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Objects;
+import javax.annotation.Nullable;
+import javax.inject.Inject;
+import javax.inject.Provider;
 
 /**
  * A very basic injection provider implementation.
  *
- * TODO: replace with real injection framework.
+ * <p>TODO: replace with real injection framework.
  */
 public class BinderImpl implements Binder {
 
   private Injector injector;
 
   public enum ResolverType {
-    /**
-     * A single instance, provided in the bind phase, will be returned in the resolution phase.
-     */
+    /** A single instance, provided in the bind phase, will be returned in the resolution phase. */
     SINGLETON,
     /**
-     * The resolver will instantiate a new instance, injecting it's dependencies. A new instance will
-     * be created on each call to {@link BindingProvider#lookup(Class)}.
+     * The resolver will instantiate a new instance, injecting it's dependencies. A new instance
+     * will be created on each call to {@link BindingProvider#lookup(Class)}.
      */
     INSTANCE,
     /**
-     * A supplier, provided in the bind phase, will return an instance in the resolution phase. It is
-     * up to the implementor of this {@link Provider} to determine the ultimate scope of the returned
-     * instance.
+     * A supplier, provided in the bind phase, will return an instance in the resolution phase. It
+     * is up to the implementor of this {@link Provider} to determine the ultimate scope of the
+     * returned instance.
      */
     PROVIDER
   }
@@ -84,8 +80,8 @@ public class BinderImpl implements Binder {
     return ImmutableMap.copyOf(lookups);
   }
 
-  public void copyBindings(BinderImpl target){
-    synchronized(target){
+  public void copyBindings(BinderImpl target) {
+    synchronized (target) {
       ImmutableMap.Builder<Class<?>, Resolver> newMap = ImmutableMap.<Class<?>, Resolver>builder();
       newMap.putAll(target.lookups);
       newMap.putAll(lookups);
@@ -103,7 +99,7 @@ public class BinderImpl implements Binder {
 
     private final Class<T> iface;
 
-    public DeferredProvider(Class<T> iface){
+    public DeferredProvider(Class<T> iface) {
       this.iface = iface;
     }
 
@@ -111,23 +107,23 @@ public class BinderImpl implements Binder {
     public T get() {
       return lookup(iface);
     }
-
   }
 
   @VisibleForTesting
-  Resolver getResolver(Class<?> iface){
+  Resolver getResolver(Class<?> iface) {
     Resolver r = lookups.get(iface);
 
-    if(r != null){
+    if (r != null) {
       return r;
     }
 
-    if(parent != null){
+    if (parent != null) {
       return parent.getResolver(iface);
     }
 
     return null;
-  };
+  }
+  ;
 
   @Override
   @SuppressWarnings("unchecked")
@@ -160,7 +156,7 @@ public class BinderImpl implements Binder {
     return bindInternal((Class<IFACE>) impl.getClass(), impl);
   }
 
-  /** Bind a framework  provided factory that will perform automatic dependency injection. */
+  /** Bind a framework provided factory that will perform automatic dependency injection. */
   @Override
   public <IFACE> void bind(Class<IFACE> iface, Class<? extends IFACE> impl) {
     bind(iface, new InjectableReference(impl));
@@ -181,8 +177,8 @@ public class BinderImpl implements Binder {
 
   /** Bind a singleton instance. */
   @Override
-  public synchronized <IFACE> boolean bindIfUnbound(Class<IFACE> iface, IFACE impl){
-    if(!lookups.containsKey(iface)){
+  public synchronized <IFACE> boolean bindIfUnbound(Class<IFACE> iface, IFACE impl) {
+    if (!lookups.containsKey(iface)) {
       bind(iface, impl);
       return true;
     } else {
@@ -205,7 +201,8 @@ public class BinderImpl implements Binder {
 
   /** Bind a user provided factory. */
   @Override
-  public synchronized <IFACE> void bindProvider(Class<IFACE> iface, Provider<? extends IFACE> provider) {
+  public synchronized <IFACE> void bindProvider(
+      Class<IFACE> iface, Provider<? extends IFACE> provider) {
     Preconditions.checkNotNull(iface);
     final ImmutableMap.Builder<Class<?>, Resolver> newLookups = ImmutableMap.builder();
     newLookups.putAll(lookups);
@@ -214,7 +211,8 @@ public class BinderImpl implements Binder {
   }
 
   @Override
-  public synchronized <IFACE> void replaceProvider(Class<IFACE> iface, Provider<? extends IFACE> provider) {
+  public synchronized <IFACE> void replaceProvider(
+      Class<IFACE> iface, Provider<? extends IFACE> provider) {
     Preconditions.checkNotNull(iface);
     if (lookups.containsKey(iface)) {
       remove(iface);
@@ -223,28 +221,33 @@ public class BinderImpl implements Binder {
   }
 
   @VisibleForTesting
-  synchronized void remove(final Class<?> iface){
+  synchronized void remove(final Class<?> iface) {
     final ImmutableMap.Builder<Class<?>, Resolver> newLookups = ImmutableMap.builder();
     final Pointer<Resolver> removed = new Pointer<>();
-    newLookups.putAll(Maps.filterEntries(lookups, new Predicate<Map.Entry<Class<?>, Resolver>>(){
+    newLookups.putAll(
+        Maps.filterEntries(
+            lookups,
+            new Predicate<Map.Entry<Class<?>, Resolver>>() {
 
-      @Override
-      public boolean apply(Entry<Class<?>, Resolver> input) {
-        boolean matches = input.getKey().equals(iface);
-        if(matches){
-          removed.value = input.getValue();
-        }
-        return !matches;
-      }}));
+              @Override
+              public boolean apply(Entry<Class<?>, Resolver> input) {
+                boolean matches = input.getKey().equals(iface);
+                if (matches) {
+                  removed.value = input.getValue();
+                }
+                return !matches;
+              }
+            }));
 
-    if(removed.value == null){
-      throw new IllegalStateException("Trying to remove an unbound value. No singleton is bound to " + iface.getName());
+    if (removed.value == null) {
+      throw new IllegalStateException(
+          "Trying to remove an unbound value. No singleton is bound to " + iface.getName());
     }
     lookups = newLookups.build();
   }
 
   @Override
-  public synchronized <IFACE> void replace(Class<IFACE> iface, IFACE impl){
+  public synchronized <IFACE> void replace(Class<IFACE> iface, IFACE impl) {
     remove(iface);
     bindInternal(iface, impl);
   }
@@ -255,28 +258,30 @@ public class BinderImpl implements Binder {
   }
 
   @Override
-  @SuppressWarnings({ "unchecked", "rawtypes" })
+  @SuppressWarnings({"unchecked", "rawtypes"})
   public Iterator<Binding<?>> iterator() {
-    return Iterators.transform(lookups.entrySet().iterator(), new Function<Entry<Class<?>, Resolver>, Binding<?>>(){
-      @Override
-      public Binding apply(Entry<Class<?>, Resolver> input) {
-        switch(input.getValue().getType()){
-        case INSTANCE:
-          return new InstanceBinding(input.getKey(), ((InjectableReference)input.getValue()).clazz);
-        case SINGLETON:
-          return new SingletonBinding(input.getKey(), input.getValue().get(null));
-        case PROVIDER:
-          return new ProviderBinding(input.getKey(), ((ProviderReference)input.getValue()).getProvider());
-        default:
-          throw new IllegalStateException();
-        }
-
-      }});
+    return Iterators.transform(
+        lookups.entrySet().iterator(),
+        new Function<Entry<Class<?>, Resolver>, Binding<?>>() {
+          @Override
+          public Binding apply(Entry<Class<?>, Resolver> input) {
+            switch (input.getValue().getType()) {
+              case INSTANCE:
+                return new InstanceBinding(
+                    input.getKey(), ((InjectableReference) input.getValue()).clazz);
+              case SINGLETON:
+                return new SingletonBinding(input.getKey(), input.getValue().get(null));
+              case PROVIDER:
+                return new ProviderBinding(
+                    input.getKey(), ((ProviderReference) input.getValue()).getProvider());
+              default:
+                throw new IllegalStateException();
+            }
+          }
+        });
   }
 
-  /**
-   * Description of a specific singleton binding.
-   */
+  /** Description of a specific singleton binding. */
   public abstract static class Binding<T> {
     private final Class<T> iface;
 
@@ -308,7 +313,6 @@ public class BinderImpl implements Binder {
     public ResolverType getType() {
       return ResolverType.INSTANCE;
     }
-
   }
 
   public static final class SingletonBinding<T> extends Binding<T> {
@@ -347,7 +351,7 @@ public class BinderImpl implements Binder {
     }
   }
 
-  public BindingCreator getBindingCreator(){
+  public BindingCreator getBindingCreator() {
     return new BindingCreatorImpl();
   }
 
@@ -399,13 +403,11 @@ public class BinderImpl implements Binder {
     }
   }
 
-  public BindingProvider getBindingProvider(){
+  public BindingProvider getBindingProvider() {
     return new BindingProviderImpl();
   }
 
-  /**
-   * Masked impl.
-   */
+  /** Masked impl. */
   private final class BindingProviderImpl implements BindingProvider {
 
     @Override
@@ -429,11 +431,10 @@ public class BinderImpl implements Binder {
     }
   }
 
-  /**
-   * A reference that ensures that we've initialized a service before returning this reference.
-   */
+  /** A reference that ensures that we've initialized a service before returning this reference. */
   public interface Resolver {
     Object get(BindingProvider provider);
+
     ResolverType getType();
   }
 
@@ -531,7 +532,9 @@ public class BinderImpl implements Binder {
         return false;
       }
       InjectableReference that = (InjectableReference) o;
-      return Objects.equals(clazz, that.clazz) && Objects.equals(constructor, that.constructor) && Objects.equals(providers, that.providers);
+      return Objects.equals(clazz, that.clazz)
+          && Objects.equals(constructor, that.constructor)
+          && Objects.equals(providers, that.providers);
     }
 
     @Override
@@ -539,33 +542,48 @@ public class BinderImpl implements Binder {
       return Objects.hash(clazz, constructor, providers);
     }
 
-    public InjectableReference(Class<?> clazz){
+    public InjectableReference(Class<?> clazz) {
       this.clazz = clazz;
-      Collection<Constructor<?>> annotated = Collections2.filter(Arrays.asList(clazz.getConstructors()), new Predicate<Constructor<?>>(){
-        @Override
-        public boolean apply(Constructor<?> input) {
-          return input.getAnnotation(Inject.class) != null;
-        }});
+      Collection<Constructor<?>> annotated =
+          Collections2.filter(
+              Arrays.asList(clazz.getConstructors()),
+              new Predicate<Constructor<?>>() {
+                @Override
+                public boolean apply(Constructor<?> input) {
+                  return input.getAnnotation(Inject.class) != null;
+                }
+              });
 
-      Preconditions.checkArgument(annotated.size() == 1, "Unable to treat class %s as injectable. It should have one and only one "
-          + "constructor marked with @Inject annotation. It has %s constructors with this annotation.", clazz.getName(), annotated.size());
+      Preconditions.checkArgument(
+          annotated.size() == 1,
+          "Unable to treat class %s as injectable. It should have one and only one "
+              + "constructor marked with @Inject annotation. It has %s constructors with this annotation.",
+          clazz.getName(),
+          annotated.size());
 
       this.constructor = annotated.iterator().next();
-      this.providers = Arrays.stream(constructor.getParameterTypes())
-        .map(FinalResolver::new)
-        .collect(ImmutableList.toImmutableList());
+      this.providers =
+          Arrays.stream(constructor.getParameterTypes())
+              .map(FinalResolver::new)
+              .collect(ImmutableList.toImmutableList());
     }
 
     @Override
     public Object get(final BindingProvider provider) {
-      try{
-        return constructor.newInstance(FluentIterable.from(providers).transform(new Function<FinalResolver, Object>(){
-          @Override
-          public Object apply(FinalResolver input) {
-            return input.getImplementation(provider);
-          }}).toArray(Object.class));
-      }catch(Exception ex){
-        throw new RuntimeException(String.format("Failure while attempting to create %s.", clazz.getName()), ex);
+      try {
+        return constructor.newInstance(
+            FluentIterable.from(providers)
+                .transform(
+                    new Function<FinalResolver, Object>() {
+                      @Override
+                      public Object apply(FinalResolver input) {
+                        return input.getImplementation(provider);
+                      }
+                    })
+                .toArray(Object.class));
+      } catch (Exception ex) {
+        throw new RuntimeException(
+            String.format("Failure while attempting to create %s.", clazz.getName()), ex);
       }
     }
 
@@ -573,7 +591,6 @@ public class BinderImpl implements Binder {
     public ResolverType getType() {
       return ResolverType.INSTANCE;
     }
-
   }
 
   public static class ProviderReference implements Resolver {

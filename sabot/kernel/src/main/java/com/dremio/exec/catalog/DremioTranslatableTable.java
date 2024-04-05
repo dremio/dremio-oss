@@ -15,14 +15,13 @@
  */
 package com.dremio.exec.catalog;
 
-import org.apache.calcite.schema.TranslatableTable;
-
 import com.dremio.service.namespace.NamespaceKey;
+import org.apache.calcite.schema.TranslatableTable;
 
 /**
  * Dremio translatable table.
- * <p>
- * Extension to {@link TranslatableTable} that provides canonical path of the table.
+ *
+ * <p>Extension to {@link TranslatableTable} that provides canonical path of the table.
  */
 public interface DremioTranslatableTable extends TranslatableTable {
 
@@ -33,5 +32,4 @@ public interface DremioTranslatableTable extends TranslatableTable {
    * @return canonical path
    */
   NamespaceKey getPath();
-
 }

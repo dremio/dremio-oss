@@ -18,9 +18,7 @@ package com.dremio.dac.support;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-/**
- * The result of requesting a support upload.
- */
+/** The result of requesting a support upload. */
 public class SupportResponse {
   private final boolean success;
   private final boolean includesLogs;
@@ -48,5 +46,4 @@ public class SupportResponse {
   public boolean isIncludesLogs() {
     return includesLogs;
   }
-
 }

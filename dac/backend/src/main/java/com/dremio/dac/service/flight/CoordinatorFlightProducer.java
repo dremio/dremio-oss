@@ -15,6 +15,14 @@
  */
 package com.dremio.dac.service.flight;
 
+import com.dremio.common.AutoCloseables;
+import com.dremio.common.exceptions.GrpcExceptionUtil;
+import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.proto.FlightProtos.CoordinatorFlightTicket;
+import com.dremio.exec.proto.FlightProtos.CoordinatorFlightTicket.IdentifierCase;
+import com.dremio.service.jobs.JobsFlightProducer;
+import com.dremio.service.sysflight.SysFlightProducer;
+import io.grpc.Status;
 import org.apache.arrow.flight.Action;
 import org.apache.arrow.flight.ActionType;
 import org.apache.arrow.flight.Criteria;
@@ -28,19 +36,9 @@ import org.apache.arrow.flight.Ticket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.common.AutoCloseables;
-import com.dremio.common.exceptions.GrpcExceptionUtil;
-import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.proto.FlightProtos.CoordinatorFlightTicket;
-import com.dremio.exec.proto.FlightProtos.CoordinatorFlightTicket.IdentifierCase;
-import com.dremio.service.jobs.JobsFlightProducer;
-import com.dremio.service.sysflight.SysFlightProducer;
-
-import io.grpc.Status;
-
 /**
- * Proxy Flight Producer that delegates to sys-flight or jobs producer based on the ticket,
- * as we can have only one flight producer on conduit
+ * Proxy Flight Producer that delegates to sys-flight or jobs producer based on the ticket, as we
+ * can have only one flight producer on conduit
  */
 public class CoordinatorFlightProducer implements FlightProducer, AutoCloseable {
   private static final Logger LOGGER = LoggerFactory.getLogger(CoordinatorFlightProducer.class);
@@ -48,8 +46,8 @@ public class CoordinatorFlightProducer implements FlightProducer, AutoCloseable 
   private final JobsFlightProducer jobsFlightProducer;
   private final SysFlightProducer sysFlightProducer;
 
-  public CoordinatorFlightProducer(JobsFlightProducer jobsFlightProducer,
-                            SysFlightProducer sysFlightProducer) {
+  public CoordinatorFlightProducer(
+      JobsFlightProducer jobsFlightProducer, SysFlightProducer sysFlightProducer) {
     this.jobsFlightProducer = jobsFlightProducer;
     this.sysFlightProducer = sysFlightProducer;
   }
@@ -75,7 +73,8 @@ public class CoordinatorFlightProducer implements FlightProducer, AutoCloseable 
   }
 
   @Override
-  public void listFlights(CallContext callContext, Criteria criteria, StreamListener<FlightInfo> listener) {
+  public void listFlights(
+      CallContext callContext, Criteria criteria, StreamListener<FlightInfo> listener) {
     LOGGER.debug("Got listFlights request");
     try {
       sysFlightProducer.listFlights(callContext, criteria, listener);
@@ -100,7 +99,8 @@ public class CoordinatorFlightProducer implements FlightProducer, AutoCloseable 
   }
 
   @Override
-  public Runnable acceptPut(CallContext callContext, FlightStream flightStream, StreamListener<PutResult> listener) {
+  public Runnable acceptPut(
+      CallContext callContext, FlightStream flightStream, StreamListener<PutResult> listener) {
     throw Status.UNIMPLEMENTED.asRuntimeException();
   }
 

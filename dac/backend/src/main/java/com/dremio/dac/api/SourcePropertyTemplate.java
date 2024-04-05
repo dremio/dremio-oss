@@ -15,34 +15,29 @@
  */
 package com.dremio.dac.api;
 
+import com.dremio.exec.catalog.conf.AuthenticationType;
+import com.dremio.exec.catalog.conf.DisplayMetadata;
+import com.dremio.exec.catalog.conf.Host;
+import com.dremio.exec.catalog.conf.Property;
+import com.dremio.exec.catalog.conf.Secret;
+import com.dremio.exec.catalog.conf.SecretRef;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-
 import org.apache.commons.lang3.ClassUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.exec.catalog.conf.AuthenticationType;
-import com.dremio.exec.catalog.conf.DisplayMetadata;
-import com.dremio.exec.catalog.conf.Host;
-import com.dremio.exec.catalog.conf.Property;
-import com.dremio.exec.catalog.conf.Secret;
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
-
-/**
- * Represents a source conf property template
- */
+/** Represents a source conf property template */
 public class SourcePropertyTemplate {
   private static final Logger logger = LoggerFactory.getLogger(SourcePropertyTemplate.class);
 
-  /**
-   * Enum for all possible property types
-   */
+  /** Enum for all possible property types */
   public enum TemplatePropertyType {
     TEXT("text"),
     NUMBER("number"),
@@ -77,17 +72,14 @@ public class SourcePropertyTemplate {
   private final Boolean secret;
   private final List<EnumValueTemplate> options;
 
-  /**
-   * Represents a source conf enum
-   */
+  /** Represents a source conf enum */
   public static class EnumValueTemplate {
     private final String value;
     private final String label;
 
     @JsonCreator
     public EnumValueTemplate(
-      @JsonProperty("value") String value,
-      @JsonProperty("label") String label) {
+        @JsonProperty("value") String value, @JsonProperty("label") String label) {
       this.value = value;
       this.label = label;
     }
@@ -103,12 +95,12 @@ public class SourcePropertyTemplate {
 
   @JsonCreator
   public SourcePropertyTemplate(
-    @JsonProperty("propertyName") String name,
-    @JsonProperty("label") String label,
-    @JsonProperty("type") String type,
-    @JsonProperty("secret") Boolean secret,
-    @JsonProperty("defaultValue") Object defaultValue,
-    @JsonProperty("values") List<EnumValueTemplate> values) {
+      @JsonProperty("propertyName") String name,
+      @JsonProperty("label") String label,
+      @JsonProperty("type") String type,
+      @JsonProperty("secret") Boolean secret,
+      @JsonProperty("defaultValue") Object defaultValue,
+      @JsonProperty("values") List<EnumValueTemplate> values) {
     this.name = name;
     this.label = label;
     this.type = TemplatePropertyType.fromValue(type);
@@ -143,7 +135,7 @@ public class SourcePropertyTemplate {
 
   private static TemplatePropertyType getFieldType(Field field) {
     final Class<?> fieldType = ClassUtils.primitiveToWrapper(field.getType());
-    if (String.class.isAssignableFrom(fieldType)) {
+    if (String.class.isAssignableFrom(fieldType) || SecretRef.class.isAssignableFrom(fieldType)) {
       return TemplatePropertyType.TEXT;
     }
 
@@ -185,7 +177,10 @@ public class SourcePropertyTemplate {
       return TemplatePropertyType.ENUM;
     }
 
-    throw new UnsupportedOperationException(String.format("Found source property [%s] with unsupported type [%s]", field.getName(), fieldType.getTypeName()));
+    throw new UnsupportedOperationException(
+        String.format(
+            "Found source property [%s] with unsupported type [%s]",
+            field.getName(), fieldType.getTypeName()));
   }
 
   public static SourcePropertyTemplate fromField(Field field, Object value) {
@@ -211,7 +206,8 @@ public class SourcePropertyTemplate {
 
         try {
           // enums can have labels defined using the DisplayMetadata annotation.
-          DisplayMetadata enumAnnotation = o.getClass().getField(o.toString()).getAnnotation(DisplayMetadata.class);
+          DisplayMetadata enumAnnotation =
+              o.getClass().getField(o.toString()).getAnnotation(DisplayMetadata.class);
           if (enumAnnotation != null) {
             enumLabel = enumAnnotation.label();
           }

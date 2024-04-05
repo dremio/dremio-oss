@@ -15,15 +15,6 @@
  */
 package com.dremio.exec.store.iceberg;
 
-import java.io.File;
-
-import org.apache.commons.io.FileUtils;
-import org.apache.hadoop.conf.Configuration;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.catalog.ManagedStoragePlugin;
@@ -34,12 +25,18 @@ import com.dremio.exec.store.dfs.SchemaMutability;
 import com.dremio.service.namespace.source.proto.MetadataPolicy;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.source.proto.UpdateMode;
+import java.io.File;
+import org.apache.commons.io.FileUtils;
+import org.apache.hadoop.conf.Configuration;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 public class TestAutoRefresh extends BaseTestQuery {
   private static String TEST_SCHEMA = "testRefresh";
 
-  @ClassRule
-  public static TemporaryFolder testFolder = new TemporaryFolder();
+  @ClassRule public static TemporaryFolder testFolder = new TemporaryFolder();
 
   @BeforeClass
   public static void initFs() throws Exception {
@@ -52,7 +49,8 @@ public class TestAutoRefresh extends BaseTestQuery {
   private static void addSubPathDfsPlugin() throws Exception {
     File storageBase = testFolder.newFolder("base");
 
-    final CatalogServiceImpl pluginRegistry = (CatalogServiceImpl) getSabotContext().getCatalogService();
+    final CatalogServiceImpl pluginRegistry =
+        (CatalogServiceImpl) getSabotContext().getCatalogService();
     final ManagedStoragePlugin msp = pluginRegistry.getManagedSource("dfs_test");
     StoragePluginId pluginId = msp.getId();
     InternalFileConf nasConf = pluginId.getConnectionConf();
@@ -69,12 +67,11 @@ public class TestAutoRefresh extends BaseTestQuery {
     config.setConfigOrdinal(null);
     config.setName("testRefresh");
     config.setMetadataPolicy(
-      new MetadataPolicy()
-        .setAuthTtlMs(0L)
-        .setDatasetUpdateMode(UpdateMode.PREFETCH)
-        .setNamesRefreshMs(0L)
-        .setDatasetDefinitionExpireAfterMs(Long.MAX_VALUE)
-    );
+        new MetadataPolicy()
+            .setAuthTtlMs(0L)
+            .setDatasetUpdateMode(UpdateMode.PREFETCH)
+            .setNamesRefreshMs(0L)
+            .setDatasetDefinitionExpireAfterMs(Long.MAX_VALUE));
     config.setConfig(nasConf.toBytesString());
     pluginRegistry.getSystemUserCatalog().createSource(config);
   }
@@ -88,8 +85,7 @@ public class TestAutoRefresh extends BaseTestQuery {
           String.format(
               "CREATE TABLE %s.%s  "
                   + " AS SELECT n_nationkey, n_regionkey from cp.\"tpch/nation.parquet\" limit 2",
-              TEST_SCHEMA,
-              tableName);
+              TEST_SCHEMA, tableName);
 
       test(ctasQuery);
 
@@ -114,8 +110,7 @@ public class TestAutoRefresh extends BaseTestQuery {
           String.format(
               "CREATE TABLE %s.%s  "
                   + " AS SELECT n_nationkey, n_regionkey from cp.\"tpch/nation.parquet\" limit 2",
-              TEST_SCHEMA,
-              tableName);
+              TEST_SCHEMA, tableName);
 
       test(ctasQuery);
 
@@ -147,18 +142,21 @@ public class TestAutoRefresh extends BaseTestQuery {
 
     try (AutoCloseable c = enableIcebergTables()) {
       final String ctasQuery =
-        String.format("CREATE TABLE %s.%s (id int, name varchar, distance Decimal(38, 3))", TEST_SCHEMA, newTblName);
+          String.format(
+              "CREATE TABLE %s.%s (id int, name varchar, distance Decimal(38, 3))",
+              TEST_SCHEMA, newTblName);
 
       test(ctasQuery);
 
-      final String selectFromCreatedTable = String.format("select count(*) as cnt from %s.%s", TEST_SCHEMA, newTblName);
+      final String selectFromCreatedTable =
+          String.format("select count(*) as cnt from %s.%s", TEST_SCHEMA, newTblName);
       testBuilder()
-        .sqlQuery(selectFromCreatedTable)
-        .unOrdered()
-        .baselineColumns("cnt")
-        .baselineValues(0L)
-        .build()
-        .run();
+          .sqlQuery(selectFromCreatedTable)
+          .unOrdered()
+          .baselineColumns("cnt")
+          .baselineValues(0L)
+          .build()
+          .run();
 
     } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTblName));

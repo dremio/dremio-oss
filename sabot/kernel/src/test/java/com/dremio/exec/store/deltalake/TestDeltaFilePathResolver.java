@@ -18,14 +18,11 @@ package com.dremio.exec.store.deltalake;
 
 import static org.junit.Assert.assertEquals;
 
-import org.junit.Test;
-
 import com.dremio.io.file.Path;
 import com.dremio.service.namespace.file.proto.FileType;
+import org.junit.Test;
 
-/**
- * Tests for {@link DeltaFilePathResolver}
- */
+/** Tests for {@link DeltaFilePathResolver} */
 public class TestDeltaFilePathResolver {
 
   @Test
@@ -47,7 +44,7 @@ public class TestDeltaFilePathResolver {
     path = DeltaFilePathResolver.resolve(metaDir, 22L, 1, FileType.JSON).get(0);
     assertEquals(path, metaDir.resolve("00000000000000000022.json"));
 
-    path = DeltaFilePathResolver.resolve(metaDir , 10L, 1, FileType.PARQUET).get(0);
+    path = DeltaFilePathResolver.resolve(metaDir, 10L, 1, FileType.PARQUET).get(0);
     assertEquals(path, metaDir.resolve("00000000000000000010.checkpoint.parquet"));
 
     path = DeltaFilePathResolver.resolve(metaDir, 100L, 1, FileType.JSON).get(0);

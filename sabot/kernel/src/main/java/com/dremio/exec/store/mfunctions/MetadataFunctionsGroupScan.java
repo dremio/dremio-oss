@@ -15,10 +15,6 @@
  */
 package com.dremio.exec.store.mfunctions;
 
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.physical.base.AbstractBase;
@@ -34,11 +30,13 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.MFunctionCatalogMetadata;
 import com.dremio.exec.store.schedule.SimpleCompleteWork;
 import com.google.common.base.Objects;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
 
-/**
- * A new scan for iceberg metadata functions
- */
-final class MetadataFunctionsGroupScan extends AbstractBase implements GroupScan<SimpleCompleteWork> {
+/** A new scan for iceberg metadata functions */
+final class MetadataFunctionsGroupScan extends AbstractBase
+    implements GroupScan<SimpleCompleteWork> {
 
   private final MFunctionCatalogMetadata tableMetadata;
   private final String metadataLocation;
@@ -46,11 +44,11 @@ final class MetadataFunctionsGroupScan extends AbstractBase implements GroupScan
   private final BatchSchema schema;
 
   public MetadataFunctionsGroupScan(
-    OpProps props,
-    MFunctionCatalogMetadata tableMetadata,
-    BatchSchema schema,
-    List<SchemaPath> projectedColumns,
-    String metadataLocation) {
+      OpProps props,
+      MFunctionCatalogMetadata tableMetadata,
+      BatchSchema schema,
+      List<SchemaPath> projectedColumns,
+      String metadataLocation) {
     super(props);
     this.schema = schema;
     this.tableMetadata = tableMetadata;
@@ -58,17 +56,16 @@ final class MetadataFunctionsGroupScan extends AbstractBase implements GroupScan
     this.projectedColumns = projectedColumns;
   }
 
-
   @Override
   public SubScan getSpecificScan(List<SimpleCompleteWork> work) throws ExecutionSetupException {
     return new MetadataFunctionsSubScan(
-      props,
-      schema,
-      tableMetadata.getMetadataFunctionName(),
-      tableMetadata.getNamespaceKey().getPathComponents(),
-      tableMetadata.getStoragePluginId(),
-      projectedColumns,
-      metadataLocation);
+        props,
+        schema,
+        tableMetadata.getMetadataFunctionName(),
+        tableMetadata.getNamespaceKey().getPathComponents(),
+        tableMetadata.getStoragePluginId(),
+        projectedColumns,
+        metadataLocation);
   }
 
   @Override
@@ -91,16 +88,19 @@ final class MetadataFunctionsGroupScan extends AbstractBase implements GroupScan
     return DistributionAffinity.SOFT;
   }
 
-
   @Override
   public boolean equals(final Object other) {
     if (!(other instanceof MetadataFunctionsGroupScan)) {
       return false;
     }
     MetadataFunctionsGroupScan castOther = (MetadataFunctionsGroupScan) other;
-    return Objects.equal(tableMetadata.getMetadataFunctionName(), castOther.tableMetadata.getMetadataFunctionName())
-      && Objects.equal(tableMetadata.getUnderlyingTable(), castOther.tableMetadata.getUnderlyingTable())
-      && Objects.equal(tableMetadata.getNamespaceKey(), castOther.tableMetadata.getNamespaceKey());
+    return Objects.equal(
+            tableMetadata.getMetadataFunctionName(),
+            castOther.tableMetadata.getMetadataFunctionName())
+        && Objects.equal(
+            tableMetadata.getUnderlyingTable(), castOther.tableMetadata.getUnderlyingTable())
+        && Objects.equal(
+            tableMetadata.getNamespaceKey(), castOther.tableMetadata.getNamespaceKey());
   }
 
   @Override
@@ -108,15 +108,12 @@ final class MetadataFunctionsGroupScan extends AbstractBase implements GroupScan
     return Objects.hashCode(schema);
   }
 
-
   @Deprecated
   public List<String> getTableSchemaPath() {
     return tableMetadata.getNamespaceKey().getPathComponents();
   }
 
-  /**
-   * Iceberg Metadata functions like history/snapshot/manifests doesn't need distribution.
-   */
+  /** Iceberg Metadata functions like history/snapshot/manifests doesn't need distribution. */
   @Override
   public Iterator<SimpleCompleteWork> getSplits(ExecutionNodeMap executionNodes) {
     return Collections.<SimpleCompleteWork>singletonList(new SimpleCompleteWork(1)).iterator();
@@ -128,7 +125,8 @@ final class MetadataFunctionsGroupScan extends AbstractBase implements GroupScan
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value) throws E {
+  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value)
+      throws E {
     return physicalVisitor.visitGroupScan(this, value);
   }
 
@@ -138,9 +136,8 @@ final class MetadataFunctionsGroupScan extends AbstractBase implements GroupScan
   }
 
   @Override
-  public PhysicalOperator getNewWithChildren(List<PhysicalOperator> children) throws ExecutionSetupException {
+  public PhysicalOperator getNewWithChildren(List<PhysicalOperator> children)
+      throws ExecutionSetupException {
     return this;
   }
-
-
 }

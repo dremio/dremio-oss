@@ -15,15 +15,6 @@
  */
 package com.dremio.exec.planner.acceleration;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
-
-import org.apache.calcite.rel.RelNode;
-
 import com.dremio.exec.planner.acceleration.substitution.MaterializationProvider;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionUtils;
 import com.dremio.exec.planner.logical.ViewTable;
@@ -37,27 +28,39 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+import org.apache.calcite.rel.RelNode;
 
 /**
- * MaterializationList builds a list of "considered" {@link DremioMaterialization} instances that are used for the lifetime
- * of a single query.  A {@link DremioMaterialization} is usually retrieved from cache and then deep-copied so that
- * it can be mutated by the planner during target normalization.
+ * MaterializationList builds a list of "considered" {@link DremioMaterialization} instances that
+ * are used for the lifetime of a single query. A {@link DremioMaterialization} is usually retrieved
+ * from cache and then deep-copied so that it can be mutated by the planner during target
+ * normalization.
  *
- * DremioMaterialization instances are lazily built during SqlToRel (for default raw reflections) and logical planning phases
- * from {@link MaterializationDescriptor} instances.
+ * <p>DremioMaterialization instances are lazily built during SqlToRel (for default raw reflections)
+ * and logical planning phases from {@link MaterializationDescriptor} instances.
  */
 public class MaterializationList implements MaterializationProvider {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MaterializationList.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(MaterializationList.class);
 
-  private final Map<NamespaceKey, MaterializationDescriptor> materializationDescriptors = Maps.newHashMap();
+  private final Map<NamespaceKey, MaterializationDescriptor> materializationDescriptors =
+      Maps.newHashMap();
   private List<DremioMaterialization> materializations = ImmutableList.of();
 
   private final MaterializationDescriptorProvider provider;
   private final SqlConverter converter;
   private final UserSession session;
 
-  public MaterializationList(final SqlConverter converter, final UserSession session,
-                             final MaterializationDescriptorProvider provider) {
+  public MaterializationList(
+      final SqlConverter converter,
+      final UserSession session,
+      final MaterializationDescriptorProvider provider) {
     this.provider = Preconditions.checkNotNull(provider, "provider is required");
     this.converter = Preconditions.checkNotNull(converter, "converter is required");
     this.session = Preconditions.checkNotNull(session, "session is required");
@@ -71,33 +74,41 @@ public class MaterializationList implements MaterializationProvider {
   @Override
   public java.util.Optional<DremioMaterialization> getDefaultRawMaterialization(ViewTable table) {
 
-      if (isNoReflections()) {
-        return java.util.Optional.empty();
-      }
-      final Set<String> exclusions = getExclusions();
-      final Set<String> inclusions = getInclusions();
-      final boolean hasInclusions = !inclusions.isEmpty();
-      final java.util.Optional<MaterializationDescriptor> opt = provider.getDefaultRawMaterialization(table);
+    if (isNoReflections()) {
+      return java.util.Optional.empty();
+    }
+    final Set<String> exclusions = getExclusions();
+    final Set<String> inclusions = getInclusions();
+    final boolean hasInclusions = !inclusions.isEmpty();
+    final java.util.Optional<MaterializationDescriptor> opt =
+        provider.getDefaultRawMaterialization(table);
 
-      if (opt.isPresent()) {
-        MaterializationDescriptor descriptor = opt.get();
-        if ((hasInclusions && !inclusions.contains(descriptor.getLayoutId())) || exclusions.contains(descriptor.getLayoutId())) {
-          return java.util.Optional.empty();
-        } else {
-          try {
-            DremioMaterialization materialization = descriptor.getMaterializationFor(converter);
-            materializationDescriptors.put(new NamespaceKey(descriptor.getPath()), descriptor);
-            return java.util.Optional.of(materialization);
-          } catch (Throwable e) {
-            logger.warn("Failed to expand materialization {}", descriptor.getMaterializationId(), e);
-          }
+    if (opt.isPresent()) {
+      MaterializationDescriptor descriptor = opt.get();
+      if ((hasInclusions && !inclusions.contains(descriptor.getLayoutId()))
+          || exclusions.contains(descriptor.getLayoutId())) {
+        return java.util.Optional.empty();
+      } else {
+        try {
+          DremioMaterialization materialization = descriptor.getMaterializationFor(converter);
+          materializationDescriptors.put(new NamespaceKey(descriptor.getPath()), descriptor);
+          return java.util.Optional.of(materialization);
+        } catch (Throwable e) {
+          logger.warn("Failed to expand materialization {}", descriptor.getMaterializationId(), e);
         }
       }
-      return java.util.Optional.empty();
+    }
+    return java.util.Optional.empty();
+  }
+
+  @Override
+  public boolean isMaterializationCacheInitialized() {
+    return provider.isMaterializationCacheInitialized();
   }
 
   public Optional<MaterializationDescriptor> getDescriptor(final List<String> path) {
-    final MaterializationDescriptor descriptor = materializationDescriptors.get(new NamespaceKey(path));
+    final MaterializationDescriptor descriptor =
+        materializationDescriptors.get(new NamespaceKey(path));
     return Optional.ofNullable(descriptor);
   }
 
@@ -107,9 +118,12 @@ public class MaterializationList implements MaterializationProvider {
       return ImmutableList.of();
     }
 
-    final Set<SubstitutionUtils.VersionedPath> queryTablesUsed = SubstitutionUtils.findTables(userQueryNode);
-    final Set<SubstitutionUtils.VersionedPath> queryVdsUsed = SubstitutionUtils.findExpansionNodes(userQueryNode);
-    final Set<SubstitutionUtils.ExternalQueryDescriptor> externalQueries = SubstitutionUtils.findExternalQueries(userQueryNode);
+    final Set<SubstitutionUtils.VersionedPath> queryTablesUsed =
+        SubstitutionUtils.findTables(userQueryNode);
+    final Set<SubstitutionUtils.VersionedPath> queryVdsUsed =
+        SubstitutionUtils.findExpansionNodes(userQueryNode);
+    final Set<SubstitutionUtils.ExternalQueryDescriptor> externalQueries =
+        SubstitutionUtils.findExternalQueries(userQueryNode);
 
     final Set<String> exclusions = getExclusions();
     final Set<String> inclusions = getInclusions();
@@ -117,15 +131,18 @@ public class MaterializationList implements MaterializationProvider {
     final List<DremioMaterialization> materializations = Lists.newArrayList();
     for (final MaterializationDescriptor descriptor : provider.get()) {
 
-      if((hasInclusions && !inclusions.contains(descriptor.getLayoutId())) || exclusions.contains(descriptor.getLayoutId())) {
+      if ((hasInclusions && !inclusions.contains(descriptor.getLayoutId()))
+          || exclusions.contains(descriptor.getLayoutId())) {
         continue;
       }
 
       try {
-        if (session.getSubstitutionSettings().isExcludeFileBasedIncremental() &&
-            (descriptor.getIncrementalUpdateSettings().isFileMtimeBasedUpdate() ||
-             //TODO: support using snapshot based incremental reflection to accelerate other incremental reflection refresh
-             descriptor.getIncrementalUpdateSettings().isSnapshotBasedUpdate())) {
+        if (session.getSubstitutionSettings().isExcludeFileBasedIncremental()
+            && (descriptor.getIncrementalUpdateSettings().isFileMtimeBasedUpdate()
+                ||
+                // TODO: support using snapshot based incremental reflection to accelerate other
+                // incremental reflection refresh
+                descriptor.getIncrementalUpdateSettings().isSnapshotBasedUpdate())) {
           continue;
         }
         // Prune the reflection early if the descriptor is already expanded
@@ -136,7 +153,8 @@ public class MaterializationList implements MaterializationProvider {
         if (materialization == null) {
           continue;
         }
-        if (!SubstitutionUtils.usesTableOrVds(queryTablesUsed, queryVdsUsed, externalQueries, materialization.getQueryRel())) {
+        if (!SubstitutionUtils.usesTableOrVds(
+            queryTablesUsed, queryVdsUsed, externalQueries, materialization.getQueryRel())) {
           continue;
         }
         final NamespaceKey path = new NamespaceKey(descriptor.getPath());
@@ -153,13 +171,23 @@ public class MaterializationList implements MaterializationProvider {
 
   public Set<String> getInclusions() {
     Set<String> inclusions = Sets.newHashSet(session.getSubstitutionSettings().getInclusions());
-    inclusions.addAll(parseReflectionIds(converter.getFunctionContext().getOptions().getOption(PlannerSettings.CONSIDER_REFLECTIONS)));
+    inclusions.addAll(
+        parseReflectionIds(
+            converter
+                .getFunctionContext()
+                .getOptions()
+                .getOption(PlannerSettings.CONSIDER_REFLECTIONS)));
     return inclusions;
   }
 
   public Set<String> getExclusions() {
     Set<String> exclusions = Sets.newHashSet(session.getSubstitutionSettings().getExclusions());
-    exclusions.addAll(parseReflectionIds(converter.getFunctionContext().getOptions().getOption(PlannerSettings.EXCLUDE_REFLECTIONS)));
+    exclusions.addAll(
+        parseReflectionIds(
+            converter
+                .getFunctionContext()
+                .getOptions()
+                .getOption(PlannerSettings.EXCLUDE_REFLECTIONS)));
     return exclusions;
   }
 
@@ -169,9 +197,8 @@ public class MaterializationList implements MaterializationProvider {
 
   public static Set<String> parseReflectionIds(String value) {
     return Arrays.asList(value.split(",")).stream()
-      .map(x -> x.trim())
-      .filter(x -> !x.isEmpty())
-      .collect(Collectors.toSet());
+        .map(x -> x.trim())
+        .filter(x -> !x.isEmpty())
+        .collect(Collectors.toSet());
   }
-
 }

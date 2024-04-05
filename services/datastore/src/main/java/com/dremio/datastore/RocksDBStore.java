@@ -15,6 +15,24 @@
  */
 package com.dremio.datastore;
 
+import com.dremio.common.AutoCloseables;
+import com.dremio.common.DeferredException;
+import com.dremio.common.concurrent.AutoCloseableLock;
+import com.dremio.datastore.api.Document;
+import com.dremio.datastore.api.FindByRange;
+import com.dremio.datastore.api.ImmutableDocument;
+import com.dremio.datastore.api.IncrementCounter;
+import com.dremio.datastore.api.options.KVStoreOptionUtility;
+import com.dremio.datastore.api.options.VersionOption;
+import com.dremio.datastore.rocks.Rocks;
+import com.dremio.telemetry.api.metrics.Metrics;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Stopwatch;
+import com.google.common.base.Strings;
+import com.google.common.collect.Sets;
+import com.google.common.io.ByteStreams;
+import com.google.common.primitives.UnsignedBytes;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
@@ -39,7 +57,6 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.BiConsumer;
 import java.util.stream.Stream;
-
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
@@ -50,51 +67,31 @@ import org.rocksdb.RocksIterator;
 import org.xerial.snappy.SnappyInputStream;
 import org.xerial.snappy.SnappyOutputStream;
 
-import com.dremio.common.AutoCloseables;
-import com.dremio.common.DeferredException;
-import com.dremio.common.concurrent.AutoCloseableLock;
-import com.dremio.datastore.api.Document;
-import com.dremio.datastore.api.FindByRange;
-import com.dremio.datastore.api.ImmutableDocument;
-import com.dremio.datastore.api.IncrementCounter;
-import com.dremio.datastore.api.options.KVStoreOptionUtility;
-import com.dremio.datastore.api.options.VersionOption;
-import com.dremio.datastore.rocks.Rocks;
-import com.dremio.telemetry.api.metrics.Metrics;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Stopwatch;
-import com.google.common.base.Strings;
-import com.google.common.collect.Sets;
-import com.google.common.io.ByteStreams;
-import com.google.common.primitives.UnsignedBytes;
-
 /**
- * A kv implementation that uses a column family within rocksdb per named store
- * dataset. We use a single database to minimize seeks for WAL management as I
- * believe WAL is one per db in Rocks.
+ * A kv implementation that uses a column family within rocksdb per named store dataset. We use a
+ * single database to minimize seeks for WAL management as I believe WAL is one per db in Rocks.
  *
- * Note that we use lock striping to minimize contention. Most operations are
- * shared operations (read, write). These have a shared read locks that is used
- * per stripe. However, there are some multiple operation items.  These do multiple
- * operations and need to ensure a consistent viewpoint of data. As such, we grab an
- * exclusive lock for the desired key range for the life of the set of operations. We
- * use the AutoCloseableLock pattern with try-with-resources to ensure that we avoid any
- * lock leaking.
+ * <p>Note that we use lock striping to minimize contention. Most operations are shared operations
+ * (read, write). These have a shared read locks that is used per stripe. However, there are some
+ * multiple operation items. These do multiple operations and need to ensure a consistent viewpoint
+ * of data. As such, we grab an exclusive lock for the desired key range for the life of the set of
+ * operations. We use the AutoCloseableLock pattern with try-with-resources to ensure that we avoid
+ * any lock leaking.
  *
- * Since the RocksDB interface is native, we need to manage native memory
- * cautiously. To this end, we manage the range iterator through the use of a
- * ReferenceQueue and parallel Set. This allows us to automatically garbage
- * collect no-longer used iterators. Additionally, the set allows us to cleanly
- * close out the RocksDB database through the close() method.
+ * <p>Since the RocksDB interface is native, we need to manage native memory cautiously. To this
+ * end, we manage the range iterator through the use of a ReferenceQueue and parallel Set. This
+ * allows us to automatically garbage collect no-longer used iterators. Additionally, the set allows
+ * us to cleanly close out the RocksDB database through the close() method.
  */
 class RocksDBStore implements ByteStore {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(RocksDBStore.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(RocksDBStore.class);
 
-  private static final boolean ITERATOR_METRICS = Boolean.getBoolean("dremio.kvstore.iterator_metrics");
+  private static final boolean ITERATOR_METRICS =
+      Boolean.getBoolean("dremio.kvstore.iterator_metrics");
 
   private static final String BLOB_SYS_PROP = "dremio.rocksdb.blob_filter_bytes";
-  static final long BLOB_FILTER_DEFAULT = 1024*1024;
+  static final long BLOB_FILTER_DEFAULT = 1024 * 1024;
   private static final long BLOB_FILTER_MINIMUM = 1024;
   private static final String BLOB_MINIMUM_SYS_PROP = "dremio.rocksdb.minimum_blob_filter_bytes";
   //  0x06 and 0x07 are unused by proto so we use 0x07 to denote that the entry is a blob pointer
@@ -107,8 +104,13 @@ class RocksDBStore implements ByteStore {
     long filterSize = Long.getLong(BLOB_SYS_PROP, BLOB_FILTER_DEFAULT);
     if (filterSize < minimumSize) {
       filterSize = BLOB_FILTER_DEFAULT;
-      logger.warn("Property {} was set to {} which is below the minimum of "
-          + "{} bytes. Using default value of {}", BLOB_SYS_PROP, filterSize, minimumSize, BLOB_FILTER_DEFAULT);
+      logger.warn(
+          "Property {} was set to {} which is below the minimum of "
+              + "{} bytes. Using default value of {}",
+          BLOB_SYS_PROP,
+          filterSize,
+          minimumSize,
+          BLOB_FILTER_DEFAULT);
     }
     FILTER_SIZE_IN_BYTES = filterSize;
   }
@@ -145,11 +147,13 @@ class RocksDBStore implements ByteStore {
     "rocksdb.num-deletes-imm-mem-tables",
     // estimated number of total keys in the active and unflushed immutable memtables and storage
     "rocksdb.estimate-num-keys",
-    // estimated memory used for reading SST tables, excluding memory used in block cache (e.g., filter and index blocks)
+    // estimated memory used for reading SST tables, excluding memory used in block cache (e.g.,
+    // filter and index blocks)
     "rocksdb.estimate-table-readers-mem",
     // number of unreleased snapshots of the database
     "rocksdb.num-snapshots",
-    // number of live versions. More live versions often mean more SST files are held from being deleted,
+    // number of live versions. More live versions often mean more SST files are held from being
+    // deleted,
     // by iterators or unfinished compactions
     "rocksdb.num-live-versions",
     // an estimate of the amount of live data in bytes
@@ -157,7 +161,8 @@ class RocksDBStore implements ByteStore {
     // total size (bytes) of all SST files
     // WARNING: may slow down online queries if there are too many files
     "rocksdb.total-sst-files-size",
-    // estimated total number of bytes compaction needs to rewrite to get all levels down to under target size.
+    // estimated total number of bytes compaction needs to rewrite to get all levels down to under
+    // target size.
     // Not valid for other compactions than level based
     "rocksdb.estimate-pending-compaction-bytes",
     // current actual delayed write rate. 0 means no delay
@@ -186,19 +191,34 @@ class RocksDBStore implements ByteStore {
   private final AtomicBoolean closed = new AtomicBoolean(false);
   private final boolean readOnly;
 
-
-  public RocksDBStore(String name, ColumnFamilyDescriptor family, ColumnFamilyHandle handle, RocksDB db, int stripes,
-    boolean readOnly) {
+  public RocksDBStore(
+      String name,
+      ColumnFamilyDescriptor family,
+      ColumnFamilyHandle handle,
+      RocksDB db,
+      int stripes,
+      boolean readOnly) {
     this(name, family, handle, db, stripes, INLINE_BLOB_MANAGER, readOnly);
   }
 
-  public RocksDBStore(String name, ColumnFamilyDescriptor family, ColumnFamilyHandle handle, RocksDB db, int stripes,
-    MetaManager metaManager) {
+  public RocksDBStore(
+      String name,
+      ColumnFamilyDescriptor family,
+      ColumnFamilyHandle handle,
+      RocksDB db,
+      int stripes,
+      MetaManager metaManager) {
     this(name, family, handle, db, stripes, metaManager, false);
   }
 
-  public RocksDBStore(String name, ColumnFamilyDescriptor family, ColumnFamilyHandle handle, RocksDB db, int stripes,
-    MetaManager metaManager, boolean readOnly) {
+  public RocksDBStore(
+      String name,
+      ColumnFamilyDescriptor family,
+      ColumnFamilyHandle handle,
+      RocksDB db,
+      int stripes,
+      MetaManager metaManager,
+      boolean readOnly) {
     super();
     this.family = family;
     this.name = name;
@@ -227,17 +247,20 @@ class RocksDBStore implements ByteStore {
 
   private void registerMetrics() {
 
-    forAllMetrics((metricName, property) ->
-      Metrics.newGauge(metricName, () -> {
-        try {
-          return db.getLongProperty(handle, property);
-        } catch (RocksDBException e) {
-          // throwing an exception would cause Dropwizard's metrics reporter to not report the remaining metrics
-          logger.warn("failed to retrieve property '{}", property, e);
-          return -1;
-        }
-      })
-    );
+    forAllMetrics(
+        (metricName, property) ->
+            Metrics.newGauge(
+                metricName,
+                () -> {
+                  try {
+                    return db.getLongProperty(handle, property);
+                  } catch (RocksDBException e) {
+                    // throwing an exception would cause Dropwizard's metrics reporter to not report
+                    // the remaining metrics
+                    logger.warn("failed to retrieve property '{}", property, e);
+                    return -1;
+                  }
+                }));
   }
 
   private void unregisterMetrics() {
@@ -272,12 +295,13 @@ class RocksDBStore implements ByteStore {
         blobStats.append(sb);
       }
       return sb.toString();
-    } catch(RocksDBException e) {
+    } catch (RocksDBException e) {
       throw new RuntimeException(e);
     }
   }
 
-  private void append(StringBuilder sb, String propName, String propDisplayName) throws RocksDBException {
+  private void append(StringBuilder sb, String propName, String propDisplayName)
+      throws RocksDBException {
     sb.append("* ");
     sb.append(propDisplayName);
     sb.append(": ");
@@ -316,7 +340,6 @@ class RocksDBStore implements ByteStore {
         throw new IOException(ex);
       }
     }
-
   }
 
   private AutoCloseableLock sharedLock(byte[] key) {
@@ -336,31 +359,32 @@ class RocksDBStore implements ByteStore {
   }
 
   /**
-   * Delete all values. Deletes only values inside the store, leaving behind any leftover blobs that have been placed
-   * directly in the file system.
+   * Delete all values. Deletes only values inside the store, leaving behind any leftover blobs that
+   * have been placed directly in the file system.
    */
   @Override
   @VisibleForTesting
   public void deleteAllValues() throws IOException {
-    exclusively((deferred) -> {
-      synchronized(this) {
-        deleteAllIterators(deferred);
+    exclusively(
+        (deferred) -> {
+          synchronized (this) {
+            deleteAllIterators(deferred);
 
-        try {
-          db.dropColumnFamily(handle);
-        } catch(RocksDBException ex) {
-          deferred.addException(ex);
-        }
+            try {
+              db.dropColumnFamily(handle);
+            } catch (RocksDBException ex) {
+              deferred.addException(ex);
+            }
 
-        deferred.suppressingClose(handle);
+            deferred.suppressingClose(handle);
 
-        try {
-          this.handle = db.createColumnFamily(family);
-        } catch (Exception ex) {
-          deferred.addException(ex);
-        }
-      }
-    });
+            try {
+              this.handle = db.createColumnFamily(family);
+            } catch (Exception ex) {
+              deferred.addException(ex);
+            }
+          }
+        });
   }
 
   @Override
@@ -410,8 +434,8 @@ class RocksDBStore implements ByteStore {
   private void deleteAllIterators(DeferredException ex) {
     // It is "safe" to iterate while adding/removing entries (also changes might not be visible)
     // It is not safe to have two threads iterating at the same time
-    synchronized(iteratorSet) {
-      for(IteratorReference ref : iteratorSet){
+    synchronized (iteratorSet) {
+      for (IteratorReference ref : iteratorSet) {
         ex.suppressingClose(ref);
       }
     }
@@ -427,18 +451,19 @@ class RocksDBStore implements ByteStore {
       return;
     }
     unregisterMetrics();
-    exclusively((deferred) -> {
-      deleteAllIterators(deferred);
-      if (!readOnly) {
-        try (FlushOptions options = new FlushOptions()) {
-          options.setWaitForFlush(true);
-          db.flush(options, handle);
-        } catch (RocksDBException ex) {
-          deferred.addException(ex);
-        }
-      }
-      deferred.suppressingClose(handle);
-    });
+    exclusively(
+        (deferred) -> {
+          deleteAllIterators(deferred);
+          if (!readOnly) {
+            try (FlushOptions options = new FlushOptions()) {
+              options.setWaitForFlush(true);
+              db.flush(options, handle);
+            } catch (RocksDBException ex) {
+              deferred.addException(ex);
+            }
+          }
+          deferred.suppressingClose(handle);
+        });
   }
 
   private void exclusively(ExclusiveOperation operation) throws IOException {
@@ -447,7 +472,8 @@ class RocksDBStore implements ByteStore {
     for (int i = 0; i < exclusiveLocks.length; i++) {
       try {
         // We cannot ensure that all write locks can be acquired, so a best attempt must be made.
-        // If lock is still held after waiting 3 seconds, continue with the lock acquisition and close.
+        // If lock is still held after waiting 3 seconds, continue with the lock acquisition and
+        // close.
         // Note: The data from the concurrent write cannot be guaranteed to be persisted on restart.
         if (exclusiveLocks[i].tryOpen(3L, TimeUnit.SECONDS).isPresent()) {
           acquiredLocks.add(exclusiveLocks[i]);
@@ -457,10 +483,10 @@ class RocksDBStore implements ByteStore {
       }
     }
 
-    try(DeferredException deferred = new DeferredException()) {
+    try (DeferredException deferred = new DeferredException()) {
       try {
         operation.execute(deferred);
-      } catch(RocksDBException e) {
+      } catch (RocksDBException e) {
         deferred.addException(e);
       }
       deferred.suppressingClose(AutoCloseables.all(acquiredLocks));
@@ -484,7 +510,7 @@ class RocksDBStore implements ByteStore {
 
       final byte[] oldValueOrPtr = db.get(handle, key);
 
-      try (BlobHolder blob = metaManager.filterPut(newValue, newTag)){
+      try (BlobHolder blob = metaManager.filterPut(newValue, newTag)) {
         final byte[] blobOrPtrVal = blob.ptrOrValue();
         db.put(handle, key, blobOrPtrVal);
         metaManager.deleteTranslation(meta(oldValueOrPtr));
@@ -509,7 +535,8 @@ class RocksDBStore implements ByteStore {
   }
 
   @Override
-  public Document<byte[], byte[]> validateAndPut(byte[] key, byte[] newValue, VersionOption.TagInfo versionInfo, PutOption... options) {
+  public Document<byte[], byte[]> validateAndPut(
+      byte[] key, byte[] newValue, VersionOption.TagInfo versionInfo, PutOption... options) {
     Preconditions.checkNotNull(newValue);
     Preconditions.checkNotNull(versionInfo);
     Preconditions.checkArgument(versionInfo.hasCreateOption() || versionInfo.getTag() != null);
@@ -521,14 +548,21 @@ class RocksDBStore implements ByteStore {
       final Rocks.Meta oldMeta = meta(oldValueOrPtr);
       final String oldTag = oldMeta != null ? oldMeta.getTag() : null;
 
-      // Validity check fails if the CREATE option is used but there is an existing entry with a valid tag
+      // Validity check fails if the CREATE option is used but there is an existing entry with a
+      // valid tag
       // or there's an existing entry, it has a tag, and the tag doesn't match.
-      // Note: We permit using the create option when there's an existing entry without tag metadata,
-      // because during upgrade, existing tags are potentially embedded in the value and can't be read.
+      // Note: We permit using the create option when there's an existing entry without tag
+      // metadata,
+      // because during upgrade, existing tags are potentially embedded in the value and can't be
+      // read.
       // This behavior allows reseting all existing tags during upgrade.
-      if ((versionInfo.hasCreateOption() && (oldValueOrPtr != null && oldMeta != null && oldMeta.hasTag()))
-        || (!versionInfo.hasCreateOption() && oldValueOrPtr == null)
-        || (versionInfo.getTag() != null && oldMeta != null  && oldMeta.hasTag() && !versionInfo.getTag().equals(oldTag))) {
+      if ((versionInfo.hasCreateOption()
+              && (oldValueOrPtr != null && oldMeta != null && oldMeta.hasTag()))
+          || (!versionInfo.hasCreateOption() && oldValueOrPtr == null)
+          || (versionInfo.getTag() != null
+              && oldMeta != null
+              && oldMeta.hasTag()
+              && !versionInfo.getTag().equals(oldTag))) {
         return null;
       }
 
@@ -547,7 +581,8 @@ class RocksDBStore implements ByteStore {
   }
 
   @Override
-  public boolean validateAndDelete(byte[] key, VersionOption.TagInfo versionInfo, DeleteOption... options) {
+  public boolean validateAndDelete(
+      byte[] key, VersionOption.TagInfo versionInfo, DeleteOption... options) {
     Preconditions.checkNotNull(versionInfo);
     Preconditions.checkArgument(!versionInfo.hasCreateOption());
     Preconditions.checkNotNull(versionInfo.getTag());
@@ -560,8 +595,8 @@ class RocksDBStore implements ByteStore {
       // An entry is expected and the tags must match.
       // Note: We permit deletion when there's an existing entry without tag metadata because
       // during upgrade, the tag information might be embedded in the value and non-retrievable.
-      if (oldValueOrPtr == null ||
-        oldMeta != null && oldMeta.hasTag() && !versionInfo.getTag().equals(oldTag)) {
+      if (oldValueOrPtr == null
+          || oldMeta != null && oldMeta.hasTag() && !versionInfo.getTag().equals(oldTag)) {
         return false;
       }
       db.delete(handle, key);
@@ -613,13 +648,16 @@ class RocksDBStore implements ByteStore {
   }
 
   @Override
-  public void bulkIncrement(Map<byte[], List<IncrementCounter>> keysToIncrement, IncrementOption option) {
+  public void bulkIncrement(
+      Map<byte[], List<IncrementCounter>> keysToIncrement, IncrementOption option) {
     throw new UnsupportedOperationException("BulkIncrement is not supported in RocksDB.");
   }
 
   @Override
-  public void bulkDelete(List<byte[]> keysToDelete) {
-    throw new UnsupportedOperationException("BulkDelete is not supported in RocksDB.");
+  public void bulkDelete(List<byte[]> keysToDelete, DeleteOption... deleteOptions) {
+    for (byte[] key : keysToDelete) {
+      delete(key, deleteOptions);
+    }
   }
 
   @Override
@@ -640,6 +678,7 @@ class RocksDBStore implements ByteStore {
 
   /**
    * Determine whether the provided bytes has the serialized value inline without any metadata.
+   *
    * @param bytes The value to check
    * @return true if the value is inline and does not contain blob or version metadata.
    */
@@ -652,11 +691,11 @@ class RocksDBStore implements ByteStore {
   }
 
   /**
-   * Given a value from RocksDB that is a ptr rather than a value, get the ptr.
-   * This method will increment the input stream.
+   * Given a value from RocksDB that is a ptr rather than a value, get the ptr. This method will
+   * increment the input stream.
    *
-   * @param stream The data from Rocks as a byte stream after the prefix byte. The caller must
-   *               have already checked the prefix byte and verified this is not an inline value.
+   * @param stream The data from Rocks as a byte stream after the prefix byte. The caller must have
+   *     already checked the prefix byte and verified this is not an inline value.
    * @return The metadata about the version and content to read from the file if applicable.
    */
   private static Rocks.Meta parseMetaAfterPrefix(ByteArrayInputStream stream) {
@@ -669,6 +708,7 @@ class RocksDBStore implements ByteStore {
 
   /**
    * Given a value from RocksDB that is a ptr rather than a value, get the ptr.
+   *
    * @param bytes Ptr bytes with prefix.
    * @return The metadata about the version and content to read from the file if applicable.
    */
@@ -682,13 +722,14 @@ class RocksDBStore implements ByteStore {
 
   private static Document<byte[], byte[]> toDocument(byte[] key, byte[] value, String tag) {
     return new ImmutableDocument.Builder<byte[], byte[]>()
-      .setKey(key)
-      .setValue(value)
-      .setTag(tag)
-      .build();
+        .setKey(key)
+        .setValue(value)
+        .setTag(tag)
+        .build();
   }
 
-  //TODO: Perhaps there should be FindOption and GetOption to indicate a separate logic for handling the upgrade cases.
+  // TODO: Perhaps there should be FindOption and GetOption to indicate a separate logic for
+  // handling the upgrade cases.
   private static String toTag(Rocks.Meta meta, byte[] value) {
     if (meta == null) {
       return ByteStore.generateTagFromBytes(value);
@@ -705,11 +746,12 @@ class RocksDBStore implements ByteStore {
 
     @Override
     public Iterator<Document<byte[], byte[]>> iterator() {
-      throwIfClosed(); // check not needed during iteration as the underlying iterator is closed when store is closed
+      throwIfClosed(); // check not needed during iteration as the underlying iterator is closed
+      // when store is closed
       FindByRangeIterator iterator = new FindByRangeIterator(db, handle, range, metaManager);
 
       // Create a new reference which will self register
-      @SuppressWarnings({ "unused", "resource" })
+      @SuppressWarnings({"unused", "resource"})
       final IteratorReference ref = new IteratorReference(iterator);
       return iterator;
     }
@@ -731,11 +773,14 @@ class RocksDBStore implements ByteStore {
     private byte[] nextKey;
     private byte[] nextValue;
 
-    public FindByRangeIterator(RocksDB db, ColumnFamilyHandle handle, FindByRange<byte[]> range, MetaManager blob) {
+    public FindByRangeIterator(
+        RocksDB db, ColumnFamilyHandle handle, FindByRange<byte[]> range, MetaManager blob) {
       Preconditions.checkNotNull(handle);
       try {
-        // the column family handle descriptor is lazy loaded (and it especially contains the timestamp).
-        // if the GC is passing before creating the new iterator, RocksDB native part throws SIGSEGV because the
+        // the column family handle descriptor is lazy loaded (and it especially contains the
+        // timestamp).
+        // if the GC is passing before creating the new iterator, RocksDB native part throws SIGSEGV
+        // because the
         // descriptor is null.
         // Here, we ensure the descriptor is loaded before creating the new iterator.
         Preconditions.checkNotNull(handle.getDescriptor());
@@ -754,7 +799,9 @@ class RocksDBStore implements ByteStore {
       // position at beginning of cursor.
       if (range != null && range.getStart() != null) {
         iter.seek(range.getStart());
-        if (iter.isValid() && !range.isStartInclusive() && Arrays.equals(iter.key(), range.getStart())) {
+        if (iter.isValid()
+            && !range.isStartInclusive()
+            && Arrays.equals(iter.key(), range.getStart())) {
           seekNext();
         }
       } else {
@@ -765,7 +812,6 @@ class RocksDBStore implements ByteStore {
       }
 
       populateNext();
-
     }
 
     private void seekNext() {
@@ -792,7 +838,7 @@ class RocksDBStore implements ByteStore {
       byte[] key = iter.key();
       if (end != null) {
         int comparison = UnsignedBytes.lexicographicalComparator().compare(key, end);
-        if ( !(comparison < 0 || (comparison == 0 && endInclusive))) {
+        if (!(comparison < 0 || (comparison == 0 && endInclusive))) {
           // hit end key.
           return;
         }
@@ -800,7 +846,6 @@ class RocksDBStore implements ByteStore {
 
       nextKey = key;
       nextValue = iter.value();
-
     }
 
     @Override
@@ -810,19 +855,33 @@ class RocksDBStore implements ByteStore {
       if (ITERATOR_METRICS && !logged && !hasNext && durations.getN() > 0) {
 
         final double totalDuration = durations.getSum();
-        logger.info("Duration statistics (in microseconds) while iterating over '{}':" +
-                "\n{}\n95th: {}\n99th: {}\n99.5th: {}\n99.9th: {}\n99.99th: {}\ntotal: {} (or {} ms)\nsetup: {}",
-            name, durations, durations.getPercentile(95), durations.getPercentile(99), durations.getPercentile(99.5),
-            durations.getPercentile(99.9), durations.getPercentile(99.99), totalDuration,
-            TimeUnit.MICROSECONDS.toMillis((long) totalDuration), cursorSetup);
+        logger.info(
+            "Duration statistics (in microseconds) while iterating over '{}':"
+                + "\n{}\n95th: {}\n99th: {}\n99.5th: {}\n99.9th: {}\n99.99th: {}\ntotal: {} (or {} ms)\nsetup: {}",
+            name,
+            durations,
+            durations.getPercentile(95),
+            durations.getPercentile(99),
+            durations.getPercentile(99.5),
+            durations.getPercentile(99.9),
+            durations.getPercentile(99.99),
+            totalDuration,
+            TimeUnit.MICROSECONDS.toMillis((long) totalDuration),
+            cursorSetup);
         if (logger.isDebugEnabled()) {
           logger.debug("All durations: {}", durations.getValues());
         }
 
-        logger.info("Size statistics (in bytes) while iterating over '{}':" +
-                "\n{}\n95th: {}\n99th: {}\n99.5th: {}\n99.9th: {}\n99.99th: {}\ntotal: {}",
-            name, valueSizes, valueSizes.getPercentile(95), valueSizes.getPercentile(99),
-            valueSizes.getPercentile(99.5), valueSizes.getPercentile(99.9), valueSizes.getPercentile(99.99),
+        logger.info(
+            "Size statistics (in bytes) while iterating over '{}':"
+                + "\n{}\n95th: {}\n99th: {}\n99.5th: {}\n99.9th: {}\n99.99th: {}\ntotal: {}",
+            name,
+            valueSizes,
+            valueSizes.getPercentile(95),
+            valueSizes.getPercentile(99),
+            valueSizes.getPercentile(99.5),
+            valueSizes.getPercentile(99.9),
+            valueSizes.getPercentile(99.99),
             valueSizes.getSum());
         if (logger.isDebugEnabled()) {
           logger.debug("All sizes: {}", valueSizes.getValues());
@@ -864,10 +923,10 @@ class RocksDBStore implements ByteStore {
     public void remove() {
       throw new UnsupportedOperationException();
     }
-
   }
 
-  private class IteratorReference extends PhantomReference<FindByRangeIterator> implements AutoCloseable {
+  private class IteratorReference extends PhantomReference<FindByRangeIterator>
+      implements AutoCloseable {
     private final RocksIterator iter;
 
     public IteratorReference(FindByRangeIterator referent) {
@@ -890,9 +949,7 @@ class RocksDBStore implements ByteStore {
     RocksDB.loadLibrary();
   }
 
-  /**
-   * Interface that supports external blob storage for RocksDB.
-   */
+  /** Interface that supports external blob storage for RocksDB. */
   private interface MetaManager {
     /**
      * Calculates blob storage stats for the store.
@@ -925,52 +982,54 @@ class RocksDBStore implements ByteStore {
     void deleteTranslation(Rocks.Meta valueInfo);
   }
 
-  private static final MetaManager INLINE_BLOB_MANAGER = new MetaManager() {
-    @Override
-    public BlobStats getStats() {
-      return null;
-    }
-
-    @Override
-    public RocksEntry filterGet(byte[] valueFromRocks) {
-      if (isRawValue(valueFromRocks)) {
-        if (valueFromRocks == null) {
+  private static final MetaManager INLINE_BLOB_MANAGER =
+      new MetaManager() {
+        @Override
+        public BlobStats getStats() {
           return null;
         }
-        return new RocksEntry(null, valueFromRocks);
-      }
 
-      try {
-        // Slice off the prefix byte and start parsing where the metadata block is.
-        final ByteArrayInputStream bais = new ByteArrayInputStream(valueFromRocks, 1, valueFromRocks.length);
-        final Rocks.Meta meta = parseMetaAfterPrefix(bais);
-        // We know this is not a blob because we are using the inline blob manager. Assume the value
-        // is the rest of the byte array.
-        final byte[] result = new byte[bais.available()];
-        bais.read(result);
-        return new RocksEntry(meta, result);
-      } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
-    }
+        @Override
+        public RocksEntry filterGet(byte[] valueFromRocks) {
+          if (isRawValue(valueFromRocks)) {
+            if (valueFromRocks == null) {
+              return null;
+            }
+            return new RocksEntry(null, valueFromRocks);
+          }
 
-    @Override
-    public BlobHolder filterPut(byte[] valueToFilter, String tag) {
-      if (Strings.isNullOrEmpty(tag)) {
-        return new Inline(valueToFilter);
-      }
+          try {
+            // Slice off the prefix byte and start parsing where the metadata block is.
+            final ByteArrayInputStream bais =
+                new ByteArrayInputStream(valueFromRocks, 1, valueFromRocks.length);
+            final Rocks.Meta meta = parseMetaAfterPrefix(bais);
+            // We know this is not a blob because we are using the inline blob manager. Assume the
+            // value
+            // is the rest of the byte array.
+            final byte[] result = new byte[bais.available()];
+            bais.read(result);
+            return new RocksEntry(meta, result);
+          } catch (IOException e) {
+            throw new RuntimeException(e);
+          }
+        }
 
-      return new Tagged(valueToFilter, tag);
-    }
+        @Override
+        public BlobHolder filterPut(byte[] valueToFilter, String tag) {
+          if (Strings.isNullOrEmpty(tag)) {
+            return new Inline(valueToFilter);
+          }
 
-    @Override
-    public void deleteTranslation(Rocks.Meta valueInfo) {
-    }
-  };
+          return new Tagged(valueToFilter, tag);
+        }
+
+        @Override
+        public void deleteTranslation(Rocks.Meta valueInfo) {}
+      };
 
   /**
-   * A filter on the underlying RocksDB that will automatically route files beyond a certain size to the local
-   * filesystem instead of inside the rocks store.
+   * A filter on the underlying RocksDB that will automatically route files beyond a certain size to
+   * the local filesystem instead of inside the rocks store.
    */
   static class RocksMetaManager implements MetaManager {
 
@@ -1017,30 +1076,33 @@ class RocksDBStore implements ByteStore {
 
       try {
         // Slice off the prefix byte and start parsing where the metadata block is.
-        final ByteArrayInputStream bais = new ByteArrayInputStream(valueFromRocks, 1, valueFromRocks.length);
+        final ByteArrayInputStream bais =
+            new ByteArrayInputStream(valueFromRocks, 1, valueFromRocks.length);
         final Rocks.Meta meta = parseMetaAfterPrefix(bais);
         if (!meta.hasPath()) {
-          // Not a blob file since it has no path. Consume the rest of the stream as a byte array and return that
+          // Not a blob file since it has no path. Consume the rest of the stream as a byte array
+          // and return that
           // as the value.
           final byte[] result = new byte[bais.available()];
           bais.read(result);
-          return new RocksEntry(meta,result);
+          return new RocksEntry(meta, result);
         }
 
         final Path path = base.resolve(Paths.get(meta.getPath()));
         switch (meta.getCodec()) {
-        case SNAPPY: {
-          try (final SnappyInputStream snappyInputStream =
-                 new SnappyInputStream(Files.newInputStream(path))) {
-            return new RocksEntry(meta, ByteStreams.toByteArray(snappyInputStream));
-          }
+          case SNAPPY:
+            {
+              try (final SnappyInputStream snappyInputStream =
+                  new SnappyInputStream(Files.newInputStream(path))) {
+                return new RocksEntry(meta, ByteStreams.toByteArray(snappyInputStream));
+              }
+            }
+          case UNCOMPRESSED:
+            return new RocksEntry(meta, Files.readAllBytes(path));
+          case UNKNOWN:
+          default:
+            throw new IllegalArgumentException("Unknown codec: " + meta.getCodec());
         }
-        case UNCOMPRESSED:
-          return new RocksEntry(meta, Files.readAllBytes(path));
-        case UNKNOWN:
-        default:
-          throw new IllegalArgumentException("Unknown codec: " + meta.getCodec());
-      }
       } catch (NoSuchFileException e) {
         throw new BlobNotFoundException(e);
       } catch (IOException e) {
@@ -1056,10 +1118,14 @@ class RocksDBStore implements ByteStore {
       final Path file = Paths.get(UUID.randomUUID().toString() + ".blob");
       final Path path = base.resolve(file);
 
-      logger.debug("Value size {} bytes larger than limit {} bytes - storing actual data at {}",
-        valueToFilter.length, filterSize, path);
+      logger.debug(
+          "Value size {} bytes larger than limit {} bytes - storing actual data at {}",
+          valueToFilter.length,
+          filterSize,
+          path);
 
-      try (final SnappyOutputStream snappyOutputStream = new SnappyOutputStream(Files.newOutputStream(path))){
+      try (final SnappyOutputStream snappyOutputStream =
+          new SnappyOutputStream(Files.newOutputStream(path))) {
         snappyOutputStream.write(valueToFilter);
         return new Blob(file, tag);
       } catch (IOException e) {
@@ -1108,8 +1174,8 @@ class RocksDBStore implements ByteStore {
     default void commit() {}
 
     /**
-     * Returns a raw byte array of data that's written to RocksDB including any metadata about
-     * the value that is stored.
+     * Returns a raw byte array of data that's written to RocksDB including any metadata about the
+     * value that is stored.
      */
     byte[] ptrOrValue() throws IOException;
 
@@ -1138,9 +1204,8 @@ class RocksDBStore implements ByteStore {
     public byte[] ptrOrValue() throws IOException {
       final ByteArrayOutputStream baos = new ByteArrayOutputStream();
       baos.write(META_MARKER);
-      final Rocks.Meta.Builder builder = Rocks.Meta.newBuilder()
-        .setPath(path.toString())
-        .setCodec(Rocks.Meta.Codec.SNAPPY);
+      final Rocks.Meta.Builder builder =
+          Rocks.Meta.newBuilder().setPath(path.toString()).setCodec(Rocks.Meta.Codec.SNAPPY);
 
       if (!Strings.isNullOrEmpty(tag)) {
         builder.setTag(tag);
@@ -1184,9 +1249,7 @@ class RocksDBStore implements ByteStore {
 
       final ByteArrayOutputStream baos = new ByteArrayOutputStream();
       baos.write(META_MARKER);
-      Rocks.Meta.newBuilder()
-        .setTag(tag)
-        .build().writeDelimitedTo(baos);
+      Rocks.Meta.newBuilder().setTag(tag).build().writeDelimitedTo(baos);
 
       baos.write(value);
       return baos.toByteArray();
@@ -1217,12 +1280,11 @@ class RocksDBStore implements ByteStore {
     }
   }
 
-  /**
-   * A structured view of the result of a get() call to Rocks.
-   */
+  /** A structured view of the result of a get() call to Rocks. */
   static class RocksEntry {
     private final Rocks.Meta meta;
     private final byte[] value;
+
     RocksEntry(Rocks.Meta meta, byte[] value) {
       this.meta = meta;
       this.value = value;
@@ -1232,17 +1294,13 @@ class RocksDBStore implements ByteStore {
       return meta;
     }
 
-    /**
-     * Get the value serialized as a byte array.
-     */
+    /** Get the value serialized as a byte array. */
     byte[] getData() {
       return value;
     }
   }
 
-  /**
-   * Exception for blob file not found
-   */
+  /** Exception for blob file not found */
   static class BlobNotFoundException extends FileNotFoundException {
     BlobNotFoundException(NoSuchFileException e) {
       super(e.getMessage());

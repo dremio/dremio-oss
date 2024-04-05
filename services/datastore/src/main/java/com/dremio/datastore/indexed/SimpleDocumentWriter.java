@@ -17,6 +17,11 @@ package com.dremio.datastore.indexed;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import com.dremio.datastore.SearchTypes.SearchFieldSorting;
+import com.dremio.datastore.api.DocumentWriter;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Utf8;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.DoubleDocValuesField;
 import org.apache.lucene.document.DoublePoint;
@@ -30,21 +35,13 @@ import org.apache.lucene.document.StringField;
 import org.apache.lucene.index.IndexableField;
 import org.apache.lucene.util.BytesRef;
 
-import com.dremio.datastore.SearchTypes.SearchFieldSorting;
-import com.dremio.datastore.api.DocumentWriter;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Utf8;
-
 /**
  * A basic document writer
  *
- * Doesn't reuse document
- *
+ * <p>Doesn't reuse document
  */
 public final class SimpleDocumentWriter implements DocumentWriter {
-  @VisibleForTesting
-  public static final int MAX_STRING_LENGTH = 30000;
+  @VisibleForTesting public static final int MAX_STRING_LENGTH = 30000;
 
   private final Document doc;
 
@@ -54,21 +51,21 @@ public final class SimpleDocumentWriter implements DocumentWriter {
 
   @Override
   public void write(IndexKey key, Double value) {
-    if(value != null){
+    if (value != null) {
       addToDoc(key, value);
     }
   }
 
   @Override
   public void write(IndexKey key, Integer value) {
-    if(value != null){
+    if (value != null) {
       addToDoc(key, value);
     }
   }
 
   @Override
   public void write(IndexKey key, Long value) {
-    if(value != null){
+    if (value != null) {
       addToDoc(key, value);
     }
   }
@@ -88,7 +85,7 @@ public final class SimpleDocumentWriter implements DocumentWriter {
     return doc;
   }
 
-  private void addToDoc(IndexKey key, String... values){
+  private void addToDoc(IndexKey key, String... values) {
     Preconditions.checkArgument(key.getValueType() == String.class);
     final boolean sorted = key.isSorted();
     if (sorted) {
@@ -104,8 +101,7 @@ public final class SimpleDocumentWriter implements DocumentWriter {
         continue;
       }
       if (Utf8.encodedLength(value) > MAX_STRING_LENGTH) {
-        value =  new BytesRef(value.getBytes(UTF_8), 0, MAX_STRING_LENGTH)
-                    .utf8ToString();
+        value = new BytesRef(value.getBytes(UTF_8), 0, MAX_STRING_LENGTH).utf8ToString();
       }
       doc.add(new StringField(indexFieldName, value, stored));
     }
@@ -116,7 +112,7 @@ public final class SimpleDocumentWriter implements DocumentWriter {
     }
   }
 
-  private void addToDoc(IndexKey key, byte[]... values){
+  private void addToDoc(IndexKey key, byte[]... values) {
     Preconditions.checkArgument(key.getValueType() == String.class);
     final boolean sorted = key.isSorted();
     if (sorted) {
@@ -131,7 +127,8 @@ public final class SimpleDocumentWriter implements DocumentWriter {
       if (value == null) {
         continue;
       }
-      final BytesRef truncatedValue = new BytesRef(value,0, Math.min(value.length, MAX_STRING_LENGTH));
+      final BytesRef truncatedValue =
+          new BytesRef(value, 0, Math.min(value.length, MAX_STRING_LENGTH));
       doc.add(new StringField(indexFieldName, truncatedValue, stored));
     }
 
@@ -141,9 +138,9 @@ public final class SimpleDocumentWriter implements DocumentWriter {
     }
   }
 
-  private void addToDoc(IndexKey key, Long value){
+  private void addToDoc(IndexKey key, Long value) {
     Preconditions.checkArgument(key.getValueType() == Long.class);
-    if(value == null){
+    if (value == null) {
       return;
     }
 
@@ -160,9 +157,9 @@ public final class SimpleDocumentWriter implements DocumentWriter {
     }
   }
 
-  void addToDoc(IndexKey key, Integer value){
+  void addToDoc(IndexKey key, Integer value) {
     Preconditions.checkArgument(key.getValueType() == Integer.class);
-    if(value == null){
+    if (value == null) {
       return;
     }
 
@@ -179,9 +176,9 @@ public final class SimpleDocumentWriter implements DocumentWriter {
     }
   }
 
-  private void addToDoc(IndexKey key, Double value){
+  private void addToDoc(IndexKey key, Double value) {
     Preconditions.checkArgument(key.getValueType() == Double.class);
-    if(value == null){
+    if (value == null) {
       return;
     }
 
@@ -203,8 +200,8 @@ public final class SimpleDocumentWriter implements DocumentWriter {
 
     // ensure that fields that can only contain a single value don't get multiple values
     if (!key.canContainMultipleValues()) {
-      Preconditions.checkState(field == null,
-        "Cannot add multiple values to field [%s]", key.getIndexFieldName());
+      Preconditions.checkState(
+          field == null, "Cannot add multiple values to field [%s]", key.getIndexFieldName());
     }
   }
 
@@ -213,8 +210,10 @@ public final class SimpleDocumentWriter implements DocumentWriter {
 
     // ensure that fields that can only contain a single value don't get multiple values
     if (!key.canContainMultipleValues()) {
-      Preconditions.checkState(field == null && values.length == 1,
-        "Cannot add multiple values to field [%s]", key.getIndexFieldName());
+      Preconditions.checkState(
+          field == null && values.length == 1,
+          "Cannot add multiple values to field [%s]",
+          key.getIndexFieldName());
     }
   }
 

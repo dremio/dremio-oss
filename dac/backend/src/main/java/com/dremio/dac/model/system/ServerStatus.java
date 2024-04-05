@@ -15,10 +15,8 @@
  */
 package com.dremio.dac.model.system;
 
-/**
- * Server Status
- */
-public enum  ServerStatus {
+/** Server Status */
+public enum ServerStatus {
   MASTER_DOWN,
   OK,
   STARTUP_FAILED;

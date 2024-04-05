@@ -15,9 +15,16 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.ops.QueryContext;
+import com.dremio.exec.planner.sql.handlers.direct.SqlDirectHandler;
+import com.dremio.options.OptionResolver;
+import com.dremio.sabot.rpc.user.UserSession;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import java.lang.reflect.Constructor;
 import java.util.List;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -28,36 +35,28 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.catalog.Catalog;
-import com.dremio.exec.ops.QueryContext;
-import com.dremio.exec.planner.sql.handlers.direct.SqlDirectHandler;
-import com.dremio.options.OptionResolver;
-import com.dremio.sabot.rpc.user.UserSession;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
-
 /**
  * Sets the current default context.
  *
- * USE ( REF[ERENCE] | BRANCH | TAG | COMMIT ) <refValue>
- * [ AS OF timestamp ]
- * [ IN <sourceName> ]
+ * <p>USE ( REF[ERENCE] | BRANCH | TAG | COMMIT ) <refValue> [ AS OF timestamp ] [ IN <sourceName> ]
  */
 public final class SqlUseVersion extends SqlVersionSourceRefBase {
 
-  public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("USE_VERSION", SqlKind.OTHER) {
-    @Override
-    public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 4, "SqlUseBranch.createCall() has to get 4 operands!");
-      return new SqlUseVersion(
-        pos,
-        ((SqlLiteral) operands[0]).symbolValue(ReferenceType.class),
-        (SqlIdentifier) operands[1],
-        operands[2],
-        (SqlIdentifier) operands[3]);
-    }
-  };
+  public static final SqlSpecialOperator OPERATOR =
+      new SqlSpecialOperator("USE_VERSION", SqlKind.OTHER) {
+        @Override
+        public SqlCall createCall(
+            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+          Preconditions.checkArgument(
+              operands.length == 4, "SqlUseBranch.createCall() has to get 4 operands!");
+          return new SqlUseVersion(
+              pos,
+              ((SqlLiteral) operands[0]).symbolValue(ReferenceType.class),
+              (SqlIdentifier) operands[1],
+              operands[2],
+              (SqlIdentifier) operands[3]);
+        }
+      };
 
   public SqlUseVersion(
       SqlParserPos pos,
@@ -65,7 +64,12 @@ public final class SqlUseVersion extends SqlVersionSourceRefBase {
       SqlIdentifier refValue,
       SqlNode timestamp,
       SqlIdentifier sourceName) {
-    super(pos, sourceName, Preconditions.checkNotNull(refType), Preconditions.checkNotNull(refValue), timestamp);
+    super(
+        pos,
+        sourceName,
+        Preconditions.checkNotNull(refType),
+        Preconditions.checkNotNull(refValue),
+        timestamp);
   }
 
   @Override
@@ -96,19 +100,17 @@ public final class SqlUseVersion extends SqlVersionSourceRefBase {
   public SqlDirectHandler<?> toDirectHandler(QueryContext context) {
     try {
       final Class<?> cl = Class.forName("com.dremio.exec.planner.sql.handlers.UseVersionHandler");
-      final Constructor<?> ctor = cl.getConstructor(Catalog.class, UserSession.class, OptionResolver.class);
+      final Constructor<?> ctor =
+          cl.getConstructor(Catalog.class, UserSession.class, OptionResolver.class);
 
-      return (SqlDirectHandler<?>) ctor.newInstance(
-        context.getCatalog(),
-        context.getSession(),
-        context.getOptions());
+      return (SqlDirectHandler<?>)
+          ctor.newInstance(context.getCatalog(), context.getSession(), context.getOptions());
     } catch (ClassNotFoundException e) {
       throw UserException.unsupportedError(e)
-        .message("USE %s action is not supported.", getRefType())
-        .buildSilently();
+          .message("USE %s action is not supported.", getRefType())
+          .buildSilently();
     } catch (ReflectiveOperationException e) {
       throw new RuntimeException(e);
     }
   }
-
 }

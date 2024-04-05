@@ -17,9 +17,7 @@ package com.dremio.telemetry.api.metrics;
 
 import java.util.function.Supplier;
 
-/**
- * The interface to report latency values by their query or key.
- */
+/** The interface to report latency values by their query or key. */
 public interface TopMonitor {
   void update(long latencyMillis, Supplier<String> description, String... tags);
 }

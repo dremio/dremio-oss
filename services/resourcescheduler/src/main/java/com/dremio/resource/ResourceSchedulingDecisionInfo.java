@@ -19,10 +19,7 @@ import com.dremio.exec.enginemanagement.proto.EngineManagementProtos.EngineId;
 import com.dremio.exec.enginemanagement.proto.EngineManagementProtos.SubEngineId;
 import com.dremio.exec.proto.UserBitShared;
 
-/**
- * To Keep Information regarding some decisions made during
- * resource allocations
- */
+/** To Keep Information regarding some decisions made during resource allocations */
 public class ResourceSchedulingDecisionInfo {
   private String queueName;
   private String queueId;
@@ -32,8 +29,8 @@ public class ResourceSchedulingDecisionInfo {
   private String ruleAction;
   // to overwrite WorkloadClass set on PlanFragment level
   private UserBitShared.WorkloadClass workloadClass;
-  private long schedulingStartTimeMs;  // Time when resource allocation started, in ms
-  private long schedulingEndTimeMs;    // Time when resources were fully allocated, in ms
+  private long schedulingStartTimeMs; // Time when resource allocation started, in ms
+  private long schedulingEndTimeMs; // Time when resources were fully allocated, in ms
   private String queueTag;
   private String engineName;
   private EngineId engineId;
@@ -108,7 +105,8 @@ public class ResourceSchedulingDecisionInfo {
     return resourceSchedulingProperties;
   }
 
-  public void setResourceSchedulingProperties(ResourceSchedulingProperties resourceSchedulingProperties) {
+  public void setResourceSchedulingProperties(
+      ResourceSchedulingProperties resourceSchedulingProperties) {
     this.resourceSchedulingProperties = resourceSchedulingProperties;
   }
 

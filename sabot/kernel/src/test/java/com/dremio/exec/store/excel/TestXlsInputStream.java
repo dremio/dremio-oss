@@ -15,11 +15,14 @@
  */
 package com.dremio.exec.store.excel;
 
+import com.dremio.BaseTestQuery;
+import com.dremio.common.util.TestTools;
+import com.dremio.exec.store.easy.excel.xls.XlsInputStream;
+import com.google.common.collect.Lists;
 import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
 import java.util.Arrays;
 import java.util.List;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.poi.util.IOUtils;
 import org.junit.After;
@@ -27,23 +30,19 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import com.dremio.BaseTestQuery;
-import com.dremio.common.util.TestTools;
-import com.dremio.exec.store.easy.excel.xls.XlsInputStream;
-import com.google.common.collect.Lists;
-
 public class TestXlsInputStream extends BaseTestQuery {
 
   private final List<ArrowBuf> buffers = Lists.newArrayList();
 
-  private final XlsInputStream.BufferManager bufferManager = new XlsInputStream.BufferManager() {
-    @Override
-    public ArrowBuf allocate(int size) {
-      final ArrowBuf buf = getAllocator().buffer(size);
-      buffers.add(buf);
-      return buf;
-    }
-  };
+  private final XlsInputStream.BufferManager bufferManager =
+      new XlsInputStream.BufferManager() {
+        @Override
+        public ArrowBuf allocate(int size) {
+          final ArrowBuf buf = getAllocator().buffer(size);
+          buffers.add(buf);
+          return buf;
+        }
+      };
 
   @Before
   public void before() {
@@ -58,8 +57,8 @@ public class TestXlsInputStream extends BaseTestQuery {
   }
 
   /**
-   * Following test loads a 400KB xls file using both an XlsInputStream and into a byte array,
-   * then assesses the XlsInputStream is returning the correct data.
+   * Following test loads a 400KB xls file using both an XlsInputStream and into a byte array, then
+   * assesses the XlsInputStream is returning the correct data.
    */
   @Test
   public void testXlsInputStream() throws Exception {
@@ -67,7 +66,8 @@ public class TestXlsInputStream extends BaseTestQuery {
 
     final byte[] bytes = IOUtils.toByteArray(new FileInputStream(filePath));
 
-    final XlsInputStream xlsStream = new XlsInputStream(bufferManager, new ByteArrayInputStream(bytes));
+    final XlsInputStream xlsStream =
+        new XlsInputStream(bufferManager, new ByteArrayInputStream(bytes));
 
     final ByteArrayInputStream bis = new ByteArrayInputStream(bytes);
     final int bufferSize = 500;
@@ -81,13 +81,13 @@ public class TestXlsInputStream extends BaseTestQuery {
 
       Assert.assertEquals(String.format("Error after reading %d bytes", offset), r1, r2);
 
-      final String errorMsg = String.format("Error after reading %d bytes%n" +
-              "expected: %s%n" +
-              "was: %s%n", offset, Arrays.toString(buf1), Arrays.toString(buf2));
+      final String errorMsg =
+          String.format(
+              "Error after reading %d bytes%n" + "expected: %s%n" + "was: %s%n",
+              offset, Arrays.toString(buf1), Arrays.toString(buf2));
       Assert.assertTrue(errorMsg, Arrays.equals(buf1, buf2));
 
       offset += bufferSize;
     }
-
   }
 }

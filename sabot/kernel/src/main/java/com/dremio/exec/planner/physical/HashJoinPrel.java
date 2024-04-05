@@ -15,25 +15,6 @@
  */
 package com.dremio.exec.planner.physical;
 
-import java.io.IOException;
-import java.util.ArrayDeque;
-import java.util.Deque;
-import java.util.List;
-import java.util.Objects;
-import java.util.stream.Collectors;
-
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelOptCost;
-import org.apache.calcite.plan.RelOptPlanner;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.RelWriter;
-import org.apache.calcite.rel.core.Join;
-import org.apache.calcite.rel.core.JoinRelType;
-import org.apache.calcite.rel.metadata.RelMetadataQuery;
-import org.apache.calcite.rex.RexNode;
-
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.logical.data.JoinCondition;
@@ -61,48 +42,117 @@ import com.dremio.sabot.op.join.JoinUtils.JoinCategory;
 import com.dremio.sabot.op.join.hash.HashJoinOperator;
 import com.dremio.sabot.op.join.vhash.spill.VectorizedSpillingHashJoinOperator;
 import com.google.common.collect.ImmutableList;
+import java.io.IOException;
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptCost;
+import org.apache.calcite.plan.RelOptPlanner;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.RelWriter;
+import org.apache.calcite.rel.core.Join;
+import org.apache.calcite.rel.core.JoinRelType;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.apache.calcite.rex.RexNode;
 
 @Options
 public class HashJoinPrel extends JoinPrel {
 
-  public static final LongValidator RESERVE = new PositiveLongValidator("planner.op.hashjoin.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
-  public static final LongValidator LIMIT = new PositiveLongValidator("planner.op.hashjoin.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
-  public static final LongValidator FORCEDMEMLIMIT = new PositiveLongValidator("planner.op.hashjoin.forced_limit_bytes", Long.MAX_VALUE, 2L * 1024 * 1024 * 1024);
-  public static final LongValidator LOW_LIMIT = new PositiveLongValidator("planner.op.hashjoin.low_limit_bytes", Long.MAX_VALUE, VectorizedSpillingHashJoinOperator.MIN_RESERVE);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(HashJoinPrel.class);
 
-  public static final DoubleValidator FACTOR = new RangeDoubleValidator("planner.op.hashjoin.factor", 0.0, 1000.0, 1.0d);
-  public static final BooleanValidator BOUNDED = new BooleanValidator("planner.op.hashjoin.bounded", true);
+  public static final LongValidator RESERVE =
+      new PositiveLongValidator(
+          "planner.op.hashjoin.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
+  public static final LongValidator LIMIT =
+      new PositiveLongValidator("planner.op.hashjoin.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
+  public static final LongValidator FORCEDMEMLIMIT =
+      new PositiveLongValidator(
+          "planner.op.hashjoin.forced_limit_bytes", Long.MAX_VALUE, 2L * 1024 * 1024 * 1024);
+  public static final LongValidator LOW_LIMIT =
+      new PositiveLongValidator(
+          "planner.op.hashjoin.low_limit_bytes",
+          Long.MAX_VALUE,
+          VectorizedSpillingHashJoinOperator.MIN_RESERVE);
+
+  public static final DoubleValidator FACTOR =
+      new RangeDoubleValidator("planner.op.hashjoin.factor", 0.0, 1000.0, 1.0d);
+  public static final BooleanValidator BOUNDED =
+      new BooleanValidator("planner.op.hashjoin.bounded", true);
 
   private final boolean swapped;
   private final RexNode extraCondition;
   private RuntimeFilterId runtimeFilterId;
 
-
-  private HashJoinPrel(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right,
-      RexNode condition, RexNode extraCondition, JoinRelType joinType, boolean swapped,
-      RuntimeFilterId runtimeFilterId) {
-    super(cluster, traits, left, right, condition, joinType);
+  private HashJoinPrel(
+      RelOptCluster cluster,
+      RelTraitSet traits,
+      RelNode left,
+      RelNode right,
+      RexNode condition,
+      RexNode extraCondition,
+      JoinRelType joinType,
+      boolean swapped,
+      RuntimeFilterId runtimeFilterId,
+      boolean ignoreForJoinAnalysis) {
+    super(cluster, traits, left, right, condition, joinType, ignoreForJoinAnalysis);
     this.swapped = swapped;
     this.extraCondition = extraCondition;
     this.runtimeFilterId = runtimeFilterId;
   }
 
-  public static HashJoinPrel create(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, RexNode condition,
-                                    RexNode extraCondition, JoinRelType joinType) {
+  public static HashJoinPrel create(
+      RelOptCluster cluster,
+      RelTraitSet traits,
+      RelNode left,
+      RelNode right,
+      RexNode condition,
+      RexNode extraCondition,
+      JoinRelType joinType,
+      boolean ignoreForJoinAnalysis) {
     final RelTraitSet adjustedTraits = JoinPrel.adjustTraits(traits);
-    return new HashJoinPrel(cluster, adjustedTraits, left, right, condition, extraCondition,
-      joinType, false, null);
+    return new HashJoinPrel(
+        cluster,
+        adjustedTraits,
+        left,
+        right,
+        condition,
+        extraCondition,
+        joinType,
+        false,
+        null,
+        ignoreForJoinAnalysis);
   }
 
   @Override
-  public Join copy(RelTraitSet traitSet, RexNode conditionExpr, RelNode left, RelNode right, JoinRelType joinType, boolean semiJoinDone) {
-    return new HashJoinPrel(this.getCluster(), traitSet, left, right, conditionExpr,
-      this.extraCondition, joinType, this.swapped, this.runtimeFilterId);
+  public Join copy(
+      RelTraitSet traitSet,
+      RexNode conditionExpr,
+      RelNode left,
+      RelNode right,
+      JoinRelType joinType,
+      boolean semiJoinDone) {
+    return new HashJoinPrel(
+        this.getCluster(),
+        traitSet,
+        left,
+        right,
+        conditionExpr,
+        this.extraCondition,
+        joinType,
+        this.swapped,
+        this.runtimeFilterId,
+        getIgnoreForJoinAnalysis());
   }
 
   @Override
   public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
-    if(PrelUtil.getSettings(getCluster()).useDefaultCosting()) {
+    if (PrelUtil.getSettings(getCluster()).useDefaultCosting()) {
       return super.computeSelfCost(planner, mq).multiplyBy(.1);
     }
     if (joinCategory == JoinCategory.CARTESIAN || joinCategory == JoinCategory.INEQUALITY) {
@@ -131,7 +181,6 @@ public class HashJoinPrel extends JoinPrel {
     final List<Integer> currentLeftKeys;
     List<Integer> currentRightKeys;
 
-
     // Swapping left and side if necessary
     // Output is not swapped as the operator uses field names and not field indices
     // so it is not impacted by reordering
@@ -150,15 +199,32 @@ public class HashJoinPrel extends JoinPrel {
     final List<String> leftFields = currentLeft.getRowType().getFieldNames();
     final List<String> rightFields = currentRight.getRowType().getFieldNames();
 
-    final PhysicalOperator leftPop = ((Prel)currentLeft).getPhysicalOperator(creator);
-    final PhysicalOperator rightPop = ((Prel)currentRight).getPhysicalOperator(creator);
+    final PhysicalOperator leftPop = ((Prel) currentLeft).getPhysicalOperator(creator);
+    final PhysicalOperator rightPop = ((Prel) currentRight).getPhysicalOperator(creator);
 
-    final List<JoinCondition> conditions = buildJoinConditions(leftFields, rightFields, currentLeftKeys, currentRightKeys);
+    final List<JoinCondition> conditions =
+        buildJoinConditions(leftFields, rightFields, currentLeftKeys, currentRightKeys);
 
     final OptionManager options = creator.getContext().getOptions();
-    final boolean vectorize = options.getOption(ExecConstants.ENABLE_VECTORIZED_HASHJOIN)
-        && canVectorize(creator.getContext().getFunctionRegistry(), leftPop, rightPop, conditions);
-    final boolean canSpill = vectorize && options.getOption(HashJoinOperator.ENABLE_SPILL);
+    final boolean vectorize =
+        options.getOption(ExecConstants.ENABLE_VECTORIZED_HASHJOIN)
+            && canVectorize(
+                creator.getContext().getFunctionRegistry(), leftPop, rightPop, conditions);
+    boolean canSpill = vectorize && options.getOption(HashJoinOperator.ENABLE_SPILL);
+
+    try {
+      Double maxRowCount = getCluster().getMetadataQuery().getMaxRowCount(right);
+      logger.debug("MaxRowCount {}", maxRowCount);
+      if (maxRowCount != null) {
+        int fieldCount = getRowType().getFieldCount();
+        canSpill =
+            canSpill
+                && (maxRowCount * fieldCount)
+                    > options.getOption(HashJoinOperator.SPILL_ENABLE_THRESHOLD);
+      }
+    } catch (Exception e) {
+      logger.debug("Caught exception", e);
+    }
 
     final LogicalExpression extraJoinCondition = buildExtraJoinCondition(vectorize);
 
@@ -175,35 +241,36 @@ public class HashJoinPrel extends JoinPrel {
     long reservation = options.getOption(RESERVE);
     long forcedMemoryLimit = 0;
     if (canSpill) {
-      // safety code in case users set very low values via support option. Cannot use PostiveRangeValidator since the
+      // safety code in case users set very low values via support option. Cannot use
+      // PostiveRangeValidator since the
       // min values are different for spilling & non-spilling variants.
       lowLimit = Long.max(lowLimit, VectorizedSpillingHashJoinOperator.MIN_RESERVE);
       reservation = Long.max(reservation, VectorizedSpillingHashJoinOperator.MIN_RESERVE);
       forcedMemoryLimit = Long.max(lowLimit, options.getOption(FORCEDMEMLIMIT));
     }
     return new HashJoinPOP(
-      creator
-        .props(this, null, schema, reservation, LIMIT, lowLimit, forcedMemoryLimit)
-        .cloneWithBound(creator.getOptionManager().getOption(BOUNDED) && canSpill)
-        .cloneWithMemoryFactor(creator.getOptionManager().getOption(FACTOR))
-        .cloneWithMemoryExpensive(true),
-      leftPop,
-      rightPop,
-      conditions,
-      extraJoinCondition,
-      joinType,
-      vectorize,
-      buildRuntimeFilterInfo(creator)
-    );
+        creator
+            .props(this, null, schema, reservation, LIMIT, lowLimit, forcedMemoryLimit)
+            .cloneWithBound(creator.getOptionManager().getOption(BOUNDED) && canSpill)
+            .cloneWithMemoryFactor(creator.getOptionManager().getOption(FACTOR))
+            .cloneWithMemoryExpensive(true),
+        leftPop,
+        rightPop,
+        conditions,
+        extraJoinCondition,
+        joinType,
+        vectorize,
+        canSpill,
+        buildRuntimeFilterInfo(creator));
   }
 
   private RuntimeFilterInfo buildRuntimeFilterInfo(PhysicalPlanCreator creator) {
-    if(null == runtimeFilterId) {
+    if (null == runtimeFilterId) {
       return null;
     }
     Deque<RelNode> relNodes = new ArrayDeque<>(getInputs());
     ImmutableList.Builder<RuntimeFilterProbeTarget> runtimeFilterProbeTargets =
-      ImmutableList.builder();
+        ImmutableList.builder();
     while (!relNodes.isEmpty()) {
       RelNode relNode = relNodes.poll();
       if (relNode instanceof HashJoinPrel) {
@@ -211,22 +278,22 @@ public class HashJoinPrel extends JoinPrel {
         if (Objects.equals(that.runtimeFilterId, this.runtimeFilterId)) {
           continue;
         }
-      } else if(relNode instanceof RuntimeFilteredRel) {
+      } else if (relNode instanceof RuntimeFilteredRel) {
         List<RuntimeFilteredRel.Info> infoList =
-          ((RuntimeFilteredRel) relNode).getRuntimeFilters().stream()
-            .filter(info -> info.getRuntimeFilterId().equals(runtimeFilterId))
-            .collect(Collectors.toList());
-        if (!infoList.isEmpty()){
+            ((RuntimeFilteredRel) relNode)
+                .getRuntimeFilters().stream()
+                    .filter(info -> info.getRuntimeFilterId().equals(runtimeFilterId))
+                    .collect(Collectors.toList());
+        if (!infoList.isEmpty()) {
           PrelSequencer.OpId id = creator.getOpId((Prel) relNode);
-          RuntimeFilterProbeTarget.Builder target = new RuntimeFilterProbeTarget.Builder(
-            id.getFragmentId(), id.getAsSingleInt());
+          RuntimeFilterProbeTarget.Builder target =
+              new RuntimeFilterProbeTarget.Builder(id.getFragmentId(), id.getAsSingleInt());
           for (RuntimeFilteredRel.Info info : infoList) {
-            if(info.getColumnType() == RuntimeFilteredRel.ColumnType.PARTITION) {
-              target.addPartitionKey(info.getFilteringColumnName(),
-                info.getFilteredColumnName());
-            } else if(info.getColumnType() == RuntimeFilteredRel.ColumnType.RANDOM) {
-              target.addNonPartitionKey(info.getFilteringColumnName(),
-                info.getFilteredColumnName());
+            if (info.getColumnType() == RuntimeFilteredRel.ColumnType.PARTITION) {
+              target.addPartitionKey(info.getFilteringColumnName(), info.getFilteredColumnName());
+            } else if (info.getColumnType() == RuntimeFilteredRel.ColumnType.RANDOM) {
+              target.addNonPartitionKey(
+                  info.getFilteringColumnName(), info.getFilteredColumnName());
             }
           }
           runtimeFilterProbeTargets.add(target.build());
@@ -235,25 +302,32 @@ public class HashJoinPrel extends JoinPrel {
       relNodes.addAll(relNode.getInputs());
     }
     return new RuntimeFilterInfo.Builder()
-      .isBroadcastJoin(runtimeFilterId.isBroadcastJoin())
-      .setRuntimeFilterProbeTargets(runtimeFilterProbeTargets.build())
-      .build();
+        .isBroadcastJoin(runtimeFilterId.isBroadcastJoin())
+        .setRuntimeFilterProbeTargets(runtimeFilterProbeTargets.build())
+        .build();
   }
 
-  private boolean canVectorize(FunctionLookupContext functionLookup, PhysicalOperator leftPop, PhysicalOperator rightPop, List<JoinCondition> conditions){
+  private boolean canVectorize(
+      FunctionLookupContext functionLookup,
+      PhysicalOperator leftPop,
+      PhysicalOperator rightPop,
+      List<JoinCondition> conditions) {
     BatchSchema left = leftPop.getProps().getSchema();
     BatchSchema right = rightPop.getProps().getSchema();
 
     // we can only vectorize if the join keys are of a safe type.
-    for(JoinCondition c : conditions){
-      LogicalExpression leftExpr = ExpressionTreeMaterializer.materializeAndCheckErrors(c.getLeft(), left, functionLookup);
-      LogicalExpression rightExpr = ExpressionTreeMaterializer.materializeAndCheckErrors(c.getRight(), right, functionLookup);
-      if(!isJoinable(leftExpr.getCompleteType()) || !isJoinable(rightExpr.getCompleteType())){
+    for (JoinCondition c : conditions) {
+      LogicalExpression leftExpr =
+          ExpressionTreeMaterializer.materializeAndCheckErrors(c.getLeft(), left, functionLookup);
+      LogicalExpression rightExpr =
+          ExpressionTreeMaterializer.materializeAndCheckErrors(c.getRight(), right, functionLookup);
+      if (!isJoinable(leftExpr.getCompleteType()) || !isJoinable(rightExpr.getCompleteType())) {
         return false;
       }
 
-      // there are a few situations (namely values join) where vectorization is not possible because implicit casts are missing.
-      if(!leftExpr.getCompleteType().equals(rightExpr.getCompleteType())){
+      // there are a few situations (namely values join) where vectorization is not possible because
+      // implicit casts are missing.
+      if (!leftExpr.getCompleteType().equals(rightExpr.getCompleteType())) {
         return false;
       }
     }
@@ -264,32 +338,42 @@ public class HashJoinPrel extends JoinPrel {
   @Override
   public RelWriter explainTerms(RelWriter pw) {
     return super.explainTerms(pw)
-      .itemIf("extraCondition", extraCondition, extraCondition != null)
-      .itemIf("swapped", swapped, swapped)
-      .itemIf("runtimeFilterId", runtimeFilterId, runtimeFilterId != null);
+        .itemIf("extraCondition", extraCondition, extraCondition != null)
+        .itemIf("swapped", swapped, swapped)
+        .itemIf("runtimeFilterId", runtimeFilterId, runtimeFilterId != null);
   }
 
-  private boolean isJoinable(CompleteType ct){
-    switch(ct.toMinorType()){
-    case BIGINT:
-    case DATE:
-    case FLOAT4:
-    case FLOAT8:
-    case INT:
-    case INTERVAL:
-    case TIME:
-    case TIMESTAMP:
-    case VARBINARY:
-    case VARCHAR:
-    case DECIMAL:
-      return true;
-    default:
-      return false;
+  private boolean isJoinable(CompleteType ct) {
+    switch (ct.toMinorType()) {
+      case BIGINT:
+      case DATE:
+      case FLOAT4:
+      case FLOAT8:
+      case INT:
+      case INTERVAL:
+      case TIME:
+      case TIMESTAMP:
+      case VARBINARY:
+      case VARCHAR:
+      case DECIMAL:
+        return true;
+      default:
+        return false;
     }
   }
 
   public HashJoinPrel swap() {
-    return new HashJoinPrel(getCluster(), traitSet, left, right, condition, extraCondition, joinType, !swapped, runtimeFilterId);
+    return new HashJoinPrel(
+        getCluster(),
+        traitSet,
+        left,
+        right,
+        condition,
+        extraCondition,
+        joinType,
+        !swapped,
+        runtimeFilterId,
+        getIgnoreForJoinAnalysis());
   }
 
   public boolean isSwapped() {

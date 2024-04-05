@@ -31,12 +31,12 @@ public class RoundRobinExchange extends AbstractExchange {
   private final OptionManager optionManager;
 
   public RoundRobinExchange(
-    OpProps props,
-    OpProps senderProps,
-    OpProps receiverProps,
-    BatchSchema schema,
-    PhysicalOperator child,
-    OptionManager optionManager) {
+      OpProps props,
+      OpProps senderProps,
+      OpProps receiverProps,
+      BatchSchema schema,
+      PhysicalOperator child,
+      OptionManager optionManager) {
     super(props, senderProps, receiverProps, schema, child, optionManager);
     this.optionManager = optionManager;
   }
@@ -47,13 +47,24 @@ public class RoundRobinExchange extends AbstractExchange {
   }
 
   @Override
-  public Sender getSender(int minorFragmentId, PhysicalOperator child, EndpointsIndex.Builder indexBuilder) throws PhysicalOperatorSetupException {
-    return new RoundRobinSender(senderProps, schema, child, receiverMajorFragmentId, PhysicalOperatorUtil.getIndexOrderedEndpoints(receiverLocations, indexBuilder));
+  public Sender getSender(
+      int minorFragmentId, PhysicalOperator child, EndpointsIndex.Builder indexBuilder)
+      throws PhysicalOperatorSetupException {
+    return new RoundRobinSender(
+        senderProps,
+        schema,
+        child,
+        receiverMajorFragmentId,
+        PhysicalOperatorUtil.getIndexOrderedEndpoints(receiverLocations, indexBuilder));
   }
 
   @Override
   public Receiver getReceiver(int minorFragmentId, EndpointsIndex.Builder indexBuilder) {
-    return new UnorderedReceiver(receiverProps, schema, senderMajorFragmentId, PhysicalOperatorUtil.getIndexOrderedEndpoints(senderLocations, indexBuilder), false);
+    return new UnorderedReceiver(
+        receiverProps,
+        schema,
+        senderMajorFragmentId,
+        PhysicalOperatorUtil.getIndexOrderedEndpoints(senderLocations, indexBuilder),
+        false);
   }
-
 }

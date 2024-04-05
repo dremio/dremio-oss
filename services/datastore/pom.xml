@@ -1,4 +1,4 @@
-<?xml version="1.0"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!--
 
     Copyright (C) 2017-2019 Dremio Corporation
@@ -16,13 +16,12 @@
     limitations under the License.
 
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <parent>
     <groupId>com.dremio.services</groupId>
     <artifactId>dremio-services-parent</artifactId>
-    <version>24.3.2-202401241821100032-d2d8a497</version>
+    <version>25.0.0-202404051521110861-ed9515a8</version>
   </parent>
   <artifactId>dremio-services-datastore</artifactId>
   <name>Services - Datastore</name>
@@ -176,8 +175,10 @@
         <executions>
           <execution>
             <id>classpath-scanning</id>
+            <goals>
+              <goal>java</goal>
+            </goals>
             <phase>process-classes</phase>
-            <goals><goal>java</goal></goals>
             <configuration>
               <mainClass>com.dremio.common.scanner.BuildTimeScan</mainClass>
               <includePluginDependencies>true</includePluginDependencies>
@@ -200,17 +201,17 @@
         <executions>
           <execution>
             <id>generate-protobuf</id>
-            <phase>generate-sources</phase>
             <goals>
               <goal>compile</goal>
             </goals>
+            <phase>generate-sources</phase>
           </execution>
           <execution>
             <id>generate-test-protobuf</id>
-            <phase>generate-test-sources</phase>
             <goals>
               <goal>test-compile</goal>
             </goals>
+            <phase>generate-test-sources</phase>
           </execution>
         </executions>
       </plugin>
@@ -235,44 +236,43 @@
               </options>
             </protoModule>
             <protoModules>
-                <source>${basedir}/src/test/protostuff</source>
-                <outputDir>${project.build.directory}/generated-test-sources/protostuff</outputDir>
-                <output>java_bean</output>
-                <encoding>UTF-8</encoding>
-                <options>
-                  <property>
-                    <name>generate_field_map</name>
-                  </property>
-                  <property>
-                    <name>com.dremio.exec.proto</name>
-                    <value>com.dremio.exec.proto.beans</value>
-                  </property>
-                  <property>
-                    <name>primitive_numbers_if_optional</name>
-                  </property>
-                  <property>
-                    <name>builder_pattern</name>
-                  </property>
-                  <property>
-                  </property>
-                </options>
+              <source>${basedir}/src/test/protostuff</source>
+              <outputDir>${project.build.directory}/generated-test-sources/protostuff</outputDir>
+              <output>java_bean</output>
+              <encoding>UTF-8</encoding>
+              <options>
+                <property>
+                  <name>generate_field_map</name>
+                </property>
+                <property>
+                  <name>com.dremio.exec.proto</name>
+                  <value>com.dremio.exec.proto.beans</value>
+                </property>
+                <property>
+                  <name>primitive_numbers_if_optional</name>
+                </property>
+                <property>
+                  <name>builder_pattern</name>
+                </property>
+                <property/>
+              </options>
             </protoModules>
           </protoModules>
         </configuration>
         <executions>
           <execution>
             <id>generate-sources</id>
-            <phase>generate-sources</phase>
             <goals>
               <goal>compile</goal>
             </goals>
+            <phase>generate-sources</phase>
           </execution>
           <execution>
             <id>generate-protostuff-test</id>
-            <phase>generate-test-sources</phase>
             <goals>
               <goal>compile</goal>
             </goals>
+            <phase>generate-test-sources</phase>
           </execution>
         </executions>
       </plugin>
@@ -281,10 +281,10 @@
         <executions>
           <execution>
             <id>proto-jar-resources</id>
-            <phase>package</phase>
             <goals>
               <goal>jar</goal>
             </goals>
+            <phase>package</phase>
             <configuration>
               <classesDirectory>${project.basedir}/src/main/protobuf</classesDirectory>
               <classifier>proto</classifier>

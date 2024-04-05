@@ -16,22 +16,20 @@
 package com.dremio.context;
 
 import com.google.common.collect.ImmutableMap;
-
 import io.grpc.Metadata;
 
-/**
- * Job ID context.
- */
+/** Job ID context. */
 public class JobIdContext implements SerializableContext {
-  public static final RequestContext.Key<JobIdContext> CTX_KEY = RequestContext.newKey("job_ctx_key");
+  public static final RequestContext.Key<JobIdContext> CTX_KEY =
+      RequestContext.newKey("job_ctx_key");
 
   // Note: These are public for use in annotating traces.
-  public static final Metadata.Key<String> JOB_ID_HEADER_KEY = Metadata.Key.of("x-dremio-job-id",
-      Metadata.ASCII_STRING_MARSHALLER);
+  public static final Metadata.Key<String> JOB_ID_HEADER_KEY =
+      Metadata.Key.of("x-dremio-job-id", Metadata.ASCII_STRING_MARSHALLER);
 
   @Deprecated // Will be removed as part of DX-67499
-  public static final Metadata.Key<String> DEPRECATED_JOB_ID_HEADER_KEY = Metadata.Key.of("jobId",
-      Metadata.ASCII_STRING_MARSHALLER);
+  public static final Metadata.Key<String> DEPRECATED_JOB_ID_HEADER_KEY =
+      Metadata.Key.of("jobId", Metadata.ASCII_STRING_MARSHALLER);
 
   private final String jobId;
 

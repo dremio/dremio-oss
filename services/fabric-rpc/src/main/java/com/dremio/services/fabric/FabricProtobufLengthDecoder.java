@@ -15,26 +15,20 @@
  */
 package com.dremio.services.fabric;
 
-import java.util.List;
-
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.exec.rpc.MessageDecoder;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
+import java.util.List;
+import org.apache.arrow.memory.BufferAllocator;
 
-/**
- * A protobuf decoder that simplifies memory debugging (since we know which protocol we're in).
- */
+/** A protobuf decoder that simplifies memory debugging (since we know which protocol we're in). */
 class FabricProtobufLengthDecoder extends MessageDecoder {
   public FabricProtobufLengthDecoder(BufferAllocator allocator) {
     super(allocator);
-
   }
+
   @Override
   protected void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) throws Exception {
     super.decode(ctx, in, out);
   }
-
 }

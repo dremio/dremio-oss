@@ -15,16 +15,12 @@
  */
 package com.dremio.exec.planner.serializer.logical;
 
-import java.util.stream.Collectors;
-
-import org.apache.calcite.rel.logical.LogicalUnion;
-
 import com.dremio.exec.planner.serializer.RelNodeSerde;
 import com.dremio.plan.serialization.PLogicalUnion;
+import java.util.stream.Collectors;
+import org.apache.calcite.rel.logical.LogicalUnion;
 
-/**
- * Serde for LogicalUnion
- */
+/** Serde for LogicalUnion */
 public final class LogicalUnionSerde implements RelNodeSerde<LogicalUnion, PLogicalUnion> {
   @Override
   public PLogicalUnion serialize(LogicalUnion union, RelToProto s) {
@@ -37,7 +33,6 @@ public final class LogicalUnionSerde implements RelNodeSerde<LogicalUnion, PLogi
   @Override
   public LogicalUnion deserialize(PLogicalUnion node, RelFromProto s) {
     return LogicalUnion.create(
-      node.getInputList().stream().map(s::toRel).collect(Collectors.toList()),
-      node.getAll());
+        node.getInputList().stream().map(s::toRel).collect(Collectors.toList()), node.getAll());
   }
 }

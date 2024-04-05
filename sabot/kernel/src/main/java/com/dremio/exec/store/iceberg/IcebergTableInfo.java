@@ -15,49 +15,49 @@
  */
 package com.dremio.exec.store.iceberg;
 
-import java.util.List;
-
 import com.dremio.connector.metadata.BytesOutput;
 import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.exec.record.BatchSchema;
+import java.util.List;
 
-/**
- * Metadata details about an iceberg table.
- */
+/** Metadata details about an iceberg table. */
 public interface IcebergTableInfo {
 
   /**
    * Get the schema for the table.
+   *
    * @return schema.
    */
   BatchSchema getBatchSchema();
 
   /**
    * Get the record count for the table.
+   *
    * @return record count
    */
   long getRecordCount();
 
   /**
    * Get the names of the partition columns for the table.
+   *
    * @return list of partition column names.
    */
   List<String> getPartitionColumns();
 
   /**
    * Get the list of distinct partitions and corresponding splits.
+   *
    * @return list of partition chunks.
    */
   PartitionChunkListing getPartitionChunkListing();
 
   /**
    * Get extended info about the dataset (eg. column value counts).
+   *
    * @return stream of bytes.
    */
   BytesOutput getExtraInfo();
 
-  /**
-   * Provide the read signature.
-   */
+  /** Provide the read signature. */
   BytesOutput provideSignature();
 }

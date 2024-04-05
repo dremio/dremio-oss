@@ -20,7 +20,7 @@ import com.dremio.exec.vector.accessor.InvalidAccessException;
 public class SQLConversionException extends InvalidAccessException {
   private static final long serialVersionUID = 2015_04_07L;
 
-  SQLConversionException( String message ) {
-    super( message );
+  SQLConversionException(String message) {
+    super(message);
   }
 }

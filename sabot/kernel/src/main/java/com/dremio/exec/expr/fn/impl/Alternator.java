@@ -15,17 +15,16 @@
  */
 package com.dremio.exec.expr.fn.impl;
 
-import org.apache.arrow.vector.holders.NullableBigIntHolder;
-
 import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Workspace;
+import org.apache.arrow.vector.holders.NullableBigIntHolder;
 
 public class Alternator {
 
   @FunctionTemplate(name = "alternate", isDeterministic = false)
-  public static class Alternate2 implements SimpleFunction{
+  public static class Alternate2 implements SimpleFunction {
     @Workspace int val;
     @Output NullableBigIntHolder out;
 
@@ -34,21 +33,20 @@ public class Alternator {
       val = 0;
     }
 
-
     @Override
     public void eval() {
       out.isSet = 1;
       out.value = val;
-      if(val == 0){
+      if (val == 0) {
         val = 1;
-      }else{
+      } else {
         val = 0;
       }
     }
   }
 
   @FunctionTemplate(name = "alternate3", isDeterministic = false)
-  public static class Alternate3 implements SimpleFunction{
+  public static class Alternate3 implements SimpleFunction {
     @Workspace int val;
     @Output NullableBigIntHolder out;
 
@@ -57,16 +55,15 @@ public class Alternator {
       val = 0;
     }
 
-
     @Override
     public void eval() {
       out.isSet = 1;
       out.value = val;
-      if(val == 0){
+      if (val == 0) {
         val = 1;
-      }else if(val == 1){
+      } else if (val == 1) {
         val = 2;
-      }else{
+      } else {
         val = 0;
       }
     }

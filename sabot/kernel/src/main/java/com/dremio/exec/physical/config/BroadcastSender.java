@@ -16,8 +16,6 @@
 
 package com.dremio.exec.physical.config;
 
-import java.util.List;
-
 import com.dremio.exec.physical.base.AbstractSender;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
@@ -28,6 +26,7 @@ import com.dremio.exec.record.BatchSchema;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import java.util.List;
 
 @JsonTypeName("broadcast-sender")
 public class BroadcastSender extends AbstractSender {
@@ -39,8 +38,7 @@ public class BroadcastSender extends AbstractSender {
       @JsonProperty("schema") BatchSchema schema,
       @JsonProperty("child") PhysicalOperator child,
       @JsonProperty("receiverMajorFragmentId") int receiverMajorFragmentId,
-      @JsonProperty("destinations") List<MinorFragmentIndexEndpoint> destinations
-      ) {
+      @JsonProperty("destinations") List<MinorFragmentIndexEndpoint> destinations) {
     super(props, schema, child, receiverMajorFragmentId);
     this.destinations = destinations;
   }
@@ -51,7 +49,8 @@ public class BroadcastSender extends AbstractSender {
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value) throws E {
+  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value)
+      throws E {
     return physicalVisitor.visitBroadcastSender(this, value);
   }
 
@@ -64,5 +63,4 @@ public class BroadcastSender extends AbstractSender {
   public int getOperatorType() {
     return CoreOperatorType.BROADCAST_SENDER_VALUE;
   }
-
 }

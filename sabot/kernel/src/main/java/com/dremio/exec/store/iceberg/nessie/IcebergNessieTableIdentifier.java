@@ -15,32 +15,29 @@
  */
 package com.dremio.exec.store.iceberg.nessie;
 
+import com.dremio.exec.store.iceberg.model.IcebergTableIdentifier;
 import org.apache.iceberg.catalog.TableIdentifier;
 
-import com.dremio.exec.store.iceberg.model.IcebergTableIdentifier;
-
-/**
- * Nessie Iceberg table identifier
- */
+/** Nessie Iceberg table identifier */
 public class IcebergNessieTableIdentifier implements IcebergTableIdentifier {
-    private final TableIdentifier tableIdentifier;
-    private final String tableFolder;
+  private final TableIdentifier tableIdentifier;
+  private final String tableFolder;
 
-    public IcebergNessieTableIdentifier(String namespace, String rootFolder) {
-        tableFolder = rootFolder;
-        tableIdentifier = TableIdentifier.of(namespace, rootFolder);
-    }
+  public IcebergNessieTableIdentifier(String namespace, String rootFolder) {
+    tableFolder = rootFolder;
+    tableIdentifier = TableIdentifier.of(namespace, rootFolder);
+  }
 
-    public TableIdentifier getTableIdentifier() {
-        return tableIdentifier;
-    }
+  public TableIdentifier getTableIdentifier() {
+    return tableIdentifier;
+  }
 
-    public String getTableFolder() {
-        return tableFolder;
-    }
+  public String getTableFolder() {
+    return tableFolder;
+  }
 
-    @Override
-    public String toString() {
-        return tableIdentifier.toString();
-    }
+  @Override
+  public String toString() {
+    return tableIdentifier.toString();
+  }
 }

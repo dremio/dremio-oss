@@ -52,5 +52,7 @@ export * from "./Tooltip/Tooltip";
 export * from "./utilities/useDetectScroll";
 export * from "./utilities/useElementRect";
 export * from "./utilities/useOverflowIndex";
+export * from "./Visualizations/Bar";
+export * from "./Visualizations/Legend";
 export * from "./Divider";
 export * from "./Label";

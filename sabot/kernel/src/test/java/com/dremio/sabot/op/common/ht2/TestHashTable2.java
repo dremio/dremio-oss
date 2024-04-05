@@ -19,9 +19,13 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import com.dremio.common.util.Numbers;
+import com.dremio.exec.record.VectorContainer;
+import com.dremio.test.AllocatorRule;
+import com.dremio.test.DremioTest;
+import com.koloboke.collect.hash.HashConfig;
 import java.nio.charset.StandardCharsets;
 import java.util.Random;
-
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.SimpleBigIntVector;
@@ -30,18 +34,11 @@ import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Rule;
 import org.junit.Test;
 
-import com.dremio.common.util.Numbers;
-import com.dremio.exec.record.VectorContainer;
-import com.dremio.test.AllocatorRule;
-import com.dremio.test.DremioTest;
-import com.koloboke.collect.hash.HashConfig;
-
 public class TestHashTable2 extends DremioTest {
 
   private int MAX_VALUES_PER_BATCH = 0;
 
-  @Rule
-  public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
+  @Rule public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
 
   @Test
   public void testSimple() throws Exception {
@@ -63,8 +60,9 @@ public class TestHashTable2 extends DremioTest {
     String[] col2arr = {"every", "every", "every", "none", null, null};
     Integer[] col3arr = {1, 1, 1, 1, 1, 1};
 
-    try (final BufferAllocator allocator = allocatorRule.newAllocator("test-hash-table-2", 0, Long.MAX_VALUE);
-         final VectorContainer c = new VectorContainer()) {
+    try (final BufferAllocator allocator =
+            allocatorRule.newAllocator("test-hash-table-2", 0, Long.MAX_VALUE);
+        final VectorContainer c = new VectorContainer()) {
 
       VarCharVector col1 = new VarCharVector("col1", allocator);
       TestVarBinaryPivot.populate(col1, col1arr);
@@ -76,20 +74,27 @@ public class TestHashTable2 extends DremioTest {
       TestIntPivot.populate(col3, col3arr);
       c.add(col3);
       final int records = c.setAllCount(col1arr.length);
-      final PivotDef pivot = PivotBuilder.getBlockDefinition(
-          new FieldVectorPair(col1, col1),
-          new FieldVectorPair(col2, col2),
-          new FieldVectorPair(col3, col3)
-          );
-      try (
-          final FixedBlockVector fbv = new FixedBlockVector(allocator, pivot.getBlockWidth());
-          final VariableBlockVector var = new VariableBlockVector(allocator, pivot.getVariableCount());) {
+      final PivotDef pivot =
+          PivotBuilder.getBlockDefinition(
+              new FieldVectorPair(col1, col1),
+              new FieldVectorPair(col2, col2),
+              new FieldVectorPair(col3, col3));
+      try (final FixedBlockVector fbv = new FixedBlockVector(allocator, pivot.getBlockWidth());
+          final VariableBlockVector var =
+              new VariableBlockVector(allocator, pivot.getVariableCount()); ) {
 
         Pivots.pivot(pivot, records, fbv, var);
 
-        try (LBlockHashTable bht = new LBlockHashTable(HashConfig.getDefault(), pivot, allocator, 16000,
-          10, true, MAX_VALUES_PER_BATCH);
-             SimpleBigIntVector hashValues = new SimpleBigIntVector("hashvalues", allocator)) {
+        try (LBlockHashTable bht =
+                new LBlockHashTable(
+                    HashConfig.getDefault(),
+                    pivot,
+                    allocator,
+                    16000,
+                    10,
+                    true,
+                    MAX_VALUES_PER_BATCH);
+            SimpleBigIntVector hashValues = new SimpleBigIntVector("hashvalues", allocator)) {
           final long keyFixedVectorAddr = fbv.getMemoryAddress();
           final long keyVarVectorAddr = var.getMemoryAddress();
           int[] expectedOrdinals = {0, 1, 0, 2, 3, 3};
@@ -97,13 +102,22 @@ public class TestHashTable2 extends DremioTest {
           final boolean fixedOnly = pivot.getVariableCount() == 0;
 
           hashValues.allocateNew(records);
-          final BlockChunk blockChunk = new BlockChunk(keyFixedVectorAddr, keyVarVectorAddr, var.getCapacity(), fixedOnly,
-            pivot.getBlockWidth(), records, hashValues.getBufferAddress(), 0);
+          final BlockChunk blockChunk =
+              new BlockChunk(
+                  keyFixedVectorAddr,
+                  keyVarVectorAddr,
+                  var.getCapacity(),
+                  fixedOnly,
+                  pivot.getBlockWidth(),
+                  records,
+                  hashValues.getBufferAddress(),
+                  0);
           HashComputation.computeHash(blockChunk);
 
           for (int keyIndex = 0; keyIndex < records; keyIndex++) {
-            final int keyHash = (int)hashValues.get(keyIndex);
-            actualOrdinals[keyIndex] = bht.add(keyFixedVectorAddr, keyVarVectorAddr, var.getCapacity(), keyIndex, keyHash);
+            final int keyHash = (int) hashValues.get(keyIndex);
+            actualOrdinals[keyIndex] =
+                bht.add(keyFixedVectorAddr, keyVarVectorAddr, var.getCapacity(), keyIndex, keyHash);
           }
           assertArrayEquals("ordinals mismatch", expectedOrdinals, actualOrdinals);
           assertEquals("Absolute size mismatch", 4, bht.size());
@@ -133,8 +147,9 @@ public class TestHashTable2 extends DremioTest {
     Integer[] col1Arr = {1, 2, 3, 3, 2, 1};
     Integer[] col2Arr = {100, 200, 300, 300, 200, 400};
 
-    try (final BufferAllocator allocator = allocatorRule.newAllocator("test-hash-table-2", 0, Long.MAX_VALUE);
-         final VectorContainer c = new VectorContainer()) {
+    try (final BufferAllocator allocator =
+            allocatorRule.newAllocator("test-hash-table-2", 0, Long.MAX_VALUE);
+        final VectorContainer c = new VectorContainer()) {
       IntVector intcol1 = new IntVector("intcol1", allocator);
       TestIntPivot.populate(intcol1, col1Arr);
       IntVector intcol2 = new IntVector("intcol2", allocator);
@@ -142,19 +157,25 @@ public class TestHashTable2 extends DremioTest {
       c.add(intcol1);
       c.add(intcol2);
       final int records = c.setAllCount(col1Arr.length);
-      final PivotDef pivot = PivotBuilder.getBlockDefinition(
-        new FieldVectorPair(intcol1, intcol1),
-        new FieldVectorPair(intcol2, intcol2)
-      );
-      try (
-        final FixedBlockVector fbv = new FixedBlockVector(allocator, pivot.getBlockWidth());
-        final VariableBlockVector var = new VariableBlockVector(allocator, pivot.getVariableCount());) {
+      final PivotDef pivot =
+          PivotBuilder.getBlockDefinition(
+              new FieldVectorPair(intcol1, intcol1), new FieldVectorPair(intcol2, intcol2));
+      try (final FixedBlockVector fbv = new FixedBlockVector(allocator, pivot.getBlockWidth());
+          final VariableBlockVector var =
+              new VariableBlockVector(allocator, pivot.getVariableCount()); ) {
 
         Pivots.pivot(pivot, records, fbv, var);
 
-        try (LBlockHashTable bht = new LBlockHashTable(HashConfig.getDefault(), pivot, allocator, 16000,
-          10, true, MAX_VALUES_PER_BATCH);
-             SimpleBigIntVector hashValues = new SimpleBigIntVector("hashvalues", allocator)) {
+        try (LBlockHashTable bht =
+                new LBlockHashTable(
+                    HashConfig.getDefault(),
+                    pivot,
+                    allocator,
+                    16000,
+                    10,
+                    true,
+                    MAX_VALUES_PER_BATCH);
+            SimpleBigIntVector hashValues = new SimpleBigIntVector("hashvalues", allocator)) {
           final long keyFixedVectorAddr = fbv.getMemoryAddress();
           final long keyVarVectorAddr = var.getMemoryAddress();
           int[] expectedOrdinals = {0, 1, 2, 2, 1, 3};
@@ -162,13 +183,22 @@ public class TestHashTable2 extends DremioTest {
           final boolean fixedOnly = pivot.getVariableCount() == 0;
 
           hashValues.allocateNew(records);
-          final BlockChunk blockChunk = new BlockChunk(keyFixedVectorAddr, keyVarVectorAddr, var.getCapacity(), fixedOnly,
-            pivot.getBlockWidth(), records, hashValues.getBufferAddress(), 0);
+          final BlockChunk blockChunk =
+              new BlockChunk(
+                  keyFixedVectorAddr,
+                  keyVarVectorAddr,
+                  var.getCapacity(),
+                  fixedOnly,
+                  pivot.getBlockWidth(),
+                  records,
+                  hashValues.getBufferAddress(),
+                  0);
           HashComputation.computeHash(blockChunk);
 
           for (int keyIndex = 0; keyIndex < records; keyIndex++) {
-            final int keyHash = (int)hashValues.get(keyIndex);
-            actualOrdinals[keyIndex] = bht.add(keyFixedVectorAddr, keyVarVectorAddr, var.getCapacity(), keyIndex, keyHash);
+            final int keyHash = (int) hashValues.get(keyIndex);
+            actualOrdinals[keyIndex] =
+                bht.add(keyFixedVectorAddr, keyVarVectorAddr, var.getCapacity(), keyIndex, keyHash);
           }
           assertArrayEquals("ordinals mismatch", expectedOrdinals, actualOrdinals);
           assertEquals("Absolute size mismatch", 4, bht.size());
@@ -195,8 +225,9 @@ public class TestHashTable2 extends DremioTest {
 
   private void emptyValuesHelper() throws Exception {
 
-    try (final BufferAllocator allocator = allocatorRule.newAllocator("test-hash-table-2", 0, Long.MAX_VALUE);
-         final VectorContainer c = new VectorContainer()) {
+    try (final BufferAllocator allocator =
+            allocatorRule.newAllocator("test-hash-table-2", 0, Long.MAX_VALUE);
+        final VectorContainer c = new VectorContainer()) {
 
       VarCharVector col1 = new VarCharVector("col1", allocator);
       c.add(col1);
@@ -206,33 +237,51 @@ public class TestHashTable2 extends DremioTest {
       c.add(col3);
       c.allocateNew();
       final int records = c.setAllCount(2000);
-      final PivotDef pivot = PivotBuilder.getBlockDefinition(
-          new FieldVectorPair(col1, col1),
-          new FieldVectorPair(col2, col2),
-          new FieldVectorPair(col3, col3)
-          );
+      final PivotDef pivot =
+          PivotBuilder.getBlockDefinition(
+              new FieldVectorPair(col1, col1),
+              new FieldVectorPair(col2, col2),
+              new FieldVectorPair(col3, col3));
 
-      try (
-          final FixedBlockVector fbv = new FixedBlockVector(allocator, pivot.getBlockWidth());
-          final VariableBlockVector var = new VariableBlockVector(allocator, pivot.getVariableCount());) {
+      try (final FixedBlockVector fbv = new FixedBlockVector(allocator, pivot.getBlockWidth());
+          final VariableBlockVector var =
+              new VariableBlockVector(allocator, pivot.getVariableCount()); ) {
 
         Pivots.pivot(pivot, records, fbv, var);
 
-        try (LBlockHashTable bht = new LBlockHashTable(HashConfig.getDefault(), pivot, allocator, 16000,
-          10, true, MAX_VALUES_PER_BATCH);
-             SimpleBigIntVector hashValues = new SimpleBigIntVector("hashvalues", allocator)) {
+        try (LBlockHashTable bht =
+                new LBlockHashTable(
+                    HashConfig.getDefault(),
+                    pivot,
+                    allocator,
+                    16000,
+                    10,
+                    true,
+                    MAX_VALUES_PER_BATCH);
+            SimpleBigIntVector hashValues = new SimpleBigIntVector("hashvalues", allocator)) {
           final long keyFixedVectorAddr = fbv.getMemoryAddress();
           final long keyVarVectorAddr = var.getMemoryAddress();
           final boolean fixedOnly = pivot.getVariableCount() == 0;
 
           hashValues.allocateNew(records);
-          final BlockChunk blockChunk = new BlockChunk(keyFixedVectorAddr, keyVarVectorAddr, var.getCapacity(), fixedOnly,
-            pivot.getBlockWidth(), records, hashValues.getBufferAddress(), 0);
+          final BlockChunk blockChunk =
+              new BlockChunk(
+                  keyFixedVectorAddr,
+                  keyVarVectorAddr,
+                  var.getCapacity(),
+                  fixedOnly,
+                  pivot.getBlockWidth(),
+                  records,
+                  hashValues.getBufferAddress(),
+                  0);
           HashComputation.computeHash(blockChunk);
 
           for (int keyIndex = 0; keyIndex < records; keyIndex++) {
-            final int keyHash = (int)hashValues.get(keyIndex);
-            assertEquals(0, bht.add(keyFixedVectorAddr, keyVarVectorAddr, var.getCapacity(), keyIndex, keyHash));
+            final int keyHash = (int) hashValues.get(keyIndex);
+            assertEquals(
+                0,
+                bht.add(
+                    keyFixedVectorAddr, keyVarVectorAddr, var.getCapacity(), keyIndex, keyHash));
           }
         }
       }
@@ -264,10 +313,10 @@ public class TestHashTable2 extends DremioTest {
     MAX_VALUES_PER_BATCH = 1024;
     testNoGapsHelper();
     /* If MAX_VALUES_PER_BATCH is not 2^n, there will be gaps */
-//    MAX_VALUES_PER_BATCH = 990;
-//    testNoGapsHelper();
-//    MAX_VALUES_PER_BATCH = 976;
-//    testNoGapsHelper();
+    //    MAX_VALUES_PER_BATCH = 990;
+    //    testNoGapsHelper();
+    //    MAX_VALUES_PER_BATCH = 976;
+    //    testNoGapsHelper();
   }
 
   private void testNoGapsHelper() throws Exception {
@@ -275,26 +324,30 @@ public class TestHashTable2 extends DremioTest {
     enforceVarWidthBufferLimitsHelper(9349, 7, 7, 0); // exact estimate
   }
 
-  private void enforceVarWidthBufferLimitsHelper(int inputLength, int varCharLength,
-                                                 int estimatedVarFieldsLength, int expGaps) throws Exception {
+  private void enforceVarWidthBufferLimitsHelper(
+      int inputLength, int varCharLength, int estimatedVarFieldsLength, int expGaps)
+      throws Exception {
     final Random random = new Random();
     final String[] col1Arr = new String[inputLength];
     final String[] col2Arr = new String[col1Arr.length];
     final Integer[] col3Arr = new Integer[col1Arr.length];
     for (int i = 0; i < col1Arr.length; i++) {
       if (i % 10 != 0) {
-        col1Arr[i] = RandomStringUtils.randomAlphanumeric(varCharLength - 5) + String.format("%05d",i);
+        col1Arr[i] =
+            RandomStringUtils.randomAlphanumeric(varCharLength - 5) + String.format("%05d", i);
       }
       if (i % 7 != 0) {
-        col2Arr[i] = RandomStringUtils.randomAlphanumeric(varCharLength - 5) + String.format("%05d", i);
+        col2Arr[i] =
+            RandomStringUtils.randomAlphanumeric(varCharLength - 5) + String.format("%05d", i);
       }
       if (i % 3 != 0) {
         col3Arr[i] = random.nextInt();
       }
     }
 
-    try (final BufferAllocator allocator = allocatorRule.newAllocator("test-hash-table-2", 0, Long.MAX_VALUE);
-         final VectorContainer c = new VectorContainer()) {
+    try (final BufferAllocator allocator =
+            allocatorRule.newAllocator("test-hash-table-2", 0, Long.MAX_VALUE);
+        final VectorContainer c = new VectorContainer()) {
 
       VarCharVector col1 = new VarCharVector("col1", allocator);
       TestVarBinaryPivot.populate(col1, col1Arr);
@@ -306,19 +359,26 @@ public class TestHashTable2 extends DremioTest {
       TestIntPivot.populate(col3, col3Arr);
       c.add(col3);
       final int records = c.setAllCount(col1Arr.length);
-      final PivotDef pivot = PivotBuilder.getBlockDefinition(
-          new FieldVectorPair(col1, col1),
-          new FieldVectorPair(col2, col2),
-          new FieldVectorPair(col3, col3)
-      );
-      try (
-          final FixedBlockVector fbv = new FixedBlockVector(allocator, pivot.getBlockWidth());
-          final VariableBlockVector var = new VariableBlockVector(allocator, pivot.getVariableCount());) {
+      final PivotDef pivot =
+          PivotBuilder.getBlockDefinition(
+              new FieldVectorPair(col1, col1),
+              new FieldVectorPair(col2, col2),
+              new FieldVectorPair(col3, col3));
+      try (final FixedBlockVector fbv = new FixedBlockVector(allocator, pivot.getBlockWidth());
+          final VariableBlockVector var =
+              new VariableBlockVector(allocator, pivot.getVariableCount()); ) {
 
         Pivots.pivot(pivot, records, fbv, var);
-        try (LBlockHashTable bht = new LBlockHashTable(HashConfig.getDefault(), pivot, allocator,
-            200, estimatedVarFieldsLength, true, MAX_VALUES_PER_BATCH);
-             SimpleBigIntVector hashValues = new SimpleBigIntVector("hashvalues", allocator)) {
+        try (LBlockHashTable bht =
+                new LBlockHashTable(
+                    HashConfig.getDefault(),
+                    pivot,
+                    allocator,
+                    200,
+                    estimatedVarFieldsLength,
+                    true,
+                    MAX_VALUES_PER_BATCH);
+            SimpleBigIntVector hashValues = new SimpleBigIntVector("hashvalues", allocator)) {
           final long keyFixedVectorAddr = fbv.getMemoryAddress();
           final long keyVarVectorAddr = var.getMemoryAddress();
           int[] expectedOrdinals = new int[col1Arr.length];
@@ -329,7 +389,11 @@ public class TestHashTable2 extends DremioTest {
           int numChunks = 0;
           int nullOrdinal = -1;
           int numberNulls = 0;
-          int maxVarBufferSize = Numbers.nextPowerOfTwo((((estimatedVarFieldsLength + LBlockHashTable.VAR_OFFSET_SIZE) * 2) + LBlockHashTable.VAR_LENGTH_SIZE) * Numbers.nextPowerOfTwo(MAX_VALUES_PER_BATCH));
+          int maxVarBufferSize =
+              Numbers.nextPowerOfTwo(
+                  (((estimatedVarFieldsLength + LBlockHashTable.VAR_OFFSET_SIZE) * 2)
+                          + LBlockHashTable.VAR_LENGTH_SIZE)
+                      * Numbers.nextPowerOfTwo(MAX_VALUES_PER_BATCH));
           for (int i = 0; i < expectedOrdinals.length; i++) {
             int newLen = LBlockHashTable.VAR_OFFSET_SIZE * 2 + LBlockHashTable.VAR_LENGTH_SIZE;
             if (col1Arr[i] != null) {
@@ -339,18 +403,22 @@ public class TestHashTable2 extends DremioTest {
               newLen += col2Arr[i].getBytes(StandardCharsets.UTF_8).length;
             }
 
-            if (col1Arr[i] == null && col2Arr[i] == null && col3Arr[i] == null && nullOrdinal != -1) {
+            if (col1Arr[i] == null
+                && col2Arr[i] == null
+                && col3Arr[i] == null
+                && nullOrdinal != -1) {
               // all nulls are already inserted
               expectedOrdinals[i] = nullOrdinal;
               numberNulls++;
               continue;
             }
 
-            if (runningVarBufferLen + newLen > maxVarBufferSize || (i - numberNulls) % MAX_VALUES_PER_BATCH == 0) {
-              //gaps in ordinals since we can't fit the next varchar key in the current block
+            if (runningVarBufferLen + newLen > maxVarBufferSize
+                || (i - numberNulls) % MAX_VALUES_PER_BATCH == 0) {
+              // gaps in ordinals since we can't fit the next varchar key in the current block
               currentOrdinal = numChunks * Numbers.nextPowerOfTwo(MAX_VALUES_PER_BATCH);
               runningVarBufferLen = newLen; // reset buffer size
-              numChunks ++;
+              numChunks++;
             } else {
               runningVarBufferLen += newLen;
             }
@@ -360,7 +428,6 @@ public class TestHashTable2 extends DremioTest {
               expectedOrdinals[i] = nullOrdinal;
             } else {
               expectedOrdinals[i] = currentOrdinal++;
-
             }
           }
 
@@ -368,19 +435,34 @@ public class TestHashTable2 extends DremioTest {
           final boolean fixedOnly = pivot.getVariableCount() == 0;
 
           hashValues.allocateNew(records);
-          final BlockChunk blockChunk = new BlockChunk(keyFixedVectorAddr, keyVarVectorAddr, var.getCapacity(), fixedOnly,
-              pivot.getBlockWidth(), records, hashValues.getBufferAddress(), 0);
+          final BlockChunk blockChunk =
+              new BlockChunk(
+                  keyFixedVectorAddr,
+                  keyVarVectorAddr,
+                  var.getCapacity(),
+                  fixedOnly,
+                  pivot.getBlockWidth(),
+                  records,
+                  hashValues.getBufferAddress(),
+                  0);
           HashComputation.computeHash(blockChunk);
 
           for (int keyIndex = 0; keyIndex < records; keyIndex++) {
-            final int keyHash = (int)hashValues.get(keyIndex);
-            actualOrdinals[keyIndex] = bht.add(keyFixedVectorAddr, keyVarVectorAddr, var.getCapacity(), keyIndex, keyHash);
+            final int keyHash = (int) hashValues.get(keyIndex);
+            actualOrdinals[keyIndex] =
+                bht.add(keyFixedVectorAddr, keyVarVectorAddr, var.getCapacity(), keyIndex, keyHash);
           }
           assertArrayEquals("ordinals mismatch", expectedOrdinals, actualOrdinals);
-          assertEquals("Absolute size mismatch", expectedOrdinals[expectedOrdinals.length - 1] + 1, bht.size() + bht.gaps());
-          // we can't match the capacity exactly as the initialization of hash table capacity depends on heuristics
+          assertEquals(
+              "Absolute size mismatch",
+              expectedOrdinals[expectedOrdinals.length - 1] + 1,
+              bht.size() + bht.gaps());
+          // we can't match the capacity exactly as the initialization of hash table capacity
+          // depends on heuristics
           // in LHashCapacities
-          assertTrue("Unexpected capacity", numChunks * Numbers.nextPowerOfTwo(MAX_VALUES_PER_BATCH) <= bht.capacity());
+          assertTrue(
+              "Unexpected capacity",
+              numChunks * Numbers.nextPowerOfTwo(MAX_VALUES_PER_BATCH) <= bht.capacity());
           assertEquals("Unexpected number of gaps", expGaps, bht.gaps());
         }
       }
@@ -407,13 +489,14 @@ public class TestHashTable2 extends DremioTest {
     final String[] col2Arr = new String[col1Arr.length];
     final Integer[] col3Arr = new Integer[col1Arr.length];
     for (int i = 0; i < col1Arr.length; i++) {
-      col1Arr[i] = RandomStringUtils.randomAlphanumeric(5) + String.format("%05d",i);
+      col1Arr[i] = RandomStringUtils.randomAlphanumeric(5) + String.format("%05d", i);
       col2Arr[i] = RandomStringUtils.randomAlphanumeric(10) + String.format("%05d", i);
       col3Arr[i] = random.nextInt();
     }
 
-    try (final BufferAllocator allocator = allocatorRule.newAllocator("test-hash-table-2", 0, Long.MAX_VALUE);
-         final VectorContainer c = new VectorContainer()) {
+    try (final BufferAllocator allocator =
+            allocatorRule.newAllocator("test-hash-table-2", 0, Long.MAX_VALUE);
+        final VectorContainer c = new VectorContainer()) {
 
       VarCharVector col1 = new VarCharVector("col1", allocator);
       TestVarBinaryPivot.populate(col1, col1Arr);
@@ -425,30 +508,45 @@ public class TestHashTable2 extends DremioTest {
       TestIntPivot.populate(col3, col3Arr);
       c.add(col3);
       final int records = c.setAllCount(col1Arr.length);
-      final PivotDef pivot = PivotBuilder.getBlockDefinition(
-          new FieldVectorPair(col1, col1),
-          new FieldVectorPair(col2, col2),
-          new FieldVectorPair(col3, col3)
-      );
-      try (
-          final FixedBlockVector fbv = new FixedBlockVector(allocator, pivot.getBlockWidth());
-          final VariableBlockVector var = new VariableBlockVector(allocator, pivot.getVariableCount());) {
+      final PivotDef pivot =
+          PivotBuilder.getBlockDefinition(
+              new FieldVectorPair(col1, col1),
+              new FieldVectorPair(col2, col2),
+              new FieldVectorPair(col3, col3));
+      try (final FixedBlockVector fbv = new FixedBlockVector(allocator, pivot.getBlockWidth());
+          final VariableBlockVector var =
+              new VariableBlockVector(allocator, pivot.getVariableCount()); ) {
 
         Pivots.pivot(pivot, records, fbv, var);
 
-        try (LBlockHashTable bht = new LBlockHashTable(HashConfig.getDefault(), pivot, allocator,
-            200, 20, true, MAX_VALUES_PER_BATCH);
-             SimpleBigIntVector hashValues = new SimpleBigIntVector("hashvalues", allocator)) {
+        try (LBlockHashTable bht =
+                new LBlockHashTable(
+                    HashConfig.getDefault(),
+                    pivot,
+                    allocator,
+                    200,
+                    20,
+                    true,
+                    MAX_VALUES_PER_BATCH);
+            SimpleBigIntVector hashValues = new SimpleBigIntVector("hashvalues", allocator)) {
           final long keyFixedVectorAddr = fbv.getMemoryAddress();
           final long keyVarVectorAddr = var.getMemoryAddress();
 
           hashValues.allocateNew(records);
-          final BlockChunk blockChunk = new BlockChunk(keyFixedVectorAddr, keyVarVectorAddr, var.getCapacity(), false,
-              pivot.getBlockWidth(), records, hashValues.getBufferAddress(), 0);
+          final BlockChunk blockChunk =
+              new BlockChunk(
+                  keyFixedVectorAddr,
+                  keyVarVectorAddr,
+                  var.getCapacity(),
+                  false,
+                  pivot.getBlockWidth(),
+                  records,
+                  hashValues.getBufferAddress(),
+                  0);
           HashComputation.computeHash(blockChunk);
 
           for (int keyIndex = 0; keyIndex < records; keyIndex++) {
-            final int keyHash = (int)hashValues.get(keyIndex);
+            final int keyHash = (int) hashValues.get(keyIndex);
             bht.add(keyFixedVectorAddr, keyVarVectorAddr, var.getCapacity(), keyIndex, keyHash);
           }
 
@@ -460,7 +558,7 @@ public class TestHashTable2 extends DremioTest {
 
           // insert the same records again and check the hashtable is expanded in capacity
           for (int keyIndex = 20; keyIndex < records; keyIndex++) {
-            final int keyHash = (int)hashValues.get(keyIndex);
+            final int keyHash = (int) hashValues.get(keyIndex);
             bht.add(keyFixedVectorAddr, keyVarVectorAddr, var.getCapacity(), keyIndex, keyHash);
           }
           assertTrue(bht.capacity() > Numbers.nextPowerOfTwo(MAX_VALUES_PER_BATCH));
@@ -470,8 +568,9 @@ public class TestHashTable2 extends DremioTest {
   }
 
   /**
-   * there are 3 key columns <varkey> <varkey> <fixedkey>
-   * each key is repeated once - k1,k1,k2,k2,k3,k3
+   * there are 3 key columns <varkey> <varkey> <fixedkey> each key is repeated once -
+   * k1,k1,k2,k2,k3,k3
+   *
    * @return
    */
   /*

@@ -18,10 +18,9 @@ package com.dremio.exec.store.iceberg.model;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.dremio.exec.catalog.VersionedPlugin.EntityType;
 import org.junit.jupiter.api.Test;
 import org.projectnessie.model.ContentKey;
-
-import com.dremio.exec.catalog.VersionedPlugin.EntityType;
 
 public class TestIcebergCommitOrigin {
 
@@ -30,72 +29,71 @@ public class TestIcebergCommitOrigin {
 
   private void assertTable(IcebergCommitOrigin commitOrigin, String expectedCommitMsg) {
     assertThat(commitOrigin.createCommitMessage(TABLE_KEY.toString(), EntityType.ICEBERG_TABLE))
-      .isEqualTo(expectedCommitMsg);
+        .isEqualTo(expectedCommitMsg);
   }
 
   @Test
   public void testForTable() {
-    assertTable(IcebergCommitOrigin.CREATE_TABLE,
-      "CREATE TABLE foo.bar.tablexyz");
-    assertTable(IcebergCommitOrigin.DROP_TABLE,
-      "DROP TABLE foo.bar.tablexyz");
-    assertTable(IcebergCommitOrigin.OPTIMIZE_REWRITE_DATA_TABLE,
-      "OPTIMIZE REWRITE DATA on TABLE foo.bar.tablexyz");
-    assertTable(IcebergCommitOrigin.TRUNCATE_TABLE,
-      "TRUNCATE on TABLE foo.bar.tablexyz");
-    assertTable(IcebergCommitOrigin.ROLLBACK_TABLE,
-      "ROLLBACK on TABLE foo.bar.tablexyz");
-    assertTable(IcebergCommitOrigin.FULL_METADATA_REFRESH,
-      "FULL METADATA REFRESH on TABLE foo.bar.tablexyz");
+    assertTable(IcebergCommitOrigin.CREATE_TABLE, "CREATE TABLE foo.bar.tablexyz");
+    assertTable(IcebergCommitOrigin.DROP_TABLE, "DROP TABLE foo.bar.tablexyz");
+    assertTable(
+        IcebergCommitOrigin.OPTIMIZE_REWRITE_DATA_TABLE,
+        "OPTIMIZE REWRITE DATA on TABLE foo.bar.tablexyz");
+    assertTable(IcebergCommitOrigin.TRUNCATE_TABLE, "TRUNCATE on TABLE foo.bar.tablexyz");
+    assertTable(IcebergCommitOrigin.ROLLBACK_TABLE, "ROLLBACK on TABLE foo.bar.tablexyz");
+    assertTable(
+        IcebergCommitOrigin.FULL_METADATA_REFRESH,
+        "FULL METADATA REFRESH on TABLE foo.bar.tablexyz");
   }
 
   private void assertView(IcebergCommitOrigin commitOrigin, String expectedCommitMsg) {
     assertThat(commitOrigin.createCommitMessage(VIEW_KEY.toString(), EntityType.ICEBERG_VIEW))
-      .isEqualTo(expectedCommitMsg);
+        .isEqualTo(expectedCommitMsg);
   }
 
   @Test
   public void testForView() {
-    assertView(IcebergCommitOrigin.CREATE_VIEW,
-      "CREATE VIEW foo.bar.viewxyz");
-    assertView(IcebergCommitOrigin.DROP_VIEW,
-      "DROP VIEW foo.bar.viewxyz");
-    assertView(IcebergCommitOrigin.ALTER_VIEW,
-      "ALTER on VIEW foo.bar.viewxyz");
+    assertView(IcebergCommitOrigin.CREATE_VIEW, "CREATE VIEW foo.bar.viewxyz");
+    assertView(IcebergCommitOrigin.DROP_VIEW, "DROP VIEW foo.bar.viewxyz");
+    assertView(IcebergCommitOrigin.ALTER_VIEW, "ALTER on VIEW foo.bar.viewxyz");
   }
 
   @Test
   public void testReadOnly() {
-    assertThatThrownBy(() ->
-      IcebergCommitOrigin.READ_ONLY.createCommitMessage(TABLE_KEY.toString(),
-        EntityType.ICEBERG_TABLE))
-      .isInstanceOf(IllegalStateException.class);
+    assertThatThrownBy(
+            () ->
+                IcebergCommitOrigin.READ_ONLY.createCommitMessage(
+                    TABLE_KEY.toString(), EntityType.ICEBERG_TABLE))
+        .isInstanceOf(IllegalStateException.class);
   }
 
   @Test
   public void testForTableWithView() {
-    assertThatThrownBy(() ->
-      IcebergCommitOrigin.CREATE_TABLE.createCommitMessage(VIEW_KEY.toString(),
-        EntityType.ICEBERG_VIEW))
-      .isInstanceOf(IllegalArgumentException.class)
-      .hasMessageContaining("Mismatched entity type");
+    assertThatThrownBy(
+            () ->
+                IcebergCommitOrigin.CREATE_TABLE.createCommitMessage(
+                    VIEW_KEY.toString(), EntityType.ICEBERG_VIEW))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("Mismatched entity type");
   }
 
   @Test
   public void testForViewWithTable() {
-    assertThatThrownBy(() ->
-      IcebergCommitOrigin.CREATE_VIEW.createCommitMessage(TABLE_KEY.toString(),
-        EntityType.ICEBERG_TABLE))
-      .isInstanceOf(IllegalArgumentException.class)
-      .hasMessageContaining("Mismatched entity type");
+    assertThatThrownBy(
+            () ->
+                IcebergCommitOrigin.CREATE_VIEW.createCommitMessage(
+                    TABLE_KEY.toString(), EntityType.ICEBERG_TABLE))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("Mismatched entity type");
   }
 
   @Test
   public void testForFolder() {
-    assertThatThrownBy(() ->
-      IcebergCommitOrigin.CREATE_VIEW.createCommitMessage(TABLE_KEY.toString(),
-        EntityType.FOLDER))
-      .isInstanceOf(IllegalArgumentException.class)
-      .hasMessageContaining("Unsupported entity type");
+    assertThatThrownBy(
+            () ->
+                IcebergCommitOrigin.CREATE_VIEW.createCommitMessage(
+                    TABLE_KEY.toString(), EntityType.FOLDER))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("Unsupported entity type");
   }
 }

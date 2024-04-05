@@ -15,12 +15,6 @@
  */
 package com.dremio.service.jobtelemetry.server;
 
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.function.Consumer;
-import java.util.stream.Stream;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.concurrent.ContextMigratingExecutorService;
 import com.dremio.common.nodes.EndpointHelper;
@@ -50,14 +44,17 @@ import com.google.common.base.Throwables;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
 import com.google.protobuf.Empty;
-
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.function.Consumer;
+import java.util.stream.Stream;
 
-/**
- * Implementation of gRPC service for ProfileService.
- */
-public class JobTelemetryServiceImpl extends JobTelemetryServiceGrpc.JobTelemetryServiceImplBase implements AutoCloseable {
+/** Implementation of gRPC service for ProfileService. */
+public class JobTelemetryServiceImpl extends JobTelemetryServiceGrpc.JobTelemetryServiceImplBase
+    implements AutoCloseable {
   private static final org.slf4j.Logger logger =
       org.slf4j.LoggerFactory.getLogger(JobTelemetryServiceImpl.class);
   private static final int METRICS_PUBLISH_FREQUENCY_MILLIS = 2500;
@@ -72,36 +69,59 @@ public class JobTelemetryServiceImpl extends JobTelemetryServiceGrpc.JobTelemetr
   private final ContextMigratingExecutorService executorService;
 
   @Inject
-  JobTelemetryServiceImpl(MetricsStore metricsStore, ProfileStore profileStore, GrpcTracerFacade tracer, @Named("requestThreadPool") ContextMigratingExecutorService executorService) {
-    this(metricsStore, profileStore, tracer, false,
-      METRICS_PUBLISH_FREQUENCY_MILLIS, executorService);
+  JobTelemetryServiceImpl(
+      MetricsStore metricsStore,
+      ProfileStore profileStore,
+      GrpcTracerFacade tracer,
+      @Named("requestThreadPool") ContextMigratingExecutorService executorService) {
+    this(
+        metricsStore,
+        profileStore,
+        tracer,
+        false,
+        METRICS_PUBLISH_FREQUENCY_MILLIS,
+        executorService);
   }
 
-  JobTelemetryServiceImpl(MetricsStore metricsStore, ProfileStore profileStore, GrpcTracerFacade tracer,
-                          boolean saveFullProfileOnQueryTermination, ContextMigratingExecutorService executorService) {
-    this(metricsStore, profileStore, tracer, saveFullProfileOnQueryTermination,
-      METRICS_PUBLISH_FREQUENCY_MILLIS, executorService);
+  JobTelemetryServiceImpl(
+      MetricsStore metricsStore,
+      ProfileStore profileStore,
+      GrpcTracerFacade tracer,
+      boolean saveFullProfileOnQueryTermination,
+      ContextMigratingExecutorService executorService) {
+    this(
+        metricsStore,
+        profileStore,
+        tracer,
+        saveFullProfileOnQueryTermination,
+        METRICS_PUBLISH_FREQUENCY_MILLIS,
+        executorService);
   }
 
-  public JobTelemetryServiceImpl(MetricsStore metricsStore, ProfileStore profileStore, GrpcTracerFacade tracer,
-                          boolean saveFullProfileOnQueryTermination,
-                          int metricsPublishFrequencyMillis, ContextMigratingExecutorService executorService) {
+  public JobTelemetryServiceImpl(
+      MetricsStore metricsStore,
+      ProfileStore profileStore,
+      GrpcTracerFacade tracer,
+      boolean saveFullProfileOnQueryTermination,
+      int metricsPublishFrequencyMillis,
+      ContextMigratingExecutorService executorService) {
     this.metricsStore = metricsStore;
     this.profileStore = profileStore;
-    this.progressMetricsPublisher = new ProgressMetricsPublisher(metricsStore,
-      metricsPublishFrequencyMillis);
+    this.progressMetricsPublisher =
+        new ProgressMetricsPublisher(metricsStore, metricsPublishFrequencyMillis);
     this.bgProfileWriter = new BackgroundProfileWriter(profileStore, tracer);
     this.saveFullProfileOnQueryTermination = saveFullProfileOnQueryTermination;
-    this.retryer = Retryer.newBuilder()
-      .retryIfExceptionOfType(DatastoreException.class)
-      .setMaxRetries(MAX_RETRIES)
-      .build();
+    this.retryer =
+        Retryer.newBuilder()
+            .retryIfExceptionOfType(DatastoreException.class)
+            .setMaxRetries(MAX_RETRIES)
+            .build();
     this.executorService = executorService;
   }
 
   @Override
   public void putQueryPlanningProfile(
-    PutPlanningProfileRequest request, StreamObserver<Empty> responseObserver) {
+      PutPlanningProfileRequest request, StreamObserver<Empty> responseObserver) {
     try {
       Preconditions.checkNotNull(request.getQueryId());
 
@@ -110,19 +130,19 @@ public class JobTelemetryServiceImpl extends JobTelemetryServiceGrpc.JobTelemetr
       responseObserver.onCompleted();
     } catch (IllegalArgumentException e) {
       responseObserver.onError(
-        Status.INVALID_ARGUMENT
-          .withDescription("put planning profile failed " + e.getMessage())
-          .asRuntimeException());
+          Status.INVALID_ARGUMENT
+              .withDescription("put planning profile failed " + e.getMessage())
+              .asRuntimeException());
     } catch (Exception ex) {
       logger.error("put planning profile failed", ex);
       responseObserver.onError(
-        Status.INTERNAL.withDescription(ex.getMessage()).asRuntimeException());
+          Status.INTERNAL.withDescription(ex.getMessage()).asRuntimeException());
     }
   }
 
   @Override
   public void putQueryTailProfile(
-    PutTailProfileRequest request, StreamObserver<Empty> responseObserver) {
+      PutTailProfileRequest request, StreamObserver<Empty> responseObserver) {
     try {
       QueryId queryId = request.getQueryId();
       Preconditions.checkNotNull(queryId);
@@ -141,19 +161,21 @@ public class JobTelemetryServiceImpl extends JobTelemetryServiceGrpc.JobTelemetr
       metricsStore.delete(queryId);
     } catch (IllegalArgumentException e) {
       responseObserver.onError(
-        Status.INVALID_ARGUMENT
-          .withDescription("put tail profile failed " + e.getMessage())
-          .asRuntimeException());
+          Status.INVALID_ARGUMENT
+              .withDescription("put tail profile failed " + e.getMessage())
+              .asRuntimeException());
     } catch (Exception ex) {
       logger.error("put tail profile failed", ex);
       responseObserver.onError(
-        Status.INTERNAL.withDescription(Throwables.getRootCause(ex).getMessage()).asRuntimeException());
+          Status.INTERNAL
+              .withDescription(Throwables.getRootCause(ex).getMessage())
+              .asRuntimeException());
     }
   }
 
   @Override
   public void putExecutorProfile(
-    PutExecutorProfileRequest request, StreamObserver<Empty> responseObserver) {
+      PutExecutorProfileRequest request, StreamObserver<Empty> responseObserver) {
     try {
       ExecutorQueryProfile profile = request.getProfile();
       Preconditions.checkNotNull(profile.getQueryId());
@@ -162,8 +184,8 @@ public class JobTelemetryServiceImpl extends JobTelemetryServiceGrpc.JobTelemetr
       putProgressMetrics(profile);
 
       // update executor profile.
-      profileStore.putExecutorProfile(profile.getQueryId(), profile.getEndpoint(),
-        profile, request.getIsFinal());
+      profileStore.putExecutorProfile(
+          profile.getQueryId(), profile.getEndpoint(), profile, request.getIsFinal());
 
       responseObserver.onNext(Empty.getDefaultInstance());
       responseObserver.onCompleted();
@@ -180,22 +202,30 @@ public class JobTelemetryServiceImpl extends JobTelemetryServiceGrpc.JobTelemetr
   }
 
   private void putProgressMetrics(ExecutorQueryProfile profile) {
-    if(logger.isDebugEnabled()) {
-      logger.debug("Updating progress metrics for query {}", QueryIdHelper.getQueryId(profile.getQueryId()));
+    if (logger.isDebugEnabled()) {
+      logger.debug(
+          "Updating progress metrics for query {}", QueryIdHelper.getQueryId(profile.getQueryId()));
     }
-    metricsStore.put(profile.getQueryId(), EndpointHelper.getMinimalString(profile.getEndpoint()), profile.getProgress());
+    metricsStore.put(
+        profile.getQueryId(),
+        EndpointHelper.getMinimalString(profile.getEndpoint()),
+        profile.getProgress());
   }
 
   @Override
-  public void getQueryProgressMetricsUnary(GetQueryProgressMetricsRequest request, StreamObserver<GetQueryProgressMetricsResponse> responseObserver) {
+  public void getQueryProgressMetricsUnary(
+      GetQueryProgressMetricsRequest request,
+      StreamObserver<GetQueryProgressMetricsResponse> responseObserver) {
     try {
-      QueryProgressMetrics metrics = progressMetricsPublisher.fetchMetricsAndCombine(request.getQueryId());
-      responseObserver.onNext(GetQueryProgressMetricsResponse.newBuilder().setMetrics(metrics).build());
+      QueryProgressMetrics metrics =
+          progressMetricsPublisher.fetchMetricsAndCombine(request.getQueryId());
+      responseObserver.onNext(
+          GetQueryProgressMetricsResponse.newBuilder().setMetrics(metrics).build());
       responseObserver.onCompleted();
     } catch (Exception ex) {
       logger.error("Get Query progress metrics failed: ", ex);
       responseObserver.onError(
-        Status.INTERNAL.withDescription(ex.getMessage()).asRuntimeException());
+          Status.INTERNAL.withDescription(ex.getMessage()).asRuntimeException());
     }
   }
 
@@ -206,15 +236,12 @@ public class JobTelemetryServiceImpl extends JobTelemetryServiceGrpc.JobTelemetr
       private boolean subscribed;
       private QueryId queryId;
       private Consumer<CoordExecRPC.QueryProgressMetrics> consumer =
-        metrics -> {
-          synchronized (responseObserver) {
-            responseObserver.onNext(
-              GetQueryProgressMetricsResponse.newBuilder()
-                .setMetrics(metrics)
-                .build()
-            );
-          }
-        };
+          metrics -> {
+            synchronized (responseObserver) {
+              responseObserver.onNext(
+                  GetQueryProgressMetricsResponse.newBuilder().setMetrics(metrics).build());
+            }
+          };
 
       @Override
       public void onNext(GetQueryProgressMetricsRequest request) {
@@ -226,13 +253,13 @@ public class JobTelemetryServiceImpl extends JobTelemetryServiceGrpc.JobTelemetr
             subscribed = true;
           } catch (IllegalArgumentException e) {
             responseObserver.onError(
-              Status.INVALID_ARGUMENT
-                .withDescription("fetch query progress metrics failed " + e.getMessage())
-                .asRuntimeException());
+                Status.INVALID_ARGUMENT
+                    .withDescription("fetch query progress metrics failed " + e.getMessage())
+                    .asRuntimeException());
           } catch (Exception ex) {
             logger.error("fetch query progress metrics failed", ex);
             responseObserver.onError(
-              Status.INTERNAL.withDescription(ex.getMessage()).asRuntimeException());
+                Status.INTERNAL.withDescription(ex.getMessage()).asRuntimeException());
           }
         }
       }
@@ -263,7 +290,7 @@ public class JobTelemetryServiceImpl extends JobTelemetryServiceGrpc.JobTelemetr
 
   @Override
   public void getQueryProfile(
-    GetQueryProfileRequest request, StreamObserver<GetQueryProfileResponse> responseObserver) {
+      GetQueryProfileRequest request, StreamObserver<GetQueryProfileResponse> responseObserver) {
     try {
       QueryId queryId = request.getQueryId();
       Preconditions.checkNotNull(queryId);
@@ -280,11 +307,14 @@ public class JobTelemetryServiceImpl extends JobTelemetryServiceGrpc.JobTelemetr
     } catch (Exception ex) {
       logger.error("Unable to get query profile.", ex);
       responseObserver.onError(
-          Status.INTERNAL.withDescription(Throwables.getRootCause(ex).getMessage()).asRuntimeException());
+          Status.INTERNAL
+              .withDescription(Throwables.getRootCause(ex).getMessage())
+              .asRuntimeException());
     }
   }
 
-  private QueryProfile fetchOrBuildMergedProfile(QueryId queryId) throws ExecutionException, InterruptedException {
+  private QueryProfile fetchOrBuildMergedProfile(QueryId queryId)
+      throws ExecutionException, InterruptedException {
     Optional<QueryProfile> fullProfile = profileStore.getFullProfile(queryId);
     if (fullProfile.isPresent()) {
       return fullProfile.get();
@@ -299,32 +329,39 @@ public class JobTelemetryServiceImpl extends JobTelemetryServiceGrpc.JobTelemetr
   }
 
   // build and save the full profile, delete the sub-profiles and metrics.
-  private void saveFullProfileAndDeletePartial(QueryId queryId) throws ExecutionException, InterruptedException {
+  private void saveFullProfileAndDeletePartial(QueryId queryId)
+      throws ExecutionException, InterruptedException {
     QueryProfile fullProfile = buildFullProfile(queryId);
 
-    this.retryer.call(() -> {
-      profileStore.putFullProfile(queryId, fullProfile);
-      profileStore.deleteSubProfiles(queryId);
-      metricsStore.delete(queryId);
-      return null;
-    });
-
+    this.retryer.call(
+        () -> {
+          profileStore.putFullProfile(queryId, fullProfile);
+          profileStore.deleteSubProfiles(queryId);
+          metricsStore.delete(queryId);
+          return null;
+        });
   }
 
-  private QueryProfile buildFullProfile(QueryId queryId) throws ExecutionException, InterruptedException {
-    CompletableFuture<QueryProfile> planningProfileFuture = CompletableFuture.supplyAsync(() -> (QueryProfile) profileStore.getPlanningProfile(queryId).orElse(null), executorService);
-    CompletableFuture<QueryProfile> tailProfileFuture = CompletableFuture.supplyAsync(() -> (QueryProfile) profileStore.getTailProfile(queryId).orElse(null), executorService);
-    CompletableFuture<Stream<ExecutorQueryProfile>> executorsProfilesFuture = CompletableFuture.supplyAsync(() -> profileStore.getAllExecutorProfiles(queryId), executorService);
+  private QueryProfile buildFullProfile(QueryId queryId)
+      throws ExecutionException, InterruptedException {
+    CompletableFuture<QueryProfile> planningProfileFuture =
+        CompletableFuture.supplyAsync(
+            () -> (QueryProfile) profileStore.getPlanningProfile(queryId).orElse(null),
+            executorService);
+    CompletableFuture<QueryProfile> tailProfileFuture =
+        CompletableFuture.supplyAsync(
+            () -> (QueryProfile) profileStore.getTailProfile(queryId).orElse(null),
+            executorService);
+    CompletableFuture<Stream<ExecutorQueryProfile>> executorsProfilesFuture =
+        CompletableFuture.supplyAsync(
+            () -> profileStore.getAllExecutorProfiles(queryId), executorService);
 
     if (planningProfileFuture.get() == null && tailProfileFuture.get() == null) {
       throw new IllegalArgumentException("Profile not found for the given queryId.");
     }
 
     return ProfileMerger.merge(
-      planningProfileFuture.get(),
-      tailProfileFuture.get(),
-      executorsProfilesFuture.get()
-    );
+        planningProfileFuture.get(), tailProfileFuture.get(), executorsProfilesFuture.get());
   }
 
   private boolean isTerminal(QueryState state) {
@@ -334,8 +371,7 @@ public class JobTelemetryServiceImpl extends JobTelemetryServiceGrpc.JobTelemetr
   }
 
   @Override
-  public void deleteProfile(
-    DeleteProfileRequest request, StreamObserver<Empty> responseObserver) {
+  public void deleteProfile(DeleteProfileRequest request, StreamObserver<Empty> responseObserver) {
     try {
       // delete profile.
       profileStore.deleteProfile(request.getQueryId());
@@ -345,13 +381,13 @@ public class JobTelemetryServiceImpl extends JobTelemetryServiceGrpc.JobTelemetr
       responseObserver.onCompleted();
     } catch (IllegalArgumentException e) {
       responseObserver.onError(
-        Status.INVALID_ARGUMENT
-          .withDescription("delete profile failed " + e.getMessage())
-          .asRuntimeException());
+          Status.INVALID_ARGUMENT
+              .withDescription("delete profile failed " + e.getMessage())
+              .asRuntimeException());
     } catch (Exception ex) {
       logger.error("delete profile failed", ex);
       responseObserver.onError(
-        Status.INTERNAL.withDescription(ex.getMessage()).asRuntimeException());
+          Status.INTERNAL.withDescription(ex.getMessage()).asRuntimeException());
     }
   }
 
@@ -361,8 +397,6 @@ public class JobTelemetryServiceImpl extends JobTelemetryServiceGrpc.JobTelemetr
 
   @Override
   public void close() throws Exception {
-    AutoCloseables.close(bgProfileWriter, progressMetricsPublisher, metricsStore,
-      profileStore);
+    AutoCloseables.close(bgProfileWriter, progressMetricsPublisher, metricsStore, profileStore);
   }
-
 }

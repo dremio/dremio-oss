@@ -15,15 +15,15 @@
  */
 package com.dremio.exec.expr;
 
+import com.dremio.BaseTestQuery;
+import com.dremio.exec.ExecConstants;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import com.dremio.BaseTestQuery;
-import com.dremio.exec.ExecConstants;
-
 /**
- * Test LogicalExpressions are serialized and deserialized properly when query is planned into multiple fragments.
+ * Test LogicalExpressions are serialized and deserialized properly when query is planned into
+ * multiple fragments.
  */
 public class TestLogicalExprSerDe extends BaseTestQuery {
 
@@ -36,7 +36,8 @@ public class TestLogicalExprSerDe extends BaseTestQuery {
   @Test // DRILL-2606
   public void castToBit() throws Exception {
     testBuilder()
-        .sqlQuery("SELECT CAST(CAST('true' as VARCHAR(20)) AS BOOLEAN) c1 FROM cp.\"region.json\" ORDER BY \"region_id\" LIMIT 1")
+        .sqlQuery(
+            "SELECT CAST(CAST('true' as VARCHAR(20)) AS BOOLEAN) c1 FROM cp.\"region.json\" ORDER BY \"region_id\" LIMIT 1")
         .unOrdered()
         .baselineColumns("c1")
         .baselineValues(true)
@@ -48,6 +49,8 @@ public class TestLogicalExprSerDe extends BaseTestQuery {
   @AfterClass
   public static void resetSliceCount() throws Exception {
     // Set the slice count to low, so that query is divided into multiple fragments with exchanges.
-    test(String.format("ALTER SESSION SET \"planner.slice_target\"=%d;", ExecConstants.SLICE_TARGET_DEFAULT));
+    test(
+        String.format(
+            "ALTER SESSION SET \"planner.slice_target\"=%d;", ExecConstants.SLICE_TARGET_DEFAULT));
   }
 }

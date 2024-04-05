@@ -21,24 +21,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
-import java.io.Closeable;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Locale;
-import java.util.Properties;
-import java.util.Set;
-import java.util.Vector;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.OutOfMemoryException;
-import org.apache.arrow.memory.RootAllocatorFactory;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.Version;
 import com.dremio.common.concurrent.NamedThreadFactory;
@@ -99,16 +81,31 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.ForwardingListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.EventLoopGroup;
+import java.io.Closeable;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Locale;
+import java.util.Properties;
+import java.util.Set;
+import java.util.Vector;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.OutOfMemoryException;
+import org.apache.arrow.memory.RootAllocatorFactory;
 
 /**
- * Thin wrapper around a UserClient that handles connect/close and transforms
- * String into ByteBuf.
+ * Thin wrapper around a UserClient that handles connect/close and transforms String into ByteBuf.
  */
 public class DremioClient implements Closeable, ConnectionThrottle {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DremioClient.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(DremioClient.class);
 
   public static final String INITIAL_USER_PORT = "dremio.exec.rpc.user.server.port";
   public static final String CLIENT_RPC_THREADS = "dremio.client.threads";
@@ -141,8 +138,7 @@ public class DremioClient implements Closeable, ConnectionThrottle {
     }
 
     @Override
-    public void start() throws Exception {
-    }
+    public void start() throws Exception {}
 
     @Override
     public ServiceSet getServiceSet(Role role) {
@@ -180,8 +176,7 @@ public class DremioClient implements Closeable, ConnectionThrottle {
     }
 
     @Override
-    public void close() {
-    }
+    public void close() {}
 
     private static ClusterCoordinator of(ClusterCoordinator coordinator) {
       if (coordinator == null) {
@@ -205,11 +200,12 @@ public class DremioClient implements Closeable, ConnectionThrottle {
   private int reconnectDelay;
   private boolean supportComplexTypes;
   private final boolean ownsAllocator;
-  private final boolean isDirectConnection; // true if the connection bypasses zookeeper and connects directly to a node
+  private final boolean
+      isDirectConnection; // true if the connection bypasses zookeeper and connects directly to a
+  // node
   private EventLoopGroup eventLoopGroup;
   private ExecutorService executor;
   private String clientName = DEFAULT_CLIENT_NAME;
-
 
   public DremioClient() throws OutOfMemoryException {
     this(SabotConfig.create(), false);
@@ -227,18 +223,17 @@ public class DremioClient implements Closeable, ConnectionThrottle {
     this(config, null, false);
   }
 
-  public DremioClient(SabotConfig config, boolean isDirect)
-      throws OutOfMemoryException {
+  public DremioClient(SabotConfig config, boolean isDirect) throws OutOfMemoryException {
     this(config, null, isDirect);
   }
 
   public DremioClient(SabotConfig config, ClusterCoordinator coordinator)
-    throws OutOfMemoryException {
+      throws OutOfMemoryException {
     this(config, coordinator, null, false);
   }
 
   public DremioClient(SabotConfig config, ClusterCoordinator coordinator, boolean isDirect)
-    throws OutOfMemoryException {
+      throws OutOfMemoryException {
     this(config, coordinator, null, isDirect);
   }
 
@@ -247,14 +242,20 @@ public class DremioClient implements Closeable, ConnectionThrottle {
     this(config, coordinator, allocator, false);
   }
 
-  public DremioClient(SabotConfig config, ClusterCoordinator clusterCoordinator, BufferAllocator allocator, boolean isDirect) {
+  public DremioClient(
+      SabotConfig config,
+      ClusterCoordinator clusterCoordinator,
+      BufferAllocator allocator,
+      boolean isDirect) {
     // if isDirect is true, the client will connect directly to the node instead of
     // going thru the zookeeper
     this.isDirectConnection = isDirect;
     this.ownsAllocator = allocator == null;
     this.rootAllocator = ownsAllocator ? RootAllocatorFactory.newRoot(config) : allocator;
-    this.connectionAllocator = rootAllocator.newChildAllocator("dremio-client-connections", 0, rootAllocator.getLimit());
-    this.recordAllocator = rootAllocator.newChildAllocator("dremio-client-records", 0, rootAllocator.getLimit());
+    this.connectionAllocator =
+        rootAllocator.newChildAllocator("dremio-client-connections", 0, rootAllocator.getLimit());
+    this.recordAllocator =
+        rootAllocator.newChildAllocator("dremio-client-records", 0, rootAllocator.getLimit());
     this.config = config;
     this.clusterCoordinator = ClusterCoordinatorWrapper.of(clusterCoordinator);
     this.reconnectTimes = config.getInt(BIT_RETRY_TIMES);
@@ -274,29 +275,31 @@ public class DremioClient implements Closeable, ConnectionThrottle {
   /**
    * Sets the client name.
    *
-   * If not set, default is {@code DremioClient#DEFAULT_CLIENT_NAME}.
+   * <p>If not set, default is {@code DremioClient#DEFAULT_CLIENT_NAME}.
    *
    * @param name the client name
-   *
    * @throws IllegalStateException if called after a connection has been established.
    * @throws NullPointerException if client name is null
    */
   public void setClientName(String name) {
     if (connected) {
-      throw new IllegalStateException("Attempted to modify client connection property after connection has been established.");
+      throw new IllegalStateException(
+          "Attempted to modify client connection property after connection has been established.");
     }
     this.clientName = checkNotNull(name, "client name should not be null");
   }
 
   /**
-   * Sets whether the application is willing to accept complex types (Map, Arrays) in the returned result set.
-   * Default is {@code true}. If set to {@code false}, the complex types are returned as JSON encoded VARCHAR type.
+   * Sets whether the application is willing to accept complex types (Map, Arrays) in the returned
+   * result set. Default is {@code true}. If set to {@code false}, the complex types are returned as
+   * JSON encoded VARCHAR type.
    *
    * @throws IllegalStateException if called after a connection has been established.
    */
   public void setSupportComplexTypes(boolean supportComplexTypes) {
     if (connected) {
-      throw new IllegalStateException("Attempted to modify client connection property after connection has been established.");
+      throw new IllegalStateException(
+          "Attempted to modify client connection property after connection has been established.");
     }
     this.supportComplexTypes = supportComplexTypes;
   }
@@ -321,7 +324,7 @@ public class DremioClient implements Closeable, ConnectionThrottle {
 
     final NodeEndpoint endpoint = setUpResources(connect, props);
 
-    try{
+    try {
       connect(endpoint);
       connected = true;
     } finally {
@@ -337,11 +340,13 @@ public class DremioClient implements Closeable, ConnectionThrottle {
     final NodeEndpoint endpoint;
     if (isDirectConnection) {
       final String[] connectInfo = props.getProperty("direct").split(":");
-      final String port = connectInfo.length==2?connectInfo[1]:config.getString(INITIAL_USER_PORT);
-      endpoint = NodeEndpoint.newBuilder()
-        .setAddress(connectInfo[0])
-        .setUserPort(Integer.parseInt(port))
-        .build();
+      final String port =
+          connectInfo.length == 2 ? connectInfo[1] : config.getString(INITIAL_USER_PORT);
+      endpoint =
+          NodeEndpoint.newBuilder()
+              .setAddress(connectInfo[0])
+              .setUserPort(Integer.parseInt(port))
+              .build();
     } else {
       if (clusterCoordinator == null) {
         try {
@@ -352,7 +357,11 @@ public class DremioClient implements Closeable, ConnectionThrottle {
         }
       }
 
-      final ArrayList<NodeEndpoint> endpoints = new ArrayList<>(clusterCoordinator.getServiceSet(ClusterCoordinator.Role.COORDINATOR).getAvailableEndpoints());
+      final ArrayList<NodeEndpoint> endpoints =
+          new ArrayList<>(
+              clusterCoordinator
+                  .getServiceSet(ClusterCoordinator.Role.COORDINATOR)
+                  .getAvailableEndpoints());
       checkState(!endpoints.isEmpty(), "No NodeEndpoint can be found");
       // shuffle the collection then get the first endpoint
       Collections.shuffle(endpoints);
@@ -366,29 +375,39 @@ public class DremioClient implements Closeable, ConnectionThrottle {
           continue;
         }
 
-        upBuilder.addProperties(
-          Property.newBuilder()
-            .setKey(key)
-            .setValue(props.getProperty(key)));
+        upBuilder.addProperties(Property.newBuilder().setKey(key).setValue(props.getProperty(key)));
       }
 
       this.props = upBuilder.build();
     }
 
     eventLoopGroup = createEventLoop(config.getInt(CLIENT_RPC_THREADS), "Client-");
-    executor = new ThreadPoolExecutor(0, Integer.MAX_VALUE, 60L, TimeUnit.SECONDS,
-      new SynchronousQueue<Runnable>(),
-      new NamedThreadFactory("dremio-client-executor-")) {
-      @Override
-      protected void afterExecute(final Runnable r, final Throwable t) {
-        if (t != null) {
-          logger.error("{}.run() leaked an exception.", r.getClass().getName(), t);
-        }
-        super.afterExecute(r, t);
-      }
-    };
-    client = new UserClient(clientName, config, supportComplexTypes, connectionAllocator, eventLoopGroup, executor,
-      SSLConfig.of(props), ProxyConfig.of(props));
+    executor =
+        new ThreadPoolExecutor(
+            0,
+            Integer.MAX_VALUE,
+            60L,
+            TimeUnit.SECONDS,
+            new SynchronousQueue<Runnable>(),
+            new NamedThreadFactory("dremio-client-executor-")) {
+          @Override
+          protected void afterExecute(final Runnable r, final Throwable t) {
+            if (t != null) {
+              logger.error("{}.run() leaked an exception.", r.getClass().getName(), t);
+            }
+            super.afterExecute(r, t);
+          }
+        };
+    client =
+        new UserClient(
+            clientName,
+            config,
+            supportComplexTypes,
+            connectionAllocator,
+            eventLoopGroup,
+            executor,
+            SSLConfig.of(props),
+            ProxyConfig.of(props));
     logger.debug("Connecting to server {}:{}", endpoint.getAddress(), endpoint.getUserPort());
 
     return endpoint;
@@ -407,7 +426,11 @@ public class DremioClient implements Closeable, ConnectionThrottle {
       retry--;
       try {
         Thread.sleep(this.reconnectDelay);
-        final ArrayList<NodeEndpoint> endpoints = new ArrayList<>(clusterCoordinator.getServiceSet(ClusterCoordinator.Role.COORDINATOR).getAvailableEndpoints());
+        final ArrayList<NodeEndpoint> endpoints =
+            new ArrayList<>(
+                clusterCoordinator
+                    .getServiceSet(ClusterCoordinator.Role.COORDINATOR)
+                    .getAvailableEndpoints());
         if (endpoints.isEmpty()) {
           continue;
         }
@@ -426,9 +449,14 @@ public class DremioClient implements Closeable, ConnectionThrottle {
     final FutureHandler f = new FutureHandler();
     client.connect(f, endpoint, props, getUserCredentials());
     try {
-      DremioFutures.getChecked(f, RpcException.class, 30, TimeUnit.SECONDS, RpcException::mapException);
+      DremioFutures.getChecked(
+          f, RpcException.class, 30, TimeUnit.SECONDS, RpcException::mapException);
     } catch (TimeoutException e) {
-      throw new RpcException("Timed out after 30s waiting to connect to " + endpoint.getAddress() + ":" + endpoint.getUserPort());
+      throw new RpcException(
+          "Timed out after 30s waiting to connect to "
+              + endpoint.getAddress()
+              + ":"
+              + endpoint.getUserPort());
     }
   }
 
@@ -436,9 +464,7 @@ public class DremioClient implements Closeable, ConnectionThrottle {
     return recordAllocator;
   }
 
-  /**
-   * Closes this client's connection to the server
-   */
+  /** Closes this client's connection to the server */
   @Override
   public void close() {
     cleanUpResources();
@@ -448,40 +474,43 @@ public class DremioClient implements Closeable, ConnectionThrottle {
   /**
    * Return the server name. Only available after connecting
    *
-   * The result might be null if the server doesn't provide the name information.
+   * <p>The result might be null if the server doesn't provide the name information.
    *
-   * @return the server name, or null if not connected or if the server
-   *         doesn't provide the name
+   * @return the server name, or null if not connected or if the server doesn't provide the name
    * @return
    */
   public String getServerName() {
-    return (client != null && client.getServerInfos() != null) ? client.getServerInfos().getName() : null;
+    return (client != null && client.getServerInfos() != null)
+        ? client.getServerInfos().getName()
+        : null;
   }
 
   /**
    * Return the server version. Only available after connecting
    *
-   * The result might be null if the server doesn't provide the version information.
+   * <p>The result might be null if the server doesn't provide the version information.
    *
-   * @return the server version, or null if not connected or if the server
-   *         doesn't provide the version
+   * @return the server version, or null if not connected or if the server doesn't provide the
+   *     version
    * @return
    */
   public Version getServerVersion() {
-    return (client != null && client.getServerInfos() != null) ? UserRpcUtils.getVersion(client.getServerInfos()) : null;
+    return (client != null && client.getServerInfos() != null)
+        ? UserRpcUtils.getVersion(client.getServerInfos())
+        : null;
   }
-
 
   /**
    * Get server meta information
    *
-   * Get meta information about the server like the the available functions
-   * or the identifier quoting string used by the current session
+   * <p>Get meta information about the server like the the available functions or the identifier
+   * quoting string used by the current session
    *
    * @return a future to the server meta response
    */
   public RpcFuture<GetServerMetaResp> getServerMeta() {
-    return client.send(RpcType.GET_SERVER_META, GetServerMetaReq.getDefaultInstance(), GetServerMetaResp.class);
+    return client.send(
+        RpcType.GET_SERVER_META, GetServerMetaReq.getDefaultInstance(), GetServerMetaResp.class);
   }
 
   /**
@@ -490,16 +519,21 @@ public class DremioClient implements Closeable, ConnectionThrottle {
    * @return a immutable set of capabilities
    */
   public Set<ServerMethod> getSupportedMethods() {
-    return client != null ? ServerMethod.getSupportedMethods(client.getSupportedMethods(), client.getServerInfos()) : null;
+    return client != null
+        ? ServerMethod.getSupportedMethods(client.getSupportedMethods(), client.getServerInfos())
+        : null;
   }
 
-
   /**
-   * Submits a string based query plan for execution and returns the result batches. Supported query types are:
-   * <p><ul>
-   *  <li>{@link QueryType#LOGICAL}
-   *  <li>{@link QueryType#PHYSICAL}
-   *  <li>{@link QueryType#SQL}
+   * Submits a string based query plan for execution and returns the result batches. Supported query
+   * types are:
+   *
+   * <p>
+   *
+   * <ul>
+   *   <li>{@link QueryType#LOGICAL}
+   *   <li>{@link QueryType#PHYSICAL}
+   *   <li>{@link QueryType#SQL}
    * </ul>
    *
    * @param type Query type
@@ -508,10 +542,13 @@ public class DremioClient implements Closeable, ConnectionThrottle {
    * @throws RpcException
    */
   public List<QueryDataBatch> runQuery(QueryType type, String plan) throws RpcException {
-    checkArgument(type == QueryType.LOGICAL || type == QueryType.PHYSICAL || type == QueryType.SQL,
-        String.format("Only query types %s, %s and %s are supported in this API",
+    checkArgument(
+        type == QueryType.LOGICAL || type == QueryType.PHYSICAL || type == QueryType.SQL,
+        String.format(
+            "Only query types %s, %s and %s are supported in this API",
             QueryType.LOGICAL, QueryType.PHYSICAL, QueryType.SQL));
-    final UserProtos.RunQuery query = newBuilder().setResultsMode(STREAM_FULL).setType(type).setPlan(plan).build();
+    final UserProtos.RunQuery query =
+        newBuilder().setResultsMode(STREAM_FULL).setType(type).setPlan(plan).build();
     final ListHoldingResultsListener listener = new ListHoldingResultsListener(query);
     client.submitQuery(listener, query);
     return listener.getResults();
@@ -519,34 +556,46 @@ public class DremioClient implements Closeable, ConnectionThrottle {
 
   /**
    * API to just plan a query without execution
+   *
    * @param type
    * @param query
    * @param isSplitPlan - option to tell whether to return single or split plans for a query
-   * @return list of PlanFragments that can be used later on in {@link #runQuery(QueryType, List, UserResultsListener)}
-   * to run a query without additional planning
+   * @return list of PlanFragments that can be used later on in {@link #runQuery(QueryType, List,
+   *     UserResultsListener)} to run a query without additional planning
    */
-  public RpcFuture<QueryPlanFragments> planQuery(QueryType type, String query, boolean isSplitPlan) {
-    GetQueryPlanFragments runQuery = GetQueryPlanFragments.newBuilder().setQuery(query).setType(type).setSplitPlan(isSplitPlan).build();
+  public RpcFuture<QueryPlanFragments> planQuery(
+      QueryType type, String query, boolean isSplitPlan) {
+    GetQueryPlanFragments runQuery =
+        GetQueryPlanFragments.newBuilder()
+            .setQuery(query)
+            .setType(type)
+            .setSplitPlan(isSplitPlan)
+            .build();
     return client.planQuery(runQuery);
   }
 
   /**
-   * Run query based on list of fragments that were supposedly produced during query planning phase. Supported
-   * query type is {@link QueryType#EXECUTION}
+   * Run query based on list of fragments that were supposedly produced during query planning phase.
+   * Supported query type is {@link QueryType#EXECUTION}
+   *
    * @param type
    * @param planFragments
    * @param resultsListener
    * @throws RpcException
    */
-  public void runQuery(QueryType type, PlanFragmentSet planFragments, UserResultsListener resultsListener)
+  public void runQuery(
+      QueryType type, PlanFragmentSet planFragments, UserResultsListener resultsListener)
       throws RpcException {
     // QueryType can be only executional
-    checkArgument((QueryType.EXECUTION == type), "Only EXECUTION type query is supported with PlanFragments");
+    checkArgument(
+        (QueryType.EXECUTION == type), "Only EXECUTION type query is supported with PlanFragments");
 
-    final UserProtos.RunQuery query = newBuilder().setType(type)
-      .setFragmentSet(planFragments)
-      .setResultsMode(STREAM_FULL)
-      .build();
+    final UserProtos.RunQuery query =
+        newBuilder()
+            .setType(type)
+            .setFragmentSet(planFragments)
+            .setResultsMode(STREAM_FULL)
+            .build();
     client.submitQuery(resultsListener, query);
   }
 
@@ -557,7 +606,7 @@ public class DremioClient implements Closeable, ConnectionThrottle {
     String userName = "";
 
     if (props != null) {
-      for (Property property: props.getPropertiesList()) {
+      for (Property property : props.getPropertiesList()) {
         if (property.getKey().equalsIgnoreCase("user")) {
           userName = property.getValue();
           break;
@@ -569,21 +618,22 @@ public class DremioClient implements Closeable, ConnectionThrottle {
   }
 
   public RpcFuture<Ack> cancelQuery(QueryId id) {
-    if(logger.isDebugEnabled()) {
+    if (logger.isDebugEnabled()) {
       logger.debug("Cancelling query {}", QueryIdHelper.getQueryId(id));
     }
     return client.send(RpcType.CANCEL_QUERY, id, Ack.class);
   }
 
   public RpcFuture<Ack> resumeQuery(final QueryId queryId) {
-    if(logger.isDebugEnabled()) {
+    if (logger.isDebugEnabled()) {
       logger.debug("Resuming query {}", QueryIdHelper.getQueryId(queryId));
     }
     return client.send(RpcType.RESUME_PAUSED_QUERY, queryId, Ack.class);
   }
 
   /**
-   * Get the list of catalogs in <code>INFORMATION_SCHEMA.CATALOGS</code> table satisfying the given filters.
+   * Get the list of catalogs in <code>INFORMATION_SCHEMA.CATALOGS</code> table satisfying the given
+   * filters.
    *
    * @param catalogNameFilter Filter on <code>catalog name</code>. Pass null to apply no filter.
    * @return
@@ -598,13 +648,15 @@ public class DremioClient implements Closeable, ConnectionThrottle {
   }
 
   /**
-   * Get the list of schemas in <code>INFORMATION_SCHEMA.SCHEMATA</code> table satisfying the given filters.
+   * Get the list of schemas in <code>INFORMATION_SCHEMA.SCHEMATA</code> table satisfying the given
+   * filters.
    *
    * @param catalogNameFilter Filter on <code>catalog name</code>. Pass null to apply no filter.
    * @param schemaNameFilter Filter on <code>schema name</code>. Pass null to apply no filter.
    * @return
    */
-  public RpcFuture<GetSchemasResp> getSchemas(LikeFilter catalogNameFilter, LikeFilter schemaNameFilter) {
+  public RpcFuture<GetSchemasResp> getSchemas(
+      LikeFilter catalogNameFilter, LikeFilter schemaNameFilter) {
     final GetSchemasReq.Builder reqBuilder = GetSchemasReq.newBuilder();
     if (catalogNameFilter != null) {
       reqBuilder.setCatalogNameFilter(catalogNameFilter);
@@ -618,7 +670,8 @@ public class DremioClient implements Closeable, ConnectionThrottle {
   }
 
   /**
-   * Get the list of tables in <code>INFORMATION_SCHEMA.TABLES</code> table satisfying the given filters.
+   * Get the list of tables in <code>INFORMATION_SCHEMA.TABLES</code> table satisfying the given
+   * filters.
    *
    * @param catalogNameFilter Filter on <code>catalog name</code>. Pass null to apply no filter.
    * @param schemaNameFilter Filter on <code>schema name</code>. Pass null to apply no filter.
@@ -626,8 +679,11 @@ public class DremioClient implements Closeable, ConnectionThrottle {
    * @param tableTypeFilter Filter in <code>table type</code>. Pass null to apply no filter.
    * @return
    */
-  public RpcFuture<GetTablesResp> getTables(LikeFilter catalogNameFilter, LikeFilter schemaNameFilter,
-      LikeFilter tableNameFilter, List<String> tableTypeFilter) {
+  public RpcFuture<GetTablesResp> getTables(
+      LikeFilter catalogNameFilter,
+      LikeFilter schemaNameFilter,
+      LikeFilter tableNameFilter,
+      List<String> tableTypeFilter) {
     final GetTablesReq.Builder reqBuilder = GetTablesReq.newBuilder();
     if (catalogNameFilter != null) {
       reqBuilder.setCatalogNameFilter(catalogNameFilter);
@@ -649,7 +705,8 @@ public class DremioClient implements Closeable, ConnectionThrottle {
   }
 
   /**
-   * Get the list of columns in <code>INFORMATION_SCHEMA.COLUMNS</code> table satisfying the given filters.
+   * Get the list of columns in <code>INFORMATION_SCHEMA.COLUMNS</code> table satisfying the given
+   * filters.
    *
    * @param catalogNameFilter Filter on <code>catalog name</code>. Pass null to apply no filter.
    * @param schemaNameFilter Filter on <code>schema name</code>. Pass null to apply no filter.
@@ -657,8 +714,11 @@ public class DremioClient implements Closeable, ConnectionThrottle {
    * @param columnNameFilter Filter in <code>column name</code>. Pass null to apply no filter.
    * @return
    */
-  public RpcFuture<GetColumnsResp> getColumns(LikeFilter catalogNameFilter, LikeFilter schemaNameFilter,
-      LikeFilter tableNameFilter, LikeFilter columnNameFilter) {
+  public RpcFuture<GetColumnsResp> getColumns(
+      LikeFilter catalogNameFilter,
+      LikeFilter schemaNameFilter,
+      LikeFilter tableNameFilter,
+      LikeFilter columnNameFilter) {
     final GetColumnsReq.Builder reqBuilder = GetColumnsReq.newBuilder();
     if (catalogNameFilter != null) {
       reqBuilder.setCatalogNameFilter(catalogNameFilter);
@@ -687,9 +747,7 @@ public class DremioClient implements Closeable, ConnectionThrottle {
    */
   public RpcFuture<CreatePreparedStatementResp> createPreparedStatement(final String query) {
     final CreatePreparedStatementReq req =
-        CreatePreparedStatementReq.newBuilder()
-            .setSqlQuery(query)
-            .build();
+        CreatePreparedStatementReq.newBuilder().setSqlQuery(query).build();
 
     return client.send(RpcType.CREATE_PREPARED_STATEMENT, req, CreatePreparedStatementResp.class);
   }
@@ -706,35 +764,39 @@ public class DremioClient implements Closeable, ConnectionThrottle {
   /**
    * Execute the given prepared statement.
    *
-   * @param preparedStatementHandle Prepared statement handle returned in response to
-   *                                {@link #createPreparedStatement(String)}.
+   * @param preparedStatementHandle Prepared statement handle returned in response to {@link
+   *     #createPreparedStatement(String)}.
    * @param resultsListener {@link UserResultsListener} instance for listening for query results.
    */
-  public void executePreparedStatement(final PreparedStatementHandle preparedStatementHandle,
+  public void executePreparedStatement(
+      final PreparedStatementHandle preparedStatementHandle,
       final UserResultsListener resultsListener) {
-    final RunQuery runQuery = newBuilder()
-        .setResultsMode(STREAM_FULL)
-        .setType(QueryType.PREPARED_STATEMENT)
-        .setPreparedStatementHandle(preparedStatementHandle)
-        .build();
+    final RunQuery runQuery =
+        newBuilder()
+            .setResultsMode(STREAM_FULL)
+            .setType(QueryType.PREPARED_STATEMENT)
+            .setPreparedStatementHandle(preparedStatementHandle)
+            .build();
     client.submitQuery(resultsListener, runQuery);
   }
 
   /**
    * Execute the given prepared statement and return the results.
    *
-   * @param preparedStatementHandle Prepared statement handle returned in response to
-   *                                {@link #createPreparedStatement(String)}.
-   * @return List of {@link QueryDataBatch}s. It is responsibility of the caller to release query data batches.
+   * @param preparedStatementHandle Prepared statement handle returned in response to {@link
+   *     #createPreparedStatement(String)}.
+   * @return List of {@link QueryDataBatch}s. It is responsibility of the caller to release query
+   *     data batches.
    * @throws RpcException
    */
-  public List<QueryDataBatch> executePreparedStatement(final PreparedStatementHandle preparedStatementHandle)
-      throws RpcException {
-    final RunQuery runQuery = newBuilder()
-        .setResultsMode(STREAM_FULL)
-        .setType(QueryType.PREPARED_STATEMENT)
-        .setPreparedStatementHandle(preparedStatementHandle)
-        .build();
+  public List<QueryDataBatch> executePreparedStatement(
+      final PreparedStatementHandle preparedStatementHandle) throws RpcException {
+    final RunQuery runQuery =
+        newBuilder()
+            .setResultsMode(STREAM_FULL)
+            .setType(QueryType.PREPARED_STATEMENT)
+            .setPreparedStatementHandle(preparedStatementHandle)
+            .build();
 
     final ListHoldingResultsListener resultsListener = new ListHoldingResultsListener(runQuery);
 
@@ -746,19 +808,21 @@ public class DremioClient implements Closeable, ConnectionThrottle {
   /**
    * Submits a Logical plan for direct execution (bypasses parsing)
    *
-   * @param  plan  the plan to execute
+   * @param plan the plan to execute
    */
   public void runQuery(QueryType type, String plan, UserResultsListener resultsListener) {
-    client.submitQuery(resultsListener, newBuilder().setResultsMode(STREAM_FULL).setType(type).setPlan(plan).build());
+    client.submitQuery(
+        resultsListener,
+        newBuilder().setResultsMode(STREAM_FULL).setType(type).setPlan(plan).build());
   }
 
   private class ListHoldingResultsListener implements UserResultsListener {
     private final Vector<QueryDataBatch> results = new Vector<>();
     private final SettableFuture<List<QueryDataBatch>> future = SettableFuture.create();
-    private final UserProtos.RunQuery query ;
+    private final UserProtos.RunQuery query;
 
     public ListHoldingResultsListener(UserProtos.RunQuery query) {
-      logger.debug( "Listener created for query \"\"\"{}\"\"\"", query );
+      logger.debug("Listener created for query \"\"\"{}\"\"\"", query);
       this.query = query;
     }
 
@@ -793,11 +857,11 @@ public class DremioClient implements Closeable, ConnectionThrottle {
 
     @Override
     public void dataArrived(QueryDataBatch result, ConnectionThrottle throttle) {
-      logger.debug("Result arrived:  Result: {}", result );
+      logger.debug("Result arrived:  Result: {}", result);
       results.add(result);
     }
 
-    public List<QueryDataBatch> getResults() throws RpcException{
+    public List<QueryDataBatch> getResults() throws RpcException {
       try {
         return future.get();
       } catch (Throwable t) {
@@ -805,7 +869,7 @@ public class DremioClient implements Closeable, ConnectionThrottle {
          * Since we're not going to return the result to the caller
          * to clean up, we have to do it.
          */
-        for(final QueryDataBatch queryDataBatch : results) {
+        for (final QueryDataBatch queryDataBatch : results) {
           queryDataBatch.release();
         }
         throw RpcException.mapException(t);
@@ -820,11 +884,12 @@ public class DremioClient implements Closeable, ConnectionThrottle {
     }
   }
 
-  private class FutureHandler extends ForwardingListenableFuture.SimpleForwardingListenableFuture<Void>
-    implements RpcConnectionHandler<ServerConnection>, RpcFuture<Void>{
+  private class FutureHandler
+      extends ForwardingListenableFuture.SimpleForwardingListenableFuture<Void>
+      implements RpcConnectionHandler<ServerConnection>, RpcFuture<Void> {
 
     protected FutureHandler() {
-      super( SettableFuture.<Void>create());
+      super(SettableFuture.<Void>create());
     }
 
     @Override
@@ -837,8 +902,12 @@ public class DremioClient implements Closeable, ConnectionThrottle {
       RpcException rpcEx;
       if (t instanceof RpcException) {
         RpcException rpcThrowable = (RpcException) t;
-        rpcEx = new RpcException(
-          String.format("%s : %s", type.name(), t.getMessage()), rpcThrowable.getStatus(), rpcThrowable.getErrorId(), t);
+        rpcEx =
+            new RpcException(
+                String.format("%s : %s", type.name(), t.getMessage()),
+                rpcThrowable.getStatus(),
+                rpcThrowable.getErrorId(),
+                t);
       } else {
         rpcEx = new RpcException(String.format("%s : %s", type.name(), t.getMessage()), t);
       }
@@ -867,30 +936,30 @@ public class DremioClient implements Closeable, ConnectionThrottle {
     }
     resources.add(clusterCoordinator);
 
-    resources.add(new AutoCloseable() {
-      @Override
-      public void close() throws Exception {
-        try {
-          eventLoopGroup.shutdownGracefully(0, 0, TimeUnit.SECONDS).sync();
-        } catch (InterruptedException e) {
-          logger.warn("Failure while shutting down event loop in dremio client. ", e);
-          Thread.interrupted();
-        }
-      }
-    });
+    resources.add(
+        new AutoCloseable() {
+          @Override
+          public void close() throws Exception {
+            try {
+              eventLoopGroup.shutdownGracefully(0, 0, TimeUnit.SECONDS).sync();
+            } catch (InterruptedException e) {
+              logger.warn("Failure while shutting down event loop in dremio client. ", e);
+              Thread.interrupted();
+            }
+          }
+        });
 
     resources.add(executor::shutdownNow);
 
     try {
       AutoCloseables.close(resources);
-    } catch(Exception e) {
+    } catch (Exception e) {
       logger.warn("Error while cleaning up resources in DremioClient", e);
     } finally {
       client = null;
       clusterCoordinator = null;
       eventLoopGroup = null;
-      executor= null;
+      executor = null;
     }
-
   }
 }

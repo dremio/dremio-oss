@@ -15,13 +15,6 @@
  */
 package com.dremio.service.nessie.upgrade.version040;
 
-import java.nio.charset.StandardCharsets;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-
-import org.apache.commons.codec.binary.Hex;
-
 import com.dremio.datastore.api.Document;
 import com.dremio.datastore.api.KVStore;
 import com.dremio.datastore.api.KVStoreProvider;
@@ -34,15 +27,24 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
+import java.nio.charset.StandardCharsets;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import org.apache.commons.codec.binary.Hex;
 
 public class MetadataReader040 implements MetadataReader {
   public static final String INITIAL_HASH;
+
   static {
     final HashFunction hashFunction = Hashing.sha256();
-    INITIAL_HASH = Hex.encodeHexString(hashFunction.newHasher().putString("empty", StandardCharsets.UTF_8).hash().asBytes());
+    INITIAL_HASH =
+        Hex.encodeHexString(
+            hashFunction.newHasher().putString("empty", StandardCharsets.UTF_8).hash().asBytes());
   }
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MetadataReader040.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(MetadataReader040.class);
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
   private final KVStore<NessieRefKVStoreBuilder.NamedRef, String> refKVStore;
@@ -63,63 +65,76 @@ public class MetadataReader040 implements MetadataReader {
 
   @Override
   public void doUpgrade(CommitConsumer commitConsumer) {
-    final Iterable<Document<NessieRefKVStoreBuilder.NamedRef, String>> refIterable = refKVStore.find();
+    final Iterable<Document<NessieRefKVStoreBuilder.NamedRef, String>> refIterable =
+        refKVStore.find();
     if (refIterable == null) {
       return;
     }
 
-    refIterable.forEach(doc -> {
-      final NessieRefKVStoreBuilder.NamedRef namedRef = doc.getKey();
-      if (namedRef instanceof NessieRefKVStoreBuilder.BranchRef) {
-        final String branchName = namedRef.getName();
-        final Set<List<String>> migratedKeys = new HashSet<>();
+    refIterable.forEach(
+        doc -> {
+          final NessieRefKVStoreBuilder.NamedRef namedRef = doc.getKey();
+          if (namedRef instanceof NessieRefKVStoreBuilder.BranchRef) {
+            final String branchName = namedRef.getName();
+            final Set<List<String>> migratedKeys = new HashSet<>();
 
-        String currentHash = doc.getValue();
-        while (!INITIAL_HASH.equals(currentHash)) {
-          final Document<String, NessieCommit> commitDoc = commitKVStore.get(currentHash);
-          if (commitDoc == null) {
-            break;
-          }
+            String currentHash = doc.getValue();
+            while (!INITIAL_HASH.equals(currentHash)) {
+              final Document<String, NessieCommit> commitDoc = commitKVStore.get(currentHash);
+              if (commitDoc == null) {
+                break;
+              }
 
-          final NessieCommit commit = commitDoc.getValue();
-          if (isPutOperation(commit)) {
-            final ContentsKey contentsKey = commit.getOperations().getOperations().get(0).getKey();
-            final String location = ((PutOperation) commit.getOperations().getOperations().get(0)).getContents().getMetadataLocation();
+              final NessieCommit commit = commitDoc.getValue();
+              if (isPutOperation(commit)) {
+                final ContentsKey contentsKey =
+                    commit.getOperations().getOperations().get(0).getKey();
+                final String location =
+                    ((PutOperation) commit.getOperations().getOperations().get(0))
+                        .getContents()
+                        .getMetadataLocation();
 
-            if (contentsKey != null && location != null) {
-              // Never replace a value, since the first one encountered is the latest
-              if (!migratedKeys.contains(contentsKey.getElements())) {
-                commitConsumer.migrateCommit(
-                  branchName,
-                  contentsKey.getElements(),
-                  location);
+                if (contentsKey != null && location != null) {
+                  // Never replace a value, since the first one encountered is the latest
+                  if (!migratedKeys.contains(contentsKey.getElements())) {
+                    commitConsumer.migrateCommit(branchName, contentsKey.getElements(), location);
+                    migratedKeys.add(contentsKey.getElements());
+                  }
+                }
+              } else if (isDeleteOperation(commit)) {
+                final ContentsKey contentsKey =
+                    commit.getOperations().getOperations().get(0).getKey();
                 migratedKeys.add(contentsKey.getElements());
               }
-            }
-          } else if (isDeleteOperation(commit)) {
-            final ContentsKey contentsKey = commit.getOperations().getOperations().get(0).getKey();
-            migratedKeys.add(contentsKey.getElements());
-          }
 
-          currentHash = commit.getAncestor().getHash();
-        }
-      }
-    });
+              currentHash = commit.getAncestor().getHash();
+            }
+          }
+        });
   }
 
   private boolean isPutOperation(NessieCommit commit) {
-    return commit != null && commit.getOperations() != null && commit.getOperations().getOperations() != null &&
-      !commit.getOperations().getOperations().isEmpty() && commit.getOperations().getOperations().get(0) instanceof PutOperation;
+    return commit != null
+        && commit.getOperations() != null
+        && commit.getOperations().getOperations() != null
+        && !commit.getOperations().getOperations().isEmpty()
+        && commit.getOperations().getOperations().get(0) instanceof PutOperation;
   }
 
   private boolean isDeleteOperation(NessieCommit commit) {
-    return commit != null && commit.getOperations() != null && commit.getOperations().getOperations() != null &&
-      !commit.getOperations().getOperations().isEmpty() && commit.getOperations().getOperations().get(0) instanceof DeleteOperation;
+    return commit != null
+        && commit.getOperations() != null
+        && commit.getOperations().getOperations() != null
+        && !commit.getOperations().getOperations().isEmpty()
+        && commit.getOperations().getOperations().get(0) instanceof DeleteOperation;
   }
 
   private boolean isUnchangedOperation(NessieCommit commit) {
-    return commit != null && commit.getOperations() != null && commit.getOperations().getOperations() != null &&
-      !commit.getOperations().getOperations().isEmpty() && commit.getOperations().getOperations().get(0) instanceof UnchangedOperation;
+    return commit != null
+        && commit.getOperations() != null
+        && commit.getOperations().getOperations() != null
+        && !commit.getOperations().getOperations().isEmpty()
+        && commit.getOperations().getOperations().get(0) instanceof UnchangedOperation;
   }
 
   @VisibleForTesting
@@ -161,5 +176,4 @@ public class MetadataReader040 implements MetadataReader {
       this.sortOrderId = sortOrderId;
     }
   }
-
 }

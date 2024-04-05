@@ -15,18 +15,16 @@
  */
 package com.dremio.exec.expr.fn.impl.conv;
 
-import org.apache.arrow.vector.holders.BigIntHolder;
-import org.apache.arrow.vector.holders.Float4Holder;
-import org.apache.arrow.vector.holders.Float8Holder;
-import org.apache.arrow.vector.holders.IntHolder;
-
 import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.FunctionTemplate.FunctionScope;
 import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
-
+import org.apache.arrow.vector.holders.BigIntHolder;
+import org.apache.arrow.vector.holders.Float4Holder;
+import org.apache.arrow.vector.holders.Float8Holder;
+import org.apache.arrow.vector.holders.IntHolder;
 
 public class RoundFunctions {
 
@@ -36,15 +34,17 @@ public class RoundFunctions {
    *
    * TODO: Need to incorporate round function which accepts two parameters here.
    */
-  @FunctionTemplate(name = "round", scope = FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.NULL_IF_NULL)
+  @FunctionTemplate(
+      name = "round",
+      scope = FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.NULL_IF_NULL)
   public static class RoundInt implements SimpleFunction {
 
-    @Param  IntHolder in;
+    @Param IntHolder in;
     @Output IntHolder out;
 
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
     public void eval() {
@@ -59,8 +59,7 @@ public class RoundFunctions {
     @Output BigIntHolder out;
 
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
     public void eval() {
@@ -75,8 +74,7 @@ public class RoundFunctions {
     @Output Float4Holder out;
 
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
     public void eval() {
@@ -92,8 +90,7 @@ public class RoundFunctions {
     @Output Float8Holder out;
 
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
     public void eval() {

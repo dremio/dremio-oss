@@ -21,22 +21,20 @@ import static com.dremio.dac.proto.model.dataset.MatchType.regex;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.regex.Pattern.quote;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.explore.model.extract.Selection;
 import com.dremio.dac.explore.udfs.SplitPattern;
 import com.dremio.dac.proto.model.dataset.DataType;
 import com.dremio.dac.proto.model.dataset.SplitPositionType;
 import com.dremio.dac.proto.model.dataset.SplitRule;
+import java.util.ArrayList;
+import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * Split transformation recommendation suggestions and generating examples and number of matches in sample data
- * for each recommendation.
+ * Split transformation recommendation suggestions and generating examples and number of matches in
+ * sample data for each recommendation.
  */
 public class SplitRecommender extends Recommender<SplitRule, Selection> {
   private static final Logger logger = LoggerFactory.getLogger(SplitRecommender.class);
@@ -46,7 +44,10 @@ public class SplitRecommender extends Recommender<SplitRule, Selection> {
     checkArgument(selColType == DataType.TEXT, "Split is supported only on TEXT type columns");
 
     List<SplitRule> rules = new ArrayList<>();
-    String seltext = selection.getCellText().substring(selection.getOffset(), selection.getOffset() + selection.getLength());
+    String seltext =
+        selection
+            .getCellText()
+            .substring(selection.getOffset(), selection.getOffset() + selection.getLength());
     rules.add(new SplitRule(seltext, exact, false));
     if (!seltext.toUpperCase().equals(seltext.toLowerCase())) {
       rules.add(new SplitRule(seltext, exact, true));
@@ -68,35 +69,31 @@ public class SplitRecommender extends Recommender<SplitRule, Selection> {
 
     @Override
     public String getMatchFunctionExpr(String input) {
-      return String.format("%s(%s, %s)",
-          "regexp_matches",
-          input,
-          getDelimiterRegexLiteral(true)
-      );
+      return String.format("%s(%s, %s)", "regexp_matches", input, getDelimiterRegexLiteral(true));
     }
 
     @Override
     public String getExampleFunctionExpr(String input) {
-      return String.format("%s(%s, %s)",
-          SplitPattern.REGEXP_SPLIT_POSITIONS,
-          input,
-          getDelimiterRegexLiteral(false)
-      );
+      return String.format(
+          "%s(%s, %s)",
+          SplitPattern.REGEXP_SPLIT_POSITIONS, input, getDelimiterRegexLiteral(false));
     }
 
     @Override
     public String getFunctionExpr(String expr, Object... args) {
-      checkArgument(args.length == 2 && args[0] != null && args[1] != null, "Expected the split position type and index as arguments");
+      checkArgument(
+          args.length == 2 && args[0] != null && args[1] != null,
+          "Expected the split position type and index as arguments");
       SplitPositionType splitPositionType = (SplitPositionType) args[0];
       Integer index = (Integer) args[1];
 
-      return String.format("%s(%s, %s, %s, %d)",
+      return String.format(
+          "%s(%s, %s, %s, %d)",
           SplitPattern.REGEXP_SPLIT,
           expr,
           getDelimiterRegexLiteral(false),
           stringLiteral(splitPositionType.toString()),
-          index
-      );
+          index);
     }
 
     @Override

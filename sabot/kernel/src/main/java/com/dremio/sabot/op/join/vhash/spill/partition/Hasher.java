@@ -17,16 +17,12 @@ package com.dremio.sabot.op.join.vhash.spill.partition;
 
 import static com.dremio.sabot.op.join.vhash.spill.partition.Partition.INITIAL_VAR_FIELD_AVERAGE_SIZE;
 
-import java.util.Random;
-
-import org.apache.arrow.memory.ArrowBuf;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.sabot.op.join.vhash.spill.JoinSetupParams;
+import java.util.Random;
+import org.apache.arrow.memory.ArrowBuf;
 
-/**
- * Hasher for an incoming record batch.
- */
+/** Hasher for an incoming record batch. */
 public class Hasher implements AutoCloseable {
   private final JoinSetupParams setupParams;
   private final JoinTable table;
@@ -34,14 +30,27 @@ public class Hasher implements AutoCloseable {
 
   Hasher(JoinSetupParams setupParams) {
     this.setupParams = setupParams;
-    this.table = new BlockJoinTable(setupParams.getBuildKeyPivot(), setupParams.getOpAllocator(), setupParams.getComparator(),
-      0, INITIAL_VAR_FIELD_AVERAGE_SIZE, setupParams.getSabotConfig(), setupParams.getOptions(), false);
+    this.table =
+        new BlockJoinTable(
+            setupParams.getBuildKeyPivot(),
+            setupParams.getOpAllocator(),
+            setupParams.getComparator(),
+            0,
+            INITIAL_VAR_FIELD_AVERAGE_SIZE,
+            setupParams.getSabotConfig(),
+            setupParams.getOptions(),
+            false);
   }
 
   void hashPivoted(int records, ArrowBuf hashOut8B) {
-    table.hashPivoted(records,
-      setupParams.getPivotedFixedBlock().getBuf(),
-      setupParams.getPivotedVariableBlock() == null ? null : setupParams.getPivotedVariableBlock().getBuf(), seed, hashOut8B);
+    table.hashPivoted(
+        records,
+        setupParams.getPivotedFixedBlock().getBuf(),
+        setupParams.getPivotedVariableBlock() == null
+            ? null
+            : setupParams.getPivotedVariableBlock().getBuf(),
+        seed,
+        hashOut8B);
   }
 
   void reseed() {

@@ -62,13 +62,13 @@ describe("Icon Input", () => {
   it("adds the classes passed as props to respective elements", () => {
     const wrapper = getShallowWrapper();
     expect(wrapper.find("IconInputRoot").props().className).toEqual(
-      expect.stringContaining("sample-root-class")
+      expect.stringContaining("sample-root-class"),
     );
     expect(wrapper.find(Label).props().className).toEqual(
-      expect.stringContaining("sample-label-class")
+      expect.stringContaining("sample-label-class"),
     );
     expect(wrapper.find("input").props().className).toEqual(
-      expect.stringContaining("sample-input-class")
+      expect.stringContaining("sample-input-class"),
     );
   });
 
@@ -100,7 +100,7 @@ describe("Icon Input", () => {
     const errorWrapper = getShallowWrapper(errorProps);
     expect(errorWrapper.find(FormValidationMessage).exists()).toBe(true);
     expect(errorWrapper.find(FormValidationMessage).props().children).toBe(
-      "Required"
+      "Required",
     );
   });
 
@@ -131,7 +131,7 @@ describe("Icon Input", () => {
     const errorWrapper = getShallowWrapper(errorProps);
     expect(errorWrapper.find(FormValidationMessage).exists()).toBe(true);
     expect(errorWrapper.find(FormValidationMessage).props().children).toBe(
-      "Required"
+      "Required",
     );
   });
 

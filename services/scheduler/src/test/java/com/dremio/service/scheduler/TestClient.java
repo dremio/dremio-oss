@@ -15,48 +15,59 @@
  */
 package com.dremio.service.scheduler;
 
-import java.util.UUID;
-
-import org.junit.Assert;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.io.file.Path;
 import com.dremio.service.DirectProvider;
 import com.dremio.service.coordinator.ClusterCoordinator;
+import com.dremio.service.coordinator.zk.KillZkSession;
 import com.dremio.service.coordinator.zk.ZKClusterCoordinator;
 import com.dremio.test.DremioTest;
 import com.google.common.collect.Sets;
+import java.util.UUID;
+import org.junit.Assert;
 
-/**
- * Simulates a test client. Used for the new {@link ClusteredSingletonTaskScheduler} testing.
- */
+/** Simulates a test client. Used for the new {@link ClusteredSingletonTaskScheduler} testing. */
 final class TestClient implements AutoCloseable {
   private static final String ROOT_PATH_FORMAT = "%s/dremio/test/clustered-singleton";
   private static final int FABRIC_PORT_START = 1234;
   private static final int USER_PORT_START = 2345;
   private static final String SERVICE_UUID = UUID.randomUUID().toString();
   private static final String SERVICE_NAME = "TestCoordinator";
-  private static final String SERVICE_ROOT_PATH = Path.SEPARATOR + SERVICE_NAME + Path.SEPARATOR + SERVICE_UUID;
+  private static final String SERVICE_ROOT_PATH =
+      Path.SEPARATOR + SERVICE_NAME + Path.SEPARATOR + SERVICE_UUID;
   private final ClusterCoordinator clusterCoordinator;
   private final CoordinationProtos.NodeEndpoint endpoint;
   private final ClusteredSingletonTaskScheduler singletonScheduler;
 
   TestClient(int clientNum, String connectString) {
+    this(clientNum, connectString, "test-version");
+  }
+
+  TestClient(int clientNum, String connectString, String dremioVersion) {
     try {
-      clusterCoordinator = new ZKClusterCoordinator(DremioTest.DEFAULT_SABOT_CONFIG,
-        String.format(ROOT_PATH_FORMAT, connectString));
+      clusterCoordinator =
+          new ZKClusterCoordinator(
+              DremioTest.DEFAULT_SABOT_CONFIG, String.format(ROOT_PATH_FORMAT, connectString));
       clusterCoordinator.start();
-      endpoint = CoordinationProtos.NodeEndpoint.newBuilder()
-        .setAddress("host" + clientNum)
-        .setFabricPort(FABRIC_PORT_START + clientNum)
-        .setUserPort(USER_PORT_START + clientNum)
-        .setRoles(ClusterCoordinator.Role.toEndpointRoles(Sets.newHashSet(ClusterCoordinator.Role.COORDINATOR)))
-        .setDremioVersion("test-version")
-        .build();
+      endpoint =
+          CoordinationProtos.NodeEndpoint.newBuilder()
+              .setAddress("host" + clientNum)
+              .setFabricPort(FABRIC_PORT_START + clientNum)
+              .setUserPort(USER_PORT_START + clientNum)
+              .setRoles(
+                  ClusterCoordinator.Role.toEndpointRoles(
+                      Sets.newHashSet(ClusterCoordinator.Role.COORDINATOR)))
+              .setDremioVersion(dremioVersion)
+              .build();
       final ScheduleTaskGroup defaultConfig = ScheduleTaskGroup.create("scheduler", 10);
-      singletonScheduler = new ClusteredSingletonTaskScheduler(defaultConfig, SERVICE_ROOT_PATH,
-        DirectProvider.wrap(clusterCoordinator), DirectProvider.wrap(endpoint));
+      singletonScheduler =
+          new ClusteredSingletonTaskScheduler(
+              defaultConfig,
+              SERVICE_ROOT_PATH,
+              DirectProvider.wrap(clusterCoordinator),
+              DirectProvider.wrap(endpoint),
+              1);
       singletonScheduler.start();
     } catch (Exception e) {
       throw new RuntimeException(e);
@@ -82,6 +93,12 @@ final class TestClient implements AutoCloseable {
 
   public ClusteredSingletonTaskScheduler getSingletonScheduler() {
     return singletonScheduler;
+  }
+
+  public void injectSessionExpiration() throws Exception {
+    if (clusterCoordinator instanceof ZKClusterCoordinator) {
+      KillZkSession.injectSessionExpiration((ZKClusterCoordinator) clusterCoordinator);
+    }
   }
 
   protected static class TestGroup implements ScheduleTaskGroup {

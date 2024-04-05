@@ -15,33 +15,30 @@
  */
 package com.dremio.exec.planner.logical;
 
-import java.math.BigDecimal;
+import com.google.common.collect.ImmutableSet;
 import java.util.Objects;
 import java.util.Set;
-
 import org.apache.calcite.plan.Context;
 import org.apache.calcite.plan.Contexts;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptSchema;
 import org.apache.calcite.plan.RelOptUtil;
-import org.apache.calcite.rel.RelCollations;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.CorrelationId;
-import org.apache.calcite.rel.core.Filter;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.core.RelFactories;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.tools.RelBuilderFactory;
 import org.apache.calcite.util.Litmus;
 
-import com.google.common.collect.ImmutableSet;
-
 public class RelBuilder extends org.apache.calcite.tools.RelBuilder {
 
   private final RelFactories.Struct struct;
 
-  /** Creates a {@link RelBuilderFactory}, a partially-created RelBuilder.
-   * Just add a {@link RelOptCluster} and a {@link RelOptSchema} */
+  /**
+   * Creates a {@link RelBuilderFactory}, a partially-created RelBuilder. Just add a {@link
+   * RelOptCluster} and a {@link RelOptSchema}
+   */
   public static RelBuilderFactory proto(final Context context) {
     return new RelBuilderFactory() {
       @Override
@@ -51,7 +48,8 @@ public class RelBuilder extends org.apache.calcite.tools.RelBuilder {
     };
   }
 
-  public static org.apache.calcite.tools.RelBuilder newCalciteRelBuilderWithoutContext(RelOptCluster cluster) {
+  public static org.apache.calcite.tools.RelBuilder newCalciteRelBuilderWithoutContext(
+      RelOptCluster cluster) {
     return proto((RelNode.Context) null).create(cluster, null);
   }
 
@@ -60,38 +58,14 @@ public class RelBuilder extends org.apache.calcite.tools.RelBuilder {
     if (context == null) {
       context = Contexts.EMPTY_CONTEXT;
     }
-    this.struct =
-      Objects.requireNonNull(RelFactories.Struct.fromContext(context));
-  }
-
-  /** Creates a relational expression that reads from an input and throws
-   *  all of the rows away.
-   */
-  @Override
-  public RelBuilder empty() {
-    final RelNode frameRel = build();
-    RelNode input = frameRel;
-    // If the rel that we are limiting the output of a rel, we should just add a limit 0 on top.
-    // If the rel that we are limiting is a Filter replace it as well since Filter does not
-    // change the row type.
-    if (frameRel instanceof Filter) {
-      input = frameRel.getInput(0);
-    }
-    final RelNode sort = struct.sortFactory.createSort(input, RelCollations.EMPTY,
-      frameRel.getCluster().getRexBuilder().makeExactLiteral(BigDecimal.valueOf(0)),
-      frameRel.getCluster().getRexBuilder().makeExactLiteral(BigDecimal.valueOf(0)));
-    push(sort);
-    return this;
+    this.struct = Objects.requireNonNull(RelFactories.Struct.fromContext(context));
   }
 
   @Override
-  public RelBuilder join(
-      JoinRelType joinType,
-      RexNode condition,
-      Set<CorrelationId> variablesSet) {
+  public RelBuilder join(JoinRelType joinType, RexNode condition, Set<CorrelationId> variablesSet) {
     RelNode right = this.peek();
     ImmutableSet.Builder<CorrelationId> variablesSetBuilder = ImmutableSet.builder();
-    for(CorrelationId correlationId : variablesSet) {
+    for (CorrelationId correlationId : variablesSet) {
       if (!RelOptUtil.notContainsCorrelation(right, correlationId, Litmus.IGNORE)) {
         variablesSetBuilder.add(correlationId);
       }
@@ -99,5 +73,4 @@ public class RelBuilder extends org.apache.calcite.tools.RelBuilder {
     super.join(joinType, condition, variablesSetBuilder.build());
     return this;
   }
-
 }

@@ -15,10 +15,6 @@
  */
 package com.dremio.plugins.elastic.planning;
 
-import java.util.Set;
-
-import org.apache.calcite.plan.RelOptRule;
-
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.ops.OptimizerRulesContext;
@@ -32,43 +28,44 @@ import com.dremio.plugins.elastic.planning.rules.ElasticSampleRule;
 import com.dremio.plugins.elastic.planning.rules.ElasticScanPrule;
 import com.dremio.plugins.elastic.planning.rules.ElasticScanRule;
 import com.google.common.collect.ImmutableSet;
+import java.util.Set;
+import org.apache.calcite.plan.RelOptRule;
 
 public class ElasticRulesFactory extends StoragePluginTypeRulesFactory {
 
   @Override
-  public Set<RelOptRule> getRules(OptimizerRulesContext optimizerContext, PlannerPhase phase, SourceType pluginType) {
+  public Set<RelOptRule> getRules(
+      OptimizerRulesContext optimizerContext, PlannerPhase phase, SourceType pluginType) {
 
     final OptionResolver options = optimizerContext.getPlannerSettings().getOptions();
 
-    switch(phase){
-    case LOGICAL:
-      return ImmutableSet.<RelOptRule>of(new ElasticScanRule(pluginType));
+    switch (phase) {
+      case LOGICAL:
+        return ImmutableSet.<RelOptRule>of(new ElasticScanRule(pluginType));
 
-    case PHYSICAL:
+      case PHYSICAL:
+        ImmutableSet.Builder<RelOptRule> builder = ImmutableSet.builder();
+        builder.add(new ElasticScanPrule(optimizerContext.getFunctionRegistry()));
 
-      ImmutableSet.Builder<RelOptRule> builder = ImmutableSet.builder();
-      builder.add(new ElasticScanPrule(optimizerContext.getFunctionRegistry()));
+        if (options.getOption(ExecConstants.ELASTIC_RULES_PROJECT)) {
+          builder.add(new ElasticProjectRule(optimizerContext.getFunctionRegistry()));
+        }
+        if (options.getOption(ExecConstants.ELASTIC_RULES_FILTER)) {
+          builder.add(ElasticFilterRule.INSTANCE);
+        }
 
-      if (options.getOption(ExecConstants.ELASTIC_RULES_PROJECT)) {
-        builder.add(new ElasticProjectRule(optimizerContext.getFunctionRegistry()));
-      }
-      if (options.getOption(ExecConstants.ELASTIC_RULES_FILTER)) {
-        builder.add(ElasticFilterRule.INSTANCE);
-      }
+        if (options.getOption(ExecConstants.ELASTIC_RULES_LIMIT)) {
+          builder.add(ElasticLimitRule.INSTANCE);
+        }
 
-      if (options.getOption(ExecConstants.ELASTIC_RULES_LIMIT)) {
-        builder.add(ElasticLimitRule.INSTANCE);
-      }
+        if (options.getOption(ExecConstants.ELASTIC_RULES_SAMPLE)) {
+          builder.add(ElasticSampleRule.INSTANCE);
+        }
 
-      if (options.getOption(ExecConstants.ELASTIC_RULES_SAMPLE)) {
-        builder.add(ElasticSampleRule.INSTANCE);
-      }
+        return builder.build();
 
-      return builder.build();
-
-    default:
-      return ImmutableSet.of();
+      default:
+        return ImmutableSet.of();
     }
   }
-
 }

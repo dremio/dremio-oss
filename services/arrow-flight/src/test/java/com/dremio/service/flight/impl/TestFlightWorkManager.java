@@ -20,6 +20,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
+import com.dremio.exec.proto.UserProtos;
+import com.google.common.collect.ImmutableMap;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.channels.Channels;
@@ -27,7 +29,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-
 import org.apache.arrow.flight.FlightDescriptor;
 import org.apache.arrow.flight.FlightRuntimeException;
 import org.apache.arrow.flight.sql.FlightSqlColumnMetadata;
@@ -39,12 +40,7 @@ import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Test;
 
-import com.dremio.exec.proto.UserProtos;
-import com.google.common.collect.ImmutableMap;
-
-/**
- * Tests for FlightWorkManager.
- */
+/** Tests for FlightWorkManager. */
 public class TestFlightWorkManager {
 
   @Test
@@ -53,8 +49,8 @@ public class TestFlightWorkManager {
 
     // Act
     assertThatThrownBy(() -> FlightWorkManager.getQuery(flightDescriptor))
-      .isInstanceOf(FlightRuntimeException.class)
-      .hasMessageContaining("FlightDescriptor type Path is unimplemented.");
+        .isInstanceOf(FlightRuntimeException.class)
+        .hasMessageContaining("FlightDescriptor type Path is unimplemented.");
   }
 
   @Test
@@ -63,8 +59,8 @@ public class TestFlightWorkManager {
 
     // Act
     assertThatThrownBy(() -> FlightWorkManager.getQuery(flightDescriptor))
-      .isInstanceOf(FlightRuntimeException.class)
-      .hasMessageContaining("FlightDescriptor type Cmd must have content in the cmd member.");
+        .isInstanceOf(FlightRuntimeException.class)
+        .hasMessageContaining("FlightDescriptor type Cmd must have content in the cmd member.");
   }
 
   @Test
@@ -83,7 +79,8 @@ public class TestFlightWorkManager {
   public void testGetQueryCorrectCommand() {
     // Arrange
     final String expected = "command";
-    final FlightDescriptor flightDescriptor = FlightDescriptor.command(expected.getBytes(StandardCharsets.UTF_8));
+    final FlightDescriptor flightDescriptor =
+        FlightDescriptor.command(expected.getBytes(StandardCharsets.UTF_8));
 
     // Act
     final String actual = FlightWorkManager.getQuery(flightDescriptor);
@@ -107,89 +104,106 @@ public class TestFlightWorkManager {
   @Test
   public void testGetTablesNonEmptyFields() throws IOException {
     // Arrange
-    final List<Field> expectedClean = new ArrayList<Field>() {
-      {
-        add(new Field("col1", FieldType.nullable(ArrowType.Utf8.INSTANCE), null));
-        add(new Field("col2", FieldType.nullable(new ArrowType.Int(16, true)), null));
-        add(new Field("col3", FieldType.nullable(ArrowType.Binary.INSTANCE), null));
-      }
-    };
+    final List<Field> expectedClean =
+        new ArrayList<Field>() {
+          {
+            add(new Field("col1", FieldType.nullable(ArrowType.Utf8.INSTANCE), null));
+            add(new Field("col2", FieldType.nullable(new ArrowType.Int(16, true)), null));
+            add(new Field("col3", FieldType.nullable(ArrowType.Binary.INSTANCE), null));
+          }
+        };
     final byte[] expectedSerialized = FlightWorkManager.getSerializedSchema(expectedClean);
 
     // Act
-    final Schema actualSchema = MessageSerializer.deserializeSchema(
-      new ReadChannel(Channels.newChannel(
-        new ByteArrayInputStream(expectedSerialized))));
+    final Schema actualSchema =
+        MessageSerializer.deserializeSchema(
+            new ReadChannel(Channels.newChannel(new ByteArrayInputStream(expectedSerialized))));
 
     // Assert
     assertEquals(expectedClean, actualSchema.getFields());
   }
 
   /**
-   * Tests that the arrow fields to table mapping does not mix up columns from tables that have
-   * the same name but in different namespaces.
+   * Tests that the arrow fields to table mapping does not mix up columns from tables that have the
+   * same name but in different namespaces.
    */
   @Test
   public void testBuildArrowFieldsByTableMap() {
-    final UserProtos.TableMetadata tableMetadata1 = UserProtos.TableMetadata.newBuilder()
-      .setSchemaName("schema1")
-      .setTableName("table")
-      .build();
+    final UserProtos.TableMetadata tableMetadata1 =
+        UserProtos.TableMetadata.newBuilder()
+            .setSchemaName("schema1")
+            .setTableName("table")
+            .build();
 
-    final UserProtos.TableMetadata tableMetadata2 = UserProtos.TableMetadata.newBuilder()
-      .setSchemaName("schema2")
-      .setTableName("table")
-      .build();
+    final UserProtos.TableMetadata tableMetadata2 =
+        UserProtos.TableMetadata.newBuilder()
+            .setSchemaName("schema2")
+            .setTableName("table")
+            .build();
 
-    final Field column1 = new Field("column1",
-      new FieldType(false,
-        new ArrowType.Int(32, true),
-        null,
-        new FlightSqlColumnMetadata.Builder()
-          .schemaName("schema1")
-          .tableName("table")
-          .typeName("INTEGER")
-          .isAutoIncrement(false)
-          .isCaseSensitive(false)
-          .isReadOnly(true)
-          .isSearchable(true)
-          .build().getMetadataMap()),
-      Collections.emptyList());
+    final Field column1 =
+        new Field(
+            "column1",
+            new FieldType(
+                false,
+                new ArrowType.Int(32, true),
+                null,
+                new FlightSqlColumnMetadata.Builder()
+                    .schemaName("schema1")
+                    .tableName("table")
+                    .typeName("INTEGER")
+                    .isAutoIncrement(false)
+                    .isCaseSensitive(false)
+                    .isReadOnly(true)
+                    .isSearchable(true)
+                    .build()
+                    .getMetadataMap()),
+            Collections.emptyList());
 
-    final Field column2 = new Field("column2",
-      new FieldType(false, new ArrowType.Utf8(),
-        null,
-        new FlightSqlColumnMetadata.Builder()
-          .schemaName("schema2")
-          .tableName("table")
-          .typeName("CHARACTER VARYING")
-          .isAutoIncrement(false)
-          .isCaseSensitive(false)
-          .isReadOnly(true)
-          .isSearchable(true)
-          .precision(65536)
-          .build().getMetadataMap()),
-      Collections.emptyList());
+    final Field column2 =
+        new Field(
+            "column2",
+            new FieldType(
+                false,
+                new ArrowType.Utf8(),
+                null,
+                new FlightSqlColumnMetadata.Builder()
+                    .schemaName("schema2")
+                    .tableName("table")
+                    .typeName("CHARACTER VARYING")
+                    .isAutoIncrement(false)
+                    .isCaseSensitive(false)
+                    .isReadOnly(true)
+                    .isSearchable(true)
+                    .precision(65536)
+                    .build()
+                    .getMetadataMap()),
+            Collections.emptyList());
 
-    final ImmutableMap<UserProtos.TableMetadata, List<Field>> expectedMap = ImmutableMap.of(
-      tableMetadata1, Collections.singletonList(column1),
-      tableMetadata2, Collections.singletonList(column2));
+    final ImmutableMap<UserProtos.TableMetadata, List<Field>> expectedMap =
+        ImmutableMap.of(
+            tableMetadata1, Collections.singletonList(column1),
+            tableMetadata2, Collections.singletonList(column2));
 
-    UserProtos.GetColumnsResp columnsResp = UserProtos.GetColumnsResp.newBuilder()
-      .addColumns(UserProtos.ColumnMetadata.newBuilder()
-          .setSchemaName("schema1")
-          .setTableName("table")
-          .setColumnName("column1")
-          .setDataType("INTEGER")
-          .build())
-      .addColumns(UserProtos.ColumnMetadata.newBuilder()
-          .setSchemaName("schema2")
-          .setTableName("table")
-          .setColumnName("column2")
-          .setDataType("CHARACTER VARYING")
-          .build())
-        .build();
-    ImmutableMap<UserProtos.TableMetadata, List<Field>> actualMap = ImmutableMap.copyOf(FlightWorkManager.buildArrowFieldsByTableMap(columnsResp));
+    UserProtos.GetColumnsResp columnsResp =
+        UserProtos.GetColumnsResp.newBuilder()
+            .addColumns(
+                UserProtos.ColumnMetadata.newBuilder()
+                    .setSchemaName("schema1")
+                    .setTableName("table")
+                    .setColumnName("column1")
+                    .setDataType("INTEGER")
+                    .build())
+            .addColumns(
+                UserProtos.ColumnMetadata.newBuilder()
+                    .setSchemaName("schema2")
+                    .setTableName("table")
+                    .setColumnName("column2")
+                    .setDataType("CHARACTER VARYING")
+                    .build())
+            .build();
+    ImmutableMap<UserProtos.TableMetadata, List<Field>> actualMap =
+        ImmutableMap.copyOf(FlightWorkManager.buildArrowFieldsByTableMap(columnsResp));
 
     assertEquals(expectedMap, actualMap);
   }

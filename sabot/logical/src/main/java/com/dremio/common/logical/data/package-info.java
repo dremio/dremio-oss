@@ -13,7 +13,5 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/**
- * Logical operators in a query graph.
- */
+/** Logical operators in a query graph. */
 package com.dremio.common.logical.data;

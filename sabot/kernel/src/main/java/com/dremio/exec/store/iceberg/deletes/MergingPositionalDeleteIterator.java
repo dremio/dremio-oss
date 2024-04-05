@@ -15,17 +15,16 @@
  */
 package com.dremio.exec.store.iceberg.deletes;
 
+import com.dremio.common.AutoCloseables;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import java.util.List;
 import java.util.PriorityQueue;
 import java.util.stream.Collectors;
 
-import com.dremio.common.AutoCloseables;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
-
 /**
- * A PositionalDeleteIterator that exposes positional deletes applicable to a single data file, that are the merged
- * from multiple SingleFilePositionalDeleteIterators.
+ * A PositionalDeleteIterator that exposes positional deletes applicable to a single data file, that
+ * are the merged from multiple SingleFilePositionalDeleteIterators.
  */
 public class MergingPositionalDeleteIterator implements PositionalDeleteIterator {
 
@@ -33,11 +32,11 @@ public class MergingPositionalDeleteIterator implements PositionalDeleteIterator
   private final PriorityQueue<IteratorAndCurrentPos> priorityQueue;
 
   public MergingPositionalDeleteIterator(List<PositionalDeleteIterator> deleteFileIterators) {
-    this.deleteFileIterators = deleteFileIterators.stream()
-      .map(IteratorAndCurrentPos::new)
-      .collect(Collectors.toList());
+    this.deleteFileIterators =
+        deleteFileIterators.stream().map(IteratorAndCurrentPos::new).collect(Collectors.toList());
     this.priorityQueue = new PriorityQueue<>();
-    // advanceAndEnqueue may modify the deleteFileIterators list, so make a temporary list to iterate over
+    // advanceAndEnqueue may modify the deleteFileIterators list, so make a temporary list to
+    // iterate over
     ImmutableList.copyOf(this.deleteFileIterators).forEach(this::advanceAndEnqueue);
   }
 
@@ -87,12 +86,14 @@ public class MergingPositionalDeleteIterator implements PositionalDeleteIterator
     }
   }
 
-  private static class IteratorAndCurrentPos implements Comparable<IteratorAndCurrentPos>, AutoCloseable {
+  private static class IteratorAndCurrentPos
+      implements Comparable<IteratorAndCurrentPos>, AutoCloseable {
     private final PositionalDeleteIterator iterator;
     private long pos;
 
     public IteratorAndCurrentPos(PositionalDeleteIterator iterator) {
-      Preconditions.checkArgument(!(iterator instanceof MergingPositionalDeleteIterator),
+      Preconditions.checkArgument(
+          !(iterator instanceof MergingPositionalDeleteIterator),
           "Nested MergingPositionalDeleteIterators is not supported.");
       this.iterator = iterator;
     }

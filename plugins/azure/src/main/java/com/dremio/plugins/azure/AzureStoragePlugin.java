@@ -18,17 +18,6 @@ package com.dremio.plugins.azure;
 import static com.dremio.hadoop.security.alias.DremioCredentialProvider.DREMIO_SCHEME_PREFIX;
 import static com.dremio.plugins.azure.AzureStorageFileSystem.AZURE_SHAREDKEY_SIGNER_TYPE;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-
-import javax.inject.Provider;
-
-import org.apache.hadoop.fs.azurebfs.services.SharedKeyCredentials;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.connector.metadata.BytesOutput;
 import com.dremio.connector.metadata.DatasetHandle;
@@ -48,16 +37,29 @@ import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.SourceState;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import javax.inject.Provider;
+import org.apache.commons.lang3.function.Suppliers;
+import org.apache.hadoop.fs.azurebfs.services.SharedKeyCredentials;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * Storage plugin for Microsoft Azure Storage
- */
-public class AzureStoragePlugin extends DirectorySupportLackingFileSystemPlugin<AbstractAzureStorageConf> {
+/** Storage plugin for Microsoft Azure Storage */
+public class AzureStoragePlugin
+    extends DirectorySupportLackingFileSystemPlugin<AbstractAzureStorageConf> {
 
   private static final Logger logger = LoggerFactory.getLogger(AzureStoragePlugin.class);
-  private static final String DREMIO_PLUS_AZURE_VAULT_SCHEME_PREFIX = DREMIO_SCHEME_PREFIX.concat("azure-key-vault+");
+  private static final String DREMIO_PLUS_AZURE_VAULT_SCHEME_PREFIX =
+      DREMIO_SCHEME_PREFIX.concat("azure-key-vault+");
 
-  public AzureStoragePlugin(AbstractAzureStorageConf config, SabotContext context, String name, Provider<StoragePluginId> idProvider) {
+  public AzureStoragePlugin(
+      AbstractAzureStorageConf config,
+      SabotContext context,
+      String name,
+      Provider<StoragePluginId> idProvider) {
     super(config, context, name, idProvider);
   }
 
@@ -68,11 +70,11 @@ public class AzureStoragePlugin extends DirectorySupportLackingFileSystemPlugin<
       AzureStorageFileSystem fs = getSystemUserFS().unwrap(AzureStorageFileSystem.class);
       fs.refreshFileSystems();
       List<ContainerFailure> failures = fs.getSubFailures();
-      if(failures.isEmpty()) {
+      if (failures.isEmpty()) {
         return SourceState.GOOD;
       }
       StringBuilder sb = new StringBuilder();
-      for(ContainerFailure f : failures) {
+      for (ContainerFailure f : failures) {
         sb.append(f.getName());
         sb.append(": ");
         sb.append(f.getException().getMessage());
@@ -83,17 +85,21 @@ public class AzureStoragePlugin extends DirectorySupportLackingFileSystemPlugin<
 
     } catch (Exception e) {
       return SourceState.badState(
-        String.format("Could not connect to %s. Check your settings and credentials", getName()), e);
+          String.format("Could not connect to %s. Check your settings and credentials", getName()),
+          e);
     }
   }
 
-  //DX-17365: Azure does not return correct "Last Modified" times for folders, therefore new
+  // DX-17365: Azure does not return correct "Last Modified" times for folders, therefore new
   //          subfolder discovery is not possible by checking super folder's 'Last Modified" time.
   //          A full refresh is required to guarantee that container content is up-to-date.
   //          Always return metadata invalid in order to trigger a refresh.
   @Override
-  public MetadataValidity validateMetadata(BytesOutput signature, DatasetHandle datasetHandle, DatasetMetadata metadata,
-                                           ValidateMetadataOption... options){
+  public MetadataValidity validateMetadata(
+      BytesOutput signature,
+      DatasetHandle datasetHandle,
+      DatasetMetadata metadata,
+      ValidateMetadataOption... options) {
     return MetadataValidity.INVALID;
   }
 
@@ -104,7 +110,7 @@ public class AzureStoragePlugin extends DirectorySupportLackingFileSystemPlugin<
     if (input == null) {
       return null;
     }
-    return input.toLowerCase().startsWith(prefix)? input : prefix.concat(input);
+    return input.toLowerCase().startsWith(prefix) ? input : prefix.concat(input);
   }
 
   @Override
@@ -113,85 +119,114 @@ public class AzureStoragePlugin extends DirectorySupportLackingFileSystemPlugin<
     final List<Property> properties = new ArrayList<>();
 
     // configure hadoop fs implementation
-    properties.add(new Property("fs.dremioAzureStorage.impl", AzureStorageFileSystem.class.getName()));
+    properties.add(
+        new Property("fs.dremioAzureStorage.impl", AzureStorageFileSystem.class.getName()));
     properties.add(new Property("fs.dremioAzureStorage.impl.disable.cache", "true"));
 
     // configure azure properties.
     properties.add(new Property(AzureStorageFileSystem.ACCOUNT, config.accountName));
     properties.add(new Property(AzureStorageFileSystem.SECURE, Boolean.toString(config.enableSSL)));
     properties.add(new Property(AzureStorageFileSystem.MODE, config.accountKind.name()));
-    properties.add(new Property(AzureStorageOptions.ENABLE_CHECKSUM.getOptionName(),
-      Boolean.toString(getContext().getOptionManager().getOption(AzureStorageOptions.ENABLE_CHECKSUM))));
+    properties.add(
+        new Property(
+            AzureStorageOptions.ENABLE_CHECKSUM.getOptionName(),
+            Boolean.toString(
+                getContext().getOptionManager().getOption(AzureStorageOptions.ENABLE_CHECKSUM))));
 
     AzureAuthenticationType credentialsType = config.credentialsType;
     switch (credentialsType) {
-    case AZURE_ACTIVE_DIRECTORY:
-      properties.add(new Property(AzureStorageFileSystem.CREDENTIALS_TYPE,
-        AzureAuthenticationType.AZURE_ACTIVE_DIRECTORY.name()));
-      properties.add(new Property(AzureStorageFileSystem.CLIENT_ID, config.clientId));
+      case AZURE_ACTIVE_DIRECTORY:
+        properties.add(
+            new Property(
+                AzureStorageFileSystem.CREDENTIALS_TYPE,
+                AzureAuthenticationType.AZURE_ACTIVE_DIRECTORY.name()));
+        properties.add(new Property(AzureStorageFileSystem.CLIENT_ID, config.clientId));
 
-      switch (config.getAzureADSecretType()) {
-      case AZURE_ACTIVE_DIRECTORY_SECRET_KEY:
-        properties.add(new Property(AzureStorageFileSystem.CLIENT_SECRET,
-          addPrefixIfNotExist(DREMIO_SCHEME_PREFIX, config.clientSecret)));
+        switch (config.getAzureADSecretType()) {
+          case AZURE_ACTIVE_DIRECTORY_SECRET_KEY:
+            properties.add(
+                new Property(
+                    AzureStorageFileSystem.CLIENT_SECRET,
+                    addPrefixIfNotExist(DREMIO_SCHEME_PREFIX, Suppliers.get(config.clientSecret))));
+            break;
+
+          case AZURE_ACTIVE_DIRECTORY_KEY_VAULT:
+            properties.add(
+                new Property(
+                    AzureStorageFileSystem.CLIENT_SECRET,
+                    addPrefixIfNotExist(
+                        DREMIO_PLUS_AZURE_VAULT_SCHEME_PREFIX, config.getClientSecretUri())));
+            break;
+
+          default:
+            throw new IllegalStateException(
+                "Unrecognized secret type: " + config.getAzureADSecretType());
+        }
+
+        properties.add(new Property(AzureStorageFileSystem.TOKEN_ENDPOINT, config.tokenEndpoint));
         break;
 
-      case AZURE_ACTIVE_DIRECTORY_KEY_VAULT:
-        properties.add(new Property(AzureStorageFileSystem.CLIENT_SECRET,
-          addPrefixIfNotExist(DREMIO_PLUS_AZURE_VAULT_SCHEME_PREFIX, config.getClientSecretUri())));
+      case ACCESS_KEY:
+        properties.add(
+            new Property(
+                AzureStorageFileSystem.CREDENTIALS_TYPE,
+                AzureAuthenticationType.ACCESS_KEY.name()));
+
+        switch (config.getSharedAccessSecretType()) {
+          case SHARED_ACCESS_SECRET_KEY:
+            properties.add(
+                new Property(
+                    AzureStorageFileSystem.KEY,
+                    addPrefixIfNotExist(DREMIO_SCHEME_PREFIX, Suppliers.get(config.accessKey))));
+            // static credentials (this should be the default used by azure)
+            properties.add(
+                new Property(AZURE_SHAREDKEY_SIGNER_TYPE, SharedKeyCredentials.class.getName()));
+            break;
+
+          case SHARED_ACCESS_AZURE_KEY_VAULT:
+            properties.add(
+                new Property(
+                    AzureStorageFileSystem.KEY,
+                    addPrefixIfNotExist(
+                        DREMIO_PLUS_AZURE_VAULT_SCHEME_PREFIX, config.getAccessKeyUri())));
+            properties.add(
+                new Property(
+                    AZURE_SHAREDKEY_SIGNER_TYPE, AzureSharedKeyCredentials.class.getName()));
+            break;
+
+          default:
+            throw new IllegalStateException(
+                "Unrecognized secret type: " + config.getSharedAccessSecretType());
+        }
         break;
 
       default:
-        throw new IllegalStateException("Unrecognized secret type: " + config.getAzureADSecretType());
-      }
-
-      properties.add(new Property(AzureStorageFileSystem.TOKEN_ENDPOINT, config.tokenEndpoint));
-      break;
-
-    case ACCESS_KEY:
-      properties.add(new Property(AzureStorageFileSystem.CREDENTIALS_TYPE, AzureAuthenticationType.ACCESS_KEY.name()));
-
-      switch (config.getSharedAccessSecretType()) {
-      case SHARED_ACCESS_SECRET_KEY:
-        properties.add(new Property(AzureStorageFileSystem.KEY,
-          addPrefixIfNotExist(DREMIO_SCHEME_PREFIX, config.accessKey)));
-        // static credentials (this should be the default used by azure)
-        properties.add(new Property(AZURE_SHAREDKEY_SIGNER_TYPE, SharedKeyCredentials.class.getName()));
-        break;
-
-      case SHARED_ACCESS_AZURE_KEY_VAULT:
-        properties.add(new Property(AzureStorageFileSystem.KEY,
-          addPrefixIfNotExist(DREMIO_PLUS_AZURE_VAULT_SCHEME_PREFIX, config.getAccessKeyUri())));
-        properties.add(new Property(AZURE_SHAREDKEY_SIGNER_TYPE, AzureSharedKeyCredentials.class.getName()));
-        break;
-
-      default:
-        throw new IllegalStateException("Unrecognized secret type: " + config.getSharedAccessSecretType());
-      }
-      break;
-
-    default:
-      throw new IllegalStateException("Unrecognized credential type: " + credentialsType);
+        throw new IllegalStateException("Unrecognized credential type: " + credentialsType);
     }
 
-    if(config.containers != null && config.containers.size() > 0) {
-      String containers = config.containers.stream()
-        .filter(c -> c != null && c.length() > 0)
-        .map(c -> {
-        Preconditions.checkArgument(!c.contains(","), "Container Names cannot contain commas.");
-        return c;
-      }).collect(Collectors.joining(","));
+    if (config.containers != null && config.containers.size() > 0) {
+      String containers =
+          config.containers.stream()
+              .filter(c -> c != null && c.length() > 0)
+              .map(
+                  c -> {
+                    Preconditions.checkArgument(
+                        !c.contains(","), "Container Names cannot contain commas.");
+                    return c;
+                  })
+              .collect(Collectors.joining(","));
       properties.add(new Property(AzureStorageFileSystem.CONTAINER_LIST, containers));
     }
 
-    if(config.rootPath.length() > 1) {
+    if (config.rootPath.length() > 1) {
       String path = config.rootPath;
       properties.add(new Property(AzureStorageFileSystem.ROOT_PATH, path));
     }
 
-    // Properties are added in order so make sure that any hand provided properties override settings done via specific config
+    // Properties are added in order so make sure that any hand provided properties override
+    // settings done via specific config
     List<Property> parentProperties = super.getProperties();
-    if(parentProperties != null) {
+    if (parentProperties != null) {
       properties.addAll(parentProperties);
     }
 
@@ -200,15 +235,21 @@ public class AzureStoragePlugin extends DirectorySupportLackingFileSystemPlugin<
 
   @Override
   public CreateTableEntry createNewTable(
-    NamespaceKey tableSchemaPath, SchemaConfig config,
-    IcebergTableProps icebergTableProps,
-    WriterOptions writerOptions,
-    Map<String, Object> storageOptions,
-    boolean isResultsTable
-  ) {
+      NamespaceKey tableSchemaPath,
+      SchemaConfig config,
+      IcebergTableProps icebergTableProps,
+      WriterOptions writerOptions,
+      Map<String, Object> storageOptions,
+      boolean isResultsTable) {
     final String containerName = getAndCheckContainerName(tableSchemaPath);
-    final CreateTableEntry entry = super.createNewTable(tableSchemaPath, config,
-      icebergTableProps, writerOptions, storageOptions, isResultsTable);
+    final CreateTableEntry entry =
+        super.createNewTable(
+            tableSchemaPath,
+            config,
+            icebergTableProps,
+            writerOptions,
+            storageOptions,
+            isResultsTable);
 
     final AzureStorageFileSystem fs = getSystemUserFS().unwrap(AzureStorageFileSystem.class);
 
@@ -222,11 +263,11 @@ public class AzureStoragePlugin extends DirectorySupportLackingFileSystemPlugin<
     // on the container. This is only valid when using Azure Active Directory (OAuth) authentication
     // as SharedKeys do not have an identity.
 
-//    if (!fs.mayHaveWritePermission(containerName)) {
-//      throw UserException.validationError()
-//          .message("No write permission to '%s' container.", containerName)
-//          .build(logger);
-//    }
+    //    if (!fs.mayHaveWritePermission(containerName)) {
+    //      throw UserException.validationError()
+    //          .message("No write permission to '%s' container.", containerName)
+    //          .build(logger);
+    //    }
 
     return entry;
   }
@@ -234,12 +275,13 @@ public class AzureStoragePlugin extends DirectorySupportLackingFileSystemPlugin<
   @VisibleForTesting
   String getAndCheckContainerName(NamespaceKey key) {
     Preconditions.checkArgument(key.size() >= 2, "key must be at least two parts");
-    final List<String> resolvedPath = resolveTableNameToValidPath(key.getPathComponents()); // strips source name
+    final List<String> resolvedPath =
+        resolveTableNameToValidPath(key.getPathComponents()); // strips source name
     final String containerName = resolvedPath.get(0);
     if (resolvedPath.size() == 1) {
       throw UserException.validationError()
-        .message("Creating containers is not supported (name: %s).", containerName)
-        .build(logger);
+          .message("Creating containers is not supported (name: %s).", containerName)
+          .build(logger);
     }
     return containerName;
   }
@@ -253,5 +295,4 @@ public class AzureStoragePlugin extends DirectorySupportLackingFileSystemPlugin<
   public boolean supportReadSignature(DatasetMetadata metadata, boolean isFileDataset) {
     return false;
   }
-
 }

@@ -22,8 +22,8 @@ import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
 /**
- * A <code>SqlTypeNameSpec</code> is a type name that allows to
- * customize sql node unparsing and data type deriving.
+ * A <code>SqlTypeNameSpec</code> is a type name that allows to customize sql node unparsing and
+ * data type deriving.
  *
  * <p>To customize sql node unparsing, override the method {@link #unparse(SqlWriter, int, int)}.
  */

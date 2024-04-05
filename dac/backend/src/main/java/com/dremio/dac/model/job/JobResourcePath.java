@@ -17,15 +17,12 @@ package com.dremio.dac.model.job;
 
 import static java.util.Arrays.asList;
 
-import java.util.List;
-
 import com.dremio.dac.model.common.ResourcePath;
 import com.dremio.service.job.proto.JobId;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import java.util.List;
 
-/**
- * Resource Path for job
- */
+/** Resource Path for job */
 public class JobResourcePath extends ResourcePath {
   private final JobId jobId;
 

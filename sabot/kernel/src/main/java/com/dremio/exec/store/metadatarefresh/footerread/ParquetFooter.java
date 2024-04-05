@@ -15,9 +15,8 @@
  */
 package com.dremio.exec.store.metadatarefresh.footerread;
 
-import org.apache.iceberg.FileFormat;
-
 import com.dremio.exec.record.BatchSchema;
+import org.apache.iceberg.FileFormat;
 
 public class ParquetFooter extends Footer {
 

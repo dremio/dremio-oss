@@ -22,29 +22,28 @@ public class JoinSideTest {
 
   @Test
   public void testMerge() {
-    //BOTH
+    // BOTH
     Assert.assertEquals(JoinSide.BOTH, JoinSide.BOTH.merge(JoinSide.BOTH));
     Assert.assertEquals(JoinSide.BOTH, JoinSide.BOTH.merge(JoinSide.EMPTY));
     Assert.assertEquals(JoinSide.BOTH, JoinSide.BOTH.merge(JoinSide.LEFT));
     Assert.assertEquals(JoinSide.BOTH, JoinSide.BOTH.merge(JoinSide.RIGHT));
 
-    //EMPTY
+    // EMPTY
     Assert.assertEquals(JoinSide.BOTH, JoinSide.EMPTY.merge(JoinSide.BOTH));
     Assert.assertEquals(JoinSide.EMPTY, JoinSide.EMPTY.merge(JoinSide.EMPTY));
     Assert.assertEquals(JoinSide.LEFT, JoinSide.EMPTY.merge(JoinSide.LEFT));
     Assert.assertEquals(JoinSide.RIGHT, JoinSide.EMPTY.merge(JoinSide.RIGHT));
 
-    //LEFT
+    // LEFT
     Assert.assertEquals(JoinSide.BOTH, JoinSide.LEFT.merge(JoinSide.BOTH));
     Assert.assertEquals(JoinSide.LEFT, JoinSide.LEFT.merge(JoinSide.EMPTY));
     Assert.assertEquals(JoinSide.LEFT, JoinSide.LEFT.merge(JoinSide.LEFT));
     Assert.assertEquals(JoinSide.BOTH, JoinSide.LEFT.merge(JoinSide.RIGHT));
 
-    //RIGHT
+    // RIGHT
     Assert.assertEquals(JoinSide.BOTH, JoinSide.RIGHT.merge(JoinSide.BOTH));
     Assert.assertEquals(JoinSide.RIGHT, JoinSide.RIGHT.merge(JoinSide.EMPTY));
     Assert.assertEquals(JoinSide.BOTH, JoinSide.RIGHT.merge(JoinSide.LEFT));
     Assert.assertEquals(JoinSide.RIGHT, JoinSide.RIGHT.merge(JoinSide.RIGHT));
   }
-
 }

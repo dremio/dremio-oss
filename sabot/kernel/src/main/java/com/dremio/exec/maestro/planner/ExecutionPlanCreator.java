@@ -15,12 +15,6 @@
  */
 package com.dremio.exec.maestro.planner;
 
-import java.io.InputStream;
-import java.util.Collection;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.ExecConstants;
@@ -56,21 +50,29 @@ import com.dremio.service.execselector.ExecutorSelectionHandleImpl;
 import com.dremio.service.execselector.ExecutorSelectionService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Stopwatch;
+import java.io.InputStream;
+import java.util.Collection;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 public class ExecutionPlanCreator {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ExecutionPlanCreator.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ExecutionPlanCreator.class);
 
   public static ExecutionPlanningResources getParallelizationInfo(
-    final QueryContext queryContext,
-    MaestroObserver observer,
-    final PhysicalPlan plan,
-    ExecutorSelectionService executorSelectionService,
-    ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo) throws ExecutionSetupException {
+      final QueryContext queryContext,
+      MaestroObserver observer,
+      final PhysicalPlan plan,
+      ExecutorSelectionService executorSelectionService,
+      ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo)
+      throws ExecutionSetupException {
 
     final Root rootOperator = plan.getRoot();
     final Fragment rootFragment = MakeFragmentsVisitor.makeFragments(rootOperator);
-    final boolean assignPriority = queryContext.getOptions().getOption(ExecConstants.SHOULD_ASSIGN_FRAGMENT_PRIORITY);
+    final boolean assignPriority =
+        queryContext.getOptions().getOption(ExecConstants.SHOULD_ASSIGN_FRAGMENT_PRIORITY);
     AssignFragmentPriorityVisitor priorityVisitor = null;
     if (assignPriority) {
       priorityVisitor = new AssignFragmentPriorityVisitor();
@@ -80,8 +82,13 @@ public class ExecutionPlanCreator {
     observer.planParallelStart();
     final Stopwatch stopwatch = Stopwatch.createStarted();
     final ExecutionPlanningResources executionPlanningResources =
-      SimpleParallelizer.getExecutionPlanningResources(queryContext, observer, executorSelectionService,
-      resourceSchedulingDecisionInfo, rootFragment, priorityVisitor);
+        SimpleParallelizer.getExecutionPlanningResources(
+            queryContext,
+            observer,
+            executorSelectionService,
+            resourceSchedulingDecisionInfo,
+            rootFragment,
+            priorityVisitor);
     observer.planParallelized(executionPlanningResources.getPlanningSet());
     stopwatch.stop();
     observer.planAssignmentTime(stopwatch.elapsed(TimeUnit.MILLISECONDS));
@@ -89,23 +96,28 @@ public class ExecutionPlanCreator {
   }
 
   public static ExecutionPlan getExecutionPlan(
-    final QueryContext queryContext,
-    final PhysicalPlanReader reader,
-    MaestroObserver observer,
-    final PhysicalPlan plan,
-    ResourceSet allocationSet,
-    PlanningSet planningSet,
-    ExecutorSelectionService executorSelectionService,
-    ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo,
-    GroupResourceInformation groupResourceInformation
-  ) throws ExecutionSetupException {
+      final QueryContext queryContext,
+      final PhysicalPlanReader reader,
+      MaestroObserver observer,
+      final PhysicalPlan plan,
+      ResourceSet allocationSet,
+      PlanningSet planningSet,
+      ExecutorSelectionService executorSelectionService,
+      ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo,
+      GroupResourceInformation groupResourceInformation)
+      throws ExecutionSetupException {
 
     final Root rootOperator = plan.getRoot();
     final Fragment rootOperatorFragment = MakeFragmentsVisitor.makeFragments(rootOperator);
 
-    final SimpleParallelizer parallelizer = new SimpleParallelizer(queryContext,
-      observer, executorSelectionService, resourceSchedulingDecisionInfo, groupResourceInformation);
-    final long queryPerNodeFromResourceAllocation =  allocationSet.getPerNodeQueryMemoryLimit();
+    final SimpleParallelizer parallelizer =
+        new SimpleParallelizer(
+            queryContext,
+            observer,
+            executorSelectionService,
+            resourceSchedulingDecisionInfo,
+            groupResourceInformation);
+    final long queryPerNodeFromResourceAllocation = allocationSet.getPerNodeQueryMemoryLimit();
     planningSet.setMemoryAllocationPerNode(queryPerNodeFromResourceAllocation);
 
     // set bounded memory for all bounded memory operations
@@ -122,12 +134,9 @@ public class ExecutionPlanCreator {
     // index repetitive items to reduce rpc size.
     final PlanFragmentsIndex.Builder indexBuilder = new PlanFragmentsIndex.Builder();
 
-    final List<PlanFragmentFull> planFragments = parallelizer.getFragments(
-      fragmentOptions,
-      planningSet,
-      reader,
-      rootOperatorFragment,
-      indexBuilder);
+    final List<PlanFragmentFull> planFragments =
+        parallelizer.getFragments(
+            fragmentOptions, planningSet, reader, rootOperatorFragment, indexBuilder);
 
     traceFragments(queryContext, planFragments);
 
@@ -135,7 +144,8 @@ public class ExecutionPlanCreator {
   }
 
   /**
-   *  Left just for testing
+   * Left just for testing
+   *
    * @param queryContext
    * @param reader
    * @param observer
@@ -146,71 +156,82 @@ public class ExecutionPlanCreator {
    */
   @Deprecated
   public static ExecutionPlan getExecutionPlan(
-    final QueryContext queryContext,
-    final PhysicalPlanReader reader,
-    MaestroObserver observer,
-    final PhysicalPlan plan,
-    final QueueType queueType) throws ExecutionSetupException {
+      final QueryContext queryContext,
+      final PhysicalPlanReader reader,
+      MaestroObserver observer,
+      final PhysicalPlan plan,
+      final QueueType queueType)
+      throws ExecutionSetupException {
 
     // step one, check to make sure that there available execution nodes.
     final Collection<NodeEndpoint> endpoints = queryContext.getActiveEndpoints();
-    if (endpoints.isEmpty()){
-      throw UserException.resourceError().message("No executors currently available.").build(logger);
+    if (endpoints.isEmpty()) {
+      throw UserException.resourceError()
+          .message("No executors currently available.")
+          .build(logger);
     }
 
     final Root rootOperator = plan.getRoot();
     final Fragment rootOperatorFragment = MakeFragmentsVisitor.makeFragments(rootOperator);
     // Executor selection service whose only purpose is to return 'endpoints'
-    ExecutorSelectionService executorSelectionService = new ExecutorSelectionService() {
-      @Override
-      public ExecutorSelectionHandle getExecutors(int desiredNumExecutors, ExecutorSelectionContext executorSelectionContext) {
-        return new ExecutorSelectionHandleImpl(endpoints);
-      }
+    ExecutorSelectionService executorSelectionService =
+        new ExecutorSelectionService() {
+          @Override
+          public ExecutorSelectionHandle getExecutors(
+              int desiredNumExecutors, ExecutorSelectionContext executorSelectionContext) {
+            return new ExecutorSelectionHandleImpl(endpoints);
+          }
 
-      @Override
-      public ExecutorSelectionHandle getAllActiveExecutors(ExecutorSelectionContext executorSelectionContext) {
-        return new ExecutorSelectionHandleImpl(endpoints);
-      }
+          @Override
+          public ExecutorSelectionHandle getAllActiveExecutors(
+              ExecutorSelectionContext executorSelectionContext) {
+            return new ExecutorSelectionHandleImpl(endpoints);
+          }
 
-      @Override
-      public void start() throws Exception {
-      }
+          @Override
+          public void start() throws Exception {}
 
-      @Override
-      public void close() throws Exception {
-      }
-    };
-    final SimpleParallelizer parallelizer = new SimpleParallelizer(queryContext, observer, executorSelectionService);
+          @Override
+          public void close() throws Exception {}
+        };
+    final SimpleParallelizer parallelizer =
+        new SimpleParallelizer(queryContext, observer, executorSelectionService);
     // pass all query, session and non-default system options to the fragments
     final OptionList fragmentOptions = filterDCSControlOptions(queryContext.getNonDefaultOptions());
 
-    CoordExecRPC.QueryContextInformation queryContextInformation = queryContext.getQueryContextInfo();
+    CoordExecRPC.QueryContextInformation queryContextInformation =
+        queryContext.getQueryContextInfo();
 
     // update query limit based on the queueType
     final OptionManager options = queryContext.getOptions();
-    final boolean memoryControlEnabled = options.getOption(BasicResourceConstants.ENABLE_QUEUE_MEMORY_LIMIT);
-    final long memoryLimit = (queueType == QueueType.SMALL) ?
-      options.getOption(BasicResourceConstants.SMALL_QUEUE_MEMORY_LIMIT):
-      options.getOption(BasicResourceConstants.LARGE_QUEUE_MEMORY_LIMIT);
+    final boolean memoryControlEnabled =
+        options.getOption(BasicResourceConstants.ENABLE_QUEUE_MEMORY_LIMIT);
+    final long memoryLimit =
+        (queueType == QueueType.SMALL)
+            ? options.getOption(BasicResourceConstants.SMALL_QUEUE_MEMORY_LIMIT)
+            : options.getOption(BasicResourceConstants.LARGE_QUEUE_MEMORY_LIMIT);
     if (memoryControlEnabled && memoryLimit > 0) {
       final long queryMaxAllocation = queryContext.getQueryContextInfo().getQueryMaxAllocation();
-      queryContextInformation = CoordExecRPC.QueryContextInformation.newBuilder(queryContextInformation)
-        .setQueryMaxAllocation(Math.min(memoryLimit, queryMaxAllocation)).build();
+      queryContextInformation =
+          CoordExecRPC.QueryContextInformation.newBuilder(queryContextInformation)
+              .setQueryMaxAllocation(Math.min(memoryLimit, queryMaxAllocation))
+              .build();
     }
 
     // index repetitive items to reduce rpc size.
     final PlanFragmentsIndex.Builder indexBuilder = new PlanFragmentsIndex.Builder();
 
-    final List<PlanFragmentFull> planFragments = parallelizer.getFragments(
-        fragmentOptions,
-        queryContext.getCurrentEndpoint(),
-        queryContext.getQueryId(),
-        reader,
-        rootOperatorFragment,
-        indexBuilder,
-        queryContext.getSession(),
-        queryContextInformation,
-        queryContext.getFunctionRegistry());
+    final List<PlanFragmentFull> planFragments =
+        parallelizer.getFragments(
+            fragmentOptions,
+            queryContext.getCurrentEndpoint(),
+            queryContext.getQueryId(),
+            reader,
+            rootOperatorFragment,
+            indexBuilder,
+            queryContext.getSession(),
+            queryContextInformation,
+            queryContext.getFunctionRegistry());
 
     traceFragments(queryContext, planFragments);
 
@@ -220,17 +241,21 @@ public class ExecutionPlanCreator {
   // remove any dcs control options; these will not be present in executor image
   private static OptionList filterDCSControlOptions(OptionList nonDefaultSystemOptions) {
     OptionList nonDCSControlOptions = new OptionList();
-    nonDCSControlOptions.addAll(nonDefaultSystemOptions.stream().filter(option -> {
-        if (option.getName().startsWith("dcs.control")) {
-          return false;
-        }
-        return true;
-      }
-    ).collect(Collectors.toList()));
+    nonDCSControlOptions.addAll(
+        nonDefaultSystemOptions.stream()
+            .filter(
+                option -> {
+                  if (option.getName().startsWith("dcs.control")) {
+                    return false;
+                  }
+                  return true;
+                })
+            .collect(Collectors.toList()));
     return nonDCSControlOptions;
   }
 
-  private static void traceFragments(QueryContext queryContext, List<PlanFragmentFull> fullPlanFragments) {
+  private static void traceFragments(
+      QueryContext queryContext, List<PlanFragmentFull> fullPlanFragments) {
     if (logger.isTraceEnabled()) {
       final StringBuilder sb = new StringBuilder();
       sb.append("PlanFragments for query ");
@@ -263,7 +288,8 @@ public class ExecutionPlanCreator {
         String jsonString = "<<malformed JSON>>";
         sb.append("  fragment_json: ");
         final ObjectMapper objectMapper = new ObjectMapper();
-        try (InputStream is = PhysicalPlanReader.toInputStream(major.getFragmentJson(), major.getFragmentCodec())) {
+        try (InputStream is =
+            PhysicalPlanReader.toInputStream(major.getFragmentJson(), major.getFragmentCodec())) {
 
           final Object json = objectMapper.readValue(is, Object.class);
           jsonString = objectMapper.writeValueAsString(json);
@@ -276,5 +302,4 @@ public class ExecutionPlanCreator {
       }
     }
   }
-
 }

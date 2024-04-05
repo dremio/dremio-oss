@@ -18,27 +18,22 @@ package com.dremio.exec.store.parquet;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
-import java.util.List;
-
-import org.apache.arrow.vector.SimpleIntVector;
-import org.apache.arrow.vector.ValueVector;
-import org.junit.Rule;
-import org.junit.Test;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.ExecTest;
 import com.dremio.exec.store.TestOutputMutator;
 import com.dremio.test.AllocatorRule;
 import com.google.common.collect.ImmutableList;
+import java.util.List;
+import org.apache.arrow.vector.SimpleIntVector;
+import org.apache.arrow.vector.ValueVector;
+import org.junit.Rule;
+import org.junit.Test;
 
-/**
- * Test class for {@link BigIntAutoIncrementer}
- */
+/** Test class for {@link BigIntAutoIncrementer} */
 public class TestBigIntAutoIncrementer extends ExecTest {
   private static final String ROW_INDEX_COLUMN_NAME = "R_O_W_I_N_D_E_X";
 
-  @Rule
-  public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
+  @Rule public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
 
   @Test
   public void testBasicRowIndexGeneration() throws Exception {
@@ -48,7 +43,8 @@ public class TestBigIntAutoIncrementer extends ExecTest {
       final long rowIndexBase = 0;
       TestOutputMutator outputMutator = new TestOutputMutator(allocator);
       closer.add(outputMutator);
-      BigIntAutoIncrementer incrementer = new BigIntAutoIncrementer(ROW_INDEX_COLUMN_NAME, batchSize, null);
+      BigIntAutoIncrementer incrementer =
+          new BigIntAutoIncrementer(ROW_INDEX_COLUMN_NAME, batchSize, null);
       closer.add(incrementer);
 
       incrementer.setRowIndexBase(rowIndexBase);
@@ -74,7 +70,8 @@ public class TestBigIntAutoIncrementer extends ExecTest {
 
       TestOutputMutator outputMutator = new TestOutputMutator(allocator);
       closer.add(outputMutator);
-      BigIntAutoIncrementer incrementer = new BigIntAutoIncrementer(ROW_INDEX_COLUMN_NAME, batchSize, null);
+      BigIntAutoIncrementer incrementer =
+          new BigIntAutoIncrementer(ROW_INDEX_COLUMN_NAME, batchSize, null);
       closer.add(incrementer);
 
       incrementer.setRowIndexBase(rowIndexBase);
@@ -120,7 +117,8 @@ public class TestBigIntAutoIncrementer extends ExecTest {
       closer.add(deltas);
       TestOutputMutator outputMutator = new TestOutputMutator(allocator);
       closer.add(outputMutator);
-      BigIntAutoIncrementer incrementer = new BigIntAutoIncrementer(ROW_INDEX_COLUMN_NAME, batchSize, deltas);
+      BigIntAutoIncrementer incrementer =
+          new BigIntAutoIncrementer(ROW_INDEX_COLUMN_NAME, batchSize, deltas);
       incrementer.setRowIndexBase(rowIndexBase);
       incrementer.setup(outputMutator);
       closer.add(incrementer);
@@ -168,7 +166,8 @@ public class TestBigIntAutoIncrementer extends ExecTest {
       final long rowIndexBase = 0;
       TestOutputMutator outputMutator = new TestOutputMutator(allocator);
       closer.add(outputMutator);
-      BigIntAutoIncrementer incrementer = new BigIntAutoIncrementer(ROW_INDEX_COLUMN_NAME, batchSize, null);
+      BigIntAutoIncrementer incrementer =
+          new BigIntAutoIncrementer(ROW_INDEX_COLUMN_NAME, batchSize, null);
       closer.add(incrementer);
 
       incrementer.setRowIndexBase(rowIndexBase);
@@ -180,7 +179,8 @@ public class TestBigIntAutoIncrementer extends ExecTest {
       assertNotNull(vector);
       assertEquals(count, vector.getValueCount());
 
-      final List<Integer> expectedResult = ImmutableList.of(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14);
+      final List<Integer> expectedResult =
+          ImmutableList.of(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14);
       verifyResults(expectedResult, vector);
     }
   }
@@ -199,7 +199,8 @@ public class TestBigIntAutoIncrementer extends ExecTest {
       initDeltas(count, deltas);
       deltas.set(0, 2);
 
-      BigIntAutoIncrementer incrementer = new BigIntAutoIncrementer(ROW_INDEX_COLUMN_NAME, batchSize, deltas);
+      BigIntAutoIncrementer incrementer =
+          new BigIntAutoIncrementer(ROW_INDEX_COLUMN_NAME, batchSize, deltas);
       closer.add(incrementer);
 
       incrementer.setRowIndexBase(rowIndexBase);
@@ -211,7 +212,8 @@ public class TestBigIntAutoIncrementer extends ExecTest {
       assertNotNull(vector);
       assertEquals(count, vector.getValueCount());
 
-      final List<Integer> expectedResult = ImmutableList.of(2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16);
+      final List<Integer> expectedResult =
+          ImmutableList.of(2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16);
       verifyResults(expectedResult, vector);
     }
   }

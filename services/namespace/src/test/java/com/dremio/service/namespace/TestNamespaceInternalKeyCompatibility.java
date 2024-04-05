@@ -18,35 +18,33 @@ package com.dremio.service.namespace;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 
+import com.dremio.common.utils.PathUtils;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collection;
-
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import com.dremio.common.utils.PathUtils;
-
-/**
- * Test compatibility of String and legacy implementation byte[] NamespaceInternalKey.
- */
+/** Test compatibility of String and legacy implementation byte[] NamespaceInternalKey. */
 @RunWith(Parameterized.class)
 public class TestNamespaceInternalKeyCompatibility {
   @Parameterized.Parameters
   public static Collection<Object[]> input() {
-    return Arrays.asList(new Object[][]{
-      {"a.b.c"},
-      {"a.b.c.d"},
-      {"a"},
-      {"a.b"},
-      {"a1.b.c"},
-      {"a.a.a.a"},
-      {"0"},
-      {"0a.b.3"},
-      {"1.2.3"},
-      {"0.0.0.0"},
-      {"Aa.bB.cC.Dd"}});
+    return Arrays.asList(
+        new Object[][] {
+          {"a.b.c"},
+          {"a.b.c.d"},
+          {"a"},
+          {"a.b"},
+          {"a1.b.c"},
+          {"a.a.a.a"},
+          {"0"},
+          {"0a.b.3"},
+          {"1.2.3"},
+          {"0.0.0.0"},
+          {"Aa.bB.cC.Dd"}
+        });
   }
 
   private String path;
@@ -73,29 +71,33 @@ public class TestNamespaceInternalKeyCompatibility {
     System.arraycopy(actual, 0, ac, 0, expectedKeyLength);
     assertThat(ac).isEqualTo(ex);
 
-
     final byte[] expectedTerminator = NamespaceInternalKey.MAX_UTF8_VALUE;
     final byte[] actualTerminator = new byte[expectedTerminator.length];
-    System.arraycopy(actual, actual.length - expectedTerminator.length, actualTerminator, 0, expectedTerminator.length);
+    System.arraycopy(
+        actual,
+        actual.length - expectedTerminator.length,
+        actualTerminator,
+        0,
+        expectedTerminator.length);
     assertThat(actualTerminator).isEqualTo(expectedTerminator);
   }
 
   @Test
   public void testNamespaceKeyCompatibility() {
     assertThat(newKey(path).getKey().getBytes(StandardCharsets.UTF_8))
-      .isEqualTo(newLegacyKey(path).getKey());
+        .isEqualTo(newLegacyKey(path).getKey());
   }
 
   @Test
   public void testNamespaceRangeStartKeyCompatibility() {
     assertThat(newKey(path).getRangeStartKey().getBytes(StandardCharsets.UTF_8))
-      .isEqualTo(newLegacyKey(path).getRangeStartKey());
+        .isEqualTo(newLegacyKey(path).getRangeStartKey());
   }
 
   @Test
   public void testRootLookupStartKey() {
     assertThat(NamespaceInternalKey.getRootLookupStartKey().getBytes(StandardCharsets.UTF_8))
-      .isEqualTo(LegacyNamespaceInternalKey.getRootLookupStart());
+        .isEqualTo(LegacyNamespaceInternalKey.getRootLookupStart());
   }
 
   @Test
@@ -108,7 +110,8 @@ public class TestNamespaceInternalKeyCompatibility {
   @Test
   public void testRootLookupEndKey() {
     final byte[] expected = LegacyNamespaceInternalKey.getRootLookupEnd();
-    final byte[] actual = NamespaceInternalKey.getRootLookupEndKey().getBytes(StandardCharsets.UTF_8);
+    final byte[] actual =
+        NamespaceInternalKey.getRootLookupEndKey().getBytes(StandardCharsets.UTF_8);
     verifyRangeEndKey(expected, actual);
   }
 

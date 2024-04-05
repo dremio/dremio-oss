@@ -36,14 +36,16 @@ public abstract class ParameterizedTestSuite<E> implements Testable {
 
   /**
    * Builds a query against the individual test data.
-   * @param data  an individual test data
+   *
+   * @param data an individual test data
    * @return sql query
    */
   protected abstract String buildQuery(final String[] data);
 
   /**
    * Builds a result for the individual test case.
-   * @param data  an individual test data
+   *
+   * @param data an individual test data
    * @return expectation
    */
   protected abstract E buildResult(final String[] data);
@@ -51,20 +53,21 @@ public abstract class ParameterizedTestSuite<E> implements Testable {
   /**
    * Runs an individual test case.
    *
-   * @param query  test case query
-   * @param expectations  test case expectation
+   * @param query test case query
+   * @param expectations test case expectation
    */
   protected abstract void doTest(final String query, final E expectations) throws Exception;
 
   @Override
   public void test() throws Exception {
-    for (final String[] data: datum) {
+    for (final String[] data : datum) {
       final String query = buildQuery(data);
       final E expected = buildResult(data);
       try {
         doTest(query, expected);
-      } catch (final Exception|Error ex) {
-        final ParameterizedTestFailure failure = new ParameterizedTestFailure(Joiner.on(" -- ").join(data), ex);
+      } catch (final Exception | Error ex) {
+        final ParameterizedTestFailure failure =
+            new ParameterizedTestFailure(Joiner.on(" -- ").join(data), ex);
         if (!forgiving) {
           throw failure;
         }

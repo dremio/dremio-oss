@@ -17,14 +17,6 @@ package com.dremio.dac.server;
 
 import static com.dremio.service.users.SystemUser.SYSTEM_USER;
 
-import java.util.UUID;
-
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.core.GenericType;
-
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-
 import com.dremio.common.util.TestTools;
 import com.dremio.dac.api.MetadataPolicy;
 import com.dremio.dac.api.Source;
@@ -34,10 +26,13 @@ import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.test.TemporarySystemProperties;
+import java.util.UUID;
+import javax.ws.rs.client.Entity;
+import javax.ws.rs.core.GenericType;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
 
-/**
- * Base test class
- */
+/** Base test class */
 public class TestSystemAutoPromotionBase extends BaseTestServer {
 
   @ClassRule
@@ -63,28 +58,32 @@ public class TestSystemAutoPromotionBase extends BaseTestServer {
     source.setMetadataPolicy(policy);
 
     // Create the source
-    expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(source)), new GenericType<Source>() {});
+    expectSuccess(
+        getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(source)),
+        new GenericType<Source>() {});
 
     String random = UUID.randomUUID().toString();
     try {
       // Create a table
       submitJobAndWaitUntilCompletion(
-        JobRequest.newBuilder()
-          .setSqlQuery(new SqlQuery(String.format("create table \"%s\".\"newTable-%s\" as select 1",
-            source.getName(), random),
-            SYSTEM_USER.getUserName()))
-          .setQueryType(QueryType.UI_RUN)
-          .build()
-      );
+          JobRequest.newBuilder()
+              .setSqlQuery(
+                  new SqlQuery(
+                      String.format(
+                          "create table \"%s\".\"newTable-%s\" as select 1",
+                          source.getName(), random),
+                      SYSTEM_USER.getUserName()))
+              .setQueryType(QueryType.UI_RUN)
+              .build());
     } finally {
       submitJobAndWaitUntilCompletion(
-        JobRequest.newBuilder()
-          .setSqlQuery(new SqlQuery(String.format("drop table \"%s\".\"newTable-%s\"",
-            source.getName(), random),
-            SYSTEM_USER.getUserName()))
-          .setQueryType(QueryType.UI_RUN)
-          .build()
-      );
+          JobRequest.newBuilder()
+              .setSqlQuery(
+                  new SqlQuery(
+                      String.format("drop table \"%s\".\"newTable-%s\"", source.getName(), random),
+                      SYSTEM_USER.getUserName()))
+              .setQueryType(QueryType.UI_RUN)
+              .build());
     }
   }
 }

@@ -16,9 +16,8 @@
 
 package com.dremio.common.expression;
 
-import java.util.List;
-
 import com.dremio.common.expression.visitors.ExprVisitor;
+import java.util.List;
 
 public class BooleanOperator extends FunctionCall {
 
@@ -27,7 +26,7 @@ public class BooleanOperator extends FunctionCall {
   }
 
   @Override
-  public <T, V, E extends Exception> T accept(ExprVisitor<T, V, E> visitor, V value) throws E{
+  public <T, V, E extends Exception> T accept(ExprVisitor<T, V, E> visitor, V value) throws E {
     return visitor.visitBooleanOperator(this, value);
   }
 
@@ -47,7 +46,7 @@ public class BooleanOperator extends FunctionCall {
       i++;
     }
 
-    return (int) (cost / i) ;
+    return (int) (cost / i);
   }
 
   public boolean isAnd() {

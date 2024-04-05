@@ -16,12 +16,9 @@
 package com.dremio.reflection.hints.features;
 
 import java.util.Objects;
-
 import org.apache.calcite.rel.RelNode;
 
-/**
- * Place holder
- */
+/** Place holder */
 public class FieldMissingFeature implements HintFeature {
   private final RelNode userQueryNode;
   private final int index;
@@ -54,8 +51,7 @@ public class FieldMissingFeature implements HintFeature {
     }
 
     FieldMissingFeature that = (FieldMissingFeature) o;
-    return index == that.index
-        && Objects.equals(name, that.name);
+    return index == that.index && Objects.equals(name, that.name);
   }
 
   @Override
@@ -65,9 +61,6 @@ public class FieldMissingFeature implements HintFeature {
 
   @Override
   public String toString() {
-    return "FieldMissingFeature{" +
-        "index=" + index +
-        ", name='" + name + '\'' +
-        '}';
+    return "FieldMissingFeature{" + "index=" + index + ", name='" + name + '\'' + '}';
   }
 }

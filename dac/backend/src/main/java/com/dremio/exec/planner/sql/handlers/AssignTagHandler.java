@@ -17,12 +17,6 @@ package com.dremio.exec.planner.sql.handlers;
 
 import static java.util.Objects.requireNonNull;
 
-import java.util.Collections;
-import java.util.List;
-
-import org.apache.calcite.sql.SqlIdentifier;
-import org.apache.calcite.sql.SqlNode;
-
 import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.VersionedPlugin;
@@ -35,13 +29,16 @@ import com.dremio.exec.store.ReferenceConflictException;
 import com.dremio.exec.store.ReferenceNotFoundException;
 import com.dremio.exec.work.foreman.ForemanSetupException;
 import com.dremio.sabot.rpc.user.UserSession;
+import java.util.Collections;
+import java.util.List;
+import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlNode;
 
 /**
  * Handler for updating the reference to the given tag.
  *
- * ALTER TAG tagName ASSIGN
- * ( REF[ERENCE] | BRANCH | TAG | COMMIT ) refValue [AS OF timestamp]
- * [ IN sourceName ]
+ * <p>ALTER TAG tagName ASSIGN ( REF[ERENCE] | BRANCH | TAG | COMMIT ) refValue [AS OF timestamp] [
+ * IN sourceName ]
  */
 public class AssignTagHandler extends BaseVersionHandler<SimpleCommandResult> {
   private final UserSession userSession;
@@ -56,15 +53,15 @@ public class AssignTagHandler extends BaseVersionHandler<SimpleCommandResult> {
       throws ForemanSetupException {
     checkFeatureEnabled("ALTER TAG ASSIGN syntax is not supported.");
 
-    final SqlAssignTag assignTag =
-       requireNonNull(SqlNodeUtil.unwrap(sqlNode, SqlAssignTag.class));
+    final SqlAssignTag assignTag = requireNonNull(SqlNodeUtil.unwrap(sqlNode, SqlAssignTag.class));
     final SqlIdentifier sourceIdentifier = assignTag.getSourceName();
-    final String sourceName =  VersionedHandlerUtils.resolveSourceName(
-      sourceIdentifier,
-      userSession.getDefaultSchemaPath());
+    final String sourceName =
+        VersionedHandlerUtils.resolveSourceName(
+            sourceIdentifier, userSession.getDefaultSchemaPath());
 
-    final VersionContext statementVersion =
-      ReferenceTypeUtils.map(assignTag.getRefType(), assignTag.getRefValue(), assignTag.getTimestamp());
+    VersionContext statementVersion =
+        ReferenceTypeUtils.map(
+            assignTag.getRefType(), assignTag.getRefValue(), assignTag.getTimestamp());
     final String tagName = requireNonNull(assignTag.getTagName()).toString();
 
     final VersionedPlugin versionedPlugin = getVersionedPlugin(sourceName);
@@ -86,8 +83,7 @@ public class AssignTagHandler extends BaseVersionHandler<SimpleCommandResult> {
 
     return Collections.singletonList(
         SimpleCommandResult.successful(
-            "Assigned %s to tag %s on source %s.",
-            statementVersion, tagName, sourceName));
+            "Assigned %s to tag %s on source %s.", statementVersion, tagName, sourceName));
   }
 
   @Override

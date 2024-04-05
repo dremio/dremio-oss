@@ -15,18 +15,15 @@
  */
 package com.dremio.dac.model.job.acceleration;
 
-import java.util.Collections;
-import java.util.List;
-
 import com.dremio.service.accelerator.proto.AccelerationDetails;
 import com.dremio.service.accelerator.proto.ReflectionRelationship;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.Lists;
+import java.util.Collections;
+import java.util.List;
 
-/**
- * UI wrapper for {@link AccelerationDetails}
- */
+/** UI wrapper for {@link AccelerationDetails} */
 public class AccelerationDetailsUI {
   private final List<ReflectionRelationshipUI> reflectionRelationships;
 
@@ -35,14 +32,17 @@ public class AccelerationDetailsUI {
   }
 
   @JsonCreator
-  AccelerationDetailsUI(@JsonProperty("reflectionRelationships") List<ReflectionRelationshipUI> reflectionRelationships) {
+  AccelerationDetailsUI(
+      @JsonProperty("reflectionRelationships")
+          List<ReflectionRelationshipUI> reflectionRelationships) {
     this.reflectionRelationships = reflectionRelationships;
   }
 
   AccelerationDetailsUI(AccelerationDetails accelerationDetails) {
     reflectionRelationships = Lists.newArrayList();
     if (accelerationDetails.getReflectionRelationshipsList() != null) {
-      for (ReflectionRelationship relationship : accelerationDetails.getReflectionRelationshipsList()) {
+      for (ReflectionRelationship relationship :
+          accelerationDetails.getReflectionRelationshipsList()) {
         reflectionRelationships.add(UiMapper.toUI(relationship));
       }
     }

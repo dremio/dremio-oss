@@ -17,9 +17,7 @@ package com.dremio.connector.metadata;
 
 import java.util.List;
 
-/**
- * Default implementation.
- */
+/** Default implementation. */
 final class DatasetSplitImpl implements DatasetSplit {
 
   private final List<DatasetSplitAffinity> affinities;
@@ -31,8 +29,7 @@ final class DatasetSplitImpl implements DatasetSplit {
       List<DatasetSplitAffinity> affinities,
       long sizeInBytes,
       long recordCount,
-      BytesOutput extraInfo
-  ) {
+      BytesOutput extraInfo) {
     this.affinities = affinities;
     this.sizeInBytes = sizeInBytes;
     this.recordCount = recordCount;

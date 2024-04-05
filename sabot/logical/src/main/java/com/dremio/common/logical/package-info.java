@@ -16,8 +16,7 @@
 /**
  * Storage plugin interfaces and logical plan representation.
  *
- * This package includes the interface for storage and format plugins for Dremio
- * as well as the top level class for representing a Dremio logical plan and a
- * builder for constructing plans.
+ * <p>This package includes the interface for storage and format plugins for Dremio as well as the
+ * top level class for representing a Dremio logical plan and a builder for constructing plans.
  */
 package com.dremio.common.logical;

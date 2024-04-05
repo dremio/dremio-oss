@@ -15,8 +15,32 @@
  */
 package com.dremio.exec.planner.sql.handlers;
 
+import com.dremio.exec.ops.QueryContext;
+import com.dremio.exec.planner.CheapestPlanWithReflectionVisitor;
+import com.dremio.exec.planner.DremioHepPlanner;
+import com.dremio.exec.planner.DremioVolcanoPlanner;
+import com.dremio.exec.planner.MatchCountListener;
+import com.dremio.exec.planner.PlannerPhase;
+import com.dremio.exec.planner.PlannerType;
+import com.dremio.exec.planner.StatelessRelShuttleImpl;
+import com.dremio.exec.planner.acceleration.DremioMaterialization;
+import com.dremio.exec.planner.acceleration.MaterializationList;
+import com.dremio.exec.planner.acceleration.substitution.AccelerationAwareSubstitutionProvider;
+import com.dremio.exec.planner.common.MoreRelOptUtil;
+import com.dremio.exec.planner.logical.ConstExecutor;
+import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.planner.sql.SqlConverter;
+import com.dremio.exec.proto.UserBitShared.PlannerPhaseRulesStats;
+import com.dremio.exec.store.dfs.FilesystemScanDrel;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Stopwatch;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -24,7 +48,6 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelOptRule;
@@ -41,50 +64,22 @@ import org.apache.calcite.tools.RuleSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.exec.planner.CheapestPlanWithReflectionVisitor;
-import com.dremio.exec.planner.DremioHepPlanner;
-import com.dremio.exec.planner.DremioVolcanoPlanner;
-import com.dremio.exec.planner.MatchCountListener;
-import com.dremio.exec.planner.PlannerPhase;
-import com.dremio.exec.planner.PlannerType;
-import com.dremio.exec.planner.StatelessRelShuttleImpl;
-import com.dremio.exec.planner.acceleration.DremioMaterialization;
-import com.dremio.exec.planner.acceleration.MaterializationList;
-import com.dremio.exec.planner.acceleration.substitution.AccelerationAwareSubstitutionProvider;
-import com.dremio.exec.planner.common.MoreRelOptUtil;
-import com.dremio.exec.planner.logical.ConstExecutor;
-import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.planner.sql.SqlConverter;
-import com.dremio.exec.store.dfs.FilesystemScanDrel;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Stopwatch;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-
-import io.opentelemetry.api.trace.Span;
-import io.opentelemetry.instrumentation.annotations.WithSpan;
-
 public class PlannerUtil {
   private static final Logger LOGGER = LoggerFactory.getLogger(PlannerUtil.class);
-  @SuppressWarnings("Slf4jIllegalPassedClass") // intentionally using logger from another class
-  private static final org.slf4j.Logger CALCITE_LOGGER = org.slf4j.LoggerFactory.getLogger(RelOptPlanner.class);
 
+  @SuppressWarnings("Slf4jIllegalPassedClass") // intentionally using logger from another class
+  private static final org.slf4j.Logger CALCITE_LOGGER =
+      org.slf4j.LoggerFactory.getLogger(RelOptPlanner.class);
 
   /**
-   * Transform RelNode to a new RelNode, targeting the provided set of traits. Also will log the outcome if asked.
+   * Transform RelNode to a new RelNode, targeting the provided set of traits. Also will log the
+   * outcome if asked.
    *
-   * @param plannerType
-   *          The type of Planner to use.
-   * @param phase
-   *          The transformation phase we're running.
-   * @param input
-   *          The original RelNode
-   * @param targetTraits
-   *          The traits we are targeting for output.
-   * @param log
-   *          Whether to log the planning phase.
+   * @param plannerType The type of Planner to use.
+   * @param phase The transformation phase we're running.
+   * @param input The original RelNode
+   * @param targetTraits The traits we are targeting for output.
+   * @param log Whether to log the planning phase.
    * @return The transformed relnode.
    */
   public static RelNode transform(
@@ -100,26 +95,29 @@ public class PlannerUtil {
     final Supplier<TransformationContext> toPlan;
     final PlannerSettings plannerSettings = config.getContext().getPlannerSettings();
 
-    CALCITE_LOGGER.trace("Starting Planning for phase {} with target traits {}.", phase, targetTraits);
+    CALCITE_LOGGER.trace(
+        "Starting Planning for phase {} with target traits {}.", phase, targetTraits);
     if (Iterables.isEmpty(rules)) {
       CALCITE_LOGGER.trace("Completed Phase: {}. No rules.", phase);
       return input;
     }
 
-    if(plannerType.isHep()) {
+    if (plannerType.isHep()) {
 
       final HepProgramBuilder hepPgmBldr = new HepProgramBuilder();
 
       long relNodeCount = MoreRelOptUtil.countRelNodes(input);
       long rulesCount = Iterables.size(rules);
-      int matchLimit = (int) plannerSettings.getOptions().getOption(PlannerSettings.HEP_PLANNER_MATCH_LIMIT);
+      int matchLimit =
+          (int) plannerSettings.getOptions().getOption(PlannerSettings.HEP_PLANNER_MATCH_LIMIT);
       hepPgmBldr.addMatchLimit(matchLimit);
 
-      MatchCountListener matchCountListener = new MatchCountListener(relNodeCount, rulesCount, matchLimit,
-        plannerSettings.getOptions().getOption(PlannerSettings.VERBOSE_PROFILE), Thread.currentThread().getName());
+      MatchCountListener matchCountListener =
+          new MatchCountListener(
+              relNodeCount, rulesCount, matchLimit, Thread.currentThread().getName());
 
       hepPgmBldr.addMatchOrder(plannerType.getMatchOrder());
-      if(plannerType.isCombineRules()) {
+      if (plannerType.isCombineRules()) {
         hepPgmBldr.addRuleCollection(Lists.newArrayList(rules));
       } else {
         for (RelOptRule rule : rules) {
@@ -128,8 +126,18 @@ public class PlannerUtil {
       }
 
       SqlConverter converter = config.getConverter();
-      final DremioHepPlanner hepPlanner = new DremioHepPlanner(hepPgmBldr.build(), plannerSettings, converter.getCostFactory(), phase, matchCountListener);
-      hepPlanner.setExecutor(new ConstExecutor(converter.getFunctionImplementationRegistry(), converter.getFunctionContext(), converter.getSettings()));
+      final DremioHepPlanner hepPlanner =
+          new DremioHepPlanner(
+              hepPgmBldr.build(),
+              plannerSettings,
+              converter.getCostFactory(),
+              phase,
+              matchCountListener);
+      hepPlanner.setExecutor(
+          new ConstExecutor(
+              converter.getFunctionImplementationRegistry(),
+              converter.getFunctionContext(),
+              converter.getSettings()));
 
       // Modify RelMetaProvider for every RelNode in the SQL operator Rel tree.
       RelOptCluster cluster = input.getCluster();
@@ -143,23 +151,28 @@ public class PlannerUtil {
       }
 
       planner = hepPlanner;
-      toPlan = () -> {
-        RelNode relNode = hepPlanner.findBestExp();
-        Map<String, Long> timeBreakdownPerRule = matchCountListener.getRuleToTotalTime();
-        if (log) {
-          LOGGER.debug("Phase: {}", phase);
-          LOGGER.debug(matchCountListener.toString());
-        }
-        return new TransformationContext(relNode, timeBreakdownPerRule);
-      };
+      toPlan =
+          () -> {
+            RelNode relNode = hepPlanner.findBestExp();
+            List<PlannerPhaseRulesStats> rulesBreakdownStats =
+                matchCountListener.getRulesBreakdownStats();
+            if (log) {
+              LOGGER.debug("Phase: {}", phase);
+              LOGGER.debug(matchCountListener.toString());
+            }
+            return new TransformationContext(relNode, rulesBreakdownStats);
+          };
     } else {
       // as weird as it seems, the cluster's only planner is the volcano planner.
-      Preconditions.checkArgument(input.getCluster().getPlanner() instanceof DremioVolcanoPlanner,
+      Preconditions.checkArgument(
+          input.getCluster().getPlanner() instanceof DremioVolcanoPlanner,
           "Cluster is expected to be constructed using DremioVolcanoPlanner. Was actually of type %s.",
           input.getCluster().getPlanner().getClass().getName());
-      final DremioVolcanoPlanner volcanoPlanner = (DremioVolcanoPlanner) input.getCluster().getPlanner();
+      final DremioVolcanoPlanner volcanoPlanner =
+          (DremioVolcanoPlanner) input.getCluster().getPlanner();
       volcanoPlanner.setPlannerPhase(phase);
-      volcanoPlanner.setNoneConventionHasInfiniteCost((phase != PlannerPhase.JDBC_PUSHDOWN) && (phase != PlannerPhase.RELATIONAL_PLANNING));
+      volcanoPlanner.setNoneConventionHasInfiniteCost(
+          (phase != PlannerPhase.JDBC_PUSHDOWN) && (phase != PlannerPhase.RELATIONAL_PLANNING));
       final Program program = Programs.of(rules);
 
       // Modify RelMetaProvider for every RelNode in the SQL operator Rel tree.
@@ -168,35 +181,44 @@ public class PlannerUtil {
       cluster.invalidateMetadataQuery();
 
       // Configure substitutions
-      final AccelerationAwareSubstitutionProvider substitutions = config.getConverter().getSubstitutionProvider();
+      final AccelerationAwareSubstitutionProvider substitutions =
+          config.getConverter().getSubstitutionProvider();
       substitutions.setObserver(config.getObserver());
       substitutions.setEnabled(phase.useMaterializations);
       substitutions.setCurrentPlan(input);
-      substitutions.setPostSubstitutionTransformer(getPostSubstitutionTransformer(config, PlannerPhase.POST_SUBSTITUTION));
 
       planner = volcanoPlanner;
-      toPlan = () -> {
-        try {
-          RelNode relNode = program.run(volcanoPlanner, input, toTraits, ImmutableList.of(), ImmutableList.of());
-          Map<String, Long> timeBreakdownPerRule = volcanoPlanner.getMatchCountListener().getRuleToTotalTime();
-          if (log) {
-            LOGGER.debug("Phase: {}", phase);
-            LOGGER.debug(volcanoPlanner.getMatchCountListener().toString());
-          }
-          return new TransformationContext(relNode, timeBreakdownPerRule);
-        } finally {
-          substitutions.setEnabled(false);
-        }
-      };
+      toPlan =
+          () -> {
+            try {
+              RelNode relNode =
+                  program.run(
+                      volcanoPlanner, input, toTraits, ImmutableList.of(), ImmutableList.of());
+              List<PlannerPhaseRulesStats> rulesBreakdownStats =
+                  volcanoPlanner.getMatchCountListener().getRulesBreakdownStats();
+              if (log) {
+                LOGGER.debug("Phase: {}", phase);
+                LOGGER.debug(volcanoPlanner.getMatchCountListener().toString());
+              }
+              return new TransformationContext(relNode, rulesBreakdownStats);
+            } finally {
+              substitutions.setEnabled(false);
+            }
+          };
     }
 
     return doTransform(config, plannerType, phase, planner, input, log, toPlan);
   }
 
   @WithSpan("transform-plan")
-  private static RelNode doTransform(SqlHandlerConfig config, final PlannerType plannerType, final PlannerPhase phase,
-                                     final RelOptPlanner planner, final RelNode input, boolean log,
-                                     Supplier<TransformationContext> toPlan) {
+  private static RelNode doTransform(
+      SqlHandlerConfig config,
+      final PlannerType plannerType,
+      final PlannerPhase phase,
+      final RelOptPlanner planner,
+      final RelNode input,
+      boolean log,
+      Supplier<TransformationContext> toPlan) {
     Span.current().setAttribute("dremio.planner.phase", phase.name());
     final Stopwatch watch = Stopwatch.createStarted();
 
@@ -206,17 +228,25 @@ public class PlannerUtil {
       final RelNode output;
       if (phase == PlannerPhase.LOGICAL) {
         RelNode forcedLogical = intermediateNode;
-        Set<String> chooseReflections = MaterializationList.parseReflectionIds(config.getContext().getOptions().getOption(PlannerSettings.CHOOSE_REFLECTIONS));
+        Set<String> chooseReflections =
+            MaterializationList.parseReflectionIds(
+                config.getContext().getOptions().getOption(PlannerSettings.CHOOSE_REFLECTIONS));
         if (!chooseReflections.isEmpty()) {
-          final DremioVolcanoPlanner volcanoPlanner = (DremioVolcanoPlanner) intermediateNode.getCluster().getPlanner();
-          Set<String> forcedMatches = Sets.intersection(volcanoPlanner.getMatchedReflections(), chooseReflections);
+          final DremioVolcanoPlanner volcanoPlanner =
+              (DremioVolcanoPlanner) intermediateNode.getCluster().getPlanner();
+          Set<String> forcedMatches =
+              Sets.intersection(volcanoPlanner.getMatchedReflections(), chooseReflections);
           if (!forcedMatches.isEmpty()) {
-            Map<String, CheapestPlanWithReflectionVisitor.RelCostPair> bestPlansWithReflections = new CheapestPlanWithReflectionVisitor(volcanoPlanner, forcedMatches).getBestPlansWithReflections();
+            Map<String, CheapestPlanWithReflectionVisitor.RelCostPair> bestPlansWithReflections =
+                new CheapestPlanWithReflectionVisitor(volcanoPlanner, forcedMatches)
+                    .getBestPlansWithReflections();
             CheapestPlanWithReflectionVisitor.RelCostPair best = null;
             for (String reflection : bestPlansWithReflections.keySet()) {
-              CheapestPlanWithReflectionVisitor.RelCostPair current = bestPlansWithReflections.get(reflection);
+              CheapestPlanWithReflectionVisitor.RelCostPair current =
+                  bestPlansWithReflections.get(reflection);
               if (best == null || current.getCost().isLt(best.getCost())) {
-                best = current; // Pick the best cost plan containing a reflection from the choose_reflections hint
+                best = current; // Pick the best cost plan containing a reflection from the
+                // choose_reflections hint
               }
             }
             forcedLogical = best != null ? best.getRel() : intermediateNode;
@@ -229,8 +259,15 @@ public class PlannerUtil {
 
       if (log) {
         PlanLogUtil.log(plannerType, phase, output, LOGGER, watch);
-        config.getObserver().planRelTransform(phase, planner, input, output, watch.elapsed(TimeUnit.MILLISECONDS),
-          context.getTimeBreakdownPerRule());
+        config
+            .getObserver()
+            .planRelTransform(
+                phase,
+                planner,
+                input,
+                output,
+                watch.elapsed(TimeUnit.MILLISECONDS),
+                context.getRulesBreakdownStats());
       }
 
       CALCITE_LOGGER.trace("Completed Phase: {}.", phase);
@@ -240,8 +277,15 @@ public class PlannerUtil {
       // log our input state as output anyways so we can ensure that we have details.
       try {
         PlanLogUtil.log(plannerType, phase, input, LOGGER, watch);
-        config.getObserver().planRelTransform(phase, planner, input, input, watch.elapsed(TimeUnit.MILLISECONDS),
-          Collections.emptyMap());
+        config
+            .getObserver()
+            .planRelTransform(
+                phase,
+                planner,
+                input,
+                input,
+                watch.elapsed(TimeUnit.MILLISECONDS),
+                ImmutableList.of());
       } catch (Throwable unexpected) {
         t.addSuppressed(unexpected);
       }
@@ -250,65 +294,69 @@ public class PlannerUtil {
   }
 
   private static RelNode processBoostedMaterializations(SqlHandlerConfig config, RelNode relNode) {
-    final Set<List<String>> qualifiedNames = config.getMaterializations().isPresent() ?
-      config.getMaterializations().get().getConsideredMaterializations()
-        .stream()
-        .filter(m -> m.getLayoutInfo().isArrowCachingEnabled())
-        .map(DremioMaterialization::getTableRel)
-        .map(rel -> {
-          BoostMaterializationVisitor visitor = new BoostMaterializationVisitor();
-          rel.accept(visitor);
-          return visitor.getQualifiedName();
-        })
-        .collect(Collectors.toSet()) :
-      new HashSet<>();
+    final Set<List<String>> qualifiedNames =
+        config.getMaterializations().isPresent()
+            ? config.getMaterializations().get().getConsideredMaterializations().stream()
+                .filter(m -> m.getLayoutInfo().isArrowCachingEnabled())
+                .map(DremioMaterialization::getTableRel)
+                .map(
+                    rel -> {
+                      BoostMaterializationVisitor visitor = new BoostMaterializationVisitor();
+                      rel.accept(visitor);
+                      return visitor.getQualifiedName();
+                    })
+                .collect(Collectors.toSet())
+            : new HashSet<>();
     if (qualifiedNames.isEmpty()) {
       return relNode;
     } else {
       // Only update the scans if there is any acceleration which is boosted
-      return relNode.accept(new StatelessRelShuttleImpl() {
-        @Override
-        public RelNode visit(TableScan scan) {
-          if (scan instanceof FilesystemScanDrel) {
-            FilesystemScanDrel scanDrel = (FilesystemScanDrel) scan;
-            if (qualifiedNames.contains(scanDrel.getTable().getQualifiedName())) {
-              return scanDrel.applyArrowCachingEnabled(true);
+      return relNode.accept(
+          new StatelessRelShuttleImpl() {
+            @Override
+            public RelNode visit(TableScan scan) {
+              if (scan instanceof FilesystemScanDrel) {
+                FilesystemScanDrel scanDrel = (FilesystemScanDrel) scan;
+                if (qualifiedNames.contains(scanDrel.getTable().getQualifiedName())) {
+                  return scanDrel.applyArrowCachingEnabled(true);
+                }
+              }
+              return super.visit(scan);
             }
-          }
-          return super.visit(scan);
-        }
-      });
+          });
     }
   }
 
-  public static RelTransformer getPostSubstitutionTransformer(SqlHandlerConfig config, PlannerPhase phase) {
+  public static RelTransformer createPostSubstitutionTransformer(
+      QueryContext queryContext, PlannerSettings plannerSettings, PlannerPhase phase) {
     return relNode -> {
       final HepProgramBuilder builder = HepProgram.builder();
       builder.addMatchOrder(HepMatchOrder.ARBITRARY);
-      builder.addRuleCollection(Lists.newArrayList(config.getRules(phase)));
+      builder.addRuleCollection(Lists.newArrayList(phase.getRules(queryContext)));
 
       final HepProgram p = builder.build();
 
-      final HepPlanner pl = new HepPlanner(p, config.getContext().getPlannerSettings());
+      final HepPlanner pl = new HepPlanner(p, plannerSettings);
       pl.setRoot(relNode);
       return pl.findBestExp();
     };
   }
 
   public static class TransformationContext {
-    private RelNode relNode;
-    private Map<String, Long> timeBreakdownPerRule;
-    TransformationContext(RelNode relNode, Map<String, Long> timeBreakdownPerRule) {
+    private final RelNode relNode;
+    private final List<PlannerPhaseRulesStats> rulesBreakdownStats;
+
+    TransformationContext(RelNode relNode, List<PlannerPhaseRulesStats> rulesBreakdownStats) {
       this.relNode = relNode;
-      this.timeBreakdownPerRule = timeBreakdownPerRule;
+      this.rulesBreakdownStats = rulesBreakdownStats;
     }
 
     public RelNode getRelNode() {
       return relNode;
     }
 
-    public Map<String, Long> getTimeBreakdownPerRule() {
-      return timeBreakdownPerRule;
+    public List<PlannerPhaseRulesStats> getRulesBreakdownStats() {
+      return rulesBreakdownStats;
     }
   }
 

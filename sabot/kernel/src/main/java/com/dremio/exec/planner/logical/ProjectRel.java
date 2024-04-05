@@ -15,8 +15,8 @@
  */
 package com.dremio.exec.planner.logical;
 
+import com.dremio.exec.planner.common.ProjectRelBase;
 import java.util.List;
-
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptPlanner;
@@ -26,17 +26,19 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
 
-import com.dremio.exec.planner.common.ProjectRelBase;
-
-/**
- * Project implemented in Dremio.
- */
+/** Project implemented in Dremio. */
 public class ProjectRel extends ProjectRelBase implements Rel {
 
   private final boolean hasFlattenFields;
   private final boolean canPushPastFlatten;
 
-  private ProjectRel(RelOptCluster cluster, RelTraitSet traits, RelNode child, List<? extends RexNode> exps, RelDataType rowType, boolean canPushPastFlatten) {
+  private ProjectRel(
+      RelOptCluster cluster,
+      RelTraitSet traits,
+      RelNode child,
+      List<? extends RexNode> exps,
+      RelDataType rowType,
+      boolean canPushPastFlatten) {
     super(LOGICAL, cluster, traits, child, exps, rowType);
     this.canPushPastFlatten = canPushPastFlatten;
     this.hasFlattenFields = FlattenVisitors.hasFlatten(this);
@@ -56,8 +58,10 @@ public class ProjectRel extends ProjectRelBase implements Rel {
   }
 
   @Override
-  public org.apache.calcite.rel.core.Project copy(RelTraitSet traitSet, RelNode input, List<RexNode> exps, RelDataType rowType) {
-    return ProjectRel.create(this.getCluster(), traitSet, input, exps, rowType, this.canPushPastFlatten());
+  public org.apache.calcite.rel.core.Project copy(
+      RelTraitSet traitSet, RelNode input, List<RexNode> exps, RelDataType rowType) {
+    return ProjectRel.create(
+        this.getCluster(), traitSet, input, exps, rowType, this.canPushPastFlatten());
   }
 
   /**
@@ -70,8 +74,12 @@ public class ProjectRel extends ProjectRelBase implements Rel {
    * @param rowType
    * @return new instance of ProjectRel
    */
-  public static ProjectRel create(RelOptCluster cluster, RelTraitSet traits, RelNode child, List<? extends RexNode> exps,
-                                  RelDataType rowType) {
+  public static ProjectRel create(
+      RelOptCluster cluster,
+      RelTraitSet traits,
+      RelNode child,
+      List<? extends RexNode> exps,
+      RelDataType rowType) {
     return ProjectRel.create(cluster, traits, child, exps, rowType, true);
   }
 
@@ -85,8 +93,13 @@ public class ProjectRel extends ProjectRelBase implements Rel {
    * @param rowType
    * @return new instance of ProjectRel
    */
-  public static ProjectRel create(RelOptCluster cluster, RelTraitSet traits, RelNode child, List<? extends RexNode> exps,
-                                  RelDataType rowType, boolean canPushPastFlatten) {
+  public static ProjectRel create(
+      RelOptCluster cluster,
+      RelTraitSet traits,
+      RelNode child,
+      List<? extends RexNode> exps,
+      RelDataType rowType,
+      boolean canPushPastFlatten) {
     final RelTraitSet adjustedTraits = adjustTraits(cluster, child, exps, traits);
     return new ProjectRel(cluster, adjustedTraits, child, exps, rowType, canPushPastFlatten);
   }

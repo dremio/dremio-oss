@@ -15,20 +15,18 @@
  */
 package com.dremio.exec.store.parquet;
 
-import java.util.Objects;
-
 import com.dremio.common.logical.FormatPluginConfig;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import java.util.Objects;
 
-@JsonTypeName("parquet") @JsonInclude(JsonInclude.Include.NON_DEFAULT)
-public class ParquetFormatConfig implements FormatPluginConfig{
+@JsonTypeName("parquet")
+@JsonInclude(JsonInclude.Include.NON_DEFAULT)
+public class ParquetFormatConfig implements FormatPluginConfig {
 
   public boolean autoCorrectCorruptDates = true;
 
-  /**
-   * Extension of files written out with config as part of CTAS.
-   */
+  /** Extension of files written out with config as part of CTAS. */
   public String outputExtension = "parquet";
 
   @Override
@@ -48,7 +46,7 @@ public class ParquetFormatConfig implements FormatPluginConfig{
       return false;
     }
 
-    final ParquetFormatConfig other = (ParquetFormatConfig)obj;
+    final ParquetFormatConfig other = (ParquetFormatConfig) obj;
 
     return Objects.equals(outputExtension, other.outputExtension)
         && (autoCorrectCorruptDates == other.autoCorrectCorruptDates);
@@ -56,8 +54,10 @@ public class ParquetFormatConfig implements FormatPluginConfig{
 
   @Override
   public String toString() {
-    return "ParquetFormatConfig [autoCorrectCorruptDates=" + autoCorrectCorruptDates + ", outputExtension="
-        + outputExtension + "]";
+    return "ParquetFormatConfig [autoCorrectCorruptDates="
+        + autoCorrectCorruptDates
+        + ", outputExtension="
+        + outputExtension
+        + "]";
   }
-
 }

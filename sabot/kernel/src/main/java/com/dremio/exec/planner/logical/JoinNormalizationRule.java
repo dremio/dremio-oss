@@ -15,8 +15,9 @@
  */
 package com.dremio.exec.planner.logical;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import java.util.List;
-
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptUtil;
@@ -29,15 +30,14 @@ import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.tools.RelBuilderFactory;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
-
 /**
- * Rule that normalize Dremio {@code JoinRel} into a proper equi-join with an extra filter on top if necessary/possible,
- * ready to be converted into a {@code com.dremio.exec.planner.physical.JoinPrel} instance.
+ * Rule that normalize Dremio {@code JoinRel} into a proper equi-join with an extra filter on top if
+ * necessary/possible, ready to be converted into a {@code
+ * com.dremio.exec.planner.physical.JoinPrel} instance.
  */
 public class JoinNormalizationRule extends RelOptRule {
-  public static final JoinNormalizationRule INSTANCE = new JoinNormalizationRule(DremioRelFactories.LOGICAL_BUILDER);
+  public static final JoinNormalizationRule INSTANCE =
+      new JoinNormalizationRule(DremioRelFactories.LOGICAL_BUILDER);
 
   private final RelBuilderFactory factory;
 
@@ -60,12 +60,12 @@ public class JoinNormalizationRule extends RelOptRule {
   /**
    * Normalize the join relation operator
    *
-   * Normalize the join operator so that conditions are fully push down
-   * and if possible, remaining condition are extracted in a separate filter
+   * <p>Normalize the join operator so that conditions are fully push down and if possible,
+   * remaining condition are extracted in a separate filter
    *
    * @param rel
-   * @return a new tree of operators containing the normalized join, or {@code join} if
-   * already normalized
+   * @return a new tree of operators containing the normalized join, or {@code join} if already
+   *     normalized
    */
   public RelNode normalize(Join join) {
     final RelBuilder builder = factory.create(join.getCluster(), null);
@@ -79,29 +79,30 @@ public class JoinNormalizationRule extends RelOptRule {
       }
     }
 
-
     // newJoin might be a join, or might be a join below a project.
     // Need to visit the tree to find the first join and extract the remaining
     // condition in a separate filter
-    newJoin = newJoin.accept(new RelShuttleImpl() {
-      @Override
-      public RelNode visit(RelNode other) {
-        if (!(other instanceof Join)) {
-          return super.visit(other);
-        }
+    newJoin =
+        newJoin.accept(
+            new RelShuttleImpl() {
+              @Override
+              public RelNode visit(RelNode other) {
+                if (!(other instanceof Join)) {
+                  return super.visit(other);
+                }
 
-        Join join = (Join) other;
+                Join join = (Join) other;
 
-        return getNewJoinCondition(builder, join);
-
-      }
-    });
+                return getNewJoinCondition(builder, join);
+              }
+            });
 
     return newJoin;
   }
+
   /**
-   * Attempt to create a new join with a canonicalized join expression, and a possible filter
-   * on top
+   * Attempt to create a new join with a canonicalized join expression, and a possible filter on top
+   *
    * @param builder
    * @param join
    * @return a new join tree (or same as original argument if no change)
@@ -111,8 +112,10 @@ public class JoinNormalizationRule extends RelOptRule {
     final List<Integer> rightKeys = Lists.newArrayList();
     final List<Boolean> filterNulls = Lists.newArrayList();
 
-    final RexNode remaining = RelOptUtil.splitJoinCondition(join.getLeft(), join.getRight(), join.getCondition(), leftKeys, rightKeys, filterNulls);
-    final boolean hasEquiJoins = leftKeys.size() == rightKeys.size() && leftKeys.size() > 0 ;
+    final RexNode remaining =
+        RelOptUtil.splitJoinCondition(
+            join.getLeft(), join.getRight(), join.getCondition(), leftKeys, rightKeys, filterNulls);
+    final boolean hasEquiJoins = leftKeys.size() == rightKeys.size() && leftKeys.size() > 0;
     final JoinRelType joinType = join.getJoinType();
 
     // If join has no equi-join condition, do not transform
@@ -121,17 +124,20 @@ public class JoinNormalizationRule extends RelOptRule {
     }
 
     // Create a new partial condition for the equi-join
-    final RexNode partialCondition = JoinFilterCanonicalizationRule.buildJoinCondition(
-        builder.getRexBuilder(),
-        join.getLeft().getRowType(),
-        join.getRight().getRowType(),
-        leftKeys,
-        rightKeys,
-        filterNulls);
+    final RexNode partialCondition =
+        JoinFilterCanonicalizationRule.buildJoinCondition(
+            builder.getRexBuilder(),
+            join.getLeft().getRowType(),
+            join.getRight().getRowType(),
+            leftKeys,
+            rightKeys,
+            filterNulls);
 
     // We do not know how to add filter for non-INNER joins (see DRILL-1337)
     if (joinType != JoinRelType.INNER) {
-      final RexNode newJoinCondition = RexUtil.composeConjunction(builder.getRexBuilder(), ImmutableList.of(partialCondition, remaining), false);
+      final RexNode newJoinCondition =
+          RexUtil.composeConjunction(
+              builder.getRexBuilder(), ImmutableList.of(partialCondition, remaining), false);
       if (RexUtil.eq(join.getCondition(), newJoinCondition)) {
         // Condition is the same, do not create a new rel
         return join;

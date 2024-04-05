@@ -17,10 +17,9 @@ package com.dremio.dac.server;
 
 import org.hibernate.validator.cfg.ConstraintDef;
 
-/**
- * Constraint definition for TransformGroupByConstraint.
- */
-public class TransformGroupByConstraintDef extends ConstraintDef<TransformGroupByConstraintDef, TransformGroupByConstraint> {
+/** Constraint definition for TransformGroupByConstraint. */
+public class TransformGroupByConstraintDef
+    extends ConstraintDef<TransformGroupByConstraintDef, TransformGroupByConstraint> {
 
   public TransformGroupByConstraintDef() {
     super(TransformGroupByConstraint.class);

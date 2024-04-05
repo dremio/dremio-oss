@@ -16,7 +16,6 @@
 package com.dremio.dac.server;
 
 import java.io.IOException;
-
 import javax.annotation.Priority;
 import javax.ws.rs.Priorities;
 import javax.ws.rs.container.ContainerRequestContext;
@@ -27,16 +26,15 @@ import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.UriInfo;
 
 /**
- * Filter to get output media type from parameter and modify response accordingly
- * by overwriting {@link HttpHeaders#ACCEPT} header
+ * Filter to get output media type from parameter and modify response accordingly by overwriting
+ * {@link HttpHeaders#ACCEPT} header
  */
 @PreMatching
 @Priority(Priorities.HEADER_DECORATOR)
 public class MediaTypeFilter implements ContainerRequestFilter {
 
   @Override
-  public void filter(ContainerRequestContext requestContext)
-      throws IOException {
+  public void filter(ContainerRequestContext requestContext) throws IOException {
     final UriInfo info = requestContext.getUriInfo();
     MultivaluedMap<String, String> parameters = info.getQueryParameters();
 
@@ -46,5 +44,4 @@ public class MediaTypeFilter implements ContainerRequestFilter {
     }
     requestContext.getHeaders().putSingle(HttpHeaders.ACCEPT, format);
   }
-
 }

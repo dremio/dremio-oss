@@ -15,10 +15,8 @@
  */
 package com.dremio.exec.planner.sql;
 
-
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.calcite.avatica.util.TimeUnitRange;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
@@ -30,24 +28,20 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql2rel.SqlRexContext;
 import org.apache.calcite.sql2rel.SqlRexConvertlet;
 
-
-/**
- * Convertlet to rewrite LOG2(value) as LOG(2.0,value)
- */
+/** Convertlet to rewrite LOG2(value) as LOG(2.0,value) */
 public final class DatePartFunctionsConvertlet implements SqlRexConvertlet {
-  public static final DatePartFunctionsConvertlet SECOND_INSTANCE = new DatePartFunctionsConvertlet(
-    TimeUnitRange.SECOND);
-public static final DatePartFunctionsConvertlet MINUTE_INSTANCE = new DatePartFunctionsConvertlet(
-    TimeUnitRange.MINUTE);
-public static final DatePartFunctionsConvertlet HOUR_INSTANCE = new DatePartFunctionsConvertlet(
-    TimeUnitRange.HOUR);
-public static final DatePartFunctionsConvertlet DAY_INSTANCE = new DatePartFunctionsConvertlet(
-    TimeUnitRange.DAY);
-public static final DatePartFunctionsConvertlet MONTH_INSTANCE = new DatePartFunctionsConvertlet(
-    TimeUnitRange.MONTH);
-public static final DatePartFunctionsConvertlet YEAR_INSTANCE = new DatePartFunctionsConvertlet(
-    TimeUnitRange.YEAR);
-
+  public static final DatePartFunctionsConvertlet SECOND_INSTANCE =
+      new DatePartFunctionsConvertlet(TimeUnitRange.SECOND);
+  public static final DatePartFunctionsConvertlet MINUTE_INSTANCE =
+      new DatePartFunctionsConvertlet(TimeUnitRange.MINUTE);
+  public static final DatePartFunctionsConvertlet HOUR_INSTANCE =
+      new DatePartFunctionsConvertlet(TimeUnitRange.HOUR);
+  public static final DatePartFunctionsConvertlet DAY_INSTANCE =
+      new DatePartFunctionsConvertlet(TimeUnitRange.DAY);
+  public static final DatePartFunctionsConvertlet MONTH_INSTANCE =
+      new DatePartFunctionsConvertlet(TimeUnitRange.MONTH);
+  public static final DatePartFunctionsConvertlet YEAR_INSTANCE =
+      new DatePartFunctionsConvertlet(TimeUnitRange.YEAR);
 
   private final TimeUnitRange unit;
 
@@ -63,8 +57,9 @@ public static final DatePartFunctionsConvertlet YEAR_INSTANCE = new DatePartFunc
     exprs.add(sqlRexContext.convertExpression(sqlCall.getOperandList().get(0)));
 
     RelDataTypeFactory typeFactory = sqlRexContext.getTypeFactory();
-    final RelDataType returnType
-      = typeFactory.createTypeWithNullability(typeFactory.createSqlType(SqlTypeName.BIGINT), exprs.get(1).getType().isNullable());
+    final RelDataType returnType =
+        typeFactory.createTypeWithNullability(
+            typeFactory.createSqlType(SqlTypeName.BIGINT), exprs.get(1).getType().isNullable());
     return rexBuilder.makeCall(returnType, SqlStdOperatorTable.EXTRACT, exprs);
   }
 }

@@ -15,21 +15,20 @@
  */
 package com.dremio.dac.service.job;
 
-import javax.inject.Provider;
-
 import com.dremio.service.jobcounts.DeleteJobCountsRequest;
 import com.dremio.service.jobcounts.JobCountsClient;
 import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEvent;
 import com.dremio.service.namespace.catalogstatusevents.CatalogStatusSubscriber;
 import com.dremio.service.namespace.catalogstatusevents.events.DatasetDeletionCatalogStatusEvent;
+import javax.inject.Provider;
 
 public class JobCountsDatasetDeletionSubscriber implements CatalogStatusSubscriber {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(JobCountsDatasetDeletionSubscriber.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(JobCountsDatasetDeletionSubscriber.class);
 
   private final Provider<JobCountsClient> jobCountsClientProvider;
 
-  public JobCountsDatasetDeletionSubscriber(
-    Provider<JobCountsClient> jobCountsClientProvider) {
+  public JobCountsDatasetDeletionSubscriber(Provider<JobCountsClient> jobCountsClientProvider) {
     this.jobCountsClientProvider = jobCountsClientProvider;
   }
 
@@ -41,10 +40,14 @@ public class JobCountsDatasetDeletionSubscriber implements CatalogStatusSubscrib
 
     DatasetDeletionCatalogStatusEvent deletionEvent = (DatasetDeletionCatalogStatusEvent) event;
     try {
-      jobCountsClientProvider.get().getBlockingStub()
-        .deleteJobCounts(DeleteJobCountsRequest.newBuilder().addIds(deletionEvent.getDatasetPath()).build());
+      jobCountsClientProvider
+          .get()
+          .getBlockingStub()
+          .deleteJobCounts(
+              DeleteJobCountsRequest.newBuilder().addIds(deletionEvent.getDatasetPath()).build());
     } catch (NullPointerException ex) {
-      // TODO - DX-85600 - Handle the initialization of system plugins more gracefully, so there is no null
+      // TODO - DX-85600 - Handle the initialization of system plugins more gracefully, so there is
+      // no null
       //  JobCountsClient
       logger.debug("Dataset deletion event had a null pointer exception thrown.");
     }

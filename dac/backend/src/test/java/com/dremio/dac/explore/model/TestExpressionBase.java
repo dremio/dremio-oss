@@ -18,10 +18,6 @@ package com.dremio.dac.explore.model;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
 
-import java.io.IOException;
-
-import org.junit.Test;
-
 import com.dremio.dac.proto.model.dataset.ExpCalculatedField;
 import com.dremio.dac.proto.model.dataset.ExpColumnReference;
 import com.dremio.dac.proto.model.dataset.ExpConvertCase;
@@ -35,10 +31,10 @@ import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
+import org.junit.Test;
 
-/**
- * Tests the acceptor mapping
- */
+/** Tests the acceptor mapping */
 public class TestExpressionBase {
   @Test
   public void test() throws Exception {
@@ -56,40 +52,49 @@ public class TestExpressionBase {
   @Test
   public void testVisitor() {
     ExpressionBase exp = new ExpCalculatedField("foo");
-    String name = exp.accept(new ExpressionBase.ExpressionVisitor<String>() {
-      @Override
-      public String visit(ExpColumnReference col) throws Exception {
-        throw new UnsupportedOperationException("NYI");
-      }
-      @Override
-      public String visit(ExpConvertCase changeCase) throws Exception {
-        throw new UnsupportedOperationException("NYI");
-      }
-      @Override
-      public String visit(ExpExtract extract) throws Exception {
-        throw new UnsupportedOperationException("NYI");
-      }
-      @Override
-      public String visit(ExpTrim trim) throws Exception {
-        throw new UnsupportedOperationException("NYI");
-      }
-      @Override
-      public String visit(ExpCalculatedField calculatedField) throws Exception {
-        return "calc";
-      }
-      @Override
-      public String visit(ExpFieldTransformation fieldTransformation) throws Exception {
-        throw new UnsupportedOperationException("NYI");
-      }
-      @Override
-      public String visit(ExpConvertType convertType) throws Exception {
-        throw new UnsupportedOperationException("NYI");
-      }
-      @Override
-      public String visit(ExpMeasure measure) throws Exception {
-        throw new UnsupportedOperationException("NYI");
-      }
-    });
+    String name =
+        exp.accept(
+            new ExpressionBase.ExpressionVisitor<String>() {
+              @Override
+              public String visit(ExpColumnReference col) throws Exception {
+                throw new UnsupportedOperationException("NYI");
+              }
+
+              @Override
+              public String visit(ExpConvertCase changeCase) throws Exception {
+                throw new UnsupportedOperationException("NYI");
+              }
+
+              @Override
+              public String visit(ExpExtract extract) throws Exception {
+                throw new UnsupportedOperationException("NYI");
+              }
+
+              @Override
+              public String visit(ExpTrim trim) throws Exception {
+                throw new UnsupportedOperationException("NYI");
+              }
+
+              @Override
+              public String visit(ExpCalculatedField calculatedField) throws Exception {
+                return "calc";
+              }
+
+              @Override
+              public String visit(ExpFieldTransformation fieldTransformation) throws Exception {
+                throw new UnsupportedOperationException("NYI");
+              }
+
+              @Override
+              public String visit(ExpConvertType convertType) throws Exception {
+                throw new UnsupportedOperationException("NYI");
+              }
+
+              @Override
+              public String visit(ExpMeasure measure) throws Exception {
+                throw new UnsupportedOperationException("NYI");
+              }
+            });
     assertEquals("calc", name);
   }
 

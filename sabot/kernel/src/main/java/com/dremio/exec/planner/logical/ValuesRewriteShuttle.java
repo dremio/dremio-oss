@@ -15,82 +15,193 @@
  */
 package com.dremio.exec.planner.logical;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.logical.LogicalProject;
-import org.apache.calcite.rel.logical.LogicalUnion;
-import org.apache.calcite.rel.logical.LogicalValues;
-import org.apache.calcite.rel.type.RelDataTypeField;
-import org.apache.calcite.rex.RexInputRef;
-import org.apache.calcite.rex.RexLiteral;
-import org.apache.calcite.sql.type.SqlTypeName;
+import static org.apache.calcite.sql.fun.SqlStdOperatorTable.CASE;
+import static org.apache.calcite.sql.fun.SqlStdOperatorTable.IS_NULL;
 
 import com.dremio.exec.planner.StatelessRelShuttleImpl;
-import com.google.common.collect.ImmutableList;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.core.Collect;
+import org.apache.calcite.rel.logical.LogicalValues;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.calcite.rex.RexBuilder;
+import org.apache.calcite.rex.RexLiteral;
+import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
- * Rewrite decimal in LogicalValues as expressions in LogicalProject
- * If there is any decimal value, pull all the tuples into separate projects.
- * If there are more than 1 values, do a union of all those projects.
- * <pre>
- * For queries like:
- * select * from (values(1.23)), we will have:
+ * Rewrite numeric values in LogicalValues to have full fidelity. Depending on whether there are
+ * nulls we will either serialize the value and add a cast or do a UNION + Project + Values
  *
- * LogicalProject(EXPR$0=[$0])
- *    LogicalValues(tuples=[[{ 1.23 }]])
- *
- * Which should be re-written as:
- *
- * LogicalProject(EXPR$0=[$0])
- *    LogicalProject(EXPR$0=[1.23])
- *        LogicalValues(tuples=[[{ 0 }]])
- * </pre>
+ * <p>(details in the helper methods)
  */
 public class ValuesRewriteShuttle extends StatelessRelShuttleImpl {
 
-  @Override
-  public RelNode visit(LogicalValues values) {
-    boolean foundDecimal =
-      !values.getTuples().isEmpty()
-      && values.getTuples().stream()
-        .allMatch(tuple -> tuple.stream() // All the tuples must have decimal type.
-          .anyMatch(rexNode -> rexNode.getType().getSqlTypeName() == SqlTypeName.DECIMAL));
+  private final RelBuilder relBuilder;
 
-    if (foundDecimal) {
-      List<RelNode> projects = getProjects(values);
-      LogicalProject project;
-      if (projects.size() == 1) {
-        project = (LogicalProject) projects.get(0);
-      } else {
-        // If there are more than one tuples, create a union here.
-        LogicalUnion union = LogicalUnion.create(projects, true);
-
-        List<RexInputRef> inputRefs = new ArrayList<>();
-        for (RelDataTypeField field : union.getRowType().getFieldList()) {
-          inputRefs.add(new RexInputRef(field.getIndex(), field.getType()));
-        }
-        project = LogicalProject.create(union, ImmutableList.of(), inputRefs, union.getRowType());
-      }
-
-      return project;
-    }
-    return values;
+  private ValuesRewriteShuttle(RelBuilder relBuilder) {
+    this.relBuilder = relBuilder;
   }
 
-  private List<RelNode> getProjects(LogicalValues values) {
-    List<RelNode> projects = new ArrayList<>();
-    LogicalValues oneRow = LogicalValues.createOneRow(values.getCluster());
-    for (ImmutableList<RexLiteral> tuple : values.getTuples()) {
-      LogicalProject valuesProject = LogicalProject.create(
-        oneRow,
-        ImmutableList.of(),
-        tuple,
-        values.getRowType());
-      projects.add(valuesProject);
+  public static RelNode rewrite(RelNode relNode) {
+    RelBuilder relBuilder =
+        (RelBuilder) DremioRelFactories.CALCITE_LOGICAL_BUILDER.create(relNode.getCluster(), null);
+    ValuesRewriteShuttle shuttle = new ValuesRewriteShuttle(relBuilder);
+    return relNode.accept(shuttle);
+  }
+
+  @Override
+  public RelNode visit(RelNode other) {
+    if (!(other instanceof Collect)) {
+      return super.visit(other);
     }
 
-    return projects;
+    // We want to minimize the number of tests we break, so we are only handling all numerics for
+    // the array subquery tests.
+    Collect collect = (Collect) other;
+    if (!(collect.getInput() instanceof LogicalValues)) {
+      return super.visit(other);
+    }
+
+    LogicalValues logicalValues = (LogicalValues) collect.getInput();
+    RelNode rewrittenValues = rewrite(logicalValues, true);
+
+    return collect.copy(collect.getTraitSet(), rewrittenValues);
+  }
+
+  @Override
+  public RelNode visit(LogicalValues values) {
+    return rewrite(values, false);
+  }
+
+  private RelNode rewrite(LogicalValues values, boolean allNumerics) {
+    if (values.getTuples().isEmpty()) {
+      return values;
+    }
+
+    Set<RelDataTypeField> numericColumns =
+        values.getRowType().getFieldList().stream()
+            .filter(
+                field -> {
+                  SqlTypeName sqlTypeName = field.getType().getSqlTypeName();
+                  return allNumerics
+                      ? SqlTypeName.NUMERIC_TYPES.contains(sqlTypeName)
+                      : sqlTypeName == SqlTypeName.DECIMAL;
+                })
+            .collect(Collectors.toSet());
+
+    if (numericColumns.isEmpty()) {
+      return values;
+    }
+
+    if (!allNumerics) {
+      // To match the semantics of the previous values rewrite shuttle
+      // we need to rewrite all the numerics if at least one was a decimal
+      return rewrite(values, true);
+    }
+
+    return rewriteUsingCastOnSerializedValues(relBuilder, numericColumns, values);
+  }
+
+  /**
+   * The Values Operator has a bug where it doesn't honor the SQL Type System. It turns out that it
+   * uses a JSONReader and only honors the JSON types. This means that if we have a bunch of
+   * numbers, then they all get casted to Doubles.
+   *
+   * <p>The solution is to Rewrite:
+   *
+   * <p>Values((a, b, c))
+   *
+   * <p>(where a and c are non-nullable numerics)
+   *
+   * <p>To: Project (CAST($0 AS NUMERIC), $1, CAST($2 AS NUMERIC)) Values((a.toString(), b,
+   * c.toString()))
+   *
+   * <p>This is a temp solution until the Values operator gets fixed.
+   */
+  private static RelNode rewriteUsingCastOnSerializedValues(
+      RelBuilder relBuilder, Set<RelDataTypeField> numericColumns, LogicalValues values) {
+    // We need serialize all the specified columns
+    RexBuilder rexBuilder = relBuilder.getRexBuilder();
+    Set<Integer> columnsToInterop =
+        numericColumns.stream().map(RelDataTypeField::getIndex).collect(Collectors.toSet());
+    List<List<RexLiteral>> serializedValuesTuples =
+        values.getTuples().stream()
+            .map(
+                row -> {
+                  List<RexLiteral> serializedLiterals = new ArrayList<>();
+                  for (int i = 0; i < row.size(); i++) {
+                    RexLiteral column = row.get(i);
+                    if (!columnsToInterop.contains(i)) {
+                      serializedLiterals.add(column);
+                    } else {
+                      RexLiteral serializedColumn;
+                      if (column.isNull()) {
+                        serializedColumn =
+                            rexBuilder.makeNullLiteral(
+                                rexBuilder.getTypeFactory().createSqlType(SqlTypeName.VARCHAR));
+                      } else {
+                        serializedColumn =
+                            rexBuilder.makeLiteral(RexLiteral.value(column).toString());
+                      }
+
+                      serializedLiterals.add(serializedColumn);
+                    }
+                  }
+
+                  return serializedLiterals;
+                })
+            .collect(Collectors.toList());
+
+    // Adjust the Reldatatype for the now serialized columns
+    RelDataTypeFactory.FieldInfoBuilder fieldInfoBuilder = rexBuilder.getTypeFactory().builder();
+    RelDataType stringType = rexBuilder.getTypeFactory().createSqlType(SqlTypeName.VARCHAR);
+    RelDataType nullableStringType =
+        rexBuilder.getTypeFactory().createTypeWithNullability(stringType, true);
+    for (int i = 0; i < values.getRowType().getFieldCount(); i++) {
+      RelDataTypeField relDataTypeField = values.getRowType().getFieldList().get(i);
+      if (!columnsToInterop.contains(i)) {
+        fieldInfoBuilder.add(relDataTypeField);
+      } else {
+        if (relDataTypeField.getType().isNullable()) {
+          fieldInfoBuilder.add(relDataTypeField.getName(), nullableStringType);
+        } else {
+          fieldInfoBuilder.add(relDataTypeField.getName(), stringType);
+        }
+      }
+    }
+
+    RelDataType serializedRelDataType = fieldInfoBuilder.build();
+    RelNode serializedValues =
+        relBuilder.values(serializedValuesTuples, serializedRelDataType).build();
+
+    // Add the needed casting rex node
+    List<RexNode> projects = new ArrayList<>();
+    for (int i = 0; i < serializedValues.getRowType().getFieldCount(); i++) {
+      RexNode project = rexBuilder.makeInputRef(serializedValues, i);
+      if (columnsToInterop.contains(i)) {
+        RelDataType relDataType = values.getRowType().getFieldList().get(i).getType();
+        RexNode castCall = rexBuilder.makeCast(relDataType, project);
+        if (relDataType.isNullable()) {
+          RexNode isNull = rexBuilder.makeCall(IS_NULL, project);
+          RexNode nullLiteral = rexBuilder.makeNullLiteral(relDataType);
+          castCall = rexBuilder.makeCall(CASE, isNull, nullLiteral, castCall);
+        }
+
+        project = castCall;
+      }
+
+      projects.add(project);
+    }
+
+    return relBuilder
+        .push(serializedValues)
+        .project(projects, values.getRowType().getFieldNames())
+        .build();
   }
 }

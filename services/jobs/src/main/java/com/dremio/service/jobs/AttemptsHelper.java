@@ -15,14 +15,6 @@
  */
 package com.dremio.service.jobs;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-
 import com.dremio.exec.proto.UserBitShared.AttemptEvent;
 import com.dremio.exec.proto.UserBitShared.AttemptEvent.State;
 import com.dremio.service.job.proto.JobAttempt;
@@ -31,10 +23,15 @@ import com.dremio.service.job.proto.JobInfo;
 import com.dremio.service.job.proto.JobState;
 import com.dremio.service.job.proto.ResourceSchedulingInfo;
 import com.google.common.collect.ImmutableList;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
-/**
- * Helper methods for computing various metrics out of {@link JobAttempt}
- */
+/** Helper methods for computing various metrics out of {@link JobAttempt} */
 public class AttemptsHelper {
 
   private final Map<AttemptEvent.State, Long> stateDurations;
@@ -52,29 +49,29 @@ public class AttemptsHelper {
     this.events = events;
 
     long timeSpent;
-    for (int i=0; i < events.size(); i++) {
+    for (int i = 0; i < events.size(); i++) {
       if (isTerminal(events.get(i).getState())) {
         break;
       }
-      if (i == events.size()-1) {
+      if (i == events.size() - 1) {
         timeSpent = System.currentTimeMillis() - events.get(i).getStartTime();
       } else {
-        timeSpent = events.get(i+1).getStartTime() - events.get(i).getStartTime();
+        timeSpent = events.get(i + 1).getStartTime() - events.get(i).getStartTime();
       }
       long finalTimeSpent = timeSpent;
-      stateDurations.compute(events.get(i).getState(), (k,v) -> (v==null) ? finalTimeSpent : v + finalTimeSpent);
+      stateDurations.compute(
+          events.get(i).getState(), (k, v) -> (v == null) ? finalTimeSpent : v + finalTimeSpent);
     }
     this.stateDurations = stateDurations;
   }
 
   private boolean isTerminal(AttemptEvent.State state) {
-    return (state == State.COMPLETED ||
-      state == State.CANCELED ||
-      state == State.FAILED);
+    return (state == State.COMPLETED || state == State.CANCELED || state == State.FAILED);
   }
 
   /**
-   * True if the job has some state durations. Jobs that were run in older dremio versions (pre 4.5) will not have any.
+   * True if the job has some state durations. Jobs that were run in older dremio versions (pre 4.5)
+   * will not have any.
    *
    * @return true if the job has state durations.
    */
@@ -93,9 +90,10 @@ public class AttemptsHelper {
 
     return Optional.ofNullable(jobInfo.getCommandPoolWaitMillis()).orElse(0L);
   }
+
   /**
-   * @return computed enqueued duration in milliseconds,
-   *         null if {@link ResourceSchedulingInfo} is missing from the {@link JobInfo}
+   * @return computed enqueued duration in milliseconds, null if {@link ResourceSchedulingInfo} is
+   *     missing from the {@link JobInfo}
    */
   public static long getLegacyEnqueuedTime(JobAttempt jobAttempt) {
     final JobInfo jobInfo = jobAttempt.getInfo();
@@ -130,10 +128,12 @@ public class AttemptsHelper {
   }
 
   public static long getLegacyPlanningTime(JobAttempt jobAttempt) {
-    long planningScheduling = Optional.ofNullable(jobAttempt.getDetails().getTimeSpentInPlanning()).orElse(0L);
+    long planningScheduling =
+        Optional.ofNullable(jobAttempt.getDetails().getTimeSpentInPlanning()).orElse(0L);
     final long enqueuedTime = getLegacyEnqueuedTime(jobAttempt);
 
-    // take into account the fact that JobDetails.timeSpentInPlanning will only be set after the query starts executing
+    // take into account the fact that JobDetails.timeSpentInPlanning will only be set after the
+    // query starts executing
     planningScheduling = Math.max(planningScheduling, enqueuedTime);
 
     return planningScheduling - enqueuedTime;
@@ -152,7 +152,8 @@ public class AttemptsHelper {
     final long startTime = Optional.ofNullable(jobInfo.getStartTime()).orElse(0L);
     // finishTime is null until the query is no longer running
     final long finishTime = Optional.ofNullable(jobInfo.getFinishTime()).orElse(startTime);
-    final long planningScheduling = Optional.ofNullable(jobDetails.getTimeSpentInPlanning()).orElse(0L);
+    final long planningScheduling =
+        Optional.ofNullable(jobDetails.getTimeSpentInPlanning()).orElse(0L);
 
     return finishTime - startTime - planningScheduling;
   }
@@ -192,13 +193,14 @@ public class AttemptsHelper {
     return getDuration(State.STARTING);
   }
 
-  public Long getRunningTime() { return getDuration(State.RUNNING);
+  public Long getRunningTime() {
+    return getDuration(State.RUNNING);
   }
 
   public Long getTotalTime() {
     if (events.size() > 0) {
-      if (isTerminal(events.get(events.size()-1).getState())) {
-        return events.get(events.size()-1).getStartTime() - events.get(0).getStartTime();
+      if (isTerminal(events.get(events.size() - 1).getState())) {
+        return events.get(events.size() - 1).getStartTime() - events.get(0).getStartTime();
       }
       return System.currentTimeMillis() - events.get(0).getStartTime();
     }
@@ -207,7 +209,8 @@ public class AttemptsHelper {
 
   public Long getQueuedTimeStamp() {
     if (getQueuedTime() != null) {
-      Optional<AttemptEvent> event = events.stream().filter(e -> e.getState() == State.QUEUED).findAny();
+      Optional<AttemptEvent> event =
+          events.stream().filter(e -> e.getState() == State.QUEUED).findAny();
       if (event.isPresent()) {
         return event.get().getStartTime();
       }
@@ -217,7 +220,8 @@ public class AttemptsHelper {
 
   public Long getRunningTimeStamp() {
     if (getRunningTime() != null) {
-      Optional<AttemptEvent> event = events.stream().filter(e -> e.getState() == State.RUNNING).findAny();
+      Optional<AttemptEvent> event =
+          events.stream().filter(e -> e.getState() == State.RUNNING).findAny();
       if (event.isPresent()) {
         return event.get().getStartTime();
       }

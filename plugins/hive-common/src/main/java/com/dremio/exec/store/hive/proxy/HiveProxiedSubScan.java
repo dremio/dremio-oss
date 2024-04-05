@@ -15,10 +15,6 @@
  */
 package com.dremio.exec.store.hive.proxy;
 
-import java.util.List;
-
-import org.pf4j.ExtensionPoint;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.OpProps;
@@ -28,11 +24,10 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.ScanFilter;
 import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.List;
+import org.pf4j.ExtensionPoint;
 
-/**
- * Abstract class representing a Hive SubScan that is in a separate
- * ClassLoader from Dremio's.
- */
+/** Abstract class representing a Hive SubScan that is in a separate ClassLoader from Dremio's. */
 public abstract class HiveProxiedSubScan implements ExtensionPoint {
 
   private final OpProps props;
@@ -44,10 +39,7 @@ public abstract class HiveProxiedSubScan implements ExtensionPoint {
   private final List<SchemaPath> columns;
 
   protected HiveProxiedSubScan(
-    OpProps props,
-    BatchSchema fullSchema,
-    List<String> tablePath,
-    List<SchemaPath> columns) {
+      OpProps props, BatchSchema fullSchema, List<String> tablePath, List<SchemaPath> columns) {
     this.props = props;
     this.fullSchema = fullSchema;
     this.tablePath = tablePath;

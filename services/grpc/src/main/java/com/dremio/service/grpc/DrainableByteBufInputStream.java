@@ -15,18 +15,16 @@
  */
 package com.dremio.service.grpc;
 
-import java.io.IOException;
-import java.io.OutputStream;
-
 import io.grpc.Drainable;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 
-/**
- * Custom Stream that enables setting the grpc buffers directly from this stream.
- */
+/** Custom Stream that enables setting the grpc buffers directly from this stream. */
 public class DrainableByteBufInputStream extends ByteBufInputStream implements Drainable {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DrainableByteBufInputStream.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(DrainableByteBufInputStream.class);
   private final ByteBuf buf;
   private volatile boolean isClosed = false;
 

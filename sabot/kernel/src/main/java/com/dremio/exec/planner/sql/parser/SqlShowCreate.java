@@ -15,9 +15,10 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.dremio.service.namespace.NamespaceKey;
+import com.google.common.collect.Lists;
 import java.util.List;
 import java.util.stream.Collectors;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -28,28 +29,27 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.dremio.service.namespace.NamespaceKey;
-import com.google.common.collect.Lists;
-
 /**
- * Sql parse tree node for SQL command:
- *   SHOW CREATE (VIEW | TABLE) datasetName
- *   [ AT ( REF[ERENCE] | BRANCH | TAG | COMMIT ) refValue ]
+ * Sql parse tree node for SQL command: SHOW CREATE (VIEW | TABLE) datasetName [ AT ( REF[ERENCE] |
+ * BRANCH | TAG | COMMIT ) refValue ]
  */
-
 public class SqlShowCreate extends SqlCall {
 
-  public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("SHOW_CREATE_VIEW", SqlKind.OTHER) {
-    @Override
-    public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      return new SqlShowCreate(
-        pos,
-        ((SqlLiteral) operands[0]).booleanValue(),
-        (SqlIdentifier) operands[1],
-        operands[2] != null ? ((SqlLiteral) operands[2]).symbolValue(ReferenceType.class) : null,
-        (SqlIdentifier) operands[3]);
-    }
-  };
+  public static final SqlSpecialOperator OPERATOR =
+      new SqlSpecialOperator("SHOW_CREATE_VIEW", SqlKind.OTHER) {
+        @Override
+        public SqlCall createCall(
+            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+          return new SqlShowCreate(
+              pos,
+              ((SqlLiteral) operands[0]).booleanValue(),
+              (SqlIdentifier) operands[1],
+              operands[2] != null
+                  ? ((SqlLiteral) operands[2]).symbolValue(ReferenceType.class)
+                  : null,
+              (SqlIdentifier) operands[3]);
+        }
+      };
 
   private boolean isView;
   private SqlIdentifier datasetName;
@@ -57,11 +57,11 @@ public class SqlShowCreate extends SqlCall {
   private SqlIdentifier refValue;
 
   public SqlShowCreate(
-    SqlParserPos pos,
-    boolean isView,
-    SqlIdentifier datasetName,
-    ReferenceType refType,
-    SqlIdentifier refValue) {
+      SqlParserPos pos,
+      boolean isView,
+      SqlIdentifier datasetName,
+      ReferenceType refType,
+      SqlIdentifier refValue) {
     super(pos);
     this.isView = isView;
     this.datasetName = datasetName;
@@ -103,7 +103,7 @@ public class SqlShowCreate extends SqlCall {
     return new NamespaceKey(datasetName.names);
   }
 
-  public String getFullName(){
+  public String getFullName() {
     if (datasetName.isSimple()) {
       return datasetName.getSimple();
     }

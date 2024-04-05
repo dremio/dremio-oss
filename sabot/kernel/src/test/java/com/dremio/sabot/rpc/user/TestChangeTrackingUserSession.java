@@ -15,22 +15,22 @@
  */
 package com.dremio.sabot.rpc.user;
 
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.Test;
-
 import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.map.CaseInsensitiveMap;
 import com.dremio.exec.proto.UserBitShared.UserCredentials;
 import com.dremio.exec.store.ischema.InfoSchemaConstants;
 import com.google.common.collect.ImmutableList;
+import org.junit.Assert;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
 public class TestChangeTrackingUserSession {
   private static final String TEST_USER = "dummy@dummy.com";
   private static final String BRANCH_NAME = "branchName";
   private static final String SOURCE_NAME = "SourceName1";
   private static final String ENGINE = "preview";
-  private static final UserCredentials USER_CREDENTIALS = UserCredentials.newBuilder().setUserName(TEST_USER).build();
+  private static final UserCredentials USER_CREDENTIALS =
+      UserCredentials.newBuilder().setUserName(TEST_USER).build();
   private static final ImmutableList<String> PATH_CONTEXT = ImmutableList.of("path1", "path2");
   private final String schemaName = "path1.path2";
   private static final VersionContext BRANCH = VersionContext.ofBranch(BRANCH_NAME);
@@ -39,29 +39,33 @@ public class TestChangeTrackingUserSession {
   private static ChangeTrackingUserSession delegateCopiedFromUserSession;
   private static ChangeTrackingUserSession changeTrackingWithBuilderAttributes;
   private static ChangeTrackingUserSession delegateCopiedFromChangeTrackingUserSession;
-  private final ChangeTrackingUserSession unmodifiedCTUS = ChangeTrackingUserSession.Builder.newBuilder().build();
-  private final ChangeTrackingUserSession sameCTUS = ChangeTrackingUserSession.Builder.newBuilder(delegateCopiedFromUserSession).build();
+  private final ChangeTrackingUserSession unmodifiedCTUS =
+      ChangeTrackingUserSession.Builder.newBuilder().build();
+  private final ChangeTrackingUserSession sameCTUS =
+      ChangeTrackingUserSession.Builder.newBuilder(delegateCopiedFromUserSession).build();
 
   @BeforeClass
   public static void setup() {
     sourceVersionMap = CaseInsensitiveMap.newHashMap();
     sourceVersionMap.put(SOURCE_NAME, BRANCH);
-    inputUserSession = UserSession.Builder.newBuilder()
-      .withCredentials(USER_CREDENTIALS)
-      .withDefaultSchema(PATH_CONTEXT)
-      .withSourceVersionMapping(sourceVersionMap)
-      .withErrorOnUnspecifiedVersion(true)
-      .build();
-    delegateCopiedFromUserSession = ChangeTrackingUserSession.Builder.newBuilder()
-      .withDelegate(inputUserSession)
-      .build();
-    delegateCopiedFromChangeTrackingUserSession = ChangeTrackingUserSession.Builder.newBuilderWithCopy(delegateCopiedFromUserSession).build();
-    changeTrackingWithBuilderAttributes = ChangeTrackingUserSession.Builder.newBuilder()
-      .withDefaultSchema(PATH_CONTEXT)
-      .withEngineName(ENGINE)
-      .withErrorOnUnspecifiedVersion(true)
-      .withSourceVersionMapping(sourceVersionMap)
-      .build();
+    inputUserSession =
+        UserSession.Builder.newBuilder()
+            .withCredentials(USER_CREDENTIALS)
+            .withDefaultSchema(PATH_CONTEXT)
+            .withSourceVersionMapping(sourceVersionMap)
+            .withErrorOnUnspecifiedVersion(true)
+            .build();
+    delegateCopiedFromUserSession =
+        ChangeTrackingUserSession.Builder.newBuilder().withDelegate(inputUserSession).build();
+    delegateCopiedFromChangeTrackingUserSession =
+        ChangeTrackingUserSession.Builder.newBuilderWithCopy(delegateCopiedFromUserSession).build();
+    changeTrackingWithBuilderAttributes =
+        ChangeTrackingUserSession.Builder.newBuilder()
+            .withDefaultSchema(PATH_CONTEXT)
+            .withEngineName(ENGINE)
+            .withErrorOnUnspecifiedVersion(true)
+            .withSourceVersionMapping(sourceVersionMap)
+            .build();
   }
 
   @Test
@@ -77,19 +81,30 @@ public class TestChangeTrackingUserSession {
   @Test
   public void testBuildWithDelegate() {
     Assert.assertEquals(TEST_USER, delegateCopiedFromUserSession.getCredentials().getUserName());
-    Assert.assertEquals(InfoSchemaConstants.IS_CATALOG_NAME, delegateCopiedFromUserSession.getCatalogName());
+    Assert.assertEquals(
+        InfoSchemaConstants.IS_CATALOG_NAME, delegateCopiedFromUserSession.getCatalogName());
     Assert.assertEquals(schemaName, delegateCopiedFromUserSession.getDefaultSchemaName());
-    Assert.assertTrue(delegateCopiedFromUserSession.getSourceVersionMapping().get(SOURCE_NAME).equals(BRANCH));
+    Assert.assertTrue(
+        delegateCopiedFromUserSession.getSourceVersionMapping().get(SOURCE_NAME).equals(BRANCH));
     Assert.assertTrue(delegateCopiedFromUserSession.errorOnUnspecifiedVersion());
   }
 
   @Test
   public void testBuildWithDelegateAgainstInputUserSession() {
-    Assert.assertEquals(inputUserSession.getCredentials().getUserName(), delegateCopiedFromUserSession.getCredentials().getUserName());
-    Assert.assertEquals(inputUserSession.getCatalogName(), delegateCopiedFromUserSession.getCatalogName());
-    Assert.assertEquals(inputUserSession.getDefaultSchemaName(), delegateCopiedFromUserSession.getDefaultSchemaName());
-    Assert.assertEquals(inputUserSession.getSessionVersionForSource(SOURCE_NAME), delegateCopiedFromUserSession.getSessionVersionForSource(SOURCE_NAME));
-    Assert.assertEquals(inputUserSession.errorOnUnspecifiedVersion(), delegateCopiedFromUserSession.errorOnUnspecifiedVersion());
+    Assert.assertEquals(
+        inputUserSession.getCredentials().getUserName(),
+        delegateCopiedFromUserSession.getCredentials().getUserName());
+    Assert.assertEquals(
+        inputUserSession.getCatalogName(), delegateCopiedFromUserSession.getCatalogName());
+    Assert.assertEquals(
+        inputUserSession.getDefaultSchemaName(),
+        delegateCopiedFromUserSession.getDefaultSchemaName());
+    Assert.assertEquals(
+        inputUserSession.getSessionVersionForSource(SOURCE_NAME),
+        delegateCopiedFromUserSession.getSessionVersionForSource(SOURCE_NAME));
+    Assert.assertEquals(
+        inputUserSession.errorOnUnspecifiedVersion(),
+        delegateCopiedFromUserSession.errorOnUnspecifiedVersion());
   }
 
   @Test
@@ -99,11 +114,20 @@ public class TestChangeTrackingUserSession {
 
   @Test
   public void testDelegateCopiedFromChangeTrackingUserSession() {
-    Assert.assertNotEquals(delegateCopiedFromUserSession, delegateCopiedFromChangeTrackingUserSession);
-    Assert.assertEquals(delegateCopiedFromUserSession.getCredentials().getUserName(), delegateCopiedFromChangeTrackingUserSession.getCredentials().getUserName());
-    Assert.assertEquals(delegateCopiedFromUserSession.getDefaultSchemaName(), delegateCopiedFromChangeTrackingUserSession.getDefaultSchemaName());
-    Assert.assertEquals(delegateCopiedFromUserSession.getSessionVersionForSource(SOURCE_NAME), delegateCopiedFromChangeTrackingUserSession.getSessionVersionForSource(SOURCE_NAME));
-    Assert.assertEquals(delegateCopiedFromUserSession.errorOnUnspecifiedVersion(), delegateCopiedFromChangeTrackingUserSession.errorOnUnspecifiedVersion());
+    Assert.assertNotEquals(
+        delegateCopiedFromUserSession, delegateCopiedFromChangeTrackingUserSession);
+    Assert.assertEquals(
+        delegateCopiedFromUserSession.getCredentials().getUserName(),
+        delegateCopiedFromChangeTrackingUserSession.getCredentials().getUserName());
+    Assert.assertEquals(
+        delegateCopiedFromUserSession.getDefaultSchemaName(),
+        delegateCopiedFromChangeTrackingUserSession.getDefaultSchemaName());
+    Assert.assertEquals(
+        delegateCopiedFromUserSession.getSessionVersionForSource(SOURCE_NAME),
+        delegateCopiedFromChangeTrackingUserSession.getSessionVersionForSource(SOURCE_NAME));
+    Assert.assertEquals(
+        delegateCopiedFromUserSession.errorOnUnspecifiedVersion(),
+        delegateCopiedFromChangeTrackingUserSession.errorOnUnspecifiedVersion());
   }
 
   @Test
@@ -111,6 +135,10 @@ public class TestChangeTrackingUserSession {
     Assert.assertEquals(schemaName, changeTrackingWithBuilderAttributes.getDefaultSchemaName());
     Assert.assertEquals(ENGINE, changeTrackingWithBuilderAttributes.getEngine());
     Assert.assertTrue(changeTrackingWithBuilderAttributes.errorOnUnspecifiedVersion());
-    Assert.assertTrue(changeTrackingWithBuilderAttributes.getSourceVersionMapping().get(SOURCE_NAME).equals(BRANCH));
+    Assert.assertTrue(
+        changeTrackingWithBuilderAttributes
+            .getSourceVersionMapping()
+            .get(SOURCE_NAME)
+            .equals(BRANCH));
   }
 }

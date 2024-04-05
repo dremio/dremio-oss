@@ -15,14 +15,13 @@
  */
 package com.dremio.exec.store.iceberg;
 
-import org.apache.iceberg.TableMetadata;
-import org.apache.iceberg.TableMetadataParser;
-
 import com.dremio.exec.catalog.VacuumOptions;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
 import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf.IcebergDatasetSplitXAttr;
+import org.apache.iceberg.TableMetadata;
+import org.apache.iceberg.TableMetadataParser;
 
 public class SingleTableIcebergExpirySnapshotsReader extends IcebergExpirySnapshotsReader {
 
@@ -31,7 +30,8 @@ public class SingleTableIcebergExpirySnapshotsReader extends IcebergExpirySnapsh
   public SingleTableIcebergExpirySnapshotsReader(
       OperatorContext context,
       IcebergDatasetSplitXAttr splitXAttr,
-      SupportsIcebergMutablePlugin icebergMutablePlugin, OpProps props,
+      SupportsIcebergMutablePlugin icebergMutablePlugin,
+      OpProps props,
       SnapshotsScanOptions snapshotsScanOptions) {
     super(context, icebergMutablePlugin, props, snapshotsScanOptions);
     this.splitXAttr = splitXAttr;
@@ -52,11 +52,27 @@ public class SingleTableIcebergExpirySnapshotsReader extends IcebergExpirySnapsh
     } else if (SnapshotsScanOptions.Mode.EXPIRED_SNAPSHOTS.equals(snapshotsScanOptions.getMode())) {
       commitExpiry = false;
     }
-    VacuumOptions options = new VacuumOptions(isExpireSnapshots, isRemoveOrphanFiles,
-      snapshotsScanOptions.getOlderThanInMillis(), snapshotsScanOptions.getRetainLast(), null, null);
+    VacuumOptions options =
+        new VacuumOptions(
+            isExpireSnapshots,
+            isRemoveOrphanFiles,
+            snapshotsScanOptions.getOlderThanInMillis(),
+            snapshotsScanOptions.getRetainLast(),
+            null,
+            null);
 
-    currentExpiryAction = new IcebergExpiryAction(icebergMutablePlugin, props,
-      context, options, tableMetadata, splitXAttr.getTableName(), splitXAttr.getDbName(), null, io, commitExpiry);
+    currentExpiryAction =
+        new IcebergExpiryAction(
+            icebergMutablePlugin,
+            props,
+            context,
+            options,
+            tableMetadata,
+            splitXAttr.getTableName(),
+            splitXAttr.getDbName(),
+            null,
+            io,
+            commitExpiry);
     noMoreActions = true;
   }
 }

@@ -15,25 +15,25 @@
  */
 package com.dremio.sabot.exec;
 
-import java.util.List;
-import java.util.Optional;
-
 import com.dremio.exec.proto.CoordExecRPC.FragmentStatus;
 import com.dremio.sabot.exec.fragment.FragmentExecutor;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.Empty;
+import java.util.List;
+import java.util.Optional;
 
 /**
  * Periodically gather current statistics.
  *
- * We use a thread that runs periodically to collect current statistics about RUNNING queries,
+ * <p>We use a thread that runs periodically to collect current statistics about RUNNING queries,
  * such as current memory consumption, number of rows processed, and so on.
  */
 public class FragmentStatusThread extends Thread implements AutoCloseable {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FragmentStatusThread.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(FragmentStatusThread.class);
 
   private static final int STATUS_PERIOD_SECONDS = 5;
 
@@ -41,7 +41,8 @@ public class FragmentStatusThread extends Thread implements AutoCloseable {
   private final QueriesClerk clerk;
   private final MaestroProxy maestroProxy;
 
-  public FragmentStatusThread(Iterable<FragmentExecutor> executors, QueriesClerk clerk, MaestroProxy maestroProxy) {
+  public FragmentStatusThread(
+      Iterable<FragmentExecutor> executors, QueriesClerk clerk, MaestroProxy maestroProxy) {
     super();
     setDaemon(true);
     setName("fragment-status-reporter");
@@ -78,9 +79,7 @@ public class FragmentStatusThread extends Thread implements AutoCloseable {
     }
   }
 
-  /**
-   * Refresh the status/metrics for all running fragments.
-   */
+  /** Refresh the status/metrics for all running fragments. */
   private void refreshFragmentStatuses() {
     for (final FragmentExecutor fragmentExecutor : executors) {
       final FragmentStatus status = fragmentExecutor.getStatus();
@@ -93,14 +92,14 @@ public class FragmentStatusThread extends Thread implements AutoCloseable {
   }
 
   /**
-   * Send the profiles for all queries currently running on this executor, to the
-   * coordinator that initiated the respective query
+   * Send the profiles for all queries currently running on this executor, to the coordinator that
+   * initiated the respective query
    */
   private void sendQueryProfiles(List<ListenableFuture<Empty>> futures) {
     for (final WorkloadTicket workloadTicket : clerk.getWorkloadTickets()) {
       for (final QueryTicket queryTicket : workloadTicket.getActiveQueryTickets()) {
         Optional<ListenableFuture<Empty>> future =
-          maestroProxy.sendQueryProfile(queryTicket.getQueryId());
+            maestroProxy.sendQueryProfile(queryTicket.getQueryId());
         future.ifPresent((x) -> futures.add(x));
       }
     }

@@ -15,8 +15,6 @@
  */
 package com.dremio.service.jobcounts.server;
 
-import java.util.List;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.service.jobcounts.DeleteJobCountsRequest;
 import com.dremio.service.jobcounts.GetJobCountsRequest;
@@ -26,15 +24,15 @@ import com.dremio.service.jobcounts.UpdateJobCountsRequest;
 import com.dremio.service.jobcounts.server.store.JobCountStore;
 import com.google.inject.Inject;
 import com.google.protobuf.Empty;
-
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
+import java.util.List;
 
-/**
- * Implementation of gRPC service for Job Counts.
- */
-public class JobCountsServiceImpl extends JobCountsServiceGrpc.JobCountsServiceImplBase implements AutoCloseable {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(JobCountsServiceImpl.class);
+/** Implementation of gRPC service for Job Counts. */
+public class JobCountsServiceImpl extends JobCountsServiceGrpc.JobCountsServiceImplBase
+    implements AutoCloseable {
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(JobCountsServiceImpl.class);
 
   private final JobCountStore jobCountStore;
 
@@ -44,22 +42,27 @@ public class JobCountsServiceImpl extends JobCountsServiceGrpc.JobCountsServiceI
   }
 
   @Override
-  public void getJobCounts(GetJobCountsRequest request, StreamObserver<JobCounts> responseObserver) {
+  public void getJobCounts(
+      GetJobCountsRequest request, StreamObserver<JobCounts> responseObserver) {
     logger.debug("Got get job counts request {}", request);
     try {
-      List<Integer> counts = jobCountStore.getCounts(request.getIdsList(), request.getType(), request.getJobCountsAgeInDays());
+      List<Integer> counts =
+          jobCountStore.getCounts(
+              request.getIdsList(), request.getType(), request.getJobCountsAgeInDays());
       JobCounts.Builder jobCounts = JobCounts.newBuilder();
       jobCounts.addAllCount(counts);
       responseObserver.onNext(jobCounts.build());
       responseObserver.onCompleted();
     } catch (Exception ex) {
       logger.error("Exception getting job counts: ", ex);
-      responseObserver.onError(Status.INTERNAL.withDescription(ex.getMessage()).asRuntimeException());
+      responseObserver.onError(
+          Status.INTERNAL.withDescription(ex.getMessage()).asRuntimeException());
     }
   }
 
   @Override
-  public void updateJobCounts(UpdateJobCountsRequest request, StreamObserver<Empty> responseObserver) {
+  public void updateJobCounts(
+      UpdateJobCountsRequest request, StreamObserver<Empty> responseObserver) {
     logger.debug("Got update job counts request {}", request);
     try {
       jobCountStore.bulkUpdateCount(request.getCountUpdatesList());
@@ -67,12 +70,14 @@ public class JobCountsServiceImpl extends JobCountsServiceGrpc.JobCountsServiceI
       responseObserver.onCompleted();
     } catch (Exception ex) {
       logger.error("Exception in update job counts: ", ex);
-      responseObserver.onError(Status.INTERNAL.withDescription(ex.getMessage()).asRuntimeException());
+      responseObserver.onError(
+          Status.INTERNAL.withDescription(ex.getMessage()).asRuntimeException());
     }
   }
 
   @Override
-  public void deleteJobCounts(DeleteJobCountsRequest request, StreamObserver<Empty> responseObserver) {
+  public void deleteJobCounts(
+      DeleteJobCountsRequest request, StreamObserver<Empty> responseObserver) {
     logger.debug("Got delete job counts request: {}", request);
     try {
       jobCountStore.bulkDeleteCount(request.getIdsList());
@@ -80,7 +85,8 @@ public class JobCountsServiceImpl extends JobCountsServiceGrpc.JobCountsServiceI
       responseObserver.onCompleted();
     } catch (Exception ex) {
       logger.error("Exception in delete job counts: ", ex);
-      responseObserver.onError(Status.INTERNAL.withDescription(ex.getMessage()).asRuntimeException());
+      responseObserver.onError(
+          Status.INTERNAL.withDescription(ex.getMessage()).asRuntimeException());
     }
   }
 

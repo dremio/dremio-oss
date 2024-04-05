@@ -15,21 +15,23 @@
  */
 package com.dremio.exec.planner.sql;
 
+import com.google.common.collect.Maps;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 
-import com.google.common.collect.Maps;
-
 /**
- * A special type of concurrent map which attempts to create an object before returning that it does not exist.  It will also provide the same functionality on it's keyset.
+ * A special type of concurrent map which attempts to create an object before returning that it does
+ * not exist. It will also provide the same functionality on it's keyset.
+ *
  * @param <KEY> The key in the map.
  * @param <VALUE> The value in the map.
  */
 public class ExpandingConcurrentMap<KEY, VALUE> implements ConcurrentMap<KEY, VALUE> {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ExpandingConcurrentMap.class);
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ExpandingConcurrentMap.class);
 
   private final ConcurrentMap<KEY, VALUE> internalMap = Maps.newConcurrentMap();
   private final DelegatingKeySet keySet = new DelegatingKeySet();
@@ -37,6 +39,7 @@ public class ExpandingConcurrentMap<KEY, VALUE> implements ConcurrentMap<KEY, VA
 
   /**
    * Create a new ExpandingConcurrentMap.
+   *
    * @param fac The object factory responsible for attempting to generate object instances.
    */
   public ExpandingConcurrentMap(MapValueFactory<KEY, VALUE> fac) {
@@ -55,7 +58,8 @@ public class ExpandingConcurrentMap<KEY, VALUE> implements ConcurrentMap<KEY, VA
   }
 
   public boolean alreadyContainsKey(Object k) {
-    @SuppressWarnings("unchecked") KEY key = (KEY) k;
+    @SuppressWarnings("unchecked")
+    KEY key = (KEY) k;
 
     if (internalMap.containsKey(key)) {
       return true;
@@ -65,7 +69,8 @@ public class ExpandingConcurrentMap<KEY, VALUE> implements ConcurrentMap<KEY, VA
 
   @Override
   public boolean containsKey(Object k) {
-    @SuppressWarnings("unchecked") KEY key = (KEY) k;
+    @SuppressWarnings("unchecked")
+    KEY key = (KEY) k;
 
     if (internalMap.containsKey(key)) {
       return true;
@@ -158,7 +163,7 @@ public class ExpandingConcurrentMap<KEY, VALUE> implements ConcurrentMap<KEY, VA
     return null;
   }
 
-  private class DelegatingKeySet implements Set<KEY>{
+  private class DelegatingKeySet implements Set<KEY> {
 
     @Override
     public int size() {
@@ -229,13 +234,12 @@ public class ExpandingConcurrentMap<KEY, VALUE> implements ConcurrentMap<KEY, VA
     public void clear() {
       throw new UnsupportedOperationException();
     }
-
   }
 
   public interface MapValueFactory<KEY, VALUE> {
 
     public VALUE create(KEY key);
+
     public void destroy(VALUE value);
   }
-
 }

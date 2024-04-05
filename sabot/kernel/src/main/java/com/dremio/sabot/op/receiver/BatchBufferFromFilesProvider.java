@@ -15,12 +15,6 @@
  */
 package com.dremio.sabot.op.receiver;
 
-import java.io.IOException;
-import java.io.InputStream;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.cache.VectorAccessibleSerializable;
 import com.dremio.exec.proto.FileExec;
@@ -31,9 +25,14 @@ import com.dremio.sabot.threads.sharedres.SharedResource;
 import com.dremio.sabot.threads.sharedres.SharedResourceGroup;
 import com.dremio.sabot.threads.sharedres.SharedResourceType;
 import com.google.common.base.Preconditions;
+import java.io.IOException;
+import java.io.InputStream;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.BufferAllocator;
 
 public class BatchBufferFromFilesProvider implements RawFragmentBatchProvider {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BatchBufferFromFilesProvider.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(BatchBufferFromFilesProvider.class);
   private final FileCursorManager cursorManager;
   private final FileCursorManager.Observer observer;
   private final BufferAllocator allocator;
@@ -43,16 +42,17 @@ public class BatchBufferFromFilesProvider implements RawFragmentBatchProvider {
   private boolean isStreamDone;
   private final String resourceName;
 
-  public BatchBufferFromFilesProvider(String uniqueId,
-                                      int readerMajorFragId,
-                                      SharedResourceGroup resourceGroup,
-                                      BufferAllocator parentAllocator,
-                                      FileCursorManagerFactory cursorManagerFactory) {
+  public BatchBufferFromFilesProvider(
+      String uniqueId,
+      int readerMajorFragId,
+      SharedResourceGroup resourceGroup,
+      BufferAllocator parentAllocator,
+      FileCursorManagerFactory cursorManagerFactory) {
     this.cursorManager = cursorManagerFactory.getManager(uniqueId);
 
     this.resourceName = "reader-" + readerMajorFragId + "-file-" + uniqueId;
-    final SharedResource resource = resourceGroup.createResource(this.resourceName,
-      SharedResourceType.SEND_MSG_DATA);
+    final SharedResource resource =
+        resourceGroup.createResource(this.resourceName, SharedResourceType.SEND_MSG_DATA);
     this.observer = cursorManager.registerReader(resource);
     this.allocator = parentAllocator.newChildAllocator("bridgeFileReader", 0, Long.MAX_VALUE);
   }
@@ -119,8 +119,12 @@ public class BatchBufferFromFilesProvider implements RawFragmentBatchProvider {
   }
 
   private void updateCursor(int fileSeq, long updatedCursor) {
-    Preconditions.checkState(updatedCursor >= currentCursor,
-      "cursor value should not reduce, currentCursor " + currentCursor + " updatedCursor " + updatedCursor);
+    Preconditions.checkState(
+        updatedCursor >= currentCursor,
+        "cursor value should not reduce, currentCursor "
+            + currentCursor
+            + " updatedCursor "
+            + updatedCursor);
     currentCursor = updatedCursor;
     observer.updateCursor(fileSeq, updatedCursor);
   }

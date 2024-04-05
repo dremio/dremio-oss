@@ -15,14 +15,6 @@
  */
 package com.dremio.service.accelerator;
 
-import java.util.Iterator;
-import java.util.concurrent.Executor;
-
-import javax.inject.Provider;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.store.sys.accel.AccelerationListManager;
 import com.dremio.service.acceleration.ReflectionDescriptionServiceGrpc;
@@ -31,54 +23,68 @@ import com.dremio.service.grpc.OnReadyHandler;
 import com.dremio.service.reflection.ReflectionStatusService;
 import com.dremio.service.reflection.store.MaterializationStore;
 import com.google.common.collect.Streams;
-
 import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
+import java.util.Iterator;
+import java.util.concurrent.Executor;
+import javax.inject.Provider;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- *Acceleration List Service gRPC implements {@link ReflectionDescriptionServiceGrpc.ReflectionDescriptionServiceImplBase}
+ * Acceleration List Service gRPC implements {@link
+ * ReflectionDescriptionServiceGrpc.ReflectionDescriptionServiceImplBase}
  */
-
-public class AccelerationListServiceImpl extends ReflectionDescriptionServiceGrpc.ReflectionDescriptionServiceImplBase {
+public class AccelerationListServiceImpl
+    extends ReflectionDescriptionServiceGrpc.ReflectionDescriptionServiceImplBase {
   private static final Logger logger = LoggerFactory.getLogger(AccelerationListServiceImpl.class);
-
 
   private final Provider<ReflectionStatusService> reflectionStatusService;
   private final Provider<com.dremio.service.reflection.ReflectionService> reflectionService;
   private final MaterializationStore materializationStore;
   private final Provider<Executor> executor;
 
-  public AccelerationListServiceImpl (
-    Provider<ReflectionStatusService> reflectionStatusService,
-    Provider<com.dremio.service.reflection.ReflectionService> reflectionService,
-    Provider<LegacyKVStoreProvider> storeProvider,
-    Provider<Executor> executor
-  ) {
+  public AccelerationListServiceImpl(
+      Provider<ReflectionStatusService> reflectionStatusService,
+      Provider<com.dremio.service.reflection.ReflectionService> reflectionService,
+      Provider<LegacyKVStoreProvider> storeProvider,
+      Provider<Executor> executor) {
     this.reflectionStatusService = reflectionStatusService;
     this.reflectionService = reflectionService;
     this.materializationStore = new MaterializationStore(storeProvider);
     this.executor = executor;
   }
 
-  private com.dremio.service.reflection.ReflectionService getReflectionService(){
-    return  this.reflectionService.get();
+  private com.dremio.service.reflection.ReflectionService getReflectionService() {
+    return this.reflectionService.get();
   }
 
-  private ReflectionStatusService getReflectionStatusService(){
+  private ReflectionStatusService getReflectionStatusService() {
     return this.reflectionStatusService.get();
   }
 
   @Override
-  public void listReflections(ReflectionDescriptionServiceRPC.ListReflectionsRequest request,
-                              StreamObserver<ReflectionDescriptionServiceRPC.ListReflectionsResponse> responseObserver) {
-    Iterator<AccelerationListManager.ReflectionInfo> reflections = getReflectionStatusService().getReflections();
-    Iterator<ReflectionDescriptionServiceRPC.ListReflectionsResponse> reflectionsProto = Streams.stream(reflections).map(AccelerationListManager.ReflectionInfo::toProto).iterator();
+  public void listReflections(
+      ReflectionDescriptionServiceRPC.ListReflectionsRequest request,
+      StreamObserver<ReflectionDescriptionServiceRPC.ListReflectionsResponse> responseObserver) {
+    Iterator<AccelerationListManager.ReflectionInfo> reflections =
+        getReflectionStatusService().getReflections();
+    Iterator<ReflectionDescriptionServiceRPC.ListReflectionsResponse> reflectionsProto =
+        Streams.stream(reflections).map(AccelerationListManager.ReflectionInfo::toProto).iterator();
 
-    final ServerCallStreamObserver<ReflectionDescriptionServiceRPC.ListReflectionsResponse> streamObserver = (ServerCallStreamObserver<ReflectionDescriptionServiceRPC.ListReflectionsResponse>) responseObserver;
+    final ServerCallStreamObserver<ReflectionDescriptionServiceRPC.ListReflectionsResponse>
+        streamObserver =
+            (ServerCallStreamObserver<ReflectionDescriptionServiceRPC.ListReflectionsResponse>)
+                responseObserver;
 
-    final class Reflections extends OnReadyHandler<ReflectionDescriptionServiceRPC.ListReflectionsResponse>{
-      Reflections(){
-        super("get-reflections", AccelerationListServiceImpl.this.executor.get(), streamObserver, reflectionsProto);
+    final class Reflections
+        extends OnReadyHandler<ReflectionDescriptionServiceRPC.ListReflectionsResponse> {
+      Reflections() {
+        super(
+            "get-reflections",
+            AccelerationListServiceImpl.this.executor.get(),
+            streamObserver,
+            reflectionsProto);
       }
     }
 
@@ -88,15 +94,25 @@ public class AccelerationListServiceImpl extends ReflectionDescriptionServiceGrp
   }
 
   @Override
-  public void getRefreshInfo(ReflectionDescriptionServiceRPC.GetRefreshInfoRequest request,
-                             StreamObserver<ReflectionDescriptionServiceRPC.GetRefreshInfoResponse> responseObserver) {
-    Iterator<ReflectionDescriptionServiceRPC.GetRefreshInfoResponse> refreshInfos = getReflectionStatusService().getRefreshInfos();
+  public void getRefreshInfo(
+      ReflectionDescriptionServiceRPC.GetRefreshInfoRequest request,
+      StreamObserver<ReflectionDescriptionServiceRPC.GetRefreshInfoResponse> responseObserver) {
+    Iterator<ReflectionDescriptionServiceRPC.GetRefreshInfoResponse> refreshInfos =
+        getReflectionStatusService().getRefreshInfos();
 
-    final ServerCallStreamObserver<ReflectionDescriptionServiceRPC.GetRefreshInfoResponse> streamObserver = (ServerCallStreamObserver<ReflectionDescriptionServiceRPC.GetRefreshInfoResponse>) responseObserver;
+    final ServerCallStreamObserver<ReflectionDescriptionServiceRPC.GetRefreshInfoResponse>
+        streamObserver =
+            (ServerCallStreamObserver<ReflectionDescriptionServiceRPC.GetRefreshInfoResponse>)
+                responseObserver;
 
-    final class RefreshInfo extends OnReadyHandler<ReflectionDescriptionServiceRPC.GetRefreshInfoResponse>{
-      RefreshInfo(){
-        super("get-refresh-info", AccelerationListServiceImpl.this.executor.get(), streamObserver, refreshInfos);
+    final class RefreshInfo
+        extends OnReadyHandler<ReflectionDescriptionServiceRPC.GetRefreshInfoResponse> {
+      RefreshInfo() {
+        super(
+            "get-refresh-info",
+            AccelerationListServiceImpl.this.executor.get(),
+            streamObserver,
+            refreshInfos);
       }
     }
 
@@ -106,17 +122,33 @@ public class AccelerationListServiceImpl extends ReflectionDescriptionServiceGrp
   }
 
   @Override
-  public void listReflectionDependencies(ReflectionDescriptionServiceRPC.ListReflectionDependenciesRequest request,
-                                        StreamObserver<ReflectionDescriptionServiceRPC.ListReflectionDependenciesResponse> responseObserver) {
+  public void listReflectionDependencies(
+      ReflectionDescriptionServiceRPC.ListReflectionDependenciesRequest request,
+      StreamObserver<ReflectionDescriptionServiceRPC.ListReflectionDependenciesResponse>
+          responseObserver) {
     logger.info("Received listReflectionDependencies request {}", request);
-    Iterator<AccelerationListManager.DependencyInfo> dependencyInfos = getReflectionService().getReflectionDependencies();
-    Iterator<ReflectionDescriptionServiceRPC.ListReflectionDependenciesResponse> dependenciesProto = Streams.stream(dependencyInfos).map(AccelerationListManager.DependencyInfo::toProto).iterator();
+    Iterator<AccelerationListManager.DependencyInfo> dependencyInfos =
+        getReflectionService().getReflectionDependencies();
+    Iterator<ReflectionDescriptionServiceRPC.ListReflectionDependenciesResponse> dependenciesProto =
+        Streams.stream(dependencyInfos)
+            .map(AccelerationListManager.DependencyInfo::toProto)
+            .iterator();
 
-    final ServerCallStreamObserver<ReflectionDescriptionServiceRPC.ListReflectionDependenciesResponse> streamObserver = (ServerCallStreamObserver<ReflectionDescriptionServiceRPC.ListReflectionDependenciesResponse>) responseObserver;
+    final ServerCallStreamObserver<
+            ReflectionDescriptionServiceRPC.ListReflectionDependenciesResponse>
+        streamObserver =
+            (ServerCallStreamObserver<
+                    ReflectionDescriptionServiceRPC.ListReflectionDependenciesResponse>)
+                responseObserver;
 
-    final class ReflectionDependencies extends OnReadyHandler<ReflectionDescriptionServiceRPC.ListReflectionDependenciesResponse>{
-      ReflectionDependencies(){
-        super("get-reflection-dependencies", AccelerationListServiceImpl.this.executor.get(), streamObserver, dependenciesProto);
+    final class ReflectionDependencies
+        extends OnReadyHandler<ReflectionDescriptionServiceRPC.ListReflectionDependenciesResponse> {
+      ReflectionDependencies() {
+        super(
+            "get-reflection-dependencies",
+            AccelerationListServiceImpl.this.executor.get(),
+            streamObserver,
+            dependenciesProto);
       }
     }
 
@@ -126,17 +158,30 @@ public class AccelerationListServiceImpl extends ReflectionDescriptionServiceGrp
   }
 
   @Override
-  public void listMaterializations(ReflectionDescriptionServiceRPC.ListMaterializationsRequest request,
-                                  StreamObserver<ReflectionDescriptionServiceRPC.ListMaterializationsResponse> responseObserver) {
+  public void listMaterializations(
+      ReflectionDescriptionServiceRPC.ListMaterializationsRequest request,
+      StreamObserver<ReflectionDescriptionServiceRPC.ListMaterializationsResponse>
+          responseObserver) {
     Iterator<AccelerationListManager.MaterializationInfo> materializationInfos =
-      AccelerationMaterializationUtils.getMaterializationsFromStore(materializationStore);
-    Iterator<ReflectionDescriptionServiceRPC.ListMaterializationsResponse> materializationProto = Streams.stream(materializationInfos).map(AccelerationListManager.MaterializationInfo::toProto).iterator();
+        AccelerationMaterializationUtils.getMaterializationsFromStore(materializationStore);
+    Iterator<ReflectionDescriptionServiceRPC.ListMaterializationsResponse> materializationProto =
+        Streams.stream(materializationInfos)
+            .map(AccelerationListManager.MaterializationInfo::toProto)
+            .iterator();
 
-    final ServerCallStreamObserver<ReflectionDescriptionServiceRPC.ListMaterializationsResponse> streamObserver = (ServerCallStreamObserver<ReflectionDescriptionServiceRPC.ListMaterializationsResponse>) responseObserver;
+    final ServerCallStreamObserver<ReflectionDescriptionServiceRPC.ListMaterializationsResponse>
+        streamObserver =
+            (ServerCallStreamObserver<ReflectionDescriptionServiceRPC.ListMaterializationsResponse>)
+                responseObserver;
 
-    final class Materializations extends OnReadyHandler<ReflectionDescriptionServiceRPC.ListMaterializationsResponse> {
-      Materializations(){
-        super("get-materializations", AccelerationListServiceImpl.this.executor.get(), streamObserver, materializationProto);
+    final class Materializations
+        extends OnReadyHandler<ReflectionDescriptionServiceRPC.ListMaterializationsResponse> {
+      Materializations() {
+        super(
+            "get-materializations",
+            AccelerationListServiceImpl.this.executor.get(),
+            streamObserver,
+            materializationProto);
       }
     }
 

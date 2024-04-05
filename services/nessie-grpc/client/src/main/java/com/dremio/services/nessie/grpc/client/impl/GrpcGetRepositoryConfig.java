@@ -19,15 +19,13 @@ import static com.dremio.services.nessie.grpc.GrpcExceptionMapper.handleNessieRu
 import static com.dremio.services.nessie.grpc.ProtoUtil.fromProto;
 import static java.util.Objects.requireNonNull;
 
+import com.dremio.services.nessie.grpc.ProtoUtil;
+import com.dremio.services.nessie.grpc.api.ConfigServiceGrpc.ConfigServiceBlockingStub;
 import java.util.HashSet;
 import java.util.Set;
-
 import org.projectnessie.client.api.GetRepositoryConfigBuilder;
 import org.projectnessie.model.RepositoryConfig;
 import org.projectnessie.model.RepositoryConfigResponse;
-
-import com.dremio.services.nessie.grpc.ProtoUtil;
-import com.dremio.services.nessie.grpc.api.ConfigServiceGrpc.ConfigServiceBlockingStub;
 
 public class GrpcGetRepositoryConfig implements GetRepositoryConfigBuilder {
 
@@ -48,6 +46,6 @@ public class GrpcGetRepositoryConfig implements GetRepositoryConfigBuilder {
   @Override
   public RepositoryConfigResponse get() {
     return handleNessieRuntimeEx(
-      () -> fromProto(stub.getRepositoryConfig(ProtoUtil.toProtoRepoConfigRequest(types))));
+        () -> fromProto(stub.getRepositoryConfig(ProtoUtil.toProtoRepoConfigRequest(types))));
   }
 }

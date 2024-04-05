@@ -20,16 +20,26 @@ import com.dremio.options.TypeValidators;
 
 @Options
 public final class NamespaceOptions {
-  public static final TypeValidators.BooleanValidator DATASET_METADATA_CONSISTENCY_VALIDATE = new TypeValidators.BooleanValidator("store.dataset.metadata_consistency.validate", false);
-  public static final TypeValidators.BooleanValidator DATASET_METADATA_USE_SMART_EXPIRY = new TypeValidators.BooleanValidator("store.dataset.metadata.use_smart_expiry", true);
+  public static final TypeValidators.BooleanValidator DATASET_METADATA_CONSISTENCY_VALIDATE =
+      new TypeValidators.BooleanValidator("store.dataset.metadata_consistency.validate", false);
+  public static final TypeValidators.BooleanValidator DATASET_METADATA_USE_SMART_EXPIRY =
+      new TypeValidators.BooleanValidator("store.dataset.metadata.use_smart_expiry", true);
+
   /**
-   * Support option to control when split orphans should be automatically expired. The policy around split deletion is as follows:
-   * 1. Metadata that is older than N hours is deleted - N is defined by this support option
-   * 2. The latest copy of the metadata is not deleted
+   * Support option to control when split orphans should be automatically expired. The policy around
+   * split deletion is as follows: 1. Metadata that is older than N hours is deleted - N is defined
+   * by this support option 2. The latest copy of the metadata is not deleted
    */
   public static final TypeValidators.RangeLongValidator DATASET_METADATA_AUTO_EXPIRE_AFTER_HOURS =
-    new TypeValidators.RangeLongValidator("store.dataset.metadata.auto_expire_splits_after_hours", 1, 12, 3);
+      new TypeValidators.RangeLongValidator(
+          "store.dataset.metadata.auto_expire_splits_after_hours", 1, 12, 3);
 
-  private NamespaceOptions() {
-  }
+  /**
+   * Maximum number of dataset versions to keep per dataset. The versions are trimmed in a periodic
+   * scan of the dataVersions collection.
+   */
+  public static final TypeValidators.LongValidator DATASET_VERSIONS_LIMIT =
+      new TypeValidators.LongValidator("store.dataset.versions.limit", 50);
+
+  private NamespaceOptions() {}
 }

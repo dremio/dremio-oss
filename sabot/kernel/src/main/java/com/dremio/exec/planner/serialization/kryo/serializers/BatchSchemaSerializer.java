@@ -21,9 +21,7 @@ import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 
-/**
- * Serializer to serialize and deserialize BatchSchema objects.
- */
+/** Serializer to serialize and deserialize BatchSchema objects. */
 public class BatchSchemaSerializer extends Serializer<BatchSchema> {
 
   @Override

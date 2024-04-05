@@ -46,7 +46,7 @@ export const ReflectionsTable = (props: ReflectionsTableProps) => {
 
   const sortedColumns = useExternalStoreState(
     reflectionsTable.store,
-    (state: any) => state.sortedColumns
+    (state: any) => state.sortedColumns,
   );
 
   useEffect(() => {

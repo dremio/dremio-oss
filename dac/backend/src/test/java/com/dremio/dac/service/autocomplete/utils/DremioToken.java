@@ -20,9 +20,7 @@ import com.dremio.exec.planner.sql.parser.impl.Token;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
-/**
- * Type representing a token in a dremio query.
- */
+/** Type representing a token in a dremio query. */
 public final class DremioToken {
   public static final DremioToken START_TOKEN = new DremioToken(0, "");
 

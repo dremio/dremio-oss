@@ -33,7 +33,7 @@ export function getProjectBase(projectId?: string) {
  */
 export const rmProjectBase = (
   urlArg: string | null | undefined,
-  opts?: { projectId?: string }
+  opts?: { projectId?: string },
 ) => {
   const url = urlArg || "";
   const projBase = getProjectBase(opts?.projectId);
@@ -53,7 +53,7 @@ export const rmProjectBase = (
  */
 export const addProjectBase = (
   urlArg: string | null | undefined,
-  opts?: { projectId?: string }
+  opts?: { projectId?: string },
 ) => {
   if (urlArg == null) return "";
   const url = urlArg || "";

@@ -15,16 +15,6 @@
  */
 package com.dremio.dac.homefiles;
 
-import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.List;
-
-import javax.inject.Provider;
-import javax.validation.constraints.NotBlank;
-
-import org.apache.hadoop.conf.Configuration;
-
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.catalog.conf.SourceType;
@@ -41,32 +31,41 @@ import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
-
 import io.protostuff.Tag;
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.List;
+import javax.inject.Provider;
+import javax.validation.constraints.NotBlank;
+import org.apache.hadoop.conf.Configuration;
 
-/**
- * Source type used for Home Files purposes.
- */
+/** Source type used for Home Files purposes. */
 @SourceType(value = "HOME", configurable = false)
-public class HomeFileConf extends MayBeDistFileSystemConf<HomeFileConf, HomeFileSystemStoragePlugin> {
+public class HomeFileConf
+    extends MayBeDistFileSystemConf<HomeFileConf, HomeFileSystemStoragePlugin> {
 
   private static final String UPLOADS = "_uploads";
   private static final String STAGING = "_staging";
 
-  private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(HomeFileConf.class);
+  private static final org.slf4j.Logger LOGGER =
+      org.slf4j.LoggerFactory.getLogger(HomeFileConf.class);
 
-  // this is transient since it is actually different for each node (which means it is property based as opposed to defined directly in this configuration).
+  // this is transient since it is actually different for each node (which means it is property
+  // based as opposed to defined directly in this configuration).
   private transient String hostname;
 
-  private final transient Supplier<URI> uri = new Supplier<URI>() {
-    @Override
-    public URI get() {
-      try {
-        return new URI(location);
-      } catch (URISyntaxException e) {
-        throw Throwables.propagate(e);
-      }
-    }};
+  private final transient Supplier<URI> uri =
+      new Supplier<URI>() {
+        @Override
+        public URI get() {
+          try {
+            return new URI(location);
+          } catch (URISyntaxException e) {
+            throw Throwables.propagate(e);
+          }
+        }
+      };
 
   @NotBlank
   @Tag(1)
@@ -104,13 +103,13 @@ public class HomeFileConf extends MayBeDistFileSystemConf<HomeFileConf, HomeFile
 
   @Tag(12)
   public String sharedAccessKey = null;
-  //Tag has been deprecated please do not use.
 
-  public HomeFileConf() {
+  // Tag has been deprecated please do not use.
 
-  }
+  public HomeFileConf() {}
 
-  public HomeFileConf(String location, String thisNode, boolean enableAsync, DataCredentials dataCredentials) {
+  public HomeFileConf(
+      String location, String thisNode, boolean enableAsync, DataCredentials dataCredentials) {
     this(location, thisNode);
     this.enableAsync = enableAsync;
     if (dataCredentials != null) {
@@ -131,14 +130,13 @@ public class HomeFileConf extends MayBeDistFileSystemConf<HomeFileConf, HomeFile
   }
 
   public static SourceConfig create(
-    String name,
-    URI uri,
-    String thisNode,
-    SchemaMutability mutability,
-    MetadataPolicy policy,
-    boolean enableAsync,
-    DataCredentials dataCredentials
-  ) {
+      String name,
+      URI uri,
+      String thisNode,
+      SchemaMutability mutability,
+      MetadataPolicy policy,
+      boolean enableAsync,
+      DataCredentials dataCredentials) {
     SourceConfig conf = new SourceConfig();
 
     HomeFileConf fc = new HomeFileConf(uri.toString(), thisNode, enableAsync, dataCredentials);
@@ -184,12 +182,11 @@ public class HomeFileConf extends MayBeDistFileSystemConf<HomeFileConf, HomeFile
   @Override
   public String getConnection() {
     URI path = uri.get();
-    if(path.getAuthority() != null) {
+    if (path.getAuthority() != null) {
       return path.getScheme() + "://" + path.getAuthority() + "/";
     } else {
       return path.getScheme() + ":///";
     }
-
   }
 
   @Override
@@ -243,7 +240,8 @@ public class HomeFileConf extends MayBeDistFileSystemConf<HomeFileConf, HomeFile
   }
 
   @Override
-  public HomeFileSystemStoragePlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
+  public HomeFileSystemStoragePlugin newPlugin(
+      SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
     return new HomeFileSystemStoragePlugin(this, context, name, pluginIdProvider);
   }
 
@@ -264,11 +262,11 @@ public class HomeFileConf extends MayBeDistFileSystemConf<HomeFileConf, HomeFile
     fs.mkdirs(getPath(), HomeFileSystemStoragePlugin.DEFAULT_PERMISSIONS);
     fs.mkdirs(getInnerUploads(), HomeFileSystemStoragePlugin.DEFAULT_PERMISSIONS);
 
-    if(hostname == null) {
+    if (hostname == null) {
       hostname = this.hostname;
     }
 
-    if(hostname != null) {
+    if (hostname != null) {
       final Path stagingDir = getStagingPath(hostname);
       fs.mkdirs(stagingDir, HomeFileSystemStoragePlugin.DEFAULT_PERMISSIONS);
       FileSystemUtils.deleteOnExit(fs, stagingDir);

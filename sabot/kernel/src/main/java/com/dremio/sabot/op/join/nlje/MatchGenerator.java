@@ -15,15 +15,6 @@
  */
 package com.dremio.sabot.op.join.nlje;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.function.IntFunction;
-
-import javax.inject.Named;
-
-import org.apache.arrow.vector.complex.FieldIdUtil2;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.BooleanOperator;
@@ -51,19 +42,25 @@ import com.dremio.exec.record.VectorAccessible;
 import com.dremio.sabot.exec.context.FunctionContext;
 import com.google.common.collect.Lists;
 import com.sun.codemodel.JExpr;
-
 import io.netty.util.internal.PlatformDependent;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.function.IntFunction;
+import javax.inject.Named;
+import org.apache.arrow.vector.complex.FieldIdUtil2;
 
 /**
  * Generates and holds an iteration of matches
  *
- * This object is responsible for generating lists of matches between the provided records.
+ * <p>This object is responsible for generating lists of matches between the provided records.
  *
- * NOTE: this is visible for compilation purposes, otherwise it would be package private.
+ * <p>NOTE: this is visible for compilation purposes, otherwise it would be package private.
  */
 public abstract class MatchGenerator implements AutoCloseable {
 
-  private static TemplateClassDefinition<MatchGenerator> TEMPLATE_DEFINITION = new TemplateClassDefinition<MatchGenerator>(MatchGenerator.class, MatchGenerator.class);
+  private static TemplateClassDefinition<MatchGenerator> TEMPLATE_DEFINITION =
+      new TemplateClassDefinition<MatchGenerator>(MatchGenerator.class, MatchGenerator.class);
 
   private MatchedVector probeMatchVector;
   private boolean maintainMatches;
@@ -73,17 +70,17 @@ public abstract class MatchGenerator implements AutoCloseable {
       FunctionContext context,
       VectorAccessible probeBatch,
       VectorAccessible buildBatch,
-      int outputCapacity
-      ) throws Exception {
+      int outputCapacity)
+      throws Exception {
     this.maintainMatches = probeMatchVector.isPresent();
-    if(maintainMatches) {
+    if (maintainMatches) {
       this.probeMatchVector = probeMatchVector.get();
     }
     doSetup(context, probeBatch, buildBatch);
   }
 
   public void clearProbeValidity(int size) {
-    if(probeMatchVector != null) {
+    if (probeMatchVector != null) {
       probeMatchVector.zero(size);
     }
   }
@@ -94,6 +91,7 @@ public abstract class MatchGenerator implements AutoCloseable {
 
   /**
    * Attempt to match records from build and probe sides.
+   *
    * @param probeStart
    * @param probeEnd
    * @param buildBatchId
@@ -101,7 +99,7 @@ public abstract class MatchGenerator implements AutoCloseable {
    * @return
    */
   public VectorRange tryMatch(DualRange input, VectorRange output) {
-    if(input.isIndexRange()) {
+    if (input.isIndexRange()) {
       return tryMatch(input.asIndexRange(), output);
     } else {
       return tryMatch(input.asVectorRange(), output);
@@ -130,7 +128,8 @@ public abstract class MatchGenerator implements AutoCloseable {
         }
 
         // write output indices
-        VectorRange.set(probeOutputAddr, buildOutputAddr, outputIndex, probeIndex, compoundBuildIndex);
+        VectorRange.set(
+            probeOutputAddr, buildOutputAddr, outputIndex, probeIndex, compoundBuildIndex);
         // increment output.
         outputIndex++;
       }
@@ -151,9 +150,9 @@ public abstract class MatchGenerator implements AutoCloseable {
     final boolean maintainMatches = this.maintainMatches;
     int outputIndex = 0;
     for (int probeIndex = probeStart; probeIndex < probeEnd; probeIndex++) {
-      for(int buildIndex = 0; buildIndex < buildBatchCount; buildIndex++) {
+      for (int buildIndex = 0; buildIndex < buildBatchCount; buildIndex++) {
         int compoundBuildIndex = (buildBatchIndex << 16) | (buildIndex & 65535);
-        if(doEval(probeIndex, compoundBuildIndex)) {
+        if (doEval(probeIndex, compoundBuildIndex)) {
 
           if (maintainMatches) {
             // mark matching probe keys.
@@ -161,7 +160,12 @@ public abstract class MatchGenerator implements AutoCloseable {
           }
 
           // write output indices
-          VectorRange.set(probeOutputAddr, buildOutputAddr, outputIndex, (short) probeIndex, compoundBuildIndex);
+          VectorRange.set(
+              probeOutputAddr,
+              buildOutputAddr,
+              outputIndex,
+              (short) probeIndex,
+              compoundBuildIndex);
 
           // increment output.
           outputIndex++;
@@ -172,69 +176,90 @@ public abstract class MatchGenerator implements AutoCloseable {
     return output.resetRecordsFound(outputIndex);
   }
 
-
   public abstract void doSetup(
       @Named("context") FunctionContext context,
       @Named("probeVectorAccessible") VectorAccessible probeVectorAccessible,
-      @Named("buildVectorAccessible") VectorAccessible buildVectorAccessible
-      );
+      @Named("buildVectorAccessible") VectorAccessible buildVectorAccessible);
 
   public abstract boolean doEval(
-      @Named("probeIndex") int probeIndex,
-      @Named("buildIndex") int buildIndex
-      );
+      @Named("probeIndex") int probeIndex, @Named("buildIndex") int buildIndex);
 
   /**
    * Generate a match holder
+   *
    * @param expr The join condition, rooted with InputReferences. Null if you want a cartesian join.
    * @param classProducer Tool for class generation.
    * @param probe The probe side of the expression (single container).
    * @param build The build side of the expression (hyper vector).
    * @return The generated MatchHolder object.
    */
-  public static MatchGenerator generate(LogicalExpression expr, ClassProducer classProducer, VectorAccessible probe, VectorAccessible build) {
-    final MappingSet probeMappingSet = new MappingSet("probeIndex", null, "probeVectorAccessible", null, ClassGenerator.DEFAULT_CONSTANT_MAP, ClassGenerator.DEFAULT_SCALAR_MAP);
-    final MappingSet buildMappingSet = new MappingSet("buildIndex", null, "buildVectorAccessible", null, ClassGenerator.DEFAULT_CONSTANT_MAP, ClassGenerator.DEFAULT_SCALAR_MAP);
+  public static MatchGenerator generate(
+      LogicalExpression expr,
+      ClassProducer classProducer,
+      VectorAccessible probe,
+      VectorAccessible build) {
+    final MappingSet probeMappingSet =
+        new MappingSet(
+            "probeIndex",
+            null,
+            "probeVectorAccessible",
+            null,
+            ClassGenerator.DEFAULT_CONSTANT_MAP,
+            ClassGenerator.DEFAULT_SCALAR_MAP);
+    final MappingSet buildMappingSet =
+        new MappingSet(
+            "buildIndex",
+            null,
+            "buildVectorAccessible",
+            null,
+            ClassGenerator.DEFAULT_CONSTANT_MAP,
+            ClassGenerator.DEFAULT_SCALAR_MAP);
 
     CodeGenerator<MatchGenerator> cg = classProducer.createGenerator(TEMPLATE_DEFINITION);
     ClassGenerator<MatchGenerator> g = cg.getRoot();
 
-    ReferenceMaterializer referenceMaterializer = new ReferenceMaterializer(g, (i) -> {
-      switch(i) {
-      case 1:
-        return new InputSide(buildMappingSet, build.getSchema());
-      case 0:
-        return new InputSide(probeMappingSet, probe.getSchema());
-      default:
-        throw new UnsupportedOperationException("Unknown input reference " + i);
-      }
-    });
+    ReferenceMaterializer referenceMaterializer =
+        new ReferenceMaterializer(
+            g,
+            (i) -> {
+              switch (i) {
+                case 1:
+                  return new InputSide(buildMappingSet, build.getSchema());
+                case 0:
+                  return new InputSide(probeMappingSet, probe.getSchema());
+                default:
+                  throw new UnsupportedOperationException("Unknown input reference " + i);
+              }
+            });
 
-    if(expr == null) {
+    if (expr == null) {
       g.getEvalBlock()._return(JExpr.TRUE);
       return cg.getImplementationClass();
     }
 
     // first, we rewrite the evaluation stack for each side of the comparison.
-    final LogicalExpression materialized = classProducer.materialize(expr.accept(referenceMaterializer, null), null);
+    final LogicalExpression materialized =
+        classProducer.materialize(expr.accept(referenceMaterializer, null), null);
 
     // then we materialize the remaining tree.
-    final HoldingContainer out = g.addExpr(materialized, ClassGenerator.BlockCreateMode.MERGE, false);
-
+    final HoldingContainer out =
+        g.addExpr(materialized, ClassGenerator.BlockCreateMode.MERGE, false);
 
     // return a true if the condition is positive.
-    g.getEvalBlock()._if(out.getIsSet().eq(JExpr.lit(1)).cand(out.getValue().eq(JExpr.lit(1))))._then()._return(JExpr.TRUE);
+    g.getEvalBlock()
+        ._if(out.getIsSet().eq(JExpr.lit(1)).cand(out.getValue().eq(JExpr.lit(1))))
+        ._then()
+        ._return(JExpr.TRUE);
 
     g.getEvalBlock()._return(JExpr.FALSE);
     return cg.getImplementationClass();
   }
 
-  /**
-   * Pojo for holding the information needed to materialize each set of expression.
-   */
+  /** Pojo for holding the information needed to materialize each set of expression. */
   private static class InputSide {
     private final MappingSet mappingSet;
     private final BatchSchema schema;
+
     public InputSide(MappingSet mappingSet, BatchSchema schema) {
       super();
       this.mappingSet = mappingSet;
@@ -243,14 +268,17 @@ public abstract class MatchGenerator implements AutoCloseable {
   }
 
   /**
-   * ExprVisitor that rewrites the tree so that each reference is pointing at the correct side of the join.
+   * ExprVisitor that rewrites the tree so that each reference is pointing at the correct side of
+   * the join.
    */
-  private static class ReferenceMaterializer extends AbstractExprVisitor<LogicalExpression, Void, RuntimeException> {
+  private static class ReferenceMaterializer
+      extends AbstractExprVisitor<LogicalExpression, Void, RuntimeException> {
 
     private final ClassGenerator<?> generator;
     private final IntFunction<InputSide> inputFunction;
 
-    public ReferenceMaterializer(ClassGenerator<?> generator, IntFunction<InputSide> inputFunction) {
+    public ReferenceMaterializer(
+        ClassGenerator<?> generator, IntFunction<InputSide> inputFunction) {
       super();
       this.generator = generator;
       this.inputFunction = inputFunction;
@@ -262,8 +290,8 @@ public abstract class MatchGenerator implements AutoCloseable {
     }
 
     @Override
-    public LogicalExpression visitFunctionHolderExpression(FunctionHolderExpression holder,
-        Void v) throws RuntimeException {
+    public LogicalExpression visitFunctionHolderExpression(FunctionHolderExpression holder, Void v)
+        throws RuntimeException {
       throw new UnsupportedOperationException();
     }
 
@@ -278,16 +306,23 @@ public abstract class MatchGenerator implements AutoCloseable {
     }
 
     @Override
-    public LogicalExpression visitInputReference(InputReference sideExpr, Void value) throws RuntimeException {
+    public LogicalExpression visitInputReference(InputReference sideExpr, Void value)
+        throws RuntimeException {
       final InputSide input = inputFunction.apply(sideExpr.getInputOrdinal());
       final MappingSet orig = generator.getMappingSet();
       generator.setMappingSet(input.mappingSet);
       try {
         TypedFieldId tfId = FieldIdUtil2.getFieldId(input.schema, sideExpr.getReference());
         if (tfId == null) {
-          throw UserException.validationError().message("Unable to find the referenced field: [%s].", sideExpr.getReference().getAsUnescapedPath()).buildSilently();
+          throw UserException.validationError()
+              .message(
+                  "Unable to find the referenced field: [%s].",
+                  sideExpr.getReference().getAsUnescapedPath())
+              .buildSilently();
         }
-        HoldingContainer container = generator.addExpr(new ValueVectorReadExpression(tfId), ClassGenerator.BlockCreateMode.MERGE, false);
+        HoldingContainer container =
+            generator.addExpr(
+                new ValueVectorReadExpression(tfId), ClassGenerator.BlockCreateMode.MERGE, false);
         return new HoldingContainerExpression(container);
       } finally {
         generator.setMappingSet(orig);
@@ -313,19 +348,28 @@ public abstract class MatchGenerator implements AutoCloseable {
       final LogicalExpression newExpr = oldConditions.expression.accept(this, null);
       LogicalExpression newElseExpr = ifExpr.elseExpression.accept(this, null);
       IfExpression.IfCondition condition = new IfExpression.IfCondition(newCondition, newExpr);
-      return IfExpression.newBuilder().setElse(newElseExpr).setIfCondition(condition).setOutputType(ifExpr.outputType).build();
+      return IfExpression.newBuilder()
+          .setElse(newElseExpr)
+          .setIfCondition(condition)
+          .setOutputType(ifExpr.outputType)
+          .build();
     }
 
     @Override
-    public LogicalExpression visitCaseExpression(CaseExpression caseExpression, Void value) throws RuntimeException {
+    public LogicalExpression visitCaseExpression(CaseExpression caseExpression, Void value)
+        throws RuntimeException {
       List<CaseExpression.CaseConditionNode> caseConditions = new ArrayList<>();
       for (CaseExpression.CaseConditionNode conditionNode : caseExpression.caseConditions) {
-        caseConditions.add(new CaseExpression.CaseConditionNode(
-          conditionNode.whenExpr.accept(this, value),
-          conditionNode.thenExpr.accept(this, value)));
+        caseConditions.add(
+            new CaseExpression.CaseConditionNode(
+                conditionNode.whenExpr.accept(this, value),
+                conditionNode.thenExpr.accept(this, value)));
       }
       LogicalExpression elseExpr = caseExpression.elseExpr.accept(this, value);
-      return CaseExpression.newBuilder().setCaseConditions(caseConditions).setElseExpr(elseExpr).build();
+      return CaseExpression.newBuilder()
+          .setCaseConditions(caseConditions)
+          .setElseExpr(elseExpr)
+          .build();
     }
 
     @Override
@@ -335,7 +379,8 @@ public abstract class MatchGenerator implements AutoCloseable {
 
     @Override
     public LogicalExpression visitConvertExpression(ConvertExpression e, Void v) {
-      return new ConvertExpression(e.getConvertFunction(), e.getEncodingType(), e.getInput().accept(this, null));
+      return new ConvertExpression(
+          e.getConvertFunction(), e.getEncodingType(), e.getInput().accept(this, null));
     }
 
     @Override

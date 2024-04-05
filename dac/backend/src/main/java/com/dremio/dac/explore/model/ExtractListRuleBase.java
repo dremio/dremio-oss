@@ -28,15 +28,16 @@ import com.dremio.datastore.Converter;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.annotation.JsonTypeIdResolver;
 
-/**
- * ExtractListRule base class
- */
+/** ExtractListRule base class */
 @JsonTypeInfo(use = JsonTypeInfo.Id.CUSTOM, include = JsonTypeInfo.As.PROPERTY, property = "type")
 @JsonTypeIdResolver(EnumTypeIdResolver.class)
-@TypesEnum(types = ExtractListRuleType.class, format = "com.dremio.dac.proto.model.dataset.ExtractRule%s")
-public abstract class ExtractListRuleBase  {
+@TypesEnum(
+    types = ExtractListRuleType.class,
+    format = "com.dremio.dac.proto.model.dataset.ExtractRule%s")
+public abstract class ExtractListRuleBase {
 
-  public static final Acceptor<ExtractListRuleBase, ExtractListRuleVisitor<?>, ExtractListRule> acceptor = new Acceptor<ExtractListRuleBase, ExtractListRuleVisitor<?>, ExtractListRule>(){};
+  public static final Acceptor<ExtractListRuleBase, ExtractListRuleVisitor<?>, ExtractListRule>
+      acceptor = new Acceptor<ExtractListRuleBase, ExtractListRuleVisitor<?>, ExtractListRule>() {};
 
   public final <T> T accept(ExtractListRuleVisitor<T> visitor) throws VisitorException {
     return acceptor.accept(visitor, this);
@@ -62,6 +63,7 @@ public abstract class ExtractListRuleBase  {
     }
 
     public abstract T visit(ExtractRuleSingle single) throws Exception;
+
     public abstract T visit(ExtractRuleMultiple multiple) throws Exception;
   }
 

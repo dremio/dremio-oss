@@ -15,11 +15,6 @@
  */
 package com.dremio.exec.store;
 
-import java.io.IOException;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.DatasetHandleListing;
 import com.dremio.connector.metadata.DatasetMetadata;
@@ -34,11 +29,15 @@ import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
 
 /**
- * A storage plugin implementation which is always marked as failed.
- * Plugin configurations for storage plugin types that were in previous versions of
- * Dremio but have now been removed get mapped to this StoragePlugin implementation.
+ * A storage plugin implementation which is always marked as failed. Plugin configurations for
+ * storage plugin types that were in previous versions of Dremio but have now been removed get
+ * mapped to this StoragePlugin implementation.
  */
 public class MissingStoragePlugin implements StoragePlugin, SupportsListingDatasets {
   private final String errorMessage;
@@ -87,14 +86,10 @@ public class MissingStoragePlugin implements StoragePlugin, SupportsListingDatas
   }
 
   @Override
-  public void start() throws IOException {
-
-  }
+  public void start() throws IOException {}
 
   @Override
-  public void close() throws Exception {
-
-  }
+  public void close() throws Exception {}
 
   @Override
   public DatasetHandleListing listDatasetHandles(GetDatasetOption... options) {
@@ -106,7 +101,8 @@ public class MissingStoragePlugin implements StoragePlugin, SupportsListingDatas
   }
 
   @Override
-  public Optional<DatasetHandle> getDatasetHandle(EntityPath datasetPath, GetDatasetOption... options) {
+  public Optional<DatasetHandle> getDatasetHandle(
+      EntityPath datasetPath, GetDatasetOption... options) {
     if (throwOnInvocation) {
       throw new UnsupportedOperationException(errorMessage);
     }
@@ -118,13 +114,13 @@ public class MissingStoragePlugin implements StoragePlugin, SupportsListingDatas
   public DatasetMetadata getDatasetMetadata(
       DatasetHandle datasetHandle,
       PartitionChunkListing chunkListing,
-      GetMetadataOption... options
-  ) {
+      GetMetadataOption... options) {
     throw new UnsupportedOperationException(errorMessage);
   }
 
   @Override
-  public PartitionChunkListing listPartitionChunks(DatasetHandle datasetHandle, ListPartitionChunkOption... options) {
+  public PartitionChunkListing listPartitionChunks(
+      DatasetHandle datasetHandle, ListPartitionChunkOption... options) {
     throw new UnsupportedOperationException(errorMessage);
   }
 

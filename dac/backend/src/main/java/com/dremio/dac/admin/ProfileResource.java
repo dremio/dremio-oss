@@ -19,23 +19,6 @@ import static java.lang.String.format;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 import static javax.ws.rs.core.MediaType.TEXT_HTML;
 
-import java.io.IOException;
-
-import javax.annotation.security.RolesAllowed;
-import javax.inject.Inject;
-import javax.ws.rs.BadRequestException;
-import javax.ws.rs.DefaultValue;
-import javax.ws.rs.GET;
-import javax.ws.rs.NotFoundException;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.SecurityContext;
-
-import org.glassfish.jersey.server.mvc.Viewable;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
@@ -64,13 +47,24 @@ import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.ReflectionJobValidationException;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
-
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
+import java.io.IOException;
+import javax.annotation.security.RolesAllowed;
+import javax.inject.Inject;
+import javax.ws.rs.BadRequestException;
+import javax.ws.rs.DefaultValue;
+import javax.ws.rs.GET;
+import javax.ws.rs.NotFoundException;
+import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
+import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.SecurityContext;
+import org.glassfish.jersey.server.mvc.Viewable;
 
-/**
- * Resource for getting profiles from Dremio.
- */
+/** Resource for getting profiles from Dremio. */
 @Secured
 @RolesAllowed({"admin", "user"})
 @RestResource
@@ -79,13 +73,18 @@ public class ProfileResource {
 
   // this is only visible to expose the external profile viewer in the test APIs
   @VisibleForTesting
-  public static final InstanceSerializer<QueryProfile> SERIALIZER = ProtoSerializer.of(QueryProfile.class);
+  public static final InstanceSerializer<QueryProfile> SERIALIZER =
+      ProtoSerializer.of(QueryProfile.class);
+
   private final JobsService jobsService;
   private final ProjectOptionManager projectOptionManager;
   private final SecurityContext securityContext;
 
   @Inject
-  public ProfileResource(JobsService jobsService, ProjectOptionManager projectOptionManager, SecurityContext securityContext) {
+  public ProfileResource(
+      JobsService jobsService,
+      ProjectOptionManager projectOptionManager,
+      SecurityContext securityContext) {
     this.jobsService = jobsService;
     this.projectOptionManager = projectOptionManager;
     this.securityContext = securityContext;
@@ -98,15 +97,16 @@ public class ProfileResource {
   public NotificationResponse cancelQuery(@PathParam("queryid") String queryId) {
     try {
       final String username = securityContext.getUserPrincipal().getName();
-      jobsService.cancel(CancelJobRequest.newBuilder()
-          .setUsername(username)
-          .setJobId(JobsProtoUtil.toBuf(new JobId(queryId)))
-          .setReason(String.format("Query cancelled by user '%s'", username))
-          .build());
+      jobsService.cancel(
+          CancelJobRequest.newBuilder()
+              .setUsername(username)
+              .setJobId(JobsProtoUtil.toBuf(new JobId(queryId)))
+              .setReason(String.format("Query cancelled by user '%s'", username))
+              .build());
       return new NotificationResponse(ResponseType.OK, "Job cancellation requested");
-    } catch(JobWarningException e) {
+    } catch (JobWarningException e) {
       return new NotificationResponse(ResponseType.WARN, e.getMessage());
-    } catch(JobException e) {
+    } catch (JobException e) {
       return new NotificationResponse(ResponseType.ERROR, e.getMessage());
     }
   }
@@ -115,22 +115,23 @@ public class ProfileResource {
   @GET
   @Path("/{queryid}.json")
   @Produces(APPLICATION_JSON)
-  public String getProfileJSON(@PathParam("queryid") String queryId,
-      @QueryParam("attempt") @DefaultValue("0") int attempt) throws IOException {
+  public String getProfileJSON(
+      @PathParam("queryid") String queryId, @QueryParam("attempt") @DefaultValue("0") int attempt)
+      throws IOException {
     final QueryProfile profile;
     try {
       final String username = securityContext.getUserPrincipal().getName();
-      QueryProfileRequest request = QueryProfileRequest.newBuilder()
-        .setJobId(JobProtobuf.JobId.newBuilder()
-          .setId(queryId)
-          .build())
-        .setAttempt(attempt)
-        .setUserName(username)
-        .build();
+      QueryProfileRequest request =
+          QueryProfileRequest.newBuilder()
+              .setJobId(JobProtobuf.JobId.newBuilder().setId(queryId).build())
+              .setAttempt(attempt)
+              .setUserName(username)
+              .build();
       profile = ObfuscationUtils.obfuscate(jobsService.getProfile(request));
     } catch (JobNotFoundException ignored) {
       // TODO: should this be JobResourceNotFoundException?
-      throw new NotFoundException(format("Profile for JobId [%s] and Attempt [%d] not found.", queryId, attempt));
+      throw new NotFoundException(
+          format("Profile for JobId [%s] and Attempt [%d] not found.", queryId, attempt));
     }
     return new String(SERIALIZER.serialize(profile));
   }
@@ -140,22 +141,22 @@ public class ProfileResource {
   @Path("/{queryid}")
   @Produces(TEXT_HTML)
   @TemporaryAccess
-  public Viewable getProfile(@PathParam("queryid") String queryId,
-      @QueryParam("attempt") @DefaultValue("0") int attempt) {
+  public Viewable getProfile(
+      @PathParam("queryid") String queryId, @QueryParam("attempt") @DefaultValue("0") int attempt) {
     final QueryProfile profile;
     try {
       final String username = securityContext.getUserPrincipal().getName();
-      QueryProfileRequest request = QueryProfileRequest.newBuilder()
-        .setJobId(JobProtobuf.JobId.newBuilder()
-          .setId(queryId)
-          .build())
-        .setAttempt(attempt)
-        .setUserName(username)
-        .build();
+      QueryProfileRequest request =
+          QueryProfileRequest.newBuilder()
+              .setJobId(JobProtobuf.JobId.newBuilder().setId(queryId).build())
+              .setAttempt(attempt)
+              .setUserName(username)
+              .build();
       profile = ObfuscationUtils.obfuscate(jobsService.getProfile(request));
     } catch (JobNotFoundException ignored) {
       // TODO: should this be JobResourceNotFoundException?
-      throw new NotFoundException(format("Profile for JobId [%s] and Attempt [%d] not found.", queryId, attempt));
+      throw new NotFoundException(
+          format("Profile for JobId [%s] and Attempt [%d] not found.", queryId, attempt));
     }
     final boolean debug = projectOptionManager.getOption(ExecConstants.DEBUG_QUERY_PROFILE);
     Span.current().setAttribute("debug", debug);
@@ -166,30 +167,32 @@ public class ProfileResource {
   @GET
   @Path("/cancel/{queryid}/reflection/{reflectionId}")
   @Produces(MediaType.TEXT_PLAIN)
-  public NotificationResponse cancelReflectionJob(@PathParam("queryid") String queryId,
-                                                  @PathParam("reflectionId") String reflectionId) {
+  public NotificationResponse cancelReflectionJob(
+      @PathParam("queryid") String queryId, @PathParam("reflectionId") String reflectionId) {
     if (Strings.isNullOrEmpty(reflectionId)) {
-      throw UserException.validationError()
-        .message("reflectionId cannot be null or empty")
-        .build();
+      throw UserException.validationError().message("reflectionId cannot be null or empty").build();
     }
 
     try {
       final String username = securityContext.getUserPrincipal().getName();
-      CancelJobRequest cancelJobRequest = CancelJobRequest.newBuilder()
-        .setUsername(username)
-        .setJobId(JobsProtoUtil.toBuf(new JobId(queryId)))
-        .setReason(String.format("Query cancelled by user '%s'", username))
-        .build();
-      CancelReflectionJobRequest request = CancelReflectionJobRequest.newBuilder().setCancelJobRequest(cancelJobRequest)
-        .setReflectionId(reflectionId).build();
+      CancelJobRequest cancelJobRequest =
+          CancelJobRequest.newBuilder()
+              .setUsername(username)
+              .setJobId(JobsProtoUtil.toBuf(new JobId(queryId)))
+              .setReason(String.format("Query cancelled by user '%s'", username))
+              .build();
+      CancelReflectionJobRequest request =
+          CancelReflectionJobRequest.newBuilder()
+              .setCancelJobRequest(cancelJobRequest)
+              .setReflectionId(reflectionId)
+              .build();
 
       jobsService.cancelReflectionJob(request);
 
       return new NotificationResponse(ResponseType.OK, "Job cancellation requested");
-    } catch(JobWarningException e) {
+    } catch (JobWarningException e) {
       return new NotificationResponse(ResponseType.WARN, e.getMessage());
-    } catch(JobException e) {
+    } catch (JobException e) {
       return new NotificationResponse(ResponseType.ERROR, e.getMessage());
     }
   }
@@ -199,33 +202,34 @@ public class ProfileResource {
   @Path("/{queryid}/reflection/{reflectionId}")
   @Produces(TEXT_HTML)
   @TemporaryAccess
-  public Viewable getReflectionJobProfile(@PathParam("queryid") String queryId,
-                             @QueryParam("attempt") @DefaultValue("0") int attempt,
-                             @PathParam("reflectionId") String reflectionId) {
+  public Viewable getReflectionJobProfile(
+      @PathParam("queryid") String queryId,
+      @QueryParam("attempt") @DefaultValue("0") int attempt,
+      @PathParam("reflectionId") String reflectionId) {
     if (Strings.isNullOrEmpty(reflectionId)) {
-      throw UserException.validationError()
-        .message("reflectionId cannot be null or empty")
-        .build();
+      throw UserException.validationError().message("reflectionId cannot be null or empty").build();
     }
 
     final QueryProfile profile;
     try {
       final String username = securityContext.getUserPrincipal().getName();
-      QueryProfileRequest request = QueryProfileRequest.newBuilder()
-        .setJobId(JobProtobuf.JobId.newBuilder()
-          .setId(queryId)
-          .build())
-        .setAttempt(attempt)
-        .setUserName(username)
-        .build();
+      QueryProfileRequest request =
+          QueryProfileRequest.newBuilder()
+              .setJobId(JobProtobuf.JobId.newBuilder().setId(queryId).build())
+              .setAttempt(attempt)
+              .setUserName(username)
+              .build();
 
-      ReflectionJobProfileRequest.Builder builder = ReflectionJobProfileRequest.newBuilder().setQueryProfileRequest(request)
-        .setReflectionId(reflectionId);
+      ReflectionJobProfileRequest.Builder builder =
+          ReflectionJobProfileRequest.newBuilder()
+              .setQueryProfileRequest(request)
+              .setReflectionId(reflectionId);
 
       profile = ObfuscationUtils.obfuscate(jobsService.getReflectionJobProfile(builder.build()));
     } catch (JobNotFoundException ignored) {
       // TODO: should this be JobResourceNotFoundException?
-      throw new NotFoundException(format("Profile for JobId [%s] and Attempt [%d] not found.", queryId, attempt));
+      throw new NotFoundException(
+          format("Profile for JobId [%s] and Attempt [%d] not found.", queryId, attempt));
     } catch (ReflectionJobValidationException e) {
       throw new InvalidReflectionJobException(e.getJobId().getId(), e.getReflectionId());
     }
@@ -238,27 +242,31 @@ public class ProfileResource {
   @GET
   @Path("/reflection/{reflectionId}/{queryid}.json")
   @Produces(APPLICATION_JSON)
-  public String getReflectionJobProfileJSON(@PathParam("queryid") String queryId,
-                               @QueryParam("attempt") @DefaultValue("0") int attempt,
-                               @PathParam("reflectionId") String reflectionId) throws IOException {
+  public String getReflectionJobProfileJSON(
+      @PathParam("queryid") String queryId,
+      @QueryParam("attempt") @DefaultValue("0") int attempt,
+      @PathParam("reflectionId") String reflectionId)
+      throws IOException {
     final QueryProfile profile;
     try {
       final String username = securityContext.getUserPrincipal().getName();
-      QueryProfileRequest request = QueryProfileRequest.newBuilder()
-        .setJobId(JobProtobuf.JobId.newBuilder()
-          .setId(queryId)
-          .build())
-        .setAttempt(attempt)
-        .setUserName(username)
-        .build();
+      QueryProfileRequest request =
+          QueryProfileRequest.newBuilder()
+              .setJobId(JobProtobuf.JobId.newBuilder().setId(queryId).build())
+              .setAttempt(attempt)
+              .setUserName(username)
+              .build();
 
-      ReflectionJobProfileRequest.Builder builder = ReflectionJobProfileRequest.newBuilder().setQueryProfileRequest(request)
-        .setReflectionId(reflectionId);
+      ReflectionJobProfileRequest.Builder builder =
+          ReflectionJobProfileRequest.newBuilder()
+              .setQueryProfileRequest(request)
+              .setReflectionId(reflectionId);
 
       profile = ObfuscationUtils.obfuscate(jobsService.getReflectionJobProfile(builder.build()));
     } catch (JobNotFoundException ignored) {
       // TODO: should this be JobResourceNotFoundException?
-      throw new NotFoundException(format("Profile for JobId [%s] and Attempt [%d] not found.", queryId, attempt));
+      throw new NotFoundException(
+          format("Profile for JobId [%s] and Attempt [%d] not found.", queryId, attempt));
     } catch (ReflectionJobValidationException e) {
       throw new InvalidReflectionJobException(e.getJobId().getId(), e.getReflectionId());
     }
@@ -268,16 +276,15 @@ public class ProfileResource {
   // this is only visible to expose the external profile viewer in the test APIs
   @VisibleForTesting
   public static Viewable renderProfile(QueryProfile profile, boolean includeDebugColumns) {
-    if(profile == null){
+    if (profile == null) {
       throw new BadRequestException("Failed to get query profile.");
     }
 
     try {
       ProfileWrapper wrapper = new ProfileWrapper(profile, includeDebugColumns);
       return new Viewable("/rest/profile/profile.ftl", wrapper);
-    } catch (Exception e){
+    } catch (Exception e) {
       throw new BadRequestException("Failed to get query profile.", e);
     }
   }
-
 }

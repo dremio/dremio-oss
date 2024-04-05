@@ -15,28 +15,24 @@
  */
 package com.dremio.exec.planner.physical;
 
-import java.util.List;
-
-import org.apache.calcite.plan.RelOptRule;
-import org.apache.calcite.plan.RelOptRuleCall;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelFieldCollation;
-import org.apache.calcite.rel.RelNode;
-
 import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.planner.logical.RelOptHelper;
 import com.dremio.exec.planner.logical.SortRel;
 import com.dremio.exec.planner.physical.DistributionTrait.DistributionField;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import java.util.List;
+import org.apache.calcite.plan.RelOptRule;
+import org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelFieldCollation;
+import org.apache.calcite.rel.RelNode;
 
 /**
- *
- * Rule that converts a logical {@link SortRel} to a physical sort.  Convert from Logical Sort into Physical Sort.
- * For Logical Sort, it requires one single data stream as the output.
- *
+ * Rule that converts a logical {@link SortRel} to a physical sort. Convert from Logical Sort into
+ * Physical Sort. For Logical Sort, it requires one single data stream as the output.
  */
-public class SortPrule extends Prule{
+public class SortPrule extends Prule {
   public static final RelOptRule INSTANCE = new SortPrule();
 
   private SortPrule() {
@@ -55,20 +51,27 @@ public class SortPrule extends Prule{
       // Keep the collation in logical sort just make its input round robin round robin.
       inputTraits = sort.getTraitSet().plus(Prel.PHYSICAL).plus(DistributionTrait.ROUND_ROBIN);
     } else {
-      // Keep the collation in logical sort. Convert input into a RelNode with 1) this collation, 2) Physical, 3) hash distributed on
+      // Keep the collation in logical sort. Convert input into a RelNode with 1) this collation, 2)
+      // Physical, 3) hash distributed on
       DistributionTrait hashDistribution =
-        new DistributionTrait(DistributionTrait.DistributionType.HASH_DISTRIBUTED, ImmutableList.copyOf(getDistributionField(sort)));
+          new DistributionTrait(
+              DistributionTrait.DistributionType.HASH_DISTRIBUTED,
+              ImmutableList.copyOf(getDistributionField(sort)));
       inputTraits = sort.getTraitSet().plus(Prel.PHYSICAL).plus(hashDistribution);
     }
 
     final RelNode convertedInput = convert(input, inputTraits);
 
-    if(isSingleMode(call)){
+    if (isSingleMode(call)) {
       call.transformTo(convertedInput);
-    }else{
-      RelNode exch = new SingleMergeExchangePrel(sort.getCluster(), sort.getTraitSet().plus(Prel.PHYSICAL).plus(DistributionTrait.SINGLETON), convertedInput, sort.getCollation());
-      call.transformTo(exch);  // transform logical "sort" into "SingleMergeExchange".
-
+    } else {
+      RelNode exch =
+          new SingleMergeExchangePrel(
+              sort.getCluster(),
+              sort.getTraitSet().plus(Prel.PHYSICAL).plus(DistributionTrait.SINGLETON),
+              convertedInput,
+              sort.getCollation());
+      call.transformTo(exch); // transform logical "sort" into "SingleMergeExchange".
     }
   }
 

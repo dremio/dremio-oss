@@ -17,12 +17,11 @@ package com.dremio.service.conduit;
 
 import io.grpc.stub.StreamObserver;
 
-/**
- * ConduitTestService implementation.
- */
+/** ConduitTestService implementation. */
 public class ConduitTestService extends ConduitTestServiceGrpc.ConduitTestServiceImplBase {
   @Override
-  public void increment(IncrementRequest request, StreamObserver<IncrementResponse> responseObserver) {
+  public void increment(
+      IncrementRequest request, StreamObserver<IncrementResponse> responseObserver) {
     responseObserver.onNext(IncrementResponse.newBuilder().setI(request.getI() + 1).build());
     responseObserver.onCompleted();
   }

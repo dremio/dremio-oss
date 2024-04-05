@@ -20,6 +20,8 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlOperator;
 
 /**
+ *
+ *
  * <pre>
  * Extract each component of a filter expr with SARGableStandardForm for
  * - DATEDIFF(endDate string, startDate string) = rhsNode
@@ -27,9 +29,8 @@ import org.apache.calcite.sql.SqlOperator;
  */
 public class DateDiffShiftTransformer extends ShiftTransformer {
 
-  DateDiffShiftTransformer(RelOptCluster relOptCluster,
-                           StandardForm standardForm,
-                           SqlOperator sqlOperator) {
+  DateDiffShiftTransformer(
+      RelOptCluster relOptCluster, StandardForm standardForm, SqlOperator sqlOperator) {
     super(relOptCluster, standardForm, sqlOperator);
   }
 

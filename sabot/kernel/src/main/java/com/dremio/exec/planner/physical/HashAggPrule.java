@@ -15,9 +15,13 @@
  */
 package com.dremio.exec.planner.physical;
 
+import com.dremio.exec.planner.common.MoreRelOptUtil;
+import com.dremio.exec.planner.logical.AggregateRel;
+import com.dremio.exec.planner.logical.RelOptHelper;
+import com.dremio.exec.planner.physical.AggregatePrel.OperatorPhase;
+import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelTrait;
@@ -35,12 +39,6 @@ import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.util.Pair;
 import org.apache.calcite.util.trace.CalciteTrace;
 import org.slf4j.Logger;
-
-import com.dremio.exec.planner.common.MoreRelOptUtil;
-import com.dremio.exec.planner.logical.AggregateRel;
-import com.dremio.exec.planner.logical.RelOptHelper;
-import com.dremio.exec.planner.physical.AggregatePrel.OperatorPhase;
-import com.google.common.collect.ImmutableList;
 
 public class HashAggPrule extends AggPruleBase {
   public static final RelOptRule INSTANCE = new HashAggPrule();
@@ -69,8 +67,10 @@ public class HashAggPrule extends AggPruleBase {
     final AggregateRel aggregate = (AggregateRel) call.rel(0);
     final RelNode input = call.rel(1);
 
-    if (MoreRelOptUtil.containsUnsupportedDistinctCall(aggregate) || (aggregate.getGroupCount() == 0 && !aggregate.containsSupportedListAggregation())) {
-      // currently, don't use HashAggregate if any of the logical aggrs contains unsupported DISTINCT or
+    if (MoreRelOptUtil.containsUnsupportedDistinctCall(aggregate)
+        || (aggregate.getGroupCount() == 0 && !aggregate.containsSupportedListAggregation())) {
+      // currently, don't use HashAggregate if any of the logical aggrs contains unsupported
+      // DISTINCT or
       // if there are no grouping keys. Using empty grouping key with listagg is supported.
       return;
     }
@@ -85,11 +85,15 @@ public class HashAggPrule extends AggPruleBase {
       } else {
         // hash distribute on all grouping keys
         DistributionTrait inputDistOnAllKeys =
-            new DistributionTrait(DistributionTrait.DistributionType.HASH_DISTRIBUTED,
-              ImmutableList.copyOf(getInputDistributionField(aggregate, true /* get all grouping keys */)));
+            new DistributionTrait(
+                DistributionTrait.DistributionType.HASH_DISTRIBUTED,
+                ImmutableList.copyOf(
+                    getInputDistributionField(aggregate, true /* get all grouping keys */)));
         DistributionTrait distOnAllKeys =
-          new DistributionTrait(DistributionTrait.DistributionType.HASH_DISTRIBUTED,
-            ImmutableList.copyOf(getDistributionField(aggregate, true /* get all grouping keys */)));
+            new DistributionTrait(
+                DistributionTrait.DistributionType.HASH_DISTRIBUTED,
+                ImmutableList.copyOf(
+                    getDistributionField(aggregate, true /* get all grouping keys */)));
 
         traits = call.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL).plus(inputDistOnAllKeys);
         createTransformRequest(call, aggregate, input, traits);
@@ -97,16 +101,19 @@ public class HashAggPrule extends AggPruleBase {
         if (PrelUtil.getPlannerSettings(call.getPlanner()).isHashSingleKey()) {
           // hash distribute on single grouping key
           DistributionTrait inputDistOnOneKey =
-            new DistributionTrait(DistributionTrait.DistributionType.HASH_DISTRIBUTED,
-              ImmutableList.copyOf(getInputDistributionField(aggregate, false /* get single grouping key */)));
+              new DistributionTrait(
+                  DistributionTrait.DistributionType.HASH_DISTRIBUTED,
+                  ImmutableList.copyOf(
+                      getInputDistributionField(aggregate, false /* get single grouping key */)));
 
           traits = call.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL).plus(inputDistOnOneKey);
           createTransformRequest(call, aggregate, input, traits);
         }
 
-        // if the call supports creating a two phase plan, also create and transform to the two-phase version of plan
+        // if the call supports creating a two phase plan, also create and transform to the
+        // two-phase version of plan
         if (create2PhasePlan(call, aggregate)) {
-          traits = call.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL) ;
+          traits = call.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL);
 
           RelNode convertedInput = convert(input, traits);
           new TwoPhaseSubset(call, distOnAllKeys).go(aggregate, convertedInput);
@@ -120,7 +127,6 @@ public class HashAggPrule extends AggPruleBase {
     } catch (InvalidRelException e) {
       tracer.warn(e.toString());
     }
-
   }
 
   private class TwoPhaseSubset extends SubsetTransformer<AggregateRel, InvalidRelException> {
@@ -134,25 +140,31 @@ public class HashAggPrule extends AggPruleBase {
     @Override
     public RelNode convertChild(AggregateRel aggregate, RelNode input) throws InvalidRelException {
 
-      RelTraitSet traits = newTraitSet(Prel.PHYSICAL, input.getTraitSet().getTrait(DistributionTraitDef.INSTANCE));
+      RelTraitSet traits =
+          newTraitSet(Prel.PHYSICAL, input.getTraitSet().getTrait(DistributionTraitDef.INSTANCE));
       RelNode newInput = convert(input, traits);
 
-      HashAggPrel phase1Agg = HashAggPrel.create(
-          aggregate.getCluster(),
-          traits,
-          newInput,
-          aggregate.getGroupSet(),
-          aggregate.getGroupSets(),
-          getUpdatedPhase1AggregateCall(aggregate),
-          OperatorPhase.PHASE_1of2);
+      HashAggPrel phase1Agg =
+          HashAggPrel.create(
+              aggregate.getCluster(),
+              traits,
+              newInput,
+              aggregate.getGroupSet(),
+              aggregate.getGroupSets(),
+              getUpdatedPhase1AggregateCall(aggregate),
+              OperatorPhase.PHASE_1of2);
 
       HashToRandomExchangePrel exch =
-          new HashToRandomExchangePrel(phase1Agg.getCluster(), phase1Agg.getTraitSet().plus(Prel.PHYSICAL).plus(distOnAllKeys),
-              phase1Agg, ImmutableList.copyOf(getDistributionField(aggregate, true)));
+          new HashToRandomExchangePrel(
+              phase1Agg.getCluster(),
+              phase1Agg.getTraitSet().plus(Prel.PHYSICAL).plus(distOnAllKeys),
+              phase1Agg,
+              ImmutableList.copyOf(getDistributionField(aggregate, true)));
 
       final RexBuilder rexBuilder = aggregate.getCluster().getRexBuilder();
       final List<AggregateCall> phase2Calls = new ArrayList<>();
-      final List<RexNode> projectedExprs = new ArrayList<>(rexBuilder.identityProjects(exch.getRowType()));
+      final List<RexNode> projectedExprs =
+          new ArrayList<>(rexBuilder.identityProjects(exch.getRowType()));
       final List<String> fieldNames = new ArrayList<>(exch.getRowType().getFieldNames());
       int delimiterCount = 0;
       int startIndex = MoreRelOptUtil.getNextExprIndexFromFields(fieldNames);
@@ -166,15 +178,15 @@ public class HashAggPrule extends AggPruleBase {
           fieldNames.add("EXPR$" + (startIndex + delimiterCount));
           delimiterCount++;
           phase2Calls.add(
-            AggregateCall.create(
-                call.getAggregation(),
-                call.isDistinct(),
-                call.isApproximate(),
-                call.getArgList(),
-                call.filterArg,
-                call.collation,
-                call.type,
-                call.name));
+              AggregateCall.create(
+                  call.getAggregation(),
+                  call.isDistinct(),
+                  call.isApproximate(),
+                  call.getArgList(),
+                  call.filterArg,
+                  call.collation,
+                  call.type,
+                  call.name));
         } else {
           phase2Calls.add(call);
         }
@@ -182,37 +194,43 @@ public class HashAggPrule extends AggPruleBase {
 
       RelNode twoPhaseAggInput = exch;
       if (delimiterCount > 0) {
-        RelDataType rowType = RexUtil.createStructType(exch.getCluster().getTypeFactory(), projectedExprs, fieldNames);
-        twoPhaseAggInput = ProjectPrel.create(exch.getCluster(), exch.getTraitSet(), exch, projectedExprs, rowType);
+        RelDataType rowType =
+            RexUtil.createStructType(
+                exch.getCluster().getTypeFactory(), projectedExprs, fieldNames);
+        twoPhaseAggInput =
+            ProjectPrel.create(
+                exch.getCluster(), exch.getTraitSet(), exch, projectedExprs, rowType);
       }
 
-      HashAggPrel phase2Agg =  HashAggPrel.create(
-          twoPhaseAggInput.getCluster(),
-          twoPhaseAggInput.getTraitSet(),
-          twoPhaseAggInput,
-          phase1Agg.getPhase2GroupSet(),
-          null,
-          phase2Calls,
-          OperatorPhase.PHASE_2of2);
+      HashAggPrel phase2Agg =
+          HashAggPrel.create(
+              twoPhaseAggInput.getCluster(),
+              twoPhaseAggInput.getTraitSet(),
+              twoPhaseAggInput,
+              phase1Agg.getPhase2GroupSet(),
+              null,
+              phase2Calls,
+              OperatorPhase.PHASE_2of2);
       return phase2Agg;
     }
   }
 
-  private void createTransformRequest(RelOptRuleCall call, AggregateRel aggregate,
-                                      RelNode input, RelTraitSet traits) throws InvalidRelException {
+  private void createTransformRequest(
+      RelOptRuleCall call, AggregateRel aggregate, RelNode input, RelTraitSet traits)
+      throws InvalidRelException {
 
     final RelNode convertedInput = convert(input, PrelUtil.fixTraits(call, traits));
 
-    HashAggPrel newAgg = HashAggPrel.create(
-        aggregate.getCluster(),
-        traits,
-        convertedInput,
-        aggregate.getGroupSet(),
-        aggregate.getGroupSets(),
-        aggregate.getAggCallList(),
-        OperatorPhase.PHASE_1of1);
+    HashAggPrel newAgg =
+        HashAggPrel.create(
+            aggregate.getCluster(),
+            traits,
+            convertedInput,
+            aggregate.getGroupSet(),
+            aggregate.getGroupSets(),
+            aggregate.getAggCallList(),
+            OperatorPhase.PHASE_1of1);
 
     call.transformTo(newAgg);
   }
-
 }

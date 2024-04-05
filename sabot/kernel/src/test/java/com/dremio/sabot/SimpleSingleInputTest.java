@@ -15,12 +15,6 @@
  */
 package com.dremio.sabot;
 
-import java.util.Collections;
-
-import org.apache.calcite.rel.RelFieldCollation.Direction;
-import org.apache.calcite.rel.RelFieldCollation.NullDirection;
-import org.junit.Test;
-
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.config.ExternalSort;
 import com.dremio.exec.physical.config.Limit;
@@ -28,8 +22,11 @@ import com.dremio.exec.physical.config.Project;
 import com.dremio.sabot.op.limit.LimitOperator;
 import com.dremio.sabot.op.project.ProjectOperator;
 import com.dremio.sabot.op.sort.external.ExternalSortOperator;
-
 import io.airlift.tpch.GenerationDefinition.TpchTable;
+import java.util.Collections;
+import org.apache.calcite.rel.RelFieldCollation.Direction;
+import org.apache.calcite.rel.RelFieldCollation.NullDirection;
+import org.junit.Test;
 
 public class SimpleSingleInputTest extends BaseTestOperator {
 
@@ -39,13 +36,21 @@ public class SimpleSingleInputTest extends BaseTestOperator {
 
   @Test
   public void project() throws Exception {
-    Project conf = new Project(OpProps.prototype(), null, Collections.singletonList(straightName("c_custkey")));
+    Project conf =
+        new Project(
+            OpProps.prototype(), null, Collections.singletonList(straightName("c_custkey")));
     basicTests(conf, ProjectOperator.class, TABLE, SCALE, null, TARGET_BATCH_SIZE);
   }
 
   @Test
   public void sort() throws Exception {
-    ExternalSort sort = new ExternalSort(OpProps.prototype(), null, Collections.singletonList(ordering("c_acctbal", Direction.ASCENDING, NullDirection.FIRST)), false);
+    ExternalSort sort =
+        new ExternalSort(
+            OpProps.prototype(),
+            null,
+            Collections.singletonList(
+                ordering("c_acctbal", Direction.ASCENDING, NullDirection.FIRST)),
+            false);
     basicTests(sort, ExternalSortOperator.class, TABLE, SCALE, null, TARGET_BATCH_SIZE);
   }
 
@@ -54,6 +59,4 @@ public class SimpleSingleInputTest extends BaseTestOperator {
     Limit limit = new Limit(OpProps.prototype(), null, 0, 100);
     basicTests(limit, LimitOperator.class, TABLE, SCALE, 100L, TARGET_BATCH_SIZE);
   }
-
-
 }

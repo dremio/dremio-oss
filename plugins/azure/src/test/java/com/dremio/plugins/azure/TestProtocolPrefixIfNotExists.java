@@ -27,7 +27,6 @@ public class TestProtocolPrefixIfNotExists {
     Assert.assertEquals(updatedStringSA, input);
     final String updatedStringAAD = testProtocolPrefixForActiveDirectory(input);
     Assert.assertEquals(updatedStringAAD, input);
-
   }
 
   @Test
@@ -37,7 +36,6 @@ public class TestProtocolPrefixIfNotExists {
     Assert.assertEquals(updatedStringSA, input);
     final String updatedStringAAD = testProtocolPrefixForActiveDirectory(input);
     Assert.assertEquals(updatedStringAAD, input);
-
   }
 
   @Test
@@ -47,7 +45,6 @@ public class TestProtocolPrefixIfNotExists {
     Assert.assertEquals(updatedStringSA, input);
     final String updatedStringAAD = testProtocolPrefixForActiveDirectory(input);
     Assert.assertEquals(updatedStringAAD, input);
-
   }
 
   @Test
@@ -69,9 +66,11 @@ public class TestProtocolPrefixIfNotExists {
   }
 
   /**
-   * Tests the prependProtocolIfNotExist method injected inside the getter method for Shared Access Key Vault URI
-   * @return the AzureStorageConf API Field 'accessKeyUri' with the prepended protocol (If not already present)
-   * Parameter - vaultUri: Vault URI raw user input
+   * Tests the prependProtocolIfNotExist method injected inside the getter method for Shared Access
+   * Key Vault URI
+   *
+   * @return the AzureStorageConf API Field 'accessKeyUri' with the prepended protocol (If not
+   *     already present) Parameter - vaultUri: Vault URI raw user input
    */
   private String testProtocolPrefixForSharedAccessKey(String vaultUri) {
     AzureStorageConf config = new AzureStorageConf();
@@ -80,9 +79,11 @@ public class TestProtocolPrefixIfNotExists {
   }
 
   /**
-   * Tests the prependProtocolIfNotExist method injected inside the getter method for Azure Active Directory Vault URI
-   * @return the AzureStorageConf API Field 'clientSecretUri' with the prepended protocol (If not already present)
-   * parameter - vaultUri: Vault URI raw user input
+   * Tests the prependProtocolIfNotExist method injected inside the getter method for Azure Active
+   * Directory Vault URI
+   *
+   * @return the AzureStorageConf API Field 'clientSecretUri' with the prepended protocol (If not
+   *     already present) parameter - vaultUri: Vault URI raw user input
    */
   private String testProtocolPrefixForActiveDirectory(String vaultUri) {
     AzureStorageConf config = new AzureStorageConf();

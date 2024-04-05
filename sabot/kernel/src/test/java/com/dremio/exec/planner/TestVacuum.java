@@ -18,19 +18,6 @@ package com.dremio.exec.planner;
 import static com.dremio.exec.planner.common.TestPlanHelper.findSingleNode;
 import static org.assertj.core.api.Assertions.fail;
 
-import java.util.List;
-import java.util.Map;
-
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.core.JoinRelType;
-import org.apache.calcite.rex.RexCall;
-import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.sql.SqlNode;
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.Test;
-
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.planner.physical.HashJoinPrel;
@@ -41,10 +28,19 @@ import com.dremio.exec.planner.sql.handlers.query.SqlToPlanHandler;
 import com.dremio.exec.planner.sql.handlers.query.VacuumTableHandler;
 import com.dremio.exec.planner.sql.parser.SqlVacuumTable;
 import com.google.common.collect.ImmutableMap;
+import java.util.List;
+import java.util.Map;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.core.JoinRelType;
+import org.apache.calcite.rex.RexCall;
+import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.sql.SqlNode;
+import org.junit.AfterClass;
+import org.junit.Assert;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
-/**
- * Test VACUUM plans
- */
+/** Test VACUUM plans */
 public class TestVacuum extends TestTableManagementBase {
 
   @BeforeClass
@@ -55,16 +51,23 @@ public class TestVacuum extends TestTableManagementBase {
 
   @AfterClass
   public static void afterClass() {
-    setSystemOption(ExecConstants.ENABLE_ICEBERG_VACUUM,
-      ExecConstants.ENABLE_ICEBERG_VACUUM.getDefault().getBoolVal().toString());
-    setSystemOption(ExecConstants.ENABLE_ICEBERG_VACUUM_REMOVE_ORPHAN_FILES,
-      ExecConstants.ENABLE_ICEBERG_VACUUM_REMOVE_ORPHAN_FILES.getDefault().getBoolVal().toString());
+    setSystemOption(
+        ExecConstants.ENABLE_ICEBERG_VACUUM,
+        ExecConstants.ENABLE_ICEBERG_VACUUM.getDefault().getBoolVal().toString());
+    setSystemOption(
+        ExecConstants.ENABLE_ICEBERG_VACUUM_REMOVE_ORPHAN_FILES,
+        ExecConstants.ENABLE_ICEBERG_VACUUM_REMOVE_ORPHAN_FILES
+            .getDefault()
+            .getBoolVal()
+            .toString());
   }
-
 
   @Test
   public void testRemoveOrphanFilesPlanTrimScheme() throws Exception {
-    final String vacuumQuery = "VACUUM TABLE " + table.getTableName() + " REMOVE ORPHAN FILES OLDER_THAN '2023-09-08 00:00:00.782'";
+    final String vacuumQuery =
+        "VACUUM TABLE "
+            + table.getTableName()
+            + " REMOVE ORPHAN FILES OLDER_THAN '2023-09-08 00:00:00.782'";
     Prel plan = getVacuumTablePlan(vacuumQuery);
     HashJoinPrel hashJoinPrel = getJoinPlan(plan);
     Assert.assertNotNull(hashJoinPrel.getLeft());
@@ -77,13 +80,15 @@ public class TestVacuum extends TestTableManagementBase {
   private Prel getVacuumTablePlan(String sql) throws Exception {
     return getVacuumTablePlan(config, converter.parse(sql));
   }
+
   public static Prel getVacuumTablePlan(SqlHandlerConfig config, SqlNode sqlNode) throws Exception {
     VacuumTableHandler vacuumTableHandler = (VacuumTableHandler) getVacuumHandler(sqlNode);
     vacuumTableHandler.getPlan(
-      config,
-      null,
-      sqlNode,
-      CatalogUtil.getResolvePathForTableManagement(config.getContext().getCatalog(), vacuumTableHandler.getTargetTablePath(sqlNode)));
+        config,
+        null,
+        sqlNode,
+        CatalogUtil.getResolvePathForTableManagement(
+            config.getContext().getCatalog(), vacuumTableHandler.getTargetTablePath(sqlNode)));
     return vacuumTableHandler.getPrel();
   }
 
@@ -97,10 +102,10 @@ public class TestVacuum extends TestTableManagementBase {
   }
 
   private static HashJoinPrel getJoinPlan(RelNode plan) {
-    Map<String, String> attributes = ImmutableMap.of(
-      "joinType", JoinRelType.LEFT.toString(),
-      "condition", getJoinCondition()
-    );
+    Map<String, String> attributes =
+        ImmutableMap.of(
+            "joinType", JoinRelType.LEFT.toString(),
+            "condition", getJoinCondition());
 
     HashJoinPrel hashJoinPrel = findSingleNode(plan, HashJoinPrel.class, attributes);
     Assert.assertNotNull(hashJoinPrel);
@@ -119,8 +124,9 @@ public class TestVacuum extends TestTableManagementBase {
     Assert.assertEquals(2, projectExpressions.size());
     Assert.assertTrue(projectExpressions.get(0) instanceof RexCall);
     RexCall trimExpr = (RexCall) projectExpressions.get(0);
-    Assert.assertEquals("CASE(>=(POSITION('://':VARCHAR(3), $0), 1), SUBSTRING($0, +(2, POSITION('://':VARCHAR(3), $0))), CASE(>(POSITION(':/':VARCHAR(2), $0), 0), SUBSTRING($0, +(1, POSITION(':/':VARCHAR(2), $0))), $0))",
-      trimExpr.toString());
+    Assert.assertEquals(
+        "CASE(>=(POSITION('://':VARCHAR(3), $0), 1), SUBSTRING($0, +(2, POSITION('://':VARCHAR(3), $0))), CASE(>(POSITION(':/':VARCHAR(2), $0), 0), SUBSTRING($0, +(1, POSITION(':/':VARCHAR(2), $0))), $0))",
+        trimExpr.toString());
   }
 
   private static void validateTrimSchemeOnRightSideOfJoin(RelNode plan) {
@@ -132,7 +138,8 @@ public class TestVacuum extends TestTableManagementBase {
     Assert.assertEquals(2, projectExpressions.size());
     Assert.assertTrue(projectExpressions.get(0) instanceof RexCall);
     RexCall trimExpr = (RexCall) projectExpressions.get(0);
-    Assert.assertEquals("CASE(>=(POSITION('://':VARCHAR(3), $0), 1), SUBSTRING($0, +(CASE(>=(POSITION('file://':VARCHAR(7), $0), 1), 3, 2), POSITION('://':VARCHAR(3), $0))), $0)",
-      trimExpr.toString());
+    Assert.assertEquals(
+        "CASE(>=(POSITION('://':VARCHAR(3), $0), 1), SUBSTRING($0, +(CASE(>=(POSITION('file://':VARCHAR(7), $0), 1), 3, 2), POSITION('://':VARCHAR(3), $0))), $0)",
+        trimExpr.toString());
   }
 }

@@ -18,10 +18,6 @@ package com.dremio.exec.vector.complex.writer;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import java.util.List;
-
-import org.junit.Test;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.QueryTestUtil;
 import com.dremio.common.types.TypeProtos.DataMode;
@@ -29,6 +25,8 @@ import com.dremio.exec.client.DremioClient;
 import com.dremio.exec.proto.UserBitShared.RecordBatchDef;
 import com.dremio.exec.record.RecordBatchLoader;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
+import java.util.List;
+import org.junit.Test;
 
 public class TestComplexToJson extends BaseTestQuery {
 
@@ -40,11 +38,15 @@ public class TestComplexToJson extends BaseTestQuery {
     RecordBatchLoader loader = new RecordBatchLoader(getAllocator());
 
     setup();
-    results = testSqlWithResults("select * from dfs_root.\"[WORKING_PATH]/src/test/resources/store/text/data/regions.csv\"");
+    results =
+        testSqlWithResults(
+            "select * from dfs_root.\"[WORKING_PATH]/src/test/resources/store/text/data/regions.csv\"");
     checkResult(loader, results);
 
     setup();
-    results = testSqlWithResults("select * from dfs_root.\"[WORKING_PATH]/src/test/resources/store/text/data/regions.csv\"");
+    results =
+        testSqlWithResults(
+            "select * from dfs_root.\"[WORKING_PATH]/src/test/resources/store/text/data/regions.csv\"");
     checkResult(loader, results);
 
     client = parent_client;
@@ -58,11 +60,15 @@ public class TestComplexToJson extends BaseTestQuery {
     RecordBatchLoader loader = new RecordBatchLoader(getAllocator());
 
     setup();
-    results = testSqlWithResults("select * from dfs_root.\"[WORKING_PATH]/src/test/resources/store/text/data/jsonwriterbug.json\"");
+    results =
+        testSqlWithResults(
+            "select * from dfs_root.\"[WORKING_PATH]/src/test/resources/store/text/data/jsonwriterbug.json\"");
     checkResult(loader, results);
 
     setup();
-    results = testSqlWithResults("select * from dfs_root.\"[WORKING_PATH]/src/test/resources/store/text/data/jsonwriterbug.json\"");
+    results =
+        testSqlWithResults(
+            "select * from dfs_root.\"[WORKING_PATH]/src/test/resources/store/text/data/jsonwriterbug.json\"");
     checkResult(loader, results);
 
     client = parent_client;
@@ -75,7 +81,7 @@ public class TestComplexToJson extends BaseTestQuery {
     assertEquals(1, def.getFieldCount());
     assertTrue(def.getField(0).getMajorType().getMode() == DataMode.OPTIONAL);
     loader.clear();
-    for(QueryDataBatch result : results) {
+    for (QueryDataBatch result : results) {
       result.release();
     }
     client.close();

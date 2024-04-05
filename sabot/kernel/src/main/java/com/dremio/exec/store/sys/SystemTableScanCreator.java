@@ -25,18 +25,24 @@ import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.sabot.op.spi.ProducerOperator;
 
 /**
- * This class creates batches based on the the type of {@link com.dremio.exec.store.sys.SystemTable}.
+ * This class creates batches based on the type of {@link com.dremio.exec.store.sys.SystemTable}.
  */
 public class SystemTableScanCreator implements ProducerOperator.Creator<SystemSubScan> {
 
-  @SuppressWarnings({ "rawtypes", "unchecked" })
+  @SuppressWarnings({"rawtypes", "unchecked"})
   @Override
-  public ProducerOperator create(FragmentExecutionContext fec, OperatorContext context, SystemSubScan config) throws ExecutionSetupException {
+  public ProducerOperator create(
+      FragmentExecutionContext fec, OperatorContext context, SystemSubScan config)
+      throws ExecutionSetupException {
     final SystemTable table = config.getTable();
     final SystemStoragePlugin plugin2 = fec.getStoragePlugin(config.getPluginId());
-    final RecordReader reader = new PojoRecordReader(table.getPojoClass(), table.getIterator
-            (plugin2.getSabotContext(), context), config.getColumns(), context.getTargetBatchSize());
+    final RecordReader reader =
+        new PojoRecordReader(
+            table.getPojoClass(),
+            table.getIterator(plugin2.getSabotContext(), context),
+            config.getColumns(),
+            context.getTargetBatchSize());
 
-    return new ScanOperator(config, context, RecordReaderIterator.from(reader));
+    return new ScanOperator(fec, config, context, RecordReaderIterator.from(reader));
   }
 }

@@ -15,28 +15,19 @@
  */
 package com.dremio.exec.store.parquet2;
 
-/**
- * Interface to be used to handle LIST field values while reading parquet files
- */
+/** Interface to be used to handle LIST field values while reading parquet files */
 public interface ParquetListElementConverter {
   /**
-   *
    * @return true if a value was written between startElement and endElement
    */
   boolean hasWritten();
 
-  /**
-   * signals start of writing an element
-   */
+  /** signals start of writing an element */
   void startElement();
 
-  /**
-   * signals end of an writing element
-   */
+  /** signals end of an writing element */
   void endElement();
 
-  /**
-   * write null value into list
-   */
+  /** write null value into list */
   void writeNullListElement();
 }

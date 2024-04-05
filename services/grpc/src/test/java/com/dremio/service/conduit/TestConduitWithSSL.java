@@ -16,14 +16,6 @@
 
 package com.dremio.service.conduit;
 
-import java.net.InetAddress;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
-
-import org.junit.After;
-import org.junit.Before;
-
 import com.dremio.config.DremioConfig;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.rpc.ssl.SSLConfigurator;
@@ -36,10 +28,14 @@ import com.dremio.service.conduit.server.ConduitServiceRegistry;
 import com.dremio.service.conduit.server.ConduitServiceRegistryImpl;
 import com.dremio.ssl.SSLEngineFactory;
 import com.google.common.collect.Sets;
+import java.net.InetAddress;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+import org.junit.After;
+import org.junit.Before;
 
-/**
- * Test conduit with SSL.
- */
+/** Test conduit with SSL. */
 public class TestConduitWithSSL extends TestConduit {
 
   private ConduitServer conduitServer1;
@@ -55,40 +51,54 @@ public class TestConduitWithSSL extends TestConduit {
   public void setUp() throws Exception {
     final String address = InetAddress.getLocalHost().getCanonicalHostName();
 
-    DremioConfig config = DremioConfig.create()
-      .withValue(ConduitUtils.CONDUIT_SSL_PREFIX + DremioConfig.SSL_ENABLED, true)
-      .withValue(ConduitUtils.CONDUIT_SSL_PREFIX + DremioConfig.SSL_AUTO_GENERATED_CERTIFICATE, true);
+    DremioConfig config =
+        DremioConfig.create()
+            .withValue(ConduitUtils.CONDUIT_SSL_PREFIX + DremioConfig.SSL_ENABLED, true)
+            .withValue(
+                ConduitUtils.CONDUIT_SSL_PREFIX + DremioConfig.SSL_AUTO_GENERATED_CERTIFICATE,
+                true);
     final SSLConfigurator sslConfigurator =
-      new SSLConfigurator(config, () -> null, ConduitUtils.CONDUIT_SSL_PREFIX, "test-conduit");
+        new SSLConfigurator(config, () -> null, ConduitUtils.CONDUIT_SSL_PREFIX, "test-conduit");
     final Optional<SSLEngineFactory> conduitSslEngineFactory =
-      SSLEngineFactory.create(sslConfigurator.getSSLConfig(false, address));
+        SSLEngineFactory.create(sslConfigurator.getSSLConfig(false, address));
 
     final ConduitServiceRegistry serviceRegistry1 = new ConduitServiceRegistryImpl();
     serviceRegistry1.registerService(new ConduitTestService());
 
-    conduitServer1 = new ConduitServer(DirectProvider.wrap(serviceRegistry1), 0,
-      conduitSslEngineFactory, UUID.randomUUID().toString());
+    conduitServer1 =
+        new ConduitServer(
+            DirectProvider.wrap(serviceRegistry1),
+            0,
+            conduitSslEngineFactory,
+            UUID.randomUUID().toString());
     conduitServer1.start();
     grpcCleanupRule.register(ConduitServerTestUtils.getServer(conduitServer1));
 
     final ConduitServiceRegistry serviceRegistry2 = new ConduitServiceRegistryImpl();
-    conduitServer2 = new ConduitServer(DirectProvider.wrap(serviceRegistry2), 0,
-      conduitSslEngineFactory, UUID.randomUUID().toString());
+    conduitServer2 =
+        new ConduitServer(
+            DirectProvider.wrap(serviceRegistry2),
+            0,
+            conduitSslEngineFactory,
+            UUID.randomUUID().toString());
     conduitServer2.start();
     grpcCleanupRule.register(ConduitServerTestUtils.getServer(conduitServer2));
 
-    endpoint1 = NodeEndpoint.newBuilder()
-      .setAddress(address)
-      .setConduitPort(conduitServer1.getPort())
-      .build();
-    endpoint2 = NodeEndpoint.newBuilder()
-      .setAddress(address)
-      .setConduitPort(conduitServer2.getPort())
-      .build();
+    endpoint1 =
+        NodeEndpoint.newBuilder()
+            .setAddress(address)
+            .setConduitPort(conduitServer1.getPort())
+            .build();
+    endpoint2 =
+        NodeEndpoint.newBuilder()
+            .setAddress(address)
+            .setConduitPort(conduitServer2.getPort())
+            .build();
 
     final Set<NodeEndpoint> endpoints = Sets.newHashSet(endpoint1, endpoint2);
 
-    conduitProvider = new ConduitProviderImpl(DirectProvider.wrap(endpoint1), conduitSslEngineFactory);
+    conduitProvider =
+        new ConduitProviderImpl(DirectProvider.wrap(endpoint1), conduitSslEngineFactory);
   }
 
   @After

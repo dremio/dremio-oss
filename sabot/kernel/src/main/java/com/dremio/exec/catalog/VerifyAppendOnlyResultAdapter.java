@@ -15,16 +15,15 @@
  */
 package com.dremio.exec.catalog;
 
+import com.dremio.connector.metadata.DatasetVerifyAppendOnlyResult;
 import java.util.List;
-
 import org.apache.commons.lang3.tuple.Pair;
 
-import com.dremio.connector.metadata.DatasetVerifyAppendOnlyResult;
-
 /**
- * Adapter adapts {@link DatasetVerifyAppendOnlyResult} to {@link TableMetadataVerifyAppendOnlyResult}
+ * Adapter adapts {@link DatasetVerifyAppendOnlyResult} to {@link
+ * TableMetadataVerifyAppendOnlyResult}
  */
-final class VerifyAppendOnlyResultAdapter implements TableMetadataVerifyAppendOnlyResult{
+final class VerifyAppendOnlyResultAdapter implements TableMetadataVerifyAppendOnlyResult {
   private final DatasetVerifyAppendOnlyResult datasetVerifyAppendOnlyResult;
 
   VerifyAppendOnlyResultAdapter(DatasetVerifyAppendOnlyResult datasetVerifyAppendOnlyResult) {
@@ -45,7 +44,9 @@ final class VerifyAppendOnlyResultAdapter implements TableMetadataVerifyAppendOn
       case INVALID_END_SNAPSHOT:
         return ResultCode.INVALID_END_SNAPSHOT;
       default:
-        throw new UnsupportedOperationException("Unsupported metadata verify result code: " + datasetVerifyAppendOnlyResult.getResultCode());
+        throw new UnsupportedOperationException(
+            "Unsupported metadata verify result code: "
+                + datasetVerifyAppendOnlyResult.getResultCode());
     }
   }
 

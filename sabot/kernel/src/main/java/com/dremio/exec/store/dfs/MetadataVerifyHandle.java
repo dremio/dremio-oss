@@ -15,16 +15,14 @@
  */
 package com.dremio.exec.store.dfs;
 
-import java.util.Optional;
-
-import javax.annotation.Nonnull;
-
 import com.dremio.connector.metadata.DatasetMetadataVerifyResult;
 import com.dremio.connector.metadata.options.MetadataVerifyRequest;
+import java.util.Optional;
+import javax.annotation.Nonnull;
 
 /**
- * An optional interface for a dataset handle to perform ad-hoc metadata verification
- * base on {@link MetadataVerifyRequest} and return a {@link DatasetMetadataVerifyResult}
+ * An optional interface for a dataset handle to perform ad-hoc metadata verification base on {@link
+ * MetadataVerifyRequest} and return a {@link DatasetMetadataVerifyResult}
  */
 public interface MetadataVerifyHandle {
   @Nonnull

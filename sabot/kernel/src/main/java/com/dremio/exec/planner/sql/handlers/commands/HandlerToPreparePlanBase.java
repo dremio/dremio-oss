@@ -15,20 +15,8 @@
  */
 package com.dremio.exec.planner.sql.handlers.commands;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicLong;
-
-import org.apache.calcite.plan.RelOptPlanner;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.RelRoot;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.sql.SqlNode;
-
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.physical.PhysicalPlan;
-import com.dremio.exec.planner.CachedAccelDetails;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.acceleration.DremioMaterialization;
 import com.dremio.exec.planner.acceleration.RelWithInfo;
@@ -41,10 +29,20 @@ import com.dremio.exec.planner.sql.SqlExceptionHelper;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.query.SqlToPlanHandler;
 import com.dremio.exec.proto.ExecProtos.ServerPreparedStatementState;
+import com.dremio.exec.proto.UserBitShared.AccelerationProfile;
+import com.dremio.exec.proto.UserBitShared.PlannerPhaseRulesStats;
 import com.dremio.exec.work.foreman.ExecutionPlan;
 import com.dremio.reflection.hints.ReflectionExplanationsAndQueryDistance;
 import com.google.common.cache.Cache;
 import com.google.common.collect.ImmutableList;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
+import org.apache.calcite.plan.RelOptPlanner;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.RelRoot;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.sql.SqlNode;
 
 /**
  * Take a sql node, plan it and then return an async response.
@@ -52,7 +50,8 @@ import com.google.common.collect.ImmutableList;
  * @param <T> The response class to provide.
  */
 public abstract class HandlerToPreparePlanBase<T> implements CommandRunner<T> {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HandlerToPreparePlanBase.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(HandlerToPreparePlanBase.class);
 
   private static final AtomicLong PREPARE_ID = new AtomicLong(0);
 
@@ -66,7 +65,6 @@ public abstract class HandlerToPreparePlanBase<T> implements CommandRunner<T> {
 
   private PhysicalPlan plan;
   private ServerPreparedStatementState state;
-
 
   public HandlerToPreparePlanBase(
       QueryContext context,
@@ -87,24 +85,36 @@ public abstract class HandlerToPreparePlanBase<T> implements CommandRunner<T> {
 
   @Override
   public double plan() throws Exception {
-    try{
+    try {
       final RecordingObserver recording = new RecordingObserver();
       final AttemptObservers observers = AttemptObservers.of(observer, recording);
       observers.planStart(sql);
       plan = handler.getPlan(config.cloneWithNewObserver(observers), sql, sqlNode);
-      PreparedPlan prepared = new PreparedPlan(context.getQueryId(), context.getQueryUserName(), context.getQueryRequiresGroupsInfo(), sql, plan, recording);
+      PreparedPlan prepared =
+          new PreparedPlan(
+              context.getQueryId(),
+              context.getQueryUserName(),
+              context.getQueryRequiresGroupsInfo(),
+              sql,
+              plan,
+              recording);
       final Long handle = PREPARE_ID.getAndIncrement();
-      state = ServerPreparedStatementState.newBuilder()
-        .setHandle(handle)
-        .setSqlQuery(sql)
-        .setPrepareId(context.getQueryId())
-        .build();
+      state =
+          ServerPreparedStatementState.newBuilder()
+              .setHandle(handle)
+              .setSqlQuery(sql)
+              .setPrepareId(context.getQueryId())
+              .build();
       planCache.put(handle, prepared);
 
-      // record a partial plan so that we can grab metadata and use it (for example during view creation of via sql).
-      observers.planCompleted(new ExecutionPlan(context.getQueryId(), plan, ImmutableList.of(), new PlanFragmentsIndex.Builder()));
+      // record a partial plan so that we can grab metadata and use it (for example during view
+      // creation of via sql).
+      observers.planCompleted(
+          new ExecutionPlan(
+              context.getQueryId(), plan, ImmutableList.of(), new PlanFragmentsIndex.Builder()),
+          null);
       return 1;
-    }catch(Exception ex){
+    } catch (Exception ex) {
       throw SqlExceptionHelper.coerceException(logger, sql, ex, true);
     }
   }
@@ -128,9 +138,7 @@ public abstract class HandlerToPreparePlanBase<T> implements CommandRunner<T> {
     void doCall(AttemptObserver observer);
   }
 
-  /**
-   * Collects planning calls to be carried to execution. So not all methods are overridden.
-   */
+  /** Collects planning calls to be carried to execution. So not all methods are overridden. */
   public static class RecordingObserver extends AbstractAttemptObserver {
 
     private final List<ObserverCall> calls = new ArrayList<>();
@@ -141,8 +149,15 @@ public abstract class HandlerToPreparePlanBase<T> implements CommandRunner<T> {
     }
 
     @Override
-    public void planValidated(final RelDataType rowType, final SqlNode node, final long millisTaken) {
-      calls.add(observer -> observer.planValidated(rowType, node, millisTaken));
+    public void planValidated(
+        final RelDataType rowType,
+        final SqlNode node,
+        final long millisTaken,
+        boolean isMaterializationCacheInitialized) {
+      calls.add(
+          observer ->
+              observer.planValidated(
+                  rowType, node, millisTaken, isMaterializationCacheInitialized));
     }
 
     @Override
@@ -161,15 +176,25 @@ public abstract class HandlerToPreparePlanBase<T> implements CommandRunner<T> {
     }
 
     @Override
-    public void planExpandView(final RelRoot expanded, final List<String> schemaPath, final int nestingLevel, final String sql) {
+    public void planExpandView(
+        final RelRoot expanded,
+        final List<String> schemaPath,
+        final int nestingLevel,
+        final String sql) {
       calls.add(observer -> observer.planExpandView(expanded, schemaPath, nestingLevel, sql));
     }
 
     @Override
-    public void planSubstituted(final DremioMaterialization materialization,
-                                final List<RelWithInfo> substitutions,
-                                final RelWithInfo target, final long millisTaken, boolean defaultReflection) {
-      calls.add(observer -> observer.planSubstituted(materialization, substitutions, target, millisTaken, defaultReflection));
+    public void planSubstituted(
+        final DremioMaterialization materialization,
+        final List<RelWithInfo> substitutions,
+        final RelWithInfo target,
+        final long millisTaken,
+        boolean defaultReflection) {
+      calls.add(
+          observer ->
+              observer.planSubstituted(
+                  materialization, substitutions, target, millisTaken, defaultReflection));
     }
 
     @Override
@@ -183,9 +208,17 @@ public abstract class HandlerToPreparePlanBase<T> implements CommandRunner<T> {
     }
 
     @Override
-    public void planRelTransform(final PlannerPhase phase, final RelOptPlanner planner, final RelNode before,
-                                 final RelNode after, final long millisTaken, Map<String, Long> timeBreakdownPerRule) {
-      calls.add(observer -> observer.planRelTransform(phase, planner, before, after, millisTaken, timeBreakdownPerRule));
+    public void planRelTransform(
+        final PlannerPhase phase,
+        final RelOptPlanner planner,
+        final RelNode before,
+        final RelNode after,
+        final long millisTaken,
+        List<PlannerPhaseRulesStats> rulesBreakdownStats) {
+      calls.add(
+          observer ->
+              observer.planRelTransform(
+                  phase, planner, before, after, millisTaken, rulesBreakdownStats));
     }
 
     @Override
@@ -194,7 +227,8 @@ public abstract class HandlerToPreparePlanBase<T> implements CommandRunner<T> {
     }
 
     @Override
-    public void planNormalized(final long millisTaken, final List<RelWithInfo> normalizedQueryPlans) {
+    public void planNormalized(
+        final long millisTaken, final List<RelWithInfo> normalizedQueryPlans) {
       calls.add(observer -> observer.planNormalized(millisTaken, normalizedQueryPlans));
     }
 
@@ -214,29 +248,34 @@ public abstract class HandlerToPreparePlanBase<T> implements CommandRunner<T> {
     }
 
     @Override
-    public void planRefreshDecision(String text, long millisTaken) { calls.add(observer -> observer.planRefreshDecision(text, millisTaken)); }
+    public void planRefreshDecision(String text, long millisTaken) {
+      calls.add(observer -> observer.planRefreshDecision(text, millisTaken));
+    }
 
     @Override
-    public void applyAccelDetails(CachedAccelDetails accelDetails) {
-      calls.add(observer -> observer.applyAccelDetails(accelDetails));
-    };
+    public void restoreAccelerationProfileFromCachedPlan(AccelerationProfile accelerationProfile) {
+      calls.add(observer -> observer.restoreAccelerationProfileFromCachedPlan(accelerationProfile));
+    }
+    ;
 
     @Override
     public void planCacheUsed(int count) {
       calls.add(observer -> observer.planCacheUsed(count));
-    };
+    }
+    ;
 
     @Override
-    public void updateReflectionsWithHints(ReflectionExplanationsAndQueryDistance reflectionExplanationsAndQueryDistance) {
-      calls.add(observer -> observer.updateReflectionsWithHints(reflectionExplanationsAndQueryDistance));
+    public void updateReflectionsWithHints(
+        ReflectionExplanationsAndQueryDistance reflectionExplanationsAndQueryDistance) {
+      calls.add(
+          observer -> observer.updateReflectionsWithHints(reflectionExplanationsAndQueryDistance));
     }
 
     public void replay(AttemptObserver observer) {
-      for(ObserverCall c : calls){
+      for (ObserverCall c : calls) {
         c.doCall(observer);
       }
     }
-
   }
 
   protected QueryContext getContext() {
@@ -250,5 +289,4 @@ public abstract class HandlerToPreparePlanBase<T> implements CommandRunner<T> {
   protected ServerPreparedStatementState getState() {
     return state;
   }
-
 }

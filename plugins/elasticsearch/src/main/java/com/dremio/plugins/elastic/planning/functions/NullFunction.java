@@ -17,7 +17,7 @@ package com.dremio.plugins.elastic.planning.functions;
 
 import org.apache.calcite.rex.RexCall;
 
-class NullFunction extends ElasticFunction{
+class NullFunction extends ElasticFunction {
 
   public NullFunction(String dremioName, String elasticName) {
     super(dremioName, elasticName);
@@ -27,7 +27,7 @@ class NullFunction extends ElasticFunction{
   public FunctionRender render(FunctionRenderer renderer, RexCall call) {
     checkArity(call, 1);
     FunctionRender operand = call.getOperands().get(0).accept(renderer.getVisitor());
-    return new FunctionRender(String.format("%s %s", operand.getNullGuardedScript(), elasticName), EMPTY);
+    return new FunctionRender(
+        String.format("%s %s", operand.getNullGuardedScript(), elasticName), EMPTY);
   }
-
 }

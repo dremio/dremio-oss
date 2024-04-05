@@ -21,9 +21,7 @@ import java.sql.SQLException;
 /**
  * A connection factory that creates and caches a single connection instance.
  *
- * <p>
- *   Not thread safe.
- * </p>
+ * <p>Not thread safe.
  */
 public class SingleConnectionCachingFactory implements CachingConnectionFactory {
 
@@ -36,11 +34,9 @@ public class SingleConnectionCachingFactory implements CachingConnectionFactory 
 
   /**
    * {@inheritDoc}
-   * <p>
-   *   For this implementation, calls to {@code createConnection} without any
-   *   intervening calls to {@link #closeConnections} return the same Connection
-   *   instance.
-   * </p>
+   *
+   * <p>For this implementation, calls to {@code createConnection} without any intervening calls to
+   * {@link #closeConnections} return the same Connection instance.
    */
   @Override
   public Connection getConnection(ConnectionInfo info) throws Exception {

@@ -17,10 +17,7 @@ package com.dremio.dac.service.errors;
 
 import java.util.Map;
 
-/**
- * Thrown when an invalid path is requested
- *
- */
+/** Thrown when an invalid path is requested */
 public class InvalidPathException extends ServiceException {
   private static final long serialVersionUID = 1L;
 

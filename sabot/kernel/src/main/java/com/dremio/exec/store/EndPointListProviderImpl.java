@@ -15,21 +15,19 @@
  */
 package com.dremio.exec.store;
 
+import com.dremio.exec.physical.config.MinorFragmentEndpoint;
 import java.util.List;
 
-import com.dremio.exec.physical.config.MinorFragmentEndpoint;
-
-/**
- * end point list proivder impl
- */
+/** end point list proivder impl */
 public class EndPointListProviderImpl implements EndPointListProvider {
-    private final List<MinorFragmentEndpoint> minorFragmentEndpoints;
-    public EndPointListProviderImpl(List<MinorFragmentEndpoint> minorFragmentEndpoints) {
-        this.minorFragmentEndpoints = minorFragmentEndpoints;
-    }
+  private final List<MinorFragmentEndpoint> minorFragmentEndpoints;
 
-    @Override
-    public List<MinorFragmentEndpoint> getDestinations() {
-        return minorFragmentEndpoints;
-    }
+  public EndPointListProviderImpl(List<MinorFragmentEndpoint> minorFragmentEndpoints) {
+    this.minorFragmentEndpoints = minorFragmentEndpoints;
+  }
+
+  @Override
+  public List<MinorFragmentEndpoint> getDestinations() {
+    return minorFragmentEndpoints;
+  }
 }

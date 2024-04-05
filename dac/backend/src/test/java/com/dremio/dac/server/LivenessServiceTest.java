@@ -20,9 +20,7 @@ import static org.junit.Assume.assumeFalse;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-/**
- * Tests LivenessService.
- */
+/** Tests LivenessService. */
 public class LivenessServiceTest extends BaseTestServer {
 
   @BeforeClass

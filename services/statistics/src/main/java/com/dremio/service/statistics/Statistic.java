@@ -15,24 +15,16 @@
  */
 package com.dremio.service.statistics;
 
+import com.dremio.service.statistics.proto.StatisticMessage;
+import io.protostuff.ByteString;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-
 import org.apache.calcite.sql.type.SqlTypeName;
 
-import com.dremio.service.statistics.proto.StatisticMessage;
-
-import io.protostuff.ByteString;
-
-
-/**
- * Statistic
- */
+/** Statistic */
 public class Statistic {
 
-  /**
-   * Type of statistics
-   */
+  /** Type of statistics */
   public enum StatisticType {
     RCOUNT,
     COLRCOUNT,
@@ -82,18 +74,20 @@ public class Statistic {
   public HistogramImpl getHistogram(SqlTypeName sqlTypeName) {
     ByteBuffer serializedTDigest = null;
     ByteBuffer serializedItemsSketch = null;
-    if(statisticMessage.getSerializedTdigest()!=null){
+    if (statisticMessage.getSerializedTdigest() != null) {
       serializedTDigest = statisticMessage.getSerializedTdigest().asReadOnlyByteBuffer();
     }
-    if(statisticMessage.getSerializedItemsSketch()!=null){
-      serializedItemsSketch = statisticMessage.getSerializedItemsSketch().asReadOnlyByteBuffer().order(ByteOrder.nativeOrder());
+    if (statisticMessage.getSerializedItemsSketch() != null) {
+      serializedItemsSketch =
+          statisticMessage
+              .getSerializedItemsSketch()
+              .asReadOnlyByteBuffer()
+              .order(ByteOrder.nativeOrder());
     }
     return new HistogramImpl(serializedTDigest, serializedItemsSketch, sqlTypeName);
   }
 
-  /**
-   * Statistics Builder
-   */
+  /** Statistics Builder */
   public static class StatisticBuilder {
     private final Statistic statistic;
 
@@ -103,7 +97,6 @@ public class Statistic {
 
     public StatisticBuilder(Statistic statistic) {
       this.statistic = statistic;
-
     }
 
     public void update(StatisticType type, Object value) {
@@ -111,33 +104,39 @@ public class Statistic {
         return;
       }
       switch (type) {
-        case RCOUNT: {
-          long rCount = ((Number) value).longValue();
-          statistic.statisticMessage.setRowCount(rCount);
-        }
-        break;
-        case COLRCOUNT: {
-          long colRowCount = ((Number) value).longValue();
-          statistic.statisticMessage.setColumnRowCount(colRowCount);
-        }
-        break;
-        case NDV: {
-          long ndv = ((Number) value).longValue();
-          statistic.statisticMessage.setNdv(ndv);
-        }
-        break;
-        case TDIGEST: {
-          byte[] byteArray = (byte[]) value;
-          statistic.statisticMessage.setSerializedTdigest(ByteString.copyFrom(byteArray));
-        }
-        break;
-      case ITEMSSKETCH: {
-        byte[] byteArray = (byte[]) value;
-        statistic.statisticMessage.setSerializedItemsSketch(ByteString.copyFrom(byteArray));
-        }
-        break;
+        case RCOUNT:
+          {
+            long rCount = ((Number) value).longValue();
+            statistic.statisticMessage.setRowCount(rCount);
+          }
+          break;
+        case COLRCOUNT:
+          {
+            long colRowCount = ((Number) value).longValue();
+            statistic.statisticMessage.setColumnRowCount(colRowCount);
+          }
+          break;
+        case NDV:
+          {
+            long ndv = ((Number) value).longValue();
+            statistic.statisticMessage.setNdv(ndv);
+          }
+          break;
+        case TDIGEST:
+          {
+            byte[] byteArray = (byte[]) value;
+            statistic.statisticMessage.setSerializedTdigest(ByteString.copyFrom(byteArray));
+          }
+          break;
+        case ITEMSSKETCH:
+          {
+            byte[] byteArray = (byte[]) value;
+            statistic.statisticMessage.setSerializedItemsSketch(ByteString.copyFrom(byteArray));
+          }
+          break;
         default:
-          throw new UnsupportedOperationException("Statistics type, " + type.toString() + ", is not supported");
+          throw new UnsupportedOperationException(
+              "Statistics type, " + type.toString() + ", is not supported");
       }
     }
 
@@ -145,5 +144,4 @@ public class Statistic {
       return statistic;
     }
   }
-
 }

@@ -17,11 +17,10 @@ package com.dremio.exec.ops;
 
 import com.dremio.service.users.SystemUser;
 
-/**
- * Reflection Context
- */
+/** Reflection Context */
 public class ReflectionContext {
-  public static final ReflectionContext SYSTEM_USER_CONTEXT = new ReflectionContext(SystemUser.SYSTEM_USERNAME, true);
+  public static final ReflectionContext SYSTEM_USER_CONTEXT =
+      new ReflectionContext(SystemUser.SYSTEM_USERNAME, true);
 
   private final String userName;
   private final boolean isAdmin;
@@ -38,6 +37,4 @@ public class ReflectionContext {
   public boolean isAdmin() {
     return isAdmin;
   }
-
-
 }

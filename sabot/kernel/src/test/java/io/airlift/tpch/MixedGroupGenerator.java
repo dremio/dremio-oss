@@ -19,6 +19,8 @@ import static org.apache.arrow.vector.types.Types.MinorType.INT;
 import static org.apache.arrow.vector.types.Types.MinorType.VARCHAR;
 import static org.apache.arrow.vector.types.pojo.FieldType.nullable;
 
+import com.dremio.common.expression.CompleteType;
+import com.dremio.test.AllocatorRule;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.IntVector;
@@ -27,12 +29,7 @@ import org.apache.arrow.vector.complex.StructVector;
 import org.apache.arrow.vector.complex.impl.NullableStructWriter;
 import org.apache.arrow.vector.types.pojo.Field;
 
-import com.dremio.common.expression.CompleteType;
-import com.dremio.test.AllocatorRule;
-
-/**
- * Creates a struct type vector and generates data for it.
- */
+/** Creates a struct type vector and generates data for it. */
 public class MixedGroupGenerator extends TpchGenerator {
 
   public static final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
@@ -48,23 +45,25 @@ public class MixedGroupGenerator extends TpchGenerator {
 
   private final StructVector mixedGroups;
 
-  /**
-   * Struct generated in this class would have 1 varchar and 1 int field
-   */
-  private static final Field map = CompleteType.struct(
-    CompleteType.VARCHAR.toField("varchar"),
-    CompleteType.INT.toField("int")
-  ).toField("mixed_group");
+  /** Struct generated in this class would have 1 varchar and 1 int field */
+  private static final Field map =
+      CompleteType.struct(CompleteType.VARCHAR.toField("varchar"), CompleteType.INT.toField("int"))
+          .toField("mixed_group");
 
-  public MixedGroupGenerator(final BufferAllocator allocator, final GenerationDefinition def, final int partitionIndex, final GenerationDefinition.TpchTable table, final String...includedColumns) {
+  public MixedGroupGenerator(
+      final BufferAllocator allocator,
+      final GenerationDefinition def,
+      final int partitionIndex,
+      final GenerationDefinition.TpchTable table,
+      final String... includedColumns) {
 
     super(table, allocator, def, partitionIndex, includedColumns);
     this.allocator = allocator;
 
-    //create a struct vector
+    // create a struct vector
     this.mixedGroups = (StructVector) complexType(map);
 
-    //create field vectors of struct
+    // create field vectors of struct
     this.mixedGroups.addOrGet("varchar", nullable(VARCHAR.getType()), VarCharVector.class);
     this.mixedGroups.addOrGet("int", nullable(INT.getType()), IntVector.class);
 
@@ -76,14 +75,14 @@ public class MixedGroupGenerator extends TpchGenerator {
 
     final NullableStructWriter structWriter = mixedGroups.getWriter();
 
-    try(final ArrowBuf tempBuf =  allocator.buffer(1024)){
+    try (final ArrowBuf tempBuf = allocator.buffer(1024)) {
 
       structWriter.setPosition(outputIndex);
 
       structWriter.start();
       final byte[] varCharVal = wordRandom.nextValue().getBytes();
       tempBuf.setBytes(0, varCharVal);
-      structWriter.varChar("varchar").writeVarChar(0, varCharVal.length,tempBuf);
+      structWriter.varChar("varchar").writeVarChar(0, varCharVal.length, tempBuf);
       structWriter.integer("int").writeInt(intRandom.nextValue());
       structWriter.end();
       intRandom.rowFinished();

@@ -15,20 +15,18 @@
  */
 package com.dremio.service.execselector;
 
-import java.util.Collection;
-
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
+import java.util.Collection;
 
 /**
  * Handle returned by the {@link ExecutorSelectionService}.
  *
- * It is the means by which users of the {@link ExecutorSelectionService} obtain the execution endpoints for a query
+ * <p>It is the means by which users of the {@link ExecutorSelectionService} obtain the execution
+ * endpoints for a query
  */
 public interface ExecutorSelectionHandle extends AutoCloseable {
   Collection<NodeEndpoint> getExecutors();
 
-  /**
-   * Plan details for the executor selection, to be exposed in the profile
-   */
+  /** Plan details for the executor selection, to be exposed in the profile */
   String getPlanDetails();
 }

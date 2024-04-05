@@ -15,21 +15,6 @@
  */
 package com.dremio.service.jobs;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-
-import org.apache.calcite.plan.RelOptTable;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.core.JoinInfo;
-import org.apache.calcite.rel.core.JoinRelType;
-import org.apache.calcite.rel.core.TableScan;
-import org.apache.calcite.rel.metadata.RelColumnOrigin;
-import org.apache.calcite.rel.metadata.RelMetadataQuery;
-import org.apache.calcite.util.Pair;
-
 import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.exec.planner.RoutingShuttle;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionUtils;
@@ -41,17 +26,31 @@ import com.dremio.exec.planner.physical.TableFunctionPrel;
 import com.dremio.exec.planner.physical.explain.PrelSequencer;
 import com.dremio.exec.planner.physical.explain.PrelSequencer.OpId;
 import com.dremio.exec.planner.physical.visitor.BasePrelVisitor;
+import com.dremio.exec.store.iceberg.IcebergIncrementalRefreshJoinKeyPrel;
 import com.dremio.service.Pointer;
 import com.dremio.service.job.proto.JoinCondition;
 import com.dremio.service.job.proto.JoinTable;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import org.apache.calcite.plan.RelOptTable;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.core.JoinInfo;
+import org.apache.calcite.rel.core.JoinRelType;
+import org.apache.calcite.rel.core.TableScan;
+import org.apache.calcite.rel.metadata.RelColumnOrigin;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.apache.calcite.util.Pair;
 
-/**
- * Save all information required for Join analysis from the final prel.
- */
-public final class JoinPreAnalyzer extends BasePrelVisitor<Prel, Map<Prel, OpId>, RuntimeException> {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(JoinPreAnalyzer.class);
+/** Save all information required for Join analysis from the final prel. */
+public final class JoinPreAnalyzer
+    extends BasePrelVisitor<Prel, Map<Prel, OpId>, RuntimeException> {
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(JoinPreAnalyzer.class);
 
   private Map<SubstitutionUtils.VersionedPath, Integer> tablesMap;
   private List<JoinTable> joinTables;
@@ -69,14 +68,17 @@ public final class JoinPreAnalyzer extends BasePrelVisitor<Prel, Map<Prel, OpId>
 
       // Construct join tables from the scan list.
       preAnalyzer.joinTables =
-        preAnalyzer.tablesMap.entrySet()
-          .stream()
-          .map(entry ->
-            new JoinTable()
-              .setTableId(entry.getValue())
-              .setTableSchemaPathList(entry.getKey().left)
-              .setVersionContext(entry.getKey().right != null ? entry.getKey().right.serialize() : null))
-          .collect(Collectors.toList());
+          preAnalyzer.tablesMap.entrySet().stream()
+              .map(
+                  entry ->
+                      new JoinTable()
+                          .setTableId(entry.getValue())
+                          .setTableSchemaPathList(entry.getKey().left)
+                          .setVersionContext(
+                              entry.getKey().right != null
+                                  ? entry.getKey().right.serialize()
+                                  : null))
+              .collect(Collectors.toList());
 
       // Collect join info.
       Map<Prel, OpId> fullMap = PrelSequencer.getIdMap(root);
@@ -98,7 +100,7 @@ public final class JoinPreAnalyzer extends BasePrelVisitor<Prel, Map<Prel, OpId>
   }
 
   private void visitChildren(Prel prel, Map<Prel, OpId> fullMap) {
-    for (Prel child : prel){
+    for (Prel child : prel) {
       child.accept(this, fullMap);
     }
   }
@@ -114,7 +116,9 @@ public final class JoinPreAnalyzer extends BasePrelVisitor<Prel, Map<Prel, OpId>
   @Override
   public Prel visitJoin(JoinPrel prel, Map<Prel, OpId> fullMap) throws RuntimeException {
     visitChildren(prel, fullMap);
-
+    if (prel.getIgnoreForJoinAnalysis()) {
+      return prel;
+    }
     OpId opId = fullMap.get(prel);
     JoinRelType joinType = prel.getJoinType();
 
@@ -124,26 +128,39 @@ public final class JoinPreAnalyzer extends BasePrelVisitor<Prel, Map<Prel, OpId>
     List<JoinCondition> joinConditions = null;
     try {
       joinConditions =
-        Pair.zip(joinInfo.leftKeys, joinInfo.rightKeys)
-        .stream()
-        .map(pair -> {
-          final RelColumnOrigin leftColumnOrigin = Iterables
-            .getOnlyElement(relMetadataQuery.getColumnOrigins(prel.getLeft(), pair.left));
-          final RelColumnOrigin rightColumnOrigin = Iterables.getOnlyElement(relMetadataQuery.getColumnOrigins(prel.getRight(), pair.right));
-          final RelOptTable leftTable = leftColumnOrigin.getOriginTable();
-          final RelOptTable rightTable = rightColumnOrigin.getOriginTable();
+          Pair.zip(joinInfo.leftKeys, joinInfo.rightKeys).stream()
+              .map(
+                  pair -> {
+                    final RelColumnOrigin leftColumnOrigin =
+                        Iterables.getOnlyElement(
+                            relMetadataQuery.getColumnOrigins(prel.getLeft(), pair.left));
+                    final RelColumnOrigin rightColumnOrigin =
+                        Iterables.getOnlyElement(
+                            relMetadataQuery.getColumnOrigins(prel.getRight(), pair.right));
+                    final RelOptTable leftTable = leftColumnOrigin.getOriginTable();
+                    final RelOptTable rightTable = rightColumnOrigin.getOriginTable();
 
-          int leftOrdinal = leftColumnOrigin.getOriginColumnOrdinal();
-          int rightOrdinal = rightColumnOrigin.getOriginColumnOrdinal();
-          return new JoinCondition()
-            .setBuildSideColumn(rightTable.getRowType().getFieldList().get(rightOrdinal).getName())
-            .setProbeSideColumn(leftTable.getRowType().getFieldList().get(leftOrdinal).getName())
-            .setBuildSideTableId(Preconditions.checkNotNull(tablesMap.get(SubstitutionUtils.VersionedPath.of(rightTable.getQualifiedName(),
-                                                                          SubstitutionUtils.getVersionContext(rightTable)))))
-            .setProbeSideTableId(Preconditions.checkNotNull(tablesMap.get(SubstitutionUtils.VersionedPath.of(leftTable.getQualifiedName(),
-                                                                          SubstitutionUtils.getVersionContext(leftTable)))));
-        })
-        .collect(Collectors.toList());
+                    int leftOrdinal = leftColumnOrigin.getOriginColumnOrdinal();
+                    int rightOrdinal = rightColumnOrigin.getOriginColumnOrdinal();
+                    return new JoinCondition()
+                        .setBuildSideColumn(
+                            rightTable.getRowType().getFieldList().get(rightOrdinal).getName())
+                        .setProbeSideColumn(
+                            leftTable.getRowType().getFieldList().get(leftOrdinal).getName())
+                        .setBuildSideTableId(
+                            Preconditions.checkNotNull(
+                                tablesMap.get(
+                                    SubstitutionUtils.VersionedPath.of(
+                                        rightTable.getQualifiedName(),
+                                        SubstitutionUtils.getVersionContext(rightTable)))))
+                        .setProbeSideTableId(
+                            Preconditions.checkNotNull(
+                                tablesMap.get(
+                                    SubstitutionUtils.VersionedPath.of(
+                                        leftTable.getQualifiedName(),
+                                        SubstitutionUtils.getVersionContext(leftTable)))));
+                  })
+              .collect(Collectors.toList());
     } catch (Exception e) {
       logger.debug("Caught exception while finding join conditions", e);
     }
@@ -151,9 +168,7 @@ public final class JoinPreAnalyzer extends BasePrelVisitor<Prel, Map<Prel, OpId>
     return prel;
   }
 
-  /**
-   * Get the list of scan tables.
-   */
+  /** Get the list of scan tables. */
   public static class TableScanCollector extends RoutingShuttle {
     private final Pointer<Integer> counter = new Pointer<>(0);
     private Map<SubstitutionUtils.VersionedPath, Integer> tables = new HashMap<>();
@@ -176,11 +191,13 @@ public final class JoinPreAnalyzer extends BasePrelVisitor<Prel, Map<Prel, OpId>
       if ((other instanceof ContainerRel)) {
         ((ContainerRel) other).getSubTree().accept(this);
       }
-      if ((other instanceof TableFunctionPrel)) {
+      if ((other instanceof TableFunctionPrel)
+          && !(other instanceof IcebergIncrementalRefreshJoinKeyPrel)) {
         TableFunctionPrel tableFunctionPrel = ((TableFunctionPrel) other);
         if (tableFunctionPrel.getTable() != null) {
           List<String> table = tableFunctionPrel.getTable().getQualifiedName();
-          TableVersionContext versionContext = tableFunctionPrel.getTableMetadata().getVersionContext();
+          TableVersionContext versionContext =
+              tableFunctionPrel.getTableMetadata().getVersionContext();
           tables.put(SubstitutionUtils.VersionedPath.of(table, versionContext), counter.value++);
         }
       }
@@ -188,16 +205,15 @@ public final class JoinPreAnalyzer extends BasePrelVisitor<Prel, Map<Prel, OpId>
     }
   }
 
-  /**
-   * Join info saved from the prel.
-   */
+  /** Join info saved from the prel. */
   public static class JoinPreAnalysisInfo {
     private final OpId opId;
     private final JoinRelType joinType;
     private final boolean swapped;
     private final List<JoinCondition> joinConditions;
 
-    public JoinPreAnalysisInfo(OpId opId, JoinRelType joinType, boolean swapped, List<JoinCondition> joinConditions) {
+    public JoinPreAnalysisInfo(
+        OpId opId, JoinRelType joinType, boolean swapped, List<JoinCondition> joinConditions) {
       this.opId = opId;
       this.joinType = joinType;
       this.swapped = swapped;

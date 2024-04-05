@@ -18,21 +18,17 @@ import { connect } from "react-redux";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
 import { propTypes as reduxFormPropTypes } from "redux-form";
-import clsx from "clsx";
-
 import {
   connectComplexForm,
   InnerComplexForm,
 } from "components/Forms/connectComplexForm.js";
-import SimpleButton from "components/Buttons/SimpleButton";
 import TextField from "components/Fields/TextField";
 import Toggle from "components/Fields/Toggle";
 import { isInteger, isNumber, isRequired } from "utils/validation";
 import ApiUtils from "utils/apiUtils/apiUtils";
 import settingActions from "actions/resources/setting";
-
+import { Button } from "dremio-ui-lib/components";
 import { FIELD_OVERRIDES, LABELS } from "./settingsConfig";
-import * as classes from "@app/uiTheme/radium/replacingRadiumPseudoClasses.module.less";
 
 export class SettingsMicroForm extends PureComponent {
   static propTypes = {
@@ -40,6 +36,7 @@ export class SettingsMicroForm extends PureComponent {
     viewId: PropTypes.string.isRequired,
     settingId: PropTypes.string.isRequired,
     setting: PropTypes.instanceOf(Immutable.Map),
+    customSetting: PropTypes.object,
     putSetting: PropTypes.func.isRequired,
     fields: PropTypes.object.isRequired,
     showLabel: PropTypes.bool.isRequired,
@@ -208,24 +205,24 @@ export class SettingsMicroForm extends PureComponent {
             )}
           </label>
           {/* todo: by default buttons and textfields and toggles don't align. need to (carefully) fix */}
-          <SimpleButton
+          <Button
             data-qa="save-support-key"
-            buttonStyle="secondary"
-            className={clsx(classes["secondaryButtonPsuedoClasses"])}
+            type="submit"
+            variant="secondary"
+            className="mr-05"
             style={saveButtonStyle}
           >
             {laDeprecated("Save")}
-          </SimpleButton>
+          </Button>
           {this.props.resetSetting && (
-            <SimpleButton
+            <Button
               data-qa="reset-support-key"
               onClick={this.remove}
-              buttonStyle="secondary"
-              className={clsx(classes["secondaryButtonPsuedoClasses"])}
+              variant="secondary"
               style={buttonStyle}
             >
               {laDeprecated("Reset")}
-            </SimpleButton>
+            </Button>
           )}
         </div>
       </InnerComplexForm>
@@ -279,7 +276,11 @@ export default connect((state, ownProps) => {
     "setting",
     ownProps.settingId,
   ]);
-  return { setting };
+
+  // allows passing in individuals support flags
+  return {
+    setting: setting ? setting : Immutable.fromJS(ownProps.customSetting),
+  };
 })((props) => {
   if (!props.setting) return null;
   return <ConnectedForm {...props} />;

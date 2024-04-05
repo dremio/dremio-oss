@@ -17,13 +17,12 @@ package com.dremio.services.fabric.api;
 
 import com.dremio.service.Service;
 
-/**
- * Service to register custom protocols on the RPC fabric.
- */
+/** Service to register custom protocols on the RPC fabric. */
 public interface FabricService extends Service {
 
   /**
    * Register a new protocol.
+   *
    * @param protocol The protocol to register.
    * @return A way to get tunnels to other nodes.
    */
@@ -37,16 +36,18 @@ public interface FabricService extends Service {
    * @throws IllegalArgumentException if the protocol hasn't been registered
    */
   FabricRunnerFactory getProtocol(int id);
+
   /**
    * The port the service is running on (once started).
+   *
    * @return A port number.
    */
   int getPort();
 
   /**
    * Return the address that the rpc layer is running on.
+   *
    * @return The bind address.
    */
   String getAddress();
-
 }

@@ -15,18 +15,19 @@
  */
 package com.dremio.services.fabric.simple;
 
-import org.apache.arrow.memory.ArrowBuf;
-
 import com.dremio.exec.rpc.RpcException;
 import com.google.protobuf.MessageLite;
+import org.apache.arrow.memory.ArrowBuf;
 
 /**
- * Interface that the ProtocolBuilder returns to allow someone to send message to a registered handler.
+ * Interface that the ProtocolBuilder returns to allow someone to send message to a registered
+ * handler.
  *
  * @param <REQUEST>
  * @param <RESPONSE>
  */
 public interface SendEndpoint<REQUEST extends MessageLite, RESPONSE extends MessageLite> {
 
-  public ReceivedResponseMessage<RESPONSE> send(REQUEST message, ArrowBuf... bufs) throws RpcException;
+  public ReceivedResponseMessage<RESPONSE> send(REQUEST message, ArrowBuf... bufs)
+      throws RpcException;
 }

@@ -19,15 +19,6 @@ package com.dremio.sabot.op.join.vhash;
 import static com.dremio.exec.ExecConstants.ENABLE_RUNTIME_FILTER_ON_NON_PARTITIONED_PARQUET;
 import static com.dremio.exec.ExecConstants.RUNTIME_FILTER_KEY_MAX_SIZE;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.commons.collections4.CollectionUtils;
-
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.physical.config.HashJoinPOP;
 import com.dremio.exec.physical.config.RuntimeFilterProbeTarget;
@@ -49,18 +40,28 @@ import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.exec.fragment.OutOfBandMessage;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.commons.collections4.CollectionUtils;
 
 public class RuntimeFilterUtil {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(RuntimeFilterUtil.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(RuntimeFilterUtil.class);
 
   @VisibleForTesting
-  public static boolean isRuntimeFilterEnabledForNonPartitionedCols(OperatorContext operatorContext) {
+  public static boolean isRuntimeFilterEnabledForNonPartitionedCols(
+      OperatorContext operatorContext) {
     return operatorContext.getOptions().getOption(ENABLE_RUNTIME_FILTER_ON_NON_PARTITIONED_PARQUET);
   }
 
   @VisibleForTesting
   public static int getRuntimeValFilterCap(OperatorContext operatorContext) {
-    return (int) operatorContext.getOptions().getOption(ExecConstants.RUNTIME_FILTER_VALUE_FILTER_MAX_SIZE);
+    return (int)
+        operatorContext.getOptions().getOption(ExecConstants.RUNTIME_FILTER_VALUE_FILTER_MAX_SIZE);
   }
 
   @VisibleForTesting
@@ -68,7 +69,8 @@ public class RuntimeFilterUtil {
     return (int) operatorContext.getOptions().getOption(RUNTIME_FILTER_KEY_MAX_SIZE);
   }
 
-  public static boolean shouldFragBuildRuntimeFilters(RuntimeFilterInfo runtimeFilterInfo, int minorFragment) {
+  public static boolean shouldFragBuildRuntimeFilters(
+      RuntimeFilterInfo runtimeFilterInfo, int minorFragment) {
     /*
      * a. For partitioned columns, a consolidated bloomfilter made on composite build keys.
      * b. For non-partitioned columns, an individual value filter is used per column.
@@ -82,80 +84,100 @@ public class RuntimeFilterUtil {
      * For broadcast hashjoin cases, no exchanges required. Only minor fragments [0,1,2] will
      * create and send the filter.
      */
-    return runtimeFilterInfo != null && (!runtimeFilterInfo.isBroadcastJoin() || minorFragment <= 2);
+    return runtimeFilterInfo != null
+        && (!runtimeFilterInfo.isBroadcastJoin() || minorFragment <= 2);
   }
 
-  public static void prepareAndSendRuntimeFilters(RuntimeFilterManager runtimeFilterManager,
-                                                  RuntimeFilterInfo runtimeFilterInfo,
-                                                  PartitionColFilters partitionColFilters,
-                                                  NonPartitionColFilters nonPartitionColFilters,
-                                                  OperatorContext operatorContext,
-                                                  HashJoinPOP hashJoinConfig) throws Exception {
+  public static void prepareAndSendRuntimeFilters(
+      RuntimeFilterManager runtimeFilterManager,
+      RuntimeFilterInfo runtimeFilterInfo,
+      PartitionColFilters partitionColFilters,
+      NonPartitionColFilters nonPartitionColFilters,
+      OperatorContext operatorContext,
+      HashJoinPOP hashJoinConfig)
+      throws Exception {
     List<RuntimeFilterProbeTarget> probeTargets = runtimeFilterInfo.getRuntimeFilterProbeTargets();
 
     for (int i = 0; i < probeTargets.size(); i++) {
       RuntimeFilterProbeTarget probeTarget = probeTargets.get(i);
       Optional<BloomFilter> bloomFilter = partitionColFilters.getBloomFilter(i, probeTarget);
-      List<ValueListFilter> valueListFilters = nonPartitionColFilters == null ? new ArrayList<>() :
-        nonPartitionColFilters.getValueListFilters(i, probeTarget);
+      List<ValueListFilter> valueListFilters =
+          nonPartitionColFilters == null
+              ? new ArrayList<>()
+              : nonPartitionColFilters.getValueListFilters(i, probeTarget);
 
-      prepareAndSendRuntimeFilter(runtimeFilterManager, probeTarget, bloomFilter,
-        valueListFilters, runtimeFilterInfo.isBroadcastJoin(), operatorContext, hashJoinConfig);
+      prepareAndSendRuntimeFilter(
+          runtimeFilterManager,
+          probeTarget,
+          bloomFilter,
+          valueListFilters,
+          runtimeFilterInfo.isBroadcastJoin(),
+          operatorContext,
+          hashJoinConfig);
     }
   }
 
-  private static void prepareAndSendRuntimeFilter(RuntimeFilterManager runtimeFilterManager,
-                                                  RuntimeFilterProbeTarget probeTarget,
-                                                  Optional<BloomFilter> partitionColFilter,
-                                                  List<ValueListFilter> nonPartitionColFilters,
-                                                  boolean isBroadcastJoin,
-                                                  OperatorContext operatorContext,
-                                                  HashJoinPOP hashJoinConfig) throws Exception {
-    final RuntimeFilter.Builder runtimeFilterBuilder = RuntimeFilter.newBuilder()
-      .setProbeScanOperatorId(probeTarget.getProbeScanOperatorId())
-      .setProbeScanMajorFragmentId(probeTarget.getProbeScanMajorFragmentId());
+  private static void prepareAndSendRuntimeFilter(
+      RuntimeFilterManager runtimeFilterManager,
+      RuntimeFilterProbeTarget probeTarget,
+      Optional<BloomFilter> partitionColFilter,
+      List<ValueListFilter> nonPartitionColFilters,
+      boolean isBroadcastJoin,
+      OperatorContext operatorContext,
+      HashJoinPOP hashJoinConfig)
+      throws Exception {
+    final RuntimeFilter.Builder runtimeFilterBuilder =
+        RuntimeFilter.newBuilder()
+            .setProbeScanOperatorId(probeTarget.getProbeScanOperatorId())
+            .setProbeScanMajorFragmentId(probeTarget.getProbeScanMajorFragmentId());
 
     /* Add partiton column filter */
     if (!partitionColFilter.isPresent()) {
       // No valid bloomfilter for partition pruning
       logger.debug("No valid partition column filter for {}", probeTarget.toTargetIdString());
     } else {
-      Preconditions.checkState(partitionColFilter.get().getDataBuffer().refCnt() > 0, "Reference count for partitionColFilter buffer < 1.");
+      Preconditions.checkState(
+          partitionColFilter.get().getDataBuffer().refCnt() > 0,
+          "Reference count for partitionColFilter buffer < 1.");
       Preconditions.checkState(!CollectionUtils.isEmpty(probeTarget.getPartitionBuildTableKeys()));
       Preconditions.checkState(!partitionColFilter.get().isCrossingMaxFPP());
 
-      final CompositeColumnFilter partitionFilter = CompositeColumnFilter.newBuilder()
-        .setFilterType(ExecProtos.RuntimeFilterType.BLOOM_FILTER)
-        .addAllColumns(probeTarget.getPartitionProbeTableKeys())
-        .setValueCount(partitionColFilter.get().getNumBitsSet())
-        .setSizeBytes(partitionColFilter.get().getSizeInBytes())
-        .build();
+      final CompositeColumnFilter partitionFilter =
+          CompositeColumnFilter.newBuilder()
+              .setFilterType(ExecProtos.RuntimeFilterType.BLOOM_FILTER)
+              .addAllColumns(probeTarget.getPartitionProbeTableKeys())
+              .setValueCount(partitionColFilter.get().getNumBitsSet())
+              .setSizeBytes(partitionColFilter.get().getSizeInBytes())
+              .build();
 
       runtimeFilterBuilder.setPartitionColumnFilter(partitionFilter);
     }
 
     /* Add non-partition column filters */
     for (ValueListFilter valueListFilter : nonPartitionColFilters) {
-     ExecProtos.RuntimeFilterType type = ExecProtos.RuntimeFilterType.VALUE_LIST;
+      ExecProtos.RuntimeFilterType type = ExecProtos.RuntimeFilterType.VALUE_LIST;
       if (valueListFilter instanceof ValueListWithBloomFilter) {
         type = ExecProtos.RuntimeFilterType.VALUE_LIST_WITH_BLOOM_FILTER;
       }
-      final CompositeColumnFilter nonPartitionColFilter = CompositeColumnFilter.newBuilder()
-        /* Already col's FieldName from PartitionProbeTableKeys() saved in valueListFilter */
-        .addColumns(valueListFilter.getFieldName())
-        .setFilterType(type)
-        .setValueCount(valueListFilter.getValueCount())
-        .setSizeBytes(valueListFilter.getSizeInBytes())
-        .build();
+      final CompositeColumnFilter nonPartitionColFilter =
+          CompositeColumnFilter.newBuilder()
+              /* Already col's FieldName from PartitionProbeTableKeys() saved in valueListFilter */
+              .addColumns(valueListFilter.getFieldName())
+              .setFilterType(type)
+              .setValueCount(valueListFilter.getValueCount())
+              .setSizeBytes(valueListFilter.getSizeInBytes())
+              .build();
 
       runtimeFilterBuilder.addNonPartitionColumnFilter(nonPartitionColFilter);
     }
 
     final RuntimeFilter runtimeFilter = runtimeFilterBuilder.build();
-    if (runtimeFilter.getPartitionColumnFilter().getColumnsCount() == 0 &&
-      runtimeFilter.getNonPartitionColumnFilterCount() == 0) {
+    if (runtimeFilter.getPartitionColumnFilter().getColumnsCount() == 0
+        && runtimeFilter.getNonPartitionColumnFilterCount() == 0) {
       // No partition column filter or non-partition column filter
-      logger.warn("No valid partition and/or non-partition column filter for {}", probeTarget.toTargetIdString());
+      logger.warn(
+          "No valid partition and/or non-partition column filter for {}",
+          probeTarget.toTargetIdString());
       runtimeFilterManager.incrementDropCount();
       return;
     }
@@ -163,185 +185,263 @@ public class RuntimeFilterUtil {
     RuntimeFilterManager.RuntimeFilterManagerEntry fmEntry = null;
     if (!isBroadcastJoin && operatorContext.getFragmentHandle().getMinorFragmentId() <= 2) {
       // This fragment is one of the merge points. Set up FilterManager for interim use.
-      fmEntry = runtimeFilterManager.coalesce(runtimeFilter, partitionColFilter,
-        nonPartitionColFilters, operatorContext.getFragmentHandle().getMinorFragmentId());
+      fmEntry =
+          runtimeFilterManager.coalesce(
+              runtimeFilter,
+              partitionColFilter,
+              nonPartitionColFilters,
+              operatorContext.getFragmentHandle().getMinorFragmentId());
     }
 
     if (isBroadcastJoin) {
-      sendRuntimeFilterToProbeScan(runtimeFilter, partitionColFilter, nonPartitionColFilters,
-        operatorContext, hashJoinConfig);
+      sendRuntimeFilterToProbeScan(
+          runtimeFilter,
+          partitionColFilter,
+          nonPartitionColFilters,
+          operatorContext,
+          hashJoinConfig);
 
-      long numberOfValuesInBloomFilter = partitionColFilter.isPresent() ? partitionColFilter.get().getNumBitsSet() : 0;
-      int numberOfHashFunctions = partitionColFilter.isPresent() ? partitionColFilter.get().getNumHashFunctions() : 0;
-      addRunTimeFilterInfosToProfileDetails(operatorContext,
-        prepareRunTimeFilterDetailsInfos(probeTarget, runtimeFilter,
-          numberOfValuesInBloomFilter, numberOfHashFunctions));
+      long numberOfValuesInBloomFilter =
+          partitionColFilter.isPresent() ? partitionColFilter.get().getNumBitsSet() : 0;
+      int numberOfHashFunctions =
+          partitionColFilter.isPresent() ? partitionColFilter.get().getNumHashFunctions() : 0;
+      addRunTimeFilterInfosToProfileDetails(
+          operatorContext,
+          prepareRunTimeFilterDetailsInfos(
+              probeTarget, runtimeFilter, numberOfValuesInBloomFilter, numberOfHashFunctions));
     } else if (fmEntry != null && fmEntry.isComplete() && !fmEntry.isDropped()) {
       // All other filter pieces have already arrived. This one was last one to join.
       // Send merged filter to probe scan and close this individual piece explicitly.
-      sendRuntimeFilterToProbeScan(fmEntry.getCompositeFilter(), Optional.ofNullable(fmEntry.getPartitionColFilter()),
-        fmEntry.getNonPartitionColFilters(), operatorContext, hashJoinConfig);
+      sendRuntimeFilterToProbeScan(
+          fmEntry.getCompositeFilter(),
+          Optional.ofNullable(fmEntry.getPartitionColFilter()),
+          fmEntry.getNonPartitionColFilters(),
+          operatorContext,
+          hashJoinConfig);
       runtimeFilterManager.remove(fmEntry);
 
-      long numberOfValuesInBloomFilter = partitionColFilter.isPresent() ? partitionColFilter.get().getNumBitsSet() :0;
-      int numberOfHashFunctions = partitionColFilter.isPresent() ? partitionColFilter.get().getNumHashFunctions() : 0;
-      addRunTimeFilterInfosToProfileDetails(operatorContext,
-        prepareRunTimeFilterDetailsInfos(probeTarget, runtimeFilter,
-          numberOfValuesInBloomFilter, numberOfHashFunctions));
+      long numberOfValuesInBloomFilter =
+          partitionColFilter.isPresent() ? partitionColFilter.get().getNumBitsSet() : 0;
+      int numberOfHashFunctions =
+          partitionColFilter.isPresent() ? partitionColFilter.get().getNumHashFunctions() : 0;
+      addRunTimeFilterInfosToProfileDetails(
+          operatorContext,
+          prepareRunTimeFilterDetailsInfos(
+              probeTarget, runtimeFilter, numberOfValuesInBloomFilter, numberOfHashFunctions));
     } else {
       // Send filter to merge points (minor fragments <= 2) if not complete.
-      sendRuntimeFilterAtMergePoints(runtimeFilter, partitionColFilter, nonPartitionColFilters,
-        operatorContext, hashJoinConfig);
+      sendRuntimeFilterAtMergePoints(
+          runtimeFilter,
+          partitionColFilter,
+          nonPartitionColFilters,
+          operatorContext,
+          hashJoinConfig);
     }
   }
 
   public static List<UserBitShared.RunTimeFilterDetailsInfo> prepareRunTimeFilterDetailsInfos(
-    RuntimeFilterProbeTarget probeTarget, RuntimeFilter runtimeFilter, long numberOfValuesInBloomFilter, int numberOfHashFuntions) {
+      RuntimeFilterProbeTarget probeTarget,
+      RuntimeFilter runtimeFilter,
+      long numberOfValuesInBloomFilter,
+      int numberOfHashFuntions) {
     List<UserBitShared.RunTimeFilterDetailsInfo> runTimeFilterDetailsInfos = new ArrayList<>();
-    String probeTargetScanId = String.format("%02d-%02d", probeTarget.getProbeScanMajorFragmentId(), probeTarget.getProbeScanOperatorId() & 0xFF);
+    String probeTargetScanId =
+        String.format(
+            "%02d-%02d",
+            probeTarget.getProbeScanMajorFragmentId(), probeTarget.getProbeScanOperatorId() & 0xFF);
     if (!probeTarget.getPartitionProbeTableKeys().isEmpty()) {
-      UserBitShared.RunTimeFilterDetailsInfo runTimeFilterDetailsInfo = UserBitShared.RunTimeFilterDetailsInfo.newBuilder()
-        .setProbeTarget(probeTargetScanId)
-        .addAllProbeFieldNames(probeTarget.getPartitionProbeTableKeys())
-        .setIsNonPartitionedColumn(false)
-        .setIsPartitionedCoulmn(true)
-        .setNumberOfValues(numberOfValuesInBloomFilter)
-        .setNumberOfHashFunctions(numberOfHashFuntions)
-        .build();
+      UserBitShared.RunTimeFilterDetailsInfo runTimeFilterDetailsInfo =
+          UserBitShared.RunTimeFilterDetailsInfo.newBuilder()
+              .setProbeTarget(probeTargetScanId)
+              .addAllProbeFieldNames(probeTarget.getPartitionProbeTableKeys())
+              .setIsNonPartitionedColumn(false)
+              .setIsPartitionedCoulmn(true)
+              .setNumberOfValues(numberOfValuesInBloomFilter)
+              .setNumberOfHashFunctions(numberOfHashFuntions)
+              .build();
       runTimeFilterDetailsInfos.add(runTimeFilterDetailsInfo);
     }
 
     for (int i = 0; i < runtimeFilter.getNonPartitionColumnFilterCount(); i++) {
       String probeField = runtimeFilter.getNonPartitionColumnFilter(i).getColumns(0);
-      UserBitShared.RunTimeFilterDetailsInfo runTimeFilterDetailsInfoForNonPartitionColumn = UserBitShared.RunTimeFilterDetailsInfo.newBuilder()
-        .setProbeTarget(probeTargetScanId)
-        .addAllProbeFieldNames(Arrays.asList(probeField))
-        .setIsNonPartitionedColumn(true)
-        .setIsPartitionedCoulmn(false)
-        .setNumberOfValues(runtimeFilter.getNonPartitionColumnFilter(i).getValueCount())
-        .setNumberOfHashFunctions(0)
-        .build();
+      UserBitShared.RunTimeFilterDetailsInfo runTimeFilterDetailsInfoForNonPartitionColumn =
+          UserBitShared.RunTimeFilterDetailsInfo.newBuilder()
+              .setProbeTarget(probeTargetScanId)
+              .addAllProbeFieldNames(Arrays.asList(probeField))
+              .setIsNonPartitionedColumn(true)
+              .setIsPartitionedCoulmn(false)
+              .setNumberOfValues(runtimeFilter.getNonPartitionColumnFilter(i).getValueCount())
+              .setNumberOfHashFunctions(0)
+              .build();
       runTimeFilterDetailsInfos.add(runTimeFilterDetailsInfoForNonPartitionColumn);
     }
 
     return runTimeFilterDetailsInfos;
   }
 
-  private static void collectRuntimeFilterBuffers(RuntimeFilter filter,
-                                                  Optional<BloomFilter> partitionColFilter,
-                                                  List<ValueListFilter> nonPartitionColFilters,
-                                                  List<ArrowBuf> buffers,
-                                                  List<Integer> bufLengths
-                                                  ) {
+  private static void collectRuntimeFilterBuffers(
+      RuntimeFilter filter,
+      Optional<BloomFilter> partitionColFilter,
+      List<ValueListFilter> nonPartitionColFilters,
+      List<ArrowBuf> buffers,
+      List<Integer> bufLengths) {
     final ArrowBuf bloomFilterBuf = partitionColFilter.map(bf -> bf.getDataBuffer()).orElse(null);
     partitionColFilter.ifPresent(bf -> buffers.add(bloomFilterBuf));
     nonPartitionColFilters.forEach(v -> buffers.add(v.buf()));
 
-    partitionColFilter.ifPresent(v -> bufLengths.add((int)filter.getPartitionColumnFilter().getSizeBytes()));
-    filter.getNonPartitionColumnFilterList().forEach(v -> bufLengths.add((int)v.getSizeBytes()));
+    partitionColFilter.ifPresent(
+        v -> bufLengths.add((int) filter.getPartitionColumnFilter().getSizeBytes()));
+    filter.getNonPartitionColumnFilterList().forEach(v -> bufLengths.add((int) v.getSizeBytes()));
   }
 
   @VisibleForTesting
-  static void sendRuntimeFilterToProbeScan(RuntimeFilter filter, Optional<BloomFilter> partitionColFilter,
-                                           List<ValueListFilter> nonPartitionColFilters,
-                                           OperatorContext operatorContext, HashJoinPOP hashJoinConfig) throws Exception {
-    logger.debug("Sending join runtime filter to probe scan {}:{}, Filter {}",
-      filter.getProbeScanOperatorId(), filter.getProbeScanMajorFragmentId(), partitionColFilter);
-    logger.debug("Partition col filter fpp {}",
-      partitionColFilter.map(BloomFilter::getExpectedFPP).orElse(-1D));
+  static void sendRuntimeFilterToProbeScan(
+      RuntimeFilter filter,
+      Optional<BloomFilter> partitionColFilter,
+      List<ValueListFilter> nonPartitionColFilters,
+      OperatorContext operatorContext,
+      HashJoinPOP hashJoinConfig)
+      throws Exception {
+    logger.debug(
+        "Sending join runtime filter to probe scan {}:{}, Filter {}",
+        filter.getProbeScanOperatorId(),
+        filter.getProbeScanMajorFragmentId(),
+        partitionColFilter);
+    logger.debug(
+        "Partition col filter fpp {}",
+        partitionColFilter.map(BloomFilter::getExpectedFPP).orElse(-1D));
 
-    // if bloom filter is empty, initial capacity maybe allocate 1 more than necessary, should be ok.
-    final List<ArrowBuf> orderedBuffers = new ArrayList<ArrowBuf>(nonPartitionColFilters.size() + 1);
+    // if bloom filter is empty, initial capacity maybe allocate 1 more than necessary, should be
+    // ok.
+    final List<ArrowBuf> orderedBuffers =
+        new ArrayList<ArrowBuf>(nonPartitionColFilters.size() + 1);
     final List<Integer> bufLengths = new ArrayList<Integer>(nonPartitionColFilters.size() + 1);
-    collectRuntimeFilterBuffers(filter, partitionColFilter, nonPartitionColFilters, orderedBuffers, bufLengths);
+    collectRuntimeFilterBuffers(
+        filter, partitionColFilter, nonPartitionColFilters, orderedBuffers, bufLengths);
 
     final MajorFragmentAssignment majorFragmentAssignment =
-      operatorContext.getExtMajorFragmentAssignments(filter.getProbeScanMajorFragmentId());
+        operatorContext.getExtMajorFragmentAssignments(filter.getProbeScanMajorFragmentId());
     if (majorFragmentAssignment == null) {
-      logger.warn("Major fragment assignment for probe scan id {} is null. Dropping the runtime filter.",
-        filter.getProbeScanOperatorId());
+      logger.warn(
+          "Major fragment assignment for probe scan id {} is null. Dropping the runtime filter.",
+          filter.getProbeScanOperatorId());
       return;
     }
 
     // Sends the filters to node endpoints running minor fragments 0,1,2.
     for (FragmentAssignment assignment : majorFragmentAssignment.getAllAssignmentList()) {
       try {
-        logger.info("Sending filter to OpId {}, Frag {}:{}", filter.getProbeScanOperatorId(),
-          filter.getProbeScanMajorFragmentId(), assignment.getMinorFragmentIdList());
-        final OutOfBandMessage message = new OutOfBandMessage(
-          operatorContext.getFragmentHandle().getQueryId(),
-          filter.getProbeScanMajorFragmentId(),
-          assignment.getMinorFragmentIdList(),
-          filter.getProbeScanOperatorId(),
-          operatorContext.getFragmentHandle().getMajorFragmentId(),
-          operatorContext.getFragmentHandle().getMinorFragmentId(),
-          hashJoinConfig.getProps().getOperatorId(),
-          new OutOfBandMessage.Payload(filter),
-          orderedBuffers.toArray(new ArrowBuf[orderedBuffers.size()]),
-          bufLengths,
-          true);
-        final NodeEndpoint endpoint = operatorContext.getEndpointsIndex().getNodeEndpoint(assignment.getAssignmentIndex());
+        logger.info(
+            "Sending filter to OpId {}, Frag {}:{}",
+            filter.getProbeScanOperatorId(),
+            filter.getProbeScanMajorFragmentId(),
+            assignment.getMinorFragmentIdList());
+        final OutOfBandMessage message =
+            new OutOfBandMessage(
+                operatorContext.getFragmentHandle().getQueryId(),
+                filter.getProbeScanMajorFragmentId(),
+                assignment.getMinorFragmentIdList(),
+                filter.getProbeScanOperatorId(),
+                operatorContext.getFragmentHandle().getMajorFragmentId(),
+                operatorContext.getFragmentHandle().getMinorFragmentId(),
+                hashJoinConfig.getProps().getOperatorId(),
+                new OutOfBandMessage.Payload(filter),
+                orderedBuffers.toArray(new ArrowBuf[orderedBuffers.size()]),
+                bufLengths,
+                true);
+        final NodeEndpoint endpoint =
+            operatorContext.getEndpointsIndex().getNodeEndpoint(assignment.getAssignmentIndex());
         operatorContext.getTunnelProvider().getExecTunnel(endpoint).sendOOBMessage(message);
       } catch (Exception e) {
-        logger.warn("Error while sending runtime filter to minor fragments " + assignment.getMinorFragmentIdList(), e);
+        logger.warn(
+            "Error while sending runtime filter to minor fragments "
+                + assignment.getMinorFragmentIdList(),
+            e);
       }
     }
   }
 
   @VisibleForTesting
-  public static void addRunTimeFilterInfosToProfileDetails(OperatorContext operatorContext,
-                                                           List<UserBitShared.RunTimeFilterDetailsInfo> runTimeFilterDetailsInfos) {
+  public static void addRunTimeFilterInfosToProfileDetails(
+      OperatorContext operatorContext,
+      List<UserBitShared.RunTimeFilterDetailsInfo> runTimeFilterDetailsInfos) {
     OperatorStats stats = operatorContext.getStats();
-    stats.setProfileDetails(UserBitShared.OperatorProfileDetails.newBuilder().addAllRuntimefilterDetailsInfos(runTimeFilterDetailsInfos).build());
+    stats.setProfileDetails(
+        UserBitShared.OperatorProfileDetails.newBuilder()
+            .addAllRuntimefilterDetailsInfos(runTimeFilterDetailsInfos)
+            .build());
   }
 
   @VisibleForTesting
-  static void sendRuntimeFilterAtMergePoints(RuntimeFilter filter, Optional<BloomFilter> bloomFilter,
-                                             List<ValueListFilter> nonPartitionColFilters,
-                                             OperatorContext operatorContext, HashJoinPOP hashJoinConfig) throws Exception {
-    final List<ArrowBuf> orderedBuffers = new ArrayList<ArrowBuf>(nonPartitionColFilters.size() + 1);
+  static void sendRuntimeFilterAtMergePoints(
+      RuntimeFilter filter,
+      Optional<BloomFilter> bloomFilter,
+      List<ValueListFilter> nonPartitionColFilters,
+      OperatorContext operatorContext,
+      HashJoinPOP hashJoinConfig)
+      throws Exception {
+    final List<ArrowBuf> orderedBuffers =
+        new ArrayList<ArrowBuf>(nonPartitionColFilters.size() + 1);
     final List<Integer> bufLengths = new ArrayList<Integer>(nonPartitionColFilters.size() + 1);
-    collectRuntimeFilterBuffers(filter, bloomFilter, nonPartitionColFilters, orderedBuffers, bufLengths);
+    collectRuntimeFilterBuffers(
+        filter, bloomFilter, nonPartitionColFilters, orderedBuffers, bufLengths);
 
     // Sends the filters to node endpoints running minor fragments 0,1,2.
     for (FragmentAssignment a : operatorContext.getAssignments()) {
       try {
-        final List<Integer> targetMinorFragments = a.getMinorFragmentIdList().stream()
-          .filter(i -> i <= 2)
-          .filter(i -> i != operatorContext.getFragmentHandle().getMinorFragmentId()) // skipping myself
-          .collect(Collectors.toList());
+        final List<Integer> targetMinorFragments =
+            a.getMinorFragmentIdList().stream()
+                .filter(i -> i <= 2)
+                .filter(
+                    i ->
+                        i
+                            != operatorContext
+                                .getFragmentHandle()
+                                .getMinorFragmentId()) // skipping myself
+                .collect(Collectors.toList());
         if (targetMinorFragments.isEmpty()) {
           continue;
         }
 
         // Operator ID int is transformed as follows - (fragmentId << 16) + opId;
-        logger.debug("Sending filter from {}:{} to {}", operatorContext.getFragmentHandle().getMinorFragmentId(),
-          hashJoinConfig.getProps().getOperatorId(),
-          targetMinorFragments);
-        final OutOfBandMessage message = new OutOfBandMessage(
-          operatorContext.getFragmentHandle().getQueryId(),
-          operatorContext.getFragmentHandle().getMajorFragmentId(),
-          targetMinorFragments,
-          hashJoinConfig.getProps().getOperatorId(),
-          operatorContext.getFragmentHandle().getMajorFragmentId(),
-          operatorContext.getFragmentHandle().getMinorFragmentId(),
-          hashJoinConfig.getProps().getOperatorId(),
-          new OutOfBandMessage.Payload(filter),
-          orderedBuffers.toArray(new ArrowBuf[orderedBuffers.size()]),
-          bufLengths,
-          true);
-        final NodeEndpoint endpoint = operatorContext.getEndpointsIndex().getNodeEndpoint(a.getAssignmentIndex());
+        logger.debug(
+            "Sending filter from {}:{} to {}",
+            operatorContext.getFragmentHandle().getMinorFragmentId(),
+            hashJoinConfig.getProps().getOperatorId(),
+            targetMinorFragments);
+        final OutOfBandMessage message =
+            new OutOfBandMessage(
+                operatorContext.getFragmentHandle().getQueryId(),
+                operatorContext.getFragmentHandle().getMajorFragmentId(),
+                targetMinorFragments,
+                hashJoinConfig.getProps().getOperatorId(),
+                operatorContext.getFragmentHandle().getMajorFragmentId(),
+                operatorContext.getFragmentHandle().getMinorFragmentId(),
+                hashJoinConfig.getProps().getOperatorId(),
+                new OutOfBandMessage.Payload(filter),
+                orderedBuffers.toArray(new ArrowBuf[orderedBuffers.size()]),
+                bufLengths,
+                true);
+        final NodeEndpoint endpoint =
+            operatorContext.getEndpointsIndex().getNodeEndpoint(a.getAssignmentIndex());
         operatorContext.getTunnelProvider().getExecTunnel(endpoint).sendOOBMessage(message);
       } catch (Exception e) {
-        logger.warn("Error while sending runtime filter to minor fragments " + a.getMinorFragmentIdList(), e);
+        logger.warn(
+            "Error while sending runtime filter to minor fragments " + a.getMinorFragmentIdList(),
+            e);
       }
     }
   }
 
-  public static void workOnOOB(OutOfBandMessage message, RuntimeFilterManager filterManager,
-                               OperatorContext context, HashJoinPOP config) {
+  public static void workOnOOB(
+      OutOfBandMessage message,
+      RuntimeFilterManager filterManager,
+      OperatorContext context,
+      HashJoinPOP config) {
     if (message.getBuffers() == null || message.getBuffers().length == 0) {
-      logger.warn("Empty runtime filter received from minor fragment: " + message.getSendingMinorFragmentId());
+      logger.warn(
+          "Empty runtime filter received from minor fragment: "
+              + message.getSendingMinorFragmentId());
       return;
     }
 
@@ -350,58 +450,90 @@ public class RuntimeFilterUtil {
 
     try {
       final RuntimeFilter runtimeFilter = message.getPayload(RuntimeFilter.parser());
-      ExecProtos.CompositeColumnFilter partitionColFilterProto = runtimeFilter.getPartitionColumnFilter();
+      ExecProtos.CompositeColumnFilter partitionColFilterProto =
+          runtimeFilter.getPartitionColumnFilter();
 
       // Partition col filters
       BloomFilter bloomFilterPiece = null;
       if (partitionColFilterProto != null && !partitionColFilterProto.getColumnsList().isEmpty()) {
         ArrowBuf pcBuffer = buffers.get(idx++);
-        Preconditions.checkArgument(pcBuffer.capacity() >= partitionColFilterProto.getSizeBytes(), "Invalid filter size. " +
-          "Buffer capacity is %s, expected filter size %s", pcBuffer.capacity(), partitionColFilterProto.getSizeBytes());
+        Preconditions.checkArgument(
+            pcBuffer.capacity() >= partitionColFilterProto.getSizeBytes(),
+            "Invalid filter size. " + "Buffer capacity is %s, expected filter size %s",
+            pcBuffer.capacity(),
+            partitionColFilterProto.getSizeBytes());
         bloomFilterPiece = BloomFilter.prepareFrom(pcBuffer);
-        Preconditions.checkState(bloomFilterPiece.getNumBitsSet() == partitionColFilterProto.getValueCount(),
-          "Bloomfilter value count mismatched. Expected %s, Actual %s", partitionColFilterProto.getValueCount(), bloomFilterPiece.getNumBitsSet());
-        logger.debug("Received runtime filter piece {}, attempting merge.", bloomFilterPiece.getName());
+        Preconditions.checkState(
+            bloomFilterPiece.getNumBitsSet() == partitionColFilterProto.getValueCount(),
+            "Bloomfilter value count mismatched. Expected %s, Actual %s",
+            partitionColFilterProto.getValueCount(),
+            bloomFilterPiece.getNumBitsSet());
+        logger.debug(
+            "Received runtime filter piece {}, attempting merge.", bloomFilterPiece.getName());
       }
 
-      final List<ValueListFilter> valueListFilterPieces = new ArrayList<>(runtimeFilter.getNonPartitionColumnFilterCount());
-      for (int i =0; i < runtimeFilter.getNonPartitionColumnFilterCount(); i++) {
+      final List<ValueListFilter> valueListFilterPieces =
+          new ArrayList<>(runtimeFilter.getNonPartitionColumnFilterCount());
+      for (int i = 0; i < runtimeFilter.getNonPartitionColumnFilterCount(); i++) {
         ArrowBuf npcBuffer = buffers.get(idx++);
-        ExecProtos.CompositeColumnFilter nonPartitionColFilterProto = runtimeFilter.getNonPartitionColumnFilter(i);
+        ExecProtos.CompositeColumnFilter nonPartitionColFilterProto =
+            runtimeFilter.getNonPartitionColumnFilter(i);
         final String fieldName = nonPartitionColFilterProto.getColumns(0);
-        Preconditions.checkArgument(npcBuffer.capacity() >= nonPartitionColFilterProto.getSizeBytes(),
-          "Invalid filter buffer size for non partition col %s.", fieldName);
+        Preconditions.checkArgument(
+            npcBuffer.capacity() >= nonPartitionColFilterProto.getSizeBytes(),
+            "Invalid filter buffer size for non partition col %s.",
+            fieldName);
         final ValueListFilter valueListFilter = ValueListFilterBuilder.fromBuffer(npcBuffer);
         valueListFilter.setFieldName(fieldName);
-        Preconditions.checkState(valueListFilter.getValueCount() == nonPartitionColFilterProto.getValueCount(),
-          "ValueListFilter %s count mismatched. Expected %s, found %s", fieldName,
-          nonPartitionColFilterProto.getValueCount(), valueListFilter.getValueCount());
+        Preconditions.checkState(
+            valueListFilter.getValueCount() == nonPartitionColFilterProto.getValueCount(),
+            "ValueListFilter %s count mismatched. Expected %s, found %s",
+            fieldName,
+            nonPartitionColFilterProto.getValueCount(),
+            valueListFilter.getValueCount());
         valueListFilterPieces.add(valueListFilter);
       }
 
       final RuntimeFilterManager.RuntimeFilterManagerEntry filterManagerEntry;
-      filterManagerEntry = filterManager.coalesce(runtimeFilter, Optional.ofNullable(bloomFilterPiece), valueListFilterPieces, message.getSendingMinorFragmentId());
+      filterManagerEntry =
+          filterManager.coalesce(
+              runtimeFilter,
+              Optional.ofNullable(bloomFilterPiece),
+              valueListFilterPieces,
+              message.getSendingMinorFragmentId());
 
       if (filterManagerEntry.isComplete() && !filterManagerEntry.isDropped()) {
         // composite filter is ready for further processing - no more pieces expected
-        logger.debug("All pieces of runtime filter received. Sending to probe scan now. " + filterManagerEntry.getProbeScanCoordinates());
-        Optional<RuntimeFilterProbeTarget> probeNode = config.getRuntimeFilterInfo().getRuntimeFilterProbeTargets()
-          .stream()
-          .filter(pt -> pt.isSameProbeCoordinate(filterManagerEntry.getCompositeFilter().getProbeScanMajorFragmentId(),
-            filterManagerEntry.getCompositeFilter().getProbeScanOperatorId()))
-          .findFirst();
+        logger.debug(
+            "All pieces of runtime filter received. Sending to probe scan now. "
+                + filterManagerEntry.getProbeScanCoordinates());
+        Optional<RuntimeFilterProbeTarget> probeNode =
+            config.getRuntimeFilterInfo().getRuntimeFilterProbeTargets().stream()
+                .filter(
+                    pt ->
+                        pt.isSameProbeCoordinate(
+                            filterManagerEntry.getCompositeFilter().getProbeScanMajorFragmentId(),
+                            filterManagerEntry.getCompositeFilter().getProbeScanOperatorId()))
+                .findFirst();
         if (probeNode.isPresent()) {
-          RuntimeFilterUtil.sendRuntimeFilterToProbeScan(filterManagerEntry.getCompositeFilter(),
-            Optional.ofNullable(filterManagerEntry.getPartitionColFilter()),
-            filterManagerEntry.getNonPartitionColFilters(), context, config);
+          RuntimeFilterUtil.sendRuntimeFilterToProbeScan(
+              filterManagerEntry.getCompositeFilter(),
+              Optional.ofNullable(filterManagerEntry.getPartitionColFilter()),
+              filterManagerEntry.getNonPartitionColFilters(),
+              context,
+              config);
           filterManager.remove(filterManagerEntry);
         } else {
-          logger.warn("Node coordinates not found for probe target:{}", filterManagerEntry.getProbeScanCoordinates());
+          logger.warn(
+              "Node coordinates not found for probe target:{}",
+              filterManagerEntry.getProbeScanCoordinates());
         }
       }
     } catch (Exception e) {
       filterManager.incrementDropCount();
-      logger.warn("Error while merging runtime filter piece from " + message.getSendingMinorFragmentId(), e);
+      logger.warn(
+          "Error while merging runtime filter piece from " + message.getSendingMinorFragmentId(),
+          e);
     }
   }
 }

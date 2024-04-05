@@ -19,23 +19,18 @@ import static com.dremio.services.nessie.grpc.GrpcExceptionMapper.handle;
 import static com.dremio.services.nessie.grpc.ProtoUtil.fromProto;
 import static com.dremio.services.nessie.grpc.ProtoUtil.toProto;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.function.Supplier;
-
-import org.projectnessie.model.ContentKey;
-
 import com.dremio.services.nessie.grpc.api.Content;
 import com.dremio.services.nessie.grpc.api.ContentRequest;
 import com.dremio.services.nessie.grpc.api.ContentServiceGrpc;
 import com.dremio.services.nessie.grpc.api.MultipleContentsRequest;
 import com.dremio.services.nessie.grpc.api.MultipleContentsResponse;
-
 import io.grpc.stub.StreamObserver;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Supplier;
+import org.projectnessie.model.ContentKey;
 
-/**
- * The gRPC service implementation for the Content-API.
- */
+/** The gRPC service implementation for the Content-API. */
 public class ContentService extends ContentServiceGrpc.ContentServiceImplBase {
 
   private final Supplier<? extends org.projectnessie.services.spi.ContentService> bridge;
@@ -47,34 +42,38 @@ public class ContentService extends ContentServiceGrpc.ContentServiceImplBase {
   @Override
   public void getContent(ContentRequest request, StreamObserver<Content> observer) {
     handle(
-      () ->
-        toProto(
-          bridge.get().getContent(
-            fromProto(request.getContentKey()),
-            getRefFromProtoRequest(request.getRef()),
-            getHashOnRefFromProtoRequest(request.getHashOnRef()),
-            false // TODO: support withDocumentation
-          ).getContent()),
-      observer);
+        () ->
+            toProto(
+                bridge
+                    .get()
+                    .getContent(
+                        fromProto(request.getContentKey()),
+                        getRefFromProtoRequest(request.getRef()),
+                        getHashOnRefFromProtoRequest(request.getHashOnRef()),
+                        false // TODO: support withDocumentation
+                        )
+                    .getContent()),
+        observer);
   }
 
   @Override
   public void getMultipleContents(
-    MultipleContentsRequest request, StreamObserver<MultipleContentsResponse> observer) {
+      MultipleContentsRequest request, StreamObserver<MultipleContentsResponse> observer) {
     handle(
-      () -> {
-        List<ContentKey> requestedKeys = new ArrayList<>();
-        request.getRequestedKeysList().forEach(k -> requestedKeys.add(fromProto(k)));
-        return toProto(
-          bridge.get().getMultipleContents(
-            getRefFromProtoRequest(request.getRef()),
-            getHashOnRefFromProtoRequest(request.getHashOnRef()),
-            requestedKeys,
-            false // TODO: support withDocumentation
-          )
-        );
-      },
-      observer);
+        () -> {
+          List<ContentKey> requestedKeys = new ArrayList<>();
+          request.getRequestedKeysList().forEach(k -> requestedKeys.add(fromProto(k)));
+          return toProto(
+              bridge
+                  .get()
+                  .getMultipleContents(
+                      getRefFromProtoRequest(request.getRef()),
+                      getHashOnRefFromProtoRequest(request.getHashOnRef()),
+                      requestedKeys,
+                      false // TODO: support withDocumentation
+                      ));
+        },
+        observer);
   }
 
   private String getHashOnRefFromProtoRequest(String hashOnRef) {

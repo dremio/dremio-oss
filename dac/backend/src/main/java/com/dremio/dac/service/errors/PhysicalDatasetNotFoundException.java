@@ -20,17 +20,14 @@ import com.dremio.dac.model.sources.PhysicalDatasetPath;
 import com.dremio.dac.model.sources.PhysicalDatasetResourcePath;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 
-/**
- * Throw when Physical Dataset not present in namespace.
- */
+/** Throw when Physical Dataset not present in namespace. */
 public class PhysicalDatasetNotFoundException extends NotFoundException {
   private static final long serialVersionUID = 1L;
 
   private final NamespacePath path;
 
   public PhysicalDatasetNotFoundException(
-      PhysicalDatasetPath physicalDatasetPath,
-      Exception error) {
+      PhysicalDatasetPath physicalDatasetPath, Exception error) {
     super(
         new PhysicalDatasetResourcePath(physicalDatasetPath),
         "physical dataset " + physicalDatasetPath.toPathString(),
@@ -38,11 +35,11 @@ public class PhysicalDatasetNotFoundException extends NotFoundException {
     this.path = physicalDatasetPath;
   }
 
-  public PhysicalDatasetNotFoundException(
-      NamespacePath pdp,
-      DatasetType type,
-      Exception error) {
-    super(new PhysicalDatasetResourcePath(pdp, type), "physical dataset " + pdp.toPathString(), error);
+  public PhysicalDatasetNotFoundException(NamespacePath pdp, DatasetType type, Exception error) {
+    super(
+        new PhysicalDatasetResourcePath(pdp, type),
+        "physical dataset " + pdp.toPathString(),
+        error);
     this.path = new PhysicalDatasetPath(pdp, type);
   }
 

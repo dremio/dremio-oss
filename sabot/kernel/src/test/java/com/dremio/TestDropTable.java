@@ -15,29 +15,37 @@
  */
 package com.dremio;
 
-import org.apache.hadoop.fs.Path;
-import org.junit.Assert;
-import org.junit.Ignore;
-import org.junit.Rule;
-import org.junit.Test;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.config.DremioConfig;
 import com.dremio.test.TemporarySystemProperties;
-
+import org.apache.hadoop.fs.Path;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Ignore;
+import org.junit.Rule;
+import org.junit.Test;
 
 public class TestDropTable extends PlanTestBase {
-  @Rule
-  public TemporarySystemProperties properties = new TemporarySystemProperties();
+  @Rule public TemporarySystemProperties properties = new TemporarySystemProperties();
 
-  private static final String CREATE_SIMPLE_TABLE = "create table %s as select 1 from cp.\"employee.json\"";
-  private static final String CREATE_SIMPLE_VIEW = "create view %s as select 1 from cp.\"employee.json\"";
+  private static final String CREATE_SIMPLE_TABLE =
+      "create table %s as select 1 from cp.\"employee.json\"";
+  private static final String CREATE_SIMPLE_VIEW =
+      "create view %s as select 1 from cp.\"employee.json\"";
   private static final String DROP_TABLE = "drop table %s";
   private static final String DROP_TABLE_IF_EXISTS = "drop table if exists %s";
   private static final String DROP_VIEW_IF_EXISTS = "drop view if exists %s";
   private static final String DOUBLE_QUOTE = "\"";
   private static final String REFRESH = "alter table %s refresh metadata";
   private static final String PROMOTE = "alter pds  %s refresh metadata auto promotion";
+
+  @Before
+  public void before() throws Exception {
+    // Note: dfs_hadoop is immutable.
+    test("USE dfs_hadoop");
+  }
 
   @Test
   public void testDropJsonTable() throws Exception {
@@ -183,10 +191,15 @@ public class TestDropTable extends PlanTestBase {
     final String ID_COLUMN_NAME = "id";
     final String DATA_COLUMN_NAME = "data";
     final String CREATE_BASIC_ICEBERG_TABLE_SQL =
-      String.format("CREATE TABLE %s (%s BIGINT, %s VARCHAR) STORE AS (type => 'iceberg')", TABLE_PATH, ID_COLUMN_NAME, DATA_COLUMN_NAME);
+        String.format(
+            "CREATE TABLE %s (%s BIGINT, %s VARCHAR) STORE AS (type => 'iceberg')",
+            TABLE_PATH, ID_COLUMN_NAME, DATA_COLUMN_NAME);
     final String CREATE_BASIC_ICEBERG_TABLE_JSON_SQL =
-      String.format("CREATE TABLE %s (%s BIGINT, %s VARCHAR) STORE AS (type => 'iceberg')", DOUBLE_QUOTE + TABLE_PATH + Path.SEPARATOR + "json_table" + DOUBLE_QUOTE,
-        ID_COLUMN_NAME, DATA_COLUMN_NAME);
+        String.format(
+            "CREATE TABLE %s (%s BIGINT, %s VARCHAR) STORE AS (type => 'iceberg')",
+            DOUBLE_QUOTE + TABLE_PATH + Path.SEPARATOR + "json_table" + DOUBLE_QUOTE,
+            ID_COLUMN_NAME,
+            DATA_COLUMN_NAME);
 
     final String tableName = TABLE_NAME;
 
@@ -207,7 +220,9 @@ public class TestDropTable extends PlanTestBase {
       isHomogeneousCalled = true;
     }
 
-    Assert.assertFalse("Dropping of non-homogeneous table should not be called for Iceberg tables", isHomogeneousCalled);
+    Assert.assertFalse(
+        "Dropping of non-homogeneous table should not be called for Iceberg tables",
+        isHomogeneousCalled);
   }
 
   @Test // DRILL-4673
@@ -246,7 +261,7 @@ public class TestDropTable extends PlanTestBase {
   @Test // DRILL-4673
   public void testDropTableIfExistsWhileItIsAView() throws Exception {
     final String viewName = "test_view";
-    try{
+    try {
       properties.set(DremioConfig.LEGACY_STORE_VIEWS_ENABLED, "true");
       test("use dfs_test");
 
@@ -266,10 +281,13 @@ public class TestDropTable extends PlanTestBase {
 
   @Test
   public void testDropNonExistentTable() throws Exception {
-    test("CREATE TABLE dfs_test.testDropNonExistentTable as SELECT * FROM INFORMATION_SCHEMA.CATALOGS");
+    test(
+        "CREATE TABLE dfs_test.testDropNonExistentTable as SELECT * FROM INFORMATION_SCHEMA.CATALOGS");
     testNoResult(REFRESH, "dfs_test.testDropNonExistentTable");
     test("DROP TABLE dfs_test.testDropNonExistentTable");
-    errorMsgTestHelper("DROP TABLE dfs_test.testDropNonExistentTable", "VALIDATION ERROR: Table [dfs_test.testDropNonExistentTable] not found");
+    errorMsgTestHelper(
+        "DROP TABLE dfs_test.testDropNonExistentTable",
+        "VALIDATION ERROR: Table [dfs_test.testDropNonExistentTable] does not exist");
     test("DROP TABLE IF EXISTS dfs_test.testDropNonExistentTable");
   }
 
@@ -307,25 +325,58 @@ public class TestDropTable extends PlanTestBase {
 
     // drop the parent table - should fail
     String dropSql = String.format(DROP_TABLE, parentTableName);
-    errorMsgTestHelper(String.format(DROP_TABLE, parentTableName), String.format("VALIDATION ERROR: Cannot drop table [%s] since it has child tables",parentTableName));
-
+    errorMsgTestHelper(
+        String.format(DROP_TABLE, parentTableName),
+        String.format(
+            "VALIDATION ERROR: Cannot drop table [%s] since it has child tables", parentTableName));
 
     // drop the child table - should succeed
     dropSql = String.format(DROP_TABLE, childTableName);
     testBuilder()
-      .sqlQuery(dropSql)
-      .unOrdered()
-      .baselineColumns("ok", "summary")
-      .baselineValues(true, String.format("Table [%s] dropped", childTableName))
-      .go();
+        .sqlQuery(dropSql)
+        .unOrdered()
+        .baselineColumns("ok", "summary")
+        .baselineValues(true, String.format("Table [%s] dropped", childTableName))
+        .go();
 
     // drop the parent table - now it should succeed
     dropSql = String.format(DROP_TABLE, parentTableName);
     testBuilder()
-      .sqlQuery(dropSql)
-      .unOrdered()
-      .baselineColumns("ok", "summary")
-      .baselineValues(true, String.format("Table [%s] dropped", parentTableName))
-      .go();
+        .sqlQuery(dropSql)
+        .unOrdered()
+        .baselineColumns("ok", "summary")
+        .baselineValues(true, String.format("Table [%s] dropped", parentTableName))
+        .go();
+  }
+
+  @Test
+  public void dropTableWithPartialPath() throws Exception {
+    String tableName = "dropTableWithPartialPath";
+    String path = "path";
+    String ctas =
+        String.format("CREATE TABLE %s.%s.%s(id INT)", TEMP_SCHEMA_HADOOP, path, tableName);
+    test(ctas);
+    test("USE %s", TEMP_SCHEMA_HADOOP);
+    String dropSql = String.format("drop TABLE %s.%s", path, tableName);
+    testBuilder()
+        .sqlQuery(dropSql)
+        .unOrdered()
+        .baselineColumns("ok", "summary")
+        .baselineValues(
+            true, String.format("Table [%s.%s.%s] dropped", TEMP_SCHEMA_HADOOP, path, tableName))
+        .go();
+  }
+
+  @Test
+  public void dropTableWithPathWithWrongContext() throws Exception {
+    String tableName = "dropTableWithPathWithWrongContext";
+    String path = "path";
+    String ctas =
+        String.format("CREATE TABLE %s.%s.%s(id INT)", TEMP_SCHEMA_HADOOP, path, tableName);
+    test(ctas);
+    String dropSql = String.format("drop TABLE %s.%s", path, tableName);
+    assertThatThrownBy(() -> test(dropSql))
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining("Table [%s.%s] does not exist.", path, tableName);
   }
 }

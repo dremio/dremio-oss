@@ -18,14 +18,6 @@ package com.dremio.service.jobs;
 import static com.dremio.common.perf.Timer.time;
 import static com.dremio.exec.store.easy.arrow.ArrowFileReader.fromBean;
 
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
-
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.perf.Timer.TimedBlock;
 import com.dremio.common.utils.PathUtils;
@@ -49,13 +41,20 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import org.apache.arrow.memory.BufferAllocator;
 
 /**
- * Stores and manages job results for max 30 days (default).
- * Each executor node stores job results on local disk.
+ * Stores and manages job results for max 30 days (default). Each executor node stores job results
+ * on local disk.
  */
 public class JobResultsStore implements Service {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(JobResultsStore.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(JobResultsStore.class);
 
   private final String storageName;
   private final Path jobStoreLocation;
@@ -66,8 +65,8 @@ public class JobResultsStore implements Service {
   public JobResultsStore(
       final JobResultsStoreConfig resultsStoreConfig,
       final LegacyIndexedStore<JobId, JobResult> store,
-      final BufferAllocator allocator
-  ) throws IOException {
+      final BufferAllocator allocator)
+      throws IOException {
     this.storageName = resultsStoreConfig.getStorageName();
     this.dfs = resultsStoreConfig.getFileSystem();
     this.jobStoreLocation = resultsStoreConfig.getStoragePath();
@@ -77,9 +76,7 @@ public class JobResultsStore implements Service {
     this.allocator = allocator;
   }
 
-  /**
-   * Get the output table path for the given id
-   */
+  /** Get the output table path for the given id */
   public List<String> getOutputTablePath(final JobId jobId) {
     // Get the information from the store or fallback to using job id as the table name
     Optional<JobResult> jobResult = Optional.ofNullable(store.get(jobId));
@@ -127,15 +124,15 @@ public class JobResultsStore implements Service {
 
   public String getJobResultsTableName(JobId jobId) {
     //
-    return String.format("TABLE(%s(type => 'arrow'))",
-        PathUtils.constructFullPath(getOutputTablePath(jobId)));
+    return String.format(
+        "TABLE(%s(type => 'arrow'))", PathUtils.constructFullPath(getOutputTablePath(jobId)));
   }
 
   public RecordBatches loadJobData(JobId jobId, JobResult job, int offset, int limit) {
     try (TimedBlock b = time("getJobResult")) {
 
       final List<JobAttempt> attempts = job.getAttemptsList();
-      if(attempts.size() > 0) {
+      if (attempts.size() > 0) {
         final JobAttempt mostRecentJob = attempts.get(job.getAttemptsList().size() - 1);
         if (mostRecentJob.getState() == JobState.CANCELED) {
           String cancelledMessage = "Could not load results as the query was canceled .";
@@ -145,20 +142,20 @@ public class JobResultsStore implements Service {
             }
           }
           throw UserException.dataReadError()
-            .message(String.format(cancelledMessage))
-            .build(logger);
+              .message(String.format(cancelledMessage))
+              .build(logger);
         } else if (mostRecentJob.getState() == JobState.FAILED) {
-          String failureMessage = mostRecentJob.getInfo().getDetailedFailureInfo().getErrorsList().get(0).getMessage();
-          throw UserException.dataReadError()
-            .message(failureMessage)
-            .build(logger);
+          String failureMessage =
+              mostRecentJob.getInfo().getDetailedFailureInfo().getErrorsList().get(0).getMessage();
+          throw UserException.dataReadError().message(failureMessage).build(logger);
         }
       }
 
       final Path jobOutputDir = getJobOutputDir(jobId);
       if (!doesQueryResultsDirExists(jobOutputDir, jobId)) {
         throw UserException.dataReadError()
-            .message("Error in Job '%s': %s", jobId.getId(), getErrorMessageQueryResultsDirNotexists())
+            .message(
+                "Error in Job '%s': %s", jobId.getId(), getErrorMessageQueryResultsDirNotexists())
             .build(logger);
       }
 
@@ -174,7 +171,7 @@ public class JobResultsStore implements Service {
       final List<ArrowFileMetadata> resultFilesToRead = Lists.newArrayList();
       int runningFileRecordCount = 0;
       int remainingRecords = limit;
-      for(ArrowFileMetadata fileMetadata : resultMetadata) {
+      for (ArrowFileMetadata fileMetadata : resultMetadata) {
         if (offset < runningFileRecordCount + fileMetadata.getRecordCount()) {
           resultFilesToRead.add(fileMetadata);
 
@@ -183,7 +180,8 @@ public class JobResultsStore implements Service {
           if (resultFilesToRead.size() == 1) {
             // update the given offset to start from the current file
             offset -= runningFileRecordCount;
-            fileOffset = offset; // fileOffset will be "offset" for the first file to be read for records.
+            fileOffset =
+                offset; // fileOffset will be "offset" for the first file to be read for records.
           }
 
           // Find how many records to read from current file.
@@ -192,7 +190,7 @@ public class JobResultsStore implements Service {
           remainingRecords -= fileLimit;
 
           // stop including files if there are no remainingRecords to be included.
-          if (remainingRecords <=0) {
+          if (remainingRecords <= 0) {
             break;
           }
         }
@@ -202,14 +200,15 @@ public class JobResultsStore implements Service {
 
       final List<RecordBatchHolder> batchHolders = Lists.newArrayList();
       if (resultFilesToRead.isEmpty()) {
-        // when the query returns no results at all or the requested range is invalid, return an empty record batch
+        // when the query returns no results at all or the requested range is invalid, return an
+        // empty record batch
         // for metadata purposes.
         batchHolders.addAll(getQueryResults(jobOutputDir, resultMetadata.get(0), allocator, 0, 0));
 
       } else {
         runningFileRecordCount = 0;
         int remaining = limit;
-        for(ArrowFileMetadata file : resultFilesToRead) {
+        for (ArrowFileMetadata file : resultFilesToRead) {
 
           // Find the starting record index in file
           final long fileOffset = Math.max(0, offset - runningFileRecordCount);
@@ -218,7 +217,8 @@ public class JobResultsStore implements Service {
           // Min of remaining records in file or remaining records in total to read.
           final long fileLimit = Math.min(file.getRecordCount() - fileOffset, remaining);
 
-          batchHolders.addAll(getQueryResults(jobOutputDir, file, allocator, fileOffset, fileLimit));
+          batchHolders.addAll(
+              getQueryResults(jobOutputDir, file, allocator, fileOffset, fileLimit));
           remaining -= fileLimit;
 
           runningFileRecordCount += file.getRecordCount();
@@ -226,7 +226,7 @@ public class JobResultsStore implements Service {
       }
 
       return new RecordBatches(batchHolders);
-    } catch(IOException ex){
+    } catch (IOException ex) {
       throw UserException.dataReadError(ex)
           .message("Failed to load results for job %s", jobId.getId())
           .build(logger);
@@ -240,16 +240,20 @@ public class JobResultsStore implements Service {
   private boolean shouldSkipJobResults(JobId jobId) {
     final JobResult job = store.get(jobId);
     final List<ArrowFileMetadata> resultMetadata = getLastAttempt(job).getResultMetadataList();
-    return resultMetadata != null && !resultMetadata.isEmpty() &&
-      resultMetadata.stream().anyMatch(ArrowFileMetadataValidator::hasInvalidUnions);
+    return resultMetadata != null
+        && !resultMetadata.isEmpty()
+        && resultMetadata.stream().anyMatch(ArrowFileMetadataValidator::hasInvalidUnions);
   }
 
-  protected List<RecordBatchHolder> getQueryResults(Path jobOutputDir,
-                                                    ArrowFileMetadata arrowFileMetadata,
-                                                    BufferAllocator allocator,
-                                                    long fileOffset,
-                                                    long fileLimit) throws IOException {
-    try(ArrowFileReader fileReader = new ArrowFileReader(dfs, jobOutputDir, arrowFileMetadata, allocator)) {
+  protected List<RecordBatchHolder> getQueryResults(
+      Path jobOutputDir,
+      ArrowFileMetadata arrowFileMetadata,
+      BufferAllocator allocator,
+      long fileOffset,
+      long fileLimit)
+      throws IOException {
+    try (ArrowFileReader fileReader =
+        new ArrowFileReader(dfs, jobOutputDir, arrowFileMetadata, allocator)) {
       return fileReader.read(fileOffset, fileLimit);
     }
   }
@@ -264,21 +268,25 @@ public class JobResultsStore implements Service {
    */
   protected boolean doesQueryResultsDirExists(Path jobOutputDir, JobId jobId) throws IOException {
     if (shouldSkipJobResults(jobId)) {
-      logger.debug("{} Skipping as result metadata has unions that use an outdated IPC format.", jobId);
+      logger.debug(
+          "{} Skipping as result metadata has unions that use an outdated IPC format.", jobId);
       return false;
     }
 
     if (dfs.isPdfs()) {
       Set<NodeEndpoint> nodeEndpoints = getNodeEndpoints(jobId);
       if (nodeEndpoints == null || nodeEndpoints.isEmpty()) {
-        logger.debug("{} There are no nodeEndpoints where query results dir existence need to be checked." +
-          "For eg: for jdbc queries, results are not stored on executors.", jobId);
+        logger.debug(
+            "{} There are no nodeEndpoints where query results dir existence need to be checked."
+                + "For eg: for jdbc queries, results are not stored on executors.",
+            jobId);
         return false;
       }
 
       /**
-       * This function borrows the implementation from PseduoDistributedFileSystem().createRemotePath().
-       * Any change in that function should trigger an equivalent change here.
+       * This function borrows the implementation from
+       * PseduoDistributedFileSystem().createRemotePath(). Any change in that function should
+       * trigger an equivalent change here.
        */
       if (dfs instanceof com.dremio.exec.hadoop.HadoopFileSystem) {
         final NodeEndpoint nodeEndpoint = nodeEndpoints.iterator().next();
@@ -294,8 +302,12 @@ public class JobResultsStore implements Service {
               hidden = true;
             }
           }
-          org.apache.hadoop.fs.Path canonicalPath = new org.apache.hadoop.fs.Path(String.valueOf(jobOutputDir.getParent()),
-            hidden ? String.format("%s%s@%s", basename.charAt(0), address, basename.substring(1)) : String.format("%s@%s", address, basename));
+          org.apache.hadoop.fs.Path canonicalPath =
+              new org.apache.hadoop.fs.Path(
+                  String.valueOf(jobOutputDir.getParent()),
+                  hidden
+                      ? String.format("%s%s@%s", basename.charAt(0), address, basename.substring(1))
+                      : String.format("%s@%s", address, basename));
           jobOutputDir = Path.of(canonicalPath.toUri());
         }
       }
@@ -312,7 +324,8 @@ public class JobResultsStore implements Service {
    * @return
    * @throws IOException
    */
-  protected boolean deleteQueryResults(Path jobOutputDir, boolean recursive, JobId jobId) throws IOException {
+  protected boolean deleteQueryResults(Path jobOutputDir, boolean recursive, JobId jobId)
+      throws IOException {
     return dfs.delete(jobOutputDir, recursive);
   }
 
@@ -351,12 +364,12 @@ public class JobResultsStore implements Service {
   }
 
   @Override
-  public void close() throws Exception {
-  }
+  public void close() throws Exception {}
 
   protected Set<NodeEndpoint> getNodeEndpoints(JobId jobId) {
     JobResult jobResult = store.get(jobId);
-    List<ArrowFileMetadata> arrowFileMetadataList = getLastAttempt(jobResult).getResultMetadataList();
+    List<ArrowFileMetadata> arrowFileMetadataList =
+        getLastAttempt(jobResult).getResultMetadataList();
 
     Set<NodeEndpoint> nodeEndpoints = Sets.newHashSet();
 
@@ -364,7 +377,7 @@ public class JobResultsStore implements Service {
       return nodeEndpoints;
     }
 
-    for(ArrowFileMetadata afm: arrowFileMetadataList) {
+    for (ArrowFileMetadata afm : arrowFileMetadataList) {
       com.dremio.exec.proto.beans.NodeEndpoint screenNodeEndpoint = afm.getScreenNodeEndpoint();
 
       if (screenNodeEndpoint != null) {

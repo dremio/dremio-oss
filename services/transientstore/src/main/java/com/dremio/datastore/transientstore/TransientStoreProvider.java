@@ -18,13 +18,12 @@ package com.dremio.datastore.transientstore;
 import com.dremio.datastore.format.Format;
 import com.dremio.service.Service;
 
-/**
- * interface for creating TransientStores
- */
+/** interface for creating TransientStores */
 public interface TransientStoreProvider extends Service {
 
   /**
    * returns a TransientStore implementation for given parameters
+   *
    * @param keyFormat Format of key in the transient store
    * @param valueFormat Format of value in the transient store
    * @param <K> Key type
@@ -36,14 +35,16 @@ public interface TransientStoreProvider extends Service {
 
   /**
    * returns a TransientStore implementation for given parameters
+   *
    * @param keyFormat Format of key in the transient store
    * @param valueFormat Format of value in the transient store
    * @param <K> Key type
    * @param <V> Value type
-   * @param ttl time to live, in seconds, after which entries will be expired if there has been no access.
+   * @param ttl time to live, in seconds, after which entries will be expired if there has been no
+   *     access.
    * @param <T> return type
    * @return TransientStore object
    */
-  <K, V, T extends TransientStore<K, V>> T getStore(Format<K> keyFormat, Format<V> valueFormat, int ttl);
-
+  <K, V, T extends TransientStore<K, V>> T getStore(
+      Format<K> keyFormat, Format<V> valueFormat, int ttl);
 }

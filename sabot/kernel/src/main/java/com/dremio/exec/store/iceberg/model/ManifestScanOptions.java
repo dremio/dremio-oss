@@ -15,11 +15,10 @@
  */
 package com.dremio.exec.store.iceberg.model;
 
-import org.immutables.value.Value;
-
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.iceberg.ManifestContentType;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import org.immutables.value.Value;
 
 @JsonDeserialize(builder = ImmutableManifestScanOptions.Builder.class)
 @Value.Immutable
@@ -34,9 +33,10 @@ public interface ManifestScanOptions {
   default ManifestContentType getManifestContentType() {
     return ManifestContentType.DATA;
   }
+
   /**
-   * SplitGen generates splits for data scan. If turned OFF, the scan will generate abstract output such as path, size etc
-   * for the entries in the manifest.
+   * SplitGen generates splits for data scan. If turned OFF, the scan will generate abstract output
+   * such as path, size etc for the entries in the manifest.
    *
    * @return
    */
@@ -46,8 +46,8 @@ public interface ManifestScanOptions {
   }
 
   /**
-   * Includes the serialized DataFile object as IcebergMetadata in the output schema.
-   * Applicable only when splitgen is turned OFF.
+   * Includes the serialized DataFile object as IcebergMetadata in the output schema. Applicable
+   * only when splitgen is turned OFF.
    *
    * @return
    */
@@ -55,9 +55,10 @@ public interface ManifestScanOptions {
   default boolean includesIcebergMetadata() {
     return false;
   }
+
   /**
-   * Includes the Iceberg Partition Info as part of the PartitionProtobuf.PartitionValue Column
-   * It provides more fine-grained partition information such as what transformation function is used
+   * Includes the Iceberg Partition Info as part of the PartitionProtobuf.PartitionValue Column It
+   * provides more fine-grained partition information such as what transformation function is used
    * Applicable only when splitgen is turned OFF.
    *
    * @return true if we should include the IcebergPartitionInfo
@@ -68,8 +69,9 @@ public interface ManifestScanOptions {
   }
 
   /**
-   * Returns the Table Metadata to use
-   * TableMetadata can be used to modify a scan to use a different snapshot
+   * Returns the Table Metadata to use TableMetadata can be used to modify a scan to use a different
+   * snapshot
+   *
    * @return TableMetadata to use instead of the original table metadata in the scan
    */
   @Value.Default

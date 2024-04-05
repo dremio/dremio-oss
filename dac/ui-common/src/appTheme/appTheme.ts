@@ -16,7 +16,7 @@
 
 enum Themes {
   LIGHT = "dremio-light",
-  DARK = "dremio-dark"
+  DARK = "dremio-dark",
 }
 
 const THEME_STORAGE_KEY = "theme";
@@ -31,20 +31,20 @@ const getTheme = (): Themes => {
   }
 
   return theme as Themes;
-}
+};
 
 export const setTheme = (theme: Themes): void => {
   global.localStorage.setItem(THEME_STORAGE_KEY, theme);
   applyTheme();
-}
+};
 
 export const applyTheme = () => {
-  const rootEl = document.querySelector(":root")!
+  const rootEl = document.querySelector(":root")!;
 
   // Remove any existing theme classes
-  Object.values(Themes).forEach(theme => {
+  Object.values(Themes).forEach((theme) => {
     rootEl.classList.remove(theme);
-  })
+  });
 
   rootEl.classList.add(getTheme());
-}
+};

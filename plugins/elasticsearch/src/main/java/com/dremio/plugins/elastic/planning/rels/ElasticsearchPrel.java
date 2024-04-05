@@ -22,6 +22,8 @@ import com.dremio.exec.record.BatchSchema;
 
 public interface ElasticsearchPrel extends Prel {
   BatchSchema getSchema(FunctionLookupContext context);
+
   StoragePluginId getPluginId();
+
   ScanBuilder newScanBuilder();
 }

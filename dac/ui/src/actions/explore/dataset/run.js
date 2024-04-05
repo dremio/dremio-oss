@@ -31,7 +31,7 @@ function fetchRunDataset(dataset, viewId, sessionId) {
   const tipVersion = dataset.get("tipVersion");
 
   const apiCall = new APIV2Call().paths(
-    `${dataset.getIn(["apiLinks", "self"])}/run`
+    `${dataset.getIn(["apiLinks", "self"])}/run`,
   );
 
   if (tipVersion) {
@@ -52,7 +52,7 @@ function fetchRunDataset(dataset, viewId, sessionId) {
         schemaUtils.getSuccessActionTypeWithSchema(
           RUN_DATASET_SUCCESS, // this action doesn't do anything, leaving here as a placeholder
           datasetWithoutData,
-          meta
+          meta,
         ),
         { type: RUN_DATASET_FAILURE, meta },
       ],
@@ -85,7 +85,7 @@ export const transformAndRunActionTypes = [
 function fetchTransformAndRun(dataset, transformData, viewId, sessionId) {
   invariant(
     dataset.get("datasetVersion"),
-    "Can't run new dataset. Create dataset with newUntitled first"
+    "Can't run new dataset. Create dataset with newUntitled first",
   );
   const newVersion = exploreUtils.getNewDatasetVersion();
 
@@ -101,13 +101,13 @@ function fetchTransformAndRun(dataset, transformData, viewId, sessionId) {
         schemaUtils.getSuccessActionTypeWithSchema(
           TRANSFORM_AND_RUN_DATASET_SUCCESS,
           datasetWithoutData,
-          meta
+          meta,
         ),
         { type: TRANSFORM_AND_RUN_DATASET_FAILURE, meta },
       ],
       method: "POST",
       body: JSON.stringify(
-        !sessionId ? transformData : { ...transformData, sessionId }
+        !sessionId ? transformData : { ...transformData, sessionId },
       ),
       headers: {
         "Content-Type": "application/json",

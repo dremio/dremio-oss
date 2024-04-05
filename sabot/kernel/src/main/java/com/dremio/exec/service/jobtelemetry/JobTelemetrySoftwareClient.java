@@ -15,18 +15,17 @@
  */
 package com.dremio.exec.service.jobtelemetry;
 
-import java.util.concurrent.ForkJoinPool;
-
 import com.dremio.exec.proto.CoordExecRPC;
 import com.dremio.sabot.exec.rpc.ExecToCoordTunnel;
 import com.dremio.service.jobtelemetry.client.JobTelemetryExecutorClient;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.Empty;
+import java.util.concurrent.ForkJoinPool;
 
 /**
- * Software version of the job telemetry client. Uses fabric to communicate to the
- * in-process service running on coordinator node(s).
+ * Software version of the job telemetry client. Uses fabric to communicate to the in-process
+ * service running on coordinator node(s).
  */
 public class JobTelemetrySoftwareClient implements JobTelemetryExecutorClient {
   private final ExecToCoordTunnel tunnel;
@@ -37,8 +36,9 @@ public class JobTelemetrySoftwareClient implements JobTelemetryExecutorClient {
 
   @Override
   public ListenableFuture<Empty> putExecutorProfile(CoordExecRPC.ExecutorQueryProfile profile) {
-    return Futures.transform(tunnel.sendNodeQueryProfile(profile),
-      ack -> Empty.getDefaultInstance(),
-      ForkJoinPool.commonPool());
+    return Futures.transform(
+        tunnel.sendNodeQueryProfile(profile),
+        ack -> Empty.getDefaultInstance(),
+        ForkJoinPool.commonPool());
   }
 }

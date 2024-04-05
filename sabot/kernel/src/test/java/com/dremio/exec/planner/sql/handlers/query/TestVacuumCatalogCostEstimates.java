@@ -22,8 +22,9 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 
+import com.dremio.exec.catalog.VacuumOptions;
+import com.dremio.exec.planner.cost.iceberg.IcebergCostEstimates;
 import java.time.Instant;
-
 import org.junit.Test;
 import org.projectnessie.client.api.GetAllReferencesBuilder;
 import org.projectnessie.client.api.NessieApiV2;
@@ -36,12 +37,7 @@ import org.projectnessie.model.ImmutableReferencesResponse;
 import org.projectnessie.model.NessieConfiguration;
 import org.projectnessie.model.ReferencesResponse;
 
-import com.dremio.exec.catalog.VacuumOptions;
-import com.dremio.exec.planner.cost.iceberg.IcebergCostEstimates;
-
-/**
- * Tests for {@link VacuumCatalogCostEstimates}
- */
+/** Tests for {@link VacuumCatalogCostEstimates} */
 public class TestVacuumCatalogCostEstimates {
 
   @Test
@@ -58,25 +54,31 @@ public class TestVacuumCatalogCostEstimates {
     doReturn(refs).when(nessieApi).getAllReferences();
     doReturn(refs).when(refs).fetch(FetchOption.ALL);
 
-    IcebergCostEstimates costEstimates = VacuumCatalogCostEstimates.find(nessieApi, vacuumCatalogOptions);
+    IcebergCostEstimates costEstimates =
+        VacuumCatalogCostEstimates.find(nessieApi, vacuumCatalogOptions);
 
     long estimatedSnapshots = commitsPerBranch * numRefs;
     long estimatedManifests = estimatedSnapshots * DEFAULT_MANIFESTS_PER_SNAPSHOT;
     long estimatedDataFiles = estimatedSnapshots * ESTIMATED_RECORDS_PER_MANIFEST;
-    long estimatedTotalRows = estimatedSnapshots + estimatedManifests + estimatedDataFiles + (estimatedSnapshots * 2);
+    long estimatedTotalRows =
+        estimatedSnapshots + estimatedManifests + estimatedDataFiles + (estimatedSnapshots * 2);
 
-    assertThat(costEstimates).extracting(IcebergCostEstimates::getSnapshotsCount,
-        IcebergCostEstimates::getManifestFileEstimatedCount,
-        IcebergCostEstimates::getDataFileEstimatedCount,
-        IcebergCostEstimates::getEstimatedRows)
-      .containsExactly(estimatedSnapshots, estimatedManifests, estimatedDataFiles, estimatedTotalRows);
+    assertThat(costEstimates)
+        .extracting(
+            IcebergCostEstimates::getSnapshotsCount,
+            IcebergCostEstimates::getManifestFileEstimatedCount,
+            IcebergCostEstimates::getDataFileEstimatedCount,
+            IcebergCostEstimates::getEstimatedRows)
+        .containsExactly(
+            estimatedSnapshots, estimatedManifests, estimatedDataFiles, estimatedTotalRows);
   }
 
   @Test
   public void testNoCommitsLive() {
     long cutOff = Instant.now().minusSeconds(5).toEpochMilli();
     int retainLast = 2;
-    VacuumOptions vacuumCatalogOptions = new VacuumOptions(true, true, cutOff, retainLast, null, null);
+    VacuumOptions vacuumCatalogOptions =
+        new VacuumOptions(true, true, cutOff, retainLast, null, null);
     long commitsPerBranch = 100L;
     long numRefs = 1L;
 
@@ -87,25 +89,31 @@ public class TestVacuumCatalogCostEstimates {
     doReturn(refs).when(nessieApi).getAllReferences();
     doReturn(refs).when(refs).fetch(FetchOption.ALL);
 
-    IcebergCostEstimates costEstimates = VacuumCatalogCostEstimates.find(nessieApi, vacuumCatalogOptions);
+    IcebergCostEstimates costEstimates =
+        VacuumCatalogCostEstimates.find(nessieApi, vacuumCatalogOptions);
 
     long estimatedSnapshots = retainLast * numRefs; // No commit is live, just follow retain last
     long estimatedManifests = estimatedSnapshots * DEFAULT_MANIFESTS_PER_SNAPSHOT;
     long estimatedDataFiles = estimatedSnapshots * ESTIMATED_RECORDS_PER_MANIFEST;
-    long estimatedTotalRows = estimatedSnapshots + estimatedManifests + estimatedDataFiles + (estimatedSnapshots * 2);
+    long estimatedTotalRows =
+        estimatedSnapshots + estimatedManifests + estimatedDataFiles + (estimatedSnapshots * 2);
 
-    assertThat(costEstimates).extracting(IcebergCostEstimates::getSnapshotsCount,
-        IcebergCostEstimates::getManifestFileEstimatedCount,
-        IcebergCostEstimates::getDataFileEstimatedCount,
-        IcebergCostEstimates::getEstimatedRows)
-      .containsExactly(estimatedSnapshots, estimatedManifests, estimatedDataFiles, estimatedTotalRows);
+    assertThat(costEstimates)
+        .extracting(
+            IcebergCostEstimates::getSnapshotsCount,
+            IcebergCostEstimates::getManifestFileEstimatedCount,
+            IcebergCostEstimates::getDataFileEstimatedCount,
+            IcebergCostEstimates::getEstimatedRows)
+        .containsExactly(
+            estimatedSnapshots, estimatedManifests, estimatedDataFiles, estimatedTotalRows);
   }
 
   @Test
   public void testWithCutoffBetweenCommits() {
     long cutOff = Instant.now().minusSeconds(500).toEpochMilli();
     int retainLast = 1;
-    VacuumOptions vacuumCatalogOptions = new VacuumOptions(true, true, cutOff, retainLast, null, null);
+    VacuumOptions vacuumCatalogOptions =
+        new VacuumOptions(true, true, cutOff, retainLast, null, null);
     long commitsPerBranch = 100L;
     long numRefs = 1L;
 
@@ -116,26 +124,32 @@ public class TestVacuumCatalogCostEstimates {
     doReturn(refs).when(nessieApi).getAllReferences();
     doReturn(refs).when(refs).fetch(FetchOption.ALL);
 
-    IcebergCostEstimates costEstimates = VacuumCatalogCostEstimates.find(nessieApi, vacuumCatalogOptions);
+    IcebergCostEstimates costEstimates =
+        VacuumCatalogCostEstimates.find(nessieApi, vacuumCatalogOptions);
 
     long liveCommits = commitsPerBranch / 2; // half the commits are estimated to be live
     long estimatedSnapshots = liveCommits * numRefs; // No commit is live, just follow retain last
     long estimatedManifests = estimatedSnapshots * DEFAULT_MANIFESTS_PER_SNAPSHOT;
     long estimatedDataFiles = estimatedSnapshots * ESTIMATED_RECORDS_PER_MANIFEST;
-    long estimatedTotalRows = estimatedSnapshots + estimatedManifests + estimatedDataFiles + (estimatedSnapshots * 2);
+    long estimatedTotalRows =
+        estimatedSnapshots + estimatedManifests + estimatedDataFiles + (estimatedSnapshots * 2);
 
-    assertThat(costEstimates).extracting(IcebergCostEstimates::getSnapshotsCount,
-        IcebergCostEstimates::getManifestFileEstimatedCount,
-        IcebergCostEstimates::getDataFileEstimatedCount,
-        IcebergCostEstimates::getEstimatedRows)
-      .containsExactly(estimatedSnapshots, estimatedManifests, estimatedDataFiles, estimatedTotalRows);
+    assertThat(costEstimates)
+        .extracting(
+            IcebergCostEstimates::getSnapshotsCount,
+            IcebergCostEstimates::getManifestFileEstimatedCount,
+            IcebergCostEstimates::getDataFileEstimatedCount,
+            IcebergCostEstimates::getEstimatedRows)
+        .containsExactly(
+            estimatedSnapshots, estimatedManifests, estimatedDataFiles, estimatedTotalRows);
   }
 
   @Test
   public void testMultiBranchEstimates() {
     long cutOff = Instant.now().minusSeconds(500).toEpochMilli();
     int retainLast = 1;
-    VacuumOptions vacuumCatalogOptions = new VacuumOptions(true, true, cutOff, retainLast, null, null);
+    VacuumOptions vacuumCatalogOptions =
+        new VacuumOptions(true, true, cutOff, retainLast, null, null);
     long commitsPerBranch = 100L;
     long numRefs = 20L;
 
@@ -146,19 +160,24 @@ public class TestVacuumCatalogCostEstimates {
     doReturn(refs).when(nessieApi).getAllReferences();
     doReturn(refs).when(refs).fetch(FetchOption.ALL);
 
-    IcebergCostEstimates costEstimates = VacuumCatalogCostEstimates.find(nessieApi, vacuumCatalogOptions);
+    IcebergCostEstimates costEstimates =
+        VacuumCatalogCostEstimates.find(nessieApi, vacuumCatalogOptions);
 
     long liveCommits = (commitsPerBranch / 2); // half the commits are estimated to be live
     long estimatedSnapshots = liveCommits * numRefs; // No commit is live, just follow retain last
     long estimatedManifests = estimatedSnapshots * DEFAULT_MANIFESTS_PER_SNAPSHOT;
     long estimatedDataFiles = estimatedSnapshots * ESTIMATED_RECORDS_PER_MANIFEST;
-    long estimatedTotalRows = estimatedSnapshots + estimatedManifests + estimatedDataFiles + (estimatedSnapshots * 2);
+    long estimatedTotalRows =
+        estimatedSnapshots + estimatedManifests + estimatedDataFiles + (estimatedSnapshots * 2);
 
-    assertThat(costEstimates).extracting(IcebergCostEstimates::getSnapshotsCount,
-        IcebergCostEstimates::getManifestFileEstimatedCount,
-        IcebergCostEstimates::getDataFileEstimatedCount,
-        IcebergCostEstimates::getEstimatedRows)
-      .containsExactly(estimatedSnapshots, estimatedManifests, estimatedDataFiles, estimatedTotalRows);
+    assertThat(costEstimates)
+        .extracting(
+            IcebergCostEstimates::getSnapshotsCount,
+            IcebergCostEstimates::getManifestFileEstimatedCount,
+            IcebergCostEstimates::getDataFileEstimatedCount,
+            IcebergCostEstimates::getEstimatedRows)
+        .containsExactly(
+            estimatedSnapshots, estimatedManifests, estimatedDataFiles, estimatedTotalRows);
   }
 
   @Test
@@ -172,14 +191,19 @@ public class TestVacuumCatalogCostEstimates {
 
     doThrow(new RuntimeException("failure test")).when(nessieApi).getAllReferences();
 
-    IcebergCostEstimates costEstimates = VacuumCatalogCostEstimates.find(nessieApi, vacuumCatalogOptions);
-    assertThat(costEstimates).extracting(IcebergCostEstimates::getSnapshotsCount).isEqualTo(1_000_000L);
+    IcebergCostEstimates costEstimates =
+        VacuumCatalogCostEstimates.find(nessieApi, vacuumCatalogOptions);
+    assertThat(costEstimates)
+        .extracting(IcebergCostEstimates::getSnapshotsCount)
+        .isEqualTo(1_000_000L);
   }
 
   private NessieConfiguration config(Instant initial) {
     return ImmutableNessieConfiguration.builder()
-      .maxSupportedApiVersion(63).minSupportedApiVersion(63)
-      .oldestPossibleCommitTimestamp(initial).build();
+        .maxSupportedApiVersion(63)
+        .minSupportedApiVersion(63)
+        .oldestPossibleCommitTimestamp(initial)
+        .build();
   }
 
   private GetAllReferencesBuilder refs(long numRefs, long totalCommits, Instant headTime) {
@@ -187,9 +211,15 @@ public class TestVacuumCatalogCostEstimates {
     ImmutableReferencesResponse.Builder responseBuilder = ReferencesResponse.builder();
 
     for (int i = 0; i < numRefs; i++) {
-      responseBuilder.addReferences(Branch.of("main", "3647c32b9e03ef522885baeb07b30a81dbe3a586",
-        ImmutableReferenceMetadata.builder().numTotalCommits(totalCommits)
-          .commitMetaOfHEAD(CommitMeta.builder().commitTime(headTime).message("Put key").build()).build()));
+      responseBuilder.addReferences(
+          Branch.of(
+              "main",
+              "3647c32b9e03ef522885baeb07b30a81dbe3a586",
+              ImmutableReferenceMetadata.builder()
+                  .numTotalCommits(totalCommits)
+                  .commitMetaOfHEAD(
+                      CommitMeta.builder().commitTime(headTime).message("Put key").build())
+                  .build()));
     }
     ImmutableReferencesResponse response = responseBuilder.build();
     doReturn(response).when(getAllReferencesBuilder).get();

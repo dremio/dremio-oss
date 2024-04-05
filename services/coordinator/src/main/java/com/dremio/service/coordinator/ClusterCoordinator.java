@@ -15,19 +15,17 @@
  */
 package com.dremio.service.coordinator;
 
+import com.dremio.exec.proto.CoordinationProtos.Roles;
 import java.util.EnumSet;
 import java.util.Set;
 
-import com.dremio.exec.proto.CoordinationProtos.Roles;
-
 /**
- * Pluggable interface built to manage cluster coordination. Allows SabotNode or DremioClient to register its capabilities
- * as well as understand other node's existence and capabilities.
- **/
-public abstract class ClusterCoordinator implements ClusterServiceSetManager, ClusterElectionManager {
-  /**
-   * Cluster coordinator options
-   */
+ * Pluggable interface built to manage cluster coordination. Allows SabotNode or DremioClient to
+ * register its capabilities as well as understand other node's existence and capabilities.
+ */
+public abstract class ClusterCoordinator
+    implements ClusterServiceSetManager, ClusterElectionManager {
+  /** Cluster coordinator options */
   public static final class Options {
     private Options() {}
 
@@ -40,19 +38,21 @@ public abstract class ClusterCoordinator implements ClusterServiceSetManager, Cl
     public static final String ZK_SESSION_TIMEOUT = "dremio.exec.zk.session.timeout";
     public static final String ZK_ELECTION_TIMEOUT = "dremio.exec.zk.election.timeout";
     public static final String ZK_ELECTION_POLLING = "dremio.exec.zk.election.polling";
-    public static final String ZK_ELECTION_DELAY_FOR_LEADER_CALLBACK = "dremio.exec.zk.election.delay_for_leader_callback";
-    public static final String ZK_RETRY_UNLIMITED ="dremio.exec.zk.retry.unlimited";
+    public static final String ZK_ELECTION_DELAY_FOR_LEADER_CALLBACK =
+        "dremio.exec.zk.election.delay_for_leader_callback";
+    public static final String ZK_RETRY_UNLIMITED = "dremio.exec.zk.retry.unlimited";
     public static final String ZK_RETRY_LIMIT = "dremio.exec.zk.retry.limit";
     public static final String ZK_INITIAL_TIMEOUT_MS = "dremio.exec.zk.retry.initial_timeout_ms";
-    public static final String ZK_CONNECTION_HANDLE_ENABLED = "dremio.exec.zk.connection_handle.enabled";
+    public static final String ZK_CONNECTION_HANDLE_ENABLED =
+        "dremio.exec.zk.connection_handle.enabled";
     public static final String ZK_SUPERVISOR_INTERVAL_MS = "dremio.exec.zk.supervisor.interval_ms";
-    public static final String ZK_SUPERVISOR_READ_TIMEOUT_MS = "dremio.exec.zk.supervisor.read_timeout_ms";
-    public static final String ZK_SUPERVISOR_MAX_FAILURES = "dremio.exec.zk.supervisor.max_failures";
+    public static final String ZK_SUPERVISOR_READ_TIMEOUT_MS =
+        "dremio.exec.zk.supervisor.read_timeout_ms";
+    public static final String ZK_SUPERVISOR_MAX_FAILURES =
+        "dremio.exec.zk.supervisor.max_failures";
   }
 
-  /**
-   * Node roles for cluster coordination
-   */
+  /** Node roles for cluster coordination */
   public enum Role {
     COORDINATOR {
       @Override
@@ -96,7 +96,7 @@ public abstract class ClusterCoordinator implements ClusterServiceSetManager, Cl
 
     public static Set<Role> fromEndpointRoles(Roles endpointRoles) {
       EnumSet<Role> roles = EnumSet.noneOf(Role.class);
-      for(Role role: values()) {
+      for (Role role : values()) {
         if (role.contains(endpointRoles)) {
           roles.add(role);
         }
@@ -107,7 +107,7 @@ public abstract class ClusterCoordinator implements ClusterServiceSetManager, Cl
 
     public static Roles toEndpointRoles(Set<Role> roles) {
       Roles.Builder builder = Roles.newBuilder();
-      for(Role role: Role.values()) {
+      for (Role role : Role.values()) {
         role.updateEndpointRoles(builder, roles.contains(role));
       }
 
@@ -127,6 +127,7 @@ public abstract class ClusterCoordinator implements ClusterServiceSetManager, Cl
 
   /**
    * Get or create a {@link ServiceSet} for the given service name
+   *
    * @param serviceName
    * @return
    */
@@ -135,14 +136,16 @@ public abstract class ClusterCoordinator implements ClusterServiceSetManager, Cl
 
   /**
    * Delete a {@link ServiceSet} for the given service name
+   *
    * @param serviceName
    */
   @Override
   public abstract void deleteServiceSet(String serviceName);
 
   /**
-   * Get the set of service names registered in the ClusterCoordinator ServiceSet.
-   * NOTE: There is no guarantee of return object consistency depending on how Dremio is tracking the registered serivces.
+   * Get the set of service names registered in the ClusterCoordinator ServiceSet. NOTE: There is no
+   * guarantee of return object consistency depending on how Dremio is tracking the registered
+   * serivces.
    *
    * @return An Iterable of service names.
    */

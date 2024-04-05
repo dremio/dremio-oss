@@ -21,7 +21,8 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * Initial response to dataset preview request. Contains initial data and pagination URL to fetch remaining data.
+ * Initial response to dataset preview request. Contains initial data and pagination URL to fetch
+ * remaining data.
  */
 public class InitialDataPreviewResponse {
 
@@ -42,6 +43,7 @@ public class InitialDataPreviewResponse {
 
   /**
    * Get the initial data returned with the response.
+   *
    * @return
    */
   public JobDataFragment getData() {
@@ -50,6 +52,7 @@ public class InitialDataPreviewResponse {
 
   /**
    * Get the pagination url to fetch remaining data from dataset.
+   *
    * @return
    */
   public String getPaginationUrl() {

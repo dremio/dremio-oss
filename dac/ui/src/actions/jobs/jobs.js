@@ -54,7 +54,7 @@ export const updateQueryState = (queryState) => {
   return (dispatch, getStore) => {
     const location = getStore().routing.locationBeforeTransitions;
     return dispatch(
-      replace({ ...location, query: renderQueryState(queryState) })
+      replace({ ...location, query: renderQueryState(queryState) }),
     );
   };
 };
@@ -161,7 +161,7 @@ export function loadJobDetails(jobId, viewId) {
         schemaUtils.getSuccessActionTypeWithSchema(
           JOB_DETAILS_SUCCESS,
           jobDetailsSchema,
-          meta
+          meta,
         ),
         { type: JOB_DETAILS_FAILURE, meta },
       ],
@@ -217,7 +217,7 @@ export function loadReflectionJobDetails(jobId, reflectionId, viewId) {
         schemaUtils.getSuccessActionTypeWithSchema(
           REFLECTION_JOB_DETAILS_SUCCESS,
           jobDetailsSchema,
-          meta
+          meta,
         ),
         { type: REFLECTION_JOB_DETAILS_FAILURE, meta },
       ],
@@ -247,7 +247,7 @@ export const cancelJobAndShowNotification = (jobId) => (dispatch) => {
   return dispatch(cancelJob(jobId)).then((action) => {
     if (action.payload.response && action.payload.response.errorMessage) {
       return dispatch(
-        addNotification(action.payload.response.errorMessage, "error")
+        addNotification(action.payload.response.errorMessage, "error"),
       );
     } else {
       return dispatch(addNotification(action.payload.message, "success"));
@@ -283,7 +283,7 @@ const cancelReflectionJob = (jobId, reflectionId) => {
 export const cancelReflectionJobAndShowNotification =
   (jobId, reflectionId) => (dispatch) => {
     return dispatch(cancelReflectionJob(jobId, reflectionId)).then((action) =>
-      dispatch(addNotification(action.payload.message, "success"))
+      dispatch(addNotification(action.payload.message, "success")),
     );
   };
 
@@ -315,7 +315,7 @@ function fetchAskGnarly(jobId) {
                   message:
                     payload.url ||
                     laDeprecated(
-                      "Upload failed. Please check logs for details."
+                      "Upload failed. Please check logs for details.",
                     ),
                   level: "error",
                 };
@@ -331,7 +331,7 @@ function fetchAskGnarly(jobId) {
           meta: {
             notification: {
               message: laDeprecated(
-                "There was an error uploading. Please check logs for details."
+                "There was an error uploading. Please check logs for details.",
               ),
               level: "error",
             },
@@ -373,7 +373,7 @@ export function showJobProfile(profileUrl) {
               modal: "JobProfileModal",
               profileUrl: apiCall.toString(),
             },
-          })
+          }),
         );
       })
       .catch((error) => error);
